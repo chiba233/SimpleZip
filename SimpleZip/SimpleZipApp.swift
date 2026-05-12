@@ -19,6 +19,7 @@ struct SimpleZipApp: App {
         }
         .commands {
             ArchiveFileCommands()
+            ToolsCommands()
 
             CommandGroup(replacing: .appInfo) {
                 Button(L10n.text("menu.aboutSimpleZip")) {
@@ -221,5 +222,19 @@ struct ArchiveFileCommands: Commands {
     private var canManageSelectedFiles: Bool {
         guard let model, case .folder = model.mode else { return false }
         return !model.selectedFileItems.isEmpty
+    }
+}
+
+struct ToolsCommands: Commands {
+    @FocusedObject private var model: ArchiveBrowserModel?
+
+    var body: some Commands {
+        CommandMenu(L10n.text("menu.tools")) {
+            Button(L10n.text("button.benchmark")) {
+                model?.showSevenZipBenchmarkOptions()
+            }
+            .keyboardShortcut("b", modifiers: [.command, .shift])
+            .disabled(model == nil)
+        }
     }
 }

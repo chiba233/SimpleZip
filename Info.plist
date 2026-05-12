@@ -55,5 +55,7 @@
 	<string>public.app-category.utilities</string>
 	<key>NSHumanReadableCopyright</key>
 	<string></string>
+	<key>NSApplicationIconFile</key>
+	<string>AppIcon</string>
 </dict>
 </plist>

@@ -26,10 +26,14 @@ enum AboutPanel {
             ]
         )
 
-        NSApplication.shared.orderFrontStandardAboutPanel(options: [
+        var options: [NSApplication.AboutPanelOptionKey: Any] = [
             .applicationName: "SimpleZip",
             .credits: credits
-        ])
+        ]
+        if let icon = NSApp.applicationIconImage {
+            options[.applicationIcon] = icon
+        }
+        NSApplication.shared.orderFrontStandardAboutPanel(options: options)
     }
 
     static func openProjectPage() {

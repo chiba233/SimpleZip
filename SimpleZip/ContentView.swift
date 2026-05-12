@@ -62,6 +62,22 @@ struct ContentView: View {
                 model.hashReport = nil
             }
         }
+        .sheet(item: $model.benchmarkRequest) { request in
+            BenchmarkOptionsView(request: request) { confirmedRequest in
+                model.benchmarkRequest = nil
+                model.runSevenZipBenchmark(confirmedRequest)
+            } cancel: {
+                model.benchmarkRequest = nil
+            }
+        }
+        .sheet(item: $model.benchmarkSession) { session in
+            BenchmarkRunView(session: session) {
+                if session.isRunning {
+                    model.cancelCurrentOperation()
+                }
+                model.benchmarkSession = nil
+            }
+        }
         .sheet(item: $model.archiveCreationRequest) { request in
             ArchiveCreationOptionsView(request: request) { confirmedRequest in
                 model.archiveCreationRequest = nil

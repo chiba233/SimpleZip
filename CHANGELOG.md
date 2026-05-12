@@ -4,6 +4,13 @@
 
 ## Unreleased
 
+- **Assets**
+  - Added a generated macOS app icon set from the provided project artwork and wired it into `AppIcon.appiconset`.
+  - Swapped in a new icon source, removed the outer checkerboard background, cropped away the excess blank margins around the artwork, and regenerated the app icon set plus `AppIcon.icns`.
+  - The About panel now uses the real application icon instead of the template fallback.
+  - Refined the icon masking so the crop follows the main icon body without cutting into the artwork inside it.
+  - Regenerated the full app icon set and bundled `AppIcon.icns` from the latest desktop artwork by stripping the edge-connected dark background into transparency.
+  - Scaled the icon artwork back into a macOS-style safe area so it no longer appears visually larger than neighboring apps in the Dock and Finder.
 - **Archive browsing**
   - Archive directories are now presented as real navigable folders instead of flat path rows.
   - Synthetic directory nodes are generated when an archive does not explicitly store directory entries.
@@ -34,6 +41,7 @@
   - Stale archive and tag loading tasks are now cancelled before newer results update the UI.
   - Drag-and-drop URL collection and external file open queuing are now synchronized to avoid callback races.
   - Added service-layer regression tests for archive list parsing, exclude pattern generation, and selected-entry expansion.
+  - Cleared Swift concurrency and optional-handling build warnings in archive parsing, progress parsing, and About panel icon wiring.
 - **File browser**
   - Sidebar now includes Finder-like Favorites, Frequently Used folders, Tags, and pinned paths.
   - Tagged files can be opened as an in-app virtual file list backed by Spotlight search.
@@ -55,6 +63,7 @@
 - **Menus**
   - Added functional macOS File menu actions for opening, creating, extracting, testing, hashing, revealing, refreshing, and navigating.
   - Added Edit menu commands that use file operations when the file table is active and fall back to native text editing actions elsewhere.
+  - Moved the refresh button next to the up-navigation button so both directory navigation actions stay together.
 - **Settings**
   - Settings are now separated into General, Archive, Browser, File Associations, and Columns tabs.
   - Added language selection.
@@ -67,6 +76,7 @@
   - Added bundled 7-Zip license and readme files to app resources.
 - **Localization**
   - Added English, Simplified Chinese, Traditional Chinese, Japanese, and Thai strings.
+  - Added Spanish, French, German, Korean, and Russian localizations, and exposed them in the in-app language picker.
 - **Docs**
   - Added README, Chinese guide, changelog, contribution guide, and license files.
 

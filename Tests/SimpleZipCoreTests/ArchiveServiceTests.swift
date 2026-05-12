@@ -108,4 +108,64 @@ struct ArchiveServiceTests {
 
         #expect(expanded == ["dir/a.txt", "dir/sub/b.txt"])
     }
+
+    @Test
+    func sevenZipCreateArgumentsIncludeAdvancedOptions() throws {
+        var options = ArchiveCreationOptions()
+        options.format = .sevenZip
+        options.compressionLevel = .maximum
+        options.password = "secret"
+        options.skipDSStore = false
+        options.skipHiddenFiles = false
+        options.customExcludes = "*.tmp"
+        options.sevenZipMethod = .ppmd
+        options.sevenZipThreadCount = 4
+        options.sevenZipSolidArchive = false
+        options.sevenZipEncryptFileNames = false
+        options.sevenZipVolumeSize = "256M"
+
+        let arguments = try ArchiveService.sevenZipCreateArguments(
+            destination: URL(fileURLWithPath: "/tmp/archive.7z"),
+            relativeNames: ["alpha", "beta"],
+            options: options
+        )
+
+        #expect(arguments.contains("-mx=9"))
+        #expect(arguments.contains("-p"))
+        #expect(arguments.contains("-mhe=off"))
+        #expect(arguments.contains("-ms=off"))
+        #expect(arguments.contains("-m0=PPMd"))
+        #expect(arguments.contains("-mmt=4"))
+        #expect(arguments.contains("-v256m"))
+        #expect(arguments.contains("-xr!*.tmp"))
+    }
+
+    @Test
+    func parseSevenZipBenchmarkCapturesSummaryMetrics() {
+        let output = """
+        RAM usage:   1779 MB,  # Benchmark threads:      8
+
+                               Compressing  |                  Decompressing
+        Dict     Speed Usage    R/U Rating  |      Speed Usage    R/U Rating
+                 KiB/s     %   MIPS   MIPS  |      KiB/s     %   MIPS   MIPS
+
+        22:      48478   562   8387  47160  |     443614   559   6764  37828
+        23:      35313   466   7717  35981  |     382130   493   6708  33055
+        ----------------------------------  | ------------------------------
+        Avr:     39370   508   8093  41167  |     402139   530   6601  35015
+        Tot:             519   7347  38091
+        """
+
+        let report = ArchiveService.parseSevenZipBenchmark(
+            output,
+            backendDescription: "Bundled 7-Zip",
+            options: SevenZipBenchmarkOptions(dictionarySizeMB: 32, threadCount: 4)
+        )
+
+        #expect(report.backendDescription == "Bundled 7-Zip")
+        #expect(report.benchmarkThreads == 8)
+        #expect(report.compressionAverage?.speedKiBPerSecond == 39370)
+        #expect(report.decompressionAverage?.ratingMips == 6601)
+        #expect(report.totalRatingMips == 38091)
+    }
 }

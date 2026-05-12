@@ -11,6 +11,11 @@ import Foundation
 enum AppLanguage: String, CaseIterable, Identifiable {
     case system
     case english
+    case spanish
+    case french
+    case german
+    case korean
+    case russian
     case simplifiedChinese
     case traditionalChinese
     case japanese
@@ -24,6 +29,16 @@ enum AppLanguage: String, CaseIterable, Identifiable {
             return nil
         case .english:
             return "en"
+        case .spanish:
+            return "es"
+        case .french:
+            return "fr"
+        case .german:
+            return "de"
+        case .korean:
+            return "ko"
+        case .russian:
+            return "ru"
         case .simplifiedChinese:
             return "zh-Hans"
         case .traditionalChinese:
@@ -41,6 +56,16 @@ enum AppLanguage: String, CaseIterable, Identifiable {
             return nil
         case .english:
             return "en"
+        case .spanish:
+            return "es"
+        case .french:
+            return "fr"
+        case .german:
+            return "de"
+        case .korean:
+            return "ko"
+        case .russian:
+            return "ru"
         case .simplifiedChinese:
             return "zh-Hans"
         case .traditionalChinese:
@@ -58,6 +83,16 @@ enum AppLanguage: String, CaseIterable, Identifiable {
             return L10n.text("settings.language.system")
         case .english:
             return L10n.text("settings.language.en")
+        case .spanish:
+            return L10n.text("settings.language.es")
+        case .french:
+            return L10n.text("settings.language.fr")
+        case .german:
+            return L10n.text("settings.language.de")
+        case .korean:
+            return L10n.text("settings.language.ko")
+        case .russian:
+            return L10n.text("settings.language.ru")
         case .simplifiedChinese:
             return L10n.text("settings.language.zhHans")
         case .traditionalChinese:

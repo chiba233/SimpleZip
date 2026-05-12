@@ -10,6 +10,12 @@ import Foundation
 
 /// AppKit 代理：接收 Finder 或“打开方式”传入的文件路径。
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        if let icon = NSImage(named: NSImage.Name("AppIcon")) {
+            NSApp.applicationIconImage = icon
+        }
+    }
+
     func application(_ sender: NSApplication, openFile filename: String) -> Bool {
         ExternalFileOpenQueue.shared.enqueue(URL(fileURLWithPath: filename))
         return true

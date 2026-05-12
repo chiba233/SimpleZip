@@ -22,6 +22,8 @@ final class ArchiveBrowserModel: ObservableObject {
     @Published var isWorking = false
     @Published var errorMessage: String?
     @Published var hashReport: HashReport?
+    @Published var benchmarkRequest: SevenZipBenchmarkRequest?
+    @Published var benchmarkSession: SevenZipBenchmarkSession?
     @Published var archiveCreationRequest: ArchiveCreationRequest?
     @Published var extractArchiveRequest: ExtractArchiveRequest?
     @Published var extractSelectionRequest: ExtractSelectionRequest?
@@ -443,6 +445,37 @@ final class ArchiveBrowserModel: ObservableObject {
                 try await ArchiveService.test(archiveURL)
             }
             status = L10n.text("status.archiveTested")
+        }
+    }
+
+    func showSevenZipBenchmarkOptions() {
+        benchmarkRequest = SevenZipBenchmarkRequest()
+    }
+
+    func runSevenZipBenchmark(_ request: SevenZipBenchmarkRequest) {
+        let session = SevenZipBenchmarkSession(options: request.options)
+        benchmarkSession = session
+        startOperationTask(cancellable: true) { [weak self] in
+            guard let self else { return }
+            await runArchiveTask(
+                L10n.text("status.benchmarking"),
+                initialProgress: ArchiveProgressState(fraction: nil, currentFile: nil, statusText: L10n.text("status.benchmarking"))
+            ) { _ in
+                let report = try await ArchiveService.benchmark(options: request.options) { report, output in
+                    Task { @MainActor [weak session] in
+                        session?.report = report
+                        session?.rawOutput = output
+                    }
+                }
+                await MainActor.run {
+                    session.report = report
+                    session.rawOutput = report.output
+                }
+            }
+            session.finishedAt = Date()
+            if session.report != nil {
+                status = L10n.text("status.benchmarkReady")
+            }
         }
     }
 
@@ -969,10 +1002,14 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     /// 包装耗时归档任务，统一处理进度状态、错误提示和结束状态。
-    private func runArchiveTask(_ workingStatus: String, operation: @escaping (@escaping @Sendable (ArchiveProgressState) -> Void) async throws -> Void) async {
+    private func runArchiveTask(
+        _ workingStatus: String,
+        initialProgress: ArchiveProgressState = ArchiveProgressState(fraction: 0, currentFile: nil),
+        operation: @escaping (@escaping @Sendable (ArchiveProgressState) -> Void) async throws -> Void
+    ) async {
         isWorking = true
         errorMessage = nil
-        operationProgress = ArchiveProgressState(fraction: 0, currentFile: nil)
+        operationProgress = initialProgress
         status = workingStatus
         defer {
             isWorking = false

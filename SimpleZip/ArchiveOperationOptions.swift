@@ -5,6 +5,7 @@
 //  Created by HoshinoYumeka on 2026/05/12.
 //
 
+import Combine
 import Foundation
 
 /// 创建压缩包时可选择的格式。
@@ -49,6 +50,56 @@ enum CompressionLevel: Int, CaseIterable, Identifiable {
     }
 }
 
+enum SevenZipCompressionMethod: String, CaseIterable, Identifiable {
+    case automatic
+    case lzma2
+    case lzma
+    case ppmd
+    case bzip2
+    case deflate
+    case copy
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .automatic:
+            return L10n.text("archive.7z.method.automatic")
+        case .lzma2:
+            return "LZMA2"
+        case .lzma:
+            return "LZMA"
+        case .ppmd:
+            return "PPMd"
+        case .bzip2:
+            return "BZip2"
+        case .deflate:
+            return "Deflate"
+        case .copy:
+            return L10n.text("archive.7z.method.copy")
+        }
+    }
+
+    var argumentValue: String? {
+        switch self {
+        case .automatic:
+            return nil
+        case .lzma2:
+            return "LZMA2"
+        case .lzma:
+            return "LZMA"
+        case .ppmd:
+            return "PPMd"
+        case .bzip2:
+            return "BZip2"
+        case .deflate:
+            return "Deflate"
+        case .copy:
+            return "Copy"
+        }
+    }
+}
+
 /// 创建压缩包时收集的选项。
 struct ArchiveCreationOptions {
     var format: ArchiveCreateFormat = .zip
@@ -57,6 +108,11 @@ struct ArchiveCreationOptions {
     var skipDSStore = true
     var skipHiddenFiles = true
     var customExcludes = ""
+    var sevenZipMethod: SevenZipCompressionMethod = .automatic
+    var sevenZipThreadCount = 0
+    var sevenZipSolidArchive = true
+    var sevenZipEncryptFileNames = true
+    var sevenZipVolumeSize = ""
 }
 
 /// 创建压缩包的待确认请求。
@@ -108,4 +164,77 @@ struct ArchiveProgressState {
     var fraction: Double?
     var currentFile: String?
     var statusText: String?
+}
+
+struct SevenZipBenchmarkMetrics {
+    let speedKiBPerSecond: Int
+    let usagePercent: Int
+    let ratingMips: Int
+    let usageRatingMips: Int
+}
+
+struct SevenZipBenchmarkOptions {
+    var dictionarySizeMB = 32
+    var threadCount = 0
+}
+
+struct SevenZipBenchmarkRequest: Identifiable {
+    let id = UUID()
+    var options = SevenZipBenchmarkOptions()
+}
+
+@MainActor
+final class SevenZipBenchmarkSession: ObservableObject, Identifiable {
+    let id = UUID()
+    let options: SevenZipBenchmarkOptions
+    let startedAt = Date()
+    @Published var finishedAt: Date?
+    @Published var report: SevenZipBenchmarkReport?
+    @Published var rawOutput = ""
+
+    init(options: SevenZipBenchmarkOptions) {
+        self.options = options
+    }
+
+    var isRunning: Bool {
+        finishedAt == nil
+    }
+}
+
+struct SevenZipBenchmarkDictionaryRow: Identifiable {
+    let id = UUID()
+    let dictionaryBits: Int
+    let compression: SevenZipBenchmarkMetrics
+    let decompression: SevenZipBenchmarkMetrics
+}
+
+struct SevenZipCPUFrequencySample: Identifiable {
+    let id = UUID()
+    let threadLabel: String
+    let readings: [String]
+}
+
+struct SevenZipBenchmarkReport: Identifiable {
+    let id = UUID()
+    let backendDescription: String
+    let options: SevenZipBenchmarkOptions
+    let compilerDescription: String?
+    let systemDescription: String?
+    let cpuDescription: String?
+    let pageSizeText: String?
+    let ramUsageMB: Int?
+    let ramSizeMB: Int?
+    let hardwareThreads: Int?
+    let benchmarkThreads: Int?
+    let frequencySamples: [SevenZipCPUFrequencySample]
+    let dictionaryRows: [SevenZipBenchmarkDictionaryRow]
+    let compressionAverage: SevenZipBenchmarkMetrics?
+    let decompressionAverage: SevenZipBenchmarkMetrics?
+    let totalRatingMips: Int?
+    let totalUsagePercent: Int?
+    let kernelTimeSeconds: Double?
+    let userTimeSeconds: Double?
+    let processTimeSeconds: Double?
+    let globalTimeSeconds: Double?
+    let output: String
 }

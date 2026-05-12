@@ -14,6 +14,18 @@ enum ArchiveService {
     static let supportedExtensions = ["zip", "7z", "tar", "gz", "tgz", "bz2", "xz"]
     static let supportedArchiveTypes: [UTType] = supportedExtensions.compactMap { UTType(filenameExtension: $0) }
     private static let activeProcessRegistry = ActiveProcessRegistry()
+    
+    private final class OutputAccumulator: @unchecked Sendable {
+        private let lock = NSLock()
+        private var value = ""
+        
+        func append(_ chunk: String) -> String {
+            lock.lock()
+            defer { lock.unlock() }
+            value += chunk
+            return value
+        }
+    }
 
     static func contentTypes(for format: ArchiveCreateFormat) -> [UTType] {
         UTType(filenameExtension: format.pathExtension).map { [$0] } ?? []
@@ -58,14 +70,7 @@ enum ArchiveService {
             try await run("/usr/bin/zip", arguments: arguments, currentDirectory: parent, progressParser: parser, inputStrategy: inputStrategy)
         case .sevenZip:
             let tool = try sevenZipTool()
-            var arguments = ["a", "-t7z", "-mx=\(options.compressionLevel.rawValue)", "-bb1", "-bsp1", "-y"]
-            if !options.password.isEmpty {
-                arguments.append("-p")
-                arguments.append("-mhe=on")
-            }
-            arguments.append(contentsOf: sevenZipExcludeArguments(from: options))
-            arguments.append(destination.path)
-            arguments.append(contentsOf: relativeNames)
+            let arguments = try sevenZipCreateArguments(destination: destination, relativeNames: relativeNames, options: options)
             let inputStrategy: ProcessInputStrategy = options.password.isEmpty ? .none : .passwordPrompts([options.password, options.password])
             try await run(tool, arguments: arguments, currentDirectory: parent, progressParser: parser, inputStrategy: inputStrategy)
         }
@@ -143,6 +148,34 @@ enum ArchiveService {
         default:
             throw ArchiveError.unsupportedFormat
         }
+    }
+
+    static func benchmark(
+        options: SevenZipBenchmarkOptions,
+        update: @escaping @Sendable (SevenZipBenchmarkReport, String) -> Void = { _, _ in }
+    ) async throws -> SevenZipBenchmarkReport {
+        let tool = try resolvedSevenZipTool()
+        var arguments = ["b", "-bt", "-md=\(options.dictionarySizeMB)m"]
+        if options.threadCount > 0 {
+            arguments.append("-mmt=\(options.threadCount)")
+        }
+        let outputBuffer = OutputAccumulator()
+        let output = try await runAndCapture(tool.path, arguments: arguments, outputObserver: { chunk in
+            let currentOutput = outputBuffer.append(chunk)
+            update(
+                parseSevenZipBenchmark(
+                    currentOutput,
+                    backendDescription: L10n.format("settings.7zip.resolvedPath", tool.source.title, tool.path),
+                    options: options
+                ),
+                currentOutput
+            )
+        })
+        return parseSevenZipBenchmark(
+            output,
+            backendDescription: L10n.format("settings.7zip.resolvedPath", tool.source.title, tool.path),
+            options: options
+        )
     }
 
     static func list(_ archive: URL) async throws -> [ArchiveItem] {
@@ -298,6 +331,37 @@ enum ArchiveService {
         zipExcludePatterns(from: options).map { "-xr!\($0)" }
     }
 
+    static func sevenZipCreateArguments(destination: URL, relativeNames: [String], options: ArchiveCreationOptions) throws -> [String] {
+        var arguments = ["a", "-t7z", "-mx=\(options.compressionLevel.rawValue)", "-bb1", "-bsp1", "-y"]
+        if !options.password.isEmpty {
+            arguments.append("-p")
+            arguments.append(options.sevenZipEncryptFileNames ? "-mhe=on" : "-mhe=off")
+        }
+        arguments.append("-ms=\(options.sevenZipSolidArchive ? "on" : "off")")
+        if let method = options.sevenZipMethod.argumentValue {
+            arguments.append("-m0=\(method)")
+        }
+        if options.sevenZipThreadCount > 0 {
+            arguments.append("-mmt=\(options.sevenZipThreadCount)")
+        }
+        if let volumeSize = try normalizedSevenZipVolumeSize(from: options.sevenZipVolumeSize) {
+            arguments.append("-v\(volumeSize)")
+        }
+        arguments.append(contentsOf: sevenZipExcludeArguments(from: options))
+        arguments.append(destination.path)
+        arguments.append(contentsOf: relativeNames)
+        return arguments
+    }
+
+    static func normalizedSevenZipVolumeSize(from text: String) throws -> String? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        guard trimmed.range(of: #"(?i)^\d+[bkmg]?$"#, options: .regularExpression) != nil else {
+            throw ArchiveError.invalidSevenZipVolumeSize
+        }
+        return trimmed.lowercased()
+    }
+
     static func customExcludePatterns(from text: String) -> [String] {
         text
             .components(separatedBy: CharacterSet(charactersIn: "\n,"))
@@ -345,7 +409,8 @@ enum ArchiveService {
         arguments: [String],
         currentDirectory: URL? = nil,
         progressParser: ProgressOutputParser? = nil,
-        inputStrategy: ProcessInputStrategy = .none
+        inputStrategy: ProcessInputStrategy = .none,
+        outputObserver: (@Sendable (String) -> Void)? = nil
     ) async throws -> String {
         try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
@@ -355,7 +420,8 @@ enum ArchiveService {
                         arguments: arguments,
                         currentDirectory: currentDirectory,
                         progressParser: progressParser,
-                        inputStrategy: inputStrategy
+                        inputStrategy: inputStrategy,
+                        outputObserver: outputObserver
                     )
                     continuation.resume(returning: output)
                 } catch {
@@ -370,18 +436,26 @@ enum ArchiveService {
         arguments: [String],
         currentDirectory: URL?,
         progressParser: ProgressOutputParser?,
-        inputStrategy: ProcessInputStrategy
+        inputStrategy: ProcessInputStrategy,
+        outputObserver: (@Sendable (String) -> Void)?
     ) throws -> String {
         switch inputStrategy {
         case .none:
-            return try runWithPipe(executable, arguments: arguments, currentDirectory: currentDirectory, progressParser: progressParser)
+            return try runWithPipe(
+                executable,
+                arguments: arguments,
+                currentDirectory: currentDirectory,
+                progressParser: progressParser,
+                outputObserver: outputObserver
+            )
         case .passwordPrompts(let responses):
             return try runWithPseudoTerminal(
                 executable,
                 arguments: arguments,
                 currentDirectory: currentDirectory,
                 progressParser: progressParser,
-                promptResponder: InteractivePasswordResponder(responses: responses)
+                promptResponder: InteractivePasswordResponder(responses: responses),
+                outputObserver: outputObserver
             )
         }
     }
@@ -390,7 +464,8 @@ enum ArchiveService {
         _ executable: String,
         arguments: [String],
         currentDirectory: URL?,
-        progressParser: ProgressOutputParser?
+        progressParser: ProgressOutputParser?,
+        outputObserver: (@Sendable (String) -> Void)?
     ) throws -> String {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executable)
@@ -404,7 +479,7 @@ enum ArchiveService {
         activeProcessRegistry.register(process)
         defer { activeProcessRegistry.clear(process) }
         try process.run()
-        let output = try readOutput(from: ioPipe.fileHandleForReading, progressParser: progressParser)
+        let output = try readOutput(from: ioPipe.fileHandleForReading, progressParser: progressParser, outputObserver: outputObserver)
         process.waitUntilExit()
 
         guard process.terminationStatus == 0 else {
@@ -423,7 +498,8 @@ enum ArchiveService {
         arguments: [String],
         currentDirectory: URL?,
         progressParser: ProgressOutputParser?,
-        promptResponder: InteractivePasswordResponder
+        promptResponder: InteractivePasswordResponder,
+        outputObserver: (@Sendable (String) -> Void)?
     ) throws -> String {
         var masterFD: Int32 = 0
         var slaveFD: Int32 = 0
@@ -448,7 +524,7 @@ enum ArchiveService {
         defer { activeProcessRegistry.clear(process) }
         try process.run()
         try? slaveHandle.close()
-        let output = try readOutput(from: masterHandle, progressParser: progressParser) { text in
+        let output = try readOutput(from: masterHandle, progressParser: progressParser, outputObserver: outputObserver) { text in
             try responder.consume(text, writer: masterHandle)
         }
         process.waitUntilExit()
@@ -563,6 +639,69 @@ enum ArchiveService {
         return rows
     }
 
+    nonisolated static func parseSevenZipBenchmark(_ output: String, backendDescription: String, options: SevenZipBenchmarkOptions) -> SevenZipBenchmarkReport {
+        let lines = output.split(separator: "\n").map(String.init)
+        let compilerLine = lines.first { $0.hasPrefix("Compiler:") }
+        let systemLine = lines.first { $0.contains("Darwin :") || $0.contains("Windows ") || $0.contains("Linux ") }
+        let pageSizeLine = lines.first { $0.hasPrefix("PageSize:") }
+        let ramSizeLine = lines.first { $0.hasPrefix("RAM size:") }
+        let ramUsageLine = lines.first { $0.hasPrefix("RAM usage:") }
+        let averageLine = lines.first { $0.trimmingCharacters(in: .whitespaces).hasPrefix("Avr:") }
+        let totalLine = lines.first { $0.trimmingCharacters(in: .whitespaces).hasPrefix("Tot:") }
+        let threadsLine = lines.first { $0.contains("# Benchmark threads:") }
+        let cpuLine = cpuDescriptionLine(in: lines, after: pageSizeLine)
+        let frequencySamples = lines.compactMap(parseFrequencySample)
+        let dictionaryRows = lines.compactMap(parseBenchmarkDictionaryRow)
+        let kernelTime = timeValue(in: lines, prefix: "Kernel  Time =")
+        let userTime = timeValue(in: lines, prefix: "User    Time =")
+        let processTime = timeValue(in: lines, prefix: "Process Time =")
+        let globalTime = timeValue(in: lines, prefix: "Global  Time =")
+
+        let averageValues = averageLine.map(integers(in:)) ?? []
+        let totalValues = totalLine.map(integers(in:)) ?? []
+        let threadValues = threadsLine.map(integers(in:)) ?? []
+        let ramSizeValues = ramSizeLine.map(integers(in:)) ?? []
+        let ramUsageValues = ramUsageLine.map(integers(in:)) ?? []
+
+        let compressionAverage: SevenZipBenchmarkMetrics? = averageValues.count >= 8 ? SevenZipBenchmarkMetrics(
+            speedKiBPerSecond: averageValues[0],
+            usagePercent: averageValues[1],
+            ratingMips: averageValues[2],
+            usageRatingMips: averageValues[3]
+        ) : nil
+
+        let decompressionAverage: SevenZipBenchmarkMetrics? = averageValues.count >= 8 ? SevenZipBenchmarkMetrics(
+            speedKiBPerSecond: averageValues[4],
+            usagePercent: averageValues[5],
+            ratingMips: averageValues[6],
+            usageRatingMips: averageValues[7]
+        ) : nil
+
+        return SevenZipBenchmarkReport(
+            backendDescription: backendDescription,
+            options: options,
+            compilerDescription: compilerLine,
+            systemDescription: systemLine,
+            cpuDescription: cpuLine,
+            pageSizeText: pageSizeLine,
+            ramUsageMB: ramUsageValues.first,
+            ramSizeMB: ramSizeValues.first,
+            hardwareThreads: ramSizeValues.count > 1 ? ramSizeValues[1] : nil,
+            benchmarkThreads: threadValues.last,
+            frequencySamples: frequencySamples,
+            dictionaryRows: dictionaryRows,
+            compressionAverage: compressionAverage,
+            decompressionAverage: decompressionAverage,
+            totalRatingMips: totalValues.last,
+            totalUsagePercent: totalValues.first,
+            kernelTimeSeconds: kernelTime,
+            userTimeSeconds: userTime,
+            processTimeSeconds: processTime,
+            globalTimeSeconds: globalTime,
+            output: output
+        )
+    }
+
     /// 选中目录时展开为其所有子项目，避免 unzip 对目录项本身报 filename not matched。
     static func expandedEntryNames(for entries: [ArchiveItem]) -> [String] {
         let normalizedNames = Dictionary(uniqueKeysWithValues: entries.map { item in
@@ -608,13 +747,13 @@ enum ArchiveService {
         name.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + (name.hasSuffix("/") ? "/" : "")
     }
 
-    private static func fileCount(in urls: [URL]) async throws -> Int {
+    private nonisolated static func fileCount(in urls: [URL]) async throws -> Int {
         try await Task.detached(priority: .utility) {
             try countRegularFiles(in: urls)
         }.value
     }
 
-    private static func countRegularFiles(in urls: [URL]) throws -> Int {
+    private nonisolated static func countRegularFiles(in urls: [URL]) throws -> Int {
         let resourceKeys: Set<URLResourceKey> = [.isRegularFileKey, .isDirectoryKey]
         return try urls.reduce(0) { count, url in
             try Task.checkCancellation()
@@ -639,6 +778,7 @@ enum ArchiveService {
     private static func readOutput(
         from handle: FileHandle,
         progressParser: ProgressOutputParser?,
+        outputObserver: (@Sendable (String) -> Void)? = nil,
         chunkHandler: ((String) throws -> Void)? = nil
     ) throws -> String {
         var output = ""
@@ -648,6 +788,7 @@ enum ArchiveService {
             let text = String(decoding: data, as: UTF8.self)
             output += text
             progressParser?.consume(text)
+            outputObserver?(text)
             try chunkHandler?(text)
         }
         return output
@@ -679,14 +820,76 @@ enum ArchiveService {
         }
         return nil
     }
+
+    private nonisolated static func integers(in line: String) -> [Int] {
+        let pattern = #"\d+"#
+        let range = NSRange(line.startIndex..<line.endIndex, in: line)
+        guard let expression = try? NSRegularExpression(pattern: pattern) else { return [] }
+        return expression.matches(in: line, range: range).compactMap { match in
+            guard let numberRange = Range(match.range, in: line) else { return nil }
+            return Int(String(line[numberRange]))
+        }
+    }
+
+    private nonisolated static func parseBenchmarkDictionaryRow(_ line: String) -> SevenZipBenchmarkDictionaryRow? {
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        guard trimmed.range(of: #"^\d+:"# , options: .regularExpression) != nil else { return nil }
+        let values = integers(in: trimmed)
+        guard values.count >= 9 else { return nil }
+        let compression = SevenZipBenchmarkMetrics(
+            speedKiBPerSecond: values[1],
+            usagePercent: values[2],
+            ratingMips: values[3],
+            usageRatingMips: values[4]
+        )
+        let decompression = SevenZipBenchmarkMetrics(
+            speedKiBPerSecond: values[5],
+            usagePercent: values[6],
+            ratingMips: values[7],
+            usageRatingMips: values[8]
+        )
+        return SevenZipBenchmarkDictionaryRow(dictionaryBits: values[0], compression: compression, decompression: decompression)
+    }
+
+    private nonisolated static func parseFrequencySample(_ line: String) -> SevenZipCPUFrequencySample? {
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        guard trimmed.contains("CPU Freq (MHz):"), let colonIndex = trimmed.firstIndex(of: ":") else { return nil }
+        let label = String(trimmed[..<colonIndex])
+        let values = String(trimmed[trimmed.index(after: colonIndex)...])
+            .split(whereSeparator: \.isWhitespace)
+            .map(String.init)
+        guard !values.isEmpty else { return nil }
+        return SevenZipCPUFrequencySample(threadLabel: label, readings: values)
+    }
+
+    private nonisolated static func cpuDescriptionLine(in lines: [String], after pageSizeLine: String?) -> String? {
+        guard let pageSizeLine, let pageIndex = lines.firstIndex(of: pageSizeLine) else { return nil }
+        return lines
+            .dropFirst(pageIndex + 1)
+            .first(where: { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty })
+    }
+
+    private nonisolated static func timeValue(in lines: [String], prefix: String) -> Double? {
+        guard let line = lines.first(where: { $0.hasPrefix(prefix) }) else { return nil }
+        let pattern = #"=\s*([0-9]+(?:\.[0-9]+)?)"#
+        let range = NSRange(line.startIndex..<line.endIndex, in: line)
+        guard
+            let expression = try? NSRegularExpression(pattern: pattern),
+            let match = expression.firstMatch(in: line, range: range),
+            let valueRange = Range(match.range(at: 1), in: line)
+        else {
+            return nil
+        }
+        return Double(line[valueRange])
+    }
 }
 
 private final class ProgressOutputParser: @unchecked Sendable {
     private let lock = NSLock()
     private let totalFiles: Int?
     private let progress: @Sendable (ArchiveProgressState) -> Void
-    private var processedFiles = 0
-    private var remainder = ""
+    nonisolated(unsafe) private var processedFiles = 0
+    nonisolated(unsafe) private var remainder = ""
 
     nonisolated init(totalFiles: Int?, progress: @escaping @Sendable (ArchiveProgressState) -> Void) {
         self.totalFiles = totalFiles

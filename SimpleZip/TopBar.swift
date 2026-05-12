@@ -28,11 +28,6 @@ struct TopBar: View {
                     ProgressView()
                         .controlSize(.small)
                 }
-
-                Button(action: model.reload) {
-                    Image(systemName: "arrow.clockwise")
-                }
-                .help(L10n.text("help.refresh"))
             }
 
             HStack(spacing: 6) {
@@ -43,6 +38,13 @@ struct TopBar: View {
                 .frame(height: 30)
                 .disabled(!model.canGoUp)
                 .help(L10n.text("help.goUp"))
+                
+                Button(action: model.reload) {
+                    Image(systemName: "arrow.clockwise")
+                        .frame(width: 18, height: 18)
+                }
+                .frame(height: 30)
+                .help(L10n.text("help.refresh"))
 
                 TextField("", text: $pathText)
                     .font(.system(.body, design: .monospaced))

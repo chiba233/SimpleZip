@@ -10,6 +10,7 @@ import SwiftUI
 /// 创建压缩包前的选项面板。
 struct ArchiveCreationOptionsView: View {
     @State var request: ArchiveCreationRequest
+    @State private var showsAdvancedSevenZipOptions = true
     let create: (ArchiveCreationRequest) -> Void
     let cancel: () -> Void
 
@@ -38,6 +39,48 @@ struct ArchiveCreationOptionsView: View {
                 }
 
                 SecureField(L10n.text("archive.password"), text: $request.options.password)
+
+                if request.options.format == .sevenZip {
+                    DisclosureGroup(isExpanded: $showsAdvancedSevenZipOptions) {
+                        Picker(L10n.text("archive.7z.method"), selection: $request.options.sevenZipMethod) {
+                            ForEach(SevenZipCompressionMethod.allCases) { method in
+                                Text(method.title).tag(method)
+                            }
+                        }
+
+                        Stepper(value: $request.options.sevenZipThreadCount, in: 0...maxThreadCount) {
+                            HStack {
+                                Text(L10n.text("archive.7z.threads"))
+                                Spacer()
+                                Text(threadCountLabel)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+
+                        Toggle(L10n.text("archive.7z.solid"), isOn: $request.options.sevenZipSolidArchive)
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Toggle(L10n.text("archive.7z.encryptFileNames"), isOn: $request.options.sevenZipEncryptFileNames)
+                                .disabled(request.options.password.isEmpty)
+                            if request.options.password.isEmpty {
+                                Text(L10n.text("archive.7z.encryptFileNamesHint"))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .padding(.leading, 2)
+                            }
+                        }
+
+                        VStack(alignment: .leading, spacing: 6) {
+                            TextField(L10n.text("archive.7z.volumeSize"), text: $request.options.sevenZipVolumeSize)
+                                .textFieldStyle(.roundedBorder)
+                            Text(L10n.text("archive.7z.volumeSizeHint"))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    } label: {
+                        Text(L10n.text("archive.7z.advanced"))
+                    }
+                }
 
                 Toggle(L10n.text("archive.skipDSStore"), isOn: $request.options.skipDSStore)
                 VStack(alignment: .leading, spacing: 4) {
@@ -86,7 +129,7 @@ struct ArchiveCreationOptionsView: View {
             }
         }
         .padding(20)
-        .frame(width: 560)
+        .frame(width: 620)
     }
 
     private var fileNameBinding: Binding<String> {
@@ -139,5 +182,15 @@ struct ArchiveCreationOptionsView: View {
             baseName = baseName.trimmingCharacters(in: .whitespacesAndNewlines)
         }
         return baseName.isEmpty ? "Archive" : baseName
+    }
+
+    private var maxThreadCount: Int {
+        max(1, ProcessInfo.processInfo.activeProcessorCount)
+    }
+
+    private var threadCountLabel: String {
+        request.options.sevenZipThreadCount == 0
+            ? L10n.text("archive.7z.threads.auto")
+            : "\(request.options.sevenZipThreadCount)"
     }
 }

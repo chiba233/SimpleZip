@@ -11,6 +11,7 @@ import Foundation
 enum ArchiveError: LocalizedError {
     case unsupportedFormat
     case missingSevenZip
+    case invalidSevenZipVolumeSize
     case commandFailed(String)
 
     var errorDescription: String? {
@@ -19,6 +20,8 @@ enum ArchiveError: LocalizedError {
             return L10n.text("error.unsupportedFormat")
         case .missingSevenZip:
             return L10n.text("error.missingSevenZip")
+        case .invalidSevenZipVolumeSize:
+            return L10n.text("error.invalidSevenZipVolumeSize")
         case .commandFailed(let message):
             return message.trimmingCharacters(in: .whitespacesAndNewlines)
         }
