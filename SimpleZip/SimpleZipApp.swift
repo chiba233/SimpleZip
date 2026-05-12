@@ -30,5 +30,9 @@ struct SimpleZipApp: App {
                 }
             }
         }
+
+        Settings {
+            SettingsView()
+        }
     }
 }

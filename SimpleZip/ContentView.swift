@@ -42,6 +42,11 @@ struct ContentView: View {
         } message: {
             Text(model.errorMessage ?? "")
         }
+        .sheet(item: $model.hashReport) { report in
+            HashResultsView(report: report) {
+                model.hashReport = nil
+            }
+        }
         .onAppear {
             ExternalFileOpenQueue.shared.drain().forEach(openExternalURL)
         }

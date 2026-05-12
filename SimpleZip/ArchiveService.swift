@@ -27,17 +27,42 @@ enum ArchiveService {
         try await run("/usr/bin/zip", arguments: arguments, currentDirectory: parent)
     }
 
-    static func extract(_ archive: URL, to destination: URL) async throws {
+    static func extract(_ archive: URL, to destination: URL, overwriteBehavior: OverwriteBehavior = .overwrite) async throws {
         switch archive.pathExtension.lowercased() {
         case "zip":
-            try await run("/usr/bin/unzip", arguments: ["-o", archive.path, "-d", destination.path])
+            let overwriteArgument = overwriteBehavior == .overwrite ? "-o" : "-n"
+            try await run("/usr/bin/unzip", arguments: [overwriteArgument, archive.path, "-d", destination.path])
         case "7z", "tar", "gz", "tgz", "bz2", "xz":
             let tool = try sevenZipTool()
-            try await run(tool, arguments: ["x", archive.path, "-o\(destination.path)", "-y"])
+            let overwriteArgument = overwriteBehavior == .overwrite ? "-aoa" : "-aos"
+            try await run(tool, arguments: ["x", archive.path, "-o\(destination.path)", overwriteArgument, "-y"])
         default:
             throw ArchiveError.unsupportedFormat
         }
     }
+
+    static func extract(_ archive: URL, entries: [String], to destination: URL, overwriteBehavior: OverwriteBehavior = .overwrite) async throws {
+        guard !entries.isEmpty else { return }
+
+        switch archive.pathExtension.lowercased() {
+        case "zip":
+            let overwriteArgument = overwriteBehavior == .overwrite ? "-o" : "-n"
+            var arguments = [overwriteArgument, archive.path]
+            arguments.append(contentsOf: entries)
+            arguments.append(contentsOf: ["-d", destination.path])
+            try await run("/usr/bin/unzip", arguments: arguments)
+        case "7z", "tar", "gz", "tgz", "bz2", "xz":
+            let tool = try sevenZipTool()
+            let overwriteArgument = overwriteBehavior == .overwrite ? "-aoa" : "-aos"
+            var arguments = ["x", archive.path]
+            arguments.append(contentsOf: entries)
+            arguments.append(contentsOf: ["-o\(destination.path)", overwriteArgument, "-y"])
+            try await run(tool, arguments: arguments)
+        default:
+            throw ArchiveError.unsupportedFormat
+        }
+    }
+
 
     static func test(_ archive: URL) async throws {
         switch archive.pathExtension.lowercased() {

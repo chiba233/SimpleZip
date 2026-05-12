@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-/// 顶部工具栏：提供添加、解压、测试、打开和定位等常用操作。
+/// 顶部工具栏：提供添加、解压、测试、哈希、打开和定位等常用操作。
 struct TopBar: View {
     @ObservedObject var model: ArchiveBrowserModel
 
@@ -17,6 +17,7 @@ struct TopBar: View {
                 ToolButton(title: L10n.text("button.add"), systemImage: "plus.square.on.square", action: model.createArchive)
                 ToolButton(title: L10n.text("button.extract"), systemImage: "arrow.down.doc", action: model.extractArchive)
                 ToolButton(title: L10n.text("button.test"), systemImage: "checkmark.seal", action: model.testArchive)
+                ToolButton(title: L10n.text("button.hash"), systemImage: "number.square", action: model.calculateHash)
                 ToolButton(title: L10n.text("button.open"), systemImage: "folder.badge.gearshape", action: model.chooseFolder)
                 ToolButton(title: L10n.text("button.reveal"), systemImage: "arrow.up.forward.app", action: model.revealInFinder)
 

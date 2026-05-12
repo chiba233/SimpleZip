@@ -21,11 +21,12 @@ final class ArchiveBrowserModel: ObservableObject {
     @Published var status = L10n.text("status.ready")
     @Published var isWorking = false
     @Published var errorMessage: String?
+    @Published var hashReport: HashReport?
 
     private let fileManager = FileManager.default
 
     init() {
-        mode = .folder(fileManager.homeDirectoryForCurrentUser)
+        mode = .folder(AppPreferences.defaultStartupURL(fileManager: fileManager))
         reload()
     }
 
@@ -49,6 +50,10 @@ final class ArchiveBrowserModel: ObservableObject {
 
     var selectedFileItems: [FileItem] {
         fileItems.filter { selection.contains($0.id) }
+    }
+
+    var selectedArchiveItems: [ArchiveItem] {
+        archiveItems.filter { selectedArchiveRows.contains($0.id) }
     }
 
     var canGoUp: Bool {
@@ -97,6 +102,7 @@ final class ArchiveBrowserModel: ObservableObject {
 
     func openFolder(_ url: URL) {
         mode = .folder(url)
+        AppPreferences.rememberLastFolder(url)
         reload()
     }
 
@@ -181,25 +187,74 @@ final class ArchiveBrowserModel: ObservableObject {
             return
         }
 
-        let panel = NSOpenPanel()
-        panel.title = L10n.text("panel.extractTo")
-        panel.prompt = L10n.text("button.extract")
-        panel.canChooseDirectories = true
-        panel.canChooseFiles = false
-        panel.canCreateDirectories = true
-        panel.allowsMultipleSelection = false
-        panel.directoryURL = archiveURL.deletingLastPathComponent()
+        let destination: URL
+        if let defaultDestination = AppPreferences.defaultExtractURL(for: archiveURL, fileManager: fileManager) {
+            destination = defaultDestination
+        } else {
+            let panel = NSOpenPanel()
+            panel.title = L10n.text("panel.extractTo")
+            panel.prompt = L10n.text("button.extract")
+            panel.canChooseDirectories = true
+            panel.canChooseFiles = false
+            panel.canCreateDirectories = true
+            panel.allowsMultipleSelection = false
+            panel.directoryURL = archiveURL.deletingLastPathComponent()
 
-        guard panel.runModal() == .OK, let destination = panel.url else {
-            return
+            guard panel.runModal() == .OK, let selectedDestination = panel.url else {
+                return
+            }
+            destination = selectedDestination
         }
 
         Task {
             await runArchiveTask(L10n.format("status.extracting", archiveURL.lastPathComponent)) {
-                try await ArchiveService.extract(archiveURL, to: destination)
+                try await ArchiveService.extract(archiveURL, to: destination, overwriteBehavior: AppPreferences.overwriteBehavior)
             }
             if case .folder(let folder) = mode, folder == destination {
                 reload()
+            }
+        }
+    }
+
+    func extractSelectedArchiveItems() {
+        guard case .archive(let archiveURL) = mode else {
+            errorMessage = L10n.text("error.openOrSelectArchive")
+            return
+        }
+
+        let entries = selectedArchiveItems.map(\.name)
+        guard !entries.isEmpty else {
+            errorMessage = L10n.text("error.selectArchiveItemsToExtract")
+            return
+        }
+
+        let destination: URL
+        if let defaultDestination = AppPreferences.defaultExtractURL(for: archiveURL, fileManager: fileManager) {
+            destination = defaultDestination
+        } else {
+            let panel = NSOpenPanel()
+            panel.title = L10n.text("panel.extractTo")
+            panel.prompt = L10n.text("button.extractSelected")
+            panel.canChooseDirectories = true
+            panel.canChooseFiles = false
+            panel.canCreateDirectories = true
+            panel.allowsMultipleSelection = false
+            panel.directoryURL = archiveURL.deletingLastPathComponent()
+
+            guard panel.runModal() == .OK, let selectedDestination = panel.url else {
+                return
+            }
+            destination = selectedDestination
+        }
+
+        Task {
+            await runArchiveTask(L10n.format("status.extractingSelected", entries.count)) {
+                try await ArchiveService.extract(
+                    archiveURL,
+                    entries: entries,
+                    to: destination,
+                    overwriteBehavior: AppPreferences.overwriteBehavior
+                )
             }
         }
     }
@@ -226,6 +281,36 @@ final class ArchiveBrowserModel: ObservableObject {
         }
     }
 
+    func calculateHash() {
+        let urls: [URL]
+        switch mode {
+        case .folder:
+            urls = selectedFileItems.map(\.url)
+        case .archive(let url):
+            urls = [url]
+        }
+
+        guard !urls.isEmpty else {
+            errorMessage = L10n.text("error.selectFilesForHash")
+            return
+        }
+
+        Task {
+            isWorking = true
+            errorMessage = nil
+            status = L10n.text("status.hashing")
+            defer { isWorking = false }
+
+            do {
+                hashReport = try await HashService.calculate(for: urls, includeHiddenFiles: AppPreferences.showHiddenFiles)
+                status = L10n.text("status.hashReady")
+            } catch {
+                errorMessage = error.localizedDescription
+                status = L10n.text("status.failed")
+            }
+        }
+    }
+
     func revealInFinder() {
         switch mode {
         case .folder(let url):
@@ -239,10 +324,15 @@ final class ArchiveBrowserModel: ObservableObject {
     private func loadFolder(_ url: URL) {
         do {
             let resourceKeys: Set<URLResourceKey> = [.isDirectoryKey, .fileSizeKey, .contentModificationDateKey, .localizedTypeDescriptionKey, .isHiddenKey]
-            let urls = try fileManager.contentsOfDirectory(at: url, includingPropertiesForKeys: Array(resourceKeys), options: [.skipsPackageDescendants])
+            var options: FileManager.DirectoryEnumerationOptions = [.skipsPackageDescendants]
+            if !AppPreferences.showHiddenFiles {
+                options.insert(.skipsHiddenFiles)
+            }
+
+            let urls = try fileManager.contentsOfDirectory(at: url, includingPropertiesForKeys: Array(resourceKeys), options: options)
 
             fileItems = urls.compactMap { fileURL in
-                guard let values = try? fileURL.resourceValues(forKeys: resourceKeys), values.isHidden != true else {
+                guard let values = try? fileURL.resourceValues(forKeys: resourceKeys) else {
                     return nil
                 }
 
