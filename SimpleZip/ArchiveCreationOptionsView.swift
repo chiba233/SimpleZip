@@ -40,7 +40,13 @@ struct ArchiveCreationOptionsView: View {
                 SecureField(L10n.text("archive.password"), text: $request.options.password)
 
                 Toggle(L10n.text("archive.skipDSStore"), isOn: $request.options.skipDSStore)
-                Toggle(L10n.text("archive.skipHiddenFiles"), isOn: $request.options.skipHiddenFiles)
+                VStack(alignment: .leading, spacing: 4) {
+                    Toggle(L10n.text("archive.skipHiddenFiles"), isOn: $request.options.skipHiddenFiles)
+                    Text(L10n.text("archive.skipHiddenFilesHint"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.leading, 2)
+                }
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text(L10n.text("archive.customExcludes"))

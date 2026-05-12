@@ -27,7 +27,7 @@ struct FileHashResult: Identifiable, Hashable {
     let size: Int64
     let hashes: [HashAlgorithm: String]
 
-    func value(for algorithm: HashAlgorithm) -> String? {
+    nonisolated func value(for algorithm: HashAlgorithm) -> String? {
         hashes[algorithm]
     }
 }

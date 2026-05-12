@@ -5,6 +5,7 @@
 //  Created by HoshinoYumeka on 2026/05/12.
 //
 
+import Darwin
 import Foundation
 import UniformTypeIdentifiers
 
@@ -12,6 +13,7 @@ import UniformTypeIdentifiers
 enum ArchiveService {
     static let supportedExtensions = ["zip", "7z", "tar", "gz", "tgz", "bz2", "xz"]
     static let supportedArchiveTypes: [UTType] = supportedExtensions.compactMap { UTType(filenameExtension: $0) }
+    private static let activeProcessRegistry = ActiveProcessRegistry()
 
     static func contentTypes(for format: ArchiveCreateFormat) -> [UTType] {
         UTType(filenameExtension: format.pathExtension).map { [$0] } ?? []
@@ -26,18 +28,24 @@ enum ArchiveService {
         try await createArchive(from: sourceURLs, destination: destination, options: ArchiveCreationOptions())
     }
 
+    static func cancelRunningCommand() {
+        activeProcessRegistry.cancelActiveProcess()
+    }
+
     static func createArchive(from sourceURLs: [URL], destination: URL, options: ArchiveCreationOptions, progress: @escaping @Sendable (ArchiveProgressState) -> Void = { _ in }) async throws {
         guard let first = sourceURLs.first else { return }
         let parent = first.deletingLastPathComponent()
         let relativeNames = sourceURLs.map { $0.lastPathComponent }
-        let totalFiles = max(1, fileCount(in: sourceURLs))
+        progress(ArchiveProgressState(fraction: nil, currentFile: nil, statusText: L10n.text("status.countingFiles")))
+        let totalFiles = max(1, try await fileCount(in: sourceURLs))
+        try Task.checkCancellation()
         let parser = ProgressOutputParser(totalFiles: totalFiles, progress: progress)
 
         switch options.format {
         case .zip:
             var arguments = ["-r", "-\(options.compressionLevel.rawValue)"]
             if !options.password.isEmpty {
-                arguments.append(contentsOf: ["-P", options.password])
+                arguments.append("-e")
             }
             arguments.append(destination.path)
             arguments.append(contentsOf: relativeNames)
@@ -46,18 +54,20 @@ enum ArchiveService {
                 arguments.append("-x")
                 arguments.append(contentsOf: excludes)
             }
-            try await run("/usr/bin/zip", arguments: arguments, currentDirectory: parent, progressParser: parser)
+            let inputStrategy: ProcessInputStrategy = options.password.isEmpty ? .none : .passwordPrompts([options.password, options.password])
+            try await run("/usr/bin/zip", arguments: arguments, currentDirectory: parent, progressParser: parser, inputStrategy: inputStrategy)
         case .sevenZip:
             let tool = try sevenZipTool()
             var arguments = ["a", "-t7z", "-mx=\(options.compressionLevel.rawValue)", "-bb1", "-bsp1", "-y"]
             if !options.password.isEmpty {
-                arguments.append("-p\(options.password)")
+                arguments.append("-p")
                 arguments.append("-mhe=on")
             }
             arguments.append(contentsOf: sevenZipExcludeArguments(from: options))
             arguments.append(destination.path)
             arguments.append(contentsOf: relativeNames)
-            try await run(tool, arguments: arguments, currentDirectory: parent, progressParser: parser)
+            let inputStrategy: ProcessInputStrategy = options.password.isEmpty ? .none : .passwordPrompts([options.password, options.password])
+            try await run(tool, arguments: arguments, currentDirectory: parent, progressParser: parser, inputStrategy: inputStrategy)
         }
     }
 
@@ -66,20 +76,18 @@ enum ArchiveService {
         switch archive.pathExtension.lowercased() {
         case "zip":
             let overwriteArgument = overwriteBehavior == .overwrite ? "-o" : "-n"
-            var arguments = [overwriteArgument]
-            if !password.isEmpty {
-                arguments.append(contentsOf: ["-P", password])
-            }
-            arguments.append(contentsOf: [archive.path, "-d", destination.path])
-            try await run("/usr/bin/unzip", arguments: arguments, progressParser: parser)
+            let arguments = [overwriteArgument, archive.path, "-d", destination.path]
+            let inputStrategy: ProcessInputStrategy = password.isEmpty ? .none : .passwordPrompts([password])
+            try await run("/usr/bin/unzip", arguments: arguments, progressParser: parser, inputStrategy: inputStrategy)
         case "7z", "tar", "gz", "tgz", "bz2", "xz":
             let tool = try sevenZipTool()
             let overwriteArgument = overwriteBehavior == .overwrite ? "-aoa" : "-aos"
             var arguments = ["x", archive.path, "-o\(destination.path)", overwriteArgument, "-bb1", "-bsp1", "-y"]
             if !password.isEmpty {
-                arguments.append("-p\(password)")
+                arguments.append("-p")
             }
-            try await run(tool, arguments: arguments, progressParser: parser)
+            let inputStrategy: ProcessInputStrategy = password.isEmpty ? .none : .passwordPrompts([password])
+            try await run(tool, arguments: arguments, progressParser: parser, inputStrategy: inputStrategy)
         default:
             throw ArchiveError.unsupportedFormat
         }
@@ -100,10 +108,10 @@ enum ArchiveService {
                 arguments.append(contentsOf: entryNames)
                 try await run("/usr/bin/tar", arguments: arguments, progressParser: parser)
             } else {
-                var arguments = [overwriteBehavior == .overwrite ? "-o" : "-n", "-P", password, archive.path]
+                var arguments = [overwriteBehavior == .overwrite ? "-o" : "-n", archive.path]
                 arguments.append(contentsOf: entryNames)
                 arguments.append(contentsOf: ["-d", destination.path])
-                try await run("/usr/bin/unzip", arguments: arguments, progressParser: parser)
+                try await run("/usr/bin/unzip", arguments: arguments, progressParser: parser, inputStrategy: .passwordPrompts([password]))
             }
             if pathMode == .flatten {
                 try flattenExtractedItems(entryNames: entryNames, in: destination)
@@ -115,9 +123,10 @@ enum ArchiveService {
             arguments.append(contentsOf: entryNames)
             arguments.append(contentsOf: ["-o\(destination.path)", overwriteArgument, "-bb1", "-bsp1", "-y"])
             if !password.isEmpty {
-                arguments.append("-p\(password)")
+                arguments.append("-p")
             }
-            try await run(tool, arguments: arguments, progressParser: parser)
+            let inputStrategy: ProcessInputStrategy = password.isEmpty ? .none : .passwordPrompts([password])
+            try await run(tool, arguments: arguments, progressParser: parser, inputStrategy: inputStrategy)
         default:
             throw ArchiveError.unsupportedFormat
         }
@@ -257,11 +266,23 @@ enum ArchiveService {
         }
     }
 
-    private static func run(_ executable: String, arguments: [String], currentDirectory: URL? = nil, progressParser: ProgressOutputParser? = nil) async throws {
-        _ = try await runAndCapture(executable, arguments: arguments, currentDirectory: currentDirectory, progressParser: progressParser)
+    private static func run(
+        _ executable: String,
+        arguments: [String],
+        currentDirectory: URL? = nil,
+        progressParser: ProgressOutputParser? = nil,
+        inputStrategy: ProcessInputStrategy = .none
+    ) async throws {
+        _ = try await runAndCapture(
+            executable,
+            arguments: arguments,
+            currentDirectory: currentDirectory,
+            progressParser: progressParser,
+            inputStrategy: inputStrategy
+        )
     }
 
-    private static func zipExcludePatterns(from options: ArchiveCreationOptions) -> [String] {
+    static func zipExcludePatterns(from options: ArchiveCreationOptions) -> [String] {
         var patterns: [String] = []
         if options.skipDSStore {
             patterns.append(contentsOf: ["*.DS_Store", "*/.DS_Store"])
@@ -273,11 +294,11 @@ enum ArchiveService {
         return Array(Set(patterns)).sorted()
     }
 
-    private static func sevenZipExcludeArguments(from options: ArchiveCreationOptions) -> [String] {
+    static func sevenZipExcludeArguments(from options: ArchiveCreationOptions) -> [String] {
         zipExcludePatterns(from: options).map { "-xr!\($0)" }
     }
 
-    private static func customExcludePatterns(from text: String) -> [String] {
+    static func customExcludePatterns(from text: String) -> [String] {
         text
             .components(separatedBy: CharacterSet(charactersIn: "\n,"))
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -319,55 +340,132 @@ enum ArchiveService {
     }
 
     /// 在后台线程运行命令，避免压缩/解压时阻塞主界面。
-    private static func runAndCapture(_ executable: String, arguments: [String], currentDirectory: URL? = nil, progressParser: ProgressOutputParser? = nil) async throws -> String {
-        try await Task.detached(priority: .userInitiated) {
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: executable)
-            process.arguments = arguments
-            process.currentDirectoryURL = currentDirectory
-
-            let outputPipe = Pipe()
-            let errorPipe = Pipe()
-            process.standardOutput = outputPipe
-            process.standardError = errorPipe
-            let outputBuffer = LockedStringBuffer()
-            let errorBuffer = LockedStringBuffer()
-
-            outputPipe.fileHandleForReading.readabilityHandler = { handle in
-                let data = handle.availableData
-                guard !data.isEmpty else { return }
-                let text = String(decoding: data, as: UTF8.self)
-                outputBuffer.append(text)
-                progressParser?.consume(text)
+    private static func runAndCapture(
+        _ executable: String,
+        arguments: [String],
+        currentDirectory: URL? = nil,
+        progressParser: ProgressOutputParser? = nil,
+        inputStrategy: ProcessInputStrategy = .none
+    ) async throws -> String {
+        try await withCheckedThrowingContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                do {
+                    let output = try runAndCaptureSync(
+                        executable,
+                        arguments: arguments,
+                        currentDirectory: currentDirectory,
+                        progressParser: progressParser,
+                        inputStrategy: inputStrategy
+                    )
+                    continuation.resume(returning: output)
+                } catch {
+                    continuation.resume(throwing: error)
+                }
             }
+        }
+    }
 
-            errorPipe.fileHandleForReading.readabilityHandler = { handle in
-                let data = handle.availableData
-                guard !data.isEmpty else { return }
-                let text = String(decoding: data, as: UTF8.self)
-                errorBuffer.append(text)
-                progressParser?.consume(text)
+    private static func runAndCaptureSync(
+        _ executable: String,
+        arguments: [String],
+        currentDirectory: URL?,
+        progressParser: ProgressOutputParser?,
+        inputStrategy: ProcessInputStrategy
+    ) throws -> String {
+        switch inputStrategy {
+        case .none:
+            return try runWithPipe(executable, arguments: arguments, currentDirectory: currentDirectory, progressParser: progressParser)
+        case .passwordPrompts(let responses):
+            return try runWithPseudoTerminal(
+                executable,
+                arguments: arguments,
+                currentDirectory: currentDirectory,
+                progressParser: progressParser,
+                promptResponder: InteractivePasswordResponder(responses: responses)
+            )
+        }
+    }
+
+    private static func runWithPipe(
+        _ executable: String,
+        arguments: [String],
+        currentDirectory: URL?,
+        progressParser: ProgressOutputParser?
+    ) throws -> String {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: executable)
+        process.arguments = arguments
+        process.currentDirectoryURL = currentDirectory
+
+        let ioPipe = Pipe()
+        process.standardOutput = ioPipe
+        process.standardError = ioPipe
+
+        activeProcessRegistry.register(process)
+        defer { activeProcessRegistry.clear(process) }
+        try process.run()
+        let output = try readOutput(from: ioPipe.fileHandleForReading, progressParser: progressParser)
+        process.waitUntilExit()
+
+        guard process.terminationStatus == 0 else {
+            if activeProcessRegistry.wasCancelled(process) {
+                throw CancellationError()
             }
+            throw ArchiveError.commandFailed(output)
+        }
 
-            try process.run()
-            process.waitUntilExit()
-            outputPipe.fileHandleForReading.readabilityHandler = nil
-            errorPipe.fileHandleForReading.readabilityHandler = nil
+        progressParser?.finish()
+        return output
+    }
 
-            let output = outputBuffer.value + (String(data: outputPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? "")
-            let error = errorBuffer.value + (String(data: errorPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? "")
+    private static func runWithPseudoTerminal(
+        _ executable: String,
+        arguments: [String],
+        currentDirectory: URL?,
+        progressParser: ProgressOutputParser?,
+        promptResponder: InteractivePasswordResponder
+    ) throws -> String {
+        var masterFD: Int32 = 0
+        var slaveFD: Int32 = 0
+        guard openpty(&masterFD, &slaveFD, nil, nil, nil) == 0 else {
+            throw ArchiveError.commandFailed(String(cString: strerror(errno)))
+        }
 
-            guard process.terminationStatus == 0 else {
-                throw ArchiveError.commandFailed(error.isEmpty ? output : error)
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: executable)
+        process.arguments = arguments
+        process.currentDirectoryURL = currentDirectory
+
+        let masterHandle = FileHandle(fileDescriptor: masterFD, closeOnDealloc: true)
+        let slaveHandle = FileHandle(fileDescriptor: slaveFD, closeOnDealloc: true)
+        process.standardInput = slaveHandle
+        process.standardOutput = slaveHandle
+        process.standardError = slaveHandle
+
+        var responder = promptResponder
+
+        activeProcessRegistry.register(process)
+        defer { activeProcessRegistry.clear(process) }
+        try process.run()
+        try? slaveHandle.close()
+        let output = try readOutput(from: masterHandle, progressParser: progressParser) { text in
+            try responder.consume(text, writer: masterHandle)
+        }
+        process.waitUntilExit()
+
+        guard process.terminationStatus == 0 else {
+            if activeProcessRegistry.wasCancelled(process) {
+                throw CancellationError()
             }
+            throw ArchiveError.commandFailed(output)
+        }
 
-            progressParser?.finish()
-            return output
-        }.value
+        progressParser?.finish()
+        return output
     }
 
     /// zip 的条目路径以 bsdtar 为准，unzip 输出只用来补充大小和时间，避免列表路径和解压路径不一致。
-    private static func parseZipList(tarOutput: String, unzipOutput: String) -> [ArchiveItem] {
+    static func parseZipList(tarOutput: String, unzipOutput: String) -> [ArchiveItem] {
         let metadataByName = Dictionary(uniqueKeysWithValues: parseUnzipList(unzipOutput).map { item in
             (normalizedEntryName(item.name), item)
         })
@@ -382,6 +480,8 @@ enum ArchiveService {
                 return ArchiveItem(
                     name: name,
                     isDirectory: isDirectory,
+                    size: isDirectory ? nil : metadata?.size,
+                    modified: metadata?.modified,
                     sizeText: isDirectory ? "" : (metadata?.sizeText ?? ""),
                     modifiedText: metadata?.modifiedText ?? "",
                     method: isDirectory ? "" : "Deflate"
@@ -390,7 +490,7 @@ enum ArchiveService {
     }
 
     /// 解析 macOS 自带 unzip -l 的列表输出。
-    private static func parseUnzipList(_ output: String) -> [ArchiveItem] {
+    static func parseUnzipList(_ output: String) -> [ArchiveItem] {
         output
             .split(separator: "\n")
             .compactMap { line -> ArchiveItem? in
@@ -402,21 +502,24 @@ enum ArchiveService {
                 let parts = text.split(separator: " ", maxSplits: 3, omittingEmptySubsequences: true)
                 guard parts.count == 4 else { return nil }
 
-                let name = String(parts[3])
+                let name = String(parts[3]).trimmingCharacters(in: .whitespacesAndNewlines)
                 let size = Int64(parts[0]) ?? 0
                 let isDirectory = name.hasSuffix("/")
+                let modifiedText = "\(parts[1]) \(parts[2])"
                 return ArchiveItem(
                     name: name,
                     isDirectory: isDirectory,
+                    size: isDirectory ? nil : size,
+                    modified: parseUnzipModified(modifiedText),
                     sizeText: isDirectory ? "" : ByteCountFormatter.string(fromByteCount: size, countStyle: .file),
-                    modifiedText: "\(parts[1]) \(parts[2])",
+                    modifiedText: modifiedText,
                     method: isDirectory ? "" : "Deflate"
                 )
             }
     }
 
     /// 解析 7zz -slt 的 key/value 输出，兼容 7z/tar/gz 等格式。
-    private static func parseSevenZipList(_ output: String) -> [ArchiveItem] {
+    static func parseSevenZipList(_ output: String) -> [ArchiveItem] {
         var rows: [ArchiveItem] = []
         var values: [String: String] = [:]
 
@@ -428,12 +531,15 @@ enum ArchiveService {
 
             let size = Int64(values["Size"] ?? "") ?? 0
             let isDirectory = values["Folder"] == "+"
+            let modifiedText = values["Modified"] ?? ""
             rows.append(
                 ArchiveItem(
                     name: path,
                     isDirectory: isDirectory,
+                    size: isDirectory ? nil : size,
+                    modified: parseSevenZipModified(modifiedText),
                     sizeText: isDirectory ? "" : ByteCountFormatter.string(fromByteCount: size, countStyle: .file),
-                    modifiedText: values["Modified"] ?? "",
+                    modifiedText: modifiedText,
                     method: values["Method"] ?? ""
                 )
             )
@@ -458,21 +564,32 @@ enum ArchiveService {
     }
 
     /// 选中目录时展开为其所有子项目，避免 unzip 对目录项本身报 filename not matched。
-    private static func expandedEntryNames(for entries: [ArchiveItem]) -> [String] {
-        let selectedDirectories = entries
-            .filter(\.isDirectory)
-            .map { normalizedDirectoryPrefix($0.name) }
+    static func expandedEntryNames(for entries: [ArchiveItem]) -> [String] {
+        let normalizedNames = Dictionary(uniqueKeysWithValues: entries.map { item in
+            (item.name, normalizedEntryName(item.name))
+        })
+
+        func isLeafDirectory(_ directory: ArchiveItem) -> Bool {
+            let prefix = normalizedDirectoryPrefix(directory.name)
+            return !entries.contains { child in
+                guard child.name != directory.name else { return false }
+                let normalizedName = normalizedNames[child.name] ?? normalizedEntryName(child.name)
+                return normalizedName.hasPrefix(prefix)
+            }
+        }
 
         let names = entries.flatMap { item -> [String] in
             if item.isDirectory {
-                return entries
-                    .map(\.name)
-                    .filter { childName in
-                        let normalizedName = normalizedEntryName(childName)
-                        return selectedDirectories.contains { prefix in
-                            normalizedName.hasPrefix(prefix) && normalizedName != prefix
-                        }
-                    }
+                let prefix = normalizedDirectoryPrefix(item.name)
+                let descendants = entries.filter { child in
+                    guard child.name != item.name else { return false }
+                    let normalizedName = normalizedNames[child.name] ?? normalizedEntryName(child.name)
+                    return normalizedName.hasPrefix(prefix)
+                }
+
+                let descendantFiles = descendants.filter { !$0.isDirectory }.map(\.name)
+                let leafDirectories = descendants.filter { $0.isDirectory && isLeafDirectory($0) }.map(\.name)
+                return descendantFiles + leafDirectories
             }
             return [item.name]
         }
@@ -482,29 +599,85 @@ enum ArchiveService {
         }
     }
 
-    private static func normalizedDirectoryPrefix(_ name: String) -> String {
+    static func normalizedDirectoryPrefix(_ name: String) -> String {
         let normalized = normalizedEntryName(name)
         return normalized.hasSuffix("/") ? normalized : normalized + "/"
     }
 
-    private static func normalizedEntryName(_ name: String) -> String {
+    static func normalizedEntryName(_ name: String) -> String {
         name.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + (name.hasSuffix("/") ? "/" : "")
     }
 
-    private static func fileCount(in urls: [URL]) -> Int {
+    private static func fileCount(in urls: [URL]) async throws -> Int {
+        try await Task.detached(priority: .utility) {
+            try countRegularFiles(in: urls)
+        }.value
+    }
+
+    private static func countRegularFiles(in urls: [URL]) throws -> Int {
         let resourceKeys: Set<URLResourceKey> = [.isRegularFileKey, .isDirectoryKey]
-        return urls.reduce(0) { count, url in
+        return try urls.reduce(0) { count, url in
+            try Task.checkCancellation()
             guard let values = try? url.resourceValues(forKeys: resourceKeys) else { return count + 1 }
             if values.isDirectory == true {
                 guard let enumerator = FileManager.default.enumerator(at: url, includingPropertiesForKeys: Array(resourceKeys)) else {
                     return count + 1
                 }
-                return count + enumerator.compactMap { entry -> URL? in entry as? URL }.filter { fileURL in
-                    (try? fileURL.resourceValues(forKeys: resourceKeys).isRegularFile) == true
-                }.count
+                var fileCount = 0
+                for case let fileURL as URL in enumerator {
+                    try Task.checkCancellation()
+                    if (try? fileURL.resourceValues(forKeys: resourceKeys).isRegularFile) == true {
+                        fileCount += 1
+                    }
+                }
+                return count + fileCount
             }
             return count + 1
         }
+    }
+
+    private static func readOutput(
+        from handle: FileHandle,
+        progressParser: ProgressOutputParser?,
+        chunkHandler: ((String) throws -> Void)? = nil
+    ) throws -> String {
+        var output = ""
+        while true {
+            let data = handle.availableData
+            guard !data.isEmpty else { break }
+            let text = String(decoding: data, as: UTF8.self)
+            output += text
+            progressParser?.consume(text)
+            try chunkHandler?(text)
+        }
+        return output
+    }
+
+    private static func parseUnzipModified(_ text: String) -> Date? {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "MM-dd-yyyy HH:mm"
+        return formatter.date(from: text)
+    }
+
+    private static func parseSevenZipModified(_ text: String) -> Date? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let formats = [
+            "yyyy-MM-dd HH:mm:ss",
+            "yyyy-MM-dd HH:mm:ss.SSS",
+            "yyyy-MM-dd HH:mm:ss.SSSSSS",
+            "yyyy-MM-dd HH:mm:ss.SSSSSSS"
+        ]
+
+        for format in formats {
+            let formatter = DateFormatter()
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            formatter.dateFormat = format
+            if let date = formatter.date(from: trimmed) {
+                return date
+            }
+        }
+        return nil
     }
 }
 
@@ -585,28 +758,90 @@ private final class ProgressOutputParser: @unchecked Sendable {
     }
 }
 
-private final class LockedStringBuffer: @unchecked Sendable {
-    private let lock = NSLock()
-    private var storage = ""
-
-    nonisolated init() {}
-
-    nonisolated var value: String {
-        lock.lock()
-        defer { lock.unlock() }
-        return storage
-    }
-
-    nonisolated func append(_ text: String) {
-        lock.lock()
-        storage += text
-        lock.unlock()
-    }
-}
-
 private struct ResolvedSevenZipTool {
     let path: String
     let source: SevenZipToolSource
+}
+
+private enum ProcessInputStrategy {
+    case none
+    case passwordPrompts([String])
+}
+
+private struct InteractivePasswordResponder {
+    private static let promptMarkers = [
+        "enter password",
+        "verify password",
+        "reenter password",
+        "password:"
+    ]
+
+    private let responses: [String]
+    private var responseIndex = 0
+    private var buffer = ""
+
+    init(responses: [String]) {
+        self.responses = responses
+    }
+
+    mutating func consume(_ text: String, writer: FileHandle) throws {
+        guard responseIndex < responses.count else { return }
+        buffer += text.lowercased()
+        guard Self.promptMarkers.contains(where: buffer.contains) else {
+            if buffer.count > 512 {
+                buffer = String(buffer.suffix(512))
+            }
+            return
+        }
+
+        if let data = (responses[responseIndex] + "\n").data(using: .utf8) {
+            try writer.write(contentsOf: data)
+        }
+        responseIndex += 1
+        buffer = ""
+    }
+}
+
+private final class ActiveProcessRegistry: @unchecked Sendable {
+    private let lock = NSLock()
+    private weak var activeProcess: Process?
+    private var cancelledProcesses = Set<ObjectIdentifier>()
+
+    func register(_ process: Process) {
+        lock.lock()
+        activeProcess = process
+        cancelledProcesses.remove(ObjectIdentifier(process))
+        lock.unlock()
+    }
+
+    func clear(_ process: Process) {
+        lock.lock()
+        if activeProcess === process {
+            activeProcess = nil
+        }
+        cancelledProcesses.remove(ObjectIdentifier(process))
+        lock.unlock()
+    }
+
+    func wasCancelled(_ process: Process) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return cancelledProcesses.contains(ObjectIdentifier(process))
+    }
+
+    func cancelActiveProcess() {
+        lock.lock()
+        let process = activeProcess
+        if let process {
+            cancelledProcesses.insert(ObjectIdentifier(process))
+        }
+        lock.unlock()
+
+        process?.interrupt()
+        if process?.isRunning == true {
+            process?.terminate()
+        }
+    }
 }
 
 private enum SevenZipToolSource {

@@ -10,6 +10,7 @@
 "error.unsupportedFormat" = "This first version supports .zip files, plus .7z when 7-Zip is installed.";
 "error.missingSevenZip" = "7-Zip command line tool was not found. Install 7zz with Homebrew to handle .7z archives.";
 "status.creating" = "Creating %@";
+"status.countingFiles" = "Counting files before creating the archive...";
 "status.extracting" = "Extracting %@";
 "status.currentFile" = "Current: %@";
 "status.testing" = "Testing %@";
@@ -23,6 +24,7 @@
 "status.archivedItemCount" = "%d archived items";
 "status.couldNotReadArchive" = "Could not read archive";
 "status.done" = "Done";
+"status.cancelled" = "Cancelled";
 "status.failed" = "Failed";
 "status.backend" = "ZIP native | 7Z via 7zz";
 "type.folder" = "Folder";
@@ -134,6 +136,7 @@
 "archive.password" = "Password (optional)";
 "archive.skipDSStore" = "Skip .DS_Store";
 "archive.skipHiddenFiles" = "Skip dotfiles";
+"archive.skipHiddenFilesHint" = "Dotfiles include .env, .gitignore, .npmrc, and other files that start with a dot.";
 "archive.customExcludes" = "Custom excludes";
 "archive.customExcludesHint" = "One rule per line, or separate with commas. For example: *.tmp or build/*";
 "archive.destination" = "Save to";

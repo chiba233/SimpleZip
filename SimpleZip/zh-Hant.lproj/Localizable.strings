@@ -10,6 +10,7 @@
 "error.unsupportedFormat" = "目前首版支援 .zip；安裝 7-Zip 後也支援 .7z。";
 "error.missingSevenZip" = "找不到 7-Zip 命令列工具。請透過 Homebrew 安裝 7zz 以處理 .7z 壓縮檔。";
 "status.creating" = "正在建立 %@";
+"status.countingFiles" = "正在統計待壓縮檔案數量...";
 "status.extracting" = "正在解壓縮 %@";
 "status.currentFile" = "目前：%@";
 "status.testing" = "正在測試 %@";
@@ -23,6 +24,7 @@
 "status.archivedItemCount" = "%d 個壓縮檔內項目";
 "status.couldNotReadArchive" = "無法讀取壓縮檔";
 "status.done" = "完成";
+"status.cancelled" = "已取消";
 "status.failed" = "失敗";
 "status.backend" = "原生 ZIP | 7Z 透過 7zz";
 "type.folder" = "資料夾";
@@ -134,6 +136,7 @@
 "archive.password" = "密碼（選填）";
 "archive.skipDSStore" = "略過 .DS_Store";
 "archive.skipHiddenFiles" = "略過 . 開頭的隱藏檔";
+"archive.skipHiddenFilesHint" = "隱藏檔包括 .env、.gitignore、.npmrc 等以 . 開頭的 dotfiles。";
 "archive.customExcludes" = "自訂排除";
 "archive.customExcludesHint" = "每行一個規則，也可用逗號分隔。例如 *.tmp 或 build/*";
 "archive.destination" = "儲存到";

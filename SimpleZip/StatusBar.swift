@@ -14,8 +14,15 @@ struct StatusBar: View {
     var body: some View {
         HStack {
             if model.isWorking {
-                ProgressView(value: model.operationProgress.fraction)
-                    .frame(width: 140)
+                Group {
+                    if let fraction = model.operationProgress.fraction {
+                        ProgressView(value: fraction)
+                    } else {
+                        ProgressView()
+                            .controlSize(.small)
+                    }
+                }
+                .frame(width: 140, alignment: .leading)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(model.status)
                         .lineLimit(1)
@@ -24,7 +31,13 @@ struct StatusBar: View {
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                             .truncationMode(.middle)
+                        }
+                }
+                if model.canCancelCurrentOperation {
+                    Button(L10n.text("button.cancel")) {
+                        model.cancelCurrentOperation()
                     }
+                    .buttonStyle(.borderless)
                 }
             } else {
                 Text(model.status)

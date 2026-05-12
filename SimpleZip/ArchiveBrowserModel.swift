@@ -26,12 +26,17 @@ final class ArchiveBrowserModel: ObservableObject {
     @Published var extractArchiveRequest: ExtractArchiveRequest?
     @Published var extractSelectionRequest: ExtractSelectionRequest?
     @Published var operationProgress = ArchiveProgressState()
+    @Published private(set) var canCancelCurrentOperation = false
 
     private let fileManager = FileManager.default
+    private let extractionCoordinator = ArchiveExtractionCoordinator(fileManager: .default)
     private var allArchiveItems: [ArchiveItem] = []
     private var archivePath = ""
     private var fileClipboard: (urls: [URL], shouldMove: Bool)?
-    private var pendingHashOverwriteResults: [String: HashOverwriteResult] = [:]
+    private var loadTask: Task<Void, Never>?
+    private var activeLoadGeneration = 0
+    private var operationTask: Task<Void, Never>?
+    private var activeOperationID: UUID?
 
     init() {
         mode = .folder(AppPreferences.defaultStartupURL(fileManager: fileManager))
@@ -254,17 +259,24 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     func reload() {
+        loadTask?.cancel()
         selection.removeAll()
         selectedArchiveRows.removeAll()
         errorMessage = nil
+        let loadGeneration = nextLoadGeneration()
 
         switch mode {
         case .folder(let url):
+            loadTask = nil
             loadFolder(url)
         case .tag(let tag):
-            Task { await loadTaggedFiles(tag) }
+            loadTask = Task { [weak self] in
+                await self?.loadTaggedFiles(tag, generation: loadGeneration)
+            }
         case .archive(let url):
-            Task { await loadArchive(url) }
+            loadTask = Task { [weak self] in
+                await self?.loadArchive(url, generation: loadGeneration)
+            }
         }
     }
 
@@ -285,7 +297,8 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     func performCreateArchive(_ request: ArchiveCreationRequest) {
-        Task {
+        startOperationTask(cancellable: true) { [weak self] in
+            guard let self else { return }
             await runArchiveTask(L10n.format("status.creating", request.destinationURL.lastPathComponent)) { progress in
                 try await ArchiveService.createArchive(from: request.sourceURLs, destination: request.destinationURL, options: request.options, progress: progress)
             }
@@ -330,19 +343,28 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     func performExtractArchive(_ request: ExtractArchiveRequest) {
-        Task {
+        startOperationTask(cancellable: true) { [weak self] in
+            guard let self else { return }
             await runArchiveTask(L10n.format("status.extracting", request.archiveURL.lastPathComponent)) { progress in
-                let stagingURL = try self.makeExtractionStagingDirectory()
+                let stagingURL = try self.extractionCoordinator.makeExtractionStagingDirectory()
                 defer { try? self.fileManager.removeItem(at: stagingURL) }
 
                 try await ArchiveService.extract(
                     request.archiveURL,
                     to: stagingURL,
-                    overwriteBehavior: .overwrite,
+                    overwriteBehavior: AppPreferences.overwriteBehavior,
                     password: request.password,
                     progress: progress
                 )
-                try await self.mergeExtractedItems(from: stagingURL, to: request.destinationURL)
+                try await self.extractionCoordinator.mergeExtractedItems(
+                    from: stagingURL,
+                    to: request.destinationURL,
+                    defaultOverwriteBehavior: AppPreferences.overwriteBehavior
+                ) { [weak self] status in
+                    self?.status = status
+                } updateProgress: { [weak self] progress in
+                    self?.operationProgress = progress
+                }
             }
             if case .folder(let folder) = mode, folder == request.destinationURL {
                 reload()
@@ -370,21 +392,30 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     func performExtractSelection(_ request: ExtractSelectionRequest) {
-        Task {
+        startOperationTask(cancellable: true) { [weak self] in
+            guard let self else { return }
             await runArchiveTask(L10n.format("status.extractingSelected", request.entries.count)) { progress in
-                let stagingURL = try self.makeExtractionStagingDirectory()
+                let stagingURL = try self.extractionCoordinator.makeExtractionStagingDirectory()
                 defer { try? self.fileManager.removeItem(at: stagingURL) }
 
                 try await ArchiveService.extract(
                     request.archiveURL,
                     entries: request.entries,
                     to: stagingURL,
-                    overwriteBehavior: .overwrite,
+                    overwriteBehavior: AppPreferences.overwriteBehavior,
                     pathMode: request.pathMode,
                     password: request.password,
                     progress: progress
                 )
-                try await self.mergeExtractedItems(from: stagingURL, to: request.destinationURL)
+                try await self.extractionCoordinator.mergeExtractedItems(
+                    from: stagingURL,
+                    to: request.destinationURL,
+                    defaultOverwriteBehavior: AppPreferences.overwriteBehavior
+                ) { [weak self] status in
+                    self?.status = status
+                } updateProgress: { [weak self] progress in
+                    self?.operationProgress = progress
+                }
             }
             if case .folder(let folder) = mode, folder == request.destinationURL {
                 reload()
@@ -406,7 +437,8 @@ final class ArchiveBrowserModel: ObservableObject {
             return
         }
 
-        Task {
+        startOperationTask(cancellable: true) { [weak self] in
+            guard let self else { return }
             await runArchiveTask(L10n.format("status.testing", archiveURL.lastPathComponent)) { _ in
                 try await ArchiveService.test(archiveURL)
             }
@@ -414,7 +446,11 @@ final class ArchiveBrowserModel: ObservableObject {
         }
     }
 
-    func calculateHash(algorithms: [HashAlgorithm] = HashAlgorithm.allCases) {
+    func calculateHash() {
+        calculateHash(algorithms: HashAlgorithm.allCases)
+    }
+
+    func calculateHash(algorithms: [HashAlgorithm]) {
         let urls: [URL]
         switch mode {
         case .folder, .tag:
@@ -428,7 +464,8 @@ final class ArchiveBrowserModel: ObservableObject {
             return
         }
 
-        Task {
+        startOperationTask { [weak self] in
+            guard let self else { return }
             isWorking = true
             errorMessage = nil
             status = L10n.text("status.hashing")
@@ -468,7 +505,8 @@ final class ArchiveBrowserModel: ObservableObject {
     func pasteFiles() {
         guard case .folder(let folderURL) = mode, let fileClipboard, !fileClipboard.urls.isEmpty else { return }
 
-        Task {
+        startOperationTask { [weak self] in
+            guard let self else { return }
             isWorking = true
             status = L10n.text("status.pasting")
             operationProgress = ArchiveProgressState(fraction: 0, currentFile: nil)
@@ -482,7 +520,12 @@ final class ArchiveBrowserModel: ObservableObject {
                 for (index, url) in fileClipboard.urls.enumerated() {
                     operationProgress = ArchiveProgressState(fraction: Double(index) / Double(total), currentFile: url.lastPathComponent)
                     let requestedTargetURL = folderURL.appendingPathComponent(url.lastPathComponent)
-                    let targetURL = try await resolvedPasteDestination(for: url, requestedTargetURL: requestedTargetURL)
+                    let targetURL = try await extractionCoordinator.resolveDestination(
+                        for: url,
+                        requestedTargetURL: requestedTargetURL,
+                        updateStatus: { [weak self] status in self?.status = status },
+                        updateProgress: { [weak self] progress in self?.operationProgress = progress }
+                    )
                     guard let targetURL else { continue }
 
                     if fileClipboard.shouldMove {
@@ -490,7 +533,7 @@ final class ArchiveBrowserModel: ObservableObject {
                     } else {
                         try fileManager.copyItem(at: url, to: targetURL)
                     }
-                    showPendingHashOverwriteResult(for: targetURL)
+                    extractionCoordinator.showPendingHashOverwriteResult(for: targetURL)
                 }
                 if fileClipboard.shouldMove {
                     self.fileClipboard = nil
@@ -502,6 +545,12 @@ final class ArchiveBrowserModel: ObservableObject {
                 status = L10n.text("status.failed")
             }
         }
+    }
+
+    func cancelCurrentOperation() {
+        guard canCancelCurrentOperation else { return }
+        operationTask?.cancel()
+        ArchiveService.cancelRunningCommand()
     }
 
     func deleteSelectedFiles() {
@@ -546,7 +595,10 @@ final class ArchiveBrowserModel: ObservableObject {
 
         do {
             for item in selectedFileItems {
-                try fileManager.moveItem(at: item.url, to: uniqueDestinationURL(for: item.url.lastPathComponent, in: destinationFolder))
+                try fileManager.moveItem(
+                    at: item.url,
+                    to: extractionCoordinator.uniqueDestinationURL(for: item.url.lastPathComponent, in: destinationFolder)
+                )
             }
             reload()
         } catch {
@@ -581,18 +633,19 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     /// 使用 Spotlight 查询 Finder tag。结果仍显示成普通文件行，方便继续打开、哈希或创建压缩包。
-    private func loadTaggedFiles(_ tag: String) async {
-        isWorking = true
-        status = L10n.format("status.searchingTag", tag)
-        defer { isWorking = false }
+    private func loadTaggedFiles(_ tag: String, generation: Int) async {
+        beginAsyncLoad(generation: generation, statusText: L10n.format("status.searchingTag", tag))
+        defer { endAsyncLoad(generation: generation) }
 
         do {
             let urls = try await taggedFileURLs(named: tag)
+            guard isCurrentLoad(generation, mode: .tag(tag)) else { return }
             fileItems = makeFileItems(from: urls, folderFirst: false)
             archiveItems = []
             allArchiveItems = []
             status = L10n.format("status.tagItemCount", fileItems.count)
         } catch {
+            guard isCurrentLoad(generation, mode: .tag(tag)) else { return }
             fileItems = []
             archiveItems = []
             allArchiveItems = []
@@ -624,41 +677,49 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     private nonisolated func taggedFileURLs(named tag: String) async throws -> [URL] {
-        try await Task.detached {
-            let process = Process()
-            let output = Pipe()
-            let escapedTag = tag.replacingOccurrences(of: "\"", with: "\\\"")
-            process.executableURL = URL(fileURLWithPath: "/usr/bin/mdfind")
-            process.arguments = [
-                "-onlyin",
-                FileManager.default.homeDirectoryForCurrentUser.path,
-                "kMDItemUserTags == \"\(escapedTag)\""
-            ]
-            process.standardOutput = output
-            try process.run()
-            process.waitUntilExit()
+        try await withCheckedThrowingContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                do {
+                    let process = Process()
+                    let output = Pipe()
+                    let escapedTag = tag.replacingOccurrences(of: "\"", with: "\\\"")
+                    process.executableURL = URL(fileURLWithPath: "/usr/bin/mdfind")
+                    process.arguments = [
+                        "-onlyin",
+                        FileManager.default.homeDirectoryForCurrentUser.path,
+                        "kMDItemUserTags == \"\(escapedTag)\""
+                    ]
+                    process.standardOutput = output
+                    try process.run()
+                    process.waitUntilExit()
 
-            let data = output.fileHandleForReading.readDataToEndOfFile()
-            let text = String(decoding: data, as: UTF8.self)
-            return text
-                .split(separator: "\n")
-                .map { URL(fileURLWithPath: String($0)) }
-                .filter { FileManager.default.fileExists(atPath: $0.path) }
+                    let data = output.fileHandleForReading.readDataToEndOfFile()
+                    let text = String(decoding: data, as: UTF8.self)
+                    let urls = text
+                        .split(separator: "\n")
+                        .map { URL(fileURLWithPath: String($0)) }
+                        .filter { FileManager.default.fileExists(atPath: $0.path) }
+                    continuation.resume(returning: urls)
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
         }
-        .value
     }
 
     /// 加载压缩包内项目。具体解析交给 ArchiveService，这里只更新 UI 状态。
-    private func loadArchive(_ url: URL) async {
-        isWorking = true
-        status = L10n.text("status.readingArchive")
-        defer { isWorking = false }
+    private func loadArchive(_ url: URL, generation: Int) async {
+        beginAsyncLoad(generation: generation, statusText: L10n.text("status.readingArchive"))
+        defer { endAsyncLoad(generation: generation) }
 
         do {
-            allArchiveItems = try await ArchiveService.list(url)
+            let items = try await ArchiveService.list(url)
+            guard isCurrentLoad(generation, mode: .archive(url)) else { return }
+            allArchiveItems = items
             fileItems = []
             refreshArchiveItems()
         } catch {
+            guard isCurrentLoad(generation, mode: .archive(url)) else { return }
             archiveItems = []
             allArchiveItems = []
             errorMessage = error.localizedDescription
@@ -671,25 +732,6 @@ final class ArchiveBrowserModel: ObservableObject {
             return items[0].url.deletingPathExtension().lastPathComponent + ".zip"
         }
         return "Archive.zip"
-    }
-
-    private func uniqueDestinationURL(for fileName: String, in directory: URL) -> URL {
-        let initialURL = directory.appendingPathComponent(fileName)
-        guard fileManager.fileExists(atPath: initialURL.path) else { return initialURL }
-
-        let baseURL = URL(fileURLWithPath: fileName)
-        let name = baseURL.deletingPathExtension().lastPathComponent
-        let ext = baseURL.pathExtension
-
-        for index in 1...999 {
-            let candidateName = ext.isEmpty ? "\(name) \(index)" : "\(name) \(index).\(ext)"
-            let candidateURL = directory.appendingPathComponent(candidateName)
-            if !fileManager.fileExists(atPath: candidateURL.path) {
-                return candidateURL
-            }
-        }
-
-        return directory.appendingPathComponent(UUID().uuidString + (ext.isEmpty ? "" : ".\(ext)"))
     }
 
     /// 选中压缩包内目录时，展开成目录下所有项目，避免后端只收到目录占位项。
@@ -770,7 +812,7 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     private func syntheticDirectory(named name: String) -> ArchiveItem {
-        ArchiveItem(name: name, isDirectory: true, sizeText: "", modifiedText: "", method: "")
+        ArchiveItem(name: name, isDirectory: true, size: nil, modified: nil, sizeText: "", modifiedText: "", method: "")
     }
 
     private func parentArchivePath(for path: String) -> String {
@@ -793,6 +835,47 @@ final class ArchiveBrowserModel: ObservableObject {
         return isDirectory ? trimmedName + "/" : trimmedName
     }
 
+    private func nextLoadGeneration() -> Int {
+        activeLoadGeneration += 1
+        return activeLoadGeneration
+    }
+
+    private func beginAsyncLoad(generation: Int, statusText: String) {
+        guard generation == activeLoadGeneration else { return }
+        isWorking = true
+        status = statusText
+    }
+
+    private func endAsyncLoad(generation: Int) {
+        guard generation == activeLoadGeneration else { return }
+        isWorking = false
+        loadTask = nil
+    }
+
+    private func isCurrentLoad(_ generation: Int, mode expectedMode: BrowserMode) -> Bool {
+        guard generation == activeLoadGeneration, !Task.isCancelled else { return false }
+        return mode == expectedMode
+    }
+
+    private func startOperationTask(cancellable: Bool = false, _ operation: @escaping @MainActor () async -> Void) {
+        operationTask?.cancel()
+        if canCancelCurrentOperation {
+            ArchiveService.cancelRunningCommand()
+        }
+        let operationID = UUID()
+        activeOperationID = operationID
+        canCancelCurrentOperation = cancellable
+        operationTask = Task { [weak self] in
+            await operation()
+            await MainActor.run {
+                guard let self, self.activeOperationID == operationID else { return }
+                self.operationTask = nil
+                self.activeOperationID = nil
+                self.canCancelCurrentOperation = false
+            }
+        }
+    }
+
     private func confirmDelete(items: [FileItem]) -> Bool {
         let alert = NSAlert()
         alert.alertStyle = .warning
@@ -801,220 +884,6 @@ final class ArchiveBrowserModel: ObservableObject {
         alert.addButton(withTitle: L10n.text("file.moveToTrash"))
         alert.addButton(withTitle: L10n.text("button.cancel"))
         return alert.runModal() == .alertFirstButtonReturn
-    }
-
-    private func resolvedPasteDestination(for sourceURL: URL, requestedTargetURL: URL) async throws -> URL? {
-        if sourceURL.standardizedFileURL == requestedTargetURL.standardizedFileURL {
-            return nil
-        }
-        guard fileManager.fileExists(atPath: requestedTargetURL.path) else {
-            return requestedTargetURL
-        }
-
-        switch pasteConflictChoice(sourceURL: sourceURL, targetURL: requestedTargetURL) {
-        case .replace:
-            try trashExistingItem(at: requestedTargetURL)
-            return requestedTargetURL
-        case .keepBoth:
-            return uniqueDestinationURL(for: sourceURL.lastPathComponent, in: requestedTargetURL.deletingLastPathComponent())
-        case .skip:
-            return nil
-        case .replaceIfDifferent:
-            let result = try await compareHashesForOverwrite(sourceURL: sourceURL, targetURL: requestedTargetURL)
-            if result.isSame {
-                showHashOverwriteResult(result)
-                return nil
-            }
-            try trashExistingItem(at: requestedTargetURL)
-            pendingHashOverwriteResults[requestedTargetURL.standardizedFileURL.path] = result
-            return requestedTargetURL
-        case .cancel:
-            throw CocoaError(.userCancelled)
-        }
-    }
-
-    private func pasteConflictChoice(sourceURL: URL, targetURL: URL) -> PasteConflictChoice {
-        let alert = NSAlert()
-        alert.alertStyle = .warning
-        alert.messageText = L10n.format("confirm.pasteConflict.title", targetURL.lastPathComponent)
-        alert.informativeText = L10n.text("confirm.pasteConflict.message")
-        alert.addButton(withTitle: L10n.text("conflict.replace"))
-        alert.addButton(withTitle: L10n.text("conflict.keepBoth"))
-        alert.addButton(withTitle: L10n.text("conflict.skip"))
-        alert.addButton(withTitle: L10n.text("conflict.replaceIfDifferent"))
-        alert.addButton(withTitle: L10n.text("button.cancel"))
-
-        switch alert.runModal() {
-        case .alertFirstButtonReturn:
-            return .replace
-        case .alertSecondButtonReturn:
-            return .keepBoth
-        case .alertThirdButtonReturn:
-            return .skip
-        case NSApplication.ModalResponse(rawValue: NSApplication.ModalResponse.alertThirdButtonReturn.rawValue + 1):
-            return .replaceIfDifferent
-        default:
-            return .cancel
-        }
-    }
-
-    private func trashExistingItem(at url: URL) throws {
-        var resultingURL: NSURL?
-        try fileManager.trashItem(at: url, resultingItemURL: &resultingURL)
-    }
-
-    private func makeExtractionStagingDirectory() throws -> URL {
-        let root = fileManager.temporaryDirectory
-            .appendingPathComponent("SimpleZip-Extract-\(UUID().uuidString)", isDirectory: true)
-        try fileManager.createDirectory(at: root, withIntermediateDirectories: true)
-        return root
-    }
-
-    private func mergeExtractedItems(from stagingURL: URL, to destinationURL: URL) async throws {
-        status = L10n.text("status.mergingExtractedFiles")
-        operationProgress = ArchiveProgressState(fraction: nil, currentFile: destinationURL.lastPathComponent)
-        try fileManager.createDirectory(at: destinationURL, withIntermediateDirectories: true)
-
-        let extractedURLs = try fileManager.contentsOfDirectory(
-            at: stagingURL,
-            includingPropertiesForKeys: [.isDirectoryKey, .isRegularFileKey],
-            options: []
-        )
-
-        for sourceURL in extractedURLs {
-            let targetURL = destinationURL.appendingPathComponent(sourceURL.lastPathComponent)
-            try await mergeExtractedItem(sourceURL, to: targetURL)
-        }
-    }
-
-    private func mergeExtractedItem(_ sourceURL: URL, to targetURL: URL) async throws {
-        operationProgress = ArchiveProgressState(fraction: nil, currentFile: sourceURL.lastPathComponent)
-
-        let sourceValues = try sourceURL.resourceValues(forKeys: [.isDirectoryKey])
-        let sourceIsDirectory = sourceValues.isDirectory == true
-        var targetIsDirectory = ObjCBool(false)
-        let targetExists = fileManager.fileExists(atPath: targetURL.path, isDirectory: &targetIsDirectory)
-
-        if sourceIsDirectory, targetExists, targetIsDirectory.boolValue {
-            let childURLs = try fileManager.contentsOfDirectory(
-                at: sourceURL,
-                includingPropertiesForKeys: [.isDirectoryKey, .isRegularFileKey],
-                options: []
-            )
-            for childURL in childURLs {
-                try await mergeExtractedItem(childURL, to: targetURL.appendingPathComponent(childURL.lastPathComponent))
-            }
-            try? fileManager.removeItem(at: sourceURL)
-            return
-        }
-
-        let resolvedURL = try await resolvedPasteDestination(for: sourceURL, requestedTargetURL: targetURL)
-        guard let resolvedURL else { return }
-        try fileManager.createDirectory(at: resolvedURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try fileManager.moveItem(at: sourceURL, to: resolvedURL)
-        showPendingHashOverwriteResult(for: resolvedURL)
-    }
-
-    private func compareHashesForOverwrite(sourceURL: URL, targetURL: URL) async throws -> HashOverwriteResult {
-        let resourceKeys: Set<URLResourceKey> = [.isRegularFileKey]
-        let sourceValues = try sourceURL.resourceValues(forKeys: resourceKeys)
-        let targetValues = try targetURL.resourceValues(forKeys: resourceKeys)
-        guard sourceValues.isRegularFile == true, targetValues.isRegularFile == true else {
-            return HashOverwriteResult(sourceURL: sourceURL, targetURL: targetURL, sourceHash: L10n.text("hash.notRegularFile"), targetHash: L10n.text("hash.notRegularFile"), isSame: false)
-        }
-
-        let progressPanel = makeHashProgressPanel()
-        progressPanel.panel.makeKeyAndOrderFront(nil)
-        defer { progressPanel.panel.close() }
-
-        status = L10n.text("status.hashingForOverwrite")
-        operationProgress = ArchiveProgressState(fraction: 0, currentFile: targetURL.lastPathComponent)
-        updateHashProgressPanel(progressPanel, fraction: 0.1, fileName: targetURL.lastPathComponent, labelKey: "hashOverwrite.progress.existing")
-        let targetHash = try await Task.detached(priority: .userInitiated) { try HashService.sha256(for: targetURL) }.value
-
-        operationProgress = ArchiveProgressState(fraction: 0.5, currentFile: sourceURL.lastPathComponent)
-        updateHashProgressPanel(progressPanel, fraction: 0.55, fileName: sourceURL.lastPathComponent, labelKey: "hashOverwrite.progress.incoming")
-        let sourceHash = try await Task.detached(priority: .userInitiated) { try HashService.sha256(for: sourceURL) }.value
-
-        operationProgress = ArchiveProgressState(fraction: 1, currentFile: nil)
-        updateHashProgressPanel(progressPanel, fraction: 1, fileName: "", labelKey: "status.done")
-        return HashOverwriteResult(sourceURL: sourceURL, targetURL: targetURL, sourceHash: sourceHash, targetHash: targetHash, isSame: sourceHash == targetHash)
-    }
-
-    private func makeHashProgressPanel() -> HashProgressPanel {
-        let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 420, height: 132),
-            styleMask: [.titled],
-            backing: .buffered,
-            defer: false
-        )
-        panel.title = L10n.text("hashOverwrite.progress.title")
-        panel.isReleasedWhenClosed = false
-        panel.level = .floating
-
-        let stackView = NSStackView()
-        stackView.orientation = .vertical
-        stackView.alignment = .leading
-        stackView.spacing = 12
-        stackView.translatesAutoresizingMaskIntoConstraints = false
-
-        let label = NSTextField(labelWithString: L10n.text("status.hashingForOverwrite"))
-        label.lineBreakMode = .byTruncatingMiddle
-        label.maximumNumberOfLines = 2
-
-        let progressIndicator = NSProgressIndicator()
-        progressIndicator.isIndeterminate = false
-        progressIndicator.minValue = 0
-        progressIndicator.maxValue = 1
-        progressIndicator.doubleValue = 0
-        progressIndicator.controlSize = .regular
-        progressIndicator.translatesAutoresizingMaskIntoConstraints = false
-
-        stackView.addArrangedSubview(label)
-        stackView.addArrangedSubview(progressIndicator)
-
-        let contentView = NSView()
-        contentView.addSubview(stackView)
-        panel.contentView = contentView
-        NSLayoutConstraint.activate([
-            stackView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
-            stackView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
-            stackView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 20),
-            progressIndicator.widthAnchor.constraint(equalTo: stackView.widthAnchor)
-        ])
-        panel.center()
-        return HashProgressPanel(panel: panel, label: label, progressIndicator: progressIndicator)
-    }
-
-    private func updateHashProgressPanel(_ progressPanel: HashProgressPanel, fraction: Double, fileName: String, labelKey: String) {
-        progressPanel.progressIndicator.doubleValue = fraction
-        if fileName.isEmpty {
-            progressPanel.label.stringValue = L10n.text(labelKey)
-        } else {
-            progressPanel.label.stringValue = L10n.format(labelKey, fileName)
-        }
-        progressPanel.panel.displayIfNeeded()
-    }
-
-    private func showPendingHashOverwriteResult(for url: URL) {
-        let key = url.standardizedFileURL.path
-        guard let result = pendingHashOverwriteResults.removeValue(forKey: key) else { return }
-        showHashOverwriteResult(result)
-    }
-
-    private func showHashOverwriteResult(_ result: HashOverwriteResult) {
-        let alert = NSAlert()
-        alert.alertStyle = result.isSame ? .informational : .warning
-        alert.messageText = result.isSame ? L10n.text("hashOverwrite.same.title") : L10n.text("hashOverwrite.different.title")
-        alert.informativeText = L10n.format(
-            result.isSame ? "hashOverwrite.same.message" : "hashOverwrite.different.message",
-            result.targetURL.lastPathComponent,
-            result.targetHash,
-            result.sourceURL.lastPathComponent,
-            result.sourceHash
-        )
-        alert.addButton(withTitle: L10n.text("button.ok"))
-        alert.runModal()
     }
 
     private func lastExistingFolder(for url: URL) -> URL {
@@ -1088,9 +957,9 @@ final class ArchiveBrowserModel: ObservableObject {
         let result: ComparisonResult
         switch key {
         case "size":
-            result = lhs.sizeText.localizedStandardCompare(rhs.sizeText)
+            result = NSNumber(value: lhs.size ?? -1).compare(NSNumber(value: rhs.size ?? -1))
         case "modified":
-            result = lhs.modifiedText.localizedStandardCompare(rhs.modifiedText)
+            result = (lhs.modified ?? .distantPast).compare(rhs.modified ?? .distantPast)
         case "method":
             result = lhs.method.localizedStandardCompare(rhs.method)
         default:
@@ -1114,37 +983,20 @@ final class ArchiveBrowserModel: ObservableObject {
             try await operation { [weak self] progress in
                 Task { @MainActor [weak self] in
                     self?.operationProgress = progress
-                    if let currentFile = progress.currentFile, !currentFile.isEmpty {
+                    if let statusText = progress.statusText, !statusText.isEmpty {
+                        self?.status = statusText
+                    } else if let currentFile = progress.currentFile, !currentFile.isEmpty {
                         self?.status = currentFile
                     }
                 }
             }
             status = L10n.text("status.done")
+        } catch is CancellationError {
+            errorMessage = nil
+            status = L10n.text("status.cancelled")
         } catch {
             errorMessage = error.localizedDescription
             status = L10n.text("status.failed")
         }
     }
-}
-
-private enum PasteConflictChoice {
-    case replace
-    case keepBoth
-    case skip
-    case replaceIfDifferent
-    case cancel
-}
-
-private struct HashOverwriteResult {
-    let sourceURL: URL
-    let targetURL: URL
-    let sourceHash: String
-    let targetHash: String
-    let isSame: Bool
-}
-
-private struct HashProgressPanel {
-    let panel: NSPanel
-    let label: NSTextField
-    let progressIndicator: NSProgressIndicator
 }

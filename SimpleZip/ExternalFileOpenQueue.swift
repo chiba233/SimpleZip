@@ -15,16 +15,21 @@ extension Notification.Name {
 final class ExternalFileOpenQueue {
     static let shared = ExternalFileOpenQueue()
 
+    private let lock = NSLock()
     private var pendingURLs: [URL] = []
 
     private init() {}
 
     func enqueue(_ url: URL) {
+        lock.lock()
         pendingURLs.append(url)
+        lock.unlock()
         NotificationCenter.default.post(name: .openExternalFile, object: url)
     }
 
     func drain() -> [URL] {
+        lock.lock()
+        defer { lock.unlock() }
         let urls = pendingURLs
         pendingURLs.removeAll()
         return urls

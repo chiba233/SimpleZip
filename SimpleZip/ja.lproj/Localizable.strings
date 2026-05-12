@@ -10,6 +10,7 @@
 "error.unsupportedFormat" = "この初期版は .zip に対応しています。7-Zip がインストールされている場合は .7z も扱えます。";
 "error.missingSevenZip" = "7-Zip のコマンドラインツールが見つかりません。.7z アーカイブを扱うには Homebrew で 7zz をインストールしてください。";
 "status.creating" = "%@ を作成中";
+"status.countingFiles" = "圧縮前にファイル数を数えています...";
 "status.extracting" = "%@ を展開中";
 "status.currentFile" = "現在: %@";
 "status.testing" = "%@ をテスト中";
@@ -23,6 +24,7 @@
 "status.archivedItemCount" = "アーカイブ内 %d 項目";
 "status.couldNotReadArchive" = "アーカイブを読み込めませんでした";
 "status.done" = "完了";
+"status.cancelled" = "キャンセルしました";
 "status.failed" = "失敗";
 "status.backend" = "ZIP はネイティブ | 7Z は 7zz 経由";
 "type.folder" = "フォルダ";
@@ -134,6 +136,7 @@
 "archive.password" = "パスワード（任意）";
 "archive.skipDSStore" = ".DS_Store を除外";
 "archive.skipHiddenFiles" = "ドットファイルを除外";
+"archive.skipHiddenFilesHint" = ".env、.gitignore、.npmrc など、. で始まる dotfiles も除外対象です。";
 "archive.customExcludes" = "カスタム除外";
 "archive.customExcludesHint" = "1行に1つ、またはカンマ区切り。例: *.tmp または build/*";
 "archive.destination" = "保存先";

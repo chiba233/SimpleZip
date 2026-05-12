@@ -107,4 +107,5 @@ struct ExtractSelectionRequest: Identifiable {
 struct ArchiveProgressState {
     var fraction: Double?
     var currentFile: String?
+    var statusText: String?
 }

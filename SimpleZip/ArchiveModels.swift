@@ -23,6 +23,8 @@ struct ArchiveItem: Identifiable, Hashable {
     let id = UUID()
     let name: String
     let isDirectory: Bool
+    let size: Int64?
+    let modified: Date?
     let sizeText: String
     let modifiedText: String
     let method: String

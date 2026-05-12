@@ -10,6 +10,7 @@
 "error.unsupportedFormat" = "เวอร์ชันแรกนี้รองรับไฟล์ .zip และรองรับ .7z เมื่อติดตั้ง 7-Zip แล้ว";
 "error.missingSevenZip" = "ไม่พบเครื่องมือบรรทัดคำสั่ง 7-Zip ติดตั้ง 7zz ด้วย Homebrew เพื่อจัดการไฟล์ .7z";
 "status.creating" = "กำลังสร้าง %@";
+"status.countingFiles" = "กำลังนับจำนวนไฟล์ก่อนสร้างไฟล์บีบอัด...";
 "status.extracting" = "กำลังแตกไฟล์ %@";
 "status.currentFile" = "ปัจจุบัน: %@";
 "status.testing" = "กำลังทดสอบ %@";
@@ -23,6 +24,7 @@
 "status.archivedItemCount" = "%d รายการในไฟล์บีบอัด";
 "status.couldNotReadArchive" = "ไม่สามารถอ่านไฟล์บีบอัด";
 "status.done" = "เสร็จแล้ว";
+"status.cancelled" = "ยกเลิกแล้ว";
 "status.failed" = "ล้มเหลว";
 "status.backend" = "ZIP แบบเนทีฟ | 7Z ผ่าน 7zz";
 "type.folder" = "โฟลเดอร์";
@@ -134,6 +136,7 @@
 "archive.password" = "รหัสผ่าน (ไม่บังคับ)";
 "archive.skipDSStore" = "ข้าม .DS_Store";
 "archive.skipHiddenFiles" = "ข้ามไฟล์ที่ขึ้นต้นด้วยจุด";
+"archive.skipHiddenFilesHint" = "ไฟล์ที่ขึ้นต้นด้วยจุดรวมถึง .env, .gitignore, .npmrc และ dotfiles อื่น ๆ";
 "archive.customExcludes" = "รายการยกเว้น";
 "archive.customExcludesHint" = "หนึ่งกฎต่อบรรทัด หรือคั่นด้วยจุลภาค เช่น *.tmp หรือ build/*";
 "archive.destination" = "บันทึกไปที่";

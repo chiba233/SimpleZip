@@ -152,7 +152,7 @@ enum SevenZipBackend: String, CaseIterable, Identifiable {
 
 /// UserDefaults 读写封装，集中管理偏好键，避免字符串散落在业务代码里。
 enum AppPreferences {
-    private static let defaults = UserDefaults.standard
+    private static var defaults: UserDefaults { UserDefaults.standard }
 
     enum Key {
         static let startupLocation = "startupLocation"

@@ -16,6 +16,8 @@
   - Selected archive extraction supports keeping folder structure or flattening files into the target folder.
   - ZIP selected-entry extraction uses macOS `tar` path listing/extraction to avoid `filename not matched` mismatches from `unzip`.
   - Directory selection expands to child entries before extraction.
+  - Extraction merge now honors the default overwrite preference when destination files already exist.
+  - Passworded archive operations now avoid passing passwords on the command line.
 - **Archive creation**
   - Long-running archive creation now reports progress and the current file when the backend emits progress output.
   - Added a creation options sheet.
@@ -24,6 +26,14 @@
   - Added compression level selection.
   - Added optional password input.
   - Added `.DS_Store`, dotfile, and custom exclude rules.
+  - Archive creation now counts files before starting, shows a loading indicator during counting, and switches to determinate progress once the total is known.
+  - Long-running archive commands can now be cancelled from the status bar.
+  - Dotfile exclusion now explains that files like `.env`, `.gitignore`, and `.npmrc` are also skipped.
+- **Reliability**
+  - Archive table sorting now uses raw size and modified-date values instead of sorting localized display text.
+  - Stale archive and tag loading tasks are now cancelled before newer results update the UI.
+  - Drag-and-drop URL collection and external file open queuing are now synchronized to avoid callback races.
+  - Added service-layer regression tests for archive list parsing, exclude pattern generation, and selected-entry expansion.
 - **File browser**
   - Sidebar now includes Finder-like Favorites, Frequently Used folders, Tags, and pinned paths.
   - Tagged files can be opened as an in-app virtual file list backed by Spotlight search.
