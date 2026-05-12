@@ -92,6 +92,7 @@
 "hash.title" = "แฮชไฟล์";
 "hash.summary" = "%d ไฟล์, %@";
 "hash.notRegularFile" = "ไม่ใช่ไฟล์ปกติ";
+"hash.all" = "แฮชทั้งหมด";
 "hashOverwrite.same.title" = "แฮชตรงกัน";
 "hashOverwrite.same.message" = "ไฟล์เดิม: %@\nSHA256: %@\n\nไฟล์ที่จะเขียนทับ: %@\nSHA256: %@\n\nไฟล์เหมือนกัน SimpleZip จึงไม่เขียนทับ";
 "hashOverwrite.different.title" = "แฮชต่างกัน";

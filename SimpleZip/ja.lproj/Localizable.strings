@@ -92,6 +92,7 @@
 "hash.title" = "ファイルハッシュ";
 "hash.summary" = "%d 個のファイル、%@";
 "hash.notRegularFile" = "通常のファイルではありません";
+"hash.all" = "すべてのハッシュ";
 "hashOverwrite.same.title" = "ハッシュが一致しました";
 "hashOverwrite.same.message" = "既存ファイル: %@\nSHA256: %@\n\n上書きしようとしたファイル: %@\nSHA256: %@\n\n同一ファイルのため、SimpleZip は上書きしませんでした。";
 "hashOverwrite.different.title" = "ハッシュが異なります";

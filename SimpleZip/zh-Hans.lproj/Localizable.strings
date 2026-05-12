@@ -92,6 +92,7 @@
 "hash.title" = "文件哈希";
 "hash.summary" = "%d 个文件，%@";
 "hash.notRegularFile" = "不是普通文件";
+"hash.all" = "全部哈希";
 "hashOverwrite.same.title" = "哈希相同";
 "hashOverwrite.same.message" = "原文件：%@\nSHA256：%@\n\n试图覆盖的文件：%@\nSHA256：%@\n\n两个文件相同，SimpleZip 没有覆盖。";
 "hashOverwrite.different.title" = "哈希不同";

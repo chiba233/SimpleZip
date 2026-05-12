@@ -91,10 +91,20 @@ struct ArchiveFileCommands: Commands {
             .keyboardShortcut("t", modifiers: [.command])
             .disabled(!canTestArchive)
 
-            Button(L10n.text("button.hash")) {
-                model?.calculateHash()
+            Menu(L10n.text("button.hash")) {
+                Button(L10n.text("hash.all")) {
+                    model?.calculateHash()
+                }
+                .keyboardShortcut("h", modifiers: [.command, .shift])
+
+                Divider()
+
+                ForEach(HashAlgorithm.allCases) { algorithm in
+                    Button(algorithm.title) {
+                        model?.calculateHash(algorithms: [algorithm])
+                    }
+                }
             }
-            .keyboardShortcut("h", modifiers: [.command, .shift])
             .disabled(!canHash)
 
             Divider()

@@ -38,7 +38,7 @@ struct HashResultsView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 12) {
                     ForEach(report.results) { result in
-                        HashResultCard(result: result)
+                        HashResultCard(report: report, result: result)
                     }
                 }
                 .padding(.vertical, 2)
@@ -51,14 +51,11 @@ struct HashResultsView: View {
 
     private func copyAllResults() {
         let text = report.results.map { result in
-            """
-            \(result.url.path)
-            CRC32: \(result.crc32)
-            MD5: \(result.md5)
-            SHA1: \(result.sha1)
-            SHA256: \(result.sha256)
-            SHA512: \(result.sha512)
-            """
+            let hashLines = report.algorithms.compactMap { algorithm -> String? in
+                guard let value = result.value(for: algorithm) else { return nil }
+                return "\(algorithm.title): \(value)"
+            }.joined(separator: "\n")
+            return "\(result.url.path)\n\(hashLines)"
         }.joined(separator: "\n\n")
 
         NSPasteboard.general.clearContents()
@@ -67,6 +64,7 @@ struct HashResultsView: View {
 }
 
 private struct HashResultCard: View {
+    let report: HashReport
     let result: FileHashResult
 
     var body: some View {
@@ -89,11 +87,11 @@ private struct HashResultCard: View {
                 .truncationMode(.middle)
 
             Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 7) {
-                HashRow(name: "CRC32", value: result.crc32)
-                HashRow(name: "MD5", value: result.md5)
-                HashRow(name: "SHA1", value: result.sha1)
-                HashRow(name: "SHA256", value: result.sha256)
-                HashRow(name: "SHA512", value: result.sha512)
+                ForEach(report.algorithms) { algorithm in
+                    if let value = result.value(for: algorithm) {
+                        HashRow(name: algorithm.title, value: value)
+                    }
+                }
             }
             .textSelection(.enabled)
         }

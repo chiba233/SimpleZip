@@ -92,6 +92,7 @@
 "hash.title" = "File Hashes";
 "hash.summary" = "%d files, %@";
 "hash.notRegularFile" = "Not a regular file";
+"hash.all" = "All Hashes";
 "hashOverwrite.same.title" = "Hashes Match";
 "hashOverwrite.same.message" = "Existing file: %@\nSHA256: %@\n\nIncoming file: %@\nSHA256: %@\n\nThe files are identical, so SimpleZip did not overwrite.";
 "hashOverwrite.different.title" = "Hashes Differ";

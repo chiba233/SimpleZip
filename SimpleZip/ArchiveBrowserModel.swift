@@ -414,7 +414,7 @@ final class ArchiveBrowserModel: ObservableObject {
         }
     }
 
-    func calculateHash() {
+    func calculateHash(algorithms: [HashAlgorithm] = HashAlgorithm.allCases) {
         let urls: [URL]
         switch mode {
         case .folder, .tag:
@@ -435,7 +435,7 @@ final class ArchiveBrowserModel: ObservableObject {
             defer { isWorking = false }
 
             do {
-                hashReport = try await HashService.calculate(for: urls, includeHiddenFiles: AppPreferences.showHiddenFiles)
+                hashReport = try await HashService.calculate(for: urls, includeHiddenFiles: AppPreferences.showHiddenFiles, algorithms: algorithms)
                 status = L10n.text("status.hashReady")
             } catch {
                 errorMessage = error.localizedDescription

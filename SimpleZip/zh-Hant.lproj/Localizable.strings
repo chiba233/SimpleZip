@@ -92,6 +92,7 @@
 "hash.title" = "檔案雜湊";
 "hash.summary" = "%d 個檔案，%@";
 "hash.notRegularFile" = "不是一般檔案";
+"hash.all" = "全部雜湊";
 "hashOverwrite.same.title" = "雜湊相同";
 "hashOverwrite.same.message" = "原檔案：%@\nSHA256：%@\n\n嘗試覆蓋的檔案：%@\nSHA256：%@\n\n兩個檔案相同，SimpleZip 沒有覆蓋。";
 "hashOverwrite.different.title" = "雜湊不同";

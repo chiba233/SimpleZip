@@ -11,20 +11,21 @@ import Foundation
 /// 文件哈希服务：以流式方式读取文件，避免大文件一次性占用过多内存。
 enum HashService {
     nonisolated static func sha256(for url: URL) throws -> String {
-        try calculateFileHash(for: url).sha256
+        try calculateFileHash(for: url, algorithms: [.sha256]).value(for: .sha256) ?? ""
     }
 
-    nonisolated static func calculate(for urls: [URL], includeHiddenFiles: Bool) async throws -> HashReport {
+    nonisolated static func calculate(for urls: [URL], includeHiddenFiles: Bool, algorithms: [HashAlgorithm] = HashAlgorithm.allCases) async throws -> HashReport {
         try await Task.detached(priority: .userInitiated) {
             let fileURLs = try collectFiles(from: urls, includeHiddenFiles: includeHiddenFiles)
             guard !fileURLs.isEmpty else {
                 throw ArchiveError.commandFailed(L10n.text("error.selectFilesForHash"))
             }
 
+            let selectedAlgorithms = algorithms.isEmpty ? HashAlgorithm.allCases : algorithms
             let results = try fileURLs.map { url in
-                try calculateFileHash(for: url)
+                try calculateFileHash(for: url, algorithms: selectedAlgorithms)
             }
-            return HashReport(results: results)
+            return HashReport(algorithms: selectedAlgorithms, results: results)
         }.value
     }
 
@@ -67,38 +68,52 @@ enum HashService {
         }
     }
 
-    private nonisolated static func calculateFileHash(for url: URL) throws -> FileHashResult {
+    private nonisolated static func calculateFileHash(for url: URL, algorithms: [HashAlgorithm]) throws -> FileHashResult {
         let chunkSize = 1024 * 1024
         let handle = try FileHandle(forReadingFrom: url)
         defer {
             try? handle.close()
         }
 
-        var crc32 = CRC32()
-        var md5 = Insecure.MD5()
-        var sha1 = Insecure.SHA1()
-        var sha256 = SHA256()
-        var sha512 = SHA512()
+        let algorithmSet = Set(algorithms)
+        var crc32 = algorithmSet.contains(.crc32) ? CRC32() : nil
+        var md5 = algorithmSet.contains(.md5) ? Insecure.MD5() : nil
+        var sha1 = algorithmSet.contains(.sha1) ? Insecure.SHA1() : nil
+        var sha256 = algorithmSet.contains(.sha256) ? SHA256() : nil
+        var sha512 = algorithmSet.contains(.sha512) ? SHA512() : nil
         var totalSize: Int64 = 0
 
         while let data = try handle.read(upToCount: chunkSize), !data.isEmpty {
             totalSize += Int64(data.count)
-            crc32.update(data)
-            md5.update(data: data)
-            sha1.update(data: data)
-            sha256.update(data: data)
-            sha512.update(data: data)
+            crc32?.update(data)
+            md5?.update(data: data)
+            sha1?.update(data: data)
+            sha256?.update(data: data)
+            sha512?.update(data: data)
+        }
+
+        var hashes: [HashAlgorithm: String] = [:]
+        if let crc32 {
+            hashes[.crc32] = crc32.finalize()
+        }
+        if let md5 {
+            hashes[.md5] = hex(md5.finalize())
+        }
+        if let sha1 {
+            hashes[.sha1] = hex(sha1.finalize())
+        }
+        if let sha256 {
+            hashes[.sha256] = hex(sha256.finalize())
+        }
+        if let sha512 {
+            hashes[.sha512] = hex(sha512.finalize())
         }
 
         return FileHashResult(
             url: url,
             displayName: url.lastPathComponent,
             size: totalSize,
-            crc32: crc32.finalize(),
-            md5: hex(md5.finalize()),
-            sha1: hex(sha1.finalize()),
-            sha256: hex(sha256.finalize()),
-            sha512: hex(sha512.finalize())
+            hashes: hashes
         )
     }
 
