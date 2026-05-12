@@ -7,10 +7,12 @@
 
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// 主窗口视图：只负责把侧边栏、工具栏、列表和状态栏组合在一起。
 struct ContentView: View {
     @StateObject private var model = ArchiveBrowserModel()
+    @State private var isDropTargeted = false
 
     var body: some View {
         NavigationSplitView {
@@ -33,6 +35,17 @@ struct ContentView: View {
             .navigationTitle(model.title)
         }
         .frame(minWidth: 980, minHeight: 620)
+        .focusedSceneObject(model)
+        .overlay {
+            if isDropTargeted {
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(Color.accentColor, lineWidth: 3)
+                    .padding(8)
+            }
+        }
+        .onDrop(of: [UTType.fileURL.identifier], isTargeted: $isDropTargeted) { providers in
+            receiveDroppedFileURLs(from: providers)
+        }
         .alert(L10n.text("alert.operationFailed"), isPresented: Binding(get: {
             model.errorMessage != nil
         }, set: { newValue in
@@ -45,6 +58,22 @@ struct ContentView: View {
         .sheet(item: $model.hashReport) { report in
             HashResultsView(report: report) {
                 model.hashReport = nil
+            }
+        }
+        .sheet(item: $model.archiveCreationRequest) { request in
+            ArchiveCreationOptionsView(request: request) { confirmedRequest in
+                model.archiveCreationRequest = nil
+                model.performCreateArchive(confirmedRequest)
+            } cancel: {
+                model.archiveCreationRequest = nil
+            }
+        }
+        .sheet(item: $model.extractSelectionRequest) { request in
+            ExtractSelectionOptionsView(request: request) { confirmedRequest in
+                model.extractSelectionRequest = nil
+                model.performExtractSelection(confirmedRequest)
+            } cancel: {
+                model.extractSelectionRequest = nil
             }
         }
         .onAppear {
@@ -68,6 +97,34 @@ struct ContentView: View {
         } else {
             NSWorkspace.shared.open(url)
         }
+    }
+
+    private func receiveDroppedFileURLs(from providers: [NSItemProvider]) -> Bool {
+        let fileURLProviders = providers.filter { $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) }
+        guard !fileURLProviders.isEmpty else { return false }
+
+        var urls: [URL] = []
+        let group = DispatchGroup()
+
+        for provider in fileURLProviders {
+            group.enter()
+            provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
+                defer { group.leave() }
+
+                if let data = item as? Data,
+                   let url = URL(dataRepresentation: data, relativeTo: nil) {
+                    urls.append(url)
+                } else if let url = item as? URL {
+                    urls.append(url)
+                }
+            }
+        }
+
+        group.notify(queue: .main) {
+            model.openDroppedURLs(urls)
+        }
+
+        return true
     }
 }
 

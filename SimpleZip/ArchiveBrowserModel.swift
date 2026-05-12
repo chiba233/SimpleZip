@@ -16,14 +16,19 @@ final class ArchiveBrowserModel: ObservableObject {
     @Published var mode: BrowserMode
     @Published var fileItems: [FileItem] = []
     @Published var archiveItems: [ArchiveItem] = []
-    @Published var selection = Set<FileItem.ID>()
-    @Published var selectedArchiveRows = Set<ArchiveItem.ID>()
+    @Published var selection = Set<UUID>()
+    @Published var selectedArchiveRows = Set<UUID>()
     @Published var status = L10n.text("status.ready")
     @Published var isWorking = false
     @Published var errorMessage: String?
     @Published var hashReport: HashReport?
+    @Published var archiveCreationRequest: ArchiveCreationRequest?
+    @Published var extractSelectionRequest: ExtractSelectionRequest?
 
     private let fileManager = FileManager.default
+    private var allArchiveItems: [ArchiveItem] = []
+    private var archivePath = ""
+    private var fileClipboard: (urls: [URL], shouldMove: Bool)?
 
     init() {
         mode = .folder(AppPreferences.defaultStartupURL(fileManager: fileManager))
@@ -44,7 +49,8 @@ final class ArchiveBrowserModel: ObservableObject {
         case .folder(let url):
             return url.path
         case .archive(let url):
-            return L10n.format("location.archive", url.path)
+            let baseLocation = L10n.format("location.archive", url.path)
+            return archivePath.isEmpty ? baseLocation : "\(baseLocation) / \(archivePath.trimmingCharacters(in: CharacterSet(charactersIn: "/")))"
         }
     }
 
@@ -101,12 +107,16 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     func openFolder(_ url: URL) {
+        archivePath = ""
+        allArchiveItems = []
         mode = .folder(url)
         AppPreferences.rememberLastFolder(url)
         reload()
     }
 
     func openArchive(_ url: URL) {
+        archivePath = ""
+        allArchiveItems = []
         mode = .archive(url)
         reload()
     }
@@ -121,12 +131,65 @@ final class ArchiveBrowserModel: ObservableObject {
         }
     }
 
+    func open(_ item: ArchiveItem) {
+        guard item.isDirectory else { return }
+        archivePath = normalizedDirectoryPrefix(item.name)
+        selectedArchiveRows.removeAll()
+        refreshArchiveItems()
+    }
+
+    func openSelectedItem() {
+        switch mode {
+        case .folder:
+            if let item = selectedFileItems.first {
+                open(item)
+            }
+        case .archive:
+            if let item = selectedArchiveItems.first {
+                open(item)
+            }
+        }
+    }
+
+    func openDroppedURLs(_ urls: [URL]) {
+        guard let first = urls.first else { return }
+
+        if urls.count == 1 {
+            openDroppedURL(first)
+            return
+        }
+
+        let archiveURL = urls.first(where: { ArchiveService.isSupportedArchive($0) })
+        if let archiveURL {
+            openArchive(archiveURL)
+        } else {
+            openFolder(first.deletingLastPathComponent())
+        }
+    }
+
+    private func openDroppedURL(_ url: URL) {
+        var isDirectory: ObjCBool = false
+        if fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue {
+            openFolder(url)
+        } else if ArchiveService.isSupportedArchive(url) {
+            openArchive(url)
+        } else {
+            openFolder(url.deletingLastPathComponent())
+        }
+    }
+
     func goUp() {
         switch mode {
         case .folder(let url):
             openFolder(url.deletingLastPathComponent())
         case .archive(let url):
-            openFolder(url.deletingLastPathComponent())
+            if archivePath.isEmpty {
+                openFolder(url.deletingLastPathComponent())
+            } else {
+                archivePath = parentArchivePath(for: archivePath)
+                selectedArchiveRows.removeAll()
+                refreshArchiveItems()
+            }
         }
     }
 
@@ -155,19 +218,14 @@ final class ArchiveBrowserModel: ObservableObject {
             return
         }
 
-        let panel = NSSavePanel()
-        panel.title = L10n.text("panel.createArchive")
-        panel.nameFieldStringValue = defaultArchiveName(for: items)
-        panel.allowedContentTypes = [.zip]
-        panel.directoryURL = currentFolder
+        let destination = currentFolder.appendingPathComponent(defaultArchiveName(for: items))
+        archiveCreationRequest = ArchiveCreationRequest(sourceURLs: items.map(\.url), directoryURL: currentFolder, destinationURL: destination)
+    }
 
-        guard panel.runModal() == .OK, let destination = panel.url else {
-            return
-        }
-
+    func performCreateArchive(_ request: ArchiveCreationRequest) {
         Task {
-            await runArchiveTask(L10n.format("status.creating", destination.lastPathComponent)) {
-                try await ArchiveService.createZipArchive(from: items.map(\.url), destination: destination)
+            await runArchiveTask(L10n.format("status.creating", request.destinationURL.lastPathComponent)) {
+                try await ArchiveService.createArchive(from: request.sourceURLs, destination: request.destinationURL, options: request.options)
             }
             reload()
         }
@@ -222,7 +280,7 @@ final class ArchiveBrowserModel: ObservableObject {
             return
         }
 
-        let entries = selectedArchiveItems.map(\.name)
+        let entries = expandedSelectedArchiveItems()
         guard !entries.isEmpty else {
             errorMessage = L10n.text("error.selectArchiveItemsToExtract")
             return
@@ -247,13 +305,18 @@ final class ArchiveBrowserModel: ObservableObject {
             destination = selectedDestination
         }
 
+        extractSelectionRequest = ExtractSelectionRequest(archiveURL: archiveURL, entries: entries, destinationURL: destination)
+    }
+
+    func performExtractSelection(_ request: ExtractSelectionRequest) {
         Task {
-            await runArchiveTask(L10n.format("status.extractingSelected", entries.count)) {
+            await runArchiveTask(L10n.format("status.extractingSelected", request.entries.count)) {
                 try await ArchiveService.extract(
-                    archiveURL,
-                    entries: entries,
-                    to: destination,
-                    overwriteBehavior: AppPreferences.overwriteBehavior
+                    request.archiveURL,
+                    entries: request.entries,
+                    to: request.destinationURL,
+                    overwriteBehavior: AppPreferences.overwriteBehavior,
+                    pathMode: request.pathMode
                 )
             }
         }
@@ -320,6 +383,76 @@ final class ArchiveBrowserModel: ObservableObject {
         }
     }
 
+    func copySelectedFiles() {
+        guard case .folder = mode else { return }
+        fileClipboard = (selectedFileItems.map(\.url), false)
+    }
+
+    func cutSelectedFiles() {
+        guard case .folder = mode else { return }
+        fileClipboard = (selectedFileItems.map(\.url), true)
+    }
+
+    func pasteFiles() {
+        guard case .folder(let folderURL) = mode, let fileClipboard, !fileClipboard.urls.isEmpty else { return }
+
+        do {
+            for url in fileClipboard.urls {
+                let targetURL = uniqueDestinationURL(for: url.lastPathComponent, in: folderURL)
+                if fileClipboard.shouldMove {
+                    try fileManager.moveItem(at: url, to: targetURL)
+                } else {
+                    try fileManager.copyItem(at: url, to: targetURL)
+                }
+            }
+            if fileClipboard.shouldMove {
+                self.fileClipboard = nil
+            }
+            reload()
+        } catch {
+            errorMessage = error.localizedDescription
+            status = L10n.text("status.failed")
+        }
+    }
+
+    func deleteSelectedFiles() {
+        guard case .folder = mode else { return }
+
+        do {
+            for item in selectedFileItems {
+                var resultingURL: NSURL?
+                try fileManager.trashItem(at: item.url, resultingItemURL: &resultingURL)
+            }
+            reload()
+        } catch {
+            errorMessage = error.localizedDescription
+            status = L10n.text("status.failed")
+        }
+    }
+
+    func moveSelectedFilesToFolder() {
+        guard case .folder = mode, !selectedFileItems.isEmpty else { return }
+
+        let panel = NSOpenPanel()
+        panel.title = L10n.text("file.moveTo")
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.canCreateDirectories = true
+        panel.allowsMultipleSelection = false
+
+        guard panel.runModal() == .OK, let destinationFolder = panel.url else { return }
+
+        do {
+            for item in selectedFileItems {
+                try fileManager.moveItem(at: item.url, to: uniqueDestinationURL(for: item.url.lastPathComponent, in: destinationFolder))
+            }
+            reload()
+        } catch {
+            errorMessage = error.localizedDescription
+            status = L10n.text("status.failed")
+        }
+    }
+
     /// 加载本地文件夹内容，并按“文件夹优先、名称自然排序”展示。
     private func loadFolder(_ url: URL) {
         do {
@@ -351,10 +484,12 @@ final class ArchiveBrowserModel: ObservableObject {
             }
 
             archiveItems = []
+            allArchiveItems = []
             status = L10n.format("status.itemCount", fileItems.count)
         } catch {
             fileItems = []
             archiveItems = []
+            allArchiveItems = []
             errorMessage = error.localizedDescription
             status = L10n.text("status.couldNotOpenFolder")
         }
@@ -367,11 +502,12 @@ final class ArchiveBrowserModel: ObservableObject {
         defer { isWorking = false }
 
         do {
-            archiveItems = try await ArchiveService.list(url)
+            allArchiveItems = try await ArchiveService.list(url)
             fileItems = []
-            status = L10n.format("status.archivedItemCount", archiveItems.count)
+            refreshArchiveItems()
         } catch {
             archiveItems = []
+            allArchiveItems = []
             errorMessage = error.localizedDescription
             status = L10n.text("status.couldNotReadArchive")
         }
@@ -382,6 +518,126 @@ final class ArchiveBrowserModel: ObservableObject {
             return items[0].url.deletingPathExtension().lastPathComponent + ".zip"
         }
         return "Archive.zip"
+    }
+
+    private func uniqueDestinationURL(for fileName: String, in directory: URL) -> URL {
+        let initialURL = directory.appendingPathComponent(fileName)
+        guard fileManager.fileExists(atPath: initialURL.path) else { return initialURL }
+
+        let baseURL = URL(fileURLWithPath: fileName)
+        let name = baseURL.deletingPathExtension().lastPathComponent
+        let ext = baseURL.pathExtension
+
+        for index in 1...999 {
+            let candidateName = ext.isEmpty ? "\(name) \(index)" : "\(name) \(index).\(ext)"
+            let candidateURL = directory.appendingPathComponent(candidateName)
+            if !fileManager.fileExists(atPath: candidateURL.path) {
+                return candidateURL
+            }
+        }
+
+        return directory.appendingPathComponent(UUID().uuidString + (ext.isEmpty ? "" : ".\(ext)"))
+    }
+
+    /// 选中压缩包内目录时，展开成目录下所有项目，避免后端只收到目录占位项。
+    private func expandedSelectedArchiveItems() -> [ArchiveItem] {
+        let selectedItems = selectedArchiveItems
+        let expanded = selectedItems.flatMap { item -> [ArchiveItem] in
+            guard item.isDirectory else { return [item] }
+
+            let prefix = normalizedDirectoryPrefix(item.name)
+            let children = allArchiveItems.filter { child in
+                let childName = normalizedEntryName(child.name, isDirectory: child.isDirectory)
+                return childName.hasPrefix(prefix) && childName != prefix
+            }
+            return children.isEmpty ? [item] : children
+        }
+
+        return Array(Set(expanded)).sorted { lhs, rhs in
+            lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
+        }
+    }
+
+    /// 根据压缩包内当前路径生成“这一层”的列表，并自动补齐缺失的目录节点。
+    private func refreshArchiveItems() {
+        let currentItems = immediateArchiveChildren(from: archiveItemsWithSyntheticDirectories(), in: archivePath)
+        archiveItems = currentItems
+        status = L10n.format("status.archivedItemCount", currentItems.count)
+    }
+
+    private func immediateArchiveChildren(from items: [ArchiveItem], in path: String) -> [ArchiveItem] {
+        var childrenByName: [String: ArchiveItem] = [:]
+
+        for item in items {
+            let itemName = normalizedEntryName(item.name, isDirectory: item.isDirectory)
+            guard itemName.hasPrefix(path), itemName != path else { continue }
+
+            let remainder = String(itemName.dropFirst(path.count))
+            guard !remainder.isEmpty else { continue }
+
+            if let slashIndex = remainder.firstIndex(of: "/") {
+                let directoryName = path + remainder[..<slashIndex] + "/"
+                if childrenByName[directoryName] == nil {
+                    childrenByName[directoryName] = syntheticDirectory(named: String(directoryName))
+                }
+            } else {
+                childrenByName[itemName] = item
+            }
+        }
+
+        return childrenByName.values.sorted { lhs, rhs in
+            if lhs.isDirectory != rhs.isDirectory { return lhs.isDirectory }
+            return lhs.displayName.localizedStandardCompare(rhs.displayName) == .orderedAscending
+        }
+    }
+
+    private func archiveItemsWithSyntheticDirectories() -> [ArchiveItem] {
+        var itemsByName: [String: ArchiveItem] = [:]
+
+        for item in allArchiveItems {
+            let itemName = normalizedEntryName(item.name, isDirectory: item.isDirectory)
+            itemsByName[itemName] = item
+
+            let components = itemName
+                .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+                .split(separator: "/")
+                .map(String.init)
+            let directoryComponents = item.isDirectory ? components : Array(components.dropLast())
+
+            var prefix = ""
+            for component in directoryComponents {
+                prefix += component + "/"
+                if itemsByName[prefix] == nil {
+                    itemsByName[prefix] = syntheticDirectory(named: prefix)
+                }
+            }
+        }
+
+        return Array(itemsByName.values)
+    }
+
+    private func syntheticDirectory(named name: String) -> ArchiveItem {
+        ArchiveItem(name: name, isDirectory: true, sizeText: "", modifiedText: "", method: "")
+    }
+
+    private func parentArchivePath(for path: String) -> String {
+        let components = path
+            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            .split(separator: "/")
+            .map(String.init)
+        guard components.count > 1 else { return "" }
+        return components.dropLast().joined(separator: "/") + "/"
+    }
+
+    private func normalizedDirectoryPrefix(_ name: String) -> String {
+        let normalized = normalizedEntryName(name, isDirectory: true)
+        return normalized.hasSuffix("/") ? normalized : normalized + "/"
+    }
+
+    private func normalizedEntryName(_ name: String, isDirectory: Bool) -> String {
+        let trimmedName = name.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        if trimmedName.isEmpty { return "" }
+        return isDirectory ? trimmedName + "/" : trimmedName
     }
 
     /// 包装耗时归档任务，统一处理进度状态、错误提示和结束状态。

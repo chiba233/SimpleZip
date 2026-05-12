@@ -22,9 +22,16 @@ struct FileItem: Identifiable, Hashable {
 struct ArchiveItem: Identifiable, Hashable {
     let id = UUID()
     let name: String
+    let isDirectory: Bool
     let sizeText: String
     let modifiedText: String
     let method: String
+
+    /// 列表里只展示当前层级的名称，完整路径继续保留在 name 中用于解压。
+    var displayName: String {
+        let trimmedName = name.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        return trimmedName.split(separator: "/").last.map(String.init) ?? name
+    }
 }
 
 /// 主列表当前展示的是普通文件夹，还是某个压缩包的内容。

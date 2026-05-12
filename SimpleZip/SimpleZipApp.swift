@@ -18,6 +18,8 @@ struct SimpleZipApp: App {
             ContentView()
         }
         .commands {
+            ArchiveFileCommands()
+
             CommandGroup(replacing: .appInfo) {
                 Button(L10n.text("menu.aboutSimpleZip")) {
                     AboutPanel.show()
@@ -34,5 +36,173 @@ struct SimpleZipApp: App {
         Settings {
             SettingsView()
         }
+    }
+}
+
+/// 顶部“文件”菜单命令：把工具栏里的核心操作也挂到 macOS 菜单栏。
+struct ArchiveFileCommands: Commands {
+    @FocusedObject private var model: ArchiveBrowserModel?
+
+    var body: some Commands {
+        CommandGroup(replacing: .newItem) {
+            Button(L10n.text("button.openFolder")) {
+                model?.chooseFolder()
+            }
+            .keyboardShortcut("o", modifiers: [.command])
+            .disabled(model == nil)
+
+            Button(L10n.text("button.openArchive")) {
+                model?.chooseArchive()
+            }
+            .keyboardShortcut("o", modifiers: [.command, .shift])
+            .disabled(model == nil)
+
+            Divider()
+
+            Button(L10n.text("button.open")) {
+                model?.openSelectedItem()
+            }
+            .keyboardShortcut(.return, modifiers: [.command])
+            .disabled(!canOpenSelection)
+
+            Button(L10n.text("button.addToArchive")) {
+                model?.createArchive()
+            }
+            .keyboardShortcut("n", modifiers: [.command])
+            .disabled(!canCreateArchive)
+
+            Divider()
+
+            Button(L10n.text("button.extract")) {
+                model?.extractArchive()
+            }
+            .keyboardShortcut("e", modifiers: [.command])
+            .disabled(!canExtractArchive)
+
+            Button(L10n.text("button.extractSelected")) {
+                model?.extractSelectedArchiveItems()
+            }
+            .keyboardShortcut("e", modifiers: [.command, .shift])
+            .disabled(!canExtractSelected)
+
+            Button(L10n.text("button.test")) {
+                model?.testArchive()
+            }
+            .keyboardShortcut("t", modifiers: [.command])
+            .disabled(!canTestArchive)
+
+            Button(L10n.text("button.hash")) {
+                model?.calculateHash()
+            }
+            .keyboardShortcut("h", modifiers: [.command, .shift])
+            .disabled(!canHash)
+
+            Divider()
+
+            Button(L10n.text("button.revealInFinder")) {
+                model?.revealInFinder()
+            }
+            .keyboardShortcut("r", modifiers: [.command, .shift])
+            .disabled(model == nil)
+
+            Button(L10n.text("help.refresh")) {
+                model?.reload()
+            }
+            .keyboardShortcut("r", modifiers: [.command])
+            .disabled(model == nil)
+
+            Button(L10n.text("help.goUp")) {
+                model?.goUp()
+            }
+            .keyboardShortcut(.upArrow, modifiers: [.command])
+            .disabled(!(model?.canGoUp ?? false))
+        }
+
+        CommandGroup(after: .pasteboard) {
+            Divider()
+
+            Button(L10n.text("file.copy")) {
+                model?.copySelectedFiles()
+            }
+            .keyboardShortcut("c", modifiers: [.command])
+            .disabled(!canManageSelectedFiles)
+
+            Button(L10n.text("file.cut")) {
+                model?.cutSelectedFiles()
+            }
+            .keyboardShortcut("x", modifiers: [.command])
+            .disabled(!canManageSelectedFiles)
+
+            Button(L10n.text("file.paste")) {
+                model?.pasteFiles()
+            }
+            .keyboardShortcut("v", modifiers: [.command])
+            .disabled(!isFolderMode)
+
+            Button(L10n.text("file.moveTo")) {
+                model?.moveSelectedFilesToFolder()
+            }
+            .disabled(!canManageSelectedFiles)
+
+            Button(L10n.text("file.delete")) {
+                model?.deleteSelectedFiles()
+            }
+            .keyboardShortcut(.delete, modifiers: [])
+            .disabled(!canManageSelectedFiles)
+        }
+    }
+
+    private var canOpenSelection: Bool {
+        guard let model else { return false }
+        switch model.mode {
+        case .folder:
+            return !model.selectedFileItems.isEmpty
+        case .archive:
+            return model.selectedArchiveItems.contains { $0.isDirectory }
+        }
+    }
+
+    private var canCreateArchive: Bool {
+        guard let model, case .folder = model.mode else { return false }
+        return !model.selectedFileItems.isEmpty
+    }
+
+    private var canExtractArchive: Bool {
+        guard let model else { return false }
+        switch model.mode {
+        case .archive:
+            return true
+        case .folder:
+            return model.selectedFileItems.contains { ArchiveService.isSupportedArchive($0.url) }
+        }
+    }
+
+    private var canExtractSelected: Bool {
+        guard let model, case .archive = model.mode else { return false }
+        return !model.selectedArchiveItems.isEmpty
+    }
+
+    private var canTestArchive: Bool {
+        canExtractArchive
+    }
+
+    private var canHash: Bool {
+        guard let model else { return false }
+        switch model.mode {
+        case .archive:
+            return true
+        case .folder:
+            return !model.selectedFileItems.isEmpty
+        }
+    }
+
+    private var isFolderMode: Bool {
+        guard let model, case .folder = model.mode else { return false }
+        return true
+    }
+
+    private var canManageSelectedFiles: Bool {
+        guard let model, case .folder = model.mode else { return false }
+        return !model.selectedFileItems.isEmpty
     }
 }
