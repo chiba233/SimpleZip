@@ -1,31 +1,25 @@
 //
-//  ExtractSelectionOptionsView.swift
+//  ExtractArchiveOptionsView.swift
 //  SimpleZip
 //
-//  Created by HoshinoYumeka on 2026/05/12.
+//  Created by HoshinoYumeka on 2026/05/13.
 //
 
 import SwiftUI
 
-/// 解压选中条目前的选项面板。
-struct ExtractSelectionOptionsView: View {
-    @State var request: ExtractSelectionRequest
-    let extract: (ExtractSelectionRequest) -> Void
+/// 整包解压前的选项面板：目标目录和可选密码。
+struct ExtractArchiveOptionsView: View {
+    @State var request: ExtractArchiveRequest
+    let extract: (ExtractArchiveRequest) -> Void
     let cancel: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(L10n.text("extract.selected.title"))
+            Text(L10n.text("extract.archive.title"))
                 .font(.title3)
                 .fontWeight(.semibold)
 
             Form {
-                Picker(L10n.text("extract.pathMode"), selection: $request.pathMode) {
-                    ForEach(ExtractPathMode.allCases) { mode in
-                        Text(mode.title).tag(mode)
-                    }
-                }
-
                 HStack {
                     Text(L10n.text("archive.destination"))
                     Text(request.destinationURL.path)
@@ -51,7 +45,7 @@ struct ExtractSelectionOptionsView: View {
             }
         }
         .padding(20)
-        .frame(width: 520)
+        .frame(width: 540)
     }
 
     private func chooseDestination() {

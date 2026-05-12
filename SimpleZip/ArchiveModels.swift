@@ -38,4 +38,5 @@ struct ArchiveItem: Identifiable, Hashable {
 enum BrowserMode: Equatable {
     case folder(URL)
     case archive(URL)
+    case tag(String)
 }

@@ -68,6 +68,14 @@ struct ArchiveCreationRequest: Identifiable {
     var options = ArchiveCreationOptions()
 }
 
+/// 整包解压的待确认请求。
+struct ExtractArchiveRequest: Identifiable {
+    let id = UUID()
+    let archiveURL: URL
+    var destinationURL: URL
+    var password = ""
+}
+
 /// 选中解压时的目录处理方式。
 enum ExtractPathMode: String, CaseIterable, Identifiable {
     case preserve
@@ -92,4 +100,11 @@ struct ExtractSelectionRequest: Identifiable {
     let entries: [ArchiveItem]
     var destinationURL: URL
     var pathMode: ExtractPathMode = .preserve
+    var password = ""
+}
+
+/// 压缩/解压过程中的进度信息。
+struct ArchiveProgressState {
+    var fraction: Double?
+    var currentFile: String?
 }

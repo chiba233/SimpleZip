@@ -118,26 +118,33 @@ struct ArchiveFileCommands: Commands {
             .disabled(!(model?.canGoUp ?? false))
         }
 
-        CommandGroup(after: .pasteboard) {
-            Divider()
-
+        CommandGroup(replacing: .pasteboard) {
             Button(L10n.text("file.copy")) {
-                model?.copySelectedFiles()
+                if canManageSelectedFiles {
+                    model?.copySelectedFiles()
+                } else {
+                    NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: nil)
+                }
             }
             .keyboardShortcut("c", modifiers: [.command])
-            .disabled(!canManageSelectedFiles)
 
             Button(L10n.text("file.cut")) {
-                model?.cutSelectedFiles()
+                if canManageSelectedFiles {
+                    model?.cutSelectedFiles()
+                } else {
+                    NSApp.sendAction(#selector(NSText.cut(_:)), to: nil, from: nil)
+                }
             }
             .keyboardShortcut("x", modifiers: [.command])
-            .disabled(!canManageSelectedFiles)
 
             Button(L10n.text("file.paste")) {
-                model?.pasteFiles()
+                if isFolderMode {
+                    model?.pasteFiles()
+                } else {
+                    NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil)
+                }
             }
             .keyboardShortcut("v", modifiers: [.command])
-            .disabled(!isFolderMode)
 
             Button(L10n.text("file.moveTo")) {
                 model?.moveSelectedFilesToFolder()
@@ -155,7 +162,7 @@ struct ArchiveFileCommands: Commands {
     private var canOpenSelection: Bool {
         guard let model else { return false }
         switch model.mode {
-        case .folder:
+        case .folder, .tag:
             return !model.selectedFileItems.isEmpty
         case .archive:
             return model.selectedArchiveItems.contains { $0.isDirectory }
@@ -172,7 +179,7 @@ struct ArchiveFileCommands: Commands {
         switch model.mode {
         case .archive:
             return true
-        case .folder:
+        case .folder, .tag:
             return model.selectedFileItems.contains { ArchiveService.isSupportedArchive($0.url) }
         }
     }
@@ -191,7 +198,7 @@ struct ArchiveFileCommands: Commands {
         switch model.mode {
         case .archive:
             return true
-        case .folder:
+        case .folder, .tag:
             return !model.selectedFileItems.isEmpty
         }
     }

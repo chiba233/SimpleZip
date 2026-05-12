@@ -20,6 +20,8 @@ struct ArchiveCreationOptionsView: View {
                 .fontWeight(.semibold)
 
             Form {
+                TextField(L10n.text("archive.fileName"), text: fileNameBinding)
+
                 Picker(L10n.text("archive.format"), selection: $request.options.format) {
                     ForEach(ArchiveCreateFormat.allCases) { format in
                         Text(format.title).tag(format)
@@ -71,6 +73,7 @@ struct ArchiveCreationOptionsView: View {
                 Spacer()
                 Button(L10n.text("button.cancel"), action: cancel)
                 Button(L10n.text("button.create")) {
+                    normalizeDestinationForCurrentFormat()
                     create(request)
                 }
                 .keyboardShortcut(.defaultAction)
@@ -80,21 +83,55 @@ struct ArchiveCreationOptionsView: View {
         .frame(width: 560)
     }
 
+    private var fileNameBinding: Binding<String> {
+        Binding {
+            archiveBaseName(from: request.destinationURL.lastPathComponent)
+        } set: { newValue in
+            let trimmedName = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedName.isEmpty else { return }
+            request.destinationURL = request.destinationURL
+                .deletingLastPathComponent()
+                .appendingPathComponent(archiveFileName(fromBaseName: trimmedName))
+        }
+    }
+
     private func chooseDestination() {
         let panel = NSSavePanel()
         panel.title = L10n.text("panel.createArchive")
         panel.directoryURL = request.destinationURL.deletingLastPathComponent()
-        panel.nameFieldStringValue = request.destinationURL.lastPathComponent
+        panel.nameFieldStringValue = archiveBaseName(from: request.destinationURL.lastPathComponent)
         panel.allowedContentTypes = ArchiveService.contentTypes(for: request.options.format)
 
         if panel.runModal() == .OK, let url = panel.url {
             request.destinationURL = url
+                .deletingLastPathComponent()
+                .appendingPathComponent(archiveFileName(fromBaseName: url.lastPathComponent))
         }
     }
 
     private func updateDestinationExtension() {
+        normalizeDestinationForCurrentFormat()
+    }
+
+    private func normalizeDestinationForCurrentFormat() {
+        let baseName = archiveBaseName(from: request.destinationURL.lastPathComponent)
         request.destinationURL = request.destinationURL
             .deletingPathExtension()
-            .appendingPathExtension(request.options.format.pathExtension)
+            .deletingLastPathComponent()
+            .appendingPathComponent(archiveFileName(fromBaseName: baseName))
+    }
+
+    private func archiveFileName(fromBaseName fileName: String) -> String {
+        archiveBaseName(from: fileName) + ".\(request.options.format.pathExtension)"
+    }
+
+    private func archiveBaseName(from fileName: String) -> String {
+        var baseName = fileName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let knownExtensions = ArchiveCreateFormat.allCases.map(\.pathExtension)
+        while let extensionName = knownExtensions.first(where: { baseName.lowercased().hasSuffix(".\($0)") }) {
+            baseName.removeLast(extensionName.count + 1)
+            baseName = baseName.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return baseName.isEmpty ? "Archive" : baseName
     }
 }

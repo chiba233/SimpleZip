@@ -9,8 +9,8 @@
 A friendlier 7zz GUI client for macOS.
 
 SimpleZip is a macOS archive manager inspired by 7-Zip and NanaZip. It aims to make archive browsing, extraction,
-creation, hashing, and file association management feel native on macOS while still keeping the power of `7zz`
-available when it is installed.
+creation, hashing, and file association management feel native on macOS while keeping the power of the bundled `7zz`
+backend close at hand.
 
 Project page: [github.com/chiba233/SimpleZip](https://github.com/chiba233/SimpleZip)
 
@@ -18,7 +18,7 @@ Project page: [github.com/chiba233/SimpleZip](https://github.com/chiba233/Simple
 
 - A native macOS archive browser built with SwiftUI and AppKit table views.
 - A GUI for everyday ZIP work using macOS built-in tools.
-- A GUI for 7z/tar/gz/tgz/bz2/xz workflows when `7zz` or `7z` is installed.
+- A GUI for 7z/tar/gz/tgz/bz2/xz workflows through the bundled or system `7zz` / `7z` backend.
 - A file hash utility for CRC32, MD5, SHA1, SHA256, and SHA512.
 - A practical Finder-like file browser with copy, cut, paste, move, delete, reveal, drag, and multi-select.
 
@@ -62,14 +62,25 @@ Project page: [github.com/chiba233/SimpleZip](https://github.com/chiba233/Simple
 
 - macOS 13.0 or newer.
 - Xcode with the macOS SDK.
-- Optional: install 7-Zip CLI for `.7z` and other non-ZIP formats:
+- Bundled official 7-Zip CLI for `.7z` and other non-ZIP formats.
+- Optional: install a system 7-Zip CLI if you prefer using Homebrew or another external binary.
+
+SimpleZip currently includes the official 7-Zip 26.01 universal macOS `7zz` binary in `SimpleZip/Tools/7zz`.
+It contains both `x86_64` and `arm64` slices, and is copied into the app bundle during development builds.
+
+You can also use a system installation:
 
 ```bash
 brew install sevenzip
 ```
 
-SimpleZip looks for `7zz` / `7z` in common Homebrew paths:
+SimpleZip can be configured to use Automatic, Bundled, or System backends. Automatic searches bundled paths first, then
+common Homebrew paths:
 
+- `Contents/Resources/7zz`
+- `Contents/Resources/Tools/7zz`
+- `Contents/Resources/7z`
+- `Contents/Resources/Tools/7z`
 - `/opt/homebrew/bin/7zz`
 - `/usr/local/bin/7zz`
 - `/opt/homebrew/bin/7z`

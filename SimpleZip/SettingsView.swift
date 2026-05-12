@@ -21,11 +21,58 @@ struct SettingsView: View {
     @AppStorage(AppPreferences.Key.showArchiveSizeColumn) private var showArchiveSizeColumn = true
     @AppStorage(AppPreferences.Key.showArchiveModifiedColumn) private var showArchiveModifiedColumn = true
     @AppStorage(AppPreferences.Key.showArchiveMethodColumn) private var showArchiveMethodColumn = true
+    @AppStorage(AppPreferences.Key.sevenZipBackend) private var sevenZipBackend = SevenZipBackend.automatic.rawValue
     @State private var defaultAppMessage: String?
     @State private var associationStatus: [String: String] = [:]
     @State private var languageMessage: String?
+    @State private var sevenZipVersion = L10n.text("settings.7zip.checking")
+    @State private var selectedPane = SettingsPane.general
 
     var body: some View {
+        TabView(selection: $selectedPane) {
+            generalPane
+                .tabItem {
+                    Label(L10n.text("settings.section.general"), systemImage: "gearshape")
+                }
+                .tag(SettingsPane.general)
+
+            archivePane
+                .tabItem {
+                    Label(L10n.text("settings.section.archive"), systemImage: "archivebox")
+                }
+                .tag(SettingsPane.archive)
+
+            browserPane
+                .tabItem {
+                    Label(L10n.text("settings.section.browser"), systemImage: "folder")
+                }
+                .tag(SettingsPane.browser)
+
+            fileAssociationsPane
+                .tabItem {
+                    Label(L10n.text("settings.section.fileAssociations"), systemImage: "doc.badge.gearshape")
+                }
+                .tag(SettingsPane.fileAssociations)
+
+            columnsPane
+                .tabItem {
+                    Label(L10n.text("settings.section.columns"), systemImage: "tablecells")
+                }
+                .tag(SettingsPane.columns)
+        }
+        .padding(20)
+        .frame(width: 720, height: 520)
+        .navigationTitle(L10n.text("settings.title"))
+        .onAppear {
+            refreshAssociationStatus()
+            refreshSevenZipVersion()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openSettingsColumns)) { _ in
+            selectedPane = .columns
+        }
+    }
+
+    private var generalPane: some View {
         Form {
             Section(L10n.text("settings.section.general")) {
                 Picker(L10n.text("settings.language"), selection: $appLanguage) {
@@ -42,15 +89,22 @@ struct SettingsView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-            }
 
-            Section(L10n.text("settings.section.defaults")) {
                 Picker(L10n.text("settings.startupLocation"), selection: $startupLocation) {
                     ForEach(StartupLocation.allCases) { location in
                         Text(location.title).tag(location.rawValue)
                     }
                 }
 
+                Toggle(L10n.text("settings.rememberLastFolder"), isOn: $rememberLastFolder)
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    private var archivePane: some View {
+        Form {
+            Section(L10n.text("settings.section.defaults")) {
                 Picker(L10n.text("settings.defaultExtractLocation"), selection: $defaultExtractLocation) {
                     ForEach(DefaultExtractLocation.allCases) { location in
                         Text(location.title).tag(location.rawValue)
@@ -64,11 +118,38 @@ struct SettingsView: View {
                 }
             }
 
+            Section(L10n.text("settings.7zip.backend")) {
+                Picker(L10n.text("settings.7zip.backend"), selection: $sevenZipBackend) {
+                    ForEach(SevenZipBackend.allCases) { backend in
+                        Text(backend.title).tag(backend.rawValue)
+                    }
+                }
+                .onChange(of: sevenZipBackend) { _ in
+                    refreshSevenZipVersion()
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(L10n.format("settings.7zip.path", ArchiveService.sevenZipBackendDescription()))
+                    Text(L10n.format("settings.7zip.version", sevenZipVersion))
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    private var browserPane: some View {
+        Form {
             Section(L10n.text("settings.section.browser")) {
                 Toggle(L10n.text("settings.showHiddenFiles"), isOn: $showHiddenFiles)
-                Toggle(L10n.text("settings.rememberLastFolder"), isOn: $rememberLastFolder)
             }
+        }
+        .formStyle(.grouped)
+    }
 
+    private var fileAssociationsPane: some View {
+        Form {
             Section(L10n.text("settings.section.fileAssociations")) {
                 VStack(spacing: 0) {
                     ForEach(ArchiveAssociationService.supportedAssociations) { association in
@@ -93,7 +174,12 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+        }
+        .formStyle(.grouped)
+    }
 
+    private var columnsPane: some View {
+        Form {
             Section(L10n.text("settings.section.columns")) {
                 Grid(alignment: .leading, horizontalSpacing: 24, verticalSpacing: 8) {
                     GridRow {
@@ -121,10 +207,6 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .padding(20)
-        .frame(width: 660)
-        .navigationTitle(L10n.text("settings.title"))
-        .onAppear(perform: refreshAssociationStatus)
     }
 
     private func setDefaultArchiveApp() {
@@ -152,6 +234,16 @@ struct SettingsView: View {
         })
     }
 
+    private func refreshSevenZipVersion() {
+        sevenZipVersion = L10n.text("settings.7zip.checking")
+        Task {
+            let version = await ArchiveService.sevenZipVersion()
+            await MainActor.run {
+                sevenZipVersion = version
+            }
+        }
+    }
+
     private func applyLanguage(_ rawValue: String) {
         let language = AppLanguage(rawValue: rawValue) ?? .system
         if let code = language.appleLanguageCode {
@@ -161,6 +253,18 @@ struct SettingsView: View {
         }
         languageMessage = L10n.text("settings.languageRestartHint")
     }
+}
+
+private enum SettingsPane: Hashable {
+    case general
+    case archive
+    case browser
+    case fileAssociations
+    case columns
+}
+
+extension Notification.Name {
+    static let openSettingsColumns = Notification.Name("SimpleZip.openSettingsColumns")
 }
 
 /// 单个扩展名的文件关联设置行。

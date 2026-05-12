@@ -17,6 +17,7 @@ struct ContentView: View {
     var body: some View {
         NavigationSplitView {
             Sidebar(model: model)
+                .navigationSplitViewColumnWidth(min: 180, ideal: 230, max: 320)
         } detail: {
             VStack(spacing: 0) {
                 TopBar(model: model)
@@ -32,6 +33,7 @@ struct ContentView: View {
                 Divider()
                 StatusBar(model: model)
             }
+            .frame(minWidth: 620)
             .navigationTitle(model.title)
         }
         .frame(minWidth: 980, minHeight: 620)
@@ -76,6 +78,14 @@ struct ContentView: View {
                 model.extractSelectionRequest = nil
             }
         }
+        .sheet(item: $model.extractArchiveRequest) { request in
+            ExtractArchiveOptionsView(request: request) { confirmedRequest in
+                model.extractArchiveRequest = nil
+                model.performExtractArchive(confirmedRequest)
+            } cancel: {
+                model.extractArchiveRequest = nil
+            }
+        }
         .onAppear {
             ExternalFileOpenQueue.shared.drain().forEach(openExternalURL)
         }
@@ -108,13 +118,11 @@ struct ContentView: View {
 
         for provider in fileURLProviders {
             group.enter()
-            provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
+            provider.loadDataRepresentation(forTypeIdentifier: UTType.fileURL.identifier) { data, _ in
                 defer { group.leave() }
 
-                if let data = item as? Data,
+                if let data,
                    let url = URL(dataRepresentation: data, relativeTo: nil) {
-                    urls.append(url)
-                } else if let url = item as? URL {
                     urls.append(url)
                 }
             }

@@ -130,6 +130,26 @@ enum OverwriteBehavior: String, CaseIterable, Identifiable {
     }
 }
 
+/// 7-Zip 命令行后端来源。
+enum SevenZipBackend: String, CaseIterable, Identifiable {
+    case automatic
+    case bundled
+    case system
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .automatic:
+            return L10n.text("settings.7zip.automatic")
+        case .bundled:
+            return L10n.text("settings.7zip.bundled")
+        case .system:
+            return L10n.text("settings.7zip.system")
+        }
+    }
+}
+
 /// UserDefaults 读写封装，集中管理偏好键，避免字符串散落在业务代码里。
 enum AppPreferences {
     private static let defaults = UserDefaults.standard
@@ -148,6 +168,11 @@ enum AppPreferences {
         static let showArchiveModifiedColumn = "showArchiveModifiedColumn"
         static let showArchiveMethodColumn = "showArchiveMethodColumn"
         static let appLanguage = "appLanguage"
+        static let sevenZipBackend = "sevenZipBackend"
+        static let pinnedSidebarPaths = "pinnedSidebarPaths"
+        static let recentSidebarPaths = "recentSidebarPaths"
+        static let fileColumnOrder = "fileColumnOrder"
+        static let archiveColumnOrder = "archiveColumnOrder"
     }
 
     static var startupLocation: StartupLocation {
@@ -164,6 +189,10 @@ enum AppPreferences {
 
     static var overwriteBehavior: OverwriteBehavior {
         OverwriteBehavior(rawValue: defaults.string(forKey: Key.overwriteBehavior) ?? "") ?? .overwrite
+    }
+
+    static var sevenZipBackend: SevenZipBackend {
+        SevenZipBackend(rawValue: defaults.string(forKey: Key.sevenZipBackend) ?? "") ?? .automatic
     }
 
     static var showHiddenFiles: Bool {
@@ -211,6 +240,37 @@ enum AppPreferences {
     static func rememberLastFolder(_ url: URL) {
         guard rememberLastFolder else { return }
         defaults.set(url.path, forKey: Key.lastFolderPath)
+        rememberRecentFolder(url)
+    }
+
+    static var pinnedSidebarURLs: [URL] {
+        urls(forKey: Key.pinnedSidebarPaths)
+    }
+
+    static var recentSidebarURLs: [URL] {
+        urls(forKey: Key.recentSidebarPaths)
+    }
+
+    static func pinSidebarURL(_ url: URL) {
+        var paths = defaults.stringArray(forKey: Key.pinnedSidebarPaths) ?? []
+        let path = url.standardizedFileURL.path
+        paths.removeAll { $0 == path }
+        paths.insert(path, at: 0)
+        defaults.set(Array(paths.prefix(12)), forKey: Key.pinnedSidebarPaths)
+    }
+
+    static func unpinSidebarURL(_ url: URL) {
+        let path = url.standardizedFileURL.path
+        let paths = (defaults.stringArray(forKey: Key.pinnedSidebarPaths) ?? []).filter { $0 != path }
+        defaults.set(paths, forKey: Key.pinnedSidebarPaths)
+    }
+
+    static func stringArray(forKey key: String) -> [String] {
+        defaults.stringArray(forKey: key) ?? []
+    }
+
+    static func setStringArray(_ value: [String], forKey key: String) {
+        defaults.set(value, forKey: key)
     }
 
     static func defaultStartupURL(fileManager: FileManager = .default) -> URL {
@@ -242,5 +302,17 @@ enum AppPreferences {
             return true
         }
         return defaults.bool(forKey: key)
+    }
+
+    private static func rememberRecentFolder(_ url: URL) {
+        var paths = defaults.stringArray(forKey: Key.recentSidebarPaths) ?? []
+        let path = url.standardizedFileURL.path
+        paths.removeAll { $0 == path }
+        paths.insert(path, at: 0)
+        defaults.set(Array(paths.prefix(8)), forKey: Key.recentSidebarPaths)
+    }
+
+    private static func urls(forKey key: String) -> [URL] {
+        (defaults.stringArray(forKey: key) ?? []).map { URL(fileURLWithPath: $0) }
     }
 }

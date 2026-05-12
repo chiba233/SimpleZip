@@ -10,6 +10,7 @@ import SwiftUI
 /// 顶部工具栏：提供添加、解压、测试、哈希、打开和定位等常用操作。
 struct TopBar: View {
     @ObservedObject var model: ArchiveBrowserModel
+    @State private var pathText = ""
 
     var body: some View {
         VStack(spacing: 8) {
@@ -37,14 +38,16 @@ struct TopBar: View {
             HStack(spacing: 6) {
                 Button(action: model.goUp) {
                     Image(systemName: "chevron.up")
+                        .frame(width: 18, height: 18)
                 }
+                .frame(height: 30)
                 .disabled(!model.canGoUp)
                 .help(L10n.text("help.goUp"))
 
-                Text(model.locationText)
+                TextField("", text: $pathText)
                     .font(.system(.body, design: .monospaced))
+                    .textFieldStyle(.plain)
                     .lineLimit(1)
-                    .truncationMode(.middle)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
@@ -54,10 +57,20 @@ struct TopBar: View {
                         RoundedRectangle(cornerRadius: 6)
                             .stroke(Color(nsColor: .separatorColor))
                     )
+                    .onSubmit {
+                        model.openLocationText(pathText)
+                        pathText = model.editableLocationText
+                    }
             }
         }
         .padding(12)
         .background(Color(nsColor: .windowBackgroundColor))
+        .onAppear {
+            pathText = model.editableLocationText
+        }
+        .onChange(of: model.locationText) { _ in
+            pathText = model.editableLocationText
+        }
     }
 }
 

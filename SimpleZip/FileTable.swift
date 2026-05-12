@@ -42,7 +42,7 @@ private struct FileNSTableView: NSViewRepresentable {
         tableView.usesAlternatingRowBackgroundColors = false
         tableView.allowsMultipleSelection = true
         tableView.allowsEmptySelection = true
-        tableView.allowsColumnReordering = false
+        tableView.allowsColumnReordering = true
         tableView.rowHeight = 28
         tableView.headerView = NSTableHeaderView()
         tableView.delegate = context.coordinator
@@ -55,6 +55,7 @@ private struct FileNSTableView: NSViewRepresentable {
         let menu = NSMenu()
         menu.delegate = context.coordinator
         tableView.menu = menu
+        tableView.headerView?.menu = context.coordinator.headerMenu()
         context.coordinator.tableView = tableView
 
         let scrollView = NSScrollView()
@@ -88,6 +89,7 @@ private struct FileNSTableView: NSViewRepresentable {
             tableColumn.title = column.title
             tableColumn.width = column.width
             tableColumn.minWidth = column.minWidth
+            tableColumn.sortDescriptorPrototype = NSSortDescriptor(key: column.identifier, ascending: true)
             tableView.addTableColumn(tableColumn)
         }
     }
@@ -97,7 +99,7 @@ private struct FileNSTableView: NSViewRepresentable {
         if showSizeColumn { columns.append(.size) }
         if showTypeColumn { columns.append(.type) }
         if showModifiedColumn { columns.append(.modified) }
-        return columns
+        return orderedColumns(columns, key: AppPreferences.Key.fileColumnOrder)
     }
 
     final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate {
@@ -171,6 +173,18 @@ private struct FileNSTableView: NSViewRepresentable {
                 guard let self, self.model.selection != selection else { return }
                 self.model.selection = selection
             }
+        }
+
+        func tableView(_ tableView: NSTableView, sortDescriptorsDidChange oldDescriptors: [NSSortDescriptor]) {
+            guard let descriptor = tableView.sortDescriptors.first, let key = descriptor.key else { return }
+            model.sortFileItems(by: key, ascending: descriptor.ascending)
+            tableView.reloadData()
+            applySelection(to: tableView)
+        }
+
+        func tableViewColumnDidMove(_ notification: Notification) {
+            guard let tableView = notification.object as? NSTableView else { return }
+            AppPreferences.setStringArray(tableView.tableColumns.map(\.identifier.rawValue), forKey: AppPreferences.Key.fileColumnOrder)
         }
 
         func tableView(_ tableView: NSTableView, pasteboardWriterForRow row: Int) -> NSPasteboardWriting? {
@@ -292,6 +306,17 @@ private struct FileNSTableView: NSViewRepresentable {
             return item
         }
 
+        func headerMenu() -> NSMenu {
+            let menu = NSMenu()
+            menu.addItem(menuItem(L10n.text("settings.editColumns"), #selector(openColumnSettings)))
+            return menu
+        }
+
+        @objc private func openColumnSettings() {
+            NotificationCenter.default.post(name: .openSettingsColumns, object: nil)
+            NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        }
+
         private func icon(for item: FileItem) -> NSImage {
             if item.isDirectory {
                 return NSWorkspace.shared.icon(for: .folder)
@@ -299,6 +324,14 @@ private struct FileNSTableView: NSViewRepresentable {
             return NSWorkspace.shared.icon(forFile: item.url.path)
         }
     }
+}
+
+private func orderedColumns(_ columns: [FileColumn], key: String) -> [FileColumn] {
+    let order = AppPreferences.stringArray(forKey: key)
+    guard !order.isEmpty else { return columns }
+    let byID = Dictionary(uniqueKeysWithValues: columns.map { ($0.identifier, $0) })
+    let ordered = order.compactMap { byID[$0] }
+    return ordered + columns.filter { !order.contains($0.identifier) }
 }
 
 private enum FileColumn: String {

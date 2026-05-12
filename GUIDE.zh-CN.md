@@ -17,14 +17,22 @@ SimpleZip 是一个面向 macOS 的 7zz 图形客户端。目标不是做一个�
 
 ## 安装与依赖
 
-SimpleZip 的 ZIP 能力使用 macOS 自带工具。要处理 7z、tar、gz、tgz、bz2、xz 等格式，请安装 7-Zip CLI：
+SimpleZip 的 ZIP 能力使用 macOS 自带工具。要处理 7z、tar、gz、tgz、bz2、xz 等格式，会优先使用软件内置的 7-Zip CLI。
+
+当前工程已内置官方 7-Zip 26.01 macOS universal `7zz`，位于 `SimpleZip/Tools/7zz`，同时包含 `x86_64` 和 `arm64`。开发构建时 Xcode 会把它复制进 App 资源目录。
+
+你也可以使用系统安装：
 
 ```bash
 brew install sevenzip
 ```
 
-SimpleZip 会查找这些路径：
+设置里可以选择 7-Zip 后端：自动、软件内置、系统安装。自动模式会先找内置路径，再找常见 Homebrew 路径：
 
+- `Contents/Resources/7zz`
+- `Contents/Resources/Tools/7zz`
+- `Contents/Resources/7z`
+- `Contents/Resources/Tools/7z`
 - `/opt/homebrew/bin/7zz`
 - `/usr/local/bin/7zz`
 - `/opt/homebrew/bin/7z`
@@ -141,6 +149,8 @@ node_modules/*
 - 保持目录结构
 - 仅解压文件到目标目录
 
+默认目标是压缩包所在目录；只有需要换位置时再点“选择”。
+
 “仅解压文件到目标目录”适合从深层目录里挑几个文件出来，不想带着整段路径一起落地。
 
 ## 哈希
@@ -206,7 +216,7 @@ node_modules/*
 
 ### 为什么 7z 打不开？
 
-请确认已安装 7-Zip CLI：
+请确认已安装 7-Zip CLI，或已将 `7zz` / `7z` 放入 App 的 `Contents/Resources/Tools/`，并在设置里选择了正确后端。
 
 ```bash
 brew install sevenzip
@@ -215,6 +225,10 @@ brew install sevenzip
 ### 为什么 Xcode 控制台有 linkd / AppIntents 相关日志？
 
 如果应用没有崩溃，这类日志通常是 macOS / Xcode 的系统服务噪声。实际构建结果以 `BUILD SUCCEEDED` 和应用行为为准。
+
+### 为什么 Xcode 控制台有 NSXPCDecoder / NSSecureCoding 警告？
+
+SimpleZip 没有直接使用 `NSXPCDecoder`、`NSSecureCoding` 或 `NSKeyedUnarchiver`。如果这类日志只出现在 Xcode 控制台、没有对应崩溃或功能失败，通常是 macOS 系统框架或远程服务输出的安全提示。遇到具体操作失败时，再结合失败动作前后的日志定位。
 
 ### 为什么某些格式只能解压不能创建？
 

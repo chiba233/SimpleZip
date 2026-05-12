@@ -10,6 +10,10 @@ import Foundation
 
 /// 文件哈希服务：以流式方式读取文件，避免大文件一次性占用过多内存。
 enum HashService {
+    nonisolated static func sha256(for url: URL) throws -> String {
+        try calculateFileHash(for: url).sha256
+    }
+
     nonisolated static func calculate(for urls: [URL], includeHiddenFiles: Bool) async throws -> HashReport {
         try await Task.detached(priority: .userInitiated) {
             let fileURLs = try collectFiles(from: urls, includeHiddenFiles: includeHiddenFiles)

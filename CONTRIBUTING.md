@@ -53,6 +53,9 @@ Important files:
 
 - ZIP uses macOS built-in tools where possible.
 - 7z and non-ZIP formats depend on `7zz` / `7z`.
+- The bundled backend accepts binaries copied to `Contents/Resources/7zz` or `Contents/Resources/Tools/7zz`.
+  During development, `SimpleZip/Tools/7zz` is the intended source location.
+- Settings should keep showing the selected backend and detected 7-Zip version when archive backend logic changes.
 - Any new archive command should:
   - avoid shell string interpolation;
   - pass arguments through `Process.arguments`;
