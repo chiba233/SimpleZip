@@ -8,6 +8,7 @@
 import AppKit
 import SwiftUI
 
+/// SimpleZip 应用入口：负责创建主窗口和注册菜单命令。
 @main
 struct SimpleZipApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
@@ -16,42 +17,18 @@ struct SimpleZipApp: App {
         WindowGroup {
             ContentView()
         }
-    }
-}
+        .commands {
+            CommandGroup(replacing: .appInfo) {
+                Button(L10n.text("menu.aboutSimpleZip")) {
+                    AboutPanel.show()
+                }
+            }
 
-final class AppDelegate: NSObject, NSApplicationDelegate {
-    func application(_ sender: NSApplication, openFile filename: String) -> Bool {
-        ExternalFileOpenQueue.shared.enqueue(URL(fileURLWithPath: filename))
-        return true
-    }
-
-    func application(_ sender: NSApplication, openFiles filenames: [String]) {
-        filenames
-            .map { URL(fileURLWithPath: $0) }
-            .forEach { ExternalFileOpenQueue.shared.enqueue($0) }
-        sender.reply(toOpenOrPrint: .success)
-    }
-}
-
-extension Notification.Name {
-    static let openExternalFile = Notification.Name("openExternalFile")
-}
-
-final class ExternalFileOpenQueue {
-    static let shared = ExternalFileOpenQueue()
-
-    private var pendingURLs: [URL] = []
-
-    private init() {}
-
-    func enqueue(_ url: URL) {
-        pendingURLs.append(url)
-        NotificationCenter.default.post(name: .openExternalFile, object: url)
-    }
-
-    func drain() -> [URL] {
-        let urls = pendingURLs
-        pendingURLs.removeAll()
-        return urls
+            CommandGroup(replacing: .help) {
+                Button(L10n.text("menu.projectPage")) {
+                    AboutPanel.openProjectPage()
+                }
+            }
+        }
     }
 }

@@ -47,3 +47,7 @@
 "column.type" = "類型";
 "column.modified" = "修改時間";
 "column.method" = "方法";
+"menu.aboutSimpleZip" = "關於 SimpleZip";
+"about.description" = "一個更好用的 7zz 圖形客戶端，為 macOS 而生。\n用熟悉的視窗瀏覽壓縮檔、檢視內容、解壓縮與建立檔案，不必總是回到終端機。";
+"about.projectPage" = "專案首頁";
+"menu.projectPage" = "SimpleZip 專案首頁";

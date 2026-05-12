@@ -47,3 +47,7 @@
 "column.type" = "種類";
 "column.modified" = "変更日";
 "column.method" = "方式";
+"menu.aboutSimpleZip" = "SimpleZip について";
+"about.description" = "macOS のための、より使いやすい 7zz GUI クライアント。\nターミナルに戻らなくても、アーカイブの閲覧、内容確認、展開、作成を慣れたウィンドウ操作で行えます。";
+"about.projectPage" = "プロジェクトページ";
+"menu.projectPage" = "SimpleZip プロジェクトページ";

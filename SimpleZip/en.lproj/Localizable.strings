@@ -47,3 +47,7 @@
 "column.type" = "Type";
 "column.modified" = "Modified";
 "column.method" = "Method";
+"menu.aboutSimpleZip" = "About SimpleZip";
+"about.description" = "A friendlier 7zz GUI client for macOS.\nBrowse archives, inspect their contents, and extract or create files without living in Terminal.";
+"about.projectPage" = "Project page";
+"menu.projectPage" = "SimpleZip Project Page";

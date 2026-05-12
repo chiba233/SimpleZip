@@ -47,3 +47,7 @@
 "column.type" = "ประเภท";
 "column.modified" = "แก้ไขเมื่อ";
 "column.method" = "วิธี";
+"menu.aboutSimpleZip" = "เกี่ยวกับ SimpleZip";
+"about.description" = "ไคลเอนต์ GUI สำหรับ 7zz บน macOS ที่ใช้งานง่ายขึ้น\nเรียกดูไฟล์บีบอัด ตรวจสอบเนื้อหา แตกไฟล์ และสร้างไฟล์ใหม่ได้ในหน้าต่างที่คุ้นเคย โดยไม่ต้องกลับไปพึ่ง Terminal ตลอดเวลา";
+"about.projectPage" = "หน้าโปรเจกต์";
+"menu.projectPage" = "หน้าโปรเจกต์ SimpleZip";
