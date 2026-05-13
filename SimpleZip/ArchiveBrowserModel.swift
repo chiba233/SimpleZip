@@ -24,6 +24,8 @@ final class ArchiveBrowserModel: ObservableObject {
     @Published var hashReport: HashReport?
     @Published var benchmarkRequest: SevenZipBenchmarkRequest?
     @Published var benchmarkSession: SevenZipBenchmarkSession?
+    @Published var operationDetailsSession: ArchiveOperationDetailsSession?
+    @Published var isShowingOperationDetails = false
     @Published var archiveCreationRequest: ArchiveCreationRequest?
     @Published var extractArchiveRequest: ExtractArchiveRequest?
     @Published var extractSelectionRequest: ExtractSelectionRequest?
@@ -39,10 +41,17 @@ final class ArchiveBrowserModel: ObservableObject {
     private var activeLoadGeneration = 0
     private var operationTask: Task<Void, Never>?
     private var activeOperationID: UUID?
+    private var mountedDiskImage: MountedDiskImageSession?
 
     init() {
         mode = .folder(AppPreferences.defaultStartupURL(fileManager: fileManager))
         reload()
+    }
+
+    deinit {
+        if let mountedDiskImage {
+            try? ArchiveService.detachDiskImage(at: mountedDiskImage.mountPoint)
+        }
     }
 
     var title: String {
@@ -118,6 +127,7 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     func openTag(_ tag: String) {
+        cleanupMountedDiskImageIfNeeded(for: nil)
         archivePath = ""
         allArchiveItems = []
         mode = .tag(tag)
@@ -161,6 +171,7 @@ final class ArchiveBrowserModel: ObservableObject {
         panel.canChooseFiles = true
         panel.allowsMultipleSelection = false
         panel.allowedContentTypes = ArchiveService.supportedArchiveTypes
+        panel.allowsOtherFileTypes = true
 
         if panel.runModal() == .OK, let url = panel.url {
             openArchive(url)
@@ -168,17 +179,30 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     func openFolder(_ url: URL) {
+        cleanupMountedDiskImageIfNeeded(for: url)
         archivePath = ""
         allArchiveItems = []
         mode = .folder(url)
-        AppPreferences.rememberLastFolder(url)
+        if let mountedDiskImage {
+            if !url.standardizedFileURL.path.hasPrefix(mountedDiskImage.mountPoint.standardizedFileURL.path) {
+                AppPreferences.rememberLastFolder(url)
+            }
+        } else {
+            AppPreferences.rememberLastFolder(url)
+        }
         reload()
     }
 
     func openArchive(_ url: URL) {
+        let supportedURL = ArchiveService.supportedArchiveURL(url) ?? url
+        if supportedURL.pathExtension.lowercased() == "dmg" {
+            openDiskImage(supportedURL)
+            return
+        }
+        cleanupMountedDiskImageIfNeeded(for: nil)
         archivePath = ""
         allArchiveItems = []
-        mode = .archive(url)
+        mode = .archive(supportedURL)
         reload()
     }
 
@@ -299,12 +323,32 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     func performCreateArchive(_ request: ArchiveCreationRequest) {
+        let detailsSession = prepareOperationDetailsSession(
+            title: L10n.format("status.creating", request.destinationURL.lastPathComponent),
+            showsDetails: request.options.showDetails
+        )
+        let outputObserver = makeOperationOutputObserver(for: detailsSession)
         startOperationTask(cancellable: true) { [weak self] in
             guard let self else { return }
             await runArchiveTask(L10n.format("status.creating", request.destinationURL.lastPathComponent)) { progress in
-                try await ArchiveService.createArchive(from: request.sourceURLs, destination: request.destinationURL, options: request.options, progress: progress)
+                try await ArchiveService.createArchive(
+                    from: request.sourceURLs,
+                    destination: request.destinationURL,
+                    options: request.options,
+                    progress: progress,
+                    outputObserver: outputObserver
+                )
             }
+            finishOperationDetailsSession(detailsSession)
             reload()
+        }
+    }
+
+    func extractFromCurrentContext() {
+        if case .archive = mode, !selectedArchiveItems.isEmpty {
+            extractSelectedArchiveItems()
+        } else {
+            extractArchive()
         }
     }
 
@@ -322,41 +366,32 @@ final class ArchiveBrowserModel: ObservableObject {
             return
         }
 
-        let destination: URL
-        if let defaultDestination = AppPreferences.defaultExtractURL(for: archiveURL, fileManager: fileManager) {
-            destination = defaultDestination
-        } else {
-            let panel = NSOpenPanel()
-            panel.title = L10n.text("panel.extractTo")
-            panel.prompt = L10n.text("button.extract")
-            panel.canChooseDirectories = true
-            panel.canChooseFiles = false
-            panel.canCreateDirectories = true
-            panel.allowsMultipleSelection = false
-            panel.directoryURL = archiveURL.deletingLastPathComponent()
-
-            guard panel.runModal() == .OK, let selectedDestination = panel.url else {
-                return
-            }
-            destination = selectedDestination
-        }
-
-        extractArchiveRequest = ExtractArchiveRequest(archiveURL: archiveURL, destinationURL: destination)
+        extractArchiveRequest = ExtractArchiveRequest(
+            archiveURL: archiveURL,
+            destinationURL: archiveURL.deletingLastPathComponent()
+        )
     }
 
     func performExtractArchive(_ request: ExtractArchiveRequest) {
+        let detailsSession = prepareOperationDetailsSession(
+            title: L10n.format("status.extracting", request.archiveURL.lastPathComponent),
+            showsDetails: request.showDetails
+        )
+        let outputObserver = makeOperationOutputObserver(for: detailsSession)
         startOperationTask(cancellable: true) { [weak self] in
             guard let self else { return }
             await runArchiveTask(L10n.format("status.extracting", request.archiveURL.lastPathComponent)) { progress in
                 let stagingURL = try self.extractionCoordinator.makeExtractionStagingDirectory()
                 defer { try? self.fileManager.removeItem(at: stagingURL) }
 
+                let backendOverwriteBehavior = AppPreferences.overwriteBehavior == .skipExisting ? OverwriteBehavior.skipExisting : .overwrite
                 try await ArchiveService.extract(
                     request.archiveURL,
                     to: stagingURL,
-                    overwriteBehavior: AppPreferences.overwriteBehavior,
+                    overwriteBehavior: backendOverwriteBehavior,
                     password: request.password,
-                    progress: progress
+                    progress: progress,
+                    outputObserver: outputObserver
                 )
                 try await self.extractionCoordinator.mergeExtractedItems(
                     from: stagingURL,
@@ -368,6 +403,7 @@ final class ArchiveBrowserModel: ObservableObject {
                     self?.operationProgress = progress
                 }
             }
+            finishOperationDetailsSession(detailsSession)
             if case .folder(let folder) = mode, folder == request.destinationURL {
                 reload()
             }
@@ -394,20 +430,27 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     func performExtractSelection(_ request: ExtractSelectionRequest) {
+        let detailsSession = prepareOperationDetailsSession(
+            title: L10n.format("status.extractingSelected", request.entries.count),
+            showsDetails: request.showDetails
+        )
+        let outputObserver = makeOperationOutputObserver(for: detailsSession)
         startOperationTask(cancellable: true) { [weak self] in
             guard let self else { return }
             await runArchiveTask(L10n.format("status.extractingSelected", request.entries.count)) { progress in
                 let stagingURL = try self.extractionCoordinator.makeExtractionStagingDirectory()
                 defer { try? self.fileManager.removeItem(at: stagingURL) }
 
+                let backendOverwriteBehavior = AppPreferences.overwriteBehavior == .skipExisting ? OverwriteBehavior.skipExisting : .overwrite
                 try await ArchiveService.extract(
                     request.archiveURL,
                     entries: request.entries,
                     to: stagingURL,
-                    overwriteBehavior: AppPreferences.overwriteBehavior,
+                    overwriteBehavior: backendOverwriteBehavior,
                     pathMode: request.pathMode,
                     password: request.password,
-                    progress: progress
+                    progress: progress,
+                    outputObserver: outputObserver
                 )
                 try await self.extractionCoordinator.mergeExtractedItems(
                     from: stagingURL,
@@ -419,6 +462,7 @@ final class ArchiveBrowserModel: ObservableObject {
                     self?.operationProgress = progress
                 }
             }
+            finishOperationDetailsSession(detailsSession)
             if case .folder(let folder) = mode, folder == request.destinationURL {
                 reload()
             }
@@ -481,6 +525,11 @@ final class ArchiveBrowserModel: ObservableObject {
 
     func calculateHash() {
         calculateHash(algorithms: HashAlgorithm.allCases)
+    }
+
+    func showOperationDetails() {
+        guard operationDetailsSession != nil else { return }
+        isShowingOperationDetails = true
     }
 
     func calculateHash(algorithms: [HashAlgorithm]) {
@@ -643,7 +692,16 @@ final class ArchiveBrowserModel: ObservableObject {
     /// 加载本地文件夹内容，并按“文件夹优先、名称自然排序”展示。
     private func loadFolder(_ url: URL) {
         do {
-            let resourceKeys: Set<URLResourceKey> = [.isDirectoryKey, .fileSizeKey, .contentModificationDateKey, .localizedTypeDescriptionKey, .isHiddenKey]
+            let resourceKeys: Set<URLResourceKey> = [
+                .isDirectoryKey,
+                .fileSizeKey,
+                .contentModificationDateKey,
+                .creationDateKey,
+                .contentAccessDateKey,
+                .addedToDirectoryDateKey,
+                .localizedTypeDescriptionKey,
+                .isHiddenKey
+            ]
             var options: FileManager.DirectoryEnumerationOptions = [.skipsPackageDescendants]
             if !AppPreferences.showHiddenFiles {
                 options.insert(.skipsHiddenFiles)
@@ -688,19 +746,38 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     private func makeFileItems(from urls: [URL], folderFirst: Bool) -> [FileItem] {
-        let resourceKeys: Set<URLResourceKey> = [.isDirectoryKey, .fileSizeKey, .contentModificationDateKey, .localizedTypeDescriptionKey]
+        let resourceKeys: Set<URLResourceKey> = [
+            .isDirectoryKey,
+            .fileSizeKey,
+            .contentModificationDateKey,
+            .creationDateKey,
+            .contentAccessDateKey,
+            .addedToDirectoryDateKey,
+            .localizedTypeDescriptionKey
+        ]
+        var applicationNameCache: [String: String] = [:]
         return urls.compactMap { fileURL in
             guard let values = try? fileURL.resourceValues(forKeys: resourceKeys) else {
                 return nil
             }
 
+            let isDirectory = values.isDirectory == true
+            let typeDescription = values.localizedTypeDescription ?? (isDirectory ? L10n.text("type.folder") : L10n.text("type.file"))
+            let applicationKey = isDirectory ? "__folder__" : fileURL.pathExtension.lowercased()
+            let applicationName = applicationNameCache[applicationKey] ?? preferredApplicationName(for: fileURL, isDirectory: isDirectory)
+            applicationNameCache[applicationKey] = applicationName
+
             return FileItem(
                 url: fileURL,
                 name: fileURL.lastPathComponent,
-                isDirectory: values.isDirectory == true,
-                size: values.isDirectory == true ? nil : Int64(values.fileSize ?? 0),
+                isDirectory: isDirectory,
+                size: isDirectory ? nil : Int64(values.fileSize ?? 0),
                 modified: values.contentModificationDate,
-                typeDescription: values.localizedTypeDescription ?? (values.isDirectory == true ? L10n.text("type.folder") : L10n.text("type.file"))
+                created: values.creationDate,
+                dateAdded: values.addedToDirectoryDate,
+                lastOpened: values.contentAccessDate,
+                typeDescription: typeDescription,
+                applicationName: applicationName
             )
         }
         .sorted { lhs, rhs in
@@ -978,8 +1055,16 @@ final class ArchiveBrowserModel: ObservableObject {
             result = NSNumber(value: lhs.size ?? -1).compare(NSNumber(value: rhs.size ?? -1))
         case "type":
             result = lhs.typeDescription.localizedStandardCompare(rhs.typeDescription)
+        case "application":
+            result = lhs.applicationName.localizedStandardCompare(rhs.applicationName)
+        case "lastOpened":
+            result = (lhs.lastOpened ?? .distantPast).compare(rhs.lastOpened ?? .distantPast)
+        case "dateAdded":
+            result = (lhs.dateAdded ?? .distantPast).compare(rhs.dateAdded ?? .distantPast)
         case "modified":
             result = (lhs.modified ?? .distantPast).compare(rhs.modified ?? .distantPast)
+        case "created":
+            result = (lhs.created ?? .distantPast).compare(rhs.created ?? .distantPast)
         default:
             result = lhs.name.localizedStandardCompare(rhs.name)
         }
@@ -989,6 +1074,8 @@ final class ArchiveBrowserModel: ObservableObject {
     private func compareArchiveItem(_ lhs: ArchiveItem, _ rhs: ArchiveItem, by key: String, ascending: Bool) -> Bool {
         let result: ComparisonResult
         switch key {
+        case "kind":
+            result = lhs.typeDescription.localizedStandardCompare(rhs.typeDescription)
         case "size":
             result = NSNumber(value: lhs.size ?? -1).compare(NSNumber(value: rhs.size ?? -1))
         case "modified":
@@ -999,6 +1086,73 @@ final class ArchiveBrowserModel: ObservableObject {
             result = lhs.displayName.localizedStandardCompare(rhs.displayName)
         }
         return ascending ? result != .orderedDescending : result == .orderedDescending
+    }
+
+    private func openDiskImage(_ url: URL) {
+        do {
+            cleanupMountedDiskImageIfNeeded(for: nil)
+            let mountPoint = try ArchiveService.mountDiskImage(url)
+            mountedDiskImage = MountedDiskImageSession(sourceURL: url, mountPoint: mountPoint)
+            archivePath = ""
+            allArchiveItems = []
+            mode = .folder(mountPoint)
+            reload()
+        } catch {
+            errorMessage = error.localizedDescription
+            status = L10n.text("status.failed")
+        }
+    }
+
+    private func cleanupMountedDiskImageIfNeeded(for targetURL: URL?) {
+        guard let mountedDiskImage else { return }
+        if let targetURL, targetURL.standardizedFileURL.path.hasPrefix(mountedDiskImage.mountPoint.standardizedFileURL.path) {
+            return
+        }
+        try? ArchiveService.detachDiskImage(at: mountedDiskImage.mountPoint)
+        self.mountedDiskImage = nil
+    }
+
+    private func preferredApplicationName(for url: URL, isDirectory: Bool) -> String {
+        if isDirectory {
+            return "Finder"
+        }
+        guard let appURL = NSWorkspace.shared.urlForApplication(toOpen: url) else {
+            return ""
+        }
+        if let bundle = Bundle(url: appURL) {
+            if let displayName = bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String, !displayName.isEmpty {
+                return displayName
+            }
+            if let name = bundle.object(forInfoDictionaryKey: "CFBundleName") as? String, !name.isEmpty {
+                return name
+            }
+        }
+        return appURL.deletingPathExtension().lastPathComponent
+    }
+
+    private func prepareOperationDetailsSession(title: String, showsDetails: Bool) -> ArchiveOperationDetailsSession? {
+        guard showsDetails else {
+            operationDetailsSession = nil
+            isShowingOperationDetails = false
+            return nil
+        }
+        let session = ArchiveOperationDetailsSession(title: title)
+        operationDetailsSession = session
+        isShowingOperationDetails = true
+        return session
+    }
+
+    private func makeOperationOutputObserver(for session: ArchiveOperationDetailsSession?) -> (@Sendable (String) -> Void)? {
+        guard let session else { return nil }
+        return { chunk in
+            Task { @MainActor [weak session] in
+                session?.append(chunk)
+            }
+        }
+    }
+
+    private func finishOperationDetailsSession(_ session: ArchiveOperationDetailsSession?) {
+        session?.finishedAt = Date()
     }
 
     /// 包装耗时归档任务，统一处理进度状态、错误提示和结束状态。
@@ -1036,4 +1190,9 @@ final class ArchiveBrowserModel: ObservableObject {
             status = L10n.text("status.failed")
         }
     }
+}
+
+private struct MountedDiskImageSession {
+    let sourceURL: URL
+    let mountPoint: URL
 }

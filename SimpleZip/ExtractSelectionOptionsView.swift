@@ -39,6 +39,7 @@ struct ExtractSelectionOptionsView: View {
                 }
 
                 SecureField(L10n.text("extract.password.placeholder"), text: $request.password)
+                Toggle(L10n.text("operation.showDetails"), isOn: $request.showDetails)
             }
 
             HStack {

@@ -46,48 +46,62 @@ struct ArchiveFileCommands: Commands {
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
-            Button(L10n.text("button.openFolder")) {
+            Button {
                 model?.chooseFolder()
+            } label: {
+                Label(L10n.text("button.openFolder"), systemImage: "folder")
             }
             .keyboardShortcut("o", modifiers: [.command])
             .disabled(model == nil)
 
-            Button(L10n.text("button.openArchive")) {
+            Button {
                 model?.chooseArchive()
+            } label: {
+                Label(L10n.text("button.openArchive"), systemImage: "doc.zipper")
             }
             .keyboardShortcut("o", modifiers: [.command, .shift])
             .disabled(model == nil)
 
             Divider()
 
-            Button(L10n.text("button.open")) {
+            Button {
                 model?.openSelectedItem()
+            } label: {
+                Label(L10n.text("button.open"), systemImage: "arrow.turn.up.right")
             }
             .keyboardShortcut(.return, modifiers: [.command])
             .disabled(!canOpenSelection)
 
-            Button(L10n.text("button.addToArchive")) {
+            Button {
                 model?.createArchive()
+            } label: {
+                Label(L10n.text("button.addToArchive"), systemImage: "plus.square.on.square")
             }
             .keyboardShortcut("n", modifiers: [.command])
             .disabled(!canCreateArchive)
 
             Divider()
 
-            Button(L10n.text("button.extract")) {
-                model?.extractArchive()
+            Button {
+                model?.extractFromCurrentContext()
+            } label: {
+                Label(L10n.text("button.extract"), systemImage: "tray.and.arrow.down")
             }
             .keyboardShortcut("e", modifiers: [.command])
             .disabled(!canExtractArchive)
 
-            Button(L10n.text("button.extractSelected")) {
+            Button {
                 model?.extractSelectedArchiveItems()
+            } label: {
+                Label(L10n.text("button.extractSelected"), systemImage: "arrow.down.doc")
             }
             .keyboardShortcut("e", modifiers: [.command, .shift])
             .disabled(!canExtractSelected)
 
-            Button(L10n.text("button.test")) {
+            Button {
                 model?.testArchive()
+            } label: {
+                Label(L10n.text("button.test"), systemImage: "checkmark.seal")
             }
             .keyboardShortcut("t", modifiers: [.command])
             .disabled(!canTestArchive)
@@ -110,60 +124,76 @@ struct ArchiveFileCommands: Commands {
 
             Divider()
 
-            Button(L10n.text("button.revealInFinder")) {
+            Button {
                 model?.revealInFinder()
+            } label: {
+                Label(L10n.text("button.revealInFinder"), systemImage: "arrow.up.forward.app")
             }
             .keyboardShortcut("r", modifiers: [.command, .shift])
             .disabled(model == nil)
 
-            Button(L10n.text("help.refresh")) {
+            Button {
                 model?.reload()
+            } label: {
+                Label(L10n.text("help.refresh"), systemImage: "arrow.clockwise")
             }
             .keyboardShortcut("r", modifiers: [.command])
             .disabled(model == nil)
 
-            Button(L10n.text("help.goUp")) {
+            Button {
                 model?.goUp()
+            } label: {
+                Label(L10n.text("help.goUp"), systemImage: "chevron.up")
             }
             .keyboardShortcut(.upArrow, modifiers: [.command])
             .disabled(!(model?.canGoUp ?? false))
         }
 
         CommandGroup(replacing: .pasteboard) {
-            Button(L10n.text("file.copy")) {
+            Button {
                 if canManageSelectedFiles {
                     model?.copySelectedFiles()
                 } else {
                     NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: nil)
                 }
+            } label: {
+                Label(L10n.text("file.copy"), systemImage: "doc.on.doc")
             }
             .keyboardShortcut("c", modifiers: [.command])
 
-            Button(L10n.text("file.cut")) {
+            Button {
                 if canManageSelectedFiles {
                     model?.cutSelectedFiles()
                 } else {
                     NSApp.sendAction(#selector(NSText.cut(_:)), to: nil, from: nil)
                 }
+            } label: {
+                Label(L10n.text("file.cut"), systemImage: "scissors")
             }
             .keyboardShortcut("x", modifiers: [.command])
 
-            Button(L10n.text("file.paste")) {
+            Button {
                 if isFolderMode {
                     model?.pasteFiles()
                 } else {
                     NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil)
                 }
+            } label: {
+                Label(L10n.text("file.paste"), systemImage: "clipboard")
             }
             .keyboardShortcut("v", modifiers: [.command])
 
-            Button(L10n.text("file.moveTo")) {
+            Button {
                 model?.moveSelectedFilesToFolder()
+            } label: {
+                Label(L10n.text("file.moveTo"), systemImage: "folder.badge.gearshape")
             }
             .disabled(!canManageSelectedFiles)
 
-            Button(L10n.text("file.delete")) {
+            Button {
                 model?.deleteSelectedFiles()
+            } label: {
+                Label(L10n.text("file.delete"), systemImage: "trash")
             }
             .keyboardShortcut(.delete, modifiers: [])
             .disabled(!canManageSelectedFiles)

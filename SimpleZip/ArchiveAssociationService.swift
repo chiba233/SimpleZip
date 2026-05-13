@@ -27,7 +27,9 @@ enum ArchiveAssociationService {
         ArchiveAssociation(fileExtension: "gz", title: "GZip Archive", contentTypes: contentTypes(for: "gz", fallback: ["org.gnu.gnu-zip-archive"])),
         ArchiveAssociation(fileExtension: "tgz", title: "Compressed TAR Archive", contentTypes: contentTypes(for: "tgz", fallback: ["public.tar-archive", "org.gnu.gnu-zip-archive"])),
         ArchiveAssociation(fileExtension: "bz2", title: "BZip2 Archive", contentTypes: contentTypes(for: "bz2", fallback: ["public.bzip2-archive"])),
-        ArchiveAssociation(fileExtension: "xz", title: "XZ Archive", contentTypes: contentTypes(for: "xz", fallback: ["org.tukaani.xz-archive"]))
+        ArchiveAssociation(fileExtension: "xz", title: "XZ Archive", contentTypes: contentTypes(for: "xz", fallback: ["org.tukaani.xz-archive"])),
+        ArchiveAssociation(fileExtension: "rar", title: "RAR Archive", contentTypes: contentTypes(for: "rar", fallback: ["com.rarlab.rar-archive"])),
+        ArchiveAssociation(fileExtension: "dmg", title: "DMG Disk Image", contentTypes: contentTypes(for: "dmg", fallback: ["com.apple.disk-image-udif"]))
     ]
 
     static func setAsDefaultForSupportedArchives() throws {

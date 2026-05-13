@@ -16,7 +16,7 @@ struct TopBar: View {
         VStack(spacing: 8) {
             HStack(spacing: 8) {
                 ToolButton(title: L10n.text("button.add"), systemImage: "plus.square.on.square", action: model.createArchive)
-                ToolButton(title: L10n.text("button.extract"), systemImage: "arrow.down.doc", action: model.extractArchive)
+                ToolButton(title: L10n.text("button.extract"), systemImage: "arrow.down.doc", action: model.extractFromCurrentContext)
                 ToolButton(title: L10n.text("button.test"), systemImage: "checkmark.seal", action: model.testArchive)
                 ToolButton(title: L10n.text("button.hash"), systemImage: "number.square", action: { model.calculateHash() })
                 ToolButton(title: L10n.text("button.open"), systemImage: "folder.badge.gearshape", action: model.chooseFolder)

@@ -128,28 +128,9 @@ enum StartupLocation: String, CaseIterable, Identifiable {
     }
 }
 
-/// 解压时默认使用的位置。
-enum DefaultExtractLocation: String, CaseIterable, Identifiable {
-    case askEveryTime
-    case archiveFolder
-    case downloads
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .askEveryTime:
-            return L10n.text("settings.extract.askEveryTime")
-        case .archiveFolder:
-            return L10n.text("settings.extract.archiveFolder")
-        case .downloads:
-            return L10n.text("settings.extract.downloads")
-        }
-    }
-}
-
 /// 解压遇到同名文件时的默认处理方式。
 enum OverwriteBehavior: String, CaseIterable, Identifiable {
+    case ask
     case overwrite
     case skipExisting
 
@@ -157,6 +138,8 @@ enum OverwriteBehavior: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
+        case .ask:
+            return L10n.text("settings.overwrite.ask")
         case .overwrite:
             return L10n.text("settings.overwrite.overwrite")
         case .skipExisting:
@@ -185,25 +168,49 @@ enum SevenZipBackend: String, CaseIterable, Identifiable {
     }
 }
 
+enum RarBackend: String, CaseIterable, Identifiable {
+    case automatic
+    case bundled
+    case system
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .automatic:
+            return L10n.text("settings.rar.automatic")
+        case .bundled:
+            return L10n.text("settings.rar.bundled")
+        case .system:
+            return L10n.text("settings.rar.system")
+        }
+    }
+}
+
 /// UserDefaults 读写封装，集中管理偏好键，避免字符串散落在业务代码里。
 enum AppPreferences {
     private static var defaults: UserDefaults { UserDefaults.standard }
 
     enum Key {
         static let startupLocation = "startupLocation"
-        static let defaultExtractLocation = "defaultExtractLocation"
         static let overwriteBehavior = "overwriteBehavior"
         static let showHiddenFiles = "showHiddenFiles"
         static let rememberLastFolder = "rememberLastFolder"
         static let lastFolderPath = "lastFolderPath"
         static let showFileSizeColumn = "showFileSizeColumn"
         static let showFileTypeColumn = "showFileTypeColumn"
+        static let showFileApplicationColumn = "showFileApplicationColumn"
+        static let showFileLastOpenedColumn = "showFileLastOpenedColumn"
+        static let showFileDateAddedColumn = "showFileDateAddedColumn"
         static let showFileModifiedColumn = "showFileModifiedColumn"
+        static let showFileCreatedColumn = "showFileCreatedColumn"
+        static let showArchiveKindColumn = "showArchiveKindColumn"
         static let showArchiveSizeColumn = "showArchiveSizeColumn"
         static let showArchiveModifiedColumn = "showArchiveModifiedColumn"
         static let showArchiveMethodColumn = "showArchiveMethodColumn"
         static let appLanguage = "appLanguage"
         static let sevenZipBackend = "sevenZipBackend"
+        static let rarBackend = "rarBackend"
         static let pinnedSidebarPaths = "pinnedSidebarPaths"
         static let recentSidebarPaths = "recentSidebarPaths"
         static let fileColumnOrder = "fileColumnOrder"
@@ -218,16 +225,16 @@ enum AppPreferences {
         AppLanguage(rawValue: defaults.string(forKey: Key.appLanguage) ?? "") ?? .system
     }
 
-    static var defaultExtractLocation: DefaultExtractLocation {
-        DefaultExtractLocation(rawValue: defaults.string(forKey: Key.defaultExtractLocation) ?? "") ?? .askEveryTime
-    }
-
     static var overwriteBehavior: OverwriteBehavior {
-        OverwriteBehavior(rawValue: defaults.string(forKey: Key.overwriteBehavior) ?? "") ?? .overwrite
+        OverwriteBehavior(rawValue: defaults.string(forKey: Key.overwriteBehavior) ?? "") ?? .ask
     }
 
     static var sevenZipBackend: SevenZipBackend {
         SevenZipBackend(rawValue: defaults.string(forKey: Key.sevenZipBackend) ?? "") ?? .automatic
+    }
+
+    static var rarBackend: RarBackend {
+        RarBackend(rawValue: defaults.string(forKey: Key.rarBackend) ?? "") ?? .automatic
     }
 
     static var showHiddenFiles: Bool {
@@ -249,8 +256,28 @@ enum AppPreferences {
         defaultTrueBool(forKey: Key.showFileTypeColumn)
     }
 
+    static var showFileApplicationColumn: Bool {
+        defaultTrueBool(forKey: Key.showFileApplicationColumn)
+    }
+
+    static var showFileLastOpenedColumn: Bool {
+        defaultTrueBool(forKey: Key.showFileLastOpenedColumn)
+    }
+
+    static var showFileDateAddedColumn: Bool {
+        defaultTrueBool(forKey: Key.showFileDateAddedColumn)
+    }
+
     static var showFileModifiedColumn: Bool {
         defaultTrueBool(forKey: Key.showFileModifiedColumn)
+    }
+
+    static var showFileCreatedColumn: Bool {
+        defaultTrueBool(forKey: Key.showFileCreatedColumn)
+    }
+
+    static var showArchiveKindColumn: Bool {
+        defaultTrueBool(forKey: Key.showArchiveKindColumn)
     }
 
     static var showArchiveSizeColumn: Bool {
@@ -318,17 +345,6 @@ enum AppPreferences {
             return fileManager.urls(for: .desktopDirectory, in: .userDomainMask).first ?? fileManager.homeDirectoryForCurrentUser
         case .lastFolder:
             return lastFolderURL ?? fileManager.homeDirectoryForCurrentUser
-        }
-    }
-
-    static func defaultExtractURL(for archiveURL: URL, fileManager: FileManager = .default) -> URL? {
-        switch defaultExtractLocation {
-        case .askEveryTime:
-            return nil
-        case .archiveFolder:
-            return archiveURL.deletingLastPathComponent()
-        case .downloads:
-            return fileManager.urls(for: .downloadsDirectory, in: .userDomainMask).first ?? archiveURL.deletingLastPathComponent()
         }
     }
 

@@ -12,6 +12,12 @@ import Foundation
 enum ArchiveCreateFormat: String, CaseIterable, Identifiable {
     case zip
     case sevenZip = "7z"
+    case rar
+    case tar
+    case gzip = "gz"
+    case tarGzip = "tgz"
+    case bzip2 = "bz2"
+    case xz
 
     var id: String { rawValue }
 
@@ -21,10 +27,98 @@ enum ArchiveCreateFormat: String, CaseIterable, Identifiable {
             return "ZIP"
         case .sevenZip:
             return "7z"
+        case .rar:
+            return "RAR"
+        case .tar:
+            return "TAR"
+        case .gzip:
+            return "GZip"
+        case .tarGzip:
+            return "TAR.GZ"
+        case .bzip2:
+            return "BZip2"
+        case .xz:
+            return "XZ"
         }
     }
 
     var pathExtension: String { rawValue }
+
+    var usesSevenZipAdvancedOptions: Bool {
+        self == .sevenZip
+    }
+
+    var supportsPassword: Bool {
+        switch self {
+        case .zip, .sevenZip, .rar:
+            return true
+        case .tar, .gzip, .tarGzip, .bzip2, .xz:
+            return false
+        }
+    }
+
+    var supportsCompressionLevel: Bool {
+        switch self {
+        case .tar, .tarGzip:
+            return false
+        case .zip, .sevenZip, .rar, .gzip, .bzip2, .xz:
+            return true
+        }
+    }
+
+    var supportsExcludeRules: Bool {
+        switch self {
+        case .zip, .sevenZip, .tar, .tarGzip, .rar:
+            return true
+        case .gzip, .bzip2, .xz:
+            return false
+        }
+    }
+
+    var supportsVolumeSplitting: Bool {
+        switch self {
+        case .zip, .sevenZip, .rar:
+            return true
+        case .tar, .gzip, .tarGzip, .bzip2, .xz:
+            return false
+        }
+    }
+
+    var supportsUpdateMode: Bool {
+        switch self {
+        case .zip, .sevenZip, .rar:
+            return true
+        case .tar, .gzip, .tarGzip, .bzip2, .xz:
+            return false
+        }
+    }
+
+    var supportsSFX: Bool {
+        switch self {
+        case .sevenZip, .rar:
+            return true
+        case .zip, .tar, .gzip, .tarGzip, .bzip2, .xz:
+            return false
+        }
+    }
+
+    var supportsRawParameters: Bool {
+        switch self {
+        case .zip, .sevenZip, .rar:
+            return true
+        case .tar, .gzip, .tarGzip, .bzip2, .xz:
+            return false
+        }
+    }
+
+    var requiresSingleRegularFile: Bool {
+        switch self {
+        case .gzip, .bzip2, .xz:
+            return true
+        case .zip, .sevenZip, .rar, .tar, .tarGzip:
+            return false
+        }
+    }
 }
 
 /// 压缩等级。数值直接映射到 zip/7zz 的常用等级。
@@ -100,19 +194,145 @@ enum SevenZipCompressionMethod: String, CaseIterable, Identifiable {
     }
 }
 
+enum SevenZipPathMode: String, CaseIterable, Identifiable {
+    case relative
+    case full
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .relative:
+            return L10n.text("archive.7z.pathMode.relative")
+        case .full:
+            return L10n.text("archive.7z.pathMode.full")
+        }
+    }
+}
+
+enum SevenZipSolidBlockSize: String, CaseIterable, Identifiable {
+    case automatic
+    case size1m = "1m"
+    case size4m = "4m"
+    case size16m = "16m"
+    case size64m = "64m"
+    case size256m = "256m"
+    case size1g = "1g"
+    case size4g = "4g"
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .automatic:
+            return L10n.text("archive.7z.method.automatic")
+        case .size1m:
+            return "1 MB"
+        case .size4m:
+            return "4 MB"
+        case .size16m:
+            return "16 MB"
+        case .size64m:
+            return "64 MB"
+        case .size256m:
+            return "256 MB"
+        case .size1g:
+            return "1 GB"
+        case .size4g:
+            return "4 GB"
+        }
+    }
+
+    var argumentValue: String? {
+        self == .automatic ? nil : rawValue
+    }
+}
+
+enum ArchiveUpdateMode: String, CaseIterable, Identifiable {
+    case addAndReplace
+    case updateAndAdd
+    case freshen
+    case synchronize
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .addAndReplace:
+            return L10n.text("archive.updateMode.addAndReplace")
+        case .updateAndAdd:
+            return L10n.text("archive.updateMode.updateAndAdd")
+        case .freshen:
+            return L10n.text("archive.updateMode.freshen")
+        case .synchronize:
+            return L10n.text("archive.updateMode.synchronize")
+        }
+    }
+}
+
+enum ArchiveEncryptionMethod: String, CaseIterable, Identifiable {
+    case zipCrypto
+    case aes128
+    case aes192
+    case aes256
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .zipCrypto:
+            return L10n.text("archive.encryption.zipCrypto")
+        case .aes128:
+            return "AES-128"
+        case .aes192:
+            return "AES-192"
+        case .aes256:
+            return "AES-256"
+        }
+    }
+
+    var zipArgumentValue: String {
+        switch self {
+        case .zipCrypto:
+            return "ZipCrypto"
+        case .aes128:
+            return "AES128"
+        case .aes192:
+            return "AES192"
+        case .aes256:
+            return "AES256"
+        }
+    }
+}
+
 /// 创建压缩包时收集的选项。
 struct ArchiveCreationOptions {
     var format: ArchiveCreateFormat = .zip
     var compressionLevel: CompressionLevel = .normal
     var password = ""
+    var passwordConfirmation = ""
+    var showPassword = false
+    var showDetails = false
     var skipDSStore = true
     var skipHiddenFiles = true
     var customExcludes = ""
+    var updateMode: ArchiveUpdateMode = .addAndReplace
+    var createSFXArchive = false
+    var rawParameters = ""
+    var encryptionMethod: ArchiveEncryptionMethod = .aes256
     var sevenZipMethod: SevenZipCompressionMethod = .automatic
+    var sevenZipDictionarySizeMB = 32
+    var sevenZipWordSize = 32
     var sevenZipThreadCount = 0
     var sevenZipSolidArchive = true
+    var sevenZipSolidBlockSize: SevenZipSolidBlockSize = .automatic
     var sevenZipEncryptFileNames = true
     var sevenZipVolumeSize = ""
+    var sevenZipPathMode: SevenZipPathMode = .relative
+    var sevenZipStoreSymbolicLinks = false
+    var sevenZipStoreHardLinks = false
+    var sevenZipCompressSharedFiles = false
+    var sevenZipDeleteSourceFiles = false
 }
 
 /// 创建压缩包的待确认请求。
@@ -130,6 +350,7 @@ struct ExtractArchiveRequest: Identifiable {
     let archiveURL: URL
     var destinationURL: URL
     var password = ""
+    var showDetails = false
 }
 
 /// 选中解压时的目录处理方式。
@@ -157,6 +378,7 @@ struct ExtractSelectionRequest: Identifiable {
     var destinationURL: URL
     var pathMode: ExtractPathMode = .preserve
     var password = ""
+    var showDetails = false
 }
 
 /// 压缩/解压过程中的进度信息。
@@ -164,6 +386,27 @@ struct ArchiveProgressState {
     var fraction: Double?
     var currentFile: String?
     var statusText: String?
+}
+
+@MainActor
+final class ArchiveOperationDetailsSession: ObservableObject, Identifiable {
+    let id = UUID()
+    let title: String
+    let startedAt = Date()
+    @Published var finishedAt: Date?
+    @Published var rawOutput = ""
+
+    init(title: String) {
+        self.title = title
+    }
+
+    var isRunning: Bool {
+        finishedAt == nil
+    }
+
+    func append(_ chunk: String) {
+        rawOutput += chunk
+    }
 }
 
 struct SevenZipBenchmarkMetrics {

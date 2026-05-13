@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import UniformTypeIdentifiers
 
 /// 文件夹浏览模式下的一行文件或文件夹。
 struct FileItem: Identifiable, Hashable {
@@ -15,7 +16,11 @@ struct FileItem: Identifiable, Hashable {
     let isDirectory: Bool
     let size: Int64?
     let modified: Date?
+    let created: Date?
+    let dateAdded: Date?
+    let lastOpened: Date?
     let typeDescription: String
+    let applicationName: String
 }
 
 /// 压缩包浏览模式下的一行归档内项目。
@@ -33,6 +38,20 @@ struct ArchiveItem: Identifiable, Hashable {
     var displayName: String {
         let trimmedName = name.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         return trimmedName.split(separator: "/").last.map(String.init) ?? name
+    }
+
+    var typeDescription: String {
+        if isDirectory {
+            return L10n.text("type.folder")
+        }
+        let ext = URL(fileURLWithPath: displayName).pathExtension
+        if let description = UTType(filenameExtension: ext)?.localizedDescription {
+            return description
+        }
+        if !ext.isEmpty {
+            return ext.uppercased()
+        }
+        return L10n.text("type.file")
     }
 }
 

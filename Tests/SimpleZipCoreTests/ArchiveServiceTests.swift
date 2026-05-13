@@ -141,6 +141,51 @@ struct ArchiveServiceTests {
     }
 
     @Test
+    func sevenZipZipCreateArgumentsIncludeSplitVolume() throws {
+        var options = ArchiveCreationOptions()
+        options.format = .zip
+        options.compressionLevel = .fast
+        options.password = "secret"
+        options.sevenZipVolumeSize = "64M"
+        options.customExcludes = "*.tmp"
+
+        let arguments = try ArchiveService.sevenZipZipCreateArguments(
+            destination: URL(fileURLWithPath: "/tmp/archive.zip"),
+            relativeNames: ["alpha", "beta"],
+            options: options
+        )
+
+        #expect(arguments.contains("-tzip"))
+        #expect(arguments.contains("-mx=1"))
+        #expect(arguments.contains("-p"))
+        #expect(arguments.contains("-v64m"))
+        #expect(arguments.contains("-xr!*.tmp"))
+    }
+
+    @Test
+    func supportedArchiveURLNormalizesSplitAndMultipartVolumes() throws {
+        let tempDirectory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tempDirectory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDirectory) }
+
+        let splitRoot = tempDirectory.appendingPathComponent("sample.001")
+        let splitPart = tempDirectory.appendingPathComponent("sample.002")
+        let zipRoot = tempDirectory.appendingPathComponent("bundle.zip")
+        let zipPart = tempDirectory.appendingPathComponent("bundle.z01")
+        let rarRoot = tempDirectory.appendingPathComponent("movie.part01.rar")
+        let rarPart = tempDirectory.appendingPathComponent("movie.part02.rar")
+
+        for url in [splitRoot, splitPart, zipRoot, zipPart, rarRoot, rarPart] {
+            FileManager.default.createFile(atPath: url.path, contents: Data())
+        }
+
+        #expect(ArchiveService.supportedArchiveURL(splitPart) == splitRoot)
+        #expect(ArchiveService.supportedArchiveURL(zipPart) == zipRoot)
+        #expect(ArchiveService.supportedArchiveURL(zipRoot) == zipRoot)
+        #expect(ArchiveService.supportedArchiveURL(rarPart) == rarRoot)
+    }
+
+    @Test
     func parseSevenZipBenchmarkCapturesSummaryMetrics() {
         let output = """
         RAM usage:   1779 MB,  # Benchmark threads:      8

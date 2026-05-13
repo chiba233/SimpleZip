@@ -15,14 +15,22 @@ struct FileTable: View {
     @ObservedObject var model: ArchiveBrowserModel
     @AppStorage(AppPreferences.Key.showFileSizeColumn) private var showSizeColumn = true
     @AppStorage(AppPreferences.Key.showFileTypeColumn) private var showTypeColumn = true
+    @AppStorage(AppPreferences.Key.showFileApplicationColumn) private var showApplicationColumn = true
+    @AppStorage(AppPreferences.Key.showFileLastOpenedColumn) private var showLastOpenedColumn = true
+    @AppStorage(AppPreferences.Key.showFileDateAddedColumn) private var showDateAddedColumn = true
     @AppStorage(AppPreferences.Key.showFileModifiedColumn) private var showModifiedColumn = true
+    @AppStorage(AppPreferences.Key.showFileCreatedColumn) private var showCreatedColumn = true
 
     var body: some View {
         FileNSTableView(
             model: model,
             showSizeColumn: showSizeColumn,
             showTypeColumn: showTypeColumn,
-            showModifiedColumn: showModifiedColumn
+            showApplicationColumn: showApplicationColumn,
+            showLastOpenedColumn: showLastOpenedColumn,
+            showDateAddedColumn: showDateAddedColumn,
+            showModifiedColumn: showModifiedColumn,
+            showCreatedColumn: showCreatedColumn
         )
     }
 }
@@ -31,7 +39,11 @@ private struct FileNSTableView: NSViewRepresentable {
     @ObservedObject var model: ArchiveBrowserModel
     let showSizeColumn: Bool
     let showTypeColumn: Bool
+    let showApplicationColumn: Bool
+    let showLastOpenedColumn: Bool
+    let showDateAddedColumn: Bool
     let showModifiedColumn: Bool
+    let showCreatedColumn: Bool
 
     func makeCoordinator() -> Coordinator {
         Coordinator(model: model)
@@ -98,7 +110,11 @@ private struct FileNSTableView: NSViewRepresentable {
         var columns: [FileColumn] = [.name]
         if showSizeColumn { columns.append(.size) }
         if showTypeColumn { columns.append(.type) }
+        if showApplicationColumn { columns.append(.application) }
+        if showLastOpenedColumn { columns.append(.lastOpened) }
+        if showDateAddedColumn { columns.append(.dateAdded) }
         if showModifiedColumn { columns.append(.modified) }
+        if showCreatedColumn { columns.append(.created) }
         return orderedColumns(columns, key: AppPreferences.Key.fileColumnOrder)
     }
 
@@ -203,19 +219,19 @@ private struct FileNSTableView: NSViewRepresentable {
             guard let tableView else { return }
             selectClickedRowIfNeeded(in: tableView)
             menu.removeAllItems()
-            menu.addItem(menuItem(L10n.text("button.open"), #selector(openSelected)))
-            menu.addItem(menuItem(L10n.text("button.addToArchive"), #selector(addSelectedToArchive)))
-            menu.addItem(menuItem(L10n.text("button.extractHere"), #selector(extractSelectedArchive)))
-            menu.addItem(menuItem(L10n.text("button.test"), #selector(testSelectedArchive)))
-            menu.addItem(menuItem(L10n.text("button.hash"), #selector(hashSelected)))
+            menu.addItem(menuItem(L10n.text("button.open"), systemImage: "arrow.turn.up.right", #selector(openSelected)))
+            menu.addItem(menuItem(L10n.text("button.addToArchive"), systemImage: "plus.square.on.square", #selector(addSelectedToArchive)))
+            menu.addItem(menuItem(L10n.text("button.extractHere"), systemImage: "arrow.down.doc", #selector(extractSelectedArchive)))
+            menu.addItem(menuItem(L10n.text("button.test"), systemImage: "checkmark.seal", #selector(testSelectedArchive)))
+            menu.addItem(menuItem(L10n.text("button.hash"), systemImage: "number.square", #selector(hashSelected)))
             menu.addItem(.separator())
-            menu.addItem(menuItem(L10n.text("file.copy"), #selector(copySelected)))
-            menu.addItem(menuItem(L10n.text("file.cut"), #selector(cutSelected)))
-            menu.addItem(menuItem(L10n.text("file.paste"), #selector(pasteFiles)))
-            menu.addItem(menuItem(L10n.text("file.moveTo"), #selector(moveSelected)))
-            menu.addItem(menuItem(L10n.text("file.delete"), #selector(deleteSelected)))
+            menu.addItem(menuItem(L10n.text("file.copy"), systemImage: "doc.on.doc", #selector(copySelected)))
+            menu.addItem(menuItem(L10n.text("file.cut"), systemImage: "scissors", #selector(cutSelected)))
+            menu.addItem(menuItem(L10n.text("file.paste"), systemImage: "clipboard", #selector(pasteFiles)))
+            menu.addItem(menuItem(L10n.text("file.moveTo"), systemImage: "folder.badge.gearshape", #selector(moveSelected)))
+            menu.addItem(menuItem(L10n.text("file.delete"), systemImage: "trash", #selector(deleteSelected)))
             menu.addItem(.separator())
-            menu.addItem(menuItem(L10n.text("button.revealInFinder"), #selector(revealSelected)))
+            menu.addItem(menuItem(L10n.text("button.revealInFinder"), systemImage: "arrow.up.forward.app", #selector(revealSelected)))
         }
 
         @objc func doubleClick(_ sender: NSTableView) {
@@ -300,15 +316,16 @@ private struct FileNSTableView: NSViewRepresentable {
             isApplyingSelection = false
         }
 
-        private func menuItem(_ title: String, _ action: Selector) -> NSMenuItem {
+        private func menuItem(_ title: String, systemImage: String, _ action: Selector) -> NSMenuItem {
             let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
             item.target = self
+            item.image = NSImage(systemSymbolName: systemImage, accessibilityDescription: title)
             return item
         }
 
         func headerMenu() -> NSMenu {
             let menu = NSMenu()
-            menu.addItem(menuItem(L10n.text("settings.editColumns"), #selector(openColumnSettings)))
+            menu.addItem(menuItem(L10n.text("settings.editColumns"), systemImage: "slider.horizontal.3", #selector(openColumnSettings)))
             return menu
         }
 
@@ -338,7 +355,11 @@ private enum FileColumn: String {
     case name
     case size
     case type
+    case application
+    case lastOpened
+    case dateAdded
     case modified
+    case created
 
     init?(identifier: String) {
         self.init(rawValue: identifier)
@@ -353,9 +374,17 @@ private enum FileColumn: String {
         case .size:
             return L10n.text("column.size")
         case .type:
-            return L10n.text("column.type")
+            return L10n.text("column.kind")
+        case .application:
+            return L10n.text("column.application")
+        case .lastOpened:
+            return L10n.text("column.lastOpened")
+        case .dateAdded:
+            return L10n.text("column.dateAdded")
         case .modified:
             return L10n.text("column.modified")
+        case .created:
+            return L10n.text("column.created")
         }
     }
 
@@ -367,7 +396,9 @@ private enum FileColumn: String {
             return 110
         case .type:
             return 180
-        case .modified:
+        case .application:
+            return 160
+        case .lastOpened, .dateAdded, .modified, .created:
             return 170
         }
     }
@@ -380,7 +411,9 @@ private enum FileColumn: String {
             return 90
         case .type:
             return 120
-        case .modified:
+        case .application:
+            return 120
+        case .lastOpened, .dateAdded, .modified, .created:
             return 140
         }
     }
@@ -393,8 +426,16 @@ private enum FileColumn: String {
             return item.size.map { ByteCountFormatter.string(fromByteCount: $0, countStyle: .file) } ?? ""
         case .type:
             return item.typeDescription
+        case .application:
+            return item.applicationName
+        case .lastOpened:
+            return item.lastOpened.map(Self.dateFormatter.string(from:)) ?? ""
+        case .dateAdded:
+            return item.dateAdded.map(Self.dateFormatter.string(from:)) ?? ""
         case .modified:
             return item.modified.map(Self.dateFormatter.string(from:)) ?? ""
+        case .created:
+            return item.created.map(Self.dateFormatter.string(from:)) ?? ""
         }
     }
 

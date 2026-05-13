@@ -11,21 +11,27 @@ import SwiftUI
 struct SettingsView: View {
     @AppStorage(AppPreferences.Key.appLanguage) private var appLanguage = AppLanguage.system.rawValue
     @AppStorage(AppPreferences.Key.startupLocation) private var startupLocation = StartupLocation.home.rawValue
-    @AppStorage(AppPreferences.Key.defaultExtractLocation) private var defaultExtractLocation = DefaultExtractLocation.askEveryTime.rawValue
-    @AppStorage(AppPreferences.Key.overwriteBehavior) private var overwriteBehavior = OverwriteBehavior.overwrite.rawValue
+    @AppStorage(AppPreferences.Key.overwriteBehavior) private var overwriteBehavior = OverwriteBehavior.ask.rawValue
     @AppStorage(AppPreferences.Key.showHiddenFiles) private var showHiddenFiles = false
     @AppStorage(AppPreferences.Key.rememberLastFolder) private var rememberLastFolder = true
     @AppStorage(AppPreferences.Key.showFileSizeColumn) private var showFileSizeColumn = true
     @AppStorage(AppPreferences.Key.showFileTypeColumn) private var showFileTypeColumn = true
+    @AppStorage(AppPreferences.Key.showFileApplicationColumn) private var showFileApplicationColumn = true
+    @AppStorage(AppPreferences.Key.showFileLastOpenedColumn) private var showFileLastOpenedColumn = true
+    @AppStorage(AppPreferences.Key.showFileDateAddedColumn) private var showFileDateAddedColumn = true
     @AppStorage(AppPreferences.Key.showFileModifiedColumn) private var showFileModifiedColumn = true
+    @AppStorage(AppPreferences.Key.showFileCreatedColumn) private var showFileCreatedColumn = true
+    @AppStorage(AppPreferences.Key.showArchiveKindColumn) private var showArchiveKindColumn = true
     @AppStorage(AppPreferences.Key.showArchiveSizeColumn) private var showArchiveSizeColumn = true
     @AppStorage(AppPreferences.Key.showArchiveModifiedColumn) private var showArchiveModifiedColumn = true
     @AppStorage(AppPreferences.Key.showArchiveMethodColumn) private var showArchiveMethodColumn = true
     @AppStorage(AppPreferences.Key.sevenZipBackend) private var sevenZipBackend = SevenZipBackend.automatic.rawValue
+    @AppStorage(AppPreferences.Key.rarBackend) private var rarBackend = RarBackend.automatic.rawValue
     @State private var defaultAppMessage: String?
     @State private var associationStatus: [String: String] = [:]
     @State private var languageMessage: String?
     @State private var sevenZipVersion = L10n.text("settings.7zip.checking")
+    @State private var rarVersion = L10n.text("settings.rar.checking")
     @State private var selectedPane = SettingsPane.general
 
     var body: some View {
@@ -66,6 +72,7 @@ struct SettingsView: View {
         .onAppear {
             refreshAssociationStatus()
             refreshSevenZipVersion()
+            refreshRarVersion()
         }
         .onReceive(NotificationCenter.default.publisher(for: .openSettingsColumns)) { _ in
             selectedPane = .columns
@@ -105,12 +112,6 @@ struct SettingsView: View {
     private var archivePane: some View {
         Form {
             Section(L10n.text("settings.section.defaults")) {
-                Picker(L10n.text("settings.defaultExtractLocation"), selection: $defaultExtractLocation) {
-                    ForEach(DefaultExtractLocation.allCases) { location in
-                        Text(location.title).tag(location.rawValue)
-                    }
-                }
-
                 Picker(L10n.text("settings.overwriteBehavior"), selection: $overwriteBehavior) {
                     ForEach(OverwriteBehavior.allCases) { behavior in
                         Text(behavior.title).tag(behavior.rawValue)
@@ -131,6 +132,24 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(L10n.format("settings.7zip.path", ArchiveService.sevenZipBackendDescription()))
                     Text(L10n.format("settings.7zip.version", sevenZipVersion))
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+
+            Section(L10n.text("settings.rar.backend")) {
+                Picker(L10n.text("settings.rar.backend"), selection: $rarBackend) {
+                    ForEach(RarBackend.allCases) { backend in
+                        Text(backend.title).tag(backend.rawValue)
+                    }
+                }
+                .onChange(of: rarBackend) { _ in
+                    refreshRarVersion()
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(L10n.format("settings.rar.path", ArchiveService.rarBackendDescription()))
+                    Text(L10n.format("settings.rar.version", rarVersion))
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -191,17 +210,37 @@ struct SettingsView: View {
 
                     GridRow {
                         Toggle(L10n.text("column.size"), isOn: $showFileSizeColumn)
+                        Toggle(L10n.text("column.kind"), isOn: $showArchiveKindColumn)
+                    }
+
+                    GridRow {
+                        Toggle(L10n.text("column.kind"), isOn: $showFileTypeColumn)
                         Toggle(L10n.text("column.size"), isOn: $showArchiveSizeColumn)
                     }
 
                     GridRow {
-                        Toggle(L10n.text("column.type"), isOn: $showFileTypeColumn)
+                        Toggle(L10n.text("column.application"), isOn: $showFileApplicationColumn)
+                        Toggle(L10n.text("column.size"), isOn: $showArchiveSizeColumn)
+                    }
+
+                    GridRow {
+                        Toggle(L10n.text("column.lastOpened"), isOn: $showFileLastOpenedColumn)
                         Toggle(L10n.text("column.modified"), isOn: $showArchiveModifiedColumn)
                     }
 
                     GridRow {
-                        Toggle(L10n.text("column.modified"), isOn: $showFileModifiedColumn)
+                        Toggle(L10n.text("column.dateAdded"), isOn: $showFileDateAddedColumn)
                         Toggle(L10n.text("column.method"), isOn: $showArchiveMethodColumn)
+                    }
+
+                    GridRow {
+                        Toggle(L10n.text("column.modified"), isOn: $showFileModifiedColumn)
+                        Color.clear
+                    }
+
+                    GridRow {
+                        Toggle(L10n.text("column.created"), isOn: $showFileCreatedColumn)
+                        Color.clear
                     }
                 }
             }
@@ -235,11 +274,27 @@ struct SettingsView: View {
     }
 
     private func refreshSevenZipVersion() {
-        sevenZipVersion = L10n.text("settings.7zip.checking")
+        let checkingText = L10n.text("settings.7zip.checking")
+        DispatchQueue.main.async {
+            sevenZipVersion = checkingText
+        }
         Task {
             let version = await ArchiveService.sevenZipVersion()
-            await MainActor.run {
+            DispatchQueue.main.async {
                 sevenZipVersion = version
+            }
+        }
+    }
+
+    private func refreshRarVersion() {
+        let checkingText = L10n.text("settings.rar.checking")
+        DispatchQueue.main.async {
+            rarVersion = checkingText
+        }
+        Task {
+            let version = await ArchiveService.rarVersion()
+            DispatchQueue.main.async {
+                rarVersion = version
             }
         }
     }
@@ -251,7 +306,10 @@ struct SettingsView: View {
         } else {
             UserDefaults.standard.removeObject(forKey: "AppleLanguages")
         }
-        languageMessage = L10n.text("settings.languageRestartHint")
+        let restartHint = L10n.text("settings.languageRestartHint")
+        DispatchQueue.main.async {
+            languageMessage = restartHint
+        }
     }
 }
 

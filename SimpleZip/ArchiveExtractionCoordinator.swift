@@ -60,6 +60,8 @@ final class ArchiveExtractionCoordinator {
 
         if let defaultOverwriteBehavior {
             switch defaultOverwriteBehavior {
+            case .ask:
+                break
             case .overwrite:
                 try trashExistingItem(at: requestedTargetURL)
                 return requestedTargetURL

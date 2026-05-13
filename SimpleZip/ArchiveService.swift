@@ -9,11 +9,23 @@ import Darwin
 import Foundation
 import UniformTypeIdentifiers
 
+private let archiveServiceProcessRegistry = ActiveProcessRegistry()
+
 /// 归档命令服务：封装 zip/unzip/7zz 调用，让界面层不直接接触命令行细节。
 enum ArchiveService {
-    static let supportedExtensions = ["zip", "7z", "tar", "gz", "tgz", "bz2", "xz"]
+    static let supportedExtensions = ["zip", "7z", "tar", "gz", "tgz", "bz2", "xz", "rar", "dmg"]
     static let supportedArchiveTypes: [UTType] = supportedExtensions.compactMap { UTType(filenameExtension: $0) }
-    private static let activeProcessRegistry = ActiveProcessRegistry()
+
+    private enum ArchiveBackendKind {
+        case zipNative
+        case sevenZip
+        case diskImage
+    }
+
+    private struct ResolvedArchiveInput {
+        let url: URL
+        let backend: ArchiveBackendKind
+    }
     
     private final class OutputAccumulator: @unchecked Sendable {
         private let lock = NSLock()
@@ -32,8 +44,15 @@ enum ArchiveService {
     }
 
     static func isSupportedArchive(_ url: URL) -> Bool {
-        let ext = url.pathExtension.lowercased()
-        return supportedExtensions.contains(ext)
+        resolvedArchiveInput(for: url) != nil
+    }
+
+    static func supportedArchiveURL(_ url: URL) -> URL? {
+        resolvedArchiveInput(for: url)?.url
+    }
+
+    static func canCreateRAR() -> Bool {
+        (try? rarTool()) != nil
     }
 
     static func createZipArchive(from sourceURLs: [URL], destination: URL) async throws {
@@ -41,11 +60,20 @@ enum ArchiveService {
     }
 
     static func cancelRunningCommand() {
-        activeProcessRegistry.cancelActiveProcess()
+        archiveServiceProcessRegistry.cancelActiveProcess()
     }
 
-    static func createArchive(from sourceURLs: [URL], destination: URL, options: ArchiveCreationOptions, progress: @escaping @Sendable (ArchiveProgressState) -> Void = { _ in }) async throws {
+    static func createArchive(
+        from sourceURLs: [URL],
+        destination: URL,
+        options: ArchiveCreationOptions,
+        progress: @escaping @Sendable (ArchiveProgressState) -> Void = { _ in },
+        outputObserver: (@Sendable (String) -> Void)? = nil
+    ) async throws {
         guard let first = sourceURLs.first else { return }
+        if !options.password.isEmpty, options.password != options.passwordConfirmation {
+            throw ArchiveError.passwordsDoNotMatch
+        }
         let parent = first.deletingLastPathComponent()
         let relativeNames = sourceURLs.map { $0.lastPathComponent }
         progress(ArchiveProgressState(fraction: nil, currentFile: nil, statusText: L10n.text("status.countingFiles")))
@@ -55,6 +83,26 @@ enum ArchiveService {
 
         switch options.format {
         case .zip:
+            if let tool = try? sevenZipTool() {
+                let arguments = try sevenZipZipCreateArguments(
+                    destination: destination,
+                    relativeNames: relativeNames,
+                    options: options
+                )
+                let inputStrategy: ProcessInputStrategy = options.password.isEmpty ? .none : .passwordPrompts(passwordResponses(for: options))
+                try await run(
+                    tool,
+                    arguments: arguments,
+                    currentDirectory: parent,
+                    progressParser: parser,
+                    inputStrategy: inputStrategy,
+                    outputObserver: outputObserver
+                )
+                return
+            }
+            guard nativeZipFallbackSupported(for: options) else {
+                throw ArchiveError.missingSevenZip
+            }
             var arguments = ["-r", "-\(options.compressionLevel.rawValue)"]
             if !options.password.isEmpty {
                 arguments.append("-e")
@@ -67,86 +115,180 @@ enum ArchiveService {
                 arguments.append(contentsOf: excludes)
             }
             let inputStrategy: ProcessInputStrategy = options.password.isEmpty ? .none : .passwordPrompts([options.password, options.password])
-            try await run("/usr/bin/zip", arguments: arguments, currentDirectory: parent, progressParser: parser, inputStrategy: inputStrategy)
+            try await run(
+                "/usr/bin/zip",
+                arguments: arguments,
+                currentDirectory: parent,
+                progressParser: parser,
+                inputStrategy: inputStrategy,
+                outputObserver: outputObserver
+            )
         case .sevenZip:
             let tool = try sevenZipTool()
             let arguments = try sevenZipCreateArguments(destination: destination, relativeNames: relativeNames, options: options)
-            let inputStrategy: ProcessInputStrategy = options.password.isEmpty ? .none : .passwordPrompts([options.password, options.password])
-            try await run(tool, arguments: arguments, currentDirectory: parent, progressParser: parser, inputStrategy: inputStrategy)
+            let inputStrategy: ProcessInputStrategy = options.password.isEmpty ? .none : .passwordPrompts(passwordResponses(for: options))
+            try await run(
+                tool,
+                arguments: arguments,
+                currentDirectory: parent,
+                progressParser: parser,
+                inputStrategy: inputStrategy,
+                outputObserver: outputObserver
+            )
+        case .rar:
+            let tool = try rarTool()
+            let arguments = try rarCreateArguments(destination: destination, relativeNames: relativeNames, options: options)
+            let inputStrategy: ProcessInputStrategy = options.password.isEmpty ? .none : .passwordPrompts(passwordResponses(for: options))
+            try await run(
+                tool,
+                arguments: arguments,
+                currentDirectory: parent,
+                progressParser: parser,
+                inputStrategy: inputStrategy,
+                outputObserver: outputObserver
+            )
+        case .tar:
+            try await run(
+                "/usr/bin/tar",
+                arguments: ["-cvf", destination.path] + tarExcludeArguments(from: options) + relativeNames,
+                currentDirectory: parent,
+                progressParser: parser,
+                outputObserver: outputObserver
+            )
+        case .tarGzip:
+            try await run(
+                "/usr/bin/tar",
+                arguments: ["-czvf", destination.path] + tarExcludeArguments(from: options) + relativeNames,
+                currentDirectory: parent,
+                progressParser: parser,
+                outputObserver: outputObserver
+            )
+        case .gzip:
+            let sourceURL = try validateSingleRegularFileSource(sourceURLs, format: options.format)
+            let tool = try sevenZipTool()
+            try await run(
+                tool,
+                arguments: ["a", "-tgzip", "-mx=\(options.compressionLevel.rawValue)", destination.path, sourceURL.lastPathComponent, "-bb1", "-bsp1", "-y"],
+                currentDirectory: sourceURL.deletingLastPathComponent(),
+                progressParser: parser,
+                outputObserver: outputObserver
+            )
+        case .bzip2:
+            let sourceURL = try validateSingleRegularFileSource(sourceURLs, format: options.format)
+            let tool = try sevenZipTool()
+            try await run(
+                tool,
+                arguments: ["a", "-tbzip2", "-mx=\(options.compressionLevel.rawValue)", destination.path, sourceURL.lastPathComponent, "-bb1", "-bsp1", "-y"],
+                currentDirectory: sourceURL.deletingLastPathComponent(),
+                progressParser: parser,
+                outputObserver: outputObserver
+            )
+        case .xz:
+            let sourceURL = try validateSingleRegularFileSource(sourceURLs, format: options.format)
+            let tool = try sevenZipTool()
+            try await run(
+                tool,
+                arguments: ["a", "-txz", "-mx=\(options.compressionLevel.rawValue)", destination.path, sourceURL.lastPathComponent, "-bb1", "-bsp1", "-y"],
+                currentDirectory: sourceURL.deletingLastPathComponent(),
+                progressParser: parser,
+                outputObserver: outputObserver
+            )
         }
     }
 
-    static func extract(_ archive: URL, to destination: URL, overwriteBehavior: OverwriteBehavior = .overwrite, password: String = "", progress: @escaping @Sendable (ArchiveProgressState) -> Void = { _ in }) async throws {
+    static func extract(
+        _ archive: URL,
+        to destination: URL,
+        overwriteBehavior: OverwriteBehavior = .overwrite,
+        password: String = "",
+        progress: @escaping @Sendable (ArchiveProgressState) -> Void = { _ in },
+        outputObserver: (@Sendable (String) -> Void)? = nil
+    ) async throws {
+        let resolved = try resolvedArchiveInputOrThrow(for: archive)
         let parser = ProgressOutputParser(totalFiles: nil, progress: progress)
-        switch archive.pathExtension.lowercased() {
-        case "zip":
-            let overwriteArgument = overwriteBehavior == .overwrite ? "-o" : "-n"
-            let arguments = [overwriteArgument, archive.path, "-d", destination.path]
+        switch resolved.backend {
+        case .zipNative:
+            let overwriteArgument = unzipOverwriteArgument(for: overwriteBehavior)
+            let arguments = [overwriteArgument, resolved.url.path, "-d", destination.path]
             let inputStrategy: ProcessInputStrategy = password.isEmpty ? .none : .passwordPrompts([password])
-            try await run("/usr/bin/unzip", arguments: arguments, progressParser: parser, inputStrategy: inputStrategy)
-        case "7z", "tar", "gz", "tgz", "bz2", "xz":
+            try await run("/usr/bin/unzip", arguments: arguments, progressParser: parser, inputStrategy: inputStrategy, outputObserver: outputObserver)
+        case .sevenZip:
             let tool = try sevenZipTool()
-            let overwriteArgument = overwriteBehavior == .overwrite ? "-aoa" : "-aos"
-            var arguments = ["x", archive.path, "-o\(destination.path)", overwriteArgument, "-bb1", "-bsp1", "-y"]
+            let overwriteArgument = sevenZipOverwriteArgument(for: overwriteBehavior)
+            var arguments = ["x", resolved.url.path, "-o\(destination.path)", overwriteArgument, "-bb1", "-bsp1", "-y"]
             if !password.isEmpty {
                 arguments.append("-p")
             }
             let inputStrategy: ProcessInputStrategy = password.isEmpty ? .none : .passwordPrompts([password])
-            try await run(tool, arguments: arguments, progressParser: parser, inputStrategy: inputStrategy)
-        default:
-            throw ArchiveError.unsupportedFormat
+            try await run(tool, arguments: arguments, progressParser: parser, inputStrategy: inputStrategy, outputObserver: outputObserver)
+        case .diskImage:
+            let mountPoint = try mountDiskImage(resolved.url)
+            defer { try? detachDiskImage(at: mountPoint) }
+            try copyDiskImageContents(from: mountPoint, to: destination, progress: progress)
         }
     }
 
-    static func extract(_ archive: URL, entries: [ArchiveItem], to destination: URL, overwriteBehavior: OverwriteBehavior = .overwrite, pathMode: ExtractPathMode = .preserve, password: String = "", progress: @escaping @Sendable (ArchiveProgressState) -> Void = { _ in }) async throws {
+    static func extract(
+        _ archive: URL,
+        entries: [ArchiveItem],
+        to destination: URL,
+        overwriteBehavior: OverwriteBehavior = .overwrite,
+        pathMode: ExtractPathMode = .preserve,
+        password: String = "",
+        progress: @escaping @Sendable (ArchiveProgressState) -> Void = { _ in },
+        outputObserver: (@Sendable (String) -> Void)? = nil
+    ) async throws {
+        let resolved = try resolvedArchiveInputOrThrow(for: archive)
         let entryNames = expandedEntryNames(for: entries)
         guard !entryNames.isEmpty else { return }
         let parser = ProgressOutputParser(totalFiles: max(1, entryNames.count), progress: progress)
 
-        switch archive.pathExtension.lowercased() {
-        case "zip":
+        switch resolved.backend {
+        case .zipNative:
             if password.isEmpty {
-                var arguments = ["-xvf", archive.path, "-C", destination.path]
-                if overwriteBehavior != .overwrite {
+                var arguments = ["-xvf", resolved.url.path, "-C", destination.path]
+                if overwriteBehavior == .skipExisting {
                     arguments.insert("-k", at: 0)
                 }
                 arguments.append(contentsOf: entryNames)
-                try await run("/usr/bin/tar", arguments: arguments, progressParser: parser)
+                try await run("/usr/bin/tar", arguments: arguments, progressParser: parser, outputObserver: outputObserver)
             } else {
-                var arguments = [overwriteBehavior == .overwrite ? "-o" : "-n", archive.path]
+                var arguments = [unzipOverwriteArgument(for: overwriteBehavior), resolved.url.path]
                 arguments.append(contentsOf: entryNames)
                 arguments.append(contentsOf: ["-d", destination.path])
-                try await run("/usr/bin/unzip", arguments: arguments, progressParser: parser, inputStrategy: .passwordPrompts([password]))
+                try await run("/usr/bin/unzip", arguments: arguments, progressParser: parser, inputStrategy: .passwordPrompts([password]), outputObserver: outputObserver)
             }
             if pathMode == .flatten {
                 try flattenExtractedItems(entryNames: entryNames, in: destination)
             }
-        case "7z", "tar", "gz", "tgz", "bz2", "xz":
+        case .sevenZip:
             let tool = try sevenZipTool()
-            let overwriteArgument = overwriteBehavior == .overwrite ? "-aoa" : "-aos"
-            var arguments = [pathMode == .flatten ? "e" : "x", archive.path]
+            let overwriteArgument = sevenZipOverwriteArgument(for: overwriteBehavior)
+            var arguments = [pathMode == .flatten ? "e" : "x", resolved.url.path]
             arguments.append(contentsOf: entryNames)
             arguments.append(contentsOf: ["-o\(destination.path)", overwriteArgument, "-bb1", "-bsp1", "-y"])
             if !password.isEmpty {
                 arguments.append("-p")
             }
             let inputStrategy: ProcessInputStrategy = password.isEmpty ? .none : .passwordPrompts([password])
-            try await run(tool, arguments: arguments, progressParser: parser, inputStrategy: inputStrategy)
-        default:
+            try await run(tool, arguments: arguments, progressParser: parser, inputStrategy: inputStrategy, outputObserver: outputObserver)
+        case .diskImage:
             throw ArchiveError.unsupportedFormat
         }
     }
 
 
     static func test(_ archive: URL) async throws {
-        switch archive.pathExtension.lowercased() {
-        case "zip":
-            try await run("/usr/bin/unzip", arguments: ["-t", archive.path])
-        case "7z", "tar", "gz", "tgz", "bz2", "xz":
+        let resolved = try resolvedArchiveInputOrThrow(for: archive)
+        switch resolved.backend {
+        case .zipNative:
+            try await run("/usr/bin/unzip", arguments: ["-t", resolved.url.path])
+        case .sevenZip:
             let tool = try sevenZipTool()
-            try await run(tool, arguments: ["t", archive.path])
-        default:
-            throw ArchiveError.unsupportedFormat
+            try await run(tool, arguments: ["t", resolved.url.path])
+        case .diskImage:
+            let mountPoint = try mountDiskImage(resolved.url)
+            try detachDiskImage(at: mountPoint)
         }
     }
 
@@ -179,18 +321,114 @@ enum ArchiveService {
     }
 
     static func list(_ archive: URL) async throws -> [ArchiveItem] {
-        switch archive.pathExtension.lowercased() {
-        case "zip":
-            let unzipOutput = try await runAndCapture("/usr/bin/unzip", arguments: ["-l", archive.path])
-            let tarOutput = try await runAndCapture("/usr/bin/tar", arguments: ["-tf", archive.path])
+        let resolved = try resolvedArchiveInputOrThrow(for: archive)
+        switch resolved.backend {
+        case .zipNative:
+            let unzipOutput = try await runAndCapture("/usr/bin/unzip", arguments: ["-l", resolved.url.path])
+            let tarOutput = try await runAndCapture("/usr/bin/tar", arguments: ["-tf", resolved.url.path])
             return parseZipList(tarOutput: tarOutput, unzipOutput: unzipOutput)
-        case "7z", "tar", "gz", "tgz", "bz2", "xz":
+        case .sevenZip:
             let tool = try sevenZipTool()
-            let output = try await runAndCapture(tool, arguments: ["l", "-slt", archive.path])
+            let output = try await runAndCapture(tool, arguments: ["l", "-slt", resolved.url.path])
             return parseSevenZipList(output)
-        default:
+        case .diskImage:
+            let mountPoint = try mountDiskImage(resolved.url)
+            defer { try? detachDiskImage(at: mountPoint) }
+            return try diskImageArchiveItems(at: mountPoint)
+        }
+    }
+
+    private static func validateSingleRegularFileSource(_ sourceURLs: [URL], format: ArchiveCreateFormat) throws -> URL {
+        guard format.requiresSingleRegularFile, sourceURLs.count == 1 else {
+            throw ArchiveError.singleFileCompressionRequiresSingleFile
+        }
+        let sourceURL = sourceURLs[0]
+        var isDirectory: ObjCBool = false
+        if FileManager.default.fileExists(atPath: sourceURL.path, isDirectory: &isDirectory), isDirectory.boolValue {
+            throw ArchiveError.singleFileCompressionRequiresSingleFile
+        }
+        return sourceURL
+    }
+
+    private static func resolvedArchiveInputOrThrow(for url: URL) throws -> ResolvedArchiveInput {
+        guard let resolved = resolvedArchiveInput(for: url) else {
             throw ArchiveError.unsupportedFormat
         }
+        return resolved
+    }
+
+    private static func resolvedArchiveInput(for url: URL) -> ResolvedArchiveInput? {
+        let ext = url.pathExtension.lowercased()
+        if isNumericSplitExtension(ext) {
+            let firstPart = url.deletingPathExtension().appendingPathExtension("001")
+            if FileManager.default.fileExists(atPath: firstPart.path) {
+                return ResolvedArchiveInput(url: firstPart, backend: .sevenZip)
+            }
+        }
+        if isZipVolumeExtension(ext), let master = splitZipMasterURL(for: url) {
+            return ResolvedArchiveInput(url: master, backend: .sevenZip)
+        }
+        if isRarVolumeExtension(ext) {
+            let firstPart = url.deletingPathExtension().appendingPathExtension("rar")
+            if FileManager.default.fileExists(atPath: firstPart.path) {
+                return ResolvedArchiveInput(url: firstPart, backend: .sevenZip)
+            }
+        }
+        if ext == "rar", let firstPart = multipartRarMasterURL(for: url) {
+            return ResolvedArchiveInput(url: firstPart, backend: .sevenZip)
+        }
+        if ext == "dmg" {
+            return ResolvedArchiveInput(url: url, backend: .diskImage)
+        }
+        if supportedExtensions.contains(ext) {
+            if ext == "zip", hasSplitZipSidecar(for: url) {
+                return ResolvedArchiveInput(url: url, backend: .sevenZip)
+            }
+            return ResolvedArchiveInput(url: url, backend: ext == "zip" ? .zipNative : .sevenZip)
+        }
+        return nil
+    }
+
+    private static func splitZipMasterURL(for url: URL) -> URL? {
+        let master = url.deletingPathExtension().appendingPathExtension("zip")
+        return FileManager.default.fileExists(atPath: master.path) ? master : nil
+    }
+
+    private static func hasSplitZipSidecar(for url: URL) -> Bool {
+        let sidecar = url.deletingPathExtension().appendingPathExtension("z01")
+        return FileManager.default.fileExists(atPath: sidecar.path)
+    }
+
+    private static func multipartRarMasterURL(for url: URL) -> URL? {
+        let name = url.lastPathComponent
+        let range = NSRange(location: 0, length: name.utf16.count)
+        guard
+            let expression = try? NSRegularExpression(pattern: #"(?i)^(.*?\.part)(\d+)\.rar$"#),
+            let match = expression.firstMatch(in: name, options: [], range: range),
+            match.numberOfRanges == 3,
+            let prefixRange = Range(match.range(at: 1), in: name),
+            let digitsRange = Range(match.range(at: 2), in: name)
+        else {
+            return nil
+        }
+        let digits = String(name[digitsRange])
+        guard let partNumber = Int(digits), partNumber > 1 else { return nil }
+        let masterDigits = String(format: "%0*d", digits.count, 1)
+        let masterName = "\(name[prefixRange])\(masterDigits).rar"
+        let masterURL = url.deletingLastPathComponent().appendingPathComponent(masterName)
+        return FileManager.default.fileExists(atPath: masterURL.path) ? masterURL : nil
+    }
+
+    private static func isNumericSplitExtension(_ ext: String) -> Bool {
+        ext.count == 3 && Int(ext) != nil
+    }
+
+    private static func isRarVolumeExtension(_ ext: String) -> Bool {
+        ext.range(of: #"^r\d{2}$"#, options: .regularExpression) != nil
+    }
+
+    private static func isZipVolumeExtension(_ ext: String) -> Bool {
+        ext.range(of: #"^z\d{2}$"#, options: .regularExpression) != nil
     }
 
     static func sevenZipBackendDescription() -> String {
@@ -210,6 +448,34 @@ enum ArchiveService {
             return L10n.format("settings.7zip.resolvedVersion", tool.source.title, firstLine.isEmpty ? tool.path : firstLine)
         } catch {
             return L10n.text("settings.7zip.notFound")
+        }
+    }
+
+    static func rarBackendDescription() -> String {
+        do {
+            let tool = try resolvedRarTool()
+            return L10n.format("settings.rar.resolvedPath", tool.source.title, tool.path)
+        } catch {
+            return L10n.text("settings.rar.notFound")
+        }
+    }
+
+    static func rarVersion() async -> String {
+        do {
+            let tool = try resolvedRarTool()
+            do {
+                let output = try await runAndCapture(tool.path, arguments: [])
+                let firstLine = output
+                    .split(separator: "\n")
+                    .map(String.init)
+                    .first(where: { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty })
+                    ?? tool.path
+                return L10n.format("settings.rar.resolvedVersion", tool.source.title, firstLine)
+            } catch {
+                return L10n.format("settings.rar.resolvedVersion", tool.source.title, tool.path)
+            }
+        } catch {
+            return L10n.text("settings.rar.notFound")
         }
     }
 
@@ -233,6 +499,63 @@ enum ArchiveService {
             return tool
         }
         throw ArchiveError.missingSevenZip
+    }
+
+    private static func rarTool() throws -> String {
+        try resolvedRarTool().path
+    }
+
+    private static func resolvedRarTool() throws -> ResolvedRarTool {
+        let candidates: [ResolvedRarTool]
+        switch AppPreferences.rarBackend {
+        case .automatic:
+            candidates = bundledRarCandidates + systemRarCandidates
+        case .bundled:
+            candidates = bundledRarCandidates
+        case .system:
+            candidates = systemRarCandidates
+        }
+
+        if let tool = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0.path) }) {
+            return tool
+        }
+        throw ArchiveError.missingRarTool
+    }
+
+    nonisolated static func mountDiskImage(_ url: URL) throws -> URL {
+        let output = try runAndCaptureSync(
+            "/usr/bin/hdiutil",
+            arguments: ["attach", "-plist", "-readonly", "-nobrowse", "-noverify", "-noautoopen", url.path],
+            currentDirectory: nil,
+            progressParser: nil,
+            inputStrategy: .none,
+            outputObserver: nil
+        )
+        guard
+            let data = output.data(using: .utf8),
+            let plist = try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
+            let entities = plist["system-entities"] as? [[String: Any]]
+        else {
+            throw ArchiveError.commandFailed(output)
+        }
+
+        for entity in entities {
+            if let mountPoint = entity["mount-point"] as? String {
+                return URL(fileURLWithPath: mountPoint)
+            }
+        }
+        throw ArchiveError.commandFailed(output)
+    }
+
+    nonisolated static func detachDiskImage(at mountPoint: URL) throws {
+        _ = try runAndCaptureSync(
+            "/usr/bin/hdiutil",
+            arguments: ["detach", mountPoint.path, "-force"],
+            currentDirectory: nil,
+            progressParser: nil,
+            inputStrategy: .none,
+            outputObserver: nil
+        )
     }
 
     private static var bundledSevenZipCandidates: [ResolvedSevenZipTool] {
@@ -262,6 +585,30 @@ enum ArchiveService {
                 envPath(for: "7z")
             ].compactMap { $0 } + cellarCandidates(formula: "sevenzip", tools: ["7zz", "7z"]) + cellarCandidates(formula: "p7zip", tools: ["7z"])
         ).map { ResolvedSevenZipTool(path: $0, source: .system) }
+    }
+
+    private static var bundledRarCandidates: [ResolvedRarTool] {
+        uniqueExistingCandidatePaths(
+            [
+                Bundle.main.resourceURL?.appendingPathComponent("Tools/rar").path,
+                Bundle.main.resourceURL?.appendingPathComponent("rar").path,
+                FileManager.default.currentDirectoryPath + "/SimpleZip/Tools/rar"
+            ].compactMap { $0 }
+        ).map { ResolvedRarTool(path: $0, source: .bundled) }
+    }
+
+    private static var systemRarCandidates: [ResolvedRarTool] {
+        uniqueExistingCandidatePaths(
+            [
+                "/Applications/RAR.app/Contents/MacOS/RAR",
+                "/Applications/RAR.app/Contents/MacOS/rar",
+                "/Applications/WinRAR.app/Contents/MacOS/RAR",
+                "/Applications/WinRAR.app/Contents/MacOS/rar",
+                "/opt/homebrew/bin/rar",
+                "/usr/local/bin/rar",
+                envPath(for: "rar")
+            ].compactMap { $0 }
+        ).map { ResolvedRarTool(path: $0, source: .system) }
     }
 
     private static func uniqueExistingCandidatePaths(_ paths: [String]) -> [String] {
@@ -304,14 +651,16 @@ enum ArchiveService {
         arguments: [String],
         currentDirectory: URL? = nil,
         progressParser: ProgressOutputParser? = nil,
-        inputStrategy: ProcessInputStrategy = .none
+        inputStrategy: ProcessInputStrategy = .none,
+        outputObserver: (@Sendable (String) -> Void)? = nil
     ) async throws {
         _ = try await runAndCapture(
             executable,
             arguments: arguments,
             currentDirectory: currentDirectory,
             progressParser: progressParser,
-            inputStrategy: inputStrategy
+            inputStrategy: inputStrategy,
+            outputObserver: outputObserver
         )
     }
 
@@ -327,27 +676,128 @@ enum ArchiveService {
         return Array(Set(patterns)).sorted()
     }
 
+    private static func unzipOverwriteArgument(for behavior: OverwriteBehavior) -> String {
+        switch behavior {
+        case .skipExisting:
+            return "-n"
+        case .ask, .overwrite:
+            return "-o"
+        }
+    }
+
+    private static func sevenZipOverwriteArgument(for behavior: OverwriteBehavior) -> String {
+        switch behavior {
+        case .skipExisting:
+            return "-aos"
+        case .ask, .overwrite:
+            return "-aoa"
+        }
+    }
+
     static func sevenZipExcludeArguments(from options: ArchiveCreationOptions) -> [String] {
         zipExcludePatterns(from: options).map { "-xr!\($0)" }
     }
 
+    static func tarExcludeArguments(from options: ArchiveCreationOptions) -> [String] {
+        zipExcludePatterns(from: options).map { "--exclude=\($0)" }
+    }
+
     static func sevenZipCreateArguments(destination: URL, relativeNames: [String], options: ArchiveCreationOptions) throws -> [String] {
-        var arguments = ["a", "-t7z", "-mx=\(options.compressionLevel.rawValue)", "-bb1", "-bsp1", "-y"]
+        let command = sevenZipCommand(for: options.updateMode)
+        var arguments = [command, "-t7z", "-mx=\(options.compressionLevel.rawValue)", "-bb1", "-bsp1", "-y"]
+        arguments.append(contentsOf: sevenZipUpdateArguments(for: options.updateMode))
         if !options.password.isEmpty {
             arguments.append("-p")
             arguments.append(options.sevenZipEncryptFileNames ? "-mhe=on" : "-mhe=off")
         }
-        arguments.append("-ms=\(options.sevenZipSolidArchive ? "on" : "off")")
+        if options.createSFXArchive {
+            arguments.append("-sfx")
+        }
+        arguments.append("-md=\(options.sevenZipDictionarySizeMB)m")
+        arguments.append("-mfb=\(options.sevenZipWordSize)")
+        if options.sevenZipSolidArchive {
+            if let blockSize = options.sevenZipSolidBlockSize.argumentValue {
+                arguments.append("-ms=\(blockSize)")
+            } else {
+                arguments.append("-ms=on")
+            }
+        } else {
+            arguments.append("-ms=off")
+        }
         if let method = options.sevenZipMethod.argumentValue {
             arguments.append("-m0=\(method)")
         }
         if options.sevenZipThreadCount > 0 {
             arguments.append("-mmt=\(options.sevenZipThreadCount)")
         }
+        if options.sevenZipPathMode == .full {
+            arguments.append("-spf")
+        }
+        if options.sevenZipStoreSymbolicLinks {
+            arguments.append("-snl")
+        }
+        if options.sevenZipStoreHardLinks {
+            arguments.append("-snh")
+        }
+        if options.sevenZipCompressSharedFiles {
+            arguments.append("-ssw")
+        }
+        if options.sevenZipDeleteSourceFiles {
+            arguments.append("-sdel")
+        }
         if let volumeSize = try normalizedSevenZipVolumeSize(from: options.sevenZipVolumeSize) {
             arguments.append("-v\(volumeSize)")
         }
         arguments.append(contentsOf: sevenZipExcludeArguments(from: options))
+        arguments.append(contentsOf: splitCommandLineArguments(from: options.rawParameters))
+        arguments.append(destination.path)
+        arguments.append(contentsOf: relativeNames)
+        return arguments
+    }
+
+    static func sevenZipZipCreateArguments(destination: URL, relativeNames: [String], options: ArchiveCreationOptions) throws -> [String] {
+        let command = sevenZipCommand(for: options.updateMode)
+        var arguments = [command, "-tzip", "-mx=\(options.compressionLevel.rawValue)", "-bb1", "-bsp1", "-y"]
+        arguments.append(contentsOf: sevenZipUpdateArguments(for: options.updateMode))
+        if !options.password.isEmpty {
+            arguments.append("-p")
+            arguments.append("-mem=\(options.encryptionMethod.zipArgumentValue)")
+        }
+        if options.sevenZipThreadCount > 0 {
+            arguments.append("-mmt=\(options.sevenZipThreadCount)")
+        }
+        if options.sevenZipPathMode == .full {
+            arguments.append("-spf")
+        }
+        if let volumeSize = try normalizedSevenZipVolumeSize(from: options.sevenZipVolumeSize) {
+            arguments.append("-v\(volumeSize)")
+        }
+        arguments.append(contentsOf: sevenZipExcludeArguments(from: options))
+        arguments.append(contentsOf: splitCommandLineArguments(from: options.rawParameters))
+        arguments.append(destination.path)
+        arguments.append(contentsOf: relativeNames)
+        return arguments
+    }
+
+    static func rarCreateArguments(destination: URL, relativeNames: [String], options: ArchiveCreationOptions) throws -> [String] {
+        var arguments = [rarCommand(for: options.updateMode), "-ma5", "-m\(rarCompressionLevel(for: options.compressionLevel))", "-r"]
+        if options.sevenZipPathMode == .relative {
+            arguments.append("-ep1")
+        }
+        if options.createSFXArchive {
+            arguments.append("-sfx")
+        }
+        if options.sevenZipDeleteSourceFiles {
+            arguments.append("-df")
+        }
+        if let volumeSize = try normalizedSevenZipVolumeSize(from: options.sevenZipVolumeSize) {
+            arguments.append("-v\(volumeSize)")
+        }
+        if !options.password.isEmpty {
+            arguments.append(options.sevenZipEncryptFileNames ? "-hp" : "-p")
+        }
+        arguments.append(contentsOf: rarExcludeArguments(from: options))
+        arguments.append(contentsOf: splitCommandLineArguments(from: options.rawParameters))
         arguments.append(destination.path)
         arguments.append(contentsOf: relativeNames)
         return arguments
@@ -367,6 +817,165 @@ enum ArchiveService {
             .components(separatedBy: CharacterSet(charactersIn: "\n,"))
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
+    }
+
+    static func splitCommandLineArguments(from text: String) -> [String] {
+        var arguments: [String] = []
+        var current = ""
+        var quoteCharacter: Character?
+        var escaping = false
+
+        for character in text {
+            if escaping {
+                current.append(character)
+                escaping = false
+                continue
+            }
+            if quoteCharacter != nil && character == "\\" {
+                escaping = true
+                continue
+            }
+            if character == "\"" || character == "'" {
+                if quoteCharacter == character {
+                    quoteCharacter = nil
+                } else if quoteCharacter == nil {
+                    quoteCharacter = character
+                } else {
+                    current.append(character)
+                }
+                continue
+            }
+            if character.isWhitespace && quoteCharacter == nil {
+                if !current.isEmpty {
+                    arguments.append(current)
+                    current = ""
+                }
+                continue
+            }
+            current.append(character)
+        }
+
+        if escaping {
+            current.append("\\")
+        }
+        if !current.isEmpty {
+            arguments.append(current)
+        }
+        return arguments
+    }
+
+    private static func copyDiskImageContents(
+        from mountPoint: URL,
+        to destination: URL,
+        progress: @escaping @Sendable (ArchiveProgressState) -> Void
+    ) throws {
+        let fileManager = FileManager.default
+        let items = try fileManager.contentsOfDirectory(at: mountPoint, includingPropertiesForKeys: nil)
+        let total = max(1, items.count)
+        for (index, item) in items.enumerated() {
+            try Task.checkCancellation()
+            progress(
+                ArchiveProgressState(
+                    fraction: Double(index) / Double(total),
+                    currentFile: item.lastPathComponent,
+                    statusText: nil
+                )
+            )
+            let target = destination.appendingPathComponent(item.lastPathComponent)
+            try fileManager.copyItem(at: item, to: target)
+        }
+        progress(ArchiveProgressState(fraction: 1, currentFile: nil, statusText: nil))
+    }
+
+    private static func diskImageArchiveItems(at mountPoint: URL) throws -> [ArchiveItem] {
+        let fileManager = FileManager.default
+        let resourceKeys: Set<URLResourceKey> = [.isDirectoryKey, .fileSizeKey, .contentModificationDateKey]
+        return try fileManager.contentsOfDirectory(at: mountPoint, includingPropertiesForKeys: Array(resourceKeys))
+            .compactMap { url in
+                guard let values = try? url.resourceValues(forKeys: resourceKeys) else { return nil }
+                let isDirectory = values.isDirectory == true
+                let size = Int64(values.fileSize ?? 0)
+                let modified = values.contentModificationDate
+                return ArchiveItem(
+                    name: url.lastPathComponent + (isDirectory ? "/" : ""),
+                    isDirectory: isDirectory,
+                    size: isDirectory ? nil : size,
+                    modified: modified,
+                    sizeText: isDirectory ? "" : ByteCountFormatter.string(fromByteCount: size, countStyle: .file),
+                    modifiedText: modified.map(DiskImageDateFormatter.shared.string(from:)) ?? "",
+                    method: ""
+                )
+            }
+            .sorted { lhs, rhs in
+                if lhs.isDirectory != rhs.isDirectory {
+                    return lhs.isDirectory
+                }
+                return lhs.displayName.localizedStandardCompare(rhs.displayName) == .orderedAscending
+            }
+    }
+
+    private static func nativeZipFallbackSupported(for options: ArchiveCreationOptions) -> Bool {
+        options.updateMode == .addAndReplace &&
+        !options.createSFXArchive &&
+        options.rawParameters.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        options.sevenZipPathMode == .relative &&
+        (try? normalizedSevenZipVolumeSize(from: options.sevenZipVolumeSize)) == nil &&
+        (options.password.isEmpty || options.encryptionMethod == .zipCrypto)
+    }
+
+    private static func passwordResponses(for options: ArchiveCreationOptions) -> [String] {
+        let confirmation = options.passwordConfirmation.isEmpty ? options.password : options.passwordConfirmation
+        return [options.password, confirmation]
+    }
+
+    private static func sevenZipCommand(for updateMode: ArchiveUpdateMode) -> String {
+        switch updateMode {
+        case .addAndReplace:
+            return "a"
+        case .updateAndAdd, .freshen, .synchronize:
+            return "u"
+        }
+    }
+
+    private static func sevenZipUpdateArguments(for updateMode: ArchiveUpdateMode) -> [String] {
+        switch updateMode {
+        case .addAndReplace, .updateAndAdd:
+            return []
+        case .freshen:
+            return ["-up1q1r0x1y2z1w2"]
+        case .synchronize:
+            return ["-up1q0r2x1y2z1w2"]
+        }
+    }
+
+    private static func rarCommand(for updateMode: ArchiveUpdateMode) -> String {
+        switch updateMode {
+        case .addAndReplace:
+            return "a"
+        case .updateAndAdd:
+            return "u"
+        case .freshen:
+            return "f"
+        case .synchronize:
+            return "s"
+        }
+    }
+
+    private static func rarCompressionLevel(for level: CompressionLevel) -> Int {
+        switch level {
+        case .store:
+            return 0
+        case .fast:
+            return 1
+        case .normal:
+            return 3
+        case .maximum:
+            return 5
+        }
+    }
+
+    private static func rarExcludeArguments(from options: ArchiveCreationOptions) -> [String] {
+        zipExcludePatterns(from: options).map { "-x\($0)" }
     }
 
     /// ZIP 扁平化解压：先按原结构抽出，再把文件移动到目标目录根部。
@@ -431,7 +1040,7 @@ enum ArchiveService {
         }
     }
 
-    private static func runAndCaptureSync(
+    private nonisolated static func runAndCaptureSync(
         _ executable: String,
         arguments: [String],
         currentDirectory: URL?,
@@ -460,7 +1069,7 @@ enum ArchiveService {
         }
     }
 
-    private static func runWithPipe(
+    private nonisolated static func runWithPipe(
         _ executable: String,
         arguments: [String],
         currentDirectory: URL?,
@@ -476,14 +1085,14 @@ enum ArchiveService {
         process.standardOutput = ioPipe
         process.standardError = ioPipe
 
-        activeProcessRegistry.register(process)
-        defer { activeProcessRegistry.clear(process) }
+        archiveServiceProcessRegistry.register(process)
+        defer { archiveServiceProcessRegistry.clear(process) }
         try process.run()
         let output = try readOutput(from: ioPipe.fileHandleForReading, progressParser: progressParser, outputObserver: outputObserver)
         process.waitUntilExit()
 
         guard process.terminationStatus == 0 else {
-            if activeProcessRegistry.wasCancelled(process) {
+            if archiveServiceProcessRegistry.wasCancelled(process) {
                 throw CancellationError()
             }
             throw ArchiveError.commandFailed(output)
@@ -493,7 +1102,7 @@ enum ArchiveService {
         return output
     }
 
-    private static func runWithPseudoTerminal(
+    private nonisolated static func runWithPseudoTerminal(
         _ executable: String,
         arguments: [String],
         currentDirectory: URL?,
@@ -520,8 +1129,8 @@ enum ArchiveService {
 
         var responder = promptResponder
 
-        activeProcessRegistry.register(process)
-        defer { activeProcessRegistry.clear(process) }
+        archiveServiceProcessRegistry.register(process)
+        defer { archiveServiceProcessRegistry.clear(process) }
         try process.run()
         try? slaveHandle.close()
         let output = try readOutput(from: masterHandle, progressParser: progressParser, outputObserver: outputObserver) { text in
@@ -530,7 +1139,7 @@ enum ArchiveService {
         process.waitUntilExit()
 
         guard process.terminationStatus == 0 else {
-            if activeProcessRegistry.wasCancelled(process) {
+            if archiveServiceProcessRegistry.wasCancelled(process) {
                 throw CancellationError()
             }
             throw ArchiveError.commandFailed(output)
@@ -775,7 +1384,7 @@ enum ArchiveService {
         }
     }
 
-    private static func readOutput(
+    private nonisolated static func readOutput(
         from handle: FileHandle,
         progressParser: ProgressOutputParser?,
         outputObserver: (@Sendable (String) -> Void)? = nil,
@@ -966,6 +1575,11 @@ private struct ResolvedSevenZipTool {
     let source: SevenZipToolSource
 }
 
+private struct ResolvedRarTool {
+    let path: String
+    let source: RarToolSource
+}
+
 private enum ProcessInputStrategy {
     case none
     case passwordPrompts([String])
@@ -983,11 +1597,11 @@ private struct InteractivePasswordResponder {
     private var responseIndex = 0
     private var buffer = ""
 
-    init(responses: [String]) {
+    nonisolated init(responses: [String]) {
         self.responses = responses
     }
 
-    mutating func consume(_ text: String, writer: FileHandle) throws {
+    nonisolated mutating func consume(_ text: String, writer: FileHandle) throws {
         guard responseIndex < responses.count else { return }
         buffer += text.lowercased()
         guard Self.promptMarkers.contains(where: buffer.contains) else {
@@ -1005,19 +1619,28 @@ private struct InteractivePasswordResponder {
     }
 }
 
+private enum DiskImageDateFormatter {
+    static let shared: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter
+    }()
+}
+
 private final class ActiveProcessRegistry: @unchecked Sendable {
     private let lock = NSLock()
     private weak var activeProcess: Process?
     private var cancelledProcesses = Set<ObjectIdentifier>()
 
-    func register(_ process: Process) {
+    nonisolated func register(_ process: Process) {
         lock.lock()
         activeProcess = process
         cancelledProcesses.remove(ObjectIdentifier(process))
         lock.unlock()
     }
 
-    func clear(_ process: Process) {
+    nonisolated func clear(_ process: Process) {
         lock.lock()
         if activeProcess === process {
             activeProcess = nil
@@ -1026,13 +1649,13 @@ private final class ActiveProcessRegistry: @unchecked Sendable {
         lock.unlock()
     }
 
-    func wasCancelled(_ process: Process) -> Bool {
+    nonisolated func wasCancelled(_ process: Process) -> Bool {
         lock.lock()
         defer { lock.unlock() }
         return cancelledProcesses.contains(ObjectIdentifier(process))
     }
 
-    func cancelActiveProcess() {
+    nonisolated func cancelActiveProcess() {
         lock.lock()
         let process = activeProcess
         if let process {
@@ -1057,6 +1680,20 @@ private enum SevenZipToolSource {
             return L10n.text("settings.7zip.source.bundled")
         case .system:
             return L10n.text("settings.7zip.source.system")
+        }
+    }
+}
+
+private enum RarToolSource {
+    case bundled
+    case system
+
+    var title: String {
+        switch self {
+        case .bundled:
+            return L10n.text("settings.rar.source.bundled")
+        case .system:
+            return L10n.text("settings.rar.source.system")
         }
     }
 }

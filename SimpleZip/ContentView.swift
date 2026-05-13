@@ -57,6 +57,25 @@ struct ContentView: View {
         } message: {
             Text(model.errorMessage ?? "")
         }
+        .sheet(isPresented: Binding(get: {
+            model.isShowingOperationDetails && model.operationDetailsSession != nil
+        }, set: { newValue in
+            if !newValue {
+                if model.operationDetailsSession?.isRunning == false {
+                    model.operationDetailsSession = nil
+                }
+                model.isShowingOperationDetails = false
+            }
+        })) {
+            if let session = model.operationDetailsSession {
+                ArchiveOperationDetailsView(session: session) {
+                    if !session.isRunning {
+                        model.operationDetailsSession = nil
+                    }
+                    model.isShowingOperationDetails = false
+                }
+            }
+        }
         .sheet(item: $model.hashReport) { report in
             HashResultsView(report: report) {
                 model.hashReport = nil

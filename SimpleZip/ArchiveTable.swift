@@ -7,10 +7,12 @@
 
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// 压缩包模式下的内容列表。底层使用 NSTableView，支持鼠标拖动选择多行。
 struct ArchiveTable: View {
     @ObservedObject var model: ArchiveBrowserModel
+    @AppStorage(AppPreferences.Key.showArchiveKindColumn) private var showKindColumn = true
     @AppStorage(AppPreferences.Key.showArchiveSizeColumn) private var showSizeColumn = true
     @AppStorage(AppPreferences.Key.showArchiveModifiedColumn) private var showModifiedColumn = true
     @AppStorage(AppPreferences.Key.showArchiveMethodColumn) private var showMethodColumn = true
@@ -19,6 +21,7 @@ struct ArchiveTable: View {
         ZStack {
             ArchiveNSTableView(
                 model: model,
+                showKindColumn: showKindColumn,
                 showSizeColumn: showSizeColumn,
                 showModifiedColumn: showModifiedColumn,
                 showMethodColumn: showMethodColumn
@@ -34,6 +37,7 @@ struct ArchiveTable: View {
 
 private struct ArchiveNSTableView: NSViewRepresentable {
     @ObservedObject var model: ArchiveBrowserModel
+    let showKindColumn: Bool
     let showSizeColumn: Bool
     let showModifiedColumn: Bool
     let showMethodColumn: Bool
@@ -99,6 +103,7 @@ private struct ArchiveNSTableView: NSViewRepresentable {
 
     private var visibleColumns: [ArchiveColumn] {
         var columns: [ArchiveColumn] = [.name]
+        if showKindColumn { columns.append(.kind) }
         if showSizeColumn { columns.append(.size) }
         if showModifiedColumn { columns.append(.modified) }
         if showMethodColumn { columns.append(.method) }
@@ -135,8 +140,7 @@ private struct ArchiveNSTableView: NSViewRepresentable {
             textField.translatesAutoresizingMaskIntoConstraints = false
 
             if column == .name {
-                let symbolName = item.isDirectory ? "folder.fill" : "doc"
-                let imageView = NSImageView(image: NSImage(systemSymbolName: symbolName, accessibilityDescription: nil) ?? NSImage())
+                let imageView = NSImageView(image: icon(for: item))
                 imageView.translatesAutoresizingMaskIntoConstraints = false
                 cell.addSubview(imageView)
                 cell.addSubview(textField)
@@ -195,13 +199,13 @@ private struct ArchiveNSTableView: NSViewRepresentable {
             guard let tableView else { return }
             selectClickedRowIfNeeded(in: tableView)
             menu.removeAllItems()
-            menu.addItem(menuItem(L10n.text("button.open"), #selector(openSelected)))
-            menu.addItem(menuItem(L10n.text("button.extractSelected"), #selector(extractSelected)))
-            menu.addItem(menuItem(L10n.text("button.extract"), #selector(extractWholeArchive)))
-            menu.addItem(menuItem(L10n.text("button.test"), #selector(testArchive)))
-            menu.addItem(menuItem(L10n.text("button.hash"), #selector(hashArchive)))
+            menu.addItem(menuItem(L10n.text("button.open"), systemImage: "arrow.turn.up.right", #selector(openSelected)))
+            menu.addItem(menuItem(L10n.text("button.extractSelected"), systemImage: "arrow.down.doc", #selector(extractSelected)))
+            menu.addItem(menuItem(L10n.text("button.extract"), systemImage: "tray.and.arrow.down", #selector(extractWholeArchive)))
+            menu.addItem(menuItem(L10n.text("button.test"), systemImage: "checkmark.seal", #selector(testArchive)))
+            menu.addItem(menuItem(L10n.text("button.hash"), systemImage: "number.square", #selector(hashArchive)))
             menu.addItem(.separator())
-            menu.addItem(menuItem(L10n.text("button.revealInFinder"), #selector(revealArchive)))
+            menu.addItem(menuItem(L10n.text("button.revealInFinder"), systemImage: "arrow.up.forward.app", #selector(revealArchive)))
         }
 
         @objc func doubleClick(_ sender: NSTableView) {
@@ -266,21 +270,33 @@ private struct ArchiveNSTableView: NSViewRepresentable {
             isApplyingSelection = false
         }
 
-        private func menuItem(_ title: String, _ action: Selector) -> NSMenuItem {
+        private func menuItem(_ title: String, systemImage: String, _ action: Selector) -> NSMenuItem {
             let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
             item.target = self
+            item.image = NSImage(systemSymbolName: systemImage, accessibilityDescription: title)
             return item
         }
 
         func headerMenu() -> NSMenu {
             let menu = NSMenu()
-            menu.addItem(menuItem(L10n.text("settings.editColumns"), #selector(openColumnSettings)))
+            menu.addItem(menuItem(L10n.text("settings.editColumns"), systemImage: "slider.horizontal.3", #selector(openColumnSettings)))
             return menu
         }
 
         @objc private func openColumnSettings() {
             NotificationCenter.default.post(name: .openSettingsColumns, object: nil)
             NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        }
+
+        private func icon(for item: ArchiveItem) -> NSImage {
+            if item.isDirectory {
+                return NSWorkspace.shared.icon(for: .folder)
+            }
+            let ext = URL(fileURLWithPath: item.displayName).pathExtension
+            if let contentType = UTType(filenameExtension: ext) {
+                return NSWorkspace.shared.icon(for: contentType)
+            }
+            return NSImage(systemSymbolName: "doc", accessibilityDescription: item.displayName) ?? NSImage()
         }
     }
 }
@@ -295,6 +311,7 @@ private func orderedColumns(_ columns: [ArchiveColumn], key: String) -> [Archive
 
 private enum ArchiveColumn: String {
     case name
+    case kind
     case size
     case modified
     case method
@@ -309,6 +326,8 @@ private enum ArchiveColumn: String {
         switch self {
         case .name:
             return L10n.text("column.name")
+        case .kind:
+            return L10n.text("column.kind")
         case .size:
             return L10n.text("column.size")
         case .modified:
@@ -321,7 +340,9 @@ private enum ArchiveColumn: String {
     var width: CGFloat {
         switch self {
         case .name:
-            return 520
+            return 400
+        case .kind:
+            return 160
         case .size:
             return 120
         case .modified:
@@ -335,6 +356,8 @@ private enum ArchiveColumn: String {
         switch self {
         case .name:
             return 260
+        case .kind:
+            return 120
         case .size:
             return 90
         case .modified:
@@ -348,6 +371,8 @@ private enum ArchiveColumn: String {
         switch self {
         case .name:
             return item.displayName
+        case .kind:
+            return item.typeDescription
         case .size:
             return item.sizeText
         case .modified:

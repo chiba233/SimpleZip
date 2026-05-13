@@ -11,7 +11,10 @@ import Foundation
 enum ArchiveError: LocalizedError {
     case unsupportedFormat
     case missingSevenZip
+    case missingRarTool
     case invalidSevenZipVolumeSize
+    case singleFileCompressionRequiresSingleFile
+    case passwordsDoNotMatch
     case commandFailed(String)
 
     var errorDescription: String? {
@@ -20,8 +23,14 @@ enum ArchiveError: LocalizedError {
             return L10n.text("error.unsupportedFormat")
         case .missingSevenZip:
             return L10n.text("error.missingSevenZip")
+        case .missingRarTool:
+            return L10n.text("error.missingRarTool")
         case .invalidSevenZipVolumeSize:
             return L10n.text("error.invalidSevenZipVolumeSize")
+        case .singleFileCompressionRequiresSingleFile:
+            return L10n.text("error.singleFileCompressionRequiresSingleFile")
+        case .passwordsDoNotMatch:
+            return L10n.text("error.passwordsDoNotMatch")
         case .commandFailed(let message):
             return message.trimmingCharacters(in: .whitespacesAndNewlines)
         }
