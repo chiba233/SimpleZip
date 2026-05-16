@@ -130,6 +130,11 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .openExternalFile)) { _ in
             ExternalFileOpenQueue.shared.drain().forEach(openExternalURL)
         }
+        .background {
+            if #available(macOS 14.0, *) {
+                SettingsRequestBridge()
+            }
+        }
     }
 
     /// 处理 Finder / Open With / 拖到 Dock 图标等外部打开事件。
@@ -171,6 +176,20 @@ struct ContentView: View {
         }
 
         return true
+    }
+}
+
+@available(macOS 14.0, *)
+private struct SettingsRequestBridge: View {
+    @Environment(\.openSettings) private var openSettings
+
+    var body: some View {
+        Color.clear
+            .frame(width: 0, height: 0)
+            .onReceive(NotificationCenter.default.publisher(for: .requestOpenSettingsColumns)) { _ in
+                SettingsNavigation.prepareOpenColumns()
+                openSettings()
+            }
     }
 }
 

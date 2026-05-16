@@ -47,31 +47,15 @@ private struct ArchiveNSTableView: NSViewRepresentable {
     }
 
     func makeNSView(context: Context) -> NSScrollView {
-        let tableView = NSTableView()
-        tableView.usesAlternatingRowBackgroundColors = false
-        tableView.allowsMultipleSelection = true
-        tableView.allowsEmptySelection = true
-        tableView.allowsColumnReordering = true
-        tableView.rowHeight = 28
-        tableView.headerView = NSTableHeaderView()
-        tableView.delegate = context.coordinator
-        tableView.dataSource = context.coordinator
-        tableView.doubleAction = #selector(Coordinator.doubleClick(_:))
-        tableView.target = context.coordinator
-
-        let menu = NSMenu()
-        menu.delegate = context.coordinator
-        tableView.menu = menu
-        tableView.headerView?.menu = context.coordinator.headerMenu()
-        context.coordinator.tableView = tableView
-
-        let scrollView = NSScrollView()
-        scrollView.hasVerticalScroller = true
-        scrollView.hasHorizontalScroller = true
-        scrollView.autohidesScrollers = true
-        scrollView.documentView = tableView
-        scrollView.borderType = .noBorder
-
+        let scrollView = makeTableScrollView(
+            delegate: context.coordinator,
+            target: context.coordinator,
+            doubleAction: #selector(Coordinator.doubleClick(_:))
+        ) { tableView in
+            tableView.headerView?.menu = context.coordinator.headerMenu()
+            context.coordinator.tableView = tableView
+        }
+        guard let tableView = scrollView.documentView as? NSTableView else { return scrollView }
         configureColumns(for: tableView)
         return scrollView
     }
@@ -85,20 +69,7 @@ private struct ArchiveNSTableView: NSViewRepresentable {
     }
 
     private func configureColumns(for tableView: NSTableView) {
-        let columnIDs = visibleColumns.map(\.identifier)
-        if tableView.tableColumns.map(\.identifier.rawValue) == columnIDs {
-            return
-        }
-
-        tableView.tableColumns.forEach { tableView.removeTableColumn($0) }
-        visibleColumns.forEach { column in
-            let tableColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(column.identifier))
-            tableColumn.title = column.title
-            tableColumn.width = column.width
-            tableColumn.minWidth = column.minWidth
-            tableColumn.sortDescriptorPrototype = NSSortDescriptor(key: column.identifier, ascending: true)
-            tableView.addTableColumn(tableColumn)
-        }
+        configureTableColumns(visibleColumns, for: tableView)
     }
 
     private var visibleColumns: [ArchiveColumn] {
@@ -127,47 +98,14 @@ private struct ArchiveNSTableView: NSViewRepresentable {
             guard row < model.archiveItems.count, let tableColumn else { return nil }
             let item = model.archiveItems[row]
             let column = ArchiveColumn(identifier: tableColumn.identifier.rawValue) ?? .name
-            let cellID = NSUserInterfaceItemIdentifier("ArchiveCell-\(column.identifier)")
-
-            let cell = tableView.makeView(withIdentifier: cellID, owner: self) as? NSTableCellView ?? NSTableCellView()
-            cell.identifier = cellID
-            cell.imageView?.removeFromSuperview()
-            cell.textField?.removeFromSuperview()
-
-            let textField = NSTextField(labelWithString: column.value(for: item))
-            textField.lineBreakMode = .byTruncatingMiddle
-            textField.textColor = column == .name ? .labelColor : .secondaryLabelColor
-            textField.translatesAutoresizingMaskIntoConstraints = false
-
-            if column == .name {
-                let imageView = NSImageView(image: icon(for: item))
-                imageView.translatesAutoresizingMaskIntoConstraints = false
-                cell.addSubview(imageView)
-                cell.addSubview(textField)
-                cell.imageView = imageView
-                cell.textField = textField
-
-                NSLayoutConstraint.activate([
-                    imageView.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 4),
-                    imageView.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
-                    imageView.widthAnchor.constraint(equalToConstant: 18),
-                    imageView.heightAnchor.constraint(equalToConstant: 18),
-                    textField.leadingAnchor.constraint(equalTo: imageView.trailingAnchor, constant: 6),
-                    textField.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -4),
-                    textField.centerYAnchor.constraint(equalTo: cell.centerYAnchor)
-                ])
-            } else {
-                cell.addSubview(textField)
-                cell.textField = textField
-
-                NSLayoutConstraint.activate([
-                    textField.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 4),
-                    textField.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -4),
-                    textField.centerYAnchor.constraint(equalTo: cell.centerYAnchor)
-                ])
-            }
-
-            return cell
+            return makeTableCell(
+                in: tableView,
+                owner: self,
+                identifier: "ArchiveCell-\(column.identifier)",
+                text: column.value(for: item),
+                isPrimaryColumn: column == .name,
+                icon: column == .name ? icon(for: item) : nil
+            )
         }
 
         func tableViewSelectionDidChange(_ notification: Notification) {
@@ -199,13 +137,13 @@ private struct ArchiveNSTableView: NSViewRepresentable {
             guard let tableView else { return }
             selectClickedRowIfNeeded(in: tableView)
             menu.removeAllItems()
-            menu.addItem(menuItem(L10n.text("button.open"), systemImage: "arrow.turn.up.right", #selector(openSelected)))
-            menu.addItem(menuItem(L10n.text("button.extractSelected"), systemImage: "arrow.down.doc", #selector(extractSelected)))
-            menu.addItem(menuItem(L10n.text("button.extract"), systemImage: "tray.and.arrow.down", #selector(extractWholeArchive)))
-            menu.addItem(menuItem(L10n.text("button.test"), systemImage: "checkmark.seal", #selector(testArchive)))
-            menu.addItem(menuItem(L10n.text("button.hash"), systemImage: "number.square", #selector(hashArchive)))
+            menu.addItem(menuItem(L10n.text("button.open"), systemImage: "arrow.turn.up.right", action: #selector(openSelected)))
+            menu.addItem(menuItem(L10n.text("button.extractSelected"), systemImage: "arrow.down.doc", action: #selector(extractSelected)))
+            menu.addItem(menuItem(L10n.text("button.extract"), systemImage: "tray.and.arrow.down", action: #selector(extractWholeArchive)))
+            menu.addItem(menuItem(L10n.text("button.test"), systemImage: "checkmark.seal", action: #selector(testArchive)))
+            menu.addItem(menuItem(L10n.text("button.hash"), systemImage: "number.square", action: #selector(hashArchive)))
             menu.addItem(.separator())
-            menu.addItem(menuItem(L10n.text("button.revealInFinder"), systemImage: "arrow.up.forward.app", #selector(revealArchive)))
+            menu.addItem(menuItem(L10n.text("button.revealInFinder"), systemImage: "arrow.up.forward.app", action: #selector(revealArchive)))
         }
 
         @objc func doubleClick(_ sender: NSTableView) {
@@ -270,22 +208,16 @@ private struct ArchiveNSTableView: NSViewRepresentable {
             isApplyingSelection = false
         }
 
-        private func menuItem(_ title: String, systemImage: String, _ action: Selector) -> NSMenuItem {
-            let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
-            item.target = self
-            item.image = NSImage(systemSymbolName: systemImage, accessibilityDescription: title)
-            return item
+        private func menuItem(_ title: String, systemImage: String, action: Selector) -> NSMenuItem {
+            makeTableMenuItem(title, systemImage: systemImage, action: action, target: self)
         }
 
         func headerMenu() -> NSMenu {
-            let menu = NSMenu()
-            menu.addItem(menuItem(L10n.text("settings.editColumns"), systemImage: "slider.horizontal.3", #selector(openColumnSettings)))
-            return menu
+            makeColumnSettingsMenu(action: #selector(openColumnSettings), target: self)
         }
 
         @objc private func openColumnSettings() {
-            NotificationCenter.default.post(name: .openSettingsColumns, object: nil)
-            NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+            openColumnSettingsWindow()
         }
 
         private func icon(for item: ArchiveItem) -> NSImage {
@@ -301,15 +233,7 @@ private struct ArchiveNSTableView: NSViewRepresentable {
     }
 }
 
-private func orderedColumns(_ columns: [ArchiveColumn], key: String) -> [ArchiveColumn] {
-    let order = AppPreferences.stringArray(forKey: key)
-    guard !order.isEmpty else { return columns }
-    let byID = Dictionary(uniqueKeysWithValues: columns.map { ($0.identifier, $0) })
-    let ordered = order.compactMap { byID[$0] }
-    return ordered + columns.filter { !order.contains($0.identifier) }
-}
-
-private enum ArchiveColumn: String {
+private enum ArchiveColumn: String, TableColumnDescriptor {
     case name
     case kind
     case size

@@ -17,6 +17,7 @@
   - Double-click and context menu opening are supported inside archive folders.
   - Archive browsing now uses richer per-entry file icons and adds a Kind column, so the archive list is closer to the regular file browser instead of a bare generic list.
 - **Extraction**
+  - Shared the common whole-archive and selected-entry extraction options form so destination, password, details, and action controls stay consistent.
   - Extraction now stages files in a temporary directory before merging, so existing destination files always go through SimpleZip's conflict dialog instead of being overwritten by the backend.
   - Whole-archive and selected-entry extraction now support an optional password field.
   - Long-running extraction now reports progress and the current file when the backend emits progress output.
@@ -49,6 +50,7 @@
   - The Add to Archive window is compact again: password controls now expand only when needed, 7-Zip advanced options are collapsible, and the sheet no longer grows to an oversized height.
   - RAR creation now probes bundled, application-bundled, and system `rar` binaries instead of only one path, and shows a clear disabled-state message when no RAR backend is available.
 - **Reliability**
+  - Header context menu column settings now open the SwiftUI Settings scene through the app's settings-opening path and defer tab selection to avoid state updates during view refreshes.
   - Archive table sorting now uses raw size and modified-date values instead of sorting localized display text.
   - Stale archive and tag loading tasks are now cancelled before newer results update the UI.
   - Drag-and-drop URL collection and external file open queuing are now synchronized to avoid callback races.
@@ -57,6 +59,7 @@
   - Added service-layer regression tests for archive list parsing, exclude pattern generation, and selected-entry expansion.
   - Cleared Swift concurrency and optional-handling build warnings in archive parsing, progress parsing, and About panel icon wiring.
 - **File browser**
+  - Shared the common AppKit table setup, column configuration, cell rendering, and column-settings menu helpers used by the file and archive tables.
   - Sidebar now includes Finder-like Favorites, Frequently Used folders, Tags, and pinned paths.
   - Tagged files can be opened as an in-app virtual file list backed by Spotlight search.
   - File deletion now asks for confirmation and moves items to the macOS Trash.

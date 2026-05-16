@@ -14,53 +14,16 @@ struct ExtractArchiveOptionsView: View {
     let cancel: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text(L10n.text("extract.archive.title"))
-                .font(.title3)
-                .fontWeight(.semibold)
-
-            Form {
-                HStack {
-                    Text(L10n.text("archive.destination"))
-                    Text(request.destinationURL.path)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Button(L10n.text("button.choose")) {
-                        chooseDestination()
-                    }
-                }
-
-                SecureField(L10n.text("extract.password.placeholder"), text: $request.password)
-                Toggle(L10n.text("operation.showDetails"), isOn: $request.showDetails)
-            }
-
-            HStack {
-                Spacer()
-                Button(L10n.text("button.cancel"), action: cancel)
-                Button(L10n.text("button.extract")) {
-                    extract(request)
-                }
-                .keyboardShortcut(.defaultAction)
-            }
+        ExtractOptionsForm(
+            title: L10n.text("extract.archive.title"),
+            destinationURL: $request.destinationURL,
+            password: $request.password,
+            showDetails: $request.showDetails,
+            confirm: { extract(request) },
+            cancel: cancel
+        ) {
+            EmptyView()
         }
-        .padding(20)
         .frame(width: 540)
-    }
-
-    private func chooseDestination() {
-        let panel = NSOpenPanel()
-        panel.title = L10n.text("panel.extractTo")
-        panel.prompt = L10n.text("button.choose")
-        panel.canChooseDirectories = true
-        panel.canChooseFiles = false
-        panel.canCreateDirectories = true
-        panel.allowsMultipleSelection = false
-        panel.directoryURL = request.destinationURL
-
-        if panel.runModal() == .OK, let url = panel.url {
-            request.destinationURL = url
-        }
     }
 }

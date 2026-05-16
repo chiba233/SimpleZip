@@ -70,12 +70,15 @@ struct SettingsView: View {
         .frame(width: 720, height: 520)
         .navigationTitle(L10n.text("settings.title"))
         .onAppear {
+            if SettingsNavigation.consumePendingColumnsRequest() {
+                selectColumnsPane()
+            }
             refreshAssociationStatus()
             refreshSevenZipVersion()
             refreshRarVersion()
         }
         .onReceive(NotificationCenter.default.publisher(for: .openSettingsColumns)) { _ in
-            selectedPane = .columns
+            selectColumnsPane()
         }
     }
 
@@ -311,6 +314,12 @@ struct SettingsView: View {
             languageMessage = restartHint
         }
     }
+
+    private func selectColumnsPane() {
+        DispatchQueue.main.async {
+            selectedPane = .columns
+        }
+    }
 }
 
 private enum SettingsPane: Hashable {
@@ -322,7 +331,38 @@ private enum SettingsPane: Hashable {
 }
 
 extension Notification.Name {
+    static let requestOpenSettingsColumns = Notification.Name("SimpleZip.requestOpenSettingsColumns")
     static let openSettingsColumns = Notification.Name("SimpleZip.openSettingsColumns")
+}
+
+@MainActor
+enum SettingsNavigation {
+    private static var shouldOpenColumns = false
+
+    static func requestOpenColumns() {
+        if #available(macOS 14.0, *) {
+            NotificationCenter.default.post(name: .requestOpenSettingsColumns, object: nil)
+        } else {
+            openColumnsLegacy()
+        }
+    }
+
+    static func prepareOpenColumns() {
+        shouldOpenColumns = true
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .openSettingsColumns, object: nil)
+        }
+    }
+
+    static func openColumnsLegacy() {
+        prepareOpenColumns()
+        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+    }
+
+    static func consumePendingColumnsRequest() -> Bool {
+        defer { shouldOpenColumns = false }
+        return shouldOpenColumns
+    }
 }
 
 /// 单个扩展名的文件关联设置行。
