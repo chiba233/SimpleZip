@@ -9,7 +9,9 @@ import Darwin
 import Foundation
 import UniformTypeIdentifiers
 
-private let archiveServiceProcessRegistry = ActiveProcessRegistry()
+private enum ArchiveServiceProcessRegistry {
+    nonisolated static let shared = ActiveProcessRegistry()
+}
 
 /// 归档命令服务：封装 zip/unzip/7zz 调用，让界面层不直接接触命令行细节。
 enum ArchiveService {
@@ -60,7 +62,7 @@ enum ArchiveService {
     }
 
     static func cancelRunningCommand() {
-        archiveServiceProcessRegistry.cancelActiveProcess()
+        ArchiveServiceProcessRegistry.shared.cancelActiveProcess()
     }
 
     static func createArchive(
@@ -222,9 +224,14 @@ enum ArchiveService {
             let inputStrategy: ProcessInputStrategy = password.isEmpty ? .none : .passwordPrompts([password])
             try await run(tool, arguments: arguments, progressParser: parser, inputStrategy: inputStrategy, outputObserver: outputObserver)
         case .diskImage:
-            let mountPoint = try mountDiskImage(resolved.url)
-            defer { try? detachDiskImage(at: mountPoint) }
-            try copyDiskImageContents(from: mountPoint, to: destination, progress: progress)
+            let mountPoint = try await mountDiskImage(resolved.url)
+            do {
+                try copyDiskImageContents(from: mountPoint, to: destination, progress: progress)
+                try await detachDiskImage(at: mountPoint)
+            } catch {
+                try? await detachDiskImage(at: mountPoint)
+                throw error
+            }
         }
     }
 
@@ -287,8 +294,8 @@ enum ArchiveService {
             let tool = try sevenZipTool()
             try await run(tool, arguments: ["t", resolved.url.path])
         case .diskImage:
-            let mountPoint = try mountDiskImage(resolved.url)
-            try detachDiskImage(at: mountPoint)
+            let mountPoint = try await mountDiskImage(resolved.url)
+            try await detachDiskImage(at: mountPoint)
         }
     }
 
@@ -332,9 +339,15 @@ enum ArchiveService {
             let output = try await runAndCapture(tool, arguments: ["l", "-slt", resolved.url.path])
             return parseSevenZipList(output)
         case .diskImage:
-            let mountPoint = try mountDiskImage(resolved.url)
-            defer { try? detachDiskImage(at: mountPoint) }
-            return try diskImageArchiveItems(at: mountPoint)
+            let mountPoint = try await mountDiskImage(resolved.url)
+            do {
+                let items = try diskImageArchiveItems(at: mountPoint)
+                try await detachDiskImage(at: mountPoint)
+                return items
+            } catch {
+                try? await detachDiskImage(at: mountPoint)
+                throw error
+            }
         }
     }
 
@@ -522,8 +535,8 @@ enum ArchiveService {
         throw ArchiveError.missingRarTool
     }
 
-    nonisolated static func mountDiskImage(_ url: URL) throws -> URL {
-        let output = try runAndCaptureSync(
+    static func mountDiskImage(_ url: URL) async throws -> URL {
+        let output = try await runAndCapture(
             "/usr/bin/hdiutil",
             arguments: ["attach", "-plist", "-readonly", "-nobrowse", "-noverify", "-noautoopen", url.path],
             currentDirectory: nil,
@@ -547,8 +560,8 @@ enum ArchiveService {
         throw ArchiveError.commandFailed(output)
     }
 
-    nonisolated static func detachDiskImage(at mountPoint: URL) throws {
-        _ = try runAndCaptureSync(
+    static func detachDiskImage(at mountPoint: URL) async throws {
+        _ = try await runAndCapture(
             "/usr/bin/hdiutil",
             arguments: ["detach", mountPoint.path, "-force"],
             currentDirectory: nil,
@@ -621,20 +634,12 @@ enum ArchiveService {
     }
 
     private static func envPath(for executable: String) -> String? {
-        let process = Process()
-        let output = Pipe()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        process.arguments = ["which", executable]
-        process.standardOutput = output
-        do {
-            try process.run()
-            process.waitUntilExit()
-            guard process.terminationStatus == 0 else { return nil }
-            let text = String(decoding: output.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
-            return text.split(separator: "\n").first.map(String.init)
-        } catch {
-            return nil
-        }
+        let pathValue = ProcessInfo.processInfo.environment["PATH"] ?? ""
+        return pathValue
+            .split(separator: ":")
+            .map(String.init)
+            .map { URL(fileURLWithPath: $0).appendingPathComponent(executable).path }
+            .first { FileManager.default.isExecutableFile(atPath: $0) }
     }
 
     private static func cellarCandidates(formula: String, tools: [String]) -> [String] {
@@ -1085,14 +1090,14 @@ enum ArchiveService {
         process.standardOutput = ioPipe
         process.standardError = ioPipe
 
-        archiveServiceProcessRegistry.register(process)
-        defer { archiveServiceProcessRegistry.clear(process) }
+        ArchiveServiceProcessRegistry.shared.register(process)
+        defer { ArchiveServiceProcessRegistry.shared.clear(process) }
         try process.run()
         let output = try readOutput(from: ioPipe.fileHandleForReading, progressParser: progressParser, outputObserver: outputObserver)
         process.waitUntilExit()
 
         guard process.terminationStatus == 0 else {
-            if archiveServiceProcessRegistry.wasCancelled(process) {
+            if ArchiveServiceProcessRegistry.shared.wasCancelled(process) {
                 throw CancellationError()
             }
             throw ArchiveError.commandFailed(output)
@@ -1129,8 +1134,8 @@ enum ArchiveService {
 
         var responder = promptResponder
 
-        archiveServiceProcessRegistry.register(process)
-        defer { archiveServiceProcessRegistry.clear(process) }
+        ArchiveServiceProcessRegistry.shared.register(process)
+        defer { ArchiveServiceProcessRegistry.shared.clear(process) }
         try process.run()
         try? slaveHandle.close()
         let output = try readOutput(from: masterHandle, progressParser: progressParser, outputObserver: outputObserver) { text in
@@ -1139,7 +1144,7 @@ enum ArchiveService {
         process.waitUntilExit()
 
         guard process.terminationStatus == 0 else {
-            if archiveServiceProcessRegistry.wasCancelled(process) {
+            if ArchiveServiceProcessRegistry.shared.wasCancelled(process) {
                 throw CancellationError()
             }
             throw ArchiveError.commandFailed(output)
@@ -1586,7 +1591,7 @@ private enum ProcessInputStrategy {
 }
 
 private struct InteractivePasswordResponder {
-    private static let promptMarkers = [
+    nonisolated private static let promptMarkers = [
         "enter password",
         "verify password",
         "reenter password",
@@ -1630,8 +1635,8 @@ private enum DiskImageDateFormatter {
 
 private final class ActiveProcessRegistry: @unchecked Sendable {
     private let lock = NSLock()
-    private weak var activeProcess: Process?
-    private var cancelledProcesses = Set<ObjectIdentifier>()
+    nonisolated(unsafe) private weak var activeProcess: Process?
+    nonisolated(unsafe) private var cancelledProcesses = Set<ObjectIdentifier>()
 
     nonisolated func register(_ process: Process) {
         lock.lock()

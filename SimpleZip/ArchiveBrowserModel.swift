@@ -50,7 +50,9 @@ final class ArchiveBrowserModel: ObservableObject {
 
     deinit {
         if let mountedDiskImage {
-            try? ArchiveService.detachDiskImage(at: mountedDiskImage.mountPoint)
+            Task.detached {
+                try? await ArchiveService.detachDiskImage(at: mountedDiskImage.mountPoint)
+            }
         }
     }
 
@@ -1089,17 +1091,23 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     private func openDiskImage(_ url: URL) {
-        do {
-            cleanupMountedDiskImageIfNeeded(for: nil)
-            let mountPoint = try ArchiveService.mountDiskImage(url)
-            mountedDiskImage = MountedDiskImageSession(sourceURL: url, mountPoint: mountPoint)
-            archivePath = ""
-            allArchiveItems = []
-            mode = .folder(mountPoint)
-            reload()
-        } catch {
-            errorMessage = error.localizedDescription
-            status = L10n.text("status.failed")
+        cleanupMountedDiskImageIfNeeded(for: nil)
+        status = L10n.text("status.readingArchive")
+        isWorking = true
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                let mountPoint = try await ArchiveService.mountDiskImage(url)
+                mountedDiskImage = MountedDiskImageSession(sourceURL: url, mountPoint: mountPoint)
+                archivePath = ""
+                allArchiveItems = []
+                mode = .folder(mountPoint)
+                reload()
+            } catch {
+                errorMessage = error.localizedDescription
+                status = L10n.text("status.failed")
+            }
+            isWorking = false
         }
     }
 
@@ -1108,8 +1116,11 @@ final class ArchiveBrowserModel: ObservableObject {
         if let targetURL, targetURL.standardizedFileURL.path.hasPrefix(mountedDiskImage.mountPoint.standardizedFileURL.path) {
             return
         }
-        try? ArchiveService.detachDiskImage(at: mountedDiskImage.mountPoint)
+        let mountPoint = mountedDiskImage.mountPoint
         self.mountedDiskImage = nil
+        Task.detached {
+            try? await ArchiveService.detachDiskImage(at: mountPoint)
+        }
     }
 
     private func preferredApplicationName(for url: URL, isDirectory: Bool) -> String {

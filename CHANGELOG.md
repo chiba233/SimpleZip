@@ -50,6 +50,9 @@
   - The Add to Archive window is compact again: password controls now expand only when needed, 7-Zip advanced options are collapsible, and the sheet no longer grows to an oversized height.
   - RAR creation now probes bundled, application-bundled, and system `rar` binaries instead of only one path, and shows a clear disabled-state message when no RAR backend is available.
 - **Reliability**
+  - Cleaned up Swift concurrency warnings in the archive command runner and added a shared Xcode run scheme that hides OS activity noise during debug launches.
+  - Backend path detection no longer launches `which` during Settings rendering, avoiding main-thread `Process.waitUntilExit()` stalls.
+  - DMG mount and detach operations now run through the async command path so opening disk images does not block the main thread.
   - Header context menu column settings now open the SwiftUI Settings scene through the app's settings-opening path and defer tab selection to avoid state updates during view refreshes.
   - Archive table sorting now uses raw size and modified-date values instead of sorting localized display text.
   - Stale archive and tag loading tasks are now cancelled before newer results update the UI.
