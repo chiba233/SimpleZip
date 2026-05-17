@@ -215,6 +215,7 @@
 "file.copy" = "Копировать";
 "file.cut" = "Вырезать";
 "file.paste" = "Вставить";
+"file.selectAll" = "Выбрать все";
 "file.moveTo" = "Переместить в...";
 "file.delete" = "Удалить";
 "file.moveToTrash" = "Переместить в корзину";

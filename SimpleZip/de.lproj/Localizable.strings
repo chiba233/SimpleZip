@@ -215,6 +215,7 @@
 "file.copy" = "Kopieren";
 "file.cut" = "Ausschneiden";
 "file.paste" = "Einfügen";
+"file.selectAll" = "Alles auswählen";
 "file.moveTo" = "Verschieben nach...";
 "file.delete" = "Löschen";
 "file.moveToTrash" = "In den Papierkorb";

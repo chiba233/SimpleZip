@@ -215,6 +215,7 @@
 "file.copy" = "คัดลอก";
 "file.cut" = "ตัด";
 "file.paste" = "วาง";
+"file.selectAll" = "เลือกทั้งหมด";
 "file.moveTo" = "ย้ายไป...";
 "file.delete" = "ลบ";
 "file.moveToTrash" = "ย้ายไปถังขยะ";

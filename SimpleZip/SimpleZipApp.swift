@@ -151,7 +151,9 @@ struct ArchiveFileCommands: Commands {
 
         CommandGroup(replacing: .pasteboard) {
             Button {
-                if canManageSelectedFiles {
+                if isTextInputFocused {
+                    NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: nil)
+                } else if canManageSelectedFiles {
                     model?.copySelectedFiles()
                 } else {
                     NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: nil)
@@ -162,7 +164,9 @@ struct ArchiveFileCommands: Commands {
             .keyboardShortcut("c", modifiers: [.command])
 
             Button {
-                if canManageSelectedFiles {
+                if isTextInputFocused {
+                    NSApp.sendAction(#selector(NSText.cut(_:)), to: nil, from: nil)
+                } else if canManageSelectedFiles {
                     model?.cutSelectedFiles()
                 } else {
                     NSApp.sendAction(#selector(NSText.cut(_:)), to: nil, from: nil)
@@ -173,7 +177,9 @@ struct ArchiveFileCommands: Commands {
             .keyboardShortcut("x", modifiers: [.command])
 
             Button {
-                if isFolderMode {
+                if isTextInputFocused {
+                    NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil)
+                } else if isFolderMode {
                     model?.pasteFiles()
                 } else {
                     NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil)
@@ -182,6 +188,14 @@ struct ArchiveFileCommands: Commands {
                 Label(L10n.text("file.paste"), systemImage: "clipboard")
             }
             .keyboardShortcut("v", modifiers: [.command])
+
+            Button {
+                NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil)
+            } label: {
+                Label(L10n.text("file.selectAll"), systemImage: "selection.pin.in.out")
+            }
+            .keyboardShortcut("a", modifiers: [.command])
+            .disabled(!isTextInputFocused)
 
             Button {
                 model?.moveSelectedFilesToFolder()
@@ -252,6 +266,15 @@ struct ArchiveFileCommands: Commands {
     private var canManageSelectedFiles: Bool {
         guard let model, case .folder = model.mode else { return false }
         return !model.selectedFileItems.isEmpty
+    }
+
+    private var isTextInputFocused: Bool {
+        guard let responder = NSApp.keyWindow?.firstResponder else { return false }
+        if responder is NSText {
+            return true
+        }
+        return responder.responds(to: #selector(NSText.copy(_:))) &&
+            responder.responds(to: #selector(NSText.paste(_:)))
     }
 }
 

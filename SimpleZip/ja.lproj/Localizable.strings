@@ -215,6 +215,7 @@
 "file.copy" = "コピー";
 "file.cut" = "カット";
 "file.paste" = "ペースト";
+"file.selectAll" = "すべて選択";
 "file.moveTo" = "移動先...";
 "file.delete" = "削除";
 "file.moveToTrash" = "ゴミ箱に入れる";

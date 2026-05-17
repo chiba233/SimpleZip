@@ -232,6 +232,7 @@
 "file.copy" = "Copy";
 "file.cut" = "Cut";
 "file.paste" = "Paste";
+"file.selectAll" = "Select All";
 "file.moveTo" = "Move To...";
 "file.delete" = "Delete";
 "file.moveToTrash" = "Move to Trash";

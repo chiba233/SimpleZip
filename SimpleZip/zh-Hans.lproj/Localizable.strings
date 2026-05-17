@@ -215,6 +215,7 @@
 "file.copy" = "复制";
 "file.cut" = "剪切";
 "file.paste" = "粘贴";
+"file.selectAll" = "全选";
 "file.moveTo" = "移动到...";
 "file.delete" = "删除";
 "file.moveToTrash" = "移到废纸篓";

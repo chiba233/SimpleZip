@@ -215,6 +215,7 @@
 "file.copy" = "복사";
 "file.cut" = "잘라내기";
 "file.paste" = "붙여넣기";
+"file.selectAll" = "모두 선택";
 "file.moveTo" = "이동...";
 "file.delete" = "삭제";
 "file.moveToTrash" = "휴지통으로 이동";
