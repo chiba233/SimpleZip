@@ -56,7 +56,8 @@ private struct FileNSTableView: NSViewRepresentable {
             doubleAction: #selector(Coordinator.doubleClick(_:))
         ) { tableView in
             tableView.registerForDraggedTypes([.fileURL])
-            tableView.setDraggingSourceOperationMask(.copy, forLocal: false)
+            tableView.setDraggingSourceOperationMask([.copy, .move], forLocal: false)
+            tableView.setDraggingSourceOperationMask(.move, forLocal: true)
             tableView.headerView?.menu = context.coordinator.headerMenu()
             context.coordinator.tableView = tableView
         }
@@ -151,6 +152,42 @@ private struct FileNSTableView: NSViewRepresentable {
                 }
             }
             return item.url as NSURL
+        }
+
+        func tableView(
+            _ tableView: NSTableView,
+            draggingSession session: NSDraggingSession,
+            sourceOperationMaskFor context: NSDraggingContext
+        ) -> NSDragOperation {
+            context == .withinApplication ? .move : [.copy, .move]
+        }
+
+        func tableView(
+            _ tableView: NSTableView,
+            validateDrop info: NSDraggingInfo,
+            proposedRow row: Int,
+            proposedDropOperation dropOperation: NSTableView.DropOperation
+        ) -> NSDragOperation {
+            guard fileDropDestination(in: tableView, row: row, operation: dropOperation) != nil else { return [] }
+            tableView.setDropRow(row, dropOperation: dropOperation == .on ? .on : .above)
+            return info.draggingSource as? NSTableView === tableView ? .move : .copy
+        }
+
+        func tableView(
+            _ tableView: NSTableView,
+            acceptDrop info: NSDraggingInfo,
+            row: Int,
+            dropOperation: NSTableView.DropOperation
+        ) -> Bool {
+            guard let destination = fileDropDestination(in: tableView, row: row, operation: dropOperation) else { return false }
+            let urls = info.draggingPasteboard.readObjects(forClasses: [NSURL.self]) as? [URL] ?? []
+            guard !urls.isEmpty else { return false }
+            model.dropFileURLs(
+                urls,
+                to: destination,
+                shouldMove: info.draggingSource as? NSTableView === tableView
+            )
+            return true
         }
 
         func menuNeedsUpdate(_ menu: NSMenu) {
@@ -256,6 +293,21 @@ private struct FileNSTableView: NSViewRepresentable {
 
         private func menuItem(_ title: String, systemImage: String, action: Selector) -> NSMenuItem {
             makeTableMenuItem(title, systemImage: systemImage, action: action, target: self)
+        }
+
+        private func fileDropDestination(
+            in tableView: NSTableView,
+            row: Int,
+            operation: NSTableView.DropOperation
+        ) -> URL? {
+            if operation == .on, row >= 0, row < model.fileItems.count {
+                let item = model.fileItems[row]
+                return item.isDirectory ? item.url : nil
+            }
+            if case .folder(let url) = model.mode {
+                return url
+            }
+            return nil
         }
 
         func headerMenu() -> NSMenu {

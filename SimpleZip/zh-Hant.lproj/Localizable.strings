@@ -7,7 +7,7 @@
 "error.openFolderFirst" = "請先開啟一個資料夾，然後選取要壓縮的檔案。";
 "error.selectFilesToArchive" = "請選取一個或多個要加入壓縮檔的檔案或資料夾。";
 "error.openOrSelectArchive" = "請先開啟或選取支援的壓縮檔。";
-"error.unsupportedFormat" = "目前首版支援 .zip；安裝 7-Zip 後也支援 .7z。";
+"error.unsupportedFormat" = "目前後端不支援這種壓縮檔格式。";
 "error.missingSevenZip" = "找不到 7-Zip 命令列工具。請透過 Homebrew 安裝 7zz 以處理 .7z 壓縮檔。";
 "error.invalidSevenZipVolumeSize" = "分卷大小格式無效，應類似 100m、2g 或 512k。";
 "error.singleFileCompressionRequiresSingleFile" = "這種格式一次只能壓縮一個一般檔案。";
@@ -116,6 +116,15 @@
 "error.defaultAppFailed" = "無法將 SimpleZip 設為 %@ 的預設 App。Launch Services 回傳 %d。";
 "status.extractingSelected" = "正在解壓縮 %d 個選取項目";
 "settings.section.fileAssociations" = "檔案關聯";
+"status.openingArchiveItem" = "正在開啟 %@";
+"status.openedArchiveItem" = "已開啟 %@";
+"error.extractedItemNotFound" = "找不到暫時解出的項目。";
+"error.openExtractedItemFailed" = "macOS 無法開啟暫時解出的項目。";
+"error.exportDestinationExists" = "拖放目標位置已有同名檔案。";
+"status.exportingArchiveItem" = "正在把 %@ 解壓縮到拖放位置";
+"status.exportedArchiveItem" = "已解壓縮 %@";
+"status.copyingFiles" = "正在複製檔案...";
+"status.movingFiles" = "正在移動檔案...";
 "settings.setDefaultArchiveApp" = "將 SimpleZip 設為壓縮檔預設 App";
 "settings.defaultArchiveAppDone" = "已將 SimpleZip 設為支援壓縮檔格式的預設 App。";
 "settings.defaultArchiveTypeDone" = "已將 SimpleZip 設為 %@ 檔案的預設 App。";

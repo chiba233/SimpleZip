@@ -13,6 +13,8 @@
   - Scaled the icon artwork back into a macOS-style safe area so it no longer appears visually larger than neighboring apps in the Dock and Finder.
 - **Archive browsing**
   - Archive directories are now presented as real navigable folders instead of flat path rows.
+  - Double-clicking a file inside an archive now extracts that item to a temporary location and opens it with the default macOS app.
+  - Archive rows can now be dragged out to Finder or other file destinations; SimpleZip extracts the promised items directly to the drop location.
   - Synthetic directory nodes are generated when an archive does not explicitly store directory entries.
   - Double-click and context menu opening are supported inside archive folders.
   - Archive browsing now uses richer per-entry file icons and adds a Kind column, so the archive list is closer to the regular file browser instead of a bare generic list.
@@ -63,6 +65,7 @@
   - Cleared Swift concurrency and optional-handling build warnings in archive parsing, progress parsing, and About panel icon wiring.
 - **File browser**
   - Shared the common AppKit table setup, column configuration, cell rendering, and column-settings menu helpers used by the file and archive tables.
+  - File rows can now be dragged onto folders in the file table to move local files, or dropped in from external locations to copy them into the current folder.
   - Sidebar now includes Finder-like Favorites, Frequently Used folders, Tags, and pinned paths.
   - Tagged files can be opened as an in-app virtual file list backed by Spotlight search.
   - File deletion now asks for confirmation and moves items to the macOS Trash.
@@ -80,6 +83,7 @@
   - Each supported archive extension can be set as default individually.
   - Current default app is displayed per format.
   - RAR and DMG are now included in the association list.
+  - Finder document-type declarations and default-app settings now include common split archive volume extensions like `.001`, `.z01`, and `.r00`, so split archives can be handed to SimpleZip from Finder.
 - **Hashing**
   - Added CRC32, MD5, SHA1, SHA256, and SHA512 reports.
 - **Menus**
@@ -98,6 +102,9 @@
 - **7-Zip backend**
   - Bundled official 7-Zip 26.01 universal macOS `7zz` binary with `x86_64` and `arm64` slices.
   - Added bundled 7-Zip license and readme files to app resources.
+- **RAR backend**
+  - Added a local installer script that downloads the official RARLAB macOS ARM and x64 packages, creates a universal `SimpleZip/Tools/rar`, and keeps the proprietary backend ignored by git.
+  - Documented the RARLAB redistribution caveat for local packaging.
 - **Localization**
   - Added English, Simplified Chinese, Traditional Chinese, Japanese, and Thai strings.
   - Added Spanish, French, German, Korean, and Russian localizations, and exposed them in the in-app language picker.

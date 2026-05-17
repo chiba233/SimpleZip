@@ -172,17 +172,140 @@ struct ArchiveServiceTests {
         let splitPart = tempDirectory.appendingPathComponent("sample.002")
         let zipRoot = tempDirectory.appendingPathComponent("bundle.zip")
         let zipPart = tempDirectory.appendingPathComponent("bundle.z01")
+        let sevenZipSplitRoot = tempDirectory.appendingPathComponent("payload.7z.001")
+        let sevenZipSplitPart = tempDirectory.appendingPathComponent("payload.7z.003")
         let rarRoot = tempDirectory.appendingPathComponent("movie.part01.rar")
         let rarPart = tempDirectory.appendingPathComponent("movie.part02.rar")
+        let legacyRarRoot = tempDirectory.appendingPathComponent("legacy.rar")
+        let legacyRarPart = tempDirectory.appendingPathComponent("legacy.r01")
 
-        for url in [splitRoot, splitPart, zipRoot, zipPart, rarRoot, rarPart] {
+        for url in [splitRoot, splitPart, zipRoot, zipPart, sevenZipSplitRoot, sevenZipSplitPart, rarRoot, rarPart, legacyRarRoot, legacyRarPart] {
             FileManager.default.createFile(atPath: url.path, contents: Data())
         }
 
         #expect(ArchiveService.supportedArchiveURL(splitPart) == splitRoot)
         #expect(ArchiveService.supportedArchiveURL(zipPart) == zipRoot)
         #expect(ArchiveService.supportedArchiveURL(zipRoot) == zipRoot)
+        #expect(ArchiveService.supportedArchiveURL(sevenZipSplitPart) == sevenZipSplitRoot)
         #expect(ArchiveService.supportedArchiveURL(rarPart) == rarRoot)
+        #expect(ArchiveService.supportedArchiveURL(legacyRarPart) == legacyRarRoot)
+    }
+
+    @Test
+    func createAndExtractZipArchiveRoundTripsFiles() async throws {
+        let tempDirectory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: tempDirectory) }
+
+        let sourceDirectory = tempDirectory.appendingPathComponent("source", isDirectory: true)
+        let nestedDirectory = sourceDirectory.appendingPathComponent("nested", isDirectory: true)
+        try FileManager.default.createDirectory(at: nestedDirectory, withIntermediateDirectories: true)
+        try "hello zip".write(
+            to: sourceDirectory.appendingPathComponent("root.txt"),
+            atomically: true,
+            encoding: .utf8
+        )
+        try "inside".write(
+            to: nestedDirectory.appendingPathComponent("child.txt"),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        var options = ArchiveCreationOptions()
+        options.format = .zip
+        options.skipDSStore = false
+        options.skipHiddenFiles = false
+        let archiveURL = tempDirectory.appendingPathComponent("roundtrip.zip")
+        try await ArchiveService.createArchive(from: [sourceDirectory], destination: archiveURL, options: options)
+
+        let items = try await ArchiveService.list(archiveURL)
+        #expect(items.contains { $0.name == "source/root.txt" })
+        #expect(items.contains { $0.name == "source/nested/child.txt" })
+
+        let destination = tempDirectory.appendingPathComponent("extracted", isDirectory: true)
+        try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+        try await ArchiveService.extract(archiveURL, to: destination)
+
+        let rootText = try String(
+            contentsOf: destination.appendingPathComponent("source/root.txt"),
+            encoding: .utf8
+        )
+        let childText = try String(
+            contentsOf: destination.appendingPathComponent("source/nested/child.txt"),
+            encoding: .utf8
+        )
+        #expect(rootText == "hello zip")
+        #expect(childText == "inside")
+    }
+
+    @Test
+    func selectedZipExtractionPreservesRequestedEntryPath() async throws {
+        let tempDirectory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: tempDirectory) }
+
+        let sourceDirectory = tempDirectory.appendingPathComponent("source", isDirectory: true)
+        let nestedDirectory = sourceDirectory.appendingPathComponent("nested", isDirectory: true)
+        try FileManager.default.createDirectory(at: nestedDirectory, withIntermediateDirectories: true)
+        try "ignore me".write(
+            to: sourceDirectory.appendingPathComponent("root.txt"),
+            atomically: true,
+            encoding: .utf8
+        )
+        try "selected".write(
+            to: nestedDirectory.appendingPathComponent("child.txt"),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        var options = ArchiveCreationOptions()
+        options.format = .zip
+        options.skipDSStore = false
+        options.skipHiddenFiles = false
+        let archiveURL = tempDirectory.appendingPathComponent("selected.zip")
+        try await ArchiveService.createArchive(from: [sourceDirectory], destination: archiveURL, options: options)
+
+        let entry = ArchiveItem(
+            name: "source/nested/child.txt",
+            isDirectory: false,
+            size: nil,
+            modified: nil,
+            sizeText: "",
+            modifiedText: "",
+            method: ""
+        )
+        let destination = tempDirectory.appendingPathComponent("selected-output", isDirectory: true)
+        try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+        try await ArchiveService.extract(archiveURL, entries: [entry], to: destination)
+
+        #expect(FileManager.default.fileExists(atPath: destination.appendingPathComponent("source/nested/child.txt").path))
+        #expect(!FileManager.default.fileExists(atPath: destination.appendingPathComponent("source/root.txt").path))
+    }
+
+    @Test
+    func createTarArchiveContainsExpectedEntries() async throws {
+        let tempDirectory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: tempDirectory) }
+
+        let sourceDirectory = tempDirectory.appendingPathComponent("payload", isDirectory: true)
+        try FileManager.default.createDirectory(at: sourceDirectory, withIntermediateDirectories: true)
+        try "tar root".write(
+            to: sourceDirectory.appendingPathComponent("root.txt"),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        var options = ArchiveCreationOptions()
+        options.format = .tar
+        options.skipDSStore = false
+        options.skipHiddenFiles = false
+        let archiveURL = tempDirectory.appendingPathComponent("payload.tar")
+        try await ArchiveService.createArchive(from: [sourceDirectory], destination: archiveURL, options: options)
+
+        let listing = try runProcess("/usr/bin/tar", arguments: ["-tf", archiveURL.path])
+            .split(separator: "\n")
+            .map(String.init)
+
+        #expect(listing.contains("payload/"))
+        #expect(listing.contains("payload/root.txt"))
     }
 
     @Test
@@ -212,5 +335,29 @@ struct ArchiveServiceTests {
         #expect(report.compressionAverage?.speedKiBPerSecond == 39370)
         #expect(report.decompressionAverage?.ratingMips == 6601)
         #expect(report.totalRatingMips == 38091)
+    }
+
+    private func makeTemporaryDirectory() throws -> URL {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        return url
+    }
+
+    private func runProcess(_ executable: String, arguments: [String]) throws -> String {
+        let process = Process()
+        let pipe = Pipe()
+        process.executableURL = URL(fileURLWithPath: executable)
+        process.arguments = arguments
+        process.standardOutput = pipe
+        process.standardError = pipe
+        try process.run()
+        process.waitUntilExit()
+
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        let output = String(decoding: data, as: UTF8.self)
+        if process.terminationStatus != 0 {
+            throw ArchiveError.commandFailed(output)
+        }
+        return output
     }
 }

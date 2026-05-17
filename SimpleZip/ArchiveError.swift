@@ -15,6 +15,9 @@ enum ArchiveError: LocalizedError {
     case invalidSevenZipVolumeSize
     case singleFileCompressionRequiresSingleFile
     case passwordsDoNotMatch
+    case extractedItemNotFound
+    case openExtractedItemFailed
+    case exportDestinationExists
     case commandFailed(String)
 
     var errorDescription: String? {
@@ -31,6 +34,12 @@ enum ArchiveError: LocalizedError {
             return L10n.text("error.singleFileCompressionRequiresSingleFile")
         case .passwordsDoNotMatch:
             return L10n.text("error.passwordsDoNotMatch")
+        case .extractedItemNotFound:
+            return L10n.text("error.extractedItemNotFound")
+        case .openExtractedItemFailed:
+            return L10n.text("error.openExtractedItemFailed")
+        case .exportDestinationExists:
+            return L10n.text("error.exportDestinationExists")
         case .commandFailed(let message):
             return message.trimmingCharacters(in: .whitespacesAndNewlines)
         }

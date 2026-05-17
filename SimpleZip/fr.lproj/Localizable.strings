@@ -7,7 +7,7 @@
 "error.openFolderFirst" = "Ouvrez d'abord un dossier, puis sélectionnez les fichiers à compresser.";
 "error.selectFilesToArchive" = "Sélectionnez un ou plusieurs fichiers ou dossiers à ajouter à l'archive.";
 "error.openOrSelectArchive" = "Ouvrez ou sélectionnez d'abord une archive prise en charge.";
-"error.unsupportedFormat" = "Cette première version prend en charge les fichiers .zip, ainsi que .7z si 7-Zip est installé.";
+"error.unsupportedFormat" = "Le backend actuel ne prend pas en charge ce format d'archive.";
 "error.missingSevenZip" = "L'outil en ligne de commande 7-Zip est introuvable. Installez 7zz avec Homebrew pour gérer les archives .7z.";
 "error.invalidSevenZipVolumeSize" = "La taille du volume découpé doit ressembler à 100m, 2g ou 512k.";
 "error.singleFileCompressionRequiresSingleFile" = "Ce format ne peut compresser qu'un seul fichier ordinaire à la fois.";
@@ -116,6 +116,15 @@
 "error.defaultAppFailed" = "Impossible de définir SimpleZip comme application par défaut pour %@. Launch Services a renvoyé %d.";
 "status.extractingSelected" = "Extraction de %d éléments sélectionnés";
 "settings.section.fileAssociations" = "Associations de fichiers";
+"status.openingArchiveItem" = "Ouverture de %@";
+"status.openedArchiveItem" = "%@ ouvert";
+"error.extractedItemNotFound" = "L'élément extrait temporairement est introuvable.";
+"error.openExtractedItemFailed" = "macOS n'a pas pu ouvrir l'élément extrait temporairement.";
+"error.exportDestinationExists" = "Un fichier du même nom existe déjà à l'emplacement de dépôt.";
+"status.exportingArchiveItem" = "Extraction de %@ vers l'emplacement de dépôt";
+"status.exportedArchiveItem" = "%@ extrait";
+"status.copyingFiles" = "Copie des fichiers...";
+"status.movingFiles" = "Déplacement des fichiers...";
 "settings.setDefaultArchiveApp" = "Définir SimpleZip comme app par défaut pour les archives";
 "settings.defaultArchiveAppDone" = "SimpleZip a été défini comme app par défaut pour les formats d'archives pris en charge.";
 "settings.defaultArchiveTypeDone" = "SimpleZip a été défini comme app par défaut pour les fichiers %@.";

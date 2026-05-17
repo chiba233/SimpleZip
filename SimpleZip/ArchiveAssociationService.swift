@@ -29,7 +29,31 @@ enum ArchiveAssociationService {
         ArchiveAssociation(fileExtension: "bz2", title: "BZip2 Archive", contentTypes: contentTypes(for: "bz2", fallback: ["public.bzip2-archive"])),
         ArchiveAssociation(fileExtension: "xz", title: "XZ Archive", contentTypes: contentTypes(for: "xz", fallback: ["org.tukaani.xz-archive"])),
         ArchiveAssociation(fileExtension: "rar", title: "RAR Archive", contentTypes: contentTypes(for: "rar", fallback: ["com.rarlab.rar-archive"])),
-        ArchiveAssociation(fileExtension: "dmg", title: "DMG Disk Image", contentTypes: contentTypes(for: "dmg", fallback: ["com.apple.disk-image-udif"]))
+        ArchiveAssociation(fileExtension: "dmg", title: "DMG Disk Image", contentTypes: contentTypes(for: "dmg", fallback: ["com.apple.disk-image-udif"])),
+        ArchiveAssociation(
+            fileExtension: "001",
+            title: "Split Archive Volumes",
+            contentTypes: contentTypes(
+                for: ["001", "002", "003", "004", "005"],
+                fallback: []
+            )
+        ),
+        ArchiveAssociation(
+            fileExtension: "z01",
+            title: "Split ZIP Volumes",
+            contentTypes: contentTypes(
+                for: ["z01", "z02", "z03", "z04", "z05"],
+                fallback: []
+            )
+        ),
+        ArchiveAssociation(
+            fileExtension: "r00",
+            title: "RAR Part Volumes",
+            contentTypes: contentTypes(
+                for: ["r00", "r01", "r02", "r03", "r04"],
+                fallback: []
+            )
+        )
     ]
 
     static func setAsDefaultForSupportedArchives() throws {
@@ -76,10 +100,16 @@ enum ArchiveAssociationService {
     }
 
     private static func contentTypes(for fileExtension: String, fallback: [String]) -> [String] {
+        contentTypes(for: [fileExtension], fallback: fallback)
+    }
+
+    private static func contentTypes(for fileExtensions: [String], fallback: [String]) -> [String] {
         var identifiers = Set(fallback)
 
-        if let type = UTType(filenameExtension: fileExtension) {
-            identifiers.insert(type.identifier)
+        for fileExtension in fileExtensions {
+            if let type = UTType(filenameExtension: fileExtension) {
+                identifiers.insert(type.identifier)
+            }
         }
 
         return identifiers.sorted()

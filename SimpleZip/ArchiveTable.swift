@@ -52,6 +52,7 @@ private struct ArchiveNSTableView: NSViewRepresentable {
             target: context.coordinator,
             doubleAction: #selector(Coordinator.doubleClick(_:))
         ) { tableView in
+            tableView.setDraggingSourceOperationMask(.copy, forLocal: false)
             tableView.headerView?.menu = context.coordinator.headerMenu()
             context.coordinator.tableView = tableView
         }
@@ -131,6 +132,28 @@ private struct ArchiveNSTableView: NSViewRepresentable {
         func tableViewColumnDidMove(_ notification: Notification) {
             guard let tableView = notification.object as? NSTableView else { return }
             AppPreferences.setStringArray(tableView.tableColumns.map(\.identifier.rawValue), forKey: AppPreferences.Key.archiveColumnOrder)
+        }
+
+        func tableView(_ tableView: NSTableView, pasteboardWriterForRow row: Int) -> NSPasteboardWriting? {
+            guard row < model.archiveItems.count else { return nil }
+            let item = model.archiveItems[row]
+            if !model.selectedArchiveRows.contains(item.id) {
+                applySelection(IndexSet(integer: row), to: tableView)
+                DispatchQueue.main.async { [weak self] in
+                    self?.model.selectedArchiveRows = [item.id]
+                }
+            }
+            let provider = NSFilePromiseProvider(fileType: promisedFileType(for: item), delegate: self)
+            provider.userInfo = item
+            return provider
+        }
+
+        func tableView(
+            _ tableView: NSTableView,
+            draggingSession session: NSDraggingSession,
+            sourceOperationMaskFor context: NSDraggingContext
+        ) -> NSDragOperation {
+            .copy
         }
 
         func menuNeedsUpdate(_ menu: NSMenu) {
@@ -229,6 +252,42 @@ private struct ArchiveNSTableView: NSViewRepresentable {
                 return NSWorkspace.shared.icon(for: contentType)
             }
             return NSImage(systemSymbolName: "doc", accessibilityDescription: item.displayName) ?? NSImage()
+        }
+
+        private func promisedFileType(for item: ArchiveItem) -> String {
+            if item.isDirectory {
+                return UTType.folder.identifier
+            }
+            let ext = URL(fileURLWithPath: item.displayName).pathExtension
+            return UTType(filenameExtension: ext)?.identifier ?? UTType.data.identifier
+        }
+    }
+}
+
+extension ArchiveNSTableView.Coordinator: NSFilePromiseProviderDelegate {
+    func filePromiseProvider(_ filePromiseProvider: NSFilePromiseProvider, fileNameForType fileType: String) -> String {
+        guard let item = filePromiseProvider.userInfo as? ArchiveItem else {
+            return L10n.text("type.file")
+        }
+        return item.displayName
+    }
+
+    func filePromiseProvider(
+        _ filePromiseProvider: NSFilePromiseProvider,
+        writePromiseTo url: URL,
+        completionHandler: @escaping (Error?) -> Void
+    ) {
+        guard let item = filePromiseProvider.userInfo as? ArchiveItem else {
+            completionHandler(ArchiveError.extractedItemNotFound)
+            return
+        }
+        Task { @MainActor [model] in
+            do {
+                try await model.exportArchiveItem(item, to: url)
+                completionHandler(nil)
+            } catch {
+                completionHandler(error)
+            }
         }
     }
 }

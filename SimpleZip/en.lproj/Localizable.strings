@@ -7,7 +7,7 @@
 "error.openFolderFirst" = "Open a folder first, then select files to compress.";
 "error.selectFilesToArchive" = "Select one or more files or folders to add to an archive.";
 "error.openOrSelectArchive" = "Open or select a supported archive first.";
-"error.unsupportedFormat" = "This first version supports .zip files, plus .7z when 7-Zip is installed.";
+"error.unsupportedFormat" = "This archive format is not supported by the current backend.";
 "error.missingSevenZip" = "7-Zip command line tool was not found. Install 7zz with Homebrew to handle .7z archives.";
 "error.missingRarTool" = "RAR command line tool was not found. Install rar to create RAR archives.";
 "error.invalidSevenZipVolumeSize" = "Split volume size must look like 100m, 2g, or 512k.";
@@ -118,6 +118,15 @@
 "error.defaultAppFailed" = "Could not set SimpleZip as the default app for %@. Launch Services returned %d.";
 "status.extractingSelected" = "Extracting %d selected items";
 "settings.section.fileAssociations" = "File Associations";
+"status.openingArchiveItem" = "Opening %@";
+"status.openedArchiveItem" = "Opened %@";
+"error.extractedItemNotFound" = "The extracted item could not be found.";
+"error.openExtractedItemFailed" = "macOS could not open the extracted item.";
+"error.exportDestinationExists" = "A file with the same name already exists at the drop destination.";
+"status.exportingArchiveItem" = "Extracting %@ to the drop destination";
+"status.exportedArchiveItem" = "Extracted %@";
+"status.copyingFiles" = "Copying files...";
+"status.movingFiles" = "Moving files...";
 "settings.setDefaultArchiveApp" = "Set SimpleZip as Default for Archives";
 "settings.defaultArchiveAppDone" = "SimpleZip has been set as the default app for supported archive formats.";
 "settings.defaultArchiveTypeDone" = "SimpleZip has been set as the default app for %@ files.";

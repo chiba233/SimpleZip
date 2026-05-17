@@ -7,7 +7,7 @@
 "error.openFolderFirst" = "Öffne zuerst einen Ordner und wähle dann die zu komprimierenden Dateien aus.";
 "error.selectFilesToArchive" = "Wähle eine oder mehrere Dateien oder Ordner aus, die zum Archiv hinzugefügt werden sollen.";
 "error.openOrSelectArchive" = "Öffne oder wähle zuerst ein unterstütztes Archiv aus.";
-"error.unsupportedFormat" = "Diese erste Version unterstützt .zip-Dateien sowie .7z, wenn 7-Zip installiert ist.";
+"error.unsupportedFormat" = "Das aktuelle Backend unterstützt dieses Archivformat nicht.";
 "error.missingSevenZip" = "Das 7-Zip-Kommandozeilenwerkzeug wurde nicht gefunden. Installiere 7zz mit Homebrew, um .7z-Archive zu verarbeiten.";
 "error.invalidSevenZipVolumeSize" = "Die Größe eines geteilten Volumes muss wie 100m, 2g oder 512k aussehen.";
 "error.singleFileCompressionRequiresSingleFile" = "Dieses Format kann jeweils nur eine normale Datei komprimieren.";
@@ -116,6 +116,15 @@
 "error.defaultAppFailed" = "SimpleZip konnte nicht als Standard-App für %@ gesetzt werden. Launch Services meldete %d.";
 "status.extractingSelected" = "%d ausgewählte Elemente werden entpackt";
 "settings.section.fileAssociations" = "Dateizuordnungen";
+"status.openingArchiveItem" = "%@ wird geöffnet";
+"status.openedArchiveItem" = "%@ geöffnet";
+"error.extractedItemNotFound" = "Das temporär entpackte Element wurde nicht gefunden.";
+"error.openExtractedItemFailed" = "macOS konnte das temporär entpackte Element nicht öffnen.";
+"error.exportDestinationExists" = "Am Ablageziel existiert bereits eine Datei mit demselben Namen.";
+"status.exportingArchiveItem" = "%@ wird an das Ablageziel entpackt";
+"status.exportedArchiveItem" = "%@ entpackt";
+"status.copyingFiles" = "Dateien werden kopiert...";
+"status.movingFiles" = "Dateien werden bewegt...";
 "settings.setDefaultArchiveApp" = "SimpleZip als Standard-App für Archive festlegen";
 "settings.defaultArchiveAppDone" = "SimpleZip wurde als Standard-App für unterstützte Archivformate festgelegt.";
 "settings.defaultArchiveTypeDone" = "SimpleZip wurde als Standard-App für %@-Dateien festgelegt.";

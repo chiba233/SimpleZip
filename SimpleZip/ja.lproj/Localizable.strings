@@ -7,7 +7,7 @@
 "error.openFolderFirst" = "先にフォルダを開き、圧縮するファイルを選択してください。";
 "error.selectFilesToArchive" = "アーカイブに追加するファイルまたはフォルダを1つ以上選択してください。";
 "error.openOrSelectArchive" = "対応しているアーカイブを開くか選択してください。";
-"error.unsupportedFormat" = "この初期版は .zip に対応しています。7-Zip がインストールされている場合は .7z も扱えます。";
+"error.unsupportedFormat" = "現在のバックエンドではこのアーカイブ形式を扱えません。";
 "error.missingSevenZip" = "7-Zip のコマンドラインツールが見つかりません。.7z アーカイブを扱うには Homebrew で 7zz をインストールしてください。";
 "error.invalidSevenZipVolumeSize" = "分割サイズは 100m、2g、512k のような形式で入力してください。";
 "error.singleFileCompressionRequiresSingleFile" = "この形式は通常ファイルを 1 つだけ圧縮できます。";
@@ -116,6 +116,15 @@
 "error.defaultAppFailed" = "%@ の既定アプリを SimpleZip に設定できませんでした。Launch Services が %d を返しました。";
 "status.extractingSelected" = "%d 個の選択項目を展開中";
 "settings.section.fileAssociations" = "ファイルの関連付け";
+"status.openingArchiveItem" = "%@ を開いています";
+"status.openedArchiveItem" = "%@ を開きました";
+"error.extractedItemNotFound" = "一時展開した項目が見つかりません。";
+"error.openExtractedItemFailed" = "macOS が一時展開した項目を開けませんでした。";
+"error.exportDestinationExists" = "ドロップ先に同じ名前のファイルがすでにあります。";
+"status.exportingArchiveItem" = "%@ をドロップ先に展開しています";
+"status.exportedArchiveItem" = "%@ を展開しました";
+"status.copyingFiles" = "ファイルをコピー中...";
+"status.movingFiles" = "ファイルを移動中...";
 "settings.setDefaultArchiveApp" = "SimpleZip をアーカイブの既定アプリに設定";
 "settings.defaultArchiveAppDone" = "対応するアーカイブ形式の既定アプリを SimpleZip に設定しました。";
 "settings.defaultArchiveTypeDone" = "%@ ファイルの既定アプリを SimpleZip に設定しました。";

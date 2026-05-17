@@ -7,7 +7,7 @@
 "error.openFolderFirst" = "Сначала откройте папку, затем выберите файлы для сжатия.";
 "error.selectFilesToArchive" = "Выберите один или несколько файлов или папок для добавления в архив.";
 "error.openOrSelectArchive" = "Сначала откройте или выберите поддерживаемый архив.";
-"error.unsupportedFormat" = "Первая версия поддерживает файлы .zip, а также .7z при установленном 7-Zip.";
+"error.unsupportedFormat" = "Текущий бэкенд не поддерживает этот формат архива.";
 "error.missingSevenZip" = "Не найден инструмент командной строки 7-Zip. Установите 7zz через Homebrew для работы с архивами .7z.";
 "error.invalidSevenZipVolumeSize" = "Размер тома должен выглядеть как 100m, 2g или 512k.";
 "error.singleFileCompressionRequiresSingleFile" = "Этот формат умеет сжимать только один обычный файл за раз.";
@@ -116,6 +116,15 @@
 "error.defaultAppFailed" = "Не удалось назначить SimpleZip приложением по умолчанию для %@. Launch Services вернул %d.";
 "status.extractingSelected" = "Распаковка %d выбранных элементов";
 "settings.section.fileAssociations" = "Связи файлов";
+"status.openingArchiveItem" = "Открытие %@";
+"status.openedArchiveItem" = "%@ открыт";
+"error.extractedItemNotFound" = "Не удалось найти временно распакованный элемент.";
+"error.openExtractedItemFailed" = "macOS не удалось открыть временно распакованный элемент.";
+"error.exportDestinationExists" = "В месте сброса уже есть файл с таким именем.";
+"status.exportingArchiveItem" = "Распаковка %@ в место сброса";
+"status.exportedArchiveItem" = "%@ распакован";
+"status.copyingFiles" = "Копирование файлов...";
+"status.movingFiles" = "Перемещение файлов...";
 "settings.setDefaultArchiveApp" = "Сделать SimpleZip приложением по умолчанию для архивов";
 "settings.defaultArchiveAppDone" = "SimpleZip назначен приложением по умолчанию для поддерживаемых архивных форматов.";
 "settings.defaultArchiveTypeDone" = "SimpleZip назначен приложением по умолчанию для файлов %@.";

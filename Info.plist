@@ -18,6 +18,23 @@
 				<string>tgz</string>
 				<string>bz2</string>
 				<string>xz</string>
+				<string>rar</string>
+				<string>dmg</string>
+				<string>001</string>
+				<string>002</string>
+				<string>003</string>
+				<string>004</string>
+				<string>005</string>
+				<string>z01</string>
+				<string>z02</string>
+				<string>z03</string>
+				<string>z04</string>
+				<string>z05</string>
+				<string>r00</string>
+				<string>r01</string>
+				<string>r02</string>
+				<string>r03</string>
+				<string>r04</string>
 			</array>
 			<key>CFBundleTypeIconSystemGenerated</key>
 			<true/>

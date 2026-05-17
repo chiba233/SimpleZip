@@ -7,7 +7,7 @@
 "error.openFolderFirst" = "Abre primero una carpeta y luego selecciona los archivos para comprimir.";
 "error.selectFilesToArchive" = "Selecciona uno o más archivos o carpetas para añadir al archivo comprimido.";
 "error.openOrSelectArchive" = "Abre o selecciona primero un archivo comprimido compatible.";
-"error.unsupportedFormat" = "Esta primera versión admite archivos .zip y también .7z cuando 7-Zip está instalado.";
+"error.unsupportedFormat" = "El backend actual no admite este formato de archivo comprimido.";
 "error.missingSevenZip" = "No se encontró la herramienta de línea de comandos de 7-Zip. Instala 7zz con Homebrew para manejar archivos .7z.";
 "error.invalidSevenZipVolumeSize" = "El tamaño del volumen dividido debe tener un formato como 100m, 2g o 512k.";
 "error.singleFileCompressionRequiresSingleFile" = "Este formato solo puede comprimir un archivo normal cada vez.";
@@ -116,6 +116,15 @@
 "error.defaultAppFailed" = "No se pudo establecer SimpleZip como app predeterminada para %@. Launch Services devolvió %d.";
 "status.extractingSelected" = "Extrayendo %d elementos seleccionados";
 "settings.section.fileAssociations" = "Asociaciones de archivos";
+"status.openingArchiveItem" = "Abriendo %@";
+"status.openedArchiveItem" = "%@ abierto";
+"error.extractedItemNotFound" = "No se pudo encontrar el elemento extraído temporalmente.";
+"error.openExtractedItemFailed" = "macOS no pudo abrir el elemento extraído temporalmente.";
+"error.exportDestinationExists" = "Ya existe un archivo con el mismo nombre en el destino.";
+"status.exportingArchiveItem" = "Extrayendo %@ en el destino";
+"status.exportedArchiveItem" = "%@ extraído";
+"status.copyingFiles" = "Copiando archivos...";
+"status.movingFiles" = "Moviendo archivos...";
 "settings.setDefaultArchiveApp" = "Establecer SimpleZip como app predeterminada para archivos comprimidos";
 "settings.defaultArchiveAppDone" = "SimpleZip se ha establecido como app predeterminada para los formatos de archivo compatibles.";
 "settings.defaultArchiveTypeDone" = "SimpleZip se ha establecido como app predeterminada para archivos %@.";

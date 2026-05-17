@@ -42,6 +42,7 @@ final class ArchiveBrowserModel: ObservableObject {
     private var operationTask: Task<Void, Never>?
     private var activeOperationID: UUID?
     private var mountedDiskImage: MountedDiskImageSession?
+    private var openedArchiveItemDirectories: [URL] = []
 
     init() {
         mode = .folder(AppPreferences.defaultStartupURL(fileManager: fileManager))
@@ -49,6 +50,12 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     deinit {
+        let openedArchiveItemDirectories = openedArchiveItemDirectories
+        Task.detached {
+            for directory in openedArchiveItemDirectories {
+                try? FileManager.default.removeItem(at: directory)
+            }
+        }
         if let mountedDiskImage {
             Task.detached {
                 try? await ArchiveService.detachDiskImage(at: mountedDiskImage.mountPoint)
@@ -219,10 +226,79 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     func open(_ item: ArchiveItem) {
-        guard item.isDirectory else { return }
+        if item.isDirectory, !isOpenableArchiveDirectoryPackage(item) {
+            openArchiveDirectory(item)
+            return
+        }
+        openArchiveItemExternally(item)
+    }
+
+    private func openArchiveDirectory(_ item: ArchiveItem) {
         archivePath = normalizedDirectoryPrefix(item.name)
         selectedArchiveRows.removeAll()
         refreshArchiveItems()
+    }
+
+    private func openArchiveItemExternally(_ item: ArchiveItem) {
+        guard case .archive(let archiveURL) = mode else { return }
+
+        let entries = item.isDirectory ? expandedArchiveItems(for: item) : [item]
+        guard !entries.isEmpty else { return }
+
+        startOperationTask(cancellable: true) { [weak self] in
+            guard let self else { return }
+            await runArchiveTask(L10n.format("status.openingArchiveItem", item.displayName)) { progress in
+                let destination = try self.makeArchiveItemOpenDirectory()
+                self.openedArchiveItemDirectories.append(destination)
+                try await ArchiveService.extract(
+                    archiveURL,
+                    entries: entries,
+                    to: destination,
+                    overwriteBehavior: .overwrite,
+                    pathMode: .preserve,
+                    progress: progress
+                )
+
+                let extractedURL = try self.extractedURL(for: item, in: destination)
+                guard NSWorkspace.shared.open(extractedURL) else {
+                    throw ArchiveError.openExtractedItemFailed
+                }
+            }
+            if status == L10n.text("status.done") {
+                status = L10n.format("status.openedArchiveItem", item.displayName)
+            }
+        }
+    }
+
+    func exportArchiveItem(_ item: ArchiveItem, to destinationFolder: URL) async throws {
+        guard case .archive(let archiveURL) = mode else {
+            throw ArchiveError.unsupportedFormat
+        }
+
+        let entries = item.isDirectory ? expandedArchiveItems(for: item) : [item]
+        guard !entries.isEmpty else {
+            throw ArchiveError.extractedItemNotFound
+        }
+
+        status = L10n.format("status.exportingArchiveItem", item.displayName)
+        let stagingURL = try extractionCoordinator.makeExtractionStagingDirectory()
+        defer { try? fileManager.removeItem(at: stagingURL) }
+
+        try await ArchiveService.extract(
+            archiveURL,
+            entries: entries,
+            to: stagingURL,
+            overwriteBehavior: .overwrite,
+            pathMode: .preserve
+        )
+
+        let extractedURL = try extractedURL(for: item, in: stagingURL)
+        let destinationURL = destinationFolder.appendingPathComponent(item.displayName)
+        if fileManager.fileExists(atPath: destinationURL.path) {
+            throw ArchiveError.exportDestinationExists
+        }
+        try fileManager.moveItem(at: extractedURL, to: destinationURL)
+        status = L10n.format("status.exportedArchiveItem", item.displayName)
     }
 
     func openSelectedItem() {
@@ -691,6 +767,49 @@ final class ArchiveBrowserModel: ObservableObject {
         }
     }
 
+    func dropFileURLs(_ urls: [URL], to destinationFolder: URL, shouldMove: Bool) {
+        guard !urls.isEmpty else { return }
+        startOperationTask(cancellable: true) { [weak self] in
+            guard let self else { return }
+            isWorking = true
+            errorMessage = nil
+            status = shouldMove ? L10n.text("status.movingFiles") : L10n.text("status.copyingFiles")
+            operationProgress = ArchiveProgressState(fraction: 0, currentFile: nil)
+            defer {
+                isWorking = false
+                operationProgress = ArchiveProgressState()
+            }
+
+            do {
+                let total = max(1, urls.count)
+                for (index, url) in urls.enumerated() {
+                    try Task.checkCancellation()
+                    operationProgress = ArchiveProgressState(fraction: Double(index) / Double(total), currentFile: url.lastPathComponent)
+                    if shouldMove && url.deletingLastPathComponent().standardizedFileURL == destinationFolder.standardizedFileURL {
+                        continue
+                    }
+                    let targetURL = extractionCoordinator.uniqueDestinationURL(for: url.lastPathComponent, in: destinationFolder)
+                    if shouldMove {
+                        try fileManager.moveItem(at: url, to: targetURL)
+                    } else {
+                        try fileManager.copyItem(at: url, to: targetURL)
+                    }
+                }
+                operationProgress = ArchiveProgressState(fraction: 1, currentFile: nil)
+                status = L10n.text("status.done")
+                if case .folder(let currentFolder) = mode, currentFolder.standardizedFileURL == destinationFolder.standardizedFileURL {
+                    reload()
+                }
+            } catch is CancellationError {
+                errorMessage = nil
+                status = L10n.text("status.cancelled")
+            } catch {
+                errorMessage = error.localizedDescription
+                status = L10n.text("status.failed")
+            }
+        }
+    }
+
     /// 加载本地文件夹内容，并按“文件夹优先、名称自然排序”展示。
     private func loadFolder(_ url: URL) {
         do {
@@ -848,21 +967,22 @@ final class ArchiveBrowserModel: ObservableObject {
 
     /// 选中压缩包内目录时，展开成目录下所有项目，避免后端只收到目录占位项。
     private func expandedSelectedArchiveItems() -> [ArchiveItem] {
-        let selectedItems = selectedArchiveItems
-        let expanded = selectedItems.flatMap { item -> [ArchiveItem] in
-            guard item.isDirectory else { return [item] }
-
-            let prefix = normalizedDirectoryPrefix(item.name)
-            let children = allArchiveItems.filter { child in
-                let childName = normalizedEntryName(child.name, isDirectory: child.isDirectory)
-                return childName.hasPrefix(prefix) && childName != prefix
-            }
-            return children.isEmpty ? [item] : children
-        }
+        let expanded = selectedArchiveItems.flatMap(expandedArchiveItems)
 
         return Array(Set(expanded)).sorted { lhs, rhs in
             lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
         }
+    }
+
+    private func expandedArchiveItems(for item: ArchiveItem) -> [ArchiveItem] {
+        guard item.isDirectory else { return [item] }
+
+        let prefix = normalizedDirectoryPrefix(item.name)
+        let children = allArchiveItems.filter { child in
+            let childName = normalizedEntryName(child.name, isDirectory: child.isDirectory)
+            return childName.hasPrefix(prefix) && childName != prefix
+        }
+        return children.isEmpty ? [item] : children
     }
 
     /// 根据压缩包内当前路径生成“这一层”的列表，并自动补齐缺失的目录节点。
@@ -945,6 +1065,51 @@ final class ArchiveBrowserModel: ObservableObject {
         let trimmedName = name.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         if trimmedName.isEmpty { return "" }
         return isDirectory ? trimmedName + "/" : trimmedName
+    }
+
+    private func isOpenableArchiveDirectoryPackage(_ item: ArchiveItem) -> Bool {
+        guard item.isDirectory else { return false }
+        let ext = URL(fileURLWithPath: item.displayName).pathExtension
+        guard let type = UTType(filenameExtension: ext) else { return false }
+        return type.conforms(to: .package) || type.conforms(to: .applicationBundle)
+    }
+
+    private func makeArchiveItemOpenDirectory() throws -> URL {
+        let root = fileManager.temporaryDirectory
+            .appendingPathComponent("SimpleZipArchiveOpen", isDirectory: true)
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try fileManager.createDirectory(at: root, withIntermediateDirectories: true)
+        return root
+    }
+
+    private func extractedURL(for item: ArchiveItem, in destination: URL) throws -> URL {
+        let relativePath = item.isDirectory
+            ? normalizedDirectoryPrefix(item.name).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            : normalizedEntryName(item.name, isDirectory: false)
+        let expectedURL = destination.appendingPathComponent(relativePath)
+        if fileManager.fileExists(atPath: expectedURL.path) {
+            return expectedURL
+        }
+
+        if let fallbackURL = firstExtractedURL(named: item.displayName, in: destination) {
+            return fallbackURL
+        }
+        throw ArchiveError.extractedItemNotFound
+    }
+
+    private func firstExtractedURL(named fileName: String, in directory: URL) -> URL? {
+        guard let enumerator = fileManager.enumerator(
+            at: directory,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        ) else {
+            return nil
+        }
+
+        for case let url as URL in enumerator where url.lastPathComponent == fileName {
+            return url
+        }
+        return nil
     }
 
     private func nextLoadGeneration() -> Int {

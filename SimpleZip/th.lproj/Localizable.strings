@@ -7,7 +7,7 @@
 "error.openFolderFirst" = "เปิดโฟลเดอร์ก่อน แล้วเลือกไฟล์ที่ต้องการบีบอัด";
 "error.selectFilesToArchive" = "เลือกไฟล์หรือโฟลเดอร์อย่างน้อยหนึ่งรายการเพื่อเพิ่มลงในไฟล์บีบอัด";
 "error.openOrSelectArchive" = "เปิดหรือเลือกไฟล์บีบอัดที่รองรับก่อน";
-"error.unsupportedFormat" = "เวอร์ชันแรกนี้รองรับไฟล์ .zip และรองรับ .7z เมื่อติดตั้ง 7-Zip แล้ว";
+"error.unsupportedFormat" = "แบ็กเอนด์ปัจจุบันไม่รองรับรูปแบบไฟล์บีบอัดนี้";
 "error.missingSevenZip" = "ไม่พบเครื่องมือบรรทัดคำสั่ง 7-Zip ติดตั้ง 7zz ด้วย Homebrew เพื่อจัดการไฟล์ .7z";
 "error.invalidSevenZipVolumeSize" = "ขนาดการแบ่งไฟล์ต้องอยู่ในรูปแบบเช่น 100m, 2g หรือ 512k";
 "error.singleFileCompressionRequiresSingleFile" = "รูปแบบนี้บีบอัดได้ครั้งละไฟล์ปกติเพียงไฟล์เดียว";
@@ -116,6 +116,15 @@
 "error.defaultAppFailed" = "ไม่สามารถตั้ง SimpleZip เป็นแอปเริ่มต้นสำหรับ %@ ได้ Launch Services ส่งกลับ %d";
 "status.extractingSelected" = "กำลังแตก %d รายการที่เลือก";
 "settings.section.fileAssociations" = "การเชื่อมโยงไฟล์";
+"status.openingArchiveItem" = "กำลังเปิด %@";
+"status.openedArchiveItem" = "เปิด %@ แล้ว";
+"error.extractedItemNotFound" = "ไม่พบรายการที่แตกไฟล์ชั่วคราว";
+"error.openExtractedItemFailed" = "macOS ไม่สามารถเปิดรายการที่แตกไฟล์ชั่วคราวได้";
+"error.exportDestinationExists" = "มีไฟล์ชื่อเดียวกันอยู่ที่ปลายทางแล้ว";
+"status.exportingArchiveItem" = "กำลังแตก %@ ไปยังตำแหน่งที่ปล่อย";
+"status.exportedArchiveItem" = "แตก %@ แล้ว";
+"status.copyingFiles" = "กำลังคัดลอกไฟล์...";
+"status.movingFiles" = "กำลังย้ายไฟล์...";
 "settings.setDefaultArchiveApp" = "ตั้ง SimpleZip เป็นแอปเริ่มต้นสำหรับไฟล์บีบอัด";
 "settings.defaultArchiveAppDone" = "ตั้ง SimpleZip เป็นแอปเริ่มต้นสำหรับรูปแบบไฟล์บีบอัดที่รองรับแล้ว";
 "settings.defaultArchiveTypeDone" = "ตั้ง SimpleZip เป็นแอปเริ่มต้นสำหรับไฟล์ %@ แล้ว";
