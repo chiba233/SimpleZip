@@ -107,6 +107,10 @@ final class ArchiveExtractionCoordinator {
         updateStatus(L10n.text("status.mergingExtractedFiles"))
         updateProgress(ArchiveProgressState(fraction: nil, currentFile: destinationURL.lastPathComponent))
         try fileManager.createDirectory(at: destinationURL, withIntermediateDirectories: true)
+        let unsafeLinks = try ArchiveSafety.unsafeLinks(in: stagingURL, fileManager: fileManager)
+        if !unsafeLinks.isEmpty, !confirmUnsafeArchiveLinks(unsafeLinks) {
+            throw CocoaError(.userCancelled)
+        }
 
         let extractedURLs = try fileManager.contentsOfDirectory(
             at: stagingURL,
@@ -203,6 +207,16 @@ final class ArchiveExtractionCoordinator {
         default:
             return .cancel
         }
+    }
+
+    private func confirmUnsafeArchiveLinks(_ names: [String]) -> Bool {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = L10n.text("confirm.unsafeArchiveLinks.title")
+        alert.informativeText = L10n.format("confirm.unsafeArchiveLinks.message", Array(names.prefix(5)).joined(separator: ", "))
+        alert.addButton(withTitle: L10n.text("button.continue"))
+        alert.addButton(withTitle: L10n.text("button.cancel"))
+        return alert.runModal() == .alertFirstButtonReturn
     }
 
     private func trashExistingItem(at url: URL) throws {

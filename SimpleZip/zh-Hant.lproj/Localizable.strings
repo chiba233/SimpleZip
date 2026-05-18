@@ -121,6 +121,8 @@
 "error.extractedItemNotFound" = "找不到暫時解出的項目。";
 "error.openExtractedItemFailed" = "macOS 無法開啟暫時解出的項目。";
 "error.exportDestinationExists" = "拖放目標位置已有同名檔案。";
+"error.unsafeArchiveEntries" = "SimpleZip 已阻止解壓縮，因為壓縮檔包含不安全路徑：%@";
+"error.unsafeArchiveLinks" = "SimpleZip 已阻止解壓縮，因為壓縮檔包含符號連結：%@";
 "status.exportingArchiveItem" = "正在把 %@ 解壓縮到拖放位置";
 "status.exportedArchiveItem" = "已解壓縮 %@";
 "status.copyingFiles" = "正在複製檔案...";
@@ -212,6 +214,7 @@
 "extract.path.flatten" = "只將檔案解壓縮到目標資料夾";
 "button.choose" = "選擇...";
 "button.cancel" = "取消";
+"button.continue" = "繼續";
 "button.create" = "建立";
 "operation.showDetails" = "顯示詳情";
 "details.commandOutput" = "命令輸出";
@@ -227,6 +230,12 @@
 "confirm.delete.message" = "選取的檔案會進入 macOS 垃圾桶，不會直接 rm 刪除。";
 "confirm.pasteConflict.title" = "「%@」已存在";
 "confirm.pasteConflict.message" = "請選擇 SimpleZip 如何處理這個同名衝突。";
+"confirm.openUnsafeArchiveItem.title" = "要從暫時副本開啟「%@」嗎？";
+"confirm.openUnsafeArchiveItem.message" = "這個項目可能執行程式碼或載入主動內容。只有在你信任壓縮檔來源時才應開啟。";
+"confirm.unsafeArchiveEntries.title" = "這個壓縮檔包含不安全路徑";
+"confirm.unsafeArchiveEntries.message" = "部分項目嘗試使用絕對路徑或上層目錄片段：%@。只有在你信任這個壓縮檔時才應繼續。";
+"confirm.unsafeArchiveLinks.title" = "這個壓縮檔包含符號連結";
+"confirm.unsafeArchiveLinks.message" = "符號連結可能指向解壓縮目錄外部：%@。只有在你信任這個壓縮檔時才應繼續。";
 "conflict.replace" = "覆蓋";
 "conflict.keepBoth" = "保留兩者";
 "conflict.skip" = "略過";

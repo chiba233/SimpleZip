@@ -123,6 +123,8 @@
 "error.extractedItemNotFound" = "The extracted item could not be found.";
 "error.openExtractedItemFailed" = "macOS could not open the extracted item.";
 "error.exportDestinationExists" = "A file with the same name already exists at the drop destination.";
+"error.unsafeArchiveEntries" = "SimpleZip blocked extraction because the archive contains unsafe paths: %@";
+"error.unsafeArchiveLinks" = "SimpleZip blocked extraction because the archive contains symbolic links: %@";
 "status.exportingArchiveItem" = "Extracting %@ to the drop destination";
 "status.exportedArchiveItem" = "Extracted %@";
 "status.copyingFiles" = "Copying files...";
@@ -229,6 +231,7 @@
 "extract.path.flatten" = "Extract files into destination only";
 "button.choose" = "Choose...";
 "button.cancel" = "Cancel";
+"button.continue" = "Continue";
 "button.create" = "Create";
 "operation.showDetails" = "Show details";
 "details.commandOutput" = "Command Output";
@@ -244,6 +247,12 @@
 "confirm.delete.message" = "The selected files will be moved to the macOS Trash.";
 "confirm.pasteConflict.title" = "\"%@\" already exists";
 "confirm.pasteConflict.message" = "Choose how SimpleZip should handle this name conflict.";
+"confirm.openUnsafeArchiveItem.title" = "Open \"%@\" from a temporary archive copy?";
+"confirm.openUnsafeArchiveItem.message" = "This item can run code or load active content. Only open it if you trust the archive source.";
+"confirm.unsafeArchiveEntries.title" = "This archive contains unsafe paths";
+"confirm.unsafeArchiveEntries.message" = "Some entries try to use absolute paths or parent-directory segments: %@. Continue only if you trust this archive.";
+"confirm.unsafeArchiveLinks.title" = "This archive contains symbolic links";
+"confirm.unsafeArchiveLinks.message" = "Symbolic links can point outside the extracted folder: %@. Continue only if you trust this archive.";
 "conflict.replace" = "Replace";
 "conflict.keepBoth" = "Keep Both";
 "conflict.skip" = "Skip";

@@ -56,6 +56,11 @@
   - The Add to Archive window is compact again: password controls now expand only when needed, 7-Zip advanced options are collapsible, and the sheet no longer grows to an oversized height.
   - RAR creation now probes bundled, application-bundled, and system `rar` binaries instead of only one path, and shows a clear disabled-state message when no RAR backend is available.
 - **Reliability**
+  - Added a visible Xcode `SimpleZipCoreTests` target that runs the SwiftPM core regression suite.
+  - Expanded core tests to cover command-line argument splitting, volume-size validation, custom excludes, exclude counting, and RAR creation arguments.
+  - Added startup cleanup for stale temporary directories created when opening archive entries as external temporary copies.
+  - Added active safety confirmations for suspicious archive paths, extracted symbolic links, and executable or active-content items opened from temporary archive copies.
+  - Documented the current security model, archive compatibility matrix, progress limitations, and architecture refactor boundaries.
   - Cleaned up Swift concurrency warnings in the archive command runner and added a shared Xcode run scheme that hides OS activity noise during debug launches.
   - Backend path detection no longer launches `which` during Settings rendering, avoiding main-thread `Process.waitUntilExit()` stalls.
   - DMG mount and detach operations now run through the async command path so opening disk images does not block the main thread.

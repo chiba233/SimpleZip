@@ -121,6 +121,8 @@
 "error.extractedItemNotFound" = "找不到临时解出的项目。";
 "error.openExtractedItemFailed" = "macOS 无法打开临时解出的项目。";
 "error.exportDestinationExists" = "拖放目标位置已有同名文件。";
+"error.unsafeArchiveEntries" = "SimpleZip 已阻止解压，因为压缩包包含不安全路径：%@";
+"error.unsafeArchiveLinks" = "SimpleZip 已阻止解压，因为压缩包包含符号链接：%@";
 "status.exportingArchiveItem" = "正在把 %@ 解压到拖放位置";
 "status.exportedArchiveItem" = "已解压 %@";
 "status.copyingFiles" = "正在复制文件...";
@@ -212,6 +214,7 @@
 "extract.path.flatten" = "仅解压文件到目标目录";
 "button.choose" = "选择...";
 "button.cancel" = "取消";
+"button.continue" = "继续";
 "button.create" = "创建";
 "operation.showDetails" = "显示详情";
 "details.commandOutput" = "命令输出";
@@ -227,6 +230,12 @@
 "confirm.delete.message" = "选中的文件会进入 macOS 废纸篓，不会直接 rm 删除。";
 "confirm.pasteConflict.title" = "“%@”已经存在";
 "confirm.pasteConflict.message" = "请选择 SimpleZip 如何处理这个同名冲突。";
+"confirm.openUnsafeArchiveItem.title" = "要从临时副本打开“%@”吗？";
+"confirm.openUnsafeArchiveItem.message" = "这个项目可能运行代码或加载主动内容。只有在你信任压缩包来源时才应打开。";
+"confirm.unsafeArchiveEntries.title" = "这个压缩包包含不安全路径";
+"confirm.unsafeArchiveEntries.message" = "部分项目试图使用绝对路径或上级目录片段：%@。只有在你信任这个压缩包时才应继续。";
+"confirm.unsafeArchiveLinks.title" = "这个压缩包包含符号链接";
+"confirm.unsafeArchiveLinks.message" = "符号链接可能指向解压目录外部：%@。只有在你信任这个压缩包时才应继续。";
 "conflict.replace" = "覆盖";
 "conflict.keepBoth" = "保留两者";
 "conflict.skip" = "跳过";

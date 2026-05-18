@@ -28,6 +28,11 @@ enum ArchiveService {
         let url: URL
         let backend: ArchiveBackendKind
     }
+
+    enum ExtractionSafetyPolicy {
+        case validate
+        case skipValidation
+    }
     
     private final class OutputAccumulator: @unchecked Sendable {
         private let lock = NSLock()
@@ -203,10 +208,14 @@ enum ArchiveService {
         to destination: URL,
         overwriteBehavior: OverwriteBehavior = .overwrite,
         password: String = "",
+        safetyPolicy: ExtractionSafetyPolicy = .validate,
         progress: @escaping @Sendable (ArchiveProgressState) -> Void = { _ in },
         outputObserver: (@Sendable (String) -> Void)? = nil
     ) async throws {
         let resolved = try resolvedArchiveInputOrThrow(for: archive)
+        if safetyPolicy == .validate {
+            try ArchiveSafety.validateForExtraction(try await list(resolved.url))
+        }
         let parser = ProgressOutputParser(totalFiles: nil, progress: progress)
         switch resolved.backend {
         case .zipNative:
@@ -214,6 +223,9 @@ enum ArchiveService {
             let arguments = [overwriteArgument, resolved.url.path, "-d", destination.path]
             let inputStrategy: ProcessInputStrategy = password.isEmpty ? .none : .passwordPrompts([password])
             try await run("/usr/bin/unzip", arguments: arguments, progressParser: parser, inputStrategy: inputStrategy, outputObserver: outputObserver)
+            if safetyPolicy == .validate {
+                try ArchiveSafety.validateExtractedTree(at: destination)
+            }
         case .sevenZip:
             let tool = try sevenZipTool()
             let overwriteArgument = sevenZipOverwriteArgument(for: overwriteBehavior)
@@ -223,10 +235,16 @@ enum ArchiveService {
             }
             let inputStrategy: ProcessInputStrategy = password.isEmpty ? .none : .passwordPrompts([password])
             try await run(tool, arguments: arguments, progressParser: parser, inputStrategy: inputStrategy, outputObserver: outputObserver)
+            if safetyPolicy == .validate {
+                try ArchiveSafety.validateExtractedTree(at: destination)
+            }
         case .diskImage:
             let mountPoint = try await mountDiskImage(resolved.url)
             do {
                 try copyDiskImageContents(from: mountPoint, to: destination, progress: progress)
+                if safetyPolicy == .validate {
+                    try ArchiveSafety.validateExtractedTree(at: destination)
+                }
                 try await detachDiskImage(at: mountPoint)
             } catch {
                 try? await detachDiskImage(at: mountPoint)
@@ -242,10 +260,14 @@ enum ArchiveService {
         overwriteBehavior: OverwriteBehavior = .overwrite,
         pathMode: ExtractPathMode = .preserve,
         password: String = "",
+        safetyPolicy: ExtractionSafetyPolicy = .validate,
         progress: @escaping @Sendable (ArchiveProgressState) -> Void = { _ in },
         outputObserver: (@Sendable (String) -> Void)? = nil
     ) async throws {
         let resolved = try resolvedArchiveInputOrThrow(for: archive)
+        if safetyPolicy == .validate {
+            try ArchiveSafety.validateForExtraction(entries)
+        }
         let entryNames = expandedEntryNames(for: entries)
         guard !entryNames.isEmpty else { return }
         let parser = ProgressOutputParser(totalFiles: max(1, entryNames.count), progress: progress)
@@ -268,6 +290,9 @@ enum ArchiveService {
             if pathMode == .flatten {
                 try flattenExtractedItems(entryNames: entryNames, in: destination)
             }
+            if safetyPolicy == .validate {
+                try ArchiveSafety.validateExtractedTree(at: destination)
+            }
         case .sevenZip:
             let tool = try sevenZipTool()
             let overwriteArgument = sevenZipOverwriteArgument(for: overwriteBehavior)
@@ -279,6 +304,9 @@ enum ArchiveService {
             }
             let inputStrategy: ProcessInputStrategy = password.isEmpty ? .none : .passwordPrompts([password])
             try await run(tool, arguments: arguments, progressParser: parser, inputStrategy: inputStrategy, outputObserver: outputObserver)
+            if safetyPolicy == .validate {
+                try ArchiveSafety.validateExtractedTree(at: destination)
+            }
         case .diskImage:
             throw ArchiveError.unsupportedFormat
         }

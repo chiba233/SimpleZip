@@ -62,6 +62,10 @@ Inside an archive:
 Package-style directories such as `.app` and `.pkg` are treated as openable items when possible instead of only as plain
 folders.
 
+Opened archive entries are temporary copies. Editing the file opened by macOS does not write changes back into the
+archive. SimpleZip cleans stale temporary open directories at startup, but users should treat this feature as preview /
+open-with convenience rather than archive editing.
+
 ### Extract
 
 Whole-archive extraction and selected-entry extraction share the same options form:
@@ -74,6 +78,9 @@ Whole-archive extraction and selected-entry extraction share the same options fo
 
 Extraction stages files in a temporary directory first, then merges them into the destination. That gives SimpleZip a
 chance to show conflict handling instead of letting the backend overwrite files silently.
+
+Progress is best-effort. SimpleZip parses backend output when possible, but different tools, formats, and versions may
+only provide indeterminate progress or may jump between percentages.
 
 ### Create
 
@@ -92,6 +99,57 @@ Select files or folders in the file browser and choose Add. The creation sheet s
 
 GZip, BZip2, and XZ are single-file formats. SimpleZip blocks invalid multi-file or folder selections before launching
 the backend.
+
+The exclude section has a manual Calculate action. It scans the selected sources with the current `.DS_Store`, dotfile,
+and custom exclude rules and reports how many regular files will be skipped before compression starts.
+
+## Safety Model
+
+SimpleZip is intentionally not sandboxed today (`ENABLE_APP_SANDBOX = NO`) because it is a file-management utility that
+launches command-line backends, mounts DMG files, opens temporary extracted files, and supports broad drag-and-drop
+workflows. That makes the trust boundary explicit: archives should be treated as untrusted input.
+
+Current guardrails:
+
+- extraction is staged into a temporary directory before files are merged into the requested destination;
+- merge-time conflicts are handled by SimpleZip instead of allowing silent backend overwrites;
+- passwords are not passed directly as visible command-line arguments;
+- DMG files are mounted read-only through `hdiutil`;
+- opened archive entries are extracted into a temporary copy rather than edited in-place;
+- suspicious archive entry paths (`../`, absolute paths, Windows drive paths, UNC paths) trigger a confirmation before
+  the app extracts them through the UI;
+- symbolic links found in the extracted staging tree trigger a confirmation before they are merged or opened;
+- executable bundles, installers, scripts, HTML, JavaScript, and similar active-content entries trigger a confirmation
+  before SimpleZip opens their temporary copy;
+- stale temporary open directories are removed on the next app launch.
+
+Known security-sensitive areas:
+
+- if the user confirms a suspicious-path archive, backend path traversal handling still depends on the backend during
+  the initial extraction into staging;
+- 7-Zip full path mode (`-spf`) can preserve full paths and should be used only for archives you trust;
+- symlink and hardlink preservation can point at locations outside the visible folder tree, depending on backend
+  behavior and the archive contents;
+- opening `.app`, `.pkg`, scripts, HTML, Office documents, or other active content from inside an archive still hands
+  the temporary copy to macOS or the default app after confirmation;
+- DMG contents may include bundles, hidden files, resource forks, or quarantine-sensitive metadata.
+
+Security-critical changes should include tests or a documented manual compatibility case before release.
+
+## Compatibility Matrix
+
+The project tracks compatibility by behavior rather than only by extension:
+
+| Area | Cases to keep covered |
+| --- | --- |
+| ZIP | UTF-8 names, legacy names, ZipCrypto, AES ZIP through 7-Zip, symlinks, empty directories, macOS metadata, split ZIP |
+| 7z | encrypted headers, solid archives, symlinks, large dictionaries, split volumes |
+| RAR | RAR4, RAR5, multipart archives, passworded archives, recovery-record archives when available |
+| TAR | pax headers, long paths, symlinks, hardlinks, absolute paths, compressed tar variants |
+| DMG | read-only mount, copy-out extraction, hidden files, app bundles, detach failure recovery |
+
+This matrix is not a claim that every case is fully automated yet. It is the checklist for regression fixtures and
+manual release validation as the app moves toward a more professional archive-manager surface.
 
 ## Backends
 
@@ -171,11 +229,25 @@ SimpleZip.xcodeproj
 
 Then run the `SimpleZip` scheme in Xcode.
 
+## Tests
+
+The core regression suite lives in SwiftPM as `SimpleZipCoreTests` and covers command argument generation, archive list
+parsing, split-volume normalization, exclude rules, selected-entry expansion, and basic ZIP/TAR round trips:
+
+```bash
+/usr/bin/xcrun swift test --scratch-path /private/tmp/SimpleZipSwiftPM \
+  -Xswiftc -module-cache-path -Xswiftc /private/tmp/SimpleZipSwiftPM/ModuleCache
+```
+
+The Xcode project also includes a `SimpleZipCoreTests` aggregate target so the test entry point is visible from Xcode.
+It runs the same SwiftPM suite.
+
 ## Documentation
 
 - [Chinese Guide](./GUIDE.zh-CN.md)
 - [Changelog](./CHANGELOG.md)
 - [中文更新日志](./CHANGELOG.zh-CN.md)
+- [Architecture Notes](./docs/ARCHITECTURE.md)
 - [Contributing](./CONTRIBUTING.md)
 - [Bundled Tools Notes](./SimpleZip/Tools/README.md)
 

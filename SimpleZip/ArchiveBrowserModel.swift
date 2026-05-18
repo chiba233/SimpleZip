@@ -45,6 +45,7 @@ final class ArchiveBrowserModel: ObservableObject {
     private var openedArchiveItemDirectories: [URL] = []
 
     init() {
+        TemporaryResourceManager.cleanStaleOpenedArchiveItems(fileManager: fileManager)
         mode = .folder(AppPreferences.defaultStartupURL(fileManager: fileManager))
         reload()
     }
@@ -242,6 +243,10 @@ final class ArchiveBrowserModel: ObservableObject {
     private func openArchiveItemExternally(_ item: ArchiveItem) {
         guard case .archive(let archiveURL) = mode else { return }
 
+        if ArchiveSafety.requiresExternalOpenConfirmation(item), !confirmOpeningPotentiallyUnsafeArchiveItem(item) {
+            return
+        }
+
         let entries = item.isDirectory ? expandedArchiveItems(for: item) : [item]
         guard !entries.isEmpty else { return }
 
@@ -250,14 +255,17 @@ final class ArchiveBrowserModel: ObservableObject {
             await runArchiveTask(L10n.format("status.openingArchiveItem", item.displayName)) { progress in
                 let destination = try self.makeArchiveItemOpenDirectory()
                 self.openedArchiveItemDirectories.append(destination)
+                try self.confirmArchiveExtractionSafety(entries: entries)
                 try await ArchiveService.extract(
                     archiveURL,
                     entries: entries,
                     to: destination,
                     overwriteBehavior: .overwrite,
                     pathMode: .preserve,
+                    safetyPolicy: .skipValidation,
                     progress: progress
                 )
+                try self.confirmExtractedArchiveLinks(at: destination)
 
                 let extractedURL = try self.extractedURL(for: item, in: destination)
                 guard NSWorkspace.shared.open(extractedURL) else {
@@ -284,13 +292,16 @@ final class ArchiveBrowserModel: ObservableObject {
         let stagingURL = try extractionCoordinator.makeExtractionStagingDirectory()
         defer { try? fileManager.removeItem(at: stagingURL) }
 
+        try confirmArchiveExtractionSafety(entries: entries)
         try await ArchiveService.extract(
             archiveURL,
             entries: entries,
             to: stagingURL,
             overwriteBehavior: .overwrite,
-            pathMode: .preserve
+            pathMode: .preserve,
+            safetyPolicy: .skipValidation
         )
+        try confirmExtractedArchiveLinks(at: stagingURL)
 
         let extractedURL = try extractedURL(for: item, in: stagingURL)
         let destinationURL = destinationFolder.appendingPathComponent(item.displayName)
@@ -299,6 +310,51 @@ final class ArchiveBrowserModel: ObservableObject {
         }
         try fileManager.moveItem(at: extractedURL, to: destinationURL)
         status = L10n.format("status.exportedArchiveItem", item.displayName)
+    }
+
+    private func confirmOpeningPotentiallyUnsafeArchiveItem(_ item: ArchiveItem) -> Bool {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = L10n.format("confirm.openUnsafeArchiveItem.title", item.displayName)
+        alert.informativeText = L10n.text("confirm.openUnsafeArchiveItem.message")
+        alert.addButton(withTitle: L10n.text("button.open"))
+        alert.addButton(withTitle: L10n.text("button.cancel"))
+        return alert.runModal() == .alertFirstButtonReturn
+    }
+
+    private func confirmArchiveExtractionSafety(archiveURL: URL) async throws {
+        let items = try await ArchiveService.list(archiveURL)
+        try confirmArchiveExtractionSafety(entries: items)
+    }
+
+    private func confirmArchiveExtractionSafety(entries: [ArchiveItem]) throws {
+        let unsafeNames = ArchiveSafety.unsafeEntryNames(in: entries)
+        guard !unsafeNames.isEmpty else { return }
+
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = L10n.text("confirm.unsafeArchiveEntries.title")
+        alert.informativeText = L10n.format("confirm.unsafeArchiveEntries.message", Array(unsafeNames.prefix(5)).joined(separator: ", "))
+        alert.addButton(withTitle: L10n.text("button.continue"))
+        alert.addButton(withTitle: L10n.text("button.cancel"))
+        if alert.runModal() != .alertFirstButtonReturn {
+            throw CocoaError(.userCancelled)
+        }
+    }
+
+    private func confirmExtractedArchiveLinks(at directory: URL) throws {
+        let unsafeLinks = try ArchiveSafety.unsafeLinks(in: directory, fileManager: fileManager)
+        guard !unsafeLinks.isEmpty else { return }
+
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = L10n.text("confirm.unsafeArchiveLinks.title")
+        alert.informativeText = L10n.format("confirm.unsafeArchiveLinks.message", Array(unsafeLinks.prefix(5)).joined(separator: ", "))
+        alert.addButton(withTitle: L10n.text("button.continue"))
+        alert.addButton(withTitle: L10n.text("button.cancel"))
+        if alert.runModal() != .alertFirstButtonReturn {
+            throw CocoaError(.userCancelled)
+        }
     }
 
     func openSelectedItem() {
@@ -462,12 +518,14 @@ final class ArchiveBrowserModel: ObservableObject {
                 let stagingURL = try self.extractionCoordinator.makeExtractionStagingDirectory()
                 defer { try? self.fileManager.removeItem(at: stagingURL) }
 
+                try await self.confirmArchiveExtractionSafety(archiveURL: request.archiveURL)
                 let backendOverwriteBehavior = AppPreferences.overwriteBehavior == .skipExisting ? OverwriteBehavior.skipExisting : .overwrite
                 try await ArchiveService.extract(
                     request.archiveURL,
                     to: stagingURL,
                     overwriteBehavior: backendOverwriteBehavior,
                     password: request.password,
+                    safetyPolicy: .skipValidation,
                     progress: progress,
                     outputObserver: outputObserver
                 )
@@ -519,6 +577,7 @@ final class ArchiveBrowserModel: ObservableObject {
                 let stagingURL = try self.extractionCoordinator.makeExtractionStagingDirectory()
                 defer { try? self.fileManager.removeItem(at: stagingURL) }
 
+                try self.confirmArchiveExtractionSafety(entries: request.entries)
                 let backendOverwriteBehavior = AppPreferences.overwriteBehavior == .skipExisting ? OverwriteBehavior.skipExisting : .overwrite
                 try await ArchiveService.extract(
                     request.archiveURL,
@@ -527,6 +586,7 @@ final class ArchiveBrowserModel: ObservableObject {
                     overwriteBehavior: backendOverwriteBehavior,
                     pathMode: request.pathMode,
                     password: request.password,
+                    safetyPolicy: .skipValidation,
                     progress: progress,
                     outputObserver: outputObserver
                 )
@@ -1075,11 +1135,7 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     private func makeArchiveItemOpenDirectory() throws -> URL {
-        let root = fileManager.temporaryDirectory
-            .appendingPathComponent("SimpleZipArchiveOpen", isDirectory: true)
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        try fileManager.createDirectory(at: root, withIntermediateDirectories: true)
-        return root
+        try TemporaryResourceManager.makeOpenedArchiveItemDirectory(fileManager: fileManager)
     }
 
     private func extractedURL(for item: ArchiveItem, in destination: URL) throws -> URL {

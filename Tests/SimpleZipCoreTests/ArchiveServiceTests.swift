@@ -18,6 +18,53 @@ struct ArchiveServiceTests {
     }
 
     @Test
+    func customExcludePatternsSplitLinesAndCommas() {
+        let patterns = ArchiveService.customExcludePatterns(from: " *.tmp, build/* \n\n.cache,")
+
+        #expect(patterns == ["*.tmp", "build/*", ".cache"])
+    }
+
+    @Test
+    func splitCommandLineArgumentsHandlesQuotesAndEscapes() {
+        let arguments = ArchiveService.splitCommandLineArguments(from: "-mx=9 -xr!\"My Cache\" '-foo bar' \"escaped\\\"quote\"")
+
+        #expect(arguments == ["-mx=9", "-xr!My Cache", "-foo bar", "escaped\"quote"])
+    }
+
+    @Test
+    func normalizedSevenZipVolumeSizeValidatesInput() throws {
+        #expect(try ArchiveService.normalizedSevenZipVolumeSize(from: "") == nil)
+        #expect(try ArchiveService.normalizedSevenZipVolumeSize(from: " 256M ") == "256m")
+        #expect(try ArchiveService.normalizedSevenZipVolumeSize(from: "512k") == "512k")
+        #expect(throws: ArchiveError.self) {
+            try ArchiveService.normalizedSevenZipVolumeSize(from: "two gb")
+        }
+    }
+
+    @Test
+    func excludedFileCountMatchesBuiltInAndCustomRules() throws {
+        let tempDirectory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: tempDirectory) }
+
+        let sourceDirectory = tempDirectory.appendingPathComponent("payload", isDirectory: true)
+        let nestedDirectory = sourceDirectory.appendingPathComponent("nested", isDirectory: true)
+        try FileManager.default.createDirectory(at: nestedDirectory, withIntermediateDirectories: true)
+        FileManager.default.createFile(atPath: sourceDirectory.appendingPathComponent(".DS_Store").path, contents: Data())
+        FileManager.default.createFile(atPath: sourceDirectory.appendingPathComponent(".env").path, contents: Data())
+        FileManager.default.createFile(atPath: nestedDirectory.appendingPathComponent("cache.tmp").path, contents: Data())
+        FileManager.default.createFile(atPath: nestedDirectory.appendingPathComponent("keep.txt").path, contents: Data())
+
+        var options = ArchiveCreationOptions()
+        options.skipDSStore = true
+        options.skipHiddenFiles = false
+        options.customExcludes = "*.tmp"
+        #expect(ArchiveService.excludedFileCount(in: [sourceDirectory], options: options) == 2)
+
+        options.skipHiddenFiles = true
+        #expect(ArchiveService.excludedFileCount(in: [sourceDirectory], options: options) == 3)
+    }
+
+    @Test
     func parseUnzipListCapturesRawSortFields() {
         let output = """
         Archive:  sample.zip
@@ -110,6 +157,31 @@ struct ArchiveServiceTests {
     }
 
     @Test
+    func archiveSafetyDetectsPathTraversalAndAbsoluteEntries() {
+        #expect(!ArchiveSafety.isUnsafeEntryName("safe/folder/file.txt"))
+        #expect(ArchiveSafety.isUnsafeEntryName("../escape.txt"))
+        #expect(ArchiveSafety.isUnsafeEntryName("safe/../../escape.txt"))
+        #expect(ArchiveSafety.isUnsafeEntryName("/tmp/escape.txt"))
+        #expect(ArchiveSafety.isUnsafeEntryName("C:\\Users\\escape.txt"))
+        #expect(ArchiveSafety.isUnsafeEntryName("\\\\server\\share\\escape.txt"))
+    }
+
+    @Test
+    func archiveSafetyValidatorRejectsSymlinksInExtractedTree() throws {
+        let tempDirectory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: tempDirectory) }
+
+        let target = tempDirectory.appendingPathComponent("target.txt")
+        let link = tempDirectory.appendingPathComponent("link.txt")
+        try "target".write(to: target, atomically: true, encoding: .utf8)
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: target)
+
+        #expect(throws: ArchiveError.self) {
+            try ArchiveSafety.validateExtractedTree(at: tempDirectory)
+        }
+    }
+
+    @Test
     func sevenZipCreateArgumentsIncludeAdvancedOptions() throws {
         var options = ArchiveCreationOptions()
         options.format = .sevenZip
@@ -160,6 +232,36 @@ struct ArchiveServiceTests {
         #expect(arguments.contains("-p"))
         #expect(arguments.contains("-v64m"))
         #expect(arguments.contains("-xr!*.tmp"))
+    }
+
+    @Test
+    func rarCreateArgumentsIncludeCoreOptions() throws {
+        var options = ArchiveCreationOptions()
+        options.format = .rar
+        options.compressionLevel = .maximum
+        options.password = "secret"
+        options.sevenZipEncryptFileNames = true
+        options.sevenZipPathMode = .relative
+        options.createSFXArchive = true
+        options.sevenZipVolumeSize = "1G"
+        options.customExcludes = "*.tmp"
+        options.rawParameters = "-rr5"
+
+        let arguments = try ArchiveService.rarCreateArguments(
+            destination: URL(fileURLWithPath: "/tmp/archive.rar"),
+            relativeNames: ["payload"],
+            options: options
+        )
+
+        #expect(arguments.first == "a")
+        #expect(arguments.contains("-ma5"))
+        #expect(arguments.contains("-m5"))
+        #expect(arguments.contains("-ep1"))
+        #expect(arguments.contains("-sfx"))
+        #expect(arguments.contains("-v1g"))
+        #expect(arguments.contains("-hp"))
+        #expect(arguments.contains("-x*.tmp"))
+        #expect(arguments.contains("-rr5"))
     }
 
     @Test

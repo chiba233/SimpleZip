@@ -18,6 +18,8 @@ enum ArchiveError: LocalizedError {
     case extractedItemNotFound
     case openExtractedItemFailed
     case exportDestinationExists
+    case unsafeArchiveEntries([String])
+    case unsafeArchiveLinks([String])
     case commandFailed(String)
 
     var errorDescription: String? {
@@ -40,6 +42,10 @@ enum ArchiveError: LocalizedError {
             return L10n.text("error.openExtractedItemFailed")
         case .exportDestinationExists:
             return L10n.text("error.exportDestinationExists")
+        case .unsafeArchiveEntries(let names):
+            return L10n.format("error.unsafeArchiveEntries", names.joined(separator: ", "))
+        case .unsafeArchiveLinks(let names):
+            return L10n.format("error.unsafeArchiveLinks", names.joined(separator: ", "))
         case .commandFailed(let message):
             return message.trimmingCharacters(in: .whitespacesAndNewlines)
         }

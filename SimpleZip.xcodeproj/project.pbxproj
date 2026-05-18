@@ -6,6 +6,20 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXAggregateTarget section */
+		0846B9802FB350F10095DC1D /* SimpleZipCoreTests */ = {
+			isa = PBXAggregateTarget;
+			buildConfigurationList = 0846B9832FB350F10095DC1D /* Build configuration list for PBXAggregateTarget "SimpleZipCoreTests" */;
+			buildPhases = (
+				0846B9812FB350F10095DC1D /* Run SwiftPM Tests */,
+			);
+			dependencies = (
+			);
+			name = SimpleZipCoreTests;
+			productName = SimpleZipCoreTests;
+		};
+/* End PBXAggregateTarget section */
+
 /* Begin PBXFileReference section */
 		0846B9702FB350EF0095DC1D /* SimpleZip.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SimpleZip.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -83,6 +97,9 @@
 					0846B96F2FB350EF0095DC1D = {
 						CreatedOnToolsVersion = 26.4.1;
 					};
+					0846B9802FB350F10095DC1D = {
+						CreatedOnToolsVersion = 26.4.1;
+					};
 				};
 			};
 			buildConfigurationList = 0846B96B2FB350EF0095DC1D /* Build configuration list for PBXProject "SimpleZip" */;
@@ -109,6 +126,7 @@
 			projectRoot = "";
 			targets = (
 				0846B96F2FB350EF0095DC1D /* SimpleZip */,
+				0846B9802FB350F10095DC1D /* SimpleZipCoreTests */,
 			);
 		};
 /* End PBXProject section */
@@ -122,6 +140,28 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		0846B9812FB350F10095DC1D /* Run SwiftPM Tests */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Run SwiftPM Tests";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e\nexport HOME=/private/tmp/SimpleZipXcodeSwiftPM/Home\nexport CLANG_MODULE_CACHE_PATH=/private/tmp/SimpleZipXcodeSwiftPM/ModuleCache\nmkdir -p \"$HOME\" \"$CLANG_MODULE_CACHE_PATH\"\n/usr/bin/xcrun swift test --disable-sandbox --scratch-path /private/tmp/SimpleZipXcodeSwiftPM -Xswiftc -module-cache-path -Xswiftc /private/tmp/SimpleZipXcodeSwiftPM/ModuleCache\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		0846B96C2FB350EF0095DC1D /* Sources */ = {
@@ -320,6 +360,26 @@
 			};
 			name = Release;
 		};
+		0846B9822FB350F10095DC1D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				PRODUCT_NAME = SimpleZipCoreTests;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		0846B9842FB350F10095DC1D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				PRODUCT_NAME = SimpleZipCoreTests;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -337,6 +397,15 @@
 			buildConfigurations = (
 				0846B97C2FB350F10095DC1D /* Debug */,
 				0846B97D2FB350F10095DC1D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		0846B9832FB350F10095DC1D /* Build configuration list for PBXAggregateTarget "SimpleZipCoreTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0846B9822FB350F10095DC1D /* Debug */,
+				0846B9842FB350F10095DC1D /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

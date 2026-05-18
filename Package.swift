@@ -57,9 +57,11 @@ let package = Package(
                 "ArchiveError.swift",
                 "ArchiveModels.swift",
                 "ArchiveOperationOptions.swift",
+                "ArchiveSafety.swift",
                 "ArchiveService.swift",
                 "AppPreferences.swift",
-                "L10n.swift"
+                "L10n.swift",
+                "TemporaryResourceManager.swift"
             ]
         ),
         .testTarget(
