@@ -60,6 +60,7 @@
   - Expanded core tests to cover command-line argument splitting, volume-size validation, custom excludes, exclude counting, and RAR creation arguments.
   - Added startup cleanup for stale temporary directories created when opening archive entries as external temporary copies.
   - Added active safety confirmations for suspicious archive paths, extracted symbolic links, and executable or active-content items opened from temporary archive copies.
+  - Added Archive security settings so suspicious paths, extracted symbolic links, and active-content opening can each be set to Ask, Always Allow, or Always Block.
   - Documented the current security model, archive compatibility matrix, progress limitations, and architecture refactor boundaries.
   - Cleaned up Swift concurrency warnings in the archive command runner and added a shared Xcode run scheme that hides OS activity noise during debug launches.
   - Backend path detection no longer launches `which` during Settings rendering, avoiding main-thread `Process.waitUntilExit()` stalls.
@@ -73,6 +74,8 @@
   - Added service-layer regression tests for archive list parsing, exclude pattern generation, and selected-entry expansion.
   - Cleared Swift concurrency and optional-handling build warnings in archive parsing, progress parsing, and About panel icon wiring.
 - **File browser**
+  - Added Back and Forward navigation buttons next to the path bar, separate from the existing Go Up action.
+  - Archive creation and extraction now refresh the visible destination folder automatically when the operation finishes.
   - Shared the common AppKit table setup, column configuration, cell rendering, and column-settings menu helpers used by the file and archive tables.
   - File rows can now be dragged onto folders in the file table to move local files, or dropped in from external locations to copy them into the current folder.
   - Sidebar now includes Finder-like Favorites, Frequently Used folders, Tags, and pinned paths.

@@ -31,6 +31,8 @@ final class ArchiveBrowserModel: ObservableObject {
     @Published var extractSelectionRequest: ExtractSelectionRequest?
     @Published var operationProgress = ArchiveProgressState()
     @Published private(set) var canCancelCurrentOperation = false
+    @Published private var navigationBackStack: [NavigationLocation] = []
+    @Published private var navigationForwardStack: [NavigationLocation] = []
 
     private let fileManager = FileManager.default
     private let extractionCoordinator = ArchiveExtractionCoordinator(fileManager: .default)
@@ -116,6 +118,14 @@ final class ArchiveBrowserModel: ObservableObject {
         return true
     }
 
+    var canGoBack: Bool {
+        !navigationBackStack.isEmpty
+    }
+
+    var canGoForward: Bool {
+        !navigationForwardStack.isEmpty
+    }
+
     func openHome() {
         openFolder(fileManager.homeDirectoryForCurrentUser)
     }
@@ -137,6 +147,7 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     func openTag(_ tag: String) {
+        recordCurrentLocationForNavigation()
         cleanupMountedDiskImageIfNeeded(for: nil)
         archivePath = ""
         allArchiveItems = []
@@ -189,6 +200,14 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     func openFolder(_ url: URL) {
+        openFolder(url, recordsHistory: true)
+    }
+
+    private func openFolder(_ url: URL, recordsHistory: Bool) {
+        let destination = NavigationLocation.folder(url.standardizedFileURL)
+        if recordsHistory, currentNavigationLocation != destination {
+            recordCurrentLocationForNavigation()
+        }
         cleanupMountedDiskImageIfNeeded(for: url)
         archivePath = ""
         allArchiveItems = []
@@ -204,10 +223,21 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     func openArchive(_ url: URL) {
+        openArchive(url, recordsHistory: true)
+    }
+
+    private func openArchive(_ url: URL, recordsHistory: Bool) {
         let supportedURL = ArchiveService.supportedArchiveURL(url) ?? url
         if supportedURL.pathExtension.lowercased() == "dmg" {
+            if recordsHistory, currentNavigationLocation != .folder(supportedURL.standardizedFileURL) {
+                recordCurrentLocationForNavigation()
+            }
             openDiskImage(supportedURL)
             return
+        }
+        let destination = NavigationLocation.archive(supportedURL.standardizedFileURL, "")
+        if recordsHistory, currentNavigationLocation != destination {
+            recordCurrentLocationForNavigation()
         }
         cleanupMountedDiskImageIfNeeded(for: nil)
         archivePath = ""
@@ -235,7 +265,11 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     private func openArchiveDirectory(_ item: ArchiveItem) {
-        archivePath = normalizedDirectoryPrefix(item.name)
+        let destinationPath = normalizedDirectoryPrefix(item.name)
+        if currentNavigationLocation != .archive(currentArchiveURLForNavigation, destinationPath) {
+            recordCurrentLocationForNavigation()
+        }
+        archivePath = destinationPath
         selectedArchiveRows.removeAll()
         refreshArchiveItems()
     }
@@ -243,7 +277,7 @@ final class ArchiveBrowserModel: ObservableObject {
     private func openArchiveItemExternally(_ item: ArchiveItem) {
         guard case .archive(let archiveURL) = mode else { return }
 
-        if ArchiveSafety.requiresExternalOpenConfirmation(item), !confirmOpeningPotentiallyUnsafeArchiveItem(item) {
+        if ArchiveSafety.requiresExternalOpenConfirmation(item), !allowPotentiallyUnsafeArchiveItemOpen(item) {
             return
         }
 
@@ -322,6 +356,19 @@ final class ArchiveBrowserModel: ObservableObject {
         return alert.runModal() == .alertFirstButtonReturn
     }
 
+    private func allowPotentiallyUnsafeArchiveItemOpen(_ item: ArchiveItem) -> Bool {
+        switch AppPreferences.activeContentOpenPolicy {
+        case .allow:
+            return true
+        case .deny:
+            errorMessage = L10n.text("error.blockedBySecurityPolicy")
+            status = L10n.text("status.failed")
+            return false
+        case .ask:
+            return confirmOpeningPotentiallyUnsafeArchiveItem(item)
+        }
+    }
+
     private func confirmArchiveExtractionSafety(archiveURL: URL) async throws {
         let items = try await ArchiveService.list(archiveURL)
         try confirmArchiveExtractionSafety(entries: items)
@@ -330,6 +377,15 @@ final class ArchiveBrowserModel: ObservableObject {
     private func confirmArchiveExtractionSafety(entries: [ArchiveItem]) throws {
         let unsafeNames = ArchiveSafety.unsafeEntryNames(in: entries)
         guard !unsafeNames.isEmpty else { return }
+
+        switch AppPreferences.suspiciousPathPolicy {
+        case .allow:
+            return
+        case .deny:
+            throw ArchiveError.blockedBySecurityPolicy
+        case .ask:
+            break
+        }
 
         let alert = NSAlert()
         alert.alertStyle = .warning
@@ -345,6 +401,15 @@ final class ArchiveBrowserModel: ObservableObject {
     private func confirmExtractedArchiveLinks(at directory: URL) throws {
         let unsafeLinks = try ArchiveSafety.unsafeLinks(in: directory, fileManager: fileManager)
         guard !unsafeLinks.isEmpty else { return }
+
+        switch AppPreferences.symbolicLinkPolicy {
+        case .allow:
+            return
+        case .deny:
+            throw ArchiveError.blockedBySecurityPolicy
+        case .ask:
+            break
+        }
 
         let alert = NSAlert()
         alert.alertStyle = .warning
@@ -411,11 +476,28 @@ final class ArchiveBrowserModel: ObservableObject {
             if archivePath.isEmpty {
                 openFolder(url.deletingLastPathComponent())
             } else {
+                recordCurrentLocationForNavigation()
                 archivePath = parentArchivePath(for: archivePath)
                 selectedArchiveRows.removeAll()
                 refreshArchiveItems()
             }
         }
+    }
+
+    func goBack() {
+        guard let destination = navigationBackStack.popLast() else { return }
+        if let current = currentNavigationLocation {
+            navigationForwardStack.append(current)
+        }
+        restoreNavigationLocation(destination)
+    }
+
+    func goForward() {
+        guard let destination = navigationForwardStack.popLast() else { return }
+        if let current = currentNavigationLocation {
+            navigationBackStack.append(current)
+        }
+        restoreNavigationLocation(destination)
     }
 
     func reload() {
@@ -474,7 +556,7 @@ final class ArchiveBrowserModel: ObservableObject {
                 )
             }
             finishOperationDetailsSession(detailsSession)
-            reload()
+            refreshVisibleFolder(containing: request.destinationURL)
         }
     }
 
@@ -540,9 +622,7 @@ final class ArchiveBrowserModel: ObservableObject {
                 }
             }
             finishOperationDetailsSession(detailsSession)
-            if case .folder(let folder) = mode, folder == request.destinationURL {
-                reload()
-            }
+            refreshVisibleFolder(request.destinationURL)
         }
     }
 
@@ -601,9 +681,7 @@ final class ArchiveBrowserModel: ObservableObject {
                 }
             }
             finishOperationDetailsSession(detailsSession)
-            if case .folder(let folder) = mode, folder == request.destinationURL {
-                reload()
-            }
+            refreshVisibleFolder(request.destinationURL)
         }
     }
 
@@ -1246,9 +1324,69 @@ final class ArchiveBrowserModel: ObservableObject {
             requestedArchivePath = text
         }
 
-        archivePath = lastExistingArchivePath(for: requestedArchivePath)
+        let destinationPath = lastExistingArchivePath(for: requestedArchivePath)
+        if currentNavigationLocation != .archive(archiveURL.standardizedFileURL, destinationPath) {
+            recordCurrentLocationForNavigation()
+        }
+        archivePath = destinationPath
         selectedArchiveRows.removeAll()
         refreshArchiveItems()
+    }
+
+    private var currentArchiveURLForNavigation: URL {
+        if case .archive(let url) = mode {
+            return url.standardizedFileURL
+        }
+        return URL(fileURLWithPath: "/")
+    }
+
+    private var currentNavigationLocation: NavigationLocation? {
+        switch mode {
+        case .folder(let url):
+            return .folder(url.standardizedFileURL)
+        case .archive(let url):
+            return .archive(url.standardizedFileURL, archivePath)
+        case .tag(let tag):
+            return .tag(tag)
+        }
+    }
+
+    private func recordCurrentLocationForNavigation() {
+        guard let current = currentNavigationLocation else { return }
+        if navigationBackStack.last != current {
+            navigationBackStack.append(current)
+            if navigationBackStack.count > 100 {
+                navigationBackStack.removeFirst(navigationBackStack.count - 100)
+            }
+        }
+        navigationForwardStack.removeAll()
+    }
+
+    private func restoreNavigationLocation(_ location: NavigationLocation) {
+        switch location {
+        case .folder(let url):
+            openFolder(url, recordsHistory: false)
+        case .archive(let url, let path):
+            openArchive(url, recordsHistory: false)
+            archivePath = path
+        case .tag(let tag):
+            cleanupMountedDiskImageIfNeeded(for: nil)
+            archivePath = ""
+            allArchiveItems = []
+            mode = .tag(tag)
+            reload()
+        }
+    }
+
+    private func refreshVisibleFolder(_ folderURL: URL) {
+        guard case .folder(let currentFolder) = mode else { return }
+        if currentFolder.standardizedFileURL == folderURL.standardizedFileURL {
+            reload()
+        }
+    }
+
+    private func refreshVisibleFolder(containing url: URL) {
+        refreshVisibleFolder(url.deletingLastPathComponent())
     }
 
     private func lastExistingArchivePath(for path: String) -> String {
@@ -1427,4 +1565,10 @@ final class ArchiveBrowserModel: ObservableObject {
 private struct MountedDiskImageSession {
     let sourceURL: URL
     let mountPoint: URL
+}
+
+private enum NavigationLocation: Equatable {
+    case folder(URL)
+    case archive(URL, String)
+    case tag(String)
 }

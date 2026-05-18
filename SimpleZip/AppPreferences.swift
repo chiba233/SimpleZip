@@ -148,6 +148,25 @@ enum OverwriteBehavior: String, CaseIterable, Identifiable {
     }
 }
 
+enum ArchiveSecurityDecision: String, CaseIterable, Identifiable {
+    case ask
+    case allow
+    case deny
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .ask:
+            return L10n.text("settings.security.ask")
+        case .allow:
+            return L10n.text("settings.security.allow")
+        case .deny:
+            return L10n.text("settings.security.deny")
+        }
+    }
+}
+
 /// 7-Zip 命令行后端来源。
 enum SevenZipBackend: String, CaseIterable, Identifiable {
     case automatic
@@ -194,6 +213,9 @@ enum AppPreferences {
     enum Key {
         static let startupLocation = "startupLocation"
         static let overwriteBehavior = "overwriteBehavior"
+        static let suspiciousPathPolicy = "suspiciousPathPolicy"
+        static let symbolicLinkPolicy = "symbolicLinkPolicy"
+        static let activeContentOpenPolicy = "activeContentOpenPolicy"
         static let showHiddenFiles = "showHiddenFiles"
         static let rememberLastFolder = "rememberLastFolder"
         static let lastFolderPath = "lastFolderPath"
@@ -227,6 +249,18 @@ enum AppPreferences {
 
     static var overwriteBehavior: OverwriteBehavior {
         OverwriteBehavior(rawValue: defaults.string(forKey: Key.overwriteBehavior) ?? "") ?? .ask
+    }
+
+    static var suspiciousPathPolicy: ArchiveSecurityDecision {
+        ArchiveSecurityDecision(rawValue: defaults.string(forKey: Key.suspiciousPathPolicy) ?? "") ?? .ask
+    }
+
+    static var symbolicLinkPolicy: ArchiveSecurityDecision {
+        ArchiveSecurityDecision(rawValue: defaults.string(forKey: Key.symbolicLinkPolicy) ?? "") ?? .ask
+    }
+
+    static var activeContentOpenPolicy: ArchiveSecurityDecision {
+        ArchiveSecurityDecision(rawValue: defaults.string(forKey: Key.activeContentOpenPolicy) ?? "") ?? .ask
     }
 
     static var sevenZipBackend: SevenZipBackend {

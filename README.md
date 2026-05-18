@@ -121,6 +121,7 @@ Current guardrails:
 - symbolic links found in the extracted staging tree trigger a confirmation before they are merged or opened;
 - executable bundles, installers, scripts, HTML, JavaScript, and similar active-content entries trigger a confirmation
   before SimpleZip opens their temporary copy;
+- Settings > Archive > Security can change those UI decisions to Ask, Always Allow, or Always Block;
 - stale temporary open directories are removed on the next app launch.
 
 Known security-sensitive areas:

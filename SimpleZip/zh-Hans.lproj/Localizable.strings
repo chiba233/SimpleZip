@@ -62,6 +62,8 @@
 "button.extractHere" = "解压到此处";
 "button.revealInFinder" = "在 Finder 中显示";
 "help.refresh" = "刷新";
+"help.goBack" = "返回";
+"help.goForward" = "前进";
 "help.goUp" = "上一级";
 "column.name" = "名称";
 "column.size" = "大小";
@@ -123,6 +125,7 @@
 "error.exportDestinationExists" = "拖放目标位置已有同名文件。";
 "error.unsafeArchiveEntries" = "SimpleZip 已阻止解压，因为压缩包包含不安全路径：%@";
 "error.unsafeArchiveLinks" = "SimpleZip 已阻止解压，因为压缩包包含符号链接：%@";
+"error.blockedBySecurityPolicy" = "已按当前安全设置阻止。";
 "status.exportingArchiveItem" = "正在把 %@ 解压到拖放位置";
 "status.exportedArchiveItem" = "已解压 %@";
 "status.copyingFiles" = "正在复制文件...";
@@ -140,6 +143,7 @@
 "settings.columns.archiveBrowser" = "压缩包浏览";
 "settings.section.general" = "通用";
 "settings.section.archive" = "压缩";
+"settings.section.security" = "安全性";
 "settings.language" = "语言";
 "settings.language.system" = "跟随系统";
 "settings.language.en" = "英语";
@@ -265,6 +269,13 @@
 "settings.rar.source.system" = "系统 RAR";
 "settings.rar.checking" = "正在检查...";
 "settings.rar.notFound" = "未找到";
+"settings.security.ask" = "询问";
+"settings.security.allow" = "始终允许";
+"settings.security.deny" = "始终拒绝";
+"settings.security.suspiciousPaths" = "可疑压缩包路径";
+"settings.security.symbolicLinks" = "解出的符号链接";
+"settings.security.activeContent" = "打开主动内容";
+"settings.security.description" = "这些规则作用于从界面发起的压缩包操作。默认是询问，SimpleZip 会先提示再继续。";
 "error.missingRarTool" = "未找到 RAR 命令行工具。请安装 rar 以创建 RAR 压缩包。";
 "error.passwordsDoNotMatch" = "两次输入的密码必须一致。";
 "archive.updateMode" = "更新模式";

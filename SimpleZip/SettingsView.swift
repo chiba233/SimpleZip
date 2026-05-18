@@ -12,6 +12,9 @@ struct SettingsView: View {
     @AppStorage(AppPreferences.Key.appLanguage) private var appLanguage = AppLanguage.system.rawValue
     @AppStorage(AppPreferences.Key.startupLocation) private var startupLocation = StartupLocation.home.rawValue
     @AppStorage(AppPreferences.Key.overwriteBehavior) private var overwriteBehavior = OverwriteBehavior.ask.rawValue
+    @AppStorage(AppPreferences.Key.suspiciousPathPolicy) private var suspiciousPathPolicy = ArchiveSecurityDecision.ask.rawValue
+    @AppStorage(AppPreferences.Key.symbolicLinkPolicy) private var symbolicLinkPolicy = ArchiveSecurityDecision.ask.rawValue
+    @AppStorage(AppPreferences.Key.activeContentOpenPolicy) private var activeContentOpenPolicy = ArchiveSecurityDecision.ask.rawValue
     @AppStorage(AppPreferences.Key.showHiddenFiles) private var showHiddenFiles = false
     @AppStorage(AppPreferences.Key.rememberLastFolder) private var rememberLastFolder = true
     @AppStorage(AppPreferences.Key.showFileSizeColumn) private var showFileSizeColumn = true
@@ -120,6 +123,30 @@ struct SettingsView: View {
                         Text(behavior.title).tag(behavior.rawValue)
                     }
                 }
+            }
+
+            Section(L10n.text("settings.section.security")) {
+                Picker(L10n.text("settings.security.suspiciousPaths"), selection: $suspiciousPathPolicy) {
+                    ForEach(ArchiveSecurityDecision.allCases) { decision in
+                        Text(decision.title).tag(decision.rawValue)
+                    }
+                }
+
+                Picker(L10n.text("settings.security.symbolicLinks"), selection: $symbolicLinkPolicy) {
+                    ForEach(ArchiveSecurityDecision.allCases) { decision in
+                        Text(decision.title).tag(decision.rawValue)
+                    }
+                }
+
+                Picker(L10n.text("settings.security.activeContent"), selection: $activeContentOpenPolicy) {
+                    ForEach(ArchiveSecurityDecision.allCases) { decision in
+                        Text(decision.title).tag(decision.rawValue)
+                    }
+                }
+
+                Text(L10n.text("settings.security.description"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section(L10n.text("settings.7zip.backend")) {

@@ -31,6 +31,22 @@ struct TopBar: View {
             }
 
             HStack(spacing: 6) {
+                Button(action: model.goBack) {
+                    Image(systemName: "chevron.left")
+                        .frame(width: 18, height: 18)
+                }
+                .frame(height: 30)
+                .disabled(!model.canGoBack)
+                .help(L10n.text("help.goBack"))
+
+                Button(action: model.goForward) {
+                    Image(systemName: "chevron.right")
+                        .frame(width: 18, height: 18)
+                }
+                .frame(height: 30)
+                .disabled(!model.canGoForward)
+                .help(L10n.text("help.goForward"))
+
                 Button(action: model.goUp) {
                     Image(systemName: "chevron.up")
                         .frame(width: 18, height: 18)

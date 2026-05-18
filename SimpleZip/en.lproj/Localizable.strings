@@ -64,6 +64,8 @@
 "button.extractHere" = "Extract Here";
 "button.revealInFinder" = "Reveal in Finder";
 "help.refresh" = "Refresh";
+"help.goBack" = "Back";
+"help.goForward" = "Forward";
 "help.goUp" = "Go Up";
 "column.name" = "Name";
 "column.size" = "Size";
@@ -125,6 +127,7 @@
 "error.exportDestinationExists" = "A file with the same name already exists at the drop destination.";
 "error.unsafeArchiveEntries" = "SimpleZip blocked extraction because the archive contains unsafe paths: %@";
 "error.unsafeArchiveLinks" = "SimpleZip blocked extraction because the archive contains symbolic links: %@";
+"error.blockedBySecurityPolicy" = "Blocked by the current security settings.";
 "status.exportingArchiveItem" = "Extracting %@ to the drop destination";
 "status.exportedArchiveItem" = "Extracted %@";
 "status.copyingFiles" = "Copying files...";
@@ -142,6 +145,7 @@
 "settings.columns.archiveBrowser" = "Archive Browser";
 "settings.section.general" = "General";
 "settings.section.archive" = "Archive";
+"settings.section.security" = "Security";
 "settings.language" = "Language";
 "settings.language.system" = "System";
 "settings.language.en" = "English";
@@ -282,6 +286,13 @@
 "settings.rar.source.system" = "System RAR";
 "settings.rar.checking" = "Checking...";
 "settings.rar.notFound" = "Not found";
+"settings.security.ask" = "Ask";
+"settings.security.allow" = "Always Allow";
+"settings.security.deny" = "Always Block";
+"settings.security.suspiciousPaths" = "Suspicious archive paths";
+"settings.security.symbolicLinks" = "Extracted symbolic links";
+"settings.security.activeContent" = "Opening active content";
+"settings.security.description" = "These rules apply to archives opened through the UI. The default is Ask so SimpleZip warns before continuing.";
 "error.missingRarTool" = "RAR command line tool was not found. Install rar to create RAR archives.";
 "error.passwordsDoNotMatch" = "The password and confirmation password must match.";
 "archive.updateMode" = "Update mode";
