@@ -314,7 +314,7 @@ struct ArchiveCreationOptions {
     var showPassword = false
     var showDetails = false
     var skipDSStore = true
-    var skipHiddenFiles = true
+    var skipHiddenFiles = false
     var customExcludes = ""
     var updateMode: ArchiveUpdateMode = .addAndReplace
     var createSFXArchive = false

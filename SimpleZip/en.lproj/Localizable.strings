@@ -198,6 +198,10 @@
 "archive.skipHiddenFilesHint" = "Dotfiles include .env, .gitignore, .npmrc, and other files that start with a dot.";
 "archive.customExcludes" = "Custom excludes";
 "archive.customExcludesHint" = "One rule per line, or separate with commas. For example: *.tmp or build/*";
+"archive.countExcludedFiles" = "Calculate";
+"archive.excludedFilesNotConfigured" = "No exclude rules are enabled.";
+"archive.excludedFilesNeedsCalculation" = "Click Calculate to count files that will be excluded.";
+"archive.excludedFilesDetected" = "%d files will be excluded.";
 "archive.destination" = "Save to";
 "archive.rar.requiresTool" = "RAR creation needs the external rar command-line tool.";
 "benchmark.title" = "7-Zip Benchmark";

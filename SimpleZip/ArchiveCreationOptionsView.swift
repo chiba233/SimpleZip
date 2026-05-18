@@ -11,6 +11,8 @@ import SwiftUI
 struct ArchiveCreationOptionsView: View {
     @State var request: ArchiveCreationRequest
     @State private var showsSevenZipAdvancedOptions = false
+    @State private var excludedFileCount: Int?
+    @State private var isCountingExcludedFiles = false
     let create: (ArchiveCreationRequest) -> Void
     let cancel: () -> Void
 
@@ -25,29 +27,56 @@ struct ArchiveCreationOptionsView: View {
                     TextField(L10n.text("archive.fileName"), text: fileNameBinding)
                         .textFieldStyle(.roundedBorder)
 
-                    Picker(L10n.text("archive.format"), selection: $request.options.format) {
-                        ForEach(ArchiveCreateFormat.allCases) { format in
-                            Text(format.title).tag(format)
-                        }
-                    }
-                    .onChange(of: request.options.format) { _ in
-                        updateDestinationExtension()
-                    }
-
-                    if request.options.format.supportsCompressionLevel {
-                        Picker(L10n.text("archive.compressionLevel"), selection: $request.options.compressionLevel) {
-                            ForEach(CompressionLevel.allCases) { level in
-                                Text(level.title).tag(level)
+                    HStack(alignment: .center, spacing: 14) {
+                        HStack(spacing: 6) {
+                            Text(L10n.text("archive.format"))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Picker(L10n.text("archive.format"), selection: $request.options.format) {
+                                ForEach(ArchiveCreateFormat.allCases) { format in
+                                    Text(format.title).tag(format)
+                                }
+                            }
+                            .labelsHidden()
+                            .pickerStyle(.menu)
+                            .frame(width: 112)
+                            .onChange(of: request.options.format) { _ in
+                                updateDestinationExtension()
                             }
                         }
-                    }
 
-                    if request.options.format.supportsUpdateMode {
-                        Picker(L10n.text("archive.updateMode"), selection: $request.options.updateMode) {
-                            ForEach(ArchiveUpdateMode.allCases) { mode in
-                                Text(mode.title).tag(mode)
+                        if request.options.format.supportsCompressionLevel {
+                            HStack(spacing: 6) {
+                                Text(L10n.text("archive.compressionLevel"))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Picker(L10n.text("archive.compressionLevel"), selection: $request.options.compressionLevel) {
+                                    ForEach(CompressionLevel.allCases) { level in
+                                        Text(level.title).tag(level)
+                                    }
+                                }
+                                .labelsHidden()
+                                .pickerStyle(.menu)
+                                .frame(width: 124)
                             }
                         }
+
+                        if request.options.format.supportsUpdateMode {
+                            HStack(spacing: 6) {
+                                Text(L10n.text("archive.updateMode"))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Picker(L10n.text("archive.updateMode"), selection: $request.options.updateMode) {
+                                    ForEach(ArchiveUpdateMode.allCases) { mode in
+                                        Text(mode.title).tag(mode)
+                                    }
+                                }
+                                .labelsHidden()
+                                .pickerStyle(.menu)
+                                .frame(width: 152)
+                            }
+                        }
+                        Spacer(minLength: 0)
                     }
 
                     if request.options.format.supportsPassword {
@@ -56,6 +85,9 @@ struct ArchiveCreationOptionsView: View {
                             passwordField(L10n.text("archive.passwordConfirm"), text: $request.options.passwordConfirmation)
                             Toggle(L10n.text("archive.showPassword"), isOn: $request.options.showPassword)
                                 .toggleStyle(.checkbox)
+                            if passwordValidationMessage != nil {
+                                validationText(L10n.text("error.passwordsDoNotMatch"))
+                            }
                         }
                         if !request.options.password.isEmpty || !request.options.passwordConfirmation.isEmpty {
                             if request.options.format == .zip {
@@ -75,25 +107,25 @@ struct ArchiveCreationOptionsView: View {
                         }
                     }
 
-                    if request.options.format.requiresSingleRegularFile {
-                        Text(L10n.text("error.singleFileCompressionRequiresSingleFile"))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                    if let singleFileValidationMessage {
+                        validationText(singleFileValidationMessage)
                     }
 
                     if request.options.format == .rar, !ArchiveService.canCreateRAR() {
-                        Text(L10n.text("archive.rar.requiresTool"))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        validationText(L10n.text("archive.rar.requiresTool"))
                     }
 
                     if request.options.format.supportsVolumeSplitting {
                         VStack(alignment: .leading, spacing: 6) {
                             TextField(L10n.text("archive.7z.volumeSize"), text: $request.options.sevenZipVolumeSize)
                                 .textFieldStyle(.roundedBorder)
-                            Text(L10n.text("archive.7z.volumeSizeHint"))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                            if let volumeSizeValidationMessage {
+                                validationText(volumeSizeValidationMessage)
+                            } else {
+                                Text(L10n.text("archive.7z.volumeSizeHint"))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
 
@@ -225,6 +257,21 @@ struct ArchiveCreationOptionsView: View {
                             Text(L10n.text("archive.customExcludesHint"))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
+                            HStack(spacing: 8) {
+                                Button(L10n.text("archive.countExcludedFiles")) {
+                                    countExcludedFiles()
+                                }
+                                .disabled(isCountingExcludedFiles || !hasExcludeRulesEnabled)
+
+                                if isCountingExcludedFiles {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                }
+
+                                Text(excludedFileCountText)
+                                    .font(.caption)
+                                    .foregroundStyle((excludedFileCount ?? 0) > 0 ? .secondary : .tertiary)
+                            }
                         }
                     }
 
@@ -257,7 +304,7 @@ struct ArchiveCreationOptionsView: View {
                 if let validationMessage {
                     Text(validationMessage)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.red)
                 }
                 Spacer()
                 Button(L10n.text("button.cancel"), action: cancel)
@@ -275,6 +322,18 @@ struct ArchiveCreationOptionsView: View {
         .animation(.default, value: showsSevenZipAdvancedOptions)
         .animation(.default, value: request.options.password.isEmpty)
         .animation(.default, value: request.options.passwordConfirmation.isEmpty)
+        .onChange(of: request.options.skipDSStore) { _ in
+            excludedFileCount = nil
+        }
+        .onChange(of: request.options.skipHiddenFiles) { _ in
+            excludedFileCount = nil
+        }
+        .onChange(of: request.options.customExcludes) { _ in
+            excludedFileCount = nil
+        }
+        .onChange(of: request.options.format) { _ in
+            excludedFileCount = nil
+        }
     }
 
     private var fileNameBinding: Binding<String> {
@@ -306,6 +365,39 @@ struct ArchiveCreationOptionsView: View {
     private func updateDestinationExtension() {
         normalizeOptionsForCurrentFormat()
         normalizeDestinationForCurrentFormat()
+    }
+
+    private func countExcludedFiles() {
+        guard request.options.format.supportsExcludeRules else {
+            excludedFileCount = 0
+            return
+        }
+        let sourceURLs = request.sourceURLs
+        let options = request.options
+        isCountingExcludedFiles = true
+        Task { @MainActor in
+            let count = await Task.detached(priority: .utility) {
+                ArchiveService.excludedFileCount(in: sourceURLs, options: options)
+            }.value
+            excludedFileCount = count
+            isCountingExcludedFiles = false
+        }
+    }
+
+    private var hasExcludeRulesEnabled: Bool {
+        request.options.skipDSStore
+            || request.options.skipHiddenFiles
+            || !ArchiveService.customExcludePatterns(from: request.options.customExcludes).isEmpty
+    }
+
+    private var excludedFileCountText: String {
+        guard hasExcludeRulesEnabled else {
+            return L10n.text("archive.excludedFilesNotConfigured")
+        }
+        guard let excludedFileCount else {
+            return L10n.text("archive.excludedFilesNeedsCalculation")
+        }
+        return L10n.format("archive.excludedFilesDetected", excludedFileCount)
     }
 
     private func normalizeOptionsForCurrentFormat() {
@@ -379,9 +471,35 @@ struct ArchiveCreationOptionsView: View {
         if request.options.format == .rar, !ArchiveService.canCreateRAR() {
             return L10n.text("error.missingRarTool")
         }
+        if let passwordValidationMessage {
+            return passwordValidationMessage
+        }
+        if let volumeSizeValidationMessage {
+            return volumeSizeValidationMessage
+        }
+        if let singleFileValidationMessage {
+            return singleFileValidationMessage
+        }
+        return nil
+    }
+
+    private var passwordValidationMessage: String? {
         if !request.options.password.isEmpty, request.options.password != request.options.passwordConfirmation {
             return L10n.text("error.passwordsDoNotMatch")
         }
+        return nil
+    }
+
+    private var volumeSizeValidationMessage: String? {
+        guard request.options.format.supportsVolumeSplitting else { return nil }
+        let trimmed = request.options.sevenZipVolumeSize.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        return (try? ArchiveService.normalizedSevenZipVolumeSize(from: trimmed)) == nil
+            ? L10n.text("error.invalidSevenZipVolumeSize")
+            : nil
+    }
+
+    private var singleFileValidationMessage: String? {
         guard request.options.format.requiresSingleRegularFile else { return nil }
         guard request.sourceURLs.count == 1 else {
             return L10n.text("error.singleFileCompressionRequiresSingleFile")
@@ -449,5 +567,13 @@ struct ArchiveCreationOptionsView: View {
 
     private func formatMemoryEstimate(_ value: Int64) -> String {
         ByteCountFormatter.string(fromByteCount: value, countStyle: .memory)
+    }
+
+    @ViewBuilder
+    private func validationText(_ message: String) -> some View {
+        Text(message)
+            .font(.caption)
+            .foregroundStyle(.red)
+            .fixedSize(horizontal: false, vertical: true)
     }
 }

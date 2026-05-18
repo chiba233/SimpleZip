@@ -182,6 +182,10 @@
 "archive.skipHiddenFilesHint" = "隐藏文件包括 .env、.gitignore、.npmrc 等以 . 开头的 dotfiles。";
 "archive.customExcludes" = "自定义排除";
 "archive.customExcludesHint" = "每行一个规则，也可以用逗号分隔。例如 *.tmp 或 build/*";
+"archive.countExcludedFiles" = "计算";
+"archive.excludedFilesNotConfigured" = "尚未启用排除规则。";
+"archive.excludedFilesNeedsCalculation" = "点击“计算”统计待排除的文件数量。";
+"archive.excludedFilesDetected" = "检测到 %d 个待排除的文件。";
 "archive.destination" = "保存到";
 "benchmark.title" = "7-Zip 跑分";
 "benchmark.dictionarySize" = "字典大小";

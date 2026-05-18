@@ -182,6 +182,10 @@
 "archive.skipHiddenFilesHint" = "Dot-файлы включают .env, .gitignore, .npmrc и другие файлы, начинающиеся с точки.";
 "archive.customExcludes" = "Пользовательские исключения";
 "archive.customExcludesHint" = "По одному правилу на строку или через запятую. Например: *.tmp или build/*";
+"archive.countExcludedFiles" = "Подсчитать";
+"archive.excludedFilesNotConfigured" = "Правила исключения не включены.";
+"archive.excludedFilesNeedsCalculation" = "Нажмите «Подсчитать», чтобы посчитать исключаемые файлы.";
+"archive.excludedFilesDetected" = "Будет исключено файлов: %d.";
 "archive.destination" = "Сохранить в";
 "benchmark.title" = "Бенчмарк 7-Zip";
 "benchmark.dictionarySize" = "Размер словаря";

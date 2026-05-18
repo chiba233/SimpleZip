@@ -182,6 +182,10 @@
 "archive.skipHiddenFilesHint" = "ไฟล์ที่ขึ้นต้นด้วยจุดรวมถึง .env, .gitignore, .npmrc และ dotfiles อื่น ๆ";
 "archive.customExcludes" = "รายการยกเว้น";
 "archive.customExcludesHint" = "หนึ่งกฎต่อบรรทัด หรือคั่นด้วยจุลภาค เช่น *.tmp หรือ build/*";
+"archive.countExcludedFiles" = "คำนวณ";
+"archive.excludedFilesNotConfigured" = "ยังไม่ได้เปิดใช้กฎการยกเว้น";
+"archive.excludedFilesNeedsCalculation" = "คลิกคำนวณเพื่อนับไฟล์ที่จะถูกยกเว้น";
+"archive.excludedFilesDetected" = "จะยกเว้นไฟล์ %d รายการ";
 "archive.destination" = "บันทึกไปที่";
 "benchmark.title" = "เบนช์มาร์ก 7-Zip";
 "benchmark.dictionarySize" = "ขนาดดิกชันนารี";

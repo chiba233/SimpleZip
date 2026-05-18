@@ -669,7 +669,7 @@ enum ArchiveService {
         )
     }
 
-    static func zipExcludePatterns(from options: ArchiveCreationOptions) -> [String] {
+    nonisolated static func zipExcludePatterns(from options: ArchiveCreationOptions) -> [String] {
         var patterns: [String] = []
         if options.skipDSStore {
             patterns.append(contentsOf: ["*.DS_Store", "*/.DS_Store"])
@@ -817,11 +817,63 @@ enum ArchiveService {
         return trimmed.lowercased()
     }
 
-    static func customExcludePatterns(from text: String) -> [String] {
+    nonisolated static func customExcludePatterns(from text: String) -> [String] {
         text
             .components(separatedBy: CharacterSet(charactersIn: "\n,"))
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
+    }
+
+    nonisolated static func excludedFileCount(in sourceURLs: [URL], options: ArchiveCreationOptions) -> Int {
+        let patterns = zipExcludePatterns(from: options)
+        guard !patterns.isEmpty, let parentURL = sourceURLs.first?.deletingLastPathComponent() else {
+            return 0
+        }
+        return regularFileURLs(in: sourceURLs).filter { url in
+            let relativePath = relativePathForExcludePreview(url, parent: parentURL)
+            return patterns.contains { pattern in
+                matchesExcludePattern(pattern, relativePath: relativePath, fileName: url.lastPathComponent)
+            }
+        }.count
+    }
+
+    private nonisolated static func regularFileURLs(in urls: [URL]) -> [URL] {
+        let resourceKeys: Set<URLResourceKey> = [.isRegularFileKey, .isDirectoryKey]
+        return urls.flatMap { url -> [URL] in
+            guard let values = try? url.resourceValues(forKeys: resourceKeys) else { return [url] }
+            if values.isRegularFile == true {
+                return [url]
+            }
+            guard values.isDirectory == true,
+                  let enumerator = FileManager.default.enumerator(
+                    at: url,
+                    includingPropertiesForKeys: Array(resourceKeys)
+                  )
+            else {
+                return []
+            }
+            var files: [URL] = []
+            for case let fileURL as URL in enumerator {
+                if (try? fileURL.resourceValues(forKeys: resourceKeys).isRegularFile) == true {
+                    files.append(fileURL)
+                }
+            }
+            return files
+        }
+    }
+
+    private nonisolated static func relativePathForExcludePreview(_ url: URL, parent: URL) -> String {
+        let parentPath = parent.standardizedFileURL.path
+        let filePath = url.standardizedFileURL.path
+        let prefix = parentPath.hasSuffix("/") ? parentPath : parentPath + "/"
+        guard filePath.hasPrefix(prefix) else {
+            return url.lastPathComponent
+        }
+        return String(filePath.dropFirst(prefix.count))
+    }
+
+    private nonisolated static func matchesExcludePattern(_ pattern: String, relativePath: String, fileName: String) -> Bool {
+        fnmatch(pattern, relativePath, 0) == 0 || fnmatch(pattern, fileName, 0) == 0
     }
 
     static func splitCommandLineArguments(from text: String) -> [String] {

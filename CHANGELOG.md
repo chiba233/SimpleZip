@@ -49,6 +49,10 @@
   - While an operation is running, the status bar now stays compact: indeterminate spinner mode no longer reserves a wide empty slot, and inline file-log text has been removed in favor of the Details sheet.
   - ZIP archives now support split-volume creation when a volume size is set, and GZ/BZ2/XZ creation now blocks invalid multi-file selections before the command starts.
   - Dotfile exclusion now explains that files like `.env`, `.gitignore`, and `.npmrc` are also skipped.
+  - Dotfile exclusion is no longer enabled by default, so files such as `.env` and `.gitignore` are preserved unless the user opts in.
+  - Custom exclude options now include a manual Calculate action that scans the selected sources and reports how many files will be excluded.
+  - Invalid split-volume sizes, password mismatches, missing RAR backends, and single-file-only format mistakes now show inline validation messages in the Add to Archive sheet.
+  - Format, compression level, and update mode controls now sit on one compact row in the Add to Archive sheet.
   - The Add to Archive window is compact again: password controls now expand only when needed, 7-Zip advanced options are collapsible, and the sheet no longer grows to an oversized height.
   - RAR creation now probes bundled, application-bundled, and system `rar` binaries instead of only one path, and shows a clear disabled-state message when no RAR backend is available.
 - **Reliability**

@@ -182,6 +182,10 @@
 "archive.skipHiddenFilesHint" = ".env、.gitignore、.npmrc など、. で始まる dotfiles も除外対象です。";
 "archive.customExcludes" = "カスタム除外";
 "archive.customExcludesHint" = "1行に1つ、またはカンマ区切り。例: *.tmp または build/*";
+"archive.countExcludedFiles" = "計算";
+"archive.excludedFilesNotConfigured" = "除外ルールは有効になっていません。";
+"archive.excludedFilesNeedsCalculation" = "計算をクリックして除外予定ファイル数を数えます。";
+"archive.excludedFilesDetected" = "%d 個の除外予定ファイルを検出しました。";
 "archive.destination" = "保存先";
 "benchmark.title" = "7-Zip ベンチマーク";
 "benchmark.dictionarySize" = "辞書サイズ";

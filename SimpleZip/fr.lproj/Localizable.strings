@@ -182,6 +182,10 @@
 "archive.skipHiddenFilesHint" = "Les fichiers cachés incluent .env, .gitignore, .npmrc et d'autres fichiers commençant par un point.";
 "archive.customExcludes" = "Exclusions personnalisées";
 "archive.customExcludesHint" = "Une règle par ligne ou séparée par des virgules. Par exemple : *.tmp ou build/*";
+"archive.countExcludedFiles" = "Calculer";
+"archive.excludedFilesNotConfigured" = "Aucune règle d'exclusion n'est activée.";
+"archive.excludedFilesNeedsCalculation" = "Cliquez sur Calculer pour compter les fichiers qui seront exclus.";
+"archive.excludedFilesDetected" = "%d fichiers seront exclus.";
 "archive.destination" = "Enregistrer dans";
 "benchmark.title" = "Benchmark 7-Zip";
 "benchmark.dictionarySize" = "Taille du dictionnaire";
