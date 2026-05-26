@@ -31,14 +31,18 @@ Build:
 
 Important files:
 
-- `SimpleZip/SimpleZip/SimpleZipApp.swift` — app entry and menu commands.
-- `SimpleZip/SimpleZip/ContentView.swift` — main window composition.
-- `SimpleZip/SimpleZip/ArchiveBrowserModel.swift` — main state and user actions.
-- `SimpleZip/SimpleZip/ArchiveService.swift` — command-line archive backend.
-- `SimpleZip/SimpleZip/FileTable.swift` — folder table.
-- `SimpleZip/SimpleZip/ArchiveTable.swift` — archive table.
-- `SimpleZip/SimpleZip/SettingsView.swift` — preferences UI.
-- `SimpleZip/SimpleZip/*.lproj/Localizable.strings` — localization.
+- `SimpleZip/App/SimpleZipApp.swift` — app entry and menu commands.
+- `SimpleZip/App/ContentView.swift` — main window composition.
+- `SimpleZip/Core/ArchiveService.swift` — command-line archive backend.
+- `SimpleZip/Core/*.swift` — testable core models, options, preferences, localization helper, and safety logic.
+- `SimpleZip/Features/ArchiveBrowser/ArchiveBrowserModel.swift` — main state and user actions.
+- `SimpleZip/Features/ArchiveBrowser/FileTable.swift` — folder table.
+- `SimpleZip/Features/ArchiveBrowser/ArchiveTable.swift` — archive table.
+- `SimpleZip/Features/ArchiveOperations/*.swift` — archive creation and extraction sheets/coordinators.
+- `SimpleZip/Features/Hashing/*.swift` — hashing models, service, and result UI.
+- `SimpleZip/Features/Benchmark/*.swift` — 7-Zip benchmark UI.
+- `SimpleZip/Features/Settings/*.swift` — preferences and file association UI.
+- `SimpleZip/*.lproj/Localizable.strings` — localization.
 
 ## Code Style
 
