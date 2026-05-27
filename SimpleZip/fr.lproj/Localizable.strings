@@ -63,6 +63,8 @@
 "button.extractHere" = "Extraire ici";
 "button.revealInFinder" = "Afficher dans le Finder";
 "help.refresh" = "Actualiser";
+"help.locationCompletions" = "Afficher les suggestions de dossiers";
+"locationCompletion.count" = "%d dossiers";
 "help.goUp" = "Monter";
 "column.name" = "Nom";
 "column.size" = "Taille";

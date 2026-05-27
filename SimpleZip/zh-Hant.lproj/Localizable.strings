@@ -63,6 +63,8 @@
 "button.extractHere" = "解壓縮到此處";
 "button.revealInFinder" = "在 Finder 中顯示";
 "help.refresh" = "重新整理";
+"help.locationCompletions" = "顯示資料夾建議";
+"locationCompletion.count" = "共 %d 個資料夾";
 "help.goBack" = "返回";
 "help.goForward" = "前進";
 "help.goUp" = "上一層";

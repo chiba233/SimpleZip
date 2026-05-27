@@ -63,6 +63,8 @@
 "button.extractHere" = "Extraer aquí";
 "button.revealInFinder" = "Mostrar en Finder";
 "help.refresh" = "Actualizar";
+"help.locationCompletions" = "Mostrar sugerencias de carpetas";
+"locationCompletion.count" = "%d carpetas";
 "help.goUp" = "Subir";
 "column.name" = "Nombre";
 "column.size" = "Tamaño";

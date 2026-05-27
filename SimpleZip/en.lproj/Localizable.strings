@@ -65,6 +65,8 @@
 "button.extractHere" = "Extract Here";
 "button.revealInFinder" = "Reveal in Finder";
 "help.refresh" = "Refresh";
+"help.locationCompletions" = "Show folder suggestions";
+"locationCompletion.count" = "%d folders";
 "help.goBack" = "Back";
 "help.goForward" = "Forward";
 "help.goUp" = "Go Up";

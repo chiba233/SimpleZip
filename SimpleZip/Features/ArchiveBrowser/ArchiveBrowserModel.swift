@@ -173,6 +173,26 @@ final class ArchiveBrowserModel: ObservableObject {
         }
     }
 
+    func locationCompletions(for text: String) -> [LocationCompletion] {
+        guard case .folder(let currentFolder) = mode else { return [] }
+        let query = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else {
+            return directoryCompletions(in: currentFolder, matching: "")
+        }
+
+        let expandedQuery = NSString(string: query).expandingTildeInPath
+        let queryURL = URL(fileURLWithPath: expandedQuery)
+        var isDirectory = ObjCBool(false)
+
+        if query.hasSuffix("/") || fileManager.fileExists(atPath: queryURL.path, isDirectory: &isDirectory) && isDirectory.boolValue {
+            return directoryCompletions(in: queryURL, matching: "")
+        }
+
+        let parentURL = queryURL.deletingLastPathComponent()
+        let prefix = queryURL.lastPathComponent
+        return directoryCompletions(in: parentURL, matching: prefix)
+    }
+
     func chooseFolder() {
         let panel = NSOpenPanel()
         panel.title = L10n.text("panel.openFolder")
@@ -1058,6 +1078,39 @@ final class ArchiveBrowserModel: ObservableObject {
             if folderFirst, isNavigableDirectory(lhs) != isNavigableDirectory(rhs) { return isNavigableDirectory(lhs) }
             return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
         }
+    }
+
+    private func directoryCompletions(in directoryURL: URL, matching prefix: String) -> [LocationCompletion] {
+        let resourceKeys: Set<URLResourceKey> = [.isDirectoryKey, .isHiddenKey]
+        var options: FileManager.DirectoryEnumerationOptions = [.skipsPackageDescendants]
+        if !AppPreferences.showHiddenFiles {
+            options.insert(.skipsHiddenFiles)
+        }
+
+        guard let urls = try? fileManager.contentsOfDirectory(
+            at: directoryURL,
+            includingPropertiesForKeys: Array(resourceKeys),
+            options: options
+        ) else {
+            return []
+        }
+
+        let lowercasedPrefix = prefix.lowercased()
+        return urls.compactMap { url -> LocationCompletion? in
+            guard let values = try? url.resourceValues(forKeys: resourceKeys),
+                  values.isDirectory == true,
+                  !isLocalFilePackage(url)
+            else {
+                return nil
+            }
+
+            let displayName = fileManager.displayName(atPath: url.path).isEmpty ? url.lastPathComponent : fileManager.displayName(atPath: url.path)
+            if !lowercasedPrefix.isEmpty, !displayName.lowercased().hasPrefix(lowercasedPrefix), !url.lastPathComponent.lowercased().hasPrefix(lowercasedPrefix) {
+                return nil
+            }
+            return LocationCompletion(url: url, displayName: displayName, path: url.path)
+        }
+        .sorted { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
     }
 
     private nonisolated func taggedFileURLs(named tag: String) async throws -> [URL] {

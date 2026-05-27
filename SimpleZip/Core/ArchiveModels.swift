@@ -23,6 +23,14 @@ struct FileItem: Identifiable, Hashable {
     let applicationName: String
 }
 
+/// 地址栏补全候选项。
+struct LocationCompletion: Identifiable, Hashable {
+    let id = UUID()
+    let url: URL
+    let displayName: String
+    let path: String
+}
+
 /// 压缩包浏览模式下的一行归档内项目。
 struct ArchiveItem: Identifiable, Hashable {
     let id = UUID()

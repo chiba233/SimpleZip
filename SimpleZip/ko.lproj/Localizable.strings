@@ -63,6 +63,8 @@
 "button.extractHere" = "여기에 압축 풀기";
 "button.revealInFinder" = "Finder에서 보기";
 "help.refresh" = "새로 고침";
+"help.locationCompletions" = "폴더 제안 보기";
+"locationCompletion.count" = "폴더 %d개";
 "help.goUp" = "상위로";
 "column.name" = "이름";
 "column.size" = "크기";

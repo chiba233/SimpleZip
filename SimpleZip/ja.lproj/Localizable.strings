@@ -63,6 +63,8 @@
 "button.extractHere" = "ここに展開";
 "button.revealInFinder" = "Finder に表示";
 "help.refresh" = "更新";
+"help.locationCompletions" = "フォルダ候補を表示";
+"locationCompletion.count" = "%d 個のフォルダ";
 "help.goUp" = "上の階層へ";
 "column.name" = "名前";
 "column.size" = "サイズ";

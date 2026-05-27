@@ -63,6 +63,8 @@
 "button.extractHere" = "解压到此处";
 "button.revealInFinder" = "在 Finder 中显示";
 "help.refresh" = "刷新";
+"help.locationCompletions" = "显示文件夹建议";
+"locationCompletion.count" = "共 %d 个文件夹";
 "help.goBack" = "返回";
 "help.goForward" = "前进";
 "help.goUp" = "上一级";

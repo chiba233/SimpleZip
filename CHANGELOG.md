@@ -19,6 +19,7 @@
   - Double-click and context menu opening are supported inside archive folders.
   - Archive browsing now uses richer per-entry file icons and adds a Kind column, so the archive list is closer to the regular file browser instead of a bare generic list.
   - Local `.app` and other macOS packages now open like applications by default, use their package icons, and offer Show Package Contents from the context menu.
+  - The location bar now offers folder autocomplete while typing, with a scrollable dropdown, total match count, keyboard navigation for Up/Down, Tab completion, and Return to open the highlighted folder.
 - **Extraction**
   - Shared the common whole-archive and selected-entry extraction options form so destination, password, details, and action controls stay consistent.
   - Extraction now stages files in a temporary directory before merging, so existing destination files always go through SimpleZip's conflict dialog instead of being overwritten by the backend.

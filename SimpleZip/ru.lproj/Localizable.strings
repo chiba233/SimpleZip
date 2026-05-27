@@ -63,6 +63,8 @@
 "button.extractHere" = "Распаковать сюда";
 "button.revealInFinder" = "Показать в Finder";
 "help.refresh" = "Обновить";
+"help.locationCompletions" = "Показать предложения папок";
+"locationCompletion.count" = "Папок: %d";
 "help.goUp" = "Вверх";
 "column.name" = "Имя";
 "column.size" = "Размер";

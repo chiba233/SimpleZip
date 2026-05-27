@@ -63,6 +63,8 @@
 "button.extractHere" = "แตกไฟล์ที่นี่";
 "button.revealInFinder" = "แสดงใน Finder";
 "help.refresh" = "รีเฟรช";
+"help.locationCompletions" = "แสดงคำแนะนำโฟลเดอร์";
+"locationCompletion.count" = "%d โฟลเดอร์";
 "help.goUp" = "ขึ้นหนึ่งระดับ";
 "column.name" = "ชื่อ";
 "column.size" = "ขนาด";
