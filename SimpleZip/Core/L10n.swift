@@ -11,9 +11,16 @@ import Foundation
 enum L10n {
     nonisolated static func text(_ key: String) -> String {
         if let bundle = selectedLanguageBundle {
-            return NSLocalizedString(key, bundle: bundle, comment: "")
+            let localized = NSLocalizedString(key, bundle: bundle, comment: "")
+            if localized != key {
+                return localized
+            }
         }
-        return NSLocalizedString(key, comment: "")
+        let localized = NSLocalizedString(key, comment: "")
+        if localized != key {
+            return localized
+        }
+        return NSLocalizedString(key, bundle: englishBundle ?? .main, comment: "")
     }
 
     nonisolated static func format(_ key: String, _ arguments: CVarArg...) -> String {
@@ -26,6 +33,13 @@ enum L10n {
             return nil
         }
         guard let path = Bundle.main.path(forResource: code, ofType: "lproj") else {
+            return nil
+        }
+        return Bundle(path: path)
+    }
+
+    private nonisolated static var englishBundle: Bundle? {
+        guard let path = Bundle.main.path(forResource: "en", ofType: "lproj") else {
             return nil
         }
         return Bundle(path: path)

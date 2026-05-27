@@ -47,12 +47,16 @@ final class ArchiveExtractionCoordinator {
     func resolveDestination(
         for sourceURL: URL,
         requestedTargetURL: URL,
+        targetRootURL: URL? = nil,
         defaultOverwriteBehavior: OverwriteBehavior? = nil,
         updateStatus: ((String) -> Void)? = nil,
         updateProgress: ((ArchiveProgressState) -> Void)? = nil
     ) async throws -> URL? {
         if sourceURL.standardizedFileURL == requestedTargetURL.standardizedFileURL {
             return nil
+        }
+        if let targetRootURL {
+            try validateContainedURL(requestedTargetURL, in: targetRootURL)
         }
         guard fileManager.fileExists(atPath: requestedTargetURL.path) else {
             return requestedTargetURL
@@ -75,7 +79,11 @@ final class ArchiveExtractionCoordinator {
             try trashExistingItem(at: requestedTargetURL)
             return requestedTargetURL
         case .keepBoth:
-            return uniqueDestinationURL(for: sourceURL.lastPathComponent, in: requestedTargetURL.deletingLastPathComponent())
+            let uniqueURL = uniqueDestinationURL(for: sourceURL.lastPathComponent, in: requestedTargetURL.deletingLastPathComponent())
+            if let targetRootURL {
+                try validateContainedURL(uniqueURL, in: targetRootURL)
+            }
+            return uniqueURL
         case .skip:
             return nil
         case .replaceIfDifferent:
@@ -120,10 +128,13 @@ final class ArchiveExtractionCoordinator {
 
         for sourceURL in extractedURLs {
             try Task.checkCancellation()
+            try validateContainedURL(sourceURL, in: stagingURL)
             let targetURL = destinationURL.appendingPathComponent(sourceURL.lastPathComponent)
             try await mergeExtractedItem(
                 sourceURL,
                 to: targetURL,
+                stagingRootURL: stagingURL,
+                destinationRootURL: destinationURL,
                 defaultOverwriteBehavior: defaultOverwriteBehavior,
                 updateStatus: updateStatus,
                 updateProgress: updateProgress
@@ -140,11 +151,15 @@ final class ArchiveExtractionCoordinator {
     private func mergeExtractedItem(
         _ sourceURL: URL,
         to targetURL: URL,
+        stagingRootURL: URL,
+        destinationRootURL: URL,
         defaultOverwriteBehavior: OverwriteBehavior,
         updateStatus: @escaping (String) -> Void,
         updateProgress: @escaping (ArchiveProgressState) -> Void
     ) async throws {
         updateProgress(ArchiveProgressState(fraction: nil, currentFile: sourceURL.lastPathComponent))
+        try validateContainedURL(sourceURL, in: stagingRootURL)
+        try validateContainedURL(targetURL, in: destinationRootURL)
 
         let sourceValues = try sourceURL.resourceValues(forKeys: [.isDirectoryKey])
         let sourceIsDirectory = sourceValues.isDirectory == true
@@ -162,6 +177,8 @@ final class ArchiveExtractionCoordinator {
                 try await mergeExtractedItem(
                     childURL,
                     to: targetURL.appendingPathComponent(childURL.lastPathComponent),
+                    stagingRootURL: stagingRootURL,
+                    destinationRootURL: destinationRootURL,
                     defaultOverwriteBehavior: defaultOverwriteBehavior,
                     updateStatus: updateStatus,
                     updateProgress: updateProgress
@@ -174,14 +191,24 @@ final class ArchiveExtractionCoordinator {
         let resolvedURL = try await resolveDestination(
             for: sourceURL,
             requestedTargetURL: targetURL,
+            targetRootURL: destinationRootURL,
             defaultOverwriteBehavior: defaultOverwriteBehavior,
             updateStatus: updateStatus,
             updateProgress: updateProgress
         )
         guard let resolvedURL else { return }
+        try validateContainedURL(resolvedURL, in: destinationRootURL)
         try fileManager.createDirectory(at: resolvedURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         try fileManager.moveItem(at: sourceURL, to: resolvedURL)
         showPendingHashOverwriteResult(for: resolvedURL)
+    }
+
+    private func validateContainedURL(_ url: URL, in rootURL: URL) throws {
+        let rootPath = rootURL.standardizedFileURL.path
+        let path = url.standardizedFileURL.path
+        guard path == rootPath || path.hasPrefix(rootPath + "/") else {
+            throw ArchiveError.unsafeArchiveEntries([url.path])
+        }
     }
 
     private func pasteConflictChoice(targetURL: URL) -> PasteConflictChoice {

@@ -33,6 +33,7 @@
   - Extraction merge now honors the default overwrite preference when destination files already exist.
   - The overwrite preference now includes Ask, so extraction can always fall back to the conflict dialog instead of silently replacing or skipping files.
   - Passworded archive operations now avoid passing passwords on the command line.
+  - Password prompt handling now fails with a clear error and terminates the backend process if the backend asks for more password responses than SimpleZip can provide.
 - **Archive creation**
   - Long-running archive creation now reports progress and the current file when the backend emits progress output.
   - Added a creation options sheet.
@@ -46,6 +47,7 @@
   - Added `.DS_Store`, dotfile, and custom exclude rules, and TAR/TGZ creation now honors those filters too.
   - Archive creation now counts files before starting, shows a loading indicator during counting, and switches to determinate progress once the total is known.
   - Long-running archive commands can now be cancelled from the status bar.
+  - Cancelling a running operation now targets the command process registered for that operation instead of relying only on a single global active process.
   - While an operation is running, the status bar now stays compact: indeterminate spinner mode no longer reserves a wide empty slot, and inline file-log text has been removed in favor of the Details sheet.
   - ZIP archives now support split-volume creation when a volume size is set, and GZ/BZ2/XZ creation now blocks invalid multi-file selections before the command starts.
   - Dotfile exclusion now explains that files like `.env`, `.gitignore`, and `.npmrc` are also skipped.
@@ -61,6 +63,7 @@
   - Added startup cleanup for stale temporary directories created when opening archive entries as external temporary copies.
   - Added active safety confirmations for suspicious archive paths, extracted symbolic links, and executable or active-content items opened from temporary archive copies.
   - Added Archive security settings so suspicious paths, extracted symbolic links, and active-content opening can each be set to Ask, Always Allow, or Always Block.
+  - Extraction merging now validates that staged source files stay inside the staging directory and final targets stay inside the chosen destination directory.
   - Documented the current security model, archive compatibility matrix, progress limitations, and architecture refactor boundaries.
   - Cleaned up Swift concurrency warnings in the archive command runner and added a shared Xcode run scheme that hides OS activity noise during debug launches.
   - Backend path detection no longer launches `which` during Settings rendering, avoiding main-thread `Process.waitUntilExit()` stalls.
@@ -120,6 +123,7 @@
 - **Localization**
   - Added English, Simplified Chinese, Traditional Chinese, Japanese, and Thai strings.
   - Added Spanish, French, German, Korean, and Russian localizations, and exposed them in the in-app language picker.
+  - Missing strings in selected language bundles now fall back to the bundled English strings instead of surfacing raw localization keys, and duplicate English keys were cleaned up.
 - **Docs**
   - Added README, Chinese guide, changelog, contribution guide, and license files.
 

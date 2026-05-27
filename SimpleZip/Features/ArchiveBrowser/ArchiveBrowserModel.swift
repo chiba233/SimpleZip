@@ -847,8 +847,9 @@ final class ArchiveBrowserModel: ObservableObject {
 
     func cancelCurrentOperation() {
         guard canCancelCurrentOperation else { return }
+        let operationID = activeOperationID
         operationTask?.cancel()
-        ArchiveService.cancelRunningCommand()
+        ArchiveService.cancelRunningCommand(operationID: operationID)
     }
 
     func deleteSelectedFiles() {
@@ -1271,13 +1272,13 @@ final class ArchiveBrowserModel: ObservableObject {
     private func startOperationTask(cancellable: Bool = false, _ operation: @escaping @MainActor () async -> Void) {
         operationTask?.cancel()
         if canCancelCurrentOperation {
-            ArchiveService.cancelRunningCommand()
+            ArchiveService.cancelRunningCommand(operationID: activeOperationID)
         }
         let operationID = UUID()
         activeOperationID = operationID
         canCancelCurrentOperation = cancellable
         operationTask = Task { [weak self] in
-            await operation()
+            await ArchiveService.withCancellationScope(operationID, operation: operation)
             await MainActor.run {
                 guard let self, self.activeOperationID == operationID else { return }
                 self.operationTask = nil

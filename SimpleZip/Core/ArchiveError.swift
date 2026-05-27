@@ -21,6 +21,7 @@ enum ArchiveError: LocalizedError {
     case unsafeArchiveEntries([String])
     case unsafeArchiveLinks([String])
     case blockedBySecurityPolicy
+    case passwordPromptExhausted
     case commandFailed(String)
 
     var errorDescription: String? {
@@ -49,6 +50,8 @@ enum ArchiveError: LocalizedError {
             return L10n.format("error.unsafeArchiveLinks", names.joined(separator: ", "))
         case .blockedBySecurityPolicy:
             return L10n.text("error.blockedBySecurityPolicy")
+        case .passwordPromptExhausted:
+            return L10n.text("error.passwordPromptExhausted")
         case .commandFailed(let message):
             return message.trimmingCharacters(in: .whitespacesAndNewlines)
         }

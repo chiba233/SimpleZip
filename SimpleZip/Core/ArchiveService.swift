@@ -66,8 +66,14 @@ enum ArchiveService {
         try await createArchive(from: sourceURLs, destination: destination, options: ArchiveCreationOptions())
     }
 
-    static func cancelRunningCommand() {
-        ArchiveServiceProcessRegistry.shared.cancelActiveProcess()
+    static func cancelRunningCommand(operationID: UUID? = nil) {
+        ArchiveServiceProcessRegistry.shared.cancelProcess(operationID: operationID)
+    }
+
+    static func withCancellationScope(_ operationID: UUID, operation: @escaping @MainActor () async -> Void) async {
+        ArchiveServiceProcessRegistry.shared.beginOperationScope(operationID)
+        defer { ArchiveServiceProcessRegistry.shared.endOperationScope(operationID) }
+        await operation()
     }
 
     static func createArchive(
@@ -1106,7 +1112,8 @@ enum ArchiveService {
         inputStrategy: ProcessInputStrategy = .none,
         outputObserver: (@Sendable (String) -> Void)? = nil
     ) async throws -> String {
-        try await withCheckedThrowingContinuation { continuation in
+        let operationID = ArchiveServiceProcessRegistry.shared.currentOperationID()
+        return try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
                 do {
                     let output = try runAndCaptureSync(
@@ -1115,7 +1122,8 @@ enum ArchiveService {
                         currentDirectory: currentDirectory,
                         progressParser: progressParser,
                         inputStrategy: inputStrategy,
-                        outputObserver: outputObserver
+                        outputObserver: outputObserver,
+                        operationID: operationID
                     )
                     continuation.resume(returning: output)
                 } catch {
@@ -1131,7 +1139,8 @@ enum ArchiveService {
         currentDirectory: URL?,
         progressParser: ProgressOutputParser?,
         inputStrategy: ProcessInputStrategy,
-        outputObserver: (@Sendable (String) -> Void)?
+        outputObserver: (@Sendable (String) -> Void)?,
+        operationID: UUID?
     ) throws -> String {
         switch inputStrategy {
         case .none:
@@ -1140,7 +1149,8 @@ enum ArchiveService {
                 arguments: arguments,
                 currentDirectory: currentDirectory,
                 progressParser: progressParser,
-                outputObserver: outputObserver
+                outputObserver: outputObserver,
+                operationID: operationID
             )
         case .passwordPrompts(let responses):
             return try runWithPseudoTerminal(
@@ -1149,7 +1159,8 @@ enum ArchiveService {
                 currentDirectory: currentDirectory,
                 progressParser: progressParser,
                 promptResponder: InteractivePasswordResponder(responses: responses),
-                outputObserver: outputObserver
+                outputObserver: outputObserver,
+                operationID: operationID
             )
         }
     }
@@ -1159,7 +1170,8 @@ enum ArchiveService {
         arguments: [String],
         currentDirectory: URL?,
         progressParser: ProgressOutputParser?,
-        outputObserver: (@Sendable (String) -> Void)?
+        outputObserver: (@Sendable (String) -> Void)?,
+        operationID: UUID?
     ) throws -> String {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executable)
@@ -1170,7 +1182,7 @@ enum ArchiveService {
         process.standardOutput = ioPipe
         process.standardError = ioPipe
 
-        ArchiveServiceProcessRegistry.shared.register(process)
+        ArchiveServiceProcessRegistry.shared.register(process, operationID: operationID)
         defer { ArchiveServiceProcessRegistry.shared.clear(process) }
         try process.run()
         let output = try readOutput(from: ioPipe.fileHandleForReading, progressParser: progressParser, outputObserver: outputObserver)
@@ -1193,7 +1205,8 @@ enum ArchiveService {
         currentDirectory: URL?,
         progressParser: ProgressOutputParser?,
         promptResponder: InteractivePasswordResponder,
-        outputObserver: (@Sendable (String) -> Void)?
+        outputObserver: (@Sendable (String) -> Void)?,
+        operationID: UUID?
     ) throws -> String {
         var masterFD: Int32 = 0
         var slaveFD: Int32 = 0
@@ -1214,12 +1227,21 @@ enum ArchiveService {
 
         var responder = promptResponder
 
-        ArchiveServiceProcessRegistry.shared.register(process)
+        ArchiveServiceProcessRegistry.shared.register(process, operationID: operationID)
         defer { ArchiveServiceProcessRegistry.shared.clear(process) }
         try process.run()
         try? slaveHandle.close()
-        let output = try readOutput(from: masterHandle, progressParser: progressParser, outputObserver: outputObserver) { text in
-            try responder.consume(text, writer: masterHandle)
+        let output: String
+        do {
+            output = try readOutput(from: masterHandle, progressParser: progressParser, outputObserver: outputObserver) { text in
+                try responder.consume(text, writer: masterHandle)
+            }
+        } catch {
+            if process.isRunning {
+                process.terminate()
+            }
+            process.waitUntilExit()
+            throw error
         }
         process.waitUntilExit()
 
@@ -1687,13 +1709,16 @@ private struct InteractivePasswordResponder {
     }
 
     nonisolated mutating func consume(_ text: String, writer: FileHandle) throws {
-        guard responseIndex < responses.count else { return }
         buffer += text.lowercased()
         guard Self.promptMarkers.contains(where: buffer.contains) else {
             if buffer.count > 512 {
                 buffer = String(buffer.suffix(512))
             }
             return
+        }
+
+        guard responseIndex < responses.count else {
+            throw ArchiveError.passwordPromptExhausted
         }
 
         if let data = (responses[responseIndex] + "\n").data(using: .utf8) {
@@ -1715,22 +1740,55 @@ private enum DiskImageDateFormatter {
 
 private final class ActiveProcessRegistry: @unchecked Sendable {
     private let lock = NSLock()
+    nonisolated(unsafe) private var scopedOperationID: UUID?
     nonisolated(unsafe) private weak var activeProcess: Process?
+    nonisolated(unsafe) private var processesByOperationID: [UUID: Process] = [:]
+    nonisolated(unsafe) private var operationIDsByProcess = [ObjectIdentifier: UUID]()
     nonisolated(unsafe) private var cancelledProcesses = Set<ObjectIdentifier>()
 
-    nonisolated func register(_ process: Process) {
+    nonisolated func beginOperationScope(_ operationID: UUID) {
+        lock.lock()
+        scopedOperationID = operationID
+        lock.unlock()
+    }
+
+    nonisolated func endOperationScope(_ operationID: UUID) {
+        lock.lock()
+        if scopedOperationID == operationID {
+            scopedOperationID = nil
+        }
+        lock.unlock()
+    }
+
+    nonisolated func currentOperationID() -> UUID? {
+        lock.lock()
+        defer { lock.unlock() }
+        return scopedOperationID
+    }
+
+    nonisolated func register(_ process: Process, operationID: UUID?) {
         lock.lock()
         activeProcess = process
-        cancelledProcesses.remove(ObjectIdentifier(process))
+        let processID = ObjectIdentifier(process)
+        cancelledProcesses.remove(processID)
+        if let operationID {
+            processesByOperationID[operationID] = process
+            operationIDsByProcess[processID] = operationID
+        }
         lock.unlock()
     }
 
     nonisolated func clear(_ process: Process) {
         lock.lock()
+        let processID = ObjectIdentifier(process)
         if activeProcess === process {
             activeProcess = nil
         }
-        cancelledProcesses.remove(ObjectIdentifier(process))
+        if let operationID = operationIDsByProcess.removeValue(forKey: processID),
+           processesByOperationID[operationID] === process {
+            processesByOperationID.removeValue(forKey: operationID)
+        }
+        cancelledProcesses.remove(processID)
         lock.unlock()
     }
 
@@ -1740,9 +1798,9 @@ private final class ActiveProcessRegistry: @unchecked Sendable {
         return cancelledProcesses.contains(ObjectIdentifier(process))
     }
 
-    nonisolated func cancelActiveProcess() {
+    nonisolated func cancelProcess(operationID: UUID?) {
         lock.lock()
-        let process = activeProcess
+        let process = operationID.flatMap { processesByOperationID[$0] } ?? activeProcess
         if let process {
             cancelledProcesses.insert(ObjectIdentifier(process))
         }
