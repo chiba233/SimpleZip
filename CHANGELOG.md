@@ -12,6 +12,7 @@
   - Regenerated the full app icon set and bundled `AppIcon.icns` from the latest desktop artwork by stripping the edge-connected dark background into transparency.
   - Scaled the icon artwork back into a macOS-style safe area so it no longer appears visually larger than neighboring apps in the Dock and Finder.
 - **Archive browsing**
+  - Fixed the GitHub CI `ArchiveTable` file-promise export path so it no longer captures the main-actor-isolated `model` from a nonisolated context, which was breaking Xcode 16.4 Release builds.
   - Archive directories are now presented as real navigable folders instead of flat path rows.
   - Double-clicking a file inside an archive now extracts that item to a temporary location and opens it with the default macOS app.
   - Archive rows can now be dragged out to Finder or other file destinations; SimpleZip extracts the promised items directly to the drop location.

@@ -283,9 +283,10 @@ extension ArchiveNSTableView.Coordinator: NSFilePromiseProviderDelegate {
             completionHandler(ArchiveError.extractedItemNotFound)
             return
         }
-        Task { @MainActor [model] in
+        Task { @MainActor [weak self] in
+            guard let self else { return }
             do {
-                try await model.exportArchiveItem(item, to: url)
+                try await self.model.exportArchiveItem(item, to: url)
                 completionHandler(nil)
             } catch {
                 completionHandler(error)
