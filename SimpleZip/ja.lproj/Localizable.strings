@@ -255,13 +255,12 @@
 "settings.7zip.notFound" = "見つかりません";
 "settings.rar.backend" = "RAR バックエンド";
 "settings.rar.automatic" = "自動";
-"settings.rar.bundled" = "アプリ内蔵";
+"settings.rar.bundled" = "手動インストール";
 "settings.rar.system" = "システム導入版";
 "settings.rar.path" = "パス: %@";
 "settings.rar.version" = "バージョン: %@";
 "settings.rar.resolvedPath" = "%@: %@";
 "settings.rar.resolvedVersion" = "%@: %@";
-"settings.rar.source.bundled" = "内蔵 RAR";
 "settings.rar.source.system" = "システム RAR";
 "settings.rar.checking" = "確認中...";
 "settings.rar.notFound" = "見つかりません";

@@ -627,6 +627,21 @@ final class ArchiveBrowserModel: ObservableObject {
         archiveCreationRequest = ArchiveCreationRequest(sourceURLs: items.map(\.url), directoryURL: currentFolder, destinationURL: destination)
     }
 
+    func createArchive(fromFinderURLs urls: [URL]) {
+        let fileURLs = urls.filter { url in
+            FileManager.default.fileExists(atPath: url.path)
+        }
+
+        guard !fileURLs.isEmpty else {
+            errorMessage = L10n.text("error.selectFilesToArchive")
+            return
+        }
+
+        let parentDirectory = fileURLs[0].deletingLastPathComponent()
+        let destination = parentDirectory.appendingPathComponent(defaultArchiveName(for: fileURLs))
+        archiveCreationRequest = ArchiveCreationRequest(sourceURLs: fileURLs, directoryURL: parentDirectory, destinationURL: destination)
+    }
+
     func performCreateArchive(_ request: ArchiveCreationRequest) {
         let title = L10n.format("status.creating", request.destinationURL.lastPathComponent)
         startManagedArchiveTask(
@@ -874,6 +889,23 @@ final class ArchiveBrowserModel: ObservableObject {
             return
         }
 
+        calculateHash(for: urls, algorithms: algorithms)
+    }
+
+    func calculateHash(forFinderURLs urls: [URL]) {
+        calculateHash(for: urls, algorithms: HashAlgorithm.allCases)
+    }
+
+    private func calculateHash(for urls: [URL], algorithms: [HashAlgorithm]) {
+        let fileURLs = urls.filter { url in
+            FileManager.default.fileExists(atPath: url.path)
+        }
+
+        guard !fileURLs.isEmpty else {
+            errorMessage = L10n.text("error.selectFilesForHash")
+            return
+        }
+
         startOperationTask { [weak self] in
             guard let self else { return }
             isWorking = true
@@ -882,7 +914,7 @@ final class ArchiveBrowserModel: ObservableObject {
             defer { isWorking = false }
 
             do {
-                hashReport = try await HashService.calculate(for: urls, includeHiddenFiles: AppPreferences.showHiddenFiles, algorithms: algorithms)
+                hashReport = try await HashService.calculate(for: fileURLs, includeHiddenFiles: AppPreferences.showHiddenFiles, algorithms: algorithms)
                 status = L10n.text("status.hashReady")
             } catch {
                 errorMessage = error.localizedDescription
@@ -1343,6 +1375,13 @@ final class ArchiveBrowserModel: ObservableObject {
     private func defaultArchiveName(for items: [FileItem]) -> String {
         if items.count == 1 {
             return items[0].url.deletingPathExtension().lastPathComponent + ".zip"
+        }
+        return "Archive.zip"
+    }
+
+    private func defaultArchiveName(for urls: [URL]) -> String {
+        if urls.count == 1 {
+            return urls[0].deletingPathExtension().lastPathComponent + ".zip"
         }
         return "Archive.zip"
     }

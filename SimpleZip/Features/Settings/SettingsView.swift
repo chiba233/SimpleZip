@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import AppKit
 
 /// 设置窗口：放置会影响浏览、解压和文件显示行为的默认项。
 struct SettingsView: View {
@@ -37,7 +38,16 @@ struct SettingsView: View {
     @State private var associationStatus: [String: String] = [:]
     @State private var languageMessage: String?
     @State private var sevenZipVersion = L10n.text("settings.7zip.checking")
+    @State private var isSevenZipMissing = false
     @State private var rarVersion = L10n.text("settings.rar.checking")
+    @State private var isRarMissing = false
+    @State private var hasLocalRarBackend = false
+    @State private var isInstallingRar = false
+    @State private var rarInstallReview: RarInstallReview?
+    @State private var hasReadRarLicense = false
+    @State private var hasReadRarReadme = false
+    @State private var systemInstallMessage: String?
+    @State private var rarInstallMessage: String?
     @State private var selectedPane = SettingsPane.general
     @State private var showsHiddenSuffixDrawer = false
     @State private var hiddenRecommendedSuffixes = AppPreferences.hiddenRecommendedSuffixes
@@ -197,6 +207,16 @@ struct SettingsView: View {
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
+
+                if shouldShowSevenZipSystemInstallPrompt {
+                    SystemInstallCommandView(
+                        title: L10n.text("settings.systemInstall.7zip.title"),
+                        command: "brew install sevenzip",
+                        message: $systemInstallMessage,
+                        copyCommand: copySystemInstallCommand,
+                        copyAndOpenTerminal: copySystemInstallCommandAndOpenTerminal
+                    )
+                }
             }
 
             Section(L10n.text("settings.rar.backend")) {
@@ -215,10 +235,96 @@ struct SettingsView: View {
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
+
+                if shouldShowRarControls {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(rarControlsPrompt)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack {
+                                Button {
+                                    openRarInstallReadme()
+                                } label: {
+                                    Label(L10n.text("settings.rar.openReadme"), systemImage: "doc.text")
+                                }
+
+                                Button {
+                                    revealRarInstallFiles()
+                                } label: {
+                                    Label(L10n.text("settings.rar.revealInstallFiles"), systemImage: "folder")
+                                }
+                            }
+
+                            HStack {
+                                Button {
+                                    beginRarInstallReview(.install)
+                                } label: {
+                                    Label(L10n.text("settings.rar.runInstaller"), systemImage: "arrow.down.circle")
+                                }
+                                .disabled(isInstallingRar || hasLocalRarBackend)
+
+                                Button {
+                                    beginRarInstallReview(.update)
+                                } label: {
+                                    Label(L10n.text("settings.rar.updateBackend"), systemImage: "arrow.triangle.2.circlepath")
+                                }
+                                .disabled(isInstallingRar || !hasLocalRarBackend)
+
+                                Button(role: .destructive) {
+                                    deleteLocalRarBackend()
+                                } label: {
+                                    Label(L10n.text("settings.rar.deleteBackend"), systemImage: "trash")
+                                }
+                                .disabled(isInstallingRar || !hasLocalRarBackend)
+                            }
+                        }
+
+                        if let rarInstallMessage {
+                            Text(rarInstallMessage)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
+                if shouldShowRarSystemInstallPrompt {
+                    SystemInstallCommandView(
+                        title: L10n.text("settings.systemInstall.rar.title"),
+                        command: "brew install --cask rar",
+                        message: $systemInstallMessage,
+                        copyCommand: copySystemInstallCommand,
+                        copyAndOpenTerminal: copySystemInstallCommandAndOpenTerminal
+                    )
+                }
             }
         }
         .formStyle(.grouped)
         .controlSize(.small)
+        .sheet(item: $rarInstallReview) { review in
+            rarInstallReviewSheet(review)
+        }
+    }
+
+    private var shouldShowRarControls: Bool {
+        let selectedBackend = RarBackend(rawValue: rarBackend)
+        guard selectedBackend == .automatic || selectedBackend == .bundled else {
+            return false
+        }
+        return isRarMissing || hasLocalRarBackend
+    }
+
+    private var shouldShowSevenZipSystemInstallPrompt: Bool {
+        SevenZipBackend(rawValue: sevenZipBackend) == .system && isSevenZipMissing
+    }
+
+    private var shouldShowRarSystemInstallPrompt: Bool {
+        RarBackend(rawValue: rarBackend) == .system && isRarMissing
+    }
+
+    private var rarControlsPrompt: String {
+        hasLocalRarBackend ? L10n.text("settings.rar.localBackendPrompt") : L10n.text("settings.rar.installPrompt")
     }
 
     private var browserPane: some View {
@@ -427,11 +533,13 @@ struct SettingsView: View {
         let checkingText = L10n.text("settings.7zip.checking")
         DispatchQueue.main.async {
             sevenZipVersion = checkingText
+            isSevenZipMissing = !ArchiveService.canUseSevenZip()
         }
         Task {
             let version = await ArchiveService.sevenZipVersion()
             DispatchQueue.main.async {
                 sevenZipVersion = version
+                isSevenZipMissing = !ArchiveService.canUseSevenZip()
             }
         }
     }
@@ -440,13 +548,180 @@ struct SettingsView: View {
         let checkingText = L10n.text("settings.rar.checking")
         DispatchQueue.main.async {
             rarVersion = checkingText
+            isRarMissing = !ArchiveService.canCreateRAR()
+            hasLocalRarBackend = ArchiveService.hasLocalRarBackend()
         }
         Task {
             let version = await ArchiveService.rarVersion()
             DispatchQueue.main.async {
                 rarVersion = version
+                isRarMissing = !ArchiveService.canCreateRAR()
+                hasLocalRarBackend = ArchiveService.hasLocalRarBackend()
             }
         }
+    }
+
+    private func openRarInstallReadme() {
+        guard let readmeURL = ArchiveService.rarInstallReadmeURL() else {
+            rarInstallMessage = L10n.text("settings.rar.installFilesMissing")
+            return
+        }
+        guard FileManager.default.fileExists(atPath: readmeURL.path) else {
+            rarInstallMessage = L10n.text("settings.rar.installFilesMissing")
+            return
+        }
+        NSWorkspace.shared.open(readmeURL)
+    }
+
+    private func revealRarInstallFiles() {
+        guard let resourcesURL = ArchiveService.rarInstallResourcesURL() else {
+            rarInstallMessage = L10n.text("settings.rar.installFilesMissing")
+            return
+        }
+        guard FileManager.default.fileExists(atPath: resourcesURL.path) else {
+            rarInstallMessage = L10n.text("settings.rar.installFilesMissing")
+            return
+        }
+        let installFiles = [
+            ArchiveService.rarInstallReadmeURL(),
+            ArchiveService.rarInstallLicenseURL(),
+            ArchiveService.rarInstallerScriptURL()
+        ].compactMap { $0 }
+        NSWorkspace.shared.activateFileViewerSelecting(installFiles.isEmpty ? [resourcesURL] : installFiles)
+    }
+
+    private func beginRarInstallReview(_ action: RarInstallAction) {
+        guard let licenseURL = ArchiveService.rarInstallLicenseURL(),
+              let readmeURL = ArchiveService.rarInstallReadmeURL()
+        else {
+            rarInstallMessage = L10n.text("settings.rar.installFilesMissing")
+            return
+        }
+
+        do {
+            let licenseText = try String(contentsOf: licenseURL, encoding: .utf8)
+            let readmeText = try String(contentsOf: readmeURL, encoding: .utf8)
+            hasReadRarLicense = false
+            hasReadRarReadme = false
+            let review = RarInstallReview(action: action, licenseText: licenseText, readmeText: readmeText)
+            DispatchQueue.main.async {
+                rarInstallReview = review
+            }
+        } catch {
+            rarInstallMessage = L10n.format("settings.rar.installFailedWithOutput", error.localizedDescription)
+        }
+    }
+
+    private func runRarInstaller(action: RarInstallAction) {
+        guard let installerURL = ArchiveService.rarInstallerScriptURL() else {
+            rarInstallMessage = L10n.text("settings.rar.installFilesMissing")
+            return
+        }
+        guard FileManager.default.fileExists(atPath: installerURL.path) else {
+            rarInstallMessage = L10n.text("settings.rar.installFilesMissing")
+            return
+        }
+
+        isInstallingRar = true
+        rarInstallReview = nil
+        rarInstallMessage = action == .install ? L10n.text("settings.rar.installing") : L10n.text("settings.rar.updating")
+
+        Task.detached {
+            let process = Process()
+            let output = Pipe()
+            process.executableURL = URL(fileURLWithPath: "/bin/bash")
+            process.arguments = [installerURL.path]
+            process.currentDirectoryURL = installerURL.deletingLastPathComponent()
+            process.standardOutput = output
+            process.standardError = output
+
+            do {
+                try process.run()
+                process.waitUntilExit()
+                let data = output.fileHandleForReading.readDataToEndOfFile()
+                let text = String(decoding: data, as: UTF8.self)
+                    .split(separator: "\n")
+                    .suffix(4)
+                    .joined(separator: "\n")
+
+                DispatchQueue.main.async {
+                    isInstallingRar = false
+                    refreshRarVersion()
+                    if process.terminationStatus == 0 {
+                        rarInstallMessage = action == .install ? L10n.text("settings.rar.installSucceeded") : L10n.text("settings.rar.updateSucceeded")
+                    } else if text.isEmpty {
+                        rarInstallMessage = L10n.text("settings.rar.installFailed")
+                    } else {
+                        rarInstallMessage = L10n.format("settings.rar.installFailedWithOutput", text)
+                    }
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    isInstallingRar = false
+                    rarInstallMessage = L10n.format("settings.rar.installFailedWithOutput", error.localizedDescription)
+                }
+            }
+        }
+    }
+
+    private func deleteLocalRarBackend() {
+        do {
+            try ArchiveService.deleteLocalRarBackend()
+            refreshRarVersion()
+            rarInstallMessage = L10n.text("settings.rar.deleteSucceeded")
+        } catch {
+            rarInstallMessage = L10n.format("settings.rar.deleteFailedWithOutput", error.localizedDescription)
+        }
+    }
+
+    private func copySystemInstallCommand(_ command: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(command, forType: .string)
+        systemInstallMessage = L10n.format("settings.systemInstall.copied", command)
+    }
+
+    private func copySystemInstallCommandAndOpenTerminal(_ command: String) {
+        copySystemInstallCommand(command)
+        if let terminalURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.Terminal") {
+            NSWorkspace.shared.open(terminalURL)
+        }
+    }
+
+    @ViewBuilder
+    private func rarInstallReviewSheet(_ review: RarInstallReview) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(review.action.title)
+                .font(.headline)
+
+            VStack(alignment: .leading, spacing: 12) {
+                RarInstallDocumentView(
+                    title: L10n.text("settings.rar.licenseHeading"),
+                    text: review.licenseText,
+                    checkboxTitle: L10n.text("settings.rar.licenseReadCheckbox"),
+                    isRead: $hasReadRarLicense
+                )
+
+                RarInstallDocumentView(
+                    title: L10n.text("settings.rar.readmeHeading"),
+                    text: review.readmeText,
+                    checkboxTitle: L10n.text("settings.rar.readmeReadCheckbox"),
+                    isRead: $hasReadRarReadme
+                )
+            }
+
+            HStack {
+                Spacer()
+                Button(L10n.text("button.cancel")) {
+                    rarInstallReview = nil
+                }
+                Button(review.action.confirmButtonTitle) {
+                    runRarInstaller(action: review.action)
+                }
+                .disabled(!hasReadRarLicense || !hasReadRarReadme || isInstallingRar)
+            }
+        }
+        .padding(20)
+        .frame(width: 680, height: 620)
     }
 
     private func applyLanguage(_ rawValue: String) {
@@ -469,12 +744,117 @@ struct SettingsView: View {
     }
 }
 
+private enum RarInstallAction: String, Identifiable {
+    case install
+    case update
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .install:
+            return L10n.text("settings.rar.installReviewTitle")
+        case .update:
+            return L10n.text("settings.rar.updateReviewTitle")
+        }
+    }
+
+    var confirmButtonTitle: String {
+        switch self {
+        case .install:
+            return L10n.text("settings.rar.downloadAndInstall")
+        case .update:
+            return L10n.text("settings.rar.downloadAndUpdate")
+        }
+    }
+}
+
+private struct RarInstallReview: Identifiable {
+    let id = UUID()
+    let action: RarInstallAction
+    let licenseText: String
+    let readmeText: String
+}
+
 private enum SettingsPane: Hashable {
     case general
     case archive
     case browser
     case fileAssociations
     case columns
+}
+
+private struct SystemInstallCommandView: View {
+    let title: String
+    let command: String
+    @Binding var message: String?
+    let copyCommand: (String) -> Void
+    let copyAndOpenTerminal: (String) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            HStack(spacing: 8) {
+                Text(command)
+                    .font(.system(.caption, design: .monospaced))
+                    .textSelection(.enabled)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
+
+                Button {
+                    copyCommand(command)
+                } label: {
+                    Label(L10n.text("settings.systemInstall.copy"), systemImage: "doc.on.doc")
+                }
+
+                Button {
+                    copyAndOpenTerminal(command)
+                } label: {
+                    Label(L10n.text("settings.systemInstall.copyAndOpenTerminal"), systemImage: "terminal")
+                }
+            }
+
+            if let message {
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
+private struct RarInstallDocumentView: View {
+    let title: String
+    let text: String
+    let checkboxTitle: String
+    @Binding var isRead: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+
+            ScrollView {
+                Text(text.isEmpty ? " " : text)
+                    .font(.system(.caption, design: .monospaced))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(8)
+            }
+            .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
+            .overlay {
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(.quaternary)
+            }
+                .frame(minHeight: 190)
+
+            Toggle(checkboxTitle, isOn: $isRead)
+        }
+    }
 }
 
 extension Notification.Name {

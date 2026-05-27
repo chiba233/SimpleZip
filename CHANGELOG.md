@@ -2,6 +2,22 @@
 
 # Changelog
 
+## 0.1.3
+
+- **RAR backend**
+  - Reworked the optional RAR creation backend so public builds no longer imply that the proprietary RARLAB `rar` binary is bundled with SimpleZip.
+  - Renamed the RAR backend setting from bundled RAR to manual install, while preserving the existing preference value for compatibility.
+  - Automatic and manual-install RAR modes now resolve the user-local Application Support backend first, then fall back to system-installed `rar` locations.
+  - Added bundled RAR install assets: a license notice, README, and installer script. These ship with the app, but the RARLAB binary itself does not.
+  - The RAR installer now downloads official RARLAB macOS packages and installs the universal `rar` backend to `~/Library/Application Support/SimpleZip/Tools/rar` instead of writing into the app bundle or repository tools directory.
+  - Added an in-app review sheet that displays the RAR license notice and README, requires separate "I have read" confirmations for both documents, and only then enables download/install or update.
+  - Added Settings actions to install, update, reveal install files, open the README, and delete the local RAR backend plus copied RARLAB notices.
+  - Fixed the RAR system-installed backend setting so it only shows the Homebrew install command when missing, instead of also showing the local installer-script controls.
+  - Updated the unsigned DMG packaging script to reject app bundles that accidentally contain the proprietary RARLAB backend unless explicitly allowed for a build with redistribution rights.
+  - Added Xcode project resource exclusions so ignored local RARLAB binaries and notices are not copied into the app bundle by file-system synchronized groups.
+- **Finder integration**
+  - Added Finder right-click Services for calculating hashes and adding selected files or folders to a new archive with SimpleZip.
+
 ## 0.1.2
 
 - **Archive browsing**

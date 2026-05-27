@@ -9,19 +9,13 @@ DERIVED_DATA_PATH="${DERIVED_DATA_PATH:-$ROOT_DIR/.build/xcode-dmg}"
 ARTIFACTS_DIR="${ARTIFACTS_DIR:-$ROOT_DIR/artifacts}"
 RELEASE_VERSION="${RELEASE_VERSION:-}"
 BUILD_NUMBER="${BUILD_NUMBER:-1}"
-REQUIRE_BUNDLED_RAR="${REQUIRE_BUNDLED_RAR:-0}"
+ALLOW_BUNDLED_RAR="${ALLOW_BUNDLED_RAR:-0}"
 APP_NAME="SimpleZip"
 APP_PATH="$DERIVED_DATA_PATH/Build/Products/$CONFIGURATION/$APP_NAME.app"
 STAGING_DIR="$DERIVED_DATA_PATH/dmg-staging"
 
 if [[ -n "$RELEASE_VERSION" && ! "$RELEASE_VERSION" =~ ^[0-9]+(\.[0-9]+){1,2}$ ]]; then
   echo "RELEASE_VERSION must look like 0.1.0 or 1.2" >&2
-  exit 1
-fi
-
-if [[ "$REQUIRE_BUNDLED_RAR" == "1" && ! -x "$ROOT_DIR/SimpleZip/Tools/rar" ]]; then
-  echo "Bundled RAR backend is required but SimpleZip/Tools/rar is missing." >&2
-  echo "Run ./scripts/install_rar_backend.sh before building the DMG." >&2
   exit 1
 fi
 
@@ -73,7 +67,15 @@ if [[ -n "$RELEASE_VERSION" ]]; then
   fi
 fi
 
-if [[ "$REQUIRE_BUNDLED_RAR" == "1" ]]; then
+if [[ "$ALLOW_BUNDLED_RAR" != "1" ]]; then
+  BUNDLED_RAR_PATH="$APP_PATH/Contents/Resources/rar"
+  BUNDLED_RAR_TOOLS_PATH="$APP_PATH/Contents/Resources/Tools/rar"
+  if [[ -e "$BUNDLED_RAR_PATH" || -e "$BUNDLED_RAR_TOOLS_PATH" ]]; then
+    echo "Refusing to package app bundle containing RARLAB rar." >&2
+    echo "Found $BUNDLED_RAR_PATH or $BUNDLED_RAR_TOOLS_PATH." >&2
+    exit 1
+  fi
+else
   BUNDLED_RAR_PATH="$APP_PATH/Contents/Resources/rar"
   if [[ ! -x "$BUNDLED_RAR_PATH" ]]; then
     echo "Expected bundled RAR backend was not copied to $BUNDLED_RAR_PATH" >&2

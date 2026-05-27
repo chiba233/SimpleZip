@@ -14,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let icon = NSImage(named: NSImage.Name("AppIcon")) {
             NSApp.applicationIconImage = icon
         }
+        NSApp.servicesProvider = self
     }
 
     func application(_ sender: NSApplication, openFile filename: String) -> Bool {
@@ -26,5 +27,44 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .map { URL(fileURLWithPath: $0) }
             .forEach { ExternalFileOpenQueue.shared.enqueue($0) }
         sender.reply(toOpenOrPrint: .success)
+    }
+
+    @objc func addToArchiveFromFinder(
+        _ pasteboard: NSPasteboard,
+        userData: String?,
+        error: AutoreleasingUnsafeMutablePointer<NSString?>
+    ) {
+        handleFinderService(pasteboard, actionName: L10n.text("button.addToArchive"), error: error) { urls in
+            FinderServiceActionQueue.shared.enqueue(.addToArchive(urls))
+        }
+    }
+
+    @objc func calculateHashFromFinder(
+        _ pasteboard: NSPasteboard,
+        userData: String?,
+        error: AutoreleasingUnsafeMutablePointer<NSString?>
+    ) {
+        handleFinderService(pasteboard, actionName: L10n.text("button.hash"), error: error) { urls in
+            FinderServiceActionQueue.shared.enqueue(.calculateHash(urls))
+        }
+    }
+
+    private func handleFinderService(
+        _ pasteboard: NSPasteboard,
+        actionName: String,
+        error: AutoreleasingUnsafeMutablePointer<NSString?>,
+        enqueue: ([URL]) -> Void
+    ) {
+        let options: [NSPasteboard.ReadingOptionKey: Any] = [.urlReadingFileURLsOnly: true]
+        let urls = ((pasteboard.readObjects(forClasses: [NSURL.self], options: options) as? [NSURL]) ?? [])
+            .compactMap { $0 as URL }
+
+        guard !urls.isEmpty else {
+            error.pointee = L10n.format("finderService.error.noFiles", actionName) as NSString
+            return
+        }
+
+        enqueue(urls)
+        NSApp.activate(ignoringOtherApps: true)
     }
 }

@@ -180,8 +180,15 @@ Homebrew, and `PATH` locations. For local development or local packaging, run:
 ./scripts/install_rar_backend.sh
 ```
 
-The script downloads the official RARLAB macOS ARM and x64 command-line packages, creates a universal local
-`SimpleZip/Tools/rar`, and keeps it ignored by git.
+The script downloads the official RARLAB macOS ARM and x64 command-line packages, creates a universal local `rar`, and
+installs it to:
+
+```text
+~/Library/Application Support/SimpleZip/Tools/rar
+```
+
+SimpleZip checks that user data path in Automatic RAR backend mode. Public app packages should keep the RARLAB binary
+outside the app bundle.
 
 RARLAB `rar` is proprietary/shareware. Do not redistribute a public app package containing that local backend unless you
 have RARLAB redistribution permission.

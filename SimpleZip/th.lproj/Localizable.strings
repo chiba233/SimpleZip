@@ -255,13 +255,12 @@
 "settings.7zip.notFound" = "ไม่พบ";
 "settings.rar.backend" = "แบ็กเอนด์ RAR";
 "settings.rar.automatic" = "อัตโนมัติ";
-"settings.rar.bundled" = "มากับ SimpleZip";
+"settings.rar.bundled" = "ติดตั้งด้วยตนเอง";
 "settings.rar.system" = "ติดตั้งในระบบ";
 "settings.rar.path" = "พาธ: %@";
 "settings.rar.version" = "เวอร์ชัน: %@";
 "settings.rar.resolvedPath" = "%@: %@";
 "settings.rar.resolvedVersion" = "%@: %@";
-"settings.rar.source.bundled" = "RAR ที่มากับแอป";
 "settings.rar.source.system" = "RAR ของระบบ";
 "settings.rar.checking" = "กำลังตรวจสอบ...";
 "settings.rar.notFound" = "ไม่พบ";

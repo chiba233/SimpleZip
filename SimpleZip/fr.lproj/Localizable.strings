@@ -255,13 +255,12 @@
 "settings.7zip.notFound" = "Introuvable";
 "settings.rar.backend" = "Backend RAR";
 "settings.rar.automatic" = "Automatique";
-"settings.rar.bundled" = "Inclus avec SimpleZip";
+"settings.rar.bundled" = "Installation manuelle";
 "settings.rar.system" = "Installé sur le système";
 "settings.rar.path" = "Chemin : %@";
 "settings.rar.version" = "Version : %@";
 "settings.rar.resolvedPath" = "%@ : %@";
 "settings.rar.resolvedVersion" = "%@ : %@";
-"settings.rar.source.bundled" = "RAR intégré";
 "settings.rar.source.system" = "RAR système";
 "settings.rar.checking" = "Vérification...";
 "settings.rar.notFound" = "Introuvable";

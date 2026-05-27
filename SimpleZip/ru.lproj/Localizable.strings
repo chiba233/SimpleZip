@@ -255,13 +255,12 @@
 "settings.7zip.notFound" = "Не найден";
 "settings.rar.backend" = "RAR-бэкенд";
 "settings.rar.automatic" = "Автоматически";
-"settings.rar.bundled" = "Встроенный в SimpleZip";
+"settings.rar.bundled" = "Ручная установка";
 "settings.rar.system" = "Системная установка";
 "settings.rar.path" = "Путь: %@";
 "settings.rar.version" = "Версия: %@";
 "settings.rar.resolvedPath" = "%@: %@";
 "settings.rar.resolvedVersion" = "%@: %@";
-"settings.rar.source.bundled" = "Встроенный RAR";
 "settings.rar.source.system" = "Системный RAR";
 "settings.rar.checking" = "Проверка...";
 "settings.rar.notFound" = "Не найден";

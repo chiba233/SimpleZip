@@ -2,6 +2,22 @@
 
 # 更新日志
 
+## 0.1.3
+
+- **RAR 后端**
+  - 重做了可选 RAR 创建后端流程，公开构建不再暗示 SimpleZip 会内置专有的 RARLAB `rar` 二进制。
+  - 设置里的 RAR 后端选项从“软件内置”改为“手动安装”，同时保留原有偏好值，避免老用户配置失效。
+  - RAR 的“自动”和“手动安装”模式现在都会先查找用户 Application Support 里的本地后端，再回退到系统安装的 `rar` 路径。
+  - 新增随 App 附带的 RAR 安装资产：许可说明、README 和安装脚本。App 会带这些文本和脚本，但不会带 RARLAB 二进制本体。
+  - RAR 安装脚本现在会下载 RARLAB 官方 macOS 包，并把 universal `rar` 安装到 `~/Library/Application Support/SimpleZip/Tools/rar`，不再写进 App 包或仓库里的 tools 目录。
+  - 设置页新增 App 内阅读确认流程：直接展示 RAR 许可说明和 README，并要求分别勾选“我已阅读”后，才允许下载/安装或更新。
+  - 设置页新增安装、更新、显示安装文件、打开 README、删除本地 RAR 后端等操作；删除会同时清理本地 `rar` 以及安装时复制出的 RARLAB 说明文件。
+  - 修复 RAR 后端选择“系统安装”时的提示：缺失系统 RAR 时只显示 Homebrew 安装命令，不再同时显示本地脚本安装控件。
+  - unsigned DMG 打包脚本现在会拒绝意外包含 RARLAB 专有后端的 App 包；只有在明确允许且具备再分发授权的构建里才可放行。
+  - Xcode project 新增资源排除规则，避免本地 ignored 的 RARLAB 二进制和说明文件被文件系统同步组自动复制进 App 包。
+- **Finder 集成**
+  - 新增 Finder 右键服务：可直接对选中的文件或文件夹计算哈希，或用 SimpleZip 添加到新压缩包。
+
 ## 0.1.2
 
 - **压缩包浏览**

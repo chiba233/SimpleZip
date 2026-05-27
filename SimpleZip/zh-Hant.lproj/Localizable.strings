@@ -276,13 +276,12 @@
 "settings.7zip.notFound" = "找不到";
 "settings.rar.backend" = "RAR 後端";
 "settings.rar.automatic" = "自動";
-"settings.rar.bundled" = "軟體內建";
+"settings.rar.bundled" = "手動安裝";
 "settings.rar.system" = "系統安裝";
 "settings.rar.path" = "路徑：%@";
 "settings.rar.version" = "版本：%@";
 "settings.rar.resolvedPath" = "%@：%@";
 "settings.rar.resolvedVersion" = "%@：%@";
-"settings.rar.source.bundled" = "內建 RAR";
 "settings.rar.source.system" = "系統 RAR";
 "settings.rar.checking" = "正在檢查...";
 "settings.rar.notFound" = "找不到";

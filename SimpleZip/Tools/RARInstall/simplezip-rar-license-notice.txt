@@ -1,0 +1,24 @@
+RARLAB license notice
+=====================
+
+The optional RAR creation backend is the official RARLAB command-line `rar`
+tool. It is proprietary/shareware software owned by Alexander L. Roshal and
+licensed by win.rar GmbH.
+
+SimpleZip does not grant rights to RARLAB software. Installing or using the RAR
+backend means you must comply with the RARLAB license terms, including the trial
+period, purchase requirements, and redistribution restrictions.
+
+Current RARLAB EULA:
+
+    https://www.rarlab.com/license.htm
+
+Important practical points:
+
+- Do not redistribute a SimpleZip app package containing the RARLAB `rar`
+  binary unless you have written redistribution permission from RARLAB /
+  win.rar GmbH.
+- A RAR license permits creating and distributing RAR archives without extra
+  archive royalties, but it does not automatically permit bundling the `rar`
+  program inside another app package.
+- The installed backend is user-local data under Application Support.

@@ -255,13 +255,12 @@
 "settings.7zip.notFound" = "찾을 수 없음";
 "settings.rar.backend" = "RAR 백엔드";
 "settings.rar.automatic" = "자동";
-"settings.rar.bundled" = "앱 내장";
+"settings.rar.bundled" = "수동 설치";
 "settings.rar.system" = "시스템 설치";
 "settings.rar.path" = "경로: %@";
 "settings.rar.version" = "버전: %@";
 "settings.rar.resolvedPath" = "%@: %@";
 "settings.rar.resolvedVersion" = "%@: %@";
-"settings.rar.source.bundled" = "내장 RAR";
 "settings.rar.source.system" = "시스템 RAR";
 "settings.rar.checking" = "확인 중...";
 "settings.rar.notFound" = "찾을 수 없음";

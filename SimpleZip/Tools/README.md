@@ -27,7 +27,7 @@ Contents/Resources/rar
 Contents/Resources/Tools/rar
 ```
 
-For local development or local packaging, install a universal `rar` binary into this directory:
+For local development, install a universal `rar` binary into SimpleZip's user data directory:
 
 ```bash
 ./scripts/install_rar_backend.sh
@@ -37,12 +37,13 @@ The script downloads the official RARLAB macOS ARM and x64 packages, combines th
 writes:
 
 ```text
-SimpleZip/Tools/rar
+~/Library/Application Support/SimpleZip/Tools/rar
 ```
 
-With the current Xcode file-system synchronized group, development builds copy it into the app bundle as
-`Contents/Resources/rar`. The app also accepts `Contents/Resources/Tools/rar` for manually packaged bundles.
+Automatic RAR backend mode checks that Application Support path before system locations. The app still accepts
+`Contents/Resources/rar` and `Contents/Resources/Tools/rar` for manually packaged bundles that have explicit
+redistribution rights, but public SimpleZip builds should not include the proprietary RARLAB binary.
 
-`SimpleZip/Tools/rar` is intentionally ignored by git. RARLAB `rar` is proprietary/shareware, and the RARLAB license
-does not allow redistributing the trial command-line package as part of another package without permission. Keep it local
-unless you have redistribution rights.
+`SimpleZip/Tools/rar` and extracted RARLAB notices are intentionally ignored by git. RARLAB `rar` is
+proprietary/shareware, and the RARLAB license does not allow redistributing the trial command-line package as part of
+another package without permission. Keep it local unless you have redistribution rights.

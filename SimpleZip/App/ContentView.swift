@@ -120,12 +120,16 @@ struct ContentView: View {
         }
         .onAppear {
             ExternalFileOpenQueue.shared.drain().forEach(openExternalURL)
+            FinderServiceActionQueue.shared.drain().forEach(handleFinderServiceAction)
         }
         .onOpenURL { url in
             openExternalURL(url)
         }
         .onReceive(NotificationCenter.default.publisher(for: .openExternalFile)) { _ in
             ExternalFileOpenQueue.shared.drain().forEach(openExternalURL)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .finderServiceAction)) { _ in
+            FinderServiceActionQueue.shared.drain().forEach(handleFinderServiceAction)
         }
         .onReceive(NotificationCenter.default.publisher(for: .browserPreferencesChanged)) { _ in
             model.reload()
@@ -134,6 +138,15 @@ struct ContentView: View {
             if #available(macOS 14.0, *) {
                 SettingsRequestBridge()
             }
+        }
+    }
+
+    private func handleFinderServiceAction(_ action: FinderServiceAction) {
+        switch action {
+        case .addToArchive(let urls):
+            model.createArchive(fromFinderURLs: urls)
+        case .calculateHash(let urls):
+            model.calculateHash(forFinderURLs: urls)
         }
     }
 

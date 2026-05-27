@@ -62,6 +62,48 @@ enum ArchiveService {
         (try? rarTool()) != nil
     }
 
+    static func canUseSevenZip() -> Bool {
+        (try? sevenZipTool()) != nil
+    }
+
+    static func rarInstallResourcesURL() -> URL? {
+        Bundle.main.resourceURL
+    }
+
+    static func rarInstallReadmeURL() -> URL? {
+        Bundle.main.url(forResource: "simplezip-rar-install-readme", withExtension: "txt")
+    }
+
+    static func rarInstallLicenseURL() -> URL? {
+        Bundle.main.url(forResource: "simplezip-rar-license-notice", withExtension: "txt")
+    }
+
+    static func rarInstallerScriptURL() -> URL? {
+        Bundle.main.url(forResource: "simplezip-install-rar-backend", withExtension: "sh")
+    }
+
+    static func localRarBackendURL() -> URL? {
+        applicationSupportDirectory()?.appendingPathComponent("Tools/rar")
+    }
+
+    static func hasLocalRarBackend() -> Bool {
+        guard let url = localRarBackendURL() else { return false }
+        return FileManager.default.isExecutableFile(atPath: url.path)
+    }
+
+    static func deleteLocalRarBackend() throws {
+        guard let toolsDirectory = applicationSupportDirectory()?.appendingPathComponent("Tools", isDirectory: true) else {
+            return
+        }
+        let fileManager = FileManager.default
+        for name in ["rar", "rar-license.txt", "rar-readme.txt"] {
+            let url = toolsDirectory.appendingPathComponent(name)
+            if fileManager.fileExists(atPath: url.path) {
+                try fileManager.removeItem(at: url)
+            }
+        }
+    }
+
     static func createZipArchive(from sourceURLs: [URL], destination: URL) async throws {
         try await createArchive(from: sourceURLs, destination: destination, options: ArchiveCreationOptions())
     }
@@ -579,9 +621,9 @@ enum ArchiveService {
         let candidates: [ResolvedRarTool]
         switch AppPreferences.rarBackend {
         case .automatic:
-            candidates = bundledRarCandidates + systemRarCandidates
+            candidates = localRarCandidates + systemRarCandidates
         case .bundled:
-            candidates = bundledRarCandidates
+            candidates = localRarCandidates + systemRarCandidates
         case .system:
             candidates = systemRarCandidates
         }
@@ -657,14 +699,12 @@ enum ArchiveService {
         ).map { ResolvedSevenZipTool(path: $0, source: .system) }
     }
 
-    private static var bundledRarCandidates: [ResolvedRarTool] {
+    private static var localRarCandidates: [ResolvedRarTool] {
         uniqueExistingCandidatePaths(
             [
-                Bundle.main.resourceURL?.appendingPathComponent("Tools/rar").path,
-                Bundle.main.resourceURL?.appendingPathComponent("rar").path,
-                FileManager.default.currentDirectoryPath + "/SimpleZip/Tools/rar"
+                applicationSupportDirectory()?.appendingPathComponent("Tools/rar").path
             ].compactMap { $0 }
-        ).map { ResolvedRarTool(path: $0, source: .bundled) }
+        ).map { ResolvedRarTool(path: $0, source: .local) }
     }
 
     private static var systemRarCandidates: [ResolvedRarTool] {
@@ -679,6 +719,11 @@ enum ArchiveService {
                 envPath(for: "rar")
             ].compactMap { $0 }
         ).map { ResolvedRarTool(path: $0, source: .system) }
+    }
+
+    private static func applicationSupportDirectory() -> URL? {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
+            .appendingPathComponent("SimpleZip", isDirectory: true)
     }
 
     private static func uniqueExistingCandidatePaths(_ paths: [String]) -> [String] {
@@ -1450,13 +1495,13 @@ private enum SevenZipToolSource {
 }
 
 private enum RarToolSource {
-    case bundled
+    case local
     case system
 
     var title: String {
         switch self {
-        case .bundled:
-            return L10n.text("settings.rar.source.bundled")
+        case .local:
+            return L10n.text("settings.rar.source.local")
         case .system:
             return L10n.text("settings.rar.source.system")
         }

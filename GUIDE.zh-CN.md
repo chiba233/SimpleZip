@@ -413,4 +413,5 @@ GZip、BZip2、XZ 本身是单文件压缩格式。如果要压缩多个文件�
 ### RAR 后端为什么不直接提交到仓库？
 
 RARLAB `rar` 是专有/shareware 软件。项目提供本地安装脚本，但不会把 `rar` 二进制提交进 git。公开分发带 RAR 后端的 App
-包前，需要确认再分发授权。
+包前，需要确认再分发授权。当前安装脚本会要求用户阅读软件内附的说明和许可提示，并把 `rar` 安装到
+`~/Library/Application Support/SimpleZip/Tools/rar`，不会把 RARLAB 二进制写进 App 包内。

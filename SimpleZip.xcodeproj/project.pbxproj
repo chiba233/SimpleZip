@@ -24,9 +24,24 @@
 		0846B9702FB350EF0095DC1D /* SimpleZip.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SimpleZip.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		0846B9842FB351010095DC1D /* Exceptions for "SimpleZip" folder in "SimpleZip" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Tools/rar,
+				"Tools/rar-license.txt",
+				"Tools/rar-readme.txt",
+			);
+			target = 0846B96F2FB350EF0095DC1D /* SimpleZip */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		0846B9722FB350EF0095DC1D /* SimpleZip */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				0846B9842FB351010095DC1D /* Exceptions for "SimpleZip" folder in "SimpleZip" target */,
+			);
 			path = SimpleZip;
 			sourceTree = "<group>";
 		};
