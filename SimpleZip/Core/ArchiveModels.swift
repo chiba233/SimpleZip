@@ -43,6 +43,27 @@ struct ArchiveItem: Identifiable, Hashable {
     let sizeText: String
     let modifiedText: String
     let method: String
+    let isEncrypted: Bool
+
+    init(
+        name: String,
+        isDirectory: Bool,
+        size: Int64?,
+        modified: Date?,
+        sizeText: String,
+        modifiedText: String,
+        method: String,
+        isEncrypted: Bool = false
+    ) {
+        self.name = name
+        self.isDirectory = isDirectory
+        self.size = size
+        self.modified = modified
+        self.sizeText = sizeText
+        self.modifiedText = modifiedText
+        self.method = method
+        self.isEncrypted = isEncrypted
+    }
 
     /// 列表里只展示当前层级的名称，完整路径继续保留在 name 中用于解压。
     var displayName: String {

@@ -141,7 +141,8 @@ extension ArchiveService {
                     modified: parseSevenZipModified(modifiedText),
                     sizeText: isDirectory ? "" : ByteCountFormatter.string(fromByteCount: size, countStyle: .file),
                     modifiedText: modifiedText,
-                    method: values["Method"] ?? ""
+                    method: values["Method"] ?? "",
+                    isEncrypted: values["Encrypted"] == "+" || archiveMethodSuggestsEncryption(values["Method"] ?? "")
                 )
             )
             values.removeAll()
@@ -164,6 +165,14 @@ extension ArchiveService {
         return rows
     }
 
+    static func archiveItemsSuggestPasswordRequirement(_ items: [ArchiveItem], in archive: URL) -> Bool {
+        if archive.pathExtension.lowercased() == "zip" {
+            let detection = detectZipEncryption(in: archive)
+            return detection != .none && detection != .unknown
+        }
+        return items.contains { $0.isEncrypted || archiveMethodSuggestsEncryption($0.method) }
+    }
+
     private static func decodeArchivePathEscapes(_ text: String) -> String {
         guard text.contains("\\") else { return text }
 
@@ -179,6 +188,7 @@ extension ArchiveService {
                     index += 4
                     continue
                 }
+
             }
 
             let scalar = characters[index].unicodeScalars.first!
@@ -191,6 +201,18 @@ extension ArchiveService {
         }
 
         return String(decoding: bytes, as: UTF8.self)
+    }
+
+    private static func archiveMethodSuggestsEncryption(_ method: String) -> Bool {
+        let normalized = method.lowercased()
+        return normalized.contains("7zaes")
+            || normalized.contains("zipcrypto")
+            || normalized.contains("aes128")
+            || normalized.contains("aes192")
+            || normalized.contains("aes256")
+            || normalized.contains("aes-128")
+            || normalized.contains("aes-192")
+            || normalized.contains("aes-256")
     }
 
     nonisolated static func parseSevenZipBenchmark(_ output: String, backendDescription: String, options: SevenZipBenchmarkOptions) -> SevenZipBenchmarkReport {

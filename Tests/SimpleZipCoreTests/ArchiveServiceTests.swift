@@ -163,6 +163,42 @@ struct ArchiveServiceTests {
     }
 
     @Test
+    func parseSevenZipListCapturesEncryptedEntries() {
+        let output = """
+        Path = locked/file.txt
+        Size = 12
+        Packed Size = 8
+        Modified = 2026-05-13 01:02:03
+        Attributes = A
+        Encrypted = +
+        Method = LZMA2:12 7zAES
+        """
+
+        let items = ArchiveService.parseSevenZipList(output)
+
+        #expect(items.count == 1)
+        #expect(items[0].isEncrypted)
+    }
+
+    @Test
+    func archiveItemsSuggestPasswordRequirementForEncryptedSevenZipEntries() {
+        let items = [
+            ArchiveItem(
+                name: "locked/file.txt",
+                isDirectory: false,
+                size: 12,
+                modified: nil,
+                sizeText: "12 bytes",
+                modifiedText: "",
+                method: "LZMA2:12 7zAES",
+                isEncrypted: true
+            )
+        ]
+
+        #expect(ArchiveService.archiveItemsSuggestPasswordRequirement(items, in: URL(fileURLWithPath: "/tmp/locked.7z")))
+    }
+
+    @Test
     func expandedEntryNamesExpandsDirectoriesToChildren() {
         let entries = [
             ArchiveItem(name: "dir/", isDirectory: true, size: nil, modified: nil, sizeText: "", modifiedText: "", method: ""),

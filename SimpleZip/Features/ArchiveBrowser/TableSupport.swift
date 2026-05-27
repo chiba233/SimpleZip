@@ -139,6 +139,7 @@ func makeColumnSettingsMenu(action: Selector, target: AnyObject) -> NSMenu {
     return menu
 }
 
+@MainActor
 func openColumnSettingsWindow() {
     SettingsNavigation.requestOpenColumns()
 }

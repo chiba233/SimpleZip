@@ -328,6 +328,7 @@ final class ArchiveBrowserModel: ObservableObject {
         let detectedZipEncryption = archiveURL.pathExtension.lowercased() == "zip"
             ? ArchiveService.detectZipEncryption(in: archiveURL)
             : .unknown
+        let shouldPromptBeforeExtraction = ArchiveService.archiveItemsSuggestPasswordRequirement(entries, in: archiveURL)
 
         startOperationTask(cancellable: true) { [weak self] operationID in
             guard let self else { return }
@@ -338,6 +339,20 @@ final class ArchiveBrowserModel: ObservableObject {
                 var password = ""
                 var zipDecryptionMethod: ArchiveDecryptionMethod = .automatic
                 var isRetry = false
+
+                if shouldPromptBeforeExtraction {
+                    guard let authentication = self.promptForArchiveItemPassword(
+                        item: item,
+                        archiveURL: archiveURL,
+                        detectedZipEncryption: detectedZipEncryption,
+                        isRetry: false
+                    ) else {
+                        throw CancellationError()
+                    }
+                    password = authentication.password
+                    zipDecryptionMethod = authentication.zipDecryptionMethod
+                    isRetry = true
+                }
 
                 while true {
                     do {

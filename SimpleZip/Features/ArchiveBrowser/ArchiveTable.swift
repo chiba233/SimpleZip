@@ -265,6 +265,7 @@ private struct ArchiveNSTableView: NSViewRepresentable {
     }
 }
 
+@MainActor
 extension ArchiveNSTableView.Coordinator: NSFilePromiseProviderDelegate {
     func filePromiseProvider(_ filePromiseProvider: NSFilePromiseProvider, fileNameForType fileType: String) -> String {
         guard let item = filePromiseProvider.userInfo as? ArchiveItem else {

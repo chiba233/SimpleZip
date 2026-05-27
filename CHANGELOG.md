@@ -29,6 +29,7 @@
   - Added a root toggle for hidden suffix display and fixed the custom-suffix Add button so it enables correctly whenever the typed suffix is valid and not already configured.
   - Merged the hidden-suffix root switch into the same row as the hidden-suffix drawer so the setting reads as one control instead of two stacked labels.
   - Made the custom hidden-suffix input look like a real input field, with a visible text box and prefix dot so it no longer blends into plain settings text.
+  - Opening a single encrypted item from an archive now front-loads the password prompt when the archive metadata already indicates encryption, instead of first waiting for backend extraction failure timeouts.
 - **Extraction**
   - ZIP extraction now exposes a decryption method selector for Auto, ZipCrypto, AES-128, AES-192, and AES-256; Auto tries the common compatible paths so encrypted ZIP files from other tools do not get stuck on macOS `unzip`.
   - Auto ZIP decryption now shows the detected archive encryption algorithm, and the password/decryption controls have clearer spacing.
