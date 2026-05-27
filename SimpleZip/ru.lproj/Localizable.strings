@@ -213,6 +213,12 @@
 "extract.pathMode" = "Обработка папок";
 "extract.path.preserve" = "Сохранять структуру папок";
 "extract.path.flatten" = "Извлекать только файлы в папку назначения";
+"extract.decryptionMethod" = "Метод расшифровки";
+"extract.decryption.automatic" = "Авто";
+"extract.decryption.detected" = "Обнаруженное шифрование архива: %@";
+"extract.decryption.unknown" = "Неизвестно";
+"extract.decryption.none" = "Без шифрования";
+"extract.decryption.mixed" = "Смешанное";
 "button.choose" = "Выбрать...";
 "button.cancel" = "Отмена";
 "button.create" = "Создать";

@@ -213,6 +213,12 @@
 "extract.pathMode" = "폴더 처리";
 "extract.path.preserve" = "폴더 구조 유지";
 "extract.path.flatten" = "대상 위치에 파일만 추출";
+"extract.decryptionMethod" = "복호화 방식";
+"extract.decryption.automatic" = "자동";
+"extract.decryption.detected" = "감지된 압축 파일 암호화: %@";
+"extract.decryption.unknown" = "알 수 없음";
+"extract.decryption.none" = "암호화 안 됨";
+"extract.decryption.mixed" = "혼합";
 "button.choose" = "선택...";
 "button.cancel" = "취소";
 "button.create" = "만들기";

@@ -11,7 +11,10 @@ struct ExtractOptionsForm<ExtraControls: View>: View {
     let title: String
     @Binding var destinationURL: URL
     @Binding var password: String
+    @Binding var zipDecryptionMethod: ArchiveDecryptionMethod
     @Binding var showDetails: Bool
+    let showsZipDecryptionMethod: Bool
+    let zipEncryptionDetectionText: String?
     let confirm: () -> Void
     let cancel: () -> Void
     @ViewBuilder let extraControls: () -> ExtraControls
@@ -26,10 +29,30 @@ struct ExtractOptionsForm<ExtraControls: View>: View {
                 extraControls()
                 destinationRow
                 SecureField(L10n.text("extract.password.placeholder"), text: $password)
-                Toggle(L10n.text("operation.showDetails"), isOn: $showDetails)
+                if showsZipDecryptionMethod {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Picker(L10n.text("extract.decryptionMethod"), selection: $zipDecryptionMethod) {
+                            ForEach(ArchiveDecryptionMethod.allCases) { method in
+                                Text(method.title).tag(method)
+                            }
+                        }
+
+                        if zipDecryptionMethod == .automatic, let zipEncryptionDetectionText {
+                            Text(zipEncryptionDetectionText)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(.top, 6)
+                }
             }
 
             HStack {
+                Toggle(isOn: $showDetails) {
+                    Label(L10n.text("operation.showDetails"), systemImage: "sidebar.right")
+                }
+                .toggleStyle(.button)
+                .controlSize(.small)
                 Spacer()
                 Button(L10n.text("button.cancel"), action: cancel)
                 Button(L10n.text("button.extract"), action: confirm)

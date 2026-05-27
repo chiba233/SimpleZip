@@ -213,6 +213,12 @@
 "extract.pathMode" = "フォルダ構造";
 "extract.path.preserve" = "フォルダ構造を保持";
 "extract.path.flatten" = "ファイルだけを展開先に置く";
+"extract.decryptionMethod" = "復号方式";
+"extract.decryption.automatic" = "自動";
+"extract.decryption.detected" = "検出されたアーカイブ暗号化: %@";
+"extract.decryption.unknown" = "不明";
+"extract.decryption.none" = "暗号化なし";
+"extract.decryption.mixed" = "混在";
 "button.choose" = "選択...";
 "button.cancel" = "キャンセル";
 "button.create" = "作成";

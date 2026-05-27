@@ -315,7 +315,7 @@ final class ArchiveBrowserModel: ObservableObject {
 
         startOperationTask(cancellable: true) { [weak self] operationID in
             guard let self else { return }
-            await runArchiveTask(L10n.format("status.openingArchiveItem", item.displayName)) { progress in
+            let didSucceed = await runArchiveTask(L10n.format("status.openingArchiveItem", item.displayName)) { progress in
                 let destination = try self.makeArchiveItemOpenDirectory()
                 self.openedArchiveItemDirectories.append(destination)
                 try self.confirmArchiveExtractionSafety(entries: entries)
@@ -336,7 +336,7 @@ final class ArchiveBrowserModel: ObservableObject {
                     throw ArchiveError.openExtractedItemFailed
                 }
             }
-            if status == L10n.text("status.done") {
+            if didSucceed {
                 status = L10n.format("status.openedArchiveItem", item.displayName)
             }
         }
@@ -576,7 +576,7 @@ final class ArchiveBrowserModel: ObservableObject {
         let outputObserver = makeOperationOutputObserver(for: detailsSession)
         startOperationTask(cancellable: true) { [weak self] operationID in
             guard let self else { return }
-            await runArchiveTask(L10n.format("status.creating", request.destinationURL.lastPathComponent)) { progress in
+            let didSucceed = await runArchiveTask(L10n.format("status.creating", request.destinationURL.lastPathComponent)) { progress in
                 try await ArchiveService.createArchive(
                     from: request.sourceURLs,
                     destination: request.destinationURL,
@@ -587,7 +587,9 @@ final class ArchiveBrowserModel: ObservableObject {
                 )
             }
             finishOperationDetailsSession(detailsSession)
-            refreshVisibleFolder(containing: request.destinationURL)
+            if didSucceed {
+                refreshVisibleFolder(containing: request.destinationURL)
+            }
         }
     }
 
@@ -615,7 +617,8 @@ final class ArchiveBrowserModel: ObservableObject {
 
         extractArchiveRequest = ExtractArchiveRequest(
             archiveURL: archiveURL,
-            destinationURL: archiveURL.deletingLastPathComponent()
+            destinationURL: archiveURL.deletingLastPathComponent(),
+            detectedZipEncryption: ArchiveService.detectZipEncryption(in: archiveURL)
         )
     }
 
@@ -627,7 +630,7 @@ final class ArchiveBrowserModel: ObservableObject {
         let outputObserver = makeOperationOutputObserver(for: detailsSession)
         startOperationTask(cancellable: true) { [weak self] operationID in
             guard let self else { return }
-            await runArchiveTask(L10n.format("status.extracting", request.archiveURL.lastPathComponent)) { progress in
+            let didSucceed = await runArchiveTask(L10n.format("status.extracting", request.archiveURL.lastPathComponent)) { progress in
                 let stagingURL = try self.extractionCoordinator.makeExtractionStagingDirectory()
                 defer { try? self.fileManager.removeItem(at: stagingURL) }
 
@@ -638,6 +641,7 @@ final class ArchiveBrowserModel: ObservableObject {
                     to: stagingURL,
                     overwriteBehavior: backendOverwriteBehavior,
                     password: request.password,
+                    zipDecryptionMethod: request.zipDecryptionMethod,
                     safetyPolicy: .skipValidation,
                     operationID: operationID,
                     progress: progress,
@@ -654,7 +658,9 @@ final class ArchiveBrowserModel: ObservableObject {
                 }
             }
             finishOperationDetailsSession(detailsSession)
-            refreshVisibleFolder(request.destinationURL)
+            if didSucceed {
+                refreshVisibleFolder(request.destinationURL)
+            }
         }
     }
 
@@ -673,7 +679,8 @@ final class ArchiveBrowserModel: ObservableObject {
         extractSelectionRequest = ExtractSelectionRequest(
             archiveURL: archiveURL,
             entries: entries,
-            destinationURL: archiveURL.deletingLastPathComponent()
+            destinationURL: archiveURL.deletingLastPathComponent(),
+            detectedZipEncryption: ArchiveService.detectZipEncryption(in: archiveURL)
         )
     }
 
@@ -685,7 +692,7 @@ final class ArchiveBrowserModel: ObservableObject {
         let outputObserver = makeOperationOutputObserver(for: detailsSession)
         startOperationTask(cancellable: true) { [weak self] operationID in
             guard let self else { return }
-            await runArchiveTask(L10n.format("status.extractingSelected", request.entries.count)) { progress in
+            let didSucceed = await runArchiveTask(L10n.format("status.extractingSelected", request.entries.count)) { progress in
                 let stagingURL = try self.extractionCoordinator.makeExtractionStagingDirectory()
                 defer { try? self.fileManager.removeItem(at: stagingURL) }
 
@@ -698,6 +705,7 @@ final class ArchiveBrowserModel: ObservableObject {
                     overwriteBehavior: backendOverwriteBehavior,
                     pathMode: request.pathMode,
                     password: request.password,
+                    zipDecryptionMethod: request.zipDecryptionMethod,
                     safetyPolicy: .skipValidation,
                     operationID: operationID,
                     progress: progress,
@@ -714,7 +722,9 @@ final class ArchiveBrowserModel: ObservableObject {
                 }
             }
             finishOperationDetailsSession(detailsSession)
-            refreshVisibleFolder(request.destinationURL)
+            if didSucceed {
+                refreshVisibleFolder(request.destinationURL)
+            }
         }
     }
 
@@ -734,10 +744,12 @@ final class ArchiveBrowserModel: ObservableObject {
 
         startOperationTask(cancellable: true) { [weak self] operationID in
             guard let self else { return }
-            await runArchiveTask(L10n.format("status.testing", archiveURL.lastPathComponent)) { _ in
+            let didSucceed = await runArchiveTask(L10n.format("status.testing", archiveURL.lastPathComponent)) { _ in
                 try await ArchiveService.test(archiveURL, operationID: operationID)
             }
-            status = L10n.text("status.archiveTested")
+            if didSucceed {
+                status = L10n.text("status.archiveTested")
+            }
         }
     }
 
@@ -750,7 +762,7 @@ final class ArchiveBrowserModel: ObservableObject {
         benchmarkSession = session
         startOperationTask(cancellable: true) { [weak self] operationID in
             guard let self else { return }
-            await runArchiveTask(
+            let didSucceed = await runArchiveTask(
                 L10n.text("status.benchmarking"),
                 initialProgress: ArchiveProgressState(fraction: nil, currentFile: nil, statusText: L10n.text("status.benchmarking"))
             ) { _ in
@@ -766,7 +778,7 @@ final class ArchiveBrowserModel: ObservableObject {
                 }
             }
             session.finishedAt = Date()
-            if session.report != nil {
+            if didSucceed, session.report != nil {
                 status = L10n.text("status.benchmarkReady")
             }
         }
@@ -1607,12 +1619,20 @@ final class ArchiveBrowserModel: ObservableObject {
         session?.finishedAt = Date()
     }
 
+    private func preserveFailureDetailsIfNeeded(title: String, error: Error) {
+        guard operationDetailsSession == nil else { return }
+        let session = ArchiveOperationDetailsSession(title: title)
+        session.append(error.localizedDescription)
+        session.finishedAt = Date()
+        operationDetailsSession = session
+    }
+
     /// 包装耗时归档任务，统一处理进度状态、错误提示和结束状态。
     private func runArchiveTask(
         _ workingStatus: String,
         initialProgress: ArchiveProgressState = ArchiveProgressState(fraction: 0, currentFile: nil),
         operation: @escaping (@escaping @Sendable (ArchiveProgressState) -> Void) async throws -> Void
-    ) async {
+    ) async -> Bool {
         isWorking = true
         errorMessage = nil
         operationProgress = initialProgress
@@ -1634,12 +1654,20 @@ final class ArchiveBrowserModel: ObservableObject {
                 }
             }
             status = L10n.text("status.done")
+            return true
         } catch is CancellationError {
             errorMessage = nil
             status = L10n.text("status.cancelled")
+            return false
         } catch {
-            errorMessage = error.localizedDescription
+            preserveFailureDetailsIfNeeded(title: workingStatus, error: error)
+            if isShowingOperationDetails && operationDetailsSession != nil {
+                errorMessage = nil
+            } else {
+                errorMessage = error.localizedDescription
+            }
             status = L10n.text("status.failed")
+            return false
         }
     }
 }

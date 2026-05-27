@@ -219,6 +219,12 @@
 "extract.pathMode" = "目录结构";
 "extract.path.preserve" = "保持目录结构";
 "extract.path.flatten" = "仅解压文件到目标目录";
+"extract.decryptionMethod" = "解密方式";
+"extract.decryption.automatic" = "自动";
+"extract.decryption.detected" = "检测到压缩包为 %@ 加密算法";
+"extract.decryption.unknown" = "未知";
+"extract.decryption.none" = "未加密";
+"extract.decryption.mixed" = "混合";
 "button.choose" = "选择...";
 "button.cancel" = "取消";
 "button.continue" = "继续";

@@ -219,6 +219,12 @@
 "extract.pathMode" = "目錄結構";
 "extract.path.preserve" = "保留目錄結構";
 "extract.path.flatten" = "只將檔案解壓縮到目標資料夾";
+"extract.decryptionMethod" = "解密方式";
+"extract.decryption.automatic" = "自動";
+"extract.decryption.detected" = "偵測到壓縮檔為 %@ 加密演算法";
+"extract.decryption.unknown" = "未知";
+"extract.decryption.none" = "未加密";
+"extract.decryption.mixed" = "混合";
 "button.choose" = "選擇...";
 "button.cancel" = "取消";
 "button.continue" = "繼續";

@@ -18,7 +18,10 @@ struct ExtractArchiveOptionsView: View {
             title: L10n.text("extract.archive.title"),
             destinationURL: $request.destinationURL,
             password: $request.password,
+            zipDecryptionMethod: $request.zipDecryptionMethod,
             showDetails: $request.showDetails,
+            showsZipDecryptionMethod: request.archiveURL.pathExtension.lowercased() == "zip",
+            zipEncryptionDetectionText: request.detectedZipEncryption.autoDetectionText,
             confirm: { extract(request) },
             cancel: cancel
         ) {

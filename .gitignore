@@ -18,6 +18,7 @@ coverage
 .vite-ssg-temp
 AGENTS.md
 .build
+artifacts/
 
 /cypress/videos/
 /cypress/screenshots/

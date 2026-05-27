@@ -237,6 +237,12 @@
 "extract.pathMode" = "Folder handling";
 "extract.path.preserve" = "Keep folder structure";
 "extract.path.flatten" = "Extract files into destination only";
+"extract.decryptionMethod" = "Decryption method";
+"extract.decryption.automatic" = "Auto";
+"extract.decryption.detected" = "Detected archive encryption: %@";
+"extract.decryption.unknown" = "Unknown";
+"extract.decryption.none" = "Not encrypted";
+"extract.decryption.mixed" = "Mixed";
 "button.choose" = "Choose...";
 "button.cancel" = "Cancel";
 "button.continue" = "Continue";

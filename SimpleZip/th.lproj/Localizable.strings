@@ -213,6 +213,12 @@
 "extract.pathMode" = "โครงสร้างโฟลเดอร์";
 "extract.path.preserve" = "คงโครงสร้างโฟลเดอร์";
 "extract.path.flatten" = "แตกเฉพาะไฟล์ไปยังโฟลเดอร์ปลายทาง";
+"extract.decryptionMethod" = "วิธีถอดรหัส";
+"extract.decryption.automatic" = "อัตโนมัติ";
+"extract.decryption.detected" = "ตรวจพบการเข้ารหัสไฟล์บีบอัด: %@";
+"extract.decryption.unknown" = "ไม่ทราบ";
+"extract.decryption.none" = "ไม่ได้เข้ารหัส";
+"extract.decryption.mixed" = "ผสม";
 "button.choose" = "เลือก...";
 "button.cancel" = "ยกเลิก";
 "button.create" = "สร้าง";

@@ -383,6 +383,40 @@ struct ArchiveServiceTests {
     }
 
     @Test
+    func createAndExtractAESZipArchiveWithPassword() async throws {
+        let tempDirectory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: tempDirectory) }
+
+        let sourceDirectory = tempDirectory.appendingPathComponent("secure", isDirectory: true)
+        try FileManager.default.createDirectory(at: sourceDirectory, withIntermediateDirectories: true)
+        try "top secret".write(
+            to: sourceDirectory.appendingPathComponent("note.txt"),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        var options = ArchiveCreationOptions()
+        options.format = .zip
+        options.skipDSStore = false
+        options.skipHiddenFiles = false
+        options.password = "secret-123"
+        options.passwordConfirmation = "secret-123"
+        options.encryptionMethod = .aes256
+        let archiveURL = tempDirectory.appendingPathComponent("secure.zip")
+        try await ArchiveService.createArchive(from: [sourceDirectory], destination: archiveURL, options: options)
+
+        let destination = tempDirectory.appendingPathComponent("secure-output", isDirectory: true)
+        try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+        try await ArchiveService.extract(archiveURL, to: destination, password: "secret-123", zipDecryptionMethod: .automatic)
+
+        let extracted = try String(
+            contentsOf: destination.appendingPathComponent("secure/note.txt"),
+            encoding: .utf8
+        )
+        #expect(extracted == "top secret")
+    }
+
+    @Test
     func createTarArchiveContainsExpectedEntries() async throws {
         let tempDirectory = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: tempDirectory) }

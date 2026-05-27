@@ -1,0 +1,93 @@
+name: Build unsigned DMG
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: Publish a GitHub release
+        type: boolean
+        required: true
+        default: false
+      version:
+        description: Release version, for example 0.1.0
+        type: string
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  build-dmg:
+    name: Build unsigned macOS DMG
+    runs-on: macos-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install RAR backend
+        run: ./scripts/install_rar_backend.sh
+
+      - name: Resolve release options
+        id: release
+        shell: bash
+        env:
+          PUBLISH_RELEASE: ${{ inputs.publish_release || false }}
+          RELEASE_INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+
+          publish_release="$PUBLISH_RELEASE"
+          version="$RELEASE_INPUT_VERSION"
+
+          if [[ "$publish_release" != "true" ]]; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "version=" >> "$GITHUB_OUTPUT"
+            echo "build_number=$GITHUB_RUN_NUMBER" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ -z "$version" ]]; then
+            echo "A version is required when publishing a release." >&2
+            exit 1
+          fi
+
+          if [[ ! "$version" =~ ^[0-9]+(\.[0-9]+){1,2}$ ]]; then
+            echo "Version must look like 0.1.0 or 1.2." >&2
+            exit 1
+          fi
+
+          echo "publish=true" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "build_number=$GITHUB_RUN_NUMBER" >> "$GITHUB_OUTPUT"
+
+      - name: Build unsigned DMG
+        env:
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+          BUILD_NUMBER: ${{ steps.release.outputs.build_number }}
+          REQUIRE_BUNDLED_RAR: "1"
+        run: ./scripts/build_unsigned_dmg.sh
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SimpleZip-unsigned-dmg
+          path: artifacts/*.dmg
+          if-no-files-found: error
+
+      - name: Publish GitHub release
+        if: steps.release.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          gh release create "v$RELEASE_VERSION" \
+            artifacts/*.dmg \
+            --title "SimpleZip $RELEASE_VERSION" \
+            --notes "Unsigned ad-hoc signed macOS DMG. macOS Gatekeeper may warn because this build is not Developer ID signed or notarized."

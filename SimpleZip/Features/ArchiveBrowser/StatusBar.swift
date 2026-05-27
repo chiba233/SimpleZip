@@ -80,10 +80,11 @@ struct ArchiveOperationDetailsView: View {
             Text(L10n.text("details.commandOutput"))
                 .font(.headline)
 
-            ScrollView {
+            ScrollView([.horizontal, .vertical]) {
                 Text(session.rawOutput.isEmpty ? L10n.text("details.waiting") : session.rawOutput)
-                    .font(.system(.body, design: .monospaced))
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .font(.system(.caption, design: .monospaced))
+                    .fixedSize(horizontal: true, vertical: true)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                     .textSelection(.enabled)
                     .padding(12)
             }

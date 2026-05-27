@@ -53,9 +53,19 @@ struct ContentView: View {
         }, set: { newValue in
             if !newValue { model.errorMessage = nil }
         })) {
+            if model.operationDetailsSession != nil {
+                Button(L10n.text("button.details")) {
+                    model.isShowingOperationDetails = true
+                    model.errorMessage = nil
+                }
+            }
             Button(L10n.text("button.ok"), role: .cancel) { model.errorMessage = nil }
         } message: {
-            Text(model.errorMessage ?? "")
+            Text({
+                let message = model.errorMessage ?? ""
+                let preview = String(message.prefix(600)).trimmingCharacters(in: .whitespacesAndNewlines)
+                return message.count > 600 ? "\(preview)\n…" : preview
+            }())
         }
         .sheet(isPresented: Binding(get: {
             model.isShowingOperationDetails && model.operationDetailsSession != nil

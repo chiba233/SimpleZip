@@ -350,7 +350,69 @@ struct ExtractArchiveRequest: Identifiable {
     let archiveURL: URL
     var destinationURL: URL
     var password = ""
+    var zipDecryptionMethod: ArchiveDecryptionMethod = .automatic
+    var detectedZipEncryption: ZipEncryptionDetection = .unknown
     var showDetails = false
+}
+
+/// ZIP 解密方式。实际 ZIP 文件会记录具体算法；选择项用于决定兼容解压路径。
+enum ArchiveDecryptionMethod: String, CaseIterable, Identifiable {
+    case automatic
+    case zipCrypto
+    case aes128
+    case aes192
+    case aes256
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .automatic:
+            return L10n.text("extract.decryption.automatic")
+        case .zipCrypto:
+            return L10n.text("archive.encryption.zipCrypto")
+        case .aes128:
+            return "AES-128"
+        case .aes192:
+            return "AES-192"
+        case .aes256:
+            return "AES-256"
+        }
+    }
+}
+
+/// 从 ZIP 元数据检测到的加密算法。
+enum ZipEncryptionDetection: Hashable {
+    case unknown
+    case none
+    case zipCrypto
+    case aes128
+    case aes192
+    case aes256
+    case mixed
+
+    var title: String {
+        switch self {
+        case .unknown:
+            return L10n.text("extract.decryption.unknown")
+        case .none:
+            return L10n.text("extract.decryption.none")
+        case .zipCrypto:
+            return L10n.text("archive.encryption.zipCrypto")
+        case .aes128:
+            return "AES-128"
+        case .aes192:
+            return "AES-192"
+        case .aes256:
+            return "AES-256"
+        case .mixed:
+            return L10n.text("extract.decryption.mixed")
+        }
+    }
+
+    var autoDetectionText: String {
+        L10n.format("extract.decryption.detected", title)
+    }
 }
 
 /// 选中解压时的目录处理方式。
@@ -378,6 +440,8 @@ struct ExtractSelectionRequest: Identifiable {
     var destinationURL: URL
     var pathMode: ExtractPathMode = .preserve
     var password = ""
+    var zipDecryptionMethod: ArchiveDecryptionMethod = .automatic
+    var detectedZipEncryption: ZipEncryptionDetection = .unknown
     var showDetails = false
 }
 

@@ -21,6 +21,11 @@
   - Local `.app` and other macOS packages now open like applications by default, use their package icons, and offer Show Package Contents from the context menu.
   - The location bar now offers folder autocomplete while typing, with a scrollable dropdown, total match count, keyboard navigation for Up/Down, Tab completion, and Return to open the highlighted folder.
 - **Extraction**
+  - ZIP extraction now exposes a decryption method selector for Auto, ZipCrypto, AES-128, AES-192, and AES-256; Auto tries the common compatible paths so encrypted ZIP files from other tools do not get stuck on macOS `unzip`.
+  - Auto ZIP decryption now shows the detected archive encryption algorithm, and the password/decryption controls have clearer spacing.
+  - Operation details output now scrolls horizontally and vertically so long backend error lines do not overflow the details window.
+  - Fixed 7-Zip passworded ZIP extraction by no longer passing a bare `-p` flag that 7-Zip interprets as an empty password during extraction.
+  - Extraction failures now always surface properly: without Show Details they raise the Operation Failed alert and still preserve full backend output behind the Details button; with Show Details enabled they stay in the details sheet without spawning a duplicate alert window.
   - Shared the common whole-archive and selected-entry extraction options form so destination, password, details, and action controls stay consistent.
   - Extraction now stages files in a temporary directory before merging, so existing destination files always go through SimpleZip's conflict dialog instead of being overwritten by the backend.
   - Whole-archive and selected-entry extraction now support an optional password field.
@@ -62,6 +67,9 @@
   - The Add to Archive window is compact again: password controls now expand only when needed, 7-Zip advanced options are collapsible, and the sheet no longer grows to an oversized height.
   - RAR creation now probes bundled, application-bundled, and system `rar` binaries instead of only one path, and shows a clear disabled-state message when no RAR backend is available.
 - **Reliability**
+  - Added a GitHub Actions workflow and local script for building an unsigned, ad-hoc signed macOS app DMG artifact without requiring a Developer ID certificate.
+  - The unsigned DMG workflow can now be manually published as a GitHub Release with a chosen app version.
+  - The unsigned DMG workflow now installs and verifies the bundled RAR backend before packaging.
   - Added a visible Xcode `SimpleZipCoreTests` target that runs the SwiftPM core regression suite.
   - Expanded core tests to cover command-line argument splitting, volume-size validation, custom excludes, exclude counting, and RAR creation arguments.
   - Added startup cleanup for stale temporary directories created when opening archive entries as external temporary copies.

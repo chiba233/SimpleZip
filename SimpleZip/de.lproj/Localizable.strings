@@ -213,6 +213,12 @@
 "extract.pathMode" = "Ordnerbehandlung";
 "extract.path.preserve" = "Ordnerstruktur beibehalten";
 "extract.path.flatten" = "Dateien nur in das Ziel entpacken";
+"extract.decryptionMethod" = "Entschlüsselungsmethode";
+"extract.decryption.automatic" = "Automatisch";
+"extract.decryption.detected" = "Erkannte Archivverschlüsselung: %@";
+"extract.decryption.unknown" = "Unbekannt";
+"extract.decryption.none" = "Nicht verschlüsselt";
+"extract.decryption.mixed" = "Gemischt";
 "button.choose" = "Auswählen...";
 "button.cancel" = "Abbrechen";
 "button.create" = "Erstellen";

@@ -213,6 +213,12 @@
 "extract.pathMode" = "Gestion des dossiers";
 "extract.path.preserve" = "Conserver la structure des dossiers";
 "extract.path.flatten" = "Extraire uniquement les fichiers dans la destination";
+"extract.decryptionMethod" = "Méthode de déchiffrement";
+"extract.decryption.automatic" = "Auto";
+"extract.decryption.detected" = "Chiffrement détecté dans l'archive : %@";
+"extract.decryption.unknown" = "Inconnu";
+"extract.decryption.none" = "Non chiffré";
+"extract.decryption.mixed" = "Mixte";
 "button.choose" = "Choisir...";
 "button.cancel" = "Annuler";
 "button.create" = "Créer";
