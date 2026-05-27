@@ -113,6 +113,26 @@ struct ArchiveServiceTests {
     }
 
     @Test
+    func parseZipListDecodesEscapedTarPaths() {
+        let tarOutput = """
+        payload/
+        payload/\\344\\270\\255\\346\\226\\207.txt
+        """
+        let unzipOutput = """
+          Length      Date    Time    Name
+        ---------  ---------- -----   ----
+                0  05-12-2026 10:31   payload/
+                7  05-12-2026 10:32   payload/�?�??.txt
+        ---------                     -------
+                7                     2 files
+        """
+
+        let items = ArchiveService.parseZipList(tarOutput: tarOutput, unzipOutput: unzipOutput)
+
+        #expect(items.map(\.name) == ["payload/", "payload/中文.txt"])
+    }
+
+    @Test
     func parseSevenZipListCapturesNumericAndDateFields() {
         let output = """
         Path = dir/file.txt
@@ -414,6 +434,70 @@ struct ArchiveServiceTests {
             encoding: .utf8
         )
         #expect(extracted == "top secret")
+    }
+
+    @Test
+    func listingHeaderEncryptedSevenZipRequiresPasswordWithoutHanging() async throws {
+        let tempDirectory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: tempDirectory) }
+
+        let sourceDirectory = tempDirectory.appendingPathComponent("secure", isDirectory: true)
+        try FileManager.default.createDirectory(at: sourceDirectory, withIntermediateDirectories: true)
+        try "classified".write(
+            to: sourceDirectory.appendingPathComponent("note.txt"),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        var options = ArchiveCreationOptions()
+        options.format = .sevenZip
+        options.skipDSStore = false
+        options.skipHiddenFiles = false
+        options.password = "secret-123"
+        options.passwordConfirmation = "secret-123"
+        options.sevenZipEncryptFileNames = true
+        let archiveURL = tempDirectory.appendingPathComponent("secure.7z")
+        try await ArchiveService.createArchive(from: [sourceDirectory], destination: archiveURL, options: options)
+
+        await #expect(throws: ArchiveError.self) {
+            _ = try await ArchiveService.list(archiveURL)
+        }
+
+        _ = try await ArchiveService.list(archiveURL, password: "secret-123")
+    }
+
+    @Test
+    func createAndExtractHeaderEncryptedSevenZipArchiveWithPassword() async throws {
+        let tempDirectory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: tempDirectory) }
+
+        let sourceDirectory = tempDirectory.appendingPathComponent("secure", isDirectory: true)
+        try FileManager.default.createDirectory(at: sourceDirectory, withIntermediateDirectories: true)
+        try "classified".write(
+            to: sourceDirectory.appendingPathComponent("note.txt"),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        var options = ArchiveCreationOptions()
+        options.format = .sevenZip
+        options.skipDSStore = false
+        options.skipHiddenFiles = false
+        options.password = "secret-123"
+        options.passwordConfirmation = "secret-123"
+        options.sevenZipEncryptFileNames = true
+        let archiveURL = tempDirectory.appendingPathComponent("secure.7z")
+        try await ArchiveService.createArchive(from: [sourceDirectory], destination: archiveURL, options: options)
+
+        let destination = tempDirectory.appendingPathComponent("secure-output", isDirectory: true)
+        try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+        try await ArchiveService.extract(archiveURL, to: destination, password: "secret-123")
+
+        let extracted = try String(
+            contentsOf: destination.appendingPathComponent("secure/note.txt"),
+            encoding: .utf8
+        )
+        #expect(extracted == "classified")
     }
 
     @Test

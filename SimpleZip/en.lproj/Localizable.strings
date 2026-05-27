@@ -88,6 +88,14 @@
 "settings.overwriteBehavior" = "When files already exist";
 "settings.showHiddenFiles" = "Show hidden files";
 "settings.rememberLastFolder" = "Remember last opened folder";
+"settings.hiddenSuffixes" = "Hidden suffixes";
+"settings.hiddenSuffixesEnabled" = "Hide configured suffixes";
+"settings.hiddenSuffixes.hint" = "Hide selected suffixes only in the file name display. Real file names and paths are unchanged.";
+"settings.hiddenSuffixes.recommended" = "Recommended suffixes";
+"settings.hiddenSuffixes.custom" = "Custom suffixes";
+"settings.hiddenSuffixes.customEmpty" = "No custom hidden suffixes yet.";
+"settings.hiddenSuffixes.customPlaceholder" = "Add a suffix, for example app";
+"settings.hiddenSuffixes.remove" = "Remove suffix";
 "settings.startup.home" = "Home";
 "settings.startup.downloads" = "Downloads";
 "settings.startup.desktop" = "Desktop";
@@ -132,6 +140,8 @@
 "error.unsafeArchiveLinks" = "SimpleZip blocked extraction because the archive contains symbolic links: %@";
 "error.blockedBySecurityPolicy" = "Blocked by the current security settings.";
 "error.passwordPromptExhausted" = "The archive backend asked for another password response. Check the password and try again.";
+"settings.showSymbolicLinks" = "Show symbolic-linked files and folders";
+"settings.followFinderStructure" = "Make folders follow Finder structure";
 "status.exportingArchiveItem" = "Extracting %@ to the drop destination";
 "status.exportedArchiveItem" = "Extracted %@";
 "status.copyingFiles" = "Copying files...";

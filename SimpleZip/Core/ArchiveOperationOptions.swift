@@ -450,6 +450,8 @@ struct ArchiveProgressState {
     var fraction: Double?
     var currentFile: String?
     var statusText: String?
+    var completedUnitCount: Int?
+    var totalUnitCount: Int?
 }
 
 @MainActor

@@ -90,6 +90,7 @@ private struct FileNSTableView: NSViewRepresentable {
         return orderedColumns(columns, key: AppPreferences.Key.fileColumnOrder)
     }
 
+    @MainActor
     final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate {
         var model: ArchiveBrowserModel
         weak var tableView: NSTableView?
@@ -328,7 +329,7 @@ private struct FileNSTableView: NSViewRepresentable {
         }
 
         private func icon(for item: FileItem) -> NSImage {
-            if item.isDirectory, !model.canShowPackageContents(item) {
+            if item.isDirectory, !item.isSymbolicLink, !model.canShowPackageContents(item) {
                 return NSWorkspace.shared.icon(for: .folder)
             }
             return NSWorkspace.shared.icon(forFile: item.url.path)
@@ -406,7 +407,7 @@ private enum FileColumn: String, TableColumnDescriptor {
     func value(for item: FileItem) -> String {
         switch self {
         case .name:
-            return item.name
+            return item.displayName
         case .size:
             return item.size.map { ByteCountFormatter.string(fromByteCount: $0, countStyle: .file) } ?? ""
         case .type:

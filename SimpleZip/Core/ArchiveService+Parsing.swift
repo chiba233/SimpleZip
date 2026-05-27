@@ -71,7 +71,8 @@ extension ArchiveService {
             .split(separator: "\n")
             .map(String.init)
             .filter { !$0.isEmpty }
-            .map { name in
+            .map { rawName in
+                let name = decodeArchivePathEscapes(rawName)
                 let isDirectory = name.hasSuffix("/")
                 let metadata = metadataByName[normalizedEntryName(name)]
                 return ArchiveItem(
@@ -119,7 +120,12 @@ extension ArchiveService {
         var values: [String: String] = [:]
 
         func flush() {
-            guard let path = values["Path"], path != "." else {
+            guard let rawPath = values["Path"] else {
+                values.removeAll()
+                return
+            }
+            let path = decodeArchivePathEscapes(rawPath)
+            guard path != "." else {
                 values.removeAll()
                 return
             }
@@ -156,6 +162,35 @@ extension ArchiveService {
 
         flush()
         return rows
+    }
+
+    private static func decodeArchivePathEscapes(_ text: String) -> String {
+        guard text.contains("\\") else { return text }
+
+        let characters = Array(text)
+        var bytes: [UInt8] = []
+        var index = 0
+
+        while index < characters.count {
+            if characters[index] == "\\", index + 3 < characters.count {
+                let octalDigits = String(characters[(index + 1)...(index + 3)])
+                if let value = UInt8(octalDigits, radix: 8) {
+                    bytes.append(value)
+                    index += 4
+                    continue
+                }
+            }
+
+            let scalar = characters[index].unicodeScalars.first!
+            if scalar.value <= 0x7F {
+                bytes.append(UInt8(scalar.value))
+            } else {
+                bytes.append(contentsOf: String(characters[index]).utf8)
+            }
+            index += 1
+        }
+
+        return String(decoding: bytes, as: UTF8.self)
     }
 
     nonisolated static func parseSevenZipBenchmark(_ output: String, backendDescription: String, options: SevenZipBenchmarkOptions) -> SevenZipBenchmarkReport {

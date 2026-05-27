@@ -86,6 +86,14 @@
 "settings.overwriteBehavior" = "遇到同名檔案時";
 "settings.showHiddenFiles" = "顯示隱藏檔案";
 "settings.rememberLastFolder" = "記住上次開啟的資料夾";
+"settings.hiddenSuffixes" = "隱藏副檔名";
+"settings.hiddenSuffixesEnabled" = "隱藏已設定的副檔名";
+"settings.hiddenSuffixes.hint" = "這裡只會隱藏名稱顯示裡的副檔名，真實檔名和路徑不會改動。";
+"settings.hiddenSuffixes.recommended" = "建議隱藏副檔名";
+"settings.hiddenSuffixes.custom" = "自訂隱藏副檔名";
+"settings.hiddenSuffixes.customEmpty" = "目前還沒有自訂隱藏副檔名。";
+"settings.hiddenSuffixes.customPlaceholder" = "加入副檔名，例如 app";
+"settings.hiddenSuffixes.remove" = "移除副檔名";
 "settings.startup.home" = "個人資料夾";
 "settings.startup.downloads" = "下載";
 "settings.startup.desktop" = "桌面";
@@ -285,6 +293,8 @@
 "settings.security.symbolicLinks" = "解出的符號連結";
 "settings.security.activeContent" = "開啟主動內容";
 "settings.security.description" = "這些規則作用於從介面發起的壓縮檔操作。預設是詢問，SimpleZip 會先提示再繼續。";
+"settings.showSymbolicLinks" = "顯示符號連結的檔案及資料夾";
+"settings.followFinderStructure" = "資料夾遵循 Finder 結構";
 "error.missingRarTool" = "找不到 RAR 命令列工具。請安裝 rar 以建立 RAR 壓縮檔。";
 "error.passwordsDoNotMatch" = "兩次輸入的密碼必須一致。";
 "error.passwordPromptExhausted" = "壓縮檔後端要求了額外的密碼回應。請檢查密碼後再試一次。";

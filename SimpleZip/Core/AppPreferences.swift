@@ -217,6 +217,11 @@ enum AppPreferences {
         static let symbolicLinkPolicy = "symbolicLinkPolicy"
         static let activeContentOpenPolicy = "activeContentOpenPolicy"
         static let showHiddenFiles = "showHiddenFiles"
+        static let showSymbolicLinks = "showSymbolicLinks"
+        static let followFinderStructure = "followFinderApplicationStructure"
+        static let hiddenSuffixesEnabled = "hiddenSuffixesEnabled"
+        static let hiddenRecommendedSuffixes = "hiddenRecommendedSuffixes"
+        static let hiddenCustomSuffixes = "hiddenCustomSuffixes"
         static let rememberLastFolder = "rememberLastFolder"
         static let lastFolderPath = "lastFolderPath"
         static let showFileSizeColumn = "showFileSizeColumn"
@@ -273,6 +278,39 @@ enum AppPreferences {
 
     static var showHiddenFiles: Bool {
         defaults.bool(forKey: Key.showHiddenFiles)
+    }
+
+    static var showSymbolicLinks: Bool {
+        defaultTrueBool(forKey: Key.showSymbolicLinks)
+    }
+
+    static var followFinderStructure: Bool {
+        defaults.bool(forKey: Key.followFinderStructure)
+    }
+
+    static var hiddenSuffixesEnabled: Bool {
+        defaultTrueBool(forKey: Key.hiddenSuffixesEnabled)
+    }
+
+    static let recommendedHiddenSuffixes = ["app", "prefPane", "framework", "bundle", "plugin"]
+
+    static var hiddenRecommendedSuffixes: [String] {
+        if defaults.object(forKey: Key.hiddenRecommendedSuffixes) == nil {
+            return recommendedHiddenSuffixes
+        }
+        let configured = normalizedHiddenSuffixes(defaults.stringArray(forKey: Key.hiddenRecommendedSuffixes) ?? [])
+        return recommendedHiddenSuffixes.filter { configured.contains($0.lowercased()) }
+    }
+
+    static var hiddenCustomSuffixes: [String] {
+        let recommended = Set(recommendedHiddenSuffixes.map { $0.lowercased() })
+        return normalizedHiddenSuffixes(defaults.stringArray(forKey: Key.hiddenCustomSuffixes) ?? [])
+            .filter { !recommended.contains($0.lowercased()) }
+    }
+
+    static var hiddenDisplaySuffixes: [String] {
+        guard hiddenSuffixesEnabled else { return [] }
+        return normalizedHiddenSuffixes(hiddenRecommendedSuffixes + hiddenCustomSuffixes)
     }
 
     static var rememberLastFolder: Bool {
@@ -369,6 +407,30 @@ enum AppPreferences {
         defaults.set(value, forKey: key)
     }
 
+    static func setHiddenRecommendedSuffixes(_ value: [String]) {
+        let configured = Set(normalizedHiddenSuffixes(value))
+        defaults.set(
+            recommendedHiddenSuffixes.filter { configured.contains($0.lowercased()) },
+            forKey: Key.hiddenRecommendedSuffixes
+        )
+    }
+
+    static func setHiddenCustomSuffixes(_ value: [String]) {
+        let blocked = Set(recommendedHiddenSuffixes.map { $0.lowercased() })
+        defaults.set(
+            normalizedHiddenSuffixes(value).filter { !blocked.contains($0.lowercased()) },
+            forKey: Key.hiddenCustomSuffixes
+        )
+    }
+
+    static func normalizedHiddenSuffix(_ value: String) -> String {
+        var result = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        while result.hasPrefix(".") {
+            result.removeFirst()
+        }
+        return result.lowercased()
+    }
+
     static func defaultStartupURL(fileManager: FileManager = .default) -> URL {
         switch startupLocation {
         case .home:
@@ -387,6 +449,17 @@ enum AppPreferences {
             return true
         }
         return defaults.bool(forKey: key)
+    }
+
+    private static func normalizedHiddenSuffixes(_ values: [String]) -> [String] {
+        var seen = Set<String>()
+        return values.compactMap { value in
+            let normalized = normalizedHiddenSuffix(value)
+            guard !normalized.isEmpty, seen.insert(normalized).inserted else {
+                return nil
+            }
+            return normalized
+        }
     }
 
     private static func rememberRecentFolder(_ url: URL) {

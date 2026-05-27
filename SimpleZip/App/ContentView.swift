@@ -127,6 +127,9 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .openExternalFile)) { _ in
             ExternalFileOpenQueue.shared.drain().forEach(openExternalURL)
         }
+        .onReceive(NotificationCenter.default.publisher(for: .browserPreferencesChanged)) { _ in
+            model.reload()
+        }
         .background {
             if #available(macOS 14.0, *) {
                 SettingsRequestBridge()

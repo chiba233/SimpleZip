@@ -82,6 +82,7 @@ private struct ArchiveNSTableView: NSViewRepresentable {
         return orderedColumns(columns, key: AppPreferences.Key.archiveColumnOrder)
     }
 
+    @MainActor
     final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate {
         var model: ArchiveBrowserModel
         weak var tableView: NSTableView?

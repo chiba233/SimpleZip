@@ -14,12 +14,24 @@ struct StatusBar: View {
     var body: some View {
         HStack {
             if model.isWorking {
-                if let fraction = model.operationProgress.fraction {
-                    ProgressView(value: fraction)
-                        .frame(width: 140, alignment: .leading)
-                } else {
-                    ProgressView()
-                        .controlSize(.small)
+                HStack(spacing: 8) {
+                    if let fraction = model.operationProgress.fraction {
+                        ProgressView(value: fraction)
+                            .frame(width: 140, alignment: .leading)
+                    } else {
+                        ProgressView()
+                            .controlSize(.small)
+                    }
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        if let progressCountText {
+                            Text(progressCountText)
+                                .foregroundStyle(.secondary)
+                        }
+                        Text(progressPrimaryText)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
                 }
                 if model.operationDetailsSession != nil {
                     detailsButton
@@ -52,6 +64,25 @@ struct StatusBar: View {
             model.showOperationDetails()
         }
         .buttonStyle(.borderless)
+    }
+
+    private var progressCountText: String? {
+        guard let completed = model.operationProgress.completedUnitCount,
+              let total = model.operationProgress.totalUnitCount,
+              total > 0 else {
+            return nil
+        }
+        return "\(min(completed, total))/\(total)"
+    }
+
+    private var progressPrimaryText: String {
+        if let currentFile = model.operationProgress.currentFile, !currentFile.isEmpty {
+            return currentFile
+        }
+        if let statusText = model.operationProgress.statusText, !statusText.isEmpty {
+            return statusText
+        }
+        return model.status
     }
 }
 

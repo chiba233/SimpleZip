@@ -16,6 +16,9 @@ struct SettingsView: View {
     @AppStorage(AppPreferences.Key.symbolicLinkPolicy) private var symbolicLinkPolicy = ArchiveSecurityDecision.ask.rawValue
     @AppStorage(AppPreferences.Key.activeContentOpenPolicy) private var activeContentOpenPolicy = ArchiveSecurityDecision.ask.rawValue
     @AppStorage(AppPreferences.Key.showHiddenFiles) private var showHiddenFiles = false
+    @AppStorage(AppPreferences.Key.showSymbolicLinks) private var showSymbolicLinks = true
+    @AppStorage(AppPreferences.Key.followFinderStructure) private var followFinderStructure = false
+    @AppStorage(AppPreferences.Key.hiddenSuffixesEnabled) private var hiddenSuffixesEnabled = true
     @AppStorage(AppPreferences.Key.rememberLastFolder) private var rememberLastFolder = true
     @AppStorage(AppPreferences.Key.showFileSizeColumn) private var showFileSizeColumn = true
     @AppStorage(AppPreferences.Key.showFileTypeColumn) private var showFileTypeColumn = true
@@ -36,6 +39,10 @@ struct SettingsView: View {
     @State private var sevenZipVersion = L10n.text("settings.7zip.checking")
     @State private var rarVersion = L10n.text("settings.rar.checking")
     @State private var selectedPane = SettingsPane.general
+    @State private var showsHiddenSuffixDrawer = false
+    @State private var hiddenRecommendedSuffixes = AppPreferences.hiddenRecommendedSuffixes
+    @State private var hiddenCustomSuffixes = AppPreferences.hiddenCustomSuffixes
+    @State private var hiddenSuffixInput = ""
 
     var body: some View {
         TabView(selection: $selectedPane) {
@@ -76,12 +83,36 @@ struct SettingsView: View {
             if SettingsNavigation.consumePendingColumnsRequest() {
                 selectColumnsPane()
             }
+            hiddenRecommendedSuffixes = AppPreferences.hiddenRecommendedSuffixes
+            hiddenCustomSuffixes = AppPreferences.hiddenCustomSuffixes
             refreshAssociationStatus()
             refreshSevenZipVersion()
             refreshRarVersion()
         }
         .onReceive(NotificationCenter.default.publisher(for: .openSettingsColumns)) { _ in
             selectColumnsPane()
+        }
+        .onChange(of: showHiddenFiles) { _ in
+            NotificationCenter.default.post(name: .browserPreferencesChanged, object: nil)
+        }
+        .onChange(of: showSymbolicLinks) { _ in
+            NotificationCenter.default.post(name: .browserPreferencesChanged, object: nil)
+        }
+        .onChange(of: followFinderStructure) { _ in
+            NotificationCenter.default.post(name: .browserPreferencesChanged, object: nil)
+        }
+        .onChange(of: hiddenSuffixesEnabled) { _ in
+            NotificationCenter.default.post(name: .browserPreferencesChanged, object: nil)
+        }
+        .onChange(of: hiddenRecommendedSuffixes) { newValue in
+            AppPreferences.setHiddenRecommendedSuffixes(newValue)
+            hiddenRecommendedSuffixes = AppPreferences.hiddenRecommendedSuffixes
+            NotificationCenter.default.post(name: .browserPreferencesChanged, object: nil)
+        }
+        .onChange(of: hiddenCustomSuffixes) { newValue in
+            AppPreferences.setHiddenCustomSuffixes(newValue)
+            hiddenCustomSuffixes = AppPreferences.hiddenCustomSuffixes
+            NotificationCenter.default.post(name: .browserPreferencesChanged, object: nil)
         }
     }
 
@@ -192,6 +223,88 @@ struct SettingsView: View {
         Form {
             Section(L10n.text("settings.section.browser")) {
                 Toggle(L10n.text("settings.showHiddenFiles"), isOn: $showHiddenFiles)
+                Toggle(L10n.text("settings.showSymbolicLinks"), isOn: $showSymbolicLinks)
+                Toggle(L10n.text("settings.followFinderStructure"), isOn: $followFinderStructure)
+                DisclosureGroup(isExpanded: $showsHiddenSuffixDrawer) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text(L10n.text("settings.hiddenSuffixes.hint"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(L10n.text("settings.hiddenSuffixes.recommended"))
+                                .font(.headline)
+                            ForEach(AppPreferences.recommendedHiddenSuffixes, id: \.self) { suffix in
+                                let normalizedSuffix = AppPreferences.normalizedHiddenSuffix(suffix)
+                                Toggle(
+                                    ".\(suffix)",
+                                    isOn: Binding(
+                                        get: { hiddenRecommendedSuffixes.contains { AppPreferences.normalizedHiddenSuffix($0) == normalizedSuffix } },
+                                        set: { shouldHide in
+                                            if shouldHide {
+                                                hiddenRecommendedSuffixes.append(suffix)
+                                            } else {
+                                                hiddenRecommendedSuffixes.removeAll { $0.caseInsensitiveCompare(suffix) == .orderedSame }
+                                            }
+                                        }
+                                    )
+                                )
+                            }
+                        }
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(L10n.text("settings.hiddenSuffixes.custom"))
+                                .font(.headline)
+
+                            if hiddenCustomSuffixes.isEmpty {
+                                Text(L10n.text("settings.hiddenSuffixes.customEmpty"))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                ForEach(hiddenCustomSuffixes, id: \.self) { suffix in
+                                    HStack {
+                                        Text(".\(suffix)")
+                                            .font(.system(.body, design: .monospaced))
+                                        Spacer()
+                                        Button {
+                                            hiddenCustomSuffixes.removeAll { $0 == suffix }
+                                        } label: {
+                                            Image(systemName: "minus.circle")
+                                        }
+                                        .buttonStyle(.borderless)
+                                        .help(L10n.text("settings.hiddenSuffixes.remove"))
+                                    }
+                                }
+                            }
+
+                            HStack {
+                                let normalizedSuffix = AppPreferences.normalizedHiddenSuffix(hiddenSuffixInput)
+                                let blockedSuffixes = Set((hiddenCustomSuffixes + hiddenRecommendedSuffixes).map { $0.lowercased() })
+                                Text(".")
+                                    .font(.system(.body, design: .monospaced))
+                                    .foregroundStyle(.secondary)
+                                TextField(
+                                    "",
+                                    text: $hiddenSuffixInput,
+                                    prompt: Text(L10n.text("settings.hiddenSuffixes.customPlaceholder"))
+                                        .foregroundColor(.secondary)
+                                )
+                                .font(.system(.body, design: .monospaced))
+                                .textFieldStyle(.roundedBorder)
+                                .frame(minWidth: 220)
+                                Button(L10n.text("button.add")) {
+                                    hiddenCustomSuffixes.append(normalizedSuffix)
+                                    hiddenSuffixInput = ""
+                                }
+                                .disabled(normalizedSuffix.isEmpty || blockedSuffixes.contains(normalizedSuffix))
+                            }
+                        }
+                    }
+                    .padding(.top, 6)
+                } label: {
+                    Toggle(L10n.text("settings.hiddenSuffixes"), isOn: $hiddenSuffixesEnabled)
+                }
+                .disabled(!hiddenSuffixesEnabled)
             }
         }
         .formStyle(.grouped)
@@ -360,6 +473,7 @@ private enum SettingsPane: Hashable {
 extension Notification.Name {
     static let requestOpenSettingsColumns = Notification.Name("SimpleZip.requestOpenSettingsColumns")
     static let openSettingsColumns = Notification.Name("SimpleZip.openSettingsColumns")
+    static let browserPreferencesChanged = Notification.Name("SimpleZip.browserPreferencesChanged")
 }
 
 @MainActor

@@ -325,6 +325,9 @@ final class ArchiveBrowserModel: ObservableObject {
 
         let entries = item.isDirectory ? expandedArchiveItems(for: item) : [item]
         guard !entries.isEmpty else { return }
+        let detectedZipEncryption = archiveURL.pathExtension.lowercased() == "zip"
+            ? ArchiveService.detectZipEncryption(in: archiveURL)
+            : .unknown
 
         startOperationTask(cancellable: true) { [weak self] operationID in
             guard let self else { return }
@@ -332,21 +335,49 @@ final class ArchiveBrowserModel: ObservableObject {
                 let destination = try self.makeArchiveItemOpenDirectory()
                 self.openedArchiveItemDirectories.append(destination)
                 try self.confirmArchiveExtractionSafety(entries: entries)
-                try await ArchiveService.extract(
-                    archiveURL,
-                    entries: entries,
-                    to: destination,
-                    overwriteBehavior: .overwrite,
-                    pathMode: .preserve,
-                    safetyPolicy: .skipValidation,
-                    operationID: operationID,
-                    progress: progress
-                )
-                try self.confirmExtractedArchiveLinks(at: destination)
+                var password = ""
+                var zipDecryptionMethod: ArchiveDecryptionMethod = .automatic
+                var isRetry = false
 
-                let extractedURL = try self.extractedURL(for: item, in: destination)
-                guard NSWorkspace.shared.open(extractedURL) else {
-                    throw ArchiveError.openExtractedItemFailed
+                while true {
+                    do {
+                        try? self.fileManager.removeItem(at: destination)
+                        try self.fileManager.createDirectory(at: destination, withIntermediateDirectories: true)
+                        try await ArchiveService.extract(
+                            archiveURL,
+                            entries: entries,
+                            to: destination,
+                            overwriteBehavior: .overwrite,
+                            pathMode: .preserve,
+                            password: password,
+                            zipDecryptionMethod: zipDecryptionMethod,
+                            safetyPolicy: .skipValidation,
+                            operationID: operationID,
+                            progress: progress
+                        )
+                        try self.confirmExtractedArchiveLinks(at: destination)
+
+                        let extractedURL = try self.extractedURL(for: item, in: destination)
+                        guard NSWorkspace.shared.open(extractedURL) else {
+                            throw ArchiveError.openExtractedItemFailed
+                        }
+                        return
+                    } catch {
+                        guard self.shouldPromptForArchivePassword(error) else {
+                            throw error
+                        }
+                        guard let authentication = self.promptForArchiveItemPassword(
+                            item: item,
+                            archiveURL: archiveURL,
+                            detectedZipEncryption: detectedZipEncryption,
+                            isRetry: isRetry
+                        ) else {
+                            throw CancellationError()
+                        }
+                        password = authentication.password
+                        zipDecryptionMethod = authentication.zipDecryptionMethod
+                        isRetry = true
+                    }
                 }
             }
             if didSucceed {
@@ -873,7 +904,7 @@ final class ArchiveBrowserModel: ObservableObject {
             guard let self else { return }
             isWorking = true
             status = L10n.text("status.pasting")
-            operationProgress = ArchiveProgressState(fraction: 0, currentFile: nil)
+            operationProgress = ArchiveProgressState(fraction: 0, currentFile: nil, completedUnitCount: 0, totalUnitCount: fileClipboard.urls.count)
             defer {
                 isWorking = false
                 operationProgress = ArchiveProgressState()
@@ -882,7 +913,12 @@ final class ArchiveBrowserModel: ObservableObject {
             do {
                 let total = max(1, fileClipboard.urls.count)
                 for (index, url) in fileClipboard.urls.enumerated() {
-                    operationProgress = ArchiveProgressState(fraction: Double(index) / Double(total), currentFile: url.lastPathComponent)
+                    operationProgress = ArchiveProgressState(
+                        fraction: Double(index) / Double(total),
+                        currentFile: url.lastPathComponent,
+                        completedUnitCount: index + 1,
+                        totalUnitCount: total
+                    )
                     let requestedTargetURL = folderURL.appendingPathComponent(url.lastPathComponent)
                     let targetURL = try await extractionCoordinator.resolveDestination(
                         for: url,
@@ -902,7 +938,7 @@ final class ArchiveBrowserModel: ObservableObject {
                 if fileClipboard.shouldMove {
                     self.fileClipboard = nil
                 }
-                operationProgress = ArchiveProgressState(fraction: 1, currentFile: nil)
+                operationProgress = ArchiveProgressState(fraction: 1, currentFile: nil, completedUnitCount: total, totalUnitCount: total)
                 reload()
             } catch {
                 errorMessage = error.localizedDescription
@@ -979,7 +1015,7 @@ final class ArchiveBrowserModel: ObservableObject {
             isWorking = true
             errorMessage = nil
             status = shouldMove ? L10n.text("status.movingFiles") : L10n.text("status.copyingFiles")
-            operationProgress = ArchiveProgressState(fraction: 0, currentFile: nil)
+            operationProgress = ArchiveProgressState(fraction: 0, currentFile: nil, completedUnitCount: 0, totalUnitCount: urls.count)
             defer {
                 isWorking = false
                 operationProgress = ArchiveProgressState()
@@ -989,7 +1025,12 @@ final class ArchiveBrowserModel: ObservableObject {
                 let total = max(1, urls.count)
                 for (index, url) in urls.enumerated() {
                     try Task.checkCancellation()
-                    operationProgress = ArchiveProgressState(fraction: Double(index) / Double(total), currentFile: url.lastPathComponent)
+                    operationProgress = ArchiveProgressState(
+                        fraction: Double(index) / Double(total),
+                        currentFile: url.lastPathComponent,
+                        completedUnitCount: index + 1,
+                        totalUnitCount: total
+                    )
                     if shouldMove && url.deletingLastPathComponent().standardizedFileURL == destinationFolder.standardizedFileURL {
                         continue
                     }
@@ -1000,7 +1041,7 @@ final class ArchiveBrowserModel: ObservableObject {
                         try fileManager.copyItem(at: url, to: targetURL)
                     }
                 }
-                operationProgress = ArchiveProgressState(fraction: 1, currentFile: nil)
+                operationProgress = ArchiveProgressState(fraction: 1, currentFile: nil, completedUnitCount: total, totalUnitCount: total)
                 status = L10n.text("status.done")
                 if case .folder(let currentFolder) = mode, currentFolder.standardizedFileURL == destinationFolder.standardizedFileURL {
                     reload()
@@ -1020,6 +1061,7 @@ final class ArchiveBrowserModel: ObservableObject {
         do {
             let resourceKeys: Set<URLResourceKey> = [
                 .isDirectoryKey,
+                .isSymbolicLinkKey,
                 .fileSizeKey,
                 .contentModificationDateKey,
                 .creationDateKey,
@@ -1033,7 +1075,7 @@ final class ArchiveBrowserModel: ObservableObject {
                 options.insert(.skipsHiddenFiles)
             }
 
-            let urls = try fileManager.contentsOfDirectory(at: url, includingPropertiesForKeys: Array(resourceKeys), options: options)
+            let urls = try displayedFolderContents(at: url, resourceKeys: resourceKeys, options: options)
 
             fileItems = makeFileItems(from: urls, folderFirst: true)
 
@@ -1074,6 +1116,7 @@ final class ArchiveBrowserModel: ObservableObject {
     private func makeFileItems(from urls: [URL], folderFirst: Bool) -> [FileItem] {
         let resourceKeys: Set<URLResourceKey> = [
             .isDirectoryKey,
+            .isSymbolicLinkKey,
             .fileSizeKey,
             .contentModificationDateKey,
             .creationDateKey,
@@ -1082,22 +1125,38 @@ final class ArchiveBrowserModel: ObservableObject {
             .localizedTypeDescriptionKey
         ]
         var applicationNameCache: [String: String] = [:]
+        let hiddenSuffixes = AppPreferences.hiddenDisplaySuffixes
         return urls.compactMap { fileURL in
             guard let values = try? fileURL.resourceValues(forKeys: resourceKeys) else {
                 return nil
             }
 
-            let isDirectory = values.isDirectory == true
+            let isSymbolicLink = values.isSymbolicLink == true
+            if isSymbolicLink && !AppPreferences.showSymbolicLinks {
+                return nil
+            }
+            let isDirectory = isSymbolicLink ? isDirectorySymbolicLinkTarget(fileURL) : values.isDirectory == true
             let isPackage = isDirectory && isLocalFilePackage(fileURL)
-            let typeDescription = values.localizedTypeDescription ?? (isDirectory ? L10n.text("type.folder") : L10n.text("type.file"))
-            let applicationKey = isDirectory && !isPackage ? "__folder__" : fileURL.pathExtension.lowercased()
-            let applicationName = applicationNameCache[applicationKey] ?? preferredApplicationName(for: fileURL, isDirectory: isDirectory)
+            let typeDescription = isDirectory && !isPackage
+                ? L10n.text("type.folder")
+                : (values.localizedTypeDescription ?? (isDirectory ? L10n.text("type.folder") : L10n.text("type.file")))
+            let displayName = displayedName(for: fileURL.lastPathComponent, hiddenSuffixes: hiddenSuffixes)
+            let applicationKey = if isDirectory && !isPackage {
+                "__folder__"
+            } else if isPackage {
+                "__package__:\(fileURL.path)"
+            } else {
+                fileURL.pathExtension.lowercased()
+            }
+            let applicationName = applicationNameCache[applicationKey] ?? preferredApplicationName(for: fileURL, isDirectory: isDirectory, isPackage: isPackage)
             applicationNameCache[applicationKey] = applicationName
 
             return FileItem(
                 url: fileURL,
                 name: fileURL.lastPathComponent,
+                displayName: displayName,
                 isDirectory: isDirectory,
+                isSymbolicLink: isSymbolicLink,
                 size: isDirectory ? nil : Int64(values.fileSize ?? 0),
                 modified: values.contentModificationDate,
                 created: values.creationDate,
@@ -1109,12 +1168,80 @@ final class ArchiveBrowserModel: ObservableObject {
         }
         .sorted { lhs, rhs in
             if folderFirst, isNavigableDirectory(lhs) != isNavigableDirectory(rhs) { return isNavigableDirectory(lhs) }
-            return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
+            return lhs.displayName.localizedStandardCompare(rhs.displayName) == .orderedAscending
         }
     }
 
+    private func displayedFolderContents(
+        at url: URL,
+        resourceKeys: Set<URLResourceKey>,
+        options: FileManager.DirectoryEnumerationOptions
+    ) throws -> [URL] {
+        guard AppPreferences.followFinderStructure else {
+            return try fileManager.contentsOfDirectory(at: url, includingPropertiesForKeys: Array(resourceKeys), options: options)
+        }
+
+        let standardizedURL = url.standardizedFileURL
+        let finderDisplayRoots: [URL]
+        let finderDisplayExtraEntries: [URL]
+        switch standardizedURL.path {
+        case "/Applications":
+            finderDisplayRoots = [
+                standardizedURL,
+                URL(fileURLWithPath: "/System/Applications"),
+                URL(fileURLWithPath: "/System/Cryptexes/App/System/Applications")
+            ]
+            finderDisplayExtraEntries = [
+                URL(fileURLWithPath: "/System/Library/CoreServices/Finder.app")
+            ]
+        case "/Applications/Utilities":
+            finderDisplayRoots = [
+                standardizedURL,
+                URL(fileURLWithPath: "/System/Applications/Utilities")
+            ]
+            finderDisplayExtraEntries = []
+        default:
+            finderDisplayRoots = [standardizedURL]
+            finderDisplayExtraEntries = []
+        }
+
+        guard finderDisplayRoots.count > 1 || !finderDisplayExtraEntries.isEmpty else {
+            return try fileManager.contentsOfDirectory(at: standardizedURL, includingPropertiesForKeys: Array(resourceKeys), options: options)
+        }
+
+        var mergedURLs: [URL] = []
+        var seenNames = Set<String>()
+        let mergedResourceKeys = resourceKeys.union([.isHiddenKey])
+
+        func appendEntry(_ entry: URL) {
+            guard fileManager.fileExists(atPath: entry.path) else { return }
+            if options.contains(.skipsHiddenFiles),
+               let values = try? entry.resourceValues(forKeys: mergedResourceKeys),
+               values.isHidden == true {
+                return
+            }
+
+            let dedupeKey = entry.lastPathComponent.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+            guard seenNames.insert(dedupeKey).inserted else { return }
+            mergedURLs.append(entry)
+        }
+
+        for root in finderDisplayRoots where fileManager.fileExists(atPath: root.path) {
+            let entries = try fileManager.contentsOfDirectory(at: root, includingPropertiesForKeys: Array(resourceKeys), options: options)
+            for entry in entries {
+                appendEntry(entry)
+            }
+        }
+
+        for entry in finderDisplayExtraEntries {
+            appendEntry(entry)
+        }
+
+        return mergedURLs
+    }
+
     private func directoryCompletions(in directoryURL: URL, matching prefix: String) -> [LocationCompletion] {
-        let resourceKeys: Set<URLResourceKey> = [.isDirectoryKey, .isHiddenKey]
+        let resourceKeys: Set<URLResourceKey> = [.isDirectoryKey, .isHiddenKey, .isSymbolicLinkKey]
         var options: FileManager.DirectoryEnumerationOptions = [.skipsPackageDescendants]
         if !AppPreferences.showHiddenFiles {
             options.insert(.skipsHiddenFiles)
@@ -1131,7 +1258,8 @@ final class ArchiveBrowserModel: ObservableObject {
         let lowercasedPrefix = prefix.lowercased()
         return urls.compactMap { url -> LocationCompletion? in
             guard let values = try? url.resourceValues(forKeys: resourceKeys),
-                  values.isDirectory == true,
+                  (values.isSymbolicLink != true || AppPreferences.showSymbolicLinks),
+                  ((values.isSymbolicLink == true && isDirectorySymbolicLinkTarget(url)) || values.isDirectory == true),
                   !isLocalFilePackage(url)
             else {
                 return nil
@@ -1321,6 +1449,14 @@ final class ArchiveBrowserModel: ObservableObject {
         NSWorkspace.shared.isFilePackage(atPath: url.path)
     }
 
+    private func isDirectorySymbolicLinkTarget(_ url: URL) -> Bool {
+        var isDirectory: ObjCBool = false
+        guard fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory) else {
+            return false
+        }
+        return isDirectory.boolValue
+    }
+
     private func makeArchiveItemOpenDirectory() throws -> URL {
         try TemporaryResourceManager.makeOpenedArchiveItemDirectory(fileManager: fileManager)
     }
@@ -1410,6 +1546,87 @@ final class ArchiveBrowserModel: ObservableObject {
         alert.addButton(withTitle: L10n.text("file.moveToTrash"))
         alert.addButton(withTitle: L10n.text("button.cancel"))
         return alert.runModal() == .alertFirstButtonReturn
+    }
+
+    private func shouldPromptForArchivePassword(_ error: Error) -> Bool {
+        if let archiveError = error as? ArchiveError {
+            switch archiveError {
+            case .passwordPromptExhausted:
+                return true
+            case .commandFailed(let output):
+                return archiveCommandSuggestsPasswordRequirement(output)
+            default:
+                return false
+            }
+        }
+        return archiveCommandSuggestsPasswordRequirement(error.localizedDescription)
+    }
+
+    private func archiveCommandSuggestsPasswordRequirement(_ output: String) -> Bool {
+        let normalized = output.lowercased()
+        return normalized.contains("enter password")
+            || normalized.contains("wrong password")
+            || normalized.contains("can not open encrypted archive")
+            || normalized.contains("cannot open encrypted archive")
+    }
+
+    private func promptForArchiveItemPassword(
+        item: ArchiveItem,
+        archiveURL: URL,
+        detectedZipEncryption: ZipEncryptionDetection,
+        isRetry: Bool
+    ) -> (password: String, zipDecryptionMethod: ArchiveDecryptionMethod)? {
+        let alert = NSAlert()
+        alert.alertStyle = .informational
+        alert.messageText = archiveURL.lastPathComponent
+        alert.informativeText = isRetry ? L10n.text("error.passwordPromptExhausted") : item.displayName
+        alert.addButton(withTitle: L10n.text("button.open"))
+        alert.addButton(withTitle: L10n.text("button.cancel"))
+
+        let accessoryWidth: CGFloat = 320
+        let accessoryHeight: CGFloat = archiveURL.pathExtension.lowercased() == "zip" ? 112 : 24
+        let accessoryView = NSView(frame: NSRect(x: 0, y: 0, width: accessoryWidth, height: accessoryHeight))
+
+        let passwordFieldY: CGFloat = archiveURL.pathExtension.lowercased() == "zip" ? 88 : 0
+        let passwordField = NSSecureTextField(frame: NSRect(x: 0, y: passwordFieldY, width: accessoryWidth, height: 24))
+        passwordField.placeholderString = L10n.text("extract.password.placeholder")
+        accessoryView.addSubview(passwordField)
+
+        let decryptionMethods = Array(ArchiveDecryptionMethod.allCases)
+        var methodPicker: NSPopUpButton?
+        if archiveURL.pathExtension.lowercased() == "zip" {
+            if detectedZipEncryption != .unknown {
+                let detectionLabel = NSTextField(labelWithString: detectedZipEncryption.autoDetectionText)
+                detectionLabel.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+                detectionLabel.textColor = .secondaryLabelColor
+                detectionLabel.frame = NSRect(x: 0, y: 56, width: accessoryWidth, height: 16)
+                accessoryView.addSubview(detectionLabel)
+            }
+
+            let methodLabel = NSTextField(labelWithString: L10n.text("extract.decryptionMethod"))
+            methodLabel.frame = NSRect(x: 0, y: 32, width: accessoryWidth, height: 16)
+            accessoryView.addSubview(methodLabel)
+
+            let picker = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: accessoryWidth, height: 26), pullsDown: false)
+            decryptionMethods.forEach { picker.addItem(withTitle: $0.title) }
+            picker.selectItem(at: 0)
+            accessoryView.addSubview(picker)
+            methodPicker = picker
+        }
+
+        alert.accessoryView = accessoryView
+
+        guard alert.runModal() == .alertFirstButtonReturn else { return nil }
+        let password = passwordField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !password.isEmpty else { return nil }
+        let selectedMethod: ArchiveDecryptionMethod
+        if let methodPicker {
+            let index = methodPicker.indexOfSelectedItem
+            selectedMethod = decryptionMethods.indices.contains(index) ? decryptionMethods[index] : .automatic
+        } else {
+            selectedMethod = .automatic
+        }
+        return (password, selectedMethod)
     }
 
     private func lastExistingFolder(for url: URL) -> URL {
@@ -1542,7 +1759,7 @@ final class ArchiveBrowserModel: ObservableObject {
         case "created":
             result = (lhs.created ?? .distantPast).compare(rhs.created ?? .distantPast)
         default:
-            result = lhs.name.localizedStandardCompare(rhs.name)
+            result = lhs.displayName.localizedStandardCompare(rhs.displayName)
         }
         return ascending ? result != .orderedDescending : result == .orderedDescending
     }
@@ -1597,9 +1814,19 @@ final class ArchiveBrowserModel: ObservableObject {
         }
     }
 
-    private func preferredApplicationName(for url: URL, isDirectory: Bool) -> String {
+    private func preferredApplicationName(for url: URL, isDirectory: Bool, isPackage: Bool) -> String {
         if isDirectory, !isLocalFilePackage(url) {
             return "Finder"
+        }
+        if isPackage,
+           let bundle = Bundle(url: url) {
+            if let displayName = bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String, !displayName.isEmpty {
+                return displayName
+            }
+            if let name = bundle.object(forInfoDictionaryKey: "CFBundleName") as? String, !name.isEmpty {
+                return name
+            }
+            return url.deletingPathExtension().lastPathComponent
         }
         guard let appURL = NSWorkspace.shared.urlForApplication(toOpen: url) else {
             return ""
@@ -1613,6 +1840,16 @@ final class ArchiveBrowserModel: ObservableObject {
             }
         }
         return appURL.deletingPathExtension().lastPathComponent
+    }
+
+    private func displayedName(for rawName: String, hiddenSuffixes: [String]) -> String {
+        let lowercasedName = rawName.lowercased()
+        guard let suffix = hiddenSuffixes
+            .sorted(by: { $0.count > $1.count })
+            .first(where: { lowercasedName.hasSuffix(".\($0.lowercased())") && rawName.count > $0.count + 1 }) else {
+            return rawName
+        }
+        return String(rawName.dropLast(suffix.count + 1))
     }
 
     private func prepareOperationDetailsSession(title: String, showsDetails: Bool) -> ArchiveOperationDetailsSession? {

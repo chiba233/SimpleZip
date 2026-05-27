@@ -225,10 +225,12 @@ enum ArchiveService {
         outputObserver: (@Sendable (String) -> Void)? = nil
     ) async throws {
         let resolved = try resolvedArchiveInputOrThrow(for: archive)
+        let listedItems = try await list(resolved.url, password: password)
         if safetyPolicy == .validate {
-            try ArchiveSafety.validateForExtraction(try await list(resolved.url))
+            try ArchiveSafety.validateForExtraction(listedItems)
         }
-        let parser = ProgressOutputParser(totalFiles: nil, progress: progress)
+        let totalFiles = max(1, listedItems.filter { !$0.isDirectory }.count)
+        let parser = ProgressOutputParser(totalFiles: totalFiles, progress: progress)
         switch resolved.backend {
         case .zipNative:
             try await extractZipArchive(
@@ -381,7 +383,7 @@ enum ArchiveService {
         )
     }
 
-    static func list(_ archive: URL) async throws -> [ArchiveItem] {
+    static func list(_ archive: URL, password: String = "") async throws -> [ArchiveItem] {
         let resolved = try resolvedArchiveInputOrThrow(for: archive)
         switch resolved.backend {
         case .zipNative:
@@ -390,7 +392,8 @@ enum ArchiveService {
             return parseZipList(tarOutput: tarOutput, unzipOutput: unzipOutput)
         case .sevenZip:
             let tool = try sevenZipTool()
-            let output = try await runAndCapture(tool, arguments: ["l", "-slt", resolved.url.path])
+            let inputStrategy: ProcessInputStrategy = password.isEmpty ? .none : .passwordPrompts([password])
+            let output = try await runAndCapture(tool, arguments: ["l", "-slt", resolved.url.path], inputStrategy: inputStrategy)
             return parseSevenZipList(output)
         case .diskImage:
             let mountPoint = try await mountDiskImage(resolved.url)
@@ -939,13 +942,15 @@ enum ArchiveService {
                 ArchiveProgressState(
                     fraction: Double(index) / Double(total),
                     currentFile: item.lastPathComponent,
-                    statusText: nil
+                    statusText: nil,
+                    completedUnitCount: index + 1,
+                    totalUnitCount: total
                 )
             )
             let target = destination.appendingPathComponent(item.lastPathComponent)
             try fileManager.copyItem(at: item, to: target)
         }
-        progress(ArchiveProgressState(fraction: 1, currentFile: nil, statusText: nil))
+        progress(ArchiveProgressState(fraction: 1, currentFile: nil, statusText: nil, completedUnitCount: total, totalUnitCount: total))
     }
 
     private static func diskImageArchiveItems(at mountPoint: URL) throws -> [ArchiveItem] {
@@ -1085,6 +1090,7 @@ enum ArchiveService {
         process.currentDirectoryURL = currentDirectory
 
         let ioPipe = Pipe()
+        process.standardInput = FileHandle.nullDevice
         process.standardOutput = ioPipe
         process.standardError = ioPipe
 
@@ -1255,7 +1261,7 @@ private final class ProgressOutputParser: @unchecked Sendable {
             handleLine(remainder)
             remainder = ""
         }
-        progress(ArchiveProgressState(fraction: 1, currentFile: nil))
+        progress(ArchiveProgressState(fraction: 1, currentFile: nil, completedUnitCount: totalFiles, totalUnitCount: totalFiles))
     }
 
     private nonisolated func handleLine(_ line: String) {
@@ -1263,14 +1269,14 @@ private final class ProgressOutputParser: @unchecked Sendable {
         guard !trimmed.isEmpty else { return }
 
         if let percent = parsePercent(from: trimmed) {
-            progress(ArchiveProgressState(fraction: percent, currentFile: currentFile(from: trimmed)))
+            progress(ArchiveProgressState(fraction: percent, currentFile: currentFile(from: trimmed), completedUnitCount: processedFiles, totalUnitCount: totalFiles))
             return
         }
 
         guard let file = currentFile(from: trimmed), !file.isEmpty else { return }
         processedFiles += 1
         let fraction = totalFiles.map { min(0.99, Double(processedFiles) / Double(max(1, $0))) }
-        progress(ArchiveProgressState(fraction: fraction, currentFile: file))
+        progress(ArchiveProgressState(fraction: fraction, currentFile: file, completedUnitCount: processedFiles, totalUnitCount: totalFiles))
     }
 
     private nonisolated func parsePercent(from line: String) -> Double? {

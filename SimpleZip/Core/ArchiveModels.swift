@@ -13,7 +13,9 @@ struct FileItem: Identifiable, Hashable {
     let id = UUID()
     let url: URL
     let name: String
+    let displayName: String
     let isDirectory: Bool
+    let isSymbolicLink: Bool
     let size: Int64?
     let modified: Date?
     let created: Date?

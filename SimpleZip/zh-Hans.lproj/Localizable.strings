@@ -86,6 +86,14 @@
 "settings.overwriteBehavior" = "遇到同名文件时";
 "settings.showHiddenFiles" = "显示隐藏文件";
 "settings.rememberLastFolder" = "记住上次打开的文件夹";
+"settings.hiddenSuffixes" = "隐藏后缀";
+"settings.hiddenSuffixesEnabled" = "隐藏已配置的后缀";
+"settings.hiddenSuffixes.hint" = "这里只隐藏文件名显示里的后缀，真实文件名和路径不会改动。";
+"settings.hiddenSuffixes.recommended" = "推荐隐藏后缀";
+"settings.hiddenSuffixes.custom" = "自定义隐藏后缀";
+"settings.hiddenSuffixes.customEmpty" = "还没有自定义隐藏后缀。";
+"settings.hiddenSuffixes.customPlaceholder" = "添加后缀，例如 app";
+"settings.hiddenSuffixes.remove" = "移除后缀";
 "settings.startup.home" = "个人文件夹";
 "settings.startup.downloads" = "下载";
 "settings.startup.desktop" = "桌面";
@@ -285,6 +293,8 @@
 "settings.security.symbolicLinks" = "解出的符号链接";
 "settings.security.activeContent" = "打开主动内容";
 "settings.security.description" = "这些规则作用于从界面发起的压缩包操作。默认是询问，SimpleZip 会先提示再继续。";
+"settings.showSymbolicLinks" = "显示符号链接的文件及文件夹";
+"settings.followFinderStructure" = "文件夹遵循 Finder 结构";
 "error.missingRarTool" = "未找到 RAR 命令行工具。请安装 rar 以创建 RAR 压缩包。";
 "error.passwordsDoNotMatch" = "两次输入的密码必须一致。";
 "error.passwordPromptExhausted" = "压缩包后端请求了额外的密码响应。请检查密码后重试。";

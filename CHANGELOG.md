@@ -20,6 +20,15 @@
   - Archive browsing now uses richer per-entry file icons and adds a Kind column, so the archive list is closer to the regular file browser instead of a bare generic list.
   - Local `.app` and other macOS packages now open like applications by default, use their package icons, and offer Show Package Contents from the context menu.
   - The location bar now offers folder autocomplete while typing, with a scrollable dropdown, total match count, keyboard navigation for Up/Down, Tab completion, and Return to open the highlighted folder.
+  - Opening an archive no longer eagerly asks for a password just to browse its contents; password authentication is now deferred to the moment an encrypted entry is actually opened from inside the archive.
+  - The Browser settings pane now includes a Show symbolic-linked files and folders toggle, and folder/tag browsing plus folder autocomplete honor it immediately.
+  - Added a Browser toggle to make folders follow Finder structure; all folders now go through the same Finder-aligned listing path, and special macOS app directories such as `/Applications` and `Utilities` can merge the relevant system app locations without changing the default view.
+  - Tightened the Finder-structure `/Applications` merge so it no longer dumps the hidden CoreServices helper apps into the main Applications view; Finder itself is still surfaced explicitly where Finder shows it.
+  - Fixed local `.app` bundles in the file browser so their Application column no longer reuses the wrong third-party handler for every app bundle just because they share the `.app` extension.
+  - Added a Browser drawer for hidden name suffixes, with recommended macOS package suffix toggles plus custom suffix entries so names like `.app` can be hidden without changing the real file path.
+  - Added a root toggle for hidden suffix display and fixed the custom-suffix Add button so it enables correctly whenever the typed suffix is valid and not already configured.
+  - Merged the hidden-suffix root switch into the same row as the hidden-suffix drawer so the setting reads as one control instead of two stacked labels.
+  - Made the custom hidden-suffix input look like a real input field, with a visible text box and prefix dot so it no longer blends into plain settings text.
 - **Extraction**
   - ZIP extraction now exposes a decryption method selector for Auto, ZipCrypto, AES-128, AES-192, and AES-256; Auto tries the common compatible paths so encrypted ZIP files from other tools do not get stuck on macOS `unzip`.
   - Auto ZIP decryption now shows the detected archive encryption algorithm, and the password/decryption controls have clearer spacing.
@@ -30,7 +39,9 @@
   - Shared the common whole-archive and selected-entry extraction options form so destination, password, details, and action controls stay consistent.
   - Extraction now stages files in a temporary directory before merging, so existing destination files always go through SimpleZip's conflict dialog instead of being overwritten by the backend.
   - Whole-archive and selected-entry extraction now support an optional password field.
+  - Double-clicking an encrypted file inside an archive now prompts for a password only when extraction/opening actually needs it, and ZIP prompts also expose the decryption-method selector used by the extraction flow.
   - Long-running extraction now reports progress and the current file when the backend emits progress output.
+  - Even without Show Details enabled, the status bar now shows the current file plus completed/total item counts during archive operations instead of only a bare progress bar.
   - Added a Show Details option for extraction so the live command output can be opened in a details sheet and reopened from the status bar to inspect skipped files, symlink handling, and other backend messages.
   - Selected archive extraction now defaults to the archive's containing folder and only changes destination when requested.
   - Whole-archive extraction now also opens its options sheet first and only changes destination when Save To is clicked, instead of immediately opening a Finder destination panel.
@@ -75,6 +86,7 @@
   - Split `ArchiveService` argument building and archive parsing helpers into dedicated core files, reducing the size of the main backend facade without changing its public API.
   - Centralized archive-operation success/failure cleanup in `ArchiveBrowserModel`, reducing repeated post-operation refresh and alert/detail state handling.
   - Fixed `scripts/build_unsigned_dmg.sh` so `set -u` no longer breaks CI when release-version build settings are absent.
+  - Marked the archive/file table coordinators as `@MainActor`, fixing stricter Xcode CI builds that rejected menu, selection, and drag/drop callbacks touching `ArchiveBrowserModel`.
   - Added a visible Xcode `SimpleZipCoreTests` target that runs the SwiftPM core regression suite.
   - Expanded core tests to cover command-line argument splitting, volume-size validation, custom excludes, exclude counting, and RAR creation arguments.
   - Added core regression coverage for archive-operation failure alert preview truncation.
