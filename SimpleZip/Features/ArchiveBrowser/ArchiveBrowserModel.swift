@@ -20,7 +20,7 @@ final class ArchiveBrowserModel: ObservableObject {
     @Published var selectedArchiveRows = Set<UUID>()
     @Published var status = L10n.text("status.ready")
     @Published var isWorking = false
-    @Published var errorMessage: String?
+    @Published private var operationFailureAlert: ArchiveOperationFailureAlert?
     @Published var hashReport: HashReport?
     @Published var benchmarkRequest: SevenZipBenchmarkRequest?
     @Published var benchmarkSession: SevenZipBenchmarkSession?
@@ -106,6 +106,19 @@ final class ArchiveBrowserModel: ObservableObject {
 
     var selectedArchiveItems: [ArchiveItem] {
         archiveItems.filter { selectedArchiveRows.contains($0.id) }
+    }
+
+    var errorMessage: String? {
+        get { operationFailureAlert?.fullMessage }
+        set { operationFailureAlert = newValue.map { ArchiveOperationFailureAlert(message: $0) } }
+    }
+
+    var operationFailurePreviewMessage: String {
+        operationFailureAlert?.previewMessage ?? ""
+    }
+
+    var isShowingOperationFailureAlert: Bool {
+        operationFailureAlert != nil
     }
 
     var canGoUp: Bool {
@@ -569,27 +582,22 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     func performCreateArchive(_ request: ArchiveCreationRequest) {
-        let detailsSession = prepareOperationDetailsSession(
-            title: L10n.format("status.creating", request.destinationURL.lastPathComponent),
-            showsDetails: request.options.showDetails
-        )
-        let outputObserver = makeOperationOutputObserver(for: detailsSession)
-        startOperationTask(cancellable: true) { [weak self] operationID in
-            guard let self else { return }
-            let didSucceed = await runArchiveTask(L10n.format("status.creating", request.destinationURL.lastPathComponent)) { progress in
-                try await ArchiveService.createArchive(
-                    from: request.sourceURLs,
-                    destination: request.destinationURL,
-                    options: request.options,
-                    operationID: operationID,
-                    progress: progress,
-                    outputObserver: outputObserver
-                )
+        let title = L10n.format("status.creating", request.destinationURL.lastPathComponent)
+        startManagedArchiveTask(
+            title: title,
+            showsDetails: request.options.showDetails,
+            refreshOnSuccess: { [weak self] in
+                self?.refreshVisibleFolder(containing: request.destinationURL)
             }
-            finishOperationDetailsSession(detailsSession)
-            if didSucceed {
-                refreshVisibleFolder(containing: request.destinationURL)
-            }
+        ) { operationID, progress, outputObserver in
+            try await ArchiveService.createArchive(
+                from: request.sourceURLs,
+                destination: request.destinationURL,
+                options: request.options,
+                operationID: operationID,
+                progress: progress,
+                outputObserver: outputObserver
+            )
         }
     }
 
@@ -623,43 +631,38 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     func performExtractArchive(_ request: ExtractArchiveRequest) {
-        let detailsSession = prepareOperationDetailsSession(
-            title: L10n.format("status.extracting", request.archiveURL.lastPathComponent),
-            showsDetails: request.showDetails
-        )
-        let outputObserver = makeOperationOutputObserver(for: detailsSession)
-        startOperationTask(cancellable: true) { [weak self] operationID in
-            guard let self else { return }
-            let didSucceed = await runArchiveTask(L10n.format("status.extracting", request.archiveURL.lastPathComponent)) { progress in
-                let stagingURL = try self.extractionCoordinator.makeExtractionStagingDirectory()
-                defer { try? self.fileManager.removeItem(at: stagingURL) }
-
-                try await self.confirmArchiveExtractionSafety(archiveURL: request.archiveURL)
-                let backendOverwriteBehavior = AppPreferences.overwriteBehavior == .skipExisting ? OverwriteBehavior.skipExisting : .overwrite
-                try await ArchiveService.extract(
-                    request.archiveURL,
-                    to: stagingURL,
-                    overwriteBehavior: backendOverwriteBehavior,
-                    password: request.password,
-                    zipDecryptionMethod: request.zipDecryptionMethod,
-                    safetyPolicy: .skipValidation,
-                    operationID: operationID,
-                    progress: progress,
-                    outputObserver: outputObserver
-                )
-                try await self.extractionCoordinator.mergeExtractedItems(
-                    from: stagingURL,
-                    to: request.destinationURL,
-                    defaultOverwriteBehavior: AppPreferences.overwriteBehavior
-                ) { [weak self] status in
-                    self?.status = status
-                } updateProgress: { [weak self] progress in
-                    self?.operationProgress = progress
-                }
+        let title = L10n.format("status.extracting", request.archiveURL.lastPathComponent)
+        startManagedArchiveTask(
+            title: title,
+            showsDetails: request.showDetails,
+            refreshOnSuccess: { [weak self] in
+                self?.refreshVisibleFolder(request.destinationURL)
             }
-            finishOperationDetailsSession(detailsSession)
-            if didSucceed {
-                refreshVisibleFolder(request.destinationURL)
+        ) { operationID, progress, outputObserver in
+            let stagingURL = try self.extractionCoordinator.makeExtractionStagingDirectory()
+            defer { try? self.fileManager.removeItem(at: stagingURL) }
+
+            try await self.confirmArchiveExtractionSafety(archiveURL: request.archiveURL)
+            let backendOverwriteBehavior = AppPreferences.overwriteBehavior == .skipExisting ? OverwriteBehavior.skipExisting : .overwrite
+            try await ArchiveService.extract(
+                request.archiveURL,
+                to: stagingURL,
+                overwriteBehavior: backendOverwriteBehavior,
+                password: request.password,
+                zipDecryptionMethod: request.zipDecryptionMethod,
+                safetyPolicy: .skipValidation,
+                operationID: operationID,
+                progress: progress,
+                outputObserver: outputObserver
+            )
+            try await self.extractionCoordinator.mergeExtractedItems(
+                from: stagingURL,
+                to: request.destinationURL,
+                defaultOverwriteBehavior: AppPreferences.overwriteBehavior
+            ) { [weak self] status in
+                self?.status = status
+            } updateProgress: { [weak self] progress in
+                self?.operationProgress = progress
             }
         }
     }
@@ -685,45 +688,40 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     func performExtractSelection(_ request: ExtractSelectionRequest) {
-        let detailsSession = prepareOperationDetailsSession(
-            title: L10n.format("status.extractingSelected", request.entries.count),
-            showsDetails: request.showDetails
-        )
-        let outputObserver = makeOperationOutputObserver(for: detailsSession)
-        startOperationTask(cancellable: true) { [weak self] operationID in
-            guard let self else { return }
-            let didSucceed = await runArchiveTask(L10n.format("status.extractingSelected", request.entries.count)) { progress in
-                let stagingURL = try self.extractionCoordinator.makeExtractionStagingDirectory()
-                defer { try? self.fileManager.removeItem(at: stagingURL) }
-
-                try self.confirmArchiveExtractionSafety(entries: request.entries)
-                let backendOverwriteBehavior = AppPreferences.overwriteBehavior == .skipExisting ? OverwriteBehavior.skipExisting : .overwrite
-                try await ArchiveService.extract(
-                    request.archiveURL,
-                    entries: request.entries,
-                    to: stagingURL,
-                    overwriteBehavior: backendOverwriteBehavior,
-                    pathMode: request.pathMode,
-                    password: request.password,
-                    zipDecryptionMethod: request.zipDecryptionMethod,
-                    safetyPolicy: .skipValidation,
-                    operationID: operationID,
-                    progress: progress,
-                    outputObserver: outputObserver
-                )
-                try await self.extractionCoordinator.mergeExtractedItems(
-                    from: stagingURL,
-                    to: request.destinationURL,
-                    defaultOverwriteBehavior: AppPreferences.overwriteBehavior
-                ) { [weak self] status in
-                    self?.status = status
-                } updateProgress: { [weak self] progress in
-                    self?.operationProgress = progress
-                }
+        let title = L10n.format("status.extractingSelected", request.entries.count)
+        startManagedArchiveTask(
+            title: title,
+            showsDetails: request.showDetails,
+            refreshOnSuccess: { [weak self] in
+                self?.refreshVisibleFolder(request.destinationURL)
             }
-            finishOperationDetailsSession(detailsSession)
-            if didSucceed {
-                refreshVisibleFolder(request.destinationURL)
+        ) { operationID, progress, outputObserver in
+            let stagingURL = try self.extractionCoordinator.makeExtractionStagingDirectory()
+            defer { try? self.fileManager.removeItem(at: stagingURL) }
+
+            try self.confirmArchiveExtractionSafety(entries: request.entries)
+            let backendOverwriteBehavior = AppPreferences.overwriteBehavior == .skipExisting ? OverwriteBehavior.skipExisting : .overwrite
+            try await ArchiveService.extract(
+                request.archiveURL,
+                entries: request.entries,
+                to: stagingURL,
+                overwriteBehavior: backendOverwriteBehavior,
+                pathMode: request.pathMode,
+                password: request.password,
+                zipDecryptionMethod: request.zipDecryptionMethod,
+                safetyPolicy: .skipValidation,
+                operationID: operationID,
+                progress: progress,
+                outputObserver: outputObserver
+            )
+            try await self.extractionCoordinator.mergeExtractedItems(
+                from: stagingURL,
+                to: request.destinationURL,
+                defaultOverwriteBehavior: AppPreferences.overwriteBehavior
+            ) { [weak self] status in
+                self?.status = status
+            } updateProgress: { [weak self] progress in
+                self?.operationProgress = progress
             }
         }
     }
@@ -742,14 +740,12 @@ final class ArchiveBrowserModel: ObservableObject {
             return
         }
 
-        startOperationTask(cancellable: true) { [weak self] operationID in
-            guard let self else { return }
-            let didSucceed = await runArchiveTask(L10n.format("status.testing", archiveURL.lastPathComponent)) { _ in
-                try await ArchiveService.test(archiveURL, operationID: operationID)
-            }
-            if didSucceed {
-                status = L10n.text("status.archiveTested")
-            }
+        startManagedArchiveTask(
+            title: L10n.format("status.testing", archiveURL.lastPathComponent),
+            showsDetails: false,
+            successStatus: L10n.text("status.archiveTested")
+        ) { operationID, _, _ in
+            try await ArchiveService.test(archiveURL, operationID: operationID)
         }
     }
 
@@ -791,6 +787,31 @@ final class ArchiveBrowserModel: ObservableObject {
     func showOperationDetails() {
         guard operationDetailsSession != nil else { return }
         isShowingOperationDetails = true
+    }
+
+    func dismissOperationFailureAlert() {
+        operationFailureAlert = nil
+    }
+
+    func openOperationDetailsFromFailureAlert() {
+        guard operationDetailsSession != nil else { return }
+        isShowingOperationDetails = true
+        dismissOperationFailureAlert()
+    }
+
+    func handleOperationDetailsPresentationChange(_ isPresented: Bool) {
+        guard !isPresented else { return }
+        if operationDetailsSession?.isRunning == false {
+            operationDetailsSession = nil
+        }
+        isShowingOperationDetails = false
+    }
+
+    func closeOperationDetails() {
+        if operationDetailsSession?.isRunning == false {
+            operationDetailsSession = nil
+        }
+        isShowingOperationDetails = false
     }
 
     func calculateHash(algorithms: [HashAlgorithm]) {
@@ -1625,6 +1646,30 @@ final class ArchiveBrowserModel: ObservableObject {
         session.append(error.localizedDescription)
         session.finishedAt = Date()
         operationDetailsSession = session
+    }
+
+    private func startManagedArchiveTask(
+        title: String,
+        showsDetails: Bool,
+        cancellable: Bool = true,
+        successStatus: String? = nil,
+        refreshOnSuccess: (() -> Void)? = nil,
+        operation: @escaping (UUID?, @escaping @Sendable (ArchiveProgressState) -> Void, (@Sendable (String) -> Void)?) async throws -> Void
+    ) {
+        let detailsSession = prepareOperationDetailsSession(title: title, showsDetails: showsDetails)
+        let outputObserver = makeOperationOutputObserver(for: detailsSession)
+        startOperationTask(cancellable: cancellable) { [weak self] operationID in
+            guard let self else { return }
+            let didSucceed = await runArchiveTask(title) { progress in
+                try await operation(operationID, progress, outputObserver)
+            }
+            finishOperationDetailsSession(detailsSession)
+            guard didSucceed else { return }
+            if let successStatus {
+                status = successStatus
+            }
+            refreshOnSuccess?()
+        }
     }
 
     /// 包装耗时归档任务，统一处理进度状态、错误提示和结束状态。

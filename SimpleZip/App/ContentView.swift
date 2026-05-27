@@ -49,40 +49,27 @@ struct ContentView: View {
             receiveDroppedFileURLs(from: providers)
         }
         .alert(L10n.text("alert.operationFailed"), isPresented: Binding(get: {
-            model.errorMessage != nil
+            model.isShowingOperationFailureAlert
         }, set: { newValue in
-            if !newValue { model.errorMessage = nil }
+            if !newValue { model.dismissOperationFailureAlert() }
         })) {
             if model.operationDetailsSession != nil {
                 Button(L10n.text("button.details")) {
-                    model.isShowingOperationDetails = true
-                    model.errorMessage = nil
+                    model.openOperationDetailsFromFailureAlert()
                 }
             }
-            Button(L10n.text("button.ok"), role: .cancel) { model.errorMessage = nil }
+            Button(L10n.text("button.ok"), role: .cancel) { model.dismissOperationFailureAlert() }
         } message: {
-            Text({
-                let message = model.errorMessage ?? ""
-                let preview = String(message.prefix(600)).trimmingCharacters(in: .whitespacesAndNewlines)
-                return message.count > 600 ? "\(preview)\n…" : preview
-            }())
+            Text(model.operationFailurePreviewMessage)
         }
         .sheet(isPresented: Binding(get: {
             model.isShowingOperationDetails && model.operationDetailsSession != nil
         }, set: { newValue in
-            if !newValue {
-                if model.operationDetailsSession?.isRunning == false {
-                    model.operationDetailsSession = nil
-                }
-                model.isShowingOperationDetails = false
-            }
+            model.handleOperationDetailsPresentationChange(newValue)
         })) {
             if let session = model.operationDetailsSession {
                 ArchiveOperationDetailsView(session: session) {
-                    if !session.isRunning {
-                        model.operationDetailsSession = nil
-                    }
-                    model.isShowingOperationDetails = false
+                    model.closeOperationDetails()
                 }
             }
         }

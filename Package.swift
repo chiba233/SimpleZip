@@ -35,9 +35,12 @@ let package = Package(
             sources: [
                 "Core/AppPreferences.swift",
                 "Core/ArchiveError.swift",
+                "Core/ArchiveOperationFeedback.swift",
                 "Core/ArchiveModels.swift",
                 "Core/ArchiveOperationOptions.swift",
                 "Core/ArchiveSafety.swift",
+                "Core/ArchiveService+Arguments.swift",
+                "Core/ArchiveService+Parsing.swift",
                 "Core/ArchiveService.swift",
                 "Core/L10n.swift",
                 "Core/TemporaryResourceManager.swift"

@@ -296,11 +296,7 @@ struct ArchiveCreationOptionsView: View {
             .frame(maxHeight: 520)
 
             HStack {
-                Toggle(isOn: $request.options.showDetails) {
-                    Label(L10n.text("operation.showDetails"), systemImage: "sidebar.right")
-                }
-                .toggleStyle(.button)
-                .controlSize(.small)
+                ShowDetailsToggleButton(isOn: $request.options.showDetails)
                 if let validationMessage {
                     Text(validationMessage)
                         .font(.caption)

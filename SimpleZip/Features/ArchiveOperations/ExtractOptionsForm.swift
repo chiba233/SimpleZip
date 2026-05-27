@@ -48,11 +48,7 @@ struct ExtractOptionsForm<ExtraControls: View>: View {
             }
 
             HStack {
-                Toggle(isOn: $showDetails) {
-                    Label(L10n.text("operation.showDetails"), systemImage: "sidebar.right")
-                }
-                .toggleStyle(.button)
-                .controlSize(.small)
+                ShowDetailsToggleButton(isOn: $showDetails)
                 Spacer()
                 Button(L10n.text("button.cancel"), action: cancel)
                 Button(L10n.text("button.extract"), action: confirm)

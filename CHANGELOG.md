@@ -26,6 +26,7 @@
   - Operation details output now scrolls horizontally and vertically so long backend error lines do not overflow the details window.
   - Fixed 7-Zip passworded ZIP extraction by no longer passing a bare `-p` flag that 7-Zip interprets as an empty password during extraction.
   - Extraction failures now always surface properly: without Show Details they raise the Operation Failed alert and still preserve full backend output behind the Details button; with Show Details enabled they stay in the details sheet without spawning a duplicate alert window.
+  - Archive operation failure alerts now use a shared preview model, so long backend output is truncated only in the alert while the full message remains available in Details.
   - Shared the common whole-archive and selected-entry extraction options form so destination, password, details, and action controls stay consistent.
   - Extraction now stages files in a temporary directory before merging, so existing destination files always go through SimpleZip's conflict dialog instead of being overwritten by the backend.
   - Whole-archive and selected-entry extraction now support an optional password field.
@@ -46,6 +47,7 @@
   - Added a creation options sheet.
   - Added a Show Details option for archive creation so the live command output can be inspected during compression instead of being collapsed into the status line, and moved the toggle into the lower-left action area.
   - The lower-left Show Details control in the Add to Archive sheet is now rendered as an explicit button-style toggle so it is harder to miss.
+  - Archive creation and extraction now share the same button-style Show Details control component, so the two sheets no longer drift in appearance or placement.
   - Expanded the 7-Zip creation sheet with dictionary size, word size, solid block size, path mode, symlink/hard-link storage, shared-file compression, and delete-after-compression options to better match desktop archiver workflows.
   - Added an archive file name field so the output name can be edited without opening the save panel.
   - ZIP, 7z, TAR, GZ, TGZ, BZ2, and XZ creation are selectable.
@@ -70,8 +72,12 @@
   - Added a GitHub Actions workflow and local script for building an unsigned, ad-hoc signed macOS app DMG artifact without requiring a Developer ID certificate.
   - The unsigned DMG workflow can now be manually published as a GitHub Release with a chosen app version.
   - The unsigned DMG workflow now installs and verifies the bundled RAR backend before packaging.
+  - Split `ArchiveService` argument building and archive parsing helpers into dedicated core files, reducing the size of the main backend facade without changing its public API.
+  - Centralized archive-operation success/failure cleanup in `ArchiveBrowserModel`, reducing repeated post-operation refresh and alert/detail state handling.
+  - Fixed `scripts/build_unsigned_dmg.sh` so `set -u` no longer breaks CI when release-version build settings are absent.
   - Added a visible Xcode `SimpleZipCoreTests` target that runs the SwiftPM core regression suite.
   - Expanded core tests to cover command-line argument splitting, volume-size validation, custom excludes, exclude counting, and RAR creation arguments.
+  - Added core regression coverage for archive-operation failure alert preview truncation.
   - Added startup cleanup for stale temporary directories created when opening archive entries as external temporary copies.
   - Added active safety confirmations for suspicious archive paths, extracted symbolic links, and executable or active-content items opened from temporary archive copies.
   - Added Archive security settings so suspicious paths, extracted symbolic links, and active-content opening can each be set to Ask, Always Allow, or Always Block.

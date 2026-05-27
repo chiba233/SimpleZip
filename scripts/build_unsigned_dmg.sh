@@ -38,27 +38,27 @@ fi
 mkdir -p "$ARTIFACTS_DIR"
 rm -rf "$DERIVED_DATA_PATH" "$STAGING_DIR" "$DMG_PATH"
 
-VERSION_BUILD_SETTINGS=()
+xcodebuild_args=(
+  -project "$PROJECT_PATH"
+  -scheme "$SCHEME"
+  -configuration "$CONFIGURATION"
+  -derivedDataPath "$DERIVED_DATA_PATH"
+  -destination "generic/platform=macOS"
+  CODE_SIGN_STYLE=Manual
+  CODE_SIGN_IDENTITY=-
+  DEVELOPMENT_TEAM=
+  PROVISIONING_PROFILE_SPECIFIER=
+  CODE_SIGNING_ALLOWED=YES
+)
+
 if [[ -n "$RELEASE_VERSION" ]]; then
-  VERSION_BUILD_SETTINGS=(
+  xcodebuild_args+=(
     "MARKETING_VERSION=$RELEASE_VERSION"
     "CURRENT_PROJECT_VERSION=$BUILD_NUMBER"
   )
 fi
 
-xcodebuild \
-  -project "$PROJECT_PATH" \
-  -scheme "$SCHEME" \
-  -configuration "$CONFIGURATION" \
-  -derivedDataPath "$DERIVED_DATA_PATH" \
-  -destination "generic/platform=macOS" \
-  CODE_SIGN_STYLE=Manual \
-  CODE_SIGN_IDENTITY="-" \
-  DEVELOPMENT_TEAM="" \
-  PROVISIONING_PROFILE_SPECIFIER="" \
-  CODE_SIGNING_ALLOWED=YES \
-  "${VERSION_BUILD_SETTINGS[@]}" \
-  build
+xcodebuild "${xcodebuild_args[@]}" build
 
 if [[ ! -d "$APP_PATH" ]]; then
   echo "Expected app bundle was not produced at $APP_PATH" >&2
