@@ -40,7 +40,9 @@ struct TopBar: View {
                     Image(systemName: "chevron.left")
                         .frame(width: 18, height: 18)
                 }
-                .frame(height: 30)
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .frame(width: 30, height: 30)
                 .disabled(!model.canGoBack)
                 .help(L10n.text("help.goBack"))
 
@@ -48,7 +50,9 @@ struct TopBar: View {
                     Image(systemName: "chevron.right")
                         .frame(width: 18, height: 18)
                 }
-                .frame(height: 30)
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .frame(width: 30, height: 30)
                 .disabled(!model.canGoForward)
                 .help(L10n.text("help.goForward"))
 
@@ -56,7 +60,9 @@ struct TopBar: View {
                     Image(systemName: "chevron.up")
                         .frame(width: 18, height: 18)
                 }
-                .frame(height: 30)
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .frame(width: 30, height: 30)
                 .disabled(!model.canGoUp)
                 .help(L10n.text("help.goUp"))
                 
@@ -64,7 +70,9 @@ struct TopBar: View {
                     Image(systemName: "arrow.clockwise")
                         .frame(width: 18, height: 18)
                 }
-                .frame(height: 30)
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .frame(width: 30, height: 30)
                 .help(L10n.text("help.refresh"))
 
                 locationField
@@ -118,9 +126,10 @@ struct TopBar: View {
                     .frame(width: 24, height: 24)
             }
             .buttonStyle(.plain)
+            .frame(width: 28, height: 28)
             .help(L10n.text("help.locationCompletions"))
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
         .background(Color(nsColor: .textBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: 6))
         .overlay(
@@ -429,12 +438,16 @@ struct ToolButton: View {
             VStack(spacing: 4) {
                 Image(systemName: systemImage)
                     .font(.system(size: 19))
+                    .frame(height: 20)
                 Text(title)
                     .font(.caption)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
             }
-            .frame(width: 66, height: 52)
+            .frame(width: 72, height: 54)
         }
         .buttonStyle(.bordered)
+        .controlSize(.small)
         .help(title)
     }
 }

@@ -311,6 +311,7 @@ struct ArchiveCreationOptionsView: View {
                 .disabled(validationMessage != nil)
                 .keyboardShortcut(.defaultAction)
             }
+            .controlSize(.small)
         }
         .padding(20)
         .frame(width: 700)

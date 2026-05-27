@@ -144,6 +144,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .controlSize(.small)
     }
 
     private var archivePane: some View {
@@ -217,6 +218,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .controlSize(.small)
     }
 
     private var browserPane: some View {
@@ -296,8 +298,10 @@ struct SettingsView: View {
                                     hiddenCustomSuffixes.append(normalizedSuffix)
                                     hiddenSuffixInput = ""
                                 }
+                                .buttonStyle(.bordered)
                                 .disabled(normalizedSuffix.isEmpty || blockedSuffixes.contains(normalizedSuffix))
                             }
+                            .controlSize(.small)
                         }
                     }
                     .padding(.top, 6)
@@ -308,6 +312,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .controlSize(.small)
     }
 
     private var fileAssociationsPane: some View {
@@ -338,6 +343,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .controlSize(.small)
     }
 
     private var columnsPane: some View {
@@ -389,6 +395,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .controlSize(.small)
     }
 
     private func setDefaultArchiveApp() {
@@ -541,5 +548,6 @@ private struct FileAssociationRow: View {
             }
         }
         .padding(.vertical, 8)
+        .controlSize(.small)
     }
 }

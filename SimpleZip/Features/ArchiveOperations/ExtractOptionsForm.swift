@@ -46,6 +46,7 @@ struct ExtractOptionsForm<ExtraControls: View>: View {
                     .padding(.top, 6)
                 }
             }
+            .controlSize(.small)
 
             HStack {
                 ShowDetailsToggleButton(isOn: $showDetails)
@@ -54,6 +55,7 @@ struct ExtractOptionsForm<ExtraControls: View>: View {
                 Button(L10n.text("button.extract"), action: confirm)
                     .keyboardShortcut(.defaultAction)
             }
+            .controlSize(.small)
         }
         .padding(20)
     }
