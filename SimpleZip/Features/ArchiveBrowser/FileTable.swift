@@ -195,6 +195,9 @@ private struct FileNSTableView: NSViewRepresentable {
             selectClickedRowIfNeeded(in: tableView)
             menu.removeAllItems()
             menu.addItem(menuItem(L10n.text("button.open"), systemImage: "arrow.turn.up.right", action: #selector(openSelected)))
+            if let item = model.selectedFileItems.first, model.selectedFileItems.count == 1, model.canShowPackageContents(item) {
+                menu.addItem(menuItem(L10n.text("file.showPackageContents"), systemImage: "folder", action: #selector(showPackageContents)))
+            }
             menu.addItem(menuItem(L10n.text("button.addToArchive"), systemImage: "plus.square.on.square", action: #selector(addSelectedToArchive)))
             menu.addItem(menuItem(L10n.text("button.extractHere"), systemImage: "arrow.down.doc", action: #selector(extractSelectedArchive)))
             menu.addItem(menuItem(L10n.text("button.test"), systemImage: "checkmark.seal", action: #selector(testSelectedArchive)))
@@ -218,6 +221,12 @@ private struct FileNSTableView: NSViewRepresentable {
         @objc private func openSelected() {
             if let item = model.selectedFileItems.first {
                 model.open(item)
+            }
+        }
+
+        @objc private func showPackageContents() {
+            if let item = model.selectedFileItems.first {
+                model.showPackageContents(item)
             }
         }
 
@@ -302,7 +311,7 @@ private struct FileNSTableView: NSViewRepresentable {
         ) -> URL? {
             if operation == .on, row >= 0, row < model.fileItems.count {
                 let item = model.fileItems[row]
-                return item.isDirectory ? item.url : nil
+                return item.isDirectory && !model.canShowPackageContents(item) ? item.url : nil
             }
             if case .folder(let url) = model.mode {
                 return url
@@ -319,7 +328,7 @@ private struct FileNSTableView: NSViewRepresentable {
         }
 
         private func icon(for item: FileItem) -> NSImage {
-            if item.isDirectory {
+            if item.isDirectory, !model.canShowPackageContents(item) {
                 return NSWorkspace.shared.icon(for: .folder)
             }
             return NSWorkspace.shared.icon(forFile: item.url.path)

@@ -247,13 +247,22 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     func open(_ item: FileItem) {
-        if item.isDirectory {
+        if isNavigableDirectory(item) {
             openFolder(item.url)
         } else if ArchiveService.isSupportedArchive(item.url) {
             openArchive(item.url)
         } else {
             NSWorkspace.shared.open(item.url)
         }
+    }
+
+    func canShowPackageContents(_ item: FileItem) -> Bool {
+        item.isDirectory && isLocalFilePackage(item.url)
+    }
+
+    func showPackageContents(_ item: FileItem) {
+        guard canShowPackageContents(item) else { return }
+        openFolder(item.url)
     }
 
     func open(_ item: ArchiveItem) {
@@ -284,7 +293,7 @@ final class ArchiveBrowserModel: ObservableObject {
         let entries = item.isDirectory ? expandedArchiveItems(for: item) : [item]
         guard !entries.isEmpty else { return }
 
-        startOperationTask(cancellable: true) { [weak self] in
+        startOperationTask(cancellable: true) { [weak self] operationID in
             guard let self else { return }
             await runArchiveTask(L10n.format("status.openingArchiveItem", item.displayName)) { progress in
                 let destination = try self.makeArchiveItemOpenDirectory()
@@ -297,6 +306,7 @@ final class ArchiveBrowserModel: ObservableObject {
                     overwriteBehavior: .overwrite,
                     pathMode: .preserve,
                     safetyPolicy: .skipValidation,
+                    operationID: operationID,
                     progress: progress
                 )
                 try self.confirmExtractedArchiveLinks(at: destination)
@@ -544,13 +554,14 @@ final class ArchiveBrowserModel: ObservableObject {
             showsDetails: request.options.showDetails
         )
         let outputObserver = makeOperationOutputObserver(for: detailsSession)
-        startOperationTask(cancellable: true) { [weak self] in
+        startOperationTask(cancellable: true) { [weak self] operationID in
             guard let self else { return }
             await runArchiveTask(L10n.format("status.creating", request.destinationURL.lastPathComponent)) { progress in
                 try await ArchiveService.createArchive(
                     from: request.sourceURLs,
                     destination: request.destinationURL,
                     options: request.options,
+                    operationID: operationID,
                     progress: progress,
                     outputObserver: outputObserver
                 )
@@ -594,7 +605,7 @@ final class ArchiveBrowserModel: ObservableObject {
             showsDetails: request.showDetails
         )
         let outputObserver = makeOperationOutputObserver(for: detailsSession)
-        startOperationTask(cancellable: true) { [weak self] in
+        startOperationTask(cancellable: true) { [weak self] operationID in
             guard let self else { return }
             await runArchiveTask(L10n.format("status.extracting", request.archiveURL.lastPathComponent)) { progress in
                 let stagingURL = try self.extractionCoordinator.makeExtractionStagingDirectory()
@@ -608,6 +619,7 @@ final class ArchiveBrowserModel: ObservableObject {
                     overwriteBehavior: backendOverwriteBehavior,
                     password: request.password,
                     safetyPolicy: .skipValidation,
+                    operationID: operationID,
                     progress: progress,
                     outputObserver: outputObserver
                 )
@@ -651,7 +663,7 @@ final class ArchiveBrowserModel: ObservableObject {
             showsDetails: request.showDetails
         )
         let outputObserver = makeOperationOutputObserver(for: detailsSession)
-        startOperationTask(cancellable: true) { [weak self] in
+        startOperationTask(cancellable: true) { [weak self] operationID in
             guard let self else { return }
             await runArchiveTask(L10n.format("status.extractingSelected", request.entries.count)) { progress in
                 let stagingURL = try self.extractionCoordinator.makeExtractionStagingDirectory()
@@ -667,6 +679,7 @@ final class ArchiveBrowserModel: ObservableObject {
                     pathMode: request.pathMode,
                     password: request.password,
                     safetyPolicy: .skipValidation,
+                    operationID: operationID,
                     progress: progress,
                     outputObserver: outputObserver
                 )
@@ -699,10 +712,10 @@ final class ArchiveBrowserModel: ObservableObject {
             return
         }
 
-        startOperationTask(cancellable: true) { [weak self] in
+        startOperationTask(cancellable: true) { [weak self] operationID in
             guard let self else { return }
             await runArchiveTask(L10n.format("status.testing", archiveURL.lastPathComponent)) { _ in
-                try await ArchiveService.test(archiveURL)
+                try await ArchiveService.test(archiveURL, operationID: operationID)
             }
             status = L10n.text("status.archiveTested")
         }
@@ -715,13 +728,13 @@ final class ArchiveBrowserModel: ObservableObject {
     func runSevenZipBenchmark(_ request: SevenZipBenchmarkRequest) {
         let session = SevenZipBenchmarkSession(options: request.options)
         benchmarkSession = session
-        startOperationTask(cancellable: true) { [weak self] in
+        startOperationTask(cancellable: true) { [weak self] operationID in
             guard let self else { return }
             await runArchiveTask(
                 L10n.text("status.benchmarking"),
                 initialProgress: ArchiveProgressState(fraction: nil, currentFile: nil, statusText: L10n.text("status.benchmarking"))
             ) { _ in
-                let report = try await ArchiveService.benchmark(options: request.options) { report, output in
+                let report = try await ArchiveService.benchmark(options: request.options, operationID: operationID) { report, output in
                     Task { @MainActor [weak session] in
                         session?.report = report
                         session?.rawOutput = output
@@ -1022,8 +1035,9 @@ final class ArchiveBrowserModel: ObservableObject {
             }
 
             let isDirectory = values.isDirectory == true
+            let isPackage = isDirectory && isLocalFilePackage(fileURL)
             let typeDescription = values.localizedTypeDescription ?? (isDirectory ? L10n.text("type.folder") : L10n.text("type.file"))
-            let applicationKey = isDirectory ? "__folder__" : fileURL.pathExtension.lowercased()
+            let applicationKey = isDirectory && !isPackage ? "__folder__" : fileURL.pathExtension.lowercased()
             let applicationName = applicationNameCache[applicationKey] ?? preferredApplicationName(for: fileURL, isDirectory: isDirectory)
             applicationNameCache[applicationKey] = applicationName
 
@@ -1041,7 +1055,7 @@ final class ArchiveBrowserModel: ObservableObject {
             )
         }
         .sorted { lhs, rhs in
-            if folderFirst, lhs.isDirectory != rhs.isDirectory { return lhs.isDirectory }
+            if folderFirst, isNavigableDirectory(lhs) != isNavigableDirectory(rhs) { return isNavigableDirectory(lhs) }
             return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
         }
     }
@@ -1213,6 +1227,14 @@ final class ArchiveBrowserModel: ObservableObject {
         return type.conforms(to: .package) || type.conforms(to: .applicationBundle)
     }
 
+    private func isNavigableDirectory(_ item: FileItem) -> Bool {
+        item.isDirectory && !isLocalFilePackage(item.url)
+    }
+
+    private func isLocalFilePackage(_ url: URL) -> Bool {
+        NSWorkspace.shared.isFilePackage(atPath: url.path)
+    }
+
     private func makeArchiveItemOpenDirectory() throws -> URL {
         try TemporaryResourceManager.makeOpenedArchiveItemDirectory(fileManager: fileManager)
     }
@@ -1270,6 +1292,12 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     private func startOperationTask(cancellable: Bool = false, _ operation: @escaping @MainActor () async -> Void) {
+        startOperationTask(cancellable: cancellable) { _ in
+            await operation()
+        }
+    }
+
+    private func startOperationTask(cancellable: Bool = false, _ operation: @escaping @MainActor (UUID) async -> Void) {
         operationTask?.cancel()
         if canCancelCurrentOperation {
             ArchiveService.cancelRunningCommand(operationID: activeOperationID)
@@ -1278,7 +1306,7 @@ final class ArchiveBrowserModel: ObservableObject {
         activeOperationID = operationID
         canCancelCurrentOperation = cancellable
         operationTask = Task { [weak self] in
-            await ArchiveService.withCancellationScope(operationID, operation: operation)
+            await operation(operationID)
             await MainActor.run {
                 guard let self, self.activeOperationID == operationID else { return }
                 self.operationTask = nil
@@ -1484,7 +1512,7 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     private func preferredApplicationName(for url: URL, isDirectory: Bool) -> String {
-        if isDirectory {
+        if isDirectory, !isLocalFilePackage(url) {
             return "Finder"
         }
         guard let appURL = NSWorkspace.shared.urlForApplication(toOpen: url) else {

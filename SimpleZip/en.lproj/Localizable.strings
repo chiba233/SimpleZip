@@ -59,6 +59,7 @@
 "button.test" = "Test";
 "button.benchmark" = "Benchmark";
 "button.open" = "Open";
+"file.showPackageContents" = "Show Package Contents";
 "button.reveal" = "Reveal";
 "button.addToArchive" = "Add to Archive";
 "button.extractHere" = "Extract Here";

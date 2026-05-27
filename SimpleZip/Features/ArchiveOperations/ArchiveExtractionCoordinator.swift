@@ -159,6 +159,7 @@ final class ArchiveExtractionCoordinator {
     ) async throws {
         updateProgress(ArchiveProgressState(fraction: nil, currentFile: sourceURL.lastPathComponent))
         try validateContainedURL(sourceURL, in: stagingRootURL)
+        try validateResolvedContainedMovableItem(sourceURL, in: stagingRootURL)
         try validateContainedURL(targetURL, in: destinationRootURL)
 
         let sourceValues = try sourceURL.resourceValues(forKeys: [.isDirectoryKey])
@@ -198,16 +199,37 @@ final class ArchiveExtractionCoordinator {
         )
         guard let resolvedURL else { return }
         try validateContainedURL(resolvedURL, in: destinationRootURL)
-        try fileManager.createDirectory(at: resolvedURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let parentURL = resolvedURL.deletingLastPathComponent()
+        try fileManager.createDirectory(at: parentURL, withIntermediateDirectories: true)
+        try validateContainedURL(parentURL, in: destinationRootURL)
+        try validateResolvedContainedURL(parentURL, in: destinationRootURL)
         try fileManager.moveItem(at: sourceURL, to: resolvedURL)
         showPendingHashOverwriteResult(for: resolvedURL)
     }
 
     private func validateContainedURL(_ url: URL, in rootURL: URL) throws {
+        try validateContainedPath(url.standardizedFileURL, in: rootURL.standardizedFileURL, displayPath: url.path)
+    }
+
+    private func validateResolvedContainedMovableItem(_ url: URL, in rootURL: URL) throws {
+        let values = try url.resourceValues(forKeys: [.isSymbolicLinkKey, .isDirectoryKey, .isRegularFileKey])
+        guard values.isSymbolicLink != true, values.isDirectory == true || values.isRegularFile == true else { return }
+        try validateResolvedContainedURL(url, in: rootURL)
+    }
+
+    private func validateResolvedContainedURL(_ url: URL, in rootURL: URL) throws {
+        try validateContainedPath(
+            url.resolvingSymlinksInPath().standardizedFileURL,
+            in: rootURL.resolvingSymlinksInPath().standardizedFileURL,
+            displayPath: url.path
+        )
+    }
+
+    private func validateContainedPath(_ url: URL, in rootURL: URL, displayPath: String) throws {
         let rootPath = rootURL.standardizedFileURL.path
         let path = url.standardizedFileURL.path
         guard path == rootPath || path.hasPrefix(rootPath + "/") else {
-            throw ArchiveError.unsafeArchiveEntries([url.path])
+            throw ArchiveError.unsafeArchiveEntries([displayPath])
         }
     }
 

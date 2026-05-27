@@ -70,16 +70,11 @@ enum ArchiveService {
         ArchiveServiceProcessRegistry.shared.cancelProcess(operationID: operationID)
     }
 
-    static func withCancellationScope(_ operationID: UUID, operation: @escaping @MainActor () async -> Void) async {
-        ArchiveServiceProcessRegistry.shared.beginOperationScope(operationID)
-        defer { ArchiveServiceProcessRegistry.shared.endOperationScope(operationID) }
-        await operation()
-    }
-
     static func createArchive(
         from sourceURLs: [URL],
         destination: URL,
         options: ArchiveCreationOptions,
+        operationID: UUID? = nil,
         progress: @escaping @Sendable (ArchiveProgressState) -> Void = { _ in },
         outputObserver: (@Sendable (String) -> Void)? = nil
     ) async throws {
@@ -109,7 +104,8 @@ enum ArchiveService {
                     currentDirectory: parent,
                     progressParser: parser,
                     inputStrategy: inputStrategy,
-                    outputObserver: outputObserver
+                    outputObserver: outputObserver,
+                    operationID: operationID
                 )
                 return
             }
@@ -134,7 +130,8 @@ enum ArchiveService {
                 currentDirectory: parent,
                 progressParser: parser,
                 inputStrategy: inputStrategy,
-                outputObserver: outputObserver
+                outputObserver: outputObserver,
+                operationID: operationID
             )
         case .sevenZip:
             let tool = try sevenZipTool()
@@ -146,7 +143,8 @@ enum ArchiveService {
                 currentDirectory: parent,
                 progressParser: parser,
                 inputStrategy: inputStrategy,
-                outputObserver: outputObserver
+                outputObserver: outputObserver,
+                operationID: operationID
             )
         case .rar:
             let tool = try rarTool()
@@ -158,7 +156,8 @@ enum ArchiveService {
                 currentDirectory: parent,
                 progressParser: parser,
                 inputStrategy: inputStrategy,
-                outputObserver: outputObserver
+                outputObserver: outputObserver,
+                operationID: operationID
             )
         case .tar:
             try await run(
@@ -166,7 +165,8 @@ enum ArchiveService {
                 arguments: ["-cvf", destination.path] + tarExcludeArguments(from: options) + relativeNames,
                 currentDirectory: parent,
                 progressParser: parser,
-                outputObserver: outputObserver
+                outputObserver: outputObserver,
+                operationID: operationID
             )
         case .tarGzip:
             try await run(
@@ -174,7 +174,8 @@ enum ArchiveService {
                 arguments: ["-czvf", destination.path] + tarExcludeArguments(from: options) + relativeNames,
                 currentDirectory: parent,
                 progressParser: parser,
-                outputObserver: outputObserver
+                outputObserver: outputObserver,
+                operationID: operationID
             )
         case .gzip:
             let sourceURL = try validateSingleRegularFileSource(sourceURLs, format: options.format)
@@ -184,7 +185,8 @@ enum ArchiveService {
                 arguments: ["a", "-tgzip", "-mx=\(options.compressionLevel.rawValue)", destination.path, sourceURL.lastPathComponent, "-bb1", "-bsp1", "-y"],
                 currentDirectory: sourceURL.deletingLastPathComponent(),
                 progressParser: parser,
-                outputObserver: outputObserver
+                outputObserver: outputObserver,
+                operationID: operationID
             )
         case .bzip2:
             let sourceURL = try validateSingleRegularFileSource(sourceURLs, format: options.format)
@@ -194,7 +196,8 @@ enum ArchiveService {
                 arguments: ["a", "-tbzip2", "-mx=\(options.compressionLevel.rawValue)", destination.path, sourceURL.lastPathComponent, "-bb1", "-bsp1", "-y"],
                 currentDirectory: sourceURL.deletingLastPathComponent(),
                 progressParser: parser,
-                outputObserver: outputObserver
+                outputObserver: outputObserver,
+                operationID: operationID
             )
         case .xz:
             let sourceURL = try validateSingleRegularFileSource(sourceURLs, format: options.format)
@@ -204,7 +207,8 @@ enum ArchiveService {
                 arguments: ["a", "-txz", "-mx=\(options.compressionLevel.rawValue)", destination.path, sourceURL.lastPathComponent, "-bb1", "-bsp1", "-y"],
                 currentDirectory: sourceURL.deletingLastPathComponent(),
                 progressParser: parser,
-                outputObserver: outputObserver
+                outputObserver: outputObserver,
+                operationID: operationID
             )
         }
     }
@@ -215,6 +219,7 @@ enum ArchiveService {
         overwriteBehavior: OverwriteBehavior = .overwrite,
         password: String = "",
         safetyPolicy: ExtractionSafetyPolicy = .validate,
+        operationID: UUID? = nil,
         progress: @escaping @Sendable (ArchiveProgressState) -> Void = { _ in },
         outputObserver: (@Sendable (String) -> Void)? = nil
     ) async throws {
@@ -228,7 +233,7 @@ enum ArchiveService {
             let overwriteArgument = unzipOverwriteArgument(for: overwriteBehavior)
             let arguments = [overwriteArgument, resolved.url.path, "-d", destination.path]
             let inputStrategy: ProcessInputStrategy = password.isEmpty ? .none : .passwordPrompts([password])
-            try await run("/usr/bin/unzip", arguments: arguments, progressParser: parser, inputStrategy: inputStrategy, outputObserver: outputObserver)
+            try await run("/usr/bin/unzip", arguments: arguments, progressParser: parser, inputStrategy: inputStrategy, outputObserver: outputObserver, operationID: operationID)
             if safetyPolicy == .validate {
                 try ArchiveSafety.validateExtractedTree(at: destination)
             }
@@ -240,7 +245,7 @@ enum ArchiveService {
                 arguments.append("-p")
             }
             let inputStrategy: ProcessInputStrategy = password.isEmpty ? .none : .passwordPrompts([password])
-            try await run(tool, arguments: arguments, progressParser: parser, inputStrategy: inputStrategy, outputObserver: outputObserver)
+            try await run(tool, arguments: arguments, progressParser: parser, inputStrategy: inputStrategy, outputObserver: outputObserver, operationID: operationID)
             if safetyPolicy == .validate {
                 try ArchiveSafety.validateExtractedTree(at: destination)
             }
@@ -267,6 +272,7 @@ enum ArchiveService {
         pathMode: ExtractPathMode = .preserve,
         password: String = "",
         safetyPolicy: ExtractionSafetyPolicy = .validate,
+        operationID: UUID? = nil,
         progress: @escaping @Sendable (ArchiveProgressState) -> Void = { _ in },
         outputObserver: (@Sendable (String) -> Void)? = nil
     ) async throws {
@@ -286,12 +292,12 @@ enum ArchiveService {
                     arguments.insert("-k", at: 0)
                 }
                 arguments.append(contentsOf: entryNames)
-                try await run("/usr/bin/tar", arguments: arguments, progressParser: parser, outputObserver: outputObserver)
+                try await run("/usr/bin/tar", arguments: arguments, progressParser: parser, outputObserver: outputObserver, operationID: operationID)
             } else {
                 var arguments = [unzipOverwriteArgument(for: overwriteBehavior), resolved.url.path]
                 arguments.append(contentsOf: entryNames)
                 arguments.append(contentsOf: ["-d", destination.path])
-                try await run("/usr/bin/unzip", arguments: arguments, progressParser: parser, inputStrategy: .passwordPrompts([password]), outputObserver: outputObserver)
+                try await run("/usr/bin/unzip", arguments: arguments, progressParser: parser, inputStrategy: .passwordPrompts([password]), outputObserver: outputObserver, operationID: operationID)
             }
             if pathMode == .flatten {
                 try flattenExtractedItems(entryNames: entryNames, in: destination)
@@ -309,7 +315,7 @@ enum ArchiveService {
                 arguments.append("-p")
             }
             let inputStrategy: ProcessInputStrategy = password.isEmpty ? .none : .passwordPrompts([password])
-            try await run(tool, arguments: arguments, progressParser: parser, inputStrategy: inputStrategy, outputObserver: outputObserver)
+            try await run(tool, arguments: arguments, progressParser: parser, inputStrategy: inputStrategy, outputObserver: outputObserver, operationID: operationID)
             if safetyPolicy == .validate {
                 try ArchiveSafety.validateExtractedTree(at: destination)
             }
@@ -319,14 +325,14 @@ enum ArchiveService {
     }
 
 
-    static func test(_ archive: URL) async throws {
+    static func test(_ archive: URL, operationID: UUID? = nil) async throws {
         let resolved = try resolvedArchiveInputOrThrow(for: archive)
         switch resolved.backend {
         case .zipNative:
-            try await run("/usr/bin/unzip", arguments: ["-t", resolved.url.path])
+            try await run("/usr/bin/unzip", arguments: ["-t", resolved.url.path], operationID: operationID)
         case .sevenZip:
             let tool = try sevenZipTool()
-            try await run(tool, arguments: ["t", resolved.url.path])
+            try await run(tool, arguments: ["t", resolved.url.path], operationID: operationID)
         case .diskImage:
             let mountPoint = try await mountDiskImage(resolved.url)
             try await detachDiskImage(at: mountPoint)
@@ -335,6 +341,7 @@ enum ArchiveService {
 
     static func benchmark(
         options: SevenZipBenchmarkOptions,
+        operationID: UUID? = nil,
         update: @escaping @Sendable (SevenZipBenchmarkReport, String) -> Void = { _, _ in }
     ) async throws -> SevenZipBenchmarkReport {
         let tool = try resolvedSevenZipTool()
@@ -353,7 +360,7 @@ enum ArchiveService {
                 ),
                 currentOutput
             )
-        })
+        }, operationID: operationID)
         return parseSevenZipBenchmark(
             output,
             backendDescription: L10n.format("settings.7zip.resolvedPath", tool.source.title, tool.path),
@@ -691,7 +698,8 @@ enum ArchiveService {
         currentDirectory: URL? = nil,
         progressParser: ProgressOutputParser? = nil,
         inputStrategy: ProcessInputStrategy = .none,
-        outputObserver: (@Sendable (String) -> Void)? = nil
+        outputObserver: (@Sendable (String) -> Void)? = nil,
+        operationID: UUID? = nil
     ) async throws {
         _ = try await runAndCapture(
             executable,
@@ -699,7 +707,8 @@ enum ArchiveService {
             currentDirectory: currentDirectory,
             progressParser: progressParser,
             inputStrategy: inputStrategy,
-            outputObserver: outputObserver
+            outputObserver: outputObserver,
+            operationID: operationID
         )
     }
 
@@ -1110,9 +1119,9 @@ enum ArchiveService {
         currentDirectory: URL? = nil,
         progressParser: ProgressOutputParser? = nil,
         inputStrategy: ProcessInputStrategy = .none,
-        outputObserver: (@Sendable (String) -> Void)? = nil
+        outputObserver: (@Sendable (String) -> Void)? = nil,
+        operationID: UUID? = nil
     ) async throws -> String {
-        let operationID = ArchiveServiceProcessRegistry.shared.currentOperationID()
         return try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
                 do {
@@ -1237,10 +1246,7 @@ enum ArchiveService {
                 try responder.consume(text, writer: masterHandle)
             }
         } catch {
-            if process.isRunning {
-                process.terminate()
-            }
-            process.waitUntilExit()
+            terminateAndWait(process)
             throw error
         }
         process.waitUntilExit()
@@ -1254,6 +1260,22 @@ enum ArchiveService {
 
         progressParser?.finish()
         return output
+    }
+
+    private nonisolated static func terminateAndWait(_ process: Process, timeout: TimeInterval = 2) {
+        if process.isRunning {
+            process.terminate()
+        }
+
+        let deadline = Date().addingTimeInterval(timeout)
+        while process.isRunning, Date() < deadline {
+            Thread.sleep(forTimeInterval: 0.05)
+        }
+
+        if process.isRunning {
+            kill(process.processIdentifier, SIGKILL)
+        }
+        process.waitUntilExit()
     }
 
     /// zip 的条目路径以 bsdtar 为准，unzip 输出只用来补充大小和时间，避免列表路径和解压路径不一致。
@@ -1740,31 +1762,10 @@ private enum DiskImageDateFormatter {
 
 private final class ActiveProcessRegistry: @unchecked Sendable {
     private let lock = NSLock()
-    nonisolated(unsafe) private var scopedOperationID: UUID?
     nonisolated(unsafe) private weak var activeProcess: Process?
     nonisolated(unsafe) private var processesByOperationID: [UUID: Process] = [:]
     nonisolated(unsafe) private var operationIDsByProcess = [ObjectIdentifier: UUID]()
     nonisolated(unsafe) private var cancelledProcesses = Set<ObjectIdentifier>()
-
-    nonisolated func beginOperationScope(_ operationID: UUID) {
-        lock.lock()
-        scopedOperationID = operationID
-        lock.unlock()
-    }
-
-    nonisolated func endOperationScope(_ operationID: UUID) {
-        lock.lock()
-        if scopedOperationID == operationID {
-            scopedOperationID = nil
-        }
-        lock.unlock()
-    }
-
-    nonisolated func currentOperationID() -> UUID? {
-        lock.lock()
-        defer { lock.unlock() }
-        return scopedOperationID
-    }
 
     nonisolated func register(_ process: Process, operationID: UUID?) {
         lock.lock()
@@ -1800,15 +1801,28 @@ private final class ActiveProcessRegistry: @unchecked Sendable {
 
     nonisolated func cancelProcess(operationID: UUID?) {
         lock.lock()
-        let process = operationID.flatMap { processesByOperationID[$0] } ?? activeProcess
+        let process: Process?
+        if let operationID {
+            process = processesByOperationID[operationID]
+        } else {
+            process = activeProcess
+        }
         if let process {
             cancelledProcesses.insert(ObjectIdentifier(process))
         }
         lock.unlock()
 
-        process?.interrupt()
-        if process?.isRunning == true {
-            process?.terminate()
+        process.map(requestStop)
+    }
+
+    private nonisolated func requestStop(_ process: Process) {
+        process.interrupt()
+        guard process.isRunning else { return }
+        process.terminate()
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 2) {
+            if process.isRunning {
+                kill(process.processIdentifier, SIGKILL)
+            }
         }
     }
 }

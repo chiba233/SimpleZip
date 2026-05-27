@@ -57,6 +57,7 @@
 "button.test" = "测试";
 "button.benchmark" = "跑分";
 "button.open" = "打开";
+"file.showPackageContents" = "显示包内容";
 "button.reveal" = "显示";
 "button.addToArchive" = "添加到压缩包";
 "button.extractHere" = "解压到此处";
@@ -278,6 +279,7 @@
 "settings.security.description" = "这些规则作用于从界面发起的压缩包操作。默认是询问，SimpleZip 会先提示再继续。";
 "error.missingRarTool" = "未找到 RAR 命令行工具。请安装 rar 以创建 RAR 压缩包。";
 "error.passwordsDoNotMatch" = "两次输入的密码必须一致。";
+"error.passwordPromptExhausted" = "压缩包后端请求了额外的密码响应。请检查密码后重试。";
 "archive.updateMode" = "更新模式";
 "archive.updateMode.addAndReplace" = "添加并替换文件";
 "archive.updateMode.updateAndAdd" = "更新并添加文件";
