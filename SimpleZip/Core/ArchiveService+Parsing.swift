@@ -129,6 +129,16 @@ extension ArchiveService {
                 values.removeAll()
                 return
             }
+            let hasEntryMetadata = values["Folder"] != nil
+                || values["Attributes"] != nil
+                || values["Modified"] != nil
+                || values["CRC"] != nil
+                || values["Method"] != nil
+                || values["Encrypted"] != nil
+            guard hasEntryMetadata else {
+                values.removeAll()
+                return
+            }
 
             let size = Int64(values["Size"] ?? "") ?? 0
             let isDirectory = values["Folder"] == "+"

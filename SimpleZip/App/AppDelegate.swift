@@ -29,6 +29,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         sender.reply(toOpenOrPrint: .success)
     }
 
+    func application(_ application: NSApplication, open urls: [URL]) {
+        for url in urls {
+            if !FinderServiceActionQueue.shared.enqueue(fromCallbackURL: url) {
+                ExternalFileOpenQueue.shared.enqueue(url)
+            }
+        }
+    }
+
     @objc func addToArchiveFromFinder(
         _ pasteboard: NSPasteboard,
         userData: String?,

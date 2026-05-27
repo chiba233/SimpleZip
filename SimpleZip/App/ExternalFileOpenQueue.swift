@@ -42,6 +42,10 @@ enum FinderServiceAction {
     case calculateHash([URL])
 }
 
+private struct FinderServiceActionPayload: Decodable {
+    let fileURLs: [String]
+}
+
 /// Finder 服务事件队列：服务回调可能早于 SwiftUI 主窗口完成初始化。
 final class FinderServiceActionQueue {
     static let shared = FinderServiceActionQueue()
@@ -56,6 +60,45 @@ final class FinderServiceActionQueue {
         pendingActions.append(action)
         lock.unlock()
         NotificationCenter.default.post(name: .finderServiceAction, object: nil)
+    }
+
+    @discardableResult
+    func enqueue(fromCallbackURL url: URL) -> Bool {
+        guard url.scheme == "simplezip", url.host == "finder-action",
+              let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              let actionValue = components.queryItems?.first(where: { $0.name == "action" })?.value,
+              let payloadPath = components.queryItems?.first(where: { $0.name == "payload" })?.value
+        else {
+            return false
+        }
+
+        let payloadURL = URL(fileURLWithPath: payloadPath)
+        guard payloadURL.path.hasPrefix(FileManager.default.temporaryDirectory.path) else {
+            return false
+        }
+
+        defer {
+            try? FileManager.default.removeItem(at: payloadURL)
+        }
+
+        guard let data = try? Data(contentsOf: payloadURL),
+              let payload = try? JSONDecoder().decode(FinderServiceActionPayload.self, from: data)
+        else {
+            return false
+        }
+
+        let urls = payload.fileURLs.map { URL(fileURLWithPath: $0) }
+        guard !urls.isEmpty else { return false }
+
+        switch actionValue {
+        case "addToArchive":
+            enqueue(.addToArchive(urls))
+        case "hash":
+            enqueue(.calculateHash(urls))
+        default:
+            return false
+        }
+        return true
     }
 
     func drain() -> [FinderServiceAction] {

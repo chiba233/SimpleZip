@@ -2,6 +2,13 @@
 
 # Changelog
 
+## 0.1.4
+- **Finder integration**
+  - Added a Finder Sync extension for right-click actions that calculate hashes and add selected files or folders to a new archive with SimpleZip.
+  - Kept Finder Services as a fallback and added a `simplezip://` callback path so Finder actions can launch the app and open the existing hash or archive-creation flows.
+- **Archive browsing**
+  - Fixed numeric split archives such as `.001` / `.002` so the 7-Zip split-container record is no longer shown as a fake merged ZIP item inside the archive browser.
+
 ## 0.1.3
 
 - **RAR backend**
@@ -15,8 +22,6 @@
   - Fixed the RAR system-installed backend setting so it only shows the Homebrew install command when missing, instead of also showing the local installer-script controls.
   - Updated the unsigned DMG packaging script to reject app bundles that accidentally contain the proprietary RARLAB backend unless explicitly allowed for a build with redistribution rights.
   - Added Xcode project resource exclusions so ignored local RARLAB binaries and notices are not copied into the app bundle by file-system synchronized groups.
-- **Finder integration**
-  - Added Finder right-click Services for calculating hashes and adding selected files or folders to a new archive with SimpleZip.
 
 ## 0.1.2
 

@@ -152,6 +152,11 @@ struct ContentView: View {
 
     /// 处理 Finder / Open With / 拖到 Dock 图标等外部打开事件。
     private func openExternalURL(_ url: URL) {
+        if FinderServiceActionQueue.shared.enqueue(fromCallbackURL: url) {
+            FinderServiceActionQueue.shared.drain().forEach(handleFinderServiceAction)
+            return
+        }
+
         var isDirectory: ObjCBool = false
         if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue {
             model.openFolder(url)
