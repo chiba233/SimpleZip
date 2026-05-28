@@ -411,10 +411,10 @@ struct SettingsView: View {
                         }
                     }
                     .padding(.top, 6)
+                    .disabled(!hiddenSuffixesEnabled)
                 } label: {
                     Toggle(L10n.text("settings.hiddenSuffixes"), isOn: $hiddenSuffixesEnabled)
                 }
-                .disabled(!hiddenSuffixesEnabled)
             }
         }
         .formStyle(.grouped)

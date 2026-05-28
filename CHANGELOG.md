@@ -8,6 +8,7 @@
   - Kept Finder Services as a fallback and added a `simplezip://` callback path so Finder actions can launch the app and open the existing hash or archive-creation flows.
 - **Archive browsing**
   - Fixed numeric split archives such as `.001` / `.002` so the 7-Zip split-container record is no longer shown as a fake merged ZIP item inside the archive browser.
+  - Fixed the Browser hidden-suffix master toggle so turning it off no longer disables the toggle itself and traps the setting off.
 
 ## 0.1.3
 
