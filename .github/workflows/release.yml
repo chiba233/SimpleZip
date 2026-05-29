@@ -149,6 +149,7 @@ jobs:
         if: steps.release.outputs.publish == 'true'
         env:
           RELEASE_VERSION: ${{ steps.release.outputs.version }}
+          BUILD_NUMBER: ${{ steps.release.outputs.build_number }}
         run: |
           set -euo pipefail
           mkdir -p docs
@@ -158,6 +159,11 @@ jobs:
           PUB_DATE=$(LC_ALL=C date -u "+%a, %d %b %Y %H:%M:%S +0000")
           DOWNLOAD_URL="https://github.com/chiba233/SimpleZip/releases/download/v${RELEASE_VERSION}/${DMG_NAME}"
 
+          # **sparkle:version 必须是 CFBundleVersion 同款单调递增整数（= BUILD_NUMBER）**，
+          # 不能用 marketing 字符串。否则 0.1.7 用户本地 CFBundleVersion="<小整数>" 跟 feed
+          # sparkle:version="0.1.8" 比较时 SUStandardVersionComparator 解析成
+          # [小整数] vs [0,1,8]，第一段 N>0 → 本地误判为「更新」→ 永远收不到升级提示。
+          # sparkle:shortVersionString 才是 UI 文案，用 marketing 字符串。
           cat > docs/appcast.xml <<APPCAST_EOF
           <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
           <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
@@ -172,7 +178,7 @@ jobs:
                       <pubDate>${PUB_DATE}</pubDate>
                       <enclosure
                           url="${DOWNLOAD_URL}"
-                          sparkle:version="${RELEASE_VERSION}"
+                          sparkle:version="${BUILD_NUMBER}"
                           sparkle:shortVersionString="${RELEASE_VERSION}"
                           length="${DMG_SIZE}"
                           type="application/octet-stream"/>

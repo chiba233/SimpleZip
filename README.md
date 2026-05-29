@@ -6,224 +6,237 @@
 ![Swift](https://img.shields.io/badge/Swift-SwiftUI-F05138?logo=swift&logoColor=white)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-SimpleZip is a native macOS archive manager inspired by 7-Zip and NanaZip. It is built around a Finder-like file browser,
-real archive folder navigation, direct open-from-archive workflows, drag-and-drop extraction, archive creation, hashing,
-file associations, and a bundled 7-Zip backend.
+A native macOS archive manager. Browses archives like folders, opens files
+inside without manually extracting first, creates ZIP / 7z / RAR / TAR / DMG /
+gzip / bzip2 / xz, hashes files, manages file associations, integrates with
+Finder, and — uniquely — signs and verifies archives with GPG via the
+**`.siz` signed container** format.
 
 Project page: [github.com/chiba233/SimpleZip](https://github.com/chiba233/SimpleZip)
 
 ## Highlights
 
-- Native SwiftUI + AppKit macOS interface with multi-select, sortable/reorderable columns, context menus, command menus,
-  toolbar actions, and a location bar.
-- Browse archives as real folders instead of flat path lists. Missing directory entries are synthesized so nested archive
-  paths still feel navigable.
-- Double-click files inside archives to temporarily extract and open them with the default macOS app.
-- Drag archive entries out to Finder or other file destinations. SimpleZip extracts the promised files at the drop target.
-- Extract whole archives or selected entries, with options to preserve folder structure or flatten selected files.
-- Create ZIP, 7z, DMG, RAR, TAR, GZip, TAR.GZ, BZip2, and XZ archives with format-aware options.
-- Built-in file manager actions: open, copy, cut, paste, move, delete to Trash, reveal in Finder, drag local files, and
-  accept external file drops.
-- Hash selected files with CRC32, MD5, SHA1, SHA256, and SHA512.
-- Manage default app associations per archive extension, including RAR, DMG, and common split-volume extensions.
-- Configure 7-Zip and RAR backends from Settings, with resolved path and version display.
-- Localized UI in English, Spanish, French, German, Korean, Russian, Simplified Chinese, Traditional Chinese, Japanese,
-  and Thai.
+- **Folder-like archive browser.** Paths inside an archive render as a tree,
+  not a flat string list. Missing intermediate directories get synthesized so
+  navigation stays sensible.
+- **Open without extracting.** Double-click any file inside an archive and
+  macOS opens its default app on a temporary copy. DMGs inside archives mount
+  read-only; `.app` / `.pkg` are treated as openable items.
+- **Drag out to Finder.** SwiftUI/AppKit promised-files plumbing: the bytes
+  only get extracted when you drop somewhere, not while dragging.
+- **GPG signing built-in.** Archives can be wrapped into a `.siz` container
+  that travels with its signature attached. The verify path uses
+  `gpg --status-fd 1` for locale-stable parsing and does fingerprint strong
+  comparison against the metadata's claim.
+- **GPG key management UI.** Full settings pane for creating, importing,
+  exporting, signing, encrypting-style operations, expiration, passphrase
+  changes, UIDs, trust levels, smartcard binding, default signing key, and
+  per-archive "ask which key" mode for multi-key users. SimpleZip's
+  private-only ring is isolated in its own GNUPGHOME so it never pollutes
+  `~/.gnupg/`.
+- **Preset password with Keychain + Touch ID.** Saved passwords live in
+  `kSecAttrAccessibleAfterFirstUnlock`; revealing the plaintext requires
+  `LAContext.deviceOwnerAuthentication`.
+- **Finder integration.** Right-click any file or folder in Finder to hash it
+  or wrap it into a new archive without launching the main window.
+- **Localized.** English, Simplified Chinese, Traditional Chinese, Japanese,
+  Korean, Russian, German, French, Spanish, Thai.
+
+## Quick Start
+
+1. Download the latest DMG from
+   [Releases](https://github.com/chiba233/SimpleZip/releases) and drag
+   `SimpleZip.app` into `/Applications`.
+2. First launch: right-click the app → **Open** (SimpleZip is ad-hoc signed;
+   Gatekeeper needs explicit consent the first time).
+3. The Welcome Assistant runs on first launch and verifies backends
+   (`7zz`, optionally `gpg` + `pinentry-mac`). Skip GPG if you don't need it.
+4. Optional: enable GPG integration from **Settings → GPG**. Install
+   `gnupg` + `pinentry-mac` if missing (the pane shows the exact
+   `brew install` command).
 
 ## Supported Formats
 
 | Format | Browse | Extract | Create | Backend / Notes |
 | --- | --- | --- | --- | --- |
-| `.zip` | Yes | Yes | Yes | Uses 7-Zip when needed; can fall back to macOS ZIP tools for simple creation |
-| `.7z` | Yes | Yes | Yes | Uses bundled or system `7zz` / `7z` |
-| `.rar` | Yes | Yes | Yes | Browse/extract through 7-Zip; create through RARLAB `rar` |
-| `.tar` | Yes | Yes | Yes | Create through macOS `tar`; browse/extract through 7-Zip |
-| `.gz` | Yes | Yes | Yes | Single-file creation through 7-Zip |
-| `.tgz` / `.tar.gz` | Yes | Yes | Yes | Create through macOS `tar`; browse/extract through 7-Zip |
-| `.bz2` | Yes | Yes | Yes | Single-file creation through 7-Zip |
-| `.xz` | Yes | Yes | Yes | Single-file creation through 7-Zip |
-| `.dmg` | Yes | Yes | Yes | Created and mounted with macOS `hdiutil`; extraction copies mounted contents |
-| `.001`, `.002`, `.z01`, `.r00`, `part02.rar` | Yes | Yes | No | Normalized to the first volume automatically |
+| `.zip` | ✓ | ✓ | ✓ | 7-Zip (preferred), fall back to system zip for simple cases |
+| `.7z` | ✓ | ✓ | ✓ | Bundled or system `7zz` / `7z` |
+| `.rar` | ✓ | ✓ | ✓ | Browse/extract via 7-Zip; create needs RARLAB `rar` |
+| `.tar` | ✓ | ✓ | ✓ | Create via system `tar`; browse/extract via 7-Zip |
+| `.gz` / `.bz2` / `.xz` | ✓ | ✓ | ✓ | Single-file streams |
+| `.tgz` / `.tar.gz` | ✓ | ✓ | ✓ | Create via system `tar` |
+| `.dmg` | ✓ | ✓ | ✓ | Created and mounted via macOS `hdiutil` |
+| `.siz` | ✓ | ✓ | ✓ | SimpleZip GPG-signed container (tar shell) |
+| `.001` `.z01` `.r00` `partN.rar` | ✓ | ✓ | — | Auto-normalized to the first volume |
 
-## Archive Workflows
+## `.siz` Signed Containers
 
-### Browse and Open
+`.siz` is SimpleZip's solution to "I want to send a signed archive and have
+the signature travel with the file". A `.siz` is a tar shell containing:
 
-Open a supported archive from the toolbar, File menu, Finder, drag-and-drop, or by double-clicking it in the file browser.
-Archive folders appear as folders, so paths like `App.app/Contents/Info.plist` become a navigable folder tree.
+- `archive.<ext>` — the inner archive, byte-for-byte unmodified (so the
+  user's chosen compression + native encryption like ZIP AES-256 / 7z header
+  encryption stays intact);
+- `metadata.json` — schema, version, inner format, inner SHA256, signer
+  claim, timestamp;
+- `signature.asc` — GPG detached signature of `metadata.json` (ASCII armor).
 
-Inside an archive:
+**Signature target is `metadata.json`, not the inner archive.** This is the
+crucial design choice — see [SECURITY.md](./SECURITY.md#siz-signed-container-format)
+for the full threat model. Short version: signing metadata + including the
+inner archive's SHA256 in metadata closes all the impersonation paths that
+"sign the inner archive only" would leave open.
 
-- double-click a folder to enter it;
-- double-click a file to extract it to a temporary location and open it with the default macOS app;
-- double-click a DMG inside an archive to extract it temporarily, mount it read-only, and browse it in SimpleZip;
-- drag files or folders out to Finder to extract them at the drop location;
-- use the context menu for Open, Extract Selected, Extract Whole Archive, Test, Hash, and Reveal in Finder.
+Verification (`SIZArchive.verify`):
 
-Package-style directories such as `.app` and `.pkg` are treated as openable items when possible instead of only as plain
-folders.
+1. `gpg --status-fd 1 --verify` against `metadata.json` → parses `GOODSIG /
+   VALIDSIG / TRUST_*` machine-readable status (no locale-dependent string
+   matching).
+2. **Fingerprint strong comparison**: actual signing fingerprint from
+   `VALIDSIG` must equal `metadata.signature.signerFingerprint`. Mismatch =
+   `badSignature` (defense against "edit metadata, re-sign with own key").
+3. **SHA256 check**: recomputed inner-archive SHA must equal
+   `metadata.innerArchiveSHA256`. Mismatch = `badSignature`.
+4. Status codes `EXPKEYSIG` / `REVKEYSIG` / `EXPSIG` propagate as
+   "valid signature with concern" (orange UI), not blocking errors.
 
-Opened archive entries are temporary copies. Editing the file opened by macOS does not write changes back into the
-archive. SimpleZip cleans stale temporary open directories at startup, but users should treat this feature as preview /
-open-with convenience rather than archive editing.
+## GPG Integration
 
-### Extract
+Settings → GPG gives you the full pane:
 
-Whole-archive extraction and selected-entry extraction share the same options form:
-
-- destination folder;
-- optional password;
-- Show Details for live backend output;
-- overwrite behavior through Settings;
-- selected-entry path mode: preserve folder structure or flatten files into the destination.
-
-Extraction stages files in a temporary directory first, then merges them into the destination. That gives SimpleZip a
-chance to show conflict handling instead of letting the backend overwrite files silently.
-
-Progress is best-effort. SimpleZip parses backend output when possible, but different tools, formats, and versions may
-only provide indeterminate progress or may jump between percentages.
-
-### Create
-
-Select files or folders in the file browser and choose Add. The creation sheet supports:
-
-- archive file name editing;
-- format selection: ZIP, 7z, DMG, RAR, TAR, GZip, TAR.GZ, BZip2, XZ;
-- compression level;
-- optional passwords for ZIP, 7z, and RAR;
-- `.DS_Store` exclusion;
-- dotfile exclusion, including files such as `.env`, `.gitignore`, and `.npmrc`;
-- custom exclude rules;
-- split-volume output for ZIP, 7z, and RAR;
-- advanced 7-Zip options such as dictionary size, word size, solid blocks, path mode, symlink/hard-link storage,
-  shared-file compression, raw parameters, and delete-after-compression.
-
-GZip, BZip2, and XZ are single-file formats. SimpleZip blocks invalid multi-file or folder selections before launching
-the backend.
-
-DMG creation uses macOS `hdiutil create -format UDZO`. When multiple files or folders are selected, SimpleZip stages the
-selected items into a temporary folder first so the DMG's top level contains those items, matching the other archive
-formats.
-
-The exclude section has a manual Calculate action. It scans the selected sources with the current `.DS_Store`, dotfile,
-and custom exclude rules and reports how many regular files will be skipped before compression starts.
+- **Five-group keyring partition** by `(source, hasSecretKey, isSecretKeyStub)`:
+  local secret keys (`~/.gnupg/`), smartcard / OpenPGP token, SimpleZip-private
+  (its own GNUPGHOME), others' public keys (system keyring), others' public
+  keys (SimpleZip only).
+- **CRUD on keys**: create (RSA 4096 / Ed25519 / NIST P-256 / etc., with
+  expiration + passphrase + optional auth subkey), import, export public
+  key, export private key, revocation certificate generation, delete with
+  destructive confirmation.
+- **Maintenance**: change passphrase, add UID, edit expiration, set trust
+  level (unknown / never / marginal / full / ultimate), mark as default
+  signing key.
+- **Smartcard / OpenPGP token support**: detection via `gpg --card-status
+  --with-colons`, binding display, "import public key from smartcard" action.
+- **Signing strategy**: default key picker (silent) or per-archive ask mode
+  with an in-dialog menu picker for multi-key users.
+- **SimpleZip-private homedir**: keys you mark "save to SimpleZip-only" live
+  in `~/Library/Application Support/SimpleZip/gnupg/` (mode `0700`), fully
+  separated from your `~/.gnupg/`. Uninstall the app to wipe them; nothing
+  pollutes the system keyring.
+- **No passphrase in app process**: all `gpg` invocations except the
+  intentional create-key / change-passphrase loopback flow rely on
+  `gpg-agent` + `pinentry-mac` for the native macOS passphrase dialog. The
+  app never stores or buffers passphrases.
 
 ## Safety Model
 
-SimpleZip is intentionally not sandboxed today (`ENABLE_APP_SANDBOX = NO`) because it is a file-management utility that
-launches command-line backends, mounts DMG files, opens temporary extracted files, and supports broad drag-and-drop
-workflows. That makes the trust boundary explicit: archives should be treated as untrusted input.
+SimpleZip is intentionally **not sandboxed** — it's a file-management utility
+that runs CLI backends, mounts DMGs, opens temporary files, and supports
+broad drag-and-drop. That makes the trust boundary explicit: every archive is
+untrusted input.
 
-Current guardrails:
+Current guardrails (see [SECURITY.md](./SECURITY.md) for the full threat
+model):
 
-- extraction is staged into a temporary directory before files are merged into the requested destination;
-- merge-time conflicts are handled by SimpleZip instead of allowing silent backend overwrites;
-- passwords are not passed directly as visible command-line arguments;
-- DMG files are created and mounted through macOS `hdiutil`, and mounted read-only when browsing / extracting;
-- opened archive entries are extracted into a temporary copy rather than edited in-place;
-- suspicious archive entry paths (`../`, absolute paths, Windows drive paths, UNC paths) trigger a confirmation before
-  the app extracts them through the UI;
-- symbolic links found in the extracted staging tree trigger a confirmation before they are merged or opened;
-- executable bundles, installers, scripts, HTML, JavaScript, and similar active-content entries trigger a confirmation
-  before SimpleZip opens their temporary copy;
-- Settings > Archive > Security can change those UI decisions to Ask, Always Allow, or Always Block;
-- stale temporary open directories are removed on the next app launch.
+- Extraction is staged into a temp directory before merging into the chosen
+  destination. Conflicts are surfaced by SimpleZip, not silently overwritten
+  by the backend.
+- Suspicious entry paths (`../`, absolute, Windows drive, UNC) trigger a
+  confirmation gated by **Settings → Archive → Security → Suspicious paths**.
+- Symlinks in the staged output trigger a confirmation before they merge or
+  open (**Symbolic links** policy).
+- Opening `.app` / `.pkg` / scripts / HTML / Office / etc. from inside an
+  archive triggers a confirmation (**Active content** policy).
+- Passwords ride stdin via a pseudo-terminal — never as visible command-line
+  arguments, never in `ps`.
+- DMG creation + mount is via macOS `hdiutil`; mounted read-only when
+  browsing / extracting.
+- Preset password lives in Keychain (`kSecAttrAccessibleAfterFirstUnlock`),
+  never in `UserDefaults`, never in process memory beyond a one-launch cache.
+  Plaintext reveal requires `LAContext.deviceOwnerAuthentication`.
+- `.siz` containers harden the tar layer: rejects non-regular-file entries,
+  rejects fourth files, rejects names outside the expected three, rejects
+  unsafe `innerArchiveName`.
 
-Known security-sensitive areas:
-
-- if the user confirms a suspicious-path archive, backend path traversal handling still depends on the backend during
-  the initial extraction into staging;
-- 7-Zip full path mode (`-spf`) can preserve full paths and should be used only for archives you trust;
-- symlink and hardlink preservation can point at locations outside the visible folder tree, depending on backend
-  behavior and the archive contents;
-- opening `.app`, `.pkg`, scripts, HTML, Office documents, or other active content from inside an archive still hands
-  the temporary copy to macOS or the default app after confirmation;
-- DMG contents may include bundles, hidden files, resource forks, or quarantine-sensitive metadata.
-
-Security-critical changes should include tests or a documented manual compatibility case before release.
-
-## Compatibility Matrix
-
-The project tracks compatibility by behavior rather than only by extension:
-
-| Area | Cases to keep covered |
-| --- | --- |
-| ZIP | UTF-8 names, legacy names, ZipCrypto, AES ZIP through 7-Zip, symlinks, empty directories, macOS metadata, split ZIP |
-| 7z | encrypted headers, solid archives, symlinks, large dictionaries, split volumes |
-| RAR | RAR4, RAR5, multipart archives, passworded archives, recovery-record archives when available |
-| TAR | pax headers, long paths, symlinks, hardlinks, absolute paths, compressed tar variants |
-| DMG | UDZO creation, read-only mount, copy-out extraction, archive-inside-archive DMG opening, hidden files, app bundles, detach failure recovery |
-
-This matrix is not a claim that every case is fully automated yet. It is the checklist for regression fixtures and
-manual release validation as the app moves toward a more professional archive-manager surface.
+The three policy gates (`Suspicious paths`, `Symbolic links`, `Active content`)
+can each be flipped to **Always block** for shared / public machines.
 
 ## Backends
 
-### 7-Zip
+### 7-Zip (bundled)
 
-SimpleZip includes the official 7-Zip 26.01 universal macOS `7zz` binary at:
-
-```text
-SimpleZip/Tools/7zz
-```
-
-It contains both `x86_64` and `arm64` slices and is copied into development app bundles. Settings can use Automatic,
-Bundled, or System mode. Automatic searches bundled app resources first, then common Homebrew locations and `PATH`.
-
-You can also install a system 7-Zip:
+SimpleZip ships the official 7-Zip 26.01 universal `7zz` binary at
+`SimpleZip/Tools/7zz`. Settings supports **Automatic** (bundled → Homebrew →
+`PATH`), **Bundled only**, or **System only**. To install system 7-Zip:
 
 ```bash
 brew install sevenzip
 ```
 
-### RAR
+### RAR (optional, user-installed)
 
-RAR creation requires the official RARLAB `rar` command-line tool. SimpleZip can search bundled, app-bundled, system,
-Homebrew, and `PATH` locations. For local development or local packaging, run:
+RAR browsing / extraction works through the bundled 7-Zip. RAR **creation**
+needs RARLAB's proprietary `rar`, which can't be redistributed. From a
+developer checkout:
 
 ```bash
 ./scripts/install_rar_backend.sh
 ```
 
-The script downloads the official RARLAB macOS ARM and x64 command-line packages, creates a universal local `rar`, and
-installs it to:
+This downloads RARLAB's ARM + x64 packages, fuses a universal binary, and
+installs it to `~/Library/Application Support/SimpleZip/Tools/rar`. Public
+distribution of an app bundle that includes that binary is not allowed by
+RARLAB's license.
 
-```text
-~/Library/Application Support/SimpleZip/Tools/rar
+### GPG (optional)
+
+Required for `.siz` create / verify and the GPG settings pane. Install with:
+
+```bash
+# minimum: gpg + pinentry-mac
+brew install gnupg pinentry-mac
+# smartcard / OpenPGP token support:
+brew install ykman           # YubiKey CLI (optional)
 ```
 
-SimpleZip checks that user data path in Automatic RAR backend mode. Public app packages should keep the RARLAB binary
-outside the app bundle.
-
-RARLAB `rar` is proprietary/shareware. Do not redistribute a public app package containing that local backend unless you
-have RARLAB redistribution permission.
+The Settings → GPG pane runs a live health check (gpg path, version,
+`gpg-agent` status, `pinentry-mac` resolved path) and shows the exact missing
+`brew install` command when something's absent.
 
 ## File Browser
 
-SimpleZip's main view is also a practical file manager:
+The main window is also a usable Finder-style browser:
 
-- Finder-like sidebar with common locations, frequently used folders, tags, and pinned paths;
-- sortable and reorderable file columns, including Kind, Application, Last Opened, Date Added, Modified, Created, and
-  Size;
-- open, add to archive, extract here, test, hash, copy, cut, paste, move, delete to Trash, and reveal actions;
-- drag local files to folders inside the file table to move them;
-- drop external files into the current folder to copy them;
-- conflict handling for paste/extract, including Replace, Keep Both, Skip, and Replace if Hash Differs.
+- sidebar with common locations, frequently used folders, tags, pinned paths;
+- sortable + reorderable columns: Kind, Application, Last Opened, Date Added,
+  Modified, Created, Size;
+- copy / cut / paste / move / delete-to-Trash / reveal / drag local files /
+  accept external file drops;
+- right-click actions: Open, Add to Archive, Extract Here, Test, Hash;
+- conflict handling on paste / extract: Replace, Keep Both, Skip, or
+  **Replace If Hash Differs** (computes SHA256 on both sides and surfaces a
+  diff result).
 
 ## Settings
 
-Settings are split into General, Archive, Browser, File Associations, and Columns:
+- **General**: startup location (incl. custom path with existence check +
+  on-fail dialog), remember last folder, app language, preset password,
+  welcome assistant re-run, preferences backup / restore.
+- **Archive**: 7-Zip backend mode, RAR backend mode, security policies
+  (suspicious paths / symlinks / active content), Finder auto-extract,
+  overwrite behavior.
+- **Browser**: hidden file visibility, listing columns.
+- **File Associations**: per-extension default app management, including
+  split-volume groups (`.001`, `.z01`, `.r00`).
+- **Columns**: listed columns for the file browser and archive browser.
+- **GPG**: main toggle, smartcard toggle, keyring management (five groups),
+  defaults sub-section (signing key strategy), advanced (backend paths,
+  pinentry-mac status, GNUPGHOME, SimpleZip-private ring path).
+- **Health**: first-launch diagnostic dashboard.
+- **Backup**: preferences export / import (incl. patch semantics) and
+  restore-to-defaults.
 
-- startup location and remembering the last opened folder;
-- default overwrite behavior: Ask, Overwrite, or Skip;
-- hidden-file visibility;
-- 7-Zip backend mode and version;
-- RAR backend mode, resolved path, and version;
-- per-extension default app management;
-- visible file and archive columns;
-- UI language.
-
-Language changes fully apply after restarting SimpleZip.
+Language changes take full effect after restarting SimpleZip.
 
 ## Build
 
@@ -234,43 +247,44 @@ Language changes fully apply after restarting SimpleZip.
   -configuration Debug build
 ```
 
-Or open:
-
-```text
-SimpleZip.xcodeproj
-```
-
-Then run the `SimpleZip` scheme in Xcode.
+Or open `SimpleZip.xcodeproj` and run the `SimpleZip` scheme. CI also builds
+the Finder Sync extension target automatically (it's referenced by the main
+target).
 
 ## Tests
 
-The core regression suite lives in SwiftPM as `SimpleZipCoreTests` and covers command argument generation, archive list
-parsing, split-volume normalization, exclude rules, selected-entry expansion, and basic ZIP/TAR round trips:
+Core regression suite lives in SwiftPM as `SimpleZipCoreTests` — covers
+command argument generation, archive listing parsers, split-volume
+normalization, exclude rules, selected-entry expansion, ZIP / TAR round
+trips, `.siz` wrap / unwrap / metadata determinism, and signing flow stubs:
 
 ```bash
-/usr/bin/xcrun swift test --scratch-path /private/tmp/SimpleZipSwiftPM \
+/usr/bin/xcrun swift test \
+  --scratch-path /private/tmp/SimpleZipSwiftPM \
   -Xswiftc -module-cache-path -Xswiftc /private/tmp/SimpleZipSwiftPM/ModuleCache
 ```
 
-The Xcode project also includes a `SimpleZipCoreTests` aggregate target so the test entry point is visible from Xcode.
-It runs the same SwiftPM suite.
+The Xcode project ships an aggregate target `SimpleZipCoreTests` that runs
+the same SwiftPM suite, so the entry point is visible from Xcode too.
 
 ## Documentation
 
 - [Chinese Guide](./GUIDE.zh-CN.md)
-- [Changelog](./CHANGELOG.md)
-- [中文更新日志](./CHANGELOG.zh-CN.md)
+- [Changelog](./CHANGELOG.md) / [中文更新日志](./CHANGELOG.zh-CN.md)
+- [Security Policy](./SECURITY.md) / [中文安全策略](./SECURITY.zh-CN.md)
 - [Architecture Notes](./docs/ARCHITECTURE.md)
-- [Security Policy](./SECURITY.md)
 - [Release Checklist](./docs/release-checklist.md)
 - [Contributing](./CONTRIBUTING.md)
 - [Bundled Tools Notes](./SimpleZip/Tools/README.md)
 
 ## Status
 
-SimpleZip is still early, but it is no longer a minimal ZIP shell. The current goal is to become a comfortable native
-macOS archive client first, then keep adding advanced backend controls without turning the interface into a wall of
-switches.
+SimpleZip is single-maintainer software, distributed as an unsigned ad-hoc
+DMG (Developer ID signing is on the roadmap). The current direction is "a
+comfortable native macOS archive client with first-class signed-container
+support, that doesn't punish multi-key GPG users". The GPG management surface
+is feature-complete as of 0.1.8; next milestones target `.siz` v3
+multi-recipient encryption and a `.szs` external-signature manifest format.
 
 ## License
 

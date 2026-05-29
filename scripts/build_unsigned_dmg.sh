@@ -46,17 +46,20 @@ xcodebuild_args=(
 )
 
 if [[ -n "$RELEASE_VERSION" ]]; then
-  # 把 MARKETING_VERSION 和 CURRENT_PROJECT_VERSION 都设成 RELEASE_VERSION ——
-  # Sparkle 的 SUStandardVersionComparator 实际比较的是 sparkle:version vs app 的 CFBundleVersion
-  # (= CURRENT_PROJECT_VERSION)，不是 CFBundleShortVersionString。如果二者不一致
-  # (e.g. CFBundleVersion="47" GITHUB_RUN_NUMBER 而 sparkle:version="0.1.7")，
-  # Sparkle 解析成 [47] vs [0,1,7] → 永远觉得本地比远端新 → 「已是最新版」
-  # 同时 Sparkle UI 又用 shortVersionString 给用户显示「0.1.7 可用 / 你在 0.1.6」
-  # → 两个对话框互相矛盾的「Sparkle 坑」。
-  # 让 CFBundleVersion 跟 sparkle:version 都用 marketing version (e.g. "0.1.7") 就消除歧义。
+  # **CFBundleVersion 必须单调递增整数** —— Sparkle `SUStandardVersionComparator` 比的就是它（vs feed
+  # `sparkle:version`），不是 `CFBundleShortVersionString`。
+  #
+  # 历史教训：0.1.8 release 一度把两边都设成 marketing string（`CURRENT_PROJECT_VERSION=$RELEASE_VERSION`），
+  # 想消除「整数 vs marketing 字符串」歧义。结果反而 break：0.1.7 user 的 CFBundleVersion 是 build_number
+  # （小整数），feed 的 `sparkle:version` 是 "0.1.8"，比较解析成 [1] vs [0,1,8]：1 > 0 → Sparkle 以为本地更新
+  # → 0.1.7 user 永远收不到 0.1.8 更新提示。
+  #
+  # 正解：CFBundleVersion = BUILD_NUMBER（GITHUB_RUN_NUMBER，单调递增整数），appcast 的 sparkle:version 也
+  # 写同一个整数，sparkle:shortVersionString 才用 marketing 字符串做 UI 显示。这样 Sparkle 比较的两边都是单
+  # 整数，永远清晰。
   xcodebuild_args+=(
     "MARKETING_VERSION=$RELEASE_VERSION"
-    "CURRENT_PROJECT_VERSION=$RELEASE_VERSION"
+    "CURRENT_PROJECT_VERSION=$BUILD_NUMBER"
   )
 fi
 

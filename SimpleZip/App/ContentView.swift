@@ -386,11 +386,32 @@ struct ContentView: View {
 
     /// 主窗口被 `hideMainWindowIfPossible` orderOut 后，再次显示出来 ——
     /// 用于「.siz 用户确认要打开内层」之类「我们要让用户看到主窗口浏览」的场景。
+    ///
+    /// **不要**简单地 orderFront 所有 hidden 窗口 —— SwiftUI 的 Settings scene / Sparkle 更新窗口 / 关于面板
+    /// 在第一次被打开后会作为 hidden NSWindow 留在 `NSApp.windows` 列表里。一并 orderFront 会在用户打开 `.siz`
+    /// 时把 Settings 神秘弹出来，是真实用户反馈过的 bug（v0.1.8）。靠 identifier 子串识别辅助窗口排除。
     private func ensureMainWindowVisible() {
-        for window in NSApp.windows where !window.isVisible {
+        for window in NSApp.windows where !window.isVisible && !Self.isAuxiliaryWindow(window) {
             // 不强制 makeKey —— 用户已经在跟签名对话框互动，让窗口出现但不抢焦点；NSWindow.orderFront 默认不夺焦。
             window.orderFront(nil)
         }
+    }
+
+    /// 识别 SwiftUI 的辅助窗口（Settings / Sparkle 更新 / About 等）。靠 identifier 子串识别 —— locale-independent，
+    /// 也不依赖 SwiftUI / Sparkle 内部 NSWindow 子类。任一关键词命中即视为辅助窗口，`ensureMainWindowVisible` 跳过。
+    private static func isAuxiliaryWindow(_ window: NSWindow) -> Bool {
+        let id = (window.identifier?.rawValue ?? "").lowercased()
+        if id.contains("settings") || id.contains("preferences") { return true }
+        if id.contains("sparkle") || id.contains("update") { return true }
+        if id.contains("about") { return true }
+        // 兜底 title：SwiftUI Settings scene 标题是 OS 本地化的「Settings」/「设置」/「Preferences」/「设定」/「設定」等。
+        let titleLower = window.title.lowercased()
+        let knownAuxTitles: Set<String> = [
+            "settings", "preferences", "设置", "偏好设置", "設定", "設置",
+            "환경설정", "preferencias", "préférences", "einstellungen", "preferenze",
+            "настройки", "การตั้งค่า"
+        ]
+        return knownAuxTitles.contains(window.title) || knownAuxTitles.contains(titleLower)
     }
 
 

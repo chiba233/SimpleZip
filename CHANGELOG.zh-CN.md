@@ -2,6 +2,20 @@
 
 # 更新日志
 
+## 0.1.9
+
+- **Bug 修复（0.1.8 引入）：Sparkle 检查更新报「已是最新版」，0.1.7 用户永远收不到 0.1.8 升级提示**
+  - 现象：0.1.7 用户菜单点「检查更新」时 Sparkle 说「SimpleZip 0.1.7 是当前的最新版本（您正在运行 0.1.7 (1)）」—— 完全错的，appcast 已经在 0.1.8 了。
+  - 根因：0.1.8 release 的打包脚本把 `CURRENT_PROJECT_VERSION` 改成了 marketing string `RELEASE_VERSION`（"0.1.8"），同时 appcast 也写 `sparkle:version="0.1.8"`。但 0.1.7 用户本地的 `CFBundleVersion` 是 build_number（小整数），Sparkle `SUStandardVersionComparator` 拆成 `[1]` vs `[0,1,8]` 比，第一段 `1>0` → Sparkle 以为本地比 feed 更新 → 永远「已是最新版」。
+  - 修法：**CFBundleVersion 和 `sparkle:version` 都改回单调递增整数（`BUILD_NUMBER` / `GITHUB_RUN_NUMBER`）**，marketing string 只走 `sparkle:shortVersionString`（UI 显示用）。这样 Sparkle 比较的两边都是单一数字，永远清晰。
+  - 影响：0.1.7 用户在装上 0.1.9 之后菜单「检查更新」就能正常工作。**当前已发布的 0.1.8 用户也是同一个坑**（本地 CFBundleVersion="0.1.8" → 跟下次 sparkle:version=BUILD_NUMBER 比较时仍然能升）—— 0.1.8 / 0.1.7 用户都通过 0.1.9 出来可以正常拿到 Sparkle 更新流。
+  - 改的文件：`scripts/build_unsigned_dmg.sh`（注释 + 重新用 BUILD_NUMBER）、`.github/workflows/release.yml`（appcast 模板 `sparkle:version` 改回 `${BUILD_NUMBER}`，加上 BUILD_NUMBER 到 step env 里）。
+
+- **Bug 修复（0.1.8 引入）：打开 `.siz` 文件时设置窗口神秘弹出来**
+  - 现象：用户在 SimpleZip 里曾经开过一次「设置」并关掉之后，后续打开任何 `.siz` 文件都会让设置窗口自动弹出来。
+  - 根因：`ContentView.ensureMainWindowVisible()` 简单遍历 `NSApp.windows` 把所有 `!isVisible` 的窗口 `orderFront`。SwiftUI Settings scene 关闭后 NSWindow 仍存在于 `NSApp.windows` 列表里（hidden 状态），一并被拉起来。Sparkle 更新窗口 / 关于面板等也会受同一坑影响。
+  - 修法：加 `isAuxiliaryWindow(_:)` 子串识别（identifier / title 含 "settings" / "preferences" / "sparkle" / "update" / "about" 或对应本地化标题），把这些辅助窗口从 `ensureMainWindowVisible` 的遍历里排除。`hideMainWindowIfPossible` 暂不改（用法只在 Finder 自动解压非 .siz 路径，没有 .siz 触发路径）。
+
 ## 0.1.8
 
 - **多密钥用户友好：签名密钥 / 解密密钥 picker（创建 + 解压时挑具体用哪把私钥）**

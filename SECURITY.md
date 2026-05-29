@@ -1,3 +1,5 @@
+**English** | [中文](./SECURITY.zh-CN.md)
+
 # Security Policy
 
 This document describes SimpleZip's threat model, the user-facing security controls,
