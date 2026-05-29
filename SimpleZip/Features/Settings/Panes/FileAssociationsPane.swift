@@ -56,6 +56,16 @@ struct FileAssociationsPane: View {
             try ArchiveAssociationService.setAsDefault(for: association)
             defaultAppMessage = L10n.format("settings.defaultArchiveTypeDone", ".\(association.fileExtension)")
             refresh()
+            // LaunchServices 的 `LSSetDefaultRoleHandlerForContentType` 同步成功，
+            // 但同进程内 `LSCopyDefaultRoleHandlerForContentType` 短时间会读到旧缓存
+            // —— 立即 refresh 看到的还是「未设为默认」，给用户「明明点了为什么没生效」的疑惑。
+            // 多个时间点 retry 让 LS settle 后 UI 自动跟上，不需要用户切走 pane 再切回来。
+            // 时间点根据实测：第一次 ~300ms 大概率已经更新；1.5s 是兜底（系统负载高时 LS 慢）。
+            for delay in [0.3, 0.8, 1.5] {
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                    refresh()
+                }
+            }
         } catch {
             defaultAppMessage = error.localizedDescription
         }

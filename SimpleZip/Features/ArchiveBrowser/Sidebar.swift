@@ -38,6 +38,12 @@ struct Sidebar: View {
         ]
     }
 
+    /// Finder 侧栏的标签列表。
+    ///
+    /// 直接用 `NSWorkspace.shared.fileLabels` + `fileLabelColors`：系统当前语言下的 7 个系统色块名 +
+    /// Finder 实际渲染的精确色块颜色，跟 Finder 侧栏 1:1 对齐。
+    /// 之前尝试过用 `FavoriteTagNames` 偏好，但实测语义跟 Finder 侧栏实际显示对不上 ——
+    /// 多 locale / 空槽位 / 重复 / 顺序错都会出问题，回到这个最朴素的实现。
     private var finderTags: [FinderTag] {
         let labels = NSWorkspace.shared.fileLabels
         let colors = NSWorkspace.shared.fileLabelColors

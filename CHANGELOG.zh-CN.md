@@ -2,6 +2,36 @@
 
 # 更新日志
 
+## 0.1.7
+
+- **内部重构：`ArchiveBackend` 协议落地（Phase 4 step 6，**Phase 4 完成**）**
+  - 新增 `Core/Backends/ArchiveBackend.swift`（55 行）：声明协议 + 给 4 个 backend 各自 conform。
+  - 协议范围：仅覆盖**读路径**（`list` / `test`）—— 这两个方法在所有 backend 上签名能完美一致，统一后让 `ArchiveService.list` / `.test` 收成两行 router（`backendType(for:).list(...)` / `.test(...)`），不再 switch case。
+  - 写路径（`extract` / `create`）**不入协议**：各 backend 参数太异质（NativeZip 需要 `zipDecryptionMethod`、SevenZip 需要 `pathMode`、DMG 啥都不要；7zz 还有 3 种创建变种 / NativeZip 3 种 / RAR 1 种），强行塞进「kitchen sink options」反而比 case 难维护。这是当前最划算的协议边界。
+  - 三个适配器 extension：`NativeZipBackend` / `DiskImageBackend` 加 wrapper 把协议要求的 `password` / `operationID` 参数吞掉（DMG / 原生 unzip 不用密码 / 没有取消语义）；`SevenZipBackend` 已经天然匹配，空 extension 即可宣告 conformance。
+  - 经过 Phase 4 完整 6 步，`ArchiveService.swift` 由原始 **1524 → 598**（**−926，−60.7%**），四个 backend 总计 1085 行各司其职（DMG 208 / NativeZip 310 / RAR 218 / 7zz 349 / 协议 55）。
+  - **Phase 4 完成 ✓**
+
+- **新功能：Finder 自动解压改为独立小浮窗**
+  - 之前用户开了「Finder 双击自动解压」开关后，整个主窗口会被拉起来跑解压任务，违反「双击 = 后台静默解压」的预期。
+  - 新增独立 `ExternalExtractWindowController` + `ExternalExtractSession`：自己持有 `ArchiveExtractionCoordinator`，跑自己的 `ArchiveService.extract`，progress 更新只刷新本浮窗 UI。主窗口完全不参与。
+  - 浮窗 ~360×190，`.utilityWindow` 风格 + `.floating` level，固定尺寸不可缩放，不抢主窗口焦点；标题栏只留关闭按钮。
+  - 进度 + 当前文件名 + 取消按钮三件套；成功 1.2 秒后自动关 + `NSWorkspace.activateFileViewerSelecting` 选中解压目录；失败时停留显示错误，方便用户复制详情。
+  - ContentView.openExternalURL 检测 `finderOpenAutoExtract` 开 + 非 DMG 时走新浮窗 + 主动 orderOut 主窗口（兼顾冷启动 / 热启动两种场景）。
+  - DMG 仍走 model 挂载浏览（没有「解压」语义，保持原行为）。
+
+- **Bug 修复：文件关联设置生效后 UI 不刷新**
+  - 用户在「设置 → 文件关联」点「设为默认」后，行内绿色 ✓ 不会立刻出现，需要切走 pane 再切回来才显示。
+  - 根因：`LSSetDefaultRoleHandlerForContentType` 同步成功，但同进程内 `LSCopyDefaultRoleHandlerForContentType` 短时间会读到旧缓存。
+  - 修法：写入成功后立即刷一次，并在 300ms / 800ms / 1.5s 三个时间点 retry refresh，让 LaunchServices settle 后 UI 自动跟上 —— 用户不需要手动切 pane。
+
+- **内部重构：RarBackend 抽出 + 7-Zip 创建路径搬迁（Phase 4 step 5）**
+  - 新增 `Core/Backends/RarBackend.swift`（218 行）：把 RAR 的所有逻辑（路径发现：local / system 候选；元信息：`backendDescription` / `version`；本地安装管理：`localBackendURL` / `hasLocalBackend` / `deleteLocalBackend`；安装资源：`installReadmeURL` / `installLicenseURL` / `installerScriptURL` / `installResourcesURL`；动作：`create` 创建 .rar；类型：`ResolvedRarTool` / `RarToolSource`）整段搬过去。
+  - `ArchiveService` 公开的 RAR facade（`canCreateRAR` / `rarBackendDescription` / `rarVersion` / 全套安装资源 URL / `hasLocalRarBackend` / `deleteLocalRarBackend`）全部改为一行 forward 到 `RarBackend`，不破坏 Settings RAR pane / 欢迎助手后端步骤 / 健康检查的现有调用。
+  - 顺手把 7-Zip 的 5 个创建场景（`.zip` 7zz 优先路径 / `.sevenZip` / `.gzip` / `.bzip2` / `.xz`）也搬进 `SevenZipBackend`，新增 `createZip` / `createSevenZip` / `createSingleFileCompressed` 三个方法；`ArchiveService.createArchive` 里 case 分支统统改为一行 `try await SevenZipBackend.xxx(...)`。
+  - 旧 `ArchiveService` 内的 4 个私有 helper（`sevenZipTool` / `resolvedSevenZipTool` / `run` / `runAndCapture`）现在已经无人使用，整段删除。
+  - 经过 step 1 + step 2 + step 3a + step 3b + step 4 + step 5，`ArchiveService.swift` 由 1524 行缩到 **601 行**（累计 −923，**−60.6%**）。Step 6 引入 `ArchiveBackend` 协议把剩下的 ArchiveService 收成纯路由 + 安全策略 + 共享路径 helper。
+
 ## 0.1.6
 
 - **新功能：欢迎助手 wizard（首次启动 + 菜单触发）**

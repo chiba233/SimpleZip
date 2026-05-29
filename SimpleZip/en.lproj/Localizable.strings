@@ -47,6 +47,9 @@
 "welcome.versionCheck.upToDate" = "You're on the latest release.";
 "welcome.versionCheck.outOfDate" = "New version available: %@. Click Check for Updates… to open Sparkle's download dialog.";
 "welcome.versionCheck.failed" = "Check failed: %@";
+"externalExtract.window.title" = "Extracting";
+"externalExtract.done" = "Extraction complete";
+"externalExtract.failed" = "Extraction failed";
 "welcome.button.cancel" = "Cancel";
 "welcome.cancelConfirm.title" = "Cancel the welcome assistant?";
 "welcome.cancelConfirm.message" = "Choices you've already made will be kept, but you haven't finished the remaining steps. You can restart the assistant any time from SimpleZip → Run Welcome Assistant Again.";

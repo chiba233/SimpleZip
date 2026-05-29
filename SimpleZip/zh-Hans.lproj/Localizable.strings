@@ -47,6 +47,9 @@
 "welcome.versionCheck.upToDate" = "已经是最新版本。";
 "welcome.versionCheck.outOfDate" = "有新版本：%@。点「检查更新…」打开 Sparkle 下载窗口。";
 "welcome.versionCheck.failed" = "检查失败：%@";
+"externalExtract.window.title" = "正在解压";
+"externalExtract.done" = "解压完成";
+"externalExtract.failed" = "解压失败";
 "welcome.button.cancel" = "取消";
 "welcome.cancelConfirm.title" = "确定要取消欢迎助手吗？";
 "welcome.cancelConfirm.message" = "当前已经做出的选项会保留，但你还没看完后面的步骤。你可以稍后从「SimpleZip → 重新运行欢迎助手」再开。";

@@ -436,7 +436,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 0.1.7;
 				PRODUCT_BUNDLE_IDENTIFIER = "yumeka.SimpleZip-in-mac";
 				PRODUCT_NAME = SimpleZip;
 				REGISTER_APP_GROUPS = YES;
@@ -470,7 +470,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 0.1.7;
 				PRODUCT_BUNDLE_IDENTIFIER = "yumeka.SimpleZip-in-mac";
 				PRODUCT_NAME = SimpleZip;
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -523,7 +523,7 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 0.1.7;
 				PRODUCT_BUNDLE_IDENTIFIER = "yumeka.SimpleZip-in-mac.FinderExtension";
 				PRODUCT_NAME = SimpleZipFinderExtension;
 				SKIP_INSTALL = YES;
@@ -554,7 +554,7 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 0.1.7;
 				PRODUCT_BUNDLE_IDENTIFIER = "yumeka.SimpleZip-in-mac.FinderExtension";
 				PRODUCT_NAME = SimpleZipFinderExtension;
 				PROVISIONING_PROFILE_SPECIFIER = "";

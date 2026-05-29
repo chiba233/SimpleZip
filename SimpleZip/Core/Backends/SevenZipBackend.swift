@@ -178,6 +178,102 @@ enum SevenZipBackend {
         )
     }
 
+    // MARK: - 创建归档
+
+    /// 用 7zz 创建 ZIP（最佳路径）—— 比系统 `/usr/bin/zip` 兼容性 / 压缩率 / 进度反馈都好。
+    /// 7zz 不可用时调用方（ArchiveService）会回落到 `NativeZipBackend.createZipFallback`。
+    static func createZip(
+        destination: URL,
+        relativeNames: [String],
+        options: ArchiveCreationOptions,
+        currentDirectory: URL?,
+        progressParser: ProgressOutputParser?,
+        outputObserver: (@Sendable (String) -> Void)?,
+        operationID: UUID?
+    ) async throws {
+        let tool = try toolPath()
+        let arguments = try ArchiveService.sevenZipZipCreateArguments(
+            destination: destination,
+            relativeNames: relativeNames,
+            options: options
+        )
+        let inputStrategy: ProcessInputStrategy = options.password.isEmpty
+            ? .none
+            : .passwordPrompts(ArchiveService.passwordResponses(for: options))
+        _ = try await BackendProcessRunner.runAndCapture(
+            tool,
+            arguments: arguments,
+            currentDirectory: currentDirectory,
+            progressParser: progressParser,
+            inputStrategy: inputStrategy,
+            outputObserver: outputObserver,
+            operationID: operationID
+        )
+    }
+
+    /// 用 7zz 创建 .7z。这是 7zz 的本职工作。
+    static func createSevenZip(
+        destination: URL,
+        relativeNames: [String],
+        options: ArchiveCreationOptions,
+        currentDirectory: URL?,
+        progressParser: ProgressOutputParser?,
+        outputObserver: (@Sendable (String) -> Void)?,
+        operationID: UUID?
+    ) async throws {
+        let tool = try toolPath()
+        let arguments = try ArchiveService.sevenZipCreateArguments(
+            destination: destination,
+            relativeNames: relativeNames,
+            options: options
+        )
+        let inputStrategy: ProcessInputStrategy = options.password.isEmpty
+            ? .none
+            : .passwordPrompts(ArchiveService.passwordResponses(for: options))
+        _ = try await BackendProcessRunner.runAndCapture(
+            tool,
+            arguments: arguments,
+            currentDirectory: currentDirectory,
+            progressParser: progressParser,
+            inputStrategy: inputStrategy,
+            outputObserver: outputObserver,
+            operationID: operationID
+        )
+    }
+
+    /// 单文件流式压缩 —— `.gz` / `.bz2` / `.xz` 都是「就这一个 source 文件压成一个 archive」语义。
+    /// `formatFlag` 是 7zz 的 `-t<type>` 后缀：`gzip` / `bzip2` / `xz`。
+    static func createSingleFileCompressed(
+        formatFlag: String,
+        source: URL,
+        destination: URL,
+        options: ArchiveCreationOptions,
+        progressParser: ProgressOutputParser?,
+        outputObserver: (@Sendable (String) -> Void)?,
+        operationID: UUID?
+    ) async throws {
+        let tool = try toolPath()
+        // -bb1 -bsp1 = 让 7zz 把进度往 stdout 喷得能被 ProgressOutputParser 解；-y = 不交互。
+        let arguments = [
+            "a",
+            "-t\(formatFlag)",
+            "-mx=\(options.compressionLevel.rawValue)",
+            destination.path,
+            source.lastPathComponent,
+            "-bb1",
+            "-bsp1",
+            "-y"
+        ]
+        _ = try await BackendProcessRunner.runAndCapture(
+            tool,
+            arguments: arguments,
+            currentDirectory: source.deletingLastPathComponent(),
+            progressParser: progressParser,
+            outputObserver: outputObserver,
+            operationID: operationID
+        )
+    }
+
     // MARK: - 候选路径
 
     /// App bundle 自带的 7zz 路径 —— DMG 发布版会把 `Contents/Resources/Tools/7zz` 一起打包。

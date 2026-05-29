@@ -25,6 +25,16 @@ enum ArchiveService {
         let backend: ArchiveBackendKind
     }
 
+    /// 把 `ArchiveBackendKind` 映射到对应 backend 类型 —— 供 `list` / `test` 共用一个 router。
+    /// `extract` / `create` 因为各 backend 参数太异质，不走这个路径，仍然用 case 分发。
+    private static func backendType(for kind: ArchiveBackendKind) -> ArchiveBackend.Type {
+        switch kind {
+        case .zipNative: return NativeZipBackend.self
+        case .sevenZip: return SevenZipBackend.self
+        case .diskImage: return DiskImageBackend.self
+        }
+    }
+
     enum ExtractionSafetyPolicy {
         case validate
         case skipValidation
@@ -43,50 +53,23 @@ enum ArchiveService {
     }
 
     static func canCreateRAR() -> Bool {
-        (try? rarTool()) != nil
+        RarBackend.isAvailable()
     }
 
     static func canUseSevenZip() -> Bool {
         SevenZipBackend.isAvailable()
     }
 
-    static func rarInstallResourcesURL() -> URL? {
-        Bundle.main.resourceURL
-    }
+    // RAR 安装资源 + 本地后端管理：全部转发到 `RarBackend`。
+    // 保留这层「Service 上的同名 facade」是为了不破坏调用方（Settings RAR pane / 欢迎助手 / 健康检查）API。
 
-    static func rarInstallReadmeURL() -> URL? {
-        Bundle.main.url(forResource: "simplezip-rar-install-readme", withExtension: "txt")
-    }
-
-    static func rarInstallLicenseURL() -> URL? {
-        Bundle.main.url(forResource: "simplezip-rar-license-notice", withExtension: "txt")
-    }
-
-    static func rarInstallerScriptURL() -> URL? {
-        Bundle.main.url(forResource: "simplezip-install-rar-backend", withExtension: "sh")
-    }
-
-    static func localRarBackendURL() -> URL? {
-        applicationSupportDirectory()?.appendingPathComponent("Tools/rar")
-    }
-
-    static func hasLocalRarBackend() -> Bool {
-        guard let url = localRarBackendURL() else { return false }
-        return FileManager.default.isExecutableFile(atPath: url.path)
-    }
-
-    static func deleteLocalRarBackend() throws {
-        guard let toolsDirectory = applicationSupportDirectory()?.appendingPathComponent("Tools", isDirectory: true) else {
-            return
-        }
-        let fileManager = FileManager.default
-        for name in ["rar", "rar-license.txt", "rar-readme.txt"] {
-            let url = toolsDirectory.appendingPathComponent(name)
-            if fileManager.fileExists(atPath: url.path) {
-                try fileManager.removeItem(at: url)
-            }
-        }
-    }
+    static func rarInstallResourcesURL() -> URL? { RarBackend.installResourcesURL() }
+    static func rarInstallReadmeURL() -> URL? { RarBackend.installReadmeURL() }
+    static func rarInstallLicenseURL() -> URL? { RarBackend.installLicenseURL() }
+    static func rarInstallerScriptURL() -> URL? { RarBackend.installerScriptURL() }
+    static func localRarBackendURL() -> URL? { RarBackend.localBackendURL() }
+    static func hasLocalRarBackend() -> Bool { RarBackend.hasLocalBackend() }
+    static func deleteLocalRarBackend() throws { try RarBackend.deleteLocalBackend() }
 
     static func cancelRunningCommand(operationID: UUID? = nil) {
         BackendProcessRunner.cancelRunningCommand(operationID: operationID)
@@ -113,19 +96,15 @@ enum ArchiveService {
 
         switch options.format {
         case .zip:
-            if let tool = try? sevenZipTool() {
-                let arguments = try sevenZipZipCreateArguments(
+            // 优先 7zz —— 压缩率 / 兼容性 / 进度都比 /usr/bin/zip 好。
+            // 7zz 不可用且选项可被原生 zip 覆盖时回落 NativeZipBackend.createZipFallback。
+            if SevenZipBackend.isAvailable() {
+                try await SevenZipBackend.createZip(
                     destination: destination,
                     relativeNames: relativeNames,
-                    options: options
-                )
-                let inputStrategy: ProcessInputStrategy = options.password.isEmpty ? .none : .passwordPrompts(passwordResponses(for: options))
-                try await run(
-                    tool,
-                    arguments: arguments,
+                    options: options,
                     currentDirectory: parent,
                     progressParser: parser,
-                    inputStrategy: inputStrategy,
                     outputObserver: outputObserver,
                     operationID: operationID
                 )
@@ -145,28 +124,22 @@ enum ArchiveService {
                 operationID: operationID
             )
         case .sevenZip:
-            let tool = try sevenZipTool()
-            let arguments = try sevenZipCreateArguments(destination: destination, relativeNames: relativeNames, options: options)
-            let inputStrategy: ProcessInputStrategy = options.password.isEmpty ? .none : .passwordPrompts(passwordResponses(for: options))
-            try await run(
-                tool,
-                arguments: arguments,
+            try await SevenZipBackend.createSevenZip(
+                destination: destination,
+                relativeNames: relativeNames,
+                options: options,
                 currentDirectory: parent,
                 progressParser: parser,
-                inputStrategy: inputStrategy,
                 outputObserver: outputObserver,
                 operationID: operationID
             )
         case .rar:
-            let tool = try rarTool()
-            let arguments = try rarCreateArguments(destination: destination, relativeNames: relativeNames, options: options)
-            let inputStrategy: ProcessInputStrategy = options.password.isEmpty ? .none : .passwordPrompts(passwordResponses(for: options))
-            try await run(
-                tool,
-                arguments: arguments,
+            try await RarBackend.create(
+                destination: destination,
+                relativeNames: relativeNames,
+                options: options,
                 currentDirectory: parent,
                 progressParser: parser,
-                inputStrategy: inputStrategy,
                 outputObserver: outputObserver,
                 operationID: operationID
             )
@@ -200,34 +173,31 @@ enum ArchiveService {
                 operationID: operationID
             )
         case .gzip:
-            let sourceURL = try validateSingleRegularFileSource(sourceURLs, format: options.format)
-            let tool = try sevenZipTool()
-            try await run(
-                tool,
-                arguments: ["a", "-tgzip", "-mx=\(options.compressionLevel.rawValue)", destination.path, sourceURL.lastPathComponent, "-bb1", "-bsp1", "-y"],
-                currentDirectory: sourceURL.deletingLastPathComponent(),
+            try await SevenZipBackend.createSingleFileCompressed(
+                formatFlag: "gzip",
+                source: try validateSingleRegularFileSource(sourceURLs, format: options.format),
+                destination: destination,
+                options: options,
                 progressParser: parser,
                 outputObserver: outputObserver,
                 operationID: operationID
             )
         case .bzip2:
-            let sourceURL = try validateSingleRegularFileSource(sourceURLs, format: options.format)
-            let tool = try sevenZipTool()
-            try await run(
-                tool,
-                arguments: ["a", "-tbzip2", "-mx=\(options.compressionLevel.rawValue)", destination.path, sourceURL.lastPathComponent, "-bb1", "-bsp1", "-y"],
-                currentDirectory: sourceURL.deletingLastPathComponent(),
+            try await SevenZipBackend.createSingleFileCompressed(
+                formatFlag: "bzip2",
+                source: try validateSingleRegularFileSource(sourceURLs, format: options.format),
+                destination: destination,
+                options: options,
                 progressParser: parser,
                 outputObserver: outputObserver,
                 operationID: operationID
             )
         case .xz:
-            let sourceURL = try validateSingleRegularFileSource(sourceURLs, format: options.format)
-            let tool = try sevenZipTool()
-            try await run(
-                tool,
-                arguments: ["a", "-txz", "-mx=\(options.compressionLevel.rawValue)", destination.path, sourceURL.lastPathComponent, "-bb1", "-bsp1", "-y"],
-                currentDirectory: sourceURL.deletingLastPathComponent(),
+            try await SevenZipBackend.createSingleFileCompressed(
+                formatFlag: "xz",
+                source: try validateSingleRegularFileSource(sourceURLs, format: options.format),
+                destination: destination,
+                options: options,
                 progressParser: parser,
                 outputObserver: outputObserver,
                 operationID: operationID
@@ -359,14 +329,7 @@ enum ArchiveService {
 
     static func test(_ archive: URL, operationID: UUID? = nil, force: Bool = false) async throws {
         let resolved = try resolvedInput(for: archive, force: force)
-        switch resolved.backend {
-        case .zipNative:
-            try await NativeZipBackend.test(resolved.url, operationID: operationID)
-        case .sevenZip:
-            try await SevenZipBackend.test(resolved.url, operationID: operationID)
-        case .diskImage:
-            try await DiskImageBackend.test(resolved.url)
-        }
+        try await backendType(for: resolved.backend).test(resolved.url, operationID: operationID)
     }
 
     static func benchmark(
@@ -379,14 +342,8 @@ enum ArchiveService {
 
     static func list(_ archive: URL, password: String = "", force: Bool = false) async throws -> [ArchiveItem] {
         let resolved = try resolvedInput(for: archive, force: force)
-        switch resolved.backend {
-        case .zipNative:
-            return try await NativeZipBackend.list(resolved.url)
-        case .sevenZip:
-            return try await SevenZipBackend.list(resolved.url, password: password)
-        case .diskImage:
-            return try await DiskImageBackend.list(resolved.url)
-        }
+        return try await backendType(for: resolved.backend)
+            .list(resolved.url, password: password, operationID: nil)
     }
 
     private static func validateSingleRegularFileSource(_ sourceURLs: [URL], format: ArchiveCreateFormat) throws -> URL {
@@ -503,66 +460,8 @@ enum ArchiveService {
         await SevenZipBackend.version()
     }
 
-    static func rarBackendDescription() -> String {
-        do {
-            let tool = try resolvedRarTool()
-            return L10n.format("settings.rar.resolvedPath", tool.source.title, tool.path)
-        } catch {
-            return L10n.text("settings.rar.notFound")
-        }
-    }
-
-    static func rarVersion() async -> String {
-        do {
-            let tool = try resolvedRarTool()
-            do {
-                let output = try await runAndCapture(tool.path, arguments: [])
-                let firstLine = output
-                    .split(separator: "\n")
-                    .map(String.init)
-                    .first(where: { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty })
-                    ?? tool.path
-                return L10n.format("settings.rar.resolvedVersion", tool.source.title, firstLine)
-            } catch {
-                return L10n.format("settings.rar.resolvedVersion", tool.source.title, tool.path)
-            }
-        } catch {
-            return L10n.text("settings.rar.notFound")
-        }
-    }
-
-    /// 转发到 `SevenZipBackend.toolPath()`。
-    /// 留在 ArchiveService 里是因为下面 list / extract / test / 创建归档等 case 分支
-    /// 用了大量 `try sevenZipTool()` 调用 —— 等 step 3b 把那些动作也搬到 SevenZipBackend
-    /// 里之后，这个 thin wrapper 也可以一起删掉。
-    private static func sevenZipTool() throws -> String {
-        try SevenZipBackend.toolPath()
-    }
-
-    private static func resolvedSevenZipTool() throws -> ResolvedSevenZipTool {
-        try SevenZipBackend.resolve()
-    }
-
-    private static func rarTool() throws -> String {
-        try resolvedRarTool().path
-    }
-
-    private static func resolvedRarTool() throws -> ResolvedRarTool {
-        let candidates: [ResolvedRarTool]
-        switch AppPreferences.rarBackend {
-        case .automatic:
-            candidates = localRarCandidates + systemRarCandidates
-        case .bundled:
-            candidates = localRarCandidates + systemRarCandidates
-        case .system:
-            candidates = systemRarCandidates
-        }
-
-        if let tool = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0.path) }) {
-            return tool
-        }
-        throw ArchiveError.missingRarTool
-    }
+    static func rarBackendDescription() -> String { RarBackend.backendDescription() }
+    static func rarVersion() async -> String { await RarBackend.version() }
 
     /// 「打开 DMG 为文件夹」流程用 —— ArchiveBrowserModel 在 mode = .archive(dmg) 时调一次。
     /// 实际工作转给 `DiskImageBackend.mount`；这里保留是为了不破坏外部 API。
@@ -574,29 +473,7 @@ enum ArchiveService {
         try await DiskImageBackend.detach(at: mountPoint)
     }
 
-    // 7zz 候选路径列表（bundled / system）已搬到 `SevenZipBackend`。
-
-    private static var localRarCandidates: [ResolvedRarTool] {
-        uniqueExistingCandidatePaths(
-            [
-                applicationSupportDirectory()?.appendingPathComponent("Tools/rar").path
-            ].compactMap { $0 }
-        ).map { ResolvedRarTool(path: $0, source: .local) }
-    }
-
-    private static var systemRarCandidates: [ResolvedRarTool] {
-        uniqueExistingCandidatePaths(
-            [
-                "/Applications/RAR.app/Contents/MacOS/RAR",
-                "/Applications/RAR.app/Contents/MacOS/rar",
-                "/Applications/WinRAR.app/Contents/MacOS/RAR",
-                "/Applications/WinRAR.app/Contents/MacOS/rar",
-                "/opt/homebrew/bin/rar",
-                "/usr/local/bin/rar",
-                envPath(for: "rar")
-            ].compactMap { $0 }
-        ).map { ResolvedRarTool(path: $0, source: .system) }
-    }
+    // 7zz / RAR 候选路径列表 + 私有 resolve helper 已分别搬到 `SevenZipBackend` / `RarBackend`。
 
     // 下面 4 个 path-discovery helper 原本 `private`；step 3 抽 backend 时改成 `internal`
     // 让 `SevenZipBackend` / 未来的 `RarBackend` 能直接调。后续 step 把它们彻底搬到
@@ -632,26 +509,6 @@ enum ArchiveService {
                 tools.map { "\(root)/\(version)/bin/\($0)" }
             }
         }
-    }
-
-    private static func run(
-        _ executable: String,
-        arguments: [String],
-        currentDirectory: URL? = nil,
-        progressParser: ProgressOutputParser? = nil,
-        inputStrategy: ProcessInputStrategy = .none,
-        outputObserver: (@Sendable (String) -> Void)? = nil,
-        operationID: UUID? = nil
-    ) async throws {
-        _ = try await runAndCapture(
-            executable,
-            arguments: arguments,
-            currentDirectory: currentDirectory,
-            progressParser: progressParser,
-            inputStrategy: inputStrategy,
-            outputObserver: outputObserver,
-            operationID: operationID
-        )
     }
 
     nonisolated static func zipExcludePatterns(from options: ArchiveCreationOptions) -> [String] {
@@ -700,28 +557,6 @@ enum ArchiveService {
         return UUID().uuidString + (ext.isEmpty ? "" : ".\(ext)")
     }
 
-    /// 进程基础设施已搬到 `BackendProcessRunner` —— 这里给一个 type-aliased 转调入口，
-    /// ArchiveService 内大量 `runAndCapture(...)` 调用就不用一个一个改前缀。
-    private static func runAndCapture(
-        _ executable: String,
-        arguments: [String],
-        currentDirectory: URL? = nil,
-        progressParser: ProgressOutputParser? = nil,
-        inputStrategy: ProcessInputStrategy = .none,
-        outputObserver: (@Sendable (String) -> Void)? = nil,
-        operationID: UUID? = nil
-    ) async throws -> String {
-        try await BackendProcessRunner.runAndCapture(
-            executable,
-            arguments: arguments,
-            currentDirectory: currentDirectory,
-            progressParser: progressParser,
-            inputStrategy: inputStrategy,
-            outputObserver: outputObserver,
-            operationID: operationID
-        )
-    }
-
     private nonisolated static func fileCount(in urls: [URL]) async throws -> Int {
         try await Task.detached(priority: .utility) {
             try countRegularFiles(in: urls)
@@ -753,28 +588,11 @@ enum ArchiveService {
 
 }
 
-// 注：
+// 注：所有 backend 私有类型已经各自归位。
 // - ProgressOutputParser / ProcessInputStrategy / InteractivePasswordResponder /
 //   ActiveProcessRegistry → `BackendProcessRunner.swift`
 // - DMG 的 mount / detach / list / extract / DateFormatter → `Backends/DiskImageBackend.swift`
 // - ResolvedSevenZipTool / SevenZipToolSource / 7zz 路径发现 / 版本探测 → `Backends/SevenZipBackend.swift`
-// 这里还留着的是 RAR 后端相关 —— 等 Phase 4 step 3c 抽 RarBackend 时再一并搬走。
-
-private struct ResolvedRarTool {
-    let path: String
-    let source: RarToolSource
-}
-
-private enum RarToolSource {
-    case local
-    case system
-
-    var title: String {
-        switch self {
-        case .local:
-            return L10n.text("settings.rar.source.local")
-        case .system:
-            return L10n.text("settings.rar.source.system")
-        }
-    }
-}
+// - NativeZipBackend 多 backend 编排 / unzip + tar → `Backends/NativeZipBackend.swift`
+// - ResolvedRarTool / RarToolSource / RAR 路径发现 / 安装资源 / 版本 / 创建 → `Backends/RarBackend.swift`
+// 下一步 step 6 引入 `ArchiveBackend` 协议把 ArchiveService 转成纯路由。

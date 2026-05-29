@@ -2,6 +2,36 @@
 
 # Changelog
 
+## 0.1.7
+
+- **Internal refactor: `ArchiveBackend` protocol landed (Phase 4 step 6 — Phase 4 complete)**
+  - New `Core/Backends/ArchiveBackend.swift` (55 lines) declaring the protocol and adding conformances to all four backends.
+  - Protocol scope is intentionally narrow: only the **read path** (`list` / `test`). Those two methods have signatures that line up across every backend, so unifying them collapses `ArchiveService.list` / `.test` into two-line routers (`backendType(for:).list(...)` / `.test(...)`); the switch statements there are gone.
+  - The write path (`extract` / `create`) **stays out of the protocol**: backend parameters are too heterogeneous (`NativeZip` needs `zipDecryptionMethod`, `SevenZip` needs `pathMode`, DMG needs neither; plus 7-Zip has three creation variants, NativeZip has three, RAR has one). Forcing them into a kitchen-sink options type would be worse than the current case dispatch.
+  - Three small adapter extensions: `NativeZipBackend` / `DiskImageBackend` wrap their existing methods so the protocol's `password` / `operationID` parameters are absorbed (they don't apply); `SevenZipBackend` already matches the signatures directly, so its conformance is an empty extension.
+  - After the full 6 steps of Phase 4, `ArchiveService.swift` is down from the original **1524 → 598 lines** (**−926, −60.7%**); the four backends total 1085 lines, each with a clear concern (DMG 208 / NativeZip 310 / RAR 218 / 7-Zip 349 / protocol 55).
+  - **Phase 4 complete ✓**
+
+- **New feature: Finder auto-extract now runs in a standalone floating window**
+  - Previously, enabling "Auto-extract on Finder open" raised the entire main window to run the extraction, which contradicted the "double-click = silent background extract" expectation users reported.
+  - Added a dedicated `ExternalExtractWindowController` + `ExternalExtractSession` that own their own `ArchiveExtractionCoordinator`, run `ArchiveService.extract` independently, and route progress only to this floating window — the main window stays out of the loop entirely.
+  - The window is ~360×190, `.utilityWindow` style, `.floating` level, fixed size; it does not steal focus from the main app and only has a close button in the title bar.
+  - Progress bar + current file name + cancel button; success auto-closes after 1.2 seconds plus a `NSWorkspace.activateFileViewerSelecting` to reveal the extracted folder. Failures stay on screen so the user can read the error.
+  - `ContentView.openExternalURL` detects `finderOpenAutoExtract` + non-DMG and routes to the new controller, then `orderOut`s the main window to handle both cold-launch and hot-launch.
+  - DMGs still go through the model's mount-and-browse flow (no "extract" semantics).
+
+- **Bug fix: file association UI doesn't refresh after setting the default**
+  - Clicking "Set as Default" in Settings → File Associations didn't show the green checkmark immediately; the user had to switch panes and switch back.
+  - Root cause: `LSSetDefaultRoleHandlerForContentType` is synchronously successful, but the same process briefly reads the old cache from `LSCopyDefaultRoleHandlerForContentType` right after.
+  - Fix: after the write, refresh immediately and then retry the refresh at 300 ms / 800 ms / 1.5 s so LaunchServices has time to settle and the UI catches up without the user touching anything.
+
+- **Internal refactor: RarBackend extracted + 7-Zip creation moved (Phase 4 step 5)**
+  - New `Core/Backends/RarBackend.swift` (218 lines) owns the entire RAR surface: path discovery (local / system candidates); metadata (`backendDescription` / `version`); local install management (`localBackendURL` / `hasLocalBackend` / `deleteLocalBackend`); install resources (`installReadmeURL` / `installLicenseURL` / `installerScriptURL` / `installResourcesURL`); the `create` action; and the `ResolvedRarTool` / `RarToolSource` types.
+  - `ArchiveService`'s public RAR facade (`canCreateRAR` / `rarBackendDescription` / `rarVersion` / the install-resource URLs / `hasLocalRarBackend` / `deleteLocalRarBackend`) all became one-line forwarders, keeping the existing Settings RAR pane / welcome assistant backend step / health check call sites working untouched.
+  - The same step moved the five 7-Zip creation paths (`.zip` 7zz-preferred / `.sevenZip` / `.gzip` / `.bzip2` / `.xz`) into `SevenZipBackend` via three new methods (`createZip` / `createSevenZip` / `createSingleFileCompressed`). Each `case` branch in `ArchiveService.createArchive` is now a one-line forward.
+  - The four ArchiveService private helpers (`sevenZipTool` / `resolvedSevenZipTool` / `run` / `runAndCapture`) are now unreferenced and removed.
+  - After steps 1 + 2 + 3a + 3b + 4 + 5, `ArchiveService.swift` is down from 1524 to **601 lines** (cumulative −923, **−60.6%**). Step 6 will reduce the remainder to a pure router plus safety policy + shared path helpers via the `ArchiveBackend` protocol.
+
 ## 0.1.6
 
 - **New feature: Welcome Assistant wizard (first-launch + menu)**

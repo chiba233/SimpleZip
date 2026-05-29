@@ -225,12 +225,37 @@ struct ContentView: View {
         if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue {
             model.openFolder(url)
         } else if ArchiveService.isSupportedArchive(url) {
-            // 走「外部入口」路径，让 model 根据 finderOpenAutoExtract 偏好决定
-            // 是开浏览窗口还是直接解压（同时按需复用预设密码）。
+            // 用户开了「Finder 自动解压」+ 不是 DMG → 走独立浮窗 controller，主窗口不参与。
+            // DMG 仍然走 model 走挂载浏览（没有「解压」语义）。
+            let supportedURL = ArchiveService.supportedArchiveURL(url) ?? url
+            if AppPreferences.finderOpenAutoExtract,
+               supportedURL.pathExtension.lowercased() != "dmg" {
+                ExternalExtractWindowController.shared.start(archiveURL: url)
+                hideMainWindowIfPossible()
+                return
+            }
+            // 关闭自动解压时与之前完全一致：走 model 浏览压缩包。
             model.openArchiveFromExternal(url)
         } else {
             NSWorkspace.shared.open(url)
         }
+    }
+
+    /// 把主窗口隐藏掉 —— Finder 自动解压时只显示浮窗，主窗口不该弹出。
+    /// 冷启动场景：SwiftUI WindowGroup 已经构造了 ContentView，主窗口本能在 onAppear 之后短暂可见；
+    /// 这里立即 orderOut 让它消失（用户感受不到「闪过」）。
+    /// 已经热运行场景：主窗口在哪 / 是否可见，保持原样不动；如果主窗口已是 front，仍然降到后面。
+    private func hideMainWindowIfPossible() {
+        // ContentView 所在的 NSWindow 在 keyWindow / 第一个 windowGroup 里 —— 找出来 orderOut。
+        // 通过 contentView 类型识别（NSHostingView 装的就是 SwiftUI 主窗口）。
+        for window in NSApp.windows {
+            if window.contentView is NSHostingView<AnyView> || window.identifier?.rawValue.hasPrefix("SimpleZip") == true || (window.title.contains("SimpleZip") && window.isVisible) {
+                window.orderOut(nil)
+            }
+        }
+        // 兜底：直接把 keyWindow 推走。external extract 浮窗的 makeKeyAndOrderFront 在调本函数之后才执行，
+        // 所以当前 keyWindow 还是主窗口。
+        NSApp.keyWindow?.orderOut(nil)
     }
 
     private func receiveDroppedFileURLs(from providers: [NSItemProvider]) -> Bool {

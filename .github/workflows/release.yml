@@ -186,6 +186,8 @@ jobs:
 
       # 把 appcast.xml 推回 main，让 raw.githubusercontent.com/.../main/docs/appcast.xml 拿到新版。
       # Tag push 触发时 HEAD 是 detached（指 tag commit），先 checkout main 再 apply。
+      # `git checkout -B main origin/main` 强制创建 / 重置本地 main 跟随远端 ——
+      # 适用于 actions/checkout 默认只 fetch tag 引用的情况。
       - name: Commit appcast.xml to main
         if: steps.release.outputs.publish == 'true'
         env:
@@ -196,7 +198,7 @@ jobs:
           # 保存生成出来的 appcast，等切换分支后还原回去。
           cp docs/appcast.xml /tmp/appcast.xml
           git fetch origin main
-          git checkout main
+          git checkout -B main origin/main
           mkdir -p docs
           cp /tmp/appcast.xml docs/appcast.xml
           git config user.name 'github-actions[bot]'
