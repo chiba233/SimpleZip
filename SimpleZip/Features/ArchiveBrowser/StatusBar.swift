@@ -90,6 +90,10 @@ struct ArchiveOperationDetailsView: View {
     @ObservedObject var session: ArchiveOperationDetailsSession
     let close: () -> Void
 
+    /// 「已复制」提示的可见状态。点完按钮 2.5 秒内显示，之后自动隐藏。
+    /// 不用 alert / toast 框架是因为这就一行文字，简单的 @State + 延时切回就够。
+    @State private var showsCopiedConfirmation = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top) {
@@ -100,8 +104,22 @@ struct ArchiveOperationDetailsView: View {
                         ProgressView()
                             .controlSize(.small)
                     }
+                    if showsCopiedConfirmation {
+                        Text(L10n.text("diagnostics.copied"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .transition(.opacity)
+                    }
                 }
                 Spacer()
+                Button(L10n.text("button.copyDiagnostics")) {
+                    Task {
+                        await DiagnosticsCopier.copy(session: session, errorMessage: nil)
+                        withAnimation { showsCopiedConfirmation = true }
+                        try? await Task.sleep(nanoseconds: 2_500_000_000)
+                        withAnimation { showsCopiedConfirmation = false }
+                    }
+                }
                 Button(L10n.text("button.ok")) {
                     close()
                 }

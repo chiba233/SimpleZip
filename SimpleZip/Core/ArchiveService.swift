@@ -104,10 +104,6 @@ enum ArchiveService {
         }
     }
 
-    static func createZipArchive(from sourceURLs: [URL], destination: URL) async throws {
-        try await createArchive(from: sourceURLs, destination: destination, options: ArchiveCreationOptions())
-    }
-
     static func cancelRunningCommand(operationID: UUID? = nil) {
         ArchiveServiceProcessRegistry.shared.cancelProcess(operationID: operationID)
     }
@@ -264,10 +260,11 @@ enum ArchiveService {
         safetyPolicy: ExtractionSafetyPolicy = .validate,
         operationID: UUID? = nil,
         progress: @escaping @Sendable (ArchiveProgressState) -> Void = { _ in },
-        outputObserver: (@Sendable (String) -> Void)? = nil
+        outputObserver: (@Sendable (String) -> Void)? = nil,
+        force: Bool = false
     ) async throws {
-        let resolved = try resolvedArchiveInputOrThrow(for: archive)
-        let listedItems = try await list(resolved.url, password: password)
+        let resolved = try resolvedInput(for: archive, force: force)
+        let listedItems = try await list(resolved.url, password: password, force: force)
         if safetyPolicy == .validate {
             try ArchiveSafety.validateForExtraction(listedItems)
         }
@@ -331,9 +328,10 @@ enum ArchiveService {
         safetyPolicy: ExtractionSafetyPolicy = .validate,
         operationID: UUID? = nil,
         progress: @escaping @Sendable (ArchiveProgressState) -> Void = { _ in },
-        outputObserver: (@Sendable (String) -> Void)? = nil
+        outputObserver: (@Sendable (String) -> Void)? = nil,
+        force: Bool = false
     ) async throws {
-        let resolved = try resolvedArchiveInputOrThrow(for: archive)
+        let resolved = try resolvedInput(for: archive, force: force)
         if safetyPolicy == .validate {
             try ArchiveSafety.validateForExtraction(entries)
         }
@@ -382,8 +380,8 @@ enum ArchiveService {
     }
 
 
-    static func test(_ archive: URL, operationID: UUID? = nil) async throws {
-        let resolved = try resolvedArchiveInputOrThrow(for: archive)
+    static func test(_ archive: URL, operationID: UUID? = nil, force: Bool = false) async throws {
+        let resolved = try resolvedInput(for: archive, force: force)
         switch resolved.backend {
         case .zipNative:
             try await run("/usr/bin/unzip", arguments: ["-t", resolved.url.path], operationID: operationID)
@@ -425,8 +423,8 @@ enum ArchiveService {
         )
     }
 
-    static func list(_ archive: URL, password: String = "") async throws -> [ArchiveItem] {
-        let resolved = try resolvedArchiveInputOrThrow(for: archive)
+    static func list(_ archive: URL, password: String = "", force: Bool = false) async throws -> [ArchiveItem] {
+        let resolved = try resolvedInput(for: archive, force: force)
         switch resolved.backend {
         case .zipNative:
             let unzipOutput = try await runAndCapture("/usr/bin/unzip", arguments: ["-l", resolved.url.path])
@@ -460,6 +458,19 @@ enum ArchiveService {
             throw ArchiveError.singleFileCompressionRequiresSingleFile
         }
         return sourceURL
+    }
+
+    /// 给上层入口统一选 backend。
+    /// - `force = false`：走原来的扩展名 → backend 路由（支持的扩展名才能用）。
+    /// - `force = true`：跳过扩展名校验，强制按 7-Zip 后端处理。
+    ///   用例：用户在 Finder 右键「以压缩包打开」一个 .exe / .apk / .ipa 之类的文件 ——
+    ///   这些本质上是 ZIP / NSIS / CAB，但扩展名不在白名单里，
+    ///   通过用户明确意图（右键菜单项）跳过检查，让 7zz 自己按文件头探测。
+    private static func resolvedInput(for url: URL, force: Bool) throws -> ResolvedArchiveInput {
+        if force {
+            return ResolvedArchiveInput(url: url, backend: .sevenZip)
+        }
+        return try resolvedArchiveInputOrThrow(for: url)
     }
 
     private static func resolvedArchiveInputOrThrow(for url: URL) throws -> ResolvedArchiveInput {

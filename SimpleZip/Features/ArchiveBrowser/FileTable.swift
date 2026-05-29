@@ -199,6 +199,14 @@ private struct FileNSTableView: NSViewRepresentable {
             if let item = model.selectedFileItems.first, model.selectedFileItems.count == 1, model.canShowPackageContents(item) {
                 menu.addItem(menuItem(L10n.text("file.showPackageContents"), systemImage: "folder", action: #selector(showPackageContents)))
             }
+            // 「以压缩包打开」—— 只在选中单个非目录、且这个文件本身不是已识别的压缩包时显示。
+            // 已识别的压缩包用普通「打开」就够了；目录或多选时这个命令没意义。
+            if let item = model.selectedFileItems.first,
+               model.selectedFileItems.count == 1,
+               !item.isDirectory,
+               !ArchiveService.isSupportedArchive(item.url) {
+                menu.addItem(menuItem(L10n.text("file.openAsArchive"), systemImage: "doc.zipper", action: #selector(openSelectedAsArchive)))
+            }
             menu.addItem(menuItem(L10n.text("button.addToArchive"), systemImage: "plus.square.on.square", action: #selector(addSelectedToArchive)))
             menu.addItem(menuItem(L10n.text("button.extractHere"), systemImage: "arrow.down.doc", action: #selector(extractSelectedArchive)))
             menu.addItem(menuItem(L10n.text("button.test"), systemImage: "checkmark.seal", action: #selector(testSelectedArchive)))
@@ -222,6 +230,12 @@ private struct FileNSTableView: NSViewRepresentable {
         @objc private func openSelected() {
             if let item = model.selectedFileItems.first {
                 model.open(item)
+            }
+        }
+
+        @objc private func openSelectedAsArchive() {
+            if let item = model.selectedFileItems.first {
+                model.openAsArchive(item.url)
             }
         }
 

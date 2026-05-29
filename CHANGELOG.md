@@ -4,10 +4,30 @@
 
 ## 0.1.6
 
+- **New feature: open any file as an archive**
+  - The file-table context menu and the File menu now offer an "Open as Archive" command. Selecting a single non-archive file (`.exe`, `.apk`, `.ipa`, `.jar`, and other non-standard files that are really ZIP / NSIS / CAB inside) and triggering the command bypasses the extension check and hands the bytes straight to the 7-Zip backend, which sniffs the format from the file header.
+  - The command is only enabled when the selection is exactly one non-directory file that isn't already a recognised archive, so it never duplicates the regular "Open".
+  - Implementation: `ArchiveService` gained a `force` parameter that skips the extension → backend routing, and `ArchiveBrowserModel` tracks a `forcedArchiveURLs` set so list / extract / test calls that follow keep using the forced 7-Zip path. The set lives in memory only — opening the same file again after relaunch needs another right-click.
+- **New feature: preferences backup & restore**
+  - Settings gains a new "Backup & Restore" pane (7th sidebar item, ⇅ icon):
+    - **Export preferences** → pick a destination and save a JSON file (default name `SimpleZip-Preferences-YYYY-MM-DD.json`, pretty-printed with sorted keys so it diffs cleanly and is easy to tweak by hand).
+    - **Import preferences** → pick a file → confirm "your current preferences will be replaced, this cannot be undone" → write back.
+    - **Restore all defaults** → a red destructive button with confirmation → clears every UserDefaults preference and removes the preset password from the Keychain.
+  - **Allowlist-based export**: the exportable keys are registered explicitly (30+ of them). Private paths (last folder / pinned / recent sidebar) and sensitive fields (any leftover plaintext `presetPassword` from earlier dev builds) are never written to the export. Imports also only accept allowlisted keys, blocking malicious JSON from sneaking in OS-level keys such as `AppleLanguages`.
+  - **Schema validation**: the JSON file must carry `schema: "SimpleZip.preferences"` and `version: 1`. Importing another app's plist, a future v2 file, or a payload with missing/wrong-type fields shows a precise error instead of silently writing garbage. Backed by 7 unit tests.
+- **New feature: Health dashboard**
+  - Settings gains a new "Health" pane (6th sidebar item, ❤️ icon): a single-screen view of the live status of the 7-Zip backend, RAR backend, file associations, and preset-password storage — green ✓ for OK, yellow ⚠ for warnings, red ✗ for outright failures, gray ⓘ for purely informational rows.
+  - Each row carries a context-aware "fix" button when something needs attention: missing RAR → jump to the Archive pane to install the local copy, partial file-association ownership → jump to the File Associations pane, preset password enabled but empty → jump to General.
+  - A "Re-check" button and a relative "Last checked …" timestamp sit at the bottom of the pane; the first time you open the pane it runs the checks automatically.
+- **New feature: one-click diagnostics**
+  - The long-task details panel and the operation-failure alert now offer a "Copy Diagnostics" button. Clicking it captures the app version, macOS version, bundled `7zz` / RAR backend paths + versions, operation title, start/finish times, error summary, and the tail of the command output (auto-trimmed to 4 000 chars with Chinese-aware boundaries) into a plain-text report that's ready to paste into a GitHub issue. The details panel shows a 2.5-second "Copied" confirmation.
+  - The report **redacts** command-line password fragments (`-p<value>` / `-hp<value>` get replaced with `-p[REDACTED]` / `-hp[REDACTED]`) so users don't accidentally leak real passwords when pasting into a public issue. 11 unit tests pin the redaction rule and the report layout.
 - **New feature: more startup-location choices**
   - The General → Startup location picker now includes the common macOS user folders (Documents, Movies, Music, Pictures) in addition to Home, Downloads, Desktop and "Last opened folder".
-  - Added a "Custom location" option: picking it immediately opens a folder chooser, and afterwards the row shows the folder name with a folder icon (hover for the full path) plus a "Choose…" button to re-pick. Cancelling the first chooser reverts the picker to the previous selection so the app never gets stuck in a "Custom but no path" state.
-  - If the chosen folder is later deleted or moved outside of SimpleZip, the description shows a red warning and the app silently falls back to the home folder at launch instead of failing to start.
+  - Picking "Add a custom location…" immediately opens a folder chooser, and afterwards the picker's collapsed label shows the folder's name (not the static "Custom location" label).
+  - **Custom locations are now remembered**: every folder you pick is kept in an MRU list shown under the system folders, so you can switch between recent custom locations from the same menu. The total visible items are capped at 10; if you pick more, the oldest custom entries are evicted first — the system folders are never dropped.
+  - Picking a location validates the folder exists; missing folders show a red "That folder isn't available right now" hint and self-prune from the MRU list without changing the current selection.
+  - If the saved startup location is gone at app launch, an alert lets you choose "Open Settings…" (jump to General to repick) or "Reset to Home" (wipe the custom history and go back to home).
 - **Bug fixes**
   - Fixed the Cmd+E menu silently switching to "Extract Selected" whenever items were selected inside an archive: the menu label says "Extract" (full archive) but the dialog that opened was the selection-only one. Cmd+E now always means full-archive extract; Cmd+Shift+E remains the dedicated "Extract Selected Items" shortcut.
 - **Security / docs**

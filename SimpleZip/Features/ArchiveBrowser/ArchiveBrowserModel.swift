@@ -38,6 +38,11 @@ final class ArchiveBrowserModel: ObservableObject {
     private let extractionCoordinator = ArchiveExtractionCoordinator(fileManager: .default)
     /// 打开的压缩包内容 + 当前路径 + 合成目录派生。生命周期等同于 model。
     private let session = ArchiveSession()
+    /// 用户主动用「以压缩包打开」打开过的文件 URL 集合（已 standardize）。
+    /// 当前导航位置的 archive URL 出现在这里 → 后端调用统一加 `force: true`，
+    /// 让 ArchiveService 跳过扩展名校验直接走 7-Zip。`.exe` `.apk` `.ipa` 等本质是 ZIP/NSIS
+    /// 的非典型压缩包就是这类用户场景。
+    private var forcedArchiveURLs: Set<URL> = []
     /// 本地文件浏览相关的纯逻辑（列目录 / 标签搜索 / FileItem 构造 / 路径补全）。
     private let fileBrowser = FileBrowserService()
     /// 「一次一个」长任务的生命周期管理（取消、ID 跟踪、跟 ArchiveService 的子进程联动）。
@@ -273,6 +278,24 @@ final class ArchiveBrowserModel: ObservableObject {
         openArchive(url, recordsHistory: true)
     }
 
+    /// 把任意文件「以压缩包打开」—— 不走扩展名校验，强制按 7-Zip 后端处理。
+    ///
+    /// 用户场景：.exe / .apk / .ipa / .jar / 各种非典型 archive。
+    /// 入口：FileTable 右键菜单 + File 主菜单 → 「以压缩包打开」。
+    /// 实现：把 URL 记到 `forcedArchiveURLs`，随后用现有 openArchive 流程走，
+    /// `loadArchive` / `performExtract*` / `testArchive` 等都靠 `isForced(_:)` 判断要不要传 force。
+    /// 不是有效压缩包时 ArchiveService.list 会抛 ArchiveError，正常走「读取压缩包失败」错误展示。
+    func openAsArchive(_ url: URL) {
+        forcedArchiveURLs.insert(url.standardizedFileURL)
+        openArchive(url)
+    }
+
+    /// 当前 URL 是否已被标记为「强制以压缩包打开」。
+    /// 用 standardizedFileURL 比较 —— 同一文件可能以不同形式（resolve / 非 resolve）传入。
+    private func isForced(_ url: URL) -> Bool {
+        forcedArchiveURLs.contains(url.standardizedFileURL)
+    }
+
     /// 外部入口（Finder 双击 / Open With / 服务调用）打开压缩包的路由。
     ///
     /// 按用户在「通用」设置里的偏好分两条路：
@@ -397,6 +420,7 @@ final class ArchiveBrowserModel: ObservableObject {
                     isRetry = true
                 }
 
+                let force = self.isForced(archiveURL)
                 while true {
                     do {
                         try? self.fileManager.removeItem(at: destination)
@@ -411,7 +435,8 @@ final class ArchiveBrowserModel: ObservableObject {
                             zipDecryptionMethod: zipDecryptionMethod,
                             safetyPolicy: .skipValidation,
                             operationID: operationID,
-                            progress: progress
+                            progress: progress,
+                            force: force
                         )
                         try self.confirmExtractedArchiveLinks(at: destination)
 
@@ -465,7 +490,8 @@ final class ArchiveBrowserModel: ObservableObject {
             to: stagingURL,
             overwriteBehavior: .overwrite,
             pathMode: .preserve,
-            safetyPolicy: .skipValidation
+            safetyPolicy: .skipValidation,
+            force: isForced(archiveURL)
         )
         try confirmExtractedArchiveLinks(at: stagingURL)
 
@@ -502,7 +528,7 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     private func confirmArchiveExtractionSafety(archiveURL: URL) async throws {
-        let items = try await ArchiveService.list(archiveURL)
+        let items = try await ArchiveService.list(archiveURL, force: isForced(archiveURL))
         try confirmArchiveExtractionSafety(entries: items)
     }
 
@@ -740,6 +766,7 @@ final class ArchiveBrowserModel: ObservableObject {
 
     func performExtractArchive(_ request: ExtractArchiveRequest) {
         let title = L10n.format("status.extracting", request.archiveURL.lastPathComponent)
+        let force = isForced(request.archiveURL)
         startManagedArchiveTask(
             title: title,
             showsDetails: request.showDetails,
@@ -768,7 +795,8 @@ final class ArchiveBrowserModel: ObservableObject {
                         safetyPolicy: .skipValidation,
                         operationID: operationID,
                         progress: progress,
-                        outputObserver: outputObserver
+                        outputObserver: outputObserver,
+                        force: force
                     )
                     break
                 } catch {
@@ -825,6 +853,7 @@ final class ArchiveBrowserModel: ObservableObject {
 
     func performExtractSelection(_ request: ExtractSelectionRequest) {
         let title = L10n.format("status.extractingSelected", request.entries.count)
+        let force = isForced(request.archiveURL)
         startManagedArchiveTask(
             title: title,
             showsDetails: request.showDetails,
@@ -855,7 +884,8 @@ final class ArchiveBrowserModel: ObservableObject {
                         safetyPolicy: .skipValidation,
                         operationID: operationID,
                         progress: progress,
-                        outputObserver: outputObserver
+                        outputObserver: outputObserver,
+                        force: force
                     )
                     break
                 } catch {
@@ -902,12 +932,13 @@ final class ArchiveBrowserModel: ObservableObject {
             return
         }
 
+        let force = isForced(archiveURL)
         startManagedArchiveTask(
             title: L10n.format("status.testing", archiveURL.lastPathComponent),
             showsDetails: false,
             successStatus: L10n.text("status.archiveTested")
         ) { operationID, _, _ in
-            try await ArchiveService.test(archiveURL, operationID: operationID)
+            try await ArchiveService.test(archiveURL, operationID: operationID, force: force)
         }
     }
 
@@ -1289,10 +1320,11 @@ final class ArchiveBrowserModel: ObservableObject {
         beginAsyncLoad(generation: generation, statusText: L10n.text("status.readingArchive"))
         defer { endAsyncLoad(generation: generation) }
 
+        let force = isForced(url)
         do {
             let items: [ArchiveItem]
             do {
-                items = try await ArchiveService.list(url)
+                items = try await ArchiveService.list(url, force: force)
             } catch {
                 guard
                     AppPreferences.hasUsablePresetPassword,
@@ -1300,7 +1332,7 @@ final class ArchiveBrowserModel: ObservableObject {
                 else {
                     throw error
                 }
-                items = try await ArchiveService.list(url, password: AppPreferences.presetPassword)
+                items = try await ArchiveService.list(url, password: AppPreferences.presetPassword, force: force)
             }
             guard isCurrentLoad(generation, mode: .archive(url)) else { return }
             session.setItems(items)
@@ -1518,7 +1550,11 @@ final class ArchiveBrowserModel: ObservableObject {
 
         guard alert.runModal() == .alertFirstButtonReturn else { return nil }
         let password = passwordField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !password.isEmpty else { return nil }
+        // 注意：点了 Extract 但密码框留空 ≠ 取消。
+        // 比如用户给一个其实没加密的档案先填了密码 → 后续重试弹框 → 用户清掉再点 Extract，
+        // 这是「我想不带密码再试一次」的明确表态，把空字符串照原样返回让外层 retry 一次。
+        // 旧代码这里 guard !password.isEmpty else { return nil }，会被外层当 CancellationError 抛出 ——
+        // 没加密的档案就被"静默"标成取消，文件根本没解出来。
         let selectedMethod: ArchiveDecryptionMethod
         if let methodPicker {
             let index = methodPicker.indexOfSelectedItem

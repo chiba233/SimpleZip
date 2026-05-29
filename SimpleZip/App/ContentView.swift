@@ -58,7 +58,16 @@ struct ContentView: View {
         }, set: { newValue in
             if !newValue { model.dismissOperationFailureAlert() }
         })) {
-            if model.operationDetailsSession != nil {
+            if let session = model.operationDetailsSession {
+                // 点了「复制诊断」alert 会被自动关掉（SwiftUI 默认行为），
+                // 但 NSPasteboard.setString 是同步的，await ArchiveService.*Version 的取版本
+                // 由 DiagnosticsCopier 内部异步等待，最坏情况就是用户多等一两秒看到 ✓ 反馈。
+                Button(L10n.text("button.copyDiagnostics")) {
+                    let errorMessage = model.errorMessage
+                    Task {
+                        await DiagnosticsCopier.copy(session: session, errorMessage: errorMessage)
+                    }
+                }
                 Button(L10n.text("button.details")) {
                     model.openOperationDetailsFromFailureAlert()
                 }

@@ -62,6 +62,17 @@ struct ArchiveFileCommands: Commands {
             .keyboardShortcut("o", modifiers: [.command, .shift])
             .disabled(model == nil)
 
+            // 「以压缩包打开」选中文件，跳过扩展名校验直接走 7-Zip。
+            // 启用条件：选中单个非目录文件，且它本身不是已识别的压缩包（已识别的用普通 Open 即可）。
+            Button {
+                if let item = model?.selectedFileItems.first {
+                    model?.openAsArchive(item.url)
+                }
+            } label: {
+                Label(L10n.text("file.openAsArchive"), systemImage: "doc.zipper")
+            }
+            .disabled(!canOpenSelectionAsArchive)
+
             Divider()
 
             Button {
@@ -215,6 +226,13 @@ struct ArchiveFileCommands: Commands {
             .keyboardShortcut(.delete, modifiers: [])
             .disabled(!canManageSelectedFiles)
         }
+    }
+
+    private var canOpenSelectionAsArchive: Bool {
+        guard let model, case .folder = model.mode else { return false }
+        guard model.selectedFileItems.count == 1, let item = model.selectedFileItems.first else { return false }
+        // 已识别的压缩包用普通 Open 即可，避免菜单里出现两个看上去都能用的命令。
+        return !item.isDirectory && !ArchiveService.isSupportedArchive(item.url)
     }
 
     private var canOpenSelection: Bool {

@@ -16,6 +16,8 @@ enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
     case browser
     case fileAssociations
     case columns
+    case health
+    case backup
 
     var id: String { rawValue }
 
@@ -31,6 +33,10 @@ enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
             return L10n.text("settings.section.fileAssociations")
         case .columns:
             return L10n.text("settings.section.columns")
+        case .health:
+            return L10n.text("settings.section.health")
+        case .backup:
+            return L10n.text("settings.section.backup")
         }
     }
 
@@ -46,6 +52,10 @@ enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
             return "doc.badge.gearshape"
         case .columns:
             return "tablecells"
+        case .health:
+            return "heart.text.square"
+        case .backup:
+            return "arrow.up.arrow.down.square"
         }
     }
 }

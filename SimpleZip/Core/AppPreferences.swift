@@ -555,6 +555,84 @@ enum AppPreferences {
 
     /// 把启动配置恢复到默认（home）+ 清掉 custom 相关状态。
     /// 启动时弹窗里「重置」按钮、设置面板里未来可能的「恢复默认」入口都会用。
+    // MARK: - 备份 / 还原
+
+    /// 可以参与导出 / 导入 / 全部恢复默认的 key 名单。
+    ///
+    /// 故意手动登记 ——
+    /// 1. 隐私字段（lastFolderPath / pinnedSidebarPaths / recentSidebarPaths）会暴露用户真实
+    ///    本机路径，不导出；
+    /// 2. 安全字段（旧版本可能存在的 legacy `presetPassword`）属于密码本身，绝不导出；
+    /// 3. 导入时只接受登记过的 key，防止恶意 JSON 写不属于 SimpleZip 的 UserDefaults key
+    ///    （比如 AppleLanguages 这种全局系统 key）。
+    /// 添加新 settings key 时，记得来这里登记一下 + 同步更新 release-checklist.md。
+    static let exportableUserDefaultsKeys: [String] = [
+        Key.appLanguage,
+        Key.startupLocation,
+        Key.startupCustomLocationPath,
+        Key.startupCustomLocationHistory,
+        Key.rememberLastFolder,
+        Key.overwriteBehavior,
+        Key.confirmBeforeDeletingFiles,
+        Key.finderOpenAutoExtract,
+        // 注意：只导 presetPasswordEnabled 开关，密码本身永远在 Keychain，不进导出文件。
+        Key.presetPasswordEnabled,
+        Key.suspiciousPathPolicy,
+        Key.symbolicLinkPolicy,
+        Key.activeContentOpenPolicy,
+        Key.sevenZipBackend,
+        Key.rarBackend,
+        Key.showHiddenFiles,
+        Key.showSymbolicLinks,
+        Key.followFinderStructure,
+        Key.hiddenSuffixesEnabled,
+        Key.hiddenRecommendedSuffixes,
+        Key.hiddenCustomSuffixes,
+        Key.showFileSizeColumn,
+        Key.showFileTypeColumn,
+        Key.showFileApplicationColumn,
+        Key.showFileLastOpenedColumn,
+        Key.showFileDateAddedColumn,
+        Key.showFileModifiedColumn,
+        Key.showFileCreatedColumn,
+        Key.showArchiveKindColumn,
+        Key.showArchiveSizeColumn,
+        Key.showArchiveModifiedColumn,
+        Key.showArchiveMethodColumn,
+        Key.fileColumnOrder,
+        Key.archiveColumnOrder
+    ]
+
+    /// 拼一份当前所有可导出 key 的 payload，可直接 JSONSerialization 序列化。
+    static func exportablePayload() -> [String: Any] {
+        var values: [String: Any] = [:]
+        for key in exportableUserDefaultsKeys {
+            if let value = defaults.object(forKey: key) {
+                values[key] = value
+            }
+        }
+        return PreferencesPayloadCodec.makePayload(values: values)
+    }
+
+    /// 把一份外部 payload 写回 UserDefaults。
+    /// 只接受白名单里的 key，已有偏好会被覆盖。导入完成后调用方应让相关 UI 刷新。
+    static func importPayload(_ payload: [String: Any]) throws {
+        let values = try PreferencesPayloadCodec.decode(payload)
+        let allowed = Set(exportableUserDefaultsKeys)
+        for (key, value) in values where allowed.contains(key) {
+            defaults.set(value, forKey: key)
+        }
+    }
+
+    /// 把所有可导出 key 全部抹掉 + 顺手把 Keychain 里的预设密码也清掉。
+    /// 「全部恢复默认」按钮调；用户应该被警告这是不可逆操作。
+    static func restoreAllDefaultsToFactory() {
+        for key in exportableUserDefaultsKeys {
+            defaults.removeObject(forKey: key)
+        }
+        PresetPasswordStore.clear()
+    }
+
     static func resetStartupLocationToDefault() {
         defaults.set(StartupLocation.home.rawValue, forKey: Key.startupLocation)
         defaults.removeObject(forKey: Key.startupCustomLocationPath)

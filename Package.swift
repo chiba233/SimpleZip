@@ -43,6 +43,8 @@ let package = Package(
                 "Core/ArchiveService+Parsing.swift",
                 "Core/ArchiveService.swift",
                 "Core/L10n.swift",
+                "Core/OperationDiagnosticsReporter.swift",
+                "Core/PreferencesPayloadCodec.swift",
                 "Core/PresetPasswordStore.swift",
                 "Core/TemporaryResourceManager.swift"
             ]
