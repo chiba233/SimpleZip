@@ -332,16 +332,6 @@ enum GPGBackend {
         case badSignature(signer: String?)
         /// gpg 命令本身失败（非签名层面错误）。
         case verificationError(message: String)
-
-        var iconName: String {
-            switch self {
-            case .validSignature(_, true): return "checkmark.seal.fill"
-            case .validSignature(_, false): return "checkmark.seal"
-            case .unknownSigner: return "questionmark.circle.fill"
-            case .badSignature: return "exclamationmark.triangle.fill"
-            case .verificationError: return "xmark.octagon.fill"
-            }
-        }
     }
 
     private static var candidates: [String] {
