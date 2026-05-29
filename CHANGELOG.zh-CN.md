@@ -4,6 +4,15 @@
 
 ## 0.1.8
 
+- **新功能：运行状态诊断面板 + 复制诊断报告里加入 GPG 模块**
+  - 「设置 → 运行状态」`HealthPane` 加一行 GPG 后端状态 —— 仅当用户启用了 GPG 集成（`gpgEnabled == true`）时出现，按 AGENTS A4「主开关关 = 主界面不再露 GPG 字样」例外只在设置 / 诊断面里露。
+  - 单行综合状态四态：GnuPG 缺失 → 红 ✗（带「打开 GPG 设置」修复按钮）；GnuPG ok 但 pinentry-mac 缺 → 黄 ⚠（签名能用、解密 / 解锁私钥会卡，因为 gpg-agent 没 GUI 弹窗）；GnuPG + pinentry 全 ok 但 gpg-agent 没跑 → 黄 ⚠（gpg 会按需拉起，通常不致命）；全绿 ✓ → 显示钥匙串里公钥总数 + 含私钥数量。
+  - 「复制诊断」按钮的报告里新增 `GPG:` 段（仅 `gpgEnabled == true` 时出现）：路径 / 版本 / pinentry-mac / gpg-agent / `$GNUPGHOME` envvar / 公钥总数 / 含私钥数量。
+  - **隐私约束**：诊断报告**不**携带 fingerprint / userID / email / 公钥本体；**不**读 `~/.gnupg/` 任何文件。用户复制贴 Issue 时不会泄露密钥身份信息。SECURITY.md 计划在 #29 后续更新里把这条原则补进 .siz 节里。
+  - `GPGBackend` 加两个轻量探测：`gnupgHome()` 读 `$GNUPGHOME` envvar（用户自定义私钥目录是「为什么 SimpleZip 看不到我的密钥」的高频根因）；`gpgAgentAlive() async` 跑 `gpg-connect-agent /bye` 判活。
+  - 文案沿用 `feedback-gpg-release-emphasis` 风格：报错信息明确告诉用户「请检查本机 gpg / pinentry / 密钥配置」，不让用户误以为是 SimpleZip 出 bug。
+  - `OperationDiagnosticsInputs` 加可选 `gpgSection: GPGDiagnosticsSection?` 字段（默认 nil 让现有单测无需改）；新结构 `GPGDiagnosticsSection` 在 Core 里，跟 Inputs 同款 public init 风格。
+
 - **新功能：欢迎助手加入「GPG（PGP 签名）— 可选」步骤**
   - 总步数从 7 升到 8 ——「设置类」步骤计数 1/8..8/8。
   - 单独成步骤而不是塞进现有「后端可用性」一格，因为 GPG 是「特殊可选功能」语义 ——「不开 GPG 也不影响日常压缩 / 解压」，必须由用户显式做出 opt-in / opt-out 决定，混进 backend 步骤会让用户误以为「必装」。

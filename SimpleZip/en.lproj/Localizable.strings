@@ -393,6 +393,12 @@
 "health.associations.allOwned" = "SimpleZip is the default app for all %d supported archive types.";
 "health.associations.partial" = "SimpleZip is the default app for %d of %d supported archive types.";
 "health.openAssociations" = "Manage Associations";
+"health.gpg.title" = "GPG backend";
+"health.gpg.ok" = "GnuPG + pinentry-mac ready, gpg-agent alive. Keyring: %1$d public, %2$d with secret key.";
+"health.gpg.missing" = "GPG integration is enabled but GnuPG is not installed. Install it from Settings → GPG.";
+"health.gpg.pinentryMissing" = "GnuPG is installed but pinentry-mac is missing. Signing works; decryption / unlocking private keys will hang (gpg-agent has no native GUI prompt). Keyring: %1$d / %2$d with secret key.";
+"health.gpg.agentDown" = "GnuPG + pinentry-mac present, but gpg-agent is not running. gpg will spawn it on demand, so this is usually not fatal. Keyring: %1$d / %2$d with secret key.";
+"health.gpg.openSettings" = "Open GPG Settings";
 "health.presetPassword.title" = "Preset password";
 "health.presetPassword.disabled" = "Disabled. Enable in General settings if you want auto-fill and silent retry.";
 "health.presetPassword.ok" = "Configured and stored in Keychain.";

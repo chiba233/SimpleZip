@@ -26,6 +26,8 @@ public struct OperationDiagnosticsInputs {
     public let errorMessage: String?
     /// 截取报告里 rawOutput 的最后这么多字符，避免几 MB 的输出贴进 Issue。
     public let outputTailCharacterLimit: Int
+    /// 可选 GPG 后端 snapshot —— 用户 `gpgEnabled == true` 时填，否则 nil（报告不会出现 GPG 段）。
+    public let gpgSection: GPGDiagnosticsSection?
 
     public init(
         appVersion: String,
@@ -40,7 +42,8 @@ public struct OperationDiagnosticsInputs {
         finishedAt: Date?,
         rawOutput: String,
         errorMessage: String?,
-        outputTailCharacterLimit: Int = 4000
+        outputTailCharacterLimit: Int = 4000,
+        gpgSection: GPGDiagnosticsSection? = nil
     ) {
         self.appVersion = appVersion
         self.appBuild = appBuild
@@ -55,6 +58,46 @@ public struct OperationDiagnosticsInputs {
         self.rawOutput = rawOutput
         self.errorMessage = errorMessage
         self.outputTailCharacterLimit = outputTailCharacterLimit
+        self.gpgSection = gpgSection
+    }
+}
+
+/// GPG 后端诊断 snapshot —— 仅当用户启用了 GPG 集成时被填充。
+///
+/// **隐私约束**：只携带「路径 / 版本 / 计数」级数据；不带任何 fingerprint / userID / email / 公钥本体；
+/// 不读 `~/.gnupg/` 任何文件。用户复制诊断贴 Issue 时不会泄露密钥身份信息。
+public struct GPGDiagnosticsSection {
+    /// `GPGBackend.backendDescription()` 输出（路径或 "not found" 文案）。
+    public let backendDescription: String
+    /// `GPGBackend.version()` 输出（gpg --version 首行）。
+    public let version: String
+    /// 是否检测到 `pinentry-mac`（缺会让解密 / 解锁私钥卡住）。
+    public let pinentryAvailable: Bool
+    /// `gpg-connect-agent /bye` 退出码 0 = true。
+    public let agentAlive: Bool
+    /// `$GNUPGHOME` envvar 值；nil = 走默认 `~/.gnupg`。
+    public let gnupgHome: String?
+    /// keyring 里公钥总数（含私钥的也计入）。
+    public let totalKeyCount: Int
+    /// 含私钥的密钥数（本机或卡上 stub —— v1 不区分硬件 / 软件，等 #26 落地后再拆）。
+    public let secretKeyCount: Int
+
+    public init(
+        backendDescription: String,
+        version: String,
+        pinentryAvailable: Bool,
+        agentAlive: Bool,
+        gnupgHome: String?,
+        totalKeyCount: Int,
+        secretKeyCount: Int
+    ) {
+        self.backendDescription = backendDescription
+        self.version = version
+        self.pinentryAvailable = pinentryAvailable
+        self.agentAlive = agentAlive
+        self.gnupgHome = gnupgHome
+        self.totalKeyCount = totalKeyCount
+        self.secretKeyCount = secretKeyCount
     }
 }
 
@@ -96,6 +139,14 @@ public enum OperationDiagnosticsReporter {
         lines.append("          \(inputs.sevenZipVersion)")
         lines.append("  RAR:    \(inputs.rarDescription)")
         lines.append("          \(inputs.rarVersion)")
+        if let gpg = inputs.gpgSection {
+            lines.append("  GPG:    \(gpg.backendDescription)")
+            lines.append("          \(gpg.version)")
+            lines.append("          pinentry-mac: \(gpg.pinentryAvailable ? "ok" : "missing")")
+            lines.append("          gpg-agent:    \(gpg.agentAlive ? "alive" : "not running")")
+            lines.append("          GNUPGHOME:    \(gpg.gnupgHome ?? "(default ~/.gnupg)")")
+            lines.append("          keys:         \(gpg.totalKeyCount) total, \(gpg.secretKeyCount) with secret key")
+        }
         lines.append("")
         lines.append("Command output (sanitized, last \(inputs.outputTailCharacterLimit) chars):")
         lines.append("-----")

@@ -41,6 +41,7 @@ enum DiagnosticsCopier {
         let appVersion = info?["CFBundleShortVersionString"] as? String ?? "?"
         let appBuild = info?["CFBundleVersion"] as? String ?? "?"
         let macOSVersion = ProcessInfo.processInfo.operatingSystemVersionString
+        let gpgSection = await collectGPGSection()
         return OperationDiagnosticsInputs(
             appVersion: appVersion,
             appBuild: appBuild,
@@ -53,7 +54,31 @@ enum DiagnosticsCopier {
             startedAt: session.startedAt,
             finishedAt: session.finishedAt,
             rawOutput: session.rawOutput,
-            errorMessage: errorMessage
+            errorMessage: errorMessage,
+            gpgSection: gpgSection
+        )
+    }
+
+    /// GPG 后端 snapshot —— 仅在 `gpgEnabled == true` 时收集，否则报告不出 GPG 段（A4）。
+    /// 不收 fingerprint / userID / 公钥本体；只发路径 / 版本 / 计数（隐私约束在 SECURITY.md 有说明）。
+    private static func collectGPGSection() async -> GPGDiagnosticsSection? {
+        guard AppPreferences.gpgEnabled else { return nil }
+        let backendDescription = GPGBackend.backendDescription()
+        let version = await GPGBackend.version()
+        let pinentryAvailable = GPGBackend.hasPinentryMac()
+        let agentAlive = await GPGBackend.gpgAgentAlive()
+        let gnupgHome = GPGBackend.gnupgHome()
+        // 密钥列表只统计数量，丢弃 fingerprint / userID。listKeys 失败时（gpg 不可用）当作 0 处理。
+        let keys = (try? await GPGBackend.listKeys()) ?? []
+        let secretCount = keys.filter { $0.hasSecretKey }.count
+        return GPGDiagnosticsSection(
+            backendDescription: backendDescription,
+            version: version,
+            pinentryAvailable: pinentryAvailable,
+            agentAlive: agentAlive,
+            gnupgHome: gnupgHome,
+            totalKeyCount: keys.count,
+            secretKeyCount: secretCount
         )
     }
 }

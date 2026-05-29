@@ -391,6 +391,12 @@
 "health.presetPassword.ok" = "已配置，保存在钥匙串。";
 "health.presetPassword.empty" = "已启用，但还没填密码。";
 "health.openGeneral" = "打开通用设置";
+"health.gpg.title" = "GPG 后端";
+"health.gpg.ok" = "GnuPG + pinentry-mac 就绪，gpg-agent 在跑。钥匙串：%1$d 把公钥，%2$d 把含私钥。";
+"health.gpg.missing" = "已启用 GPG 集成但本机未装 GnuPG。请到「设置 → GPG」按提示安装。";
+"health.gpg.pinentryMissing" = "GnuPG 装了但 pinentry-mac 缺失。签名能用；解密 / 解锁私钥会卡（gpg-agent 没 GUI 弹窗）。钥匙串：%1$d / %2$d 含私钥。";
+"health.gpg.agentDown" = "GnuPG + pinentry-mac 都在，但 gpg-agent 没启动。后续操作 gpg 会自动拉起，通常不致命。钥匙串：%1$d / %2$d 含私钥。";
+"health.gpg.openSettings" = "打开 GPG 设置";
 "settings.columns.fileBrowser" = "文件浏览";
 "settings.columns.archiveBrowser" = "压缩包浏览";
 "settings.columns.preview" = "预览";

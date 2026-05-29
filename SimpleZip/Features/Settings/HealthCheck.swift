@@ -75,6 +75,9 @@ enum HealthChecker {
         items.append(await checkRAR(onOpenSettings: { onOpenPane(.archive) }))
         items.append(checkFileAssociations(onOpenSettings: { onOpenPane(.fileAssociations) }))
         items.append(checkPresetPassword(onOpenSettings: { onOpenPane(.general) }))
+        if let gpgItem = await checkGPG(onOpenSettings: { onOpenPane(.gpg) }) {
+            items.append(gpgItem)
+        }
         return items
     }
 
@@ -146,6 +149,58 @@ enum HealthChecker {
                 title: L10n.text("health.openAssociations"),
                 perform: onOpenSettings
             )
+        )
+    }
+
+    /// GPG 后端：仅在 `gpgEnabled == true` 时报告（A4：关掉 GPG 集成 = 主页面不显示 GPG 相关任何东西）。
+    /// 一行综合状态：gpg 缺失 → error；gpg 在但 pinentry-mac 缺 → warning；gpg + pinentry 全 ok 但 agent 死 → warning；全绿 → ok + 密钥数量。
+    /// detail 文案携带 pinentry-mac / agent 状态 + 密钥计数，不携带 fingerprint / userID。
+    private static func checkGPG(onOpenSettings: @escaping () -> Void) async -> HealthCheckItem? {
+        guard AppPreferences.gpgEnabled else { return nil }
+        guard GPGBackend.isAvailable() else {
+            return HealthCheckItem(
+                title: L10n.text("health.gpg.title"),
+                detail: L10n.text("health.gpg.missing"),
+                status: .error,
+                action: HealthCheckItem.FixAction(
+                    title: L10n.text("health.gpg.openSettings"),
+                    perform: onOpenSettings
+                )
+            )
+        }
+
+        let pinentry = GPGBackend.hasPinentryMac()
+        let agentAlive = await GPGBackend.gpgAgentAlive()
+        let keys = (try? await GPGBackend.listKeys()) ?? []
+        let secretCount = keys.filter { $0.hasSecretKey }.count
+
+        if !pinentry {
+            return HealthCheckItem(
+                title: L10n.text("health.gpg.title"),
+                detail: L10n.format("health.gpg.pinentryMissing", keys.count, secretCount),
+                status: .warning,
+                action: HealthCheckItem.FixAction(
+                    title: L10n.text("health.gpg.openSettings"),
+                    perform: onOpenSettings
+                )
+            )
+        }
+        if !agentAlive {
+            return HealthCheckItem(
+                title: L10n.text("health.gpg.title"),
+                detail: L10n.format("health.gpg.agentDown", keys.count, secretCount),
+                status: .warning,
+                action: HealthCheckItem.FixAction(
+                    title: L10n.text("health.gpg.openSettings"),
+                    perform: onOpenSettings
+                )
+            )
+        }
+        return HealthCheckItem(
+            title: L10n.text("health.gpg.title"),
+            detail: L10n.format("health.gpg.ok", keys.count, secretCount),
+            status: .ok,
+            action: nil
         )
     }
 

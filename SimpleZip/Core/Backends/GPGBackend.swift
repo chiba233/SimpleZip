@@ -66,6 +66,28 @@ enum GPGBackend {
         }
     }
 
+    /// `GNUPGHOME` 环境变量。用户自定义私钥目录时常见（如指向外置硬盘 / 容器卷）。
+    /// 返回 nil 表示走 gpg 默认（`~/.gnupg`）。诊断报告用 ——「为什么 SimpleZip 看不到我的密钥」的高频根因。
+    static func gnupgHome() -> String? {
+        ProcessInfo.processInfo.environment["GNUPGHOME"]
+    }
+
+    /// `gpg-agent` 是否活着 —— `gpg-connect-agent /bye` 退出码 0 = 活、非 0 = 没启动 / 出错。
+    /// 走 `gpg-connect-agent`（跟 gpg 同目录），不是直接 ping socket，因为后者要知道 socket 路径。
+    /// 诊断报告用；签名 / 解密真要 agent 时 gpg 自己会拉起它，所以「死」也不一定致命，给 warning 级。
+    static func gpgAgentAlive() async -> Bool {
+        guard let tool = try? resolve() else { return false }
+        let agent = URL(fileURLWithPath: tool).deletingLastPathComponent()
+            .appendingPathComponent("gpg-connect-agent").path
+        guard FileManager.default.isExecutableFile(atPath: agent) else { return false }
+        do {
+            _ = try await BackendProcessRunner.runAndCapture(agent, arguments: ["/bye"])
+            return true
+        } catch {
+            return false
+        }
+    }
+
     /// 同时是否检测到 `pinentry-mac` —— 没装的话签名 / 解密会卡在 passphrase prompt。
     /// 给 Settings GPG pane 显示警告用。
     static func hasPinentryMac() -> Bool {

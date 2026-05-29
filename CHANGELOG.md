@@ -4,6 +4,15 @@
 
 ## 0.1.8
 
+- **New feature: GPG section added to the Health diagnostics panel and the "Copy diagnostics" report**
+  - Settings → Health (`HealthPane`) now includes one GPG backend row — only when GPG integration is enabled (`gpgEnabled == true`), keeping with AGENTS A4 ("when the master toggle is off, no GPG UI appears outside Settings"). The Health pane and the diagnostics export are the documented exceptions where GPG status is allowed to surface even when the toggle is off, because they live inside Settings rather than on the main browsing surface.
+  - Four composite states on the row: GnuPG missing → red ✗ (with "Open GPG Settings" fix button); GnuPG present but pinentry-mac missing → yellow ⚠ (signing works but decryption / unlocking private keys hangs because gpg-agent has no native GUI prompt); GnuPG + pinentry present but gpg-agent not running → yellow ⚠ (gpg will spawn it on demand, usually not fatal); all green ✓ → shows keyring totals (`N public, M with secret key`).
+  - The "Copy diagnostics" report now includes a `GPG:` section (only when `gpgEnabled == true`): backend path, version, pinentry-mac availability, gpg-agent liveness, `$GNUPGHOME` envvar, keyring totals.
+  - **Privacy invariant**: the diagnostics report carries no fingerprints, no user IDs, no email addresses, no public-key material; it never reads any file inside `~/.gnupg/`. Users pasting the report into an issue tracker will not leak key identity information. SECURITY.md will gain a section documenting this invariant alongside the existing `.siz` privacy notes in a follow-up release.
+  - `GPGBackend` gains two lightweight probes: `gnupgHome()` reading `$GNUPGHOME` (a user-customized keyring location is the most common root cause of "SimpleZip doesn't see my keys" reports); `gpgAgentAlive() async` running `gpg-connect-agent /bye` to verify the agent is reachable.
+  - Error messages follow the `feedback-gpg-release-emphasis` discipline: they tell the user to check local gpg / pinentry / key configuration first, rather than implying SimpleZip is malfunctioning.
+  - `OperationDiagnosticsInputs` gains an optional `gpgSection: GPGDiagnosticsSection?` field (default `nil`, so the existing reporter test fixtures remain unchanged); the new `GPGDiagnosticsSection` struct lives in Core with a matching `public init`.
+
 - **New feature: Welcome Assistant gains a "GPG (PGP signing) — optional" step**
   - Step count goes from 7 to 8; the "settings" progress header now reads 1/8..8/8.
   - GPG gets its own dedicated step rather than being folded into the existing "Backend availability" step, because GPG is "a special, opt-in feature" semantically — turning it off keeps SimpleZip behaving as if GPG weren't there at all. Folding GPG into the backend step would mislead users into thinking GnuPG is required for normal archive work; it isn't.
