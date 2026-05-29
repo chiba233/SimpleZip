@@ -133,6 +133,7 @@ enum OverwriteBehavior: String, CaseIterable, Identifiable {
     case ask
     case overwrite
     case skipExisting
+    case replaceIfDifferent
 
     var id: String { rawValue }
 
@@ -144,6 +145,8 @@ enum OverwriteBehavior: String, CaseIterable, Identifiable {
             return L10n.text("settings.overwrite.overwrite")
         case .skipExisting:
             return L10n.text("settings.overwrite.skipExisting")
+        case .replaceIfDifferent:
+            return L10n.text("conflict.replaceIfDifferent")
         }
     }
 }
@@ -216,6 +219,7 @@ enum AppPreferences {
         static let suspiciousPathPolicy = "suspiciousPathPolicy"
         static let symbolicLinkPolicy = "symbolicLinkPolicy"
         static let activeContentOpenPolicy = "activeContentOpenPolicy"
+        static let confirmBeforeDeletingFiles = "confirmBeforeDeletingFiles"
         static let showHiddenFiles = "showHiddenFiles"
         static let showSymbolicLinks = "showSymbolicLinks"
         static let followFinderStructure = "followFinderApplicationStructure"
@@ -254,6 +258,10 @@ enum AppPreferences {
 
     static var overwriteBehavior: OverwriteBehavior {
         OverwriteBehavior(rawValue: defaults.string(forKey: Key.overwriteBehavior) ?? "") ?? .ask
+    }
+
+    static var confirmBeforeDeletingFiles: Bool {
+        defaultTrueBool(forKey: Key.confirmBeforeDeletingFiles)
     }
 
     static var suspiciousPathPolicy: ArchiveSecurityDecision {

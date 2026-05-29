@@ -233,7 +233,7 @@
 "file.delete" = "ลบ";
 "file.moveToTrash" = "ย้ายไปถังขยะ";
 "confirm.delete.title" = "ย้าย %d รายการไปถังขยะ?";
-"confirm.delete.message" = "ไฟล์ที่เลือกจะถูกย้ายไปถังขยะของ macOS ไม่ใช่ลบด้วย rm โดยตรง";
+"confirm.delete.message" = "ไฟล์ที่เลือกจะถูกย้ายไปถังขยะของ macOS และยังสามารถกู้คืนได้ก่อนล้างถังขยะ";
 "confirm.pasteConflict.title" = "\"%@\" มีอยู่แล้ว";
 "confirm.pasteConflict.message" = "เลือกวิธีที่ SimpleZip จะจัดการชื่อที่ซ้ำกันนี้";
 "conflict.replace" = "แทนที่";

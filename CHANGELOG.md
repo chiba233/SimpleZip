@@ -8,6 +8,26 @@
   - Fixed setting RAR as the default app by using the stable `com.rarlab.rar-archive` type instead of also trying macOS's dynamic `.rar` UTI, and declared the RAR archive type in the app bundle.
 - **Settings**
   - Added live column previews to the Columns settings pane so users can see how the file and archive lists will look before leaving Settings.
+  - Reworked Settings into a left sidebar layout and split backend install actions into described rows instead of crowded button groups.
+  - Moved the overwrite behavior default into General, added a General option to skip the delete confirmation prompt, and put the hidden-suffix disclosure control back on the left side of the row.
+  - Added explanatory copy to the main Settings controls and grouped related options more clearly so users can understand what each choice changes before toggling it.
+- **File operations**
+  - Added a global "replace if different" overwrite preference and applied it across extraction merges, paste, drag-and-drop, and Move To Folder.
+  - Broadened same-name conflict checks so regular files compare SHA256, symbolic links compare link targets, and folders compare recursive content fingerprints before deciding whether to replace.
+  - Added an "apply to remaining conflicts" checkbox to same-name conflict prompts so large extraction, paste, drag-and-drop, and move operations no longer require answering the same question repeatedly.
+  - Added a hash-conflict summary table for batch "replace if different" operations, showing which items matched and were skipped versus which items differed and were replaced.
+  - Reworked the hash-conflict summary from a cramped alert table into a resizable SwiftUI panel with lazy scrolling and better truncation for long file names and hashes.
+  - Fixed batch hash-conflict handling so SimpleZip shows either the single-file result or the batch summary, not both.
+  - Hid empty hash-conflict summary sections so an all-skipped or all-replaced batch no longer leaves a misleading blank group.
+  - Removed sticky section layout from the hash-conflict summary to avoid stray blank space before skipped items.
+  - Split the hash-conflict summary comparison into separate existing-hash and incoming-hash columns.
+  - Removed the low-value "Keep Both" choice from same-name conflict prompts so the dialog focuses on replace, skip, or replace-if-different.
+- **Copy**
+  - Reworded the delete confirmation to explain Trash recovery instead of mentioning implementation details.
+- **Settings**
+  - Cleaned up the Browser hidden-suffix controls so the collapsed row uses a normal setting height and the expand/remove/add buttons align with the rest of Settings.
+- **Encrypted archives**
+  - Fixed extraction of password-protected archives when the user leaves the optional password field blank: SimpleZip now prompts for a password and retries instead of failing immediately.
 
 ## 0.1.4
 

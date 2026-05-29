@@ -13,6 +13,7 @@ struct SettingsView: View {
     @AppStorage(AppPreferences.Key.appLanguage) private var appLanguage = AppLanguage.system.rawValue
     @AppStorage(AppPreferences.Key.startupLocation) private var startupLocation = StartupLocation.home.rawValue
     @AppStorage(AppPreferences.Key.overwriteBehavior) private var overwriteBehavior = OverwriteBehavior.ask.rawValue
+    @AppStorage(AppPreferences.Key.confirmBeforeDeletingFiles) private var confirmBeforeDeletingFiles = true
     @AppStorage(AppPreferences.Key.suspiciousPathPolicy) private var suspiciousPathPolicy = ArchiveSecurityDecision.ask.rawValue
     @AppStorage(AppPreferences.Key.symbolicLinkPolicy) private var symbolicLinkPolicy = ArchiveSecurityDecision.ask.rawValue
     @AppStorage(AppPreferences.Key.activeContentOpenPolicy) private var activeContentOpenPolicy = ArchiveSecurityDecision.ask.rawValue
@@ -55,39 +56,15 @@ struct SettingsView: View {
     @State private var hiddenSuffixInput = ""
 
     var body: some View {
-        TabView(selection: $selectedPane) {
-            generalPane
-                .tabItem {
-                    Label(L10n.text("settings.section.general"), systemImage: "gearshape")
-                }
-                .tag(SettingsPane.general)
+        HStack(spacing: 0) {
+            settingsSidebar
 
-            archivePane
-                .tabItem {
-                    Label(L10n.text("settings.section.archive"), systemImage: "archivebox")
-                }
-                .tag(SettingsPane.archive)
+            Divider()
 
-            browserPane
-                .tabItem {
-                    Label(L10n.text("settings.section.browser"), systemImage: "folder")
-                }
-                .tag(SettingsPane.browser)
-
-            fileAssociationsPane
-                .tabItem {
-                    Label(L10n.text("settings.section.fileAssociations"), systemImage: "doc.badge.gearshape")
-                }
-                .tag(SettingsPane.fileAssociations)
-
-            columnsPane
-                .tabItem {
-                    Label(L10n.text("settings.section.columns"), systemImage: "tablecells")
-                }
-                .tag(SettingsPane.columns)
+            selectedPaneView
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .padding(20)
-        .frame(width: 720, height: 520)
+        .frame(width: 820, height: 560)
         .navigationTitle(L10n.text("settings.title"))
         .onAppear {
             if SettingsNavigation.consumePendingColumnsRequest() {
@@ -126,16 +103,59 @@ struct SettingsView: View {
         }
     }
 
+    private var settingsSidebar: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(SettingsPane.allCases) { pane in
+                SettingsPaneSidebarButton(
+                    pane: pane,
+                    isSelected: selectedPane == pane
+                ) {
+                    selectedPane = pane
+                }
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 16)
+        .frame(width: 178)
+        .frame(maxHeight: .infinity, alignment: .topLeading)
+        .background(Color(nsColor: .controlBackgroundColor))
+    }
+
+    @ViewBuilder
+    private var selectedPaneView: some View {
+        switch selectedPane {
+        case .general:
+            generalPane
+        case .archive:
+            archivePane
+        case .browser:
+            browserPane
+        case .fileAssociations:
+            fileAssociationsPane
+        case .columns:
+            columnsPane
+        }
+    }
+
     private var generalPane: some View {
         Form {
             Section(L10n.text("settings.section.general")) {
-                Picker(L10n.text("settings.language"), selection: $appLanguage) {
-                    ForEach(AppLanguage.allCases) { language in
-                        Text(language.title).tag(language.rawValue)
+                SettingsControlRow(
+                    title: L10n.text("settings.language"),
+                    description: L10n.text("settings.language.description")
+                ) {
+                    Picker("", selection: $appLanguage) {
+                        ForEach(AppLanguage.allCases) { language in
+                            Text(language.title).tag(language.rawValue)
+                        }
                     }
-                }
-                .onChange(of: appLanguage) { newValue in
-                    applyLanguage(newValue)
+                    .labelsHidden()
+                    .frame(width: 220)
+                    .onChange(of: appLanguage) { newValue in
+                        applyLanguage(newValue)
+                    }
                 }
 
                 if let languageMessage {
@@ -144,13 +164,44 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                Picker(L10n.text("settings.startupLocation"), selection: $startupLocation) {
-                    ForEach(StartupLocation.allCases) { location in
-                        Text(location.title).tag(location.rawValue)
+                SettingsControlRow(
+                    title: L10n.text("settings.startupLocation"),
+                    description: L10n.text("settings.startupLocation.description")
+                ) {
+                    Picker("", selection: $startupLocation) {
+                        ForEach(StartupLocation.allCases) { location in
+                            Text(location.title).tag(location.rawValue)
+                        }
                     }
+                    .labelsHidden()
+                    .frame(width: 220)
                 }
 
-                Toggle(L10n.text("settings.rememberLastFolder"), isOn: $rememberLastFolder)
+                SettingsToggleRow(
+                    title: L10n.text("settings.rememberLastFolder"),
+                    description: L10n.text("settings.rememberLastFolder.description"),
+                    isOn: $rememberLastFolder
+                )
+            }
+            Section(L10n.text("settings.section.defaults")) {
+                SettingsControlRow(
+                    title: L10n.text("settings.overwriteBehavior"),
+                    description: L10n.text("settings.overwriteBehavior.description")
+                ) {
+                    Picker("", selection: $overwriteBehavior) {
+                        ForEach(OverwriteBehavior.allCases) { behavior in
+                            Text(behavior.title).tag(behavior.rawValue)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(width: 220)
+                }
+
+                SettingsToggleRow(
+                    title: L10n.text("settings.confirmBeforeDeletingFiles"),
+                    description: L10n.text("settings.confirmBeforeDeletingFiles.description"),
+                    isOn: $confirmBeforeDeletingFiles
+                )
             }
         }
         .formStyle(.grouped)
@@ -159,46 +210,66 @@ struct SettingsView: View {
 
     private var archivePane: some View {
         Form {
-            Section(L10n.text("settings.section.defaults")) {
-                Picker(L10n.text("settings.overwriteBehavior"), selection: $overwriteBehavior) {
-                    ForEach(OverwriteBehavior.allCases) { behavior in
-                        Text(behavior.title).tag(behavior.rawValue)
-                    }
-                }
-            }
-
             Section(L10n.text("settings.section.security")) {
-                Picker(L10n.text("settings.security.suspiciousPaths"), selection: $suspiciousPathPolicy) {
-                    ForEach(ArchiveSecurityDecision.allCases) { decision in
-                        Text(decision.title).tag(decision.rawValue)
-                    }
-                }
-
-                Picker(L10n.text("settings.security.symbolicLinks"), selection: $symbolicLinkPolicy) {
-                    ForEach(ArchiveSecurityDecision.allCases) { decision in
-                        Text(decision.title).tag(decision.rawValue)
-                    }
-                }
-
-                Picker(L10n.text("settings.security.activeContent"), selection: $activeContentOpenPolicy) {
-                    ForEach(ArchiveSecurityDecision.allCases) { decision in
-                        Text(decision.title).tag(decision.rawValue)
-                    }
-                }
-
                 Text(L10n.text("settings.security.description"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
+
+                SettingsControlRow(
+                    title: L10n.text("settings.security.suspiciousPaths"),
+                    description: L10n.text("settings.security.suspiciousPaths.description")
+                ) {
+                    Picker("", selection: $suspiciousPathPolicy) {
+                        ForEach(ArchiveSecurityDecision.allCases) { decision in
+                            Text(decision.title).tag(decision.rawValue)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(width: 180)
+                }
+
+                SettingsControlRow(
+                    title: L10n.text("settings.security.symbolicLinks"),
+                    description: L10n.text("settings.security.symbolicLinks.description")
+                ) {
+                    Picker("", selection: $symbolicLinkPolicy) {
+                        ForEach(ArchiveSecurityDecision.allCases) { decision in
+                            Text(decision.title).tag(decision.rawValue)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(width: 180)
+                }
+
+                SettingsControlRow(
+                    title: L10n.text("settings.security.activeContent"),
+                    description: L10n.text("settings.security.activeContent.description")
+                ) {
+                    Picker("", selection: $activeContentOpenPolicy) {
+                        ForEach(ArchiveSecurityDecision.allCases) { decision in
+                            Text(decision.title).tag(decision.rawValue)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(width: 180)
+                }
             }
 
             Section(L10n.text("settings.7zip.backend")) {
-                Picker(L10n.text("settings.7zip.backend"), selection: $sevenZipBackend) {
-                    ForEach(SevenZipBackend.allCases) { backend in
-                        Text(backend.title).tag(backend.rawValue)
+                SettingsControlRow(
+                    title: L10n.text("settings.7zip.backend"),
+                    description: L10n.text("settings.7zip.backend.description")
+                ) {
+                    Picker("", selection: $sevenZipBackend) {
+                        ForEach(SevenZipBackend.allCases) { backend in
+                            Text(backend.title).tag(backend.rawValue)
+                        }
                     }
-                }
-                .onChange(of: sevenZipBackend) { _ in
-                    refreshSevenZipVersion()
+                    .labelsHidden()
+                    .frame(width: 220)
+                    .onChange(of: sevenZipBackend) { _ in
+                        refreshSevenZipVersion()
+                    }
                 }
 
                 VStack(alignment: .leading, spacing: 3) {
@@ -220,13 +291,20 @@ struct SettingsView: View {
             }
 
             Section(L10n.text("settings.rar.backend")) {
-                Picker(L10n.text("settings.rar.backend"), selection: $rarBackend) {
-                    ForEach(RarBackend.allCases) { backend in
-                        Text(backend.title).tag(backend.rawValue)
+                SettingsControlRow(
+                    title: L10n.text("settings.rar.backend"),
+                    description: L10n.text("settings.rar.backend.description")
+                ) {
+                    Picker("", selection: $rarBackend) {
+                        ForEach(RarBackend.allCases) { backend in
+                            Text(backend.title).tag(backend.rawValue)
+                        }
                     }
-                }
-                .onChange(of: rarBackend) { _ in
-                    refreshRarVersion()
+                    .labelsHidden()
+                    .frame(width: 220)
+                    .onChange(of: rarBackend) { _ in
+                        refreshRarVersion()
+                    }
                 }
 
                 VStack(alignment: .leading, spacing: 3) {
@@ -242,44 +320,51 @@ struct SettingsView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
-                        VStack(alignment: .leading, spacing: 6) {
-                            HStack {
-                                Button {
-                                    openRarInstallReadme()
-                                } label: {
-                                    Label(L10n.text("settings.rar.openReadme"), systemImage: "doc.text")
-                                }
+                        SettingsActionRow(
+                            title: L10n.text("settings.rar.openReadme"),
+                            description: L10n.text("settings.rar.openReadme.description"),
+                            systemImage: "doc.text",
+                            buttonTitle: L10n.text("settings.rar.openReadme"),
+                            action: openRarInstallReadme
+                        )
 
-                                Button {
-                                    revealRarInstallFiles()
-                                } label: {
-                                    Label(L10n.text("settings.rar.revealInstallFiles"), systemImage: "folder")
-                                }
-                            }
+                        SettingsActionRow(
+                            title: L10n.text("settings.rar.revealInstallFiles"),
+                            description: L10n.text("settings.rar.revealInstallFiles.description"),
+                            systemImage: "folder",
+                            buttonTitle: L10n.text("settings.rar.revealInstallFiles"),
+                            action: revealRarInstallFiles
+                        )
 
-                            HStack {
-                                Button {
-                                    beginRarInstallReview(.install)
-                                } label: {
-                                    Label(L10n.text("settings.rar.runInstaller"), systemImage: "arrow.down.circle")
-                                }
-                                .disabled(isInstallingRar || hasLocalRarBackend)
-
-                                Button {
-                                    beginRarInstallReview(.update)
-                                } label: {
-                                    Label(L10n.text("settings.rar.updateBackend"), systemImage: "arrow.triangle.2.circlepath")
-                                }
-                                .disabled(isInstallingRar || !hasLocalRarBackend)
-
-                                Button(role: .destructive) {
-                                    deleteLocalRarBackend()
-                                } label: {
-                                    Label(L10n.text("settings.rar.deleteBackend"), systemImage: "trash")
-                                }
-                                .disabled(isInstallingRar || !hasLocalRarBackend)
-                            }
+                        SettingsActionRow(
+                            title: L10n.text("settings.rar.runInstaller"),
+                            description: L10n.text("settings.rar.runInstaller.description"),
+                            systemImage: "arrow.down.circle",
+                            buttonTitle: L10n.text("settings.rar.runInstaller"),
+                            isDisabled: isInstallingRar || hasLocalRarBackend
+                        ) {
+                            beginRarInstallReview(.install)
                         }
+
+                        SettingsActionRow(
+                            title: L10n.text("settings.rar.updateBackend"),
+                            description: L10n.text("settings.rar.updateBackend.description"),
+                            systemImage: "arrow.triangle.2.circlepath",
+                            buttonTitle: L10n.text("settings.rar.updateBackend"),
+                            isDisabled: isInstallingRar || !hasLocalRarBackend
+                        ) {
+                            beginRarInstallReview(.update)
+                        }
+
+                        SettingsActionRow(
+                            title: L10n.text("settings.rar.deleteBackend"),
+                            description: L10n.text("settings.rar.deleteBackend.description"),
+                            systemImage: "trash",
+                            buttonTitle: L10n.text("settings.rar.deleteBackend"),
+                            role: .destructive,
+                            isDisabled: isInstallingRar || !hasLocalRarBackend,
+                            action: deleteLocalRarBackend
+                        )
 
                         if let rarInstallMessage {
                             Text(rarInstallMessage)
@@ -330,10 +415,47 @@ struct SettingsView: View {
     private var browserPane: some View {
         Form {
             Section(L10n.text("settings.section.browser")) {
-                Toggle(L10n.text("settings.showHiddenFiles"), isOn: $showHiddenFiles)
-                Toggle(L10n.text("settings.showSymbolicLinks"), isOn: $showSymbolicLinks)
-                Toggle(L10n.text("settings.followFinderStructure"), isOn: $followFinderStructure)
-                DisclosureGroup(isExpanded: $showsHiddenSuffixDrawer) {
+                SettingsToggleRow(
+                    title: L10n.text("settings.showHiddenFiles"),
+                    description: L10n.text("settings.showHiddenFiles.description"),
+                    isOn: $showHiddenFiles
+                )
+                SettingsToggleRow(
+                    title: L10n.text("settings.showSymbolicLinks"),
+                    description: L10n.text("settings.showSymbolicLinks.description"),
+                    isOn: $showSymbolicLinks
+                )
+                SettingsToggleRow(
+                    title: L10n.text("settings.followFinderStructure"),
+                    description: L10n.text("settings.followFinderStructure.description"),
+                    isOn: $followFinderStructure
+                )
+                HStack(alignment: .center, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(L10n.text("settings.hiddenSuffixesEnabled"))
+                            .font(.callout)
+                        Text(L10n.text("settings.hiddenSuffixesEnabled.description"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer()
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            showsHiddenSuffixDrawer.toggle()
+                        }
+                    } label: {
+                        Image(systemName: showsHiddenSuffixDrawer ? "chevron.down" : "chevron.right")
+                            .frame(width: 14, height: 14)
+                    }
+                    .buttonStyle(.borderless)
+                    .help(L10n.text("settings.hiddenSuffixes"))
+                    Toggle("", isOn: $hiddenSuffixesEnabled)
+                        .labelsHidden()
+                }
+                .padding(.vertical, 3)
+
+                if showsHiddenSuffixDrawer {
                     VStack(alignment: .leading, spacing: 12) {
                         Text(L10n.text("settings.hiddenSuffixes.hint"))
                             .font(.caption)
@@ -378,10 +500,13 @@ struct SettingsView: View {
                                             hiddenCustomSuffixes.removeAll { $0 == suffix }
                                         } label: {
                                             Image(systemName: "minus.circle")
+                                                .frame(width: 16, height: 16)
                                         }
                                         .buttonStyle(.borderless)
+                                        .frame(width: 24, alignment: .center)
                                         .help(L10n.text("settings.hiddenSuffixes.remove"))
                                     }
+                                    .frame(minHeight: 24)
                                 }
                             }
 
@@ -400,9 +525,11 @@ struct SettingsView: View {
                                 .font(.system(.body, design: .monospaced))
                                 .textFieldStyle(.roundedBorder)
                                 .frame(minWidth: 220)
-                                Button(L10n.text("button.add")) {
+                                Button {
                                     hiddenCustomSuffixes.append(normalizedSuffix)
                                     hiddenSuffixInput = ""
+                                } label: {
+                                    Label(L10n.text("button.add"), systemImage: "plus")
                                 }
                                 .buttonStyle(.bordered)
                                 .disabled(normalizedSuffix.isEmpty || blockedSuffixes.contains(normalizedSuffix))
@@ -411,9 +538,8 @@ struct SettingsView: View {
                         }
                     }
                     .padding(.top, 6)
+                    .padding(.leading, 20)
                     .disabled(!hiddenSuffixesEnabled)
-                } label: {
-                    Toggle(L10n.text("settings.hiddenSuffixes"), isOn: $hiddenSuffixesEnabled)
                 }
             }
         }
@@ -424,6 +550,10 @@ struct SettingsView: View {
     private var fileAssociationsPane: some View {
         Form {
             Section(L10n.text("settings.section.fileAssociations")) {
+                Text(L10n.text("settings.association.description"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
                 VStack(spacing: 0) {
                     ForEach(ArchiveAssociationService.supportedAssociations) { association in
                         FileAssociationRow(
@@ -455,6 +585,10 @@ struct SettingsView: View {
     private var columnsPane: some View {
         Form {
             Section(L10n.text("settings.section.columns")) {
+                Text(L10n.text("settings.columns.description"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
                 Grid(alignment: .leading, horizontalSpacing: 24, verticalSpacing: 8) {
                     GridRow {
                         Text(L10n.text("settings.columns.fileBrowser"))
@@ -879,12 +1013,163 @@ private struct RarInstallReview: Identifiable {
     let readmeText: String
 }
 
-private enum SettingsPane: Hashable {
+private enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
     case general
     case archive
     case browser
     case fileAssociations
     case columns
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .general:
+            return L10n.text("settings.section.general")
+        case .archive:
+            return L10n.text("settings.section.archive")
+        case .browser:
+            return L10n.text("settings.section.browser")
+        case .fileAssociations:
+            return L10n.text("settings.section.fileAssociations")
+        case .columns:
+            return L10n.text("settings.section.columns")
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .general:
+            return "gearshape"
+        case .archive:
+            return "archivebox"
+        case .browser:
+            return "folder"
+        case .fileAssociations:
+            return "doc.badge.gearshape"
+        case .columns:
+            return "tablecells"
+        }
+    }
+}
+
+private struct SettingsPaneSidebarButton: View {
+    let pane: SettingsPane
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 9) {
+                Image(systemName: pane.systemImage)
+                    .font(.system(size: 14, weight: .medium))
+                    .frame(width: 18)
+                Text(pane.title)
+                    .font(.callout)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+            }
+            .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
+            .padding(.horizontal, 8)
+            .frame(height: 32)
+            .contentShape(Rectangle())
+            .background {
+                if isSelected {
+                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .fill(Color.accentColor.opacity(0.14))
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .help(pane.title)
+    }
+}
+
+private struct SettingsControlRow<Control: View>: View {
+    let title: String
+    let description: String
+    @ViewBuilder let control: () -> Control
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.callout)
+                Text(description)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 16)
+
+            control()
+        }
+        .padding(.vertical, 3)
+    }
+}
+
+private struct SettingsToggleRow: View {
+    let title: String
+    let description: String
+    @Binding var isOn: Bool
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.callout)
+                Text(description)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 16)
+
+            Toggle("", isOn: $isOn)
+                .labelsHidden()
+        }
+        .padding(.vertical, 3)
+    }
+}
+
+private struct SettingsActionRow: View {
+    let title: String
+    let description: String
+    let systemImage: String
+    let buttonTitle: String
+    var role: ButtonRole?
+    var isDisabled = false
+    let action: () -> Void
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: systemImage)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(.secondary)
+                .frame(width: 22)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.callout)
+                Text(description)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 16)
+
+            Button(role: role, action: action) {
+                Label(buttonTitle, systemImage: systemImage)
+                    .labelStyle(.titleAndIcon)
+            }
+            .buttonStyle(.bordered)
+            .disabled(isDisabled)
+        }
+        .padding(.vertical, 5)
+    }
 }
 
 private struct ColumnPreview: Identifiable {
@@ -952,30 +1237,35 @@ private struct SystemInstallCommandView: View {
     let copyAndOpenTerminal: (String) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             Text(title)
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            HStack(spacing: 8) {
-                Text(command)
-                    .font(.system(.caption, design: .monospaced))
-                    .textSelection(.enabled)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
+            Text(command)
+                .font(.system(.caption, design: .monospaced))
+                .textSelection(.enabled)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
 
-                Button {
-                    copyCommand(command)
-                } label: {
-                    Label(L10n.text("settings.systemInstall.copy"), systemImage: "doc.on.doc")
-                }
+            SettingsActionRow(
+                title: L10n.text("settings.systemInstall.copy"),
+                description: L10n.text("settings.systemInstall.copy.description"),
+                systemImage: "doc.on.doc",
+                buttonTitle: L10n.text("settings.systemInstall.copy")
+            ) {
+                copyCommand(command)
+            }
 
-                Button {
-                    copyAndOpenTerminal(command)
-                } label: {
-                    Label(L10n.text("settings.systemInstall.copyAndOpenTerminal"), systemImage: "terminal")
-                }
+            SettingsActionRow(
+                title: L10n.text("settings.systemInstall.copyAndOpenTerminal"),
+                description: L10n.text("settings.systemInstall.copyAndOpenTerminal.description"),
+                systemImage: "terminal",
+                buttonTitle: L10n.text("settings.systemInstall.copyAndOpenTerminal")
+            ) {
+                copyAndOpenTerminal(command)
             }
 
             if let message {

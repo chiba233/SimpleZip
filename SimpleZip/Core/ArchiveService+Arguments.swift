@@ -13,7 +13,7 @@ extension ArchiveService {
         switch behavior {
         case .skipExisting:
             return "-n"
-        case .ask, .overwrite:
+        case .ask, .overwrite, .replaceIfDifferent:
             return "-o"
         }
     }
@@ -22,7 +22,7 @@ extension ArchiveService {
         switch behavior {
         case .skipExisting:
             return "-aos"
-        case .ask, .overwrite:
+        case .ask, .overwrite, .replaceIfDifferent:
             return "-aoa"
         }
     }

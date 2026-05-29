@@ -705,17 +705,43 @@ final class ArchiveBrowserModel: ObservableObject {
 
             try await self.confirmArchiveExtractionSafety(archiveURL: request.archiveURL)
             let backendOverwriteBehavior = AppPreferences.overwriteBehavior == .skipExisting ? OverwriteBehavior.skipExisting : .overwrite
-            try await ArchiveService.extract(
-                request.archiveURL,
-                to: stagingURL,
-                overwriteBehavior: backendOverwriteBehavior,
-                password: request.password,
-                zipDecryptionMethod: request.zipDecryptionMethod,
-                safetyPolicy: .skipValidation,
-                operationID: operationID,
-                progress: progress,
-                outputObserver: outputObserver
-            )
+            var password = request.password
+            var zipDecryptionMethod = request.zipDecryptionMethod
+            var isRetry = !password.isEmpty
+            while true {
+                do {
+                    try? self.fileManager.removeItem(at: stagingURL)
+                    try self.fileManager.createDirectory(at: stagingURL, withIntermediateDirectories: true)
+                    try await ArchiveService.extract(
+                        request.archiveURL,
+                        to: stagingURL,
+                        overwriteBehavior: backendOverwriteBehavior,
+                        password: password,
+                        zipDecryptionMethod: zipDecryptionMethod,
+                        safetyPolicy: .skipValidation,
+                        operationID: operationID,
+                        progress: progress,
+                        outputObserver: outputObserver
+                    )
+                    break
+                } catch {
+                    guard self.shouldPromptForArchivePassword(error) else {
+                        throw error
+                    }
+                    guard let authentication = self.promptForArchivePassword(
+                        archiveURL: request.archiveURL,
+                        displayName: request.archiveURL.lastPathComponent,
+                        detectedZipEncryption: request.detectedZipEncryption,
+                        isRetry: isRetry,
+                        actionTitle: L10n.text("button.extract")
+                    ) else {
+                        throw CancellationError()
+                    }
+                    password = authentication.password
+                    zipDecryptionMethod = authentication.zipDecryptionMethod
+                    isRetry = true
+                }
+            }
             try await self.extractionCoordinator.mergeExtractedItems(
                 from: stagingURL,
                 to: request.destinationURL,
@@ -762,19 +788,45 @@ final class ArchiveBrowserModel: ObservableObject {
 
             try self.confirmArchiveExtractionSafety(entries: request.entries)
             let backendOverwriteBehavior = AppPreferences.overwriteBehavior == .skipExisting ? OverwriteBehavior.skipExisting : .overwrite
-            try await ArchiveService.extract(
-                request.archiveURL,
-                entries: request.entries,
-                to: stagingURL,
-                overwriteBehavior: backendOverwriteBehavior,
-                pathMode: request.pathMode,
-                password: request.password,
-                zipDecryptionMethod: request.zipDecryptionMethod,
-                safetyPolicy: .skipValidation,
-                operationID: operationID,
-                progress: progress,
-                outputObserver: outputObserver
-            )
+            var password = request.password
+            var zipDecryptionMethod = request.zipDecryptionMethod
+            var isRetry = !password.isEmpty
+            while true {
+                do {
+                    try? self.fileManager.removeItem(at: stagingURL)
+                    try self.fileManager.createDirectory(at: stagingURL, withIntermediateDirectories: true)
+                    try await ArchiveService.extract(
+                        request.archiveURL,
+                        entries: request.entries,
+                        to: stagingURL,
+                        overwriteBehavior: backendOverwriteBehavior,
+                        pathMode: request.pathMode,
+                        password: password,
+                        zipDecryptionMethod: zipDecryptionMethod,
+                        safetyPolicy: .skipValidation,
+                        operationID: operationID,
+                        progress: progress,
+                        outputObserver: outputObserver
+                    )
+                    break
+                } catch {
+                    guard self.shouldPromptForArchivePassword(error) else {
+                        throw error
+                    }
+                    guard let authentication = self.promptForArchivePassword(
+                        archiveURL: request.archiveURL,
+                        displayName: L10n.format("status.extractingSelected", request.entries.count),
+                        detectedZipEncryption: request.detectedZipEncryption,
+                        isRetry: isRetry,
+                        actionTitle: L10n.text("button.extract")
+                    ) else {
+                        throw CancellationError()
+                    }
+                    password = authentication.password
+                    zipDecryptionMethod = authentication.zipDecryptionMethod
+                    isRetry = true
+                }
+            }
             try await self.extractionCoordinator.mergeExtractedItems(
                 from: stagingURL,
                 to: request.destinationURL,
@@ -959,6 +1011,7 @@ final class ArchiveBrowserModel: ObservableObject {
 
             do {
                 let total = max(1, fileClipboard.urls.count)
+                let conflictSession = extractionCoordinator.makeConflictResolutionSession()
                 for (index, url) in fileClipboard.urls.enumerated() {
                     operationProgress = ArchiveProgressState(
                         fraction: Double(index) / Double(total),
@@ -970,8 +1023,10 @@ final class ArchiveBrowserModel: ObservableObject {
                     let targetURL = try await extractionCoordinator.resolveDestination(
                         for: url,
                         requestedTargetURL: requestedTargetURL,
+                        defaultOverwriteBehavior: AppPreferences.overwriteBehavior,
                         updateStatus: { [weak self] status in self?.status = status },
-                        updateProgress: { [weak self] progress in self?.operationProgress = progress }
+                        updateProgress: { [weak self] progress in self?.operationProgress = progress },
+                        conflictSession: conflictSession
                     )
                     guard let targetURL else { continue }
 
@@ -982,6 +1037,7 @@ final class ArchiveBrowserModel: ObservableObject {
                     }
                     extractionCoordinator.showPendingHashOverwriteResult(for: targetURL)
                 }
+                extractionCoordinator.finishConflictResolutionSession(conflictSession)
                 if fileClipboard.shouldMove {
                     self.fileClipboard = nil
                 }
@@ -1003,7 +1059,9 @@ final class ArchiveBrowserModel: ObservableObject {
 
     func deleteSelectedFiles() {
         guard case .folder = mode, !selectedFileItems.isEmpty else { return }
-        guard confirmDelete(items: selectedFileItems) else { return }
+        if AppPreferences.confirmBeforeDeletingFiles {
+            guard confirmDelete(items: selectedFileItems) else { return }
+        }
 
         do {
             for item in selectedFileItems {
@@ -1041,18 +1099,7 @@ final class ArchiveBrowserModel: ObservableObject {
 
         guard panel.runModal() == .OK, let destinationFolder = panel.url else { return }
 
-        do {
-            for item in selectedFileItems {
-                try fileManager.moveItem(
-                    at: item.url,
-                    to: extractionCoordinator.uniqueDestinationURL(for: item.url.lastPathComponent, in: destinationFolder)
-                )
-            }
-            reload()
-        } catch {
-            errorMessage = error.localizedDescription
-            status = L10n.text("status.failed")
-        }
+        dropFileURLs(selectedFileItems.map(\.url), to: destinationFolder, shouldMove: true)
     }
 
     func dropFileURLs(_ urls: [URL], to destinationFolder: URL, shouldMove: Bool) {
@@ -1070,6 +1117,7 @@ final class ArchiveBrowserModel: ObservableObject {
 
             do {
                 let total = max(1, urls.count)
+                let conflictSession = extractionCoordinator.makeConflictResolutionSession()
                 for (index, url) in urls.enumerated() {
                     try Task.checkCancellation()
                     operationProgress = ArchiveProgressState(
@@ -1081,17 +1129,33 @@ final class ArchiveBrowserModel: ObservableObject {
                     if shouldMove && url.deletingLastPathComponent().standardizedFileURL == destinationFolder.standardizedFileURL {
                         continue
                     }
-                    let targetURL = extractionCoordinator.uniqueDestinationURL(for: url.lastPathComponent, in: destinationFolder)
+                    let requestedTargetURL = destinationFolder.appendingPathComponent(url.lastPathComponent)
+                    let targetURL = try await extractionCoordinator.resolveDestination(
+                        for: url,
+                        requestedTargetURL: requestedTargetURL,
+                        defaultOverwriteBehavior: AppPreferences.overwriteBehavior,
+                        updateStatus: { [weak self] status in self?.status = status },
+                        updateProgress: { [weak self] progress in self?.operationProgress = progress },
+                        conflictSession: conflictSession
+                    )
+                    guard let targetURL else { continue }
                     if shouldMove {
                         try fileManager.moveItem(at: url, to: targetURL)
                     } else {
                         try fileManager.copyItem(at: url, to: targetURL)
                     }
+                    extractionCoordinator.showPendingHashOverwriteResult(for: targetURL)
                 }
+                extractionCoordinator.finishConflictResolutionSession(conflictSession)
                 operationProgress = ArchiveProgressState(fraction: 1, currentFile: nil, completedUnitCount: total, totalUnitCount: total)
                 status = L10n.text("status.done")
-                if case .folder(let currentFolder) = mode, currentFolder.standardizedFileURL == destinationFolder.standardizedFileURL {
-                    reload()
+                if case .folder(let currentFolder) = mode {
+                    let standardizedCurrentFolder = currentFolder.standardizedFileURL
+                    let shouldRefreshCurrentFolder = standardizedCurrentFolder == destinationFolder.standardizedFileURL
+                        || urls.contains { $0.deletingLastPathComponent().standardizedFileURL == standardizedCurrentFolder }
+                    if shouldRefreshCurrentFolder {
+                        reload()
+                    }
                 }
             } catch is CancellationError {
                 errorMessage = nil
@@ -1630,11 +1694,27 @@ final class ArchiveBrowserModel: ObservableObject {
         detectedZipEncryption: ZipEncryptionDetection,
         isRetry: Bool
     ) -> (password: String, zipDecryptionMethod: ArchiveDecryptionMethod)? {
+        promptForArchivePassword(
+            archiveURL: archiveURL,
+            displayName: item.displayName,
+            detectedZipEncryption: detectedZipEncryption,
+            isRetry: isRetry,
+            actionTitle: L10n.text("button.open")
+        )
+    }
+
+    private func promptForArchivePassword(
+        archiveURL: URL,
+        displayName: String,
+        detectedZipEncryption: ZipEncryptionDetection,
+        isRetry: Bool,
+        actionTitle: String
+    ) -> (password: String, zipDecryptionMethod: ArchiveDecryptionMethod)? {
         let alert = NSAlert()
         alert.alertStyle = .informational
         alert.messageText = archiveURL.lastPathComponent
-        alert.informativeText = isRetry ? L10n.text("error.passwordPromptExhausted") : item.displayName
-        alert.addButton(withTitle: L10n.text("button.open"))
+        alert.informativeText = isRetry ? L10n.text("error.passwordPromptExhausted") : displayName
+        alert.addButton(withTitle: actionTitle)
         alert.addButton(withTitle: L10n.text("button.cancel"))
 
         let accessoryWidth: CGFloat = 320
