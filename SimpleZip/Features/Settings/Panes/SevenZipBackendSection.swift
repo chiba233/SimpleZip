@@ -14,8 +14,6 @@ import SwiftUI
 struct SevenZipBackendSection: View {
     @AppStorage(AppPreferences.Key.sevenZipBackend) private var sevenZipBackend = SevenZipBackendChoice.automatic.rawValue
     @Binding var systemInstallMessage: String?
-    let copyCommand: (String) -> Void
-    let copyAndOpenTerminal: (String) -> Void
 
     @State private var sevenZipVersion = L10n.text("settings.7zip.checking")
     @State private var isSevenZipMissing = false
@@ -50,9 +48,7 @@ struct SevenZipBackendSection: View {
                 SystemInstallCommandView(
                     title: L10n.text("settings.systemInstall.7zip.title"),
                     command: "brew install sevenzip",
-                    message: $systemInstallMessage,
-                    copyCommand: copyCommand,
-                    copyAndOpenTerminal: copyAndOpenTerminal
+                    message: $systemInstallMessage
                 )
             }
         }

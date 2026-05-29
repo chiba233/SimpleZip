@@ -557,7 +557,8 @@ private struct WelcomeBackendStep: View {
                     BackendStatusBadge(
                         isOk: sevenZipAvailable,
                         okText: L10n.text("welcome.backend.sevenZip.available"),
-                        failText: L10n.text("welcome.backend.sevenZip.missing")
+                        failText: L10n.text("welcome.backend.sevenZip.missing"),
+                        style: .prominent
                     )
                     GroupBox {
                         VStack(alignment: .leading, spacing: 8) {
@@ -579,9 +580,7 @@ private struct WelcomeBackendStep: View {
                                 SystemInstallCommandView(
                                     title: L10n.text("settings.systemInstall.7zip.title"),
                                     command: "brew install sevenzip",
-                                    message: $systemInstallMessage,
-                                    copyCommand: copySystemInstallCommand,
-                                    copyAndOpenTerminal: copySystemInstallCommandAndOpenTerminal
+                                    message: $systemInstallMessage
                                 )
                             }
                         }
@@ -595,7 +594,8 @@ private struct WelcomeBackendStep: View {
                     BackendStatusBadge(
                         isOk: rarAvailable,
                         okText: L10n.text("welcome.backend.rar.available"),
-                        failText: L10n.text("welcome.backend.rar.missing")
+                        failText: L10n.text("welcome.backend.rar.missing"),
+                        style: .prominent
                     )
                     GroupBox {
                         VStack(alignment: .leading, spacing: 8) {
@@ -648,9 +648,7 @@ private struct WelcomeBackendStep: View {
             SystemInstallCommandView(
                 title: L10n.text("settings.systemInstall.rar.title"),
                 command: "brew install --cask rar",
-                message: $systemInstallMessage,
-                copyCommand: copySystemInstallCommand,
-                copyAndOpenTerminal: copySystemInstallCommandAndOpenTerminal
+                message: $systemInstallMessage
             )
         } else if selectedRar == .automatic || selectedRar == .bundled {
             if !hasLocalRar {
@@ -683,20 +681,6 @@ private struct WelcomeBackendStep: View {
                     action: deleteLocalRar
                 )
             }
-        }
-    }
-
-    /// brew 命令复制 —— 与 ArchivePane 同源实现，独立写一份是因为这两个 helper 都很小。
-    private func copySystemInstallCommand(_ command: String) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(command, forType: .string)
-        systemInstallMessage = L10n.format("settings.systemInstall.copied", command)
-    }
-
-    private func copySystemInstallCommandAndOpenTerminal(_ command: String) {
-        copySystemInstallCommand(command)
-        if let terminalURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.Terminal") {
-            NSWorkspace.shared.open(terminalURL)
         }
     }
 
@@ -780,35 +764,6 @@ private struct WelcomeBackendStep: View {
         sevenZipAvailable = ArchiveService.canUseSevenZip()
         rarAvailable = ArchiveService.canCreateRAR()
         hasLocalRar = ArchiveService.hasLocalRarBackend()
-    }
-}
-
-/// 「后端是否就绪」高对比度徽章。
-///
-/// 单独抽出来是因为 SettingsControlRow 的 `description` 是 `.caption + .secondary`，
-/// 灰字 + 小号导致用户「一眼看不出到底装好没」。这个组件用大字号 + 高饱和色 + filled icon，
-/// 跟 macOS Settings 里 Privacy & Security 行的红 / 绿状态条同款语义强度。
-private struct BackendStatusBadge: View {
-    let isOk: Bool
-    let okText: String
-    let failText: String
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: isOk ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(isOk ? Color.green : Color.orange)
-            Text(isOk ? okText : failText)
-                .font(.body.weight(.semibold))
-                .foregroundStyle(isOk ? Color.green : Color.orange)
-            Spacer()
-        }
-        .padding(.vertical, 6)
-        .padding(.horizontal, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(isOk ? Color.green.opacity(0.12) : Color.orange.opacity(0.12))
-        )
     }
 }
 

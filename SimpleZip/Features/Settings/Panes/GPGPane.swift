@@ -47,7 +47,7 @@ struct GPGPane: View {
 
             // 后端可用性 —— 跟 SevenZip / RAR pane 同款 GroupBox-外 状态徽章 + GroupBox-内 picker / 安装提示。
             Section(L10n.text("settings.gpg.backend.title")) {
-                BackendAvailabilityRow(
+                BackendStatusBadge(
                     isOk: gpgAvailable,
                     okText: L10n.text("settings.gpg.available"),
                     failText: L10n.text("settings.gpg.missing")
@@ -69,9 +69,7 @@ struct GPGPane: View {
                     SystemInstallCommandView(
                         title: L10n.text("settings.gpg.install.brew.title"),
                         command: "brew install gnupg pinentry-mac",
-                        message: $systemInstallMessage,
-                        copyCommand: copySystemInstallCommand,
-                        copyAndOpenTerminal: copySystemInstallCommandAndOpenTerminal
+                        message: $systemInstallMessage
                     )
 
                     // GPGTools 安装包路径（备选）。
@@ -212,21 +210,6 @@ struct GPGPane: View {
         }
     }
 
-    // MARK: - 安装提示 helpers（跟 ArchivePane 同源 helper）
-
-    private func copySystemInstallCommand(_ command: String) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(command, forType: .string)
-        systemInstallMessage = L10n.format("settings.systemInstall.copied", command)
-    }
-
-    private func copySystemInstallCommandAndOpenTerminal(_ command: String) {
-        copySystemInstallCommand(command)
-        if let terminalURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.Terminal") {
-            NSWorkspace.shared.open(terminalURL)
-        }
-    }
-
     private func openGPGToolsPage() {
         guard let url = URL(string: "https://gpgtools.org/") else { return }
         NSWorkspace.shared.open(url)
@@ -271,23 +254,3 @@ private struct GPGKeyRow: View {
     }
 }
 
-/// 「后端是否就绪」高对比度徽章（与 WelcomeBackendStep 里的 `BackendStatusBadge` 同款样式，
-/// 但这里给 Settings GPG pane 用，不复用 private 类型）。
-private struct BackendAvailabilityRow: View {
-    let isOk: Bool
-    let okText: String
-    let failText: String
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: isOk ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(isOk ? Color.green : Color.orange)
-            Text(isOk ? okText : failText)
-                .font(.callout.weight(.semibold))
-                .foregroundStyle(isOk ? Color.green : Color.orange)
-            Spacer()
-        }
-        .padding(.vertical, 4)
-    }
-}

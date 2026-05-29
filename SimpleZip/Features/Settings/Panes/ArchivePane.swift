@@ -26,17 +26,9 @@ struct ArchivePane: View {
         Form {
             securitySection
 
-            SevenZipBackendSection(
-                systemInstallMessage: $systemInstallMessage,
-                copyCommand: copySystemInstallCommand,
-                copyAndOpenTerminal: copySystemInstallCommandAndOpenTerminal
-            )
+            SevenZipBackendSection(systemInstallMessage: $systemInstallMessage)
 
-            RarBackendSection(
-                systemInstallMessage: $systemInstallMessage,
-                copyCommand: copySystemInstallCommand,
-                copyAndOpenTerminal: copySystemInstallCommandAndOpenTerminal
-            )
+            RarBackendSection(systemInstallMessage: $systemInstallMessage)
         }
         .formStyle(.grouped)
         .controlSize(.small)
@@ -82,18 +74,4 @@ struct ArchivePane: View {
         }
     }
 
-    // MARK: - brew 命令复制
-
-    private func copySystemInstallCommand(_ command: String) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(command, forType: .string)
-        systemInstallMessage = L10n.format("settings.systemInstall.copied", command)
-    }
-
-    private func copySystemInstallCommandAndOpenTerminal(_ command: String) {
-        copySystemInstallCommand(command)
-        if let terminalURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.Terminal") {
-            NSWorkspace.shared.open(terminalURL)
-        }
-    }
 }

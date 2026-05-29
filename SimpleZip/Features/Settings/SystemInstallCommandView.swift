@@ -5,18 +5,17 @@
 //  Created by HoshinoYumeka on 2026/05/12.
 //
 
+import AppKit
 import SwiftUI
 
-/// 「请用 brew 安装系统级 7zip / RAR」时显示的命令复制面板。
+/// 「请用 brew 安装系统级 7zip / RAR / gnupg」时显示的命令复制面板。
 ///
-/// 之所以独立成组件而不是写在 ArchivePane 里：7zip 和 RAR 都用同一种 UI，
-/// 提取后只有一份复制 / 复制并打开终端的实现。
+/// 7zip / RAR / GPG 三个 pane 都用同一种 UI。pasteboard 写入和打开 Terminal 这两件事完全相同，
+/// 由本组件直接承包；调用方只提供 title / command 和一个 message binding 用于显示「已复制」反馈。
 struct SystemInstallCommandView: View {
     let title: String
     let command: String
     @Binding var message: String?
-    let copyCommand: (String) -> Void
-    let copyAndOpenTerminal: (String) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -38,7 +37,7 @@ struct SystemInstallCommandView: View {
                 systemImage: "doc.on.doc",
                 buttonTitle: L10n.text("settings.systemInstall.copy")
             ) {
-                copyCommand(command)
+                copyCommand()
             }
 
             SettingsActionRow(
@@ -47,7 +46,7 @@ struct SystemInstallCommandView: View {
                 systemImage: "terminal",
                 buttonTitle: L10n.text("settings.systemInstall.copyAndOpenTerminal")
             ) {
-                copyAndOpenTerminal(command)
+                copyCommandAndOpenTerminal()
             }
 
             if let message {
@@ -55,6 +54,19 @@ struct SystemInstallCommandView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+        }
+    }
+
+    private func copyCommand() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(command, forType: .string)
+        message = L10n.format("settings.systemInstall.copied", command)
+    }
+
+    private func copyCommandAndOpenTerminal() {
+        copyCommand()
+        if let terminalURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.Terminal") {
+            NSWorkspace.shared.open(terminalURL)
         }
     }
 }

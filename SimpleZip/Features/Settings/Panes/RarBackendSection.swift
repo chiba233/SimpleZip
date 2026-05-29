@@ -15,8 +15,6 @@ import AppKit
 struct RarBackendSection: View {
     @AppStorage(AppPreferences.Key.rarBackend) private var rarBackend = RarBackendChoice.automatic.rawValue
     @Binding var systemInstallMessage: String?
-    let copyCommand: (String) -> Void
-    let copyAndOpenTerminal: (String) -> Void
 
     @State private var rarVersion = L10n.text("settings.rar.checking")
     @State private var isRarMissing = false
@@ -59,9 +57,7 @@ struct RarBackendSection: View {
                 SystemInstallCommandView(
                     title: L10n.text("settings.systemInstall.rar.title"),
                     command: "brew install --cask rar",
-                    message: $systemInstallMessage,
-                    copyCommand: copyCommand,
-                    copyAndOpenTerminal: copyAndOpenTerminal
+                    message: $systemInstallMessage
                 )
             }
         }
