@@ -82,11 +82,12 @@ struct Sidebar: View {
                 SidebarButton(title: L10n.text("button.pinCurrentLocation"), systemImage: "pin", action: pinCurrentLocation)
 
                 ForEach(pinnedURLs, id: \.path) { url in
-                    PinnedSidebarButton(
-                        title: displayName(for: url),
-                        open: { model.openFolder(url) },
-                        unpin: { unpinSidebarURL(url) }
-                    )
+                    SidebarRowButton(action: { model.openFolder(url) }) {
+                        Label(displayName(for: url), systemImage: "pin.fill")
+                    }
+                    .contextMenu {
+                        Button(L10n.text("button.unpin")) { unpinSidebarURL(url) }
+                    }
                 }
             }
             .onDrop(of: [UTType.fileURL.identifier], isTargeted: $isPinnedDropTargeted) { providers in
@@ -102,7 +103,24 @@ struct Sidebar: View {
             if !finderTags.isEmpty {
                 Section(L10n.text("section.tags")) {
                     ForEach(finderTags) { tag in
-                        SidebarTagButton(tag: tag, action: { model.openTag(tag.name) })
+                        SidebarRowButton(action: { model.openTag(tag.name) }) {
+                            HStack(spacing: 8) {
+                                // Finder 风格：标签 = 系统颜色圆点 + 名称，跟通用 tag 图标区分开。
+                                Circle()
+                                    .fill(Color(nsColor: tag.color))
+                                    .frame(width: 9, height: 9)
+                                    .overlay {
+                                        Circle()
+                                            .stroke(Color(nsColor: .separatorColor).opacity(0.35), lineWidth: 0.5)
+                                    }
+                                    .accessibilityHidden(true)
+                                Text(tag.name)
+                                    .lineLimit(1)
+                                    .truncationMode(.tail)
+                                Spacer(minLength: 0)
+                            }
+                        }
+                        .accessibilityLabel(tag.name)
                     }
                 }
             }
@@ -139,35 +157,10 @@ struct Sidebar: View {
     }
 
     private func receivePinnedDrop(from providers: [NSItemProvider]) -> Bool {
-        let fileURLProviders = providers.filter { $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) }
-        guard !fileURLProviders.isEmpty else { return false }
-
-        var urls = Array<URL?>(repeating: nil, count: fileURLProviders.count)
-        let lock = NSLock()
-        let group = DispatchGroup()
-
-        for (index, provider) in fileURLProviders.enumerated() {
-            group.enter()
-            provider.loadDataRepresentation(forTypeIdentifier: UTType.fileURL.identifier) { data, _ in
-                defer { group.leave() }
-
-                guard let data,
-                      let url = URL(dataRepresentation: data, relativeTo: nil),
-                      isExistingDirectory(url) else {
-                    return
-                }
-
-                lock.lock()
-                urls[index] = url
-                lock.unlock()
-            }
+        extractDroppedFileURLs(from: providers) { urls in
+            // 共享 extractor 不做内容过滤；固定列表只接目录，所以在主线程回调里再过一遍 isExistingDirectory。
+            _ = pinDroppedDirectories(urls.filter(isExistingDirectory))
         }
-
-        group.notify(queue: .main) {
-            _ = pinDroppedDirectories(urls.compactMap { $0 })
-        }
-
-        return true
     }
 
     @discardableResult
@@ -210,38 +203,26 @@ private struct FinderTag: Identifiable {
     let color: NSColor
 }
 
-/// Finder 风格标签行：用系统标签颜色圆点表达标签，而不是通用 tag 图标。
-private struct SidebarTagButton: View {
-    let tag: FinderTag
+/// 侧边栏行按钮的统一外壳：hover 高亮 + 圆角背景 + buttonStyle + onHover 动画。
+/// 三种 row（普通 / 固定 / 标签）共享，只在「leading 内容」上分叉 ——
+/// 通用 row 用 `Label(title, systemImage:)`；标签 row 用 Circle+Text；
+/// 固定 row 在调用点再加 `.contextMenu` 即可。
+private struct SidebarRowButton<Content: View>: View {
     let action: () -> Void
+    @ViewBuilder let content: () -> Content
     @State private var isHovering = false
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 8) {
-                Circle()
-                    .fill(Color(nsColor: tag.color))
-                    .frame(width: 9, height: 9)
-                    .overlay {
-                        Circle()
-                            .stroke(Color(nsColor: .separatorColor).opacity(0.35), lineWidth: 0.5)
-                    }
-                    .accessibilityHidden(true)
-
-                Text(tag.name)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-
-                Spacer(minLength: 0)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
-            .contentShape(Rectangle())
-            .background {
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(isHovering ? Color(nsColor: .selectedContentBackgroundColor).opacity(0.16) : .clear)
-            }
+            content()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 6)
+                .contentShape(Rectangle())
+                .background {
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(isHovering ? Color(nsColor: .selectedContentBackgroundColor).opacity(0.16) : .clear)
+                }
         }
         .buttonStyle(SidebarRowButtonStyle())
         .onHover { hovering in
@@ -249,65 +230,18 @@ private struct SidebarTagButton: View {
                 isHovering = hovering
             }
         }
-        .accessibilityLabel(tag.name)
     }
 }
 
-/// 侧边栏里的统一按钮样式。
+/// 普通侧边栏按钮：Label 图标 + 标题。`SidebarRowButton` 的预制 facade。
 struct SidebarButton: View {
     let title: String
     let systemImage: String
     let action: () -> Void
-    @State private var isHovering = false
 
     var body: some View {
-        Button(action: action) {
+        SidebarRowButton(action: action) {
             Label(title, systemImage: systemImage)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 6)
-                .contentShape(Rectangle())
-                .background {
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(isHovering ? Color(nsColor: .selectedContentBackgroundColor).opacity(0.16) : .clear)
-                }
-        }
-        .buttonStyle(SidebarRowButtonStyle())
-        .onHover { hovering in
-            withAnimation(.easeOut(duration: 0.12)) {
-                isHovering = hovering
-            }
-        }
-    }
-}
-
-/// 侧边栏固定项：整行既能打开，也能右键取消固定。
-private struct PinnedSidebarButton: View {
-    let title: String
-    let open: () -> Void
-    let unpin: () -> Void
-    @State private var isHovering = false
-
-    var body: some View {
-        Button(action: open) {
-            Label(title, systemImage: "pin.fill")
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 6)
-                .contentShape(Rectangle())
-                .background {
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(isHovering ? Color(nsColor: .selectedContentBackgroundColor).opacity(0.16) : .clear)
-                }
-        }
-        .buttonStyle(SidebarRowButtonStyle())
-        .contextMenu {
-            Button(L10n.text("button.unpin"), action: unpin)
-        }
-        .onHover { hovering in
-            withAnimation(.easeOut(duration: 0.12)) {
-                isHovering = hovering
-            }
         }
     }
 }

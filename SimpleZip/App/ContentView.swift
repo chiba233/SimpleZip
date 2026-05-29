@@ -412,32 +412,9 @@ struct ContentView: View {
     }
 
     private func receiveDroppedFileURLs(from providers: [NSItemProvider]) -> Bool {
-        let fileURLProviders = providers.filter { $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) }
-        guard !fileURLProviders.isEmpty else { return false }
-
-        var urls = Array<URL?>(repeating: nil, count: fileURLProviders.count)
-        let lock = NSLock()
-        let group = DispatchGroup()
-
-        for (index, provider) in fileURLProviders.enumerated() {
-            group.enter()
-            provider.loadDataRepresentation(forTypeIdentifier: UTType.fileURL.identifier) { data, _ in
-                defer { group.leave() }
-
-                if let data,
-                   let url = URL(dataRepresentation: data, relativeTo: nil) {
-                    lock.lock()
-                    urls[index] = url
-                    lock.unlock()
-                }
-            }
+        extractDroppedFileURLs(from: providers) { urls in
+            model.openDroppedURLs(urls)
         }
-
-        group.notify(queue: .main) {
-            model.openDroppedURLs(urls.compactMap { $0 })
-        }
-
-        return true
     }
 }
 

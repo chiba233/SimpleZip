@@ -6,10 +6,47 @@
 //
 
 import Foundation
+import UniformTypeIdentifiers
 
 extension Notification.Name {
     static let openExternalFile = Notification.Name("openExternalFile")
     static let finderServiceAction = Notification.Name("finderServiceAction")
+}
+
+/// 从 `NSItemProvider` 数组里异步提取 file URL，主线程回调结果。
+///
+/// 共享给「主区域拖入」和「侧栏固定区拖入」两个 `.onDrop` 回调用 —— 之前两边各写一份 25 行
+/// filter / NSLock / DispatchGroup / loadDataRepresentation 样板。返回 false 表示 providers
+/// 里压根没有 file URL，调用方据此决定是否接受拖放（`.onDrop` 的返回值约定）。
+@discardableResult
+func extractDroppedFileURLs(
+    from providers: [NSItemProvider],
+    completion: @escaping ([URL]) -> Void
+) -> Bool {
+    let fileURLProviders = providers.filter { $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) }
+    guard !fileURLProviders.isEmpty else { return false }
+
+    var urls = Array<URL?>(repeating: nil, count: fileURLProviders.count)
+    let lock = NSLock()
+    let group = DispatchGroup()
+
+    for (index, provider) in fileURLProviders.enumerated() {
+        group.enter()
+        provider.loadDataRepresentation(forTypeIdentifier: UTType.fileURL.identifier) { data, _ in
+            defer { group.leave() }
+            if let data,
+               let url = URL(dataRepresentation: data, relativeTo: nil) {
+                lock.lock()
+                urls[index] = url
+                lock.unlock()
+            }
+        }
+    }
+
+    group.notify(queue: .main) {
+        completion(urls.compactMap { $0 })
+    }
+    return true
 }
 
 /// 外部打开事件队列：解决冷启动时文件事件早于 SwiftUI 窗口初始化的问题。

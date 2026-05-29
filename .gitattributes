@@ -1,5 +1,8 @@
 * text=auto eol=lf
 
+**/*.lproj/*.strings text eol=lf working-tree-encoding=UTF-8
+**/*.lproj/*.stringsdict text eol=lf working-tree-encoding=UTF-8
+
 *.png binary
 *.jpg binary
 *.jpeg binary

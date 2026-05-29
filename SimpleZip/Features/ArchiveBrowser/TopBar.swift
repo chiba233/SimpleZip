@@ -36,44 +36,10 @@ struct TopBar: View {
             }
 
             HStack(spacing: 6) {
-                Button(action: model.goBack) {
-                    Image(systemName: "chevron.left")
-                        .frame(width: 18, height: 18)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .frame(width: 30, height: 30)
-                .disabled(!model.canGoBack)
-                .help(L10n.text("help.goBack"))
-
-                Button(action: model.goForward) {
-                    Image(systemName: "chevron.right")
-                        .frame(width: 18, height: 18)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .frame(width: 30, height: 30)
-                .disabled(!model.canGoForward)
-                .help(L10n.text("help.goForward"))
-
-                Button(action: model.goUp) {
-                    Image(systemName: "chevron.up")
-                        .frame(width: 18, height: 18)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .frame(width: 30, height: 30)
-                .disabled(!model.canGoUp)
-                .help(L10n.text("help.goUp"))
-                
-                Button(action: model.reload) {
-                    Image(systemName: "arrow.clockwise")
-                        .frame(width: 18, height: 18)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .frame(width: 30, height: 30)
-                .help(L10n.text("help.refresh"))
+                navButton("chevron.left", disabled: !model.canGoBack, help: L10n.text("help.goBack"), action: model.goBack)
+                navButton("chevron.right", disabled: !model.canGoForward, help: L10n.text("help.goForward"), action: model.goForward)
+                navButton("chevron.up", disabled: !model.canGoUp, help: L10n.text("help.goUp"), action: model.goUp)
+                navButton("arrow.clockwise", help: L10n.text("help.refresh"), action: model.reload)
 
                 locationField
             }
@@ -99,6 +65,26 @@ struct TopBar: View {
                 }
             }
         }
+    }
+
+    /// 地址栏左侧四个导航按钮共享的 chrome（icon 18×18 / bordered 小号 / 30×30 框 / disabled 可选 / tooltip）。
+    /// 4 处行内复制粘贴的最直接合并 —— 不抽组件，private func 本地够用。
+    @ViewBuilder
+    private func navButton(
+        _ systemImage: String,
+        disabled: Bool = false,
+        help: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .frame(width: 18, height: 18)
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+        .frame(width: 30, height: 30)
+        .disabled(disabled)
+        .help(help)
     }
 
     private var locationField: some View {

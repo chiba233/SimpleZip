@@ -1,533 +1,533 @@
-"status.ready" = "å°±ç·";
-"welcome.window.title" = "æ¬¢è¿ä½¿ç¨ SimpleZip";
-"welcome.menu.runAgain" = "éæ°è¿è¡æ¬¢è¿å©æâ¦";
-"welcome.button.back" = "ä¸ä¸æ­¥";
-"welcome.button.next" = "ä¸ä¸æ­¥";
-"welcome.button.finish" = "å¼å§ä½¿ç¨";
-"welcome.button.skip" = "è·³è¿";
-"welcome.stepLabel" = "ç¬¬ %d æ­¥ / å± %d æ­¥";
-"welcome.intro.title" = "å æ­¥æå®å³é®è®¾ç½®";
-"welcome.intro.body" = "SimpleZip æ¯ä¸ä¸ªåç macOS åç¼©åç®¡çå¨ãä¸é¢è¿å æ­¥ä¼å¸®ä½ æå¼å ä¸ªæ°ç¨æ·æå®¹æéè¿çå¼å³ãä½ éæ¶è½å¨ SimpleZip â éæ°è¿è¡æ¬¢è¿å©æ éåæ¬¡æå¼æ¬åå¯¼ã";
-"welcome.intro.note" = "ææè®¾ç½®é½å¯ä»¥å¨ãSimpleZip â åå¥½è®¾ç½®ãééæ¶ä¿®æ¹ã";
-"welcome.language.title" = "éæ©çé¢è¯­è¨";
-"welcome.language.body" = "çé¢è¯­è¨ç¬ç«äºç³»ç»è¯­è¨ãæ¹è¯­è¨ä¼å³æ¶çæï¼macOS é¡¶é¨èåæ è¦éå¯ App åæä¼è·éã";
-"welcome.startupLocation.title" = "å¯å¨æ¶æå¼åªä¸ªä½ç½®";
-"welcome.startupLocation.body" = "ä¸æ¬¡å¯å¨ SimpleZip æ¶ï¼èªå¨æå¼ä½ éçä½ç½®ãå¦æä½ æ³ç¨èªå®ä¹è·¯å¾ï¼å¯ä»¥ç¨åå¨åå¥½è®¾ç½®éææä»¶å¤¹ã";
-"welcome.overwrite.title" = "è§£åéå°ååæä»¶æ¶æä¹å";
-"welcome.overwrite.body" = "é»è®¤è¦çè¡ä¸ºå³å® SimpleZip è§£åæ¶ç¢°å°å·²å­å¨çååæä»¶è¯¥å¦ä½å¤çã";
-"welcome.presetPassword.title" = "é¢è®¾å¯ç ï¼å¯éï¼";
-"welcome.presetPassword.body" = "å¯ç¨åï¼SimpleZip ä¼ç¨ä½ ä¿å­å¨ Mac é¥åä¸²éçå¯ç èªå¨å°è¯è§£åãå¯ä»¥ç¨åå¨ãåå¥½è®¾ç½® â éç¨ãéå¡«å¥å¯ç æç¨ Touch ID æ¾ç¤ºææã";
-"welcome.finderAutoExtract.title" = "Finder åå»èªå¨è§£åï¼å¯éï¼";
-"welcome.finderAutoExtract.body" = "å¼å¯åï¼ä» Finder åå»åç¼©åä¼ç´æ¥è§£åå°æå¨ç®å½ï¼ä¸åæå¼æµè§çªå£ãDMG ç­éè¦æè½½çæ ¼å¼ä»èµ°åæµè§è·¯å¾ã";
-"welcome.safety.title" = "å®å¨ç­ç¥";
-"welcome.safety.body" = "åç¼©ååå®¹æ¯ä¸å¯ä¿¡è¾å¥ãSimpleZip é»è®¤ä¼å¨ä»¥ä¸ä¸ç§æåµä¹ååå¼¹çªå¾æ±ä½ çåæãè¿äºè§åå¯ä»¥å¨ãåå¥½è®¾ç½® â å®å¨ãééé¡¹è°æ´ã";
-"welcome.safety.suspiciousPath" = "å¯çè·¯å¾ï¼è·¯å¾ç©¿è¶ / ç»å¯¹è·¯å¾ / Windows çç¬¦ / UNCï¼";
-"welcome.safety.symlink" = "è§£åºçç¬¦å·é¾æ¥åç¡¬é¾æ¥";
-"welcome.safety.activeContent" = "æå¼ .app / .pkg / .command / .scpt ç­å¯æ§è¡åå®¹";
-"welcome.safety.currentValue" = "å½åï¼%@";
-"welcome.backend.title" = "åç«¯å¯ç¨æ§";
-"welcome.backend.body" = "SimpleZip æææçæ­£çåç¼© / è§£åå·¥ä½äº¤ç»å½ä»¤è¡åç«¯ãå»ºè®®è³å°æ 7-Zip å¯ç¨ï¼RAR åªæåå»º .rar æ¶æç¨å¾å°ã";
-"welcome.backend.sevenZip.available" = "7-Zip â å·²å°±ç»ª";
-"welcome.backend.sevenZip.missing" = "7-Zip â ä¸å¯ç¨";
-"welcome.backend.rar.available" = "RAR â å·²å°±ç»ª";
-"welcome.backend.rar.missing" = "RAR â ä¸å¯ç¨ï¼ä»åå»º .rar æ¶éè¦ï¼";
-"welcome.backend.openSettings" = "å¨åå¥½è®¾ç½®éå®è£ / åæ¢";
-"welcome.completion.title" = "æå®";
-"welcome.completion.body" = "ä½ å·²ç»å®æäºå³é®è®¾ç½®ãSimpleZip ç°å¨å¯ä»¥ä» DockãFinder æææä»¶å¤¹å°ä¸»çªå£å¼å§ä½¿ç¨ã\n\nåç»­å¦ææ³æ¹è®¾ç½®ï¼å»ãåå¥½è®¾ç½®ãå°±è¡ï¼æ³åèµ°ä¸éè¿ä¸ªå©æï¼ä» SimpleZip èåè¿ã";
-"welcome.backupRestore.title" = "å¯¼å¥ä¹åçå¤ä»½ï¼";
-"welcome.backupRestore.body" = "å¦æä½ ä¹åä»ãåå¥½è®¾ç½® â å¤ä»½ä¸è¿åãå¯¼åºè¿ SimpleZip åå¥½ JSON å¤ä»½ï¼å¯ä»¥ç°å¨ç´æ¥å¯¼å¥æ¢å¤ï¼è·³è¿åé¢æå·¥éé¡¹ãæ²¡æçè¯ç¹ãä¸ä¸æ­¥ãç»§ç»­å³å¯ã";
-"welcome.backupRestore.button" = "éæ©å¤ä»½æä»¶â¦";
-"welcome.backupRestore.success" = "å·²ä»å¤ä»½æ¢å¤åå¥½ãåç»­æ­¥éª¤çéé¡¹å·²è¢«å¤ä»½è¦çã";
-"welcome.backupRestore.failure" = "å¯¼å¥å¤±è´¥ï¼%@";
-"menu.checkForUpdates" = "æ£æ¥æ´æ°â¦";
-"welcome.versionCheck.title" = "æ£æ¥æ´æ°";
-"welcome.versionCheck.body" = "ä½ æ­£å¨ä½¿ç¨ççæ¬ï¼%@ãSimpleZip ä¼èªå¨ä» GitHub æä¸ä»½ææ°çæ¬å·ï¼åè¯ä½ æ¯å¦éè¦åçº§ã";
-"welcome.versionCheck.button" = "ç°å¨æ£æ¥";
-"welcome.versionCheck.checking" = "æ­£å¨æ£æ¥â¦";
-"welcome.versionCheck.upToDate" = "å·²ç»æ¯ææ°çæ¬ã";
-"welcome.versionCheck.outOfDate" = "ææ°çæ¬ï¼%@ãç¹ãæ£æ¥æ´æ°â¦ãæå¼ Sparkle ä¸è½½çªå£ã";
-"welcome.versionCheck.failed" = "æ£æ¥å¤±è´¥ï¼%@";
-"externalExtract.window.title" = "æ­£å¨è§£å";
-"externalExtract.done" = "è§£åå®æ";
-"externalExtract.failed" = "è§£åå¤±è´¥";
-"welcome.button.cancel" = "åæ¶";
-"welcome.cancelConfirm.title" = "ç¡®å®è¦åæ¶æ¬¢è¿å©æåï¼";
-"welcome.cancelConfirm.message" = "å½åå·²ç»ååºçéé¡¹ä¼ä¿çï¼ä½ä½ è¿æ²¡çå®åé¢çæ­¥éª¤ãä½ å¯ä»¥ç¨åä»ãSimpleZip â éæ°è¿è¡æ¬¢è¿å©æãåå¼ã";
-"welcome.cancelConfirm.cancel" = "ç»§ç»­å©æ";
-"welcome.cancelConfirm.confirm" = "ç¡®è®¤åæ¶";
-"welcome.startupLocation.pickCustom" = "éæ©èªå®ä¹æä»¶å¤¹â¦";
-"welcome.presetPassword.savedHint" = "å·²å å¯ä¿å­å°é¥åä¸²ãTouch ID æ­ç¤ºææè¯·å°ãåå¥½è®¾ç½® â éç¨ãã";
-"location.archive" = "å£ç¸®æªï¼%@";
-"panel.openFolder" = "éåè³æå¤¾";
-"panel.openArchive" = "éåå£ç¸®æª";
-"panel.createArchive" = "å»ºç«å£ç¸®æª";
-"panel.extractTo" = "è§£å£ç¸®å°";
-"error.openFolderFirst" = "è«åéåä¸åè³æå¤¾ï¼ç¶å¾é¸åè¦å£ç¸®çæªæ¡ã";
-"error.selectFilesToArchive" = "è«é¸åä¸åæå¤åè¦å å¥å£ç¸®æªçæªæ¡æè³æå¤¾ã";
-"error.openOrSelectArchive" = "è«åéåæé¸åæ¯æ´çå£ç¸®æªã";
-"error.unsupportedFormat" = "ç®åå¾ç«¯ä¸æ¯æ´éç¨®å£ç¸®æªæ ¼å¼ã";
-"error.missingSevenZip" = "æ¾ä¸å° 7-Zip å½ä»¤åå·¥å·ãè«éé Homebrew å®è£ 7zz ä»¥èç .7z å£ç¸®æªã";
-"error.missingRarTool" = "æ¾ä¸å° RAR å½ä»¤åå·¥å·ãè«å®è£ rar ä»¥å»ºç« RAR å£ç¸®æªã";
-"error.invalidSevenZipVolumeSize" = "åå·å¤§å°æ ¼å¼ç¡æï¼æé¡ä¼¼ 100mã2g æ 512kã";
-"error.singleFileCompressionRequiresSingleFile" = "éç¨®æ ¼å¼ä¸æ¬¡åªè½å£ç¸®ä¸åä¸è¬æªæ¡ã";
-"error.passwordsDoNotMatch" = "å©æ¬¡è¼¸å¥çå¯ç¢¼å¿é ä¸è´ã";
-"status.creating" = "æ­£å¨å»ºç« %@";
-"status.countingFiles" = "æ­£å¨çµ±è¨å¾å£ç¸®æªæ¡æ¸é...";
-"status.extracting" = "æ­£å¨è§£å£ç¸® %@";
-"status.currentFile" = "ç®åï¼%@";
-"status.testing" = "æ­£å¨æ¸¬è©¦ %@";
-"status.benchmarking" = "æ­£å¨å·è¡ 7-Zip è·å...";
-"status.benchmarkReady" = "7-Zip è·åå·²å®æ";
-"status.archiveTested" = "å£ç¸®æªæ¸¬è©¦æå";
-"status.itemCount" = "%d åé ç®";
-"status.tagItemCount" = "%d åæ¨ç±¤é ç®";
-"status.searchingTag" = "æ­£å¨æå°æ¨ç±¤ %@...";
-"status.pinnedLocation" = "å·²åºå® %@";
-"status.couldNotOpenFolder" = "ç¡æ³éåè³æå¤¾";
-"status.readingArchive" = "æ­£å¨è®åå£ç¸®æª...";
-"status.archivedItemCount" = "%d åå£ç¸®æªå§é ç®";
-"status.couldNotReadArchive" = "ç¡æ³è®åå£ç¸®æª";
-"status.done" = "å®æ";
-"status.cancelled" = "å·²åæ¶";
-"status.failed" = "å¤±æ";
-"status.backend" = "åç ZIP | 7Z éé 7zz";
-"type.folder" = "è³æå¤¾";
-"type.file" = "æªæ¡";
-"alert.operationFailed" = "æä½å¤±æ";
-"button.ok" = "ç¢ºå®";
-"button.details" = "è©³æ";
-"button.copyDiagnostics" = "å¤å¶è¯æ­ä¿¡æ¯";
-"file.openAsArchive" = "ä»¥åç¼©åæå¼";
-"diagnostics.copied" = "è¯æ­ä¿¡æ¯å·²å¤å¶å°åªè´´æ¿ã";
-"section.locations" = "ä½ç½®";
-"section.favorites" = "åäººæ¶è";
-"section.recents" = "ç¶å¸¸ä½¿ç¨";
-"section.pinned" = "åºå®è·¯å¾";
-"section.tags" = "æ¨ç±¤";
-"section.archives" = "å£ç¸®æª";
-"location.tag" = "æ¨ç±¤ï¼%@";
-"location.home" = "åäººè³æå¤¾";
-"location.downloads" = "ä¸è¼";
-"location.desktop" = "æ¡é¢";
-"location.documents" = "æä»¶";
-"location.applications" = "æç¨ç¨å¼";
-"button.pinCurrentLocation" = "åºå®ç®åä½ç½®";
-"button.unpin" = "åæ¶åºå®";
-"button.openArchive" = "éåå£ç¸®æª";
-"button.openFolder" = "éåè³æå¤¾";
-"button.add" = "å å¥";
-"button.extract" = "è§£å£ç¸®";
-"button.test" = "æ¸¬è©¦";
-"button.benchmark" = "è·å";
-"button.open" = "éå";
-"file.showPackageContents" = "é¡¯ç¤ºå¥ä»¶å§å®¹";
-"button.reveal" = "é¡¯ç¤º";
-"button.addToArchive" = "å å¥å£ç¸®æª";
-"button.extractHere" = "è§£å£ç¸®å°æ­¤è";
-"button.revealInFinder" = "å¨ Finder ä¸­é¡¯ç¤º";
-"help.refresh" = "éæ°æ´ç";
-"help.locationCompletions" = "é¡¯ç¤ºè³æå¤¾å»ºè­°";
-"locationCompletion.count" = "å± %d åè³æå¤¾";
-"help.goBack" = "è¿å";
-"help.goForward" = "åé²";
-"help.goUp" = "ä¸ä¸å±¤";
-"column.name" = "åç¨±";
-"column.size" = "å¤§å°";
-"column.type" = "é¡å";
-"column.modified" = "ä¿®æ¹æé";
-"column.method" = "æ¹æ³";
-"menu.aboutSimpleZip" = "éæ¼ SimpleZip";
-"menu.tools" = "å·¥å·";
-"about.description" = "ä¸åæ´å¥½ç¨ç 7zz åå½¢å®¢æ¶ç«¯ï¼çº macOS èçã\nç¨çæçè¦çªçè¦½å£ç¸®æªãæª¢è¦å§å®¹ãè§£å£ç¸®èå»ºç«æªæ¡ï¼ä¸å¿ç¸½æ¯åå°çµç«¯æ©ã";
-"about.projectPage" = "å°æ¡é¦é ";
-"about.license" = "MIT è®¸å¯è¯";
-"about.author" = "ä½èï¼Hoshino Yumeka";
-"about.copyright" = "Â© Hoshino Yumeka. éç¨ MIT è®¸å¯è¯åå¸ã";
-"menu.projectPage" = "SimpleZip å°æ¡é¦é ";
-"menu.license" = "MIT è®¸å¯è¯";
-"settings.title" = "è¨­å®";
-"settings.section.defaults" = "é è¨­é ç®";
-"settings.section.browser" = "çè¦½å¨";
-"settings.startupLocation" = "ååä½ç½®";
-"settings.defaultExtractLocation" = "é è¨­è§£å£ç¸®ä½ç½®";
-"settings.overwriteBehavior" = "éå°ååæªæ¡æ";
-"settings.showHiddenFiles" = "é¡¯ç¤ºé±èæªæ¡";
-"settings.rememberLastFolder" = "è¨ä½ä¸æ¬¡éåçè³æå¤¾";
-"settings.confirmBeforeDeletingFiles" = "ç§»å°åºçº¸ç¯åäºæ¬¡ç¡®è®¤";
-"settings.hiddenSuffixes" = "é±èå¯æªå";
-"settings.hiddenSuffixesEnabled" = "é±èå·²è¨­å®çå¯æªå";
-"settings.language.description" = "éæ© SimpleZip ççé¢è¯­è¨ãé¨åæå­éè¦éå¯åå®æ´çæã";
-"settings.startupLocation.description" = "éæ© SimpleZip å¯å¨åæä»¶æµè§å¨é»è®¤æå¼çä½ç½®ã";
-"settings.overwriteBehavior.description" = "è§£åãå¤å¶æç§»å¨æ¶éå°ååæä»¶ï¼é»è®¤ä½¿ç¨è¿ä¸ªå¤çç­ç¥ã";
-"settings.showHiddenFiles.description" = "å¨æä»¶æµè§å¨éæ¾ç¤ºç¹å¼å¤´æä»¶å Finder éèé¡¹ç®ã";
-"settings.rememberLastFolder.description" = "ä¸æ¬¡æå¼æ¶åå°ä¸æ¬¡ä½¿ç¨çæä»¶å¤¹ï¼èä¸æ¯æ»æ¯åå°å¯å¨ä½ç½®ã";
-"settings.confirmBeforeDeletingFiles.description" = "å¼å¯åï¼éä¸­æä»¶ç§»å° macOS åºçº¸ç¯åä¼åå¼¹åºç¡®è®¤æç¤ºã";
-"settings.finderOpenAutoExtract" = "ä» Finder æå¼æ¶èªå¨è§£å";
-"settings.finderOpenAutoExtract.description" = "éè¿ FinderãServices æå¶å® App æå¼åç¼©åæ¶ï¼ç´æ¥è§£åå°åç¼©åæå¨ç®å½ï¼ä¸åæå¼ SimpleZip ä¸»çªå£æµè§ãå®å¨ç­ç¥æç¤ºä»ä¼è§¦åã";
-"settings.presetPasswordEnabled" = "ä½¿ç¨é¢è®¾å¯ç ";
-"settings.presetPasswordEnabled.description" = "åå»ºå å¯åç¼©åæ¶èªå¨å¡«å¥æ­¤å¯ç ï¼æå¼ / è§£åæå¯ç çåç¼©åæ¶åå°è¯è¿ä¸ªå¯ç ï¼å¤±è´¥åå¼¹è¾å¥æ¡ã";
-"settings.presetPassword" = "é¢è®¾å¯ç ";
-"settings.presetPassword.description" = "ä»¥ææä¿å­å°æ¬æºåå¥½ï¼ä¸å¶ä» App å±ç¨ Mac æååºè®¾å¤æ¶å»ºè®®å³é­ã";
-"settings.presetPassword.placeholder" = "è¾å¥è¦é¢è®¾çå¯ç ";
-"settings.presetPassword.empty" = "å°æªéç½® ââ æå¼ä¸é¢çå¼å³å¹¶å¨æ­¤è¾å¥å¯ç ã";
-"settings.presetPassword.saved" = "å·²å å¯ä¿å­å°é¥åä¸²ã";
-"settings.presetPassword.saveFailed" = "é¥åä¸²æç»äºåå¥ãè¯·æ£æ¥è®¿é®æéåéè¯ã";
-"settings.presetPassword.clearFailed" = "é¥åä¸²æç»äºå é¤ãå¼å³å·²åå¼¹è³å¼å¯ï¼è¯·æ£æ¥ãé¥åä¸²è®¿é®ãæéåéè¯ã";
-"settings.presetPassword.revealReason" = "éè¦éªè¯æè½æ¾ç¤ºé¢è®¾å¯ç ã";
-"settings.presetPassword.revealFailed" = "éªè¯æªéè¿ï¼é¢è®¾å¯ç ç»§ç»­éèã";
-"button.save" = "ä¿å­";
-"button.usePresetPassword" = "ä½¿ç¨é¢è®¾å¯ç ";
-"button.usePresetPassword.help" = "ä½¿ç¨ãéç¨ãè®¾ç½®éçé¢è®¾å¯ç ãåæ¶å¾éåå¯ä»¥è¾å¥å¶å®å¯ç ã";
-"status.presetPasswordTryingFirst" = "æ­£å¨å°è¯é¢è®¾å¯ç ...";
-"status.presetPasswordAccepted" = "é¢è®¾å¯ç å·²éè¿";
-"settings.hiddenSuffixesEnabled.description" = "åªéèåè¡¨éæ¾ç¤ºçåç±»åç¼ï¼çå®æä»¶ååè·¯å¾ä¸ä¼æ¹åã";
-"settings.hiddenSuffixes.hint" = "éè£¡åªæé±èåç¨±é¡¯ç¤ºè£¡çå¯æªåï¼çå¯¦æªååè·¯å¾ä¸ææ¹åã";
-"settings.hiddenSuffixes.recommended" = "å»ºè­°é±èå¯æªå";
-"settings.hiddenSuffixes.custom" = "èªè¨é±èå¯æªå";
-"settings.hiddenSuffixes.customEmpty" = "ç®åéæ²æèªè¨é±èå¯æªåã";
-"settings.hiddenSuffixes.customPlaceholder" = "å å¥å¯æªåï¼ä¾å¦ app";
-"settings.hiddenSuffixes.remove" = "ç§»é¤å¯æªå";
-"settings.startup.home" = "åäººè³æå¤¾";
-"settings.startup.downloads" = "ä¸è¼";
-"settings.startup.desktop" = "æ¡é¢";
-"settings.startup.documents" = "æç¨¿";
-"settings.startup.movies" = "å½±ç";
-"settings.startup.music" = "é³ä¹";
-"settings.startup.pictures" = "å¾ç";
-"settings.startup.lastFolder" = "ä¸æ¬¡éåçè³æå¤¾";
-"settings.startup.custom" = "èªå®ä¹ä½ç½®";
-"settings.startup.addCustom" = "æ·»å èªå®ä¹ä½ç½®â¦";
-"settings.startup.folderUnavailable" = "è¯¥æä»¶å¤¹ç°å¨ä¸å¯ç¨ï¼SimpleZip ä¿çäºä½ ä¹åçéæ©ã";
-"startup.missing.title" = "å¯å¨ä½ç½®ä¸å¯ç¨";
-"startup.missing.message" = "ä½ è®¾ç½®çå¯å¨ä½ç½®æä»¶å¤¹å·²ä¸å­å¨ï¼SimpleZip ææ¶æ¾ç¤ºä¸ªäººæä»¶å¤¹ãå¯ä»¥å»è®¾ç½®ééæ°éæ©ï¼æéç½®ä¸ºä¸ªäººæä»¶å¤¹ã";
-"startup.missing.openSettings" = "æå¼è®¾ç½®â¦";
-"startup.missing.reset" = "éç½®ä¸ºä¸ªäººæä»¶å¤¹";
-"settings.extract.askEveryTime" = "æ¯æ¬¡è©¢å";
-"settings.extract.archiveFolder" = "å£ç¸®æªæå¨è³æå¤¾";
-"settings.extract.downloads" = "ä¸è¼";
-"settings.overwrite.overwrite" = "è¦è";
-"settings.overwrite.skipExisting" = "ç¥éç¾ææªæ¡";
-"settings.overwrite.ask" = "è©¢å";
-"button.hash" = "éæ¹";
-"button.copyAll" = "å¨é¨è¤è£½";
-"error.selectFilesForHash" = "è«é¸æä¸åæå¤åè¦è¨ç®éæ¹çæªæ¡ã";
-"status.hashing" = "æ­£å¨è¨ç®éæ¹...";
-"status.pasting" = "æ­£å¨è²¼ä¸æªæ¡...";
-"status.hashingForOverwrite" = "æ­£å¨æ¯è¼æªæ¡éæ¹...";
-"status.mergingExtractedFiles" = "æ­£å¨æª¢æ¥è§£å£ç¸®å¾çæªæ¡...";
-"status.hashReady" = "éæ¹è¨ç®å®æ";
-"hash.title" = "æªæ¡éæ¹";
-"hash.summary" = "%d åæªæ¡ï¼%@";
-"hash.notRegularFile" = "ä¸æ¯ä¸è¬æªæ¡";
-"hash.all" = "å¨é¨éæ¹";
-"hashOverwrite.same.title" = "éæ¹ç¸å";
-"hashOverwrite.same.message" = "åæªæ¡ï¼%@\nSHA256ï¼%@\n\nåè©¦è¦èçæªæ¡ï¼%@\nSHA256ï¼%@\n\nå©åæªæ¡ç¸åï¼SimpleZip æ²æè¦èã";
-"hashOverwrite.different.title" = "éæ¹ä¸å";
-"hashOverwrite.different.message" = "åæªæ¡ï¼%@\nSHA256ï¼%@\n\nåè©¦è¦èçæªæ¡ï¼%@\nSHA256ï¼%@\n\nå©åæªæ¡ä¸åï¼SimpleZip å·²è¦èåæªæ¡ã";
-"hashOverwrite.progress.title" = "æ­£å¨æ¯è¼éæ¹";
-"hashOverwrite.progress.existing" = "æ­£å¨è¨ç®åæªæ¡éæ¹ï¼%@";
-"hashOverwrite.progress.incoming" = "æ­£å¨è¨ç®åè©¦è¦èçæªæ¡éæ¹ï¼%@";
-"hashOverwrite.summary.title" = "åå¸å²çªæ±æ»";
-"hashOverwrite.summary.message" = "%d ä¸ªé¡¹ç®åå®¹ä¸è´ï¼å·²è·³è¿ï¼%d ä¸ªé¡¹ç®åå®¹ä¸åï¼å·²æ¿æ¢ã";
-"hashOverwrite.summary.same" = "å·²è·³è¿";
-"hashOverwrite.summary.different" = "å·²æ¿æ¢";
-"hashOverwrite.summary.column.status" = "å¤ç";
-"hashOverwrite.summary.column.file" = "æä»¶";
-"hashOverwrite.summary.column.detail" = "æ¯è¾ç»æ";
-"hashOverwrite.summary.column.existingHash" = "åæä»¶åå¸";
-"hashOverwrite.summary.column.incomingHash" = "è¯å¾è¦çæä»¶åå¸";
-"hashOverwrite.summary.section.replaced" = "å·²æ¿æ¢";
-"hashOverwrite.summary.section.skipped" = "å·²è·³è¿";
-"hashOverwrite.summary.section.title" = "%@ï¼%dï¼";
-"hashOverwrite.summary.section.empty" = "è¿ä¸ªåç»æ²¡æé¡¹ç®ã";
-"button.extractSelected" = "è§£å£ç¸®é¸åé ç®";
-"error.selectArchiveItemsToExtract" = "è«é¸æå£ç¸®æªå§ä¸åæå¤åè¦è§£å£ç¸®çé ç®ã";
-"error.missingBundleIdentifier" = "ç¡æ³è®åç®å App ç Bundle Identifierã";
-"error.defaultAppFailed" = "ç¡æ³å° SimpleZip è¨­çº %@ çé è¨­ AppãLaunch Services åå³ %dã";
-"status.extractingSelected" = "æ­£å¨è§£å£ç¸® %d åé¸åé ç®";
-"settings.section.fileAssociations" = "æªæ¡éè¯";
-"status.openingArchiveItem" = "æ­£å¨éå %@";
-"status.openedArchiveItem" = "å·²éå %@";
-"error.extractedItemNotFound" = "æ¾ä¸å°æ«æè§£åºçé ç®ã";
-"error.openExtractedItemFailed" = "macOS ç¡æ³éåæ«æè§£åºçé ç®ã";
-"error.exportDestinationExists" = "ææ¾ç®æ¨ä½ç½®å·²æååæªæ¡ã";
-"error.unsafeArchiveEntries" = "SimpleZip å·²é»æ­¢è§£å£ç¸®ï¼å çºå£ç¸®æªåå«ä¸å®å¨è·¯å¾ï¼%@";
-"error.unsafeArchiveLinks" = "SimpleZip å·²é»æ­¢è§£å£ç¸®ï¼å çºå£ç¸®æªåå«ç¬¦èé£çµï¼%@";
-"error.blockedBySecurityPolicy" = "å·²ä¾ç§ç®åå®å¨è¨­å®é»æ­¢ã";
-"error.passwordPromptExhausted" = "å£ç¸®æªå¾ç«¯è¦æ±äºé¡å¤çå¯ç¢¼åæãè«æª¢æ¥å¯ç¢¼å¾åè©¦ä¸æ¬¡ã";
-"settings.showSymbolicLinks" = "é¡¯ç¤ºç¬¦èé£çµçæªæ¡åè³æå¤¾";
-"settings.followFinderStructure" = "è³æå¤¾éµå¾ª Finder çµæ§";
-"settings.showSymbolicLinks.description" = "å¨æä»¶å¤¹åè¡¨åæç´¢ç»æéåå«ç¬¦å·é¾æ¥ã";
-"settings.followFinderStructure.description" = "å Finder ä¸æ ·åå¹¶ç¹æ®æä»¶å¤¹ï¼ä¾å¦âåºç¨ç¨åºâå Utilitiesã";
-"status.exportingArchiveItem" = "æ­£å¨æ %@ è§£å£ç¸®å°ææ¾ä½ç½®";
-"status.exportedArchiveItem" = "å·²è§£å£ç¸® %@";
-"status.copyingFiles" = "æ­£å¨è¤è£½æªæ¡...";
-"status.movingFiles" = "æ­£å¨ç§»åæªæ¡...";
-"settings.setDefaultArchiveApp" = "å° SimpleZip è¨­çºå£ç¸®æªé è¨­ App";
-"settings.defaultArchiveAppDone" = "å·²å° SimpleZip è¨­çºæ¯æ´å£ç¸®æªæ ¼å¼çé è¨­ Appã";
-"settings.defaultArchiveTypeDone" = "å·²å° SimpleZip è¨­çº %@ æªæ¡çé è¨­ Appã";
-"settings.association.currentDefault" = "ç®åé è¨­ï¼%@";
-"settings.association.noDefault" = "æªè¨­å®é è¨­ App";
-"settings.association.loading" = "æ­£å¨æª¢æ¥...";
-"settings.association.setDefault" = "è¨­çºé è¨­";
-"settings.association.simpleZipDefault" = "å·²é è¨­";
-"settings.section.columns" = "åè¡¨æ¬ä½";
-"settings.section.health" = "è¿è¡ç¶æ";
-"settings.section.backup" = "å¤ä»½ä¸è¿å";
-"backup.description" = "æå½ååå¥½å¯¼åºæ JSON æä»¶ï¼å¯ä»¥æ·å°å¦ä¸å° Mac ç¨ï¼ä¹å¯ä»¥ä»ä¹åå¯¼åºçæä»¶å¯¼å¥ããå¨é¨æ¢å¤é»è®¤ãä¼æ¸æææåå¥½ + é¥åä¸²éçé¢è®¾å¯ç ã";
-"backup.export.title" = "å¯¼åºåå¥½";
-"backup.export.description" = "æå½ååå¥½ä¿å­ä¸º JSON æä»¶ãé¢è®¾å¯ç ï¼å¨é¥åä¸²éï¼åç§æè·¯å¾ï¼ä¸æ¬¡æå¼ / ç½®é¡¶ / æè¿ï¼ä¸ä¼è¢«å¯¼åºã";
-"backup.export.button" = "å¯¼åºâ¦";
-"backup.export.savePanel.title" = "å¯¼åº SimpleZip åå¥½";
-"backup.export.done" = "å·²å¯¼åºå° %@ã";
-"backup.export.failed" = "åå¥æä»¶å¤±è´¥ï¼%@";
-"backup.import.title" = "å¯¼å¥åå¥½";
-"backup.import.description" = "ä»ä¹åå¯¼åºç JSON æä»¶å è½½åå¥½ãå½åçåå¥½å¼ä¼è¢«è¦çã";
-"backup.import.button" = "å¯¼å¥â¦";
-"backup.import.openPanel.title" = "éæ© SimpleZip åå¥½æä»¶";
-"backup.import.confirm.title" = "æ¿æ¢å½ååå¥½ï¼";
-"backup.import.confirm.message" = "å¯¼å¥ä¼ç¨æéæä»¶éçå¼è¦çç°æåå¥½ï¼æ­¤æä½ä¸å¯æ¤éã";
-"backup.import.confirm.button" = "å¯¼å¥";
-"backup.import.done" = "å·²å¯¼å¥ %@ã";
-"backup.import.failed.malformed" = "æä»¶ä¸æ¯åæ³ JSONï¼SimpleZip æ æ³è¯»åã";
-"backup.import.failed.error" = "å¯¼å¥æä»¶å¤±è´¥ï¼%@";
-"backup.import.failed.missingSchema" = "æä»¶ç¼ºå° SimpleZip schema æ è®°ï¼çèµ·æ¥ä¸æ¯åå¥½å¯¼åºæä»¶ã";
-"backup.import.failed.foreignSchema" = "æä»¶ç schema æ¯ã%@ãï¼SimpleZip åå¥½å¯¼åºä½¿ç¨ãSimpleZip.preferencesãã";
-"backup.import.failed.unsupportedVersion" = "æ¬çæ¬ä¸æ¯æåå¥½æ ¼å¼çæ¬ %dï¼ä»æ¯æ %dï¼ãè¯·åçº§ SimpleZipã";
-"backup.import.failed.missingValues" = "æä»¶ç \"values\" å­æ®µç¼ºå¤±æç±»åä¸å¯¹ã";
-"backup.restore.title" = "å¨é¨æ¢å¤é»è®¤";
-"backup.restore.description" = "æææåå¥½è¿åä¸ºåºåé»è®¤ + æ¸æé¥åä¸²éçé¢è®¾å¯ç ãmacOS æä»¶å³èè®¾ç½®ä¸åå½±åã";
-"backup.restore.button" = "æ¢å¤é»è®¤";
-"backup.restore.confirm.title" = "æææåå¥½è¿åä¸ºé»è®¤ï¼";
-"backup.restore.confirm.message" = "è¿ä¼æ¸æææ SimpleZip åå¥½ + æ¸æé¥åä¸²éçé¢è®¾å¯ç ãmacOS æä»¶å³èä¿æä¸åã";
-"backup.restore.confirm.button" = "æ¢å¤é»è®¤";
-"backup.restore.done" = "å·²æææåå¥½è¿åä¸ºé»è®¤ã";
-"health.description" = "ä¸ç¼æ»è§ SimpleZip åç«¯ãæä»¶å³èãæ¬æºå­æ®ç­å³é®ç»ä»¶çå½åç¶æãæ¯ä¸è¡å³ä¾§çä¿®å¤æé®ä¼ç´æ¥è·³å°å¯¹åºè®¾ç½®ã";
-"health.checking" = "æ­£å¨æ£æ¥â¦";
-"health.recheck" = "éæ°æ£æ¥";
-"health.lastChecked" = "ä¸æ¬¡æ£æ¥ %@";
-"health.sevenZip.title" = "7-Zip åç«¯";
-"health.sevenZip.ok" = "%@ â %@";
-"health.sevenZip.missing" = "æ æ³è°ç¨ãå½ååç«¯ï¼%@";
-"health.rar.title" = "RAR åç«¯";
-"health.rar.ok" = "%@ â %@";
-"health.rar.missing" = "RAR æ¯å¯éé¡¹ãè¦åå»º / è§£å .rar åç¼©åï¼è¯·å°ãè®¾ç½® â åç¼©åãå®è£æ¬å° RARã";
-"health.openRarSettings" = "æå¼ RAR è®¾ç½®";
-"health.associations.title" = "æä»¶å³è";
-"health.associations.allOwned" = "SimpleZip æ¯å¨é¨ %d ç§åæ¯æåç¼©åæ ¼å¼çé»è®¤ Appã";
-"health.associations.partial" = "SimpleZip æ¯ %d / %d ç§åæ¯æåç¼©åæ ¼å¼çé»è®¤ Appã";
-"health.openAssociations" = "ç®¡çæä»¶å³è";
-"health.presetPassword.title" = "é¢è®¾å¯ç ";
-"health.presetPassword.disabled" = "æªå¯ç¨ãè¦èªå¨å¡«å + éé»å°è¯ï¼è¯·å¨ãéç¨ãè®¾ç½®éå¼å¯ã";
-"health.presetPassword.ok" = "å·²éç½®ï¼ä¿å­å¨é¥åä¸²ã";
-"health.presetPassword.empty" = "å·²å¯ç¨ï¼ä½è¿æ²¡å¡«å¯ç ã";
-"health.openGeneral" = "æå¼éç¨è®¾ç½®";
-"settings.columns.fileBrowser" = "æªæ¡çè¦½";
-"settings.columns.archiveBrowser" = "å£ç¸®æªçè¦½";
-"settings.columns.preview" = "é¢è§";
-"settings.columns.description" = "éæ©æä»¶æµè§ååç¼©åæµè§è¦æ¾ç¤ºåªäºåï¼ä¸æ¹é¢è§ä¼ç«å³åæ ææã";
-"settings.section.general" = "ä¸è¬";
-"settings.section.archive" = "å£ç¸®";
-"settings.section.security" = "å®å¨æ§";
-"settings.language" = "èªè¨";
-"settings.language.system" = "è·é¨ç³»çµ±";
-"settings.language.en" = "è±æ";
-"settings.language.es" = "è¥¿ç­çæ";
-"settings.language.fr" = "æ³æ";
-"settings.language.de" = "å¾·æ";
-"settings.language.ko" = "éæ";
-"settings.language.ru" = "ä¿æ";
-"settings.language.zhHans" = "ç°¡é«ä¸­æ";
-"settings.language.zhHant" = "ç¹é«ä¸­æ";
-"settings.language.ja" = "æ¥æ";
-"settings.language.th" = "æ³°æ";
-"settings.languageRestartHint" = "éæ°åå SimpleZip å¾ï¼èªè¨æå®æ´çæã";
-"archive.create.title" = "å»ºç«å£ç¸®æª";
-"archive.fileName" = "æªå";
-"archive.format" = "æ ¼å¼";
-"archive.compressionLevel" = "å£ç¸®ç";
-"archive.updateMode" = "æ´æ°æ¨¡å¼";
-"archive.updateMode.addAndReplace" = "å å¥ä¸¦åä»£æªæ¡";
-"archive.updateMode.updateAndAdd" = "æ´æ°ä¸¦å å¥æªæ¡";
-"archive.updateMode.freshen" = "åªæ´æ°æ¢ææªæ¡";
-"archive.updateMode.synchronize" = "åæ­¥å£ç¸®æªå§å®¹";
-"archive.password" = "å¯ç¢¼ï¼é¸å¡«ï¼";
-"archive.passwordConfirm" = "åæ¬¡è¼¸å¥å¯ç¢¼";
-"archive.showPassword" = "é¡¯ç¤ºå¯ç¢¼";
-"archive.encryptionMethod" = "å å¯æ¹å¼";
+"status.ready" = "就緒";
+"welcome.window.title" = "欢迎使用 SimpleZip";
+"welcome.menu.runAgain" = "重新运行欢迎助手…";
+"welcome.button.back" = "上一步";
+"welcome.button.next" = "下一步";
+"welcome.button.finish" = "开始使用";
+"welcome.button.skip" = "跳过";
+"welcome.stepLabel" = "第 %d 步 / 共 %d 步";
+"welcome.intro.title" = "几步搞定关键设置";
+"welcome.intro.body" = "SimpleZip 是一个原生 macOS 压缩包管理器。下面这几步会帮你打开几个新用户最容易错过的开关。你随时能在 SimpleZip → 重新运行欢迎助手 里再次打开本向导。";
+"welcome.intro.note" = "所有设置都可以在「SimpleZip → 偏好设置」里随时修改。";
+"welcome.language.title" = "选择界面语言";
+"welcome.language.body" = "界面语言独立于系统语言。改语言会即时生效；macOS 顶部菜单栏要重启 App 后才会跟随。";
+"welcome.startupLocation.title" = "启动时打开哪个位置";
+"welcome.startupLocation.body" = "下次启动 SimpleZip 时，自动打开你选的位置。如果你想用自定义路径，可以稍后在偏好设置里挑文件夹。";
+"welcome.overwrite.title" = "解压遇到同名文件时怎么办";
+"welcome.overwrite.body" = "默认覆盖行为决定 SimpleZip 解压时碰到已存在的同名文件该如何处理。";
+"welcome.presetPassword.title" = "预设密码（可选）";
+"welcome.presetPassword.body" = "启用后，SimpleZip 会用你保存在 Mac 钥匙串里的密码自动尝试解压。可以稍后在「偏好设置 → 通用」里填入密码或用 Touch ID 显示明文。";
+"welcome.finderAutoExtract.title" = "Finder 双击自动解压（可选）";
+"welcome.finderAutoExtract.body" = "开启后，从 Finder 双击压缩包会直接解压到所在目录，不再打开浏览窗口。DMG 等需要挂载的格式仍走原浏览路径。";
+"welcome.safety.title" = "安全策略";
+"welcome.safety.body" = "压缩包内容是不可信输入。SimpleZip 默认会在以下三种情况之前先弹窗征求你的同意。这些规则可以在「偏好设置 → 安全」里逐项调整。";
+"welcome.safety.suspiciousPath" = "可疑路径（路径穿越 / 绝对路径 / Windows 盘符 / UNC）";
+"welcome.safety.symlink" = "解出的符号链接和硬链接";
+"welcome.safety.activeContent" = "打开 .app / .pkg / .command / .scpt 等可执行内容";
+"welcome.safety.currentValue" = "当前：%@";
+"welcome.backend.title" = "后端可用性";
+"welcome.backend.body" = "SimpleZip 把所有真正的压缩 / 解压工作交给命令行后端。建议至少有 7-Zip 可用；RAR 只有创建 .rar 时才用得到。";
+"welcome.backend.sevenZip.available" = "7-Zip ✓ 已就绪";
+"welcome.backend.sevenZip.missing" = "7-Zip ✗ 不可用";
+"welcome.backend.rar.available" = "RAR ✓ 已就绪";
+"welcome.backend.rar.missing" = "RAR ⓘ 不可用（仅创建 .rar 时需要）";
+"welcome.backend.openSettings" = "在偏好设置里安装 / 切换";
+"welcome.completion.title" = "搞定";
+"welcome.completion.body" = "你已经完成了关键设置。SimpleZip 现在可以从 Dock、Finder 或拖文件夹到主窗口开始使用。\n\n后续如果想改设置，去「偏好设置」就行；想再走一遍这个助手，从 SimpleZip 菜单进。";
+"welcome.backupRestore.title" = "导入之前的备份？";
+"welcome.backupRestore.body" = "如果你之前从「偏好设置 → 备份与还原」导出过 SimpleZip 偏好 JSON 备份，可以现在直接导入恢复，跳过后面手工选项。没有的话点「下一步」继续即可。";
+"welcome.backupRestore.button" = "选择备份文件…";
+"welcome.backupRestore.success" = "已从备份恢复偏好。后续步骤的选项已被备份覆盖。";
+"welcome.backupRestore.failure" = "导入失败：%@";
+"menu.checkForUpdates" = "检查更新…";
+"welcome.versionCheck.title" = "检查更新";
+"welcome.versionCheck.body" = "你正在使用的版本：%@。SimpleZip 会自动从 GitHub 拉一份最新版本号，告诉你是否需要升级。";
+"welcome.versionCheck.button" = "现在检查";
+"welcome.versionCheck.checking" = "正在检查…";
+"welcome.versionCheck.upToDate" = "已经是最新版本。";
+"welcome.versionCheck.outOfDate" = "有新版本：%@。点「检查更新…」打开 Sparkle 下载窗口。";
+"welcome.versionCheck.failed" = "检查失败：%@";
+"externalExtract.window.title" = "正在解压";
+"externalExtract.done" = "解压完成";
+"externalExtract.failed" = "解压失败";
+"welcome.button.cancel" = "取消";
+"welcome.cancelConfirm.title" = "确定要取消欢迎助手吗？";
+"welcome.cancelConfirm.message" = "当前已经做出的选项会保留，但你还没看完后面的步骤。你可以稍后从「SimpleZip → 重新运行欢迎助手」再开。";
+"welcome.cancelConfirm.cancel" = "继续助手";
+"welcome.cancelConfirm.confirm" = "确认取消";
+"welcome.startupLocation.pickCustom" = "选择自定义文件夹…";
+"welcome.presetPassword.savedHint" = "已加密保存到钥匙串。Touch ID 揭示明文请到「偏好设置 → 通用」。";
+"location.archive" = "壓縮檔：%@";
+"panel.openFolder" = "開啟資料夾";
+"panel.openArchive" = "開啟壓縮檔";
+"panel.createArchive" = "建立壓縮檔";
+"panel.extractTo" = "解壓縮到";
+"error.openFolderFirst" = "請先開啟一個資料夾，然後選取要壓縮的檔案。";
+"error.selectFilesToArchive" = "請選取一個或多個要加入壓縮檔的檔案或資料夾。";
+"error.openOrSelectArchive" = "請先開啟或選取支援的壓縮檔。";
+"error.unsupportedFormat" = "目前後端不支援這種壓縮檔格式。";
+"error.missingSevenZip" = "找不到 7-Zip 命令列工具。請透過 Homebrew 安裝 7zz 以處理 .7z 壓縮檔。";
+"error.missingRarTool" = "找不到 RAR 命令列工具。請安裝 rar 以建立 RAR 壓縮檔。";
+"error.invalidSevenZipVolumeSize" = "分卷大小格式無效，應類似 100m、2g 或 512k。";
+"error.singleFileCompressionRequiresSingleFile" = "這種格式一次只能壓縮一個一般檔案。";
+"error.passwordsDoNotMatch" = "兩次輸入的密碼必須一致。";
+"status.creating" = "正在建立 %@";
+"status.countingFiles" = "正在統計待壓縮檔案數量...";
+"status.extracting" = "正在解壓縮 %@";
+"status.currentFile" = "目前：%@";
+"status.testing" = "正在測試 %@";
+"status.benchmarking" = "正在執行 7-Zip 跑分...";
+"status.benchmarkReady" = "7-Zip 跑分已完成";
+"status.archiveTested" = "壓縮檔測試成功";
+"status.itemCount" = "%d 個項目";
+"status.tagItemCount" = "%d 個標籤項目";
+"status.searchingTag" = "正在搜尋標籤 %@...";
+"status.pinnedLocation" = "已固定 %@";
+"status.couldNotOpenFolder" = "無法開啟資料夾";
+"status.readingArchive" = "正在讀取壓縮檔...";
+"status.archivedItemCount" = "%d 個壓縮檔內項目";
+"status.couldNotReadArchive" = "無法讀取壓縮檔";
+"status.done" = "完成";
+"status.cancelled" = "已取消";
+"status.failed" = "失敗";
+"status.backend" = "原生 ZIP | 7Z 透過 7zz";
+"type.folder" = "資料夾";
+"type.file" = "檔案";
+"alert.operationFailed" = "操作失敗";
+"button.ok" = "確定";
+"button.details" = "詳情";
+"button.copyDiagnostics" = "复制诊断信息";
+"file.openAsArchive" = "以压缩包打开";
+"diagnostics.copied" = "诊断信息已复制到剪贴板。";
+"section.locations" = "位置";
+"section.favorites" = "個人收藏";
+"section.recents" = "經常使用";
+"section.pinned" = "固定路徑";
+"section.tags" = "標籤";
+"section.archives" = "壓縮檔";
+"location.tag" = "標籤：%@";
+"location.home" = "個人資料夾";
+"location.downloads" = "下載";
+"location.desktop" = "桌面";
+"location.documents" = "文件";
+"location.applications" = "應用程式";
+"button.pinCurrentLocation" = "固定目前位置";
+"button.unpin" = "取消固定";
+"button.openArchive" = "開啟壓縮檔";
+"button.openFolder" = "開啟資料夾";
+"button.add" = "加入";
+"button.extract" = "解壓縮";
+"button.test" = "測試";
+"button.benchmark" = "跑分";
+"button.open" = "開啟";
+"file.showPackageContents" = "顯示套件內容";
+"button.reveal" = "顯示";
+"button.addToArchive" = "加入壓縮檔";
+"button.extractHere" = "解壓縮到此處";
+"button.revealInFinder" = "在 Finder 中顯示";
+"help.refresh" = "重新整理";
+"help.locationCompletions" = "顯示資料夾建議";
+"locationCompletion.count" = "共 %d 個資料夾";
+"help.goBack" = "返回";
+"help.goForward" = "前進";
+"help.goUp" = "上一層";
+"column.name" = "名稱";
+"column.size" = "大小";
+"column.type" = "類型";
+"column.modified" = "修改時間";
+"column.method" = "方法";
+"menu.aboutSimpleZip" = "關於 SimpleZip";
+"menu.tools" = "工具";
+"about.description" = "一個更好用的 7zz 圖形客戶端，為 macOS 而生。\n用熟悉的視窗瀏覽壓縮檔、檢視內容、解壓縮與建立檔案，不必總是回到終端機。";
+"about.projectPage" = "專案首頁";
+"about.license" = "MIT 许可证";
+"about.author" = "作者：Hoshino Yumeka";
+"about.copyright" = "© Hoshino Yumeka. 采用 MIT 许可证发布。";
+"menu.projectPage" = "SimpleZip 專案首頁";
+"menu.license" = "MIT 许可证";
+"settings.title" = "設定";
+"settings.section.defaults" = "預設項目";
+"settings.section.browser" = "瀏覽器";
+"settings.startupLocation" = "啟動位置";
+"settings.defaultExtractLocation" = "預設解壓縮位置";
+"settings.overwriteBehavior" = "遇到同名檔案時";
+"settings.showHiddenFiles" = "顯示隱藏檔案";
+"settings.rememberLastFolder" = "記住上次開啟的資料夾";
+"settings.confirmBeforeDeletingFiles" = "移到废纸篓前二次确认";
+"settings.hiddenSuffixes" = "隱藏副檔名";
+"settings.hiddenSuffixesEnabled" = "隱藏已設定的副檔名";
+"settings.language.description" = "选择 SimpleZip 的界面语言。部分文字需要重启后完整生效。";
+"settings.startupLocation.description" = "选择 SimpleZip 启动后文件浏览器默认打开的位置。";
+"settings.overwriteBehavior.description" = "解压、复制或移动时遇到同名文件，默认使用这个处理策略。";
+"settings.showHiddenFiles.description" = "在文件浏览器里显示点开头文件和 Finder 隐藏项目。";
+"settings.rememberLastFolder.description" = "下次打开时回到上次使用的文件夹，而不是总是回到启动位置。";
+"settings.confirmBeforeDeletingFiles.description" = "开启后，选中文件移到 macOS 废纸篓前会先弹出确认提示。";
+"settings.finderOpenAutoExtract" = "从 Finder 打开时自动解压";
+"settings.finderOpenAutoExtract.description" = "通过 Finder、Services 或其它 App 打开压缩包时，直接解压到压缩包所在目录，不再打开 SimpleZip 主窗口浏览。安全策略提示仍会触发。";
+"settings.presetPasswordEnabled" = "使用预设密码";
+"settings.presetPasswordEnabled.description" = "创建加密压缩包时自动填入此密码；打开 / 解压有密码的压缩包时先尝试这个密码，失败再弹输入框。";
+"settings.presetPassword" = "预设密码";
+"settings.presetPassword.description" = "以明文保存到本机偏好，与其他 App 共用 Mac 或借出设备时建议关闭。";
+"settings.presetPassword.placeholder" = "输入要预设的密码";
+"settings.presetPassword.empty" = "尚未配置 —— 打开上面的开关并在此输入密码。";
+"settings.presetPassword.saved" = "已加密保存到钥匙串。";
+"settings.presetPassword.saveFailed" = "钥匙串拒绝了写入。请检查访问权限后重试。";
+"settings.presetPassword.clearFailed" = "钥匙串拒绝了删除。开关已回弹至开启；请检查「钥匙串访问」权限后重试。";
+"settings.presetPassword.revealReason" = "需要验证才能显示预设密码。";
+"settings.presetPassword.revealFailed" = "验证未通过，预设密码继续隐藏。";
+"button.save" = "保存";
+"button.usePresetPassword" = "使用预设密码";
+"button.usePresetPassword.help" = "使用「通用」设置里的预设密码。取消勾选后可以输入其它密码。";
+"status.presetPasswordTryingFirst" = "正在尝试预设密码...";
+"status.presetPasswordAccepted" = "预设密码已通过";
+"settings.hiddenSuffixesEnabled.description" = "只隐藏列表里显示的包类后缀，真实文件名和路径不会改变。";
+"settings.hiddenSuffixes.hint" = "這裡只會隱藏名稱顯示裡的副檔名，真實檔名和路徑不會改動。";
+"settings.hiddenSuffixes.recommended" = "建議隱藏副檔名";
+"settings.hiddenSuffixes.custom" = "自訂隱藏副檔名";
+"settings.hiddenSuffixes.customEmpty" = "目前還沒有自訂隱藏副檔名。";
+"settings.hiddenSuffixes.customPlaceholder" = "加入副檔名，例如 app";
+"settings.hiddenSuffixes.remove" = "移除副檔名";
+"settings.startup.home" = "個人資料夾";
+"settings.startup.downloads" = "下載";
+"settings.startup.desktop" = "桌面";
+"settings.startup.documents" = "文稿";
+"settings.startup.movies" = "影片";
+"settings.startup.music" = "音乐";
+"settings.startup.pictures" = "图片";
+"settings.startup.lastFolder" = "上次開啟的資料夾";
+"settings.startup.custom" = "自定义位置";
+"settings.startup.addCustom" = "添加自定义位置…";
+"settings.startup.folderUnavailable" = "该文件夹现在不可用，SimpleZip 保留了你之前的选择。";
+"startup.missing.title" = "启动位置不可用";
+"startup.missing.message" = "你设置的启动位置文件夹已不存在，SimpleZip 暂时显示个人文件夹。可以去设置里重新选择，或重置为个人文件夹。";
+"startup.missing.openSettings" = "打开设置…";
+"startup.missing.reset" = "重置为个人文件夹";
+"settings.extract.askEveryTime" = "每次詢問";
+"settings.extract.archiveFolder" = "壓縮檔所在資料夾";
+"settings.extract.downloads" = "下載";
+"settings.overwrite.overwrite" = "覆蓋";
+"settings.overwrite.skipExisting" = "略過現有檔案";
+"settings.overwrite.ask" = "詢問";
+"button.hash" = "雜湊";
+"button.copyAll" = "全部複製";
+"error.selectFilesForHash" = "請選擇一個或多個要計算雜湊的檔案。";
+"status.hashing" = "正在計算雜湊...";
+"status.pasting" = "正在貼上檔案...";
+"status.hashingForOverwrite" = "正在比較檔案雜湊...";
+"status.mergingExtractedFiles" = "正在檢查解壓縮後的檔案...";
+"status.hashReady" = "雜湊計算完成";
+"hash.title" = "檔案雜湊";
+"hash.summary" = "%d 個檔案，%@";
+"hash.notRegularFile" = "不是一般檔案";
+"hash.all" = "全部雜湊";
+"hashOverwrite.same.title" = "雜湊相同";
+"hashOverwrite.same.message" = "原檔案：%@\nSHA256：%@\n\n嘗試覆蓋的檔案：%@\nSHA256：%@\n\n兩個檔案相同，SimpleZip 沒有覆蓋。";
+"hashOverwrite.different.title" = "雜湊不同";
+"hashOverwrite.different.message" = "原檔案：%@\nSHA256：%@\n\n嘗試覆蓋的檔案：%@\nSHA256：%@\n\n兩個檔案不同，SimpleZip 已覆蓋原檔案。";
+"hashOverwrite.progress.title" = "正在比較雜湊";
+"hashOverwrite.progress.existing" = "正在計算原檔案雜湊：%@";
+"hashOverwrite.progress.incoming" = "正在計算嘗試覆蓋的檔案雜湊：%@";
+"hashOverwrite.summary.title" = "哈希冲突汇总";
+"hashOverwrite.summary.message" = "%d 个项目内容一致，已跳过；%d 个项目内容不同，已替换。";
+"hashOverwrite.summary.same" = "已跳过";
+"hashOverwrite.summary.different" = "已替换";
+"hashOverwrite.summary.column.status" = "处理";
+"hashOverwrite.summary.column.file" = "文件";
+"hashOverwrite.summary.column.detail" = "比较结果";
+"hashOverwrite.summary.column.existingHash" = "原文件哈希";
+"hashOverwrite.summary.column.incomingHash" = "试图覆盖文件哈希";
+"hashOverwrite.summary.section.replaced" = "已替换";
+"hashOverwrite.summary.section.skipped" = "已跳过";
+"hashOverwrite.summary.section.title" = "%@（%d）";
+"hashOverwrite.summary.section.empty" = "这个分组没有项目。";
+"button.extractSelected" = "解壓縮選取項目";
+"error.selectArchiveItemsToExtract" = "請選擇壓縮檔內一個或多個要解壓縮的項目。";
+"error.missingBundleIdentifier" = "無法讀取目前 App 的 Bundle Identifier。";
+"error.defaultAppFailed" = "無法將 SimpleZip 設為 %@ 的預設 App。Launch Services 回傳 %d。";
+"status.extractingSelected" = "正在解壓縮 %d 個選取項目";
+"settings.section.fileAssociations" = "檔案關聯";
+"status.openingArchiveItem" = "正在開啟 %@";
+"status.openedArchiveItem" = "已開啟 %@";
+"error.extractedItemNotFound" = "找不到暫時解出的項目。";
+"error.openExtractedItemFailed" = "macOS 無法開啟暫時解出的項目。";
+"error.exportDestinationExists" = "拖放目標位置已有同名檔案。";
+"error.unsafeArchiveEntries" = "SimpleZip 已阻止解壓縮，因為壓縮檔包含不安全路徑：%@";
+"error.unsafeArchiveLinks" = "SimpleZip 已阻止解壓縮，因為壓縮檔包含符號連結：%@";
+"error.blockedBySecurityPolicy" = "已依照目前安全設定阻止。";
+"error.passwordPromptExhausted" = "壓縮檔後端要求了額外的密碼回應。請檢查密碼後再試一次。";
+"settings.showSymbolicLinks" = "顯示符號連結的檔案及資料夾";
+"settings.followFinderStructure" = "資料夾遵循 Finder 結構";
+"settings.showSymbolicLinks.description" = "在文件夹列表和搜索结果里包含符号链接。";
+"settings.followFinderStructure.description" = "像 Finder 一样合并特殊文件夹，例如“应用程序”和 Utilities。";
+"status.exportingArchiveItem" = "正在把 %@ 解壓縮到拖放位置";
+"status.exportedArchiveItem" = "已解壓縮 %@";
+"status.copyingFiles" = "正在複製檔案...";
+"status.movingFiles" = "正在移動檔案...";
+"settings.setDefaultArchiveApp" = "將 SimpleZip 設為壓縮檔預設 App";
+"settings.defaultArchiveAppDone" = "已將 SimpleZip 設為支援壓縮檔格式的預設 App。";
+"settings.defaultArchiveTypeDone" = "已將 SimpleZip 設為 %@ 檔案的預設 App。";
+"settings.association.currentDefault" = "目前預設：%@";
+"settings.association.noDefault" = "未設定預設 App";
+"settings.association.loading" = "正在檢查...";
+"settings.association.setDefault" = "設為預設";
+"settings.association.simpleZipDefault" = "已預設";
+"settings.section.columns" = "列表欄位";
+"settings.section.health" = "运行状态";
+"settings.section.backup" = "备份与还原";
+"backup.description" = "把当前偏好导出成 JSON 文件，可以拷到另一台 Mac 用；也可以从之前导出的文件导入。「全部恢复默认」会清掉所有偏好 + 钥匙串里的预设密码。";
+"backup.export.title" = "导出偏好";
+"backup.export.description" = "把当前偏好保存为 JSON 文件。预设密码（在钥匙串里）和私有路径（上次打开 / 置顶 / 最近）不会被导出。";
+"backup.export.button" = "导出…";
+"backup.export.savePanel.title" = "导出 SimpleZip 偏好";
+"backup.export.done" = "已导出到 %@。";
+"backup.export.failed" = "写入文件失败：%@";
+"backup.import.title" = "导入偏好";
+"backup.import.description" = "从之前导出的 JSON 文件加载偏好。当前的偏好值会被覆盖。";
+"backup.import.button" = "导入…";
+"backup.import.openPanel.title" = "选择 SimpleZip 偏好文件";
+"backup.import.confirm.title" = "替换当前偏好？";
+"backup.import.confirm.message" = "导入会用所选文件里的值覆盖现有偏好，此操作不可撤销。";
+"backup.import.confirm.button" = "导入";
+"backup.import.done" = "已导入 %@。";
+"backup.import.failed.malformed" = "文件不是合法 JSON，SimpleZip 无法读取。";
+"backup.import.failed.error" = "导入文件失败：%@";
+"backup.import.failed.missingSchema" = "文件缺少 SimpleZip schema 标记，看起来不是偏好导出文件。";
+"backup.import.failed.foreignSchema" = "文件的 schema 是「%@」，SimpleZip 偏好导出使用「SimpleZip.preferences」。";
+"backup.import.failed.unsupportedVersion" = "本版本不支持偏好格式版本 %d（仅支持 %d）。请升级 SimpleZip。";
+"backup.import.failed.missingValues" = "文件的 \"values\" 字段缺失或类型不对。";
+"backup.restore.title" = "全部恢复默认";
+"backup.restore.description" = "把所有偏好还原为出厂默认 + 清掉钥匙串里的预设密码。macOS 文件关联设置不受影响。";
+"backup.restore.button" = "恢复默认";
+"backup.restore.confirm.title" = "把所有偏好还原为默认？";
+"backup.restore.confirm.message" = "这会清掉所有 SimpleZip 偏好 + 清掉钥匙串里的预设密码。macOS 文件关联保持不变。";
+"backup.restore.confirm.button" = "恢复默认";
+"backup.restore.done" = "已把所有偏好还原为默认。";
+"health.description" = "一眼总览 SimpleZip 后端、文件关联、本机凭据等关键组件的当前状态。每一行右侧的修复按钮会直接跳到对应设置。";
+"health.checking" = "正在检查…";
+"health.recheck" = "重新检查";
+"health.lastChecked" = "上次检查 %@";
+"health.sevenZip.title" = "7-Zip 后端";
+"health.sevenZip.ok" = "%@ — %@";
+"health.sevenZip.missing" = "无法调用。当前后端：%@";
+"health.rar.title" = "RAR 后端";
+"health.rar.ok" = "%@ — %@";
+"health.rar.missing" = "RAR 是可选项。要创建 / 解压 .rar 压缩包，请到「设置 → 压缩包」安装本地 RAR。";
+"health.openRarSettings" = "打开 RAR 设置";
+"health.associations.title" = "文件关联";
+"health.associations.allOwned" = "SimpleZip 是全部 %d 种受支持压缩包格式的默认 App。";
+"health.associations.partial" = "SimpleZip 是 %d / %d 种受支持压缩包格式的默认 App。";
+"health.openAssociations" = "管理文件关联";
+"health.presetPassword.title" = "预设密码";
+"health.presetPassword.disabled" = "未启用。要自动填充 + 静默尝试，请在「通用」设置里开启。";
+"health.presetPassword.ok" = "已配置，保存在钥匙串。";
+"health.presetPassword.empty" = "已启用，但还没填密码。";
+"health.openGeneral" = "打开通用设置";
+"settings.columns.fileBrowser" = "檔案瀏覽";
+"settings.columns.archiveBrowser" = "壓縮檔瀏覽";
+"settings.columns.preview" = "预览";
+"settings.columns.description" = "选择文件浏览和压缩包浏览要显示哪些列，下方预览会立即反映效果。";
+"settings.section.general" = "一般";
+"settings.section.archive" = "壓縮";
+"settings.section.security" = "安全性";
+"settings.language" = "語言";
+"settings.language.system" = "跟隨系統";
+"settings.language.en" = "英文";
+"settings.language.es" = "西班牙文";
+"settings.language.fr" = "法文";
+"settings.language.de" = "德文";
+"settings.language.ko" = "韓文";
+"settings.language.ru" = "俄文";
+"settings.language.zhHans" = "簡體中文";
+"settings.language.zhHant" = "繁體中文";
+"settings.language.ja" = "日文";
+"settings.language.th" = "泰文";
+"settings.languageRestartHint" = "重新啟動 SimpleZip 後，語言會完整生效。";
+"archive.create.title" = "建立壓縮檔";
+"archive.fileName" = "檔名";
+"archive.format" = "格式";
+"archive.compressionLevel" = "壓縮率";
+"archive.updateMode" = "更新模式";
+"archive.updateMode.addAndReplace" = "加入並取代檔案";
+"archive.updateMode.updateAndAdd" = "更新並加入檔案";
+"archive.updateMode.freshen" = "只更新既有檔案";
+"archive.updateMode.synchronize" = "同步壓縮檔內容";
+"archive.password" = "密碼（選填）";
+"archive.passwordConfirm" = "再次輸入密碼";
+"archive.showPassword" = "顯示密碼";
+"archive.encryptionMethod" = "加密方式";
 "archive.encryption.zipCrypto" = "ZipCrypto";
-"archive.7z.advanced" = "7-Zip é²éé¸é ";
-"archive.7z.method" = "æ¹æ³";
-"archive.7z.method.automatic" = "èªå";
-"archive.7z.method.copy" = "åå²å­";
-"archive.7z.dictionarySize" = "å­å¸å¤§å°";
-"archive.7z.wordSize" = "å­å¤§å°";
-"archive.7z.threads" = "å·è¡ç·æ¸";
-"archive.7z.threads.auto" = "èªå";
-"archive.7z.solid" = "åºå¯¦å£ç¸®";
-"archive.7z.solidBlockSize" = "åºå¯¦åå¡å¤§å°";
-"archive.7z.pathMode" = "è·¯å¾æ¨¡å¼";
-"archive.7z.pathMode.relative" = "ç¸å°è·¯å¾åç¨±";
-"archive.7z.pathMode.full" = "å®æ´è·¯å¾åç¨±";
-"archive.7z.storeSymbolicLinks" = "å°ç¬¦èé£çµå­æé£çµ";
-"archive.7z.storeHardLinks" = "å°ç¡¬é£çµå­æé£çµ";
-"archive.7z.compressSharedFiles" = "å£ç¸®å±äº«æªæ¡";
-"archive.7z.deleteAfterCompression" = "å£ç¸®å¾åªé¤ä¾æºæªæ¡";
-"archive.7z.encryptFileNames" = "å å¯æªå";
-"archive.7z.encryptFileNamesHint" = "è«åè¨­å®å¯ç¢¼ï¼æè½åç¨æ¨é ­å å¯ã";
-"archive.7z.volumeSize" = "åå·å¤§å°";
-"archive.7z.volumeSizeHint" = "ä¾å¦ï¼100mã2gã512kãçç©ºåå»ºç«å®ä¸å£ç¸®æªã";
-"archive.createSFX" = "å»ºç« SFX èªè§£å£ç¸®æª";
-"archive.parameters" = "åæ¸";
-"archive.parametersHint" = "ä¾é²éå¾ç«¯ä½¿ç¨çé¡å¤å½ä»¤ååæ¸ã";
-"archive.memoryUsageCompressing" = "å£ç¸®è¨æ¶é«ç¨éï¼ä¼°ç®ï¼";
-"archive.memoryUsageDecompressing" = "è§£å£è¨æ¶é«ç¨éï¼ä¼°ç®ï¼";
-"archive.skipDSStore" = "ç¥é .DS_Store";
-"archive.skipHiddenFiles" = "ç¥é . éé ­çé±èæª";
-"archive.skipHiddenFilesHint" = "é±èæªåæ¬ .envã.gitignoreã.npmrc ç­ä»¥ . éé ­ç dotfilesã";
-"archive.customExcludes" = "èªè¨æé¤";
-"archive.customExcludesHint" = "æ¯è¡ä¸åè¦åï¼ä¹å¯ç¨éèåéãä¾å¦ *.tmp æ build/*";
-"archive.countExcludedFiles" = "è¨ç®";
-"archive.excludedFilesNotConfigured" = "å°æªåç¨æé¤è¦åã";
-"archive.excludedFilesNeedsCalculation" = "é»ä¸ä¸ãè¨ç®ãçµ±è¨å¾æé¤çæªæ¡æ¸éã";
-"archive.excludedFilesDetected" = "åµæ¸¬å° %d åå¾æé¤çæªæ¡ã";
-"archive.destination" = "å²å­å°";
-"archive.rar.requiresTool" = "å»ºç« RAR éè¦å¤é¨ rar å½ä»¤åå·¥å·ã";
-"benchmark.title" = "7-Zip è·å";
-"benchmark.dictionarySize" = "å­å¸å¤§å°";
-"benchmark.copyRawOutput" = "è¤è£½åå§è¼¸åº";
-"benchmark.threads" = "å·è¡ç·æ¸";
-"benchmark.backendThreads" = "è·åå·è¡ç·æ¸";
-"benchmark.elapsedTime" = "å·²èæ";
-"benchmark.current" = "ç®å";
-"benchmark.average" = "å¹³å";
-"benchmark.totalRating" = "ç¸½è©å";
-"benchmark.compressing" = "å£ç¸®";
-"benchmark.decompressing" = "è§£å£ç¸®";
-"benchmark.rawOutput" = "åå§è¼¸åº";
-"benchmark.waiting" = "æ­£å¨ç­å¾è·åè¼¸åº...";
-"archive.level.store" = "åå²å­";
-"archive.level.fast" = "å¿«é";
-"archive.level.normal" = "æ¨æº";
-"archive.level.maximum" = "æå¤§";
-"extract.selected.title" = "è§£å£ç¸®é¸åé ç®";
-"extract.archive.title" = "è§£å£ç¸®å£ç¸®æª";
-"extract.password.placeholder" = "å¯ç¢¼ï¼å¯é¸ï¼";
-"extract.pathMode" = "ç®éçµæ§";
-"extract.path.preserve" = "ä¿çç®éçµæ§";
-"extract.path.flatten" = "åªå°æªæ¡è§£å£ç¸®å°ç®æ¨è³æå¤¾";
-"extract.decryptionMethod" = "è§£å¯æ¹å¼";
-"extract.decryption.automatic" = "èªå";
-"extract.decryption.detected" = "åµæ¸¬å°å£ç¸®æªçº %@ å å¯æ¼ç®æ³";
-"extract.decryption.unknown" = "æªç¥";
-"extract.decryption.none" = "æªå å¯";
-"extract.decryption.mixed" = "æ··å";
-"button.choose" = "é¸æ...";
-"button.cancel" = "åæ¶";
-"button.continue" = "ç¹¼çº";
-"button.create" = "å»ºç«";
-"operation.showDetails" = "é¡¯ç¤ºè©³æ";
-"details.commandOutput" = "å½ä»¤è¼¸åº";
-"details.waiting" = "æ­£å¨ç­å¾å½ä»¤è¼¸åº...";
-"file.copy" = "è¤è£½";
-"file.cut" = "åªä¸";
-"file.paste" = "è²¼ä¸";
-"file.selectAll" = "å¨é¸";
-"file.moveTo" = "ç§»åå°...";
-"file.delete" = "åªé¤";
-"file.moveToTrash" = "ç§»å°åå¾æ¡¶";
-"confirm.delete.title" = "å° %d åé ç®ç§»å°åå¾æ¡¶ï¼";
-"confirm.delete.message" = "é¸åçæªæ¡æé²å¥ macOS åå¾æ¡¶ï¼ä¸æç´æ¥ rm åªé¤ã";
-"confirm.pasteConflict.title" = "ã%@ãå·²å­å¨";
-"confirm.pasteConflict.message" = "è«é¸æ SimpleZip å¦ä½èçéåååè¡çªã";
-"conflict.rememberForOperation" = "å°æ­¤éæ©åºç¨å°æ¬æ¬¡æä½å©ä½çååå²çª";
-"confirm.openUnsafeArchiveItem.title" = "è¦å¾æ«æå¯æ¬éåã%@ãåï¼";
-"confirm.openUnsafeArchiveItem.message" = "éåé ç®å¯è½å·è¡ç¨å¼ç¢¼æè¼å¥ä¸»åå§å®¹ãåªæå¨ä½ ä¿¡ä»»å£ç¸®æªä¾æºæææéåã";
-"confirm.unsafeArchiveEntries.title" = "éåå£ç¸®æªåå«ä¸å®å¨è·¯å¾";
-"confirm.unsafeArchiveEntries.message" = "é¨åé ç®åè©¦ä½¿ç¨çµå°è·¯å¾æä¸å±¤ç®éçæ®µï¼%@ãåªæå¨ä½ ä¿¡ä»»éåå£ç¸®æªæææç¹¼çºã";
-"confirm.unsafeArchiveLinks.title" = "éåå£ç¸®æªåå«ç¬¦èé£çµ";
-"confirm.unsafeArchiveLinks.message" = "ç¬¦èé£çµå¯è½æåè§£å£ç¸®ç®éå¤é¨ï¼%@ãåªæå¨ä½ ä¿¡ä»»éåå£ç¸®æªæææç¹¼çºã";
-"conflict.replace" = "è¦è";
-"conflict.keepBoth" = "ä¿çå©è";
-"conflict.skip" = "ç¥é";
-"conflict.replaceIfDifferent" = "éæ¹ä¸åæè¦è";
-"settings.editColumns" = "ç·¨è¼¯åè¡¨æ¬...";
-"settings.7zip.backend" = "7-Zip å¾ç«¯";
-"settings.7zip.backend.description" = "éæ© SimpleZip èªå¨ä½¿ç¨åç½® 7-Zipï¼è¿æ¯åªä½¿ç¨ç³»ç»å®è£ç 7-Zipã";
-"settings.7zip.automatic" = "èªå";
-"settings.7zip.bundled" = "è»é«å§å»º";
-"settings.7zip.system" = "ç³»çµ±å®è£";
-"settings.7zip.path" = "è·¯å¾ï¼%@";
-"settings.7zip.version" = "çæ¬ï¼%@";
-"settings.7zip.resolvedPath" = "%@ï¼%@";
-"settings.7zip.resolvedVersion" = "%@ï¼%@";
-"settings.7zip.source.bundled" = "å§å»º 7-Zip";
-"settings.7zip.source.system" = "ç³»çµ± 7-Zip";
-"settings.7zip.checking" = "æ­£å¨æª¢æ¥...";
-"settings.7zip.notFound" = "æ¾ä¸å°";
-"settings.rar.backend" = "RAR å¾ç«¯";
-"settings.rar.backend.description" = "éæ© SimpleZip å¦ä½æ¥æ¾å¯éç RAR åå»ºå·¥å·ãRARLAB äºè¿å¶é»è®¤ä¸ä¼é App åç½®ã";
-"settings.rar.automatic" = "èªå";
-"settings.rar.bundled" = "æåå®è£";
-"settings.rar.system" = "ç³»çµ±å®è£";
-"settings.rar.path" = "è·¯å¾ï¼%@";
-"settings.rar.version" = "çæ¬ï¼%@";
-"settings.rar.resolvedPath" = "%@ï¼%@";
-"settings.rar.resolvedVersion" = "%@ï¼%@";
-"settings.rar.source.local" = "æ¬å° RAR";
-"settings.rar.source.system" = "ç³»çµ± RAR";
-"settings.rar.checking" = "æ­£å¨æª¢æ¥...";
-"settings.rar.notFound" = "æ¾ä¸å°";
-"settings.rar.installPrompt" = "èªå¨æ¨¡å¼æ²¡ææ¾å° RAR å½ä»¤è¡å·¥å·ãè¥è¦å¯ç¨ RAR åå»ºï¼è¯·åéè¯»è½¯ä»¶åéç README åè®¸å¯è¯´æï¼åä»å®è£æä»¶å¤¹è¿è¡å®è£èæ¬ãèæ¬ä¼æ RAR å®è£å° SimpleZip ç Application Support æ°æ®ç®å½ï¼èä¸æ¯ App ååã";
-"settings.rar.localBackendPrompt" = "æ¬å° RAR åç«¯å·²å®è£å¨ SimpleZip ç Application Support æ°æ®ç®å½ãä½ å¯ä»¥ä»å®æ¹ RARLAB åæ´æ°å®ï¼ä¹å¯ä»¥å é¤æ¬å°å¯æ¬ã";
-"settings.rar.openReadme" = "æå¼ README";
-"settings.rar.revealInstallFiles" = "æ¾ç¤ºå®è£æä»¶";
-"settings.rar.runInstaller" = "è¿è¡å®è£èæ¬";
-"settings.rar.updateBackend" = "æ´æ°åç«¯";
-"settings.rar.deleteBackend" = "å é¤åç«¯";
-"settings.rar.openReadme.description" = "æ¥çåéèæ¬å¦ä½ä¸è½½ RARLAB åï¼å¹¶å®è£æ¬å°åç«¯ã";
-"settings.rar.revealInstallFiles.description" = "å¨ Finder ä¸­æå¼åé READMEãè®¸å¯è¯´æåå®è£èæ¬æå¨æä»¶å¤¹ã";
-"settings.rar.runInstaller.description" = "åéè¯»è®¸å¯å READMEï¼åä¸è½½å¹¶æ RAR å®è£å° SimpleZip çæ°æ®ç®å½ã";
-"settings.rar.updateBackend.description" = "åæ¬¡éè¯»åéè¯´æåï¼ç¨ææ°å®æ¹åæ¿æ¢æ¬å°åç«¯ã";
-"settings.rar.deleteBackend.description" = "å é¤ SimpleZip Application Support æ°æ®ç®å½ä¸­çæ¬å° RAR åç«¯åå·²å¤å¶è¯´ææä»¶ã";
-"settings.rar.installReviewTitle" = "éè¯» RAR è®¸å¯å README";
-"settings.rar.updateReviewTitle" = "æ´æ°åéè¯» RAR è®¸å¯å README";
-"settings.rar.licenseHeading" = "è®¸å¯è¯´æ";
+"archive.7z.advanced" = "7-Zip 進階選項";
+"archive.7z.method" = "方法";
+"archive.7z.method.automatic" = "自動";
+"archive.7z.method.copy" = "僅儲存";
+"archive.7z.dictionarySize" = "字典大小";
+"archive.7z.wordSize" = "字大小";
+"archive.7z.threads" = "執行緒數";
+"archive.7z.threads.auto" = "自動";
+"archive.7z.solid" = "固實壓縮";
+"archive.7z.solidBlockSize" = "固實區塊大小";
+"archive.7z.pathMode" = "路徑模式";
+"archive.7z.pathMode.relative" = "相對路徑名稱";
+"archive.7z.pathMode.full" = "完整路徑名稱";
+"archive.7z.storeSymbolicLinks" = "將符號連結存成連結";
+"archive.7z.storeHardLinks" = "將硬連結存成連結";
+"archive.7z.compressSharedFiles" = "壓縮共享檔案";
+"archive.7z.deleteAfterCompression" = "壓縮後刪除來源檔案";
+"archive.7z.encryptFileNames" = "加密檔名";
+"archive.7z.encryptFileNamesHint" = "請先設定密碼，才能啟用標頭加密。";
+"archive.7z.volumeSize" = "分卷大小";
+"archive.7z.volumeSizeHint" = "例如：100m、2g、512k。留空則建立單一壓縮檔。";
+"archive.createSFX" = "建立 SFX 自解壓縮檔";
+"archive.parameters" = "參數";
+"archive.parametersHint" = "供進階後端使用的額外命令列參數。";
+"archive.memoryUsageCompressing" = "壓縮記憶體用量（估算）";
+"archive.memoryUsageDecompressing" = "解壓記憶體用量（估算）";
+"archive.skipDSStore" = "略過 .DS_Store";
+"archive.skipHiddenFiles" = "略過 . 開頭的隱藏檔";
+"archive.skipHiddenFilesHint" = "隱藏檔包括 .env、.gitignore、.npmrc 等以 . 開頭的 dotfiles。";
+"archive.customExcludes" = "自訂排除";
+"archive.customExcludesHint" = "每行一個規則，也可用逗號分隔。例如 *.tmp 或 build/*";
+"archive.countExcludedFiles" = "計算";
+"archive.excludedFilesNotConfigured" = "尚未啟用排除規則。";
+"archive.excludedFilesNeedsCalculation" = "點一下「計算」統計待排除的檔案數量。";
+"archive.excludedFilesDetected" = "偵測到 %d 個待排除的檔案。";
+"archive.destination" = "儲存到";
+"archive.rar.requiresTool" = "建立 RAR 需要外部 rar 命令列工具。";
+"benchmark.title" = "7-Zip 跑分";
+"benchmark.dictionarySize" = "字典大小";
+"benchmark.copyRawOutput" = "複製原始輸出";
+"benchmark.threads" = "執行緒數";
+"benchmark.backendThreads" = "跑分執行緒數";
+"benchmark.elapsedTime" = "已耗時";
+"benchmark.current" = "目前";
+"benchmark.average" = "平均";
+"benchmark.totalRating" = "總評分";
+"benchmark.compressing" = "壓縮";
+"benchmark.decompressing" = "解壓縮";
+"benchmark.rawOutput" = "原始輸出";
+"benchmark.waiting" = "正在等待跑分輸出...";
+"archive.level.store" = "僅儲存";
+"archive.level.fast" = "快速";
+"archive.level.normal" = "標準";
+"archive.level.maximum" = "最大";
+"extract.selected.title" = "解壓縮選取項目";
+"extract.archive.title" = "解壓縮壓縮檔";
+"extract.password.placeholder" = "密碼（可選）";
+"extract.pathMode" = "目錄結構";
+"extract.path.preserve" = "保留目錄結構";
+"extract.path.flatten" = "只將檔案解壓縮到目標資料夾";
+"extract.decryptionMethod" = "解密方式";
+"extract.decryption.automatic" = "自動";
+"extract.decryption.detected" = "偵測到壓縮檔為 %@ 加密演算法";
+"extract.decryption.unknown" = "未知";
+"extract.decryption.none" = "未加密";
+"extract.decryption.mixed" = "混合";
+"button.choose" = "選擇...";
+"button.cancel" = "取消";
+"button.continue" = "繼續";
+"button.create" = "建立";
+"operation.showDetails" = "顯示詳情";
+"details.commandOutput" = "命令輸出";
+"details.waiting" = "正在等待命令輸出...";
+"file.copy" = "複製";
+"file.cut" = "剪下";
+"file.paste" = "貼上";
+"file.selectAll" = "全選";
+"file.moveTo" = "移動到...";
+"file.delete" = "刪除";
+"file.moveToTrash" = "移到垃圾桶";
+"confirm.delete.title" = "將 %d 個項目移到垃圾桶？";
+"confirm.delete.message" = "選取的檔案會進入 macOS 垃圾桶，不會直接 rm 刪除。";
+"confirm.pasteConflict.title" = "「%@」已存在";
+"confirm.pasteConflict.message" = "請選擇 SimpleZip 如何處理這個同名衝突。";
+"conflict.rememberForOperation" = "将此选择应用到本次操作剩余的同名冲突";
+"confirm.openUnsafeArchiveItem.title" = "要從暫時副本開啟「%@」嗎？";
+"confirm.openUnsafeArchiveItem.message" = "這個項目可能執行程式碼或載入主動內容。只有在你信任壓縮檔來源時才應開啟。";
+"confirm.unsafeArchiveEntries.title" = "這個壓縮檔包含不安全路徑";
+"confirm.unsafeArchiveEntries.message" = "部分項目嘗試使用絕對路徑或上層目錄片段：%@。只有在你信任這個壓縮檔時才應繼續。";
+"confirm.unsafeArchiveLinks.title" = "這個壓縮檔包含符號連結";
+"confirm.unsafeArchiveLinks.message" = "符號連結可能指向解壓縮目錄外部：%@。只有在你信任這個壓縮檔時才應繼續。";
+"conflict.replace" = "覆蓋";
+"conflict.keepBoth" = "保留兩者";
+"conflict.skip" = "略過";
+"conflict.replaceIfDifferent" = "雜湊不同時覆蓋";
+"settings.editColumns" = "編輯列表欄...";
+"settings.7zip.backend" = "7-Zip 後端";
+"settings.7zip.backend.description" = "选择 SimpleZip 自动使用内置 7-Zip，还是只使用系统安装的 7-Zip。";
+"settings.7zip.automatic" = "自動";
+"settings.7zip.bundled" = "軟體內建";
+"settings.7zip.system" = "系統安裝";
+"settings.7zip.path" = "路徑：%@";
+"settings.7zip.version" = "版本：%@";
+"settings.7zip.resolvedPath" = "%@：%@";
+"settings.7zip.resolvedVersion" = "%@：%@";
+"settings.7zip.source.bundled" = "內建 7-Zip";
+"settings.7zip.source.system" = "系統 7-Zip";
+"settings.7zip.checking" = "正在檢查...";
+"settings.7zip.notFound" = "找不到";
+"settings.rar.backend" = "RAR 後端";
+"settings.rar.backend.description" = "选择 SimpleZip 如何查找可选的 RAR 创建工具。RARLAB 二进制默认不会随 App 内置。";
+"settings.rar.automatic" = "自動";
+"settings.rar.bundled" = "手動安裝";
+"settings.rar.system" = "系統安裝";
+"settings.rar.path" = "路徑：%@";
+"settings.rar.version" = "版本：%@";
+"settings.rar.resolvedPath" = "%@：%@";
+"settings.rar.resolvedVersion" = "%@：%@";
+"settings.rar.source.local" = "本地 RAR";
+"settings.rar.source.system" = "系統 RAR";
+"settings.rar.checking" = "正在檢查...";
+"settings.rar.notFound" = "找不到";
+"settings.rar.installPrompt" = "自动模式没有找到 RAR 命令行工具。若要启用 RAR 创建，请先阅读软件内附的 README 和许可说明，再从安装文件夹运行安装脚本。脚本会把 RAR 安装到 SimpleZip 的 Application Support 数据目录，而不是 App 包内。";
+"settings.rar.localBackendPrompt" = "本地 RAR 后端已安装在 SimpleZip 的 Application Support 数据目录。你可以从官方 RARLAB 包更新它，也可以删除本地副本。";
+"settings.rar.openReadme" = "打开 README";
+"settings.rar.revealInstallFiles" = "显示安装文件";
+"settings.rar.runInstaller" = "运行安装脚本";
+"settings.rar.updateBackend" = "更新后端";
+"settings.rar.deleteBackend" = "删除后端";
+"settings.rar.openReadme.description" = "查看内附脚本如何下载 RARLAB 包，并安装本地后端。";
+"settings.rar.revealInstallFiles.description" = "在 Finder 中打开内附 README、许可说明和安装脚本所在文件夹。";
+"settings.rar.runInstaller.description" = "先阅读许可和 README，再下载并把 RAR 安装到 SimpleZip 的数据目录。";
+"settings.rar.updateBackend.description" = "再次阅读内附说明后，用最新官方包替换本地后端。";
+"settings.rar.deleteBackend.description" = "删除 SimpleZip Application Support 数据目录中的本地 RAR 后端和已复制说明文件。";
+"settings.rar.installReviewTitle" = "阅读 RAR 许可和 README";
+"settings.rar.updateReviewTitle" = "更新前阅读 RAR 许可和 README";
+"settings.rar.licenseHeading" = "许可说明";
 "settings.rar.readmeHeading" = "README";
-"settings.rar.licenseReadCheckbox" = "æå·²éè¯»å¹¶æ¥åè®¸å¯è¯´æã";
-"settings.rar.readmeReadCheckbox" = "æå·²éè¯» READMEã";
-"settings.rar.downloadAndInstall" = "ä¸è½½å¹¶å®è£";
-"settings.rar.downloadAndUpdate" = "ä¸è½½å¹¶æ´æ°";
-"settings.rar.installing" = "æ­£å¨å®è£ RAR åç«¯...";
-"settings.rar.updating" = "æ­£å¨æ´æ° RAR åç«¯...";
-"settings.rar.installSucceeded" = "RAR åç«¯å·²å®è£ãèªå¨æ¨¡å¼ç°å¨åºä¼ä½¿ç¨ Application Support ä¸­çå¯æ¬ã";
-"settings.rar.updateSucceeded" = "RAR åç«¯å·²æ´æ°ãèªå¨æ¨¡å¼ç°å¨åºä¼ä½¿ç¨ Application Support ä¸­çå¯æ¬ã";
-"settings.rar.installFailed" = "RAR åç«¯å®è£å¤±è´¥ã";
-"settings.rar.installFailedWithOutput" = "RAR åç«¯å®è£å¤±è´¥ï¼%@";
-"settings.rar.deleteSucceeded" = "æ¬å° RAR åç«¯å·²å é¤ã";
-"settings.rar.deleteFailedWithOutput" = "å é¤æ¬å° RAR åç«¯å¤±è´¥ï¼%@";
-"settings.rar.installFilesMissing" = "è¿ä¸ª App åä¸­æ²¡ææ¾å° RAR å®è£æä»¶ã";
-"settings.systemInstall.7zip.title" = "æªæ¾å°ç³»ç» 7-Zipãå¯ä»¥ç¨ Homebrew å®è£ï¼";
-"settings.systemInstall.rar.title" = "æªæ¾å°ç³»ç» RARãå¯ä»¥å®è£ RARLAB ç Homebrew caskï¼";
-"settings.systemInstall.copy" = "å¤å¶";
-"settings.systemInstall.copyAndOpenTerminal" = "å¤å¶å¹¶æå¼ç»ç«¯";
-"settings.systemInstall.copy.description" = "å¤å¶ Homebrew å½ä»¤ï¼æ¹ä¾¿ä½ èªå·±ç¡®è®¤åè¿è¡ã";
-"settings.systemInstall.copyAndOpenTerminal.description" = "å¤å¶å½ä»¤å¹¶æå¼ç»ç«¯ï¼æå¨å®è£æ¶å°ä¸æ­¥åæ¢ã";
-"settings.systemInstall.copied" = "å·²å¤å¶ï¼%@";
-"finderService.error.noFiles" = "%@ æ²¡ææ¶å° Finder ä¼ æ¥çæä»¶ã";
-"settings.security.ask" = "è©¢å";
-"settings.security.allow" = "ä¸å¾åè¨±";
-"settings.security.deny" = "ä¸å¾æçµ";
-"settings.security.suspiciousPaths" = "å¯çå£ç¸®æªè·¯å¾";
-"settings.security.symbolicLinks" = "è§£åºçç¬¦èé£çµ";
-"settings.security.activeContent" = "éåä¸»åå§å®¹";
-"settings.security.description" = "éäºè¦åä½ç¨æ¼å¾ä»é¢ç¼èµ·çå£ç¸®æªæä½ãé è¨­æ¯è©¢åï¼SimpleZip æåæç¤ºåç¹¼çºã";
-"settings.security.suspiciousPaths.description" = "æ§å¶åå«ç»å¯¹è·¯å¾æä¸çº§ç®å½è·³è½¬çåç¼©åé¡¹ç®ã";
-"settings.security.symbolicLinks.description" = "æ§å¶è§£ååå¯è½æåç®æ æä»¶å¤¹å¤é¨çç¬¦å·é¾æ¥ã";
-"settings.security.activeContent.description" = "æ§å¶ä»åç¼©åéæå¼å¯è½è¿è¡ä»£ç æå è½½ä¸»å¨åå®¹çæä»¶ã";
-"settings.association.description" = "éæ©åªäºåç¼©åç±»åé»è®¤ç¨ SimpleZip æå¼ãæ¯ä¸è¡é½ä¼æ¾ç¤ºå½åé»è®¤ Appã";
-"column.kind" = "ç¨®é¡";
-"column.application" = "æç¨ç¨å¼";
-"column.lastOpened" = "æå¾æéæ¥æ";
-"column.dateAdded" = "å å¥æ¥æ";
-"column.created" = "å»ºç«æ¥æ";
+"settings.rar.licenseReadCheckbox" = "我已阅读并接受许可说明。";
+"settings.rar.readmeReadCheckbox" = "我已阅读 README。";
+"settings.rar.downloadAndInstall" = "下载并安装";
+"settings.rar.downloadAndUpdate" = "下载并更新";
+"settings.rar.installing" = "正在安装 RAR 后端...";
+"settings.rar.updating" = "正在更新 RAR 后端...";
+"settings.rar.installSucceeded" = "RAR 后端已安装。自动模式现在应会使用 Application Support 中的副本。";
+"settings.rar.updateSucceeded" = "RAR 后端已更新。自动模式现在应会使用 Application Support 中的副本。";
+"settings.rar.installFailed" = "RAR 后端安装失败。";
+"settings.rar.installFailedWithOutput" = "RAR 后端安装失败：%@";
+"settings.rar.deleteSucceeded" = "本地 RAR 后端已删除。";
+"settings.rar.deleteFailedWithOutput" = "删除本地 RAR 后端失败：%@";
+"settings.rar.installFilesMissing" = "这个 App 包中没有找到 RAR 安装文件。";
+"settings.systemInstall.7zip.title" = "未找到系统 7-Zip。可以用 Homebrew 安装：";
+"settings.systemInstall.rar.title" = "未找到系统 RAR。可以安装 RARLAB 的 Homebrew cask：";
+"settings.systemInstall.copy" = "复制";
+"settings.systemInstall.copyAndOpenTerminal" = "复制并打开终端";
+"settings.systemInstall.copy.description" = "复制 Homebrew 命令，方便你自己确认后运行。";
+"settings.systemInstall.copyAndOpenTerminal.description" = "复制命令并打开终端，手动安装时少一步切换。";
+"settings.systemInstall.copied" = "已复制：%@";
+"finderService.error.noFiles" = "%@ 没有收到 Finder 传来的文件。";
+"settings.security.ask" = "詢問";
+"settings.security.allow" = "一律允許";
+"settings.security.deny" = "一律拒絕";
+"settings.security.suspiciousPaths" = "可疑壓縮檔路徑";
+"settings.security.symbolicLinks" = "解出的符號連結";
+"settings.security.activeContent" = "開啟主動內容";
+"settings.security.description" = "這些規則作用於從介面發起的壓縮檔操作。預設是詢問，SimpleZip 會先提示再繼續。";
+"settings.security.suspiciousPaths.description" = "控制包含绝对路径或上级目录跳转的压缩包项目。";
+"settings.security.symbolicLinks.description" = "控制解压后可能指向目标文件夹外部的符号链接。";
+"settings.security.activeContent.description" = "控制从压缩包里打开可能运行代码或加载主动内容的文件。";
+"settings.association.description" = "选择哪些压缩包类型默认用 SimpleZip 打开。每一行都会显示当前默认 App。";
+"column.kind" = "種類";
+"column.application" = "應用程式";
+"column.lastOpened" = "最後打開日期";
+"column.dateAdded" = "加入日期";
+"column.created" = "建立日期";
