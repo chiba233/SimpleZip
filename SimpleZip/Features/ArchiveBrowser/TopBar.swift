@@ -425,6 +425,41 @@ private enum LocationTextKeyCommand {
 
 private final class KeyboardTextField: NSTextField {
     override var acceptsFirstResponder: Bool { true }
+
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        guard flags.contains(.command),
+              !flags.contains(.control),
+              !flags.contains(.option),
+              let key = event.charactersIgnoringModifiers?.lowercased()
+        else {
+            return super.performKeyEquivalent(with: event)
+        }
+
+        switch key {
+        case "a":
+            currentEditor()?.selectAll(nil)
+            return true
+        case "c":
+            currentEditor()?.copy(nil)
+            return true
+        case "x":
+            currentEditor()?.cut(nil)
+            return true
+        case "v":
+            currentEditor()?.paste(nil)
+            return true
+        case "z":
+            if flags.contains(.shift) {
+                currentEditor()?.undoManager?.redo()
+            } else {
+                currentEditor()?.undoManager?.undo()
+            }
+            return true
+        default:
+            return super.performKeyEquivalent(with: event)
+        }
+    }
 }
 
 /// 工具栏大按钮，模仿传统压缩软件的图标加文字入口。
