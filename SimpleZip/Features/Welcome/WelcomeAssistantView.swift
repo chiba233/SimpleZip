@@ -684,69 +684,24 @@ private struct WelcomeBackendStep: View {
         }
     }
 
-    // MARK: - 行为（与 Settings RAR section 共用 ArchiveService 同名 helper）
-
-    /// 把 README / LICENSE 文本读出来后弹起 RarInstallReviewSheet。
-    /// 读失败 = 安装资源缺失（用户可能删过 Tools 目录），直接提示。
     private func beginRarInstallReview(_ action: RarInstallAction) {
-        guard let licenseURL = ArchiveService.rarInstallLicenseURL(),
-              let readmeURL = ArchiveService.rarInstallReadmeURL() else {
-            installMessage = L10n.text("settings.rar.installFilesMissing")
-            return
-        }
         do {
-            let licenseText = try String(contentsOf: licenseURL, encoding: .utf8)
-            let readmeText = try String(contentsOf: readmeURL, encoding: .utf8)
-            rarInstallReview = RarInstallReview(action: action, licenseText: licenseText, readmeText: readmeText)
+            rarInstallReview = try RarInstallerService.loadReview(action: action)
         } catch {
-            installMessage = L10n.format("settings.rar.installFailedWithOutput", error.localizedDescription)
+            installMessage = error.localizedDescription
         }
     }
 
-    /// 在后台跑 install 脚本 —— 实现跟 Settings RarBackendSection 同源（脚本路径在 ArchiveService 里）。
-    /// 输出只取尾部 4 行避免 toast 撑爆。
     private func runRarInstaller(action: RarInstallAction) {
-        guard let installerURL = ArchiveService.rarInstallerScriptURL(),
-              FileManager.default.fileExists(atPath: installerURL.path) else {
-            installMessage = L10n.text("settings.rar.installFilesMissing")
-            return
-        }
         isInstallingRar = true
-        installMessage = action == .install ? L10n.text("settings.rar.installing") : L10n.text("settings.rar.updating")
-
-        Task.detached {
-            let process = Process()
-            let output = Pipe()
-            process.executableURL = URL(fileURLWithPath: "/bin/bash")
-            process.arguments = [installerURL.path]
-            process.currentDirectoryURL = installerURL.deletingLastPathComponent()
-            process.standardOutput = output
-            process.standardError = output
-            do {
-                try process.run()
-                process.waitUntilExit()
-                let data = output.fileHandleForReading.readDataToEndOfFile()
-                let text = String(decoding: data, as: UTF8.self)
-                    .split(separator: "\n").suffix(4).joined(separator: "\n")
-                await MainActor.run {
-                    isInstallingRar = false
-                    refreshStatus()
-                    if process.terminationStatus == 0 {
-                        installMessage = action == .install
-                            ? L10n.text("settings.rar.installSucceeded")
-                            : L10n.text("settings.rar.updateSucceeded")
-                    } else if text.isEmpty {
-                        installMessage = L10n.text("settings.rar.installFailed")
-                    } else {
-                        installMessage = L10n.format("settings.rar.installFailedWithOutput", text)
-                    }
-                }
-            } catch {
-                await MainActor.run {
-                    isInstallingRar = false
-                    installMessage = L10n.format("settings.rar.installFailedWithOutput", error.localizedDescription)
-                }
-            }
+        installMessage = action == .install
+            ? L10n.text("settings.rar.installing")
+            : L10n.text("settings.rar.updating")
+        Task {
+            let message = await RarInstallerService.runInstaller(action: action)
+            isInstallingRar = false
+            refreshStatus()
+            installMessage = message
         }
     }
 

@@ -199,78 +199,24 @@ struct RarBackendSection: View {
         NSWorkspace.shared.activateFileViewerSelecting(installFiles.isEmpty ? [resourcesURL] : installFiles)
     }
 
-    /// 读出协议 / README 原文后弹起 review sheet。
-    /// 读文件失败说明安装资源缺失（用户可能删了 Tools 目录），直接给提示。
     private func beginInstallReview(_ action: RarInstallAction) {
-        guard let licenseURL = ArchiveService.rarInstallLicenseURL(),
-              let readmeURL = ArchiveService.rarInstallReadmeURL()
-        else {
-            rarInstallMessage = L10n.text("settings.rar.installFilesMissing")
-            return
-        }
-
         do {
-            let licenseText = try String(contentsOf: licenseURL, encoding: .utf8)
-            let readmeText = try String(contentsOf: readmeURL, encoding: .utf8)
-            let review = RarInstallReview(action: action, licenseText: licenseText, readmeText: readmeText)
-            DispatchQueue.main.async {
-                rarInstallReview = review
-            }
+            rarInstallReview = try RarInstallerService.loadReview(action: action)
         } catch {
-            rarInstallMessage = L10n.format("settings.rar.installFailedWithOutput", error.localizedDescription)
+            rarInstallMessage = error.localizedDescription
         }
     }
 
-    /// 在后台执行 bash 安装脚本。
-    ///
-    /// 用 `Task.detached` 而不是 `Task`：脚本耗时几秒到十几秒，detached 避免占着主 actor。
-    /// 输出只取最后 4 行 —— 真有错误的话最后几行就是 stderr，太多会撑爆 toast。
     private func runRarInstaller(action: RarInstallAction) {
-        guard let installerURL = ArchiveService.rarInstallerScriptURL(),
-              FileManager.default.fileExists(atPath: installerURL.path)
-        else {
-            rarInstallMessage = L10n.text("settings.rar.installFilesMissing")
-            return
-        }
-
         isInstallingRar = true
-        rarInstallMessage = action == .install ? L10n.text("settings.rar.installing") : L10n.text("settings.rar.updating")
-
-        Task.detached {
-            let process = Process()
-            let output = Pipe()
-            process.executableURL = URL(fileURLWithPath: "/bin/bash")
-            process.arguments = [installerURL.path]
-            process.currentDirectoryURL = installerURL.deletingLastPathComponent()
-            process.standardOutput = output
-            process.standardError = output
-
-            do {
-                try process.run()
-                process.waitUntilExit()
-                let data = output.fileHandleForReading.readDataToEndOfFile()
-                let text = String(decoding: data, as: UTF8.self)
-                    .split(separator: "\n")
-                    .suffix(4)
-                    .joined(separator: "\n")
-
-                await MainActor.run {
-                    isInstallingRar = false
-                    refreshVersion()
-                    if process.terminationStatus == 0 {
-                        rarInstallMessage = action == .install ? L10n.text("settings.rar.installSucceeded") : L10n.text("settings.rar.updateSucceeded")
-                    } else if text.isEmpty {
-                        rarInstallMessage = L10n.text("settings.rar.installFailed")
-                    } else {
-                        rarInstallMessage = L10n.format("settings.rar.installFailedWithOutput", text)
-                    }
-                }
-            } catch {
-                await MainActor.run {
-                    isInstallingRar = false
-                    rarInstallMessage = L10n.format("settings.rar.installFailedWithOutput", error.localizedDescription)
-                }
-            }
+        rarInstallMessage = action == .install
+            ? L10n.text("settings.rar.installing")
+            : L10n.text("settings.rar.updating")
+        Task {
+            let message = await RarInstallerService.runInstaller(action: action)
+            isInstallingRar = false
+            refreshVersion()
+            rarInstallMessage = message
         }
     }
 
