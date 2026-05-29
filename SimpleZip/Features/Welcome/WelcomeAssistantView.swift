@@ -42,10 +42,12 @@ struct WelcomeAssistantView: View {
 
     @State private var currentStep: Int = 0
 
-    /// 总步数：0 = backup restore，1 = version check，2 = intro，3..9 = 实际设置步骤，10 = completion。
-    /// 进度条只展示「设置类」步骤（3..9 → 1/7..7/7），backup / version check / intro / completion 不计入。
-    private let totalSteps = 11
-    private let settingStepCount = 7
+    /// 总步数：0 = backup restore，1 = version check，2 = intro，3..10 = 实际设置步骤（含 GPG），11 = completion。
+    /// 进度条只展示「设置类」步骤（3..10 → 1/8..8/8），backup / version check / intro / completion 不计入。
+    /// GPG 单独成步是因为它是「特殊功能 / 可选禁用」性质，跟 7-Zip / RAR 这类「必装后端」语义不同，
+    /// 用户得明确做出 opt-in / opt-out 的决定 —— 塞进 backend 步骤里会让用户误以为「必须装」。
+    private let totalSteps = 12
+    private let settingStepCount = 8
     private let firstSettingStepIndex = 3
 
     /// 「取消」按钮的二次确认 alert flag。
@@ -139,6 +141,8 @@ struct WelcomeAssistantView: View {
             )
         case 9:
             WelcomeBackendStep()
+        case 10:
+            WelcomeGPGStep()
         default:
             WelcomeCompletionStep()
         }
@@ -719,6 +723,109 @@ private struct WelcomeBackendStep: View {
         sevenZipAvailable = ArchiveService.canUseSevenZip()
         rarAvailable = ArchiveService.canCreateRAR()
         hasLocalRar = ArchiveService.hasLocalRarBackend()
+    }
+}
+
+/// GPG 集成的 opt-in / opt-out 步骤。
+///
+/// 单独成步骤（跟 7-Zip / RAR backend 那一步分开），因为 GPG 是「特殊可选功能」语义 ——
+/// 用户不开 GPG 也不影响日常压缩 / 解压，必须显式选择启用。开启后若后端缺失，给 brew 命令 + GPGTools 链接，
+/// 不卡用户继续 wizard（后端可以以后再装）。
+///
+/// 视觉模板复用 `BackendStatusBadge(.prominent)` + `GroupBox` + `SettingsControlRow` + `SystemInstallCommandView`
+/// 跟 `WelcomeBackendStep` 同款，避免「快速开始 wizard 自成一套 UI」违和。
+private struct WelcomeGPGStep: View {
+    @AppStorage(AppPreferences.Key.gpgEnabled) private var gpgEnabled = false
+
+    @State private var gpgAvailable = false
+    @State private var hasPinentryMac = false
+    @State private var systemInstallMessage: String?
+
+    var body: some View {
+        WelcomeStepShell(
+            title: L10n.text("welcome.gpg.title"),
+            body1: L10n.text("welcome.gpg.body")
+        ) {
+            VStack(alignment: .leading, spacing: 16) {
+                // 主开关 ——「启用 GPG 集成」勾选，绑同 settings 的 AppPreferences.gpgEnabled，
+                // 用户在 wizard 这里勾上，之后任何 GPG 入口（签名 .siz、验签、密钥管理）才显现。
+                GroupBox {
+                    SettingsToggleRow(
+                        title: L10n.text("welcome.gpg.enable"),
+                        description: L10n.text("welcome.gpg.enable.description"),
+                        isOn: $gpgEnabled
+                    )
+                }
+
+                // 启用后才展示后端检测 / 安装提示 —— 没启用 = 用户明确选择「不用 GPG」，
+                // 不该再 spam 安装提示。
+                if gpgEnabled {
+                    Text(L10n.text("welcome.gpg.backendCheck"))
+                        .font(.title3.weight(.semibold))
+
+                    BackendStatusBadge(
+                        isOk: gpgAvailable,
+                        okText: L10n.text("welcome.gpg.available"),
+                        failText: L10n.text("welcome.gpg.missing"),
+                        style: .prominent
+                    )
+
+                    if !gpgAvailable {
+                        // gpg 完全缺失 → brew 命令 + GPGTools 备选链接。SystemInstallCommandView
+                        // 内部承包 pasteboard + 开 Terminal，跟 Archive Pane 同款。
+                        GroupBox {
+                            VStack(alignment: .leading, spacing: 8) {
+                                SystemInstallCommandView(
+                                    title: L10n.text("settings.gpg.install.brew.title"),
+                                    command: "brew install gnupg pinentry-mac",
+                                    message: $systemInstallMessage
+                                )
+
+                                SettingsActionRow(
+                                    title: L10n.text("settings.gpg.install.gpgsuite.title"),
+                                    description: "https://gpgtools.org/",
+                                    systemImage: "safari",
+                                    buttonTitle: L10n.text("settings.gpg.install.gpgsuite.button")
+                                ) {
+                                    if let url = URL(string: "https://gpgtools.org/") {
+                                        NSWorkspace.shared.open(url)
+                                    }
+                                }
+                            }
+                        }
+                    } else if !hasPinentryMac {
+                        // gpg 装了但 pinentry-mac 缺 —— 能签名但不能 prompt passphrase（解密 / 解锁私钥会卡）。
+                        // 黄字警告，不是错误。
+                        Text(L10n.text("welcome.gpg.pinentry.warning"))
+                            .font(.callout)
+                            .foregroundStyle(.orange)
+                            .padding(10)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(Color.orange.opacity(0.12))
+                            )
+                    }
+
+                    // passphrase 声明 —— SimpleZip 不保管 GPG 私钥密码，全交给本机 gpg-agent + pinentry-mac。
+                    // 这条信息长期 release note / 错误文案都要重复，让用户碰到 GPG 问题时知道找 gpg / pinentry 而不是 SimpleZip。
+                    Text(L10n.text("welcome.gpg.passphraseNote"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .onAppear(perform: refreshStatus)
+        .onChange(of: gpgEnabled) { enabled in
+            // 切换开关时刷一次状态 —— 用户可能在外面装好 gpg 再回到 wizard 开开关。
+            if enabled { refreshStatus() }
+        }
+    }
+
+    private func refreshStatus() {
+        gpgAvailable = GPGBackend.isAvailable()
+        hasPinentryMac = GPGBackend.hasPinentryMac()
     }
 }
 

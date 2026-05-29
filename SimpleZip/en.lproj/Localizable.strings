@@ -32,6 +32,15 @@
 "welcome.backend.rar.available" = "RAR ✓ Ready";
 "welcome.backend.rar.missing" = "RAR ⓘ Unavailable (only needed for creating .rar)";
 "welcome.backend.openSettings" = "Install / pick a backend in Settings";
+"welcome.gpg.title" = "GPG (PGP signing) — optional";
+"welcome.gpg.body" = "GPG lets you sign archives so recipients can verify origin and integrity, and lets you encrypt to specific recipients' public keys. Entirely optional — turning it off keeps SimpleZip behaving as if GPG isn't there at all; you can opt in here anytime.";
+"welcome.gpg.enable" = "Enable GPG integration";
+"welcome.gpg.enable.description" = "When on: the Create Archive sheet exposes a \"GPG sign\" option, opening a .siz shows signer info, and Settings → GPG can manage keys. When off: every GPG entry point disappears from the main UI.";
+"welcome.gpg.backendCheck" = "GPG backend";
+"welcome.gpg.available" = "GnuPG ✓ Ready";
+"welcome.gpg.missing" = "GnuPG ✗ Not installed";
+"welcome.gpg.pinentry.warning" = "⚠ GnuPG is present but pinentry-mac is missing. Signing will work; decryption / unlocking private keys will hang because gpg-agent has no native GUI prompt. Consider `brew install pinentry-mac`.";
+"welcome.gpg.passphraseNote" = "ℹ SimpleZip does NOT manage or cache your GPG private-key passphrase — unlocking is handled entirely by your local gpg-agent + pinentry-mac. If GPG-related issues come up, check your gpg / pinentry / key trust configuration first.";
 "welcome.completion.title" = "All set";
 "welcome.completion.body" = "Key settings are configured. You can start using SimpleZip from the Dock, Finder, or by dragging a folder onto the main window.\n\nChange any of these settings later from Settings, and replay this assistant from the SimpleZip menu.";
 "welcome.backupRestore.title" = "Restore from a previous backup?";

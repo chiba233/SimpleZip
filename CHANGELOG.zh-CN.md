@@ -4,6 +4,24 @@
 
 ## 0.1.8
 
+- **新功能：欢迎助手加入「GPG（PGP 签名）— 可选」步骤**
+  - 总步数从 7 升到 8 ——「设置类」步骤计数 1/8..8/8。
+  - 单独成步骤而不是塞进现有「后端可用性」一格，因为 GPG 是「特殊可选功能」语义 ——「不开 GPG 也不影响日常压缩 / 解压」，必须由用户显式做出 opt-in / opt-out 决定，混进 backend 步骤会让用户误以为「必装」。
+  - 主开关 `gpgEnabled` toggle 默认关，用户勾上后才展示后端检测：GnuPG 状态徽章（绿 ✓ 已就绪 / 红 ✗ 未安装）+「未安装」时显示 `brew install gnupg pinentry-mac` 复制命令 + GPGTools 备选下载链接；装了 GnuPG 但 `pinentry-mac` 缺时给黄字警告（签名能正常做但解密 / 解锁私钥会卡 —— gpg-agent 没 GUI 弹窗）。
+  - 视觉模板全部复用已有共享组件（`BackendStatusBadge(.prominent)` / `SystemInstallCommandView` / `SettingsActionRow`）—— 跟现有 backend 步骤同款，避免 wizard 自成 UI 体系违和。
+  - 步骤底部固定一句声明：「SimpleZip 不保管 / 不缓存 GPG 私钥 passphrase，全交给本机 gpg-agent + pinentry-mac」，让用户碰到 GPG 问题时知道找 gpg / pinentry 配置而不是 SimpleZip。
+  - 跟主开关绑同一份 `AppPreferences.gpgEnabled` UserDefaults 键，wizard 里勾上 = 同时在「设置 → GPG」里也是开的，不需要再操作两遍。
+
+- **内部清理：6 轮冗余审计，14 项概念冗余砍掉（净 ≈ −244 行，零行为变化）**
+  - 后台 agent 全仓扫一遍后做的连续 6 批清理：每批跑 SwiftPM 109 测试 + Xcode Debug build 双关绿才进入下一批。
+  - 死代码：`GPGVerifyResult.iconName` 零调用方实例属性、`AppPreferences.gpgVerifyOnOpen` / `gpgSignByDefault` 两个「设置 toggle 写了但业务代码从不读」的撒谎 UI（直接拔掉 UI 而不是补业务路径，等真做时再加回来更省事）。
+  - 复制粘贴 helper：`copySystemInstallCommand` 三处 12 行副本下沉到 `SystemInstallCommandView` 自己承包 NSPasteboard 写 + 开 Terminal；`runRarInstaller` 在 Settings RAR section / 欢迎助手 backend 步骤两份 70 行 verbatim 副本抽到新的 `RarInstallerService`（@MainActor enum，两个静态方法零新类型，跟现有 `RarInstallAction` / `RarInstallReview` 完美复用）；`BackendStatusBadge` 跟 `BackendAvailabilityRow` 同款样式合一（参数化 `Style.compact / .prominent`）；`defaultArchiveName` 两个 body 完全一样的 `[FileItem]` / `[URL]` 重载收成一个；`hex(_:)` digest helper 在 `HashService` 和 `ArchiveExtractionCoordinator` 各一份合一份。
+  - DTO 套娃：`ArchiveOperationFailureAlert` wrapper（fullMessage + previewLimit + previewMessage 计算属性）跟 `errorMessage` getter/setter 互相把对方藏起来，砍成 `Core/ArchiveOperationFeedback.swift` 里一个 13 行纯函数 helper `ArchiveOperationFailurePreview.truncate(_:limit:)`，原单测换 API 调同一份逻辑覆盖率不变。
+  - UI 组件去重：`SidebarButton` / `PinnedSidebarButton`（pin icon + 取消固定 contextMenu）/ `SidebarTagButton`（color circle）三个 row 90% 一样，抽 `SidebarRowButton<Content>` 共用 chrome（hover bg / button style / onHover 动画 / 圆角），固定 / 标签调用站直接内联 leading content 而不是各开一个 view 类型；`extractDroppedFileURLs(from:completion:)` 自由函数把 ContentView 主区域拖入 / Sidebar 固定列表拖入的两份 25 行 NSItemProvider drain 样板合一；TopBar 4 个导航按钮 chrome 复读改 `navButton(_:disabled:help:action:)` 私有 helper。
+  - 单订阅 NotificationCenter：`.openSIZContainer` / `.extractSIZContainer` 两个一发一收的通知改 `ArchiveBrowserModel.pendingSIZOpen` / `pendingSIZExtract` 两个 `@Published var URL?` + ContentView `.onChange` —— 符合 AGENTS A3「不为 1-pub/1-sub 新建通知」+ A5「`.siz` 是 tar 壳不是新 infra」。
+  - `LocationTextKeyCommand` enum + `handleKeyCommand(_:)` 中转改成 `control(_:textView:doCommandBy:)` 里直接 switch selector 调 parent closures，去掉无信息的中间表示。
+  - 同步把痛点写进 `AGENTS.md` 12 条 A1-A12 anti-pattern 规则（重绘禁止 / DTO 套娃禁止 / 1-pub-1-sub 通知禁止 / `gpgEnabled` 关闭主界面隐藏一切 GPG / `.siz` 是 tar 壳 / 不改 pbxproj 版本号 / 用合理 /tmp / 不留半成品引用 / l10n 必加 / scope 匹配 / 指令累积 / diff 不撑爆）。下一个 agent 接手时这套规则会自动加载到上下文。
+
 - **`.siz` 容器防篡改强化（格式 schema 升 v2，破坏式）**
   - 签名目标从「内层 archive」改为 `metadata.json`：之前签 inner archive 时攻击者可以任意改 `metadata.json` 的 signer 名 / 时间 / `innerArchiveName` 而签名仍然有效，UI 会照实展示伪造信息。现在改 metadata 任何字节 → gpg 验签直接失败。
   - 内层归档加 `innerArchiveSHA256` 锁：metadata 里新增字段记录内层 archive 的 SHA256（流式算，不一次性载入内存）；`SIZArchive.verify` 在 gpg 验过 metadata 之后还会重算 inner archive SHA 并比对，对不上就改判 `.badSignature`。这样替换 inner archive 也藏不住。
