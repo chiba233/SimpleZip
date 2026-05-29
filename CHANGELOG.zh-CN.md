@@ -4,7 +4,26 @@
 
 ## 0.1.6
 
+- **新功能：「个人收藏」镜像 Finder 侧栏**
+  - 主窗口左侧「个人收藏」分组不再硬编码 5 项（个人 / 下载 / 桌面 / 文稿 / 应用），改为读取 macOS Finder 的「个人收藏」侧栏并镜像显示。
+  - 数据源：`~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.FavoriteItems.sfl4`（macOS 11+，sfl3 旧版本作为回落），用 `NSKeyedUnarchiver` 解出条目 → 提取每条 `Bookmark` Data → `URL(resolvingBookmarkData:)` 解出真实路径。
+  - 显示名优先取 `.localizedNameKey`（跟随 macOS 系统语言：「下载」/「Downloads」），图标按已知系统目录映射 SF Symbol（家 / 下载 / 桌面 / 文稿 / 影片 / 音乐 / 图片 / 应用 / iCloud Drive），未知目录用通用 folder。
+  - AirDrop / 最近使用 / 标签 这些 Finder 虚拟项的 bookmark 解不出真实目录，自动滤掉；同一物理路径去重。
+  - **同步触发**：主窗口聚焦时（`NSApplication.didBecomeActiveNotification`）重读一次。在 Finder 里改了收藏切回 SimpleZip 就能看到。Apple 没提供 sfl4 的官方变化通知，这是「保证用户能感知到变化」的最近合理时机。
+  - **只读**：永远不写回 sfl4，避免改坏 Finder 收藏。在 SimpleZip 里改顺序 / 加项的能力不在这一版。
+  - **回落保护**：sfl4 不存在、解析失败、用户从未自定义过 Finder 收藏 → 退回到原来的 5 项硬编码，侧栏不会变空。
+  - **持久化缓存**：每次成功读到的路径列表写一份到 UserDefaults。下次启动时若 sfl4 因为 TCC / 文件被锁 / 临时 I/O 暂时失败，仍然显示上次成功的列表，避免 UI 在 Finder 收藏和硬编码 5 项之间反复横跳；缓存路径会再过一次「目录是否存在」过滤，外接盘没挂载就不会显示死链接。
+  - **架构选择**：`finderFavorites` 放在 `ArchiveBrowserModel` 作为 `@Published`，不放在 Sidebar 的 `@State`。前者通过 ObservableObject publisher 传给 `@ObservedObject`，更新可靠；后者在 NavigationSplitView 的 sidebar 列里有路径会让 @State 重置（实测主线程赋值后下一帧 getter 仍读初始值）。
+  - **数据源选型**：单一 ForEach + 统一 `FavoriteRow` 类型喂数据，避开 SwiftUI 在 Section 里 `if/else` + 异构子视图分支切换偶发不刷新的 issue。
+
+- **新功能：创建 DMG 压缩包**
+  - 「创建压缩包」面板新增 **DMG** 作为更贴近 macOS 的输出格式。DMG 创建使用系统自带的 `hdiutil create -format UDZO`，不依赖 7-Zip 或 RARLAB 后端。
+  - 多选时保持和其它归档格式一致的顶层语义：SimpleZip 会先把选中的文件 / 文件夹放进临时 staging 目录，再从 staging 目录创建 DMG，因此 DMG 里看到的是用户选中的项目本身。
+- **DMG 浏览修复**
+  - 修复从另一个压缩包内部打开 `.dmg` 会失败的问题：临时解出的 DMG 现在走 SimpleZip 自己的只读挂载 + 文件夹浏览流程，不再交给 `NSWorkspace` 默认打开，避免脱离压缩包工作流或被系统打开失败。
+  - 新增 SwiftPM 回归测试：创建 DMG 后再通过现有 DMG backend 列表验证内容。
 - **Bug 修复**
+  - **侧边栏固定文件夹现在能更清晰地管理。** 把真实存在的文件夹拖到「固定路径」区域会加入固定列表，重复项会自动去重并移到顶部，侧边栏立即刷新。「个人收藏」是内置位置，不再呈现可拖放效果，避免误导。固定项现在拥有自己的整行右键菜单，右键固定文件夹可以稳定显示「取消固定」。
   - **修复 P1：header-encrypted 压缩包在「解压前安全检查」处直接失败** —— `confirmArchiveExtractionSafety(archiveURL:)` 用空密码调 `ArchiveService.list`，header-encrypted 7z 没密码连枚举条目都做不到，旧逻辑因为这一步把整个 extract 流程标成失败，用户根本进不到「输入密码」的 retry 循环。现在安全检查带上密码 / force 参数，移到 retry 循环内（`didCheckSafety` 标志保证只在 list 第一次成功后跑一次），首次 list 失败会被外层 catch 识别为密码错误，触发密码 prompt → 下一轮重试。配合预设密码 + Finder 自动解压：header-encrypted 7z 也能整条链路走通。
   - **修复 P2：偏好「导入」语义是 patch 不是「还原备份」** —— 旧实现只覆盖 payload 里出现的 key，导入前已有的偏好（payload 里没带的项）会原样保留，导致用户「换了一个更简化的备份」之后还残留上次的零散设置。现在导入前先把所有白名单 key 抹掉（`defaults.removeObject(forKey:)`），让没出现在 payload 里的项目回落到代码默认值，再写 payload 里有的 key —— 真正的「还原备份」语义，payload 是完整状态而不是补丁。
   - **修复 P2：Keychain 写失败被进程内缓存伪装成「保存成功」** —— `PresetPasswordStore.save` 无视 `SecItemUpdate / SecItemAdd` 的 OSStatus 直接更新缓存，写失败的情况（access 拒绝、磁盘满、ad-hoc 签名换了）会让 UI 显示「已加密保存到钥匙串」但下次启动 `load()` 读到空字符串，密码神秘消失。`writeKeychain` 现在返回真实 OSStatus，`save()` 仅在 `errSecSuccess` 时更新缓存并返回 OSStatus；`AppPreferences.setPresetPassword` 包装为 `Bool` 给 UI，`GeneralPane.savePresetPassword` 根据返回值显示 `settings.presetPassword.saved` 或新增的 `settings.presetPassword.saveFailed`（zh-Hans + en 都补了）。

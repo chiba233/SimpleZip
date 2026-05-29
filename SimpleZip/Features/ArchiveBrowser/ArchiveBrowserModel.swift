@@ -33,6 +33,13 @@ final class ArchiveBrowserModel: ObservableObject {
     @Published private(set) var canCancelCurrentOperation = false
     @Published private var navigationBackStack: [NavigationLocation] = []
     @Published private var navigationForwardStack: [NavigationLocation] = []
+    /// 镜像自 macOS Finder「个人收藏」侧栏。
+    ///
+    /// 放在 model 而不是 Sidebar 的 `@State` —— 之前用 `@State` 时主线程赋值后 NSLog 能确认值已到 9，
+    /// `favoriteRows` getter 也能读到 9，但屏幕仍然显示初始的 0（fallback 分支）。
+    /// 推测是 SwiftUI 在 NavigationSplitView 里对 Sidebar 的 @State 在某条路径上失了 view 身份，
+    /// 改用 ObservableObject 的 @Published 后这条路径被绕开。
+    @Published var finderFavorites: [FinderFavoritesReader.Item] = []
 
     private let fileManager = FileManager.default
     private let extractionCoordinator = ArchiveExtractionCoordinator(fileManager: .default)
@@ -56,6 +63,7 @@ final class ArchiveBrowserModel: ObservableObject {
     init() {
         TemporaryResourceManager.cleanStaleOpenedArchiveItems(fileManager: fileManager)
         mode = .folder(AppPreferences.defaultStartupURL(fileManager: fileManager))
+        finderFavorites = FinderFavoritesReader.readWithCache()
         reload()
     }
 
@@ -395,6 +403,7 @@ final class ArchiveBrowserModel: ObservableObject {
 
         startOperationTask(cancellable: true) { [weak self] operationID in
             guard let self else { return }
+            var extractedDiskImageURL: URL?
             let didSucceed = await runArchiveTask(L10n.format("status.openingArchiveItem", item.displayName)) { progress in
                 let destination = try self.makeArchiveItemOpenDirectory()
                 self.openedArchiveItemDirectories.append(destination)
@@ -441,6 +450,10 @@ final class ArchiveBrowserModel: ObservableObject {
                         try self.confirmExtractedArchiveLinks(at: destination)
 
                         let extractedURL = try self.extractedURL(for: item, in: destination)
+                        if extractedURL.pathExtension.lowercased() == "dmg" {
+                            extractedDiskImageURL = extractedURL
+                            return
+                        }
                         guard NSWorkspace.shared.open(extractedURL) else {
                             throw ArchiveError.openExtractedItemFailed
                         }
@@ -464,7 +477,11 @@ final class ArchiveBrowserModel: ObservableObject {
                 }
             }
             if didSucceed {
-                status = L10n.format("status.openedArchiveItem", item.displayName)
+                if let extractedDiskImageURL {
+                    openDiskImage(extractedDiskImageURL)
+                } else {
+                    status = L10n.format("status.openedArchiveItem", item.displayName)
+                }
             }
         }
     }
@@ -667,6 +684,14 @@ final class ArchiveBrowserModel: ObservableObject {
             navigationBackStack.append(current)
         }
         restoreNavigationLocation(destination)
+    }
+
+    /// 重读 macOS Finder 的「个人收藏」侧栏，同步到 `finderFavorites`。
+    /// 调用方：Sidebar 在 `onAppear` + `NSApplication.didBecomeActiveNotification` 时触发。
+    /// 走带缓存版本 —— sfl4 因为 TCC / 文件被锁 / 临时 I/O 失败返回空时，
+    /// 仍然显示最近一次成功读到的列表，避免 UI 在 Finder 收藏和硬编码 5 项之间反复横跳。
+    func refreshFinderFavorites() {
+        finderFavorites = FinderFavoritesReader.readWithCache()
     }
 
     func reload() {
@@ -1083,6 +1108,21 @@ final class ArchiveBrowserModel: ObservableObject {
             NSWorkspace.shared.activateFileViewerSelecting(selectedFileItems.map(\.url).isEmpty ? [url] : selectedFileItems.map(\.url))
         case .tag:
             NSWorkspace.shared.activateFileViewerSelecting(selectedFileItems.map(\.url))
+        case .archive(let url):
+            NSWorkspace.shared.activateFileViewerSelecting([url])
+        }
+    }
+
+    /// 不论当前 selection 是什么，都把「当前所在文件夹 / 标签 / 压缩包文件」自身在 Finder 里露出来。
+    /// 给空白处右键菜单用 —— 那里点 `revealInFinder()` 会优先 reveal 残留的旧 selection，
+    /// 跟用户的意图（"打开我现在看的这个文件夹"）对不上。
+    func revealCurrentLocationInFinder() {
+        switch mode {
+        case .folder(let url):
+            NSWorkspace.shared.activateFileViewerSelecting([url])
+        case .tag:
+            // tag 没有实体路径可定位，回落到 home 目录。
+            NSWorkspace.shared.activateFileViewerSelecting([FileManager.default.homeDirectoryForCurrentUser])
         case .archive(let url):
             NSWorkspace.shared.activateFileViewerSelecting([url])
         }

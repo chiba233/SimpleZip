@@ -205,7 +205,9 @@ private struct FileNSTableView: NSViewRepresentable {
             guard hasClickedRow else {
                 menu.addItem(menuItem(L10n.text("file.paste"), systemImage: "clipboard", action: #selector(pasteFiles)))
                 menu.addItem(.separator())
-                menu.addItem(menuItem(L10n.text("button.revealInFinder"), systemImage: "arrow.up.forward.app", action: #selector(revealSelected)))
+                // 用 revealCurrentLocation 不用 revealSelected —— 后者会偏好「残留 selection」，
+                // 但用户右键空白处的意图是「打开我现在看的这个文件夹本身」。
+                menu.addItem(menuItem(L10n.text("button.revealInFinder"), systemImage: "arrow.up.forward.app", action: #selector(revealCurrentLocation)))
                 return
             }
 
@@ -277,6 +279,13 @@ private struct FileNSTableView: NSViewRepresentable {
 
         @objc private func revealSelected() {
             model.revealInFinder()
+        }
+
+        /// 空白处右键专用：reveal「我现在看的这个文件夹 / 压缩包文件」本身，忽略 selection。
+        /// 不能复用 `revealSelected` —— 那个在 folder 模式下会优先 reveal 残留 selection，
+        /// 用户右键空白处看到的却是「在 Finder 里高亮上次选中的文件」，不符合直觉。
+        @objc private func revealCurrentLocation() {
+            model.revealCurrentLocationInFinder()
         }
 
         @objc private func copySelected() {

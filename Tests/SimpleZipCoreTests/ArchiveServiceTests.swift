@@ -565,6 +565,28 @@ struct ArchiveServiceTests {
     }
 
     @Test
+    func createDiskImageArchiveListsSelectedItems() async throws {
+        let tempDirectory = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: tempDirectory) }
+
+        let sourceDirectory = tempDirectory.appendingPathComponent("payload", isDirectory: true)
+        try FileManager.default.createDirectory(at: sourceDirectory, withIntermediateDirectories: true)
+        try "inside dmg".write(
+            to: sourceDirectory.appendingPathComponent("root.txt"),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        var options = ArchiveCreationOptions()
+        options.format = .dmg
+        let archiveURL = tempDirectory.appendingPathComponent("payload.dmg")
+        try await ArchiveService.createArchive(from: [sourceDirectory], destination: archiveURL, options: options)
+
+        let items = try await ArchiveService.list(archiveURL)
+        #expect(items.contains { $0.name == "payload/" && $0.isDirectory })
+    }
+
+    @Test
     func parseSevenZipBenchmarkCapturesSummaryMetrics() {
         let output = """
         RAM usage:   1779 MB,  # Benchmark threads:      8

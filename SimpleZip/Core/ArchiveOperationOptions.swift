@@ -12,6 +12,7 @@ import Foundation
 enum ArchiveCreateFormat: String, CaseIterable, Identifiable {
     case zip
     case sevenZip = "7z"
+    case dmg
     case rar
     case tar
     case gzip = "gz"
@@ -27,6 +28,8 @@ enum ArchiveCreateFormat: String, CaseIterable, Identifiable {
             return "ZIP"
         case .sevenZip:
             return "7z"
+        case .dmg:
+            return "DMG"
         case .rar:
             return "RAR"
         case .tar:
@@ -52,14 +55,14 @@ enum ArchiveCreateFormat: String, CaseIterable, Identifiable {
         switch self {
         case .zip, .sevenZip, .rar:
             return true
-        case .tar, .gzip, .tarGzip, .bzip2, .xz:
+        case .dmg, .tar, .gzip, .tarGzip, .bzip2, .xz:
             return false
         }
     }
 
     var supportsCompressionLevel: Bool {
         switch self {
-        case .tar, .tarGzip:
+        case .dmg, .tar, .tarGzip:
             return false
         case .zip, .sevenZip, .rar, .gzip, .bzip2, .xz:
             return true
@@ -70,7 +73,7 @@ enum ArchiveCreateFormat: String, CaseIterable, Identifiable {
         switch self {
         case .zip, .sevenZip, .tar, .tarGzip, .rar:
             return true
-        case .gzip, .bzip2, .xz:
+        case .dmg, .gzip, .bzip2, .xz:
             return false
         }
     }
@@ -79,7 +82,7 @@ enum ArchiveCreateFormat: String, CaseIterable, Identifiable {
         switch self {
         case .zip, .sevenZip, .rar:
             return true
-        case .tar, .gzip, .tarGzip, .bzip2, .xz:
+        case .dmg, .tar, .gzip, .tarGzip, .bzip2, .xz:
             return false
         }
     }
@@ -88,7 +91,7 @@ enum ArchiveCreateFormat: String, CaseIterable, Identifiable {
         switch self {
         case .zip, .sevenZip, .rar:
             return true
-        case .tar, .gzip, .tarGzip, .bzip2, .xz:
+        case .dmg, .tar, .gzip, .tarGzip, .bzip2, .xz:
             return false
         }
     }
@@ -97,7 +100,7 @@ enum ArchiveCreateFormat: String, CaseIterable, Identifiable {
         switch self {
         case .sevenZip, .rar:
             return true
-        case .zip, .tar, .gzip, .tarGzip, .bzip2, .xz:
+        case .dmg, .zip, .tar, .gzip, .tarGzip, .bzip2, .xz:
             return false
         }
     }
@@ -106,7 +109,7 @@ enum ArchiveCreateFormat: String, CaseIterable, Identifiable {
         switch self {
         case .zip, .sevenZip, .rar:
             return true
-        case .tar, .gzip, .tarGzip, .bzip2, .xz:
+        case .dmg, .tar, .gzip, .tarGzip, .bzip2, .xz:
             return false
         }
     }
@@ -115,7 +118,7 @@ enum ArchiveCreateFormat: String, CaseIterable, Identifiable {
         switch self {
         case .gzip, .bzip2, .xz:
             return true
-        case .zip, .sevenZip, .rar, .tar, .tarGzip:
+        case .dmg, .zip, .sevenZip, .rar, .tar, .tarGzip:
             return false
         }
     }

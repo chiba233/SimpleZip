@@ -21,7 +21,7 @@ enum BackendProcessRunner {
 
     /// 唯一活跃进程登记表，全 BackendProcessRunner 共享（注：跨多后端共用）。
     /// 设计成 internal 让 ArchiveService.cancelRunningCommand 这种「API facade」可直接转发。
-    static let activeProcessRegistry = ActiveProcessRegistry()
+    nonisolated static let activeProcessRegistry = ActiveProcessRegistry()
 
     // MARK: - 异步入口
 

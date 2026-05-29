@@ -28,13 +28,13 @@ import Foundation
 public enum PreferencesPayloadCodec {
     /// 标识这是 SimpleZip 偏好导出文件 —— 任何其它 JSON 都拒绝。
     /// 也兼顾防止误导入别的 app 的 plist 把 UserDefaults 写乱。
-    public static let schema = "SimpleZip.preferences"
+    public nonisolated static let schema = "SimpleZip.preferences"
 
     /// 当前 schema 版本。未来字段格式变了再 bump，旧版本走兼容逻辑或直接拒绝。
-    public static let supportedVersion = 1
+    public nonisolated static let supportedVersion = 1
 
     /// 把一份 raw values 字典包成完整 payload（含 schema / version / 时间戳）。
-    public static func makePayload(values: [String: Any], date: Date = Date()) -> [String: Any] {
+    public nonisolated static func makePayload(values: [String: Any], date: Date = Date()) -> [String: Any] {
         let formatter = ISO8601DateFormatter()
         return [
             "schema": schema,
@@ -46,7 +46,7 @@ public enum PreferencesPayloadCodec {
 
     /// 校验输入 payload 并返回里头的 values 字典。
     /// 任何 schema / version / 结构异常都抛 `DecodeError`，让上层提示用户。
-    public static func decode(_ payload: [String: Any]) throws -> [String: Any] {
+    public nonisolated static func decode(_ payload: [String: Any]) throws -> [String: Any] {
         guard let raw = payload["schema"] as? String else {
             throw DecodeError.missingSchema
         }

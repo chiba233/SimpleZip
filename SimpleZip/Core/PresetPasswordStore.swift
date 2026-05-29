@@ -23,23 +23,23 @@ import Security
 /// 不弹 Touch ID 提示，否则每次解压都按指纹会逼用户关掉这个功能。
 enum PresetPasswordStore {
     /// Service 标识符 —— 与 app bundle 解耦，将来改 bundle id 时需要兼容旧值。
-    private static let service = "yumeka.SimpleZip.PresetPassword"
+    private nonisolated static let service = "yumeka.SimpleZip.PresetPassword"
     /// 单一账号 —— 当前只有一个预设密码，未来扩展多档可以改成 ${profile}。
-    private static let account = "default"
+    private nonisolated static let account = "default"
     /// 旧版本（0.1.6 开发期短暂用过 UserDefaults 明文）遗留 key，迁移后会清掉。
-    private static let legacyUserDefaultsKey = "presetPassword"
+    private nonisolated static let legacyUserDefaultsKey = "presetPassword"
 
     /// 进程内缓存：每次 app 启动后第一次 load 触发 Keychain 访问（dev 期的 ad-hoc 签名会弹「允许访问」对话框），
     /// 之后所有 load 直接读缓存，避免重复弹框。save / clear 会同步更新缓存。
     /// 用 NSLock 保护，因为业务侧的 Task.detached 可能在非 main 线程读取。
-    private static let cacheLock = NSLock()
+    private nonisolated static let cacheLock = NSLock()
     nonisolated(unsafe) private static var cachedValue: String?
 
     // MARK: - 读取 / 写入 / 清除
 
     /// 业务侧静默读取入口。返回空字符串表示尚未配置。
     /// 第一次调用时会顺手把残留在 UserDefaults 里的明文搬到 Keychain 并删掉。
-    static func load() -> String {
+    nonisolated static func load() -> String {
         cacheLock.lock()
         if let cached = cachedValue {
             cacheLock.unlock()
@@ -62,10 +62,9 @@ enum PresetPasswordStore {
     /// 其它 OSStatus 表示 Keychain 拒绝 —— 此时不更新缓存，调用方应给用户看到失败提示，
     /// 否则界面会显示「已加密保存到钥匙串」但下次启动 load 仍然为空，把失败假装成功。
     @discardableResult
-    static func save(_ value: String) -> OSStatus {
+    nonisolated static func save(_ value: String) -> OSStatus {
         if value.isEmpty {
-            clear()
-            return errSecSuccess
+            return clear()
         }
         let status = writeKeychain(value)
         guard status == errSecSuccess else {
@@ -79,17 +78,26 @@ enum PresetPasswordStore {
     }
 
     /// 把 Keychain 里的预设密码彻底删掉。
-    static func clear() {
+    ///
+    /// 返回 `errSecSuccess` 表示真的被删了；`errSecItemNotFound` 等价于成功（本来就没有就是想要的状态）；
+    /// 其它 OSStatus 表示 Keychain 拒绝删除 —— 此时不清缓存（避免本进程看起来「没了」但下次启动旧密码还在），
+    /// 调用方应给用户看到失败提示。
+    @discardableResult
+    nonisolated static func clear() -> OSStatus {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account
         ]
-        SecItemDelete(query as CFDictionary)
+        let status = SecItemDelete(query as CFDictionary)
+        guard status == errSecSuccess || status == errSecItemNotFound else {
+            return status
+        }
         UserDefaults.standard.removeObject(forKey: legacyUserDefaultsKey)
         cacheLock.lock()
         cachedValue = ""
         cacheLock.unlock()
+        return errSecSuccess
     }
 
     /// 设置页眼睛按钮调用：要求用户做一次本机认证（Touch ID / Mac 解锁口令）才解锁明文显示。
@@ -112,7 +120,7 @@ enum PresetPasswordStore {
 
     // MARK: - Keychain 实现细节
 
-    private static func readKeychain() -> String {
+    private nonisolated static func readKeychain() -> String {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -133,7 +141,7 @@ enum PresetPasswordStore {
 
     /// 返回 Keychain 实际的 OSStatus。
     /// `errSecItemNotFound` 触发新建，这一支也会返回 SecItemAdd 的实际 OSStatus。
-    private static func writeKeychain(_ value: String) -> OSStatus {
+    private nonisolated static func writeKeychain(_ value: String) -> OSStatus {
         let data = Data(value.utf8)
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
@@ -156,7 +164,7 @@ enum PresetPasswordStore {
         return updateStatus
     }
 
-    private static func migrateLegacyIfNeeded() {
+    private nonisolated static func migrateLegacyIfNeeded() {
         let defaults = UserDefaults.standard
         guard let legacy = defaults.string(forKey: legacyUserDefaultsKey), !legacy.isEmpty else {
             return

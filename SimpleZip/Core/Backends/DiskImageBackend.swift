@@ -89,6 +89,58 @@ enum DiskImageBackend {
         try await detach(at: mountPoint)
     }
 
+    /// 创建压缩 DMG。`hdiutil create -srcfolder` 只接受一个源目录，所以这里先把用户选中的
+    /// 文件 / 文件夹组装到临时 staging 目录，让 DMG 顶层内容保持和其它归档格式一致：
+    /// 用户选了 `App.app`，DMG 里就是 `App.app`，而不是 App.app 的内部内容。
+    static func create(
+        from sourceURLs: [URL],
+        destination: URL,
+        volumeName: String,
+        progress: @escaping @Sendable (ArchiveProgressState) -> Void,
+        outputObserver: (@Sendable (String) -> Void)?,
+        operationID: UUID?
+    ) async throws {
+        let fileManager = FileManager.default
+        let stagingURL = fileManager.temporaryDirectory
+            .appendingPathComponent("SimpleZip-DMG-\(UUID().uuidString)", isDirectory: true)
+        try fileManager.createDirectory(at: stagingURL, withIntermediateDirectories: true)
+        defer { try? fileManager.removeItem(at: stagingURL) }
+
+        let total = max(1, sourceURLs.count)
+        for (index, sourceURL) in sourceURLs.enumerated() {
+            try Task.checkCancellation()
+            progress(
+                ArchiveProgressState(
+                    fraction: Double(index) / Double(total),
+                    currentFile: sourceURL.lastPathComponent,
+                    statusText: nil,
+                    completedUnitCount: index + 1,
+                    totalUnitCount: total
+                )
+            )
+            try fileManager.copyItem(
+                at: sourceURL,
+                to: stagingURL.appendingPathComponent(sourceURL.lastPathComponent)
+            )
+        }
+
+        progress(ArchiveProgressState(fraction: nil, currentFile: destination.lastPathComponent))
+        _ = try await BackendProcessRunner.runAndCapture(
+            "/usr/bin/hdiutil",
+            arguments: [
+                "create",
+                "-format", "UDZO",
+                "-ov",
+                "-volname", volumeName.isEmpty ? "SimpleZip" : volumeName,
+                "-srcfolder", stagingURL.path,
+                destination.path
+            ],
+            outputObserver: outputObserver,
+            operationID: operationID
+        )
+        progress(ArchiveProgressState(fraction: 1, currentFile: nil, completedUnitCount: total, totalUnitCount: total))
+    }
+
     // MARK: - 私有实现
 
     /// 拷顶层目录条目到 destination；用 `Task.checkCancellation()` 让用户能取消大文件。

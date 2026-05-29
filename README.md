@@ -21,7 +21,7 @@ Project page: [github.com/chiba233/SimpleZip](https://github.com/chiba233/Simple
 - Double-click files inside archives to temporarily extract and open them with the default macOS app.
 - Drag archive entries out to Finder or other file destinations. SimpleZip extracts the promised files at the drop target.
 - Extract whole archives or selected entries, with options to preserve folder structure or flatten selected files.
-- Create ZIP, 7z, RAR, TAR, GZip, TAR.GZ, BZip2, and XZ archives with format-aware options.
+- Create ZIP, 7z, DMG, RAR, TAR, GZip, TAR.GZ, BZip2, and XZ archives with format-aware options.
 - Built-in file manager actions: open, copy, cut, paste, move, delete to Trash, reveal in Finder, drag local files, and
   accept external file drops.
 - Hash selected files with CRC32, MD5, SHA1, SHA256, and SHA512.
@@ -42,7 +42,7 @@ Project page: [github.com/chiba233/SimpleZip](https://github.com/chiba233/Simple
 | `.tgz` / `.tar.gz` | Yes | Yes | Yes | Create through macOS `tar`; browse/extract through 7-Zip |
 | `.bz2` | Yes | Yes | Yes | Single-file creation through 7-Zip |
 | `.xz` | Yes | Yes | Yes | Single-file creation through 7-Zip |
-| `.dmg` | Yes | Yes | No | Mounted read-only with `hdiutil`; extraction copies mounted contents |
+| `.dmg` | Yes | Yes | Yes | Created and mounted with macOS `hdiutil`; extraction copies mounted contents |
 | `.001`, `.002`, `.z01`, `.r00`, `part02.rar` | Yes | Yes | No | Normalized to the first volume automatically |
 
 ## Archive Workflows
@@ -56,6 +56,7 @@ Inside an archive:
 
 - double-click a folder to enter it;
 - double-click a file to extract it to a temporary location and open it with the default macOS app;
+- double-click a DMG inside an archive to extract it temporarily, mount it read-only, and browse it in SimpleZip;
 - drag files or folders out to Finder to extract them at the drop location;
 - use the context menu for Open, Extract Selected, Extract Whole Archive, Test, Hash, and Reveal in Finder.
 
@@ -87,7 +88,7 @@ only provide indeterminate progress or may jump between percentages.
 Select files or folders in the file browser and choose Add. The creation sheet supports:
 
 - archive file name editing;
-- format selection: ZIP, 7z, RAR, TAR, GZip, TAR.GZ, BZip2, XZ;
+- format selection: ZIP, 7z, DMG, RAR, TAR, GZip, TAR.GZ, BZip2, XZ;
 - compression level;
 - optional passwords for ZIP, 7z, and RAR;
 - `.DS_Store` exclusion;
@@ -99,6 +100,10 @@ Select files or folders in the file browser and choose Add. The creation sheet s
 
 GZip, BZip2, and XZ are single-file formats. SimpleZip blocks invalid multi-file or folder selections before launching
 the backend.
+
+DMG creation uses macOS `hdiutil create -format UDZO`. When multiple files or folders are selected, SimpleZip stages the
+selected items into a temporary folder first so the DMG's top level contains those items, matching the other archive
+formats.
 
 The exclude section has a manual Calculate action. It scans the selected sources with the current `.DS_Store`, dotfile,
 and custom exclude rules and reports how many regular files will be skipped before compression starts.
@@ -114,7 +119,7 @@ Current guardrails:
 - extraction is staged into a temporary directory before files are merged into the requested destination;
 - merge-time conflicts are handled by SimpleZip instead of allowing silent backend overwrites;
 - passwords are not passed directly as visible command-line arguments;
-- DMG files are mounted read-only through `hdiutil`;
+- DMG files are created and mounted through macOS `hdiutil`, and mounted read-only when browsing / extracting;
 - opened archive entries are extracted into a temporary copy rather than edited in-place;
 - suspicious archive entry paths (`../`, absolute paths, Windows drive paths, UNC paths) trigger a confirmation before
   the app extracts them through the UI;
@@ -147,7 +152,7 @@ The project tracks compatibility by behavior rather than only by extension:
 | 7z | encrypted headers, solid archives, symlinks, large dictionaries, split volumes |
 | RAR | RAR4, RAR5, multipart archives, passworded archives, recovery-record archives when available |
 | TAR | pax headers, long paths, symlinks, hardlinks, absolute paths, compressed tar variants |
-| DMG | read-only mount, copy-out extraction, hidden files, app bundles, detach failure recovery |
+| DMG | UDZO creation, read-only mount, copy-out extraction, archive-inside-archive DMG opening, hidden files, app bundles, detach failure recovery |
 
 This matrix is not a claim that every case is fully automated yet. It is the checklist for regression fixtures and
 manual release validation as the app moves toward a more professional archive-manager surface.

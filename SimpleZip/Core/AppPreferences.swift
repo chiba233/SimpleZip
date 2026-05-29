@@ -235,111 +235,111 @@ enum RarBackendChoice: String, CaseIterable, Identifiable {
 
 /// UserDefaults 读写封装，集中管理偏好键，避免字符串散落在业务代码里。
 enum AppPreferences {
-    private static var defaults: UserDefaults { UserDefaults.standard }
+    private nonisolated static var defaults: UserDefaults { UserDefaults.standard }
 
     enum Key {
-        static let startupLocation = "startupLocation"
+        nonisolated static let startupLocation = "startupLocation"
         /// 当 `startupLocation == .custom` 时启动应该打开的具体文件夹路径。
         /// 与 `lastFolderPath` 不同 —— 这个是用户在设置里固定挑的位置，不会被「记住上次打开的文件夹」覆盖。
         /// 同时是 custom 历史列表里的「当前选中」指针。
-        static let startupCustomLocationPath = "startupCustomLocationPath"
+        nonisolated static let startupCustomLocationPath = "startupCustomLocationPath"
         /// 用户挑过的所有 custom 路径（MRU 排序），让 Menu 有「记忆」功能。
         /// 容量受 Menu 总项数 cap 10 约束 —— 加新的会从末尾驱逐。
-        static let startupCustomLocationHistory = "startupCustomLocationHistory"
-        static let overwriteBehavior = "overwriteBehavior"
-        static let suspiciousPathPolicy = "suspiciousPathPolicy"
-        static let symbolicLinkPolicy = "symbolicLinkPolicy"
-        static let activeContentOpenPolicy = "activeContentOpenPolicy"
-        static let confirmBeforeDeletingFiles = "confirmBeforeDeletingFiles"
-        static let showHiddenFiles = "showHiddenFiles"
-        static let showSymbolicLinks = "showSymbolicLinks"
-        static let followFinderStructure = "followFinderApplicationStructure"
-        static let hiddenSuffixesEnabled = "hiddenSuffixesEnabled"
-        static let hiddenRecommendedSuffixes = "hiddenRecommendedSuffixes"
-        static let hiddenCustomSuffixes = "hiddenCustomSuffixes"
-        static let rememberLastFolder = "rememberLastFolder"
-        static let lastFolderPath = "lastFolderPath"
-        static let showFileSizeColumn = "showFileSizeColumn"
-        static let showFileTypeColumn = "showFileTypeColumn"
-        static let showFileApplicationColumn = "showFileApplicationColumn"
-        static let showFileLastOpenedColumn = "showFileLastOpenedColumn"
-        static let showFileDateAddedColumn = "showFileDateAddedColumn"
-        static let showFileModifiedColumn = "showFileModifiedColumn"
-        static let showFileCreatedColumn = "showFileCreatedColumn"
-        static let showArchiveKindColumn = "showArchiveKindColumn"
-        static let showArchiveSizeColumn = "showArchiveSizeColumn"
-        static let showArchiveModifiedColumn = "showArchiveModifiedColumn"
-        static let showArchiveMethodColumn = "showArchiveMethodColumn"
-        static let appLanguage = "appLanguage"
-        static let sevenZipBackend = "sevenZipBackend"
-        static let rarBackend = "rarBackend"
-        static let pinnedSidebarPaths = "pinnedSidebarPaths"
-        static let recentSidebarPaths = "recentSidebarPaths"
-        static let fileColumnOrder = "fileColumnOrder"
-        static let archiveColumnOrder = "archiveColumnOrder"
+        nonisolated static let startupCustomLocationHistory = "startupCustomLocationHistory"
+        nonisolated static let overwriteBehavior = "overwriteBehavior"
+        nonisolated static let suspiciousPathPolicy = "suspiciousPathPolicy"
+        nonisolated static let symbolicLinkPolicy = "symbolicLinkPolicy"
+        nonisolated static let activeContentOpenPolicy = "activeContentOpenPolicy"
+        nonisolated static let confirmBeforeDeletingFiles = "confirmBeforeDeletingFiles"
+        nonisolated static let showHiddenFiles = "showHiddenFiles"
+        nonisolated static let showSymbolicLinks = "showSymbolicLinks"
+        nonisolated static let followFinderStructure = "followFinderApplicationStructure"
+        nonisolated static let hiddenSuffixesEnabled = "hiddenSuffixesEnabled"
+        nonisolated static let hiddenRecommendedSuffixes = "hiddenRecommendedSuffixes"
+        nonisolated static let hiddenCustomSuffixes = "hiddenCustomSuffixes"
+        nonisolated static let rememberLastFolder = "rememberLastFolder"
+        nonisolated static let lastFolderPath = "lastFolderPath"
+        nonisolated static let showFileSizeColumn = "showFileSizeColumn"
+        nonisolated static let showFileTypeColumn = "showFileTypeColumn"
+        nonisolated static let showFileApplicationColumn = "showFileApplicationColumn"
+        nonisolated static let showFileLastOpenedColumn = "showFileLastOpenedColumn"
+        nonisolated static let showFileDateAddedColumn = "showFileDateAddedColumn"
+        nonisolated static let showFileModifiedColumn = "showFileModifiedColumn"
+        nonisolated static let showFileCreatedColumn = "showFileCreatedColumn"
+        nonisolated static let showArchiveKindColumn = "showArchiveKindColumn"
+        nonisolated static let showArchiveSizeColumn = "showArchiveSizeColumn"
+        nonisolated static let showArchiveModifiedColumn = "showArchiveModifiedColumn"
+        nonisolated static let showArchiveMethodColumn = "showArchiveMethodColumn"
+        nonisolated static let appLanguage = "appLanguage"
+        nonisolated static let sevenZipBackend = "sevenZipBackend"
+        nonisolated static let rarBackend = "rarBackend"
+        nonisolated static let pinnedSidebarPaths = "pinnedSidebarPaths"
+        nonisolated static let recentSidebarPaths = "recentSidebarPaths"
+        nonisolated static let fileColumnOrder = "fileColumnOrder"
+        nonisolated static let archiveColumnOrder = "archiveColumnOrder"
         // 用户级便捷选项：
         // - finderOpenAutoExtract: Finder 双击打开压缩包时直接解压而不开浏览主窗口；
         // - presetPasswordEnabled: 「预设密码」开关，bool 放 UserDefaults 安全；
         //   实际密码内容存在 Keychain（见 PresetPasswordStore），不再放 UserDefaults。
-        static let finderOpenAutoExtract = "finderOpenAutoExtract"
-        static let presetPasswordEnabled = "presetPasswordEnabled"
+        nonisolated static let finderOpenAutoExtract = "finderOpenAutoExtract"
+        nonisolated static let presetPasswordEnabled = "presetPasswordEnabled"
     }
 
-    static var startupLocation: StartupLocation {
+    nonisolated static var startupLocation: StartupLocation {
         StartupLocation(rawValue: defaults.string(forKey: Key.startupLocation) ?? "") ?? .home
     }
 
-    static var appLanguage: AppLanguage {
+    nonisolated static var appLanguage: AppLanguage {
         AppLanguage(rawValue: defaults.string(forKey: Key.appLanguage) ?? "") ?? .system
     }
 
-    static var overwriteBehavior: OverwriteBehavior {
+    nonisolated static var overwriteBehavior: OverwriteBehavior {
         OverwriteBehavior(rawValue: defaults.string(forKey: Key.overwriteBehavior) ?? "") ?? .ask
     }
 
-    static var confirmBeforeDeletingFiles: Bool {
+    nonisolated static var confirmBeforeDeletingFiles: Bool {
         defaultTrueBool(forKey: Key.confirmBeforeDeletingFiles)
     }
 
-    static var suspiciousPathPolicy: ArchiveSecurityDecision {
+    nonisolated static var suspiciousPathPolicy: ArchiveSecurityDecision {
         ArchiveSecurityDecision(rawValue: defaults.string(forKey: Key.suspiciousPathPolicy) ?? "") ?? .ask
     }
 
-    static var symbolicLinkPolicy: ArchiveSecurityDecision {
+    nonisolated static var symbolicLinkPolicy: ArchiveSecurityDecision {
         ArchiveSecurityDecision(rawValue: defaults.string(forKey: Key.symbolicLinkPolicy) ?? "") ?? .ask
     }
 
-    static var activeContentOpenPolicy: ArchiveSecurityDecision {
+    nonisolated static var activeContentOpenPolicy: ArchiveSecurityDecision {
         ArchiveSecurityDecision(rawValue: defaults.string(forKey: Key.activeContentOpenPolicy) ?? "") ?? .ask
     }
 
-    static var sevenZipBackend: SevenZipBackendChoice {
+    nonisolated static var sevenZipBackend: SevenZipBackendChoice {
         SevenZipBackendChoice(rawValue: defaults.string(forKey: Key.sevenZipBackend) ?? "") ?? .automatic
     }
 
-    static var rarBackend: RarBackendChoice {
+    nonisolated static var rarBackend: RarBackendChoice {
         RarBackendChoice(rawValue: defaults.string(forKey: Key.rarBackend) ?? "") ?? .automatic
     }
 
-    static var showHiddenFiles: Bool {
+    nonisolated static var showHiddenFiles: Bool {
         defaults.bool(forKey: Key.showHiddenFiles)
     }
 
-    static var showSymbolicLinks: Bool {
+    nonisolated static var showSymbolicLinks: Bool {
         defaultTrueBool(forKey: Key.showSymbolicLinks)
     }
 
-    static var followFinderStructure: Bool {
+    nonisolated static var followFinderStructure: Bool {
         defaults.bool(forKey: Key.followFinderStructure)
     }
 
-    static var hiddenSuffixesEnabled: Bool {
+    nonisolated static var hiddenSuffixesEnabled: Bool {
         defaultTrueBool(forKey: Key.hiddenSuffixesEnabled)
     }
 
-    static let recommendedHiddenSuffixes = ["app", "prefPane", "framework", "bundle", "plugin"]
+    nonisolated static let recommendedHiddenSuffixes = ["app", "prefPane", "framework", "bundle", "plugin"]
 
-    static var hiddenRecommendedSuffixes: [String] {
+    nonisolated static var hiddenRecommendedSuffixes: [String] {
         if defaults.object(forKey: Key.hiddenRecommendedSuffixes) == nil {
             return recommendedHiddenSuffixes
         }
@@ -347,90 +347,90 @@ enum AppPreferences {
         return recommendedHiddenSuffixes.filter { configured.contains($0.lowercased()) }
     }
 
-    static var hiddenCustomSuffixes: [String] {
+    nonisolated static var hiddenCustomSuffixes: [String] {
         let recommended = Set(recommendedHiddenSuffixes.map { $0.lowercased() })
         return normalizedHiddenSuffixes(defaults.stringArray(forKey: Key.hiddenCustomSuffixes) ?? [])
             .filter { !recommended.contains($0.lowercased()) }
     }
 
-    static var hiddenDisplaySuffixes: [String] {
+    nonisolated static var hiddenDisplaySuffixes: [String] {
         guard hiddenSuffixesEnabled else { return [] }
         return normalizedHiddenSuffixes(hiddenRecommendedSuffixes + hiddenCustomSuffixes)
     }
 
-    static var rememberLastFolder: Bool {
+    nonisolated static var rememberLastFolder: Bool {
         if defaults.object(forKey: Key.rememberLastFolder) == nil {
             return true
         }
         return defaults.bool(forKey: Key.rememberLastFolder)
     }
 
-    static var showFileSizeColumn: Bool {
+    nonisolated static var showFileSizeColumn: Bool {
         defaultTrueBool(forKey: Key.showFileSizeColumn)
     }
 
-    static var showFileTypeColumn: Bool {
+    nonisolated static var showFileTypeColumn: Bool {
         defaultTrueBool(forKey: Key.showFileTypeColumn)
     }
 
-    static var showFileApplicationColumn: Bool {
+    nonisolated static var showFileApplicationColumn: Bool {
         defaultTrueBool(forKey: Key.showFileApplicationColumn)
     }
 
-    static var showFileLastOpenedColumn: Bool {
+    nonisolated static var showFileLastOpenedColumn: Bool {
         defaultTrueBool(forKey: Key.showFileLastOpenedColumn)
     }
 
-    static var showFileDateAddedColumn: Bool {
+    nonisolated static var showFileDateAddedColumn: Bool {
         defaultTrueBool(forKey: Key.showFileDateAddedColumn)
     }
 
-    static var showFileModifiedColumn: Bool {
+    nonisolated static var showFileModifiedColumn: Bool {
         defaultTrueBool(forKey: Key.showFileModifiedColumn)
     }
 
-    static var showFileCreatedColumn: Bool {
+    nonisolated static var showFileCreatedColumn: Bool {
         defaultTrueBool(forKey: Key.showFileCreatedColumn)
     }
 
-    static var showArchiveKindColumn: Bool {
+    nonisolated static var showArchiveKindColumn: Bool {
         defaultTrueBool(forKey: Key.showArchiveKindColumn)
     }
 
-    static var showArchiveSizeColumn: Bool {
+    nonisolated static var showArchiveSizeColumn: Bool {
         defaultTrueBool(forKey: Key.showArchiveSizeColumn)
     }
 
-    static var showArchiveModifiedColumn: Bool {
+    nonisolated static var showArchiveModifiedColumn: Bool {
         defaultTrueBool(forKey: Key.showArchiveModifiedColumn)
     }
 
-    static var showArchiveMethodColumn: Bool {
+    nonisolated static var showArchiveMethodColumn: Bool {
         defaultTrueBool(forKey: Key.showArchiveMethodColumn)
     }
 
-    static var lastFolderURL: URL? {
+    nonisolated static var lastFolderURL: URL? {
         guard let path = defaults.string(forKey: Key.lastFolderPath), !path.isEmpty else {
             return nil
         }
         return URL(fileURLWithPath: path)
     }
 
-    static func rememberLastFolder(_ url: URL) {
+    nonisolated static func rememberLastFolder(_ url: URL) {
         guard rememberLastFolder else { return }
         defaults.set(url.path, forKey: Key.lastFolderPath)
         rememberRecentFolder(url)
     }
 
-    static var pinnedSidebarURLs: [URL] {
+    nonisolated static var pinnedSidebarURLs: [URL] {
         urls(forKey: Key.pinnedSidebarPaths)
     }
 
-    static var recentSidebarURLs: [URL] {
+    nonisolated static var recentSidebarURLs: [URL] {
         urls(forKey: Key.recentSidebarPaths)
     }
 
-    static func pinSidebarURL(_ url: URL) {
+    nonisolated static func pinSidebarURL(_ url: URL) {
         var paths = defaults.stringArray(forKey: Key.pinnedSidebarPaths) ?? []
         let path = url.standardizedFileURL.path
         paths.removeAll { $0 == path }
@@ -438,21 +438,21 @@ enum AppPreferences {
         defaults.set(Array(paths.prefix(12)), forKey: Key.pinnedSidebarPaths)
     }
 
-    static func unpinSidebarURL(_ url: URL) {
+    nonisolated static func unpinSidebarURL(_ url: URL) {
         let path = url.standardizedFileURL.path
         let paths = (defaults.stringArray(forKey: Key.pinnedSidebarPaths) ?? []).filter { $0 != path }
         defaults.set(paths, forKey: Key.pinnedSidebarPaths)
     }
 
-    static func stringArray(forKey key: String) -> [String] {
+    nonisolated static func stringArray(forKey key: String) -> [String] {
         defaults.stringArray(forKey: key) ?? []
     }
 
-    static func setStringArray(_ value: [String], forKey key: String) {
+    nonisolated static func setStringArray(_ value: [String], forKey key: String) {
         defaults.set(value, forKey: key)
     }
 
-    static func setHiddenRecommendedSuffixes(_ value: [String]) {
+    nonisolated static func setHiddenRecommendedSuffixes(_ value: [String]) {
         let configured = Set(normalizedHiddenSuffixes(value))
         defaults.set(
             recommendedHiddenSuffixes.filter { configured.contains($0.lowercased()) },
@@ -460,7 +460,7 @@ enum AppPreferences {
         )
     }
 
-    static func setHiddenCustomSuffixes(_ value: [String]) {
+    nonisolated static func setHiddenCustomSuffixes(_ value: [String]) {
         let blocked = Set(recommendedHiddenSuffixes.map { $0.lowercased() })
         defaults.set(
             normalizedHiddenSuffixes(value).filter { !blocked.contains($0.lowercased()) },
@@ -468,7 +468,7 @@ enum AppPreferences {
         )
     }
 
-    static func normalizedHiddenSuffix(_ value: String) -> String {
+    nonisolated static func normalizedHiddenSuffix(_ value: String) -> String {
         var result = value.trimmingCharacters(in: .whitespacesAndNewlines)
         while result.hasPrefix(".") {
             result.removeFirst()
@@ -478,27 +478,27 @@ enum AppPreferences {
 
     /// Finder 双击 / Services 等外部入口打开压缩包时是否直接解压而不开浏览窗口。
     /// 默认关，遵循「不出意外行为」的原则。
-    static var finderOpenAutoExtract: Bool {
+    nonisolated static var finderOpenAutoExtract: Bool {
         defaults.bool(forKey: Key.finderOpenAutoExtract)
     }
 
     /// 是否启用「预设密码」便捷功能。开启后：
     /// 1) 创建压缩包时若选了加密会自动填入；
     /// 2) 打开 / 解压压缩包时会先用预设尝试一次，失败再弹密码框。
-    static var presetPasswordEnabled: Bool {
+    nonisolated static var presetPasswordEnabled: Bool {
         defaults.bool(forKey: Key.presetPasswordEnabled)
     }
 
     /// 预设密码的实际内容。空字符串等于「未配置」。
     /// 存储已迁到 Keychain（见 `PresetPasswordStore`）。本属性是业务侧（创建/解压自动填）
     /// 的静默读取入口，不会触发 Touch ID。
-    static var presetPassword: String {
+    nonisolated static var presetPassword: String {
         PresetPasswordStore.load()
     }
 
     /// 「预设密码」便捷功能是否真的可用 —— 必须既开启又填了内容。
     /// UI 用这个属性灰按钮，业务层 (auto-fill / auto-try) 用这个判断是否走预设路径。
-    static var hasUsablePresetPassword: Bool {
+    nonisolated static var hasUsablePresetPassword: Bool {
         presetPasswordEnabled && !presetPassword.isEmpty
     }
 
@@ -506,24 +506,28 @@ enum AppPreferences {
     /// UI 必须根据返回值显示「保存成功 / 失败」 —— 旧版本无脑显示成功，
     /// 失败时下次启动 load 仍然为空，把失败伪装成成功。
     @discardableResult
-    static func setPresetPassword(_ value: String) -> Bool {
+    nonisolated static func setPresetPassword(_ value: String) -> Bool {
         PresetPasswordStore.save(value) == errSecSuccess
     }
 
-    static func clearPresetPassword() {
-        PresetPasswordStore.clear()
+    /// 返回 true 表示 Keychain 真的删除成功（含「本来就不存在」）。
+    /// UI 必须根据返回值显示「清除成功 / 失败」 —— 删失败时不能让 UI 误以为已经清了，
+    /// 否则下次启动旧密码还在但 UI 状态对不上。
+    @discardableResult
+    nonisolated static func clearPresetPassword() -> Bool {
+        PresetPasswordStore.clear() == errSecSuccess
     }
 
     /// 用户在设置里挑的「当前活跃」自定义启动路径。空表示尚未挑选。
     /// 也是 history 列表里被点亮的那一项 —— 二者保持一致。
-    static var startupCustomLocationURL: URL? {
+    nonisolated static var startupCustomLocationURL: URL? {
         guard let path = defaults.string(forKey: Key.startupCustomLocationPath), !path.isEmpty else {
             return nil
         }
         return URL(fileURLWithPath: path)
     }
 
-    static func setStartupCustomLocation(_ url: URL?) {
+    nonisolated static func setStartupCustomLocation(_ url: URL?) {
         if let url {
             defaults.set(url.standardizedFileURL.path, forKey: Key.startupCustomLocationPath)
         } else {
@@ -532,14 +536,14 @@ enum AppPreferences {
     }
 
     /// 用户挑过的所有 custom 路径，按 MRU 顺序。
-    static var startupCustomLocationHistory: [URL] {
+    nonisolated static var startupCustomLocationHistory: [URL] {
         (defaults.stringArray(forKey: Key.startupCustomLocationHistory) ?? [])
             .map { URL(fileURLWithPath: $0) }
     }
 
     /// 把一个新 / 已有的 custom 路径加进历史并设为当前活跃。
     /// 行为：移到列表头部（最近使用），若超过 `keepingAtMost` 项就裁掉末尾。
-    static func recordCustomStartupLocation(_ url: URL, keepingAtMost limit: Int) {
+    nonisolated static func recordCustomStartupLocation(_ url: URL, keepingAtMost limit: Int) {
         let canonical = url.standardizedFileURL.path
         var paths = (defaults.stringArray(forKey: Key.startupCustomLocationHistory) ?? [])
         paths.removeAll { $0 == canonical }
@@ -552,7 +556,7 @@ enum AppPreferences {
     }
 
     /// 从历史里移除一条（用户主动「忘记」某条），同时若它是当前活跃的也顺手清掉。
-    static func removeCustomStartupLocation(_ url: URL) {
+    nonisolated static func removeCustomStartupLocation(_ url: URL) {
         let canonical = url.standardizedFileURL.path
         var paths = defaults.stringArray(forKey: Key.startupCustomLocationHistory) ?? []
         paths.removeAll { $0 == canonical }
@@ -575,7 +579,7 @@ enum AppPreferences {
     /// 3. 导入时只接受登记过的 key，防止恶意 JSON 写不属于 SimpleZip 的 UserDefaults key
     ///    （比如 AppleLanguages 这种全局系统 key）。
     /// 添加新 settings key 时，记得来这里登记一下 + 同步更新 release-checklist.md。
-    static let exportableUserDefaultsKeys: [String] = [
+    nonisolated static let exportableUserDefaultsKeys: [String] = [
         Key.appLanguage,
         Key.startupLocation,
         Key.startupCustomLocationPath,
@@ -613,7 +617,7 @@ enum AppPreferences {
     ]
 
     /// 拼一份当前所有可导出 key 的 payload，可直接 JSONSerialization 序列化。
-    static func exportablePayload() -> [String: Any] {
+    nonisolated static func exportablePayload() -> [String: Any] {
         var values: [String: Any] = [:]
         for key in exportableUserDefaultsKeys {
             if let value = defaults.object(forKey: key) {
@@ -631,7 +635,7 @@ enum AppPreferences {
     /// 简化版备份」之后还是带着上次的零散设置，根本对不上备份原状态。
     /// 只接受白名单里的 key（防御 payload 里出现 AppleLanguages 这种全局系统 key）。
     /// 导入完成后调用方应让相关 UI 刷新。
-    static func importPayload(_ payload: [String: Any]) throws {
+    nonisolated static func importPayload(_ payload: [String: Any]) throws {
         let values = try PreferencesPayloadCodec.decode(payload)
         let allowed = Set(exportableUserDefaultsKeys)
         for key in exportableUserDefaultsKeys {
@@ -644,14 +648,14 @@ enum AppPreferences {
 
     /// 把所有可导出 key 全部抹掉 + 顺手把 Keychain 里的预设密码也清掉。
     /// 「全部恢复默认」按钮调；用户应该被警告这是不可逆操作。
-    static func restoreAllDefaultsToFactory() {
+    nonisolated static func restoreAllDefaultsToFactory() {
         for key in exportableUserDefaultsKeys {
             defaults.removeObject(forKey: key)
         }
         PresetPasswordStore.clear()
     }
 
-    static func resetStartupLocationToDefault() {
+    nonisolated static func resetStartupLocationToDefault() {
         defaults.set(StartupLocation.home.rawValue, forKey: Key.startupLocation)
         defaults.removeObject(forKey: Key.startupCustomLocationPath)
         defaults.removeObject(forKey: Key.startupCustomLocationHistory)
@@ -686,7 +690,7 @@ enum AppPreferences {
     /// app 启动时校验：当前 startupLocation 是否指向一个不可达目录？
     /// .lastFolder 还没配过（首次启动）不算「失效」—— 静默回落到 home 即可，不打扰用户。
     /// 其它 case 路径配过但消失了 = 失效。
-    static var startupLocationIsMissing: Bool {
+    nonisolated static var startupLocationIsMissing: Bool {
         let location = startupLocation
         switch location {
         case .lastFolder:
@@ -705,7 +709,7 @@ enum AppPreferences {
     /// `AppleLanguages`，让 AppKit 在构造顶部菜单栏（File / Edit / Window / Help…）和
     /// Quit / Hide / Services 这些 native 项时就拿到正确语言。
     /// 用户在「通用 → 语言」里改值并重启后，下次启动这一步会用新值，菜单栏自然跟随。
-    static func applyAppleLanguagesOverrideAtLaunch() {
+    nonisolated static func applyAppleLanguagesOverrideAtLaunch() {
         let language = appLanguage
         if let code = language.appleLanguageCode {
             defaults.set([code], forKey: "AppleLanguages")
@@ -715,7 +719,7 @@ enum AppPreferences {
         }
     }
 
-    static func defaultStartupURL(fileManager: FileManager = .default) -> URL {
+    nonisolated static func defaultStartupURL(fileManager: FileManager = .default) -> URL {
         // 各分支统一回落到 home 目录 —— 即便对应系统目录被用户手动删了 / 自定义路径已经
         // 不存在了，app 也要起得来，而不是崩在「没法打开任何位置」。
         let fallback = fileManager.homeDirectoryForCurrentUser
@@ -746,14 +750,14 @@ enum AppPreferences {
         }
     }
 
-    private static func defaultTrueBool(forKey key: String) -> Bool {
+    private nonisolated static func defaultTrueBool(forKey key: String) -> Bool {
         if defaults.object(forKey: key) == nil {
             return true
         }
         return defaults.bool(forKey: key)
     }
 
-    private static func normalizedHiddenSuffixes(_ values: [String]) -> [String] {
+    private nonisolated static func normalizedHiddenSuffixes(_ values: [String]) -> [String] {
         var seen = Set<String>()
         return values.compactMap { value in
             let normalized = normalizedHiddenSuffix(value)
@@ -764,7 +768,7 @@ enum AppPreferences {
         }
     }
 
-    private static func rememberRecentFolder(_ url: URL) {
+    private nonisolated static func rememberRecentFolder(_ url: URL) {
         var paths = defaults.stringArray(forKey: Key.recentSidebarPaths) ?? []
         let path = url.standardizedFileURL.path
         paths.removeAll { $0 == path }
@@ -772,7 +776,7 @@ enum AppPreferences {
         defaults.set(Array(paths.prefix(8)), forKey: Key.recentSidebarPaths)
     }
 
-    private static func urls(forKey key: String) -> [URL] {
+    private nonisolated static func urls(forKey key: String) -> [URL] {
         (defaults.stringArray(forKey: key) ?? []).map { URL(fileURLWithPath: $0) }
     }
 }

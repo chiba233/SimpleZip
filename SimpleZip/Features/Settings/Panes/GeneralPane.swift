@@ -161,13 +161,23 @@ struct GeneralPane: View {
                         // 用户刚打开开关：现在才碰 Keychain，触发一次可能的访问授权对话框。
                         // 这是预期的行为 —— 用户主动启用了这个功能。
                         reloadPresetPasswordBuffer()
+                        presetPasswordRevealMessage = nil
                     } else {
                         // 关掉开关 = 同时清掉 Keychain 里残留的密码；
                         // 不留陈旧凭据，符合「关闭功能=完全停用」的用户预期。
-                        AppPreferences.clearPresetPassword()
-                        presetPasswordBuffer = ""
-                        savedPresetPassword = ""
-                        showsPresetPassword = false
+                        // 如果 Keychain 拒绝删除（access 被撤销 / 锁定），开关回弹到 ON 并提示，
+                        // 否则会出现「UI 显示关闭但下次启动旧密码还在」的不一致状态。
+                        if AppPreferences.clearPresetPassword() {
+                            presetPasswordBuffer = ""
+                            savedPresetPassword = ""
+                            showsPresetPassword = false
+                            presetPasswordRevealMessage = nil
+                        } else {
+                            DispatchQueue.main.async {
+                                presetPasswordEnabled = true
+                            }
+                            presetPasswordRevealMessage = L10n.text("settings.presetPassword.clearFailed")
+                        }
                     }
                 }
 

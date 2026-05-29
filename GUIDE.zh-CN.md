@@ -13,7 +13,7 @@ SimpleZip 是一个面向 macOS 的原生压缩包管理器。它不是只把命
 - 像 7-Zip / NanaZip 一样浏览压缩包内部目录。
 - 不先手动解压，直接双击打开压缩包里的文档、图片、安装包等文件。
 - 把压缩包里的文件直接拖到 Finder 或其他目标位置。
-- 创建 ZIP、7z、RAR、TAR、GZip、TAR.GZ、BZip2、XZ。
+- 创建 ZIP、7z、DMG、RAR、TAR、GZip、TAR.GZ、BZip2、XZ。
 - 查看和解压分卷压缩包。
 - 管理压缩包格式默认打开方式。
 - 计算文件哈希，处理冲突，移动/复制/删除本地文件。
@@ -70,7 +70,7 @@ SimpleZip/Tools/rar
 | `.tgz` / `.tar.gz`                       | 支持 | 支持 | 支持   | 创建走系统 `tar`                    |
 | `.bz2`                                   | 支持 | 支持 | 支持   | 单文件压缩格式                        |
 | `.xz`                                    | 支持 | 支持 | 支持   | 单文件压缩格式                        |
-| `.dmg`                                   | 支持 | 支持 | 暂不支持 | 通过 `hdiutil` 只读挂载              |
+| `.dmg`                                   | 支持 | 支持 | 支持   | 通过 macOS `hdiutil` 创建和只读挂载     |
 | `.001`、`.002`、`.z01`、`.r00`、`part02.rar` | 支持 | 支持 | 暂不支持 | 自动归一化到首卷                       |
 
 ## 打开文件夹和压缩包
@@ -137,6 +137,7 @@ Mos.app
 适合直接打开：
 
 - PDF、Word、Excel、图片、文本、代码文件；
+- `.dmg` 磁盘映像：会临时解出后由 SimpleZip 只读挂载，并以文件夹方式浏览；
 - `.pkg` 安装包；
 - `.app` 这类包目录。
 
@@ -191,7 +192,7 @@ Mos.app
 创建面板支持：
 
 - 文件名；
-- 格式：ZIP、7z、RAR、TAR、GZip、TAR.GZ、BZip2、XZ；
+- 格式：ZIP、7z、DMG、RAR、TAR、GZip、TAR.GZ、BZip2、XZ；
 - 压缩率；
 - 密码；
 - 跳过 `.DS_Store`；
@@ -214,6 +215,7 @@ node_modules/*
 
 - ZIP：优先使用 7-Zip；后端不可用且选项简单时可回退系统 `/usr/bin/zip`。
 - 7z：需要 `7zz` 或 `7z`。
+- DMG：使用系统 `/usr/bin/hdiutil create -format UDZO` 创建。多选时会先把选中的项目放入临时 staging 目录，确保 DMG 顶层就是这些选中文件 / 文件夹。
 - RAR：需要 RARLAB `rar`。
 - TAR / TAR.GZ：使用系统 `/usr/bin/tar` 创建。
 - GZip / BZip2 / XZ：只能压缩单个普通文件。
@@ -229,7 +231,7 @@ Release 都关闭了 App Sandbox。这不是单纯的配置疏漏，但意味着
 - 解压先进入临时目录，再合并到目标目录；
 - 合并阶段的同名文件冲突由 SimpleZip 处理，不让后端静默覆盖；
 - 密码不会直接作为可见命令行参数传给后端；
-- DMG 使用 `hdiutil` 只读挂载；
+- DMG 使用 macOS `hdiutil` 创建；浏览和解压时只读挂载；
 - 双击打开压缩包内文件时打开的是临时副本，不会直接修改压缩包；
 - 遇到 `../`、绝对路径、Windows 盘符、UNC 路径等可疑条目时，UI 会先询问再继续；
 - 解压 staging 里发现符号链接时，会先询问再合并或打开；
@@ -255,7 +257,7 @@ SimpleZip 后续应按行为维护兼容性，而不是只看扩展名：
 | 7z  | 加密文件名、固实压缩、符号链接、大字典、分卷                                             |
 | RAR | RAR4、RAR5、多分卷、密码、可用时的恢复记录                                          |
 | TAR | pax header、长路径、符号链接、硬链接、绝对路径、压缩 tar 变体                             |
-| DMG | 只读挂载、复制式解压、隐藏文件、App bundle、卸载失败恢复                                  |
+| DMG | UDZO 创建、只读挂载、复制式解压、压缩包内 DMG 打开、隐藏文件、App bundle、卸载失败恢复               |
 
 这张表不是承诺所有场景都已经自动化，而是后续补测试夹具和发布前手测的检查清单。
 

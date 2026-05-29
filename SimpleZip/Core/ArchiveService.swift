@@ -211,6 +211,15 @@ enum ArchiveService {
                 outputObserver: outputObserver,
                 operationID: operationID
             )
+        case .dmg:
+            try await DiskImageBackend.create(
+                from: sourceURLs,
+                destination: destination,
+                volumeName: destination.deletingPathExtension().lastPathComponent,
+                progress: progress,
+                outputObserver: outputObserver,
+                operationID: operationID
+            )
         case .gzip:
             let sourceURL = try validateSingleRegularFileSource(sourceURLs, format: options.format)
             let tool = try sevenZipTool()
