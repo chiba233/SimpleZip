@@ -4,19 +4,15 @@ import Testing
 struct ArchiveOperationFeedbackTests {
     @Test
     func failureAlertKeepsShortMessageUntouched() {
-        let alert = ArchiveOperationFailureAlert(message: "Wrong password")
-
-        #expect(alert.previewMessage == "Wrong password")
-        #expect(alert.fullMessage == "Wrong password")
+        #expect(ArchiveOperationFailurePreview.truncate("Wrong password") == "Wrong password")
     }
 
     @Test
     func failureAlertTruncatesLongMessageForAlertPreview() {
         let message = String(repeating: "a", count: 605)
-        let alert = ArchiveOperationFailureAlert(message: message)
+        let preview = ArchiveOperationFailurePreview.truncate(message)
 
-        #expect(alert.previewMessage.count == 602)
-        #expect(alert.previewMessage.hasSuffix("\n…"))
-        #expect(alert.fullMessage == message)
+        #expect(preview.count == 602)
+        #expect(preview.hasSuffix("\n…"))
     }
 }

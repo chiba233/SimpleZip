@@ -50,6 +50,8 @@
   - Root cause: Sparkle's update **dialog text** is rendered from `CFBundleShortVersionString` (the marketing version, e.g. `0.1.7`), but its **version comparison** uses `CFBundleVersion` (which CI was setting to `GITHUB_RUN_NUMBER`, e.g. `47`). The appcast had `sparkle:version="0.1.7"`, parsed as `[0,1,7]` vs `[47]` → Sparkle always considered the local build newer → the comparison and the displayed text were measuring different things.
   - Fix: `scripts/build_unsigned_dmg.sh` now sets `CURRENT_PROJECT_VERSION` to `RELEASE_VERSION` during release builds (instead of `BUILD_NUMBER`), so `CFBundleVersion` and `sparkle:version` are both the semver string (e.g. `0.1.7`) on the same comparison path. Users on the next `v0.1.8` release will get a proper "update available" prompt again.
 
+## 0.1.7
+
 - **Internal refactor: `ArchiveBackend` protocol landed (Phase 4 step 6 — Phase 4 complete)**
   - New `Core/Backends/ArchiveBackend.swift` (55 lines) declaring the protocol and adding conformances to all four backends.
   - Protocol scope is intentionally narrow: only the **read path** (`list` / `test`). Those two methods have signatures that line up across every backend, so unifying them collapses `ArchiveService.list` / `.test` into two-line routers (`backendType(for:).list(...)` / `.test(...)`); the switch statements there are gone.

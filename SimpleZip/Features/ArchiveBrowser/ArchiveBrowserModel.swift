@@ -20,7 +20,10 @@ final class ArchiveBrowserModel: ObservableObject {
     @Published var selectedArchiveRows = Set<UUID>()
     @Published var status = L10n.text("status.ready")
     @Published var isWorking = false
-    @Published private var operationFailureAlert: ArchiveOperationFailureAlert?
+    /// 失败 alert 的完整文案；setter 在 `errorMessage` 上 trim 一次。`nil` = 不展示 alert。
+    /// 之前用 `ArchiveOperationFailureAlert` wrapper 包了一层「fullMessage + previewLimit + previewMessage」，
+    /// 但 previewLimit 从未被设过其它值，wrapper 跟 `errorMessage` getter/setter 互相把对方藏起来，是过度抽象。
+    @Published private var operationFailureFullMessage: String?
     @Published var hashReport: HashReport?
     @Published var benchmarkRequest: SevenZipBenchmarkRequest?
     @Published var benchmarkSession: SevenZipBenchmarkSession?
@@ -145,16 +148,19 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     var errorMessage: String? {
-        get { operationFailureAlert?.fullMessage }
-        set { operationFailureAlert = newValue.map { ArchiveOperationFailureAlert(message: $0) } }
+        get { operationFailureFullMessage }
+        set { operationFailureFullMessage = newValue?.trimmingCharacters(in: .whitespacesAndNewlines) }
     }
 
+    /// 截断到 600 字符给 alert 顶部预览（避免上百行 stderr 撑爆弹窗）。完整文案仍存 `errorMessage`，
+    /// 用户点「打开详情」走 operationDetailsSession 看完整内容。截断逻辑在 Core 里有专属单测。
     var operationFailurePreviewMessage: String {
-        operationFailureAlert?.previewMessage ?? ""
+        guard let message = operationFailureFullMessage else { return "" }
+        return ArchiveOperationFailurePreview.truncate(message)
     }
 
     var isShowingOperationFailureAlert: Bool {
-        operationFailureAlert != nil
+        operationFailureFullMessage != nil
     }
 
     var canGoUp: Bool {
@@ -1172,7 +1178,7 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     func dismissOperationFailureAlert() {
-        operationFailureAlert = nil
+        operationFailureFullMessage = nil
     }
 
     func openOperationDetailsFromFailureAlert() {
