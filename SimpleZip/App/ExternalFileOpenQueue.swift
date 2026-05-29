@@ -10,6 +10,9 @@ import Foundation
 extension Notification.Name {
     static let openExternalFile = Notification.Name("openExternalFile")
     static let finderServiceAction = Notification.Name("finderServiceAction")
+    /// SimpleZip 内点 `.siz` 时 `ArchiveBrowserModel.open` 发的通知 —— ContentView 监听后走 handleSIZOpen。
+    /// 不能走 `NSWorkspace.shared.open` 因为 .siz 的 UTI 注册到了 SimpleZip 自己，会循环创建新窗口。
+    static let openSIZContainer = Notification.Name("openSIZContainer")
 }
 
 /// 外部打开事件队列：解决冷启动时文件事件早于 SwiftUI 窗口初始化的问题。

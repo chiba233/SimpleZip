@@ -313,6 +313,22 @@ struct ArchiveCreationOptionsView: View {
                             chooseDestination()
                         }
                     }
+
+                    // GPG 签名 —— 只在「主开关 + 后端可用」时才显示，关掉的用户完全看不见。
+                    // 勾选 → 输出文件改成 .siz 容器（内层是当前 format，签名 + 元数据一起打 tar 包）。
+                    if AppPreferences.gpgEnabled && GPGBackend.isAvailable() {
+                        Toggle(L10n.text("archive.gpgSign"), isOn: $request.options.gpgSign)
+                            .disabled(gpgSigningDisabledBySplitVolume)
+                        if gpgSigningDisabledBySplitVolume {
+                            validationText(L10n.text("archive.gpgSign.disabledBySplitVolume"))
+                        }
+                        if request.options.gpgSign {
+                            Text(L10n.text("archive.gpgSign.hint"))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
                 }
                 .controlSize(.small)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -355,8 +371,16 @@ struct ArchiveCreationOptionsView: View {
         .onChange(of: request.options.customExcludes) { _ in
             excludedFileCount = nil
         }
+        .onChange(of: request.options.sevenZipVolumeSize) { _ in
+            if gpgSigningDisabledBySplitVolume {
+                request.options.gpgSign = false
+            }
+        }
         .onChange(of: request.options.format) { _ in
             excludedFileCount = nil
+            if gpgSigningDisabledBySplitVolume {
+                request.options.gpgSign = false
+            }
         }
         .onAppear {
             presetPassword = AppPreferences.presetPassword
@@ -531,6 +555,11 @@ struct ArchiveCreationOptionsView: View {
         return (try? ArchiveService.normalizedSevenZipVolumeSize(from: trimmed)) == nil
             ? L10n.text("error.invalidSevenZipVolumeSize")
             : nil
+    }
+
+    private var gpgSigningDisabledBySplitVolume: Bool {
+        request.options.format.supportsVolumeSplitting
+            && !request.options.sevenZipVolumeSize.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private var singleFileValidationMessage: String? {

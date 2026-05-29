@@ -12,6 +12,7 @@ enum ArchiveError: LocalizedError {
     case unsupportedFormat
     case missingSevenZip
     case missingRarTool
+    case missingGPG
     case invalidSevenZipVolumeSize
     case singleFileCompressionRequiresSingleFile
     case passwordsDoNotMatch
@@ -21,6 +22,7 @@ enum ArchiveError: LocalizedError {
     case unsafeArchiveEntries([String])
     case unsafeArchiveLinks([String])
     case blockedBySecurityPolicy
+    case sizContainerUnsupportedOptions(String)
     case passwordPromptExhausted
     case commandFailed(String)
 
@@ -32,6 +34,8 @@ enum ArchiveError: LocalizedError {
             return L10n.text("error.missingSevenZip")
         case .missingRarTool:
             return L10n.text("error.missingRarTool")
+        case .missingGPG:
+            return L10n.text("error.missingGPG")
         case .invalidSevenZipVolumeSize:
             return L10n.text("error.invalidSevenZipVolumeSize")
         case .singleFileCompressionRequiresSingleFile:
@@ -50,6 +54,8 @@ enum ArchiveError: LocalizedError {
             return L10n.format("error.unsafeArchiveLinks", names.joined(separator: ", "))
         case .blockedBySecurityPolicy:
             return L10n.text("error.blockedBySecurityPolicy")
+        case .sizContainerUnsupportedOptions(let reason):
+            return L10n.format("error.siz.unsupportedOptions", reason)
         case .passwordPromptExhausted:
             return L10n.text("error.passwordPromptExhausted")
         case .commandFailed(let message):

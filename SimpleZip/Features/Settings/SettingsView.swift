@@ -70,6 +70,8 @@ struct SettingsView: View {
             FileAssociationsPane()
         case .columns:
             ColumnsPane()
+        case .gpg:
+            GPGPane()
         case .health:
             // 把 selectedPane 的 binding 透出来 —— Health 面板上每条修复按钮可以直接切到对应 pane。
             HealthPane(selectedPane: $selectedPane)

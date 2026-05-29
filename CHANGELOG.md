@@ -2,7 +2,26 @@
 
 # Changelog
 
-## 0.1.7
+## 0.1.8
+
+- **New feature: GPG integration (Phase A foundation + keyring + .siz signed container)**
+  - New Settings → "GPG (PGP Signing)" pane (sidebar position 6, `key.fill` icon): master enable toggle, backend status badge with version, pinentry-mac missing warning, install hints (`brew install gnupg pinentry-mac` with copy + open-in-Terminal buttons; GPGTools download link), keyring list (filled key icon = secret key present), "Import key…" button, and two default-behavior toggles.
+  - Master toggle `gpgEnabled` defaults to off — when off, every other GPG entry point (e.g. the Create-Archive "GPG sign" checkbox and the future verification badges) is hidden so users who don't use GPG aren't bothered; the Settings pane itself is always reachable so users can opt in.
+  - `Core/Backends/GPGBackend.swift` (~370 lines) handles path discovery (`/opt/homebrew/bin/gpg` / `/usr/local/bin/gpg` / `MacGPG2` / `$PATH`), version, `hasPinentryMac()`, `listKeys()` (state-machine parsing of `--with-colons` cross-referenced with secret keys), `importKey(from:)`, `sign(archiveURL:signingKeyFingerprint:)`, and `verify(archiveURL:signatureURL:)` returning a `GPGVerifyResult` (valid trusted / valid untrusted / unknownSigner / badSignature / verificationError).
+  - **The `.siz` single-file signed container** (signature feature): when GPG sign is checked during Create Archive, the output is renamed to `<name>.siz` containing `archive.<ext>` + `metadata.json` (`SimpleZip.siz` schema v1) + `signature.asc` packed via tar (no extra compression — the inner archive is already compressed). One file means the signature never gets separated from the archive in transit, addressing the most common failure mode of the standard `.asc` sibling-file convention. `Core/SIZArchive.swift` exposes `wrap` / `unwrap` / `peekMetadata`.
+  - Opening a `.siz` now unwraps to a scoped temporary directory, verifies the detached signature with GPG, and shows a SwiftUI signature sheet before browsing the inner archive. The sheet distinguishes valid trusted, valid-but-untrusted, unknown signer, bad signature, verification error, and missing-GPG states; bad signatures make Cancel the default action while still allowing an explicit "Open Anyway".
+  - The browser keeps the user's mental model intact after opening a `.siz`: the inner archive lives in a temporary folder, but the title and location bar display the original `.siz` path instead of the temporary `archive.<ext>` path.
+  - `.siz` container handling is now hardened before extraction: SimpleZip lists and validates tar entries first, rejects unsafe paths, symlinks, duplicate entries, unexpected files, and invalid `metadata.innerArchiveName`, then extracts only `metadata.json`, `signature.asc`, and `archive.<ext>`. Existing `.siz` destinations are no longer silently overwritten.
+  - Split-volume archives are intentionally not supported inside `.siz`. If the user enters a split volume size in the Create Archive sheet, the GPG `.siz` signing checkbox is disabled and an inline red message explains that split archives should use an external `.asc` signature file instead. The backend also rejects split-volume and "delete source after compression" combinations as a safety fallback.
+  - GPG private-key passphrases are handled entirely by `gpg-agent` + `pinentry-mac`'s native dialog — SimpleZip never touches the passphrase itself (a security-sensitive surface). All it needs is a Homebrew gnupg install that pulls in pinentry-mac (the default).
+  - Preferences export whitelist now includes `gpgEnabled` / `gpgSignByDefault` / `gpgVerifyOnOpen`. Private and public keys live in `~/.gnupg/` and are never exported.
+  - `.siz` UTI is registered too: `com.simplezip.siz-archive` is declared in `UTExportedTypeDeclarations` (conforms to `public.tar-archive` / `public.archive`), `CFBundleDocumentTypes` has `siz` plus the MIME type `application/x-simplezip-siz`, and `ArchiveAssociationService` lists the new format — so Settings → File Associations lets the user set SimpleZip as the default app for `.siz`.
+  - **Still to come in later rounds**: one-click import flow for unknown signers, GUI key creation / export / delete, and smartcard management.
+
+- **Bug fix: Sparkle "Check for Updates" showed self-contradicting messages**
+  - Symptom: clicking "Check for Updates" sometimes displayed "0.1.7 available (you have 0.1.6)" and other times "You're on the latest version", contradicting each other.
+  - Root cause: Sparkle's update **dialog text** is rendered from `CFBundleShortVersionString` (the marketing version, e.g. `0.1.7`), but its **version comparison** uses `CFBundleVersion` (which CI was setting to `GITHUB_RUN_NUMBER`, e.g. `47`). The appcast had `sparkle:version="0.1.7"`, parsed as `[0,1,7]` vs `[47]` → Sparkle always considered the local build newer → the comparison and the displayed text were measuring different things.
+  - Fix: `scripts/build_unsigned_dmg.sh` now sets `CURRENT_PROJECT_VERSION` to `RELEASE_VERSION` during release builds (instead of `BUILD_NUMBER`), so `CFBundleVersion` and `sparkle:version` are both the semver string (e.g. `0.1.7`) on the same comparison path. Users on the next `v0.1.8` release will get a proper "update available" prompt again.
 
 - **Internal refactor: `ArchiveBackend` protocol landed (Phase 4 step 6 — Phase 4 complete)**
   - New `Core/Backends/ArchiveBackend.swift` (55 lines) declaring the protocol and adding conformances to all four backends.

@@ -24,6 +24,11 @@ struct ContentView: View {
     @State private var showsWelcomeAssistant = false
     @State private var didCheckWelcomeAssistant = false
 
+    /// `.siz` 签名验证状态：unwrap 完成 + 验签结果就绪后赋值，触发 SwiftUI sheet 显示签名信息对话框。
+    /// 用 sheet 替代 NSAlert 是因为后者在 SwiftUI 视图 context（没 key window 锚定）下渲染成无 chrome
+    /// 浮动框，关闭行为也不可控。sheet 行为可控、跟 app 其它对话框（创建 / 解压选项）一致。
+    @State private var pendingSIZVerification: SIZPendingVerification?
+
     var body: some View {
         NavigationSplitView {
             Sidebar(model: model)
@@ -137,6 +142,24 @@ struct ContentView: View {
                 model.extractArchiveRequest = nil
             }
         }
+        .sheet(item: $pendingSIZVerification) { pending in
+            SIZSignatureSheet(
+                pending: pending,
+                onOpen: {
+                    pendingSIZVerification = nil
+                    ensureMainWindowVisible()
+                    // 用 archive 浏览模式 —— Extract / Hash / 打开单文件按钮都正常工作。
+                    // 关键：`displayedAs: pending.sourceURL` 让 model 的 title / locationText 显示
+                    // 原始 .siz 路径（如 `~/Desktop/1.siz`），而不是丑陋的 inner URL
+                    // `/var/folders/.../T/SimpleZip-SIZ-Unwrap-xxx/archive.zip`。
+                    model.openArchive(pending.unwrap.innerArchiveURL, displayedAs: pending.sourceURL)
+                },
+                onCancel: {
+                    pendingSIZVerification = nil
+                    try? FileManager.default.removeItem(at: pending.tempRoot)
+                }
+            )
+        }
         .onAppear {
             ExternalFileOpenQueue.shared.drain().forEach(openExternalURL)
             FinderServiceActionQueue.shared.drain().forEach(handleFinderServiceAction)
@@ -192,6 +215,13 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .openExternalFile)) { _ in
             ExternalFileOpenQueue.shared.drain().forEach(openExternalURL)
         }
+        .onReceive(NotificationCenter.default.publisher(for: .openSIZContainer)) { notification in
+            // model 在 SimpleZip 内点 .siz 时发的通知 —— 走 ContentView 的 handleSIZOpen 路径，
+            // 跟 Finder 外部双击 .siz 同一处理流程，主窗口不会被复制创建新实例。
+            if let url = notification.object as? URL {
+                handleSIZOpen(url)
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .finderServiceAction)) { _ in
             FinderServiceActionQueue.shared.drain().forEach(handleFinderServiceAction)
         }
@@ -224,6 +254,11 @@ struct ContentView: View {
         var isDirectory: ObjCBool = false
         if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue {
             model.openFolder(url)
+        } else if url.pathExtension.lowercased() == SIZArchive.extensionName {
+            // `.siz` 容器：unwrap 到临时目录后把内层 archive 喂给原本的 external-archive 路径。
+            // 必须在 `ArchiveService.isSupportedArchive` 之前判 —— 否则会落到 `NSWorkspace.shared.open(url)`
+            // 兜底分支，又把 .siz 路由回 SimpleZip（UTI 已注册），导致无限重开主窗口。
+            handleSIZOpen(url)
         } else if ArchiveService.isSupportedArchive(url) {
             // 用户开了「Finder 自动解压」+ 不是 DMG → 走独立浮窗 controller，主窗口不参与。
             // DMG 仍然走 model 走挂载浏览（没有「解压」语义）。
@@ -240,6 +275,78 @@ struct ContentView: View {
             NSWorkspace.shared.open(url)
         }
     }
+
+    /// `.siz` 容器入口：unwrap → GPG 验签 → **设置 state** 让 SwiftUI sheet 显示签名信息对话框。
+    /// sheet 的 Open / Cancel 按钮在 `SIZSignatureSheet` 里处理；之前用 NSAlert 在 SwiftUI 视图 context
+    /// 里渲染会变成无 chrome 的浮动框 + 关闭不可控（截图里反复出现），改用 sheet 行为可控。
+    private func handleSIZOpen(_ url: URL) {
+        Task {
+            do {
+                let tempRoot = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("SimpleZip-SIZ-Unwrap-\(UUID().uuidString)", isDirectory: true)
+                try FileManager.default.createDirectory(at: tempRoot, withIntermediateDirectories: true)
+                let unwrap = try await SIZArchive.unwrap(at: url, to: tempRoot)
+
+                // GPG 没装 → 让用户看到原因，选择跳过验签还是取消。装了 → 跑 verify 拿四态结果。
+                let verifyResult: SIZVerificationOutcome
+                if GPGBackend.isAvailable() {
+                    do {
+                        let gpgResult = try await GPGBackend.verify(
+                            archiveURL: unwrap.innerArchiveURL,
+                            signatureURL: unwrap.signatureURL
+                        )
+                        verifyResult = .gpgResult(gpgResult)
+                    } catch {
+                        verifyResult = .verificationError(error.localizedDescription)
+                    }
+                } else {
+                    verifyResult = .gpgMissing
+                }
+
+                await MainActor.run {
+                    pendingSIZVerification = SIZPendingVerification(
+                        sourceURL: url,
+                        tempRoot: tempRoot,
+                        unwrap: unwrap,
+                        outcome: verifyResult
+                    )
+                }
+            } catch {
+                await MainActor.run {
+                    model.errorMessage = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    /// 验签结果的「上一层」枚举 —— 因为 `GPGBackend.GPGVerifyResult` 不能表达「gpg 根本没装」这种情况，
+    /// 我们在外面再套一层。
+    enum SIZVerificationOutcome: Equatable {
+        case gpgResult(GPGBackend.GPGVerifyResult)
+        case verificationError(String)
+        case gpgMissing
+    }
+
+    /// `.siz` 签名对话框 sheet 的承载状态。`id` 让 SwiftUI 把每次新打开当成新 sheet。
+    struct SIZPendingVerification: Identifiable, Equatable {
+        let id = UUID()
+        let sourceURL: URL
+        let tempRoot: URL
+        let unwrap: SIZArchive.UnwrapResult
+        let outcome: SIZVerificationOutcome
+
+        static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
+    }
+
+    /// 主窗口被 `hideMainWindowIfPossible` orderOut 后，再次显示出来 ——
+    /// 用于「.siz 用户确认要打开内层」之类「我们要让用户看到主窗口浏览」的场景。
+    private func ensureMainWindowVisible() {
+        for window in NSApp.windows where !window.isVisible {
+            // 不强制 makeKey —— 用户已经在跟签名对话框互动，让窗口出现但不抢焦点；NSWindow.orderFront 默认不夺焦。
+            window.orderFront(nil)
+        }
+    }
+
 
     /// 把主窗口隐藏掉 —— Finder 自动解压时只显示浮窗，主窗口不该弹出。
     /// 冷启动场景：SwiftUI WindowGroup 已经构造了 ContentView，主窗口本能在 onAppear 之后短暂可见；

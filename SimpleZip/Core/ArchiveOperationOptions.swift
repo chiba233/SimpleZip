@@ -336,6 +336,12 @@ struct ArchiveCreationOptions {
     var sevenZipStoreHardLinks = false
     var sevenZipCompressSharedFiles = false
     var sevenZipDeleteSourceFiles = false
+
+    // GPG 集成 —— 默认随用户偏好（创建对话框打开时读 `AppPreferences.gpgSignByDefault`）。
+    /// 创建成功后是否用 GPG 跑 detached signature → 生成 `<archive>.asc`。
+    var gpgSign = false
+    /// 签名时用哪把私钥（fingerprint）。空字符串 → 让 gpg 用 default-key。
+    var gpgSigningKeyFingerprint = ""
 }
 
 /// 创建压缩包的待确认请求。

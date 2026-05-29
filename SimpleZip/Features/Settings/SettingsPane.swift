@@ -16,6 +16,7 @@ enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
     case browser
     case fileAssociations
     case columns
+    case gpg
     case health
     case backup
 
@@ -33,6 +34,8 @@ enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
             return L10n.text("settings.section.fileAssociations")
         case .columns:
             return L10n.text("settings.section.columns")
+        case .gpg:
+            return L10n.text("settings.section.gpg")
         case .health:
             return L10n.text("settings.section.health")
         case .backup:
@@ -52,6 +55,8 @@ enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
             return "doc.badge.gearshape"
         case .columns:
             return "tablecells"
+        case .gpg:
+            return "key.fill"
         case .health:
             return "heart.text.square"
         case .backup:

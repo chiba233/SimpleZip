@@ -41,6 +41,12 @@ final class ArchiveBrowserModel: ObservableObject {
     /// 改用 ObservableObject 的 @Published 后这条路径被绕开。
     @Published var finderFavorites: [FinderFavoritesReader.Item] = []
 
+    /// 「显示路径」覆盖 —— 用于 `.siz` 这种「内层 archive 实际在 /tmp、用户心智里是原文件」的场景。
+    /// 设了之后，`title` / `locationText` / `editableLocationText` 都用这个 URL 代替真实的 inner URL，
+    /// 用户看到的路径就是 `~/Desktop/xxx.siz` 而不是 `/var/folders/.../T/SimpleZip-SIZ-Unwrap-UUID/archive.zip`。
+    /// 切换到其它 mode（folder / tag）或非 SIZ archive 时由 `openArchive` 自动清空。
+    @Published var archiveDisplayOverride: URL?
+
     private let fileManager = FileManager.default
     private let extractionCoordinator = ArchiveExtractionCoordinator(fileManager: .default)
     /// 打开的压缩包内容 + 当前路径 + 合成目录派生。生命周期等同于 model。
@@ -86,7 +92,7 @@ final class ArchiveBrowserModel: ObservableObject {
         case .folder(let url):
             return url.lastPathComponent.isEmpty ? url.path : url.lastPathComponent
         case .archive(let url):
-            return url.lastPathComponent
+            return (archiveDisplayOverride ?? url).lastPathComponent
         case .tag(let tag):
             return tag
         }
@@ -97,7 +103,10 @@ final class ArchiveBrowserModel: ObservableObject {
         case .folder(let url):
             return url.path
         case .archive(let url):
-            let baseLocation = L10n.format("location.archive", url.path)
+            // `archiveDisplayOverride` 给 `.siz` 这种「内层 archive 实际在 /tmp，但用户心智里是
+            // 桌面的 `xxx.siz`」的场景用 —— 显示原始 .siz 路径而不是丑陋的 `/var/folders/...`。
+            let displayed = archiveDisplayOverride ?? url
+            let baseLocation = L10n.format("location.archive", displayed.path)
             let path = session.archivePath
             return path.isEmpty ? baseLocation : "\(baseLocation) / \(path.trimmingCharacters(in: CharacterSet(charactersIn: "/")))"
         case .tag(let tag):
@@ -110,8 +119,9 @@ final class ArchiveBrowserModel: ObservableObject {
         case .folder(let url):
             return url.path
         case .archive(let url):
+            let displayed = archiveDisplayOverride ?? url
             let path = session.archivePath
-            return path.isEmpty ? url.path : url.path + "/" + path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            return path.isEmpty ? displayed.path : displayed.path + "/" + path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         case .tag(let tag):
             return L10n.format("location.tag", tag)
         }
@@ -177,6 +187,7 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     func openTag(_ tag: String) {
+        archiveDisplayOverride = nil
         recordCurrentLocationForNavigation()
         cleanupMountedDiskImageIfNeeded(for: nil)
         session.clearArchive()
@@ -261,6 +272,8 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     func openFolder(_ url: URL) {
+        // 切换到文件夹模式 → 清掉 .siz 残留的「显示路径覆盖」，避免老覆盖泄漏到下次 archive 打开。
+        archiveDisplayOverride = nil
         openFolder(url, recordsHistory: true)
     }
 
@@ -283,6 +296,14 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     func openArchive(_ url: URL) {
+        archiveDisplayOverride = nil
+        openArchive(url, recordsHistory: true)
+    }
+
+    /// 打开「内层 archive」但对外用 `displayedAs` 的路径展示 —— 给 `.siz` 用。
+    /// inner URL 真的在 /tmp，但用户看到的「源文件」是桌面 / 下载里的原始 `.siz`。
+    func openArchive(_ url: URL, displayedAs displayURL: URL) {
+        archiveDisplayOverride = displayURL
         openArchive(url, recordsHistory: true)
     }
 
@@ -353,6 +374,11 @@ final class ArchiveBrowserModel: ObservableObject {
     func open(_ item: FileItem) {
         if FileBrowserService.isNavigableDirectory(item) {
             openFolder(item.url)
+        } else if item.url.pathExtension.lowercased() == "siz" {
+            // `.siz` 走 ContentView 的专用 handle：unwrap → 签名验证对话框 → 解压到 /tmp → 浏览。
+            // 不能走 `NSWorkspace.shared.open`，否则系统按 UTI 把文件转回 SimpleZip 又创建新窗口。
+            // 用 NotificationCenter 解耦 —— model 不引 ContentView，ContentView 监听通知自己处理。
+            NotificationCenter.default.post(name: .openSIZContainer, object: item.url)
         } else if ArchiveService.isSupportedArchive(item.url) {
             openArchive(item.url)
         } else {
@@ -748,21 +774,103 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     func performCreateArchive(_ request: ArchiveCreationRequest) {
-        let title = L10n.format("status.creating", request.destinationURL.lastPathComponent)
+        // 勾选 GPG 签名 → 实际输出会被改名成 `<name>.siz` —— title 也跟着用最终文件名，
+        // 避免长任务面板显示「正在创建 1.zip」但实际产物是 1.siz 的违和。
+        let finalDestination = request.options.gpgSign
+            ? request.destinationURL.deletingPathExtension().appendingPathExtension(SIZArchive.extensionName)
+            : request.destinationURL
+        let title = L10n.format("status.creating", finalDestination.lastPathComponent)
         startManagedArchiveTask(
             title: title,
             showsDetails: request.options.showDetails,
             refreshOnSuccess: { [weak self] in
-                self?.refreshVisibleFolder(containing: request.destinationURL)
+                self?.refreshVisibleFolder(containing: finalDestination)
             }
         ) { operationID, progress, outputObserver in
+            // 不带 GPG 签名 → 跟原来一样直接 createArchive 写到用户指定的 destinationURL。
+            guard request.options.gpgSign else {
+                try await ArchiveService.createArchive(
+                    from: request.sourceURLs,
+                    destination: request.destinationURL,
+                    options: request.options,
+                    operationID: operationID,
+                    progress: progress,
+                    outputObserver: outputObserver
+                )
+                return
+            }
+
+            // 带签名 → 三步走：
+            // 1. 把内层压缩包做到临时 staging（用 inner format 的扩展名，比如 archive.zip）；
+            // 2. 用 GPG 跑 detached signature；
+            // 3. tar 打成 .siz 容器写到自动改名后的 destinationURL（强制 `.siz` 后缀）。
+            //
+            // 自动改后缀：用户在创建对话框里选的 destinationURL 可能是 `xxx.zip`；勾选「GPG 签名」
+            // 后实际输出是 .siz 容器，所以这里把扩展名重写成 `siz`。
+            try SIZArchive.validateCreationOptionsForSignedContainer(request.options)
+            let sizDestination = request.destinationURL
+                .deletingPathExtension()
+                .appendingPathExtension(SIZArchive.extensionName)
+
+            let fileManager = FileManager.default
+            let staging = fileManager.temporaryDirectory
+                .appendingPathComponent("SimpleZip-Sign-\(UUID().uuidString)", isDirectory: true)
+            try fileManager.createDirectory(at: staging, withIntermediateDirectories: true)
+            defer { try? fileManager.removeItem(at: staging) }
+
+            let innerExtension = request.options.format.pathExtension
+            let innerName = "archive.\(innerExtension)"
+            let innerURL = staging.appendingPathComponent(innerName)
+
+            // Step 1：跑原本的 createArchive，目标改成 staging 里的 inner archive。
+            var innerOptions = request.options
+            innerOptions.gpgSign = false
+            innerOptions.gpgSigningKeyFingerprint = ""
             try await ArchiveService.createArchive(
                 from: request.sourceURLs,
-                destination: request.destinationURL,
-                options: request.options,
+                destination: innerURL,
+                options: innerOptions,
                 operationID: operationID,
                 progress: progress,
                 outputObserver: outputObserver
+            )
+
+            // Step 2：detached sign（gpg-agent + pinentry-mac 弹密码框，我们不碰 passphrase）。
+            // 没指定 key fingerprint → 让 gpg 用 default-key。
+            let keyFingerprint = request.options.gpgSigningKeyFingerprint.isEmpty
+                ? nil
+                : request.options.gpgSigningKeyFingerprint
+            let signatureURL = try await GPGBackend.sign(
+                archiveURL: innerURL,
+                signingKeyFingerprint: keyFingerprint,
+                operationID: operationID
+            )
+
+            // Step 3：metadata + tar wrap 成 .siz。
+            // signerFingerprint / userID 只是「记录」用，真正可信度由签名本身决定。
+            let signerKey: GPGBackend.GPGKey? = (try? await GPGBackend.listKeys())?.first(where: { key in
+                if let keyFingerprint { return key.fingerprint == keyFingerprint }
+                return key.hasSecretKey
+            })
+            let metadata = SIZArchive.Metadata(
+                schema: SIZArchive.schemaIdentifier,
+                version: SIZArchive.schemaVersion,
+                innerArchiveName: innerName,
+                innerFormat: innerExtension,
+                originalArchiveName: request.destinationURL.deletingPathExtension().lastPathComponent + ".\(innerExtension)",
+                createdAt: ISO8601DateFormatter().string(from: Date()),
+                createdBy: "SimpleZip \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?")",
+                signature: SIZArchive.SignatureInfo(
+                    signerFingerprint: signerKey?.fingerprint ?? "",
+                    signerUserID: signerKey?.userID ?? "",
+                    armorFormat: true
+                )
+            )
+            try await SIZArchive.wrap(
+                innerArchive: innerURL,
+                signatureFile: signatureURL,
+                metadata: metadata,
+                outputURL: sizDestination
             )
         }
     }

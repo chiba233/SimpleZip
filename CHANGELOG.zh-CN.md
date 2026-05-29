@@ -2,6 +2,27 @@
 
 # 更新日志
 
+## 0.1.8
+
+- **新功能：GPG 集成（A 阶段基础 + 钥匙串 + .siz 容器签名）**
+  - 设置新增「GPG（PGP 签名）」pane（key.fill 图标，侧栏第 6 项）：主开关 / 后端状态徽章 / 版本 / pinentry-mac 缺失警告 / 安装提示（`brew install gnupg pinentry-mac` 双按钮 + GPGTools 下载链接）/ 钥匙串列表（有私钥的实心钥匙图标）/「导入公钥…」按钮 / 默认行为两个 toggle。
+  - 主开关 `gpgEnabled` 默认 false —— 关掉时其它入口（创建对话框的「GPG 签名」复选框、未来的验签徽章等）全部隐藏，不打扰不用 GPG 的人；设置 pane 始终可见让用户能开它。
+  - `Core/Backends/GPGBackend.swift`（370+ 行）：路径发现（`/opt/homebrew/bin/gpg` / `/usr/local/bin/gpg` / `MacGPG2` / `$PATH`）/ 版本 / `hasPinentryMac()` / `listKeys()`（`--with-colons` 状态机解析 pub + sec 交叉引用）/ `importKey(from:)` / `sign(archiveURL:signingKeyFingerprint:)` / `verify(archiveURL:signatureURL:)` 返回 `GPGVerifyResult`（valid trusted / valid untrusted / unknownSigner / badSignature / verificationError）。
+  - **`.siz` 单文件签名容器**（独家功能）：创建压缩包时勾选 GPG 签名 → 输出自动改成 `<name>.siz`，里面是 `archive.<ext>` + `metadata.json`（SimpleZip.siz schema v1）+ `signature.asc` 三件套打 tar 包（不再额外压缩）。单文件传输签名不会脱落，比业界标准的 `.asc` 兄弟文件更结实。`Core/SIZArchive.swift` 提供 `wrap` / `unwrap` / `peekMetadata` API。
+  - `.siz` 现在可以直接打开：SimpleZip 会先解到受控临时目录，用 GPG 对内层压缩包和 `signature.asc` 验签，再弹 SwiftUI 签名信息 sheet 让用户决定是否打开。状态区分「签名有效且受信任 / 签名有效但公钥未信任 / 签名者未知 / 签名损坏 / 验签异常 / 未安装 GPG」；坏签名时默认动作是取消，但仍保留显式「仍要打开」。
+  - 打开 `.siz` 后，浏览器标题和路径栏显示用户原始 `.siz` 文件路径，而不是临时目录里的 `archive.<ext>`，避免用户看到 `/var/folders/...` 这类内部路径。
+  - `.siz` 解包前会先列出并校验 tar 条目：拒绝路径穿越、绝对路径、符号链接、重复条目、预期外文件，以及不合法的 `metadata.innerArchiveName`；之后只解出 `metadata.json`、`signature.asc` 和 `archive.<ext>` 三项。创建 `.siz` 时如果目标已存在，也不再静默覆盖。
+  - `.siz` 明确不支持内置分卷。创建对话框里只要「分卷大小」有内容，GPG `.siz` 签名复选框就会变灰并自动取消勾选，下方红字提示分卷压缩请使用外置 `.asc` 签名文件；后端也会拒绝分卷和「压缩后删除源文件」这类危险组合，防止绕过 UI。
+  - gpg 私钥的 passphrase 全交给 `gpg-agent` + `pinentry-mac` 弹原生密码框 —— SimpleZip 自己不接触 passphrase（安全敏感），只需要用户的 brew gnupg 自带 pinentry-mac。
+  - 偏好导出白名单加 `gpgEnabled` / `gpgSignByDefault` / `gpgVerifyOnOpen` 三项；私钥 / 公钥都在 `~/.gnupg/`，不进偏好导出文件。
+  - `.siz` UTI 也注册了：`com.simplezip.siz-archive` 在 Info.plist 的 `UTExportedTypeDeclarations` 里声明（conformsTo `public.tar-archive` / `public.archive`），CFBundleDocumentTypes 加了 `siz` 扩展名 + MIME `application/x-simplezip-siz`，ArchiveAssociationService 加了对应行 —— 设置 → 文件关联里可以把 SimpleZip 设为 `.siz` 的默认打开方式。
+  - **后续轮次还要做**：未知签名者公钥的一键导入流程；GUI 创建 / 导出 / 删除密钥；智能卡管理。
+
+- **Bug 修复：Sparkle 更新检查显示自相矛盾**
+  - 现象：「Check for Updates」时 Sparkle 一次显示「0.1.7 可用（您在 0.1.6）」、下一次显示「您使用的就是最新版」，两条消息互相打架。
+  - 根因：Sparkle **显示**用 `CFBundleShortVersionString`（marketing version 如 `0.1.7`）但 **实际比较** 用 `CFBundleVersion`（之前 CI 设的 `GITHUB_RUN_NUMBER` 如 `47`）。`sparkle:version` 在 appcast 里是 `"0.1.7"`，解析成 `[0,1,7]` vs `[47]` → Sparkle 永远觉得本地 `47` 比 `0.1.7` 新 → 比较结果与显示文案脱钩。
+  - 修法：`scripts/build_unsigned_dmg.sh` 发布 build 时把 `CURRENT_PROJECT_VERSION` 也设成 `RELEASE_VERSION`（之前是 `BUILD_NUMBER`），让 `CFBundleVersion` 跟 `sparkle:version` 都用 semver `0.1.7` 走同一比较路径。下次 v0.1.8 发版后旧用户能正确收到「有更新」提示。
+
 ## 0.1.7
 
 - **内部重构：`ArchiveBackend` 协议落地（Phase 4 step 6，**Phase 4 完成**）**

@@ -46,9 +46,17 @@ xcodebuild_args=(
 )
 
 if [[ -n "$RELEASE_VERSION" ]]; then
+  # 把 MARKETING_VERSION 和 CURRENT_PROJECT_VERSION 都设成 RELEASE_VERSION ——
+  # Sparkle 的 SUStandardVersionComparator 实际比较的是 sparkle:version vs app 的 CFBundleVersion
+  # (= CURRENT_PROJECT_VERSION)，不是 CFBundleShortVersionString。如果二者不一致
+  # (e.g. CFBundleVersion="47" GITHUB_RUN_NUMBER 而 sparkle:version="0.1.7")，
+  # Sparkle 解析成 [47] vs [0,1,7] → 永远觉得本地比远端新 → 「已是最新版」
+  # 同时 Sparkle UI 又用 shortVersionString 给用户显示「0.1.7 可用 / 你在 0.1.6」
+  # → 两个对话框互相矛盾的「Sparkle 坑」。
+  # 让 CFBundleVersion 跟 sparkle:version 都用 marketing version (e.g. "0.1.7") 就消除歧义。
   xcodebuild_args+=(
     "MARKETING_VERSION=$RELEASE_VERSION"
-    "CURRENT_PROJECT_VERSION=$BUILD_NUMBER"
+    "CURRENT_PROJECT_VERSION=$RELEASE_VERSION"
   )
 fi
 
