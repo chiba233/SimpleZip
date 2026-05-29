@@ -686,7 +686,9 @@ final class ArchiveBrowserModel: ObservableObject {
             openHome()
         case .archive(let url):
             if session.archivePath.isEmpty {
-                openFolder(url.deletingLastPathComponent())
+                // `.siz` 容器打开时 url 是 /tmp 路径，上一级要回到原始 `.siz` 所在目录（archiveDisplayOverride 的父）。
+                let parentURL = (archiveDisplayOverride ?? url).deletingLastPathComponent()
+                openFolder(parentURL)
             } else {
                 recordCurrentLocationForNavigation()
                 session.setArchivePath(session.parentPath(of: session.archivePath))
@@ -835,29 +837,23 @@ final class ArchiveBrowserModel: ObservableObject {
                 outputObserver: outputObserver
             )
 
-            // Step 2：detached sign（gpg-agent + pinentry-mac 弹密码框，我们不碰 passphrase）。
-            // 没指定 key fingerprint → 让 gpg 用 default-key。
+            // Step 2：先组装 metadata（含 inner archive SHA256），签的是 metadata.json 不是 inner archive。
+            // 这样篡改 metadata 任何字段都会让 gpg 验签失败；篡改 inner archive 会让 SHA 对不上。
             let keyFingerprint = request.options.gpgSigningKeyFingerprint.isEmpty
                 ? nil
                 : request.options.gpgSigningKeyFingerprint
-            let signatureURL = try await GPGBackend.sign(
-                archiveURL: innerURL,
-                signingKeyFingerprint: keyFingerprint,
-                operationID: operationID
-            )
-
-            // Step 3：metadata + tar wrap 成 .siz。
-            // signerFingerprint / userID 只是「记录」用，真正可信度由签名本身决定。
             let signerKey: GPGBackend.GPGKey? = (try? await GPGBackend.listKeys())?.first(where: { key in
                 if let keyFingerprint { return key.fingerprint == keyFingerprint }
                 return key.hasSecretKey
             })
+            let innerSHA256 = try SIZArchive.computeInnerArchiveSHA256(of: innerURL)
             let metadata = SIZArchive.Metadata(
                 schema: SIZArchive.schemaIdentifier,
                 version: SIZArchive.schemaVersion,
                 innerArchiveName: innerName,
                 innerFormat: innerExtension,
                 originalArchiveName: request.destinationURL.deletingPathExtension().lastPathComponent + ".\(innerExtension)",
+                innerArchiveSHA256: innerSHA256,
                 createdAt: ISO8601DateFormatter().string(from: Date()),
                 createdBy: "SimpleZip \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?")",
                 signature: SIZArchive.SignatureInfo(
@@ -866,6 +862,18 @@ final class ArchiveBrowserModel: ObservableObject {
                     armorFormat: true
                 )
             )
+
+            // Step 3：把 metadata 落到 staging（用同一个确定性 encoder 让 wrap 和签名字节一致），
+            // 然后 gpg detached sign。gpg-agent + pinentry-mac 弹密码框，我们不碰 passphrase。
+            let metadataForSigning = staging.appendingPathComponent(SIZArchive.metadataFileName)
+            try SIZArchive.encodeMetadata(metadata).write(to: metadataForSigning, options: .atomic)
+            let signatureURL = try await GPGBackend.sign(
+                archiveURL: metadataForSigning,
+                signingKeyFingerprint: keyFingerprint,
+                operationID: operationID
+            )
+
+            // Step 4：tar wrap 成 .siz。wrap 内部会再次 encode 同一个 metadata，字节跟我们刚签的一致。
             try await SIZArchive.wrap(
                 innerArchive: innerURL,
                 signatureFile: signatureURL,
@@ -884,6 +892,14 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     func extractArchive() {
+        // 文件浏览器里选中 `.siz` + 点 Extract —— `.siz` 不在 `supportedExtensions` 里（ArchiveService
+        // 不直接处理 tar 壳），所以特判走通知给 ContentView 跑「unwrap + 验签 + 解到 .unwrapped/」。
+        if case .folder = mode,
+           let sizURL = selectedFileItems.first(where: { $0.url.pathExtension.lowercased() == SIZArchive.extensionName })?.url {
+            NotificationCenter.default.post(name: .extractSIZContainer, object: sizURL)
+            return
+        }
+
         let archiveURL: URL?
         switch mode {
         case .archive(let url):
@@ -902,10 +918,20 @@ final class ArchiveBrowserModel: ObservableObject {
         let preset = AppPreferences.hasUsablePresetPassword ? AppPreferences.presetPassword : ""
         extractArchiveRequest = ExtractArchiveRequest(
             archiveURL: archiveURL,
-            destinationURL: archiveURL.deletingLastPathComponent(),
+            destinationURL: defaultExtractDestination(for: archiveURL),
             password: preset,
             detectedZipEncryption: ArchiveService.detectZipEncryption(in: archiveURL)
         )
+    }
+
+    /// 解压默认目标路径 —— 普通 archive 用自身父目录；`.siz` 打开内层时 archiveURL 是 /tmp 路径，
+    /// 这时回退到 `archiveDisplayOverride`（=原始 .siz 文件路径）的父目录，
+    /// 用户期望的「桌面 / 下载」目录，而不是 `/var/folders/.../T/SimpleZip-SIZ-Unwrap-xxx/`。
+    private func defaultExtractDestination(for archiveURL: URL) -> URL {
+        if let displayed = archiveDisplayOverride {
+            return displayed.deletingLastPathComponent()
+        }
+        return archiveURL.deletingLastPathComponent()
     }
 
     func performExtractArchive(_ request: ExtractArchiveRequest) {
@@ -1000,7 +1026,7 @@ final class ArchiveBrowserModel: ObservableObject {
         extractSelectionRequest = ExtractSelectionRequest(
             archiveURL: archiveURL,
             entries: entries,
-            destinationURL: archiveURL.deletingLastPathComponent(),
+            destinationURL: defaultExtractDestination(for: archiveURL),
             password: preset,
             detectedZipEncryption: ArchiveService.detectZipEncryption(in: archiveURL)
         )

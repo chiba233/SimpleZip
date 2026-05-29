@@ -13,6 +13,12 @@ extension Notification.Name {
     /// SimpleZip 内点 `.siz` 时 `ArchiveBrowserModel.open` 发的通知 —— ContentView 监听后走 handleSIZOpen。
     /// 不能走 `NSWorkspace.shared.open` 因为 .siz 的 UTI 注册到了 SimpleZip 自己，会循环创建新窗口。
     static let openSIZContainer = Notification.Name("openSIZContainer")
+
+    /// 用户在文件浏览器选中 `.siz` + 点 Extract 时 `ArchiveBrowserModel.extractArchive` 发的通知 ——
+    /// ContentView 监听后做「unwrap → 验签 sheet → 把内层 archive 解压到 `<.siz basename>.unwrapped/`
+    /// 同时落一份 `SIZ_SIGNATURE.txt` 签名信息」。
+    /// object = 选中的 .siz URL。
+    static let extractSIZContainer = Notification.Name("extractSIZContainer")
 }
 
 /// 外部打开事件队列：解决冷启动时文件事件早于 SwiftUI 窗口初始化的问题。

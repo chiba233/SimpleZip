@@ -362,6 +362,25 @@ struct ExtractArchiveRequest: Identifiable {
     var zipDecryptionMethod: ArchiveDecryptionMethod = .automatic
     var detectedZipEncryption: ZipEncryptionDetection = .unknown
     var showDetails = false
+    /// `.siz` 走解压 / 浏览路径时附带的签名摘要 —— 解压对话框里多出「签名 / 签名时间」两行展示。
+    /// nil = 不是 .siz / 用户关了 GPG 集成。
+    /// 跟签名 sheet 共用同一份 model，UI 状态全部从 `verify`（GPG 原始枚举）派生。
+    var sizSignature: SIZSignatureSummary? = nil
+}
+
+/// `.siz` 签名信息摘要 —— 解压对话框、签名 sheet 共用同一份。
+/// 状态全部从 `verify`（GPG 原始枚举）派生，不再额外维护 status / detail 字段。
+struct SIZSignatureSummary: Equatable {
+    /// 原始 .siz 文件路径（用于 UI 展示「来自 ~/Desktop/1.siz」）。
+    let sourceURL: URL
+    /// 签名者文案：优先 GPG 验签时报的 signer；不可用时退回 metadata 的 signerUserID；都没有就「未知」。
+    let signerDisplay: String
+    /// 签名者公钥指纹（40 hex 字符，metadata.signature.signerFingerprint）—— 两个界面都必须显示。
+    let signerFingerprint: String
+    /// 签名时间（metadata.createdAt，ISO8601 字符串）。
+    let signedAt: String
+    /// GPG 原始验签结果 —— 唯一状态来源。
+    let verify: GPGBackend.GPGVerifyResult
 }
 
 /// ZIP 解密方式。实际 ZIP 文件会记录具体算法；选择项用于决定兼容解压路径。

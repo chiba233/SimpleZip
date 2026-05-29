@@ -74,6 +74,7 @@
 "siz.verify.gpgMissing.title" = ".siz contains a GPG signature, but GnuPG isn't installed";
 "siz.verify.gpgMissing.message" = "The signature cannot be verified. \"Open\" will skip verification and extract the inner archive directly; \"Cancel\" goes back. Consider installing GnuPG via Settings → GPG before opening.";
 "siz.signatureSheet.signer" = "Signer";
+"siz.signatureSheet.keyFingerprint" = "Key fingerprint";
 "siz.signatureSheet.innerArchive" = "Inner archive";
 "siz.signatureSheet.signedAt" = "Signed at";
 "siz.signatureSheet.source" = "Source";

@@ -144,15 +144,12 @@ struct ContentView: View {
         }
         .sheet(item: $pendingSIZVerification) { pending in
             SIZSignatureSheet(
-                pending: pending,
+                signature: pending.signature,
                 onOpen: {
                     pendingSIZVerification = nil
                     ensureMainWindowVisible()
-                    // 用 archive 浏览模式 —— Extract / Hash / 打开单文件按钮都正常工作。
-                    // 关键：`displayedAs: pending.sourceURL` 让 model 的 title / locationText 显示
-                    // 原始 .siz 路径（如 `~/Desktop/1.siz`），而不是丑陋的 inner URL
-                    // `/var/folders/.../T/SimpleZip-SIZ-Unwrap-xxx/archive.zip`。
-                    model.openArchive(pending.unwrap.innerArchiveURL, displayedAs: pending.sourceURL)
+                    // archive 浏览模式 + 把展示路径锚到原 .siz（用户视角应该看到 ~/Desktop/x.siz）。
+                    model.openArchive(pending.innerArchiveURL, displayedAs: pending.signature.sourceURL)
                 },
                 onCancel: {
                     pendingSIZVerification = nil
@@ -222,6 +219,13 @@ struct ContentView: View {
                 handleSIZOpen(url)
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .extractSIZContainer)) { notification in
+            // model 在文件浏览器选中 .siz + 点 Extract 时发 —— 走 unwrap → 验签 sheet → 解压到
+            // `<.siz basename>.unwrapped/` 目录 + 落 `SIZ_SIGNATURE.txt` 记签名信息。
+            if let url = notification.object as? URL {
+                handleSIZExtract(url)
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .finderServiceAction)) { _ in
             FinderServiceActionQueue.shared.drain().forEach(handleFinderServiceAction)
         }
@@ -276,64 +280,107 @@ struct ContentView: View {
         }
     }
 
-    /// `.siz` 容器入口：unwrap → GPG 验签 → **设置 state** 让 SwiftUI sheet 显示签名信息对话框。
-    /// sheet 的 Open / Cancel 按钮在 `SIZSignatureSheet` 里处理；之前用 NSAlert 在 SwiftUI 视图 context
-    /// 里渲染会变成无 chrome 的浮动框 + 关闭不可控（截图里反复出现），改用 sheet 行为可控。
+    /// `.siz` 打开入口 —— unwrap + 验签后弹签名 sheet；确认后开内层 archive 浏览。
+    /// 关 `gpgEnabled` 时跳过验签 + 不弹 sheet，直接开内层 archive（用户规则：关了 GPG 集成主页面不再出现 GPG UI）。
     private func handleSIZOpen(_ url: URL) {
         Task {
             do {
-                let tempRoot = FileManager.default.temporaryDirectory
-                    .appendingPathComponent("SimpleZip-SIZ-Unwrap-\(UUID().uuidString)", isDirectory: true)
-                try FileManager.default.createDirectory(at: tempRoot, withIntermediateDirectories: true)
-                let unwrap = try await SIZArchive.unwrap(at: url, to: tempRoot)
-
-                // GPG 没装 → 让用户看到原因，选择跳过验签还是取消。装了 → 跑 verify 拿四态结果。
-                let verifyResult: SIZVerificationOutcome
-                if GPGBackend.isAvailable() {
-                    do {
-                        let gpgResult = try await GPGBackend.verify(
-                            archiveURL: unwrap.innerArchiveURL,
-                            signatureURL: unwrap.signatureURL
-                        )
-                        verifyResult = .gpgResult(gpgResult)
-                    } catch {
-                        verifyResult = .verificationError(error.localizedDescription)
-                    }
-                } else {
-                    verifyResult = .gpgMissing
-                }
-
+                let (innerArchiveURL, tempRoot, summary) = try await unwrapAndVerifySIZ(at: url)
                 await MainActor.run {
-                    pendingSIZVerification = SIZPendingVerification(
-                        sourceURL: url,
-                        tempRoot: tempRoot,
-                        unwrap: unwrap,
-                        outcome: verifyResult
-                    )
+                    if let summary {
+                        pendingSIZVerification = SIZPendingVerification(
+                            innerArchiveURL: innerArchiveURL,
+                            tempRoot: tempRoot,
+                            signature: summary
+                        )
+                    } else {
+                        ensureMainWindowVisible()
+                        model.openArchive(innerArchiveURL, displayedAs: url)
+                    }
                 }
             } catch {
-                await MainActor.run {
-                    model.errorMessage = error.localizedDescription
-                }
+                await MainActor.run { model.errorMessage = error.localizedDescription }
             }
         }
     }
 
-    /// 验签结果的「上一层」枚举 —— 因为 `GPGBackend.GPGVerifyResult` 不能表达「gpg 根本没装」这种情况，
-    /// 我们在外面再套一层。
-    enum SIZVerificationOutcome: Equatable {
-        case gpgResult(GPGBackend.GPGVerifyResult)
-        case verificationError(String)
-        case gpgMissing
+    /// `.siz` 直接解压入口 —— unwrap + 验签 → 走标准解压对话框 `ExtractArchiveOptionsView`，
+    /// 签名信息塞进 `request.sizSignature` 让对话框里多出几行签名状态展示。
+    /// 关 `gpgEnabled` 时 sizSignature 为 nil，对话框完全跟普通 archive 一致。
+    private func handleSIZExtract(_ url: URL) {
+        Task {
+            do {
+                let (innerArchiveURL, _, summary) = try await unwrapAndVerifySIZ(at: url)
+                await MainActor.run {
+                    let preset = AppPreferences.hasUsablePresetPassword ? AppPreferences.presetPassword : ""
+                    model.extractArchiveRequest = ExtractArchiveRequest(
+                        archiveURL: innerArchiveURL,
+                        destinationURL: url.deletingLastPathComponent(),
+                        password: preset,
+                        detectedZipEncryption: ArchiveService.detectZipEncryption(in: innerArchiveURL),
+                        sizSignature: summary
+                    )
+                }
+            } catch {
+                await MainActor.run { model.errorMessage = error.localizedDescription }
+            }
+        }
+    }
+
+    /// 共用 helper：unwrap `.siz` 到 /tmp 临时目录，若 `gpgEnabled` 开则跑 SIZArchive.verify（gpg 验签 + SHA 校验）。
+    /// 返回值 summary：nil = 用户关了 GPG 集成（按规则隐藏所有 GPG UI）；非 nil = 给 sheet / 解压对话框展示用。
+    private func unwrapAndVerifySIZ(
+        at sourceURL: URL
+    ) async throws -> (innerArchiveURL: URL, tempRoot: URL, summary: SIZSignatureSummary?) {
+        let tempRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent("SimpleZip-SIZ-Unwrap-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: tempRoot, withIntermediateDirectories: true)
+        let unwrap = try await SIZArchive.unwrap(at: sourceURL, to: tempRoot)
+
+        // 用户关 GPG 集成 = 主页面所有 GPG 相关入口隐藏（打开 .siz 是刚需例外，但不能露 GPG UI）。
+        guard AppPreferences.gpgEnabled else {
+            return (unwrap.innerArchiveURL, tempRoot, nil)
+        }
+
+        // gpg 后端不可用时，等同于「gpg 验签失败」走 verificationError 一支。文案让用户知道是后端缺失。
+        let verify: GPGBackend.GPGVerifyResult
+        if GPGBackend.isAvailable() {
+            do {
+                verify = try await SIZArchive.verify(unwrap: unwrap)
+            } catch {
+                verify = .verificationError(message: error.localizedDescription)
+            }
+        } else {
+            verify = .verificationError(message: L10n.text("siz.verify.gpgMissing.title"))
+        }
+
+        let storedSigner = unwrap.metadata.signature.signerUserID
+        let displaySigner: String = {
+            // 优先 gpg 返回的 signer（最新版本可能比 metadata 记录的更准）；否则退回 metadata；都没有就「未知」。
+            if case .validSignature(let signer, _) = verify, let signer { return signer }
+            if case .badSignature(let signer) = verify, let signer { return signer }
+            return storedSigner.isEmpty ? L10n.text("siz.signatureSheet.unknownSigner") : storedSigner
+        }()
+
+        return (
+            unwrap.innerArchiveURL,
+            tempRoot,
+            SIZSignatureSummary(
+                sourceURL: sourceURL,
+                signerDisplay: displaySigner,
+                signerFingerprint: unwrap.metadata.signature.signerFingerprint,
+                signedAt: unwrap.metadata.createdAt,
+                verify: verify
+            )
+        )
     }
 
     /// `.siz` 签名对话框 sheet 的承载状态。`id` 让 SwiftUI 把每次新打开当成新 sheet。
     struct SIZPendingVerification: Identifiable, Equatable {
         let id = UUID()
-        let sourceURL: URL
+        let innerArchiveURL: URL
         let tempRoot: URL
-        let unwrap: SIZArchive.UnwrapResult
-        let outcome: SIZVerificationOutcome
+        let signature: SIZSignatureSummary
 
         static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
     }

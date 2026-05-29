@@ -74,6 +74,7 @@
 "siz.verify.gpgMissing.title" = ".siz 含 GPG 签名，但本机未安装 GnuPG";
 "siz.verify.gpgMissing.message" = "无法验证压缩包的签名来源。点「打开」会跳过验签直接解压内层；点「取消」回到上一步。建议先在「设置 → GPG」里装上 GnuPG 再打开。";
 "siz.signatureSheet.signer" = "签名者";
+"siz.signatureSheet.keyFingerprint" = "公钥指纹";
 "siz.signatureSheet.innerArchive" = "内层压缩包";
 "siz.signatureSheet.signedAt" = "签名时间";
 "siz.signatureSheet.source" = "源文件";

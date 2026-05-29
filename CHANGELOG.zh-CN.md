@@ -4,12 +4,35 @@
 
 ## 0.1.8
 
+- **`.siz` 容器防篡改强化（格式 schema 升 v2，破坏式）**
+  - 签名目标从「内层 archive」改为 `metadata.json`：之前签 inner archive 时攻击者可以任意改 `metadata.json` 的 signer 名 / 时间 / `innerArchiveName` 而签名仍然有效，UI 会照实展示伪造信息。现在改 metadata 任何字节 → gpg 验签直接失败。
+  - 内层归档加 `innerArchiveSHA256` 锁：metadata 里新增字段记录内层 archive 的 SHA256（流式算，不一次性载入内存）；`SIZArchive.verify` 在 gpg 验过 metadata 之后还会重算 inner archive SHA 并比对，对不上就改判 `.badSignature`。这样替换 inner archive 也藏不住。
+  - 内层归档本身**一字不动**——所有原生压缩 / 加密 / 任意格式特性继续可用，只是被外层 SHA + 签名兜住。
+  - schema 升到 v2；如果存在 v1 `.siz` 文件，unwrap 时会显式 schema mismatch 拒绝（0.1.8 之前是开发版本，无正式发布的 v1 包）。
+  - Metadata 防篡改在 GUI 不另列「metadata 签名」项；只在篡改触发时通过签名状态的红色警告体现。
+- **签名信息展示：标准解压对话框 + 签名 sheet 都加公钥指纹和签名时间**
+  - 之前用户从「直接解压 `.siz`」入口进来时签名信息走的是自建卡片块，跟旁边 destination / password / decryptionMethod 等行视觉割裂；现在改成标准 Form 三行：`签名` / `签名时间` / `公钥指纹`，跟其他行对齐。
+  - 公钥指纹（`signerFingerprint`，40 字符）现在在解压对话框和签名 sheet 两个页面都明确展示，等价命中签名身份核对的关键信息；签名时间也都直接可见（不再藏 tooltip）。
+- **关闭 GPG 集成时 `.siz` 仍可打开，但主界面完全不出现 GPG UI**
+  - 强约束：`AppPreferences.gpgEnabled == false` 时主界面任何地方都不显示「签名」「公钥」「指纹」等字样；用户关掉 GPG 集成 = 完全退出 GPG 心智模型。
+  - 例外：`.siz` 是注册在系统里的文件类型，用户双击就会进来——这种情况下 SimpleZip 会跳过验签，直接走标准 open / extract 路径把内层归档拿出来用，不弹签名 sheet 不显示签名行。`.siz` 文件不能因为关了 GPG 就变得无法打开。
+- **Bug 修复：打开 `.siz` 后点「返回上一级」跳到 `/var/folders/.../T/SimpleZip-SIZ-Unwrap-...`**
+  - 原因：`.siz` 容器打开后 `mode = .archive(innerArchiveURL)` 里的 url 是 `/tmp` 路径，archive 根目录的 goUp 分支直接 `url.deletingLastPathComponent()` 当然就掉进临时目录。
+  - 修法：goUp 改用 `(archiveDisplayOverride ?? url).deletingLastPathComponent()`，普通归档走原行为；`.siz` 走原始 `.siz` 文件父目录（用户期望的桌面 / 下载 / 任何源目录）。
+- **内部清理：`.siz` 验签 / 签名展示链路上的 DTO 套娃删掉大半**
+  - 删 `SIZVerificationOutcome` 枚举（`GPGVerifyResult.verificationError` 已经能表达后端报错；后端没装当 verificationError 一支处理）。
+  - 删 `SIZUserIntent` 枚举（open / extract 本来就是两个 handler，再用 enum 区分纯多余）。
+  - 删 `SIZSignatureInfo` struct + `Status` 嵌套 enum + 50 行 `makeSignatureInfo()` mapper，统一收成一个 `SIZSignatureSummary`，状态从 `GPGVerifyResult` 派生。
+  - 删 `SIZSignatureSheet.SignatureUIState` struct + 60 行 6-case mapping；图标 / 颜色 / 标题 mapping 抽成 `SIZSignatureStatus` 共用 enum，解压对话框 banner 和签名 sheet 不再各自写一份 switch。
+  - 合 `handleSIZOpen` / `handleSIZExtract` / `startSIZVerification` 中重复的 unwrap + verify 块到一个 `unwrapAndVerifySIZ` helper；两个入口现在各自 10 行以内。
+  - 净效果：ContentView 里 `.siz` 特有符号引用从 31 处掉到 13 处；`SIZSignatureSheet.swift` 从 208 行 → 100 行。
+
 - **新功能：GPG 集成（A 阶段基础 + 钥匙串 + .siz 容器签名）**
   - 设置新增「GPG（PGP 签名）」pane（key.fill 图标，侧栏第 6 项）：主开关 / 后端状态徽章 / 版本 / pinentry-mac 缺失警告 / 安装提示（`brew install gnupg pinentry-mac` 双按钮 + GPGTools 下载链接）/ 钥匙串列表（有私钥的实心钥匙图标）/「导入公钥…」按钮 / 默认行为两个 toggle。
   - 主开关 `gpgEnabled` 默认 false —— 关掉时其它入口（创建对话框的「GPG 签名」复选框、未来的验签徽章等）全部隐藏，不打扰不用 GPG 的人；设置 pane 始终可见让用户能开它。
   - `Core/Backends/GPGBackend.swift`（370+ 行）：路径发现（`/opt/homebrew/bin/gpg` / `/usr/local/bin/gpg` / `MacGPG2` / `$PATH`）/ 版本 / `hasPinentryMac()` / `listKeys()`（`--with-colons` 状态机解析 pub + sec 交叉引用）/ `importKey(from:)` / `sign(archiveURL:signingKeyFingerprint:)` / `verify(archiveURL:signatureURL:)` 返回 `GPGVerifyResult`（valid trusted / valid untrusted / unknownSigner / badSignature / verificationError）。
-  - **`.siz` 单文件签名容器**（独家功能）：创建压缩包时勾选 GPG 签名 → 输出自动改成 `<name>.siz`，里面是 `archive.<ext>` + `metadata.json`（SimpleZip.siz schema v1）+ `signature.asc` 三件套打 tar 包（不再额外压缩）。单文件传输签名不会脱落，比业界标准的 `.asc` 兄弟文件更结实。`Core/SIZArchive.swift` 提供 `wrap` / `unwrap` / `peekMetadata` API。
-  - `.siz` 现在可以直接打开：SimpleZip 会先解到受控临时目录，用 GPG 对内层压缩包和 `signature.asc` 验签，再弹 SwiftUI 签名信息 sheet 让用户决定是否打开。状态区分「签名有效且受信任 / 签名有效但公钥未信任 / 签名者未知 / 签名损坏 / 验签异常 / 未安装 GPG」；坏签名时默认动作是取消，但仍保留显式「仍要打开」。
+  - **`.siz` 单文件签名容器**（独家功能）：创建压缩包时勾选 GPG 签名 → 输出自动改成 `<name>.siz`，里面是 `archive.<ext>` + `metadata.json`（SimpleZip.siz schema v2）+ `signature.asc` 三件套打 tar 包（不再额外压缩）。单文件传输签名不会脱落，比业界标准的 `.asc` 兄弟文件更结实。`Core/SIZArchive.swift` 提供 `wrap` / `unwrap` / `peekMetadata` / `verify` / `computeInnerArchiveSHA256` / `encodeMetadata` API。
+  - `.siz` 现在可以直接打开：SimpleZip 会先解到受控临时目录，跑 `SIZArchive.verify`（gpg 验 metadata 签名 + 比对内层 archive SHA），再弹 SwiftUI 签名信息 sheet 让用户决定是否打开。状态区分「签名有效且受信任 / 签名有效但公钥未信任 / 签名者未知 / 签名损坏 / 验签异常」；坏签名时默认动作是取消，但仍保留显式「仍要打开」。
   - 打开 `.siz` 后，浏览器标题和路径栏显示用户原始 `.siz` 文件路径，而不是临时目录里的 `archive.<ext>`，避免用户看到 `/var/folders/...` 这类内部路径。
   - `.siz` 解包前会先列出并校验 tar 条目：拒绝路径穿越、绝对路径、符号链接、重复条目、预期外文件，以及不合法的 `metadata.innerArchiveName`；之后只解出 `metadata.json`、`signature.asc` 和 `archive.<ext>` 三项。创建 `.siz` 时如果目标已存在，也不再静默覆盖。
   - `.siz` 明确不支持内置分卷。创建对话框里只要「分卷大小」有内容，GPG `.siz` 签名复选框就会变灰并自动取消勾选，下方红字提示分卷压缩请使用外置 `.asc` 签名文件；后端也会拒绝分卷和「压缩后删除源文件」这类危险组合，防止绕过 UI。

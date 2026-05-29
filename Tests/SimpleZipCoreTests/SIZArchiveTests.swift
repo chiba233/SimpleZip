@@ -128,6 +128,8 @@ struct SIZArchiveTests {
             innerArchiveName: innerArchiveName,
             innerFormat: "zip",
             originalArchiveName: "payload.zip",
+            // v2 起 metadata 必须含 inner archive SHA256；测试 fixture 不真做 gpg 验签，给个稳定占位 hex。
+            innerArchiveSHA256: String(repeating: "0", count: 64),
             createdAt: "2026-05-29T00:00:00Z",
             createdBy: "SimpleZip Tests",
             signature: SIZArchive.SignatureInfo(

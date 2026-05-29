@@ -5,6 +5,7 @@
 //  Created by HoshinoYumeka on 2026/05/29.
 //
 
+import CryptoKit
 import Foundation
 
 /// SimpleZip 自己的「带签名容器」格式。
@@ -17,9 +18,16 @@ import Foundation
 /// 容器布局（tar 里平铺三个文件，无子目录）：
 /// ```
 /// archive.<ext>      ← 内层压缩包原样（ext = zip / 7z / rar / tar.gz / …）
-/// metadata.json     ← 本 namespace 的 schema 元信息
-/// signature.asc     ← `gpg --detach-sign --armor` 输出，对 archive.<ext> 字节签名
+/// metadata.json     ← 本 namespace 的 schema 元信息（含内层 SHA256）
+/// signature.asc     ← `gpg --detach-sign --armor` 输出，对 **metadata.json** 字节签名
 /// ```
+///
+/// **签名目标 = metadata.json，不是内层 archive。** 直接签内层 archive 会导致 metadata（包括 signer 名 /
+/// 时间 / inner archive 文件名）能被任意改而签名仍然有效——攻击者可以重命名 / 伪造创建者文案。
+/// 改签 metadata 后，metadata 内部必须记录内层 archive 的 SHA256（`innerArchiveSHA256`），这样：
+/// - 篡改 metadata 任何字段 → gpg 验签直接失败；
+/// - 篡改 / 替换 inner archive → metadata 签名仍有效但 SHA 对不上 → verify 阶段判 `.badSignature`。
+/// 两道防线都过 = 容器真实未篡改。
 ///
 /// 注意：本 namespace 不碰 gpg —— 签名生成 / 验签都交给 `GPGBackend`。这里只负责 tar 打包 / 拆包
 /// 和 metadata.json 的序列化。
@@ -32,7 +40,9 @@ enum SIZArchive {
     /// schema 标记 —— 跟偏好导入用的 `SimpleZip.preferences` 一个套路，
     /// 让以后增加字段 / 改格式时能用 `version` 升级而不破坏老文件兼容。
     static let schemaIdentifier = "SimpleZip.siz"
-    static let schemaVersion = 1
+    /// v2 起签名目标改为 metadata.json + 增加 `innerArchiveSHA256` 字段，
+    /// 老 v1 文件（如果有）解包时直接 schema mismatch 拒绝。
+    static let schemaVersion = 2
 
     /// `metadata.json` 反序列化产物 —— 描述内层压缩包 + 签名者。
     struct Metadata: Codable, Equatable {
@@ -45,6 +55,9 @@ enum SIZArchive {
         /// 用户最初想给压缩包起的名字（含扩展名），比如 "MyProject.zip" ——
         /// unwrap 后想还原原始命名时用得上。
         var originalArchiveName: String
+        /// 内层 archive 的 SHA256（hex 小写，64 字符）—— v2 引入，验签时 metadata 通过 gpg 校验后
+        /// 还要重算这个并比对，确保攻击者没把内层 archive 替换成别的内容。
+        var innerArchiveSHA256: String
         /// ISO-8601 创建时间，给 UI 显示「于 X 时签名」用。
         var createdAt: String
         /// 创建端版本，"SimpleZip 0.1.7" 之类，调试 / 兼容性追溯用。
@@ -64,17 +77,16 @@ enum SIZArchive {
 
     // MARK: - 创建
 
-    /// 把已经造好的内层 archive + signature 打包成 `.siz`。
+    /// 把已经造好的内层 archive + 已签名的 metadata 打包成 `.siz`。
     ///
-    /// 步骤：
-    /// 1. 起 staging 临时目录
-    /// 2. 把 inner archive 复制 / 重命名为 `archive.<ext>`
-    /// 3. 把 signature 复制为 `signature.asc`
-    /// 4. 写 `metadata.json`（JSON 排序输出方便 diff）
-    /// 5. `tar -cf <output>.siz -C staging .` 平铺打包
-    /// 6. 删 staging
+    /// 调用方负责：
+    /// 1. 计算 inner archive 的 SHA256 → 灌进 `metadata.innerArchiveSHA256`（用 `computeInnerArchiveSHA256`）。
+    /// 2. 用 `encodeMetadata(metadata)` 拿到将要落盘的字节，用 `gpg --detach-sign` 签这些字节，
+    ///    把签名文件交给 `signatureFile`（armor `.asc`）。
+    /// 3. 调用本函数 —— 它再次 encode 同一个 metadata（确定性 encoder：sortedKeys + prettyPrinted），
+    ///    所以落盘的 metadata.json 字节跟调用方刚才签的字节完全一致。
     ///
-    /// 注意：tar 不再额外压缩 —— 内层 archive 已经是压缩态，再压一遍空间无收益还慢。
+    /// 这个分工保持 SIZArchive 不依赖 GPGBackend，签名步骤由 caller 直连 GPG。
     static func wrap(
         innerArchive: URL,
         signatureFile: URL,
@@ -92,7 +104,7 @@ enum SIZArchive {
         try fileManager.createDirectory(at: staging, withIntermediateDirectories: true)
         defer { try? fileManager.removeItem(at: staging) }
 
-        // 1) 内层 archive → archive.<ext>
+        // 1) 内层 archive → archive.<ext>（按 metadata 里声明的名字落盘）
         let stagedInner = staging.appendingPathComponent(innerName)
         try fileManager.copyItem(at: innerArchive, to: stagedInner)
 
@@ -100,10 +112,8 @@ enum SIZArchive {
         let stagedSignature = staging.appendingPathComponent(signatureFileName)
         try fileManager.copyItem(at: signatureFile, to: stagedSignature)
 
-        // 3) metadata.json —— sortedKeys 让二进制 diff 友好，prettyPrinted 让用户用文本编辑器打开能读
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        let metadataData = try encoder.encode(metadata)
+        // 3) metadata.json —— 用同一个确定性 encoder 写盘，跟 caller 签的字节一致。
+        let metadataData = try encodeMetadata(metadata)
         try metadataData.write(to: staging.appendingPathComponent(metadataFileName), options: .atomic)
 
         // 4) tar 平铺：显式列出三个文件名，避免生成 `./` 前缀目录项。
@@ -111,6 +121,30 @@ enum SIZArchive {
             "/usr/bin/tar",
             arguments: ["-cf", outputURL.path, "-C", staging.path, innerName, metadataFileName, signatureFileName]
         )
+    }
+
+    /// 把 Metadata 序列化成最终 metadata.json 的字节。
+    /// **必须**用这个函数：caller 在签名前需要拿到「跟容器内最终一致」的字节，
+    /// 否则 detached signature 跟容器内的 metadata.json 字节不匹配，gpg 验签必败。
+    /// 确定性输出：`sortedKeys + prettyPrinted` → 同输入永远同字节。
+    static func encodeMetadata(_ metadata: Metadata) throws -> Data {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return try encoder.encode(metadata)
+    }
+
+    /// 流式算 inner archive 的 SHA256 hex（小写 64 字符），不一次性 load 整个 archive 进内存。
+    /// 用 1MB 缓冲块读到 EOF。
+    static func computeInnerArchiveSHA256(of fileURL: URL) throws -> String {
+        let handle = try FileHandle(forReadingFrom: fileURL)
+        defer { try? handle.close() }
+        var hasher = SHA256()
+        while true {
+            let chunk = try handle.read(upToCount: 1024 * 1024) ?? Data()
+            if chunk.isEmpty { break }
+            hasher.update(data: chunk)
+        }
+        return hasher.finalize().map { String(format: "%02x", $0) }.joined()
     }
 
     // MARK: - 拆包
@@ -146,7 +180,40 @@ enum SIZArchive {
         guard fileManager.fileExists(atPath: innerURL.path) else {
             throw SIZError.missingInnerArchive(innerName)
         }
-        return UnwrapResult(innerArchiveURL: innerURL, signatureURL: signatureURL, metadata: metadata)
+        return UnwrapResult(
+            innerArchiveURL: innerURL,
+            signatureURL: signatureURL,
+            metadataURL: metadataURL,
+            metadata: metadata
+        )
+    }
+
+    /// 完整验签：gpg 验 metadata 签名 + 比对内层 archive SHA256。
+    ///
+    /// - gpg 验签失败（badSignature / unknownSigner / verificationError）→ 直接透传。
+    /// - gpg 说签名有效 → 重算内层 archive SHA256，若跟 metadata 不符 → 改判 `.badSignature(signer:)`。
+    ///   语义：签名签的是 metadata，但 metadata 锁定的 inner SHA 跟实际不一致 = 容器内层被换过。
+    static func verify(
+        unwrap: UnwrapResult,
+        operationID: UUID? = nil
+    ) async throws -> GPGBackend.GPGVerifyResult {
+        let gpgResult = try await GPGBackend.verify(
+            archiveURL: unwrap.metadataURL,
+            signatureURL: unwrap.signatureURL,
+            operationID: operationID
+        )
+
+        switch gpgResult {
+        case .validSignature(let signer, _):
+            let actual = try computeInnerArchiveSHA256(of: unwrap.innerArchiveURL)
+            if actual.lowercased() != unwrap.metadata.innerArchiveSHA256.lowercased() {
+                // metadata 签名仍有效（signer 可信），但容器内层 archive 被替换过 → 判 bad。
+                return .badSignature(signer: signer)
+            }
+            return gpgResult
+        case .unknownSigner, .badSignature, .verificationError:
+            return gpgResult
+        }
     }
 
     /// 仅检查容器结构是否合法 + 读 metadata，不真正解开内层 archive。
@@ -183,10 +250,12 @@ enum SIZArchive {
         }
     }
 
-    /// `wrap` 返回值的「拆包」对偶 —— 内层 archive / signature 在 destination 下的实际位置 + 元信息。
+    /// `wrap` 返回值的「拆包」对偶 —— 内层 archive / signature / metadata 文件在 destination 下的实际位置 + 元信息。
+    /// metadataURL 给 `verify` 调 gpg 时用（gpg 要求签名目标作为文件路径传入）。
     struct UnwrapResult {
         let innerArchiveURL: URL
         let signatureURL: URL
+        let metadataURL: URL
         let metadata: Metadata
     }
 
