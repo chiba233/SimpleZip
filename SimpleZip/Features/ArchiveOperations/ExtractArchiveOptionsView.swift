@@ -82,7 +82,10 @@ private struct SIZSignatureRows: View {
 enum SIZSignatureStatus {
     static func iconName(for verify: GPGBackend.GPGVerifyResult) -> String {
         switch verify {
-        case .validSignature(_, let trusted): return trusted ? "checkmark.seal.fill" : "checkmark.seal"
+        case .validSignature(_, _, let trusted, let concerns):
+            // 有 concerns（密钥过期 / 撤销 / 签名过期）= 密码学有效但「不能放心」→ 跟 untrusted 同视觉档。
+            if !concerns.isEmpty { return "checkmark.seal" }
+            return trusted ? "checkmark.seal.fill" : "checkmark.seal"
         case .unknownSigner: return "questionmark.circle.fill"
         case .badSignature: return "exclamationmark.triangle.fill"
         case .verificationError: return "xmark.octagon.fill"
@@ -91,7 +94,9 @@ enum SIZSignatureStatus {
 
     static func color(for verify: GPGBackend.GPGVerifyResult) -> Color {
         switch verify {
-        case .validSignature: return .green
+        case .validSignature(_, _, _, let concerns):
+            // concerns 非空时降级为 orange 提示用户「签名是真的但密钥状态有问题」。
+            return concerns.isEmpty ? .green : .orange
         case .unknownSigner, .verificationError: return .orange
         case .badSignature: return .red
         }
@@ -99,7 +104,10 @@ enum SIZSignatureStatus {
 
     static func title(for verify: GPGBackend.GPGVerifyResult) -> String {
         switch verify {
-        case .validSignature(_, let trusted):
+        case .validSignature(_, _, let trusted, let concerns):
+            if concerns.contains(.keyRevoked) { return L10n.text("siz.verify.valid.keyRevoked.title") }
+            if concerns.contains(.keyExpired) { return L10n.text("siz.verify.valid.keyExpired.title") }
+            if concerns.contains(.signatureExpired) { return L10n.text("siz.verify.valid.sigExpired.title") }
             return trusted
                 ? L10n.text("siz.verify.valid.trusted.title")
                 : L10n.text("siz.verify.valid.untrusted.title")
@@ -112,7 +120,11 @@ enum SIZSignatureStatus {
     /// sheet 用的副标题文案 —— 短句解释当前状态。
     static func summary(for verify: GPGBackend.GPGVerifyResult) -> String {
         switch verify {
-        case .validSignature: return L10n.text("siz.signatureSheet.valid.summary")
+        case .validSignature(_, _, _, let concerns):
+            if concerns.contains(.keyRevoked) { return L10n.text("siz.signatureSheet.valid.keyRevoked.summary") }
+            if concerns.contains(.keyExpired) { return L10n.text("siz.signatureSheet.valid.keyExpired.summary") }
+            if concerns.contains(.signatureExpired) { return L10n.text("siz.signatureSheet.valid.sigExpired.summary") }
+            return L10n.text("siz.signatureSheet.valid.summary")
         case .unknownSigner: return L10n.text("siz.signatureSheet.unknownSigner.summary")
         case .badSignature: return L10n.text("siz.signatureSheet.bad.summary")
         case .verificationError(let message): return message

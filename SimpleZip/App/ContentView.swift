@@ -356,8 +356,8 @@ struct ContentView: View {
         let storedSigner = unwrap.metadata.signature.signerUserID
         let displaySigner: String = {
             // 优先 gpg 返回的 signer（最新版本可能比 metadata 记录的更准）；否则退回 metadata；都没有就「未知」。
-            if case .validSignature(let signer, _) = verify, let signer { return signer }
-            if case .badSignature(let signer) = verify, let signer { return signer }
+            if case .validSignature(let signer, _, _, _) = verify, let signer { return signer }
+            if case .badSignature(let signer, _) = verify, let signer { return signer }
             return storedSigner.isEmpty ? L10n.text("siz.signatureSheet.unknownSigner") : storedSigner
         }()
 

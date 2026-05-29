@@ -800,9 +800,18 @@ enum GPGBackend {
         return signatureURL
     }
 
-    /// 验签 —— `gpg --verify <archive>.asc <archive>`。
-    /// gpg 退出码 ≠ 0 → 签名无效；退出码 == 0 但「未知签名者」也是常见情况（公钥不在 keyring）。
-    /// 用状态机解析 stderr/stdout 的 `Good signature from / BAD signature / unknown` 关键字。
+    /// 验签 —— `gpg --status-fd 1 --verify <archive>.asc <archive>`。
+    ///
+    /// `--status-fd 1` 让 gpg 把机器可读的状态行（`[GNUPG:] GOODSIG ...` / `VALIDSIG ...` / `BADSIG ...` /
+    /// `TRUST_ULTIMATE` / `NO_PUBKEY` / `ERRSIG` / 等）输出到 stdout，跟原先的 stderr 人类可读输出共存。
+    /// 解析器只认状态行，stderr 文本只当回退。
+    ///
+    /// 收益：
+    /// - **不依赖 locale**：状态码永远英文，原 stderr 的「Good signature」/「BAD signature」可能因 locale 变化。
+    /// - **fingerprint 强校验**：`VALIDSIG` 字段 1 是签名者 fingerprint（40 hex），字段 10 是主密钥 fingerprint
+    ///   （如果签名子密钥不同于主密钥）。SIZ 验签时把 metadata 声明的 signerFingerprint 跟这个比对，
+    ///   不等 = metadata 被重签 = impersonation → 判 bad。
+    /// - **状态精确**：可区分「key 已过期 / 已撤销 / 签名本身过期」等之前文本里靠 WARNING 行模糊判别的情况。
     static func verify(
         archiveURL: URL,
         signatureURL: URL,
@@ -813,9 +822,8 @@ enum GPGBackend {
         // SimpleZip 私有改用独立 `--homedir` 后，gpg 默认 ring 已经互相不可见。验签必须分两 pass：
         // 1) 默认 homedir（用户 ~/.gnupg/）—— 用户系统已有的公钥参与匹配；
         // 2) SimpleZip 私有 homedir —— 用户「导入到 SimpleZip 私有钥匙串」的他人公钥参与匹配。
-        // 两 pass 哪个结果「更好」就用哪个：validSignature > unknownSigner > verificationError > badSignature 优先级倒过来不行
-        // —— badSignature 是「文件被改」最严重判定，发现就要立即采用；这里按「validSignature 优先 → 否则取信息更多的一个」。
-        let baseArgs = ["--verify", signatureURL.path, archiveURL.path]
+        // 两 pass 结果合并：badSignature 永远优先（最严重）；两个都 validSignature 时按 trusted=true → 有 fingerprint → a 的顺序挑。
+        let baseArgs = ["--status-fd", "1", "--verify", signatureURL.path, archiveURL.path]
 
         async let userResult = verifySingleRing(tool: tool, args: baseArgs, operationID: operationID)
         async let szResult = verifySingleRing(tool: tool, args: simpleZipKeyringArguments() + baseArgs, operationID: operationID)
@@ -836,25 +844,45 @@ enum GPGBackend {
                 arguments: args,
                 operationID: operationID
             )
-            return parseVerifyOutput(output, exitOk: true)
+            return parseStatusOutput(output, exitOk: true)
         } catch {
             let errorOutput = (error as? ArchiveError).flatMap { archiveError in
                 if case .commandFailed(let text) = archiveError { return text }
                 return nil
             } ?? error.localizedDescription
-            return parseVerifyOutput(errorOutput, exitOk: false)
+            return parseStatusOutput(errorOutput, exitOk: false)
         }
     }
 
-    /// 两 pass 验签结果合并：badSignature 优先（最坏情况要被看见）；validSignature 次之；其它取「信息更丰富」的那个。
+    /// 两 pass 验签结果合并：
+    /// 1) badSignature 永远优先 —— 「文件被改」最严重，必须被看见，即便另一 pass 说 valid（不应该发生但保守判定）。
+    /// 2) 两个都 validSignature 时按 trusted=true > 有 fingerprint > a 的顺序挑 —— **修复历史 bug**：
+    ///    用户自己签的文件如果在 `~/.gnupg` 和 SimpleZip 私有两个 homedir 都有公钥，但只有一头有 ownertrust ultimate
+    ///    （比如 SimpleZip 私有里 `--quick-generate-key` 自动标了，但用户 export 到 `~/.gnupg` 时没设 ownertrust），
+    ///    之前「first validSignature wins」会吃掉 untrusted 那个，覆盖掉 trusted 的；现在 trusted 永远胜。
+    /// 3) 都没 validSignature 时按 unknownSigner > verificationError 信息丰富度选。
     private static func mergeVerifyResults(_ a: GPGVerifyResult, _ b: GPGVerifyResult) -> GPGVerifyResult {
         if case .badSignature = a { return a }
         if case .badSignature = b { return b }
+        if let av = extractValidSignatureInfo(a), let bv = extractValidSignatureInfo(b) {
+            if av.trusted && !bv.trusted { return a }
+            if bv.trusted && !av.trusted { return b }
+            if av.fingerprint == nil && bv.fingerprint != nil { return b }
+            return a
+        }
         if case .validSignature = a { return a }
         if case .validSignature = b { return b }
         if case .unknownSigner = a { return a }
         if case .unknownSigner = b { return b }
         return a // 两者都是 verificationError；返回第一份
+    }
+
+    /// validSignature 提取 trusted + fingerprint 给 merge 比较用 —— 拆出来避免 nested pattern matching 看不清。
+    private static func extractValidSignatureInfo(_ result: GPGVerifyResult) -> (trusted: Bool, fingerprint: String?)? {
+        if case .validSignature(_, let fp, let trusted, _) = result {
+            return (trusted, fp)
+        }
+        return nil
     }
 
     // MARK: - 输出解析
@@ -1055,31 +1083,146 @@ enum GPGBackend {
         return fingerprints
     }
 
-    /// 把 gpg --verify 的人类可读输出转成 status enum。
-    private static func parseVerifyOutput(_ output: String, exitOk: Bool) -> GPGVerifyResult {
-        // gpg 输出里的关键字（英文，gpg CLI 不本地化这些）：
-        //   "Good signature from \"<uid>\""
-        //   "BAD signature from \"<uid>\""
-        //   "Can't check signature: No public key"
-        //   "WARNING: This key is not certified with a trusted signature"
-        // 注意 BAD 是大写。
+    /// 解析 `gpg --status-fd 1` 的机器可读状态行（`[GNUPG:] <CODE> <args>`）。
+    ///
+    /// 我们关心的关键 status：
+    /// - `GOODSIG <long_keyid> <username>` —— 签名匹配，公钥找到。注意：「good」只说明密码学成立，不说信任。
+    /// - `EXPKEYSIG` / `REVKEYSIG` —— 签名仍匹配，但签名密钥已过期 / 已撤销 → 收进 `concerns`，依然算 valid。
+    /// - `EXPSIG` —— 签名本身过期（用户在生成签名时就限定了 sig 有效期）。
+    /// - `BADSIG` —— 签名不匹配（最严重，文件被改 / 签名损坏）。
+    /// - `NO_PUBKEY` / `ERRSIG <…> 9` —— 公钥不在 keyring，rc=9 是 NO_PUBKEY 的 ERRSIG 编码。
+    /// - `VALIDSIG <fingerprint> ... [primary_key_fpr]` —— **fingerprint 强校验来源**：
+    ///   字段 1 = 签名密钥 fingerprint（可能是 subkey）；
+    ///   字段 10（VALIDSIG 后第 10 个 token）= 主密钥 fingerprint，子密钥签名时不同于字段 1。
+    ///   SIZ metadata 存的 signerFingerprint 一般是主密钥，所以优先取字段 10。
+    /// - `TRUST_ULTIMATE/FULLY/MARGINAL/UNDEFINED/NEVER` —— ownertrust 精确等级，不再靠 stderr 字符串猜。
+    ///
+    /// **历史 bug 在这里被修掉**：旧解析靠 `output.lowercased().contains("not certified with a trusted signature")`
+    /// 判 trusted —— 这条 WARNING 受 locale、verbosity、trustdb 半同步状态影响极不稳定，导致 ultimate 密钥被误判为 untrusted。
+    /// 现在直接读 `TRUST_ULTIMATE` 之类的明牌状态码，结果跟 gpg 的真值一致。
+    private static func parseStatusOutput(_ output: String, exitOk: Bool) -> GPGVerifyResult {
+        var sawGoodSig = false
+        var sawBadSig = false
+        var sawNoPubkey = false
+        var signerName: String?
+        var longKeyID: String?
+        var fingerprint: String?
+        var concerns: Set<GPGVerifyResult.KeyConcern> = []
+        var trustCode: String?
+        var sawAnyStatus = false
+
+        for rawLine in output.split(separator: "\n", omittingEmptySubsequences: false) {
+            guard let payload = stripGNUPGStatusPrefix(String(rawLine)) else { continue }
+            sawAnyStatus = true
+            let tokens = payload.split(separator: " ", omittingEmptySubsequences: true).map(String.init)
+            guard let code = tokens.first else { continue }
+            switch code {
+            case "GOODSIG", "EXPKEYSIG", "REVKEYSIG":
+                sawGoodSig = true
+                if code == "EXPKEYSIG" { concerns.insert(.keyExpired) }
+                if code == "REVKEYSIG" { concerns.insert(.keyRevoked) }
+                if tokens.count > 1 { longKeyID = tokens[1] }
+                if tokens.count > 2 {
+                    signerName = tokens.dropFirst(2).joined(separator: " ")
+                }
+            case "EXPSIG":
+                concerns.insert(.signatureExpired)
+                if tokens.count > 1 { longKeyID = tokens[1] }
+                if tokens.count > 2 {
+                    signerName = tokens.dropFirst(2).joined(separator: " ")
+                }
+            case "BADSIG":
+                sawBadSig = true
+                if tokens.count > 1 { longKeyID = tokens[1] }
+                if tokens.count > 2 {
+                    signerName = tokens.dropFirst(2).joined(separator: " ")
+                }
+            case "VALIDSIG":
+                // tokens: [VALIDSIG, sig_fp, sigdate, sigtimestamp, expiretimestamp, sigversion, reserved,
+                //         pubkey_algo, hash_algo, sig_class, primary_key_fpr?]
+                if tokens.count > 1, isFingerprint(tokens[1]) {
+                    fingerprint = tokens[1].uppercased()
+                }
+                if tokens.count > 10, isFingerprint(tokens[10]) {
+                    fingerprint = tokens[10].uppercased() // 主密钥 fp 覆盖签名子密钥 fp
+                }
+            case "NO_PUBKEY":
+                sawNoPubkey = true
+                if tokens.count > 1 { longKeyID = tokens[1] }
+            case "ERRSIG":
+                // ERRSIG <keyid> <pkalgo> <hashalgo> <sig_class> <time> <rc> [fpr]
+                // rc=9 (NO_PUBKEY) 是「公钥不在 keyring」最常见情形。
+                if tokens.count > 6, tokens[6] == "9" {
+                    sawNoPubkey = true
+                    if tokens.count > 1 { longKeyID = tokens[1] }
+                }
+            case "TRUST_UNDEFINED", "TRUST_NEVER", "TRUST_MARGINAL", "TRUST_FULLY", "TRUST_ULTIMATE":
+                trustCode = code
+            default:
+                break
+            }
+        }
+
+        if sawBadSig {
+            return .badSignature(signer: signerName, fingerprint: fingerprint)
+        }
+        if sawNoPubkey && !sawGoodSig {
+            return .unknownSigner(keyID: longKeyID)
+        }
+        if sawGoodSig {
+            let trusted: Bool
+            switch trustCode {
+            case "TRUST_MARGINAL", "TRUST_FULLY", "TRUST_ULTIMATE":
+                trusted = true
+            default:
+                trusted = false
+            }
+            return .validSignature(
+                signer: signerName,
+                fingerprint: fingerprint,
+                trusted: trusted,
+                concerns: concerns
+            )
+        }
+        // 没有任何 status line —— 兜底走 legacy 文本解析（极端环境如非 GNU gpg 实现），
+        // 仅作为后端 unknown 时的容错；新 gpg 都会输出状态行。
+        if !sawAnyStatus {
+            return parseLegacyVerifyOutput(output, exitOk: exitOk)
+        }
+        return .verificationError(message: output)
+    }
+
+    /// 剥 `[GNUPG:] ` 前缀。stdout 和 stderr 合并管道里有非状态行（人类可读文本），那些被忽略。
+    private static func stripGNUPGStatusPrefix(_ line: String) -> String? {
+        let prefix = "[GNUPG:] "
+        guard let range = line.range(of: prefix) else { return nil }
+        // gpg 的 status line 永远在行首；但合并管道里偶尔会被人类可读的 stderr 截断前缀拼到同一行。
+        // 取 prefix 之后的内容即可。
+        return String(line[range.upperBound...])
+    }
+
+    private static func isFingerprint(_ token: String) -> Bool {
+        token.count == 40 && token.allSatisfy { $0.isHexDigit }
+    }
+
+    /// 旧文本解析，仅作为 `parseStatusOutput` 的 fallback（无任何 `[GNUPG:]` 状态行时）。
+    /// 留着是为了非 GNU gpg 实现的极端兜底；正常 gpg 不会走这里。
+    private static func parseLegacyVerifyOutput(_ output: String, exitOk: Bool) -> GPGVerifyResult {
         let lowered = output.lowercased()
         let signer = extractSignerName(from: output)
-
         if lowered.contains("bad signature") {
-            return .badSignature(signer: signer)
+            return .badSignature(signer: signer, fingerprint: nil)
         }
         if lowered.contains("can't check signature") || lowered.contains("no public key") {
-            // 未导入公钥；尝试提取 fingerprint / key id 让 UI 提供「一键导入」入口
-            let unknownKeyID = extractUnknownKeyID(from: output)
-            return .unknownSigner(keyID: unknownKeyID)
+            return .unknownSigner(keyID: extractUnknownKeyID(from: output))
         }
         if lowered.contains("good signature") {
-            let trusted = !lowered.contains("not certified with a trusted signature")
-            return .validSignature(signer: signer, trusted: trusted)
+            // legacy 路径无法读 TRUST_*，trusted 字段保守置 false，让 UI 提示用户。
+            return .validSignature(signer: signer, fingerprint: nil, trusted: false, concerns: [])
         }
-        // 兜底：退出码失败但没识别出任何关键字 —— 跟原始输出一起报给用户。
-        return exitOk ? .validSignature(signer: signer, trusted: false) : .verificationError(message: output)
+        return exitOk
+            ? .validSignature(signer: signer, fingerprint: nil, trusted: false, concerns: [])
+            : .verificationError(message: output)
     }
 
     private static func extractSignerName(from output: String) -> String? {
@@ -1240,17 +1383,27 @@ enum GPGBackend {
         let linkedPrimaryFingerprint: String?
     }
 
-    /// 验签结果四态。`signer` 取自 gpg 输出的「Good signature from "Name <email>"」。
+    /// 验签结果四态。`signer` / `fingerprint` 取自 `--status-fd 1` 的 `GOODSIG` / `VALIDSIG` 状态行。
     enum GPGVerifyResult: Equatable {
         /// 公钥在 keyring 里 + 签名匹配 + 文件未被改动。
-        /// `trusted` 表示 gpg 没抛「This key is not certified」警告（信任级别足够）。
-        case validSignature(signer: String?, trusted: Bool)
+        /// - `trusted` 来自 `TRUST_MARGINAL/FULLY/ULTIMATE`（true）/ `TRUST_UNDEFINED/NEVER`（false）。
+        /// - `fingerprint` 是 `VALIDSIG` 报告的主密钥 fingerprint（40 hex，子密钥签名时也归到主密钥）；
+        ///   `.siz` / `.szs` 等场景用这个跟 metadata 声明的 signerFingerprint 强比对。
+        /// - `concerns` 是「签名仍密码学有效，但密钥 / 签名本身有问题」的情况集合：keyExpired / keyRevoked / signatureExpired。
+        case validSignature(signer: String?, fingerprint: String?, trusted: Bool, concerns: Set<KeyConcern>)
         /// 签名匹配但公钥不在 keyring。提供 `keyID` 让 UI 给「一键导入」入口。
         case unknownSigner(keyID: String?)
-        /// 签名失败 = 文件被改动 / 签名损坏。最严重的状态。
-        case badSignature(signer: String?)
+        /// 签名失败 = 文件被改动 / 签名损坏 / 强 fingerprint 校验不通过。最严重的状态。
+        case badSignature(signer: String?, fingerprint: String?)
         /// gpg 命令本身失败（非签名层面错误）。
         case verificationError(message: String)
+
+        /// 签名仍密码学有效但密钥 / 签名状态需要关注。
+        enum KeyConcern: String, Hashable, CaseIterable {
+            case keyExpired       // EXPKEYSIG：签名密钥已过期
+            case keyRevoked       // REVKEYSIG：签名密钥已撤销
+            case signatureExpired // EXPSIG：签名本身设置了有效期且已过
+        }
     }
 
     private static var candidates: [String] {

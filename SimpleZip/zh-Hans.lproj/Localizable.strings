@@ -70,6 +70,12 @@
 "error.siz.unsupportedOptions.splitVolume" = "分卷压缩；分卷请使用外置 .asc 签名文件";
 "siz.verify.valid.trusted.title" = "✓ 签名有效（已信任）";
 "siz.verify.valid.untrusted.title" = "✓ 签名有效（公钥已导入但未信任）";
+"siz.verify.valid.keyExpired.title" = "✓ 签名有效（但签名密钥已过期）";
+"siz.verify.valid.keyRevoked.title" = "⚠ 签名有效，但签名密钥已被撤销";
+"siz.verify.valid.sigExpired.title" = "⚠ 签名有效，但签名本身已过期";
+"siz.signatureSheet.valid.keyExpired.summary" = "签名密码学有效，但签名时所用的密钥目前已过期。如果信任签名者，仍可打开 —— 但今后请让对方更新密钥。";
+"siz.signatureSheet.valid.keyRevoked.summary" = "签名密码学有效，但签名密钥已被密钥持有者撤销。撤销通常意味着密钥被怀疑泄露 —— 强烈建议不要再信任此签名。";
+"siz.signatureSheet.valid.sigExpired.summary" = "签名密码学有效，但签名创建时设置了有效期，且已过。常见于「短期签名」场景。";
 "siz.verify.valid.message" = "签名者：%1$@\n内层压缩包：%2$@\n签名时间：%3$@\n\n文件未被篡改。";
 "siz.verify.unknownSigner.title" = "⚠ 签名者公钥未导入";
 "siz.verify.unknownSigner.message" = "声明的签名者：%1$@\nKey ID：%2$@\n\n签名格式有效，但你的钥匙串里没有这个公钥，所以无法验证签名者身份。建议先导入对方的公钥再决定是否打开。";

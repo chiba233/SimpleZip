@@ -70,6 +70,12 @@
 "error.siz.unsupportedOptions.splitVolume" = "split volumes; use an external .asc signature for split archives";
 "siz.verify.valid.trusted.title" = "✓ Signature valid (trusted)";
 "siz.verify.valid.untrusted.title" = "✓ Signature valid (signer's key imported but not trusted)";
+"siz.verify.valid.keyExpired.title" = "✓ Signature valid (but signing key has expired)";
+"siz.verify.valid.keyRevoked.title" = "⚠ Signature valid, but signing key has been revoked";
+"siz.verify.valid.sigExpired.title" = "⚠ Signature valid, but the signature itself has expired";
+"siz.signatureSheet.valid.keyExpired.summary" = "The signature is cryptographically valid, but the signing key has since expired. You can still open it if you trust the signer — but ask them to rotate the key.";
+"siz.signatureSheet.valid.keyRevoked.summary" = "The signature is cryptographically valid, but the signing key has been revoked by its owner. Revocation usually means the key is suspected compromised — strongly recommend not trusting this signature any further.";
+"siz.signatureSheet.valid.sigExpired.summary" = "The signature is cryptographically valid, but the signer set an expiration on the signature and it has passed. Common for short-lived signatures.";
 "siz.verify.valid.message" = "Signer: %1$@\nInner archive: %2$@\nSigned at: %3$@\n\nThe contents have not been tampered with.";
 "siz.verify.unknownSigner.title" = "⚠ Signer's public key not imported";
 "siz.verify.unknownSigner.message" = "Claimed signer: %1$@\nKey ID: %2$@\n\nThe signature format is valid, but the signer's public key is not in your keyring, so the signer's identity cannot be verified. Consider importing the public key before opening.";

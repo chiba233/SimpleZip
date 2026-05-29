@@ -4,6 +4,13 @@
 
 ## 0.1.8
 
+- **GPG 验签管线大改：迁到 `--status-fd 1` 机器可读输出 + fingerprint 强校验**
+  - **修了一个老 bug**：你自己设置成「终极信任」的密钥签的文件，sheet 还会显示「公钥已导入但未信任」。根因是旧解析依赖在 stderr 字符串里找 `not certified with a trusted signature` 这条 WARNING —— 这条文案受 gpg 版本、locale、trustdb 半同步状态影响极不稳定。新解析直接读 `[GNUPG:] TRUST_ULTIMATE/FULLY/MARGINAL/UNDEFINED/NEVER` 状态行，跟 gpg 的真值一致，**「终极信任」会被精确识别为 trusted=true**。
+  - **两 pass merge 也修了**：之前如果用户公钥同时在 `~/.gnupg` 和 SimpleZip 私有两个 homedir 里，但只有一头有 ownertrust ultimate，merge 是「first validSignature wins」会吃掉那个 untrusted 的把 trusted 的覆盖掉。现在改成 **trusted=true 永远优先**，有 fingerprint 的次优先。
+  - **新增 fingerprint 强校验**：`.siz` 验签现在会把 metadata 声明的 `signerFingerprint` 跟 gpg `VALIDSIG` 状态行报告的真实签名主密钥 fingerprint 比对，**不等就直接判 badSignature**。防御场景：攻击者拿到 `.siz`，修改 metadata 里的 signer 文案，用自己的密钥重签，但 fingerprint 字段忘了改 / 不能改 —— 不做这道校验会显示「来自原作者」的假签名通过。
+  - **新增「签名仍有效但需要关注」三类状态**：`EXPKEYSIG`（密钥过期）/ `REVKEYSIG`（密钥已撤销）/ `EXPSIG`（签名本身过期）。这些情况下签名密码学仍有效但**不能完全信任**：sheet 标题改成「✓ 签名有效（但签名密钥已过期 / 已撤销）」，色块从绿降级为橙，文案明确说明（撤销尤其重要 —— 通常意味着密钥被怀疑泄露）。
+  - 解析器有 `parseLegacyVerifyOutput` 文本兜底，仅在没收到任何 `[GNUPG:]` 状态行时启用（非 GNU gpg 实现极端兜底）；正常 GnuPG 不走这条。
+
 - **GPG 钥匙串日常维护两件套：「修改 passphrase」+「添加 User ID」（GPG 钥匙管理收尾）**
   - 行尾 `…` Menu / 右键 context menu 仅 `hasSecretKey` 行新增两个操作（在「导出私钥」下方）：
     - **修改 passphrase**：打开 sheet 三个 SecureField（当前 / 新 / 确认）。后端 `GPGBackend.changePassphrase` 跑 `gpg --batch --pinentry-mode loopback --passphrase <old> --command-fd 0 --edit-key <fp>`，stdin 喂 `passwd\n<new>\n<new>\nsave\n`。旧 passphrase 走 cmdline arg（**会出现在 `ps`**，几秒就完，权衡可靠性）；新 passphrase 走 stdin（不进 ps）。新 passphrase 留空 = 移除加密保护，弹 NSAlert 二次确认。

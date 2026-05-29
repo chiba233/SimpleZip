@@ -188,11 +188,14 @@ enum SIZArchive {
         )
     }
 
-    /// 完整验签：gpg 验 metadata 签名 + 比对内层 archive SHA256。
+    /// 完整验签：gpg 验 metadata 签名 + fingerprint 强校验 + 比对内层 archive SHA256。
     ///
     /// - gpg 验签失败（badSignature / unknownSigner / verificationError）→ 直接透传。
-    /// - gpg 说签名有效 → 重算内层 archive SHA256，若跟 metadata 不符 → 改判 `.badSignature(signer:)`。
-    ///   语义：签名签的是 metadata，但 metadata 锁定的 inner SHA 跟实际不一致 = 容器内层被换过。
+    /// - gpg 说签名有效 → 再做两道额外校验，任一失败就改判 `.badSignature`：
+    ///   1. **Fingerprint 强校验**：metadata 声明的 `signerFingerprint` 必须等于 gpg `VALIDSIG` 报告的真实
+    ///      签名主密钥 fingerprint。不等 = 攻击者把 metadata 换成自己的内容并用自己的密钥重签 = impersonation。
+    ///      （没有 fingerprint 校验，受害者会被 metadata 里的 signer 文案误导。）
+    ///   2. **SHA256 比对**：metadata 锁定的内层 archive SHA 必须跟实际 archive SHA 一致，否则容器内层被换过。
     static func verify(
         unwrap: UnwrapResult,
         operationID: UUID? = nil
@@ -204,11 +207,21 @@ enum SIZArchive {
         )
 
         switch gpgResult {
-        case .validSignature(let signer, _):
+        case .validSignature(let signer, let actualFingerprint, _, _):
+            // 1) Fingerprint 强校验：metadata 主张的 signerFingerprint 必须等于 gpg 真报。
+            //    metadata 字段可能有空格 / 大小写差异，归一化后比较。
+            if let actualFingerprint {
+                let claimed = unwrap.metadata.signature.signerFingerprint
+                    .filter { $0.isHexDigit }
+                    .uppercased()
+                if !claimed.isEmpty && claimed != actualFingerprint {
+                    return .badSignature(signer: signer, fingerprint: actualFingerprint)
+                }
+            }
+            // 2) 内层 archive SHA256 校验。
             let actual = try computeInnerArchiveSHA256(of: unwrap.innerArchiveURL)
             if actual.lowercased() != unwrap.metadata.innerArchiveSHA256.lowercased() {
-                // metadata 签名仍有效（signer 可信），但容器内层 archive 被替换过 → 判 bad。
-                return .badSignature(signer: signer)
+                return .badSignature(signer: signer, fingerprint: actualFingerprint)
             }
             return gpgResult
         case .unknownSigner, .badSignature, .verificationError:
