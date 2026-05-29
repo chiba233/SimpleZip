@@ -152,6 +152,7 @@
 "settings.section.columns" = "列表列";
 "settings.columns.fileBrowser" = "文件浏览";
 "settings.columns.archiveBrowser" = "压缩包浏览";
+"settings.columns.preview" = "预览";
 "settings.section.general" = "通用";
 "settings.section.archive" = "压缩";
 "settings.section.security" = "安全性";

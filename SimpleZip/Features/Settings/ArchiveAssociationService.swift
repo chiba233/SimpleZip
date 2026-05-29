@@ -108,7 +108,10 @@ enum ArchiveAssociationService {
 
         for fileExtension in fileExtensions {
             if let type = UTType(filenameExtension: fileExtension) {
-                identifiers.insert(type.identifier)
+                let shouldUseDynamicType = fallback.isEmpty
+                if shouldUseDynamicType || !type.identifier.hasPrefix("dyn.") {
+                    identifiers.insert(type.identifier)
+                }
             }
         }
 

@@ -2,7 +2,15 @@
 
 # Changelog
 
+## 0.1.5
+
+- **File associations**
+  - Fixed setting RAR as the default app by using the stable `com.rarlab.rar-archive` type instead of also trying macOS's dynamic `.rar` UTI, and declared the RAR archive type in the app bundle.
+- **Settings**
+  - Added live column previews to the Columns settings pane so users can see how the file and archive lists will look before leaving Settings.
+
 ## 0.1.4
+
 - **Finder integration**
   - Added a Finder Sync extension for right-click actions that calculate hashes and add selected files or folders to a new archive with SimpleZip.
   - Kept Finder Services as a fallback and added a `simplezip://` callback path so Finder actions can launch the app and open the existing hash or archive-creation flows.

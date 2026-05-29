@@ -50,8 +50,33 @@
 				<string>org.7-zip.7-zip-archive</string>
 				<string>public.tar-archive</string>
 				<string>org.gnu.gnu-zip-archive</string>
+				<string>public.bzip2-archive</string>
+				<string>org.tukaani.xz-archive</string>
+				<string>com.rarlab.rar-archive</string>
+				<string>com.apple.disk-image-udif</string>
 				<string>public.archive</string>
 			</array>
+		</dict>
+	</array>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.archive</string>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>RAR Archive</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.rarlab.rar-archive</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>rar</string>
+				</array>
+			</dict>
 		</dict>
 	</array>
 	<key>CFBundleURLTypes</key>

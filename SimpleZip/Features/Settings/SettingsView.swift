@@ -499,9 +499,112 @@ struct SettingsView: View {
                     }
                 }
             }
+
+            Section(L10n.text("settings.columns.preview")) {
+                VStack(alignment: .leading, spacing: 14) {
+                    ColumnsPreviewTable(
+                        title: L10n.text("settings.columns.fileBrowser"),
+                        columns: fileColumnPreview
+                    )
+                    ColumnsPreviewTable(
+                        title: L10n.text("settings.columns.archiveBrowser"),
+                        columns: archiveColumnPreview
+                    )
+                }
+                .padding(.vertical, 2)
+            }
         }
         .formStyle(.grouped)
         .controlSize(.small)
+    }
+
+    private var fileColumnPreview: [ColumnPreview] {
+        var columns: [FileColumn] = [.name]
+        if showFileSizeColumn { columns.append(.size) }
+        if showFileTypeColumn { columns.append(.type) }
+        if showFileApplicationColumn { columns.append(.application) }
+        if showFileLastOpenedColumn { columns.append(.lastOpened) }
+        if showFileDateAddedColumn { columns.append(.dateAdded) }
+        if showFileModifiedColumn { columns.append(.modified) }
+        if showFileCreatedColumn { columns.append(.created) }
+
+        return orderedColumns(columns, key: AppPreferences.Key.fileColumnOrder).map { column in
+            ColumnPreview(title: column.title, value: filePreviewValue(for: column), preferredWidth: previewWidth(for: column))
+        }
+    }
+
+    private var archiveColumnPreview: [ColumnPreview] {
+        var columns: [ArchiveColumn] = [.name]
+        if showArchiveKindColumn { columns.append(.kind) }
+        if showArchiveSizeColumn { columns.append(.size) }
+        if showArchiveModifiedColumn { columns.append(.modified) }
+        if showArchiveMethodColumn { columns.append(.method) }
+
+        return orderedColumns(columns, key: AppPreferences.Key.archiveColumnOrder).map { column in
+            ColumnPreview(title: column.title, value: archivePreviewValue(for: column), preferredWidth: previewWidth(for: column))
+        }
+    }
+
+    private func filePreviewValue(for column: FileColumn) -> String {
+        switch column {
+        case .name:
+            return "Project.zip"
+        case .size:
+            return "12.4 MB"
+        case .type:
+            return "ZIP Archive"
+        case .application:
+            return "SimpleZip"
+        case .lastOpened:
+            return "May 29, 2026"
+        case .dateAdded:
+            return "May 28, 2026"
+        case .modified:
+            return "May 27, 2026"
+        case .created:
+            return "May 20, 2026"
+        }
+    }
+
+    private func archivePreviewValue(for column: ArchiveColumn) -> String {
+        switch column {
+        case .name:
+            return "Documents/"
+        case .kind:
+            return "Folder"
+        case .size:
+            return "42 KB"
+        case .modified:
+            return "2026-05-29 10:30"
+        case .method:
+            return "Deflate"
+        }
+    }
+
+    private func previewWidth(for column: FileColumn) -> CGFloat {
+        switch column {
+        case .name:
+            return 170
+        case .size:
+            return 86
+        case .type, .application:
+            return 128
+        case .lastOpened, .dateAdded, .modified, .created:
+            return 136
+        }
+    }
+
+    private func previewWidth(for column: ArchiveColumn) -> CGFloat {
+        switch column {
+        case .name:
+            return 170
+        case .kind:
+            return 110
+        case .size, .method:
+            return 86
+        case .modified:
+            return 140
+        }
     }
 
     private func setDefaultArchiveApp() {
@@ -782,6 +885,63 @@ private enum SettingsPane: Hashable {
     case browser
     case fileAssociations
     case columns
+}
+
+private struct ColumnPreview: Identifiable {
+    let id = UUID()
+    let title: String
+    let value: String
+    let preferredWidth: CGFloat
+}
+
+private struct ColumnsPreviewTable: View {
+    let title: String
+    let columns: [ColumnPreview]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+
+            ScrollView(.horizontal, showsIndicators: true) {
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack(spacing: 0) {
+                        ForEach(columns) { column in
+                            previewCell(column.title, column: column, isHeader: true)
+                        }
+                    }
+                    Divider()
+                    HStack(spacing: 0) {
+                        ForEach(columns) { column in
+                            previewCell(column.value, column: column, isHeader: false)
+                        }
+                    }
+                }
+                .fixedSize(horizontal: true, vertical: false)
+                .background(.background)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(.quaternary)
+                }
+            }
+            .frame(height: 68)
+        }
+    }
+
+    private func previewCell(_ text: String, column: ColumnPreview, isHeader: Bool) -> some View {
+        Text(text)
+            .font(isHeader ? .caption.weight(.semibold) : .caption)
+            .foregroundStyle(isHeader ? .primary : .secondary)
+            .lineLimit(1)
+            .truncationMode(.middle)
+            .frame(width: column.preferredWidth, alignment: .leading)
+            .padding(.horizontal, 8)
+            .frame(height: isHeader ? 28 : 34, alignment: .center)
+            .background(isHeader ? Color(nsColor: .controlBackgroundColor) : Color.clear)
+            .overlay(alignment: .trailing) {
+                Divider()
+            }
+    }
 }
 
 private struct SystemInstallCommandView: View {

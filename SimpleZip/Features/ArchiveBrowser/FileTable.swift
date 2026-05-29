@@ -337,7 +337,7 @@ private struct FileNSTableView: NSViewRepresentable {
     }
 }
 
-private enum FileColumn: String, TableColumnDescriptor {
+enum FileColumn: String, TableColumnDescriptor {
     case name
     case size
     case type

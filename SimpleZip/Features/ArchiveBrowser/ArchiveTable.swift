@@ -295,7 +295,7 @@ extension ArchiveNSTableView.Coordinator: NSFilePromiseProviderDelegate {
     }
 }
 
-private enum ArchiveColumn: String, TableColumnDescriptor {
+enum ArchiveColumn: String, TableColumnDescriptor {
     case name
     case kind
     case size

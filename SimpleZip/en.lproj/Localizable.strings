@@ -157,6 +157,7 @@
 "settings.section.columns" = "Columns";
 "settings.columns.fileBrowser" = "File Browser";
 "settings.columns.archiveBrowser" = "Archive Browser";
+"settings.columns.preview" = "Preview";
 "settings.section.general" = "General";
 "settings.section.archive" = "Archive";
 "settings.section.security" = "Security";
