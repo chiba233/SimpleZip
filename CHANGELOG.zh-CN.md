@@ -2,6 +2,19 @@
 
 # 更新日志
 
+## 0.1.6
+
+- **设置**
+  - 设置窗口由固定的 820×560 改成可拖拽自适应（最小 720×520，理想 820×560，无上限），下拉项宽度也改为根据当前翻译自适应，避免长语言被截断。
+  - 修复「自定义列」面板第三行错把同一个「归档大小」开关绑定了两次的 bug：那一行现在保持空白，归档列计数与实际可选列对齐。
+  - 删除一个未被引用的内部「设为默认应用」入口，避免日后误调。
+- **内部重构**
+  - `SettingsView.swift` 由单文件 1448 行拆分为 `Features/Settings/` 下 14 个职责明确的文件（GeneralPane / ArchivePane / BrowserPane / ColumnsPane / FileAssociationsPane / SevenZipBackendSection / RarBackendSection / RarInstallSheet 等），并附中文「为什么这么写」注释，便于后续维护。
+  - `ArchiveBrowserModel.swift` 由 2089 行精简到 1744 行（-345），按 `docs/ARCHITECTURE.md` 拆出 3 个独立单元：`ArchiveSession`（压缩包内容 + 当前路径 + 合成目录 / 路径展开）、`FileBrowserService`（列目录、Finder 标签搜索、`FileItem` 构造、地址栏补全）、`ArchiveOperationRunner`（「一次一个」长任务的取消、ID 跟踪、子进程联动）。
+  - 将 `NavigationLocation`、`MountedDiskImageSession` 移到独立的 `BrowserNavigation.swift`。
+- **测试**
+  - `ArchiveService` 单元测试由 27 个扩展到 72 个，新增 `ArchiveServiceArgumentsTests`（覆盖路由 gate、参数构造分支、命令映射、原生 zip 回退条件）和 `ArchiveServiceParsingTests`（覆盖输出解析边角、合成目录展开、ZIP 加密探测）。
+
 ## 0.1.5
 
 - **文件关联**

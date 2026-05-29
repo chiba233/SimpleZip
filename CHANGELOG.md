@@ -2,6 +2,19 @@
 
 # Changelog
 
+## 0.1.6
+
+- **Settings**
+  - The Settings window is now resizable (min 720×520, ideal 820×560, no upper limit) instead of being locked to 820×560; Picker widths now adapt to the active translation so long labels are no longer clipped.
+  - Fixed a bug in the Columns settings pane where the third row bound the archive "Size" toggle twice; that cell is now blank so the archive column count matches the real number of optional columns.
+  - Removed an unused internal "set as default app" helper.
+- **Internal refactor**
+  - `SettingsView.swift` was split from a single 1448-line file into 14 focused files under `Features/Settings/` (GeneralPane / ArchivePane / BrowserPane / ColumnsPane / FileAssociationsPane / SevenZipBackendSection / RarBackendSection / RarInstallSheet, etc.), with Chinese "why this is written this way" comments to make future maintenance easier.
+  - Shrunk `ArchiveBrowserModel.swift` from 2089 to 1744 lines (-345). Following `docs/ARCHITECTURE.md`, extracted three focused units: `ArchiveSession` (open-archive content + current path + synthetic directories + path expansion), `FileBrowserService` (folder listing, Finder-tag search, `FileItem` construction, location-bar completion), and `ArchiveOperationRunner` (one-at-a-time long task lifecycle: cancellation, ID tracking, child-process linkage).
+  - Moved `NavigationLocation` and `MountedDiskImageSession` into a dedicated `BrowserNavigation.swift`.
+- **Tests**
+  - Expanded the `ArchiveService` test suite from 27 to 72 cases. Added `ArchiveServiceArgumentsTests` (covers routing gates, argument-construction branches, command mapping, native-zip fallback conditions) and `ArchiveServiceParsingTests` (covers output-parsing edge cases, synthetic-directory expansion, ZIP encryption detection).
+
 ## 0.1.5
 
 - **File associations**

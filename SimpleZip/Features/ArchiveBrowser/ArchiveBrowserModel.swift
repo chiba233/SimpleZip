@@ -36,13 +36,15 @@ final class ArchiveBrowserModel: ObservableObject {
 
     private let fileManager = FileManager.default
     private let extractionCoordinator = ArchiveExtractionCoordinator(fileManager: .default)
-    private var allArchiveItems: [ArchiveItem] = []
-    private var archivePath = ""
+    /// 打开的压缩包内容 + 当前路径 + 合成目录派生。生命周期等同于 model。
+    private let session = ArchiveSession()
+    /// 本地文件浏览相关的纯逻辑（列目录 / 标签搜索 / FileItem 构造 / 路径补全）。
+    private let fileBrowser = FileBrowserService()
+    /// 「一次一个」长任务的生命周期管理（取消、ID 跟踪、跟 ArchiveService 的子进程联动）。
+    private let operationRunner = ArchiveOperationRunner()
     private var fileClipboard: (urls: [URL], shouldMove: Bool)?
     private var loadTask: Task<Void, Never>?
     private var activeLoadGeneration = 0
-    private var operationTask: Task<Void, Never>?
-    private var activeOperationID: UUID?
     private var mountedDiskImage: MountedDiskImageSession?
     private var openedArchiveItemDirectories: [URL] = []
 
@@ -83,7 +85,8 @@ final class ArchiveBrowserModel: ObservableObject {
             return url.path
         case .archive(let url):
             let baseLocation = L10n.format("location.archive", url.path)
-            return archivePath.isEmpty ? baseLocation : "\(baseLocation) / \(archivePath.trimmingCharacters(in: CharacterSet(charactersIn: "/")))"
+            let path = session.archivePath
+            return path.isEmpty ? baseLocation : "\(baseLocation) / \(path.trimmingCharacters(in: CharacterSet(charactersIn: "/")))"
         case .tag(let tag):
             return L10n.format("location.tag", tag)
         }
@@ -94,7 +97,8 @@ final class ArchiveBrowserModel: ObservableObject {
         case .folder(let url):
             return url.path
         case .archive(let url):
-            return archivePath.isEmpty ? url.path : url.path + "/" + archivePath.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            let path = session.archivePath
+            return path.isEmpty ? url.path : url.path + "/" + path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         case .tag(let tag):
             return L10n.format("location.tag", tag)
         }
@@ -162,8 +166,7 @@ final class ArchiveBrowserModel: ObservableObject {
     func openTag(_ tag: String) {
         recordCurrentLocationForNavigation()
         cleanupMountedDiskImageIfNeeded(for: nil)
-        archivePath = ""
-        allArchiveItems = []
+        session.clearArchive()
         mode = .tag(tag)
         reload()
     }
@@ -190,7 +193,11 @@ final class ArchiveBrowserModel: ObservableObject {
         guard case .folder(let currentFolder) = mode else { return [] }
         let query = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else {
-            return directoryCompletions(in: currentFolder, matching: "")
+            return fileBrowser.directoryCompletions(
+                in: currentFolder, matching: "",
+                showHiddenFiles: AppPreferences.showHiddenFiles,
+                showSymbolicLinks: AppPreferences.showSymbolicLinks
+            )
         }
 
         let expandedQuery = NSString(string: query).expandingTildeInPath
@@ -198,12 +205,20 @@ final class ArchiveBrowserModel: ObservableObject {
         var isDirectory = ObjCBool(false)
 
         if query.hasSuffix("/") || fileManager.fileExists(atPath: queryURL.path, isDirectory: &isDirectory) && isDirectory.boolValue {
-            return directoryCompletions(in: queryURL, matching: "")
+            return fileBrowser.directoryCompletions(
+                in: queryURL, matching: "",
+                showHiddenFiles: AppPreferences.showHiddenFiles,
+                showSymbolicLinks: AppPreferences.showSymbolicLinks
+            )
         }
 
         let parentURL = queryURL.deletingLastPathComponent()
         let prefix = queryURL.lastPathComponent
-        return directoryCompletions(in: parentURL, matching: prefix)
+        return fileBrowser.directoryCompletions(
+            in: parentURL, matching: prefix,
+            showHiddenFiles: AppPreferences.showHiddenFiles,
+            showSymbolicLinks: AppPreferences.showSymbolicLinks
+        )
     }
 
     func chooseFolder() {
@@ -242,8 +257,7 @@ final class ArchiveBrowserModel: ObservableObject {
             recordCurrentLocationForNavigation()
         }
         cleanupMountedDiskImageIfNeeded(for: url)
-        archivePath = ""
-        allArchiveItems = []
+        session.clearArchive()
         mode = .folder(url)
         if let mountedDiskImage {
             if !url.standardizedFileURL.path.hasPrefix(mountedDiskImage.mountPoint.standardizedFileURL.path) {
@@ -273,14 +287,13 @@ final class ArchiveBrowserModel: ObservableObject {
             recordCurrentLocationForNavigation()
         }
         cleanupMountedDiskImageIfNeeded(for: nil)
-        archivePath = ""
-        allArchiveItems = []
+        session.clearArchive()
         mode = .archive(supportedURL)
         reload()
     }
 
     func open(_ item: FileItem) {
-        if isNavigableDirectory(item) {
+        if FileBrowserService.isNavigableDirectory(item) {
             openFolder(item.url)
         } else if ArchiveService.isSupportedArchive(item.url) {
             openArchive(item.url)
@@ -290,7 +303,7 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     func canShowPackageContents(_ item: FileItem) -> Bool {
-        item.isDirectory && isLocalFilePackage(item.url)
+        item.isDirectory && FileBrowserService.isLocalFilePackage(item.url)
     }
 
     func showPackageContents(_ item: FileItem) {
@@ -307,11 +320,11 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     private func openArchiveDirectory(_ item: ArchiveItem) {
-        let destinationPath = normalizedDirectoryPrefix(item.name)
+        let destinationPath = ArchiveSession.normalizedDirectoryPrefix(item.name)
         if currentNavigationLocation != .archive(currentArchiveURLForNavigation, destinationPath) {
             recordCurrentLocationForNavigation()
         }
-        archivePath = destinationPath
+        session.setArchivePath(destinationPath)
         selectedArchiveRows.removeAll()
         refreshArchiveItems()
     }
@@ -562,11 +575,11 @@ final class ArchiveBrowserModel: ObservableObject {
         case .tag:
             openHome()
         case .archive(let url):
-            if archivePath.isEmpty {
+            if session.archivePath.isEmpty {
                 openFolder(url.deletingLastPathComponent())
             } else {
                 recordCurrentLocationForNavigation()
-                archivePath = parentArchivePath(for: archivePath)
+                session.setArchivePath(session.parentPath(of: session.archivePath))
                 selectedArchiveRows.removeAll()
                 refreshArchiveItems()
             }
@@ -1052,9 +1065,7 @@ final class ArchiveBrowserModel: ObservableObject {
 
     func cancelCurrentOperation() {
         guard canCancelCurrentOperation else { return }
-        let operationID = activeOperationID
-        operationTask?.cancel()
-        ArchiveService.cancelRunningCommand(operationID: operationID)
+        operationRunner.cancel()
     }
 
     func deleteSelectedFiles() {
@@ -1170,33 +1181,37 @@ final class ArchiveBrowserModel: ObservableObject {
     /// 加载本地文件夹内容，并按“文件夹优先、名称自然排序”展示。
     private func loadFolder(_ url: URL) {
         do {
-            let resourceKeys: Set<URLResourceKey> = [
-                .isDirectoryKey,
-                .isSymbolicLinkKey,
-                .fileSizeKey,
-                .contentModificationDateKey,
-                .creationDateKey,
-                .contentAccessDateKey,
-                .addedToDirectoryDateKey,
-                .localizedTypeDescriptionKey,
-                .isHiddenKey
-            ]
-            var options: FileManager.DirectoryEnumerationOptions = [.skipsPackageDescendants]
-            if !AppPreferences.showHiddenFiles {
-                options.insert(.skipsHiddenFiles)
-            }
+            let urls = try fileBrowser.contents(
+                of: url,
+                showHiddenFiles: AppPreferences.showHiddenFiles,
+                followFinderStructure: AppPreferences.followFinderStructure,
+                resourceKeys: [
+                    .isDirectoryKey,
+                    .isSymbolicLinkKey,
+                    .fileSizeKey,
+                    .contentModificationDateKey,
+                    .creationDateKey,
+                    .contentAccessDateKey,
+                    .addedToDirectoryDateKey,
+                    .localizedTypeDescriptionKey,
+                    .isHiddenKey
+                ]
+            )
 
-            let urls = try displayedFolderContents(at: url, resourceKeys: resourceKeys, options: options)
-
-            fileItems = makeFileItems(from: urls, folderFirst: true)
+            fileItems = fileBrowser.makeFileItems(
+                from: urls,
+                showSymbolicLinks: AppPreferences.showSymbolicLinks,
+                hiddenSuffixes: AppPreferences.hiddenDisplaySuffixes,
+                folderFirst: true
+            )
 
             archiveItems = []
-            allArchiveItems = []
+            session.clearArchive()
             status = L10n.format("status.itemCount", fileItems.count)
         } catch {
             fileItems = []
             archiveItems = []
-            allArchiveItems = []
+            session.clearArchive()
             errorMessage = error.localizedDescription
             status = L10n.text("status.couldNotOpenFolder")
         }
@@ -1208,211 +1223,24 @@ final class ArchiveBrowserModel: ObservableObject {
         defer { endAsyncLoad(generation: generation) }
 
         do {
-            let urls = try await taggedFileURLs(named: tag)
+            let urls = try await fileBrowser.taggedFileURLs(named: tag)
             guard isCurrentLoad(generation, mode: .tag(tag)) else { return }
-            fileItems = makeFileItems(from: urls, folderFirst: false)
+            fileItems = fileBrowser.makeFileItems(
+                from: urls,
+                showSymbolicLinks: AppPreferences.showSymbolicLinks,
+                hiddenSuffixes: AppPreferences.hiddenDisplaySuffixes,
+                folderFirst: false
+            )
             archiveItems = []
-            allArchiveItems = []
+            session.clearArchive()
             status = L10n.format("status.tagItemCount", fileItems.count)
         } catch {
             guard isCurrentLoad(generation, mode: .tag(tag)) else { return }
             fileItems = []
             archiveItems = []
-            allArchiveItems = []
+            session.clearArchive()
             errorMessage = error.localizedDescription
             status = L10n.text("status.failed")
-        }
-    }
-
-    private func makeFileItems(from urls: [URL], folderFirst: Bool) -> [FileItem] {
-        let resourceKeys: Set<URLResourceKey> = [
-            .isDirectoryKey,
-            .isSymbolicLinkKey,
-            .fileSizeKey,
-            .contentModificationDateKey,
-            .creationDateKey,
-            .contentAccessDateKey,
-            .addedToDirectoryDateKey,
-            .localizedTypeDescriptionKey
-        ]
-        var applicationNameCache: [String: String] = [:]
-        let hiddenSuffixes = AppPreferences.hiddenDisplaySuffixes
-        return urls.compactMap { fileURL in
-            guard let values = try? fileURL.resourceValues(forKeys: resourceKeys) else {
-                return nil
-            }
-
-            let isSymbolicLink = values.isSymbolicLink == true
-            if isSymbolicLink && !AppPreferences.showSymbolicLinks {
-                return nil
-            }
-            let isDirectory = isSymbolicLink ? isDirectorySymbolicLinkTarget(fileURL) : values.isDirectory == true
-            let isPackage = isDirectory && isLocalFilePackage(fileURL)
-            let typeDescription = isDirectory && !isPackage
-                ? L10n.text("type.folder")
-                : (values.localizedTypeDescription ?? (isDirectory ? L10n.text("type.folder") : L10n.text("type.file")))
-            let displayName = displayedName(for: fileURL.lastPathComponent, hiddenSuffixes: hiddenSuffixes)
-            let applicationKey = if isDirectory && !isPackage {
-                "__folder__"
-            } else if isPackage {
-                "__package__:\(fileURL.path)"
-            } else {
-                fileURL.pathExtension.lowercased()
-            }
-            let applicationName = applicationNameCache[applicationKey] ?? preferredApplicationName(for: fileURL, isDirectory: isDirectory, isPackage: isPackage)
-            applicationNameCache[applicationKey] = applicationName
-
-            return FileItem(
-                url: fileURL,
-                name: fileURL.lastPathComponent,
-                displayName: displayName,
-                isDirectory: isDirectory,
-                isSymbolicLink: isSymbolicLink,
-                size: isDirectory ? nil : Int64(values.fileSize ?? 0),
-                modified: values.contentModificationDate,
-                created: values.creationDate,
-                dateAdded: values.addedToDirectoryDate,
-                lastOpened: values.contentAccessDate,
-                typeDescription: typeDescription,
-                applicationName: applicationName
-            )
-        }
-        .sorted { lhs, rhs in
-            if folderFirst, isNavigableDirectory(lhs) != isNavigableDirectory(rhs) { return isNavigableDirectory(lhs) }
-            return lhs.displayName.localizedStandardCompare(rhs.displayName) == .orderedAscending
-        }
-    }
-
-    private func displayedFolderContents(
-        at url: URL,
-        resourceKeys: Set<URLResourceKey>,
-        options: FileManager.DirectoryEnumerationOptions
-    ) throws -> [URL] {
-        guard AppPreferences.followFinderStructure else {
-            return try fileManager.contentsOfDirectory(at: url, includingPropertiesForKeys: Array(resourceKeys), options: options)
-        }
-
-        let standardizedURL = url.standardizedFileURL
-        let finderDisplayRoots: [URL]
-        let finderDisplayExtraEntries: [URL]
-        switch standardizedURL.path {
-        case "/Applications":
-            finderDisplayRoots = [
-                standardizedURL,
-                URL(fileURLWithPath: "/System/Applications"),
-                URL(fileURLWithPath: "/System/Cryptexes/App/System/Applications")
-            ]
-            finderDisplayExtraEntries = [
-                URL(fileURLWithPath: "/System/Library/CoreServices/Finder.app")
-            ]
-        case "/Applications/Utilities":
-            finderDisplayRoots = [
-                standardizedURL,
-                URL(fileURLWithPath: "/System/Applications/Utilities")
-            ]
-            finderDisplayExtraEntries = []
-        default:
-            finderDisplayRoots = [standardizedURL]
-            finderDisplayExtraEntries = []
-        }
-
-        guard finderDisplayRoots.count > 1 || !finderDisplayExtraEntries.isEmpty else {
-            return try fileManager.contentsOfDirectory(at: standardizedURL, includingPropertiesForKeys: Array(resourceKeys), options: options)
-        }
-
-        var mergedURLs: [URL] = []
-        var seenNames = Set<String>()
-        let mergedResourceKeys = resourceKeys.union([.isHiddenKey])
-
-        func appendEntry(_ entry: URL) {
-            guard fileManager.fileExists(atPath: entry.path) else { return }
-            if options.contains(.skipsHiddenFiles),
-               let values = try? entry.resourceValues(forKeys: mergedResourceKeys),
-               values.isHidden == true {
-                return
-            }
-
-            let dedupeKey = entry.lastPathComponent.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
-            guard seenNames.insert(dedupeKey).inserted else { return }
-            mergedURLs.append(entry)
-        }
-
-        for root in finderDisplayRoots where fileManager.fileExists(atPath: root.path) {
-            let entries = try fileManager.contentsOfDirectory(at: root, includingPropertiesForKeys: Array(resourceKeys), options: options)
-            for entry in entries {
-                appendEntry(entry)
-            }
-        }
-
-        for entry in finderDisplayExtraEntries {
-            appendEntry(entry)
-        }
-
-        return mergedURLs
-    }
-
-    private func directoryCompletions(in directoryURL: URL, matching prefix: String) -> [LocationCompletion] {
-        let resourceKeys: Set<URLResourceKey> = [.isDirectoryKey, .isHiddenKey, .isSymbolicLinkKey]
-        var options: FileManager.DirectoryEnumerationOptions = [.skipsPackageDescendants]
-        if !AppPreferences.showHiddenFiles {
-            options.insert(.skipsHiddenFiles)
-        }
-
-        guard let urls = try? fileManager.contentsOfDirectory(
-            at: directoryURL,
-            includingPropertiesForKeys: Array(resourceKeys),
-            options: options
-        ) else {
-            return []
-        }
-
-        let lowercasedPrefix = prefix.lowercased()
-        return urls.compactMap { url -> LocationCompletion? in
-            guard let values = try? url.resourceValues(forKeys: resourceKeys),
-                  (values.isSymbolicLink != true || AppPreferences.showSymbolicLinks),
-                  ((values.isSymbolicLink == true && isDirectorySymbolicLinkTarget(url)) || values.isDirectory == true),
-                  !isLocalFilePackage(url)
-            else {
-                return nil
-            }
-
-            let displayName = fileManager.displayName(atPath: url.path).isEmpty ? url.lastPathComponent : fileManager.displayName(atPath: url.path)
-            if !lowercasedPrefix.isEmpty, !displayName.lowercased().hasPrefix(lowercasedPrefix), !url.lastPathComponent.lowercased().hasPrefix(lowercasedPrefix) {
-                return nil
-            }
-            return LocationCompletion(url: url, displayName: displayName, path: url.path)
-        }
-        .sorted { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
-    }
-
-    private nonisolated func taggedFileURLs(named tag: String) async throws -> [URL] {
-        try await withCheckedThrowingContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                do {
-                    let process = Process()
-                    let output = Pipe()
-                    let escapedTag = tag.replacingOccurrences(of: "\"", with: "\\\"")
-                    process.executableURL = URL(fileURLWithPath: "/usr/bin/mdfind")
-                    process.arguments = [
-                        "-onlyin",
-                        FileManager.default.homeDirectoryForCurrentUser.path,
-                        "kMDItemUserTags == \"\(escapedTag)\""
-                    ]
-                    process.standardOutput = output
-                    try process.run()
-                    process.waitUntilExit()
-
-                    let data = output.fileHandleForReading.readDataToEndOfFile()
-                    let text = String(decoding: data, as: UTF8.self)
-                    let urls = text
-                        .split(separator: "\n")
-                        .map { URL(fileURLWithPath: String($0)) }
-                        .filter { FileManager.default.fileExists(atPath: $0.path) }
-                    continuation.resume(returning: urls)
-                } catch {
-                    continuation.resume(throwing: error)
-                }
-            }
         }
     }
 
@@ -1424,13 +1252,13 @@ final class ArchiveBrowserModel: ObservableObject {
         do {
             let items = try await ArchiveService.list(url)
             guard isCurrentLoad(generation, mode: .archive(url)) else { return }
-            allArchiveItems = items
+            session.setItems(items)
             fileItems = []
             refreshArchiveItems()
         } catch {
             guard isCurrentLoad(generation, mode: .archive(url)) else { return }
             archiveItems = []
-            allArchiveItems = []
+            session.clearArchive()
             errorMessage = error.localizedDescription
             status = L10n.text("status.couldNotReadArchive")
         }
@@ -1452,104 +1280,18 @@ final class ArchiveBrowserModel: ObservableObject {
 
     /// 选中压缩包内目录时，展开成目录下所有项目，避免后端只收到目录占位项。
     private func expandedSelectedArchiveItems() -> [ArchiveItem] {
-        let expanded = selectedArchiveItems.flatMap(expandedArchiveItems)
-
-        return Array(Set(expanded)).sorted { lhs, rhs in
-            lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
-        }
+        session.expand(selectedArchiveItems)
     }
 
     private func expandedArchiveItems(for item: ArchiveItem) -> [ArchiveItem] {
-        guard item.isDirectory else { return [item] }
-
-        let prefix = normalizedDirectoryPrefix(item.name)
-        let children = allArchiveItems.filter { child in
-            let childName = normalizedEntryName(child.name, isDirectory: child.isDirectory)
-            return childName.hasPrefix(prefix) && childName != prefix
-        }
-        return children.isEmpty ? [item] : children
+        session.expand(item)
     }
 
     /// 根据压缩包内当前路径生成“这一层”的列表，并自动补齐缺失的目录节点。
     private func refreshArchiveItems() {
-        let currentItems = immediateArchiveChildren(from: archiveItemsWithSyntheticDirectories(), in: archivePath)
+        let currentItems = session.currentChildren()
         archiveItems = currentItems
         status = L10n.format("status.archivedItemCount", currentItems.count)
-    }
-
-    private func immediateArchiveChildren(from items: [ArchiveItem], in path: String) -> [ArchiveItem] {
-        var childrenByName: [String: ArchiveItem] = [:]
-
-        for item in items {
-            let itemName = normalizedEntryName(item.name, isDirectory: item.isDirectory)
-            guard itemName.hasPrefix(path), itemName != path else { continue }
-
-            let remainder = String(itemName.dropFirst(path.count))
-            guard !remainder.isEmpty else { continue }
-
-            if let slashIndex = remainder.firstIndex(of: "/") {
-                let directoryName = path + remainder[..<slashIndex] + "/"
-                if childrenByName[directoryName] == nil {
-                    childrenByName[directoryName] = syntheticDirectory(named: String(directoryName))
-                }
-            } else {
-                childrenByName[itemName] = item
-            }
-        }
-
-        return childrenByName.values.sorted { lhs, rhs in
-            if lhs.isDirectory != rhs.isDirectory { return lhs.isDirectory }
-            return lhs.displayName.localizedStandardCompare(rhs.displayName) == .orderedAscending
-        }
-    }
-
-    private func archiveItemsWithSyntheticDirectories() -> [ArchiveItem] {
-        var itemsByName: [String: ArchiveItem] = [:]
-
-        for item in allArchiveItems {
-            let itemName = normalizedEntryName(item.name, isDirectory: item.isDirectory)
-            itemsByName[itemName] = item
-
-            let components = itemName
-                .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-                .split(separator: "/")
-                .map(String.init)
-            let directoryComponents = item.isDirectory ? components : Array(components.dropLast())
-
-            var prefix = ""
-            for component in directoryComponents {
-                prefix += component + "/"
-                if itemsByName[prefix] == nil {
-                    itemsByName[prefix] = syntheticDirectory(named: prefix)
-                }
-            }
-        }
-
-        return Array(itemsByName.values)
-    }
-
-    private func syntheticDirectory(named name: String) -> ArchiveItem {
-        ArchiveItem(name: name, isDirectory: true, size: nil, modified: nil, sizeText: "", modifiedText: "", method: "")
-    }
-
-    private func parentArchivePath(for path: String) -> String {
-        let components = path
-            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-            .split(separator: "/")
-            .map(String.init)
-        guard components.count > 1 else { return "" }
-        return components.dropLast().joined(separator: "/") + "/"
-    }
-
-    private func normalizedDirectoryPrefix(_ name: String) -> String {
-        let normalized = normalizedEntryName(name, isDirectory: true)
-        return normalized.hasSuffix("/") ? normalized : normalized + "/"
-    }
-
-    private func normalizedEntryName(_ name: String, isDirectory: Bool) -> String {
-        let trimmedName = name.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        if trimmedName.isEmpty { return "" }
-        return isDirectory ? trimmedName + "/" : trimmedName
     }
 
     private func isOpenableArchiveDirectoryPackage(_ item: ArchiveItem) -> Bool {
@@ -1559,30 +1301,14 @@ final class ArchiveBrowserModel: ObservableObject {
         return type.conforms(to: .package) || type.conforms(to: .applicationBundle)
     }
 
-    private func isNavigableDirectory(_ item: FileItem) -> Bool {
-        item.isDirectory && !isLocalFilePackage(item.url)
-    }
-
-    private func isLocalFilePackage(_ url: URL) -> Bool {
-        NSWorkspace.shared.isFilePackage(atPath: url.path)
-    }
-
-    private func isDirectorySymbolicLinkTarget(_ url: URL) -> Bool {
-        var isDirectory: ObjCBool = false
-        guard fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory) else {
-            return false
-        }
-        return isDirectory.boolValue
-    }
-
     private func makeArchiveItemOpenDirectory() throws -> URL {
         try TemporaryResourceManager.makeOpenedArchiveItemDirectory(fileManager: fileManager)
     }
 
     private func extractedURL(for item: ArchiveItem, in destination: URL) throws -> URL {
         let relativePath = item.isDirectory
-            ? normalizedDirectoryPrefix(item.name).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-            : normalizedEntryName(item.name, isDirectory: false)
+            ? ArchiveSession.normalizedDirectoryPrefix(item.name).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            : ArchiveSession.normalizedEntryName(item.name, isDirectory: false)
         let expectedURL = destination.appendingPathComponent(relativePath)
         if fileManager.fileExists(atPath: expectedURL.path) {
             return expectedURL
@@ -1638,22 +1364,11 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     private func startOperationTask(cancellable: Bool = false, _ operation: @escaping @MainActor (UUID) async -> Void) {
-        operationTask?.cancel()
-        if canCancelCurrentOperation {
-            ArchiveService.cancelRunningCommand(operationID: activeOperationID)
-        }
-        let operationID = UUID()
-        activeOperationID = operationID
-        canCancelCurrentOperation = cancellable
-        operationTask = Task { [weak self] in
-            await operation(operationID)
-            await MainActor.run {
-                guard let self, self.activeOperationID == operationID else { return }
-                self.operationTask = nil
-                self.activeOperationID = nil
-                self.canCancelCurrentOperation = false
-            }
-        }
+        operationRunner.start(
+            cancellable: cancellable,
+            onCancellableChange: { [weak self] value in self?.canCancelCurrentOperation = value },
+            operation: operation
+        )
     }
 
     private func confirmDelete(items: [FileItem]) -> Bool {
@@ -1790,11 +1505,11 @@ final class ArchiveBrowserModel: ObservableObject {
             requestedArchivePath = text
         }
 
-        let destinationPath = lastExistingArchivePath(for: requestedArchivePath)
+        let destinationPath = session.lastExistingPath(for: requestedArchivePath)
         if currentNavigationLocation != .archive(archiveURL.standardizedFileURL, destinationPath) {
             recordCurrentLocationForNavigation()
         }
-        archivePath = destinationPath
+        session.setArchivePath(destinationPath)
         selectedArchiveRows.removeAll()
         refreshArchiveItems()
     }
@@ -1811,7 +1526,7 @@ final class ArchiveBrowserModel: ObservableObject {
         case .folder(let url):
             return .folder(url.standardizedFileURL)
         case .archive(let url):
-            return .archive(url.standardizedFileURL, archivePath)
+            return .archive(url.standardizedFileURL, session.archivePath)
         case .tag(let tag):
             return .tag(tag)
         }
@@ -1834,11 +1549,10 @@ final class ArchiveBrowserModel: ObservableObject {
             openFolder(url, recordsHistory: false)
         case .archive(let url, let path):
             openArchive(url, recordsHistory: false)
-            archivePath = path
+            session.setArchivePath(path)
         case .tag(let tag):
             cleanupMountedDiskImageIfNeeded(for: nil)
-            archivePath = ""
-            allArchiveItems = []
+            session.clearArchive()
             mode = .tag(tag)
             reload()
         }
@@ -1853,26 +1567,6 @@ final class ArchiveBrowserModel: ObservableObject {
 
     private func refreshVisibleFolder(containing url: URL) {
         refreshVisibleFolder(url.deletingLastPathComponent())
-    }
-
-    private func lastExistingArchivePath(for path: String) -> String {
-        let components = path
-            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-            .split(separator: "/")
-            .map(String.init)
-        guard !components.isEmpty else { return "" }
-
-        var candidate = ""
-        let directories = Set(archiveItemsWithSyntheticDirectories().filter(\.isDirectory).map { normalizedDirectoryPrefix($0.name) })
-        for component in components {
-            let next = candidate + component + "/"
-            if directories.contains(next) {
-                candidate = next
-            } else {
-                break
-            }
-        }
-        return candidate
     }
 
     private func compareFileItem(_ lhs: FileItem, _ rhs: FileItem, by key: String, ascending: Bool) -> Bool {
@@ -1924,8 +1618,7 @@ final class ArchiveBrowserModel: ObservableObject {
             do {
                 let mountPoint = try await ArchiveService.mountDiskImage(url)
                 mountedDiskImage = MountedDiskImageSession(sourceURL: url, mountPoint: mountPoint)
-                archivePath = ""
-                allArchiveItems = []
+                session.clearArchive()
                 mode = .folder(mountPoint)
                 reload()
             } catch {
@@ -1946,44 +1639,6 @@ final class ArchiveBrowserModel: ObservableObject {
         Task.detached {
             try? await ArchiveService.detachDiskImage(at: mountPoint)
         }
-    }
-
-    private func preferredApplicationName(for url: URL, isDirectory: Bool, isPackage: Bool) -> String {
-        if isDirectory, !isLocalFilePackage(url) {
-            return "Finder"
-        }
-        if isPackage,
-           let bundle = Bundle(url: url) {
-            if let displayName = bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String, !displayName.isEmpty {
-                return displayName
-            }
-            if let name = bundle.object(forInfoDictionaryKey: "CFBundleName") as? String, !name.isEmpty {
-                return name
-            }
-            return url.deletingPathExtension().lastPathComponent
-        }
-        guard let appURL = NSWorkspace.shared.urlForApplication(toOpen: url) else {
-            return ""
-        }
-        if let bundle = Bundle(url: appURL) {
-            if let displayName = bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String, !displayName.isEmpty {
-                return displayName
-            }
-            if let name = bundle.object(forInfoDictionaryKey: "CFBundleName") as? String, !name.isEmpty {
-                return name
-            }
-        }
-        return appURL.deletingPathExtension().lastPathComponent
-    }
-
-    private func displayedName(for rawName: String, hiddenSuffixes: [String]) -> String {
-        let lowercasedName = rawName.lowercased()
-        guard let suffix = hiddenSuffixes
-            .sorted(by: { $0.count > $1.count })
-            .first(where: { lowercasedName.hasSuffix(".\($0.lowercased())") && rawName.count > $0.count + 1 }) else {
-            return rawName
-        }
-        return String(rawName.dropLast(suffix.count + 1))
     }
 
     private func prepareOperationDetailsSession(title: String, showsDetails: Bool) -> ArchiveOperationDetailsSession? {
@@ -2086,15 +1741,4 @@ final class ArchiveBrowserModel: ObservableObject {
             return false
         }
     }
-}
-
-private struct MountedDiskImageSession {
-    let sourceURL: URL
-    let mountPoint: URL
-}
-
-private enum NavigationLocation: Equatable {
-    case folder(URL)
-    case archive(URL, String)
-    case tag(String)
 }
