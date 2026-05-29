@@ -206,7 +206,34 @@
 "settings.gpg.newKey.succeeded" = "Created new key: …%@";
 "settings.gpg.newKey.succeededNoFingerprint" = "Key created (gpg didn't report a fingerprint — the keyring has been refreshed).";
 // Delete / edit expiration / revocation cert context menu
+"settings.gpg.keys.contextChangePassphrase" = "Change Passphrase…";
+"settings.gpg.keys.contextAddUID" = "Add User ID…";
 "settings.gpg.keys.contextEditExpiration" = "Edit Expiration…";
+// Change passphrase sheet
+"settings.gpg.changePassphrase.title" = "Change Passphrase";
+"settings.gpg.changePassphrase.subject" = "%1$@ · …%2$@";
+"settings.gpg.changePassphrase.oldLabel" = "Current passphrase";
+"settings.gpg.changePassphrase.oldPlaceholder" = "Previous passphrase";
+"settings.gpg.changePassphrase.newLabel" = "New passphrase";
+"settings.gpg.changePassphrase.newPlaceholder" = "New passphrase (empty = remove)";
+"settings.gpg.changePassphrase.confirmLabel" = "Confirm";
+"settings.gpg.changePassphrase.confirmPlaceholder" = "Confirm new passphrase";
+"settings.gpg.changePassphrase.removeHint" = "⚠ Leaving the new passphrase empty removes encryption protection — the private key becomes a raw file. Only do this for automation.";
+"settings.gpg.changePassphrase.applyButton" = "Change";
+"settings.gpg.changePassphrase.succeeded" = "Changed passphrase for \"%@\".";
+"settings.gpg.changePassphrase.failed" = "Passphrase change failed: %@ (Was the old passphrase entered correctly?)";
+// Add User ID sheet
+"settings.gpg.addUID.title" = "Add User ID";
+"settings.gpg.addUID.subject" = "%1$@ · …%2$@";
+"settings.gpg.addUID.commentLabel" = "Comment (optional)";
+"settings.gpg.addUID.commentPlaceholder" = "e.g. work / personal / alias";
+"settings.gpg.addUID.unlockLabel" = "Passphrase";
+"settings.gpg.addUID.unlockPlaceholder" = "Unlock primary key to sign the new UID";
+"settings.gpg.addUID.note" = "The new UID is signed by the primary key (gpg `--quick-add-uid`). One GPG key can hold multiple UIDs — for example a changed email address, separate work / personal addresses, or an alias. Existing UIDs are untouched.";
+"settings.gpg.addUID.requiredHint" = "Name, email, and passphrase are all required.";
+"settings.gpg.addUID.applyButton" = "Add";
+"settings.gpg.addUID.succeeded" = "Added UID \"%@\".";
+"settings.gpg.addUID.failed" = "Add UID failed: %@";
 "settings.gpg.keys.contextGenerateRevocation" = "Generate Revocation Certificate…";
 "settings.gpg.keys.contextExportPrivateKey" = "Export Private Key as .asc…";
 "settings.gpg.keys.contextDelete" = "Delete Key…";

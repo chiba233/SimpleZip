@@ -402,6 +402,75 @@ enum GPGBackend {
         return try await BackendProcessRunner.runAndCapture(tool, arguments: args)
     }
 
+    /// 修改密钥的 passphrase（私钥加密口令）。
+    ///
+    /// gpg `--edit-key <fp>` 走 `passwd` 子菜单：先验旧 passphrase，再输入新 passphrase 两遍确认。
+    /// 流程：`gpg --batch --pinentry-mode loopback --passphrase <old> --command-fd 0 --edit-key <fp>`，
+    /// stdin 喂 `passwd\n<new>\n<new>\nsave\n`。
+    /// 旧 passphrase 走 `--passphrase`（不出现在 cmdline，BackendProcessRunner 内部用 stdin 模式时可见 ps 输出，
+    /// 但这里 `--passphrase` 是 arg 形式 → `ps` **会**看到 —— 跟新 passphrase 通过 stdin 不一样。
+    /// 折中：单次操作几秒就完，比 pinentry-mac 弹不出来更可靠。
+    static func changePassphrase(
+        fingerprint: String,
+        oldPassphrase: String,
+        newPassphrase: String,
+        source: GPGKeyringSource = .userKeyring
+    ) async throws {
+        let tool = try resolve()
+        var args: [String] = ["--batch", "--pinentry-mode", "loopback"]
+        if source == .simpleZipKeyring {
+            args.insert(contentsOf: simpleZipKeyringArguments(), at: 0)
+        }
+        // 旧 passphrase 走 --passphrase（命令行 arg），新 passphrase 走 stdin command-fd menu。
+        // 新走 stdin 是关键：gpg 看到 `passwd` menu 会要求新 passphrase 两遍，从 command-fd 读。
+        args.append(contentsOf: ["--passphrase", oldPassphrase, "--command-fd", "0", "--edit-key", fingerprint])
+        let commands = "passwd\n\(newPassphrase)\n\(newPassphrase)\nsave\n"
+        _ = try await BackendProcessRunner.runAndCapture(
+            tool,
+            arguments: args,
+            inputStrategy: .staticInput(commands)
+        )
+    }
+
+    /// 添加 User ID 到现有密钥（一把 GPG 密钥可以挂多个 UID，比如多个邮箱 / 别名）。
+    ///
+    /// 走 `gpg --quick-add-uid <fp> "Name [(comment)] <email>"` —— gpg 自动用主密钥签名新 UID。
+    /// 需要私钥 passphrase 解锁主密钥来做签名。
+    /// `comment` 可选；非空时拼成 `Name (comment) <email>` 格式。
+    static func addUserID(
+        fingerprint: String,
+        name: String,
+        email: String,
+        comment: String,
+        passphrase: String,
+        source: GPGKeyringSource = .userKeyring
+    ) async throws {
+        let tool = try resolve()
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedComment = comment.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty, !trimmedEmail.isEmpty else {
+            throw ArchiveError.commandFailed("Name and email are required")
+        }
+        let userIDString: String
+        if trimmedComment.isEmpty {
+            userIDString = "\(trimmedName) <\(trimmedEmail)>"
+        } else {
+            userIDString = "\(trimmedName) (\(trimmedComment)) <\(trimmedEmail)>"
+        }
+
+        var args: [String] = ["--batch", "--pinentry-mode", "loopback", "--passphrase-fd", "0"]
+        if source == .simpleZipKeyring {
+            args.insert(contentsOf: simpleZipKeyringArguments(), at: 0)
+        }
+        args.append(contentsOf: ["--quick-add-uid", fingerprint, userIDString])
+        _ = try await BackendProcessRunner.runAndCapture(
+            tool,
+            arguments: args,
+            inputStrategy: .staticInput(passphrase + "\n")
+        )
+    }
+
     /// 导出**私钥**为 ASCII armor (`.asc`) 文本 —— 备份 / 迁移到其它机器用。
     ///
     /// 导出的私钥仍保留**原 passphrase 加密**（gpg 不会解密 secring 里的私钥才能导出）—— 文件里是已加密 blob。

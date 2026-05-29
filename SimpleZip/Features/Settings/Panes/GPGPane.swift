@@ -51,6 +51,10 @@ struct GPGPane: View {
     @State private var pendingExpirationKey: GPGBackend.GPGKey?
     /// 「生成撤销证书」sheet 的目标密钥。nil = 不显示。
     @State private var pendingRevocationKey: GPGBackend.GPGKey?
+    /// 「修改 passphrase」sheet 的目标密钥。
+    @State private var pendingPassphraseKey: GPGBackend.GPGKey?
+    /// 「添加 User ID」sheet 的目标密钥。
+    @State private var pendingAddUIDKey: GPGBackend.GPGKey?
 
     var body: some View {
         Form {
@@ -102,6 +106,24 @@ struct GPGPane: View {
                 set: { if !$0 { pendingExpirationKey = nil } }
             )) { newExpiration in
                 applyExpiration(for: key, expiration: newExpiration)
+            }
+        }
+        // 修改 passphrase sheet
+        .sheet(item: $pendingPassphraseKey) { key in
+            ChangePassphraseSheet(key: key, isPresented: Binding(
+                get: { pendingPassphraseKey != nil },
+                set: { if !$0 { pendingPassphraseKey = nil } }
+            )) { oldPP, newPP in
+                applyPassphraseChange(for: key, oldPassphrase: oldPP, newPassphrase: newPP)
+            }
+        }
+        // 添加 User ID sheet
+        .sheet(item: $pendingAddUIDKey) { key in
+            AddUserIDSheet(key: key, isPresented: Binding(
+                get: { pendingAddUIDKey != nil },
+                set: { if !$0 { pendingAddUIDKey = nil } }
+            )) { name, email, comment, passphrase in
+                applyAddUserID(for: key, name: name, email: email, comment: comment, passphrase: passphrase)
             }
         }
         // 生成撤销证书 sheet
@@ -469,6 +491,12 @@ struct GPGPane: View {
                         onExportPrivateKey: {
                             exportPrivateKey(for: key)
                         },
+                        onChangePassphrase: {
+                            pendingPassphraseKey = key
+                        },
+                        onAddUserID: {
+                            pendingAddUIDKey = key
+                        },
                         onEditExpiration: {
                             pendingExpirationKey = key
                         },
@@ -674,6 +702,54 @@ struct GPGPane: View {
         }
     }
 
+    /// 修改 passphrase —— `gpg --edit-key <fp> passwd` interactive 喂旧 / 新 / 确认 / save。
+    private func applyPassphraseChange(for key: GPGBackend.GPGKey, oldPassphrase: String, newPassphrase: String) {
+        keyOperationMessage = nil
+        Task {
+            do {
+                try await GPGBackend.changePassphrase(
+                    fingerprint: key.fingerprint,
+                    oldPassphrase: oldPassphrase,
+                    newPassphrase: newPassphrase,
+                    source: key.source
+                )
+                await MainActor.run {
+                    keyOperationMessage = L10n.format("settings.gpg.changePassphrase.succeeded", key.userID)
+                }
+            } catch {
+                await MainActor.run {
+                    keyOperationMessage = L10n.format("settings.gpg.changePassphrase.failed", error.localizedDescription)
+                }
+            }
+        }
+    }
+
+    /// 添加 User ID —— `gpg --quick-add-uid <fp> "Name (comment) <email>"`，需要 passphrase 解锁主密钥签名新 UID。
+    private func applyAddUserID(for key: GPGBackend.GPGKey, name: String, email: String, comment: String, passphrase: String) {
+        keyOperationMessage = nil
+        Task {
+            do {
+                try await GPGBackend.addUserID(
+                    fingerprint: key.fingerprint,
+                    name: name,
+                    email: email,
+                    comment: comment,
+                    passphrase: passphrase,
+                    source: key.source
+                )
+                let refreshed = try? await GPGBackend.listKeys()
+                await MainActor.run {
+                    keys = refreshed ?? keys
+                    keyOperationMessage = L10n.format("settings.gpg.addUID.succeeded", "\(name) <\(email)>")
+                }
+            } catch {
+                await MainActor.run {
+                    keyOperationMessage = L10n.format("settings.gpg.addUID.failed", error.localizedDescription)
+                }
+            }
+        }
+    }
+
     /// 导出**私钥**到 `.asc` 文件 —— 备份 / 迁移用。文件里是 passphrase 加密的 blob，分两个地方存（私钥 + passphrase 不要同地存）。
     private func exportPrivateKey(for key: GPGBackend.GPGKey) {
         let savePanel = NSSavePanel()
@@ -848,6 +924,8 @@ private struct GPGKeyRow: View {
     let onCopyFingerprint: () -> Void
     let onExportPublicKey: () -> Void
     let onExportPrivateKey: () -> Void
+    let onChangePassphrase: () -> Void
+    let onAddUserID: () -> Void
     let onEditExpiration: () -> Void
     let onGenerateRevocation: () -> Void
     let onDelete: () -> Void
@@ -940,6 +1018,12 @@ private struct GPGKeyRow: View {
                 onExportPrivateKey()
             }
             Divider()
+            Button(L10n.text("settings.gpg.keys.contextChangePassphrase")) {
+                onChangePassphrase()
+            }
+            Button(L10n.text("settings.gpg.keys.contextAddUID")) {
+                onAddUserID()
+            }
             Button(L10n.text("settings.gpg.keys.contextEditExpiration")) {
                 onEditExpiration()
             }

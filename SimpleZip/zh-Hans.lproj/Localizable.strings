@@ -206,7 +206,34 @@
 "settings.gpg.newKey.succeeded" = "已创建新密钥：…%@";
 "settings.gpg.newKey.succeededNoFingerprint" = "密钥已创建（gpg 未回报 fingerprint —— 已刷新钥匙串）。";
 // 删除 / 修改过期 / 撤销证书 context menu
+"settings.gpg.keys.contextChangePassphrase" = "修改 passphrase…";
+"settings.gpg.keys.contextAddUID" = "添加 User ID…";
 "settings.gpg.keys.contextEditExpiration" = "修改过期时间…";
+// 修改 passphrase sheet
+"settings.gpg.changePassphrase.title" = "修改 passphrase";
+"settings.gpg.changePassphrase.subject" = "%1$@ · …%2$@";
+"settings.gpg.changePassphrase.oldLabel" = "当前 passphrase";
+"settings.gpg.changePassphrase.oldPlaceholder" = "原来的 passphrase";
+"settings.gpg.changePassphrase.newLabel" = "新 passphrase";
+"settings.gpg.changePassphrase.newPlaceholder" = "新的 passphrase（留空 = 移除）";
+"settings.gpg.changePassphrase.confirmLabel" = "再输一次";
+"settings.gpg.changePassphrase.confirmPlaceholder" = "确认新 passphrase";
+"settings.gpg.changePassphrase.removeHint" = "⚠ 新 passphrase 留空 = 移除加密保护，私钥变成裸文件。仅自动化场景再这么做。";
+"settings.gpg.changePassphrase.applyButton" = "更换";
+"settings.gpg.changePassphrase.succeeded" = "已修改「%@」的 passphrase。";
+"settings.gpg.changePassphrase.failed" = "修改 passphrase 失败：%@（旧 passphrase 是否输错？）";
+// 添加 User ID sheet
+"settings.gpg.addUID.title" = "添加 User ID";
+"settings.gpg.addUID.subject" = "%1$@ · …%2$@";
+"settings.gpg.addUID.commentLabel" = "备注（可选）";
+"settings.gpg.addUID.commentPlaceholder" = "如：工作邮箱 / 备用 / 别名";
+"settings.gpg.addUID.unlockLabel" = "Passphrase";
+"settings.gpg.addUID.unlockPlaceholder" = "解锁主密钥以签名新 UID";
+"settings.gpg.addUID.note" = "新 UID 会由主密钥签名（gpg `--quick-add-uid`）。一把 GPG 密钥可以挂多个 UID —— 比如你换了邮箱、有工作 / 私人两个地址、或想加个昵称。原有 UID 不动。";
+"settings.gpg.addUID.requiredHint" = "姓名、邮箱、passphrase 都得填。";
+"settings.gpg.addUID.applyButton" = "添加";
+"settings.gpg.addUID.succeeded" = "已添加 UID「%@」。";
+"settings.gpg.addUID.failed" = "添加 UID 失败：%@";
 "settings.gpg.keys.contextGenerateRevocation" = "生成撤销证书…";
 "settings.gpg.keys.contextExportPrivateKey" = "导出私钥为 .asc…";
 "settings.gpg.keys.contextDelete" = "删除密钥…";

@@ -4,6 +4,13 @@
 
 ## 0.1.8
 
+- **GPG keyring daily-maintenance pair: "Change Passphrase" + "Add User ID" (GPG key management closes out)**
+  - The row's "…" Menu / right-click context menu, on `hasSecretKey` rows, gains two new actions below "Export Private Key":
+    - **Change Passphrase**: opens a sheet with three SecureField inputs (current / new / confirm). Backend `GPGBackend.changePassphrase` runs `gpg --batch --pinentry-mode loopback --passphrase <old> --command-fd 0 --edit-key <fp>`, with stdin feeding `passwd\n<new>\n<new>\nsave\n`. The old passphrase rides as a command-line arg (**so it appears in `ps`** briefly — seconds — a reliability/security trade-off); the new passphrase goes via stdin (doesn't appear in ps). Leaving the new passphrase empty removes encryption protection and triggers an NSAlert double-confirm.
+    - **Add User ID**: sheet with four fields (Name / Email / Comment / Passphrase). A GPG key can hold multiple UIDs (changed email, separate work / personal addresses, alias, etc.) — existing UIDs are not touched. Backend `GPGBackend.addUserID` runs `gpg --batch --pinentry-mode loopback --passphrase-fd 0 --quick-add-uid <fp> "Name (comment) <email>"`, passphrase via stdin.
+  - Failure messaging is specific: change-passphrase failure suggests "was the old passphrase entered correctly?" (the most likely cause); add-UID failure forwards gpg's error.
+  - **GPG key management closes out here**: local secret / smart card / SimpleZip-private ring partitioning + CRUD + trust levels + default signing key + public/private key import / export + revocation certs + change passphrase / UID / expiration + smart card binding detection — daily and emergency operations are all covered. Next phase shifts to **SimpleZip-specific features built on GPG** (`.szs` signature manifest / `.siz` v3 multi-recipient encryption).
+
 - **Bug fix: keys created in the SimpleZip-private homedir were still grouped under "My keys (local secret key)"**
   - Symptom: after switching to `--homedir`, the new key actually did land in the SimpleZip-private homedir (data was correct), but GPGPane still rendered it in the "My keys (local secret key)" group — mixed with the user's `~/.gnupg/` keys.
   - Root cause: `keyGroupsView`'s `myLocalKeys` filter only checked `hasSecretKey && !isSecretKeyStub`; **it ignored `source`**. SimpleZip-private homedir keys also have `hasSecretKey`, so they spilled into the local group.

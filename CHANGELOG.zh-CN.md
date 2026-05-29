@@ -4,6 +4,13 @@
 
 ## 0.1.8
 
+- **GPG 钥匙串日常维护两件套：「修改 passphrase」+「添加 User ID」（GPG 钥匙管理收尾）**
+  - 行尾 `…` Menu / 右键 context menu 仅 `hasSecretKey` 行新增两个操作（在「导出私钥」下方）：
+    - **修改 passphrase**：打开 sheet 三个 SecureField（当前 / 新 / 确认）。后端 `GPGBackend.changePassphrase` 跑 `gpg --batch --pinentry-mode loopback --passphrase <old> --command-fd 0 --edit-key <fp>`，stdin 喂 `passwd\n<new>\n<new>\nsave\n`。旧 passphrase 走 cmdline arg（**会出现在 `ps`**，几秒就完，权衡可靠性）；新 passphrase 走 stdin（不进 ps）。新 passphrase 留空 = 移除加密保护，弹 NSAlert 二次确认。
+    - **添加 User ID**：sheet 四个字段（姓名 / 邮箱 / 备注 / passphrase）。一把 GPG 密钥可以挂多个 UID（比如换邮箱、工作 / 私人两个地址、加个昵称），原有 UID 不动。后端 `GPGBackend.addUserID` 跑 `gpg --batch --pinentry-mode loopback --passphrase-fd 0 --quick-add-uid <fp> "Name (comment) <email>"`，passphrase 走 stdin。
+  - 失败信息明确文案：修改 passphrase 失败时提示「旧 passphrase 是否输错？」（最常见原因）；添加 UID 失败把 gpg 错误转发给用户。
+  - **GPG 钥匙管理至此收尾**（封存）：本机 / 智能卡 / SimpleZip 私有 ring 三类密钥 + 增删改查 + 信任级别 + 默认签名密钥 + 公私钥导入导出 + 撤销证书 + 修改 passphrase / UID / 过期 + 智能卡 binding 检测 ——「日常 + 应急」操作齐了。下一阶段转向**基于 GPG 的 SimpleZip 专属特性**（`.szs` 签名清单 / `.siz` v3 多收件人加密）。
+
 - **Bug 修复：SimpleZip 私有 homedir 里造的密钥仍被分到「我的密钥（本机私钥）」组**
   - 现象：用户切换到 `--homedir` 后造密钥，密钥**确实**进 SimpleZip 私有 homedir 了（数据正确），但 GPGPane UI 还是把它显示在「我的密钥（本机私钥）」组里 —— 跟用户在 `~/.gnupg/` 的密钥混着。
   - 根因：`keyGroupsView` 的 `myLocalKeys` 过滤器只看 `hasSecretKey && !isSecretKeyStub`，**没看 `source`**。SimpleZip 私有 homedir 里造的密钥也有 hasSecretKey，被一锅端到本机组。
