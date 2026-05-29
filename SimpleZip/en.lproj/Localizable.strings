@@ -91,11 +91,7 @@
 "siz.signatureSheet.gpgMissing.note" = "Consider installing GnuPG from Settings → GPG before opening. \"Open\" skips verification.";
 "settings.section.gpg" = "GPG (PGP Signing)";
 "settings.gpg.enabledTitle" = "Enable GPG integration";
-"settings.gpg.enabledDescription" = "When on, the Create Archive sheet offers a signing checkbox, opening an archive auto-verifies a sibling .asc file, and key management is available in Settings. When off, every GPG entry point is hidden so users who don't use GPG aren't bothered.";
-"settings.gpg.signByDefaultTitle" = "Sign new archives by default";
-"settings.gpg.signByDefaultDescription" = "If on, the Create Archive sheet pre-checks the \"GPG sign\" checkbox (it can still be unchecked per archive). Requires at least one available private key.";
-"settings.gpg.verifyOnOpenTitle" = "Verify signatures when opening archives";
-"settings.gpg.verifyOnOpenDescription" = "When opening or extracting an archive, if a sibling `<archive>.asc` file is present, run gpg --verify and show signer + trust state.";
+"settings.gpg.enabledDescription" = "When on, the Create Archive sheet offers a signing checkbox, opening a .siz container shows signer info, and key management is available in Settings. When off, every GPG entry point is hidden so users who don't use GPG aren't bothered.";
 "settings.gpg.backend.title" = "GPG Backend";
 "settings.gpg.resolvedPath" = "GPG path: %@";
 "settings.gpg.resolvedVersion" = "GnuPG version: %@";

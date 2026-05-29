@@ -287,14 +287,8 @@ enum AppPreferences {
         /// 用户从「SimpleZip 菜单 → 重新运行欢迎助手」入口可以重置回 false 让它再弹一次。
         nonisolated static let welcomeAssistantCompleted = "welcomeAssistantCompleted"
 
-        // GPG 三件套（全局可选，默认全关）：
-        // - `gpgEnabled`: 主开关；关 → 创建 / 解压 / 状态徽章里所有 GPG 入口隐藏；设置 pane 始终可见
-        //   让用户能开它。
-        // - `gpgSignByDefault`: 「创建压缩包时默认勾上 GPG 签名」 —— 创建对话框里仍然能取消勾。
-        // - `gpgVerifyOnOpen`: 「打开压缩包时自动验同目录 .asc 兄弟文件」开关。
+        // GPG 集成主开关 —— 关 → 创建 / 解压 / 状态徽章里所有 GPG 入口隐藏；设置 pane 始终可见让用户能开它。
         nonisolated static let gpgEnabled = "gpgEnabled"
-        nonisolated static let gpgSignByDefault = "gpgSignByDefault"
-        nonisolated static let gpgVerifyOnOpen = "gpgVerifyOnOpen"
     }
 
     nonisolated static var startupLocation: StartupLocation {
@@ -507,17 +501,6 @@ enum AppPreferences {
         defaults.bool(forKey: Key.gpgEnabled)
     }
 
-    /// 「创建压缩包时默认勾上 GPG 签名」 —— 仅当 `gpgEnabled` 同时为 true 且有可用私钥时生效。
-    nonisolated static var gpgSignByDefault: Bool {
-        defaults.bool(forKey: Key.gpgSignByDefault)
-    }
-
-    /// 「打开压缩包时自动验同目录 .asc 兄弟文件」开关 —— 默认 true 让用户开了主开关就能立即体验。
-    /// 仅 `gpgEnabled` true 时实际生效。
-    nonisolated static var gpgVerifyOnOpen: Bool {
-        defaults.object(forKey: Key.gpgVerifyOnOpen) as? Bool ?? true
-    }
-
     /// 预设密码的实际内容。空字符串等于「未配置」。
     /// 存储已迁到 Keychain（见 `PresetPasswordStore`）。本属性是业务侧（创建/解压自动填）
     /// 的静默读取入口，不会触发 Touch ID。
@@ -631,10 +614,8 @@ enum AppPreferences {
         Key.finderOpenAutoExtract,
         // 注意：只导 presetPasswordEnabled 开关，密码本身永远在 Keychain，不进导出文件。
         Key.presetPasswordEnabled,
-        // GPG 三件套：主开关 + 两个默认行为偏好；私钥 / 公钥都在 ~/.gnupg/，不进导出文件。
+        // GPG 集成主开关；私钥 / 公钥都在 ~/.gnupg/，不进导出文件。
         Key.gpgEnabled,
-        Key.gpgSignByDefault,
-        Key.gpgVerifyOnOpen,
         Key.suspiciousPathPolicy,
         Key.symbolicLinkPolicy,
         Key.activeContentOpenPolicy,

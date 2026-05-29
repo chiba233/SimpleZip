@@ -91,11 +91,7 @@
 "siz.signatureSheet.gpgMissing.note" = "建议先去「设置 → GPG」按提示装上 GnuPG 再打开；点「打开」会跳过校验直接解压。";
 "settings.section.gpg" = "GPG（PGP 签名）";
 "settings.gpg.enabledTitle" = "启用 GPG 集成";
-"settings.gpg.enabledDescription" = "开启后，创建压缩包时可勾选签名、打开压缩包时自动验证同目录的 .asc 兄弟文件、设置里可以管理密钥。关闭时所有 GPG 相关入口都隐藏，不打扰不使用的人。";
-"settings.gpg.signByDefaultTitle" = "创建压缩包时默认签名";
-"settings.gpg.signByDefaultDescription" = "勾选此项后，创建压缩包对话框里「GPG 签名」复选框默认是打开的（仍可逐次取消）。需要至少一个可用的私钥。";
-"settings.gpg.verifyOnOpenTitle" = "打开压缩包时自动验签";
-"settings.gpg.verifyOnOpenDescription" = "打开 / 解压压缩包时，若同目录有 `<archive>.asc` 签名文件，自动调 gpg --verify 显示签名者 + 是否可信。";
+"settings.gpg.enabledDescription" = "开启后，创建压缩包时可勾选签名、打开 .siz 时显示签名信息、设置里可以管理密钥。关闭时所有 GPG 相关入口都隐藏，不打扰不使用的人。";
 "settings.gpg.backend.title" = "GPG 后端";
 "settings.gpg.resolvedPath" = "GPG 路径：%@";
 "settings.gpg.resolvedVersion" = "GnuPG 版本：%@";

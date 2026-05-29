@@ -23,8 +23,6 @@ import AppKit
 /// B 阶段：GUI 创建新密钥、导出公钥、删除密钥。
 struct GPGPane: View {
     @AppStorage(AppPreferences.Key.gpgEnabled) private var gpgEnabled = false
-    @AppStorage(AppPreferences.Key.gpgSignByDefault) private var gpgSignByDefault = false
-    @AppStorage(AppPreferences.Key.gpgVerifyOnOpen) private var gpgVerifyOnOpen = true
 
     @State private var systemInstallMessage: String?
     @State private var gpgAvailable = false
@@ -136,21 +134,6 @@ struct GPGPane: View {
                 }
             }
 
-            // 默认行为 ——「主开关 + 后端可用」都满足才有意义；关掉就置灰。
-            Section {
-                SettingsToggleRow(
-                    title: L10n.text("settings.gpg.signByDefaultTitle"),
-                    description: L10n.text("settings.gpg.signByDefaultDescription"),
-                    isOn: $gpgSignByDefault
-                )
-                SettingsToggleRow(
-                    title: L10n.text("settings.gpg.verifyOnOpenTitle"),
-                    description: L10n.text("settings.gpg.verifyOnOpenDescription"),
-                    isOn: $gpgVerifyOnOpen
-                )
-            }
-            .disabled(!gpgEnabled || !gpgAvailable)
-            .opacity((!gpgEnabled || !gpgAvailable) ? 0.55 : 1)
         }
         .formStyle(.grouped)
         .controlSize(.small)
