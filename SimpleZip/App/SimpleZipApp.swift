@@ -82,8 +82,11 @@ struct ArchiveFileCommands: Commands {
 
             Divider()
 
+            // 菜单的 Cmd+E 始终走「整包解压」—— 之前用 extractFromCurrentContext() 做「智能路由」，
+            // 用户有选中条目时会被静默换成「解压选中」对话框，跟菜单文案 "Extract" 不一致。
+            // 「解压选中」由下面 Cmd+Shift+E 专项负责，二者各司其职。
             Button {
-                model?.extractFromCurrentContext()
+                model?.extractArchive()
             } label: {
                 Label(L10n.text("button.extract"), systemImage: "tray.and.arrow.down")
             }

@@ -13,8 +13,17 @@ struct ArchiveCreationOptionsView: View {
     @State private var showsSevenZipAdvancedOptions = false
     @State private var excludedFileCount: Int?
     @State private var isCountingExcludedFiles = false
+    /// 「使用预设密码」复选框的当前勾选状态。仅在用户在通用设置里启用了预设密码时显示。
+    /// 默认勾选 —— 与「设置里开了 = 默认走预设」的用户预期一致。
+    @State private var useArchivePresetPassword = false
+    @AppStorage(AppPreferences.Key.presetPasswordEnabled) private var presetPasswordEnabled = false
+    /// 预设密码从 Keychain 拉到 view 内，dialog 关闭即丢；不绑定 @AppStorage 是因为 Keychain
+    /// 没有 @AppStorage 等价物，而且业务侧也只需要打开时的快照。
+    @State private var presetPassword = ""
     let create: (ArchiveCreationRequest) -> Void
     let cancel: () -> Void
+
+    private var hasUsablePreset: Bool { presetPasswordEnabled && !presetPassword.isEmpty }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -80,13 +89,31 @@ struct ArchiveCreationOptionsView: View {
                     }
 
                     if request.options.format.supportsPassword {
-                        passwordField(L10n.text("archive.password"), text: $request.options.password)
-                        if !request.options.password.isEmpty || !request.options.passwordConfirmation.isEmpty {
-                            passwordField(L10n.text("archive.passwordConfirm"), text: $request.options.passwordConfirmation)
-                            Toggle(L10n.text("archive.showPassword"), isOn: $request.options.showPassword)
+                        if hasUsablePreset {
+                            Toggle(L10n.text("button.usePresetPassword"), isOn: $useArchivePresetPassword)
+                                .help(L10n.text("button.usePresetPassword.help"))
                                 .toggleStyle(.checkbox)
-                            if passwordValidationMessage != nil {
-                                validationText(L10n.text("error.passwordsDoNotMatch"))
+                                .onChange(of: useArchivePresetPassword) { newValue in
+                                    if newValue {
+                                        // 勾选 = password 和 confirmation 都用预设。
+                                        // 不动 encryptionMethod —— 用户对加密算法的偏好与「用什么密码」无关。
+                                        request.options.password = presetPassword
+                                        request.options.passwordConfirmation = presetPassword
+                                    } else {
+                                        request.options.password = ""
+                                        request.options.passwordConfirmation = ""
+                                    }
+                                }
+                        }
+                        if !(hasUsablePreset && useArchivePresetPassword) {
+                            passwordField(L10n.text("archive.password"), text: $request.options.password)
+                            if !request.options.password.isEmpty || !request.options.passwordConfirmation.isEmpty {
+                                passwordField(L10n.text("archive.passwordConfirm"), text: $request.options.passwordConfirmation)
+                                Toggle(L10n.text("archive.showPassword"), isOn: $request.options.showPassword)
+                                    .toggleStyle(.checkbox)
+                                if passwordValidationMessage != nil {
+                                    validationText(L10n.text("error.passwordsDoNotMatch"))
+                                }
                             }
                         }
                         if !request.options.password.isEmpty || !request.options.passwordConfirmation.isEmpty {
@@ -330,6 +357,16 @@ struct ArchiveCreationOptionsView: View {
         }
         .onChange(of: request.options.format) { _ in
             excludedFileCount = nil
+        }
+        .onAppear {
+            presetPassword = AppPreferences.presetPassword
+            // 默认行为：预设密码可用时复选框默认勾上 + 把预设填入 options.password 和 confirmation。
+            // 这样用户「打开设置 → 预设打开 → 点新建压缩包」三步流程里不需要再手动勾或填密码。
+            if hasUsablePreset {
+                useArchivePresetPassword = true
+                request.options.password = presetPassword
+                request.options.passwordConfirmation = presetPassword
+            }
         }
     }
 

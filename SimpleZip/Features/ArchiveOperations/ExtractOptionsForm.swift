@@ -19,6 +19,19 @@ struct ExtractOptionsForm<ExtraControls: View>: View {
     let cancel: () -> Void
     @ViewBuilder let extraControls: () -> ExtraControls
 
+    // presetPasswordEnabled 是 bool，放 UserDefaults 安全，@AppStorage 自动响应改动。
+    // 密码本身现在存在 Keychain，view 在 onAppear 时拉一次到 @State 缓冲。
+    @AppStorage(AppPreferences.Key.presetPasswordEnabled) private var presetPasswordEnabled = false
+    @State private var presetPassword = ""
+
+    /// 「使用预设密码」复选框的当前勾选状态。
+    /// 默认值：调用方在 onAppear 时按 `request.password == preset` 同步一次，
+    /// 这样能在「Finder 自动解压」「extractArchive 默认填入」「用户失败后改填别的」
+    /// 三种入口下都给出合理初始值。
+    @State private var usePresetPassword = false
+
+    private var hasUsablePreset: Bool { presetPasswordEnabled && !presetPassword.isEmpty }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text(title)
@@ -28,7 +41,18 @@ struct ExtractOptionsForm<ExtraControls: View>: View {
             Form {
                 extraControls()
                 destinationRow
-                SecureField(L10n.text("extract.password.placeholder"), text: $password)
+                if hasUsablePreset {
+                    Toggle(L10n.text("button.usePresetPassword"), isOn: $usePresetPassword)
+                        .help(L10n.text("button.usePresetPassword.help"))
+                        .onChange(of: usePresetPassword) { newValue in
+                            // 勾上：把预设值灌进 password binding；
+                            // 取消：清空让用户重新输入（保留旧值会让人迷惑「这是哪个密码」）。
+                            password = newValue ? presetPassword : ""
+                        }
+                }
+                if !(hasUsablePreset && usePresetPassword) {
+                    SecureField(L10n.text("extract.password.placeholder"), text: $password)
+                }
                 if showsZipDecryptionMethod {
                     VStack(alignment: .leading, spacing: 6) {
                         Picker(L10n.text("extract.decryptionMethod"), selection: $zipDecryptionMethod) {
@@ -58,6 +82,15 @@ struct ExtractOptionsForm<ExtraControls: View>: View {
             .controlSize(.small)
         }
         .padding(20)
+        .onAppear {
+            // 从 Keychain 拉预设密码到本地 @State，view 打开后不会再变。
+            presetPassword = AppPreferences.presetPassword
+            // 入口约定：调用方在构造 request 时已经把预设密码填进 password。
+            // 这里同步 toggle 的初始勾选状态，让用户视觉上一目了然「现在用的是预设」。
+            if hasUsablePreset && password == presetPassword && !password.isEmpty {
+                usePresetPassword = true
+            }
+        }
     }
 
     private var destinationRow: some View {

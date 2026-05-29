@@ -161,7 +161,9 @@ struct ContentView: View {
         if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue {
             model.openFolder(url)
         } else if ArchiveService.isSupportedArchive(url) {
-            model.openArchive(url)
+            // 走「外部入口」路径，让 model 根据 finderOpenAutoExtract 偏好决定
+            // 是开浏览窗口还是直接解压（同时按需复用预设密码）。
+            model.openArchiveFromExternal(url)
         } else {
             NSWorkspace.shared.open(url)
         }

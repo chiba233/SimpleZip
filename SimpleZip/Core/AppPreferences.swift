@@ -246,6 +246,12 @@ enum AppPreferences {
         static let recentSidebarPaths = "recentSidebarPaths"
         static let fileColumnOrder = "fileColumnOrder"
         static let archiveColumnOrder = "archiveColumnOrder"
+        // 用户级便捷选项：
+        // - finderOpenAutoExtract: Finder 双击打开压缩包时直接解压而不开浏览主窗口；
+        // - presetPasswordEnabled: 「预设密码」开关，bool 放 UserDefaults 安全；
+        //   实际密码内容存在 Keychain（见 PresetPasswordStore），不再放 UserDefaults。
+        static let finderOpenAutoExtract = "finderOpenAutoExtract"
+        static let presetPasswordEnabled = "presetPasswordEnabled"
     }
 
     static var startupLocation: StartupLocation {
@@ -437,6 +443,40 @@ enum AppPreferences {
             result.removeFirst()
         }
         return result.lowercased()
+    }
+
+    /// Finder 双击 / Services 等外部入口打开压缩包时是否直接解压而不开浏览窗口。
+    /// 默认关，遵循「不出意外行为」的原则。
+    static var finderOpenAutoExtract: Bool {
+        defaults.bool(forKey: Key.finderOpenAutoExtract)
+    }
+
+    /// 是否启用「预设密码」便捷功能。开启后：
+    /// 1) 创建压缩包时若选了加密会自动填入；
+    /// 2) 打开 / 解压压缩包时会先用预设尝试一次，失败再弹密码框。
+    static var presetPasswordEnabled: Bool {
+        defaults.bool(forKey: Key.presetPasswordEnabled)
+    }
+
+    /// 预设密码的实际内容。空字符串等于「未配置」。
+    /// 存储已迁到 Keychain（见 `PresetPasswordStore`）。本属性是业务侧（创建/解压自动填）
+    /// 的静默读取入口，不会触发 Touch ID。
+    static var presetPassword: String {
+        PresetPasswordStore.load()
+    }
+
+    /// 「预设密码」便捷功能是否真的可用 —— 必须既开启又填了内容。
+    /// UI 用这个属性灰按钮，业务层 (auto-fill / auto-try) 用这个判断是否走预设路径。
+    static var hasUsablePresetPassword: Bool {
+        presetPasswordEnabled && !presetPassword.isEmpty
+    }
+
+    static func setPresetPassword(_ value: String) {
+        PresetPasswordStore.save(value)
+    }
+
+    static func clearPresetPassword() {
+        PresetPasswordStore.clear()
     }
 
     static func defaultStartupURL(fileManager: FileManager = .default) -> URL {

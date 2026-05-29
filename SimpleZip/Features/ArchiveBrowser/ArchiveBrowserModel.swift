@@ -273,6 +273,33 @@ final class ArchiveBrowserModel: ObservableObject {
         openArchive(url, recordsHistory: true)
     }
 
+    /// 外部入口（Finder 双击 / Open With / 服务调用）打开压缩包的路由。
+    ///
+    /// 按用户在「通用」设置里的偏好分两条路：
+    /// - `finderOpenAutoExtract` 关：与之前完全一致，进 SimpleZip 浏览压缩包内容；
+    /// - 开：直接解压到压缩包所在目录，不进浏览。同时若开启了「预设密码」，
+    ///   request 的初始 password 就预填入预设值，免去用户再次手动确认。
+    /// DMG 当作可挂载卷处理，不走「解压」路径 —— 没有解压语义，仍打开浏览。
+    func openArchiveFromExternal(_ url: URL) {
+        guard AppPreferences.finderOpenAutoExtract else {
+            openArchive(url)
+            return
+        }
+        let supportedURL = ArchiveService.supportedArchiveURL(url) ?? url
+        if supportedURL.pathExtension.lowercased() == "dmg" {
+            openArchive(url)
+            return
+        }
+        let preset = AppPreferences.hasUsablePresetPassword ? AppPreferences.presetPassword : ""
+        let request = ExtractArchiveRequest(
+            archiveURL: supportedURL,
+            destinationURL: supportedURL.deletingLastPathComponent(),
+            password: preset,
+            detectedZipEncryption: ArchiveService.detectZipEncryption(in: supportedURL)
+        )
+        performExtractArchive(request)
+    }
+
     private func openArchive(_ url: URL, recordsHistory: Bool) {
         let supportedURL = ArchiveService.supportedArchiveURL(url) ?? url
         if supportedURL.pathExtension.lowercased() == "dmg" {
@@ -349,11 +376,14 @@ final class ArchiveBrowserModel: ObservableObject {
                 let destination = try self.makeArchiveItemOpenDirectory()
                 self.openedArchiveItemDirectories.append(destination)
                 try self.confirmArchiveExtractionSafety(entries: entries)
-                var password = ""
+                // 预设密码可用时把它作为首选 —— 这样用户不必看到弹窗（除非预设是错的）。
+                // 没有预设时 password 仍是空字符串，原本「先弹窗再尝试」的路径完整保留。
+                let hasPreset = AppPreferences.hasUsablePresetPassword
+                var password = hasPreset ? AppPreferences.presetPassword : ""
                 var zipDecryptionMethod: ArchiveDecryptionMethod = .automatic
                 var isRetry = false
 
-                if shouldPromptBeforeExtraction {
+                if shouldPromptBeforeExtraction && !hasPreset {
                     guard let authentication = self.promptForArchiveItemPassword(
                         item: item,
                         archiveURL: archiveURL,
@@ -697,9 +727,13 @@ final class ArchiveBrowserModel: ObservableObject {
             return
         }
 
+        // 预设密码开启时 request 的初始密码就填好；ExtractOptionsForm 那一头会同时把
+        // 「使用预设密码」复选框默认勾上 —— 用户不需要在偏好和对话框两处再点一遍。
+        let preset = AppPreferences.hasUsablePresetPassword ? AppPreferences.presetPassword : ""
         extractArchiveRequest = ExtractArchiveRequest(
             archiveURL: archiveURL,
             destinationURL: archiveURL.deletingLastPathComponent(),
+            password: preset,
             detectedZipEncryption: ArchiveService.detectZipEncryption(in: archiveURL)
         )
     }
@@ -779,10 +813,12 @@ final class ArchiveBrowserModel: ObservableObject {
             return
         }
 
+        let preset = AppPreferences.hasUsablePresetPassword ? AppPreferences.presetPassword : ""
         extractSelectionRequest = ExtractSelectionRequest(
             archiveURL: archiveURL,
             entries: entries,
             destinationURL: archiveURL.deletingLastPathComponent(),
+            password: preset,
             detectedZipEncryption: ArchiveService.detectZipEncryption(in: archiveURL)
         )
     }
@@ -1245,12 +1281,27 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     /// 加载压缩包内项目。具体解析交给 ArchiveService，这里只更新 UI 状态。
+    ///
+    /// header-encrypted 7z 不给密码连列表都拿不到 —— 这种情况下如果用户配了预设密码，
+    /// 优先用预设静默重试一次（不弹密码框）；预设也失败再走原本的错误提示。
+    /// 非加密 / ZIP 的常规情况第一次 list 就成功，下面的 catch 分支根本不会进。
     private func loadArchive(_ url: URL, generation: Int) async {
         beginAsyncLoad(generation: generation, statusText: L10n.text("status.readingArchive"))
         defer { endAsyncLoad(generation: generation) }
 
         do {
-            let items = try await ArchiveService.list(url)
+            let items: [ArchiveItem]
+            do {
+                items = try await ArchiveService.list(url)
+            } catch {
+                guard
+                    AppPreferences.hasUsablePresetPassword,
+                    shouldPromptForArchivePassword(error)
+                else {
+                    throw error
+                }
+                items = try await ArchiveService.list(url, password: AppPreferences.presetPassword)
+            }
             guard isCurrentLoad(generation, mode: .archive(url)) else { return }
             session.setItems(items)
             fileItems = []

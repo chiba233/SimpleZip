@@ -4,6 +4,15 @@
 
 ## 0.1.6
 
+- **New features: auto-extract from Finder + preset password**
+  - General settings now includes "Auto-extract when opened from Finder": when on, opening an archive from Finder / Services / another app extracts it directly to the archive's folder, without opening the SimpleZip browser. DMG and other mount-style formats still go through the existing browse path. Safety prompts (path traversal / symlink / active content) still apply.
+  - General settings now includes "Use a preset password": once configured and saved, creating an encrypted archive auto-fills the password, and opening / extracting password-protected archives tries the preset silently first, falling back to the password prompt only on failure. When both Finder auto-extract and preset password are on, the whole flow needs no further user confirmation.
+  - Create-archive and extract dialogs gained a "Use preset password" checkbox that only appears when the preset feature is enabled in settings. It is checked by default; unchecking lets you type a one-off password.
+- **Preset password is stored securely**
+  - The password is kept in the macOS Keychain (`kSecAttrAccessibleAfterFirstUnlock`) — only SimpleZip can read or write it — and is no longer persisted as plain text in UserDefaults.
+  - The settings input is a local buffer with an explicit "Save" button; closing the window without saving discards edits. Turning the master toggle off also wipes the Keychain entry.
+  - Revealing the password (the eye button) requires local authentication (Touch ID or your Mac login). Background auto-fill / auto-try paths read silently — they don't prompt for Touch ID every time you extract.
+
 - **Archive listing (bug fixes)**
   - Fixed a 7-Zip listing parser bug: the archive header block from `7zz l -slt` (containing `Path = <absolute path>`, `Type = 7z`, `Method = LZMA2:12`, `Solid = +`, etc.) was previously parsed as a regular entry, leaking the archive's own absolute path into the entry list and triggering ArchiveSafety's "absolute path" warning. Header blocks are now identified via the `Type` / `Physical Size` / `Headers Size` fields, which only appear in header blocks.
   - Fixed a bug where listing a password-protected archive returned an empty list: the password path uses a PTY, and macOS's default ONLCR converts `\n` to `\r\n`, but the parser did not normalize line endings, so the blank separator line between entries became `"\r"` and never triggered an entry flush, causing all entries' values to overwrite a single dict. CRLF normalization added at parser entry.
