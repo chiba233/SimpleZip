@@ -407,11 +407,7 @@ final class ArchiveExtractionCoordinator {
 
         let joinedEntries = entries.sorted().joined(separator: "\n")
         let data = Data(joinedEntries.utf8)
-        return hex(SHA256.hash(data: data))
-    }
-
-    nonisolated private static func hex<D: Sequence>(_ digest: D) -> String where D.Element == UInt8 {
-        digest.map { String(format: "%02x", $0) }.joined()
+        return HashService.hex(SHA256.hash(data: data))
     }
 
     private func makeHashProgressPanel() -> HashProgressPanel {

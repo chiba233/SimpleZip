@@ -118,7 +118,8 @@ enum HashService {
         )
     }
 
-    private nonisolated static func hex<D: Sequence>(_ digest: D) -> String where D.Element == UInt8 {
+    /// digest 字节序列转 hex 小写字符串。internal 让同 target 复用（如 ArchiveExtractionCoordinator 的 manifest 哈希）。
+    nonisolated static func hex<D: Sequence>(_ digest: D) -> String where D.Element == UInt8 {
         digest.map { String(format: "%02x", $0) }.joined()
     }
 }

@@ -383,44 +383,21 @@ private struct LocationKeyboardTextField: NSViewRepresentable {
         ) -> Bool {
             switch commandSelector {
             case #selector(NSResponder.insertNewline(_:)):
-                return handleKeyCommand(.submit)
+                parent.onSubmit()
             case #selector(NSResponder.moveUp(_:)):
-                return handleKeyCommand(.moveUp)
+                parent.onMoveSelection(-1)
             case #selector(NSResponder.moveDown(_:)):
-                return handleKeyCommand(.moveDown)
+                parent.onMoveSelection(1)
             case #selector(NSResponder.insertTab(_:)):
-                return handleKeyCommand(.complete)
+                parent.onCompleteSelection()
             case #selector(NSResponder.cancelOperation(_:)):
-                return handleKeyCommand(.cancel)
+                parent.onCancel()
             default:
                 return false
-            }
-        }
-
-        func handleKeyCommand(_ command: LocationTextKeyCommand) -> Bool {
-            switch command {
-            case .submit:
-                parent.onSubmit()
-            case .moveUp:
-                parent.onMoveSelection(-1)
-            case .moveDown:
-                parent.onMoveSelection(1)
-            case .complete:
-                parent.onCompleteSelection()
-            case .cancel:
-                parent.onCancel()
             }
             return true
         }
     }
-}
-
-private enum LocationTextKeyCommand {
-    case submit
-    case moveUp
-    case moveDown
-    case complete
-    case cancel
 }
 
 private final class KeyboardTextField: NSTextField {

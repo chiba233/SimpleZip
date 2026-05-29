@@ -756,7 +756,7 @@ final class ArchiveBrowserModel: ObservableObject {
             return
         }
 
-        let destination = currentFolder.appendingPathComponent(defaultArchiveName(for: items))
+        let destination = currentFolder.appendingPathComponent(defaultArchiveName(for: items.map(\.url)))
         archiveCreationRequest = ArchiveCreationRequest(sourceURLs: items.map(\.url), directoryURL: currentFolder, destinationURL: destination)
     }
 
@@ -1541,13 +1541,6 @@ final class ArchiveBrowserModel: ObservableObject {
             errorMessage = error.localizedDescription
             status = L10n.text("status.couldNotReadArchive")
         }
-    }
-
-    private func defaultArchiveName(for items: [FileItem]) -> String {
-        if items.count == 1 {
-            return items[0].url.deletingPathExtension().lastPathComponent + ".zip"
-        }
-        return "Archive.zip"
     }
 
     private func defaultArchiveName(for urls: [URL]) -> String {
