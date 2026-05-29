@@ -6,10 +6,6 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		A10000142FD0000000000014 /* SimpleZipFinderExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = A10000022FD0000000000002 /* SimpleZipFinderExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-/* End PBXBuildFile section */
-
 /* Begin PBXAggregateTarget section */
 		0846B9802FB350F10095DC1D /* SimpleZipCoreTests */ = {
 			isa = PBXAggregateTarget;
@@ -23,6 +19,10 @@
 			productName = SimpleZipCoreTests;
 		};
 /* End PBXAggregateTarget section */
+
+/* Begin PBXBuildFile section */
+		A10000142FD0000000000014 /* SimpleZipFinderExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = A10000022FD0000000000002 /* SimpleZipFinderExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
 		A10000132FD0000000000013 /* PBXContainerItemProxy */ = {

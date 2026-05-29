@@ -39,6 +39,10 @@ jobs:
           xcodebuild -version
           echo "DEVELOPER_DIR=$DEVELOPER_DIR"
 
+      - name: Run SwiftPM core tests
+        run: |
+          /usr/bin/env DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer /usr/bin/xcrun swift test --scratch-path /private/tmp/SimpleZipSwiftPM -Xswiftc -module-cache-path -Xswiftc /private/tmp/SimpleZipSwiftPM/ModuleCache
+
       - name: Install RAR backend
         run: ./scripts/install_rar_backend.sh
 
