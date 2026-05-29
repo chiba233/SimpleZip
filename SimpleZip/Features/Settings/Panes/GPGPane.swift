@@ -43,6 +43,15 @@ struct GPGPane: View {
     @State private var cardStatus: GPGBackend.GPGCardStatus?
     @State private var isDetectingCard = false
 
+    @State private var isShowingNewKeySheet = false
+
+    /// 待删除密钥的待确认 alert 状态。nil = 不显示。
+    @State private var pendingDeleteKey: GPGBackend.GPGKey?
+    /// 「修改过期时间」sheet 的目标密钥。nil = 不显示。
+    @State private var pendingExpirationKey: GPGBackend.GPGKey?
+    /// 「生成撤销证书」sheet 的目标密钥。nil = 不显示。
+    @State private var pendingRevocationKey: GPGBackend.GPGKey?
+
     var body: some View {
         Form {
             mainToggleSection
@@ -78,6 +87,72 @@ struct GPGPane: View {
                 cardStatus = nil
             }
         }
+        .sheet(isPresented: $isShowingNewKeySheet) {
+            NewGPGKeySheet(isPresented: $isShowingNewKeySheet) { fingerprint in
+                keyOperationMessage = fingerprint.isEmpty
+                    ? L10n.text("settings.gpg.newKey.succeededNoFingerprint")
+                    : L10n.format("settings.gpg.newKey.succeeded", String(fingerprint.suffix(16)))
+                refreshKeys()
+            }
+        }
+        // 修改过期时间 sheet
+        .sheet(item: $pendingExpirationKey) { key in
+            EditExpirationSheet(key: key, isPresented: Binding(
+                get: { pendingExpirationKey != nil },
+                set: { if !$0 { pendingExpirationKey = nil } }
+            )) { newExpiration in
+                applyExpiration(for: key, expiration: newExpiration)
+            }
+        }
+        // 生成撤销证书 sheet
+        .sheet(item: $pendingRevocationKey) { key in
+            GenerateRevocationSheet(key: key, isPresented: Binding(
+                get: { pendingRevocationKey != nil },
+                set: { if !$0 { pendingRevocationKey = nil } }
+            )) { reason, description in
+                generateRevocation(for: key, reason: reason, description: description)
+            }
+        }
+        // 删除密钥确认 alert —— 走 macOS 标准 destructive alert，二次确认。
+        .alert(
+            deleteAlertTitle,
+            isPresented: Binding(
+                get: { pendingDeleteKey != nil },
+                set: { if !$0 { pendingDeleteKey = nil } }
+            ),
+            presenting: pendingDeleteKey
+        ) { key in
+            Button(L10n.text("settings.gpg.keys.deleteConfirmButton"), role: .destructive) {
+                deleteKey(key)
+            }
+            Button(L10n.text("button.cancel"), role: .cancel) {
+                pendingDeleteKey = nil
+            }
+        } message: { key in
+            Text(deleteAlertMessage(for: key))
+        }
+    }
+
+    private var deleteAlertTitle: String {
+        guard let key = pendingDeleteKey else { return "" }
+        if key.hasSecretKey {
+            return L10n.format("settings.gpg.keys.deleteSecretTitle", key.userID)
+        }
+        return L10n.format("settings.gpg.keys.deletePublicTitle", key.userID)
+    }
+
+    private func deleteAlertMessage(for key: GPGBackend.GPGKey) -> String {
+        let fp = key.shortFingerprint
+        let ringName: String = key.source == .userKeyring
+            ? L10n.text("settings.gpg.keys.ringNameUser")
+            : L10n.text("settings.gpg.keys.ringNameSimpleZip")
+        if key.isSecretKeyOnSmartcard {
+            return L10n.format("settings.gpg.keys.deleteSmartcardMessage", fp, ringName)
+        }
+        if key.hasSecretKey {
+            return L10n.format("settings.gpg.keys.deleteSecretMessage", fp, ringName)
+        }
+        return L10n.format("settings.gpg.keys.deletePublicMessage", fp, ringName)
     }
 
     // MARK: - 普通区 sections
@@ -164,7 +239,11 @@ struct GPGPane: View {
                 keyGroupsView
             }
 
+            // 操作按钮组：新建 / 导入到 ~/.gnupg / 导入到 SimpleZip / (智能卡) / 刷新
             HStack(spacing: 8) {
+                Button(L10n.text("settings.gpg.newKey.button")) {
+                    isShowingNewKeySheet = true
+                }
                 Button(L10n.text("settings.gpg.keys.importUserButton")) {
                     importKey(into: .userKeyring)
                 }
@@ -219,8 +298,10 @@ struct GPGPane: View {
                         .foregroundStyle(.secondary)
                 } else {
                     let matched = keys.first { $0.fingerprint == defaultSigningKeyFingerprint }
+                    // 注意：`defaultSigningKeyFingerprint.suffix(16)` 返回 `Substring`，Substring 桥到 CVarArg 时
+                    // 被 printf 当字符序列化导致出现 `"\"D\"", "\"8\"",` 一团乱码。必须先 String(...) 转一遍。
                     Text(matched.map { "\($0.userID) · \($0.shortFingerprint)" }
-                         ?? L10n.format("settings.gpg.defaultSigning.unknownFingerprint", defaultSigningKeyFingerprint.suffix(16) as CVarArg))
+                         ?? L10n.format("settings.gpg.defaultSigning.unknownFingerprint", String(defaultSigningKeyFingerprint.suffix(16))))
                         .font(.caption)
                         .foregroundStyle(matched == nil ? .orange : .secondary)
                         .textSelection(.enabled)
@@ -293,24 +374,50 @@ struct GPGPane: View {
     }
 
     /// 四分组渲染。空组不渲染。
+    ///
+    /// 关闭智能卡 toggle 时，智能卡 stub 密钥**降级**到对应「他人公钥」组（按 source 路由）——
+    /// 用户关掉智能卡功能 = 不想再追踪卡上密钥分组；但他们本机有公钥，**不能完全消失**。降级后这些密钥
+    /// 视觉上跟普通公钥同居一组（卡上 / stripped badge 仍展示，告诉用户真实状态），但行尾的「设为默认签名密钥」
+    /// 按钮自动消失（不让用户给一个「无私钥可用」状态的密钥设默认签名）。
     @ViewBuilder
     private var keyGroupsView: some View {
-        let myLocalKeys = keys.filter { $0.hasSecretKey && !$0.isSecretKeyStub }
-        let smartcardKeys = keys.filter { $0.hasSecretKey && $0.isSecretKeyStub }
-        let publicGPGKeys = keys.filter { !$0.hasSecretKey && $0.source == .userKeyring }
-        let publicSZKeys = keys.filter { !$0.hasSecretKey && $0.source == .simpleZipKeyring }
+        // 按 (source, hasSecretKey, isSecretKeyStub) 拆 **5 组**：
+        // - 我的密钥（本机私钥 - ~/.gnupg/）：user + secret + 非 stub
+        // - 我的密钥（智能卡 / OpenPGP token）：user + secret + stub —— 跟 source 强绑（卡上密钥只可能在用户 GNUPGHOME 里）
+        // - 我的密钥（SimpleZip 私有）：simpleZip + secret —— 用户在 SimpleZip 私有 homedir 里新建 / 导入私钥的目标组
+        // - 他人公钥（GPG keyring）：user + 无 secret （智能卡 toggle 关时 user stub 也算）
+        // - 他人公钥（仅 SimpleZip）：simpleZip + 无 secret
+        let myLocalUserKeys = keys.filter { $0.hasSecretKey && !$0.isSecretKeyStub && $0.source == .userKeyring }
+        let mySmartcardKeys = keys.filter { $0.hasSecretKey && $0.isSecretKeyStub && $0.source == .userKeyring }
+        let mySimpleZipKeys = keys.filter { $0.hasSecretKey && $0.source == .simpleZipKeyring }
+        let publicGPGKeys = keys.filter { key in
+            guard key.source == .userKeyring else { return false }
+            if !key.hasSecretKey { return true }
+            if !gpgSmartcardEnabled && key.isSecretKeyStub { return true }
+            return false
+        }
+        let publicSZKeys = keys.filter { key in
+            guard key.source == .simpleZipKeyring else { return false }
+            return !key.hasSecretKey
+        }
 
         VStack(alignment: .leading, spacing: 14) {
-            if !myLocalKeys.isEmpty {
+            if !myLocalUserKeys.isEmpty {
                 keyGroup(
                     title: L10n.text("settings.gpg.keys.mine.title"),
-                    keys: myLocalKeys
+                    keys: myLocalUserKeys
                 )
             }
-            if gpgSmartcardEnabled && !smartcardKeys.isEmpty {
+            if gpgSmartcardEnabled && !mySmartcardKeys.isEmpty {
                 keyGroup(
                     title: L10n.text("settings.gpg.keys.mineSmartcard.title"),
-                    keys: smartcardKeys
+                    keys: mySmartcardKeys
+                )
+            }
+            if !mySimpleZipKeys.isEmpty {
+                keyGroup(
+                    title: L10n.text("settings.gpg.keys.mineSimpleZip.title"),
+                    keys: mySimpleZipKeys
                 )
             }
             if !publicGPGKeys.isEmpty {
@@ -340,6 +447,9 @@ struct GPGPane: View {
                     GPGKeyRow(
                         key: key,
                         isDefaultSigningKey: defaultSigningKeyFingerprint == key.fingerprint,
+                        // canBeDefaultSigner = keyring 里有任何形式的私钥引用（本机 / 智能卡 stub / stripped 都算）。
+                        // 智能卡 UI toggle 只影响**展示**（分组 + 卡按钮），不影响功能 —— gpg + 插卡仍可签名，
+                        // 所以「设为默认」按钮在所有 hasSecretKey 的行上保留，让用户能把卡上密钥设为默认签名。
                         canBeDefaultSigner: key.hasSecretKey,
                         onTrustChange: { newLevel in
                             setTrust(for: key, to: newLevel)
@@ -355,6 +465,18 @@ struct GPGPane: View {
                         },
                         onExportPublicKey: {
                             exportPublicKey(for: key)
+                        },
+                        onExportPrivateKey: {
+                            exportPrivateKey(for: key)
+                        },
+                        onEditExpiration: {
+                            pendingExpirationKey = key
+                        },
+                        onGenerateRevocation: {
+                            pendingRevocationKey = key
+                        },
+                        onDelete: {
+                            pendingDeleteKey = key
                         }
                     )
                     if key.id != keys.last?.id {
@@ -552,6 +674,117 @@ struct GPGPane: View {
         }
     }
 
+    /// 导出**私钥**到 `.asc` 文件 —— 备份 / 迁移用。文件里是 passphrase 加密的 blob，分两个地方存（私钥 + passphrase 不要同地存）。
+    private func exportPrivateKey(for key: GPGBackend.GPGKey) {
+        let savePanel = NSSavePanel()
+        savePanel.nameFieldStringValue = "\(key.userID.replacingOccurrences(of: " ", with: "_"))_\(key.shortFingerprint)-secret.asc"
+        savePanel.allowedContentTypes = [UTType(filenameExtension: "asc") ?? .data]
+        savePanel.message = L10n.text("settings.gpg.keys.exportPrivatePanelMessage")
+        guard savePanel.runModal() == .OK, let url = savePanel.url else { return }
+        keyOperationMessage = nil
+        Task {
+            do {
+                let armor = try await GPGBackend.exportSecretKey(fingerprint: key.fingerprint, source: key.source)
+                try armor.write(to: url, atomically: true, encoding: .utf8)
+                await MainActor.run {
+                    keyOperationMessage = L10n.format("settings.gpg.keys.exportPrivateSucceeded", url.lastPathComponent)
+                }
+            } catch {
+                await MainActor.run {
+                    keyOperationMessage = L10n.format("settings.gpg.keys.exportPrivateFailed", error.localizedDescription)
+                }
+            }
+        }
+    }
+
+    /// 删除密钥 —— 按 `hasSecretKey` 选 `--delete-secret-and-public-key` 还是 `--delete-keys`。
+    /// 智能卡 stub 删除只清本机 stub，卡上私钥不动（重新插卡 + import 又能拉回）。
+    private func deleteKey(_ key: GPGBackend.GPGKey) {
+        pendingDeleteKey = nil
+        keyOperationMessage = nil
+        Task {
+            do {
+                _ = try await GPGBackend.deleteKey(
+                    fingerprint: key.fingerprint,
+                    deleteSecret: key.hasSecretKey,
+                    source: key.source
+                )
+                let refreshed = try? await GPGBackend.listKeys()
+                await MainActor.run {
+                    keys = refreshed ?? []
+                    // 删的恰好是当前默认签名密钥 → 清掉
+                    if defaultSigningKeyFingerprint == key.fingerprint {
+                        defaultSigningKeyFingerprint = ""
+                    }
+                    keyOperationMessage = L10n.format("settings.gpg.keys.deleteSucceeded", key.userID)
+                }
+            } catch {
+                await MainActor.run {
+                    keyOperationMessage = L10n.format("settings.gpg.keys.deleteFailed", error.localizedDescription)
+                }
+            }
+        }
+    }
+
+    /// 修改密钥过期 —— gpg `--edit-key <fpr> expire <duration> save`。
+    private func applyExpiration(for key: GPGBackend.GPGKey, expiration: GPGBackend.GPGKeyExpiration) {
+        keyOperationMessage = nil
+        Task {
+            do {
+                try await GPGBackend.setKeyExpiration(
+                    fingerprint: key.fingerprint,
+                    expiration: expiration,
+                    source: key.source
+                )
+                let refreshed = try? await GPGBackend.listKeys()
+                await MainActor.run {
+                    keys = refreshed ?? keys
+                    keyOperationMessage = L10n.format("settings.gpg.keys.expirationChangeSucceeded", key.userID, expiration.displayName)
+                }
+            } catch {
+                await MainActor.run {
+                    keyOperationMessage = L10n.format("settings.gpg.keys.expirationChangeFailed", error.localizedDescription)
+                }
+            }
+        }
+    }
+
+    /// 生成撤销证书 —— gpg `--gen-revoke <fpr>` 输出 ASCII armor，弹 NSSavePanel 让用户存到 `.asc`。
+    private func generateRevocation(for key: GPGBackend.GPGKey, reason: GPGBackend.GPGRevocationReason, description: String) {
+        keyOperationMessage = nil
+        Task {
+            do {
+                let armor = try await GPGBackend.generateRevocationCert(
+                    fingerprint: key.fingerprint,
+                    reason: reason,
+                    description: description,
+                    source: key.source
+                )
+                // 回主线程弹 NSSavePanel
+                await MainActor.run {
+                    let panel = NSSavePanel()
+                    panel.nameFieldStringValue = "\(key.userID.replacingOccurrences(of: " ", with: "_"))_\(key.shortFingerprint)-revocation.asc"
+                    panel.allowedContentTypes = [UTType(filenameExtension: "asc") ?? .data]
+                    panel.message = L10n.text("settings.gpg.keys.revokeSavePanelMessage")
+                    guard panel.runModal() == .OK, let url = panel.url else {
+                        keyOperationMessage = L10n.text("settings.gpg.keys.revokeCancelledByUser")
+                        return
+                    }
+                    do {
+                        try armor.write(to: url, atomically: true, encoding: .utf8)
+                        keyOperationMessage = L10n.format("settings.gpg.keys.revokeSucceeded", url.lastPathComponent)
+                    } catch {
+                        keyOperationMessage = L10n.format("settings.gpg.keys.revokeWriteFailed", error.localizedDescription)
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    keyOperationMessage = L10n.format("settings.gpg.keys.revokeFailed", error.localizedDescription)
+                }
+            }
+        }
+    }
+
     private func detectCard() {
         isDetectingCard = true
         Task {
@@ -614,6 +847,10 @@ private struct GPGKeyRow: View {
     let onSetDefaultSigning: () -> Void
     let onCopyFingerprint: () -> Void
     let onExportPublicKey: () -> Void
+    let onExportPrivateKey: () -> Void
+    let onEditExpiration: () -> Void
+    let onGenerateRevocation: () -> Void
+    let onDelete: () -> Void
 
     @State private var isExpanded = false
 
@@ -653,6 +890,8 @@ private struct GPGKeyRow: View {
 
                 Spacer()
 
+                actionsMenu
+
                 if canBeDefaultSigner {
                     defaultSigningControl
                 }
@@ -666,12 +905,52 @@ private struct GPGKeyRow: View {
         }
         .padding(.vertical, 5)
         .contextMenu {
-            Button(L10n.text("settings.gpg.keys.contextCopyFingerprint")) {
-                onCopyFingerprint()
+            menuItems
+        }
+    }
+
+    /// 可见的 `…` Menu 按钮 —— 把所有操作摊出来让用户知道有什么可做的（右键 context menu 是 power user shortcut）。
+    /// 内容跟 contextMenu 共用 `menuItems` ViewBuilder。
+    @ViewBuilder
+    private var actionsMenu: some View {
+        Menu {
+            menuItems
+        } label: {
+            Image(systemName: "ellipsis.circle")
+                .font(.system(size: 14))
+                .foregroundStyle(.secondary)
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+    }
+
+    @ViewBuilder
+    private var menuItems: some View {
+        Button(L10n.text("settings.gpg.keys.contextCopyFingerprint")) {
+            onCopyFingerprint()
+        }
+        Button(L10n.text("settings.gpg.keys.contextExportPublicKey")) {
+            onExportPublicKey()
+        }
+        // 修改过期 / 生成撤销证书 / 导出私钥：仅本机持有私钥的密钥可用（需要 gpg 访问私钥操作）。
+        // 智能卡 stub 也算「持有」—— gpg 会要求插卡 + 输入卡 PIN。
+        if key.hasSecretKey {
+            Button(L10n.text("settings.gpg.keys.contextExportPrivateKey")) {
+                onExportPrivateKey()
             }
-            Button(L10n.text("settings.gpg.keys.contextExportPublicKey")) {
-                onExportPublicKey()
+            Divider()
+            Button(L10n.text("settings.gpg.keys.contextEditExpiration")) {
+                onEditExpiration()
             }
+            Button(L10n.text("settings.gpg.keys.contextGenerateRevocation")) {
+                onGenerateRevocation()
+            }
+        }
+        // 删除密钥：所有密钥都可删（公钥 / 含私钥 / 卡 stub），UI 层做差异化确认。
+        Divider()
+        Button(L10n.text("settings.gpg.keys.contextDelete"), role: .destructive) {
+            onDelete()
         }
     }
 

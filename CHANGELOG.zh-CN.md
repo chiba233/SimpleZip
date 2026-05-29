@@ -4,6 +4,93 @@
 
 ## 0.1.8
 
+- **Bug 修复：SimpleZip 私有 homedir 里造的密钥仍被分到「我的密钥（本机私钥）」组**
+  - 现象：用户切换到 `--homedir` 后造密钥，密钥**确实**进 SimpleZip 私有 homedir 了（数据正确），但 GPGPane UI 还是把它显示在「我的密钥（本机私钥）」组里 —— 跟用户在 `~/.gnupg/` 的密钥混着。
+  - 根因：`keyGroupsView` 的 `myLocalKeys` 过滤器只看 `hasSecretKey && !isSecretKeyStub`，**没看 `source`**。SimpleZip 私有 homedir 里造的密钥也有 hasSecretKey，被一锅端到本机组。
+  - 修法：拆出第 5 个分组「我的密钥（SimpleZip 私有 · 独立 GNUPGHOME）」，过滤条件加 `source == .simpleZipKeyring`。本机私钥组也加 `source == .userKeyring` 限定，互不串组。
+  - 五分组现状：本机私钥（~/.gnupg/）/ 智能卡 / SimpleZip 私有 / 他人公钥（GPG）/ 他人公钥（仅 SimpleZip），按 `(source, hasSecretKey, isStub)` 排列；空组不渲染。
+
+- **SimpleZip 私有钥匙串切换到 `--homedir` 独立 GNUPGHOME（治本方案）+ 默认签名密钥乱码 bug 修复**
+  - **「保存到 SimpleZip 私有」仍写到 ~/.gnupg/ 的根因**：上一轮加 `--primary-keyring` 后用户验证仍不行 —— gpg 在 `--quick-generate-key` 路径上对 `--no-default-keyring + --keyring + --primary-keyring` 三件套的行为版本之间漂移，某些 gpg 版本依然把新生密钥写到默认 `~/.gnupg/pubring.kbx`。修补无效。
+  - **治本方案**：SimpleZip 私有改用 **`gpg --homedir <SimpleZip-gnupg-dir>`** 独立 GNUPGHOME。gpg 看到 `--homedir` 时**完全切到那个目录**当作独立 gpg 设置（独立 pubring / secring / trustdb / gpg.conf），无歧义。新位置：`~/Library/Application Support/SimpleZip/gnupg/`，目录权限强制 0700（gpg 强制要求）。
+  - **真正的隔离**：之前 `--keyring` 时私钥仍存 `~/.gnupg/private-keys-v1.d/`，只算「半隔离」；现在私钥也进 `<SZ-home>/private-keys-v1.d/`，**完全独立**。卸载 SimpleZip 删 `~/Library/Application Support/SimpleZip/` 即彻底清理，0 残留。
+  - **自动迁移老数据**：首次访问新 homedir 时，如果发现老的 `<SZ>/keyring/pubring.kbx` 存在且新 `<SZ>/gnupg/pubring.kbx` 不存在 → 把文件移过去。老用户已经导入 SimpleZip 私有 ring 的他人公钥不会丢。
+  - **验签管线改两 pass**：之前用 `--keyring <SZ>` 叠加搜索的方案在 homedir 模式下不成立（`--homedir` 排他）。`GPGBackend.verify` 改为并发跑两 pass：默认 homedir（用户 `~/.gnupg/`）+ SimpleZip homedir。两个结果按「badSignature > validSignature > unknownSigner > verificationError」优先级合并 —— 最严重判定（被改）永远不会被另一 pass 的 valid 误判遮住。
+  - 所有 SimpleZip-private 操作（list / import / sign / verify / setTrust / editExpiration / revoke / delete / createKey / exportSecret 等）全部切到 `--homedir <SZ>` 路径；冗余的 `--no-default-keyring` / `--primary-keyring` 删除。
+  - 老的 `simpleZipKeyringDirectory()` / `simpleZipPubringPath()` / `simpleZipKeyringArguments()` 保留 deprecated 别名（指向新 homedir 路径），让 advanced 区「SimpleZip 私有 ring 路径」行不退化。
+- **Bug 修复：默认签名密钥行显示「指纹: ...\"D\"\\, \"8\"\\\\, ...\"」一团乱码**
+  - 现象：钥匙串顶部「默认签名密钥」状态行，如果当前默认 fingerprint 在 keyring 里找不到（用户删了这把密钥但 fingerprint 还在 prefs 里），显示出来的是几十行 `"\"D\""`, `"\"8\""`, `"\"B\""`... 一坨转义乱码（截图证据）。
+  - 根因：`L10n.format("…%@", defaultSigningKeyFingerprint.suffix(16) as CVarArg)` —— `String.suffix(16)` 返回的是 `Substring`，Substring bridge 成 NSObject 给 printf-style format 时被当作 character sequence 序列化成 JSON 数组样子。
+  - 修法：包一层 `String(...)` 强制转回 String 再传 format。
+
+- **三个 GPG 钥匙串 UX bug 修复 + 缺失功能补齐**
+  - **保存到 SimpleZip 私有钥匙串选项实际写到 ~/.gnupg/ 的 bug**：用户报告创建时选「SimpleZip 私有」，结果新密钥跑到「我的密钥（本机私钥）」组里。根因：`createKey` 给 `--no-default-keyring --keyring <SZ>` 但没加 `--primary-keyring <SZ>` —— 部分 gpg 版本下 `--quick-generate-key` 没有 primary-keyring 时仍写到默认 ring。三件套补齐后写入正确。
+  - **删除按钮看不见的 bug**：之前删除 / 修改过期 / 生成撤销证书 / 复制指纹 / 导出公钥**全藏在右键 context menu** —— 用户根本不知道要右键。每行加显眼的 **「⋯」Menu 按钮**（borderless ellipsis.circle 图标），点开把所有操作摊出来。右键 context menu 保留给 power user。
+  - **导出私钥功能**：菜单新增「导出私钥为 .asc…」（仅 `hasSecretKey` 行可见）。后端 `GPGBackend.exportSecretKey(fingerprint:source:)` 跑 `gpg --batch --pinentry-mode loopback --passphrase '' --armor --export-secret-keys <fp>`。导出的私钥**仍是 passphrase 加密的 blob**（gpg 不解密 secring 就能导出），导入到另一台机器仍要原 passphrase。文案提示「不要跟 passphrase 一起放」（分两处存：私钥在 U 盘、passphrase 在密码管理器）。
+  - **新建密钥加 authentication subkey 选项**：之前 `--quick-generate-key default` 只造主密钥（sign+cert）+ encryption subkey，没认证密钥 —— 想用 GPG 密钥代替 SSH key 登录的用户被坑。sheet 新增「子密钥配置」section，显示默认就有的两项（签 + 加密）+ 可选 toggle「认证 — authentication subkey」。开了之后 createKey 在主密钥生成完后串跑 `gpg --quick-add-key <primary> <algo> auth <expire>` 加 auth subkey。同算法（ed25519 / RSA）保持一致。
+  - 后端 `createKey` 加 `addAuthenticationSubkey: Bool` 参数 + auth subkey 串行调用。主密钥造完即返回 fingerprint，auth subkey 失败不抛错（避免「主密钥已造好但 UI 报错」的撕裂状态）。
+
+- **「新建密钥」passphrase 改走 loopback —— pinentry-mac 不弹时也能用**
+  - 上一轮加了 gpg-agent 预拉 + 流式状态 + 取消按钮，但用户反馈依然 pinentry-mac 不弹（macOS GUI app 进程环境差异 / `gpg-agent.conf` 没配 `pinentry-program` 等真实环境问题）—— 即使有取消按钮，「点了创建什么都不发生」依然是块石头。
+  - **改方案**：新建密钥流程切到 `gpg --pinentry-mode loopback --passphrase-fd 0`。SimpleZip sheet 加 `SecureField` 收 passphrase + 确认 field，通过 stdin pipe 喂给 gpg（不进 cmdline，`ps` / Activity Monitor 看不到）。子进程退出后 passphrase 立即释放、不写盘、不进 Keychain。
+  - **安全立场调整**：之前的「SimpleZip 绝不接触 passphrase」是漂亮的姿态，但前提是 pinentry-mac 100% 可用 —— 实际环境里不是。Kleopatra / GPG Suite 也用同款 loopback 解法。其他 GPG 操作（签名 / 解密 / 改信任级别 / 修改过期 / 撤销证书）**仍走 pinentry-mac**（gpg-agent 会缓存，不会每次都问），只是新建密钥这一锤改路径。
+  - **留空 passphrase 二次确认**：UI 允许留空 = 创建无 passphrase 密钥，但弹 `NSAlert` 显式确认「私钥任何人拿到 ~/.gnupg/private-keys-v1.d/ 就能用，仅自动化 / 测试场景再这么做」。文案点明合法用途（CI / 短期测试密钥）+ 警告（被偷立即沦陷）。
+  - **两次输入校验**：passphrase + 确认 field 不一致时显示红字提示「两次输入的 passphrase 不一致」，不进入创建流程。
+  - **passphrase 强度提示**：placeholder「至少 8 字符；建议短句 + 数字 + 符号」给基础引导（不做强制校验，避免锁死合理但短的 passphrase）。
+  - **liveStatus 状态文案保留**：上一轮的「正在启动 gpg-agent → 正在生成密钥材料 → 等待系统熵」三态仍然显示，加上「卡太久点取消」提示常驻。
+  - 已删 sheet 里的「Passphrase 走 macOS 原生对话框」蓝色卡片（不再适用），替换为「Passphrase + Passphrase 输入区」蓝色卡片。
+  - 撤销证书 / 修改过期等其他用 pinentry-mac 的入口暂时保留 pinentry 路径；如果这些也碰到「不弹」问题，下一轮单独迁移。
+
+- **Bug + UX 修复：「新建密钥」一直卡在「正在生成密钥」 + passphrase 说明不明显**
+  - **症状**：用户报告点「创建」后 sheet 一直显示「正在生成密钥…」死等。同时反馈「密钥不是可以设置密码吗？」—— 不知道 passphrase 是在哪儿设的。
+  - **根因 1：UI 死等**：原 sheet 只有 `ProgressView` + 「正在生成密钥…」静态文案。pinentry-mac 密码框可能弹出但被其他窗口挡住 / 弹在其他 Mission Control 空间 / gpg-agent 没启起 pinentry —— 用户完全看不到底层在干什么，**也没有取消按钮可以挽救**。
+  - **根因 2：passphrase 说明不显眼**：sheet 底部之前有「Passphrase 由 gpg-agent + pinentry-mac 弹原生密码框」说明，但只是一行小灰字，用户根本没看到。误以为 SimpleZip 没做 passphrase 功能。
+  - **修法**：
+    - **预拉 gpg-agent**：`createKey` 跑 `gpgconf --launch gpg-agent`（幂等）确保 pinentry 通道活着，跑失败也不阻断（gpg 自己也会 spawn agent）。
+    - **流式状态更新**：`createKey` 加 `outputObserver` 回调，sheet 解析 `--status-fd 1` 输出的 `[GNUPG:] PINENTRY_LAUNCHED` / `PROGRESS need_entropy` / `KEY_CONSIDERED` 等 token 实时更新文案：「正在启动 gpg-agent…」/「正在生成密钥材料…」/「等待你在 pinentry-mac 密码框里输入 passphrase…」/「等待系统熵…」。
+    - **取消按钮**：`createKey` 加 `operationID` 参数，sheet 生成时给 `BackendProcessRunner` 注册 ID，用户随时点「取消」杀掉 gpg 进程恢复。取消后显示「已取消密钥生成」错误。
+    - **passphrase 说明卡片化**：sheet 中间用蓝色高亮卡片明确写「点「创建」后，gpg-agent 会调出 pinentry-mac 弹独立的 macOS 密码框让你给新密钥设置 passphrase。SimpleZip 全程不接触 passphrase（更安全 + 更标准）。如果点了「创建」十几秒还没看到密码框，请检查 Dock / 其他 Mission Control 空间 / 通知中心」。用户清楚知道密码到底在哪儿输。
+    - **troubleshoot 提示常驻**：生成中的状态横条下方常驻一行小灰字：「看不到密码框？检查 Dock 通知 / Mission Control 其他空间 / 「设置 → GPG → 高级」里 pinentry-mac 是否就绪。卡太久点「取消」终止。」用户卡住时知道怎么自救。
+
+- **新功能：GPG 密钥 lifecycle 三件套 ——「修改过期时间」/「生成撤销证书」/「删除密钥」**
+  - 每行密钥右键 context menu 新增 3 个操作（复制 fingerprint / 导出公钥之后）：
+    - **修改过期时间**：仅 `hasSecretKey` 的密钥可见（需要 gpg 访问私钥）。打开 sheet 选新过期（永不 / 1y / 2y / 5y），点应用走 `gpg --edit-key <fpr> expire <duration> save`。即将过期可延期，已过期也可重新启用。
+    - **生成撤销证书**：仅 `hasSecretKey` 可见。打开 sheet 选撤销原因（未指定 / 已泄漏 / 已被新密钥替代 / 不再使用）+ 描述 textarea。生成后弹 NSSavePanel 让用户存到 `.asc` 文件。**sheet 顶部显眼说明撤销证书的「自毁开关」意义**：应在密钥还能用时就提前生成 + 保存到离线介质（U 盘 / 纸质 QR），等私钥真出事时来不及了。
+    - **删除密钥**：所有密钥可见（带 destructive 红色样式 + Divider 隔开）。用 `.alert` 标准 macOS destructive 双确认。文案按密钥类型差异化：
+      - 公钥行（`!hasSecretKey`）：单 confirm + 提示「仅删公钥，未来还需要可以重新导入」。
+      - 含本机私钥（`hasSecretKey && !isSecretKeyStub`）：强调「私钥一旦删除**无法恢复**，签过的文件未来无法再签 / 解密给你的内容永远解不了。建议先生成撤销证书再删」。
+      - 智能卡 stub（`isSecretKeyOnSmartcard`）：说明「仅删本机 stub，卡上私钥不受影响，重新插卡 + 从智能卡导入公钥即可恢复」。
+  - 删除恰好是当前默认签名密钥时，自动清空 `gpgDefaultSigningKeyFingerprint` 偏好 —— 不让 UI 指向一把已不存在的密钥。
+  - **Passphrase** 全程交给 gpg-agent + pinentry-mac 弹原生密码框；SimpleZip 不接触 passphrase（[[feedback-gpg-release-emphasis]]）。
+  - 后端：
+    - `GPGBackend.deleteKey(fingerprint:deleteSecret:source:)` —— `--batch --yes --delete-secret-and-public-key` 或 `--delete-keys`，按 source 加 `--no-default-keyring --keyring <SZ>`。
+    - `GPGBackend.setKeyExpiration(fingerprint:expiration:source:)` —— `gpg --command-fd 0 --edit-key <fpr>` 喂 `expire\n<duration>\nsave\n`。
+    - `GPGBackend.generateRevocationCert(fingerprint:reason:description:source:) -> String` —— `gpg --armor --command-fd 0 --gen-revoke <fpr>` 喂 `y\n<reason>\n<desc>\n\ny\n`，返回 ASCII armor 文本，调用方写文件。
+    - 新 enum `GPGRevocationReason`（none / compromised / superseded / notUsed）。
+
+- **Bug 修复：关掉智能卡 toggle 后「设为默认」按钮在卡上密钥行消失**
+  - 用户报告：开了智能卡 toggle 时 OpenPGP 卡密钥能「设为默认签名密钥」；关掉 toggle 后这把密钥降级到「他人公钥」组，「设为默认」按钮也消失了 ——「啥意思」。
+  - 根因：上一轮我把 `canBeDefaultSigner` 改成「智能卡 stub 且 toggle 关 → 不可设默认」，把功能能力跟 UI 显示混在一起。错的。
+  - 修法：智能卡 UI toggle 只影响**展示**（分组 + 卡按钮 + 卡 binding 状态行）；功能上 keyring 里 secret stub 还在、`gpg --sign` + 插卡仍可工作。`canBeDefaultSigner = key.hasSecretKey` 改回单纯看 keyring 状态，跟 UI toggle 解耦。
+  - 影响：用户关掉智能卡 toggle 后，卡上密钥仍能被设为默认签名密钥；用 SimpleZip / CLI 签东西时插卡 + 输密码即可。
+
+- **新功能：GPG「新建密钥…」+ 双 ring 选择**
+  - 钥匙串操作按钮组新增「新建密钥…」，弹独立 sheet。
+  - **保存位置在 sheet 顶部**（按用户要求）：radio 二选一
+    - 「保存到 ~/.gnupg/（默认）」：标准 `gpg --quick-generate-key`，公钥进 `~/.gnupg/pubring.kbx`、私钥进 `~/.gnupg/private-keys-v1.d/`。CLI 立刻可见。
+    - 「保存到 SimpleZip 私有钥匙串（公钥隔离）」：加 `--no-default-keyring --keyring <SZ>/pubring.kbx`，公钥仅进 SimpleZip ring，不污染 CLI keyring。
+  - **诚实告知私钥位置 caveat**：选择 SimpleZip 私有时 sheet 上明确说「⚠ 私钥仍保存到 ~/.gnupg/private-keys-v1.d/」—— gpg 的 secring 是全局的，无法通过 `--keyring` 改变。要全私钥隔离需用 `--homedir`，那是另一种工作流。不让用户误以为完全隔离。
+  - 表单字段：姓名 / 邮箱 / 算法 picker（Ed25519 推荐 / RSA 4096 / 3072 / 2048）/ 过期时间 picker（永不 / 1y / 2y / 5y）。表单基础校验：姓名非空 + 邮箱含 `@`。
+  - **Passphrase** 全程由 gpg-agent + pinentry-mac 弹原生密码框收 —— SimpleZip 进程不接触 passphrase（[[feedback-gpg-release-emphasis]]）。sheet 底部明确提示「如果对话框没弹出，请检查本机有没有装 pinentry-mac」。
+  - 后端 `GPGBackend.createKey(name:email:algorithm:expiration:into:) async throws -> String`：跑 `gpg --status-fd 1 --quick-generate-key "Name <email>" <algo> default <expire>`，从 `[GNUPG:] KEY_CREATED B <fingerprint>` 状态行解析新密钥 fingerprint 返回；gpg 漏报时 fallback 扫整段输出找 40 字符 hex。
+  - 创建成功后自动 refresh 钥匙串显示，下方状态行显示「已创建新密钥：…<short fp>」。
+
+- **Bug 修复：关掉智能卡 toggle 后智能卡密钥完全消失**
+  - 用户报告：本机有 OpenPGP 卡公钥，但在「设置 → GPG」关掉智能卡支持后，那把密钥从钥匙串列表里彻底没了。
+  - 根因：`keyGroupsView` 里只有「`gpgSmartcardEnabled` 且有 stub 密钥」时才渲染智能卡组；关掉 toggle 时既不在智能卡组也不在「我的密钥（本机私钥）」组（hasSecretKey=true 但 isSecretKeyStub=true 把它从本机组排除），又不在「他人公钥」组（hasSecretKey 不是 false）—— 三组都接不住，整段消失。
+  - 修法：关闭智能卡 toggle 时，智能卡 stub 密钥**降级**到对应 source 的「他人公钥」组（按 `.userKeyring` / `.simpleZipKeyring` 路由）。视觉上跟普通公钥同居一组，「卡上」/「stripped」badge 仍展示让用户知道真实状态，但行尾「设为默认签名密钥」按钮自动消失（不让用户把一个「无私钥可用」状态的密钥设默认）。
+  - 影响：用户即使关闭智能卡功能（不想看智能卡分组），公钥本身仍然可见、可作公钥使用（验签 / 加密给对方）—— 不会感觉「数据丢了」。
+
 - **GPG 钥匙串视觉打磨 + 解析 bug 修复**
   - **修 parser**：现代 gpg `--list-secret-keys --with-colons` 输出里，智能卡 stub 标记不在 type 字段后缀（旧的 `sec>` / `ssb>`），而是放在**第 14 字段（index 13）**装卡 serial（如 `F1D0+0131337E`）。之前只 check 了 type 后缀 → 现代 gpg 输出全漏 → 用户「主密钥 + 2 副密钥」三把卡上密钥被错放进「本机私钥」组、subkey 「卡上」badge 不出现。现两个位置都识别（field 14 非空 → 卡上；field 14 是 `#` → stripped），跨 gpg 版本兼容。
   - **主密钥行加 capability chip**：之前只有 subkey 行显示「签 / 密 / 认」等 capability 图标，主密钥的能力只能从外推。现在主密钥的 `field 11 capabilities` 串里小写 s / e / a / c 字符各渲染成等宽 chip，让用户立刻看到「主密钥能做什么」。

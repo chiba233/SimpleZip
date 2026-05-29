@@ -72,6 +72,19 @@ enum GPGBackend {
         ProcessInfo.processInfo.environment["GNUPGHOME"]
     }
 
+    /// 尝试启动 gpg-agent —— 幂等，已运行就 no-op。
+    /// `gpgconf --launch gpg-agent` 跑在 gpg 的同目录下（brew gnupg 安装会把 gpgconf 跟 gpg 放一起）。
+    /// 失败也不抛错：gpg 自己后续也会 spawn agent，这里只是抢在前面把 pinentry 通道建好。
+    private static func ensureGPGAgentLaunched(near gpgTool: String) async {
+        let dir = URL(fileURLWithPath: gpgTool).deletingLastPathComponent()
+        let gpgconf = dir.appendingPathComponent("gpgconf").path
+        guard FileManager.default.isExecutableFile(atPath: gpgconf) else { return }
+        _ = try? await BackendProcessRunner.runAndCapture(
+            gpgconf,
+            arguments: ["--launch", "gpg-agent"]
+        )
+    }
+
     /// `gpg-agent` 是否活着 —— `gpg-connect-agent /bye` 退出码 0 = 活、非 0 = 没启动 / 出错。
     /// 走 `gpg-connect-agent`（跟 gpg 同目录），不是直接 ping socket，因为后者要知道 socket 路径。
     /// 诊断报告用；签名 / 解密真要 agent 时 gpg 自己会拉起它，所以「死」也不一定致命，给 warning 级。
@@ -100,29 +113,71 @@ enum GPGBackend {
         return pinentryCandidates.contains(where: { FileManager.default.isExecutableFile(atPath: $0) })
     }
 
-    // MARK: - 私有 keyring（SimpleZip 自有）
+    // MARK: - 私有 keyring（SimpleZip 自有 / 走独立 GNUPGHOME）
 
-    /// SimpleZip 私有 keyring 目录 `~/Library/Application Support/SimpleZip/keyring/`。
-    /// 「他人公钥」导入到这里，**绝不**写入用户 `~/.gnupg/`，卸载 SimpleZip 不留痕。
-    static func simpleZipKeyringDirectory() -> URL {
+    /// SimpleZip 私有 GNUPGHOME 目录 `~/Library/Application Support/SimpleZip/gnupg/`。
+    ///
+    /// **从 `--keyring` 切换到 `--homedir`** 的根因：gpg `--no-default-keyring --keyring <SZ>` 在
+    /// `--quick-generate-key` 路径上不可靠（部分 gpg 版本仍写到 `~/.gnupg/pubring.kbx`，加 `--primary-keyring`
+    /// 也救不回）。改用 `--homedir <SZ>` = 完全独立的 GNUPGHOME，gpg 没歧义、公钥 + 私钥 + trustdb 全部落到这里。
+    ///
+    /// **真正的隔离**：之前用 `--keyring` 时私钥仍存 `~/.gnupg/private-keys-v1.d/`；现在用 `--homedir` 后
+    /// 私钥进 `<SZ>/gnupg/private-keys-v1.d/`。卸载 SimpleZip 删 Application Support/SimpleZip 即可彻底清理。
+    ///
+    /// 目录权限设 0700（gpg 强制要求 GNUPGHOME 是 owner-only）。
+    /// 自动迁移：发现旧 `<SZ>/keyring/pubring.kbx` 存在且新位置没有 → 移过来，老用户不丢公钥。
+    static func simpleZipGPGHomeDirectory() -> URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? FileManager.default.temporaryDirectory
         let dir = base.appendingPathComponent("SimpleZip", isDirectory: true)
-            .appendingPathComponent("keyring", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            .appendingPathComponent("gnupg", isDirectory: true)
+        let existed = FileManager.default.fileExists(atPath: dir.path)
+        if !existed {
+            try? FileManager.default.createDirectory(
+                at: dir,
+                withIntermediateDirectories: true,
+                attributes: [.posixPermissions: 0o700]
+            )
+            migrateLegacySimpleZipKeyring(to: dir)
+        }
+        // 即使目录已存在也强制 0700，避免老版本 SimpleZip 创建时没设权限导致 gpg 拒用。
+        try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: dir.path)
         return dir
     }
 
-    /// SimpleZip 私有公钥 ring 文件路径 (`pubring.kbx`)。
-    /// gpg 第一次写入时自动创建文件 —— 我们只确保目录存在。
-    static func simpleZipPubringPath() -> URL {
-        simpleZipKeyringDirectory().appendingPathComponent("pubring.kbx")
+    /// 给 gpg 拼 `--homedir <path>` —— SimpleZip 私有 ring 所有操作（list / import / sign / verify / edit / delete）都加这个。
+    static func simpleZipHomedirArguments() -> [String] {
+        ["--homedir", simpleZipGPGHomeDirectory().path]
     }
 
-    /// 给 gpg invocation 拼上「读取 SimpleZip ring」用的参数 —— `--keyring <path>` 是叠加搜索（默认 ring 仍参与）。
-    /// 写 SimpleZip ring 的场合还需要追加 `--no-default-keyring`，让 default ring 不参与写入；调用方自己拼。
+    /// 把老的 `<SZ>/keyring/pubring.kbx`（仅公钥环模式时代）迁移到新 `<SZ>/gnupg/`。
+    /// 仅在新 homedir 还没 pubring.kbx 时迁移；用户已经在新 homedir 创建过密钥时跳过避免覆盖。
+    private static func migrateLegacySimpleZipKeyring(to newHomedir: URL) {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? FileManager.default.temporaryDirectory
+        let oldDir = base.appendingPathComponent("SimpleZip", isDirectory: true)
+            .appendingPathComponent("keyring", isDirectory: true)
+        let oldPubring = oldDir.appendingPathComponent("pubring.kbx")
+        let newPubring = newHomedir.appendingPathComponent("pubring.kbx")
+        guard FileManager.default.fileExists(atPath: oldPubring.path),
+              !FileManager.default.fileExists(atPath: newPubring.path) else { return }
+        try? FileManager.default.moveItem(at: oldPubring, to: newPubring)
+    }
+
+    // 兼容旧 API（外部 health pane / 高级区路径展示等场合仍引用）。
+    /// 已弃用：保留只是为了让 advanced 区「SimpleZip 私有 ring」路径行还能显示路径；新代码请用 `simpleZipGPGHomeDirectory()`。
+    static func simpleZipKeyringDirectory() -> URL {
+        simpleZipGPGHomeDirectory()
+    }
+
+    /// 已弃用：保留显示用；新代码读 `simpleZipGPGHomeDirectory().appendingPathComponent("pubring.kbx")`。
+    static func simpleZipPubringPath() -> URL {
+        simpleZipGPGHomeDirectory().appendingPathComponent("pubring.kbx")
+    }
+
+    /// 已弃用：新代码用 `simpleZipHomedirArguments()`。保留只为编译兼容。
     static func simpleZipKeyringArguments() -> [String] {
-        ["--keyring", simpleZipPubringPath().path]
+        simpleZipHomedirArguments()
     }
 
     // MARK: - 密钥管理
@@ -160,7 +215,8 @@ enum GPGBackend {
         var listArguments = ["--list-keys", "--with-colons", "--fingerprint"]
         var secretListArguments = ["--list-secret-keys", "--with-colons", "--fingerprint"]
         if source == .simpleZipKeyring {
-            let szArgs = ["--no-default-keyring"] + simpleZipKeyringArguments()
+            // SimpleZip 私有走独立 GNUPGHOME；不需要 `--no-default-keyring`（homedir 已经把 ring 切到 SZ 私有目录）。
+            let szArgs = simpleZipKeyringArguments()
             listArguments = szArgs + listArguments
             secretListArguments = szArgs + secretListArguments
         }
@@ -323,8 +379,8 @@ enum GPGBackend {
             "--command-fd", "0"
         ]
         if source == .simpleZipKeyring {
-            args.insert("--no-default-keyring", at: 0)
-            args.append(contentsOf: simpleZipKeyringArguments())
+            // SimpleZip 私有走独立 GNUPGHOME（`--homedir <SZ>`）—— 公钥 + 私钥 + trustdb 全部隔离。
+            args.insert(contentsOf: simpleZipKeyringArguments(), at: 0)
         }
         args.append(contentsOf: ["--edit-key", fingerprint])
         _ = try await BackendProcessRunner.runAndCapture(
@@ -340,10 +396,28 @@ enum GPGBackend {
         let tool = try resolve()
         var args: [String] = []
         if source == .simpleZipKeyring {
-            args.append("--no-default-keyring")
             args.append(contentsOf: simpleZipKeyringArguments())
         }
         args.append(contentsOf: ["--armor", "--export", fingerprint])
+        return try await BackendProcessRunner.runAndCapture(tool, arguments: args)
+    }
+
+    /// 导出**私钥**为 ASCII armor (`.asc`) 文本 —— 备份 / 迁移到其它机器用。
+    ///
+    /// 导出的私钥仍保留**原 passphrase 加密**（gpg 不会解密 secring 里的私钥才能导出）—— 文件里是已加密 blob。
+    /// 但导入到另一台机器时仍需要原 passphrase 才能用。
+    /// **不要把这份 .asc 跟 passphrase 一起放**——分两个地方存（如：私钥放 U 盘、passphrase 放密码管理器）。
+    ///
+    /// gpg 的 secring 是全局的 —— 即使密钥的公钥在 SimpleZip ring 里，私钥仍存 `~/.gnupg/private-keys-v1.d/`。
+    /// 所以 `--export-secret-keys` 在两个 source 下都能从 ~/.gnupg/ 拿到私钥；source 参数主要影响公钥部分查找。
+    static func exportSecretKey(fingerprint: String, source: GPGKeyringSource = .userKeyring) async throws -> String {
+        let tool = try resolve()
+        var args: [String] = ["--batch", "--pinentry-mode", "loopback", "--passphrase", ""]
+        if source == .simpleZipKeyring {
+            // SimpleZip 私有走独立 GNUPGHOME（`--homedir <SZ>`）—— 公钥 + 私钥 + trustdb 全部隔离。
+            args.insert(contentsOf: simpleZipKeyringArguments(), at: 0)
+        }
+        args.append(contentsOf: ["--armor", "--export-secret-keys", fingerprint])
         return try await BackendProcessRunner.runAndCapture(tool, arguments: args)
     }
 
@@ -374,6 +448,251 @@ enum GPGBackend {
         )
     }
 
+    // MARK: - 删除 / 修改过期 / 撤销证书
+
+    /// 撤销证书的「撤销原因」枚举（对应 gpg menu 的 0-3 编号）。
+    enum GPGRevocationReason: String, CaseIterable, Hashable, Identifiable {
+        case none = "0"          // 未指定原因
+        case compromised = "1"   // 密钥已泄漏 / 不再可信
+        case superseded = "2"    // 密钥已被新密钥替代
+        case notUsed = "3"       // 密钥不再被使用
+
+        var id: String { rawValue }
+    }
+
+    /// 从指定 ring 删除一把密钥。
+    ///
+    /// `deleteSecret = true`：私钥也删（`--delete-secret-and-public-key`）；本机有私钥时**必须**走这条，否则只删公钥 gpg 会拒绝。
+    /// `deleteSecret = false`：仅删公钥（`--delete-keys`），用于「他人公钥」/ 无私钥场景。
+    /// **`--batch --yes` 跳过 gpg 自带交互确认** —— 删除前的「你真的要删吗」对话框由 SimpleZip UI 层做。
+    ///
+    /// 注意：智能卡 stub 密钥执行删除时，本机 stub 会消失，但**卡上私钥不受影响** —— 重新插卡 `gpg --card-status` 又能拉回来。
+    @discardableResult
+    static func deleteKey(
+        fingerprint: String,
+        deleteSecret: Bool,
+        source: GPGKeyringSource = .userKeyring
+    ) async throws -> String {
+        let tool = try resolve()
+        var args: [String] = ["--batch", "--yes", "--no-tty"]
+        if source == .simpleZipKeyring {
+            // SimpleZip 私有走独立 GNUPGHOME（`--homedir <SZ>`）—— 公钥 + 私钥 + trustdb 全部隔离。
+            args.insert(contentsOf: simpleZipKeyringArguments(), at: 0)
+        }
+        if deleteSecret {
+            args.append("--delete-secret-and-public-key")
+        } else {
+            args.append("--delete-keys")
+        }
+        args.append(fingerprint)
+        return try await BackendProcessRunner.runAndCapture(tool, arguments: args)
+    }
+
+    /// 修改密钥过期时间。走 `gpg --edit-key <fpr> expire <duration> save` interactive menu。
+    /// `gpg-agent + pinentry-mac` 会弹密码框收私钥 passphrase；本函数不接触 passphrase。
+    static func setKeyExpiration(
+        fingerprint: String,
+        expiration: GPGKeyExpiration,
+        source: GPGKeyringSource = .userKeyring
+    ) async throws {
+        let tool = try resolve()
+        var args: [String] = ["--batch", "--yes", "--no-tty", "--command-fd", "0"]
+        if source == .simpleZipKeyring {
+            // SimpleZip 私有走独立 GNUPGHOME（`--homedir <SZ>`）—— 公钥 + 私钥 + trustdb 全部隔离。
+            args.insert(contentsOf: simpleZipKeyringArguments(), at: 0)
+        }
+        args.append(contentsOf: ["--edit-key", fingerprint])
+        // expire prompt 输入：duration 字符串（如 `1y` / `2y` / `0` = never）+ save 落盘。
+        let commands = "expire\n\(expiration.rawValue)\nsave\n"
+        _ = try await BackendProcessRunner.runAndCapture(
+            tool,
+            arguments: args,
+            inputStrategy: .staticInput(commands)
+        )
+    }
+
+    /// 生成撤销证书（armor 文本）。把返回值写到用户选的 `.asc` 文件即可日后发布到 keyserver 宣告撤销。
+    /// gpg `--gen-revoke` 的 interactive 序列：`y\n<reason>\n<description>\n\ny\n`（reason 0-3，description 可空）。
+    /// 私钥 passphrase 由 gpg-agent + pinentry-mac 弹原生密码框收。
+    static func generateRevocationCert(
+        fingerprint: String,
+        reason: GPGRevocationReason,
+        description: String,
+        source: GPGKeyringSource = .userKeyring
+    ) async throws -> String {
+        let tool = try resolve()
+        var args: [String] = ["--armor", "--command-fd", "0"]
+        if source == .simpleZipKeyring {
+            // SimpleZip 私有走独立 GNUPGHOME（`--homedir <SZ>`）—— 公钥 + 私钥 + trustdb 全部隔离。
+            args.insert(contentsOf: simpleZipKeyringArguments(), at: 0)
+        }
+        args.append(contentsOf: ["--gen-revoke", fingerprint])
+        let escaped = description.replacingOccurrences(of: "\n", with: " ")
+        // gpg --gen-revoke menu：
+        //   y       —— 「真要生成撤销证书吗」
+        //   <r>     —— 撤销原因编号
+        //   <desc>  —— 描述（一行 + 空行结束）
+        //   y       —— 确认
+        let commands = "y\n\(reason.rawValue)\n\(escaped)\n\ny\n"
+        return try await BackendProcessRunner.runAndCapture(
+            tool,
+            arguments: args,
+            inputStrategy: .staticInput(commands)
+        )
+    }
+
+    // MARK: - 新建密钥
+
+    /// 新建密钥支持的算法。`Ed25519` 是当前推荐（小 + 快 + 强）；RSA 系列给老兼容。
+    enum GPGKeyAlgorithm: String, CaseIterable, Hashable, Identifiable {
+        case ed25519 = "ed25519"
+        case rsa4096 = "rsa4096"
+        case rsa3072 = "rsa3072"
+        case rsa2048 = "rsa2048"
+
+        var id: String { rawValue }
+    }
+
+    /// 新建密钥的过期时间选项。`never` 给 gpg 传字面 "never"。
+    enum GPGKeyExpiration: String, CaseIterable, Hashable, Identifiable {
+        case never = "never"
+        case oneYear = "1y"
+        case twoYears = "2y"
+        case fiveYears = "5y"
+
+        var id: String { rawValue }
+    }
+
+    /// 新建 GPG 密钥到指定 ring。私钥由 gpg-agent + pinentry-mac 弹原生密码框收 passphrase ——
+    /// 本函数 / SimpleZip 不接触 passphrase。
+    ///
+    /// `into = .userKeyring`：标准 `gpg --quick-generate-key`，公钥进 `~/.gnupg/pubring.kbx`、私钥进 `~/.gnupg/private-keys-v1.d/`。CLI 共享。
+    /// `into = .simpleZipKeyring`：加 `--no-default-keyring --keyring <SZ>/pubring.kbx`，公钥进 SimpleZip 私有 ring，
+    ///   **但**私钥仍然进 `~/.gnupg/private-keys-v1.d/`（gpg 的 secring 是全局的，无法通过 `--keyring` 改变）—— 调用方应在 UI 上声明这一点。
+    ///
+    /// 返回新密钥的 40 字符 fingerprint（从 `--status-fd 1` 的 `KEY_CREATED` 行解析）。
+    ///
+    /// `passphrase` 处理：
+    /// - 非空 → 走 `--pinentry-mode loopback --passphrase-fd 0`，passphrase 通过 stdin pipe 喂给 gpg
+    ///   （不进 cmdline `ps` 输出，几秒后子进程退出释放）。SimpleZip 短暂持有，权衡可靠性。
+    /// - 空字符串 `""` → 走 `--batch --passphrase ''` 创建**无 passphrase 密钥**（不安全，仅自动化 / 测试用）。
+    /// - **不要**留 nil：之前那个走 pinentry-mac 的路径用户环境如果没配好 `gpg-agent.conf` pinentry-program
+    ///   就死等 —— 改成强制必填后，本函数总是工作。
+    ///
+    /// `outputObserver` 实时回调每段 stdout（含 `[GNUPG:]` 状态行）——UI 可以解析 `PROGRESS` 等给用户进度反馈。
+    /// `operationID` 用 `BackendProcessRunner.cancelRunningCommand(operationID:)` 取消挂死进程。
+    @discardableResult
+    static func createKey(
+        name: String,
+        email: String,
+        algorithm: GPGKeyAlgorithm,
+        expiration: GPGKeyExpiration,
+        into ring: GPGKeyringSource = .userKeyring,
+        addAuthenticationSubkey: Bool = false,
+        passphrase: String,
+        outputObserver: (@Sendable (String) -> Void)? = nil,
+        operationID: UUID? = nil
+    ) async throws -> String {
+        let tool = try resolve()
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty, !trimmedEmail.isEmpty else {
+            throw ArchiveError.commandFailed("Name and email are required")
+        }
+        let userID = "\(trimmedName) <\(trimmedEmail)>"
+
+        // 预拉 gpg-agent：loopback 模式下虽然不用 pinentry，但 gpg 仍可能拉 agent 跑 keygen，幂等 launch 一下没坏处。
+        await ensureGPGAgentLaunched(near: tool)
+
+        var args: [String] = ["--batch", "--pinentry-mode", "loopback", "--passphrase-fd", "0"]
+        if ring == .simpleZipKeyring {
+            // SimpleZip 私有走独立 GNUPGHOME（`--homedir <SZ>`）—— 公钥 + 私钥 + trustdb 全部进 SZ 私有目录。
+            // 之前 `--no-default-keyring --keyring <SZ> --primary-keyring <SZ>` 在某些 gpg 版本下 `--quick-generate-key`
+            // 仍写到 `~/.gnupg/`，搞不定 → 直接换 homedir，gpg 无歧义。
+            args.insert(contentsOf: simpleZipKeyringArguments(), at: 0)
+        }
+        args.append(contentsOf: [
+            "--status-fd", "1",
+            "--quick-generate-key",
+            userID,
+            algorithm.rawValue,
+            "default",                // 用途：默认（主密钥 sign+certify，自动生成 encrypt subkey）
+            expiration.rawValue
+        ])
+
+        // passphrase 通过 stdin 喂 gpg（`--passphrase-fd 0`）—— 不出现在 cmdline 里，`ps` / Activity Monitor 看不到。
+        // 空字符串依旧加换行让 gpg 读到 EOF；gpg 把空 passphrase 当作「不加密私钥」处理。
+        let stdinInput = passphrase + "\n"
+        var output = try await BackendProcessRunner.runAndCapture(
+            tool,
+            arguments: args,
+            inputStrategy: .staticInput(stdinInput),
+            outputObserver: outputObserver,
+            operationID: operationID
+        )
+
+        // 解析主密钥 fingerprint（`[GNUPG:] KEY_CREATED B <fp>`），之后用 `--quick-add-key` 加 auth subkey。
+        var primaryFingerprint = ""
+        for rawLine in output.split(separator: "\n", omittingEmptySubsequences: false) {
+            let trimmed = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard trimmed.hasPrefix("[GNUPG:] KEY_CREATED") else { continue }
+            let parts = trimmed.split(separator: " ", omittingEmptySubsequences: true).map(String.init)
+            if parts.count >= 4, parts[3].count == 40, parts[3].allSatisfy({ $0.isHexDigit }) {
+                primaryFingerprint = parts[3]
+                break
+            }
+        }
+
+        if addAuthenticationSubkey && !primaryFingerprint.isEmpty {
+            // 主密钥造完后追加 auth subkey：`gpg --quick-add-key <fp> <algo> auth <expire>`。
+            // 子密钥算法跟主密钥同：ed25519 / rsaXXXX；passphrase 用 stdin 同款 loopback 传。
+            var subArgs: [String] = ["--batch", "--pinentry-mode", "loopback", "--passphrase-fd", "0"]
+            if ring == .simpleZipKeyring {
+                subArgs.insert(contentsOf: simpleZipKeyringArguments(), at: 0)
+            }
+            subArgs.append(contentsOf: [
+                "--status-fd", "1",
+                "--quick-add-key",
+                primaryFingerprint,
+                algorithm.rawValue,
+                "auth",
+                expiration.rawValue
+            ])
+            // 跑 add-key —— 失败也不抛错（主密钥已造好），UI 自己刷 keyring 用户能看到结果。
+            _ = try? await BackendProcessRunner.runAndCapture(
+                tool,
+                arguments: subArgs,
+                inputStrategy: .staticInput(stdinInput),
+                outputObserver: outputObserver,
+                operationID: operationID
+            )
+            output += "\n[SimpleZip] auth subkey added\n"
+        }
+
+        // `[GNUPG:] KEY_CREATED B <fingerprint>` —— B 表示 both（主 + 子）。
+        for rawLine in output.split(separator: "\n", omittingEmptySubsequences: false) {
+            let trimmed = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard trimmed.hasPrefix("[GNUPG:] KEY_CREATED") else { continue }
+            let parts = trimmed.split(separator: " ", omittingEmptySubsequences: true).map(String.init)
+            // parts: ["[GNUPG:]", "KEY_CREATED", "B", "<fingerprint>"]
+            if parts.count >= 4, parts[3].count == 40, parts[3].allSatisfy({ $0.isHexDigit }) {
+                return parts[3]
+            }
+        }
+        // 兜底：从整段输出里捞第一段 40 字符 hex。
+        for rawLine in output.split(separator: "\n", omittingEmptySubsequences: false) {
+            for word in rawLine.split(separator: " ", omittingEmptySubsequences: true) {
+                let w = word.trimmingCharacters(in: .whitespacesAndNewlines)
+                if w.count == 40, w.allSatisfy({ $0.isHexDigit }) {
+                    return w
+                }
+            }
+        }
+        // 创建确实成功了（gpg 退出码 0）但 fingerprint 没解析出来 —— 返回空串让 UI 提示「成功但未拿到指纹」，
+        // 调用方 refresh keyring 还能看到新密钥。
+        return ""
+    }
+
     /// 导入公钥（也兼容公私钥对，gpg 自动识别）到指定 ring。
     ///
     /// `into = .userKeyring`（默认）：写用户 `~/.gnupg/` —— 跟 CLI 共享，旧行为。
@@ -384,8 +703,8 @@ enum GPGBackend {
         let tool = try resolve()
         var args = ["--import", "--no-tty"]
         if ring == .simpleZipKeyring {
-            args.insert("--no-default-keyring", at: 0)
-            args.append(contentsOf: simpleZipKeyringArguments())
+            // SimpleZip 私有走独立 GNUPGHOME（`--homedir <SZ>`）—— 公钥 + 私钥 + trustdb 全部隔离。
+            args.insert(contentsOf: simpleZipKeyringArguments(), at: 0)
         }
         args.append(fileURL.path)
         return try await BackendProcessRunner.runAndCapture(tool, arguments: args)
@@ -421,24 +740,52 @@ enum GPGBackend {
         operationID: UUID? = nil
     ) async throws -> GPGVerifyResult {
         let tool = try resolve()
-        // 验签时把 SimpleZip 私有 ring 加进 gpg 的搜索路径，让用户「导入到 SimpleZip 钥匙串」的他人公钥也能用来验签。
-        // `--keyring <path>` 是**叠加**搜索（default ring 仍参与），所以 ~/.gnupg/ 的密钥仍然有效。
-        let verifyArgs = simpleZipKeyringArguments() + ["--verify", signatureURL.path, archiveURL.path]
+
+        // SimpleZip 私有改用独立 `--homedir` 后，gpg 默认 ring 已经互相不可见。验签必须分两 pass：
+        // 1) 默认 homedir（用户 ~/.gnupg/）—— 用户系统已有的公钥参与匹配；
+        // 2) SimpleZip 私有 homedir —— 用户「导入到 SimpleZip 私有钥匙串」的他人公钥参与匹配。
+        // 两 pass 哪个结果「更好」就用哪个：validSignature > unknownSigner > verificationError > badSignature 优先级倒过来不行
+        // —— badSignature 是「文件被改」最严重判定，发现就要立即采用；这里按「validSignature 优先 → 否则取信息更多的一个」。
+        let baseArgs = ["--verify", signatureURL.path, archiveURL.path]
+
+        async let userResult = verifySingleRing(tool: tool, args: baseArgs, operationID: operationID)
+        async let szResult = verifySingleRing(tool: tool, args: simpleZipKeyringArguments() + baseArgs, operationID: operationID)
+        let r1 = await userResult
+        let r2 = await szResult
+        return mergeVerifyResults(r1, r2)
+    }
+
+    /// 单次验签调用 —— wrap 现有的「跑命令 + 解析输出」逻辑。
+    private static func verifySingleRing(
+        tool: String,
+        args: [String],
+        operationID: UUID?
+    ) async -> GPGVerifyResult {
         do {
             let output = try await BackendProcessRunner.runAndCapture(
                 tool,
-                arguments: verifyArgs,
+                arguments: args,
                 operationID: operationID
             )
             return parseVerifyOutput(output, exitOk: true)
         } catch {
-            // gpg 退出码 != 0 时 BackendProcessRunner 抛错；把错误信息当 stderr 输出处理。
             let errorOutput = (error as? ArchiveError).flatMap { archiveError in
                 if case .commandFailed(let text) = archiveError { return text }
                 return nil
             } ?? error.localizedDescription
             return parseVerifyOutput(errorOutput, exitOk: false)
         }
+    }
+
+    /// 两 pass 验签结果合并：badSignature 优先（最坏情况要被看见）；validSignature 次之；其它取「信息更丰富」的那个。
+    private static func mergeVerifyResults(_ a: GPGVerifyResult, _ b: GPGVerifyResult) -> GPGVerifyResult {
+        if case .badSignature = a { return a }
+        if case .badSignature = b { return b }
+        if case .validSignature = a { return a }
+        if case .validSignature = b { return b }
+        if case .unknownSigner = a { return a }
+        if case .unknownSigner = b { return b }
+        return a // 两者都是 verificationError；返回第一份
     }
 
     // MARK: - 输出解析
