@@ -13,7 +13,7 @@ import AppKit
 /// 比 7-Zip 复杂得多：除了版本探测，还要管「本地 RAR 安装包」的安装/升级/删除流程，
 /// 以及一个带协议确认的 review sheet。
 struct RarBackendSection: View {
-    @AppStorage(AppPreferences.Key.rarBackend) private var rarBackend = RarBackend.automatic.rawValue
+    @AppStorage(AppPreferences.Key.rarBackend) private var rarBackend = RarBackendChoice.automatic.rawValue
     @Binding var systemInstallMessage: String?
     let copyCommand: (String) -> Void
     let copyAndOpenTerminal: (String) -> Void
@@ -32,7 +32,7 @@ struct RarBackendSection: View {
                 description: L10n.text("settings.rar.backend.description")
             ) {
                 Picker("", selection: $rarBackend) {
-                    ForEach(RarBackend.allCases) { backend in
+                    ForEach(RarBackendChoice.allCases) { backend in
                         Text(backend.title).tag(backend.rawValue)
                     }
                 }
@@ -82,7 +82,7 @@ struct RarBackendSection: View {
     /// 只有「自动 / 内置」后端下、且当前没有可用 RAR 或已经装了本地版时才显示这些操作。
     /// 选择「系统级」的用户只关心 brew 提示，不该看到「装到本地」按钮。
     private var shouldShowLocalControls: Bool {
-        let selectedBackend = RarBackend(rawValue: rarBackend)
+        let selectedBackend = RarBackendChoice(rawValue: rarBackend)
         guard selectedBackend == .automatic || selectedBackend == .bundled else {
             return false
         }
@@ -90,7 +90,7 @@ struct RarBackendSection: View {
     }
 
     private var shouldShowSystemInstallPrompt: Bool {
-        RarBackend(rawValue: rarBackend) == .system && isRarMissing
+        RarBackendChoice(rawValue: rarBackend) == .system && isRarMissing
     }
 
     private var promptText: String {

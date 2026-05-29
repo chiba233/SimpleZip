@@ -4,9 +4,21 @@
 
 ## 0.1.6
 
-- **关于面板更新**
-  - 描述改写为反映 0.1.6 的真实能力（7-Zip + 系统 zip/tar + 可选 RAR + 安全检查 + AES + 哈希 + DMG 挂载 + 一键诊断）。
-  - 加作者 "Hoshino Yumeka"，仓库链接 `github.com/chiba233/SimpleZip` 直接可点击跳转，MIT 许可证名称也可点击跳到 LICENSE 文件渲染页。链接颜色用 `controlAccentColor`，深色 / 浅色模式自动跟。
+- **Bug 修复**
+  - **修复 P1：header-encrypted 压缩包在「解压前安全检查」处直接失败** —— `confirmArchiveExtractionSafety(archiveURL:)` 用空密码调 `ArchiveService.list`，header-encrypted 7z 没密码连枚举条目都做不到，旧逻辑因为这一步把整个 extract 流程标成失败，用户根本进不到「输入密码」的 retry 循环。现在安全检查带上密码 / force 参数，移到 retry 循环内（`didCheckSafety` 标志保证只在 list 第一次成功后跑一次），首次 list 失败会被外层 catch 识别为密码错误，触发密码 prompt → 下一轮重试。配合预设密码 + Finder 自动解压：header-encrypted 7z 也能整条链路走通。
+  - **修复 P2：偏好「导入」语义是 patch 不是「还原备份」** —— 旧实现只覆盖 payload 里出现的 key，导入前已有的偏好（payload 里没带的项）会原样保留，导致用户「换了一个更简化的备份」之后还残留上次的零散设置。现在导入前先把所有白名单 key 抹掉（`defaults.removeObject(forKey:)`），让没出现在 payload 里的项目回落到代码默认值，再写 payload 里有的 key —— 真正的「还原备份」语义，payload 是完整状态而不是补丁。
+  - **修复 P2：Keychain 写失败被进程内缓存伪装成「保存成功」** —— `PresetPasswordStore.save` 无视 `SecItemUpdate / SecItemAdd` 的 OSStatus 直接更新缓存，写失败的情况（access 拒绝、磁盘满、ad-hoc 签名换了）会让 UI 显示「已加密保存到钥匙串」但下次启动 `load()` 读到空字符串，密码神秘消失。`writeKeychain` 现在返回真实 OSStatus，`save()` 仅在 `errSecSuccess` 时更新缓存并返回 OSStatus；`AppPreferences.setPresetPassword` 包装为 `Bool` 给 UI，`GeneralPane.savePresetPassword` 根据返回值显示 `settings.presetPassword.saved` 或新增的 `settings.presetPassword.saveFailed`（zh-Hans + en 都补了）。
+  - **修复：主窗口空白处右键菜单出现不该有的选项** —— 旧逻辑 `menuNeedsUpdate` 不论点哪都堆 15 项（打开 / 以压缩包打开 / 解压到这里 / 测试 / 哈希 / 复制 / 剪切 / 粘贴 / 移动 / 删除 / Finder 显示），但 `selectClickedRowIfNeeded` 在空白处不会选中任何行 —— 用户右键空白处看到「测试 / 哈希」很懵。现在用 `tableView.clickedRow >= 0` 判断：点在文件行上 → 原全套菜单；点空白处 → 只剩「粘贴 + 在 Finder 中显示当前文件夹」两项，跟 macOS Finder 习惯一致。
+  - **修复 0.1.6 开发期：切语言后顶部菜单栏不跟随系统语言** —— `AppleLanguages` 是 SwiftUI App 的 `.commands {}` 段被构造**之前**被 AppKit 读的，旧逻辑只在用户改设置时写一次，下次启动时 AppKit 已经按系统语言把 File / Edit / Window / Help / Hide / Quit 这一行 native 菜单文字定下来了。现在在 `SimpleZipApp.init()` 里早于 body 求值，把当前 `appLanguage` 偏好同步写到 `AppleLanguages`，重启后菜单栏完整跟随。
+- **关于面板**
+  - 描述改写为反映 0.1.6 的真实能力。作者署名 "Hoshino Yumeka"。
+  - 走系统标准 `orderFrontStandardAboutPanel`（跟随系统主题 / 字号 / 间距，不自己手画），credits 刻意保持「描述 + 作者」两行短文案 —— 内容超出会触发滚动条 + 边框，反而难看。
+  - 仓库地址和 MIT 许可证移到「帮助」菜单当原生菜单项（`SimpleZip 项目主页` / `MIT 许可证`），既符合 macOS 习惯，又不需要把链接塞 credits 文本里。
+- **内部重构：SevenZipBackend 抽出（Phase 4 step 3a）**
+  - 把 7-Zip 后端的「设备发现 + 元信息查询」层（bundled / system 候选路径、`resolve()` / `toolPath()` / `isAvailable()` / `backendDescription()` / `version()` + `ResolvedSevenZipTool` 结构体 + `SevenZipToolSource` 枚举）整段搬到 `Core/Backends/SevenZipBackend.swift`（136 行）。`ArchiveService` 的 `canUseSevenZip` / `sevenZipBackendDescription` / `sevenZipVersion` 改为转发；私有 `sevenZipTool` / `resolvedSevenZipTool` 也改为转发（thin wrapper，等 step 3b 把 list/extract/test 也搬过来后可以一起删）。
+  - 顺手把用户偏好枚举重命名为更准确的名字：`SevenZipBackend` → **`SevenZipBackendChoice`**、`RarBackend` → **`RarBackendChoice`**（它们是"选择"不是"后端"）。释放出 `SevenZipBackend` / `RarBackend` 这两个名字给真正的 backend 实现命名空间。
+  - 共享 path-discovery helper（`applicationSupportDirectory` / `uniqueExistingCandidatePaths` / `envPath` / `cellarCandidates`）从 `private` 放宽到 `internal`，让新 backend 文件能直接调，避免循环依赖。
+  - 经过 step 1 + step 2 + step 3a，`ArchiveService.swift` 由 1524 行缩到 1007 行（累计 −517，**−34%**）。下一步 step 3b 把 7-Zip 后端的 list / extract / test / benchmark 实现也搬过来。
 - **内部重构：BackendProcessRunner 抽出（Phase 4 step 1）**
   - 把 `ArchiveService` 里 ~400 行进程基础设施（`runAndCapture` / PTY / 取消注册表 / `ProgressOutputParser` / `InteractivePasswordResponder`）整段搬到独立的 `BackendProcessRunner`，`ArchiveService.cancelRunningCommand` 改为转发调用。
 - **内部重构：DiskImageBackend 抽出（Phase 4 step 2）**

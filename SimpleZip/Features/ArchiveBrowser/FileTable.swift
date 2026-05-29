@@ -195,6 +195,20 @@ private struct FileNSTableView: NSViewRepresentable {
             guard let tableView else { return }
             selectClickedRowIfNeeded(in: tableView)
             menu.removeAllItems()
+
+            // 空白处右键（clickedRow = -1）的菜单要瘦身 —— 像「打开」「以压缩包打开」「解压到这里」
+            // 「测试」「哈希」「复制 / 剪切 / 移动 / 删除」这些选中文件才有意义的项，没文件可作用就别出现，
+            // 否则用户点了之后要么没反应、要么作用在「之前残留的选中」上，体验诡异。
+            // 空白菜单只留两项：粘贴（剪贴板里有内容时实际生效）+ 在 Finder 中显示当前文件夹。
+            let clickedRow = tableView.clickedRow
+            let hasClickedRow = clickedRow >= 0 && clickedRow < model.fileItems.count
+            guard hasClickedRow else {
+                menu.addItem(menuItem(L10n.text("file.paste"), systemImage: "clipboard", action: #selector(pasteFiles)))
+                menu.addItem(.separator())
+                menu.addItem(menuItem(L10n.text("button.revealInFinder"), systemImage: "arrow.up.forward.app", action: #selector(revealSelected)))
+                return
+            }
+
             menu.addItem(menuItem(L10n.text("button.open"), systemImage: "arrow.turn.up.right", action: #selector(openSelected)))
             if let item = model.selectedFileItems.first, model.selectedFileItems.count == 1, model.canShowPackageContents(item) {
                 menu.addItem(menuItem(L10n.text("file.showPackageContents"), systemImage: "folder", action: #selector(showPackageContents)))

@@ -57,17 +57,25 @@ enum PresetPasswordStore {
     }
 
     /// 保存预设密码。空字符串等同 `clear()`。
-    /// 失败（如 Keychain 拒绝）静默忽略，调用方下次 load 会拿到空字符串，UI 自己会显示「未配置」。
-    static func save(_ value: String) {
+    ///
+    /// 返回 `errSecSuccess` 表示真的落盘成功（同时刷新缓存）；
+    /// 其它 OSStatus 表示 Keychain 拒绝 —— 此时不更新缓存，调用方应给用户看到失败提示，
+    /// 否则界面会显示「已加密保存到钥匙串」但下次启动 load 仍然为空，把失败假装成功。
+    @discardableResult
+    static func save(_ value: String) -> OSStatus {
         if value.isEmpty {
             clear()
-            return
+            return errSecSuccess
         }
-        writeKeychain(value)
+        let status = writeKeychain(value)
+        guard status == errSecSuccess else {
+            return status
+        }
         UserDefaults.standard.removeObject(forKey: legacyUserDefaultsKey)
         cacheLock.lock()
         cachedValue = value
         cacheLock.unlock()
+        return status
     }
 
     /// 把 Keychain 里的预设密码彻底删掉。
@@ -123,7 +131,9 @@ enum PresetPasswordStore {
         return value
     }
 
-    private static func writeKeychain(_ value: String) {
+    /// 返回 Keychain 实际的 OSStatus。
+    /// `errSecItemNotFound` 触发新建，这一支也会返回 SecItemAdd 的实际 OSStatus。
+    private static func writeKeychain(_ value: String) -> OSStatus {
         let data = Data(value.utf8)
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
@@ -141,8 +151,9 @@ enum PresetPasswordStore {
             var addQuery = query
             addQuery[kSecValueData as String] = data
             addQuery[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
-            SecItemAdd(addQuery as CFDictionary, nil)
+            return SecItemAdd(addQuery as CFDictionary, nil)
         }
+        return updateStatus
     }
 
     private static func migrateLegacyIfNeeded() {
@@ -151,8 +162,10 @@ enum PresetPasswordStore {
             return
         }
         // 仅在 Keychain 还没有值时迁移；已有值代表用户后续在新版本里又设过，以新值为准。
+        // 迁移失败 → 保留 legacy key，下次启动再试。
         if readKeychain().isEmpty {
-            writeKeychain(legacy)
+            let status = writeKeychain(legacy)
+            guard status == errSecSuccess else { return }
         }
         defaults.removeObject(forKey: legacyUserDefaultsKey)
     }

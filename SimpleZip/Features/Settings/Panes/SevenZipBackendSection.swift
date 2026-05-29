@@ -12,7 +12,7 @@ import SwiftUI
 /// 单独成 section view 是为了把版本探测、缺失提示、SystemInstall 提示三件事
 /// 收敛在一处。父 ArchivePane 不需要持有这些 transient 状态。
 struct SevenZipBackendSection: View {
-    @AppStorage(AppPreferences.Key.sevenZipBackend) private var sevenZipBackend = SevenZipBackend.automatic.rawValue
+    @AppStorage(AppPreferences.Key.sevenZipBackend) private var sevenZipBackend = SevenZipBackendChoice.automatic.rawValue
     @Binding var systemInstallMessage: String?
     let copyCommand: (String) -> Void
     let copyAndOpenTerminal: (String) -> Void
@@ -27,7 +27,7 @@ struct SevenZipBackendSection: View {
                 description: L10n.text("settings.7zip.backend.description")
             ) {
                 Picker("", selection: $sevenZipBackend) {
-                    ForEach(SevenZipBackend.allCases) { backend in
+                    ForEach(SevenZipBackendChoice.allCases) { backend in
                         Text(backend.title).tag(backend.rawValue)
                     }
                 }
@@ -62,7 +62,7 @@ struct SevenZipBackendSection: View {
     /// 选了「系统级 7-Zip」但未在 PATH 中找到时才提示 brew 安装，
     /// 选「内置」或「自动」时不应该让用户看到额外噪音。
     private var shouldShowSystemInstallPrompt: Bool {
-        SevenZipBackend(rawValue: sevenZipBackend) == .system && isSevenZipMissing
+        SevenZipBackendChoice(rawValue: sevenZipBackend) == .system && isSevenZipMissing
     }
 
     /// 探测 7-Zip 版本。

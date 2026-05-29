@@ -527,8 +527,19 @@ final class ArchiveBrowserModel: ObservableObject {
         }
     }
 
-    private func confirmArchiveExtractionSafety(archiveURL: URL) async throws {
-        let items = try await ArchiveService.list(archiveURL, force: isForced(archiveURL))
+    /// 安全检查：列出条目（可能需要密码）+ 用 ArchiveSafety 判定。
+    ///
+    /// 接收 password 是为了让 header-encrypted 7z 这类「不给密码连 list 都失败」的档案
+    /// 能用调用方手上已有的密码（用户输入 / 预设密码 / 上次成功的密码）跑 list。
+    /// 调用方负责把这个函数放在密码 retry 循环内 —— 列表失败时会抛出可被
+    /// `shouldPromptForArchivePassword` 识别的错误，由 retry 循环统一处理。
+    private func confirmArchiveExtractionSafety(
+        archiveURL: URL,
+        password: String = "",
+        force: Bool? = nil
+    ) async throws {
+        let force = force ?? isForced(archiveURL)
+        let items = try await ArchiveService.list(archiveURL, password: password, force: force)
         try confirmArchiveExtractionSafety(entries: items)
     }
 
@@ -777,13 +788,24 @@ final class ArchiveBrowserModel: ObservableObject {
             let stagingURL = try self.extractionCoordinator.makeExtractionStagingDirectory()
             defer { try? self.fileManager.removeItem(at: stagingURL) }
 
-            try await self.confirmArchiveExtractionSafety(archiveURL: request.archiveURL)
             let backendOverwriteBehavior = AppPreferences.overwriteBehavior == .skipExisting ? OverwriteBehavior.skipExisting : .overwrite
             var password = request.password
             var zipDecryptionMethod = request.zipDecryptionMethod
             var isRetry = !password.isEmpty
+            // 安全检查只跑一次 —— 第一次 list 成功后置 true，后续 retry 不重复跑 NSAlert。
+            // 旧版本把这步放在循环外，对 header-encrypted 7z 用空密码 list 直接失败，
+            // 用户根本进不到下面的密码 prompt。
+            var didCheckSafety = false
             while true {
                 do {
+                    if !didCheckSafety {
+                        try await self.confirmArchiveExtractionSafety(
+                            archiveURL: request.archiveURL,
+                            password: password,
+                            force: force
+                        )
+                        didCheckSafety = true
+                    }
                     try? self.fileManager.removeItem(at: stagingURL)
                     try self.fileManager.createDirectory(at: stagingURL, withIntermediateDirectories: true)
                     try await ArchiveService.extract(

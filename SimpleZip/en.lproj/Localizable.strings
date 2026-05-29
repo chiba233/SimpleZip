@@ -113,6 +113,7 @@
 "settings.presetPassword.placeholder" = "Enter your preset password";
 "settings.presetPassword.empty" = "Not configured yet — turn on the toggle above and enter a password.";
 "settings.presetPassword.saved" = "Saved to Keychain.";
+"settings.presetPassword.saveFailed" = "Keychain refused the write. Check your access permissions and try again.";
 "settings.presetPassword.revealReason" = "Reveal the preset password.";
 "settings.presetPassword.revealFailed" = "Authentication failed. The preset password stays hidden.";
 "button.save" = "Save";

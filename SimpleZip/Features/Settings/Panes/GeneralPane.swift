@@ -274,9 +274,16 @@ struct GeneralPane: View {
     }
 
     private func savePresetPassword() {
-        AppPreferences.setPresetPassword(presetPasswordBuffer)
-        savedPresetPassword = presetPasswordBuffer
-        presetPasswordRevealMessage = L10n.text("settings.presetPassword.saved")
+        // 旧版本无条件报「已保存」，但 Keychain 写失败的情况（权限被拒、磁盘满、ad-hoc 签名被换）
+        // 完全被吞掉，用户重启后发现密码丢了一头雾水。这里看返回值给真实反馈。
+        let success = AppPreferences.setPresetPassword(presetPasswordBuffer)
+        if success {
+            savedPresetPassword = presetPasswordBuffer
+            presetPasswordRevealMessage = L10n.text("settings.presetPassword.saved")
+        } else {
+            // 不更新 savedPresetPassword —— 保留旧值，让 Save 按钮继续可用，用户可重试。
+            presetPasswordRevealMessage = L10n.text("settings.presetPassword.saveFailed")
+        }
     }
 
     /// 切换密码显示状态。

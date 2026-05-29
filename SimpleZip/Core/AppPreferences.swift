@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Security
 
 /// App 内语言选择。system 表示跟随 macOS，其它值对应本地化目录名。
 enum AppLanguage: String, CaseIterable, Identifiable {
@@ -190,7 +191,9 @@ enum ArchiveSecurityDecision: String, CaseIterable, Identifiable {
 }
 
 /// 7-Zip 命令行后端来源。
-enum SevenZipBackend: String, CaseIterable, Identifiable {
+/// 用户在「压缩」设置里选的 7-Zip 来源 —— 是「选择」不是「后端实现」。
+/// 真正的 backend 实现在 `SevenZipBackend` (Core/Backends)。
+enum SevenZipBackendChoice: String, CaseIterable, Identifiable {
     case automatic
     case bundled
     case system
@@ -209,7 +212,9 @@ enum SevenZipBackend: String, CaseIterable, Identifiable {
     }
 }
 
-enum RarBackend: String, CaseIterable, Identifiable {
+/// 用户在「压缩」设置里选的 RAR 来源 —— 是「选择」不是「后端实现」。
+/// 真正的 backend 实现将来在 `RarBackend` (Core/Backends，Phase 4 step 3c)。
+enum RarBackendChoice: String, CaseIterable, Identifiable {
     case automatic
     case bundled
     case system
@@ -308,12 +313,12 @@ enum AppPreferences {
         ArchiveSecurityDecision(rawValue: defaults.string(forKey: Key.activeContentOpenPolicy) ?? "") ?? .ask
     }
 
-    static var sevenZipBackend: SevenZipBackend {
-        SevenZipBackend(rawValue: defaults.string(forKey: Key.sevenZipBackend) ?? "") ?? .automatic
+    static var sevenZipBackend: SevenZipBackendChoice {
+        SevenZipBackendChoice(rawValue: defaults.string(forKey: Key.sevenZipBackend) ?? "") ?? .automatic
     }
 
-    static var rarBackend: RarBackend {
-        RarBackend(rawValue: defaults.string(forKey: Key.rarBackend) ?? "") ?? .automatic
+    static var rarBackend: RarBackendChoice {
+        RarBackendChoice(rawValue: defaults.string(forKey: Key.rarBackend) ?? "") ?? .automatic
     }
 
     static var showHiddenFiles: Bool {
@@ -497,8 +502,12 @@ enum AppPreferences {
         presetPasswordEnabled && !presetPassword.isEmpty
     }
 
-    static func setPresetPassword(_ value: String) {
-        PresetPasswordStore.save(value)
+    /// 返回 true 表示 Keychain 真的落盘成功。
+    /// UI 必须根据返回值显示「保存成功 / 失败」 —— 旧版本无脑显示成功，
+    /// 失败时下次启动 load 仍然为空，把失败伪装成成功。
+    @discardableResult
+    static func setPresetPassword(_ value: String) -> Bool {
+        PresetPasswordStore.save(value) == errSecSuccess
     }
 
     static func clearPresetPassword() {
@@ -615,10 +624,19 @@ enum AppPreferences {
     }
 
     /// 把一份外部 payload 写回 UserDefaults。
-    /// 只接受白名单里的 key，已有偏好会被覆盖。导入完成后调用方应让相关 UI 刷新。
+    ///
+    /// 语义是「还原备份」，不是「打补丁」：先把所有白名单 key 抹掉，让没出现在 payload 里的
+    /// 项目回落到代码默认值，再写 payload 里有的 key。
+    /// 旧实现只覆盖 payload 里有的 key，没出现的就保留导入前的旧值，导致用户「换了一个
+    /// 简化版备份」之后还是带着上次的零散设置，根本对不上备份原状态。
+    /// 只接受白名单里的 key（防御 payload 里出现 AppleLanguages 这种全局系统 key）。
+    /// 导入完成后调用方应让相关 UI 刷新。
     static func importPayload(_ payload: [String: Any]) throws {
         let values = try PreferencesPayloadCodec.decode(payload)
         let allowed = Set(exportableUserDefaultsKeys)
+        for key in exportableUserDefaultsKeys {
+            defaults.removeObject(forKey: key)
+        }
         for (key, value) in values where allowed.contains(key) {
             defaults.set(value, forKey: key)
         }

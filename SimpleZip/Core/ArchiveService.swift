@@ -59,7 +59,7 @@ enum ArchiveService {
     }
 
     static func canUseSevenZip() -> Bool {
-        (try? sevenZipTool()) != nil
+        SevenZipBackend.isAvailable()
     }
 
     static func rarInstallResourcesURL() -> URL? {
@@ -535,23 +535,11 @@ enum ArchiveService {
     }
 
     static func sevenZipBackendDescription() -> String {
-        do {
-            let tool = try resolvedSevenZipTool()
-            return L10n.format("settings.7zip.resolvedPath", tool.source.title, tool.path)
-        } catch {
-            return L10n.text("settings.7zip.notFound")
-        }
+        SevenZipBackend.backendDescription()
     }
 
     static func sevenZipVersion() async -> String {
-        do {
-            let tool = try resolvedSevenZipTool()
-            let output = try await runAndCapture(tool.path, arguments: ["i"])
-            let firstLine = output.split(separator: "\n").first.map(String.init) ?? output
-            return L10n.format("settings.7zip.resolvedVersion", tool.source.title, firstLine.isEmpty ? tool.path : firstLine)
-        } catch {
-            return L10n.text("settings.7zip.notFound")
-        }
+        await SevenZipBackend.version()
     }
 
     static func rarBackendDescription() -> String {
@@ -582,26 +570,16 @@ enum ArchiveService {
         }
     }
 
-    /// 按设置查找 7zz/7z。App 内置版本可放在 Contents/Resources/Tools/7zz 或 7z。
+    /// 转发到 `SevenZipBackend.toolPath()`。
+    /// 留在 ArchiveService 里是因为下面 list / extract / test / 创建归档等 case 分支
+    /// 用了大量 `try sevenZipTool()` 调用 —— 等 step 3b 把那些动作也搬到 SevenZipBackend
+    /// 里之后，这个 thin wrapper 也可以一起删掉。
     private static func sevenZipTool() throws -> String {
-        try resolvedSevenZipTool().path
+        try SevenZipBackend.toolPath()
     }
 
     private static func resolvedSevenZipTool() throws -> ResolvedSevenZipTool {
-        let candidates: [ResolvedSevenZipTool]
-        switch AppPreferences.sevenZipBackend {
-        case .automatic:
-            candidates = bundledSevenZipCandidates + systemSevenZipCandidates
-        case .bundled:
-            candidates = bundledSevenZipCandidates
-        case .system:
-            candidates = systemSevenZipCandidates
-        }
-
-        if let tool = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0.path) }) {
-            return tool
-        }
-        throw ArchiveError.missingSevenZip
+        try SevenZipBackend.resolve()
     }
 
     private static func rarTool() throws -> String {
@@ -635,34 +613,7 @@ enum ArchiveService {
         try await DiskImageBackend.detach(at: mountPoint)
     }
 
-    private static var bundledSevenZipCandidates: [ResolvedSevenZipTool] {
-        guard let resourcePath = Bundle.main.resourceURL?.path else { return [] }
-        return [
-            "\(resourcePath)/Tools/7zz",
-            "\(resourcePath)/Tools/7z",
-            "\(resourcePath)/7zz",
-            "\(resourcePath)/7z"
-        ].map { ResolvedSevenZipTool(path: $0, source: .bundled) }
-    }
-
-    private static var systemSevenZipCandidates: [ResolvedSevenZipTool] {
-        uniqueExistingCandidatePaths(
-            [
-                "/opt/homebrew/bin/7zz",
-                "/opt/homebrew/bin/7z",
-                "/usr/local/bin/7zz",
-                "/usr/local/bin/7z",
-                "/opt/homebrew/opt/sevenzip/bin/7zz",
-                "/opt/homebrew/opt/sevenzip/bin/7z",
-                "/opt/homebrew/opt/p7zip/bin/7z",
-                "/usr/local/opt/sevenzip/bin/7zz",
-                "/usr/local/opt/sevenzip/bin/7z",
-                "/usr/local/opt/p7zip/bin/7z",
-                envPath(for: "7zz"),
-                envPath(for: "7z")
-            ].compactMap { $0 } + cellarCandidates(formula: "sevenzip", tools: ["7zz", "7z"]) + cellarCandidates(formula: "p7zip", tools: ["7z"])
-        ).map { ResolvedSevenZipTool(path: $0, source: .system) }
-    }
+    // 7zz 候选路径列表（bundled / system）已搬到 `SevenZipBackend`。
 
     private static var localRarCandidates: [ResolvedRarTool] {
         uniqueExistingCandidatePaths(
@@ -686,12 +637,16 @@ enum ArchiveService {
         ).map { ResolvedRarTool(path: $0, source: .system) }
     }
 
-    private static func applicationSupportDirectory() -> URL? {
+    // 下面 4 个 path-discovery helper 原本 `private`；step 3 抽 backend 时改成 `internal`
+    // 让 `SevenZipBackend` / 未来的 `RarBackend` 能直接调。后续 step 把它们彻底搬到
+    // 一个独立的 BackendToolDiscovery 文件里再清。
+
+    static func applicationSupportDirectory() -> URL? {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?
             .appendingPathComponent("SimpleZip", isDirectory: true)
     }
 
-    private static func uniqueExistingCandidatePaths(_ paths: [String]) -> [String] {
+    static func uniqueExistingCandidatePaths(_ paths: [String]) -> [String] {
         var seen = Set<String>()
         return paths.filter { path in
             guard !seen.contains(path) else { return false }
@@ -700,7 +655,7 @@ enum ArchiveService {
         }
     }
 
-    private static func envPath(for executable: String) -> String? {
+    static func envPath(for executable: String) -> String? {
         let pathValue = ProcessInfo.processInfo.environment["PATH"] ?? ""
         return pathValue
             .split(separator: ":")
@@ -709,7 +664,7 @@ enum ArchiveService {
             .first { FileManager.default.isExecutableFile(atPath: $0) }
     }
 
-    private static func cellarCandidates(formula: String, tools: [String]) -> [String] {
+    static func cellarCandidates(formula: String, tools: [String]) -> [String] {
         ["/opt/homebrew/Cellar/\(formula)", "/usr/local/Cellar/\(formula)"].flatMap { root -> [String] in
             guard let versions = try? FileManager.default.contentsOfDirectory(atPath: root) else { return [] }
             return versions.flatMap { version in
@@ -1025,35 +980,16 @@ enum ArchiveService {
 
 }
 
-// 注：ProgressOutputParser / ProcessInputStrategy / InteractivePasswordResponder /
-// ActiveProcessRegistry 已搬到 `BackendProcessRunner.swift`；
-// DMG 相关的 mount / detach / list / extract / 私有 DateFormatter 已搬到
-// `Backends/DiskImageBackend.swift`。剩下的辅助类型继续留在这 ——
-// `ResolvedSevenZipTool` / `ResolvedRarTool` / 它们的 source 枚举都还跟 7zz / RAR 后端选择强绑定，
-// 等 Phase 4 拆 SevenZipBackend / RarBackend 时再一并迁走。
-
-private struct ResolvedSevenZipTool {
-    let path: String
-    let source: SevenZipToolSource
-}
+// 注：
+// - ProgressOutputParser / ProcessInputStrategy / InteractivePasswordResponder /
+//   ActiveProcessRegistry → `BackendProcessRunner.swift`
+// - DMG 的 mount / detach / list / extract / DateFormatter → `Backends/DiskImageBackend.swift`
+// - ResolvedSevenZipTool / SevenZipToolSource / 7zz 路径发现 / 版本探测 → `Backends/SevenZipBackend.swift`
+// 这里还留着的是 RAR 后端相关 —— 等 Phase 4 step 3c 抽 RarBackend 时再一并搬走。
 
 private struct ResolvedRarTool {
     let path: String
     let source: RarToolSource
-}
-
-private enum SevenZipToolSource {
-    case bundled
-    case system
-
-    var title: String {
-        switch self {
-        case .bundled:
-            return L10n.text("settings.7zip.source.bundled")
-        case .system:
-            return L10n.text("settings.7zip.source.system")
-        }
-    }
 }
 
 private enum RarToolSource {

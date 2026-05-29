@@ -111,6 +111,7 @@
 "settings.presetPassword.placeholder" = "输入要预设的密码";
 "settings.presetPassword.empty" = "尚未配置 —— 打开上面的开关并在此输入密码。";
 "settings.presetPassword.saved" = "已加密保存到钥匙串。";
+"settings.presetPassword.saveFailed" = "钥匙串拒绝了写入。请检查访问权限后重试。";
 "settings.presetPassword.revealReason" = "需要验证才能显示预设密码。";
 "settings.presetPassword.revealFailed" = "验证未通过，预设密码继续隐藏。";
 "button.save" = "保存";
