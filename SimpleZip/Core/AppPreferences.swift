@@ -289,6 +289,10 @@ enum AppPreferences {
 
         // GPG 集成主开关 —— 关 → 创建 / 解压 / 状态徽章里所有 GPG 入口隐藏；设置 pane 始终可见让用户能开它。
         nonisolated static let gpgEnabled = "gpgEnabled"
+        // 智能卡 / OpenPGP 硬件 token 支持（GPG 高级特性，默认关）——
+        // 多数用户不用智能卡，开启会显示「我的密钥（智能卡）」分组 + 「从智能卡导入公钥」按钮 + 一些卡相关错误提示。
+        // 没有这把开关时如果用户的 keyring 里恰好有卡 stub，UI 仍然能看到（不会丢数据），只是不出现卡操作入口。
+        nonisolated static let gpgSmartcardEnabled = "gpgSmartcardEnabled"
     }
 
     nonisolated static var startupLocation: StartupLocation {
@@ -501,6 +505,12 @@ enum AppPreferences {
         defaults.bool(forKey: Key.gpgEnabled)
     }
 
+    /// 是否启用智能卡 / OpenPGP 硬件 token 支持。默认 false —— 多数用户不用卡，避免 UI 多一堆「卡上密钥」「从智能卡导入」入口让人困惑。
+    /// 开启时 GPGPane 高级区出现智能卡相关按钮 + 卡 stub 密钥单独分组。
+    nonisolated static var gpgSmartcardEnabled: Bool {
+        defaults.bool(forKey: Key.gpgSmartcardEnabled)
+    }
+
     /// 预设密码的实际内容。空字符串等于「未配置」。
     /// 存储已迁到 Keychain（见 `PresetPasswordStore`）。本属性是业务侧（创建/解压自动填）
     /// 的静默读取入口，不会触发 Touch ID。
@@ -614,8 +624,9 @@ enum AppPreferences {
         Key.finderOpenAutoExtract,
         // 注意：只导 presetPasswordEnabled 开关，密码本身永远在 Keychain，不进导出文件。
         Key.presetPasswordEnabled,
-        // GPG 集成主开关；私钥 / 公钥都在 ~/.gnupg/，不进导出文件。
+        // GPG 集成主开关 + 智能卡支持开关；私钥 / 公钥都在 ~/.gnupg/，不进导出文件。
         Key.gpgEnabled,
+        Key.gpgSmartcardEnabled,
         Key.suspiciousPathPolicy,
         Key.symbolicLinkPolicy,
         Key.activeContentOpenPolicy,

@@ -4,6 +4,21 @@
 
 ## 0.1.8
 
+- **重做：GPG 设置面板钥匙串强分区 + 信任级别 picker + 智能卡 opt-in 支持 + 高级 / 普通设置分层**
+  - 钥匙串列表从一坨平铺改成**三分组**：「我的密钥（本机私钥）」/「我的密钥（智能卡 / OpenPGP token）」/「他人公钥」。`hasSecretKey && !isSecretKeyStub` / `hasSecretKey && isSecretKeyStub` / `!hasSecretKey` 三种组合分别落盘到对应组。空组不渲染标题。
+  - 每行 GPGKeyRow 增加 **信任级别 Picker**（5 选 1：未设置 / 永不信任 / 勉强信任 / 完全信任 / 终极信任）。点选立即调 `gpg --command-fd 0 --edit-key <fpr>` 喂 `trust\n<menu-number>\ny\nsave\n` 落盘，改完自动 refresh 钥匙串。`expired` / `revoked` 状态显示红色只读 chip，不让用户「设置」一个 gpg 报告的密钥状态。
+  - 智能卡支持改成**opt-in**：高级区新增 toggle `gpgSmartcardEnabled`（默认关），关闭时钥匙串里不出现「智能卡分组」标题、顶部不出现「从智能卡导入公钥」按钮 —— 不用卡的用户界面跟以前一样干净。开启后才出现卡相关 UI + 「从智能卡导入公钥」按钮（跑 `gpg --card-status` ping 卡 + `--card-edit fetch` 拉公钥到 keyring）。
+  - 设置面板分**普通 / 高级**两层：普通区始终展开（主开关 / 后端徽章 / 安装提示 / 钥匙串列表 / 操作按钮）；高级区是 `DisclosureGroup` 默认折叠（智能卡支持 toggle / GnuPG 实际路径 / pinentry-mac 状态 / gpg-agent 运行状态 / GNUPGHOME envvar）。普通用户基本不会展开高级；调试 / 卡用户一展就拿到所有环境信息。
+  - 安装命令提示文案明确说明智能卡支持：`brew install gnupg pinentry-mac` 命令下方加一句「上述命令同时启用智能卡 / OpenPGP token 支持（gnupg 自带 scdaemon，无需额外安装）」，避免用户装完 GPG 才发现卡不识别。
+  - 智能卡密钥行额外显示红字 caption：「私钥在卡上，签名 / 解密时需插入对应智能卡」+ 钥匙图标右下角加 `creditcard.fill` 角标。用户不会再以为「这把密钥能用但每次签名都失败是 SimpleZip 的 bug」。
+  - 底层 / Core 改动：
+    - `GPGBackend.GPGKey` 加 `trust: GPGTrustLevel` + `isSecretKeyStub: Bool` 字段；`parseColonsList` 增强解析 `pub` 行第 2 字段 trust 字符（`u/f/m/n/e/r/-`）+ 区分 `sec` vs `sec#` stub 标记。
+    - 新增 `GPGBackend.setTrustLevel(fingerprint:to:) async throws` / `importFromSmartcard() async throws -> String` 两个 async 方法。
+    - 新 enum `GPGTrustLevel`（unknown / never / marginal / full / ultimate / expired / revoked）—— 唯一表达信任级别，UI / 后端共享；`userAssignableCases` 暴露 picker 可选项（不含 expired / revoked）。
+    - `BackendProcessRunner` 加 `ProcessInputStrategy.staticInput(String)` —— GPG `--edit-key` / `--card-edit` 这种 interactive menu 喂 stdin 后立刻关流的基础设施，复用现有 pipe / 取消机制。后续 PIN 管理 / 卡上生成密钥也走这条路。
+    - `AppPreferences.gpgSmartcardEnabled` 新 key（默认 false）+ 偏好导出白名单。
+  - 跟 [[feedback-gpg-release-emphasis]] 一致：错误文案点名责任方（「请检查卡是否插好 / scdaemon 是否能识别」）而不是让用户怀疑 SimpleZip。
+
 - **新功能：运行状态诊断面板 + 复制诊断报告里加入 GPG 模块**
   - 「设置 → 运行状态」`HealthPane` 加一行 GPG 后端状态 —— 仅当用户启用了 GPG 集成（`gpgEnabled == true`）时出现，按 AGENTS A4「主开关关 = 主界面不再露 GPG 字样」例外只在设置 / 诊断面里露。
   - 单行综合状态四态：GnuPG 缺失 → 红 ✗（带「打开 GPG 设置」修复按钮）；GnuPG ok 但 pinentry-mac 缺 → 黄 ⚠（签名能用、解密 / 解锁私钥会卡，因为 gpg-agent 没 GUI 弹窗）；GnuPG + pinentry 全 ok 但 gpg-agent 没跑 → 黄 ⚠（gpg 会按需拉起，通常不致命）；全绿 ✓ → 显示钥匙串里公钥总数 + 含私钥数量。

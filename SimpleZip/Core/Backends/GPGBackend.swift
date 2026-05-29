@@ -114,8 +114,65 @@ enum GPGBackend {
             tool,
             arguments: ["--list-secret-keys", "--with-colons", "--fingerprint"]
         )) ?? ""
+        // sec = 本机持有完整私钥；sec# = 仅 stub（私钥不在本机，典型场景是智能卡 / OpenPGP token）。
+        // 两者都属于「有私钥」，但 UI 上要分组展示，让用户知道哪些密钥用起来需要插卡。
         let secretFingerprints = Set(parseFingerprints(in: secretOutput, recordPrefix: "sec"))
-        return parseColonsList(publicOutput, secretFingerprints: secretFingerprints)
+        let stubFingerprints = Set(parseFingerprints(in: secretOutput, recordPrefix: "sec", requireStubFlag: true))
+        return parseColonsList(publicOutput, secretFingerprints: secretFingerprints, stubFingerprints: stubFingerprints)
+    }
+
+    /// 修改某把密钥的 owner trust 等级。
+    ///
+    /// gpg `--edit-key <fpr>` 是 interactive menu，没有 `--quick-set-trust` 这种简便参数（部分新版有但兼容差）。
+    /// 这里用 `--command-fd 0 --batch` 走 stdin 喂命令序列：`trust\n<n>\ny\nsave\n`。
+    /// `--batch` 让 gpg 不去 prompt 确认；最后 `save` 而不是 `quit` 让设置落盘。
+    /// 不可设置的等级（unknown / expired / revoked）调用方应在 UI 层拦住，本函数对那些 case 不做事。
+    static func setTrustLevel(fingerprint: String, to level: GPGTrustLevel) async throws {
+        guard let menuNumber = level.editTrustMenuNumber else {
+            throw ArchiveError.commandFailed("Trust level \(level.rawValue) is read-only and cannot be set")
+        }
+        let tool = try resolve()
+        // 命令序列：进入 trust 子菜单 → 选数字 → 对 "Do you really want to set this key to ultimate trust?" 回答 y
+        // → save 退出。ultimate 比 marginal/full/never 多一个确认 prompt，统一加 y 不会有问题（其它等级 gpg 直接忽略）。
+        let commands = "trust\n\(menuNumber)\ny\nsave\n"
+        _ = try await BackendProcessRunner.runAndCapture(
+            tool,
+            arguments: [
+                "--batch",
+                "--yes",
+                "--no-tty",
+                "--command-fd", "0",
+                "--edit-key", fingerprint
+            ],
+            inputStrategy: .staticInput(commands)
+        )
+    }
+
+    /// 从插入的 OpenPGP 智能卡 / token 上读取公钥并导入本机 keyring（生成 sec# stub）。
+    ///
+    /// `gpg --card-status` 跑一次 ping 卡 —— 失败说明卡没插好 / 没驱动 / scdaemon 出问题。
+    /// 通过后跑 `gpg --card-edit fetch quit`：gpg 解析卡上记录的 OpenPGP URL（Issuer 字段）回 keyserver 拿对应公钥；
+    /// 如果卡上没设 URL，这步会失败，要靠 `gpg --card-edit generate` 之类才能造一份 —— 那个属于「在卡上新建密钥」
+    /// 是 #26 不做的范围，本函数只覆盖「卡上已有密钥 + 已设公钥 URL」的常见场景。
+    @discardableResult
+    static func importFromSmartcard() async throws -> String {
+        let tool = try resolve()
+        _ = try await BackendProcessRunner.runAndCapture(
+            tool,
+            arguments: ["--card-status"]
+        )
+        // --card-edit 是 interactive menu，跟 trust 同样走 --command-fd 0 喂命令。
+        return try await BackendProcessRunner.runAndCapture(
+            tool,
+            arguments: [
+                "--batch",
+                "--yes",
+                "--no-tty",
+                "--command-fd", "0",
+                "--card-edit"
+            ],
+            inputStrategy: .staticInput("fetch\nquit\n")
+        )
     }
 
     /// 导入公钥（也兼容导入公私钥对，gpg 自动识别）。
@@ -186,26 +243,35 @@ enum GPGBackend {
     /// - `uid:trust:::created::userIDHash:::userID:::...`
     /// - `fpr:::::::::fingerprint:`
     /// 状态机：遇到 `pub` 开新 key 收集；遇到 `fpr` 填 fingerprint；遇到 `uid` 填 primary UID（第一条）。
-    private static func parseColonsList(_ output: String, secretFingerprints: Set<String>) -> [GPGKey] {
+    private static func parseColonsList(
+        _ output: String,
+        secretFingerprints: Set<String>,
+        stubFingerprints: Set<String>
+    ) -> [GPGKey] {
         var keys: [GPGKey] = []
         var currentFingerprint: String?
         var currentUserID: String?
         var currentExpired = false
+        var currentTrust: GPGTrustLevel = .unknown
         var collecting = false
 
         func flush() {
             if collecting, let fp = currentFingerprint {
                 let uid = currentUserID ?? fp
+                let hasSecret = secretFingerprints.contains(fp) || stubFingerprints.contains(fp)
                 keys.append(GPGKey(
                     fingerprint: fp,
                     userID: uid,
-                    hasSecretKey: secretFingerprints.contains(fp),
-                    isExpired: currentExpired
+                    hasSecretKey: hasSecret,
+                    isSecretKeyStub: stubFingerprints.contains(fp),
+                    isExpired: currentExpired,
+                    trust: currentTrust
                 ))
             }
             currentFingerprint = nil
             currentUserID = nil
             currentExpired = false
+            currentTrust = .unknown
             collecting = false
         }
 
@@ -216,9 +282,13 @@ enum GPGBackend {
             case "pub", "sec":
                 flush()
                 collecting = true
-                // 第 1 字段：信任 / 有效性。`e` = expired，`r` = revoked，`-` = unknown
-                if fields.count > 1, fields[1] == "e" || fields[1] == "r" {
-                    currentExpired = true
+                // 第 1 字段：trust / validity 单字符。`e` = expired，`r` = revoked，`-` = unknown，u/f/m/n = 已设置等级。
+                if fields.count > 1 {
+                    let raw = fields[1]
+                    if raw == "e" || raw == "r" {
+                        currentExpired = true
+                    }
+                    currentTrust = GPGTrustLevel.parse(raw)
                 }
             case "fpr":
                 // 第 9 字段是 fingerprint
@@ -226,7 +296,8 @@ enum GPGBackend {
                     currentFingerprint = fields[9]
                 }
             case "uid":
-                // 第 9 字段是 user ID 文本（含 Name <email>）；只取第一条作为 primary
+                // 第 9 字段是 user ID 文本（含 Name <email>）；只取第一条作为 primary。
+                // uid 行有自己的 trust 字段（field 1），但我们更看重 pub 行的 trust（owner trust），uid trust 是 validity。
                 if collecting, fields.count > 9, currentUserID == nil, !fields[9].isEmpty {
                     currentUserID = fields[9]
                 }
@@ -239,19 +310,33 @@ enum GPGBackend {
     }
 
     /// 仅提取指定记录前缀（`pub` / `sec`）后跟的 fingerprint，给 listKeys 做「这个 fingerprint 有私钥吗」交叉引用。
-    private static func parseFingerprints(in output: String, recordPrefix: String) -> [String] {
+    /// `requireStubFlag = true` 时只匹配带 `#` 后缀的 stub 记录（如 `sec#`），用来识别智能卡 / OpenPGP token 上的密钥。
+    private static func parseFingerprints(
+        in output: String,
+        recordPrefix: String,
+        requireStubFlag: Bool = false
+    ) -> [String] {
         var fingerprints: [String] = []
         var inTargetRecord = false
         for rawLine in output.split(separator: "\n", omittingEmptySubsequences: false) {
             let fields = rawLine.split(separator: ":", omittingEmptySubsequences: false).map(String.init)
             guard let recordType = fields.first else { continue }
-            if recordType == recordPrefix {
-                inTargetRecord = true
+            // gpg 输出里 stub 标记直接在记录类型后跟 `#`（如 `sec#`、`ssb#`）；用第 14 字段（serial）有时也能区分。
+            // 这里走最稳的路：检查 fields[14] 是否含 SmartCard serial / `>` / 第 1 字段是否 `#` 不可用。
+            // 实际 gpg 在 --with-colons 输出 sec# 时记录类型就是 "sec#"（第 0 字段直接带 #）。所以正常 parse 切 ':' 不会丢这个标记。
+            let baseType = recordType.replacingOccurrences(of: "#", with: "")
+            let isStubLine = recordType.hasSuffix("#")
+
+            if baseType == recordPrefix {
+                if requireStubFlag {
+                    inTargetRecord = isStubLine
+                } else {
+                    inTargetRecord = true
+                }
             } else if recordType == "fpr", inTargetRecord, fields.count > 9 {
                 fingerprints.append(fields[9])
                 inTargetRecord = false
-            } else if recordType == "pub" || recordType == "sec" {
-                // 切到新 primary 但不是我们关心的类型，重置
+            } else if baseType == "pub" || baseType == "sec" {
                 inTargetRecord = false
             }
         }
@@ -320,13 +405,59 @@ enum GPGBackend {
     /// - Homebrew (Apple Silicon: `/opt/homebrew/bin/gpg`，Intel: `/usr/local/bin/gpg`)
     /// - GPGTools (`/usr/local/MacGPG2/bin/gpg` 或 `/opt/homebrew/MacGPG2/bin/gpg`，老版本可能装在这里)
     /// - $PATH 兜底
-    /// Keyring 里的一把密钥（primary key + 首条 UID + 是否有私钥）。
-    /// 故意不展开 subkey 列表 / 创建时间等细节 —— 当前 UI 只需要「列出来挑一个签名 / 显示导入了谁」。
+    /// 信任级别 —— gpg `--with-colons` 输出 `pub`/`uid` 记录第 2 字段的字符映射。
+    /// 用户通过 `setTrustLevel(...)` 修改时，对应 gpg `--edit-key trust` 菜单的 1-5 数字。
+    /// `expired` / `revoked` 不是用户可设置的等级，是 gpg 报告的密钥状态 —— UI 把它们渲染成红色但 picker 里不出现。
+    enum GPGTrustLevel: String, CaseIterable, Hashable {
+        case unknown    // gpg field "-"，新导入的他人公钥默认值
+        case never      // gpg field "n"，gpg menu trust → 2
+        case marginal   // gpg field "m"，gpg menu trust → 3
+        case full       // gpg field "f"，gpg menu trust → 4
+        case ultimate   // gpg field "u"，gpg menu trust → 5（本人自有密钥默认）
+        case expired    // gpg field "e"
+        case revoked    // gpg field "r"
+
+        /// 从 gpg --with-colons 输出第 2 字段单字符解析。
+        static func parse(_ raw: String) -> GPGTrustLevel {
+            switch raw {
+            case "n": return .never
+            case "m": return .marginal
+            case "f": return .full
+            case "u": return .ultimate
+            case "e": return .expired
+            case "r": return .revoked
+            default: return .unknown
+            }
+        }
+
+        /// 喂给 `gpg --command-fd 0 trust` menu 的数字（unknown / expired / revoked 不可设置，返回 nil）。
+        var editTrustMenuNumber: String? {
+            switch self {
+            case .never: return "2"
+            case .marginal: return "3"
+            case .full: return "4"
+            case .ultimate: return "5"
+            case .unknown, .expired, .revoked: return nil
+            }
+        }
+
+        /// picker 里可选项 —— 不含 expired / revoked（密钥状态，不是用户可设置的）；含 unknown 让用户撤回 trust 设置。
+        static var userAssignableCases: [GPGTrustLevel] {
+            [.unknown, .never, .marginal, .full, .ultimate]
+        }
+    }
+
+    /// Keyring 里的一把密钥（primary key + 首条 UID + 私钥状态 + 信任级别）。
+    /// 故意不展开 subkey 列表 / 创建时间等细节 —— 当前 UI 只需要「分三类 + 挑一个签名 + 调整信任」。
     struct GPGKey: Identifiable, Hashable {
         let fingerprint: String
         let userID: String
         let hasSecretKey: Bool
+        /// `true` = 私钥在本机有 stub 但完整密钥材料不在（典型场景：智能卡 / OpenPGP token，gpg 输出 `sec#`）。
+        /// 签名 / 解密时需要插入对应卡，否则 gpg-agent 会卡。
+        let isSecretKeyStub: Bool
         let isExpired: Bool
+        let trust: GPGTrustLevel
 
         var id: String { fingerprint }
 

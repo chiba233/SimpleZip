@@ -80,7 +80,20 @@ enum BackendProcessRunner {
                 currentDirectory: currentDirectory,
                 progressParser: progressParser,
                 outputObserver: outputObserver,
-                operationID: operationID
+                operationID: operationID,
+                staticStdin: nil
+            )
+        case .staticInput(let text):
+            // GPG menu (`--edit-key` / `--card-edit`) 等需要喂一段固定命令序列到 stdin 然后让子进程自然退出。
+            // 走 runWithPipe 复用所有 IO / 取消机制，差别仅在进程启动后把字符串写进 stdin 并关闭。
+            return try runWithPipe(
+                executable,
+                arguments: arguments,
+                currentDirectory: currentDirectory,
+                progressParser: progressParser,
+                outputObserver: outputObserver,
+                operationID: operationID,
+                staticStdin: text
             )
         case .passwordPrompts(let responses):
             return try runWithPseudoTerminal(
@@ -101,7 +114,8 @@ enum BackendProcessRunner {
         currentDirectory: URL?,
         progressParser: ProgressOutputParser?,
         outputObserver: (@Sendable (String) -> Void)?,
-        operationID: UUID?
+        operationID: UUID?,
+        staticStdin: String?
     ) throws -> String {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executable)
@@ -109,13 +123,30 @@ enum BackendProcessRunner {
         process.currentDirectoryURL = currentDirectory
 
         let ioPipe = Pipe()
-        process.standardInput = FileHandle.nullDevice
         process.standardOutput = ioPipe
         process.standardError = ioPipe
+
+        // 默认丢 /dev/null 让 stdin 不挂；有 staticStdin 时换成 Pipe 写完即关。
+        let stdinPipe: Pipe?
+        if staticStdin != nil {
+            let pipe = Pipe()
+            process.standardInput = pipe
+            stdinPipe = pipe
+        } else {
+            process.standardInput = FileHandle.nullDevice
+            stdinPipe = nil
+        }
 
         activeProcessRegistry.register(process, operationID: operationID)
         defer { activeProcessRegistry.clear(process) }
         try process.run()
+        if let stdinPipe, let staticStdin {
+            // 进程启动后立刻喂 stdin 然后关掉 —— 大多数 interactive CLI 看到 EOF 就会按序处理已喂的命令。
+            if let data = staticStdin.data(using: .utf8) {
+                try? stdinPipe.fileHandleForWriting.write(contentsOf: data)
+            }
+            try? stdinPipe.fileHandleForWriting.close()
+        }
         let output = try readOutput(from: ioPipe.fileHandleForReading, progressParser: progressParser, outputObserver: outputObserver)
         process.waitUntilExit()
 
@@ -222,9 +253,13 @@ enum BackendProcessRunner {
 
 // MARK: - 共享辅助类型
 
-/// 子进程 stdin 投喂策略：直通（none）/ 截获 stdout 的「请输入密码」提示再回填（passwordPrompts）。
+/// 子进程 stdin 投喂策略：
+/// - `.none`：stdin 接 /dev/null。
+/// - `.staticInput`：进程启动后立刻把字符串写进 stdin 然后关流（gpg `--edit-key` / `--card-edit` 这种 interactive menu）。
+/// - `.passwordPrompts`：跑 PTY，从 stdout 截获「请输入密码」提示再按 prompt 顺序灌密码。
 enum ProcessInputStrategy {
     case none
+    case staticInput(String)
     case passwordPrompts([String])
 }
 
