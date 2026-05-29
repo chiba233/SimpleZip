@@ -1,0 +1,80 @@
+name: PR Checks
+
+# 每次 PR / push 到 main 都跑「测试 + Xcode Debug 构建」的快速门禁。
+# 不跑 DMG 打包 —— DMG 由 release.yml 在 release tag 或手动触发时单独跑。
+# 这套拆分避免每个 PR 都白白生成一个没人会下载的 DMG，省 CI 时间和 macOS runner 配额。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# 同一 PR / 同一分支后续推送时取消正在跑的旧 run，减少 macOS runner 配额浪费。
+# main 分支的 push 不取消，避免漏掉某次合并的验证。
+concurrency:
+  group: pr-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    name: SwiftPM tests + Xcode Debug build
+    runs-on: macos-26
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Select Xcode 26.5
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "26.5"
+
+      - name: Verify Xcode version
+        run: |
+          xcodebuild -version
+          echo "DEVELOPER_DIR=$DEVELOPER_DIR"
+
+      # SwiftPM 的 build 产物可以跨 run 缓存，省一次完整 resolve + compile。
+      # key 用 Package.swift + 所有参与 SwiftPM 编译的 .swift 路径的 hash，
+      # 这样改动业务代码就 cache miss，但只动 README / 工作流之类的不会。
+      - name: Cache SwiftPM build artifacts
+        uses: actions/cache@v4
+        with:
+          path: /private/tmp/SimpleZipSwiftPM
+          key: spm-${{ runner.os }}-xcode26.5-${{ hashFiles('Package.swift', 'SimpleZip/Core/**/*.swift', 'Tests/SimpleZipCoreTests/**/*.swift') }}
+          restore-keys: |
+            spm-${{ runner.os }}-xcode26.5-
+
+      # Xcode derived data 也缓存。pbxproj + 全部源码 hash 作为 key。
+      # 由于工程用了 Xcode 16+ 的 PBXFileSystemSynchronizedRootGroup，加文件不会改 pbxproj，
+      # 单纯加文件的 PR 也能命中 derived data 的增量编译。
+      - name: Cache Xcode derived data
+        uses: actions/cache@v4
+        with:
+          path: /private/tmp/SimpleZipDerivedData
+          key: derivedData-${{ runner.os }}-xcode26.5-${{ hashFiles('SimpleZip.xcodeproj/project.pbxproj', 'SimpleZip/**/*.swift', 'SimpleZipFinderExtension/**/*.swift', 'Info.plist') }}
+          restore-keys: |
+            derivedData-${{ runner.os }}-xcode26.5-
+
+      # 与 AGENTS.md 里的「daily 命令」字字对应。任何修改这条命令请同步更新 AGENTS.md。
+      - name: Run SwiftPM core tests
+        run: |
+          /usr/bin/env DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+            /usr/bin/xcrun swift test \
+            --scratch-path /private/tmp/SimpleZipSwiftPM \
+            -Xswiftc -module-cache-path -Xswiftc /private/tmp/SimpleZipSwiftPM/ModuleCache
+
+      # 跟 AGENTS.md 里「UI / Xcode 工程 / Info.plist / 资源 / 本地化 / app-target 改动需要再跑」
+      # 那条命令一致。PR 不区分到底改了什么，统一跑 Debug 构建作为最简验证。
+      - name: Build SimpleZip.app (Debug)
+        run: |
+          /usr/bin/env DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+            /usr/bin/xcodebuild \
+            -project SimpleZip.xcodeproj \
+            -scheme SimpleZip \
+            -configuration Debug \
+            -derivedDataPath /private/tmp/SimpleZipDerivedData \
+            build

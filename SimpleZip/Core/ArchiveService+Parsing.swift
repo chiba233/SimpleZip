@@ -116,6 +116,12 @@ extension ArchiveService {
     }
 
     static func parseSevenZipList(_ output: String) -> [ArchiveItem] {
+        // 当 list 走密码路径时（runWithPseudoTerminal），底层 PTY 在 macOS 默认 ONLCR
+        // 状态下会把 7zz 输出里的每个 \n 转成 \r\n。下面按 \n 分行后每行末尾会留 \r：
+        //   1) 含 \r 的「空白分隔行」(只有 "\r") 不再触发 flush()，多个条目的 values 互相覆盖；
+        //   2) 即便最终能 flush 出来，Path / Method 这些 value 也带 \r 尾，触发 ArchiveSafety 误判。
+        // 这里在解析前把所有 \r 剔除掉 —— 7z 输出里 \r 不会出现在文件名里（合法路径不允许）。
+        let output = output.replacingOccurrences(of: "\r", with: "")
         var rows: [ArchiveItem] = []
         var values: [String: String] = [:]
 
@@ -126,6 +132,18 @@ extension ArchiveService {
             }
             let path = decodeArchivePathEscapes(rawPath)
             guard path != "." else {
+                values.removeAll()
+                return
+            }
+            // 7zz l -slt 在列出条目之前会先输出 archive 自己的元信息块：
+            // Path = <绝对路径>, Type = 7z, Physical Size = ..., Headers Size = ..., Method = LZMA2:12, Solid = +, Blocks = 1
+            // 这一块带 Method 字段，会通过下面的 hasEntryMetadata 检查被当成条目，
+            // 把 archive 的绝对路径当 entry 名报出去，再触发 ArchiveSafety 的「绝对路径」拦截。
+            // 这里用 `Type` / `Physical Size` / `Headers Size` 三个只出现在头块的字段显式过滤掉。
+            let isArchiveHeaderBlock = values["Type"] != nil
+                || values["Physical Size"] != nil
+                || values["Headers Size"] != nil
+            guard !isArchiveHeaderBlock else {
                 values.removeAll()
                 return
             }

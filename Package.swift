@@ -49,7 +49,12 @@ let package = Package(
         .testTarget(
             name: "SimpleZipCoreTests",
             dependencies: ["SimpleZipCore"],
-            path: "Tests/SimpleZipCoreTests"
+            path: "Tests/SimpleZipCoreTests",
+            // Fixtures/ 下是预录的二进制压缩包 + 生成脚本 + README，
+            // 通过 Bundle.module 给测试代码拿到 URL，避免依赖 swift test 当前工作目录。
+            resources: [
+                .copy("Fixtures")
+            ]
         )
     ]
 )

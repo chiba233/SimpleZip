@@ -4,6 +4,10 @@
 
 ## 0.1.6
 
+- **压缩包列表（Bug 修复）**
+  - 修复一个 7-Zip 列表解析 bug：`7zz l -slt` 输出的 archive 头块（含 `Path = <绝对路径>` `Type = 7z` `Method = LZMA2:12` `Solid = +` 等字段）之前会被解析器误当成一个普通条目，把 archive 自己的绝对路径作为「entry」混进结果，进而触发 ArchiveSafety 的「绝对路径不安全」提示。现在头块用 `Type` / `Physical Size` / `Headers Size` 三个仅在头块出现的字段识别并跳过。
+  - 修复带密码列出压缩包时返回空列表的 bug：list 走密码路径时用 PTY，macOS 默认的 ONLCR 把 `\n` 转 `\r\n`，原解析器没有归一化行尾，导致空白分隔行不再触发条目 flush，多条目互相覆盖。新增 CRLF 归一化。
+  - 上述两个 bug 都由新增的预录 fixture 测试在第一次运行时立刻捕获，作为下面 fixture 库价值的最佳示范。
 - **设置**
   - 设置窗口由固定的 820×560 改成可拖拽自适应（最小 720×520，理想 820×560，无上限），下拉项宽度也改为根据当前翻译自适应，避免长语言被截断。
   - 修复「自定义列」面板第三行错把同一个「归档大小」开关绑定了两次的 bug：那一行现在保持空白，归档列计数与实际可选列对齐。
@@ -12,8 +16,12 @@
   - `SettingsView.swift` 由单文件 1448 行拆分为 `Features/Settings/` 下 14 个职责明确的文件（GeneralPane / ArchivePane / BrowserPane / ColumnsPane / FileAssociationsPane / SevenZipBackendSection / RarBackendSection / RarInstallSheet 等），并附中文「为什么这么写」注释，便于后续维护。
   - `ArchiveBrowserModel.swift` 由 2089 行精简到 1744 行（-345），按 `docs/ARCHITECTURE.md` 拆出 3 个独立单元：`ArchiveSession`（压缩包内容 + 当前路径 + 合成目录 / 路径展开）、`FileBrowserService`（列目录、Finder 标签搜索、`FileItem` 构造、地址栏补全）、`ArchiveOperationRunner`（「一次一个」长任务的取消、ID 跟踪、子进程联动）。
   - 将 `NavigationLocation`、`MountedDiskImageSession` 移到独立的 `BrowserNavigation.swift`。
+- **CI / 发布管道**
+  - 拆分 GitHub Actions：原 `build-dmg.yml` 在每次 PR / push 都会跑 DMG 打包，浪费 macOS runner 配额。现在拆成 `pr.yml`（每次 PR / push 跑测试 + Xcode Debug 构建，带 SwiftPM scratch 和 derived data 缓存，PR 后续推送会取消旧 run 节省配额）和 `release.yml`（仅 push tag `v*` 或手动触发时打 DMG / 发布 release）。
+  - `release.yml` 新增按 tag 名解析版本号的支持：推 `v0.1.6` 即触发自动发布。
 - **测试**
-  - `ArchiveService` 单元测试由 27 个扩展到 72 个，新增 `ArchiveServiceArgumentsTests`（覆盖路由 gate、参数构造分支、命令映射、原生 zip 回退条件）和 `ArchiveServiceParsingTests`（覆盖输出解析边角、合成目录展开、ZIP 加密探测）。
+  - `ArchiveService` 单元测试由 27 个扩展到 84 个，新增 `ArchiveServiceArgumentsTests`（覆盖路由 gate、参数构造分支、命令映射、原生 zip 回退条件）和 `ArchiveServiceParsingTests`（覆盖输出解析边角、合成目录展开、ZIP 加密探测、CRLF 行尾归一化）。
+  - 新增 `Tests/SimpleZipCoreTests/Fixtures/` 预录回归 fixture 库（plain / AES-256 / 路径穿越的 zip + 7z + tar，含中文文件名、嵌套目录、空目录），由 `generate.sh` 用 macOS 自带 `zip`/`tar`、bundled `7zz`、Python `zipfile` 生成（脚本可重跑）。配套 `ArchiveServiceFixtureTests` 覆盖「读」路径，避免「自己写自己读」式的自证测试 —— 上述两个 7-Zip 解析 bug 就是这套测试在第一次运行时找到的。
 
 ## 0.1.5
 

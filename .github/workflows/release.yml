@@ -1,27 +1,35 @@
-name: Build unsigned DMG
+name: Release DMG
+
+# 打 unsigned DMG 并（按需）发布 GitHub release。
+# 慢任务（RAR 后端拉取 + Release 配置构建 + 公证准备 + 上传 artifact）只在这里跑，
+# 不像之前 build-dmg.yml 那样每个 PR 都执行 —— 那个工作流已被 pr.yml 接管。
+#
+# 触发方式：
+#   1. push tag v* —— 自动按 tag 名解析版本号、自动发布 release；
+#   2. workflow_dispatch —— 仓库 Actions 页面手动触发，可选发布。
+# 不再监听 main 的 push / pull_request。
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
   workflow_dispatch:
     inputs:
       publish_release:
-        description: Publish a GitHub release
+        description: Publish a GitHub release after building
         type: boolean
         required: true
         default: false
       version:
-        description: Release version, for example 0.1.0
+        description: Release version, for example 0.1.0 (required if publishing)
         type: string
         required: false
+  push:
+    tags:
+      - 'v*'
 
 permissions:
   contents: write
 
 jobs:
-  build-dmg:
+  release:
     name: Build unsigned macOS DMG
     runs-on: macos-26
 
@@ -39,13 +47,23 @@ jobs:
           xcodebuild -version
           echo "DEVELOPER_DIR=$DEVELOPER_DIR"
 
+      # 即便 pr.yml 已经替每个改动跑过测试，这里再跑一遍是为了「释放管道」时再确认一次：
+      # release 走的是 Release 配置、可能改动了 RAR 依赖，单元测试又快又便宜，
+      # 是发版前最后一道防线。
       - name: Run SwiftPM core tests
         run: |
-          /usr/bin/env DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer /usr/bin/xcrun swift test --scratch-path /private/tmp/SimpleZipSwiftPM -Xswiftc -module-cache-path -Xswiftc /private/tmp/SimpleZipSwiftPM/ModuleCache
+          /usr/bin/env DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+            /usr/bin/xcrun swift test \
+            --scratch-path /private/tmp/SimpleZipSwiftPM \
+            -Xswiftc -module-cache-path -Xswiftc /private/tmp/SimpleZipSwiftPM/ModuleCache
 
       - name: Install RAR backend
         run: ./scripts/install_rar_backend.sh
 
+      # 三条路径：
+      #   tag push (v0.1.0) ──> publish=true, version=0.1.0
+      #   manual + publish=true + version='X.Y' ──> publish=true, version=X.Y
+      #   manual + publish=false ──> publish=false, version 不参与
       - name: Resolve release options
         id: release
         shell: bash
@@ -54,6 +72,19 @@ jobs:
           RELEASE_INPUT_VERSION: ${{ inputs.version }}
         run: |
           set -euo pipefail
+
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            tag="$GITHUB_REF_NAME"
+            if [[ ! "$tag" =~ ^v[0-9]+(\.[0-9]+){1,2}$ ]]; then
+              echo "Tag '$tag' is not in the form v0.1.0 / v1.2; refusing to publish." >&2
+              exit 1
+            fi
+            version="${tag#v}"
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "version=$version" >> "$GITHUB_OUTPUT"
+            echo "build_number=$GITHUB_RUN_NUMBER" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
 
           publish_release="$PUBLISH_RELEASE"
           version="$RELEASE_INPUT_VERSION"
@@ -83,6 +114,7 @@ jobs:
         env:
           RELEASE_VERSION: ${{ steps.release.outputs.version }}
           BUILD_NUMBER: ${{ steps.release.outputs.build_number }}
+          # bundled RAR 必须存在，否则用户装上没法 SimpleZip 解压 RAR。
           REQUIRE_BUNDLED_RAR: "1"
         run: ./scripts/build_unsigned_dmg.sh
 
@@ -93,6 +125,8 @@ jobs:
           path: artifacts/*.dmg
           if-no-files-found: error
 
+      # 任何成功的 tag push 都会到这里发布；
+      # 手动触发只有勾选了 publish 才走。
       - name: Publish GitHub release
         if: steps.release.outputs.publish == 'true'
         env:

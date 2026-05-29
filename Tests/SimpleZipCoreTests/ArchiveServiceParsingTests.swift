@@ -46,13 +46,20 @@ struct ArchiveServiceParsingTests {
     }
 
     @Test
-    func parseSevenZipListIgnoresBlocksWithoutEntryMetadata() {
-        // 7-Zip 列表头部经常先输出 Path = / Type = ... 这类汇总块（无 Folder/Modified/...）
-        // 这些块应当被忽略，否则会出现假条目。
+    func parseSevenZipListIgnoresArchiveHeaderBlock() {
+        // 真实 7zz l -slt 输出在条目前会先输出 archive 自己的元信息块：
+        // 含 Type / Physical Size / Headers Size / Method / Solid / Blocks 等字段，
+        // 其中 Method 看着也像 entry 元数据，所以早期的解析器会误把 archive 的绝对路径
+        // 当成 entry 名报出去，触发 ArchiveSafety 的「绝对路径不安全」拦截。
+        // 这个测试钉死「头块必须被跳过」的契约。
         let output = """
-        Path = /tmp/archive.7z
+        Path = /Users/me/archive.7z
         Type = 7z
-        Physical Size = 1024
+        Physical Size = 268
+        Headers Size = 230
+        Method = LZMA2:12
+        Solid = +
+        Blocks = 1
 
         Path = real/file.txt
         Size = 12
@@ -82,6 +89,18 @@ struct ArchiveServiceParsingTests {
         Attributes = A
         Method = LZMA2
         """
+
+        let items = ArchiveService.parseSevenZipList(output)
+        #expect(items.count == 2)
+        #expect(items.map(\.name) == ["a.txt", "b.txt"])
+    }
+
+    @Test
+    func parseSevenZipListHandlesCRLFLineEndings() {
+        // 走密码路径时 list 用 PTY 跑 7zz；macOS termios 默认 ONLCR 会把 \n 转成 \r\n。
+        // 这种输出曾经让解析器只剩一个伪 entry（空白分隔行变成 "\r" 不再触发 flush，
+        // 后续条目的 values 互相覆盖到同一份 dict）。这条测试确保 CRLF 也能正确分块。
+        let output = "Path = a.txt\r\nSize = 1\r\nModified = 2026-05-13 01:02:03\r\nAttributes = A\r\nMethod = LZMA2\r\n\r\nPath = b.txt\r\nSize = 2\r\nModified = 2026-05-13 01:02:04\r\nAttributes = A\r\nMethod = LZMA2\r\n"
 
         let items = ArchiveService.parseSevenZipList(output)
         #expect(items.count == 2)
