@@ -22,6 +22,7 @@
 
 /* Begin PBXBuildFile section */
 		A10000142FD0000000000014 /* SimpleZipFinderExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = A10000022FD0000000000002 /* SimpleZipFinderExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		SP11A0000000000000000A1 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = SP11B0000000000000000B1 /* Sparkle */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -96,6 +97,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				SP11A0000000000000000A1 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -149,6 +151,7 @@
 			);
 			name = SimpleZip;
 			packageProductDependencies = (
+				SP11B0000000000000000B1 /* Sparkle */,
 			);
 			productName = SimpleZip;
 			productReference = 0846B9702FB350EF0095DC1D /* SimpleZip.app */;
@@ -215,6 +218,9 @@
 			);
 			mainGroup = 0846B9672FB350EF0095DC1D;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				SP11C0000000000000000C1 /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 0846B9712FB350EF0095DC1D /* Products */;
 			projectDirPath = "";
@@ -601,6 +607,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		SP11C0000000000000000C1 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.6.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		SP11B0000000000000000B1 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = SP11C0000000000000000C1 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 0846B9682FB350EF0095DC1D /* Project object */;
 }

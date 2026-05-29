@@ -283,6 +283,9 @@ enum AppPreferences {
         //   实际密码内容存在 Keychain（见 PresetPasswordStore），不再放 UserDefaults。
         nonisolated static let finderOpenAutoExtract = "finderOpenAutoExtract"
         nonisolated static let presetPasswordEnabled = "presetPasswordEnabled"
+        /// 欢迎助手是否已经完成过一次 —— 控制「首次启动自动弹」逻辑。
+        /// 用户从「SimpleZip 菜单 → 重新运行欢迎助手」入口可以重置回 false 让它再弹一次。
+        nonisolated static let welcomeAssistantCompleted = "welcomeAssistantCompleted"
     }
 
     nonisolated static var startupLocation: StartupLocation {
@@ -516,6 +519,18 @@ enum AppPreferences {
     @discardableResult
     nonisolated static func clearPresetPassword() -> Bool {
         PresetPasswordStore.clear() == errSecSuccess
+    }
+
+    /// 欢迎助手是否完成过一次。
+    /// false → 首次启动时 ContentView 自动弹起助手；
+    /// true  → 不再自动弹，只在用户点「重新运行欢迎助手」时才打开。
+    nonisolated static var welcomeAssistantCompleted: Bool {
+        defaults.bool(forKey: Key.welcomeAssistantCompleted)
+    }
+
+    /// 助手走完最后一步 / 用户点「开始使用」时调用。
+    nonisolated static func markWelcomeAssistantCompleted() {
+        defaults.set(true, forKey: Key.welcomeAssistantCompleted)
     }
 
     /// 用户在设置里挑的「当前活跃」自定义启动路径。空表示尚未挑选。

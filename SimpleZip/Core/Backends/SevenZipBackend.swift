@@ -75,6 +75,109 @@ enum SevenZipBackend {
         }
     }
 
+    // MARK: - 操作（Phase 4 step 3b）
+
+    /// 用 `7zz l -slt` 列出压缩包条目。
+    /// `password` 非空时走密码 strategy 让 7zz 在交互提示时拿到密码；空时不喂任何输入。
+    /// 解析交给 `ArchiveService.parseSevenZipList` —— 那一段已经被 fixture 测试覆盖。
+    static func list(
+        _ archive: URL,
+        password: String = "",
+        operationID: UUID? = nil
+    ) async throws -> [ArchiveItem] {
+        let tool = try toolPath()
+        let inputStrategy: ProcessInputStrategy = password.isEmpty ? .none : .passwordPrompts([password])
+        let output = try await BackendProcessRunner.runAndCapture(
+            tool,
+            arguments: ["l", "-slt", archive.path],
+            inputStrategy: inputStrategy,
+            operationID: operationID
+        )
+        return ArchiveService.parseSevenZipList(output)
+    }
+
+    /// 用 `7zz x` 整包解压 / `7zz e` 拍平解压。
+    /// 空的 `entries` 表示「全包解压」（让 7zz 自己枚举所有条目）；非空时只解指定条目名。
+    /// `pathMode == .flatten` 切换到 `e` 让所有条目落到目标目录而不保留路径前缀。
+    static func extract(
+        _ archive: URL,
+        entries: [String],
+        to destination: URL,
+        overwriteBehavior: OverwriteBehavior,
+        pathMode: ExtractPathMode,
+        password: String,
+        progressParser: ProgressOutputParser?,
+        outputObserver: (@Sendable (String) -> Void)?,
+        operationID: UUID?
+    ) async throws {
+        let tool = try toolPath()
+        let arguments = ArchiveService.sevenZipExtractArguments(
+            command: pathMode == .flatten ? "e" : "x",
+            archive: archive,
+            entries: entries,
+            destination: destination,
+            overwriteBehavior: overwriteBehavior,
+            password: password
+        )
+        let inputStrategy: ProcessInputStrategy = password.isEmpty ? .none : .passwordPrompts([password])
+        _ = try await BackendProcessRunner.runAndCapture(
+            tool,
+            arguments: arguments,
+            progressParser: progressParser,
+            inputStrategy: inputStrategy,
+            outputObserver: outputObserver,
+            operationID: operationID
+        )
+    }
+
+    /// 用 `7zz t` 跑完整性测试 —— 7zz 输出非零退出码 → BackendProcessRunner 转成抛错。
+    static func test(_ archive: URL, operationID: UUID? = nil) async throws {
+        let tool = try toolPath()
+        _ = try await BackendProcessRunner.runAndCapture(
+            tool,
+            arguments: ["t", archive.path],
+            operationID: operationID
+        )
+    }
+
+    /// 跑 `7zz b -bt -md=<dictMB>m [-mmt=<threads>]` 基准测试。
+    /// 边跑边把当前累积输出交给 `update` 回调（让 BenchmarkRunView 实时刷分），跑完返回最终解析报告。
+    /// 进程输出不能直接 update —— 解析需要看全量；用 `OutputAccumulator` 持有 String 缓冲。
+    static func benchmark(
+        options: SevenZipBenchmarkOptions,
+        operationID: UUID? = nil,
+        update: @escaping @Sendable (SevenZipBenchmarkReport, String) -> Void = { _, _ in }
+    ) async throws -> SevenZipBenchmarkReport {
+        let tool = try resolve()
+        var arguments = ["b", "-bt", "-md=\(options.dictionarySizeMB)m"]
+        if options.threadCount > 0 {
+            arguments.append("-mmt=\(options.threadCount)")
+        }
+        let backendDescription = L10n.format("settings.7zip.resolvedPath", tool.source.title, tool.path)
+        let outputBuffer = OutputAccumulator()
+        let output = try await BackendProcessRunner.runAndCapture(
+            tool.path,
+            arguments: arguments,
+            outputObserver: { chunk in
+                let currentOutput = outputBuffer.append(chunk)
+                update(
+                    ArchiveService.parseSevenZipBenchmark(
+                        currentOutput,
+                        backendDescription: backendDescription,
+                        options: options
+                    ),
+                    currentOutput
+                )
+            },
+            operationID: operationID
+        )
+        return ArchiveService.parseSevenZipBenchmark(
+            output,
+            backendDescription: backendDescription,
+            options: options
+        )
+    }
+
     // MARK: - 候选路径
 
     /// App bundle 自带的 7zz 路径 —— DMG 发布版会把 `Contents/Resources/Tools/7zz` 一起打包。
@@ -118,6 +221,20 @@ enum SevenZipBackend {
 struct ResolvedSevenZipTool {
     let path: String
     let source: SevenZipToolSource
+}
+
+/// `benchmark` 跑进程时累积 stdout chunk 到完整 String，便于 update 回调实时 reparse。
+/// NSLock 保护是因为 `outputObserver` 可能从后台 queue 调用。
+private final class OutputAccumulator: @unchecked Sendable {
+    private var buffer = ""
+    private let lock = NSLock()
+
+    func append(_ chunk: String) -> String {
+        lock.lock()
+        defer { lock.unlock() }
+        buffer += chunk
+        return buffer
+    }
 }
 
 /// 7zz 来源 —— 决定用户面板里那行说明文字。

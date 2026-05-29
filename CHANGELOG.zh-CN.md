@@ -4,6 +4,22 @@
 
 ## 0.1.6
 
+- **新功能：欢迎助手 wizard（首次启动 + 菜单触发）**
+  - 11 步引导：备份恢复 → 版本检查 → 简介 → 语言 → 启动位置（含「自定义文件夹…」NSOpenPanel） → 默认覆盖行为 → 预设密码（带 SecureField + 保存到 Keychain） → Finder 自动解压 → 安全策略当前值展示 → 后端可用性 → 完成。
+  - 「设置类」7 步在顶部进度条标 `第 N 步 / 共 7 步`；备份 / 版本 / 简介 / 完成 不计入。
+  - 触发：`AppPreferences.welcomeAssistantCompleted` bool 控制是否首次启动自动弹；走完最后一步置 true。SimpleZip 菜单加「重新运行欢迎助手」入口，可随时再开（不重置 completed）。
+  - **第一步：备份恢复** —— 用户之前在「偏好设置 → 备份与还原」导出过的 JSON 可以直接挑文件导入，跳过手动设置；走 `AppPreferences.importPayload` 同款 schema 校验，失败显示具体错误。
+  - **第二步：版本检查** —— 显示当前安装版本号 + 「现在检查」按钮，直接弹 Sparkle 标准 UI。
+  - **后端步骤自带安装流程** —— 不再「跳偏好设置」逃避：7-Zip 在「系统级 + 缺失」情况下直接给 `brew install sevenzip` 命令（带 Copy / Open Terminal 双按钮，用 AppleScript 自动拉起 Terminal 跑命令）；RAR 在「自动 / 内置 + 缺失」时给「安装本地 RAR」按钮，弹出 `RarInstallReviewSheet`（与 Settings 同源），用户必须勾选「我已阅读 LICENSE / README」才能启动安装脚本；已装本地版可以 update / delete。
+  - **取消支持** —— 底部「取消」按钮总是可点，弹二次确认 alert（保留已做选项 + 提示可随时重新打开），避免误关丢失工作。
+
+- **新功能：Sparkle 自动更新 (无签名 / 无公证版)**
+  - 通过 SPM 引入 [Sparkle 2.9.2](https://github.com/sparkle-project/Sparkle)。Info.plist 加 `SUFeedURL`（指向 `https://raw.githubusercontent.com/chiba233/SimpleZip/main/docs/appcast.xml`）/ `SUEnableAutomaticChecks` / `SUEnableInstallerLauncherService=NO` / `SUScheduledCheckInterval=86400`。
+  - 帮助菜单加「检查更新…」入口（Sparkle 推荐位置）；欢迎助手第 2 步也提供入口。
+  - `SparkleUpdater` 单例封装 `SPUStandardUpdaterController`，App init 时就触发 Sparkle 的周期性后台检查。
+  - **决策**：本期间不公证 / 不签名 DMG（没有 Apple Developer ID）、不做 EdDSA 包完整性签名。Sparkle 仍能拉 appcast、提示新版、下载替换；Gatekeeper 会要求用户「右键 → 打开」绕过。社区有人愿意贡献签名身份再补。
+  - **release.yml** 在「Publish a GitHub release」勾选 / tag 推送的发布路径里加两个新步骤：(1) 生成 `docs/appcast.xml`，包含 version / pubDate / 下载 URL / DMG size，DMG 下载链直指 GitHub Release 资产；(2) checkout main → commit → push，让 `raw.githubusercontent.com/.../main/docs/appcast.xml` 自动同步。手动触发不勾 publish 时不会动 main。
+
 - **新功能：「个人收藏」镜像 Finder 侧栏**
   - 主窗口左侧「个人收藏」分组不再硬编码 5 项（个人 / 下载 / 桌面 / 文稿 / 应用），改为读取 macOS Finder 的「个人收藏」侧栏并镜像显示。
   - 数据源：`~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.FavoriteItems.sfl4`（macOS 11+，sfl3 旧版本作为回落），用 `NSKeyedUnarchiver` 解出条目 → 提取每条 `Bookmark` Data → `URL(resolvingBookmarkData:)` 解出真实路径。
@@ -33,6 +49,24 @@
   - 描述改写为反映 0.1.6 的真实能力。作者署名 "Hoshino Yumeka"。
   - 走系统标准 `orderFrontStandardAboutPanel`（跟随系统主题 / 字号 / 间距，不自己手画），credits 刻意保持「描述 + 作者」两行短文案 —— 内容超出会触发滚动条 + 边框，反而难看。
   - 仓库地址和 MIT 许可证移到「帮助」菜单当原生菜单项（`SimpleZip 项目主页` / `MIT 许可证`），既符合 macOS 习惯，又不需要把链接塞 credits 文本里。
+- **内部重构：NativeZipBackend 抽出（Phase 4 step 4）**
+  - 新增 `Core/Backends/NativeZipBackend.swift`（310 行），把所有「系统自带 zip 家族」操作搬过去：
+    - `list` —— `unzip -l` + `tar -tf` 双输出合并解析
+    - `test` —— `unzip -t`
+    - `extract` —— ZIP 文件的统一入口；内部根据「解压方式」偏好和头部加密检测，按 `[macOS, sevenZip]` 顺序依次尝试，前一个失败下一个接着上
+    - `createTar` / `createTarGzip` —— `tar -cvf` / `tar -czvf`
+    - `createZipFallback` —— `/usr/bin/zip` 兜底（仅在 7zz 不可用时）
+  - `ArchiveService` 里 `.zipNative` / `.tar` / `.tarGzip` 分支全部改为一行 `try await NativeZipBackend.xxx(...)`；`.zip` 创建的「7zz 缺失 → 原生 zip 兜底」路径也走 backend。
+  - 旧的私有 helper `extractZipArchive` / `extractZipArchiveWithSevenZip` / `extractZipArchiveWithMacOS` / `zipExtractionTools` / `zipExtractionToolName` + `ZipExtractionTool` 私有 enum 整段从 ArchiveService 删除。
+  - 经过 step 1 + step 2 + step 3a + step 3b + step 4，`ArchiveService.swift` 由 1524 行缩到 780 行（累计 **−744，−49%**）。下一步 step 5 拆 `RarBackend`、step 6 提取 `ArchiveBackend` 协议把 `ArchiveService` 收成纯路由。
+
+- **内部重构：SevenZipBackend 完成动作层（Phase 4 step 3b）**
+  - 把 7-Zip 后端的 4 个操作 —— `list` / `extract`（整包 + 选择性 + flatten 模式） / `test` / `benchmark` —— 全部从 `ArchiveService` 搬到 `Core/Backends/SevenZipBackend.swift`。
+  - `ArchiveService` 里 `.sevenZip` 分支统统改为 `try await SevenZipBackend.xxx(...)` 一行转发；`ArchiveService.benchmark` 也整段委托。
+  - 顺带把私有 helper `extractZipArchiveWithSevenZip`（zip 文件需要走 7zz 解的场景，例如 AES-256 加密的 zip）也改为转发，让所有「跑 7zz 解」的入口共用 SevenZipBackend 一条实现。
+  - 共享 `OutputAccumulator`（benchmark 实时刷分用的累积 String 缓冲）从 ArchiveService 抽出，搬进 SevenZipBackend 作为私有类型；ArchiveService 不再持有任何 7zz 操作相关的私有状态。
+  - 经过 step 1 + step 2 + step 3a + step 3b，`ArchiveService.swift` 由 1524 行缩到 973 行（累计 −551，**−36%**）。下一步 step 4 拆 `NativeZipBackend`（zip + unzip + tar）、step 5 拆 `RarBackend`、step 6 提取 `ArchiveBackend` 协议把 `ArchiveService` 变成纯路由。
+
 - **内部重构：SevenZipBackend 抽出（Phase 4 step 3a）**
   - 把 7-Zip 后端的「设备发现 + 元信息查询」层（bundled / system 候选路径、`resolve()` / `toolPath()` / `isAvailable()` / `backendDescription()` / `version()` + `ResolvedSevenZipTool` 结构体 + `SevenZipToolSource` 枚举）整段搬到 `Core/Backends/SevenZipBackend.swift`（136 行）。`ArchiveService` 的 `canUseSevenZip` / `sevenZipBackendDescription` / `sevenZipVersion` 改为转发；私有 `sevenZipTool` / `resolvedSevenZipTool` 也改为转发（thin wrapper，等 step 3b 把 list/extract/test 也搬过来后可以一起删）。
   - 顺手把用户偏好枚举重命名为更准确的名字：`SevenZipBackend` → **`SevenZipBackendChoice`**、`RarBackend` → **`RarBackendChoice`**（它们是"选择"不是"后端"）。释放出 `SevenZipBackend` / `RarBackend` 这两个名字给真正的 backend 实现命名空间。

@@ -29,18 +29,6 @@ enum ArchiveService {
         case validate
         case skipValidation
     }
-    
-    private final class OutputAccumulator: @unchecked Sendable {
-        private let lock = NSLock()
-        private var value = ""
-        
-        func append(_ chunk: String) -> String {
-            lock.lock()
-            defer { lock.unlock() }
-            value += chunk
-            return value
-        }
-    }
 
     static func contentTypes(for format: ArchiveCreateFormat) -> [UTType] {
         UTType(filenameExtension: format.pathExtension).map { [$0] } ?? []
@@ -146,24 +134,13 @@ enum ArchiveService {
             guard nativeZipFallbackSupported(for: options) else {
                 throw ArchiveError.missingSevenZip
             }
-            var arguments = ["-r", "-\(options.compressionLevel.rawValue)"]
-            if !options.password.isEmpty {
-                arguments.append("-e")
-            }
-            arguments.append(destination.path)
-            arguments.append(contentsOf: relativeNames)
-            let excludes = zipExcludePatterns(from: options)
-            if !excludes.isEmpty {
-                arguments.append("-x")
-                arguments.append(contentsOf: excludes)
-            }
-            let inputStrategy: ProcessInputStrategy = options.password.isEmpty ? .none : .passwordPrompts([options.password, options.password])
-            try await run(
-                "/usr/bin/zip",
-                arguments: arguments,
+            try await NativeZipBackend.createZipFallback(
+                destination: destination,
+                relativeNames: relativeNames,
+                options: options,
+                excludePatterns: zipExcludePatterns(from: options),
                 currentDirectory: parent,
                 progressParser: parser,
-                inputStrategy: inputStrategy,
                 outputObserver: outputObserver,
                 operationID: operationID
             )
@@ -194,18 +171,20 @@ enum ArchiveService {
                 operationID: operationID
             )
         case .tar:
-            try await run(
-                "/usr/bin/tar",
-                arguments: ["-cvf", destination.path] + tarExcludeArguments(from: options) + relativeNames,
+            try await NativeZipBackend.createTar(
+                destination: destination,
+                relativeNames: relativeNames,
+                excludeArguments: tarExcludeArguments(from: options),
                 currentDirectory: parent,
                 progressParser: parser,
                 outputObserver: outputObserver,
                 operationID: operationID
             )
         case .tarGzip:
-            try await run(
-                "/usr/bin/tar",
-                arguments: ["-czvf", destination.path] + tarExcludeArguments(from: options) + relativeNames,
+            try await NativeZipBackend.createTarGzip(
+                destination: destination,
+                relativeNames: relativeNames,
+                excludeArguments: tarExcludeArguments(from: options),
                 currentDirectory: parent,
                 progressParser: parser,
                 outputObserver: outputObserver,
@@ -277,7 +256,7 @@ enum ArchiveService {
         let parser = ProgressOutputParser(totalFiles: totalFiles, progress: progress)
         switch resolved.backend {
         case .zipNative:
-            try await extractZipArchive(
+            try await NativeZipBackend.extract(
                 resolved.url,
                 entries: [],
                 to: destination,
@@ -293,17 +272,17 @@ enum ArchiveService {
                 try ArchiveSafety.validateExtractedTree(at: destination)
             }
         case .sevenZip:
-            let tool = try sevenZipTool()
-            let arguments = sevenZipExtractArguments(
-                command: "x",
-                archive: resolved.url,
+            try await SevenZipBackend.extract(
+                resolved.url,
                 entries: [],
-                destination: destination,
+                to: destination,
                 overwriteBehavior: overwriteBehavior,
-                password: password
+                pathMode: .preserve,
+                password: password,
+                progressParser: parser,
+                outputObserver: outputObserver,
+                operationID: operationID
             )
-            let inputStrategy: ProcessInputStrategy = password.isEmpty ? .none : .passwordPrompts([password])
-            try await run(tool, arguments: arguments, progressParser: parser, inputStrategy: inputStrategy, outputObserver: outputObserver, operationID: operationID)
             if safetyPolicy == .validate {
                 try ArchiveSafety.validateExtractedTree(at: destination)
             }
@@ -339,7 +318,7 @@ enum ArchiveService {
 
         switch resolved.backend {
         case .zipNative:
-            try await extractZipArchive(
+            try await NativeZipBackend.extract(
                 resolved.url,
                 entries: entryNames,
                 to: destination,
@@ -358,17 +337,17 @@ enum ArchiveService {
                 try ArchiveSafety.validateExtractedTree(at: destination)
             }
         case .sevenZip:
-            let tool = try sevenZipTool()
-            let arguments = sevenZipExtractArguments(
-                command: pathMode == .flatten ? "e" : "x",
-                archive: resolved.url,
+            try await SevenZipBackend.extract(
+                resolved.url,
                 entries: entryNames,
-                destination: destination,
+                to: destination,
                 overwriteBehavior: overwriteBehavior,
-                password: password
+                pathMode: pathMode,
+                password: password,
+                progressParser: parser,
+                outputObserver: outputObserver,
+                operationID: operationID
             )
-            let inputStrategy: ProcessInputStrategy = password.isEmpty ? .none : .passwordPrompts([password])
-            try await run(tool, arguments: arguments, progressParser: parser, inputStrategy: inputStrategy, outputObserver: outputObserver, operationID: operationID)
             if safetyPolicy == .validate {
                 try ArchiveSafety.validateExtractedTree(at: destination)
             }
@@ -382,10 +361,9 @@ enum ArchiveService {
         let resolved = try resolvedInput(for: archive, force: force)
         switch resolved.backend {
         case .zipNative:
-            try await run("/usr/bin/unzip", arguments: ["-t", resolved.url.path], operationID: operationID)
+            try await NativeZipBackend.test(resolved.url, operationID: operationID)
         case .sevenZip:
-            let tool = try sevenZipTool()
-            try await run(tool, arguments: ["t", resolved.url.path], operationID: operationID)
+            try await SevenZipBackend.test(resolved.url, operationID: operationID)
         case .diskImage:
             try await DiskImageBackend.test(resolved.url)
         }
@@ -396,42 +374,16 @@ enum ArchiveService {
         operationID: UUID? = nil,
         update: @escaping @Sendable (SevenZipBenchmarkReport, String) -> Void = { _, _ in }
     ) async throws -> SevenZipBenchmarkReport {
-        let tool = try resolvedSevenZipTool()
-        var arguments = ["b", "-bt", "-md=\(options.dictionarySizeMB)m"]
-        if options.threadCount > 0 {
-            arguments.append("-mmt=\(options.threadCount)")
-        }
-        let outputBuffer = OutputAccumulator()
-        let output = try await runAndCapture(tool.path, arguments: arguments, outputObserver: { chunk in
-            let currentOutput = outputBuffer.append(chunk)
-            update(
-                parseSevenZipBenchmark(
-                    currentOutput,
-                    backendDescription: L10n.format("settings.7zip.resolvedPath", tool.source.title, tool.path),
-                    options: options
-                ),
-                currentOutput
-            )
-        }, operationID: operationID)
-        return parseSevenZipBenchmark(
-            output,
-            backendDescription: L10n.format("settings.7zip.resolvedPath", tool.source.title, tool.path),
-            options: options
-        )
+        try await SevenZipBackend.benchmark(options: options, operationID: operationID, update: update)
     }
 
     static func list(_ archive: URL, password: String = "", force: Bool = false) async throws -> [ArchiveItem] {
         let resolved = try resolvedInput(for: archive, force: force)
         switch resolved.backend {
         case .zipNative:
-            let unzipOutput = try await runAndCapture("/usr/bin/unzip", arguments: ["-l", resolved.url.path])
-            let tarOutput = try await runAndCapture("/usr/bin/tar", arguments: ["-tf", resolved.url.path])
-            return parseZipList(tarOutput: tarOutput, unzipOutput: unzipOutput)
+            return try await NativeZipBackend.list(resolved.url)
         case .sevenZip:
-            let tool = try sevenZipTool()
-            let inputStrategy: ProcessInputStrategy = password.isEmpty ? .none : .passwordPrompts([password])
-            let output = try await runAndCapture(tool, arguments: ["l", "-slt", resolved.url.path], inputStrategy: inputStrategy)
-            return parseSevenZipList(output)
+            return try await SevenZipBackend.list(resolved.url, password: password)
         case .diskImage:
             return try await DiskImageBackend.list(resolved.url)
         }
@@ -712,194 +664,6 @@ enum ArchiveService {
         }
         patterns.append(contentsOf: customExcludePatterns(from: options.customExcludes))
         return Array(Set(patterns)).sorted()
-    }
-
-    private enum ZipExtractionTool {
-        case sevenZip
-        case macOS
-    }
-
-    private static func zipExtractionTools(
-        for method: ArchiveDecryptionMethod,
-        detectedEncryption: ZipEncryptionDetection,
-        password: String
-    ) -> [ZipExtractionTool] {
-        switch method {
-        case .automatic:
-            guard !password.isEmpty else {
-                return [.macOS, .sevenZip]
-            }
-            switch detectedEncryption {
-            case .aes128, .aes192, .aes256:
-                return [.sevenZip]
-            case .zipCrypto:
-                return [.macOS, .sevenZip]
-            case .none:
-                return [.macOS, .sevenZip]
-            case .mixed, .unknown:
-                return [.sevenZip, .macOS]
-            }
-        case .aes128, .aes192, .aes256:
-            return [.sevenZip]
-        case .zipCrypto:
-            return [.macOS, .sevenZip]
-        }
-    }
-
-    private static func extractZipArchive(
-        _ archive: URL,
-        entries: [String],
-        to destination: URL,
-        overwriteBehavior: OverwriteBehavior,
-        pathMode: ExtractPathMode,
-        password: String,
-        zipDecryptionMethod: ArchiveDecryptionMethod,
-        progressParser: ProgressOutputParser?,
-        outputObserver: (@Sendable (String) -> Void)?,
-        operationID: UUID?
-    ) async throws {
-        var firstError: Error?
-        let detectedEncryption = detectZipEncryption(in: archive)
-        let tools = zipExtractionTools(
-            for: zipDecryptionMethod,
-            detectedEncryption: detectedEncryption,
-            password: password
-        )
-
-        for (index, tool) in tools.enumerated() {
-            do {
-                switch tool {
-                case .sevenZip:
-                    try await extractZipArchiveWithSevenZip(
-                        archive,
-                        entries: entries,
-                        to: destination,
-                        overwriteBehavior: overwriteBehavior,
-                        pathMode: pathMode,
-                        password: password,
-                        progressParser: progressParser,
-                        outputObserver: outputObserver,
-                        operationID: operationID
-                    )
-                case .macOS:
-                    try await extractZipArchiveWithMacOS(
-                        archive,
-                        entries: entries,
-                        to: destination,
-                        overwriteBehavior: overwriteBehavior,
-                        pathMode: pathMode,
-                        password: password,
-                        progressParser: progressParser,
-                        outputObserver: outputObserver,
-                        operationID: operationID
-                    )
-                }
-                return
-            } catch {
-                if firstError == nil {
-                    firstError = error
-                }
-                guard zipDecryptionMethod == .automatic || zipDecryptionMethod == .zipCrypto, index < tools.count - 1 else {
-                    throw error
-                }
-                outputObserver?("\nSimpleZip: \(zipExtractionToolName(tool)) failed; trying another ZIP decryption path.\n")
-            }
-        }
-
-        throw firstError ?? ArchiveError.unsupportedFormat
-    }
-
-    private static func extractZipArchiveWithSevenZip(
-        _ archive: URL,
-        entries: [String],
-        to destination: URL,
-        overwriteBehavior: OverwriteBehavior,
-        pathMode: ExtractPathMode,
-        password: String,
-        progressParser: ProgressOutputParser?,
-        outputObserver: (@Sendable (String) -> Void)?,
-        operationID: UUID?
-    ) async throws {
-        let tool = try sevenZipTool()
-        let arguments = sevenZipExtractArguments(
-            command: pathMode == .flatten ? "e" : "x",
-            archive: archive,
-            entries: entries,
-            destination: destination,
-            overwriteBehavior: overwriteBehavior,
-            password: password
-        )
-        let inputStrategy: ProcessInputStrategy = password.isEmpty ? .none : .passwordPrompts([password])
-        try await run(
-            tool,
-            arguments: arguments,
-            progressParser: progressParser,
-            inputStrategy: inputStrategy,
-            outputObserver: outputObserver,
-            operationID: operationID
-        )
-    }
-
-    private static func extractZipArchiveWithMacOS(
-        _ archive: URL,
-        entries: [String],
-        to destination: URL,
-        overwriteBehavior: OverwriteBehavior,
-        pathMode: ExtractPathMode,
-        password: String,
-        progressParser: ProgressOutputParser?,
-        outputObserver: (@Sendable (String) -> Void)?,
-        operationID: UUID?
-    ) async throws {
-        if entries.isEmpty {
-            let arguments = [unzipOverwriteArgument(for: overwriteBehavior), archive.path, "-d", destination.path]
-            let inputStrategy: ProcessInputStrategy = password.isEmpty ? .none : .passwordPrompts([password])
-            try await run(
-                "/usr/bin/unzip",
-                arguments: arguments,
-                progressParser: progressParser,
-                inputStrategy: inputStrategy,
-                outputObserver: outputObserver,
-                operationID: operationID
-            )
-            return
-        }
-
-        if password.isEmpty {
-            var arguments = ["-xvf", archive.path, "-C", destination.path]
-            if overwriteBehavior == .skipExisting {
-                arguments.insert("-k", at: 0)
-            }
-            arguments.append(contentsOf: entries)
-            try await run(
-                "/usr/bin/tar",
-                arguments: arguments,
-                progressParser: progressParser,
-                outputObserver: outputObserver,
-                operationID: operationID
-            )
-        } else {
-            var arguments = [unzipOverwriteArgument(for: overwriteBehavior), archive.path]
-            arguments.append(contentsOf: entries)
-            arguments.append(contentsOf: ["-d", destination.path])
-            try await run(
-                "/usr/bin/unzip",
-                arguments: arguments,
-                progressParser: progressParser,
-                inputStrategy: .passwordPrompts([password]),
-                outputObserver: outputObserver,
-                operationID: operationID
-            )
-        }
-    }
-
-    private static func zipExtractionToolName(_ tool: ZipExtractionTool) -> String {
-        switch tool {
-        case .sevenZip:
-            return "7-Zip"
-        case .macOS:
-            return "macOS"
-        }
     }
 
     /// ZIP 扁平化解压：先按原结构抽出，再把文件移动到目标目录根部。

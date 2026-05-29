@@ -21,6 +21,10 @@ struct SimpleZipApp: App {
         // Window / Help 这一行 native 菜单文字定下来了 ——
         // 用户会看到「App 内文字是 zh-Hans，顶部菜单栏却还是日语」的奇怪状态。
         AppPreferences.applyAppleLanguagesOverrideAtLaunch()
+
+        // Sparkle —— 这里只是「触一下 shared」让 SPUStandardUpdaterController 早一点完成构造，
+        // 这样 Sparkle 周期检查能尽早开始；菜单项 / 助手版本检查共享同一实例。
+        _ = SparkleUpdater.shared
     }
 
     var body: some Scene {
@@ -35,9 +39,20 @@ struct SimpleZipApp: App {
                 Button(L10n.text("menu.aboutSimpleZip")) {
                     AboutPanel.show()
                 }
+                // 「重新运行欢迎助手」放在 SimpleZip 菜单里、紧跟「关于」后面 ——
+                // 是 macOS 一线 App（Mail / Pages 等）「重置体验」类菜单的常见落位。
+                Button(L10n.text("welcome.menu.runAgain")) {
+                    NotificationCenter.default.post(name: .openWelcomeAssistant, object: nil)
+                }
             }
 
             CommandGroup(replacing: .help) {
+                // 「检查更新…」放在帮助菜单顶部 —— Sparkle 推荐的位置，
+                // 也是 macOS 应用（VS Code / Sketch 等）常见落位。
+                Button(L10n.text("menu.checkForUpdates")) {
+                    SparkleUpdater.shared.checkForUpdates()
+                }
+                Divider()
                 // 把项目主页和 MIT 许可证作为「帮助」菜单里的原生菜单项 ——
                 // 比塞进 About 面板的 credits 文本框更符合 macOS 习惯，
                 // 也避免 credits 一长就出现滚动条 / 边框的难看效果。

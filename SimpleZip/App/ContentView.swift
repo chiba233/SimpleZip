@@ -19,6 +19,11 @@ struct ContentView: View {
     @State private var showsStartupMissingAlert = false
     @State private var didCheckStartupLocation = false
 
+    /// 欢迎助手 sheet。首次启动 `onAppear` 自动置 true；走完最后一步 / 关 sheet 都会清回 false。
+    /// 用户从 SimpleZip → 重新运行欢迎助手 入口也走同一通道（通过 `.openWelcomeAssistant` 通知）。
+    @State private var showsWelcomeAssistant = false
+    @State private var didCheckWelcomeAssistant = false
+
     var body: some View {
         NavigationSplitView {
             Sidebar(model: model)
@@ -143,6 +148,25 @@ struct ContentView: View {
                     showsStartupMissingAlert = true
                 }
             }
+            // 首次启动自动弹欢迎助手 —— 只跑一次，后续 layout 重渲染不会反复触发。
+            if !didCheckWelcomeAssistant {
+                didCheckWelcomeAssistant = true
+                if !AppPreferences.welcomeAssistantCompleted {
+                    // 异步触发让 onAppear 的其它处理先跑完；避免一打开主窗口就立刻被 sheet 盖住。
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                        showsWelcomeAssistant = true
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showsWelcomeAssistant) {
+            WelcomeAssistantView {
+                showsWelcomeAssistant = false
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openWelcomeAssistant)) { _ in
+            // 用户从 SimpleZip 菜单触发 —— 不重置 completed bool（重新看仍然算「已经走过一遍」）。
+            showsWelcomeAssistant = true
         }
         .alert(
             L10n.text("startup.missing.title"),

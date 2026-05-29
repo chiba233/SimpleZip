@@ -4,6 +4,23 @@
 
 ## 0.1.6
 
+- **New feature: Welcome Assistant wizard (first-launch + menu)**
+  - 11-step guided setup: backup restore → version check → intro → language → startup location (with a "Choose Custom Folder…" NSOpenPanel) → default overwrite behavior → preset password (SecureField with Keychain save) → Finder auto-extract → safety policy summary → backend availability → completion.
+  - The 7 "settings" steps show "Step N of 7" in the progress header; backup, version check, intro, completion are not counted.
+  - Trigger: `AppPreferences.welcomeAssistantCompleted` controls the first-launch auto-pop; the SimpleZip menu adds "Run Welcome Assistant Again" so the user can replay it any time (without resetting the bool).
+  - **Step 1 — Backup restore**: a JSON exported earlier from Settings → Backup & Restore can be imported on the spot, skipping later manual choices. Goes through `AppPreferences.importPayload` with the same schema validation, with the actual error shown on failure.
+  - **Step 2 — Version check**: shows the currently installed version plus a button that opens Sparkle's standard update dialog.
+  - **Backend step is now fully self-contained** (no more "Open Settings" punt). 7-Zip's "system" choice with no `7zz` on PATH inlines `brew install sevenzip` with Copy and Open-in-Terminal buttons (the Terminal button uses AppleScript to run the command automatically). RAR with `automatic`/`bundled` and no local backend offers an "Install Local RAR" button that opens the same `RarInstallReviewSheet` Settings uses — you must check off the LICENSE and README before the installer script runs. Already-installed local RAR exposes update / delete actions.
+  - High-contrast status badge sits between the section title and the GroupBox, so "Ready" (green) vs "Unavailable" (orange) is readable at a glance instead of being hidden in a caption-grey description.
+  - Cancel button is always visible at the bottom-left; clicking it raises a two-step confirmation alert (kept choices are preserved, the assistant can be re-opened later), preventing accidental dismissal.
+
+- **New feature: Sparkle auto-update (unsigned / un-notarized)**
+  - Wired [Sparkle 2.9.2](https://github.com/sparkle-project/Sparkle) via SPM. Info.plist gets `SUFeedURL` (pointing to `https://raw.githubusercontent.com/chiba233/SimpleZip/main/docs/appcast.xml`), `SUEnableAutomaticChecks`, `SUEnableInstallerLauncherService=NO`, and `SUScheduledCheckInterval=86400`.
+  - Help menu gains a "Check for Updates…" item (Sparkle's recommended location), and the welcome assistant's Step 2 surfaces the same entry point.
+  - `SparkleUpdater` singleton owns the `SPUStandardUpdaterController`; constructing it during `SimpleZipApp.init()` lets Sparkle's periodic check start as early as possible.
+  - **Decision record**: this revision ships unsigned, un-notarized DMGs (there is no Apple Developer ID yet) and skips EdDSA update-package signatures. Sparkle still fetches the appcast, surfaces "new version available", and runs the download-and-replace flow; Gatekeeper will ask the user to right-click → Open to bypass the warning. If a community member ever donates a signing identity, the keys + notarization step slot in cleanly.
+  - **release.yml** adds two new conditional steps that only run when the "Publish a GitHub release" path is taken (manual workflow with the box ticked, or a `v*` tag push): (1) write `docs/appcast.xml` containing the version, pubDate, GitHub Release download URL, and DMG byte size; (2) check out `main`, commit, and push so `raw.githubusercontent.com/.../main/docs/appcast.xml` updates immediately. A manual run that does not request a release leaves `main` untouched.
+
 - **New feature: Favorites sidebar mirrors Finder**
   - The main window's left Favorites section is no longer 5 hard-coded entries (Home / Downloads / Desktop / Documents / Applications). It now mirrors the user's actual macOS Finder Favorites sidebar.
   - Data source: `~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.FavoriteItems.sfl4` (macOS 11+, sfl3 as a fallback), unarchived via `NSKeyedUnarchiver`. Each entry's `Bookmark` Data field is resolved with `URL(resolvingBookmarkData:)` to recover the underlying directory.
@@ -32,6 +49,24 @@
   - The blurb has been rewritten to reflect what 0.1.6 actually does. Authored by Hoshino Yumeka.
   - Uses the standard macOS `orderFrontStandardAboutPanel` (so it follows the system theme / font sizes / margins instead of being hand-drawn). Credits stay deliberately short ("description + author") because the credits text view starts to scroll and grow a visible frame once the content overflows.
   - The repo URL and MIT License now live as native items in the Help menu (`SimpleZip Project Page` / `MIT License`) — that's the macOS-native way to surface app links, and avoids cramming them into the credits text.
+- **Internal refactor: NativeZipBackend extracted (Phase 4 step 4)**
+  - New `Core/Backends/NativeZipBackend.swift` (310 lines), absorbing every "system zip family" operation:
+    - `list` — `unzip -l` + `tar -tf` outputs merged and parsed.
+    - `test` — `unzip -t`.
+    - `extract` — single entry point for ZIP files; internally picks an ordered list of backends (`[macOS, sevenZip]`) from the user's decryption preference plus the detected encryption header, falling forward when one fails.
+    - `createTar` / `createTarGzip` — `tar -cvf` / `tar -czvf`.
+    - `createZipFallback` — `/usr/bin/zip` fallback used only when 7zz is unavailable.
+  - `ArchiveService` now forwards `.zipNative` / `.tar` / `.tarGzip` branches to NativeZipBackend in one line each; the `.zip` "7zz missing → native zip fallback" path goes through the backend too.
+  - The legacy private helpers `extractZipArchive` / `extractZipArchiveWithSevenZip` / `extractZipArchiveWithMacOS` / `zipExtractionTools` / `zipExtractionToolName` plus the `ZipExtractionTool` enum are removed from `ArchiveService`.
+  - After step 1 + step 2 + step 3a + step 3b + step 4, `ArchiveService.swift` is down from 1524 to 780 lines (cumulative **−744, −49%**). Next: step 5 extracts `RarBackend`, step 6 introduces the `ArchiveBackend` protocol and turns `ArchiveService` into a pure router.
+
+- **Internal refactor: SevenZipBackend now owns the operations (Phase 4 step 3b)**
+  - Moved all four 7-Zip operations — `list` / `extract` (whole archive + selective + flatten) / `test` / `benchmark` — out of `ArchiveService` and into `Core/Backends/SevenZipBackend.swift`.
+  - The `.sevenZip` branches in `ArchiveService` are now one-line forwarders (`try await SevenZipBackend.xxx(...)`), and `ArchiveService.benchmark` delegates the whole body.
+  - The private helper `extractZipArchiveWithSevenZip` (used when a zip file needs the 7-Zip path, e.g. AES-256 encrypted zips) now forwards too, so every "run 7zz to extract" call site goes through the same SevenZipBackend implementation.
+  - The shared `OutputAccumulator` (the thread-safe string buffer used to feed live progress updates during benchmark) moves out of `ArchiveService` and into `SevenZipBackend` as a private type; `ArchiveService` no longer holds any 7zz operation-related state.
+  - After step 1 + step 2 + step 3a + step 3b, `ArchiveService.swift` is down from 1524 to 973 lines (cumulative −551, **−36%**). Next: step 4 extracts `NativeZipBackend` (zip + unzip + tar), step 5 extracts `RarBackend`, step 6 introduces the `ArchiveBackend` protocol and turns `ArchiveService` into a pure router.
+
 - **Internal refactor: SevenZipBackend extracted (Phase 4 step 3a)**
   - Moved the 7-Zip backend's discovery + metadata layer (bundled / system candidate paths, `resolve()` / `toolPath()` / `isAvailable()` / `backendDescription()` / `version()` plus the `ResolvedSevenZipTool` struct and `SevenZipToolSource` enum) into `Core/Backends/SevenZipBackend.swift` (136 lines). `ArchiveService.canUseSevenZip` / `sevenZipBackendDescription` / `sevenZipVersion` are now forwarders; the private `sevenZipTool` / `resolvedSevenZipTool` also forward (these thin wrappers will go away in step 3b once the `case .sevenZip` branches of list/extract/test move too).
   - Renamed the user-preference enums to clearer names: `SevenZipBackend` → **`SevenZipBackendChoice`**, `RarBackend` → **`RarBackendChoice`**. They represent a *choice*, not a *backend*; freeing up the original names for the actual backend implementation namespaces.
