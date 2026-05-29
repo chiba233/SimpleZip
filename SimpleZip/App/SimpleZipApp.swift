@@ -13,6 +13,16 @@ import SwiftUI
 struct SimpleZipApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
+    init() {
+        // 早于 SwiftUI `.commands {}` 段被求值之前，把用户在偏好里选的语言
+        // 同步写到 `AppleLanguages`。
+        // 没有这一步的话：用户改完语言重启 → SwiftUI App.body 的 commands 段在 NSApp 初始化阶段
+        // 比 GeneralPane 的 applyLanguage 早一帧跑，AppKit 已经按系统语言把 File / Edit /
+        // Window / Help 这一行 native 菜单文字定下来了 ——
+        // 用户会看到「App 内文字是 zh-Hans，顶部菜单栏却还是日语」的奇怪状态。
+        AppPreferences.applyAppleLanguagesOverrideAtLaunch()
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -28,8 +38,14 @@ struct SimpleZipApp: App {
             }
 
             CommandGroup(replacing: .help) {
+                // 把项目主页和 MIT 许可证作为「帮助」菜单里的原生菜单项 ——
+                // 比塞进 About 面板的 credits 文本框更符合 macOS 习惯，
+                // 也避免 credits 一长就出现滚动条 / 边框的难看效果。
                 Button(L10n.text("menu.projectPage")) {
                     AboutPanel.openProjectPage()
+                }
+                Button(L10n.text("menu.license")) {
+                    AboutPanel.openLicensePage()
                 }
             }
         }

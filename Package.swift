@@ -42,6 +42,8 @@ let package = Package(
                 "Core/ArchiveService+Arguments.swift",
                 "Core/ArchiveService+Parsing.swift",
                 "Core/ArchiveService.swift",
+                "Core/BackendProcessRunner.swift",
+                "Core/Backends/DiskImageBackend.swift",
                 "Core/L10n.swift",
                 "Core/OperationDiagnosticsReporter.swift",
                 "Core/PreferencesPayloadCodec.swift",

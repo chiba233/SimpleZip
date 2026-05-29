@@ -4,6 +4,14 @@
 
 ## 0.1.6
 
+- **关于面板更新**
+  - 描述改写为反映 0.1.6 的真实能力（7-Zip + 系统 zip/tar + 可选 RAR + 安全检查 + AES + 哈希 + DMG 挂载 + 一键诊断）。
+  - 加作者 "Hoshino Yumeka"，仓库链接 `github.com/chiba233/SimpleZip` 直接可点击跳转，MIT 许可证名称也可点击跳到 LICENSE 文件渲染页。链接颜色用 `controlAccentColor`，深色 / 浅色模式自动跟。
+- **内部重构：BackendProcessRunner 抽出（Phase 4 step 1）**
+  - 把 `ArchiveService` 里 ~400 行进程基础设施（`runAndCapture` / PTY / 取消注册表 / `ProgressOutputParser` / `InteractivePasswordResponder`）整段搬到独立的 `BackendProcessRunner`，`ArchiveService.cancelRunningCommand` 改为转发调用。
+- **内部重构：DiskImageBackend 抽出（Phase 4 step 2）**
+  - 把 `.dmg` 相关的 mount / detach / list / extract / test 五个动作 + 私有 `copyDiskImageContents` / `diskImageArchiveItems` / `DiskImageDateFormatter` 全部搬到 `Core/Backends/DiskImageBackend.swift`（156 行）。`ArchiveService` 的 list / extract / test 在 `case .diskImage` 分支只剩一行 `try await DiskImageBackend.xxx`；公开的 `mountDiskImage` / `detachDiskImage` 保留为转发壳，让 `ArchiveBrowserModel`「打开 DMG 为文件夹」流程不受影响。
+  - 经过 step 1 + step 2，`ArchiveService.swift` 由 1524 行缩到 1071 行（累计 −453，−30%）。接下来 step 3 拆 `SevenZipBackend`（最大）、step 4 拆 `NativeZipBackend`（zip + unzip + tar）、step 5 拆 `RarBackend`、step 6 提取 `ArchiveBackend` 协议把 `ArchiveService` 变成纯路由。
 - **新功能：以压缩包打开任意文件**
   - FileTable 右键菜单 + File 主菜单新增「以压缩包打开」命令：选中单个非压缩包文件（.exe / .apk / .ipa / .jar 等本质上是 ZIP / NSIS / CAB 的非典型档案）后，跳过扩展名校验直接送给 7-Zip 后端探测内容并展开。
   - 命令只在「选中单个非目录文件 + 不是已识别的压缩包」时启用，避免和普通「打开」语义重复。

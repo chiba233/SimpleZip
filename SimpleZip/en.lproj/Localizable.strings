@@ -80,9 +80,13 @@
 "column.method" = "Method";
 "menu.aboutSimpleZip" = "About SimpleZip";
 "menu.tools" = "Tools";
-"about.description" = "A friendlier 7zz GUI client for macOS.\nBrowse archives, inspect their contents, and extract or create files without living in Terminal.";
-"about.projectPage" = "Project page";
+"about.description" = "A native macOS archive utility — create, extract, browse, encrypt, hash, and mount DMGs without leaving Finder.";
+"about.projectPage" = "Project Page";
+"about.license" = "MIT License";
+"about.author" = "By Hoshino Yumeka";
+"about.copyright" = "© Hoshino Yumeka. Released under the MIT License.";
 "menu.projectPage" = "SimpleZip Project Page";
+"menu.license" = "MIT License";
 "settings.title" = "Settings";
 "settings.section.defaults" = "Defaults";
 "settings.section.browser" = "Browser";

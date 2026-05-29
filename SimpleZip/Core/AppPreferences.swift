@@ -683,6 +683,20 @@ enum AppPreferences {
         }
     }
 
+    /// 启动早期（`SimpleZipApp.init()`）调一次：把当前 `appLanguage` 偏好同步写到
+    /// `AppleLanguages`，让 AppKit 在构造顶部菜单栏（File / Edit / Window / Help…）和
+    /// Quit / Hide / Services 这些 native 项时就拿到正确语言。
+    /// 用户在「通用 → 语言」里改值并重启后，下次启动这一步会用新值，菜单栏自然跟随。
+    static func applyAppleLanguagesOverrideAtLaunch() {
+        let language = appLanguage
+        if let code = language.appleLanguageCode {
+            defaults.set([code], forKey: "AppleLanguages")
+        } else {
+            // .system 分支：清掉强制覆盖，让 AppKit 回到系统语言。
+            defaults.removeObject(forKey: "AppleLanguages")
+        }
+    }
+
     static func defaultStartupURL(fileManager: FileManager = .default) -> URL {
         // 各分支统一回落到 home 目录 —— 即便对应系统目录被用户手动删了 / 自定义路径已经
         // 不存在了，app 也要起得来，而不是崩在「没法打开任何位置」。

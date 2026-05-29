@@ -9,10 +9,6 @@ import Darwin
 import Foundation
 import UniformTypeIdentifiers
 
-private enum ArchiveServiceProcessRegistry {
-    nonisolated static let shared = ActiveProcessRegistry()
-}
-
 /// 归档命令服务：封装 zip/unzip/7zz 调用，让界面层不直接接触命令行细节。
 enum ArchiveService {
     static let supportedExtensions = ["zip", "7z", "tar", "gz", "tgz", "bz2", "xz", "rar", "dmg"]
@@ -105,7 +101,7 @@ enum ArchiveService {
     }
 
     static func cancelRunningCommand(operationID: UUID? = nil) {
-        ArchiveServiceProcessRegistry.shared.cancelProcess(operationID: operationID)
+        BackendProcessRunner.cancelRunningCommand(operationID: operationID)
     }
 
     static func createArchive(
@@ -303,16 +299,9 @@ enum ArchiveService {
                 try ArchiveSafety.validateExtractedTree(at: destination)
             }
         case .diskImage:
-            let mountPoint = try await mountDiskImage(resolved.url)
-            do {
-                try copyDiskImageContents(from: mountPoint, to: destination, progress: progress)
-                if safetyPolicy == .validate {
-                    try ArchiveSafety.validateExtractedTree(at: destination)
-                }
-                try await detachDiskImage(at: mountPoint)
-            } catch {
-                try? await detachDiskImage(at: mountPoint)
-                throw error
+            try await DiskImageBackend.extract(resolved.url, to: destination, progress: progress)
+            if safetyPolicy == .validate {
+                try ArchiveSafety.validateExtractedTree(at: destination)
             }
         }
     }
@@ -389,8 +378,7 @@ enum ArchiveService {
             let tool = try sevenZipTool()
             try await run(tool, arguments: ["t", resolved.url.path], operationID: operationID)
         case .diskImage:
-            let mountPoint = try await mountDiskImage(resolved.url)
-            try await detachDiskImage(at: mountPoint)
+            try await DiskImageBackend.test(resolved.url)
         }
     }
 
@@ -436,15 +424,7 @@ enum ArchiveService {
             let output = try await runAndCapture(tool, arguments: ["l", "-slt", resolved.url.path], inputStrategy: inputStrategy)
             return parseSevenZipList(output)
         case .diskImage:
-            let mountPoint = try await mountDiskImage(resolved.url)
-            do {
-                let items = try diskImageArchiveItems(at: mountPoint)
-                try await detachDiskImage(at: mountPoint)
-                return items
-            } catch {
-                try? await detachDiskImage(at: mountPoint)
-                throw error
-            }
+            return try await DiskImageBackend.list(resolved.url)
         }
     }
 
@@ -645,40 +625,14 @@ enum ArchiveService {
         throw ArchiveError.missingRarTool
     }
 
+    /// 「打开 DMG 为文件夹」流程用 —— ArchiveBrowserModel 在 mode = .archive(dmg) 时调一次。
+    /// 实际工作转给 `DiskImageBackend.mount`；这里保留是为了不破坏外部 API。
     static func mountDiskImage(_ url: URL) async throws -> URL {
-        let output = try await runAndCapture(
-            "/usr/bin/hdiutil",
-            arguments: ["attach", "-plist", "-readonly", "-nobrowse", "-noverify", "-noautoopen", url.path],
-            currentDirectory: nil,
-            progressParser: nil,
-            inputStrategy: .none,
-            outputObserver: nil
-        )
-        guard
-            let data = output.data(using: .utf8),
-            let plist = try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
-            let entities = plist["system-entities"] as? [[String: Any]]
-        else {
-            throw ArchiveError.commandFailed(output)
-        }
-
-        for entity in entities {
-            if let mountPoint = entity["mount-point"] as? String {
-                return URL(fileURLWithPath: mountPoint)
-            }
-        }
-        throw ArchiveError.commandFailed(output)
+        try await DiskImageBackend.mount(url)
     }
 
     static func detachDiskImage(at mountPoint: URL) async throws {
-        _ = try await runAndCapture(
-            "/usr/bin/hdiutil",
-            arguments: ["detach", mountPoint.path, "-force"],
-            currentDirectory: nil,
-            progressParser: nil,
-            inputStrategy: .none,
-            outputObserver: nil
-        )
+        try await DiskImageBackend.detach(at: mountPoint)
     }
 
     private static var bundledSevenZipCandidates: [ResolvedSevenZipTool] {
@@ -984,58 +938,6 @@ enum ArchiveService {
         }
     }
 
-    private static func copyDiskImageContents(
-        from mountPoint: URL,
-        to destination: URL,
-        progress: @escaping @Sendable (ArchiveProgressState) -> Void
-    ) throws {
-        let fileManager = FileManager.default
-        let items = try fileManager.contentsOfDirectory(at: mountPoint, includingPropertiesForKeys: nil)
-        let total = max(1, items.count)
-        for (index, item) in items.enumerated() {
-            try Task.checkCancellation()
-            progress(
-                ArchiveProgressState(
-                    fraction: Double(index) / Double(total),
-                    currentFile: item.lastPathComponent,
-                    statusText: nil,
-                    completedUnitCount: index + 1,
-                    totalUnitCount: total
-                )
-            )
-            let target = destination.appendingPathComponent(item.lastPathComponent)
-            try fileManager.copyItem(at: item, to: target)
-        }
-        progress(ArchiveProgressState(fraction: 1, currentFile: nil, statusText: nil, completedUnitCount: total, totalUnitCount: total))
-    }
-
-    private static func diskImageArchiveItems(at mountPoint: URL) throws -> [ArchiveItem] {
-        let fileManager = FileManager.default
-        let resourceKeys: Set<URLResourceKey> = [.isDirectoryKey, .fileSizeKey, .contentModificationDateKey]
-        return try fileManager.contentsOfDirectory(at: mountPoint, includingPropertiesForKeys: Array(resourceKeys))
-            .compactMap { url in
-                guard let values = try? url.resourceValues(forKeys: resourceKeys) else { return nil }
-                let isDirectory = values.isDirectory == true
-                let size = Int64(values.fileSize ?? 0)
-                let modified = values.contentModificationDate
-                return ArchiveItem(
-                    name: url.lastPathComponent + (isDirectory ? "/" : ""),
-                    isDirectory: isDirectory,
-                    size: isDirectory ? nil : size,
-                    modified: modified,
-                    sizeText: isDirectory ? "" : ByteCountFormatter.string(fromByteCount: size, countStyle: .file),
-                    modifiedText: modified.map(DiskImageDateFormatter.shared.string(from:)) ?? "",
-                    method: ""
-                )
-            }
-            .sorted { lhs, rhs in
-                if lhs.isDirectory != rhs.isDirectory {
-                    return lhs.isDirectory
-                }
-                return lhs.displayName.localizedStandardCompare(rhs.displayName) == .orderedAscending
-            }
-    }
-
     /// ZIP 扁平化解压：先按原结构抽出，再把文件移动到目标目录根部。
     private static func flattenExtractedItems(entryNames: [String], in destination: URL) throws {
         let fileManager = FileManager.default
@@ -1070,7 +972,8 @@ enum ArchiveService {
         return UUID().uuidString + (ext.isEmpty ? "" : ".\(ext)")
     }
 
-    /// 在后台线程运行命令，避免压缩/解压时阻塞主界面。
+    /// 进程基础设施已搬到 `BackendProcessRunner` —— 这里给一个 type-aliased 转调入口，
+    /// ArchiveService 内大量 `runAndCapture(...)` 调用就不用一个一个改前缀。
     private static func runAndCapture(
         _ executable: String,
         arguments: [String],
@@ -1080,161 +983,15 @@ enum ArchiveService {
         outputObserver: (@Sendable (String) -> Void)? = nil,
         operationID: UUID? = nil
     ) async throws -> String {
-        return try await withCheckedThrowingContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                do {
-                    let output = try runAndCaptureSync(
-                        executable,
-                        arguments: arguments,
-                        currentDirectory: currentDirectory,
-                        progressParser: progressParser,
-                        inputStrategy: inputStrategy,
-                        outputObserver: outputObserver,
-                        operationID: operationID
-                    )
-                    continuation.resume(returning: output)
-                } catch {
-                    continuation.resume(throwing: error)
-                }
-            }
-        }
-    }
-
-    private nonisolated static func runAndCaptureSync(
-        _ executable: String,
-        arguments: [String],
-        currentDirectory: URL?,
-        progressParser: ProgressOutputParser?,
-        inputStrategy: ProcessInputStrategy,
-        outputObserver: (@Sendable (String) -> Void)?,
-        operationID: UUID?
-    ) throws -> String {
-        switch inputStrategy {
-        case .none:
-            return try runWithPipe(
-                executable,
-                arguments: arguments,
-                currentDirectory: currentDirectory,
-                progressParser: progressParser,
-                outputObserver: outputObserver,
-                operationID: operationID
-            )
-        case .passwordPrompts(let responses):
-            return try runWithPseudoTerminal(
-                executable,
-                arguments: arguments,
-                currentDirectory: currentDirectory,
-                progressParser: progressParser,
-                promptResponder: InteractivePasswordResponder(responses: responses),
-                outputObserver: outputObserver,
-                operationID: operationID
-            )
-        }
-    }
-
-    private nonisolated static func runWithPipe(
-        _ executable: String,
-        arguments: [String],
-        currentDirectory: URL?,
-        progressParser: ProgressOutputParser?,
-        outputObserver: (@Sendable (String) -> Void)?,
-        operationID: UUID?
-    ) throws -> String {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: executable)
-        process.arguments = arguments
-        process.currentDirectoryURL = currentDirectory
-
-        let ioPipe = Pipe()
-        process.standardInput = FileHandle.nullDevice
-        process.standardOutput = ioPipe
-        process.standardError = ioPipe
-
-        ArchiveServiceProcessRegistry.shared.register(process, operationID: operationID)
-        defer { ArchiveServiceProcessRegistry.shared.clear(process) }
-        try process.run()
-        let output = try readOutput(from: ioPipe.fileHandleForReading, progressParser: progressParser, outputObserver: outputObserver)
-        process.waitUntilExit()
-
-        guard process.terminationStatus == 0 else {
-            if ArchiveServiceProcessRegistry.shared.wasCancelled(process) {
-                throw CancellationError()
-            }
-            throw ArchiveError.commandFailed(output)
-        }
-
-        progressParser?.finish()
-        return output
-    }
-
-    private nonisolated static func runWithPseudoTerminal(
-        _ executable: String,
-        arguments: [String],
-        currentDirectory: URL?,
-        progressParser: ProgressOutputParser?,
-        promptResponder: InteractivePasswordResponder,
-        outputObserver: (@Sendable (String) -> Void)?,
-        operationID: UUID?
-    ) throws -> String {
-        var masterFD: Int32 = 0
-        var slaveFD: Int32 = 0
-        guard openpty(&masterFD, &slaveFD, nil, nil, nil) == 0 else {
-            throw ArchiveError.commandFailed(String(cString: strerror(errno)))
-        }
-
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: executable)
-        process.arguments = arguments
-        process.currentDirectoryURL = currentDirectory
-
-        let masterHandle = FileHandle(fileDescriptor: masterFD, closeOnDealloc: true)
-        let slaveHandle = FileHandle(fileDescriptor: slaveFD, closeOnDealloc: true)
-        process.standardInput = slaveHandle
-        process.standardOutput = slaveHandle
-        process.standardError = slaveHandle
-
-        var responder = promptResponder
-
-        ArchiveServiceProcessRegistry.shared.register(process, operationID: operationID)
-        defer { ArchiveServiceProcessRegistry.shared.clear(process) }
-        try process.run()
-        try? slaveHandle.close()
-        let output: String
-        do {
-            output = try readOutput(from: masterHandle, progressParser: progressParser, outputObserver: outputObserver) { text in
-                try responder.consume(text, writer: masterHandle)
-            }
-        } catch {
-            terminateAndWait(process)
-            throw error
-        }
-        process.waitUntilExit()
-
-        guard process.terminationStatus == 0 else {
-            if ArchiveServiceProcessRegistry.shared.wasCancelled(process) {
-                throw CancellationError()
-            }
-            throw ArchiveError.commandFailed(output)
-        }
-
-        progressParser?.finish()
-        return output
-    }
-
-    private nonisolated static func terminateAndWait(_ process: Process, timeout: TimeInterval = 2) {
-        if process.isRunning {
-            process.terminate()
-        }
-
-        let deadline = Date().addingTimeInterval(timeout)
-        while process.isRunning, Date() < deadline {
-            Thread.sleep(forTimeInterval: 0.05)
-        }
-
-        if process.isRunning {
-            kill(process.processIdentifier, SIGKILL)
-        }
-        process.waitUntilExit()
+        try await BackendProcessRunner.runAndCapture(
+            executable,
+            arguments: arguments,
+            currentDirectory: currentDirectory,
+            progressParser: progressParser,
+            inputStrategy: inputStrategy,
+            outputObserver: outputObserver,
+            operationID: operationID
+        )
     }
 
     private nonisolated static func fileCount(in urls: [URL]) async throws -> Int {
@@ -1265,103 +1022,15 @@ enum ArchiveService {
         }
     }
 
-    private nonisolated static func readOutput(
-        from handle: FileHandle,
-        progressParser: ProgressOutputParser?,
-        outputObserver: (@Sendable (String) -> Void)? = nil,
-        chunkHandler: ((String) throws -> Void)? = nil
-    ) throws -> String {
-        var output = ""
-        while true {
-            let data = handle.availableData
-            guard !data.isEmpty else { break }
-            let text = String(decoding: data, as: UTF8.self)
-            output += text
-            progressParser?.consume(text)
-            outputObserver?(text)
-            try chunkHandler?(text)
-        }
-        return output
-    }
 
 }
 
-private final class ProgressOutputParser: @unchecked Sendable {
-    private let lock = NSLock()
-    private let totalFiles: Int?
-    private let progress: @Sendable (ArchiveProgressState) -> Void
-    nonisolated(unsafe) private var processedFiles = 0
-    nonisolated(unsafe) private var remainder = ""
-
-    nonisolated init(totalFiles: Int?, progress: @escaping @Sendable (ArchiveProgressState) -> Void) {
-        self.totalFiles = totalFiles
-        self.progress = progress
-    }
-
-    nonisolated func consume(_ text: String) {
-        lock.lock()
-        defer { lock.unlock() }
-
-        let normalized = text.replacingOccurrences(of: "\r", with: "\n")
-        let combined = remainder + normalized
-        let lines = combined.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
-        remainder = lines.last ?? ""
-        lines.dropLast().forEach(handleLine)
-    }
-
-    nonisolated func finish() {
-        lock.lock()
-        defer { lock.unlock() }
-
-        if !remainder.isEmpty {
-            handleLine(remainder)
-            remainder = ""
-        }
-        progress(ArchiveProgressState(fraction: 1, currentFile: nil, completedUnitCount: totalFiles, totalUnitCount: totalFiles))
-    }
-
-    private nonisolated func handleLine(_ line: String) {
-        let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-
-        if let percent = parsePercent(from: trimmed) {
-            progress(ArchiveProgressState(fraction: percent, currentFile: currentFile(from: trimmed), completedUnitCount: processedFiles, totalUnitCount: totalFiles))
-            return
-        }
-
-        guard let file = currentFile(from: trimmed), !file.isEmpty else { return }
-        processedFiles += 1
-        let fraction = totalFiles.map { min(0.99, Double(processedFiles) / Double(max(1, $0))) }
-        progress(ArchiveProgressState(fraction: fraction, currentFile: file, completedUnitCount: processedFiles, totalUnitCount: totalFiles))
-    }
-
-    private nonisolated func parsePercent(from line: String) -> Double? {
-        guard let match = line.range(of: #"(\d{1,3})%"#, options: .regularExpression) else { return nil }
-        let number = line[match].dropLast()
-        guard let value = Double(number) else { return nil }
-        return min(1, max(0, value / 100))
-    }
-
-    private nonisolated func currentFile(from line: String) -> String? {
-        let prefixes = ["adding:", "updating:", "extracting:", "inflating:", "creating:", "x ", "- "]
-        for prefix in prefixes where line.localizedCaseInsensitiveContains(prefix) {
-            if let range = line.range(of: prefix, options: .caseInsensitive) {
-                return String(line[range.upperBound...])
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-                    .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
-            }
-        }
-
-        if line.hasPrefix("Path = ") {
-            return String(line.dropFirst("Path = ".count))
-        }
-
-        if !line.hasPrefix("7-Zip"), !line.hasPrefix("Scanning"), !line.hasPrefix("Creating archive"), !line.hasPrefix("Everything is Ok") {
-            return line
-        }
-        return nil
-    }
-}
+// 注：ProgressOutputParser / ProcessInputStrategy / InteractivePasswordResponder /
+// ActiveProcessRegistry 已搬到 `BackendProcessRunner.swift`；
+// DMG 相关的 mount / detach / list / extract / 私有 DateFormatter 已搬到
+// `Backends/DiskImageBackend.swift`。剩下的辅助类型继续留在这 ——
+// `ResolvedSevenZipTool` / `ResolvedRarTool` / 它们的 source 枚举都还跟 7zz / RAR 后端选择强绑定，
+// 等 Phase 4 拆 SevenZipBackend / RarBackend 时再一并迁走。
 
 private struct ResolvedSevenZipTool {
     let path: String
@@ -1371,124 +1040,6 @@ private struct ResolvedSevenZipTool {
 private struct ResolvedRarTool {
     let path: String
     let source: RarToolSource
-}
-
-private enum ProcessInputStrategy {
-    case none
-    case passwordPrompts([String])
-}
-
-private struct InteractivePasswordResponder {
-    nonisolated private static let promptMarkers = [
-        "enter password",
-        "verify password",
-        "reenter password",
-        "password:"
-    ]
-
-    private let responses: [String]
-    private var responseIndex = 0
-    private var buffer = ""
-
-    nonisolated init(responses: [String]) {
-        self.responses = responses
-    }
-
-    nonisolated mutating func consume(_ text: String, writer: FileHandle) throws {
-        buffer += text.lowercased()
-        guard Self.promptMarkers.contains(where: buffer.contains) else {
-            if buffer.count > 512 {
-                buffer = String(buffer.suffix(512))
-            }
-            return
-        }
-
-        guard responseIndex < responses.count else {
-            throw ArchiveError.passwordPromptExhausted
-        }
-
-        if let data = (responses[responseIndex] + "\n").data(using: .utf8) {
-            try writer.write(contentsOf: data)
-        }
-        responseIndex += 1
-        buffer = ""
-    }
-}
-
-private enum DiskImageDateFormatter {
-    static let shared: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        return formatter
-    }()
-}
-
-private final class ActiveProcessRegistry: @unchecked Sendable {
-    private let lock = NSLock()
-    nonisolated(unsafe) private weak var activeProcess: Process?
-    nonisolated(unsafe) private var processesByOperationID: [UUID: Process] = [:]
-    nonisolated(unsafe) private var operationIDsByProcess = [ObjectIdentifier: UUID]()
-    nonisolated(unsafe) private var cancelledProcesses = Set<ObjectIdentifier>()
-
-    nonisolated func register(_ process: Process, operationID: UUID?) {
-        lock.lock()
-        activeProcess = process
-        let processID = ObjectIdentifier(process)
-        cancelledProcesses.remove(processID)
-        if let operationID {
-            processesByOperationID[operationID] = process
-            operationIDsByProcess[processID] = operationID
-        }
-        lock.unlock()
-    }
-
-    nonisolated func clear(_ process: Process) {
-        lock.lock()
-        let processID = ObjectIdentifier(process)
-        if activeProcess === process {
-            activeProcess = nil
-        }
-        if let operationID = operationIDsByProcess.removeValue(forKey: processID),
-           processesByOperationID[operationID] === process {
-            processesByOperationID.removeValue(forKey: operationID)
-        }
-        cancelledProcesses.remove(processID)
-        lock.unlock()
-    }
-
-    nonisolated func wasCancelled(_ process: Process) -> Bool {
-        lock.lock()
-        defer { lock.unlock() }
-        return cancelledProcesses.contains(ObjectIdentifier(process))
-    }
-
-    nonisolated func cancelProcess(operationID: UUID?) {
-        lock.lock()
-        let process: Process?
-        if let operationID {
-            process = processesByOperationID[operationID]
-        } else {
-            process = activeProcess
-        }
-        if let process {
-            cancelledProcesses.insert(ObjectIdentifier(process))
-        }
-        lock.unlock()
-
-        process.map(requestStop)
-    }
-
-    private nonisolated func requestStop(_ process: Process) {
-        process.interrupt()
-        guard process.isRunning else { return }
-        process.terminate()
-        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 2) {
-            if process.isRunning {
-                kill(process.processIdentifier, SIGKILL)
-            }
-        }
-    }
 }
 
 private enum SevenZipToolSource {

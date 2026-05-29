@@ -4,6 +4,11 @@
 
 ## 0.1.6
 
+- **About panel refresh**
+  - The blurb has been rewritten to reflect what 0.1.6 actually does (7-Zip + system zip/tar + optional RAR + safety checks + AES + hashing + DMG mounting + one-click diagnostics).
+  - Added an author line ("By Hoshino Yumeka"), a clickable repo link (`github.com/chiba233/SimpleZip`), and a clickable MIT License line that opens the LICENSE file on GitHub. The links use the system accent color so they follow light/dark mode.
+- **Internal refactor: BackendProcessRunner extracted**
+  - Extracted ~400 lines of process-running infrastructure (`runAndCapture` / PTY / cancellation registry / `ProgressOutputParser` / `InteractivePasswordResponder`) from `ArchiveService` into a stand-alone `BackendProcessRunner`. `ArchiveService.cancelRunningCommand` is now a thin forwarder. `ArchiveService.swift` shrunk from 1524 to 1171 lines (−353). This is the first step of Phase 4 (splitting `ArchiveService` into per-format backends); the upcoming `SevenZipBackend` / `DiskImageBackend` / `RarBackend` extractions will all consume the shared runner.
 - **New feature: open any file as an archive**
   - The file-table context menu and the File menu now offer an "Open as Archive" command. Selecting a single non-archive file (`.exe`, `.apk`, `.ipa`, `.jar`, and other non-standard files that are really ZIP / NSIS / CAB inside) and triggering the command bypasses the extension check and hands the bytes straight to the 7-Zip backend, which sniffs the format from the file header.
   - The command is only enabled when the selection is exactly one non-directory file that isn't already a recognised archive, so it never duplicates the regular "Open".
