@@ -293,6 +293,9 @@ enum AppPreferences {
         // 多数用户不用智能卡，开启会显示「我的密钥（智能卡）」分组 + 「从智能卡导入公钥」按钮 + 一些卡相关错误提示。
         // 没有这把开关时如果用户的 keyring 里恰好有卡 stub，UI 仍然能看到（不会丢数据），只是不出现卡操作入口。
         nonisolated static let gpgSmartcardEnabled = "gpgSmartcardEnabled"
+        // 默认签名密钥 fingerprint（40 字符 hex）—— 用户在 GPG 设置里手动指定。
+        // 创建压缩包 / 签 .siz / 签 .szs 时若未显式选签名者，fallback 到这把。空 = 未设置，用 gpg default-key。
+        nonisolated static let gpgDefaultSigningKeyFingerprint = "gpgDefaultSigningKeyFingerprint"
     }
 
     nonisolated static var startupLocation: StartupLocation {
@@ -511,6 +514,12 @@ enum AppPreferences {
         defaults.bool(forKey: Key.gpgSmartcardEnabled)
     }
 
+    /// 默认签名密钥 fingerprint（40 字符）。空 = 未设置（fallback 到 gpg default-key）。
+    /// 写入：用户在 GPG pane 点「设为默认」时 set；点「清除」时 set 成空串。
+    nonisolated static var gpgDefaultSigningKeyFingerprint: String {
+        defaults.string(forKey: Key.gpgDefaultSigningKeyFingerprint) ?? ""
+    }
+
     /// 预设密码的实际内容。空字符串等于「未配置」。
     /// 存储已迁到 Keychain（见 `PresetPasswordStore`）。本属性是业务侧（创建/解压自动填）
     /// 的静默读取入口，不会触发 Touch ID。
@@ -624,9 +633,11 @@ enum AppPreferences {
         Key.finderOpenAutoExtract,
         // 注意：只导 presetPasswordEnabled 开关，密码本身永远在 Keychain，不进导出文件。
         Key.presetPasswordEnabled,
-        // GPG 集成主开关 + 智能卡支持开关；私钥 / 公钥都在 ~/.gnupg/，不进导出文件。
+        // GPG 集成主开关 + 智能卡支持开关 + 默认签名密钥 fingerprint；私钥 / 公钥都在 ~/.gnupg/ 或 SimpleZip 私有 ring，
+        // 不进偏好导出文件。fingerprint 字符串属于「指向密钥的标识」，不是密钥本身，可导出。
         Key.gpgEnabled,
         Key.gpgSmartcardEnabled,
+        Key.gpgDefaultSigningKeyFingerprint,
         Key.suspiciousPathPolicy,
         Key.symbolicLinkPolicy,
         Key.activeContentOpenPolicy,

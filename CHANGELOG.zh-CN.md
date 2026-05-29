@@ -4,6 +4,38 @@
 
 ## 0.1.8
 
+- **GPG 钥匙串视觉打磨 + 解析 bug 修复**
+  - **修 parser**：现代 gpg `--list-secret-keys --with-colons` 输出里，智能卡 stub 标记不在 type 字段后缀（旧的 `sec>` / `ssb>`），而是放在**第 14 字段（index 13）**装卡 serial（如 `F1D0+0131337E`）。之前只 check 了 type 后缀 → 现代 gpg 输出全漏 → 用户「主密钥 + 2 副密钥」三把卡上密钥被错放进「本机私钥」组、subkey 「卡上」badge 不出现。现两个位置都识别（field 14 非空 → 卡上；field 14 是 `#` → stripped），跨 gpg 版本兼容。
+  - **主密钥行加 capability chip**：之前只有 subkey 行显示「签 / 密 / 认」等 capability 图标，主密钥的能力只能从外推。现在主密钥的 `field 11 capabilities` 串里小写 s / e / a / c 字符各渲染成等宽 chip，让用户立刻看到「主密钥能做什么」。
+  - **「卡上」/「stripped」badge 提升到主行**：之前藏在 caption（次行小灰字）；现在主行 fingerprint 旁直接出 orange 「💳 卡上」/ secondary 「🗝/ stripped」chip。智能卡密钥一目了然。
+  - **chip 等宽**：「签 / 密 / 认 / 证 / 卡上 / stripped」chip 现在所有图标固定 11pt 槽位 + label 等宽对齐，视觉一致（之前 SF Symbol 宽度差异导致看着歪七扭八）。
+  - **详情可折叠**：每行新增「详情 ▶」按钮，默认折叠 —— 主行只展示 userID / 短指纹（16 字符 long key ID）/ capability chips / 卡上 badge / 默认按钮 / 信任 picker，密度合理。点「详情」展开完整 40 字符 fingerprint + 卡上说明 + 子密钥列表。每行可独立展开。
+  - **按钮 / picker / 默认 chip 高度统一**：之前「设为默认」用 `.mini`、信任 picker 用 `.small`、「✓ 默认」chip 又是自定 padding —— 三个控件视觉高度全不同，行末参差不齐。现在「设为默认」和「✓ 默认」都对齐到 `.small` 高度。
+  - **加 capability 类 chip**：`c` (certify) 主密钥能力之前没暴露 —— 现在显示「证」chip（多数主密钥都有 certify 能力，UI 区分小灰色避免抢戏）。
+  - **chip 去掉 SF Symbol，纯文字**：上一轮加图标后发现 `signature` 是花体签名飘带（不是普通图标），跟「签」字撞色一团 mess（见 issue 截图）。改成纯文字 chip（「签 / 密 / 认 / 证」单汉字），靠 padding + 颜色对比区分。等宽天然，视觉干净。
+  - **智能卡检测加「直接问卡」第二条路径**：之前只解析 `--list-secret-keys --with-colons` 输出找智能卡 stub 标记，但 gpg 不同版本里这个标记的字段位置漂移（有的版本是 type 后缀，有的是 field 14，有的是 field 15）—— 解析永远漂移。现在 listKeys 额外跑 `gpg --card-status --with-colons` 直接问卡硬件本身报告的 fingerprints，跨 gpg 版本稳定。`smartcardPrimary` / `smartcardSubkey` 集合 union 两条路径的结果 —— 任意命中即标卡上。没插卡时 card-status 直接 fail silently，不打扰用户。
+  - **影响**：之前用户 OpenPGP 卡上的主密钥被错放进「本机私钥」组、subkey「卡上」badge 不出现的 bug（即使开了智能卡 toggle），现在自动修复。
+
+- **GPG 钥匙管理 Round 2：子密钥展示 / 公钥隔离 / 默认签名密钥 / 智能卡反查 / 右键菜单**
+  - **子密钥（subkey）列表**：每把主密钥下方缩进展示所有子密钥，每个 subkey 一行显示「短指纹 + 能力 chip (签 / 密 / 认) + 「卡上 / stripped」标记 + 过期标」。之前 SimpleZip 把「主 + 3 副密钥」的 OpenPGP 卡只画一行 = 信息丢 2/3，CLI 用户一看就知道在隐瞒东西。
+  - **修正智能卡 stub 标记**：之前误把 `#` 当成卡上标记，实际上 gpg 用 `>` 表示「私钥在卡上」、`#` 表示「私钥已 stripped」（已删除）。两者语义不同 —— 现在分别识别：`isSecretKeyOnSmartcard` / `isSecretKeyStripped` 两个字段独立追踪，UI 各自图标 + 各自文案。
+  - **公钥隔离 ring**：他人公钥不再被强制写入用户 `~/.gnupg/`，新增「导入到 SimpleZip 私有钥匙串」按钮 → 写到 `~/Library/Application Support/SimpleZip/keyring/pubring.kbx`。卸载 SimpleZip 即可清理，不污染用户 CLI 设置。原「导入公钥…」按钮拆成两个：「导入到 ~/.gnupg…」（共享）和「导入到 SimpleZip 私有钥匙串…」（隔离）。他人公钥分组也对应拆成「他人公钥（GPG keyring 共享）」+「他人公钥（仅 SimpleZip）」两组。
+  - **验签自动跨 ring 搜索**：`SIZArchive.verify` / `GPGBackend.verify` 给 gpg 加 `--keyring <SZ>/pubring.kbx`，让用户 `~/.gnupg/` 已有的公钥 + SimpleZip 私有 ring 都参与签名验证 —— 用户「只导入到 SimpleZip ring」的他人公钥也能验签 .siz。
+  - **智能卡 binding 状态行**：智能卡支持开启后，钥匙串顶部新增一行「插入的智能卡 [检测]」。点「检测」跑 `gpg --card-status --with-colons` 拿卡 serial / vendor / holder name / 三个用途 subkey fingerprint，然后反查本机 keyring 告诉用户「这张卡绑了哪把主密钥」。卡上 subkey 在 keyring 找不到时给「请先用『从智能卡导入公钥』拉公钥到 keyring」提示，不让用户卡在「为什么签名密钥识别不出来」。
+  - **默认签名密钥**：新偏好 `AppPreferences.gpgDefaultSigningKeyFingerprint` —— 钥匙串顶部一行展示当前默认（UID + 短指纹 + 「清除」按钮）；每个本机私钥 / 智能卡 stub 密钥的行尾出现「设为默认」按钮，已是默认显示绿色 ✓「默认」chip。设置好的 fingerprint 会在后续创建 .siz / .szs / `.gpg --sign` 时作为 fallback 签名者（用户在创建对话框里仍可显式覆盖）。
+  - **行内右键 context menu**：任意密钥行右键 →「复制公钥指纹」（NSPasteboard 写整个 40 字符 fp）+「导出公钥为 .asc…」（NSSavePanel + `gpg --armor --export <fp>`；源 ring 自动选 `.userKeyring` / `.simpleZipKeyring` 不会跨 ring 误导出）。
+  - **高级区新增**：「SimpleZip 私有 ring」路径展示，让用户一眼能看到隔离的 keyring 文件位置（方便手动 `gpg --no-default-keyring --keyring <path> --list-keys` 验证）。
+  - **后端**：
+    - `GPGBackend.GPGKey` 加 `subkeys: [GPGSubkey]` / `source: GPGKeyringSource (.userKeyring | .simpleZipKeyring)` / `capabilities: String` / `isSecretKeyOnSmartcard` / `isSecretKeyStripped`，原 `isSecretKeyStub` 收成 computed property（兼容旧调用）。
+    - 新 struct `GPGSubkey`（fingerprint / capabilities / isOnSmartcard / isStripped / isExpired / `canSign / canEncrypt / canAuthenticate`）。
+    - 新 struct `GPGCardStatus`（serial / vendor / holderName / subkeyFingerprints / linkedPrimaryFingerprint）。
+    - `parseColonsList` 重写：识别 `sec>` / `ssb>` 卡上标记 + `sec#` / `ssb#` stripped 标记；解析子密钥记录；解析 capability 字段。`parseFingerprints` 拆成三态 `SecretKeyMode (fullSecret / smartcard / stripped)`。
+    - 新方法：`simpleZipKeyringDirectory()` / `simpleZipPubringPath()` / `simpleZipKeyringArguments()` / `listKeys(from:)` / `listKeys()` 合并去重 / `importKey(from:into:)` / `exportPublicKey(fingerprint:source:)` / `setTrustLevel(...:source:)` / `cardStatus()`。
+    - `verify()` 在 gpg 调用参数前加 `--keyring <SZ>` 实现两 ring 同时搜索。
+  - **隐私 / 安全保证**：
+    - 仅 SimpleZip 私有 ring 的公钥**不会**写入用户 `~/.gnupg/` —— 用户卸载 SimpleZip + 删 `~/Library/Application Support/SimpleZip/` 就彻底清理，CLI 用户的钥匙串完全不变。
+    - 卡 binding 反查只匹配 subkey fingerprint，不读卡上任何 PIN / 密钥材料；卡未插入时不会 spam 错误。
+
 - **重做：GPG 设置面板钥匙串强分区 + 信任级别 picker + 智能卡 opt-in 支持 + 高级 / 普通设置分层**
   - 钥匙串列表从一坨平铺改成**三分组**：「我的密钥（本机私钥）」/「我的密钥（智能卡 / OpenPGP token）」/「他人公钥」。`hasSecretKey && !isSecretKeyStub` / `hasSecretKey && isSecretKeyStub` / `!hasSecretKey` 三种组合分别落盘到对应组。空组不渲染标题。
   - 每行 GPGKeyRow 增加 **信任级别 Picker**（5 选 1：未设置 / 永不信任 / 勉强信任 / 完全信任 / 终极信任）。点选立即调 `gpg --command-fd 0 --edit-key <fpr>` 喂 `trust\n<menu-number>\ny\nsave\n` 落盘，改完自动 refresh 钥匙串。`expired` / `revoked` 状态显示红色只读 chip，不让用户「设置」一个 gpg 报告的密钥状态。

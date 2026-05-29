@@ -7,25 +7,26 @@
 
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 
-/// GPG 设置面板 —— 用户在这里启用 / 关闭 GPG 集成、装 gnupg 后端、管理钥匙串、设置信任级别。
+/// GPG 设置面板 —— 用户在这里启用 / 关闭 GPG 集成、装 gnupg 后端、管理钥匙串、设置信任级别 / 默认签名密钥。
 ///
-/// 分层策略：
-/// - **普通区**（始终展开）：主开关 / 后端可用性徽章 / 安装提示 / 钥匙串列表（三分组）/ 导入公钥按钮。
-///   多数用户只需要看这部分就够了。
-/// - **高级区**（`DisclosureGroup`，默认折叠）：智能卡 / OpenPGP token 支持开关 / 后端路径 / 版本 /
-///   pinentry-mac 状态 / gpg-agent 状态 / `$GNUPGHOME`。只在 `gpgEnabled` 时整段出现。
+/// **分层策略**：
+/// - **普通区**（始终展开）：主开关 / 后端可用性 / 默认签名密钥状态行 / 智能卡状态行（卡插入时）/ 钥匙串四分组 / 操作按钮组。
+/// - **高级区**（`DisclosureGroup`，默认折叠）：智能卡 / OpenPGP token 支持 toggle / 后端路径 / 版本 / pinentry-mac / gpg-agent / GNUPGHOME。
 ///
-/// 钥匙串分三组（普通区里展示，因为这是核心交互）：
-/// - **我的密钥（本机私钥）**：`hasSecretKey && !isSecretKeyStub`，签名 / 解密时不需要外置硬件。
-/// - **我的密钥（智能卡 / Token）**：`hasSecretKey && isSecretKeyStub`，私钥在卡上，操作时需要插卡。
-///   仅当用户在高级区勾上「启用智能卡支持」(`gpgSmartcardEnabled`) 后展示，避免不用卡的用户被干扰。
-/// - **他人公钥**：`!hasSecretKey`，用来验签 + 加密给对方。
+/// **钥匙串四分组**（按 `(hasSecretKey, isSecretKeyStub, source)` 切分）：
+/// - 我的密钥（本机私钥）：`hasSecretKey && !isSecretKeyStub`
+/// - 我的密钥（智能卡 / Token）：`hasSecretKey && isSecretKeyStub`，仅 `gpgSmartcardEnabled` 时展示
+/// - 他人公钥（来自 GPG keyring）：`!hasSecretKey && source == .userKeyring`
+/// - 他人公钥（仅 SimpleZip）：`!hasSecretKey && source == .simpleZipKeyring`，**不**污染用户 `~/.gnupg/`
 ///
-/// 信任级别 picker 跟着每行密钥走 —— 是 GPG 钥匙管理的核心交互，不该藏到高级区里。
+/// **每行展示**：UID / 主密钥短指纹 / 信任级别 picker / 子密钥列表（capability 图标 + 卡上 / stripped 标记）/
+/// 默认签名密钥按钮（仅本机私钥 + 卡 stub 行）/ 右键 context menu（复制指纹 / 导出公钥）。
 struct GPGPane: View {
     @AppStorage(AppPreferences.Key.gpgEnabled) private var gpgEnabled = false
     @AppStorage(AppPreferences.Key.gpgSmartcardEnabled) private var gpgSmartcardEnabled = false
+    @AppStorage(AppPreferences.Key.gpgDefaultSigningKeyFingerprint) private var defaultSigningKeyFingerprint = ""
 
     @State private var systemInstallMessage: String?
     @State private var gpgAvailable = false
@@ -38,6 +39,9 @@ struct GPGPane: View {
     @State private var isLoadingKeys = false
     @State private var keyOperationMessage: String?
     @State private var isImportingFromSmartcard = false
+
+    @State private var cardStatus: GPGBackend.GPGCardStatus?
+    @State private var isDetectingCard = false
 
     var body: some View {
         Form {
@@ -56,6 +60,9 @@ struct GPGPane: View {
             refreshStatus()
             if gpgEnabled && gpgAvailable {
                 refreshKeys()
+                if gpgSmartcardEnabled {
+                    detectCard()
+                }
             }
         }
         .onChange(of: gpgEnabled) { enabled in
@@ -64,8 +71,12 @@ struct GPGPane: View {
                 if gpgAvailable { refreshKeys() }
             }
         }
-        .onChange(of: gpgSmartcardEnabled) { _ in
-            // 智能卡开关变化不会改变 keys 列表内容，但分组渲染会变 —— 不需要额外刷数据。
+        .onChange(of: gpgSmartcardEnabled) { enabled in
+            if enabled && gpgAvailable {
+                detectCard()
+            } else {
+                cardStatus = nil
+            }
         }
     }
 
@@ -102,8 +113,6 @@ struct GPGPane: View {
             }
 
             if !gpgAvailable {
-                // Homebrew 安装提示 —— 命令本身已经含智能卡支持（gnupg 自带 scdaemon），
-                // 文案里点明这件事，避免用户后续装了 GPG 才发现「智能卡为什么不识别」。
                 SystemInstallCommandView(
                     title: L10n.text("settings.gpg.install.brew.title"),
                     command: "brew install gnupg pinentry-mac",
@@ -133,6 +142,12 @@ struct GPGPane: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
+            defaultSigningKeyRow
+
+            if gpgSmartcardEnabled {
+                cardStatusRow
+            }
+
             if isLoadingKeys {
                 HStack {
                     ProgressView().controlSize(.small)
@@ -150,8 +165,11 @@ struct GPGPane: View {
             }
 
             HStack(spacing: 8) {
-                Button(L10n.text("settings.gpg.keys.importButton")) {
-                    importPublicKey()
+                Button(L10n.text("settings.gpg.keys.importUserButton")) {
+                    importKey(into: .userKeyring)
+                }
+                Button(L10n.text("settings.gpg.keys.importSimpleZipButton")) {
+                    importKey(into: .simpleZipKeyring)
                 }
                 if gpgSmartcardEnabled {
                     Button(L10n.text("settings.gpg.smartcard.importButton")) {
@@ -161,6 +179,7 @@ struct GPGPane: View {
                 }
                 Button(L10n.text("settings.gpg.keys.refresh")) {
                     refreshKeys()
+                    if gpgSmartcardEnabled { detectCard() }
                 }
                 .disabled(isLoadingKeys)
                 Spacer()
@@ -184,41 +203,133 @@ struct GPGPane: View {
         }
     }
 
-    /// 三分组渲染：「我的密钥（本机）/ 我的密钥（智能卡）/ 他人公钥」，每组带小标题。
-    /// 没有该类密钥的组不展示空标题。
+    /// 「当前默认签名密钥」一行展示 + 清除按钮。fingerprint 为空 = 「未设置」灰字。
+    /// 设置 / 清除走 GPGKeyRow 的「设为默认」按钮，不在这一行操作 —— 这一行只展示当前状态。
+    @ViewBuilder
+    private var defaultSigningKeyRow: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Image(systemName: defaultSigningKeyFingerprint.isEmpty ? "signature" : "signature")
+                .foregroundStyle(defaultSigningKeyFingerprint.isEmpty ? .secondary : Color.accentColor)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(L10n.text("settings.gpg.defaultSigning.label"))
+                    .font(.caption.weight(.medium))
+                if defaultSigningKeyFingerprint.isEmpty {
+                    Text(L10n.text("settings.gpg.defaultSigning.none"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    let matched = keys.first { $0.fingerprint == defaultSigningKeyFingerprint }
+                    Text(matched.map { "\($0.userID) · \($0.shortFingerprint)" }
+                         ?? L10n.format("settings.gpg.defaultSigning.unknownFingerprint", defaultSigningKeyFingerprint.suffix(16) as CVarArg))
+                        .font(.caption)
+                        .foregroundStyle(matched == nil ? .orange : .secondary)
+                        .textSelection(.enabled)
+                }
+            }
+            Spacer()
+            if !defaultSigningKeyFingerprint.isEmpty {
+                Button(L10n.text("settings.gpg.defaultSigning.clear")) {
+                    defaultSigningKeyFingerprint = ""
+                    keyOperationMessage = L10n.text("settings.gpg.defaultSigning.cleared")
+                }
+                .controlSize(.small)
+            }
+        }
+        .padding(.vertical, 2)
+    }
+
+    /// 「当前插入卡」一行展示 —— 仅智能卡支持开启时出现。卡未检测到时显示「未检测到卡 [检测]」。
+    /// 检测到时显示：vendor + serial + 反查的主密钥 UID（找不到对应主密钥时给「卡上 subkey 在本机 keyring 找不到 → 「拉公钥」提示」）。
+    @ViewBuilder
+    private var cardStatusRow: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Image(systemName: "creditcard")
+                .foregroundStyle(cardStatus == nil ? Color.secondary : Color.orange)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(L10n.text("settings.gpg.smartcard.statusLabel"))
+                    .font(.caption.weight(.medium))
+                if isDetectingCard {
+                    Text(L10n.text("settings.gpg.smartcard.detecting"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else if let card = cardStatus {
+                    cardDetailText(card)
+                } else {
+                    Text(L10n.text("settings.gpg.smartcard.notDetected"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Spacer()
+            Button(L10n.text("settings.gpg.smartcard.detect")) {
+                detectCard()
+            }
+            .controlSize(.small)
+            .disabled(isDetectingCard)
+        }
+        .padding(.vertical, 2)
+    }
+
+    @ViewBuilder
+    private func cardDetailText(_ card: GPGBackend.GPGCardStatus) -> some View {
+        let identity = card.holderName ?? card.vendor ?? L10n.text("settings.gpg.smartcard.unnamedCard")
+        let serialText = card.serial.map { L10n.format("settings.gpg.smartcard.serial", $0) } ?? ""
+        let header = "\(identity) \(serialText)".trimmingCharacters(in: .whitespaces)
+        VStack(alignment: .leading, spacing: 1) {
+            Text(header)
+                .font(.caption)
+                .textSelection(.enabled)
+            if let linkedFp = card.linkedPrimaryFingerprint, let linkedKey = keys.first(where: { $0.fingerprint == linkedFp }) {
+                Text(L10n.format("settings.gpg.smartcard.linkedKey", linkedKey.userID, linkedKey.shortFingerprint))
+                    .font(.caption2)
+                    .foregroundStyle(Color.green)
+                    .textSelection(.enabled)
+            } else {
+                Text(L10n.text("settings.gpg.smartcard.linkedKeyMissing"))
+                    .font(.caption2)
+                    .foregroundStyle(.orange)
+            }
+        }
+    }
+
+    /// 四分组渲染。空组不渲染。
     @ViewBuilder
     private var keyGroupsView: some View {
         let myLocalKeys = keys.filter { $0.hasSecretKey && !$0.isSecretKeyStub }
         let smartcardKeys = keys.filter { $0.hasSecretKey && $0.isSecretKeyStub }
-        let publicOnlyKeys = keys.filter { !$0.hasSecretKey }
+        let publicGPGKeys = keys.filter { !$0.hasSecretKey && $0.source == .userKeyring }
+        let publicSZKeys = keys.filter { !$0.hasSecretKey && $0.source == .simpleZipKeyring }
 
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 14) {
             if !myLocalKeys.isEmpty {
                 keyGroup(
                     title: L10n.text("settings.gpg.keys.mine.title"),
-                    keys: myLocalKeys,
-                    smartcard: false
+                    keys: myLocalKeys
                 )
             }
             if gpgSmartcardEnabled && !smartcardKeys.isEmpty {
                 keyGroup(
                     title: L10n.text("settings.gpg.keys.mineSmartcard.title"),
-                    keys: smartcardKeys,
-                    smartcard: true
+                    keys: smartcardKeys
                 )
             }
-            if !publicOnlyKeys.isEmpty {
+            if !publicGPGKeys.isEmpty {
                 keyGroup(
-                    title: L10n.text("settings.gpg.keys.others.title"),
-                    keys: publicOnlyKeys,
-                    smartcard: false
+                    title: L10n.text("settings.gpg.keys.othersGPG.title"),
+                    keys: publicGPGKeys
+                )
+            }
+            if !publicSZKeys.isEmpty {
+                keyGroup(
+                    title: L10n.text("settings.gpg.keys.othersSimpleZip.title"),
+                    keys: publicSZKeys
                 )
             }
         }
     }
 
     @ViewBuilder
-    private func keyGroup(title: String, keys: [GPGBackend.GPGKey], smartcard: Bool) -> some View {
+    private func keyGroup(title: String, keys: [GPGBackend.GPGKey]) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(title)
                 .font(.caption.weight(.semibold))
@@ -228,9 +339,22 @@ struct GPGPane: View {
                 ForEach(keys) { key in
                     GPGKeyRow(
                         key: key,
-                        smartcardStub: smartcard,
+                        isDefaultSigningKey: defaultSigningKeyFingerprint == key.fingerprint,
+                        canBeDefaultSigner: key.hasSecretKey,
                         onTrustChange: { newLevel in
-                            setTrust(for: key.fingerprint, to: newLevel)
+                            setTrust(for: key, to: newLevel)
+                        },
+                        onSetDefaultSigning: {
+                            defaultSigningKeyFingerprint = key.fingerprint
+                            keyOperationMessage = L10n.format("settings.gpg.defaultSigning.set", key.userID)
+                        },
+                        onCopyFingerprint: {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(key.fingerprint, forType: .string)
+                            keyOperationMessage = L10n.text("settings.gpg.keys.fingerprintCopied")
+                        },
+                        onExportPublicKey: {
+                            exportPublicKey(for: key)
                         }
                     )
                     if key.id != keys.last?.id {
@@ -280,6 +404,11 @@ struct GPGPane: View {
                             value: GPGBackend.gnupgHome() ?? L10n.text("settings.gpg.advanced.gnupgHomeDefault"),
                             monospaced: true
                         )
+                        advancedInfoRow(
+                            label: L10n.text("settings.gpg.advanced.szRingLabel"),
+                            value: GPGBackend.simpleZipPubringPath().path,
+                            monospaced: true
+                        )
                     }
                 }
             } label: {
@@ -295,7 +424,7 @@ struct GPGPane: View {
             Text(label)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-                .frame(width: 100, alignment: .leading)
+                .frame(width: 110, alignment: .leading)
             Text(value)
                 .font(monospaced ? .system(.caption, design: .monospaced) : .caption)
                 .foregroundStyle(tintMissing ? .orange : .primary)
@@ -329,19 +458,24 @@ struct GPGPane: View {
         }
     }
 
-    private func importPublicKey() {
+    /// 导入公钥到指定 ring。`.userKeyring` 进 `~/.gnupg/`（CLI 共享）；`.simpleZipKeyring` 进 SimpleZip 私有 ring（不污染 CLI）。
+    private func importKey(into ring: GPGBackend.GPGKeyringSource) {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = false
         panel.canChooseFiles = true
         panel.allowsMultipleSelection = false
-        panel.message = L10n.text("settings.gpg.keys.importPanelTitle")
+        panel.message = ring == .simpleZipKeyring
+            ? L10n.text("settings.gpg.keys.importSimpleZipPanelTitle")
+            : L10n.text("settings.gpg.keys.importPanelTitle")
         panel.allowedContentTypes = []
         guard panel.runModal() == .OK, let url = panel.url else { return }
         Task {
             do {
-                _ = try await GPGBackend.importKey(from: url)
+                _ = try await GPGBackend.importKey(from: url, into: ring)
                 await MainActor.run {
-                    keyOperationMessage = L10n.text("settings.gpg.keys.importSucceeded")
+                    keyOperationMessage = ring == .simpleZipKeyring
+                        ? L10n.text("settings.gpg.keys.importSimpleZipSucceeded")
+                        : L10n.text("settings.gpg.keys.importSucceeded")
                 }
                 let refreshed = try? await GPGBackend.listKeys()
                 await MainActor.run {
@@ -355,8 +489,6 @@ struct GPGPane: View {
         }
     }
 
-    /// 从插入的智能卡 / OpenPGP token 拉取公钥到 keyring。
-    /// 失败常见原因：卡没插好 / scdaemon 没启动 / 卡上没设公钥 URL —— 全部归结成「请检查卡 / scdaemon」错误文案。
     private func importFromSmartcard() {
         isImportingFromSmartcard = true
         keyOperationMessage = nil
@@ -369,6 +501,8 @@ struct GPGPane: View {
                     isImportingFromSmartcard = false
                     keyOperationMessage = L10n.text("settings.gpg.smartcard.importSucceeded")
                 }
+                // 顺手刷新一下卡 binding 显示。
+                detectCard()
             } catch {
                 await MainActor.run {
                     isImportingFromSmartcard = false
@@ -378,12 +512,11 @@ struct GPGPane: View {
         }
     }
 
-    /// 修改某把密钥的信任级别。change 完成后重新 listKeys 确保 UI 反映 gpg 实际状态。
-    private func setTrust(for fingerprint: String, to level: GPGBackend.GPGTrustLevel) {
+    private func setTrust(for key: GPGBackend.GPGKey, to level: GPGBackend.GPGTrustLevel) {
         keyOperationMessage = nil
         Task {
             do {
-                try await GPGBackend.setTrustLevel(fingerprint: fingerprint, to: level)
+                try await GPGBackend.setTrustLevel(fingerprint: key.fingerprint, to: level, source: key.source)
                 let refreshed = try? await GPGBackend.listKeys()
                 await MainActor.run {
                     keys = refreshed ?? keys
@@ -393,6 +526,39 @@ struct GPGPane: View {
                 await MainActor.run {
                     keyOperationMessage = L10n.format("settings.gpg.trust.changeFailed", error.localizedDescription)
                 }
+            }
+        }
+    }
+
+    /// 导出公钥到 `.asc` 文件 —— NSSavePanel 选目标，`gpg --armor --export <fp>` 直写文件。
+    private func exportPublicKey(for key: GPGBackend.GPGKey) {
+        let savePanel = NSSavePanel()
+        savePanel.nameFieldStringValue = "\(key.userID.replacingOccurrences(of: " ", with: "_"))_\(key.shortFingerprint).asc"
+        savePanel.allowedContentTypes = [UTType(filenameExtension: "asc") ?? .data]
+        savePanel.message = L10n.text("settings.gpg.keys.exportPanelTitle")
+        guard savePanel.runModal() == .OK, let url = savePanel.url else { return }
+        Task {
+            do {
+                let armor = try await GPGBackend.exportPublicKey(fingerprint: key.fingerprint, source: key.source)
+                try armor.write(to: url, atomically: true, encoding: .utf8)
+                await MainActor.run {
+                    keyOperationMessage = L10n.format("settings.gpg.keys.exportSucceeded", url.lastPathComponent)
+                }
+            } catch {
+                await MainActor.run {
+                    keyOperationMessage = L10n.format("settings.gpg.keys.exportFailed", error.localizedDescription)
+                }
+            }
+        }
+    }
+
+    private func detectCard() {
+        isDetectingCard = true
+        Task {
+            let status = try? await GPGBackend.cardStatus()
+            await MainActor.run {
+                cardStatus = status
+                isDetectingCard = false
             }
         }
     }
@@ -436,36 +602,30 @@ extension GPGBackend.GPGTrustLevel {
     }
 }
 
-/// 钥匙串里一把密钥的展示行。
+/// 钥匙串里一把密钥的展示行 —— 含主密钥信息 + 可折叠的详情区（完整指纹 / 子密钥列表）+ 信任 picker + 默认签名按钮 + 右键 context menu。
 ///
-/// 布局：钥匙图标（本机实心 / 卡 stub 实心+卡角标 / 公钥空心）+ UID + 指纹 + 过期/撤销红字 + trust picker。
-/// 卡 stub 行额外显示一句「私钥在卡上，签名 / 解密时需插卡」红字 caption。
+/// 默认折叠：只展示 userID + 短指纹 + capability chips + 卡上 badge + trust picker + 默认签名按钮，一眼看完。
+/// 点「详情 ▶」展开完整 fingerprint + 子密钥列表。
 private struct GPGKeyRow: View {
     let key: GPGBackend.GPGKey
-    let smartcardStub: Bool
+    let isDefaultSigningKey: Bool
+    let canBeDefaultSigner: Bool
     let onTrustChange: (GPGBackend.GPGTrustLevel) -> Void
+    let onSetDefaultSigning: () -> Void
+    let onCopyFingerprint: () -> Void
+    let onExportPublicKey: () -> Void
+
+    @State private var isExpanded = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .center, spacing: 12) {
-                // 钥匙图标 ——「本机私钥」实心 + 标准蓝；「卡 stub」实心 + 卡片 badge；「他人公钥」空心灰。
-                ZStack(alignment: .bottomTrailing) {
-                    Image(systemName: key.hasSecretKey ? "key.fill" : "key")
-                        .font(.system(size: 16))
-                        .foregroundStyle(key.hasSecretKey ? Color.accentColor : Color.secondary)
-                    if smartcardStub {
-                        Image(systemName: "creditcard.fill")
-                            .font(.system(size: 9))
-                            .foregroundStyle(.orange)
-                            .background(Circle().fill(Color(nsColor: .windowBackgroundColor)).frame(width: 14, height: 14))
-                            .offset(x: 4, y: 3)
-                    }
-                }
-                .frame(width: 26)
-                .help(rowIconHelp)
+            HStack(alignment: .center, spacing: 10) {
+                keyIcon
+                    .frame(width: 26)
+                    .help(rowIconHelp)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 4) {
+                    HStack(spacing: 6) {
                         Text(key.userID)
                             .font(.callout)
                             .lineLimit(1)
@@ -475,29 +635,262 @@ private struct GPGKeyRow: View {
                                 .font(.caption2)
                                 .foregroundStyle(.red)
                         }
+                        primaryCapabilityChips
+                        if key.isSecretKeyOnSmartcard {
+                            onCardBadge
+                        } else if key.isSecretKeyStripped {
+                            strippedBadge
+                        }
                     }
-                    Text(key.displayFingerprint)
-                        .font(.system(.caption2, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                        .textSelection(.enabled)
+                    HStack(spacing: 6) {
+                        Text(key.shortFingerprint)
+                            .font(.system(.caption2, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                        detailsToggleButton
+                    }
                 }
 
                 Spacer()
 
+                if canBeDefaultSigner {
+                    defaultSigningControl
+                }
+
                 trustControl
             }
 
-            if smartcardStub {
+            if isExpanded {
+                expandedDetails
+            }
+        }
+        .padding(.vertical, 5)
+        .contextMenu {
+            Button(L10n.text("settings.gpg.keys.contextCopyFingerprint")) {
+                onCopyFingerprint()
+            }
+            Button(L10n.text("settings.gpg.keys.contextExportPublicKey")) {
+                onExportPublicKey()
+            }
+        }
+    }
+
+    /// 详情切换按钮（带 chevron），始终展示让用户知道有可展开内容；展开 = 完整 fingerprint + 卡 caption + 子密钥列表。
+    @ViewBuilder
+    private var detailsToggleButton: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isExpanded.toggle()
+            }
+        } label: {
+            HStack(spacing: 3) {
+                Image(systemName: "chevron.right")
+                    .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                    .font(.system(size: 9, weight: .semibold))
+                Text(detailToggleLabel)
+                    .font(.caption2)
+            }
+            .foregroundStyle(.secondary)
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// 折叠区里的内容：完整 fingerprint + 卡 / stripped caption + 子密钥列表。
+    @ViewBuilder
+    private var expandedDetails: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(key.displayFingerprint)
+                .font(.system(.caption2, design: .monospaced))
+                .foregroundStyle(.secondary)
+                .textSelection(.enabled)
+                .lineLimit(1)
+                .truncationMode(.middle)
+
+            if key.isSecretKeyOnSmartcard {
                 Text(L10n.text("settings.gpg.smartcard.stubNote"))
                     .font(.caption2)
                     .foregroundStyle(.orange)
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(.leading, 38)
+            } else if key.isSecretKeyStripped {
+                Text(L10n.text("settings.gpg.keys.stripped"))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
+            if !key.subkeys.isEmpty {
+                subkeyList
             }
         }
-        .padding(.vertical, 4)
+        .padding(.leading, 36)
+        .padding(.top, 2)
+    }
+
+    private var detailToggleLabel: String {
+        if isExpanded {
+            return L10n.text("settings.gpg.keys.hideDetails")
+        }
+        if key.subkeys.isEmpty {
+            return L10n.text("settings.gpg.keys.showDetails")
+        }
+        return L10n.format("settings.gpg.keys.showDetailsWithCount", key.subkeys.count)
+    }
+
+    // MARK: 行内组件
+
+    /// 主密钥能力 chip —— 从 `key.capabilities` 中提取小写 s/e/a/c 字符；大写表示「整把密钥（主 + 子）合并能力」，
+    /// 主密钥这一行只显示小写 = 主密钥自己能做什么。这样用户能立刻看出主密钥是不是签名密钥。
+    /// 纯文字单字 chip（不带 SF Symbol）—— 「签 / 密 / 认 / 证」是单 unicode 字符，等宽天然，避免不同 icon 视觉宽度漂移。
+    @ViewBuilder
+    private var primaryCapabilityChips: some View {
+        if key.capabilities.contains("s") {
+            capabilityBadge(label: L10n.text("settings.gpg.subkey.cap.sign"), tint: .accentColor)
+        }
+        if key.capabilities.contains("e") {
+            capabilityBadge(label: L10n.text("settings.gpg.subkey.cap.encrypt"), tint: .accentColor)
+        }
+        if key.capabilities.contains("a") {
+            capabilityBadge(label: L10n.text("settings.gpg.subkey.cap.auth"), tint: .accentColor)
+        }
+        if key.capabilities.contains("c") {
+            capabilityBadge(label: L10n.text("settings.gpg.subkey.cap.certify"), tint: .secondary)
+        }
+    }
+
+    @ViewBuilder
+    private var onCardBadge: some View {
+        HStack(spacing: 2) {
+            Image(systemName: "creditcard.fill")
+                .font(.system(size: 9, weight: .semibold))
+                .frame(width: 11, alignment: .center)
+            Text(L10n.text("settings.gpg.subkey.onCard"))
+                .font(.caption2.weight(.semibold))
+        }
+        .foregroundStyle(.orange)
+        .padding(.horizontal, 4)
+        .padding(.vertical, 2)
+        .background(
+            RoundedRectangle(cornerRadius: 3)
+                .fill(Color.orange.opacity(0.16))
+        )
+    }
+
+    @ViewBuilder
+    private var strippedBadge: some View {
+        HStack(spacing: 2) {
+            Image(systemName: "key.slash")
+                .font(.system(size: 9, weight: .semibold))
+                .frame(width: 11, alignment: .center)
+            Text(L10n.text("settings.gpg.subkey.stripped"))
+                .font(.caption2.weight(.medium))
+        }
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 4)
+        .padding(.vertical, 2)
+        .background(
+            RoundedRectangle(cornerRadius: 3)
+                .fill(Color.secondary.opacity(0.14))
+        )
+    }
+
+    @ViewBuilder
+    private var keyIcon: some View {
+        ZStack(alignment: .bottomTrailing) {
+            Image(systemName: key.hasSecretKey ? "key.fill" : "key")
+                .font(.system(size: 16))
+                .foregroundStyle(key.hasSecretKey ? Color.accentColor : Color.secondary)
+            if key.isSecretKeyOnSmartcard {
+                Image(systemName: "creditcard.fill")
+                    .font(.system(size: 9))
+                    .foregroundStyle(.orange)
+                    .background(Circle().fill(Color(nsColor: .windowBackgroundColor)).frame(width: 14, height: 14))
+                    .offset(x: 4, y: 3)
+            }
+        }
+    }
+
+    /// 子密钥列表 —— 每行缩进，显示短指纹 + 能力图标 + 卡 / stripped 标记 + 过期。
+    @ViewBuilder
+    private var subkeyList: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            ForEach(key.subkeys) { subkey in
+                HStack(spacing: 6) {
+                    Image(systemName: subkey.isOnSmartcard ? "key.fill" : (subkey.isStripped ? "key.slash" : "key"))
+                        .font(.system(size: 10))
+                        .foregroundStyle(subkey.isStripped ? .secondary : (subkey.isOnSmartcard ? .orange : Color.accentColor.opacity(0.8)))
+                    Text(subkey.fingerprint.suffix(16))
+                        .font(.system(.caption2, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                    if subkey.canSign {
+                        capabilityBadge(label: L10n.text("settings.gpg.subkey.cap.sign"), tint: .accentColor)
+                    }
+                    if subkey.canEncrypt {
+                        capabilityBadge(label: L10n.text("settings.gpg.subkey.cap.encrypt"), tint: .accentColor)
+                    }
+                    if subkey.canAuthenticate {
+                        capabilityBadge(label: L10n.text("settings.gpg.subkey.cap.auth"), tint: .accentColor)
+                    }
+                    if subkey.isOnSmartcard {
+                        Text(L10n.text("settings.gpg.subkey.onCard"))
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(.orange)
+                    } else if subkey.isStripped {
+                        Text(L10n.text("settings.gpg.subkey.stripped"))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    if subkey.isExpired {
+                        Text(L10n.text("settings.gpg.keys.expired"))
+                            .font(.caption2)
+                            .foregroundStyle(.red)
+                    }
+                    Spacer(minLength: 0)
+                }
+            }
+        }
+        .padding(.leading, 38)
+        .padding(.top, 2)
+    }
+
+    /// 能力 chip —— 纯文字（一个汉字），靠相同 padding + 颜色对比区分 sign / encrypt / auth / certify。
+    /// 等宽天然（每个 chip 内容都是 1 个汉字），不再需要固定 frame。
+    @ViewBuilder
+    private func capabilityBadge(label: String, tint: Color) -> some View {
+        Text(label)
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(tint)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 2)
+            .background(
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(tint.opacity(0.16))
+            )
+    }
+
+    /// 默认签名状态 —— 已是默认显示绿色「默认」chip；不是默认显示「设为默认」按钮。两者视觉高度对齐 trust picker。
+    @ViewBuilder
+    private var defaultSigningControl: some View {
+        if isDefaultSigningKey {
+            HStack(spacing: 3) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 11))
+                Text(L10n.text("settings.gpg.defaultSigning.isDefault"))
+                    .font(.caption.weight(.semibold))
+            }
+            .foregroundStyle(Color.green)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                RoundedRectangle(cornerRadius: 5)
+                    .fill(Color.green.opacity(0.14))
+            )
+            .fixedSize()
+        } else {
+            Button(L10n.text("settings.gpg.defaultSigning.setButton")) {
+                onSetDefaultSigning()
+            }
+            .controlSize(.small)
+        }
     }
 
     /// 信任级别控件 —— expired / revoked 状态不可改，显示只读 chip；其它状态用 Picker 让用户改。
@@ -537,8 +930,11 @@ private struct GPGKeyRow: View {
     }
 
     private var rowIconHelp: String {
-        if smartcardStub {
+        if key.isSecretKeyOnSmartcard {
             return L10n.text("settings.gpg.smartcard.stubNote")
+        }
+        if key.isSecretKeyStripped {
+            return L10n.text("settings.gpg.keys.stripped")
         }
         return key.hasSecretKey ? L10n.text("settings.gpg.keys.hasSecret") : ""
     }
