@@ -50,6 +50,7 @@ struct SettingsView: View {
     @State private var systemInstallMessage: String?
     @State private var rarInstallMessage: String?
     @State private var selectedPane = SettingsPane.general
+    @State private var isSettingsSidebarVisible = true
     @State private var showsHiddenSuffixDrawer = false
     @State private var hiddenRecommendedSuffixes = AppPreferences.hiddenRecommendedSuffixes
     @State private var hiddenCustomSuffixes = AppPreferences.hiddenCustomSuffixes
@@ -57,12 +58,25 @@ struct SettingsView: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            settingsSidebar
+            if isSettingsSidebarVisible {
+                settingsSidebar
+                Divider()
+            }
 
-            Divider()
+            ZStack(alignment: .topLeading) {
+                selectedPaneView
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            selectedPaneView
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                if !isSettingsSidebarVisible {
+                    sidebarToggleButton(systemImage: "sidebar.leading") {
+                        withAnimation(.easeInOut(duration: 0.16)) {
+                            isSettingsSidebarVisible = true
+                        }
+                    }
+                    .padding(.leading, 10)
+                    .padding(.top, 10)
+                }
+            }
         }
         .frame(width: 820, height: 560)
         .navigationTitle(L10n.text("settings.title"))
@@ -104,23 +118,49 @@ struct SettingsView: View {
     }
 
     private var settingsSidebar: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            ForEach(SettingsPane.allCases) { pane in
-                SettingsPaneSidebarButton(
-                    pane: pane,
-                    isSelected: selectedPane == pane
-                ) {
-                    selectedPane = pane
+        VStack(spacing: 0) {
+            HStack {
+                sidebarToggleButton(systemImage: "sidebar.left") {
+                    withAnimation(.easeInOut(duration: 0.16)) {
+                        isSettingsSidebarVisible = false
+                    }
                 }
-            }
 
-            Spacer()
+                Spacer()
+            }
+            .padding(.horizontal, 10)
+            .frame(height: 36)
+
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(SettingsPane.allCases) { pane in
+                    SettingsPaneSidebarButton(
+                        pane: pane,
+                        isSelected: selectedPane == pane
+                    ) {
+                        selectedPane = pane
+                    }
+                }
+
+                Spacer()
+            }
+            .padding(.horizontal, 12)
+            .padding(.top, 4)
+            .padding(.bottom, 16)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 16)
         .frame(width: 178)
         .frame(maxHeight: .infinity, alignment: .topLeading)
-        .background(Color(nsColor: .controlBackgroundColor))
+        .background(.bar)
+    }
+
+    private func sidebarToggleButton(systemImage: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 13, weight: .medium))
+                .frame(width: 20, height: 20)
+        }
+        .buttonStyle(.borderless)
+        .controlSize(.small)
+        .help(L10n.text("settings.title"))
     }
 
     @ViewBuilder
@@ -152,7 +192,8 @@ struct SettingsView: View {
                         }
                     }
                     .labelsHidden()
-                    .frame(width: 220)
+                    .fixedSize()
+                    .frame(width: 220, alignment: .trailing)
                     .onChange(of: appLanguage) { newValue in
                         applyLanguage(newValue)
                     }
@@ -174,7 +215,8 @@ struct SettingsView: View {
                         }
                     }
                     .labelsHidden()
-                    .frame(width: 220)
+                    .fixedSize()
+                    .frame(width: 220, alignment: .trailing)
                 }
 
                 SettingsToggleRow(
@@ -194,7 +236,8 @@ struct SettingsView: View {
                         }
                     }
                     .labelsHidden()
-                    .frame(width: 220)
+                    .fixedSize()
+                    .frame(width: 220, alignment: .trailing)
                 }
 
                 SettingsToggleRow(
@@ -225,7 +268,8 @@ struct SettingsView: View {
                         }
                     }
                     .labelsHidden()
-                    .frame(width: 180)
+                    .fixedSize()
+                    .frame(width: 180, alignment: .trailing)
                 }
 
                 SettingsControlRow(
@@ -238,7 +282,8 @@ struct SettingsView: View {
                         }
                     }
                     .labelsHidden()
-                    .frame(width: 180)
+                    .fixedSize()
+                    .frame(width: 180, alignment: .trailing)
                 }
 
                 SettingsControlRow(
@@ -251,7 +296,8 @@ struct SettingsView: View {
                         }
                     }
                     .labelsHidden()
-                    .frame(width: 180)
+                    .fixedSize()
+                    .frame(width: 180, alignment: .trailing)
                 }
             }
 
@@ -266,7 +312,8 @@ struct SettingsView: View {
                         }
                     }
                     .labelsHidden()
-                    .frame(width: 220)
+                    .fixedSize()
+                    .frame(width: 220, alignment: .trailing)
                     .onChange(of: sevenZipBackend) { _ in
                         refreshSevenZipVersion()
                     }
@@ -301,7 +348,8 @@ struct SettingsView: View {
                         }
                     }
                     .labelsHidden()
-                    .frame(width: 220)
+                    .fixedSize()
+                    .frame(width: 220, alignment: .trailing)
                     .onChange(of: rarBackend) { _ in
                         refreshRarVersion()
                     }
@@ -1188,21 +1236,38 @@ private struct ColumnsPreviewTable: View {
             Text(title)
                 .font(.subheadline.weight(.semibold))
 
-            ScrollView(.horizontal, showsIndicators: true) {
+            GeometryReader { proxy in
+                let cellHorizontalPadding: CGFloat = 12
+                let availableContentWidth = max(0, proxy.size.width - cellHorizontalPadding * CGFloat(columns.count))
+                let preferredContentWidth = columns.reduce(CGFloat.zero) { $0 + $1.preferredWidth }
+                let minimumContentWidths = columns.indices.map { $0 == 0 ? CGFloat(82) : CGFloat(42) }
+                let minimumContentWidth = minimumContentWidths.reduce(CGFloat.zero, +)
+                let contentWidths = columns.indices.map { index in
+                    if preferredContentWidth <= availableContentWidth {
+                        return columns[index].preferredWidth
+                    }
+                    if minimumContentWidth >= availableContentWidth {
+                        return minimumContentWidths[index] * availableContentWidth / max(minimumContentWidth, 1)
+                    }
+                    let flexibleWidth = max(preferredContentWidth - minimumContentWidth, 1)
+                    let compressionRatio = (availableContentWidth - minimumContentWidth) / flexibleWidth
+                    return minimumContentWidths[index] + (columns[index].preferredWidth - minimumContentWidths[index]) * compressionRatio
+                }
+
                 VStack(alignment: .leading, spacing: 0) {
                     HStack(spacing: 0) {
-                        ForEach(columns) { column in
-                            previewCell(column.title, column: column, isHeader: true)
+                        ForEach(columns.indices, id: \.self) { index in
+                            previewCell(columns[index].title, width: contentWidths[index], isHeader: true)
                         }
                     }
                     Divider()
                     HStack(spacing: 0) {
-                        ForEach(columns) { column in
-                            previewCell(column.value, column: column, isHeader: false)
+                        ForEach(columns.indices, id: \.self) { index in
+                            previewCell(columns[index].value, width: contentWidths[index], isHeader: false)
                         }
                     }
                 }
-                .fixedSize(horizontal: true, vertical: false)
+                .frame(width: proxy.size.width, alignment: .leading)
                 .background(.background)
                 .overlay {
                     RoundedRectangle(cornerRadius: 6)
@@ -1213,14 +1278,14 @@ private struct ColumnsPreviewTable: View {
         }
     }
 
-    private func previewCell(_ text: String, column: ColumnPreview, isHeader: Bool) -> some View {
+    private func previewCell(_ text: String, width: CGFloat, isHeader: Bool) -> some View {
         Text(text)
             .font(isHeader ? .caption.weight(.semibold) : .caption)
             .foregroundStyle(isHeader ? .primary : .secondary)
             .lineLimit(1)
             .truncationMode(.middle)
-            .frame(width: column.preferredWidth, alignment: .leading)
-            .padding(.horizontal, 8)
+            .frame(width: width, alignment: .leading)
+            .padding(.horizontal, 6)
             .frame(height: isHeader ? 28 : 34, alignment: .center)
             .background(isHeader ? Color(nsColor: .controlBackgroundColor) : Color.clear)
             .overlay(alignment: .trailing) {
