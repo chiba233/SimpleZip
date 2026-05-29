@@ -4,6 +4,16 @@
 
 ## 0.1.6
 
+- **New feature: more startup-location choices**
+  - The General → Startup location picker now includes the common macOS user folders (Documents, Movies, Music, Pictures) in addition to Home, Downloads, Desktop and "Last opened folder".
+  - Added a "Custom location" option: picking it immediately opens a folder chooser, and afterwards the row shows the folder name with a folder icon (hover for the full path) plus a "Choose…" button to re-pick. Cancelling the first chooser reverts the picker to the previous selection so the app never gets stuck in a "Custom but no path" state.
+  - If the chosen folder is later deleted or moved outside of SimpleZip, the description shows a red warning and the app silently falls back to the home folder at launch instead of failing to start.
+- **Bug fixes**
+  - Fixed the Cmd+E menu silently switching to "Extract Selected" whenever items were selected inside an archive: the menu label says "Extract" (full archive) but the dialog that opened was the selection-only one. Cmd+E now always means full-archive extract; Cmd+Shift+E remains the dedicated "Extract Selected Items" shortcut.
+- **Security / docs**
+  - Added `SECURITY.md`: threat model (in/out of scope), vulnerability reporting channel (GitHub Security Advisories), the user-controllable safety policies, the at-rest / in-memory / on-screen security model of the preset password, and the bundled backend provenance and licenses.
+  - Added `docs/release-checklist.md`: gating items before tagging a release (CI status, security-sensitive area regressions, localization completeness, version / CHANGELOG alignment, tag-push verification, DMG smoke test). The `release.yml` tag push goes through this list as the final gate.
+  - README's "Documentation" section now links to SECURITY.md and the release-checklist.
 - **New features: auto-extract from Finder + preset password**
   - General settings now includes "Auto-extract when opened from Finder": when on, opening an archive from Finder / Services / another app extracts it directly to the archive's folder, without opening the SimpleZip browser. DMG and other mount-style formats still go through the existing browse path. Safety prompts (path traversal / symlink / active content) still apply.
   - General settings now includes "Use a preset password": once configured and saved, creating an encrypted archive auto-fills the password, and opening / extracting password-protected archives tries the preset silently first, falling back to the password prompt only on failure. When both Finder auto-extract and preset password are on, the whole flow needs no further user confirmation.

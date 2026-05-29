@@ -106,11 +106,20 @@ enum AppLanguage: String, CaseIterable, Identifiable {
 }
 
 /// 启动时默认打开的位置。
+///
+/// `documents` / `movies` / `music` / `pictures` 都是 macOS 自动建好的用户常用目录，
+/// 默认列出来比让用户每次选 Custom 再翻文件夹更顺手。
+/// `custom` 表示用户在设置里挑了一个任意路径，实际路径放在 `Key.startupCustomLocationPath`。
 enum StartupLocation: String, CaseIterable, Identifiable {
     case home
     case downloads
     case desktop
+    case documents
+    case movies
+    case music
+    case pictures
     case lastFolder
+    case custom
 
     var id: String { rawValue }
 
@@ -122,8 +131,18 @@ enum StartupLocation: String, CaseIterable, Identifiable {
             return L10n.text("settings.startup.downloads")
         case .desktop:
             return L10n.text("settings.startup.desktop")
+        case .documents:
+            return L10n.text("settings.startup.documents")
+        case .movies:
+            return L10n.text("settings.startup.movies")
+        case .music:
+            return L10n.text("settings.startup.music")
+        case .pictures:
+            return L10n.text("settings.startup.pictures")
         case .lastFolder:
             return L10n.text("settings.startup.lastFolder")
+        case .custom:
+            return L10n.text("settings.startup.custom")
         }
     }
 }
@@ -215,6 +234,13 @@ enum AppPreferences {
 
     enum Key {
         static let startupLocation = "startupLocation"
+        /// 当 `startupLocation == .custom` 时启动应该打开的具体文件夹路径。
+        /// 与 `lastFolderPath` 不同 —— 这个是用户在设置里固定挑的位置，不会被「记住上次打开的文件夹」覆盖。
+        /// 同时是 custom 历史列表里的「当前选中」指针。
+        static let startupCustomLocationPath = "startupCustomLocationPath"
+        /// 用户挑过的所有 custom 路径（MRU 排序），让 Menu 有「记忆」功能。
+        /// 容量受 Menu 总项数 cap 10 约束 —— 加新的会从末尾驱逐。
+        static let startupCustomLocationHistory = "startupCustomLocationHistory"
         static let overwriteBehavior = "overwriteBehavior"
         static let suspiciousPathPolicy = "suspiciousPathPolicy"
         static let symbolicLinkPolicy = "symbolicLinkPolicy"
@@ -479,16 +505,134 @@ enum AppPreferences {
         PresetPasswordStore.clear()
     }
 
-    static func defaultStartupURL(fileManager: FileManager = .default) -> URL {
-        switch startupLocation {
+    /// 用户在设置里挑的「当前活跃」自定义启动路径。空表示尚未挑选。
+    /// 也是 history 列表里被点亮的那一项 —— 二者保持一致。
+    static var startupCustomLocationURL: URL? {
+        guard let path = defaults.string(forKey: Key.startupCustomLocationPath), !path.isEmpty else {
+            return nil
+        }
+        return URL(fileURLWithPath: path)
+    }
+
+    static func setStartupCustomLocation(_ url: URL?) {
+        if let url {
+            defaults.set(url.standardizedFileURL.path, forKey: Key.startupCustomLocationPath)
+        } else {
+            defaults.removeObject(forKey: Key.startupCustomLocationPath)
+        }
+    }
+
+    /// 用户挑过的所有 custom 路径，按 MRU 顺序。
+    static var startupCustomLocationHistory: [URL] {
+        (defaults.stringArray(forKey: Key.startupCustomLocationHistory) ?? [])
+            .map { URL(fileURLWithPath: $0) }
+    }
+
+    /// 把一个新 / 已有的 custom 路径加进历史并设为当前活跃。
+    /// 行为：移到列表头部（最近使用），若超过 `keepingAtMost` 项就裁掉末尾。
+    static func recordCustomStartupLocation(_ url: URL, keepingAtMost limit: Int) {
+        let canonical = url.standardizedFileURL.path
+        var paths = (defaults.stringArray(forKey: Key.startupCustomLocationHistory) ?? [])
+        paths.removeAll { $0 == canonical }
+        paths.insert(canonical, at: 0)
+        if paths.count > limit {
+            paths = Array(paths.prefix(limit))
+        }
+        defaults.set(paths, forKey: Key.startupCustomLocationHistory)
+        defaults.set(canonical, forKey: Key.startupCustomLocationPath)
+    }
+
+    /// 从历史里移除一条（用户主动「忘记」某条），同时若它是当前活跃的也顺手清掉。
+    static func removeCustomStartupLocation(_ url: URL) {
+        let canonical = url.standardizedFileURL.path
+        var paths = defaults.stringArray(forKey: Key.startupCustomLocationHistory) ?? []
+        paths.removeAll { $0 == canonical }
+        defaults.set(paths, forKey: Key.startupCustomLocationHistory)
+        if defaults.string(forKey: Key.startupCustomLocationPath) == canonical {
+            defaults.removeObject(forKey: Key.startupCustomLocationPath)
+        }
+    }
+
+    /// 把启动配置恢复到默认（home）+ 清掉 custom 相关状态。
+    /// 启动时弹窗里「重置」按钮、设置面板里未来可能的「恢复默认」入口都会用。
+    static func resetStartupLocationToDefault() {
+        defaults.set(StartupLocation.home.rawValue, forKey: Key.startupLocation)
+        defaults.removeObject(forKey: Key.startupCustomLocationPath)
+        defaults.removeObject(forKey: Key.startupCustomLocationHistory)
+    }
+
+    /// 给定一个枚举 case，返回它对应的具体 URL（不带「不存在时回落到 home」语义）。
+    /// .custom 用当前活跃 custom 路径，.lastFolder 用上次打开的文件夹。
+    /// 返回 nil 表示对应的具体路径没配过 / 当前不可解析。
+    nonisolated static func resolvedURL(for location: StartupLocation, fileManager: FileManager = .default) -> URL? {
+        switch location {
         case .home:
             return fileManager.homeDirectoryForCurrentUser
         case .downloads:
-            return fileManager.urls(for: .downloadsDirectory, in: .userDomainMask).first ?? fileManager.homeDirectoryForCurrentUser
+            return fileManager.urls(for: .downloadsDirectory, in: .userDomainMask).first
         case .desktop:
-            return fileManager.urls(for: .desktopDirectory, in: .userDomainMask).first ?? fileManager.homeDirectoryForCurrentUser
+            return fileManager.urls(for: .desktopDirectory, in: .userDomainMask).first
+        case .documents:
+            return fileManager.urls(for: .documentDirectory, in: .userDomainMask).first
+        case .movies:
+            return fileManager.urls(for: .moviesDirectory, in: .userDomainMask).first
+        case .music:
+            return fileManager.urls(for: .musicDirectory, in: .userDomainMask).first
+        case .pictures:
+            return fileManager.urls(for: .picturesDirectory, in: .userDomainMask).first
         case .lastFolder:
-            return lastFolderURL ?? fileManager.homeDirectoryForCurrentUser
+            return lastFolderURL
+        case .custom:
+            return startupCustomLocationURL
+        }
+    }
+
+    /// app 启动时校验：当前 startupLocation 是否指向一个不可达目录？
+    /// .lastFolder 还没配过（首次启动）不算「失效」—— 静默回落到 home 即可，不打扰用户。
+    /// 其它 case 路径配过但消失了 = 失效。
+    static var startupLocationIsMissing: Bool {
+        let location = startupLocation
+        switch location {
+        case .lastFolder:
+            guard let url = lastFolderURL else { return false }
+            return !FileManager.default.fileExists(atPath: url.path)
+        case .custom:
+            guard let url = startupCustomLocationURL else { return true }
+            return !FileManager.default.fileExists(atPath: url.path)
+        default:
+            guard let url = resolvedURL(for: location) else { return true }
+            return !FileManager.default.fileExists(atPath: url.path)
+        }
+    }
+
+    static func defaultStartupURL(fileManager: FileManager = .default) -> URL {
+        // 各分支统一回落到 home 目录 —— 即便对应系统目录被用户手动删了 / 自定义路径已经
+        // 不存在了，app 也要起得来，而不是崩在「没法打开任何位置」。
+        let fallback = fileManager.homeDirectoryForCurrentUser
+        switch startupLocation {
+        case .home:
+            return fallback
+        case .downloads:
+            return fileManager.urls(for: .downloadsDirectory, in: .userDomainMask).first ?? fallback
+        case .desktop:
+            return fileManager.urls(for: .desktopDirectory, in: .userDomainMask).first ?? fallback
+        case .documents:
+            return fileManager.urls(for: .documentDirectory, in: .userDomainMask).first ?? fallback
+        case .movies:
+            return fileManager.urls(for: .moviesDirectory, in: .userDomainMask).first ?? fallback
+        case .music:
+            return fileManager.urls(for: .musicDirectory, in: .userDomainMask).first ?? fallback
+        case .pictures:
+            return fileManager.urls(for: .picturesDirectory, in: .userDomainMask).first ?? fallback
+        case .lastFolder:
+            return lastFolderURL ?? fallback
+        case .custom:
+            // 自定义路径可能在用户改完之后又被外部删了 / 移走了；找不到时回落而不是报错。
+            if let url = startupCustomLocationURL,
+               fileManager.fileExists(atPath: url.path) {
+                return url
+            }
+            return fallback
         }
     }
 

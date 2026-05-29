@@ -14,6 +14,11 @@ struct ContentView: View {
     @StateObject private var model = ArchiveBrowserModel()
     @State private var isDropTargeted = false
 
+    /// 启动期校验「保存的 startupLocation 当前是否指向不存在的目录」用的弹窗 flag。
+    /// 只在 app 第一次 onAppear 时计算一次，避免后续重新 layout 反复弹。
+    @State private var showsStartupMissingAlert = false
+    @State private var didCheckStartupLocation = false
+
     var body: some View {
         NavigationSplitView {
             Sidebar(model: model)
@@ -121,6 +126,32 @@ struct ContentView: View {
         .onAppear {
             ExternalFileOpenQueue.shared.drain().forEach(openExternalURL)
             FinderServiceActionQueue.shared.drain().forEach(handleFinderServiceAction)
+            // 校验保存的 startupLocation 是不是指向一个还活着的目录；
+            // 只校验一次 —— 后续窗口大小变化重渲染时不会反复弹。
+            if !didCheckStartupLocation {
+                didCheckStartupLocation = true
+                if AppPreferences.startupLocationIsMissing {
+                    showsStartupMissingAlert = true
+                }
+            }
+        }
+        .alert(
+            L10n.text("startup.missing.title"),
+            isPresented: $showsStartupMissingAlert
+        ) {
+            // 「打开设置…」走和 SettingsRequestBridge 同款的旧式 selector 路径，
+            // 这样不依赖 macOS 14+ 的 @Environment(\.openSettings) —— 全版本都能开窗口。
+            Button(L10n.text("startup.missing.openSettings")) {
+                NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+            }
+            // 「重置为个人文件夹」清掉 startupLocation 配置 + 切到 home。
+            // role: .cancel 是为了让回车键默认走重置（更安全的行为，不会带用户离开主界面）。
+            Button(L10n.text("startup.missing.reset"), role: .cancel) {
+                AppPreferences.resetStartupLocationToDefault()
+                model.openHome()
+            }
+        } message: {
+            Text(L10n.text("startup.missing.message"))
         }
         .onOpenURL { url in
             openExternalURL(url)

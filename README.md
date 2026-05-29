@@ -256,6 +256,8 @@ It runs the same SwiftPM suite.
 - [Changelog](./CHANGELOG.md)
 - [中文更新日志](./CHANGELOG.zh-CN.md)
 - [Architecture Notes](./docs/ARCHITECTURE.md)
+- [Security Policy](./SECURITY.md)
+- [Release Checklist](./docs/release-checklist.md)
 - [Contributing](./CONTRIBUTING.md)
 - [Bundled Tools Notes](./SimpleZip/Tools/README.md)
 

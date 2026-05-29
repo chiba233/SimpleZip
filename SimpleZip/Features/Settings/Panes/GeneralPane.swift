@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import AppKit
 
 /// 通用偏好：界面语言、启动位置、默认覆盖行为、删除前确认。
 ///
@@ -15,7 +16,15 @@ import SwiftUI
 struct GeneralPane: View {
     @AppStorage(AppPreferences.Key.appLanguage) private var appLanguage = AppLanguage.system.rawValue
     @AppStorage(AppPreferences.Key.startupLocation) private var startupLocation = StartupLocation.home.rawValue
+    /// 当前活跃的 custom 路径，跟 history 头部 + Menu label 文案绑在一起。
+    @AppStorage(AppPreferences.Key.startupCustomLocationPath) private var startupCustomLocationPath = ""
     @AppStorage(AppPreferences.Key.rememberLastFolder) private var rememberLastFolder = true
+
+    /// custom 历史快照（@AppStorage 不能直接绑 array），onAppear 拉一次，每次操作后 reload。
+    @State private var startupCustomLocationHistory: [URL] = []
+
+    /// 用户在 Menu 里点了某项，但对应目录已经不存在 —— 在 Picker 下显示红字提示，并不提交选择。
+    @State private var startupLocationErrorMessage: String?
     @AppStorage(AppPreferences.Key.overwriteBehavior) private var overwriteBehavior = OverwriteBehavior.ask.rawValue
     @AppStorage(AppPreferences.Key.confirmBeforeDeletingFiles) private var confirmBeforeDeletingFiles = true
     @AppStorage(AppPreferences.Key.finderOpenAutoExtract) private var finderOpenAutoExtract = false
@@ -69,14 +78,41 @@ struct GeneralPane: View {
                     title: L10n.text("settings.startupLocation"),
                     description: L10n.text("settings.startupLocation.description")
                 ) {
-                    Picker("", selection: $startupLocation) {
-                        ForEach(StartupLocation.allCases) { location in
-                            Text(location.title).tag(location.rawValue)
+                    // 用 Menu 而不是 Picker —— Picker 在「下拉项 label」和「已选状态 label」
+                    // 用同一个 Text，没办法让自定义位置在选中时显示文件夹名、在下拉里仍是「自定义位置」。
+                    // Menu 把 label（已选状态展示）和 Button content（下拉项）分开，两边各自配文案。
+                    Menu {
+                        // 系统目录段
+                        ForEach(visibleSystemLocations) { location in
+                            Button(location.title) {
+                                selectSystemStartupLocation(location)
+                            }
                         }
+                        // custom 历史段，用 lastPathComponent 作为显示文案
+                        if !visibleCustomURLs.isEmpty {
+                            Divider()
+                            ForEach(visibleCustomURLs, id: \.self) { url in
+                                Button(url.lastPathComponent) {
+                                    selectCustomStartupLocation(url)
+                                }
+                            }
+                        }
+                        // 「添加自定义位置…」操作 —— 永远在最下面，弹出文件夹选择面板
+                        Divider()
+                        Button(L10n.text("settings.startup.addCustom")) {
+                            addCustomStartupLocation()
+                        }
+                    } label: {
+                        Text(displayedStartupLocationTitle)
                     }
-                    .labelsHidden()
                     .fixedSize()
                     .frame(minWidth: 200, alignment: .trailing)
+                }
+
+                if let startupLocationErrorMessage {
+                    Text(startupLocationErrorMessage)
+                        .font(.caption)
+                        .foregroundStyle(.red)
                 }
 
                 SettingsToggleRow(
@@ -143,6 +179,8 @@ struct GeneralPane: View {
         .formStyle(.grouped)
         .controlSize(.small)
         .onAppear {
+            // 把 custom 历史从 UserDefaults 拉一份到 @State，下面所有 menu / cap 计算从它读。
+            startupCustomLocationHistory = AppPreferences.startupCustomLocationHistory
             // 关键：只有用户主动开了预设密码功能时才碰 Keychain。
             // 这样默认情况下打开「通用」设置不会触发 macOS 的「允许 SimpleZip 访问钥匙串」对话框。
             // 真正启用了预设的用户，每次 app 启动后最多遇到一次（同进程后续 load 走缓存）。
@@ -261,6 +299,97 @@ struct GeneralPane: View {
                 }
             }
         }
+    }
+
+    /// Menu 总项数上限（系统目录 + custom 历史 + 「添加自定义」action）。
+    /// 超过 → 优先裁 custom 历史末尾的项（最旧的 MRU 先掉），不动系统目录。
+    private static let startupLocationMenuCap = 10
+
+    /// 永远列在 Menu 里的系统目录段（顺序就是显示顺序）。
+    private var visibleSystemLocations: [StartupLocation] {
+        [.home, .downloads, .desktop, .documents, .movies, .music, .pictures, .lastFolder]
+    }
+
+    /// custom 历史段实际显示的 URL 列表。
+    /// 算法：(系统目录数 + custom 历史数 + 1 个 Add action) ≤ cap；
+    /// 不够就从历史末尾裁掉（MRU 最旧的先掉）。
+    private var visibleCustomURLs: [URL] {
+        let nonCustomCount = visibleSystemLocations.count + 1 // +1 for Add action
+        let slotsForCustom = max(0, Self.startupLocationMenuCap - nonCustomCount)
+        return Array(startupCustomLocationHistory.prefix(slotsForCustom))
+    }
+
+    /// Menu 收起状态显示的文字。
+    /// - 普通分支：枚举自带 title；
+    /// - .custom 且活跃路径存在：显示文件夹名；
+    /// - .custom 但路径失效：仍显示「自定义位置」原文案，让用户知道当前选择已失效。
+    private var displayedStartupLocationTitle: String {
+        let current = StartupLocation(rawValue: startupLocation) ?? .home
+        if current == .custom,
+           !startupCustomLocationPath.isEmpty,
+           FileManager.default.fileExists(atPath: startupCustomLocationPath) {
+            return URL(fileURLWithPath: startupCustomLocationPath).lastPathComponent
+        }
+        return current.title
+    }
+
+    // MARK: - Menu 行为
+
+    /// 用户点了系统目录段里的某项。检查它对应的实际目录是否存在 ——
+    /// 不存在 = 拒绝提交 + 红字提示；存在 = 写 startupLocation 并清掉错误。
+    private func selectSystemStartupLocation(_ location: StartupLocation) {
+        // .lastFolder 没值（用户首次启动还没记任何文件夹）算正常状态，由 defaultStartupURL
+        // 回落到 home，不弹错误。
+        if location != .lastFolder,
+           let url = AppPreferences.resolvedURL(for: location),
+           !FileManager.default.fileExists(atPath: url.path) {
+            startupLocationErrorMessage = L10n.text("settings.startup.folderUnavailable")
+            return
+        }
+        startupLocation = location.rawValue
+        startupLocationErrorMessage = nil
+    }
+
+    /// 用户点了 custom 历史段里的某项（之前挑过的路径）。
+    /// 路径还在 = 切到这个 custom；不在 = 红字提示，同时从历史里清掉这条「死路径」。
+    private func selectCustomStartupLocation(_ url: URL) {
+        if !FileManager.default.fileExists(atPath: url.path) {
+            startupLocationErrorMessage = L10n.text("settings.startup.folderUnavailable")
+            AppPreferences.removeCustomStartupLocation(url)
+            startupCustomLocationHistory = AppPreferences.startupCustomLocationHistory
+            return
+        }
+        AppPreferences.recordCustomStartupLocation(url, keepingAtMost: customHistoryCapacity)
+        startupCustomLocationHistory = AppPreferences.startupCustomLocationHistory
+        startupLocation = StartupLocation.custom.rawValue
+        startupLocationErrorMessage = nil
+    }
+
+    /// 「添加自定义位置…」action：弹文件夹选择面板。
+    private func addCustomStartupLocation() {
+        let panel = NSOpenPanel()
+        panel.title = L10n.text("panel.openFolder")
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = true
+        if !startupCustomLocationPath.isEmpty,
+           FileManager.default.fileExists(atPath: startupCustomLocationPath) {
+            panel.directoryURL = URL(fileURLWithPath: startupCustomLocationPath)
+        }
+        guard panel.runModal() == .OK, let url = panel.url else {
+            return
+        }
+        AppPreferences.recordCustomStartupLocation(url, keepingAtMost: customHistoryCapacity)
+        startupCustomLocationHistory = AppPreferences.startupCustomLocationHistory
+        startupLocation = StartupLocation.custom.rawValue
+        startupLocationErrorMessage = nil
+    }
+
+    /// 历史最大可保留项数（=总 cap - 系统目录数 - Add action 数）。
+    /// 跟 visibleCustomURLs 的 slotsForCustom 算法一致 —— 录入端就裁好，避免 history 越攒越大。
+    private var customHistoryCapacity: Int {
+        max(0, Self.startupLocationMenuCap - visibleSystemLocations.count - 1)
     }
 
     /// 切换界面语言：写到 AppleLanguages、提示用户重启生效。

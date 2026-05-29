@@ -122,6 +122,17 @@
 "settings.startup.downloads" = "下载";
 "settings.startup.desktop" = "桌面";
 "settings.startup.lastFolder" = "上次打开的文件夹";
+"settings.startup.documents" = "文稿";
+"settings.startup.movies" = "影片";
+"settings.startup.music" = "音乐";
+"settings.startup.pictures" = "图片";
+"settings.startup.custom" = "自定义位置";
+"settings.startup.addCustom" = "添加自定义位置…";
+"settings.startup.folderUnavailable" = "该文件夹现在不可用，SimpleZip 保留了你之前的选择。";
+"startup.missing.title" = "启动位置不可用";
+"startup.missing.message" = "你设置的启动位置文件夹已不存在，SimpleZip 暂时显示个人文件夹。可以去设置里重新选择，或重置为个人文件夹。";
+"startup.missing.openSettings" = "打开设置…";
+"startup.missing.reset" = "重置为个人文件夹";
 "settings.extract.askEveryTime" = "每次询问";
 "settings.extract.archiveFolder" = "压缩包所在文件夹";
 "settings.extract.downloads" = "下载";
