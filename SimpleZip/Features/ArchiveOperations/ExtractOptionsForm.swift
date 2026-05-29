@@ -70,7 +70,9 @@ struct ExtractOptionsForm<ExtraControls: View>: View {
                     .padding(.top, 6)
                 }
             }
-            .controlSize(.small)
+            // 故意不在 Form 上加 .controlSize(.small)：会让 Picker 被缩成 small，
+            // 跟同 Form 里的裸 Text（SIZ 签名 / 解压目标 / 密码 placeholder 等 body 字号）大小不一致。
+            // 底部按钮行有自己单独的 .controlSize(.small)，不受影响。
 
             HStack {
                 ShowDetailsToggleButton(isOn: $showDetails)

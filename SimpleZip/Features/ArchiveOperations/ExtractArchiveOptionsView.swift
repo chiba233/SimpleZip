@@ -12,6 +12,8 @@ struct ExtractArchiveOptionsView: View {
     @State var request: ExtractArchiveRequest
     let extract: (ExtractArchiveRequest) -> Void
     let cancel: () -> Void
+    /// 用户可用于解密的私钥（hasSecretKey）。GPG 启用 + 后端可用时 onAppear 异步加载。
+    @State private var availableSecretKeys: [GPGBackend.GPGKey] = []
 
     var body: some View {
         ExtractOptionsForm(
@@ -29,8 +31,70 @@ struct ExtractArchiveOptionsView: View {
             if let signature = request.sizSignature {
                 SIZSignatureRows(signature: signature)
             }
+            // GPG 解密密钥 picker —— **仅 `.siz` 解压时显示**。
+            // 因为只有 SimpleZip 专有 `.siz` v3（0.1.9）会用 GPG 多收件人加密内层 archive；
+            // 通用 zip / 7z / rar / tar 等格式不支持 GPG 非对称加密，picker 出现是噪音。
+            if isSizExtract && AppPreferences.gpgEnabled && GPGBackend.isAvailable() {
+                gpgDecryptionKeyRow
+            }
         }
         .frame(width: 540)
+        .onAppear {
+            // 仅 .siz 才需要载入密钥列表 —— 通用格式 picker 不显示，省一次 listKeys 调用。
+            if isSizExtract && AppPreferences.gpgEnabled && GPGBackend.isAvailable() {
+                Task { @MainActor in
+                    if let loaded = try? await GPGBackend.listKeys() {
+                        availableSecretKeys = loaded.filter { $0.hasSecretKey }
+                    }
+                }
+            }
+        }
+    }
+
+    /// 是否在解压 `.siz` 单文件签名容器 —— 决定 GPG 解密密钥 picker 是否出现。
+    private var isSizExtract: Bool {
+        request.archiveURL.pathExtension.lowercased() == "siz"
+    }
+
+    /// 解密密钥 picker —— Menu 风格，跟创建对话框签名密钥 picker 视觉对齐。
+    /// 首项「让 GPG 自动选」对应空 fingerprint = gpg 按 keyring 自己选合适的私钥（GPG 加密元数据里都会标 recipient key id）。
+    @ViewBuilder
+    private var gpgDecryptionKeyRow: some View {
+        // 跟同 Form 里其它行（保存到 / 密码 / 解密方式）保持 body 字号，不专门 .font(.caption)，避免视觉错落。
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text(L10n.text("extract.gpgDecryptionKey.label"))
+            Menu {
+                Button(L10n.text("extract.gpgDecryptionKey.auto")) {
+                    request.gpgDecryptionKeyFingerprint = ""
+                }
+                if !availableSecretKeys.isEmpty {
+                    Divider()
+                    ForEach(availableSecretKeys) { key in
+                        Button("\(key.userID) · \(key.shortFingerprint)") {
+                            request.gpgDecryptionKeyFingerprint = key.fingerprint
+                        }
+                    }
+                }
+            } label: {
+                Text(decryptionKeyMenuLabel)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            Spacer()
+        }
+    }
+
+    private var decryptionKeyMenuLabel: String {
+        let fp = request.gpgDecryptionKeyFingerprint
+        if fp.isEmpty {
+            return L10n.text("extract.gpgDecryptionKey.auto")
+        }
+        if let matched = availableSecretKeys.first(where: { $0.fingerprint == fp }) {
+            return "\(matched.userID) · \(matched.shortFingerprint)"
+        }
+        return L10n.format("extract.gpgDecryptionKey.missingFingerprint", String(fp.suffix(16)))
     }
 }
 

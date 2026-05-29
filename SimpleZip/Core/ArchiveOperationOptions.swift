@@ -366,6 +366,10 @@ struct ExtractArchiveRequest: Identifiable {
     /// nil = 不是 .siz / 用户关了 GPG 集成。
     /// 跟签名 sheet 共用同一份 model，UI 状态全部从 `verify`（GPG 原始枚举）派生。
     var sizSignature: SIZSignatureSummary? = nil
+    /// 用户指定的解密私钥 fingerprint。空字符串 = 让 gpg 自己挑（默认）。
+    /// 0.1.8 UI picker 已就位（多密钥用户可以提前选好），但 0.1.8 没有 GPG 加密的压缩包格式，
+    /// 字段暂时不被消费；0.1.9 的 `.siz` v3 多收件人加密会真正用上。
+    var gpgDecryptionKeyFingerprint: String = ""
 }
 
 /// `.siz` 签名信息摘要 —— 解压对话框、签名 sheet 共用同一份。

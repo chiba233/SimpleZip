@@ -296,6 +296,9 @@ enum AppPreferences {
         // 默认签名密钥 fingerprint（40 字符 hex）—— 用户在 GPG 设置里手动指定。
         // 创建压缩包 / 签 .siz / 签 .szs 时若未显式选签名者，fallback 到这把。空 = 未设置，用 gpg default-key。
         nonisolated static let gpgDefaultSigningKeyFingerprint = "gpgDefaultSigningKeyFingerprint"
+        // 签名密钥选择策略：false (默认) = 静默使用默认签名密钥；true = 每次创建压缩包时弹 picker 让用户选。
+        // 多密钥用户（工作 / 私人 / 项目分别用不同 key）通常希望开启 ask 模式。单密钥用户保持静默更顺手。
+        nonisolated static let gpgPromptForSigningKey = "gpgPromptForSigningKey"
     }
 
     nonisolated static var startupLocation: StartupLocation {
@@ -520,6 +523,12 @@ enum AppPreferences {
         defaults.string(forKey: Key.gpgDefaultSigningKeyFingerprint) ?? ""
     }
 
+    /// 签名密钥选择策略 —— false 静默用默认密钥 / true 每次创建压缩包时弹 picker。
+    /// 默认 false（单密钥用户体验保持不变）；多密钥用户在 GPG pane → 默认值 子项里改成 true。
+    nonisolated static var gpgPromptForSigningKey: Bool {
+        defaults.bool(forKey: Key.gpgPromptForSigningKey)
+    }
+
     /// 预设密码的实际内容。空字符串等于「未配置」。
     /// 存储已迁到 Keychain（见 `PresetPasswordStore`）。本属性是业务侧（创建/解压自动填）
     /// 的静默读取入口，不会触发 Touch ID。
@@ -638,6 +647,7 @@ enum AppPreferences {
         Key.gpgEnabled,
         Key.gpgSmartcardEnabled,
         Key.gpgDefaultSigningKeyFingerprint,
+        Key.gpgPromptForSigningKey,
         Key.suspiciousPathPolicy,
         Key.symbolicLinkPolicy,
         Key.activeContentOpenPolicy,

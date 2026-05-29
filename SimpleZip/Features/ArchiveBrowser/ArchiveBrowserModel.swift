@@ -853,9 +853,17 @@ final class ArchiveBrowserModel: ObservableObject {
 
             // Step 2：先组装 metadata（含 inner archive SHA256），签的是 metadata.json 不是 inner archive。
             // 这样篡改 metadata 任何字段都会让 gpg 验签失败；篡改 inner archive 会让 SHA 对不上。
-            let keyFingerprint = request.options.gpgSigningKeyFingerprint.isEmpty
-                ? nil
-                : request.options.gpgSigningKeyFingerprint
+            // 选签名密钥的优先级：
+            // 1) 用户在创建对话框 ask 模式里挑的密钥（options.gpgSigningKeyFingerprint，create sheet 默认 seed 到 prefs 默认值）
+            // 2) AppPreferences.gpgDefaultSigningKeyFingerprint —— 给非对话框入口（Finder Sync 等）走默认
+            // 3) nil → 让 backend listKeys 兜底挑 first hasSecretKey
+            let keyFingerprint: String? = {
+                if !request.options.gpgSigningKeyFingerprint.isEmpty {
+                    return request.options.gpgSigningKeyFingerprint
+                }
+                let prefsDefault = AppPreferences.gpgDefaultSigningKeyFingerprint
+                return prefsDefault.isEmpty ? nil : prefsDefault
+            }()
             let signerKey: GPGBackend.GPGKey? = (try? await GPGBackend.listKeys())?.first(where: { key in
                 if let keyFingerprint { return key.fingerprint == keyFingerprint }
                 return key.hasSecretKey

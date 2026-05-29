@@ -4,6 +4,18 @@
 
 ## 0.1.8
 
+- **多密钥用户友好：签名密钥 / 解密密钥 picker（创建 + 解压时挑具体用哪把私钥）**
+  - **设置 → GPG 新增「默认值」子段**：当前一项 picker「签名密钥策略」=「静默使用默认密钥」（默认，单密钥用户体验不变）/「每次询问」（多密钥用户）。
+  - **创建压缩包对话框 · ask 模式**：勾选「用 GPG 签名」后，下方新增「签名密钥 [chiba · D8B0...]」menu picker，列出所有 `hasSecretKey` 密钥（含智能卡 stub）+ 首项「默认 / 让 GPG 挑」（fallback 走系统）。Picker 初值 = `AppPreferences.gpgDefaultSigningKeyFingerprint`。
+  - **创建对话框 · 自动滚动**：勾签名后 picker 出现在 ScrollView 底部，旧版要手动滑才看见 —— 现在用 `ScrollViewReader` + `scrollTo("gpgSignAnchor", anchor: .bottom)` 自动滚下来，0.25s 动画。
+  - **`.siz` 解压对话框新增「解密密钥 picker」**：列所有 `hasSecretKey` 密钥 + 首项「让 GPG 自动选」。**仅 `.siz` 文件解压时显示** —— 通用 zip / 7z / rar / tar 不支持 GPG 非对称加密，picker 出现是噪音。0.1.8 picker 的选择暂时不消费（没有 GPG 加密 `.siz`），0.1.9 (.siz v3 多收件人加密) 接入；做成功能性 UI 而非占位是为了**多密钥用户从一开始就有能力选用哪把私钥**，避免 gpg 默认乱挑。
+  - **后端 fallback 也修了**：之前 `ArchiveBrowserModel` 创建路径只看 `options.gpgSigningKeyFingerprint`，空时盲选「第一把 hasSecretKey」—— Finder Sync 等非对话框入口完全忽略 `gpgDefaultSigningKeyFingerprint` 偏好。现在 fallback 顺序：options 显式选 → prefs 默认 → 后端 first hasSecretKey。
+
+- **UI 一致性修复：`.siz` 解压对话框字体大小错落**
+  - 现象：SIZ 签名行（签名者 / 签名时间 / 公钥指纹）大、保存到 / 密码 行大，但「解密方式」picker 和它的选项明显小一号，混在一起看着难受。
+  - 根因：`ExtractOptionsForm` 的 `Form` 上挂了 `.controlSize(.small)` —— Picker 会跟着缩成 small 字号，Text 不跟随，结果同行不同高。底部按钮行有自己单独的 `.controlSize(.small)`，不依赖外层。
+  - 修法：拿掉 `Form` 上那个 `.controlSize(.small)`。Form 内所有控件回归默认 body，跟 Text 视觉对齐。底部按钮行不受影响。
+
 - **GPG 验签管线大改：迁到 `--status-fd 1` 机器可读输出 + fingerprint 强校验**
   - **修了一个老 bug**：你自己设置成「终极信任」的密钥签的文件，sheet 还会显示「公钥已导入但未信任」。根因是旧解析依赖在 stderr 字符串里找 `not certified with a trusted signature` 这条 WARNING —— 这条文案受 gpg 版本、locale、trustdb 半同步状态影响极不稳定。新解析直接读 `[GNUPG:] TRUST_ULTIMATE/FULLY/MARGINAL/UNDEFINED/NEVER` 状态行，跟 gpg 的真值一致，**「终极信任」会被精确识别为 trusted=true**。
   - **两 pass merge 也修了**：之前如果用户公钥同时在 `~/.gnupg` 和 SimpleZip 私有两个 homedir 里，但只有一头有 ownertrust ultimate，merge 是「first validSignature wins」会吃掉那个 untrusted 的把 trusted 的覆盖掉。现在改成 **trusted=true 永远优先**，有 fingerprint 的次优先。

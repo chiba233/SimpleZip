@@ -212,6 +212,21 @@
 "settings.gpg.newKey.succeeded" = "Created new key: …%@";
 "settings.gpg.newKey.succeededNoFingerprint" = "Key created (gpg didn't report a fingerprint — the keyring has been refreshed).";
 // Delete / edit expiration / revocation cert context menu
+// Defaults sub-section (GPG default behavior at create / extract time)
+"settings.gpg.defaults.title" = "Defaults";
+"settings.gpg.defaults.signingStrategy.label" = "Signing key strategy";
+"settings.gpg.defaults.signingStrategy.silent" = "Silently use default key";
+"settings.gpg.defaults.signingStrategy.ask" = "Ask each time";
+"settings.gpg.defaults.signingStrategy.silentDescription" = "Archives are signed with the key marked as \"default\" in the keyring, no prompts. The normal default for single-key users.";
+"settings.gpg.defaults.signingStrategy.askDescription" = "When creating an archive, a key picker appears below \"Sign with GPG\" so you can choose which private key signs this specific archive. Needed when you use multiple keys (work / personal / per-project).";
+// Sign-key picker in the create dialog
+"archive.gpgSign.keyLabel" = "Signing key";
+"archive.gpgSign.key.auto" = "Default / let GPG choose";
+"archive.gpgSign.key.missingFingerprint" = "Not in keyring (…%@)";
+// Decryption-key picker in the extract dialog
+"extract.gpgDecryptionKey.label" = "Decryption key";
+"extract.gpgDecryptionKey.auto" = "Let GPG decide";
+"extract.gpgDecryptionKey.missingFingerprint" = "Not in keyring (…%@)";
 "settings.gpg.keys.contextChangePassphrase" = "Change Passphrase…";
 "settings.gpg.keys.contextAddUID" = "Add User ID…";
 "settings.gpg.keys.contextEditExpiration" = "Edit Expiration…";

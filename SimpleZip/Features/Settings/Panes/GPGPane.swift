@@ -27,6 +27,8 @@ struct GPGPane: View {
     @AppStorage(AppPreferences.Key.gpgEnabled) private var gpgEnabled = false
     @AppStorage(AppPreferences.Key.gpgSmartcardEnabled) private var gpgSmartcardEnabled = false
     @AppStorage(AppPreferences.Key.gpgDefaultSigningKeyFingerprint) private var defaultSigningKeyFingerprint = ""
+    /// 签名密钥选择策略 —— false 静默 / true 询问。在「默认值」段里的 picker 控制。
+    @AppStorage(AppPreferences.Key.gpgPromptForSigningKey) private var promptForSigningKey = false
 
     @State private var systemInstallMessage: String?
     @State private var gpgAvailable = false
@@ -62,6 +64,7 @@ struct GPGPane: View {
             backendStatusSection
             if gpgEnabled && gpgAvailable {
                 keyringSection
+                defaultsSection
             }
             if gpgEnabled {
                 advancedSection
@@ -512,6 +515,40 @@ struct GPGPane: View {
                     }
                 }
             }
+        }
+    }
+
+    // MARK: - 默认值
+
+    /// 「默认值」子段 —— 集中放跟「创建 / 解压时 GPG 默认行为」相关的开关。当前只有「签名密钥选择策略」一项。
+    /// 默认密钥本身（fingerprint）仍由钥匙串列表里每行的「设为默认」按钮管理，跟 picker 的「视觉对齐」放在两个 section。
+    @ViewBuilder
+    private var defaultsSection: some View {
+        Section(L10n.text("settings.gpg.defaults.title")) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(L10n.text("settings.gpg.defaults.signingStrategy.label"))
+                        .font(.caption.weight(.medium))
+                    Spacer()
+                    Picker("", selection: $promptForSigningKey) {
+                        Text(L10n.text("settings.gpg.defaults.signingStrategy.silent"))
+                            .tag(false)
+                        Text(L10n.text("settings.gpg.defaults.signingStrategy.ask"))
+                            .tag(true)
+                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                    .controlSize(.small)
+                    .fixedSize()
+                }
+                Text(L10n.text(promptForSigningKey
+                    ? "settings.gpg.defaults.signingStrategy.askDescription"
+                    : "settings.gpg.defaults.signingStrategy.silentDescription"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.vertical, 2)
         }
     }
 

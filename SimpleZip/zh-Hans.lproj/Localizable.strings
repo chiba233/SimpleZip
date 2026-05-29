@@ -212,6 +212,21 @@
 "settings.gpg.newKey.succeeded" = "已创建新密钥：…%@";
 "settings.gpg.newKey.succeededNoFingerprint" = "密钥已创建（gpg 未回报 fingerprint —— 已刷新钥匙串）。";
 // 删除 / 修改过期 / 撤销证书 context menu
+// 默认值子段（创建 / 解压时的 GPG 默认行为）
+"settings.gpg.defaults.title" = "默认值";
+"settings.gpg.defaults.signingStrategy.label" = "签名密钥策略";
+"settings.gpg.defaults.signingStrategy.silent" = "静默使用默认密钥";
+"settings.gpg.defaults.signingStrategy.ask" = "每次询问";
+"settings.gpg.defaults.signingStrategy.silentDescription" = "创建压缩包时直接用钥匙串里设为「默认」的私钥签名，不打扰你。单密钥用户的常规默认。";
+"settings.gpg.defaults.signingStrategy.askDescription" = "创建压缩包对话框里在「用 GPG 签名」下方多出一个密钥 picker，让你针对当前这个压缩包选具体用哪把私钥签。多密钥用户（工作 / 私人 / 项目分开签）需要这个。";
+// 创建对话框的签名密钥 picker
+"archive.gpgSign.keyLabel" = "签名密钥";
+"archive.gpgSign.key.auto" = "默认 / 让 GPG 挑";
+"archive.gpgSign.key.missingFingerprint" = "未在钥匙串里 (…%@)";
+// 解压对话框的解密密钥 picker
+"extract.gpgDecryptionKey.label" = "解密密钥";
+"extract.gpgDecryptionKey.auto" = "让 GPG 自动选";
+"extract.gpgDecryptionKey.missingFingerprint" = "未在钥匙串里 (…%@)";
 "settings.gpg.keys.contextChangePassphrase" = "修改 passphrase…";
 "settings.gpg.keys.contextAddUID" = "添加 User ID…";
 "settings.gpg.keys.contextEditExpiration" = "修改过期时间…";

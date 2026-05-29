@@ -4,6 +4,18 @@
 
 ## 0.1.8
 
+- **Multi-key user friendly: signing-key / decryption-key pickers (choose which private key at create and extract time)**
+  - **Settings → GPG: new "Defaults" sub-section**: currently one row, a "Signing key strategy" picker — "Silently use default key" (default, single-key users unchanged) / "Ask each time" (multi-key users).
+  - **Create-archive dialog · ask mode**: after checking "Sign with GPG", a new "Signing key [chiba · D8B0...]" menu picker appears, listing all `hasSecretKey` keys (including smartcard stubs) plus a leading "Default / let GPG choose" row (falls back to system). Initial picker value = `AppPreferences.gpgDefaultSigningKeyFingerprint`.
+  - **Create dialog · auto-scroll**: after toggling sign, the picker appears at the bottom of the ScrollView and previously required manual scrolling to see — now `ScrollViewReader` + `scrollTo("gpgSignAnchor", anchor: .bottom)` auto-scrolls into view, 0.25s animation.
+  - **`.siz` extract dialog: new "Decryption key" picker**: lists all `hasSecretKey` keys + leading "Let GPG decide". **Shown only for `.siz` extracts** — generic zip / 7z / rar / tar don't support GPG asymmetric encryption, so the picker would be noise. In 0.1.8 the picker's choice isn't consumed yet (no GPG-encrypted `.siz` exists), 0.1.9 (`.siz` v3 multi-recipient encryption) wires it in; making it functional UI rather than a stub means **multi-key users have the ability to pick which private key to use from day one**, avoiding gpg's default arbitrary selection.
+  - **Backend fallback fixed too**: previously the `ArchiveBrowserModel` create path only looked at `options.gpgSigningKeyFingerprint` and blindly picked the "first hasSecretKey" when empty — Finder Sync and other non-dialog entry points totally ignored the `gpgDefaultSigningKeyFingerprint` preference. New fallback order: explicit options choice → prefs default → backend first hasSecretKey.
+
+- **UI consistency fix: font-size mismatch in the `.siz` extract dialog**
+  - Symptom: SIZ signature rows (signer / time / fingerprint) were large, Save-to / Password rows were large, but the "Decryption Method" picker and its menu were noticeably smaller — sat together, looked uneven.
+  - Root cause: `ExtractOptionsForm`'s `Form` had `.controlSize(.small)` on it — Picker shrinks to small font; Text doesn't follow, so same-row content has different heights. The bottom button row has its own separate `.controlSize(.small)`, so it doesn't depend on the outer one.
+  - Fix: removed `.controlSize(.small)` from `Form`. All controls in the Form revert to default body size, visually aligned with Text. Bottom button row unaffected.
+
 - **GPG verify pipeline overhaul: migrated to `--status-fd 1` machine-readable output + fingerprint strong comparison**
   - **Fixes an old bug**: a file signed with a key you marked "ultimate trust" would still show "public key imported but not trusted" in the verify sheet. Root cause: the old parser sniffed stderr for the string `not certified with a trusted signature` — this WARNING is unstable across gpg versions, locale, and trustdb half-synced states. The new parser reads `[GNUPG:] TRUST_ULTIMATE/FULLY/MARGINAL/UNDEFINED/NEVER` status lines directly, matching gpg's actual truth — **"ultimate trust" is now precisely identified as trusted=true**.
   - **Fixed the two-pass merge bug too**: previously, if the same public key existed in both `~/.gnupg` and the SimpleZip-private homedir but only one had ownertrust ultimate, the merge was "first validSignature wins", letting the untrusted pass swallow the trusted one. Now **trusted=true always wins**, with fingerprint-present as the secondary tiebreaker.

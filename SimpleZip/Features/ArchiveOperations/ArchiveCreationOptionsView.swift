@@ -17,6 +17,11 @@ struct ArchiveCreationOptionsView: View {
     /// 默认勾选 —— 与「设置里开了 = 默认走预设」的用户预期一致。
     @State private var useArchivePresetPassword = false
     @AppStorage(AppPreferences.Key.presetPasswordEnabled) private var presetPasswordEnabled = false
+    /// 签名密钥选择策略 —— 跟 GPGPane「默认值」段同步。true = 每次创建时给 picker 让用户挑。
+    @AppStorage(AppPreferences.Key.gpgPromptForSigningKey) private var gpgPromptForSigningKey = false
+    /// 用户可用于签名的私钥列表（含智能卡 stub）。GPG 开启 + 后端可用时 onAppear 异步加载。
+    /// 仅 ask 模式用 picker 列；silent 模式不读。
+    @State private var availableSecretKeys: [GPGBackend.GPGKey] = []
     /// 预设密码从 Keychain 拉到 view 内，dialog 关闭即丢；不绑定 @AppStorage 是因为 Keychain
     /// 没有 @AppStorage 等价物，而且业务侧也只需要打开时的快照。
     @State private var presetPassword = ""
@@ -31,6 +36,7 @@ struct ArchiveCreationOptionsView: View {
                 .font(.title3)
                 .fontWeight(.semibold)
 
+            ScrollViewReader { scrollProxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     TextField(L10n.text("archive.fileName"), text: fileNameBinding)
@@ -327,6 +333,11 @@ struct ArchiveCreationOptionsView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .fixedSize(horizontal: false, vertical: true)
+                            // ask 模式下显示密钥 picker；silent 模式静默用默认密钥（在 onAppear 已 seed 到 options）。
+                            if gpgPromptForSigningKey {
+                                signingKeyPickerRow
+                                    .id("gpgSignAnchor") // scrollProxy 滚到这里，避免 picker 在 ScrollView 底部看不见
+                            }
                         }
                     }
                 }
@@ -337,6 +348,17 @@ struct ArchiveCreationOptionsView: View {
                 .padding(.trailing, 8)
             }
             .frame(maxHeight: 520)
+            .onChange(of: request.options.gpgSign) { newValue in
+                // 用户勾 GPG 签名后，picker 出现在 ScrollView 底部，默认看不见 —— 自动滚下来。
+                // 仅 ask 模式才有 picker；silent 模式没有需要滚的目标。
+                guard newValue, gpgPromptForSigningKey else { return }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        scrollProxy.scrollTo("gpgSignAnchor", anchor: .bottom)
+                    }
+                }
+            }
+            } // ScrollViewReader
 
             HStack {
                 ShowDetailsToggleButton(isOn: $request.options.showDetails)
@@ -391,7 +413,65 @@ struct ArchiveCreationOptionsView: View {
                 request.options.password = presetPassword
                 request.options.passwordConfirmation = presetPassword
             }
+            // Seed 默认签名密钥。silent 模式：用户从未选过 → 走 prefs 默认；ask 模式 picker 初值也来自此。
+            // 注意：只在 options 当前是空字符串时 seed，避免覆盖调用方预设的值（如 Finder 入口）。
+            let defaultFp = AppPreferences.gpgDefaultSigningKeyFingerprint
+            if !defaultFp.isEmpty && request.options.gpgSigningKeyFingerprint.isEmpty {
+                request.options.gpgSigningKeyFingerprint = defaultFp
+            }
+            // 加载可签名密钥列表，仅在 GPG 启用 + 后端可用时；失败静默忽略（picker 显示「让 GPG 自动选」单项）。
+            if AppPreferences.gpgEnabled && GPGBackend.isAvailable() {
+                Task { @MainActor in
+                    if let loaded = try? await GPGBackend.listKeys() {
+                        availableSecretKeys = loaded.filter { $0.hasSecretKey }
+                    }
+                }
+            }
         }
+    }
+
+    /// 签名密钥 picker —— ask 模式下显示在「用 GPG 签名」复选框正下方。
+    /// 列出所有 `hasSecretKey` 密钥（含智能卡 stub），首项「让 GPG 自动选」对应空 fingerprint = 走 gpg default-key。
+    @ViewBuilder
+    private var signingKeyPickerRow: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(L10n.text("archive.gpgSign.keyLabel"))
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+            Menu {
+                Button(L10n.text("archive.gpgSign.key.auto")) {
+                    request.options.gpgSigningKeyFingerprint = ""
+                }
+                if !availableSecretKeys.isEmpty {
+                    Divider()
+                    ForEach(availableSecretKeys) { key in
+                        Button("\(key.userID) · \(key.shortFingerprint)") {
+                            request.options.gpgSigningKeyFingerprint = key.fingerprint
+                        }
+                    }
+                }
+            } label: {
+                Text(signingKeyMenuLabel)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+        }
+        .padding(.leading, 18)
+    }
+
+    /// picker 按钮显示文案：未选 / 选了但找不到 / 选了能映射到列表 三种情形。
+    private var signingKeyMenuLabel: String {
+        let fp = request.options.gpgSigningKeyFingerprint
+        if fp.isEmpty {
+            return L10n.text("archive.gpgSign.key.auto")
+        }
+        if let matched = availableSecretKeys.first(where: { $0.fingerprint == fp }) {
+            return "\(matched.userID) · \(matched.shortFingerprint)"
+        }
+        // String(...) 包一层避免 Substring → CVarArg 的 printf 序列化 bug（之前掉过的坑）。
+        return L10n.format("archive.gpgSign.key.missingFingerprint", String(fp.suffix(16)))
     }
 
     private var fileNameBinding: Binding<String> {
