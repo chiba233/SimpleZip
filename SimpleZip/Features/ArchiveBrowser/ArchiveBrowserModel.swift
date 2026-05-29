@@ -47,6 +47,15 @@ final class ArchiveBrowserModel: ObservableObject {
     /// 切换到其它 mode（folder / tag）或非 SIZ archive 时由 `openArchive` 自动清空。
     @Published var archiveDisplayOverride: URL?
 
+    /// `.siz` 容器在 SimpleZip 内被点开时的待处理 URL —— ContentView 用 `.onChange` 接住跑 unwrap + 验签 sheet。
+    /// 不能走 `NSWorkspace.shared.open`：`.siz` UTI 注册到自己会循环创建新主窗口。
+    /// 用 @Published 而不是 Notification.Name —— 单发单收的「函数调用穿了通知马甲」（AGENTS A3）。
+    @Published var pendingSIZOpen: URL?
+
+    /// 文件浏览模式选中 `.siz` 点 Extract 时的待处理 URL —— ContentView 用 `.onChange` 接住跑 unwrap + 验签 +
+    /// 标准解压对话框。同 `pendingSIZOpen` 的解耦原则。
+    @Published var pendingSIZExtract: URL?
+
     private let fileManager = FileManager.default
     private let extractionCoordinator = ArchiveExtractionCoordinator(fileManager: .default)
     /// 打开的压缩包内容 + 当前路径 + 合成目录派生。生命周期等同于 model。
@@ -377,8 +386,7 @@ final class ArchiveBrowserModel: ObservableObject {
         } else if item.url.pathExtension.lowercased() == "siz" {
             // `.siz` 走 ContentView 的专用 handle：unwrap → 签名验证对话框 → 解压到 /tmp → 浏览。
             // 不能走 `NSWorkspace.shared.open`，否则系统按 UTI 把文件转回 SimpleZip 又创建新窗口。
-            // 用 NotificationCenter 解耦 —— model 不引 ContentView，ContentView 监听通知自己处理。
-            NotificationCenter.default.post(name: .openSIZContainer, object: item.url)
+            pendingSIZOpen = item.url
         } else if ArchiveService.isSupportedArchive(item.url) {
             openArchive(item.url)
         } else {
@@ -893,10 +901,10 @@ final class ArchiveBrowserModel: ObservableObject {
 
     func extractArchive() {
         // 文件浏览器里选中 `.siz` + 点 Extract —— `.siz` 不在 `supportedExtensions` 里（ArchiveService
-        // 不直接处理 tar 壳），所以特判走通知给 ContentView 跑「unwrap + 验签 + 解到 .unwrapped/」。
+        // 不直接处理 tar 壳），所以特判走 @Published 状态给 ContentView 跑「unwrap + 验签 + 标准解压对话框」。
         if case .folder = mode,
            let sizURL = selectedFileItems.first(where: { $0.url.pathExtension.lowercased() == SIZArchive.extensionName })?.url {
-            NotificationCenter.default.post(name: .extractSIZContainer, object: sizURL)
+            pendingSIZExtract = sizURL
             return
         }
 

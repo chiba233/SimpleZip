@@ -212,19 +212,18 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .openExternalFile)) { _ in
             ExternalFileOpenQueue.shared.drain().forEach(openExternalURL)
         }
-        .onReceive(NotificationCenter.default.publisher(for: .openSIZContainer)) { notification in
-            // model 在 SimpleZip 内点 .siz 时发的通知 —— 走 ContentView 的 handleSIZOpen 路径，
-            // 跟 Finder 外部双击 .siz 同一处理流程，主窗口不会被复制创建新实例。
-            if let url = notification.object as? URL {
-                handleSIZOpen(url)
-            }
+        .onChange(of: model.pendingSIZOpen) { url in
+            // model 在 SimpleZip 内点 .siz 时设的待处理 URL —— 跟 Finder 外部双击 .siz 同一处理流程。
+            // 立即清空避免下一次设同一 URL 时 onChange 不触发。
+            guard let url else { return }
+            model.pendingSIZOpen = nil
+            handleSIZOpen(url)
         }
-        .onReceive(NotificationCenter.default.publisher(for: .extractSIZContainer)) { notification in
-            // model 在文件浏览器选中 .siz + 点 Extract 时发 —— 走 unwrap → 验签 sheet → 解压到
-            // `<.siz basename>.unwrapped/` 目录 + 落 `SIZ_SIGNATURE.txt` 记签名信息。
-            if let url = notification.object as? URL {
-                handleSIZExtract(url)
-            }
+        .onChange(of: model.pendingSIZExtract) { url in
+            // 浏览器选 .siz 点 Extract → unwrap + 验签 + 标准解压对话框。同上清空策略。
+            guard let url else { return }
+            model.pendingSIZExtract = nil
+            handleSIZExtract(url)
         }
         .onReceive(NotificationCenter.default.publisher(for: .finderServiceAction)) { _ in
             FinderServiceActionQueue.shared.drain().forEach(handleFinderServiceAction)
