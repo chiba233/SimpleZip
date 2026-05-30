@@ -391,32 +391,37 @@ private final class KeyboardTextField: NSTextField {
 
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        // **必须先判 `currentEditor() != nil`** —— 即「地址栏正在编辑」。
+        // 旧版本无脑接管所有 Cmd+C/V/X/A/Z，currentEditor 为 nil 时 `.copy(nil)` 是 no-op
+        // 但仍返回 `true` → 整个 main window 的 Cmd+C/V/X 被吞掉但什么都没做。
+        // SwiftUI Commands / NSTableView 都收不到事件 = 「快捷键全失效」的根因。
         guard flags.contains(.command),
               !flags.contains(.control),
               !flags.contains(.option),
-              let key = event.charactersIgnoringModifiers?.lowercased()
+              let key = event.charactersIgnoringModifiers?.lowercased(),
+              let editor = currentEditor()
         else {
             return super.performKeyEquivalent(with: event)
         }
 
         switch key {
         case "a":
-            currentEditor()?.selectAll(nil)
+            editor.selectAll(nil)
             return true
         case "c":
-            currentEditor()?.copy(nil)
+            editor.copy(nil)
             return true
         case "x":
-            currentEditor()?.cut(nil)
+            editor.cut(nil)
             return true
         case "v":
-            currentEditor()?.paste(nil)
+            editor.paste(nil)
             return true
         case "z":
             if flags.contains(.shift) {
-                currentEditor()?.undoManager?.redo()
+                editor.undoManager?.redo()
             } else {
-                currentEditor()?.undoManager?.undo()
+                editor.undoManager?.undo()
             }
             return true
         default:

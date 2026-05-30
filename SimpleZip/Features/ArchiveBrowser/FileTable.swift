@@ -224,6 +224,10 @@ private struct FileNSTableView: NSViewRepresentable {
                 menu.addItem(menuItem(L10n.text("file.openAsArchive"), systemImage: "doc.zipper", action: #selector(openSelectedAsArchive)))
             }
             menu.addItem(menuItem(L10n.text("button.addToArchive"), systemImage: "plus.square.on.square", action: #selector(addSelectedToArchive)))
+            // 创建签名清单 —— 仅 GPG 启用 + 后端可用时出现。选中的文件直接成为 manifest 内容（payload root 推断为公共祖先目录）。
+            if AppPreferences.gpgEnabled && GPGBackend.isAvailable() {
+                menu.addItem(menuItem(L10n.text("szs.create.menuItem"), systemImage: "doc.text.badge.plus", action: #selector(createSignedManifestFromSelection)))
+            }
             menu.addItem(menuItem(L10n.text("button.extractHere"), systemImage: "arrow.down.doc", action: #selector(extractSelectedArchive)))
             menu.addItem(menuItem(L10n.text("button.test"), systemImage: "checkmark.seal", action: #selector(testSelectedArchive)))
             menu.addItem(menuItem(L10n.text("button.hash"), systemImage: "number.square", action: #selector(hashSelected)))
@@ -263,6 +267,10 @@ private struct FileNSTableView: NSViewRepresentable {
 
         @objc private func addSelectedToArchive() {
             model.createArchive()
+        }
+
+        @objc private func createSignedManifestFromSelection() {
+            model.createSignedManifest()
         }
 
         @objc private func extractSelectedArchive() {

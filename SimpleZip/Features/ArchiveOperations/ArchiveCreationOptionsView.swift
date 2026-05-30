@@ -22,6 +22,11 @@ struct ArchiveCreationOptionsView: View {
     /// 用户钥匙串里全部 GPG 密钥（含自有私钥 + 他人公钥）。GPG 开启 + 后端可用时 onAppear 异步加载。
     /// 签名 picker 在 use site 过滤 `hasSecretKey`；收件人 picker 用全部。
     @State private var availableKeys: [GPGBackend.GPGKey] = []
+    /// 「加密内层 archive」总开关 —— 关 = 仅签名（v2 行为）；开 = 展示收件人 picker + 对称密码 SecureField。
+    /// 默认关：避免用户看见 recipients / passphrase 行就以为「必须填 / 必须选」而困惑。
+    /// Toggle 关掉时同步把 options.gpgRecipientFingerprints + options.gpgSymmetricPassphrase 清空，
+    /// 避免用户填好后反悔关 toggle、加密字段还潜伏在 options 里被发送。
+    @State private var useGPGEncryption: Bool = false
     /// 预设密码从 Keychain 拉到 view 内，dialog 关闭即丢；不绑定 @AppStorage 是因为 Keychain
     /// 没有 @AppStorage 等价物，而且业务侧也只需要打开时的快照。
     @State private var presetPassword = ""
@@ -336,12 +341,27 @@ struct ArchiveCreationOptionsView: View {
                             // ask 模式下显示密钥 picker；silent 模式静默用默认密钥（在 onAppear 已 seed 到 options）。
                             if gpgPromptForSigningKey {
                                 signingKeyPickerRow
-                                    .id("gpgSignAnchor") // scrollProxy 滚到这里，避免 picker 在 ScrollView 底部看不见
                             }
-                            // GPG 加密相关设置 —— 收件人 picker + 对称密码（互不排斥，可以都设）。
-                            // 二者都空 = 仅签名不加密（v2 行为）；任一非空 = 内层 archive 走 gpg 加密 → archive.<ext>.gpg。
+                            // GPG 加密相关设置 —— 总开关 + 收件人 picker + 对称密码。
+                            // **总开关默认关 = 仅签名 v2 行为**；关闭时下方两组控件 **灰掉但仍可见**（用户能看到「这里有
+                            // 加密选项」），同时清空 options 避免「用户先填后关 toggle 但加密 params 还潜伏在 options 里被发送」的 footgun。
+                            // 关闭时**不隐藏**是为了让用户一眼看到 sheet 完整可能性 —— 隐藏只展示「下一刻可能变化的 UI」会迷惑。
+                            Toggle(L10n.text("archive.gpgEncrypt.useEncryption"), isOn: $useGPGEncryption)
+                                .onChange(of: useGPGEncryption) { enabled in
+                                    if !enabled {
+                                        request.options.gpgRecipientFingerprints.removeAll()
+                                        request.options.gpgSymmetricPassphrase = ""
+                                    }
+                                }
                             recipientsRow
+                                .disabled(!useGPGEncryption)
+                                .opacity(useGPGEncryption ? 1 : 0.5)
                             encryptionPassphraseRow
+                                .disabled(!useGPGEncryption)
+                                .opacity(useGPGEncryption ? 1 : 0.5)
+                                // scrollProxy 滚到这一行（GPG 段最后一行）：勾上签名后所有加密相关 UI 都能看到，
+                                // 不像之前 anchor 钉在 signingKeyPickerRow 上 —— 加密 toggle / recipients / passphrase 还是会被截在 ScrollView 底部。
+                                .id("gpgSignAnchor")
                         }
                     }
                 }
@@ -353,9 +373,10 @@ struct ArchiveCreationOptionsView: View {
             }
             .frame(maxHeight: 520)
             .onChange(of: request.options.gpgSign) { newValue in
-                // 用户勾 GPG 签名后，picker 出现在 ScrollView 底部，默认看不见 —— 自动滚下来。
-                // 仅 ask 模式才有 picker；silent 模式没有需要滚的目标。
-                guard newValue, gpgPromptForSigningKey else { return }
+                // 用户勾 GPG 签名后，新增的多组 UI（签名密钥 picker 在 ask 模式 / 加密总开关 / recipients / passphrase）
+                // 都出现在 ScrollView 底部，默认看不见 —— 自动滚下来。anchor 钉在最后一行（encryptionPassphraseRow），
+                // 不再判 ask / silent 模式 —— 即使没 picker，加密那三行依然在 ScrollView 底部需要可见。
+                guard newValue else { return }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                     withAnimation(.easeInOut(duration: 0.25)) {
                         scrollProxy.scrollTo("gpgSignAnchor", anchor: .bottom)
@@ -511,14 +532,22 @@ struct ArchiveCreationOptionsView: View {
     }
 
     /// 对称加密密码 SecureField —— 跟收件人 picker **互不排斥**。空 = 不用对称密码加密。
+    /// 总开关 `useGPGEncryption` 关时整行不显示，所以这里不再需要 Toggle 包裹。
+    /// placeholder 「可选 · 对称密码」+ 下方 hint 已经说清楚「留空 = 不设密码」。
     @ViewBuilder
     private var encryptionPassphraseRow: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Text(L10n.text("archive.gpgEncrypt.passphraseLabel"))
-                .font(.caption.weight(.medium))
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(L10n.text("archive.gpgEncrypt.passphraseLabel"))
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                SecureField(L10n.text("archive.gpgEncrypt.passphrasePlaceholder"), text: $request.options.gpgSymmetricPassphrase)
+                    .textFieldStyle(.roundedBorder)
+            }
+            Text(L10n.text("archive.gpgEncrypt.passphraseHint"))
+                .font(.caption2)
                 .foregroundStyle(.secondary)
-            SecureField(L10n.text("archive.gpgEncrypt.passphrasePlaceholder"), text: $request.options.gpgSymmetricPassphrase)
-                .textFieldStyle(.roundedBorder)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.leading, 18)
     }

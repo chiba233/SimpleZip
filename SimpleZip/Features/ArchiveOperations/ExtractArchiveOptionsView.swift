@@ -57,8 +57,11 @@ struct ExtractArchiveOptionsView: View {
     }
 
     /// 是否在解压 `.siz` 单文件签名容器 —— 决定 GPG 解密密钥 picker 是否出现。
+    /// **判定靠 `sizSignature` 而不是文件扩展名** —— 解压时 `request.archiveURL` 是 unwrap 后的内层 archive（archive.zip / archive.zip.gpg），
+    /// 后缀已经不是 `.siz`；只有 `.siz` 走 unwrapAndVerifySIZ 时才会把 sizSignature 塞进 request。
+    /// 历史 bug（0.1.8 落地以来一直存在）：旧版用 archiveURL 扩展名判，导致 .siz 解压时 picker 一直没显示。
     private var isSizExtract: Bool {
-        request.archiveURL.pathExtension.lowercased() == "siz"
+        request.sizSignature != nil
     }
 
     /// 解密密钥 picker —— Menu 风格，跟创建对话框签名密钥 picker 视觉对齐。
@@ -92,12 +95,19 @@ struct ExtractArchiveOptionsView: View {
     }
 
     /// `.siz` v3 对称加密的密码输入。和「内层 ZIP/7z 解压密码」独立 —— 用户的两份密码通常不一样。
+    /// 长说明放下方 caption Text，避免 SecureField placeholder 横向被截断。
     @ViewBuilder
     private var gpgDecryptionPassphraseRow: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Text(L10n.text("extract.gpgDecryptionPassphrase.label"))
-            SecureField(L10n.text("extract.gpgDecryptionPassphrase.placeholder"), text: $request.gpgDecryptionPassphrase)
-                .textFieldStyle(.roundedBorder)
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(L10n.text("extract.gpgDecryptionPassphrase.label"))
+                SecureField(L10n.text("extract.gpgDecryptionPassphrase.placeholder"), text: $request.gpgDecryptionPassphrase)
+                    .textFieldStyle(.roundedBorder)
+            }
+            Text(L10n.text("extract.gpgDecryptionPassphrase.hint"))
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 

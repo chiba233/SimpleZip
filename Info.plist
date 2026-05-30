@@ -21,6 +21,7 @@
 				<string>rar</string>
 				<string>dmg</string>
 				<string>siz</string>
+				<string>szs</string>
 				<string>001</string>
 				<string>002</string>
 				<string>003</string>
@@ -56,6 +57,7 @@
 				<string>com.rarlab.rar-archive</string>
 				<string>com.apple.disk-image-udif</string>
 				<string>com.simplezip.siz-archive</string>
+				<string>com.simplezip.szs-manifest</string>
 				<string>public.archive</string>
 			</array>
 		</dict>
@@ -99,6 +101,28 @@
 				<key>public.mime-type</key>
 				<array>
 					<string>application/x-simplezip-siz</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.plain-text</string>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>SimpleZip Signed Manifest</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.simplezip.szs-manifest</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>szs</string>
+				</array>
+				<key>public.mime-type</key>
+				<array>
+					<string>application/pgp-signature</string>
 				</array>
 			</dict>
 		</dict>

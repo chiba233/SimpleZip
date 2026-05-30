@@ -17,13 +17,30 @@ import SwiftUI
 /// 走 `SIZSignatureStatus` 共用，不在这里再 switch 一遍。
 struct SIZSignatureSheet: View {
     let signature: SIZSignatureSummary
-    let onOpen: () -> Void
+    /// 打开回调 —— 携带用户在 sheet 里挑的解密密钥 fingerprint（nil 让 gpg 自挑）和对称密码（nil 让 pinentry-mac 接管）。
+    /// caller 用这两个值调 `SIZArchive.decryptInnerArchive`。
+    let onOpen: (_ decryptionKey: String?, _ decryptionPassphrase: String?) -> Void
     let onCancel: () -> Void
+
+    @State private var availableSecretKeys: [GPGBackend.GPGKey] = []
+    @State private var selectedDecryptionKey: String = ""
+    @State private var decryptionPassphrase: String = ""
 
     /// `.badSignature` 时把 Cancel 设为 default action（回车 / Esc 都退出），引导用户不要打开被篡改的容器。
     private var cancelIsDefault: Bool {
         if case .badSignature = signature.verify { return true }
         return false
+    }
+
+    /// 是否要展示「选择解密密钥」picker —— 仅当容器有公钥加密 recipients 时（symmetric-only 不需要选 key）。
+    private var showsDecryptionKeyPicker: Bool {
+        guard let encryption = signature.encryption else { return false }
+        return !encryption.recipients.isEmpty
+    }
+
+    /// 是否要展示「解密密码」SecureField —— 仅当容器有对称密码加密时。
+    private var showsDecryptionPassphraseField: Bool {
+        signature.encryption?.hasSymmetricPassphrase == true
     }
 
     var body: some View {
@@ -55,18 +72,104 @@ struct SIZSignatureSheet: View {
             .background(Color(nsColor: .controlBackgroundColor))
             .clipShape(RoundedRectangle(cornerRadius: 8))
 
+            // 加密容器：在 detail 块下方加 picker + passphrase 字段；passphrase 字段优先于 pinentry-mac 兜底。
+            if showsDecryptionKeyPicker || showsDecryptionPassphraseField {
+                decryptionControls
+            }
+
             HStack {
                 Spacer()
                 Button(L10n.text("button.cancel"), action: onCancel)
                     .keyboardShortcut(cancelIsDefault ? .defaultAction : .cancelAction)
-                Button(openButtonTitle, action: onOpen)
-                    .keyboardShortcut(cancelIsDefault ? nil : .defaultAction)
-                    .buttonStyle(.borderedProminent)
-                    .tint(SIZSignatureStatus.color(for: signature.verify))
+                Button(openButtonTitle) {
+                    onOpen(
+                        selectedDecryptionKey.isEmpty ? nil : selectedDecryptionKey,
+                        decryptionPassphrase.isEmpty ? nil : decryptionPassphrase
+                    )
+                }
+                .keyboardShortcut(cancelIsDefault ? nil : .defaultAction)
+                .buttonStyle(.borderedProminent)
+                .tint(SIZSignatureStatus.color(for: signature.verify))
             }
         }
         .padding(24)
         .frame(width: 540)
+        .onAppear {
+            // 仅加密容器才需要载入 hasSecretKey 密钥列表 —— 没加密的容器 picker 不显示，省一次 listKeys 调用。
+            guard showsDecryptionKeyPicker, AppPreferences.gpgEnabled, GPGBackend.isAvailable() else { return }
+            Task { @MainActor in
+                if let loaded = try? await GPGBackend.listKeys() {
+                    availableSecretKeys = loaded.filter { $0.hasSecretKey }
+                }
+            }
+        }
+    }
+
+    /// 解密相关控件块：picker（如果有公钥加密）+ passphrase SecureField（如果有对称密码加密）。
+    /// 两者可同时出现（multi-recipient + symmetric 组合模式），布局上下排。
+    @ViewBuilder
+    private var decryptionControls: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if showsDecryptionKeyPicker {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(L10n.text("extract.gpgDecryptionKey.label"))
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 80, alignment: .trailing)
+                    Menu {
+                        Button(L10n.text("extract.gpgDecryptionKey.auto")) {
+                            selectedDecryptionKey = ""
+                        }
+                        if !availableSecretKeys.isEmpty {
+                            Divider()
+                            ForEach(availableSecretKeys) { key in
+                                Button("\(key.userID) · \(key.shortFingerprint)") {
+                                    selectedDecryptionKey = key.fingerprint
+                                }
+                            }
+                        }
+                    } label: {
+                        Text(decryptionKeyMenuLabel)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
+                    Spacer()
+                }
+            }
+            if showsDecryptionPassphraseField {
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(L10n.text("extract.gpgDecryptionPassphrase.label"))
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 80, alignment: .trailing)
+                        SecureField(
+                            L10n.text("extract.gpgDecryptionPassphrase.placeholder"),
+                            text: $decryptionPassphrase
+                        )
+                        .textFieldStyle(.roundedBorder)
+                    }
+                    Text(L10n.text("extract.gpgDecryptionPassphrase.hint"))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .padding(.leading, 96)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .padding(.horizontal, 4)
+    }
+
+    private var decryptionKeyMenuLabel: String {
+        if selectedDecryptionKey.isEmpty {
+            return L10n.text("extract.gpgDecryptionKey.auto")
+        }
+        if let matched = availableSecretKeys.first(where: { $0.fingerprint == selectedDecryptionKey }) {
+            return "\(matched.userID) · \(matched.shortFingerprint)"
+        }
+        return L10n.format("extract.gpgDecryptionKey.missingFingerprint", String(selectedDecryptionKey.suffix(16)))
     }
 
     /// 「打开」按钮文案根据验签结果换措辞（unknownSigner / badSignature 时强调风险）。

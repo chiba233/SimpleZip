@@ -31,6 +31,11 @@ struct SimpleZipApp: App {
         WindowGroup {
             ContentView()
         }
+        // **明确不处理任何外部 URL / NSUserActivity 事件** —— `[]` 匹配空集。
+        // 没这一行时 SwiftUI 看到 `.siz` / `.szs` 通过 LSHandlerRank 路由进来，会**克隆一个新 WindowGroup 窗口**
+        // 去满足「外部事件需要落到对应 scene」的约定。我们走 AppDelegate.application(_:open:) 自己拿 URL 入队 +
+        // 现有 ContentView 监听通知 drain → 全程一个窗口。
+        .handlesExternalEvents(matching: [])
         .commands {
             ArchiveFileCommands()
             ToolsCommands()
@@ -121,6 +126,18 @@ struct ArchiveFileCommands: Commands {
             }
             .keyboardShortcut("n", modifiers: [.command])
             .disabled(!canCreateArchive)
+
+            // 「创建签名清单」—— `.szs` 一次性签名一棵文件树（不打包）。
+            // **不用 `if` 包裹**：SwiftUI `@CommandsBuilder` 对 if-condition 支持脆弱，
+            // 动态隐藏菜单项会让整张菜单在 redraw 时丢 first-responder（破坏 Cmd+C/V/X）。
+            // 改成始终插入 + `.disabled(...)` 控制可用性。
+            Button {
+                NotificationCenter.default.post(name: .openCreateSZSSheet, object: nil)
+            } label: {
+                Label(L10n.text("szs.create.menuItem"), systemImage: "doc.text.badge.plus")
+            }
+            .keyboardShortcut("n", modifiers: [.command, .shift])
+            .disabled(!AppPreferences.gpgEnabled || !GPGBackend.isAvailable())
 
             Divider()
 
@@ -235,12 +252,16 @@ struct ArchiveFileCommands: Commands {
             .keyboardShortcut("v", modifiers: [.command])
 
             Button {
-                NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil)
+                // 把 selectAll(_:) 丢给 first responder：
+                // - 文本输入聚焦 → NSText / NSTextView 的 selectAll
+                // - NSTableView 聚焦 → 选所有行（NSTableView 默认实现 selectAll(_:)）
+                // 旧版本加 `.disabled(!isTextInputFocused)` 试图「只在文本输入时启用」，
+                // 但这就把主表格的全选给 break 了 —— 任何 responder 处理就行，不必预先 disable。
+                NSApp.sendAction(#selector(NSResponder.selectAll(_:)), to: nil, from: nil)
             } label: {
                 Label(L10n.text("file.selectAll"), systemImage: "selection.pin.in.out")
             }
             .keyboardShortcut("a", modifiers: [.command])
-            .disabled(!isTextInputFocused)
 
             Button {
                 model?.moveSelectedFilesToFolder()

@@ -11,6 +11,8 @@ import UniformTypeIdentifiers
 extension Notification.Name {
     static let openExternalFile = Notification.Name("openExternalFile")
     static let finderServiceAction = Notification.Name("finderServiceAction")
+    /// 用户从 File 菜单触发「创建签名清单」—— ContentView 收到后弹 `CreateSZSSheet`。
+    static let openCreateSZSSheet = Notification.Name("openCreateSZSSheet")
 }
 
 /// 从 `NSItemProvider` 数组里异步提取 file URL，主线程回调结果。

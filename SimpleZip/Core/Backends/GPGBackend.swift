@@ -867,6 +867,89 @@ enum GPGBackend {
         )
     }
 
+    /// **Clearsign** —— 把整个文本文件签名后输出为「clearsigned message」格式（`-----BEGIN PGP SIGNED MESSAGE-----` … 包住原文，
+    /// 末尾跟一段 `-----BEGIN PGP SIGNATURE-----`）。是 `.szs` 签名清单的核心格式：
+    /// 一个 clearsigned `.szs` 文件就是「JSON 清单 + 内联签名」，单文件即可用 `gpg --verify` 校验。
+    ///
+    /// 跑 `gpg --batch --yes --clearsign [--local-user <fp>] --output <out> <in>`。
+    /// signingKeyFingerprint 为 nil → gpg 用 default-key。
+    static func clearsign(
+        plaintextURL: URL,
+        signingKeyFingerprint: String?,
+        outputURL: URL,
+        operationID: UUID? = nil
+    ) async throws {
+        let tool = try resolve()
+        try? FileManager.default.removeItem(at: outputURL)
+        var arguments: [String] = ["--batch", "--yes", "--clearsign"]
+        if let key = signingKeyFingerprint {
+            arguments.append(contentsOf: ["--local-user", key])
+        }
+        arguments.append(contentsOf: ["--output", outputURL.path, plaintextURL.path])
+        _ = try await BackendProcessRunner.runAndCapture(tool, arguments: arguments, operationID: operationID)
+    }
+
+    /// **校验 clearsigned 文件**并返回签名状态 + 内联明文 body。
+    ///
+    /// 跑 `gpg --status-fd 1 --decrypt <file>`（clearsign 文件用 `--decrypt` 提取明文 + 校验，
+    /// `--verify` 不输出明文）。返回值同时包含验签结果（重用 `.siz` 的 `GPGVerifyResult` 类型）和明文 body（Data）。
+    /// SHA / 格式化等下游逻辑由 caller 处理。
+    static func verifyClearsign(
+        signedURL: URL,
+        operationID: UUID? = nil
+    ) async throws -> (verify: GPGVerifyResult, plaintext: Data) {
+        let tool = try resolve()
+        // 两 pass 兼容 .siz：默认 homedir + SimpleZip 私有 homedir。校验状态合并；明文从赢家 pass 拿。
+        let baseArgs = ["--status-fd", "1", "--decrypt", signedURL.path]
+        async let r1 = clearsignSingleRing(tool: tool, args: baseArgs, operationID: operationID)
+        async let r2 = clearsignSingleRing(tool: tool, args: simpleZipKeyringArguments() + baseArgs, operationID: operationID)
+        let user = await r1
+        let sz = await r2
+        // 优先选「拿到明文 + 验签更佳」的那 pass —— 跟 .siz 的 mergeVerifyResults 风格一致。
+        let merged = mergeVerifyResults(user.verify, sz.verify)
+        // plaintext 选「拿到明文且 not empty」的；如果都空就给空 Data（让 caller 报「解析失败」）。
+        let plaintext: Data = {
+            if !user.plaintext.isEmpty { return user.plaintext }
+            if !sz.plaintext.isEmpty { return sz.plaintext }
+            return Data()
+        }()
+        return (merged, plaintext)
+    }
+
+    /// 单 ring clearsign 校验：跑 `gpg --decrypt` 拿到 stdout 明文 + stderr / status fd 状态。
+    /// 明文比验签状态难拿 —— stdout 跟 status fd 都从 fd 1 出（`--status-fd 1`），需要拆 `[GNUPG:]` 前缀那几行才能得到纯明文。
+    private static func clearsignSingleRing(
+        tool: String,
+        args: [String],
+        operationID: UUID?
+    ) async -> (verify: GPGVerifyResult, plaintext: Data) {
+        do {
+            let output = try await BackendProcessRunner.runAndCapture(tool, arguments: args, operationID: operationID)
+            let plaintext = extractClearsignPlaintext(from: output)
+            return (parseStatusOutput(output, exitOk: true), plaintext)
+        } catch {
+            let errorOutput = (error as? ArchiveError).flatMap { archiveError in
+                if case .commandFailed(let text) = archiveError { return text }
+                return nil
+            } ?? error.localizedDescription
+            return (parseStatusOutput(errorOutput, exitOk: false), Data())
+        }
+    }
+
+    /// 从合并的 stdout/stderr 里抽明文：所有不以 `[GNUPG:] ` 开头的行就是明文。Caveat：人类可读 stderr 也会混进来，
+    /// 但 stderr 的字符串都是 `gpg: …` 前缀（gpg 标准 stderr 输出格式），用 `gpg: ` 前缀也能滤掉。
+    private static func extractClearsignPlaintext(from output: String) -> Data {
+        var lines: [String] = []
+        for raw in output.split(separator: "\n", omittingEmptySubsequences: false) {
+            let line = String(raw)
+            if line.hasPrefix("[GNUPG:] ") { continue }
+            if line.hasPrefix("gpg: ") { continue }
+            lines.append(line)
+        }
+        // 去掉末尾可能多余的换行行；前后保留 newline 让 caller 看到原始 body。
+        return Data(lines.joined(separator: "\n").utf8)
+    }
+
     /// 用指定私钥给压缩包做 detached signature，产物 `<archive>.asc`（ASCII armor 格式）。
     /// 密码框由 gpg-agent + pinentry-mac 自己弹，本函数完全不接触 passphrase。
     /// signingKeyFingerprint 为 nil → 让 gpg 用 default-key（用户没配 default 时用第一把可用私钥）。

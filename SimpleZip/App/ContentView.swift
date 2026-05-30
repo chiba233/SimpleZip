@@ -29,6 +29,15 @@ struct ContentView: View {
     /// 浮动框，关闭行为也不可控。sheet 行为可控、跟 app 其它对话框（创建 / 解压选项）一致。
     @State private var pendingSIZVerification: SIZPendingVerification?
 
+    /// `.szs` 签名清单验证状态。peek 完 → 弹 sheet 展示 manifest + 签名状态 + per-file 校验。
+    @State private var pendingSZSVerification: SZSPendingVerification?
+    /// 「创建签名清单」sheet flag。File 菜单 / 右键 / 通知触发 → 弹 CreateSZSSheet。
+    @State private var showsCreateSZSSheet = false
+    /// 右键入口预填值（payload root + 已选文件）。空白菜单触发时为 nil。
+    @State private var createSZSPrefill: ArchiveBrowserModel.CreateSZSPrefill?
+    /// 右键「解压」.szs 触发的提示 alert 状态。非 nil = alert 显示中；button 点了就清。
+    @State private var szsExtractHintURL: URL?
+
     var body: some View {
         NavigationSplitView {
             Sidebar(model: model)
@@ -142,18 +151,64 @@ struct ContentView: View {
                 model.extractArchiveRequest = nil
             }
         }
+        .sheet(item: $pendingSZSVerification) { pending in
+            SZSVerificationSheet(
+                sourceURL: pending.sourceURL,
+                signature: pending.signature,
+                manifest: pending.manifest,
+                initialPayloadRoot: pending.sourceURL.deletingLastPathComponent(),
+                onClose: {
+                    pendingSZSVerification = nil
+                },
+                onOpenAsVirtualFolder: { payloadRoot in
+                    pendingSZSVerification = nil
+                    // 同 `.siz` 的逻辑：sheet 附属主窗口，主窗口本来就 visible —— 别 ensureMainWindowVisible
+                    // 把正在 dismissing 的 sheet 又拉回来。
+                    model.openSZSAsVirtualFolder(
+                        manifestURL: pending.sourceURL,
+                        manifest: pending.manifest,
+                        payloadRoot: payloadRoot
+                    )
+                }
+            )
+        }
+        .sheet(isPresented: $showsCreateSZSSheet) {
+            CreateSZSSheet(
+                initialPrefill: createSZSPrefill,
+                onClose: {
+                    showsCreateSZSSheet = false
+                    createSZSPrefill = nil
+                }
+            )
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openCreateSZSSheet)) { _ in
+            createSZSPrefill = nil
+            showsCreateSZSSheet = true
+        }
+        .onChange(of: model.pendingCreateSZS) { prefill in
+            // 右键 → 「创建签名清单」入口：model 把当前选中 + payload root 推断好后 set 到 pendingCreateSZS；
+            // 立即清空避免下次同样的 prefill 被吞掉 onChange。
+            guard let prefill else { return }
+            model.pendingCreateSZS = nil
+            createSZSPrefill = prefill
+            showsCreateSZSSheet = true
+        }
         .sheet(item: $pendingSIZVerification) { pending in
             SIZSignatureSheet(
                 signature: pending.signature,
-                onOpen: {
+                onOpen: { decryptionKey, decryptionPassphrase in
                     pendingSIZVerification = nil
-                    // **加密 .siz**：在 model.openArchive 前先解密；passphrase 由 gpg-agent + pinentry-mac 弹（公钥模式或 agent 缓存命中），
-                    // 失败时 errorMessage 展示，明文文件随 tempRoot 在退出时清理。
+                    // **加密 .siz**：在 model.openArchive 前先解密；sheet 里 picker / SecureField 收到的值优先于 pinentry-mac 兜底。
+                    // 注：不再调 `ensureMainWindowVisible()` —— sheet 附属在主窗口上，主窗口本来就 visible；
+                    // 之前调它会顺带把正在 dismissing 的 sheet `orderFront` 又拉回来，sheet 卡住不消失。
                     Task {
                         do {
-                            let urlToOpen = try await decryptInnerArchiveIfNeeded(pending.innerArchiveURL)
+                            let urlToOpen = try await decryptInnerArchiveIfNeeded(
+                                pending.innerArchiveURL,
+                                decryptionKey: decryptionKey,
+                                passphrase: decryptionPassphrase
+                            )
                             await MainActor.run {
-                                ensureMainWindowVisible()
                                 model.openArchive(urlToOpen, displayedAs: pending.signature.sourceURL)
                             }
                         } catch {
@@ -218,9 +273,10 @@ struct ContentView: View {
         } message: {
             Text(L10n.text("startup.missing.message"))
         }
-        .onOpenURL { url in
-            openExternalURL(url)
-        }
+        // **不要**挂 `.onOpenURL { ... }` —— SwiftUI WindowGroup 一旦看到这个 handler，每次系统传入新 URL
+        // 时 SwiftUI 都会为它建一个**新窗口**满足 handler 触发条件，结果 `.siz` / `.szs` 双击一次就开一个新主窗口。
+        // 唯一路径：AppDelegate.application(_:open:) → ExternalFileOpenQueue.enqueue → 下面这条 notification
+        // → 现有 ContentView 用 drain() 自处理 → 当前窗口里弹 sheet。冷启动场景由 onAppear 里另一处 drain 兜住。
         .onReceive(NotificationCenter.default.publisher(for: .openExternalFile)) { _ in
             ExternalFileOpenQueue.shared.drain().forEach(openExternalURL)
         }
@@ -230,6 +286,37 @@ struct ContentView: View {
             guard let url else { return }
             model.pendingSIZOpen = nil
             handleSIZOpen(url)
+        }
+        .onChange(of: model.pendingSZSOpen) { url in
+            // 右键「测试」.szs 或者「打开」.szs 都走这条 —— 验证 sheet 同时充当 Test 的结果展示。
+            guard let url else { return }
+            model.pendingSZSOpen = nil
+            handleSZSOpen(url)
+        }
+        .onChange(of: model.pendingSZSExtractHint) { url in
+            // 右键「解压」.szs —— 不是压缩包没法解压。弹 alert 解释 + 提供「以虚拟目录浏览」按钮。
+            guard let url else { return }
+            model.pendingSZSExtractHint = nil
+            szsExtractHintURL = url
+        }
+        .alert(
+            L10n.text("szs.extractHint.title"),
+            isPresented: Binding(
+                get: { szsExtractHintURL != nil },
+                set: { if !$0 { szsExtractHintURL = nil } }
+            )
+        ) {
+            Button(L10n.text("szs.extractHint.browseButton")) {
+                if let url = szsExtractHintURL {
+                    szsExtractHintURL = nil
+                    handleSZSOpen(url)
+                }
+            }
+            Button(L10n.text("button.cancel"), role: .cancel) {
+                szsExtractHintURL = nil
+            }
+        } message: {
+            Text(L10n.text("szs.extractHint.message"))
         }
         .onChange(of: model.pendingSIZExtract) { url in
             // 浏览器选 .siz 点 Extract → unwrap + 验签 + 标准解压对话框。同上清空策略。
@@ -274,6 +361,9 @@ struct ContentView: View {
             // 必须在 `ArchiveService.isSupportedArchive` 之前判 —— 否则会落到 `NSWorkspace.shared.open(url)`
             // 兜底分支，又把 .siz 路由回 SimpleZip（UTI 已注册），导致无限重开主窗口。
             handleSIZOpen(url)
+        } else if url.pathExtension.lowercased() == SZSArchive.extensionName {
+            // `.szs` 签名清单：peek manifest → 弹 SZSVerificationSheet 跑校验。
+            handleSZSOpen(url)
         } else if ArchiveService.isSupportedArchive(url) {
             // 用户开了「Finder 自动解压」+ 不是 DMG → 走独立浮窗 controller，主窗口不参与。
             // DMG 仍然走 model 走挂载浏览（没有「解压」语义）。
@@ -322,11 +412,39 @@ struct ContentView: View {
     }
 
     /// 共用解密 helper：检查内层 archive 是不是加密包（`.gpg` 后缀）—— 是 → 走 `SIZArchive.decryptInnerArchive`；
-    /// 否 → 原样返回。0.1.9 不在主 sheet 里收 passphrase（依赖 pinentry-mac），decryptionKey hint 也走默认（gpg 自挑）。
-    /// 解压路径有独立的 sheet 字段收集这些；这里只服务 open 流程的极简场景。
-    private func decryptInnerArchiveIfNeeded(_ innerArchiveURL: URL) async throws -> URL {
+    /// 否 → 原样返回。
+    /// - `decryptionKey` / `passphrase` 为 nil 时让 gpg-agent + pinentry-mac 兜底，二者非 nil 时优先用（loopback 模式）。
+    /// - 跟解压路径共用 `SIZArchive.decryptInnerArchive`；这里专门服务 open 流程（SIZSignatureSheet 收完 UI 值再传过来）。
+    private func decryptInnerArchiveIfNeeded(
+        _ innerArchiveURL: URL,
+        decryptionKey: String? = nil,
+        passphrase: String? = nil
+    ) async throws -> URL {
         guard innerArchiveURL.lastPathComponent.hasSuffix(".gpg") else { return innerArchiveURL }
-        return try await SIZArchive.decryptInnerArchive(encryptedURL: innerArchiveURL)
+        return try await SIZArchive.decryptInnerArchive(
+            encryptedURL: innerArchiveURL,
+            decryptionKeyFingerprint: decryptionKey,
+            passphrase: passphrase
+        )
+    }
+
+    /// `.szs` 打开入口 —— peek manifest + 签名状态 → 弹 SZSVerificationSheet 跑文件级校验。
+    /// 关 `gpgEnabled` 时**仍然弹 sheet**：签名块会显示「GPG 未启用」/「签名无法校验」状态，文件校验仍能跑（SHA256 不依赖 GPG）。
+    private func handleSZSOpen(_ url: URL) {
+        Task {
+            do {
+                let (signature, manifest) = try await SZSArchive.peek(manifestURL: url)
+                await MainActor.run {
+                    pendingSZSVerification = SZSPendingVerification(
+                        sourceURL: url,
+                        signature: signature,
+                        manifest: manifest
+                    )
+                }
+            } catch {
+                await MainActor.run { model.errorMessage = error.localizedDescription }
+            }
+        }
     }
 
     /// `.siz` 直接解压入口 —— unwrap + 验签 → 走标准解压对话框 `ExtractArchiveOptionsView`，
@@ -411,6 +529,16 @@ struct ContentView: View {
         static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
     }
 
+    /// `.szs` 签名清单验证 sheet 的承载状态。peek 完后赋值，触发 SZSVerificationSheet。
+    struct SZSPendingVerification: Identifiable, Equatable {
+        let id = UUID()
+        let sourceURL: URL
+        let signature: GPGBackend.GPGVerifyResult
+        let manifest: SZSArchive.Manifest
+
+        static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
+    }
+
     /// 主窗口被 `hideMainWindowIfPossible` orderOut 后，再次显示出来 ——
     /// 用于「.siz 用户确认要打开内层」之类「我们要让用户看到主窗口浏览」的场景。
     ///
@@ -424,9 +552,13 @@ struct ContentView: View {
         }
     }
 
-    /// 识别 SwiftUI 的辅助窗口（Settings / Sparkle 更新 / About 等）。靠 identifier 子串识别 —— locale-independent，
-    /// 也不依赖 SwiftUI / Sparkle 内部 NSWindow 子类。任一关键词命中即视为辅助窗口，`ensureMainWindowVisible` 跳过。
+    /// 识别 SwiftUI 的辅助窗口（Settings / Sparkle 更新 / About / **正在 dismissing 的 sheet 等**）。
+    /// 靠 identifier 子串识别 —— locale-independent，也不依赖 SwiftUI / Sparkle 内部 NSWindow 子类。
+    /// 任一关键词命中即视为辅助窗口，`ensureMainWindowVisible` 跳过。
     private static func isAuxiliaryWindow(_ window: NSWindow) -> Bool {
+        // **sheet 窗口**：parent 指向附属的主窗口。SIZSignatureSheet 等正在 dismissing 时 isVisible 短暂为 false，
+        // 旧版 ensureMainWindowVisible 把它 orderFront 又把刚要关掉的 sheet 拉回来 → 点了「打开」sheet 不消失的 bug。
+        if window.parent != nil { return true }
         let id = (window.identifier?.rawValue ?? "").lowercased()
         if id.contains("settings") || id.contains("preferences") { return true }
         if id.contains("sparkle") || id.contains("update") { return true }

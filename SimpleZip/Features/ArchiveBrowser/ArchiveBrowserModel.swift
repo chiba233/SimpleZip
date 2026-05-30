@@ -59,6 +59,78 @@ final class ArchiveBrowserModel: ObservableObject {
     /// 标准解压对话框。同 `pendingSIZOpen` 的解耦原则。
     @Published var pendingSIZExtract: URL?
 
+    /// 文件浏览模式选中 `.szs` 点 Open / Test 时的待处理 URL —— ContentView 接住后跑 `handleSZSOpen` 弹验证 sheet
+    /// （验证 sheet 同时充当 Test 的结果展示：签名 + SHA 全过 = 容器完整）。
+    @Published var pendingSZSOpen: URL?
+
+    /// 文件浏览模式选中 `.szs` 点 Extract 时的「解压不适用」提示触发。`.szs` 不是压缩包没法解压；
+    /// ContentView 接住后弹 alert 解释并提供「以虚拟目录浏览」按钮。
+    @Published var pendingSZSExtractHint: URL?
+
+    /// 「右键 → 创建签名清单」触发后传给 ContentView 的预填值（payload root + 已选文件）。同 `pendingSIZOpen` 解耦原则。
+    @Published var pendingCreateSZS: CreateSZSPrefill?
+
+    /// 创建 `.szs` 时的预填值 —— 右键入口给 CreateSZSSheet 用，避免用户重新挑根目录 + 重新选文件。
+    struct CreateSZSPrefill: Equatable {
+        let payloadRoot: URL
+        let files: [URL]
+    }
+
+    /// `.szs` 虚拟目录模式 —— 打开 `.szs` 后用户选择「以虚拟目录浏览」时进入此模式。
+    /// `.folder` mode 渲染 `payloadRoot` 真实文件，但 `loadFolder` 应用 filter 只显示**在 manifest 里出现过的文件 +
+    /// 含至少一个签名文件的祖先目录**。其他文件（payload root 下没被 manifest 覆盖的）暂时不显示，给用户「这是个签名清单的快照」错觉。
+    /// 用户通过 `archiveDisplayOverride` 看到的 title / 地址栏是 `.szs` 文件路径（如 `/Users/yumeka/Desktop/xxx.szs`）。
+    @Published var manifestVirtualMode: ManifestVirtualMode?
+
+    struct ManifestVirtualMode: Equatable {
+        /// 原 `.szs` 文件 URL —— 显示用、不参与文件系统操作。
+        let manifestURL: URL
+        /// 真实根目录 —— 文件系统列表实际跑在这里。
+        let payloadRoot: URL
+        /// 标准化的签名文件绝对 URL 集合。
+        let allowedFiles: Set<URL>
+        /// 含至少一个签名文件的祖先目录 URL 集合 —— 让用户能进子目录继续看。
+        let allowedDirs: Set<URL>
+    }
+
+    /// 把 `.szs` 打开成虚拟目录。
+    /// - `manifestURL`：原 `.szs` 路径（地址栏 / title 显示用）；
+    /// - `manifest`：解析好的 manifest，files[] 用来算 allowedFiles / allowedDirs；
+    /// - `payloadRoot`：真实的根目录（通常 = `.szs` 所在目录）。
+    func openSZSAsVirtualFolder(
+        manifestURL: URL,
+        manifest: SZSArchive.Manifest,
+        payloadRoot: URL
+    ) {
+        let standardizedRoot = payloadRoot.standardizedFileURL
+        let allowedFiles: Set<URL> = Set(manifest.files.map { entry in
+            standardizedRoot.appendingPathComponent(entry.relativePath).standardizedFileURL
+        })
+        var allowedDirs: Set<URL> = [standardizedRoot]
+        for fileURL in allowedFiles {
+            var current = fileURL.deletingLastPathComponent().standardizedFileURL
+            // 走到 payloadRoot 为止 —— 上面的目录不该被「虚拟可见」。
+            while current.path.hasPrefix(standardizedRoot.path) && current.path != standardizedRoot.path {
+                allowedDirs.insert(current)
+                current = current.deletingLastPathComponent().standardizedFileURL
+            }
+        }
+        manifestVirtualMode = ManifestVirtualMode(
+            manifestURL: manifestURL,
+            payloadRoot: standardizedRoot,
+            allowedFiles: allowedFiles,
+            allowedDirs: allowedDirs
+        )
+        archiveDisplayOverride = manifestURL
+        openFolder(standardizedRoot)
+    }
+
+    /// 退出虚拟目录模式 —— 用户「上一级」走到 payloadRoot 之上 / 主动点退出时调用。
+    func exitManifestVirtualMode() {
+        manifestVirtualMode = nil
+        archiveDisplayOverride = nil
+    }
+
     private let fileManager = FileManager.default
     private let extractionCoordinator = ArchiveExtractionCoordinator(fileManager: .default)
     /// 打开的压缩包内容 + 当前路径 + 合成目录派生。生命周期等同于 model。
@@ -113,6 +185,11 @@ final class ArchiveBrowserModel: ObservableObject {
     var locationText: String {
         switch mode {
         case .folder(let url):
+            // **`.szs` 虚拟模式**：用 manifest URL（如 `/Users/yumeka/Desktop/Desktop.szs`）替代真实路径
+            // （`/Users/yumeka/Desktop`），让用户在地址栏看到「我现在在 .szs 里」。子目录拼相对路径。
+            if let virtualPath = virtualizedLocationPath(realURL: url) {
+                return virtualPath
+            }
             return url.path
         case .archive(let url):
             // `archiveDisplayOverride` 给 `.siz` 这种「内层 archive 实际在 /tmp，但用户心智里是
@@ -129,6 +206,10 @@ final class ArchiveBrowserModel: ObservableObject {
     var editableLocationText: String {
         switch mode {
         case .folder(let url):
+            // 同 locationText —— 虚拟模式下编辑态也展示 manifest URL 路径，让用户复制 / 粘贴语义一致。
+            if let virtualPath = virtualizedLocationPath(realURL: url) {
+                return virtualPath
+            }
             return url.path
         case .archive(let url):
             let displayed = archiveDisplayOverride ?? url
@@ -137,6 +218,23 @@ final class ArchiveBrowserModel: ObservableObject {
         case .tag(let tag):
             return L10n.format("location.tag", tag)
         }
+    }
+
+    /// 把真实文件系统 URL 翻译成「虚拟 .szs 路径」—— 仅 `manifestVirtualMode` 非空时返回，否则 nil。
+    /// - 真实 URL == payloadRoot → 虚拟路径 = manifest URL（如 `/Users/yumeka/Desktop/Desktop.szs`）
+    /// - 真实 URL 是 payloadRoot 下子目录 → 拼相对路径（如 `/Users/yumeka/Desktop/Desktop.szs/sub`）
+    /// - 真实 URL 在 payloadRoot 之外 → nil（理论上不该出现 —— `loadFolder` 自动退出虚拟模式）
+    private func virtualizedLocationPath(realURL: URL) -> String? {
+        guard let virtual = manifestVirtualMode else { return nil }
+        let realPath = realURL.standardizedFileURL.path
+        let rootPath = virtual.payloadRoot.path
+        if realPath == rootPath {
+            return virtual.manifestURL.path
+        }
+        let rootWithSlash = rootPath.hasSuffix("/") ? rootPath : rootPath + "/"
+        guard realPath.hasPrefix(rootWithSlash) else { return nil }
+        let rel = String(realPath.dropFirst(rootWithSlash.count))
+        return virtual.manifestURL.path + "/" + rel
     }
 
     var selectedFileItems: [FileItem] {
@@ -287,8 +385,12 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     func openFolder(_ url: URL) {
-        // 切换到文件夹模式 → 清掉 .siz 残留的「显示路径覆盖」，避免老覆盖泄漏到下次 archive 打开。
-        archiveDisplayOverride = nil
+        // 切换到文件夹模式 → 一般情况清掉 `.siz` 残留的「显示路径覆盖」，避免老覆盖泄漏到下次 archive 打开。
+        // **例外**：`.szs` 虚拟目录模式正在生效时（manifestVirtualMode != nil）保留 archiveDisplayOverride，
+        // 让地址栏继续显示 `.szs` 路径。退出虚拟模式由 `exitManifestVirtualMode()` 显式清；这里不能误清。
+        if manifestVirtualMode == nil {
+            archiveDisplayOverride = nil
+        }
         openFolder(url, recordsHistory: true)
     }
 
@@ -330,6 +432,12 @@ final class ArchiveBrowserModel: ObservableObject {
     /// `loadArchive` / `performExtract*` / `testArchive` 等都靠 `isForced(_:)` 判断要不要传 force。
     /// 不是有效压缩包时 ArchiveService.list 会抛 ArchiveError，正常走「读取压缩包失败」错误展示。
     func openAsArchive(_ url: URL) {
+        // `.szs` 不是压缩包 —— 强行喂给 7-Zip 会得到「Cannot open the file as archive」错误。
+        // 它是 GPG clearsigned JSON 清单，正确入口是验证 sheet → 「以虚拟目录浏览」。
+        if url.pathExtension.lowercased() == SZSArchive.extensionName {
+            pendingSZSExtractHint = url
+            return
+        }
         forcedArchiveURLs.insert(url.standardizedFileURL)
         openArchive(url)
     }
@@ -695,6 +803,15 @@ final class ArchiveBrowserModel: ObservableObject {
     func goUp() {
         switch mode {
         case .folder(let url):
+            // **`.szs` 虚拟根**：从虚拟根（payloadRoot）按「上一级」语义上要去虚拟父 = `.szs` 文件所在目录。
+            // 但 .szs 文件所在目录 == payloadRoot 自身（虚拟模式下 .szs 跟 payload root 在同一物理目录里）—— 所以
+            // Up 不改 URL，只是「**退出虚拟模式留在当前真实目录**」，相当于「从 .szs 里出来到它的容器目录」。
+            if let virtual = manifestVirtualMode,
+               url.standardizedFileURL.path == virtual.payloadRoot.path {
+                exitManifestVirtualMode()
+                reload() // 不带 filter 重 list，并刷新地址栏（不再用 manifest 路径）。
+                return
+            }
             openFolder(url.deletingLastPathComponent())
         case .tag:
             openHome()
@@ -966,6 +1083,12 @@ final class ArchiveBrowserModel: ObservableObject {
             pendingSIZExtract = sizURL
             return
         }
+        // `.szs` 不是压缩包 —— 解压语义不适用。改成弹 alert 解释，附「以虚拟目录浏览」按钮把用户引到正确流程。
+        if case .folder = mode,
+           let szsURL = selectedFileItems.first(where: { $0.url.pathExtension.lowercased() == SZSArchive.extensionName })?.url {
+            pendingSZSExtractHint = szsURL
+            return
+        }
 
         let archiveURL: URL?
         switch mode {
@@ -1195,6 +1318,21 @@ final class ArchiveBrowserModel: ObservableObject {
     }
 
     func testArchive() {
+        // `.siz` 走自有签名 + SHA 校验作为「测试」—— 路由进 handleSIZOpen 同款流程，签名 sheet 本身就是测试结果
+        // （签名通过 + SHA 对得上 = 容器完整、未篡改，等价于普通归档「测试通过」）。
+        // 否则 ArchiveService.test 不识别 .siz 容器格式，用户会得到「不支持」错误。
+        if case .folder = mode,
+           let sizURL = selectedFileItems.first(where: { $0.url.pathExtension.lowercased() == SIZArchive.extensionName })?.url {
+            pendingSIZOpen = sizURL
+            return
+        }
+        // `.szs` 同样道理 —— 验证 sheet 跑 GPG clearsign 校验 + per-file SHA 校验，本质就是「测试」。
+        if case .folder = mode,
+           let szsURL = selectedFileItems.first(where: { $0.url.pathExtension.lowercased() == SZSArchive.extensionName })?.url {
+            pendingSZSOpen = szsURL
+            return
+        }
+
         let archiveURL: URL?
         switch mode {
         case .archive(let url):
@@ -1216,6 +1354,40 @@ final class ArchiveBrowserModel: ObservableObject {
         ) { operationID, _, _ in
             try await ArchiveService.test(archiveURL, operationID: operationID, force: force)
         }
+    }
+
+    /// 「右键 → 创建签名清单」入口：把当前选中的 file URL 集合 + 推断出的 payload root 发到 ContentView 弹 CreateSZSSheet。
+    /// payload root 推断：所有选中文件的最深公共祖先目录。多选时如果分散在不同父目录，公共祖先可能是 `/` 之类的祖先 —— UI 仍然
+    /// 让用户在 sheet 里改 payload root（默认值即可），不强制走推断结果。
+    func createSignedManifest() {
+        let urls = selectedFileItems.map(\.url)
+        guard !urls.isEmpty else {
+            errorMessage = L10n.text("error.openOrSelectArchive")
+            return
+        }
+        let inferredRoot = Self.commonAncestorDirectory(for: urls) ?? urls.first!.deletingLastPathComponent()
+        pendingCreateSZS = CreateSZSPrefill(payloadRoot: inferredRoot, files: urls)
+    }
+
+    /// 算 URL 集合的最深公共祖先目录（用于推断 payload root）。
+    /// 如果集合空 → nil；单个文件 → 其父目录。
+    static func commonAncestorDirectory(for urls: [URL]) -> URL? {
+        guard !urls.isEmpty else { return nil }
+        let paths = urls.map { $0.standardizedFileURL.deletingLastPathComponent().pathComponents }
+        // 逐层比对，找最长共同前缀。
+        var prefix: [String] = []
+        outer: for i in 0..<(paths.first?.count ?? 0) {
+            let comp = paths[0][i]
+            for p in paths.dropFirst() {
+                if i >= p.count || p[i] != comp { break outer }
+            }
+            prefix.append(comp)
+        }
+        guard prefix.count > 1 else { return URL(fileURLWithPath: "/") } // 只剩根 → /
+        // pathComponents 第一个是 "/"，URL 还原时不能简单 joined；走 NSString 拼接。
+        let joined = (prefix as NSArray).componentsJoined(by: "/")
+            .replacingOccurrences(of: "//", with: "/")
+        return URL(fileURLWithPath: joined)
     }
 
     func showSevenZipBenchmarkOptions() {
@@ -1539,7 +1711,7 @@ final class ArchiveBrowserModel: ObservableObject {
     /// 加载本地文件夹内容，并按“文件夹优先、名称自然排序”展示。
     private func loadFolder(_ url: URL) {
         do {
-            let urls = try fileBrowser.contents(
+            let rawURLs = try fileBrowser.contents(
                 of: url,
                 showHiddenFiles: AppPreferences.showHiddenFiles,
                 followFinderStructure: AppPreferences.followFinderStructure,
@@ -1555,6 +1727,26 @@ final class ArchiveBrowserModel: ObservableObject {
                     .isHiddenKey
                 ]
             )
+
+            // `.szs` 虚拟目录模式：在 payloadRoot 下时，过滤掉**不在 manifest 里出现 + 不是签名文件祖先目录**的条目。
+            // 走出 payloadRoot 后（用户「上一级」越过 root）filter 不再适用，自动退出虚拟模式 —— 视觉上回到正常 Finder。
+            let urls: [URL]
+            if let virtual = manifestVirtualMode {
+                let stdCurrent = url.standardizedFileURL
+                let stdRoot = virtual.payloadRoot
+                if stdCurrent.path == stdRoot.path || stdCurrent.path.hasPrefix(stdRoot.path + "/") {
+                    urls = rawURLs.filter { candidate in
+                        let std = candidate.standardizedFileURL
+                        return virtual.allowedFiles.contains(std) || virtual.allowedDirs.contains(std)
+                    }
+                } else {
+                    // 走出 root —— 自动退出虚拟模式，回到原始 listing。
+                    exitManifestVirtualMode()
+                    urls = rawURLs
+                }
+            } else {
+                urls = rawURLs
+            }
 
             fileItems = fileBrowser.makeFileItems(
                 from: urls,

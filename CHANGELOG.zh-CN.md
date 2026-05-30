@@ -4,6 +4,51 @@
 
 ## 0.1.9
 
+- **`.szs` 新功能：「以虚拟目录浏览」**
+  - 验证 sheet 底部多一个按钮「以虚拟目录浏览」—— 点了后退出 sheet，主窗口切到 payload root 文件夹模式，**只显示 manifest 里出现过的文件 + 含至少一个签名文件的祖先目录**，其他没签名的文件 / 文件夹隐藏。地址栏通过 `archiveDisplayOverride = .szs URL` 显示 `/Users/yumeka/Desktop/Desktop.szs` 样路径，假装用户在虚拟压缩包里浏览。
+  - **退出语义**：用户「上一级」越过 payload root，`loadFolder` 检测到 → 自动 `exitManifestVirtualMode`，回到正常 Finder listing。不需要额外退出按钮。
+  - **过滤实现**：`ManifestVirtualMode` 持有 `allowedFiles` 和 `allowedDirs`（从 manifest.files 算出来 —— 文件本身 + 走到 payload root 之间的所有祖先目录），`loadFolder` 拿 `fileBrowser.contents` 后按这两个集合 filter。
+  - 模型层 `openSZSAsVirtualFolder(manifestURL:manifest:payloadRoot:)` 是唯一进入点；`ContentView` 在 SZSVerificationSheet 的 `onOpenAsVirtualFolder` 回调里调它。
+
+- **`.szs` 默认输出名改成 payload root 文件夹名（不再 `manifest.szs` 写死）**
+  - 例：Desktop 选文件签名 → 输出 `Desktop.szs`，落在 Desktop 里。语义上「这是某文件夹的签名清单」更清楚，多文件夹同时签也不会撞名。
+  - 涉及：`CreateSZSSheet.applyPrefillIfAny`（右键流默认值）+ `chooseOutput`（NSSavePanel 默认名）。
+
+- **bug 修复：双击 `.siz` / `.szs` 总开新窗口而不是用当前窗口（两轮修法）**
+  - 现象：主窗口已经开着的情况下，Finder 双击 `.siz` 或 `.szs` 会再起一个新主窗口，不是在当前窗口里弹签名 sheet。
+  - 第一轮修：删掉 ContentView 上的 `.onOpenURL` —— 让 SwiftUI 没有 handler 提示就不主动克隆窗口。**测下来还会克隆**。
+  - 第二轮修（必要+充分）：在 `WindowGroup` 上加 `.handlesExternalEvents(matching: [])` 显式告诉 SwiftUI 「我不处理任何外部 URL / NSUserActivity 事件」。没这一行时 SwiftUI 看到 LSHandlerRank 路由进来的 `.siz` / `.szs` 仍会克隆 WindowGroup 窗口去满足「外部事件需要落到对应 scene」的约定。
+  - 修法后路径：AppDelegate.application(_:open:) → `ExternalFileOpenQueue.enqueue` → notification → 现有 ContentView `.onReceive` drain 自处理。冷启动场景由 onAppear 里另一处 drain 兜住。全程一个窗口。
+
+- **bug 修复：设置 → 文件关联里漏了 `.szs`**
+  - 现象：`.szs` 已经在 Info.plist 的 UTExportedTypeDeclarations 里注册了，Finder 也能把双击路由进 SimpleZip，但「设置 → 文件关联」面板里没有 `.szs` 那一行，用户没法在 UI 里把 SimpleZip 设为 `.szs` 的默认 App。
+  - 修法：`ArchiveAssociationService.supportedAssociations` 加一项 `.szs`（标题 "SimpleZip Signed Manifest"，绑 UTI `com.simplezip.szs-manifest`）。文件关联面板自动渲染。
+
+- **bug 修复：CreateSZSSheet 右键流默认输出位置写错 —— Desktop 选的文件结果 .szs 落到了 `/Users/yumeka/Desktop.szs` 里**
+  - 根因：`applyPrefillIfAny` 拿 payloadRoot 后做了 `.deletingLastPathComponent()`（跳到父目录）再 append `<payloadRoot 名>.szs` —— Desktop 的父是 home，输出落在 home 下叫 `Desktop.szs` 而不是 Desktop 里。逻辑完全反了。
+  - 修法：直接 `payloadRoot.appendingPathComponent("manifest.szs")` —— `.szs` 现在跟被签名的文件**同目录 sibling**，符合设计文档的「drop a .szs next to the files」模式。
+
+- **bug 修复：Cmd+A 主窗口文件列表里不能全选**
+  - 现象：在主窗口选了文件列表后按 Cmd+A 没反应。Cmd+A 应该选所有文件 / 文件夹。
+  - 根因：SimpleZipApp 的 pasteboard CommandGroup 的「全选」按钮挂了 `.disabled(!isTextInputFocused)` —— 字面意思「只在文本输入聚焦时才启用」。问题是主表格的 NSTableView 不是「文本输入」，所以全选按钮永远 disabled，Cmd+A 不发动。
+  - 修法：拿掉 `.disabled` 让按钮始终启用；selector 从 `NSText.selectAll(_:)` 改为 `NSResponder.selectAll(_:)`（语义更准 —— NSText 和 NSTableView 共同基类都有这个方法）。NSTableView 默认实现 `selectAll(_:)` 选所有行，NSText / NSTextField 也是同样的方法，所以丢给 first responder 谁聚焦谁处理。
+
+- **重大 bug 修复：Cmd+C / Cmd+V / Cmd+X 在主窗口失效（影响所有版本）**
+  - 现象：主窗口里 Cmd+C / Cmd+V / Cmd+X / Cmd+A / Cmd+Z 全部不工作，按了没反应也不弹错。任何快捷键操作都好像被「吞掉」。
+  - 根因：地址栏自定义的 `KeyboardTextField`（`TopBar.swift`）重写 `performKeyEquivalent` 接管这几个快捷键给地址栏 inline 编辑用 —— 但**没检查 `currentEditor()` 是不是 nil**。地址栏只要曾经在 first-responder 链里（用户点过一次就会一直在），`performKeyEquivalent` 就被调；`currentEditor()` 是 nil 时 `.copy(nil)` 是 no-op，但函数仍然 `return true`，等于「事件被声明已处理但实际啥也没干」。SwiftUI Commands / NSTableView 收不到事件，所有快捷键看上去失效。
+  - 修法：`performKeyEquivalent` 的 `guard` 加 `let editor = currentEditor()`。currentEditor 为 nil 时（地址栏不在编辑态）直接 `super.performKeyEquivalent` 让事件正常下传到 SwiftUI / responder chain。
+  - 影响：地址栏在编辑态时 Cmd+C/V/X/A/Z 仍然作用于地址栏文本；不在编辑态时所有快捷键回到正常 macOS 行为。
+
+- **`.szs` 易用性：右键「创建签名清单」+ CreateSZSSheet 排版修复 + `.siz` 测试压缩包功能恢复**
+  - **右键入口**：本地文件列表选中一个或多个文件 → 右键 →「创建签名清单…」（仅 GPG 启用 + 后端可用时显示）。点击后弹 `CreateSZSSheet` 预填 payload root（推断为选中文件的最深公共祖先目录） + 文件列表。**省去用户在 sheet 里重新挑根目录 + 文件**。
+  - **`.szs` 创建 sheet 排版修复**：每行 label 用固定宽度（88pt）右对齐，content 自适应 —— 修复之前 label 宽度跟随文本撑得歪七扭八、TextField 被挤的问题。增加 `outputURL` 在右键入口下默认为 `<payloadRoot>.szs`，免手填。
+  - **`.siz` 测试压缩包功能恢复**：`ArchiveBrowserModel.testArchive` 检测选中是 `.siz` → 路由进 `pendingSIZOpen` 同款流程，签名 sheet 本身就是测试结果（签名 + SHA 都对 = 容器完整、未篡改，等价于「测试通过」）。之前 `ArchiveService.test` 不识别 `.siz` 容器格式直接报错，`.siz` 用户实际上不能用「测试」功能。
+
+- **`.siz` 打开 sheet 加解密 UI（picker + passphrase）**
+  - `SIZSignatureSheet` 在容器加密时（`signature.encryption != nil`）显示「解密密钥」picker（仅有 recipients 时）+ 「解密密码」SecureField（仅 `hasSymmetricPassphrase` 时）。
+  - sheet 把用户输入的值通过 `onOpen(decryptionKey, passphrase)` 回调传给 `ContentView`，再传到 `SIZArchive.decryptInnerArchive`。passphrase 走 `--passphrase-fd 0` stdin **不进 `ps`**；二者都空时让 pinentry-mac 兜底（保留之前的兜底行为）。
+  - 跟解压 sheet 一样遵循「二选一」原则：自家 SecureField 有输入 → loopback 模式；没有 → gpg-agent + pinentry-mac 接管，不会同时弹两个密码框。
+
 - **`.siz` v3 加密：多收件人公钥 + 可选对称密码 + 解密 picker 真正接上**
   - **格式扩展**：`SIZArchive.schemaVersion = 3`（unwrap 同时接 v2 / v3，向后兼容）。`Metadata` 新增 `encryption: EncryptionInfo?` 字段：
     - `recipients: [{fingerprint, userID}]` —— 公钥加密的收件人列表（空数组 = 仅对称加密）；
@@ -19,13 +64,27 @@
     - **打开路径**（浏览模式）：`handleSIZOpen` / SIZSignatureSheet 的 `onOpen` 在 `model.openArchive` 前先调 `decryptInnerArchiveIfNeeded`。`.gpg` 后缀 → 跑 `GPGBackend.decrypt`，passphrase 留给 pinentry-mac 弹原生密码框（公钥模式 + agent 缓存命中的常规路径）。解密失败给明确错误。
   - **后端 fallback 修复**：`gpgDecryptionKeyFingerprint` 之前在 0.1.8 只是 UI 占位，0.1.9 真接到 `gpg --local-user` 上。多密钥用户在 picker 选过的私钥真正会被尝试。
 
-- **`.szs` 签名清单格式 v1 设计文档**（`docs/SZS-FORMAT.md`）
-  - 新格式：**一份签名 JSON 清单 + 多个外部文件留在原地** —— 跟 `.siz`（单文件容器）互补。用例：发布物（app + LICENSE + README + checksums.txt）、镜像树、按文件级完整性验证。
-  - 实现形式：**GPG clearsigned message**（`gpg --clearsign` 输出格式）。`cat foo.szs` 能看 JSON，`gpg --verify foo.szs` 直接校验，单文件搞定不需要 sidecar `.sig`。
-  - Schema：`{schema: "SimpleZip.szs", version: 1, createdAt, files: [{relativePath, size, sha256, mediaType?}], …}`。`files` 数组按 `relativePath` 字典序排序（确定性签名前提）；不含目录条目 / 不含 symlink / 不含 mode bits / 不含 mtime。
-  - 验证报告：`SZSVerifyReport { signature, manifest, entries: [.match | .mismatch | .missing | .unreadable], summary }`。UI 渲染成表格，mismatch 行可展开看 expected vs actual SHA256。
+- **`.szs` 签名清单格式 v1 端到端实现**（设计 + Core + GPG + UI + UTI）
+  - **格式**：`.szs` = GPG clearsigned 签名的 JSON 清单。**一份签名清单 + 多个外部文件留在原地** —— 跟 `.siz`（单文件容器）互补。用例：发布物（app + LICENSE + README + checksums.txt）、镜像树、按文件级完整性验证。`cat foo.szs` 直接看 JSON、`gpg --verify foo.szs` 命令行能验，单文件搞定不需要 sidecar `.sig`。
+  - **Schema**：`{schema: "SimpleZip.szs", version: 1, createdAt, files: [{relativePath, size, sha256, mediaType?}], …}`。`files` 数组按 `relativePath` 字典序排序（确定性签名前提）；不含目录条目 / 不含 symlink / 不含 mode bits / 不含 mtime；`relativePath` 过 `validatedRelativePath` 拒 `..` / Windows 盘符 / UNC / 反斜杠等不安全成分。**详见 `docs/SZS-FORMAT.md`**。
+  - **Core 实现**（`SimpleZip/Core/SZSArchive.swift`）：`Manifest` / `FileEntry` / `EncryptionInfo` 类型 + `create(payloadRoot:files:signingKey:title:description:outputURL:)` + `verify(manifestURL:payloadRoot:)` + `peek(manifestURL:)` + 确定性 `encodeManifest`。SHA256 复用 `SIZArchive.computeInnerArchiveSHA256` 1MiB 流式块计算，超大文件不爆内存。
+  - **GPG 后端**（`GPGBackend`）：新增 `clearsign(plaintextURL:signingKeyFingerprint:outputURL:)` + `verifyClearsign(signedURL:)` → 返回 `(GPGVerifyResult, plaintext: Data)`。复用 `.siz` 同款 `--status-fd 1` 解析、两 pass merge（user keyring + SimpleZip 私有 ring）。
+  - **UI**：
+    - `SZSVerificationSheet`（验证报告）—— 顶部签名状态（复用 `SIZSignatureStatus` 图标 / 色 / 文案）+ manifest 元信息（标题 / 描述 / 创建时间 / 文件数）+ payload 根目录可选 + per-file 列表，每行带 ✓/✗/⚠ 状态徽章；mismatch 行可展开看 expected vs actual SHA256 对比；
+    - `CreateSZSSheet`（创建对话框）—— 选 payload root + 多选要签名的文件 + 可选标题 / 描述 + 签名密钥 picker + 输出位置；文件列表展示相对路径 + × 移除；成功后 1.5s 自动关闭。
+  - **菜单 + 文件关联**：File 菜单加「创建签名清单… (⇧⌘N)」（仅 `gpgEnabled` + GPG 后端可用时显示）；`Info.plist` 注册 `com.simplezip.szs-manifest` UTI 让 Finder 双击直接路由进 SimpleZip。
+  - **`ContentView.handleSZSOpen`**：peek manifest → 弹 `SZSVerificationSheet`，默认 payload root = `.szs` 文件所在目录，用户可重选目录后重新校验。
   - **加密暂时不做** —— `.szs` v1 sign-only。加密用例由 `.siz` v3 覆盖（单 archive 多收件人），混在 `.szs` 里跨文件加密边界条件太多。
-  - 实现路线分阶段：part 1（design doc）= 本次落地；part 2（Core `SZSArchive`）/ part 3（GPG clearsign 调用）/ part 4（UI mode + 验证报告 view）/ part 5（创建对话框 + 文件选取）/ part 6（UTI + Finder Sync 入口）= 后续 session。
+
+- **修：GPG 加密 / 解密密码长描述把对话框布局撑炸**
+  - 现象：创建对话框的「对称密码」placeholder 太长（「对称密码，跟收件人公钥并存 = 任一可解」），SecureField 横向被挤压；解压对话框同款问题。
+  - 修：placeholder 缩到 2-4 字（「可选 · 对称密码」/「GPG 对称密码」），长说明拆到 SecureField 下方 `.caption2` 灰色提示行 `.fixedSize(horizontal: false, vertical: true)` 自动折行。
+  - **附记 GPG passphrase prompt 二选一原则**：encrypt / decrypt 函数在 `passphrase != nil` 时塞 `--pinentry-mode loopback`，自家 SecureField 取代 pinentry；passphrase 空时让 gpg-agent + pinentry-mac 接管。**两边永远只弹一个**。
+
+- **修：`.siz` 解压对话框的「解密密钥」picker 一直不显示**
+  - 历史 bug（0.1.8 落地以来一直存在）：`isSizExtract` 判定用的是 `request.archiveURL.pathExtension == "siz"`，但解压时 `archiveURL` 是 unwrap 后的内层 archive（`archive.zip` / `archive.zip.gpg`），后缀根本不是 `.siz`，结果 picker 永远 false。
+  - 修：判定改为 `request.sizSignature != nil`（只有 `.siz` 走 unwrapAndVerifySIZ 时才会塞 sizSignature 到 request）。
+
 
 - **Bug 修复（0.1.8 引入）：Sparkle 检查更新报「已是最新版」，0.1.7 用户永远收不到 0.1.8 升级提示**
   - 现象：0.1.7 用户菜单点「检查更新」时 Sparkle 说「SimpleZip 0.1.7 是当前的最新版本（您正在运行 0.1.7 (1)）」—— 完全错的，appcast 已经在 0.1.8 了。

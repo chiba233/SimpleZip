@@ -4,6 +4,51 @@
 
 ## 0.1.9
 
+- **`.szs` new feature: "Browse as virtual folder"**
+  - The verification sheet gains a "Browse as virtual folder" button at the bottom — clicking it dismisses the sheet and switches the main window into the payload root in folder mode, but **only files referenced by the manifest, plus directories that contain at least one signed file, are shown**; everything else is hidden. The address bar shows a path like `/Users/yumeka/Desktop/Desktop.szs` (via `archiveDisplayOverride = .szs URL`), giving the impression of browsing inside a virtual archive.
+  - **Exit semantics**: when the user navigates "Up" past the payload root, `loadFolder` detects it and automatically calls `exitManifestVirtualMode`, returning to the normal Finder-style listing. No explicit exit button required.
+  - **Filter implementation**: `ManifestVirtualMode` holds `allowedFiles` and `allowedDirs` (computed from `manifest.files` — the files themselves plus all ancestor directories up to the payload root); `loadFolder` applies the filter after `fileBrowser.contents`.
+  - The single entry point is the model's `openSZSAsVirtualFolder(manifestURL:manifest:payloadRoot:)`; ContentView invokes it from SZSVerificationSheet's `onOpenAsVirtualFolder` callback.
+
+- **`.szs` default output name now matches the payload root's folder name (no longer hard-coded `manifest.szs`)**
+  - Example: signing files on Desktop → output is `Desktop.szs`, landing inside Desktop. Semantically clearer ("this is the manifest of this folder"), and signing multiple folders at once no longer collides on names.
+  - Touches: `CreateSZSSheet.applyPrefillIfAny` (right-click flow's default) + `chooseOutput` (NSSavePanel default name).
+
+- **Bug fix: double-clicking `.siz` / `.szs` always spawned a new window instead of using the current one (two rounds of fixes)**
+  - Symptom: with the main window already open, double-clicking a `.siz` or `.szs` in Finder spawned a second main window instead of presenting the signature sheet in the existing one.
+  - First-round fix: removed ContentView's `.onOpenURL`, so SwiftUI lacked a hint to clone windows. **Testing showed it still cloned**.
+  - Second-round fix (necessary + sufficient): added `.handlesExternalEvents(matching: [])` to the `WindowGroup` to explicitly tell SwiftUI "I handle no external URL / NSUserActivity events". Without this line, SwiftUI still clones a WindowGroup window for LSHandlerRank-routed `.siz` / `.szs` opens to satisfy the "external event must land on a matching scene" contract.
+  - Resulting pipeline: AppDelegate.application(_:open:) → `ExternalFileOpenQueue.enqueue` → notification → the existing ContentView's `.onReceive` drains and handles. Cold start covered by the other drain in `.onAppear`. End-to-end one window.
+
+- **Bug fix: Settings → File Associations was missing the `.szs` row**
+  - Symptom: `.szs` was already registered in Info.plist under `UTExportedTypeDeclarations`, and Finder could route double-clicks into SimpleZip, but the Settings → File Associations pane didn't list a `.szs` row, so users had no UI to set SimpleZip as the default app for `.szs`.
+  - Fix: added a `.szs` entry to `ArchiveAssociationService.supportedAssociations` (title "SimpleZip Signed Manifest", bound to UTI `com.simplezip.szs-manifest`). The pane picks it up automatically.
+
+- **Bug fix: CreateSZSSheet's right-click flow defaulted the output to the wrong location — selecting files on Desktop generated `/Users/yumeka/Desktop.szs` instead of inside Desktop**
+  - Root cause: `applyPrefillIfAny` did `.deletingLastPathComponent()` on the payloadRoot (moving up one level) and then appended `<payloadRoot name>.szs` — Desktop's parent is the home folder, so the output landed under home as `Desktop.szs` instead of inside Desktop. The logic was inverted.
+  - Fix: now uses `payloadRoot.appendingPathComponent("manifest.szs")` directly — the `.szs` lands as a **sibling next to the signed files**, matching the design doc's "drop a .szs next to the files" pattern.
+
+- **Bug fix: Cmd+A didn't select all files in the main window's file list**
+  - Symptom: in the main window with the file table focused, pressing Cmd+A did nothing. Cmd+A is expected to select every file / folder.
+  - Root cause: the SimpleZipApp pasteboard CommandGroup's "Select All" button carried `.disabled(!isTextInputFocused)` — literally "only enable when a text input has focus". But the main table is an NSTableView, not a "text input", so the button was permanently disabled and Cmd+A never fired.
+  - Fix: removed the `.disabled` clause so the button stays enabled; the selector is now `NSResponder.selectAll(_:)` instead of `NSText.selectAll(_:)` (semantically tighter — NSText and NSTableView both ultimately inherit from NSResponder, and the selector resolves identically). NSTableView's default `selectAll(_:)` implementation selects every row; NSText / NSTextField use the same selector, so sending it to nil (first responder) does the right thing depending on focus.
+
+- **Critical bug fix: Cmd+C / Cmd+V / Cmd+X stopped working in the main window (affected all versions)**
+  - Symptom: in the main window, Cmd+C / Cmd+V / Cmd+X / Cmd+A / Cmd+Z all silently did nothing — no error, no feedback. All shortcuts felt "swallowed".
+  - Root cause: the address bar's custom `KeyboardTextField` (in `TopBar.swift`) overrode `performKeyEquivalent` to intercept these shortcuts for in-line editing of the path — but **didn't check whether `currentEditor()` was nil**. As long as the address bar had ever been in the first-responder chain (which it stays after the user clicks it once), `performKeyEquivalent` was invoked; when `currentEditor()` was nil, `.copy(nil)` was a no-op, but the function still `return true` — effectively saying "I handled this event" while doing nothing. SwiftUI Commands / NSTableView never received the events, so every shortcut appeared broken.
+  - Fix: the `guard` in `performKeyEquivalent` now binds `let editor = currentEditor()`. When `currentEditor()` is nil (the address bar isn't being edited), the method falls through to `super.performKeyEquivalent`, letting the event reach SwiftUI / the responder chain normally.
+  - Impact: while the address bar is being edited, Cmd+C/V/X/A/Z still act on the address text; while it isn't, all shortcuts behave as normal macOS shortcuts again.
+
+- **`.szs` usability: right-click "Create Signed Manifest" + CreateSZSSheet layout fix + `.siz` test-archive feature restored**
+  - **Right-click entry**: in the local file table, selecting one or more files → right click → "Create Signed Manifest…" (shown only when GPG is enabled and the backend is available). Clicking it opens `CreateSZSSheet` pre-filled with payload root (inferred as the deepest common ancestor directory of the selection) + the file list. **No need to re-pick the root and files inside the sheet**.
+  - **`.szs` create sheet layout fix**: each row's label now has a fixed width (88pt) right-aligned, with content filling the remaining space — fixing the earlier issue where labels stretched as wide as their text and TextFields were squashed. Output URL defaults to `<payloadRoot>.szs` in the right-click flow so it's pre-filled.
+  - **`.siz` test-archive feature restored**: `ArchiveBrowserModel.testArchive` now detects a `.siz` selection → routes through the same `pendingSIZOpen` flow, with the signature sheet itself acting as the test result (signature + SHA all valid = container intact and untampered = equivalent to "test passed"). Previously `ArchiveService.test` didn't recognize the `.siz` container and just errored out, so `.siz` users couldn't use the Test feature at all.
+
+- **`.siz` open sheet gains decryption UI (picker + passphrase)**
+  - When the container is encrypted (`signature.encryption != nil`), `SIZSignatureSheet` now shows a "Decryption key" picker (when recipients are present) + a "Decryption passphrase" SecureField (when `hasSymmetricPassphrase`).
+  - The sheet passes the user-entered values to `ContentView` via the `onOpen(decryptionKey, passphrase)` callback, which forwards them to `SIZArchive.decryptInnerArchive`. The passphrase goes via `--passphrase-fd 0` stdin so it **doesn't appear in `ps`**; when both are empty, pinentry-mac takes over (preserving the prior fallback).
+  - Same "one or the other" rule as the extract sheet: when our SecureField has input → loopback mode; when empty → gpg-agent + pinentry-mac takes over. Two passphrase prompts never pop simultaneously.
+
 - **`.siz` v3 encryption: multi-recipient public-key + optional symmetric passphrase + decryption picker actually wired**
   - **Format extension**: `SIZArchive.schemaVersion = 3` (unwrap accepts v2 *and* v3 for backward compatibility). `Metadata` gains an optional `encryption: EncryptionInfo?`:
     - `recipients: [{fingerprint, userID}]` — recipients list for public-key encryption (empty array = symmetric-only);
@@ -19,13 +64,27 @@
     - **Open path** (browser mode): `handleSIZOpen` / the SIZSignatureSheet's `onOpen` calls `decryptInnerArchiveIfNeeded` before `model.openArchive`. If the suffix is `.gpg`, it runs `GPGBackend.decrypt` and lets pinentry-mac handle the passphrase prompt (public-key mode + agent cache is the common path); decryption failures surface as a clear error message.
   - **Backend fallback fix**: `gpgDecryptionKeyFingerprint` was a UI-only placeholder in 0.1.8 — in 0.1.9 it actually reaches `gpg --local-user`. Multi-key users' picker selections are now genuinely respected.
 
-- **`.szs` Signed Manifest format v1 design document** (`docs/SZS-FORMAT.md`)
-  - New format: **one signed JSON manifest + N external files staying in place** — complementary to `.siz` (single-file container). Use cases: release drops (app + LICENSE + README + checksums.txt), mirror trees, per-file integrity verification.
-  - Form on disk: a **GPG clearsigned message** (output of `gpg --clearsign`). `cat foo.szs` shows the JSON, `gpg --verify foo.szs` verifies in one shot — single file, no sidecar `.sig`.
-  - Schema: `{schema: "SimpleZip.szs", version: 1, createdAt, files: [{relativePath, size, sha256, mediaType?}], …}`. The `files` array is lexicographically sorted by `relativePath` (precondition for deterministic signatures). No directory entries, no symlinks, no mode bits, no mtime.
-  - Verification report: `SZSVerifyReport { signature, manifest, entries: [.match | .mismatch | .missing | .unreadable], summary }`. The UI renders it as a table; mismatched rows expand to show expected vs. actual SHA256.
+- **`.szs` Signed Manifest format v1, end-to-end implementation** (design + Core + GPG + UI + UTI)
+  - **Format**: a `.szs` is a GPG clearsigned JSON manifest. **One signed manifest + N external files staying in place** — complementary to `.siz` (single-file container). Use cases: release drops (app + LICENSE + README + checksums.txt), mirror trees, per-file integrity verification. `cat foo.szs` shows the JSON; `gpg --verify foo.szs` works as a one-shot CLI verification; single-file, no sidecar `.sig`.
+  - **Schema**: `{schema: "SimpleZip.szs", version: 1, createdAt, files: [{relativePath, size, sha256, mediaType?}], …}`. The `files` array is lexicographically sorted by `relativePath` (precondition for deterministic signatures). No directory entries, no symlinks, no mode bits, no mtime; `relativePath` goes through `validatedRelativePath` which rejects `..`, Windows drives, UNC, backslashes, and other unsafe components. **Full spec at `docs/SZS-FORMAT.md`**.
+  - **Core implementation** (`SimpleZip/Core/SZSArchive.swift`): `Manifest` / `FileEntry` / `EncryptionInfo` types + `create(payloadRoot:files:signingKey:title:description:outputURL:)` + `verify(manifestURL:payloadRoot:)` + `peek(manifestURL:)` + deterministic `encodeManifest`. SHA256 reuses `SIZArchive.computeInnerArchiveSHA256` (1 MiB streaming chunks); large files don't blow up memory.
+  - **GPG backend** (`GPGBackend`): new `clearsign(plaintextURL:signingKeyFingerprint:outputURL:)` + `verifyClearsign(signedURL:)` → returns `(GPGVerifyResult, plaintext: Data)`. Reuses `.siz`'s `--status-fd 1` parsing and two-pass merge (user keyring + SimpleZip-private ring).
+  - **UI**:
+    - `SZSVerificationSheet` (verification report) — signature status at the top (reuses `SIZSignatureStatus`'s icon / color / title mapping) + manifest metadata (title / description / created at / file count) + selectable payload root + per-file table with ✓/✗/⚠ badges per row; mismatched rows expand to show expected vs. actual SHA256;
+    - `CreateSZSSheet` (creation dialog) — pick payload root + multi-select files + optional title / description + signing-key picker + output location; file list shows relative paths with × buttons to remove; success auto-closes after 1.5s.
+  - **Menu + file association**: a "Create Signed Manifest… (⇧⌘N)" entry is added to the File menu (only shown when `gpgEnabled` and the GPG backend is available); `Info.plist` registers the `com.simplezip.szs-manifest` UTI so Finder double-clicks route into SimpleZip.
+  - **`ContentView.handleSZSOpen`**: peek manifest → presents `SZSVerificationSheet`, default payload root = the directory containing the `.szs`, with a button to switch to a different directory and re-verify.
   - **Encryption deliberately deferred** — `.szs` v1 is sign-only. Encryption use cases are served by `.siz` v3 (single-archive, multi-recipient); mixing encryption into a per-file manifest introduces too many edge cases.
-  - Implementation phased: part 1 (design doc) = this commit; part 2 (Core `SZSArchive`) / part 3 (GPG clearsign integration) / part 4 (UI mode + verification report view) / part 5 (create dialog + file picker) / part 6 (UTI + Finder Sync entry) follow in subsequent sessions.
+
+- **Fix: long GPG encryption / decryption passphrase descriptions broke dialog layout**
+  - Symptom: the create dialog's "Symmetric password" placeholder text was too long ("Symmetric password — combined with recipients = either can decrypt"), the SecureField got crushed horizontally; the extract dialog had the same issue.
+  - Fix: shortened placeholders to 2–4 words ("Optional · symmetric password" / "GPG symmetric password"), moved the long explanation into a `.caption2` hint line below the SecureField with `.fixedSize(horizontal: false, vertical: true)` for automatic wrapping.
+  - **Documenting the GPG passphrase prompt "one or the other" rule**: the encrypt / decrypt functions inject `--pinentry-mode loopback` only when `passphrase != nil`, so our own SecureField replaces pinentry; when the passphrase is empty, gpg-agent + pinentry-mac takes over. **At most one prompts at a time**.
+
+- **Fix: the `.siz` extract dialog's "Decryption key" picker never showed**
+  - Old bug (existed since 0.1.8): `isSizExtract` checked `request.archiveURL.pathExtension == "siz"`, but at extract time `archiveURL` is the unwrapped inner archive (`archive.zip` / `archive.zip.gpg`), whose extension isn't `.siz` at all — so the picker was perpetually false.
+  - Fix: the predicate is now `request.sizSignature != nil` (only the `.siz` extract path goes through `unwrapAndVerifySIZ` which attaches `sizSignature` to the request).
+
 
 - **Bug fix (regression from 0.1.8): Sparkle "Check for Updates" said "you're up to date", 0.1.7 users could never receive the 0.1.8 upgrade prompt**
   - Symptom: from a 0.1.7 install, the menu "Check for Updates" reported "SimpleZip 0.1.7 is the current latest version (you're running 0.1.7 (1))" — completely wrong; the appcast was already on 0.1.8.

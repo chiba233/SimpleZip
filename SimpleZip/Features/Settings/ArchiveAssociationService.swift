@@ -32,6 +32,8 @@ enum ArchiveAssociationService {
         ArchiveAssociation(fileExtension: "dmg", title: "DMG Disk Image", contentTypes: contentTypes(for: "dmg", fallback: ["com.apple.disk-image-udif"])),
         // SimpleZip 自有的「带签名 tar 容器」格式 —— UTI 在 Info.plist 的 UTExportedTypeDeclarations 里声明。
         ArchiveAssociation(fileExtension: "siz", title: "SimpleZip Signed Container", contentTypes: contentTypes(for: "siz", fallback: ["com.simplezip.siz-archive"])),
+        // SimpleZip 自有的签名清单格式（v0.1.9 起）。
+        ArchiveAssociation(fileExtension: "szs", title: "SimpleZip Signed Manifest", contentTypes: contentTypes(for: "szs", fallback: ["com.simplezip.szs-manifest"])),
         ArchiveAssociation(
             fileExtension: "001",
             title: "Split Archive Volumes",
