@@ -266,6 +266,10 @@ struct CreateSZSSheet: View {
 
     private func chooseFiles() {
         guard let root = payloadRoot else { return }
+        // 每次新挑文件时清掉上次的 status（成功 / 错误都清）—— 否则上次「N 个文件不在 payload root」的红字
+        // 会一直挂着，即使本次合法添加也不消失，看起来像挑错了。
+        statusMessage = nil
+        statusIsError = false
         let panel = NSOpenPanel()
         panel.canChooseDirectories = false
         panel.canChooseFiles = true

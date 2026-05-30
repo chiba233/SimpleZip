@@ -55,6 +55,7 @@ let package = Package(
                 "Core/PreferencesPayloadCodec.swift",
                 "Core/PresetPasswordStore.swift",
                 "Core/SIZArchive.swift",
+                "Core/SZSArchive.swift",
                 "Core/TemporaryResourceManager.swift"
             ]
         ),

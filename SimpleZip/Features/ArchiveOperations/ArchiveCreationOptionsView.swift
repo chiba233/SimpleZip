@@ -465,10 +465,10 @@ struct ArchiveCreationOptionsView: View {
                     .font(.caption.weight(.medium))
                     .foregroundStyle(.secondary)
                 Menu {
-                    if availableKeys.isEmpty {
+                    if encryptionEligibleKeys.isEmpty {
                         Text(L10n.text("archive.gpgEncrypt.noKeysInRing"))
                     } else {
-                        ForEach(availableKeys) { key in
+                        ForEach(encryptionEligibleKeys) { key in
                             Button {
                                 toggleRecipient(key.fingerprint)
                             } label: {
@@ -497,6 +497,13 @@ struct ArchiveCreationOptionsView: View {
             }
         }
         .padding(.leading, 18)
+    }
+
+    /// 加密收件人**候选公钥**：必须在 user keyring（`~/.gnupg/`）—— `GPGBackend.encrypt` 默认只在 user homedir 找 recipient。
+    /// 把 SimpleZip 私有 ring 的 key 放进 picker 会让用户选到，然后 gpg 找不到 recipient → 加密失败。
+    /// 历史上 `availableKeys` 同时含两个 ring（签名 picker 需要看全部 hasSecretKey），收件人 picker 必须额外过滤。
+    private var encryptionEligibleKeys: [GPGBackend.GPGKey] {
+        availableKeys.filter { $0.source == .userKeyring }
     }
 
     @ViewBuilder

@@ -55,6 +55,8 @@ SimpleZip 把每个压缩包都视为**不可信输入**。App 有意不进沙�
 - **预设密码的泄露**（落盘 / 内存 / 屏幕显示）—— 见下文「预设密码存储」。
 - **`.siz` 签名容器篡改**（伪造签名者 metadata / 替换内层 archive /
   剥离签名 / 容器炸弹）—— 见下文 [`.siz` 签名容器格式](#siz-签名容器格式)。
+- **`.szs` 签名清单篡改**（伪造清单内容 / 替换被引用文件 / 剥离签名 /
+  路径穿越）—— 见下文 [`.szs` 签名清单格式](#szs-签名清单格式)。
 
 ### 不在保护范围内（设计取舍）
 
@@ -293,11 +295,126 @@ passphrase 」之间的取舍。这两个场景受影响的密钥是 SimpleZip �
 | 用户在设置里关了 GPG 集成时打开 `.siz`                                            | unwrap 仍工作；验签跳过且不弹任何签名 UI（缺 GPG 不应该是 denial-of-service）                       |
 | 内层 archive `.zip` / `.7z` 的密码 / 加密                                   | 不动用户原本的加密；解压时仍由内层格式自己询问密码                                                     |
 
+### v3 多收件人加密（0.1.9）
+
+`.siz` v3 给内层 `archive.<ext>` payload 加了可选加密层。签名 metadata 的
+信任模型完全不变 —— 加密是叠在签名容器**内部**的，不是包在外面。
+
+- **加密算法**：`gpg --encrypt --recipient <fp> ...`（多收件人公钥加密）
+  **以及/或者** `gpg --symmetric --passphrase-fd 0`（对称口令加密）。组合
+  调用会产生一段可用任一收件人的私钥**或**对称口令解密的密文包。
+- **内层 SHA256 算的是密文，不是明文**。两个后果：
+  1. 没有解密密钥的人（包括被动观察者）也能凭重算密文 SHA256 来校验容器
+     完整性 —— 签名 + SHA 双通过对外部观察者也有意义；
+  2. 攻击者哪怕事后拿到明文，**也没法**用不同的 session key 重新加密做出
+     伪造：gpg 每次加密的 session key 是随机的，重加密一定产生不同字节
+     → SHA 变 → 签名不再匹配。
+- **收件人列表写在签好名的 metadata 里**。这是「**声称**」，但签名锚定了
+  它 —— 攻击者无法在不让签名失效的前提下改写收件人列表。
+- **对称口令以 flag 形式记录**，不记录口令本身。metadata 里写
+  `hasSymmetricPassphrase: true` 通知验证方解密时需要询问口令；口令本身
+  永远不出现在 metadata。
+- **解密 passphrase 走 stdin**（`--passphrase-fd 0`）—— 永远不进命令行，
+  不出现在 `ps` 或活动监视器。
+- **明文生命周期**：`gpg --decrypt` 之后明文落到跟解包同一个
+  `SimpleZip-SIZ-Unwrap-*` 临时目录。`performExtractArchive` 用
+  `defer { try? fileManager.removeItem(at: decryptedSibling) }` 在
+  `ArchiveService.extract` 返回（无论成败）时立刻删掉。
+
+v3 **不**保护什么：
+
+- **被攻陷的收件人**。任意一个收件人的私钥泄露都能还原明文。
+- **弱口令**。对称模式的强度等于口令强度本身。gpg 的 CAST5/AES 默认 +
+  S2K 迭代有帮助，但顶不住字典攻击下的弱口令。
+- **加密前的旁路**。如果明文在加密前就泄露过（cache / swap / 屏幕阅读
+  器），事后加密救不回来。
+
+---
+
+## `.szs` 签名清单格式
+
+`.szs` 是 SimpleZip 的另一个签名数据格式 —— 一份 **GPG clearsign 的 JSON
+清单**，用相对路径 + SHA256 指向**外部**文件。使用场景：发一棵文件树
+（release 工件 / 镜像快照 / 文档集合）+ 旁边一份 `.szs`，接收方同时校验
+签名**和**每个文件的 SHA 跟签名者承诺的值。
+
+### 磁盘格式
+
+```
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+{
+  "schema": "SimpleZip.szs",
+  "version": 1,
+  "createdAt": "2026-05-30T10:23:45Z",
+  "createdBy": "SimpleZip 0.1.9",
+  "title": "MyRelease v3.1",          // 可选
+  "files": [
+    { "relativePath": "LICENSE.txt",
+      "size": 1078, "sha256": "<64 hex>" },
+    ...
+  ]
+}
+-----BEGIN PGP SIGNATURE-----
+...
+-----END PGP SIGNATURE-----
+```
+
+确定性编码：`JSONEncoder([.prettyPrinted, .sortedKeys])` + `files[]` 按
+`relativePath` 字典序排序 —— 同一输入下，clearsign 标记之间的字节是字节
+级一致的，这就是签名锚定的对象。
+
+### 两步验签流程（`SZSArchive.verify`）
+
+1. **签名校验**：`gpg --status-fd 1 --decrypt` 跑 `.szs` 本体（clearsign
+   用 `--decrypt` 提取 body；status fd 报跟 `.siz` 同一套的
+   `GOODSIG / VALIDSIG / TRUST_*` 状态码）。两遍走：用户 keyring +
+   SimpleZip 私有 ring，合并方式跟 `.siz` 完全一致。
+2. **逐文件 SHA256**：解析 JSON body，遍历 `files[]`，对每条解析
+   `<payloadRoot>/<relativePath>` → 流式算 SHA256 → 跟记录值比对。每条
+   分类成 `.match` / `.mismatch` / `.missing` / `.unreadable`。
+
+### 虚拟目录浏览模式
+
+验证 sheet 上的「**作为虚拟目录浏览**」按钮会把 payload root 以普通文件夹
+模式打开，但加一道过滤器，**只允许** `.match` 的条目 + 它们的祖先目录通
+过。SHA 校验失败的（不一致 / 缺失 / 不可读）以及 payload root 里**未被
+清单收录**的额外文件都隐藏 —— 这样用户不会把没验过的文件误当成已验通过
+的内容。地址栏显示 `/path/to/manifest.szs` 来明确「虚拟压缩包」的语境；
+向上走出 payload root 范围时，过滤器自动失效。
+
+### 威胁模型小结（`.szs`）
+
+| 攻击                                                                | 防御                                                                                                            |
+|-------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------|
+| 伪造清单里的 `createdBy` / `title` / `files[]`                          | clearsign body 覆盖标记之间每个字节 → 任何篡改都会让 `gpg --verify` 失败                                                          |
+| 用 `relativePath` 做路径穿越（`../escape.txt`）                           | `validatedRelativePath` 拒绝 `..` / 绝对路径 / Windows 盘符（`C:`）/ UNC（`\\…`）/ 反斜杠 —— 即使签名通过也拒绝（签名者可能已被攻陷） |
+| 把清单引用的文件换成不同字节                                                    | 实际文件 SHA256 不再匹配 → 该条目报 `.mismatch`；虚拟目录过滤器把它排除掉                                                              |
+| 往 payload root 里塞清单没列出的文件                                         | 验签只对清单列出的文件背书；虚拟目录视图只展示已验证文件                                                                                  |
+| 把签名块剥掉                                                            | `gpg --decrypt` 要么失败（无签名）要么返回混合明文 —— 解析出的 `signature` 字段会暴露失败                                                |
+| 用攻击者自己的密钥重签清单                                                     | 签名 fingerprint 暴露给 UI；信任由用户 keyring 决定（跟 `.siz` 同一套 UI）                                                       |
+| 验签过程中明文泄露                                                         | clearsign 的 `gpg --decrypt` 只输出 body；不存在「解密后落盘缓存」的环节                                                          |
+| 用户在 GPG 关闭时打开 `.szs`                                              | `SZSArchive.peek` 要求 gpg；sheet 直接显示错误，不会假装「已验证」                                                               |
+
+### `.szs` **不**保护什么
+
+- **被引用文件的机密性**。`.szs` 只签不加密；被指向的文件仍按用户原样
+  放着。要机密性请用 `.siz` v3（加密的单文件 archive）。
+- **被攻陷的签名者 / 弱 ownertrust** —— 跟 `.siz` 一样的限制。
+- **payload root 范围外的文件** —— 验签只校验清单列出的路径。未被收录的
+  额外文件**不在**验证范围内。
+
+---
+
+## 沿用自 `.siz` 的取舍
+
 ### `.siz` **不**保护什么
 
-- **内层 archive 的机密性**。`.siz` 是签名容器，不是加密容器。要机密性请
-  用内层 archive 自带的加密（比如 `.zip` / `.7z` 的 AES-256）。签名只保证
-  真实性 / 完整性，不保证保密。
+- **内层 archive 的机密性（v2）**。v2 `.siz` 是签名容器，不是加密容器。
+  要机密性请用内层 archive 自带的加密（比如 `.zip` / `.7z` 的 AES-256），
+  或升级到 v3 多收件人加密（上文）。签名只保证真实性 / 完整性，不保证
+  保密。
 - **被攻陷的签名者**。私钥被偷走的签名者可以签出任意能干净校验通过的
   `.siz`。标准 GPG 密钥管理实践（撤销 / 过期 / 硬件密钥）是用户的责任。
 - **信任委托**。`.validSignature(trusted: false)` 表示 gpg 接受了签名但

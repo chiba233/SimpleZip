@@ -316,12 +316,142 @@ files.
 | Old `.siz` v1 (inner-archive-signed) used to bypass metadata sig | `unwrap` rejects `schema != "SimpleZip.siz"` and the encoder's `version != 2` will mismatch                   |
 | User opens `.siz` with GPG disabled in Settings                  | unwrap still works; verify is skipped and no signature UI surfaces (so a missing GPG isn't a denial-of-service) |
 
+### v3 multi-recipient encryption (0.1.9)
+
+`.siz` v3 adds optional encryption of the inner `archive.<ext>` payload. The
+signed-metadata trust model is unchanged — encryption is layered **inside**
+the signed container, not around it.
+
+- **Cipher**: `gpg --encrypt --recipient <fp> ...` (multi-recipient public
+  key) **and/or** `gpg --symmetric --passphrase-fd 0` (symmetric). Combined
+  invocation yields a packet that accepts decryption via any recipient's
+  private key **or** the symmetric password.
+- **Inner SHA256 is the *ciphertext* SHA**, not the plaintext. Two
+  consequences:
+  1. Anyone (including someone without a decryption key) can still verify
+     container integrity by re-hashing the encrypted bytes — sig + SHA
+     passing is meaningful even to a passive observer.
+  2. An attacker who later acquires the plaintext **cannot** re-encrypt with
+     a different session key to produce a forgery: gpg's session key is
+     randomly chosen per encryption, so any re-encryption yields different
+     bytes → SHA changes → signature no longer matches.
+- **Recipient list is in the signed metadata**. It's a *claim*, but the
+  signature commits to it. An attacker cannot retarget the recipient list
+  without invalidating the signature.
+- **Symmetric password presence is a flag**, not the password itself. The
+  metadata records `hasSymmetricPassphrase: true` so verifiers know to ask
+  for a password during decryption; the password never appears in metadata.
+- **Decryption passphrase rides stdin** (`--passphrase-fd 0`) — never on
+  the command line, never in `ps` / Activity Monitor.
+- **Plaintext lifecycle**: after `gpg --decrypt`, plaintext lands in the
+  same `SimpleZip-SIZ-Unwrap-*` tempdir as the unwrap. `performExtractArchive`
+  uses `defer { try? fileManager.removeItem(at: decryptedSibling) }` to
+  remove it as soon as `ArchiveService.extract` returns (success or failure).
+
+What this does **not** protect against:
+
+- **Compromised recipient.** Any recipient's private key recovers the
+  plaintext.
+- **Weak passphrases.** Symmetric mode is only as strong as the passphrase.
+  gpg's CAST5/AES default + S2K iteration helps but doesn't defeat
+  dictionary attacks on weak passwords.
+- **Pre-encryption side channels.** If the plaintext leaked elsewhere
+  before encryption (cache, swap, screen reader), encryption-after-the-fact
+  doesn't help.
+
+---
+
+## `.szs` Signed Manifest Format
+
+`.szs` is SimpleZip's other signed-data format — a **GPG-clearsigned JSON
+manifest** that points at external files by relative path + SHA256. Use
+case: ship a tree of files (release artifacts, mirror snapshot, document
+set) and a single `.szs` next to them; recipients verify both the signature
+*and* each file's SHA against the values the signer committed to.
+
+### On-disk format
+
+```
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+{
+  "schema": "SimpleZip.szs",
+  "version": 1,
+  "createdAt": "2026-05-30T10:23:45Z",
+  "createdBy": "SimpleZip 0.1.9",
+  "title": "MyRelease v3.1",          // optional
+  "files": [
+    { "relativePath": "LICENSE.txt",
+      "size": 1078, "sha256": "<64 hex>" },
+    ...
+  ]
+}
+-----BEGIN PGP SIGNATURE-----
+...
+-----END PGP SIGNATURE-----
+```
+
+Deterministic encoding: `JSONEncoder([.prettyPrinted, .sortedKeys])` +
+`files[]` sorted lexicographically by `relativePath` — the bytes between
+the clearsign markers are byte-identical for the same input, which is what
+the signature commits to.
+
+### Two-step verification (`SZSArchive.verify`)
+
+1. **Signature**: `gpg --status-fd 1 --decrypt` against the `.szs` itself
+   (clearsign uses `--decrypt` for body extraction; status fd surfaces the
+   same `GOODSIG / VALIDSIG / TRUST_*` codes as `.siz`). Two-pass: user
+   keyring + SimpleZip-private ring, merged identically to `.siz`.
+2. **Per-file SHA256**: decode the JSON body, walk `files[]`, for each
+   entry resolve `<payloadRoot>/<relativePath>`, stream-SHA256 it,
+   compare. Each entry classifies as `.match` / `.mismatch` / `.missing`
+   / `.unreadable`.
+
+### Virtual-folder browse mode
+
+The verification sheet's **Browse as virtual folder** action opens the
+payload root in normal folder mode but with a filter that allows **only
+`.match` entries + their ancestor directories**. Files that didn't pass
+SHA verification (mismatched, missing, unreadable) stay hidden so users
+can't mistake an unverified file for a verified one. The address bar shows
+`/path/to/manifest.szs` to keep the framing obvious; walking up past the
+payload root automatically drops the filter.
+
+### Threat-model summary (`.szs`)
+
+| Attack                                                          | Defense                                                                                                  |
+|-----------------------------------------------------------------|----------------------------------------------------------------------------------------------------------|
+| Forge `createdBy` / `title` / `files[]` in the manifest         | Clearsigned body covers every byte between the markers → any tampering breaks `gpg --verify`.            |
+| Path traversal via `relativePath` (`../escape.txt`)             | `validatedRelativePath` rejects `..`, absolute paths, Windows drives (`C:`), UNC (`\\…`), backslashes — even after sig passes (signer might be compromised). |
+| Replace a referenced file with different bytes                  | SHA256 of actual file no longer matches → entry reports `.mismatch`; virtual-folder filter excludes it.   |
+| Sneak unreferenced files into the payload root                  | Verification only attests to listed files. The virtual-folder view only shows verified files.            |
+| Strip the signature block                                       | `gpg --decrypt` either fails (no signature) or returns mixed plaintext — the parsed `signature` field surfaces the failure.|
+| Re-sign manifest with attacker's key                            | The signing fingerprint is exposed; trust is decided by the user's keyring (same UI as `.siz`).         |
+| Plaintext leak during verify                                    | `gpg --decrypt` of clearsign just outputs the body; nothing is decrypted-then-cached on disk.            |
+| User opens `.szs` with GPG disabled                             | `SZSArchive.peek` requires gpg; sheet shows error rather than misleading "verified" status.              |
+
+### What `.szs` does *not* protect against
+
+- **Confidentiality of the referenced files.** `.szs` is sign-only; the
+  files it points at remain as the user laid them out. For confidentiality,
+  use `.siz` v3 (encrypted single archive).
+- **Compromised signer / weak ownertrust** — same caveats as `.siz`.
+- **Files outside the payload root** — the verifier only checks the
+  manifest's listed paths. Unreferenced extras are simply not part of the
+  verification scope.
+
+---
+
+## Inherited from `.siz`
+
 ### What `.siz` does *not* protect against
 
-- **Confidentiality of the inner archive.** `.siz` is a signature container,
-  not encryption. If the user wants confidentiality, they use the inner
-  archive's native encryption (e.g. AES-256 in `.zip` / `.7z`). The signature
-  attests to authenticity / integrity, not secrecy.
+- **Confidentiality of the inner archive (v2).** v2 `.siz` is a signature
+  container, not encryption. If the user wants confidentiality, they use the
+  inner archive's native encryption (e.g. AES-256 in `.zip` / `.7z`), or
+  upgrade to v3 multi-recipient encryption (above). The signature attests to
+  authenticity / integrity, not secrecy.
 - **Compromised signer.** A signer whose private key is stolen can sign
   arbitrary `.siz` containers that verify cleanly. Standard GPG key-management
   practices (revocation, expiry, hardware keys) are the user's responsibility.

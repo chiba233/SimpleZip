@@ -100,7 +100,8 @@ brew install ykman
 | `.gz` / `.bz2` / `.xz`                   | 支持 | 支持 | 支持   | 单文件压缩流                            |
 | `.tgz` / `.tar.gz`                       | 支持 | 支持 | 支持   | 创建走 `/usr/bin/tar`                |
 | `.dmg`                                   | 支持 | 支持 | 支持   | 通过 macOS `hdiutil` 创建和只读挂载        |
-| `.siz`                                   | 支持 | 支持 | 支持   | SimpleZip 独家：GPG 签名单文件容器（tar 壳）  |
+| `.siz`                                   | 支持 | 支持 | 支持   | SimpleZip 独家：GPG 签名单文件容器（tar 壳）；v3 起支持多收件人 + 对称口令加密 |
+| `.szs`                                   | 支持（虚拟目录） | — | 支持   | SimpleZip 独家：GPG 签名清单（clearsign 的 JSON，记录每个文件的 SHA256） —— 不是压缩包 |
 | `.001`、`.z01`、`.r00`、`partN.rar`         | 支持 | 支持 | 暂不支持 | 自动归一化到首卷                          |
 
 ## 打开文件夹和压缩包
@@ -270,6 +271,87 @@ Mos.app/
   滚到视野内。
 
 签名密钥默认从你在「设置 → GPG → 钥匙串」里点过「设为默认」的那把读。
+
+### `.siz` v3 多收件人加密（0.1.9）
+
+`.siz` v3 在签名容器**内部**额外给内层 archive 加一层加密 —— 签名 + 元数据
+的信任模型完全不变，加密只是「**叠在签名容器里面**」的可选层。创建面板上勾
+「**用 GPG 签名（包装成 .siz 容器）**」之后，会多出「加密内层 archive」开关，
+打开后可选三种模式：
+
+- **只用收件人公钥** —— `gpg --encrypt --recipient <fp> ...`。任何持有匹配
+  私钥的收件人都能解开。可以一次填多个 fingerprint，包括你自己的密钥（确保
+  自己以后还能解）。
+- **只用对称口令** —— `gpg --symmetric`。知道这串口令的人都能解开，适合不想
+  / 没法用 GPG 公钥的场景。
+- **组合模式** —— `gpg --symmetric --encrypt --recipient ...`。任一收件人
+  私钥**或**对称口令都能解开，灵活但任一渠道泄露都会让密文可读。
+
+收件人列表（fingerprint + UID）会作为「**声称**」记录在签好名的 metadata
+里，加上一个 `hasSymmetricPassphrase: true` 的标志位（口令本身**永远不**
+进 metadata）。`innerArchiveSHA256` 算的是**密文字节** —— 也就是说，没有
+解密密钥的人也能凭公开的 metadata 校验容器完整性；同时攻击者哪怕事后拿到
+明文，也没法重新加密出 SHA 一致的密文（gpg 每次加密的 session key 随机，
+重新加密一定产生不同字节）。
+
+解包时 SimpleZip 看到内层条目名是 `archive.<ext>.gpg` + metadata 带
+`encryption` 字段，就触发解密流程：调 `gpg --decrypt`，需要 passphrase 时
+通过 stdin（`--passphrase-fd 0`）喂进去，**永远不**作为命令行参数 —— `ps`
+和活动监视器里看不到。解出来的明文落到跟解包同一个临时目录，解压一结束
+立即清理。
+
+详细安全推理见 [SECURITY.zh-CN.md](./SECURITY.zh-CN.md#siz-签名容器格式)。
+
+### `.szs` 签名清单
+
+`.szs` 跟 `.siz` 解决的是不同问题：「**给一棵保持原样放在磁盘上的文件树
+签名**」 —— 发布物（App + LICENSE + README + 校验和）、镜像快照、逐文件
+完整性审计这种场景。`.szs` 是一份 GPG clearsign 的 JSON 清单，跟被签名的
+文件**并排**放在同一个 payload root 下，文件本身不动。
+
+```
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+{ "schema": "SimpleZip.szs", "version": 1,
+  "files": [
+    { "relativePath": "README.md", "size": 1234, "sha256": "abc..." },
+    ...
+  ],
+  ... }
+-----BEGIN PGP SIGNATURE-----
+...
+-----END PGP SIGNATURE-----
+```
+
+**创建**：在文件浏览器里多选要签的文件 / 文件夹，右键 → **创建签名清单…**。
+SimpleZip 递归扫一遍选中项，按 `relativePath` 字典序排序，对每个文件流式算
+SHA256，按确定性 JSON 编码序列化（`sortedKeys + prettyPrinted`），最后用
+你选的私钥 `gpg --clearsign` 包成 `.szs`。默认输出路径是
+`<payloadRoot>/<文件夹名>.szs`，放在签名文件旁边。
+
+**验签**：双击任意 `.szs` 文件，SimpleZip 弹验证 sheet：
+
+1. **签名校验** —— `gpg --status-fd 1 --decrypt` 跑 clearsign body，机器
+   可读状态码（`GOODSIG` / `VALIDSIG` / `TRUST_*`）跟 `.siz` 同一套解析，
+   两遍走（用户 keyring + SimpleZip 私有 ring，跟 `.siz` 一致合并）；
+2. **路径安全检查** —— 即便签名通过，仍对 `relativePath` 做路径穿越拒绝
+   （`..` / 绝对路径 / Windows 盘符 / UNC / 反斜杠）—— 防签名者已被攻陷的
+   场景；
+3. **逐文件 SHA256** —— 对每条记录解析 `<payloadRoot>/<relativePath>`，
+   流式算 SHA256 跟记录值比对。结果分四类：`.match` / `.mismatch` /
+   `.missing` / `.unreadable`，每条带徽标显示；不一致的可以展开看「期望
+   SHA256」对「实际 SHA256」。
+
+**虚拟目录浏览**：验证 sheet 上的「**作为虚拟目录浏览**」按钮会把 payload
+root 当成普通文件夹打开，**但只显示** `.match` 的条目 + 它们的上层目录
+（祖先路径）。不一致 / 缺失 / 不可读的文件，以及 payload root 里没被清单
+列出的「**多余文件**」，都隐藏 —— 这样用户不会把没验过的文件误当成已验
+通过的内容。地址栏显示 `/path/to/manifest.szs`，让「虚拟压缩包」的语境
+明显；从虚拟目录里向上走出 payload root 范围时，过滤器自动失效。
+
+完整格式规范见 [docs/SZS-FORMAT.md](./docs/SZS-FORMAT.md)，威胁模型见
+[SECURITY.zh-CN.md](./SECURITY.zh-CN.md#szs-签名清单格式)。
 
 ## GPG 集成
 
@@ -473,9 +555,12 @@ marginal / full / ultimate（自己的密钥用 ultimate）。
 
 ### 为什么 `.siz` 文件加密了但只有签名？
 
-`.siz` 是签名容器，**不是加密容器**。要加密就用内层 archive 自带的加密
-（ZIP AES-256 / 7z 头加密）。`.siz` v3（0.1.9 计划）会引入 GPG 多收件人
-非对称加密的内层包装。
+`.siz` v2 是签名容器，**不是加密容器**。要加密两种选法：
+
+- 沿用内层 archive 自带的加密（ZIP AES-256 / 7z 头加密）；
+- 用 0.1.9 起的 **`.siz` v3 多收件人加密**：在创建面板里勾「加密内层 archive」，
+  填收件人 fingerprint 或对称口令（也可组合）。详情见
+  [`.siz` v3 多收件人加密](#siz-v3-多收件人加密019)。
 
 ### 为什么分卷压缩包从 Finder 双击不一定进 SimpleZip？
 

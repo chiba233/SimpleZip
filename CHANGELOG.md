@@ -4,6 +4,18 @@
 
 ## 0.1.9
 
+- **Pre-release review fixed 8 bugs** (one full code review pass, all landed before tagging):
+  - **P1** `GPGBackend.verifyClearsign` dropped plaintext in its catch branch — when gpg exits non-zero (BADSIG / NO_PUBKEY), the old version returned `Data()`, so users couldn't even see the manifest contents of a `.szs` with a signature problem. Fix: the catch branch now also runs `extractClearsignPlaintext(from: errorOutput)`, so the verification sheet shows the manifest while still surfacing the signature issue.
+  - **P1** `.szs` "Browse as virtual folder" wasn't filtering to `.match` entries — the old code built `allowedFiles` from the raw manifest's full file list, which meant `.mismatch` / `.missing` / `.unreadable` entries (i.e. files that didn't pass SHA verification) showed up in the virtual view too. Users could mistake them for verified content. Fix: `onOpenAsVirtualFolder` callback now passes the `VerifyReport`, and `model.openSZSAsVirtualFolder` builds `allowedFiles` only from `.match` entries.
+  - **P1** `SIZSignatureSheet` `onOpen` dismissed the sheet before decryption finished — the old code wrote `pendingSIZVerification = nil` outside the Task, so the sheet disappeared immediately. On decryption failure, users had no way to retry from the sheet (change picker / re-enter passphrase); they had to re-open the `.siz` from Finder. Fix: state cleanup moved into the Task's success branch; the failure branch keeps the sheet and just sets `errorMessage`.
+  - **P2** `.siz` v3 recipient picker listed SimpleZip-private ring public keys, but `encrypt` only runs against the user homedir — selecting those keys made gpg fail to find the recipient. Fix: new `encryptionEligibleKeys` filter restricts the picker to `source == .userKeyring`.
+  - **P2** `SZSArchive.swift` was missing from the SwiftPM target sources — `swift test` couldn't reach the .szs path-validation / manifest-parse / SHA-check logic. Fix: added to `Package.swift` sources; 109 tests still pass.
+  - **P2** `SZSVerificationSheet.verifyNow` race — switching `payloadRoot` triggers a second verify Task; if the first one is slow to return, it could overwrite the second's result, leaving the UI inconsistent with the displayed `payloadRoot`. Fix: added a `verifyGeneration: Int` state; Tasks check their captured generation against the current one before writing back.
+  - **P2** `CreateSZSSheet.chooseFiles` didn't clear stale error state — after `rejectedCount > 0` painted the red `statusMessage`, that warning lingered through subsequent successful adds. Fix: clear `statusMessage` + `statusIsError` at the start of `chooseFiles`.
+  - **P2** `.gpg` suffix check was case-sensitive — `.siz` packages built on other platforms (or by hand) might use `archive.zip.GPG`, and the old code would silently skip decryption. Fix: `.lowercased().hasSuffix(".gpg")` everywhere.
+
+
+
 - **`.szs` new feature: "Browse as virtual folder"**
   - The verification sheet gains a "Browse as virtual folder" button at the bottom — clicking it dismisses the sheet and switches the main window into the payload root in folder mode, but **only files referenced by the manifest, plus directories that contain at least one signed file, are shown**; everything else is hidden. The address bar shows a path like `/Users/yumeka/Desktop/Desktop.szs` (via `archiveDisplayOverride = .szs URL`), giving the impression of browsing inside a virtual archive.
   - **Exit semantics**: when the user navigates "Up" past the payload root, `loadFolder` detects it and automatically calls `exitManifestVirtualMode`, returning to the normal Finder-style listing. No explicit exit button required.

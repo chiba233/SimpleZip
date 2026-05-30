@@ -28,6 +28,17 @@ Project page: [github.com/chiba233/SimpleZip](https://github.com/chiba233/Simple
   that travels with its signature attached. The verify path uses
   `gpg --status-fd 1` for locale-stable parsing and does fingerprint strong
   comparison against the metadata's claim.
+- **`.siz` v3 multi-recipient encryption.** Optional GPG-encrypt the inner
+  archive to one or more recipients **and/or** a symmetric passphrase
+  (`gpg --symmetric --encrypt`). Combined mode = either a recipient's private
+  key **or** the password can decrypt. Passphrase rides stdin so it never
+  appears in `ps`.
+- **`.szs` Signed Manifests.** Sign a tree of files without bundling them
+  (`gpg --clearsign` of a JSON manifest containing per-file SHA256s). Files
+  stay in place; the `.szs` travels alongside. SimpleZip can browse the
+  signed file set as a **virtual folder** that hides anything not in the
+  manifest. Right-click any selection of files → **Create Signed Manifest…**
+  to generate one.
 - **GPG key management UI.** Full settings pane for creating, importing,
   exporting, signing, encrypting-style operations, expiration, passphrase
   changes, UIDs, trust levels, smartcard binding, default signing key, and
@@ -66,7 +77,8 @@ Project page: [github.com/chiba233/SimpleZip](https://github.com/chiba233/Simple
 | `.gz` / `.bz2` / `.xz` | ✓ | ✓ | ✓ | Single-file streams |
 | `.tgz` / `.tar.gz` | ✓ | ✓ | ✓ | Create via system `tar` |
 | `.dmg` | ✓ | ✓ | ✓ | Created and mounted via macOS `hdiutil` |
-| `.siz` | ✓ | ✓ | ✓ | SimpleZip GPG-signed container (tar shell) |
+| `.siz` | ✓ | ✓ | ✓ | SimpleZip GPG-signed container (tar shell) — v3 supports multi-recipient + symmetric encryption |
+| `.szs` | ✓ (virtual) | — | ✓ | SimpleZip GPG-signed manifest (clearsigned JSON of per-file SHA256s) — not an archive |
 | `.001` `.z01` `.r00` `partN.rar` | ✓ | ✓ | — | Auto-normalized to the first volume |
 
 ## `.siz` Signed Containers
@@ -99,6 +111,81 @@ Verification (`SIZArchive.verify`):
    `metadata.innerArchiveSHA256`. Mismatch = `badSignature`.
 4. Status codes `EXPKEYSIG` / `REVKEYSIG` / `EXPSIG` propagate as
    "valid signature with concern" (orange UI), not blocking errors.
+
+### v3 multi-recipient encryption (0.1.9)
+
+`.siz` v3 adds optional encryption of the **inner** archive (the signed
+metadata + verification flow stays the same). Three modes:
+
+- **Recipients only** — `gpg --encrypt --recipient <fp> ...`. Anyone with a
+  matching private key decrypts.
+- **Symmetric passphrase only** — `gpg --symmetric`. Anyone with the
+  password decrypts.
+- **Combined** — `gpg --symmetric --encrypt --recipient ...`. Either a
+  recipient's private key **or** the password decrypts.
+
+Metadata records the recipient list (fingerprints + UIDs) as a *claim*
+inside the signed metadata, plus a `hasSymmetricPassphrase` flag (the
+password itself never appears in metadata). The `innerArchiveSHA256` is
+computed over the **encrypted** bytes so anyone with the public manifest can
+verify container integrity without a decryption key (and an attacker can't
+re-encrypt with a different session key to forge a matching SHA).
+
+Unwrap detects the `archive.<ext>.gpg` name + `encryption` field → calls
+`gpg --decrypt` with the user-provided key fingerprint hint and/or
+passphrase. Passphrase rides stdin (`--passphrase-fd 0`) — never visible in
+`ps`. Decrypted plaintext lands in the same tempdir as the unwrap and is
+cleaned up after extract finishes.
+
+## `.szs` Signed Manifests
+
+`.szs` solves a different problem from `.siz`: **"sign a tree of files that
+stays as separate files on disk"** — release drops (app + LICENSE + README +
+checksums), mirror trees, per-file integrity audits. The `.szs` is a single
+GPG-clearsigned JSON manifest you ship alongside the files.
+
+```
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
+{ "schema": "SimpleZip.szs", "version": 1,
+  "files": [
+    { "relativePath": "README.md", "size": 1234, "sha256": "abc..." },
+    ...
+  ],
+  ... }
+-----BEGIN PGP SIGNATURE-----
+...
+-----END PGP SIGNATURE-----
+```
+
+Verifying it (`SZSArchive.verify`):
+
+1. `gpg --status-fd 1 --decrypt` extracts the clearsigned body and signature
+   verdict (two-pass: user keyring + SimpleZip-private ring, same merge as
+   `.siz`).
+2. Decode the JSON manifest. Schema + version + per-path safety checks
+   (rejects `..`, absolute paths, Windows drives, UNC, backslashes — even
+   though the signer signed them).
+3. For each file entry: resolve `<payloadRoot>/<relativePath>`, stream-SHA256
+   it, compare to the recorded hash. Classify as `.match` / `.mismatch` /
+   `.missing` / `.unreadable`.
+
+The verification sheet shows per-file status with badges; mismatches expand
+to reveal expected vs. actual SHA256. The **Browse as virtual folder** button
+opens the payload root in folder mode but **only shows `.match` entries +
+their ancestor directories** — anything mismatched / missing / unreadable
+stays hidden so users can't mistake them for verified content. The address
+bar displays `/path/to/manifest.szs` to make the virtual-archive framing
+obvious.
+
+Right-click any selection in the file browser → **Create Signed Manifest…**
+to generate one. Output defaults to `<payloadRoot>/<folderName>.szs` next to
+the signed files.
+
+See [docs/SZS-FORMAT.md](./docs/SZS-FORMAT.md) for the full format spec and
+[SECURITY.md](./SECURITY.md#szs-signed-manifest-format) for the threat
+model.
 
 ## GPG Integration
 

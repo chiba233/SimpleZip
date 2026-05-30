@@ -918,6 +918,10 @@ enum GPGBackend {
 
     /// 单 ring clearsign 校验：跑 `gpg --decrypt` 拿到 stdout 明文 + stderr / status fd 状态。
     /// 明文比验签状态难拿 —— stdout 跟 status fd 都从 fd 1 出（`--status-fd 1`），需要拆 `[GNUPG:]` 前缀那几行才能得到纯明文。
+    ///
+    /// **catch 分支也提取明文**：gpg 在 BADSIG / NO_PUBKEY 等情况下仍会把 clearsigned body 输出到 stdout（只是 exit code ≠ 0），
+    /// 旧版本直接返回 `Data()` 丢掉明文，导致「未知签名者 / 坏签名的 `.szs` 用户看不到 manifest 内容」—— 应该把签名问题展示给用户但
+    /// **同时允许用户阅读清单**（manifest 内容本身不是机密，是签名背书出问题）。
     private static func clearsignSingleRing(
         tool: String,
         args: [String],
@@ -932,7 +936,9 @@ enum GPGBackend {
                 if case .commandFailed(let text) = archiveError { return text }
                 return nil
             } ?? error.localizedDescription
-            return (parseStatusOutput(errorOutput, exitOk: false), Data())
+            // 关键：errorOutput 里也可能有 clearsigned body —— 用同样的 prefix 过滤抽出来。
+            let plaintext = extractClearsignPlaintext(from: errorOutput)
+            return (parseStatusOutput(errorOutput, exitOk: false), plaintext)
         }
     }
 

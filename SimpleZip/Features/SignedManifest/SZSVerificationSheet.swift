@@ -18,13 +18,19 @@ struct SZSVerificationSheet: View {
     let manifest: SZSArchive.Manifest
     let initialPayloadRoot: URL
     let onClose: () -> Void
-    let onOpenAsVirtualFolder: (URL) -> Void
+    /// 「以虚拟目录浏览」回调 —— 携带验证报告而不是原 manifest。原因：原 manifest 含**所有**文件条目（含
+    /// `.mismatch` / `.missing` / `.unreadable`），把它们直接放进虚拟目录 = 用户看到「这是被签名的内容」但实际没通过 SHA 校验，
+    /// 等于把未验证文件冒充已验证。模型层用 report 的 `.match` 条目集合构建 allowedFiles，只展示真正过的文件。
+    let onOpenAsVirtualFolder: (URL, SZSArchive.VerifyReport) -> Void
 
     @State private var payloadRoot: URL
     @State private var report: SZSArchive.VerifyReport?
     @State private var isVerifying = false
     @State private var verifyError: String?
     @State private var expandedMismatches: Set<String> = []
+    /// 每次 `verifyNow` 自增；Task 写回前 guard 当前 generation 一致，避免「用户切 payloadRoot 触发第二次 verify，
+    /// 第一次因体积大慢到了才回写，覆盖第二次结果」的 race。
+    @State private var verifyGeneration: Int = 0
 
     private let labelColumnWidth: CGFloat = 96
 
@@ -34,7 +40,7 @@ struct SZSVerificationSheet: View {
         manifest: SZSArchive.Manifest,
         initialPayloadRoot: URL,
         onClose: @escaping () -> Void,
-        onOpenAsVirtualFolder: @escaping (URL) -> Void
+        onOpenAsVirtualFolder: @escaping (URL, SZSArchive.VerifyReport) -> Void
     ) {
         self.sourceURL = sourceURL
         self.signature = signature
@@ -61,7 +67,9 @@ struct SZSVerificationSheet: View {
             HStack {
                 Spacer()
                 Button(L10n.text("szs.verify.openAsVirtualFolderButton")) {
-                    onOpenAsVirtualFolder(payloadRoot)
+                    if let report {
+                        onOpenAsVirtualFolder(payloadRoot, report)
+                    }
                 }
                 .disabled(isVerifying || report == nil)
                 Button(L10n.text("szs.verify.dismissButton"), action: onClose)
@@ -384,6 +392,8 @@ struct SZSVerificationSheet: View {
     // MARK: - 校验触发
 
     private func verifyNow() {
+        verifyGeneration += 1
+        let myGen = verifyGeneration
         isVerifying = true
         verifyError = nil
         Task {
@@ -393,11 +403,15 @@ struct SZSVerificationSheet: View {
                     payloadRoot: payloadRoot
                 )
                 await MainActor.run {
+                    // race 防护：用户切了 payloadRoot 又触发一次 verifyNow，
+                    // 旧 Task 慢到了不能覆盖新的 result / 状态。
+                    guard myGen == verifyGeneration else { return }
                     self.report = result
                     self.isVerifying = false
                 }
             } catch {
                 await MainActor.run {
+                    guard myGen == verifyGeneration else { return }
                     self.verifyError = error.localizedDescription
                     self.isVerifying = false
                 }

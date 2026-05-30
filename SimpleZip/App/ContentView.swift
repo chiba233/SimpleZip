@@ -160,13 +160,14 @@ struct ContentView: View {
                 onClose: {
                     pendingSZSVerification = nil
                 },
-                onOpenAsVirtualFolder: { payloadRoot in
+                onOpenAsVirtualFolder: { payloadRoot, report in
                     pendingSZSVerification = nil
                     // 同 `.siz` 的逻辑：sheet 附属主窗口，主窗口本来就 visible —— 别 ensureMainWindowVisible
                     // 把正在 dismissing 的 sheet 又拉回来。
+                    // 传 verifyReport 而不是 peek 的 manifest —— model 内部按 `.match` 条目过滤 allowedFiles。
                     model.openSZSAsVirtualFolder(
                         manifestURL: pending.sourceURL,
-                        manifest: pending.manifest,
+                        verifyReport: report,
                         payloadRoot: payloadRoot
                     )
                 }
@@ -197,10 +198,9 @@ struct ContentView: View {
             SIZSignatureSheet(
                 signature: pending.signature,
                 onOpen: { decryptionKey, decryptionPassphrase in
-                    pendingSIZVerification = nil
-                    // **加密 .siz**：在 model.openArchive 前先解密；sheet 里 picker / SecureField 收到的值优先于 pinentry-mac 兜底。
-                    // 注：不再调 `ensureMainWindowVisible()` —— sheet 附属在主窗口上，主窗口本来就 visible；
-                    // 之前调它会顺带把正在 dismissing 的 sheet `orderFront` 又拉回来，sheet 卡住不消失。
+                    // **关键顺序**：不要在 Task 外清 pendingSIZVerification —— 否则 sheet 立刻 dismiss，解密失败时
+                    // 用户没法在 sheet 里改 picker / 重输 passphrase 重试，必须重 Finder 打开。
+                    // 正确：成功 branch 才 dismiss + openArchive；失败 branch 保留 sheet 让用户重试。
                     Task {
                         do {
                             let urlToOpen = try await decryptInnerArchiveIfNeeded(
@@ -209,10 +209,12 @@ struct ContentView: View {
                                 passphrase: decryptionPassphrase
                             )
                             await MainActor.run {
+                                pendingSIZVerification = nil
                                 model.openArchive(urlToOpen, displayedAs: pending.signature.sourceURL)
                             }
                         } catch {
                             await MainActor.run {
+                                // sheet 保留；只设 errorMessage 让 model alert 弹出来。
                                 model.errorMessage = L10n.format("error.siz.decryptionFailed", error.localizedDescription)
                             }
                         }
@@ -415,12 +417,13 @@ struct ContentView: View {
     /// 否 → 原样返回。
     /// - `decryptionKey` / `passphrase` 为 nil 时让 gpg-agent + pinentry-mac 兜底，二者非 nil 时优先用（loopback 模式）。
     /// - 跟解压路径共用 `SIZArchive.decryptInnerArchive`；这里专门服务 open 流程（SIZSignatureSheet 收完 UI 值再传过来）。
+    /// - 后缀检查 `.lowercased()` 容错：自家 wrap 总小写但跨平台 / 手工拼包的 `.siz` 内层可能写 `archive.zip.GPG` 大写。
     private func decryptInnerArchiveIfNeeded(
         _ innerArchiveURL: URL,
         decryptionKey: String? = nil,
         passphrase: String? = nil
     ) async throws -> URL {
-        guard innerArchiveURL.lastPathComponent.hasSuffix(".gpg") else { return innerArchiveURL }
+        guard innerArchiveURL.lastPathComponent.lowercased().hasSuffix(".gpg") else { return innerArchiveURL }
         return try await SIZArchive.decryptInnerArchive(
             encryptedURL: innerArchiveURL,
             decryptionKeyFingerprint: decryptionKey,

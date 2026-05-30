@@ -4,6 +4,18 @@
 
 ## 0.1.9
 
+- **0.1.9 发版前 Review 修了 8 个 bug**（一轮代码 review，全部赶在 tag 前）：
+  - **P1** `GPGBackend.verifyClearsign` catch 分支丢明文 —— gpg 在 BADSIG / NO_PUBKEY 等情况下 exit code ≠ 0，旧版本直接返回 `Data()`，导致「签名出问题的 `.szs` 用户连 manifest 内容都看不到」。修：catch 分支也跑 `extractClearsignPlaintext(from: errorOutput)` 抽明文，让验证 sheet 仍能展示清单 + 同时把签名问题告诉用户。
+  - **P1** `.szs` 「以虚拟目录浏览」未按 `.match` 条目过滤 —— 旧版本拿原始 manifest 全部条目构建 `allowedFiles`，结果未通过 SHA 校验的 `.mismatch` / `.missing` / `.unreadable` 也进虚拟视图，用户可能把这些**未验证**的文件当成「已验证」内容。修：`onOpenAsVirtualFolder` 回调改传 `VerifyReport`，model.`openSZSAsVirtualFolder` 只从 `.match` 条目构建 `allowedFiles`。
+  - **P1** SIZSignatureSheet onOpen 解密失败 sheet 已 dismiss —— 旧版本 `pendingSIZVerification = nil` 写在 Task 外，sheet 立刻消失；解密失败时用户没法在 sheet 里换 picker / 重输密码重试，只能从 Finder 重新打开 `.siz`。修：清空 sheet state 挪到 Task 成功 branch，失败 branch 保留 sheet + 只设 `errorMessage`。
+  - **P2** `.siz` v3 收件人 picker 列了 SimpleZip 私有 ring 公钥但 encrypt 只跑 user homedir —— 用户选这些公钥时 gpg 找不到 recipient → 加密失败但 UI 看着可选。修：新加 `encryptionEligibleKeys` filter `source == .userKeyring`，picker 只显示 user keyring 的公钥。
+  - **P2** `SZSArchive.swift` 没进 SwiftPM target sources —— swift test 跑不到 .szs 路径校验 / manifest 解析 / SHA 校验等核心逻辑。修：Package.swift 加进 sources，编译通过 109 测试不破。
+  - **P2** SZSVerificationSheet `verifyNow` race —— 用户切 payloadRoot 触发第二次 verify 时，第一次 Task 慢到了可能用旧 result 覆盖新的，UI 跟 payloadRoot 不一致。修：加 `verifyGeneration: Int` state，Task 写回前 guard 当前 generation 没变。
+  - **P2** `CreateSZSSheet.chooseFiles` 错误状态不清 —— rejectedCount > 0 后 statusMessage 红字会一直挂到下次成功添加文件之后也不消失。修：chooseFiles 入口先清 statusMessage + statusIsError。
+  - **P2** `.gpg` 后缀检查 case-sensitive —— 跨平台或手工拼包的 `.siz` 内层若叫 `archive.zip.GPG` 大写后缀，旧版本直接跳过解密。修：`.lowercased().hasSuffix(".gpg")`，提升容错。
+
+
+
 - **`.szs` 新功能：「以虚拟目录浏览」**
   - 验证 sheet 底部多一个按钮「以虚拟目录浏览」—— 点了后退出 sheet，主窗口切到 payload root 文件夹模式，**只显示 manifest 里出现过的文件 + 含至少一个签名文件的祖先目录**，其他没签名的文件 / 文件夹隐藏。地址栏通过 `archiveDisplayOverride = .szs URL` 显示 `/Users/yumeka/Desktop/Desktop.szs` 样路径，假装用户在虚拟压缩包里浏览。
   - **退出语义**：用户「上一级」越过 payload root，`loadFolder` 检测到 → 自动 `exitManifestVirtualMode`，回到正常 Finder listing。不需要额外退出按钮。

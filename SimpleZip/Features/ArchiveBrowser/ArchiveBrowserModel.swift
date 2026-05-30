@@ -95,16 +95,19 @@ final class ArchiveBrowserModel: ObservableObject {
 
     /// 把 `.szs` 打开成虚拟目录。
     /// - `manifestURL`：原 `.szs` 路径（地址栏 / title 显示用）；
-    /// - `manifest`：解析好的 manifest，files[] 用来算 allowedFiles / allowedDirs；
+    /// - `verifyReport`：完整验证报告 —— **只 `.match` 条目**进 allowedFiles。未通过 SHA 校验的 `.mismatch` /
+    ///   `.missing` / `.unreadable` 不进虚拟目录，避免「冒充已验证」误导。
     /// - `payloadRoot`：真实的根目录（通常 = `.szs` 所在目录）。
     func openSZSAsVirtualFolder(
         manifestURL: URL,
-        manifest: SZSArchive.Manifest,
+        verifyReport: SZSArchive.VerifyReport,
         payloadRoot: URL
     ) {
         let standardizedRoot = payloadRoot.standardizedFileURL
-        let allowedFiles: Set<URL> = Set(manifest.files.map { entry in
-            standardizedRoot.appendingPathComponent(entry.relativePath).standardizedFileURL
+        // 只把通过 SHA 校验的条目放进 allowedFiles —— mismatch / missing / unreadable 不进虚拟目录。
+        let allowedFiles: Set<URL> = Set(verifyReport.entries.compactMap { entry -> URL? in
+            guard case .match(let relativePath, _) = entry else { return nil }
+            return standardizedRoot.appendingPathComponent(relativePath).standardizedFileURL
         })
         var allowedDirs: Set<URL> = [standardizedRoot]
         for fileURL in allowedFiles {
@@ -1140,10 +1143,11 @@ final class ArchiveBrowserModel: ObservableObject {
             // `.siz` v3 加密前置：如果是加密的内层 archive（`.gpg` 后缀 + sizSignature 带 encryption），
             // 先用 gpg --decrypt 出明文 sibling 文件，再走原本的 ArchiveService.extract 路径。
             // 用 defer 把解密产物在任务结束时抹掉，避免明文长期留在 /tmp。
+            // **后缀检查 `.lowercased()`**：容错跨平台 / 手工拼包的 `.GPG` 大写。
             let archiveURLForExtract: URL
             let decryptedSiblingToCleanup: URL?
             if request.sizSignature?.encryption != nil,
-               request.archiveURL.lastPathComponent.hasSuffix(".gpg") {
+               request.archiveURL.lastPathComponent.lowercased().hasSuffix(".gpg") {
                 do {
                     archiveURLForExtract = try await SIZArchive.decryptInnerArchive(
                         encryptedURL: request.archiveURL,
