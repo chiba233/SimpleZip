@@ -40,29 +40,64 @@ enum SIZArchive {
     /// schema 标记 —— 跟偏好导入用的 `SimpleZip.preferences` 一个套路，
     /// 让以后增加字段 / 改格式时能用 `version` 升级而不破坏老文件兼容。
     static let schemaIdentifier = "SimpleZip.siz"
-    /// v2 起签名目标改为 metadata.json + 增加 `innerArchiveSHA256` 字段，
-    /// 老 v1 文件（如果有）解包时直接 schema mismatch 拒绝。
-    static let schemaVersion = 2
+    /// 当前 schema 版本 —— **v3** 新加 `encryption` 字段（多收件人 GPG 加密）。
+    /// 版本兼容：unwrap 接受 v2 **或** v3（v3 不带 encryption 字段等同于 v2，向前向后都安全）；
+    /// 创建端总是写 v3。老 v1 文件（如果有）schema mismatch 直接拒绝。
+    static let schemaVersion = 3
+    /// unwrap 时接受的所有 schema 版本号，新版进来时只在这里加一项就行。
+    static let acceptedSchemaVersions: Set<Int> = [2, 3]
 
-    /// `metadata.json` 反序列化产物 —— 描述内层压缩包 + 签名者。
+    /// `metadata.json` 反序列化产物 —— 描述内层压缩包 + 签名者 + （可选）加密信息。
     struct Metadata: Codable, Equatable {
         var schema: String
         var version: Int
-        /// tar 内层 archive 的文件名（含扩展名）—— unwrap 时直接读这一项找它。
+        /// tar 内层 archive 的文件名（含扩展名）——
+        /// 不加密时：`archive.<ext>`（比如 `archive.zip`）；
+        /// 加密时（`encryption != nil`）：`archive.<ext>.gpg`（gpg --encrypt 产物，二进制）。
         var innerArchiveName: String
         /// 内层压缩格式（"zip" / "7z" / "rar" / "tar.gz" / …），UI 展示用。
+        /// 加密时仍是**原始**压缩格式名（即解密后的内层），不是 "gpg"。
         var innerFormat: String
         /// 用户最初想给压缩包起的名字（含扩展名），比如 "MyProject.zip" ——
         /// unwrap 后想还原原始命名时用得上。
         var originalArchiveName: String
-        /// 内层 archive 的 SHA256（hex 小写，64 字符）—— v2 引入，验签时 metadata 通过 gpg 校验后
-        /// 还要重算这个并比对，确保攻击者没把内层 archive 替换成别的内容。
+        /// **内层 archive 的 SHA256（hex 小写，64 字符）**。
+        /// 不加密时 = SHA256 of plaintext archive；
+        /// 加密时 = **SHA256 of encrypted bytes**（即 `archive.<ext>.gpg` 文件本身）。
+        /// 加密态下用密文 SHA 而不是明文 SHA 是关键决策：让没有解密密钥的人也能校验完整性（SHA 跟 sig 一起验通过 = 容器是真的；
+        /// 不解密就不能拿到明文，符合机密性预期）；同时阻止「重加密攻击」—— 攻击者就算有明文也无法生成 SHA 一致的不同密文
+        /// （gpg session key 随机，每次密文不同）。
         var innerArchiveSHA256: String
         /// ISO-8601 创建时间，给 UI 显示「于 X 时签名」用。
         var createdAt: String
         /// 创建端版本，"SimpleZip 0.1.7" 之类，调试 / 兼容性追溯用。
         var createdBy: String
         var signature: SignatureInfo
+        /// 加密信息。**nil = 不加密**（v2 行为完全保留）；非 nil = 多收件人加密。v3 起新增。
+        /// `recipients` 数组的内容是「**主张**」—— 真实加密时实际用了哪些公钥要看 gpg 的 `--list-packets`。
+        /// 不过对验证 / 显示而言，metadata 里这份签了名的清单已经够用：因为整个 metadata 由 gpg 签名背书，
+        /// 攻击者改不了 recipients 列表又不让签名失效。
+        var encryption: EncryptionInfo?
+    }
+
+    /// 加密元信息。出现 = 内层 archive 是 `archive.<ext>.gpg` 形式的 gpg 加密包。
+    /// **解密路径**：本机持有 `recipients` 任一 fingerprint 对应的私钥**或**知道 `hasSymmetricPassphrase` 对应的密码。
+    struct EncryptionInfo: Codable, Equatable {
+        /// 收件人列表 —— 每项是一对 fingerprint + UID 文案。UI 用这个列表显示「加密给：Alice <…>、Bob <…>」。
+        /// 空数组 = 仅对称密码加密。
+        var recipients: [RecipientInfo]
+        /// 加密算法标识。当前固定 "gpg"，留字段方便日后扩展（比如 age）。
+        var algorithm: String
+        /// 是否同时设置了对称密码（`gpg --symmetric`）。
+        /// **密码本身不会出现在 metadata 里**（敏感）—— 这只是个开关让 UI 在解压时显示「需要密码」提示。
+        /// 老 v3 metadata 无此字段 = false（兼容）；这是 Codable 字段，让 JSON 缺这字段时解码不报错。
+        var hasSymmetricPassphrase: Bool? = nil
+    }
+
+    /// 单个收件人信息 —— UID 是「打印用」的，fingerprint 是「定位密钥」的。
+    struct RecipientInfo: Codable, Equatable {
+        var fingerprint: String
+        var userID: String
     }
 
     /// 签名者元信息 —— 从 `gpg --list-keys` 拷过来的展示字段。
@@ -166,6 +201,10 @@ enum SIZArchive {
         guard metadata.schema == schemaIdentifier else {
             throw SIZError.unexpectedSchema(metadata.schema)
         }
+        // v2 / v3 都接受 —— 创建端总是写最新 schemaVersion，unwrap 端兼容历史版本。
+        guard acceptedSchemaVersions.contains(metadata.version) else {
+            throw SIZError.unexpectedSchema("\(metadata.schema) v\(metadata.version)")
+        }
         let innerName = try validatedInnerArchiveName(metadata.innerArchiveName)
         let signatureEntry = try requiredEntry(signatureFileName, in: entries)
         let innerEntry = try requiredEntry(innerName, in: entries)
@@ -246,11 +285,47 @@ enum SIZArchive {
         guard metadata.schema == schemaIdentifier else {
             throw SIZError.unexpectedSchema(metadata.schema)
         }
+        guard acceptedSchemaVersions.contains(metadata.version) else {
+            throw SIZError.unexpectedSchema("\(metadata.schema) v\(metadata.version)")
+        }
         let innerName = try validatedInnerArchiveName(metadata.innerArchiveName)
         _ = try requiredEntry(signatureFileName, in: entries)
         _ = try requiredEntry(innerName, in: entries)
         try validateExpectedContainerComponents(innerArchiveName: innerName, entries: entries)
         return metadata
+    }
+
+    /// **解密**入口 —— 仅在 `metadata.encryption != nil` 时由 caller 调，输出是明文 archive URL。
+    ///
+    /// 内部跑 `GPGBackend.decrypt`，传 `decryptionKeyFingerprint` 作为「优先用哪把私钥」hint（多密钥用户在
+    /// 解压对话框 picker 里挑过的）。明文输出文件名 = 把 `archive.<ext>.gpg` 末尾的 `.gpg` 去掉。
+    /// 调用方负责：在用 unwrap.innerArchiveURL（密文）做完 SHA 校验后再调本函数；明文文件落到同目录。
+    /// 输出 URL 应当跟 unwrap 的 tempRoot 是同一棵临时树，由 caller 的 tempRoot 清理覆盖。
+    static func decryptInnerArchive(
+        encryptedURL: URL,
+        decryptionKeyFingerprint: String? = nil,
+        passphrase: String? = nil,
+        operationID: UUID? = nil
+    ) async throws -> URL {
+        // 把 archive.zip.gpg → archive.zip。坚持「去 .gpg 后缀」不是「去 pathExtension」是因为
+        // pathExtension 不区分大小写、有可能撞 archive.tar.gz.gpg 这种双扩展名场景。
+        let encryptedPath = encryptedURL.path
+        let plaintextPath: String = {
+            if encryptedPath.hasSuffix(".gpg") {
+                return String(encryptedPath.dropLast(4))
+            }
+            // 兜底：没有 `.gpg` 后缀就在原文件名后加 `.plaintext`，避免覆盖输入。
+            return encryptedPath + ".plaintext"
+        }()
+        let plaintextURL = URL(fileURLWithPath: plaintextPath)
+        try await GPGBackend.decrypt(
+            fileURL: encryptedURL,
+            outputURL: plaintextURL,
+            decryptionKeyFingerprint: decryptionKeyFingerprint,
+            passphrase: passphrase,
+            operationID: operationID
+        )
+        return plaintextURL
     }
 
     /// `.siz` 是单文件签名容器。分卷继续使用公开 GPG detached signature 外置 `.asc`，不在容器内半支持。
@@ -375,6 +450,8 @@ enum SIZArchive {
 
     private static func validatedInnerArchiveName(_ name: String) throws -> String {
         let normalized = normalizedContainerPath(name)
+        // 接受 `archive.<ext>`（v2 / v3 不加密）和 `archive.<ext>.gpg`（v3 加密）两种形态。
+        // 共同约束：`archive.` 开头、不含路径分隔符、不撞 metadata / signature 文件名、不可疑路径成分。
         guard normalized == name,
               normalized.hasPrefix("archive."),
               normalized.count > "archive.".count,

@@ -19,9 +19,9 @@ struct ArchiveCreationOptionsView: View {
     @AppStorage(AppPreferences.Key.presetPasswordEnabled) private var presetPasswordEnabled = false
     /// 签名密钥选择策略 —— 跟 GPGPane「默认值」段同步。true = 每次创建时给 picker 让用户挑。
     @AppStorage(AppPreferences.Key.gpgPromptForSigningKey) private var gpgPromptForSigningKey = false
-    /// 用户可用于签名的私钥列表（含智能卡 stub）。GPG 开启 + 后端可用时 onAppear 异步加载。
-    /// 仅 ask 模式用 picker 列；silent 模式不读。
-    @State private var availableSecretKeys: [GPGBackend.GPGKey] = []
+    /// 用户钥匙串里全部 GPG 密钥（含自有私钥 + 他人公钥）。GPG 开启 + 后端可用时 onAppear 异步加载。
+    /// 签名 picker 在 use site 过滤 `hasSecretKey`；收件人 picker 用全部。
+    @State private var availableKeys: [GPGBackend.GPGKey] = []
     /// 预设密码从 Keychain 拉到 view 内，dialog 关闭即丢；不绑定 @AppStorage 是因为 Keychain
     /// 没有 @AppStorage 等价物，而且业务侧也只需要打开时的快照。
     @State private var presetPassword = ""
@@ -338,6 +338,10 @@ struct ArchiveCreationOptionsView: View {
                                 signingKeyPickerRow
                                     .id("gpgSignAnchor") // scrollProxy 滚到这里，避免 picker 在 ScrollView 底部看不见
                             }
+                            // GPG 加密相关设置 —— 收件人 picker + 对称密码（互不排斥，可以都设）。
+                            // 二者都空 = 仅签名不加密（v2 行为）；任一非空 = 内层 archive 走 gpg 加密 → archive.<ext>.gpg。
+                            recipientsRow
+                            encryptionPassphraseRow
                         }
                     }
                 }
@@ -419,15 +423,104 @@ struct ArchiveCreationOptionsView: View {
             if !defaultFp.isEmpty && request.options.gpgSigningKeyFingerprint.isEmpty {
                 request.options.gpgSigningKeyFingerprint = defaultFp
             }
-            // 加载可签名密钥列表，仅在 GPG 启用 + 后端可用时；失败静默忽略（picker 显示「让 GPG 自动选」单项）。
+            // 加载钥匙串（含自有私钥 + 他人公钥）。GPG 启用 + 后端可用时跑；失败静默忽略 picker 退化到「让 GPG 自动选」/「无可选收件人」。
             if AppPreferences.gpgEnabled && GPGBackend.isAvailable() {
                 Task { @MainActor in
                     if let loaded = try? await GPGBackend.listKeys() {
-                        availableSecretKeys = loaded.filter { $0.hasSecretKey }
+                        availableKeys = loaded
                     }
                 }
             }
         }
+    }
+
+    /// 收件人 picker 行 —— GPG 签名勾上时显示。当前选中的收件人以 chip 形式横列；右侧 Menu 按钮可点开添加新收件人。
+    /// 多次点击 Menu 累加多个收件人；chip 上的 × 移除单个。0 收件人 = 「未加密」（除非另设了对称密码）。
+    @ViewBuilder
+    private var recipientsRow: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(L10n.text("archive.gpgEncrypt.recipientsLabel"))
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                Menu {
+                    if availableKeys.isEmpty {
+                        Text(L10n.text("archive.gpgEncrypt.noKeysInRing"))
+                    } else {
+                        ForEach(availableKeys) { key in
+                            Button {
+                                toggleRecipient(key.fingerprint)
+                            } label: {
+                                HStack {
+                                    Image(systemName: request.options.gpgRecipientFingerprints.contains(key.fingerprint) ? "checkmark.circle.fill" : "circle")
+                                    Text("\(key.userID) · \(key.shortFingerprint)")
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    Text(L10n.text("archive.gpgEncrypt.addRecipient"))
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+                Spacer()
+            }
+            if !request.options.gpgRecipientFingerprints.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(request.options.gpgRecipientFingerprints, id: \.self) { fp in
+                            recipientChip(fp)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(.leading, 18)
+    }
+
+    @ViewBuilder
+    private func recipientChip(_ fingerprint: String) -> some View {
+        let key = availableKeys.first(where: { $0.fingerprint == fingerprint })
+        HStack(spacing: 4) {
+            Text(key.map { "\($0.userID) · \($0.shortFingerprint)" }
+                ?? L10n.format("archive.gpgEncrypt.unknownRecipient", String(fingerprint.suffix(16))))
+                .font(.caption2)
+                .lineLimit(1)
+                .truncationMode(.middle)
+            Button {
+                request.options.gpgRecipientFingerprints.removeAll { $0 == fingerprint }
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
+        .background(Color.accentColor.opacity(0.12))
+        .clipShape(Capsule())
+    }
+
+    private func toggleRecipient(_ fingerprint: String) {
+        if let idx = request.options.gpgRecipientFingerprints.firstIndex(of: fingerprint) {
+            request.options.gpgRecipientFingerprints.remove(at: idx)
+        } else {
+            request.options.gpgRecipientFingerprints.append(fingerprint)
+        }
+    }
+
+    /// 对称加密密码 SecureField —— 跟收件人 picker **互不排斥**。空 = 不用对称密码加密。
+    @ViewBuilder
+    private var encryptionPassphraseRow: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text(L10n.text("archive.gpgEncrypt.passphraseLabel"))
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+            SecureField(L10n.text("archive.gpgEncrypt.passphrasePlaceholder"), text: $request.options.gpgSymmetricPassphrase)
+                .textFieldStyle(.roundedBorder)
+        }
+        .padding(.leading, 18)
     }
 
     /// 签名密钥 picker —— ask 模式下显示在「用 GPG 签名」复选框正下方。
@@ -442,9 +535,10 @@ struct ArchiveCreationOptionsView: View {
                 Button(L10n.text("archive.gpgSign.key.auto")) {
                     request.options.gpgSigningKeyFingerprint = ""
                 }
-                if !availableSecretKeys.isEmpty {
+                let secretKeys = availableKeys.filter { $0.hasSecretKey }
+                if !secretKeys.isEmpty {
                     Divider()
-                    ForEach(availableSecretKeys) { key in
+                    ForEach(secretKeys) { key in
                         Button("\(key.userID) · \(key.shortFingerprint)") {
                             request.options.gpgSigningKeyFingerprint = key.fingerprint
                         }
@@ -467,7 +561,7 @@ struct ArchiveCreationOptionsView: View {
         if fp.isEmpty {
             return L10n.text("archive.gpgSign.key.auto")
         }
-        if let matched = availableSecretKeys.first(where: { $0.fingerprint == fp }) {
+        if let matched = availableKeys.first(where: { $0.fingerprint == fp && $0.hasSecretKey }) {
             return "\(matched.userID) · \(matched.shortFingerprint)"
         }
         // String(...) 包一层避免 Substring → CVarArg 的 printf 序列化 bug（之前掉过的坑）。

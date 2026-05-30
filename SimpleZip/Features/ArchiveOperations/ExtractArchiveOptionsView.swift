@@ -32,10 +32,15 @@ struct ExtractArchiveOptionsView: View {
                 SIZSignatureRows(signature: signature)
             }
             // GPG 解密密钥 picker —— **仅 `.siz` 解压时显示**。
-            // 因为只有 SimpleZip 专有 `.siz` v3（0.1.9）会用 GPG 多收件人加密内层 archive；
+            // 因为只有 SimpleZip 专有 `.siz` v3 会用 GPG 多收件人加密内层 archive；
             // 通用 zip / 7z / rar / tar 等格式不支持 GPG 非对称加密，picker 出现是噪音。
             if isSizExtract && AppPreferences.gpgEnabled && GPGBackend.isAvailable() {
                 gpgDecryptionKeyRow
+                // 加密 .siz 且带对称密码时，多一个 SecureField 让用户填 GPG 解密密码。
+                // 0.1.9 的关键 UX：跟内层 ZIP/7z 的加密密码（password 字段）**完全独立** —— 它俩可能是两份不同密码。
+                if request.sizSignature?.encryption?.hasSymmetricPassphrase == true {
+                    gpgDecryptionPassphraseRow
+                }
             }
         }
         .frame(width: 540)
@@ -83,6 +88,16 @@ struct ExtractArchiveOptionsView: View {
             .menuStyle(.borderlessButton)
             .fixedSize()
             Spacer()
+        }
+    }
+
+    /// `.siz` v3 对称加密的密码输入。和「内层 ZIP/7z 解压密码」独立 —— 用户的两份密码通常不一样。
+    @ViewBuilder
+    private var gpgDecryptionPassphraseRow: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text(L10n.text("extract.gpgDecryptionPassphrase.label"))
+            SecureField(L10n.text("extract.gpgDecryptionPassphrase.placeholder"), text: $request.gpgDecryptionPassphrase)
+                .textFieldStyle(.roundedBorder)
         }
     }
 

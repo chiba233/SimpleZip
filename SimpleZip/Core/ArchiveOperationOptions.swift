@@ -342,6 +342,13 @@ struct ArchiveCreationOptions {
     var gpgSign = false
     /// 签名时用哪把私钥（fingerprint）。空字符串 → 让 gpg 用 default-key。
     var gpgSigningKeyFingerprint = ""
+    /// `.siz` v3 多收件人加密：每个 fingerprint = 一个能解密的他人公钥。
+    /// 空数组 = 不走公钥加密（但仍可走对称密码加密）。仅在 `gpgSign == true` 时有意义；纯创建 zip / 7z 不消费。
+    var gpgRecipientFingerprints: [String] = []
+    /// `.siz` v3 对称密码加密（gpg --symmetric）—— 跟公钥加密**互不排斥**：
+    /// 二者都给时，任一收件人私钥**或**密码都能解；仅给密码 = 纯 symmetric；仅给收件人 = 纯公钥加密；都空 = 不加密。
+    /// 仅 `gpgSign == true` 时有意义；密码本身不会写进 metadata，只有「是否有 symmetric passphrase」flag 进 metadata。
+    var gpgSymmetricPassphrase: String = ""
 }
 
 /// 创建压缩包的待确认请求。
@@ -367,9 +374,12 @@ struct ExtractArchiveRequest: Identifiable {
     /// 跟签名 sheet 共用同一份 model，UI 状态全部从 `verify`（GPG 原始枚举）派生。
     var sizSignature: SIZSignatureSummary? = nil
     /// 用户指定的解密私钥 fingerprint。空字符串 = 让 gpg 自己挑（默认）。
-    /// 0.1.8 UI picker 已就位（多密钥用户可以提前选好），但 0.1.8 没有 GPG 加密的压缩包格式，
-    /// 字段暂时不被消费；0.1.9 的 `.siz` v3 多收件人加密会真正用上。
+    /// 0.1.9 `.siz` v3 加密引入后开始被消费：传给 gpg `--local-user` 作为「优先用哪把私钥」hint。
     var gpgDecryptionKeyFingerprint: String = ""
+    /// 用户输入的对称密码 —— `.siz` v3 symmetric 模式的解密密码（仅 `sizSignature?.encryption?.hasSymmetricPassphrase == true` 时 UI 显示）。
+    /// 空 = 不传，让 gpg-agent + pinentry-mac 弹原生密码框（公钥模式或 agent 没缓存的常规路径）。
+    /// 走 stdin，不进 ps。跟 `.password`（内层 ZIP/7z 的加密密码）独立。
+    var gpgDecryptionPassphrase: String = ""
 }
 
 /// `.siz` 签名信息摘要 —— 解压对话框、签名 sheet 共用同一份。
@@ -385,6 +395,9 @@ struct SIZSignatureSummary: Equatable {
     let signedAt: String
     /// GPG 原始验签结果 —— 唯一状态来源。
     let verify: GPGBackend.GPGVerifyResult
+    /// `.siz` v3 加密元信息 —— nil = 未加密（v2 兼容 / v3 仅签名）；非 nil = 内层 archive 是 gpg 加密包。
+    /// UI 用此字段决定是否在解压对话框显示「解密密码」字段、是否展示「加密给：Alice、Bob」收件人列表。
+    let encryption: SIZArchive.EncryptionInfo?
 }
 
 /// ZIP 解密方式。实际 ZIP 文件会记录具体算法；选择项用于决定兼容解压路径。

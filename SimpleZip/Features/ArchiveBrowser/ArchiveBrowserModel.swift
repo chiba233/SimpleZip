@@ -835,24 +835,68 @@ final class ArchiveBrowserModel: ObservableObject {
             defer { try? fileManager.removeItem(at: staging) }
 
             let innerExtension = request.options.format.pathExtension
-            let innerName = "archive.\(innerExtension)"
-            let innerURL = staging.appendingPathComponent(innerName)
+            let plaintextInnerName = "archive.\(innerExtension)"
+            let plaintextInnerURL = staging.appendingPathComponent(plaintextInnerName)
 
             // Step 1：跑原本的 createArchive，目标改成 staging 里的 inner archive。
             var innerOptions = request.options
             innerOptions.gpgSign = false
             innerOptions.gpgSigningKeyFingerprint = ""
+            innerOptions.gpgRecipientFingerprints = []
             try await ArchiveService.createArchive(
                 from: request.sourceURLs,
-                destination: innerURL,
+                destination: plaintextInnerURL,
                 options: innerOptions,
                 operationID: operationID,
                 progress: progress,
                 outputObserver: outputObserver
             )
 
-            // Step 2：先组装 metadata（含 inner archive SHA256），签的是 metadata.json 不是 inner archive。
-            // 这样篡改 metadata 任何字段都会让 gpg 验签失败；篡改 inner archive 会让 SHA 对不上。
+            // Step 2：（可选）多收件人加密 + / 或对称密码。SimpleZip v3 行为：
+            // - 收件人 + 密码都空 → innerURL 仍是明文 archive，innerName 是 archive.<ext>（v2 兼容）；
+            // - 任一非空 → 跑 gpg --[encrypt -r ...] [--symmetric --passphrase-fd 0] → archive.<ext>.gpg；innerName 跟着改。
+            // 加密产物覆盖到 staging 后，明文 archive 立即删除（不留在临时目录里给攻击者捡）。
+            let recipients = Array(Set(request.options.gpgRecipientFingerprints)).filter { !$0.isEmpty }
+            let symmetricPassphrase = request.options.gpgSymmetricPassphrase.isEmpty
+                ? nil
+                : request.options.gpgSymmetricPassphrase
+            let willEncrypt = !recipients.isEmpty || symmetricPassphrase != nil
+            let innerURL: URL
+            let innerName: String
+            let encryptionInfo: SIZArchive.EncryptionInfo?
+            if !willEncrypt {
+                innerURL = plaintextInnerURL
+                innerName = plaintextInnerName
+                encryptionInfo = nil
+            } else {
+                let encryptedName = plaintextInnerName + ".gpg"
+                let encryptedURL = staging.appendingPathComponent(encryptedName)
+                try await GPGBackend.encrypt(
+                    fileURL: plaintextInnerURL,
+                    recipients: recipients,
+                    symmetricPassphrase: symmetricPassphrase,
+                    outputURL: encryptedURL,
+                    operationID: operationID
+                )
+                // 把明文从临时目录抹掉，最小化在磁盘上停留时间。
+                try? FileManager.default.removeItem(at: plaintextInnerURL)
+                // 把每个 recipient fingerprint 反查 keyring 拿 UID，metadata 里同时记 fp + UID 给 UI 显示。
+                // listKeys 失败时 fall back 到「只有 fingerprint，没有 UID」的占位 RecipientInfo —— metadata 仍合法。
+                let allKeys = recipients.isEmpty ? [] : ((try? await GPGBackend.listKeys()) ?? [])
+                let recipientInfos: [SIZArchive.RecipientInfo] = recipients.map { fp in
+                    let uid = allKeys.first(where: { $0.fingerprint == fp })?.userID ?? ""
+                    return SIZArchive.RecipientInfo(fingerprint: fp, userID: uid)
+                }
+                innerURL = encryptedURL
+                innerName = encryptedName
+                encryptionInfo = SIZArchive.EncryptionInfo(
+                    recipients: recipientInfos,
+                    algorithm: "gpg",
+                    hasSymmetricPassphrase: symmetricPassphrase != nil ? true : nil
+                )
+            }
+
+            // Step 3：组装 metadata（含 inner SHA256；加密时 SHA 是**密文** SHA），签的是 metadata.json。
             // 选签名密钥的优先级：
             // 1) 用户在创建对话框 ask 模式里挑的密钥（options.gpgSigningKeyFingerprint，create sheet 默认 seed 到 prefs 默认值）
             // 2) AppPreferences.gpgDefaultSigningKeyFingerprint —— 给非对话框入口（Finder Sync 等）走默认
@@ -882,10 +926,11 @@ final class ArchiveBrowserModel: ObservableObject {
                     signerFingerprint: signerKey?.fingerprint ?? "",
                     signerUserID: signerKey?.userID ?? "",
                     armorFormat: true
-                )
+                ),
+                encryption: encryptionInfo
             )
 
-            // Step 3：把 metadata 落到 staging（用同一个确定性 encoder 让 wrap 和签名字节一致），
+            // Step 4：把 metadata 落到 staging（用同一个确定性 encoder 让 wrap 和签名字节一致），
             // 然后 gpg detached sign。gpg-agent + pinentry-mac 弹密码框，我们不碰 passphrase。
             let metadataForSigning = staging.appendingPathComponent(SIZArchive.metadataFileName)
             try SIZArchive.encodeMetadata(metadata).write(to: metadataForSigning, options: .atomic)
@@ -895,7 +940,7 @@ final class ArchiveBrowserModel: ObservableObject {
                 operationID: operationID
             )
 
-            // Step 4：tar wrap 成 .siz。wrap 内部会再次 encode 同一个 metadata，字节跟我们刚签的一致。
+            // Step 5：tar wrap 成 .siz。wrap 内部会再次 encode 同一个 metadata，字节跟我们刚签的一致。
             try await SIZArchive.wrap(
                 innerArchive: innerURL,
                 signatureFile: signatureURL,
@@ -969,6 +1014,34 @@ final class ArchiveBrowserModel: ObservableObject {
             let stagingURL = try self.extractionCoordinator.makeExtractionStagingDirectory()
             defer { try? self.fileManager.removeItem(at: stagingURL) }
 
+            // `.siz` v3 加密前置：如果是加密的内层 archive（`.gpg` 后缀 + sizSignature 带 encryption），
+            // 先用 gpg --decrypt 出明文 sibling 文件，再走原本的 ArchiveService.extract 路径。
+            // 用 defer 把解密产物在任务结束时抹掉，避免明文长期留在 /tmp。
+            let archiveURLForExtract: URL
+            let decryptedSiblingToCleanup: URL?
+            if request.sizSignature?.encryption != nil,
+               request.archiveURL.lastPathComponent.hasSuffix(".gpg") {
+                do {
+                    archiveURLForExtract = try await SIZArchive.decryptInnerArchive(
+                        encryptedURL: request.archiveURL,
+                        decryptionKeyFingerprint: request.gpgDecryptionKeyFingerprint.isEmpty ? nil : request.gpgDecryptionKeyFingerprint,
+                        passphrase: request.gpgDecryptionPassphrase.isEmpty ? nil : request.gpgDecryptionPassphrase,
+                        operationID: operationID
+                    )
+                    decryptedSiblingToCleanup = archiveURLForExtract
+                } catch {
+                    throw ArchiveError.commandFailed(L10n.format("error.siz.decryptionFailed", error.localizedDescription))
+                }
+            } else {
+                archiveURLForExtract = request.archiveURL
+                decryptedSiblingToCleanup = nil
+            }
+            defer {
+                if let toCleanup = decryptedSiblingToCleanup {
+                    try? self.fileManager.removeItem(at: toCleanup)
+                }
+            }
+
             let backendOverwriteBehavior = AppPreferences.overwriteBehavior == .skipExisting ? OverwriteBehavior.skipExisting : .overwrite
             var password = request.password
             var zipDecryptionMethod = request.zipDecryptionMethod
@@ -981,7 +1054,7 @@ final class ArchiveBrowserModel: ObservableObject {
                 do {
                     if !didCheckSafety {
                         try await self.confirmArchiveExtractionSafety(
-                            archiveURL: request.archiveURL,
+                            archiveURL: archiveURLForExtract,
                             password: password,
                             force: force
                         )
@@ -990,7 +1063,7 @@ final class ArchiveBrowserModel: ObservableObject {
                     try? self.fileManager.removeItem(at: stagingURL)
                     try self.fileManager.createDirectory(at: stagingURL, withIntermediateDirectories: true)
                     try await ArchiveService.extract(
-                        request.archiveURL,
+                        archiveURLForExtract,
                         to: stagingURL,
                         overwriteBehavior: backendOverwriteBehavior,
                         password: password,
@@ -1007,7 +1080,7 @@ final class ArchiveBrowserModel: ObservableObject {
                         throw error
                     }
                     guard let authentication = self.promptForArchivePassword(
-                        archiveURL: request.archiveURL,
+                        archiveURL: archiveURLForExtract,
                         displayName: request.archiveURL.lastPathComponent,
                         detectedZipEncryption: request.detectedZipEncryption,
                         isRetry: isRetry,

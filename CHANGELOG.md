@@ -2,6 +2,43 @@
 
 # Changelog
 
+## 0.1.9
+
+- **`.siz` v3 encryption: multi-recipient public-key + optional symmetric passphrase + decryption picker actually wired**
+  - **Format extension**: `SIZArchive.schemaVersion = 3` (unwrap accepts v2 *and* v3 for backward compatibility). `Metadata` gains an optional `encryption: EncryptionInfo?`:
+    - `recipients: [{fingerprint, userID}]` — recipients list for public-key encryption (empty array = symmetric-only);
+    - `algorithm: "gpg"` — algorithm identifier;
+    - `hasSymmetricPassphrase: Bool?` — **flag** indicating a symmetric password is also set; the password itself is **never** written to metadata (sensitive data does not get signed into the container).
+  - **Create flow (featureful)**: checking "Sign with GPG" reveals two new UI groups below the signing row:
+    - **"Encrypt to recipients"** — Menu picker, lists all public keys in the keyring (including your own), multiple clicks accumulate selections; selected items render as horizontal chips with an × to remove. 0 = no public-key encryption.
+    - **"Encryption passphrase (optional)"** — SecureField. **Combinable** with recipient keys (gpg `--symmetric --encrypt` simultaneously) — either a recipient's private key *or* the correct passphrase can decrypt. Leaving both blank = no encryption (v2 sign-only behavior preserved).
+  - **Backend**: `GPGBackend.encrypt` runs `gpg --batch --yes [--symmetric --pinentry-mode loopback --passphrase-fd 0] [--encrypt -r <fp> ...] --trust-model always --output <out> <in>` in a single invocation. Passphrase goes via stdin so it **never appears in `ps`**; recipient fingerprints go on the command line (fingerprints aren't sensitive). `--trust-model always` lets unverified third-party public keys still be picked as recipients — the user has already explicitly selected them through the UI, no need for ownertrust to gate the action.
+  - **Metadata SHA256 = SHA of the encrypted blob** (not the plaintext). This lets verifiers without a decryption key still check container integrity (signature + SHA passing = container is genuine and untampered), and defeats the "re-encrypt" attack (gpg's session key is random — each ciphertext differs).
+  - **Decryption flow**:
+    - **Extract path**: `ExtractArchiveOptionsView`'s "Decryption key" picker (UI shipped in 0.1.8) now actually consumes `request.gpgDecryptionKeyFingerprint` and feeds it to `gpg --local-user` as a hint; a new **"GPG decryption passphrase"** SecureField is shown only when `sizSignature.encryption.hasSymmetricPassphrase == true`, and is **completely independent** from the inner ZIP/7z archive's password field. `ArchiveBrowserModel.performExtractArchive` detects `.gpg` suffix + `sizSignature.encryption` → calls `SIZArchive.decryptInnerArchive` to produce a plaintext sibling file, then runs the regular `ArchiveService.extract`; the plaintext is removed in a `defer` so it doesn't linger in `/tmp`.
+    - **Open path** (browser mode): `handleSIZOpen` / the SIZSignatureSheet's `onOpen` calls `decryptInnerArchiveIfNeeded` before `model.openArchive`. If the suffix is `.gpg`, it runs `GPGBackend.decrypt` and lets pinentry-mac handle the passphrase prompt (public-key mode + agent cache is the common path); decryption failures surface as a clear error message.
+  - **Backend fallback fix**: `gpgDecryptionKeyFingerprint` was a UI-only placeholder in 0.1.8 — in 0.1.9 it actually reaches `gpg --local-user`. Multi-key users' picker selections are now genuinely respected.
+
+- **`.szs` Signed Manifest format v1 design document** (`docs/SZS-FORMAT.md`)
+  - New format: **one signed JSON manifest + N external files staying in place** — complementary to `.siz` (single-file container). Use cases: release drops (app + LICENSE + README + checksums.txt), mirror trees, per-file integrity verification.
+  - Form on disk: a **GPG clearsigned message** (output of `gpg --clearsign`). `cat foo.szs` shows the JSON, `gpg --verify foo.szs` verifies in one shot — single file, no sidecar `.sig`.
+  - Schema: `{schema: "SimpleZip.szs", version: 1, createdAt, files: [{relativePath, size, sha256, mediaType?}], …}`. The `files` array is lexicographically sorted by `relativePath` (precondition for deterministic signatures). No directory entries, no symlinks, no mode bits, no mtime.
+  - Verification report: `SZSVerifyReport { signature, manifest, entries: [.match | .mismatch | .missing | .unreadable], summary }`. The UI renders it as a table; mismatched rows expand to show expected vs. actual SHA256.
+  - **Encryption deliberately deferred** — `.szs` v1 is sign-only. Encryption use cases are served by `.siz` v3 (single-archive, multi-recipient); mixing encryption into a per-file manifest introduces too many edge cases.
+  - Implementation phased: part 1 (design doc) = this commit; part 2 (Core `SZSArchive`) / part 3 (GPG clearsign integration) / part 4 (UI mode + verification report view) / part 5 (create dialog + file picker) / part 6 (UTI + Finder Sync entry) follow in subsequent sessions.
+
+- **Bug fix (regression from 0.1.8): Sparkle "Check for Updates" said "you're up to date", 0.1.7 users could never receive the 0.1.8 upgrade prompt**
+  - Symptom: from a 0.1.7 install, the menu "Check for Updates" reported "SimpleZip 0.1.7 is the current latest version (you're running 0.1.7 (1))" — completely wrong; the appcast was already on 0.1.8.
+  - Root cause: 0.1.8's build script changed `CURRENT_PROJECT_VERSION` to the marketing string `RELEASE_VERSION` ("0.1.8"), and the appcast also wrote `sparkle:version="0.1.8"`. But 0.1.7 users' local `CFBundleVersion` is a small build_number integer. Sparkle's `SUStandardVersionComparator` split them as `[1]` vs `[0,1,8]` and compared component-by-component — first component `1>0` → Sparkle considered local newer than feed → permanently "up to date".
+  - Fix: **set both `CFBundleVersion` and `sparkle:version` back to a monotonic integer (`BUILD_NUMBER` / `GITHUB_RUN_NUMBER`)**, marketing strings go only into `sparkle:shortVersionString` (display). Both sides of Sparkle's comparison are now single integers, unambiguous forever.
+  - Impact: 0.1.7 users will see the upgrade once 0.1.9 ships. **Current 0.1.8 users have the same trap** (local `CFBundleVersion="0.1.8"` vs next release's `sparkle:version=BUILD_NUMBER` will still come out as "feed newer") — both 0.1.7 and 0.1.8 users can recover via 0.1.9 and resume normal Sparkle flow afterwards.
+  - Files changed: `scripts/build_unsigned_dmg.sh` (comment + revert to BUILD_NUMBER), `.github/workflows/release.yml` (appcast template `sparkle:version` reverts to `${BUILD_NUMBER}`, BUILD_NUMBER added to step env).
+
+- **Bug fix (regression from 0.1.8): the Settings window mysteriously popped up when opening a `.siz` file**
+  - Symptom: after the user opens "Settings" once and closes it, any subsequent `.siz` open causes the Settings window to spontaneously appear.
+  - Root cause: `ContentView.ensureMainWindowVisible()` naively iterated `NSApp.windows` and `orderFront`'d every `!isVisible` window. SwiftUI's Settings scene window persists in `NSApp.windows` after close (just hidden), so it got pulled forward along with the main archive window. Sparkle's update window / the About panel would hit the same trap.
+  - Fix: added `isAuxiliaryWindow(_:)` doing a substring match (identifier / title containing "settings" / "preferences" / "sparkle" / "update" / "about" plus their localized titles) and excluded those from `ensureMainWindowVisible`'s iteration. `hideMainWindowIfPossible` left untouched (only called from the Finder auto-extract non-.siz path; not part of the .siz trigger chain).
+
 ## 0.1.8
 
 - **Multi-key user friendly: signing-key / decryption-key pickers (choose which private key at create and extract time)**

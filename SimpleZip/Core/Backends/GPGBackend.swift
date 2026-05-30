@@ -779,6 +779,94 @@ enum GPGBackend {
         return try await BackendProcessRunner.runAndCapture(tool, arguments: args)
     }
 
+    /// 加密任意文件 —— `.siz` v3 内层 archive 加密的后端入口。
+    ///
+    /// **三种组合**：
+    /// - 仅收件人公钥（`recipients` 非空 + `symmetricPassphrase` 为 nil）→ 持有任一收件人对应私钥的人能解；
+    /// - 仅对称密码（`recipients` 为空 + `symmetricPassphrase` 非 nil）→ 知道密码的人能解；
+    /// - 二者都给 → 「任一私钥**或**密码」都能解（`gpg --symmetric --encrypt --passphrase-fd 0 -r ...`）。
+    ///
+    /// passphrase 走 stdin（`--passphrase-fd 0`），**不进 ps 输出**；recipients 是 fingerprint 直接放命令行（fingerprint 本就不是机密）。
+    /// 输出是二进制（不带 `--armor`）—— `.siz` 内层 archive 已经是压缩态，再 ASCII armor 一次只让体积变大。
+    static func encrypt(
+        fileURL: URL,
+        recipients: [String],
+        symmetricPassphrase: String? = nil,
+        outputURL: URL,
+        useSimpleZipKeyring: Bool = false,
+        operationID: UUID? = nil
+    ) async throws {
+        let normalizedPassphrase = symmetricPassphrase?.isEmpty == false ? symmetricPassphrase : nil
+        guard !recipients.isEmpty || normalizedPassphrase != nil else {
+            // 收件人列表空 + 没密码 → 没人能解。调用方 UI 应该在前面拦住，到这里属编程错。
+            throw ArchiveError.commandFailed("encrypt called with no recipients and no passphrase")
+        }
+        let tool = try resolve()
+        try? FileManager.default.removeItem(at: outputURL)
+        var arguments: [String] = ["--batch", "--yes"]
+        if useSimpleZipKeyring {
+            arguments.insert(contentsOf: simpleZipKeyringArguments(), at: 0)
+        }
+        if normalizedPassphrase != nil {
+            // `--symmetric` 加 `--passphrase-fd 0` —— 让 gpg 从 stdin 读密码；进程命令行里看不到 passphrase。
+            // 和 `--encrypt` 并列时 gpg 同时塞 ESK（对称会话密钥）和 PK-ESK（公钥包裹的会话密钥）到包头，
+            // 解密方任一方式命中即可。
+            arguments.append(contentsOf: ["--symmetric", "--pinentry-mode", "loopback", "--passphrase-fd", "0"])
+        }
+        if !recipients.isEmpty {
+            arguments.append("--encrypt")
+            for fingerprint in recipients {
+                arguments.append(contentsOf: ["--recipient", fingerprint])
+            }
+            // `--trust-model always`：对收件人公钥的 ownertrust 不做强检查（用户已通过 UI picker 主动选了）。
+            arguments.append(contentsOf: ["--trust-model", "always"])
+        }
+        arguments.append(contentsOf: ["--output", outputURL.path, fileURL.path])
+        _ = try await BackendProcessRunner.runAndCapture(
+            tool,
+            arguments: arguments,
+            inputStrategy: normalizedPassphrase.map { .staticInput($0) } ?? .none,
+            operationID: operationID
+        )
+    }
+
+    /// 解密 GPG 加密的文件 —— `.siz` v3 解密入口。
+    ///
+    /// 跑 `gpg --batch --yes --decrypt [--passphrase-fd 0] [--local-user <fp>] --output <out> <in>`。
+    /// - `decryptionKeyFingerprint`：「优先尝试用哪把私钥」hint，多密钥用户在 UI 选过的密钥；nil = gpg 自挑。
+    /// - `passphrase`：对称密码模式 / 私钥 passphrase（如果 gpg-agent 没缓存且文件是对称加密）。**走 stdin**，不进 ps。
+    /// - 不给 passphrase 时由 gpg-agent + pinentry-mac 弹原生密码框（公钥模式 + agent 没缓存私钥 passphrase 的常规路径）。
+    static func decrypt(
+        fileURL: URL,
+        outputURL: URL,
+        decryptionKeyFingerprint: String? = nil,
+        passphrase: String? = nil,
+        useSimpleZipKeyring: Bool = false,
+        operationID: UUID? = nil
+    ) async throws {
+        let normalizedPassphrase = passphrase?.isEmpty == false ? passphrase : nil
+        let tool = try resolve()
+        try? FileManager.default.removeItem(at: outputURL)
+        var arguments: [String] = ["--batch", "--yes"]
+        if useSimpleZipKeyring {
+            arguments.insert(contentsOf: simpleZipKeyringArguments(), at: 0)
+        }
+        if normalizedPassphrase != nil {
+            arguments.append(contentsOf: ["--pinentry-mode", "loopback", "--passphrase-fd", "0"])
+        }
+        arguments.append("--decrypt")
+        if let key = decryptionKeyFingerprint, !key.isEmpty {
+            arguments.append(contentsOf: ["--local-user", key])
+        }
+        arguments.append(contentsOf: ["--output", outputURL.path, fileURL.path])
+        _ = try await BackendProcessRunner.runAndCapture(
+            tool,
+            arguments: arguments,
+            inputStrategy: normalizedPassphrase.map { .staticInput($0) } ?? .none,
+            operationID: operationID
+        )
+    }
+
     /// 用指定私钥给压缩包做 detached signature，产物 `<archive>.asc`（ASCII armor 格式）。
     /// 密码框由 gpg-agent + pinentry-mac 自己弹，本函数完全不接触 passphrase。
     /// signingKeyFingerprint 为 nil → 让 gpg 用 default-key（用户没配 default 时用第一把可用私钥）。

@@ -4,6 +4,29 @@
 
 ## 0.1.9
 
+- **`.siz` v3 加密：多收件人公钥 + 可选对称密码 + 解密 picker 真正接上**
+  - **格式扩展**：`SIZArchive.schemaVersion = 3`（unwrap 同时接 v2 / v3，向后兼容）。`Metadata` 新增 `encryption: EncryptionInfo?` 字段：
+    - `recipients: [{fingerprint, userID}]` —— 公钥加密的收件人列表（空数组 = 仅对称加密）；
+    - `algorithm: "gpg"` —— 算法标识；
+    - `hasSymmetricPassphrase: Bool?` —— **是否带对称密码**的开关，密码本身**不**进 metadata（敏感数据不签名进容器里）。
+  - **创建流程（性质级**）：勾「用 GPG 签名」后多两组 UI 在签名行下方：
+    - **「加密给收件人」** —— Menu picker，列钥匙串里全部公钥（含自有），多次点击累加；选中项以 chip 形式横排显示，× 移除。0 个 = 不公钥加密。
+    - **「加密密码（可选）」** —— SecureField。**跟收件人公钥并存**（gpg `--symmetric --encrypt` 同时给）—— 任一收件人私钥或正确密码都能解。两者全空 = 不加密（沿用 v2 仅签名行为）。
+  - **后端**：`GPGBackend.encrypt` 一次跑 `gpg --batch --yes [--symmetric --pinentry-mode loopback --passphrase-fd 0] [--encrypt -r <fp> ...] --trust-model always --output <out> <in>`。Passphrase 走 stdin **不进 ps**；recipients 直接放命令行（fingerprint 本就不是机密）。`--trust-model always` 让没自签的他人公钥也能直接当收件人 —— 用户已经 UI 主动选了，没必要让 ownertrust 卡这一步。
+  - **SHA256 in metadata = 密文 SHA**（不是明文）。让没有解密密钥的人也能校验完整性（sig + SHA 通过 = 容器真实未篡改），同时阻止「重加密攻击」（gpg session key 随机，每次密文不同）。
+  - **解密流程**：
+    - **解压路径**：`ExtractArchiveOptionsView` 已有「解密密钥」picker（0.1.8 上的 UI）现在真正消费 `request.gpgDecryptionKeyFingerprint`，传给 `gpg --local-user` 作 hint；新增 **「GPG 解密密码」** SecureField（仅当 `sizSignature.encryption.hasSymmetricPassphrase == true` 时显示），跟内层 ZIP/7z 的「密码」字段**完全独立**。`ArchiveBrowserModel.performExtractArchive` 检测 `.gpg` 后缀 + `sizSignature.encryption` → 先 `SIZArchive.decryptInnerArchive` 出明文 sibling，再走原本的 `ArchiveService.extract`；明文文件在 `defer` 里立即清掉，不让明文在 /tmp 里长期停留。
+    - **打开路径**（浏览模式）：`handleSIZOpen` / SIZSignatureSheet 的 `onOpen` 在 `model.openArchive` 前先调 `decryptInnerArchiveIfNeeded`。`.gpg` 后缀 → 跑 `GPGBackend.decrypt`，passphrase 留给 pinentry-mac 弹原生密码框（公钥模式 + agent 缓存命中的常规路径）。解密失败给明确错误。
+  - **后端 fallback 修复**：`gpgDecryptionKeyFingerprint` 之前在 0.1.8 只是 UI 占位，0.1.9 真接到 `gpg --local-user` 上。多密钥用户在 picker 选过的私钥真正会被尝试。
+
+- **`.szs` 签名清单格式 v1 设计文档**（`docs/SZS-FORMAT.md`）
+  - 新格式：**一份签名 JSON 清单 + 多个外部文件留在原地** —— 跟 `.siz`（单文件容器）互补。用例：发布物（app + LICENSE + README + checksums.txt）、镜像树、按文件级完整性验证。
+  - 实现形式：**GPG clearsigned message**（`gpg --clearsign` 输出格式）。`cat foo.szs` 能看 JSON，`gpg --verify foo.szs` 直接校验，单文件搞定不需要 sidecar `.sig`。
+  - Schema：`{schema: "SimpleZip.szs", version: 1, createdAt, files: [{relativePath, size, sha256, mediaType?}], …}`。`files` 数组按 `relativePath` 字典序排序（确定性签名前提）；不含目录条目 / 不含 symlink / 不含 mode bits / 不含 mtime。
+  - 验证报告：`SZSVerifyReport { signature, manifest, entries: [.match | .mismatch | .missing | .unreadable], summary }`。UI 渲染成表格，mismatch 行可展开看 expected vs actual SHA256。
+  - **加密暂时不做** —— `.szs` v1 sign-only。加密用例由 `.siz` v3 覆盖（单 archive 多收件人），混在 `.szs` 里跨文件加密边界条件太多。
+  - 实现路线分阶段：part 1（design doc）= 本次落地；part 2（Core `SZSArchive`）/ part 3（GPG clearsign 调用）/ part 4（UI mode + 验证报告 view）/ part 5（创建对话框 + 文件选取）/ part 6（UTI + Finder Sync 入口）= 后续 session。
+
 - **Bug 修复（0.1.8 引入）：Sparkle 检查更新报「已是最新版」，0.1.7 用户永远收不到 0.1.8 升级提示**
   - 现象：0.1.7 用户菜单点「检查更新」时 Sparkle 说「SimpleZip 0.1.7 是当前的最新版本（您正在运行 0.1.7 (1)）」—— 完全错的，appcast 已经在 0.1.8 了。
   - 根因：0.1.8 release 的打包脚本把 `CURRENT_PROJECT_VERSION` 改成了 marketing string `RELEASE_VERSION`（"0.1.8"），同时 appcast 也写 `sparkle:version="0.1.8"`。但 0.1.7 用户本地的 `CFBundleVersion` 是 build_number（小整数），Sparkle `SUStandardVersionComparator` 拆成 `[1]` vs `[0,1,8]` 比，第一段 `1>0` → Sparkle 以为本地比 feed 更新 → 永远「已是最新版」。

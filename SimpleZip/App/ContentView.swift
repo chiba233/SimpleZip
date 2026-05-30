@@ -147,9 +147,21 @@ struct ContentView: View {
                 signature: pending.signature,
                 onOpen: {
                     pendingSIZVerification = nil
-                    ensureMainWindowVisible()
-                    // archive 浏览模式 + 把展示路径锚到原 .siz（用户视角应该看到 ~/Desktop/x.siz）。
-                    model.openArchive(pending.innerArchiveURL, displayedAs: pending.signature.sourceURL)
+                    // **加密 .siz**：在 model.openArchive 前先解密；passphrase 由 gpg-agent + pinentry-mac 弹（公钥模式或 agent 缓存命中），
+                    // 失败时 errorMessage 展示，明文文件随 tempRoot 在退出时清理。
+                    Task {
+                        do {
+                            let urlToOpen = try await decryptInnerArchiveIfNeeded(pending.innerArchiveURL)
+                            await MainActor.run {
+                                ensureMainWindowVisible()
+                                model.openArchive(urlToOpen, displayedAs: pending.signature.sourceURL)
+                            }
+                        } catch {
+                            await MainActor.run {
+                                model.errorMessage = L10n.format("error.siz.decryptionFailed", error.localizedDescription)
+                            }
+                        }
+                    }
                 },
                 onCancel: {
                     pendingSIZVerification = nil
@@ -281,26 +293,40 @@ struct ContentView: View {
 
     /// `.siz` 打开入口 —— unwrap + 验签后弹签名 sheet；确认后开内层 archive 浏览。
     /// 关 `gpgEnabled` 时跳过验签 + 不弹 sheet，直接开内层 archive（用户规则：关了 GPG 集成主页面不再出现 GPG UI）。
+    /// 不管哪条分支：如果内层 archive 是加密包（`.gpg` 后缀），先 `SIZArchive.decryptInnerArchive` 再 open。
     private func handleSIZOpen(_ url: URL) {
         Task {
             do {
                 let (innerArchiveURL, tempRoot, summary) = try await unwrapAndVerifySIZ(at: url)
-                await MainActor.run {
-                    if let summary {
+                if summary != nil {
+                    await MainActor.run {
                         pendingSIZVerification = SIZPendingVerification(
                             innerArchiveURL: innerArchiveURL,
                             tempRoot: tempRoot,
-                            signature: summary
+                            signature: summary!
                         )
-                    } else {
+                    }
+                } else {
+                    // gpgEnabled = false：用户关了 GPG 集成；按规则不显示签名 sheet，但加密 .siz 仍要能解密打开
+                    // （否则用户「关了集成」= 「打不开文件」就成 DOS）。这里 pinentry-mac 弹密码（如果加密的话）。
+                    let urlToOpen = try await decryptInnerArchiveIfNeeded(innerArchiveURL)
+                    await MainActor.run {
                         ensureMainWindowVisible()
-                        model.openArchive(innerArchiveURL, displayedAs: url)
+                        model.openArchive(urlToOpen, displayedAs: url)
                     }
                 }
             } catch {
                 await MainActor.run { model.errorMessage = error.localizedDescription }
             }
         }
+    }
+
+    /// 共用解密 helper：检查内层 archive 是不是加密包（`.gpg` 后缀）—— 是 → 走 `SIZArchive.decryptInnerArchive`；
+    /// 否 → 原样返回。0.1.9 不在主 sheet 里收 passphrase（依赖 pinentry-mac），decryptionKey hint 也走默认（gpg 自挑）。
+    /// 解压路径有独立的 sheet 字段收集这些；这里只服务 open 流程的极简场景。
+    private func decryptInnerArchiveIfNeeded(_ innerArchiveURL: URL) async throws -> URL {
+        guard innerArchiveURL.lastPathComponent.hasSuffix(".gpg") else { return innerArchiveURL }
+        return try await SIZArchive.decryptInnerArchive(encryptedURL: innerArchiveURL)
     }
 
     /// `.siz` 直接解压入口 —— unwrap + 验签 → 走标准解压对话框 `ExtractArchiveOptionsView`，
@@ -369,7 +395,8 @@ struct ContentView: View {
                 signerDisplay: displaySigner,
                 signerFingerprint: unwrap.metadata.signature.signerFingerprint,
                 signedAt: unwrap.metadata.createdAt,
-                verify: verify
+                verify: verify,
+                encryption: unwrap.metadata.encryption
             )
         )
     }

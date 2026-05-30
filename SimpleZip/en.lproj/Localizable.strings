@@ -223,10 +223,20 @@
 "archive.gpgSign.keyLabel" = "Signing key";
 "archive.gpgSign.key.auto" = "Default / let GPG choose";
 "archive.gpgSign.key.missingFingerprint" = "Not in keyring (…%@)";
+// GPG encryption (create dialog, .siz only)
+"archive.gpgEncrypt.recipientsLabel" = "Encrypt to recipients";
+"archive.gpgEncrypt.addRecipient" = "Add recipient…";
+"archive.gpgEncrypt.noKeysInRing" = "No public keys in keyring";
+"archive.gpgEncrypt.unknownRecipient" = "Unknown (…%@)";
+"archive.gpgEncrypt.passphraseLabel" = "Encryption passphrase (optional)";
+"archive.gpgEncrypt.passphrasePlaceholder" = "Symmetric password — combined with recipients = either can decrypt";
 // Decryption-key picker in the extract dialog
 "extract.gpgDecryptionKey.label" = "Decryption key";
 "extract.gpgDecryptionKey.auto" = "Let GPG decide";
 "extract.gpgDecryptionKey.missingFingerprint" = "Not in keyring (…%@)";
+"extract.gpgDecryptionPassphrase.label" = "GPG decryption passphrase";
+"extract.gpgDecryptionPassphrase.placeholder" = "Symmetric encryption password (unrelated to inner archive password)";
+"error.siz.decryptionFailed" = "GPG decryption failed: %@";
 "settings.gpg.keys.contextChangePassphrase" = "Change Passphrase…";
 "settings.gpg.keys.contextAddUID" = "Add User ID…";
 "settings.gpg.keys.contextEditExpiration" = "Edit Expiration…";

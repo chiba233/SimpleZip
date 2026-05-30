@@ -223,10 +223,20 @@
 "archive.gpgSign.keyLabel" = "签名密钥";
 "archive.gpgSign.key.auto" = "默认 / 让 GPG 挑";
 "archive.gpgSign.key.missingFingerprint" = "未在钥匙串里 (…%@)";
+// GPG 加密（创建对话框，仅 .siz 时显示）
+"archive.gpgEncrypt.recipientsLabel" = "加密给收件人";
+"archive.gpgEncrypt.addRecipient" = "添加收件人…";
+"archive.gpgEncrypt.noKeysInRing" = "钥匙串里没有可用公钥";
+"archive.gpgEncrypt.unknownRecipient" = "未知 (…%@)";
+"archive.gpgEncrypt.passphraseLabel" = "加密密码（可选）";
+"archive.gpgEncrypt.passphrasePlaceholder" = "对称密码，跟收件人公钥并存 = 任一可解";
 // 解压对话框的解密密钥 picker
 "extract.gpgDecryptionKey.label" = "解密密钥";
 "extract.gpgDecryptionKey.auto" = "让 GPG 自动选";
 "extract.gpgDecryptionKey.missingFingerprint" = "未在钥匙串里 (…%@)";
+"extract.gpgDecryptionPassphrase.label" = "GPG 解密密码";
+"extract.gpgDecryptionPassphrase.placeholder" = "对称加密的密码（跟内层压缩包密码无关）";
+"error.siz.decryptionFailed" = "GPG 解密失败：%@";
 "settings.gpg.keys.contextChangePassphrase" = "修改 passphrase…";
 "settings.gpg.keys.contextAddUID" = "添加 User ID…";
 "settings.gpg.keys.contextEditExpiration" = "修改过期时间…";
