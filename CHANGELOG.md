@@ -2,6 +2,10 @@
 
 # Changelog
 
+## 0.2.1
+
+- **Fixed: symlinked locations like `/home` couldn't be opened.** Navigating into a macOS autofs trigger mount (e.g. `/home`) failed with "The file couldn't be opened" because the raw symlink path was handed straight to the directory enumerator. The browser now falls back to the resolved path when a direct listing fails, so these locations open normally. Ordinary symlinks (`/etc`, `/var`, `/tmp`) already worked and are unaffected — their entries keep their original paths.
+
 ## 0.2.0
 
 - **Group By — group the file/archive list into collapsible sections.** Configured in Settings → View → "Grouping": a global **default** (not a master switch) of None / Kind / Date Modified / Files & Folders, for both the file and archive browsers. Sections start expanded and can be collapsed. Built on the same `NSOutlineView` foundation as the hidden-files group.

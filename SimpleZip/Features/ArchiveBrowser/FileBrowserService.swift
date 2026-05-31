@@ -28,6 +28,26 @@ final class FileBrowserService {
 
     // MARK: - 列目录
 
+    /// 列目录的底层封装：直接列失败时，退一步用 `resolvingSymlinksInPath()` 再列一次。
+    ///
+    /// 动机：`/home` 这类 autofs 触发挂载点本身是 symlink，直接 `contentsOfDirectory(at:)`
+    /// 会抛 POSIX 20「Not a directory」；但解析到真实挂载路径（`/System/Volumes/Data/home`）
+    /// 后能正常列出。普通 symlink（`/etc`、`/var`、`/tmp`）直接列就成功，走不到 fallback，
+    /// 因此条目 URL 仍保持原路径、地址栏不会突然跳成 `/private/...`。
+    private func directoryContents(
+        at url: URL,
+        includingPropertiesForKeys keys: [URLResourceKey],
+        options: FileManager.DirectoryEnumerationOptions
+    ) throws -> [URL] {
+        do {
+            return try fileManager.contentsOfDirectory(at: url, includingPropertiesForKeys: keys, options: options)
+        } catch {
+            let resolved = url.resolvingSymlinksInPath()
+            guard resolved != url else { throw error }
+            return try fileManager.contentsOfDirectory(at: resolved, includingPropertiesForKeys: keys, options: options)
+        }
+    }
+
     /// 列出 `url` 下应展示的条目。
     ///
     /// `followFinderStructure=true` 时会把 `/Applications`、`/System/Applications`、
@@ -46,7 +66,7 @@ final class FileBrowserService {
         }
 
         guard followFinderStructure else {
-            return try fileManager.contentsOfDirectory(
+            return try directoryContents(
                 at: url,
                 includingPropertiesForKeys: Array(resourceKeys),
                 options: options
@@ -79,7 +99,7 @@ final class FileBrowserService {
 
         // 单根目录走快路径，省一次合并去重的开销。
         guard finderDisplayRoots.count > 1 || !finderDisplayExtraEntries.isEmpty else {
-            return try fileManager.contentsOfDirectory(
+            return try directoryContents(
                 at: standardizedURL,
                 includingPropertiesForKeys: Array(resourceKeys),
                 options: options
@@ -104,7 +124,7 @@ final class FileBrowserService {
         }
 
         for root in finderDisplayRoots where fileManager.fileExists(atPath: root.path) {
-            let entries = try fileManager.contentsOfDirectory(
+            let entries = try directoryContents(
                 at: root,
                 includingPropertiesForKeys: Array(resourceKeys),
                 options: options
@@ -250,7 +270,7 @@ final class FileBrowserService {
             options.insert(.skipsHiddenFiles)
         }
 
-        guard let urls = try? fileManager.contentsOfDirectory(
+        guard let urls = try? directoryContents(
             at: directoryURL,
             includingPropertiesForKeys: Array(resourceKeys),
             options: options
