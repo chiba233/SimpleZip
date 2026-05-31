@@ -46,7 +46,6 @@ struct WelcomeAssistantView: View {
     @AppStorage(AppPreferences.Key.rowDensity) private var rowDensity = FileBrowserOutline.RowDensity.standard.rawValue
     @AppStorage(AppPreferences.Key.fileGroupingScope) private var fileGroupingScope = BrowserGrouping.GroupingScope.global.rawValue
     @AppStorage(AppPreferences.Key.fileGroupBy) private var fileGroupBy = BrowserGrouping.GroupBy.none.rawValue
-    @AppStorage(AppPreferences.Key.archiveGroupBy) private var archiveGroupBy = BrowserGrouping.GroupBy.none.rawValue
 
     @State private var currentStep: Int = 0
 
@@ -154,8 +153,7 @@ struct WelcomeAssistantView: View {
         case 11:
             WelcomeGroupingStep(
                 scope: $fileGroupingScope,
-                fileGroupBy: $fileGroupBy,
-                archiveGroupBy: $archiveGroupBy
+                fileGroupBy: $fileGroupBy
             )
         case 12:
             WelcomeSafetyStep(
@@ -681,11 +679,12 @@ private struct WelcomeRowDensityStep: View {
     }
 }
 
-/// 分组默认步骤：分组范围（全局 / 按文件夹）+ 文件浏览默认分组 + 压缩包浏览默认分组。
+/// 分组默认步骤：分组范围（全局 / 按文件夹）+ 文件浏览默认分组。
+/// 不含「压缩包浏览默认分组」—— 那是给打开压缩包后内部浏览用的，首启向导里用户还没打开任何压缩包，
+/// 放这里只会让人困惑（用户反馈「分组方式这个选项在欢迎助手里毫无价值」）。需要时在 设置 → 视图 里有。
 private struct WelcomeGroupingStep: View {
     @Binding var scope: String
     @Binding var fileGroupBy: String
-    @Binding var archiveGroupBy: String
 
     var body: some View {
         WelcomeStepShell(
@@ -699,11 +698,6 @@ private struct WelcomeGroupingStep: View {
                     }
                 }
                 labeledPicker(L10n.text("settings.grouping.fileDefault"), selection: $fileGroupBy) {
-                    ForEach(BrowserGrouping.GroupBy.allCases, id: \.self) { value in
-                        Text(value.title).tag(value.rawValue)
-                    }
-                }
-                labeledPicker(L10n.text("settings.grouping.default"), selection: $archiveGroupBy) {
                     ForEach(BrowserGrouping.GroupBy.allCases, id: \.self) { value in
                         Text(value.title).tag(value.rawValue)
                     }
