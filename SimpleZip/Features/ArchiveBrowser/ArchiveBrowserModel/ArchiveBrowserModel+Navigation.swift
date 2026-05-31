@@ -422,11 +422,14 @@ extension ArchiveBrowserModel {
         // 必须在 loadFolder（重建 fileItems）之前取旧选区的 URL。
         let previousSelectedURLs = Set(selectedFileItems.map { $0.url.standardizedFileURL })
         loadFolder(current)
-        guard !previousSelectedURLs.isEmpty else {
-            selection = []
-            return
+        // 按 URL 重映射选区（loadFolder 内容没变时会跳过赋值，fileItems / id 不变 → 重映射结果与现状一致）。
+        // 只在结果真的不同才赋值，避免无谓的 @Published 抖动。
+        let remapped = previousSelectedURLs.isEmpty
+            ? Set<UUID>()
+            : Set(fileItems.filter { previousSelectedURLs.contains($0.url.standardizedFileURL) }.map(\.id))
+        if selection != remapped {
+            selection = remapped
         }
-        selection = Set(fileItems.filter { previousSelectedURLs.contains($0.url.standardizedFileURL) }.map(\.id))
     }
 
     func revealInFinder() {

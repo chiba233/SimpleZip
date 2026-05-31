@@ -10,6 +10,24 @@
 import Foundation
 
 extension ArchiveBrowserModel {
+    /// 两批 FileItem 是否代表「同一份目录列表」—— 按**稳定标识**（url + 目录标志 + 符号链接 + 隐藏 +
+    /// 大小 + 修改时间）逐项比较，忽略每次重建都会变的 `id`(UUID)。顺序敏感（makeFileItems 排序是确定的）。
+    /// 用于 loadFolder 判断「内容真的变了吗」，避免 watcher 无关刷新引发空闲闪烁。
+    nonisolated static func fileItemsRepresentSameListing(_ lhs: [FileItem], _ rhs: [FileItem]) -> Bool {
+        guard lhs.count == rhs.count else { return false }
+        for (a, b) in zip(lhs, rhs) {
+            if a.url != b.url
+                || a.isDirectory != b.isDirectory
+                || a.isSymbolicLink != b.isSymbolicLink
+                || a.isHidden != b.isHidden
+                || a.size != b.size
+                || a.modified != b.modified {
+                return false
+            }
+        }
+        return true
+    }
+
     /// 加载本地文件夹内容，并按"文件夹优先、名称自然排序"展示。
     func loadFolder(_ url: URL) {
         do {
@@ -50,13 +68,20 @@ extension ArchiveBrowserModel {
                 urls = rawURLs
             }
 
-            fileItems = fileBrowser.makeFileItems(
+            let newItems = fileBrowser.makeFileItems(
                 from: urls,
                 showSymbolicLinks: AppPreferences.showSymbolicLinks,
                 hiddenSuffixes: AppPreferences.hiddenDisplaySuffixes,
                 includeMacOSHidden: AppPreferences.hiddenDetectionMode.includesMacOSHiddenFlag,
                 folderFirst: true
             )
+            // 列表内容（按稳定标识 url + 目录标志 + 大小 + 修改时间）没变就**不重新赋值**。
+            // 关键：FileItem.id 每次都是新 UUID，无脑赋值会让等价列表看起来「变了」。FSEvents watcher 在
+            // Desktop 这类目录被 .DS_Store / Spotlight 等无关写入频繁触发时，会一遍遍 loadFolder 出等价但
+            // 全新 UUID 的 items → @Published → reloadData → **空闲时反复闪烁**。内容真变了才赋值刷新。
+            if !Self.fileItemsRepresentSameListing(newItems, fileItems) {
+                fileItems = newItems
+            }
 
             archiveItems = []
             session.clearArchive()
