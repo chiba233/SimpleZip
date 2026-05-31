@@ -76,6 +76,7 @@ struct BrowserPane: View {
             hiddenCustomSuffixes = AppPreferences.hiddenCustomSuffixes
         }
         .onChange(of: showHiddenFiles) { _ in notifyBrowserRefresh() }
+        .onChange(of: hiddenGroupCollapseModeRaw) { _ in notifyBrowserRefresh() }
         .onChange(of: showSymbolicLinks) { _ in notifyBrowserRefresh() }
         .onChange(of: followFinderStructure) { _ in notifyBrowserRefresh() }
         .onChange(of: hiddenSuffixesEnabled) { _ in notifyBrowserRefresh() }

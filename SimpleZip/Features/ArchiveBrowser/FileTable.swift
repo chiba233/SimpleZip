@@ -135,9 +135,10 @@ private struct FileNSOutlineView: NSViewRepresentable {
         private let hiddenGroupNode = FileOutlineNode(kind: .hiddenGroup)
         private var showsHiddenGroup: Bool { !hiddenNodes.isEmpty }
 
-        // 展开状态的真值由这里持有；进新文件夹时按折叠记忆策略 seed，用户手动展开 / 折叠时持久化。
+        // 展开状态的真值由这里持有；进新文件夹 / 折叠策略变更时按策略 seed，用户手动展开 / 折叠时持久化。
         private var groupExpanded = false
         private var lastFolderKey: String?
+        private var lastMode: FileBrowserOutline.CollapseMode?
 
         init(model: ArchiveBrowserModel) {
             self.model = model
@@ -166,10 +167,13 @@ private struct FileNSOutlineView: NSViewRepresentable {
             }
             hiddenGroupNode.hiddenCount = hiddenNodes.count
 
-            // 进入新文件夹时按折叠记忆策略决定初始展开；同一文件夹内的增量 reload 保留当前展开状态。
+            // 进入新文件夹、或用户在 Settings 改了折叠策略时，按策略重新决定初始展开 ——
+            // 后者保证设置一改、主窗口（经 browserPreferencesChanged → reload）立即生效，不用手动刷新。
+            // 同一文件夹内、策略不变的增量 reload 则保留当前展开状态。
             let key = currentFolderKey
-            if key != lastFolderKey {
+            if key != lastFolderKey || mode != lastMode {
                 lastFolderKey = key
+                lastMode = mode
                 groupExpanded = FileBrowserOutline.initialExpanded(
                     mode: mode,
                     folderKey: key,
