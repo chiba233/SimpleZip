@@ -16,18 +16,29 @@ enum HashService {
     }
 
     nonisolated static func calculate(for urls: [URL], includeHiddenFiles: Bool, algorithms: [HashAlgorithm] = HashAlgorithm.allCases) async throws -> HashReport {
-        try await Task.detached(priority: .userInitiated) {
+        // CPU 密集，放 detached task 不阻塞调用方（主 actor）。detached task **不**继承父任务取消，
+        // 所以用 withTaskCancellationHandler 在外层被取消时显式 cancel 这个 work，
+        // 内部的 Task.checkCancellation() 据此中断 —— 让底部状态栏的「取消」对哈希真正生效。
+        let work = Task.detached(priority: .userInitiated) {
             let fileURLs = try collectFiles(from: urls, includeHiddenFiles: includeHiddenFiles)
             guard !fileURLs.isEmpty else {
                 throw ArchiveError.commandFailed(L10n.text("error.selectFilesForHash"))
             }
 
             let selectedAlgorithms = algorithms.isEmpty ? HashAlgorithm.allCases : algorithms
-            let results = try fileURLs.map { url in
-                try calculateFileHash(for: url, algorithms: selectedAlgorithms)
+            var results: [FileHashResult] = []
+            results.reserveCapacity(fileURLs.count)
+            for url in fileURLs {
+                try Task.checkCancellation()
+                results.append(try calculateFileHash(for: url, algorithms: selectedAlgorithms))
             }
             return HashReport(algorithms: selectedAlgorithms, results: results)
-        }.value
+        }
+        return try await withTaskCancellationHandler {
+            try await work.value
+        } onCancel: {
+            work.cancel()
+        }
     }
 
     /// 展开用户选择的文件夹，计算其中所有普通文件。
@@ -85,6 +96,7 @@ enum HashService {
         var totalSize: Int64 = 0
 
         while let data = try handle.read(upToCount: chunkSize), !data.isEmpty {
+            try Task.checkCancellation() // 大文件分块途中也能及时响应取消
             totalSize += Int64(data.count)
             crc32?.update(data)
             md5?.update(data: data)

@@ -115,7 +115,7 @@ extension ArchiveBrowserModel {
             return
         }
 
-        startOperationTask { [weak self] in
+        startOperationTask(cancellable: true) { [weak self] in
             guard let self else { return }
             isWorking = true
             errorMessage = nil
@@ -125,6 +125,8 @@ extension ArchiveBrowserModel {
             do {
                 hashReport = try await HashService.calculate(for: fileURLs, includeHiddenFiles: AppPreferences.showHiddenFiles, algorithms: algorithms)
                 status = L10n.text("status.hashReady")
+            } catch is CancellationError {
+                status = L10n.text("status.cancelled")
             } catch {
                 errorMessage = error.localizedDescription
                 status = L10n.text("status.failed")

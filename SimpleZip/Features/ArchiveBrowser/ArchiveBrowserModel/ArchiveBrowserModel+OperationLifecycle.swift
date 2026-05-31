@@ -46,14 +46,12 @@ extension ArchiveBrowserModel {
     }
 
     private func prepareOperationDetailsSession(title: String, showsDetails: Bool) -> ArchiveOperationDetailsSession? {
-        guard showsDetails else {
-            operationDetailsSession = nil
-            isShowingOperationDetails = false
-            return nil
-        }
+        // **始终**建好 session 并抓后端输出 —— 这样即使用户没在选项对话框里勾「显示详情」，
+        // 操作进行中也能从底部状态栏的「详情」按钮按需打开（用户反馈：开始后反悔想看详情却没入口）。
+        // 只有预先勾了 `showsDetails` 才自动弹出面板；没勾就只是默默抓着，等用户主动点。
         let session = ArchiveOperationDetailsSession(title: title)
         operationDetailsSession = session
-        isShowingOperationDetails = true
+        isShowingOperationDetails = showsDetails
         return session
     }
 
@@ -143,10 +141,18 @@ extension ArchiveBrowserModel {
                 }
             }
             status = L10n.text("status.done")
+            // 成功且用户全程没打开过详情面板 → 收掉 session，保持空闲状态栏干净
+            // （运行中随时可点「详情」打开；失败的 session 在下面 catch 里保留，便于排查）。
+            if !isShowingOperationDetails {
+                operationDetailsSession = nil
+            }
             return true
         } catch is CancellationError {
             errorMessage = nil
             status = L10n.text("status.cancelled")
+            if !isShowingOperationDetails {
+                operationDetailsSession = nil
+            }
             return false
         } catch {
             preserveFailureDetailsIfNeeded(title: workingStatus, error: error)
