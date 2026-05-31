@@ -833,7 +833,9 @@ enum AppPreferences {
         Key.showArchiveCreatedColumn,
         Key.showArchiveAttributesColumn,
         Key.fileColumnOrder,
-        Key.archiveColumnOrder
+        Key.archiveColumnOrder,
+        // 「导出时是否包含按文件夹记忆」这个偏好本身也算用户选择，纳入备份。
+        Key.includePerFolderMemoryInBackup
     ]
 
     /// 「按文件夹记忆」相关的本机 UI 状态 key（含真实路径）：每文件夹分组覆盖 + 隐藏组每文件夹展开记忆。
@@ -850,15 +852,90 @@ enum AppPreferences {
         set { defaults.set(newValue, forKey: Key.includePerFolderMemoryInBackup) }
     }
 
-    /// 拼一份当前所有可导出 key 的 payload，可直接 JSONSerialization 序列化。
-    /// 勾了「包含按文件夹记忆」才把 perFolderMemoryKeys 一并导出。
+    /// 当前所有可导出 key 的**有效值**快照（含未写入 UserDefaults 时的代码默认值）。
+    ///
+    /// 直接读各 typed accessor —— 默认值来自 accessor 这一唯一真相源，**不在这里重复硬编码**。
+    /// 旧实现用 `defaults.object(forKey:)` 逐个取，凡是还停在默认（从没被写过）的 key 就从导出文件里消失了
+    /// （如 archiveGroupBy / hiddenWithGrouping / overwriteBehavior / rowDensity…），导致备份看着「根本不全」、
+    /// 也不是一份能自解释的快照。这里改成无条件给每个 key 落一个有效值，导出 = 完整配置快照。
+    ///
+    /// ⚠️ 维护约束：新增可导出 key（进 `exportableUserDefaultsKeys`）时必须同步在这里补一行；
+    /// 单测 `exportableSnapshotCoversAllExportableKeys` 会守住这个不变量。
+    /// （`startupCustomLocationPath` 是可选路径，未设置时不落键 —— 该 key 不参与那条覆盖断言。）
+    nonisolated static func exportableSnapshot() -> [String: Any] {
+        var v: [String: Any] = [:]
+        // 启动 / 语言
+        v[Key.appLanguage] = appLanguage.rawValue
+        v[Key.startupLocation] = startupLocation.rawValue
+        if let path = defaults.string(forKey: Key.startupCustomLocationPath) {
+            v[Key.startupCustomLocationPath] = path
+        }
+        v[Key.startupCustomLocationHistory] = stringArray(forKey: Key.startupCustomLocationHistory)
+        v[Key.rememberLastFolder] = rememberLastFolder
+        v[Key.checkForUpdatesOnLaunch] = checkForUpdatesOnLaunch
+        // 解压 / 安全策略
+        v[Key.overwriteBehavior] = overwriteBehavior.rawValue
+        v[Key.confirmBeforeDeletingFiles] = confirmBeforeDeletingFiles
+        v[Key.finderOpenAutoExtract] = finderOpenAutoExtract
+        v[Key.presetPasswordEnabled] = presetPasswordEnabled
+        v[Key.suspiciousPathPolicy] = suspiciousPathPolicy.rawValue
+        v[Key.symbolicLinkPolicy] = symbolicLinkPolicy.rawValue
+        v[Key.activeContentOpenPolicy] = activeContentOpenPolicy.rawValue
+        // GPG（开关 + 默认签名 fingerprint，私钥 / 公钥不导出）
+        v[Key.gpgEnabled] = gpgEnabled
+        v[Key.gpgSmartcardEnabled] = gpgSmartcardEnabled
+        v[Key.gpgDefaultSigningKeyFingerprint] = gpgDefaultSigningKeyFingerprint
+        v[Key.gpgPromptForSigningKey] = gpgPromptForSigningKey
+        // 后端
+        v[Key.sevenZipBackend] = sevenZipBackend.rawValue
+        v[Key.rarBackend] = rarBackend.rawValue
+        // 浏览 / 隐藏文件
+        v[Key.showHiddenFiles] = showHiddenFiles
+        v[Key.hiddenDetectionMode] = hiddenDetectionMode.rawValue
+        v[Key.showSymbolicLinks] = showSymbolicLinks
+        v[Key.followFinderStructure] = followFinderStructure
+        v[Key.hiddenSuffixesEnabled] = hiddenSuffixesEnabled
+        v[Key.hiddenRecommendedSuffixes] = hiddenRecommendedSuffixes
+        v[Key.hiddenCustomSuffixes] = hiddenCustomSuffixes
+        v[Key.hiddenGroupCollapseMode] = hiddenGroupCollapseMode.rawValue
+        // 分组 / 视图
+        v[Key.fileGroupBy] = fileGroupBy.rawValue
+        v[Key.archiveGroupBy] = archiveGroupBy.rawValue
+        v[Key.hiddenWithGrouping] = hiddenWithGrouping.rawValue
+        v[Key.fileGroupingScope] = fileGroupingScope.rawValue
+        v[Key.rowDensity] = rowDensity.rawValue
+        // 列可见性
+        v[Key.showFileSizeColumn] = showFileSizeColumn
+        v[Key.showFileTypeColumn] = showFileTypeColumn
+        v[Key.showFileApplicationColumn] = showFileApplicationColumn
+        v[Key.showFileLastOpenedColumn] = showFileLastOpenedColumn
+        v[Key.showFileDateAddedColumn] = showFileDateAddedColumn
+        v[Key.showFileModifiedColumn] = showFileModifiedColumn
+        v[Key.showFileCreatedColumn] = showFileCreatedColumn
+        v[Key.showArchiveKindColumn] = showArchiveKindColumn
+        v[Key.showArchiveSizeColumn] = showArchiveSizeColumn
+        v[Key.showArchiveModifiedColumn] = showArchiveModifiedColumn
+        v[Key.showArchiveMethodColumn] = showArchiveMethodColumn
+        v[Key.showArchivePathColumn] = showArchivePathColumn
+        v[Key.showArchiveEncryptedColumn] = showArchiveEncryptedColumn
+        v[Key.showArchivePackedSizeColumn] = showArchivePackedSizeColumn
+        v[Key.showArchiveCrcColumn] = showArchiveCrcColumn
+        v[Key.showArchiveCreatedColumn] = showArchiveCreatedColumn
+        v[Key.showArchiveAttributesColumn] = showArchiveAttributesColumn
+        v[Key.fileColumnOrder] = stringArray(forKey: Key.fileColumnOrder)
+        v[Key.archiveColumnOrder] = stringArray(forKey: Key.archiveColumnOrder)
+        // 备份元开关
+        v[Key.includePerFolderMemoryInBackup] = includePerFolderMemoryInBackup
+        return v
+    }
+
+    /// 拼一份导出 payload（完整配置快照），可直接 JSONSerialization 序列化。
+    /// 勾了「包含按文件夹记忆」才把 perFolderMemoryKeys（含真实路径）一并导出。
     nonisolated static func exportablePayload() -> [String: Any] {
-        var values: [String: Any] = [:]
-        let keys = exportableUserDefaultsKeys + (includePerFolderMemoryInBackup ? perFolderMemoryKeys : [])
-        for key in keys {
-            if let value = defaults.object(forKey: key) {
-                values[key] = value
-            }
+        var values = exportableSnapshot()
+        if includePerFolderMemoryInBackup {
+            values[Key.fileFolderGrouping] = fileFolderGroupingEntries
+            values[Key.hiddenGroupPerFolderExpanded] = Array(hiddenGroupExpandedFolders)
         }
         return PreferencesPayloadCodec.makePayload(values: values)
     }

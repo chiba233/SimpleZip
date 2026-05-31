@@ -104,4 +104,19 @@ struct PreferencesPayloadCodecTests {
             try PreferencesPayloadCodec.decode(payload)
         }
     }
+
+    // MARK: - 导出完整性
+
+    /// 导出快照必须覆盖每一个可导出 key（含停在默认值的 key）—— 守住「备份是一份完整配置快照」的不变量，
+    /// 防止有人往 exportableUserDefaultsKeys 加了 key 却忘了在 exportableSnapshot 里补对应的有效值。
+    /// `startupCustomLocationPath` 是可选路径，未设置时不落键，单独排除。
+    /// 只读 UserDefaults.standard、不写，对测试环境无副作用。
+    @Test
+    func exportableSnapshotCoversAllExportableKeys() {
+        let snapshotKeys = Set(AppPreferences.exportableSnapshot().keys)
+        let required = Set(AppPreferences.exportableUserDefaultsKeys)
+            .subtracting([AppPreferences.Key.startupCustomLocationPath])
+        let missing = required.subtracting(snapshotKeys)
+        #expect(missing.isEmpty, "exportableSnapshot 缺这些可导出 key：\(missing.sorted())")
+    }
 }
