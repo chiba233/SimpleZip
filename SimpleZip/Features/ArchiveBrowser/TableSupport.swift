@@ -141,13 +141,21 @@ func makeOutlineScrollView(
 }
 
 func configureTableColumns<Column: TableColumnDescriptor>(_ columns: [Column], for tableView: NSTableView) {
-    let columnIDs = columns.map(\.identifier)
+    // 按 identifier 去重 —— 防御损坏的列顺序偏好（曾出现 fileColumnOrder 里堆了多个 "name"，
+    // 导致拖动 / 切换列后出现 2~3 个重复的「名称」列）。即使 orderedColumns 已去重，这里再兜一层。
+    var seenIdentifiers = Set<String>()
+    let uniqueColumns = columns.filter { seenIdentifiers.insert($0.identifier).inserted }
+    let columnIDs = uniqueColumns.map(\.identifier)
     if tableView.tableColumns.map(\.identifier.rawValue) == columnIDs {
         return
     }
 
+    // NSOutlineView 拒绝删除当前 outlineTableColumn（name 列）—— 不先解绑，removeTableColumn 删不掉它，
+    // 每次重建都残留旧 name 列再叠加一个新的，「名称」列越积越多。调用方（FileTable/ArchiveTable）
+    // 在本函数返回后会重新把 outlineTableColumn 指回 name 列。
+    (tableView as? NSOutlineView)?.outlineTableColumn = nil
     tableView.tableColumns.forEach { tableView.removeTableColumn($0) }
-    columns.forEach { column in
+    uniqueColumns.forEach { column in
         let tableColumn = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(column.identifier))
         tableColumn.title = column.title
         tableColumn.width = column.width
@@ -158,8 +166,12 @@ func configureTableColumns<Column: TableColumnDescriptor>(_ columns: [Column], f
 }
 
 func orderedColumns<Column: TableColumnDescriptor>(_ columns: [Column], key: String) -> [Column] {
-    let order = AppPreferences.stringArray(forKey: key)
-    guard !order.isEmpty else { return columns }
+    let rawOrder = AppPreferences.stringArray(forKey: key)
+    guard !rawOrder.isEmpty else { return columns }
+    // 去掉重复 identifier —— 修复曾经被 outlineTableColumn bug 污染成 ["name","name",…] 的存量偏好，
+    // 否则 compactMap 会把同一列映射出多份，重建时又冒出重复「名称」列。
+    var seen = Set<String>()
+    let order = rawOrder.filter { seen.insert($0).inserted }
     let byID = Dictionary(uniqueKeysWithValues: columns.map { ($0.identifier, $0) })
     let ordered = order.compactMap { byID[$0] }
     return ordered + columns.filter { !order.contains($0.identifier) }
