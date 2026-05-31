@@ -14,6 +14,9 @@ import SwiftUI
 struct FileAssociationsPane: View {
     @State private var defaultAppMessage: String?
     @State private var associationStatus: [String: String] = [:]
+    /// 上次「设为默认」成功针对的扩展名 id —— 用来在该类型不再是 SimpleZip 默认时撤掉那条
+    /// 「已设为默认」提示，避免用户在别处取消关联后这里仍挂着「关联成功」。
+    @State private var lastSucceededID: String?
 
     var body: some View {
         Form {
@@ -48,13 +51,20 @@ struct FileAssociationsPane: View {
         }
         .formStyle(.grouped)
         .controlSize(.small)
-        .onAppear(perform: refresh)
+        .onAppear {
+            // 每次进入面板都先清掉上次的成功提示 —— 它是「刚刚点击」的瞬时反馈，
+            // 重新打开面板（或在别处改过默认 App 后回来）不该再挂着「关联成功」。
+            defaultAppMessage = nil
+            lastSucceededID = nil
+            refresh()
+        }
     }
 
     private func setDefaultArchiveApp(for association: ArchiveAssociation) {
         do {
             try ArchiveAssociationService.setAsDefault(for: association)
             defaultAppMessage = L10n.format("settings.defaultArchiveTypeDone", ".\(association.fileExtension)")
+            lastSucceededID = association.id
             refresh()
             // LaunchServices 的 `LSSetDefaultRoleHandlerForContentType` 同步成功，
             // 但同进程内 `LSCopyDefaultRoleHandlerForContentType` 短时间会读到旧缓存
@@ -75,6 +85,14 @@ struct FileAssociationsPane: View {
         associationStatus = Dictionary(uniqueKeysWithValues: ArchiveAssociationService.supportedAssociations.map { association in
             (association.id, ArchiveAssociationService.currentDefaultAppName(for: association))
         })
+        // 若「上次设默认成功」的那个类型现在已不再是 SimpleZip 默认（用户在别处取消了关联），
+        // 撤掉那条成功提示，免得它误导成「还关联着」。
+        if let id = lastSucceededID,
+           let association = ArchiveAssociationService.supportedAssociations.first(where: { $0.id == id }),
+           !ArchiveAssociationService.isSimpleZipDefault(for: association) {
+            defaultAppMessage = nil
+            lastSucceededID = nil
+        }
     }
 }
 
