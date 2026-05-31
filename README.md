@@ -6,344 +6,157 @@
 ![Swift](https://img.shields.io/badge/Swift-SwiftUI-F05138?logo=swift&logoColor=white)
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-A native macOS archive manager. Browses archives like folders, opens files
-inside without manually extracting first, creates ZIP / 7z / RAR / TAR / DMG /
-gzip / bzip2 / xz, hashes files, manages file associations, integrates with
-Finder, and — uniquely — signs and verifies archives with GPG via the
-**`.siz` signed container** format.
+**A native macOS archive manager that feels like Finder.** Open archives like
+folders, peek at files inside without unpacking, make ZIPs (and 7z / RAR / TAR /
+DMG / gz / bz2 / xz) in a couple of clicks — and, when you need it, sign and
+verify archives so the people you send them to know they're really from you.
 
-Project page: [github.com/chiba233/SimpleZip](https://github.com/chiba233/SimpleZip)
+No subscriptions, no telemetry, no clutter. Just a fast, native window.
 
-## Highlights
+➡️ **[Download the latest release](https://github.com/chiba233/SimpleZip/releases)** ·
+[Project page](https://github.com/chiba233/SimpleZip)
 
-- **Folder-like archive browser.** Paths inside an archive render as a tree,
-  not a flat string list. Missing intermediate directories get synthesized so
-  navigation stays sensible.
-- **Open without extracting.** Double-click any file inside an archive and
-  macOS opens its default app on a temporary copy. DMGs inside archives mount
-  read-only; `.app` / `.pkg` are treated as openable items.
-- **Drag out to Finder.** SwiftUI/AppKit promised-files plumbing: the bytes
-  only get extracted when you drop somewhere, not while dragging.
-- **GPG signing built-in.** Archives can be wrapped into a `.siz` container
-  that travels with its signature attached. The verify path uses
-  `gpg --status-fd 1` for locale-stable parsing and does fingerprint strong
-  comparison against the metadata's claim.
-- **`.siz` v3 multi-recipient encryption.** Optional GPG-encrypt the inner
-  archive to one or more recipients **and/or** a symmetric passphrase
-  (`gpg --symmetric --encrypt`). Combined mode = either a recipient's private
-  key **or** the password can decrypt. Passphrase rides stdin so it never
-  appears in `ps`.
-- **`.szs` Signed Manifests.** Sign a tree of files without bundling them
-  (`gpg --clearsign` of a JSON manifest containing per-file SHA256s). Files
-  stay in place; the `.szs` travels alongside. SimpleZip can browse the
-  signed file set as a **virtual folder** that hides anything not in the
-  manifest. Right-click any selection of files → **Create Signed Manifest…**
-  to generate one.
-- **GPG key management UI.** Full settings pane for creating, importing,
-  exporting, signing, encrypting-style operations, expiration, passphrase
-  changes, UIDs, trust levels, smartcard binding, default signing key, and
-  per-archive "ask which key" mode for multi-key users. SimpleZip's
-  private-only ring is isolated in its own GNUPGHOME so it never pollutes
-  `~/.gnupg/`.
-- **Preset password with Keychain + Touch ID.** Saved passwords live in
-  `kSecAttrAccessibleAfterFirstUnlock`; revealing the plaintext requires
-  `LAContext.deviceOwnerAuthentication`.
-- **Finder integration.** Right-click any file or folder in Finder to hash it
-  or wrap it into a new archive without launching the main window.
-- **Localized.** English, Simplified Chinese, Traditional Chinese, Japanese,
-  Korean, Russian, German, French, Spanish, Thai.
+---
 
-## Quick Start
+## Why you'll like it
 
-1. Download the latest DMG from
+- 📂 **Browse an archive like a folder.** Double-click a `.zip` or `.7z` and
+  walk through it as a normal file tree — no "extract everything first" step.
+- 👁 **Open files without unpacking.** Double-click a document inside an archive
+  and it opens in its usual app, on a temporary copy. Done with it? Nothing was
+  left lying around.
+- 🗜 **Make archives fast.** Select files → choose a format → done. ZIP with a
+  password, a tidy 7z, a `.tar.gz` for a colleague — all from one dialog.
+- 🖐 **Drag straight to Finder.** Drag a file out of an archive onto your
+  Desktop; it's extracted only when you drop it.
+- 🔄 **The list keeps itself fresh.** Add or remove files in Finder and
+  SimpleZip's view updates on its own — no manual refresh, and your selection
+  stays put.
+- 🙈 **Hidden files, out of your way.** Show hidden files when you need them;
+  they're tucked into a collapsible group instead of cluttering the list.
+- 🔤 **Group, resize, rename.** Group a folder by kind or date, pick a
+  comfortable row size, and rename files right in the list (select + Return).
+- 🔐 **Sign & verify (optional).** Wrap an archive into a single signed `.siz`
+  file so its signature travels with it, or sign a folder's contents in place
+  with a `.szs` manifest. Encrypt to specific people and/or a password.
+- 🍎 **Finder integration.** Right-click any file in Finder to hash it or zip it
+  up, without even opening the main window.
+- 🌍 **Speaks your language.** English, 简体中文, 繁體中文, 日本語, 한국어,
+  Русский, Deutsch, Français, Español, ไทย.
+
+## Get started in a minute
+
+1. **Download** the latest DMG from
    [Releases](https://github.com/chiba233/SimpleZip/releases) and drag
-   `SimpleZip.app` into `/Applications`.
-2. First launch: right-click the app → **Open** (SimpleZip is ad-hoc signed;
-   Gatekeeper needs explicit consent the first time).
-3. The Welcome Assistant runs on first launch and verifies backends
-   (`7zz`, optionally `gpg` + `pinentry-mac`). Skip GPG if you don't need it.
-4. Optional: enable GPG integration from **Settings → GPG**. Install
-   `gnupg` + `pinentry-mac` if missing (the pane shows the exact
-   `brew install` command).
+   **SimpleZip** into your Applications folder.
+2. **First open:** right-click the app → **Open** (SimpleZip is ad-hoc signed,
+   so macOS asks for confirmation the first time — see *Good to know* below).
+3. A short **Welcome Assistant** walks you through a few preferences and checks
+   that the archive engine is ready. You can skip anything and change it later.
 
-## Supported Formats
+That's it — drag an archive onto the window, or open one with **File → Open**.
 
-| Format | Browse | Extract | Create | Backend / Notes |
-| --- | --- | --- | --- | --- |
-| `.zip` | ✓ | ✓ | ✓ | 7-Zip (preferred), fall back to system zip for simple cases |
-| `.7z` | ✓ | ✓ | ✓ | Bundled or system `7zz` / `7z` |
-| `.rar` | ✓ | ✓ | ✓ | Browse/extract via 7-Zip; create needs RARLAB `rar` |
-| `.tar` | ✓ | ✓ | ✓ | Create via system `tar`; browse/extract via 7-Zip |
-| `.gz` / `.bz2` / `.xz` | ✓ | ✓ | ✓ | Single-file streams |
-| `.tgz` / `.tar.gz` | ✓ | ✓ | ✓ | Create via system `tar` |
-| `.dmg` | ✓ | ✓ | ✓ | Created and mounted via macOS `hdiutil` |
-| `.siz` | ✓ | ✓ | ✓ | SimpleZip GPG-signed container (tar shell) — v3 supports multi-recipient + symmetric encryption |
-| `.szs` | ✓ (virtual) | — | ✓ | SimpleZip GPG-signed manifest (clearsigned JSON of per-file SHA256s) — not an archive |
-| `.001` `.z01` `.r00` `partN.rar` | ✓ | ✓ | — | Auto-normalized to the first volume |
+## What it can open and make
 
-## `.siz` Signed Containers
+| Format | Browse | Extract | Create | Notes |
+|---|:---:|:---:|:---:|---|
+| ZIP | ✓ | ✓ | ✓ | Optional AES-256 password |
+| 7z | ✓ | ✓ | ✓ | Strong compression |
+| RAR | ✓ | ✓ | ✓\* | Opening always works; *creating* needs RARLAB's `rar` (see below) |
+| TAR | ✓ | ✓ | ✓ | |
+| gz / bz2 / xz | ✓ | ✓ | ✓ | Single-file compression |
+| tgz / tar.gz | ✓ | ✓ | ✓ | |
+| DMG | ✓ | ✓ | ✓ | Apple disk images (mounted read-only when browsing) |
+| `.siz` | ✓ | ✓ | ✓ | Signed container — an archive with its signature attached |
+| `.szs` | ✓ | — | ✓ | Signed manifest — signs files *in place* (not an archive) |
+| Split sets (`.001`, `.z01`, `.r00`, `partN.rar`) | ✓ | ✓ | — | Just open the first piece |
 
-`.siz` is SimpleZip's solution to "I want to send a signed archive and have
-the signature travel with the file". A `.siz` is a tar shell containing:
+## Signing, in plain terms
 
-- `archive.<ext>` — the inner archive, byte-for-byte unmodified (so the
-  user's chosen compression + native encryption like ZIP AES-256 / 7z header
-  encryption stays intact);
-- `metadata.json` — schema, version, inner format, inner SHA256, signer
-  claim, timestamp;
-- `signature.asc` — GPG detached signature of `metadata.json` (ASCII armor).
+Most people never need this — but if you share files and want recipients to be
+sure they came from you and weren't tampered with, SimpleZip has two options
+built on standard GPG/OpenPGP:
 
-**Signature target is `metadata.json`, not the inner archive.** This is the
-crucial design choice — see [SECURITY.md](./SECURITY.md#siz-signed-container-format)
-for the full threat model. Short version: signing metadata + including the
-inner archive's SHA256 in metadata closes all the impersonation paths that
-"sign the inner archive only" would leave open.
+- **`.siz` — a signed archive in one file.** Your archive plus its signature,
+  bundled together. The recipient opens it and immediately sees **who signed it**
+  and **whether the signature checks out**. You can also encrypt the contents to
+  one or more people's public keys and/or a shared password.
+- **`.szs` — sign files where they sit.** Signs a folder's contents without
+  packing them up: a small signature file travels alongside, and SimpleZip can
+  later confirm every file still matches. Right-click a selection →
+  **Create Signed Manifest…**.
 
-Verification (`SIZArchive.verify`):
+SimpleZip keeps any keys you create for it in its own private keyring, separate
+from your system `~/.gnupg`, and never stores your passphrase — the standard
+macOS passphrase prompt handles that. The full cryptographic design and threat
+model live in **[SECURITY.md](./SECURITY.md)**.
 
-1. `gpg --status-fd 1 --verify` against `metadata.json` → parses `GOODSIG /
-   VALIDSIG / TRUST_*` machine-readable status (no locale-dependent string
-   matching).
-2. **Fingerprint strong comparison**: actual signing fingerprint from
-   `VALIDSIG` must equal `metadata.signature.signerFingerprint`. Mismatch =
-   `badSignature` (defense against "edit metadata, re-sign with own key").
-3. **SHA256 check**: recomputed inner-archive SHA must equal
-   `metadata.innerArchiveSHA256`. Mismatch = `badSignature`.
-4. Status codes `EXPKEYSIG` / `REVKEYSIG` / `EXPSIG` propagate as
-   "valid signature with concern" (orange UI), not blocking errors.
+> Using signing requires GPG. SimpleZip's GPG settings pane shows a one-line
+> `brew install gnupg pinentry-mac` when it's missing, and runs a live health
+> check so you know everything's wired up.
 
-### v3 multi-recipient encryption (0.1.9)
+## Your data stays yours
 
-`.siz` v3 adds optional encryption of the **inner** archive (the signed
-metadata + verification flow stays the same). Three modes:
+- **Nothing is uploaded.** No accounts, no analytics, no network calls except
+  the optional "check for updates".
+- **Extraction never silently overwrites.** Name clashes ask you what to do
+  (replace, keep both, skip — or *replace only if the contents differ*).
+- **Untrusted archives are treated as untrusted.** Suspicious paths, symlinks,
+  and executable/active content each prompt before they can touch your disk —
+  and you can set any of them to **always block** on a shared machine.
+- **Saved passwords live in the macOS Keychain**, and revealing one in the open
+  requires Touch ID / your login password.
 
-- **Recipients only** — `gpg --encrypt --recipient <fp> ...`. Anyone with a
-  matching private key decrypts.
-- **Symmetric passphrase only** — `gpg --symmetric`. Anyone with the
-  password decrypts.
-- **Combined** — `gpg --symmetric --encrypt --recipient ...`. Either a
-  recipient's private key **or** the password decrypts.
+## Good to know
 
-Metadata records the recipient list (fingerprints + UIDs) as a *claim*
-inside the signed metadata, plus a `hasSymmetricPassphrase` flag (the
-password itself never appears in metadata). The `innerArchiveSHA256` is
-computed over the **encrypted** bytes so anyone with the public manifest can
-verify container integrity without a decryption key (and an attacker can't
-re-encrypt with a different session key to forge a matching SHA).
+- SimpleZip is **ad-hoc signed** (a single-maintainer project, not yet notarized
+  with a paid Developer ID). The first launch needs right-click → **Open**;
+  after that it opens normally. Developer ID signing is on the roadmap.
+- It is **not sandboxed** on purpose — a file manager needs to mount disk
+  images, run the archive engine, and accept drag-and-drop across your disk.
+- The official 7-Zip engine is **bundled** — ZIP/7z/TAR/etc. work out of the
+  box with nothing else to install. GPG and RAR-creation are optional add-ons.
 
-Unwrap detects the `archive.<ext>.gpg` name + `encryption` field → calls
-`gpg --decrypt` with the user-provided key fingerprint hint and/or
-passphrase. Passphrase rides stdin (`--passphrase-fd 0`) — never visible in
-`ps`. Decrypted plaintext lands in the same tempdir as the unwrap and is
-cleaned up after extract finishes.
+## Settings at a glance
 
-## `.szs` Signed Manifests
+- **General** — startup location, language, preset password, re-run the welcome
+  assistant, back up / restore your preferences.
+- **Compression / Archive** — engine choices, what to do on overwrite,
+  Finder auto-extract, and the safety prompts above.
+- **Browser** — show hidden files (and what counts as hidden), symlinks.
+- **View** — list size (compact / standard / comfortable), which columns show,
+  and optional grouping defaults.
+- **File Associations** — make SimpleZip the default opener for archive types.
+- **GPG** — turn signing on, manage keys, pick a default signing key.
+- **Health** — a quick "is everything working?" dashboard with one-click
+  *Copy Diagnostics*.
 
-`.szs` solves a different problem from `.siz`: **"sign a tree of files that
-stays as separate files on disk"** — release drops (app + LICENSE + README +
-checksums), mirror trees, per-file integrity audits. The `.szs` is a single
-GPG-clearsigned JSON manifest you ship alongside the files.
+## Found a bug? Have an idea?
 
-```
------BEGIN PGP SIGNED MESSAGE-----
-Hash: SHA512
+Please [open an issue](https://github.com/chiba233/SimpleZip/issues/new/choose) —
+there are quick templates for bug reports and feature requests. The in-app
+**Help → Report a Bug…** takes you straight there. For anything
+security-related, see [SECURITY.md](./SECURITY.md) first.
 
-{ "schema": "SimpleZip.szs", "version": 1,
-  "files": [
-    { "relativePath": "README.md", "size": 1234, "sha256": "abc..." },
-    ...
-  ],
-  ... }
------BEGIN PGP SIGNATURE-----
-...
------END PGP SIGNATURE-----
-```
+---
 
-Verifying it (`SZSArchive.verify`):
+## For developers
 
-1. `gpg --status-fd 1 --decrypt` extracts the clearsigned body and signature
-   verdict (two-pass: user keyring + SimpleZip-private ring, same merge as
-   `.siz`).
-2. Decode the JSON manifest. Schema + version + per-path safety checks
-   (rejects `..`, absolute paths, Windows drives, UNC, backslashes — even
-   though the signer signed them).
-3. For each file entry: resolve `<payloadRoot>/<relativePath>`, stream-SHA256
-   it, compare to the recorded hash. Classify as `.match` / `.mismatch` /
-   `.missing` / `.unreadable`.
+<details>
+<summary>Build, test, and contribute</summary>
 
-The verification sheet shows per-file status with badges; mismatches expand
-to reveal expected vs. actual SHA256. The **Browse as virtual folder** button
-opens the payload root in folder mode but **only shows `.match` entries +
-their ancestor directories** — anything mismatched / missing / unreadable
-stays hidden so users can't mistake them for verified content. The address
-bar displays `/path/to/manifest.szs` to make the virtual-archive framing
-obvious.
-
-Right-click any selection in the file browser → **Create Signed Manifest…**
-to generate one. Output defaults to `<payloadRoot>/<folderName>.szs` next to
-the signed files.
-
-See [docs/SZS-FORMAT.md](./docs/SZS-FORMAT.md) for the full format spec and
-[SECURITY.md](./SECURITY.md#szs-signed-manifest-format) for the threat
-model.
-
-## GPG Integration
-
-Settings → GPG gives you the full pane:
-
-- **Five-group keyring partition** by `(source, hasSecretKey, isSecretKeyStub)`:
-  local secret keys (`~/.gnupg/`), smartcard / OpenPGP token, SimpleZip-private
-  (its own GNUPGHOME), others' public keys (system keyring), others' public
-  keys (SimpleZip only).
-- **CRUD on keys**: create (RSA 4096 / Ed25519 / NIST P-256 / etc., with
-  expiration + passphrase + optional auth subkey), import, export public
-  key, export private key, revocation certificate generation, delete with
-  destructive confirmation.
-- **Maintenance**: change passphrase, add UID, edit expiration, set trust
-  level (unknown / never / marginal / full / ultimate), mark as default
-  signing key.
-- **Smartcard / OpenPGP token support**: detection via `gpg --card-status
-  --with-colons`, binding display, "import public key from smartcard" action.
-- **Signing strategy**: default key picker (silent) or per-archive ask mode
-  with an in-dialog menu picker for multi-key users.
-- **SimpleZip-private homedir**: keys you mark "save to SimpleZip-only" live
-  in `~/Library/Application Support/SimpleZip/gnupg/` (mode `0700`), fully
-  separated from your `~/.gnupg/`. Uninstall the app to wipe them; nothing
-  pollutes the system keyring.
-- **No passphrase in app process**: all `gpg` invocations except the
-  intentional create-key / change-passphrase loopback flow rely on
-  `gpg-agent` + `pinentry-mac` for the native macOS passphrase dialog. The
-  app never stores or buffers passphrases.
-
-## Safety Model
-
-SimpleZip is intentionally **not sandboxed** — it's a file-management utility
-that runs CLI backends, mounts DMGs, opens temporary files, and supports
-broad drag-and-drop. That makes the trust boundary explicit: every archive is
-untrusted input.
-
-Current guardrails (see [SECURITY.md](./SECURITY.md) for the full threat
-model):
-
-- Extraction is staged into a temp directory before merging into the chosen
-  destination. Conflicts are surfaced by SimpleZip, not silently overwritten
-  by the backend.
-- Suspicious entry paths (`../`, absolute, Windows drive, UNC) trigger a
-  confirmation gated by **Settings → Archive → Security → Suspicious paths**.
-- Symlinks in the staged output trigger a confirmation before they merge or
-  open (**Symbolic links** policy).
-- Opening `.app` / `.pkg` / scripts / HTML / Office / etc. from inside an
-  archive triggers a confirmation (**Active content** policy).
-- Passwords ride stdin via a pseudo-terminal — never as visible command-line
-  arguments, never in `ps`.
-- DMG creation + mount is via macOS `hdiutil`; mounted read-only when
-  browsing / extracting.
-- Preset password lives in Keychain (`kSecAttrAccessibleAfterFirstUnlock`),
-  never in `UserDefaults`, never in process memory beyond a one-launch cache.
-  Plaintext reveal requires `LAContext.deviceOwnerAuthentication`.
-- `.siz` containers harden the tar layer: rejects non-regular-file entries,
-  rejects fourth files, rejects names outside the expected three, rejects
-  unsafe `innerArchiveName`.
-
-The three policy gates (`Suspicious paths`, `Symbolic links`, `Active content`)
-can each be flipped to **Always block** for shared / public machines.
-
-## Backends
-
-### 7-Zip (bundled)
-
-SimpleZip ships the official 7-Zip 26.01 universal `7zz` binary at
-`SimpleZip/Tools/7zz`. Settings supports **Automatic** (bundled → Homebrew →
-`PATH`), **Bundled only**, or **System only**. To install system 7-Zip:
-
-```bash
-brew install sevenzip
-```
-
-### RAR (optional, user-installed)
-
-RAR browsing / extraction works through the bundled 7-Zip. RAR **creation**
-needs RARLAB's proprietary `rar`, which can't be redistributed. From a
-developer checkout:
-
-```bash
-./scripts/install_rar_backend.sh
-```
-
-This downloads RARLAB's ARM + x64 packages, fuses a universal binary, and
-installs it to `~/Library/Application Support/SimpleZip/Tools/rar`. Public
-distribution of an app bundle that includes that binary is not allowed by
-RARLAB's license.
-
-### GPG (optional)
-
-Required for `.siz` create / verify and the GPG settings pane. Install with:
-
-```bash
-# minimum: gpg + pinentry-mac
-brew install gnupg pinentry-mac
-# smartcard / OpenPGP token support:
-brew install ykman           # YubiKey CLI (optional)
-```
-
-The Settings → GPG pane runs a live health check (gpg path, version,
-`gpg-agent` status, `pinentry-mac` resolved path) and shows the exact missing
-`brew install` command when something's absent.
-
-## File Browser
-
-The main window is also a usable Finder-style browser:
-
-- sidebar with common locations, frequently used folders, tags, pinned paths;
-- sortable + reorderable columns: Kind, Application, Last Opened, Date Added,
-  Modified, Created, Size;
-- copy / cut / paste / move / delete-to-Trash / reveal / drag local files /
-  accept external file drops;
-- right-click actions: Open, Add to Archive, Extract Here, Test, Hash;
-- conflict handling on paste / extract: Replace, Keep Both, Skip, or
-  **Replace If Hash Differs** (computes SHA256 on both sides and surfaces a
-  diff result).
-
-## Settings
-
-- **General**: startup location (incl. custom path with existence check +
-  on-fail dialog), remember last folder, app language, preset password,
-  welcome assistant re-run, preferences backup / restore.
-- **Archive**: 7-Zip backend mode, RAR backend mode, security policies
-  (suspicious paths / symlinks / active content), Finder auto-extract,
-  overwrite behavior.
-- **Browser**: hidden file visibility, listing columns.
-- **File Associations**: per-extension default app management, including
-  split-volume groups (`.001`, `.z01`, `.r00`).
-- **Columns**: listed columns for the file browser and archive browser.
-- **GPG**: main toggle, smartcard toggle, keyring management (five groups),
-  defaults sub-section (signing key strategy), advanced (backend paths,
-  pinentry-mac status, GNUPGHOME, SimpleZip-private ring path).
-- **Health**: first-launch diagnostic dashboard.
-- **Backup**: preferences export / import (incl. patch semantics) and
-  restore-to-defaults.
-
-Language changes take full effect after restarting SimpleZip.
-
-## Build
+**Build:**
 
 ```bash
 /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
-  -project SimpleZip.xcodeproj \
-  -scheme SimpleZip \
-  -configuration Debug build
+  -project SimpleZip.xcodeproj -scheme SimpleZip -configuration Debug build
 ```
 
-Or open `SimpleZip.xcodeproj` and run the `SimpleZip` scheme. CI also builds
-the Finder Sync extension target automatically (it's referenced by the main
-target).
+Or open `SimpleZip.xcodeproj` and run the `SimpleZip` scheme.
 
-## Tests
-
-Core regression suite lives in SwiftPM as `SimpleZipCoreTests` — covers
-command argument generation, archive listing parsers, split-volume
-normalization, exclude rules, selected-entry expansion, ZIP / TAR round
-trips, `.siz` wrap / unwrap / metadata determinism, and signing flow stubs:
+**Test** (the pure-logic core lives in a SwiftPM package, `SimpleZipCoreTests` —
+command construction, archive parsers, split-volume normalization, path
+safety, `.siz` wrap/unwrap, etc.):
 
 ```bash
 /usr/bin/xcrun swift test \
@@ -351,28 +164,28 @@ trips, `.siz` wrap / unwrap / metadata determinism, and signing flow stubs:
   -Xswiftc -module-cache-path -Xswiftc /private/tmp/SimpleZipSwiftPM/ModuleCache
 ```
 
-The Xcode project ships an aggregate target `SimpleZipCoreTests` that runs
-the same SwiftPM suite, so the entry point is visible from Xcode too.
+**Optional backends from a checkout:**
+
+```bash
+brew install sevenzip                 # system 7-Zip (a copy is also bundled)
+brew install gnupg pinentry-mac       # GPG signing / verification
+./scripts/install_rar_backend.sh      # RARLAB rar, for creating .rar (not redistributable)
+```
+
+**More docs:** [Architecture](./docs/ARCHITECTURE.md) ·
+[Contributing](./CONTRIBUTING.md) · [Release checklist](./docs/release-checklist.md) ·
+[Bundled tools](./SimpleZip/Tools/README.md)
+
+</details>
 
 ## Documentation
 
-- [Chinese Guide](./GUIDE.zh-CN.md)
-- [Changelog](./CHANGELOG.md) / [中文更新日志](./CHANGELOG.zh-CN.md)
-- [Security Policy](./SECURITY.md) / [中文安全策略](./SECURITY.zh-CN.md)
-- [Architecture Notes](./docs/ARCHITECTURE.md)
-- [Release Checklist](./docs/release-checklist.md)
-- [Contributing](./CONTRIBUTING.md)
-- [Bundled Tools Notes](./SimpleZip/Tools/README.md)
-
-## Status
-
-SimpleZip is single-maintainer software, distributed as an unsigned ad-hoc
-DMG (Developer ID signing is on the roadmap). The current direction is "a
-comfortable native macOS archive client with first-class signed-container
-support, that doesn't punish multi-key GPG users". The GPG management surface
-is feature-complete as of 0.1.8; `.siz` v3 multi-recipient encryption and
-the `.szs` external-signature manifest format shipped in 0.1.9.
+- [中文指南 (Chinese Guide)](./GUIDE.zh-CN.md)
+- [Changelog](./CHANGELOG.md) · [中文更新日志](./CHANGELOG.zh-CN.md)
+- [Security Policy](./SECURITY.md) · [中文安全策略](./SECURITY.zh-CN.md)
 
 ## License
 
-MIT. See [LICENSE](./LICENSE).
+MIT — see [LICENSE](./LICENSE). SimpleZip is independent, single-maintainer
+software and bundles the official 7-Zip (`7zz`) binary; see
+[bundled tools notes](./SimpleZip/Tools/README.md) for licensing details.

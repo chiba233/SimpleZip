@@ -1,0 +1,65 @@
+name: 🐞 Bug report / 报告问题
+description: Something isn't working as expected / 某个功能不正常
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! 感谢你抽空反馈问题！
+        Please fill in as much as you can — it helps a lot. 尽量填全，能帮上大忙。
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened? / 发生了什么？
+      description: What did you do, and what went wrong? / 你做了什么操作，结果哪里不对？
+      placeholder: e.g. I double-clicked a .siz with "auto-extract" on and nothing happened.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect? / 你期望的结果？
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce / 复现步骤
+      description: Number the steps if you can. / 能编号就编号。
+      placeholder: |
+        1. Open …
+        2. Click …
+        3. See …
+    validations:
+      required: false
+  - type: input
+    id: app-version
+    attributes:
+      label: SimpleZip version / 版本
+      description: See SimpleZip → About SimpleZip. / 见 SimpleZip → 关于 SimpleZip。
+      placeholder: e.g. 0.2.0
+    validations:
+      required: true
+  - type: input
+    id: macos-version
+    attributes:
+      label: macOS version / 系统版本
+      placeholder: e.g. macOS 14.5 (Apple Silicon / Intel)
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics (optional) / 诊断信息（可选）
+      description: |
+        Settings → Health → "Copy Diagnostics" gives a paste-ready summary (backends, versions).
+        设置 → 运行状态 → 「复制诊断信息」可一键复制（后端、版本等）。Screenshots welcome. 欢迎附截图。
+    validations:
+      required: false
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting / 提交前确认
+      options:
+        - label: I searched existing issues and didn't find a duplicate. / 我搜过现有 issue，没有重复。
+          required: true

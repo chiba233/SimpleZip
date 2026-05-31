@@ -1,0 +1,36 @@
+name: 💡 Feature request / 功能建议
+description: Suggest an idea or improvement / 提一个想法或改进
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the idea! 感谢你的建议！
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do? / 你想解决什么问题？
+      description: Describe the need, not just the solution. / 先说需求，而不只是方案。
+      placeholder: e.g. I often need to open files in an app other than the default one.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea / 你的设想
+      description: How might SimpleZip help? / SimpleZip 可以怎么帮上忙？
+    validations:
+      required: false
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Workarounds you've tried (optional) / 你目前的变通办法（可选）
+    validations:
+      required: false
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting / 提交前确认
+      options:
+        - label: I searched existing issues and didn't find a duplicate. / 我搜过现有 issue，没有重复。
+          required: true

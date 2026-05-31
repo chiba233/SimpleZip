@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 🔒 Security / 安全问题
+    url: https://github.com/chiba233/SimpleZip/blob/main/SECURITY.md
+    about: For signing / encryption / data-safety concerns, see SECURITY.md first. 涉及签名 / 加密 / 数据安全，请先看 SECURITY.md。
