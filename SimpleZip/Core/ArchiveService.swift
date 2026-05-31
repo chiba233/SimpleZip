@@ -327,9 +327,14 @@ enum ArchiveService {
     }
 
 
-    static func test(_ archive: URL, operationID: UUID? = nil, force: Bool = false) async throws {
+    static func test(
+        _ archive: URL,
+        operationID: UUID? = nil,
+        force: Bool = false,
+        outputObserver: (@Sendable (String) -> Void)? = nil
+    ) async throws {
         let resolved = try resolvedInput(for: archive, force: force)
-        try await backendType(for: resolved.backend).test(resolved.url, operationID: operationID)
+        try await backendType(for: resolved.backend).test(resolved.url, operationID: operationID, outputObserver: outputObserver)
     }
 
     static func benchmark(

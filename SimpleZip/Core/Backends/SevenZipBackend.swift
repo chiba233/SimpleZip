@@ -131,11 +131,12 @@ enum SevenZipBackend {
     }
 
     /// 用 `7zz t` 跑完整性测试 —— 7zz 输出非零退出码 → BackendProcessRunner 转成抛错。
-    static func test(_ archive: URL, operationID: UUID? = nil) async throws {
+    static func test(_ archive: URL, operationID: UUID? = nil, outputObserver: (@Sendable (String) -> Void)? = nil) async throws {
         let tool = try toolPath()
         _ = try await BackendProcessRunner.runAndCapture(
             tool,
             arguments: ["t", archive.path],
+            outputObserver: outputObserver,
             operationID: operationID
         )
     }

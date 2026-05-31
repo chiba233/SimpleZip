@@ -49,10 +49,11 @@ enum NativeZipBackend {
     // MARK: - test
 
     /// `unzip -t` —— 退出码非零会被 BackendProcessRunner 转成抛错。
-    static func test(_ archive: URL, operationID: UUID? = nil) async throws {
+    static func test(_ archive: URL, operationID: UUID? = nil, outputObserver: (@Sendable (String) -> Void)? = nil) async throws {
         _ = try await BackendProcessRunner.runAndCapture(
             "/usr/bin/unzip",
             arguments: ["-t", archive.path],
+            outputObserver: outputObserver,
             operationID: operationID
         )
     }

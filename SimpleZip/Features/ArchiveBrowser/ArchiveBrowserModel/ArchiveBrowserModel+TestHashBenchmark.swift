@@ -44,8 +44,8 @@ extension ArchiveBrowserModel {
             title: L10n.format("status.testing", archiveURL.lastPathComponent),
             showsDetails: false,
             successStatus: L10n.text("status.archiveTested")
-        ) { operationID, _, _ in
-            try await ArchiveService.test(archiveURL, operationID: operationID, force: force)
+        ) { operationID, _, outputObserver in
+            try await ArchiveService.test(archiveURL, operationID: operationID, force: force, outputObserver: outputObserver)
         }
     }
 

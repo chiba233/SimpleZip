@@ -24,7 +24,8 @@ protocol ArchiveBackend {
     static func list(_ archive: URL, password: String, operationID: UUID?) async throws -> [ArchiveItem]
 
     /// 跑完整性测试。非零退出码 → 抛 `ArchiveError`。
-    static func test(_ archive: URL, operationID: UUID?) async throws
+    /// `outputObserver` 把后端命令输出实时喂给「详情」面板（之前漏传 → 测试详情永远「等待命令输出」）。
+    static func test(_ archive: URL, operationID: UUID?, outputObserver: (@Sendable (String) -> Void)?) async throws
 }
 
 // MARK: - Backend conformances
@@ -48,8 +49,8 @@ extension DiskImageBackend: ArchiveBackend {
         try await list(archive)
     }
 
-    /// 同上，操作 ID 在 DMG 流程中没有取消语义。
-    static func test(_ archive: URL, operationID: UUID?) async throws {
+    /// 同上，操作 ID 在 DMG 流程中没有取消语义；DMG 校验也没有可流式展示的命令输出，吞掉 outputObserver。
+    static func test(_ archive: URL, operationID: UUID?, outputObserver: (@Sendable (String) -> Void)?) async throws {
         try await test(archive)
     }
 }
