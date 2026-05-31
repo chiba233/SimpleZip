@@ -493,8 +493,19 @@ struct ContentView: View {
         let payloadRoot = url.deletingLastPathComponent()
         Task {
             do {
-                let (signature, manifest) = try await SZSArchive.peek(manifestURL: url)
-                let report = try await SZSArchive.verify(manifestURL: url, payloadRoot: payloadRoot)
+                let signature: GPGBackend.GPGVerifyResult
+                let manifest: SZSArchive.Manifest
+                let report: SZSArchive.VerifyReport
+                if AppPreferences.gpgEnabled {
+                    (signature, manifest) = try await SZSArchive.peek(manifestURL: url)
+                    report = try await SZSArchive.verify(manifestURL: url, payloadRoot: payloadRoot)
+                } else {
+                    // GPG 未启用（常见原因是 gpg 没装）：走不依赖 GPG 的明文路径 —— 抽明文 manifest + 只跑文件 SHA256。
+                    // `.szs` 是注册文件类型，「以虚拟目录浏览」不该因为缺 GPG 而失败；签名状态在 gpgEnabled 关时本就被忽略。
+                    report = try SZSArchive.verifyWithoutSignature(manifestURL: url, payloadRoot: payloadRoot)
+                    manifest = report.manifest
+                    signature = report.signature
+                }
 
                 let issueSummary = silentBrowseIssueSummary(signature: signature, report: report)
                 await MainActor.run {

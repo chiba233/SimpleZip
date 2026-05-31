@@ -307,6 +307,7 @@
 "szs.silentBrowse.signatureStatus.bad" = "签名不匹配";
 "szs.silentBrowse.signatureStatus.noPublicKey" = "签名者公钥不在钥匙串中";
 "szs.silentBrowse.signatureStatus.error" = "签名无法校验";
+"szs.signature.gpgDisabled" = "GPG 未启用，未校验签名。文件内容仍已通过 SHA-256 校验。";
 "menu.view" = "视图";
 "view.columns.fileBrowser" = "浏览器列";
 "view.columns.archiveBrowser" = "压缩包列";

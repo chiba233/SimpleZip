@@ -125,21 +125,8 @@ jobs:
           path: artifacts/*.dmg
           if-no-files-found: error
 
-      # 任何成功的 tag push 都会到这里发布；
-      # 手动触发只有勾选了 publish 才走。
-      - name: Publish GitHub release
-        if: steps.release.outputs.publish == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_VERSION: ${{ steps.release.outputs.version }}
-        run: |
-          set -euo pipefail
-
-          gh release create "v$RELEASE_VERSION" \
-            artifacts/*.dmg \
-            --title "SimpleZip $RELEASE_VERSION" \
-            --notes "Unsigned ad-hoc signed macOS DMG. macOS Gatekeeper may warn because this build is not Developer ID signed or notarized."
-
+      # **签名必须在发布之前**：sign_update + appcast 生成都先跑，任何一步失败（漏配 secret /
+      # 找不到 sign_update / 签名为空）都会在 gh release create 之前 fail，绝不会留下「已公开但没签」的 release。
       # 用 Sparkle 自带的 sign_update 工具对 DMG 做 EdDSA 签名 ——
       # 私钥来自 GitHub Secret `SPARKLE_ED_PRIVATE_KEY`（base64-encoded ed25519 seed，
       # 本地用 `generate_keys --account simplezip-ci -x ...` 导出 → 粘到 secrets/actions/new）。
@@ -185,7 +172,9 @@ jobs:
             fi
           fi
 
-          # 私钥写到临时文件，绝不留在 env / 命令行（ps 看得到）。
+          # 私钥经由本步骤 step 级、被 GitHub 自动 mask 的 env var 传入（这是 Actions 官方推荐做法，
+          # 避免把 secret 直接内联进脚本文本引发注入）；随即写到 chmod 600 的临时文件供 sign_update 读，
+          # 用完立刻删。这样私钥**不会出现在命令行 / ps / 日志**里 —— 但它确实在本步骤的进程 env 中。
           PRIVATE_KEY_FILE=$(mktemp)
           chmod 600 "$PRIVATE_KEY_FILE"
           # 用 printf 避免 trailing newline 污染 base64 解码。
@@ -260,6 +249,21 @@ jobs:
 
           echo "Generated docs/appcast.xml for v${RELEASE_VERSION}"
           cat docs/appcast.xml
+
+      # 走到这里说明 DMG 已签名、appcast 已生成 —— 现在才创建公开 release，上传 DMG。
+      # 任何成功的 tag push 都会发布；手动触发只有勾选了 publish 才走。
+      - name: Publish GitHub release
+        if: steps.release.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          gh release create "v$RELEASE_VERSION" \
+            artifacts/*.dmg \
+            --title "SimpleZip $RELEASE_VERSION" \
+            --notes "Unsigned ad-hoc signed macOS DMG. macOS Gatekeeper may warn because this build is not Developer ID signed or notarized."
 
       # 把 appcast.xml 推回 main，让 raw.githubusercontent.com/.../main/docs/appcast.xml 拿到新版。
       # Tag push 触发时 HEAD 是 detached（指 tag commit），先 checkout main 再 apply。

@@ -500,10 +500,15 @@ TLS to `raw.githubusercontent.com` plus uncompromised release infrastructure
 | Private key (local)  | macOS Keychain, account `simplezip-ci`, plus a gitignored `secrets/` folder for transport |
 | Local procedure      | See `secrets/README.md` — `generate_keys`, `pbcopy`, GitHub Secret upload, key rotation   |
 
-The private key is **never** passed on the command line or in
-`process` env — `sign_update` reads it from a `mktemp` file with `chmod 600`
-and the file is deleted before the step finishes. This prevents accidental
-exposure through `ps` or shell history.
+The private key is provided to the signing step through a step-scoped,
+GitHub-masked environment variable (the recommended way to handle a secret in
+Actions — it avoids inlining the secret into the script text and the risk of
+shell injection). The step immediately writes it to a `mktemp` file with
+`chmod 600`, `sign_update` reads the key from that file, and the file is
+deleted before the step finishes. So the key is **never** passed on the command
+line and never appears in `ps`, shell history, the appcast, or the build logs —
+but it does live in that one step's process environment for the duration of the
+step.
 
 ### Threat model
 

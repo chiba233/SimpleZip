@@ -292,10 +292,103 @@ enum SZSArchive {
             throw SZSError.manifestParseFailed("empty plaintext after gpg --decrypt")
         }
 
-        // Step 2：解析 Manifest。
+        // Step 2：解析 + 校验 Manifest schema。
+        let manifest = try decodeManifest(from: plaintext)
+
+        // Step 3：每文件 SHA256 校验。
+        let entries = checkFiles(manifest: manifest, payloadRoot: payloadRoot)
+
+        return VerifyReport(signature: signatureResult, manifest: manifest, entries: entries)
+    }
+
+    /// 偷懒版：只想拿到 manifest（看看清单 / 选择校验根目录之前），不做文件 SHA 校验。
+    /// 签名结果一起返回，UI 可以在「让用户选 payloadRoot」之前先显示「这份 .szs 是 chiba 签的，含 12 个文件」。
+    static func peek(
+        manifestURL: URL,
+        operationID: UUID? = nil
+    ) async throws -> (signature: GPGBackend.GPGVerifyResult, manifest: Manifest) {
+        let (signatureResult, plaintext) = try await GPGBackend.verifyClearsign(
+            signedURL: manifestURL,
+            operationID: operationID
+        )
+        guard !plaintext.isEmpty else {
+            throw SZSError.manifestParseFailed("empty plaintext after gpg --decrypt")
+        }
+        let manifest = try decodeManifest(from: plaintext)
+        return (signatureResult, manifest)
+    }
+
+    // MARK: - GPG 关闭时的明文路径（master toggle off）
+
+    /// 不经过 GPG，从 clearsigned `.szs` 里直接抽出明文 manifest JSON。
+    ///
+    /// **仅用于 `AppPreferences.gpgEnabled == false`**：用户主动放弃 GPG（常见原因是 gpg 根本没装），
+    /// 但 `.szs` 是注册文件类型，「以虚拟目录浏览」仍要能用 —— 文件级 SHA256 校验不依赖 GPG。
+    /// 这里**不做任何签名校验**，只解析 RFC 4880 clearsigned 的明文段：
+    /// 取 `-----BEGIN PGP SIGNED MESSAGE-----` 之后的 armor header 块、跳过其后的空行，
+    /// 收集到 `-----BEGIN PGP SIGNATURE-----` 之前的正文，并还原 dash-escape（行首 `- ` → 去掉）。
+    /// JSON 解析对多余空白宽容，所以不需要逐字节复刻签名时的规范化。
+    static func extractClearsignedManifest(manifestURL: URL) throws -> Manifest {
+        let raw: String
+        do {
+            raw = try String(contentsOf: manifestURL, encoding: .utf8)
+        } catch {
+            throw SZSError.manifestParseFailed(error.localizedDescription)
+        }
+        // 统一成 \n，规避 CRLF。
+        let lines = raw.replacingOccurrences(of: "\r\n", with: "\n").components(separatedBy: "\n")
+
+        guard let beginIdx = lines.firstIndex(where: {
+            $0.hasPrefix("-----BEGIN PGP SIGNED MESSAGE-----")
+        }) else {
+            throw SZSError.manifestParseFailed("missing PGP SIGNED MESSAGE header")
+        }
+        // armor header 块（Hash: ... 等）一直到第一个空行为止。
+        var idx = beginIdx + 1
+        while idx < lines.count && !lines[idx].isEmpty { idx += 1 }
+        guard idx < lines.count else {
+            throw SZSError.manifestParseFailed("malformed clearsigned header")
+        }
+        idx += 1 // 跳过 header 与正文之间的空行。
+
+        guard let sigOffset = lines[idx...].firstIndex(where: {
+            $0.hasPrefix("-----BEGIN PGP SIGNATURE-----")
+        }) else {
+            throw SZSError.manifestParseFailed("missing PGP SIGNATURE block")
+        }
+
+        let body = lines[idx..<sigOffset].map { line -> String in
+            line.hasPrefix("- ") ? String(line.dropFirst(2)) : line
+        }.joined(separator: "\n")
+
+        guard let data = body.data(using: .utf8) else {
+            throw SZSError.manifestParseFailed("cleartext not valid UTF-8")
+        }
+        return try decodeManifest(from: data)
+    }
+
+    /// GPG 关闭时的浏览校验：不验签，只抽明文 manifest + 跑文件 SHA256。
+    ///
+    /// 返回的 `VerifyReport.signature` 用 `.verificationError`（带「GPG 未启用」文案）占位 ——
+    /// 调用方（silent browse）在 `gpgEnabled == false` 时本就忽略签名状态、只看文件校验结果，
+    /// 这个占位仅在用户主动点开「详情」时显示，明确告知「签名未校验，因为 GPG 未启用」。
+    static func verifyWithoutSignature(manifestURL: URL, payloadRoot: URL) throws -> VerifyReport {
+        let manifest = try extractClearsignedManifest(manifestURL: manifestURL)
+        let entries = checkFiles(manifest: manifest, payloadRoot: payloadRoot)
+        return VerifyReport(
+            signature: .verificationError(message: L10n.text("szs.signature.gpgDisabled")),
+            manifest: manifest,
+            entries: entries
+        )
+    }
+
+    // MARK: - 共享内部逻辑
+
+    /// 解码 manifest JSON 字节 + 校验 schema / version。peek / verify / 明文路径共用。
+    private static func decodeManifest(from data: Data) throws -> Manifest {
         let manifest: Manifest
         do {
-            manifest = try JSONDecoder().decode(Manifest.self, from: plaintext)
+            manifest = try JSONDecoder().decode(Manifest.self, from: data)
         } catch {
             throw SZSError.manifestParseFailed(error.localizedDescription)
         }
@@ -305,8 +398,12 @@ enum SZSArchive {
         guard manifest.version == schemaVersion else {
             throw SZSError.unexpectedSchema("\(manifest.schema) v\(manifest.version)")
         }
+        return manifest
+    }
 
-        // Step 3：每文件 SHA256 校验。
+    /// 逐条 file entry 跑 SHA256 校验，产出 `VerifyReport.Entry` 列表。签名校验之外的纯文件层逻辑，
+    /// 被 `verify`（GPG 路径）和 `verifyWithoutSignature`（明文路径）共用。
+    private static func checkFiles(manifest: Manifest, payloadRoot: URL) -> [VerifyReport.Entry] {
         var entries: [VerifyReport.Entry] = []
         for fileEntry in manifest.files {
             // 双重 validatedRelativePath：保护「攻击者塞个 `../escape.txt` 在 manifest 里」的情况。
@@ -343,35 +440,6 @@ enum SZSArchive {
                 ))
             }
         }
-
-        return VerifyReport(signature: signatureResult, manifest: manifest, entries: entries)
-    }
-
-    /// 偷懒版：只想拿到 manifest（看看清单 / 选择校验根目录之前），不做文件 SHA 校验。
-    /// 签名结果一起返回，UI 可以在「让用户选 payloadRoot」之前先显示「这份 .szs 是 chiba 签的，含 12 个文件」。
-    static func peek(
-        manifestURL: URL,
-        operationID: UUID? = nil
-    ) async throws -> (signature: GPGBackend.GPGVerifyResult, manifest: Manifest) {
-        let (signatureResult, plaintext) = try await GPGBackend.verifyClearsign(
-            signedURL: manifestURL,
-            operationID: operationID
-        )
-        guard !plaintext.isEmpty else {
-            throw SZSError.manifestParseFailed("empty plaintext after gpg --decrypt")
-        }
-        let manifest: Manifest
-        do {
-            manifest = try JSONDecoder().decode(Manifest.self, from: plaintext)
-        } catch {
-            throw SZSError.manifestParseFailed(error.localizedDescription)
-        }
-        guard manifest.schema == schemaIdentifier else {
-            throw SZSError.unexpectedSchema(manifest.schema)
-        }
-        guard manifest.version == schemaVersion else {
-            throw SZSError.unexpectedSchema("\(manifest.schema) v\(manifest.version)")
-        }
-        return (signatureResult, manifest)
+        return entries
     }
 }

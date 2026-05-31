@@ -2,6 +2,12 @@
 
 # 更新日志
 
+## 0.1.11
+
+- **Bug 修复：Sparkle 签名成功之前就可能创建了公开 GitHub release。** 发版工作流把 `gh release create`（上传 DMG）排在 `sign_update` 和 appcast 生成**之前**。一旦 Sparkle 私钥缺失/无效或找不到 `sign_update`，任务会在「公开的、未签名的 release 已经存在」之后才失败 —— 违背 0.1.10「签名漏配就在发布前 fail」的承诺。现在签名 + appcast 生成先跑，签名产出之后才创建公开 release。
+- **Bug 修复：GPG 关闭时 `.szs` 右键「以虚拟目录浏览」会失败。** 静默浏览流程总是先走 `gpg --verify`，所以 GPG 关闭时（常见原因是 gpg 根本没装）会报「缺少 GPG」，而不是按承诺只跑 SHA-256 校验。现在 GPG 主开关关闭时，直接从 clearsigned 明文里读 manifest（不经过 GPG）+ 跑每文件 SHA-256 校验；签名状态标为「未校验（GPG 未启用）」。新增 `SZSArchiveTests` 覆盖这条 GPG-free 路径。
+- **文档修正：Sparkle 私钥处理的描述不准确。** `SECURITY.md`（中英两份）原称私钥「绝不走进程 env」。实际上它经由签名步骤 step 级、被 GitHub 自动 mask 的环境变量传入（Actions 推荐做法），再写到 `chmod 600` 临时文件供 `sign_update` 读。文档已据实改写：私钥不出现在命令行 / `ps` / 日志 / appcast 里，但在该步骤执行期间确实存在于这一步的进程 env 中。
+
 ## 0.1.10
 
 - **列表列设置从 Settings 搬到顶层「视图」菜单**

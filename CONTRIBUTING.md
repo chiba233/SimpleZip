@@ -21,11 +21,14 @@ brew install sevenzip
 Build:
 
 ```bash
-/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
-  -project SimpleZip/SimpleZip.xcodeproj \
+/usr/bin/env DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer /usr/bin/xcodebuild \
+  -project SimpleZip.xcodeproj \
   -scheme SimpleZip \
   -configuration Debug build
 ```
+
+> For the full code map, layer architecture, subsystem locations, and the per-change verification matrix, see
+> [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md).
 
 ## Project Layout
 
@@ -35,7 +38,7 @@ Important files:
 - `SimpleZip/App/ContentView.swift` — main window composition.
 - `SimpleZip/Core/ArchiveService.swift` — command-line archive backend.
 - `SimpleZip/Core/*.swift` — testable core models, options, preferences, localization helper, and safety logic.
-- `SimpleZip/Features/ArchiveBrowser/ArchiveBrowserModel.swift` — main state and user actions.
+- `SimpleZip/Features/ArchiveBrowser/ArchiveBrowserModel/` — main state and user actions, split by domain across 10 files.
 - `SimpleZip/Features/ArchiveBrowser/FileTable.swift` — folder table.
 - `SimpleZip/Features/ArchiveBrowser/ArchiveTable.swift` — archive table.
 - `SimpleZip/Features/ArchiveOperations/*.swift` — archive creation and extraction sheets/coordinators.
@@ -68,18 +71,15 @@ Important files:
 
 ## Localization
 
-When adding UI text, update all supported languages:
+Ten languages ship: `en`, `zh-Hans`, `zh-Hant`, `ja`, `ko`, `de`, `es`, `fr`, `ru`, `th`.
 
-- `en`
-- `zh-Hans`
-- `zh-Hant`
-- `ja`
-- `th`
+Hand-maintain `en` and `zh-Hans` when adding UI text — add the new key to both. The other eight fall back to `en`
+automatically and are translated before a release.
 
 Validate strings before submitting:
 
 ```bash
-plutil -lint SimpleZip/SimpleZip/*.lproj/Localizable.strings SimpleZip/Info.plist
+plutil -lint SimpleZip/*.lproj/Localizable.strings Info.plist
 ```
 
 ## Before Sending a Change
@@ -87,10 +87,10 @@ plutil -lint SimpleZip/SimpleZip/*.lproj/Localizable.strings SimpleZip/Info.plis
 Run:
 
 ```bash
-plutil -lint SimpleZip/SimpleZip/*.lproj/Localizable.strings SimpleZip/Info.plist
+plutil -lint SimpleZip/*.lproj/Localizable.strings Info.plist
 
-/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
-  -project SimpleZip/SimpleZip.xcodeproj \
+/usr/bin/env DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer /usr/bin/xcodebuild \
+  -project SimpleZip.xcodeproj \
   -scheme SimpleZip \
   -configuration Debug build
 ```

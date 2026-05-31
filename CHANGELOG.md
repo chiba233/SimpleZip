@@ -2,6 +2,12 @@
 
 # Changelog
 
+## 0.1.11
+
+- **Bug fix: a public GitHub release could be created before Sparkle signing succeeded.** The release workflow ran `gh release create` (uploading the DMG) *before* the `sign_update` and appcast-generation steps. If the Sparkle key was missing/invalid or `sign_update` couldn't be found, the job failed *after* a public, unsigned release already existed — undercutting the 0.1.10 guarantee that a signing misconfiguration fails *before* shipping. Signing and appcast generation now run first; the public release is only created once a signature has been produced.
+- **Bug fix: right-click "Browse as Virtual Folder" on a `.szs` failed when GPG was disabled.** The silent-browse flow always went through `gpg --verify`, so with GPG disabled (commonly because GPG isn't installed) it errored with "missing GPG" instead of doing the promised SHA-256-only check. It now reads the manifest straight from the clearsigned cleartext (no GPG) and runs the per-file SHA-256 verification when the GPG master toggle is off; signature status is reported as "not checked (GPG not enabled)". Added `SZSArchiveTests` covering the new GPG-free path.
+- **Docs fix: the Sparkle private-key handling description was inaccurate.** `SECURITY.md` (both languages) claimed the key is "never in process env". In fact it is provided to the signing step via a step-scoped, GitHub-masked env var (the recommended Actions pattern), then written to a `chmod 600` temp file that `sign_update` reads. The docs now state this accurately: the key never appears on the command line, in `ps`, in logs, or in the appcast, but it does live in that one step's process environment.
+
 ## 0.1.10
 
 - **Column visibility moved from Settings → top-level "View" menu**

@@ -1,21 +1,31 @@
 # SimpleZip Architecture Notes
 
-SimpleZip is currently a native macOS app with a SwiftUI/AppKit UI shell and a command-line backend layer. The project
-has grown beyond a small ZIP wrapper, so this document records the intended ownership boundaries before larger
-refactors begin.
+SimpleZip is a native macOS app with a SwiftUI/AppKit UI shell and a command-line backend layer. The project has grown
+beyond a small ZIP wrapper, so this document records the ownership boundaries between the major types.
+
+> For a full code map (where each subsystem lives, build/test commands, and how to add a feature) see
+> [`docs/DEVELOPMENT.md`](DEVELOPMENT.md). This file is the narrower "who owns what state" reference.
 
 ## Current State
 
-- `ArchiveBrowserModel` owns too much: view mode, selections, sheet state, file browsing, archive browsing, clipboard
-  operations, drag-and-drop actions, operation progress, DMG sessions, and temporary open directories.
-- `ArchiveService` is the main backend facade. It handles routing and implementation details for 7-Zip, native ZIP,
-  tar, RAR, and DMG operations.
-- `ArchiveExtractionCoordinator` already separates merge/conflict behavior from raw backend extraction.
-- `TemporaryResourceManager` owns temporary directories used for opening archive entries outside the app.
-- SwiftPM target `SimpleZipCore` exposes testable core logic. Xcode has a `SimpleZipCoreTests` aggregate target that
-  runs the same SwiftPM suite.
+The boundaries below have been extracted — this section reflects the shipped layout, not a plan:
 
-## Desired Boundaries
+- `ArchiveBrowserModel` is the UI-facing state model, split by domain into 10 files under
+  `Features/ArchiveBrowser/ArchiveBrowserModel/` (a base plus `+Navigation`, `+Loading`, `+CreateExtract`, `+FileOps`,
+  `+OperationLifecycle`, `+Sort`, `+SafetyPassword`, `+SZSAndDiskImage`, `+TestHashBenchmark`).
+- `ArchiveSession`, `FileBrowserService`, and `ArchiveOperationRunner` have been extracted from the model and live in
+  `Features/ArchiveBrowser/`. Do not push backend or filesystem ownership back into `ArchiveBrowserModel`.
+- `ArchiveService` is the backend facade/router (`ArchiveService.swift` + `+Arguments` + `+Parsing`). It dispatches to
+  the per-format backends in `Core/Backends/`.
+- The backend split is done: `Core/Backends/` holds the `ArchiveBackend` protocol plus `SevenZipBackend`,
+  `NativeZipBackend`, `RarBackend`, `DiskImageBackend`, and `GPGBackend`. `BackendProcessRunner` wraps subprocess spawn,
+  output capture, and cancellation.
+- `ArchiveExtractionCoordinator` separates merge/conflict behavior from raw backend extraction.
+- `TemporaryResourceManager` owns temporary directories used for opening archive entries outside the app.
+- SwiftPM target `SimpleZipCore` exposes testable core logic (the files listed in `Package.swift`'s `sources:`). Xcode
+  has a `SimpleZipCoreTests` scheme that runs the same SwiftPM suite.
+
+## Ownership Boundaries
 
 ### `ArchiveBrowserModel`
 
@@ -31,7 +41,7 @@ It should delegate file-system work and backend work instead of implementing it 
 
 ### `FileBrowserService`
 
-Future home for local file browsing and file operations:
+Home for local file browsing and file operations:
 
 - folder listing;
 - Finder tag search;
@@ -41,7 +51,7 @@ Future home for local file browsing and file operations:
 
 ### `ArchiveSession`
 
-Future state holder for one opened archive:
+State holder for one opened archive:
 
 - archive URL;
 - current archive path;
@@ -52,7 +62,7 @@ Future state holder for one opened archive:
 
 ### `ArchiveOperationRunner`
 
-Future coordinator for long-running work:
+Coordinator for long-running work:
 
 - one active operation task;
 - cancellation;
@@ -71,34 +81,22 @@ Owns temporary resources with predictable cleanup:
 
 ### Backend Layer
 
-`ArchiveService` should eventually become a router over backend implementations:
-
-```swift
-protocol ArchiveBackend {
-    func list(_ archive: URL) async throws -> [ArchiveItem]
-    func extract(...)
-    func test(...)
-}
-```
-
-Planned implementations:
+`ArchiveService` is a router over the backend implementations in `Core/Backends/`, all conforming to `ArchiveBackend`:
 
 - `SevenZipBackend`
-- `NativeZipBackend`
-- `TarBackend`
+- `NativeZipBackend` (also covers tar via the system `tar`)
 - `RarBackend`
 - `DiskImageBackend`
+- `GPGBackend`
 
-This split will make backend preference, sandbox helpers, version-specific behavior, and compatibility testing easier
-without pushing more logic into one static type.
+This split keeps backend preference, sandbox helpers, version-specific behavior, and compatibility testing out of one
+static type. Subprocess spawn/capture/cancellation is centralized in `BackendProcessRunner`.
 
-## Refactor Order
+## Refactor Principles
 
-1. Keep adding tests around `ArchiveService` pure logic before moving code.
-2. Extract `ArchiveSession` from archive navigation and synthetic directory logic.
-3. Extract `FileBrowserService` from folder listing, tag search, and file operations.
-4. Extract `ArchiveOperationRunner` only after operation state is stable across create/extract/test/hash.
-5. Split backend implementations after tests cover the existing command argument behavior.
+The major extractions above are complete. The principles still apply to future moves:
 
-Avoid changing behavior only to make the architecture look cleaner. Each extraction should preserve the public workflow
-and move one ownership boundary at a time.
+- Keep growing tests around `ArchiveService` pure logic before moving code.
+- Avoid changing behavior only to make the architecture look cleaner.
+- Move one ownership boundary at a time; each extraction should preserve the public workflow.
+- Prefer moving pure logic into `SimpleZip/Core` (and add it to `Package.swift`'s `sources:`) so SwiftPM can test it.

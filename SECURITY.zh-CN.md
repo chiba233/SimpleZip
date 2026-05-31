@@ -457,8 +457,10 @@ Sparkle 从仓库 `docs/appcast.xml` 抓最新版的 DMG。0.1.10 起客户端�
 | 私钥（本地）  | macOS Keychain，account `simplezip-ci`，外加 gitignored 的 `secrets/` 用于转移 |
 | 本地流程      | 见 `secrets/README.md` —— `generate_keys`、`pbcopy`、上传 GitHub Secret、轮换 |
 
-私钥**绝不**走命令行或进程 env —— `sign_update` 从 `mktemp` 临时文件读
-（`chmod 600`），用完立刻删，避免 `ps` 或 shell history 误曝光。
+私钥经由签名步骤 step 级、被 GitHub 自动 mask 的环境变量传入（这是 Actions
+处理 secret 的推荐做法 —— 避免把 secret 直接内联进脚本文本而引发注入）。该步骤随即把它写到
+`chmod 600` 的 `mktemp` 临时文件，`sign_update` 从该文件读，用完立刻删。因此私钥**绝不**走命令行，
+也不会出现在 `ps`、shell history、appcast 或构建日志里 —— 但在该步骤执行期间它确实存在于这一步的进程 env 中。
 
 ### 威胁模型
 
