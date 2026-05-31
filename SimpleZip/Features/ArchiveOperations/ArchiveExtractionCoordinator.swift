@@ -134,16 +134,21 @@ final class ArchiveExtractionCoordinator {
         updateStatus(L10n.text("status.mergingExtractedFiles"))
         updateProgress(ArchiveProgressState(fraction: nil, currentFile: destinationURL.lastPathComponent))
         try fileManager.createDirectory(at: destinationURL, withIntermediateDirectories: true)
-        let unsafeLinks = try ArchiveSafety.unsafeLinks(in: stagingURL, fileManager: fileManager)
+        // 整棵解压树的符号链接扫描放后台线程 —— 几万文件时在主线程走会卡死 GUI（Thread 1 main-thread 阻塞）。
+        let unsafeLinks = try await Task.detached(priority: .userInitiated) {
+            try ArchiveSafety.unsafeLinks(in: stagingURL, fileManager: .default)
+        }.value
         if !unsafeLinks.isEmpty, !confirmUnsafeArchiveLinks(unsafeLinks) {
             throw CocoaError(.userCancelled)
         }
 
-        let extractedURLs = try fileManager.contentsOfDirectory(
-            at: stagingURL,
-            includingPropertiesForKeys: [.isDirectoryKey, .isRegularFileKey],
-            options: []
-        )
+        let extractedURLs = try await Task.detached(priority: .userInitiated) {
+            try FileManager.default.contentsOfDirectory(
+                at: stagingURL,
+                includingPropertiesForKeys: [.isDirectoryKey, .isRegularFileKey],
+                options: []
+            )
+        }.value
 
         for sourceURL in extractedURLs {
             try Task.checkCancellation()
@@ -190,11 +195,13 @@ final class ArchiveExtractionCoordinator {
         let targetExists = fileManager.fileExists(atPath: targetURL.path, isDirectory: &targetIsDirectory)
 
         if sourceIsDirectory, targetExists, targetIsDirectory.boolValue {
-            let childURLs = try fileManager.contentsOfDirectory(
-                at: sourceURL,
-                includingPropertiesForKeys: [.isDirectoryKey, .isRegularFileKey],
-                options: []
-            )
+            let childURLs = try await Task.detached(priority: .userInitiated) {
+                try FileManager.default.contentsOfDirectory(
+                    at: sourceURL,
+                    includingPropertiesForKeys: [.isDirectoryKey, .isRegularFileKey],
+                    options: []
+                )
+            }.value
             for childURL in childURLs {
                 try Task.checkCancellation()
                 try await mergeExtractedItem(
@@ -227,7 +234,10 @@ final class ArchiveExtractionCoordinator {
         try fileManager.createDirectory(at: parentURL, withIntermediateDirectories: true)
         try validateContainedURL(parentURL, in: destinationRootURL)
         try validateResolvedContainedURL(parentURL, in: destinationRootURL)
-        try fileManager.moveItem(at: sourceURL, to: resolvedURL)
+        // 实际移动（可能是跨卷的逐文件拷贝，或大子树）放后台线程，别堵主线程。
+        try await Task.detached(priority: .userInitiated) {
+            try FileManager.default.moveItem(at: sourceURL, to: resolvedURL)
+        }.value
         showPendingHashOverwriteResult(for: resolvedURL)
     }
 
