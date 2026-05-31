@@ -130,8 +130,13 @@ private struct FileNSOutlineView: NSViewRepresentable {
                 coordinator?.beginRenameSelected() ?? false
             }
             // 快速查看（空格 / 重压图标 / 右键）预览当前选中文件。
-            (outlineView as? ContentDragOutlineView)?.quickLookURLsProvider = { [weak coordinator = context.coordinator] in
-                coordinator?.model.selectedFileItems.map(\.url) ?? []
+            // 读 outlineView 的实时 selectedRowIndexes 而不是 model.selectedFileItems —— 后者异步更新，
+            // 重压时还没跟上，会预览到「之前选中的文件」（用户反馈）。直接读视图选区是同步的、最新的。
+            (outlineView as? ContentDragOutlineView)?.quickLookURLsProvider = { [weak outlineView] in
+                guard let outlineView else { return [] }
+                return outlineView.selectedRowIndexes.compactMap {
+                    (outlineView.item(atRow: $0) as? FileOutlineNode)?.fileItem?.url
+                }
             }
             // URL → 行号映射（供 QL 缩放动画定位图标）。放这里因为 FileOutlineNode 对 ContentDragOutlineView 不可见。
             (outlineView as? ContentDragOutlineView)?.quickLookRowForURL = { [weak outlineView] url in

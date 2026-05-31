@@ -69,13 +69,17 @@ final class ContentDragOutlineView: NSOutlineView, QLPreviewPanelDataSource, QLP
     /// name 列内的命中区域 —— 拖动起手、触控板重压手势都按它分流。
     private enum HitRegion { case icon, text, none }
     private var lastMouseDownRegion: HitRegion = .none
+    /// 本次 mouseDown 命中的行 —— 重压时先把焦点对到这行，避免预览 / 重命名作用到之前选中的文件。
+    private var lastMouseDownRow: Int = -1
     /// 一次按压只触发一次重压动作（pressureChange 会连续来很多次）。
     private var didTriggerForceClick = false
     /// 快速查看面板当前的数据快照（打开那一刻的选中项）。
     private var quickLookURLs: [URL] = []
 
     override func mouseDown(with event: NSEvent) {
-        lastMouseDownRegion = hitRegion(for: event)
+        let point = convert(event.locationInWindow, from: nil)
+        lastMouseDownRow = row(at: point)
+        lastMouseDownRegion = hitRegion(at: point)
         dragAllowedFromMouseDown = lastMouseDownRegion != .none
         didTriggerForceClick = false
         super.mouseDown(with: event)
@@ -97,6 +101,11 @@ final class ContentDragOutlineView: NSOutlineView, QLPreviewPanelDataSource, QLP
     override func pressureChange(with event: NSEvent) {
         if event.stage >= 2, !didTriggerForceClick {
             didTriggerForceClick = true
+            // 先把焦点对到被重压的那一行 —— 否则快速查看 / 重命名会作用到「之前选中的文件」
+            // （model 的选中状态是异步更新的，重压发生时还没跟上）。
+            if lastMouseDownRow >= 0, selectedRow != lastMouseDownRow || numberOfSelectedRows != 1 {
+                selectRowIndexes(IndexSet(integer: lastMouseDownRow), byExtendingSelection: false)
+            }
             switch lastMouseDownRegion {
             case .text:
                 if returnKeyAction?() == true { return }
@@ -192,8 +201,7 @@ final class ContentDragOutlineView: NSOutlineView, QLPreviewPanelDataSource, QLP
 
     // MARK: - 命中区域
 
-    private func hitRegion(for event: NSEvent) -> HitRegion {
-        let point = convert(event.locationInWindow, from: nil)
+    private func hitRegion(at point: NSPoint) -> HitRegion {
         let row = row(at: point)
         guard row >= 0,
               let primaryColumnIdentifier,
