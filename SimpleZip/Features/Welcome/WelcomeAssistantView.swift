@@ -39,15 +39,23 @@ struct WelcomeAssistantView: View {
     @AppStorage(AppPreferences.Key.suspiciousPathPolicy) private var suspiciousPathPolicy = ArchiveSecurityDecision.ask.rawValue
     @AppStorage(AppPreferences.Key.symbolicLinkPolicy) private var symbolicLinkPolicy = ArchiveSecurityDecision.ask.rawValue
     @AppStorage(AppPreferences.Key.activeContentOpenPolicy) private var activeContentOpenPolicy = ArchiveSecurityDecision.ask.rawValue
+    // 0.2.0 新增进向导的浏览 / 视图设置。
+    @AppStorage(AppPreferences.Key.showHiddenFiles) private var showHiddenFiles = false
+    @AppStorage(AppPreferences.Key.hiddenDetectionMode) private var hiddenDetectionMode = FileBrowserOutline.HiddenDetectionMode.dotfilesOnly.rawValue
+    @AppStorage(AppPreferences.Key.hiddenGroupCollapseMode) private var hiddenGroupCollapseMode = FileBrowserOutline.CollapseMode.alwaysCollapsed.rawValue
+    @AppStorage(AppPreferences.Key.rowDensity) private var rowDensity = FileBrowserOutline.RowDensity.standard.rawValue
+    @AppStorage(AppPreferences.Key.fileGroupingScope) private var fileGroupingScope = BrowserGrouping.GroupingScope.global.rawValue
+    @AppStorage(AppPreferences.Key.fileGroupBy) private var fileGroupBy = BrowserGrouping.GroupBy.none.rawValue
+    @AppStorage(AppPreferences.Key.archiveGroupBy) private var archiveGroupBy = BrowserGrouping.GroupBy.none.rawValue
 
     @State private var currentStep: Int = 0
 
-    /// 总步数：0 = backup restore，1 = version check，2 = intro，3..10 = 实际设置步骤（含 GPG），11 = completion。
-    /// 进度条只展示「设置类」步骤（3..10 → 1/8..8/8），backup / version check / intro / completion 不计入。
+    /// 总步数：0 = backup restore，1 = version check，2 = intro，3..14 = 实际设置步骤（含 GPG），15 = completion。
+    /// 进度条只展示「设置类」步骤（3..14 → 1/12..12/12），backup / version check / intro / completion 不计入。
     /// GPG 单独成步是因为它是「特殊功能 / 可选禁用」性质，跟 7-Zip / RAR 这类「必装后端」语义不同，
     /// 用户得明确做出 opt-in / opt-out 的决定 —— 塞进 backend 步骤里会让用户误以为「必须装」。
-    private let totalSteps = 12
-    private let settingStepCount = 8
+    private let totalSteps = 16
+    private let settingStepCount = 12
     private let firstSettingStepIndex = 3
 
     /// 「取消」按钮的二次确认 alert flag。
@@ -134,14 +142,30 @@ struct WelcomeAssistantView: View {
         case 7:
             WelcomeFinderAutoExtractStep(enabled: $finderOpenAutoExtract)
         case 8:
+            WelcomeFileAssociationsStep()
+        case 9:
+            WelcomeHiddenFilesStep(
+                showHidden: $showHiddenFiles,
+                detectionMode: $hiddenDetectionMode,
+                collapseMode: $hiddenGroupCollapseMode
+            )
+        case 10:
+            WelcomeRowDensityStep(rowDensity: $rowDensity)
+        case 11:
+            WelcomeGroupingStep(
+                scope: $fileGroupingScope,
+                fileGroupBy: $fileGroupBy,
+                archiveGroupBy: $archiveGroupBy
+            )
+        case 12:
             WelcomeSafetyStep(
                 suspiciousPathPolicy: suspiciousPathPolicy,
                 symbolicLinkPolicy: symbolicLinkPolicy,
                 activeContentOpenPolicy: activeContentOpenPolicy
             )
-        case 9:
+        case 13:
             WelcomeBackendStep()
-        case 10:
+        case 14:
             WelcomeGPGStep()
         default:
             WelcomeCompletionStep()
@@ -505,6 +529,199 @@ private struct WelcomeFinderAutoExtractStep: View {
         ) {
             Toggle(L10n.text("settings.finderOpenAutoExtract"), isOn: $enabled)
                 .toggleStyle(.switch)
+        }
+    }
+}
+
+/// 文件关联步骤：复用设置页的 ArchiveAssociationService + FileAssociationRow，外加一个「全部设为默认」按钮。
+private struct WelcomeFileAssociationsStep: View {
+    @State private var associationStatus: [String: String] = [:]
+    @State private var statusMessage: String?
+
+    var body: some View {
+        WelcomeStepShell(
+            title: L10n.text("welcome.fileAssociations.title"),
+            body1: L10n.text("welcome.fileAssociations.body")
+        ) {
+            VStack(alignment: .leading, spacing: 12) {
+                Button(L10n.text("welcome.fileAssociations.setAll")) {
+                    setAllDefaults()
+                }
+
+                VStack(spacing: 0) {
+                    ForEach(ArchiveAssociationService.supportedAssociations) { association in
+                        FileAssociationRow(
+                            association: association,
+                            currentDefaultApp: associationStatus[association.id] ?? L10n.text("settings.association.loading"),
+                            isSimpleZipDefault: ArchiveAssociationService.isSimpleZipDefault(for: association)
+                        ) {
+                            setDefault(for: association)
+                        }
+                        if association.id != ArchiveAssociationService.supportedAssociations.last?.id {
+                            Divider().padding(.leading, 52)
+                        }
+                    }
+                }
+
+                if let statusMessage {
+                    Text(statusMessage)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .onAppear(perform: refresh)
+    }
+
+    private func setAllDefaults() {
+        var failed: [String] = []
+        for association in ArchiveAssociationService.supportedAssociations {
+            do {
+                try ArchiveAssociationService.setAsDefault(for: association)
+            } catch {
+                failed.append(".\(association.fileExtension)")
+            }
+        }
+        statusMessage = failed.isEmpty
+            ? L10n.text("welcome.fileAssociations.setAllDone")
+            : L10n.format("welcome.fileAssociations.setAllPartial", failed.joined(separator: " "))
+        scheduleRefreshAfterLaunchServicesSettle()
+    }
+
+    private func setDefault(for association: ArchiveAssociation) {
+        do {
+            try ArchiveAssociationService.setAsDefault(for: association)
+            statusMessage = L10n.format("settings.defaultArchiveTypeDone", ".\(association.fileExtension)")
+            scheduleRefreshAfterLaunchServicesSettle()
+        } catch {
+            statusMessage = error.localizedDescription
+        }
+    }
+
+    /// LaunchServices 设默认后同进程内短时间会读到旧缓存，多个时间点 retry 让 UI 自动跟上（同 FileAssociationsPane）。
+    private func scheduleRefreshAfterLaunchServicesSettle() {
+        refresh()
+        for delay in [0.3, 0.8, 1.5] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                refresh()
+            }
+        }
+    }
+
+    private func refresh() {
+        associationStatus = Dictionary(uniqueKeysWithValues: ArchiveAssociationService.supportedAssociations.map { association in
+            (association.id, ArchiveAssociationService.currentDefaultAppName(for: association))
+        })
+    }
+}
+
+/// 隐藏文件步骤：显示隐藏文件开关 + （开启后）什么算隐藏 + 隐藏组折叠策略。
+private struct WelcomeHiddenFilesStep: View {
+    @Binding var showHidden: Bool
+    @Binding var detectionMode: String
+    @Binding var collapseMode: String
+
+    var body: some View {
+        WelcomeStepShell(
+            title: L10n.text("welcome.hiddenFiles.title"),
+            body1: L10n.text("welcome.hiddenFiles.body")
+        ) {
+            VStack(alignment: .leading, spacing: 14) {
+                Toggle(L10n.text("settings.showHiddenFiles"), isOn: $showHidden)
+                    .toggleStyle(.switch)
+
+                if showHidden {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(L10n.text("settings.hiddenDetection"))
+                            .font(.subheadline.weight(.medium))
+                        Picker("", selection: $detectionMode) {
+                            ForEach(FileBrowserOutline.HiddenDetectionMode.allCases, id: \.self) { mode in
+                                Text(mode.title).tag(mode.rawValue)
+                            }
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.inline)
+                    }
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(L10n.text("settings.hiddenGroupCollapse"))
+                            .font(.subheadline.weight(.medium))
+                        Picker("", selection: $collapseMode) {
+                            ForEach(FileBrowserOutline.CollapseMode.allCases, id: \.self) { mode in
+                                Text(mode.title).tag(mode.rawValue)
+                            }
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.inline)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// 列表大小（行密度）步骤。
+private struct WelcomeRowDensityStep: View {
+    @Binding var rowDensity: String
+
+    var body: some View {
+        WelcomeStepShell(
+            title: L10n.text("welcome.rowDensity.title"),
+            body1: L10n.text("welcome.rowDensity.body")
+        ) {
+            Picker("", selection: $rowDensity) {
+                ForEach(FileBrowserOutline.RowDensity.allCases, id: \.self) { density in
+                    Text(density.title).tag(density.rawValue)
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.inline)
+        }
+    }
+}
+
+/// 分组默认步骤：分组范围（全局 / 按文件夹）+ 文件浏览默认分组 + 压缩包浏览默认分组。
+private struct WelcomeGroupingStep: View {
+    @Binding var scope: String
+    @Binding var fileGroupBy: String
+    @Binding var archiveGroupBy: String
+
+    var body: some View {
+        WelcomeStepShell(
+            title: L10n.text("welcome.grouping.title"),
+            body1: L10n.text("welcome.grouping.body")
+        ) {
+            VStack(alignment: .leading, spacing: 14) {
+                labeledPicker(L10n.text("settings.grouping.scope"), selection: $scope) {
+                    ForEach(BrowserGrouping.GroupingScope.allCases, id: \.self) { value in
+                        Text(value.title).tag(value.rawValue)
+                    }
+                }
+                labeledPicker(L10n.text("settings.grouping.fileDefault"), selection: $fileGroupBy) {
+                    ForEach(BrowserGrouping.GroupBy.allCases, id: \.self) { value in
+                        Text(value.title).tag(value.rawValue)
+                    }
+                }
+                labeledPicker(L10n.text("settings.grouping.default"), selection: $archiveGroupBy) {
+                    ForEach(BrowserGrouping.GroupBy.allCases, id: \.self) { value in
+                        Text(value.title).tag(value.rawValue)
+                    }
+                }
+            }
+        }
+    }
+
+    private func labeledPicker<Content: View>(
+        _ label: String,
+        selection: Binding<String>,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label).font(.subheadline.weight(.medium))
+            Picker("", selection: selection, content: content)
+                .labelsHidden()
+                .fixedSize()
         }
     }
 }

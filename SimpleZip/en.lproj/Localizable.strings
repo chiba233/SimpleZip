@@ -19,6 +19,17 @@
 "welcome.presetPassword.body" = "When enabled, SimpleZip silently tries the password you've stored in the macOS Keychain. Add the password later in Settings → General, where Touch ID reveals the plaintext.";
 "welcome.finderAutoExtract.title" = "Auto-extract from Finder (optional)";
 "welcome.finderAutoExtract.body" = "When enabled, double-clicking an archive in Finder extracts it directly into its parent folder instead of opening the browser window. DMGs and other mount-required formats still go through the browse flow.";
+"welcome.fileAssociations.title" = "Open archives with SimpleZip";
+"welcome.fileAssociations.body" = "Make SimpleZip the default app for common archive types so double-clicking them in Finder opens SimpleZip. Set them all at once, or pick individual formats below.";
+"welcome.fileAssociations.setAll" = "Use SimpleZip for all of these";
+"welcome.fileAssociations.setAllDone" = "SimpleZip is now the default for all supported archive types.";
+"welcome.fileAssociations.setAllPartial" = "Set as default, except: %@";
+"welcome.hiddenFiles.title" = "Hidden files";
+"welcome.hiddenFiles.body" = "Show hidden files in the browser. When on, they're tucked into a collapsible \"Hidden Files\" group instead of cluttering the list — choose what counts as hidden and how the group remembers its collapsed state.";
+"welcome.rowDensity.title" = "List size";
+"welcome.rowDensity.body" = "How tall list rows are, with matching icon and text sizes. Applies to both the file and archive browsers.";
+"welcome.grouping.title" = "Grouping (optional)";
+"welcome.grouping.body" = "Optionally split the browser list into collapsible sections. Set a global default, or remember a grouping per folder (then set it via right-click in any folder). Leave as None to keep a flat list.";
 "welcome.safety.title" = "Safety policy";
 "welcome.safety.body" = "Archive contents are untrusted input. By default SimpleZip prompts you before any of the three things below. You can adjust each rule later in Settings → Security.";
 "welcome.safety.suspiciousPath" = "Suspicious paths (traversal / absolute / Windows drive / UNC)";
