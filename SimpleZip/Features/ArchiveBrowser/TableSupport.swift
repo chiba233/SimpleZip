@@ -152,6 +152,44 @@ final class ContentDragOutlineView: NSOutlineView, QLPreviewPanelDataSource, QLP
         return false
     }
 
+    /// 关键：返回被预览项「图标」在屏幕上的位置，QLPreviewPanel 才会做 Finder 那种从图标缩放展开 /
+    /// 收回的原生动画。不实现就只剩淡入淡出（用户反馈「动画很奇怪」）。行被滚出视图 → 返回 .zero（退回淡入）。
+    func previewPanel(_ panel: QLPreviewPanel!, sourceFrameOnScreenFor item: QLPreviewItem!) -> NSRect {
+        guard let url = item?.previewItemURL else { return .zero }
+        return iconScreenFrame(for: url) ?? .zero
+    }
+
+    /// 缩放动画用的过渡图：直接用行内那张图标，缩放更贴合（不给则系统自己生成缩略图）。
+    func previewPanel(_ panel: QLPreviewPanel!, transitionImageFor item: QLPreviewItem!, contentRect: UnsafeMutablePointer<NSRect>!) -> Any! {
+        guard let url = item?.previewItemURL,
+              let colIndex = nameColumnIndex(),
+              let row = quickLookRowForURL?(url), row >= 0,
+              let cell = view(atColumn: colIndex, row: row, makeIfNecessary: false) as? NSTableCellView else {
+            return nil
+        }
+        return cell.imageView?.image
+    }
+
+    private func nameColumnIndex() -> Int? {
+        guard let primaryColumnIdentifier else { return nil }
+        return tableColumns.firstIndex { $0.identifier.rawValue == primaryColumnIdentifier }
+    }
+
+    /// 给定预览文件 URL 找到它在表里的行号 —— 由 FileTable 提供（行节点类型对本类不可见）。nil = 行已滚出/不存在。
+    var quickLookRowForURL: ((URL) -> Int?)?
+
+    private func iconScreenFrame(for url: URL) -> NSRect? {
+        guard let window,
+              let colIndex = nameColumnIndex(),
+              let row = quickLookRowForURL?(url), row >= 0,
+              let cell = view(atColumn: colIndex, row: row, makeIfNecessary: false) as? NSTableCellView,
+              let imageView = cell.imageView else {
+            return nil
+        }
+        let rectInWindow = imageView.convert(imageView.bounds, to: nil)
+        return window.convertToScreen(rectInWindow)
+    }
+
     // MARK: - 命中区域
 
     private func hitRegion(for event: NSEvent) -> HitRegion {

@@ -133,6 +133,14 @@ private struct FileNSOutlineView: NSViewRepresentable {
             (outlineView as? ContentDragOutlineView)?.quickLookURLsProvider = { [weak coordinator = context.coordinator] in
                 coordinator?.model.selectedFileItems.map(\.url) ?? []
             }
+            // URL → 行号映射（供 QL 缩放动画定位图标）。放这里因为 FileOutlineNode 对 ContentDragOutlineView 不可见。
+            (outlineView as? ContentDragOutlineView)?.quickLookRowForURL = { [weak outlineView] url in
+                guard let outlineView else { return nil }
+                for row in 0..<outlineView.numberOfRows where (outlineView.item(atRow: row) as? FileOutlineNode)?.fileItem?.url == url {
+                    return row
+                }
+                return nil
+            }
             outlineView.headerView?.menu = context.coordinator.headerMenu()
             context.coordinator.outlineView = outlineView
         }
