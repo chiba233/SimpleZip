@@ -154,9 +154,16 @@ private struct FileNSOutlineView: NSViewRepresentable {
 
         /// 重建节点 + reload + 强制同步展开状态。make / update 都走这里。
         func syncContent() {
-            let split = FileBrowserOutline.split(model.fileItems)
-            visibleNodes = split.visible.map { FileOutlineNode(kind: .file($0)) }
-            hiddenNodes = split.hidden.map { FileOutlineNode(kind: .file($0)) }
+            let mode = AppPreferences.hiddenGroupCollapseMode
+            if mode.groupsHiddenFiles {
+                let split = FileBrowserOutline.split(model.fileItems)
+                visibleNodes = split.visible.map { FileOutlineNode(kind: .file($0)) }
+                hiddenNodes = split.hidden.map { FileOutlineNode(kind: .file($0)) }
+            } else {
+                // `.inline`：opt-out，不分组 —— 隐藏文件平铺混在普通文件里（0.2.0 之前的行为）。
+                visibleNodes = model.fileItems.map { FileOutlineNode(kind: .file($0)) }
+                hiddenNodes = []
+            }
             hiddenGroupNode.hiddenCount = hiddenNodes.count
 
             // 进入新文件夹时按折叠记忆策略决定初始展开；同一文件夹内的增量 reload 保留当前展开状态。
@@ -164,7 +171,7 @@ private struct FileNSOutlineView: NSViewRepresentable {
             if key != lastFolderKey {
                 lastFolderKey = key
                 groupExpanded = FileBrowserOutline.initialExpanded(
-                    mode: AppPreferences.hiddenGroupCollapseMode,
+                    mode: mode,
                     folderKey: key,
                     perFolderExpanded: AppPreferences.hiddenGroupExpandedFolders,
                     globalExpanded: AppPreferences.hiddenGroupGlobalExpanded
@@ -284,8 +291,8 @@ private struct FileNSOutlineView: NSViewRepresentable {
         private func persistExpansion(_ expanded: Bool) {
             let mode = AppPreferences.hiddenGroupCollapseMode
             switch mode {
-            case .alwaysCollapsed:
-                break // 不记忆
+            case .alwaysCollapsed, .inline:
+                break // 不记忆（.inline 根本没有分组可记）
             case .rememberPerFolder:
                 AppPreferences.hiddenGroupExpandedFolders = FileBrowserOutline.updatedPerFolderExpanded(
                     AppPreferences.hiddenGroupExpandedFolders,

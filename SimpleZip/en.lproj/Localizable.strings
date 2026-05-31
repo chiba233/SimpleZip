@@ -539,10 +539,11 @@
 "settings.overwriteBehavior.description" = "Choose the default action when extracting, copying, or moving into an existing file name.";
 "settings.showHiddenFiles.description" = "Show dotfiles and other hidden Finder items in the file browser.";
 "settings.hiddenGroupCollapse" = "Hidden files group";
-"settings.hiddenGroupCollapse.description" = "When hidden files are shown, they are tucked into a collapsible \"Hidden Files\" group. Choose whether that group stays collapsed or remembers its state.";
+"settings.hiddenGroupCollapse.description" = "When hidden files are shown, they are tucked into a collapsible \"Hidden Files\" group. Choose how that group behaves, or show hidden files inline without grouping.";
 "settings.hiddenGroupCollapse.alwaysCollapsed" = "Always collapsed";
 "settings.hiddenGroupCollapse.rememberPerFolder" = "Remember per folder";
 "settings.hiddenGroupCollapse.globalSticky" = "Remember globally";
+"settings.hiddenGroupCollapse.inline" = "Show inline (no group)";
 "settings.rememberLastFolder.description" = "Reopen the last folder you used instead of always starting from the startup location.";
 "settings.confirmBeforeDeletingFiles.description" = "Show a confirmation prompt before selected files are moved to the macOS Trash.";
 "settings.finderOpenAutoExtract" = "Auto-extract when opened from Finder";

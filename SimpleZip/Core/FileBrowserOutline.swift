@@ -12,7 +12,9 @@
 import Foundation
 
 enum FileBrowserOutline {
-    /// 隐藏分组的折叠记忆策略。用户在 Settings → 浏览 里选，默认 `.alwaysCollapsed`。
+    /// 隐藏文件的展示方式。用户在 Settings → 浏览 里选，默认 `.alwaysCollapsed`。
+    /// `.inline` 是 opt-out —— 回到 0.2.0 之前「隐藏文件平铺混排」的老行为，给不想要分组的用户留退路；
+    /// 其余三种都把隐藏文件收进一个可折叠分组，区别只在折叠记忆策略。
     enum CollapseMode: String, CaseIterable {
         /// 每次进文件夹都重新折叠（零持久化，最可预期）。
         case alwaysCollapsed
@@ -20,6 +22,8 @@ enum FileBrowserOutline {
         case rememberPerFolder
         /// 全局记一个：展开过就一直展开，直到再折叠。
         case globalSticky
+        /// 不分组，隐藏文件平铺混在普通文件里（0.2.0 之前的行为）。
+        case inline
 
         /// 容错解析：拿不到 / 不认识的字符串一律回落到默认 `.alwaysCollapsed`。
         static func parse(_ raw: String?) -> CollapseMode {
@@ -27,12 +31,16 @@ enum FileBrowserOutline {
             return mode
         }
 
+        /// 是否把隐藏文件收进分组。`.inline` 时为 false（平铺），其余为 true。
+        var groupsHiddenFiles: Bool { self != .inline }
+
         /// Settings 里 picker 显示用的本地化标题。
         var title: String {
             switch self {
             case .alwaysCollapsed: return L10n.text("settings.hiddenGroupCollapse.alwaysCollapsed")
             case .rememberPerFolder: return L10n.text("settings.hiddenGroupCollapse.rememberPerFolder")
             case .globalSticky: return L10n.text("settings.hiddenGroupCollapse.globalSticky")
+            case .inline: return L10n.text("settings.hiddenGroupCollapse.inline")
             }
         }
     }
@@ -64,7 +72,8 @@ enum FileBrowserOutline {
         globalExpanded: Bool
     ) -> Bool {
         switch mode {
-        case .alwaysCollapsed:
+        case .alwaysCollapsed, .inline:
+            // `.inline` 不分组，没有 group 可展开 —— 返回什么都无所谓，给 false。
             return false
         case .rememberPerFolder:
             return perFolderExpanded.contains(folderKey)

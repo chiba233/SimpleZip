@@ -99,5 +99,21 @@ struct FileBrowserOutlineTests {
         #expect(FileBrowserOutline.CollapseMode.parse("garbage") == .alwaysCollapsed)
         #expect(FileBrowserOutline.CollapseMode.parse("rememberPerFolder") == .rememberPerFolder)
         #expect(FileBrowserOutline.CollapseMode.parse("globalSticky") == .globalSticky)
+        #expect(FileBrowserOutline.CollapseMode.parse("inline") == .inline)
+    }
+
+    @Test
+    func groupsHiddenFilesIsFalseOnlyForInline() {
+        #expect(FileBrowserOutline.CollapseMode.alwaysCollapsed.groupsHiddenFiles == true)
+        #expect(FileBrowserOutline.CollapseMode.rememberPerFolder.groupsHiddenFiles == true)
+        #expect(FileBrowserOutline.CollapseMode.globalSticky.groupsHiddenFiles == true)
+        #expect(FileBrowserOutline.CollapseMode.inline.groupsHiddenFiles == false)
+    }
+
+    @Test
+    func initialExpandedInlineIsFalse() {
+        #expect(FileBrowserOutline.initialExpanded(
+            mode: .inline, folderKey: "/x", perFolderExpanded: ["/x"], globalExpanded: true
+        ) == false)
     }
 }
