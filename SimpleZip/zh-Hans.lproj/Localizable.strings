@@ -542,6 +542,10 @@
 "settings.startupLocation.description" = "选择 SimpleZip 启动后文件浏览器默认打开的位置。";
 "settings.overwriteBehavior.description" = "解压、复制或移动时遇到同名文件，默认使用这个处理策略。";
 "settings.showHiddenFiles.description" = "在文件浏览器里显示点开头文件和 Finder 隐藏项目。";
+"settings.hiddenDetection" = "什么算隐藏文件";
+"settings.hiddenDetection.description" = "选择只把 dotfile（名字以 . 开头）算作隐藏，还是再算上带 macOS 隐藏标志的项（如 /etc、~/Library）。";
+"settings.hiddenDetection.dotfilesOnly" = "仅 dotfile";
+"settings.hiddenDetection.macOSHidden" = "dotfile + macOS 隐藏标志";
 "settings.hiddenGroupCollapse" = "隐藏文件分组";
 "settings.hiddenGroupCollapse.description" = "显示隐藏文件时，它们会收进一个可折叠的「隐藏文件」分组。选择这个分组怎么折叠，或者干脆平铺显示、不分组。";
 "settings.hiddenGroupCollapse.alwaysCollapsed" = "每次都折叠";

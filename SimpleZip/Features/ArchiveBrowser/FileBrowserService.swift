@@ -164,6 +164,7 @@ final class FileBrowserService {
         from urls: [URL],
         showSymbolicLinks: Bool,
         hiddenSuffixes: [String],
+        includeMacOSHidden: Bool,
         folderFirst: Bool
     ) -> [FileItem] {
         let resourceKeys: Set<URLResourceKey> = [
@@ -211,7 +212,12 @@ final class FileBrowserService {
                 displayName: displayName,
                 isDirectory: isDirectory,
                 isSymbolicLink: isSymbolicLink,
-                isHidden: values.isHidden == true,
+                // 「隐藏」判定按用户选的模式：
+                // - dotfilesOnly（默认）：仅名字以 . 开头的 dotfile（Unix 习惯）；
+                // - macOSHidden：再算上带 macOS UF_HIDDEN 标志的项（/etc、~/Library 等）。
+                // 之所以可选：macOS 把一些非 dotfile（含 /etc、/var 这类符号链接）也标隐藏，
+                // 但不少用户按 Unix 直觉只认 dotfile。
+                isHidden: fileURL.lastPathComponent.hasPrefix(".") || (includeMacOSHidden && values.isHidden == true),
                 size: isDirectory ? nil : Int64(values.fileSize ?? 0),
                 modified: values.contentModificationDate,
                 created: values.creationDate,

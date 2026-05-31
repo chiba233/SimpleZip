@@ -54,6 +54,7 @@ extension ArchiveBrowserModel {
                 from: urls,
                 showSymbolicLinks: AppPreferences.showSymbolicLinks,
                 hiddenSuffixes: AppPreferences.hiddenDisplaySuffixes,
+                includeMacOSHidden: AppPreferences.hiddenDetectionMode.includesMacOSHiddenFlag,
                 folderFirst: true
             )
 
@@ -81,6 +82,7 @@ extension ArchiveBrowserModel {
                 from: urls,
                 showSymbolicLinks: AppPreferences.showSymbolicLinks,
                 hiddenSuffixes: AppPreferences.hiddenDisplaySuffixes,
+                includeMacOSHidden: AppPreferences.hiddenDetectionMode.includesMacOSHiddenFlag,
                 folderFirst: false
             )
             archiveItems = []

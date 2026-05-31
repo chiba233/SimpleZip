@@ -45,6 +45,31 @@ enum FileBrowserOutline {
         }
     }
 
+    /// 「什么算隐藏文件」的判定方式。用户在 Settings → 浏览 里选。
+    /// macOS 既有 Unix 的 dotfile 约定，又有自己的 `UF_HIDDEN` chflags 标志（如 /etc、~/Library），
+    /// 两种语义并存，所以做成可选。默认 `.dotfilesOnly`（Unix 习惯，最直观）。
+    enum HiddenDetectionMode: String, CaseIterable {
+        /// 仅名字以 `.` 开头的 dotfile 算隐藏。
+        case dotfilesOnly
+        /// dotfile + 带 macOS `UF_HIDDEN` 标志的项都算隐藏（含 /etc、~/Library 等符号链接 / 目录）。
+        case macOSHidden
+
+        static func parse(_ raw: String?) -> HiddenDetectionMode {
+            guard let raw, let value = HiddenDetectionMode(rawValue: raw) else { return .dotfilesOnly }
+            return value
+        }
+
+        /// 是否把 macOS 隐藏标志也算进来（`.dotfilesOnly` 为 false）。
+        var includesMacOSHiddenFlag: Bool { self == .macOSHidden }
+
+        var title: String {
+            switch self {
+            case .dotfilesOnly: return L10n.text("settings.hiddenDetection.dotfilesOnly")
+            case .macOSHidden: return L10n.text("settings.hiddenDetection.macOSHidden")
+            }
+        }
+    }
+
     /// 把完整的 fileItems（已排序）拆成可见叶子 + 隐藏条目两段，保持各自原有顺序。
     /// 不改变排序 —— 调用方先排好序，这里只按 `isHidden` 分流，让两段各自维持稳定次序。
     static func split(_ items: [FileItem]) -> (visible: [FileItem], hidden: [FileItem]) {

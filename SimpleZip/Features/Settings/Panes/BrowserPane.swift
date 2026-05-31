@@ -13,6 +13,7 @@ import SwiftUI
 /// `browserPreferencesChanged` 通知 —— 由 ContentView 接收并刷新文件列表。
 struct BrowserPane: View {
     @AppStorage(AppPreferences.Key.showHiddenFiles) private var showHiddenFiles = false
+    @AppStorage(AppPreferences.Key.hiddenDetectionMode) private var hiddenDetectionModeRaw = FileBrowserOutline.HiddenDetectionMode.dotfilesOnly.rawValue
     @AppStorage(AppPreferences.Key.hiddenGroupCollapseMode) private var hiddenGroupCollapseModeRaw = FileBrowserOutline.CollapseMode.alwaysCollapsed.rawValue
     @AppStorage(AppPreferences.Key.showSymbolicLinks) private var showSymbolicLinks = true
     @AppStorage(AppPreferences.Key.followFinderStructure) private var followFinderStructure = false
@@ -33,6 +34,22 @@ struct BrowserPane: View {
                     description: L10n.text("settings.showHiddenFiles.description"),
                     isOn: $showHiddenFiles
                 )
+                // 「什么算隐藏文件」判定方式：仅 dotfile（Unix）vs 再算上 macOS UF_HIDDEN 标志。
+                SettingsControlRow(
+                    title: L10n.text("settings.hiddenDetection"),
+                    description: L10n.text("settings.hiddenDetection.description")
+                ) {
+                    Picker("", selection: $hiddenDetectionModeRaw) {
+                        ForEach(FileBrowserOutline.HiddenDetectionMode.allCases, id: \.self) { mode in
+                            Text(mode.title).tag(mode.rawValue)
+                        }
+                    }
+                    .labelsHidden()
+                    .fixedSize()
+                    .frame(minWidth: 200, alignment: .trailing)
+                }
+                .disabled(!showHiddenFiles)
+
                 // 隐藏文件折叠记忆策略 —— 只在显示隐藏文件时才有意义，所以关掉时整行变灰但仍可见，
                 // 让用户知道这个选项存在。改了之后从下一次进文件夹起生效。
                 SettingsControlRow(
@@ -76,6 +93,7 @@ struct BrowserPane: View {
             hiddenCustomSuffixes = AppPreferences.hiddenCustomSuffixes
         }
         .onChange(of: showHiddenFiles) { _ in notifyBrowserRefresh() }
+        .onChange(of: hiddenDetectionModeRaw) { _ in notifyBrowserRefresh() }
         .onChange(of: hiddenGroupCollapseModeRaw) { _ in notifyBrowserRefresh() }
         .onChange(of: showSymbolicLinks) { _ in notifyBrowserRefresh() }
         .onChange(of: followFinderStructure) { _ in notifyBrowserRefresh() }

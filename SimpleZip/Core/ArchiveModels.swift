@@ -16,8 +16,9 @@ struct FileItem: Identifiable, Hashable {
     let displayName: String
     let isDirectory: Bool
     let isSymbolicLink: Bool
-    /// macOS 层面的隐藏（dotfile 或 chflags hidden 标志）。0.2.0：开启「显示隐藏文件」后，
-    /// 这些条目不再平铺，而是收进默认折叠的「隐藏文件」分组节点。
+    /// 是否算隐藏。判定方式由用户偏好 `hiddenDetectionMode` 决定：
+    /// `.dotfilesOnly`（默认）仅看名字是否以 . 开头；`.macOSHidden` 再算上 macOS UF_HIDDEN 标志。
+    /// 0.2.0：开启「显示隐藏文件」后，隐藏项不再平铺，而是收进默认折叠的「隐藏文件」分组节点。
     let isHidden: Bool
     let size: Int64?
     let modified: Date?

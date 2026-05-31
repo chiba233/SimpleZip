@@ -252,6 +252,7 @@ enum AppPreferences {
         nonisolated static let activeContentOpenPolicy = "activeContentOpenPolicy"
         nonisolated static let confirmBeforeDeletingFiles = "confirmBeforeDeletingFiles"
         nonisolated static let showHiddenFiles = "showHiddenFiles"
+        nonisolated static let hiddenDetectionMode = "hiddenDetectionMode"
         nonisolated static let showSymbolicLinks = "showSymbolicLinks"
         nonisolated static let followFinderStructure = "followFinderApplicationStructure"
         nonisolated static let hiddenSuffixesEnabled = "hiddenSuffixesEnabled"
@@ -357,6 +358,12 @@ enum AppPreferences {
 
     nonisolated static var showHiddenFiles: Bool {
         defaults.bool(forKey: Key.showHiddenFiles)
+    }
+
+    /// 「什么算隐藏文件」判定方式。默认 `.dotfilesOnly`（仅 Unix dotfile）。
+    nonisolated static var hiddenDetectionMode: FileBrowserOutline.HiddenDetectionMode {
+        get { FileBrowserOutline.HiddenDetectionMode.parse(defaults.string(forKey: Key.hiddenDetectionMode)) }
+        set { defaults.set(newValue.rawValue, forKey: Key.hiddenDetectionMode) }
     }
 
     nonisolated static var showSymbolicLinks: Bool {
@@ -744,6 +751,7 @@ enum AppPreferences {
         Key.sevenZipBackend,
         Key.rarBackend,
         Key.showHiddenFiles,
+        Key.hiddenDetectionMode,
         Key.showSymbolicLinks,
         Key.followFinderStructure,
         Key.hiddenSuffixesEnabled,

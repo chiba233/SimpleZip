@@ -544,6 +544,10 @@
 "settings.startupLocation.description" = "Choose which folder the browser opens when SimpleZip starts.";
 "settings.overwriteBehavior.description" = "Choose the default action when extracting, copying, or moving into an existing file name.";
 "settings.showHiddenFiles.description" = "Show dotfiles and other hidden Finder items in the file browser.";
+"settings.hiddenDetection" = "What counts as hidden";
+"settings.hiddenDetection.description" = "Choose whether only dotfiles (names beginning with a dot) count as hidden, or also items carrying the macOS hidden flag (such as /etc and ~/Library).";
+"settings.hiddenDetection.dotfilesOnly" = "Dotfiles only";
+"settings.hiddenDetection.macOSHidden" = "Dotfiles + macOS hidden flag";
 "settings.hiddenGroupCollapse" = "Hidden files group";
 "settings.hiddenGroupCollapse.description" = "When hidden files are shown, they are tucked into a collapsible \"Hidden Files\" group. Choose how that group behaves, or show hidden files inline without grouping.";
 "settings.hiddenGroupCollapse.alwaysCollapsed" = "Always collapsed";
