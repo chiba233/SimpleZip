@@ -444,6 +444,10 @@ struct ContentView: View {
                 }
                 if summary != nil {
                     await MainActor.run {
+                        // 验签有问题（坏签 / 未知签名者 / 验签错误 / 不受信 / 有 concerns）→ 弹验签 sheet
+                        // 让用户决定。即使开了「Finder 自动解压」也要把主窗口唤起来 —— 否则 sheet 挂在
+                        // 没前置的窗口上，用户只看到 app 起来了却没弹任何东西（用户特别提醒的场景）。
+                        activateForMainWindowOpen()
                         pendingSIZVerification = SIZPendingVerification(
                             innerArchiveURL: innerArchiveURL,
                             tempRoot: tempRoot,
@@ -460,7 +464,12 @@ struct ContentView: View {
                     }
                 }
             } catch {
-                await MainActor.run { model.errorMessage = error.localizedDescription }
+                // unwrap / 解密 / 验签过程报错也要把窗口唤起来，否则错误 alert 挂在没前置的主窗口上，
+                // 从 Finder 双击 .siz 时用户只看到程序起来却没有任何提示。
+                await MainActor.run {
+                    activateForMainWindowOpen()
+                    model.errorMessage = error.localizedDescription
+                }
             }
         }
     }

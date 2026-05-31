@@ -11,6 +11,7 @@
 - **Localization: fixed badly machine-translated strings** in the GPG, signed-container (`.siz` / `.szs`), and welcome-assistant areas across German, Spanish, French, Japanese, Korean, Russian, and Thai. A cluster of ~66 strings had been auto-translated by word substitution (only a noun localized, the rest left in English) or mapped onto the wrong message; they are now proper native translations with format specifiers and security wording preserved. (Traditional Chinese and the two primary locales were already correct.)
 - **Fixed: a symlink pointing at an app bundle opened as a folder instead of launching.** A symlink to a `.app`/`.bundle` (e.g. an alias to an application) was treated as a navigable folder, so double-clicking descended into it. Package detection now resolves the symlink target first, so such links launch the app, the way Finder does.
 - **Fixed: Settings → File Associations kept showing "set as default" after the default changed.** The success line was sticky and lingered even once a type was no longer handled by SimpleZip. It's now cleared when you re-open the pane and whenever a refresh finds the type is no longer SimpleZip's default.
+- **Fixed: a `.siz` that fails signature verification now reliably surfaces its dialog.** With "Auto-extract from Finder" on, opening a `.siz` whose signature is bad / untrusted / unverifiable — or that errors while unwrapping — now activates the app and brings the verification sheet or error alert to the front, instead of leaving it behind an un-focused window.
 
 ## 0.2.0
 
