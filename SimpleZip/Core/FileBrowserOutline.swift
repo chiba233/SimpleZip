@@ -70,6 +70,58 @@ enum FileBrowserOutline {
         }
     }
 
+    /// 列表行的显示密度（行高 + 图标 + 字号一起缩放）。用户在 Settings → 视图 里选，默认 `.standard`。
+    /// 文件浏览和压缩包浏览共用一套度量 —— 同一个 NSTableView/NSOutlineView 外观，密度也该一致。
+    /// 数值放在 Core 是为了能被 SwiftPM 单测覆盖；UI 层（TableSupport）拿这些数把 rowHeight / 图标尺寸 / NSFont 画出来。
+    enum RowDensity: String, CaseIterable {
+        /// 紧凑：一屏塞更多行。
+        case compact
+        /// 标准：0.2.0 之前的固定行高（rowHeight 28 / 图标 18 / 13pt）。
+        case standard
+        /// 宽松：行更高、图标更大，触控 / 视力友好。
+        case loose
+
+        nonisolated static func parse(_ raw: String?) -> RowDensity {
+            guard let raw, let value = RowDensity(rawValue: raw) else { return .standard }
+            return value
+        }
+
+        /// 行高。`.standard` 维持历史值 28，保证升级用户观感不变。
+        var rowHeight: CGFloat {
+            switch self {
+            case .compact: return 22
+            case .standard: return 28
+            case .loose: return 36
+            }
+        }
+
+        /// name 列前导图标的边长（正方形）。
+        var iconSize: CGFloat {
+            switch self {
+            case .compact: return 15
+            case .standard: return 18
+            case .loose: return 24
+            }
+        }
+
+        /// 单元格文本字号（pt）。
+        var textPointSize: CGFloat {
+            switch self {
+            case .compact: return 11
+            case .standard: return 13
+            case .loose: return 15
+            }
+        }
+
+        var title: String {
+            switch self {
+            case .compact: return L10n.text("settings.rowDensity.compact")
+            case .standard: return L10n.text("settings.rowDensity.standard")
+            case .loose: return L10n.text("settings.rowDensity.loose")
+            }
+        }
+    }
+
     /// 把完整的 fileItems（已排序）拆成可见叶子 + 隐藏条目两段，保持各自原有顺序。
     /// 不改变排序 —— 调用方先排好序，这里只按 `isHidden` 分流，让两段各自维持稳定次序。
     static func split(_ items: [FileItem]) -> (visible: [FileItem], hidden: [FileItem]) {

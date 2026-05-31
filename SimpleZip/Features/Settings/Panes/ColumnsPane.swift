@@ -34,9 +34,25 @@ struct ColumnsPane: View {
     @AppStorage(AppPreferences.Key.fileGroupingScope) private var fileGroupingScopeRaw = BrowserGrouping.GroupingScope.global.rawValue
     @AppStorage(AppPreferences.Key.fileGroupBy) private var fileGroupByRaw = BrowserGrouping.GroupBy.none.rawValue
     @AppStorage(AppPreferences.Key.archiveGroupBy) private var archiveGroupByRaw = BrowserGrouping.GroupBy.none.rawValue
+    // 列表显示密度（文件 / 压缩包浏览共用）。
+    @AppStorage(AppPreferences.Key.rowDensity) private var rowDensityRaw = FileBrowserOutline.RowDensity.standard.rawValue
 
     var body: some View {
         Form {
+            Section(L10n.text("settings.section.display")) {
+                SettingsControlRow(
+                    title: L10n.text("settings.rowDensity"),
+                    description: L10n.text("settings.rowDensity.description")
+                ) {
+                    Picker("", selection: $rowDensityRaw) {
+                        ForEach(FileBrowserOutline.RowDensity.allCases, id: \.self) { density in
+                            Text(density.title).tag(density.rawValue)
+                        }
+                    }
+                    .labelsHidden().fixedSize().frame(minWidth: 200, alignment: .trailing)
+                }
+            }
+
             Section(L10n.text("settings.section.columns")) {
                 Text(L10n.text("settings.columns.description"))
                     .font(.caption)

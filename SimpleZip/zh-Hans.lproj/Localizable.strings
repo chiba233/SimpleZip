@@ -326,6 +326,12 @@
 "group.date.unknown" = "日期未知";
 "settings.hiddenWithGrouping" = "分类时的隐藏文件";
 "settings.hiddenWithGrouping.description" = "开启分类且显示隐藏文件时，把隐藏文件融进各种类组，还是单列一个「隐藏文件」组。";
+"settings.section.display" = "显示";
+"settings.rowDensity" = "列表大小";
+"settings.rowDensity.description" = "文件浏览和压缩包浏览的行高、图标、文字大小。";
+"settings.rowDensity.compact" = "紧凑";
+"settings.rowDensity.standard" = "标准";
+"settings.rowDensity.loose" = "宽松";
 "settings.section.grouping" = "分组";
 "settings.grouping.description" = "把浏览列表按维度切成可折叠的区块。";
 "settings.grouping.enable" = "开启分组";

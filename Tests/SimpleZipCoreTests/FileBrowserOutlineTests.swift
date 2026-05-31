@@ -103,6 +103,30 @@ struct FileBrowserOutlineTests {
     }
 
     @Test
+    func rowDensityParseFallsBackToStandard() {
+        #expect(FileBrowserOutline.RowDensity.parse(nil) == .standard)
+        #expect(FileBrowserOutline.RowDensity.parse("garbage") == .standard)
+        #expect(FileBrowserOutline.RowDensity.parse("compact") == .compact)
+        #expect(FileBrowserOutline.RowDensity.parse("standard") == .standard)
+        #expect(FileBrowserOutline.RowDensity.parse("loose") == .loose)
+    }
+
+    @Test
+    func rowDensityMetricsAreMonotonic() {
+        // 行高 / 图标 / 字号都随密度严格递增；standard 维持历史值 28，保证升级观感不变。
+        let compact = FileBrowserOutline.RowDensity.compact
+        let standard = FileBrowserOutline.RowDensity.standard
+        let loose = FileBrowserOutline.RowDensity.loose
+        #expect(standard.rowHeight == 28)
+        #expect(compact.rowHeight < standard.rowHeight)
+        #expect(standard.rowHeight < loose.rowHeight)
+        #expect(compact.iconSize < standard.iconSize)
+        #expect(standard.iconSize < loose.iconSize)
+        #expect(compact.textPointSize < standard.textPointSize)
+        #expect(standard.textPointSize < loose.textPointSize)
+    }
+
+    @Test
     func groupsHiddenFilesIsFalseOnlyForInline() {
         #expect(FileBrowserOutline.CollapseMode.alwaysCollapsed.groupsHiddenFiles == true)
         #expect(FileBrowserOutline.CollapseMode.rememberPerFolder.groupsHiddenFiles == true)

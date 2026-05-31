@@ -114,7 +114,9 @@ func makeTableCell(
     identifier: String,
     text: String,
     isPrimaryColumn: Bool,
-    icon: NSImage?
+    icon: NSImage?,
+    iconSize: CGFloat = 18,
+    font: NSFont = .systemFont(ofSize: 13)
 ) -> NSTableCellView {
     let cellID = NSUserInterfaceItemIdentifier(identifier)
     let cell = tableView.makeView(withIdentifier: cellID, owner: owner) as? NSTableCellView ?? NSTableCellView()
@@ -124,6 +126,7 @@ func makeTableCell(
 
     let textField = NSTextField(labelWithString: text)
     textField.lineBreakMode = .byTruncatingMiddle
+    textField.font = font
     textField.textColor = isPrimaryColumn ? .labelColor : .secondaryLabelColor
     textField.translatesAutoresizingMaskIntoConstraints = false
 
@@ -138,8 +141,8 @@ func makeTableCell(
         NSLayoutConstraint.activate([
             imageView.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 4),
             imageView.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
-            imageView.widthAnchor.constraint(equalToConstant: 18),
-            imageView.heightAnchor.constraint(equalToConstant: 18),
+            imageView.widthAnchor.constraint(equalToConstant: iconSize),
+            imageView.heightAnchor.constraint(equalToConstant: iconSize),
             textField.leadingAnchor.constraint(equalTo: imageView.trailingAnchor, constant: 6),
             textField.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -4),
             textField.centerYAnchor.constraint(equalTo: cell.centerYAnchor)

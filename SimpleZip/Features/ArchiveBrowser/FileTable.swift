@@ -26,6 +26,8 @@ struct FileTable: View {
     @AppStorage(AppPreferences.Key.fileGroupingScope) private var fileGroupingScope = BrowserGrouping.GroupingScope.global.rawValue
     @AppStorage(AppPreferences.Key.fileGroupBy) private var fileGroupBy = BrowserGrouping.GroupBy.none.rawValue
     @AppStorage(AppPreferences.Key.hiddenWithGrouping) private var hiddenWithGrouping = BrowserGrouping.HiddenWithGrouping.separateGroup.rawValue
+    // 显示密度：值变 → updateNSView 调整 rowHeight + 重画单元格。
+    @AppStorage(AppPreferences.Key.rowDensity) private var rowDensity = FileBrowserOutline.RowDensity.standard.rawValue
 
     var body: some View {
         FileNSOutlineView(
@@ -39,7 +41,8 @@ struct FileTable: View {
             showCreatedColumn: showCreatedColumn,
             groupingScope: fileGroupingScope,
             groupBy: fileGroupBy,
-            hiddenWithGrouping: hiddenWithGrouping
+            hiddenWithGrouping: hiddenWithGrouping,
+            rowDensity: rowDensity
         )
     }
 }
@@ -105,6 +108,7 @@ private struct FileNSOutlineView: NSViewRepresentable {
     let groupingScope: String
     let groupBy: String
     let hiddenWithGrouping: String
+    let rowDensity: String
 
     func makeCoordinator() -> Coordinator {
         Coordinator(model: model)
@@ -124,6 +128,7 @@ private struct FileNSOutlineView: NSViewRepresentable {
         }
         guard let outlineView = scrollView.documentView as? NSOutlineView else { return scrollView }
         configureColumns(for: outlineView)
+        outlineView.rowHeight = AppPreferences.rowDensity.rowHeight
         context.coordinator.syncContent()
         return scrollView
     }
@@ -132,6 +137,8 @@ private struct FileNSOutlineView: NSViewRepresentable {
         guard let outlineView = scrollView.documentView as? NSOutlineView else { return }
         context.coordinator.model = model
         configureColumns(for: outlineView)
+        // 密度变化：rowHeight 改了要 reloadData 才会按新行高 + 新图标/字号重画（syncContent 内部已 reload）。
+        outlineView.rowHeight = AppPreferences.rowDensity.rowHeight
         context.coordinator.syncContent()
         context.coordinator.applySelection()
     }
@@ -351,6 +358,7 @@ private struct FileNSOutlineView: NSViewRepresentable {
         func outlineView(_ outlineView: NSOutlineView, viewFor tableColumn: NSTableColumn?, item: Any) -> NSView? {
             guard let node = item as? FileOutlineNode, let tableColumn else { return nil }
             let column = FileColumn(identifier: tableColumn.identifier.rawValue) ?? .name
+            let density = AppPreferences.rowDensity
 
             if node.isSection {
                 // 区块头只在 name 列画标题 + 图标；其它列留空。
@@ -362,7 +370,9 @@ private struct FileNSOutlineView: NSViewRepresentable {
                     identifier: "FileCell-section",
                     text: node.title,
                     isPrimaryColumn: true,
-                    icon: NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
+                    icon: NSImage(systemSymbolName: symbol, accessibilityDescription: nil),
+                    iconSize: density.iconSize,
+                    font: .systemFont(ofSize: density.textPointSize)
                 )
             }
 
@@ -373,7 +383,9 @@ private struct FileNSOutlineView: NSViewRepresentable {
                 identifier: "FileCell-\(column.identifier)",
                 text: column.value(for: fileItem),
                 isPrimaryColumn: column == .name,
-                icon: column == .name ? icon(for: fileItem) : nil
+                icon: column == .name ? icon(for: fileItem) : nil,
+                iconSize: density.iconSize,
+                font: .systemFont(ofSize: density.textPointSize)
             )
         }
 

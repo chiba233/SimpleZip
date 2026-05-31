@@ -25,6 +25,7 @@ struct ArchiveTable: View {
     @AppStorage(AppPreferences.Key.showArchiveAttributesColumn) private var showAttributesColumn = false
     // 观察分组方式 —— 在 Settings 改时靠它触发重渲染 → updateNSView → 重新分组。
     @AppStorage(AppPreferences.Key.archiveGroupBy) private var archiveGroupBy = BrowserGrouping.GroupBy.none.rawValue
+    @AppStorage(AppPreferences.Key.rowDensity) private var rowDensity = FileBrowserOutline.RowDensity.standard.rawValue
 
     var body: some View {
         ZStack {
@@ -40,7 +41,8 @@ struct ArchiveTable: View {
                 showCrcColumn: showCrcColumn,
                 showCreatedColumn: showCreatedColumn,
                 showAttributesColumn: showAttributesColumn,
-                groupBy: archiveGroupBy
+                groupBy: archiveGroupBy,
+                rowDensity: rowDensity
             )
 
             if model.archiveItems.isEmpty && model.isWorking {
@@ -104,6 +106,7 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
     let showAttributesColumn: Bool
     // 仅作变化触发器：值变 → 重建 representable → updateNSView → 重新分组。真值由 coordinator 读 AppPreferences。
     let groupBy: String
+    let rowDensity: String
 
     func makeCoordinator() -> Coordinator {
         Coordinator(model: model)
@@ -121,6 +124,7 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
         }
         guard let outlineView = scrollView.documentView as? NSOutlineView else { return scrollView }
         configureColumns(for: outlineView)
+        outlineView.rowHeight = AppPreferences.rowDensity.rowHeight
         context.coordinator.syncContent()
         return scrollView
     }
@@ -129,6 +133,7 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
         guard let outlineView = scrollView.documentView as? NSOutlineView else { return }
         context.coordinator.model = model
         configureColumns(for: outlineView)
+        outlineView.rowHeight = AppPreferences.rowDensity.rowHeight
         context.coordinator.syncContent()
         context.coordinator.applySelection()
     }
@@ -239,6 +244,7 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
         func outlineView(_ outlineView: NSOutlineView, viewFor tableColumn: NSTableColumn?, item: Any) -> NSView? {
             guard let node = item as? ArchiveOutlineNode, let tableColumn else { return nil }
             let column = ArchiveColumn(identifier: tableColumn.identifier.rawValue) ?? .name
+            let density = AppPreferences.rowDensity
 
             if node.isSection {
                 guard column == .name else { return nil }
@@ -248,7 +254,9 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
                     identifier: "ArchiveCell-section",
                     text: node.title,
                     isPrimaryColumn: true,
-                    icon: NSImage(systemSymbolName: "square.grid.3x1.below.line.grid.1x2", accessibilityDescription: nil)
+                    icon: NSImage(systemSymbolName: "square.grid.3x1.below.line.grid.1x2", accessibilityDescription: nil),
+                    iconSize: density.iconSize,
+                    font: .systemFont(ofSize: density.textPointSize)
                 )
             }
 
@@ -259,7 +267,9 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
                 identifier: "ArchiveCell-\(column.identifier)",
                 text: column.value(for: item),
                 isPrimaryColumn: column == .name,
-                icon: column == .name ? icon(for: item) : nil
+                icon: column == .name ? icon(for: item) : nil,
+                iconSize: density.iconSize,
+                font: .systemFont(ofSize: density.textPointSize)
             )
         }
 

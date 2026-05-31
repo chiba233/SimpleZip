@@ -326,6 +326,12 @@
 "group.date.unknown" = "Unknown Date";
 "settings.hiddenWithGrouping" = "Hidden files when grouping";
 "settings.hiddenWithGrouping.description" = "When grouping is on and hidden files are shown, fold hidden files into the kind groups, or keep them in their own \"Hidden Files\" group.";
+"settings.section.display" = "Display";
+"settings.rowDensity" = "List size";
+"settings.rowDensity.description" = "Row height, icon, and text size for both the file and archive lists.";
+"settings.rowDensity.compact" = "Compact";
+"settings.rowDensity.standard" = "Standard";
+"settings.rowDensity.loose" = "Comfortable";
 "settings.section.grouping" = "Grouping";
 "settings.grouping.description" = "Group the browser list into collapsible sections.";
 "settings.grouping.enable" = "Enable grouping";

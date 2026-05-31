@@ -271,6 +271,8 @@ enum AppPreferences {
         nonisolated static let fileFolderGrouping = "fileFolderGrouping"
         // 导出备份时是否包含「按文件夹记忆」（per-folder 分组覆盖 + 隐藏组展开记忆）。默认关。
         nonisolated static let includePerFolderMemoryInBackup = "includePerFolderMemoryInBackup"
+        // 0.2.0 列表显示密度（文件 / 压缩包浏览共用一档）。
+        nonisolated static let rowDensity = "rowDensity"
         nonisolated static let rememberLastFolder = "rememberLastFolder"
         nonisolated static let lastFolderPath = "lastFolderPath"
         nonisolated static let checkForUpdatesOnLaunch = "checkForUpdatesOnLaunch"
@@ -405,6 +407,12 @@ enum AppPreferences {
     }
 
     // MARK: - 隐藏文件折叠分组（0.2.0）
+
+    /// 列表显示密度（文件 / 压缩包浏览共用）。默认 `.standard`（行高 28，升级用户观感不变）。
+    nonisolated static var rowDensity: FileBrowserOutline.RowDensity {
+        get { FileBrowserOutline.RowDensity.parse(defaults.string(forKey: Key.rowDensity)) }
+        set { defaults.set(newValue.rawValue, forKey: Key.rowDensity) }
+    }
 
     /// 隐藏分组折叠记忆策略。默认 `.alwaysCollapsed`（每次进文件夹都折叠）。
     nonisolated static var hiddenGroupCollapseMode: FileBrowserOutline.CollapseMode {
@@ -806,6 +814,7 @@ enum AppPreferences {
         Key.archiveGroupBy,
         Key.hiddenWithGrouping,
         Key.fileGroupingScope,
+        Key.rowDensity,
         Key.showFileSizeColumn,
         Key.showFileTypeColumn,
         Key.showFileApplicationColumn,
