@@ -428,6 +428,86 @@ Hash: SHA512
 
 ---
 
+## Sparkle 自动更新 — EdDSA 签名（0.1.10 起）
+
+Sparkle 从仓库 `docs/appcast.xml` 抓最新版的 DMG。0.1.10 起客户端拒绝
+任何 `sparkle:edSignature` 跟 `Info.plist` 内嵌的公钥（`SUPublicEDKey`）
+对不上的更新 DMG。这补齐了 0.1.8 / 0.1.9 `SparkleUpdater.swift` 决策注释里
+那条「现阶段不做 EdDSA 签名」的缺口 —— 那时候自动更新完整性只靠 TLS 到
+`raw.githubusercontent.com` + 发版基础设施未被入侵，两者都**不是**密码学
+保证。
+
+### 签的是什么
+
+- **每个版本**：**发布的 DMG 字节流本身**。
+- 签名在 release workflow（`.github/workflows/release.yml` 的「Sign DMG
+  with Sparkle sign_update」步骤）里跑 Sparkle SDK 自带的 `sign_update`
+  计算。输出的 `sparkle:edSignature="..."` 和 `length="..."` **原文**灌进
+  appcast `<enclosure>`，保证 appcast 上记录的 length / 签名描述的就是
+  DMG 上传步骤推到 GitHub Releases 的那一串字节。
+- 用户机器上的 Sparkle 下载 DMG，用 `SUPublicEDKey` 计算 Ed25519 验签，
+  通过就装，任何不一致都弹出「无法验证真实性」红框。
+
+### 密钥位置
+
+| 角色          | 位置                                                                          |
+|---------------|-----------------------------------------------------------------------------|
+| 公钥          | `Info.plist` → `SUPublicEDKey`（44 字符 base64 Ed25519 公钥）                  |
+| 私钥（CI）    | GitHub Actions secret `SPARKLE_ED_PRIVATE_KEY`（base64 Ed25519 seed）         |
+| 私钥（本地）  | macOS Keychain，account `simplezip-ci`，外加 gitignored 的 `secrets/` 用于转移 |
+| 本地流程      | 见 `secrets/README.md` —— `generate_keys`、`pbcopy`、上传 GitHub Secret、轮换 |
+
+私钥**绝不**走命令行或进程 env —— `sign_update` 从 `mktemp` 临时文件读
+（`chmod 600`），用完立刻删，避免 `ps` 或 shell history 误曝光。
+
+### 威胁模型
+
+**保护范围内：**
+- `raw.githubusercontent.com` / `*.githubusercontent.com` 链路上的 MITM
+  （TLS 击穿、BGP 劫持、用户机器上装了恶意根证书）。攻击者还是能改字节，
+  但产不出合法签名。
+- 发版后被人篡改 GitHub Release 文件。
+- `main` 上 `docs/appcast.xml` 被恶意编辑（降级攻击、改 enclosure URL 指别处）：
+  目标字节流仍必须满足签名。
+- CDN 边缘被妥协，给部分用户投替换字节。
+
+**不保护：**
+- 发版管线本身被妥协（恶意 step 插进 `release.yml` 会用合法密钥签任意 DMG）。
+- `SPARKLE_ED_PRIVATE_KEY` 被偷 —— 任何拿到密钥的人都能签出 0.1.10+ 客户端
+  会接受的签名。
+- **首次安装的完整性**。Sparkle EdDSA 只保护**已安装** SimpleZip 之后的
+  自动更新。**首次**从 GitHub Releases 下载只靠 TLS + GitHub 账号安全；这部分
+  靠 Gatekeeper +（将来的）Developer ID 公证去覆盖。
+- 构建环境被妥协（构建期被注入恶意依赖，输出的 DMG 仍会被合法密钥签）。
+
+### 轮换 / 丢失恢复
+
+私钥是唯一的敏感物。如果丢失或怀疑泄露：
+
+1. 跑 `generate_keys --account simplezip-ci` 生成新对。
+2. 用新公钥替换 `Info.plist` 的 `SUPublicEDKey`。
+3. 用新私钥替换 GitHub Actions secret `SPARKLE_ED_PRIVATE_KEY`。
+4. 正常发版。
+
+**但是** 轮换本质上是一次不可避免的「断更」：轮换之后，所有已安装用户的
+`SUPublicEDKey` 还是旧的，而新版本是新私钥签的 → 老客户端会拒绝接受。
+没有任何「平滑过渡」方案能同时保住老用户的自动更新和轮换本身的安全意义。
+所以现实操作：
+
+- **只在确认被攻陷时轮换**，不预先轮换。
+- 轮换时**通知用户手动重新下载**；自动更新会跟「DMG 被篡改」一样弹同一个错。
+- 0.1.10 → 0.1.11+ 升级在密钥稳定时正常工作，「轮换破坏更新」的代价只在
+  真出事时才付。
+
+### 0.1.9 升 0.1.10
+
+0.1.9 及更早版本的 `Info.plist` 没有 `SUPublicEDKey`，所以那些版本上
+的 Sparkle 完全忽略 `sparkle:edSignature`。换句话说 0.1.10 这一跳交付
+给老用户时**不验证**（跟以前一样只有 TLS）。从 0.1.10 起所有后续升级
+都会做签名校验。
+
+---
+
 ## 内置后端
 
 | 后端                                       | 来源                      | 许可证                                          |

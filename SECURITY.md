@@ -466,6 +466,107 @@ payload root automatically drops the filter.
 
 ---
 
+## Sparkle Auto-Update — EdDSA Signature (since 0.1.10)
+
+Sparkle pulls a new version's DMG from a URL listed in
+`docs/appcast.xml` on this repository. Since 0.1.10 the client refuses any
+update DMG whose `sparkle:edSignature` does not validate against the public
+key embedded in `Info.plist` (`SUPublicEDKey`). This closes the gap
+documented in the 0.1.8 / 0.1.9 `SparkleUpdater.swift` decision record
+("no EdDSA signing yet"), which had left auto-update integrity dependent on
+TLS to `raw.githubusercontent.com` plus uncompromised release infrastructure
+— neither of which is a cryptographic guarantee.
+
+### What is signed
+
+- **Per release**: the **exact bytes of the published DMG**.
+- The signature is computed with `sign_update` from the Sparkle SDK in the
+  release workflow (`.github/workflows/release.yml`, step "Sign DMG with
+  Sparkle sign_update"). The output `sparkle:edSignature="..."` and `length="..."`
+  are inserted **verbatim** into the appcast `<enclosure>` element, so the
+  appcast's length and signature describe the same byte sequence the DMG
+  upload step pushed to GitHub Releases.
+- Sparkle on the user's machine downloads the DMG, computes its Ed25519
+  signature against `SUPublicEDKey`, and either installs (signature valid)
+  or surfaces the on-screen "could not verify authenticity" alert (any
+  mismatch).
+
+### Key locations
+
+| Role                 | Where                                                                                     |
+|----------------------|-------------------------------------------------------------------------------------------|
+| Public key           | `Info.plist` → `SUPublicEDKey` (44-character base64 Ed25519 public key)                   |
+| Private key (CI)     | GitHub Actions secret `SPARKLE_ED_PRIVATE_KEY` (base64 Ed25519 seed)                      |
+| Private key (local)  | macOS Keychain, account `simplezip-ci`, plus a gitignored `secrets/` folder for transport |
+| Local procedure      | See `secrets/README.md` — `generate_keys`, `pbcopy`, GitHub Secret upload, key rotation   |
+
+The private key is **never** passed on the command line or in
+`process` env — `sign_update` reads it from a `mktemp` file with `chmod 600`
+and the file is deleted before the step finishes. This prevents accidental
+exposure through `ps` or shell history.
+
+### Threat model
+
+**Protected against:**
+- MITM on `raw.githubusercontent.com` / `*.githubusercontent.com` (TLS
+  break, BGP hijack, malicious root CA installed on the user's machine).
+  An attacker can still flip bits but cannot produce a valid signature.
+- Tampering with the published GitHub Release after it has been cut.
+- A maliciously edited `docs/appcast.xml` on `main` (downgrade attack,
+  redirected enclosure URL): the `enclosure` URL bytes still have to satisfy
+  the signature.
+- A compromised content-delivery edge serving substituted bytes to a subset
+  of users.
+
+**Not protected against:**
+- A compromised release pipeline (a malicious step inserted into
+  `release.yml` could sign any DMG it produced).
+- A stolen `SPARKLE_ED_PRIVATE_KEY` — anyone with the key can produce
+  signatures that any installed 0.1.10+ build will accept.
+- **First-install integrity.** Sparkle EdDSA only protects automatic
+  updates *after* the user has a build of SimpleZip installed. The
+  *initial* download from GitHub Releases is covered only by TLS + GitHub's
+  account security; this is what Gatekeeper + (eventually) Developer ID
+  notarization are meant to address.
+- Build-environment compromise (a malicious dependency injected into the
+  Xcode project at build time would be signed by the legitimate key).
+
+### Rotation / loss recovery
+
+The private key is the only sensitive secret. If it is lost or believed
+compromised:
+
+1. Generate a new keypair with `generate_keys --account simplezip-ci`.
+2. Replace `SUPublicEDKey` in `Info.plist` with the new public key.
+3. Replace the GitHub Actions secret `SPARKLE_ED_PRIVATE_KEY` with the new
+   private key.
+4. Cut a release as normal.
+
+Users on the prior installed version will accept the next update because
+**their installed bundle still embeds the old public key**, and the appcast
+is signed by the *old* key. Wait — that's not right when we rotated. The
+rotation procedure is unavoidably a one-shot break: after rotation, every
+installed user is on a version whose embedded `SUPublicEDKey` no longer
+matches the key the new releases are signed with. There is no smooth
+transition path that doesn't sacrifice either auto-update for existing users
+or the security of the rotation. In practice this means:
+
+- **Only rotate on a confirmed compromise**, not preemptively.
+- **Announce a manual re-download** to users when rotating; an automatic
+  update will fail with the same "could not verify" alert as a tampered
+  DMG.
+- 0.1.10 → 0.1.11+ upgrades work fine as long as the key is stable. So
+  the "rotation breaks updates" cost is only paid when actually required.
+
+### Upgrade from 0.1.9 to 0.1.10
+
+0.1.9 and earlier did not embed `SUPublicEDKey`, so Sparkle on those
+versions ignores `sparkle:edSignature` entirely. The 0.1.10 update is
+therefore delivered to those users *without* signature verification (just
+TLS, as before). From 0.1.10 onward all subsequent updates are verified.
+
+---
+
 ## Bundled Backends
 
 | Backend                                  | Source                  | License                                    |

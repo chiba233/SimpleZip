@@ -88,8 +88,18 @@ References:
   - SwiftPM tests pass (last defence before packaging);
   - RAR backend install step succeeds;
   - DMG artifact uploaded as `SimpleZip-unsigned-dmg`;
+  - **Sparkle "Sign DMG with sign_update" step succeeds** — the step output
+    in the GitHub Actions log shows `sparkle:edSignature="..." length="..."`;
+    if it fails with "SPARKLE_ED_PRIVATE_KEY secret is not set", the
+    GitHub Secret needs to be re-uploaded (see `secrets/README.md`);
   - GitHub release auto-created with the DMG attached and the
     "unsigned" warning notice.
+- [ ] **Verify Sparkle signature in the published appcast**: after the
+      workflow finishes, run `./scripts/verify_appcast.sh` locally — it
+      downloads the published DMG and re-verifies the `sparkle:edSignature`
+      using the public key from `Info.plist`. Anything other than `OK`
+      means a Sparkle-installed user on 0.1.10+ would see the
+      "could not verify authenticity" alert.
 - [ ] If the workflow fails on the tag run, delete the tag (`git push --delete
       origin v<version>`), fix on `main`, and re-tag.
 
@@ -110,7 +120,7 @@ References:
 These are tracked, but are not gating conditions today; flip them to required
 items when each lands:
 
-- Developer ID signing + notarization (Phase 11 candidate; tied to Sparkle).
-- Sparkle update feed (Phase 11; user has not confirmed appcast hosting).
+- Developer ID signing + notarization (Phase 11 candidate; orthogonal to
+  Sparkle EdDSA signing, which already shipped in 0.1.10).
 - Public security mailbox separate from GitHub Advisories.
 - Reproducible builds.
