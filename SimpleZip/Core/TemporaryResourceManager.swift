@@ -8,9 +8,11 @@
 import Foundation
 
 enum TemporaryResourceManager {
-    static let openedArchiveItemsDirectoryName = "SimpleZipArchiveOpen"
+    nonisolated static let openedArchiveItemsDirectoryName = "SimpleZipArchiveOpen"
 
-    static func openedArchiveItemsRoot(fileManager: FileManager = .default) -> URL {
+    // 纯路径计算 / 文件操作，无 UI 状态 —— 标 nonisolated，以便 nonisolated 的 cleanStaleOpenedArchiveItems
+    // 和后台 Task 调用（app target 的 SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor 否则会把它们推成 MainActor）。
+    nonisolated static func openedArchiveItemsRoot(fileManager: FileManager = .default) -> URL {
         fileManager.temporaryDirectory.appendingPathComponent(openedArchiveItemsDirectoryName, isDirectory: true)
     }
 
@@ -36,7 +38,7 @@ enum TemporaryResourceManager {
         }
     }
 
-    static func makeOpenedArchiveItemDirectory(fileManager: FileManager = .default) throws -> URL {
+    nonisolated static func makeOpenedArchiveItemDirectory(fileManager: FileManager = .default) throws -> URL {
         let root = openedArchiveItemsRoot(fileManager: fileManager)
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         try fileManager.createDirectory(at: root, withIntermediateDirectories: true)

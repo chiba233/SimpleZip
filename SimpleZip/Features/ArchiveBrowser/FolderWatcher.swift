@@ -21,11 +21,12 @@ import Foundation
 /// 在 invalidate 前后排队，`self` 也保证存活，不会变悬空指针 —— 这是 FSEvents + Swift 对象的稳妥写法
 /// （旧版用 `passUnretained` 有悬空风险）。
 ///
-/// 因此本类**非 `@MainActor`**：
+/// 因此本类**显式 `nonisolated`**（app target 设了 `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor`，
+/// 不标的话「裸」class 会被默认推成 MainActor —— 那样 `deinit`（nonisolated）就没法调 `stop()` 了）：
 /// - `watch` / `stop` 都由持有者（`ArchiveBrowserModel`，主 actor）调用，天然串行，无数据竞争；
 /// - C 回调只读 `info` 指针 + 调 `onChange`，不碰 `stream` / `watchedPath`；
 /// - 非隔离让持有者的 `deinit` 能直接调 `stop()` 打破「stream 持有 self」的存活链（否则 self 永不释放）。
-final class FolderWatcher {
+nonisolated final class FolderWatcher {
     private var stream: FSEventStreamRef?
     private let onChange: @Sendable () -> Void
     /// 当前监视路径（标准化）。用于「同路径重复 watch 直接跳过」，避免重建 stream。
