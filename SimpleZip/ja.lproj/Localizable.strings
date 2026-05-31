@@ -995,3 +995,8 @@
 
 /* 0.2.1 — GPG 导入目标说明 */
 "settings.gpg.keys.importHint" = "「~/.gnupg にインポート」はコマンドライン版 gpg と鍵を共有します。「SimpleZip 専用キーリングにインポート」は SimpleZip 内だけに保持し、シェルの gpg を汚さず、SimpleZip をアンインストールすると削除されます。";
+
+/* 0.2.1 — 快速查看 / 显示简介 */
+"file.quickLook" = "クイックルック";
+"file.getInfo" = "情報を見る";
+"file.getInfo.failed" = "Finder の「情報を見る」ウインドウを開けませんでした：%@";

@@ -17,6 +17,7 @@
 - **File-browser right-click menu is now grouped by category.** The (long) context menu is split into labelled sections separated by dividers — Open/view, Compress & verify, Edit (rename / copy / cut / paste / move / delete), and Reveal / grouping — with "Rename" moved into the edit group, so it's scannable instead of one undifferentiated list.
 - **The Settings window opens taller.** With so many panes now, the default height was cramped — it now opens at 720 pt (min 600) instead of 560, and stays freely resizable.
 - **Deleting files now uses ⌘⌫ (Finder's standard), not a bare Delete.** The bare Delete key is too easy to hit while browsing or with a selection; deletion now requires Command-Delete, matching Finder's "Move to Trash" shortcut.
+- **Quick Look and Get Info in the file browser, Finder-style.** Press **Space** — or **force-click a file's icon** — to Quick Look the selection; right-click now offers **Quick Look** and **Get Info** (the latter opens Finder's own Get Info window). Force-clicking a file's **name** starts an inline rename, matching Finder's icon-vs-name split. (Get Info asks for Finder automation permission the first time.)
 
 ## 0.2.0
 

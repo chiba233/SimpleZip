@@ -995,3 +995,8 @@
 
 /* 0.2.1 — GPG 导入目标说明 */
 "settings.gpg.keys.importHint" = "「匯入到 ~/.gnupg」會與命令列 gpg 共用這把金鑰；「匯入到 SimpleZip 私有鑰匙圈」只存在應用程式內，不污染命令列 gpg，解除安裝 SimpleZip 即清除。";
+
+/* 0.2.1 — 快速查看 / 显示简介 */
+"file.quickLook" = "快速查看";
+"file.getInfo" = "顯示簡介";
+"file.getInfo.failed" = "無法打開 Finder 的「顯示簡介」視窗：%@";

@@ -129,6 +129,10 @@ private struct FileNSOutlineView: NSViewRepresentable {
             (outlineView as? ContentDragOutlineView)?.returnKeyAction = { [weak coordinator = context.coordinator] in
                 coordinator?.beginRenameSelected() ?? false
             }
+            // 快速查看（空格 / 重压图标 / 右键）预览当前选中文件。
+            (outlineView as? ContentDragOutlineView)?.quickLookURLsProvider = { [weak coordinator = context.coordinator] in
+                coordinator?.model.selectedFileItems.map(\.url) ?? []
+            }
             outlineView.headerView?.menu = context.coordinator.headerMenu()
             context.coordinator.outlineView = outlineView
         }
@@ -610,6 +614,8 @@ private struct FileNSOutlineView: NSViewRepresentable {
             if let first = model.selectedFileItems.first, !FileBrowserService.isNavigableDirectory(first) {
                 appendOpenWithMenu(to: menu)
             }
+            // 快速查看（与空格 / 重压图标同一动作）。
+            menu.addItem(menuItem(L10n.text("file.quickLook"), systemImage: "eye", action: #selector(quickLookSelected)))
             if let item = model.selectedFileItems.first, model.selectedFileItems.count == 1, model.canShowPackageContents(item) {
                 menu.addItem(menuItem(L10n.text("file.showPackageContents"), systemImage: "folder", action: #selector(showPackageContents)))
             }
@@ -650,8 +656,9 @@ private struct FileNSOutlineView: NSViewRepresentable {
             menu.addItem(menuItem(L10n.text("file.moveTo"), systemImage: "folder.badge.gearshape", action: #selector(moveSelected)))
             menu.addItem(menuItem(L10n.text("file.delete"), systemImage: "trash", action: #selector(deleteSelected)))
 
-            // ④ 在 Finder 中显示 / 分组
+            // ④ 在 Finder 中显示 / 简介 / 分组
             menu.addItem(.separator())
+            menu.addItem(menuItem(L10n.text("file.getInfo"), systemImage: "info.circle", action: #selector(getInfoSelected)))
             menu.addItem(menuItem(L10n.text("button.revealInFinder"), systemImage: "arrow.up.forward.app", action: #selector(revealSelected)))
             appendFolderGroupingMenu(to: menu)
         }
@@ -776,6 +783,28 @@ private struct FileNSOutlineView: NSViewRepresentable {
 
         @objc private func revealSelected() {
             model.revealInFinder()
+        }
+
+        @objc private func quickLookSelected() {
+            (outlineView as? ContentDragOutlineView)?.presentQuickLook()
+        }
+
+        /// 「显示简介」—— 调起 Finder 原生的 Get Info 窗口（AppleScript 控制 Finder）。
+        /// app 未沙盒、非硬化运行时，只需 Info.plist 里的 NSAppleEventsUsageDescription；
+        /// 首次会弹「SimpleZip 想要控制 Finder」自动化授权，拒绝则失败提示。
+        @objc private func getInfoSelected() {
+            let urls = model.selectedFileItems.map(\.url)
+            guard !urls.isEmpty else { return }
+            let body = urls.map { url -> String in
+                let escaped = url.path.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+                return "open information window of (POSIX file \"\(escaped)\" as alias)"
+            }.joined(separator: "\n")
+            let source = "tell application \"Finder\"\nactivate\n\(body)\nend tell"
+            var errorInfo: NSDictionary?
+            NSAppleScript(source: source)?.executeAndReturnError(&errorInfo)
+            if let errorInfo, let message = errorInfo[NSAppleScript.errorMessage] as? String {
+                model.errorMessage = L10n.format("file.getInfo.failed", message)
+            }
         }
 
         /// 空白处右键专用：reveal「我现在看的这个文件夹」本身，忽略 selection。

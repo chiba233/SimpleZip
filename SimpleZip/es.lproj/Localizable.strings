@@ -995,3 +995,8 @@
 
 /* 0.2.1 — GPG 导入目标说明 */
 "settings.gpg.keys.importHint" = "«Importar a ~/.gnupg» comparte la clave con el gpg de la línea de comandos. «Importar al llavero privado de SimpleZip» la mantiene solo dentro de SimpleZip: no contamina el gpg de tu shell y se elimina al desinstalar SimpleZip.";
+
+/* 0.2.1 — 快速查看 / 显示简介 */
+"file.quickLook" = "Vista rápida";
+"file.getInfo" = "Obtener información";
+"file.getInfo.failed" = "No se pudo abrir la ventana «Obtener información» del Finder: %@";

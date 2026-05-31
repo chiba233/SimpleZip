@@ -995,3 +995,8 @@
 
 /* 0.2.1 — GPG 导入目标说明 */
 "settings.gpg.keys.importHint" = "「~/.gnupg로 가져오기」는 명령줄 gpg와 키를 공유합니다. 「SimpleZip 전용 키링으로 가져오기」는 SimpleZip 안에만 보관하여 셸의 gpg를 오염시키지 않으며 SimpleZip을 제거하면 함께 삭제됩니다.";
+
+/* 0.2.1 — 快速查看 / 显示简介 */
+"file.quickLook" = "훑어보기";
+"file.getInfo" = "정보 가져오기";
+"file.getInfo.failed" = "Finder의 '정보 가져오기' 창을 열 수 없습니다: %@";

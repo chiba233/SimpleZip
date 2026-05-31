@@ -203,5 +203,7 @@
 	<false/>
 	<key>SUScheduledCheckInterval</key>
 	<integer>86400</integer>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>SimpleZip uses Finder to open the system “Get Info” window for the file you selected.</string>
 </dict>
 </plist>

@@ -995,3 +995,8 @@
 
 /* 0.2.1 — GPG 导入目标说明 */
 "settings.gpg.keys.importHint" = "„In ~/.gnupg importieren“ teilt den Schlüssel mit dem Kommandozeilen-gpg. „In SimpleZips privaten Schlüsselbund importieren“ behält ihn nur innerhalb von SimpleZip — er verschmutzt das gpg in deiner Shell nicht und wird beim Deinstallieren von SimpleZip entfernt.";
+
+/* 0.2.1 — 快速查看 / 显示简介 */
+"file.quickLook" = "Übersicht";
+"file.getInfo" = "Informationen";
+"file.getInfo.failed" = "Finders Informationsfenster konnte nicht geöffnet werden: %@";

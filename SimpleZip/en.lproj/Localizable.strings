@@ -1003,3 +1003,8 @@
 
 /* 0.2.1 — GPG 导入目标说明 */
 "settings.gpg.keys.importHint" = "“Import to ~/.gnupg” shares the key with the command-line gpg. “Import to SimpleZip-private keyring” keeps it inside SimpleZip only — it doesn’t pollute your shell’s gpg and is removed when you uninstall SimpleZip.";
+
+/* 0.2.1 — 快速查看 / 显示简介 */
+"file.quickLook" = "Quick Look";
+"file.getInfo" = "Get Info";
+"file.getInfo.failed" = "Couldn’t open Finder’s Get Info window: %@";

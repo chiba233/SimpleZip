@@ -6,6 +6,7 @@
 //
 
 import AppKit
+import Quartz
 
 protocol TableColumnDescriptor {
     var identifier: String { get }
@@ -55,20 +56,36 @@ func makeTableScrollView(
 /// 一拖就误触发整行拖动。这里在 `mouseDown` 记下「本次按下是否落在可拖动内容上」，
 /// dataSource 的 `pasteboardWriterForItem` 据此决定是否提供拖动项；落在空白处就不提供 ——
 /// 此时 AppKit 回退到橡皮筋多选，正是用户想要的。
-final class ContentDragOutlineView: NSOutlineView {
+final class ContentDragOutlineView: NSOutlineView, QLPreviewPanelDataSource, QLPreviewPanelDelegate {
     /// name（主）列标识，外部建列后设置；nil 时禁止拖动（保守）。
     var primaryColumnIdentifier: String?
-    /// 最近一次 mouseDown 是否落在可拖动内容上。`pasteboardWriterForItem` 读它。
+    /// 最近一次 mouseDown 是否落在可拖动内容上（图标 / 文字）。`pasteboardWriterForItem` 读它。
     private(set) var dragAllowedFromMouseDown = false
     /// 按 Return / Enter 时的动作（文件浏览用来触发内联重命名）。返回 true 表示已消费、不再走默认。
     var returnKeyAction: (() -> Bool)?
+    /// 提供「快速查看」要预览的文件 URL（按当前选中项）。nil = 不支持快速查看（压缩包内浏览不设）。
+    var quickLookURLsProvider: (() -> [URL])?
+
+    /// name 列内的命中区域 —— 拖动起手、触控板重压手势都按它分流。
+    private enum HitRegion { case icon, text, none }
+    private var lastMouseDownRegion: HitRegion = .none
+    /// 一次按压只触发一次重压动作（pressureChange 会连续来很多次）。
+    private var didTriggerForceClick = false
+    /// 快速查看面板当前的数据快照（打开那一刻的选中项）。
+    private var quickLookURLs: [URL] = []
 
     override func mouseDown(with event: NSEvent) {
-        dragAllowedFromMouseDown = pointHitsDraggableContent(event)
+        lastMouseDownRegion = hitRegion(for: event)
+        dragAllowedFromMouseDown = lastMouseDownRegion != .none
+        didTriggerForceClick = false
         super.mouseDown(with: event)
     }
 
     override func keyDown(with event: NSEvent) {
+        // 49 = 空格 → 快速查看（与 Finder 一致；面板已开时 QL delegate 里再按空格会关）。
+        if event.keyCode == 49, presentQuickLook() {
+            return
+        }
         // 36 = Return，76 = 小键盘 Enter。编辑中时 Return 会被字段编辑器吃掉提交，不会走到这里。
         if event.keyCode == 36 || event.keyCode == 76, let returnKeyAction, returnKeyAction() {
             return
@@ -76,7 +93,68 @@ final class ContentDragOutlineView: NSOutlineView {
         super.keyDown(with: event)
     }
 
-    private func pointHitsDraggableContent(_ event: NSEvent) -> Bool {
+    /// 触控板重压 / 系统「快速查看」手势。Finder 规则：重压文件名 → 重命名；重压图标 → 快速查看。
+    override func pressureChange(with event: NSEvent) {
+        if event.stage >= 2, !didTriggerForceClick {
+            didTriggerForceClick = true
+            switch lastMouseDownRegion {
+            case .text:
+                if returnKeyAction?() == true { return }
+            case .icon:
+                if presentQuickLook() { return }
+            case .none:
+                break
+            }
+        }
+        super.pressureChange(with: event)
+    }
+
+    /// 打开 / 关闭快速查看面板（按当前选中项）。返回 true 表示已处理（确有可预览项）。
+    @discardableResult
+    func presentQuickLook() -> Bool {
+        guard let provider = quickLookURLsProvider else { return false }
+        let urls = provider()
+        guard !urls.isEmpty else { return false }
+        quickLookURLs = urls
+        guard let panel = QLPreviewPanel.shared() else { return false }
+        if QLPreviewPanel.sharedPreviewPanelExists() && panel.isVisible {
+            panel.orderOut(nil)
+        } else {
+            panel.makeKeyAndOrderFront(nil)
+        }
+        return true
+    }
+
+    // MARK: - QLPreviewPanel 控制（responder chain 转发到这里）
+
+    override func acceptsPreviewPanelControl(_ panel: QLPreviewPanel!) -> Bool { true }
+
+    override func beginPreviewPanelControl(_ panel: QLPreviewPanel!) {
+        panel.dataSource = self
+        panel.delegate = self
+        panel.reloadData()
+    }
+
+    override func endPreviewPanelControl(_ panel: QLPreviewPanel!) {}
+
+    func numberOfPreviewItems(in panel: QLPreviewPanel!) -> Int { quickLookURLs.count }
+
+    func previewPanel(_ panel: QLPreviewPanel!, previewItemAt index: Int) -> QLPreviewItem! {
+        quickLookURLs[index] as NSURL
+    }
+
+    func previewPanel(_ panel: QLPreviewPanel!, handle event: NSEvent!) -> Bool {
+        // 面板已打开时再按空格 → 关闭（Finder 行为）。
+        if event.type == .keyDown, event.keyCode == 49 {
+            panel.orderOut(nil)
+            return true
+        }
+        return false
+    }
+
+    // MARK: - 命中区域
+
+    private func hitRegion(for event: NSEvent) -> HitRegion {
         let point = convert(event.locationInWindow, from: nil)
         let row = row(at: point)
         guard row >= 0,
@@ -84,11 +162,11 @@ final class ContentDragOutlineView: NSOutlineView {
               let colIndex = tableColumns.firstIndex(where: { $0.identifier.rawValue == primaryColumnIdentifier }),
               column(at: point) == colIndex,
               let cell = view(atColumn: colIndex, row: row, makeIfNecessary: false) as? NSTableCellView else {
-            return false
+            return .none
         }
         let pointInCell = cell.convert(point, from: self)
         if let imageView = cell.imageView, imageView.frame.contains(pointInCell) {
-            return true
+            return .icon
         }
         if let textField = cell.textField {
             let font = textField.font ?? .systemFont(ofSize: NSFont.systemFontSize)
@@ -100,9 +178,9 @@ final class ContentDragOutlineView: NSOutlineView {
                 width: min(textWidth + 4, textField.frame.width),
                 height: textField.frame.height
             )
-            if glyphRect.contains(pointInCell) { return true }
+            if glyphRect.contains(pointInCell) { return .text }
         }
-        return false
+        return .none
     }
 }
 
