@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import AppKit
 
 /// 底部状态栏：显示当前项目数量、任务状态和后端能力提示。
 struct StatusBar: View {
@@ -130,22 +131,54 @@ struct ArchiveOperationDetailsView: View {
             Text(L10n.text("details.commandOutput"))
                 .font(.headline)
 
-            ScrollView([.horizontal, .vertical]) {
-                Text(session.rawOutput.isEmpty ? L10n.text("details.waiting") : session.rawOutput)
-                    .font(.system(.caption, design: .monospaced))
-                    .fixedSize(horizontal: true, vertical: true)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .textSelection(.enabled)
-                    .padding(12)
-            }
-            .background(Color(nsColor: .textBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color(nsColor: .separatorColor))
-            )
+            // 用 NSTextView 而不是 SwiftUI Text —— Text 渲染大段流式文本（哪怕只有几百行）配 .fixedSize +
+            // .textSelection 会很卡；NSTextView 懒布局 + 原生滚动 / 选择，专门干这个的。
+            CommandOutputLogView(text: session.rawOutput.isEmpty ? L10n.text("details.waiting") : session.rawOutput)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color(nsColor: .separatorColor))
+                )
         }
         .padding(20)
         .frame(minWidth: 760, idealWidth: 860, minHeight: 500, idealHeight: 620)
+    }
+}
+
+/// 高性能命令输出日志视图 —— 用 NSTextView（懒布局 + 原生滚动 / 文本选择），
+/// 远比 SwiftUI `Text` 渲染大段流式文本流畅；配合 session 端只留最近 500 行，详情面板不再卡。
+private struct CommandOutputLogView: NSViewRepresentable {
+    let text: String
+
+    func makeNSView(context: Context) -> NSScrollView {
+        let scrollView = NSTextView.scrollableTextView()
+        scrollView.hasVerticalScroller = true
+        scrollView.hasHorizontalScroller = false
+        scrollView.borderType = .noBorder
+        scrollView.drawsBackground = true
+        if let textView = scrollView.documentView as? NSTextView {
+            textView.isEditable = false
+            textView.isSelectable = true
+            textView.isRichText = false
+            textView.drawsBackground = true
+            textView.backgroundColor = .textBackgroundColor
+            textView.font = .monospacedSystemFont(ofSize: NSFont.smallSystemFontSize, weight: .regular)
+            textView.textContainerInset = NSSize(width: 8, height: 8)
+            textView.textContainer?.widthTracksTextView = true
+            textView.string = text
+        }
+        return scrollView
+    }
+
+    func updateNSView(_ scrollView: NSScrollView, context: Context) {
+        guard let textView = scrollView.documentView as? NSTextView, textView.string != text else { return }
+        // 跟随尾部：仅当用户当前已滚到底部时，更新后自动滚到底；上滑看历史时不打扰。
+        let docHeight = scrollView.documentView?.bounds.height ?? 0
+        let wasAtBottom = scrollView.contentView.bounds.maxY >= docHeight - 4
+        textView.string = text
+        if wasAtBottom {
+            textView.scrollToEndOfDocument(nil)
+        }
     }
 }

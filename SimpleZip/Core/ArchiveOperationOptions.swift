@@ -519,12 +519,14 @@ final class ArchiveOperationDetailsSession: ObservableObject, Identifiable {
         rawOutput += chunk
     }
 
-    /// 追加并把总量截断到尾部 `maxCharacters` 个字符 —— 大归档（几万行「正在解压 X」）的命令输出
-    /// 如果全留，rawOutput 反复 `+=` 是 O(n²)，SwiftUI 渲染几十万字符的 Text 也会卡。只留最近的尾部够用了。
-    func appendCapped(_ chunk: String, maxCharacters: Int) {
+    /// 追加并把总量截断到尾部 `maxLines` 行 —— 大归档（几万行「正在解压 X」）的命令输出全留没意义，
+    /// 还会拖慢日志视图。只保留最近 maxLines 行；超出时顶部加一行省略提示。
+    func appendCapped(_ chunk: String, maxLines: Int) {
         rawOutput += chunk
-        if rawOutput.count > maxCharacters {
-            rawOutput = "…\n" + String(rawOutput.suffix(maxCharacters))
+        var lines = rawOutput.split(separator: "\n", omittingEmptySubsequences: false)
+        if lines.count > maxLines {
+            lines = Array(lines.suffix(maxLines))
+            rawOutput = "…（更早的输出已省略）\n" + lines.joined(separator: "\n")
         }
     }
 }

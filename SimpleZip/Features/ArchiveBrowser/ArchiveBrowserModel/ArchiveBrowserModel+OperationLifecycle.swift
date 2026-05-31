@@ -20,7 +20,8 @@ private final class ThrottledDetailsOutput: @unchecked Sendable {
     private var pending = ""
     private var flushScheduled = false
     private let session: ArchiveOperationDetailsSession
-    private let maxCharacters = 200_000
+    private let maxCharacters = 200_000 // pending 缓冲的内存护栏（按字符，便宜）
+    private let maxLines = 500           // 详情面板最终只留最近 500 行
 
     init(session: ArchiveOperationDetailsSession) {
         self.session = session
@@ -51,7 +52,7 @@ private final class ThrottledDetailsOutput: @unchecked Sendable {
         flushScheduled = false
         lock.unlock()
         guard !chunk.isEmpty else { return }
-        session.appendCapped(chunk, maxCharacters: maxCharacters)
+        session.appendCapped(chunk, maxLines: maxLines)
     }
 }
 
