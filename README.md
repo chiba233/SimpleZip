@@ -370,8 +370,8 @@ SimpleZip is single-maintainer software, distributed as an unsigned ad-hoc
 DMG (Developer ID signing is on the roadmap). The current direction is "a
 comfortable native macOS archive client with first-class signed-container
 support, that doesn't punish multi-key GPG users". The GPG management surface
-is feature-complete as of 0.1.8; next milestones target `.siz` v3
-multi-recipient encryption and a `.szs` external-signature manifest format.
+is feature-complete as of 0.1.8; `.siz` v3 multi-recipient encryption and
+the `.szs` external-signature manifest format shipped in 0.1.9.
 
 ## License
 
