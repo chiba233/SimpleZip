@@ -654,6 +654,11 @@
 "settings.section.columns" = "列表列";
 "settings.section.view" = "视图";
 "settings.section.health" = "运行状态";
+"settings.section.tempFiles" = "临时文件";
+"settings.tempFiles" = "临时文件";
+"settings.tempFiles.description" = "打开压缩包、生成签名清单会在系统临时目录留下临时产物。当前占用 %@。";
+"settings.tempFiles.measuring" = "正在统计…";
+"settings.tempFiles.clear" = "清理";
 "settings.section.backup" = "备份与还原";
 "backup.description" = "把当前偏好导出成 JSON 文件，可以拷到另一台 Mac 用；也可以从之前导出的文件导入。「全部恢复默认」会清掉所有偏好 + 钥匙串里的预设密码。";
 "backup.export.title" = "导出偏好";

@@ -22,6 +22,11 @@ struct HealthPane: View {
     /// 上次刷新完成的时间，用来显示「最近一次检查于 xx 之前」之类的提示。
     @State private var lastRefreshedAt: Date?
 
+    /// 临时文件占用（字节）。打开压缩包 / 生成签名清单会在系统临时目录留下临时产物。
+    @State private var tempBytes: Int64 = 0
+    @State private var isMeasuringTemp = false
+    @State private var isClearingTemp = false
+
     var body: some View {
         Form {
             Section(L10n.text("settings.section.health")) {
@@ -53,6 +58,21 @@ struct HealthPane: View {
                         .disabled(isChecking)
                 }
             }
+
+            // 临时文件清理 —— 左侧显示当前占用，右侧一个「清理」按钮（无占用时禁用）。
+            Section(L10n.text("settings.section.tempFiles")) {
+                SettingsControlRow(
+                    title: L10n.text("settings.tempFiles"),
+                    description: tempFilesDescription
+                ) {
+                    if isClearingTemp {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Button(L10n.text("settings.tempFiles.clear"), action: clearTempFiles)
+                            .disabled(tempBytes == 0 || isMeasuringTemp)
+                    }
+                }
+            }
         }
         .formStyle(.grouped)
         .controlSize(.small)
@@ -60,6 +80,40 @@ struct HealthPane: View {
             if items.isEmpty {
                 refresh()
             }
+            measureTempFiles()
+        }
+    }
+
+    /// 临时文件行的描述文案：测量中显示占位，否则显示格式化后的占用大小。
+    private var tempFilesDescription: String {
+        if isMeasuringTemp {
+            return L10n.text("settings.tempFiles.measuring")
+        }
+        let size = ByteCountFormatter.string(fromByteCount: tempBytes, countStyle: .file)
+        return L10n.format("settings.tempFiles.description", size)
+    }
+
+    /// 后台测量临时文件占用（递归遍历，别卡主线程），完成后回主线程更新。
+    private func measureTempFiles() {
+        isMeasuringTemp = true
+        Task {
+            let bytes = await Task.detached(priority: .utility) {
+                TemporaryResourceManager.temporaryArtifactsByteSize()
+            }.value
+            tempBytes = bytes
+            isMeasuringTemp = false
+        }
+    }
+
+    /// 后台清理临时文件，完成后重新测量（占用归零、按钮禁用 = 视觉反馈）。
+    private func clearTempFiles() {
+        isClearingTemp = true
+        Task {
+            _ = await Task.detached(priority: .utility) {
+                TemporaryResourceManager.clearTemporaryArtifacts()
+            }.value
+            isClearingTemp = false
+            measureTempFiles()
         }
     }
 

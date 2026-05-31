@@ -10,6 +10,7 @@
 
 - **Check for updates on launch** — new opt-in toggle in Settings → General (also offered in the Welcome assistant's version-check step). When on, SimpleZip quietly checks for a new version at each launch and only prompts when an update is available (additive to Sparkle's existing scheduled background checks).
 - **Help → "Report a Bug…"** — opens the GitHub new-issue page so you can file a report directly.
+- **Clean up temporary files** (Settings → Health) — shows how much disk space SimpleZip's scratch files (archive-open extractions, signed-manifest staging, etc.) currently use, with a one-click "Clean Up" button. Only entries SimpleZip created (names prefixed `SimpleZip`) are touched.
 
 - **Misc:** the "Create Signed Manifest" menu item (main menu + right-click) now uses the `signature` icon, matching the signing-key row in GPG settings.
 

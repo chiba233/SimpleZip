@@ -661,6 +661,11 @@
 "settings.section.columns" = "Columns";
 "settings.section.view" = "View";
 "settings.section.health" = "Health";
+"settings.section.tempFiles" = "Temporary Files";
+"settings.tempFiles" = "Temporary files";
+"settings.tempFiles.description" = "Opening archives and creating signed manifests leave scratch files in the system temporary folder. Currently using %@.";
+"settings.tempFiles.measuring" = "Measuring…";
+"settings.tempFiles.clear" = "Clean Up";
 "settings.section.backup" = "Backup & Restore";
 "backup.description" = "Export your preferences as a JSON file you can copy to another Mac, or import a previously exported file. \"Restore Defaults\" wipes every preference and clears the Keychain entry used by the preset password.";
 "backup.export.title" = "Export preferences";
