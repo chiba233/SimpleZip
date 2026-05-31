@@ -991,3 +991,12 @@
 "column.lastOpened" = "最后打开日期";
 "column.dateAdded" = "添加日期";
 "column.created" = "创建日期";
+
+/* 0.2.1 — 常规设置合并页 */
+"welcome.general.title" = "常规设置";
+"welcome.general.body" = "几项浏览与行为的默认设置。这些之后都能在「设置」里随时修改。";
+
+/* 0.2.1 — 主窗口右键「打开方式」 */
+"file.openWith" = "打开方式";
+"file.openWith.default" = "%@（默认）";
+"file.openWith.other" = "其他…";

@@ -983,3 +983,12 @@
 "welcome.grouping.title" = "分組（選用）";
 "welcome.grouping.body" = "選用：把瀏覽器清單切成可摺疊的區塊。設一個全域預設，或依資料夾記住分組（之後在任一資料夾按右鍵設定）。維持「無」就是平鋪清單。";
 "welcome.backupRestore.importReplaceHint" = "匯入會用備份中的設定取代你目前的設定。";
+
+/* 0.2.1 — 常规设置合并页 */
+"welcome.general.title" = "一般設定";
+"welcome.general.body" = "幾項瀏覽與行為的預設值。這些之後都能在「設定」裡隨時修改。";
+
+/* 0.2.1 — 主窗口右键「打开方式」 */
+"file.openWith" = "打開方式";
+"file.openWith.default" = "%@（預設）";
+"file.openWith.other" = "其他…";
