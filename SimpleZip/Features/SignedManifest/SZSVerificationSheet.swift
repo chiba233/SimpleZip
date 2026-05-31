@@ -329,20 +329,30 @@ struct SZSVerificationSheet: View {
             if case .mismatch(_, let expected, let actual) = entry,
                expandedMismatches.contains(entry.relativePath) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("\(L10n.text("szs.verify.entry.expectedSHA"))  \(expected)")
-                        .font(.system(.caption2, design: .monospaced))
-                        .foregroundStyle(.green)
-                        .textSelection(.enabled)
-                    Text("\(L10n.text("szs.verify.entry.actualSHA"))    \(actual)")
-                        .font(.system(.caption2, design: .monospaced))
-                        .foregroundStyle(.red)
-                        .textSelection(.enabled)
+                    mismatchHashRow(label: L10n.text("szs.verify.entry.expectedSHA"), sha: expected, color: .green)
+                    mismatchHashRow(label: L10n.text("szs.verify.entry.actualSHA"), sha: actual, color: .red)
                 }
                 .padding(.leading, 30)
             }
         }
         .padding(.vertical, 4)
         .padding(.horizontal, 8)
+    }
+
+    /// 展开后的 expected / actual SHA 行：标签放固定宽列、SHA 另起一个 Text —— 这样两行 SHA 起始位置严格对齐。
+    /// 旧实现把标签和 SHA 拼进同一个 Text 用手动空格凑对齐，但「期望 / 实际」两个本地化标签宽度不同，
+    /// SHA 永远对不齐（中文尤其明显）。
+    private func mismatchHashRow(label: String, sha: String, color: Color) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .frame(width: 64, alignment: .leading)
+            Text(sha)
+                .font(.system(.caption2, design: .monospaced))
+                .foregroundStyle(color)
+                .textSelection(.enabled)
+        }
     }
 
     /// 把字节数格式化成人类可读单位（KB / MB / GB）。复用 Foundation `ByteCountFormatter` 保持本地化一致。
