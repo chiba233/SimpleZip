@@ -374,16 +374,16 @@ extension ArchiveBrowserModel {
         switch mode {
         case .folder(let url):
             // 进 / 切文件夹时（重）挂监视；同路径 watch 是 no-op，所以 watcher 自己触发的 reload 不会重建 stream。
-            folderWatcher.watch(url)
+            folderWatcher?.watch(url)
             loadTask = nil
             loadFolder(url)
         case .tag(let tag):
-            folderWatcher.stop()
+            folderWatcher?.stop()
             loadTask = Task { [weak self] in
                 await self?.loadTaggedFiles(tag, generation: loadGeneration)
             }
         case .archive(let url):
-            folderWatcher.stop()
+            folderWatcher?.stop()
             loadTask = Task { [weak self] in
                 await self?.loadArchive(url, generation: loadGeneration)
             }
@@ -391,15 +391,36 @@ extension ArchiveBrowserModel {
     }
 
     /// FolderWatcher 回调：当前文件夹内容变了 → 去抖后重新列出。
-    /// 去抖（120ms）把一次批量操作产生的多次 FSEvents 合并成一次 reload；只在仍处 `.folder` 模式时刷新。
+    /// 去抖（120ms）把一次批量操作产生的多次 FSEvents 合并成一次刷新。
+    /// **绑定触发时的目录**：捕获事件发生时所在的文件夹，120ms 后若用户已经切到别的目录就不刷
+    /// —— 否则「A 触发事件、用户立刻切到 B、120ms 后却刷了 B」会造成莫名其妙的多余刷新 + 清掉 B 刚点的选区。
     func handleFolderContentsChanged() {
-        guard case .folder = mode else { return }
+        guard case .folder(let changedFolder) = mode else { return }
+        let expected = changedFolder.standardizedFileURL
         pendingWatcherReload?.cancel()
         pendingWatcherReload = Task { [weak self] in
             try? await Task.sleep(nanoseconds: 120_000_000)
-            guard let self, !Task.isCancelled, case .folder = self.mode else { return }
-            self.reload()
+            guard let self, !Task.isCancelled,
+                  case .folder(let current) = self.mode,
+                  current.standardizedFileURL == expected else { return }
+            self.reloadFromFolderWatcher(expectedFolder: expected)
         }
+    }
+
+    /// watcher 触发的刷新：只刷「事件所属的那个目录」，且**保留选区**。
+    /// 跟手动 `reload()` 不同 —— 手动刷新清选区是预期；自动刷新若清掉用户刚点的选区 / 准备拖动的多选就是「手欠」。
+    /// 按 URL 重映射选区：`reload` 会重建 `FileItem`、`id` 每次都变，单纯不清 selection 会留下永不匹配的旧 UUID。
+    func reloadFromFolderWatcher(expectedFolder: URL) {
+        guard case .folder(let current) = mode,
+              current.standardizedFileURL == expectedFolder.standardizedFileURL else { return }
+        // 必须在 loadFolder（重建 fileItems）之前取旧选区的 URL。
+        let previousSelectedURLs = Set(selectedFileItems.map { $0.url.standardizedFileURL })
+        loadFolder(current)
+        guard !previousSelectedURLs.isEmpty else {
+            selection = []
+            return
+        }
+        selection = Set(fileItems.filter { previousSelectedURLs.contains($0.url.standardizedFileURL) }.map(\.id))
     }
 
     func revealInFinder() {

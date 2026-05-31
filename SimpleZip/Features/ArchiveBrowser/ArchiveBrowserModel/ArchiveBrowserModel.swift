@@ -122,9 +122,8 @@ final class ArchiveBrowserModel: ObservableObject {
     var fileClipboard: (urls: [URL], shouldMove: Bool)?
     /// 当前文件夹的 FSEvents 监视器：内容变化（外部改动 + 本应用自己的增删改 / 重命名）自动刷新列表。
     /// 仅 `.folder` 模式启用，由 `reload()` 统一 watch/stop。引入它后文件操作不再各自手动 reload。
-    lazy var folderWatcher = FolderWatcher { [weak self] in
-        self?.handleFolderContentsChanged()
-    }
+    /// 在 `init()` 里创建（onChange 闭包需要捕获 self）；非 `lazy` —— `lazy` 的隔离初始化器无法在 `deinit` 里访问。
+    var folderWatcher: FolderWatcher?
     /// FolderWatcher 回调去抖：把一次批量操作（如粘贴多文件）产生的多次 FSEvents 合并成一次 reload。
     var pendingWatcherReload: Task<Void, Never>?
     var loadTask: Task<Void, Never>?
@@ -137,10 +136,19 @@ final class ArchiveBrowserModel: ObservableObject {
         // 模型每次 init 都删全局临时根，会误删其它窗口正在用的解压目录（见 cleanStaleOpenedArchiveItems 注释）。
         mode = .folder(AppPreferences.defaultStartupURL(fileManager: fileManager))
         finderFavorites = FinderFavoritesReader.readWithCache()
+        folderWatcher = FolderWatcher { [weak self] in
+            // FSEvents 回调可能在任意线程；跳回主 actor 再碰 model。
+            Task { @MainActor [weak self] in
+                self?.handleFolderContentsChanged()
+            }
+        }
         reload()
     }
 
     deinit {
+        // 显式停 watcher：FSEvent stream 用 passRetained 持有 folderWatcher 一个强引用，
+        // 不在这里 stop（→ release stream → 放掉那个 +1），folderWatcher 永远不会被释放。
+        folderWatcher?.stop()
         let openedArchiveItemDirectories = openedArchiveItemDirectories
         Task.detached {
             for directory in openedArchiveItemDirectories {
