@@ -518,6 +518,15 @@ final class ArchiveOperationDetailsSession: ObservableObject, Identifiable {
     func append(_ chunk: String) {
         rawOutput += chunk
     }
+
+    /// 追加并把总量截断到尾部 `maxCharacters` 个字符 —— 大归档（几万行「正在解压 X」）的命令输出
+    /// 如果全留，rawOutput 反复 `+=` 是 O(n²)，SwiftUI 渲染几十万字符的 Text 也会卡。只留最近的尾部够用了。
+    func appendCapped(_ chunk: String, maxCharacters: Int) {
+        rawOutput += chunk
+        if rawOutput.count > maxCharacters {
+            rawOutput = "…\n" + String(rawOutput.suffix(maxCharacters))
+        }
+    }
 }
 
 struct SevenZipBenchmarkMetrics {

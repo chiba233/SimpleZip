@@ -9,6 +9,86 @@
 
 import Foundation
 
+/// 后端命令输出节流转发器（前后端分离的关键）。
+///
+/// 后端在后台线程逐块吐输出（大归档每文件一行，几万行）。如果每块都 `Task { @MainActor }` 去改
+/// @Published 字符串，会几万次刷主 actor + 触发 SwiftUI 重渲染 → 解压时 GUI 卡死。
+/// 这里：后端线程只往 lock 缓冲塞（摊还 O(1)，并自截断到尾部），主 actor 最多每 ~150ms 拉一次刷给 session。
+private final class ThrottledDetailsOutput: @unchecked Sendable {
+    private let lock = NSLock()
+    private var pending = ""
+    private var flushScheduled = false
+    private let session: ArchiveOperationDetailsSession
+    private let maxCharacters = 200_000
+
+    init(session: ArchiveOperationDetailsSession) {
+        self.session = session
+    }
+
+    /// 后端线程调用：只塞缓冲 + 必要时排一次节流 flush。
+    func append(_ chunk: String) {
+        lock.lock()
+        pending += chunk
+        if pending.count > maxCharacters {
+            pending = String(pending.suffix(maxCharacters))
+        }
+        let shouldSchedule = !flushScheduled
+        flushScheduled = true
+        lock.unlock()
+
+        guard shouldSchedule else { return }
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 150_000_000)
+            self?.flush()
+        }
+    }
+
+    @MainActor private func flush() {
+        lock.lock()
+        let chunk = pending
+        pending = ""
+        flushScheduled = false
+        lock.unlock()
+        guard !chunk.isEmpty else { return }
+        session.appendCapped(chunk, maxCharacters: maxCharacters)
+    }
+}
+
+/// 进度节流：后端逐文件回调进度（几万次），只保留最新值，主 actor 最多每 ~80ms 应用一次，避免状态栏被刷爆。
+private final class ProgressCoalescer: @unchecked Sendable {
+    private let lock = NSLock()
+    private var latest: ArchiveProgressState?
+    private var scheduled = false
+    private let apply: @MainActor (ArchiveProgressState) -> Void
+
+    init(apply: @escaping @MainActor (ArchiveProgressState) -> Void) {
+        self.apply = apply
+    }
+
+    func submit(_ state: ArchiveProgressState) {
+        lock.lock()
+        latest = state
+        let shouldSchedule = !scheduled
+        scheduled = true
+        lock.unlock()
+
+        guard shouldSchedule else { return }
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 80_000_000)
+            self?.flush()
+        }
+    }
+
+    @MainActor private func flush() {
+        lock.lock()
+        let state = latest
+        latest = nil
+        scheduled = false
+        lock.unlock()
+        if let state { apply(state) }
+    }
+}
+
 extension ArchiveBrowserModel {
     func cancelCurrentOperation() {
         guard canCancelCurrentOperation else { return }
@@ -57,11 +137,9 @@ extension ArchiveBrowserModel {
 
     private func makeOperationOutputObserver(for session: ArchiveOperationDetailsSession?) -> (@Sendable (String) -> Void)? {
         guard let session else { return nil }
-        return { chunk in
-            Task { @MainActor [weak session] in
-                session?.append(chunk)
-            }
-        }
+        // 经节流转发器：后端线程零主-actor 跳转地塞缓冲，UI 最多每 ~150ms 刷一次（前后端分离）。
+        let forwarder = ThrottledDetailsOutput(session: session)
+        return { chunk in forwarder.append(chunk) }
     }
 
     private func finishOperationDetailsSession(_ session: ArchiveOperationDetailsSession?) {
@@ -130,15 +208,19 @@ extension ArchiveBrowserModel {
         }
 
         do {
-            try await operation { [weak self] progress in
-                Task { @MainActor [weak self] in
-                    self?.operationProgress = progress
-                    if let statusText = progress.statusText, !statusText.isEmpty {
-                        self?.status = statusText
-                    } else if let currentFile = progress.currentFile, !currentFile.isEmpty {
-                        self?.status = currentFile
-                    }
+            // 进度经节流器：后端逐文件回调（大归档几万次）只更新最新值，UI 最多 ~80ms 应用一次，
+            // 否则状态栏被刷爆 → 解压卡死。`guard isWorking` 让结束后的迟到 flush 不覆盖最终状态。
+            let progressCoalescer = ProgressCoalescer { [weak self] progress in
+                guard let self, self.isWorking else { return }
+                self.operationProgress = progress
+                if let statusText = progress.statusText, !statusText.isEmpty {
+                    self.status = statusText
+                } else if let currentFile = progress.currentFile, !currentFile.isEmpty {
+                    self.status = currentFile
                 }
+            }
+            try await operation { progress in
+                progressCoalescer.submit(progress)
             }
             status = L10n.text("status.done")
             // 成功且用户全程没打开过详情面板 → 收掉 session，保持空闲状态栏干净
