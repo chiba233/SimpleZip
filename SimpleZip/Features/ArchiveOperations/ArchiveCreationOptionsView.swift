@@ -190,11 +190,12 @@ struct ArchiveCreationOptionsView: View {
                             HStack {
                                 Text(L10n.text("archive.7z.threads"))
                                 Spacer()
+                                // 不能 .labelsHidden() —— Stepper 的「label」正是要显示的线程数值（自动 / N），
+                                // 隐藏了就只剩 ▲▼ 没有数字（用户反馈「线程数不显示」）。
                                 Stepper(value: $request.options.sevenZipThreadCount, in: 0...maxThreadCount) {
                                     Text(threadCountLabel)
                                         .foregroundStyle(.secondary)
                                 }
-                                .labelsHidden()
                             }
 
                             HStack {
