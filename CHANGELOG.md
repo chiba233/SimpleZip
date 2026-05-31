@@ -5,6 +5,7 @@
 ## 0.2.1
 
 - **Fixed: symlinked locations like `/home` couldn't be opened.** Navigating into a macOS autofs trigger mount (e.g. `/home`) failed with "The file couldn't be opened" because the raw symlink path was handed straight to the directory enumerator. The browser now falls back to the resolved path when a direct listing fails, so these locations open normally. Ordinary symlinks (`/etc`, `/var`, `/tmp`) already worked and are unaffected — their entries keep their original paths.
+- **Fixed: opening an archive from Finder didn't bring the window forward.** When SimpleZip was already running in the background, double-clicking an archive (or "Open With") would launch/foreground the app but leave the window behind, so you had to click the Dock icon a second time to actually see the archive. External opens of archives and folders now activate the app and bring the main window to the front. (The Finder "auto-extract" floating-window path is intentionally left alone.)
 
 ## 0.2.0
 

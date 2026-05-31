@@ -391,6 +391,7 @@ struct ContentView: View {
 
         var isDirectory: ObjCBool = false
         if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue {
+            activateForMainWindowOpen()
             model.openFolder(url)
         } else if url.pathExtension.lowercased() == SIZArchive.extensionName {
             // `.siz` 容器：unwrap 到临时目录后把内层 archive 喂给原本的 external-archive 路径。
@@ -411,6 +412,7 @@ struct ContentView: View {
                 return
             }
             // 关闭自动解压时与之前完全一致：走 model 浏览压缩包。
+            activateForMainWindowOpen()
             model.openArchiveFromExternal(url)
         } else {
             NSWorkspace.shared.open(url)
@@ -737,6 +739,20 @@ struct ContentView: View {
             // 不强制 makeKey —— 用户已经在跟签名对话框互动，让窗口出现但不抢焦点；NSWindow.orderFront 默认不夺焦。
             window.orderFront(nil)
         }
+    }
+
+    /// 外部打开（Finder 双击 / 打开方式 / 拖到 Dock）要用主窗口浏览时，把 app 激活并把主窗口前置。
+    ///
+    /// 修复用户反馈：app 已在后台运行时从 Finder 打开压缩包，只是「打开了程序」却没唤起窗口，
+    /// 得再点一下 Dock 图标才进得去。根因是这条路径从不 `NSApp.activate` / 前置主窗口
+    /// （只有 Finder 服务路径做了）。
+    ///
+    /// 放在 drain 时机（`openExternalURL`）而不是 `AppDelegate.application(_:openFile:)`：冷启动时
+    /// openFile 早于 SwiftUI 主窗口建出来，那会儿 activate 会丢。这里 onAppear / 通知触发，窗口已存在。
+    /// 仅在「确实要显示主窗口」的分支调用 —— Finder 自动解压走浮窗、主窗口被 orderOut，不能在那条路径前置。
+    private func activateForMainWindowOpen() {
+        NSApp.activate(ignoringOtherApps: true)
+        ensureMainWindowVisible()
     }
 
     /// 识别 SwiftUI 的辅助窗口（Settings / Sparkle 更新 / About / **正在 dismissing 的 sheet 等**）。
