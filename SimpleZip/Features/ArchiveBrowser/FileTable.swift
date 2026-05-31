@@ -23,10 +23,9 @@ struct FileTable: View {
     @AppStorage(AppPreferences.Key.showFileCreatedColumn) private var showCreatedColumn = true
     // 观察分组相关偏好 —— 在 Settings 改这些时靠这几个 @AppStorage 触发本视图重渲染，
     // 进而调 updateNSView → syncContent 重新分组（设置只翻 UserDefaults，本身不发通知）。
-    @AppStorage(AppPreferences.Key.fileGroupingEnabled) private var fileGroupingEnabled = false
     @AppStorage(AppPreferences.Key.fileGroupingScope) private var fileGroupingScope = BrowserGrouping.GroupingScope.global.rawValue
-    @AppStorage(AppPreferences.Key.fileGroupBy) private var fileGroupBy = BrowserGrouping.GroupBy.kind.rawValue
-    @AppStorage(AppPreferences.Key.hiddenWithGrouping) private var hiddenWithGrouping = BrowserGrouping.HiddenWithGrouping.foldIntoGroups.rawValue
+    @AppStorage(AppPreferences.Key.fileGroupBy) private var fileGroupBy = BrowserGrouping.GroupBy.none.rawValue
+    @AppStorage(AppPreferences.Key.hiddenWithGrouping) private var hiddenWithGrouping = BrowserGrouping.HiddenWithGrouping.separateGroup.rawValue
 
     var body: some View {
         FileNSOutlineView(
@@ -38,7 +37,6 @@ struct FileTable: View {
             showDateAddedColumn: showDateAddedColumn,
             showModifiedColumn: showModifiedColumn,
             showCreatedColumn: showCreatedColumn,
-            groupingEnabled: fileGroupingEnabled,
             groupingScope: fileGroupingScope,
             groupBy: fileGroupBy,
             hiddenWithGrouping: hiddenWithGrouping
@@ -104,7 +102,6 @@ private struct FileNSOutlineView: NSViewRepresentable {
     let showCreatedColumn: Bool
     // 仅作为「变化触发器」：值变 → SwiftUI 重建本 representable → updateNSView → syncContent 重新分组。
     // 真值仍由 coordinator 直接读 AppPreferences（@AppStorage 与 UserDefaults 始终一致）。
-    let groupingEnabled: Bool
     let groupingScope: String
     let groupBy: String
     let hiddenWithGrouping: String
@@ -190,17 +187,38 @@ private struct FileNSOutlineView: NSViewRepresentable {
             }
         }
 
+        /// 当前文件夹实际生效的分组维度（全局默认或按文件夹覆盖）。
+        private var effectiveGroupBy: BrowserGrouping.GroupBy {
+            AppPreferences.effectiveFileGroupBy(forFolderKey: currentFolderKey)
+        }
+
         private var configSignature: String {
-            "\(currentFolderKey)|\(AppPreferences.hiddenGroupCollapseMode.rawValue)|\(AppPreferences.effectiveFileGroupBy.rawValue)|\(AppPreferences.fileGroupingScope.rawValue)|\(AppPreferences.hiddenWithGrouping.rawValue)"
+            "\(currentFolderKey)|\(AppPreferences.hiddenGroupCollapseMode.rawValue)|\(effectiveGroupBy.rawValue)|\(AppPreferences.fileGroupingScope.rawValue)|\(AppPreferences.hiddenWithGrouping.rawValue)"
         }
 
+        /// 所有区块节点，父在子前（top-down）—— enforceExpansion 需要先展开父再展开子。支持嵌套（隐藏组里再分子组）。
         private func allSectionNodes() -> [FileOutlineNode] {
-            topLevelNodes.filter { $0.isSection }
+            var result: [FileOutlineNode] = []
+            func walk(_ nodes: [FileOutlineNode]) {
+                for node in nodes where node.isSection {
+                    result.append(node)
+                    walk(node.children)
+                }
+            }
+            walk(topLevelNodes)
+            return result
         }
 
-        /// 所有文件叶子节点（顶层的 + 区块里的），选择同步用。
+        /// 所有文件叶子节点（递归进任意层区块），选择同步用。
         private func allFileNodes() -> [FileOutlineNode] {
-            topLevelNodes.flatMap { $0.isSection ? $0.children : [$0] }
+            var result: [FileOutlineNode] = []
+            func walk(_ nodes: [FileOutlineNode]) {
+                for node in nodes {
+                    if node.isSection { walk(node.children) } else { result.append(node) }
+                }
+            }
+            walk(topLevelNodes)
+            return result
         }
 
         /// 重建节点 + reload + 强制同步展开状态。make / update 都走这里。
@@ -230,41 +248,54 @@ private struct FileNSOutlineView: NSViewRepresentable {
         /// 按 GroupBy + 共存策略组装顶层节点。复用 sectionNodesByKey 里同 key 的实例保身份。
         private func rebuildTopLevel() {
             var reused: [String: FileOutlineNode] = [:]
-            func makeSection(key: String, isHidden: Bool, title: String, items: [FileItem]) -> FileOutlineNode {
+            // 创建 / 复用一个区块节点（不设 children，交给调用方）；按 key 复用保展开身份。
+            func reuseSection(key: String, isHidden: Bool, title: String) -> FileOutlineNode {
                 let node = sectionNodesByKey[key] ?? FileOutlineNode.section(key: key, isHidden: isHidden)
                 node.title = title
-                node.children = items.map { FileOutlineNode.file($0) }
                 reused[key] = node
                 return node
             }
-            func hiddenSection(_ items: [FileItem]) -> FileOutlineNode {
-                makeSection(key: "hidden", isHidden: true, title: L10n.format("file.hiddenGroup", items.count), items: items)
+            // 一个「标题 → 文件」的叶子区块。
+            func fileSection(key: String, isHidden: Bool, title: String, items: [FileItem]) -> FileOutlineNode {
+                let node = reuseSection(key: key, isHidden: isHidden, title: title)
+                node.children = items.map { FileOutlineNode.file($0) }
+                return node
+            }
+            // 把一组文件按某维度切成「标题 (n)」叶子区块。
+            func groupedSections(_ items: [FileItem], keyPrefix: String, groupBy: BrowserGrouping.GroupBy) -> [FileOutlineNode] {
+                BrowserGrouping.group(items, by: groupBy, now: Date()).map {
+                    fileSection(key: "\(keyPrefix)\($0.title)", isHidden: false, title: "\($0.title) (\($0.items.count))", items: $0.items)
+                }
+            }
+            // 「隐藏文件 (N)」组（平铺，不分组时用）。
+            func flatHiddenSection(_ items: [FileItem]) -> FileOutlineNode {
+                fileSection(key: "hidden", isHidden: true, title: L10n.format("file.hiddenGroup", items.count), items: items)
             }
 
             let split = FileBrowserOutline.split(model.fileItems)
-            let groupBy = AppPreferences.effectiveFileGroupBy
+            let groupBy = effectiveGroupBy
 
             if groupBy.isGrouping {
                 // 分组开启：忽略 #49 折叠策略（含 inline），改由共存策略决定隐藏文件去向。
                 switch AppPreferences.hiddenWithGrouping {
                 case .foldIntoGroups:
                     // 全部条目（含隐藏）一起按当前维度分组。
-                    topLevelNodes = BrowserGrouping.group(model.fileItems, by: groupBy, now: Date()).map {
-                        makeSection(key: "g:\($0.title)", isHidden: false, title: "\($0.title) (\($0.items.count))", items: $0.items)
-                    }
+                    topLevelNodes = groupedSections(model.fileItems, keyPrefix: "g:", groupBy: groupBy)
                 case .separateGroup:
-                    // 可见文件按当前维度分组 + 隐藏文件单列一个区块。
-                    var nodes = BrowserGrouping.group(split.visible, by: groupBy, now: Date()).map {
-                        makeSection(key: "g:\($0.title)", isHidden: false, title: "\($0.title) (\($0.items.count))", items: $0.items)
+                    // 可见文件按维度分组 + 隐藏文件单独成一个组，且组内再按同一维度分子组（嵌套）。
+                    var nodes = groupedSections(split.visible, keyPrefix: "g:", groupBy: groupBy)
+                    if !split.hidden.isEmpty {
+                        let parent = reuseSection(key: "hidden", isHidden: true, title: L10n.format("file.hiddenGroup", split.hidden.count))
+                        parent.children = groupedSections(split.hidden, keyPrefix: "hidden/g:", groupBy: groupBy)
+                        nodes.append(parent)
                     }
-                    if !split.hidden.isEmpty { nodes.append(hiddenSection(split.hidden)) }
                     topLevelNodes = nodes
                 }
             } else {
                 // GroupBy=none：复用 #49 行为，受 hiddenGroupCollapseMode 的 inline 影响。
                 if AppPreferences.hiddenGroupCollapseMode.groupsHiddenFiles {
                     var nodes = split.visible.map { FileOutlineNode.file($0) }
-                    if !split.hidden.isEmpty { nodes.append(hiddenSection(split.hidden)) }
+                    if !split.hidden.isEmpty { nodes.append(flatHiddenSection(split.hidden)) }
                     topLevelNodes = nodes
                 } else {
                     // inline opt-out：全平铺。
@@ -277,7 +308,7 @@ private struct FileNSOutlineView: NSViewRepresentable {
 
         /// 某区块当前是否应展开。隐藏组（none 模式）走 #49 真值；其余区块默认展开，除非用户手动折叠过。
         private func isSectionExpanded(_ node: FileOutlineNode) -> Bool {
-            if node.isHiddenSection && !AppPreferences.effectiveFileGroupBy.isGrouping {
+            if node.isHiddenSection && !effectiveGroupBy.isGrouping {
                 return hiddenGroupExpanded
             }
             return !userCollapsedSectionKeys.contains(node.sectionKey)
@@ -389,7 +420,7 @@ private struct FileNSOutlineView: NSViewRepresentable {
         }
 
         private func setSectionExpanded(_ node: FileOutlineNode, _ expanded: Bool) {
-            if node.isHiddenSection && !AppPreferences.effectiveFileGroupBy.isGrouping {
+            if node.isHiddenSection && !effectiveGroupBy.isGrouping {
                 hiddenGroupExpanded = expanded
                 persistExpansion(expanded)
             } else if expanded {
@@ -414,6 +445,43 @@ private struct FileNSOutlineView: NSViewRepresentable {
             case .globalSticky:
                 AppPreferences.hiddenGroupGlobalExpanded = expanded
             }
+        }
+
+        // MARK: - 此文件夹分组（仅「按文件夹」范围 + folder 模式时出现在右键里）
+
+        /// 往菜单追加「此文件夹分组」子菜单：跟随全局默认 / 不分组 / 种类 / 修改时间 / 文件与文件夹，✓ 当前项。
+        private func appendFolderGroupingMenu(to menu: NSMenu) {
+            guard AppPreferences.fileGroupingScope == .perFolder, case .folder = model.mode else { return }
+            menu.addItem(.separator())
+            let parent = NSMenuItem(title: L10n.text("file.folderGrouping"), action: nil, keyEquivalent: "")
+            let submenu = NSMenu()
+            let current = AppPreferences.fileFolderGroupBy(forKey: currentFolderKey)
+
+            let follow = makeTableMenuItem(L10n.text("file.folderGrouping.followDefault"), systemImage: "arrow.uturn.backward", action: #selector(setFolderGroupingFollowDefault), target: self)
+            follow.state = current == nil ? .on : .off
+            submenu.addItem(follow)
+            submenu.addItem(.separator())
+
+            for option in BrowserGrouping.GroupBy.allCases {
+                let item = NSMenuItem(title: option.title, action: #selector(setFolderGrouping(_:)), keyEquivalent: "")
+                item.target = self
+                item.representedObject = option.rawValue
+                item.state = current == option ? .on : .off
+                submenu.addItem(item)
+            }
+            parent.submenu = submenu
+            menu.addItem(parent)
+        }
+
+        @objc private func setFolderGroupingFollowDefault() {
+            AppPreferences.setFileFolderGroupBy(nil, forKey: currentFolderKey)
+            syncContent()
+        }
+
+        @objc private func setFolderGrouping(_ sender: NSMenuItem) {
+            guard let raw = sender.representedObject as? String else { return }
+            AppPreferences.setFileFolderGroupBy(BrowserGrouping.GroupBy.parse(raw), forKey: currentFolderKey)
+            syncContent()
         }
 
         // MARK: - 拖拽
@@ -481,6 +549,7 @@ private struct FileNSOutlineView: NSViewRepresentable {
                 menu.addItem(.separator())
                 // 用 revealCurrentLocation 不用 revealSelected —— 用户右键空白处的意图是「打开我现在看的这个文件夹本身」。
                 menu.addItem(menuItem(L10n.text("button.revealInFinder"), systemImage: "arrow.up.forward.app", action: #selector(revealCurrentLocation)))
+                appendFolderGroupingMenu(to: menu)
                 return
             }
 
@@ -518,6 +587,7 @@ private struct FileNSOutlineView: NSViewRepresentable {
             menu.addItem(menuItem(L10n.text("file.delete"), systemImage: "trash", action: #selector(deleteSelected)))
             menu.addItem(.separator())
             menu.addItem(menuItem(L10n.text("button.revealInFinder"), systemImage: "arrow.up.forward.app", action: #selector(revealSelected)))
+            appendFolderGroupingMenu(to: menu)
         }
 
         @objc func doubleClick(_ sender: NSOutlineView) {

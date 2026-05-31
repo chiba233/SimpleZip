@@ -23,9 +23,8 @@ struct ArchiveTable: View {
     @AppStorage(AppPreferences.Key.showArchiveCrcColumn) private var showCrcColumn = false
     @AppStorage(AppPreferences.Key.showArchiveCreatedColumn) private var showCreatedColumn = false
     @AppStorage(AppPreferences.Key.showArchiveAttributesColumn) private var showAttributesColumn = false
-    // 观察分组偏好 —— 在 Settings 改时靠它们触发重渲染 → updateNSView → 重新分组。
-    @AppStorage(AppPreferences.Key.archiveGroupingEnabled) private var archiveGroupingEnabled = false
-    @AppStorage(AppPreferences.Key.archiveGroupBy) private var archiveGroupBy = BrowserGrouping.GroupBy.kind.rawValue
+    // 观察分组方式 —— 在 Settings 改时靠它触发重渲染 → updateNSView → 重新分组。
+    @AppStorage(AppPreferences.Key.archiveGroupBy) private var archiveGroupBy = BrowserGrouping.GroupBy.none.rawValue
 
     var body: some View {
         ZStack {
@@ -41,7 +40,6 @@ struct ArchiveTable: View {
                 showCrcColumn: showCrcColumn,
                 showCreatedColumn: showCreatedColumn,
                 showAttributesColumn: showAttributesColumn,
-                groupingEnabled: archiveGroupingEnabled,
                 groupBy: archiveGroupBy
             )
 
@@ -105,7 +103,6 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
     let showCreatedColumn: Bool
     let showAttributesColumn: Bool
     // 仅作变化触发器：值变 → 重建 representable → updateNSView → 重新分组。真值由 coordinator 读 AppPreferences。
-    let groupingEnabled: Bool
     let groupBy: String
 
     func makeCoordinator() -> Coordinator {

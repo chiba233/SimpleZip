@@ -51,10 +51,11 @@ struct BrowserGroupingTests {
     }
 
     @Test
-    func hiddenWithGroupingParseFallsBackToFold() {
-        #expect(BrowserGrouping.HiddenWithGrouping.parse(nil) == .foldIntoGroups)
-        #expect(BrowserGrouping.HiddenWithGrouping.parse("garbage") == .foldIntoGroups)
-        #expect(BrowserGrouping.HiddenWithGrouping.parse("separateGroup") == .separateGroup)
+    func hiddenWithGroupingParseFallsBackToSeparate() {
+        // 默认 separateGroup：隐藏文件单独成组（组内再分组），不被融进各分类组。
+        #expect(BrowserGrouping.HiddenWithGrouping.parse(nil) == .separateGroup)
+        #expect(BrowserGrouping.HiddenWithGrouping.parse("garbage") == .separateGroup)
+        #expect(BrowserGrouping.HiddenWithGrouping.parse("foldIntoGroups") == .foldIntoGroups)
     }
 
     // MARK: - 维度感知分组（种类 / 时间 / 文件vs文件夹）
@@ -117,6 +118,38 @@ struct BrowserGroupingTests {
     func groupByNoneReturnsEmpty() {
         let items = [G(typeDescription: "a", isDirectory: false, modified: nil)]
         #expect(BrowserGrouping.group(items, by: .none, now: Date()).isEmpty)
+    }
+
+    @Test
+    func folderOverrideLookupAndUpsert() {
+        var entries: [String] = []
+        // 设定 /a → kind
+        entries = BrowserGrouping.upsertFolderOverride(entries, forKey: "/a", groupBy: .kind)
+        #expect(BrowserGrouping.folderOverride(in: entries, forKey: "/a") == .kind)
+        #expect(BrowserGrouping.folderOverride(in: entries, forKey: "/b") == nil)
+        // 改 /a → dateModified（不应重复条目）
+        entries = BrowserGrouping.upsertFolderOverride(entries, forKey: "/a", groupBy: .dateModified)
+        #expect(entries.count == 1)
+        #expect(BrowserGrouping.folderOverride(in: entries, forKey: "/a") == .dateModified)
+        // 显式 none（= 此文件夹明确不分组，区别于「跟随默认」）
+        entries = BrowserGrouping.upsertFolderOverride(entries, forKey: "/a", groupBy: BrowserGrouping.GroupBy.none)
+        #expect(BrowserGrouping.folderOverride(in: entries, forKey: "/a") == BrowserGrouping.GroupBy.none)
+        // 清除（nil）→ 跟随默认
+        entries = BrowserGrouping.upsertFolderOverride(entries, forKey: "/a", groupBy: nil)
+        #expect(BrowserGrouping.folderOverride(in: entries, forKey: "/a") == nil)
+        #expect(entries.isEmpty)
+    }
+
+    @Test
+    func folderOverrideMRUCapDropsOldest() {
+        var entries: [String] = []
+        for i in 0..<10 {
+            entries = BrowserGrouping.upsertFolderOverride(entries, forKey: "/f\(i)", groupBy: .kind, cap: 5)
+        }
+        #expect(entries.count == 5)
+        // 最旧的 /f0../f4 被裁，最近的 /f5../f9 留下。
+        #expect(BrowserGrouping.folderOverride(in: entries, forKey: "/f0") == nil)
+        #expect(BrowserGrouping.folderOverride(in: entries, forKey: "/f9") == .kind)
     }
 
     @Test

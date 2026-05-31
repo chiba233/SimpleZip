@@ -336,8 +336,10 @@
 "settings.grouping.scope.perFolder" = "按文件夹";
 "settings.grouping.default" = "分组方式";
 "settings.grouping.default.description" = "种类、修改时间、或文件与文件夹。";
+"settings.grouping.fileDefault" = "全局默认分组方式";
+"settings.grouping.fileDefault.description" = "默认用哪种分组。这是默认值、不是总开关 ——「按文件夹」范围下，可右键把某个文件夹单独设成别的（哪怕这里是「不分组」）。";
 "settings.hiddenWithGrouping.foldIntoGroups" = "融进各分类组";
-"settings.hiddenWithGrouping.separateGroup" = "单列一个隐藏组";
+"settings.hiddenWithGrouping.separateGroup" = "单独成组（组内再分组）";
 "view.columns.fileBrowser" = "浏览器列";
 "view.columns.archiveBrowser" = "压缩包列";
 "settings.gpg.keys.contextChangePassphrase" = "修改 passphrase…";
@@ -520,6 +522,8 @@
 "button.benchmark" = "跑分";
 "button.open" = "打开";
 "file.showPackageContents" = "显示包内容";
+"file.folderGrouping" = "此文件夹分组";
+"file.folderGrouping.followDefault" = "跟随全局默认";
 "file.hiddenGroup" = "隐藏文件 (%d)";
 "button.reveal" = "显示";
 "button.addToArchive" = "添加到压缩包";

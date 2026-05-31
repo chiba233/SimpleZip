@@ -63,6 +63,35 @@ enum BrowserGrouping {
         }
     }
 
+    // MARK: - 每文件夹分组覆盖（MRU 存储纯逻辑，可单测）
+
+    /// 在 MRU 条目里查某文件夹的覆盖维度。条目格式 `path\tgroupBy`；找不到返回 nil（= 跟随全局默认）。
+    static func folderOverride(in entries: [String], forKey key: String) -> GroupBy? {
+        for entry in entries {
+            guard let r = entry.range(of: "\t", options: .backwards) else { continue }
+            guard String(entry[..<r.lowerBound]) == key else { continue }
+            return GroupBy.parse(String(entry[r.upperBound...]))
+        }
+        return nil
+    }
+
+    /// 写入 / 移除某文件夹的覆盖，返回新的 MRU 条目数组。
+    /// `groupBy == nil` → 移除该文件夹覆盖（回到跟随全局默认）；非 nil（含 `.none`）→ 显式设定。
+    /// MRU：最近设定的排末尾；超过 `cap` 从最旧（开头）裁，防止路径无限堆积。
+    static func upsertFolderOverride(_ entries: [String], forKey key: String, groupBy: GroupBy?, cap: Int = 500) -> [String] {
+        var result = entries.filter { entry in
+            guard let r = entry.range(of: "\t", options: .backwards) else { return true }
+            return String(entry[..<r.lowerBound]) != key
+        }
+        if let groupBy {
+            result.append("\(key)\t\(groupBy.rawValue)")
+        }
+        if result.count > cap {
+            result.removeFirst(result.count - cap)
+        }
+        return result
+    }
+
     /// 把一个日期归到分桶。`now` 显式传入以便纯函数测试。
     static func dateBucket(for date: Date?, now: Date, calendar: Calendar = .current) -> DateBucket {
         guard let date else { return .unknown }
@@ -101,13 +130,13 @@ enum BrowserGrouping {
 
     /// Group By ≠ None 且开启「显示隐藏文件」时，隐藏文件怎么跟分类组共存。用户在 Settings 里选。
     enum HiddenWithGrouping: String, CaseIterable {
-        /// 隐藏文件按同一分类键融进各组（按种类时，隐藏图片进「图片」组）。默认。
+        /// 隐藏文件按同一分类键融进各组（按种类时，隐藏图片进「图片」组）。
         case foldIntoGroups
-        /// 隐藏文件始终单列一个「隐藏文件」组，跟分类组并列。
+        /// 隐藏文件单独成一个「隐藏文件」组，组内再按同一维度分子组（嵌套）。默认。
         case separateGroup
 
         static func parse(_ raw: String?) -> HiddenWithGrouping {
-            guard let raw, let value = HiddenWithGrouping(rawValue: raw) else { return .foldIntoGroups }
+            guard let raw, let value = HiddenWithGrouping(rawValue: raw) else { return .separateGroup }
             return value
         }
 

@@ -30,23 +30,10 @@ struct ColumnsPane: View {
     @AppStorage(AppPreferences.Key.showArchiveCrcColumn) private var showArchiveCrcColumn = false
     @AppStorage(AppPreferences.Key.showArchiveCreatedColumn) private var showArchiveCreatedColumn = false
     @AppStorage(AppPreferences.Key.showArchiveAttributesColumn) private var showArchiveAttributesColumn = false
-    // 分组（视图分组）
-    @AppStorage(AppPreferences.Key.fileGroupingEnabled) private var fileGroupingEnabled = false
+    // 分组（视图分组）—— 这里是「全局默认值」，不是总开关；按文件夹范围下可右键单独覆盖。
     @AppStorage(AppPreferences.Key.fileGroupingScope) private var fileGroupingScopeRaw = BrowserGrouping.GroupingScope.global.rawValue
-    @AppStorage(AppPreferences.Key.fileGroupBy) private var fileGroupByRaw = BrowserGrouping.GroupBy.kind.rawValue
-    @AppStorage(AppPreferences.Key.archiveGroupingEnabled) private var archiveGroupingEnabled = false
-    @AppStorage(AppPreferences.Key.archiveGroupBy) private var archiveGroupByRaw = BrowserGrouping.GroupBy.kind.rawValue
-
-    /// 分类维度选择 Binding：把存储里可能残留的 `.none` 显示成 `.kind`（总开关已单独控制开/关）。
-    private func criteriaSelection(_ raw: Binding<String>) -> Binding<String> {
-        Binding(
-            get: {
-                let parsed = BrowserGrouping.GroupBy.parse(raw.wrappedValue)
-                return (parsed.isGrouping ? parsed : .kind).rawValue
-            },
-            set: { raw.wrappedValue = $0 }
-        )
-    }
+    @AppStorage(AppPreferences.Key.fileGroupBy) private var fileGroupByRaw = BrowserGrouping.GroupBy.none.rawValue
+    @AppStorage(AppPreferences.Key.archiveGroupBy) private var archiveGroupByRaw = BrowserGrouping.GroupBy.none.rawValue
 
     var body: some View {
         Form {
@@ -126,11 +113,6 @@ struct ColumnsPane: View {
                 // 文件浏览
                 Text(L10n.text("settings.columns.fileBrowser"))
                     .font(.headline)
-                SettingsToggleRow(
-                    title: L10n.text("settings.grouping.enable"),
-                    description: L10n.text("settings.grouping.enable.description"),
-                    isOn: $fileGroupingEnabled
-                )
                 SettingsControlRow(
                     title: L10n.text("settings.grouping.scope"),
                     description: L10n.text("settings.grouping.scope.description")
@@ -142,42 +124,34 @@ struct ColumnsPane: View {
                     }
                     .labelsHidden().fixedSize().frame(minWidth: 200, alignment: .trailing)
                 }
-                .disabled(!fileGroupingEnabled)
                 SettingsControlRow(
-                    title: L10n.text("settings.grouping.default"),
-                    description: L10n.text("settings.grouping.default.description")
+                    title: L10n.text("settings.grouping.fileDefault"),
+                    description: L10n.text("settings.grouping.fileDefault.description")
                 ) {
-                    Picker("", selection: criteriaSelection($fileGroupByRaw)) {
-                        ForEach(BrowserGrouping.GroupBy.selectableCases, id: \.self) { option in
+                    Picker("", selection: $fileGroupByRaw) {
+                        ForEach(BrowserGrouping.GroupBy.allCases, id: \.self) { option in
                             Text(option.title).tag(option.rawValue)
                         }
                     }
                     .labelsHidden().fixedSize().frame(minWidth: 200, alignment: .trailing)
                 }
-                .disabled(!fileGroupingEnabled)
 
                 Divider()
 
                 // 压缩包浏览（无「按文件夹」—— 档案内路径不持久，只全局）
                 Text(L10n.text("settings.columns.archiveBrowser"))
                     .font(.headline)
-                SettingsToggleRow(
-                    title: L10n.text("settings.grouping.enable"),
-                    description: L10n.text("settings.grouping.enable.description"),
-                    isOn: $archiveGroupingEnabled
-                )
                 SettingsControlRow(
                     title: L10n.text("settings.grouping.default"),
                     description: L10n.text("settings.grouping.default.description")
                 ) {
-                    Picker("", selection: criteriaSelection($archiveGroupByRaw)) {
-                        ForEach(BrowserGrouping.GroupBy.selectableCases, id: \.self) { option in
+                    Picker("", selection: $archiveGroupByRaw) {
+                        ForEach(BrowserGrouping.GroupBy.allCases, id: \.self) { option in
                             Text(option.title).tag(option.rawValue)
                         }
                     }
                     .labelsHidden().fixedSize().frame(minWidth: 200, alignment: .trailing)
                 }
-                .disabled(!archiveGroupingEnabled)
             }
 
             Section(L10n.text("settings.columns.preview")) {

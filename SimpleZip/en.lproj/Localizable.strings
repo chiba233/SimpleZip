@@ -336,8 +336,10 @@
 "settings.grouping.scope.perFolder" = "Per folder";
 "settings.grouping.default" = "Group by";
 "settings.grouping.default.description" = "Kind, Date Modified, or Files & Folders.";
+"settings.grouping.fileDefault" = "Default grouping";
+"settings.grouping.fileDefault.description" = "The default grouping. This is a default, not a master switch — with \"Per folder\" scope, individual folders can be set differently (right-click a folder), even if this is \"None\".";
 "settings.hiddenWithGrouping.foldIntoGroups" = "Fold into groups";
-"settings.hiddenWithGrouping.separateGroup" = "Separate group";
+"settings.hiddenWithGrouping.separateGroup" = "Separate group (grouped inside)";
 "view.columns.fileBrowser" = "Browser Columns";
 "view.columns.archiveBrowser" = "Archive Columns";
 "settings.gpg.keys.contextChangePassphrase" = "Change Passphrase…";
@@ -522,6 +524,8 @@
 "button.benchmark" = "Benchmark";
 "button.open" = "Open";
 "file.showPackageContents" = "Show Package Contents";
+"file.folderGrouping" = "This Folder's Grouping";
+"file.folderGrouping.followDefault" = "Follow Global Default";
 "file.hiddenGroup" = "Hidden Files (%d)";
 "button.reveal" = "Reveal";
 "button.addToArchive" = "Add to Archive";
