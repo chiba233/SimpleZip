@@ -309,6 +309,10 @@
 "szs.silentBrowse.signatureStatus.error" = "签名无法校验";
 "szs.signature.gpgDisabled" = "GPG 未启用，未校验签名。文件内容仍已通过 SHA-256 校验。";
 "menu.view" = "视图";
+"view.groupBy.none" = "不分类";
+"view.groupBy.kind" = "按种类";
+"settings.hiddenWithGrouping.foldIntoGroups" = "融进各分类组";
+"settings.hiddenWithGrouping.separateGroup" = "单列一个隐藏组";
 "view.columns.fileBrowser" = "浏览器列";
 "view.columns.archiveBrowser" = "压缩包列";
 "settings.gpg.keys.contextChangePassphrase" = "修改 passphrase…";

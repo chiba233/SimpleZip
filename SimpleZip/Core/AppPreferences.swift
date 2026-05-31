@@ -261,6 +261,10 @@ enum AppPreferences {
         nonisolated static let hiddenGroupCollapseMode = "hiddenGroupCollapseMode"
         nonisolated static let hiddenGroupPerFolderExpanded = "hiddenGroupPerFolderExpanded"
         nonisolated static let hiddenGroupGlobalExpanded = "hiddenGroupGlobalExpanded"
+        // 0.2.0 Group By 多重分类：文件 / 压缩包浏览各自的分类维度 + 隐藏文件与分类组的共存策略。
+        nonisolated static let fileGroupBy = "fileGroupBy"
+        nonisolated static let archiveGroupBy = "archiveGroupBy"
+        nonisolated static let hiddenWithGrouping = "hiddenWithGrouping"
         nonisolated static let rememberLastFolder = "rememberLastFolder"
         nonisolated static let lastFolderPath = "lastFolderPath"
         nonisolated static let checkForUpdatesOnLaunch = "checkForUpdatesOnLaunch"
@@ -406,6 +410,26 @@ enum AppPreferences {
     nonisolated static var hiddenGroupGlobalExpanded: Bool {
         get { defaults.bool(forKey: Key.hiddenGroupGlobalExpanded) }
         set { defaults.set(newValue, forKey: Key.hiddenGroupGlobalExpanded) }
+    }
+
+    // MARK: - Group By 多重分类（0.2.0）
+
+    /// 文件浏览器的分类维度。默认 `.none`（不分类，平铺）。
+    nonisolated static var fileGroupBy: BrowserGrouping.GroupBy {
+        get { BrowserGrouping.GroupBy.parse(defaults.string(forKey: Key.fileGroupBy)) }
+        set { defaults.set(newValue.rawValue, forKey: Key.fileGroupBy) }
+    }
+
+    /// 压缩包浏览器的分类维度。默认 `.none`。
+    nonisolated static var archiveGroupBy: BrowserGrouping.GroupBy {
+        get { BrowserGrouping.GroupBy.parse(defaults.string(forKey: Key.archiveGroupBy)) }
+        set { defaults.set(newValue.rawValue, forKey: Key.archiveGroupBy) }
+    }
+
+    /// Group By 开启时，隐藏文件与分类组怎么共存。默认 `.foldIntoGroups`（融进各分类组）。
+    nonisolated static var hiddenWithGrouping: BrowserGrouping.HiddenWithGrouping {
+        get { BrowserGrouping.HiddenWithGrouping.parse(defaults.string(forKey: Key.hiddenWithGrouping)) }
+        set { defaults.set(newValue.rawValue, forKey: Key.hiddenWithGrouping) }
     }
 
     nonisolated static var rememberLastFolder: Bool {
@@ -727,6 +751,9 @@ enum AppPreferences {
         Key.hiddenCustomSuffixes,
         // 折叠记忆策略可导出；per-folder / global 展开状态是本机 UI 状态（含真实路径），不导出。
         Key.hiddenGroupCollapseMode,
+        Key.fileGroupBy,
+        Key.archiveGroupBy,
+        Key.hiddenWithGrouping,
         Key.showFileSizeColumn,
         Key.showFileTypeColumn,
         Key.showFileApplicationColumn,
