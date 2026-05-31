@@ -373,16 +373,32 @@ extension ArchiveBrowserModel {
 
         switch mode {
         case .folder(let url):
+            // 进 / 切文件夹时（重）挂监视；同路径 watch 是 no-op，所以 watcher 自己触发的 reload 不会重建 stream。
+            folderWatcher.watch(url)
             loadTask = nil
             loadFolder(url)
         case .tag(let tag):
+            folderWatcher.stop()
             loadTask = Task { [weak self] in
                 await self?.loadTaggedFiles(tag, generation: loadGeneration)
             }
         case .archive(let url):
+            folderWatcher.stop()
             loadTask = Task { [weak self] in
                 await self?.loadArchive(url, generation: loadGeneration)
             }
+        }
+    }
+
+    /// FolderWatcher 回调：当前文件夹内容变了 → 去抖后重新列出。
+    /// 去抖（120ms）把一次批量操作产生的多次 FSEvents 合并成一次 reload；只在仍处 `.folder` 模式时刷新。
+    func handleFolderContentsChanged() {
+        guard case .folder = mode else { return }
+        pendingWatcherReload?.cancel()
+        pendingWatcherReload = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 120_000_000)
+            guard let self, !Task.isCancelled, case .folder = self.mode else { return }
+            self.reload()
         }
     }
 

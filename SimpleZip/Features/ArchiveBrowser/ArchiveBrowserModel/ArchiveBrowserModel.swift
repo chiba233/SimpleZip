@@ -120,6 +120,13 @@ final class ArchiveBrowserModel: ObservableObject {
     /// 「一次一个」长任务的生命周期管理（取消、ID 跟踪、跟 ArchiveService 的子进程联动）。
     let operationRunner = ArchiveOperationRunner()
     var fileClipboard: (urls: [URL], shouldMove: Bool)?
+    /// 当前文件夹的 FSEvents 监视器：内容变化（外部改动 + 本应用自己的增删改 / 重命名）自动刷新列表。
+    /// 仅 `.folder` 模式启用，由 `reload()` 统一 watch/stop。引入它后文件操作不再各自手动 reload。
+    lazy var folderWatcher = FolderWatcher { [weak self] in
+        self?.handleFolderContentsChanged()
+    }
+    /// FolderWatcher 回调去抖：把一次批量操作（如粘贴多文件）产生的多次 FSEvents 合并成一次 reload。
+    var pendingWatcherReload: Task<Void, Never>?
     var loadTask: Task<Void, Never>?
     var activeLoadGeneration = 0
     var mountedDiskImage: MountedDiskImageSession?

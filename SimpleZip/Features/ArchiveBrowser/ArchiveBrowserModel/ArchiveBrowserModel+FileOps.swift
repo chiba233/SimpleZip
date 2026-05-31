@@ -67,7 +67,7 @@ extension ArchiveBrowserModel {
                     self.fileClipboard = nil
                 }
                 operationProgress = ArchiveProgressState(fraction: 1, currentFile: nil, completedUnitCount: total, totalUnitCount: total)
-                reload()
+                // 刷新交给 FolderWatcher：写入当前文件夹会触发 FSEvents 自动 reload。
             } catch {
                 errorMessage = error.localizedDescription
                 status = L10n.text("status.failed")
@@ -100,7 +100,7 @@ extension ArchiveBrowserModel {
 
         do {
             try fileManager.moveItem(at: item.url, to: target)
-            reload()
+            // 刷新交给 FolderWatcher：同目录改名会触发 FSEvents 自动 reload。
         } catch {
             errorMessage = error.localizedDescription
             status = L10n.text("status.failed")
@@ -127,7 +127,7 @@ extension ArchiveBrowserModel {
                 var resultingURL: NSURL?
                 try fileManager.trashItem(at: item.url, resultingItemURL: &resultingURL)
             }
-            reload()
+            // 刷新交给 FolderWatcher：从当前文件夹移除条目会触发 FSEvents 自动 reload。
         } catch {
             errorMessage = error.localizedDescription
             status = L10n.text("status.failed")
@@ -196,14 +196,8 @@ extension ArchiveBrowserModel {
                 extractionCoordinator.finishConflictResolutionSession(conflictSession)
                 operationProgress = ArchiveProgressState(fraction: 1, currentFile: nil, completedUnitCount: total, totalUnitCount: total)
                 status = L10n.text("status.done")
-                if case .folder(let currentFolder) = mode {
-                    let standardizedCurrentFolder = currentFolder.standardizedFileURL
-                    let shouldRefreshCurrentFolder = standardizedCurrentFolder == destinationFolder.standardizedFileURL
-                        || urls.contains { $0.deletingLastPathComponent().standardizedFileURL == standardizedCurrentFolder }
-                    if shouldRefreshCurrentFolder {
-                        reload()
-                    }
-                }
+                // 刷新交给 FolderWatcher：拖入 / 拖出当前文件夹都会触发 FSEvents 自动 reload，
+                // 不必再手动判断 destination 是否等于当前目录。
             } catch is CancellationError {
                 errorMessage = nil
                 status = L10n.text("status.cancelled")
