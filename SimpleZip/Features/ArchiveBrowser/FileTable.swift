@@ -144,7 +144,11 @@ private struct FileNSOutlineView: NSViewRepresentable {
         context.coordinator.model = model
         configureColumns(for: outlineView)
         // 密度变化：rowHeight 改了要 reloadData 才会按新行高 + 新图标/字号重画（syncContent 内部已 reload）。
-        outlineView.rowHeight = AppPreferences.rowDensity.rowHeight
+        // 只在真的变化时赋值 —— 赋同一个值也会把表标记为需重绘，框选时每帧都赋会加剧闪烁。
+        let targetRowHeight = AppPreferences.rowDensity.rowHeight
+        if outlineView.rowHeight != targetRowHeight {
+            outlineView.rowHeight = targetRowHeight
+        }
         context.coordinator.syncContent()
         context.coordinator.applySelection()
     }

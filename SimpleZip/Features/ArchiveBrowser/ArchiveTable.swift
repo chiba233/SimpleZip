@@ -135,7 +135,11 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
         guard let outlineView = scrollView.documentView as? NSOutlineView else { return }
         context.coordinator.model = model
         configureColumns(for: outlineView)
-        outlineView.rowHeight = AppPreferences.rowDensity.rowHeight
+        // 只在真的变化时赋 rowHeight —— 赋同值也会标记重绘，框选时每帧都赋会加剧闪烁。
+        let targetRowHeight = AppPreferences.rowDensity.rowHeight
+        if outlineView.rowHeight != targetRowHeight {
+            outlineView.rowHeight = targetRowHeight
+        }
         context.coordinator.syncContent()
         context.coordinator.applySelection()
     }
