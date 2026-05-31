@@ -8,6 +8,8 @@
   - The file browser table was rebuilt on `NSOutlineView` to host the collapsible group, keeping the same native drag, multi-select, columns, sorting, and context menus. This also lays the groundwork for the upcoming Group By / Sort By view modes.
   - New Settings → Browser option **"Hidden files group"**: choose whether the group is always collapsed (default), remembers its state per folder, or remembers it globally — or pick **"Show inline (no group)"** to opt out entirely and keep the pre-0.2.0 behaviour of hidden files mixed inline. The setting takes effect immediately.
 
+- **Misc:** the "Create Signed Manifest" menu item (main menu + right-click) now uses the `signature` icon, matching the signing-key row in GPG settings.
+
 ## 0.1.11
 
 - **Bug fix: a public GitHub release could be created before Sparkle signing succeeded.** The release workflow ran `gh release create` (uploading the DMG) *before* the `sign_update` and appcast-generation steps. If the Sparkle key was missing/invalid or `sign_update` couldn't be found, the job failed *after* a public, unsigned release already existed — undercutting the 0.1.10 guarantee that a signing misconfiguration fails *before* shipping. Signing and appcast generation now run first; the public release is only created once a signature has been produced.

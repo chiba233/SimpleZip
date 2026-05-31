@@ -398,7 +398,7 @@ private struct FileNSOutlineView: NSViewRepresentable {
             menu.addItem(menuItem(L10n.text("button.addToArchive"), systemImage: "plus.square.on.square", action: #selector(addSelectedToArchive)))
             // 创建签名清单 —— 仅 GPG 启用 + 后端可用时出现。
             if AppPreferences.gpgEnabled && GPGBackend.isAvailable() {
-                menu.addItem(menuItem(L10n.text("szs.create.menuItem"), systemImage: "doc.text.badge.plus", action: #selector(createSignedManifestFromSelection)))
+                menu.addItem(menuItem(L10n.text("szs.create.menuItem"), systemImage: "signature", action: #selector(createSignedManifestFromSelection)))
             }
             menu.addItem(menuItem(L10n.text("button.extractHere"), systemImage: "arrow.down.doc", action: #selector(extractSelectedArchive)))
             menu.addItem(menuItem(L10n.text("button.test"), systemImage: "checkmark.seal", action: #selector(testSelectedArchive)))

@@ -135,7 +135,7 @@ struct ArchiveFileCommands: Commands {
             Button {
                 NotificationCenter.default.post(name: .openCreateSZSSheet, object: nil)
             } label: {
-                Label(L10n.text("szs.create.menuItem"), systemImage: "doc.text.badge.plus")
+                Label(L10n.text("szs.create.menuItem"), systemImage: "signature")
             }
             .keyboardShortcut("n", modifiers: [.command, .shift])
             .disabled(!AppPreferences.gpgEnabled || !GPGBackend.isAvailable())
