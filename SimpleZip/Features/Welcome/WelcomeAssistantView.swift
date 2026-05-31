@@ -262,6 +262,9 @@ private struct WelcomeBackupRestoreStep: View {
 }
 
 private struct WelcomeVersionCheckStep: View {
+    // 引导阶段就让用户决定要不要开「每次启动时检查更新」—— 直接绑 @AppStorage，改的瞬间落盘。
+    @AppStorage(AppPreferences.Key.checkForUpdatesOnLaunch) private var checkForUpdatesOnLaunch = false
+
     /// 当前安装版本号 —— 从 Info.plist 的 `CFBundleShortVersionString` 取。
     /// 不缓存到 @State，每次 body 重新计算一次足够轻量。
     private var currentVersion: String {
@@ -279,6 +282,12 @@ private struct WelcomeVersionCheckStep: View {
             Button(L10n.text("welcome.versionCheck.button")) {
                 SparkleUpdater.shared.checkForUpdates()
             }
+
+            Toggle(L10n.text("settings.checkForUpdatesOnLaunch"), isOn: $checkForUpdatesOnLaunch)
+            Text(L10n.text("settings.checkForUpdatesOnLaunch.description"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 }
