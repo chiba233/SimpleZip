@@ -306,8 +306,12 @@ final class FileBrowserService {
     }
 
     /// `NSWorkspace` 判定 path 是不是 macOS 意义上的「包」。
+    ///
+    /// 必须先 `resolvingSymlinksInPath()` 再判：`isFilePackage(atPath:)` 对「指向 .app/.bundle 的
+    /// 符号链接」会返回 false（它看的是链接本身，不是目标），导致 symlink→Safari.app 被当成可进入
+    /// 目录、双击进目录而不是启动 App（用户反馈）。解析到真实目标后就能正确识别为包。
     static func isLocalFilePackage(_ url: URL) -> Bool {
-        NSWorkspace.shared.isFilePackage(atPath: url.path)
+        NSWorkspace.shared.isFilePackage(atPath: url.resolvingSymlinksInPath().path)
     }
 
     /// 符号链接指向的目标是否是目录 —— 用来决定 link 应该按文件还是目录展示。

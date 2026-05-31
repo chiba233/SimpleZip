@@ -9,6 +9,7 @@
 - **Welcome assistant is shorter.** The startup location, overwrite behavior, hidden files, list size, and grouping steps are merged into a single "General settings" page (12 setting steps → 8). Every control and explanation is preserved — nothing about what each setting does has changed; there are just fewer Next clicks.
 - **Right-click → "Open With" in the main window.** Local files now have an "Open With" submenu listing the apps registered to open that file (the default app is marked), plus "Other…" to choose any app. Works on a single file or a multi-selection.
 - **Localization: fixed badly machine-translated strings** in the GPG, signed-container (`.siz` / `.szs`), and welcome-assistant areas across German, Spanish, French, Japanese, Korean, Russian, and Thai. A cluster of ~66 strings had been auto-translated by word substitution (only a noun localized, the rest left in English) or mapped onto the wrong message; they are now proper native translations with format specifiers and security wording preserved. (Traditional Chinese and the two primary locales were already correct.)
+- **Fixed: a symlink pointing at an app bundle opened as a folder instead of launching.** A symlink to a `.app`/`.bundle` (e.g. an alias to an application) was treated as a navigable folder, so double-clicking descended into it. Package detection now resolves the symlink target first, so such links launch the app, the way Finder does.
 
 ## 0.2.0
 
