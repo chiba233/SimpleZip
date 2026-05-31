@@ -42,7 +42,7 @@ struct SettingsView: View {
         // 改成「有理想尺寸但可以拉」，遵循 macOS 原生 Settings 风格。
         .frame(
             minWidth: 720, idealWidth: 820, maxWidth: .infinity,
-            minHeight: 520, idealHeight: 560, maxHeight: .infinity
+            minHeight: 600, idealHeight: 720, maxHeight: .infinity
         )
         .navigationTitle(L10n.text("settings.title"))
     }
