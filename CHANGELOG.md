@@ -4,6 +4,9 @@
 
 ## 0.2.0
 
+- **Group By (file browser) — group files into collapsible sections.** New "View → Group Files By" menu with "None" (default) and "Kind". When grouping by kind, files are split into collapsible sections (Images, Documents, …); sections start expanded and you can collapse them. Built on the same `NSOutlineView` foundation as the hidden-files group. (Archive-browser grouping is coming in a later update.)
+  - When hidden files are shown together with grouping, a setting controls whether they fold into the kind sections or stay in their own "Hidden Files" section (the setting's UI lands alongside this in a follow-up; default folds them in).
+
 - **Hidden files now live in a collapsible group instead of cluttering the list.** When "show hidden files" is enabled, OS-hidden items (dotfiles and Finder-hidden files/folders) are tucked into a default-collapsed "Hidden Files (N)" group at the end of the folder; click to expand. A folder stays readable while hidden items remain one click away. (When the toggle is off, nothing changes — hidden files simply aren't listed.)
   - The file browser table was rebuilt on `NSOutlineView` to host the collapsible group, keeping the same native drag, multi-select, columns, sorting, and context menus. This also lays the groundwork for the upcoming Group By / Sort By view modes.
   - New Settings → Browser option **"Hidden files group"**: choose whether the group is always collapsed (default), remembers its state per folder, or remembers it globally — or pick **"Show inline (no group)"** to opt out entirely and keep the pre-0.2.0 behaviour of hidden files mixed inline. The setting takes effect immediately.

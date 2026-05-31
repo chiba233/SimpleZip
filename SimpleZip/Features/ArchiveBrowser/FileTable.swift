@@ -21,6 +21,10 @@ struct FileTable: View {
     @AppStorage(AppPreferences.Key.showFileDateAddedColumn) private var showDateAddedColumn = true
     @AppStorage(AppPreferences.Key.showFileModifiedColumn) private var showModifiedColumn = true
     @AppStorage(AppPreferences.Key.showFileCreatedColumn) private var showCreatedColumn = true
+    // 观察分类维度 / 共存策略 —— 从「视图」菜单改 GroupBy 时，要靠这两个 @AppStorage 触发本视图重渲染，
+    // 进而调 updateNSView → syncContent 重新分组（菜单只翻 UserDefaults，本身不发通知）。
+    @AppStorage(AppPreferences.Key.fileGroupBy) private var fileGroupBy = BrowserGrouping.GroupBy.none.rawValue
+    @AppStorage(AppPreferences.Key.hiddenWithGrouping) private var hiddenWithGrouping = BrowserGrouping.HiddenWithGrouping.foldIntoGroups.rawValue
 
     var body: some View {
         FileNSOutlineView(
@@ -31,26 +35,47 @@ struct FileTable: View {
             showLastOpenedColumn: showLastOpenedColumn,
             showDateAddedColumn: showDateAddedColumn,
             showModifiedColumn: showModifiedColumn,
-            showCreatedColumn: showCreatedColumn
+            showCreatedColumn: showCreatedColumn,
+            groupBy: fileGroupBy,
+            hiddenWithGrouping: hiddenWithGrouping
         )
     }
 }
 
-/// 大纲节点：要么是一个文件行，要么是「隐藏文件」分组头。
-/// 用 class（引用类型）是因为 NSOutlineView 按对象身份跟踪展开状态 —— 分组头用一个稳定的单例实例。
+/// 大纲节点：要么是一个文件行（叶子），要么是一个可折叠区块（section）。
+/// 区块涵盖两种来源：Group By 的分类组（如「图片」）和 #49 的「隐藏文件」组。
+/// 用 class（引用类型）是因为 NSOutlineView 按对象身份跟踪展开状态 —— 区块实例按 sectionKey 跨 reload 复用。
 @MainActor
 private final class FileOutlineNode {
     enum Kind {
         case file(FileItem)
-        case hiddenGroup
+        case section
     }
 
     let kind: Kind
-    /// 仅 `.hiddenGroup` 用：当前隐藏文件条数，渲染「隐藏文件 (N)」用。
-    var hiddenCount = 0
+    /// section 稳定身份键（"hidden" / "kind:图片"），跨 reload 复用实例 + 折叠记忆都靠它。
+    let sectionKey: String
+    /// section 显示标题（含计数），如「隐藏文件 (3)」「图片 (5)」。
+    var title: String
+    /// section 的子文件节点。
+    var children: [FileOutlineNode]
+    /// 是否是「隐藏文件」组（GroupBy=none 时走 #49 折叠记忆策略；其余区块默认展开、不持久化）。
+    let isHiddenSection: Bool
 
-    init(kind: Kind) {
+    private init(kind: Kind, sectionKey: String, title: String, isHiddenSection: Bool) {
         self.kind = kind
+        self.sectionKey = sectionKey
+        self.title = title
+        self.children = []
+        self.isHiddenSection = isHiddenSection
+    }
+
+    static func file(_ item: FileItem) -> FileOutlineNode {
+        FileOutlineNode(kind: .file(item), sectionKey: "", title: "", isHiddenSection: false)
+    }
+
+    static func section(key: String, isHidden: Bool) -> FileOutlineNode {
+        FileOutlineNode(kind: .section, sectionKey: key, title: "", isHiddenSection: isHidden)
     }
 
     var fileItem: FileItem? {
@@ -58,8 +83,8 @@ private final class FileOutlineNode {
         return nil
     }
 
-    var isHiddenGroup: Bool {
-        if case .hiddenGroup = kind { return true }
+    var isSection: Bool {
+        if case .section = kind { return true }
         return false
     }
 }
@@ -73,6 +98,10 @@ private struct FileNSOutlineView: NSViewRepresentable {
     let showDateAddedColumn: Bool
     let showModifiedColumn: Bool
     let showCreatedColumn: Bool
+    // 仅作为「变化触发器」：值变 → SwiftUI 重建本 representable → updateNSView → syncContent 重新分组。
+    // 真值仍由 coordinator 直接读 AppPreferences（@AppStorage 与 UserDefaults 始终一致）。
+    let groupBy: String
+    let hiddenWithGrouping: String
 
     func makeCoordinator() -> Coordinator {
         Coordinator(model: model)
@@ -129,16 +158,18 @@ private struct FileNSOutlineView: NSViewRepresentable {
         private var isApplyingSelection = false
         private var isSyncingExpansion = false
 
-        // 从 model.fileItems 拆出来的两段；分组头是稳定单例，保证展开状态跨 reloadData 不丢。
-        private var visibleNodes: [FileOutlineNode] = []
-        private var hiddenNodes: [FileOutlineNode] = []
-        private let hiddenGroupNode = FileOutlineNode(kind: .hiddenGroup)
-        private var showsHiddenGroup: Bool { !hiddenNodes.isEmpty }
+        // 顶层节点：可能是文件叶子（不分类时）和/或区块（分类组 / 隐藏组）。
+        // sectionNodesByKey 按 key 复用区块实例，保证展开状态跨 reloadData 不丢。
+        private var topLevelNodes: [FileOutlineNode] = []
+        private var sectionNodesByKey: [String: FileOutlineNode] = [:]
 
-        // 展开状态的真值由这里持有；进新文件夹 / 折叠策略变更时按策略 seed，用户手动展开 / 折叠时持久化。
-        private var groupExpanded = false
-        private var lastFolderKey: String?
-        private var lastMode: FileBrowserOutline.CollapseMode?
+        // 展开状态：
+        // - 分类区块默认展开，用户手动折叠的记进 userCollapsedSectionKeys（不持久化，配置变时清空）；
+        // - 「隐藏文件」组（GroupBy=none）走 #49：hiddenGroupExpanded + 按折叠策略持久化。
+        private var userCollapsedSectionKeys: Set<String> = []
+        private var hiddenGroupExpanded = false
+        // folder / 折叠策略 / GroupBy / 共存策略 任一变 → 重置展开状态。
+        private var lastConfigSignature: String?
 
         init(model: ArchiveBrowserModel) {
             self.model = model
@@ -153,30 +184,34 @@ private struct FileNSOutlineView: NSViewRepresentable {
             }
         }
 
+        private var configSignature: String {
+            "\(currentFolderKey)|\(AppPreferences.hiddenGroupCollapseMode.rawValue)|\(AppPreferences.fileGroupBy.rawValue)|\(AppPreferences.hiddenWithGrouping.rawValue)"
+        }
+
+        private func allSectionNodes() -> [FileOutlineNode] {
+            topLevelNodes.filter { $0.isSection }
+        }
+
+        /// 所有文件叶子节点（顶层的 + 区块里的），选择同步用。
+        private func allFileNodes() -> [FileOutlineNode] {
+            topLevelNodes.flatMap { $0.isSection ? $0.children : [$0] }
+        }
+
         /// 重建节点 + reload + 强制同步展开状态。make / update 都走这里。
         func syncContent() {
-            let mode = AppPreferences.hiddenGroupCollapseMode
-            if mode.groupsHiddenFiles {
-                let split = FileBrowserOutline.split(model.fileItems)
-                visibleNodes = split.visible.map { FileOutlineNode(kind: .file($0)) }
-                hiddenNodes = split.hidden.map { FileOutlineNode(kind: .file($0)) }
-            } else {
-                // `.inline`：opt-out，不分组 —— 隐藏文件平铺混在普通文件里（0.2.0 之前的行为）。
-                visibleNodes = model.fileItems.map { FileOutlineNode(kind: .file($0)) }
-                hiddenNodes = []
-            }
-            hiddenGroupNode.hiddenCount = hiddenNodes.count
+            rebuildTopLevel()
 
-            // 进入新文件夹、或用户在 Settings 改了折叠策略时，按策略重新决定初始展开 ——
-            // 后者保证设置一改、主窗口（经 browserPreferencesChanged → reload）立即生效，不用手动刷新。
-            // 同一文件夹内、策略不变的增量 reload 则保留当前展开状态。
-            let key = currentFolderKey
-            if key != lastFolderKey || mode != lastMode {
-                lastFolderKey = key
-                lastMode = mode
-                groupExpanded = FileBrowserOutline.initialExpanded(
-                    mode: mode,
-                    folderKey: key,
+            // 配置（folder / 策略 / 分类维度 / 共存）变化时重置展开状态：
+            // 分类区块回到默认全展开（清空 userCollapsed）；隐藏组按 #49 策略重新 seed。
+            // 这样设置一改、主窗口经 browserPreferencesChanged → reload 立即生效，不用手动刷新；
+            // 同一配置内的增量 reload（如选区变化）则保留用户当前的展开/折叠。
+            let signature = configSignature
+            if signature != lastConfigSignature {
+                lastConfigSignature = signature
+                userCollapsedSectionKeys = []
+                hiddenGroupExpanded = FileBrowserOutline.initialExpanded(
+                    mode: AppPreferences.hiddenGroupCollapseMode,
+                    folderKey: currentFolderKey,
                     perFolderExpanded: AppPreferences.hiddenGroupExpandedFolders,
                     globalExpanded: AppPreferences.hiddenGroupGlobalExpanded
                 )
@@ -186,13 +221,70 @@ private struct FileNSOutlineView: NSViewRepresentable {
             enforceExpansion()
         }
 
-        private func enforceExpansion() {
-            guard let outlineView, showsHiddenGroup else { return }
-            isSyncingExpansion = true
-            if groupExpanded {
-                outlineView.expandItem(hiddenGroupNode)
+        /// 按 GroupBy + 共存策略组装顶层节点。复用 sectionNodesByKey 里同 key 的实例保身份。
+        private func rebuildTopLevel() {
+            var reused: [String: FileOutlineNode] = [:]
+            func makeSection(key: String, isHidden: Bool, title: String, items: [FileItem]) -> FileOutlineNode {
+                let node = sectionNodesByKey[key] ?? FileOutlineNode.section(key: key, isHidden: isHidden)
+                node.title = title
+                node.children = items.map { FileOutlineNode.file($0) }
+                reused[key] = node
+                return node
+            }
+            func hiddenSection(_ items: [FileItem]) -> FileOutlineNode {
+                makeSection(key: "hidden", isHidden: true, title: L10n.format("file.hiddenGroup", items.count), items: items)
+            }
+
+            let split = FileBrowserOutline.split(model.fileItems)
+
+            if AppPreferences.fileGroupBy.isGrouping {
+                // GroupBy=kind：忽略 #49 折叠策略（含 inline），改由共存策略决定隐藏文件去向。
+                switch AppPreferences.hiddenWithGrouping {
+                case .foldIntoGroups:
+                    // 全部条目（含隐藏）一起按种类分组。
+                    topLevelNodes = BrowserGrouping.group(model.fileItems, by: { $0.typeDescription }).map {
+                        makeSection(key: "kind:\($0.title)", isHidden: false, title: "\($0.title) (\($0.items.count))", items: $0.items)
+                    }
+                case .separateGroup:
+                    // 可见文件按种类分组 + 隐藏文件单列一个区块。
+                    var nodes = BrowserGrouping.group(split.visible, by: { $0.typeDescription }).map {
+                        makeSection(key: "kind:\($0.title)", isHidden: false, title: "\($0.title) (\($0.items.count))", items: $0.items)
+                    }
+                    if !split.hidden.isEmpty { nodes.append(hiddenSection(split.hidden)) }
+                    topLevelNodes = nodes
+                }
             } else {
-                outlineView.collapseItem(hiddenGroupNode)
+                // GroupBy=none：复用 #49 行为，受 hiddenGroupCollapseMode 的 inline 影响。
+                if AppPreferences.hiddenGroupCollapseMode.groupsHiddenFiles {
+                    var nodes = split.visible.map { FileOutlineNode.file($0) }
+                    if !split.hidden.isEmpty { nodes.append(hiddenSection(split.hidden)) }
+                    topLevelNodes = nodes
+                } else {
+                    // inline opt-out：全平铺。
+                    topLevelNodes = model.fileItems.map { FileOutlineNode.file($0) }
+                }
+            }
+
+            sectionNodesByKey = reused
+        }
+
+        /// 某区块当前是否应展开。隐藏组（none 模式）走 #49 真值；其余区块默认展开，除非用户手动折叠过。
+        private func isSectionExpanded(_ node: FileOutlineNode) -> Bool {
+            if node.isHiddenSection && !AppPreferences.fileGroupBy.isGrouping {
+                return hiddenGroupExpanded
+            }
+            return !userCollapsedSectionKeys.contains(node.sectionKey)
+        }
+
+        private func enforceExpansion() {
+            guard let outlineView else { return }
+            isSyncingExpansion = true
+            for node in allSectionNodes() {
+                if isSectionExpanded(node) {
+                    outlineView.expandItem(node)
+                } else {
+                    outlineView.collapseItem(node)
+                }
             }
             isSyncingExpansion = false
         }
@@ -200,23 +292,20 @@ private struct FileNSOutlineView: NSViewRepresentable {
         // MARK: - NSOutlineViewDataSource
 
         func outlineView(_ outlineView: NSOutlineView, numberOfChildrenOfItem item: Any?) -> Int {
-            guard let node = item as? FileOutlineNode else {
-                return visibleNodes.count + (showsHiddenGroup ? 1 : 0)
-            }
-            return node.isHiddenGroup ? hiddenNodes.count : 0
+            guard let node = item as? FileOutlineNode else { return topLevelNodes.count }
+            return node.isSection ? node.children.count : 0
         }
 
         func outlineView(_ outlineView: NSOutlineView, child index: Int, ofItem item: Any?) -> Any {
             guard let node = item as? FileOutlineNode else {
-                if index < visibleNodes.count { return visibleNodes[index] }
-                return hiddenGroupNode
+                return index < topLevelNodes.count ? topLevelNodes[index] : topLevelNodes
             }
-            guard node.isHiddenGroup, index < hiddenNodes.count else { return hiddenGroupNode }
-            return hiddenNodes[index]
+            guard index < node.children.count else { return node }
+            return node.children[index]
         }
 
         func outlineView(_ outlineView: NSOutlineView, isItemExpandable item: Any) -> Bool {
-            (item as? FileOutlineNode)?.isHiddenGroup == true
+            (item as? FileOutlineNode)?.isSection == true
         }
 
         // MARK: - NSOutlineViewDelegate
@@ -225,16 +314,17 @@ private struct FileNSOutlineView: NSViewRepresentable {
             guard let node = item as? FileOutlineNode, let tableColumn else { return nil }
             let column = FileColumn(identifier: tableColumn.identifier.rawValue) ?? .name
 
-            if node.isHiddenGroup {
-                // 分组头只在 name 列画「隐藏文件 (N)」+ 图标；其它列留空。
+            if node.isSection {
+                // 区块头只在 name 列画标题 + 图标；其它列留空。
                 guard column == .name else { return nil }
+                let symbol = node.isHiddenSection ? "eye.slash" : "square.grid.3x1.below.line.grid.1x2"
                 return makeTableCell(
                     in: outlineView,
                     owner: self,
-                    identifier: "FileCell-hiddenGroup",
-                    text: L10n.format("file.hiddenGroup", node.hiddenCount),
+                    identifier: "FileCell-section",
+                    text: node.title,
                     isPrimaryColumn: true,
-                    icon: NSImage(systemSymbolName: "eye.slash", accessibilityDescription: nil)
+                    icon: NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
                 )
             }
 
@@ -275,21 +365,31 @@ private struct FileNSOutlineView: NSViewRepresentable {
             AppPreferences.setStringArray(outlineView.tableColumns.map(\.identifier.rawValue), forKey: AppPreferences.Key.fileColumnOrder)
         }
 
-        // 用户手动展开 / 折叠隐藏分组 —— 更新真值 + 按策略持久化。
+        // 用户手动展开 / 折叠某区块 —— 更新真值（隐藏组按 #49 持久化，分类组只记本次会话）。
         func outlineViewItemDidExpand(_ notification: Notification) {
-            guard !isSyncingExpansion, isHiddenGroupNotification(notification) else { return }
-            groupExpanded = true
-            persistExpansion(true)
+            guard !isSyncingExpansion, let node = sectionNode(from: notification) else { return }
+            setSectionExpanded(node, true)
         }
 
         func outlineViewItemDidCollapse(_ notification: Notification) {
-            guard !isSyncingExpansion, isHiddenGroupNotification(notification) else { return }
-            groupExpanded = false
-            persistExpansion(false)
+            guard !isSyncingExpansion, let node = sectionNode(from: notification) else { return }
+            setSectionExpanded(node, false)
         }
 
-        private func isHiddenGroupNotification(_ notification: Notification) -> Bool {
-            (notification.userInfo?["NSObject"] as? FileOutlineNode)?.isHiddenGroup == true
+        private func sectionNode(from notification: Notification) -> FileOutlineNode? {
+            guard let node = notification.userInfo?["NSObject"] as? FileOutlineNode, node.isSection else { return nil }
+            return node
+        }
+
+        private func setSectionExpanded(_ node: FileOutlineNode, _ expanded: Bool) {
+            if node.isHiddenSection && !AppPreferences.fileGroupBy.isGrouping {
+                hiddenGroupExpanded = expanded
+                persistExpansion(expanded)
+            } else if expanded {
+                userCollapsedSectionKeys.remove(node.sectionKey)
+            } else {
+                userCollapsedSectionKeys.insert(node.sectionKey)
+            }
         }
 
         private func persistExpansion(_ expanded: Bool) {
@@ -416,8 +516,8 @@ private struct FileNSOutlineView: NSViewRepresentable {
         @objc func doubleClick(_ sender: NSOutlineView) {
             let row = sender.clickedRow
             guard row >= 0, let node = sender.item(atRow: row) as? FileOutlineNode else { return }
-            if node.isHiddenGroup {
-                // 双击分组头 = 切换展开（同样触发 didExpand/didCollapse → 更新真值 + 持久化）。
+            if node.isSection {
+                // 双击区块头 = 切换展开（同样触发 didExpand/didCollapse → 更新真值 + 持久化）。
                 if sender.isItemExpanded(node) {
                     sender.collapseItem(node)
                 } else {
@@ -508,7 +608,7 @@ private struct FileNSOutlineView: NSViewRepresentable {
         func applySelection() {
             guard let outlineView else { return }
             var indexes = IndexSet()
-            for node in visibleNodes + hiddenNodes {
+            for node in allFileNodes() {
                 guard let item = node.fileItem, model.selection.contains(item.id) else { continue }
                 let row = outlineView.row(forItem: node)
                 if row >= 0 { indexes.insert(row) }
