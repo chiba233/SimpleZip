@@ -121,6 +121,22 @@ struct ColumnsPane: View {
                 }
             }
 
+            // 预览紧跟在列开关后面 —— 这样勾选 / 取消列时下方预览立即可见，无需滚过「分组」一大段
+            // 才看到效果（用户反馈：列设置和预览分开导致没法一屏边调边看）。
+            Section(L10n.text("settings.columns.preview")) {
+                VStack(alignment: .leading, spacing: 14) {
+                    ColumnsPreviewTable(
+                        title: L10n.text("settings.columns.fileBrowser"),
+                        columns: fileColumnPreview
+                    )
+                    ColumnsPreviewTable(
+                        title: L10n.text("settings.columns.archiveBrowser"),
+                        columns: archiveColumnPreview
+                    )
+                }
+                .padding(.vertical, 2)
+            }
+
             Section(L10n.text("settings.section.grouping")) {
                 Text(L10n.text("settings.grouping.description"))
                     .font(.caption)
@@ -167,20 +183,6 @@ struct ColumnsPane: View {
                     }
                     .labelsHidden().fixedSize().frame(minWidth: 200, alignment: .trailing)
                 }
-            }
-
-            Section(L10n.text("settings.columns.preview")) {
-                VStack(alignment: .leading, spacing: 14) {
-                    ColumnsPreviewTable(
-                        title: L10n.text("settings.columns.fileBrowser"),
-                        columns: fileColumnPreview
-                    )
-                    ColumnsPreviewTable(
-                        title: L10n.text("settings.columns.archiveBrowser"),
-                        columns: archiveColumnPreview
-                    )
-                }
-                .padding(.vertical, 2)
             }
         }
         .formStyle(.grouped)

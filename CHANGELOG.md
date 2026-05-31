@@ -12,6 +12,7 @@
 - **Fixed: a symlink pointing at an app bundle opened as a folder instead of launching.** A symlink to a `.app`/`.bundle` (e.g. an alias to an application) was treated as a navigable folder, so double-clicking descended into it. Package detection now resolves the symlink target first, so such links launch the app, the way Finder does.
 - **Fixed: Settings → File Associations kept showing "set as default" after the default changed.** The success line was sticky and lingered even once a type was no longer handled by SimpleZip. It's now cleared when you re-open the pane and whenever a refresh finds the type is no longer SimpleZip's default.
 - **Fixed: a `.siz` that fails signature verification now reliably surfaces its dialog.** With "Auto-extract from Finder" on, opening a `.siz` whose signature is bad / untrusted / unverifiable — or that errors while unwrapping — now activates the app and brings the verification sheet or error alert to the front, instead of leaving it behind an un-focused window.
+- **Settings → View: column toggles and the live preview are now adjacent.** The preview moved up to sit directly below the column checkboxes, so you can see a toggle's effect without scrolling past the grouping section.
 
 ## 0.2.0
 
