@@ -188,6 +188,8 @@ private struct FileNSOutlineView: NSViewRepresentable {
         private var hiddenGroupExpanded = false
         // folder / 折叠策略 / GroupBy / 共存策略 任一变 → 重置展开状态。
         private var lastConfigSignature: String?
+        // 上次真正 reloadData 时的「内容指纹」。选区变化不改它 → 跳过 reload，避免橡皮筋复选时闪烁 / 抽搐。
+        private var lastContentSignature: Int?
 
         init(model: ArchiveBrowserModel) {
             self.model = model
@@ -238,6 +240,20 @@ private struct FileNSOutlineView: NSViewRepresentable {
 
         /// 重建节点 + reload + 强制同步展开状态。make / update 都走这里。
         func syncContent() {
+            // 内容指纹 = 影响「画出来的行 / 列」的一切：config（folder/折叠/分类/共存）+ 行密度 +
+            // 当前可见列 + 当前 fileItems 实例（按 id + 顺序）。**不含 selection**。
+            // 选区变化不改 fileItems 实例 → 指纹不变 → 直接 return 不 reloadData ——
+            // 否则橡皮筋复选时每次选区变动都 SwiftUI updateNSView → reloadData，打断拖选造成闪烁 / 选区疯狂抽搐。
+            // 真正的内容变化（导航 / 自动刷新 / 排序 / 分组 / 密度 / 列开关）都会改 fileItems 实例或上述配置，照常刷新。
+            var hasher = Hasher()
+            hasher.combine(configSignature)
+            hasher.combine(AppPreferences.rowDensity.rawValue)
+            hasher.combine(outlineView?.tableColumns.map { $0.identifier.rawValue }.joined(separator: ",") ?? "")
+            for item in model.fileItems { hasher.combine(item.id) }
+            let contentSignature = hasher.finalize()
+            guard contentSignature != lastContentSignature else { return }
+            lastContentSignature = contentSignature
+
             rebuildTopLevel()
 
             // 配置（folder / 策略 / 分类维度 / 共存）变化时重置展开状态：

@@ -172,6 +172,8 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
         // 分类区块默认展开；用户手动折叠的记这里（不持久化，分类维度变时清空）。
         private var userCollapsedSectionKeys: Set<String> = []
         private var lastGroupBy: BrowserGrouping.GroupBy?
+        // 上次真正 reloadData 时的「内容指纹」。选区变化不改它 → 跳过 reload，避免橡皮筋复选时闪烁 / 抽搐。
+        private var lastContentSignature: Int?
 
         init(model: ArchiveBrowserModel) {
             self.model = model
@@ -179,6 +181,17 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
 
         func syncContent() {
             let groupBy = AppPreferences.effectiveArchiveGroupBy
+            // 内容指纹 = 分组维度 + 行密度 + 可见列 + 当前 archiveItems 实例。**不含选区**。
+            // 选区变化不改 archiveItems → 指纹不变 → 跳过 reloadData，避免橡皮筋复选闪烁 / 抽搐。
+            var hasher = Hasher()
+            hasher.combine(groupBy.rawValue)
+            hasher.combine(AppPreferences.rowDensity.rawValue)
+            hasher.combine(outlineView?.tableColumns.map { $0.identifier.rawValue }.joined(separator: ",") ?? "")
+            for item in model.archiveItems { hasher.combine(item.id) }
+            let contentSignature = hasher.finalize()
+            guard contentSignature != lastContentSignature else { return }
+            lastContentSignature = contentSignature
+
             if groupBy != lastGroupBy {
                 lastGroupBy = groupBy
                 userCollapsedSectionKeys = []
