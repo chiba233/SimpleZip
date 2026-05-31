@@ -14,6 +14,7 @@
 - **Fixed: a `.siz` that fails signature verification now reliably surfaces its dialog.** With "Auto-extract from Finder" on, opening a `.siz` whose signature is bad / untrusted / unverifiable — or that errors while unwrapping — now activates the app and brings the verification sheet or error alert to the front, instead of leaving it behind an un-focused window.
 - **Settings → View: column toggles and the live preview are now adjacent.** The preview moved up to sit directly below the column checkboxes, so you can see a toggle's effect without scrolling past the grouping section.
 - **Clearer setting descriptions.** Reworded the 7-Zip backend note (it now spells out that "Automatic" prefers the bundled copy and falls back to a system install), tightened the "what counts as hidden" wording, and added an inline note under the GPG key-import buttons explaining the difference between importing to `~/.gnupg` (shared with the command-line gpg) and SimpleZip's private keyring (kept in-app, doesn't pollute your shell's gpg, removed on uninstall).
+- **File-browser right-click menu is now grouped by category.** The (long) context menu is split into labelled sections separated by dividers — Open/view, Compress & verify, Edit (rename / copy / cut / paste / move / delete), and Reveal / grouping — with "Rename" moved into the edit group, so it's scannable instead of one undifferentiated list.
 
 ## 0.2.0
 

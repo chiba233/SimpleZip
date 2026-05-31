@@ -600,6 +600,11 @@ private struct FileNSOutlineView: NSViewRepresentable {
                 return
             }
 
+            // 右键菜单按「分类」分组，组间用分隔线，方便扫读（用户反馈：项目太多、乱、找不到）。
+            // 分组顺序：① 打开 / 查看 → ② 压缩 / 校验 → ③ 编辑（文件管理）→ ④ 在 Finder 中显示 / 分组。
+            // 各项的显示条件与原来完全一致，只调整了顺序与分隔。
+
+            // ① 打开 / 查看
             menu.addItem(menuItem(L10n.text("button.open"), systemImage: "arrow.turn.up.right", action: #selector(openSelected)))
             // 「打开方式 ▸」—— 选中项不是普通文件夹时出现（文件 / 包都可以）。列出系统注册的可用 App + 末尾「其他…」。
             if let first = model.selectedFileItems.first, !FileBrowserService.isNavigableDirectory(first) {
@@ -622,9 +627,9 @@ private struct FileNSOutlineView: NSViewRepresentable {
                !ArchiveService.isSupportedArchive(item.url) {
                 menu.addItem(menuItem(L10n.text("file.openAsArchive"), systemImage: "doc.zipper", action: #selector(openSelectedAsArchive)))
             }
-            if model.selectedFileItems.count == 1 {
-                menu.addItem(menuItem(L10n.text("file.rename"), systemImage: "pencil", action: #selector(renameSelected)))
-            }
+
+            // ② 压缩 / 校验
+            menu.addItem(.separator())
             menu.addItem(menuItem(L10n.text("button.addToArchive"), systemImage: "plus.square.on.square", action: #selector(addSelectedToArchive)))
             // 创建签名清单 —— 仅 GPG 启用 + 后端可用时出现。
             if AppPreferences.gpgEnabled && GPGBackend.isAvailable() {
@@ -633,12 +638,19 @@ private struct FileNSOutlineView: NSViewRepresentable {
             menu.addItem(menuItem(L10n.text("button.extractHere"), systemImage: "arrow.down.doc", action: #selector(extractSelectedArchive)))
             menu.addItem(menuItem(L10n.text("button.test"), systemImage: "checkmark.seal", action: #selector(testSelectedArchive)))
             menu.addItem(menuItem(L10n.text("button.hash"), systemImage: "number.square", action: #selector(hashSelected)))
+
+            // ③ 编辑 / 文件管理（重命名归到这里，跟复制剪切移动删除一组）
             menu.addItem(.separator())
+            if model.selectedFileItems.count == 1 {
+                menu.addItem(menuItem(L10n.text("file.rename"), systemImage: "pencil", action: #selector(renameSelected)))
+            }
             menu.addItem(menuItem(L10n.text("file.copy"), systemImage: "doc.on.doc", action: #selector(copySelected)))
             menu.addItem(menuItem(L10n.text("file.cut"), systemImage: "scissors", action: #selector(cutSelected)))
             menu.addItem(menuItem(L10n.text("file.paste"), systemImage: "clipboard", action: #selector(pasteFiles)))
             menu.addItem(menuItem(L10n.text("file.moveTo"), systemImage: "folder.badge.gearshape", action: #selector(moveSelected)))
             menu.addItem(menuItem(L10n.text("file.delete"), systemImage: "trash", action: #selector(deleteSelected)))
+
+            // ④ 在 Finder 中显示 / 分组
             menu.addItem(.separator())
             menu.addItem(menuItem(L10n.text("button.revealInFinder"), systemImage: "arrow.up.forward.app", action: #selector(revealSelected)))
             appendFolderGroupingMenu(to: menu)
