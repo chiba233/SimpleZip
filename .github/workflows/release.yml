@@ -140,24 +140,95 @@ jobs:
             --title "SimpleZip $RELEASE_VERSION" \
             --notes "Unsigned ad-hoc signed macOS DMG. macOS Gatekeeper may warn because this build is not Developer ID signed or notarized."
 
+      # 用 Sparkle 自带的 sign_update 工具对 DMG 做 EdDSA 签名 ——
+      # 私钥来自 GitHub Secret `SPARKLE_ED_PRIVATE_KEY`（base64-encoded ed25519 seed，
+      # 本地用 `generate_keys --account simplezip-ci -x ...` 导出 → 粘到 secrets/actions/new）。
+      # 公钥写在源仓 Info.plist 的 SUPublicEDKey（v0.1.10 起接入）。
+      # 缺 secret 时 sign_update 会拒绝继续 —— 这正是想要的「漏配置直接 fail，不发不签的版本」。
+      #
+      # **sign_update binary 的位置**：build_unsigned_dmg.sh 用
+      # `-derivedDataPath "$ROOT_DIR/.build/xcode-dmg"`，所以 Sparkle SPM artifact 会落在
+      # `.build/xcode-dmg/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update`，
+      # 而**不是** `~/Library/Developer/Xcode/DerivedData`（CI runner 上为空）。
+      # 注意 Package.swift 没有 Sparkle 依赖，swift package resolve 救不了；
+      # 必须依赖上一步 "Build unsigned DMG" 已经跑完触发 Xcode SPM resolve。
+      - name: Sign DMG with Sparkle sign_update
+        id: sign_update
+        if: steps.release.outputs.publish == 'true'
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${SPARKLE_ED_PRIVATE_KEY}" ]]; then
+            echo "ERROR: SPARKLE_ED_PRIVATE_KEY secret is not set on this repository." >&2
+            echo "       See secrets/README.md for how to generate and upload the key." >&2
+            exit 1
+          fi
+
+          DMG_PATH=$(ls artifacts/*.dmg | head -n1)
+
+          # 跟 build_unsigned_dmg.sh 默认值保持一致。如果将来改那条 default，这里也要改。
+          DERIVED_DATA_PATH="${DERIVED_DATA_PATH:-$GITHUB_WORKSPACE/.build/xcode-dmg}"
+          SIGN_UPDATE="$DERIVED_DATA_PATH/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update"
+
+          if [[ ! -x "$SIGN_UPDATE" ]]; then
+            # 兜底：找一下 derivedData 里别的可能路径（Sparkle 偶尔 artifact 目录命名变）。
+            FOUND=$(find "$DERIVED_DATA_PATH" -path '*sparkle*/bin/sign_update' -type f 2>/dev/null | head -n1)
+            if [[ -n "${FOUND:-}" ]]; then
+              SIGN_UPDATE="$FOUND"
+            else
+              echo "ERROR: sign_update binary not found under $DERIVED_DATA_PATH." >&2
+              echo "       This step depends on the previous 'Build unsigned DMG' step having" >&2
+              echo "       resolved the Sparkle SPM dependency via Xcode. Package.swift has no" >&2
+              echo "       Sparkle dependency, so swift package resolve cannot recover this." >&2
+              exit 1
+            fi
+          fi
+
+          # 私钥写到临时文件，绝不留在 env / 命令行（ps 看得到）。
+          PRIVATE_KEY_FILE=$(mktemp)
+          chmod 600 "$PRIVATE_KEY_FILE"
+          # 用 printf 避免 trailing newline 污染 base64 解码。
+          printf '%s' "${SPARKLE_ED_PRIVATE_KEY}" > "$PRIVATE_KEY_FILE"
+
+          # sign_update 输出形如：
+          #   sparkle:edSignature="abc...==" length="12345"
+          # 拼回 enclosure 标签时直接 echo 进 GITHUB_OUTPUT，下一步用。
+          SIGN_OUTPUT=$("$SIGN_UPDATE" -f "$PRIVATE_KEY_FILE" "$DMG_PATH")
+          rm -f "$PRIVATE_KEY_FILE"
+
+          echo "sign_update output: $SIGN_OUTPUT"
+          # 注入 outputs；下游用 ${{ steps.sign_update.outputs.attrs }} 直接拼。
+          {
+            echo "attrs<<EOF"
+            echo "$SIGN_OUTPUT"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
       # 仅在确认发布的路径里生成 / 更新 Sparkle appcast.xml ——
       # 「手动触发 + 不勾选 publish」时不会动 main 的 docs/appcast.xml，
       # 这正是用户「只在发布时才生成更新文件」的诉求。
-      # 不做 EdDSA 签名 —— SUEnableInstallerLauncherService=NO + 未公证 DMG，
-      # 用户端 Sparkle 仍可拉 appcast、提示新版、下载替换；Gatekeeper 是用户自己解。
+      # enclosure 上的 sparkle:edSignature + length 来自上一步 sign_update（v0.1.10 起）。
       - name: Generate Sparkle appcast.xml
         if: steps.release.outputs.publish == 'true'
         env:
           RELEASE_VERSION: ${{ steps.release.outputs.version }}
           BUILD_NUMBER: ${{ steps.release.outputs.build_number }}
+          SIGN_ATTRS: ${{ steps.sign_update.outputs.attrs }}
         run: |
           set -euo pipefail
           mkdir -p docs
           DMG_PATH=$(ls artifacts/*.dmg | head -n1)
           DMG_NAME=$(basename "$DMG_PATH")
-          DMG_SIZE=$(stat -f%z "$DMG_PATH")
           PUB_DATE=$(LC_ALL=C date -u "+%a, %d %b %Y %H:%M:%S +0000")
           DOWNLOAD_URL="https://github.com/chiba233/SimpleZip/releases/download/v${RELEASE_VERSION}/${DMG_NAME}"
+
+          # sign_update 已经吐出 length="..." sparkle:edSignature="..."，直接复用 ——
+          # 比自己 stat 文件再拼字符串更稳（避免 length 跟签名时算的不一致）。
+          if [[ -z "${SIGN_ATTRS:-}" ]]; then
+            echo "ERROR: sign_update step output empty; refusing to publish unsigned appcast." >&2
+            exit 1
+          fi
 
           # **sparkle:version 必须是 CFBundleVersion 同款单调递增整数（= BUILD_NUMBER）**，
           # 不能用 marketing 字符串。否则 0.1.7 用户本地 CFBundleVersion="<小整数>" 跟 feed
@@ -180,7 +251,7 @@ jobs:
                           url="${DOWNLOAD_URL}"
                           sparkle:version="${BUILD_NUMBER}"
                           sparkle:shortVersionString="${RELEASE_VERSION}"
-                          length="${DMG_SIZE}"
+                          ${SIGN_ATTRS}
                           type="application/octet-stream"/>
                   </item>
               </channel>

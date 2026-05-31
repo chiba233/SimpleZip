@@ -2,6 +2,15 @@
 
 # Changelog
 
+## 0.1.10
+
+- **Sparkle updates now require Ed25519 (EdDSA) signature verification**
+  - Embedded `SUPublicEDKey` in `Info.plist` so the client refuses any DMG whose `sparkle:edSignature` doesn't match. This closes a previously-acknowledged gap: until now Sparkle could be tricked into installing a tampered DMG if `raw.githubusercontent.com` was MITM'd or the repo was compromised to serve a forged release.
+  - CI: `.github/workflows/release.yml` now runs `sign_update` against the built DMG before publishing, reading the private key from the new `SPARKLE_ED_PRIVATE_KEY` GitHub Secret (the key is written to a `mktemp` file, never passed on the command line or env that's visible in `ps`). The resulting `sparkle:edSignature="..." length="..."` is injected straight into the appcast `<enclosure>` instead of computing length separately, so the values can never desync.
+  - Keypair generation: handled locally with Sparkle's `generate_keys --account simplezip-ci`. Private key stays in macOS Keychain + a local-only `secrets/` folder (gitignored — see `secrets/README.md` for the upload flow). Public key is in plain sight in `Info.plist`; that's how Sparkle works (only the private signing key is sensitive).
+  - Upgrade impact: users on 0.1.9 → 0.1.10 are **not** signature-checked (their installed bundle has no `SUPublicEDKey` yet). From 0.1.10 onward every release must be signed by the CI key; a missing or mis-set GitHub Secret will fail the release workflow loudly rather than ship an unsigned update.
+  - Refreshed `SparkleUpdater.swift` doc comment so the "we don't do EdDSA" decision-record no longer misleads future readers.
+
 ## 0.1.9
 
 - **Pre-release review fixed 8 bugs** (one full code review pass, all landed before tagging):

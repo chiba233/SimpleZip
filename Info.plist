@@ -193,6 +193,8 @@
 	<string>AppIcon</string>
 	<key>SUFeedURL</key>
 	<string>https://raw.githubusercontent.com/chiba233/SimpleZip/main/docs/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>MqKasjJXlhOKoM0k9bKdFPB/aZJjwQveymL5LEqY9+w=</string>
 	<key>SUEnableAutomaticChecks</key>
 	<true/>
 	<key>SUEnableInstallerLauncherService</key>

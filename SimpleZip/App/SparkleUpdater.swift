@@ -11,10 +11,13 @@ import Sparkle
 /// 全局唯一的 Sparkle 更新控制器封装。
 ///
 /// 决策记录（详见 CHANGELOG / docs/release-checklist.md）：
-/// - **不公证 / 不签名** —— 现阶段没有 Apple Developer ID。用户安装新版需要在 Finder 右键「打开」绕过 Gatekeeper。
-///   README 会专门说明这条；如果将来社区有人愿意提供签名身份再加上。
-/// - **不做 EdDSA 包完整性签名** —— 同样因为没有签名身份。Sparkle 仍然能拉 appcast、提示「有新版」、下载并替换；
-///   只是没有「下载的 DMG 跟开发者发布的字节一致」的密码学证据。可后期补。
+/// - **不公证 / 不签名（Apple Developer ID）** —— 现阶段没有 Apple Developer ID。用户安装新版需要在
+///   Finder 右键「打开」绕过 Gatekeeper。README 会专门说明这条；如果将来社区有人愿意提供签名身份再加上。
+/// - **EdDSA 包完整性签名（v0.1.10 起强制）** —— Info.plist 的 `SUPublicEDKey` 是发版签名公钥；
+///   release.yml 在 GitHub Release publish 前会跑 `sign_update`，用 GitHub Secret `SPARKLE_ED_PRIVATE_KEY`
+///   对 DMG 签名，并把 `sparkle:edSignature=...` 写进 appcast enclosure。客户端 Sparkle 下载后用 `SUPublicEDKey`
+///   校验签名，过不了直接拒绝安装 —— 这给「下载到的 DMG 跟仓库 release 一字节都不差」提供了密码学证据，
+///   防止 raw.githubusercontent.com 路径上的 MITM / 仓库被妥协后伪造 release。
 /// - **Appcast URL** 写在 Info.plist 的 `SUFeedURL`，指向 `https://raw.githubusercontent.com/chiba233/SimpleZip/main/docs/appcast.xml`。
 ///   release.yml 在 GitHub Release publish 后会生成 / 更新这个文件。
 ///

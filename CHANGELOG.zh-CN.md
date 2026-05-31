@@ -2,6 +2,15 @@
 
 # 更新日志
 
+## 0.1.10
+
+- **Sparkle 自动更新接入 Ed25519（EdDSA）签名强校验**
+  - `Info.plist` 加 `SUPublicEDKey` —— 0.1.10 起客户端拒绝任何 `sparkle:edSignature` 对不上的 DMG。此前 SparkleUpdater 注释里坦白「不做 EdDSA 签名」是有意为之的空缺：万一 `raw.githubusercontent.com` 路径被 MITM、或者仓库被入侵伪造 release，老版本是真的会装下去的。现在补上这层密码学屏障。
+  - CI：`.github/workflows/release.yml` 在 publish 前跑 `sign_update` 对 DMG 签名，私钥来自新加的 `SPARKLE_ED_PRIVATE_KEY` GitHub Secret（写进 `mktemp` 临时文件，**不**进命令行 / env —— `ps` 看不到）。`sign_update` 输出的 `sparkle:edSignature="..." length="..."` 直接灌进 appcast `<enclosure>`，不再自己 `stat` 算 length，避免两份数值不一致。
+  - 密钥生成：本地跑 `generate_keys --account simplezip-ci`，私钥进 macOS Keychain + 项目内 `secrets/` 文件夹（gitignored，**绝不**进仓库；上传 GitHub Secret 的完整流程见 `secrets/README.md`）。公钥放在 `Info.plist` 是 Sparkle 的标准做法 —— 只有私钥是机密。
+  - **升级行为**：装了 0.1.9 的用户升 0.1.10 时**不校验**（他们本地还没公钥）；从 0.1.10 起所有 release 必须签，CI 漏配 Secret 会让 workflow 显式 fail 而不是默默发个不签的版本。
+  - 同步刷新 `SparkleUpdater.swift` 文档注释 —— 之前那段「不做 EdDSA」的决策记录会误导后来读代码的人，改成「v0.1.10 起强制校验」。
+
 ## 0.1.9
 
 - **0.1.9 发版前 Review 修了 8 个 bug**（一轮代码 review，全部赶在 tag 前）：

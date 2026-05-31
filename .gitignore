@@ -42,3 +42,8 @@ artifacts/
 # RARLAB rar is proprietary/shareware; do not commit or redistribute it without permission.
 SimpleZip/Tools/rar
 SimpleZip/Tools/rar-*.txt
+
+# Sparkle EdDSA signing keys (generated locally by `generate_keys`).
+# Private key MUST NEVER be committed — keep it in macOS Keychain + GitHub Secret only.
+# This whole folder stays local; see secrets/README.md for the upload-to-GitHub-Secret procedure.
+secrets/
