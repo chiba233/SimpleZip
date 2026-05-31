@@ -215,6 +215,14 @@ private struct FileNSTableView: NSViewRepresentable {
             if let item = model.selectedFileItems.first, model.selectedFileItems.count == 1, model.canShowPackageContents(item) {
                 menu.addItem(menuItem(L10n.text("file.showPackageContents"), systemImage: "folder", action: #selector(showPackageContents)))
             }
+            // 选中单个 `.szs` 时多一项「以虚拟目录浏览」—— 走静默验签，OK 就直接进，有问题才弹 alert。
+            // 跟「打开」（永远弹验证 sheet）并列：用户想看清单细节用「打开」，想直接看文件用这条。
+            if let item = model.selectedFileItems.first,
+               model.selectedFileItems.count == 1,
+               !item.isDirectory,
+               item.url.pathExtension.lowercased() == SZSArchive.extensionName {
+                menu.addItem(menuItem(L10n.text("szs.silentBrowse.menuItem"), systemImage: "folder.badge.questionmark", action: #selector(silentBrowseSelectedSZS)))
+            }
             // 「以压缩包打开」—— 只在选中单个非目录、且这个文件本身不是已识别的压缩包时显示。
             // 已识别的压缩包用普通「打开」就够了；目录或多选时这个命令没意义。
             if let item = model.selectedFileItems.first,
@@ -271,6 +279,12 @@ private struct FileNSTableView: NSViewRepresentable {
 
         @objc private func createSignedManifestFromSelection() {
             model.createSignedManifest()
+        }
+
+        @objc private func silentBrowseSelectedSZS() {
+            if let url = model.selectedFileItems.first?.url {
+                model.pendingSZSSilentVirtualBrowse = url
+            }
         }
 
         @objc private func extractSelectedArchive() {

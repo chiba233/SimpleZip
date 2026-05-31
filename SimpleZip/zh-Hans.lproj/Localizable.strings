@@ -296,6 +296,17 @@
 "szs.create.cancelButton" = "取消";
 "szs.create.succeeded" = "签名清单已生成：%@";
 "szs.create.failed" = "生成失败：%@";
+"szs.silentBrowse.menuItem" = "以虚拟目录浏览";
+"szs.silentBrowse.warning.title" = "签名清单存在问题";
+"szs.silentBrowse.warning.message" = "%@ 你可以「只浏览通过校验的文件」、查看完整验签详情，或取消。";
+"szs.silentBrowse.warning.continueButton" = "只浏览通过校验的";
+"szs.silentBrowse.warning.detailsButton" = "查看验签详情";
+"szs.silentBrowse.summary.signature" = "签名：%@。";
+"szs.silentBrowse.summary.files" = "%2$d 个文件中 %1$d 个未通过校验（%3$d 个 SHA 不一致、%4$d 个缺失、%5$d 个无法读取）。";
+"szs.silentBrowse.peekFailed" = "无法读取清单：%@";
+"szs.silentBrowse.signatureStatus.bad" = "签名不匹配";
+"szs.silentBrowse.signatureStatus.noPublicKey" = "签名者公钥不在钥匙串中";
+"szs.silentBrowse.signatureStatus.error" = "签名无法校验";
 "settings.gpg.keys.contextChangePassphrase" = "修改 passphrase…";
 "settings.gpg.keys.contextAddUID" = "添加 User ID…";
 "settings.gpg.keys.contextEditExpiration" = "修改过期时间…";

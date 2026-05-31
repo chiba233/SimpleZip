@@ -4,6 +4,13 @@
 
 ## 0.1.10
 
+- **`.szs` right-click → "Browse as Virtual Folder" (silent verification)**
+  - Right-clicking a single `.szs` file in the file table now offers a new menu item "Browse as Virtual Folder" alongside the existing "Open" verb. It runs the same `SZSArchive.peek` + `SZSArchive.verify` in the background — but instead of always presenting the `SZSVerificationSheet`, it only surfaces UI when something is actually wrong.
+  - Full success (signature valid, every entry `.match`) → enters virtual-folder mode immediately, zero alerts, zero sheets. This is the path most users will take when they trust the manifest source and just want to see the signed file subset.
+  - Any issue (bad signature, signer key not in keyring, SHA mismatch, missing files, unreadable files) → presents an alert with a one-line summary of what's off, plus three options: "Browse Verified Only" (enter virtual mode showing only `.match` entries, same conservative filter the existing flow uses), "Show Verification Details" (falls back to the standard `SZSVerificationSheet` for the full breakdown), or Cancel.
+  - GPG-disabled case: signature checks are skipped (consistent with the existing rule that nothing GPG surfaces when the master toggle is off), only SHA / missing / unreadable issues drive the alert.
+  - "Open" verb on `.szs` files unchanged — still always presents the verification sheet. Users who want full detail every time keep their existing workflow.
+
 - **Sparkle updates now require Ed25519 (EdDSA) signature verification**
   - Embedded `SUPublicEDKey` in `Info.plist` so the client refuses any DMG whose `sparkle:edSignature` doesn't match. This closes a previously-acknowledged gap: until now Sparkle could be tricked into installing a tampered DMG if `raw.githubusercontent.com` was MITM'd or the repo was compromised to serve a forged release.
   - CI: `.github/workflows/release.yml` now runs `sign_update` against the built DMG before publishing, reading the private key from the new `SPARKLE_ED_PRIVATE_KEY` GitHub Secret (the key is written to a `mktemp` file, never passed on the command line or env that's visible in `ps`). The resulting `sparkle:edSignature="..." length="..."` is injected straight into the appcast `<enclosure>` instead of computing length separately, so the values can never desync.

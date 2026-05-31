@@ -4,6 +4,13 @@
 
 ## 0.1.10
 
+- **`.szs` 右键加「以虚拟目录浏览」（静默验签）**
+  - 文件表里右键单选 `.szs`，「打开」之外多一项「以虚拟目录浏览」。后台跑跟「打开」一样的 `SZSArchive.peek` + `SZSArchive.verify`，**但只有出问题才弹 UI**。
+  - 全部 OK（签名有效 + 每条 `.match`）→ 静默进虚拟目录模式，零 alert、零 sheet。信任清单来源、就想直接看签名子集的用户走这条。
+  - 任意问题（签名坏 / 签名者公钥不在钥匙串 / SHA 不一致 / 文件缺失 / 文件读不了）→ 弹 alert 一行摘要，3 个选项：「只浏览通过校验的」（进虚拟模式但只显示 `.match`，跟现有逻辑一致的保守过滤）、「查看验签详情」（退回到标准 `SZSVerificationSheet` 看完整明细）、取消。
+  - `gpgEnabled` 关时：忽略签名状态（跟「关了 GPG 主页面不显示任何 GPG UI」的现有规则一致），只有 SHA / 缺失 / 读不了的问题才触发 alert。
+  - `.szs` 的「打开」语义不动 —— 还是永远弹验签 sheet。「每次都想看明细」的用户工作流不受影响。
+
 - **Sparkle 自动更新接入 Ed25519（EdDSA）签名强校验**
   - `Info.plist` 加 `SUPublicEDKey` —— 0.1.10 起客户端拒绝任何 `sparkle:edSignature` 对不上的 DMG。此前 SparkleUpdater 注释里坦白「不做 EdDSA 签名」是有意为之的空缺：万一 `raw.githubusercontent.com` 路径被 MITM、或者仓库被入侵伪造 release，老版本是真的会装下去的。现在补上这层密码学屏障。
   - CI：`.github/workflows/release.yml` 在 publish 前跑 `sign_update` 对 DMG 签名，私钥来自新加的 `SPARKLE_ED_PRIVATE_KEY` GitHub Secret（写进 `mktemp` 临时文件，**不**进命令行 / env —— `ps` 看不到）。`sign_update` 输出的 `sparkle:edSignature="..." length="..."` 直接灌进 appcast `<enclosure>`，不再自己 `stat` 算 length，避免两份数值不一致。

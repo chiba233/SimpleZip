@@ -296,6 +296,17 @@
 "szs.create.cancelButton" = "Cancel";
 "szs.create.succeeded" = "Signed manifest generated: %@";
 "szs.create.failed" = "Creation failed: %@";
+"szs.silentBrowse.menuItem" = "Browse as Virtual Folder";
+"szs.silentBrowse.warning.title" = "Signed manifest has issues";
+"szs.silentBrowse.warning.message" = "%@ Browse only the verified subset, see verification details, or cancel.";
+"szs.silentBrowse.warning.continueButton" = "Browse Verified Only";
+"szs.silentBrowse.warning.detailsButton" = "Show Verification Details";
+"szs.silentBrowse.summary.signature" = "Signature: %@.";
+"szs.silentBrowse.summary.files" = "%1$d of %2$d files do not verify (%3$d SHA mismatch, %4$d missing, %5$d unreadable).";
+"szs.silentBrowse.peekFailed" = "Could not read manifest: %@";
+"szs.silentBrowse.signatureStatus.bad" = "bad signature";
+"szs.silentBrowse.signatureStatus.noPublicKey" = "signer's public key not in keyring";
+"szs.silentBrowse.signatureStatus.error" = "could not be verified";
 "settings.gpg.keys.contextChangePassphrase" = "Change Passphrase…";
 "settings.gpg.keys.contextAddUID" = "Add User ID…";
 "settings.gpg.keys.contextEditExpiration" = "Edit Expiration…";

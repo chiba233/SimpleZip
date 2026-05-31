@@ -37,6 +37,9 @@ struct ContentView: View {
     @State private var createSZSPrefill: ArchiveBrowserModel.CreateSZSPrefill?
     /// 右键「解压」.szs 触发的提示 alert 状态。非 nil = alert 显示中；button 点了就清。
     @State private var szsExtractHintURL: URL?
+    /// 右键「以虚拟目录浏览」静默校验失败时的警告 alert 状态。
+    /// nil = 没问题（已直接进入虚拟模式）/ 还没触发；非 nil = 验证发现问题，用户需决定。
+    @State private var szsSilentBrowseWarning: SZSSilentBrowseWarning?
 
     var body: some View {
         NavigationSplitView {
@@ -301,6 +304,43 @@ struct ContentView: View {
             model.pendingSZSExtractHint = nil
             szsExtractHintURL = url
         }
+        .onChange(of: model.pendingSZSSilentVirtualBrowse) { url in
+            // 右键「以虚拟目录浏览」—— 静默校验。OK 就直接进虚拟模式，有问题才弹 alert。
+            guard let url else { return }
+            model.pendingSZSSilentVirtualBrowse = nil
+            handleSZSSilentVirtualBrowse(url)
+        }
+        .alert(
+            L10n.text("szs.silentBrowse.warning.title"),
+            isPresented: Binding(
+                get: { szsSilentBrowseWarning != nil },
+                set: { if !$0 { szsSilentBrowseWarning = nil } }
+            ),
+            presenting: szsSilentBrowseWarning
+        ) { warning in
+            Button(L10n.text("szs.silentBrowse.warning.continueButton")) {
+                szsSilentBrowseWarning = nil
+                model.openSZSAsVirtualFolder(
+                    manifestURL: warning.sourceURL,
+                    verifyReport: warning.verifyReport,
+                    payloadRoot: warning.payloadRoot
+                )
+            }
+            Button(L10n.text("szs.silentBrowse.warning.detailsButton")) {
+                let pending = SZSPendingVerification(
+                    sourceURL: warning.sourceURL,
+                    signature: warning.signature,
+                    manifest: warning.manifest
+                )
+                szsSilentBrowseWarning = nil
+                pendingSZSVerification = pending
+            }
+            Button(L10n.text("button.cancel"), role: .cancel) {
+                szsSilentBrowseWarning = nil
+            }
+        } message: { warning in
+            Text(L10n.format("szs.silentBrowse.warning.message", warning.summary))
+        }
         .alert(
             L10n.text("szs.extractHint.title"),
             isPresented: Binding(
@@ -450,6 +490,102 @@ struct ContentView: View {
         }
     }
 
+    /// 「以虚拟目录浏览」静默入口 —— 后台 verify，没问题就直接进虚拟模式不打扰用户；
+    /// 发现签名问题 / 文件 SHA 不一致 / 文件缺失才弹 alert 让用户做决定。
+    ///
+    /// payloadRoot 推断：跟 SZSVerificationSheet 的默认逻辑一致 —— `.szs` 文件所在目录。
+    /// 如果用户的 manifest 实际指向别处，他们用普通「打开」流程在 sheet 里手动选 root 才能继续。
+    private func handleSZSSilentVirtualBrowse(_ url: URL) {
+        let payloadRoot = url.deletingLastPathComponent()
+        Task {
+            do {
+                let (signature, manifest) = try await SZSArchive.peek(manifestURL: url)
+                let report = try await SZSArchive.verify(manifestURL: url, payloadRoot: payloadRoot)
+
+                let issueSummary = silentBrowseIssueSummary(signature: signature, report: report)
+                await MainActor.run {
+                    if let summary = issueSummary {
+                        szsSilentBrowseWarning = SZSSilentBrowseWarning(
+                            sourceURL: url,
+                            payloadRoot: payloadRoot,
+                            signature: signature,
+                            manifest: manifest,
+                            verifyReport: report,
+                            summary: summary
+                        )
+                    } else {
+                        // 全部通过 —— 真的静默进虚拟模式，零打扰。
+                        model.openSZSAsVirtualFolder(
+                            manifestURL: url,
+                            verifyReport: report,
+                            payloadRoot: payloadRoot
+                        )
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    model.errorMessage = L10n.format("szs.silentBrowse.peekFailed", error.localizedDescription)
+                }
+            }
+        }
+    }
+
+    /// 静默校验完看是否有「值得打扰用户」的问题。返回 nil = 完全 OK 静默进虚拟模式；返回非 nil 字符串 = alert 文案。
+    /// - `gpgEnabled` 关时：忽略签名状态（用户本来就主动放弃 GPG UI），只看文件 SHA 问题；
+    /// - 开时：要求签名 `.validSignature`（trust 等级不限，跟现有「绿色但 trusted=false 仍打开」一致）+ 全文件 `.match`。
+    private func silentBrowseIssueSummary(
+        signature: GPGBackend.GPGVerifyResult,
+        report: SZSArchive.VerifyReport
+    ) -> String? {
+        var issues: [String] = []
+
+        if AppPreferences.gpgEnabled {
+            let signatureOK: Bool
+            switch signature {
+            case .validSignature: signatureOK = true
+            default: signatureOK = false
+            }
+            if !signatureOK {
+                issues.append(L10n.format("szs.silentBrowse.summary.signature", signatureStatusShortLabel(signature)))
+            }
+        }
+
+        var mismatchCount = 0
+        var missingCount = 0
+        var unreadableCount = 0
+        for entry in report.entries {
+            switch entry {
+            case .match: continue
+            case .mismatch: mismatchCount += 1
+            case .missing: missingCount += 1
+            case .unreadable: unreadableCount += 1
+            }
+        }
+        let badFiles = mismatchCount + missingCount + unreadableCount
+        if badFiles > 0 {
+            issues.append(L10n.format(
+                "szs.silentBrowse.summary.files",
+                badFiles,
+                report.entries.count,
+                mismatchCount,
+                missingCount,
+                unreadableCount
+            ))
+        }
+
+        return issues.isEmpty ? nil : issues.joined(separator: " ")
+    }
+
+    /// 简短的签名状态文案，用于 silentBrowse summary。`.validSignature` 不调这里（OK 时不出 summary）。
+    private func signatureStatusShortLabel(_ result: GPGBackend.GPGVerifyResult) -> String {
+        switch result {
+        case .validSignature: return L10n.text("szs.silentBrowse.signatureStatus.error")  // 兜底；正常不该走到
+        case .badSignature: return L10n.text("szs.silentBrowse.signatureStatus.bad")
+        case .unknownSigner: return L10n.text("szs.silentBrowse.signatureStatus.noPublicKey")
+        case .verificationError: return L10n.text("szs.silentBrowse.signatureStatus.error")
+        }
+    }
+
     /// `.siz` 直接解压入口 —— unwrap + 验签 → 走标准解压对话框 `ExtractArchiveOptionsView`，
     /// 签名信息塞进 `request.sizSignature` 让对话框里多出几行签名状态展示。
     /// 关 `gpgEnabled` 时 sizSignature 为 nil，对话框完全跟普通 archive 一致。
@@ -538,6 +674,21 @@ struct ContentView: View {
         let sourceURL: URL
         let signature: GPGBackend.GPGVerifyResult
         let manifest: SZSArchive.Manifest
+
+        static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
+    }
+
+    /// 静默「以虚拟目录浏览」遇到问题时承载的 alert 状态。
+    /// `summary` 是已经 L10n 拼好的人类可读摘要（含签名 + 文件问题）；alert 直接展示。
+    /// 「查看详情」按钮回退到正常 SZSVerificationSheet 流程，复用 `peekSignature` + `manifest` 不再重 peek。
+    struct SZSSilentBrowseWarning: Identifiable, Equatable {
+        let id = UUID()
+        let sourceURL: URL
+        let payloadRoot: URL
+        let signature: GPGBackend.GPGVerifyResult
+        let manifest: SZSArchive.Manifest
+        let verifyReport: SZSArchive.VerifyReport
+        let summary: String
 
         static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
     }

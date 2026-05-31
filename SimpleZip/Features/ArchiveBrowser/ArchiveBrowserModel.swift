@@ -67,6 +67,12 @@ final class ArchiveBrowserModel: ObservableObject {
     /// ContentView 接住后弹 alert 解释并提供「以虚拟目录浏览」按钮。
     @Published var pendingSZSExtractHint: URL?
 
+    /// 右键「以虚拟目录浏览」入口 —— **静默**校验。ContentView 接住后跑 peek + verify：
+    /// - 签名 + 全部文件 SHA 校验通过 → 直接进 `openSZSAsVirtualFolder`，**不**弹任何 sheet / alert；
+    /// - 任意一项不过 → 弹 alert 列摘要，让用户选「仍然进入」/「查看详情」（走原 SZSVerificationSheet）/ 取消。
+    /// 跟 `pendingSZSOpen` 区别：那条永远弹验证 sheet；这条想要「没问题就别打扰」的 UX。
+    @Published var pendingSZSSilentVirtualBrowse: URL?
+
     /// 「右键 → 创建签名清单」触发后传给 ContentView 的预填值（payload root + 已选文件）。同 `pendingSIZOpen` 解耦原则。
     @Published var pendingCreateSZS: CreateSZSPrefill?
 
