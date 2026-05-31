@@ -326,6 +326,16 @@
 "group.date.unknown" = "日期未知";
 "settings.hiddenWithGrouping" = "分类时的隐藏文件";
 "settings.hiddenWithGrouping.description" = "开启分类且显示隐藏文件时，把隐藏文件融进各种类组，还是单列一个「隐藏文件」组。";
+"settings.section.grouping" = "分组";
+"settings.grouping.description" = "把浏览列表按维度切成可折叠的区块。";
+"settings.grouping.enable" = "开启分组";
+"settings.grouping.enable.description" = "按所选维度把列表分成区块。";
+"settings.grouping.scope" = "分组范围";
+"settings.grouping.scope.description" = "全局统一一种分组，或每个文件夹各记各的（在文件夹里右键设定）。";
+"settings.grouping.scope.global" = "全局";
+"settings.grouping.scope.perFolder" = "按文件夹";
+"settings.grouping.default" = "分组方式";
+"settings.grouping.default.description" = "种类、修改时间、或文件与文件夹。";
 "settings.hiddenWithGrouping.foldIntoGroups" = "融进各分类组";
 "settings.hiddenWithGrouping.separateGroup" = "单列一个隐藏组";
 "view.columns.fileBrowser" = "浏览器列";

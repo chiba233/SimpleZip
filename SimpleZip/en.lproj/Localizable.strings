@@ -326,6 +326,16 @@
 "group.date.unknown" = "Unknown Date";
 "settings.hiddenWithGrouping" = "Hidden files when grouping";
 "settings.hiddenWithGrouping.description" = "When grouping is on and hidden files are shown, fold hidden files into the kind groups, or keep them in their own \"Hidden Files\" group.";
+"settings.section.grouping" = "Grouping";
+"settings.grouping.description" = "Group the browser list into collapsible sections.";
+"settings.grouping.enable" = "Enable grouping";
+"settings.grouping.enable.description" = "Split the list into sections by the chosen criterion.";
+"settings.grouping.scope" = "Grouping scope";
+"settings.grouping.scope.description" = "Use one grouping everywhere, or remember a grouping per folder (set via right-click in a folder).";
+"settings.grouping.scope.global" = "Global";
+"settings.grouping.scope.perFolder" = "Per folder";
+"settings.grouping.default" = "Group by";
+"settings.grouping.default.description" = "Kind, Date Modified, or Files & Folders.";
 "settings.hiddenWithGrouping.foldIntoGroups" = "Fold into groups";
 "settings.hiddenWithGrouping.separateGroup" = "Separate group";
 "view.columns.fileBrowser" = "Browser Columns";

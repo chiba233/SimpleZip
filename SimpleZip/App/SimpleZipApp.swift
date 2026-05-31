@@ -380,29 +380,10 @@ struct ColumnsViewCommands: Commands {
     @AppStorage(AppPreferences.Key.showArchiveCrcColumn) private var showArchiveCrcColumn = false
     @AppStorage(AppPreferences.Key.showArchiveCreatedColumn) private var showArchiveCreatedColumn = false
     @AppStorage(AppPreferences.Key.showArchiveAttributesColumn) private var showArchiveAttributesColumn = false
-    @AppStorage(AppPreferences.Key.fileGroupBy) private var fileGroupBy = BrowserGrouping.GroupBy.none.rawValue
-    @AppStorage(AppPreferences.Key.archiveGroupBy) private var archiveGroupBy = BrowserGrouping.GroupBy.none.rawValue
 
     var body: some Commands {
         CommandMenu(L10n.text("menu.view")) {
-            // 分类（Group By）—— 文件浏览器 / 压缩包浏览器各一个，单选 None / Kind。
-            Menu(L10n.text("view.groupBy.fileBrowser")) {
-                Picker("", selection: $fileGroupBy) {
-                    ForEach(BrowserGrouping.GroupBy.allCases, id: \.self) { option in
-                        Text(option.title).tag(option.rawValue)
-                    }
-                }
-                .pickerStyle(.inline)
-            }
-            Menu(L10n.text("view.groupBy.archiveBrowser")) {
-                Picker("", selection: $archiveGroupBy) {
-                    ForEach(BrowserGrouping.GroupBy.allCases, id: \.self) { option in
-                        Text(option.title).tag(option.rawValue)
-                    }
-                }
-                .pickerStyle(.inline)
-            }
-            Divider()
+            // 分组（Group By）已挪到 设置 → 视图（含总开关 / 范围 / 默认方式 / 按文件夹）。
             Menu(L10n.text("view.columns.fileBrowser")) {
                 Toggle(L10n.text("column.size"), isOn: $showFileSizeColumn)
                 Toggle(L10n.text("column.kind"), isOn: $showFileTypeColumn)

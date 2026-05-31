@@ -81,6 +81,24 @@ enum BrowserGrouping {
         return .earlier
     }
 
+    /// 分组范围：全局统一，还是每个文件夹各记各的（按文件夹时用右键「设定此文件夹的分组」覆盖）。
+    enum GroupingScope: String, CaseIterable {
+        case global
+        case perFolder
+
+        static func parse(_ raw: String?) -> GroupingScope {
+            guard let raw, let value = GroupingScope(rawValue: raw) else { return .global }
+            return value
+        }
+
+        var title: String {
+            switch self {
+            case .global: return L10n.text("settings.grouping.scope.global")
+            case .perFolder: return L10n.text("settings.grouping.scope.perFolder")
+            }
+        }
+    }
+
     /// Group By ≠ None 且开启「显示隐藏文件」时，隐藏文件怎么跟分类组共存。用户在 Settings 里选。
     enum HiddenWithGrouping: String, CaseIterable {
         /// 隐藏文件按同一分类键融进各组（按种类时，隐藏图片进「图片」组）。默认。

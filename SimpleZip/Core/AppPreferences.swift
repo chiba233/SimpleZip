@@ -266,6 +266,9 @@ enum AppPreferences {
         nonisolated static let fileGroupBy = "fileGroupBy"
         nonisolated static let archiveGroupBy = "archiveGroupBy"
         nonisolated static let hiddenWithGrouping = "hiddenWithGrouping"
+        nonisolated static let fileGroupingEnabled = "fileGroupingEnabled"
+        nonisolated static let fileGroupingScope = "fileGroupingScope"
+        nonisolated static let archiveGroupingEnabled = "archiveGroupingEnabled"
         nonisolated static let rememberLastFolder = "rememberLastFolder"
         nonisolated static let lastFolderPath = "lastFolderPath"
         nonisolated static let checkForUpdatesOnLaunch = "checkForUpdatesOnLaunch"
@@ -421,16 +424,47 @@ enum AppPreferences {
 
     // MARK: - Group By 多重分类（0.2.0）
 
-    /// 文件浏览器的分类维度。默认 `.none`（不分类，平铺）。
+    /// 文件浏览器分组总开关。默认关。
+    nonisolated static var fileGroupingEnabled: Bool {
+        get { defaults.bool(forKey: Key.fileGroupingEnabled) }
+        set { defaults.set(newValue, forKey: Key.fileGroupingEnabled) }
+    }
+
+    /// 文件浏览器分组范围：全局 / 按文件夹。默认全局。
+    nonisolated static var fileGroupingScope: BrowserGrouping.GroupingScope {
+        get { BrowserGrouping.GroupingScope.parse(defaults.string(forKey: Key.fileGroupingScope)) }
+        set { defaults.set(newValue.rawValue, forKey: Key.fileGroupingScope) }
+    }
+
+    /// 压缩包浏览器分组总开关。默认关。
+    nonisolated static var archiveGroupingEnabled: Bool {
+        get { defaults.bool(forKey: Key.archiveGroupingEnabled) }
+        set { defaults.set(newValue, forKey: Key.archiveGroupingEnabled) }
+    }
+
+    /// 文件浏览器的分类维度（默认分组方式）。空 / `.none` 时回落到 `.kind`。
     nonisolated static var fileGroupBy: BrowserGrouping.GroupBy {
         get { BrowserGrouping.GroupBy.parse(defaults.string(forKey: Key.fileGroupBy)) }
         set { defaults.set(newValue.rawValue, forKey: Key.fileGroupBy) }
     }
 
-    /// 压缩包浏览器的分类维度。默认 `.none`。
+    /// 压缩包浏览器的分类维度。空 / `.none` 时回落到 `.kind`。
     nonisolated static var archiveGroupBy: BrowserGrouping.GroupBy {
         get { BrowserGrouping.GroupBy.parse(defaults.string(forKey: Key.archiveGroupBy)) }
         set { defaults.set(newValue.rawValue, forKey: Key.archiveGroupBy) }
+    }
+
+    /// 文件浏览器「当前实际生效」的分类维度：总开关关 → `.none`；开 → 选的维度（none 回落到 kind）。
+    /// 注：`.perFolder` 范围的每文件夹覆盖在后续 phase 接入；当前按默认维度。
+    nonisolated static var effectiveFileGroupBy: BrowserGrouping.GroupBy {
+        guard fileGroupingEnabled else { return .none }
+        return fileGroupBy.isGrouping ? fileGroupBy : .kind
+    }
+
+    /// 压缩包浏览器「当前实际生效」的分类维度。
+    nonisolated static var effectiveArchiveGroupBy: BrowserGrouping.GroupBy {
+        guard archiveGroupingEnabled else { return .none }
+        return archiveGroupBy.isGrouping ? archiveGroupBy : .kind
     }
 
     /// Group By 开启时，隐藏文件与分类组怎么共存。默认 `.foldIntoGroups`（融进各分类组）。
@@ -762,6 +796,9 @@ enum AppPreferences {
         Key.fileGroupBy,
         Key.archiveGroupBy,
         Key.hiddenWithGrouping,
+        Key.fileGroupingEnabled,
+        Key.fileGroupingScope,
+        Key.archiveGroupingEnabled,
         Key.showFileSizeColumn,
         Key.showFileTypeColumn,
         Key.showFileApplicationColumn,
