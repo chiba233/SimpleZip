@@ -601,6 +601,10 @@ private struct FileNSOutlineView: NSViewRepresentable {
             }
 
             menu.addItem(menuItem(L10n.text("button.open"), systemImage: "arrow.turn.up.right", action: #selector(openSelected)))
+            // 「打开方式 ▸」—— 选中项不是普通文件夹时出现（文件 / 包都可以）。列出系统注册的可用 App + 末尾「其他…」。
+            if let first = model.selectedFileItems.first, !FileBrowserService.isNavigableDirectory(first) {
+                appendOpenWithMenu(to: menu)
+            }
             if let item = model.selectedFileItems.first, model.selectedFileItems.count == 1, model.canShowPackageContents(item) {
                 menu.addItem(menuItem(L10n.text("file.showPackageContents"), systemImage: "folder", action: #selector(showPackageContents)))
             }
@@ -666,6 +670,63 @@ private struct FileNSOutlineView: NSViewRepresentable {
         @objc private func openSelectedAsArchive() {
             if let item = model.selectedFileItems.first {
                 model.openAsArchive(item.url)
+            }
+        }
+
+        /// 「打开方式 ▸」子菜单：用 LaunchServices 列出能打开选中文件的 App（默认 App 排在最前并标注），
+        /// 末尾「其他…」可手动挑任意 App。App 列表按第一个选中项推断；选择后把所有选中项一起交给那个 App 打开。
+        ///
+        /// 走 view 层直接 `NSWorkspace.open` 而不经 model —— 这是「唤起外部 App」的纯 workspace 动作，
+        /// 不属于压缩 / 文件系统业务，没必要往 ArchiveBrowserModel 里加新 ownership（沿用 revealInFinder 之外的轻量惯例）。
+        private func appendOpenWithMenu(to menu: NSMenu) {
+            guard let first = model.selectedFileItems.first else { return }
+            let submenu = NSMenu()
+            let defaultAppPath = NSWorkspace.shared.urlForApplication(toOpen: first.url)?.path
+            var seen = Set<String>()
+            for appURL in NSWorkspace.shared.urlsForApplications(toOpen: first.url) {
+                guard seen.insert(appURL.path).inserted else { continue }
+                let name = FileManager.default.displayName(atPath: appURL.path)
+                let title = appURL.path == defaultAppPath ? L10n.format("file.openWith.default", name) : name
+                let item = NSMenuItem(title: title, action: #selector(openWithApp(_:)), keyEquivalent: "")
+                item.target = self
+                item.representedObject = appURL
+                let icon = NSWorkspace.shared.icon(forFile: appURL.path)
+                icon.size = NSSize(width: 16, height: 16)
+                item.image = icon
+                submenu.addItem(item)
+            }
+            if !submenu.items.isEmpty {
+                submenu.addItem(.separator())
+            }
+            let other = NSMenuItem(title: L10n.text("file.openWith.other"), action: #selector(openWithOtherApp), keyEquivalent: "")
+            other.target = self
+            submenu.addItem(other)
+
+            let parent = NSMenuItem(title: L10n.text("file.openWith"), action: nil, keyEquivalent: "")
+            parent.image = NSImage(systemSymbolName: "arrow.up.forward.app", accessibilityDescription: nil)
+            parent.submenu = submenu
+            menu.addItem(parent)
+        }
+
+        @objc private func openWithApp(_ sender: NSMenuItem) {
+            guard let appURL = sender.representedObject as? URL else { return }
+            let urls = model.selectedFileItems.map(\.url)
+            guard !urls.isEmpty else { return }
+            NSWorkspace.shared.open(urls, withApplicationAt: appURL, configuration: NSWorkspace.OpenConfiguration())
+        }
+
+        @objc private func openWithOtherApp() {
+            let urls = model.selectedFileItems.map(\.url)
+            guard !urls.isEmpty else { return }
+            let panel = NSOpenPanel()
+            panel.canChooseFiles = true
+            panel.canChooseDirectories = false
+            panel.allowsMultipleSelection = false
+            panel.allowedContentTypes = [.application]
+            panel.directoryURL = URL(fileURLWithPath: "/Applications")
+            panel.prompt = L10n.text("button.choose")
+            if panel.runModal() == .OK, let appURL = panel.url {
+                NSWorkspace.shared.open(urls, withApplicationAt: appURL, configuration: NSWorkspace.OpenConfiguration())
             }
         }
 
