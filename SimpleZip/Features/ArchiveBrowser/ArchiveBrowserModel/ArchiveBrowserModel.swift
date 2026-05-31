@@ -133,7 +133,8 @@ final class ArchiveBrowserModel: ObservableObject {
     var openedArchiveItemDirectories: [URL] = []
 
     init() {
-        TemporaryResourceManager.cleanStaleOpenedArchiveItems(fileManager: fileManager)
+        // 注意：不在这里清理临时目录 —— 那是「全 app 一次性」职责，已移到 AppDelegate 启动时 stale-only 执行。
+        // 模型每次 init 都删全局临时根，会误删其它窗口正在用的解压目录（见 cleanStaleOpenedArchiveItems 注释）。
         mode = .folder(AppPreferences.defaultStartupURL(fileManager: fileManager))
         finderFavorites = FinderFavoritesReader.readWithCache()
         reload()

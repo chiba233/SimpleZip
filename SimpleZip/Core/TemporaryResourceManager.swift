@@ -14,10 +14,26 @@ enum TemporaryResourceManager {
         fileManager.temporaryDirectory.appendingPathComponent(openedArchiveItemsDirectoryName, isDirectory: true)
     }
 
-    static func cleanStaleOpenedArchiveItems(fileManager: FileManager = .default) {
+    /// 清理「打开压缩包内文件」遗留的解压子目录 —— 只删 mtime **早于** `reference` 的（即上次会话残留、
+    /// 当前不在用的），逐个 UUID 子目录判断。绝不再无条件删整个 `SimpleZipArchiveOpen` 根：
+    /// 那样一旦有第二个窗口 / 第二个 `ArchiveBrowserModel` 正在用某个子目录，就会被连根删掉（在用文件丢失）。
+    /// 应在 App 启动时**单次**调用（AppDelegate），而不是每个 model.init —— 模型不该拥有清理全 app 临时目录的权力。
+    /// 拿不到 mtime 的子项按「不陈旧」处理（保守不删）。
+    nonisolated static func cleanStaleOpenedArchiveItems(
+        olderThan reference: Date,
+        fileManager: FileManager = .default
+    ) {
         let root = openedArchiveItemsRoot(fileManager: fileManager)
-        guard fileManager.fileExists(atPath: root.path) else { return }
-        try? fileManager.removeItem(at: root)
+        let entries = (try? fileManager.contentsOfDirectory(
+            at: root,
+            includingPropertiesForKeys: [.contentModificationDateKey],
+            options: []
+        )) ?? []
+        for entry in entries {
+            guard let mtime = (try? entry.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate,
+                  mtime < reference else { continue }
+            try? fileManager.removeItem(at: entry)
+        }
     }
 
     static func makeOpenedArchiveItemDirectory(fileManager: FileManager = .default) throws -> URL {

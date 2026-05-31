@@ -16,7 +16,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         NSApp.servicesProvider = self
         // 尽早固化「会话开始时间」—— 手动清理临时文件只删早于此刻的陈旧项，保护本次会话在用的 staging。
-        _ = TemporaryResourceManager.sessionStart
+        let sessionStart = TemporaryResourceManager.sessionStart
+        // 启动时单次清理上次会话残留的「打开压缩包内文件」解压目录（stale-only，只删早于本次会话的）。
+        // 之前放在 ArchiveBrowserModel.init 且无条件删整个根目录，多窗口时会误删在用解压目录。
+        TemporaryResourceManager.cleanStaleOpenedArchiveItems(olderThan: sessionStart)
         // 「每次启动时检查更新」（通用设置 opt-in）：发现新版才弹提示，已最新则静默。
         SparkleUpdater.shared.checkForUpdatesOnLaunchIfEnabled()
     }

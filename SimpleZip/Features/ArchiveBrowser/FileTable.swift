@@ -321,9 +321,13 @@ private struct FileNSOutlineView: NSViewRepresentable {
             sectionNodesByKey = reused
         }
 
-        /// 某区块当前是否应展开。隐藏组（none 模式）走 #49 真值；其余区块默认展开，除非用户手动折叠过。
+        /// 某区块当前是否应展开。
+        /// 「隐藏文件」父组**永远**走折叠策略（hiddenGroupExpanded）—— 哪怕开了 Group By 也一样，
+        /// 否则分组一开隐藏文件就默认展开、重新糊脸，违背 #49 的产品灵魂。
+        /// 父组内部按维度切出的子分类区块（hidden/g:今天 等）不是 isHiddenSection，仍默认展开 ——
+        /// 即「隐藏组折叠；展开后里面的子分类默认都展开」。
         private func isSectionExpanded(_ node: FileOutlineNode) -> Bool {
-            if node.isHiddenSection && !effectiveGroupBy.isGrouping {
+            if node.isHiddenSection {
                 return hiddenGroupExpanded
             }
             return !userCollapsedSectionKeys.contains(node.sectionKey)
@@ -440,7 +444,8 @@ private struct FileNSOutlineView: NSViewRepresentable {
         }
 
         private func setSectionExpanded(_ node: FileOutlineNode, _ expanded: Bool) {
-            if node.isHiddenSection && !effectiveGroupBy.isGrouping {
+            // 与 isSectionExpanded 对称：隐藏文件父组永远更新 + 持久化折叠策略（无视是否分组）。
+            if node.isHiddenSection {
                 hiddenGroupExpanded = expanded
                 persistExpansion(expanded)
             } else if expanded {
