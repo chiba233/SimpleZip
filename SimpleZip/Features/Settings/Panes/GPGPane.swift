@@ -1048,11 +1048,16 @@ private struct GPGKeyRow: View {
         Button(L10n.text("settings.gpg.keys.contextExportPublicKey")) {
             onExportPublicKey()
         }
-        // 修改过期 / 生成撤销证书 / 导出私钥：仅本机持有私钥的密钥可用（需要 gpg 访问私钥操作）。
-        // 智能卡 stub 也算「持有」—— gpg 会要求插卡 + 输入卡 PIN。
+        // 修改 passphrase / 添加 UID / 改过期 / 生成撤销证书：本机持有私钥的密钥可用（智能卡 stub 也算 ——
+        // gpg 会要求插卡 + 输入卡 PIN 来用卡上私钥做这些操作）。
         if key.hasSecretKey {
-            Button(L10n.text("settings.gpg.keys.contextExportPrivateKey")) {
-                onExportPrivateKey()
+            // 「导出私钥」**只在私钥材料实际在本机、可导出**时给（非卡上、非 stripped）。
+            // 卡上 / stripped 的密钥 `--export-secret-keys` 只会导出一个无用 stub（卡永远不释放私钥本体），
+            // 给用户「我备份了私钥」的错觉 —— 对一个本机没有私钥的密钥提供「导出私钥」是错的。
+            if !key.isSecretKeyStub {
+                Button(L10n.text("settings.gpg.keys.contextExportPrivateKey")) {
+                    onExportPrivateKey()
+                }
             }
             Divider()
             Button(L10n.text("settings.gpg.keys.contextChangePassphrase")) {
