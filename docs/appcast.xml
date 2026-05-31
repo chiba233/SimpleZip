@@ -6,14 +6,14 @@
         <description>SimpleZip macOS release feed</description>
         <language>en</language>
         <item>
-            <title>SimpleZip 0.1.11</title>
-            <link>https://github.com/chiba233/SimpleZip/releases/tag/v0.1.11</link>
-            <pubDate>Sun, 31 May 2026 06:27:37 +0000</pubDate>
+            <title>SimpleZip 0.2.0</title>
+            <link>https://github.com/chiba233/SimpleZip/releases/tag/v0.2.0</link>
+            <pubDate>Sun, 31 May 2026 13:35:00 +0000</pubDate>
             <enclosure
-                url="https://github.com/chiba233/SimpleZip/releases/download/v0.1.11/SimpleZip-0.1.11-unsigned.dmg"
-                sparkle:version="6"
-                sparkle:shortVersionString="0.1.11"
-                sparkle:edSignature="Ufz+So+JzkU38Qg9Sqcf8qJUGPHnWoX8XiINaqsouC/2goruTMfqawjWM2ISyo/EW+9TyF/ND+HmWy6wf5yBCA==" length="12871169"
+                url="https://github.com/chiba233/SimpleZip/releases/download/v0.2.0/SimpleZip-0.2.0-unsigned.dmg"
+                sparkle:version="7"
+                sparkle:shortVersionString="0.2.0"
+                sparkle:edSignature="pSAOP6uQVshvLom8h7qWJOxxbGIDfU3ohQ32DlxckeJ1oxV9/rqYuC2Ij95Y2VfxAbe3gZLVo5Dz0B2qx+yxAw==" length="13335735"
                 type="application/octet-stream"/>
         </item>
     </channel>
