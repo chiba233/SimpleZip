@@ -173,12 +173,10 @@ private struct CommandOutputLogView: NSViewRepresentable {
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         guard let textView = scrollView.documentView as? NSTextView, textView.string != text else { return }
-        // 跟随尾部：仅当用户当前已滚到底部时，更新后自动滚到底；上滑看历史时不打扰。
-        let docHeight = scrollView.documentView?.bounds.height ?? 0
-        let wasAtBottom = scrollView.contentView.bounds.maxY >= docHeight - 4
         textView.string = text
-        if wasAtBottom {
-            textView.scrollToEndOfDocument(nil)
-        }
+        // 始终跟到最新一行 —— 用户看流式 log 首要关心的是最新输出，不是旧的。
+        // 用 scrollRangeToVisible(末尾) 而不是 scrollToEndOfDocument：前者会强制把目标 range 布局出来，
+        // 刚换完 string 时还没排版完，后者可能滚不到真正的结尾。
+        textView.scrollRangeToVisible(NSRange(location: (text as NSString).length, length: 0))
     }
 }
