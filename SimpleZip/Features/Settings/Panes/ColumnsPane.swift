@@ -136,11 +136,10 @@ struct ColumnsPane: View {
                     .labelsHidden().fixedSize().frame(minWidth: 200, alignment: .trailing)
                 }
 
-                Divider()
-
                 // 压缩包浏览（无「按文件夹」—— 档案内路径不持久，只全局）
                 Text(L10n.text("settings.columns.archiveBrowser"))
                     .font(.headline)
+                    .padding(.top, 6)
                 SettingsControlRow(
                     title: L10n.text("settings.grouping.default"),
                     description: L10n.text("settings.grouping.default.description")

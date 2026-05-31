@@ -24,7 +24,7 @@ enum BrowserGrouping {
         case fileKind
 
         /// 容错解析：拿不到 / 不认识的字符串一律回落到默认 `.none`。
-        static func parse(_ raw: String?) -> GroupBy {
+        nonisolated static func parse(_ raw: String?) -> GroupBy {
             guard let raw, let value = GroupBy(rawValue: raw) else { return .none }
             return value
         }
@@ -66,7 +66,7 @@ enum BrowserGrouping {
     // MARK: - 每文件夹分组覆盖（MRU 存储纯逻辑，可单测）
 
     /// 在 MRU 条目里查某文件夹的覆盖维度。条目格式 `path\tgroupBy`；找不到返回 nil（= 跟随全局默认）。
-    static func folderOverride(in entries: [String], forKey key: String) -> GroupBy? {
+    nonisolated static func folderOverride(in entries: [String], forKey key: String) -> GroupBy? {
         for entry in entries {
             guard let r = entry.range(of: "\t", options: .backwards) else { continue }
             guard String(entry[..<r.lowerBound]) == key else { continue }
@@ -78,7 +78,7 @@ enum BrowserGrouping {
     /// 写入 / 移除某文件夹的覆盖，返回新的 MRU 条目数组。
     /// `groupBy == nil` → 移除该文件夹覆盖（回到跟随全局默认）；非 nil（含 `.none`）→ 显式设定。
     /// MRU：最近设定的排末尾；超过 `cap` 从最旧（开头）裁，防止路径无限堆积。
-    static func upsertFolderOverride(_ entries: [String], forKey key: String, groupBy: GroupBy?, cap: Int = 500) -> [String] {
+    nonisolated static func upsertFolderOverride(_ entries: [String], forKey key: String, groupBy: GroupBy?, cap: Int = 500) -> [String] {
         var result = entries.filter { entry in
             guard let r = entry.range(of: "\t", options: .backwards) else { return true }
             return String(entry[..<r.lowerBound]) != key
@@ -115,7 +115,7 @@ enum BrowserGrouping {
         case global
         case perFolder
 
-        static func parse(_ raw: String?) -> GroupingScope {
+        nonisolated static func parse(_ raw: String?) -> GroupingScope {
             guard let raw, let value = GroupingScope(rawValue: raw) else { return .global }
             return value
         }
@@ -135,7 +135,7 @@ enum BrowserGrouping {
         /// 隐藏文件单独成一个「隐藏文件」组，组内再按同一维度分子组（嵌套）。默认。
         case separateGroup
 
-        static func parse(_ raw: String?) -> HiddenWithGrouping {
+        nonisolated static func parse(_ raw: String?) -> HiddenWithGrouping {
             guard let raw, let value = HiddenWithGrouping(rawValue: raw) else { return .separateGroup }
             return value
         }

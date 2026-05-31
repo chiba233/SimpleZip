@@ -26,7 +26,7 @@ enum FileBrowserOutline {
         case inline
 
         /// 容错解析：拿不到 / 不认识的字符串一律回落到默认 `.alwaysCollapsed`。
-        static func parse(_ raw: String?) -> CollapseMode {
+        nonisolated static func parse(_ raw: String?) -> CollapseMode {
             guard let raw, let mode = CollapseMode(rawValue: raw) else { return .alwaysCollapsed }
             return mode
         }
@@ -54,7 +54,7 @@ enum FileBrowserOutline {
         /// dotfile + 带 macOS `UF_HIDDEN` 标志的项都算隐藏（含 /etc、~/Library 等符号链接 / 目录）。
         case macOSHidden
 
-        static func parse(_ raw: String?) -> HiddenDetectionMode {
+        nonisolated static func parse(_ raw: String?) -> HiddenDetectionMode {
             guard let raw, let value = HiddenDetectionMode(rawValue: raw) else { return .dotfilesOnly }
             return value
         }
