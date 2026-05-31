@@ -700,6 +700,8 @@
 "backup.description" = "把当前偏好导出成 JSON 文件，可以拷到另一台 Mac 用；也可以从之前导出的文件导入。「全部恢复默认」会清掉所有偏好 + 钥匙串里的预设密码。";
 "backup.export.title" = "导出偏好";
 "backup.export.description" = "把当前偏好保存为 JSON 文件。预设密码（在钥匙串里）和私有路径（上次打开 / 置顶 / 最近）不会被导出。";
+"backup.includePerFolderMemory" = "导出时包含「按文件夹记忆」";
+"backup.includePerFolderMemory.description" = "默认关：按文件夹的分组覆盖、隐藏组展开记忆都跟本机路径绑定，不会写进导出文件（换台电脑导入不必背一堆废路径）。只有在多台布局相同的机器间迁移时才需要开。";
 "backup.export.button" = "导出…";
 "backup.export.savePanel.title" = "导出 SimpleZip 偏好";
 "backup.export.done" = "已导出到 %@。";

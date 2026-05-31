@@ -707,6 +707,8 @@
 "backup.description" = "Export your preferences as a JSON file you can copy to another Mac, or import a previously exported file. \"Restore Defaults\" wipes every preference and clears the Keychain entry used by the preset password.";
 "backup.export.title" = "Export preferences";
 "backup.export.description" = "Save the current preferences as a JSON file. The preset password (stored in the Keychain) and private paths (last folder / pinned / recent) are excluded.";
+"backup.includePerFolderMemory" = "Include per-folder memory in export";
+"backup.includePerFolderMemory.description" = "Off by default: per-folder grouping overrides and hidden-group expansion are tied to this machine's paths, so they aren't carried into the exported file. Turn on only if you're moving between machines with the same folder layout.";
 "backup.export.button" = "Export…";
 "backup.export.savePanel.title" = "Export SimpleZip preferences";
 "backup.export.done" = "Exported to %@.";

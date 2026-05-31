@@ -34,8 +34,12 @@ enum TemporaryResourceManager {
     /// `.siz` wrap/unwrap staging 等。只删名字以此前缀开头的条目，绝不碰系统临时目录里别的东西。
     nonisolated static let temporaryArtifactPrefix = "SimpleZip"
 
-    /// 列出系统临时目录里所有 SimpleZip 临时条目。`baseDirectory` 仅供单测注入隔离目录用，
-    /// 生产代码走默认的 `fileManager.temporaryDirectory`。
+    /// 本次 App 会话的启动时间。手动清理只删 mtime **早于**这个时间的临时项 ——
+    /// 这样本次会话产生的（很可能正在用的：当前打开的档案解压目录、进行中的 .siz/.szs staging）绝不会被删。
+    /// `static let` 惰性初始化一次；AppDelegate 在启动时 touch 一下确保它落在「会话开始」而不是「点清理那一刻」。
+    nonisolated static let sessionStart = Date()
+
+    /// 列出系统临时目录里所有 SimpleZip 临时条目。`baseDirectory` 仅供单测注入隔离目录用。
     nonisolated static func temporaryArtifactURLs(
         in baseDirectory: URL? = nil,
         fileManager: FileManager = .default
@@ -49,23 +53,40 @@ enum TemporaryResourceManager {
         return entries.filter { $0.lastPathComponent.hasPrefix(temporaryArtifactPrefix) }
     }
 
-    /// 这些临时条目占用的总字节数（按实际磁盘分配大小累加）。可能涉及递归遍历，建议在后台线程调用。
+    /// 「陈旧」临时条目 = mtime 早于 `reference` 的（即非本次会话产生、当前不在用的）。
+    /// 拿不到 mtime 的条目按「不陈旧」处理（不删，保守）。
+    nonisolated static func staleTemporaryArtifactURLs(
+        olderThan reference: Date,
+        in baseDirectory: URL? = nil,
+        fileManager: FileManager = .default
+    ) -> [URL] {
+        temporaryArtifactURLs(in: baseDirectory, fileManager: fileManager).filter { url in
+            guard let mtime = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate else {
+                return false
+            }
+            return mtime < reference
+        }
+    }
+
+    /// 陈旧临时条目占用的总字节数（按实际磁盘分配大小累加）。可能递归遍历，建议在后台线程调用。
     nonisolated static func temporaryArtifactsByteSize(
+        olderThan reference: Date,
         in baseDirectory: URL? = nil,
         fileManager: FileManager = .default
     ) -> Int64 {
-        temporaryArtifactURLs(in: baseDirectory, fileManager: fileManager)
+        staleTemporaryArtifactURLs(olderThan: reference, in: baseDirectory, fileManager: fileManager)
             .reduce(0) { $0 + allocatedSize(of: $1, fileManager: fileManager) }
     }
 
-    /// 删除所有 SimpleZip 临时条目，返回释放的字节数。建议在后台线程调用。
+    /// 只删**陈旧**临时条目（mtime < reference），返回释放的字节数。本次会话的在用 staging 不会被碰。建议后台调用。
     @discardableResult
     nonisolated static func clearTemporaryArtifacts(
+        olderThan reference: Date,
         in baseDirectory: URL? = nil,
         fileManager: FileManager = .default
     ) -> Int64 {
         var freed: Int64 = 0
-        for url in temporaryArtifactURLs(in: baseDirectory, fileManager: fileManager) {
+        for url in staleTemporaryArtifactURLs(olderThan: reference, in: baseDirectory, fileManager: fileManager) {
             freed += allocatedSize(of: url, fileManager: fileManager)
             try? fileManager.removeItem(at: url)
         }

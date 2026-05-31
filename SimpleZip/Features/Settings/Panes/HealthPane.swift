@@ -93,24 +93,26 @@ struct HealthPane: View {
         return L10n.format("settings.tempFiles.description", size)
     }
 
-    /// 后台测量临时文件占用（递归遍历，别卡主线程），完成后回主线程更新。
+    /// 后台测量**可清理（陈旧）**临时文件占用 —— 只算本次会话之前留下的，当前在用的不计入。完成后回主线程更新。
     private func measureTempFiles() {
         isMeasuringTemp = true
+        let reference = TemporaryResourceManager.sessionStart
         Task {
             let bytes = await Task.detached(priority: .utility) {
-                TemporaryResourceManager.temporaryArtifactsByteSize()
+                TemporaryResourceManager.temporaryArtifactsByteSize(olderThan: reference)
             }.value
             tempBytes = bytes
             isMeasuringTemp = false
         }
     }
 
-    /// 后台清理临时文件，完成后重新测量（占用归零、按钮禁用 = 视觉反馈）。
+    /// 后台清理**陈旧**临时文件（本次会话产生的在用 staging 不动），完成后重新测量。
     private func clearTempFiles() {
         isClearingTemp = true
+        let reference = TemporaryResourceManager.sessionStart
         Task {
             _ = await Task.detached(priority: .utility) {
-                TemporaryResourceManager.clearTemporaryArtifacts()
+                TemporaryResourceManager.clearTemporaryArtifacts(olderThan: reference)
             }.value
             isClearingTemp = false
             measureTempFiles()

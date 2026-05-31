@@ -15,7 +15,8 @@
 
 - **Check for updates on launch** — new opt-in toggle in Settings → General (also offered in the Welcome assistant's version-check step). When on, SimpleZip quietly checks for a new version at each launch and only prompts when an update is available (additive to Sparkle's existing scheduled background checks).
 - **Help → "Report a Bug…"** — opens the GitHub new-issue page so you can file a report directly.
-- **Clean up temporary files** (Settings → Health) — shows how much disk space SimpleZip's scratch files (archive-open extractions, signed-manifest staging, etc.) currently use, with a one-click "Clean Up" button. Only entries SimpleZip created (names prefixed `SimpleZip`) are touched.
+- **Clean up temporary files** (Settings → Health) — shows how much disk space SimpleZip's leftover scratch files use, with a one-click "Clean Up" button. Only entries SimpleZip created (names prefixed `SimpleZip`) are touched, and only *stale* ones — anything created during the current session (e.g. the archive you have open right now, or an in-progress `.siz`/`.szs` staging directory) is left alone, so cleanup can't pull a file out from under an active operation.
+- **Backup: optional "Include per-folder memory in export"** (Settings → Backup, off by default) — per-folder grouping overrides and hidden-group expansion state are machine-specific paths, so they're excluded from exported preferences unless you opt in. Restoring a backup always honours its choice (a backup without them clears them locally).
 
 - **Misc:** the "Create Signed Manifest" menu item (main menu + right-click) now uses the `signature` icon, matching the signing-key row in GPG settings.
 

@@ -39,8 +39,8 @@ struct TemporaryResourceManagerTests {
         try writeFile(4096, at: base.appendingPathComponent("SimpleZip-a/f1.bin"))
         try writeFile(4096, at: base.appendingPathComponent("SimpleZip-b/sub/f2.bin"))
 
-        // 按磁盘分配大小累加，可能向上取整到块边界，所以用 >=。
-        let size = TemporaryResourceManager.temporaryArtifactsByteSize(in: base)
+        // 按磁盘分配大小累加，可能向上取整到块边界，所以用 >=。distantFuture = 全部都算「陈旧」。
+        let size = TemporaryResourceManager.temporaryArtifactsByteSize(olderThan: .distantFuture, in: base)
         #expect(size >= 8192)
     }
 
@@ -52,12 +52,24 @@ struct TemporaryResourceManagerTests {
         try writeFile(3000, at: base.appendingPathComponent("SimpleZip-x/file.bin"))
         try writeFile(7000, at: base.appendingPathComponent("KeepMe/file.bin"))
 
-        let freed = TemporaryResourceManager.clearTemporaryArtifacts(in: base)
+        let freed = TemporaryResourceManager.clearTemporaryArtifacts(olderThan: .distantFuture, in: base)
         #expect(freed > 0)
 
         // SimpleZip 条目清掉了，别人的留着。
         #expect(!FileManager.default.fileExists(atPath: base.appendingPathComponent("SimpleZip-x").path))
         #expect(FileManager.default.fileExists(atPath: base.appendingPathComponent("KeepMe").path))
-        #expect(TemporaryResourceManager.temporaryArtifactsByteSize(in: base) == 0)
+        #expect(TemporaryResourceManager.temporaryArtifactsByteSize(olderThan: .distantFuture, in: base) == 0)
+    }
+
+    @Test
+    func clearSkipsInUseArtifactsNewerThanReference() throws {
+        let base = try makeIsolatedBase()
+        defer { try? FileManager.default.removeItem(at: base) }
+
+        // 刚写的文件 mtime ≈ 现在；用一个「过去」的 reference 清理 —— 它比 reference 新，应被当「在用」跳过。
+        try writeFile(3000, at: base.appendingPathComponent("SimpleZip-inuse/file.bin"))
+        let freed = TemporaryResourceManager.clearTemporaryArtifacts(olderThan: Date.distantPast, in: base)
+        #expect(freed == 0)
+        #expect(FileManager.default.fileExists(atPath: base.appendingPathComponent("SimpleZip-inuse").path))
     }
 }

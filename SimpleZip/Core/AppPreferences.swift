@@ -267,8 +267,10 @@ enum AppPreferences {
         nonisolated static let archiveGroupBy = "archiveGroupBy"
         nonisolated static let hiddenWithGrouping = "hiddenWithGrouping"
         nonisolated static let fileGroupingScope = "fileGroupingScope"
-        // 每文件夹分组覆盖（path\tgroupBy 的 MRU 数组）。本机 UI 状态、含真实路径，不导出。
+        // 每文件夹分组覆盖（path\tgroupBy 的 MRU 数组）。本机 UI 状态、含真实路径，默认不导出。
         nonisolated static let fileFolderGrouping = "fileFolderGrouping"
+        // 导出备份时是否包含「按文件夹记忆」（per-folder 分组覆盖 + 隐藏组展开记忆）。默认关。
+        nonisolated static let includePerFolderMemoryInBackup = "includePerFolderMemoryInBackup"
         nonisolated static let rememberLastFolder = "rememberLastFolder"
         nonisolated static let lastFolderPath = "lastFolderPath"
         nonisolated static let checkForUpdatesOnLaunch = "checkForUpdatesOnLaunch"
@@ -825,10 +827,26 @@ enum AppPreferences {
         Key.archiveColumnOrder
     ]
 
+    /// 「按文件夹记忆」相关的本机 UI 状态 key（含真实路径）：每文件夹分组覆盖 + 隐藏组每文件夹展开记忆。
+    /// 默认**不**导出（换台电脑导入不该背一堆本机废路径）；用户在备份面板勾选后才纳入导出。
+    /// 导入 / 全部恢复时**始终**纳入处理（还原备份语义：备份没有就清掉本机现有的）。
+    nonisolated static let perFolderMemoryKeys: [String] = [
+        Key.fileFolderGrouping,
+        Key.hiddenGroupPerFolderExpanded
+    ]
+
+    /// 导出时是否包含「按文件夹记忆」。默认关。
+    nonisolated static var includePerFolderMemoryInBackup: Bool {
+        get { defaults.bool(forKey: Key.includePerFolderMemoryInBackup) }
+        set { defaults.set(newValue, forKey: Key.includePerFolderMemoryInBackup) }
+    }
+
     /// 拼一份当前所有可导出 key 的 payload，可直接 JSONSerialization 序列化。
+    /// 勾了「包含按文件夹记忆」才把 perFolderMemoryKeys 一并导出。
     nonisolated static func exportablePayload() -> [String: Any] {
         var values: [String: Any] = [:]
-        for key in exportableUserDefaultsKeys {
+        let keys = exportableUserDefaultsKeys + (includePerFolderMemoryInBackup ? perFolderMemoryKeys : [])
+        for key in keys {
             if let value = defaults.object(forKey: key) {
                 values[key] = value
             }
@@ -844,10 +862,12 @@ enum AppPreferences {
     /// 简化版备份」之后还是带着上次的零散设置，根本对不上备份原状态。
     /// 只接受白名单里的 key（防御 payload 里出现 AppleLanguages 这种全局系统 key）。
     /// 导入完成后调用方应让相关 UI 刷新。
+    /// 导入按文件夹记忆始终纳入处理（还原备份语义）：备份里有就写、没有就清掉本机现有的。
     nonisolated static func importPayload(_ payload: [String: Any]) throws {
         let values = try PreferencesPayloadCodec.decode(payload)
-        let allowed = Set(exportableUserDefaultsKeys)
-        for key in exportableUserDefaultsKeys {
+        let importKeys = exportableUserDefaultsKeys + perFolderMemoryKeys
+        let allowed = Set(importKeys)
+        for key in importKeys {
             defaults.removeObject(forKey: key)
         }
         for (key, value) in values where allowed.contains(key) {
@@ -855,10 +875,10 @@ enum AppPreferences {
         }
     }
 
-    /// 把所有可导出 key 全部抹掉 + 顺手把 Keychain 里的预设密码也清掉。
+    /// 把所有可导出 key + 按文件夹记忆全部抹掉 + 顺手把 Keychain 里的预设密码也清掉。
     /// 「全部恢复默认」按钮调；用户应该被警告这是不可逆操作。
     nonisolated static func restoreAllDefaultsToFactory() {
-        for key in exportableUserDefaultsKeys {
+        for key in exportableUserDefaultsKeys + perFolderMemoryKeys {
             defaults.removeObject(forKey: key)
         }
         PresetPasswordStore.clear()

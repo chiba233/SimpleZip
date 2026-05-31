@@ -21,6 +21,8 @@ struct BackupPane: View {
     @State private var pendingImportURL: URL?
     /// 操作完成后的轻量反馈（绿色 ✓ 已导出 / 已导入 / 已恢复）。
     @State private var lastActionMessage: String?
+    /// 导出时是否包含「按文件夹记忆」（per-folder 分组覆盖 + 隐藏组展开记忆）。默认关 —— 换机器导入不背废路径。
+    @AppStorage(AppPreferences.Key.includePerFolderMemoryInBackup) private var includePerFolderMemoryInBackup = false
 
     var body: some View {
         Form {
@@ -35,6 +37,12 @@ struct BackupPane: View {
                     systemImage: "square.and.arrow.up",
                     buttonTitle: L10n.text("backup.export.button"),
                     action: exportPreferences
+                )
+
+                SettingsToggleRow(
+                    title: L10n.text("backup.includePerFolderMemory"),
+                    description: L10n.text("backup.includePerFolderMemory.description"),
+                    isOn: $includePerFolderMemoryInBackup
                 )
 
                 SettingsActionRow(
