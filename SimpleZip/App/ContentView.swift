@@ -424,6 +424,22 @@ struct ContentView: View {
         Task {
             do {
                 let (innerArchiveURL, tempRoot, summary) = try await unwrapAndVerifySIZ(at: url)
+                // 「Finder 自动解压」开 + 签名无问题（或 GPG 关闭 = 无可验签名）→ 静默解压到 .siz 所在文件夹，不弹 sheet。
+                // 签名有问题（坏签 / 未知签名者 / 验签错误 / 不受信 / 有 concerns）→ 落到下面正常弹验签 sheet 让用户决定。
+                if AppPreferences.finderOpenAutoExtract, sizSignatureIsClean(summary) {
+                    let decrypted = try await decryptInnerArchiveIfNeeded(innerArchiveURL)
+                    await MainActor.run {
+                        ExternalExtractWindowController.shared.start(
+                            archiveURL: decrypted,
+                            destinationDirectoryOverride: url.deletingLastPathComponent(),
+                            outputBaseNameOverride: url.deletingPathExtension().lastPathComponent,
+                            displayName: url.lastPathComponent,
+                            cleanupDirectory: tempRoot
+                        )
+                        hideMainWindowIfPossible()
+                    }
+                    return
+                }
                 if summary != nil {
                     await MainActor.run {
                         pendingSIZVerification = SIZPendingVerification(
@@ -445,6 +461,18 @@ struct ContentView: View {
                 await MainActor.run { model.errorMessage = error.localizedDescription }
             }
         }
+    }
+
+    /// `.siz` 签名是否「没问题」—— 用于 Finder 自动解压决定是否静默直解。
+    /// - summary == nil：用户关了 GPG 集成，没有可校验的签名 → 视为「无问题」（按规则不弹 GPG UI，直接解压，刚需例外）。
+    /// - 仅 `.validSignature` 且**受信任、无 concerns** 才算干净；坏签 / 未知签名者 / 验签错误 / 不受信 / 有 concerns
+    ///   都算「有问题」→ 调用方落回正常验签 sheet 让用户决定。
+    private func sizSignatureIsClean(_ summary: SIZSignatureSummary?) -> Bool {
+        guard let summary else { return true }
+        if case .validSignature(_, _, let trusted, let concerns) = summary.verify {
+            return trusted && concerns.isEmpty
+        }
+        return false
     }
 
     /// 共用解密 helper：检查内层 archive 是不是加密包（`.gpg` 后缀）—— 是 → 走 `SIZArchive.decryptInnerArchive`；

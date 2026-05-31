@@ -27,7 +27,19 @@ final class ExternalExtractWindowController {
     private var window: NSWindow?
     private var session: ExternalExtractSession?
 
-    func start(archiveURL: URL) {
+    /// - Parameters:
+    ///   - destinationDirectoryOverride: 解压目标父目录。默认 nil = 用 archive 所在目录；
+    ///     `.siz` 自动解压时内层 archive 在 /tmp，但结果要落到原 `.siz` 所在文件夹，所以传 override。
+    ///   - outputBaseNameOverride: 输出文件夹名（默认取 archive 去扩展名）。`.siz` 传原 `.siz` 名而不是内层 `archive`。
+    ///   - displayName: 浮窗标题显示名（默认 archive 文件名）。`.siz` 传 `xxx.siz`。
+    ///   - cleanupDirectory: 解压结束后删除的临时目录（`.siz` 的 unwrap 暂存根），nil = 不清理。
+    func start(
+        archiveURL: URL,
+        destinationDirectoryOverride: URL? = nil,
+        outputBaseNameOverride: String? = nil,
+        displayName: String? = nil,
+        cleanupDirectory: URL? = nil
+    ) {
         // 已经有一个跑着 → 先关掉，避免视觉混乱。
         if let existing = window {
             existing.orderOut(nil)
@@ -35,7 +47,13 @@ final class ExternalExtractWindowController {
             session = nil
         }
 
-        let session = ExternalExtractSession(archiveURL: archiveURL)
+        let session = ExternalExtractSession(
+            archiveURL: archiveURL,
+            destinationDirectoryOverride: destinationDirectoryOverride,
+            outputBaseNameOverride: outputBaseNameOverride,
+            displayName: displayName,
+            cleanupDirectory: cleanupDirectory
+        )
         let view = ExternalExtractView(session: session)
         let hosting = NSHostingController(rootView: view)
 
@@ -83,6 +101,11 @@ final class ExternalExtractSession: ObservableObject {
     }
 
     let archiveURL: URL
+    /// 浮窗标题显示名（`.siz` 自动解压时显示原 `.siz` 名而非内层 archive 名）。
+    let displayName: String
+    private let destinationDirectoryOverride: URL?
+    private let outputBaseNameOverride: String?
+    private let cleanupDirectory: URL?
     @Published var status: Status = .running
     @Published var fraction: Double? = nil
     @Published var currentFileName: String? = nil
@@ -91,8 +114,18 @@ final class ExternalExtractSession: ObservableObject {
     private let operationID = UUID()
     private let coordinator = ArchiveExtractionCoordinator(fileManager: .default)
 
-    init(archiveURL: URL) {
+    init(
+        archiveURL: URL,
+        destinationDirectoryOverride: URL? = nil,
+        outputBaseNameOverride: String? = nil,
+        displayName: String? = nil,
+        cleanupDirectory: URL? = nil
+    ) {
         self.archiveURL = archiveURL
+        self.destinationDirectoryOverride = destinationDirectoryOverride
+        self.outputBaseNameOverride = outputBaseNameOverride
+        self.displayName = displayName ?? archiveURL.lastPathComponent
+        self.cleanupDirectory = cleanupDirectory
     }
 
     func cancel() {
@@ -105,9 +138,12 @@ final class ExternalExtractSession: ObservableObject {
     func run(onClose: @escaping @MainActor () -> Void) async {
         do {
             let supportedURL = ArchiveService.supportedArchiveURL(archiveURL) ?? archiveURL
-            let destinationDir = supportedURL.deletingLastPathComponent()
+            // 目标父目录：默认 archive 所在目录；`.siz` 自动解压时内层 archive 在 /tmp，用 override 落到原 .siz 文件夹。
+            let destinationDir = destinationDirectoryOverride ?? supportedURL.deletingLastPathComponent()
             let stagingURL = try coordinator.makeExtractionStagingDirectory()
             defer { try? FileManager.default.removeItem(at: stagingURL) }
+            // `.siz` unwrap 暂存根：解压取完内层 archive 后清掉（含可能的解密产物）。
+            defer { if let cleanupDirectory { try? FileManager.default.removeItem(at: cleanupDirectory) } }
 
             let preset = AppPreferences.hasUsablePresetPassword ? AppPreferences.presetPassword : ""
             let overwriteBehavior: OverwriteBehavior = AppPreferences.overwriteBehavior == .skipExisting
@@ -136,7 +172,7 @@ final class ExternalExtractSession: ObservableObject {
 
             // 在压缩包所在目录建一个跟压缩包同名（去扩展名）的目录放结果；
             // 同名冲突走 coordinator 的 uniqueDestinationURL 加 " 1" / " 2" 后缀。
-            let baseName = supportedURL.deletingPathExtension().lastPathComponent
+            let baseName = outputBaseNameOverride ?? supportedURL.deletingPathExtension().lastPathComponent
             let target = coordinator.uniqueDestinationURL(for: baseName, in: destinationDir)
             try await coordinator.mergeExtractedItems(
                 from: stagingURL,
@@ -178,7 +214,7 @@ struct ExternalExtractView: View {
                     .font(.system(size: 22))
                     .foregroundStyle(.tint)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(session.archiveURL.lastPathComponent)
+                    Text(session.displayName)
                         .font(.headline)
                         .lineLimit(1)
                         .truncationMode(.middle)
