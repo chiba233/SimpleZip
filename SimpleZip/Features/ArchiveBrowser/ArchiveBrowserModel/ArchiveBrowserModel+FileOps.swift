@@ -75,6 +75,47 @@ extension ArchiveBrowserModel {
         }
     }
 
+    /// 重命名单个文件 / 文件夹（同目录内改名）。非法名 / 重名都报错不覆盖，绝不静默盖掉已有文件。
+    /// 由 FileTable 的内联编辑提交 newName 后调用；newName 是用户键入的纯文件名（不含路径）。
+    func renameFile(_ item: FileItem, to newName: String) {
+        guard case .folder = mode else { return }
+        let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let oldName = item.url.lastPathComponent
+        // 空名或没改 → 直接当取消，不打扰用户。
+        guard !trimmed.isEmpty, trimmed != oldName else { return }
+        // 非法名：含路径分隔符，或是 . / ..（这些会让目标 URL 跳出当前目录或指向自身）。
+        guard !trimmed.contains("/"), trimmed != ".", trimmed != ".." else {
+            presentRenameAlert(message: L10n.text("file.rename.invalidName"))
+            return
+        }
+
+        let target = item.url.deletingLastPathComponent().appendingPathComponent(trimmed)
+        // 大小写不敏感文件系统上「File → file」这种纯大小写改名：目标 path 会「存在」（同一 inode），
+        // 但确实是合法改名，交给 moveItem 处理，不当成冲突。
+        let sameFileCaseOnly = target.path.caseInsensitiveCompare(item.url.path) == .orderedSame
+        if !sameFileCaseOnly, fileManager.fileExists(atPath: target.path) {
+            presentRenameAlert(message: L10n.format("file.rename.conflict.message", trimmed))
+            return
+        }
+
+        do {
+            try fileManager.moveItem(at: item.url, to: target)
+            reload()
+        } catch {
+            errorMessage = error.localizedDescription
+            status = L10n.text("status.failed")
+        }
+    }
+
+    private func presentRenameAlert(message: String) {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = L10n.text("file.rename.failed.title")
+        alert.informativeText = message
+        alert.addButton(withTitle: L10n.text("button.ok"))
+        alert.runModal()
+    }
+
     func deleteSelectedFiles() {
         guard case .folder = mode, !selectedFileItems.isEmpty else { return }
         if AppPreferences.confirmBeforeDeletingFiles {

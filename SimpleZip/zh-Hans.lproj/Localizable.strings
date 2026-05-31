@@ -857,6 +857,10 @@
 "file.selectAll" = "全选";
 "file.moveTo" = "移动到...";
 "file.delete" = "删除";
+"file.rename" = "重命名";
+"file.rename.failed.title" = "无法重命名";
+"file.rename.invalidName" = "名称不能包含「/」，也不能是「.」或「..」。";
+"file.rename.conflict.message" = "此文件夹中已存在名为「%@」的项目。";
 "file.moveToTrash" = "移到废纸篓";
 "confirm.delete.title" = "将 %d 个项目移到废纸篓？";
 "confirm.delete.message" = "选中的文件会移到 macOS 废纸篓，清空废纸篓前仍可恢复。";

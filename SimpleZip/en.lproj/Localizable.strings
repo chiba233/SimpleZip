@@ -879,6 +879,10 @@
 "file.selectAll" = "Select All";
 "file.moveTo" = "Move To...";
 "file.delete" = "Delete";
+"file.rename" = "Rename";
+"file.rename.failed.title" = "Couldn't rename";
+"file.rename.invalidName" = "A name can't contain \"/\", or be \".\" or \"..\".";
+"file.rename.conflict.message" = "An item named \"%@\" already exists in this folder.";
 "file.moveToTrash" = "Move to Trash";
 "confirm.delete.title" = "Move %d item(s) to Trash?";
 "confirm.delete.message" = "The selected files will be moved to the macOS Trash.";

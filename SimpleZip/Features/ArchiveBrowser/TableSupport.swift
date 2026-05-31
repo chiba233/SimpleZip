@@ -60,10 +60,20 @@ final class ContentDragOutlineView: NSOutlineView {
     var primaryColumnIdentifier: String?
     /// 最近一次 mouseDown 是否落在可拖动内容上。`pasteboardWriterForItem` 读它。
     private(set) var dragAllowedFromMouseDown = false
+    /// 按 Return / Enter 时的动作（文件浏览用来触发内联重命名）。返回 true 表示已消费、不再走默认。
+    var returnKeyAction: (() -> Bool)?
 
     override func mouseDown(with event: NSEvent) {
         dragAllowedFromMouseDown = pointHitsDraggableContent(event)
         super.mouseDown(with: event)
+    }
+
+    override func keyDown(with event: NSEvent) {
+        // 36 = Return，76 = 小键盘 Enter。编辑中时 Return 会被字段编辑器吃掉提交，不会走到这里。
+        if event.keyCode == 36 || event.keyCode == 76, let returnKeyAction, returnKeyAction() {
+            return
+        }
+        super.keyDown(with: event)
     }
 
     private func pointHitsDraggableContent(_ event: NSEvent) -> Bool {

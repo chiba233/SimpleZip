@@ -125,6 +125,10 @@ private struct FileNSOutlineView: NSViewRepresentable {
             outlineView.setDraggingSourceOperationMask(.move, forLocal: true)
             // 拖动只在 name 列图标/文字上起手，行内空白处恢复橡皮筋复选。
             (outlineView as? ContentDragOutlineView)?.primaryColumnIdentifier = FileColumn.name.identifier
+            // 选中单个文件按 Return 进入内联重命名。
+            (outlineView as? ContentDragOutlineView)?.returnKeyAction = { [weak coordinator = context.coordinator] in
+                coordinator?.beginRenameSelected() ?? false
+            }
             outlineView.headerView?.menu = context.coordinator.headerMenu()
             context.coordinator.outlineView = outlineView
         }
@@ -164,11 +168,13 @@ private struct FileNSOutlineView: NSViewRepresentable {
     }
 
     @MainActor
-    final class Coordinator: NSObject, NSOutlineViewDataSource, NSOutlineViewDelegate, NSMenuDelegate {
+    final class Coordinator: NSObject, NSOutlineViewDataSource, NSOutlineViewDelegate, NSMenuDelegate, NSTextFieldDelegate {
         var model: ArchiveBrowserModel
         weak var outlineView: NSOutlineView?
         private var isApplyingSelection = false
         private var isSyncingExpansion = false
+        // 正在内联重命名的文件；controlTextDidEndEditing 据此知道改的是哪个 item。
+        private var renamingItem: FileItem?
 
         // 顶层节点：可能是文件叶子（不分类时）和/或区块（分类组 / 隐藏组）。
         // sectionNodesByKey 按 key 复用区块实例，保证展开状态跨 reloadData 不丢。
@@ -587,6 +593,9 @@ private struct FileNSOutlineView: NSViewRepresentable {
                !ArchiveService.isSupportedArchive(item.url) {
                 menu.addItem(menuItem(L10n.text("file.openAsArchive"), systemImage: "doc.zipper", action: #selector(openSelectedAsArchive)))
             }
+            if model.selectedFileItems.count == 1 {
+                menu.addItem(menuItem(L10n.text("file.rename"), systemImage: "pencil", action: #selector(renameSelected)))
+            }
             menu.addItem(menuItem(L10n.text("button.addToArchive"), systemImage: "plus.square.on.square", action: #selector(addSelectedToArchive)))
             // 创建签名清单 —— 仅 GPG 启用 + 后端可用时出现。
             if AppPreferences.gpgEnabled && GPGBackend.isAvailable() {
@@ -694,6 +703,71 @@ private struct FileNSOutlineView: NSViewRepresentable {
 
         @objc private func deleteSelected() {
             model.deleteSelectedFiles()
+        }
+
+        // MARK: - 内联重命名
+
+        @objc private func renameSelected() {
+            _ = beginRenameSelected()
+        }
+
+        /// 给 Return 键 / 右键菜单共用：选中恰好一个文件时进入内联编辑。返回是否已处理。
+        @discardableResult
+        func beginRenameSelected() -> Bool {
+            guard case .folder = model.mode,
+                  model.selectedFileItems.count == 1,
+                  let item = model.selectedFileItems.first else { return false }
+            return beginRename(item)
+        }
+
+        @discardableResult
+        private func beginRename(_ item: FileItem) -> Bool {
+            guard let outlineView,
+                  let nameColIndex = outlineView.tableColumns.firstIndex(where: { $0.identifier.rawValue == FileColumn.name.identifier }),
+                  let node = allFileNodes().first(where: { $0.fileItem?.id == item.id }) else { return false }
+            let row = outlineView.row(forItem: node)
+            guard row >= 0 else { return false }
+            outlineView.scrollRowToVisible(row)
+            guard let cell = outlineView.view(atColumn: nameColIndex, row: row, makeIfNecessary: true) as? NSTableCellView,
+                  let textField = cell.textField else { return false }
+
+            renamingItem = item
+            // 编辑真实磁盘名（不是 displayName），让用户改的就是最终文件名。
+            let fullName = item.url.lastPathComponent
+            textField.isEditable = true
+            textField.isSelectable = true
+            textField.isBordered = true
+            textField.bezelStyle = .squareBezel
+            textField.drawsBackground = true
+            textField.delegate = self
+            textField.stringValue = fullName
+            outlineView.window?.makeFirstResponder(textField)
+            // 像 Finder：文件默认选中不含扩展名的主名；目录全选。
+            if let editor = textField.currentEditor() {
+                let stem = item.isDirectory ? fullName : (fullName as NSString).deletingPathExtension
+                let length = stem.isEmpty ? (fullName as NSString).length : (stem as NSString).length
+                editor.selectedRange = NSRange(location: 0, length: length)
+            }
+            return true
+        }
+
+        func controlTextDidEndEditing(_ obj: Notification) {
+            guard let textField = obj.object as? NSTextField, let item = renamingItem else { return }
+            renamingItem = nil
+            let newName = textField.stringValue
+
+            // 还原成 label 外观；显示回原名，成功 rename 时下面 reload 会换成新名。
+            textField.isEditable = false
+            textField.isSelectable = false
+            textField.isBordered = false
+            textField.drawsBackground = false
+            textField.delegate = nil
+            textField.stringValue = item.displayName
+
+            // Escape 取消（cancel 移动）→ 不改名。
+            let movement = (obj.userInfo?["NSTextMovement"] as? Int) ?? NSTextMovement.other.rawValue
+            guard movement != NSTextMovement.cancel.rawValue else { return }
+            model.renameFile(item, to: newName)
         }
 
         // MARK: - 选择同步
