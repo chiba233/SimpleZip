@@ -279,7 +279,8 @@ struct ArchiveFileCommands: Commands {
             } label: {
                 Label(L10n.text("file.delete"), systemImage: "trash")
             }
-            .keyboardShortcut(.delete, modifiers: [])
+            // Finder 标准：⌘⌫ 删除（移到废纸篓）。不绑裸 Delete —— 裸退格在浏览 / 选中状态下太容易误触。
+            .keyboardShortcut(.delete, modifiers: [.command])
             .disabled(!canManageSelectedFiles)
         }
     }
