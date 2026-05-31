@@ -46,6 +46,43 @@ func makeTableScrollView(
     return scrollView
 }
 
+/// 文件夹模式专用：NSOutlineView 版滚动视图。和 `makeTableScrollView` 同样的外观 / 行为，
+/// 区别只在底层是 NSOutlineView —— 为了把「隐藏文件」收进一个可折叠分组节点（0.2.0）。
+/// 压缩包模式仍用扁平 `makeTableScrollView`，不受影响。
+func makeOutlineScrollView(
+    delegate: NSOutlineViewDelegate & NSOutlineViewDataSource & NSMenuDelegate,
+    target: AnyObject,
+    doubleAction: Selector,
+    configure: (NSOutlineView) -> Void = { _ in }
+) -> NSScrollView {
+    let outlineView = NSOutlineView()
+    outlineView.usesAlternatingRowBackgroundColors = false
+    outlineView.allowsMultipleSelection = true
+    outlineView.allowsEmptySelection = true
+    outlineView.allowsColumnReordering = true
+    outlineView.rowHeight = 28
+    outlineView.indentationPerLevel = 14
+    // 隐藏分组的 disclosure 三角跟着 name 列走（outlineTableColumn 在 configureTableColumns 之后设）。
+    outlineView.headerView = NSTableHeaderView()
+    outlineView.delegate = delegate
+    outlineView.dataSource = delegate
+    outlineView.doubleAction = doubleAction
+    outlineView.target = target
+    configure(outlineView)
+
+    let menu = NSMenu()
+    menu.delegate = delegate
+    outlineView.menu = menu
+
+    let scrollView = NSScrollView()
+    scrollView.hasVerticalScroller = true
+    scrollView.hasHorizontalScroller = true
+    scrollView.autohidesScrollers = true
+    scrollView.documentView = outlineView
+    scrollView.borderType = .noBorder
+    return scrollView
+}
+
 func configureTableColumns<Column: TableColumnDescriptor>(_ columns: [Column], for tableView: NSTableView) {
     let columnIDs = columns.map(\.identifier)
     if tableView.tableColumns.map(\.identifier.rawValue) == columnIDs {

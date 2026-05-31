@@ -169,6 +169,7 @@ final class FileBrowserService {
         let resourceKeys: Set<URLResourceKey> = [
             .isDirectoryKey,
             .isSymbolicLinkKey,
+            .isHiddenKey,
             .fileSizeKey,
             .contentModificationDateKey,
             .creationDateKey,
@@ -210,6 +211,7 @@ final class FileBrowserService {
                 displayName: displayName,
                 isDirectory: isDirectory,
                 isSymbolicLink: isSymbolicLink,
+                isHidden: values.isHidden == true,
                 size: isDirectory ? nil : Int64(values.fileSize ?? 0),
                 modified: values.contentModificationDate,
                 created: values.creationDate,

@@ -257,6 +257,10 @@ enum AppPreferences {
         nonisolated static let hiddenSuffixesEnabled = "hiddenSuffixesEnabled"
         nonisolated static let hiddenRecommendedSuffixes = "hiddenRecommendedSuffixes"
         nonisolated static let hiddenCustomSuffixes = "hiddenCustomSuffixes"
+        // 0.2.0 隐藏文件折叠分组：折叠记忆策略（可导出的偏好）+ 两类展开状态（本机 UI 状态，不导出）。
+        nonisolated static let hiddenGroupCollapseMode = "hiddenGroupCollapseMode"
+        nonisolated static let hiddenGroupPerFolderExpanded = "hiddenGroupPerFolderExpanded"
+        nonisolated static let hiddenGroupGlobalExpanded = "hiddenGroupGlobalExpanded"
         nonisolated static let rememberLastFolder = "rememberLastFolder"
         nonisolated static let lastFolderPath = "lastFolderPath"
         nonisolated static let showFileSizeColumn = "showFileSizeColumn"
@@ -381,6 +385,26 @@ enum AppPreferences {
     nonisolated static var hiddenDisplaySuffixes: [String] {
         guard hiddenSuffixesEnabled else { return [] }
         return normalizedHiddenSuffixes(hiddenRecommendedSuffixes + hiddenCustomSuffixes)
+    }
+
+    // MARK: - 隐藏文件折叠分组（0.2.0）
+
+    /// 隐藏分组折叠记忆策略。默认 `.alwaysCollapsed`（每次进文件夹都折叠）。
+    nonisolated static var hiddenGroupCollapseMode: FileBrowserOutline.CollapseMode {
+        get { FileBrowserOutline.CollapseMode.parse(defaults.string(forKey: Key.hiddenGroupCollapseMode)) }
+        set { defaults.set(newValue.rawValue, forKey: Key.hiddenGroupCollapseMode) }
+    }
+
+    /// `.rememberPerFolder` 模式下已展开过隐藏分组的文件夹路径集合（本机 UI 状态，不导出）。
+    nonisolated static var hiddenGroupExpandedFolders: Set<String> {
+        get { Set(defaults.stringArray(forKey: Key.hiddenGroupPerFolderExpanded) ?? []) }
+        set { defaults.set(Array(newValue), forKey: Key.hiddenGroupPerFolderExpanded) }
+    }
+
+    /// `.globalSticky` 模式下的全局展开开关（本机 UI 状态，不导出）。
+    nonisolated static var hiddenGroupGlobalExpanded: Bool {
+        get { defaults.bool(forKey: Key.hiddenGroupGlobalExpanded) }
+        set { defaults.set(newValue, forKey: Key.hiddenGroupGlobalExpanded) }
     }
 
     nonisolated static var rememberLastFolder: Bool {
@@ -693,6 +717,8 @@ enum AppPreferences {
         Key.hiddenSuffixesEnabled,
         Key.hiddenRecommendedSuffixes,
         Key.hiddenCustomSuffixes,
+        // 折叠记忆策略可导出；per-folder / global 展开状态是本机 UI 状态（含真实路径），不导出。
+        Key.hiddenGroupCollapseMode,
         Key.showFileSizeColumn,
         Key.showFileTypeColumn,
         Key.showFileApplicationColumn,

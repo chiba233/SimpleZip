@@ -13,6 +13,7 @@ import SwiftUI
 /// `browserPreferencesChanged` 通知 —— 由 ContentView 接收并刷新文件列表。
 struct BrowserPane: View {
     @AppStorage(AppPreferences.Key.showHiddenFiles) private var showHiddenFiles = false
+    @AppStorage(AppPreferences.Key.hiddenGroupCollapseMode) private var hiddenGroupCollapseModeRaw = FileBrowserOutline.CollapseMode.alwaysCollapsed.rawValue
     @AppStorage(AppPreferences.Key.showSymbolicLinks) private var showSymbolicLinks = true
     @AppStorage(AppPreferences.Key.followFinderStructure) private var followFinderStructure = false
     @AppStorage(AppPreferences.Key.hiddenSuffixesEnabled) private var hiddenSuffixesEnabled = true
@@ -32,6 +33,23 @@ struct BrowserPane: View {
                     description: L10n.text("settings.showHiddenFiles.description"),
                     isOn: $showHiddenFiles
                 )
+                // 隐藏文件折叠记忆策略 —— 只在显示隐藏文件时才有意义，所以关掉时整行变灰但仍可见，
+                // 让用户知道这个选项存在。改了之后从下一次进文件夹起生效。
+                SettingsControlRow(
+                    title: L10n.text("settings.hiddenGroupCollapse"),
+                    description: L10n.text("settings.hiddenGroupCollapse.description")
+                ) {
+                    Picker("", selection: $hiddenGroupCollapseModeRaw) {
+                        ForEach(FileBrowserOutline.CollapseMode.allCases, id: \.self) { mode in
+                            Text(mode.title).tag(mode.rawValue)
+                        }
+                    }
+                    .labelsHidden()
+                    .fixedSize()
+                    .frame(minWidth: 200, alignment: .trailing)
+                }
+                .disabled(!showHiddenFiles)
+
                 SettingsToggleRow(
                     title: L10n.text("settings.showSymbolicLinks"),
                     description: L10n.text("settings.showSymbolicLinks.description"),

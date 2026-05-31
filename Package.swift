@@ -49,6 +49,7 @@ let package = Package(
                 "Core/Backends/NativeZipBackend.swift",
                 "Core/Backends/RarBackend.swift",
                 "Core/Backends/SevenZipBackend.swift",
+                "Core/FileBrowserOutline.swift",
                 "Core/FinderFavoritesReader.swift",
                 "Core/L10n.swift",
                 "Core/OperationDiagnosticsReporter.swift",

@@ -491,6 +491,7 @@
 "button.benchmark" = "跑分";
 "button.open" = "打开";
 "file.showPackageContents" = "显示包内容";
+"file.hiddenGroup" = "隐藏文件 (%d)";
 "button.reveal" = "显示";
 "button.addToArchive" = "添加到压缩包";
 "button.extractHere" = "解压到此处";
@@ -535,6 +536,11 @@
 "settings.startupLocation.description" = "选择 SimpleZip 启动后文件浏览器默认打开的位置。";
 "settings.overwriteBehavior.description" = "解压、复制或移动时遇到同名文件，默认使用这个处理策略。";
 "settings.showHiddenFiles.description" = "在文件浏览器里显示点开头文件和 Finder 隐藏项目。";
+"settings.hiddenGroupCollapse" = "隐藏文件分组";
+"settings.hiddenGroupCollapse.description" = "显示隐藏文件时，它们会收进一个可折叠的「隐藏文件」分组。选择这个分组是一直折叠，还是记住展开状态。";
+"settings.hiddenGroupCollapse.alwaysCollapsed" = "每次都折叠";
+"settings.hiddenGroupCollapse.rememberPerFolder" = "记住每个文件夹";
+"settings.hiddenGroupCollapse.globalSticky" = "全局记忆";
 "settings.rememberLastFolder.description" = "下次打开时回到上次使用的文件夹，而不是总是回到启动位置。";
 "settings.confirmBeforeDeletingFiles.description" = "开启后，选中文件移到 macOS 废纸篓前会先弹出确认提示。";
 "settings.finderOpenAutoExtract" = "从 Finder 打开时自动解压";

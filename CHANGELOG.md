@@ -2,6 +2,12 @@
 
 # Changelog
 
+## 0.2.0
+
+- **Hidden files now live in a collapsible group instead of cluttering the list.** When "show hidden files" is enabled, OS-hidden items (dotfiles and Finder-hidden files/folders) are tucked into a default-collapsed "Hidden Files (N)" group at the end of the folder; click to expand. A folder stays readable while hidden items remain one click away. (When the toggle is off, nothing changes — hidden files simply aren't listed.)
+  - The file browser table was rebuilt on `NSOutlineView` to host the collapsible group, keeping the same native drag, multi-select, columns, sorting, and context menus. This also lays the groundwork for the upcoming Group By / Sort By view modes.
+  - New Settings → Browser option **"Hidden files group"**: choose whether the group is always collapsed (default), remembers its state per folder, or remembers it globally. The setting applies from the next folder you open.
+
 ## 0.1.11
 
 - **Bug fix: a public GitHub release could be created before Sparkle signing succeeded.** The release workflow ran `gh release create` (uploading the DMG) *before* the `sign_update` and appcast-generation steps. If the Sparkle key was missing/invalid or `sign_update` couldn't be found, the job failed *after* a public, unsigned release already existed — undercutting the 0.1.10 guarantee that a signing misconfiguration fails *before* shipping. Signing and appcast generation now run first; the public release is only created once a signature has been produced.
