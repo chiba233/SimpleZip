@@ -135,7 +135,8 @@ enum SevenZipBackend {
         let tool = try toolPath()
         _ = try await BackendProcessRunner.runAndCapture(
             tool,
-            arguments: ["t", archive.path],
+            // -mmt=on：完整性测试按核心数并行校验各文件 CRC，大归档更快。
+            arguments: ["t", archive.path, "-mmt=on"],
             outputObserver: outputObserver,
             operationID: operationID
         )
@@ -255,10 +256,12 @@ enum SevenZipBackend {
     ) async throws {
         let tool = try toolPath()
         // -bb1 -bsp1 = 让 7zz 把进度往 stdout 喷得能被 ProgressOutputParser 解；-y = 不交互。
+        // -mmt：xz / bzip2 这类块/流可并行的格式默认偏单线程，显式开多线程才能跑满 CPU（gzip 单 deflate 流无效但无害）。
         let arguments = [
             "a",
             "-t\(formatFlag)",
             "-mx=\(options.compressionLevel.rawValue)",
+            ArchiveService.sevenZipMultithreadArgument(threadCount: options.sevenZipThreadCount),
             destination.path,
             source.lastPathComponent,
             "-bb1",

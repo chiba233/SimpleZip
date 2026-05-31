@@ -35,6 +35,12 @@ struct ArchiveServiceArgumentsTests {
     // MARK: - 7-Zip 解压参数
 
     @Test
+    func sevenZipMultithreadArgumentUsesCountOrAuto() {
+        #expect(ArchiveService.sevenZipMultithreadArgument(threadCount: 0) == "-mmt=on")
+        #expect(ArchiveService.sevenZipMultithreadArgument(threadCount: 8) == "-mmt=8")
+    }
+
+    @Test
     func sevenZipExtractArgumentsIncludeEntriesAndDestination() {
         let arguments = ArchiveService.sevenZipExtractArguments(
             command: "x",

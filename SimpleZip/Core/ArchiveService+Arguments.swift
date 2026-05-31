@@ -27,6 +27,12 @@ extension ArchiveService {
         }
     }
 
+    /// 7zz 多线程参数：用户指定线程数就用它，否则 `-mmt=on`（按可用核心自动并行）。
+    /// 单文件 xz / bzip2 压缩、测试等默认偏单线程的操作显式带上它才能跑满 CPU。
+    static func sevenZipMultithreadArgument(threadCount: Int) -> String {
+        threadCount > 0 ? "-mmt=\(threadCount)" : "-mmt=on"
+    }
+
     static func sevenZipExtractArguments(
         command: String,
         archive: URL,
