@@ -15,7 +15,9 @@ import Foundation
 /// @Published 字符串，会几万次刷主 actor + 触发 SwiftUI 重渲染 → 解压时 GUI 卡死。
 /// 这里：后端线程只往 lock 缓冲塞（摊还 O(1)，并自截断到尾部），主 actor 最多每 ~500ms 拉一次刷给 session
 /// —— 详情面板是给人看的日志，不需要高频刷新；500ms 已经够实时，还能让渲染几十万字符的 Text 不那么吃力。
-private final class ThrottledDetailsOutput: @unchecked Sendable {
+// nonisolated：app target 默认 MainActor，不标的话整类会被推成 MainActor，
+// 后端线程的 append/submit 就没法调了（同 FolderWatcher 的处理）。flush 单独标 @MainActor 改 @Published。
+private nonisolated final class ThrottledDetailsOutput: @unchecked Sendable {
     private let lock = NSLock()
     private var pending = ""
     private var flushScheduled = false
@@ -57,7 +59,7 @@ private final class ThrottledDetailsOutput: @unchecked Sendable {
 }
 
 /// 进度节流：后端逐文件回调进度（几万次），只保留最新值，主 actor 最多每 ~80ms 应用一次，避免状态栏被刷爆。
-private final class ProgressCoalescer: @unchecked Sendable {
+private nonisolated final class ProgressCoalescer: @unchecked Sendable {
     private let lock = NSLock()
     private var latest: ArchiveProgressState?
     private var scheduled = false
