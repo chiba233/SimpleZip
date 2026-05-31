@@ -313,6 +313,8 @@
 "view.groupBy.archiveBrowser" = "压缩包按…分类";
 "view.groupBy.none" = "不分类";
 "view.groupBy.kind" = "按种类";
+"settings.hiddenWithGrouping" = "分类时的隐藏文件";
+"settings.hiddenWithGrouping.description" = "开启分类且显示隐藏文件时，把隐藏文件融进各种类组，还是单列一个「隐藏文件」组。";
 "settings.hiddenWithGrouping.foldIntoGroups" = "融进各分类组";
 "settings.hiddenWithGrouping.separateGroup" = "单列一个隐藏组";
 "view.columns.fileBrowser" = "浏览器列";

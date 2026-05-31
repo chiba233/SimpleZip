@@ -313,6 +313,8 @@
 "view.groupBy.archiveBrowser" = "Group Archive By";
 "view.groupBy.none" = "None";
 "view.groupBy.kind" = "Kind";
+"settings.hiddenWithGrouping" = "Hidden files when grouping";
+"settings.hiddenWithGrouping.description" = "When grouping is on and hidden files are shown, fold hidden files into the kind groups, or keep them in their own \"Hidden Files\" group.";
 "settings.hiddenWithGrouping.foldIntoGroups" = "Fold into groups";
 "settings.hiddenWithGrouping.separateGroup" = "Separate group";
 "view.columns.fileBrowser" = "Browser Columns";

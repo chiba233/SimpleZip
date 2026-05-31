@@ -15,6 +15,7 @@ struct BrowserPane: View {
     @AppStorage(AppPreferences.Key.showHiddenFiles) private var showHiddenFiles = false
     @AppStorage(AppPreferences.Key.hiddenDetectionMode) private var hiddenDetectionModeRaw = FileBrowserOutline.HiddenDetectionMode.dotfilesOnly.rawValue
     @AppStorage(AppPreferences.Key.hiddenGroupCollapseMode) private var hiddenGroupCollapseModeRaw = FileBrowserOutline.CollapseMode.alwaysCollapsed.rawValue
+    @AppStorage(AppPreferences.Key.hiddenWithGrouping) private var hiddenWithGroupingRaw = BrowserGrouping.HiddenWithGrouping.foldIntoGroups.rawValue
     @AppStorage(AppPreferences.Key.showSymbolicLinks) private var showSymbolicLinks = true
     @AppStorage(AppPreferences.Key.followFinderStructure) private var followFinderStructure = false
     @AppStorage(AppPreferences.Key.hiddenSuffixesEnabled) private var hiddenSuffixesEnabled = true
@@ -58,6 +59,22 @@ struct BrowserPane: View {
                 ) {
                     Picker("", selection: $hiddenGroupCollapseModeRaw) {
                         ForEach(FileBrowserOutline.CollapseMode.allCases, id: \.self) { mode in
+                            Text(mode.title).tag(mode.rawValue)
+                        }
+                    }
+                    .labelsHidden()
+                    .fixedSize()
+                    .frame(minWidth: 200, alignment: .trailing)
+                }
+                .disabled(!showHiddenFiles)
+
+                // 开启「按种类」分类 + 显示隐藏文件时，隐藏文件融进各分类组、还是单列一个隐藏组。
+                SettingsControlRow(
+                    title: L10n.text("settings.hiddenWithGrouping"),
+                    description: L10n.text("settings.hiddenWithGrouping.description")
+                ) {
+                    Picker("", selection: $hiddenWithGroupingRaw) {
+                        ForEach(BrowserGrouping.HiddenWithGrouping.allCases, id: \.self) { mode in
                             Text(mode.title).tag(mode.rawValue)
                         }
                     }
