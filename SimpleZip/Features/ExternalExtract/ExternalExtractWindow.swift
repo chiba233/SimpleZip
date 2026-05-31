@@ -78,9 +78,17 @@ final class ExternalExtractWindowController {
 
         // 用 weak self 让 closure 不阻止 controller 被释放（理论上 shared 永生，但留好）。
         Task { [weak self] in
-            await session.run { [weak self] in
-                self?.close()
-            }
+            await session.run(
+                onClose: { [weak self] in self?.close() },
+                onFailure: { [weak self] in
+                    // 解压失败（如压缩包破损）：浮窗本来就 makeKeyAndOrderFront 了，但 app 在后台时它可能被
+                    // 压在 Finder 后面、用户看不到。失败时强制激活 app + 把浮窗带到最前，确保「压缩包故障」可见。
+                    // 成功不这么做 —— 静默解压 + reveal 才是「双击 = 后台解压」的预期。
+                    guard let self, let window = self.window else { return }
+                    NSApp.activate(ignoringOtherApps: true)
+                    window.makeKeyAndOrderFront(nil)
+                }
+            )
         }
     }
 
@@ -135,7 +143,7 @@ final class ExternalExtractSession: ObservableObject {
     /// 整条流程：staging → ArchiveService.extract → mergeExtractedItems → reveal in Finder。
     /// 跟主 model 的 `performExtractArchive` 几乎一致，但不带密码 retry 循环 —— 助手 / 偏好里
     /// 把预设密码填好就够了；失败的密码不弹 prompt，让用户去主 App 走完整 flow。
-    func run(onClose: @escaping @MainActor () -> Void) async {
+    func run(onClose: @escaping @MainActor () -> Void, onFailure: @escaping @MainActor () -> Void = {}) async {
         do {
             let supportedURL = ArchiveService.supportedArchiveURL(archiveURL) ?? archiveURL
             // 目标父目录：默认 archive 所在目录；`.siz` 自动解压时内层 archive 在 /tmp，用 override 落到原 .siz 文件夹。
@@ -199,6 +207,8 @@ final class ExternalExtractSession: ObservableObject {
         } catch {
             // 失败不自动关；用户可能想看错误 + 复制路径。
             status = .failed(error.localizedDescription)
+            // 把浮窗带到最前 + 激活 app，确保后台运行时「压缩包故障」错误不被埋在 Finder 后面。
+            onFailure()
         }
     }
 }

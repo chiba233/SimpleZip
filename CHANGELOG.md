@@ -18,6 +18,7 @@
 - **The Settings window opens taller.** With so many panes now, the default height was cramped — it now opens at 720 pt (min 600) instead of 560, and stays freely resizable.
 - **Deleting files now uses ⌘⌫ (Finder's standard), not a bare Delete.** The bare Delete key is too easy to hit while browsing or with a selection; deletion now requires Command-Delete, matching Finder's "Move to Trash" shortcut.
 - **Quick Look and Get Info in the file browser, Finder-style.** Press **Space** — or **force-click a file's icon** — to Quick Look the selection; right-click now offers **Quick Look** and **Get Info** (the latter opens Finder's own Get Info window). Force-clicking a file's **name** starts an inline rename, matching Finder's icon-vs-name split. (Get Info asks for Finder automation permission the first time.)
+- **Fixed: a broken archive opened via "Auto-extract from Finder" now reliably surfaces its error.** The floating extract window already showed the failure, but if SimpleZip was in the background it could stay hidden behind Finder. On failure it now activates the app and comes to the front; successful extracts stay quiet as before.
 
 ## 0.2.0
 
