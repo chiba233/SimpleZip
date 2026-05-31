@@ -241,14 +241,14 @@ private struct FileNSOutlineView: NSViewRepresentable {
                 // GroupBy=kind：忽略 #49 折叠策略（含 inline），改由共存策略决定隐藏文件去向。
                 switch AppPreferences.hiddenWithGrouping {
                 case .foldIntoGroups:
-                    // 全部条目（含隐藏）一起按种类分组。
-                    topLevelNodes = BrowserGrouping.group(model.fileItems, by: { $0.typeDescription }).map {
-                        makeSection(key: "kind:\($0.title)", isHidden: false, title: "\($0.title) (\($0.items.count))", items: $0.items)
+                    // 全部条目（含隐藏）一起按当前维度分组。
+                    topLevelNodes = BrowserGrouping.group(model.fileItems, by: AppPreferences.fileGroupBy, now: Date()).map {
+                        makeSection(key: "g:\($0.title)", isHidden: false, title: "\($0.title) (\($0.items.count))", items: $0.items)
                     }
                 case .separateGroup:
-                    // 可见文件按种类分组 + 隐藏文件单列一个区块。
-                    var nodes = BrowserGrouping.group(split.visible, by: { $0.typeDescription }).map {
-                        makeSection(key: "kind:\($0.title)", isHidden: false, title: "\($0.title) (\($0.items.count))", items: $0.items)
+                    // 可见文件按当前维度分组 + 隐藏文件单列一个区块。
+                    var nodes = BrowserGrouping.group(split.visible, by: AppPreferences.fileGroupBy, now: Date()).map {
+                        makeSection(key: "g:\($0.title)", isHidden: false, title: "\($0.title) (\($0.items.count))", items: $0.items)
                     }
                     if !split.hidden.isEmpty { nodes.append(hiddenSection(split.hidden)) }
                     topLevelNodes = nodes

@@ -313,6 +313,17 @@
 "view.groupBy.archiveBrowser" = "压缩包按…分类";
 "view.groupBy.none" = "不分类";
 "view.groupBy.kind" = "按种类";
+"view.groupBy.dateModified" = "按修改时间";
+"view.groupBy.fileKind" = "按文件 / 文件夹";
+"group.fileKind.folders" = "文件夹";
+"group.fileKind.files" = "文件";
+"group.date.today" = "今天";
+"group.date.yesterday" = "昨天";
+"group.date.past7Days" = "过去 7 天";
+"group.date.past30Days" = "过去 30 天";
+"group.date.pastYear" = "过去一年";
+"group.date.earlier" = "更早";
+"group.date.unknown" = "日期未知";
 "settings.hiddenWithGrouping" = "分类时的隐藏文件";
 "settings.hiddenWithGrouping.description" = "开启分类且显示隐藏文件时，把隐藏文件融进各种类组，还是单列一个「隐藏文件」组。";
 "settings.hiddenWithGrouping.foldIntoGroups" = "融进各分类组";

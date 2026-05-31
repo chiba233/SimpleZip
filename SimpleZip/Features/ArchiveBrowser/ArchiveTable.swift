@@ -184,8 +184,8 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
         private func rebuildTopLevel(groupBy: BrowserGrouping.GroupBy) {
             var reused: [String: ArchiveOutlineNode] = [:]
             if groupBy.isGrouping {
-                topLevelNodes = BrowserGrouping.group(model.archiveItems, by: { $0.typeDescription }).map { section in
-                    let key = "kind:\(section.title)"
+                topLevelNodes = BrowserGrouping.group(model.archiveItems, by: groupBy, now: Date()).map { section in
+                    let key = "g:\(section.title)"
                     let node = sectionNodesByKey[key] ?? ArchiveOutlineNode.section(key: key)
                     node.title = "\(section.title) (\(section.items.count))"
                     node.children = section.items.map { ArchiveOutlineNode.item($0) }

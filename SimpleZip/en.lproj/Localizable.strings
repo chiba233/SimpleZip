@@ -313,6 +313,17 @@
 "view.groupBy.archiveBrowser" = "Group Archive By";
 "view.groupBy.none" = "None";
 "view.groupBy.kind" = "Kind";
+"view.groupBy.dateModified" = "Date Modified";
+"view.groupBy.fileKind" = "Files & Folders";
+"group.fileKind.folders" = "Folders";
+"group.fileKind.files" = "Files";
+"group.date.today" = "Today";
+"group.date.yesterday" = "Yesterday";
+"group.date.past7Days" = "Previous 7 Days";
+"group.date.past30Days" = "Previous 30 Days";
+"group.date.pastYear" = "Previous 12 Months";
+"group.date.earlier" = "Earlier";
+"group.date.unknown" = "Unknown Date";
 "settings.hiddenWithGrouping" = "Hidden files when grouping";
 "settings.hiddenWithGrouping.description" = "When grouping is on and hidden files are shown, fold hidden files into the kind groups, or keep them in their own \"Hidden Files\" group.";
 "settings.hiddenWithGrouping.foldIntoGroups" = "Fold into groups";
