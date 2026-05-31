@@ -123,6 +123,8 @@ private struct FileNSOutlineView: NSViewRepresentable {
             outlineView.registerForDraggedTypes([.fileURL])
             outlineView.setDraggingSourceOperationMask([.copy, .move], forLocal: false)
             outlineView.setDraggingSourceOperationMask(.move, forLocal: true)
+            // 拖动只在 name 列图标/文字上起手，行内空白处恢复橡皮筋复选。
+            (outlineView as? ContentDragOutlineView)?.primaryColumnIdentifier = FileColumn.name.identifier
             outlineView.headerView?.menu = context.coordinator.headerMenu()
             context.coordinator.outlineView = outlineView
         }
@@ -500,6 +502,8 @@ private struct FileNSOutlineView: NSViewRepresentable {
 
         func outlineView(_ outlineView: NSOutlineView, pasteboardWriterForItem item: Any) -> NSPasteboardWriting? {
             guard let node = item as? FileOutlineNode, let fileItem = node.fileItem else { return nil }
+            // 按下点不在图标/文件名上 → 不提供拖动项，让 AppKit 回退到橡皮筋复选。
+            if let dragView = outlineView as? ContentDragOutlineView, !dragView.dragAllowedFromMouseDown { return nil }
             if !model.selection.contains(fileItem.id) {
                 let row = outlineView.row(forItem: item)
                 if row >= 0 { applySelection(IndexSet(integer: row)) }

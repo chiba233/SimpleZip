@@ -119,6 +119,8 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
             doubleAction: #selector(Coordinator.doubleClick(_:))
         ) { outlineView in
             outlineView.setDraggingSourceOperationMask(.copy, forLocal: false)
+            // 拖动只在 name 列图标/文字上起手，行内空白处恢复橡皮筋复选。
+            (outlineView as? ContentDragOutlineView)?.primaryColumnIdentifier = ArchiveColumn.name.identifier
             outlineView.headerView?.menu = context.coordinator.headerMenu()
             context.coordinator.outlineView = outlineView
         }
@@ -318,6 +320,8 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
 
         func outlineView(_ outlineView: NSOutlineView, pasteboardWriterForItem item: Any) -> NSPasteboardWriting? {
             guard let node = item as? ArchiveOutlineNode, let archiveItem = node.archiveItem else { return nil }
+            // 按下点不在图标/文件名上 → 不提供拖动项，让 AppKit 回退到橡皮筋复选。
+            if let dragView = outlineView as? ContentDragOutlineView, !dragView.dragAllowedFromMouseDown { return nil }
             if !model.selectedArchiveRows.contains(archiveItem.id) {
                 let row = outlineView.row(forItem: item)
                 if row >= 0 { applySelection(IndexSet(integer: row)) }

@@ -19,6 +19,7 @@
 - **Clean up temporary files** (Settings → Health) — shows how much disk space SimpleZip's leftover scratch files use, with a one-click "Clean Up" button. Only entries SimpleZip created (names prefixed `SimpleZip`) are touched, and only *stale* ones — anything created during the current session (e.g. the archive you have open right now, or an in-progress `.siz`/`.szs` staging directory) is left alone, so cleanup can't pull a file out from under an active operation.
 - **Backup: optional "Include per-folder memory in export"** (Settings → Backup, off by default) — per-folder grouping overrides and hidden-group expansion state are machine-specific paths, so they're excluded from exported preferences unless you opt in. Restoring a backup always honours its choice (a backup without them clears them locally).
 
+- **Drag now starts only on the icon or filename.** Previously, pressing in the empty part of a row (past a short name, or in another column) and dragging would start a row drag — getting in the way of rubber-band multi-selection. Dragging now begins only when you press directly on a file's icon or name text; pressing the blank area rubber-band-selects as expected. Applies to both the file and archive browsers.
 - **Misc:** the "Create Signed Manifest" menu item (main menu + right-click) now uses the `signature` icon, matching the signing-key row in GPG settings.
 
 ## 0.1.11

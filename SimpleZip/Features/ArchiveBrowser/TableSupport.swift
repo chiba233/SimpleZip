@@ -49,13 +49,60 @@ func makeTableScrollView(
 /// 文件夹模式专用：NSOutlineView 版滚动视图。和 `makeTableScrollView` 同样的外观 / 行为，
 /// 区别只在底层是 NSOutlineView —— 为了把「隐藏文件」收进一个可折叠分组节点（0.2.0）。
 /// 压缩包模式仍用扁平 `makeTableScrollView`，不受影响。
+/// NSOutlineView 子类：拖动只在 name 列「图标 / 文件名文字」真正占据的像素范围内起手。
+///
+/// 默认 NSTableView 整行可拖 —— 用户想在行内空白处（短文件名右侧、其它列）按下做橡皮筋复选时，
+/// 一拖就误触发整行拖动。这里在 `mouseDown` 记下「本次按下是否落在可拖动内容上」，
+/// dataSource 的 `pasteboardWriterForItem` 据此决定是否提供拖动项；落在空白处就不提供 ——
+/// 此时 AppKit 回退到橡皮筋多选，正是用户想要的。
+final class ContentDragOutlineView: NSOutlineView {
+    /// name（主）列标识，外部建列后设置；nil 时禁止拖动（保守）。
+    var primaryColumnIdentifier: String?
+    /// 最近一次 mouseDown 是否落在可拖动内容上。`pasteboardWriterForItem` 读它。
+    private(set) var dragAllowedFromMouseDown = false
+
+    override func mouseDown(with event: NSEvent) {
+        dragAllowedFromMouseDown = pointHitsDraggableContent(event)
+        super.mouseDown(with: event)
+    }
+
+    private func pointHitsDraggableContent(_ event: NSEvent) -> Bool {
+        let point = convert(event.locationInWindow, from: nil)
+        let row = row(at: point)
+        guard row >= 0,
+              let primaryColumnIdentifier,
+              let colIndex = tableColumns.firstIndex(where: { $0.identifier.rawValue == primaryColumnIdentifier }),
+              column(at: point) == colIndex,
+              let cell = view(atColumn: colIndex, row: row, makeIfNecessary: false) as? NSTableCellView else {
+            return false
+        }
+        let pointInCell = cell.convert(point, from: self)
+        if let imageView = cell.imageView, imageView.frame.contains(pointInCell) {
+            return true
+        }
+        if let textField = cell.textField {
+            let font = textField.font ?? .systemFont(ofSize: NSFont.systemFontSize)
+            let textWidth = (textField.stringValue as NSString).size(withAttributes: [.font: font]).width
+            // 只认文字实际宽度（+少量余量），不认 textField 撑满列宽后右侧那段空白。
+            let glyphRect = NSRect(
+                x: textField.frame.minX,
+                y: textField.frame.minY,
+                width: min(textWidth + 4, textField.frame.width),
+                height: textField.frame.height
+            )
+            if glyphRect.contains(pointInCell) { return true }
+        }
+        return false
+    }
+}
+
 func makeOutlineScrollView(
     delegate: NSOutlineViewDelegate & NSOutlineViewDataSource & NSMenuDelegate,
     target: AnyObject,
     doubleAction: Selector,
     configure: (NSOutlineView) -> Void = { _ in }
 ) -> NSScrollView {
-    let outlineView = NSOutlineView()
+    let outlineView = ContentDragOutlineView()
     outlineView.usesAlternatingRowBackgroundColors = false
     outlineView.allowsMultipleSelection = true
     outlineView.allowsEmptySelection = true
