@@ -49,12 +49,14 @@ struct WelcomeAssistantView: View {
 
     @State private var currentStep: Int = 0
 
-    /// 总步数：0 = backup restore，1 = version check，2 = intro，3..14 = 实际设置步骤（含 GPG），15 = completion。
-    /// 进度条只展示「设置类」步骤（3..14 → 1/12..12/12），backup / version check / intro / completion 不计入。
+    /// 总步数：0 = backup restore，1 = version check，2 = intro，3..10 = 实际设置步骤（含 GPG），11 = completion。
+    /// 进度条只展示「设置类」步骤（3..10 → 1/8..8/8），backup / version check / intro / completion 不计入。
+    /// 0.2.1：用户反馈向导太长，把「启动位置 / 覆盖行为 / 隐藏文件 / 列表密度 / 分组」五个原各占一步的设置
+    /// 合并进单个「常规设置」步骤（`WelcomeGeneralStep`），设置步数 12 → 8。
     /// GPG 单独成步是因为它是「特殊功能 / 可选禁用」性质，跟 7-Zip / RAR 这类「必装后端」语义不同，
     /// 用户得明确做出 opt-in / opt-out 的决定 —— 塞进 backend 步骤里会让用户误以为「必须装」。
-    private let totalSteps = 16
-    private let settingStepCount = 12
+    private let totalSteps = 12
+    private let settingStepCount = 8
     private let firstSettingStepIndex = 3
 
     /// 「取消」按钮的二次确认 alert flag。
@@ -133,37 +135,31 @@ struct WelcomeAssistantView: View {
         case 3:
             WelcomeLanguageStep(appLanguage: $appLanguage)
         case 4:
-            WelcomeStartupLocationStep(startupLocation: $startupLocation)
-        case 5:
-            WelcomeOverwriteStep(overwriteBehavior: $overwriteBehavior)
-        case 6:
-            WelcomePresetPasswordStep(enabled: $presetPasswordEnabled)
-        case 7:
-            WelcomeFinderAutoExtractStep(enabled: $finderOpenAutoExtract)
-        case 8:
-            WelcomeFileAssociationsStep()
-        case 9:
-            WelcomeHiddenFilesStep(
+            WelcomeGeneralStep(
+                startupLocation: $startupLocation,
+                overwriteBehavior: $overwriteBehavior,
                 showHidden: $showHiddenFiles,
                 detectionMode: $hiddenDetectionMode,
-                collapseMode: $hiddenGroupCollapseMode
-            )
-        case 10:
-            WelcomeRowDensityStep(rowDensity: $rowDensity)
-        case 11:
-            WelcomeGroupingStep(
-                scope: $fileGroupingScope,
+                collapseMode: $hiddenGroupCollapseMode,
+                rowDensity: $rowDensity,
+                groupingScope: $fileGroupingScope,
                 fileGroupBy: $fileGroupBy
             )
-        case 12:
+        case 5:
+            WelcomePresetPasswordStep(enabled: $presetPasswordEnabled)
+        case 6:
+            WelcomeFinderAutoExtractStep(enabled: $finderOpenAutoExtract)
+        case 7:
+            WelcomeFileAssociationsStep()
+        case 8:
             WelcomeSafetyStep(
                 suspiciousPathPolicy: suspiciousPathPolicy,
                 symbolicLinkPolicy: symbolicLinkPolicy,
                 activeContentOpenPolicy: activeContentOpenPolicy
             )
-        case 13:
+        case 9:
             WelcomeBackendStep()
-        case 14:
+        case 10:
             WelcomeGPGStep()
         default:
             WelcomeCompletionStep()
@@ -361,33 +357,158 @@ private struct WelcomeLanguageStep: View {
     }
 }
 
-private struct WelcomeStartupLocationStep: View {
+/// 「常规设置」合并步骤（0.2.1）——用户反馈欢迎向导太长，把原本各占一步的
+/// 启动位置 / 覆盖行为 / 隐藏文件 / 列表密度 / 分组 五项收进同一页。
+///
+/// 每一项保留为本页内的一个小节（小标题 + 原说明文案 + 与原步骤完全一致的控件），
+/// 既缩短了步数又不丢任何设置项或解释。控件逻辑沿用原来的实现，未改变任何写入行为
+/// （仍各自绑 `@AppStorage`，改动即时落盘）。
+private struct WelcomeGeneralStep: View {
     @Binding var startupLocation: String
+    @Binding var overwriteBehavior: String
+    @Binding var showHidden: Bool
+    @Binding var detectionMode: String
+    @Binding var collapseMode: String
+    @Binding var rowDensity: String
+    @Binding var groupingScope: String
+    @Binding var fileGroupBy: String
 
     /// 当 `startupLocation == .custom` 时显示的具体路径 —— 从 UserDefaults 读，避免又开一个 @AppStorage。
     @State private var customPath: String = AppPreferences.startupCustomLocationURL?.path ?? ""
 
     var body: some View {
         WelcomeStepShell(
-            title: L10n.text("welcome.startupLocation.title"),
-            body1: L10n.text("welcome.startupLocation.body")
+            title: L10n.text("welcome.general.title"),
+            body1: L10n.text("welcome.general.body")
         ) {
-            VStack(alignment: .leading, spacing: 12) {
-                Picker("", selection: $startupLocation) {
-                    ForEach(simpleLocations, id: \.rawValue) { location in
-                        Text(location.title).tag(location.rawValue)
-                    }
-                    if !customPath.isEmpty {
-                        Text(customRowTitle).tag(StartupLocation.custom.rawValue)
+            VStack(alignment: .leading, spacing: 20) {
+                section(L10n.text("welcome.startupLocation.title"), caption: L10n.text("welcome.startupLocation.body")) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Picker("", selection: $startupLocation) {
+                            ForEach(simpleLocations, id: \.rawValue) { location in
+                                Text(location.title).tag(location.rawValue)
+                            }
+                            if !customPath.isEmpty {
+                                Text(customRowTitle).tag(StartupLocation.custom.rawValue)
+                            }
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.inline)
+
+                        Button(L10n.text("welcome.startupLocation.pickCustom")) {
+                            pickCustomLocation()
+                        }
                     }
                 }
-                .labelsHidden()
-                .pickerStyle(.inline)
 
-                Button(L10n.text("welcome.startupLocation.pickCustom")) {
-                    pickCustomLocation()
+                Divider()
+
+                section(L10n.text("welcome.overwrite.title"), caption: L10n.text("welcome.overwrite.body")) {
+                    Picker("", selection: $overwriteBehavior) {
+                        ForEach(OverwriteBehavior.allCases) { behavior in
+                            Text(behavior.title).tag(behavior.rawValue)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.inline)
+                }
+
+                Divider()
+
+                section(L10n.text("welcome.hiddenFiles.title"), caption: L10n.text("welcome.hiddenFiles.body")) {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Toggle(L10n.text("settings.showHiddenFiles"), isOn: $showHidden)
+                            .toggleStyle(.switch)
+
+                        if showHidden {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(L10n.text("settings.hiddenDetection"))
+                                    .font(.subheadline.weight(.medium))
+                                Picker("", selection: $detectionMode) {
+                                    ForEach(FileBrowserOutline.HiddenDetectionMode.allCases, id: \.self) { mode in
+                                        Text(mode.title).tag(mode.rawValue)
+                                    }
+                                }
+                                .labelsHidden()
+                                .pickerStyle(.inline)
+                            }
+
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(L10n.text("settings.hiddenGroupCollapse"))
+                                    .font(.subheadline.weight(.medium))
+                                Picker("", selection: $collapseMode) {
+                                    ForEach(FileBrowserOutline.CollapseMode.allCases, id: \.self) { mode in
+                                        Text(mode.title).tag(mode.rawValue)
+                                    }
+                                }
+                                .labelsHidden()
+                                .pickerStyle(.inline)
+                            }
+                        }
+                    }
+                }
+
+                Divider()
+
+                section(L10n.text("welcome.rowDensity.title"), caption: L10n.text("welcome.rowDensity.body")) {
+                    Picker("", selection: $rowDensity) {
+                        ForEach(FileBrowserOutline.RowDensity.allCases, id: \.self) { density in
+                            Text(density.title).tag(density.rawValue)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.inline)
+                }
+
+                Divider()
+
+                section(L10n.text("welcome.grouping.title"), caption: L10n.text("welcome.grouping.body")) {
+                    VStack(alignment: .leading, spacing: 14) {
+                        labeledPicker(L10n.text("settings.grouping.scope"), selection: $groupingScope) {
+                            ForEach(BrowserGrouping.GroupingScope.allCases, id: \.self) { value in
+                                Text(value.title).tag(value.rawValue)
+                            }
+                        }
+                        labeledPicker(L10n.text("settings.grouping.fileDefault"), selection: $fileGroupBy) {
+                            ForEach(BrowserGrouping.GroupBy.allCases, id: \.self) { value in
+                                Text(value.title).tag(value.rawValue)
+                            }
+                        }
+                    }
                 }
             }
+        }
+    }
+
+    /// 小节外壳：小标题 + 说明 + 控件。各小节之间用 `Divider()` 分隔，视觉上仍是清晰的独立设置。
+    @ViewBuilder
+    private func section<Content: View>(
+        _ title: String,
+        caption: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).font(.headline)
+                Text(caption)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            content()
+        }
+    }
+
+    private func labeledPicker<Content: View>(
+        _ label: String,
+        selection: Binding<String>,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label).font(.subheadline.weight(.medium))
+            Picker("", selection: selection, content: content)
+                .labelsHidden()
+                .fixedSize()
         }
     }
 
@@ -416,25 +537,6 @@ private struct WelcomeStartupLocationStep: View {
             AppPreferences.setStartupCustomLocation(url)
             customPath = url.path
             startupLocation = StartupLocation.custom.rawValue
-        }
-    }
-}
-
-private struct WelcomeOverwriteStep: View {
-    @Binding var overwriteBehavior: String
-
-    var body: some View {
-        WelcomeStepShell(
-            title: L10n.text("welcome.overwrite.title"),
-            body1: L10n.text("welcome.overwrite.body")
-        ) {
-            Picker("", selection: $overwriteBehavior) {
-                ForEach(OverwriteBehavior.allCases) { behavior in
-                    Text(behavior.title).tag(behavior.rawValue)
-                }
-            }
-            .labelsHidden()
-            .pickerStyle(.inline)
         }
     }
 }
@@ -618,112 +720,6 @@ private struct WelcomeFileAssociationsStep: View {
         associationStatus = Dictionary(uniqueKeysWithValues: ArchiveAssociationService.supportedAssociations.map { association in
             (association.id, ArchiveAssociationService.currentDefaultAppName(for: association))
         })
-    }
-}
-
-/// 隐藏文件步骤：显示隐藏文件开关 + （开启后）什么算隐藏 + 隐藏组折叠策略。
-private struct WelcomeHiddenFilesStep: View {
-    @Binding var showHidden: Bool
-    @Binding var detectionMode: String
-    @Binding var collapseMode: String
-
-    var body: some View {
-        WelcomeStepShell(
-            title: L10n.text("welcome.hiddenFiles.title"),
-            body1: L10n.text("welcome.hiddenFiles.body")
-        ) {
-            VStack(alignment: .leading, spacing: 14) {
-                Toggle(L10n.text("settings.showHiddenFiles"), isOn: $showHidden)
-                    .toggleStyle(.switch)
-
-                if showHidden {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(L10n.text("settings.hiddenDetection"))
-                            .font(.subheadline.weight(.medium))
-                        Picker("", selection: $detectionMode) {
-                            ForEach(FileBrowserOutline.HiddenDetectionMode.allCases, id: \.self) { mode in
-                                Text(mode.title).tag(mode.rawValue)
-                            }
-                        }
-                        .labelsHidden()
-                        .pickerStyle(.inline)
-                    }
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(L10n.text("settings.hiddenGroupCollapse"))
-                            .font(.subheadline.weight(.medium))
-                        Picker("", selection: $collapseMode) {
-                            ForEach(FileBrowserOutline.CollapseMode.allCases, id: \.self) { mode in
-                                Text(mode.title).tag(mode.rawValue)
-                            }
-                        }
-                        .labelsHidden()
-                        .pickerStyle(.inline)
-                    }
-                }
-            }
-        }
-    }
-}
-
-/// 列表大小（行密度）步骤。
-private struct WelcomeRowDensityStep: View {
-    @Binding var rowDensity: String
-
-    var body: some View {
-        WelcomeStepShell(
-            title: L10n.text("welcome.rowDensity.title"),
-            body1: L10n.text("welcome.rowDensity.body")
-        ) {
-            Picker("", selection: $rowDensity) {
-                ForEach(FileBrowserOutline.RowDensity.allCases, id: \.self) { density in
-                    Text(density.title).tag(density.rawValue)
-                }
-            }
-            .labelsHidden()
-            .pickerStyle(.inline)
-        }
-    }
-}
-
-/// 分组默认步骤：分组范围（全局 / 按文件夹）+ 文件浏览默认分组。
-/// 不含「压缩包浏览默认分组」—— 那是给打开压缩包后内部浏览用的，首启向导里用户还没打开任何压缩包，
-/// 放这里只会让人困惑（用户反馈「分组方式这个选项在欢迎助手里毫无价值」）。需要时在 设置 → 视图 里有。
-private struct WelcomeGroupingStep: View {
-    @Binding var scope: String
-    @Binding var fileGroupBy: String
-
-    var body: some View {
-        WelcomeStepShell(
-            title: L10n.text("welcome.grouping.title"),
-            body1: L10n.text("welcome.grouping.body")
-        ) {
-            VStack(alignment: .leading, spacing: 14) {
-                labeledPicker(L10n.text("settings.grouping.scope"), selection: $scope) {
-                    ForEach(BrowserGrouping.GroupingScope.allCases, id: \.self) { value in
-                        Text(value.title).tag(value.rawValue)
-                    }
-                }
-                labeledPicker(L10n.text("settings.grouping.fileDefault"), selection: $fileGroupBy) {
-                    ForEach(BrowserGrouping.GroupBy.allCases, id: \.self) { value in
-                        Text(value.title).tag(value.rawValue)
-                    }
-                }
-            }
-        }
-    }
-
-    private func labeledPicker<Content: View>(
-        _ label: String,
-        selection: Binding<String>,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(label).font(.subheadline.weight(.medium))
-            Picker("", selection: selection, content: content)
-                .labelsHidden()
-                .fixedSize()
-        }
     }
 }
 
