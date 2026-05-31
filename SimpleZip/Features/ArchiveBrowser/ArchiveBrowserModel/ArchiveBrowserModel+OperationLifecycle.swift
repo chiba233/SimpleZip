@@ -13,7 +13,8 @@ import Foundation
 ///
 /// 后端在后台线程逐块吐输出（大归档每文件一行，几万行）。如果每块都 `Task { @MainActor }` 去改
 /// @Published 字符串，会几万次刷主 actor + 触发 SwiftUI 重渲染 → 解压时 GUI 卡死。
-/// 这里：后端线程只往 lock 缓冲塞（摊还 O(1)，并自截断到尾部），主 actor 最多每 ~150ms 拉一次刷给 session。
+/// 这里：后端线程只往 lock 缓冲塞（摊还 O(1)，并自截断到尾部），主 actor 最多每 ~500ms 拉一次刷给 session
+/// —— 详情面板是给人看的日志，不需要高频刷新；500ms 已经够实时，还能让渲染几十万字符的 Text 不那么吃力。
 private final class ThrottledDetailsOutput: @unchecked Sendable {
     private let lock = NSLock()
     private var pending = ""
@@ -38,7 +39,7 @@ private final class ThrottledDetailsOutput: @unchecked Sendable {
 
         guard shouldSchedule else { return }
         Task { @MainActor [weak self] in
-            try? await Task.sleep(nanoseconds: 150_000_000)
+            try? await Task.sleep(nanoseconds: 500_000_000) // 详情日志 500ms 刷一次足够
             self?.flush()
         }
     }

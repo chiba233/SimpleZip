@@ -54,6 +54,8 @@ struct ArchiveServiceArgumentsTests {
         #expect(arguments.contains("-bb1"))
         #expect(arguments.contains("-bsp1"))
         #expect(arguments.contains("-y"))
+        // 多线程解压：让 7zz 按核心数并行（ZIP 等每文件独立的格式跑满 CPU）。
+        #expect(arguments.contains("-mmt=on"))
     }
 
     @Test

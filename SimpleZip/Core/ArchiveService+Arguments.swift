@@ -37,7 +37,9 @@ extension ArchiveService {
     ) -> [String] {
         var arguments = [command, archive.path]
         arguments.append(contentsOf: entries)
-        arguments.append(contentsOf: ["-o\(destination.path)", sevenZipOverwriteArgument(for: overwriteBehavior), "-bb1", "-bsp1", "-y"])
+        // `-mmt=on`：让 7zz 按可用核心数多线程解压（ZIP 等「每文件独立」的格式能并行多个文件）。
+        // 默认解压偏单线程、大量文件时跑不满 CPU；对不支持并行的格式 7zz 自行忽略，无副作用。
+        arguments.append(contentsOf: ["-o\(destination.path)", sevenZipOverwriteArgument(for: overwriteBehavior), "-mmt=on", "-bb1", "-bsp1", "-y"])
         return arguments
     }
 
