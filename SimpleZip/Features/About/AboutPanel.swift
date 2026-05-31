@@ -19,6 +19,7 @@ import Foundation
 enum AboutPanel {
     static let projectPage = URL(string: "https://github.com/chiba233/SimpleZip")!
     static let licensePage = URL(string: "https://github.com/chiba233/SimpleZip/blob/main/LICENSE")!
+    static let newIssuePage = URL(string: "https://github.com/chiba233/SimpleZip/issues/new")!
 
     static func show() {
         let credits = makeCredits()
@@ -40,6 +41,11 @@ enum AboutPanel {
 
     static func openLicensePage() {
         NSWorkspace.shared.open(licensePage)
+    }
+
+    /// 帮助菜单「提交 Bug」—— 打开 GitHub 新建 issue 页面。
+    static func openNewIssuePage() {
+        NSWorkspace.shared.open(newIssuePage)
     }
 
     /// 描述 + 作者，两行；够短就不会触发系统 About 面板的 credits 滚动条。

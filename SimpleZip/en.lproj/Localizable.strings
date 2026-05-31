@@ -522,6 +522,7 @@
 "about.author" = "By Hoshino Yumeka";
 "about.copyright" = "© Hoshino Yumeka. Released under the MIT License.";
 "menu.projectPage" = "SimpleZip Project Page";
+"menu.reportBug" = "Report a Bug…";
 "menu.license" = "MIT License";
 "settings.title" = "Settings";
 "settings.section.defaults" = "Defaults";
@@ -545,6 +546,8 @@
 "settings.hiddenGroupCollapse.globalSticky" = "Remember globally";
 "settings.hiddenGroupCollapse.inline" = "Show inline (no group)";
 "settings.rememberLastFolder.description" = "Reopen the last folder you used instead of always starting from the startup location.";
+"settings.checkForUpdatesOnLaunch" = "Check for updates on launch";
+"settings.checkForUpdatesOnLaunch.description" = "Quietly check for a new version each time SimpleZip starts, and only prompt when an update is available.";
 "settings.confirmBeforeDeletingFiles.description" = "Show a confirmation prompt before selected files are moved to the macOS Trash.";
 "settings.finderOpenAutoExtract" = "Auto-extract when opened from Finder";
 "settings.finderOpenAutoExtract.description" = "When you open an archive from Finder, Services, or another app, extract it to the archive's folder instead of opening the SimpleZip browser. Safety prompts still apply.";

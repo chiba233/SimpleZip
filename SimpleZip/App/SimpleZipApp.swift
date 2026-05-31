@@ -65,6 +65,9 @@ struct SimpleZipApp: App {
                 Button(L10n.text("menu.projectPage")) {
                     AboutPanel.openProjectPage()
                 }
+                Button(L10n.text("menu.reportBug")) {
+                    AboutPanel.openNewIssuePage()
+                }
                 Button(L10n.text("menu.license")) {
                     AboutPanel.openLicensePage()
                 }

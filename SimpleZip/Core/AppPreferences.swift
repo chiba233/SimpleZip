@@ -263,6 +263,7 @@ enum AppPreferences {
         nonisolated static let hiddenGroupGlobalExpanded = "hiddenGroupGlobalExpanded"
         nonisolated static let rememberLastFolder = "rememberLastFolder"
         nonisolated static let lastFolderPath = "lastFolderPath"
+        nonisolated static let checkForUpdatesOnLaunch = "checkForUpdatesOnLaunch"
         nonisolated static let showFileSizeColumn = "showFileSizeColumn"
         nonisolated static let showFileTypeColumn = "showFileTypeColumn"
         nonisolated static let showFileApplicationColumn = "showFileApplicationColumn"
@@ -412,6 +413,12 @@ enum AppPreferences {
             return true
         }
         return defaults.bool(forKey: Key.rememberLastFolder)
+    }
+
+    /// 每次启动时静默检查更新（仅在发现新版时弹 Sparkle 提示）。默认关 —— opt-in，不改变现有行为。
+    /// 注意这跟 Sparkle 自带的周期后台检查是叠加关系，不是替代。
+    nonisolated static var checkForUpdatesOnLaunch: Bool {
+        defaults.bool(forKey: Key.checkForUpdatesOnLaunch)
     }
 
     nonisolated static var showFileSizeColumn: Bool {
@@ -695,6 +702,7 @@ enum AppPreferences {
         Key.startupCustomLocationPath,
         Key.startupCustomLocationHistory,
         Key.rememberLastFolder,
+        Key.checkForUpdatesOnLaunch,
         Key.overwriteBehavior,
         Key.confirmBeforeDeletingFiles,
         Key.finderOpenAutoExtract,

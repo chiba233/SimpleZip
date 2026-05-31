@@ -50,4 +50,12 @@ final class SparkleUpdater {
     func checkForUpdates() {
         controller.checkForUpdates(nil)
     }
+
+    /// 启动时调一次：若用户在「通用」里开了「每次启动时检查更新」，跑一次**后台**检查 ——
+    /// `checkForUpdatesInBackground()` 只在发现新版时才弹 UI，已是最新则静默，不打扰用户。
+    /// （与 Sparkle 自带的周期后台检查叠加，不冲突。）
+    func checkForUpdatesOnLaunchIfEnabled() {
+        guard AppPreferences.checkForUpdatesOnLaunch else { return }
+        updater.checkForUpdatesInBackground()
+    }
 }

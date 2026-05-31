@@ -520,6 +520,7 @@
 "about.author" = "作者：Hoshino Yumeka";
 "about.copyright" = "© Hoshino Yumeka. 采用 MIT 许可证发布。";
 "menu.projectPage" = "SimpleZip 项目主页";
+"menu.reportBug" = "提交 Bug…";
 "menu.license" = "MIT 许可证";
 "settings.title" = "设置";
 "settings.section.defaults" = "默认项";
@@ -543,6 +544,8 @@
 "settings.hiddenGroupCollapse.globalSticky" = "全局记忆";
 "settings.hiddenGroupCollapse.inline" = "平铺显示（不分组）";
 "settings.rememberLastFolder.description" = "下次打开时回到上次使用的文件夹，而不是总是回到启动位置。";
+"settings.checkForUpdatesOnLaunch" = "每次启动时检查更新";
+"settings.checkForUpdatesOnLaunch.description" = "每次启动 SimpleZip 时静默检查新版本，只有发现可用更新时才提示。";
 "settings.confirmBeforeDeletingFiles.description" = "开启后，选中文件移到 macOS 废纸篓前会先弹出确认提示。";
 "settings.finderOpenAutoExtract" = "从 Finder 打开时自动解压";
 "settings.finderOpenAutoExtract.description" = "通过 Finder、Services 或其它 App 打开压缩包时，直接解压到压缩包所在目录，不再打开 SimpleZip 主窗口浏览。安全策略提示仍会触发。";

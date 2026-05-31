@@ -15,6 +15,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSApp.applicationIconImage = icon
         }
         NSApp.servicesProvider = self
+        // 「每次启动时检查更新」（通用设置 opt-in）：发现新版才弹提示，已最新则静默。
+        SparkleUpdater.shared.checkForUpdatesOnLaunchIfEnabled()
     }
 
     func application(_ sender: NSApplication, openFile filename: String) -> Bool {

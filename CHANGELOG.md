@@ -8,6 +8,9 @@
   - The file browser table was rebuilt on `NSOutlineView` to host the collapsible group, keeping the same native drag, multi-select, columns, sorting, and context menus. This also lays the groundwork for the upcoming Group By / Sort By view modes.
   - New Settings → Browser option **"Hidden files group"**: choose whether the group is always collapsed (default), remembers its state per folder, or remembers it globally — or pick **"Show inline (no group)"** to opt out entirely and keep the pre-0.2.0 behaviour of hidden files mixed inline. The setting takes effect immediately.
 
+- **Check for updates on launch** — new opt-in toggle in Settings → General. When on, SimpleZip quietly checks for a new version at each launch and only prompts when an update is available (additive to Sparkle's existing scheduled background checks).
+- **Help → "Report a Bug…"** — opens the GitHub new-issue page so you can file a report directly.
+
 - **Misc:** the "Create Signed Manifest" menu item (main menu + right-click) now uses the `signature` icon, matching the signing-key row in GPG settings.
 
 ## 0.1.11
