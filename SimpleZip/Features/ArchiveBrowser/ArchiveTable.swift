@@ -16,6 +16,12 @@ struct ArchiveTable: View {
     @AppStorage(AppPreferences.Key.showArchiveSizeColumn) private var showSizeColumn = true
     @AppStorage(AppPreferences.Key.showArchiveModifiedColumn) private var showModifiedColumn = true
     @AppStorage(AppPreferences.Key.showArchiveMethodColumn) private var showMethodColumn = true
+    @AppStorage(AppPreferences.Key.showArchivePathColumn) private var showPathColumn = false
+    @AppStorage(AppPreferences.Key.showArchiveEncryptedColumn) private var showEncryptedColumn = false
+    @AppStorage(AppPreferences.Key.showArchivePackedSizeColumn) private var showPackedSizeColumn = false
+    @AppStorage(AppPreferences.Key.showArchiveCrcColumn) private var showCrcColumn = false
+    @AppStorage(AppPreferences.Key.showArchiveCreatedColumn) private var showCreatedColumn = false
+    @AppStorage(AppPreferences.Key.showArchiveAttributesColumn) private var showAttributesColumn = false
 
     var body: some View {
         ZStack {
@@ -24,7 +30,13 @@ struct ArchiveTable: View {
                 showKindColumn: showKindColumn,
                 showSizeColumn: showSizeColumn,
                 showModifiedColumn: showModifiedColumn,
-                showMethodColumn: showMethodColumn
+                showMethodColumn: showMethodColumn,
+                showPathColumn: showPathColumn,
+                showEncryptedColumn: showEncryptedColumn,
+                showPackedSizeColumn: showPackedSizeColumn,
+                showCrcColumn: showCrcColumn,
+                showCreatedColumn: showCreatedColumn,
+                showAttributesColumn: showAttributesColumn
             )
 
             if model.archiveItems.isEmpty && model.isWorking {
@@ -41,6 +53,12 @@ private struct ArchiveNSTableView: NSViewRepresentable {
     let showSizeColumn: Bool
     let showModifiedColumn: Bool
     let showMethodColumn: Bool
+    let showPathColumn: Bool
+    let showEncryptedColumn: Bool
+    let showPackedSizeColumn: Bool
+    let showCrcColumn: Bool
+    let showCreatedColumn: Bool
+    let showAttributesColumn: Bool
 
     func makeCoordinator() -> Coordinator {
         Coordinator(model: model)
@@ -75,10 +93,16 @@ private struct ArchiveNSTableView: NSViewRepresentable {
 
     private var visibleColumns: [ArchiveColumn] {
         var columns: [ArchiveColumn] = [.name]
+        if showPathColumn { columns.append(.path) }
         if showKindColumn { columns.append(.kind) }
         if showSizeColumn { columns.append(.size) }
+        if showPackedSizeColumn { columns.append(.packedSize) }
         if showModifiedColumn { columns.append(.modified) }
+        if showCreatedColumn { columns.append(.created) }
         if showMethodColumn { columns.append(.method) }
+        if showCrcColumn { columns.append(.crc) }
+        if showAttributesColumn { columns.append(.attributes) }
+        if showEncryptedColumn { columns.append(.encrypted) }
         return orderedColumns(columns, key: AppPreferences.Key.archiveColumnOrder)
     }
 
@@ -237,11 +261,7 @@ private struct ArchiveNSTableView: NSViewRepresentable {
         }
 
         func headerMenu() -> NSMenu {
-            makeColumnSettingsMenu(action: #selector(openColumnSettings), target: self)
-        }
-
-        @objc private func openColumnSettings() {
-            openColumnSettingsWindow()
+            makeColumnHeaderMenu(scope: .archiveBrowser)
         }
 
         private func icon(for item: ArchiveItem) -> NSImage {
@@ -301,6 +321,14 @@ enum ArchiveColumn: String, TableColumnDescriptor {
     case size
     case modified
     case method
+    // 0.1.10 起的可选列。path / encrypted 不需要 parser 工作（ArchiveItem 已有字段），
+    // packedSize / crc / created / attributes 走 7zz -slt 输出；zip 后备路径和 DMG 后端会留空。
+    case path
+    case encrypted
+    case packedSize
+    case crc
+    case created
+    case attributes
 
     init?(identifier: String) {
         self.init(rawValue: identifier)
@@ -320,6 +348,18 @@ enum ArchiveColumn: String, TableColumnDescriptor {
             return L10n.text("column.modified")
         case .method:
             return L10n.text("column.method")
+        case .path:
+            return L10n.text("column.path")
+        case .encrypted:
+            return L10n.text("column.encrypted")
+        case .packedSize:
+            return L10n.text("column.packedSize")
+        case .crc:
+            return L10n.text("column.crc")
+        case .created:
+            return L10n.text("column.created")
+        case .attributes:
+            return L10n.text("column.attributes")
         }
     }
 
@@ -334,6 +374,18 @@ enum ArchiveColumn: String, TableColumnDescriptor {
         case .modified:
             return 180
         case .method:
+            return 120
+        case .path:
+            return 280
+        case .encrypted:
+            return 80
+        case .packedSize:
+            return 120
+        case .crc:
+            return 110
+        case .created:
+            return 180
+        case .attributes:
             return 120
         }
     }
@@ -350,6 +402,18 @@ enum ArchiveColumn: String, TableColumnDescriptor {
             return 140
         case .method:
             return 90
+        case .path:
+            return 160
+        case .encrypted:
+            return 60
+        case .packedSize:
+            return 90
+        case .crc:
+            return 80
+        case .created:
+            return 140
+        case .attributes:
+            return 80
         }
     }
 
@@ -365,6 +429,19 @@ enum ArchiveColumn: String, TableColumnDescriptor {
             return item.modifiedText
         case .method:
             return item.method
+        case .path:
+            return item.name
+        case .encrypted:
+            // 用 SF Symbol 「锁」字符代替 Yes/No；空字符串明确「未加密」时不画。
+            return item.isEncrypted ? "🔒" : ""
+        case .packedSize:
+            return item.packedSizeText
+        case .crc:
+            return item.crc
+        case .created:
+            return item.createdText
+        case .attributes:
+            return item.attributes
         }
     }
 }

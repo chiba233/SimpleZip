@@ -123,7 +123,7 @@ final class ExternalExtractSession: ObservableObject {
                 password: preset,
                 operationID: operationID,
                 progress: { [weak self] state in
-                    Task { @MainActor in
+                    Task { @MainActor [weak self] in
                         guard let self else { return }
                         self.fraction = state.fraction
                         self.currentFileName = state.currentFile
@@ -143,10 +143,10 @@ final class ExternalExtractSession: ObservableObject {
                 to: target,
                 defaultOverwriteBehavior: overwriteBehavior,
                 updateStatus: { [weak self] text in
-                    Task { @MainActor in self?.statusText = text }
+                    Task { @MainActor [weak self] in self?.statusText = text }
                 },
                 updateProgress: { [weak self] state in
-                    Task { @MainActor in
+                    Task { @MainActor [weak self] in
                         guard let self else { return }
                         self.fraction = state.fraction
                         self.currentFileName = state.currentFile

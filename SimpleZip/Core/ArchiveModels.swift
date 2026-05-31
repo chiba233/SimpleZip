@@ -34,6 +34,9 @@ struct LocationCompletion: Identifiable, Hashable {
 }
 
 /// 压缩包浏览模式下的一行归档内项目。
+///
+/// 0.1.10 起：除了基础 4 列（kind/size/modified/method）以外，再保留可选的 packedSize/CRC/created/attributes
+/// —— 这些字段只有 7zz `-slt` 长格式才有，zip 后备路径和 DMG 后端会用 nil / "" 填空，UI 自然显示空。
 struct ArchiveItem: Identifiable, Hashable {
     let id = UUID()
     let name: String
@@ -44,6 +47,12 @@ struct ArchiveItem: Identifiable, Hashable {
     let modifiedText: String
     let method: String
     let isEncrypted: Bool
+    let packedSize: Int64?
+    let packedSizeText: String
+    let crc: String
+    let created: Date?
+    let createdText: String
+    let attributes: String
 
     init(
         name: String,
@@ -53,7 +62,13 @@ struct ArchiveItem: Identifiable, Hashable {
         sizeText: String,
         modifiedText: String,
         method: String,
-        isEncrypted: Bool = false
+        isEncrypted: Bool = false,
+        packedSize: Int64? = nil,
+        packedSizeText: String = "",
+        crc: String = "",
+        created: Date? = nil,
+        createdText: String = "",
+        attributes: String = ""
     ) {
         self.name = name
         self.isDirectory = isDirectory
@@ -63,6 +78,12 @@ struct ArchiveItem: Identifiable, Hashable {
         self.modifiedText = modifiedText
         self.method = method
         self.isEncrypted = isEncrypted
+        self.packedSize = packedSize
+        self.packedSizeText = packedSizeText
+        self.crc = crc
+        self.created = created
+        self.createdText = createdText
+        self.attributes = attributes
     }
 
     /// 列表里只展示当前层级的名称，完整路径继续保留在 name 中用于解压。

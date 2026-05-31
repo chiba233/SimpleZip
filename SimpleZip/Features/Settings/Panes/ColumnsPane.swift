@@ -24,6 +24,12 @@ struct ColumnsPane: View {
     @AppStorage(AppPreferences.Key.showArchiveSizeColumn) private var showArchiveSizeColumn = true
     @AppStorage(AppPreferences.Key.showArchiveModifiedColumn) private var showArchiveModifiedColumn = true
     @AppStorage(AppPreferences.Key.showArchiveMethodColumn) private var showArchiveMethodColumn = true
+    @AppStorage(AppPreferences.Key.showArchivePathColumn) private var showArchivePathColumn = false
+    @AppStorage(AppPreferences.Key.showArchiveEncryptedColumn) private var showArchiveEncryptedColumn = false
+    @AppStorage(AppPreferences.Key.showArchivePackedSizeColumn) private var showArchivePackedSizeColumn = false
+    @AppStorage(AppPreferences.Key.showArchiveCrcColumn) private var showArchiveCrcColumn = false
+    @AppStorage(AppPreferences.Key.showArchiveCreatedColumn) private var showArchiveCreatedColumn = false
+    @AppStorage(AppPreferences.Key.showArchiveAttributesColumn) private var showArchiveAttributesColumn = false
 
     var body: some View {
         Form {
@@ -40,30 +46,29 @@ struct ColumnsPane: View {
                             .font(.headline)
                     }
 
-                    // 第 1~4 行：左右两侧都有可勾选项。
+                    // 两侧共用的 4 个名字（大小/种类/修改时间/创建日期）必须落在同一行，
+                    // 否则用户左右扫一眼会误以为它们是两个不同的概念。
+                    // 文件浏览 7 项放完后剩 3 行用 Color.clear；archive 那 6 个独占项填满剩余空位。
                     GridRow {
                         Toggle(L10n.text("column.size"), isOn: $showFileSizeColumn)
-                        Toggle(L10n.text("column.kind"), isOn: $showArchiveKindColumn)
-                    }
-
-                    GridRow {
-                        Toggle(L10n.text("column.kind"), isOn: $showFileTypeColumn)
                         Toggle(L10n.text("column.size"), isOn: $showArchiveSizeColumn)
                     }
 
                     GridRow {
+                        Toggle(L10n.text("column.kind"), isOn: $showFileTypeColumn)
+                        Toggle(L10n.text("column.kind"), isOn: $showArchiveKindColumn)
+                    }
+
+                    GridRow {
                         Toggle(L10n.text("column.application"), isOn: $showFileApplicationColumn)
-                        // 之前这里被复制粘贴成了第二次 $showArchiveSizeColumn，
-                        // 与上一行重复绑定且把可见的 archive 列虚报成 5 个，已改为 Color.clear。
-                        Color.clear
+                        Toggle(L10n.text("column.path"), isOn: $showArchivePathColumn)
                     }
 
                     GridRow {
                         Toggle(L10n.text("column.lastOpened"), isOn: $showFileLastOpenedColumn)
-                        Toggle(L10n.text("column.modified"), isOn: $showArchiveModifiedColumn)
+                        Toggle(L10n.text("column.packedSize"), isOn: $showArchivePackedSizeColumn)
                     }
 
-                    // 第 5~7 行：文件浏览专属，archive 列已用完保持空白。
                     GridRow {
                         Toggle(L10n.text("column.dateAdded"), isOn: $showFileDateAddedColumn)
                         Toggle(L10n.text("column.method"), isOn: $showArchiveMethodColumn)
@@ -71,12 +76,27 @@ struct ColumnsPane: View {
 
                     GridRow {
                         Toggle(L10n.text("column.modified"), isOn: $showFileModifiedColumn)
-                        Color.clear
+                        Toggle(L10n.text("column.modified"), isOn: $showArchiveModifiedColumn)
                     }
 
                     GridRow {
                         Toggle(L10n.text("column.created"), isOn: $showFileCreatedColumn)
+                        Toggle(L10n.text("column.created"), isOn: $showArchiveCreatedColumn)
+                    }
+
+                    GridRow {
                         Color.clear
+                        Toggle(L10n.text("column.crc"), isOn: $showArchiveCrcColumn)
+                    }
+
+                    GridRow {
+                        Color.clear
+                        Toggle(L10n.text("column.attributes"), isOn: $showArchiveAttributesColumn)
+                    }
+
+                    GridRow {
+                        Color.clear
+                        Toggle(L10n.text("column.encrypted"), isOn: $showArchiveEncryptedColumn)
                     }
                 }
             }
@@ -119,10 +139,16 @@ struct ColumnsPane: View {
 
     private var archiveColumnPreview: [ColumnPreview] {
         var columns: [ArchiveColumn] = [.name]
+        if showArchivePathColumn { columns.append(.path) }
         if showArchiveKindColumn { columns.append(.kind) }
         if showArchiveSizeColumn { columns.append(.size) }
+        if showArchivePackedSizeColumn { columns.append(.packedSize) }
         if showArchiveModifiedColumn { columns.append(.modified) }
+        if showArchiveCreatedColumn { columns.append(.created) }
         if showArchiveMethodColumn { columns.append(.method) }
+        if showArchiveCrcColumn { columns.append(.crc) }
+        if showArchiveAttributesColumn { columns.append(.attributes) }
+        if showArchiveEncryptedColumn { columns.append(.encrypted) }
 
         return orderedColumns(columns, key: AppPreferences.Key.archiveColumnOrder).map { column in
             ColumnPreview(title: column.title, value: archivePreviewValue(for: column), preferredWidth: previewWidth(for: column))
@@ -144,11 +170,17 @@ struct ColumnsPane: View {
 
     private func archivePreviewValue(for column: ArchiveColumn) -> String {
         switch column {
-        case .name: return "Documents/"
-        case .kind: return "Folder"
-        case .size: return "42 KB"
+        case .name: return "report.pdf"
+        case .path: return "Documents/report.pdf"
+        case .kind: return "PDF"
+        case .size: return "1.2 MB"
+        case .packedSize: return "880 KB"
         case .modified: return "2026-05-29 10:30"
-        case .method: return "Deflate"
+        case .created: return "2026-05-20 09:15"
+        case .method: return "LZMA2"
+        case .crc: return "12AB34CD"
+        case .attributes: return "A"
+        case .encrypted: return "🔒"
         }
     }
 
@@ -164,9 +196,13 @@ struct ColumnsPane: View {
     private func previewWidth(for column: ArchiveColumn) -> CGFloat {
         switch column {
         case .name: return 170
+        case .path: return 160
         case .kind: return 110
-        case .size, .method: return 86
-        case .modified: return 140
+        case .size, .packedSize, .method: return 86
+        case .modified, .created: return 140
+        case .crc: return 96
+        case .attributes: return 90
+        case .encrypted: return 56
         }
     }
 }

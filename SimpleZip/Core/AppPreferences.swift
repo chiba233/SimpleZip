@@ -270,6 +270,15 @@ enum AppPreferences {
         nonisolated static let showArchiveSizeColumn = "showArchiveSizeColumn"
         nonisolated static let showArchiveModifiedColumn = "showArchiveModifiedColumn"
         nonisolated static let showArchiveMethodColumn = "showArchiveMethodColumn"
+        // 0.1.10 起新加的 6 个可选列。默认 OFF（defaults.bool 未设置 = false）：
+        // - kind/size/modified/method 是高频信息，默认 ON
+        // - path/encrypted/packedSize/crc/created/attributes 偏专业，用户按需打开即可
+        nonisolated static let showArchivePathColumn = "showArchivePathColumn"
+        nonisolated static let showArchiveEncryptedColumn = "showArchiveEncryptedColumn"
+        nonisolated static let showArchivePackedSizeColumn = "showArchivePackedSizeColumn"
+        nonisolated static let showArchiveCrcColumn = "showArchiveCrcColumn"
+        nonisolated static let showArchiveCreatedColumn = "showArchiveCreatedColumn"
+        nonisolated static let showArchiveAttributesColumn = "showArchiveAttributesColumn"
         nonisolated static let appLanguage = "appLanguage"
         nonisolated static let sevenZipBackend = "sevenZipBackend"
         nonisolated static let rarBackend = "rarBackend"
@@ -423,6 +432,31 @@ enum AppPreferences {
 
     nonisolated static var showArchiveMethodColumn: Bool {
         defaultTrueBool(forKey: Key.showArchiveMethodColumn)
+    }
+
+    // 0.1.10 起的可选列：默认 OFF —— defaults.bool 未设置时返回 false，与「按需打开」语义一致。
+    nonisolated static var showArchivePathColumn: Bool {
+        defaults.bool(forKey: Key.showArchivePathColumn)
+    }
+
+    nonisolated static var showArchiveEncryptedColumn: Bool {
+        defaults.bool(forKey: Key.showArchiveEncryptedColumn)
+    }
+
+    nonisolated static var showArchivePackedSizeColumn: Bool {
+        defaults.bool(forKey: Key.showArchivePackedSizeColumn)
+    }
+
+    nonisolated static var showArchiveCrcColumn: Bool {
+        defaults.bool(forKey: Key.showArchiveCrcColumn)
+    }
+
+    nonisolated static var showArchiveCreatedColumn: Bool {
+        defaults.bool(forKey: Key.showArchiveCreatedColumn)
+    }
+
+    nonisolated static var showArchiveAttributesColumn: Bool {
+        defaults.bool(forKey: Key.showArchiveAttributesColumn)
     }
 
     nonisolated static var lastFolderURL: URL? {
@@ -670,6 +704,12 @@ enum AppPreferences {
         Key.showArchiveSizeColumn,
         Key.showArchiveModifiedColumn,
         Key.showArchiveMethodColumn,
+        Key.showArchivePathColumn,
+        Key.showArchiveEncryptedColumn,
+        Key.showArchivePackedSizeColumn,
+        Key.showArchiveCrcColumn,
+        Key.showArchiveCreatedColumn,
+        Key.showArchiveAttributesColumn,
         Key.fileColumnOrder,
         Key.archiveColumnOrder
     ]

@@ -307,6 +307,9 @@
 "szs.silentBrowse.signatureStatus.bad" = "签名不匹配";
 "szs.silentBrowse.signatureStatus.noPublicKey" = "签名者公钥不在钥匙串中";
 "szs.silentBrowse.signatureStatus.error" = "签名无法校验";
+"menu.view" = "视图";
+"view.columns.fileBrowser" = "浏览器列";
+"view.columns.archiveBrowser" = "压缩包列";
 "settings.gpg.keys.contextChangePassphrase" = "修改 passphrase…";
 "settings.gpg.keys.contextAddUID" = "添加 User ID…";
 "settings.gpg.keys.contextEditExpiration" = "修改过期时间…";
@@ -502,6 +505,11 @@
 "column.type" = "类型";
 "column.modified" = "修改时间";
 "column.method" = "方法";
+"column.path" = "路径";
+"column.encrypted" = "加密";
+"column.packedSize" = "压缩后大小";
+"column.crc" = "CRC";
+"column.attributes" = "属性";
 "menu.aboutSimpleZip" = "关于 SimpleZip";
 "menu.tools" = "工具";
 "about.description" = "macOS 原生压缩包工具 —— 创建、解压、浏览、加密、哈希、挂载 DMG，全部在 Finder 风格的窗口内完成。";
@@ -633,6 +641,7 @@
 "settings.association.setDefault" = "设为默认";
 "settings.association.simpleZipDefault" = "已默认";
 "settings.section.columns" = "列表列";
+"settings.section.view" = "视图";
 "settings.section.health" = "运行状态";
 "settings.section.backup" = "备份与还原";
 "backup.description" = "把当前偏好导出成 JSON 文件，可以拷到另一台 Mac 用；也可以从之前导出的文件导入。「全部恢复默认」会清掉所有偏好 + 钥匙串里的预设密码。";

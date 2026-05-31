@@ -4,6 +4,29 @@
 
 ## 0.1.10
 
+- **列表列设置从 Settings 搬到顶层「视图」菜单**
+  - 顶层菜单栏多个「视图」入口，下挂两个子菜单：「浏览器列」（文件浏览 7 项）+「压缩包列」（压缩包浏览 10 项）。这是 macOS 用户找列开关的天然位置（Finder 就在这里），切个列开关不用开设置窗口了。
+  - 表头右键菜单同步重构：旧的「编辑列表列…」会跳到 Settings columns 分页，现在直接 inline 当前 scope 的开关项，✓ 反映当前状态（Finder 同款）。
+  - Settings → Columns 分页改名为「视图」（icon `rectangle.3.group`）。列开关本体仍在这里作为唯一 canonical 入口；0.2.0 的多重分类 + 每文件夹视图设定会落在这同一页。
+  - ColumnsPane 网格：4 个共用列（大小 / 种类 / 修改时间 / 创建日期）现在两侧同一行对齐，左右扫一眼能直接对上，不必反复在两列之间找。
+
+- **压缩包浏览列扩 Tier 1 + Tier 2（共 10 项可选列，原本只有 4 项）**
+  - 新增 6 列：路径（压缩包内完整路径）、加密（🔒，把 `ArchiveItem.isEncrypted` 这个一直在模型里但从没暴露过的字段拿出来）、压缩后大小、CRC、创建日期、属性（7z `Attributes` 字段）。
+  - 6 项默认全关 —— 老用户看到的列跟以前完全一样，要不要这些列按需在「视图」菜单 / 表头右键 / Settings「视图」页打开。
+  - Parser 侧：`7zz -slt` 长格式输出里的 `Packed Size` / `CRC` / `Created` / `Attributes` 接进 `ArchiveItem`；zip 后备路径和 DMG 后端不带这些字段，留空即可。排序比较器（`compareArchiveItem`）覆盖了 6 个新 key。
+
+- **Bug 修复：表头右键菜单 ✓ 与列实际可见性脱钩**
+  - 根因：菜单是构造一次后挂在 `headerView.menu` 反复使用，`item.state` 只是构造那一刻的 snapshot；而且老逻辑用 `UserDefaults.standard.bool(forKey:)`（未设置 = `false`）读，但列实际可见性走 `defaultTrueBool` / `@AppStorage(default: true)`（未设置 = `true`）。结果：新安装或刚做完偏好恢复的用户，每个从没碰过的列在右键菜单里**全部显示成不勾**，但表里**就是显示**的；第一次点 toggle 还朝反方向翻。
+  - 修法：`ColumnHeaderMenuTarget` 实现 `NSMenuDelegate`，`menuNeedsUpdate(_:)` 时按 `UserDefaults` 当前值重算每个 `item.state`。`ColumnHeaderMenuBinding` 带每个 key 的 `defaultsToTrue: Bool`，让 helper 跟各 Pref accessor 的默认语义一致 —— 原 4 个 archive 列 + 7 个 file 列默认 ON，新 6 个 archive 列默认 OFF。
+
+- **重构：`ArchiveBrowserModel.swift`（2330 行）拆成 9 个 extension 文件落到 `ArchiveBrowserModel/` 目录**
+  - 核心文件只留 class 声明、`@Published` state、inner types（`CreateSZSPrefill` / `ManifestVirtualMode`）、init/deinit、UI-facing 计算属性（`title` / `locationText` / `canGoUp` / ...）。
+  - 按功能切：`+Navigation`、`+Loading`、`+CreateExtract`、`+TestHashBenchmark`、`+FileOps`、`+Sort`、`+SafetyPassword`、`+OperationLifecycle`、`+SZSAndDiskImage`。原文件路径变成目录；Xcode 16 file-system synchronized groups 自动识别，不需要改 `pbxproj`。
+  - 跨 extension 的 `private` 成员降级到 internal（默认）—— `final class` 没有继承面积，模块外可见性其实没变。行为不变；SwiftPM 109/109 全通过。
+
+- **Swift 6 修复：`ExternalExtractWindow.run(...)` 的内层 `Task { @MainActor in }` 显式加 `[weak self]` 捕获**
+  - 外层闭包捕获了 `[weak self]`，但内层 `Task`（Sendable 闭包）跨任务再次读这个 var `self?` —— Swift 6 直接 error。3 处（progress / updateStatus / updateProgress）都在内层 `Task` 自己加 `[weak self]`。
+
 - **`.szs` 右键加「以虚拟目录浏览」（静默验签）**
   - 文件表里右键单选 `.szs`，「打开」之外多一项「以虚拟目录浏览」。后台跑跟「打开」一样的 `SZSArchive.peek` + `SZSArchive.verify`，**但只有出问题才弹 UI**。
   - 全部 OK（签名有效 + 每条 `.match`）→ 静默进虚拟目录模式，零 alert、零 sheet。信任清单来源、就想直接看签名子集的用户走这条。

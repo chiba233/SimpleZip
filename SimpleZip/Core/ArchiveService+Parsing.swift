@@ -161,6 +161,9 @@ extension ArchiveService {
             let size = Int64(values["Size"] ?? "") ?? 0
             let isDirectory = values["Folder"] == "+"
             let modifiedText = values["Modified"] ?? ""
+            let packedSizeRaw = values["Packed Size"] ?? ""
+            let packedSize = Int64(packedSizeRaw)
+            let createdText = values["Created"] ?? ""
             rows.append(
                 ArchiveItem(
                     name: path,
@@ -170,7 +173,15 @@ extension ArchiveService {
                     sizeText: isDirectory ? "" : ByteCountFormatter.string(fromByteCount: size, countStyle: .file),
                     modifiedText: modifiedText,
                     method: values["Method"] ?? "",
-                    isEncrypted: values["Encrypted"] == "+" || archiveMethodSuggestsEncryption(values["Method"] ?? "")
+                    isEncrypted: values["Encrypted"] == "+" || archiveMethodSuggestsEncryption(values["Method"] ?? ""),
+                    packedSize: (isDirectory || packedSize == nil) ? nil : packedSize,
+                    packedSizeText: (isDirectory || packedSize == nil)
+                        ? ""
+                        : ByteCountFormatter.string(fromByteCount: packedSize ?? 0, countStyle: .file),
+                    crc: values["CRC"] ?? "",
+                    created: parseSevenZipModified(createdText),
+                    createdText: createdText,
+                    attributes: values["Attributes"] ?? ""
                 )
             )
             values.removeAll()

@@ -307,6 +307,9 @@
 "szs.silentBrowse.signatureStatus.bad" = "bad signature";
 "szs.silentBrowse.signatureStatus.noPublicKey" = "signer's public key not in keyring";
 "szs.silentBrowse.signatureStatus.error" = "could not be verified";
+"menu.view" = "View";
+"view.columns.fileBrowser" = "Browser Columns";
+"view.columns.archiveBrowser" = "Archive Columns";
 "settings.gpg.keys.contextChangePassphrase" = "Change Passphrase…";
 "settings.gpg.keys.contextAddUID" = "Add User ID…";
 "settings.gpg.keys.contextEditExpiration" = "Edit Expiration…";
@@ -504,6 +507,11 @@
 "column.type" = "Type";
 "column.modified" = "Modified";
 "column.method" = "Method";
+"column.path" = "Path";
+"column.encrypted" = "Encrypted";
+"column.packedSize" = "Packed Size";
+"column.crc" = "CRC";
+"column.attributes" = "Attributes";
 "menu.aboutSimpleZip" = "About SimpleZip";
 "menu.tools" = "Tools";
 "about.description" = "A native macOS archive utility — create, extract, browse, encrypt, hash, and mount DMGs without leaving Finder.";
@@ -640,6 +648,7 @@
 "settings.association.setDefault" = "Set Default";
 "settings.association.simpleZipDefault" = "Default";
 "settings.section.columns" = "Columns";
+"settings.section.view" = "View";
 "settings.section.health" = "Health";
 "settings.section.backup" = "Backup & Restore";
 "backup.description" = "Export your preferences as a JSON file you can copy to another Mac, or import a previously exported file. \"Restore Defaults\" wipes every preference and clears the Keychain entry used by the preset password.";

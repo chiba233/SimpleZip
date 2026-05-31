@@ -38,6 +38,7 @@ struct SimpleZipApp: App {
         .handlesExternalEvents(matching: [])
         .commands {
             ArchiveFileCommands()
+            ColumnsViewCommands()
             ToolsCommands()
 
             CommandGroup(replacing: .appInfo) {
@@ -348,6 +349,59 @@ struct ArchiveFileCommands: Commands {
         }
         return responder.responds(to: #selector(NSText.copy(_:))) &&
             responder.responds(to: #selector(NSText.paste(_:)))
+    }
+}
+
+/// 顶部「视图」菜单 —— 列表列开关（0.1.10 起从 Settings → Columns pane 搬到这里）。
+///
+/// 0.2.0 计划在此菜单下加「Group By」「Sort By」等多重视图选项；先把 Columns 子菜单结构定下来，
+/// 后续加项只是新增 `Menu` 兄弟节点，不需要改既有结构。
+///
+/// 同一组 AppPreferences key 在两个地方读写（这里的 View 菜单 + 表头右键菜单），AppStorage 会自动跟
+/// UserDefaults 双向同步，所以菜单勾选状态、表头右键的 ✓、表格本身的列可见性永远一致，不需要中央协调。
+struct ColumnsViewCommands: Commands {
+    @AppStorage(AppPreferences.Key.showFileSizeColumn) private var showFileSizeColumn = true
+    @AppStorage(AppPreferences.Key.showFileTypeColumn) private var showFileTypeColumn = true
+    @AppStorage(AppPreferences.Key.showFileApplicationColumn) private var showFileApplicationColumn = true
+    @AppStorage(AppPreferences.Key.showFileLastOpenedColumn) private var showFileLastOpenedColumn = true
+    @AppStorage(AppPreferences.Key.showFileDateAddedColumn) private var showFileDateAddedColumn = true
+    @AppStorage(AppPreferences.Key.showFileModifiedColumn) private var showFileModifiedColumn = true
+    @AppStorage(AppPreferences.Key.showFileCreatedColumn) private var showFileCreatedColumn = true
+    @AppStorage(AppPreferences.Key.showArchiveKindColumn) private var showArchiveKindColumn = true
+    @AppStorage(AppPreferences.Key.showArchiveSizeColumn) private var showArchiveSizeColumn = true
+    @AppStorage(AppPreferences.Key.showArchiveModifiedColumn) private var showArchiveModifiedColumn = true
+    @AppStorage(AppPreferences.Key.showArchiveMethodColumn) private var showArchiveMethodColumn = true
+    @AppStorage(AppPreferences.Key.showArchivePathColumn) private var showArchivePathColumn = false
+    @AppStorage(AppPreferences.Key.showArchiveEncryptedColumn) private var showArchiveEncryptedColumn = false
+    @AppStorage(AppPreferences.Key.showArchivePackedSizeColumn) private var showArchivePackedSizeColumn = false
+    @AppStorage(AppPreferences.Key.showArchiveCrcColumn) private var showArchiveCrcColumn = false
+    @AppStorage(AppPreferences.Key.showArchiveCreatedColumn) private var showArchiveCreatedColumn = false
+    @AppStorage(AppPreferences.Key.showArchiveAttributesColumn) private var showArchiveAttributesColumn = false
+
+    var body: some Commands {
+        CommandMenu(L10n.text("menu.view")) {
+            Menu(L10n.text("view.columns.fileBrowser")) {
+                Toggle(L10n.text("column.size"), isOn: $showFileSizeColumn)
+                Toggle(L10n.text("column.kind"), isOn: $showFileTypeColumn)
+                Toggle(L10n.text("column.application"), isOn: $showFileApplicationColumn)
+                Toggle(L10n.text("column.lastOpened"), isOn: $showFileLastOpenedColumn)
+                Toggle(L10n.text("column.dateAdded"), isOn: $showFileDateAddedColumn)
+                Toggle(L10n.text("column.modified"), isOn: $showFileModifiedColumn)
+                Toggle(L10n.text("column.created"), isOn: $showFileCreatedColumn)
+            }
+            Menu(L10n.text("view.columns.archiveBrowser")) {
+                Toggle(L10n.text("column.path"), isOn: $showArchivePathColumn)
+                Toggle(L10n.text("column.kind"), isOn: $showArchiveKindColumn)
+                Toggle(L10n.text("column.size"), isOn: $showArchiveSizeColumn)
+                Toggle(L10n.text("column.packedSize"), isOn: $showArchivePackedSizeColumn)
+                Toggle(L10n.text("column.modified"), isOn: $showArchiveModifiedColumn)
+                Toggle(L10n.text("column.created"), isOn: $showArchiveCreatedColumn)
+                Toggle(L10n.text("column.method"), isOn: $showArchiveMethodColumn)
+                Toggle(L10n.text("column.crc"), isOn: $showArchiveCrcColumn)
+                Toggle(L10n.text("column.attributes"), isOn: $showArchiveAttributesColumn)
+                Toggle(L10n.text("column.encrypted"), isOn: $showArchiveEncryptedColumn)
+            }
+        }
     }
 }
 

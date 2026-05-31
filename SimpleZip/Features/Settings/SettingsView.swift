@@ -45,16 +45,6 @@ struct SettingsView: View {
             minHeight: 520, idealHeight: 560, maxHeight: .infinity
         )
         .navigationTitle(L10n.text("settings.title"))
-        .onAppear {
-            // 老系统下从主界面点「自定义列」时，会先把意图存进 SettingsNavigation 再开窗口，
-            // 这里 onAppear 时消费一次。
-            if SettingsNavigation.consumePendingColumnsRequest() {
-                selectColumnsPane()
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .openSettingsColumns)) { _ in
-            selectColumnsPane()
-        }
     }
 
     @ViewBuilder
@@ -66,10 +56,10 @@ struct SettingsView: View {
             ArchivePane()
         case .browser:
             BrowserPane()
+        case .view:
+            ColumnsPane()
         case .fileAssociations:
             FileAssociationsPane()
-        case .columns:
-            ColumnsPane()
         case .gpg:
             GPGPane()
         case .health:
@@ -125,11 +115,5 @@ struct SettingsView: View {
         .buttonStyle(.borderless)
         .controlSize(.small)
         .help(L10n.text("settings.title"))
-    }
-
-    private func selectColumnsPane() {
-        DispatchQueue.main.async {
-            selectedPane = .columns
-        }
     }
 }

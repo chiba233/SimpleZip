@@ -380,11 +380,7 @@ private struct FileNSTableView: NSViewRepresentable {
         }
 
         func headerMenu() -> NSMenu {
-            makeColumnSettingsMenu(action: #selector(openColumnSettings), target: self)
-        }
-
-        @objc private func openColumnSettings() {
-            openColumnSettingsWindow()
+            makeColumnHeaderMenu(scope: .fileBrowser)
         }
 
         private func icon(for item: FileItem) -> NSImage {

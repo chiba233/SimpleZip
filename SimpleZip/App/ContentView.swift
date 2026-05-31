@@ -264,8 +264,7 @@ struct ContentView: View {
             L10n.text("startup.missing.title"),
             isPresented: $showsStartupMissingAlert
         ) {
-            // 「打开设置…」走和 SettingsRequestBridge 同款的旧式 selector 路径，
-            // 这样不依赖 macOS 14+ 的 @Environment(\.openSettings) —— 全版本都能开窗口。
+            // 「打开设置…」走 AppKit 旧式 selector，不依赖 macOS 14+ 的 @Environment(\.openSettings) —— 全版本都能开窗口。
             Button(L10n.text("startup.missing.openSettings")) {
                 NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
             }
@@ -371,11 +370,6 @@ struct ContentView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .browserPreferencesChanged)) { _ in
             model.reload()
-        }
-        .background {
-            if #available(macOS 14.0, *) {
-                SettingsRequestBridge()
-            }
         }
     }
 
@@ -749,20 +743,6 @@ struct ContentView: View {
         extractDroppedFileURLs(from: providers) { urls in
             model.openDroppedURLs(urls)
         }
-    }
-}
-
-@available(macOS 14.0, *)
-private struct SettingsRequestBridge: View {
-    @Environment(\.openSettings) private var openSettings
-
-    var body: some View {
-        Color.clear
-            .frame(width: 0, height: 0)
-            .onReceive(NotificationCenter.default.publisher(for: .requestOpenSettingsColumns)) { _ in
-                SettingsNavigation.prepareOpenColumns()
-                openSettings()
-            }
     }
 }
 

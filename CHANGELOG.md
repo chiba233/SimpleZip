@@ -4,6 +4,29 @@
 
 ## 0.1.10
 
+- **Column visibility moved from Settings → top-level "View" menu**
+  - New "View" menu bar entry with two submenus: "Browser Columns" (7 file-browser toggles) and "Archive Columns" (10 archive-browser toggles). This is where macOS users expect column visibility (Finder follows the same convention), so toggling a column no longer requires opening Settings.
+  - Table header right-click now shows the same toggles inline (Finder-style) with ✓ reflecting current state, replacing the old "Edit Columns…" entry that bounced to Settings.
+  - Settings → Columns pane renamed to "View" (icon `rectangle.3.group`). Same column toggles still live there as the canonical entry, and 0.2.0's multi-classification + per-folder view settings will land in this same pane.
+  - ColumnsPane grid: the 4 shared toggles (size / kind / modified / created) are now in the same row on both sides, so the eye can pattern-match them across browsers without rescanning.
+
+- **Archive browser columns expanded — Tier 1 + Tier 2 (10 toggles total, was 4)**
+  - New columns: Path (full path inside archive), Encrypted (🔒 indicator, surfaces `ArchiveItem.isEncrypted` that was already in the model but never exposed), Packed Size (compressed bytes), CRC (checksum), Created (creation date), Attributes (7z `Attributes` field).
+  - All six default OFF — existing users see the same 4 default columns; the new ones are opt-in via the View menu / table header / Settings.
+  - Parser: `7zz -slt` long-format output now plumbs `Packed Size` / `CRC` / `Created` / `Attributes` into `ArchiveItem`. Zip-fallback parser and `DiskImageBackend` leave the new fields empty (no parser work needed there). Sort comparators (`compareArchiveItem`) cover all six new keys.
+
+- **Bug fix: table header right-click menu ✓ state was desynced from the actual column visibility**
+  - Root cause: the menu items' `state` was a snapshot taken at construction time, and the per-item read used `UserDefaults.standard.bool(forKey:)` (unset key → `false`), while column rendering and the View menu use `defaultTrueBool` / `@AppStorage(default: true)` (unset key → `true`). On a fresh install or after preference reset, every column that hadn't been explicitly toggled appeared as **unchecked in the right-click menu but visible in the table** — and the first click on those toggles flipped in the wrong direction.
+  - Fix: `ColumnHeaderMenuTarget` now conforms to `NSMenuDelegate` and refreshes each item's `state` in `menuNeedsUpdate(_:)` against current `UserDefaults`. Per-key default (`defaultsToTrue: Bool`) carried in `ColumnHeaderMenuBinding` so the helper matches each preference's actual unset semantics — the original 4 archive columns + 7 file columns stay default-on, the 6 new archive columns default-off.
+
+- **Refactor: `ArchiveBrowserModel.swift` (2,330 lines) split into 9 extension files under `ArchiveBrowserModel/`**
+  - Core file keeps only the class declaration, `@Published` state, inner types (`CreateSZSPrefill` / `ManifestVirtualMode`), init/deinit, computed UI properties (`title` / `locationText` / `canGoUp` / etc.).
+  - Extensions by function: `+Navigation`, `+Loading`, `+CreateExtract`, `+TestHashBenchmark`, `+FileOps`, `+Sort`, `+SafetyPassword`, `+OperationLifecycle`, `+SZSAndDiskImage`. Original path becomes a directory; Xcode 16 file-system synchronized groups means no `pbxproj` edits.
+  - Cross-extension `private` members relaxed to internal (default) — `final class` so the wider access doesn't change effective encapsulation. Behavior identical; 109/109 SwiftPM tests pass.
+
+- **Swift 6 fix: `ExternalExtractWindow.run(...)` inner `Task { @MainActor in }` blocks now capture `[weak self]` explicitly**
+  - The outer closure captured `[weak self]`, but the inner `Task` (a Sendable closure) re-read that captured `var self?` across a concurrency boundary — a Swift 6 error. Three call sites (progress / updateStatus / updateProgress) get their own `[weak self]` on the inner Task.
+
 - **`.szs` right-click → "Browse as Virtual Folder" (silent verification)**
   - Right-clicking a single `.szs` file in the file table now offers a new menu item "Browse as Virtual Folder" alongside the existing "Open" verb. It runs the same `SZSArchive.peek` + `SZSArchive.verify` in the background — but instead of always presenting the `SZSVerificationSheet`, it only surfaces UI when something is actually wrong.
   - Full success (signature valid, every entry `.match`) → enters virtual-folder mode immediately, zero alerts, zero sheets. This is the path most users will take when they trust the manifest source and just want to see the signed file subset.
