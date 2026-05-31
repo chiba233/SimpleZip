@@ -453,7 +453,7 @@
 "conflict.replaceIfDifferent" = "Заменить, если хэш отличается";
 "settings.editColumns" = "Изменить столбцы...";
 "settings.7zip.backend" = "Бэкенд 7-Zip";
-"settings.7zip.backend.description" = "Выберите, будет ли SimpleZip автоматически использовать встроенный инструмент 7-Zip или только системную установку.";
+"settings.7zip.backend.description" = "«Автоматически» предпочитает встроенный 7-Zip и переключается на системную установку, если его нет. Либо зафиксируйте только встроенную копию или только системный 7-Zip.";
 "settings.7zip.automatic" = "Автоматически";
 "settings.7zip.bundled" = "Встроен в SimpleZip";
 "settings.7zip.system" = "Установлен в системе";
@@ -910,7 +910,7 @@
 "file.hiddenGroup" = "Скрытые файлы (%d)";
 "menu.reportBug" = "Сообщить об ошибке…";
 "settings.hiddenDetection" = "Скрытые файлы";
-"settings.hiddenDetection.description" = "Скрытые файлы";
+"settings.hiddenDetection.description" = "Определяет, что считается скрытым: только dotfiles (имена, начинающиеся с точки) или также объекты с флагом скрытности macOS (например, /etc и ~/Library).";
 "settings.hiddenDetection.dotfilesOnly" = "Скрытые файлы";
 "settings.hiddenDetection.macOSHidden" = "Скрытые файлы";
 "settings.hiddenGroupCollapse" = "Скрытые файлы group";
@@ -992,3 +992,6 @@
 "file.openWith" = "Открыть в программе";
 "file.openWith.default" = "%@ (по умолчанию)";
 "file.openWith.other" = "Другая…";
+
+/* 0.2.1 — GPG 导入目标说明 */
+"settings.gpg.keys.importHint" = "«Импорт в ~/.gnupg» делает ключ общим с gpg из командной строки. «Импорт в личную связку ключей SimpleZip» хранит его только внутри SimpleZip — не засоряет gpg в вашей оболочке и удаляется при удалении SimpleZip.";

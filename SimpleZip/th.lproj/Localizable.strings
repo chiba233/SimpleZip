@@ -453,7 +453,7 @@
 "conflict.replaceIfDifferent" = "แทนที่เมื่อแฮชต่างกัน";
 "settings.editColumns" = "แก้ไขคอลัมน์...";
 "settings.7zip.backend" = "แบ็กเอนด์ 7-Zip";
-"settings.7zip.backend.description" = "เลือกว่าจะให้ SimpleZip ใช้เครื่องมือ 7-Zip ที่รวมมาโดยอัตโนมัติหรือใช้เฉพาะที่ติดตั้งในระบบ";
+"settings.7zip.backend.description" = "「อัตโนมัติ」จะใช้ 7-Zip ที่มาพร้อมแอปก่อน หากไม่พบจะใช้ตัวที่ติดตั้งในระบบแทน หรือกำหนดให้ SimpleZip ใช้เฉพาะตัวที่มาพร้อมแอป หรือเฉพาะ 7-Zip ที่ติดตั้งในระบบ";
 "settings.7zip.automatic" = "อัตโนมัติ";
 "settings.7zip.bundled" = "มาพร้อม SimpleZip";
 "settings.7zip.system" = "ติดตั้งในระบบ";
@@ -910,7 +910,7 @@
 "file.hiddenGroup" = "ไฟล์ที่ซ่อน (%d)";
 "menu.reportBug" = "รายงานบั๊ก…";
 "settings.hiddenDetection" = "ไฟล์ที่ซ่อน";
-"settings.hiddenDetection.description" = "ไฟล์ที่ซ่อน";
+"settings.hiddenDetection.description" = "กำหนดว่าสิ่งใดถือเป็นไฟล์ซ่อน: เฉพาะ dotfile (ชื่อที่ขึ้นต้นด้วยจุด) หรือรวมถึงรายการที่มีแฟล็กซ่อนของ macOS (เช่น /etc และ ~/Library) ด้วย";
 "settings.hiddenDetection.dotfilesOnly" = "ไฟล์ที่ซ่อน";
 "settings.hiddenDetection.macOSHidden" = "ไฟล์ที่ซ่อน";
 "settings.hiddenGroupCollapse" = "ไฟล์ที่ซ่อน group";
@@ -992,3 +992,6 @@
 "file.openWith" = "เปิดด้วย";
 "file.openWith.default" = "%@ (ค่าเริ่มต้น)";
 "file.openWith.other" = "อื่น ๆ…";
+
+/* 0.2.1 — GPG 导入目标说明 */
+"settings.gpg.keys.importHint" = "「นำเข้าไปยัง ~/.gnupg」จะใช้กุญแจร่วมกับ gpg บนบรรทัดคำสั่ง ส่วน「นำเข้าไปยังพวงกุญแจส่วนตัวของ SimpleZip」จะเก็บไว้ในแอปเท่านั้น ไม่รบกวน gpg ของเชลล์ และจะถูกลบเมื่อถอนการติดตั้ง SimpleZip";

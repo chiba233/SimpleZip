@@ -589,7 +589,7 @@
 "settings.overwriteBehavior.description" = "解压、复制或移动时遇到同名文件，默认使用这个处理策略。";
 "settings.showHiddenFiles.description" = "在文件浏览器里显示点开头文件和 Finder 隐藏项目。";
 "settings.hiddenDetection" = "什么算隐藏文件";
-"settings.hiddenDetection.description" = "选择只把 dotfile（名字以 . 开头）算作隐藏，还是再算上带 macOS 隐藏标志的项（如 /etc、~/Library）。";
+"settings.hiddenDetection.description" = "决定哪些项目视为隐藏：仅 dotfile（以「.」开头的名称），或同时包含带 macOS 隐藏标志的项目（如 /etc、~/Library）。";
 "settings.hiddenDetection.dotfilesOnly" = "仅 dotfile";
 "settings.hiddenDetection.macOSHidden" = "dotfile + macOS 隐藏标志";
 "settings.hiddenGroupCollapse" = "隐藏文件分组";
@@ -891,7 +891,7 @@
 "conflict.replaceIfDifferent" = "哈希不同时覆盖";
 "settings.editColumns" = "编辑列表列...";
 "settings.7zip.backend" = "7-Zip 后端";
-"settings.7zip.backend.description" = "选择 SimpleZip 自动使用内置 7-Zip，还是只使用系统安装的 7-Zip。";
+"settings.7zip.backend.description" = "「自动」优先用内置 7-Zip，找不到再回退到系统安装的；也可固定只用内置，或只用系统安装的 7-Zip。";
 "settings.7zip.automatic" = "自动";
 "settings.7zip.bundled" = "软件内置";
 "settings.7zip.system" = "系统安装";
@@ -1000,3 +1000,6 @@
 "file.openWith" = "打开方式";
 "file.openWith.default" = "%@（默认）";
 "file.openWith.other" = "其他…";
+
+/* 0.2.1 — GPG 导入目标说明 */
+"settings.gpg.keys.importHint" = "「导入到 ~/.gnupg」会与命令行 gpg 共用这把密钥；「导入到 SimpleZip 私有钥匙串」只存在应用内，不污染命令行 gpg，卸载 SimpleZip 即清理。";

@@ -453,7 +453,7 @@
 "conflict.replaceIfDifferent" = "雜湊不同時覆蓋";
 "settings.editColumns" = "編輯列表欄...";
 "settings.7zip.backend" = "7-Zip 後端";
-"settings.7zip.backend.description" = "选择 SimpleZip 自动使用内置 7-Zip，还是只使用系统安装的 7-Zip。";
+"settings.7zip.backend.description" = "「自動」優先用內建 7-Zip，找不到再回退到系統安裝的；也可固定只用內建，或只用系統安裝的 7-Zip。";
 "settings.7zip.automatic" = "自動";
 "settings.7zip.bundled" = "軟體內建";
 "settings.7zip.system" = "系統安裝";
@@ -910,7 +910,7 @@
 "file.hiddenGroup" = "隱藏檔案 (%d)";
 "menu.reportBug" = "提交 Bug…";
 "settings.hiddenDetection" = "什么算隱藏檔案";
-"settings.hiddenDetection.description" = "選擇只把 dotfile（名字以 . 開头）算作隱藏，还是再算上带 macOS 隱藏標志的项（如 /etc、~/Library）。";
+"settings.hiddenDetection.description" = "決定哪些項目視為隱藏：僅 dotfile（以「.」開頭的名稱），或同時包含帶 macOS 隱藏標誌的項目（如 /etc、~/Library）。";
 "settings.hiddenDetection.dotfilesOnly" = "僅 dotfile";
 "settings.hiddenDetection.macOSHidden" = "dotfile + macOS 隱藏標志";
 "settings.hiddenGroupCollapse" = "隱藏檔案分組";
@@ -992,3 +992,6 @@
 "file.openWith" = "打開方式";
 "file.openWith.default" = "%@（預設）";
 "file.openWith.other" = "其他…";
+
+/* 0.2.1 — GPG 导入目标说明 */
+"settings.gpg.keys.importHint" = "「匯入到 ~/.gnupg」會與命令列 gpg 共用這把金鑰；「匯入到 SimpleZip 私有鑰匙圈」只存在應用程式內，不污染命令列 gpg，解除安裝 SimpleZip 即清除。";

@@ -453,7 +453,7 @@
 "conflict.replaceIfDifferent" = "ハッシュが異なる場合だけ置き換え";
 "settings.editColumns" = "列を編集...";
 "settings.7zip.backend" = "7-Zip バックエンド";
-"settings.7zip.backend.description" = "SimpleZipが同梱の7-Zipツールを自動で使うか、システムにインストールされたものだけを使うか選択します。";
+"settings.7zip.backend.description" = "「自動」は同梱の 7-Zip を優先し、なければシステムにインストールされたものにフォールバックします。または同梱版のみ、もしくはシステムにインストールされた 7-Zip のみに固定できます。";
 "settings.7zip.automatic" = "自動";
 "settings.7zip.bundled" = "SimpleZip 同梱";
 "settings.7zip.system" = "システムにインストール済み";
@@ -910,7 +910,7 @@
 "file.hiddenGroup" = "隠しファイル（%d）";
 "menu.reportBug" = "バグを報告…";
 "settings.hiddenDetection" = "隠しファイル";
-"settings.hiddenDetection.description" = "隠しファイル";
+"settings.hiddenDetection.description" = "何を隠しファイルとみなすかを決めます。dotfile（ドットで始まる名前）のみ、または macOS の隠しフラグを持つ項目（/etc や ~/Library など）も含めます。";
 "settings.hiddenDetection.dotfilesOnly" = "隠しファイル";
 "settings.hiddenDetection.macOSHidden" = "隠しファイル";
 "settings.hiddenGroupCollapse" = "隠しファイル group";
@@ -992,3 +992,6 @@
 "file.openWith" = "このアプリケーションで開く";
 "file.openWith.default" = "%@（デフォルト）";
 "file.openWith.other" = "その他…";
+
+/* 0.2.1 — GPG 导入目标说明 */
+"settings.gpg.keys.importHint" = "「~/.gnupg にインポート」はコマンドライン版 gpg と鍵を共有します。「SimpleZip 専用キーリングにインポート」は SimpleZip 内だけに保持し、シェルの gpg を汚さず、SimpleZip をアンインストールすると削除されます。";

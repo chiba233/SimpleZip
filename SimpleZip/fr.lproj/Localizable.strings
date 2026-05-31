@@ -453,7 +453,7 @@
 "conflict.replaceIfDifferent" = "Remplacer si le hash diffère";
 "settings.editColumns" = "Modifier les colonnes...";
 "settings.7zip.backend" = "Backend 7-Zip";
-"settings.7zip.backend.description" = "Choisissez si SimpleZip utilise automatiquement son outil 7-Zip intégré ou uniquement une installation système.";
+"settings.7zip.backend.description" = "« Automatique » privilégie le 7-Zip intégré et bascule sur une installation système à défaut. Ou imposez à SimpleZip uniquement la copie intégrée, ou uniquement un 7-Zip installé sur le système.";
 "settings.7zip.automatic" = "Automatique";
 "settings.7zip.bundled" = "Fourni avec SimpleZip";
 "settings.7zip.system" = "Installé sur le système";
@@ -910,7 +910,7 @@
 "file.hiddenGroup" = "Fichiers masqués (%d)";
 "menu.reportBug" = "Signaler un bug…";
 "settings.hiddenDetection" = "Ce qui compte comme masqué";
-"settings.hiddenDetection.description" = "Fichiers masqués";
+"settings.hiddenDetection.description" = "Détermine ce qui est considéré comme masqué : uniquement les dotfiles (noms commençant par un point) ou aussi les éléments portant l’indicateur masqué de macOS (comme /etc et ~/Library).";
 "settings.hiddenDetection.dotfilesOnly" = "Dotfiles seulement";
 "settings.hiddenDetection.macOSHidden" = "Dotfiles + drapeau masqué macOS";
 "settings.hiddenGroupCollapse" = "Groupe des fichiers masqués";
@@ -992,3 +992,6 @@
 "file.openWith" = "Ouvrir avec";
 "file.openWith.default" = "%@ (par défaut)";
 "file.openWith.other" = "Autre…";
+
+/* 0.2.1 — GPG 导入目标说明 */
+"settings.gpg.keys.importHint" = "« Importer dans ~/.gnupg » partage la clé avec le gpg en ligne de commande. « Importer dans le trousseau privé de SimpleZip » la conserve uniquement dans SimpleZip : elle ne pollue pas le gpg de votre shell et est supprimée à la désinstallation de SimpleZip.";

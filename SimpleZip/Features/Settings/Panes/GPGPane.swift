@@ -289,6 +289,12 @@ struct GPGPane: View {
                 Spacer()
             }
 
+            // 两个导入入口的区别说明 —— 用户反馈光看按钮名不知道差异（目录不同 / 私有钥匙串在应用内 / 不污染命令行 gpg）。
+            Text(L10n.text("settings.gpg.keys.importHint"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
             if isImportingFromSmartcard {
                 HStack {
                     ProgressView().controlSize(.small)

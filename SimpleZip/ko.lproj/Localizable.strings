@@ -453,7 +453,7 @@
 "conflict.replaceIfDifferent" = "해시가 다르면 교체";
 "settings.editColumns" = "열 편집...";
 "settings.7zip.backend" = "7-Zip 백엔드";
-"settings.7zip.backend.description" = "SimpleZip이 번들된 7-Zip 도구를 자동으로 사용할지, 시스템 설치만 사용할지 선택합니다.";
+"settings.7zip.backend.description" = "「자동」은 번들로 포함된 7-Zip을 우선 사용하고, 없으면 시스템 설치본으로 대체합니다. 또는 번들 버전만, 혹은 시스템에 설치된 7-Zip만 사용하도록 고정할 수 있습니다.";
 "settings.7zip.automatic" = "자동";
 "settings.7zip.bundled" = "SimpleZip에 포함";
 "settings.7zip.system" = "시스템 설치";
@@ -910,7 +910,7 @@
 "file.hiddenGroup" = "숨김 파일(%d)";
 "menu.reportBug" = "버그 보고…";
 "settings.hiddenDetection" = "숨김 파일";
-"settings.hiddenDetection.description" = "숨김 파일";
+"settings.hiddenDetection.description" = "무엇을 숨김으로 간주할지 결정합니다. dotfile(점으로 시작하는 이름)만, 또는 macOS 숨김 플래그가 있는 항목(예: /etc, ~/Library)도 포함합니다.";
 "settings.hiddenDetection.dotfilesOnly" = "숨김 파일";
 "settings.hiddenDetection.macOSHidden" = "숨김 파일";
 "settings.hiddenGroupCollapse" = "숨김 파일 group";
@@ -992,3 +992,6 @@
 "file.openWith" = "다음으로 열기";
 "file.openWith.default" = "%@ (기본)";
 "file.openWith.other" = "기타…";
+
+/* 0.2.1 — GPG 导入目标说明 */
+"settings.gpg.keys.importHint" = "「~/.gnupg로 가져오기」는 명령줄 gpg와 키를 공유합니다. 「SimpleZip 전용 키링으로 가져오기」는 SimpleZip 안에만 보관하여 셸의 gpg를 오염시키지 않으며 SimpleZip을 제거하면 함께 삭제됩니다.";

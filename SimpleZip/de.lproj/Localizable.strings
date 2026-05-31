@@ -453,7 +453,7 @@
 "conflict.replaceIfDifferent" = "Ersetzen, wenn Hash unterschiedlich ist";
 "settings.editColumns" = "Spalten bearbeiten...";
 "settings.7zip.backend" = "7-Zip-Backend";
-"settings.7zip.backend.description" = "Wähle, ob SimpleZip automatisch das gebündelte 7-Zip-Werkzeug oder nur eine Systeminstallation verwendet.";
+"settings.7zip.backend.description" = "„Automatisch“ bevorzugt das mitgelieferte 7-Zip und greift sonst auf eine Systeminstallation zurück. Oder lege SimpleZip auf ausschließlich die mitgelieferte Version bzw. ausschließlich ein systemweit installiertes 7-Zip fest.";
 "settings.7zip.automatic" = "Automatisch";
 "settings.7zip.bundled" = "Mit SimpleZip gebündelt";
 "settings.7zip.system" = "Im System installiert";
@@ -910,7 +910,7 @@
 "file.hiddenGroup" = "Versteckte Dateien (%d)";
 "menu.reportBug" = "Fehler melden…";
 "settings.hiddenDetection" = "Was als versteckt gilt";
-"settings.hiddenDetection.description" = "Versteckte Dateien";
+"settings.hiddenDetection.description" = "Legt fest, was als verborgen gilt: nur Dotfiles (Namen, die mit einem Punkt beginnen) oder auch Objekte mit dem Verborgen-Flag von macOS (etwa /etc und ~/Library).";
 "settings.hiddenDetection.dotfilesOnly" = "Nur Dotfiles";
 "settings.hiddenDetection.macOSHidden" = "Dotfiles + macOS-Versteckt-Flag";
 "settings.hiddenGroupCollapse" = "Gruppe versteckter Dateien";
@@ -992,3 +992,6 @@
 "file.openWith" = "Öffnen mit";
 "file.openWith.default" = "%@ (Standard)";
 "file.openWith.other" = "Andere…";
+
+/* 0.2.1 — GPG 导入目标说明 */
+"settings.gpg.keys.importHint" = "„In ~/.gnupg importieren“ teilt den Schlüssel mit dem Kommandozeilen-gpg. „In SimpleZips privaten Schlüsselbund importieren“ behält ihn nur innerhalb von SimpleZip — er verschmutzt das gpg in deiner Shell nicht und wird beim Deinstallieren von SimpleZip entfernt.";
