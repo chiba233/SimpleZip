@@ -163,6 +163,30 @@ struct ArchiveServiceTests {
     }
 
     @Test
+    func parseSevenZipListTreatsAttributeDEntryAsDirectory() {
+        // 某些归档把目录标成 Attributes=D 但 Folder=-（或缺失）。只看 Folder 会把它当 0 字节文件 →
+        // 跟合成的同名文件夹并存出现「幽灵文件」。Attributes 前缀 D 也必须判为目录。
+        let output = """
+        Path = minecraft
+        Size = 0
+        Modified = 2026-05-28 01:44:08
+        Attributes = D drwxr-xr-x
+        Folder = -
+        Method =\u{20}
+
+        Path = minecraft/level.dat
+        Size = 100
+        Attributes = A
+        Method = LZMA2:12
+        """
+
+        let items = ArchiveService.parseSevenZipList(output)
+        let dir = items.first { $0.name == "minecraft" }
+        #expect(dir?.isDirectory == true)
+        #expect(dir?.size == nil)
+    }
+
+    @Test
     func parseSevenZipListCapturesEncryptedEntries() {
         let output = """
         Path = locked/file.txt
