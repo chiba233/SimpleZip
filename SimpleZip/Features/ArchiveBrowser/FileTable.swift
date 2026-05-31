@@ -526,9 +526,11 @@ private struct FileNSOutlineView: NSViewRepresentable {
             guard row >= 0, let node = outlineView.item(atRow: row) as? FileOutlineNode, let item = node.fileItem else { return }
             if !model.selection.contains(item.id) {
                 applySelection(IndexSet(integer: row))
-                DispatchQueue.main.async { [weak self] in
-                    self?.model.selection = [item.id]
-                }
+                // **必须同步**：menuNeedsUpdate 调用本方法后会立刻同步读 model.selectedFileItems 来构建菜单。
+                // 若这里用 DispatchQueue.main.async 异步更新选区，菜单会用上一次的旧选区构建 —— 表现为
+                // 「右键 A 却弹出上一个选中文件 B 的菜单」「同一位置连点两次菜单不一样」。
+                // 本方法由右键事件（menuNeedsUpdate）触发，不在 SwiftUI 更新周期内，同步改 @Published 是安全的。
+                model.selection = [item.id]
             }
         }
 
