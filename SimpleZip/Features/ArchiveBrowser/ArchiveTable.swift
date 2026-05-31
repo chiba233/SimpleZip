@@ -420,6 +420,8 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
 
         func applySelection() {
             guard let outlineView else { return }
+            // 鼠标按下（框选 / 拖动中）时不回灌选区，避免跟 live 橡皮筋打架（闪烁 / 抽搐）。松手后再同步。
+            if NSEvent.pressedMouseButtons & 0x1 != 0 { return }
             var indexes = IndexSet()
             for node in allItemNodes() {
                 guard let item = node.archiveItem, model.selectedArchiveRows.contains(item.id) else { continue }

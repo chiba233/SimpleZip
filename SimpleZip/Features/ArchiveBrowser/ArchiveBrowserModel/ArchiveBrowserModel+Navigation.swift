@@ -413,6 +413,12 @@ extension ArchiveBrowserModel {
     func reloadFromFolderWatcher(expectedFolder: URL) {
         guard case .folder(let current) = mode,
               current.standardizedFileURL == expectedFolder.standardizedFileURL else { return }
+        // 用户正按着鼠标（框选 / 拖动中）→ 推迟自动刷新：reloadData 会在 live 橡皮筋底下重载、打断框选。
+        // 重新排一次去抖，松手后再刷（外部 .DS_Store 之类的变动晚 100ms 刷新无所谓）。
+        if NSEvent.pressedMouseButtons & 0x1 != 0 {
+            handleFolderContentsChanged()
+            return
+        }
         // 必须在 loadFolder（重建 fileItems）之前取旧选区的 URL。
         let previousSelectedURLs = Set(selectedFileItems.map { $0.url.standardizedFileURL })
         loadFolder(current)

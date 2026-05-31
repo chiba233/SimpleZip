@@ -795,6 +795,10 @@ private struct FileNSOutlineView: NSViewRepresentable {
 
         func applySelection() {
             guard let outlineView else { return }
+            // 用户正按着鼠标（橡皮筋框选 / 拖动中）时，**不要**把 model.selection 回灌到表上：
+            // 框选每一帧都 表→model→SwiftUI→updateNSView→applySelection，此时 model.selection 比 live 选区滞后一拍，
+            // selectRowIndexes 会把选区猛拽回旧值 → 闪烁 / 疯狂抽搐。松手后下一次 updateNSView（按钮已抬起）再正常同步。
+            if NSEvent.pressedMouseButtons & 0x1 != 0 { return }
             var indexes = IndexSet()
             for node in allFileNodes() {
                 guard let item = node.fileItem, model.selection.contains(item.id) else { continue }
