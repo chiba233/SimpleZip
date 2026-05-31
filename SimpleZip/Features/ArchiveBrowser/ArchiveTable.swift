@@ -9,7 +9,8 @@ import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// 压缩包模式下的内容列表。底层使用 NSTableView，支持鼠标拖动选择多行。
+/// 压缩包模式下的内容列表。底层使用 NSOutlineView：不分类时是扁平行，「按种类」分类时切成可折叠区块。
+/// 压缩包没有「隐藏文件」概念，所以比文件浏览器简单：区块默认展开、可折叠、不持久化。
 struct ArchiveTable: View {
     @ObservedObject var model: ArchiveBrowserModel
     @AppStorage(AppPreferences.Key.showArchiveKindColumn) private var showKindColumn = true
@@ -22,10 +23,12 @@ struct ArchiveTable: View {
     @AppStorage(AppPreferences.Key.showArchiveCrcColumn) private var showCrcColumn = false
     @AppStorage(AppPreferences.Key.showArchiveCreatedColumn) private var showCreatedColumn = false
     @AppStorage(AppPreferences.Key.showArchiveAttributesColumn) private var showAttributesColumn = false
+    // 观察分类维度 —— 从「视图」菜单改 GroupBy 时靠它触发重渲染 → updateNSView → 重新分组。
+    @AppStorage(AppPreferences.Key.archiveGroupBy) private var archiveGroupBy = BrowserGrouping.GroupBy.none.rawValue
 
     var body: some View {
         ZStack {
-            ArchiveNSTableView(
+            ArchiveNSOutlineView(
                 model: model,
                 showKindColumn: showKindColumn,
                 showSizeColumn: showSizeColumn,
@@ -36,7 +39,8 @@ struct ArchiveTable: View {
                 showPackedSizeColumn: showPackedSizeColumn,
                 showCrcColumn: showCrcColumn,
                 showCreatedColumn: showCreatedColumn,
-                showAttributesColumn: showAttributesColumn
+                showAttributesColumn: showAttributesColumn,
+                groupBy: archiveGroupBy
             )
 
             if model.archiveItems.isEmpty && model.isWorking {
@@ -47,7 +51,46 @@ struct ArchiveTable: View {
     }
 }
 
-private struct ArchiveNSTableView: NSViewRepresentable {
+/// 大纲节点：一个归档条目行，或一个「按种类」分类区块。区块按 sectionKey 跨 reload 复用实例保展开身份。
+@MainActor
+private final class ArchiveOutlineNode {
+    enum Kind {
+        case item(ArchiveItem)
+        case section
+    }
+
+    let kind: Kind
+    let sectionKey: String
+    var title: String
+    var children: [ArchiveOutlineNode]
+
+    private init(kind: Kind, sectionKey: String, title: String) {
+        self.kind = kind
+        self.sectionKey = sectionKey
+        self.title = title
+        self.children = []
+    }
+
+    static func item(_ item: ArchiveItem) -> ArchiveOutlineNode {
+        ArchiveOutlineNode(kind: .item(item), sectionKey: "", title: "")
+    }
+
+    static func section(key: String) -> ArchiveOutlineNode {
+        ArchiveOutlineNode(kind: .section, sectionKey: key, title: "")
+    }
+
+    var archiveItem: ArchiveItem? {
+        if case .item(let item) = kind { return item }
+        return nil
+    }
+
+    var isSection: Bool {
+        if case .section = kind { return true }
+        return false
+    }
+}
+
+private struct ArchiveNSOutlineView: NSViewRepresentable {
     @ObservedObject var model: ArchiveBrowserModel
     let showKindColumn: Bool
     let showSizeColumn: Bool
@@ -59,36 +102,40 @@ private struct ArchiveNSTableView: NSViewRepresentable {
     let showCrcColumn: Bool
     let showCreatedColumn: Bool
     let showAttributesColumn: Bool
+    // 仅作变化触发器：值变 → 重建 representable → updateNSView → 重新分组。真值由 coordinator 读 AppPreferences。
+    let groupBy: String
 
     func makeCoordinator() -> Coordinator {
         Coordinator(model: model)
     }
 
     func makeNSView(context: Context) -> NSScrollView {
-        let scrollView = makeTableScrollView(
+        let scrollView = makeOutlineScrollView(
             delegate: context.coordinator,
             target: context.coordinator,
             doubleAction: #selector(Coordinator.doubleClick(_:))
-        ) { tableView in
-            tableView.setDraggingSourceOperationMask(.copy, forLocal: false)
-            tableView.headerView?.menu = context.coordinator.headerMenu()
-            context.coordinator.tableView = tableView
+        ) { outlineView in
+            outlineView.setDraggingSourceOperationMask(.copy, forLocal: false)
+            outlineView.headerView?.menu = context.coordinator.headerMenu()
+            context.coordinator.outlineView = outlineView
         }
-        guard let tableView = scrollView.documentView as? NSTableView else { return scrollView }
-        configureColumns(for: tableView)
+        guard let outlineView = scrollView.documentView as? NSOutlineView else { return scrollView }
+        configureColumns(for: outlineView)
+        context.coordinator.syncContent()
         return scrollView
     }
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
-        guard let tableView = scrollView.documentView as? NSTableView else { return }
+        guard let outlineView = scrollView.documentView as? NSOutlineView else { return }
         context.coordinator.model = model
-        configureColumns(for: tableView)
-        tableView.reloadData()
-        context.coordinator.applySelection(to: tableView)
+        configureColumns(for: outlineView)
+        context.coordinator.syncContent()
+        context.coordinator.applySelection()
     }
 
-    private func configureColumns(for tableView: NSTableView) {
-        configureTableColumns(visibleColumns, for: tableView)
+    private func configureColumns(for outlineView: NSOutlineView) {
+        configureTableColumns(visibleColumns, for: outlineView)
+        outlineView.outlineTableColumn = outlineView.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier(ArchiveColumn.name.identifier))
     }
 
     private var visibleColumns: [ArchiveColumn] {
@@ -107,25 +154,107 @@ private struct ArchiveNSTableView: NSViewRepresentable {
     }
 
     @MainActor
-    final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate {
+    final class Coordinator: NSObject, NSOutlineViewDataSource, NSOutlineViewDelegate, NSMenuDelegate {
         var model: ArchiveBrowserModel
-        weak var tableView: NSTableView?
+        weak var outlineView: NSOutlineView?
         private var isApplyingSelection = false
+        private var isSyncingExpansion = false
+
+        private var topLevelNodes: [ArchiveOutlineNode] = []
+        private var sectionNodesByKey: [String: ArchiveOutlineNode] = [:]
+        // 分类区块默认展开；用户手动折叠的记这里（不持久化，分类维度变时清空）。
+        private var userCollapsedSectionKeys: Set<String> = []
+        private var lastGroupBy: BrowserGrouping.GroupBy?
 
         init(model: ArchiveBrowserModel) {
             self.model = model
         }
 
-        func numberOfRows(in tableView: NSTableView) -> Int {
-            model.archiveItems.count
+        func syncContent() {
+            let groupBy = AppPreferences.archiveGroupBy
+            if groupBy != lastGroupBy {
+                lastGroupBy = groupBy
+                userCollapsedSectionKeys = []
+            }
+            rebuildTopLevel(groupBy: groupBy)
+            outlineView?.reloadData()
+            enforceExpansion()
         }
 
-        func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
-            guard row < model.archiveItems.count, let tableColumn else { return nil }
-            let item = model.archiveItems[row]
+        private func rebuildTopLevel(groupBy: BrowserGrouping.GroupBy) {
+            var reused: [String: ArchiveOutlineNode] = [:]
+            if groupBy.isGrouping {
+                topLevelNodes = BrowserGrouping.group(model.archiveItems, by: { $0.typeDescription }).map { section in
+                    let key = "kind:\(section.title)"
+                    let node = sectionNodesByKey[key] ?? ArchiveOutlineNode.section(key: key)
+                    node.title = "\(section.title) (\(section.items.count))"
+                    node.children = section.items.map { ArchiveOutlineNode.item($0) }
+                    reused[key] = node
+                    return node
+                }
+            } else {
+                topLevelNodes = model.archiveItems.map { ArchiveOutlineNode.item($0) }
+            }
+            sectionNodesByKey = reused
+        }
+
+        private func allItemNodes() -> [ArchiveOutlineNode] {
+            topLevelNodes.flatMap { $0.isSection ? $0.children : [$0] }
+        }
+
+        private func enforceExpansion() {
+            guard let outlineView else { return }
+            isSyncingExpansion = true
+            for node in topLevelNodes where node.isSection {
+                if userCollapsedSectionKeys.contains(node.sectionKey) {
+                    outlineView.collapseItem(node)
+                } else {
+                    outlineView.expandItem(node)
+                }
+            }
+            isSyncingExpansion = false
+        }
+
+        // MARK: - DataSource
+
+        func outlineView(_ outlineView: NSOutlineView, numberOfChildrenOfItem item: Any?) -> Int {
+            guard let node = item as? ArchiveOutlineNode else { return topLevelNodes.count }
+            return node.isSection ? node.children.count : 0
+        }
+
+        func outlineView(_ outlineView: NSOutlineView, child index: Int, ofItem item: Any?) -> Any {
+            guard let node = item as? ArchiveOutlineNode else {
+                return index < topLevelNodes.count ? topLevelNodes[index] : topLevelNodes
+            }
+            guard index < node.children.count else { return node }
+            return node.children[index]
+        }
+
+        func outlineView(_ outlineView: NSOutlineView, isItemExpandable item: Any) -> Bool {
+            (item as? ArchiveOutlineNode)?.isSection == true
+        }
+
+        // MARK: - Delegate
+
+        func outlineView(_ outlineView: NSOutlineView, viewFor tableColumn: NSTableColumn?, item: Any) -> NSView? {
+            guard let node = item as? ArchiveOutlineNode, let tableColumn else { return nil }
             let column = ArchiveColumn(identifier: tableColumn.identifier.rawValue) ?? .name
+
+            if node.isSection {
+                guard column == .name else { return nil }
+                return makeTableCell(
+                    in: outlineView,
+                    owner: self,
+                    identifier: "ArchiveCell-section",
+                    text: node.title,
+                    isPrimaryColumn: true,
+                    icon: NSImage(systemSymbolName: "square.grid.3x1.below.line.grid.1x2", accessibilityDescription: nil)
+                )
+            }
+
+            guard let item = node.archiveItem else { return nil }
             return makeTableCell(
-                in: tableView,
+                in: outlineView,
                 owner: self,
                 identifier: "ArchiveCell-\(column.identifier)",
                 text: column.value(for: item),
@@ -134,12 +263,13 @@ private struct ArchiveNSTableView: NSViewRepresentable {
             )
         }
 
-        func tableViewSelectionDidChange(_ notification: Notification) {
-            guard !isApplyingSelection else { return }
-            guard let tableView = notification.object as? NSTableView else { return }
+        func outlineViewSelectionDidChange(_ notification: Notification) {
+            guard !isApplyingSelection, let outlineView else { return }
             var selection = Set<UUID>()
-            for index in tableView.selectedRowIndexes where index < model.archiveItems.count {
-                selection.insert(model.archiveItems[index].id)
+            for index in outlineView.selectedRowIndexes {
+                if let node = outlineView.item(atRow: index) as? ArchiveOutlineNode, let item = node.archiveItem {
+                    selection.insert(item.id)
+                }
             }
             DispatchQueue.main.async { [weak self] in
                 guard let self, self.model.selectedArchiveRows != selection else { return }
@@ -147,44 +277,67 @@ private struct ArchiveNSTableView: NSViewRepresentable {
             }
         }
 
-        func tableView(_ tableView: NSTableView, sortDescriptorsDidChange oldDescriptors: [NSSortDescriptor]) {
-            guard let descriptor = tableView.sortDescriptors.first, let key = descriptor.key else { return }
+        func outlineView(_ outlineView: NSOutlineView, sortDescriptorsDidChange oldDescriptors: [NSSortDescriptor]) {
+            guard let descriptor = outlineView.sortDescriptors.first, let key = descriptor.key else { return }
             model.sortArchiveItems(by: key, ascending: descriptor.ascending)
-            tableView.reloadData()
-            applySelection(to: tableView)
+            syncContent()
+            applySelection()
         }
 
-        func tableViewColumnDidMove(_ notification: Notification) {
-            guard let tableView = notification.object as? NSTableView else { return }
-            AppPreferences.setStringArray(tableView.tableColumns.map(\.identifier.rawValue), forKey: AppPreferences.Key.archiveColumnOrder)
+        func outlineViewColumnDidMove(_ notification: Notification) {
+            guard let outlineView else { return }
+            AppPreferences.setStringArray(outlineView.tableColumns.map(\.identifier.rawValue), forKey: AppPreferences.Key.archiveColumnOrder)
         }
 
-        func tableView(_ tableView: NSTableView, pasteboardWriterForRow row: Int) -> NSPasteboardWriting? {
-            guard row < model.archiveItems.count else { return nil }
-            let item = model.archiveItems[row]
-            if !model.selectedArchiveRows.contains(item.id) {
-                applySelection(IndexSet(integer: row), to: tableView)
+        func outlineViewItemDidExpand(_ notification: Notification) {
+            guard !isSyncingExpansion, let node = sectionNode(from: notification) else { return }
+            userCollapsedSectionKeys.remove(node.sectionKey)
+        }
+
+        func outlineViewItemDidCollapse(_ notification: Notification) {
+            guard !isSyncingExpansion, let node = sectionNode(from: notification) else { return }
+            userCollapsedSectionKeys.insert(node.sectionKey)
+        }
+
+        private func sectionNode(from notification: Notification) -> ArchiveOutlineNode? {
+            guard let node = notification.userInfo?["NSObject"] as? ArchiveOutlineNode, node.isSection else { return nil }
+            return node
+        }
+
+        // MARK: - 拖拽（仅拖出，file promise）
+
+        func outlineView(_ outlineView: NSOutlineView, pasteboardWriterForItem item: Any) -> NSPasteboardWriting? {
+            guard let node = item as? ArchiveOutlineNode, let archiveItem = node.archiveItem else { return nil }
+            if !model.selectedArchiveRows.contains(archiveItem.id) {
+                let row = outlineView.row(forItem: item)
+                if row >= 0 { applySelection(IndexSet(integer: row)) }
                 DispatchQueue.main.async { [weak self] in
-                    self?.model.selectedArchiveRows = [item.id]
+                    self?.model.selectedArchiveRows = [archiveItem.id]
                 }
             }
-            let provider = NSFilePromiseProvider(fileType: promisedFileType(for: item), delegate: self)
-            provider.userInfo = item
+            let provider = NSFilePromiseProvider(fileType: promisedFileType(for: archiveItem), delegate: self)
+            provider.userInfo = archiveItem
             return provider
         }
 
-        func tableView(
-            _ tableView: NSTableView,
+        func outlineView(
+            _ outlineView: NSOutlineView,
             draggingSession session: NSDraggingSession,
             sourceOperationMaskFor context: NSDraggingContext
         ) -> NSDragOperation {
             .copy
         }
 
+        // MARK: - 右键菜单
+
         func menuNeedsUpdate(_ menu: NSMenu) {
-            guard let tableView else { return }
-            selectClickedRowIfNeeded(in: tableView)
+            guard let outlineView else { return }
+            selectClickedRowIfNeeded(in: outlineView)
             menu.removeAllItems()
+            // 区块头 / 空白处右键：没有有效条目就不出操作项。
+            let clickedItem = outlineView.clickedRow >= 0 ? outlineView.item(atRow: outlineView.clickedRow) : nil
+            guard (clickedItem as? ArchiveOutlineNode)?.archiveItem != nil else { return }
+
             menu.addItem(menuItem(L10n.text("button.open"), systemImage: "arrow.turn.up.right", action: #selector(openSelected)))
             menu.addItem(menuItem(L10n.text("button.extractSelected"), systemImage: "arrow.down.doc", action: #selector(extractSelected)))
             menu.addItem(menuItem(L10n.text("button.extract"), systemImage: "tray.and.arrow.down", action: #selector(extractWholeArchive)))
@@ -194,10 +347,20 @@ private struct ArchiveNSTableView: NSViewRepresentable {
             menu.addItem(menuItem(L10n.text("button.revealInFinder"), systemImage: "arrow.up.forward.app", action: #selector(revealArchive)))
         }
 
-        @objc func doubleClick(_ sender: NSTableView) {
+        @objc func doubleClick(_ sender: NSOutlineView) {
             let row = sender.clickedRow
-            guard row >= 0, row < model.archiveItems.count else { return }
-            model.open(model.archiveItems[row])
+            guard row >= 0, let node = sender.item(atRow: row) as? ArchiveOutlineNode else { return }
+            if node.isSection {
+                if sender.isItemExpanded(node) {
+                    sender.collapseItem(node)
+                } else {
+                    sender.expandItem(node)
+                }
+                return
+            }
+            if let item = node.archiveItem {
+                model.open(item)
+            }
         }
 
         @objc private func openSelected() {
@@ -226,33 +389,39 @@ private struct ArchiveNSTableView: NSViewRepresentable {
             model.revealInFinder()
         }
 
-        func applySelection(to tableView: NSTableView) {
-            let indexes = IndexSet(model.archiveItems.enumerated().compactMap { index, item in
-                model.selectedArchiveRows.contains(item.id) ? index : nil
-            })
-            if tableView.selectedRowIndexes != indexes {
-                DispatchQueue.main.async { [weak self, weak tableView] in
-                    guard let self, let tableView, tableView.selectedRowIndexes != indexes else { return }
-                    self.applySelection(indexes, to: tableView)
-                }
-            }
-        }
+        // MARK: - 选择同步
 
-        private func selectClickedRowIfNeeded(in tableView: NSTableView) {
-            let row = tableView.clickedRow
-            guard row >= 0, row < model.archiveItems.count else { return }
-            let item = model.archiveItems[row]
-            if !model.selectedArchiveRows.contains(item.id) {
-                applySelection(IndexSet(integer: row), to: tableView)
+        func applySelection() {
+            guard let outlineView else { return }
+            var indexes = IndexSet()
+            for node in allItemNodes() {
+                guard let item = node.archiveItem, model.selectedArchiveRows.contains(item.id) else { continue }
+                let row = outlineView.row(forItem: node)
+                if row >= 0 { indexes.insert(row) }
+            }
+            if outlineView.selectedRowIndexes != indexes {
                 DispatchQueue.main.async { [weak self] in
-                    self?.model.selectedArchiveRows = [item.id]
+                    guard let self, let outlineView = self.outlineView, outlineView.selectedRowIndexes != indexes else { return }
+                    self.applySelection(indexes)
                 }
             }
         }
 
-        private func applySelection(_ indexes: IndexSet, to tableView: NSTableView) {
+        private func selectClickedRowIfNeeded(in outlineView: NSOutlineView) {
+            let row = outlineView.clickedRow
+            guard row >= 0, let node = outlineView.item(atRow: row) as? ArchiveOutlineNode, let item = node.archiveItem else { return }
+            if !model.selectedArchiveRows.contains(item.id) {
+                applySelection(IndexSet(integer: row))
+                // 同步更新（与 FileTable 同理）：menuNeedsUpdate 紧接着同步读 selectedArchiveItems 构建菜单，
+                // 异步会导致菜单作用在上一次的选区上。
+                model.selectedArchiveRows = [item.id]
+            }
+        }
+
+        private func applySelection(_ indexes: IndexSet) {
+            guard let outlineView else { return }
             isApplyingSelection = true
-            tableView.selectRowIndexes(indexes, byExtendingSelection: false)
+            outlineView.selectRowIndexes(indexes, byExtendingSelection: false)
             isApplyingSelection = false
         }
 
@@ -286,7 +455,7 @@ private struct ArchiveNSTableView: NSViewRepresentable {
 }
 
 @MainActor
-extension ArchiveNSTableView.Coordinator: NSFilePromiseProviderDelegate {
+extension ArchiveNSOutlineView.Coordinator: NSFilePromiseProviderDelegate {
     func filePromiseProvider(_ filePromiseProvider: NSFilePromiseProvider, fileNameForType fileType: String) -> String {
         guard let item = filePromiseProvider.userInfo as? ArchiveItem else {
             return L10n.text("type.file")

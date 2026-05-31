@@ -381,12 +381,21 @@ struct ColumnsViewCommands: Commands {
     @AppStorage(AppPreferences.Key.showArchiveCreatedColumn) private var showArchiveCreatedColumn = false
     @AppStorage(AppPreferences.Key.showArchiveAttributesColumn) private var showArchiveAttributesColumn = false
     @AppStorage(AppPreferences.Key.fileGroupBy) private var fileGroupBy = BrowserGrouping.GroupBy.none.rawValue
+    @AppStorage(AppPreferences.Key.archiveGroupBy) private var archiveGroupBy = BrowserGrouping.GroupBy.none.rawValue
 
     var body: some Commands {
         CommandMenu(L10n.text("menu.view")) {
-            // 文件浏览器分类（Group By）—— 单选 None / Kind。压缩包浏览器的分类是后续 phase。
+            // 分类（Group By）—— 文件浏览器 / 压缩包浏览器各一个，单选 None / Kind。
             Menu(L10n.text("view.groupBy.fileBrowser")) {
                 Picker("", selection: $fileGroupBy) {
+                    ForEach(BrowserGrouping.GroupBy.allCases, id: \.self) { option in
+                        Text(option.title).tag(option.rawValue)
+                    }
+                }
+                .pickerStyle(.inline)
+            }
+            Menu(L10n.text("view.groupBy.archiveBrowser")) {
+                Picker("", selection: $archiveGroupBy) {
                     ForEach(BrowserGrouping.GroupBy.allCases, id: \.self) { option in
                         Text(option.title).tag(option.rawValue)
                     }
