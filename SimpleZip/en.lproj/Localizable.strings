@@ -56,6 +56,7 @@
 "welcome.completion.body" = "Key settings are configured. You can start using SimpleZip from the Dock, Finder, or by dragging a folder onto the main window.\n\nChange any of these settings later from Settings, and replay this assistant from the SimpleZip menu.";
 "welcome.backupRestore.title" = "Restore from a previous backup?";
 "welcome.backupRestore.body" = "If you previously exported a SimpleZip preferences JSON from Settings → Backup & Restore, you can import it now and skip the later manual choices. Otherwise click Continue.";
+"welcome.backupRestore.importReplaceHint" = "Importing replaces your current settings with the backup's.";
 "welcome.backupRestore.button" = "Choose Backup File…";
 "welcome.backupRestore.success" = "Preferences restored from the backup. The choices in the next steps now reflect that backup.";
 "welcome.backupRestore.failure" = "Import failed: %@";

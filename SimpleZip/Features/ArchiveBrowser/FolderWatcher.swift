@@ -83,10 +83,18 @@ final class FolderWatcher {
             return
         }
 
+        FSEventStreamSetDispatchQueue(newStream, DispatchQueue.main)
+        guard FSEventStreamStart(newStream) else {
+            // 启动失败（极少见）：别让一个没真正跑起来的 stream 假装在 watch ——
+            // 否则 stream != nil + watchedPath 已设，后续同路径 watch 会 no-op，结果根本没在监视。
+            // 此时回到「无 watcher」状态（用户仍可 ⌘R 手动刷新）。
+            FSEventStreamInvalidate(newStream)
+            FSEventStreamRelease(newStream) // → context release 回调放掉 passRetained 的 +1
+            watchedPath = nil
+            return
+        }
         stream = newStream
         watchedPath = path
-        FSEventStreamSetDispatchQueue(newStream, DispatchQueue.main)
-        FSEventStreamStart(newStream)
     }
 
     /// 停止监视并释放 stream（release 回调会对称放掉 passRetained 的 +1）。

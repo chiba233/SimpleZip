@@ -56,6 +56,7 @@
 "welcome.completion.body" = "你已经完成了关键设置。SimpleZip 现在可以从 Dock、Finder 或拖文件夹到主窗口开始使用。\n\n后续如果想改设置，去「偏好设置」就行；想再走一遍这个助手，从 SimpleZip 菜单进。";
 "welcome.backupRestore.title" = "导入之前的备份？";
 "welcome.backupRestore.body" = "如果你之前从「偏好设置 → 备份与还原」导出过 SimpleZip 偏好 JSON 备份，可以现在直接导入恢复，跳过后面手工选项。没有的话点「下一步」继续即可。";
+"welcome.backupRestore.importReplaceHint" = "导入会用备份里的设置替换你当前的设置。";
 "welcome.backupRestore.button" = "选择备份文件…";
 "welcome.backupRestore.success" = "已从备份恢复偏好。后续步骤的选项已被备份覆盖。";
 "welcome.backupRestore.failure" = "导入失败：%@";

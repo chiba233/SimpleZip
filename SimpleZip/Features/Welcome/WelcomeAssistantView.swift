@@ -19,10 +19,10 @@ extension Notification.Name {
 ///
 /// 设计动机：
 /// - SimpleZip 有数十个偏好。新用户大概率会绕过设置直接用，错过预设密码 / Finder 自动解压
-///   这类「真的能省事」的开关。这个 wizard 在第一次启动时把它们摊在 9 个简短步骤里。
-/// - 步骤覆盖：intro / 语言 / 启动位置 / 默认覆盖 / 预设密码 / Finder 自动解压 / 安全策略说明 /
-///   后端可用性 / 完成。每一步都直接绑 `@AppStorage` —— 用户改的瞬间就落盘，
-///   `Back / Skip / Finish` 都不会丢失改动。
+///   这类「真的能省事」的开关。这个 wizard 在第一次启动时把关键设置拆成若干简短步骤逐个过。
+/// - 步骤构成见下方 `stepContent` 的 switch（备份恢复 / 版本检查 / intro / 一组设置步骤 / 完成）；
+///   总步数 / 设置步数以 `totalSteps`、`settingStepCount` 为准（加减步骤时改那里，别在注释里写死数字）。
+///   每个设置步骤都直接绑 `@AppStorage` —— 用户改的瞬间就落盘，`Back / Skip / Finish` 都不会丢失改动。
 /// - 触发：`AppPreferences.welcomeAssistantCompleted` bool 控制是否首次启动自动弹；
 ///   走完最后一步时置 true。SimpleZip 菜单的「重新运行欢迎助手」通过
 ///   `Notification.Name.openWelcomeAssistant` 重新打开，不重置 completed bool
@@ -242,6 +242,13 @@ private struct WelcomeBackupRestoreStep: View {
                 Button(L10n.text("welcome.backupRestore.button")) {
                     pickBackupFile()
                 }
+
+                // 导入是 destructive-ish（会按白名单清掉现有设置再写备份值）。首启流程不弹二次确认 ——
+                // 主动选文件本身算确认 —— 但给一句小灰字说清后果。
+                Text(L10n.text("welcome.backupRestore.importReplaceHint"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 if let statusMessage {
                     HStack(alignment: .top, spacing: 8) {
