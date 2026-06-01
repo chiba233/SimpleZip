@@ -1004,3 +1004,13 @@
 /* 0.2.2 — 创建副本 */
 "file.duplicate" = "Dupliquer";
 "file.duplicate.suffix" = " copie";
+
+/* 0.2.2 — 文件操作撤销/重做 */
+"menu.undo" = "Annuler";
+"menu.redo" = "Rétablir";
+"undo.action.move" = "Déplacer";
+"undo.action.copy" = "Copier";
+"undo.action.rename" = "Renommer";
+"undo.action.delete" = "Supprimer";
+"undo.action.duplicate" = "Dupliquer";
+"undo.partiallySkipped" = "%d élément(s) n’ont pas pu être annulés — l’original est absent ou la destination est déjà occupée.";

@@ -36,6 +36,7 @@ extension ArchiveBrowserModel {
 
             do {
                 let total = max(1, fileClipboard.urls.count)
+                var undoPairs: [(URL, URL)] = []
                 let conflictSession = extractionCoordinator.makeConflictResolutionSession()
                 for (index, url) in fileClipboard.urls.enumerated() {
                     operationProgress = ArchiveProgressState(
@@ -60,11 +61,15 @@ extension ArchiveBrowserModel {
                     } else {
                         try fileManager.copyItem(at: url, to: targetURL)
                     }
+                    undoPairs.append((url, targetURL))
                     extractionCoordinator.showPendingHashOverwriteResult(for: targetURL)
                 }
                 extractionCoordinator.finishConflictResolutionSession(conflictSession)
                 if fileClipboard.shouldMove {
+                    registerMoveUndo(undoPairs.map { (from: $0.0, to: $0.1) }, actionName: L10n.text("undo.action.move"))
                     self.fileClipboard = nil
+                } else {
+                    registerCopyUndo(undoPairs.map { (source: $0.0, dest: $0.1) }, actionName: L10n.text("undo.action.copy"))
                 }
                 operationProgress = ArchiveProgressState(fraction: 1, currentFile: nil, completedUnitCount: total, totalUnitCount: total)
                 SystemSound.operationComplete?.play()
@@ -101,6 +106,7 @@ extension ArchiveBrowserModel {
 
         do {
             try fileManager.moveItem(at: item.url, to: target)
+            registerMoveUndo([(from: item.url, to: target)], actionName: L10n.text("undo.action.rename"))
             // 刷新交给 FolderWatcher：同目录改名会触发 FSEvents 自动 reload。
         } catch {
             errorMessage = error.localizedDescription
@@ -124,10 +130,16 @@ extension ArchiveBrowserModel {
         }
 
         do {
+            var trashed: [(original: URL, trashURL: URL)] = []
             for item in selectedFileItems {
                 var resultingURL: NSURL?
                 try fileManager.trashItem(at: item.url, resultingItemURL: &resultingURL)
+                if let trashURL = resultingURL as URL? {
+                    trashed.append((original: item.url, trashURL: trashURL))
+                }
             }
+            // 撤销 = 从废纸篓移回原位；重做 = 移回废纸篓那个路径。
+            registerTrashUndo(trashed, actionName: L10n.text("undo.action.delete"))
             // 复刻 Finder：移到废纸篓后播放系统「move to trash」音效。
             SystemSound.moveToTrash?.play()
             // 刷新交给 FolderWatcher：从当前文件夹移除条目会触发 FSEvents 自动 reload。
@@ -142,9 +154,13 @@ extension ArchiveBrowserModel {
     func duplicateSelectedFiles() {
         guard case .folder = mode, !selectedFileItems.isEmpty else { return }
         do {
+            var copies: [(source: URL, dest: URL)] = []
             for item in selectedFileItems {
-                try fileManager.copyItem(at: item.url, to: duplicateDestinationURL(for: item.url))
+                let dest = duplicateDestinationURL(for: item.url)
+                try fileManager.copyItem(at: item.url, to: dest)
+                copies.append((source: item.url, dest: dest))
             }
+            registerCopyUndo(copies, actionName: L10n.text("undo.action.duplicate"))
             SystemSound.operationComplete?.play()
         } catch {
             errorMessage = error.localizedDescription
@@ -203,6 +219,7 @@ extension ArchiveBrowserModel {
 
             do {
                 let total = max(1, urls.count)
+                var undoPairs: [(URL, URL)] = []
                 let conflictSession = extractionCoordinator.makeConflictResolutionSession()
                 for (index, url) in urls.enumerated() {
                     try Task.checkCancellation()
@@ -230,9 +247,15 @@ extension ArchiveBrowserModel {
                     } else {
                         try fileManager.copyItem(at: url, to: targetURL)
                     }
+                    undoPairs.append((url, targetURL))
                     extractionCoordinator.showPendingHashOverwriteResult(for: targetURL)
                 }
                 extractionCoordinator.finishConflictResolutionSession(conflictSession)
+                if shouldMove {
+                    registerMoveUndo(undoPairs.map { (from: $0.0, to: $0.1) }, actionName: L10n.text("undo.action.move"))
+                } else {
+                    registerCopyUndo(undoPairs.map { (source: $0.0, dest: $0.1) }, actionName: L10n.text("undo.action.copy"))
+                }
                 operationProgress = ArchiveProgressState(fraction: 1, currentFile: nil, completedUnitCount: total, totalUnitCount: total)
                 status = L10n.text("status.done")
                 SystemSound.operationComplete?.play()

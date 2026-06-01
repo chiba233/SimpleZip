@@ -1004,3 +1004,13 @@
 /* 0.2.2 — 创建副本 */
 "file.duplicate" = "製作複本";
 "file.duplicate.suffix" = " 複本";
+
+/* 0.2.2 — 文件操作撤销/重做 */
+"menu.undo" = "還原";
+"menu.redo" = "重做";
+"undo.action.move" = "移動";
+"undo.action.copy" = "複製";
+"undo.action.rename" = "重新命名";
+"undo.action.delete" = "刪除";
+"undo.action.duplicate" = "製作複本";
+"undo.partiallySkipped" = "%d 項無法還原 —— 來源已不在，或目標位置已被占用。";

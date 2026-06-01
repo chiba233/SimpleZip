@@ -1004,3 +1004,13 @@
 /* 0.2.2 — 创建副本 */
 "file.duplicate" = "ทำซ้ำ";
 "file.duplicate.suffix" = " สำเนา";
+
+/* 0.2.2 — 文件操作撤销/重做 */
+"menu.undo" = "เลิกทำ";
+"menu.redo" = "ทำซ้ำ";
+"undo.action.move" = "ย้าย";
+"undo.action.copy" = "คัดลอก";
+"undo.action.rename" = "เปลี่ยนชื่อ";
+"undo.action.delete" = "ลบ";
+"undo.action.duplicate" = "ทำซ้ำ";
+"undo.partiallySkipped" = "ไม่สามารถเลิกทำ %d รายการ — ไม่พบต้นฉบับ หรือปลายทางถูกใช้งานแล้ว";

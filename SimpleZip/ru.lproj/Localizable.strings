@@ -1004,3 +1004,13 @@
 /* 0.2.2 — 创建副本 */
 "file.duplicate" = "Дублировать";
 "file.duplicate.suffix" = " копия";
+
+/* 0.2.2 — 文件操作撤销/重做 */
+"menu.undo" = "Отменить";
+"menu.redo" = "Повторить";
+"undo.action.move" = "Перемещение";
+"undo.action.copy" = "Копирование";
+"undo.action.rename" = "Переименование";
+"undo.action.delete" = "Удаление";
+"undo.action.duplicate" = "Дублирование";
+"undo.partiallySkipped" = "Не удалось отменить %d объект(ов): оригинал отсутствует или место назначения уже занято.";

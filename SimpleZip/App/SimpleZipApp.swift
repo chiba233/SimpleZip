@@ -216,6 +216,31 @@ struct ArchiveFileCommands: Commands {
             .disabled(!(model?.canGoUp ?? false))
         }
 
+        CommandGroup(replacing: .undoRedo) {
+            // ⌘Z / ⇧⌘Z：正在编辑文本（地址栏 / 内联重命名）时交给字段编辑器的 undo（撤销打字）；
+            // 否则走主窗口的文件操作撤销栈（移动 / 粘贴 / 副本 / 重命名 / 删除）。按真实 first responder
+            // 路由，不依赖 isTextInputFocused（内联重命名是 AppKit 字段编辑器，未必被它跟踪）。
+            Button(L10n.text("menu.undo")) {
+                if let text = NSApp.keyWindow?.firstResponder as? NSText, text.undoManager?.canUndo == true {
+                    text.undoManager?.undo()
+                } else {
+                    model?.fileUndoManager.undo()
+                }
+            }
+            .keyboardShortcut("z", modifiers: [.command])
+            .disabled(model == nil)
+
+            Button(L10n.text("menu.redo")) {
+                if let text = NSApp.keyWindow?.firstResponder as? NSText, text.undoManager?.canRedo == true {
+                    text.undoManager?.redo()
+                } else {
+                    model?.fileUndoManager.redo()
+                }
+            }
+            .keyboardShortcut("z", modifiers: [.command, .shift])
+            .disabled(model == nil)
+        }
+
         CommandGroup(replacing: .pasteboard) {
             Button {
                 if isTextInputFocused {

@@ -1004,3 +1004,13 @@
 /* 0.2.2 — 创建副本 */
 "file.duplicate" = "Duplicar";
 "file.duplicate.suffix" = " copia";
+
+/* 0.2.2 — 文件操作撤销/重做 */
+"menu.undo" = "Deshacer";
+"menu.redo" = "Rehacer";
+"undo.action.move" = "Mover";
+"undo.action.copy" = "Copiar";
+"undo.action.rename" = "Renombrar";
+"undo.action.delete" = "Eliminar";
+"undo.action.duplicate" = "Duplicar";
+"undo.partiallySkipped" = "No se pudieron deshacer %d elemento(s): falta el original o el destino ya está ocupado.";

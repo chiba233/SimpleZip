@@ -1004,3 +1004,13 @@
 /* 0.2.2 — 创建副本 */
 "file.duplicate" = "複製";
 "file.duplicate.suffix" = "のコピー";
+
+/* 0.2.2 — 文件操作撤销/重做 */
+"menu.undo" = "取り消す";
+"menu.redo" = "やり直す";
+"undo.action.move" = "移動";
+"undo.action.copy" = "コピー";
+"undo.action.rename" = "名前を変更";
+"undo.action.delete" = "削除";
+"undo.action.duplicate" = "複製";
+"undo.partiallySkipped" = "%d 個の項目を取り消せませんでした —— 元の項目が見つからないか、移動先がすでに使われています。";

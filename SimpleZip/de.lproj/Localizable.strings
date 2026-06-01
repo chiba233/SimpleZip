@@ -1004,3 +1004,13 @@
 /* 0.2.2 — 创建副本 */
 "file.duplicate" = "Duplizieren";
 "file.duplicate.suffix" = " Kopie";
+
+/* 0.2.2 — 文件操作撤销/重做 */
+"menu.undo" = "Widerrufen";
+"menu.redo" = "Wiederholen";
+"undo.action.move" = "Bewegen";
+"undo.action.copy" = "Kopieren";
+"undo.action.rename" = "Umbenennen";
+"undo.action.delete" = "Löschen";
+"undo.action.duplicate" = "Duplizieren";
+"undo.partiallySkipped" = "%d Objekt(e) konnten nicht widerrufen werden – das Original fehlt oder das Ziel ist bereits belegt.";

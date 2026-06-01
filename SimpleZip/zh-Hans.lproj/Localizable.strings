@@ -1012,3 +1012,13 @@
 /* 0.2.2 — 创建副本 */
 "file.duplicate" = "创建副本";
 "file.duplicate.suffix" = " 副本";
+
+/* 0.2.2 — 文件操作撤销/重做 */
+"menu.undo" = "撤销";
+"menu.redo" = "重做";
+"undo.action.move" = "移动";
+"undo.action.copy" = "复制";
+"undo.action.rename" = "重命名";
+"undo.action.delete" = "删除";
+"undo.action.duplicate" = "创建副本";
+"undo.partiallySkipped" = "%d 项无法撤销 —— 源已不在，或目标位置已被占用。";

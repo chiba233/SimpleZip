@@ -4,6 +4,7 @@
 
 ## 0.2.2
 
+- **Undo / Redo for file operations (⌘Z / ⇧⌘Z).** Move, paste/copy, duplicate, rename, and delete can now be undone and redone from the Edit menu. Undo of a delete restores from the Trash; undo of a copy/paste/duplicate removes the new copies (still recoverable in Trash); move and rename reverse in place. Conservative by design — if a file was changed externally or its spot is already taken, that step is skipped and reported rather than overwriting anything. (While editing a name or the address bar, ⌘Z undoes typing as usual.)
 - **Deleting files plays the Trash sound.** Moving files to the Trash now plays the same "move to trash" sound Finder uses, for familiar feedback.
 - **Sound feedback on successful operations.** Paste, move, duplicate, archive creation, and extraction now play a completion chime when they finish, matching the Trash sound on delete.
 - **"Test" moved from ⌘T to ⌃⌘T**, freeing ⌘T for the upcoming "New Tab" shortcut.
