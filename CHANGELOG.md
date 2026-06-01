@@ -6,6 +6,7 @@
 
 - **Fixed: the Finder auto-extract window showed a raw "Extracting %@".** The single-archive progress window printed the unfilled format placeholder instead of the archive name; it now shows the name.
 - **Fixed: cancelling a Finder auto-extract reported it as a failure.** Hitting Cancel surfaced "Extraction failed (CancellationError)". Cancelling now simply closes the window — it isn't an error.
+- **Finder auto-extract now feeds the Activity Center.** Each Finder/right-click extraction registers as a task in the Activity Center (progress, cancel, history), and the extract window has an "Activity Center" button next to Cancel to jump there.
 
 ## 0.2.2
 

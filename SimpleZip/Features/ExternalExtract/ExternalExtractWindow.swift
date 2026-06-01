@@ -202,6 +202,11 @@ final class ExternalExtractSession: ObservableObject {
     func run(onClose: @escaping @MainActor () -> Void, onAttention: @escaping @MainActor () -> Void = {}) async {
         // `.siz` unwrap 暂存根：无论成功失败都清掉（含可能的解密产物）。
         defer { if let cleanupDirectory { try? FileManager.default.removeItem(at: cleanupDirectory) } }
+        // 接入活动中心：Finder 自动解压也建一个归档任务，进度同步喂进去，可在活动中心查看 / 取消。
+        let task = TaskCenter.shared.begin(
+            category: .archive, kind: .extract, title: displayName, cancellable: true, operationID: operationID
+        )
+        task.cancel = { [weak self] in self?.cancel() }
         do {
             let target = try await ExternalExtractRunner.extract(
                 archiveURL: archiveURL,
@@ -209,13 +214,16 @@ final class ExternalExtractSession: ObservableObject {
                 outputBaseNameOverride: outputBaseNameOverride,
                 operationID: operationID,
                 coordinator: coordinator,
-                onStatus: { [weak self] in self?.statusText = $0 },
+                onStatus: { [weak self] text in self?.statusText = text; task.progress.statusText = text },
                 onProgress: { [weak self] fraction, file in
                     self?.fraction = fraction
                     self?.currentFileName = file
+                    task.progress.fraction = fraction
+                    task.progress.currentFile = file
                 }
             )
             status = .succeeded(target)
+            TaskCenter.shared.finish(task, outcome: .succeeded(target))
             SystemSound.operationComplete?.play()
             NSWorkspace.shared.activateFileViewerSelecting([target])
             // 1.2s 后自动关 —— 让用户看到「完成」反馈但不挡屏幕太久。
@@ -223,10 +231,12 @@ final class ExternalExtractSession: ObservableObject {
             onClose()
         } catch is CancellationError {
             // 用户主动取消 ≠ 失败。直接关掉浮窗，不弹「解压失败 CancellationError」。
+            TaskCenter.shared.finish(task, outcome: .cancelled)
             onClose()
         } catch {
             // 真失败不自动关；用户可能想看错误 + 复制路径。把浮窗带到最前，确保后台时错误不被埋。
             status = .failed(error.localizedDescription)
+            TaskCenter.shared.finish(task, outcome: .failed(error.localizedDescription))
             onAttention()
         }
     }
@@ -274,6 +284,11 @@ final class ExternalExtractBatchSession: ObservableObject {
             statusText = L10n.format("externalExtract.batch.progress", index + 1, total, url.lastPathComponent)
             let opID = UUID()
             currentOperationID = opID
+            // 每个压缩包在活动中心建独立任务，可逐个查看 / 取消。
+            let task = TaskCenter.shared.begin(
+                category: .archive, kind: .extract, title: url.lastPathComponent, cancellable: true, operationID: opID
+            )
+            task.cancel = { [weak self] in self?.cancel() }
             do {
                 let target = try await ExternalExtractRunner.extract(
                     archiveURL: url,
@@ -285,12 +300,18 @@ final class ExternalExtractBatchSession: ObservableObject {
                     onProgress: { [weak self] fraction, file in
                         self?.fraction = fraction
                         self?.currentFileName = file
+                        task.progress.fraction = fraction
+                        task.progress.currentFile = file
                     }
                 )
                 succeeded.append(target)
+                TaskCenter.shared.finish(task, outcome: .succeeded(target))
+            } catch is CancellationError {
+                // 取消当前项 → 整批停止，不记为失败。
+                TaskCenter.shared.finish(task, outcome: .cancelled)
+                break
             } catch {
-                // 取消会让命令抛错；此时不记为失败，直接停止。
-                if isCancelled { break }
+                TaskCenter.shared.finish(task, outcome: .failed(error.localizedDescription))
                 failures.append(Failure(name: url.lastPathComponent, message: error.localizedDescription))
             }
         }
@@ -353,6 +374,9 @@ struct ExternalExtractView: View {
             HStack {
                 switch session.status {
                 case .running:
+                    Button(L10n.text("tasks.window.title")) {
+                        ActivityWindowController.shared.show(category: .archive)
+                    }
                     Spacer()
                     Button(L10n.text("button.cancel")) {
                         session.cancel()
@@ -370,6 +394,10 @@ struct ExternalExtractView: View {
                             .foregroundStyle(.secondary)
                             .lineLimit(3)
                             .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer()
+                    Button(L10n.text("tasks.window.title")) {
+                        ActivityWindowController.shared.show(category: .archive)
                     }
                 }
             }
@@ -419,6 +447,9 @@ struct ExternalExtractBatchView: View {
                         .truncationMode(.middle)
                 }
                 HStack {
+                    Button(L10n.text("tasks.window.title")) {
+                        ActivityWindowController.shared.show(category: .archive)
+                    }
                     Spacer()
                     Button(L10n.text("button.cancel")) { session.cancel() }
                 }
