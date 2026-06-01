@@ -8,63 +8,90 @@
 import AppKit
 import SwiftUI
 
-/// 主窗口原生标签（macOS window tabs）相关常量与桥接。
-///
-/// 设计取舍见 docs / plan：保留单一 valueless `WindowGroup { ContentView() }` +
-/// `.handlesExternalEvents(matching: [])`，用 SwiftUI `openWindow(id:)` 开新窗口。
-/// **关键**：`openWindow` 开出的窗口默认是**独立窗口**，`tabbingMode = .preferred` 这种软提示
-/// 在窗口已 order-front 后再设根本不生效（macOS 那时已判定它是独立窗口）。所以用确定性的 AppKit
-/// API `addTabbedWindow(_:ordered:)`：开窗前记下当前 key 窗口当宿主，新窗口一出现就强制并进它的标签组
-/// —— 这样新标签出现在**同一个窗口**里，而不是飘出一个新窗口。
-/// 不走 `WindowGroup(for:)`（会重新引入 `.siz`/`.szs` 外部事件克隆双窗口），也不全手写 NSWindow 管理。
+/// 主窗口原生标签（macOS window tabs）相关常量。
 enum MainWindow {
-    /// 主 `WindowGroup` 的标识 —— `openWindow(id:)` 据此开新窗口（=新标签）。
-    /// `OpenWindowAction` 没有无参重载，必须给 WindowGroup 一个 id 才能从命令里开它。
-    static let windowGroupID = "SimpleZip.main"
     /// 所有主内容窗口共享的标签分组标识（`NSWindow.tabbingIdentifier` 是 String）。
-    /// 相同标识 + `.preferred` 模式 → 新窗口强制并成标签，无视系统「偏好标签页」设置
-    /// （默认 `.automatic` 会看系统设置，通常不并标签）。
+    /// 相同标识让显式 `addTabbedWindow` 进来的窗口归到同一个标签组。
     static let tabbingIdentifier = "SimpleZip.MainWindow"
-    /// 主窗口的 window.identifier 前缀——`hideMainWindowIfPossible` / 冷启动建窗判定都靠它识别「主内容窗口」。
+    /// 主窗口的 window.identifier —— `hideMainWindowIfPossible` / 冷启动建窗判定都靠它识别「主内容窗口」。
     static let windowIdentifier = NSUserInterfaceItemIdentifier("SimpleZip.Main")
 
     /// 判断一个 NSWindow 是否是 SimpleZip 主内容窗口（标签）。
-    /// 用 identifier 命中，或兜底用 `NSHostingView` content（首帧 identifier 可能还没被 accessor 设上）。
+    /// 用 identifier 命中，或兜底用 `NSHostingView` content（首帧 identifier 可能还没被设上）。
     static func isMainContentWindow(_ window: NSWindow) -> Bool {
         if window.identifier == windowIdentifier { return true }
         // sheet（parent 非空）/ 辅助窗口不算主窗口。
         if window.parent != nil { return false }
-        return window.contentView is NSHostingView<AnyView>
+        return window.tabbingIdentifier == tabbingIdentifier
     }
 }
 
-/// 「新标签该并入哪个窗口」的协调器。`⌘T` / 运行中外部打开 在调 `openWindow(id:)` **之前**调
-/// `prepareNewTab()` 记下当前 key 窗口当宿主；新窗口的 `WindowAccessor` 一就绪就把自己并进该宿主的标签组。
-final class MainWindowTabCoordinator {
-    static let shared = MainWindowTabCoordinator()
-    /// 记录要并入的宿主窗口；弱引用避免它关掉后还被持有。
-    private weak var pendingTabHost: NSWindow?
-    private init() {}
+/// 主窗口工厂：自己用 AppKit 建窗，**不走** SwiftUI `openWindow`。
+///
+/// 为什么不用 `openWindow`：它一定会先把新窗口当独立窗口画出来（屏幕中央 / 带动画），下一拍才轮到我们
+/// 合并标签 —— 用户看到的就是「闪一个新窗口又并回去」，无法消除。自己建窗则能在窗口 **order-front 之前**
+/// 就 `addTabbedWindow` 把它并进宿主标签组，新窗口从不以独立形态出现 → **零闪烁**；同时能精确区分
+/// 「新标签（并入当前窗口）」和「新窗口（保持独立、绝不被吞成标签）」。
+enum MainWindowFactory {
+    /// 强持有工厂建出的窗口控制器 —— 否则 `open()` 返回后 ARC 立刻释放本地 window，
+    /// 与 AppKit 的窗口列表 / `isReleasedWhenClosed` 语义打架，触发 `objc_release` 过度释放崩溃。
+    /// 窗口关闭时从这里移除。
+    private static var controllers: [NSWindowController] = []
 
-    /// 开新标签前调用：把当前 key 窗口记为「新窗口要并入的宿主」。冷启动 / 首个窗口不调 → 保持独立。
-    func prepareNewTab() {
-        pendingTabHost = NSApp.keyWindow
+    /// 开一个主窗口。
+    /// - asTab == true 且存在主内容窗口宿主：并入它的标签组（同一个窗口里多一个标签，零闪烁）。
+    /// - 否则：独立窗口（冷启动 / 「新建窗口」/ 没有可并入的宿主时）。
+    @discardableResult
+    static func open(asTab: Bool) -> NSWindow {
+        // chrome 复刻 SwiftUI WindowGroup 给 NavigationSplitView 窗口的样式：`.fullSizeContentView`
+        // + 透明标题栏 + unified 工具栏 —— 让侧栏材质延伸到顶、侧栏开关并入标题栏。少了 `.fullSizeContentView`
+        // 侧栏会从标题栏下方才开始、标题栏区域空一大块（用户反馈「布局炸了」）。
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 1040, height: 680),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        // 我们自己用 NSWindowController 管生命周期；关掉 isReleasedWhenClosed 避免和 ARC 双重释放。
+        window.isReleasedWhenClosed = false
+        window.contentViewController = NSHostingController(rootView: ContentView())
+        window.identifier = MainWindow.windowIdentifier
+        window.titlebarAppearsTransparent = true
+        window.toolbarStyle = .unified
+        // `.automatic` 跟随系统「偏好标签页」设置、不强制合并；标签是靠显式 addTabbedWindow 实现的。
+        window.tabbingMode = .automatic
+        window.tabbingIdentifier = MainWindow.tabbingIdentifier
+
+        // 强持有窗口控制器；窗口关闭时释放，避免泄漏 + 避免悬挂。
+        let controller = NSWindowController(window: window)
+        controllers.append(controller)
+        var token: NSObjectProtocol?
+        token = NotificationCenter.default.addObserver(
+            forName: NSWindow.willCloseNotification, object: window, queue: .main
+        ) { _ in
+            controllers.removeAll { $0.window === window }
+            if let token { NotificationCenter.default.removeObserver(token) }
+        }
+
+        if asTab, let host = tabHost() {
+            // 并入宿主标签组：先 frame 对齐，再 addTabbedWindow，最后才显示 → 窗口从未以独立形态出现 → 零闪烁。
+            window.setFrame(host.frame, display: false)
+            host.addTabbedWindow(window, ordered: .above)
+            window.makeKeyAndOrderFront(nil)
+            // 标签组此刻已存在 → AppKit 的「显示标签页栏」菜单项也在了，给它补 ⇧⌘T 快捷键。
+            bindTabBarMenuShortcut()
+        } else {
+            window.center()
+            window.makeKeyAndOrderFront(nil)
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        return window
     }
 
-    /// 新窗口就绪时调用：若有待并入宿主且不是自己、且尚未同组，强制并入宿主的标签组并选中。
-    func attachIfNeeded(_ window: NSWindow) {
-        guard let host = pendingTabHost, host !== window else { return }
-        pendingTabHost = nil
-        // 已经在同一个标签组里就不重复并。
-        if host.tabGroup?.windows.contains(window) == true { return }
-        // 防闪烁：`openWindow` 会先把新窗口当独立窗口在屏幕中央显示出来，下一拍才轮到这里合并。
-        // 先把新窗口 frame 设成和宿主完全重叠，这样即便有一帧独立显示也正好盖在原窗口位置，看不出跳动；
-        // 合并后宿主窗口位置不动，新内容以标签形式出现在同一窗口里。
-        window.setFrame(host.frame, display: false)
-        host.addTabbedWindow(window, ordered: .above)
-        window.makeKeyAndOrderFront(nil)
-        // 标签组此刻已存在 → AppKit 的「显示标签页栏」菜单项也在了，给它补上 ⇧⌘T 快捷键。
-        Self.bindTabBarMenuShortcut()
+    /// 找一个可并入的主内容窗口宿主：优先 key 窗口，否则任意可见主内容窗口。
+    private static func tabHost() -> NSWindow? {
+        if let key = NSApp.keyWindow, MainWindow.isMainContentWindow(key) { return key }
+        return NSApp.windows.first { MainWindow.isMainContentWindow($0) && $0.isVisible }
     }
 
     /// 给 AppKit 自动插入的「显示标签页栏」菜单项（action 为 `toggleTabBar:`）绑定 ⇧⌘T。
@@ -89,10 +116,9 @@ final class MainWindowTabCoordinator {
     }
 }
 
-/// 把 SwiftUI 视图挂到宿主 `NSWindow` 上：设标签标识 + 把「新标签」窗口并进当前窗口的标签组。
-///
-/// `makeNSView` 时 `view.window` 还是 nil（视图尚未进窗口层级），所以在 `updateNSView`（视图已入窗）里设；
-/// 仍保留一次 `DispatchQueue.main.async` 兜底，确保拿到 window。属性是幂等的，重复设无副作用。
+/// 把 SwiftUI 视图挂到宿主 `NSWindow` 上，给它打上标签标识 —— 主要服务于普通启动时由
+/// `WindowGroup` 自动建出的那个首窗（让它也能成为 `addTabbedWindow` 的宿主）。
+/// 工厂建出的窗口已经在创建时设好了这些属性，这里重复设也是幂等的。
 struct WindowAccessor: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView {
         let view = NSView(frame: .zero)
@@ -106,14 +132,10 @@ struct WindowAccessor: NSViewRepresentable {
 
     private static func configure(_ window: NSWindow?) {
         guard let window else { return }
-        // 已是辅助窗口（Settings/About/Sparkle/sheet）不染标签属性——它们不该并进主标签组。
+        // 已是辅助窗口（Settings/About/Sparkle/sheet）不染标签属性 —— 它们不该并进主标签组。
         if window.parent != nil { return }
-        window.tabbingMode = .preferred
+        window.tabbingMode = .automatic
         window.tabbingIdentifier = MainWindow.tabbingIdentifier
-        if window.identifier == nil {
-            window.identifier = MainWindow.windowIdentifier
-        }
-        // 若这是为「新标签」而开的窗口，并进记录的宿主窗口的标签组（出现在同一个窗口里，而非独立窗口）。
-        MainWindowTabCoordinator.shared.attachIfNeeded(window)
+        window.identifier = MainWindow.windowIdentifier
     }
 }

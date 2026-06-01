@@ -43,29 +43,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// 若启动时有待处理的外部打开（文件 / Finder 服务）但 SwiftUI 没建出任何主内容窗口，手动补一个。
     /// 新窗口宿主 `ContentView`，其 `onAppear` 会跑现有的 `ExternalFileOpenQueue.drain()`，把文件打开；
     /// 设共享 `tabbingIdentifier` 以免变成游离窗口、后续新标签能并入。
+    /// 若有待处理的外部打开（文件 / Finder 服务）但当前**没有任何主内容窗口**，手动补一个独立窗口。
+    /// 覆盖两种场景：① 冷启动（启动期 SwiftUI 没建窗）；② app 在后台运行但所有窗口都关了。
+    /// 已有窗口时跳过 —— 那种情况由 ContentView 的 `.onReceive(.openExternalFile)` 处理（开新标签）。
+    /// 新窗口的 `ContentView.onAppear` 会跑现有 drain 把文件打开。
     private func ensureWindowForPendingExternalOpens() {
         let hasPending = !ExternalFileOpenQueue.shared.peek().isEmpty
             || !FinderServiceActionQueue.shared.peek().isEmpty
         guard hasPending else { return }
         guard !NSApp.windows.contains(where: { MainWindow.isMainContentWindow($0) }) else { return }
+        MainWindowFactory.open(asTab: false)
+    }
 
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 1040, height: 680),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
-            backing: .buffered,
-            defer: false
-        )
-        window.contentViewController = NSHostingController(rootView: ContentView())
-        window.identifier = MainWindow.windowIdentifier
-        window.tabbingMode = .preferred
-        window.tabbingIdentifier = MainWindow.tabbingIdentifier
-        window.center()
-        NSApp.activate(ignoringOtherApps: true)
-        window.makeKeyAndOrderFront(nil)
+    /// 入队后异步排一次「无窗则补窗」检查。async-to-main 让已存在窗口的 ContentView 先有机会处理通知
+    /// （开新标签）；只有真的没窗口时才落到这里建窗。
+    private func scheduleEnsureWindowForPendingExternalOpens() {
+        DispatchQueue.main.async { [weak self] in
+            self?.ensureWindowForPendingExternalOpens()
+        }
     }
 
     func application(_ sender: NSApplication, openFile filename: String) -> Bool {
         ExternalFileOpenQueue.shared.enqueue(URL(fileURLWithPath: filename))
+        scheduleEnsureWindowForPendingExternalOpens()
         return true
     }
 
@@ -73,6 +73,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         filenames
             .map { URL(fileURLWithPath: $0) }
             .forEach { ExternalFileOpenQueue.shared.enqueue($0) }
+        scheduleEnsureWindowForPendingExternalOpens()
         sender.reply(toOpenOrPrint: .success)
     }
 
@@ -82,6 +83,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 ExternalFileOpenQueue.shared.enqueue(url)
             }
         }
+        scheduleEnsureWindowForPendingExternalOpens()
     }
 
     @objc func addToArchiveFromFinder(
@@ -121,5 +123,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         enqueue(urls)
         NSApp.activate(ignoringOtherApps: true)
+        scheduleEnsureWindowForPendingExternalOpens()
     }
 }

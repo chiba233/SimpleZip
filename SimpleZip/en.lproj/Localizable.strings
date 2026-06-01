@@ -321,6 +321,7 @@
 "szs.silentBrowse.signatureStatus.error" = "could not be verified";
 "szs.signature.gpgDisabled" = "GPG is not enabled, so the signature was not checked. File contents were still verified by SHA-256.";
 "menu.newTab" = "New Tab";
+"menu.newWindow" = "New Window";
 "menu.view" = "View";
 "view.groupBy.fileBrowser" = "Group Files By";
 "view.groupBy.archiveBrowser" = "Group Archive By";

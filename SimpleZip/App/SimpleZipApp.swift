@@ -28,7 +28,7 @@ struct SimpleZipApp: App {
     }
 
     var body: some Scene {
-        WindowGroup(id: MainWindow.windowGroupID) {
+        WindowGroup {
             ContentView()
         }
         // **明确不处理任何外部 URL / NSUserActivity 事件** —— `[]` 匹配空集。
@@ -83,20 +83,22 @@ struct SimpleZipApp: App {
 /// 顶部“文件”菜单命令：把工具栏里的核心操作也挂到 macOS 菜单栏。
 struct ArchiveFileCommands: Commands {
     @FocusedObject private var model: ArchiveBrowserModel?
-    /// 「新建标签」用 —— 开一个新的 WindowGroup 实例。所有主窗口共享 `tabbingIdentifier` + `.preferred`
-    /// （见 `WindowAccessor`），所以新窗口会并入当前标签组成为新标签。
-    @Environment(\.openWindow) private var openWindow
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
-            // 「新建标签页」⌘T —— 显示 Home 的全新标签（独立 ArchiveBrowserModel）。
-            // 不依赖 model，任何时候都可用（即使当前没有聚焦窗口）。
+            // 「新建标签页」⌘T —— 在当前窗口里新开一个标签（全新 ContentView / ArchiveBrowserModel）。
+            // 自己用 AppKit 建窗 + addTabbedWindow，零闪烁；不依赖 model，任何时候都可用。
             Button(L10n.text("menu.newTab")) {
-                // 先记下当前 key 窗口当宿主，再开新窗口 —— 新窗口会被并进宿主的标签组（同一窗口里多一个标签）。
-                MainWindowTabCoordinator.shared.prepareNewTab()
-                openWindow(id: MainWindow.windowGroupID)
+                MainWindowFactory.open(asTab: true)
             }
             .keyboardShortcut("t", modifiers: [.command])
+
+            // 「新建窗口」—— 故意开一个独立窗口（不并标签）。⌘N 已被「添加到压缩包」占用、⇧⌘N 被「创建签名清单」
+            // 占用，这里用 ⌥⌘N（如需别的键告诉我）。
+            Button(L10n.text("menu.newWindow")) {
+                MainWindowFactory.open(asTab: false)
+            }
+            .keyboardShortcut("n", modifiers: [.command, .option])
 
             Divider()
 
@@ -433,7 +435,7 @@ struct ColumnsViewCommands: Commands {
     var body: some Commands {
         CommandMenu(L10n.text("menu.view")) {
             // 「显示标签页栏」由 AppKit 在有标签组时自动插入（避免重复，这里不再自建）；
-            // 它默认没有快捷键，我们在运行时给它绑 ⇧⌘T（见 MainWindowTabCoordinator.bindTabBarMenuShortcut）。
+            // 它默认没有快捷键，我们在运行时给它绑 ⇧⌘T（见 MainWindowFactory.bindTabBarMenuShortcut）。
             // 分组（Group By）已挪到 设置 → 视图（含总开关 / 范围 / 默认方式 / 按文件夹）。
             Menu(L10n.text("view.columns.fileBrowser")) {
                 Toggle(L10n.text("column.size"), isOn: $showFileSizeColumn)

@@ -14,10 +14,6 @@ struct ContentView: View {
     @StateObject private var model = ArchiveBrowserModel()
     @State private var isDropTargeted = false
 
-    /// 开新标签用 —— `⌘T` 和「运行中外部打开 → 新标签」都调它。WindowGroup 共享 `tabbingIdentifier` +
-    /// `.preferred`（见 `WindowAccessor`），`openWindow()` 开出的新窗口会自动并入当前标签组。
-    @Environment(\.openWindow) private var openWindow
-
     /// 启动期校验「保存的 startupLocation 当前是否指向不存在的目录」用的弹窗 flag。
     /// 只在 app 第一次 onAppear 时计算一次，避免后续重新 layout 反复弹。
     @State private var showsStartupMissingAlert = false
@@ -68,8 +64,11 @@ struct ContentView: View {
             .navigationTitle(model.title)
         }
         .frame(minWidth: 980, minHeight: 620)
+        // focusedSceneObject 服务 WindowGroup 自动建的首窗；focusedObject 让工厂手建的窗口/标签
+        // 在成为 key 且有焦点时也能被菜单命令（@FocusedObject）定位到。
         .focusedSceneObject(model)
-        // 给宿主 NSWindow 设原生标签属性（tabbingIdentifier + .preferred + identifier）。
+        .focusedObject(model)
+        // 给宿主 NSWindow 设原生标签属性（tabbingIdentifier + identifier）。
         .background(WindowAccessor())
         .overlay {
             if isDropTargeted {
@@ -446,8 +445,7 @@ struct ContentView: View {
             ExternalFileOpenQueue.shared.drain().forEach(openExternalURL)
         } else {
             // 浏览类 → 新标签；不在这里 drain，URL 留给新标签 onAppear 的 drain（原子，落到新标签的 model）。
-            MainWindowTabCoordinator.shared.prepareNewTab()
-            openWindow(id: MainWindow.windowGroupID)
+            MainWindowFactory.open(asTab: true)
         }
     }
 
