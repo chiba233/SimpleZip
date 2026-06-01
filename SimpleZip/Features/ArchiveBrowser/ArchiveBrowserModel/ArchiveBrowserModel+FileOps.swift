@@ -95,7 +95,7 @@ extension ArchiveBrowserModel {
                     guard let targetURL else {
                         skippedCount += 1
                         if let result = extractionCoordinator.consumeHashOverwriteResult(for: requestedTargetURL) {
-                            appendHashOverwriteDetail(operationTask, source: url, result: result)
+                            operationTask.hashComparisons.append(result)
                             if result.isSame { sameHashSkips += 1 }
                         }
                         continue
@@ -108,7 +108,7 @@ extension ArchiveBrowserModel {
                     }
                     undoPairs.append((url, targetURL))
                     if let result = extractionCoordinator.consumeHashOverwriteResult(for: requestedTargetURL) {
-                        appendHashOverwriteDetail(operationTask, source: url, result: result)
+                        operationTask.hashComparisons.append(result)
                     }
                     extractionCoordinator.showPendingHashOverwriteResult(for: targetURL)
                 }
@@ -365,7 +365,7 @@ extension ArchiveBrowserModel {
                     guard let targetURL else {
                         skippedCount += 1
                         if let result = extractionCoordinator.consumeHashOverwriteResult(for: requestedTargetURL) {
-                            appendHashOverwriteDetail(operationTask, source: url, result: result)
+                            operationTask.hashComparisons.append(result)
                             if result.isSame { sameHashSkips += 1 }
                         }
                         continue
@@ -377,7 +377,7 @@ extension ArchiveBrowserModel {
                     }
                     undoPairs.append((url, targetURL))
                     if let result = extractionCoordinator.consumeHashOverwriteResult(for: requestedTargetURL) {
-                        appendHashOverwriteDetail(operationTask, source: url, result: result)
+                        operationTask.hashComparisons.append(result)
                     }
                     extractionCoordinator.showPendingHashOverwriteResult(for: targetURL)
                 }
@@ -411,15 +411,14 @@ extension ArchiveBrowserModel {
         total: Int,
         cancellable: Bool
     ) -> OperationTask {
-        // 复制/移动/粘贴接一个 detailsSession，但**只在发生哈希比对时**（覆盖前对比源/目标）才往里写
-        // 「源哈希 / 目标哈希 / 跳过还是覆盖」。没有冲突的平凡转移 → session 为空 → 活动中心不出详情入口。
+        // 复制/移动/粘贴不接文本 detailsSession：覆盖前的「源 vs 目标」哈希比对存到 task.hashComparisons，
+        // 活动中心用格式化卡片渲染（而非命令输出文本）。没有冲突的平凡转移 → 无比对 → 不出详情入口。
         let task = TaskCenter.shared.begin(
             category: .fileOperation,
             kind: kind,
             title: title,
             detail: detail,
-            cancellable: cancellable,
-            detailsSession: ArchiveOperationDetailsSession(title: title)
+            cancellable: cancellable
         )
         task.progress = ArchiveProgressState(
             fraction: total > 0 ? 0 : 1,
@@ -454,20 +453,6 @@ extension ArchiveBrowserModel {
         TaskCenter.shared.finish(task, outcome: outcome)
     }
 
-    /// 把一次「覆盖前哈希比对」结果写进任务详情（源哈希 / 目标哈希 / 是跳过还是覆盖）。
-    /// 仅在确实发生比对时（有 pending result）追加；用户在活动中心展开「详情」即可核对哈希。
-    private func appendHashOverwriteDetail(_ task: OperationTask, source: URL, result: HashOverwriteResult) {
-        let action = result.isSame
-            ? L10n.text("tasks.fileOperation.hashDetail.skipped")
-            : L10n.text("tasks.fileOperation.hashDetail.overwritten")
-        task.detailsSession?.append(L10n.format(
-            "tasks.fileOperation.hashDetail",
-            source.lastPathComponent,
-            result.sourceHash,
-            result.targetHash,
-            action
-        ) + "\n")
-    }
 
     /// 根据实际转移项数 / 跳过项数决定整体结果：真转移了东西 = 成功；什么都没动、全是跳过 =
     /// 中性的「已跳过」（含内容相同时的专门文案），避免活动中心画成绿色让人误以为覆盖成功。

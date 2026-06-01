@@ -540,9 +540,10 @@
 "tasks.fileOperation.summary" = "%@ → %@";
 "tasks.fileOperation.skipped.noChange" = "Skipped — nothing changed";
 "tasks.fileOperation.skipped.sameHash" = "Identical content — skipped, nothing overwritten";
-"tasks.fileOperation.hashDetail" = "%1$@\n  Source hash: %2$@\n  Existing hash: %3$@\n  %4$@";
-"tasks.fileOperation.hashDetail.skipped" = "Identical content — skipped, not overwritten";
-"tasks.fileOperation.hashDetail.overwritten" = "Different content — overwritten";
+"tasks.fileOperation.hashDetail.skipped" = "Identical — skipped";
+"tasks.fileOperation.hashDetail.overwritten" = "Different — overwritten";
+"hashCompare.sourceHash" = "Source hash";
+"hashCompare.targetHash" = "Existing hash";
 "tasks.settings" = "Settings";
 "tasks.settings.history" = "History";
 "tasks.settings.historyLimit" = "Maximum records";

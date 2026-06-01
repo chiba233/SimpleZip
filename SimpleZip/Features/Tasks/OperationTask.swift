@@ -52,6 +52,9 @@ final class OperationTask: ObservableObject, Identifiable {
     /// 哈希任务的结构化结果 —— 活动中心详情里**用格式化 UI（每文件 + 各算法卡片）**渲染，而不是命令输出文本。
     /// 仅哈希任务设置；不持久化（仅本次会话内可看）。
     var hashReport: HashReport?
+    /// 粘贴 / 移动覆盖前的「源 vs 目标」哈希比对 —— 活动中心详情里同样用格式化卡片渲染，而非文本。
+    /// 仅发生比对时才有；不持久化。
+    var hashComparisons: [HashOverwriteResult] = []
     var operationID: UUID?
     var cancel: (() -> Void)?
 

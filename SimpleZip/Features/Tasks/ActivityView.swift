@@ -437,6 +437,8 @@ private struct ActivityTaskRow: View {
             if isShowingDetails, hasDetails {
                 if let report = task.hashReport {
                     hashResultDetails(report)
+                } else if !task.hashComparisons.isEmpty {
+                    hashComparisonDetails(task.hashComparisons)
                 } else if let session = task.detailsSession {
                     commandOutputDetails(session)
                 }
@@ -476,6 +478,24 @@ private struct ActivityTaskRow: View {
                 LazyVStack(alignment: .leading, spacing: 8) {
                     ForEach(report.results) { result in
                         HashResultCard(report: report, result: result)
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+            .frame(maxHeight: 280)
+        }
+    }
+
+    /// 粘贴 / 移动覆盖前的哈希比对详情：每项一张格式化卡片（源哈希 vs 目标哈希 + 跳过/覆盖结果）。
+    @ViewBuilder
+    private func hashComparisonDetails(_ comparisons: [HashOverwriteResult]) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text(detailsHeaderTitle)
+                .font(.caption.weight(.semibold))
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 8) {
+                    ForEach(Array(comparisons.enumerated()), id: \.offset) { _, result in
+                        HashComparisonCard(result: result)
                     }
                 }
                 .padding(.vertical, 2)
@@ -628,8 +648,9 @@ private struct ActivityTaskRow: View {
     /// - 其它情况：仅当 detailsSession 已有内容（哈希结果 / 粘贴的源·目标哈希等）。
     ///   平凡的复制/移动 + 失败任务都没有内容 → 不出空面板，也不再卡「正在等待命令输出…」。
     private var hasDetails: Bool {
-        // 哈希任务：有结构化结果就给详情入口（格式化卡片）。
+        // 哈希任务 / 粘贴·移动的哈希比对：有结构化结果就给详情入口（格式化卡片）。
         if task.hashReport != nil { return true }
+        if !task.hashComparisons.isEmpty { return true }
         guard let session = task.detailsSession else { return false }
         // 真·后端命令（解压/压缩/测试）运行中就允许展开看实时输出；其余只在已有内容时给入口。
         if isBackendCommand, task.status.isRunning { return true }
@@ -644,5 +665,71 @@ private struct ActivityTaskRow: View {
     /// 详情面板标题：后端命令 → 「命令输出」；哈希结果 / 文件哈希对比 → 「结果」（避免把哈希信息错叫成命令输出）。
     private var detailsHeaderTitle: String {
         isBackendCommand ? L10n.text("details.commandOutput") : L10n.text("details.results")
+    }
+}
+
+/// 粘贴 / 移动覆盖前「源 vs 目标」哈希比对的格式化卡片（活动中心详情用）。
+/// 风格对齐「文件哈希」弹窗的 HashResultCard：文件名 + 路径 + 哈希行 + 跳过/覆盖状态。
+private struct HashComparisonCard: View {
+    let result: HashOverwriteResult
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Label(result.sourceURL.lastPathComponent, systemImage: "doc")
+                    .font(.headline)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Spacer()
+                statusLabel
+            }
+
+            Text(result.targetURL.path)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .truncationMode(.middle)
+
+            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 7) {
+                GridRow {
+                    Text(L10n.text("hashCompare.sourceHash"))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 84, alignment: .leading)
+                    Text(result.sourceHash)
+                        .font(.system(.caption, design: .monospaced))
+                        .lineLimit(2)
+                }
+                GridRow {
+                    Text(L10n.text("hashCompare.targetHash"))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 84, alignment: .leading)
+                    Text(result.targetHash)
+                        .font(.system(.caption, design: .monospaced))
+                        .lineLimit(2)
+                }
+            }
+            .textSelection(.enabled)
+        }
+        .padding(12)
+        .background(Color(nsColor: .textBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color(nsColor: .separatorColor))
+        )
+    }
+
+    @ViewBuilder
+    private var statusLabel: some View {
+        Label(
+            result.isSame
+                ? L10n.text("tasks.fileOperation.hashDetail.skipped")
+                : L10n.text("tasks.fileOperation.hashDetail.overwritten"),
+            systemImage: result.isSame ? "equal.circle" : "arrow.triangle.2.circlepath"
+        )
+        .font(.caption)
+        .foregroundStyle(result.isSame ? Color.secondary : Color.orange)
     }
 }

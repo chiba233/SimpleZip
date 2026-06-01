@@ -538,9 +538,10 @@
 "tasks.fileOperation.summary" = "%@ → %@";
 "tasks.fileOperation.skipped.noChange" = "已跳过 — 未改动";
 "tasks.fileOperation.skipped.sameHash" = "内容相同 — 已跳过，未覆盖";
-"tasks.fileOperation.hashDetail" = "%1$@\n  源文件哈希：%2$@\n  目标文件哈希：%3$@\n  %4$@";
-"tasks.fileOperation.hashDetail.skipped" = "内容相同 — 已跳过，未覆盖";
+"tasks.fileOperation.hashDetail.skipped" = "内容相同 — 已跳过";
 "tasks.fileOperation.hashDetail.overwritten" = "内容不同 — 已覆盖";
+"hashCompare.sourceHash" = "源文件哈希";
+"hashCompare.targetHash" = "目标文件哈希";
 "tasks.settings" = "设置";
 "tasks.settings.history" = "历史记录";
 "tasks.settings.historyLimit" = "最多记录数";
