@@ -55,6 +55,7 @@ struct ActivityView: View {
                     }
                 }
             }
+            .padding(.leading, isSidebarVisible ? 0 : 34)
 
             List {
                 taskRows(tasks: tasks(in: selectedPane.category))

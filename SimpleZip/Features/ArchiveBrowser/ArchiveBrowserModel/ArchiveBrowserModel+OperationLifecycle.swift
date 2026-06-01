@@ -42,10 +42,14 @@ private nonisolated final class ThrottledDetailsOutput: @unchecked Sendable {
         lock.unlock()
 
         guard shouldSchedule else { return }
-        Task { @MainActor [weak self] in
+        Task { @MainActor in
             try? await Task.sleep(nanoseconds: 500_000_000) // 详情日志 500ms 刷一次足够
-            self?.flush()
+            self.flush()
         }
+    }
+
+    @MainActor func flushNow() {
+        flush()
     }
 
     @MainActor private func flush() {
@@ -183,7 +187,10 @@ extension ArchiveBrowserModel {
         operation: @escaping (UUID?, @escaping @Sendable (ArchiveProgressState) -> Void, (@Sendable (String) -> Void)?) async throws -> Void
     ) {
         let detailsSession = ArchiveOperationDetailsSession(title: title)
-        let outputObserver = makeOperationOutputObserver(for: detailsSession)
+        let detailsOutput = ThrottledDetailsOutput(session: detailsSession)
+        let outputObserver: @Sendable (String) -> Void = { chunk in
+            detailsOutput.append(chunk)
+        }
         let operationID = UUID()
         let taskCenter = TaskCenter.shared
         let operationTask = taskCenter.begin(
@@ -219,6 +226,7 @@ extension ArchiveBrowserModel {
                     progressCoalescer.submit(progress)
                 }, outputObserver)
                 progressCoalescer.submit(ArchiveProgressState(fraction: 1, currentFile: nil, statusText: L10n.text("status.done")))
+                detailsOutput.flushNow()
                 detailsSession.finishedAt = Date()
                 taskCenter.finish(operationTask, outcome: .succeeded(nil))
                 if let successStatus {
@@ -230,10 +238,12 @@ extension ArchiveBrowserModel {
                 SystemSound.operationComplete?.play()
                 refreshOnSuccess?()
             } catch is CancellationError {
+                detailsOutput.flushNow()
                 detailsSession.finishedAt = Date()
                 taskCenter.finish(operationTask, outcome: .cancelled)
                 status = L10n.text("status.cancelled")
             } catch {
+                detailsOutput.flushNow()
                 if detailsSession.rawOutput.isEmpty {
                     detailsSession.append(error.localizedDescription)
                 }
