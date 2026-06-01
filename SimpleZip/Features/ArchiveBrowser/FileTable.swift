@@ -264,10 +264,13 @@ private struct FileNSOutlineView: NSViewRepresentable {
         }
 
         private func fileNodeAndAncestors(for url: URL) -> (node: FileOutlineNode, ancestors: [FileOutlineNode])? {
-            let target = url.standardizedFileURL
+            // 按规范化 path 比对，而非整 URL 相等：目录在列表里的 URL 带尾部斜杠（`…/NewFolder/`），
+            // 而 `pendingInlineRenameURL` 经 appendingPathComponent 没有斜杠（`…/NewFolder`），
+            // `standardizedFileURL` 又不抹平尾斜杠 —— 直接 `==` 会漏掉新建文件夹，导致它不触发重命名（新建文件无此问题）。
+            let targetPath = url.standardizedFileURL.path
             func walk(_ nodes: [FileOutlineNode], ancestors: [FileOutlineNode]) -> (FileOutlineNode, [FileOutlineNode])? {
                 for node in nodes {
-                    if let item = node.fileItem, item.url.standardizedFileURL == target {
+                    if let item = node.fileItem, item.url.standardizedFileURL.path == targetPath {
                         return (node, ancestors)
                     }
                     if node.isSection, let found = walk(node.children, ancestors: ancestors + [node]) {
