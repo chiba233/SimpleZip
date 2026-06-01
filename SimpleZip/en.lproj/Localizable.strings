@@ -518,6 +518,13 @@
 "status.done" = "Done";
 "status.cancelled" = "Cancelled";
 "status.failed" = "Failed";
+"tasks.window.title" = "Activity";
+"tasks.running" = "Running";
+"tasks.runningCount" = "%d tasks running";
+"tasks.cancelAll" = "Cancel All";
+"tasks.archiveSection" = "Archive Operations";
+"tasks.fileSection" = "File Operations";
+"tasks.empty" = "No tasks";
 "status.backend" = "ZIP native | 7Z via 7zz";
 "type.folder" = "Folder";
 "type.file" = "File";

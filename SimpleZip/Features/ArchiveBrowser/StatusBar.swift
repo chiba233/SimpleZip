@@ -11,12 +11,13 @@ import AppKit
 /// 底部状态栏：显示当前项目数量、任务状态和后端能力提示。
 struct StatusBar: View {
     @ObservedObject var model: ArchiveBrowserModel
+    @ObservedObject private var taskCenter = TaskCenter.shared
 
     var body: some View {
         HStack(spacing: 8) {
             // 左侧：运行中显示进度条 + 当前文件（长度多变）；空闲显示状态文字。
-            if model.isWorking {
-                if let fraction = model.operationProgress.fraction {
+            if taskCenter.runningCount > 0 {
+                if let fraction = taskCenter.aggregateFraction {
                     ProgressView(value: fraction)
                         .frame(width: 140, alignment: .leading)
                 } else {
@@ -24,14 +25,14 @@ struct StatusBar: View {
                         .controlSize(.small)
                 }
                 VStack(alignment: .leading, spacing: 2) {
-                    if let progressCountText {
-                        Text(progressCountText)
-                            .foregroundStyle(.secondary)
-                    }
-                    Text(progressPrimaryText)
+                    Text(L10n.format("tasks.runningCount", taskCenter.runningCount))
+                        .foregroundStyle(.secondary)
+                    Text(taskCenter.primaryProgressText ?? L10n.text("tasks.running"))
                         .lineLimit(1)
                         .truncationMode(.middle)
                 }
+            } else if model.isWorking {
+                legacyProgressView
             } else {
                 Text(model.status)
                     .lineLimit(1)
@@ -43,10 +44,19 @@ struct StatusBar: View {
             Spacer(minLength: 12)
 
             // 右侧固定操作区：详情（有 session 时）+ 取消（运行中且可取消）+ 后端能力提示。
-            if model.operationDetailsSession != nil {
+            if taskCenter.runningCount > 0 {
+                Button(L10n.text("button.details")) {
+                    ActivityWindowController.shared.show()
+                }
+                .buttonStyle(.borderless)
+                Button(L10n.text("tasks.cancelAll")) {
+                    taskCenter.cancelAll()
+                }
+                .buttonStyle(.borderless)
+            } else if model.operationDetailsSession != nil {
                 detailsButton
             }
-            if model.isWorking && model.canCancelCurrentOperation {
+            if taskCenter.runningCount == 0 && model.isWorking && model.canCancelCurrentOperation {
                 Button(L10n.text("button.cancel")) {
                     model.cancelCurrentOperation()
                 }
@@ -59,6 +69,27 @@ struct StatusBar: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 7)
         .background(Color(nsColor: .controlBackgroundColor))
+    }
+
+    private var legacyProgressView: some View {
+        Group {
+            if let fraction = model.operationProgress.fraction {
+                ProgressView(value: fraction)
+                    .frame(width: 140, alignment: .leading)
+            } else {
+                ProgressView()
+                    .controlSize(.small)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                if let progressCountText {
+                    Text(progressCountText)
+                        .foregroundStyle(.secondary)
+                }
+                Text(progressPrimaryText)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+        }
     }
 
     private var detailsButton: some View {
@@ -148,7 +179,7 @@ struct ArchiveOperationDetailsView: View {
 
 /// 高性能命令输出日志视图 —— 用 NSTextView（懒布局 + 原生滚动 / 文本选择），
 /// 远比 SwiftUI `Text` 渲染大段流式文本流畅；配合 session 端只留最近 500 行，详情面板不再卡。
-private struct CommandOutputLogView: NSViewRepresentable {
+struct CommandOutputLogView: NSViewRepresentable {
     let text: String
 
     func makeNSView(context: Context) -> NSScrollView {

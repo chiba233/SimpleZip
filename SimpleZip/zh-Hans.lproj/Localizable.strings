@@ -516,6 +516,13 @@
 "status.done" = "完成";
 "status.cancelled" = "已取消";
 "status.failed" = "失败";
+"tasks.window.title" = "活动中心";
+"tasks.running" = "运行中";
+"tasks.runningCount" = "%d 个任务进行中";
+"tasks.cancelAll" = "全部取消";
+"tasks.archiveSection" = "归档操作";
+"tasks.fileSection" = "文件操作";
+"tasks.empty" = "无任务";
 "status.backend" = "原生 ZIP | 7Z 通过 7zz";
 "type.folder" = "文件夹";
 "type.file" = "文件";

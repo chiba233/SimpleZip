@@ -42,6 +42,7 @@ extension ArchiveBrowserModel {
         let force = isForced(archiveURL)
         startManagedArchiveTask(
             title: L10n.format("status.testing", archiveURL.lastPathComponent),
+            kind: .test,
             showsDetails: false,
             successStatus: L10n.text("status.archiveTested")
         ) { operationID, _, outputObserver in

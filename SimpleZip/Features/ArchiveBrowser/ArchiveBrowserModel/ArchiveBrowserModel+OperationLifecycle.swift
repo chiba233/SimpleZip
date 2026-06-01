@@ -175,27 +175,72 @@ extension ArchiveBrowserModel {
 
     func startManagedArchiveTask(
         title: String,
+        kind: OperationTask.Kind = .extract,
         showsDetails: Bool,
         cancellable: Bool = true,
         successStatus: String? = nil,
         refreshOnSuccess: (() -> Void)? = nil,
         operation: @escaping (UUID?, @escaping @Sendable (ArchiveProgressState) -> Void, (@Sendable (String) -> Void)?) async throws -> Void
     ) {
-        let detailsSession = prepareOperationDetailsSession(title: title, showsDetails: showsDetails)
+        let detailsSession = ArchiveOperationDetailsSession(title: title)
         let outputObserver = makeOperationOutputObserver(for: detailsSession)
-        startOperationTask(cancellable: cancellable) { [weak self] operationID in
-            guard let self else { return }
-            let didSucceed = await runArchiveTask(title) { progress in
-                try await operation(operationID, progress, outputObserver)
+        let operationID = UUID()
+        let taskCenter = TaskCenter.shared
+        let operationTask = taskCenter.begin(
+            category: .archive,
+            kind: kind,
+            title: title,
+            cancellable: cancellable,
+            detailsSession: detailsSession,
+            operationID: operationID
+        )
+        operationTask.progress = ArchiveProgressState(fraction: 0, currentFile: nil)
+        if showsDetails {
+            ActivityWindowController.shared.show()
+        }
+
+        let progressCoalescer = ProgressCoalescer { [weak operationTask] progress in
+            guard let operationTask, operationTask.status.isRunning else { return }
+            operationTask.progress = progress
+            taskCenter.notifyTaskChanged()
+        }
+
+        var swiftTask: Task<Void, Never>?
+        operationTask.cancel = cancellable ? {
+            swiftTask?.cancel()
+            ArchiveService.cancelRunningCommand(operationID: operationID)
+        } : nil
+
+        swiftTask = Task { @MainActor [weak self, weak operationTask] in
+            guard let self, let operationTask else { return }
+            status = title
+            do {
+                try await operation(operationID, { progress in
+                    progressCoalescer.submit(progress)
+                }, outputObserver)
+                progressCoalescer.submit(ArchiveProgressState(fraction: 1, currentFile: nil, statusText: L10n.text("status.done")))
+                detailsSession.finishedAt = Date()
+                taskCenter.finish(operationTask, outcome: .succeeded(nil))
+                if let successStatus {
+                    status = successStatus
+                } else {
+                    status = L10n.text("status.done")
+                }
+                // 归档操作（创建 / 解压 / 测试 / 哈希）成功完成 → 提示音，与粘贴 / 移动一致。
+                SystemSound.operationComplete?.play()
+                refreshOnSuccess?()
+            } catch is CancellationError {
+                detailsSession.finishedAt = Date()
+                taskCenter.finish(operationTask, outcome: .cancelled)
+                status = L10n.text("status.cancelled")
+            } catch {
+                if detailsSession.rawOutput.isEmpty {
+                    detailsSession.append(error.localizedDescription)
+                }
+                detailsSession.finishedAt = Date()
+                taskCenter.finish(operationTask, outcome: .failed(error.localizedDescription))
+                status = L10n.text("status.failed")
             }
-            finishOperationDetailsSession(detailsSession)
-            guard didSucceed else { return }
-            if let successStatus {
-                status = successStatus
-            }
-            // 归档操作（创建 / 解压 / 测试 / 哈希）成功完成 → 提示音，与粘贴 / 移动一致。
-            SystemSound.operationComplete?.play()
-            refreshOnSuccess?()
         }
     }
 

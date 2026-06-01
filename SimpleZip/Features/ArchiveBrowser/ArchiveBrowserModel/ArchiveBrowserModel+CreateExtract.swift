@@ -186,6 +186,7 @@ extension ArchiveBrowserModel {
         let title = L10n.format("status.creating", finalDestination.lastPathComponent)
         startManagedArchiveTask(
             title: title,
+            kind: .compress,
             showsDetails: request.options.showDetails,
             refreshOnSuccess: { [weak self] in
                 self?.refreshVisibleFolder(containing: finalDestination)
@@ -492,10 +493,10 @@ extension ArchiveBrowserModel {
                 from: stagingURL,
                 to: request.destinationURL,
                 defaultOverwriteBehavior: AppPreferences.overwriteBehavior
-            ) { [weak self] status in
-                self?.status = status
-            } updateProgress: { [weak self] progress in
-                self?.operationProgress = progress
+            ) { status in
+                progress(ArchiveProgressState(fraction: nil, currentFile: nil, statusText: status))
+            } updateProgress: { mergeProgress in
+                progress(mergeProgress)
             }
         }
     }
@@ -581,10 +582,10 @@ extension ArchiveBrowserModel {
                 from: stagingURL,
                 to: request.destinationURL,
                 defaultOverwriteBehavior: AppPreferences.overwriteBehavior
-            ) { [weak self] status in
-                self?.status = status
-            } updateProgress: { [weak self] progress in
-                self?.operationProgress = progress
+            ) { status in
+                progress(ArchiveProgressState(fraction: nil, currentFile: nil, statusText: status))
+            } updateProgress: { mergeProgress in
+                progress(mergeProgress)
             }
         }
     }
