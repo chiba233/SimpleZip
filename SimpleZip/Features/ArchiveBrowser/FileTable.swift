@@ -169,6 +169,7 @@ private struct FileNSOutlineView: NSViewRepresentable {
         context.coordinator.syncContent()
         context.coordinator.applySelection()
         context.coordinator.performPendingInlineRenameIfNeeded()
+        context.coordinator.performPendingSelectionIfNeeded()
     }
 
     private func configureColumns(for outlineView: NSOutlineView) {
@@ -1132,6 +1133,28 @@ private struct FileNSOutlineView: NSViewRepresentable {
             if beginRename(item) {
                 model.pendingInlineRenameURL = nil
             }
+        }
+
+        /// 删除后把光标落到邻居：选中 pendingSelectionURL 对应的行，并把第一响应者交回 outline，
+        /// 这样删一项后方向键能从邻居继续，而不是丢焦点、回到列表顶端。
+        /// 邻居还没刷出来（reload 未完成）→ 不清空，下次 updateNSView 再试。
+        func performPendingSelectionIfNeeded() {
+            guard renamingItem == nil else { return }
+            guard let url = model.pendingSelectionURL else { return }
+            guard let outlineView,
+                  let found = fileNodeAndAncestors(for: url),
+                  let item = found.node.fileItem else { return }
+            for ancestor in found.ancestors {
+                outlineView.expandItem(ancestor)
+                setSectionExpanded(ancestor, true)
+            }
+            let row = outlineView.row(forItem: found.node)
+            guard row >= 0 else { return }
+            model.selection = [item.id]
+            applySelection(IndexSet(integer: row))
+            outlineView.scrollRowToVisible(row)
+            outlineView.window?.makeFirstResponder(outlineView)
+            model.pendingSelectionURL = nil
         }
 
         private func selectClickedRowIfNeeded(in outlineView: NSOutlineView) {

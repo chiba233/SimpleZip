@@ -4,6 +4,7 @@
 
 ## 0.2.4
 
+- **Keyboard navigation no longer loses its place when the selected file disappears.** Whenever a refresh would empty the selection — deleting (moves to the file above, or the next one if you deleted the top), renaming (stays on the renamed file), moving files out, or an external change — the cursor now lands on a neighbouring file and keyboard focus returns to the list, instead of resetting to the top.
 - **Fixed: the Finder right-click "… with SimpleZip" services were incomplete.** Only *Add to Archive* and *Calculate Hash* were actually registered as macOS Services; *Extract* and the quick *Create ZIP / 7z / TAR.GZ* items were never declared, so they never showed up in the Services menu. They're now registered exactly like the two working ones (enable them under System Settings → Keyboard → Keyboard Shortcuts → Services).
 - **The Finder right-click services are now localized.** Their menu titles were always English regardless of system language — they need a `ServicesMenu.strings` file (not the usual `Localizable.strings`), which didn't exist. Added it for all 10 languages, so the "… with SimpleZip" items show up translated.
 - **Fixed: creating a new file could flash the rename box and have it vanish.** A file-system event for the just-created file triggered a list reload — and a selection re-apply — that tore down the in-progress inline edit. While you're renaming, both the reload and the selection re-apply are now deferred, so the edit box stays put.

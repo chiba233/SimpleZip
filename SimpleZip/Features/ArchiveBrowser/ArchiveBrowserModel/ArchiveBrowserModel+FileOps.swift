@@ -264,6 +264,8 @@ extension ArchiveBrowserModel {
         do {
             try fileManager.moveItem(at: item.url, to: target)
             registerMoveUndo([(from: item.url, to: target)], actionName: L10n.text("undo.action.rename"))
+            // 改名后旧 URL 没了、选区重映射会变空，光标会丢回顶端 —— 让刷新后光标停在改名后的文件并恢复键盘焦点。
+            pendingSelectionURL = target.standardizedFileURL
             recordInstantFileTask(
                 kind: .rename,
                 title: L10n.format("tasks.renameItem", oldName),
@@ -291,11 +293,24 @@ extension ArchiveBrowserModel {
         alert.runModal()
     }
 
+    /// 删除选中项后，键盘光标应落到的「邻居」URL。
+    /// 取 fileItems 顺序里**第一个被删项的前一项**（一定是幸存项）；若删的就是开头，则取被删之后第一个幸存项。
+    /// 全删空 / 算不出 → nil。用 fileItems（模型排序顺序）近似视觉顺序，符合「回到上一个文件」的直觉。
+    private func selectionNeighborURL(removing removedIDs: Set<UUID>) -> URL? {
+        guard let firstIdx = fileItems.firstIndex(where: { removedIDs.contains($0.id) }) else { return nil }
+        if firstIdx > 0 { return fileItems[firstIdx - 1].url }
+        return fileItems[(firstIdx + 1)...].first(where: { !removedIDs.contains($0.id) })?.url
+    }
+
     func deleteSelectedFiles() {
         guard case .folder = mode, !selectedFileItems.isEmpty else { return }
         if AppPreferences.confirmBeforeDeletingFiles {
             guard confirmDelete(items: selectedFileItems) else { return }
         }
+
+        // 删除前先算好「光标该落到哪」—— 用删除前的 fileItems 顺序，删成功后置 pendingSelectionURL，
+        // FileTable 刷新后会选中它并把键盘焦点交回表格（删一项后方向键从邻居继续，不回顶端）。
+        let neighborURL = selectionNeighborURL(removing: Set(selectedFileItems.map(\.id)))
 
         var trashed: [(original: URL, trashURL: URL)] = []
         defer {
@@ -312,6 +327,7 @@ extension ArchiveBrowserModel {
             }
             // trashItem 自身不出声，显式播放 Finder「移到废纸篓」音效（whoosh + 落下，一次播放）。
             SystemSound.moveToTrash?.play()
+            if let neighborURL { pendingSelectionURL = neighborURL }
             recordInstantFileTask(
                 kind: .delete,
                 title: L10n.format("tasks.deleteCount", trashed.count),

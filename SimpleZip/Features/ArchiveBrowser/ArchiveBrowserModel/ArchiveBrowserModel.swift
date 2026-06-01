@@ -127,6 +127,9 @@ final class ArchiveBrowserModel: ObservableObject {
     @Published var fileRedoActionName: String?
     /// 创建新文件 / 文件夹后，等 FileTable 刷出对应行再自动进入现有内联重命名。
     @Published var pendingInlineRenameURL: URL?
+    /// 删除后键盘光标应落到的「邻居」URL：等 FileTable 刷出后选中它并把焦点交回表格，
+    /// 这样删除一项后方向键能从邻居继续，而不是丢焦点、回到列表顶端。
+    @Published var pendingSelectionURL: URL?
     /// 当前文件夹的 FSEvents 监视器：内容变化（外部改动 + 本应用自己的增删改 / 重命名）自动刷新列表。
     /// 仅 `.folder` 模式启用，由 `reload()` 统一 watch/stop。引入它后文件操作不再各自手动 reload。
     /// 在 `init()` 里创建（onChange 闭包需要捕获 self）；非 `lazy` —— `lazy` 的隔离初始化器无法在 `deinit` 里访问。

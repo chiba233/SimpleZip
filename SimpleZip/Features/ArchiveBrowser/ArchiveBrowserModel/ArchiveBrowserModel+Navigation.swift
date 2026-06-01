@@ -424,8 +424,10 @@ extension ArchiveBrowserModel {
             handleFolderContentsChanged()
             return
         }
-        // 必须在 loadFolder（重建 fileItems）之前取旧选区的 URL。
+        // 必须在 loadFolder（重建 fileItems）之前取旧选区的 URL + 选区在旧列表里的「锚点位置」。
+        // 锚点 = 旧 fileItems 里第一个被选中项的下标 —— 用于「选中项被刷没了」时落到原位置的相邻项。
         let previousSelectedURLs = Set(selectedFileItems.map { $0.url.standardizedFileURL })
+        let anchorIndex = fileItems.firstIndex { previousSelectedURLs.contains($0.url.standardizedFileURL) }
         loadFolder(current)
         // 按 URL 重映射选区（loadFolder 内容没变时会跳过赋值，fileItems / id 不变 → 重映射结果与现状一致）。
         // 只在结果真的不同才赋值，避免无谓的 @Published 抖动。
@@ -434,6 +436,14 @@ extension ArchiveBrowserModel {
             : Set(fileItems.filter { previousSelectedURLs.contains($0.url.standardizedFileURL) }.map(\.id))
         if selection != remapped {
             selection = remapped
+        }
+        // 通用兜底：之前有选区、刷新后却全没了（删除 / 改名 / 移走 / 外部删除…任何让选中项消失的刷新），
+        // 就把光标落到原位置的相邻文件并恢复键盘焦点，而不是丢焦点、回到列表顶端。
+        // 删除 / 改名等已显式设了更精确的 pendingSelectionURL（上一项 / 改名后的文件）→ 这里不覆盖。
+        if pendingSelectionURL == nil, !previousSelectedURLs.isEmpty, remapped.isEmpty, !fileItems.isEmpty,
+           let anchorIndex {
+            let neighborIndex = min(anchorIndex, fileItems.count - 1)
+            pendingSelectionURL = fileItems[neighborIndex].url.standardizedFileURL
         }
     }
 
