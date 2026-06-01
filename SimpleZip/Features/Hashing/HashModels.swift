@@ -45,4 +45,16 @@ struct HashReport: Identifiable {
     var totalSize: Int64 {
         results.reduce(0) { $0 + $1.size }
     }
+
+    /// 纯文本表示：每个文件一段「路径 + 各算法哈希行」。供「全部复制」与活动中心详情共用，
+    /// 避免哈希结果只在弹窗里、关掉就没了——活动中心能留底、可复制。
+    var plainTextSummary: String {
+        results.map { result in
+            let hashLines = algorithms.compactMap { algorithm -> String? in
+                guard let value = result.value(for: algorithm) else { return nil }
+                return "\(algorithm.title): \(value)"
+            }.joined(separator: "\n")
+            return "\(result.url.path)\n\(hashLines)"
+        }.joined(separator: "\n\n")
+    }
 }

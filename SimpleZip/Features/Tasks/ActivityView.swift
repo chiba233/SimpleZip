@@ -434,10 +434,10 @@ private struct ActivityTaskRow: View {
                 }
             }
 
-            if isShowingDetails, task.category == .archive, let session = task.detailsSession {
+            if isShowingDetails, hasDetails, let session = task.detailsSession {
                 VStack(alignment: .leading, spacing: 7) {
                     HStack {
-                        Text(L10n.text("details.commandOutput"))
+                        Text(detailsHeaderTitle)
                             .font(.caption.weight(.semibold))
                         Spacer()
                         Button {
@@ -483,9 +483,10 @@ private struct ActivityTaskRow: View {
                 .buttonStyle(.borderless)
                 .help(L10n.text("button.cancel"))
             }
-            // 命令输出/详情只对归档操作有意义（后端命令的 stdout）。文件操作（复制/移动/删除…）不是命令、
-            // 没有「命令输出」，之前会一直显示「正在等待命令输出…」——所以这里只给归档操作出详情入口。
-            if task.category == .archive, task.detailsSession != nil {
+            // 只有「真有内容可看」时才给详情入口：归档操作运行中（命令输出随时来）或任何已积累了输出/
+            // 哈希信息的任务。这样文件操作平平无奇的复制/移动不再出空面板，失败的也不再卡「正在等待命令输出…」，
+            // 而哈希结果 / 粘贴时的源·目标哈希这类有用信息照样能展开看。
+            if hasDetails {
                 Button {
                     isShowingDetails.toggle()
                 } label: {
@@ -571,5 +572,26 @@ private struct ActivityTaskRow: View {
             return message
         }
         return nil
+    }
+
+    /// 是否给这条任务展示「详情」入口/面板。
+    /// - 归档操作运行中：允许（后端命令输出会陆续来，先开着看实时输出）。
+    /// - 其它情况：仅当 detailsSession 已有内容（哈希结果 / 粘贴的源·目标哈希等）。
+    ///   平凡的复制/移动 + 失败任务都没有内容 → 不出空面板，也不再卡「正在等待命令输出…」。
+    private var hasDetails: Bool {
+        guard let session = task.detailsSession else { return false }
+        // 真·后端命令（解压/压缩/测试）运行中就允许展开看实时输出；哈希 / 文件操作只在已有内容时给入口。
+        if isBackendCommand, task.status.isRunning { return true }
+        return !session.rawOutput.isEmpty
+    }
+
+    /// 该任务是否跑了真正的后端命令（其详情才是「命令输出」）。哈希结果 / 文件操作的哈希对比不是命令输出。
+    private var isBackendCommand: Bool {
+        task.category == .archive && task.kind != .hash
+    }
+
+    /// 详情面板标题：后端命令 → 「命令输出」；哈希结果 / 文件哈希对比 → 「结果」（避免把哈希信息错叫成命令输出）。
+    private var detailsHeaderTitle: String {
+        isBackendCommand ? L10n.text("details.commandOutput") : L10n.text("details.results")
     }
 }

@@ -540,6 +540,9 @@
 "tasks.fileOperation.summary" = "%@ → %@";
 "tasks.fileOperation.skipped.noChange" = "Skipped — nothing changed";
 "tasks.fileOperation.skipped.sameHash" = "Identical content — skipped, nothing overwritten";
+"tasks.fileOperation.hashDetail" = "%1$@\n  Source hash: %2$@\n  Existing hash: %3$@\n  %4$@";
+"tasks.fileOperation.hashDetail.skipped" = "Identical content — skipped, not overwritten";
+"tasks.fileOperation.hashDetail.overwritten" = "Different content — overwritten";
 "tasks.settings" = "Settings";
 "tasks.settings.history" = "History";
 "tasks.settings.historyLimit" = "Maximum records";
@@ -935,6 +938,7 @@
 "button.create" = "Create";
 "operation.showDetails" = "Show details";
 "details.commandOutput" = "Command Output";
+"details.results" = "Results";
 "details.waiting" = "Waiting for command output...";
 "details.outputEarlierOmitted" = "... Earlier output omitted";
 "file.copy" = "Copy";

@@ -94,7 +94,10 @@ extension ArchiveBrowserModel {
                     )
                     guard let targetURL else {
                         skippedCount += 1
-                        if skipWasSameHash(requestedDestination: requestedTargetURL) { sameHashSkips += 1 }
+                        if let result = extractionCoordinator.consumeHashOverwriteResult(for: requestedTargetURL) {
+                            appendHashOverwriteDetail(operationTask, source: url, result: result)
+                            if result.isSame { sameHashSkips += 1 }
+                        }
                         continue
                     }
 
@@ -104,7 +107,9 @@ extension ArchiveBrowserModel {
                         try fileManager.copyItem(at: url, to: targetURL)
                     }
                     undoPairs.append((url, targetURL))
-                    _ = extractionCoordinator.consumeHashOverwriteResult(for: requestedTargetURL)
+                    if let result = extractionCoordinator.consumeHashOverwriteResult(for: requestedTargetURL) {
+                        appendHashOverwriteDetail(operationTask, source: url, result: result)
+                    }
                     extractionCoordinator.showPendingHashOverwriteResult(for: targetURL)
                 }
                 extractionCoordinator.finishConflictResolutionSession(conflictSession)
@@ -359,7 +364,10 @@ extension ArchiveBrowserModel {
                     )
                     guard let targetURL else {
                         skippedCount += 1
-                        if skipWasSameHash(requestedDestination: requestedTargetURL) { sameHashSkips += 1 }
+                        if let result = extractionCoordinator.consumeHashOverwriteResult(for: requestedTargetURL) {
+                            appendHashOverwriteDetail(operationTask, source: url, result: result)
+                            if result.isSame { sameHashSkips += 1 }
+                        }
                         continue
                     }
                     if shouldMove {
@@ -368,7 +376,9 @@ extension ArchiveBrowserModel {
                         try fileManager.copyItem(at: url, to: targetURL)
                     }
                     undoPairs.append((url, targetURL))
-                    _ = extractionCoordinator.consumeHashOverwriteResult(for: requestedTargetURL)
+                    if let result = extractionCoordinator.consumeHashOverwriteResult(for: requestedTargetURL) {
+                        appendHashOverwriteDetail(operationTask, source: url, result: result)
+                    }
                     extractionCoordinator.showPendingHashOverwriteResult(for: targetURL)
                 }
                 extractionCoordinator.finishConflictResolutionSession(conflictSession)
@@ -401,13 +411,15 @@ extension ArchiveBrowserModel {
         total: Int,
         cancellable: Bool
     ) -> OperationTask {
-        // 文件操作不接 detailsSession：它不是后端命令、没有「命令输出」，活动中心也不再给它出详情面板。
+        // 复制/移动/粘贴接一个 detailsSession，但**只在发生哈希比对时**（覆盖前对比源/目标）才往里写
+        // 「源哈希 / 目标哈希 / 跳过还是覆盖」。没有冲突的平凡转移 → session 为空 → 活动中心不出详情入口。
         let task = TaskCenter.shared.begin(
             category: .fileOperation,
             kind: kind,
             title: title,
             detail: detail,
-            cancellable: cancellable
+            cancellable: cancellable,
+            detailsSession: ArchiveOperationDetailsSession(title: title)
         )
         task.progress = ArchiveProgressState(
             fraction: total > 0 ? 0 : 1,
@@ -442,11 +454,19 @@ extension ArchiveBrowserModel {
         TaskCenter.shared.finish(task, outcome: outcome)
     }
 
-    /// 记一次「跳过」并消费掉 pending 的 hash-overwrite 结果，返回是否因「内容相同（哈希一致）」而跳过。
-    /// 用于把整体「全跳过」标成中性的「未改动 / 内容相同」，而不是绿色成功。
-    @discardableResult
-    private func skipWasSameHash(requestedDestination: URL) -> Bool {
-        extractionCoordinator.consumeHashOverwriteResult(for: requestedDestination)?.isSame == true
+    /// 把一次「覆盖前哈希比对」结果写进任务详情（源哈希 / 目标哈希 / 是跳过还是覆盖）。
+    /// 仅在确实发生比对时（有 pending result）追加；用户在活动中心展开「详情」即可核对哈希。
+    private func appendHashOverwriteDetail(_ task: OperationTask, source: URL, result: HashOverwriteResult) {
+        let action = result.isSame
+            ? L10n.text("tasks.fileOperation.hashDetail.skipped")
+            : L10n.text("tasks.fileOperation.hashDetail.overwritten")
+        task.detailsSession?.append(L10n.format(
+            "tasks.fileOperation.hashDetail",
+            source.lastPathComponent,
+            result.sourceHash,
+            result.targetHash,
+            action
+        ) + "\n")
     }
 
     /// 根据实际转移项数 / 跳过项数决定整体结果：真转移了东西 = 成功；什么都没动、全是跳过 =

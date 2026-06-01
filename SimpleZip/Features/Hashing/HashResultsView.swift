@@ -50,16 +50,8 @@ struct HashResultsView: View {
     }
 
     private func copyAllResults() {
-        let text = report.results.map { result in
-            let hashLines = report.algorithms.compactMap { algorithm -> String? in
-                guard let value = result.value(for: algorithm) else { return nil }
-                return "\(algorithm.title): \(value)"
-            }.joined(separator: "\n")
-            return "\(result.url.path)\n\(hashLines)"
-        }.joined(separator: "\n\n")
-
         NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
+        NSPasteboard.general.setString(report.plainTextSummary, forType: .string)
     }
 }
 

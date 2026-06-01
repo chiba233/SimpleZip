@@ -161,11 +161,15 @@ extension ArchiveBrowserModel {
             return
         }
 
+        // 哈希是「跑工具产出结果」的操作（同 测试 / 基准），归到「归档操作」并带 detailsSession ——
+        // 这样算完的哈希值能存进活动中心的详情里（可查看 / 复制），而不是只剩一个「完成」。
+        let detailsSession = ArchiveOperationDetailsSession(title: L10n.text("status.hashing"))
         let operationTask = TaskCenter.shared.begin(
-            category: .fileOperation,
+            category: .archive,
             kind: .hash,
             title: L10n.text("status.hashing"),
-            cancellable: true
+            cancellable: true,
+            detailsSession: detailsSession
         )
         operationTask.progress = ArchiveProgressState(fraction: nil, currentFile: nil, statusText: L10n.text("status.hashing"))
         TaskCenter.shared.notifyTaskChanged()
@@ -182,7 +186,9 @@ extension ArchiveBrowserModel {
             defer { isWorking = false }
 
             do {
-                hashReport = try await HashService.calculate(for: fileURLs, includeHiddenFiles: AppPreferences.showHiddenFiles, algorithms: algorithms)
+                let report = try await HashService.calculate(for: fileURLs, includeHiddenFiles: AppPreferences.showHiddenFiles, algorithms: algorithms)
+                hashReport = report
+                detailsSession.append(report.plainTextSummary)
                 status = L10n.text("status.hashReady")
                 operationTask.progress = ArchiveProgressState(fraction: 1, currentFile: nil, statusText: L10n.text("status.hashReady"))
                 TaskCenter.shared.finish(operationTask, outcome: .succeeded(nil))

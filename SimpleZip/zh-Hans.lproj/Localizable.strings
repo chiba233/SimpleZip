@@ -538,6 +538,9 @@
 "tasks.fileOperation.summary" = "%@ → %@";
 "tasks.fileOperation.skipped.noChange" = "已跳过 — 未改动";
 "tasks.fileOperation.skipped.sameHash" = "内容相同 — 已跳过，未覆盖";
+"tasks.fileOperation.hashDetail" = "%1$@\n  源文件哈希：%2$@\n  目标文件哈希：%3$@\n  %4$@";
+"tasks.fileOperation.hashDetail.skipped" = "内容相同 — 已跳过，未覆盖";
+"tasks.fileOperation.hashDetail.overwritten" = "内容不同 — 已覆盖";
 "tasks.settings" = "设置";
 "tasks.settings.history" = "历史记录";
 "tasks.settings.historyLimit" = "最多记录数";
@@ -913,6 +916,7 @@
 "button.create" = "创建";
 "operation.showDetails" = "显示详情";
 "details.commandOutput" = "命令输出";
+"details.results" = "结果";
 "details.waiting" = "正在等待命令输出...";
 "details.outputEarlierOmitted" = "...（更早的输出已省略）";
 "file.copy" = "复制";
