@@ -273,8 +273,8 @@ final class ArchiveExtractionCoordinator {
         }
     }
 
-    func makeConflictResolutionSession() -> ConflictResolutionSession {
-        ConflictResolutionSession()
+    func makeConflictResolutionSession(allowsRememberedChoice: Bool = true) -> ConflictResolutionSession {
+        ConflictResolutionSession(allowsRememberedChoice: allowsRememberedChoice)
     }
 
     func finishConflictResolutionSession(_ conflictSession: ConflictResolutionSession) {
@@ -291,9 +291,15 @@ final class ArchiveExtractionCoordinator {
         alert.addButton(withTitle: L10n.text("conflict.replaceIfDifferent"))
         alert.addButton(withTitle: L10n.text("button.cancel"))
 
-        let rememberButton = NSButton(checkboxWithTitle: L10n.text("conflict.rememberForOperation"), target: nil, action: nil)
-        rememberButton.state = .off
-        alert.accessoryView = rememberButton
+        let rememberButton: NSButton?
+        if conflictSession?.allowsRememberedChoice == true {
+            let button = NSButton(checkboxWithTitle: L10n.text("conflict.rememberForOperation"), target: nil, action: nil)
+            button.state = .off
+            alert.accessoryView = button
+            rememberButton = button
+        } else {
+            rememberButton = nil
+        }
 
         let choice: PasteConflictChoice
         switch alert.runModal() {
@@ -306,7 +312,7 @@ final class ArchiveExtractionCoordinator {
         default:
             choice = .cancel
         }
-        if rememberButton.state == .on, choice != .cancel {
+        if rememberButton?.state == .on, choice != .cancel {
             conflictSession?.rememberedChoice = choice
         }
         return choice
@@ -543,8 +549,13 @@ final class ArchiveExtractionCoordinator {
 }
 
 final class ConflictResolutionSession {
+    let allowsRememberedChoice: Bool
     var rememberedChoice: PasteConflictChoice?
     var hashResults: [HashOverwriteResult] = []
+
+    init(allowsRememberedChoice: Bool = true) {
+        self.allowsRememberedChoice = allowsRememberedChoice
+    }
 }
 
 enum PasteConflictChoice: Equatable {

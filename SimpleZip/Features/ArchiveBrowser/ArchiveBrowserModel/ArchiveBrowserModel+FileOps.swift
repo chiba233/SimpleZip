@@ -61,7 +61,7 @@ extension ArchiveBrowserModel {
 
             do {
                 let total = max(1, fileClipboard.urls.count)
-                let conflictSession = extractionCoordinator.makeConflictResolutionSession()
+                let conflictSession = extractionCoordinator.makeConflictResolutionSession(allowsRememberedChoice: fileClipboard.urls.count > 1)
                 for (index, url) in fileClipboard.urls.enumerated() {
                     try Task.checkCancellation()
                     updateFileTask(
@@ -322,7 +322,7 @@ extension ArchiveBrowserModel {
 
             do {
                 let total = max(1, urls.count)
-                let conflictSession = extractionCoordinator.makeConflictResolutionSession()
+                let conflictSession = extractionCoordinator.makeConflictResolutionSession(allowsRememberedChoice: urls.count > 1)
                 for (index, url) in urls.enumerated() {
                     try Task.checkCancellation()
                     updateFileTask(
