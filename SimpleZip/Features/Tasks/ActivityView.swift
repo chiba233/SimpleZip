@@ -459,6 +459,8 @@ private struct ActivityTaskRow: View {
             return "doc.zipper"
         case .test:
             return "checkmark.seal"
+        case .benchmark:
+            return "speedometer"
         case .hash:
             return "number.square"
         case .paste, .copy:
@@ -490,6 +492,9 @@ private struct ActivityTaskRow: View {
     private var statusText: String {
         switch task.status {
         case .running:
+            if let detail = task.detail, !detail.isEmpty {
+                return detail
+            }
             if let statusText = task.progress.statusText, !statusText.isEmpty {
                 return statusText
             }
@@ -498,6 +503,9 @@ private struct ActivityTaskRow: View {
             }
             return L10n.text("tasks.running")
         case .succeeded:
+            if let detail = task.detail, !detail.isEmpty {
+                return detail
+            }
             return L10n.text("status.done")
         case .failed(let message):
             return message

@@ -526,8 +526,15 @@
 "tasks.fileSection" = "File Operations";
 "tasks.empty" = "No tasks";
 "tasks.renameItem" = "Rename %@";
+"tasks.copyCount" = "Copy %d items";
+"tasks.moveCount" = "Move %d items";
+"tasks.pasteCount" = "Paste %d items";
 "tasks.deleteCount" = "Delete %d items";
 "tasks.duplicateCount" = "Duplicate %d items";
+"tasks.itemCount" = "%d items";
+"tasks.trashDestination" = "Trash";
+"tasks.fileOperation.summary" = "%@ → %@";
+"tasks.fileOperation.detailLine" = "%@ → %@";
 "tasks.settings" = "Settings";
 "tasks.settings.history" = "History";
 "tasks.settings.historyLimit" = "Maximum records";

@@ -36,7 +36,10 @@ extension ArchiveBrowserModel {
 
         let operationTask = beginFileTask(
             kind: fileClipboard.shouldMove ? .move : .paste,
-            title: L10n.text("status.pasting"),
+            title: fileClipboard.shouldMove
+                ? L10n.format("tasks.moveCount", fileClipboard.urls.count)
+                : L10n.format("tasks.pasteCount", fileClipboard.urls.count),
+            detail: transferSummary(from: fileClipboard.urls, to: folderURL),
             total: fileClipboard.urls.count,
             cancellable: true
         )
@@ -95,6 +98,7 @@ extension ArchiveBrowserModel {
                         try fileManager.copyItem(at: url, to: targetURL)
                     }
                     undoPairs.append((url, targetURL))
+                    appendFileTaskLog(operationTask, source: url, destination: targetURL)
                     extractionCoordinator.showPendingHashOverwriteResult(for: targetURL)
                 }
                 extractionCoordinator.finishConflictResolutionSession(conflictSession)
@@ -153,12 +157,22 @@ extension ArchiveBrowserModel {
         do {
             try fileManager.moveItem(at: item.url, to: target)
             registerMoveUndo([(from: item.url, to: target)], actionName: L10n.text("undo.action.rename"))
-            recordInstantFileTask(kind: .rename, title: L10n.format("tasks.renameItem", oldName))
+            recordInstantFileTask(
+                kind: .rename,
+                title: L10n.format("tasks.renameItem", oldName),
+                detail: transferSummary(from: item.url, to: target),
+                logPairs: [(item.url, target)]
+            )
             // 刷新交给 FolderWatcher：同目录改名会触发 FSEvents 自动 reload。
         } catch {
             errorMessage = error.localizedDescription
             status = L10n.text("status.failed")
-            recordInstantFileTask(kind: .rename, title: L10n.format("tasks.renameItem", oldName), outcome: .failed(error.localizedDescription))
+            recordInstantFileTask(
+                kind: .rename,
+                title: L10n.format("tasks.renameItem", oldName),
+                detail: transferSummary(from: item.url, to: target),
+                outcome: .failed(error.localizedDescription)
+            )
         }
     }
 
@@ -192,12 +206,22 @@ extension ArchiveBrowserModel {
             }
             // trashItem 自身不出声，显式播放 Finder「移到废纸篓」音效（whoosh + 落下，一次播放）。
             SystemSound.moveToTrash?.play()
-            recordInstantFileTask(kind: .delete, title: L10n.format("tasks.deleteCount", trashed.count))
+            recordInstantFileTask(
+                kind: .delete,
+                title: L10n.format("tasks.deleteCount", trashed.count),
+                detail: transferSummary(from: trashed.map(\.original), to: L10n.text("tasks.trashDestination")),
+                logPairs: trashed.map { ($0.original, $0.trashURL) }
+            )
             // 刷新交给 FolderWatcher：从当前文件夹移除条目会触发 FSEvents 自动 reload。
         } catch {
             errorMessage = error.localizedDescription
             status = L10n.text("status.failed")
-            recordInstantFileTask(kind: .delete, title: L10n.format("tasks.deleteCount", selectedFileItems.count), outcome: .failed(error.localizedDescription))
+            recordInstantFileTask(
+                kind: .delete,
+                title: L10n.format("tasks.deleteCount", selectedFileItems.count),
+                detail: transferSummary(from: selectedFileItems.map(\.url), to: L10n.text("tasks.trashDestination")),
+                outcome: .failed(error.localizedDescription)
+            )
         }
     }
 
@@ -216,11 +240,21 @@ extension ArchiveBrowserModel {
                 copies.append((source: item.url, dest: dest))
             }
             SystemSound.operationComplete?.play()
-            recordInstantFileTask(kind: .duplicate, title: L10n.format("tasks.duplicateCount", copies.count))
+            recordInstantFileTask(
+                kind: .duplicate,
+                title: L10n.format("tasks.duplicateCount", copies.count),
+                detail: transferSummary(from: copies.map(\.source), to: copies.first?.dest.deletingLastPathComponent()),
+                logPairs: copies.map { ($0.source, $0.dest) }
+            )
         } catch {
             errorMessage = error.localizedDescription
             status = L10n.text("status.failed")
-            recordInstantFileTask(kind: .duplicate, title: L10n.format("tasks.duplicateCount", selectedFileItems.count), outcome: .failed(error.localizedDescription))
+            recordInstantFileTask(
+                kind: .duplicate,
+                title: L10n.format("tasks.duplicateCount", selectedFileItems.count),
+                detail: transferSummary(from: selectedFileItems.map(\.url), to: selectedFileItems.first?.url.deletingLastPathComponent()),
+                outcome: .failed(error.localizedDescription)
+            )
         }
     }
 
@@ -264,7 +298,8 @@ extension ArchiveBrowserModel {
         guard !urls.isEmpty else { return }
         let operationTask = beginFileTask(
             kind: shouldMove ? .move : .copy,
-            title: shouldMove ? L10n.text("status.movingFiles") : L10n.text("status.copyingFiles"),
+            title: shouldMove ? L10n.format("tasks.moveCount", urls.count) : L10n.format("tasks.copyCount", urls.count),
+            detail: transferSummary(from: urls, to: destinationFolder),
             total: urls.count,
             cancellable: true
         )
@@ -322,6 +357,7 @@ extension ArchiveBrowserModel {
                         try fileManager.copyItem(at: url, to: targetURL)
                     }
                     undoPairs.append((url, targetURL))
+                    appendFileTaskLog(operationTask, source: url, destination: targetURL)
                     extractionCoordinator.showPendingHashOverwriteResult(for: targetURL)
                 }
                 extractionCoordinator.finishConflictResolutionSession(conflictSession)
@@ -346,8 +382,22 @@ extension ArchiveBrowserModel {
         }
     }
 
-    private func beginFileTask(kind: OperationTask.Kind, title: String, total: Int, cancellable: Bool) -> OperationTask {
-        let task = TaskCenter.shared.begin(category: .fileOperation, kind: kind, title: title, cancellable: cancellable)
+    private func beginFileTask(
+        kind: OperationTask.Kind,
+        title: String,
+        detail: String?,
+        total: Int,
+        cancellable: Bool
+    ) -> OperationTask {
+        let detailsSession = ArchiveOperationDetailsSession(title: title)
+        let task = TaskCenter.shared.begin(
+            category: .fileOperation,
+            kind: kind,
+            title: title,
+            detail: detail,
+            cancellable: cancellable,
+            detailsSession: detailsSession
+        )
         task.progress = ArchiveProgressState(
             fraction: total > 0 ? 0 : 1,
             currentFile: nil,
@@ -367,11 +417,60 @@ extension ArchiveBrowserModel {
     private func recordInstantFileTask(
         kind: OperationTask.Kind,
         title: String,
+        detail: String? = nil,
+        logPairs: [(URL, URL)] = [],
         outcome: OperationTask.Status = .succeeded(nil)
     ) {
-        let task = TaskCenter.shared.begin(category: .fileOperation, kind: kind, title: title, cancellable: false)
+        let detailsSession: ArchiveOperationDetailsSession? = logPairs.isEmpty ? nil : ArchiveOperationDetailsSession(title: title)
+        let task = TaskCenter.shared.begin(
+            category: .fileOperation,
+            kind: kind,
+            title: title,
+            detail: detail,
+            cancellable: false,
+            detailsSession: detailsSession
+        )
+        for (source, destination) in logPairs {
+            appendFileTaskLog(task, source: source, destination: destination)
+        }
         task.progress = ArchiveProgressState(fraction: 1, currentFile: nil, statusText: statusText(for: outcome))
         TaskCenter.shared.finish(task, outcome: outcome)
+    }
+
+    private func appendFileTaskLog(_ task: OperationTask, source: URL, destination: URL) {
+        task.detailsSession?.append(L10n.format(
+            "tasks.fileOperation.detailLine",
+            source.path,
+            destination.path
+        ) + "\n")
+    }
+
+    private func transferSummary(from urls: [URL], to destination: URL?) -> String? {
+        guard let destination else { return nil }
+        return transferSummary(from: sourceSummary(urls), to: displayPath(destination))
+    }
+
+    private func transferSummary(from source: URL, to destination: URL) -> String {
+        transferSummary(from: displayPath(source), to: displayPath(destination))
+    }
+
+    private func transferSummary(from urls: [URL], to destination: String) -> String {
+        transferSummary(from: sourceSummary(urls), to: destination)
+    }
+
+    private func transferSummary(from source: String, to destination: String) -> String {
+        L10n.format("tasks.fileOperation.summary", source, destination)
+    }
+
+    private func sourceSummary(_ urls: [URL]) -> String {
+        guard urls.count != 1 else {
+            return urls[0].lastPathComponent
+        }
+        return L10n.format("tasks.itemCount", urls.count)
+    }
+
+    private func displayPath(_ url: URL) -> String {
+        (url.path as NSString).abbreviatingWithTildeInPath
     }
 
     private func statusText(for outcome: OperationTask.Status) -> String {

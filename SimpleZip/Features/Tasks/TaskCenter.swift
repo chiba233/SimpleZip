@@ -49,6 +49,7 @@ final class TaskCenter: ObservableObject {
         category: OperationTask.Category,
         kind: OperationTask.Kind,
         title: String,
+        detail: String? = nil,
         cancellable: Bool,
         detailsSession: ArchiveOperationDetailsSession? = nil,
         operationID: UUID? = nil
@@ -57,6 +58,7 @@ final class TaskCenter: ObservableObject {
             category: category,
             kind: kind,
             title: title,
+            detail: detail,
             cancellable: cancellable,
             detailsSession: detailsSession,
             operationID: operationID
@@ -121,6 +123,7 @@ private struct PersistedTask: Codable {
     let category: OperationTask.Category
     let kind: OperationTask.Kind
     let title: String
+    let detail: String?
     let startedAt: Date
     let status: PersistedStatus
     let finishedAt: Date?
@@ -132,6 +135,7 @@ private struct PersistedTask: Codable {
         category = task.category
         kind = task.kind
         title = task.title
+        detail = task.detail
         startedAt = task.startedAt
         status = PersistedStatus(status: task.status)
         finishedAt = task.finishedAt
@@ -150,6 +154,7 @@ private struct PersistedTask: Codable {
             category: category,
             kind: kind,
             title: title,
+            detail: detail,
             startedAt: startedAt,
             cancellable: false,
             detailsSession: details?.session,

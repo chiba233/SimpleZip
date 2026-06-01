@@ -524,8 +524,15 @@
 "tasks.fileSection" = "文件操作";
 "tasks.empty" = "无任务";
 "tasks.renameItem" = "重命名 %@";
+"tasks.copyCount" = "复制 %d 项";
+"tasks.moveCount" = "移动 %d 项";
+"tasks.pasteCount" = "粘贴 %d 项";
 "tasks.deleteCount" = "删除 %d 项";
 "tasks.duplicateCount" = "创建 %d 个副本";
+"tasks.itemCount" = "%d 项";
+"tasks.trashDestination" = "废纸篓";
+"tasks.fileOperation.summary" = "%@ → %@";
+"tasks.fileOperation.detailLine" = "%@ → %@";
 "tasks.settings" = "设置";
 "tasks.settings.history" = "历史记录";
 "tasks.settings.historyLimit" = "最多记录数";

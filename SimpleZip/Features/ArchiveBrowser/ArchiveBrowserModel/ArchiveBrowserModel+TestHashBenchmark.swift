@@ -7,6 +7,7 @@
 //  测试压缩包 / SHA & 校验值 / 7-Zip benchmark。
 //
 
+import AppKit
 import Foundation
 
 extension ArchiveBrowserModel {
@@ -57,26 +58,70 @@ extension ArchiveBrowserModel {
     func runSevenZipBenchmark(_ request: SevenZipBenchmarkRequest) {
         let session = SevenZipBenchmarkSession(options: request.options)
         benchmarkSession = session
-        startOperationTask(cancellable: true) { [weak self] operationID in
-            guard let self else { return }
-            let didSucceed = await runArchiveTask(
-                L10n.text("status.benchmarking"),
-                initialProgress: ArchiveProgressState(fraction: nil, currentFile: nil, statusText: L10n.text("status.benchmarking"))
-            ) { _ in
+
+        let title = L10n.text("status.benchmarking")
+        let detailsSession = ArchiveOperationDetailsSession(title: title)
+        let operationID = UUID()
+        let operationTask = TaskCenter.shared.begin(
+            category: .archive,
+            kind: .benchmark,
+            title: title,
+            cancellable: true,
+            detailsSession: detailsSession,
+            operationID: operationID
+        )
+        operationTask.progress = ArchiveProgressState(fraction: nil, currentFile: nil, statusText: title)
+        TaskCenter.shared.notifyTaskChanged()
+
+        var swiftTask: Task<Void, Never>?
+        operationTask.cancel = {
+            swiftTask?.cancel()
+            ArchiveService.cancelRunningCommand(operationID: operationID)
+        }
+
+        swiftTask = Task { @MainActor [weak self, weak operationTask] in
+            guard let self, let operationTask else { return }
+            isWorking = true
+            errorMessage = nil
+            operationProgress = ArchiveProgressState(fraction: nil, currentFile: nil, statusText: title)
+            status = title
+            defer {
+                isWorking = false
+                operationProgress = ArchiveProgressState()
+            }
+
+            do {
                 let report = try await ArchiveService.benchmark(options: request.options, operationID: operationID) { report, output in
-                    Task { @MainActor [weak session] in
+                    Task { @MainActor [weak session, weak detailsSession, weak operationTask] in
+                        guard operationTask?.status.isRunning == true else { return }
                         session?.report = report
                         session?.rawOutput = output
+                        detailsSession?.rawOutput = output
                     }
                 }
-                await MainActor.run {
-                    session.report = report
-                    session.rawOutput = report.output
-                }
-            }
-            session.finishedAt = Date()
-            if didSucceed, session.report != nil {
+                session.report = report
+                session.rawOutput = report.output
+                session.finishedAt = Date()
+                detailsSession.rawOutput = report.output
+                detailsSession.finishedAt = session.finishedAt
+                operationTask.progress = ArchiveProgressState(fraction: 1, currentFile: nil, statusText: L10n.text("status.benchmarkReady"))
+                TaskCenter.shared.finish(operationTask, outcome: .succeeded(nil))
                 status = L10n.text("status.benchmarkReady")
+                SystemSound.operationComplete?.play()
+            } catch is CancellationError {
+                session.finishedAt = Date()
+                detailsSession.finishedAt = session.finishedAt
+                TaskCenter.shared.finish(operationTask, outcome: .cancelled)
+                status = L10n.text("status.cancelled")
+            } catch {
+                session.finishedAt = Date()
+                if detailsSession.rawOutput.isEmpty {
+                    detailsSession.append(error.localizedDescription)
+                }
+                detailsSession.finishedAt = session.finishedAt
+                errorMessage = error.localizedDescription
+                TaskCenter.shared.finish(operationTask, outcome: .failed(error.localizedDescription))
+                status = L10n.text("status.failed")
             }
         }
     }

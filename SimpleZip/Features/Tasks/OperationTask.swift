@@ -17,6 +17,7 @@ final class OperationTask: ObservableObject, Identifiable {
         case extract
         case compress
         case test
+        case benchmark
         case hash
         case paste
         case move
@@ -42,6 +43,7 @@ final class OperationTask: ObservableObject, Identifiable {
     let category: Category
     let kind: Kind
     let title: String
+    let detail: String?
     let startedAt: Date
     let detailsSession: ArchiveOperationDetailsSession?
     var operationID: UUID?
@@ -56,6 +58,7 @@ final class OperationTask: ObservableObject, Identifiable {
         category: Category,
         kind: Kind,
         title: String,
+        detail: String? = nil,
         startedAt: Date = Date(),
         cancellable: Bool,
         detailsSession: ArchiveOperationDetailsSession? = nil,
@@ -68,6 +71,7 @@ final class OperationTask: ObservableObject, Identifiable {
         self.category = category
         self.kind = kind
         self.title = title
+        self.detail = detail
         self.startedAt = startedAt
         self.detailsSession = detailsSession
         self.operationID = operationID
