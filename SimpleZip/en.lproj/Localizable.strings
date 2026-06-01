@@ -535,6 +535,8 @@
 "tasks.trashDestination" = "Trash";
 "tasks.fileOperation.summary" = "%@ → %@";
 "tasks.fileOperation.detailLine" = "%@ → %@";
+"tasks.fileOperation.skippedLine" = "%@ → %@ (skipped)";
+"tasks.fileOperation.skippedSameHashLine" = "%@ → %@ (skipped: hashes match)";
 "tasks.settings" = "Settings";
 "tasks.settings.history" = "History";
 "tasks.settings.historyLimit" = "Maximum records";

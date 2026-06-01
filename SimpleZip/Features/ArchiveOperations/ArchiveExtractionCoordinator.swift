@@ -15,6 +15,7 @@ import SwiftUI
 final class ArchiveExtractionCoordinator {
     private let fileManager: FileManager
     private var pendingHashOverwriteResults: [String: HashOverwriteResult] = [:]
+    private var recentHashOverwriteResults: [String: HashOverwriteResult] = [:]
 
     init(fileManager: FileManager = .default) {
         self.fileManager = fileManager
@@ -172,6 +173,11 @@ final class ArchiveExtractionCoordinator {
         let key = url.standardizedFileURL.path
         guard let result = pendingHashOverwriteResults.removeValue(forKey: key) else { return }
         showHashOverwriteResult(result)
+    }
+
+    func consumeHashOverwriteResult(for url: URL) -> HashOverwriteResult? {
+        let key = url.standardizedFileURL.path
+        return recentHashOverwriteResults.removeValue(forKey: key)
     }
 
     private func mergeExtractedItem(
@@ -491,6 +497,7 @@ final class ArchiveExtractionCoordinator {
     }
 
     private func recordHashOverwriteResult(_ result: HashOverwriteResult, in conflictSession: ConflictResolutionSession?) {
+        recentHashOverwriteResults[result.targetURL.standardizedFileURL.path] = result
         conflictSession?.hashResults.append(result)
     }
 

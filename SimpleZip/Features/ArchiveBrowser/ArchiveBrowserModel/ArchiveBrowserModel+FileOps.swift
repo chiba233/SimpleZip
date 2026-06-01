@@ -90,7 +90,10 @@ extension ArchiveBrowserModel {
                         },
                         conflictSession: conflictSession
                     )
-                    guard let targetURL else { continue }
+                    guard let targetURL else {
+                        appendSkippedFileTaskLog(operationTask, source: url, requestedDestination: requestedTargetURL)
+                        continue
+                    }
 
                     if fileClipboard.shouldMove {
                         try fileManager.moveItem(at: url, to: targetURL)
@@ -99,6 +102,7 @@ extension ArchiveBrowserModel {
                     }
                     undoPairs.append((url, targetURL))
                     appendFileTaskLog(operationTask, source: url, destination: targetURL)
+                    _ = extractionCoordinator.consumeHashOverwriteResult(for: requestedTargetURL)
                     extractionCoordinator.showPendingHashOverwriteResult(for: targetURL)
                 }
                 extractionCoordinator.finishConflictResolutionSession(conflictSession)
@@ -350,7 +354,10 @@ extension ArchiveBrowserModel {
                         },
                         conflictSession: conflictSession
                     )
-                    guard let targetURL else { continue }
+                    guard let targetURL else {
+                        appendSkippedFileTaskLog(operationTask, source: url, requestedDestination: requestedTargetURL)
+                        continue
+                    }
                     if shouldMove {
                         try fileManager.moveItem(at: url, to: targetURL)
                     } else {
@@ -358,6 +365,7 @@ extension ArchiveBrowserModel {
                     }
                     undoPairs.append((url, targetURL))
                     appendFileTaskLog(operationTask, source: url, destination: targetURL)
+                    _ = extractionCoordinator.consumeHashOverwriteResult(for: requestedTargetURL)
                     extractionCoordinator.showPendingHashOverwriteResult(for: targetURL)
                 }
                 extractionCoordinator.finishConflictResolutionSession(conflictSession)
@@ -443,6 +451,22 @@ extension ArchiveBrowserModel {
             source.path,
             destination.path
         ) + "\n")
+    }
+
+    private func appendSkippedFileTaskLog(_ task: OperationTask, source: URL, requestedDestination: URL) {
+        if let hashResult = extractionCoordinator.consumeHashOverwriteResult(for: requestedDestination), hashResult.isSame {
+            task.detailsSession?.append(L10n.format(
+                "tasks.fileOperation.skippedSameHashLine",
+                source.path,
+                requestedDestination.path
+            ) + "\n")
+        } else {
+            task.detailsSession?.append(L10n.format(
+                "tasks.fileOperation.skippedLine",
+                source.path,
+                requestedDestination.path
+            ) + "\n")
+        }
     }
 
     private func transferSummary(from urls: [URL], to destination: URL?) -> String? {
