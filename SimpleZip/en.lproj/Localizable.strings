@@ -1008,3 +1008,7 @@
 "file.quickLook" = "Quick Look";
 "file.getInfo" = "Get Info";
 "file.getInfo.failed" = "Couldn’t open Finder’s Get Info window: %@";
+
+/* 0.2.2 — 创建副本 */
+"file.duplicate" = "Duplicate";
+"file.duplicate.suffix" = " copy";

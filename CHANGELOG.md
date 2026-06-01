@@ -5,6 +5,7 @@
 ## 0.2.2
 
 - **Deleting files plays the Trash sound.** Moving files to the Trash now plays the same "move to trash" sound Finder uses, for familiar feedback.
+- **Create Duplicate (⌘D).** Right-click → "Duplicate" (or ⌘D) copies the selected files/folders in place as "<name> copy", Finder-style, never overwriting (subsequent copies get " copy 2", " copy 3", …).
 - **Fixed: the inline rename box wouldn't go away.** Renaming a file and then clicking another item, switching folders, or pressing Esc left the edit field stuck on screen (only Return dismissed it). Clicking away or navigating now commits the rename and closes the field, and Esc cancels it — matching Finder.
 - **Fixed: the Finder extension menu was always English.** The extension is a separate process and only saw the *system* language, ignoring SimpleZip's in-app language override — so its right-click items stayed English even with the app set to another language. It now reads the app's language preference and loads the matching localization. (Both targets are unsandboxed, so this needs no extra entitlement.)
 

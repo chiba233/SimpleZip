@@ -1008,3 +1008,7 @@
 "file.quickLook" = "快速查看";
 "file.getInfo" = "显示简介";
 "file.getInfo.failed" = "无法打开 Finder 的「显示简介」窗口：%@";
+
+/* 0.2.2 — 创建副本 */
+"file.duplicate" = "创建副本";
+"file.duplicate.suffix" = " 副本";

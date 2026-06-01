@@ -673,6 +673,7 @@ private struct FileNSOutlineView: NSViewRepresentable {
             if model.selectedFileItems.count == 1 {
                 menu.addItem(menuItem(L10n.text("file.rename"), systemImage: "pencil", action: #selector(renameSelected)))
             }
+            menu.addItem(menuItem(L10n.text("file.duplicate"), systemImage: "plus.square.on.square", action: #selector(duplicateSelected)))
             menu.addItem(menuItem(L10n.text("file.copy"), systemImage: "doc.on.doc", action: #selector(copySelected)))
             menu.addItem(menuItem(L10n.text("file.cut"), systemImage: "scissors", action: #selector(cutSelected)))
             menu.addItem(menuItem(L10n.text("file.paste"), systemImage: "clipboard", action: #selector(pasteFiles)))
@@ -833,6 +834,10 @@ private struct FileNSOutlineView: NSViewRepresentable {
         /// 空白处右键专用：reveal「我现在看的这个文件夹」本身，忽略 selection。
         @objc private func revealCurrentLocation() {
             model.revealCurrentLocationInFinder()
+        }
+
+        @objc private func duplicateSelected() {
+            model.duplicateSelectedFiles()
         }
 
         @objc private func copySelected() {

@@ -1000,3 +1000,7 @@
 "file.quickLook" = "Coup d’œil";
 "file.getInfo" = "Lire les informations";
 "file.getInfo.failed" = "Impossible d’ouvrir la fenêtre « Lire les informations » du Finder : %@";
+
+/* 0.2.2 — 创建副本 */
+"file.duplicate" = "Dupliquer";
+"file.duplicate.suffix" = " copie";

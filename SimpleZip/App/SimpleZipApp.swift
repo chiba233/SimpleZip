@@ -268,6 +268,14 @@ struct ArchiveFileCommands: Commands {
             .keyboardShortcut("a", modifiers: [.command])
 
             Button {
+                model?.duplicateSelectedFiles()
+            } label: {
+                Label(L10n.text("file.duplicate"), systemImage: "plus.square.on.square")
+            }
+            .keyboardShortcut("d", modifiers: [.command])
+            .disabled(!canManageSelectedFiles)
+
+            Button {
                 model?.moveSelectedFilesToFolder()
             } label: {
                 Label(L10n.text("file.moveTo"), systemImage: "folder.badge.gearshape")

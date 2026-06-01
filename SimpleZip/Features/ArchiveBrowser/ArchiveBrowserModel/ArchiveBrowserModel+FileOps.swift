@@ -136,6 +136,41 @@ extension ArchiveBrowserModel {
         }
     }
 
+    /// 「创建副本」—— Finder 式：在同目录复制成「<名字> 副本[.ext]」，重名再「<名字> 副本 2」…
+    /// 刷新交给 FolderWatcher（新文件落在当前目录会触发 FSEvents）。
+    func duplicateSelectedFiles() {
+        guard case .folder = mode, !selectedFileItems.isEmpty else { return }
+        do {
+            for item in selectedFileItems {
+                try fileManager.copyItem(at: item.url, to: duplicateDestinationURL(for: item.url))
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+            status = L10n.text("status.failed")
+        }
+    }
+
+    /// 给 `url` 在同目录算一个不冲突的「副本」目标名。后缀用本地化的「 副本」/「 copy」，
+    /// 插在扩展名之前（`a.zip` → `a 副本.zip`），与 Finder 行为一致。
+    private func duplicateDestinationURL(for url: URL) -> URL {
+        let dir = url.deletingLastPathComponent()
+        let ext = url.pathExtension
+        let base = url.deletingPathExtension().lastPathComponent
+        let copyWord = L10n.text("file.duplicate.suffix")
+        func candidate(_ tail: String) -> URL {
+            let stem = base + tail
+            let name = ext.isEmpty ? stem : "\(stem).\(ext)"
+            return dir.appendingPathComponent(name)
+        }
+        var target = candidate(copyWord)
+        var n = 2
+        while fileManager.fileExists(atPath: target.path) {
+            target = candidate("\(copyWord) \(n)")
+            n += 1
+        }
+        return target
+    }
+
     func moveSelectedFilesToFolder() {
         guard case .folder = mode, !selectedFileItems.isEmpty else { return }
 

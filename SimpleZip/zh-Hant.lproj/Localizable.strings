@@ -1000,3 +1000,7 @@
 "file.quickLook" = "快速查看";
 "file.getInfo" = "顯示簡介";
 "file.getInfo.failed" = "無法打開 Finder 的「顯示簡介」視窗：%@";
+
+/* 0.2.2 — 创建副本 */
+"file.duplicate" = "製作複本";
+"file.duplicate.suffix" = " 複本";

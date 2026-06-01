@@ -1000,3 +1000,7 @@
 "file.quickLook" = "クイックルック";
 "file.getInfo" = "情報を見る";
 "file.getInfo.failed" = "Finder の「情報を見る」ウインドウを開けませんでした：%@";
+
+/* 0.2.2 — 创建副本 */
+"file.duplicate" = "複製";
+"file.duplicate.suffix" = "のコピー";
