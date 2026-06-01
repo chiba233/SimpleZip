@@ -30,6 +30,9 @@ final class OperationTask: ObservableObject, Identifiable {
     enum Status: Equatable {
         case running
         case succeeded(URL?)
+        /// 操作完成但**什么都没改动**（如粘贴/移动时目标与源内容相同被跳过）。
+        /// 单列出来避免被画成绿色「成功」——否则用户会以为覆盖发生了，其实没有。可选附带原因文案。
+        case skipped(String?)
         case failed(String)
         case cancelled
 

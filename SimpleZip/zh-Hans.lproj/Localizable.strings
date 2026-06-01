@@ -536,9 +536,8 @@
 "tasks.itemCount" = "%d 项";
 "tasks.trashDestination" = "废纸篓";
 "tasks.fileOperation.summary" = "%@ → %@";
-"tasks.fileOperation.detailLine" = "%@ → %@";
-"tasks.fileOperation.skippedLine" = "%@ → %@（已跳过）";
-"tasks.fileOperation.skippedSameHashLine" = "%@ → %@（哈希相同，已跳过）";
+"tasks.fileOperation.skipped.noChange" = "已跳过 — 未改动";
+"tasks.fileOperation.skipped.sameHash" = "内容相同 — 已跳过，未覆盖";
 "tasks.settings" = "设置";
 "tasks.settings.history" = "历史记录";
 "tasks.settings.historyLimit" = "最多记录数";

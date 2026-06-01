@@ -434,7 +434,7 @@ private struct ActivityTaskRow: View {
                 }
             }
 
-            if isShowingDetails, let session = task.detailsSession {
+            if isShowingDetails, task.category == .archive, let session = task.detailsSession {
                 VStack(alignment: .leading, spacing: 7) {
                     HStack {
                         Text(L10n.text("details.commandOutput"))
@@ -483,7 +483,9 @@ private struct ActivityTaskRow: View {
                 .buttonStyle(.borderless)
                 .help(L10n.text("button.cancel"))
             }
-            if task.detailsSession != nil {
+            // 命令输出/详情只对归档操作有意义（后端命令的 stdout）。文件操作（复制/移动/删除…）不是命令、
+            // 没有「命令输出」，之前会一直显示「正在等待命令输出…」——所以这里只给归档操作出详情入口。
+            if task.category == .archive, task.detailsSession != nil {
                 Button {
                     isShowingDetails.toggle()
                 } label: {
@@ -527,6 +529,9 @@ private struct ActivityTaskRow: View {
             return .accentColor
         case .succeeded:
             return .green
+        case .skipped:
+            // 不用绿色：跳过 = 没改动，绿色会让用户误以为覆盖/写入成功了。用中性灰区分。
+            return .secondary
         case .failed:
             return .orange
         case .cancelled:
@@ -552,6 +557,8 @@ private struct ActivityTaskRow: View {
                 return detail
             }
             return L10n.text("status.done")
+        case .skipped(let reason):
+            return reason ?? L10n.text("tasks.fileOperation.skipped.noChange")
         case .failed(let message):
             return message
         case .cancelled:

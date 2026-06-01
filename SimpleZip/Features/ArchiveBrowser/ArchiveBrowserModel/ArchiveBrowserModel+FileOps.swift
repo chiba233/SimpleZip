@@ -51,6 +51,8 @@ extension ArchiveBrowserModel {
             guard let self, let operationTask else { return }
             status = L10n.text("status.pasting")
             var undoPairs: [(URL, URL)] = []
+            var skippedCount = 0
+            var sameHashSkips = 0
             var completed = false
             defer {
                 registerTransferUndo(undoPairs, shouldMove: fileClipboard.shouldMove)
@@ -91,7 +93,8 @@ extension ArchiveBrowserModel {
                         conflictSession: conflictSession
                     )
                     guard let targetURL else {
-                        appendSkippedFileTaskLog(operationTask, source: url, requestedDestination: requestedTargetURL)
+                        skippedCount += 1
+                        if skipWasSameHash(requestedDestination: requestedTargetURL) { sameHashSkips += 1 }
                         continue
                     }
 
@@ -101,7 +104,6 @@ extension ArchiveBrowserModel {
                         try fileManager.copyItem(at: url, to: targetURL)
                     }
                     undoPairs.append((url, targetURL))
-                    appendFileTaskLog(operationTask, source: url, destination: targetURL)
                     _ = extractionCoordinator.consumeHashOverwriteResult(for: requestedTargetURL)
                     extractionCoordinator.showPendingHashOverwriteResult(for: targetURL)
                 }
@@ -111,8 +113,9 @@ extension ArchiveBrowserModel {
                     operationTask,
                     progress: ArchiveProgressState(fraction: 1, currentFile: nil, statusText: L10n.text("status.done"), completedUnitCount: total, totalUnitCount: total)
                 )
-                TaskCenter.shared.finish(operationTask, outcome: .succeeded(nil))
-                SystemSound.operationComplete?.play()
+                let outcome = transferOutcome(transferred: undoPairs.count, skipped: skippedCount, sameHashSkips: sameHashSkips)
+                TaskCenter.shared.finish(operationTask, outcome: outcome)
+                if case .succeeded = outcome { SystemSound.operationComplete?.play() }
                 // 刷新交给 FolderWatcher：写入当前文件夹会触发 FSEvents 自动 reload。
             } catch is CancellationError {
                 errorMessage = nil
@@ -164,8 +167,7 @@ extension ArchiveBrowserModel {
             recordInstantFileTask(
                 kind: .rename,
                 title: L10n.format("tasks.renameItem", oldName),
-                detail: transferSummary(from: item.url, to: target),
-                logPairs: [(item.url, target)]
+                detail: transferSummary(from: item.url, to: target)
             )
             // 刷新交给 FolderWatcher：同目录改名会触发 FSEvents 自动 reload。
         } catch {
@@ -213,8 +215,7 @@ extension ArchiveBrowserModel {
             recordInstantFileTask(
                 kind: .delete,
                 title: L10n.format("tasks.deleteCount", trashed.count),
-                detail: transferSummary(from: trashed.map(\.original), to: L10n.text("tasks.trashDestination")),
-                logPairs: trashed.map { ($0.original, $0.trashURL) }
+                detail: transferSummary(from: trashed.map(\.original), to: L10n.text("tasks.trashDestination"))
             )
             // 刷新交给 FolderWatcher：从当前文件夹移除条目会触发 FSEvents 自动 reload。
         } catch {
@@ -247,8 +248,7 @@ extension ArchiveBrowserModel {
             recordInstantFileTask(
                 kind: .duplicate,
                 title: L10n.format("tasks.duplicateCount", copies.count),
-                detail: transferSummary(from: copies.map(\.source), to: copies.first?.dest.deletingLastPathComponent()),
-                logPairs: copies.map { ($0.source, $0.dest) }
+                detail: transferSummary(from: copies.map(\.source), to: copies.first?.dest.deletingLastPathComponent())
             )
         } catch {
             errorMessage = error.localizedDescription
@@ -316,6 +316,8 @@ extension ArchiveBrowserModel {
             errorMessage = nil
             status = shouldMove ? L10n.text("status.movingFiles") : L10n.text("status.copyingFiles")
             var undoPairs: [(URL, URL)] = []
+            var skippedCount = 0
+            var sameHashSkips = 0
             defer {
                 registerTransferUndo(undoPairs, shouldMove: shouldMove)
             }
@@ -335,6 +337,7 @@ extension ArchiveBrowserModel {
                         )
                     )
                     if shouldMove && url.deletingLastPathComponent().standardizedFileURL == destinationFolder.standardizedFileURL {
+                        skippedCount += 1   // 移到同一文件夹 = 无操作，计入跳过
                         continue
                     }
                     let requestedTargetURL = destinationFolder.appendingPathComponent(url.lastPathComponent)
@@ -355,7 +358,8 @@ extension ArchiveBrowserModel {
                         conflictSession: conflictSession
                     )
                     guard let targetURL else {
-                        appendSkippedFileTaskLog(operationTask, source: url, requestedDestination: requestedTargetURL)
+                        skippedCount += 1
+                        if skipWasSameHash(requestedDestination: requestedTargetURL) { sameHashSkips += 1 }
                         continue
                     }
                     if shouldMove {
@@ -364,7 +368,6 @@ extension ArchiveBrowserModel {
                         try fileManager.copyItem(at: url, to: targetURL)
                     }
                     undoPairs.append((url, targetURL))
-                    appendFileTaskLog(operationTask, source: url, destination: targetURL)
                     _ = extractionCoordinator.consumeHashOverwriteResult(for: requestedTargetURL)
                     extractionCoordinator.showPendingHashOverwriteResult(for: targetURL)
                 }
@@ -374,8 +377,9 @@ extension ArchiveBrowserModel {
                     progress: ArchiveProgressState(fraction: 1, currentFile: nil, statusText: L10n.text("status.done"), completedUnitCount: total, totalUnitCount: total)
                 )
                 status = L10n.text("status.done")
-                TaskCenter.shared.finish(operationTask, outcome: .succeeded(nil))
-                SystemSound.operationComplete?.play()
+                let outcome = transferOutcome(transferred: undoPairs.count, skipped: skippedCount, sameHashSkips: sameHashSkips)
+                TaskCenter.shared.finish(operationTask, outcome: outcome)
+                if case .succeeded = outcome { SystemSound.operationComplete?.play() }
                 // 刷新交给 FolderWatcher：拖入 / 拖出当前文件夹都会触发 FSEvents 自动 reload，
                 // 不必再手动判断 destination 是否等于当前目录。
             } catch is CancellationError {
@@ -397,14 +401,13 @@ extension ArchiveBrowserModel {
         total: Int,
         cancellable: Bool
     ) -> OperationTask {
-        let detailsSession = ArchiveOperationDetailsSession(title: title)
+        // 文件操作不接 detailsSession：它不是后端命令、没有「命令输出」，活动中心也不再给它出详情面板。
         let task = TaskCenter.shared.begin(
             category: .fileOperation,
             kind: kind,
             title: title,
             detail: detail,
-            cancellable: cancellable,
-            detailsSession: detailsSession
+            cancellable: cancellable
         )
         task.progress = ArchiveProgressState(
             fraction: total > 0 ? 0 : 1,
@@ -426,47 +429,34 @@ extension ArchiveBrowserModel {
         kind: OperationTask.Kind,
         title: String,
         detail: String? = nil,
-        logPairs: [(URL, URL)] = [],
         outcome: OperationTask.Status = .succeeded(nil)
     ) {
-        let detailsSession: ArchiveOperationDetailsSession? = logPairs.isEmpty ? nil : ArchiveOperationDetailsSession(title: title)
         let task = TaskCenter.shared.begin(
             category: .fileOperation,
             kind: kind,
             title: title,
             detail: detail,
-            cancellable: false,
-            detailsSession: detailsSession
+            cancellable: false
         )
-        for (source, destination) in logPairs {
-            appendFileTaskLog(task, source: source, destination: destination)
-        }
         task.progress = ArchiveProgressState(fraction: 1, currentFile: nil, statusText: statusText(for: outcome))
         TaskCenter.shared.finish(task, outcome: outcome)
     }
 
-    private func appendFileTaskLog(_ task: OperationTask, source: URL, destination: URL) {
-        task.detailsSession?.append(L10n.format(
-            "tasks.fileOperation.detailLine",
-            source.path,
-            destination.path
-        ) + "\n")
+    /// 记一次「跳过」并消费掉 pending 的 hash-overwrite 结果，返回是否因「内容相同（哈希一致）」而跳过。
+    /// 用于把整体「全跳过」标成中性的「未改动 / 内容相同」，而不是绿色成功。
+    @discardableResult
+    private func skipWasSameHash(requestedDestination: URL) -> Bool {
+        extractionCoordinator.consumeHashOverwriteResult(for: requestedDestination)?.isSame == true
     }
 
-    private func appendSkippedFileTaskLog(_ task: OperationTask, source: URL, requestedDestination: URL) {
-        if let hashResult = extractionCoordinator.consumeHashOverwriteResult(for: requestedDestination), hashResult.isSame {
-            task.detailsSession?.append(L10n.format(
-                "tasks.fileOperation.skippedSameHashLine",
-                source.path,
-                requestedDestination.path
-            ) + "\n")
-        } else {
-            task.detailsSession?.append(L10n.format(
-                "tasks.fileOperation.skippedLine",
-                source.path,
-                requestedDestination.path
-            ) + "\n")
-        }
+    /// 根据实际转移项数 / 跳过项数决定整体结果：真转移了东西 = 成功；什么都没动、全是跳过 =
+    /// 中性的「已跳过」（含内容相同时的专门文案），避免活动中心画成绿色让人误以为覆盖成功。
+    private func transferOutcome(transferred: Int, skipped: Int, sameHashSkips: Int) -> OperationTask.Status {
+        guard transferred == 0, skipped > 0 else { return .succeeded(nil) }
+        let reason = sameHashSkips > 0
+            ? L10n.text("tasks.fileOperation.skipped.sameHash")
+            : L10n.text("tasks.fileOperation.skipped.noChange")
+        return .skipped(reason)
     }
 
     private func transferSummary(from urls: [URL], to destination: URL?) -> String? {
@@ -503,6 +493,8 @@ extension ArchiveBrowserModel {
             return L10n.text("tasks.running")
         case .succeeded:
             return L10n.text("status.done")
+        case .skipped(let reason):
+            return reason ?? L10n.text("tasks.fileOperation.skipped.noChange")
         case .failed(let message):
             return message
         case .cancelled:

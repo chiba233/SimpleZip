@@ -538,9 +538,8 @@
 "tasks.itemCount" = "%d items";
 "tasks.trashDestination" = "Trash";
 "tasks.fileOperation.summary" = "%@ → %@";
-"tasks.fileOperation.detailLine" = "%@ → %@";
-"tasks.fileOperation.skippedLine" = "%@ → %@ (skipped)";
-"tasks.fileOperation.skippedSameHashLine" = "%@ → %@ (skipped: hashes match)";
+"tasks.fileOperation.skipped.noChange" = "Skipped — nothing changed";
+"tasks.fileOperation.skipped.sameHash" = "Identical content — skipped, nothing overwritten";
 "tasks.settings" = "Settings";
 "tasks.settings.history" = "History";
 "tasks.settings.historyLimit" = "Maximum records";

@@ -208,6 +208,7 @@ private struct PersistedDetails: Codable {
 
 private enum PersistedStatus: Codable {
     case succeeded(URL?)
+    case skipped(String?)
     case failed(String)
     case cancelled
 
@@ -217,6 +218,8 @@ private enum PersistedStatus: Codable {
             self = .cancelled
         case .succeeded(let url):
             self = .succeeded(url)
+        case .skipped(let reason):
+            self = .skipped(reason)
         case .failed(let message):
             self = .failed(message)
         case .cancelled:
@@ -228,6 +231,8 @@ private enum PersistedStatus: Codable {
         switch self {
         case .succeeded(let url):
             return .succeeded(url)
+        case .skipped(let reason):
+            return .skipped(reason)
         case .failed(let message):
             return .failed(message)
         case .cancelled:
