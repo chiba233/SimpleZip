@@ -497,18 +497,20 @@ struct ContentView: View {
     }
 
     /// 判定这个外部 URL「只会进自动解压浮窗、不需要浏览标签」。
-    /// 镜像 `openExternalURL` 的分支：普通受支持压缩包 + 非 dmg + 开了 Finder 自动解压 → true。
-    /// `.siz`/`.szs` 即便开了自动解压也返回 false —— 签名是否干净要 unwrap 后才知道，坏签名必须弹 sheet（需要主窗口/标签）。
+    /// 镜像 `openExternalURL` 的分支：开了 Finder 自动解压时，受支持压缩包（非 dmg）+ `.siz` + `.szs` 全部走独立浮窗
+    /// （彻底脱钩主窗口），不开浏览标签。关了自动解压才回到主窗口浏览。
     private func opensInFloatWindowOnly(_ url: URL) -> Bool {
+        guard AppPreferences.finderOpenAutoExtract else { return false }
         var isDirectory: ObjCBool = false
         if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue {
             return false
         }
         let ext = url.pathExtension.lowercased()
-        if ext == SIZArchive.extensionName || ext == SZSArchive.extensionName { return false }
+        // `.siz`/`.szs` 开了自动解压一律浮窗（unwrap/验签/校验都在浮窗内完成，需要主窗口时浮窗里有「在主窗口打开」）。
+        if ext == SIZArchive.extensionName || ext == SZSArchive.extensionName { return true }
         guard ArchiveService.isSupportedArchive(url) else { return false }
         let supportedURL = ArchiveService.supportedArchiveURL(url) ?? url
-        return AppPreferences.finderOpenAutoExtract && supportedURL.pathExtension.lowercased() != "dmg"
+        return supportedURL.pathExtension.lowercased() != "dmg"
     }
 
     /// 处理 Finder / Open With / 拖到 Dock 图标等外部打开事件。
@@ -519,25 +521,33 @@ struct ContentView: View {
         }
 
         var isDirectory: ObjCBool = false
+        let ext = url.pathExtension.lowercased()
         if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue {
             activateForMainWindowOpen()
             model.openFolder(url)
-        } else if url.pathExtension.lowercased() == SIZArchive.extensionName {
-            // `.siz` 容器：unwrap 到临时目录后把内层 archive 喂给原本的 external-archive 路径。
-            // 必须在 `ArchiveService.isSupportedArchive` 之前判 —— 否则会落到 `NSWorkspace.shared.open(url)`
-            // 兜底分支，又把 .siz 路由回 SimpleZip（UTI 已注册），导致无限重开主窗口。
+        } else if ext == SIZArchive.extensionName {
+            // `.siz` 容器：开了自动解压 → 独立浮窗内 unwrap+验签+解压，**彻底脱钩主窗口**（return，主窗口不动）。
+            // 关了自动解压 → 主窗口浏览（unwrap → 验签 sheet → 开内层 archive）。
+            if AppPreferences.finderOpenAutoExtract {
+                ExternalExtractWindowController.shared.open(url)
+                return
+            }
             handleSIZOpen(url)
-        } else if url.pathExtension.lowercased() == SZSArchive.extensionName {
-            // `.szs` 签名清单：peek manifest → 弹 SZSVerificationSheet 跑校验。
+        } else if ext == SZSArchive.extensionName {
+            // `.szs` 签名清单：开了自动解压 → 独立浮窗内 peek+校验，「以虚拟目录浏览」时才按需拉起主窗口。
+            // 关了自动解压 → 主窗口弹 SZSVerificationSheet。
+            if AppPreferences.finderOpenAutoExtract {
+                ExternalExtractWindowController.shared.open(url)
+                return
+            }
             handleSZSOpen(url)
         } else if ArchiveService.isSupportedArchive(url) {
-            // 用户开了「Finder 自动解压」+ 不是 DMG → 走独立浮窗 controller，主窗口不参与。
-            // DMG 仍然走 model 走挂载浏览（没有「解压」语义）。
+            // 用户开了「Finder 自动解压」+ 不是 DMG → 走独立浮窗 controller，主窗口完全不参与（不创建/不拉起/不隐藏）。
+            // DMG 仍然走 model 挂载浏览（没有「解压」语义）。
             let supportedURL = ArchiveService.supportedArchiveURL(url) ?? url
             if AppPreferences.finderOpenAutoExtract,
                supportedURL.pathExtension.lowercased() != "dmg" {
-                ExternalExtractWindowController.shared.start(archiveURL: url)
-                hideMainWindowIfPossible()
+                ExternalExtractWindowController.shared.open(url)
                 return
             }
             // 关闭自动解压时与之前完全一致：走 model 浏览压缩包。
@@ -548,29 +558,17 @@ struct ContentView: View {
         }
     }
 
-    /// `.siz` 打开入口 —— unwrap + 验签后弹签名 sheet；确认后开内层 archive 浏览。
+    /// `.siz` **主窗口浏览**入口 —— unwrap + 验签后弹签名 sheet；确认后开内层 archive 浏览。
     /// 关 `gpgEnabled` 时跳过验签 + 不弹 sheet，直接开内层 archive（用户规则：关了 GPG 集成主页面不再出现 GPG UI）。
     /// 不管哪条分支：如果内层 archive 是加密包（`.gpg` 后缀），先 `SIZArchive.decryptInnerArchive` 再 open。
+    ///
+    /// 注意：Finder 自动解压（脱钩主窗口）由 `openExternalURL` 直接路由到 `ExternalExtractWindowController.open`，
+    /// **不**经过这里。本函数是「强制在主窗口浏览」语义（右键在新标签打开 / app 内点 / 浮窗「在主窗口打开」），
+    /// 与自动解压开关无关。
     private func handleSIZOpen(_ url: URL) {
         Task {
             do {
                 let (innerArchiveURL, tempRoot, summary) = try await unwrapAndVerifySIZ(at: url)
-                // 「Finder 自动解压」开 + 签名无问题（或 GPG 关闭 = 无可验签名）→ 静默解压到 .siz 所在文件夹，不弹 sheet。
-                // 签名有问题（坏签 / 未知签名者 / 验签错误 / 不受信 / 有 concerns）→ 落到下面正常弹验签 sheet 让用户决定。
-                if AppPreferences.finderOpenAutoExtract, sizSignatureIsClean(summary) {
-                    let decrypted = try await decryptInnerArchiveIfNeeded(innerArchiveURL)
-                    await MainActor.run {
-                        ExternalExtractWindowController.shared.start(
-                            archiveURL: decrypted,
-                            destinationDirectoryOverride: url.deletingLastPathComponent(),
-                            outputBaseNameOverride: url.deletingPathExtension().lastPathComponent,
-                            displayName: url.lastPathComponent,
-                            cleanupDirectory: tempRoot
-                        )
-                        hideMainWindowIfPossible()
-                    }
-                    return
-                }
                 if summary != nil {
                     await MainActor.run {
                         // 验签有问题（坏签 / 未知签名者 / 验签错误 / 不受信 / 有 concerns）→ 弹验签 sheet
@@ -601,11 +599,6 @@ struct ContentView: View {
                 }
             }
         }
-    }
-
-    /// `.siz` 签名是否「没问题」—— 转调共享服务（主窗口路径与独立浮窗路径共用同一判定）。
-    private func sizSignatureIsClean(_ summary: SIZSignatureSummary?) -> Bool {
-        SignedContainerService.sizSignatureIsClean(summary)
     }
 
     /// 共用解密 helper —— 转调共享服务（SIZSignatureSheet 收完 UI 值后调；解压路径同样复用）。
@@ -812,15 +805,15 @@ struct ContentView: View {
         static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
     }
 
-    /// 主窗口被 `hideMainWindowIfPossible` orderOut 后，再次显示出来 ——
-    /// 用于「.siz 用户确认要打开内层」之类「我们要让用户看到主窗口浏览」的场景。
+    /// 把 SimpleZip 的主内容窗口（若被 orderOut / 隐藏）重新 orderFront ——
+    /// 用于「关闭自动解压时从 Finder 打开 / .siz 用户确认要浏览内层」等「要让用户看到主窗口」的场景。
     ///
     /// **只**把 SimpleZip 的主内容窗口 orderFront，绝不碰其它任何 hidden 窗口。
     ///
     /// 用「白名单」（`MainWindow.isMainContentWindow`）而不是旧的「黑名单」（`!isAuxiliaryWindow`）——
     /// 黑名单只认得 Settings / Sparkle / About，认不出**已关闭的 QLPreviewPanel**（用户关快速查看 = orderOut →
     /// isVisible=false 的 hidden 窗口）。旧逻辑会把这种 hidden QL 面板一并 orderFront，于是打开 / 测试 `.siz`
-    /// （唯一会调本函数的 app 内入口）就把用户早先关掉的快速查看面板神秘地顶回来。白名单只认我们自己的浏览窗口，
+    /// 就把用户早先关掉的快速查看面板神秘地顶回来。白名单只认我们自己的浏览窗口，
     /// QL 面板 / 哈希进度面板 / 解压浮窗 / Settings 等一律不动。
     private func ensureMainWindowVisible() {
         for window in NSApp.windows where !window.isVisible && MainWindow.isMainContentWindow(window) {
@@ -841,28 +834,6 @@ struct ContentView: View {
     private func activateForMainWindowOpen() {
         NSApp.activate(ignoringOtherApps: true)
         ensureMainWindowVisible()
-    }
-
-
-    /// 把主窗口隐藏掉 —— Finder 自动解压时只显示浮窗，主窗口不该弹出。
-    /// 冷启动场景：SwiftUI WindowGroup 已经构造了 ContentView，主窗口本能在 onAppear 之后短暂可见；
-    /// 这里立即 orderOut 让它消失（用户感受不到「闪过」）。
-    /// 已经热运行场景：主窗口在哪 / 是否可见，保持原样不动；如果主窗口已是 front，仍然降到后面。
-    private func hideMainWindowIfPossible() {
-        // 多标签收敛：存在 2+ 个主内容窗口（标签）时**不隐藏** —— 否则一处自动解压会把整组标签全 orderOut，
-        // 误伤用户正在用的其它标签。浮窗本就是 `.floating` 盖在最上层，不隐藏主窗也不挡视线。
-        let mainWindowCount = NSApp.windows.filter { MainWindow.isMainContentWindow($0) }.count
-        guard mainWindowCount <= 1 else { return }
-        // ContentView 所在的 NSWindow 在 keyWindow / 第一个 windowGroup 里 —— 找出来 orderOut。
-        // 通过 contentView 类型识别（NSHostingView 装的就是 SwiftUI 主窗口）。
-        for window in NSApp.windows {
-            if window.contentView is NSHostingView<AnyView> || window.identifier?.rawValue.hasPrefix("SimpleZip") == true || (window.title.contains("SimpleZip") && window.isVisible) {
-                window.orderOut(nil)
-            }
-        }
-        // 兜底：直接把 keyWindow 推走。external extract 浮窗的 makeKeyAndOrderFront 在调本函数之后才执行，
-        // 所以当前 keyWindow 还是主窗口。
-        NSApp.keyWindow?.orderOut(nil)
     }
 
     private func receiveDroppedFileURLs(from providers: [NSItemProvider]) -> Bool {

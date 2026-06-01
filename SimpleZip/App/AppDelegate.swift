@@ -73,26 +73,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard !pendingURLs.isEmpty || hasFinderService else { return }
         guard !NSApp.windows.contains(where: { MainWindow.isMainContentWindow($0) }) else { return }
 
-        // 自动解压「彻底和主窗口脱钩」：冷启动时若待处理项**全是自动解压的普通压缩包**，
+        // 自动解压「彻底和主窗口脱钩」：冷启动时若待处理项**全是自动解压目标**（普通压缩包 + .siz + .szs），
         // 直接走独立浮窗、**绝不建主窗口**（用户硬要求：开了自动解压就不该拉起主窗口）。
-        // 浮窗的 session 会自己 drain 不到队列，所以这里直接 drain + 逐个起浮窗。
-        // 仅普通压缩包；.siz/.szs / 文件夹 / Finder 服务仍走主窗口（它们的独立窗口化是后续工作）。
+        // 浮窗的 session 会自己处理 unwrap/验签/校验，需要主窗口时浮窗里有「在主窗口打开」入口。
+        // 文件夹 / Finder 服务仍走主窗口。
         if !hasFinderService, !pendingURLs.isEmpty,
            pendingURLs.allSatisfy(isAutoExtractFloatURL) {
             ExternalFileOpenQueue.shared.drain().forEach { url in
-                ExternalExtractWindowController.shared.start(archiveURL: url)
+                ExternalExtractWindowController.shared.open(url)
             }
             return
         }
         MainWindowFactory.open(asTab: false)
     }
 
-    /// 该 URL 是否「开了自动解压的普通压缩包」—— 用于冷启动判定是否纯浮窗、不建主窗口。
-    /// 镜像 ContentView.opensInFloatWindowOnly：需开关 + 受支持压缩包 + 非 dmg；.siz/.szs 暂不在内。
+    /// 该 URL 是否「开了自动解压、应走独立浮窗、不建主窗口」—— 镜像 ContentView.opensInFloatWindowOnly。
+    /// 开了自动解压时：受支持压缩包（非 dmg）+ `.siz` + `.szs` 全部纳入（浮窗内完成 unwrap/验签/校验）。
     private func isAutoExtractFloatURL(_ url: URL) -> Bool {
         guard AppPreferences.finderOpenAutoExtract else { return false }
         let ext = url.pathExtension.lowercased()
-        guard ext != "siz", ext != "szs" else { return false }
+        if ext == SIZArchive.extensionName || ext == SZSArchive.extensionName { return true }
         guard ArchiveService.isSupportedArchive(url) else { return false }
         let supported = ArchiveService.supportedArchiveURL(url) ?? url
         return supported.pathExtension.lowercased() != "dmg"
