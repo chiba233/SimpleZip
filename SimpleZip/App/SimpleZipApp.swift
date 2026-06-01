@@ -169,7 +169,8 @@ struct ArchiveFileCommands: Commands {
             } label: {
                 Label(L10n.text("button.test"), systemImage: "checkmark.seal")
             }
-            .keyboardShortcut("t", modifiers: [.command])
+            // ⌃⌘T —— 把裸 ⌘T 让给「新建标签页」（多标签功能要用），测试仍保留 T 助记。
+            .keyboardShortcut("t", modifiers: [.command, .control])
             .disabled(!canTestArchive)
 
             Menu(L10n.text("button.hash")) {
