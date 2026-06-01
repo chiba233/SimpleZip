@@ -116,8 +116,21 @@ extension ArchiveBrowserModel {
             return
         }
 
-        startOperationTask(cancellable: true) { [weak self] in
-            guard let self else { return }
+        let operationTask = TaskCenter.shared.begin(
+            category: .fileOperation,
+            kind: .hash,
+            title: L10n.text("status.hashing"),
+            cancellable: true
+        )
+        operationTask.progress = ArchiveProgressState(fraction: nil, currentFile: nil, statusText: L10n.text("status.hashing"))
+        TaskCenter.shared.notifyTaskChanged()
+
+        var swiftTask: Task<Void, Never>?
+        operationTask.cancel = {
+            swiftTask?.cancel()
+        }
+        swiftTask = Task { @MainActor [weak self, weak operationTask] in
+            guard let self, let operationTask else { return }
             isWorking = true
             errorMessage = nil
             status = L10n.text("status.hashing")
@@ -126,11 +139,15 @@ extension ArchiveBrowserModel {
             do {
                 hashReport = try await HashService.calculate(for: fileURLs, includeHiddenFiles: AppPreferences.showHiddenFiles, algorithms: algorithms)
                 status = L10n.text("status.hashReady")
+                operationTask.progress = ArchiveProgressState(fraction: 1, currentFile: nil, statusText: L10n.text("status.hashReady"))
+                TaskCenter.shared.finish(operationTask, outcome: .succeeded(nil))
             } catch is CancellationError {
                 status = L10n.text("status.cancelled")
+                TaskCenter.shared.finish(operationTask, outcome: .cancelled)
             } catch {
                 errorMessage = error.localizedDescription
                 status = L10n.text("status.failed")
+                TaskCenter.shared.finish(operationTask, outcome: .failed(error.localizedDescription))
             }
         }
     }
