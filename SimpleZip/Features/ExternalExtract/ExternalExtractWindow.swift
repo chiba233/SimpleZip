@@ -199,6 +199,7 @@ final class ExternalExtractSession: ObservableObject {
             )
 
             status = .succeeded(target)
+            SystemSound.operationComplete?.play()
             NSWorkspace.shared.activateFileViewerSelecting([target])
 
             // 1.2s 后自动关 —— 让用户看到「完成」反馈但不挡屏幕太久。

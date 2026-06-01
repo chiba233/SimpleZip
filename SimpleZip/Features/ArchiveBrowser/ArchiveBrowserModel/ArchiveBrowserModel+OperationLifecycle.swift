@@ -7,6 +7,7 @@
 //  长任务的统一外壳：startOperationTask / runArchiveTask / 失败 alert / Details 抽屉 / 取消。
 //
 
+import AppKit
 import Foundation
 
 /// 后端命令输出节流转发器（前后端分离的关键）。
@@ -192,6 +193,8 @@ extension ArchiveBrowserModel {
             if let successStatus {
                 status = successStatus
             }
+            // 归档操作（创建 / 解压 / 测试 / 哈希）成功完成 → 提示音，与粘贴 / 移动一致。
+            SystemSound.operationComplete?.play()
             refreshOnSuccess?()
         }
     }

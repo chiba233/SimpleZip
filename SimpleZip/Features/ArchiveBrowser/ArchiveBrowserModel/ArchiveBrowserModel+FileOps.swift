@@ -67,6 +67,7 @@ extension ArchiveBrowserModel {
                     self.fileClipboard = nil
                 }
                 operationProgress = ArchiveProgressState(fraction: 1, currentFile: nil, completedUnitCount: total, totalUnitCount: total)
+                SystemSound.operationComplete?.play()
                 // 刷新交给 FolderWatcher：写入当前文件夹会触发 FSEvents 自动 reload。
             } catch {
                 errorMessage = error.localizedDescription
@@ -144,6 +145,7 @@ extension ArchiveBrowserModel {
             for item in selectedFileItems {
                 try fileManager.copyItem(at: item.url, to: duplicateDestinationURL(for: item.url))
             }
+            SystemSound.operationComplete?.play()
         } catch {
             errorMessage = error.localizedDescription
             status = L10n.text("status.failed")
@@ -233,6 +235,7 @@ extension ArchiveBrowserModel {
                 extractionCoordinator.finishConflictResolutionSession(conflictSession)
                 operationProgress = ArchiveProgressState(fraction: 1, currentFile: nil, completedUnitCount: total, totalUnitCount: total)
                 status = L10n.text("status.done")
+                SystemSound.operationComplete?.play()
                 // 刷新交给 FolderWatcher：拖入 / 拖出当前文件夹都会触发 FSEvents 自动 reload，
                 // 不必再手动判断 destination 是否等于当前目录。
             } catch is CancellationError {
@@ -261,6 +264,12 @@ extension ArchiveBrowserModel {
 enum SystemSound {
     static let moveToTrash: NSSound? = NSSound(
         contentsOfFile: "/System/Library/Components/CoreAudio.component/Contents/SharedSupport/SystemSounds/finder/move to trash.aif",
+        byReference: true
+    )
+    /// 操作成功完成的提示音（粘贴 / 移动 / 创建副本 / 创建压缩包 / 解压等）。
+    /// 用系统 Glass 提示音；文件缺失则 nil、静默。
+    static let operationComplete: NSSound? = NSSound(
+        contentsOfFile: "/System/Library/Sounds/Glass.aiff",
         byReference: true
     )
 }

@@ -5,6 +5,7 @@
 ## 0.2.2
 
 - **Deleting files plays the Trash sound.** Moving files to the Trash now plays the same "move to trash" sound Finder uses, for familiar feedback.
+- **Sound feedback on successful operations.** Paste, move, duplicate, archive creation, and extraction now play a completion chime when they finish, matching the Trash sound on delete.
 - **"Test" moved from ⌘T to ⌃⌘T**, freeing ⌘T for the upcoming "New Tab" shortcut.
 - **Fixed: SimpleZip's Finder Services were filed under "Internet".** The "Add to Archive" / "Calculate Hash" / "Extract" services declared a URL send-type, so System Settings → Keyboard → Services listed them under "Internet". They now declare file types and appear under "Files & Folders" where they belong.
 - **Finder extension: one-click "Create with SimpleZip ▸ ZIP / 7z / TAR.GZ".** Right-click files in Finder and pick a format to produce the archive immediately with default settings — no dialog, no second confirmation. The result is created next to the selection and revealed in Finder (single item → "<name>.zip", multiple → "Archive.zip", never overwriting).

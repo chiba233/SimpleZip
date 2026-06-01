@@ -413,7 +413,10 @@ struct ContentView: View {
         Task {
             do {
                 try await ArchiveService.createArchive(from: files, destination: destination, options: options)
-                await MainActor.run { NSWorkspace.shared.activateFileViewerSelecting([destination]) }
+                await MainActor.run {
+                    SystemSound.operationComplete?.play()
+                    NSWorkspace.shared.activateFileViewerSelecting([destination])
+                }
             } catch {
                 await MainActor.run {
                     activateForMainWindowOpen()
