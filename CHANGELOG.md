@@ -2,6 +2,10 @@
 
 # Changelog
 
+## 0.2.2
+
+- **Fixed: the Finder extension menu was always English.** The extension is a separate process and only saw the *system* language, ignoring SimpleZip's in-app language override — so its right-click items stayed English even with the app set to another language. It now reads the app's language preference and loads the matching localization. (Both targets are unsandboxed, so this needs no extra entitlement.)
+
 ## 0.2.1
 
 - **Fixed: symlinked locations like `/home` couldn't be opened.** Navigating into a macOS autofs trigger mount (e.g. `/home`) failed with "The file couldn't be opened" because the raw symlink path was handed straight to the directory enumerator. The browser now falls back to the resolved path when a direct listing fails, so these locations open normally. Ordinary symlinks (`/etc`, `/var`, `/tmp`) already worked and are unaffected — their entries keep their original paths.
