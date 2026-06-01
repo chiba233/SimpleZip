@@ -1,2 +1,3 @@
 "finder.extension.addToArchive" = "Добавить в архив с SimpleZip";
 "finder.extension.hash" = "Вычислить хэш с SimpleZip";
+"finder.extension.extract" = "Извлечь через SimpleZip";

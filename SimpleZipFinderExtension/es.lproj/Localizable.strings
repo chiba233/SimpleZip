@@ -1,2 +1,3 @@
 "finder.extension.addToArchive" = "Añadir al archivo con SimpleZip";
 "finder.extension.hash" = "Calcular hash con SimpleZip";
+"finder.extension.extract" = "Extraer con SimpleZip";

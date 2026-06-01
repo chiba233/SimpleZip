@@ -79,6 +79,7 @@ final class ExternalFileOpenQueue {
 enum FinderServiceAction {
     case addToArchive([URL])
     case calculateHash([URL])
+    case extract([URL])
 }
 
 private struct FinderServiceActionPayload: Decodable {
@@ -134,6 +135,8 @@ final class FinderServiceActionQueue {
             enqueue(.addToArchive(urls))
         case "hash":
             enqueue(.calculateHash(urls))
+        case "extract":
+            enqueue(.extract(urls))
         default:
             return false
         }

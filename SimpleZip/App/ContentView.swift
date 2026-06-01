@@ -379,6 +379,14 @@ struct ContentView: View {
             model.createArchive(fromFinderURLs: urls)
         case .calculateHash(let urls):
             model.calculateHash(forFinderURLs: urls)
+        case .extract(let urls):
+            // 「用 SimpleZip 解压」—— 每个受支持的压缩包走自动解压浮窗解到其所在文件夹。
+            // DMG 是挂载不是解压，跳过；.siz/.szs 有各自打开流程，这里只处理普通压缩包。
+            for url in urls where ArchiveService.isSupportedArchive(url) {
+                let supported = ArchiveService.supportedArchiveURL(url) ?? url
+                guard supported.pathExtension.lowercased() != "dmg" else { continue }
+                ExternalExtractWindowController.shared.start(archiveURL: url)
+            }
         }
     }
 

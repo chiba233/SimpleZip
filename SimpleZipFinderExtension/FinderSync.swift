@@ -29,6 +29,11 @@ final class FinderSync: FIFinderSync {
                 keyEquivalent: ""
             )
             menu.addItem(
+                withTitle: localized("finder.extension.extract"),
+                action: #selector(extractArchive),
+                keyEquivalent: ""
+            )
+            menu.addItem(
                 withTitle: localized("finder.extension.hash"),
                 action: #selector(calculateHash),
                 keyEquivalent: ""
@@ -68,6 +73,10 @@ final class FinderSync: FIFinderSync {
 
     @objc private func addToArchive() {
         sendAction("addToArchive")
+    }
+
+    @objc private func extractArchive() {
+        sendAction("extract")
     }
 
     @objc private func calculateHash() {

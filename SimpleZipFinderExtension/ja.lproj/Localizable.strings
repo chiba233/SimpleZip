@@ -1,2 +1,3 @@
 "finder.extension.addToArchive" = "SimpleZipでアーカイブに追加";
 "finder.extension.hash" = "SimpleZipでハッシュを計算";
+"finder.extension.extract" = "SimpleZip で解凍";
