@@ -429,8 +429,11 @@
 "operation.showDetails" = "顯示詳情";
 "details.commandOutput" = "命令輸出";
 "details.waiting" = "正在等待命令輸出...";
+"details.outputEarlierOmitted" = "...（更早的輸出已省略）";
 "file.copy" = "複製";
 "file.cut" = "剪下";
+"file.group.copyAll" = "複製分組內全部檔案";
+"file.group.cutAll" = "剪下分組內全部檔案";
 "file.paste" = "貼上";
 "file.selectAll" = "全選";
 "file.moveTo" = "移動到...";
@@ -1008,6 +1011,8 @@
 /* 0.2.2 — 文件操作撤销/重做 */
 "menu.undo" = "還原";
 "menu.redo" = "重做";
+"menu.newTab" = "新增標籤頁";
+"menu.newWindow" = "新增視窗";
 "undo.action.move" = "移動";
 "undo.action.copy" = "複製";
 "undo.action.rename" = "重新命名";

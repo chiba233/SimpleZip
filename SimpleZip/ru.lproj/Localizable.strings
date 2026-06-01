@@ -429,8 +429,11 @@
 "operation.showDetails" = "Показывать подробности";
 "details.commandOutput" = "Вывод команды";
 "details.waiting" = "Ожидание вывода команды...";
+"details.outputEarlierOmitted" = "... Более ранний вывод опущен";
 "file.copy" = "Копировать";
 "file.cut" = "Вырезать";
+"file.group.copyAll" = "Копировать все файлы в группе";
+"file.group.cutAll" = "Вырезать все файлы в группе";
 "file.paste" = "Вставить";
 "file.selectAll" = "Выбрать все";
 "file.moveTo" = "Переместить в...";
@@ -1008,6 +1011,8 @@
 /* 0.2.2 — 文件操作撤销/重做 */
 "menu.undo" = "Отменить";
 "menu.redo" = "Повторить";
+"menu.newTab" = "Новая вкладка";
+"menu.newWindow" = "Новое окно";
 "undo.action.move" = "Перемещение";
 "undo.action.copy" = "Копирование";
 "undo.action.rename" = "Переименование";

@@ -429,8 +429,11 @@
 "operation.showDetails" = "แสดงรายละเอียด";
 "details.commandOutput" = "เอาต์พุตคำสั่ง";
 "details.waiting" = "กำลังรอเอาต์พุตคำสั่ง...";
+"details.outputEarlierOmitted" = "... ละเว้นเอาต์พุตก่อนหน้า";
 "file.copy" = "คัดลอก";
 "file.cut" = "ตัด";
+"file.group.copyAll" = "คัดลอกไฟล์ทั้งหมดในกลุ่ม";
+"file.group.cutAll" = "ตัดไฟล์ทั้งหมดในกลุ่ม";
 "file.paste" = "วาง";
 "file.selectAll" = "เลือกทั้งหมด";
 "file.moveTo" = "ย้ายไป...";
@@ -1008,6 +1011,8 @@
 /* 0.2.2 — 文件操作撤销/重做 */
 "menu.undo" = "เลิกทำ";
 "menu.redo" = "ทำซ้ำ";
+"menu.newTab" = "แท็บใหม่";
+"menu.newWindow" = "หน้าต่างใหม่";
 "undo.action.move" = "ย้าย";
 "undo.action.copy" = "คัดลอก";
 "undo.action.rename" = "เปลี่ยนชื่อ";

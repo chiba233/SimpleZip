@@ -429,8 +429,11 @@
 "operation.showDetails" = "Details anzeigen";
 "details.commandOutput" = "Befehlsausgabe";
 "details.waiting" = "Warte auf Befehlsausgabe...";
+"details.outputEarlierOmitted" = "... Frühere Ausgabe ausgelassen";
 "file.copy" = "Kopieren";
 "file.cut" = "Ausschneiden";
+"file.group.copyAll" = "Alle Dateien in der Gruppe kopieren";
+"file.group.cutAll" = "Alle Dateien in der Gruppe ausschneiden";
 "file.paste" = "Einfügen";
 "file.selectAll" = "Alles auswählen";
 "file.moveTo" = "Verschieben nach...";
@@ -1008,6 +1011,8 @@
 /* 0.2.2 — 文件操作撤销/重做 */
 "menu.undo" = "Widerrufen";
 "menu.redo" = "Wiederholen";
+"menu.newTab" = "Neuer Tab";
+"menu.newWindow" = "Neues Fenster";
 "undo.action.move" = "Bewegen";
 "undo.action.copy" = "Kopieren";
 "undo.action.rename" = "Umbenennen";

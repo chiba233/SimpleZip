@@ -429,8 +429,11 @@
 "operation.showDetails" = "세부 정보 표시";
 "details.commandOutput" = "명령 출력";
 "details.waiting" = "명령 출력을 기다리는 중...";
+"details.outputEarlierOmitted" = "... 이전 출력은 생략됨";
 "file.copy" = "복사";
 "file.cut" = "잘라내기";
+"file.group.copyAll" = "그룹의 모든 파일 복사";
+"file.group.cutAll" = "그룹의 모든 파일 잘라내기";
 "file.paste" = "붙여넣기";
 "file.selectAll" = "모두 선택";
 "file.moveTo" = "이동...";
@@ -1008,6 +1011,8 @@
 /* 0.2.2 — 文件操作撤销/重做 */
 "menu.undo" = "실행 취소";
 "menu.redo" = "다시 실행";
+"menu.newTab" = "새 탭";
+"menu.newWindow" = "새 창";
 "undo.action.move" = "이동";
 "undo.action.copy" = "복사";
 "undo.action.rename" = "이름 변경";

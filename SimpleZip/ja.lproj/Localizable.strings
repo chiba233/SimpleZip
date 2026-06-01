@@ -429,8 +429,11 @@
 "operation.showDetails" = "詳細を表示";
 "details.commandOutput" = "コマンド出力";
 "details.waiting" = "コマンド出力を待機中...";
+"details.outputEarlierOmitted" = "... 以前の出力は省略されました";
 "file.copy" = "コピー";
 "file.cut" = "カット";
+"file.group.copyAll" = "グループ内のすべてのファイルをコピー";
+"file.group.cutAll" = "グループ内のすべてのファイルをカット";
 "file.paste" = "ペースト";
 "file.selectAll" = "すべて選択";
 "file.moveTo" = "移動先...";
@@ -1008,6 +1011,8 @@
 /* 0.2.2 — 文件操作撤销/重做 */
 "menu.undo" = "取り消す";
 "menu.redo" = "やり直す";
+"menu.newTab" = "新規タブ";
+"menu.newWindow" = "新規ウインドウ";
 "undo.action.move" = "移動";
 "undo.action.copy" = "コピー";
 "undo.action.rename" = "名前を変更";
