@@ -23,6 +23,12 @@ enum BackendProcessRunner {
     /// 设计成 internal 让 ArchiveService.cancelRunningCommand 这种「API facade」可直接转发。
     nonisolated static let activeProcessRegistry = ActiveProcessRegistry()
 
+    /// 「输出只为诊断、调用方不解析完整 stdout」的命令（解压 / 压缩 / 测试，带 `-bb1 -bsp1` 高频逐文件输出）
+    /// 保留的输出上限（字符数）。后端逐文件吐几万行时，整串累积会让后台线程内存 + 字符串拼接失控，
+    /// 进而拖慢甚至卡住 UI。失败诊断只需要尾部若干行，所以这些命令只保留最后这么多字符；
+    /// **list / benchmark / 取版本号等需要解析完整输出的命令不传此值（保持无上限）**。
+    nonisolated static let diagnosticsOutputRetentionLimit = 200_000
+
     // MARK: - 异步入口
 
     /// 在后台 queue 上跑一个命令，捕获 stdout/stderr 合并字符串。
@@ -34,7 +40,8 @@ enum BackendProcessRunner {
         progressParser: ProgressOutputParser? = nil,
         inputStrategy: ProcessInputStrategy = .none,
         outputObserver: (@Sendable (String) -> Void)? = nil,
-        operationID: UUID? = nil
+        operationID: UUID? = nil,
+        outputRetentionLimit: Int? = nil
     ) async throws -> String {
         return try await withCheckedThrowingContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
@@ -46,7 +53,8 @@ enum BackendProcessRunner {
                         progressParser: progressParser,
                         inputStrategy: inputStrategy,
                         outputObserver: outputObserver,
-                        operationID: operationID
+                        operationID: operationID,
+                        outputRetentionLimit: outputRetentionLimit
                     )
                     continuation.resume(returning: output)
                 } catch {
@@ -70,7 +78,8 @@ enum BackendProcessRunner {
         progressParser: ProgressOutputParser?,
         inputStrategy: ProcessInputStrategy,
         outputObserver: (@Sendable (String) -> Void)?,
-        operationID: UUID?
+        operationID: UUID?,
+        outputRetentionLimit: Int?
     ) throws -> String {
         switch inputStrategy {
         case .none:
@@ -81,6 +90,7 @@ enum BackendProcessRunner {
                 progressParser: progressParser,
                 outputObserver: outputObserver,
                 operationID: operationID,
+                outputRetentionLimit: outputRetentionLimit,
                 staticStdin: nil
             )
         case .staticInput(let text):
@@ -93,6 +103,7 @@ enum BackendProcessRunner {
                 progressParser: progressParser,
                 outputObserver: outputObserver,
                 operationID: operationID,
+                outputRetentionLimit: outputRetentionLimit,
                 staticStdin: text
             )
         case .passwordPrompts(let responses):
@@ -103,7 +114,8 @@ enum BackendProcessRunner {
                 progressParser: progressParser,
                 promptResponder: InteractivePasswordResponder(responses: responses),
                 outputObserver: outputObserver,
-                operationID: operationID
+                operationID: operationID,
+                outputRetentionLimit: outputRetentionLimit
             )
         }
     }
@@ -115,6 +127,7 @@ enum BackendProcessRunner {
         progressParser: ProgressOutputParser?,
         outputObserver: (@Sendable (String) -> Void)?,
         operationID: UUID?,
+        outputRetentionLimit: Int?,
         staticStdin: String?
     ) throws -> String {
         let process = Process()
@@ -147,7 +160,12 @@ enum BackendProcessRunner {
             }
             try? stdinPipe.fileHandleForWriting.close()
         }
-        let output = try readOutput(from: ioPipe.fileHandleForReading, progressParser: progressParser, outputObserver: outputObserver)
+        let output = try readOutput(
+            from: ioPipe.fileHandleForReading,
+            progressParser: progressParser,
+            outputObserver: outputObserver,
+            retentionLimit: outputRetentionLimit
+        )
         process.waitUntilExit()
 
         guard process.terminationStatus == 0 else {
@@ -168,7 +186,8 @@ enum BackendProcessRunner {
         progressParser: ProgressOutputParser?,
         promptResponder: InteractivePasswordResponder,
         outputObserver: (@Sendable (String) -> Void)?,
-        operationID: UUID?
+        operationID: UUID?,
+        outputRetentionLimit: Int?
     ) throws -> String {
         var masterFD: Int32 = 0
         var slaveFD: Int32 = 0
@@ -195,7 +214,12 @@ enum BackendProcessRunner {
         try? slaveHandle.close()
         let output: String
         do {
-            output = try readOutput(from: masterHandle, progressParser: progressParser, outputObserver: outputObserver) { text in
+            output = try readOutput(
+                from: masterHandle,
+                progressParser: progressParser,
+                outputObserver: outputObserver,
+                retentionLimit: outputRetentionLimit
+            ) { text in
                 try responder.consume(text, writer: masterHandle)
             }
         } catch {
@@ -235,6 +259,7 @@ enum BackendProcessRunner {
         from handle: FileHandle,
         progressParser: ProgressOutputParser?,
         outputObserver: (@Sendable (String) -> Void)? = nil,
+        retentionLimit: Int? = nil,
         chunkHandler: ((String) throws -> Void)? = nil
     ) throws -> String {
         var output = ""
@@ -242,10 +267,20 @@ enum BackendProcessRunner {
             let data = handle.availableData
             guard !data.isEmpty else { break }
             let text = String(decoding: data, as: UTF8.self)
-            output += text
+            // progressParser / outputObserver / chunkHandler 永远拿到**完整**这一块（进度、活动中心日志、
+            // 密码 prompt 都靠它们逐块处理，不受保留上限影响）。
             progressParser?.consume(text)
             outputObserver?(text)
             try chunkHandler?(text)
+            // 累积的返回值是给「失败时报错 / list 解析」用的。设了上限的命令（解压 / 压缩 / 测试）只留尾部，
+            // 避免几万行逐文件输出把整串拼到几十 MB、拖慢后台线程乃至 UI。带 2× 滞回，避免每块都做 suffix。
+            output += text
+            if let retentionLimit, output.count > retentionLimit * 2 {
+                output = String(output.suffix(retentionLimit))
+            }
+        }
+        if let retentionLimit, output.count > retentionLimit {
+            output = String(output.suffix(retentionLimit))
         }
         return output
     }

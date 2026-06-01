@@ -212,17 +212,26 @@ enum ArchiveService {
         password: String = "",
         zipDecryptionMethod: ArchiveDecryptionMethod = .automatic,
         safetyPolicy: ExtractionSafetyPolicy = .validate,
+        knownFileCount: Int? = nil,
         operationID: UUID? = nil,
         progress: @escaping @Sendable (ArchiveProgressState) -> Void = { _ in },
         outputObserver: (@Sendable (String) -> Void)? = nil,
         force: Bool = false
     ) async throws {
         let resolved = try resolvedInput(for: archive, force: force)
-        let listedItems = try await list(resolved.url, password: password, force: force)
-        if safetyPolicy == .validate {
-            try ArchiveSafety.validateForExtraction(listedItems)
+        // 进度需要「总文件数」。若调用方（已在解压前做过安全检查 = 已 list 过）传了 `knownFileCount`，
+        // 就**不再重复 `7zz l -slt`** —— 大归档上这一遍 list 又慢又吐巨量输出，重复跑会让解压前 UX 像卡死。
+        // 没传时才内部 list；list 现在带 operationID，能被「取消」杀掉子进程（之前传 nil 杀不掉）。
+        let totalFiles: Int
+        if let knownFileCount {
+            totalFiles = max(1, knownFileCount)
+        } else {
+            let listedItems = try await list(resolved.url, password: password, operationID: operationID, force: force)
+            if safetyPolicy == .validate {
+                try ArchiveSafety.validateForExtraction(listedItems)
+            }
+            totalFiles = max(1, listedItems.filter { !$0.isDirectory }.count)
         }
-        let totalFiles = max(1, listedItems.filter { !$0.isDirectory }.count)
         let parser = ProgressOutputParser(totalFiles: totalFiles, progress: progress)
         switch resolved.backend {
         case .zipNative:
@@ -345,10 +354,10 @@ enum ArchiveService {
         try await SevenZipBackend.benchmark(options: options, operationID: operationID, update: update)
     }
 
-    static func list(_ archive: URL, password: String = "", force: Bool = false) async throws -> [ArchiveItem] {
+    static func list(_ archive: URL, password: String = "", operationID: UUID? = nil, force: Bool = false) async throws -> [ArchiveItem] {
         let resolved = try resolvedInput(for: archive, force: force)
         return try await backendType(for: resolved.backend)
-            .list(resolved.url, password: password, operationID: nil)
+            .list(resolved.url, password: password, operationID: operationID)
     }
 
     private static func validateSingleRegularFileSource(_ sourceURLs: [URL], format: ArchiveCreateFormat) throws -> URL {

@@ -446,14 +446,18 @@ extension ArchiveBrowserModel {
             // 旧版本把这步放在循环外，对 header-encrypted 7z 用空密码 list 直接失败，
             // 用户根本进不到下面的密码 prompt。
             var didCheckSafety = false
+            // 安全检查 list 出的文件数 —— 复用给 ArchiveService.extract 的 knownFileCount，省掉解压时再 list 一遍。
+            var knownFileCount: Int?
             while true {
                 do {
                     if !didCheckSafety {
-                        try await self.confirmArchiveExtractionSafety(
+                        let items = try await self.confirmArchiveExtractionSafety(
                             archiveURL: archiveURLForExtract,
                             password: password,
+                            operationID: operationID,
                             force: force
                         )
+                        knownFileCount = items.filter { !$0.isDirectory }.count
                         didCheckSafety = true
                     }
                     try? self.fileManager.removeItem(at: stagingURL)
@@ -465,6 +469,7 @@ extension ArchiveBrowserModel {
                         password: password,
                         zipDecryptionMethod: zipDecryptionMethod,
                         safetyPolicy: .skipValidation,
+                        knownFileCount: knownFileCount,
                         operationID: operationID,
                         progress: progress,
                         outputObserver: outputObserver,

@@ -40,14 +40,20 @@ extension ArchiveBrowserModel {
     /// 能用调用方手上已有的密码（用户输入 / 预设密码 / 上次成功的密码）跑 list。
     /// 调用方负责把这个函数放在密码 retry 循环内 —— 列表失败时会抛出可被
     /// `shouldPromptForArchivePassword` 识别的错误，由 retry 循环统一处理。
+    /// 返回 list 出的条目 —— 调用方（performExtractArchive）拿它算出文件数传给 `ArchiveService.extract`
+    /// 的 `knownFileCount`，避免解压时为算总数再 list 一遍（双 list → 解压前像卡死）。
+    /// `operationID` 透传给 list，让这步「7zz l -slt」也能被取消（之前 list 固定 nil，卡在这阶段点取消杀不掉）。
+    @discardableResult
     func confirmArchiveExtractionSafety(
         archiveURL: URL,
         password: String = "",
+        operationID: UUID? = nil,
         force: Bool? = nil
-    ) async throws {
+    ) async throws -> [ArchiveItem] {
         let force = force ?? isForced(archiveURL)
-        let items = try await ArchiveService.list(archiveURL, password: password, force: force)
+        let items = try await ArchiveService.list(archiveURL, password: password, operationID: operationID, force: force)
         try confirmArchiveExtractionSafety(entries: items)
+        return items
     }
 
     func confirmArchiveExtractionSafety(entries: [ArchiveItem]) throws {

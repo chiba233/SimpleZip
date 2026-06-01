@@ -126,7 +126,10 @@ enum SevenZipBackend {
             progressParser: progressParser,
             inputStrategy: inputStrategy,
             outputObserver: outputObserver,
-            operationID: operationID
+            operationID: operationID,
+            // 解压 / 压缩 / 测试：调用方丢弃返回串、只用进度 + 活动中心日志，故只保留尾部供失败诊断，
+            // 避免 -bb1 -bsp1 逐文件输出把整串累积到拖慢 UI。
+            outputRetentionLimit: BackendProcessRunner.diagnosticsOutputRetentionLimit
         )
     }
 
@@ -138,7 +141,10 @@ enum SevenZipBackend {
             // -mmt=on：完整性测试按核心数并行校验各文件 CRC，大归档更快。
             arguments: ["t", archive.path, "-mmt=on"],
             outputObserver: outputObserver,
-            operationID: operationID
+            operationID: operationID,
+            // 解压 / 压缩 / 测试：调用方丢弃返回串、只用进度 + 活动中心日志，故只保留尾部供失败诊断，
+            // 避免 -bb1 -bsp1 逐文件输出把整串累积到拖慢 UI。
+            outputRetentionLimit: BackendProcessRunner.diagnosticsOutputRetentionLimit
         )
     }
 
@@ -209,7 +215,10 @@ enum SevenZipBackend {
             progressParser: progressParser,
             inputStrategy: inputStrategy,
             outputObserver: outputObserver,
-            operationID: operationID
+            operationID: operationID,
+            // 解压 / 压缩 / 测试：调用方丢弃返回串、只用进度 + 活动中心日志，故只保留尾部供失败诊断，
+            // 避免 -bb1 -bsp1 逐文件输出把整串累积到拖慢 UI。
+            outputRetentionLimit: BackendProcessRunner.diagnosticsOutputRetentionLimit
         )
     }
 
@@ -239,7 +248,10 @@ enum SevenZipBackend {
             progressParser: progressParser,
             inputStrategy: inputStrategy,
             outputObserver: outputObserver,
-            operationID: operationID
+            operationID: operationID,
+            // 解压 / 压缩 / 测试：调用方丢弃返回串、只用进度 + 活动中心日志，故只保留尾部供失败诊断，
+            // 避免 -bb1 -bsp1 逐文件输出把整串累积到拖慢 UI。
+            outputRetentionLimit: BackendProcessRunner.diagnosticsOutputRetentionLimit
         )
     }
 
@@ -274,7 +286,10 @@ enum SevenZipBackend {
             currentDirectory: source.deletingLastPathComponent(),
             progressParser: progressParser,
             outputObserver: outputObserver,
-            operationID: operationID
+            operationID: operationID,
+            // 解压 / 压缩 / 测试：调用方丢弃返回串、只用进度 + 活动中心日志，故只保留尾部供失败诊断，
+            // 避免 -bb1 -bsp1 逐文件输出把整串累积到拖慢 UI。
+            outputRetentionLimit: BackendProcessRunner.diagnosticsOutputRetentionLimit
         )
     }
 
