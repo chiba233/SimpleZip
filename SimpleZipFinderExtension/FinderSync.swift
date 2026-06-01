@@ -28,6 +28,19 @@ final class FinderSync: FIFinderSync {
                 action: #selector(addToArchive),
                 keyEquivalent: ""
             )
+
+            // 「用 SimpleZip 创建 ▸ ZIP / 7z / TAR.GZ」—— 按默认设置一键出包，无对话框。
+            // 子菜单收纳各格式，避免右键菜单顶层堆太多项。格式名直接用通用写法，不必本地化。
+            let createParent = NSMenuItem(title: localized("finder.extension.create"), action: nil, keyEquivalent: "")
+            let createMenu = NSMenu()
+            for (title, sel) in [("ZIP", #selector(createZip)), ("7z", #selector(create7z)), ("TAR.GZ", #selector(createTarGz))] {
+                let item = NSMenuItem(title: title, action: sel, keyEquivalent: "")
+                item.target = self
+                createMenu.addItem(item)
+            }
+            createParent.submenu = createMenu
+            menu.addItem(createParent)
+
             menu.addItem(
                 withTitle: localized("finder.extension.extract"),
                 action: #selector(extractArchive),
@@ -77,6 +90,18 @@ final class FinderSync: FIFinderSync {
 
     @objc private func extractArchive() {
         sendAction("extract")
+    }
+
+    @objc private func createZip() {
+        sendAction("createZip")
+    }
+
+    @objc private func create7z() {
+        sendAction("create7z")
+    }
+
+    @objc private func createTarGz() {
+        sendAction("createTarGz")
     }
 
     @objc private func calculateHash() {

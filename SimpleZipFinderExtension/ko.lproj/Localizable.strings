@@ -1,3 +1,4 @@
 "finder.extension.addToArchive" = "SimpleZip으로 아카이브에 추가";
 "finder.extension.hash" = "SimpleZip으로 해시 계산";
 "finder.extension.extract" = "SimpleZip으로 압축 풀기";
+"finder.extension.create" = "SimpleZip으로 만들기";

@@ -387,6 +387,39 @@ struct ContentView: View {
                 guard supported.pathExtension.lowercased() != "dmg" else { continue }
                 ExternalExtractWindowController.shared.start(archiveURL: url)
             }
+        case .quickCreate(let format, let urls):
+            quickCreateArchive(format: format, sourceURLs: urls)
+        }
+    }
+
+    /// 「用 SimpleZip 创建 ▸ ZIP/7z/…」—— 按默认设置直接把选中项打成压缩包，无对话框。
+    /// 后台跑，完成后在 Finder 里高亮产物；失败激活 app 弹错误。命名仿 Finder：单个 = `名字.ext`，
+    /// 多个 = `Archive.ext`，重名加序号绝不覆盖。
+    private func quickCreateArchive(format: ArchiveCreateFormat, sourceURLs: [URL]) {
+        let files = sourceURLs.filter { FileManager.default.fileExists(atPath: $0.path) }
+        guard let first = files.first else { return }
+        let dir = first.deletingLastPathComponent()
+        let ext = format.pathExtension
+        let baseName = files.count == 1 ? first.lastPathComponent : "Archive"
+        let fm = FileManager.default
+        func candidate(_ tail: String) -> URL { dir.appendingPathComponent("\(baseName)\(tail).\(ext)") }
+        var destination = candidate("")
+        var n = 2
+        while fm.fileExists(atPath: destination.path) { destination = candidate(" \(n)"); n += 1 }
+
+        var options = ArchiveCreationOptions()
+        options.format = format
+
+        Task {
+            do {
+                try await ArchiveService.createArchive(from: files, destination: destination, options: options)
+                await MainActor.run { NSWorkspace.shared.activateFileViewerSelecting([destination]) }
+            } catch {
+                await MainActor.run {
+                    activateForMainWindowOpen()
+                    model.errorMessage = error.localizedDescription
+                }
+            }
         }
     }
 

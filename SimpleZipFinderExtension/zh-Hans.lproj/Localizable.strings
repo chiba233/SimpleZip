@@ -1,3 +1,4 @@
 "finder.extension.addToArchive" = "用 SimpleZip 添加到压缩包";
 "finder.extension.hash" = "用 SimpleZip 计算哈希";
 "finder.extension.extract" = "用 SimpleZip 解压";
+"finder.extension.create" = "用 SimpleZip 创建";

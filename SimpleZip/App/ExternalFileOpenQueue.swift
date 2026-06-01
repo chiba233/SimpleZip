@@ -80,6 +80,8 @@ enum FinderServiceAction {
     case addToArchive([URL])
     case calculateHash([URL])
     case extract([URL])
+    /// 「用 SimpleZip 创建 ▸ ZIP/7z/…」—— 按默认设置直接出包，无对话框。
+    case quickCreate(ArchiveCreateFormat, [URL])
 }
 
 private struct FinderServiceActionPayload: Decodable {
@@ -137,6 +139,12 @@ final class FinderServiceActionQueue {
             enqueue(.calculateHash(urls))
         case "extract":
             enqueue(.extract(urls))
+        case "createZip":
+            enqueue(.quickCreate(.zip, urls))
+        case "create7z":
+            enqueue(.quickCreate(.sevenZip, urls))
+        case "createTarGz":
+            enqueue(.quickCreate(.tarGzip, urls))
         default:
             return false
         }
