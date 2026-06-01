@@ -29,14 +29,19 @@ extension ArchiveBrowserModel {
             isWorking = true
             status = L10n.text("status.pasting")
             operationProgress = ArchiveProgressState(fraction: 0, currentFile: nil, completedUnitCount: 0, totalUnitCount: fileClipboard.urls.count)
+            var undoPairs: [(URL, URL)] = []
+            var completed = false
             defer {
+                registerTransferUndo(undoPairs, shouldMove: fileClipboard.shouldMove)
+                if fileClipboard.shouldMove, completed || !undoPairs.isEmpty {
+                    self.fileClipboard = nil
+                }
                 isWorking = false
                 operationProgress = ArchiveProgressState()
             }
 
             do {
                 let total = max(1, fileClipboard.urls.count)
-                var undoPairs: [(URL, URL)] = []
                 let conflictSession = extractionCoordinator.makeConflictResolutionSession()
                 for (index, url) in fileClipboard.urls.enumerated() {
                     operationProgress = ArchiveProgressState(
@@ -65,12 +70,7 @@ extension ArchiveBrowserModel {
                     extractionCoordinator.showPendingHashOverwriteResult(for: targetURL)
                 }
                 extractionCoordinator.finishConflictResolutionSession(conflictSession)
-                if fileClipboard.shouldMove {
-                    registerMoveUndo(undoPairs.map { (from: $0.0, to: $0.1) }, actionName: L10n.text("undo.action.move"))
-                    self.fileClipboard = nil
-                } else {
-                    registerCopyUndo(undoPairs.map { (source: $0.0, dest: $0.1) }, actionName: L10n.text("undo.action.copy"))
-                }
+                completed = true
                 operationProgress = ArchiveProgressState(fraction: 1, currentFile: nil, completedUnitCount: total, totalUnitCount: total)
                 SystemSound.operationComplete?.play()
                 // 刷新交给 FolderWatcher：写入当前文件夹会触发 FSEvents 自动 reload。
@@ -78,6 +78,15 @@ extension ArchiveBrowserModel {
                 errorMessage = error.localizedDescription
                 status = L10n.text("status.failed")
             }
+        }
+    }
+
+    private func registerTransferUndo(_ pairs: [(URL, URL)], shouldMove: Bool) {
+        guard !pairs.isEmpty else { return }
+        if shouldMove {
+            registerMoveUndo(pairs.map { (from: $0.0, to: $0.1) }, actionName: L10n.text("undo.action.move"))
+        } else {
+            registerCopyUndo(pairs.map { (source: $0.0, dest: $0.1) }, actionName: L10n.text("undo.action.copy"))
         }
     }
 
@@ -129,8 +138,12 @@ extension ArchiveBrowserModel {
             guard confirmDelete(items: selectedFileItems) else { return }
         }
 
+        var trashed: [(original: URL, trashURL: URL)] = []
+        defer {
+            // 撤销 = 从废纸篓移回原位；重做 = 移回废纸篓那个路径。
+            registerTrashUndo(trashed, actionName: L10n.text("undo.action.delete"))
+        }
         do {
-            var trashed: [(original: URL, trashURL: URL)] = []
             for item in selectedFileItems {
                 var resultingURL: NSURL?
                 try fileManager.trashItem(at: item.url, resultingItemURL: &resultingURL)
@@ -138,8 +151,6 @@ extension ArchiveBrowserModel {
                     trashed.append((original: item.url, trashURL: trashURL))
                 }
             }
-            // 撤销 = 从废纸篓移回原位；重做 = 移回废纸篓那个路径。
-            registerTrashUndo(trashed, actionName: L10n.text("undo.action.delete"))
             // trashItem 自身不出声，显式播放 Finder「移到废纸篓」音效（whoosh + 落下，一次播放）。
             SystemSound.moveToTrash?.play()
             // 刷新交给 FolderWatcher：从当前文件夹移除条目会触发 FSEvents 自动 reload。
@@ -153,14 +164,16 @@ extension ArchiveBrowserModel {
     /// 刷新交给 FolderWatcher（新文件落在当前目录会触发 FSEvents）。
     func duplicateSelectedFiles() {
         guard case .folder = mode, !selectedFileItems.isEmpty else { return }
+        var copies: [(source: URL, dest: URL)] = []
+        defer {
+            registerCopyUndo(copies, actionName: L10n.text("undo.action.duplicate"))
+        }
         do {
-            var copies: [(source: URL, dest: URL)] = []
             for item in selectedFileItems {
                 let dest = duplicateDestinationURL(for: item.url)
                 try fileManager.copyItem(at: item.url, to: dest)
                 copies.append((source: item.url, dest: dest))
             }
-            registerCopyUndo(copies, actionName: L10n.text("undo.action.duplicate"))
             SystemSound.operationComplete?.play()
         } catch {
             errorMessage = error.localizedDescription
@@ -212,14 +225,15 @@ extension ArchiveBrowserModel {
             errorMessage = nil
             status = shouldMove ? L10n.text("status.movingFiles") : L10n.text("status.copyingFiles")
             operationProgress = ArchiveProgressState(fraction: 0, currentFile: nil, completedUnitCount: 0, totalUnitCount: urls.count)
+            var undoPairs: [(URL, URL)] = []
             defer {
+                registerTransferUndo(undoPairs, shouldMove: shouldMove)
                 isWorking = false
                 operationProgress = ArchiveProgressState()
             }
 
             do {
                 let total = max(1, urls.count)
-                var undoPairs: [(URL, URL)] = []
                 let conflictSession = extractionCoordinator.makeConflictResolutionSession()
                 for (index, url) in urls.enumerated() {
                     try Task.checkCancellation()
@@ -251,11 +265,6 @@ extension ArchiveBrowserModel {
                     extractionCoordinator.showPendingHashOverwriteResult(for: targetURL)
                 }
                 extractionCoordinator.finishConflictResolutionSession(conflictSession)
-                if shouldMove {
-                    registerMoveUndo(undoPairs.map { (from: $0.0, to: $0.1) }, actionName: L10n.text("undo.action.move"))
-                } else {
-                    registerCopyUndo(undoPairs.map { (source: $0.0, dest: $0.1) }, actionName: L10n.text("undo.action.copy"))
-                }
                 operationProgress = ArchiveProgressState(fraction: 1, currentFile: nil, completedUnitCount: total, totalUnitCount: total)
                 status = L10n.text("status.done")
                 SystemSound.operationComplete?.play()

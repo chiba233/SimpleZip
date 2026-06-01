@@ -526,7 +526,7 @@ final class ArchiveOperationDetailsSession: ObservableObject, Identifiable {
         var lines = rawOutput.split(separator: "\n", omittingEmptySubsequences: false)
         if lines.count > maxLines {
             lines = Array(lines.suffix(maxLines))
-            rawOutput = "…（更早的输出已省略）\n" + lines.joined(separator: "\n")
+            rawOutput = L10n.text("details.outputEarlierOmitted") + "\n" + lines.joined(separator: "\n")
         }
     }
 }

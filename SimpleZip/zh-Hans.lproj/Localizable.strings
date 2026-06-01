@@ -865,6 +865,7 @@
 "operation.showDetails" = "显示详情";
 "details.commandOutput" = "命令输出";
 "details.waiting" = "正在等待命令输出...";
+"details.outputEarlierOmitted" = "...（更早的输出已省略）";
 "file.copy" = "复制";
 "file.cut" = "剪切";
 "file.paste" = "粘贴";

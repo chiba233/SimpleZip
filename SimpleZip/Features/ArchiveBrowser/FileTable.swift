@@ -716,18 +716,17 @@ private struct FileNSOutlineView: NSViewRepresentable {
             }
         }
 
-        /// 「打开方式 ▸」子菜单：用 LaunchServices 列出能打开选中文件的 App（默认 App 排在最前并标注），
-        /// 末尾「其他…」可手动挑任意 App。App 列表按第一个选中项推断；选择后把所有选中项一起交给那个 App 打开。
+        /// 「打开方式 ▸」子菜单：用 LaunchServices 列出能打开所有选中文件的共同 App（默认 App 排在最前并标注），
+        /// 末尾「其他…」可手动挑任意 App。选择后把所有选中项一起交给那个 App 打开。
         ///
         /// 走 view 层直接 `NSWorkspace.open` 而不经 model —— 这是「唤起外部 App」的纯 workspace 动作，
         /// 不属于压缩 / 文件系统业务，没必要往 ArchiveBrowserModel 里加新 ownership（沿用 revealInFinder 之外的轻量惯例）。
         private func appendOpenWithMenu(to menu: NSMenu) {
-            guard let first = model.selectedFileItems.first else { return }
+            let urls = model.selectedFileItems.map(\.url)
+            guard let first = urls.first else { return }
             let submenu = NSMenu()
-            let defaultAppPath = NSWorkspace.shared.urlForApplication(toOpen: first.url)?.path
-            var seen = Set<String>()
-            for appURL in NSWorkspace.shared.urlsForApplications(toOpen: first.url) {
-                guard seen.insert(appURL.path).inserted else { continue }
+            let defaultAppPath = NSWorkspace.shared.urlForApplication(toOpen: first)?.path
+            for appURL in commonApplicationURLs(toOpen: urls) {
                 let name = FileManager.default.displayName(atPath: appURL.path)
                 let title = appURL.path == defaultAppPath ? L10n.format("file.openWith.default", name) : name
                 let item = NSMenuItem(title: title, action: #selector(openWithApp(_:)), keyEquivalent: "")
@@ -749,6 +748,19 @@ private struct FileNSOutlineView: NSViewRepresentable {
             parent.image = NSImage(systemSymbolName: "arrow.up.forward.app", accessibilityDescription: nil)
             parent.submenu = submenu
             menu.addItem(parent)
+        }
+
+        private func commonApplicationURLs(toOpen urls: [URL]) -> [URL] {
+            guard let first = urls.first else { return [] }
+            let remainingAppPathSets = urls.dropFirst().map { url in
+                Set(NSWorkspace.shared.urlsForApplications(toOpen: url).map(\.path))
+            }
+            var seen = Set<String>()
+            return NSWorkspace.shared.urlsForApplications(toOpen: first).filter { appURL in
+                let path = appURL.path
+                guard seen.insert(path).inserted else { return false }
+                return remainingAppPathSets.allSatisfy { $0.contains(path) }
+            }
         }
 
         @objc private func openWithApp(_ sender: NSMenuItem) {
@@ -819,15 +831,10 @@ private struct FileNSOutlineView: NSViewRepresentable {
         @objc private func getInfoSelected() {
             let urls = model.selectedFileItems.map(\.url)
             guard !urls.isEmpty else { return }
-            let body = urls.map { url -> String in
-                let escaped = url.path.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
-                return "open information window of (POSIX file \"\(escaped)\" as alias)"
-            }.joined(separator: "\n")
-            let source = "tell application \"Finder\"\nactivate\n\(body)\nend tell"
-            var errorInfo: NSDictionary?
-            NSAppleScript(source: source)?.executeAndReturnError(&errorInfo)
-            if let errorInfo, let message = errorInfo[NSAppleScript.errorMessage] as? String {
-                model.errorMessage = L10n.format("file.getInfo.failed", message)
+            do {
+                try FinderInfoService.openInfoWindows(for: urls)
+            } catch {
+                model.errorMessage = L10n.format("file.getInfo.failed", error.localizedDescription)
             }
         }
 

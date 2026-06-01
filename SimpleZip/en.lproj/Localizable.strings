@@ -887,6 +887,7 @@
 "operation.showDetails" = "Show details";
 "details.commandOutput" = "Command Output";
 "details.waiting" = "Waiting for command output...";
+"details.outputEarlierOmitted" = "... Earlier output omitted";
 "file.copy" = "Copy";
 "file.cut" = "Cut";
 "file.paste" = "Paste";

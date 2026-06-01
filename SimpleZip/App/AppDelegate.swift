@@ -40,6 +40,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         true
     }
 
+    func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
+        let menu = NSMenu()
+        let newTab = NSMenuItem(title: L10n.text("menu.newTab"), action: #selector(openDockNewTab), keyEquivalent: "")
+        newTab.target = self
+        menu.addItem(newTab)
+
+        let newWindow = NSMenuItem(title: L10n.text("menu.newWindow"), action: #selector(openDockNewWindow), keyEquivalent: "")
+        newWindow.target = self
+        menu.addItem(newWindow)
+        return menu
+    }
+
+    @objc private func openDockNewTab() {
+        MainWindowFactory.open(asTab: true)
+    }
+
+    @objc private func openDockNewWindow() {
+        MainWindowFactory.open(asTab: false)
+    }
+
     /// 若启动时有待处理的外部打开（文件 / Finder 服务）但 SwiftUI 没建出任何主内容窗口，手动补一个。
     /// 新窗口宿主 `ContentView`，其 `onAppear` 会跑现有的 `ExternalFileOpenQueue.drain()`，把文件打开；
     /// 设共享 `tabbingIdentifier` 以免变成游离窗口、后续新标签能并入。

@@ -14,8 +14,8 @@
 //  - 复制型（粘贴复制 / 创建副本）：撤销 = 把复制出来的产物移到废纸篓（可恢复、非破坏），
 //    重做 = 重新从源复制。
 //
-//  保守安全（仓库铁律「绝不静默覆盖用户数据」）：每一步都要求「源存在 且 目标空闲」，
-//  否则跳过该步并提示，绝不覆盖外部期间新建 / 改动的同名文件。
+//  保守安全（仓库铁律「绝不静默覆盖用户数据」）：每一步都要求「源存在且未被外部改动、目标空闲」，
+//  否则跳过该步并提示，绝不覆盖 / 移走外部期间新建或改动的同名文件。
 
 import AppKit
 import Foundation
@@ -25,20 +25,28 @@ extension ArchiveBrowserModel {
 
     /// 移动 / 重命名：forward 已把每个 from 移到了 to。撤销 = 反向移动。
     func registerMoveUndo(_ forwardPairs: [(from: URL, to: URL)], actionName: String) {
-        let pairs = forwardPairs.filter { $0.from != $0.to }
-        guard !pairs.isEmpty else { return }
+        let steps = forwardPairs.compactMap { pair -> UndoMoveStep? in
+            guard pair.from != pair.to, let snapshot = UndoFileSnapshot(url: pair.to, fileManager: fileManager) else { return nil }
+            return UndoMoveStep(from: pair.to, to: pair.from, sourceSnapshot: snapshot)
+        }
+        guard !steps.isEmpty else { return }
         fileUndoManager.setActionName(actionName)
         fileUndoManager.registerUndo(withTarget: self) { model in
-            model.performUndoableMoves(pairs.map { (from: $0.to, to: $0.from) }, actionName: actionName)
+            model.performUndoableMoves(steps, actionName: actionName)
         }
     }
 
     /// 粘贴复制 / 创建副本：forward 已把每个 source 复制到 dest。撤销 = 删掉 dest（移到废纸篓）。
     func registerCopyUndo(_ forwardPairs: [(source: URL, dest: URL)], actionName: String) {
-        guard !forwardPairs.isEmpty else { return }
+        let steps = forwardPairs.compactMap { pair -> UndoCopyStep? in
+            guard let sourceSnapshot = UndoFileSnapshot(url: pair.source, fileManager: fileManager),
+                  let destSnapshot = UndoFileSnapshot(url: pair.dest, fileManager: fileManager) else { return nil }
+            return UndoCopyStep(source: pair.source, dest: pair.dest, sourceSnapshot: sourceSnapshot, destSnapshot: destSnapshot)
+        }
+        guard !steps.isEmpty else { return }
         fileUndoManager.setActionName(actionName)
         fileUndoManager.registerUndo(withTarget: self) { model in
-            model.performUndoableRemoveCopies(forwardPairs, actionName: actionName)
+            model.performUndoableRemoveCopies(steps, actionName: actionName)
         }
     }
 
@@ -49,17 +57,19 @@ extension ArchiveBrowserModel {
 
     // MARK: - 原语
 
-    /// 把每个 from 移到 to（保守：源在、目标空才动），然后注册反向移动作为下一步撤销 / 重做。
-    private func performUndoableMoves(_ pairs: [(from: URL, to: URL)], actionName: String) {
-        var done: [(from: URL, to: URL)] = []
+    /// 把每个 from 移到 to（保守：源在且没变、目标空才动），然后注册反向移动作为下一步撤销 / 重做。
+    private func performUndoableMoves(_ steps: [UndoMoveStep], actionName: String) {
+        var done: [UndoMoveStep] = []
         var skipped = 0
-        for pair in pairs {
-            guard fileManager.fileExists(atPath: pair.from.path) else { skipped += 1; continue }
-            guard !fileManager.fileExists(atPath: pair.to.path) else { skipped += 1; continue }
+        for step in steps {
+            guard step.sourceSnapshot.matches(url: step.from, fileManager: fileManager) else { skipped += 1; continue }
+            guard !fileManager.fileExists(atPath: step.to.path) else { skipped += 1; continue }
             do {
-                try fileManager.createDirectory(at: pair.to.deletingLastPathComponent(), withIntermediateDirectories: true)
-                try fileManager.moveItem(at: pair.from, to: pair.to)
-                done.append(pair)
+                try fileManager.createDirectory(at: step.to.deletingLastPathComponent(), withIntermediateDirectories: true)
+                try fileManager.moveItem(at: step.from, to: step.to)
+                if let snapshot = UndoFileSnapshot(url: step.to, fileManager: fileManager) {
+                    done.append(UndoMoveStep(from: step.to, to: step.from, sourceSnapshot: snapshot))
+                }
             } catch {
                 skipped += 1
             }
@@ -68,20 +78,27 @@ extension ArchiveBrowserModel {
         guard !done.isEmpty else { return }
         fileUndoManager.setActionName(actionName)
         fileUndoManager.registerUndo(withTarget: self) { model in
-            model.performUndoableMoves(done.map { (from: $0.to, to: $0.from) }, actionName: actionName)
+            model.performUndoableMoves(done, actionName: actionName)
         }
     }
 
     /// 重做一次复制（撤销「删除复制产物」的逆）：把 source 重新复制到 dest。
-    private func performUndoableCopy(_ pairs: [(source: URL, dest: URL)], actionName: String) {
-        var done: [(source: URL, dest: URL)] = []
+    private func performUndoableCopy(_ steps: [UndoCopyStep], actionName: String) {
+        var done: [UndoCopyStep] = []
         var skipped = 0
-        for pair in pairs {
-            guard fileManager.fileExists(atPath: pair.source.path) else { skipped += 1; continue }
-            guard !fileManager.fileExists(atPath: pair.dest.path) else { skipped += 1; continue }
+        for step in steps {
+            guard step.sourceSnapshot.matches(url: step.source, fileManager: fileManager) else { skipped += 1; continue }
+            guard !fileManager.fileExists(atPath: step.dest.path) else { skipped += 1; continue }
             do {
-                try fileManager.copyItem(at: pair.source, to: pair.dest)
-                done.append(pair)
+                try fileManager.copyItem(at: step.source, to: step.dest)
+                if let destSnapshot = UndoFileSnapshot(url: step.dest, fileManager: fileManager) {
+                    done.append(UndoCopyStep(
+                        source: step.source,
+                        dest: step.dest,
+                        sourceSnapshot: step.sourceSnapshot,
+                        destSnapshot: destSnapshot
+                    ))
+                }
             } catch {
                 skipped += 1
             }
@@ -95,15 +112,15 @@ extension ArchiveBrowserModel {
     }
 
     /// 撤销一次复制：把复制产物 dest 移到废纸篓（可恢复、非破坏），然后注册「重新复制」作为重做。
-    private func performUndoableRemoveCopies(_ pairs: [(source: URL, dest: URL)], actionName: String) {
-        var done: [(source: URL, dest: URL)] = []
+    private func performUndoableRemoveCopies(_ steps: [UndoCopyStep], actionName: String) {
+        var done: [UndoCopyStep] = []
         var skipped = 0
-        for pair in pairs {
-            guard fileManager.fileExists(atPath: pair.dest.path) else { skipped += 1; continue }
+        for step in steps {
+            guard step.destSnapshot.matches(url: step.dest, fileManager: fileManager) else { skipped += 1; continue }
             do {
                 var trashURL: NSURL?
-                try fileManager.trashItem(at: pair.dest, resultingItemURL: &trashURL)
-                done.append(pair)
+                try fileManager.trashItem(at: step.dest, resultingItemURL: &trashURL)
+                done.append(step)
             } catch {
                 skipped += 1
             }
@@ -120,5 +137,44 @@ extension ArchiveBrowserModel {
         guard count > 0 else { return }
         // 有步骤因「源已不在 / 目标被占」被跳过 —— 明确告诉用户，不静默、不覆盖。
         errorMessage = L10n.format("undo.partiallySkipped", count)
+    }
+}
+
+private struct UndoMoveStep {
+    let from: URL
+    let to: URL
+    let sourceSnapshot: UndoFileSnapshot
+}
+
+private struct UndoCopyStep {
+    let source: URL
+    let dest: URL
+    let sourceSnapshot: UndoFileSnapshot
+    let destSnapshot: UndoFileSnapshot
+}
+
+private struct UndoFileSnapshot {
+    let fileType: FileAttributeType?
+    let fileSize: UInt64?
+    let modificationDate: Date?
+    let systemNumber: UInt64?
+    let fileNumber: UInt64?
+
+    init?(url: URL, fileManager: FileManager) {
+        guard let attributes = try? fileManager.attributesOfItem(atPath: url.path) else { return nil }
+        fileType = attributes[.type] as? FileAttributeType
+        fileSize = (attributes[.size] as? NSNumber)?.uint64Value
+        modificationDate = attributes[.modificationDate] as? Date
+        systemNumber = (attributes[.systemNumber] as? NSNumber)?.uint64Value
+        fileNumber = (attributes[.systemFileNumber] as? NSNumber)?.uint64Value
+    }
+
+    func matches(url: URL, fileManager: FileManager) -> Bool {
+        guard let current = UndoFileSnapshot(url: url, fileManager: fileManager) else { return false }
+        return current.fileType == fileType
+            && current.fileSize == fileSize
+            && current.modificationDate == modificationDate
+            && current.systemNumber == systemNumber
+            && current.fileNumber == fileNumber
     }
 }
