@@ -173,7 +173,7 @@ final class ExternalExtractSession: ObservableObject {
     @Published var status: Status = .running
     @Published var fraction: Double? = nil
     @Published var currentFileName: String? = nil
-    @Published var statusText: String = L10n.text("status.extracting")
+    @Published var statusText: String
 
     private let operationID = UUID()
     private let coordinator = ArchiveExtractionCoordinator(fileManager: .default)
@@ -188,8 +188,11 @@ final class ExternalExtractSession: ObservableObject {
         self.archiveURL = archiveURL
         self.destinationDirectoryOverride = destinationDirectoryOverride
         self.outputBaseNameOverride = outputBaseNameOverride
-        self.displayName = displayName ?? archiveURL.lastPathComponent
+        let name = displayName ?? archiveURL.lastPathComponent
+        self.displayName = name
         self.cleanupDirectory = cleanupDirectory
+        // `status.extracting` 是带 %@ 的格式串，必须 format 填名字 —— 之前用 L10n.text 直出导致 UI 显示「正在解压 %@」。
+        self.statusText = L10n.format("status.extracting", name)
     }
 
     func cancel() {
@@ -218,8 +221,11 @@ final class ExternalExtractSession: ObservableObject {
             // 1.2s 后自动关 —— 让用户看到「完成」反馈但不挡屏幕太久。
             try? await Task.sleep(nanoseconds: 1_200_000_000)
             onClose()
+        } catch is CancellationError {
+            // 用户主动取消 ≠ 失败。直接关掉浮窗，不弹「解压失败 CancellationError」。
+            onClose()
         } catch {
-            // 失败不自动关；用户可能想看错误 + 复制路径。把浮窗带到最前，确保后台时错误不被埋。
+            // 真失败不自动关；用户可能想看错误 + 复制路径。把浮窗带到最前，确保后台时错误不被埋。
             status = .failed(error.localizedDescription)
             onAttention()
         }

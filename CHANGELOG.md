@@ -2,6 +2,11 @@
 
 # Changelog
 
+## 0.2.3
+
+- **Fixed: the Finder auto-extract window showed a raw "Extracting %@".** The single-archive progress window printed the unfilled format placeholder instead of the archive name; it now shows the name.
+- **Fixed: cancelling a Finder auto-extract reported it as a failure.** Hitting Cancel surfaced "Extraction failed (CancellationError)". Cancelling now simply closes the window — it isn't an error.
+
 ## 0.2.2
 
 - **Main window now supports native tabs (⌘T) and multiple windows (⌥⌘N).** Press ⌘T to open a new tab in the current window, ⌥⌘N for a separate new window, and View → "Show Tab Bar" (⇧⌘T) to pin the tab bar. Opening an archive or folder from Finder while SimpleZip is already running opens it in a new tab instead of replacing what you were looking at. These are real macOS window tabs — the tab bar auto-hides at one tab, and "Move Tab to New Window" / "Merge All Windows" work. Each tab/window is fully independent (its own folder, selection, and undo history). The Dock menu also exposes New Tab and New Window, so right-clicking the Dock icon matches the File menu. Settings, About, and the update window stay separate and never join the tab group.
