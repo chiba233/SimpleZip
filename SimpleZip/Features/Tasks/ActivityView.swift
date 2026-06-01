@@ -481,6 +481,7 @@ private struct ActivityTaskRow: View {
                     }
                 }
                 .padding(.vertical, 2)
+                .padding(.trailing, 16)   // 预留竖向滚动条宽度，避免盖住右侧长哈希值
             }
             .frame(maxHeight: 280)
         }
@@ -499,6 +500,7 @@ private struct ActivityTaskRow: View {
                     }
                 }
                 .padding(.vertical, 2)
+                .padding(.trailing, 16)   // 预留竖向滚动条宽度，避免盖住右侧长哈希值
             }
             .frame(maxHeight: 280)
         }
