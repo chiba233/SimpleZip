@@ -596,6 +596,8 @@ private struct ActivityTaskRow: View {
             return "number.square"
         case .paste, .copy:
             return "doc.on.doc"
+        case .create:
+            return "doc.badge.plus"
         case .move:
             return "folder.badge.gearshape"
         case .duplicate:

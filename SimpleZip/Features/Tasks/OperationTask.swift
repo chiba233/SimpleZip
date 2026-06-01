@@ -22,6 +22,7 @@ final class OperationTask: ObservableObject, Identifiable {
         case paste
         case move
         case copy
+        case create
         case duplicate
         case delete
         case rename

@@ -1085,3 +1085,19 @@
 "undo.action.delete" = "Delete";
 "undo.action.duplicate" = "Duplicate";
 "undo.partiallySkipped" = "%d item(s) couldn’t be undone — the original is missing or the destination is already taken.";
+
+/* 0.2.2 — New files and folders */
+"file.newFolder" = "New Folder";
+"file.newFolder.defaultName" = "Untitled Folder";
+"file.newFile" = "New File";
+"file.newFile.empty" = "Blank File";
+"file.newFile.text" = "Text Document";
+"file.newFile.markdown" = "Markdown Document";
+"file.newFile.json" = "JSON Document";
+"file.newFile.empty.defaultName" = "Untitled";
+"file.newFile.text.defaultName" = "Untitled.txt";
+"file.newFile.markdown.defaultName" = "Untitled.md";
+"file.newFile.json.defaultName" = "Untitled.json";
+"tasks.createFolder" = "Create Folder";
+"tasks.createFile" = "Create %@";
+"undo.action.create" = "Create";

@@ -1085,3 +1085,19 @@
 "undo.action.delete" = "删除";
 "undo.action.duplicate" = "创建副本";
 "undo.partiallySkipped" = "%d 项无法撤销 —— 源已不在，或目标位置已被占用。";
+
+/* 0.2.2 — 新建文件与文件夹 */
+"file.newFolder" = "新建文件夹";
+"file.newFolder.defaultName" = "未命名文件夹";
+"file.newFile" = "新建文件";
+"file.newFile.empty" = "空白文件";
+"file.newFile.text" = "文本文档";
+"file.newFile.markdown" = "Markdown 文档";
+"file.newFile.json" = "JSON 文档";
+"file.newFile.empty.defaultName" = "未命名";
+"file.newFile.text.defaultName" = "未命名.txt";
+"file.newFile.markdown.defaultName" = "未命名.md";
+"file.newFile.json.defaultName" = "未命名.json";
+"tasks.createFolder" = "新建文件夹";
+"tasks.createFile" = "新建 %@";
+"undo.action.create" = "新建";

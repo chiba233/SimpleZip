@@ -168,6 +168,7 @@ private struct FileNSOutlineView: NSViewRepresentable {
         }
         context.coordinator.syncContent()
         context.coordinator.applySelection()
+        context.coordinator.performPendingInlineRenameIfNeeded()
     }
 
     private func configureColumns(for outlineView: NSOutlineView) {
@@ -645,6 +646,8 @@ private struct FileNSOutlineView: NSViewRepresentable {
             }
             let clickedFile = (clickedItem as? FileOutlineNode)?.fileItem
             guard clickedFile != nil else {
+                appendNewItemMenu(to: menu)
+                menu.addItem(.separator())
                 menu.addItem(menuItem(L10n.text("file.paste"), systemImage: "clipboard", action: #selector(pasteFiles)))
                 menu.addItem(.separator())
                 // 用 revealCurrentLocation 不用 revealSelected —— 用户右键空白处的意图是「打开我现在看的这个文件夹本身」。
@@ -721,6 +724,8 @@ private struct FileNSOutlineView: NSViewRepresentable {
         private func appendSectionMenu(to menu: NSMenu, for node: FileOutlineNode) {
             let items = fileItems(in: node)
             menuGroupFileItems = items
+            appendNewItemMenu(to: menu)
+            menu.addItem(.separator())
             let copy = menuItem(L10n.text("file.group.copyAll"), systemImage: "doc.on.doc", action: #selector(copyGroupFiles))
             copy.isEnabled = !items.isEmpty
             menu.addItem(copy)
@@ -828,6 +833,34 @@ private struct FileNSOutlineView: NSViewRepresentable {
         @objc private func openWithOtherApp() {
             let urls = model.selectedFileItems.map(\.url)
             OpenWithService.chooseApplicationAndOpen(urls)
+        }
+
+        private func appendNewItemMenu(to menu: NSMenu) {
+            guard case .folder = model.mode else { return }
+            menu.addItem(menuItem(L10n.text("file.newFolder"), systemImage: "folder.badge.plus", action: #selector(createNewFolder)))
+
+            let parent = NSMenuItem(title: L10n.text("file.newFile"), action: nil, keyEquivalent: "")
+            parent.image = NSImage(systemSymbolName: "doc.badge.plus", accessibilityDescription: nil)
+            let submenu = NSMenu()
+            for template in ArchiveBrowserModel.NewFileTemplate.allCases {
+                let item = NSMenuItem(title: template.title, action: #selector(createNewFile(_:)), keyEquivalent: "")
+                item.target = self
+                item.representedObject = template.rawValue
+                item.image = NSImage(systemSymbolName: template.systemImage, accessibilityDescription: nil)
+                submenu.addItem(item)
+            }
+            parent.submenu = submenu
+            menu.addItem(parent)
+        }
+
+        @objc private func createNewFolder() {
+            model.createNewFolderAndBeginRename()
+        }
+
+        @objc private func createNewFile(_ sender: NSMenuItem) {
+            guard let raw = sender.representedObject as? String,
+                  let template = ArchiveBrowserModel.NewFileTemplate(rawValue: raw) else { return }
+            model.createNewFileAndBeginRename(template: template)
         }
 
         @objc private func showPackageContents() {
@@ -1035,6 +1068,23 @@ private struct FileNSOutlineView: NSViewRepresentable {
                     guard let self, let outlineView = self.outlineView, outlineView.selectedRowIndexes != indexes else { return }
                     self.applySelection(indexes)
                 }
+            }
+        }
+
+        func performPendingInlineRenameIfNeeded() {
+            guard let pendingURL = model.pendingInlineRenameURL,
+                  let outlineView,
+                  let node = allFileNodes().first(where: { node in
+                      guard let item = node.fileItem else { return false }
+                      return item.url.standardizedFileURL == pendingURL
+                  }),
+                  let item = node.fileItem else { return }
+            let row = outlineView.row(forItem: node)
+            guard row >= 0 else { return }
+            model.selection = [item.id]
+            applySelection(IndexSet(integer: row))
+            if beginRename(item) {
+                model.pendingInlineRenameURL = nil
             }
         }
 

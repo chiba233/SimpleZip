@@ -11,6 +11,101 @@ import AppKit
 import Foundation
 
 extension ArchiveBrowserModel {
+    enum NewFileTemplate: String, CaseIterable, Identifiable {
+        case empty
+        case text
+        case markdown
+        case json
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .empty:
+                return L10n.text("file.newFile.empty")
+            case .text:
+                return L10n.text("file.newFile.text")
+            case .markdown:
+                return L10n.text("file.newFile.markdown")
+            case .json:
+                return L10n.text("file.newFile.json")
+            }
+        }
+
+        var systemImage: String {
+            switch self {
+            case .empty:
+                return "doc"
+            case .text:
+                return "doc.text"
+            case .markdown:
+                return "text.alignleft"
+            case .json:
+                return "curlybraces"
+            }
+        }
+
+        var defaultName: String {
+            switch self {
+            case .empty:
+                return L10n.text("file.newFile.empty.defaultName")
+            case .text:
+                return L10n.text("file.newFile.text.defaultName")
+            case .markdown:
+                return L10n.text("file.newFile.markdown.defaultName")
+            case .json:
+                return L10n.text("file.newFile.json.defaultName")
+            }
+        }
+
+        var contents: Data {
+            switch self {
+            case .empty, .text, .markdown:
+                return Data()
+            case .json:
+                return Data("{\n}\n".utf8)
+            }
+        }
+    }
+
+    func createNewFolderAndBeginRename() {
+        guard case .folder(let folderURL) = mode else { return }
+        let target = uniqueNewItemURL(in: folderURL, preferredName: L10n.text("file.newFolder.defaultName"))
+        do {
+            try fileManager.createDirectory(at: target, withIntermediateDirectories: false)
+            registerCreateUndo([target], actionName: L10n.text("undo.action.create"))
+            pendingInlineRenameURL = target.standardizedFileURL
+            loadFolder(folderURL)
+            recordInstantFileTask(
+                kind: .create,
+                title: L10n.text("tasks.createFolder"),
+                detail: transferSummary(from: target.lastPathComponent, to: displayPath(folderURL))
+            )
+        } catch {
+            reportCreateFailure(error, title: L10n.text("tasks.createFolder"), target: target, folderURL: folderURL)
+        }
+    }
+
+    func createNewFileAndBeginRename(template: NewFileTemplate) {
+        guard case .folder(let folderURL) = mode else { return }
+        let target = uniqueNewItemURL(in: folderURL, preferredName: template.defaultName)
+        do {
+            guard fileManager.createFile(atPath: target.path, contents: template.contents, attributes: nil) else {
+                throw CocoaError(.fileWriteUnknown)
+            }
+            registerCreateUndo([target], actionName: L10n.text("undo.action.create"))
+            pendingInlineRenameURL = target.standardizedFileURL
+            loadFolder(folderURL)
+            recordInstantFileTask(
+                kind: .create,
+                title: L10n.format("tasks.createFile", target.lastPathComponent),
+                detail: transferSummary(from: target.lastPathComponent, to: displayPath(folderURL))
+            )
+        } catch {
+            reportCreateFailure(error, title: L10n.format("tasks.createFile", target.lastPathComponent), target: target, folderURL: folderURL)
+        }
+    }
+
     func copySelectedFiles() {
         guard case .folder = mode else { return }
         copyFileURLs(selectedFileItems.map(\.url))
@@ -286,6 +381,34 @@ extension ArchiveBrowserModel {
             n += 1
         }
         return target
+    }
+
+    private func uniqueNewItemURL(in folderURL: URL, preferredName: String) -> URL {
+        let preferredURL = folderURL.appendingPathComponent(preferredName)
+        guard fileManager.fileExists(atPath: preferredURL.path) else { return preferredURL }
+
+        let ext = preferredURL.pathExtension
+        let base = ext.isEmpty ? preferredName : (preferredName as NSString).deletingPathExtension
+        var index = 2
+        while true {
+            let name = ext.isEmpty ? "\(base) \(index)" : "\(base) \(index).\(ext)"
+            let candidate = folderURL.appendingPathComponent(name)
+            if !fileManager.fileExists(atPath: candidate.path) {
+                return candidate
+            }
+            index += 1
+        }
+    }
+
+    private func reportCreateFailure(_ error: Error, title: String, target: URL, folderURL: URL) {
+        errorMessage = error.localizedDescription
+        status = L10n.text("status.failed")
+        recordInstantFileTask(
+            kind: .create,
+            title: title,
+            detail: transferSummary(from: target.lastPathComponent, to: displayPath(folderURL)),
+            outcome: .failed(error.localizedDescription)
+        )
     }
 
     func moveSelectedFilesToFolder() {

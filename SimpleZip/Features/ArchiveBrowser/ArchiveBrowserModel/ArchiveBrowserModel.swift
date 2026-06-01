@@ -125,6 +125,8 @@ final class ArchiveBrowserModel: ObservableObject {
     let fileUndoManager = UndoManager()
     @Published var fileUndoActionName: String?
     @Published var fileRedoActionName: String?
+    /// 创建新文件 / 文件夹后，等 FileTable 刷出对应行再自动进入现有内联重命名。
+    @Published var pendingInlineRenameURL: URL?
     /// 当前文件夹的 FSEvents 监视器：内容变化（外部改动 + 本应用自己的增删改 / 重命名）自动刷新列表。
     /// 仅 `.folder` 模式启用，由 `reload()` 统一 watch/stop。引入它后文件操作不再各自手动 reload。
     /// 在 `init()` 里创建（onChange 闭包需要捕获 self）；非 `lazy` —— `lazy` 的隔离初始化器无法在 `deinit` 里访问。

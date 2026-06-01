@@ -4,6 +4,7 @@
 
 ## 0.2.3
 
+- **Create new folders and common file types from the browser.** Folder views now offer New Folder and New File (blank, `.txt`, `.md`, `.json`) from the File menu and the empty-area context menu. Newly created items are selected immediately and enter the existing inline rename flow, never overwrite existing names, participate in Undo/Redo, and appear in Activity Center file-operation history.
 - **Fixed: the Finder auto-extract window showed a raw "Extracting %@".** The single-archive progress window printed the unfilled format placeholder instead of the archive name; it now shows the name.
 - **Fixed: cancelling a Finder auto-extract reported it as a failure.** Hitting Cancel surfaced "Extraction failed (CancellationError)". Cancelling now simply closes the window — it isn't an error.
 - **Fixed: cold-launching a `.zip`/`.7z` with Auto-Extract on wrongly opened the main window.** The cold-launch window fix was creating a main window for *every* Finder open; with Auto-Extract on, the extraction must stay in its own floating window and never raise the main window. Cold launch now goes straight to the float for auto-extract archives.

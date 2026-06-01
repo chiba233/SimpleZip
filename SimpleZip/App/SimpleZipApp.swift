@@ -103,6 +103,29 @@ struct ArchiveFileCommands: Commands {
             Divider()
 
             Button {
+                model?.createNewFolderAndBeginRename()
+            } label: {
+                Label(L10n.text("file.newFolder"), systemImage: "folder.badge.plus")
+            }
+            .keyboardShortcut("n", modifiers: [.command, .shift])
+            .disabled(!isFolderMode)
+
+            Menu {
+                ForEach(ArchiveBrowserModel.NewFileTemplate.allCases) { template in
+                    Button {
+                        model?.createNewFileAndBeginRename(template: template)
+                    } label: {
+                        Label(template.title, systemImage: template.systemImage)
+                    }
+                }
+            } label: {
+                Label(L10n.text("file.newFile"), systemImage: "doc.badge.plus")
+            }
+            .disabled(!isFolderMode)
+
+            Divider()
+
+            Button {
                 model?.chooseFolder()
             } label: {
                 Label(L10n.text("button.openFolder"), systemImage: "folder")

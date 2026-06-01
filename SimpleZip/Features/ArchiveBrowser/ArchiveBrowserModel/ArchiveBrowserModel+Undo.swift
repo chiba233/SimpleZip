@@ -52,6 +52,20 @@ extension ArchiveBrowserModel {
         refreshUndoActionNames()
     }
 
+    /// 新建文件 / 文件夹：forward 已创建 dest。撤销 = 把 dest 移到废纸篓；重做 = 从废纸篓移回原位。
+    func registerCreateUndo(_ createdURLs: [URL], actionName: String) {
+        let steps = createdURLs.compactMap { url -> UndoCreateStep? in
+            guard let snapshot = UndoFileSnapshot(url: url, fileManager: fileManager) else { return nil }
+            return UndoCreateStep(url: url, snapshot: snapshot)
+        }
+        guard !steps.isEmpty else { return }
+        fileUndoManager.setActionName(actionName)
+        fileUndoManager.registerUndo(withTarget: self) { model in
+            model.performUndoableRemoveCreatedItems(steps, actionName: actionName)
+        }
+        refreshUndoActionNames()
+    }
+
     /// 删除：forward 已把每个 original 移到了废纸篓的 trashURL。当成移动处理 —— 撤销 = trashURL → original。
     func registerTrashUndo(_ forwardPairs: [(original: URL, trashURL: URL)], actionName: String) {
         registerMoveUndo(forwardPairs.map { (from: $0.original, to: $0.trashURL) }, actionName: actionName)
@@ -138,6 +152,26 @@ extension ArchiveBrowserModel {
         refreshUndoActionNames()
     }
 
+    /// 撤销新建：只在新建项仍是同一个、且未被外部改动时移到废纸篓。
+    private func performUndoableRemoveCreatedItems(_ steps: [UndoCreateStep], actionName: String) {
+        var trashed: [(original: URL, trashURL: URL)] = []
+        var skipped = 0
+        for step in steps {
+            guard step.snapshot.matches(url: step.url, fileManager: fileManager) else { skipped += 1; continue }
+            do {
+                var trashURL: NSURL?
+                try fileManager.trashItem(at: step.url, resultingItemURL: &trashURL)
+                if let trashURL = trashURL as URL? {
+                    trashed.append((original: step.url, trashURL: trashURL))
+                }
+            } catch {
+                skipped += 1
+            }
+        }
+        reportUndoSkips(skipped)
+        registerTrashUndo(trashed, actionName: actionName)
+    }
+
     func undoFileOperation() {
         fileUndoManager.undo()
         refreshUndoActionNames()
@@ -176,6 +210,11 @@ private struct UndoCopyStep {
     let dest: URL
     let sourceSnapshot: UndoFileSnapshot
     let destSnapshot: UndoFileSnapshot
+}
+
+private struct UndoCreateStep {
+    let url: URL
+    let snapshot: UndoFileSnapshot
 }
 
 private struct UndoFileSnapshot {
