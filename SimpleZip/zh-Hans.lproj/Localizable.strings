@@ -320,6 +320,7 @@
 "szs.silentBrowse.signatureStatus.noPublicKey" = "签名者公钥不在钥匙串中";
 "szs.silentBrowse.signatureStatus.error" = "签名无法校验";
 "szs.signature.gpgDisabled" = "GPG 未启用，未校验签名。文件内容仍已通过 SHA-256 校验。";
+"menu.newTab" = "新建标签页";
 "menu.view" = "视图";
 "view.groupBy.fileBrowser" = "文件按…分类";
 "view.groupBy.archiveBrowser" = "压缩包按…分类";

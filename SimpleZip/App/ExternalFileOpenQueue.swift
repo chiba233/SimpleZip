@@ -57,12 +57,18 @@ final class ExternalFileOpenQueue {
 
     private let lock = NSLock()
     private var pendingURLs: [URL] = []
+    /// 「路由认领」用的世代计数：每次 `enqueue` +1。多标签下所有 ContentView 都收到 `.openExternalFile`，
+    /// 但只有第一个 `claimRouting()` 返回 true 的视图负责决定「原地处理 / 开新标签」，其余直接 return，
+    /// 保证一个外部打开事件只产生一个新标签（不依赖 keyWindow，后台无 key 窗也不漏）。
+    private var routingGeneration = 0
+    private var lastClaimedGeneration = 0
 
     private init() {}
 
     func enqueue(_ url: URL) {
         lock.lock()
         pendingURLs.append(url)
+        routingGeneration += 1
         lock.unlock()
         NotificationCenter.default.post(name: .openExternalFile, object: url)
     }
@@ -73,6 +79,24 @@ final class ExternalFileOpenQueue {
         let urls = pendingURLs
         pendingURLs.removeAll()
         return urls
+    }
+
+    /// 非破坏性查看当前待处理 URL（不清空队列）——用于在 drain 前对这批待打开项做分类决策
+    /// （比如「是否全是 Finder 自动解压浮窗类」→ 决定原地处理还是开新标签）。
+    func peek() -> [URL] {
+        lock.lock()
+        defer { lock.unlock() }
+        return pendingURLs
+    }
+
+    /// 路由认领：当前世代尚未被认领时置位并返回 true（首个调用者）；其余调用返回 false。
+    /// 同一批 enqueue（同一世代）只会有一个认领者，避免多标签时每个 ContentView 各开一个新标签。
+    func claimRouting() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard routingGeneration > lastClaimedGeneration else { return false }
+        lastClaimedGeneration = routingGeneration
+        return true
     }
 }
 
@@ -157,5 +181,12 @@ final class FinderServiceActionQueue {
         let actions = pendingActions
         pendingActions.removeAll()
         return actions
+    }
+
+    /// 非破坏性查看当前待处理动作（不清空）—— 冷启动建窗判定「是否有 pending」用。
+    func peek() -> [FinderServiceAction] {
+        lock.lock()
+        defer { lock.unlock() }
+        return pendingActions
     }
 }

@@ -28,7 +28,7 @@ struct SimpleZipApp: App {
     }
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup(id: MainWindow.windowGroupID) {
             ContentView()
         }
         // **明确不处理任何外部 URL / NSUserActivity 事件** —— `[]` 匹配空集。
@@ -83,9 +83,21 @@ struct SimpleZipApp: App {
 /// 顶部“文件”菜单命令：把工具栏里的核心操作也挂到 macOS 菜单栏。
 struct ArchiveFileCommands: Commands {
     @FocusedObject private var model: ArchiveBrowserModel?
+    /// 「新建标签」用 —— 开一个新的 WindowGroup 实例。所有主窗口共享 `tabbingIdentifier` + `.preferred`
+    /// （见 `WindowAccessor`），所以新窗口会并入当前标签组成为新标签。
+    @Environment(\.openWindow) private var openWindow
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
+            // 「新建标签页」⌘T —— 显示 Home 的全新标签（独立 ArchiveBrowserModel）。
+            // 不依赖 model，任何时候都可用（即使当前没有聚焦窗口）。
+            Button(L10n.text("menu.newTab")) {
+                openWindow(id: MainWindow.windowGroupID)
+            }
+            .keyboardShortcut("t", modifiers: [.command])
+
+            Divider()
+
             Button {
                 model?.chooseFolder()
             } label: {

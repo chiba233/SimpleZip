@@ -14,6 +14,10 @@ struct ContentView: View {
     @StateObject private var model = ArchiveBrowserModel()
     @State private var isDropTargeted = false
 
+    /// 开新标签用 —— `⌘T` 和「运行中外部打开 → 新标签」都调它。WindowGroup 共享 `tabbingIdentifier` +
+    /// `.preferred`（见 `WindowAccessor`），`openWindow()` 开出的新窗口会自动并入当前标签组。
+    @Environment(\.openWindow) private var openWindow
+
     /// 启动期校验「保存的 startupLocation 当前是否指向不存在的目录」用的弹窗 flag。
     /// 只在 app 第一次 onAppear 时计算一次，避免后续重新 layout 反复弹。
     @State private var showsStartupMissingAlert = false
@@ -65,6 +69,8 @@ struct ContentView: View {
         }
         .frame(minWidth: 980, minHeight: 620)
         .focusedSceneObject(model)
+        // 给宿主 NSWindow 设原生标签属性（tabbingIdentifier + .preferred + identifier）。
+        .background(WindowAccessor())
         .overlay {
             if isDropTargeted {
                 RoundedRectangle(cornerRadius: 10)
@@ -282,7 +288,7 @@ struct ContentView: View {
         // 唯一路径：AppDelegate.application(_:open:) → ExternalFileOpenQueue.enqueue → 下面这条 notification
         // → 现有 ContentView 用 drain() 自处理 → 当前窗口里弹 sheet。冷启动场景由 onAppear 里另一处 drain 兜住。
         .onReceive(NotificationCenter.default.publisher(for: .openExternalFile)) { _ in
-            ExternalFileOpenQueue.shared.drain().forEach(openExternalURL)
+            handleRunningExternalOpen()
         }
         .onChange(of: model.pendingSIZOpen) { url in
             // model 在 SimpleZip 内点 .siz 时设的待处理 URL —— 跟 Finder 外部双击 .siz 同一处理流程。
@@ -424,6 +430,39 @@ struct ContentView: View {
                 }
             }
         }
+    }
+
+    /// 运行中收到外部打开通知（`.openExternalFile`）的总入口 —— 多标签下所有 ContentView 都会收到，
+    /// 靠 `claimRouting()` 选出唯一认领者，避免每个标签各开一个新标签。
+    ///
+    /// - 纯「浮窗类」（Finder 自动解压普通压缩包）：原地 drain 处理，**不**开浏览标签（浮窗 + 隐藏主窗，与旧行为一致）。
+    /// - 浏览类（文件夹 / `.siz` / `.szs` / 自动解压关的压缩包）：开**新标签**，把 URL 留在队列里让新标签的 `onAppear` 去 drain。
+    private func handleRunningExternalOpen() {
+        guard ExternalFileOpenQueue.shared.claimRouting() else { return }
+        let pending = ExternalFileOpenQueue.shared.peek()
+        guard !pending.isEmpty else { return }
+
+        if pending.allSatisfy(opensInFloatWindowOnly) {
+            ExternalFileOpenQueue.shared.drain().forEach(openExternalURL)
+        } else {
+            // 浏览类 → 新标签；不在这里 drain，URL 留给新标签 onAppear 的 drain（原子，落到新标签的 model）。
+            openWindow(id: MainWindow.windowGroupID)
+        }
+    }
+
+    /// 判定这个外部 URL「只会进自动解压浮窗、不需要浏览标签」。
+    /// 镜像 `openExternalURL` 的分支：普通受支持压缩包 + 非 dmg + 开了 Finder 自动解压 → true。
+    /// `.siz`/`.szs` 即便开了自动解压也返回 false —— 签名是否干净要 unwrap 后才知道，坏签名必须弹 sheet（需要主窗口/标签）。
+    private func opensInFloatWindowOnly(_ url: URL) -> Bool {
+        var isDirectory: ObjCBool = false
+        if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue {
+            return false
+        }
+        let ext = url.pathExtension.lowercased()
+        if ext == SIZArchive.extensionName || ext == SZSArchive.extensionName { return false }
+        guard ArchiveService.isSupportedArchive(url) else { return false }
+        let supportedURL = ArchiveService.supportedArchiveURL(url) ?? url
+        return AppPreferences.finderOpenAutoExtract && supportedURL.pathExtension.lowercased() != "dmg"
     }
 
     /// 处理 Finder / Open With / 拖到 Dock 图标等外部打开事件。
@@ -835,6 +874,10 @@ struct ContentView: View {
     /// 这里立即 orderOut 让它消失（用户感受不到「闪过」）。
     /// 已经热运行场景：主窗口在哪 / 是否可见，保持原样不动；如果主窗口已是 front，仍然降到后面。
     private func hideMainWindowIfPossible() {
+        // 多标签收敛：存在 2+ 个主内容窗口（标签）时**不隐藏** —— 否则一处自动解压会把整组标签全 orderOut，
+        // 误伤用户正在用的其它标签。浮窗本就是 `.floating` 盖在最上层，不隐藏主窗也不挡视线。
+        let mainWindowCount = NSApp.windows.filter { MainWindow.isMainContentWindow($0) }.count
+        guard mainWindowCount <= 1 else { return }
         // ContentView 所在的 NSWindow 在 keyWindow / 第一个 windowGroup 里 —— 找出来 orderOut。
         // 通过 contentView 类型识别（NSHostingView 装的就是 SwiftUI 主窗口）。
         for window in NSApp.windows {
