@@ -565,7 +565,7 @@ enum PasteConflictChoice: Equatable {
     case cancel
 }
 
-struct HashOverwriteResult {
+struct HashOverwriteResult: Codable {
     let sourceURL: URL
     let targetURL: URL
     let sourceHash: String

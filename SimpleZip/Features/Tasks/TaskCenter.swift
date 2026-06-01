@@ -133,6 +133,10 @@ private struct PersistedTask: Codable {
     let finishedAt: Date?
     let progress: PersistedProgress
     let details: PersistedDetails?
+    // 哈希结果 / 粘贴·移动的哈希对比：持久化下来，重启后历史里仍能展开看格式化详情。
+    // 都用 Optional：旧版本存的 JSON 没有这两个键，可选才能 decodeIfPresent 容错，不至于整段历史解码失败丢失。
+    let hashReport: HashReport?
+    let hashComparisons: [HashOverwriteResult]?
 
     init(task: OperationTask) {
         id = task.id
@@ -149,11 +153,13 @@ private struct PersistedTask: Codable {
         } else {
             details = nil
         }
+        hashReport = task.hashReport
+        hashComparisons = task.hashComparisons.isEmpty ? nil : task.hashComparisons
     }
 
     @MainActor
     var task: OperationTask {
-        OperationTask(
+        let restored = OperationTask(
             id: id,
             category: category,
             kind: kind,
@@ -166,6 +172,9 @@ private struct PersistedTask: Codable {
             progress: progress.progress,
             finishedAt: finishedAt
         )
+        restored.hashReport = hashReport
+        restored.hashComparisons = hashComparisons ?? []
+        return restored
     }
 }
 

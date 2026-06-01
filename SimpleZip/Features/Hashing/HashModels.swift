@@ -8,7 +8,7 @@
 import Foundation
 
 /// 用户可以选择只计算需要的哈希算法，避免大文件重复消耗 CPU。
-enum HashAlgorithm: String, CaseIterable, Identifiable, Hashable {
+enum HashAlgorithm: String, CaseIterable, Identifiable, Hashable, Codable {
     case crc32 = "CRC32"
     case md5 = "MD5"
     case sha1 = "SHA1"
@@ -20,7 +20,7 @@ enum HashAlgorithm: String, CaseIterable, Identifiable, Hashable {
 }
 
 /// 单个文件的哈希计算结果。
-struct FileHashResult: Identifiable, Hashable {
+struct FileHashResult: Identifiable, Hashable, Codable {
     let id = UUID()
     let url: URL
     let displayName: String
@@ -33,7 +33,7 @@ struct FileHashResult: Identifiable, Hashable {
 }
 
 /// 一次哈希任务的汇总结果，用于弹窗展示。
-struct HashReport: Identifiable {
+struct HashReport: Identifiable, Codable {
     let id = UUID()
     let algorithms: [HashAlgorithm]
     let results: [FileHashResult]
