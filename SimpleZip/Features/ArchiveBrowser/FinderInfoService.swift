@@ -16,7 +16,7 @@ enum FinderInfoService {
         var errorDescription: String? {
             switch self {
             case .scriptUnavailable:
-                return "AppleScript is unavailable."
+                return L10n.text("file.getInfo.appleScriptUnavailable")
             case .finderError(let message):
                 return message
             }

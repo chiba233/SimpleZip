@@ -1003,6 +1003,7 @@
 "file.quickLook" = "ดูอย่างเร็ว";
 "file.getInfo" = "ดูข้อมูล";
 "file.getInfo.failed" = "ไม่สามารถเปิดหน้าต่าง “ดูข้อมูล” ของ Finder ได้: %@";
+"file.getInfo.appleScriptUnavailable" = "AppleScript ไม่พร้อมใช้งาน";
 
 /* 0.2.2 — 创建副本 */
 "file.duplicate" = "ทำซ้ำ";

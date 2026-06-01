@@ -1003,6 +1003,7 @@
 "file.quickLook" = "Coup d’œil";
 "file.getInfo" = "Lire les informations";
 "file.getInfo.failed" = "Impossible d’ouvrir la fenêtre « Lire les informations » du Finder : %@";
+"file.getInfo.appleScriptUnavailable" = "AppleScript n’est pas disponible.";
 
 /* 0.2.2 — 创建副本 */
 "file.duplicate" = "Dupliquer";

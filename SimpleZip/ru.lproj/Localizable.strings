@@ -1003,6 +1003,7 @@
 "file.quickLook" = "Быстрый просмотр";
 "file.getInfo" = "Свойства";
 "file.getInfo.failed" = "Не удалось открыть окно «Свойства» Finder: %@";
+"file.getInfo.appleScriptUnavailable" = "AppleScript недоступен.";
 
 /* 0.2.2 — 创建副本 */
 "file.duplicate" = "Дублировать";

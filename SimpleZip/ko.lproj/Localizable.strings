@@ -1003,6 +1003,7 @@
 "file.quickLook" = "훑어보기";
 "file.getInfo" = "정보 가져오기";
 "file.getInfo.failed" = "Finder의 '정보 가져오기' 창을 열 수 없습니다: %@";
+"file.getInfo.appleScriptUnavailable" = "AppleScript를 사용할 수 없습니다.";
 
 /* 0.2.2 — 创建副本 */
 "file.duplicate" = "복제";

@@ -1003,6 +1003,7 @@
 "file.quickLook" = "快速查看";
 "file.getInfo" = "顯示簡介";
 "file.getInfo.failed" = "無法打開 Finder 的「顯示簡介」視窗：%@";
+"file.getInfo.appleScriptUnavailable" = "AppleScript 無法使用。";
 
 /* 0.2.2 — 创建副本 */
 "file.duplicate" = "製作複本";
