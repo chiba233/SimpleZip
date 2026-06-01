@@ -29,6 +29,10 @@ final class ContentDragOutlineView: NSOutlineView, QLPreviewPanelDataSource, QLP
     private var lastMouseDownRow: Int = -1
     private var didTriggerForceClick = false
     private var quickLookURLs: [URL] = []
+    /// 是否存在「用户主动发起、且尚未关闭」的快速查看会话。
+    /// QLPreviewPanel 是 app 级单例 + 走 responder 链：只有这个标志为 true 时我们才接管控制权，
+    /// 否则（用户从没开过 / 已经关掉）一律拒绝 —— 避免双击打开 .siz、窗口重新激活时把陈旧面板顶回来。
+    private var isQuickLookActive = false
 
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
@@ -81,14 +85,21 @@ final class ContentDragOutlineView: NSOutlineView, QLPreviewPanelDataSource, QLP
         quickLookURLs = urls
         guard let panel = QLPreviewPanel.shared() else { return false }
         if QLPreviewPanel.sharedPreviewPanelExists() && panel.isVisible {
+            isQuickLookActive = false
             panel.orderOut(nil)
         } else {
+            isQuickLookActive = true
             panel.makeKeyAndOrderFront(nil)
         }
         return true
     }
 
-    override func acceptsPreviewPanelControl(_ panel: QLPreviewPanel!) -> Bool { true }
+    // 只有「用户主动发起、尚未关闭」的快速查看会话才接管共享 QLPreviewPanel 的控制权。
+    // 否则（从没开过 / 已经关掉）一律拒绝：双击打开 .siz、窗口重新激活时 AppKit 会沿 responder 链
+    // 重新找控制者，若无条件返回 true 就会把刚 orderOut 隐藏的陈旧面板又顶回来 —— 用户从没要过快速查看。
+    override func acceptsPreviewPanelControl(_ panel: QLPreviewPanel!) -> Bool {
+        isQuickLookActive
+    }
 
     override func beginPreviewPanelControl(_ panel: QLPreviewPanel!) {
         panel.dataSource = self
@@ -96,7 +107,10 @@ final class ContentDragOutlineView: NSOutlineView, QLPreviewPanelDataSource, QLP
         panel.reloadData()
     }
 
-    override func endPreviewPanelControl(_ panel: QLPreviewPanel!) {}
+    override func endPreviewPanelControl(_ panel: QLPreviewPanel!) {
+        // 控制权结束（面板关闭 / 转移）→ 清掉会话标志，下次 AppKit 再问就拒绝，面板不会自己冒回来。
+        isQuickLookActive = false
+    }
 
     func numberOfPreviewItems(in panel: QLPreviewPanel!) -> Int { quickLookURLs.count }
 
@@ -106,6 +120,7 @@ final class ContentDragOutlineView: NSOutlineView, QLPreviewPanelDataSource, QLP
 
     func previewPanel(_ panel: QLPreviewPanel!, handle event: NSEvent!) -> Bool {
         if event.type == .keyDown, event.keyCode == 49 {
+            isQuickLookActive = false
             panel.orderOut(nil)
             return true
         }

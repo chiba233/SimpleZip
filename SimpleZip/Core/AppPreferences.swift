@@ -309,6 +309,8 @@ enum AppPreferences {
         //   实际密码内容存在 Keychain（见 PresetPasswordStore），不再放 UserDefaults。
         nonisolated static let finderOpenAutoExtract = "finderOpenAutoExtract"
         nonisolated static let presetPasswordEnabled = "presetPasswordEnabled"
+        /// 外部入口（Finder 双击 / 打开方式）浏览压缩包或文件夹时，是在新标签页打开还是复用当前窗口/标签。
+        nonisolated static let openExternalInNewTab = "openExternalInNewTab"
         /// 欢迎助手是否已经完成过一次 —— 控制「首次启动自动弹」逻辑。
         /// 用户从「SimpleZip 菜单 → 重新运行欢迎助手」入口可以重置回 false 让它再弹一次。
         nonisolated static let welcomeAssistantCompleted = "welcomeAssistantCompleted"
@@ -645,6 +647,16 @@ enum AppPreferences {
         defaults.bool(forKey: Key.finderOpenAutoExtract)
     }
 
+    /// 外部入口（Finder / 打开方式）浏览压缩包或文件夹时是否在新标签页打开。默认开 —— 不打扰当前正在看的内容。
+    /// 关闭则复用当前窗口/标签（直接在当前标签里打开）。
+    nonisolated static var openExternalInNewTab: Bool {
+        get {
+            if defaults.object(forKey: Key.openExternalInNewTab) == nil { return true }
+            return defaults.bool(forKey: Key.openExternalInNewTab)
+        }
+        set { defaults.set(newValue, forKey: Key.openExternalInNewTab) }
+    }
+
     /// 是否启用「预设密码」便捷功能。开启后：
     /// 1) 创建压缩包时若选了加密会自动填入；
     /// 2) 打开 / 解压压缩包时会先用预设尝试一次，失败再弹密码框。
@@ -788,6 +800,7 @@ enum AppPreferences {
         Key.overwriteBehavior,
         Key.confirmBeforeDeletingFiles,
         Key.finderOpenAutoExtract,
+        Key.openExternalInNewTab,
         // 注意：只导 presetPasswordEnabled 开关，密码本身永远在 Keychain，不进导出文件。
         Key.presetPasswordEnabled,
         // GPG 集成主开关 + 智能卡支持开关 + 默认签名密钥 fingerprint；私钥 / 公钥都在 ~/.gnupg/ 或 SimpleZip 私有 ring，
@@ -877,6 +890,7 @@ enum AppPreferences {
         v[Key.overwriteBehavior] = overwriteBehavior.rawValue
         v[Key.confirmBeforeDeletingFiles] = confirmBeforeDeletingFiles
         v[Key.finderOpenAutoExtract] = finderOpenAutoExtract
+        v[Key.openExternalInNewTab] = openExternalInNewTab
         v[Key.presetPasswordEnabled] = presetPasswordEnabled
         v[Key.suspiciousPathPolicy] = suspiciousPathPolicy.rawValue
         v[Key.symbolicLinkPolicy] = symbolicLinkPolicy.rawValue

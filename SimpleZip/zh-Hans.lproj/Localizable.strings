@@ -519,6 +519,8 @@
 "button.details" = "详情";
 "button.copyDiagnostics" = "复制诊断信息";
 "file.openAsArchive" = "以压缩包打开";
+"file.openInNewTab" = "在新标签页打开";
+"file.openInNewWindow" = "在新窗口打开";
 "diagnostics.copied" = "诊断信息已复制到剪贴板。";
 "section.locations" = "位置";
 "section.favorites" = "个人收藏";
@@ -606,6 +608,8 @@
 "settings.confirmBeforeDeletingFiles.description" = "开启后，选中文件移到 macOS 废纸篓前会先弹出确认提示。";
 "settings.finderOpenAutoExtract" = "从 Finder 打开时自动解压";
 "settings.finderOpenAutoExtract.description" = "通过 Finder、Services 或其它 App 打开压缩包时，直接解压到压缩包所在目录，不再打开 SimpleZip 主窗口浏览。安全策略提示仍会触发。";
+"settings.openExternalInNewTab" = "在新标签页打开";
+"settings.openExternalInNewTab.description" = "SimpleZip 已在运行时，从 Finder 打开压缩包或文件夹会在新标签页打开。关闭则复用当前窗口（在当前标签里打开）。";
 "settings.presetPasswordEnabled" = "使用预设密码";
 "settings.presetPasswordEnabled.description" = "创建加密压缩包时自动填入此密码；打开 / 解压有密码的压缩包时先尝试这个密码，失败再弹输入框。";
 "settings.presetPassword" = "预设密码";

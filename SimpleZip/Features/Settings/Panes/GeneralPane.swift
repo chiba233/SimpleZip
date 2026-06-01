@@ -29,6 +29,7 @@ struct GeneralPane: View {
     @AppStorage(AppPreferences.Key.overwriteBehavior) private var overwriteBehavior = OverwriteBehavior.ask.rawValue
     @AppStorage(AppPreferences.Key.confirmBeforeDeletingFiles) private var confirmBeforeDeletingFiles = true
     @AppStorage(AppPreferences.Key.finderOpenAutoExtract) private var finderOpenAutoExtract = false
+    @AppStorage(AppPreferences.Key.openExternalInNewTab) private var openExternalInNewTab = true
     @AppStorage(AppPreferences.Key.presetPasswordEnabled) private var presetPasswordEnabled = false
 
     @State private var languageMessage: String?
@@ -154,6 +155,12 @@ struct GeneralPane: View {
                     title: L10n.text("settings.finderOpenAutoExtract"),
                     description: L10n.text("settings.finderOpenAutoExtract.description"),
                     isOn: $finderOpenAutoExtract
+                )
+
+                SettingsToggleRow(
+                    title: L10n.text("settings.openExternalInNewTab"),
+                    description: L10n.text("settings.openExternalInNewTab.description"),
+                    isOn: $openExternalInNewTab
                 )
             }
 

@@ -521,6 +521,8 @@
 "button.details" = "Details";
 "button.copyDiagnostics" = "Copy Diagnostics";
 "file.openAsArchive" = "Open as Archive";
+"file.openInNewTab" = "Open in New Tab";
+"file.openInNewWindow" = "Open in New Window";
 "diagnostics.copied" = "Diagnostics copied to clipboard.";
 "section.locations" = "Locations";
 "section.favorites" = "Favorites";
@@ -608,6 +610,8 @@
 "settings.confirmBeforeDeletingFiles.description" = "Show a confirmation prompt before selected files are moved to the macOS Trash.";
 "settings.finderOpenAutoExtract" = "Auto-extract when opened from Finder";
 "settings.finderOpenAutoExtract.description" = "When you open an archive from Finder, Services, or another app, extract it to the archive's folder instead of opening the SimpleZip browser. Safety prompts still apply.";
+"settings.openExternalInNewTab" = "Open in a New Tab";
+"settings.openExternalInNewTab.description" = "When you open an archive or folder from Finder while SimpleZip is already running, open it in a new tab. Turn off to reuse the current window instead.";
 "settings.presetPasswordEnabled" = "Use a preset password";
 "settings.presetPasswordEnabled.description" = "Auto-fill the password when creating an encrypted archive, and try this password first when opening or extracting password-protected archives.";
 "settings.presetPassword" = "Preset password";

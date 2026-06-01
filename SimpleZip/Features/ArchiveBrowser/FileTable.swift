@@ -659,6 +659,11 @@ private struct FileNSOutlineView: NSViewRepresentable {
 
             // ① 打开 / 查看
             menu.addItem(menuItem(L10n.text("button.open"), systemImage: "arrow.turn.up.right", action: #selector(openSelected)))
+            // 「在新标签 / 新窗口打开」—— 单选且可浏览（文件夹 / 受支持压缩包 / .siz / .szs）时出现。
+            if model.selectedFileItems.count == 1, let item = model.selectedFileItems.first, canOpenInNewBrowser(item) {
+                menu.addItem(menuItem(L10n.text("file.openInNewTab"), systemImage: "plus.rectangle.on.rectangle", action: #selector(openSelectedInNewTab)))
+                menu.addItem(menuItem(L10n.text("file.openInNewWindow"), systemImage: "macwindow.badge.plus", action: #selector(openSelectedInNewWindow)))
+            }
             // 「打开方式 ▸」—— 选中项不是普通文件夹时出现（文件 / 包都可以）。列出系统注册的可用 App + 末尾「其他…」。
             if let first = model.selectedFileItems.first, !FileBrowserService.isNavigableDirectory(first) {
                 appendOpenWithMenu(to: menu)
@@ -760,6 +765,24 @@ private struct FileNSOutlineView: NSViewRepresentable {
             if let item = model.selectedFileItems.first {
                 model.openAsArchive(item.url)
             }
+        }
+
+        /// 「在新标签 / 新窗口打开」是否适用于该项：可浏览的文件夹、受支持压缩包、或 .siz/.szs。
+        private func canOpenInNewBrowser(_ item: FileItem) -> Bool {
+            if FileBrowserService.isNavigableDirectory(item) { return true }
+            let ext = item.url.pathExtension.lowercased()
+            if ext == SIZArchive.extensionName || ext == SZSArchive.extensionName { return true }
+            return ArchiveService.isSupportedArchive(item.url)
+        }
+
+        @objc private func openSelectedInNewTab() {
+            guard let url = model.selectedFileItems.first?.url else { return }
+            MainWindowFactory.open(asTab: true, openURL: url)
+        }
+
+        @objc private func openSelectedInNewWindow() {
+            guard let url = model.selectedFileItems.first?.url else { return }
+            MainWindowFactory.open(asTab: false, openURL: url)
         }
 
         /// 「打开方式 ▸」子菜单：用 LaunchServices 列出能打开所有选中文件的共同 App（默认 App 排在最前并标注），

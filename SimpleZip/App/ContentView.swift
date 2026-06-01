@@ -12,6 +12,13 @@ import UniformTypeIdentifiers
 /// 主窗口视图：只负责把侧边栏、工具栏、列表和状态栏组合在一起。
 struct ContentView: View {
     @StateObject private var model = ArchiveBrowserModel()
+
+    /// 工厂建窗时传入：窗口/标签出现后在本浏览器里浏览这个 URL（右键「在新标签 / 新窗口打开」用）。
+    private let openURLOnAppear: URL?
+    init(openURLOnAppear: URL? = nil) {
+        self.openURLOnAppear = openURLOnAppear
+    }
+
     @State private var isDropTargeted = false
 
     /// 启动期校验「保存的 startupLocation 当前是否指向不存在的目录」用的弹窗 flag。
@@ -237,6 +244,8 @@ struct ContentView: View {
         .onAppear {
             ExternalFileOpenQueue.shared.drain().forEach(openExternalURL)
             FinderServiceActionQueue.shared.drain().forEach(handleFinderServiceAction)
+            // 右键「在新标签 / 新窗口打开」：工厂把目标 URL 传进来，本浏览器在出现后浏览它（强制浏览，不走自动解压）。
+            if let url = openURLOnAppear { openURLInThisBrowser(url) }
             // 校验保存的 startupLocation 是不是指向一个还活着的目录；
             // 只校验一次 —— 后续窗口大小变化重渲染时不会反复弹。
             if !didCheckStartupLocation {
@@ -443,9 +452,31 @@ struct ContentView: View {
 
         if pending.allSatisfy(opensInFloatWindowOnly) {
             ExternalFileOpenQueue.shared.drain().forEach(openExternalURL)
-        } else {
-            // 浏览类 → 新标签；不在这里 drain，URL 留给新标签 onAppear 的 drain（原子，落到新标签的 model）。
+        } else if AppPreferences.openExternalInNewTab {
+            // 浏览类 + 设置为新标签 → 开新标签；不在这里 drain，URL 留给新标签 onAppear 的 drain（原子，落到新标签的 model）。
             MainWindowFactory.open(asTab: true)
+        } else {
+            // 设置为在当前标签打开 → 复用本窗口，直接 drain 处理。
+            ExternalFileOpenQueue.shared.drain().forEach(openExternalURL)
+        }
+    }
+
+    /// 在「本浏览器」里浏览一个 URL（右键「在新标签 / 新窗口打开」用）——强制浏览语义，**不**走 Finder 自动解压。
+    /// 文件夹 → 进入；`.siz`/`.szs` → 走各自验签流程；受支持压缩包 → 浏览。
+    private func openURLInThisBrowser(_ url: URL) {
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else { return }
+        let ext = url.pathExtension.lowercased()
+        if isDirectory.boolValue && !FileBrowserService.isLocalFilePackage(url) {
+            model.openFolder(url)
+        } else if ext == SIZArchive.extensionName {
+            handleSIZOpen(url)
+        } else if ext == SZSArchive.extensionName {
+            handleSZSOpen(url)
+        } else if ArchiveService.isSupportedArchive(url) {
+            model.openArchiveFromExternal(url)
+        } else {
+            NSWorkspace.shared.open(url)
         }
     }
 
@@ -822,11 +853,15 @@ struct ContentView: View {
     /// 主窗口被 `hideMainWindowIfPossible` orderOut 后，再次显示出来 ——
     /// 用于「.siz 用户确认要打开内层」之类「我们要让用户看到主窗口浏览」的场景。
     ///
-    /// **不要**简单地 orderFront 所有 hidden 窗口 —— SwiftUI 的 Settings scene / Sparkle 更新窗口 / 关于面板
-    /// 在第一次被打开后会作为 hidden NSWindow 留在 `NSApp.windows` 列表里。一并 orderFront 会在用户打开 `.siz`
-    /// 时把 Settings 神秘弹出来，是真实用户反馈过的 bug（v0.1.8）。靠 identifier 子串识别辅助窗口排除。
+    /// **只**把 SimpleZip 的主内容窗口 orderFront，绝不碰其它任何 hidden 窗口。
+    ///
+    /// 用「白名单」（`MainWindow.isMainContentWindow`）而不是旧的「黑名单」（`!isAuxiliaryWindow`）——
+    /// 黑名单只认得 Settings / Sparkle / About，认不出**已关闭的 QLPreviewPanel**（用户关快速查看 = orderOut →
+    /// isVisible=false 的 hidden 窗口）。旧逻辑会把这种 hidden QL 面板一并 orderFront，于是打开 / 测试 `.siz`
+    /// （唯一会调本函数的 app 内入口）就把用户早先关掉的快速查看面板神秘地顶回来。白名单只认我们自己的浏览窗口，
+    /// QL 面板 / 哈希进度面板 / 解压浮窗 / Settings 等一律不动。
     private func ensureMainWindowVisible() {
-        for window in NSApp.windows where !window.isVisible && !Self.isAuxiliaryWindow(window) {
+        for window in NSApp.windows where !window.isVisible && MainWindow.isMainContentWindow(window) {
             // 不强制 makeKey —— 用户已经在跟签名对话框互动，让窗口出现但不抢焦点；NSWindow.orderFront 默认不夺焦。
             window.orderFront(nil)
         }
@@ -844,27 +879,6 @@ struct ContentView: View {
     private func activateForMainWindowOpen() {
         NSApp.activate(ignoringOtherApps: true)
         ensureMainWindowVisible()
-    }
-
-    /// 识别 SwiftUI 的辅助窗口（Settings / Sparkle 更新 / About / **正在 dismissing 的 sheet 等**）。
-    /// 靠 identifier 子串识别 —— locale-independent，也不依赖 SwiftUI / Sparkle 内部 NSWindow 子类。
-    /// 任一关键词命中即视为辅助窗口，`ensureMainWindowVisible` 跳过。
-    private static func isAuxiliaryWindow(_ window: NSWindow) -> Bool {
-        // **sheet 窗口**：parent 指向附属的主窗口。SIZSignatureSheet 等正在 dismissing 时 isVisible 短暂为 false，
-        // 旧版 ensureMainWindowVisible 把它 orderFront 又把刚要关掉的 sheet 拉回来 → 点了「打开」sheet 不消失的 bug。
-        if window.parent != nil { return true }
-        let id = (window.identifier?.rawValue ?? "").lowercased()
-        if id.contains("settings") || id.contains("preferences") { return true }
-        if id.contains("sparkle") || id.contains("update") { return true }
-        if id.contains("about") { return true }
-        // 兜底 title：SwiftUI Settings scene 标题是 OS 本地化的「Settings」/「设置」/「Preferences」/「设定」/「設定」等。
-        let titleLower = window.title.lowercased()
-        let knownAuxTitles: Set<String> = [
-            "settings", "preferences", "设置", "偏好设置", "設定", "設置",
-            "환경설정", "preferencias", "préférences", "einstellungen", "preferenze",
-            "настройки", "การตั้งค่า"
-        ]
-        return knownAuxTitles.contains(window.title) || knownAuxTitles.contains(titleLower)
     }
 
 

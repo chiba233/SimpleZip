@@ -33,16 +33,18 @@ enum MainWindow {
 /// 就 `addTabbedWindow` 把它并进宿主标签组，新窗口从不以独立形态出现 → **零闪烁**；同时能精确区分
 /// 「新标签（并入当前窗口）」和「新窗口（保持独立、绝不被吞成标签）」。
 enum MainWindowFactory {
-    /// 强持有工厂建出的窗口控制器 —— 否则 `open()` 返回后 ARC 立刻释放本地 window，
+    /// 强持有工厂建出的窗口控制器 + 它的关闭观察 token —— 否则 `open()` 返回后 ARC 立刻释放本地 window，
     /// 与 AppKit 的窗口列表 / `isReleasedWhenClosed` 语义打架，触发 `objc_release` 过度释放崩溃。
-    /// 窗口关闭时从这里移除。
-    private static var controllers: [NSWindowController] = []
+    /// 窗口关闭时移除控制器（释放窗口）并注销观察者。token 用 `let` 存进数组、从数组读取注销，
+    /// 避免「var 被 @Sendable 闭包捕获后又赋值」的并发告警。
+    private static var liveWindows: [(controller: NSWindowController, token: NSObjectProtocol)] = []
 
     /// 开一个主窗口。
     /// - asTab == true 且存在主内容窗口宿主：并入它的标签组（同一个窗口里多一个标签，零闪烁）。
     /// - 否则：独立窗口（冷启动 / 「新建窗口」/ 没有可并入的宿主时）。
+    /// - openURL：非空时，新窗口出现后在其浏览器里浏览该 URL（右键「在新标签 / 新窗口打开」用）。
     @discardableResult
-    static func open(asTab: Bool) -> NSWindow {
+    static func open(asTab: Bool, openURL: URL? = nil) -> NSWindow {
         // chrome 复刻 SwiftUI WindowGroup 给 NavigationSplitView 窗口的样式：`.fullSizeContentView`
         // + 透明标题栏 + unified 工具栏 —— 让侧栏材质延伸到顶、侧栏开关并入标题栏。少了 `.fullSizeContentView`
         // 侧栏会从标题栏下方才开始、标题栏区域空一大块（用户反馈「布局炸了」）。
@@ -54,7 +56,7 @@ enum MainWindowFactory {
         )
         // 我们自己用 NSWindowController 管生命周期；关掉 isReleasedWhenClosed 避免和 ARC 双重释放。
         window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: ContentView())
+        window.contentViewController = NSHostingController(rootView: ContentView(openURLOnAppear: openURL))
         window.identifier = MainWindow.windowIdentifier
         window.titlebarAppearsTransparent = true
         window.toolbarStyle = .unified
@@ -64,14 +66,17 @@ enum MainWindowFactory {
 
         // 强持有窗口控制器；窗口关闭时释放，避免泄漏 + 避免悬挂。
         let controller = NSWindowController(window: window)
-        controllers.append(controller)
-        var token: NSObjectProtocol?
-        token = NotificationCenter.default.addObserver(
+        let token = NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification, object: window, queue: .main
         ) { _ in
-            controllers.removeAll { $0.window === window }
-            if let token { NotificationCenter.default.removeObserver(token) }
+            // 从静态数组里找到本窗口的条目：注销观察者 + 移除控制器（→ 窗口释放）。
+            // token 不被闭包捕获（从数组读），规避并发告警。
+            if let index = liveWindows.firstIndex(where: { $0.controller.window === window }) {
+                NotificationCenter.default.removeObserver(liveWindows[index].token)
+                liveWindows.remove(at: index)
+            }
         }
+        liveWindows.append((controller, token))
 
         if asTab, let host = tabHost() {
             // 并入宿主标签组：先 frame 对齐，再 addTabbedWindow，最后才显示 → 窗口从未以独立形态出现 → 零闪烁。

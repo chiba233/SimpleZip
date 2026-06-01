@@ -233,6 +233,11 @@ extension ArchiveBrowserModel {
             // `.siz` 走 ContentView 的专用 handle：unwrap → 签名验证对话框 → 解压到 /tmp → 浏览。
             // 不能走 `NSWorkspace.shared.open`，否则系统按 UTI 把文件转回 SimpleZip 又创建新窗口。
             pendingSIZOpen = item.url
+        } else if item.url.pathExtension.lowercased() == "szs" {
+            // `.szs` 同理走专用 handle（peek manifest → 验签 sheet），在**当前**浏览器里处理。
+            // 之前这里没有 .szs 分支 → 掉进 NSWorkspace.open → 系统按 UTI 把它当外部打开转回来 →
+            // 走 handleRunningExternalOpen 永远开新标签（用户反馈「.szs 固定在新标签打开」的根因）。
+            pendingSZSOpen = item.url
         } else if ArchiveService.isSupportedArchive(item.url) {
             openArchive(item.url)
         } else {
