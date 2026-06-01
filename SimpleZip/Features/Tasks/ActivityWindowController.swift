@@ -33,7 +33,9 @@ final class ActivityWindowController {
         window.title = L10n.text("tasks.window.title")
         window.contentViewController = NSHostingController(rootView: ActivityView(taskCenter: .shared, windowState: windowState))
         window.isReleasedWhenClosed = false
-        window.level = .floating
+        // 普通窗口层级：打开/被点时来到前台，但之后可以被主窗口等正常盖住。
+        // 之前用 `.floating` 让它**任何情况下都钉在最上层**（甚至盖住别的 App），不合理 —— 它是个任务列表窗口，不是 HUD。
+        window.level = .normal
         window.center()
         window.makeKeyAndOrderFront(nil)
         self.window = window
