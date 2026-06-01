@@ -446,6 +446,7 @@ struct ContentView: View {
             ExternalFileOpenQueue.shared.drain().forEach(openExternalURL)
         } else {
             // 浏览类 → 新标签；不在这里 drain，URL 留给新标签 onAppear 的 drain（原子，落到新标签的 model）。
+            MainWindowTabCoordinator.shared.prepareNewTab()
             openWindow(id: MainWindow.windowGroupID)
         }
     }

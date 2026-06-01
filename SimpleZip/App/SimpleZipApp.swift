@@ -92,6 +92,8 @@ struct ArchiveFileCommands: Commands {
             // 「新建标签页」⌘T —— 显示 Home 的全新标签（独立 ArchiveBrowserModel）。
             // 不依赖 model，任何时候都可用（即使当前没有聚焦窗口）。
             Button(L10n.text("menu.newTab")) {
+                // 先记下当前 key 窗口当宿主，再开新窗口 —— 新窗口会被并进宿主的标签组（同一窗口里多一个标签）。
+                MainWindowTabCoordinator.shared.prepareNewTab()
                 openWindow(id: MainWindow.windowGroupID)
             }
             .keyboardShortcut("t", modifiers: [.command])
