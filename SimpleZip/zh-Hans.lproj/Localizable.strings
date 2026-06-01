@@ -1031,6 +1031,8 @@
 /* 0.2.2 — 文件操作撤销/重做 */
 "menu.undo" = "撤销";
 "menu.redo" = "重做";
+"menu.undoNamed" = "撤销 %@";
+"menu.redoNamed" = "重做 %@";
 "undo.action.move" = "移动";
 "undo.action.copy" = "复制";
 "undo.action.rename" = "重命名";

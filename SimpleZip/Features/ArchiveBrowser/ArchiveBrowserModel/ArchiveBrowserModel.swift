@@ -123,6 +123,8 @@ final class ArchiveBrowserModel: ObservableObject {
     /// 本地文件操作（移动 / 粘贴复制 / 创建副本 / 重命名 / 删除）的撤销 / 重做栈。
     /// 各操作成功后注册逆操作（见 +Undo）；逆操作保守执行 —— 源不在 / 目标被占就跳过报错，绝不覆盖用户数据。
     let fileUndoManager = UndoManager()
+    @Published var fileUndoActionName: String?
+    @Published var fileRedoActionName: String?
     /// 当前文件夹的 FSEvents 监视器：内容变化（外部改动 + 本应用自己的增删改 / 重命名）自动刷新列表。
     /// 仅 `.folder` 模式启用，由 `reload()` 统一 watch/stop。引入它后文件操作不再各自手动 reload。
     /// 在 `init()` 里创建（onChange 闭包需要捕获 self）；非 `lazy` —— `lazy` 的隔离初始化器无法在 `deinit` 里访问。

@@ -34,6 +34,7 @@ extension ArchiveBrowserModel {
         fileUndoManager.registerUndo(withTarget: self) { model in
             model.performUndoableMoves(steps, actionName: actionName)
         }
+        refreshUndoActionNames()
     }
 
     /// 粘贴复制 / 创建副本：forward 已把每个 source 复制到 dest。撤销 = 删掉 dest（移到废纸篓）。
@@ -48,6 +49,7 @@ extension ArchiveBrowserModel {
         fileUndoManager.registerUndo(withTarget: self) { model in
             model.performUndoableRemoveCopies(steps, actionName: actionName)
         }
+        refreshUndoActionNames()
     }
 
     /// 删除：forward 已把每个 original 移到了废纸篓的 trashURL。当成移动处理 —— 撤销 = trashURL → original。
@@ -80,6 +82,7 @@ extension ArchiveBrowserModel {
         fileUndoManager.registerUndo(withTarget: self) { model in
             model.performUndoableMoves(done, actionName: actionName)
         }
+        refreshUndoActionNames()
     }
 
     /// 重做一次复制（撤销「删除复制产物」的逆）：把 source 重新复制到 dest。
@@ -109,6 +112,7 @@ extension ArchiveBrowserModel {
         fileUndoManager.registerUndo(withTarget: self) { model in
             model.performUndoableRemoveCopies(done, actionName: actionName)
         }
+        refreshUndoActionNames()
     }
 
     /// 撤销一次复制：把复制产物 dest 移到废纸篓（可恢复、非破坏），然后注册「重新复制」作为重做。
@@ -131,12 +135,33 @@ extension ArchiveBrowserModel {
         fileUndoManager.registerUndo(withTarget: self) { model in
             model.performUndoableCopy(done, actionName: actionName)
         }
+        refreshUndoActionNames()
+    }
+
+    func undoFileOperation() {
+        fileUndoManager.undo()
+        refreshUndoActionNames()
+    }
+
+    func redoFileOperation() {
+        fileUndoManager.redo()
+        refreshUndoActionNames()
+    }
+
+    func refreshUndoActionNames() {
+        fileUndoActionName = fileUndoManager.canUndo ? nonEmptyActionName(fileUndoManager.undoActionName) : nil
+        fileRedoActionName = fileUndoManager.canRedo ? nonEmptyActionName(fileUndoManager.redoActionName) : nil
     }
 
     private func reportUndoSkips(_ count: Int) {
         guard count > 0 else { return }
         // 有步骤因「源已不在 / 目标被占」被跳过 —— 明确告诉用户，不静默、不覆盖。
         errorMessage = L10n.format("undo.partiallySkipped", count)
+    }
+
+    private func nonEmptyActionName(_ actionName: String) -> String? {
+        let trimmed = actionName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 }
 

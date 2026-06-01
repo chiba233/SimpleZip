@@ -236,25 +236,25 @@ struct ArchiveFileCommands: Commands {
             // ⌘Z / ⇧⌘Z：正在编辑文本（地址栏 / 内联重命名）时交给字段编辑器的 undo（撤销打字）；
             // 否则走主窗口的文件操作撤销栈（移动 / 粘贴 / 副本 / 重命名 / 删除）。按真实 first responder
             // 路由，不依赖 isTextInputFocused（内联重命名是 AppKit 字段编辑器，未必被它跟踪）。
-            Button(L10n.text("menu.undo")) {
+            Button(undoMenuTitle) {
                 if let text = NSApp.keyWindow?.firstResponder as? NSText, text.undoManager?.canUndo == true {
                     text.undoManager?.undo()
                 } else {
-                    model?.fileUndoManager.undo()
+                    model?.undoFileOperation()
                 }
             }
             .keyboardShortcut("z", modifiers: [.command])
-            .disabled(model == nil)
+            .disabled(!canUndoMenuItem)
 
-            Button(L10n.text("menu.redo")) {
+            Button(redoMenuTitle) {
                 if let text = NSApp.keyWindow?.firstResponder as? NSText, text.undoManager?.canRedo == true {
                     text.undoManager?.redo()
                 } else {
-                    model?.fileUndoManager.redo()
+                    model?.redoFileOperation()
                 }
             }
             .keyboardShortcut("z", modifiers: [.command, .shift])
-            .disabled(model == nil)
+            .disabled(!canRedoMenuItem)
         }
 
         CommandGroup(replacing: .pasteboard) {
@@ -403,6 +403,38 @@ struct ArchiveFileCommands: Commands {
         }
         return responder.responds(to: #selector(NSText.copy(_:))) &&
             responder.responds(to: #selector(NSText.paste(_:)))
+    }
+
+    private var undoMenuTitle: String {
+        guard !textResponderCanUndo, let actionName = model?.fileUndoActionName else {
+            return L10n.text("menu.undo")
+        }
+        return L10n.format("menu.undoNamed", actionName)
+    }
+
+    private var redoMenuTitle: String {
+        guard !textResponderCanRedo, let actionName = model?.fileRedoActionName else {
+            return L10n.text("menu.redo")
+        }
+        return L10n.format("menu.redoNamed", actionName)
+    }
+
+    private var textResponderCanUndo: Bool {
+        guard let text = NSApp.keyWindow?.firstResponder as? NSText else { return false }
+        return text.undoManager?.canUndo == true
+    }
+
+    private var textResponderCanRedo: Bool {
+        guard let text = NSApp.keyWindow?.firstResponder as? NSText else { return false }
+        return text.undoManager?.canRedo == true
+    }
+
+    private var canUndoMenuItem: Bool {
+        textResponderCanUndo || model?.fileUndoManager.canUndo == true
+    }
+
+    private var canRedoMenuItem: Bool {
+        textResponderCanRedo || model?.fileUndoManager.canRedo == true
     }
 }
 
