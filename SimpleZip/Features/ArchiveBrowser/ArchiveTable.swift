@@ -432,6 +432,10 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
                 let row = outlineView.row(forItem: node)
                 if row >= 0 { indexes.insert(row) }
             }
+            // 保留导航到的分组头行（无 archiveItem、不进选区），否则方向键碰到分组头选区归零、跨不过组。
+            for row in outlineView.selectedRowIndexes where (outlineView.item(atRow: row) as? ArchiveOutlineNode)?.isSection == true {
+                indexes.insert(row)
+            }
             if outlineView.selectedRowIndexes != indexes {
                 DispatchQueue.main.async { [weak self] in
                     guard let self, let outlineView = self.outlineView, outlineView.selectedRowIndexes != indexes else { return }

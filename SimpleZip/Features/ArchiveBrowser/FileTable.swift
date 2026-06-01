@@ -965,6 +965,11 @@ private struct FileNSOutlineView: NSViewRepresentable {
                 let row = outlineView.row(forItem: node)
                 if row >= 0 { indexes.insert(row) }
             }
+            // 保留用户用上下方向键 / 点击导航到的「分组头」行 —— 分组头没有 fileItem、不进 model.selection，
+            // 若不保留，下面的 reapply 会把它清掉：方向键一碰到分组头选择就归零，光标卡在组里跨不过去（用户反馈）。
+            for row in outlineView.selectedRowIndexes where (outlineView.item(atRow: row) as? FileOutlineNode)?.isSection == true {
+                indexes.insert(row)
+            }
             if outlineView.selectedRowIndexes != indexes {
                 DispatchQueue.main.async { [weak self] in
                     guard let self, let outlineView = self.outlineView, outlineView.selectedRowIndexes != indexes else { return }

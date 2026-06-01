@@ -86,6 +86,15 @@ final class ContentDragOutlineView: NSOutlineView, QLPreviewPanelDataSource, QLP
     }
 
     override func keyDown(with event: NSEvent) {
+        // 选中的是「分组头」（可展开项）时，空格 / 回车 → 折叠 / 展开该组。
+        // 用 isExpandable 判定，不依赖具体节点类型（分组头可展开、文件 / 压缩包条目不可展开）。
+        // 左右方向键（123/124）的折叠展开交给 NSOutlineView 默认实现（分组头可选中即可用）。
+        if event.keyCode == 49 || event.keyCode == 36 || event.keyCode == 76 {
+            if selectedRow >= 0, let item = item(atRow: selectedRow), isExpandable(item) {
+                if isItemExpanded(item) { collapseItem(item) } else { expandItem(item) }
+                return
+            }
+        }
         // 49 = 空格 → 快速查看（与 Finder 一致；面板已开时 QL delegate 里再按空格会关）。
         if event.keyCode == 49, presentQuickLook() {
             return
