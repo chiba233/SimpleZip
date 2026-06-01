@@ -160,34 +160,70 @@ struct ActivityView: View {
     }
 
     private var activitySettingsView: some View {
-        Form {
-            Section(L10n.text("tasks.settings.history")) {
-                SettingsControlRow(
-                    title: L10n.text("tasks.settings.historyLimit"),
-                    description: L10n.text("tasks.settings.historyLimit.description")
-                ) {
-                    Stepper(value: $historyLimit, in: 1...500) {
-                        Text(L10n.format("tasks.settings.historyLimit.value", historyLimit))
-                            .frame(minWidth: 80, alignment: .trailing)
+        VStack(alignment: .leading, spacing: 14) {
+            GroupBox(L10n.text("tasks.settings.history")) {
+                VStack(spacing: 10) {
+                    activitySettingsRow(
+                        title: L10n.text("tasks.settings.historyLimit"),
+                        description: L10n.text("tasks.settings.historyLimit.description")
+                    ) {
+                        HStack(spacing: 8) {
+                            Text(L10n.format("tasks.settings.historyLimit.value", historyLimit))
+                                .foregroundStyle(.secondary)
+                                .frame(width: 84, alignment: .trailing)
+                            Stepper("", value: $historyLimit, in: 1...500)
+                                .labelsHidden()
+                        }
+                        .onChange(of: historyLimit) { newValue in
+                            AppPreferences.activityHistoryLimit = newValue
+                            taskCenter.applyHistoryLimitChange()
+                        }
                     }
-                    .onChange(of: historyLimit) { newValue in
-                        AppPreferences.activityHistoryLimit = newValue
-                        taskCenter.applyHistoryLimitChange()
-                    }
-                }
 
-                SettingsActionRow(
-                    title: L10n.text("tasks.settings.clearHistory"),
-                    description: L10n.text("tasks.settings.clearHistory.description"),
-                    systemImage: "trash",
-                    buttonTitle: L10n.text("tasks.settings.clearHistory.button"),
-                    role: .destructive,
-                    isDisabled: taskCenter.history.isEmpty
-                ) {
-                    taskCenter.clearHistory()
+                    Divider()
+
+                    activitySettingsRow(
+                        title: L10n.text("tasks.settings.clearHistory"),
+                        description: L10n.text("tasks.settings.clearHistory.description")
+                    ) {
+                        Button(role: .destructive) {
+                            taskCenter.clearHistory()
+                        } label: {
+                            Label(L10n.text("tasks.settings.clearHistory.button"), systemImage: "trash")
+                                .labelStyle(.titleAndIcon)
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(taskCenter.history.isEmpty)
+                    }
                 }
+                .padding(.top, 4)
             }
+
+            Spacer()
         }
+        .frame(maxWidth: 560, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private func activitySettingsRow<Control: View>(
+        title: String,
+        description: String,
+        @ViewBuilder control: () -> Control
+    ) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.callout)
+                Text(description)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 16)
+
+            control()
+        }
+        .padding(.vertical, 3)
     }
 
     private func sidebarToggleButton(systemImage: String, action: @escaping () -> Void) -> some View {
