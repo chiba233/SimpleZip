@@ -507,8 +507,10 @@ final class ArchiveOperationDetailsSession: ObservableObject, Identifiable {
     @Published var finishedAt: Date?
     @Published var rawOutput = ""
 
-    init(title: String) {
+    init(title: String, rawOutput: String = "", finishedAt: Date? = nil) {
         self.title = title
+        self.rawOutput = rawOutput
+        self.finishedAt = finishedAt
     }
 
     var isRunning: Bool {

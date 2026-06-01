@@ -9,6 +9,9 @@ struct ActivityView: View {
     @ObservedObject var taskCenter: TaskCenter
     @State private var selectedPane = ActivityPane.archive
     @State private var isSidebarVisible = true
+    @State private var archiveFilter = ActivityTaskFilter.all
+    @State private var fileFilter = ActivityTaskFilter.all
+    @AppStorage(AppPreferences.Key.activityHistoryLimit) private var historyLimit = AppPreferences.activityHistoryLimit
 
     var body: some View {
         HStack(spacing: 0) {
@@ -49,7 +52,10 @@ struct ActivityView: View {
                 Text(selectedPane.title)
                     .font(.title2.weight(.semibold))
                 Spacer()
-                if taskCenter.runningCount > 0 {
+                if let category = selectedPane.category {
+                    filterMenu(for: category)
+                }
+                if selectedPane != .settings, taskCenter.runningCount > 0 {
                     Button(L10n.text("tasks.cancelAll")) {
                         taskCenter.cancelAll()
                     }
@@ -57,10 +63,14 @@ struct ActivityView: View {
             }
             .padding(.leading, isSidebarVisible ? 0 : 34)
 
-            List {
-                taskRows(tasks: tasks(in: selectedPane.category))
+            if selectedPane == .settings {
+                activitySettingsView
+            } else if let category = selectedPane.category {
+                List {
+                    taskRows(tasks: filteredTasks(in: category))
+                }
+                .listStyle(.inset)
             }
-            .listStyle(.inset)
         }
         .padding(16)
     }
@@ -83,7 +93,7 @@ struct ActivityView: View {
                 ForEach(ActivityPane.allCases) { pane in
                     ActivityPaneSidebarButton(
                         pane: pane,
-                        count: taskCount(in: pane.category),
+                        count: pane.category.map(taskCount(in:)),
                         isSelected: selectedPane == pane
                     ) {
                         selectedPane = pane
@@ -103,6 +113,81 @@ struct ActivityView: View {
 
     private func taskCount(in category: OperationTask.Category) -> Int {
         tasks(in: category).count
+    }
+
+    private func filteredTasks(in category: OperationTask.Category) -> [OperationTask] {
+        let filter = filter(for: category)
+        return tasks(in: category).filter(filter.includes)
+    }
+
+    private func filter(for category: OperationTask.Category) -> ActivityTaskFilter {
+        switch category {
+        case .archive:
+            return archiveFilter
+        case .fileOperation:
+            return fileFilter
+        }
+    }
+
+    private func setFilter(_ filter: ActivityTaskFilter, for category: OperationTask.Category) {
+        switch category {
+        case .archive:
+            archiveFilter = filter
+        case .fileOperation:
+            fileFilter = filter
+        }
+    }
+
+    private func filterMenu(for category: OperationTask.Category) -> some View {
+        Menu {
+            ForEach(ActivityTaskFilter.allCases) { filter in
+                Button {
+                    setFilter(filter, for: category)
+                } label: {
+                    if self.filter(for: category) == filter {
+                        Label(filter.title, systemImage: "checkmark")
+                    } else {
+                        Text(filter.title)
+                    }
+                }
+            }
+        } label: {
+            Label(filter(for: category).title, systemImage: "line.3.horizontal.decrease.circle")
+                .labelStyle(.titleAndIcon)
+        }
+        .menuStyle(.button)
+        .fixedSize()
+    }
+
+    private var activitySettingsView: some View {
+        Form {
+            Section(L10n.text("tasks.settings.history")) {
+                SettingsControlRow(
+                    title: L10n.text("tasks.settings.historyLimit"),
+                    description: L10n.text("tasks.settings.historyLimit.description")
+                ) {
+                    Stepper(value: $historyLimit, in: 1...500) {
+                        Text(L10n.format("tasks.settings.historyLimit.value", historyLimit))
+                            .frame(minWidth: 80, alignment: .trailing)
+                    }
+                    .onChange(of: historyLimit) { newValue in
+                        AppPreferences.activityHistoryLimit = newValue
+                        taskCenter.applyHistoryLimitChange()
+                    }
+                }
+
+                SettingsActionRow(
+                    title: L10n.text("tasks.settings.clearHistory"),
+                    description: L10n.text("tasks.settings.clearHistory.description"),
+                    systemImage: "trash",
+                    buttonTitle: L10n.text("tasks.settings.clearHistory.button"),
+                    role: .destructive,
+                    isDisabled: taskCenter.history.isEmpty
+                ) {
+                    taskCenter.clearHistory()
+                }
+            }
+        }
     }
 
     private func sidebarToggleButton(systemImage: String, action: @escaping () -> Void) -> some View {
@@ -132,15 +217,18 @@ struct ActivityView: View {
 private enum ActivityPane: CaseIterable, Identifiable, Hashable {
     case archive
     case fileOperation
+    case settings
 
     var id: Self { self }
 
-    var category: OperationTask.Category {
+    var category: OperationTask.Category? {
         switch self {
         case .archive:
             return .archive
         case .fileOperation:
             return .fileOperation
+        case .settings:
+            return nil
         }
     }
 
@@ -150,6 +238,8 @@ private enum ActivityPane: CaseIterable, Identifiable, Hashable {
             return L10n.text("tasks.archiveSection")
         case .fileOperation:
             return L10n.text("tasks.fileSection")
+        case .settings:
+            return L10n.text("tasks.settings")
         }
     }
 
@@ -159,13 +249,15 @@ private enum ActivityPane: CaseIterable, Identifiable, Hashable {
             return "archivebox"
         case .fileOperation:
             return "folder"
+        case .settings:
+            return "gearshape"
         }
     }
 }
 
 private struct ActivityPaneSidebarButton: View {
     let pane: ActivityPane
-    let count: Int
+    let count: Int?
     let isSelected: Bool
     let action: () -> Void
 
@@ -179,7 +271,7 @@ private struct ActivityPaneSidebarButton: View {
                     .font(.callout)
                     .lineLimit(1)
                 Spacer(minLength: 0)
-                if count > 0 {
+                if let count, count > 0 {
                     Text("\(count)")
                         .font(.caption.weight(.medium))
                         .foregroundStyle(.secondary)
@@ -198,6 +290,49 @@ private struct ActivityPaneSidebarButton: View {
         }
         .buttonStyle(.plain)
         .help(pane.title)
+    }
+}
+
+private enum ActivityTaskFilter: CaseIterable, Identifiable, Hashable {
+    case all
+    case running
+    case succeeded
+    case failed
+    case cancelled
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .all:
+            return L10n.text("tasks.filter.all")
+        case .running:
+            return L10n.text("tasks.filter.running")
+        case .succeeded:
+            return L10n.text("tasks.filter.succeeded")
+        case .failed:
+            return L10n.text("tasks.filter.failed")
+        case .cancelled:
+            return L10n.text("tasks.filter.cancelled")
+        }
+    }
+
+    func includes(_ task: OperationTask) -> Bool {
+        switch self {
+        case .all:
+            return true
+        case .running:
+            return task.status.isRunning
+        case .succeeded:
+            if case .succeeded = task.status { return true }
+            return false
+        case .failed:
+            if case .failed = task.status { return true }
+            return false
+        case .cancelled:
+            if case .cancelled = task.status { return true }
+            return false
+        }
     }
 }
 

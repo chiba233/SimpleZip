@@ -314,6 +314,8 @@ enum AppPreferences {
         /// 欢迎助手是否已经完成过一次 —— 控制「首次启动自动弹」逻辑。
         /// 用户从「SimpleZip 菜单 → 重新运行欢迎助手」入口可以重置回 false 让它再弹一次。
         nonisolated static let welcomeAssistantCompleted = "welcomeAssistantCompleted"
+        nonisolated static let activityHistory = "activityHistory"
+        nonisolated static let activityHistoryLimit = "activityHistoryLimit"
 
         // GPG 集成主开关 —— 关 → 创建 / 解压 / 状态徽章里所有 GPG 入口隐藏；设置 pane 始终可见让用户能开它。
         nonisolated static let gpgEnabled = "gpgEnabled"
@@ -343,6 +345,16 @@ enum AppPreferences {
 
     nonisolated static var confirmBeforeDeletingFiles: Bool {
         defaultTrueBool(forKey: Key.confirmBeforeDeletingFiles)
+    }
+
+    nonisolated static var activityHistoryLimit: Int {
+        get {
+            let value = defaults.integer(forKey: Key.activityHistoryLimit)
+            return value > 0 ? min(max(value, 1), 500) : 50
+        }
+        set {
+            defaults.set(min(max(newValue, 1), 500), forKey: Key.activityHistoryLimit)
+        }
     }
 
     nonisolated static var suspiciousPathPolicy: ArchiveSecurityDecision {
