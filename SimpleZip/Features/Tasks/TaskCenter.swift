@@ -67,7 +67,8 @@ final class TaskCenter: ObservableObject {
             detailsSession: detailsSession,
             operationID: operationID
         )
-        active.append(task)
+        // 新任务插到最前：活动中心列表整体「越新越靠上」（历史也是 insert(at: 0)），用户一眼能看到刚建的任务。
+        active.insert(task, at: 0)
         return task
     }
 

@@ -67,10 +67,17 @@ struct ActivityView: View {
             if selectedPane == .settings {
                 activitySettingsView
             } else if let category = selectedPane.category {
-                List {
-                    taskRows(tasks: filteredTasks(in: category))
+                ScrollViewReader { proxy in
+                    List {
+                        taskRows(tasks: filteredTasks(in: category))
+                    }
+                    .listStyle(.inset)
+                    // 新任务插在最前；列表顶部条目变化（= 有新任务）时自动滚到最上，用户不会错过。
+                    .onChange(of: filteredTasks(in: category).first?.id) { newTopID in
+                        guard let newTopID else { return }
+                        withAnimation { proxy.scrollTo(newTopID, anchor: .top) }
+                    }
                 }
-                .listStyle(.inset)
             }
         }
         .padding(16)
@@ -201,7 +208,9 @@ struct ActivityView: View {
 
             Spacer()
         }
-        .frame(maxWidth: 640, maxHeight: .infinity, alignment: .topLeading)
+        // 自适应窗口宽度：填满可用宽度（与任务列表一致），不再固定 640 左对齐留一大片空白。
+        // 行内有 Spacer 把控件顶到右侧，宽窗口也不会有死区。
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private func activitySettingsRow<Control: View>(
@@ -657,7 +666,13 @@ private struct ActivityTaskRow: View {
         if task.hashReport != nil { return true }
         if !task.hashComparisons.isEmpty { return true }
         guard let session = task.detailsSession else { return false }
-        // 真·后端命令（解压/压缩/测试）运行中就允许展开看实时输出；其余只在已有内容时给入口。
+        // 测试：结果就是「通过 / 失败」，成功 / 进行中不必给命令框（图标 + 状态已说明一切，命令输出毫无价值）；
+        // 只有失败才展开看是哪个文件 CRC 出错。
+        if task.kind == .test {
+            if case .failed = task.status { return !session.rawOutput.isEmpty }
+            return false
+        }
+        // 真·后端命令（解压 / 压缩）运行中就允许展开看实时输出；其余只在已有内容时给入口。
         if isBackendCommand, task.status.isRunning { return true }
         return !session.rawOutput.isEmpty
     }
