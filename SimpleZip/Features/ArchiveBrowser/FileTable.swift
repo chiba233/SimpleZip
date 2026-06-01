@@ -726,7 +726,7 @@ private struct FileNSOutlineView: NSViewRepresentable {
             guard let first = urls.first else { return }
             let submenu = NSMenu()
             let defaultAppPath = NSWorkspace.shared.urlForApplication(toOpen: first)?.path
-            for appURL in commonApplicationURLs(toOpen: urls) {
+            for appURL in OpenWithService.commonApplicationURLs(toOpen: urls) {
                 let name = FileManager.default.displayName(atPath: appURL.path)
                 let title = appURL.path == defaultAppPath ? L10n.format("file.openWith.default", name) : name
                 let item = NSMenuItem(title: title, action: #selector(openWithApp(_:)), keyEquivalent: "")
@@ -750,39 +750,15 @@ private struct FileNSOutlineView: NSViewRepresentable {
             menu.addItem(parent)
         }
 
-        private func commonApplicationURLs(toOpen urls: [URL]) -> [URL] {
-            guard let first = urls.first else { return [] }
-            let remainingAppPathSets = urls.dropFirst().map { url in
-                Set(NSWorkspace.shared.urlsForApplications(toOpen: url).map(\.path))
-            }
-            var seen = Set<String>()
-            return NSWorkspace.shared.urlsForApplications(toOpen: first).filter { appURL in
-                let path = appURL.path
-                guard seen.insert(path).inserted else { return false }
-                return remainingAppPathSets.allSatisfy { $0.contains(path) }
-            }
-        }
-
         @objc private func openWithApp(_ sender: NSMenuItem) {
             guard let appURL = sender.representedObject as? URL else { return }
             let urls = model.selectedFileItems.map(\.url)
-            guard !urls.isEmpty else { return }
-            NSWorkspace.shared.open(urls, withApplicationAt: appURL, configuration: NSWorkspace.OpenConfiguration())
+            OpenWithService.open(urls, withApplicationAt: appURL)
         }
 
         @objc private func openWithOtherApp() {
             let urls = model.selectedFileItems.map(\.url)
-            guard !urls.isEmpty else { return }
-            let panel = NSOpenPanel()
-            panel.canChooseFiles = true
-            panel.canChooseDirectories = false
-            panel.allowsMultipleSelection = false
-            panel.allowedContentTypes = [.application]
-            panel.directoryURL = URL(fileURLWithPath: "/Applications")
-            panel.prompt = L10n.text("button.choose")
-            if panel.runModal() == .OK, let appURL = panel.url {
-                NSWorkspace.shared.open(urls, withApplicationAt: appURL, configuration: NSWorkspace.OpenConfiguration())
-            }
+            OpenWithService.chooseApplicationAndOpen(urls)
         }
 
         @objc private func showPackageContents() {
@@ -1035,100 +1011,4 @@ private struct FileNSOutlineView: NSViewRepresentable {
             return NSWorkspace.shared.icon(forFile: item.url.path)
         }
     }
-}
-
-enum FileColumn: String, TableColumnDescriptor {
-    case name
-    case size
-    case type
-    case application
-    case lastOpened
-    case dateAdded
-    case modified
-    case created
-
-    init?(identifier: String) {
-        self.init(rawValue: identifier)
-    }
-
-    var identifier: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .name:
-            return L10n.text("column.name")
-        case .size:
-            return L10n.text("column.size")
-        case .type:
-            return L10n.text("column.kind")
-        case .application:
-            return L10n.text("column.application")
-        case .lastOpened:
-            return L10n.text("column.lastOpened")
-        case .dateAdded:
-            return L10n.text("column.dateAdded")
-        case .modified:
-            return L10n.text("column.modified")
-        case .created:
-            return L10n.text("column.created")
-        }
-    }
-
-    var width: CGFloat {
-        switch self {
-        case .name:
-            return 420
-        case .size:
-            return 110
-        case .type:
-            return 180
-        case .application:
-            return 160
-        case .lastOpened, .dateAdded, .modified, .created:
-            return 170
-        }
-    }
-
-    var minWidth: CGFloat {
-        switch self {
-        case .name:
-            return 240
-        case .size:
-            return 90
-        case .type:
-            return 120
-        case .application:
-            return 120
-        case .lastOpened, .dateAdded, .modified, .created:
-            return 140
-        }
-    }
-
-    func value(for item: FileItem) -> String {
-        switch self {
-        case .name:
-            return item.displayName
-        case .size:
-            return item.size.map { ByteCountFormatter.string(fromByteCount: $0, countStyle: .file) } ?? ""
-        case .type:
-            return item.typeDescription
-        case .application:
-            return item.applicationName
-        case .lastOpened:
-            return item.lastOpened.map(Self.dateFormatter.string(from:)) ?? ""
-        case .dateAdded:
-            return item.dateAdded.map(Self.dateFormatter.string(from:)) ?? ""
-        case .modified:
-            return item.modified.map(Self.dateFormatter.string(from:)) ?? ""
-        case .created:
-            return item.created.map(Self.dateFormatter.string(from:)) ?? ""
-        }
-    }
-
-    private static let dateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        return formatter
-    }()
 }
