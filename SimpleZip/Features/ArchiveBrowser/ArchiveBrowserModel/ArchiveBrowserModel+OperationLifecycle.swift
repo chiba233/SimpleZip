@@ -203,7 +203,7 @@ extension ArchiveBrowserModel {
         )
         operationTask.progress = ArchiveProgressState(fraction: 0, currentFile: nil)
         if showsDetails {
-            ActivityWindowController.shared.show()
+            ActivityWindowController.shared.show(category: .archive)
         }
 
         let progressCoalescer = ProgressCoalescer { [weak operationTask] progress in

@@ -11,8 +11,13 @@ final class ActivityWindowController {
     static let shared = ActivityWindowController()
 
     private var window: NSWindow?
+    private let windowState = ActivityWindowState()
 
-    func show() {
+    func show(category: OperationTask.Category? = nil) {
+        if let category {
+            windowState.select(category: category)
+        }
+
         if let window {
             NSApp.activate(ignoringOtherApps: true)
             window.makeKeyAndOrderFront(nil)
@@ -26,7 +31,7 @@ final class ActivityWindowController {
             defer: false
         )
         window.title = L10n.text("tasks.window.title")
-        window.contentViewController = NSHostingController(rootView: ActivityView(taskCenter: .shared))
+        window.contentViewController = NSHostingController(rootView: ActivityView(taskCenter: .shared, windowState: windowState))
         window.isReleasedWhenClosed = false
         window.level = .floating
         window.center()

@@ -3,11 +3,12 @@
 //  SimpleZip
 //
 
+import Combine
 import SwiftUI
 
 struct ActivityView: View {
     @ObservedObject var taskCenter: TaskCenter
-    @State private var selectedPane = ActivityPane.archive
+    @ObservedObject var windowState: ActivityWindowState
     @State private var isSidebarVisible = true
     @State private var archiveFilter = ActivityTaskFilter.all
     @State private var fileFilter = ActivityTaskFilter.all
@@ -96,7 +97,7 @@ struct ActivityView: View {
                         count: pane.category.map(taskCount(in:)),
                         isSelected: selectedPane == pane
                     ) {
-                        selectedPane = pane
+                        windowState.selectedPane = pane
                     }
                 }
 
@@ -160,48 +161,47 @@ struct ActivityView: View {
     }
 
     private var activitySettingsView: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            GroupBox(L10n.text("tasks.settings.history")) {
-                VStack(spacing: 10) {
-                    activitySettingsRow(
-                        title: L10n.text("tasks.settings.historyLimit"),
-                        description: L10n.text("tasks.settings.historyLimit.description")
-                    ) {
-                        HStack(spacing: 8) {
-                            Text(L10n.format("tasks.settings.historyLimit.value", historyLimit))
-                                .foregroundStyle(.secondary)
-                                .frame(width: 84, alignment: .trailing)
-                            Stepper("", value: $historyLimit, in: 1...500)
-                                .labelsHidden()
-                        }
-                        .onChange(of: historyLimit) { newValue in
-                            AppPreferences.activityHistoryLimit = newValue
-                            taskCenter.applyHistoryLimitChange()
-                        }
-                    }
+        VStack(alignment: .leading, spacing: 0) {
+            Text(L10n.text("tasks.settings.history"))
+                .font(.headline)
+                .padding(.bottom, 8)
 
-                    Divider()
-
-                    activitySettingsRow(
-                        title: L10n.text("tasks.settings.clearHistory"),
-                        description: L10n.text("tasks.settings.clearHistory.description")
-                    ) {
-                        Button(role: .destructive) {
-                            taskCenter.clearHistory()
-                        } label: {
-                            Label(L10n.text("tasks.settings.clearHistory.button"), systemImage: "trash")
-                                .labelStyle(.titleAndIcon)
-                        }
-                        .buttonStyle(.bordered)
-                        .disabled(taskCenter.history.isEmpty)
-                    }
+            activitySettingsRow(
+                title: L10n.text("tasks.settings.historyLimit"),
+                description: L10n.text("tasks.settings.historyLimit.description")
+            ) {
+                HStack(spacing: 8) {
+                    Text(L10n.format("tasks.settings.historyLimit.value", historyLimit))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 84, alignment: .trailing)
+                    Stepper("", value: $historyLimit, in: 1...500)
+                        .labelsHidden()
                 }
-                .padding(.top, 4)
+                .onChange(of: historyLimit) { newValue in
+                    AppPreferences.activityHistoryLimit = newValue
+                    taskCenter.applyHistoryLimitChange()
+                }
+            }
+
+            Divider()
+
+            activitySettingsRow(
+                title: L10n.text("tasks.settings.clearHistory"),
+                description: L10n.text("tasks.settings.clearHistory.description")
+            ) {
+                Button(role: .destructive) {
+                    taskCenter.clearHistory()
+                } label: {
+                    Label(L10n.text("tasks.settings.clearHistory.button"), systemImage: "trash")
+                        .labelStyle(.titleAndIcon)
+                }
+                .buttonStyle(.bordered)
+                .disabled(taskCenter.history.isEmpty)
             }
 
             Spacer()
         }
-        .frame(maxWidth: 560, maxHeight: .infinity, alignment: .topLeading)
+        .frame(maxWidth: 640, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private func activitySettingsRow<Control: View>(
@@ -248,14 +248,27 @@ struct ActivityView: View {
             }
         }
     }
+
+    private var selectedPane: ActivityPane {
+        windowState.selectedPane
+    }
 }
 
-private enum ActivityPane: CaseIterable, Identifiable, Hashable {
+enum ActivityPane: CaseIterable, Identifiable, Hashable {
     case archive
     case fileOperation
     case settings
 
     var id: Self { self }
+
+    static func pane(for category: OperationTask.Category) -> ActivityPane {
+        switch category {
+        case .archive:
+            return .archive
+        case .fileOperation:
+            return .fileOperation
+        }
+    }
 
     var category: OperationTask.Category? {
         switch self {
@@ -288,6 +301,15 @@ private enum ActivityPane: CaseIterable, Identifiable, Hashable {
         case .settings:
             return "gearshape"
         }
+    }
+}
+
+@MainActor
+final class ActivityWindowState: ObservableObject {
+    @Published var selectedPane = ActivityPane.archive
+
+    func select(category: OperationTask.Category) {
+        selectedPane = ActivityPane.pane(for: category)
     }
 }
 
@@ -378,34 +400,29 @@ private struct ActivityTaskRow: View {
     @State private var showsCopiedConfirmation = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 12) {
                 Image(systemName: iconName)
+                    .font(.system(size: 15, weight: .medium))
                     .foregroundStyle(iconColor)
-                    .frame(width: 18)
-                VStack(alignment: .leading, spacing: 2) {
+                    .frame(width: 24, height: 24)
+                    .background(iconColor.opacity(0.12), in: Circle())
+
+                VStack(alignment: .leading, spacing: 3) {
                     Text(task.title)
+                        .font(.callout.weight(.semibold))
                         .lineLimit(1)
                         .truncationMode(.middle)
                     Text(statusText)
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                        .lineLimit(2)
                         .truncationMode(.middle)
                 }
+
                 Spacer()
-                if task.status.isRunning, task.cancel != nil {
-                    Button(L10n.text("button.cancel")) {
-                        task.cancel?()
-                    }
-                    .buttonStyle(.borderless)
-                }
-                if task.detailsSession != nil {
-                    Button(L10n.text("button.details")) {
-                        isShowingDetails.toggle()
-                    }
-                    .buttonStyle(.borderless)
-                }
+
+                trailingControls
             }
 
             if task.status.isRunning {
@@ -418,20 +435,23 @@ private struct ActivityTaskRow: View {
             }
 
             if isShowingDetails, let session = task.detailsSession {
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 7) {
                     HStack {
                         Text(L10n.text("details.commandOutput"))
                             .font(.caption.weight(.semibold))
                         Spacer()
-                        Button(L10n.text("button.copyDiagnostics")) {
+                        Button {
                             Task {
                                 await DiagnosticsCopier.copy(session: session, errorMessage: errorMessage)
                                 withAnimation { showsCopiedConfirmation = true }
                                 try? await Task.sleep(nanoseconds: 2_500_000_000)
                                 withAnimation { showsCopiedConfirmation = false }
                             }
+                        } label: {
+                            Image(systemName: "doc.on.doc")
                         }
                         .buttonStyle(.borderless)
+                        .help(L10n.text("button.copyDiagnostics"))
                     }
                     if showsCopiedConfirmation {
                         Text(L10n.text("diagnostics.copied"))
@@ -439,7 +459,7 @@ private struct ActivityTaskRow: View {
                             .foregroundStyle(.secondary)
                     }
                     CommandOutputLogView(text: session.rawOutput.isEmpty ? L10n.text("details.waiting") : session.rawOutput)
-                        .frame(height: 180)
+                        .frame(height: 142)
                         .clipShape(RoundedRectangle(cornerRadius: 6))
                         .overlay(
                             RoundedRectangle(cornerRadius: 6)
@@ -448,7 +468,32 @@ private struct ActivityTaskRow: View {
                 }
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 8)
+    }
+
+    @ViewBuilder
+    private var trailingControls: some View {
+        HStack(spacing: 6) {
+            if task.status.isRunning, task.cancel != nil {
+                Button {
+                    task.cancel?()
+                } label: {
+                    Image(systemName: "xmark.circle")
+                }
+                .buttonStyle(.borderless)
+                .help(L10n.text("button.cancel"))
+            }
+            if task.detailsSession != nil {
+                Button {
+                    isShowingDetails.toggle()
+                } label: {
+                    Image(systemName: isShowingDetails ? "chevron.up.circle" : "info.circle")
+                }
+                .buttonStyle(.borderless)
+                .help(L10n.text("button.details"))
+            }
+        }
+        .foregroundStyle(.secondary)
     }
 
     private var iconName: String {

@@ -26,6 +26,10 @@ final class TaskCenter: ObservableObject {
         active.count
     }
 
+    var primaryActiveCategory: OperationTask.Category? {
+        active.first?.category
+    }
+
     var aggregateFraction: Double? {
         let fractions = active.compactMap(\.progress.fraction)
         guard !fractions.isEmpty else { return nil }

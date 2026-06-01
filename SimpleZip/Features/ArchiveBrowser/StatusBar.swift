@@ -46,7 +46,7 @@ struct StatusBar: View {
             // 右侧固定操作区：详情（有 session 时）+ 取消（运行中且可取消）+ 后端能力提示。
             if taskCenter.runningCount > 0 {
                 Button(L10n.text("button.details")) {
-                    ActivityWindowController.shared.show()
+                    ActivityWindowController.shared.show(category: taskCenter.primaryActiveCategory)
                 }
                 .buttonStyle(.borderless)
                 Button(L10n.text("tasks.cancelAll")) {
