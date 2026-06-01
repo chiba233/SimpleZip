@@ -499,6 +499,12 @@ struct ToolsCommands: Commands {
 
     var body: some Commands {
         CommandMenu(L10n.text("menu.tools")) {
+            Button(L10n.text("menu.activityCenter")) {
+                ActivityWindowController.shared.show()
+            }
+
+            Divider()
+
             Button(L10n.text("button.benchmark")) {
                 model?.showSevenZipBenchmarkOptions()
             }

@@ -34,11 +34,19 @@ extension ArchiveBrowserModel {
     func pasteFiles() {
         guard case .folder(let folderURL) = mode, let fileClipboard, !fileClipboard.urls.isEmpty else { return }
 
-        startOperationTask { [weak self] in
-            guard let self else { return }
-            isWorking = true
+        let operationTask = beginFileTask(
+            kind: fileClipboard.shouldMove ? .move : .paste,
+            title: L10n.text("status.pasting"),
+            total: fileClipboard.urls.count,
+            cancellable: true
+        )
+        var swiftTask: Task<Void, Never>?
+        operationTask.cancel = {
+            swiftTask?.cancel()
+        }
+        swiftTask = Task { @MainActor [weak self, weak operationTask] in
+            guard let self, let operationTask else { return }
             status = L10n.text("status.pasting")
-            operationProgress = ArchiveProgressState(fraction: 0, currentFile: nil, completedUnitCount: 0, totalUnitCount: fileClipboard.urls.count)
             var undoPairs: [(URL, URL)] = []
             var completed = false
             defer {
@@ -46,27 +54,37 @@ extension ArchiveBrowserModel {
                 if fileClipboard.shouldMove, completed || !undoPairs.isEmpty {
                     self.fileClipboard = nil
                 }
-                isWorking = false
-                operationProgress = ArchiveProgressState()
             }
 
             do {
                 let total = max(1, fileClipboard.urls.count)
                 let conflictSession = extractionCoordinator.makeConflictResolutionSession()
                 for (index, url) in fileClipboard.urls.enumerated() {
-                    operationProgress = ArchiveProgressState(
+                    try Task.checkCancellation()
+                    updateFileTask(
+                        operationTask,
+                        progress: ArchiveProgressState(
                         fraction: Double(index) / Double(total),
                         currentFile: url.lastPathComponent,
                         completedUnitCount: index + 1,
                         totalUnitCount: total
+                        )
                     )
                     let requestedTargetURL = folderURL.appendingPathComponent(url.lastPathComponent)
                     let targetURL = try await extractionCoordinator.resolveDestination(
                         for: url,
                         requestedTargetURL: requestedTargetURL,
                         defaultOverwriteBehavior: AppPreferences.overwriteBehavior,
-                        updateStatus: { [weak self] status in self?.status = status },
-                        updateProgress: { [weak self] progress in self?.operationProgress = progress },
+                        updateStatus: { [weak operationTask] status in
+                            guard let operationTask else { return }
+                            operationTask.progress = ArchiveProgressState(fraction: nil, currentFile: nil, statusText: status)
+                            TaskCenter.shared.notifyTaskChanged()
+                        },
+                        updateProgress: { [weak operationTask] progress in
+                            guard let operationTask else { return }
+                            operationTask.progress = progress
+                            TaskCenter.shared.notifyTaskChanged()
+                        },
                         conflictSession: conflictSession
                     )
                     guard let targetURL else { continue }
@@ -81,12 +99,21 @@ extension ArchiveBrowserModel {
                 }
                 extractionCoordinator.finishConflictResolutionSession(conflictSession)
                 completed = true
-                operationProgress = ArchiveProgressState(fraction: 1, currentFile: nil, completedUnitCount: total, totalUnitCount: total)
+                updateFileTask(
+                    operationTask,
+                    progress: ArchiveProgressState(fraction: 1, currentFile: nil, statusText: L10n.text("status.done"), completedUnitCount: total, totalUnitCount: total)
+                )
+                TaskCenter.shared.finish(operationTask, outcome: .succeeded(nil))
                 SystemSound.operationComplete?.play()
                 // 刷新交给 FolderWatcher：写入当前文件夹会触发 FSEvents 自动 reload。
+            } catch is CancellationError {
+                errorMessage = nil
+                status = L10n.text("status.cancelled")
+                TaskCenter.shared.finish(operationTask, outcome: .cancelled)
             } catch {
                 errorMessage = error.localizedDescription
                 status = L10n.text("status.failed")
+                TaskCenter.shared.finish(operationTask, outcome: .failed(error.localizedDescription))
             }
         }
     }
@@ -126,10 +153,12 @@ extension ArchiveBrowserModel {
         do {
             try fileManager.moveItem(at: item.url, to: target)
             registerMoveUndo([(from: item.url, to: target)], actionName: L10n.text("undo.action.rename"))
+            recordInstantFileTask(kind: .rename, title: L10n.format("tasks.renameItem", oldName))
             // 刷新交给 FolderWatcher：同目录改名会触发 FSEvents 自动 reload。
         } catch {
             errorMessage = error.localizedDescription
             status = L10n.text("status.failed")
+            recordInstantFileTask(kind: .rename, title: L10n.format("tasks.renameItem", oldName), outcome: .failed(error.localizedDescription))
         }
     }
 
@@ -163,10 +192,12 @@ extension ArchiveBrowserModel {
             }
             // trashItem 自身不出声，显式播放 Finder「移到废纸篓」音效（whoosh + 落下，一次播放）。
             SystemSound.moveToTrash?.play()
+            recordInstantFileTask(kind: .delete, title: L10n.format("tasks.deleteCount", trashed.count))
             // 刷新交给 FolderWatcher：从当前文件夹移除条目会触发 FSEvents 自动 reload。
         } catch {
             errorMessage = error.localizedDescription
             status = L10n.text("status.failed")
+            recordInstantFileTask(kind: .delete, title: L10n.format("tasks.deleteCount", selectedFileItems.count), outcome: .failed(error.localizedDescription))
         }
     }
 
@@ -185,9 +216,11 @@ extension ArchiveBrowserModel {
                 copies.append((source: item.url, dest: dest))
             }
             SystemSound.operationComplete?.play()
+            recordInstantFileTask(kind: .duplicate, title: L10n.format("tasks.duplicateCount", copies.count))
         } catch {
             errorMessage = error.localizedDescription
             status = L10n.text("status.failed")
+            recordInstantFileTask(kind: .duplicate, title: L10n.format("tasks.duplicateCount", selectedFileItems.count), outcome: .failed(error.localizedDescription))
         }
     }
 
@@ -229,17 +262,23 @@ extension ArchiveBrowserModel {
 
     func dropFileURLs(_ urls: [URL], to destinationFolder: URL, shouldMove: Bool) {
         guard !urls.isEmpty else { return }
-        startOperationTask(cancellable: true) { [weak self] in
-            guard let self else { return }
-            isWorking = true
+        let operationTask = beginFileTask(
+            kind: shouldMove ? .move : .copy,
+            title: shouldMove ? L10n.text("status.movingFiles") : L10n.text("status.copyingFiles"),
+            total: urls.count,
+            cancellable: true
+        )
+        var swiftTask: Task<Void, Never>?
+        operationTask.cancel = {
+            swiftTask?.cancel()
+        }
+        swiftTask = Task { @MainActor [weak self, weak operationTask] in
+            guard let self, let operationTask else { return }
             errorMessage = nil
             status = shouldMove ? L10n.text("status.movingFiles") : L10n.text("status.copyingFiles")
-            operationProgress = ArchiveProgressState(fraction: 0, currentFile: nil, completedUnitCount: 0, totalUnitCount: urls.count)
             var undoPairs: [(URL, URL)] = []
             defer {
                 registerTransferUndo(undoPairs, shouldMove: shouldMove)
-                isWorking = false
-                operationProgress = ArchiveProgressState()
             }
 
             do {
@@ -247,11 +286,14 @@ extension ArchiveBrowserModel {
                 let conflictSession = extractionCoordinator.makeConflictResolutionSession()
                 for (index, url) in urls.enumerated() {
                     try Task.checkCancellation()
-                    operationProgress = ArchiveProgressState(
+                    updateFileTask(
+                        operationTask,
+                        progress: ArchiveProgressState(
                         fraction: Double(index) / Double(total),
                         currentFile: url.lastPathComponent,
                         completedUnitCount: index + 1,
                         totalUnitCount: total
+                        )
                     )
                     if shouldMove && url.deletingLastPathComponent().standardizedFileURL == destinationFolder.standardizedFileURL {
                         continue
@@ -261,8 +303,16 @@ extension ArchiveBrowserModel {
                         for: url,
                         requestedTargetURL: requestedTargetURL,
                         defaultOverwriteBehavior: AppPreferences.overwriteBehavior,
-                        updateStatus: { [weak self] status in self?.status = status },
-                        updateProgress: { [weak self] progress in self?.operationProgress = progress },
+                        updateStatus: { [weak operationTask] status in
+                            guard let operationTask else { return }
+                            operationTask.progress = ArchiveProgressState(fraction: nil, currentFile: nil, statusText: status)
+                            TaskCenter.shared.notifyTaskChanged()
+                        },
+                        updateProgress: { [weak operationTask] progress in
+                            guard let operationTask else { return }
+                            operationTask.progress = progress
+                            TaskCenter.shared.notifyTaskChanged()
+                        },
                         conflictSession: conflictSession
                     )
                     guard let targetURL else { continue }
@@ -275,18 +325,65 @@ extension ArchiveBrowserModel {
                     extractionCoordinator.showPendingHashOverwriteResult(for: targetURL)
                 }
                 extractionCoordinator.finishConflictResolutionSession(conflictSession)
-                operationProgress = ArchiveProgressState(fraction: 1, currentFile: nil, completedUnitCount: total, totalUnitCount: total)
+                updateFileTask(
+                    operationTask,
+                    progress: ArchiveProgressState(fraction: 1, currentFile: nil, statusText: L10n.text("status.done"), completedUnitCount: total, totalUnitCount: total)
+                )
                 status = L10n.text("status.done")
+                TaskCenter.shared.finish(operationTask, outcome: .succeeded(nil))
                 SystemSound.operationComplete?.play()
                 // 刷新交给 FolderWatcher：拖入 / 拖出当前文件夹都会触发 FSEvents 自动 reload，
                 // 不必再手动判断 destination 是否等于当前目录。
             } catch is CancellationError {
                 errorMessage = nil
                 status = L10n.text("status.cancelled")
+                TaskCenter.shared.finish(operationTask, outcome: .cancelled)
             } catch {
                 errorMessage = error.localizedDescription
                 status = L10n.text("status.failed")
+                TaskCenter.shared.finish(operationTask, outcome: .failed(error.localizedDescription))
             }
+        }
+    }
+
+    private func beginFileTask(kind: OperationTask.Kind, title: String, total: Int, cancellable: Bool) -> OperationTask {
+        let task = TaskCenter.shared.begin(category: .fileOperation, kind: kind, title: title, cancellable: cancellable)
+        task.progress = ArchiveProgressState(
+            fraction: total > 0 ? 0 : 1,
+            currentFile: nil,
+            statusText: title,
+            completedUnitCount: 0,
+            totalUnitCount: total
+        )
+        TaskCenter.shared.notifyTaskChanged()
+        return task
+    }
+
+    private func updateFileTask(_ task: OperationTask, progress: ArchiveProgressState) {
+        task.progress = progress
+        TaskCenter.shared.notifyTaskChanged()
+    }
+
+    private func recordInstantFileTask(
+        kind: OperationTask.Kind,
+        title: String,
+        outcome: OperationTask.Status = .succeeded(nil)
+    ) {
+        let task = TaskCenter.shared.begin(category: .fileOperation, kind: kind, title: title, cancellable: false)
+        task.progress = ArchiveProgressState(fraction: 1, currentFile: nil, statusText: statusText(for: outcome))
+        TaskCenter.shared.finish(task, outcome: outcome)
+    }
+
+    private func statusText(for outcome: OperationTask.Status) -> String {
+        switch outcome {
+        case .running:
+            return L10n.text("tasks.running")
+        case .succeeded:
+            return L10n.text("status.done")
+        case .failed(let message):
+            return message
+        case .cancelled:
+            return L10n.text("status.cancelled")
         }
     }
 

@@ -525,6 +525,9 @@
 "tasks.archiveSection" = "Archive Operations";
 "tasks.fileSection" = "File Operations";
 "tasks.empty" = "No tasks";
+"tasks.renameItem" = "Rename %@";
+"tasks.deleteCount" = "Delete %d items";
+"tasks.duplicateCount" = "Duplicate %d items";
 "status.backend" = "ZIP native | 7Z via 7zz";
 "type.folder" = "Folder";
 "type.file" = "File";
@@ -532,6 +535,7 @@
 "button.ok" = "OK";
 "button.details" = "Details";
 "button.copyDiagnostics" = "Copy Diagnostics";
+"button.activityCenter" = "Activity";
 "file.openAsArchive" = "Open as Archive";
 "file.openInNewTab" = "Open in New Tab";
 "file.openInNewWindow" = "Open in New Window";
@@ -583,6 +587,7 @@
 "column.attributes" = "Attributes";
 "menu.aboutSimpleZip" = "About SimpleZip";
 "menu.tools" = "Tools";
+"menu.activityCenter" = "Activity Center";
 "about.description" = "A native macOS archive utility — create, extract, browse, encrypt, hash, and mount DMGs without leaving Finder.";
 "about.projectPage" = "Project Page";
 "about.license" = "MIT License";

@@ -8,7 +8,7 @@ import Foundation
 
 @MainActor
 final class OperationTask: ObservableObject, Identifiable {
-    enum Category {
+    enum Category: Hashable {
         case fileOperation
         case archive
     }

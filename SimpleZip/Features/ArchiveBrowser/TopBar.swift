@@ -11,6 +11,7 @@ import AppKit
 /// 顶部工具栏：提供添加、解压、测试、哈希、打开和定位等常用操作。
 struct TopBar: View {
     @ObservedObject var model: ArchiveBrowserModel
+    @ObservedObject private var taskCenter = TaskCenter.shared
     @State private var pathText = ""
     @State private var locationCompletions: [LocationCompletion] = []
     @State private var isShowingLocationCompletions = false
@@ -27,9 +28,19 @@ struct TopBar: View {
                 ToolButton(title: L10n.text("button.open"), systemImage: "folder.badge.gearshape", action: model.chooseFolder)
                 ToolButton(title: L10n.text("button.reveal"), systemImage: "arrow.up.forward.app", action: model.revealInFinder)
 
+                Divider()
+                    .frame(height: 54)
+                    .padding(.horizontal, 8)
+
+                ToolButton(
+                    title: L10n.text("button.activityCenter"),
+                    systemImage: "list.bullet.rectangle",
+                    action: { ActivityWindowController.shared.show() }
+                )
+
                 Spacer()
 
-                if model.isWorking {
+                if taskCenter.runningCount > 0 || model.isWorking {
                     ProgressView()
                         .controlSize(.small)
                 }

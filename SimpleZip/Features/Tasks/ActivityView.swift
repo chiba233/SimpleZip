@@ -7,6 +7,7 @@ import SwiftUI
 
 struct ActivityView: View {
     @ObservedObject var taskCenter: TaskCenter
+    @State private var selectedCategory: OperationTask.Category = .archive
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -21,15 +22,18 @@ struct ActivityView: View {
                 }
             }
 
+            Picker("", selection: $selectedCategory) {
+                Text(L10n.text("tasks.archiveSection"))
+                    .tag(OperationTask.Category.archive)
+                Text(L10n.text("tasks.fileSection"))
+                    .tag(OperationTask.Category.fileOperation)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .frame(maxWidth: 320)
+
             List {
-                taskSection(
-                    title: L10n.text("tasks.archiveSection"),
-                    tasks: tasks(in: .archive)
-                )
-                taskSection(
-                    title: L10n.text("tasks.fileSection"),
-                    tasks: tasks(in: .fileOperation)
-                )
+                taskRows(tasks: tasks(in: selectedCategory))
             }
             .listStyle(.inset)
         }
@@ -42,15 +46,13 @@ struct ActivityView: View {
     }
 
     @ViewBuilder
-    private func taskSection(title: String, tasks: [OperationTask]) -> some View {
-        Section(title) {
-            if tasks.isEmpty {
-                Text(L10n.text("tasks.empty"))
-                    .foregroundStyle(.secondary)
-            } else {
-                ForEach(tasks) { task in
-                    ActivityTaskRow(task: task)
-                }
+    private func taskRows(tasks: [OperationTask]) -> some View {
+        if tasks.isEmpty {
+            Text(L10n.text("tasks.empty"))
+                .foregroundStyle(.secondary)
+        } else {
+            ForEach(tasks) { task in
+                ActivityTaskRow(task: task)
             }
         }
     }

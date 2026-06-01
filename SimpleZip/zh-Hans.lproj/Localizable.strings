@@ -523,6 +523,9 @@
 "tasks.archiveSection" = "归档操作";
 "tasks.fileSection" = "文件操作";
 "tasks.empty" = "无任务";
+"tasks.renameItem" = "重命名 %@";
+"tasks.deleteCount" = "删除 %d 项";
+"tasks.duplicateCount" = "创建 %d 个副本";
 "status.backend" = "原生 ZIP | 7Z 通过 7zz";
 "type.folder" = "文件夹";
 "type.file" = "文件";
@@ -530,6 +533,7 @@
 "button.ok" = "确定";
 "button.details" = "详情";
 "button.copyDiagnostics" = "复制诊断信息";
+"button.activityCenter" = "活动中心";
 "file.openAsArchive" = "以压缩包打开";
 "file.openInNewTab" = "在新标签页打开";
 "file.openInNewWindow" = "在新窗口打开";
@@ -581,6 +585,7 @@
 "column.attributes" = "属性";
 "menu.aboutSimpleZip" = "关于 SimpleZip";
 "menu.tools" = "工具";
+"menu.activityCenter" = "活动中心";
 "about.description" = "macOS 原生压缩包工具 —— 创建、解压、浏览、加密、哈希、挂载 DMG，全部在 Finder 风格的窗口内完成。";
 "about.projectPage" = "项目主页";
 "about.license" = "MIT 许可证";
