@@ -1087,6 +1087,10 @@ private struct FileNSOutlineView: NSViewRepresentable {
 
         func applySelection() {
             guard let outlineView else { return }
+            // 内联重命名进行中：**不要**回灌选区。selectRowIndexes 会结束正在编辑的字段编辑器，
+            // 让刚弹出的新建文件 / 文件夹输入框瞬间消失。外部 FSEvents 刷新会按 URL 重映射 selection（id 全是新 UUID、
+            // 集合内容必变），于是每次都触发 applySelection → 百分百拆掉编辑。编辑结束后的 updateNSView 会再正常同步。
+            if renamingItem != nil { return }
             // 用户正按着鼠标（橡皮筋框选 / 拖动中）时，**不要**把 model.selection 回灌到表上：
             // 框选每一帧都 表→model→SwiftUI→updateNSView→applySelection，此时 model.selection 比 live 选区滞后一拍，
             // selectRowIndexes 会把选区猛拽回旧值 → 闪烁 / 疯狂抽搐。松手后下一次 updateNSView（按钮已抬起）再正常同步。
