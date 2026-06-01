@@ -890,6 +890,8 @@
 "details.outputEarlierOmitted" = "... Earlier output omitted";
 "file.copy" = "Copy";
 "file.cut" = "Cut";
+"file.group.copyAll" = "Copy All Files in Group";
+"file.group.cutAll" = "Cut All Files in Group";
 "file.paste" = "Paste";
 "file.selectAll" = "Select All";
 "file.moveTo" = "Move To...";

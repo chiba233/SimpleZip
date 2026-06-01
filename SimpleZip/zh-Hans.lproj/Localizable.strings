@@ -868,6 +868,8 @@
 "details.outputEarlierOmitted" = "...（更早的输出已省略）";
 "file.copy" = "复制";
 "file.cut" = "剪切";
+"file.group.copyAll" = "复制分组内全部文件";
+"file.group.cutAll" = "剪切分组内全部文件";
 "file.paste" = "粘贴";
 "file.selectAll" = "全选";
 "file.moveTo" = "移动到...";

@@ -13,12 +13,22 @@ import Foundation
 extension ArchiveBrowserModel {
     func copySelectedFiles() {
         guard case .folder = mode else { return }
-        fileClipboard = (selectedFileItems.map(\.url), false)
+        copyFileURLs(selectedFileItems.map(\.url))
     }
 
     func cutSelectedFiles() {
         guard case .folder = mode else { return }
-        fileClipboard = (selectedFileItems.map(\.url), true)
+        cutFileURLs(selectedFileItems.map(\.url))
+    }
+
+    func copyFileURLs(_ urls: [URL]) {
+        guard case .folder = mode, !urls.isEmpty else { return }
+        fileClipboard = (urls, false)
+    }
+
+    func cutFileURLs(_ urls: [URL]) {
+        guard case .folder = mode, !urls.isEmpty else { return }
+        fileClipboard = (urls, true)
     }
 
     func pasteFiles() {

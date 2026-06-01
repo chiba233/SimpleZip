@@ -213,6 +213,7 @@ private struct FileNSOutlineView: NSViewRepresentable {
         private var lastConfigSignature: String?
         // 上次真正 reloadData 时的「内容指纹」。选区变化不改它 → 跳过 reload，避免橡皮筋复选时闪烁 / 抽搐。
         private var lastContentSignature: Int?
+        private var menuGroupFileItems: [FileItem] = []
 
         init(model: ArchiveBrowserModel) {
             self.model = model
@@ -462,6 +463,26 @@ private struct FileNSOutlineView: NSViewRepresentable {
             }
         }
 
+        func outlineView(_ outlineView: NSOutlineView, selectionIndexesForProposedSelection proposedSelectionIndexes: IndexSet) -> IndexSet {
+            var fileRows = IndexSet()
+            var sectionRows = IndexSet()
+            for row in proposedSelectionIndexes {
+                guard let node = outlineView.item(atRow: row) as? FileOutlineNode else { continue }
+                if node.isSection {
+                    sectionRows.insert(row)
+                } else {
+                    fileRows.insert(row)
+                }
+            }
+            if !fileRows.isEmpty {
+                return fileRows
+            }
+            if let firstSection = sectionRows.first {
+                return IndexSet(integer: firstSection)
+            }
+            return proposedSelectionIndexes
+        }
+
         func outlineView(_ outlineView: NSOutlineView, sortDescriptorsDidChange oldDescriptors: [NSSortDescriptor]) {
             guard let descriptor = outlineView.sortDescriptors.first, let key = descriptor.key else { return }
             model.sortFileItems(by: key, ascending: descriptor.ascending)
@@ -613,10 +634,15 @@ private struct FileNSOutlineView: NSViewRepresentable {
             guard let outlineView else { return }
             selectClickedRowIfNeeded(in: outlineView)
             menu.removeAllItems()
+            menuGroupFileItems = []
 
-            // 空白处 / 分组头右键（无有效文件行）的菜单瘦身：只留粘贴 + 在 Finder 中显示当前文件夹。
+            // 空白处右键（无有效文件行）的菜单瘦身：只留粘贴 + 在 Finder 中显示当前文件夹。
             // 选中文件才有意义的项（打开 / 解压 / 测试 / 哈希 / 复制剪切移动删除）没文件可作用就别出现。
             let clickedItem = outlineView.clickedRow >= 0 ? outlineView.item(atRow: outlineView.clickedRow) : nil
+            if let clickedNode = clickedItem as? FileOutlineNode, clickedNode.isSection {
+                appendSectionMenu(to: menu, for: clickedNode)
+                return
+            }
             let clickedFile = (clickedItem as? FileOutlineNode)?.fileItem
             guard clickedFile != nil else {
                 menu.addItem(menuItem(L10n.text("file.paste"), systemImage: "clipboard", action: #selector(pasteFiles)))
@@ -685,6 +711,26 @@ private struct FileNSOutlineView: NSViewRepresentable {
             menu.addItem(menuItem(L10n.text("file.getInfo"), systemImage: "info.circle", action: #selector(getInfoSelected)))
             menu.addItem(menuItem(L10n.text("button.revealInFinder"), systemImage: "arrow.up.forward.app", action: #selector(revealSelected)))
             appendFolderGroupingMenu(to: menu)
+        }
+
+        private func appendSectionMenu(to menu: NSMenu, for node: FileOutlineNode) {
+            let items = fileItems(in: node)
+            menuGroupFileItems = items
+            let copy = menuItem(L10n.text("file.group.copyAll"), systemImage: "doc.on.doc", action: #selector(copyGroupFiles))
+            copy.isEnabled = !items.isEmpty
+            menu.addItem(copy)
+            let cut = menuItem(L10n.text("file.group.cutAll"), systemImage: "scissors", action: #selector(cutGroupFiles))
+            cut.isEnabled = !items.isEmpty
+            menu.addItem(cut)
+            menu.addItem(menuItem(L10n.text("file.paste"), systemImage: "clipboard", action: #selector(pasteFiles)))
+            menu.addItem(.separator())
+            menu.addItem(menuItem(L10n.text("button.revealInFinder"), systemImage: "arrow.up.forward.app", action: #selector(revealCurrentLocation)))
+            appendFolderGroupingMenu(to: menu)
+        }
+
+        private func fileItems(in node: FileOutlineNode) -> [FileItem] {
+            if let item = node.fileItem { return [item] }
+            return node.children.flatMap(fileItems(in:))
         }
 
         @objc func doubleClick(_ sender: NSOutlineView) {
@@ -831,6 +877,14 @@ private struct FileNSOutlineView: NSViewRepresentable {
             model.cutSelectedFiles()
         }
 
+        @objc private func copyGroupFiles() {
+            model.copyFileURLs(menuGroupFileItems.map(\.url))
+        }
+
+        @objc private func cutGroupFiles() {
+            model.cutFileURLs(menuGroupFileItems.map(\.url))
+        }
+
         @objc private func pasteFiles() {
             model.pasteFiles()
         }
@@ -963,7 +1017,12 @@ private struct FileNSOutlineView: NSViewRepresentable {
 
         private func selectClickedRowIfNeeded(in outlineView: NSOutlineView) {
             let row = outlineView.clickedRow
-            guard row >= 0, let node = outlineView.item(atRow: row) as? FileOutlineNode, let item = node.fileItem else { return }
+            guard row >= 0, let node = outlineView.item(atRow: row) as? FileOutlineNode else { return }
+            guard let item = node.fileItem else {
+                applySelection(IndexSet(integer: row))
+                model.selection = []
+                return
+            }
             if !model.selection.contains(item.id) {
                 applySelection(IndexSet(integer: row))
                 // **必须同步**：menuNeedsUpdate 调用本方法后会立刻同步读 model.selectedFileItems 来构建菜单。
