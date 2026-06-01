@@ -2,9 +2,14 @@
 
 # Changelog
 
-## 0.2.3
+## 0.2.4
 
+- **Fixed: the Finder right-click "… with SimpleZip" services were incomplete.** Only *Add to Archive* and *Calculate Hash* were actually registered as macOS Services; *Extract* and the quick *Create ZIP / 7z / TAR.GZ* items were never declared, so they never showed up in the Services menu. They're now registered exactly like the two working ones (enable them under System Settings → Keyboard → Keyboard Shortcuts → Services).
+- **The Finder right-click services are now localized.** Their menu titles were always English regardless of system language — they need a `ServicesMenu.strings` file (not the usual `Localizable.strings`), which didn't exist. Added it for all 10 languages, so the "… with SimpleZip" items show up translated.
+- **Fixed: creating a new file could flash the rename box and have it vanish.** A file-system event for the just-created file triggered a list reload that tore down the in-progress inline edit. The reload is now deferred while you're renaming, so the edit box stays put.
 - **Fixed: creating a new folder didn't start inline rename** (creating a new file did). The listed folder URL carries a trailing slash while the pending-rename URL didn't, and the lookup compared whole URLs — so the new folder's row was never found. It now matches by normalized path.
+
+## 0.2.3
 
 - **Activity Center opens larger by default.** The initial window size now gives the sidebar, filters, task rows, and expanded details room to breathe, with a larger minimum size so the layout does not collapse back into a cramped view.
 - **Fixed: New Folder now reliably enters inline rename.** Creating a folder inside a grouped or collapsed file list now expands the containing group, selects the new folder, and starts the existing rename editor instead of leaving the default name in place.

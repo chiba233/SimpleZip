@@ -1,0 +1,7 @@
+/* macOS 服务菜单标题（Info.plist → NSServices → NSMenuItem）。键 = Info.plist 里的英文 default。 */
+"Add to Archive with SimpleZip" = "使用 SimpleZip 添加到压缩包";
+"Calculate Hash with SimpleZip" = "使用 SimpleZip 计算哈希";
+"Extract with SimpleZip" = "使用 SimpleZip 解压";
+"Create ZIP with SimpleZip" = "使用 SimpleZip 创建 ZIP";
+"Create 7z with SimpleZip" = "使用 SimpleZip 创建 7z";
+"Create TAR.GZ with SimpleZip" = "使用 SimpleZip 创建 TAR.GZ";

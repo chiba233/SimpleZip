@@ -170,6 +170,66 @@
 				<string>public.item</string>
 			</array>
 		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict>
+				<key>default</key>
+				<string>Extract with SimpleZip</string>
+			</dict>
+			<key>NSMessage</key>
+			<string>extractFromFinder</string>
+			<key>NSPortName</key>
+			<string>SimpleZip</string>
+			<key>NSSendFileTypes</key>
+			<array>
+				<string>public.item</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict>
+				<key>default</key>
+				<string>Create ZIP with SimpleZip</string>
+			</dict>
+			<key>NSMessage</key>
+			<string>createZipFromFinder</string>
+			<key>NSPortName</key>
+			<string>SimpleZip</string>
+			<key>NSSendFileTypes</key>
+			<array>
+				<string>public.item</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict>
+				<key>default</key>
+				<string>Create 7z with SimpleZip</string>
+			</dict>
+			<key>NSMessage</key>
+			<string>createSevenZipFromFinder</string>
+			<key>NSPortName</key>
+			<string>SimpleZip</string>
+			<key>NSSendFileTypes</key>
+			<array>
+				<string>public.item</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict>
+				<key>default</key>
+				<string>Create TAR.GZ with SimpleZip</string>
+			</dict>
+			<key>NSMessage</key>
+			<string>createTarGzFromFinder</string>
+			<key>NSPortName</key>
+			<string>SimpleZip</string>
+			<key>NSSendFileTypes</key>
+			<array>
+				<string>public.item</string>
+			</array>
+		</dict>
 	</array>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>

@@ -149,6 +149,49 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    // 以下几项与上面两个完全同构（NSServices）：声明在 Info.plist 的 NSServices，方法名对上 NSMessage，
+    // servicesProvider = self。之前这几个只通过已废弃的 FinderSync `simplezip://` 回调路由，从没在 NSServices 里注册，
+    // 所以服务菜单里根本不出现 —— 现在补齐成和「添加到压缩包 / 计算哈希」一样的真·服务。
+    @objc func extractFromFinder(
+        _ pasteboard: NSPasteboard,
+        userData: String?,
+        error: AutoreleasingUnsafeMutablePointer<NSString?>
+    ) {
+        handleFinderService(pasteboard, actionName: L10n.text("button.extract"), error: error) { urls in
+            FinderServiceActionQueue.shared.enqueue(.extract(urls))
+        }
+    }
+
+    @objc func createZipFromFinder(
+        _ pasteboard: NSPasteboard,
+        userData: String?,
+        error: AutoreleasingUnsafeMutablePointer<NSString?>
+    ) {
+        handleFinderService(pasteboard, actionName: L10n.text("button.addToArchive"), error: error) { urls in
+            FinderServiceActionQueue.shared.enqueue(.quickCreate(.zip, urls))
+        }
+    }
+
+    @objc func createSevenZipFromFinder(
+        _ pasteboard: NSPasteboard,
+        userData: String?,
+        error: AutoreleasingUnsafeMutablePointer<NSString?>
+    ) {
+        handleFinderService(pasteboard, actionName: L10n.text("button.addToArchive"), error: error) { urls in
+            FinderServiceActionQueue.shared.enqueue(.quickCreate(.sevenZip, urls))
+        }
+    }
+
+    @objc func createTarGzFromFinder(
+        _ pasteboard: NSPasteboard,
+        userData: String?,
+        error: AutoreleasingUnsafeMutablePointer<NSString?>
+    ) {
+        handleFinderService(pasteboard, actionName: L10n.text("button.addToArchive"), error: error) { urls in
+            FinderServiceActionQueue.shared.enqueue(.quickCreate(.tarGzip, urls))
+        }
+    }
+
     private func handleFinderService(
         _ pasteboard: NSPasteboard,
         actionName: String,

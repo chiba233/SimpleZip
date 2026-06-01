@@ -1,0 +1,7 @@
+/* macOS Services menu titles (Info.plist → NSServices → NSMenuItem). Key = English `default`. */
+"Add to Archive with SimpleZip" = "Añadir al archivo con SimpleZip";
+"Calculate Hash with SimpleZip" = "Calcular hash con SimpleZip";
+"Extract with SimpleZip" = "Extraer con SimpleZip";
+"Create ZIP with SimpleZip" = "Crear ZIP con SimpleZip";
+"Create 7z with SimpleZip" = "Crear 7z con SimpleZip";
+"Create TAR.GZ with SimpleZip" = "Crear TAR.GZ con SimpleZip";
