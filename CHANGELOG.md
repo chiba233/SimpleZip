@@ -4,6 +4,7 @@
 
 ## 0.2.2
 
+- **Deleting files plays the Trash sound.** Moving files to the Trash now plays the same "move to trash" sound Finder uses, for familiar feedback.
 - **Fixed: the Finder extension menu was always English.** The extension is a separate process and only saw the *system* language, ignoring SimpleZip's in-app language override — so its right-click items stayed English even with the app set to another language. It now reads the app's language preference and loads the matching localization. (Both targets are unsandboxed, so this needs no extra entitlement.)
 
 ## 0.2.1

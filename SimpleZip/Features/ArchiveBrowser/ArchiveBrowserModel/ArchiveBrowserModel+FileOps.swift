@@ -127,6 +127,8 @@ extension ArchiveBrowserModel {
                 var resultingURL: NSURL?
                 try fileManager.trashItem(at: item.url, resultingItemURL: &resultingURL)
             }
+            // 复刻 Finder：移到废纸篓后播放系统「move to trash」音效。
+            SystemSound.moveToTrash?.play()
             // 刷新交给 FolderWatcher：从当前文件夹移除条目会触发 FSEvents 自动 reload。
         } catch {
             errorMessage = error.localizedDescription
@@ -217,4 +219,13 @@ extension ArchiveBrowserModel {
         alert.addButton(withTitle: L10n.text("button.cancel"))
         return alert.runModal() == .alertFirstButtonReturn
     }
+}
+
+/// 复刻 Finder 反馈音的系统音效。系统音文件路径多年稳定；缓存一份 `NSSound` 复用
+/// （`byReference` 不把音频读进内存）。文件缺失（极旧 / 极新系统）则为 nil，静默不响。
+enum SystemSound {
+    static let moveToTrash: NSSound? = NSSound(
+        contentsOfFile: "/System/Library/Components/CoreAudio.component/Contents/SharedSupport/SystemSounds/finder/move to trash.aif",
+        byReference: true
+    )
 }
