@@ -165,6 +165,9 @@ final class ExternalExtractWindowController {
         decryptionKey: String?,
         passphrase: String?
     ) {
+        // 关键：先解除签名 sheet 留下的 cancelActive（= 删 tempRoot）。否则下面 present 占位视图时会触发它，
+        // 把还要用来解密的 tempRoot 删掉。tempRoot 之后交给解压 session（cleanupDirectory）或本函数的错误/取消分支清理。
+        cancelActive = nil
         let prepare = ExternalPrepareSession(displayName: sourceURL.lastPathComponent)
         let task = Task { [weak self] in
             guard let self else { return }
