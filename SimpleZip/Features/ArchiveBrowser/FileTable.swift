@@ -263,6 +263,22 @@ private struct FileNSOutlineView: NSViewRepresentable {
             return result
         }
 
+        private func fileNodeAndAncestors(for url: URL) -> (node: FileOutlineNode, ancestors: [FileOutlineNode])? {
+            let target = url.standardizedFileURL
+            func walk(_ nodes: [FileOutlineNode], ancestors: [FileOutlineNode]) -> (FileOutlineNode, [FileOutlineNode])? {
+                for node in nodes {
+                    if let item = node.fileItem, item.url.standardizedFileURL == target {
+                        return (node, ancestors)
+                    }
+                    if node.isSection, let found = walk(node.children, ancestors: ancestors + [node]) {
+                        return found
+                    }
+                }
+                return nil
+            }
+            return walk(topLevelNodes, ancestors: [])
+        }
+
         /// 重建节点 + reload + 强制同步展开状态。make / update 都走这里。
         func syncContent() {
             // 内容指纹 = 影响「画出来的行 / 列」的一切：config（folder/折叠/分类/共存）+ 行密度 +
@@ -302,6 +318,7 @@ private struct FileNSOutlineView: NSViewRepresentable {
             endActiveRename()
             outlineView?.reloadData()
             enforceExpansion()
+            performPendingInlineRenameIfNeeded()
         }
 
         /// 按 GroupBy + 共存策略组装顶层节点。复用 sectionNodesByKey 里同 key 的实例保身份。
@@ -965,23 +982,26 @@ private struct FileNSOutlineView: NSViewRepresentable {
             guard case .folder = model.mode,
                   model.selectedFileItems.count == 1,
                   let item = model.selectedFileItems.first else { return false }
+            model.pendingInlineRenameURL = nil
             return beginRename(item)
         }
 
         @discardableResult
         private func beginRename(_ item: FileItem) -> Bool {
+            let itemURL = item.url.standardizedFileURL
             guard let outlineView,
                   let nameColIndex = outlineView.tableColumns.firstIndex(where: { $0.identifier.rawValue == FileColumn.name.identifier }),
-                  let node = allFileNodes().first(where: { $0.fileItem?.id == item.id }) else { return false }
+                  let node = allFileNodes().first(where: { $0.fileItem?.url.standardizedFileURL == itemURL }),
+                  let currentItem = node.fileItem else { return false }
             let row = outlineView.row(forItem: node)
             guard row >= 0 else { return false }
             outlineView.scrollRowToVisible(row)
             guard let cell = outlineView.view(atColumn: nameColIndex, row: row, makeIfNecessary: true) as? NSTableCellView,
                   let textField = cell.textField else { return false }
 
-            renamingItem = item
+            renamingItem = currentItem
             // 编辑真实磁盘名（不是 displayName），让用户改的就是最终文件名。
-            let fullName = item.url.lastPathComponent
+            let fullName = currentItem.url.lastPathComponent
             textField.isEditable = true
             textField.isSelectable = true
             textField.isBordered = true
@@ -992,7 +1012,7 @@ private struct FileNSOutlineView: NSViewRepresentable {
             outlineView.window?.makeFirstResponder(textField)
             // 像 Finder：文件默认选中不含扩展名的主名；目录全选。
             if let editor = textField.currentEditor() {
-                let stem = item.isDirectory ? fullName : (fullName as NSString).deletingPathExtension
+                let stem = currentItem.isDirectory ? fullName : (fullName as NSString).deletingPathExtension
                 let length = stem.isEmpty ? (fullName as NSString).length : (stem as NSString).length
                 editor.selectedRange = NSRange(location: 0, length: length)
             }
@@ -1072,14 +1092,17 @@ private struct FileNSOutlineView: NSViewRepresentable {
         }
 
         func performPendingInlineRenameIfNeeded() {
-            guard let pendingURL = model.pendingInlineRenameURL,
-                  let outlineView,
-                  let node = allFileNodes().first(where: { node in
-                      guard let item = node.fileItem else { return false }
-                      return item.url.standardizedFileURL == pendingURL
-                  }),
-                  let item = node.fileItem else { return }
-            let row = outlineView.row(forItem: node)
+            guard renamingItem == nil else { return }
+            guard let pendingURL = model.pendingInlineRenameURL else { return }
+            let target = pendingURL.standardizedFileURL
+            guard let outlineView,
+                  let found = fileNodeAndAncestors(for: target),
+                  let item = found.node.fileItem else { return }
+            for ancestor in found.ancestors {
+                outlineView.expandItem(ancestor)
+                setSectionExpanded(ancestor, true)
+            }
+            let row = outlineView.row(forItem: found.node)
             guard row >= 0 else { return }
             model.selection = [item.id]
             applySelection(IndexSet(integer: row))
