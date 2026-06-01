@@ -140,7 +140,8 @@ extension ArchiveBrowserModel {
             }
             // 撤销 = 从废纸篓移回原位；重做 = 移回废纸篓那个路径。
             registerTrashUndo(trashed, actionName: L10n.text("undo.action.delete"))
-            // 不在这里播放废纸篓音效 —— trashItem 已由系统播放，再播一次就成了「删一次响两声」。
+            // trashItem 自身不出声，显式播放 Finder「移到废纸篓」音效（whoosh + 落下，一次播放）。
+            SystemSound.moveToTrash?.play()
             // 刷新交给 FolderWatcher：从当前文件夹移除条目会触发 FSEvents 自动 reload。
         } catch {
             errorMessage = error.localizedDescription
@@ -283,10 +284,13 @@ extension ArchiveBrowserModel {
 
 /// 操作反馈音。系统音文件路径多年稳定；缓存一份 `NSSound` 复用（`byReference` 不把音频读进内存）。
 /// 文件缺失（极旧 / 极新系统）则为 nil、静默不响。
-///
-/// 注意：删除不在这里出声 —— `FileManager.trashItem` 本身已由系统播放「移到废纸篓」音效，
-/// 之前再显式播一遍导致「删一次响两声」（用户反馈）。删除交给系统即可。
 enum SystemSound {
+    /// 「移到废纸篓」音效 —— `FileManager.trashItem` 本身**不出声**，删除要响必须显式播。
+    /// 这个 Finder 系统音本身就是「whoosh + 落下」两段，听起来像两声，但只是一次播放、不是重复触发。
+    static let moveToTrash: NSSound? = NSSound(
+        contentsOfFile: "/System/Library/Components/CoreAudio.component/Contents/SharedSupport/SystemSounds/finder/move to trash.aif",
+        byReference: true
+    )
     /// 操作成功完成的提示音（粘贴 / 移动 / 创建副本 / 创建压缩包 / 解压等）。
     /// 用系统 Pop（轻柔、不刺耳）—— 之前的 Glass 太像通知音、用于粘贴这类操作显得突兀（用户反馈）。
     static let operationComplete: NSSound? = NSSound(
