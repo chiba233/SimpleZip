@@ -649,6 +649,9 @@
 "settings.finderOpenAutoExtract.description" = "通过 Finder、Services 或其它 App 打开压缩包时，直接解压到压缩包所在目录，不再打开 SimpleZip 主窗口浏览。安全策略提示仍会触发。";
 "settings.openExternalInNewTab" = "在新标签页打开";
 "settings.openExternalInNewTab.description" = "SimpleZip 已在运行时，从 Finder 打开压缩包或文件夹会在新标签页打开。关闭则复用当前窗口（在当前标签里打开）。";
+"settings.finderExtension" = "Finder 扩展";
+"settings.finderExtension.description" = "SimpleZip 的 Finder 扩展会在右键菜单加上「添加到压缩包 / 解压 / 创建 / 计算哈希」。在 系统设置 → 扩展 里启用或停用。如果菜单看起来是旧的或没反应，在那里关掉再打开，会强制重新登记当前这份扩展。";
+"settings.finderExtension.manage" = "在系统设置中管理…";
 "settings.presetPasswordEnabled" = "使用预设密码";
 "settings.presetPasswordEnabled.description" = "创建加密压缩包时自动填入此密码；打开 / 解压有密码的压缩包时先尝试这个密码，失败再弹输入框。";
 "settings.presetPassword" = "预设密码";

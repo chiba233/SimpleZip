@@ -164,6 +164,20 @@ struct GeneralPane: View {
                 )
             }
 
+            Section(L10n.text("settings.finderExtension")) {
+                Text(L10n.text("settings.finderExtension.description"))
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button(L10n.text("settings.finderExtension.manage")) {
+                    // 打开 系统设置 → 扩展（访达扩展在此启用/停用）。也是排查「装了多份导致旧扩展被加载」的入口：
+                    // 在这里关掉再打开 SimpleZip 扩展，会强制让系统重新登记当前这份。
+                    if let url = URL(string: "x-apple.systempreferences:com.apple.ExtensionsPreferences") {
+                        NSWorkspace.shared.open(url)
+                    }
+                }
+            }
+
             Section(L10n.text("settings.presetPasswordEnabled")) {
                 SettingsToggleRow(
                     title: L10n.text("settings.presetPasswordEnabled"),
