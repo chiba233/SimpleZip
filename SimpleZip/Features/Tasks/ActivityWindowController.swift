@@ -25,12 +25,13 @@ final class ActivityWindowController {
         }
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 700, height: 520),
+            contentRect: NSRect(x: 0, y: 0, width: 940, height: 680),
             styleMask: [.titled, .closable, .resizable, .utilityWindow],
             backing: .buffered,
             defer: false
         )
         window.title = L10n.text("tasks.window.title")
+        window.minSize = NSSize(width: 760, height: 560)
         window.contentViewController = NSHostingController(rootView: ActivityView(taskCenter: .shared, windowState: windowState))
         window.isReleasedWhenClosed = false
         // 普通窗口层级：打开/被点时来到前台，但之后可以被主窗口等正常盖住。
