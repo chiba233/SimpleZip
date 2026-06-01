@@ -394,12 +394,17 @@ struct ContentView: View {
         case .calculateHash(let urls):
             model.calculateHash(forFinderURLs: urls)
         case .extract(let urls):
-            // 「用 SimpleZip 解压」—— 每个受支持的压缩包走自动解压浮窗解到其所在文件夹。
+            // 「用 SimpleZip 解压」—— 受支持的压缩包走自动解压浮窗解到其所在文件夹。
             // DMG 是挂载不是解压，跳过；.siz/.szs 有各自打开流程，这里只处理普通压缩包。
-            for url in urls where ArchiveService.isSupportedArchive(url) {
+            // 多选走**批量队列**（一个浮窗、串行、一个取消、一个失败汇总）——
+            // 旧实现循环调 start 会替换浮窗但让旧任务在后台隐身续跑。
+            let extractable = urls.filter { url in
+                guard ArchiveService.isSupportedArchive(url) else { return false }
                 let supported = ArchiveService.supportedArchiveURL(url) ?? url
-                guard supported.pathExtension.lowercased() != "dmg" else { continue }
-                ExternalExtractWindowController.shared.start(archiveURL: url)
+                return supported.pathExtension.lowercased() != "dmg"
+            }
+            if !extractable.isEmpty {
+                ExternalExtractWindowController.shared.startBatch(archiveURLs: extractable)
             }
         case .quickCreate(let format, let urls):
             quickCreateArchive(format: format, sourceURLs: urls)

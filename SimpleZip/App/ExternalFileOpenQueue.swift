@@ -138,8 +138,23 @@ final class FinderServiceActionQueue {
             return false
         }
 
+        // `simplezip://` 是全局 URL scheme，任何本地进程都能构造一个回调让 SimpleZip 执行文件动作。
+        // 威胁不高（本机进程本就有很多手段），但既然这是文件操作入口，多加几层便宜防线收紧 payload：
+        // ① 必须**直接**位于本用户临时目录下（不是「前缀匹配」，避免 `…/T-evil/x.json` 蒙混）；
+        // ② 文件名前缀 + `.json` 扩展名符合扩展端约定（`SimpleZipFinderAction-<UUID>.json`）；
+        // ③ 必须是普通文件、且不是符号链接（拒绝用 symlink 把读取重定向到别处）。
         let payloadURL = URL(fileURLWithPath: payloadPath)
-        guard payloadURL.path.hasPrefix(FileManager.default.temporaryDirectory.path) else {
+        let tempDir = FileManager.default.temporaryDirectory.resolvingSymlinksInPath()
+        guard payloadURL.deletingLastPathComponent().resolvingSymlinksInPath() == tempDir else {
+            return false
+        }
+        guard payloadURL.lastPathComponent.hasPrefix("SimpleZipFinderAction-"),
+              payloadURL.pathExtension.lowercased() == "json" else {
+            return false
+        }
+        // isSymbolicLink 必须基于**原始路径**判定（不能先 resolve，否则就检测不到了）。
+        let resourceValues = try? payloadURL.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey])
+        guard resourceValues?.isRegularFile == true, resourceValues?.isSymbolicLink != true else {
             return false
         }
 

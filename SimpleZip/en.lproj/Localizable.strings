@@ -471,6 +471,11 @@
 "externalExtract.window.title" = "Extracting";
 "externalExtract.done" = "Extraction complete";
 "externalExtract.failed" = "Extraction failed";
+"externalExtract.batch.title" = "Extracting %d archives";
+"externalExtract.batch.progress" = "Extracting %1$d of %2$d: %3$@";
+"externalExtract.batch.allDone" = "Extracted all %d archives";
+"externalExtract.batch.summary" = "%1$d succeeded, %2$d failed";
+"externalExtract.batch.moreFailures" = "+%d more";
 "welcome.button.cancel" = "Cancel";
 "welcome.cancelConfirm.title" = "Cancel the welcome assistant?";
 "welcome.cancelConfirm.message" = "Choices you've already made will be kept, but you haven't finished the remaining steps. You can restart the assistant any time from SimpleZip → Run Welcome Assistant Again.";
