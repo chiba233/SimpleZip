@@ -27,6 +27,11 @@ struct FileHashResult: Identifiable, Hashable, Codable {
     let size: Int64
     let hashes: [HashAlgorithm: String]
 
+    // `id` 是会话内瞬时标识（ForEach 用），不参与编解码 —— 重建时各自重新生成即可，避免「let + 初值无法解码」告警。
+    private enum CodingKeys: String, CodingKey {
+        case url, displayName, size, hashes
+    }
+
     nonisolated func value(for algorithm: HashAlgorithm) -> String? {
         hashes[algorithm]
     }
@@ -37,6 +42,11 @@ struct HashReport: Identifiable, Codable {
     let id = UUID()
     let algorithms: [HashAlgorithm]
     let results: [FileHashResult]
+
+    // `id` 是会话内瞬时标识，不参与编解码（同 FileHashResult）。
+    private enum CodingKeys: String, CodingKey {
+        case algorithms, results
+    }
 
     var fileCount: Int {
         results.count
