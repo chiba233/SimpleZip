@@ -5,6 +5,7 @@
 ## 0.2.2
 
 - **Deleting files plays the Trash sound.** Moving files to the Trash now plays the same "move to trash" sound Finder uses, for familiar feedback.
+- **Fixed: SimpleZip's Finder Services were filed under "Internet".** The "Add to Archive" / "Calculate Hash" / "Extract" services declared a URL send-type, so System Settings → Keyboard → Services listed them under "Internet". They now declare file types and appear under "Files & Folders" where they belong.
 - **Finder extension: "Extract with SimpleZip".** Right-clicking archives in Finder now offers extraction (alongside "Add to Archive" and "Calculate Hash") — it extracts each selected archive into its own folder via the lightweight progress window.
 - **Create Duplicate (⌘D).** Right-click → "Duplicate" (or ⌘D) copies the selected files/folders in place as "<name> copy", Finder-style, never overwriting (subsequent copies get " copy 2", " copy 3", …).
 - **Fixed: the inline rename box wouldn't go away.** Renaming a file and then clicking another item, switching folders, or pressing Esc left the edit field stuck on screen (only Return dismissed it). Clicking away or navigating now commits the rename and closes the field, and Esc cancels it — matching Finder.

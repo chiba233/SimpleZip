@@ -150,9 +150,9 @@
 			<string>addToArchiveFromFinder</string>
 			<key>NSPortName</key>
 			<string>SimpleZip</string>
-			<key>NSSendTypes</key>
+			<key>NSSendFileTypes</key>
 			<array>
-				<string>public.file-url</string>
+				<string>public.item</string>
 			</array>
 		</dict>
 		<dict>
@@ -165,9 +165,9 @@
 			<string>calculateHashFromFinder</string>
 			<key>NSPortName</key>
 			<string>SimpleZip</string>
-			<key>NSSendTypes</key>
+			<key>NSSendFileTypes</key>
 			<array>
-				<string>public.file-url</string>
+				<string>public.item</string>
 			</array>
 		</dict>
 	</array>
