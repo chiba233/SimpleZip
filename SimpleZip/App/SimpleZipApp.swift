@@ -432,6 +432,8 @@ struct ColumnsViewCommands: Commands {
 
     var body: some Commands {
         CommandMenu(L10n.text("menu.view")) {
+            // 「显示标签页栏」由 AppKit 在有标签组时自动插入（避免重复，这里不再自建）；
+            // 它默认没有快捷键，我们在运行时给它绑 ⇧⌘T（见 MainWindowTabCoordinator.bindTabBarMenuShortcut）。
             // 分组（Group By）已挪到 设置 → 视图（含总开关 / 范围 / 默认方式 / 按文件夹）。
             Menu(L10n.text("view.columns.fileBrowser")) {
                 Toggle(L10n.text("column.size"), isOn: $showFileSizeColumn)

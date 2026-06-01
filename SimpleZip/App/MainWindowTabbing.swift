@@ -57,8 +57,35 @@ final class MainWindowTabCoordinator {
         pendingTabHost = nil
         // 已经在同一个标签组里就不重复并。
         if host.tabGroup?.windows.contains(window) == true { return }
+        // 防闪烁：`openWindow` 会先把新窗口当独立窗口在屏幕中央显示出来，下一拍才轮到这里合并。
+        // 先把新窗口 frame 设成和宿主完全重叠，这样即便有一帧独立显示也正好盖在原窗口位置，看不出跳动；
+        // 合并后宿主窗口位置不动，新内容以标签形式出现在同一窗口里。
+        window.setFrame(host.frame, display: false)
         host.addTabbedWindow(window, ordered: .above)
         window.makeKeyAndOrderFront(nil)
+        // 标签组此刻已存在 → AppKit 的「显示标签页栏」菜单项也在了，给它补上 ⇧⌘T 快捷键。
+        Self.bindTabBarMenuShortcut()
+    }
+
+    /// 给 AppKit 自动插入的「显示标签页栏」菜单项（action 为 `toggleTabBar:`）绑定 ⇧⌘T。
+    /// AppKit 默认不给它快捷键；这一项只在存在标签组后才出现，所以在首次并标签后调用。幂等：已绑过就跳过。
+    private static var didBindTabBarShortcut = false
+    static func bindTabBarMenuShortcut() {
+        guard !didBindTabBarShortcut, let mainMenu = NSApp.mainMenu else { return }
+        guard let item = findMenuItem(in: mainMenu, action: NSSelectorFromString("toggleTabBar:")) else { return }
+        item.keyEquivalent = "t"
+        item.keyEquivalentModifierMask = [.command, .shift]
+        didBindTabBarShortcut = true
+    }
+
+    private static func findMenuItem(in menu: NSMenu, action: Selector) -> NSMenuItem? {
+        for item in menu.items {
+            if item.action == action { return item }
+            if let submenu = item.submenu, let found = findMenuItem(in: submenu, action: action) {
+                return found
+            }
+        }
+        return nil
     }
 }
 
