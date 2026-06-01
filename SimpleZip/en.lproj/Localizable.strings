@@ -651,9 +651,9 @@
 "settings.finderOpenAutoExtract.description" = "When you open an archive from Finder, Services, or another app, extract it to the archive's folder instead of opening the SimpleZip browser. Safety prompts still apply.";
 "settings.openExternalInNewTab" = "Open in a New Tab";
 "settings.openExternalInNewTab.description" = "When you open an archive or folder from Finder while SimpleZip is already running, open it in a new tab. Turn off to reuse the current window instead.";
-"settings.finderExtension" = "Finder Extension";
-"settings.finderExtension.description" = "SimpleZip's Finder extension adds right-click items (Add to Archive, Extract, Create, Hash). Enable or disable it in System Settings → Extensions. If the menu looks outdated or doesn't respond, toggling it off and on there re-registers the current build.";
-"settings.finderExtension.manage" = "Manage in System Settings…";
+"settings.finderExtension" = "Finder Right-Click Integration";
+"settings.finderExtension.description" = "The \"… with SimpleZip\" right-click items (Add to Archive, Extract, Create, Calculate Hash) are macOS Services. Turn them on or off in System Settings → Keyboard → Keyboard Shortcuts → Services.";
+"settings.finderExtension.manage" = "Open Keyboard Settings…";
 "settings.presetPasswordEnabled" = "Use a preset password";
 "settings.presetPasswordEnabled.description" = "Auto-fill the password when creating an encrypted archive, and try this password first when opening or extracting password-protected archives.";
 "settings.presetPassword" = "Preset password";

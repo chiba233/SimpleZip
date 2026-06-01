@@ -170,9 +170,9 @@ struct GeneralPane: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 Button(L10n.text("settings.finderExtension.manage")) {
-                    // 打开 系统设置 → 扩展（访达扩展在此启用/停用）。也是排查「装了多份导致旧扩展被加载」的入口：
-                    // 在这里关掉再打开 SimpleZip 扩展，会强制让系统重新登记当前这份。
-                    if let url = URL(string: "x-apple.systempreferences:com.apple.ExtensionsPreferences") {
+                    // 右键「…with SimpleZip」是 macOS 服务（NSServices），在 系统设置 → 键盘 → 键盘快捷键 → 服务
+                    // 里勾选启用。这里直接把用户送到键盘设置。
+                    if let url = URL(string: "x-apple.systempreferences:com.apple.Keyboard-Settings.extension") {
                         NSWorkspace.shared.open(url)
                     }
                 }
