@@ -706,7 +706,8 @@
 "button.hash" = "哈希";
 "button.copyAll" = "全部复制";
 "error.selectFilesForHash" = "请选择一个或多个要计算哈希的文件。";
-"status.hashing" = "正在计算哈希...";
+"status.hashing.one" = "正在计算 %@ 的哈希";
+"status.hashing.many" = "正在计算 %1$@ 等共 %2$d 个文件的哈希";
 "status.pasting" = "正在粘贴文件...";
 "status.hashingForOverwrite" = "正在比较文件哈希...";
 "status.mergingExtractedFiles" = "正在检查解压后的文件...";

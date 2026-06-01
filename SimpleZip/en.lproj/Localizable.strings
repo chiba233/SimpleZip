@@ -708,7 +708,8 @@
 "button.hash" = "Hash";
 "button.copyAll" = "Copy All";
 "error.selectFilesForHash" = "Select one or more files to calculate hashes.";
-"status.hashing" = "Calculating hashes...";
+"status.hashing.one" = "Hashing %@…";
+"status.hashing.many" = "Hashing %1$@ and %2$d files in total…";
 "status.pasting" = "Pasting files...";
 "status.hashingForOverwrite" = "Comparing file hashes...";
 "status.mergingExtractedFiles" = "Checking extracted files...";

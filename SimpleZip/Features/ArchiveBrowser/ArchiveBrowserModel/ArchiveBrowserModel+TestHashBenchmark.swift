@@ -161,15 +161,21 @@ extension ArchiveBrowserModel {
             return
         }
 
+        // 标题带上文件名：单个「正在计算 xxx 的哈希」；多个「正在计算 xxx 等共 N 个文件的哈希」——
+        // 比泛泛的「正在计算哈希…」有用，历史里也能一眼看出算的是哪些文件。
+        let hashingTitle: String = fileURLs.count == 1
+            ? L10n.format("status.hashing.one", fileURLs[0].lastPathComponent)
+            : L10n.format("status.hashing.many", fileURLs[0].lastPathComponent, fileURLs.count)
+
         // 哈希是文件操作（对选中文件算摘要），归「文件操作」。结果用结构化 HashReport 挂到任务上，
         // 活动中心详情里以**格式化 UI**（每文件 + 各算法卡片）渲染，可查看 / 复制——不是命令输出文本。
         let operationTask = TaskCenter.shared.begin(
             category: .fileOperation,
             kind: .hash,
-            title: L10n.text("status.hashing"),
+            title: hashingTitle,
             cancellable: true
         )
-        operationTask.progress = ArchiveProgressState(fraction: nil, currentFile: nil, statusText: L10n.text("status.hashing"))
+        operationTask.progress = ArchiveProgressState(fraction: nil, currentFile: nil, statusText: hashingTitle)
         TaskCenter.shared.notifyTaskChanged()
 
         var swiftTask: Task<Void, Never>?
@@ -180,7 +186,7 @@ extension ArchiveBrowserModel {
             guard let self, let operationTask else { return }
             isWorking = true
             errorMessage = nil
-            status = L10n.text("status.hashing")
+            status = hashingTitle
             defer { isWorking = false }
 
             do {
