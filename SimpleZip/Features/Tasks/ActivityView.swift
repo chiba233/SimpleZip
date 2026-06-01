@@ -382,8 +382,11 @@ private enum ActivityTaskFilter: CaseIterable, Identifiable, Hashable {
         case .running:
             return task.status.isRunning
         case .succeeded:
-            if case .succeeded = task.status { return true }
-            return false
+            // 「已完成」涵盖正常成功与「内容相同已跳过」——跳过在用户心智里也是已结束态，不该被这个筛选藏掉。
+            switch task.status {
+            case .succeeded, .skipped: return true
+            default: return false
+            }
         case .failed:
             if case .failed = task.status { return true }
             return false

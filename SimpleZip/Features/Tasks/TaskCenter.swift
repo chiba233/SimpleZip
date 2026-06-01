@@ -108,10 +108,18 @@ final class TaskCenter: ObservableObject {
         }
     }
 
+    /// 历史持久化串行队列：编码 + 写盘放后台，避免「任务完成瞬间」在主线程同步 JSON 编码大段历史
+    /// （含大量哈希值 / 路径）卡 UI。串行保证多次快速完成时的写入顺序，不会用旧快照覆盖新快照。
+    private static let persistQueue = DispatchQueue(label: "com.simplezip.taskcenter.persist", qos: .utility)
+
     private func persistHistory() {
+        // 快照在主 actor 上取（读 OperationTask 的隔离状态），编码/写盘丢到后台串行队列。
         let snapshots = history.map(PersistedTask.init(task:))
-        guard let data = try? JSONEncoder().encode(snapshots) else { return }
-        UserDefaults.standard.set(data, forKey: AppPreferences.Key.activityHistory)
+        let key = AppPreferences.Key.activityHistory
+        Self.persistQueue.async {
+            guard let data = try? JSONEncoder().encode(snapshots) else { return }
+            UserDefaults.standard.set(data, forKey: key)
+        }
     }
 
     private static func loadPersistedHistory() -> [OperationTask] {

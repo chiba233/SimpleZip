@@ -55,12 +55,10 @@ final class ExternalExtractWindowController {
         let openURL = mainWindowURL ?? archiveURL
         session.onOpenInMainWindow = { [weak self] in self?.openInMainWindow(browseURL: openURL, cleanup: nil) }
         present(content: ExternalExtractView(session: session), cancel: { session.cancel() })
-        Task { [weak self] in
-            await session.run(
-                onClose: { [weak self] in self?.close() },
-                onAttention: { [weak self] in self?.bringToFront() }
-            )
-        }
+        session.start(
+            onClose: { [weak self] in self?.close() },
+            onAttention: { [weak self] in self?.bringToFront() }
+        )
     }
 
     /// 多个压缩包批量解压（Finder 多选 → 用 SimpleZip 解压）：**一个浮窗、串行解压、一个取消、一个失败汇总**。
@@ -370,6 +368,10 @@ final class ExternalExtractSession: ObservableObject {
 
     private let operationID = UUID()
     private let coordinator = ArchiveExtractionCoordinator(fileManager: .default)
+    /// 外层运行任务句柄 —— 取消时连它一起 cancel（与批量会话的 isCancelled 对齐）：
+    /// 7zz 已结束、正在 staging merge / 移动阶段时已无活跃 backend 进程，光取消子进程停不下来，
+    /// 取消 Task 才能在协作点中止后续阶段。
+    private var runTask: Task<Void, Never>?
 
     init(
         archiveURL: URL,
@@ -388,11 +390,19 @@ final class ExternalExtractSession: ObservableObject {
         self.statusText = L10n.format("status.extracting", name)
     }
 
+    /// 启动并持有运行任务（让 cancel 能连外层 Task 一起取消）。
+    func start(onClose: @escaping @MainActor () -> Void, onAttention: @escaping @MainActor () -> Void = {}) {
+        runTask = Task { [weak self] in
+            await self?.run(onClose: onClose, onAttention: onAttention)
+        }
+    }
+
     func cancel() {
+        runTask?.cancel()
         ArchiveService.cancelRunningCommand(operationID: operationID)
     }
 
-    func run(onClose: @escaping @MainActor () -> Void, onAttention: @escaping @MainActor () -> Void = {}) async {
+    private func run(onClose: @escaping @MainActor () -> Void, onAttention: @escaping @MainActor () -> Void = {}) async {
         // `.siz` unwrap 暂存根：无论成功失败都清掉（含可能的解密产物）。
         defer { if let cleanupDirectory { try? FileManager.default.removeItem(at: cleanupDirectory) } }
         // 接入活动中心：Finder 自动解压也建一个归档任务，进度同步喂进去，可在活动中心查看 / 取消 / 看命令输出。
@@ -420,6 +430,7 @@ final class ExternalExtractSession: ObservableObject {
                 outputObserver: { detailsOutput.append($0) }
             )
             status = .succeeded(target)
+            detailsOutput.flushNow()   // 先把节流缓冲刷进 session，finish() 会立刻持久化历史，否则末尾输出丢失
             TaskCenter.shared.finish(task, outcome: .succeeded(target))
             SystemSound.operationComplete?.play()
             NSWorkspace.shared.activateFileViewerSelecting([target])
@@ -428,11 +439,13 @@ final class ExternalExtractSession: ObservableObject {
             onClose()
         } catch is CancellationError {
             // 用户主动取消 ≠ 失败。直接关掉浮窗，不弹「解压失败 CancellationError」。
+            detailsOutput.flushNow()
             TaskCenter.shared.finish(task, outcome: .cancelled)
             onClose()
         } catch {
             // 真失败不自动关；用户可能想看错误 + 复制路径。把浮窗带到最前，确保后台时错误不被埋。
             status = .failed(error.localizedDescription)
+            detailsOutput.flushNow()
             TaskCenter.shared.finish(task, outcome: .failed(error.localizedDescription))
             onAttention()
         }
@@ -506,12 +519,15 @@ final class ExternalExtractBatchSession: ObservableObject {
                     outputObserver: { detailsOutput.append($0) }
                 )
                 succeeded.append(target)
+                detailsOutput.flushNow()   // 刷尽节流缓冲再 finish，避免历史快照丢末尾输出
                 TaskCenter.shared.finish(task, outcome: .succeeded(target))
             } catch is CancellationError {
                 // 取消当前项 → 整批停止，不记为失败。
+                detailsOutput.flushNow()
                 TaskCenter.shared.finish(task, outcome: .cancelled)
                 break
             } catch {
+                detailsOutput.flushNow()
                 TaskCenter.shared.finish(task, outcome: .failed(error.localizedDescription))
                 failures.append(Failure(name: url.lastPathComponent, message: error.localizedDescription))
             }
