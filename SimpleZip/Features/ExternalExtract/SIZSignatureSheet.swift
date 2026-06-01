@@ -17,10 +17,18 @@ import SwiftUI
 /// 走 `SIZSignatureStatus` 共用，不在这里再 switch 一遍。
 struct SIZSignatureSheet: View {
     let signature: SIZSignatureSummary
-    /// 打开回调 —— 携带用户在 sheet 里挑的解密密钥 fingerprint（nil 让 gpg 自挑）和对称密码（nil 让 pinentry-mac 接管）。
+    /// 主操作回调 —— 携带用户在 sheet 里挑的解密密钥 fingerprint（nil 让 gpg 自挑）和对称密码（nil 让 pinentry-mac 接管）。
     /// caller 用这两个值调 `SIZArchive.decryptInnerArchive`。
+    /// 语义由宿主决定：主窗口宿主 = 「打开浏览」；独立浮窗宿主 = 「解压」。
     let onOpen: (_ decryptionKey: String?, _ decryptionPassphrase: String?) -> Void
     let onCancel: () -> Void
+
+    /// 主操作按钮文案 override。nil → 用内置的「打开 / 仍然打开」措辞（主窗口浏览语境）。
+    /// 独立浮窗解压语境传「解压」。
+    var primaryActionTitle: String? = nil
+    /// 可选「在主窗口打开」入口 —— 仅独立浮窗宿主提供（满足「在独立窗口内可以选择拉起主窗口」）。
+    /// nil → 不显示该按钮（主窗口宿主本就在主窗口里，无需此入口）。
+    var onOpenInMainWindow: (() -> Void)? = nil
 
     @State private var availableSecretKeys: [GPGBackend.GPGKey] = []
     @State private var selectedDecryptionKey: String = ""
@@ -81,7 +89,10 @@ struct SIZSignatureSheet: View {
                 Spacer()
                 Button(L10n.text("button.cancel"), action: onCancel)
                     .keyboardShortcut(cancelIsDefault ? .defaultAction : .cancelAction)
-                Button(openButtonTitle) {
+                if let onOpenInMainWindow {
+                    Button(L10n.text("externalExtract.openInMainWindow"), action: onOpenInMainWindow)
+                }
+                Button(primaryActionTitle ?? openButtonTitle) {
                     onOpen(
                         selectedDecryptionKey.isEmpty ? nil : selectedDecryptionKey,
                         decryptionPassphrase.isEmpty ? nil : decryptionPassphrase

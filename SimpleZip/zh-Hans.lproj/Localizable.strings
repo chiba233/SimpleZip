@@ -471,6 +471,9 @@
 "externalExtract.window.title" = "正在解压";
 "externalExtract.done" = "解压完成";
 "externalExtract.failed" = "解压失败";
+"externalExtract.verifying" = "正在校验签名…";
+"externalExtract.openInMainWindow" = "在主窗口打开";
+"externalExtract.siz.extractButton" = "解压";
 "externalExtract.batch.title" = "解压 %d 个压缩包";
 "externalExtract.batch.progress" = "正在解压 %1$d / %2$d：%3$@";
 "externalExtract.batch.allDone" = "%d 个全部解压完成";

@@ -471,6 +471,9 @@
 "externalExtract.window.title" = "Extracting";
 "externalExtract.done" = "Extraction complete";
 "externalExtract.failed" = "Extraction failed";
+"externalExtract.verifying" = "Verifying signature…";
+"externalExtract.openInMainWindow" = "Open in Main Window";
+"externalExtract.siz.extractButton" = "Extract";
 "externalExtract.batch.title" = "Extracting %d archives";
 "externalExtract.batch.progress" = "Extracting %1$d of %2$d: %3$@";
 "externalExtract.batch.allDone" = "Extracted all %d archives";

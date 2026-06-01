@@ -15,8 +15,11 @@ struct ContentView: View {
 
     /// 工厂建窗时传入：窗口/标签出现后在本浏览器里浏览这个 URL（右键「在新标签 / 新窗口打开」用）。
     private let openURLOnAppear: URL?
-    init(openURLOnAppear: URL? = nil) {
+    /// 工厂建窗时传入：窗口出现后直接以虚拟目录浏览这个已验签的 .szs（独立浮窗「在主窗口打开」用，免重验）。
+    private let openSZSVirtualFolderOnAppear: SZSVirtualFolderRequest?
+    init(openURLOnAppear: URL? = nil, openSZSVirtualFolderOnAppear: SZSVirtualFolderRequest? = nil) {
         self.openURLOnAppear = openURLOnAppear
+        self.openSZSVirtualFolderOnAppear = openSZSVirtualFolderOnAppear
     }
 
     @State private var isDropTargeted = false
@@ -244,6 +247,14 @@ struct ContentView: View {
         .onAppear {
             ExternalFileOpenQueue.shared.drain().forEach(openExternalURL)
             FinderServiceActionQueue.shared.drain().forEach(handleFinderServiceAction)
+            // 独立浮窗「在主窗口打开」.szs：已验签报告直达，直接进虚拟目录浏览，不再重弹验签 sheet。
+            if let request = openSZSVirtualFolderOnAppear {
+                model.openSZSAsVirtualFolder(
+                    manifestURL: request.manifestURL,
+                    verifyReport: request.report,
+                    payloadRoot: request.payloadRoot
+                )
+            }
             // 右键「在新标签 / 新窗口打开」：工厂把目标 URL 传进来，本浏览器在出现后浏览它（强制浏览，不走自动解压）。
             if let url = openURLOnAppear { openURLInThisBrowser(url) }
             // 校验保存的 startupLocation 是不是指向一个还活着的目录；

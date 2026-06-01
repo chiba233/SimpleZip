@@ -24,13 +24,26 @@ final class ExternalExtractWindowController {
     /// 当前活动任务的取消句柄。替换 / 关闭浮窗前调用，确保旧任务真的停掉而不是隐身续跑。
     private var cancelActive: (() -> Void)?
 
+    /// 统一入口：按扩展名分派 `.siz → startSIZ` / `.szs → startSZS` / 其它 → 普通解压。
+    /// Finder 自动解压（冷启动 / 热运行 / 右键单个）都经这里，**全程不碰主窗口**。
+    func open(_ url: URL) {
+        switch url.pathExtension.lowercased() {
+        case SIZArchive.extensionName: startSIZ(sourceURL: url)
+        case SZSArchive.extensionName: startSZS(sourceURL: url)
+        default: start(archiveURL: url, mainWindowURL: url)
+        }
+    }
+
     /// 单个压缩包解压（含 `.siz` 自动解压：带目标目录 / 输出名 / 显示名 / 清理目录 override）。
+    /// - mainWindowURL：浮窗「在主窗口打开」点击时交给主窗口浏览的 URL（默认即 archiveURL；
+    ///   `.siz` 自动解压时传**原始 .siz**，让用户在主窗口看到的是容器而非临时内层 archive）。
     func start(
         archiveURL: URL,
         destinationDirectoryOverride: URL? = nil,
         outputBaseNameOverride: String? = nil,
         displayName: String? = nil,
-        cleanupDirectory: URL? = nil
+        cleanupDirectory: URL? = nil,
+        mainWindowURL: URL? = nil
     ) {
         let session = ExternalExtractSession(
             archiveURL: archiveURL,
@@ -39,6 +52,8 @@ final class ExternalExtractWindowController {
             displayName: displayName,
             cleanupDirectory: cleanupDirectory
         )
+        let openURL = mainWindowURL ?? archiveURL
+        session.onOpenInMainWindow = { [weak self] in self?.openInMainWindow(browseURL: openURL, cleanup: nil) }
         present(content: ExternalExtractView(session: session), cancel: { session.cancel() })
         Task { [weak self] in
             await session.run(
@@ -64,6 +79,176 @@ final class ExternalExtractWindowController {
                 onAttention: { [weak self] in self?.bringToFront() }
             )
         }
+    }
+
+    /// `.siz` 自动解压（独立浮窗，全程脱钩主窗口）：先在浮窗显「正在校验签名…」，后台 unwrap + 验签：
+    /// - 签名干净（或 gpgEnabled 关 = 无可验签名）→ 解密(若需) + 直接解压到 .siz 所在目录。
+    /// - 有 concerns → 浮窗内呈现 `SIZSignatureSheet`，用户选「解压 / 在主窗口打开 / 取消」。
+    /// - unwrap / 验签出错 → 浮窗显错误 + 「在主窗口打开」逃生入口。
+    func startSIZ(sourceURL: URL) {
+        let prepare = ExternalPrepareSession(displayName: sourceURL.lastPathComponent)
+        let task = Task { [weak self] in
+            guard let self else { return }
+            do {
+                let (innerArchiveURL, tempRoot, summary) = try await SignedContainerService.unwrapAndVerifySIZ(at: sourceURL)
+                try Task.checkCancellation()
+                if SignedContainerService.sizSignatureIsClean(summary) {
+                    // 干净（含 GPG 关闭的刚需例外）→ 解密(若需) 后直接解压。
+                    let decrypted = try await SignedContainerService.decryptInnerArchiveIfNeeded(innerArchiveURL)
+                    try Task.checkCancellation()
+                    self.cancelActive = nil   // 交棒给解压 session：别让下面 start() 的 present 误清 tempRoot
+                    self.start(
+                        archiveURL: decrypted,
+                        destinationDirectoryOverride: sourceURL.deletingLastPathComponent(),
+                        outputBaseNameOverride: sourceURL.deletingPathExtension().lastPathComponent,
+                        displayName: sourceURL.lastPathComponent,
+                        cleanupDirectory: tempRoot,
+                        mainWindowURL: sourceURL
+                    )
+                } else if let summary {
+                    self.presentSIZSignatureSheet(
+                        sourceURL: sourceURL,
+                        innerArchiveURL: innerArchiveURL,
+                        tempRoot: tempRoot,
+                        summary: summary
+                    )
+                }
+            } catch is CancellationError {
+                self.close()
+            } catch {
+                prepare.fail(error.localizedDescription)
+                self.bringToFront()
+            }
+        }
+        prepare.onOpenInMainWindow = { [weak self] in self?.openInMainWindow(browseURL: sourceURL, cleanup: nil) }
+        present(content: ExternalPrepareView(session: prepare), cancel: { task.cancel() })
+    }
+
+    /// `.siz` 验签有 concerns 时浮窗内呈现签名 sheet。三动作：解压 / 在主窗口打开 / 取消，均自管 tempRoot 清理。
+    private func presentSIZSignatureSheet(
+        sourceURL: URL,
+        innerArchiveURL: URL,
+        tempRoot: URL,
+        summary: SIZSignatureSummary
+    ) {
+        let sheet = SIZSignatureSheet(
+            signature: summary,
+            onOpen: { [weak self] key, passphrase in
+                self?.proceedSIZExtract(
+                    sourceURL: sourceURL,
+                    innerArchiveURL: innerArchiveURL,
+                    tempRoot: tempRoot,
+                    decryptionKey: key,
+                    passphrase: passphrase
+                )
+            },
+            onCancel: { [weak self] in
+                try? FileManager.default.removeItem(at: tempRoot)
+                self?.close()
+            },
+            primaryActionTitle: L10n.text("externalExtract.siz.extractButton"),
+            onOpenInMainWindow: { [weak self] in
+                self?.openInMainWindow(browseURL: sourceURL, cleanup: tempRoot)
+            }
+        )
+        present(content: sheet, cancel: { [weak self] in
+            try? FileManager.default.removeItem(at: tempRoot)
+            self?.close()
+        })
+    }
+
+    /// 用户在签名 sheet 点「解压」：解密(若需) 后解压。解密失败 → 浮窗显错误 + 逃生入口（可去主窗口换密钥重试）。
+    private func proceedSIZExtract(
+        sourceURL: URL,
+        innerArchiveURL: URL,
+        tempRoot: URL,
+        decryptionKey: String?,
+        passphrase: String?
+    ) {
+        let prepare = ExternalPrepareSession(displayName: sourceURL.lastPathComponent)
+        let task = Task { [weak self] in
+            guard let self else { return }
+            do {
+                let decrypted = try await SignedContainerService.decryptInnerArchiveIfNeeded(
+                    innerArchiveURL, decryptionKey: decryptionKey, passphrase: passphrase
+                )
+                try Task.checkCancellation()
+                self.cancelActive = nil   // 交棒给解压 session 清 tempRoot
+                self.start(
+                    archiveURL: decrypted,
+                    destinationDirectoryOverride: sourceURL.deletingLastPathComponent(),
+                    outputBaseNameOverride: sourceURL.deletingPathExtension().lastPathComponent,
+                    displayName: sourceURL.lastPathComponent,
+                    cleanupDirectory: tempRoot,
+                    mainWindowURL: sourceURL
+                )
+            } catch is CancellationError {
+                try? FileManager.default.removeItem(at: tempRoot)
+                self.close()
+            } catch {
+                prepare.fail(error.localizedDescription)
+                self.bringToFront()
+            }
+        }
+        prepare.onOpenInMainWindow = { [weak self] in self?.openInMainWindow(browseURL: sourceURL, cleanup: tempRoot) }
+        present(content: ExternalPrepareView(session: prepare), cancel: { task.cancel() })
+    }
+
+    /// `.szs` 自动解压（独立浮窗，全程脱钩主窗口）：peek 签名清单后浮窗内呈现 `SZSVerificationSheet`。
+    /// `.szs` 无「解压」语义，主操作即「以虚拟目录浏览」—— 该操作需要主窗口 model，走「在主窗口打开」直达入口（免重验）。
+    func startSZS(sourceURL: URL) {
+        let prepare = ExternalPrepareSession(displayName: sourceURL.lastPathComponent)
+        let task = Task { [weak self] in
+            guard let self else { return }
+            do {
+                let (signature, manifest) = try await SZSArchive.peek(manifestURL: sourceURL)
+                try Task.checkCancellation()
+                self.presentSZSVerificationSheet(sourceURL: sourceURL, signature: signature, manifest: manifest)
+            } catch is CancellationError {
+                self.close()
+            } catch {
+                prepare.fail(error.localizedDescription)
+                self.bringToFront()
+            }
+        }
+        prepare.onOpenInMainWindow = { [weak self] in self?.openInMainWindow(browseURL: sourceURL, cleanup: nil) }
+        present(content: ExternalPrepareView(session: prepare), cancel: { task.cancel() })
+    }
+
+    private func presentSZSVerificationSheet(
+        sourceURL: URL,
+        signature: GPGBackend.GPGVerifyResult,
+        manifest: SZSArchive.Manifest
+    ) {
+        let sheet = SZSVerificationSheet(
+            sourceURL: sourceURL,
+            signature: signature,
+            manifest: manifest,
+            initialPayloadRoot: sourceURL.deletingLastPathComponent(),
+            onClose: { [weak self] in self?.close() },
+            onOpenAsVirtualFolder: { [weak self] payloadRoot, report in
+                self?.openInMainWindow(
+                    szsRequest: SZSVirtualFolderRequest(manifestURL: sourceURL, report: report, payloadRoot: payloadRoot)
+                )
+            }
+        )
+        present(content: sheet, cancel: { [weak self] in self?.close() })
+    }
+
+    /// 浮窗「在主窗口打开」：把请求交给标准主窗口流程（按偏好新标签 / 新窗口），关浮窗。
+    /// 这是「彻底脱钩」下用户**主动**拉起主窗口的唯一入口。
+    private func openInMainWindow(browseURL: URL, cleanup: URL?) {
+        if let cleanup { try? FileManager.default.removeItem(at: cleanup) }
+        cancelActive = nil   // 已交给主窗口；别在 close 链路误触发 sheet 的 tempRoot 清理（已清）
+        MainWindowFactory.open(asTab: AppPreferences.openExternalInNewTab, openURL: browseURL)
+        close()
+    }
+
+    /// `.szs`「以虚拟目录浏览」：已验签报告直达新主窗口，免重验。
+    private func openInMainWindow(szsRequest: SZSVirtualFolderRequest) {
+        cancelActive = nil
+        MainWindowFactory.open(asTab: AppPreferences.openExternalInNewTab, openSZSVirtualFolder: szsRequest)
+        close()
     }
 
     /// 创建并展示浮窗，替换并 **取消** 上一个活动任务。
@@ -176,6 +361,9 @@ final class ExternalExtractSession: ObservableObject {
     @Published var fraction: Double? = nil
     @Published var currentFileName: String? = nil
     @Published var statusText: String
+
+    /// 浮窗「在主窗口打开」回调（controller 注入）—— 满足「在独立窗口内可以选择拉起主窗口」。
+    var onOpenInMainWindow: (() -> Void)?
 
     private let operationID = UUID()
     private let coordinator = ArchiveExtractionCoordinator(fileManager: .default)
@@ -387,6 +575,9 @@ struct ExternalExtractView: View {
                     Button(L10n.text("tasks.window.title")) {
                         ActivityWindowController.shared.show(category: .archive)
                     }
+                    if let onOpenInMainWindow = session.onOpenInMainWindow {
+                        Button(L10n.text("externalExtract.openInMainWindow"), action: onOpenInMainWindow)
+                    }
                     Spacer()
                     Button(L10n.text("button.cancel")) {
                         session.cancel()
@@ -406,6 +597,9 @@ struct ExternalExtractView: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer()
+                    if let onOpenInMainWindow = session.onOpenInMainWindow {
+                        Button(L10n.text("externalExtract.openInMainWindow"), action: onOpenInMainWindow)
+                    }
                     Button(L10n.text("tasks.window.title")) {
                         ActivityWindowController.shared.show(category: .archive)
                     }
@@ -490,5 +684,79 @@ struct ExternalExtractBatchView: View {
         }
         .padding(16)
         .frame(width: 360, alignment: .top)
+    }
+}
+
+/// `.siz`/`.szs` 在浮窗里「准备阶段」（unwrap + 验签 / peek）的占位会话 —— 校验中显进度条，
+/// 出错显错误 + 「在主窗口打开」逃生入口。准备完成后 controller 会把浮窗内容替换成解压进度 / 签名 sheet。
+@MainActor
+final class ExternalPrepareSession: ObservableObject {
+    enum Phase: Equatable {
+        case verifying
+        case failed(String)
+    }
+
+    let displayName: String
+    @Published var phase: Phase = .verifying
+    /// controller 注入：浮窗「在主窗口打开」（准备失败时的逃生入口）。
+    var onOpenInMainWindow: (() -> Void)?
+
+    init(displayName: String) {
+        self.displayName = displayName
+    }
+
+    func fail(_ message: String) {
+        phase = .failed(message)
+    }
+}
+
+/// `.siz`/`.szs` 准备阶段浮窗内容。
+struct ExternalPrepareView: View {
+    @ObservedObject var session: ExternalPrepareSession
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Image(systemName: "checkmark.seal")
+                    .font(.system(size: 22))
+                    .foregroundStyle(.tint)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(session.displayName)
+                        .font(.headline)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Text(statusText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+
+            switch session.phase {
+            case .verifying:
+                ProgressView().progressViewStyle(.linear)
+            case .failed(let message):
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(4)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack {
+                    Spacer()
+                    if let onOpenInMainWindow = session.onOpenInMainWindow {
+                        Button(L10n.text("externalExtract.openInMainWindow"), action: onOpenInMainWindow)
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .frame(width: 360, alignment: .top)
+    }
+
+    private var statusText: String {
+        switch session.phase {
+        case .verifying: return L10n.text("externalExtract.verifying")
+        case .failed: return L10n.text("externalExtract.failed")
+        }
     }
 }

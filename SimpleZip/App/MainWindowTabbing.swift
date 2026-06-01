@@ -26,6 +26,14 @@ enum MainWindow {
     }
 }
 
+/// 「在主窗口打开 .szs 虚拟目录」的直达请求 —— 独立浮窗里用户已经验签完，点「以虚拟目录浏览」时
+/// 把已算好的校验报告 + payload root 直接交给新主窗口，省得新窗口再弹一次验签 sheet 重验一遍。
+struct SZSVirtualFolderRequest: Equatable {
+    let manifestURL: URL
+    let report: SZSArchive.VerifyReport
+    let payloadRoot: URL
+}
+
 /// 主窗口工厂：自己用 AppKit 建窗，**不走** SwiftUI `openWindow`。
 ///
 /// 为什么不用 `openWindow`：它一定会先把新窗口当独立窗口画出来（屏幕中央 / 带动画），下一拍才轮到我们
@@ -43,8 +51,9 @@ enum MainWindowFactory {
     /// - asTab == true 且存在主内容窗口宿主：并入它的标签组（同一个窗口里多一个标签，零闪烁）。
     /// - 否则：独立窗口（冷启动 / 「新建窗口」/ 没有可并入的宿主时）。
     /// - openURL：非空时，新窗口出现后在其浏览器里浏览该 URL（右键「在新标签 / 新窗口打开」用）。
+    /// - openSZSVirtualFolder：非空时，新窗口直接以虚拟目录浏览该 .szs（独立浮窗「在主窗口打开」用，免重验）。
     @discardableResult
-    static func open(asTab: Bool, openURL: URL? = nil) -> NSWindow {
+    static func open(asTab: Bool, openURL: URL? = nil, openSZSVirtualFolder: SZSVirtualFolderRequest? = nil) -> NSWindow {
         // chrome 复刻 SwiftUI WindowGroup 给 NavigationSplitView 窗口的样式：`.fullSizeContentView`
         // + 透明标题栏 + unified 工具栏 —— 让侧栏材质延伸到顶、侧栏开关并入标题栏。少了 `.fullSizeContentView`
         // 侧栏会从标题栏下方才开始、标题栏区域空一大块（用户反馈「布局炸了」）。
@@ -56,7 +65,9 @@ enum MainWindowFactory {
         )
         // 我们自己用 NSWindowController 管生命周期；关掉 isReleasedWhenClosed 避免和 ARC 双重释放。
         window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: ContentView(openURLOnAppear: openURL))
+        window.contentViewController = NSHostingController(
+            rootView: ContentView(openURLOnAppear: openURL, openSZSVirtualFolderOnAppear: openSZSVirtualFolder)
+        )
         window.identifier = MainWindow.windowIdentifier
         window.titlebarAppearsTransparent = true
         window.toolbarStyle = .unified
