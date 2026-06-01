@@ -199,6 +199,9 @@ private struct FileNSOutlineView: NSViewRepresentable {
         private var renamingItem: FileItem?
         /// Esc 取消标记 —— doCommandBy 里置位，controlTextDidEndEditing 据此跳过改名。
         private var renameCancelled = false
+        /// 内联重命名进行中时，外部内容变化（FSEvents 把新建文件的写入当成内容变化触发 reload）被推迟；
+        /// 编辑结束后补刷一次。否则刚弹出的输入框会被 reloadData / endActiveRename 拆掉（用户报的新建文件输入框偶发消失）。
+        private var needsReloadAfterRename = false
 
         // 顶层节点：可能是文件叶子（不分类时）和/或区块（分类组 / 隐藏组）。
         // sectionNodesByKey 按 key 复用区块实例，保证展开状态跨 reloadData 不丢。
@@ -296,6 +299,14 @@ private struct FileNSOutlineView: NSViewRepresentable {
             for item in model.fileItems { hasher.combine(item.id) }
             let contentSignature = hasher.finalize()
             guard contentSignature != lastContentSignature else { return }
+
+            // 正在内联重命名时推迟刷新：新建文件 / 文件夹刚弹出输入框，FSEvents 又把这次写入当成内容变化触发
+            // reload，reloadData + endActiveRename 会把输入框当场拆掉（偶发，取决于 watcher 时序）。
+            // 这里不更新 lastContentSignature、不 reload，编辑结束后再补刷（见 controlTextDidEndEditing）。
+            if renamingItem != nil {
+                needsReloadAfterRename = true
+                return
+            }
             lastContentSignature = contentSignature
 
             rebuildTopLevel()
@@ -1028,6 +1039,11 @@ private struct FileNSOutlineView: NSViewRepresentable {
             let cancelled = renameCancelled
             renameCancelled = false
             let newName = textField.stringValue
+            // 编辑期间被推迟的内容刷新，现在补刷（成功改名会自己 loadFolder，这里主要兜住取消 / 无改动的情况）。
+            if needsReloadAfterRename {
+                needsReloadAfterRename = false
+                DispatchQueue.main.async { [weak self] in self?.syncContent() }
+            }
 
             // 还原成 label 外观；显示回原名，成功 rename 时下面 reload 会换成新名。
             textField.isEditable = false
