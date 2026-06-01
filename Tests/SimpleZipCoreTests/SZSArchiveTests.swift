@@ -122,6 +122,65 @@ struct SZSArchiveTests {
         }
     }
 
+    @Test
+    func expandToRegularFilesRecursesDirectoriesAndSkipsSymlinks() throws {
+        let dir = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let fm = FileManager.default
+
+        // 树：top.txt + sub/nested.txt + sub/deep/deeper.txt + 一个符号链接 link.txt → top.txt。
+        let top = try writeFile("top", named: "top.txt", in: dir)
+        let sub = dir.appendingPathComponent("sub", isDirectory: true)
+        try fm.createDirectory(at: sub.appendingPathComponent("deep", isDirectory: true), withIntermediateDirectories: true)
+        _ = try writeFile("nested", named: "sub/nested.txt", in: dir)
+        _ = try writeFile("deeper", named: "sub/deep/deeper.txt", in: dir)
+        try fm.createSymbolicLink(at: dir.appendingPathComponent("link.txt"), withDestinationURL: top)
+
+        // 选「整个目录」→ 递归收 3 个普通文件，符号链接被跳过。
+        let expanded = SZSArchive.expandToRegularFiles([dir])
+        let names = Set(expanded.map { $0.lastPathComponent })
+        #expect(expanded.count == 3)
+        #expect(names == ["top.txt", "nested.txt", "deeper.txt"])
+        #expect(!names.contains("link.txt"))
+
+        // 普通文件原样保留；符号链接条目被直接跳过。
+        let mixed = SZSArchive.expandToRegularFiles([top, dir.appendingPathComponent("link.txt")])
+        #expect(mixed.map { $0.lastPathComponent } == ["top.txt"])
+    }
+
+    @Test
+    func verifyWithoutSignatureHandlesNestedDirectoryPaths() throws {
+        let dir = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let fm = FileManager.default
+
+        // payloadRoot 下放嵌套真实文件，manifest 用带 `/` 的 relativePath。
+        try fm.createDirectory(at: dir.appendingPathComponent("sub", isDirectory: true), withIntermediateDirectories: true)
+        let nested = try writeFile("nested-content", named: "sub/nested.txt", in: dir)
+        let nestedSHA = try SIZArchive.computeInnerArchiveSHA256(of: nested)
+
+        let manifest = SZSArchive.Manifest(
+            schema: SZSArchive.schemaIdentifier,
+            version: SZSArchive.schemaVersion,
+            createdAt: "2026-06-02T00:00:00Z",
+            createdBy: "SimpleZip test",
+            title: nil,
+            description: nil,
+            rootDirectoryHint: nil,
+            files: [
+                SZSArchive.FileEntry(relativePath: "sub/nested.txt", size: 14, sha256: nestedSHA, mediaType: nil)
+            ]
+        )
+        let json = try SZSArchive.encodeManifest(manifest)
+        let szsURL = dir.appendingPathComponent("demo.szs")
+        try Data(makeClearsigned(json).utf8).write(to: szsURL)
+
+        let report = try SZSArchive.verifyWithoutSignature(manifestURL: szsURL, payloadRoot: dir)
+        #expect(report.summary.total == 1)
+        #expect(report.summary.matched == 1)
+        #expect(report.entries.first?.relativePath == "sub/nested.txt")
+    }
+
     private func makeTemporaryDirectory() throws -> URL {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("SimpleZip-SZSTests-\(UUID().uuidString)", isDirectory: true)

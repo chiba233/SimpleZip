@@ -191,6 +191,45 @@ enum SZSArchive {
         return trimmed
     }
 
+    // MARK: - 目录展开
+
+    /// 把用户选中的条目（文件 / 目录混合）展开成「要逐条签名的普通文件」列表 —— `.szs` 的目录支持核心。
+    ///
+    /// `.szs` 清单只签**普通文件**（每条带 relativePath + size + sha256），目录结构隐含在 relativePath 里
+    /// （浏览端 `openSZSAsVirtualFolder` 会从 relativePath 反推目录树）。所以「支持目录」= 选了目录就递归收其下所有普通文件。
+    ///
+    /// - 目录 → 递归收集其下所有**普通文件**；
+    /// - 普通文件 → 原样保留；
+    /// - 符号链接（无论指向文件还是目录）→ **跳过**：签名应锚定真实文件字节，且不跟随 symlink 可避免把 payloadRoot
+    ///   之外的目标偷渡进清单（`FileManager` 目录枚举默认也不descend进 symlink 目录）。
+    /// - 空目录无法表示（清单只列文件）→ 自然被忽略，符合「签一棵文件树」的语义。
+    ///
+    /// 顺序不保证；`create` 之后会按 relativePath 排序。`internal` 以便创建 UI 预先展开、让文件计数 / 列表准确。
+    static func expandToRegularFiles(_ urls: [URL]) -> [URL] {
+        let fileManager = FileManager.default
+        let keys: [URLResourceKey] = [.isRegularFileKey, .isDirectoryKey, .isSymbolicLinkKey]
+        var result: [URL] = []
+        for url in urls {
+            let values = try? url.resourceValues(forKeys: Set(keys))
+            if values?.isSymbolicLink == true { continue }
+            if values?.isDirectory == true {
+                guard let enumerator = fileManager.enumerator(
+                    at: url,
+                    includingPropertiesForKeys: keys,
+                    options: [] // 不跳隐藏文件：选了目录就签里面所有真实文件；默认不descend进 symlink 目录
+                ) else { continue }
+                for case let child as URL in enumerator {
+                    let childValues = try? child.resourceValues(forKeys: Set(keys))
+                    if childValues?.isSymbolicLink == true { continue }
+                    if childValues?.isRegularFile == true { result.append(child) }
+                }
+            } else if values?.isRegularFile == true {
+                result.append(url)
+            }
+        }
+        return result
+    }
+
     // MARK: - 创建
 
     /// 给定 root + 文件列表 + 签名密钥，生成签名的 `.szs` 文件。
@@ -218,9 +257,16 @@ enum SZSArchive {
         }
         let payloadRootPath = payloadRoot.standardizedFileURL.path
 
+        // Step 0：把选中的目录递归展开成普通文件（`.szs` 目录支持）。文件原样、目录递归、符号链接跳过。
+        // 展开后可能为空（只选了空目录 / 符号链接）→ 视为「没东西可签」。
+        let resolvedFiles = expandToRegularFiles(files)
+        guard !resolvedFiles.isEmpty else {
+            throw SZSError.noFilesToSign
+        }
+
         // Step 1：扫每个文件 → relativePath + size + sha256。
         var entries: [FileEntry] = []
-        for fileURL in files {
+        for fileURL in resolvedFiles {
             let absolutePath = fileURL.standardizedFileURL.path
             // 「fileURL 真的在 payloadRoot 下」 —— 不仅看路径前缀，还要保证 path 边界正确：
             // `/foo/bar` 不是 `/foo/barz` 的前缀，得加 `/` 后缀检查。

@@ -293,7 +293,8 @@
 "szs.create.payloadRoot.choose" = "Choose…";
 "szs.create.payloadRoot.placeholder" = "No root folder selected";
 "szs.create.filesLabel" = "Files to sign";
-"szs.create.addFiles" = "Add files…";
+"szs.create.addFiles" = "Add Files / Folders…";
+"szs.create.addFiles.help" = "Add files, or whole folders — folders are expanded into all the files they contain.";
 "szs.create.fileCount" = "%d file(s) selected";
 "szs.create.titleLabel" = "Title (optional)";
 "szs.create.titlePlaceholder" = "e.g. MyRelease v3.1";

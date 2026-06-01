@@ -293,7 +293,8 @@
 "szs.create.payloadRoot.choose" = "选择…";
 "szs.create.payloadRoot.placeholder" = "尚未选择根目录";
 "szs.create.filesLabel" = "要签名的文件";
-"szs.create.addFiles" = "添加文件…";
+"szs.create.addFiles" = "添加文件 / 文件夹…";
+"szs.create.addFiles.help" = "可添加文件，也可整选文件夹 —— 文件夹会被递归展开成其中包含的所有文件。";
 "szs.create.fileCount" = "已选 %d 个文件";
 "szs.create.titleLabel" = "标题（可选）";
 "szs.create.titlePlaceholder" = "如：MyRelease v3.1";

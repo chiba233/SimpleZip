@@ -116,6 +116,7 @@ struct CreateSZSSheet: View {
                     }
                     .controlSize(.small)
                     .disabled(payloadRoot == nil)
+                    .help(L10n.text("szs.create.addFiles.help"))
                 }
                 if !selectedFiles.isEmpty {
                     ScrollView(.vertical, showsIndicators: true) {
@@ -226,7 +227,8 @@ struct CreateSZSSheet: View {
     private func applyPrefillIfAny() {
         guard let prefill = initialPrefill else { return }
         payloadRoot = prefill.payloadRoot
-        selectedFiles = prefill.files
+        // 右键选中里可能含目录 → 递归展开成普通文件，让文件计数 / 列表准确（create 也会再展开兜底）。
+        selectedFiles = SZSArchive.expandToRegularFiles(prefill.files)
         // 默认输出 = `<payloadRoot 文件夹名>.szs`，落在 payloadRoot **里**。
         // 例：payload root 是 `/Users/yumeka/Desktop` → 输出 `/Users/yumeka/Desktop/Desktop.szs`。
         // 名字跟所在文件夹同名更有「这是这个文件夹的签名清单」的语义；之前默认 `manifest.szs` 太通用 —— 多个文件夹同时签
@@ -271,22 +273,25 @@ struct CreateSZSSheet: View {
         statusMessage = nil
         statusIsError = false
         let panel = NSOpenPanel()
-        panel.canChooseDirectories = false
+        // 支持选目录：选中的目录会被递归展开成其下所有普通文件（`.szs` 目录支持）。
+        panel.canChooseDirectories = true
         panel.canChooseFiles = true
         panel.allowsMultipleSelection = true
         panel.directoryURL = root
         if panel.runModal() == .OK {
-            // 过滤 + 去重：要求选中的文件 真的在 payload root 下。
-            let normalizedRoot = root.standardizedFileURL.path.hasSuffix("/")
-                ? root.standardizedFileURL.path
-                : root.standardizedFileURL.path + "/"
-            let valid = panel.urls.filter { url in
-                url.standardizedFileURL.path.hasPrefix(normalizedRoot)
+            // 选中的条目（文件或目录）必须位于 payload root 之下（或就是 root 本身）。
+            let rootPath = root.standardizedFileURL.path
+            let normalizedRoot = rootPath.hasSuffix("/") ? rootPath : rootPath + "/"
+            let pickedInRoot = panel.urls.filter { url in
+                let path = url.standardizedFileURL.path
+                return path == rootPath || path.hasPrefix(normalizedRoot)
             }
-            for url in valid where !selectedFiles.contains(url) {
+            // 目录递归展开成普通文件；文件原样。去重后追加。
+            let expanded = SZSArchive.expandToRegularFiles(pickedInRoot)
+            for url in expanded where !selectedFiles.contains(url) {
                 selectedFiles.append(url)
             }
-            let rejectedCount = panel.urls.count - valid.count
+            let rejectedCount = panel.urls.count - pickedInRoot.count
             if rejectedCount > 0 {
                 statusMessage = L10n.format("error.szs.fileOutsidePayloadRoot", "\(rejectedCount)")
                 statusIsError = true
