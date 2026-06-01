@@ -196,6 +196,8 @@ private struct FileNSOutlineView: NSViewRepresentable {
         private var isSyncingExpansion = false
         // 正在内联重命名的文件；controlTextDidEndEditing 据此知道改的是哪个 item。
         private var renamingItem: FileItem?
+        /// Esc 取消标记 —— doCommandBy 里置位，controlTextDidEndEditing 据此跳过改名。
+        private var renameCancelled = false
 
         // 顶层节点：可能是文件叶子（不分类时）和/或区块（分类组 / 隐藏组）。
         // sectionNodesByKey 按 key 复用区块实例，保证展开状态跨 reloadData 不丢。
@@ -293,6 +295,9 @@ private struct FileNSOutlineView: NSViewRepresentable {
                 )
             }
 
+            // 内容要重画前先收掉重命名输入框（切文件夹 / 自动刷新 / 排序分组变化）：
+            // 否则编辑中的字段编辑器会悬在被复用的 cell 上、留个空输入框（用户反馈「切文件夹还赖着」）。
+            endActiveRename()
             outlineView?.reloadData()
             enforceExpansion()
         }
@@ -445,6 +450,11 @@ private struct FileNSOutlineView: NSViewRepresentable {
                 if let node = outlineView.item(atRow: index) as? FileOutlineNode, let item = node.fileItem {
                     selection.insert(item.id)
                 }
+            }
+            // 点到别的行（选区移开正在重命名的项）→ 提交并收掉输入框（Finder：点开别处即提交）。
+            // 重压重命名时 selectRowIndexes 在 beginRename 之前触发、那会儿 renamingItem 还是 nil，不会误收。
+            if let renaming = renamingItem, !selection.contains(renaming.id) {
+                endActiveRename()
             }
             DispatchQueue.main.async { [weak self] in
                 guard let self, self.model.selection != selection else { return }
@@ -894,6 +904,8 @@ private struct FileNSOutlineView: NSViewRepresentable {
         func controlTextDidEndEditing(_ obj: Notification) {
             guard let textField = obj.object as? NSTextField, let item = renamingItem else { return }
             renamingItem = nil
+            let cancelled = renameCancelled
+            renameCancelled = false
             let newName = textField.stringValue
 
             // 还原成 label 外观；显示回原名，成功 rename 时下面 reload 会换成新名。
@@ -904,10 +916,34 @@ private struct FileNSOutlineView: NSViewRepresentable {
             textField.delegate = nil
             textField.stringValue = item.displayName
 
-            // Escape 取消（cancel 移动）→ 不改名。
+            // Escape 取消（cancel 移动 / 我们的 Esc 标记）→ 不改名。
             let movement = (obj.userInfo?["NSTextMovement"] as? Int) ?? NSTextMovement.other.rawValue
-            guard movement != NSTextMovement.cancel.rawValue else { return }
+            guard !cancelled, movement != NSTextMovement.cancel.rawValue else { return }
             model.renameFile(item, to: newName)
+        }
+
+        /// 回车提交 / Esc 取消 —— 显式结束字段编辑，避免某些情况下 Esc 不触发 endEditing、
+        /// 输入框赖着不走（用户反馈：只能回车消、Esc 取消都不灵）。
+        func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+            guard renamingItem != nil else { return false }
+            switch commandSelector {
+            case #selector(NSResponder.cancelOperation(_:)):
+                renameCancelled = true
+                outlineView?.window?.makeFirstResponder(outlineView)
+                return true
+            case #selector(NSResponder.insertNewline(_:)):
+                outlineView?.window?.makeFirstResponder(outlineView)
+                return true
+            default:
+                return false
+            }
+        }
+
+        /// 结束当前正在进行的内联重命名（提交）。用于「点开别处 / 切文件夹 / 列表 reload」时
+        /// 把输入框收掉 —— 把第一响应者交回 outline 会触发 controlTextDidEndEditing 提交并还原外观。
+        private func endActiveRename() {
+            guard renamingItem != nil, let outlineView else { return }
+            outlineView.window?.makeFirstResponder(outlineView)
         }
 
         // MARK: - 选择同步
