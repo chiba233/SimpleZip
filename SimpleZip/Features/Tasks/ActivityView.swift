@@ -434,41 +434,90 @@ private struct ActivityTaskRow: View {
                 }
             }
 
-            if isShowingDetails, hasDetails, let session = task.detailsSession {
-                VStack(alignment: .leading, spacing: 7) {
-                    HStack {
-                        Text(detailsHeaderTitle)
-                            .font(.caption.weight(.semibold))
-                        Spacer()
-                        Button {
-                            Task {
-                                await DiagnosticsCopier.copy(session: session, errorMessage: errorMessage)
-                                withAnimation { showsCopiedConfirmation = true }
-                                try? await Task.sleep(nanoseconds: 2_500_000_000)
-                                withAnimation { showsCopiedConfirmation = false }
-                            }
-                        } label: {
-                            Image(systemName: "doc.on.doc")
-                        }
-                        .buttonStyle(.borderless)
-                        .help(L10n.text("button.copyDiagnostics"))
-                    }
-                    if showsCopiedConfirmation {
-                        Text(L10n.text("diagnostics.copied"))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    CommandOutputLogView(text: session.rawOutput.isEmpty ? L10n.text("details.waiting") : session.rawOutput)
-                        .frame(height: 142)
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 6)
-                                .stroke(Color(nsColor: .separatorColor))
-                        )
+            if isShowingDetails, hasDetails {
+                if let report = task.hashReport {
+                    hashResultDetails(report)
+                } else if let session = task.detailsSession {
+                    commandOutputDetails(session)
                 }
             }
         }
         .padding(.vertical, 8)
+    }
+
+    /// 哈希任务详情：复用「文件哈希」弹窗的同一套格式化卡片（HashResultCard），不画文本日志。
+    @ViewBuilder
+    private func hashResultDetails(_ report: HashReport) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack {
+                Text(detailsHeaderTitle)
+                    .font(.caption.weight(.semibold))
+                Spacer()
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(report.plainTextSummary, forType: .string)
+                    withAnimation { showsCopiedConfirmation = true }
+                    Task {
+                        try? await Task.sleep(nanoseconds: 2_500_000_000)
+                        withAnimation { showsCopiedConfirmation = false }
+                    }
+                } label: {
+                    Image(systemName: "doc.on.doc")
+                }
+                .buttonStyle(.borderless)
+                .help(L10n.text("button.copyAll"))
+            }
+            if showsCopiedConfirmation {
+                Text(L10n.text("diagnostics.copied"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 8) {
+                    ForEach(report.results) { result in
+                        HashResultCard(report: report, result: result)
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+            .frame(maxHeight: 280)
+        }
+    }
+
+    /// 后端命令详情：实时命令输出文本日志（解压 / 压缩 / 测试）。
+    @ViewBuilder
+    private func commandOutputDetails(_ session: ArchiveOperationDetailsSession) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack {
+                Text(detailsHeaderTitle)
+                    .font(.caption.weight(.semibold))
+                Spacer()
+                Button {
+                    Task {
+                        await DiagnosticsCopier.copy(session: session, errorMessage: errorMessage)
+                        withAnimation { showsCopiedConfirmation = true }
+                        try? await Task.sleep(nanoseconds: 2_500_000_000)
+                        withAnimation { showsCopiedConfirmation = false }
+                    }
+                } label: {
+                    Image(systemName: "doc.on.doc")
+                }
+                .buttonStyle(.borderless)
+                .help(L10n.text("button.copyDiagnostics"))
+            }
+            if showsCopiedConfirmation {
+                Text(L10n.text("diagnostics.copied"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            CommandOutputLogView(text: session.rawOutput.isEmpty ? L10n.text("details.waiting") : session.rawOutput)
+                .frame(height: 142)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(Color(nsColor: .separatorColor))
+                )
+        }
     }
 
     @ViewBuilder
@@ -579,8 +628,10 @@ private struct ActivityTaskRow: View {
     /// - 其它情况：仅当 detailsSession 已有内容（哈希结果 / 粘贴的源·目标哈希等）。
     ///   平凡的复制/移动 + 失败任务都没有内容 → 不出空面板，也不再卡「正在等待命令输出…」。
     private var hasDetails: Bool {
+        // 哈希任务：有结构化结果就给详情入口（格式化卡片）。
+        if task.hashReport != nil { return true }
         guard let session = task.detailsSession else { return false }
-        // 真·后端命令（解压/压缩/测试）运行中就允许展开看实时输出；哈希 / 文件操作只在已有内容时给入口。
+        // 真·后端命令（解压/压缩/测试）运行中就允许展开看实时输出；其余只在已有内容时给入口。
         if isBackendCommand, task.status.isRunning { return true }
         return !session.rawOutput.isEmpty
     }

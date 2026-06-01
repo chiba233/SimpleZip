@@ -55,7 +55,8 @@ struct HashResultsView: View {
     }
 }
 
-private struct HashResultCard: View {
+/// 单个文件的哈希结果卡片。`internal` 以便活动中心详情直接复用同一套格式化 UI（不要重画）。
+struct HashResultCard: View {
     let report: HashReport
     let result: FileHashResult
 

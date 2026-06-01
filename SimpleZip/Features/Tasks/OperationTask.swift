@@ -49,6 +49,9 @@ final class OperationTask: ObservableObject, Identifiable {
     let detail: String?
     let startedAt: Date
     let detailsSession: ArchiveOperationDetailsSession?
+    /// 哈希任务的结构化结果 —— 活动中心详情里**用格式化 UI（每文件 + 各算法卡片）**渲染，而不是命令输出文本。
+    /// 仅哈希任务设置；不持久化（仅本次会话内可看）。
+    var hashReport: HashReport?
     var operationID: UUID?
     var cancel: (() -> Void)?
 
