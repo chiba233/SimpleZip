@@ -115,7 +115,8 @@ enum ExternalExtractRunner {
         operationID: UUID,
         coordinator: ArchiveExtractionCoordinator,
         onStatus: @escaping @MainActor (String) -> Void,
-        onProgress: @escaping @MainActor (Double?, String?) -> Void
+        onProgress: @escaping @MainActor (Double?, String?) -> Void,
+        outputObserver: (@Sendable (String) -> Void)? = nil
     ) async throws -> URL {
         let supportedURL = ArchiveService.supportedArchiveURL(archiveURL) ?? archiveURL
         // 目标父目录：默认 archive 所在目录；`.siz` 自动解压时内层 archive 在 /tmp，用 override 落到原 .siz 文件夹。
@@ -139,7 +140,8 @@ enum ExternalExtractRunner {
                     onProgress(state.fraction, state.currentFile)
                     if let text = state.statusText { onStatus(text) }
                 }
-            }
+            },
+            outputObserver: outputObserver
         )
 
         let baseName = outputBaseNameOverride ?? supportedURL.deletingPathExtension().lastPathComponent
@@ -202,9 +204,12 @@ final class ExternalExtractSession: ObservableObject {
     func run(onClose: @escaping @MainActor () -> Void, onAttention: @escaping @MainActor () -> Void = {}) async {
         // `.siz` unwrap 暂存根：无论成功失败都清掉（含可能的解密产物）。
         defer { if let cleanupDirectory { try? FileManager.default.removeItem(at: cleanupDirectory) } }
-        // 接入活动中心：Finder 自动解压也建一个归档任务，进度同步喂进去，可在活动中心查看 / 取消。
+        // 接入活动中心：Finder 自动解压也建一个归档任务，进度同步喂进去，可在活动中心查看 / 取消 / 看命令输出。
+        let details = ArchiveOperationDetailsSession(title: displayName)
+        let detailsOutput = ThrottledDetailsOutput(session: details)
         let task = TaskCenter.shared.begin(
-            category: .archive, kind: .extract, title: displayName, cancellable: true, operationID: operationID
+            category: .archive, kind: .extract, title: displayName, cancellable: true,
+            detailsSession: details, operationID: operationID
         )
         task.cancel = { [weak self] in self?.cancel() }
         do {
@@ -220,7 +225,8 @@ final class ExternalExtractSession: ObservableObject {
                     self?.currentFileName = file
                     task.progress.fraction = fraction
                     task.progress.currentFile = file
-                }
+                },
+                outputObserver: { detailsOutput.append($0) }
             )
             status = .succeeded(target)
             TaskCenter.shared.finish(task, outcome: .succeeded(target))
@@ -284,9 +290,12 @@ final class ExternalExtractBatchSession: ObservableObject {
             statusText = L10n.format("externalExtract.batch.progress", index + 1, total, url.lastPathComponent)
             let opID = UUID()
             currentOperationID = opID
-            // 每个压缩包在活动中心建独立任务，可逐个查看 / 取消。
+            // 每个压缩包在活动中心建独立任务，可逐个查看 / 取消 / 看命令输出。
+            let details = ArchiveOperationDetailsSession(title: url.lastPathComponent)
+            let detailsOutput = ThrottledDetailsOutput(session: details)
             let task = TaskCenter.shared.begin(
-                category: .archive, kind: .extract, title: url.lastPathComponent, cancellable: true, operationID: opID
+                category: .archive, kind: .extract, title: url.lastPathComponent, cancellable: true,
+                detailsSession: details, operationID: opID
             )
             task.cancel = { [weak self] in self?.cancel() }
             do {
@@ -302,7 +311,8 @@ final class ExternalExtractBatchSession: ObservableObject {
                         self?.currentFileName = file
                         task.progress.fraction = fraction
                         task.progress.currentFile = file
-                    }
+                    },
+                    outputObserver: { detailsOutput.append($0) }
                 )
                 succeeded.append(target)
                 TaskCenter.shared.finish(task, outcome: .succeeded(target))

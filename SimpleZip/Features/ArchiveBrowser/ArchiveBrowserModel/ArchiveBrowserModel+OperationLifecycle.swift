@@ -18,7 +18,8 @@ import Foundation
 /// —— 详情面板是给人看的日志，不需要高频刷新；500ms 已经够实时，还能让渲染几十万字符的 Text 不那么吃力。
 // nonisolated：app target 默认 MainActor，不标的话整类会被推成 MainActor，
 // 后端线程的 append/submit 就没法调了（同 FolderWatcher 的处理）。flush 单独标 @MainActor 改 @Published。
-private nonisolated final class ThrottledDetailsOutput: @unchecked Sendable {
+// 设为 internal 供 Finder 自动解压浮窗（ExternalExtract）复用 —— 让它的任务在活动中心也能看「命令输出」。
+nonisolated final class ThrottledDetailsOutput: @unchecked Sendable {
     private let lock = NSLock()
     private var pending = ""
     private var flushScheduled = false
