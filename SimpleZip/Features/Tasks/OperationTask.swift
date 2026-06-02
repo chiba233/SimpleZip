@@ -56,6 +56,9 @@ final class OperationTask: ObservableObject, Identifiable {
     /// 粘贴 / 移动覆盖前的「源 vs 目标」哈希比对 —— 活动中心详情里同样用格式化卡片渲染，而非文本。
     /// 仅发生比对时才有。随任务历史持久化，重启后仍可查看。
     var hashComparisons: [HashOverwriteResult] = []
+    /// 复制 / 移动 / 合并的逐文件结果（新增 / 覆盖 / 跳过）—— 活动中心详情里列出，避免「只记哈希比对、新增文件无痕」。
+    /// 随任务历史持久化，重启后仍可查看。
+    var transferLog: [TransferLogEntry] = []
     var operationID: UUID?
     var cancel: (() -> Void)?
 

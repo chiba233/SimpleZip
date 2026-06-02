@@ -449,7 +449,12 @@ private struct ActivityTaskRow: View {
             if isShowingDetails, hasDetails {
                 if let report = task.hashReport {
                     hashResultDetails(report)
+                } else if !task.transferLog.isEmpty {
+                    // 文件操作：唯一一段「结果」。逐文件分组（新增/覆盖/跳过），
+                    // 有哈希比对的项内嵌哈希卡片，不再单列第二段。
+                    transferLogDetails(task.transferLog, hashComparisons: task.hashComparisons)
                 } else if !task.hashComparisons.isEmpty {
+                    // 旧版本历史只存了 hashComparisons、没有 transferLog —— 兼容回退。
                     hashComparisonDetails(task.hashComparisons)
                 } else if let session = task.detailsSession {
                     commandOutputDetails(session)
@@ -513,6 +518,39 @@ private struct ActivityTaskRow: View {
                 }
                 .padding(.vertical, 2)
                 .padding(.trailing, 16)   // 预留竖向滚动条宽度，避免盖住右侧长哈希值
+            }
+            .frame(maxHeight: 280)
+        }
+    }
+
+    /// 复制 / 移动 / 合并的逐文件结果：按「新增 / 覆盖 / 跳过」分组列出（补上「新增文件无痕」盲点）。
+    /// 有哈希比对的项内嵌哈希卡片，作为这条任务唯一一段「结果」，不再单列第二段。
+    @ViewBuilder
+    private func transferLogDetails(_ entries: [TransferLogEntry], hashComparisons: [HashOverwriteResult]) -> some View {
+        let added = entries.filter { $0.action == .added }
+        let overwritten = entries.filter { $0.action == .overwritten }
+        let skipped = entries.filter { $0.action == .skipped }
+        var hashByName: [String: HashOverwriteResult] = [:]
+        for result in hashComparisons {
+            hashByName[result.targetURL.lastPathComponent] = result
+        }
+        return VStack(alignment: .leading, spacing: 7) {
+            Text(detailsHeaderTitle)
+                .font(.caption.weight(.semibold))
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 10) {
+                    if !added.isEmpty {
+                        TransferLogGroup(title: L10n.text("transfer.section.added"), entries: added, icon: "plus.circle.fill", tint: .green, hashByName: hashByName)
+                    }
+                    if !overwritten.isEmpty {
+                        TransferLogGroup(title: L10n.text("transfer.section.overwritten"), entries: overwritten, icon: "arrow.triangle.2.circlepath.circle.fill", tint: .orange, hashByName: hashByName)
+                    }
+                    if !skipped.isEmpty {
+                        TransferLogGroup(title: L10n.text("transfer.section.skipped"), entries: skipped, icon: "minus.circle.fill", tint: .secondary, hashByName: hashByName)
+                    }
+                }
+                .padding(.vertical, 2)
+                .padding(.trailing, 16)
             }
             .frame(maxHeight: 280)
         }
@@ -667,6 +705,7 @@ private struct ActivityTaskRow: View {
         // 哈希任务 / 粘贴·移动的哈希比对：有结构化结果就给详情入口（格式化卡片）。
         if task.hashReport != nil { return true }
         if !task.hashComparisons.isEmpty { return true }
+        if !task.transferLog.isEmpty { return true }
         guard let session = task.detailsSession else { return false }
         // 测试：结果就是「通过 / 失败」，成功 / 进行中不必给命令框（图标 + 状态已说明一切，命令输出毫无价值）；
         // 只有失败才展开看是哪个文件 CRC 出错。
@@ -687,6 +726,55 @@ private struct ActivityTaskRow: View {
     /// 详情面板标题：后端命令 → 「命令输出」；哈希结果 / 文件哈希对比 → 「结果」（避免把哈希信息错叫成命令输出）。
     private var detailsHeaderTitle: String {
         isBackendCommand ? L10n.text("details.commandOutput") : L10n.text("details.results")
+    }
+}
+
+/// 活动中心里的逐文件结果分组（新增 / 覆盖 / 跳过）。可折叠，长列表不炸；文件夹名带「（文件夹）」后缀。
+private struct TransferLogGroup: View {
+    let title: String
+    let entries: [TransferLogEntry]
+    let icon: String
+    let tint: Color
+    let hashByName: [String: HashOverwriteResult]
+    @State private var expanded = true
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.15)) { expanded.toggle() }
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: expanded ? "chevron.down" : "chevron.right")
+                        .font(.caption2.weight(.semibold))
+                    Text(L10n.format("transfer.section.count", title, entries.count))
+                        .font(.caption.weight(.semibold))
+                    Spacer()
+                }
+                .foregroundStyle(.secondary)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if expanded {
+                ForEach(Array(entries.enumerated()), id: \.offset) { _, entry in
+                    if let hash = hashByName[entry.name] {
+                        // 有哈希比对 → 内嵌那张格式化卡片（源/目标哈希 + 状态）。
+                        HashComparisonCard(result: hash)
+                    } else {
+                        HStack(spacing: 6) {
+                            Image(systemName: icon)
+                                .foregroundStyle(tint)
+                            Text(entry.isDirectory ? L10n.format("transfer.folderName", entry.name) : entry.name)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                            Spacer()
+                        }
+                        .font(.callout)
+                        .padding(.leading, 12)
+                    }
+                }
+            }
+        }
     }
 }
 

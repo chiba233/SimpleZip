@@ -158,7 +158,8 @@ extension ArchiveBrowserModel {
 
             do {
                 let total = max(1, fileClipboard.urls.count)
-                let conflictSession = extractionCoordinator.makeConflictResolutionSession(allowsRememberedChoice: fileClipboard.urls.count > 1)
+                let hasFolder = fileClipboard.urls.contains { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }
+                let conflictSession = extractionCoordinator.makeConflictResolutionSession(allowsRememberedChoice: fileClipboard.urls.count > 1 || hasFolder)
                 for (index, url) in fileClipboard.urls.enumerated() {
                     try Task.checkCancellation()
                     updateFileTask(
@@ -171,10 +172,12 @@ extension ArchiveBrowserModel {
                         )
                     )
                     let requestedTargetURL = folderURL.appendingPathComponent(url.lastPathComponent)
-                    let targetURL = try await extractionCoordinator.resolveDestination(
-                        for: url,
-                        requestedTargetURL: requestedTargetURL,
+                    let stats = try await extractionCoordinator.transferItem(
+                        source: url,
+                        requestedTarget: requestedTargetURL,
+                        isMove: fileClipboard.shouldMove,
                         defaultOverwriteBehavior: AppPreferences.overwriteBehavior,
+                        conflictSession: conflictSession,
                         updateStatus: { [weak operationTask] status in
                             guard let operationTask else { return }
                             operationTask.progress = ArchiveProgressState(fraction: nil, currentFile: nil, statusText: status)
@@ -185,28 +188,13 @@ extension ArchiveBrowserModel {
                             operationTask.progress = progress
                             TaskCenter.shared.notifyTaskChanged()
                         },
-                        conflictSession: conflictSession
+                        recordPair: { undoPairs.append(($0, $1)) },
+                        recordHashComparison: { operationTask.hashComparisons.append($0) }
                     )
-                    guard let targetURL else {
-                        skippedCount += 1
-                        if let result = extractionCoordinator.consumeHashOverwriteResult(for: requestedTargetURL) {
-                            operationTask.hashComparisons.append(result)
-                            if result.isSame { sameHashSkips += 1 }
-                        }
-                        continue
-                    }
-
-                    if fileClipboard.shouldMove {
-                        try fileManager.moveItem(at: url, to: targetURL)
-                    } else {
-                        try fileManager.copyItem(at: url, to: targetURL)
-                    }
-                    undoPairs.append((url, targetURL))
-                    if let result = extractionCoordinator.consumeHashOverwriteResult(for: requestedTargetURL) {
-                        operationTask.hashComparisons.append(result)
-                    }
-                    extractionCoordinator.showPendingHashOverwriteResult(for: targetURL)
+                    skippedCount += stats.skipped
+                    sameHashSkips += stats.sameHashSkips
                 }
+                operationTask.transferLog = conflictSession.transferLog
                 extractionCoordinator.finishConflictResolutionSession(conflictSession)
                 completed = true
                 updateFileTask(
@@ -468,7 +456,8 @@ extension ArchiveBrowserModel {
 
             do {
                 let total = max(1, urls.count)
-                let conflictSession = extractionCoordinator.makeConflictResolutionSession(allowsRememberedChoice: urls.count > 1)
+                let hasFolder = urls.contains { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }
+                let conflictSession = extractionCoordinator.makeConflictResolutionSession(allowsRememberedChoice: urls.count > 1 || hasFolder)
                 for (index, url) in urls.enumerated() {
                     try Task.checkCancellation()
                     updateFileTask(
@@ -485,10 +474,12 @@ extension ArchiveBrowserModel {
                         continue
                     }
                     let requestedTargetURL = destinationFolder.appendingPathComponent(url.lastPathComponent)
-                    let targetURL = try await extractionCoordinator.resolveDestination(
-                        for: url,
-                        requestedTargetURL: requestedTargetURL,
+                    let stats = try await extractionCoordinator.transferItem(
+                        source: url,
+                        requestedTarget: requestedTargetURL,
+                        isMove: shouldMove,
                         defaultOverwriteBehavior: AppPreferences.overwriteBehavior,
+                        conflictSession: conflictSession,
                         updateStatus: { [weak operationTask] status in
                             guard let operationTask else { return }
                             operationTask.progress = ArchiveProgressState(fraction: nil, currentFile: nil, statusText: status)
@@ -499,27 +490,13 @@ extension ArchiveBrowserModel {
                             operationTask.progress = progress
                             TaskCenter.shared.notifyTaskChanged()
                         },
-                        conflictSession: conflictSession
+                        recordPair: { undoPairs.append(($0, $1)) },
+                        recordHashComparison: { operationTask.hashComparisons.append($0) }
                     )
-                    guard let targetURL else {
-                        skippedCount += 1
-                        if let result = extractionCoordinator.consumeHashOverwriteResult(for: requestedTargetURL) {
-                            operationTask.hashComparisons.append(result)
-                            if result.isSame { sameHashSkips += 1 }
-                        }
-                        continue
-                    }
-                    if shouldMove {
-                        try fileManager.moveItem(at: url, to: targetURL)
-                    } else {
-                        try fileManager.copyItem(at: url, to: targetURL)
-                    }
-                    undoPairs.append((url, targetURL))
-                    if let result = extractionCoordinator.consumeHashOverwriteResult(for: requestedTargetURL) {
-                        operationTask.hashComparisons.append(result)
-                    }
-                    extractionCoordinator.showPendingHashOverwriteResult(for: targetURL)
+                    skippedCount += stats.skipped
+                    sameHashSkips += stats.sameHashSkips
                 }
+                operationTask.transferLog = conflictSession.transferLog
                 extractionCoordinator.finishConflictResolutionSession(conflictSession)
                 updateFileTask(
                     operationTask,

@@ -146,6 +146,7 @@ private struct PersistedTask: Codable {
     // 都用 Optional：旧版本存的 JSON 没有这两个键，可选才能 decodeIfPresent 容错，不至于整段历史解码失败丢失。
     let hashReport: HashReport?
     let hashComparisons: [HashOverwriteResult]?
+    let transferLog: [TransferLogEntry]?
 
     init(task: OperationTask) {
         id = task.id
@@ -164,6 +165,7 @@ private struct PersistedTask: Codable {
         }
         hashReport = task.hashReport
         hashComparisons = task.hashComparisons.isEmpty ? nil : task.hashComparisons
+        transferLog = task.transferLog.isEmpty ? nil : task.transferLog
     }
 
     @MainActor
@@ -183,6 +185,7 @@ private struct PersistedTask: Codable {
         )
         restored.hashReport = hashReport
         restored.hashComparisons = hashComparisons ?? []
+        restored.transferLog = transferLog ?? []
         return restored
     }
 }
