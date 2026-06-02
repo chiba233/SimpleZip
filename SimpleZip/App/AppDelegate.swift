@@ -150,8 +150,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     // 以下几项与上面两个完全同构（NSServices）：声明在 Info.plist 的 NSServices，方法名对上 NSMessage，
-    // servicesProvider = self。之前这几个只通过已废弃的 FinderSync `simplezip://` 回调路由，从没在 NSServices 里注册，
-    // 所以服务菜单里根本不出现 —— 现在补齐成和「添加到压缩包 / 计算哈希」一样的真·服务。
+    // servicesProvider = self。Finder 右键集成全部走 macOS 服务（不再有独立的 FinderSync 扩展），
+    // 这几个动作和「添加到压缩包 / 计算哈希」一样是真·NSServices。
     @objc func extractFromFinder(
         _ pasteboard: NSPasteboard,
         userData: String?,

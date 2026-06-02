@@ -2,6 +2,10 @@
 
 # Changelog
 
+## 0.2.5
+
+- **Removed the standalone Finder Sync extension; Finder right-click integration now goes entirely through macOS Services (NSServices).** That extension was a misbuilt appex from early on — the right-click actions it provided (Add to Archive / Calculate Hash / Extract / Create ZIP·7z·TAR.GZ) have been fully covered by the main app's NSServices since 0.2.4. Its target and source are now deleted: the app bundle no longer ships `PlugIns/SimpleZipFinderExtension.appex`, and the duplicate entries under System Settings → Login Items & Extensions are gone. The right-click features are unchanged (enable "… with SimpleZip" under System Settings → Keyboard → Keyboard Shortcuts → Services).
+
 ## 0.2.4
 
 - **Fixed: "Open in Main Window" in the Finder auto-extract float window didn't open the archive.** That entry is meant to force a browse, but it went through the path that honours the "auto-extract from Finder" preference — so with auto-extract on it re-extracted the archive instead of browsing it. It now browses the archive contents in the main window directly.

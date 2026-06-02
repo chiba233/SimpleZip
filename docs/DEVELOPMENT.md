@@ -37,7 +37,7 @@ SimpleZip 是一个原生 macOS 压缩档案管理器，Swift + SwiftUI/AppKit �
   -Xswiftc -module-cache-path -Xswiftc /private/tmp/SimpleZipSwiftPM/ModuleCache
 ```
 
-### Xcode Debug 构建（改 App / Features / 资源 / 本地化 / Finder 扩展 / 工程设置 必跑）
+### Xcode Debug 构建（改 App / Features / 资源 / 本地化 / 工程设置 必跑）
 
 ```bash
 /usr/bin/env DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer /usr/bin/xcodebuild \
@@ -59,7 +59,7 @@ plutil -lint SimpleZip/*.lproj/Localizable.strings Info.plist
 | 改了什么 | 跑什么 |
 |---|---|
 | 只动 `SimpleZip/Core` 纯逻辑 | SwiftPM 核心测试 |
-| App UI / Features / 菜单 / 资源 / 本地化 / Finder 扩展 / Info.plist / entitlements / 工程或构建设置 | SwiftPM 测试 **+** Xcode Debug 构建 |
+| App UI / Features / 菜单 / 资源 / 本地化 / Info.plist / entitlements / 工程或构建设置 | SwiftPM 测试 **+** Xcode Debug 构建 |
 | 只动文档（`*.md`） | 都不跑（除非文档内容依赖某条新命令的真实结果） |
 
 **Lint 工具：未配置。** 业务改动的最终回复里要照实写「lint 未配置」，不要编造 lint 结果。
@@ -69,7 +69,7 @@ plutil -lint SimpleZip/*.lproj/Localizable.strings Info.plist
 ## 3. 仓库地图（顶层）
 
 ```
-SimpleZip.xcodeproj/        Xcode 工程（App + Finder 扩展两个 target）
+SimpleZip.xcodeproj/        Xcode 工程（App 单 target；Finder 右键集成走 macOS NSServices）
 Package.swift               SwiftPM：只编 SimpleZipCore 这一个库 target
 SimpleZip/                  App 全部源码 + 资源 + 本地化
   Core/                     可被 SwiftPM 测试的纯逻辑（见 §4、§5）
@@ -78,7 +78,6 @@ SimpleZip/                  App 全部源码 + 资源 + 本地化
   Tools/7zz                 打包用的 7-Zip 后端二进制
   *.lproj/                  10 种语言的 Localizable.strings
   Assets.xcassets, AppIcon.icns
-SimpleZipFinderExtension/   Finder 右键菜单扩展（独立 bundle target）
 Tests/SimpleZipCoreTests/   SwiftPM 测试 + Fixtures/ 预录二进制档案
 Tools/                      （根目录）后端工具
 scripts/                    build_unsigned_dmg.sh / install_rar_backend.sh / verify_appcast.sh
@@ -111,7 +110,7 @@ Info.plist                  App 的 Info.plist（根目录）
 ### SwiftPM vs Xcode 边界（很重要）
 
 `Package.swift` 的 `SimpleZipCore` target **只**编 `SimpleZip/Core/` 下显式列出的那 24 个文件（见 Package.swift 的 `sources:`）。
-App UI、`Features/`、`App/`、资源、本地化、`Tools/`、Finder 扩展统统被 `exclude` 掉了。
+App UI、`Features/`、`App/`、资源、本地化、`Tools/` 统统被 `exclude` 掉了。
 
 含义：
 - **能搬进 `Core` 的纯逻辑就搬进去**——这样它能被 SwiftPM 测试覆盖。命令参数构造、路径规范化、解析、安全判定、临时资源行为最该住在这里。
@@ -217,12 +216,11 @@ App UI、`Features/`、`App/`、资源、本地化、`Tools/`、Finder 扩展统
 - `SimpleZip/Core/OperationDiagnosticsReporter.swift` — 组装诊断报告（后端版本、系统信息），有测试覆盖。
 - `SimpleZip/Features/ArchiveBrowser/DiagnosticsCopier.swift` — 一键复制诊断到剪贴板。
 
-### 5.9 欢迎向导 / Sparkle 更新 / Finder 扩展 / 其它
+### 5.9 欢迎向导 / Sparkle 更新 / Finder 集成 / 其它
 
 - `SimpleZip/Features/Welcome/WelcomeAssistantView.swift` — 首启动多步向导（备份检查、版本检查、语言、启动位置、默认值、预设密码、Finder 自动解压、安全策略、后端检查）。
 - `SimpleZip/App/SparkleUpdater.swift` — Sparkle EdDSA 签名更新（feed = `docs/appcast.xml`）。签名步骤见 `release.yml` 和 `scripts/verify_appcast.sh`。
-- `SimpleZip/App/AppDelegate.swift` + `ExternalFileOpenQueue.swift` — 处理 Finder 自动解压 / 「用 SimpleZip 打开」的外部文件队列。
-- `SimpleZipFinderExtension/FinderSync.swift` — Finder 右键菜单，经 XPC 拉起主 App。
+- `SimpleZip/App/AppDelegate.swift` + `ExternalFileOpenQueue.swift` — 处理 Finder 自动解压 / 「用 SimpleZip 打开」的外部文件队列；Finder 右键集成的 `@objc` NSServices 处理方法（添加到压缩包 / 计算哈希 / 解压 / 创建 ZIP·7z·TAR.GZ）也在这里，声明见 `Info.plist` 的 `NSServices`、标题见各 `*.lproj/ServicesMenu.strings`。
 - `SimpleZip/Core/L10n.swift` — 本地化 helper（按语言选 bundle，回退到 en）。
 - `SimpleZip/Core/TemporaryResourceManager.swift` — 临时资源生命周期（启动清理残留、每次打开隔离目录）。
 - `SimpleZip/Features/Hashing/` — 哈希；`Benchmark/` — 7z benchmark；`About/AboutPanel.swift` — 关于面板。
@@ -300,7 +298,7 @@ App UI、`Features/`、`App/`、资源、本地化、`Tools/`、Finder 扩展统
 
 ## 9. 本地化工作流
 
-10 种语言，每种在 `SimpleZip/*.lproj/Localizable.strings`（Finder 扩展也有一份 `SimpleZipFinderExtension/*.lproj`）：
+10 种语言，每种在 `SimpleZip/*.lproj/Localizable.strings`（Finder 右键服务标题另在 `SimpleZip/*.lproj/ServicesMenu.strings`）：
 
 `en` `zh-Hans` `zh-Hant` `ja` `ko` `de` `es` `fr` `ru` `th`
 

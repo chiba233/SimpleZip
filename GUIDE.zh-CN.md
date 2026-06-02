@@ -129,8 +129,7 @@ brew install ykman
 - 在文件列表里双击；
 - 菜单栏 `文件 → 打开压缩包`；
 - 从 Finder 拖入；
-- 从 Finder 右键 → 打开方式 → SimpleZip；
-- Finder Sync 右键 → SimpleZip → 以压缩包打开。
+- 从 Finder 右键 → 打开方式 → SimpleZip。
 
 分卷压缩包可以从任意常见分卷打开，SimpleZip 会归一化到首卷：
 
@@ -463,17 +462,19 @@ SimpleZip 目前**不**是沙盒 App —— 它要浏览 / 管理用户文件、
 - 跳过；
 - **哈希不同时替换** —— 计算双方 SHA256，仅在不一致时替换并显示比较结果。
 
-## Finder Sync 右键扩展
+## Finder 右键服务
 
-SimpleZip 注册了 Finder Sync 扩展。在 Finder 里选中任意文件 / 文件夹后右键，
-能看到 SimpleZip 子菜单：
+SimpleZip 把右键动作注册成 macOS 系统服务（NSServices）。在 Finder 里选中任意
+文件 / 文件夹后右键，在 **服务**（或直接出现在右键菜单）里能看到「… with SimpleZip」：
 
-- **计算哈希** —— 跳到 SimpleZip 的哈希窗口算 CRC32 / MD5 / SHA1 / SHA256
-  / SHA512；
+- **计算哈希** —— 跳到 SimpleZip 的哈希窗口算 CRC32 / MD5 / SHA1 / SHA256 / SHA512；
 - **添加到压缩包** —— 直接进入创建压缩包流程，目标默认是源文件所在目录；
-- **以压缩包打开** —— 注册了文件关联的压缩包格式直接调到 SimpleZip 浏览。
+- **解压** —— 用轻量进度浮窗把选中的压缩包各自解开；
+- **创建 ZIP / 7z / TAR.GZ** —— 按默认设置一键出包，无对话框。
 
-Finder Sync 扩展跟主 App 共享同一套预设密码 / 设置（通过 App Group）。
+这些服务由主 App 提供，菜单标题按系统语言本地化（`SimpleZip/*.lproj/ServicesMenu.strings`）。
+首次使用若没出现，在 系统设置 → 键盘 → 键盘快捷键 → 服务 里勾选启用即可。
+（早期版本曾用一个独立的 Finder Sync 扩展实现这些动作，现已移除，统一走系统服务。）
 
 ## 文件关联
 

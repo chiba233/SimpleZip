@@ -288,7 +288,7 @@ extension ArchiveBrowserModel {
             // Step 3：组装 metadata（含 inner SHA256；加密时 SHA 是**密文** SHA），签的是 metadata.json。
             // 选签名密钥的优先级：
             // 1) 用户在创建对话框 ask 模式里挑的密钥（options.gpgSigningKeyFingerprint，create sheet 默认 seed 到 prefs 默认值）
-            // 2) AppPreferences.gpgDefaultSigningKeyFingerprint —— 给非对话框入口（Finder Sync 等）走默认
+            // 2) AppPreferences.gpgDefaultSigningKeyFingerprint —— 给非对话框入口（Finder 服务等）走默认
             // 3) nil → 让 backend listKeys 兜底挑 first hasSecretKey
             let keyFingerprint: String? = {
                 if !request.options.gpgSigningKeyFingerprint.isEmpty {

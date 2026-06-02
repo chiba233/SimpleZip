@@ -21,37 +21,11 @@
 /* End PBXAggregateTarget section */
 
 /* Begin PBXBuildFile section */
-		A10000142FD0000000000014 /* SimpleZipFinderExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = A10000022FD0000000000002 /* SimpleZipFinderExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		SP11A0000000000000000A1 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = SP11B0000000000000000B1 /* Sparkle */; };
 /* End PBXBuildFile section */
 
-/* Begin PBXContainerItemProxy section */
-		A10000132FD0000000000013 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 0846B9682FB350EF0095DC1D /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = A10000082FD0000000000008;
-			remoteInfo = SimpleZipFinderExtension;
-		};
-/* End PBXContainerItemProxy section */
-
-/* Begin PBXCopyFilesBuildPhase section */
-		A10000042FD0000000000004 /* Embed App Extensions */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 13;
-			files = (
-				A10000142FD0000000000014 /* SimpleZipFinderExtension.appex in Embed App Extensions */,
-			);
-			name = "Embed App Extensions";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXCopyFilesBuildPhase section */
-
 /* Begin PBXFileReference section */
 		0846B9702FB350EF0095DC1D /* SimpleZip.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SimpleZip.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		A10000022FD0000000000002 /* SimpleZipFinderExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SimpleZipFinderExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -64,13 +38,6 @@
 			);
 			target = 0846B96F2FB350EF0095DC1D /* SimpleZip */;
 		};
-		A10000152FD0000000000015 /* Exceptions for "SimpleZipFinderExtension" folder in "SimpleZipFinderExtension" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = A10000082FD0000000000008 /* SimpleZipFinderExtension */;
-		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -80,14 +47,6 @@
 				0846B9842FB351010095DC1D /* Exceptions for "SimpleZip" folder in "SimpleZip" target */,
 			);
 			path = SimpleZip;
-			sourceTree = "<group>";
-		};
-		A10000032FD0000000000003 /* SimpleZipFinderExtension */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				A10000152FD0000000000015 /* Exceptions for "SimpleZipFinderExtension" folder in "SimpleZipFinderExtension" target */,
-			);
-			path = SimpleZipFinderExtension;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -101,13 +60,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		A10000072FD0000000000007 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -115,7 +67,6 @@
 			isa = PBXGroup;
 			children = (
 				0846B9722FB350EF0095DC1D /* SimpleZip */,
-				A10000032FD0000000000003 /* SimpleZipFinderExtension */,
 				0846B9712FB350EF0095DC1D /* Products */,
 			);
 			sourceTree = "<group>";
@@ -124,7 +75,6 @@
 			isa = PBXGroup;
 			children = (
 				0846B9702FB350EF0095DC1D /* SimpleZip.app */,
-				A10000022FD0000000000002 /* SimpleZipFinderExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -139,12 +89,10 @@
 				0846B96C2FB350EF0095DC1D /* Sources */,
 				0846B96D2FB350EF0095DC1D /* Frameworks */,
 				0846B96E2FB350EF0095DC1D /* Resources */,
-				A10000042FD0000000000004 /* Embed App Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				A10000122FD0000000000012 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				0846B9722FB350EF0095DC1D /* SimpleZip */,
@@ -156,28 +104,6 @@
 			productName = SimpleZip;
 			productReference = 0846B9702FB350EF0095DC1D /* SimpleZip.app */;
 			productType = "com.apple.product-type.application";
-		};
-		A10000082FD0000000000008 /* SimpleZipFinderExtension */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = A10000112FD0000000000011 /* Build configuration list for PBXNativeTarget "SimpleZipFinderExtension" */;
-			buildPhases = (
-				A10000052FD0000000000005 /* Sources */,
-				A10000072FD0000000000007 /* Frameworks */,
-				A10000062FD0000000000006 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				A10000032FD0000000000003 /* SimpleZipFinderExtension */,
-			);
-			name = SimpleZipFinderExtension;
-			packageProductDependencies = (
-			);
-			productName = SimpleZipFinderExtension;
-			productReference = A10000022FD0000000000002 /* SimpleZipFinderExtension.appex */;
-			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -193,9 +119,6 @@
 						CreatedOnToolsVersion = 26.4.1;
 					};
 					0846B9802FB350F10095DC1D = {
-						CreatedOnToolsVersion = 26.4.1;
-					};
-					A10000082FD0000000000008 = {
 						CreatedOnToolsVersion = 26.4.1;
 					};
 				};
@@ -227,7 +150,6 @@
 			projectRoot = "";
 			targets = (
 				0846B96F2FB350EF0095DC1D /* SimpleZip */,
-				A10000082FD0000000000008 /* SimpleZipFinderExtension */,
 				0846B9802FB350F10095DC1D /* SimpleZipCoreTests */,
 			);
 		};
@@ -235,13 +157,6 @@
 
 /* Begin PBXResourcesBuildPhase section */
 		0846B96E2FB350EF0095DC1D /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		A10000062FD0000000000006 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -280,22 +195,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		A10000052FD0000000000005 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXSourcesBuildPhase section */
-
-/* Begin PBXTargetDependency section */
-		A10000122FD0000000000012 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = A10000082FD0000000000008 /* SimpleZipFinderExtension */;
-			targetProxy = A10000132FD0000000000013 /* PBXContainerItemProxy */;
-		};
-/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		0846B9792FB350F10095DC1D /* Debug */ = {
@@ -512,71 +412,6 @@
 			};
 			name = Release;
 		};
-		A10000092FD0000000000009 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				APPLICATION_EXTENSION_API_ONLY = YES;
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
-				CODE_SIGN_STYLE = Manual;
-				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
-				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_TEAM = "";
-				ENABLE_APP_SANDBOX = NO;
-				ENABLE_USER_SELECTED_FILES = readonly;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = SimpleZipFinderExtension/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-					"@executable_path/../../../../Frameworks",
-				);
-				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 0.1.7;
-				PRODUCT_BUNDLE_IDENTIFIER = "yumeka.SimpleZip-in-mac.FinderExtension";
-				PRODUCT_NAME = SimpleZipFinderExtension;
-				SKIP_INSTALL = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-			};
-			name = Debug;
-		};
-		A10000102FD0000000000010 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				APPLICATION_EXTENSION_API_ONLY = YES;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
-				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
-				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_TEAM = "";
-				ENABLE_APP_SANDBOX = NO;
-				ENABLE_USER_SELECTED_FILES = readonly;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = SimpleZipFinderExtension/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-					"@executable_path/../../../../Frameworks",
-				);
-				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 0.1.7;
-				PRODUCT_BUNDLE_IDENTIFIER = "yumeka.SimpleZip-in-mac.FinderExtension";
-				PRODUCT_NAME = SimpleZipFinderExtension;
-				PROVISIONING_PROFILE_SPECIFIER = "";
-				SKIP_INSTALL = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-			};
-			name = Release;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -603,15 +438,6 @@
 			buildConfigurations = (
 				0846B9822FB350F10095DC1D /* Debug */,
 				0846B9842FB350F10095DC1D /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		A10000112FD0000000000011 /* Build configuration list for PBXNativeTarget "SimpleZipFinderExtension" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				A10000092FD0000000000009 /* Debug */,
-				A10000102FD0000000000010 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

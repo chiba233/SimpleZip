@@ -14,7 +14,7 @@ import UniformTypeIdentifiers
 ///
 /// 设计动机：ArchiveBrowserModel 之前一个人持有这些操作 + UI 状态 + 命令路由，
 /// 把「读文件 / 计算显示属性」抽到 service 后，model 只用专心管 @Published 状态，
-/// service 这边没有 UI 副作用，方便后续单测和复用（例如未来 Finder 扩展也可直接调）。
+/// service 这边没有 UI 副作用，方便后续单测和复用。
 ///
 /// 没有内部状态（除了注入的 `fileManager`），命令式调用风格 —— 不像 ArchiveSession
 /// 那种「记着当前是哪个压缩包」。

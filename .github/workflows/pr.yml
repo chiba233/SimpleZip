@@ -55,7 +55,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /private/tmp/SimpleZipDerivedData
-          key: derivedData-${{ runner.os }}-xcode26.5-${{ hashFiles('SimpleZip.xcodeproj/project.pbxproj', 'SimpleZip/**/*.swift', 'SimpleZipFinderExtension/**/*.swift', 'Info.plist') }}
+          key: derivedData-${{ runner.os }}-xcode26.5-${{ hashFiles('SimpleZip.xcodeproj/project.pbxproj', 'SimpleZip/**/*.swift', 'Info.plist') }}
           restore-keys: |
             derivedData-${{ runner.os }}-xcode26.5-
 
