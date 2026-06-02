@@ -440,19 +440,25 @@ struct ContentView: View {
         var options = ArchiveCreationOptions()
         options.format = format
 
-        Task {
-            do {
-                try await ArchiveService.createArchive(from: files, destination: destination, options: options)
-                await MainActor.run {
-                    SystemSound.operationComplete?.play()
-                    NSWorkspace.shared.activateFileViewerSelecting([destination])
-                }
-            } catch {
-                await MainActor.run {
-                    activateForMainWindowOpen()
-                    model.errorMessage = error.localizedDescription
-                }
-            }
+        // 走和主窗口创建同一套受管任务：接活动中心（进度 / 命令日志 / 取消 / 成功失败 outcome），
+        // 进度的 @Sendable→MainActor 桥接由 startManagedArchiveTask 的 ProgressCoalescer 处理。
+        // showsDetails=true 拉起的是独立的「活动中心」窗口，全程不碰主窗口（失败也只在活动中心里显示，
+        // 不再像旧逻辑那样 activateForMainWindowOpen 把主窗口拽出来）。成功后在 Finder 里高亮产物。
+        let dest = destination
+        model.startManagedArchiveTask(
+            title: L10n.format("status.creating", dest.lastPathComponent),
+            kind: .compress,
+            showsDetails: true,
+            refreshOnSuccess: { NSWorkspace.shared.activateFileViewerSelecting([dest]) }
+        ) { operationID, progress, outputObserver in
+            try await ArchiveService.createArchive(
+                from: files,
+                destination: dest,
+                options: options,
+                operationID: operationID,
+                progress: progress,
+                outputObserver: outputObserver
+            )
         }
     }
 
