@@ -490,7 +490,9 @@ struct ContentView: View {
         } else if ext == SZSArchive.extensionName {
             handleSZSOpen(url)
         } else if ArchiveService.isSupportedArchive(url) {
-            model.openArchiveFromExternal(url)
+            // 强制浏览：直接进浏览，绝不走 openArchiveFromExternal —— 后者会遵循「Finder 自动解压」偏好，
+            // 开了自动解压时它会把压缩包再解压一遍而非浏览，导致浮窗「在主窗口打开」打不开压缩包。
+            model.openArchive(url)
         } else {
             NSWorkspace.shared.open(url)
         }
