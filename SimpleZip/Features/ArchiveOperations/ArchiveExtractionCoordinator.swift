@@ -851,6 +851,7 @@ enum TransferAction: String, Codable {
     case added        // 新增：目标原本没有，直接写入
     case overwritten  // 覆盖：目标已有同名项，被替换
     case skipped      // 跳过：同名项未替换（用户选跳过 / 哈希相同）
+    case deleted      // 删除：移到废纸篓
 }
 
 /// 活动中心逐文件日志条目。随任务历史持久化，重启后仍可查看。

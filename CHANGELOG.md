@@ -4,7 +4,9 @@
 
 ## 0.2.6
 
-- **Fixed: the Finder "Create ZIP / 7z / TAR.GZ with SimpleZip" right-click action was a black box that also yanked the main window forward.** That quick-create previously ran as a bare background task — no Activity Center entry, no progress, no log — and on failure it pulled the main window to the front. It now runs through the same managed task as in-app creation: progress, command log, and success/failure show up in the **Activity Center** and it's cancellable; the main window is never touched, and the result is revealed in Finder when done. (Extraction already worked this way; create was the one that got missed.)
+- **Delete now keeps a per-file record in the Activity Center too.** Previously only copy / move / merge had per-file logs; delete only had a one-line summary. Delete tasks now list each file/folder moved to the Trash under a "Deleted" group (folders tagged "(folder)"), matching copy.
+- **Finder quick-create now honors "use preset password".** With that preference on, the Finder "Create ZIP / 7z with SimpleZip" actions encrypt with the preset password automatically (TAR.GZ has no encryption, so it's unaffected) — symmetric with extraction preferring the preset password.
+- **Fixed: the Finder "Create ZIP / 7z / TAR.GZ with SimpleZip" right-click action was a black box that also yanked the main window forward.** That quick-create previously ran as a bare background task — no Activity Center entry, no progress, no log — and on failure it pulled the main window to the front. It now works exactly like Extract: a **dedicated progress float window** (progress bar + an Activity button + Cancel) that also feeds the Activity Center (progress / command log / success-failure outcome), auto-closes ~1.2 s after the archive is built and reveals it in Finder, and stays open showing the error on failure. The main window is never touched. (Extraction already worked this way; create was the one that got missed.)
 
 ## 0.2.5
 

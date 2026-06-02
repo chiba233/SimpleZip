@@ -418,47 +418,8 @@ struct ContentView: View {
                 ExternalExtractWindowController.shared.startBatch(archiveURLs: extractable)
             }
         case .quickCreate(let format, let urls):
-            quickCreateArchive(format: format, sourceURLs: urls)
-        }
-    }
-
-    /// 「用 SimpleZip 创建 ▸ ZIP/7z/…」—— 按默认设置直接把选中项打成压缩包，无对话框。
-    /// 后台跑，完成后在 Finder 里高亮产物；失败激活 app 弹错误。命名仿 Finder：单个 = `名字.ext`，
-    /// 多个 = `Archive.ext`，重名加序号绝不覆盖。
-    private func quickCreateArchive(format: ArchiveCreateFormat, sourceURLs: [URL]) {
-        let files = sourceURLs.filter { FileManager.default.fileExists(atPath: $0.path) }
-        guard let first = files.first else { return }
-        let dir = first.deletingLastPathComponent()
-        let ext = format.pathExtension
-        let baseName = files.count == 1 ? first.lastPathComponent : "Archive"
-        let fm = FileManager.default
-        func candidate(_ tail: String) -> URL { dir.appendingPathComponent("\(baseName)\(tail).\(ext)") }
-        var destination = candidate("")
-        var n = 2
-        while fm.fileExists(atPath: destination.path) { destination = candidate(" \(n)"); n += 1 }
-
-        var options = ArchiveCreationOptions()
-        options.format = format
-
-        // 走和主窗口创建同一套受管任务：接活动中心（进度 / 命令日志 / 取消 / 成功失败 outcome），
-        // 进度的 @Sendable→MainActor 桥接由 startManagedArchiveTask 的 ProgressCoalescer 处理。
-        // showsDetails=true 拉起的是独立的「活动中心」窗口，全程不碰主窗口（失败也只在活动中心里显示，
-        // 不再像旧逻辑那样 activateForMainWindowOpen 把主窗口拽出来）。成功后在 Finder 里高亮产物。
-        let dest = destination
-        model.startManagedArchiveTask(
-            title: L10n.format("status.creating", dest.lastPathComponent),
-            kind: .compress,
-            showsDetails: true,
-            refreshOnSuccess: { NSWorkspace.shared.activateFileViewerSelecting([dest]) }
-        ) { operationID, progress, outputObserver in
-            try await ArchiveService.createArchive(
-                from: files,
-                destination: dest,
-                options: options,
-                operationID: operationID,
-                progress: progress,
-                outputObserver: outputObserver
-            )
+            // 和解压一样走独立浮窗（进度 + 活动中心 + 自动关窗），全程不碰主窗口。
+            ExternalExtractWindowController.shared.startQuickCreate(format: format, sourceURLs: urls)
         }
     }
 

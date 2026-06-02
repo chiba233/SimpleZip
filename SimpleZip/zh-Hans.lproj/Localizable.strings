@@ -472,6 +472,9 @@
 "externalExtract.window.title" = "正在解压";
 "externalExtract.done" = "解压完成";
 "externalExtract.failed" = "解压失败";
+"externalCreate.window.title" = "正在压缩";
+"externalCreate.done" = "压缩完成";
+"externalCreate.failed" = "压缩失败";
 "externalExtract.verifying" = "正在校验签名…";
 "externalExtract.openInMainWindow" = "在主窗口打开";
 "externalExtract.siz.extractButton" = "解压";
@@ -946,6 +949,7 @@
 "transfer.section.added" = "新增";
 "transfer.section.overwritten" = "覆盖";
 "transfer.section.skipped" = "跳过";
+"transfer.section.deleted" = "已删除";
 "transfer.section.count" = "%@（%d）";
 "transfer.summary.title" = "传输汇总";
 "transfer.summary.message" = "新增 %d，覆盖 %d，跳过 %d。";

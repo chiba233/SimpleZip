@@ -252,8 +252,35 @@ final class ExternalExtractWindowController {
         close()
     }
 
+    /// Finder 右键「用 SimpleZip 创建 ▸ ZIP/7z/TAR.GZ」—— 和解压完全同构的独立浮窗：
+    /// 进度条 + 「活动中心」按钮 + 取消；压完 1.2s 自动关窗、Finder 高亮产物；失败保留窗口显错误。
+    /// 全程不碰主窗口。命名仿 Finder：单个 = `名字.ext`，多个 = `Archive.ext`，重名加序号绝不覆盖。
+    func startQuickCreate(format: ArchiveCreateFormat, sourceURLs: [URL]) {
+        let files = sourceURLs.filter { FileManager.default.fileExists(atPath: $0.path) }
+        guard let first = files.first else { return }
+        let dir = first.deletingLastPathComponent()
+        let ext = format.pathExtension
+        let baseName = files.count == 1 ? first.lastPathComponent : "Archive"
+        let fm = FileManager.default
+        func candidate(_ tail: String) -> URL { dir.appendingPathComponent("\(baseName)\(tail).\(ext)") }
+        var destination = candidate("")
+        var n = 2
+        while fm.fileExists(atPath: destination.path) { destination = candidate(" \(n)"); n += 1 }
+
+        let session = ExternalCreateSession(format: format, files: files, destination: destination)
+        present(
+            content: ExternalCreateView(session: session),
+            windowTitle: L10n.text("externalCreate.window.title"),
+            cancel: { session.cancel() }
+        )
+        session.start(
+            onClose: { [weak self] in self?.close() },
+            onAttention: { [weak self] in self?.bringToFront() }
+        )
+    }
+
     /// 创建并展示浮窗，替换并 **取消** 上一个活动任务。
-    private func present(content: some View, cancel: @escaping () -> Void) {
+    private func present(content: some View, windowTitle: String = L10n.text("externalExtract.window.title"), cancel: @escaping () -> Void) {
         cancelActive?()            // 关键：先停掉旧任务，避免它在后台隐身续跑。
         window?.orderOut(nil)
         window = nil
@@ -268,7 +295,7 @@ final class ExternalExtractWindowController {
             defer: false
         )
         window.contentViewController = NSHostingController(rootView: content)
-        window.title = L10n.text("externalExtract.window.title")
+        window.title = windowTitle
         window.isReleasedWhenClosed = false
         window.level = .floating
         window.center()
@@ -777,5 +804,175 @@ struct ExternalPrepareView: View {
         case .verifying: return L10n.text("externalExtract.verifying")
         case .failed: return L10n.text("externalExtract.failed")
         }
+    }
+}
+
+/// Finder 一键创建会话 —— 和 `ExternalExtractSession` 同构：接活动中心、独立浮窗、压完自动关窗。
+@MainActor
+final class ExternalCreateSession: ObservableObject {
+    enum Status: Equatable {
+        case running
+        case succeeded(URL)
+        case failed(String)
+    }
+
+    let displayName: String
+    private let files: [URL]
+    private let destination: URL
+    private let options: ArchiveCreationOptions
+    @Published var status: Status = .running
+    @Published var fraction: Double? = nil
+    @Published var currentFileName: String? = nil
+    @Published var statusText: String
+
+    private let operationID = UUID()
+    private var runTask: Task<Void, Never>?
+
+    init(format: ArchiveCreateFormat, files: [URL], destination: URL) {
+        self.files = files
+        self.destination = destination
+        var options = ArchiveCreationOptions()
+        options.format = format
+        // 预设密码：开了「使用预设密码」且该格式支持加密（ZIP / 7z；TAR.GZ 不支持）→ 自动建密码，
+        // 与解压侧「优先用预设密码」对称。无对话框的 Finder 一键创建也照此自动加密。
+        if AppPreferences.hasUsablePresetPassword, format.supportsPassword {
+            options.password = AppPreferences.presetPassword
+            options.passwordConfirmation = AppPreferences.presetPassword
+        }
+        self.options = options
+        self.displayName = destination.lastPathComponent
+        self.statusText = L10n.format("status.creating", destination.lastPathComponent)
+    }
+
+    func start(onClose: @escaping @MainActor () -> Void, onAttention: @escaping @MainActor () -> Void = {}) {
+        runTask = Task { [weak self] in
+            await self?.run(onClose: onClose, onAttention: onAttention)
+        }
+    }
+
+    func cancel() {
+        runTask?.cancel()
+        ArchiveService.cancelRunningCommand(operationID: operationID)
+    }
+
+    private func run(onClose: @escaping @MainActor () -> Void, onAttention: @escaping @MainActor () -> Void) async {
+        // 接活动中心：和解压一样建一个归档任务，进度 / 命令输出喂进去，可查看 / 取消 / 看日志。
+        let details = ArchiveOperationDetailsSession(title: displayName)
+        let detailsOutput = ThrottledDetailsOutput(session: details)
+        let task = TaskCenter.shared.begin(
+            category: .archive, kind: .compress, title: displayName, cancellable: true,
+            detailsSession: details, operationID: operationID
+        )
+        task.cancel = { [weak self] in self?.cancel() }
+        do {
+            try await ArchiveService.createArchive(
+                from: files,
+                destination: destination,
+                options: options,
+                operationID: operationID,
+                progress: { state in
+                    // 外层是 @Sendable 闭包，弱捕获放到内层 Task（并发上下文）里，
+                    // 避免「在并发代码里引用捕获的 self」错误。state 是 Sendable 值，外层捕获它无碍。
+                    Task { @MainActor [weak self, weak task] in
+                        guard let self else { return }
+                        self.fraction = state.fraction
+                        self.currentFileName = state.currentFile
+                        if let text = state.statusText { self.statusText = text }
+                        task?.progress = state
+                    }
+                },
+                outputObserver: { detailsOutput.append($0) }
+            )
+            status = .succeeded(destination)
+            detailsOutput.flushNow()
+            TaskCenter.shared.finish(task, outcome: .succeeded(destination))
+            SystemSound.operationComplete?.play()
+            NSWorkspace.shared.activateFileViewerSelecting([destination])
+            try? await Task.sleep(nanoseconds: 1_200_000_000)
+            onClose()
+        } catch is CancellationError {
+            detailsOutput.flushNow()
+            TaskCenter.shared.finish(task, outcome: .cancelled)
+            onClose()
+        } catch {
+            status = .failed(error.localizedDescription)
+            detailsOutput.flushNow()
+            TaskCenter.shared.finish(task, outcome: .failed(error.localizedDescription))
+            onAttention()
+        }
+    }
+}
+
+/// Finder 一键创建浮窗内容 —— 和 `ExternalExtractView` 同构（创建文案 + 无「在主窗口打开」）。
+struct ExternalCreateView: View {
+    @ObservedObject var session: ExternalCreateSession
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Image(systemName: "doc.zipper")
+                    .font(.system(size: 22))
+                    .foregroundStyle(.tint)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(session.displayName)
+                        .font(.headline)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Text(session.statusText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+
+            if let fraction = session.fraction {
+                ProgressView(value: fraction)
+                    .progressViewStyle(.linear)
+            } else if session.status == .running {
+                ProgressView()
+                    .progressViewStyle(.linear)
+            }
+
+            if let currentFile = session.currentFileName, session.status == .running {
+                Text(currentFile)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+
+            HStack {
+                switch session.status {
+                case .running:
+                    Button(L10n.text("tasks.window.title")) {
+                        ActivityWindowController.shared.show(category: .archive)
+                    }
+                    Spacer()
+                    Button(L10n.text("button.cancel")) {
+                        session.cancel()
+                    }
+                case .succeeded:
+                    Label(L10n.text("externalCreate.done"), systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                    Spacer()
+                case .failed(let message):
+                    VStack(alignment: .leading, spacing: 2) {
+                        Label(L10n.text("externalCreate.failed"), systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                        Text(message)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(3)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer()
+                    Button(L10n.text("tasks.window.title")) {
+                        ActivityWindowController.shared.show(category: .archive)
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .frame(width: 360, alignment: .top)
     }
 }

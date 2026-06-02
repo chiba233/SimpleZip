@@ -300,6 +300,15 @@ extension ArchiveBrowserModel {
         // FileTable 刷新后会选中它并把键盘焦点交回表格（删一项后方向键从邻居继续，不回顶端）。
         let neighborURL = selectionNeighborURL(removing: Set(selectedFileItems.map(\.id)))
 
+        // 删除前记下每项是否目录 —— 用于活动中心逐文件「已删除」记录里加「（文件夹）」后缀。
+        let isDirectoryByPath = Dictionary(
+            selectedFileItems.map { ($0.url.standardizedFileURL.path, $0.isDirectory) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        func deleteLog(_ urls: [URL]) -> [TransferLogEntry] {
+            urls.map { TransferLogEntry(name: $0.lastPathComponent, action: .deleted, isDirectory: isDirectoryByPath[$0.standardizedFileURL.path] ?? false) }
+        }
+
         var trashed: [(original: URL, trashURL: URL)] = []
         defer {
             // 撤销 = 从废纸篓移回原位；重做 = 移回废纸篓那个路径。
@@ -319,17 +328,20 @@ extension ArchiveBrowserModel {
             recordInstantFileTask(
                 kind: .delete,
                 title: L10n.format("tasks.deleteCount", trashed.count),
-                detail: transferSummary(from: trashed.map(\.original), to: L10n.text("tasks.trashDestination"))
+                detail: transferSummary(from: trashed.map(\.original), to: L10n.text("tasks.trashDestination")),
+                transferLog: deleteLog(trashed.map(\.original))
             )
             // 刷新交给 FolderWatcher：从当前文件夹移除条目会触发 FSEvents 自动 reload。
         } catch {
             errorMessage = error.localizedDescription
             status = L10n.text("status.failed")
+            // 失败时仍把已经成功移走的那些列进逐文件记录（best-effort，不假装全删了）。
             recordInstantFileTask(
                 kind: .delete,
                 title: L10n.format("tasks.deleteCount", selectedFileItems.count),
                 detail: transferSummary(from: selectedFileItems.map(\.url), to: L10n.text("tasks.trashDestination")),
-                outcome: .failed(error.localizedDescription)
+                outcome: .failed(error.localizedDescription),
+                transferLog: deleteLog(trashed.map(\.original))
             )
         }
     }
@@ -556,7 +568,8 @@ extension ArchiveBrowserModel {
         kind: OperationTask.Kind,
         title: String,
         detail: String? = nil,
-        outcome: OperationTask.Status = .succeeded(nil)
+        outcome: OperationTask.Status = .succeeded(nil),
+        transferLog: [TransferLogEntry] = []
     ) {
         let task = TaskCenter.shared.begin(
             category: .fileOperation,
@@ -566,6 +579,7 @@ extension ArchiveBrowserModel {
             cancellable: false
         )
         task.progress = ArchiveProgressState(fraction: 1, currentFile: nil, statusText: statusText(for: outcome))
+        task.transferLog = transferLog
         TaskCenter.shared.finish(task, outcome: outcome)
     }
 

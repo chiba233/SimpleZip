@@ -472,6 +472,9 @@
 "externalExtract.window.title" = "Extracting";
 "externalExtract.done" = "Extraction complete";
 "externalExtract.failed" = "Extraction failed";
+"externalCreate.window.title" = "Compressing";
+"externalCreate.done" = "Archive created";
+"externalCreate.failed" = "Create failed";
 "externalExtract.verifying" = "Verifying signature…";
 "externalExtract.openInMainWindow" = "Open in Main Window";
 "externalExtract.siz.extractButton" = "Extract";
@@ -968,6 +971,7 @@
 "transfer.section.added" = "Added";
 "transfer.section.overwritten" = "Overwritten";
 "transfer.section.skipped" = "Skipped";
+"transfer.section.deleted" = "Deleted";
 "transfer.section.count" = "%@ (%d)";
 "transfer.summary.title" = "Transfer Summary";
 "transfer.summary.message" = "%d added, %d overwritten, %d skipped.";

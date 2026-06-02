@@ -525,11 +525,12 @@ private struct ActivityTaskRow: View {
 
     /// 复制 / 移动 / 合并的逐文件结果：按「新增 / 覆盖 / 跳过」分组列出（补上「新增文件无痕」盲点）。
     /// 有哈希比对的项内嵌哈希卡片，作为这条任务唯一一段「结果」，不再单列第二段。
-    @ViewBuilder
+    /// （函数体有局部变量 + 显式 return，单返回一个 VStack，不需要 @ViewBuilder。）
     private func transferLogDetails(_ entries: [TransferLogEntry], hashComparisons: [HashOverwriteResult]) -> some View {
         let added = entries.filter { $0.action == .added }
         let overwritten = entries.filter { $0.action == .overwritten }
         let skipped = entries.filter { $0.action == .skipped }
+        let deleted = entries.filter { $0.action == .deleted }
         var hashByName: [String: HashOverwriteResult] = [:]
         for result in hashComparisons {
             hashByName[result.targetURL.lastPathComponent] = result
@@ -547,6 +548,9 @@ private struct ActivityTaskRow: View {
                     }
                     if !skipped.isEmpty {
                         TransferLogGroup(title: L10n.text("transfer.section.skipped"), entries: skipped, icon: "minus.circle.fill", tint: .secondary, hashByName: hashByName)
+                    }
+                    if !deleted.isEmpty {
+                        TransferLogGroup(title: L10n.text("transfer.section.deleted"), entries: deleted, icon: "trash.fill", tint: .red, hashByName: hashByName)
                     }
                 }
                 .padding(.vertical, 2)
