@@ -120,16 +120,6 @@ enum BackendProcessRunner {
         }
     }
 
-    /// 继承宿主环境并强制 UTF-8 locale。否则像 Info-ZIP unzip 这类 CLI 工具在 C locale 下
-    /// 会把非 ASCII 文件名（如中文）输出成 `?`，活动中心日志就成了 `inflating: ...????.pdf`。
-    private nonisolated static func utf8Environment() -> [String: String] {
-        var environment = ProcessInfo.processInfo.environment
-        environment["LANG"] = "en_US.UTF-8"
-        environment["LC_ALL"] = "en_US.UTF-8"
-        environment["LC_CTYPE"] = "en_US.UTF-8"
-        return environment
-    }
-
     private nonisolated static func runWithPipe(
         _ executable: String,
         arguments: [String],
@@ -144,7 +134,6 @@ enum BackendProcessRunner {
         process.executableURL = URL(fileURLWithPath: executable)
         process.arguments = arguments
         process.currentDirectoryURL = currentDirectory
-        process.environment = utf8Environment()
 
         let ioPipe = Pipe()
         process.standardOutput = ioPipe
@@ -210,7 +199,6 @@ enum BackendProcessRunner {
         process.executableURL = URL(fileURLWithPath: executable)
         process.arguments = arguments
         process.currentDirectoryURL = currentDirectory
-        process.environment = utf8Environment()
 
         let masterHandle = FileHandle(fileDescriptor: masterFD, closeOnDealloc: true)
         let slaveHandle = FileHandle(fileDescriptor: slaveFD, closeOnDealloc: true)
