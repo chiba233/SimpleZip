@@ -23,6 +23,7 @@ _内部架构重构 —— 无任何用户可见行为变更。把几个臃肿�
 - **内部:共用侧栏折叠/展开工具栏按钮。** 设置窗口和活动中心各自手写过一个一模一样的侧栏 toggle 按钮(同 image 字号 / 20×20 frame / borderless / `.controlSize(.small)`),仅 `.help` 提示文案不同,挪到共享的 `SidebarToggleButton` view,help 文案由调用方传入。无行为变更。
 - **内部:活动中心的设置行改用 `SettingsControlRow`。** 它私有的 `activitySettingsRow` helper 与 `SettingsControlRow.body` 逐字相同,两处调用现在直接用 `SettingsControlRow`,删掉重复 helper。无行为变更。
 - **内部:把 `.siz` 打开的交接合并成单个 `SIZOpenRequest`。** 之前在 app 内打开 `.siz` 要分别设三个 model 字段(待打开 URL、`.gpg` 套 `.siz` 的地址锚点 override、从档案内打开时的嵌套 entry 链),各调用站点分别 set、`handleSIZOpen` 进入时分别读走清空——残留的锚点 / entry 链可能污染下一次打开。现在合成一个原子值 `SIZOpenRequest { url, displayOverride, nestedEntryName }`,`onChange` 一次拿整组。无行为变更。
+- **内部:把文件名去重计算移进可测的 Core `UniqueFileName`。** 「创建副本」和「创建符号链接」各写了一份一模一样的递增命名(base+suffix → base+「suffix 2」→ …),只差后缀词和存在性判定(符号链接要用 `lstat` 识别 `fileExists` 会跟随的失效链接)。它们 + 新建文件夹/文件的编号命名现在都调 `SimpleZip/Core` 的 `UniqueFileName.suffixed(…)` / `.numbered(…)`,存在性策略以闭包注入、本地化后缀由调用方传入。纯逻辑、SwiftPM 已测、无行为变更。(给 `ArchiveBrowserModel` 文件操作瘦身的第一刀。)
 
 ## 0.2.7
 

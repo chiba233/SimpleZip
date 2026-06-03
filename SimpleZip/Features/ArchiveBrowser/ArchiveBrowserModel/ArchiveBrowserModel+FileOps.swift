@@ -381,22 +381,12 @@ extension ArchiveBrowserModel {
     /// 给 `url` 在同目录算一个不冲突的「副本」目标名。后缀用本地化的「 副本」/「 copy」，
     /// 插在扩展名之前（`a.zip` → `a 副本.zip`），与 Finder 行为一致。
     private func duplicateDestinationURL(for url: URL) -> URL {
-        let dir = url.deletingLastPathComponent()
-        let ext = url.pathExtension
-        let base = url.deletingPathExtension().lastPathComponent
-        let copyWord = L10n.text("file.duplicate.suffix")
-        func candidate(_ tail: String) -> URL {
-            let stem = base + tail
-            let name = ext.isEmpty ? stem : "\(stem).\(ext)"
-            return dir.appendingPathComponent(name)
-        }
-        var target = candidate(copyWord)
-        var n = 2
-        while fileManager.fileExists(atPath: target.path) {
-            target = candidate("\(copyWord) \(n)")
-            n += 1
-        }
-        return target
+        // 普通文件：`fileExists`（跟随符号链接）即可。命名递增逻辑在 Core `UniqueFileName`。
+        UniqueFileName.suffixed(
+            for: url,
+            suffix: L10n.text("file.duplicate.suffix"),
+            exists: { fileManager.fileExists(atPath: $0.path) }
+        )
     }
 
     /// 右键「创建符号链接」：给每个选中项在**同目录**建一个指向它的符号链接。
@@ -441,39 +431,20 @@ extension ArchiveBrowserModel {
     /// 给 `url` 在同目录算一个不冲突的符号链接名：`a.zip` → `a 符号链接.zip`，重名递增。
     /// 用 `attributesOfItem`（lstat 语义）判存在 —— 能识别**已有同名符号链接**（含失效链接），`fileExists` 会跟随链接漏判。
     private func symbolicLinkDestinationURL(for url: URL) -> URL {
-        let dir = url.deletingLastPathComponent()
-        let ext = url.pathExtension
-        let base = url.deletingPathExtension().lastPathComponent
-        let suffix = L10n.text("file.symlink.suffix")
-        func candidate(_ tail: String) -> URL {
-            let stem = base + tail
-            let name = ext.isEmpty ? stem : "\(stem).\(ext)"
-            return dir.appendingPathComponent(name)
-        }
-        var target = candidate(suffix)
-        var n = 2
-        while (try? fileManager.attributesOfItem(atPath: target.path)) != nil {
-            target = candidate("\(suffix) \(n)")
-            n += 1
-        }
-        return target
+        // **lstat 语义**（`attributesOfItem`）：能识别已有的同名符号链接（含失效链接）；`fileExists` 会跟随链接漏判。
+        UniqueFileName.suffixed(
+            for: url,
+            suffix: L10n.text("file.symlink.suffix"),
+            exists: { (try? fileManager.attributesOfItem(atPath: $0.path)) != nil }
+        )
     }
 
     private func uniqueNewItemURL(in folderURL: URL, preferredName: String) -> URL {
-        let preferredURL = folderURL.appendingPathComponent(preferredName)
-        guard fileManager.fileExists(atPath: preferredURL.path) else { return preferredURL }
-
-        let ext = preferredURL.pathExtension
-        let base = ext.isEmpty ? preferredName : (preferredName as NSString).deletingPathExtension
-        var index = 2
-        while true {
-            let name = ext.isEmpty ? "\(base) \(index)" : "\(base) \(index).\(ext)"
-            let candidate = folderURL.appendingPathComponent(name)
-            if !fileManager.fileExists(atPath: candidate.path) {
-                return candidate
-            }
-            index += 1
-        }
+        UniqueFileName.numbered(
+            in: folderURL,
+            preferredName: preferredName,
+            exists: { fileManager.fileExists(atPath: $0.path) }
+        )
     }
 
     private func reportCreateFailure(_ error: Error, title: String, target: URL, folderURL: URL) {

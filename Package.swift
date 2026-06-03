@@ -69,7 +69,8 @@ let package = Package(
                 "Core/SecureScratchVolume.swift",
                 "Core/SIZArchive.swift",
                 "Core/SZSArchive.swift",
-                "Core/TemporaryResourceManager.swift"
+                "Core/TemporaryResourceManager.swift",
+                "Core/UniqueFileName.swift"
             ]
         ),
         .testTarget(
