@@ -154,7 +154,10 @@ extension ArchiveBrowserModel {
         }
     }
 
-    func exportArchiveItem(_ item: ArchiveItem, to destinationFolder: URL) async throws {
+    /// 拖出解压:把档案条目解到目标。`destinationURL` 是 `NSFilePromiseProvider` 给的**完整目标文件 URL**
+    /// （AppKit 已经用 `fileNameForType` 把文件名拼好,并放在它准备好的位置;父目录已存在）——
+    /// ⚠️ 不要再 `appendingPathComponent(displayName)`,否则会拼成 `…/名字/名字`、父目录不存在 → 移动失败、拖出无产物。
+    func exportArchiveItem(_ item: ArchiveItem, to destinationURL: URL) async throws {
         guard case .archive(let archiveURL) = mode else {
             throw ArchiveError.unsupportedFormat
         }
@@ -181,7 +184,7 @@ extension ArchiveBrowserModel {
         try confirmExtractedArchiveLinks(at: stagingURL)
 
         let extractedURL = try extractedURL(for: item, in: stagingURL)
-        let destinationURL = destinationFolder.appendingPathComponent(item.displayName)
+        // AppKit 保证 destinationURL 唯一(冲突时它已自行去重),正常不该存在;存在则按安全策略拒绝覆盖。
         if fileManager.fileExists(atPath: destinationURL.path) {
             throw ArchiveError.exportDestinationExists
         }

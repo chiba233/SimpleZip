@@ -179,6 +179,18 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
         // 上次真正 reloadData 时的「内容指纹」。选区变化不改它 → 跳过 reload，避免橡皮筋复选时闪烁 / 抽搐。
         private var lastContentSignature: Int?
 
+        // 拖出解压（file promise）的**后台**串行队列。
+        // ⚠️ 必须有:不提供时 AppKit 会在**主线程**等承诺完成,而我们的 `writePromiseTo` 用
+        // `Task { @MainActor }` 跑解压(也要主线程)→ 主线程被占住、Task 永远跑不了 → `completionHandler`
+        // 永不调用 → 拖拽 spinner 永久卡死(含安全弹窗 `runModal` 嵌套在拖拽流程里的叠加死锁)。
+        // 放到后台队列后,AppKit 在此队列等待,主线程空出来跑解压 + 必要的安全确认弹窗,不再死锁。
+        private let filePromiseQueue: OperationQueue = {
+            let queue = OperationQueue()
+            queue.name = "com.simplezip.archive.filePromise"
+            queue.maxConcurrentOperationCount = 1
+            return queue
+        }()
+
         init(model: ArchiveBrowserModel) {
             self.model = model
         }
@@ -493,6 +505,12 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
 
 @MainActor
 extension ArchiveNSOutlineView.Coordinator: NSFilePromiseProviderDelegate {
+    /// 承诺写出跑在**后台**队列 —— 见 `filePromiseQueue` 注释:不提供会让 AppKit 在主线程死等、
+    /// 与主线程上的解压 / 安全弹窗互锁,拖出永久卡死。
+    func operationQueue(for filePromiseProvider: NSFilePromiseProvider) -> OperationQueue {
+        filePromiseQueue
+    }
+
     func filePromiseProvider(_ filePromiseProvider: NSFilePromiseProvider, fileNameForType fileType: String) -> String {
         guard let item = filePromiseProvider.userInfo as? ArchiveItem else {
             return L10n.text("type.file")
