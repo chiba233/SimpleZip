@@ -438,6 +438,8 @@
 "settings.gpg.keys.revokeDescriptionLabel" = "Description (optional)";
 "settings.gpg.keys.revokeDescriptionPlaceholder" = "e.g. Private key may have been exposed during laptop theft on 2024-06-15";
 "settings.gpg.keys.revokeDescriptionHint" = "This text is included in the revocation certificate so recipients understand why the key was revoked. One line.";
+"settings.gpg.keys.revokeDestinationLabel" = "Save to";
+"settings.gpg.keys.revokeChooseButton" = "Choose…";
 "settings.gpg.keys.revokeGenerateButton" = "Generate Certificate";
 "settings.gpg.keys.revokeSavePanelMessage" = "Choose where to save (USB stick / offline media recommended, also print a paper copy)";
 "settings.gpg.keys.revokeSucceeded" = "Revocation certificate saved to %@. Keep it safe — it's as important as the key itself.";

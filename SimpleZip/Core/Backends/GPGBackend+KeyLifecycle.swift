@@ -81,7 +81,11 @@ extension GPGBackend {
         source: GPGKeyringSource = .userKeyring
     ) async throws -> String {
         let tool = try resolve()
-        var args: [String] = ["--armor", "--command-fd", "0"]
+        // ⚠️ `--no-tty` 必须有：`--gen-revoke` 是交互菜单命令，即便用 `--command-fd 0` 喂回答，
+        //    gpg 仍会去开 `/dev/tty` 显示提示；SimpleZip 用 Process 起 gpg 没有控制终端 →
+        //    `cannot open '/dev/tty': Device not configured` → 整个生成失败。这是「撤销证书都不工作」的主因。
+        //    注意：**不能加 `--batch`** —— batch 会让 gpg 拒绝 `--gen-revoke` 的交互流程。
+        var args: [String] = ["--armor", "--no-tty", "--command-fd", "0"]
         if source == .simpleZipKeyring {
             // SimpleZip 私有走独立 GNUPGHOME（`--homedir <SZ>`）—— 公钥 + 私钥 + trustdb 全部隔离。
             args.insert(contentsOf: simpleZipKeyringArguments(), at: 0)
@@ -91,9 +95,14 @@ extension GPGBackend {
         // gpg --gen-revoke menu：
         //   y       —— 「真要生成撤销证书吗」
         //   <r>     —— 撤销原因编号
-        //   <desc>  —— 描述（一行 + 空行结束）
-        //   y       —— 确认
-        let commands = "y\n\(reason.rawValue)\n\(escaped)\n\ny\n"
+        //   <desc>  —— 描述：gpg 提示「输入描述，以空行结束」，所以**结束符就是一个空行**。
+        //              非空描述 = 「描述行 + 空行」；空描述 = 「只发一个空行」即结束。
+        //   y       —— 「Is this okay?」确认
+        // ⚠️ 历史 bug：无论描述是否为空都发 `\(escaped)\n\n`，空描述时第一行空行已结束描述，
+        //    多出的第二行空行被当成「Is this okay?」的回答（空 = 默认 N）→ gpg 放弃生成。
+        //    所以描述为空时绝不能补那一行。
+        let descriptionLines = escaped.isEmpty ? "" : "\(escaped)\n"
+        let commands = "y\n\(reason.rawValue)\n\(descriptionLines)\ny\n"
         return try await BackendProcessRunner.runAndCapture(
             tool,
             arguments: args,

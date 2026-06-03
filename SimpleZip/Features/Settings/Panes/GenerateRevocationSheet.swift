@@ -6,6 +6,8 @@
 //
 
 import SwiftUI
+import AppKit
+import UniformTypeIdentifiers
 
 /// 生成撤销证书的 sheet。
 ///
@@ -17,11 +19,19 @@ import SwiftUI
 struct GenerateRevocationSheet: View {
     let key: GPGBackend.GPGKey
     @Binding var isPresented: Bool
-    /// (reason, description) 用户确认后回调。调用方负责弹 NSSavePanel + 写文件。
-    let onGenerate: (GPGBackend.GPGRevocationReason, String) -> Void
+    /// (reason, description, destination) 用户确认后回调。保存位置在本 sheet 里就选好，
+    /// 调用方拿到完整目标 URL 直接写文件 —— 不再在生成成功后另弹一个突兀的 NSSavePanel。
+    let onGenerate: (GPGBackend.GPGRevocationReason, String, URL) -> Void
 
     @State private var reason: GPGBackend.GPGRevocationReason = .none
     @State private var description: String = ""
+    /// 撤销证书 `.asc` 的保存位置。onAppear 默认桌面 + 自动文件名，用户可「选择…」改。
+    @State private var destinationURL: URL?
+
+    /// 自动文件名：`<userID 去空格>_<短指纹>-revocation.asc`（与历史 NSSavePanel 默认名一致）。
+    private var defaultFileName: String {
+        "\(key.userID.replacingOccurrences(of: " ", with: "_"))_\(key.shortFingerprint)-revocation.asc"
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -101,6 +111,31 @@ struct GenerateRevocationSheet: View {
                             .fill(Color(nsColor: .controlBackgroundColor))
                     )
 
+                    // 保存位置：直接在 sheet 里选好，用户清楚 `.asc` 会落到哪 —— 不再事后另弹保存框。
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(L10n.text("settings.gpg.keys.revokeDestinationLabel"))
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.secondary)
+                        HStack(spacing: 8) {
+                            Image(systemName: "folder")
+                                .foregroundStyle(.secondary)
+                            Text(destinationURL?.path ?? "")
+                                .font(.caption)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            Button(L10n.text("settings.gpg.keys.revokeChooseButton")) {
+                                chooseDestination()
+                            }
+                        }
+                    }
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color(nsColor: .controlBackgroundColor))
+                    )
+
                     HStack(alignment: .top, spacing: 8) {
                         Image(systemName: "info.circle")
                             .font(.system(size: 13))
@@ -125,14 +160,40 @@ struct GenerateRevocationSheet: View {
                 .keyboardShortcut(.cancelAction)
 
                 Button(L10n.text("settings.gpg.keys.revokeGenerateButton")) {
-                    onGenerate(reason, description)
+                    guard let destinationURL else { return }
+                    onGenerate(reason, description, destinationURL)
                     isPresented = false
                 }
                 .keyboardShortcut(.defaultAction)
                 .buttonStyle(.borderedProminent)
+                .disabled(destinationURL == nil)
             }
             .padding(16)
         }
         .frame(width: 560, height: 540)
+        .onAppear {
+            // 默认落到桌面（桌面取不到则退到用户主目录）+ 自动文件名。
+            if destinationURL == nil {
+                let directory = FileManager.default.urls(for: .desktopDirectory, in: .userDomainMask).first
+                    ?? FileManager.default.homeDirectoryForCurrentUser
+                destinationURL = directory.appendingPathComponent(defaultFileName)
+            }
+        }
+    }
+
+    /// 「选择…」：NSSavePanel 选目标 `.asc`，种子用当前默认目录 + 文件名。取消则保留原选择。
+    private func chooseDestination() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [UTType(filenameExtension: "asc") ?? .data]
+        panel.message = L10n.text("settings.gpg.keys.revokeSavePanelMessage")
+        if let current = destinationURL {
+            panel.directoryURL = current.deletingLastPathComponent()
+            panel.nameFieldStringValue = current.lastPathComponent
+        } else {
+            panel.nameFieldStringValue = defaultFileName
+        }
+        if panel.runModal() == .OK, let url = panel.url {
+            destinationURL = url
+        }
     }
 }

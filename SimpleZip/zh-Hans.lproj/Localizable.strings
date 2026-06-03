@@ -438,6 +438,8 @@
 "settings.gpg.keys.revokeDescriptionLabel" = "描述（可选）";
 "settings.gpg.keys.revokeDescriptionPlaceholder" = "如：私钥可能在 2024-06-15 的笔记本失窃中泄漏";
 "settings.gpg.keys.revokeDescriptionHint" = "撤销证书会附带这段文字，让收到的人知道为什么撤销。一行内。";
+"settings.gpg.keys.revokeDestinationLabel" = "保存位置";
+"settings.gpg.keys.revokeChooseButton" = "选择…";
 "settings.gpg.keys.revokeGenerateButton" = "生成证书";
 "settings.gpg.keys.revokeSavePanelMessage" = "选择保存位置（建议保存到 U 盘 / 离线介质，并打印一份纸质副本）";
 "settings.gpg.keys.revokeSucceeded" = "已生成撤销证书到 %@。请存好 —— 它跟密钥本身同等重要。";

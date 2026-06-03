@@ -134,8 +134,8 @@ struct GPGPane: View {
             GenerateRevocationSheet(key: key, isPresented: Binding(
                 get: { pendingRevocationKey != nil },
                 set: { if !$0 { pendingRevocationKey = nil } }
-            )) { reason, description in
-                generateRevocation(for: key, reason: reason, description: description)
+            )) { reason, description, destination in
+                generateRevocation(for: key, reason: reason, description: description, destination: destination)
             }
         }
         // 删除密钥确认 alert —— 走 macOS 标准 destructive alert，二次确认。
@@ -868,8 +868,9 @@ struct GPGPane: View {
         }
     }
 
-    /// 生成撤销证书 —— gpg `--gen-revoke <fpr>` 输出 ASCII armor，弹 NSSavePanel 让用户存到 `.asc`。
-    private func generateRevocation(for key: GPGBackend.GPGKey, reason: GPGBackend.GPGRevocationReason, description: String) {
+    /// 生成撤销证书 —— gpg `--gen-revoke <fpr>` 输出 ASCII armor，直接写到 sheet 里选好的 `destination`。
+    /// 保存位置已在 GenerateRevocationSheet 选定，这里不再另弹 NSSavePanel；写成功后在 Finder 中定位该文件。
+    private func generateRevocation(for key: GPGBackend.GPGKey, reason: GPGBackend.GPGRevocationReason, description: String, destination: URL) {
         keyOperationMessage = nil
         Task {
             do {
@@ -879,19 +880,12 @@ struct GPGPane: View {
                     description: description,
                     source: key.source
                 )
-                // 回主线程弹 NSSavePanel
                 await MainActor.run {
-                    let panel = NSSavePanel()
-                    panel.nameFieldStringValue = "\(key.userID.replacingOccurrences(of: " ", with: "_"))_\(key.shortFingerprint)-revocation.asc"
-                    panel.allowedContentTypes = [UTType(filenameExtension: "asc") ?? .data]
-                    panel.message = L10n.text("settings.gpg.keys.revokeSavePanelMessage")
-                    guard panel.runModal() == .OK, let url = panel.url else {
-                        keyOperationMessage = L10n.text("settings.gpg.keys.revokeCancelledByUser")
-                        return
-                    }
                     do {
-                        try armor.write(to: url, atomically: true, encoding: .utf8)
-                        keyOperationMessage = L10n.format("settings.gpg.keys.revokeSucceeded", url.lastPathComponent)
+                        try armor.write(to: destination, atomically: true, encoding: .utf8)
+                        keyOperationMessage = L10n.format("settings.gpg.keys.revokeSucceeded", destination.path)
+                        // 让用户直接看到 `.asc` 落在哪 —— 在 Finder 中选中该文件。
+                        NSWorkspace.shared.activateFileViewerSelecting([destination])
                     } catch {
                         keyOperationMessage = L10n.format("settings.gpg.keys.revokeWriteFailed", error.localizedDescription)
                     }
