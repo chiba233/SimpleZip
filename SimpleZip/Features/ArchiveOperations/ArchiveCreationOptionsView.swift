@@ -465,37 +465,10 @@ struct ArchiveCreationOptionsView: View {
                 Text(L10n.text("archive.gpgEncrypt.recipientsLabel"))
                     .font(.caption.weight(.medium))
                     .foregroundStyle(.secondary)
-                Menu {
-                    if encryptionEligibleKeys.isEmpty {
-                        Text(L10n.text("archive.gpgEncrypt.noKeysInRing"))
-                    } else {
-                        ForEach(encryptionEligibleKeys) { key in
-                            Button {
-                                toggleRecipient(key.fingerprint)
-                            } label: {
-                                HStack {
-                                    Image(systemName: request.options.gpgRecipientFingerprints.contains(key.fingerprint) ? "checkmark.circle.fill" : "circle")
-                                    Text("\(key.userID) · \(key.shortFingerprint)")
-                                }
-                            }
-                        }
-                    }
-                } label: {
-                    Text(L10n.text("archive.gpgEncrypt.addRecipient"))
-                }
-                .menuStyle(.borderlessButton)
-                .fixedSize()
+                GPGAddRecipientMenu(eligibleKeys: encryptionEligibleKeys, selection: $request.options.gpgRecipientFingerprints)
                 Spacer()
             }
-            if !request.options.gpgRecipientFingerprints.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
-                        ForEach(request.options.gpgRecipientFingerprints, id: \.self) { fp in
-                            recipientChip(fp)
-                        }
-                    }
-                }
-            }
+            GPGRecipientChipRow(selection: $request.options.gpgRecipientFingerprints, lookupKeys: availableKeys)
         }
         .padding(.leading, 18)
     }
@@ -505,38 +478,6 @@ struct ArchiveCreationOptionsView: View {
     /// 历史上 `availableKeys` 同时含两个 ring（签名 picker 需要看全部 hasSecretKey），收件人 picker 必须额外过滤。
     private var encryptionEligibleKeys: [GPGBackend.GPGKey] {
         availableKeys.filter { $0.source == .userKeyring }
-    }
-
-    @ViewBuilder
-    private func recipientChip(_ fingerprint: String) -> some View {
-        let key = availableKeys.first(where: { $0.fingerprint == fingerprint })
-        HStack(spacing: 4) {
-            Text(key.map { "\($0.userID) · \($0.shortFingerprint)" }
-                ?? L10n.format("archive.gpgEncrypt.unknownRecipient", String(fingerprint.suffix(16))))
-                .font(.caption2)
-                .lineLimit(1)
-                .truncationMode(.middle)
-            Button {
-                request.options.gpgRecipientFingerprints.removeAll { $0 == fingerprint }
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 3)
-        .background(Color.accentColor.opacity(0.12))
-        .clipShape(Capsule())
-    }
-
-    private func toggleRecipient(_ fingerprint: String) {
-        if let idx = request.options.gpgRecipientFingerprints.firstIndex(of: fingerprint) {
-            request.options.gpgRecipientFingerprints.remove(at: idx)
-        } else {
-            request.options.gpgRecipientFingerprints.append(fingerprint)
-        }
     }
 
     /// 对称加密密码 SecureField —— 跟收件人 picker **互不排斥**。空 = 不用对称密码加密。

@@ -241,35 +241,8 @@ struct CreateSZSSheet: View {
             HStack(alignment: .top, spacing: 8) {
                 labelText("archive.gpgEncrypt.recipientsLabel")
                 VStack(alignment: .leading, spacing: 4) {
-                    Menu {
-                        if availableEncryptionKeys.isEmpty {
-                            Text(L10n.text("archive.gpgEncrypt.noKeysInRing"))
-                        } else {
-                            ForEach(availableEncryptionKeys) { key in
-                                Button {
-                                    toggleRecipient(key.fingerprint)
-                                } label: {
-                                    HStack {
-                                        Image(systemName: recipientFingerprints.contains(key.fingerprint) ? "checkmark.circle.fill" : "circle")
-                                        Text("\(key.userID) · \(key.shortFingerprint)")
-                                    }
-                                }
-                            }
-                        }
-                    } label: {
-                        Text(L10n.text("archive.gpgEncrypt.addRecipient"))
-                    }
-                    .menuStyle(.borderlessButton)
-                    .fixedSize()
-                    if !recipientFingerprints.isEmpty {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 6) {
-                                ForEach(recipientFingerprints, id: \.self) { fp in
-                                    recipientChip(fp)
-                                }
-                            }
-                        }
-                    }
+                    GPGAddRecipientMenu(eligibleKeys: availableEncryptionKeys, selection: $recipientFingerprints)
+                    GPGRecipientChipRow(selection: $recipientFingerprints, lookupKeys: availableEncryptionKeys)
                 }
             }
             HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -285,38 +258,6 @@ struct CreateSZSSheet: View {
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer()
             }
-        }
-    }
-
-    @ViewBuilder
-    private func recipientChip(_ fingerprint: String) -> some View {
-        let key = availableEncryptionKeys.first(where: { $0.fingerprint == fingerprint })
-        HStack(spacing: 4) {
-            Text(key.map { "\($0.userID) · \($0.shortFingerprint)" }
-                ?? L10n.format("archive.gpgEncrypt.unknownRecipient", String(fingerprint.suffix(16))))
-                .font(.caption2)
-                .lineLimit(1)
-                .truncationMode(.middle)
-            Button {
-                recipientFingerprints.removeAll { $0 == fingerprint }
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 3)
-        .background(Color.accentColor.opacity(0.12))
-        .clipShape(Capsule())
-    }
-
-    private func toggleRecipient(_ fingerprint: String) {
-        if let index = recipientFingerprints.firstIndex(of: fingerprint) {
-            recipientFingerprints.remove(at: index)
-        } else {
-            recipientFingerprints.append(fingerprint)
         }
     }
 

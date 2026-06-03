@@ -131,62 +131,11 @@ struct GPGEncryptOptionsView: View {
                 Text(L10n.text("archive.gpgEncrypt.recipientsLabel"))
                     .font(.caption.weight(.medium))
                     .foregroundStyle(.secondary)
-                Menu {
-                    if encryptionEligibleKeys.isEmpty {
-                        Text(L10n.text("archive.gpgEncrypt.noKeysInRing"))
-                    } else {
-                        ForEach(encryptionEligibleKeys) { key in
-                            Button {
-                                toggleRecipient(key.fingerprint)
-                            } label: {
-                                HStack {
-                                    Image(systemName: request.recipientFingerprints.contains(key.fingerprint) ? "checkmark.circle.fill" : "circle")
-                                    Text("\(key.userID) · \(key.shortFingerprint)")
-                                }
-                            }
-                        }
-                    }
-                } label: {
-                    Text(L10n.text("archive.gpgEncrypt.addRecipient"))
-                }
-                .menuStyle(.borderlessButton)
-                .fixedSize()
+                GPGAddRecipientMenu(eligibleKeys: encryptionEligibleKeys, selection: $request.recipientFingerprints)
                 Spacer()
             }
-            if !request.recipientFingerprints.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
-                        ForEach(request.recipientFingerprints, id: \.self) { fp in
-                            recipientChip(fp)
-                        }
-                    }
-                }
-            }
+            GPGRecipientChipRow(selection: $request.recipientFingerprints, lookupKeys: availableKeys)
         }
-    }
-
-    @ViewBuilder
-    private func recipientChip(_ fingerprint: String) -> some View {
-        let key = availableKeys.first(where: { $0.fingerprint == fingerprint })
-        HStack(spacing: 4) {
-            Text(key.map { "\($0.userID) · \($0.shortFingerprint)" }
-                ?? L10n.format("archive.gpgEncrypt.unknownRecipient", String(fingerprint.suffix(16))))
-                .font(.caption2)
-                .lineLimit(1)
-                .truncationMode(.middle)
-            Button {
-                request.recipientFingerprints.removeAll { $0 == fingerprint }
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 3)
-        .background(Color.accentColor.opacity(0.12))
-        .clipShape(Capsule())
     }
 
     @ViewBuilder
@@ -206,11 +155,4 @@ struct GPGEncryptOptionsView: View {
         }
     }
 
-    private func toggleRecipient(_ fingerprint: String) {
-        if let index = request.recipientFingerprints.firstIndex(of: fingerprint) {
-            request.recipientFingerprints.remove(at: index)
-        } else {
-            request.recipientFingerprints.append(fingerprint)
-        }
-    }
 }
