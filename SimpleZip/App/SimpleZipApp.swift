@@ -182,6 +182,24 @@ struct ArchiveFileCommands: Commands {
             .keyboardShortcut("n", modifiers: [.command, .shift])
             .disabled(!AppPreferences.gpgEnabled || !GPGBackend.isAvailable())
 
+            // 「加密为 .gpg」/「创建符号链接」之前只在右键菜单里有,菜单栏缺失 —— 补齐 parity。
+            // GPG 项跟上面的「创建签名清单」一样用 `.disabled`(而非动态隐藏)：菜单栏里动态增删项会让
+            // 整张菜单 redraw 时丢 first-responder、破坏 Cmd+C/V/X —— 这是菜单栏的既定折中(A4 的可见性
+            // 强约束针对主界面/右键入口;菜单栏统一走 disabled)。
+            Button {
+                model?.encryptSelectionToGPG()
+            } label: {
+                Label(L10n.text("file.encrypt.gpg"), systemImage: "lock.doc")
+            }
+            .disabled(!AppPreferences.gpgEnabled || !GPGBackend.isAvailable() || !canManageSelectedFiles)
+
+            Button {
+                model?.createSymbolicLinkForSelection()
+            } label: {
+                Label(L10n.text("file.makeSymlink"), systemImage: "link")
+            }
+            .disabled(!canManageSelectedFiles)
+
             Divider()
 
             // 菜单的 Cmd+E 始终走「整包解压」—— 之前用 extractFromCurrentContext() 做「智能路由」，
