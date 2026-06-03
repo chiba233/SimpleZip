@@ -159,10 +159,24 @@ extension ArchiveBrowserModel {
 
     /// 目标 URL 是否落在「可丢弃临时区」（系统临时目录下，含加密卷挂载点）。
     /// 进入这种路径 = 进虚拟目录 / 嵌套档案，**不算离开档案**，不触发清理（否则会删掉正要进入的内容）。
+    ///
+    /// **必须用 `resolvingSymlinksInPath()`，不能用 `standardizedFileURL`**：macOS 的 `/var` 是 `/private/var`
+    /// 的符号链接。`FileManager.temporaryDirectory` 给的是 `/var/folders/.../T` 形式，而 0.2.7 的加密临时卷由
+    /// `hdiutil attach -mountpoint <temp 下目录>` 挂载后，**报告的挂载点是 `/private/var/...` 实路径**
+    /// （已用 spike 证实）。`standardizedFileURL` 不解析符号链接 → `/private/var/...` 不以 `/var/...` 为前缀 →
+    /// 加密卷里的临时被误判为「非临时」→ 打开嵌套档案 / `.gpg`·`.siz` 解密产物时（它们走 `openArchive`/`openFolder`
+    /// 到加密卷里的临时路径）触发清理，**把正要打开的内容当场删掉** —— 这是「zip 套 zip / .gpg→archive 全炸」的根因。
+    /// `resolvingSymlinksInPath()` 把两边都归一到 `/private/...`，前缀比对才成立。
     private func isUnderDisposableTemp(_ url: URL) -> Bool {
-        let path = url.standardizedFileURL.path
-        let temp = fileManager.temporaryDirectory.standardizedFileURL.path
-        return path == temp || path.hasPrefix(temp + "/")
+        let path = url.resolvingSymlinksInPath().path
+        let temp = fileManager.temporaryDirectory.resolvingSymlinksInPath().path
+        if path == temp || path.hasPrefix(temp + "/") { return true }
+        // 兜底：加密临时卷理论上挂在 temp 下，但显式认它的挂载点更稳（未来若 macOS 把加密 APFS 挂到 /Volumes 仍正确）。
+        if let mount = SecureScratchVolume.shared.currentMountPoint?.resolvingSymlinksInPath().path,
+           path == mount || path.hasPrefix(mount + "/") {
+            return true
+        }
+        return false
     }
 
     /// **离开档案即时清理**：删掉本会话登记的全部临时产物（后台执行，不阻塞主线程）。

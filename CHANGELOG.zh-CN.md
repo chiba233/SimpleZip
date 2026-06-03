@@ -4,6 +4,9 @@
 
 ## 0.3.0（未发布）
 
+- **修复:加密临时卷启用后,打开嵌套压缩包(压缩包里套压缩包——zip 套 zip、`.tgz` 里的 `.tar` 等)打不开内层档案。** 0.2.7 的加密临时卷由 `hdiutil` 挂载,挂载点被报告为 `/private/var/…` 实路径;而「这是不是可丢弃临时路径?」的判定(没解析符号链接)拿它跟 `FileManager.temporaryDirectory` 的 `/var/…` 形式比前缀 → 判定为否 → 打开内层档案时触发了「离开档案」清理,**把刚解出来的内层档案在读取前就删掉了**。现在判定对两边都 `resolvingSymlinksInPath()`(并额外认加密卷挂载点),嵌套压缩包恢复正常。(顺带修好打开「解密产物是压缩包」的 `.gpg`/`.siz` —— 它们走的是同一条路径。)
+- **修复:打开**压缩包内部**的 `.siz` / `.szs` / `.gpg` 会新建一个窗口(`.siz`/`.szs`)或错误触发自动解压浮窗(`.gpg`)。** 这些是 SimpleZip 自有的文件类型,但从档案里解出来后掉进了 `NSWorkspace.open` —— 系统按 UTI 把临时文件当外部文件转回 SimpleZip → 新建窗口 / 命中「打开时自动解压」。现在它们在**当前窗口**内走各自的 in-app 流程:嵌套 `.siz` 解包 + 验签后,内层档案走嵌套档案路径打开(地址栏显示 `…/outer.7z/inner.siz` 链路、「上一级」回真实文件夹、不暴露临时路径);`.szs` 弹验证 sheet;`.gpg`/`.pgp`/`.asc`/`.key` 就地嗅探后解密浏览 / 导入钥匙串(仅在启用 GPG 集成时)。
+
 _内部架构重构 —— 无任何用户可见行为变更。把几个臃肿的「上帝文件」按职责拆成多个小文件,降低单文件认知负担。每次拆分都是纯移动(外加把少量跨文件的 `private` 辅助放宽到模块内可见),由 SwiftPM 核心测试 和 / 或 Xcode Debug 构建验证。_
 
 - **内部:把 `GPGBackend`(1620 行)按职责拆成 extension。** 原来的单个 enum 现在是「enum 主壳 + `GPGBackend+Discovery` / `+Keyring` / `+KeyManagement` / `+KeyLifecycle` / `+KeyCreation` / `+CryptoOperations` / `+Parsing`」,嵌套数据类型挪到 `GPGModels`。public API 不变。

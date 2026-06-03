@@ -30,6 +30,7 @@ extension ArchiveBrowserModel {
             guard let self else { return }
             var extractedDiskImageURL: URL?
             var extractedNestedArchiveURL: URL?
+            var extractedSpecialFileURL: URL?
             let didSucceed = await runArchiveTask(L10n.format("status.openingArchiveItem", item.displayName)) { progress in
                 let destination = try self.makeArchiveItemOpenDirectory()
                 self.openedArchiveItemDirectories.append(destination)
@@ -88,6 +89,17 @@ extension ArchiveBrowserModel {
                             extractedNestedArchiveURL = extractedURL
                             return
                         }
+                        // **同理 fix 给 SimpleZip 自有特殊类型**：解出来是 `.siz`（签名容器）/ `.szs`（签名清单）/
+                        // `.gpg`·`.pgp`·`.asc`·`.key`（加密 / 钥匙串）→ 在**当前窗口**内走各自 in-app 流程，**绝不**
+                        // NSWorkspace.open。后者按 UTI 把临时文件转回 SimpleZip 的外部打开 → 新建窗口 / 触发自动解压浮窗
+                        // （用户反馈「7z 里的 .siz 打开后新建了个窗口」「zip 里的 .gpg 触发自动解压」的根因）。
+                        let extLower = extractedURL.pathExtension.lowercased()
+                        if extLower == SIZArchive.extensionName
+                            || extLower == SZSArchive.extensionName
+                            || (AppPreferences.gpgEnabled && GPGFileService.isRecognizedGPGFile(extractedURL)) {
+                            extractedSpecialFileURL = extractedURL
+                            return
+                        }
                         guard NSWorkspace.shared.open(extractedURL) else {
                             throw ArchiveError.openExtractedItemFailed
                         }
@@ -117,10 +129,29 @@ extension ArchiveBrowserModel {
                     // 在 app 内浏览嵌套档案：地址栏把整条虚拟链堆叠出来（`…/xx.zip/xa/a.zip`），
                     // 「上一级」退出整条链回到最外层档案所在的真实文件夹，全程不露 /tmp。
                     openNestedArchive(extractedNestedArchiveURL, entryName: item.name)
+                } else if let extractedSpecialFileURL {
+                    routeExtractedSpecialFile(extractedSpecialFileURL, entryName: item.name)
                 } else {
                     status = L10n.format("status.openedArchiveItem", item.displayName)
                 }
             }
+        }
+    }
+
+    /// 从档案内解出来的 SimpleZip 自有特殊类型（`.siz` / `.szs` / `.gpg`·`.pgp`·`.asc`·`.key`）在**当前窗口**内
+    /// 走各自 in-app 流程，绝不 `NSWorkspace.open`（详见 `openArchiveItemExternally` 内注释）。
+    /// - `.siz`：带上 entry 链路 → `handleSIZOpen` 解包验签后走 `openNestedArchive`（地址显示嵌套链、「上一级」回真实文件夹）。
+    /// - `.szs`：走验证 sheet。
+    /// - `.gpg`/`.pgp`/`.asc`/`.key`：`openGPGFile` 嗅探包头后解密浏览 / 导入钥匙串（仅 `gpgEnabled` 才会被路由到这里）。
+    func routeExtractedSpecialFile(_ url: URL, entryName: String) {
+        switch url.pathExtension.lowercased() {
+        case SIZArchive.extensionName:
+            pendingSIZNestedEntryName = entryName
+            pendingSIZOpen = url
+        case SZSArchive.extensionName:
+            pendingSZSOpen = url
+        default:
+            openGPGFile(url)
         }
     }
 

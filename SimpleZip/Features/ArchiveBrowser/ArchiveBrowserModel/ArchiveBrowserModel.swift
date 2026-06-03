@@ -74,6 +74,12 @@ final class ArchiveBrowserModel: ObservableObject {
     /// ContentView 的 `handleSIZOpen` 进入时一次性读走并清空，把它当 `displayedAs` 锚点。nil = 普通 `.siz` 打开（锚点就是它自己）。
     var gpgContainerDisplayOverride: URL?
 
+    /// 从**档案内**解出来的 `.siz` 待打开时携带的 entry 链路（如 `xa/inner.siz`）。非 nil → `handleSIZOpen`
+    /// 解包验签后走 `openNestedArchive`（地址显示嵌套链、「上一级」回真实文件夹），而不是 `openArchive(displayedAs:)`
+    /// （后者会把内层 archive 锚到 `.siz` 的临时路径，暴露 `/var/folders/...`）。普通双击 `.siz` 时为 nil。
+    /// 与 `pendingSIZOpen` 配对设置；`handleSIZOpen` 进入时一次性读走并清空。
+    var pendingSIZNestedEntryName: String?
+
     /// 文件浏览模式选中 `.siz` 点 Extract 时的待处理 URL —— ContentView 用 `.onChange` 接住跑 unwrap + 验签 +
     /// 标准解压对话框。同 `pendingSIZOpen` 的解耦原则。
     @Published var pendingSIZExtract: URL?

@@ -235,7 +235,7 @@ struct ContentView: View {
                         pendingSIZVerification = nil
                         // 登记 unwrap 根 —— 离开这个 .siz 档案时即时清掉卷内临时。
                         model.registerOpenedArchiveItemTemp(pending.tempRoot)
-                        model.openArchive(urlToOpen, displayedAs: pending.displayURL)
+                        openVerifiedSIZInner(urlToOpen, displayURL: pending.displayURL, nestedEntryName: pending.nestedEntryName)
                         return nil
                     } catch {
                         return L10n.format("error.siz.decryptionFailed", error.localizedDescription)
@@ -565,6 +565,9 @@ struct ContentView: View {
         // 一次性读走并清空，免得污染下一次普通 `.siz` 打开。
         let displayURL = model.gpgContainerDisplayOverride ?? url
         model.gpgContainerDisplayOverride = nil
+        // 从档案内解出来的嵌套 `.siz` 带的 entry 链路 —— 一次性读走并清空，验签通过后据此走 openNestedArchive。
+        let nestedEntryName = model.pendingSIZNestedEntryName
+        model.pendingSIZNestedEntryName = nil
         Task {
             do {
                 let (innerArchiveURL, tempRoot, summary) = try await unwrapAndVerifySIZ(at: url)
@@ -578,7 +581,8 @@ struct ContentView: View {
                             innerArchiveURL: innerArchiveURL,
                             tempRoot: tempRoot,
                             signature: summary!,
-                            displayURL: displayURL
+                            displayURL: displayURL,
+                            nestedEntryName: nestedEntryName
                         )
                     }
                 } else {
@@ -589,7 +593,7 @@ struct ContentView: View {
                         ensureMainWindowVisible()
                         // 登记 unwrap 根 —— 离开这个 .siz 档案时即时清掉卷内临时。
                         model.registerOpenedArchiveItemTemp(tempRoot)
-                        model.openArchive(urlToOpen, displayedAs: displayURL)
+                        openVerifiedSIZInner(urlToOpen, displayURL: displayURL, nestedEntryName: nestedEntryName)
                     }
                 }
             } catch {
@@ -600,6 +604,18 @@ struct ContentView: View {
                     model.errorMessage = error.localizedDescription
                 }
             }
+        }
+    }
+
+    /// 打开**已验签**的 `.siz` 内层 archive。
+    /// - 普通 `.siz`（双击 / Finder 打开）：`openArchive(displayedAs:)`，地址锚到 `.siz` 自身（或 `.gpg` 套 `.siz` 的原 `.gpg`）。
+    /// - **档案内**解出来的嵌套 `.siz`（`nestedEntryName != nil`）：走 `openNestedArchive`，地址显示嵌套链
+    ///   （`…/outer.7z/inner.siz`）、「上一级」退出整条链回真实文件夹，**不暴露 scratch 路径**、**不新建窗口**。
+    private func openVerifiedSIZInner(_ urlToOpen: URL, displayURL: URL, nestedEntryName: String?) {
+        if let nestedEntryName {
+            model.openNestedArchive(urlToOpen, entryName: nestedEntryName)
+        } else {
+            model.openArchive(urlToOpen, displayedAs: displayURL)
         }
     }
 
@@ -787,6 +803,9 @@ struct ContentView: View {
         let signature: SIZSignatureSummary
         /// 地址栏锚点：普通 `.siz` = 它自己；`.gpg` 套 `.siz` = 原始 `.gpg`（不暴露 scratch 路径）。
         let displayURL: URL
+        /// 非 nil = 该 `.siz` 是从**档案内**解出来的，验签通过后内层 archive 走 `openNestedArchive`（嵌套链地址 + 正确「上一级」），
+        /// 而不是 `openArchive(displayedAs:)`（那样会把地址锚到 `.siz` 的临时路径，暴露 `/var/folders/...`）。
+        let nestedEntryName: String?
 
         static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
     }
