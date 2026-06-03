@@ -20,7 +20,11 @@ struct SIZSignatureSheet: View {
     /// 主操作回调 —— 携带用户在 sheet 里挑的解密密钥 fingerprint（nil 让 gpg 自挑）和对称密码（nil 让 pinentry-mac 接管）。
     /// caller 用这两个值调 `SIZArchive.decryptInnerArchive`。
     /// 语义由宿主决定：主窗口宿主 = 「打开浏览」；独立浮窗宿主 = 「解压」。
-    let onOpen: (_ decryptionKey: String?, _ decryptionPassphrase: String?) -> Void
+    ///
+    /// **返回值 = 错误文案（nil 表示成功）**：成功时宿主负责关闭 sheet；失败（如解密密码错误）返回错误串，
+    /// sheet **内联红字**显示并保留，让用户改密码 / 换密钥重试。之前 fire-and-forget + 宿主走 errorMessage，
+    /// 弹的 alert 被 sheet 盖住 → 用户看不到任何提示（用户反馈的 bug）。
+    let onOpen: (_ decryptionKey: String?, _ decryptionPassphrase: String?) async -> String?
     let onCancel: () -> Void
 
     /// 主操作按钮文案 override。nil → 用内置的「打开 / 仍然打开」措辞（主窗口浏览语境）。
@@ -33,6 +37,10 @@ struct SIZSignatureSheet: View {
     @State private var availableSecretKeys: [GPGBackend.GPGKey] = []
     @State private var selectedDecryptionKey: String = ""
     @State private var decryptionPassphrase: String = ""
+    /// 解密 / 打开进行中 —— 禁用按钮 + 转圈，避免重复点。
+    @State private var isOpening = false
+    /// 解密失败（密码 / 密钥错）的内联错误文案；非空时在按钮上方红字显示，sheet 保留让用户重试。
+    @State private var inlineError: String?
 
     /// `.badSignature` 时把 Cancel 设为 default action（回车 / Esc 都退出），引导用户不要打开被篡改的容器。
     private var cancelIsDefault: Bool {
@@ -85,22 +93,36 @@ struct SIZSignatureSheet: View {
                 decryptionControls
             }
 
+            // 解密失败内联提示（密码 / 密钥错）—— 红字，留在 sheet 里让用户改了重试。
+            if let inlineError {
+                Label(inlineError, systemImage: "exclamationmark.triangle.fill")
+                    .font(.callout)
+                    .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             HStack {
+                if isOpening {
+                    ProgressView().controlSize(.small)
+                    Text(L10n.text("siz.signatureSheet.decrypting"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 Spacer()
                 Button(L10n.text("button.cancel"), action: onCancel)
                     .keyboardShortcut(cancelIsDefault ? .defaultAction : .cancelAction)
+                    .disabled(isOpening)
                 if let onOpenInMainWindow {
                     Button(L10n.text("externalExtract.openInMainWindow"), action: onOpenInMainWindow)
+                        .disabled(isOpening)
                 }
                 Button(primaryActionTitle ?? openButtonTitle) {
-                    onOpen(
-                        selectedDecryptionKey.isEmpty ? nil : selectedDecryptionKey,
-                        decryptionPassphrase.isEmpty ? nil : decryptionPassphrase
-                    )
+                    runOpen()
                 }
                 .keyboardShortcut(cancelIsDefault ? nil : .defaultAction)
                 .buttonStyle(.borderedProminent)
                 .tint(SIZSignatureStatus.color(for: signature.verify))
+                .disabled(isOpening)
             }
         }
         .padding(24)
@@ -113,6 +135,20 @@ struct SIZSignatureSheet: View {
                     availableSecretKeys = loaded.filter { $0.hasSecretKey }
                 }
             }
+        }
+    }
+
+    /// 跑主操作（打开 / 解压）：转圈 + 调 onOpen；返回非 nil（错误）→ 内联红字、sheet 保留重试；nil（成功）→ 宿主关 sheet。
+    private func runOpen() {
+        isOpening = true
+        inlineError = nil
+        Task { @MainActor in
+            let error = await onOpen(
+                selectedDecryptionKey.isEmpty ? nil : selectedDecryptionKey,
+                decryptionPassphrase.isEmpty ? nil : decryptionPassphrase
+            )
+            isOpening = false
+            if let error { inlineError = error }
         }
     }
 

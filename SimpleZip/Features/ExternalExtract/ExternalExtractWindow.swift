@@ -132,6 +132,7 @@ final class ExternalExtractWindowController {
         let sheet = SIZSignatureSheet(
             signature: summary,
             onOpen: { [weak self] key, passphrase in
+                // 浮窗宿主自己处理解密结果（替成进度/错误视图），sheet 无需内联错误 → 返回 nil。
                 self?.proceedSIZExtract(
                     sourceURL: sourceURL,
                     innerArchiveURL: innerArchiveURL,
@@ -139,6 +140,7 @@ final class ExternalExtractWindowController {
                     decryptionKey: key,
                     passphrase: passphrase
                 )
+                return nil
             },
             onCancel: { [weak self] in
                 try? FileManager.default.removeItem(at: tempRoot)

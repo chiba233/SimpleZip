@@ -129,6 +129,8 @@ extension ArchiveBrowserModel {
     func openFolder(_ url: URL, recordsHistory: Bool) {
         // 进文件夹一定离开了「档案嵌套」语境 —— 清空虚拟堆叠串。
         nestedDisplayPath = nil
+        // 进「真实文件夹」= 退出档案浏览 → 档案生命结束，即时清掉本会话临时产物；进虚拟目录（卷内）则跳过。
+        purgeOpenedArchiveTempsIfLeaving(to: url)
         let destination = NavigationLocation.folder(url.standardizedFileURL)
         if recordsHistory, currentNavigationLocation != destination {
             recordCurrentLocationForNavigation()
@@ -144,6 +146,41 @@ extension ArchiveBrowserModel {
             AppPreferences.rememberLastFolder(url)
         }
         reload()
+    }
+
+    /// 登记一个「随当前档案浏览会话而生」的临时目录 —— 离开档案（进真实文件夹 / 开别的真实档案）时即时清掉。
+    /// 覆盖：开档案内文件 / 嵌套档案解出的临时（openArchiveItemExternally 已登记）、`.gpg` 解密根、`.siz` unwrap 根。
+    func registerOpenedArchiveItemTemp(_ url: URL) {
+        let std = url.standardizedFileURL
+        if !openedArchiveItemDirectories.contains(where: { $0.standardizedFileURL == std }) {
+            openedArchiveItemDirectories.append(url)
+        }
+    }
+
+    /// 目标 URL 是否落在「可丢弃临时区」（系统临时目录下，含加密卷挂载点）。
+    /// 进入这种路径 = 进虚拟目录 / 嵌套档案，**不算离开档案**，不触发清理（否则会删掉正要进入的内容）。
+    private func isUnderDisposableTemp(_ url: URL) -> Bool {
+        let path = url.standardizedFileURL.path
+        let temp = fileManager.temporaryDirectory.standardizedFileURL.path
+        return path == temp || path.hasPrefix(temp + "/")
+    }
+
+    /// **离开档案即时清理**：删掉本会话登记的全部临时产物（后台执行，不阻塞主线程）。
+    /// 档案一旦关闭 / 退出到真实目录，它的临时生命就结束了 —— 不等到退出 app（整卷销毁）才清。
+    private func purgeOpenedArchiveTemps() {
+        guard !openedArchiveItemDirectories.isEmpty else { return }
+        let dirs = openedArchiveItemDirectories
+        openedArchiveItemDirectories.removeAll()
+        Task.detached {
+            for dir in dirs { try? FileManager.default.removeItem(at: dir) }
+        }
+    }
+
+    /// 进入「真实目标」（非临时区）前清掉上一个档案会话的临时；进入虚拟目录 / 嵌套档案则跳过。
+    private func purgeOpenedArchiveTempsIfLeaving(to destination: URL) {
+        if !isUnderDisposableTemp(destination) {
+            purgeOpenedArchiveTemps()
+        }
     }
 
     func openArchive(_ url: URL) {
@@ -233,6 +270,8 @@ extension ArchiveBrowserModel {
     func openArchive(_ url: URL, recordsHistory: Bool) {
         // 任何「真实」档案打开都清空嵌套虚拟堆叠串（嵌套打开走 openNestedArchive，会在调用本方法之后再设回）。
         nestedDisplayPath = nil
+        // 开「真实新档案」→ 清掉上一个档案会话的临时；开嵌套 / .gpg / .siz（临时源，在卷内）则跳过、保留其内容。
+        purgeOpenedArchiveTempsIfLeaving(to: url)
         let supportedURL = ArchiveService.supportedArchiveURL(url) ?? url
         if supportedURL.pathExtension.lowercased() == "dmg" {
             if recordsHistory, currentNavigationLocation != .folder(supportedURL.standardizedFileURL) {

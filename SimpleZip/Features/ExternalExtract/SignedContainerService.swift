@@ -23,9 +23,9 @@ enum SignedContainerService {
     static func unwrapAndVerifySIZ(
         at sourceURL: URL
     ) async throws -> (innerArchiveURL: URL, tempRoot: URL, summary: SIZSignatureSummary?) {
-        let tempRoot = FileManager.default.temporaryDirectory
-            .appendingPathComponent("SimpleZip-SIZ-Unwrap-\(UUID().uuidString)", isDirectory: true)
-        try FileManager.default.createDirectory(at: tempRoot, withIntermediateDirectories: true)
+        // **加密容器 → fail-closed**：unwrap 出来的内层档案（及随后内层 .gpg 解密产物）落进加密临时卷；
+        // 卷挂不上就抛错，绝不把签名容器的内容明文裸落盘。
+        let tempRoot = try await TemporaryResourceManager.makeSecureTemporaryDirectory(prefix: "SimpleZip-SIZ-Unwrap")
         let unwrap = try await SIZArchive.unwrap(at: sourceURL, to: tempRoot)
 
         // 用户关 GPG 集成 = 主页面所有 GPG 相关入口隐藏（打开 .siz 是刚需例外，但不能露 GPG UI）。

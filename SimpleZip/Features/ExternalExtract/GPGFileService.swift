@@ -47,7 +47,8 @@ enum GPGFileService {
         passphrase: String? = nil,
         operationID: UUID? = nil
     ) async throws -> URL {
-        let tempRoot = try TemporaryResourceManager.makeOpenedArchiveItemDirectory()
+        // **加密源 → fail-closed**：解密产物必落进加密临时卷；卷挂不上就抛错，绝不退回明文裸落盘。
+        let tempRoot = try await TemporaryResourceManager.makeSecureTemporaryDirectory(prefix: "SimpleZip-GPGDecrypt")
         let outputURL = tempRoot.appendingPathComponent(decryptedInnerName(for: encryptedURL))
         try await GPGBackend.decrypt(
             fileURL: encryptedURL,

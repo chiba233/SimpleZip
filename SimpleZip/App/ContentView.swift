@@ -216,26 +216,21 @@ struct ContentView: View {
             SIZSignatureSheet(
                 signature: pending.signature,
                 onOpen: { decryptionKey, decryptionPassphrase in
-                    // **关键顺序**：不要在 Task 外清 pendingSIZVerification —— 否则 sheet 立刻 dismiss，解密失败时
-                    // 用户没法在 sheet 里改 picker / 重输 passphrase 重试，必须重 Finder 打开。
-                    // 正确：成功 branch 才 dismiss + openArchive；失败 branch 保留 sheet 让用户重试。
-                    Task {
-                        do {
-                            let urlToOpen = try await decryptInnerArchiveIfNeeded(
-                                pending.innerArchiveURL,
-                                decryptionKey: decryptionKey,
-                                passphrase: decryptionPassphrase
-                            )
-                            await MainActor.run {
-                                pendingSIZVerification = nil
-                                model.openArchive(urlToOpen, displayedAs: pending.signature.sourceURL)
-                            }
-                        } catch {
-                            await MainActor.run {
-                                // sheet 保留；只设 errorMessage 让 model alert 弹出来。
-                                model.errorMessage = L10n.format("error.siz.decryptionFailed", error.localizedDescription)
-                            }
-                        }
+                    // 成功 → 关 sheet + 浏览，返回 nil；失败（密码 / 密钥错）→ **返回错误文案**让 sheet 内联红字显示、
+                    // 保留让用户改了重试。之前走 model.errorMessage，alert 被 sheet 盖住 → 用户看不到任何提示（已修）。
+                    do {
+                        let urlToOpen = try await decryptInnerArchiveIfNeeded(
+                            pending.innerArchiveURL,
+                            decryptionKey: decryptionKey,
+                            passphrase: decryptionPassphrase
+                        )
+                        pendingSIZVerification = nil
+                        // 登记 unwrap 根 —— 离开这个 .siz 档案时即时清掉卷内临时。
+                        model.registerOpenedArchiveItemTemp(pending.tempRoot)
+                        model.openArchive(urlToOpen, displayedAs: pending.signature.sourceURL)
+                        return nil
+                    } catch {
+                        return L10n.format("error.siz.decryptionFailed", error.localizedDescription)
                     }
                 },
                 onCancel: {
@@ -568,6 +563,8 @@ struct ContentView: View {
                     let urlToOpen = try await decryptInnerArchiveIfNeeded(innerArchiveURL)
                     await MainActor.run {
                         ensureMainWindowVisible()
+                        // 登记 unwrap 根 —— 离开这个 .siz 档案时即时清掉卷内临时。
+                        model.registerOpenedArchiveItemTemp(tempRoot)
                         model.openArchive(urlToOpen, displayedAs: url)
                     }
                 }

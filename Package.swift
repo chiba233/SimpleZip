@@ -57,6 +57,7 @@ let package = Package(
                 "Core/OperationDiagnosticsReporter.swift",
                 "Core/PreferencesPayloadCodec.swift",
                 "Core/PresetPasswordStore.swift",
+                "Core/SecureScratchVolume.swift",
                 "Core/SIZArchive.swift",
                 "Core/SZSArchive.swift",
                 "Core/TemporaryResourceManager.swift"

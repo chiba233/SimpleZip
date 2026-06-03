@@ -144,6 +144,67 @@ preset password.
 
 ---
 
+## Encrypted Temporary Scratch Volume (since 0.2.7)
+
+Opening a `.gpg`/`.siz`, browsing an archive, opening a file inside one, or any
+extraction produces **plaintext** that has to live somewhere on disk while a
+backend tool (7zz / gpg / tar) reads it. Writing that plaintext into the normal
+system temp directory (`/var/folders/…`) defeats the point of encryption: a
+decrypted copy lingers, readable by anyone with access, until it is cleaned up.
+
+SimpleZip therefore routes **all** decrypt/extract scratch through a per-session
+**encrypted disk image** (`SecureScratchVolume`):
+
+### How it works
+
+- On first need (lazily, after launch), SimpleZip generates a **32-byte random
+  password** with `SecRandomCopyBytes` that **exists only in process memory** —
+  it is never written to disk, Keychain, or anywhere persistent.
+- It creates an APFS **AES-256 encrypted sparse image** under the system temp
+  dir (`hdiutil create -encryption AES-256 -stdinpass`, password via stdin so it
+  never appears in `ps`) and attaches it `-nobrowse` (hidden from Finder).
+- Every scratch path (opened-archive items, `.siz` unwrap, `.gpg` decrypt,
+  nested-archive extraction, extraction staging) is created **inside the mounted
+  volume**.
+
+### Guarantees and limits
+
+- **Normal quit:** the volume is detached and the image file deleted
+  (`applicationWillTerminate`) — plaintext is gone.
+- **Crash / force-quit:** the image file remains, but it is **AES-256 ciphertext
+  keyed by a password that died with the process** — it cannot be re-mounted or
+  read. The next launch sweeps any leftover SimpleZip scratch images and
+  force-detaches any stale mounts. *Caveat:* between a crash and the next launch
+  (or a reboot), a volume that was still attached at crash time stays mounted and
+  thus readable at its mount point; only the dormant image file is protected.
+- **Fail-closed for encrypted sources:** decrypting a `.gpg`/`.siz` **requires**
+  the encrypted volume. If it cannot be mounted, the open **errors** rather than
+  falling back to writing plaintext to an unencrypted partition. (Ordinary,
+  non-encrypted archive scratch falls back gracefully to the system temp dir if
+  the volume is briefly unavailable, so the app never bricks.)
+- **Mount verification + self-heal:** before any scratch write, the cached mount
+  point is verified to still be a real mounted volume (the mount root's `st_dev`
+  differs from its parent's). If the volume was unmounted mid-session (manual
+  `hdiutil detach`, system eject), it is detected and a fresh random-key volume
+  is **transparently re-mounted** before the decrypt proceeds — so a stale mount
+  point (which would otherwise be a plain directory on the real disk) can never
+  receive plaintext.
+- **Per-archive cleanup:** closing an archive (navigating to a folder, opening a
+  different archive) **immediately** purges that archive's scratch, not just at
+  quit.
+
+### What this does *not* protect against
+
+- An attacker with **live access to the running session** (your unlocked account
+  while SimpleZip is open) can read the mounted volume like any other folder —
+  this protects data **at rest after close / crash**, not against a live
+  compromise of your logged-in session.
+- The random key lives in process memory; if memory is paged to swap it could in
+  principle be recovered, but macOS encrypts swap by default.
+- It does not replace full-disk encryption (FileVault) for the rest of your data.
+
+---
+
 ## `.siz` Signed Container Format
 
 `.siz` is SimpleZip's single-file signed container. The goal is "a regular

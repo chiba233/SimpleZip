@@ -47,6 +47,8 @@ extension ArchiveBrowserModel {
         Task { @MainActor in
             do {
                 let decrypted = try await GPGFileService.decryptToTemporary(url)
+                // 登记解密根（卷内临时目录）—— 离开这个 .gpg 档案（退到真实目录 / 开别的真实档案）时即时清掉。
+                registerOpenedArchiveItemTemp(decrypted.deletingLastPathComponent())
                 // 解密完成 —— 把 isWorking 交还给随后的 openArchive / openFolder（它们各自的 reload 会重新置位）。
                 isWorking = false
                 if ArchiveService.isSupportedArchive(decrypted) {

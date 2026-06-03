@@ -1134,3 +1134,5 @@
 "gpgImport.action.import" = "Import";
 "gpgImport.result.succeeded" = "Key imported into the keyring.";
 "gpgImport.result.failed" = "Import failed: %@";
+
+"siz.signatureSheet.decrypting" = "Decrypting…";

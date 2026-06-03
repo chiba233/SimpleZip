@@ -39,10 +39,28 @@ enum TemporaryResourceManager {
     }
 
     nonisolated static func makeOpenedArchiveItemDirectory(fileManager: FileManager = .default) throws -> URL {
-        let root = openedArchiveItemsRoot(fileManager: fileManager)
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        // 优先落进**加密临时卷**（已挂载时）—— 解出来的明文不再裸落盘。卷未挂载（极少数启动初期窗口）才
+        // 回落普通临时目录：这是「打开档案内文件 / 解压 staging」的通用产物，优雅降级、不让 app 变砖；
+        // `.gpg`/`.siz` 这类**加密源**走 `makeSecureTemporaryDirectory`（fail-closed，绝不回落）。
+        let base = SecureScratchVolume.shared.currentMountPoint?
+            .appendingPathComponent(openedArchiveItemsDirectoryName, isDirectory: true)
+            ?? openedArchiveItemsRoot(fileManager: fileManager)
+        let root = base.appendingPathComponent(UUID().uuidString, isDirectory: true)
         try fileManager.createDirectory(at: root, withIntermediateDirectories: true)
         return root
+    }
+
+    /// **fail-closed 安全临时目录**：必定落在加密临时卷内（卷挂不上就 throw）。
+    /// 给「加密源解密」（`.gpg` 双击打开 / `.siz` unwrap + 内层解密）这类**绝不能退回明文落盘**的调用方用。
+    /// `prefix` 仅用于可读性（卷内目录名）；卷退出即整卷销毁，无需单独 stale 清理。
+    static func makeSecureTemporaryDirectory(
+        prefix: String,
+        fileManager: FileManager = .default
+    ) async throws -> URL {
+        let mount = try await SecureScratchVolume.shared.ensureMounted()
+        let dir = mount.appendingPathComponent("\(prefix)-\(UUID().uuidString)", isDirectory: true)
+        try fileManager.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
     }
 
     // MARK: - 手动清理临时文件（设置 → 运行状态）

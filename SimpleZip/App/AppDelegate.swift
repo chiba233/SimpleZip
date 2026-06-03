@@ -24,6 +24,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 「每次启动时检查更新」（通用设置 opt-in）：发现新版才弹提示，已最新则静默。
         SparkleUpdater.shared.checkForUpdatesOnLaunchIfEnabled()
 
+        // 加密临时卷：先清上次会话崩溃残留（遗留挂载 + 镜像），再为本次会话挂一个**随机密钥**的 AES-256 卷。
+        // 之后所有解密 / 解压临时产物落进这个卷；关 app 即 detach + 删镜像，明文不留盘（见 SecureScratchVolume）。
+        // 懒挂载也行，但启动期预挂载能让随后的同步临时分配（打开档案内文件等）直接命中卷而非回落普通临时目录。
+        Task {
+            await SecureScratchVolume.sweepStale()
+            try? await SecureScratchVolume.shared.ensureMounted()
+        }
+
         // #64 冷启动不弹窗修复：app 由「Finder 打开文件」触发启动时，`WindowGroup` 上的
         // `.handlesExternalEvents(matching: [])` 会让 SwiftUI 拒绝创建初始窗口（点 Dock 触发 reopen 才补窗）。
         // 这里在 SwiftUI 做完自己的建窗决定之后（async-to-main）兜底：**只有**在「有待处理外部打开」且
@@ -32,6 +40,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         DispatchQueue.main.async { [weak self] in
             self?.ensureWindowForPendingExternalOpens()
         }
+    }
+
+    /// 退出时拆除加密临时卷：detach 挂载 + 删镜像。同步尽力（terminate 不能 await）；
+    /// 万一没跑成（强杀），残留的镜像是 AES 密文、无害，下次启动 `sweepStale()` 收口。
+    func applicationWillTerminate(_ notification: Notification) {
+        SecureScratchVolume.shared.teardown()
     }
 
     /// reopen（点 Dock 图标 / 无可见窗口时被激活）让 SwiftUI 重建主窗口 —— 标准做法，

@@ -41,8 +41,9 @@ final class ArchiveExtractionCoordinator {
     }
 
     func makeExtractionStagingDirectory() throws -> URL {
-        let root = fileManager.temporaryDirectory
-            .appendingPathComponent("SimpleZip-Extract-\(UUID().uuidString)", isDirectory: true)
+        // 优先落进加密临时卷（已挂载时）—— 解压中间产物也是明文，别裸落盘；卷未挂载则优雅回落普通临时目录。
+        let base = SecureScratchVolume.shared.currentMountPoint ?? fileManager.temporaryDirectory
+        let root = base.appendingPathComponent("SimpleZip-Extract-\(UUID().uuidString)", isDirectory: true)
         try fileManager.createDirectory(at: root, withIntermediateDirectories: true)
         return root
     }

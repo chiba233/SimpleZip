@@ -1134,3 +1134,5 @@
 "gpgImport.action.import" = "导入";
 "gpgImport.result.succeeded" = "密钥已导入钥匙串。";
 "gpgImport.result.failed" = "导入失败：%@";
+
+"siz.signatureSheet.decrypting" = "正在解密…";
