@@ -176,16 +176,24 @@ extension GPGBackend {
             guard let recordTypeRaw = fields.first else { continue }
             // **两种 smartcard / stripped 标记位置都识别**：
             // - 旧 / 人类可读混合输出：type 字段后缀 `sec>` / `ssb>` / `sec#` / `ssb#`
-            // - 现代 gpg `--with-colons` 输出：type 字段干净 `sec` / `ssb`，第 14 字段（index 13）含卡 serial（如 `F1D0+0131337E`），或为 `#` 表示 stripped
+            // - 现代 gpg `--with-colons` 输出：type 字段干净 `sec` / `ssb`，私钥状态在**第 15 字段（0-based index 14）**：
+            //     `+`      = 本机有完整私钥（不在卡上、未 stripped）
+            //     `#`      = 私钥已 stripped / 离线（本机无密钥材料）
+            //     <serial> = 私钥在智能卡上（该字段是卡 token 序列号，如 `D276000124010304…`）
+            //     （空）     = 旧版本兜底，按「非卡、非 stripped」处理
+            // ⚠️ 历史 bug（早于 0.3.0、长期潜伏）：曾错读 index 13（第 14 字段，对 sec/ssb 恒空）——
+            //    导致卡 stub **永远判不出「在卡上」**，还被当成完整本机私钥；插卡时靠 `--card-status`（路径2）
+            //    兜回来盖住了，一旦拔卡路径2 为空，这把钥匙就退化成「普通本机私钥」显示。必须读 index 14，
+            //    且把 `+` 显式排除（否则会把每把普通私钥都误判成卡上）。
             let typeSuffixStripped = recordTypeRaw.hasSuffix("#")
             let typeSuffixOnCard = recordTypeRaw.hasSuffix(">")
             let baseType = (typeSuffixStripped || typeSuffixOnCard) ? String(recordTypeRaw.dropLast()) : recordTypeRaw
-            let field14 = (fields.count > 13) ? fields[13] : ""
-            // field 14 非空且不是 stripped 标记 = 卡 serial / token info
-            let field14OnCard = !field14.isEmpty && field14 != "#"
-            let field14Stripped = field14 == "#"
-            let isStripped = typeSuffixStripped || field14Stripped
-            let isOnSmartcard = typeSuffixOnCard || field14OnCard
+            let secretStatusField = (fields.count > 14) ? fields[14] : ""
+            let fieldStripped = secretStatusField == "#"
+            // 非空、且不是 `#`(stripped) 也不是 `+`(完整本机私钥) = 卡 serial / token info → 在卡上
+            let fieldOnCard = !secretStatusField.isEmpty && secretStatusField != "#" && secretStatusField != "+"
+            let isStripped = typeSuffixStripped || fieldStripped
+            let isOnSmartcard = typeSuffixOnCard || fieldOnCard
 
             if baseType == recordPrefix {
                 switch mode {
