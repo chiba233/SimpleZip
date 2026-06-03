@@ -28,7 +28,7 @@ struct SettingsView: View {
 
                 if !isSettingsSidebarVisible {
                     // 侧栏收起后，左上角悬浮一个展开按钮，避免完全失去入口。
-                    sidebarToggleButton(systemImage: "sidebar.leading") {
+                    SidebarToggleButton(systemImage: "sidebar.leading", help: L10n.text("settings.title")) {
                         withAnimation(.easeInOut(duration: 0.16)) {
                             isSettingsSidebarVisible = true
                         }
@@ -73,7 +73,7 @@ struct SettingsView: View {
     private var settingsSidebar: some View {
         VStack(spacing: 0) {
             HStack {
-                sidebarToggleButton(systemImage: "sidebar.left") {
+                SidebarToggleButton(systemImage: "sidebar.left", help: L10n.text("settings.title")) {
                     withAnimation(.easeInOut(duration: 0.16)) {
                         isSettingsSidebarVisible = false
                     }
@@ -106,14 +106,4 @@ struct SettingsView: View {
         .background(.bar)
     }
 
-    private func sidebarToggleButton(systemImage: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: systemImage)
-                .font(.system(size: 13, weight: .medium))
-                .frame(width: 20, height: 20)
-        }
-        .buttonStyle(.borderless)
-        .controlSize(.small)
-        .help(L10n.text("settings.title"))
-    }
 }

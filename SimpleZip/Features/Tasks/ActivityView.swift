@@ -26,7 +26,7 @@ struct ActivityView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                 if !isSidebarVisible {
-                    sidebarToggleButton(systemImage: "sidebar.leading") {
+                    SidebarToggleButton(systemImage: "sidebar.leading", help: L10n.text("tasks.window.title")) {
                         withAnimation(.easeInOut(duration: 0.16)) {
                             isSidebarVisible = true
                         }
@@ -86,7 +86,7 @@ struct ActivityView: View {
     private var activitySidebar: some View {
         VStack(spacing: 0) {
             HStack {
-                sidebarToggleButton(systemImage: "sidebar.left") {
+                SidebarToggleButton(systemImage: "sidebar.left", help: L10n.text("tasks.window.title")) {
                     withAnimation(.easeInOut(duration: 0.16)) {
                         isSidebarVisible = false
                     }
@@ -173,7 +173,7 @@ struct ActivityView: View {
                 .font(.headline)
                 .padding(.bottom, 8)
 
-            activitySettingsRow(
+            SettingsControlRow(
                 title: L10n.text("tasks.settings.historyLimit"),
                 description: L10n.text("tasks.settings.historyLimit.description")
             ) {
@@ -192,7 +192,7 @@ struct ActivityView: View {
 
             Divider()
 
-            activitySettingsRow(
+            SettingsControlRow(
                 title: L10n.text("tasks.settings.clearHistory"),
                 description: L10n.text("tasks.settings.clearHistory.description")
             ) {
@@ -211,39 +211,6 @@ struct ActivityView: View {
         // 自适应窗口宽度：填满可用宽度（与任务列表一致），不再固定 640 左对齐留一大片空白。
         // 行内有 Spacer 把控件顶到右侧，宽窗口也不会有死区。
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-
-    private func activitySettingsRow<Control: View>(
-        title: String,
-        description: String,
-        @ViewBuilder control: () -> Control
-    ) -> some View {
-        HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title)
-                    .font(.callout)
-                Text(description)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Spacer(minLength: 16)
-
-            control()
-        }
-        .padding(.vertical, 3)
-    }
-
-    private func sidebarToggleButton(systemImage: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: systemImage)
-                .font(.system(size: 13, weight: .medium))
-                .frame(width: 20, height: 20)
-        }
-        .buttonStyle(.borderless)
-        .controlSize(.small)
-        .help(L10n.text("tasks.window.title"))
     }
 
     @ViewBuilder
