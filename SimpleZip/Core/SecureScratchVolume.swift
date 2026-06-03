@@ -26,7 +26,10 @@ import Security
 
 /// 进程级单例。线程安全（NSLock）。`ensureMounted()` 给「加密源」fail-closed 调用方；
 /// `currentMountPoint` 给「普通临时产物」的同步调用方（未挂载即返回 nil，调用方自行回落）。
-final class SecureScratchVolume: @unchecked Sendable {
+///
+/// **`nonisolated`**：本类自己用 NSLock 保证线程安全，被 Core 里 `nonisolated` 的临时目录分配函数调用；
+/// app target 默认 MainActor 隔离会把它推成 MainActor，导致 nonisolated 调用方编译不过。显式 nonisolated 退出。
+nonisolated final class SecureScratchVolume: @unchecked Sendable {
     static let shared = SecureScratchVolume()
 
     /// 镜像文件名前缀 —— 启动清扫据此识别本应用产生的遗留镜像。

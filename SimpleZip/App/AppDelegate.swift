@@ -29,7 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 懒挂载也行，但启动期预挂载能让随后的同步临时分配（打开档案内文件等）直接命中卷而非回落普通临时目录。
         Task {
             await SecureScratchVolume.sweepStale()
-            try? await SecureScratchVolume.shared.ensureMounted()
+            _ = try? await SecureScratchVolume.shared.ensureMounted()
         }
 
         // #64 冷启动不弹窗修复：app 由「Finder 打开文件」触发启动时，`WindowGroup` 上的
