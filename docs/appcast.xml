@@ -8,12 +8,12 @@
         <item>
             <title>SimpleZip 0.3.0</title>
             <link>https://github.com/chiba233/SimpleZip/releases/tag/v0.3.0</link>
-            <pubDate>Wed, 03 Jun 2026 16:33:07 +0000</pubDate>
+            <pubDate>Wed, 03 Jun 2026 16:43:58 +0000</pubDate>
             <enclosure
                 url="https://github.com/chiba233/SimpleZip/releases/download/v0.3.0/SimpleZip-0.3.0-unsigned.dmg"
-                sparkle:version="18"
+                sparkle:version="19"
                 sparkle:shortVersionString="0.3.0"
-                sparkle:edSignature="6ajfZLGqBbQwJlw1vQKylPzdmPLdmrp0eTDHa0Cz3/FsSP0FQNFmA3ht3J8rwd0Q2QHg344tqm4axNxW8PZCCw==" length="12760985"
+                sparkle:edSignature="y+4CNW6sqoQ7mM8DwXRsH/CWYKRYHnfCYsKVX7vKF/swy9SLg1WQT3mPScDDOUskobGwTd2fhAL/docyHuE1AQ==" length="12760950"
                 type="application/octet-stream"/>
         </item>
     </channel>
