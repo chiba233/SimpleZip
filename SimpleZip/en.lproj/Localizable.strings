@@ -767,7 +767,7 @@
 "settings.followFinderStructure" = "Make folders follow Finder structure";
 "settings.showSymbolicLinks.description" = "Include symbolic links in folder listings and search results.";
 "settings.followFinderStructure.description" = "Merge special folders the way Finder does, such as Applications and Utilities.";
-"status.exportingArchiveItem" = "Extracting %@ to the drop destination";
+"status.exportingArchiveItem" = "Extracting %@ to %@";
 "status.exportedArchiveItem" = "Extracted %@";
 "status.copyingFiles" = "Copying files...";
 "status.movingFiles" = "Moving files...";

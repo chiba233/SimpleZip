@@ -760,7 +760,7 @@
 "error.unsafeArchiveEntries" = "SimpleZip 已阻止解压，因为压缩包包含不安全路径：%@";
 "error.unsafeArchiveLinks" = "SimpleZip 已阻止解压，因为压缩包包含符号链接：%@";
 "error.blockedBySecurityPolicy" = "已按当前安全设置阻止。";
-"status.exportingArchiveItem" = "正在把 %@ 解压到拖放位置";
+"status.exportingArchiveItem" = "正在把 %@ 解压到 %@";
 "status.exportedArchiveItem" = "已解压 %@";
 "status.copyingFiles" = "正在复制文件...";
 "status.movingFiles" = "正在移动文件...";

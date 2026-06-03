@@ -173,7 +173,10 @@ extension ArchiveBrowserModel {
 
         let operationID = UUID()
         let taskCenter = TaskCenter.shared
-        let title = L10n.format("status.exportingArchiveItem", item.displayName)
+        // 文案显示**实际落点目录**(拖放目标文件夹 = promise 目标 URL 的父目录),而不是泛指「拖放位置」。
+        // `~` 缩写让主目录下的路径短一点(如 ~/Desktop)。
+        let destinationFolderDisplay = (destinationURL.deletingLastPathComponent().path as NSString).abbreviatingWithTildeInPath
+        let title = L10n.format("status.exportingArchiveItem", item.displayName, destinationFolderDisplay)
         let task = taskCenter.begin(
             category: .archive,
             kind: .extract,
