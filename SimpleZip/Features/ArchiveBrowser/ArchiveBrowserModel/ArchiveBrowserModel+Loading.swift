@@ -138,24 +138,58 @@ extension ArchiveBrowserModel {
             do {
                 items = try await ArchiveService.list(url, force: force)
             } catch {
-                guard
-                    AppPreferences.hasUsablePresetPassword,
-                    shouldPromptForArchivePassword(error)
-                else {
-                    throw error
-                }
-                items = try await ArchiveService.list(url, password: AppPreferences.presetPassword, force: force)
+                // header-encrypted 7z 这类「不给密码连 list 都拿不到」的档案:先用预设密码静默重试,
+                // 仍失败 / 没预设 → **弹密码框**让用户输入并重试(和解压流程同款),而不是直接报错放弃
+                //（之前只在「有可用预设密码」时重试,没预设就掉到外层 catch 报错 = 不弹密码直接死）。
+                guard shouldPromptForArchivePassword(error) else { throw error }
+                items = try await listArchivePromptingForPassword(url, force: force)
             }
             guard isCurrentLoad(generation, mode: .archive(url)) else { return }
             session.setItems(items)
             fileItems = []
             refreshArchiveItems()
+        } catch is CancellationError {
+            // 用户在密码框点了取消 → 不当错误处理,只回到中性「读不到」状态,不弹错误 alert。
+            guard isCurrentLoad(generation, mode: .archive(url)) else { return }
+            archiveItems = []
+            session.clearArchive()
+            status = L10n.text("status.couldNotReadArchive")
         } catch {
             guard isCurrentLoad(generation, mode: .archive(url)) else { return }
             archiveItems = []
             session.clearArchive()
             errorMessage = error.localizedDescription
             status = L10n.text("status.couldNotReadArchive")
+        }
+    }
+
+    /// 列出需要密码的档案:先用预设密码静默试一次,再弹密码框重试,直到成功或用户取消(抛 `CancellationError`)。
+    /// 给 header-encrypted 7z 这类「连列表都需要密码」的档案用 —— 与解压前的密码重试循环同款,复用 `promptForArchivePassword`。
+    private func listArchivePromptingForPassword(_ url: URL, force: Bool) async throws -> [ArchiveItem] {
+        if AppPreferences.hasUsablePresetPassword,
+           let items = try? await ArchiveService.list(url, password: AppPreferences.presetPassword, force: force) {
+            return items
+        }
+        let detectedZipEncryption: ZipEncryptionDetection = url.pathExtension.lowercased() == "zip"
+            ? ArchiveService.detectZipEncryption(in: url)
+            : .unknown
+        var isRetry = false
+        while true {
+            guard let authentication = promptForArchivePassword(
+                archiveURL: url,
+                displayName: url.lastPathComponent,
+                detectedZipEncryption: detectedZipEncryption,
+                isRetry: isRetry,
+                actionTitle: L10n.text("button.open")
+            ) else {
+                throw CancellationError()
+            }
+            do {
+                return try await ArchiveService.list(url, password: authentication.password, force: force)
+            } catch {
+                guard shouldPromptForArchivePassword(error) else { throw error }
+                isRetry = true
+            }
         }
     }
 
