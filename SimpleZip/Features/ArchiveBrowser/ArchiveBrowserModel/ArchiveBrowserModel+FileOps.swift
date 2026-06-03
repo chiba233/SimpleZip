@@ -428,10 +428,12 @@ extension ArchiveBrowserModel {
         } catch {
             errorMessage = error.localizedDescription
             status = L10n.text("status.failed")
+            // 失败任务也带上**已经建出来的**链接，让用户在活动中心看到哪些已生成（defer 已登记它们的撤销）。
             recordInstantFileTask(
                 kind: .create,
                 title: L10n.format("tasks.symlinkCount", "\(selectedFileItems.count)"),
-                outcome: .failed(error.localizedDescription)
+                outcome: .failed(error.localizedDescription),
+                transferLog: created.map { TransferLogEntry(name: $0.lastPathComponent, action: .added, isDirectory: false) }
             )
         }
     }

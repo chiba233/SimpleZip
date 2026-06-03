@@ -287,6 +287,18 @@ enum SZSArchive {
         let normalizedPassphrase = encryptionPassphrase?.isEmpty == false ? encryptionPassphrase : nil
         let shouldEncrypt = !encryptionRecipients.isEmpty || normalizedPassphrase != nil
 
+        // 加密失败 / 后续步骤（重复路径校验、clearsign）中途抛错时，回滚**已经生成的 `.gpg`** ——
+        // 否则「创建失败」却在原目录留下部分加密产物，误导用户。成功时（completed=true）不清理，保留产物。
+        var producedEncryptedFiles: [URL] = []
+        var completed = false
+        defer {
+            if !completed {
+                for url in producedEncryptedFiles {
+                    try? FileManager.default.removeItem(at: url)
+                }
+            }
+        }
+
         // Step 0：把选中的目录递归展开成普通文件（`.szs` 目录支持）。文件原样、目录递归、符号链接跳过。
         // 展开后可能为空（只选了空目录 / 符号链接）→ 视为「没东西可签」。
         let resolvedFiles = expandToRegularFiles(files)
@@ -317,6 +329,7 @@ enum SZSArchive {
                     outputURL: gpgURL,
                     operationID: operationID
                 )
+                producedEncryptedFiles.append(gpgURL)
                 manifestFileURL = gpgURL
             } else {
                 manifestFileURL = fileURL
@@ -367,6 +380,7 @@ enum SZSArchive {
             outputURL: outputURL,
             operationID: operationID
         )
+        completed = true   // 成功 —— 保留生成的 .gpg，别让 defer 清掉。
         return manifest
     }
 

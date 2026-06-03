@@ -471,7 +471,8 @@ struct ContentView: View {
             // 强制浏览：直接进浏览，绝不走 openArchiveFromExternal —— 后者会遵循「Finder 自动解压」偏好，
             // 开了自动解压时它会把压缩包再解压一遍而非浏览，导致浮窗「在主窗口打开」打不开压缩包。
             model.openArchive(url)
-        } else if GPGFileService.isRecognizedGPGFile(url) {
+        } else if GPGFileService.isRecognizedGPGFile(url), AppPreferences.gpgEnabled, GPGBackend.isAvailable() {
+            // A4 门控：关了 GPG 集成 / 后端不可用 → 落到 NSWorkspace.open，不走 GPG。
             handleGPGFileOpen(url)
         } else {
             NSWorkspace.shared.open(url)
@@ -537,9 +538,11 @@ struct ContentView: View {
             // 关闭自动解压时与之前完全一致：走 model 浏览压缩包。
             activateForMainWindowOpen()
             model.openArchiveFromExternal(url)
-        } else if GPGFileService.isRecognizedGPGFile(url) {
+        } else if GPGFileService.isRecognizedGPGFile(url), AppPreferences.gpgEnabled, GPGBackend.isAvailable() {
+            // **A4 门控**：只有开了 GPG 集成 + 后端可用，`.gpg`/`.pgp`/`.asc`/`.key` 才走 GPG 处理。
             // 开了「Finder 自动解压」+ 内容是加密数据 → 独立浮窗内解密到原目录，**彻底脱钩主窗口**（与压缩包/.siz 同构）。
             // 关了自动解压 / 是钥匙串材料 / 是签名 → 主窗口路径（浏览 / 导入 sheet / 报错）。
+            // 关了 GPG 集成时 **不**进这条分支 → 落到下面 NSWorkspace.open 交系统默认 app，不暴露任何 GPG 行为。
             if GPGFileService.shouldAutoDecryptOnExternalOpen(url) {
                 ExternalExtractWindowController.shared.open(url)
                 return
