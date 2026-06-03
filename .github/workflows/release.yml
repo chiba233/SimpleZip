@@ -260,10 +260,16 @@ jobs:
         run: |
           set -euo pipefail
 
-          gh release create "v$RELEASE_VERSION" \
-            artifacts/*.dmg \
-            --title "SimpleZip $RELEASE_VERSION" \
-            --notes "Unsigned ad-hoc signed macOS DMG. macOS Gatekeeper may warn because this build is not Developer ID signed or notarized."
+          # 幂等:release 已存在(重跑 / 补 appcast 场景)时不报错,改为覆盖上传 DMG 资产,
+          # 让流程能继续走到「提交 appcast」那步,而不是卡在「release already exists」。
+          if gh release view "v$RELEASE_VERSION" >/dev/null 2>&1; then
+            gh release upload "v$RELEASE_VERSION" artifacts/*.dmg --clobber
+          else
+            gh release create "v$RELEASE_VERSION" \
+              artifacts/*.dmg \
+              --title "SimpleZip $RELEASE_VERSION" \
+              --notes "Unsigned ad-hoc signed macOS DMG. macOS Gatekeeper may warn because this build is not Developer ID signed or notarized."
+          fi
 
       # 把 appcast.xml 推回 main，让 raw.githubusercontent.com/.../main/docs/appcast.xml 拿到新版。
       # Tag push 触发时 HEAD 是 detached（指 tag commit），先 checkout main 再 apply。
@@ -279,7 +285,9 @@ jobs:
           # 保存生成出来的 appcast，等切换分支后还原回去。
           cp docs/appcast.xml /tmp/appcast.xml
           git fetch origin main
-          git checkout -B main origin/main
+          # `-f`:第 11 步在工作区改了 docs/appcast.xml，而 tag commit ≠ origin/main 时切分支会换树，
+          # git 会拒绝覆盖这个本地改动而 abort（v0.3.0 就是这么炸的）。已存到 /tmp，直接强制丢弃工作区改动。
+          git checkout -f -B main origin/main
           mkdir -p docs
           cp /tmp/appcast.xml docs/appcast.xml
           git config user.name 'github-actions[bot]'
