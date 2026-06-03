@@ -399,6 +399,64 @@ extension ArchiveBrowserModel {
         return target
     }
 
+    /// 右键「创建符号链接」：给每个选中项在**同目录**建一个指向它的符号链接。
+    /// 链接目标用**相对路径**（仅文件名）—— 链接与目标同目录，整个文件夹被移动后链接仍有效。
+    /// 撤销 = 删掉建出来的链接（registerCreateUndo，移废纸篓）。
+    func createSymbolicLinkForSelection() {
+        guard case .folder = mode, !selectedFileItems.isEmpty else { return }
+        var created: [URL] = []
+        defer {
+            if !created.isEmpty {
+                registerCreateUndo(created, actionName: L10n.text("undo.action.symlink"))
+            }
+        }
+        do {
+            for item in selectedFileItems {
+                let linkURL = symbolicLinkDestinationURL(for: item.url)
+                try fileManager.createSymbolicLink(atPath: linkURL.path, withDestinationPath: item.url.lastPathComponent)
+                created.append(linkURL)
+            }
+            SystemSound.operationComplete?.play()
+            if let first = created.first {
+                pendingSelectionURL = first.standardizedFileURL
+            }
+            recordInstantFileTask(
+                kind: .create,
+                title: L10n.format("tasks.symlinkCount", "\(created.count)"),
+                transferLog: created.map { TransferLogEntry(name: $0.lastPathComponent, action: .added, isDirectory: false) }
+            )
+        } catch {
+            errorMessage = error.localizedDescription
+            status = L10n.text("status.failed")
+            recordInstantFileTask(
+                kind: .create,
+                title: L10n.format("tasks.symlinkCount", "\(selectedFileItems.count)"),
+                outcome: .failed(error.localizedDescription)
+            )
+        }
+    }
+
+    /// 给 `url` 在同目录算一个不冲突的符号链接名：`a.zip` → `a 符号链接.zip`，重名递增。
+    /// 用 `attributesOfItem`（lstat 语义）判存在 —— 能识别**已有同名符号链接**（含失效链接），`fileExists` 会跟随链接漏判。
+    private func symbolicLinkDestinationURL(for url: URL) -> URL {
+        let dir = url.deletingLastPathComponent()
+        let ext = url.pathExtension
+        let base = url.deletingPathExtension().lastPathComponent
+        let suffix = L10n.text("file.symlink.suffix")
+        func candidate(_ tail: String) -> URL {
+            let stem = base + tail
+            let name = ext.isEmpty ? stem : "\(stem).\(ext)"
+            return dir.appendingPathComponent(name)
+        }
+        var target = candidate(suffix)
+        var n = 2
+        while (try? fileManager.attributesOfItem(atPath: target.path)) != nil {
+            target = candidate("\(suffix) \(n)")
+            n += 1
+        }
+        return target
+    }
+
     private func uniqueNewItemURL(in folderURL: URL, preferredName: String) -> URL {
         let preferredURL = folderURL.appendingPathComponent(preferredName)
         guard fileManager.fileExists(atPath: preferredURL.path) else { return preferredURL }

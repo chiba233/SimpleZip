@@ -540,6 +540,7 @@
 "tasks.pasteCount" = "粘贴 %d 项";
 "tasks.deleteCount" = "删除 %d 项";
 "tasks.duplicateCount" = "创建 %d 个副本";
+"tasks.symlinkCount" = "创建 %@ 个符号链接";
 "tasks.itemCount" = "%d 项";
 "tasks.trashDestination" = "废纸篓";
 "tasks.fileOperation.summary" = "%@ → %@";
@@ -1092,6 +1093,8 @@
 /* 0.2.2 — 创建副本 */
 "file.duplicate" = "创建副本";
 "file.duplicate.suffix" = " 副本";
+"file.makeSymlink" = "创建符号链接";
+"file.symlink.suffix" = " 符号链接";
 
 /* 0.2.2 — 文件操作撤销/重做 */
 "menu.undo" = "撤销";
@@ -1103,6 +1106,7 @@
 "undo.action.rename" = "重命名";
 "undo.action.delete" = "删除";
 "undo.action.duplicate" = "创建副本";
+"undo.action.symlink" = "创建符号链接";
 "undo.partiallySkipped" = "%d 项无法撤销 —— 源已不在，或目标位置已被占用。";
 
 /* 0.2.2 — 新建文件与文件夹 */

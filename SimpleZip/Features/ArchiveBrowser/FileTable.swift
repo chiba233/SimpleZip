@@ -741,6 +741,7 @@ private struct FileNSOutlineView: NSViewRepresentable {
                 menu.addItem(menuItem(L10n.text("file.rename"), systemImage: "pencil", action: #selector(renameSelected)))
             }
             menu.addItem(menuItem(L10n.text("file.duplicate"), systemImage: "plus.square.on.square", action: #selector(duplicateSelected)))
+            menu.addItem(menuItem(L10n.text("file.makeSymlink"), systemImage: "link", action: #selector(makeSymbolicLinkSelected)))
             menu.addItem(menuItem(L10n.text("file.copy"), systemImage: "doc.on.doc", action: #selector(copySelected)))
             menu.addItem(menuItem(L10n.text("file.cut"), systemImage: "scissors", action: #selector(cutSelected)))
             menu.addItem(menuItem(L10n.text("file.paste"), systemImage: "clipboard", action: #selector(pasteFiles)))
@@ -960,6 +961,10 @@ private struct FileNSOutlineView: NSViewRepresentable {
 
         @objc private func duplicateSelected() {
             model.duplicateSelectedFiles()
+        }
+
+        @objc private func makeSymbolicLinkSelected() {
+            model.createSymbolicLinkForSelection()
         }
 
         @objc private func copySelected() {

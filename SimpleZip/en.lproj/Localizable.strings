@@ -542,6 +542,7 @@
 "tasks.pasteCount" = "Paste %d items";
 "tasks.deleteCount" = "Delete %d items";
 "tasks.duplicateCount" = "Duplicate %d items";
+"tasks.symlinkCount" = "Created %@ symbolic link(s)";
 "tasks.itemCount" = "%d items";
 "tasks.trashDestination" = "Trash";
 "tasks.fileOperation.summary" = "%@ → %@";
@@ -1092,6 +1093,8 @@
 /* 0.2.2 — 创建副本 */
 "file.duplicate" = "Duplicate";
 "file.duplicate.suffix" = " copy";
+"file.makeSymlink" = "Create Symbolic Link";
+"file.symlink.suffix" = " symlink";
 
 /* 0.2.2 — 文件操作撤销/重做 */
 "menu.undo" = "Undo";
@@ -1103,6 +1106,7 @@
 "undo.action.rename" = "Rename";
 "undo.action.delete" = "Delete";
 "undo.action.duplicate" = "Duplicate";
+"undo.action.symlink" = "Create Symbolic Link";
 "undo.partiallySkipped" = "%d item(s) couldn’t be undone — the original is missing or the destination is already taken.";
 
 /* 0.2.2 — New files and folders */
