@@ -71,20 +71,14 @@ final class ArchiveBrowserModel: ObservableObject {
     /// 非空时 `archiveDisplayOverride` 同时指向**最外层真实档案**，供「上一级」退出整条虚拟链回到真实文件夹。
     @Published var nestedDisplayPath: String?
 
-    /// `.siz` 容器在 SimpleZip 内被点开时的待处理 URL —— ContentView 用 `.onChange` 接住跑 unwrap + 验签 sheet。
+    /// `.siz` 容器在 SimpleZip 内被点开时的待处理请求 —— ContentView 用 `.onChange` 接住跑 unwrap + 验签 sheet。
     /// 不能走 `NSWorkspace.shared.open`：`.siz` UTI 注册到自己会循环创建新主窗口。
     /// 用 @Published 而不是 Notification.Name —— 单发单收的「函数调用穿了通知马甲」（AGENTS A3）。
-    @Published var pendingSIZOpen: URL?
-    /// 打开 `.gpg` 套 `.siz` 时的「地址锚点」：解出来的 `.siz` 在加密卷 scratch 路径，但地址栏要显示**原始 `.gpg`**，
-    /// 绝不暴露 `/var/folders/...`。`decryptAndOpenGPG` 在 set `pendingSIZOpen = <scratch .siz>` 前先填它 = 原 `.gpg`；
-    /// ContentView 的 `handleSIZOpen` 进入时一次性读走并清空，把它当 `displayedAs` 锚点。nil = 普通 `.siz` 打开（锚点就是它自己）。
-    var gpgContainerDisplayOverride: URL?
-
-    /// 从**档案内**解出来的 `.siz` 待打开时携带的 entry 链路（如 `xa/inner.siz`）。非 nil → `handleSIZOpen`
-    /// 解包验签后走 `openNestedArchive`（地址显示嵌套链、「上一级」回真实文件夹），而不是 `openArchive(displayedAs:)`
-    /// （后者会把内层 archive 锚到 `.siz` 的临时路径，暴露 `/var/folders/...`）。普通双击 `.siz` 时为 nil。
-    /// 与 `pendingSIZOpen` 配对设置；`handleSIZOpen` 进入时一次性读走并清空。
-    var pendingSIZNestedEntryName: String?
+    ///
+    /// **0.3.0**：原先是「待打开 URL + 地址锚点 override + 嵌套 entry 链」三个分散字段，由各调用站点分别
+    /// set、`handleSIZOpen` 进入时分别读走并清空 —— 三者一旦没成套设置/清空就会状态错配（如上一次的锚点
+    /// 残留污染下一次普通 `.siz` 打开）。现在合成一个原子值 `SIZOpenRequest`，set/read 都是整组。
+    @Published var pendingSIZOpen: SIZOpenRequest?
 
     /// 文件浏览模式选中 `.siz` 点 Extract 时的待处理 URL —— ContentView 用 `.onChange` 接住跑 unwrap + 验签 +
     /// 标准解压对话框。同 `pendingSIZOpen` 的解耦原则。
@@ -111,6 +105,19 @@ final class ArchiveBrowserModel: ObservableObject {
     struct CreateSZSPrefill: Equatable {
         let payloadRoot: URL
         let files: [URL]
+    }
+
+    /// `.siz` 打开请求 —— 把原先分散的三个字段合成一个原子值，避免在不同站点分别 set/read 时错配。
+    /// `handleSIZOpen` 的 `.onChange` 一次拿到整组上下文，不再向 model 另读 entry 链 / 锚点。
+    struct SIZOpenRequest: Equatable {
+        /// 待打开的 `.siz` 文件 URL（普通 `.siz` = 它自己；`.gpg` 套 `.siz` = 解出来的 scratch `.siz`）。
+        let url: URL
+        /// 地址栏锚点 override：`.gpg` 套 `.siz` 时是原始 `.gpg`（避免暴露 `/var/folders/...` scratch 路径）；
+        /// nil = 普通 `.siz`，锚点即自身。
+        var displayOverride: URL?
+        /// 从**档案内**解出的嵌套 `.siz` 的 entry 链路（如 `xa/inner.siz`）：非 nil → 验签后走 `openNestedArchive`
+        /// （地址显示嵌套链、「上一级」回真实文件夹）；nil = 顶层 `.siz`，走 `openArchive(displayedAs:)`。
+        var nestedEntryName: String?
     }
 
     /// `.szs` 虚拟目录模式 —— 打开 `.szs` 后用户选择「以虚拟目录浏览」时进入此模式。

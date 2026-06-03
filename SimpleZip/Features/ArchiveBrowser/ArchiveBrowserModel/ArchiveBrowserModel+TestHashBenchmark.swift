@@ -17,7 +17,7 @@ extension ArchiveBrowserModel {
         // 否则 ArchiveService.test 不识别 .siz 容器格式，用户会得到「不支持」错误。
         if case .folder = mode,
            let sizURL = selectedFileItems.first(where: { $0.url.pathExtension.lowercased() == SIZArchive.extensionName })?.url {
-            pendingSIZOpen = sizURL
+            pendingSIZOpen = SIZOpenRequest(url: sizURL)
             return
         }
         // `.szs` 同样道理 —— 验证 sheet 跑 GPG clearsign 校验 + per-file SHA 校验，本质就是「测试」。

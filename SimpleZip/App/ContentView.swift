@@ -315,12 +315,12 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .openExternalFile)) { _ in
             handleRunningExternalOpen()
         }
-        .onChange(of: model.pendingSIZOpen) { url in
-            // model 在 SimpleZip 内点 .siz 时设的待处理 URL —— 跟 Finder 外部双击 .siz 同一处理流程。
-            // 立即清空避免下一次设同一 URL 时 onChange 不触发。
-            guard let url else { return }
+        .onChange(of: model.pendingSIZOpen) { request in
+            // model 在 SimpleZip 内点 .siz 时设的待处理请求 —— 跟 Finder 外部双击 .siz 同一处理流程。
+            // 立即清空避免下一次设同一请求时 onChange 不触发。
+            guard let request else { return }
             model.pendingSIZOpen = nil
-            handleSIZOpen(url)
+            handleSIZOpen(request)
         }
         .onChange(of: model.pendingSZSOpen) { url in
             // 右键「测试」.szs 或者「打开」.szs 都走这条 —— 验证 sheet 同时充当 Test 的结果展示。
@@ -464,7 +464,7 @@ struct ContentView: View {
         if isDirectory.boolValue && !FileBrowserService.isLocalFilePackage(url) {
             model.openFolder(url)
         } else if ext == SIZArchive.extensionName {
-            handleSIZOpen(url)
+            handleSIZOpen(.init(url: url))
         } else if ext == SZSArchive.extensionName {
             handleSZSOpen(url)
         } else if ArchiveService.isSupportedArchive(url) {
@@ -517,7 +517,7 @@ struct ContentView: View {
                 ExternalExtractWindowController.shared.open(url)
                 return
             }
-            handleSIZOpen(url)
+            handleSIZOpen(.init(url: url))
         } else if ext == SZSArchive.extensionName {
             // `.szs` 签名清单：开了自动解压 → 独立浮窗内 peek+校验，「以虚拟目录浏览」时才按需拉起主窗口。
             // 关了自动解压 → 主窗口弹 SZSVerificationSheet。
@@ -560,14 +560,12 @@ struct ContentView: View {
     /// 注意：Finder 自动解压（脱钩主窗口）由 `openExternalURL` 直接路由到 `ExternalExtractWindowController.open`，
     /// **不**经过这里。本函数是「强制在主窗口浏览」语义（右键在新标签打开 / app 内点 / 浮窗「在主窗口打开」），
     /// 与自动解压开关无关。
-    private func handleSIZOpen(_ url: URL) {
+    private func handleSIZOpen(_ request: ArchiveBrowserModel.SIZOpenRequest) {
+        let url = request.url
         // 地址锚点：普通 `.siz` 就是它自己；`.gpg` 套 `.siz` 时是原始 `.gpg`（避免暴露 scratch 路径）。
-        // 一次性读走并清空，免得污染下一次普通 `.siz` 打开。
-        let displayURL = model.gpgContainerDisplayOverride ?? url
-        model.gpgContainerDisplayOverride = nil
-        // 从档案内解出来的嵌套 `.siz` 带的 entry 链路 —— 一次性读走并清空，验签通过后据此走 openNestedArchive。
-        let nestedEntryName = model.pendingSIZNestedEntryName
-        model.pendingSIZNestedEntryName = nil
+        let displayURL = request.displayOverride ?? url
+        // 从档案内解出来的嵌套 `.siz` 带的 entry 链路 —— 验签通过后据此走 openNestedArchive。
+        let nestedEntryName = request.nestedEntryName
         Task {
             do {
                 let (innerArchiveURL, tempRoot, summary) = try await unwrapAndVerifySIZ(at: url)

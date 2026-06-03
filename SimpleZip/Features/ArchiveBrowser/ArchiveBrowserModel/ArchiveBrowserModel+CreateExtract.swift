@@ -146,8 +146,7 @@ extension ArchiveBrowserModel {
     func routeExtractedSpecialFile(_ url: URL, entryName: String) {
         switch url.pathExtension.lowercased() {
         case SIZArchive.extensionName:
-            pendingSIZNestedEntryName = entryName
-            pendingSIZOpen = url
+            pendingSIZOpen = SIZOpenRequest(url: url, nestedEntryName: entryName)
         case SZSArchive.extensionName:
             pendingSZSOpen = url
         default:

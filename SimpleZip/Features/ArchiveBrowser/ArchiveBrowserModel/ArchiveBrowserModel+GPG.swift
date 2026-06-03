@@ -54,8 +54,7 @@ extension ArchiveBrowserModel {
                 if decrypted.pathExtension.lowercased() == SIZArchive.extensionName {
                     // 内层是 `.siz` 签名容器 → 走完整 unwrap + 验签流程（篡改会被验签拦住！），
                     // **地址锚点设成原始 `.gpg`**，否则会暴露解出来的 `.siz` 的 /var/folders scratch 路径。
-                    gpgContainerDisplayOverride = url
-                    pendingSIZOpen = decrypted
+                    pendingSIZOpen = SIZOpenRequest(url: decrypted, displayOverride: url)
                 } else if ArchiveService.isSupportedArchive(decrypted) {
                     // 内层是压缩包 → 和 `.siz` 内层 archive 完全一样地浏览（标题/地址栏显示原 `.gpg`）。
                     openArchive(decrypted, displayedAs: url)
