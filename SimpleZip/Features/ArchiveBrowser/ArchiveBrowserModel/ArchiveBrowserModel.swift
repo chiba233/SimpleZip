@@ -45,6 +45,12 @@ final class ArchiveBrowserModel: ObservableObject {
     @Published var canCancelCurrentOperation = false
     @Published var navigationBackStack: [NavigationLocation] = []
     @Published var navigationForwardStack: [NavigationLocation] = []
+    /// **嵌套档案的「上一级」返回栈**:进一层嵌套档案 / 档案内 `.siz`(走 `openNestedArchive`)时压入「**进来时所在的父档案位置**」
+    /// （父档案 URL + 父 archivePath,如 `xx.zip` 的 `子目录/`）。在嵌套档案根目录按「上一级」时弹栈回到那里 ——
+    /// 而不是退出整条链跳到物理文件夹(用户反馈:从 zip 里的 `.siz` / 内层档案「上一级」不该直接蹦回物理目录)。
+    /// 任何**真实**导航(`openArchive` / `openFolder` 的 `recordsHistory: true` 路径)都会清空它;嵌套打开 / 历史恢复
+    /// 走 `recordsHistory: false` 不清。临时档案位置永不进**后退栈**(那条仍走 `recordsHistory: false`),所以「后退」不会蹦 `/tmp`。
+    var nestedArchiveReturnStack: [NavigationLocation] = []
     /// 镜像自 macOS Finder「个人收藏」侧栏。
     ///
     /// 放在 model 而不是 Sidebar 的 `@State` —— 之前用 `@State` 时主线程赋值后 NSLog 能确认值已到 9，

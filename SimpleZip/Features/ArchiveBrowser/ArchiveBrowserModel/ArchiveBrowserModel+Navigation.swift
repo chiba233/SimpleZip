@@ -129,6 +129,8 @@ extension ArchiveBrowserModel {
     func openFolder(_ url: URL, recordsHistory: Bool) {
         // 进文件夹一定离开了「档案嵌套」语境 —— 清空虚拟堆叠串。
         nestedDisplayPath = nil
+        // 真实导航(recordsHistory:true)清空「上一级」返回栈;历史恢复走 false 不清(由 goUp/goBack 自行管理)。
+        if recordsHistory { nestedArchiveReturnStack.removeAll() }
         // 进「真实文件夹」= 退出档案浏览 → 档案生命结束，即时清掉本会话临时产物；进虚拟目录（卷内）则跳过。
         purgeOpenedArchiveTempsIfLeaving(to: url)
         let destination = NavigationLocation.folder(url.standardizedFileURL)
@@ -219,6 +221,12 @@ extension ArchiveBrowserModel {
     /// - **不记导航历史**（recordsHistory: false）：嵌套临时档案永不进后退栈，所以「后退」也不会蹦出 `/var/folders`。
     func openNestedArchive(_ tempURL: URL, entryName: String) {
         guard case .archive(let currentURL) = mode else { return }
+        // 记住「从哪个父档案位置进来的」(父档案 + 当前子目录) —— 在嵌套档案根目录按「上一级」时回到这里,
+        // 而不是退出整条链跳物理文件夹(用户反馈:从 zip 里的 `.siz` / 内层档案「上一级」不该直接蹦回物理目录)。
+        // 临时档案位置不进后退栈(下面 recordsHistory: false),所以「后退」也不会蹦 `/tmp`。
+        if let parentLocation = currentNavigationLocation {
+            nestedArchiveReturnStack.append(parentLocation)
+        }
         let parentBase = nestedDisplayPath ?? (archiveDisplayOverride ?? currentURL).path
         let cleanedEntry = entryName.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         let newPrefix = parentBase + "/" + cleanedEntry
@@ -284,6 +292,8 @@ extension ArchiveBrowserModel {
     func openArchive(_ url: URL, recordsHistory: Bool) {
         // 任何「真实」档案打开都清空嵌套虚拟堆叠串（嵌套打开走 openNestedArchive，会在调用本方法之后再设回）。
         nestedDisplayPath = nil
+        // 真实导航(recordsHistory:true)= 离开嵌套链,清空「上一级」返回栈;嵌套打开 / 历史恢复走 false 不清。
+        if recordsHistory { nestedArchiveReturnStack.removeAll() }
         // 开「真实新档案」→ 清掉上一个档案会话的临时；开嵌套 / .gpg / .siz（临时源，在卷内）则跳过、保留其内容。
         purgeOpenedArchiveTempsIfLeaving(to: url)
         let supportedURL = ArchiveService.supportedArchiveURL(url) ?? url
@@ -421,9 +431,15 @@ extension ArchiveBrowserModel {
             openHome()
         case .archive(let url):
             if session.archivePath.isEmpty {
-                // `.siz` 容器打开时 url 是 /tmp 路径，上一级要回到原始 `.siz` 所在目录（archiveDisplayOverride 的父）。
-                let parentURL = (archiveDisplayOverride ?? url).deletingLastPathComponent()
-                openFolder(parentURL)
+                if let parentLocation = nestedArchiveReturnStack.popLast() {
+                    // 在嵌套档案(zip 里的 `.siz` / 内层档案)根目录 → 回到进来时的父档案位置(父档案 + 子目录),
+                    // 而不是退出整条链蹦到物理文件夹。不记当前(临时档案)位置进后退栈,避免 `/tmp` 进历史。
+                    restoreNavigationLocation(parentLocation)
+                } else {
+                    // 顶层 `.siz` 容器:url 是 /tmp 路径,上一级回到原始 `.siz` 所在目录(archiveDisplayOverride 的父)。
+                    let parentURL = (archiveDisplayOverride ?? url).deletingLastPathComponent()
+                    openFolder(parentURL)
+                }
             } else {
                 recordCurrentLocationForNavigation()
                 session.setArchivePath(session.parentPath(of: session.archivePath))
