@@ -2,6 +2,14 @@
 
 # 更新日志
 
+## 0.3.0（未发布）
+
+_内部架构重构 —— 无任何用户可见行为变更。把几个臃肿的「上帝文件」按职责拆成多个小文件,降低单文件认知负担。每次拆分都是纯移动(外加把少量跨文件的 `private` 辅助放宽到模块内可见),由 SwiftPM 核心测试 和 / 或 Xcode Debug 构建验证。_
+
+- **内部:把 `GPGBackend`(1620 行)按职责拆成 extension。** 原来的单个 enum 现在是「enum 主壳 + `GPGBackend+Discovery` / `+Keyring` / `+KeyManagement` / `+KeyLifecycle` / `+KeyCreation` / `+CryptoOperations` / `+Parsing`」,嵌套数据类型挪到 `GPGModels`。public API 不变。
+- **内部:把 UI 与数据模型从 `ArchiveExtractionCoordinator` 中分离(1266 → 814 行)。** 数据模型(`ConflictResolutionSession`、`PasteConflictChoice`、`TransferAction`、`TransferLogEntry`、`TransferStats`、`HashOverwriteResult`)挪到 `ArchiveTransferModels`,冲突 / 传输汇总的 SwiftUI 视图挪到 `ArchiveConflictViews`。冲突决策 + 传输 + 合并 + 哈希比对那个类**刻意保持完整**(它的私有方法高度互相依赖,且属于数据安全敏感区)。
+- **内部:拆分 `ExternalExtractWindow`(1092 → 408 行)。** 解压 runner 挪到 `ExternalExtractRunner`,四个浮窗会话(单任务 / 批量 / 准备 / 创建)挪到 `ExternalExtractSessions`,它们的 SwiftUI 内容视图挪到 `ExternalExtractViews`;窗口控制器留在 `ExternalExtractWindow`。
+
 ## 0.2.7
 
 - **修复:打开被 `.gpg` 包住的 `.siz`(`name.siz.gpg`)时,地址栏会泄漏出 `/var/folders/…` 的 scratch 路径。** 之前解密 `name.siz.gpg` 会把内层 `.siz` 解到加密临时卷、再当成一个散文件显示;打开它时签名流程锚定的是那个 scratch 路径。现在解密后**直接把内层 `.siz` 送进 unwrap + 验签流程**(篡改照样会被验签拦住),地址栏锚定**原始 `.gpg`**——绝不显示临时路径,「上一级」回到 `.gpg` 所在的真实文件夹。

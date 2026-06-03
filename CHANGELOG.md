@@ -2,6 +2,14 @@
 
 # Changelog
 
+## 0.3.0 (unreleased)
+
+_Internal architecture refactor — no user-visible behavior change. Large "god files" are being split into responsibility-scoped files to cut single-file cognitive load. Each split is a pure move (plus widening a few cross-file `private` helpers to module-internal), verified by the SwiftPM core tests and/or an Xcode Debug build._
+
+- **Internal: split `GPGBackend` (1620 lines) into responsibility extensions.** The single enum is now an enum shell plus `GPGBackend+Discovery` / `+Keyring` / `+KeyManagement` / `+KeyLifecycle` / `+KeyCreation` / `+CryptoOperations` / `+Parsing`, with the nested data types in `GPGModels`. No public API change.
+- **Internal: separated UI and models from `ArchiveExtractionCoordinator` (1266 → 814 lines).** The data models (`ConflictResolutionSession`, `PasteConflictChoice`, `TransferAction`, `TransferLogEntry`, `TransferStats`, `HashOverwriteResult`) moved to `ArchiveTransferModels`, and the conflict / transfer-summary SwiftUI views moved to `ArchiveConflictViews`. The conflict-decision + transfer + merge + hash-compare class is left cohesive on purpose (its private methods are densely interdependent and the area is data-safety-sensitive).
+- **Internal: split `ExternalExtractWindow` (1092 → 408 lines).** The extraction runner moved to `ExternalExtractRunner`, the four float-window sessions (single / batch / prepare / create) to `ExternalExtractSessions`, and their SwiftUI content views to `ExternalExtractViews`; the window controller stays in `ExternalExtractWindow`.
+
 ## 0.2.7
 
 - **Fixed: opening a `.siz` that was wrapped in a `.gpg` leaked the raw `/var/folders/…` scratch path into the address bar.** Decrypting a `<name>.siz.gpg` produced the inner `.siz` in the encrypted scratch volume and then showed it as a loose file; opening it ran the signature flow anchored to that scratch path. SimpleZip now decrypts and routes the inner `.siz` straight through its unwrap + signature-verification flow (so tampering is still caught), with the address bar anchored to the original `.gpg` — the temp path is never shown, and "go up" returns to the `.gpg`'s real folder.
