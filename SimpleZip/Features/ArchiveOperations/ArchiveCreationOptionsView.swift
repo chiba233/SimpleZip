@@ -509,41 +509,14 @@ struct ArchiveCreationOptionsView: View {
             Text(L10n.text("archive.gpgSign.keyLabel"))
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)
-            Menu {
-                Button(L10n.text("archive.gpgSign.key.auto")) {
-                    request.options.gpgSigningKeyFingerprint = ""
-                }
-                let secretKeys = availableKeys.filter { $0.hasSecretKey }
-                if !secretKeys.isEmpty {
-                    Divider()
-                    ForEach(secretKeys) { key in
-                        Button("\(key.userID) · \(key.shortFingerprint)") {
-                            request.options.gpgSigningKeyFingerprint = key.fingerprint
-                        }
-                    }
-                }
-            } label: {
-                Text(signingKeyMenuLabel)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-            }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
+            GPGSecretKeyMenu(
+                selection: $request.options.gpgSigningKeyFingerprint,
+                secretKeys: availableKeys.filter { $0.hasSecretKey },
+                autoLabelKey: "archive.gpgSign.key.auto",
+                missingFingerprintKey: "archive.gpgSign.key.missingFingerprint"
+            )
         }
         .padding(.leading, 18)
-    }
-
-    /// picker 按钮显示文案：未选 / 选了但找不到 / 选了能映射到列表 三种情形。
-    private var signingKeyMenuLabel: String {
-        let fp = request.options.gpgSigningKeyFingerprint
-        if fp.isEmpty {
-            return L10n.text("archive.gpgSign.key.auto")
-        }
-        if let matched = availableKeys.first(where: { $0.fingerprint == fp && $0.hasSecretKey }) {
-            return "\(matched.userID) · \(matched.shortFingerprint)"
-        }
-        // String(...) 包一层避免 Substring → CVarArg 的 printf 序列化 bug（之前掉过的坑）。
-        return L10n.format("archive.gpgSign.key.missingFingerprint", String(fp.suffix(16)))
     }
 
     private var fileNameBinding: Binding<String> {

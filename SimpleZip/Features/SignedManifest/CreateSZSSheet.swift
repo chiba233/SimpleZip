@@ -188,37 +188,14 @@ struct CreateSZSSheet: View {
     private var signingKeyRow: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             labelText("szs.create.signingKeyLabel")
-            Menu {
-                Button(L10n.text("szs.create.signingKey.auto")) {
-                    signingKeyFingerprint = ""
-                }
-                if !availableSecretKeys.isEmpty {
-                    Divider()
-                    ForEach(availableSecretKeys) { key in
-                        Button("\(key.userID) · \(key.shortFingerprint)") {
-                            signingKeyFingerprint = key.fingerprint
-                        }
-                    }
-                }
-            } label: {
-                Text(signingKeyLabel)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-            }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
+            GPGSecretKeyMenu(
+                selection: $signingKeyFingerprint,
+                secretKeys: availableSecretKeys,
+                autoLabelKey: "szs.create.signingKey.auto",
+                missingFingerprintKey: "archive.gpgSign.key.missingFingerprint"
+            )
             Spacer()
         }
-    }
-
-    private var signingKeyLabel: String {
-        if signingKeyFingerprint.isEmpty {
-            return L10n.text("szs.create.signingKey.auto")
-        }
-        if let matched = availableSecretKeys.first(where: { $0.fingerprint == signingKeyFingerprint }) {
-            return "\(matched.userID) · \(matched.shortFingerprint)"
-        }
-        return L10n.format("archive.gpgSign.key.missingFingerprint", String(signingKeyFingerprint.suffix(16)))
     }
 
     // MARK: - 把文件加密成 .gpg（可选）

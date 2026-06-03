@@ -163,25 +163,12 @@ struct SIZSignatureSheet: View {
                         .font(.caption.weight(.medium))
                         .foregroundStyle(.secondary)
                         .frame(width: 80, alignment: .trailing)
-                    Menu {
-                        Button(L10n.text("extract.gpgDecryptionKey.auto")) {
-                            selectedDecryptionKey = ""
-                        }
-                        if !availableSecretKeys.isEmpty {
-                            Divider()
-                            ForEach(availableSecretKeys) { key in
-                                Button("\(key.userID) · \(key.shortFingerprint)") {
-                                    selectedDecryptionKey = key.fingerprint
-                                }
-                            }
-                        }
-                    } label: {
-                        Text(decryptionKeyMenuLabel)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                    }
-                    .menuStyle(.borderlessButton)
-                    .fixedSize()
+                    GPGSecretKeyMenu(
+                        selection: $selectedDecryptionKey,
+                        secretKeys: availableSecretKeys,
+                        autoLabelKey: "extract.gpgDecryptionKey.auto",
+                        missingFingerprintKey: "extract.gpgDecryptionKey.missingFingerprint"
+                    )
                     Spacer()
                 }
             }
@@ -207,16 +194,6 @@ struct SIZSignatureSheet: View {
             }
         }
         .padding(.horizontal, 4)
-    }
-
-    private var decryptionKeyMenuLabel: String {
-        if selectedDecryptionKey.isEmpty {
-            return L10n.text("extract.gpgDecryptionKey.auto")
-        }
-        if let matched = availableSecretKeys.first(where: { $0.fingerprint == selectedDecryptionKey }) {
-            return "\(matched.userID) · \(matched.shortFingerprint)"
-        }
-        return L10n.format("extract.gpgDecryptionKey.missingFingerprint", String(selectedDecryptionKey.suffix(16)))
     }
 
     /// 「打开」按钮文案根据验签结果换措辞（unknownSigner / badSignature 时强调风险）。

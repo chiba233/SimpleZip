@@ -17,6 +17,8 @@ _内部架构重构 —— 无任何用户可见行为变更。把几个臃肿�
 - **内部:拆分 `ExternalExtractWindow`(1092 → 408 行)。** 解压 runner 挪到 `ExternalExtractRunner`,四个浮窗会话(单任务 / 批量 / 准备 / 创建)挪到 `ExternalExtractSessions`,它们的 SwiftUI 内容视图挪到 `ExternalExtractViews`;窗口控制器留在 `ExternalExtractWindow`。
 - **内部:从 `GPGPane` 抽出 `GPGKeyRow`(1352 → 938 行)。** 391 行的钥匙串行子视图和信任级别本地化扩展挪到 `GPGKeyRow`。设置 GPG 面板 View 本身**刻意保持完整**(状态 + body + 动作);抽出编排型 `GPGPaneModel` 会改变该面板的数据流,作为需要手测的独立改动延后,不当纯移动处理。
 - **内部:把创建 / 签名 `.siz` 的后端编排抽到 Core `ArchiveCreationService`。** `performCreateArchive` 那段约 145 行的任务闭包(普通创建 + GPG 签名 `.siz` 组装)原样搬到 `SimpleZip/Core/ArchiveCreationService.swift`(现在 SwiftPM 可测),模型只在 `startManagedArchiveTask` 里调用它。纯移动,无行为变更。
+- **内部:抽出共用的「GPG 收件人选择控件」。** add-recipient `Menu`、收件人 chip、chip 横排此前在 `GPGEncryptOptionsView` / `ArchiveCreationOptionsView` / `CreateSZSSheet` 三处逐字重复,挪到 `Features/GPG/GPGRecipientControls.swift`(`GPGRecipientChip` / `GPGAddRecipientMenu` / `GPGRecipientChipRow`)。各对话框保留自己的 row 布局和 key 反查集合,行为不变——只共用重复的内层小部件。
+- **内部:抽出共用的「单选 签名/解密 私钥 `Menu`」。** 「自动项 + 私钥列表 + 三态按钮文案」这套 picker 此前在 4 个对话框里逐字重复——`ArchiveCreationOptionsView` 与 `CreateSZSSheet`(签名密钥)、`ExtractArchiveOptionsView` 与 `SIZSignatureSheet`(解密密钥),挪到 `Features/GPG/GPGSecretKeyMenu.swift`。自动 / 找不到指纹 的 L10n key 和 selection 绑定由调用方传入,各对话框保留自己的 row 布局(label 字号 / 对齐 / padding),行为不变——只共用重复的内层 Menu。
 
 ## 0.2.7
 

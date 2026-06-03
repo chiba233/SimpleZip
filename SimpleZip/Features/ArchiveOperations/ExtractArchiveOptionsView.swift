@@ -71,25 +71,12 @@ struct ExtractArchiveOptionsView: View {
         // 跟同 Form 里其它行（保存到 / 密码 / 解密方式）保持 body 字号，不专门 .font(.caption)，避免视觉错落。
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             Text(L10n.text("extract.gpgDecryptionKey.label"))
-            Menu {
-                Button(L10n.text("extract.gpgDecryptionKey.auto")) {
-                    request.gpgDecryptionKeyFingerprint = ""
-                }
-                if !availableSecretKeys.isEmpty {
-                    Divider()
-                    ForEach(availableSecretKeys) { key in
-                        Button("\(key.userID) · \(key.shortFingerprint)") {
-                            request.gpgDecryptionKeyFingerprint = key.fingerprint
-                        }
-                    }
-                }
-            } label: {
-                Text(decryptionKeyMenuLabel)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-            }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
+            GPGSecretKeyMenu(
+                selection: $request.gpgDecryptionKeyFingerprint,
+                secretKeys: availableSecretKeys,
+                autoLabelKey: "extract.gpgDecryptionKey.auto",
+                missingFingerprintKey: "extract.gpgDecryptionKey.missingFingerprint"
+            )
             Spacer()
         }
     }
@@ -111,16 +98,6 @@ struct ExtractArchiveOptionsView: View {
         }
     }
 
-    private var decryptionKeyMenuLabel: String {
-        let fp = request.gpgDecryptionKeyFingerprint
-        if fp.isEmpty {
-            return L10n.text("extract.gpgDecryptionKey.auto")
-        }
-        if let matched = availableSecretKeys.first(where: { $0.fingerprint == fp }) {
-            return "\(matched.userID) · \(matched.shortFingerprint)"
-        }
-        return L10n.format("extract.gpgDecryptionKey.missingFingerprint", String(fp.suffix(16)))
-    }
 }
 
 /// `.siz` 解压对话框里多出来的三行：签名状态、签名时间、签名指纹。
