@@ -107,6 +107,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard AppPreferences.finderOpenAutoExtract else { return false }
         let ext = url.pathExtension.lowercased()
         if ext == SIZArchive.extensionName || ext == SZSArchive.extensionName { return true }
+        // `.gpg`/`.pgp`/`.asc` 加密数据 → 解密浮窗（冷启动也不拉起主窗口；钥匙串 / 签名不在此）。
+        if GPGFileService.shouldAutoDecryptOnExternalOpen(url) { return true }
         guard ArchiveService.isSupportedArchive(url) else { return false }
         let supported = ArchiveService.supportedArchiveURL(url) ?? url
         return supported.pathExtension.lowercased() != "dmg"

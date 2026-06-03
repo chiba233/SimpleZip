@@ -35,6 +35,8 @@ final class ArchiveBrowserModel: ObservableObject {
     @Published var operationDetailsSession: ArchiveOperationDetailsSession?
     @Published var isShowingOperationDetails = false
     @Published var archiveCreationRequest: ArchiveCreationRequest?
+    /// 右键「加密为 .gpg」的待确认请求 —— 非 nil 时 ContentView 弹 GPGEncryptOptionsView。
+    @Published var gpgEncryptRequest: GPGEncryptRequest?
     @Published var extractArchiveRequest: ExtractArchiveRequest?
     @Published var extractSelectionRequest: ExtractSelectionRequest?
     @Published var operationProgress = ArchiveProgressState()

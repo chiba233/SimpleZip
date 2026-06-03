@@ -73,6 +73,58 @@ extension ArchiveBrowserModel {
         }
     }
 
+    /// 右键「加密为 .gpg」：门控 + 取选区 → 弹 GPGEncryptOptionsView（收件人 / 对称密码）。
+    /// 仅 gpgEnabled + 后端可用时可达（菜单项本身也按 A4 门控，不渲染时进不来）。
+    func encryptSelectionToGPG() {
+        guard AppPreferences.gpgEnabled else {
+            errorMessage = L10n.text("gpgFile.disabled.message")
+            return
+        }
+        guard GPGBackend.isAvailable() else {
+            errorMessage = L10n.text("gpgFile.backendMissing.message")
+            return
+        }
+        guard case .folder(let currentFolder) = mode else {
+            errorMessage = L10n.text("error.openFolderFirst")
+            return
+        }
+        let items = selectedFileItems
+        guard !items.isEmpty else {
+            errorMessage = L10n.text("error.selectFilesToArchive")
+            return
+        }
+        gpgEncryptRequest = GPGEncryptRequest(sourceURLs: items.map(\.url), directoryURL: currentFolder)
+    }
+
+    /// 执行加密为 `.gpg`：走 startManagedArchiveTask（进度 / 活动中心 / 可取消），完成后刷新当前文件夹
+    /// 并在 Finder 里选中产物。folder/多选会先 tar 进加密临时卷再加密（GPGFileService.encryptToGPG）。
+    func performEncryptToGPG(_ request: GPGEncryptRequest) {
+        var producedURL: URL?
+        startManagedArchiveTask(
+            title: L10n.text("status.gpgEncrypting"),
+            kind: .compress,
+            showsDetails: false,
+            successStatus: nil,
+            refreshOnSuccess: { [weak self] in
+                guard let self, let producedURL else { return }
+                self.status = L10n.format("status.gpgEncrypted", producedURL.lastPathComponent)
+                // 产物就在当前浏览的文件夹里 —— 只刷新当前视图让它出现在列表，并把光标落到它身上。
+                // **绝不**调 NSWorkspace 把 Finder 拉到前台（与创建压缩包流程一致，全程留在 app 内）。
+                self.pendingSelectionURL = producedURL.standardizedFileURL
+                self.refreshVisibleFolder(containing: producedURL)
+            }
+        ) { operationID, _, _ in
+            let url = try await GPGFileService.encryptToGPG(
+                sources: request.sourceURLs,
+                in: request.directoryURL,
+                recipients: request.recipientFingerprints,
+                symmetricPassphrase: request.symmetricPassphrase.isEmpty ? nil : request.symmetricPassphrase,
+                operationID: operationID
+            )
+            producedURL = url
+        }
+    }
+
     /// 粗判一个解密错误是否来自「用户取消 pinentry」——gpg / pinentry 取消时报文里通常含 cancel/abort 字样。
     /// 命中即静默（取消是用户主动动作，不该弹错误框）。判不准时宁可漏判（仍报错），不误吞真失败。
     private static func errorLooksLikeUserCancellation(_ error: Error) -> Bool {

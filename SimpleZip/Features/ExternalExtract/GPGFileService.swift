@@ -24,6 +24,19 @@ enum GPGFileService {
         recognizedExtensions.contains(url.pathExtension.lowercased())
     }
 
+    /// 从 Finder 外部打开一个 `.gpg`/`.pgp`/`.asc` 时，是否应走「自动解压」式的**独立浮窗解密到文件夹**
+    /// （而非主窗口浏览 / 导入 sheet）。镜像压缩包的 Finder 自动解压判定：
+    /// - 必须开了「Finder 自动解压」偏好 + 启用 GPG + 后端可用；
+    /// - **且内容嗅探为加密数据**（钥匙串材料 / 签名 / 无法识别 → 不自动解密，仍交主窗口处理）。
+    /// `classifyFile` 只读包头、不起 gpg、不弹密码，所以这个判定可同步、可在路由分支里反复调用。
+    static func shouldAutoDecryptOnExternalOpen(_ url: URL) -> Bool {
+        guard AppPreferences.finderOpenAutoExtract,
+              AppPreferences.gpgEnabled,
+              GPGBackend.isAvailable(),
+              isRecognizedGPGFile(url) else { return false }
+        return GPGBackend.classifyFile(at: url) == .encryptedMessage
+    }
+
     /// 剥掉一层 `.gpg`/`.pgp`/`.asc` 还原内层文件名：`secret.zip.gpg` → `secret.zip`。
     /// 没有可识别后缀（如装甲 `.asc` 直接命名）→ 退回原名加 `.decrypted`，避免覆盖原文件 / 产出空名。
     static func decryptedInnerName(for url: URL) -> String {
@@ -58,6 +71,67 @@ enum GPGFileService {
             operationID: operationID
         )
         return outputURL
+    }
+
+    /// 把选中的文件 / 文件夹加密成源旁的 `.gpg`，返回产物 URL（供调用方 reveal / 刷新）。
+    ///
+    /// - **单个文件** → 直接 `gpg --encrypt`，产物 `name.ext.gpg`，无中转。
+    /// - **单个文件夹 / 多选** → 先 `tar` 进**加密临时卷**（fail-closed：明文中转绝不裸落普通磁盘），
+    ///   再加密 tar，产物 `base.tar.gpg`（`base` = 单文件夹名 / 所在目录名）。tar 用完即删。
+    ///
+    /// `recipients`（收件人公钥 fingerprint）与 `symmetricPassphrase` 至少给一个非空，否则
+    /// `GPGBackend.encrypt` 会抛错（调用方 / sheet 已用按钮禁用拦在前面，这里是后端最后一道）。
+    /// 所有源必须是 `directory` 下的同级项（右键多选天然满足：都在当前文件夹）。
+    static func encryptToGPG(
+        sources: [URL],
+        in directory: URL,
+        recipients: [String],
+        symmetricPassphrase: String?,
+        operationID: UUID? = nil
+    ) async throws -> URL {
+        let fm = FileManager.default
+        guard !sources.isEmpty else { throw ArchiveError.commandFailed("no sources to encrypt") }
+
+        // 单个文件（非目录）→ 直接加密，无需 tar 中转。
+        if sources.count == 1 {
+            var isDir: ObjCBool = false
+            let source = sources[0]
+            fm.fileExists(atPath: source.path, isDirectory: &isDir)
+            if !isDir.boolValue {
+                let destination = encryptedDestination(for: source.lastPathComponent, in: directory)
+                try await GPGBackend.encrypt(
+                    fileURL: source,
+                    recipients: recipients,
+                    symmetricPassphrase: symmetricPassphrase,
+                    outputURL: destination,
+                    operationID: operationID
+                )
+                return destination
+            }
+        }
+
+        // 文件夹 / 多选 → tar 到加密临时卷再加密。明文 tar 中转只准落进加密卷，绝不裸落普通磁盘。
+        let staging = try await TemporaryResourceManager.makeSecureTemporaryDirectory(prefix: "SimpleZip-GPGEncrypt")
+        defer { try? fm.removeItem(at: staging) }
+        let rawBase = sources.count == 1 ? sources[0].lastPathComponent : directory.lastPathComponent
+        let baseName = rawBase.isEmpty ? "Archive" : rawBase
+        let tarURL = staging.appendingPathComponent("\(baseName).tar")
+        var tarArguments = ["-cf", tarURL.path, "-C", directory.path]
+        tarArguments.append(contentsOf: sources.map { $0.lastPathComponent })
+        _ = try await BackendProcessRunner.runAndCapture(
+            "/usr/bin/tar",
+            arguments: tarArguments,
+            operationID: operationID
+        )
+        let destination = encryptedDestination(for: "\(baseName).tar", in: directory)
+        try await GPGBackend.encrypt(
+            fileURL: tarURL,
+            recipients: recipients,
+            symmetricPassphrase: symmetricPassphrase,
+            outputURL: destination,
+            operationID: operationID
+        )
+        return destination
     }
 
     /// 加密目标落点：源文件旁，`name.ext.gpg`；重名则 ` 2`、` 3`… 递增，**绝不覆盖**已有文件。

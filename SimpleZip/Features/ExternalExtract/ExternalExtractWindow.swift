@@ -27,6 +27,12 @@ final class ExternalExtractWindowController {
     /// 统一入口：按扩展名分派 `.siz → startSIZ` / `.szs → startSZS` / 其它 → 普通解压。
     /// Finder 自动解压（冷启动 / 热运行 / 右键单个）都经这里，**全程不碰主窗口**。
     func open(_ url: URL) {
+        // `.gpg`/`.pgp`/`.asc`（加密数据）走解密浮窗。调用方（openExternalURL / 冷启动建窗判定）已用
+        // `GPGFileService.shouldAutoDecryptOnExternalOpen` 过滤过，这里到的必是加密数据；startGPGDecrypt 再兜底校验一次。
+        if GPGFileService.isRecognizedGPGFile(url) {
+            startGPGDecrypt(sourceURL: url)
+            return
+        }
         switch url.pathExtension.lowercased() {
         case SIZArchive.extensionName: startSIZ(sourceURL: url)
         case SZSArchive.extensionName: startSZS(sourceURL: url)
@@ -120,6 +126,89 @@ final class ExternalExtractWindowController {
         }
         prepare.onOpenInMainWindow = { [weak self] in self?.openInMainWindow(browseURL: sourceURL, cleanup: nil) }
         present(content: ExternalPrepareView(session: prepare), cancel: { task.cancel() })
+    }
+
+    /// `.gpg`/`.pgp`/`.asc`（加密数据）的 Finder 自动解压（独立浮窗，全程脱钩主窗口），与 `startSIZ` 同构：
+    /// 浮窗显「正在解密…」，后台解密到**加密临时卷**，然后把产物落到原文件所在目录：
+    /// - 内层是受支持压缩包（如 `name.tar.gpg` 的 tar）→ 交给 `start()` 解压到该目录（复用整套解压 UI）。
+    /// - 内层是普通文件（如 `report.pdf.gpg`）→ 移动到该目录（重名自动加 ` 2`），显示完成 + Finder 选中 + 自动关窗。
+    /// 钥匙串材料 / 签名由主窗口路径处理（调用方已 classify 过滤），这里再兜底校验一次；用户取消密码 → 静默关窗。
+    func startGPGDecrypt(sourceURL: URL) {
+        let prepare = ExternalPrepareSession(displayName: sourceURL.lastPathComponent)
+        let task = Task { [weak self] in
+            guard let self else { return }
+            do {
+                guard GPGBackend.classifyFile(at: sourceURL) == .encryptedMessage else {
+                    // 兜底：不是加密数据（钥匙串 / 签名）—— 浮窗里给「在主窗口打开」逃生入口，由主窗口走分类路由。
+                    prepare.fail(L10n.text("gpgFile.notDecryptable.message"))
+                    self.bringToFront()
+                    return
+                }
+                let decrypted = try await GPGFileService.decryptToTemporary(sourceURL)
+                try Task.checkCancellation()
+                let tempRoot = decrypted.deletingLastPathComponent()
+                let destinationDir = sourceURL.deletingLastPathComponent()
+                if ArchiveService.isSupportedArchive(decrypted) {
+                    // 内层压缩包 → 解压到原 .gpg 所在目录（与 .siz 自动解压完全同构）。
+                    // 交棒给解压 session：清空 cancelActive，别让 start() 的 present 误清 tempRoot；
+                    // tempRoot 交由 start 的 cleanupDirectory 在结束后清理。
+                    self.cancelActive = nil
+                    self.start(
+                        archiveURL: decrypted,
+                        destinationDirectoryOverride: destinationDir,
+                        displayName: sourceURL.lastPathComponent,
+                        cleanupDirectory: tempRoot,
+                        mainWindowURL: sourceURL
+                    )
+                } else {
+                    // 普通文件 → 落到原目录。明文中转在加密卷里，移动到用户目录是其「自动解压」的明确意图。
+                    let target = Self.uniqueDestination(for: decrypted.lastPathComponent, in: destinationDir)
+                    try FileManager.default.moveItem(at: decrypted, to: target)
+                    try? FileManager.default.removeItem(at: tempRoot)
+                    prepare.succeed(target)
+                    SystemSound.operationComplete?.play()
+                    NSWorkspace.shared.activateFileViewerSelecting([target])
+                    try? await Task.sleep(nanoseconds: 1_200_000_000)
+                    self.close()
+                }
+            } catch is CancellationError {
+                self.close()
+            } catch {
+                // pinentry 取消（用户放弃输入密码）→ 静默关窗，不弹「失败」。其它失败留窗 + 带到最前 + 逃生入口。
+                if Self.decryptErrorLooksLikeUserCancellation(error) {
+                    self.close()
+                    return
+                }
+                prepare.fail(error.localizedDescription)
+                self.bringToFront()
+            }
+        }
+        prepare.onOpenInMainWindow = { [weak self] in self?.openInMainWindow(browseURL: sourceURL, cleanup: nil) }
+        present(content: ExternalPrepareView(session: prepare), cancel: { task.cancel() })
+    }
+
+    /// 原目录内不覆盖的落点：重名自动 ` 2`、` 3`…（与 GPGFileService.encryptedDestination 同口径）。
+    private static func uniqueDestination(for name: String, in directory: URL) -> URL {
+        let fm = FileManager.default
+        let base = (name as NSString).deletingPathExtension
+        let ext = (name as NSString).pathExtension
+        func candidate(_ tail: String) -> URL {
+            let fileName = ext.isEmpty ? "\(base)\(tail)" : "\(base)\(tail).\(ext)"
+            return directory.appendingPathComponent(fileName)
+        }
+        var destination = candidate("")
+        var n = 2
+        while fm.fileExists(atPath: destination.path) {
+            destination = candidate(" \(n)")
+            n += 1
+        }
+        return destination
+    }
+
+    /// 粗判解密错误是否来自用户取消 pinentry —— 命中即静默关窗（与 ArchiveBrowserModel+GPG 同口径）。
+    private static func decryptErrorLooksLikeUserCancellation(_ error: Error) -> Bool {
+        let text = error.localizedDescription.lowercased()
+        return text.contains("cancel") || text.contains("abort")
     }
 
     /// `.siz` 验签有 concerns 时浮窗内呈现签名 sheet。三动作：解压 / 在主窗口打开 / 取消，均自管 tempRoot 清理。
@@ -741,6 +830,7 @@ struct ExternalExtractBatchView: View {
 final class ExternalPrepareSession: ObservableObject {
     enum Phase: Equatable {
         case verifying
+        case succeeded(URL)
         case failed(String)
     }
 
@@ -751,6 +841,10 @@ final class ExternalPrepareSession: ObservableObject {
 
     init(displayName: String) {
         self.displayName = displayName
+    }
+
+    func succeed(_ url: URL) {
+        phase = .succeeded(url)
     }
 
     func fail(_ message: String) {
@@ -783,6 +877,12 @@ struct ExternalPrepareView: View {
             switch session.phase {
             case .verifying:
                 ProgressView().progressViewStyle(.linear)
+            case .succeeded(let url):
+                Label(url.lastPathComponent, systemImage: "checkmark.circle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.green)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
             case .failed(let message):
                 Text(message)
                     .font(.caption)
@@ -804,6 +904,7 @@ struct ExternalPrepareView: View {
     private var statusText: String {
         switch session.phase {
         case .verifying: return L10n.text("externalExtract.verifying")
+        case .succeeded: return L10n.text("status.done")
         case .failed: return L10n.text("externalExtract.failed")
         }
     }

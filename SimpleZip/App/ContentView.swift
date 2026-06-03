@@ -153,6 +153,14 @@ struct ContentView: View {
                 model.archiveCreationRequest = nil
             }
         }
+        .sheet(item: $model.gpgEncryptRequest) { request in
+            GPGEncryptOptionsView(request: request) { confirmedRequest in
+                model.gpgEncryptRequest = nil
+                model.performEncryptToGPG(confirmedRequest)
+            } cancel: {
+                model.gpgEncryptRequest = nil
+            }
+        }
         .sheet(item: $model.extractSelectionRequest) { request in
             ExtractSelectionOptionsView(request: request) { confirmedRequest in
                 model.extractSelectionRequest = nil
@@ -482,6 +490,8 @@ struct ContentView: View {
         let ext = url.pathExtension.lowercased()
         // `.siz`/`.szs` 开了自动解压一律浮窗（unwrap/验签/校验都在浮窗内完成，需要主窗口时浮窗里有「在主窗口打开」）。
         if ext == SIZArchive.extensionName || ext == SZSArchive.extensionName { return true }
+        // `.gpg`/`.pgp`/`.asc` 加密数据 → 解密浮窗（钥匙串材料 / 签名不在此，仍走主窗口）。
+        if GPGFileService.shouldAutoDecryptOnExternalOpen(url) { return true }
         guard ArchiveService.isSupportedArchive(url) else { return false }
         let supportedURL = ArchiveService.supportedArchiveURL(url) ?? url
         return supportedURL.pathExtension.lowercased() != "dmg"
@@ -528,6 +538,12 @@ struct ContentView: View {
             activateForMainWindowOpen()
             model.openArchiveFromExternal(url)
         } else if GPGFileService.isRecognizedGPGFile(url) {
+            // 开了「Finder 自动解压」+ 内容是加密数据 → 独立浮窗内解密到原目录，**彻底脱钩主窗口**（与压缩包/.siz 同构）。
+            // 关了自动解压 / 是钥匙串材料 / 是签名 → 主窗口路径（浏览 / 导入 sheet / 报错）。
+            if GPGFileService.shouldAutoDecryptOnExternalOpen(url) {
+                ExternalExtractWindowController.shared.open(url)
+                return
+            }
             handleGPGFileOpen(url)
         } else {
             NSWorkspace.shared.open(url)

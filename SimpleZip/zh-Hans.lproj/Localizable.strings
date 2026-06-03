@@ -1136,3 +1136,13 @@
 "gpgImport.result.failed" = "导入失败：%@";
 
 "siz.signatureSheet.decrypting" = "正在解密…";
+
+/* GPG 加密为 .gpg（0.2.7） */
+"file.encrypt.gpg" = "加密为 .gpg…";
+"gpgEncrypt.title" = "加密为 GPG";
+"gpgEncrypt.sourceSummary" = "把选中的 %@ 个项目加密成它们旁边的 .gpg 文件。";
+"gpgEncrypt.description" = "单个文件会变成 name.gpg；文件夹或多选会先打包成一个 .tar 再加密成 name.tar.gpg。可选收件人公钥、对称密码或两者皆选——任一收件人的私钥或该密码都能解密。SimpleZip 从不经手你的 GPG 私钥 passphrase。";
+"gpgEncrypt.button" = "加密";
+"gpgEncrypt.needsRecipientOrPassphrase" = "请添加收件人或设置密码。";
+"status.gpgEncrypting" = "正在加密…";
+"status.gpgEncrypted" = "已加密为 %@";

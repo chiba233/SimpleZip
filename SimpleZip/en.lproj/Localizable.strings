@@ -1136,3 +1136,13 @@
 "gpgImport.result.failed" = "Import failed: %@";
 
 "siz.signatureSheet.decrypting" = "Decrypting…";
+
+/* GPG encrypt-to-.gpg (0.2.7) */
+"file.encrypt.gpg" = "Encrypt to .gpg…";
+"gpgEncrypt.title" = "Encrypt to GPG";
+"gpgEncrypt.sourceSummary" = "Encrypting %@ selected item(s) to a .gpg file next to them.";
+"gpgEncrypt.description" = "A single file becomes name.gpg; folders or multiple items are packed into one .tar first, then encrypted to name.tar.gpg. Choose recipient public keys, a passphrase, or both — anyone with a recipient's private key or the passphrase can decrypt it. SimpleZip never manages your GPG private-key passphrase.";
+"gpgEncrypt.button" = "Encrypt";
+"gpgEncrypt.needsRecipientOrPassphrase" = "Add a recipient or a passphrase.";
+"status.gpgEncrypting" = "Encrypting…";
+"status.gpgEncrypted" = "Encrypted to %@";
