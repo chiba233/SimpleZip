@@ -1,2 +1,4 @@
 "Add to Archive with SimpleZip" = "Добавить в архив с SimpleZip";
 "Calculate Hash with SimpleZip" = "Вычислить хэш с SimpleZip";
+"GPG Encrypted File" = "Файл, зашифрованный GPG";
+"PGP Armored File" = "Файл PGP (ASCII)";

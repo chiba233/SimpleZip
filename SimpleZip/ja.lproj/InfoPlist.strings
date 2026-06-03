@@ -1,2 +1,4 @@
 "Add to Archive with SimpleZip" = "SimpleZipでアーカイブに追加";
 "Calculate Hash with SimpleZip" = "SimpleZipでハッシュを計算";
+"GPG Encrypted File" = "GPG 暗号化ファイル";
+"PGP Armored File" = "PGP ASCII ファイル";

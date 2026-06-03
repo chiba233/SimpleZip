@@ -1,2 +1,4 @@
 "Add to Archive with SimpleZip" = "Añadir al archivo con SimpleZip";
 "Calculate Hash with SimpleZip" = "Calcular hash con SimpleZip";
+"GPG Encrypted File" = "Archivo cifrado con GPG";
+"PGP Armored File" = "Archivo PGP ASCII";

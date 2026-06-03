@@ -1,2 +1,4 @@
 "Add to Archive with SimpleZip" = "เพิ่มไปยังไฟล์เก็บถาวรด้วย SimpleZip";
 "Calculate Hash with SimpleZip" = "คำนวณแฮชด้วย SimpleZip";
+"GPG Encrypted File" = "ไฟล์เข้ารหัส GPG";
+"PGP Armored File" = "ไฟล์ PGP (ASCII)";

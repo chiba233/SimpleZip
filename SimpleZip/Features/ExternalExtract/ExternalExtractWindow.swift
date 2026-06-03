@@ -77,12 +77,11 @@ final class ExternalExtractWindowController {
         }
         let session = ExternalExtractBatchSession(archiveURLs: archiveURLs)
         present(content: ExternalExtractBatchView(session: session), cancel: { session.cancel() })
-        Task { [weak self] in
-            await session.run(
-                onClose: { [weak self] in self?.close() },
-                onAttention: { [weak self] in self?.bringToFront() }
-            )
-        }
+        // 持有运行任务（session.start 内部存 runTask），让取消能中止 staging merge 阶段，不只是杀 7z 进程。
+        session.start(
+            onClose: { [weak self] in self?.close() },
+            onAttention: { [weak self] in self?.bringToFront() }
+        )
     }
 
     /// `.siz` 自动解压（独立浮窗，全程脱钩主窗口）：先在浮窗显「正在校验签名…」，后台 unwrap + 验签：
@@ -590,6 +589,10 @@ final class ExternalExtractBatchSession: ObservableObject {
     /// 用户主动取消 —— 停止推进剩余项，并 cancel 当前正在跑的命令。
     private var isCancelled = false
     private var currentOperationID: UUID?
+    /// 外层运行任务句柄 —— 取消时连它一起 cancel（与单任务会话 `ExternalExtractSession.runTask` 对齐）：
+    /// 当前项的 7z 已结束、正处于 staging merge / 移动阶段时已无活跃 backend 进程，光 cancelRunningCommand 停不下来，
+    /// 必须 cancel 这个 Task 才能让 merge 的协作取消点（Task.isCancelled）中止后续阶段。
+    private var runTask: Task<Void, Never>?
     private let coordinator = ArchiveExtractionCoordinator(fileManager: .default)
 
     var total: Int { archiveURLs.count }
@@ -599,12 +602,20 @@ final class ExternalExtractBatchSession: ObservableObject {
         self.statusText = L10n.format("externalExtract.batch.progress", 1, archiveURLs.count, archiveURLs.first?.lastPathComponent ?? "")
     }
 
+    /// 启动并持有运行任务（让 cancel 能连外层 Task 一起取消）。
+    func start(onClose: @escaping @MainActor () -> Void, onAttention: @escaping @MainActor () -> Void) {
+        runTask = Task { [weak self] in
+            await self?.run(onClose: onClose, onAttention: onAttention)
+        }
+    }
+
     func cancel() {
         isCancelled = true
+        runTask?.cancel()
         if let id = currentOperationID { ArchiveService.cancelRunningCommand(operationID: id) }
     }
 
-    func run(onClose: @escaping @MainActor () -> Void, onAttention: @escaping @MainActor () -> Void) async {
+    private func run(onClose: @escaping @MainActor () -> Void, onAttention: @escaping @MainActor () -> Void) async {
         for (index, url) in archiveURLs.enumerated() {
             if isCancelled { break }
             fraction = nil
