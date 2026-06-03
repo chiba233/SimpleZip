@@ -69,6 +69,10 @@ final class ArchiveBrowserModel: ObservableObject {
     /// 不能走 `NSWorkspace.shared.open`：`.siz` UTI 注册到自己会循环创建新主窗口。
     /// 用 @Published 而不是 Notification.Name —— 单发单收的「函数调用穿了通知马甲」（AGENTS A3）。
     @Published var pendingSIZOpen: URL?
+    /// 打开 `.gpg` 套 `.siz` 时的「地址锚点」：解出来的 `.siz` 在加密卷 scratch 路径，但地址栏要显示**原始 `.gpg`**，
+    /// 绝不暴露 `/var/folders/...`。`decryptAndOpenGPG` 在 set `pendingSIZOpen = <scratch .siz>` 前先填它 = 原 `.gpg`；
+    /// ContentView 的 `handleSIZOpen` 进入时一次性读走并清空，把它当 `displayedAs` 锚点。nil = 普通 `.siz` 打开（锚点就是它自己）。
+    var gpgContainerDisplayOverride: URL?
 
     /// 文件浏览模式选中 `.siz` 点 Extract 时的待处理 URL —— ContentView 用 `.onChange` 接住跑 unwrap + 验签 +
     /// 标准解压对话框。同 `pendingSIZOpen` 的解耦原则。

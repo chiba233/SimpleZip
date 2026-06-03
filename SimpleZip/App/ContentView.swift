@@ -235,7 +235,7 @@ struct ContentView: View {
                         pendingSIZVerification = nil
                         // 登记 unwrap 根 —— 离开这个 .siz 档案时即时清掉卷内临时。
                         model.registerOpenedArchiveItemTemp(pending.tempRoot)
-                        model.openArchive(urlToOpen, displayedAs: pending.signature.sourceURL)
+                        model.openArchive(urlToOpen, displayedAs: pending.displayURL)
                         return nil
                     } catch {
                         return L10n.format("error.siz.decryptionFailed", error.localizedDescription)
@@ -558,6 +558,10 @@ struct ContentView: View {
     /// **不**经过这里。本函数是「强制在主窗口浏览」语义（右键在新标签打开 / app 内点 / 浮窗「在主窗口打开」），
     /// 与自动解压开关无关。
     private func handleSIZOpen(_ url: URL) {
+        // 地址锚点：普通 `.siz` 就是它自己；`.gpg` 套 `.siz` 时是原始 `.gpg`（避免暴露 scratch 路径）。
+        // 一次性读走并清空，免得污染下一次普通 `.siz` 打开。
+        let displayURL = model.gpgContainerDisplayOverride ?? url
+        model.gpgContainerDisplayOverride = nil
         Task {
             do {
                 let (innerArchiveURL, tempRoot, summary) = try await unwrapAndVerifySIZ(at: url)
@@ -570,7 +574,8 @@ struct ContentView: View {
                         pendingSIZVerification = SIZPendingVerification(
                             innerArchiveURL: innerArchiveURL,
                             tempRoot: tempRoot,
-                            signature: summary!
+                            signature: summary!,
+                            displayURL: displayURL
                         )
                     }
                 } else {
@@ -581,7 +586,7 @@ struct ContentView: View {
                         ensureMainWindowVisible()
                         // 登记 unwrap 根 —— 离开这个 .siz 档案时即时清掉卷内临时。
                         model.registerOpenedArchiveItemTemp(tempRoot)
-                        model.openArchive(urlToOpen, displayedAs: url)
+                        model.openArchive(urlToOpen, displayedAs: displayURL)
                     }
                 }
             } catch {
@@ -777,6 +782,8 @@ struct ContentView: View {
         let innerArchiveURL: URL
         let tempRoot: URL
         let signature: SIZSignatureSummary
+        /// 地址栏锚点：普通 `.siz` = 它自己；`.gpg` 套 `.siz` = 原始 `.gpg`（不暴露 scratch 路径）。
+        let displayURL: URL
 
         static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
     }
