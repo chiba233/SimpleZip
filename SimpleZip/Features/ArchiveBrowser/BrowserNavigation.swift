@@ -18,6 +18,17 @@ enum NavigationLocation: Equatable {
     case tag(String)
 }
 
+/// 一条后退 / 前进历史记录:位置 + **嵌套档案的地址显示上下文**。
+///
+/// `NavigationLocation` 只记真实位置(URL + archivePath)。从历史(← / →)恢复到**嵌套档案**时,
+/// 若不一并带回 `archiveDisplayOverride`(最外层真实档案锚点)/ `nestedDisplayPath`(虚拟堆叠链),
+/// 地址栏就丢掉嵌套链显示、露出 `/var/folders` 临时路径(用户反馈:行为对了但地址栏不对)。
+struct NavigationSnapshot: Equatable {
+    let location: NavigationLocation
+    let archiveDisplayOverride: URL?
+    let nestedDisplayPath: String?
+}
+
 /// 已挂载的 DMG 会话。
 ///
 /// 同时持有 `sourceURL`（用户打开的 .dmg 文件）和 `mountPoint`（hdiutil 挂载产生的卷路径），

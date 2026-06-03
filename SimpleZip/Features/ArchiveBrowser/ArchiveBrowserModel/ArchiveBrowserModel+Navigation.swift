@@ -129,10 +129,13 @@ extension ArchiveBrowserModel {
     func openFolder(_ url: URL, recordsHistory: Bool) {
         // 进文件夹一定离开了「档案嵌套」语境 —— 清空虚拟堆叠串。
         nestedDisplayPath = nil
-        // 真实导航(recordsHistory:true)清空「上一级」返回栈;历史恢复走 false 不清(由 goUp/goBack 自行管理)。
-        if recordsHistory { nestedArchiveReturnStack.removeAll() }
-        // 进「真实文件夹」= 退出档案浏览 → 档案生命结束，即时清掉本会话临时产物；进虚拟目录（卷内）则跳过。
-        purgeOpenedArchiveTempsIfLeaving(to: url)
+        // 真实导航(recordsHistory:true)= 退出档案浏览:清「上一级」返回栈 + 即时清掉本会话临时产物。
+        // 历史导航(back/forward/restore,recordsHistory:false)**不 purge** —— 临时可能还要被 ← / → 回到,删了再前进会扑空。
+        // 进虚拟目录(卷内)由 purge 内部 isUnderDisposableTemp 再跳过一层。
+        if recordsHistory {
+            nestedArchiveReturnStack.removeAll()
+            purgeOpenedArchiveTempsIfLeaving(to: url)
+        }
         let destination = NavigationLocation.folder(url.standardizedFileURL)
         if recordsHistory, currentNavigationLocation != destination {
             recordCurrentLocationForNavigation()
@@ -221,9 +224,10 @@ extension ArchiveBrowserModel {
     /// - **不记导航历史**（recordsHistory: false）：嵌套临时档案永不进后退栈，所以「后退」也不会蹦出 `/var/folders`。
     func openNestedArchive(_ tempURL: URL, entryName: String) {
         guard case .archive(let currentURL) = mode else { return }
-        // 记住「从哪个父档案位置进来的」(父档案 + 当前子目录) —— 在嵌套档案根目录按「上一级」时回到这里,
-        // 而不是退出整条链跳物理文件夹(用户反馈:从 zip 里的 `.siz` / 内层档案「上一级」不该直接蹦回物理目录)。
-        // 临时档案位置不进后退栈(下面 recordsHistory: false),所以「后退」也不会蹦 `/tmp`。
+        // 进嵌套档案 = 一次导航:把「进来时的父档案位置」(父档案 + 当前子目录,**真实可导航**)既压进**后退栈**
+        //（← 像 Finder 一样回到父档案那个子目录），也压进**嵌套返回栈**（^ 上一级回到同一处）。
+        // 压的是父位置、不是临时档案本身;临时档案走下面 recordsHistory:false 不会被 recordCurrentLocation 压进栈。
+        recordCurrentLocationForNavigation()
         if let parentLocation = currentNavigationLocation {
             nestedArchiveReturnStack.append(parentLocation)
         }
@@ -292,10 +296,13 @@ extension ArchiveBrowserModel {
     func openArchive(_ url: URL, recordsHistory: Bool) {
         // 任何「真实」档案打开都清空嵌套虚拟堆叠串（嵌套打开走 openNestedArchive，会在调用本方法之后再设回）。
         nestedDisplayPath = nil
-        // 真实导航(recordsHistory:true)= 离开嵌套链,清空「上一级」返回栈;嵌套打开 / 历史恢复走 false 不清。
-        if recordsHistory { nestedArchiveReturnStack.removeAll() }
-        // 开「真实新档案」→ 清掉上一个档案会话的临时；开嵌套 / .gpg / .siz（临时源，在卷内）则跳过、保留其内容。
-        purgeOpenedArchiveTempsIfLeaving(to: url)
+        // 真实导航(recordsHistory:true)= 离开嵌套链:清「上一级」返回栈 + 清掉上一个档案会话的临时。
+        // 历史导航(back/forward/restore,recordsHistory:false)**不 purge** —— 临时档案可能还要被 ← / → 回到,
+        // 删了再前进就扑空(unzip 找不到文件);嵌套打开也走 false,不会误删正要进入的内层档案。
+        if recordsHistory {
+            nestedArchiveReturnStack.removeAll()
+            purgeOpenedArchiveTempsIfLeaving(to: url)
+        }
         let supportedURL = ArchiveService.supportedArchiveURL(url) ?? url
         if supportedURL.pathExtension.lowercased() == "dmg" {
             if recordsHistory, currentNavigationLocation != .folder(supportedURL.standardizedFileURL) {
@@ -433,7 +440,11 @@ extension ArchiveBrowserModel {
             if session.archivePath.isEmpty {
                 if let parentLocation = nestedArchiveReturnStack.popLast() {
                     // 在嵌套档案(zip 里的 `.siz` / 内层档案)根目录 → 回到进来时的父档案位置(父档案 + 子目录),
-                    // 而不是退出整条链蹦到物理文件夹。不记当前(临时档案)位置进后退栈,避免 `/tmp` 进历史。
+                    // 而不是退出整条链蹦到物理文件夹。up 等价于「回到父档案」——若后退栈顶正是进嵌套时压的同一父位置,
+                    // 一并弹掉,免得 up 之后再按 ← 停在原地。
+                    if navigationBackStack.last?.location == parentLocation {
+                        navigationBackStack.removeLast()
+                    }
                     restoreNavigationLocation(parentLocation)
                 } else {
                     // 顶层 `.siz` 容器:url 是 /tmp 路径,上一级回到原始 `.siz` 所在目录(archiveDisplayOverride 的父)。
@@ -451,18 +462,18 @@ extension ArchiveBrowserModel {
 
     func goBack() {
         guard let destination = navigationBackStack.popLast() else { return }
-        if let current = currentNavigationLocation {
+        if let current = currentNavigationSnapshot {
             navigationForwardStack.append(current)
         }
-        restoreNavigationLocation(destination)
+        restoreNavigationSnapshot(destination)
     }
 
     func goForward() {
         guard let destination = navigationForwardStack.popLast() else { return }
-        if let current = currentNavigationLocation {
+        if let current = currentNavigationSnapshot {
             navigationBackStack.append(current)
         }
-        restoreNavigationLocation(destination)
+        restoreNavigationSnapshot(destination)
     }
 
     /// 重读 macOS Finder 的「个人收藏」侧栏，同步到 `finderFavorites`。
@@ -614,8 +625,8 @@ extension ArchiveBrowserModel {
     }
 
     func recordCurrentLocationForNavigation() {
-        guard let current = currentNavigationLocation else { return }
-        if navigationBackStack.last != current {
+        guard let current = currentNavigationSnapshot else { return }
+        if navigationBackStack.last?.location != current.location {
             navigationBackStack.append(current)
             if navigationBackStack.count > 100 {
                 navigationBackStack.removeFirst(navigationBackStack.count - 100)
@@ -637,6 +648,15 @@ extension ArchiveBrowserModel {
             mode = .tag(tag)
             reload()
         }
+    }
+
+    /// 从历史快照恢复:先按真实位置打开,再把**嵌套档案的地址显示上下文**复原
+    ///（`restoreNavigationLocation` 里的 `openArchive` 会先把这俩清空,所以必须在之后重设)。
+    /// 这样 ← / → 回到嵌套档案时地址栏显示嵌套链、不露 `/var/folders`。
+    private func restoreNavigationSnapshot(_ snapshot: NavigationSnapshot) {
+        restoreNavigationLocation(snapshot.location)
+        archiveDisplayOverride = snapshot.archiveDisplayOverride
+        nestedDisplayPath = snapshot.nestedDisplayPath
     }
 
     func refreshVisibleFolder(_ folderURL: URL) {

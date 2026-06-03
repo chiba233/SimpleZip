@@ -43,8 +43,8 @@ final class ArchiveBrowserModel: ObservableObject {
     /// 0.1.10 拆文件前是 `private(set)`，但 setter 现在跑在 +OperationLifecycle extension 里，
     /// `private(set)` 会拒绝 extension 写入；降到默认 internal(set) —— 模块内可读写。
     @Published var canCancelCurrentOperation = false
-    @Published var navigationBackStack: [NavigationLocation] = []
-    @Published var navigationForwardStack: [NavigationLocation] = []
+    @Published var navigationBackStack: [NavigationSnapshot] = []
+    @Published var navigationForwardStack: [NavigationSnapshot] = []
     /// **嵌套档案的「上一级」返回栈**:进一层嵌套档案 / 档案内 `.siz`(走 `openNestedArchive`)时压入「**进来时所在的父档案位置**」
     /// （父档案 URL + 父 archivePath,如 `xx.zip` 的 `子目录/`）。在嵌套档案根目录按「上一级」时弹栈回到那里 ——
     /// 而不是退出整条链跳到物理文件夹(用户反馈:从 zip 里的 `.siz` / 内层档案「上一级」不该直接蹦回物理目录)。
@@ -336,5 +336,15 @@ final class ArchiveBrowserModel: ObservableObject {
         case .tag(let tag):
             return .tag(tag)
         }
+    }
+
+    /// 当前位置 + 嵌套档案地址显示上下文,作为一条后退 / 前进历史记录。
+    var currentNavigationSnapshot: NavigationSnapshot? {
+        guard let location = currentNavigationLocation else { return nil }
+        return NavigationSnapshot(
+            location: location,
+            archiveDisplayOverride: archiveDisplayOverride,
+            nestedDisplayPath: nestedDisplayPath
+        )
     }
 }
