@@ -127,6 +127,8 @@ extension ArchiveBrowserModel {
     }
 
     func openFolder(_ url: URL, recordsHistory: Bool) {
+        // 进文件夹一定离开了「档案嵌套」语境 —— 清空虚拟堆叠串。
+        nestedDisplayPath = nil
         let destination = NavigationLocation.folder(url.standardizedFileURL)
         if recordsHistory, currentNavigationLocation != destination {
             recordCurrentLocationForNavigation()
@@ -154,6 +156,27 @@ extension ArchiveBrowserModel {
     func openArchive(_ url: URL, displayedAs displayURL: URL) {
         archiveDisplayOverride = displayURL
         openArchive(url, recordsHistory: true)
+    }
+
+    /// 在 app 内打开**嵌套档案**（档案里套档案：zip 套 zip、tgz 里的 tar、7z 套 tar…）。
+    ///
+    /// 嵌套层级是纯**虚拟目录显示** —— 地址栏把整条链堆叠出来让用户看懂自己在第几层
+    /// （`…/xx.zip/xa/a.zip/b.zip/c.zip`），中间段不要求真的可点进 / 可访问：
+    /// - `tempURL`：被双击的档案 entry 解出来的临时路径（真实 list 跑在这里）。
+    /// - `entryName`：该 entry 在**父档案**里的完整内部路径（如 `xa/a.zip`）。
+    /// - `archiveDisplayOverride` 指向**最外层真实档案** → 「上一级」从嵌套根直接退出整条虚拟链、回到真实文件夹。
+    /// - **不记导航历史**（recordsHistory: false）：嵌套临时档案永不进后退栈，所以「后退」也不会蹦出 `/var/folders`。
+    func openNestedArchive(_ tempURL: URL, entryName: String) {
+        guard case .archive(let currentURL) = mode else { return }
+        let parentBase = nestedDisplayPath ?? (archiveDisplayOverride ?? currentURL).path
+        let cleanedEntry = entryName.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let newPrefix = parentBase + "/" + cleanedEntry
+        // 最外层真实档案：第一次嵌套（nestedDisplayPath 还没设）= 当前真实档案；已嵌套则沿用既有 override。
+        let outerReal = nestedDisplayPath == nil ? currentURL : (archiveDisplayOverride ?? currentURL)
+
+        archiveDisplayOverride = outerReal      // 先设：核心 openArchive 不碰 override，不会被清掉。
+        openArchive(tempURL, recordsHistory: false)  // 核心会把 nestedDisplayPath 清空…
+        nestedDisplayPath = newPrefix           // …随后设回这一层的堆叠串（@Published → 地址栏刷新）。
     }
 
     /// 把任意文件「以压缩包打开」—— 不走扩展名校验，强制按 7-Zip 后端处理。
@@ -208,6 +231,8 @@ extension ArchiveBrowserModel {
     }
 
     func openArchive(_ url: URL, recordsHistory: Bool) {
+        // 任何「真实」档案打开都清空嵌套虚拟堆叠串（嵌套打开走 openNestedArchive，会在调用本方法之后再设回）。
+        nestedDisplayPath = nil
         let supportedURL = ArchiveService.supportedArchiveURL(url) ?? url
         if supportedURL.pathExtension.lowercased() == "dmg" {
             if recordsHistory, currentNavigationLocation != .folder(supportedURL.standardizedFileURL) {
@@ -319,13 +344,17 @@ extension ArchiveBrowserModel {
     func goUp() {
         switch mode {
         case .folder(let url):
-            // **`.szs` 虚拟根**：从虚拟根（payloadRoot）按「上一级」语义上要去虚拟父 = `.szs` 文件所在目录。
-            // 但 .szs 文件所在目录 == payloadRoot 自身（虚拟模式下 .szs 跟 payload root 在同一物理目录里）—— 所以
-            // Up 不改 URL，只是「**退出虚拟模式留在当前真实目录**」，相当于「从 .szs 里出来到它的容器目录」。
+            // **虚拟根（`.szs` / `.gpg` 解密产物）的「上一级」**：退出虚拟模式，回到**原始容器文件所在的真实目录**
+            // ——`archiveDisplayOverride` 是原始容器 URL（`.szs` 文件 / 原 `.gpg` 文件），它的父目录就是用户心智里的
+            // 「容器所在文件夹」。
+            // - `.szs`：payloadRoot == `.szs` 所在目录，`override.parent` == payloadRoot → 等于「留在原地、退出虚拟」。
+            // - `.gpg`：解密产物在 /tmp，但 override 是桌面上的原 `.gpg` → 回到桌面，**绝不暴露 `/var/folders/...`**。
+            //   （早期版本拿 /tmp 当 payloadRoot 又直接 reload，上一级就漏了临时路径 —— 正是没吃透 `.siz` 地址栏为何那样写。）
             if let virtual = manifestVirtualMode,
                url.standardizedFileURL.path == virtual.payloadRoot.path {
+                let upURL = (archiveDisplayOverride ?? url).deletingLastPathComponent()
                 exitManifestVirtualMode()
-                reload() // 不带 filter 重 list，并刷新地址栏（不再用 manifest 路径）。
+                openFolder(upURL)
                 return
             }
             openFolder(url.deletingLastPathComponent())

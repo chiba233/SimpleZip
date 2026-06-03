@@ -2,6 +2,11 @@
 
 # Changelog
 
+## 0.2.7
+
+- **Double-click a GPG-encrypted file (`.gpg` / `.pgp`) to open it, like a password-protected archive.** SimpleZip decrypts the file (gpg-agent / pinentry prompts for the passphrase — SimpleZip never handles your GPG private-key passphrase; a status indicator shows "Decrypting…" while you authorize) and then opens the result **inside SimpleZip, never dumped to Finder**: if it's an archive it's browsed in place, otherwise the decrypted file is shown in SimpleZip's own browser — in both cases the address bar shows the original `.gpg` name, not the temp path. Crucially, a `.gpg`/`.pgp`/`.asc` file is **not assumed to be encrypted data by its extension** — SimpleZip sniffs the content first by reading the OpenPGP packet header (armor line / first packet tag — it never runs a decrypt, never prompts, never returns the wrong "not encrypted" message when you cancel): public/private **key** exports are routed to an "import into keyring" dialog instead of being decrypted, and detached signatures are left alone. Opening from Finder reuses the current window instead of spawning a new tab. Requires GPG integration to be enabled in Settings ▸ GPG.
+- **Fixed: opening a nested archive (an archive inside an archive — a `.tar` inside a `.tgz`, a zip inside a zip, etc.) leaked the raw `/var/folders/…` temp path and broke "go up".** Nested archive entries used to be handed to the OS, which re-opened the extracted copy from a temp folder with no context — so the address bar and "go up" exposed `/var/folders/…`. Nested archives now open **in place inside SimpleZip**, and the address bar stacks the whole nesting chain as virtual folders so you can see where you are at any depth (e.g. `…/Desktop/xx.zip/xa/a.zip/b.zip/c.zip`); "go up" from a nested archive returns to the outermost archive's real folder, never the temp path.
+
 ## 0.2.6
 
 - **Delete now keeps a per-file record in the Activity Center too.** Previously only copy / move / merge had per-file logs; delete only had a one-line summary. Delete tasks now list each file/folder moved to the Trash under a "Deleted" group (folders tagged "(folder)"), matching copy.

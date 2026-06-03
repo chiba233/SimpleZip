@@ -1116,3 +1116,21 @@
 "tasks.createFolder" = "Create Folder";
 "tasks.createFile" = "Create %@";
 "undo.action.create" = "Create";
+
+/* GPG encrypted-file open / key import (0.2.7) */
+"status.gpgDecrypting" = "Decrypting %@…";
+"button.close" = "Close";
+"gpgFile.disabled.message" = "GPG integration is turned off. Enable it in Settings ▸ GPG to open encrypted files.";
+"gpgFile.backendMissing.message" = "The GPG backend (gpg) was not found. Install GnuPG to open encrypted files.";
+"gpgFile.decryptFailed" = "Could not decrypt this file: %@";
+"gpgFile.notDecryptable.message" = "This file is a GPG signature, not encrypted data, so there is nothing to open here.";
+"gpgImport.title.public" = "Import Public Key";
+"gpgImport.title.private" = "Import Private Key";
+"gpgImport.body" = "This file is a GPG key, not encrypted data. Import it into a keyring instead of opening it.";
+"gpgImport.ring.label" = "Import into";
+"gpgImport.ring.user" = "User keyring (~/.gnupg, shared with the gpg CLI)";
+"gpgImport.ring.simpleZip" = "SimpleZip private keyring (isolated)";
+"gpgImport.privateKey.note" = "This contains private key material. SimpleZip never manages your GPG private-key passphrase — gpg-agent prompts for it when the key is used.";
+"gpgImport.action.import" = "Import";
+"gpgImport.result.succeeded" = "Key imported into the keyring.";
+"gpgImport.result.failed" = "Import failed: %@";

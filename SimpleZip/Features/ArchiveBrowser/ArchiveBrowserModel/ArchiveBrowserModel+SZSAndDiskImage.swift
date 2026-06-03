@@ -45,6 +45,26 @@ extension ArchiveBrowserModel {
         openFolder(standardizedRoot)
     }
 
+    /// 把 `.gpg` 解密出的**单个普通文件**以虚拟目录形式在 app 内展示（**不丢给 Finder**）。
+    ///
+    /// 镜像 `.siz`/`.szs` 的处理思路：`.siz` 内层是 archive → `openArchive(displayedAs:)`；这里内层是松散
+    /// 文件 → 复用 `.szs` 的 `manifestVirtualMode` 虚拟目录机制。payloadRoot = 解密临时目录（只含这一个文件），
+    /// 地址栏 / 标题显示原 `.gpg` 路径而不是丑陋的 `/var/folders/...`。`ManifestVirtualMode.manifestURL`
+    /// 这里承载「原 `.gpg` 显示 URL」（字段是通用的「容器显示 URL」，不限 `.szs`）。
+    func openDecryptedFileAsVirtualFolder(_ decryptedURL: URL, displayedAs containerURL: URL) {
+        let std = decryptedURL.standardizedFileURL
+        let root = std.deletingLastPathComponent().standardizedFileURL
+        manifestVirtualMode = ManifestVirtualMode(
+            manifestURL: containerURL,
+            payloadRoot: root,
+            allowedFiles: [std],
+            allowedDirs: [root]
+        )
+        archiveDisplayOverride = containerURL
+        pendingSelectionURL = std
+        openFolder(root)
+    }
+
     /// 退出虚拟目录模式 —— 用户「上一级」走到 payloadRoot 之上 / 主动点退出时调用。
     func exitManifestVirtualMode() {
         manifestVirtualMode = nil

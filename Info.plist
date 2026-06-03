@@ -61,6 +61,25 @@
 				<string>public.archive</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>gpg</string>
+				<string>pgp</string>
+			</array>
+			<key>CFBundleTypeIconSystemGenerated</key>
+			<true/>
+			<key>CFBundleTypeName</key>
+			<string>GPG Encrypted File</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.simplezip.gpg-encrypted</string>
+			</array>
+		</dict>
 	</array>
 	<key>UTExportedTypeDeclarations</key>
 	<array>
@@ -123,6 +142,28 @@
 				<key>public.mime-type</key>
 				<array>
 					<string>application/pgp-signature</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>GPG Encrypted File</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.simplezip.gpg-encrypted</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>gpg</string>
+					<string>pgp</string>
+				</array>
+				<key>public.mime-type</key>
+				<array>
+					<string>application/pgp-encrypted</string>
 				</array>
 			</dict>
 		</dict>

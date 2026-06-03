@@ -1116,3 +1116,21 @@
 "tasks.createFolder" = "新建文件夹";
 "tasks.createFile" = "新建 %@";
 "undo.action.create" = "新建";
+
+/* GPG 加密文件打开 / 密钥导入（0.2.7） */
+"status.gpgDecrypting" = "正在解密 %@…";
+"button.close" = "关闭";
+"gpgFile.disabled.message" = "GPG 集成已关闭。请在「设置 ▸ GPG」中启用后再打开加密文件。";
+"gpgFile.backendMissing.message" = "未找到 GPG 后端（gpg）。请安装 GnuPG 后再打开加密文件。";
+"gpgFile.decryptFailed" = "无法解密此文件：%@";
+"gpgFile.notDecryptable.message" = "此文件是 GPG 签名而非加密数据，没有可打开的内容。";
+"gpgImport.title.public" = "导入公钥";
+"gpgImport.title.private" = "导入私钥";
+"gpgImport.body" = "此文件是 GPG 密钥而非加密数据。请将它导入钥匙串，而不是打开它。";
+"gpgImport.ring.label" = "导入到";
+"gpgImport.ring.user" = "用户钥匙串（~/.gnupg，与 gpg 命令行共享）";
+"gpgImport.ring.simpleZip" = "SimpleZip 私有钥匙串（隔离）";
+"gpgImport.privateKey.note" = "此文件包含私钥材料。SimpleZip 从不管理你的 GPG 私钥 passphrase——用到该密钥时由 gpg-agent 负责弹出密码框。";
+"gpgImport.action.import" = "导入";
+"gpgImport.result.succeeded" = "密钥已导入钥匙串。";
+"gpgImport.result.failed" = "导入失败：%@";

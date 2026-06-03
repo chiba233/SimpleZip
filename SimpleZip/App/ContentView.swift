@@ -244,6 +244,9 @@ struct ContentView: View {
                 }
             )
         }
+        .sheet(item: $model.pendingGPGKeyImport) { request in
+            GPGKeyImportSheet(request: request) { model.pendingGPGKeyImport = nil }
+        }
         .onAppear {
             ExternalFileOpenQueue.shared.drain().forEach(openExternalURL)
             FinderServiceActionQueue.shared.drain().forEach(handleFinderServiceAction)
@@ -433,7 +436,12 @@ struct ContentView: View {
         let pending = ExternalFileOpenQueue.shared.peek()
         guard !pending.isEmpty else { return }
 
-        if pending.allSatisfy(opensInFloatWindowOnly) {
+        // 「就地处理、不开新标签」的两类：① 自动解压浮窗类（脱钩主窗口）；② `.gpg` 加密文件
+        //（解密在当前窗口完成 + 进度反馈；密钥文件只弹导入 sheet —— 为它单开一个空标签很怪，用户已反馈）。
+        let handledInCurrentWindow = pending.allSatisfy {
+            opensInFloatWindowOnly($0) || GPGFileService.isRecognizedGPGFile($0)
+        }
+        if handledInCurrentWindow {
             ExternalFileOpenQueue.shared.drain().forEach(openExternalURL)
         } else if AppPreferences.openExternalInNewTab {
             // 浏览类 + 设置为新标签 → 开新标签；不在这里 drain，URL 留给新标签 onAppear 的 drain（原子，落到新标签的 model）。
@@ -460,6 +468,8 @@ struct ContentView: View {
             // 强制浏览：直接进浏览，绝不走 openArchiveFromExternal —— 后者会遵循「Finder 自动解压」偏好，
             // 开了自动解压时它会把压缩包再解压一遍而非浏览，导致浮窗「在主窗口打开」打不开压缩包。
             model.openArchive(url)
+        } else if GPGFileService.isRecognizedGPGFile(url) {
+            handleGPGFileOpen(url)
         } else {
             NSWorkspace.shared.open(url)
         }
@@ -522,6 +532,8 @@ struct ContentView: View {
             // 关闭自动解压时与之前完全一致：走 model 浏览压缩包。
             activateForMainWindowOpen()
             model.openArchiveFromExternal(url)
+        } else if GPGFileService.isRecognizedGPGFile(url) {
+            handleGPGFileOpen(url)
         } else {
             NSWorkspace.shared.open(url)
         }
@@ -581,6 +593,13 @@ struct ContentView: View {
             decryptionKey: decryptionKey,
             passphrase: passphrase
         )
+    }
+
+    /// 双击 / 右键打开一个 `.gpg`/`.pgp`/`.asc` 文件 —— 唤起主窗口后把整条编排交给 model
+    /// （门控 / 嗅探 / 解密进度 / 取消静默 / app 内路由都在 `model.openGPGFile`，见 +GPG）。
+    private func handleGPGFileOpen(_ url: URL) {
+        activateForMainWindowOpen()
+        model.openGPGFile(url)
     }
 
     /// `.szs` 打开入口 —— peek manifest + 签名状态 → 弹 SZSVerificationSheet 跑文件级校验。

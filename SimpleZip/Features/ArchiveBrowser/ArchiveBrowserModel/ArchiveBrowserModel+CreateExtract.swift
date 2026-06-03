@@ -29,6 +29,7 @@ extension ArchiveBrowserModel {
         startOperationTask(cancellable: true) { [weak self] operationID in
             guard let self else { return }
             var extractedDiskImageURL: URL?
+            var extractedNestedArchiveURL: URL?
             let didSucceed = await runArchiveTask(L10n.format("status.openingArchiveItem", item.displayName)) { progress in
                 let destination = try self.makeArchiveItemOpenDirectory()
                 self.openedArchiveItemDirectories.append(destination)
@@ -79,6 +80,14 @@ extension ArchiveBrowserModel {
                             extractedDiskImageURL = extractedURL
                             return
                         }
+                        // **嵌套压缩包的固有问题修复**：解出来的项本身又是受支持压缩包（zip 套 zip、tgz 里的 tar、
+                        // 7z 套 tar…）→ 在 app 内打开，**绝不**走 NSWorkspace.open。后者把 /tmp 里的临时档案当外部
+                        // 文件按 UTI 转回 SimpleZip → openArchive 拿到的是 /tmp 路径且无 displayedAs → 地址栏 + 上一级
+                        // 全暴露 `/var/folders/...`（dmg 必须在此判断**之前**拦掉，它也算 supportedArchive 但走挂载）。
+                        if ArchiveService.isSupportedArchive(extractedURL) {
+                            extractedNestedArchiveURL = extractedURL
+                            return
+                        }
                         guard NSWorkspace.shared.open(extractedURL) else {
                             throw ArchiveError.openExtractedItemFailed
                         }
@@ -104,6 +113,10 @@ extension ArchiveBrowserModel {
             if didSucceed {
                 if let extractedDiskImageURL {
                     openDiskImage(extractedDiskImageURL)
+                } else if let extractedNestedArchiveURL {
+                    // 在 app 内浏览嵌套档案：地址栏把整条虚拟链堆叠出来（`…/xx.zip/xa/a.zip`），
+                    // 「上一级」退出整条链回到最外层档案所在的真实文件夹，全程不露 /tmp。
+                    openNestedArchive(extractedNestedArchiveURL, entryName: item.name)
                 } else {
                     status = L10n.format("status.openedArchiveItem", item.displayName)
                 }

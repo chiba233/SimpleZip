@@ -779,6 +779,26 @@ enum GPGBackend {
         return try await BackendProcessRunner.runAndCapture(tool, arguments: args)
     }
 
+    /// 嗅探一个 `.gpg`/`.pgp`/`.asc` 文件的 OpenPGP 内容类别 —— 决定双击是「解密打开」还是「导入钥匙串」。
+    ///
+    /// **纯本地、瞬时、绝不起 gpg、绝不解密、绝不弹 passphrase**：
+    /// - 装甲（ASCII-armored）→ 读首行 `-----BEGIN PGP …-----`（`GPGFileKind.fromArmorHeader`）。
+    /// - 二进制 → 读首个 OpenPGP 包头字节，按 RFC 4880 packet tag 定性（`GPGFileKind.fromBinaryPacketTag`）。
+    ///
+    /// 之所以**不**用 `gpg --list-packets`：它对加密文件会尝试解密内层会话密钥、触发 pinentry；用户取消
+    /// 就让它非零退出，把加密文件误判成「不可识别」。读包头则完全规避——只看结构、不碰内容。
+    static func classifyFile(at fileURL: URL) -> GPGFileKind {
+        guard let handle = try? FileHandle(forReadingFrom: fileURL) else { return .unknown }
+        defer { try? handle.close() }
+        // 读前 4KB 足以覆盖装甲头 + 注释行；二进制只需首字节，多读无妨。
+        let head = (try? handle.read(upToCount: 4096)) ?? Data()
+        if let text = String(data: head, encoding: .utf8) ?? String(data: head, encoding: .ascii),
+           let armorKind = GPGFileKind.fromArmorHeader(text) {
+            return armorKind
+        }
+        return GPGFileKind.fromBinaryPacketTag(head)
+    }
+
     /// 加密任意文件 —— `.siz` v3 内层 archive 加密的后端入口。
     ///
     /// **三种组合**：

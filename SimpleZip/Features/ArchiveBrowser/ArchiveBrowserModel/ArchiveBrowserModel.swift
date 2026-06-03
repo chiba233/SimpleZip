@@ -57,6 +57,12 @@ final class ArchiveBrowserModel: ObservableObject {
     /// 切换到其它 mode（folder / tag）或非 SIZ archive 时由 `openArchive` 自动清空。
     @Published var archiveDisplayOverride: URL?
 
+    /// **嵌套档案的虚拟堆叠路径**（档案里套档案）。仅用于地址栏 / 标题**显示**，让用户看懂自己在第几层嵌套，
+    /// 例如 `/Users/me/Desktop/xx.zip/xa/a.zip/b.zip/c.zip`。这些中间段是**虚拟目录**，不要求真的可点进 / 可访问。
+    /// 进一层嵌套档案压一段（见 `openNestedArchive`）；任何「真实」打开（核心 `openArchive` / `openFolder`）都清空它。
+    /// 非空时 `archiveDisplayOverride` 同时指向**最外层真实档案**，供「上一级」退出整条虚拟链回到真实文件夹。
+    @Published var nestedDisplayPath: String?
+
     /// `.siz` 容器在 SimpleZip 内被点开时的待处理 URL —— ContentView 用 `.onChange` 接住跑 unwrap + 验签 sheet。
     /// 不能走 `NSWorkspace.shared.open`：`.siz` UTI 注册到自己会循环创建新主窗口。
     /// 用 @Published 而不是 Notification.Name —— 单发单收的「函数调用穿了通知马甲」（AGENTS A3）。
@@ -130,6 +136,8 @@ final class ArchiveBrowserModel: ObservableObject {
     /// 删除后键盘光标应落到的「邻居」URL：等 FileTable 刷出后选中它并把焦点交回表格，
     /// 这样删除一项后方向键能从邻居继续，而不是丢焦点、回到列表顶端。
     @Published var pendingSelectionURL: URL?
+    /// 双击 `.gpg` 嗅探出是公钥/私钥时承载的导入请求 → ContentView 观察它弹 GPGKeyImportSheet（复用 importKey 后端）。
+    @Published var pendingGPGKeyImport: GPGKeyImportRequest?
     /// 当前文件夹的 FSEvents 监视器：内容变化（外部改动 + 本应用自己的增删改 / 重命名）自动刷新列表。
     /// 仅 `.folder` 模式启用，由 `reload()` 统一 watch/stop。引入它后文件操作不再各自手动 reload。
     /// 在 `init()` 里创建（onChange 闭包需要捕获 self）；非 `lazy` —— `lazy` 的隔离初始化器无法在 `deinit` 里访问。
@@ -175,12 +183,26 @@ final class ArchiveBrowserModel: ObservableObject {
     var title: String {
         switch mode {
         case .folder(let url):
+            // 虚拟目录模式（`.szs` / `.gpg` 解密产物）在 payloadRoot 时显示容器名（如 `xxx.szs` / `secret.txt.gpg`），
+            // 而不是真实路径末段（`.gpg` 解密目录是 `/var/folders/...` 的 UUID 目录，丑且无意义）。与 locationText 一致。
+            if let virtual = manifestVirtualMode, url.standardizedFileURL.path == virtual.payloadRoot.path {
+                return virtual.manifestURL.lastPathComponent
+            }
             return url.lastPathComponent.isEmpty ? url.path : url.lastPathComponent
         case .archive(let url):
+            // 嵌套档案：标题显示最内层档案名（虚拟堆叠串的末段，如 `c.zip`）。
+            if let nested = nestedDisplayPath {
+                return URL(fileURLWithPath: nested).lastPathComponent
+            }
             return (archiveDisplayOverride ?? url).lastPathComponent
         case .tag(let tag):
             return tag
         }
+    }
+
+    /// archive 模式地址栏的「基础路径」：嵌套档案用虚拟堆叠串，否则用真实档案路径（`.siz`/`.gpg` 的 override 或真 URL）。
+    private func archiveDisplayBasePath(_ url: URL) -> String {
+        nestedDisplayPath ?? (archiveDisplayOverride ?? url).path
     }
 
     var locationText: String {
@@ -195,8 +217,8 @@ final class ArchiveBrowserModel: ObservableObject {
         case .archive(let url):
             // `archiveDisplayOverride` 给 `.siz` 这种「内层 archive 实际在 /tmp，但用户心智里是
             // 桌面的 `xxx.siz`」的场景用 —— 显示原始 .siz 路径而不是丑陋的 `/var/folders/...`。
-            let displayed = archiveDisplayOverride ?? url
-            let baseLocation = L10n.format("location.archive", displayed.path)
+            // 嵌套档案则用 `nestedDisplayPath` 把整条虚拟链堆叠出来（archiveDisplayBasePath 统一处理）。
+            let baseLocation = L10n.format("location.archive", archiveDisplayBasePath(url))
             let path = session.archivePath
             return path.isEmpty ? baseLocation : "\(baseLocation) / \(path.trimmingCharacters(in: CharacterSet(charactersIn: "/")))"
         case .tag(let tag):
@@ -213,9 +235,9 @@ final class ArchiveBrowserModel: ObservableObject {
             }
             return url.path
         case .archive(let url):
-            let displayed = archiveDisplayOverride ?? url
+            let base = archiveDisplayBasePath(url)
             let path = session.archivePath
-            return path.isEmpty ? displayed.path : displayed.path + "/" + path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            return path.isEmpty ? base : base + "/" + path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         case .tag(let tag):
             return L10n.format("location.tag", tag)
         }
