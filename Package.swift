@@ -70,6 +70,7 @@ let package = Package(
                 "Core/SIZArchive.swift",
                 "Core/SZSArchive.swift",
                 "Core/TemporaryResourceManager.swift",
+                "Core/UndoFileSnapshot.swift",
                 "Core/UniqueFileName.swift"
             ]
         ),

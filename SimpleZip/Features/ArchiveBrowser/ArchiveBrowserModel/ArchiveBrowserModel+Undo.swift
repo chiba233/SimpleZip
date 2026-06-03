@@ -217,28 +217,4 @@ private struct UndoCreateStep {
     let snapshot: UndoFileSnapshot
 }
 
-private struct UndoFileSnapshot {
-    let fileType: FileAttributeType?
-    let fileSize: UInt64?
-    let modificationDate: Date?
-    let systemNumber: UInt64?
-    let fileNumber: UInt64?
-
-    init?(url: URL, fileManager: FileManager) {
-        guard let attributes = try? fileManager.attributesOfItem(atPath: url.path) else { return nil }
-        fileType = attributes[.type] as? FileAttributeType
-        fileSize = (attributes[.size] as? NSNumber)?.uint64Value
-        modificationDate = attributes[.modificationDate] as? Date
-        systemNumber = (attributes[.systemNumber] as? NSNumber)?.uint64Value
-        fileNumber = (attributes[.systemFileNumber] as? NSNumber)?.uint64Value
-    }
-
-    func matches(url: URL, fileManager: FileManager) -> Bool {
-        guard let current = UndoFileSnapshot(url: url, fileManager: fileManager) else { return false }
-        return current.fileType == fileType
-            && current.fileSize == fileSize
-            && current.modificationDate == modificationDate
-            && current.systemNumber == systemNumber
-            && current.fileNumber == fileNumber
-    }
-}
+// `UndoFileSnapshot`（撤销/重做的「文件未被改动」安全判定）已抽到 Core/UndoFileSnapshot.swift（SwiftPM 可测）。
