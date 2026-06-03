@@ -27,6 +27,14 @@ struct CreateSZSSheet: View {
     @State private var signingKeyFingerprint: String = ""
     @State private var outputURL: URL?
     @State private var availableSecretKeys: [GPGBackend.GPGKey] = []
+    /// 「把文件加密成 .gpg」总开关 + 收件人 / 对称密码（复用 ArchiveCreationOptionsView 的 idiom 与 L10n key）。
+    /// 默认关 = 清单覆盖明文文件（原行为）。开了则每个文件先加密成旁边的 `<name>.gpg`，清单覆盖那些 `.gpg`。
+    /// 注意：加密的是**文件本身**，清单（只是哈希信息）始终明文 clearsigned。
+    @State private var encryptFiles = false
+    @State private var recipientFingerprints: [String] = []
+    @State private var symmetricPassphrase = ""
+    /// 可作收件人的公钥（仅用户钥匙串，与 GPGBackend.encrypt 默认 homedir 一致）。
+    @State private var availableEncryptionKeys: [GPGBackend.GPGKey] = []
     @State private var isCreating = false
     @State private var statusMessage: String?
     @State private var statusIsError = false
@@ -44,6 +52,7 @@ struct CreateSZSSheet: View {
                 titleRow
                 descriptionRow
                 signingKeyRow
+                encryptFilesRows
                 outputRow
             }
 
@@ -56,9 +65,19 @@ struct CreateSZSSheet: View {
             }
 
             HStack {
+                // 创建中显示菊花 + 「正在创建…」——加密多个文件 + 签名要跑好几个 gpg 进程，
+                // 期间还会弹 pinentry，没有进度提示会让人以为卡死了。
+                if isCreating {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text(L10n.text("szs.create.creating"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 Spacer()
                 Button(L10n.text("szs.create.cancelButton"), action: onClose)
                     .keyboardShortcut(.cancelAction)
+                    .disabled(isCreating)
                 Button(L10n.text("szs.create.createButton")) {
                     runCreate()
                 }
@@ -202,6 +221,105 @@ struct CreateSZSSheet: View {
         return L10n.format("archive.gpgSign.key.missingFingerprint", String(signingKeyFingerprint.suffix(16)))
     }
 
+    // MARK: - 把文件加密成 .gpg（可选）
+
+    @ViewBuilder
+    private var encryptFilesRows: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            labelText("szs.create.encryptLabel")
+            Toggle(L10n.text("szs.create.encryptFiles.toggle"), isOn: $encryptFiles)
+                .toggleStyle(.checkbox)
+                .onChange(of: encryptFiles) { enabled in
+                    if !enabled {
+                        recipientFingerprints.removeAll()
+                        symmetricPassphrase = ""
+                    }
+                }
+            Spacer()
+        }
+        if encryptFiles {
+            HStack(alignment: .top, spacing: 8) {
+                labelText("archive.gpgEncrypt.recipientsLabel")
+                VStack(alignment: .leading, spacing: 4) {
+                    Menu {
+                        if availableEncryptionKeys.isEmpty {
+                            Text(L10n.text("archive.gpgEncrypt.noKeysInRing"))
+                        } else {
+                            ForEach(availableEncryptionKeys) { key in
+                                Button {
+                                    toggleRecipient(key.fingerprint)
+                                } label: {
+                                    HStack {
+                                        Image(systemName: recipientFingerprints.contains(key.fingerprint) ? "checkmark.circle.fill" : "circle")
+                                        Text("\(key.userID) · \(key.shortFingerprint)")
+                                    }
+                                }
+                            }
+                        }
+                    } label: {
+                        Text(L10n.text("archive.gpgEncrypt.addRecipient"))
+                    }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
+                    if !recipientFingerprints.isEmpty {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 6) {
+                                ForEach(recipientFingerprints, id: \.self) { fp in
+                                    recipientChip(fp)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                labelText("archive.gpgEncrypt.passphraseLabel")
+                SecureField(L10n.text("archive.gpgEncrypt.passphrasePlaceholder"), text: $symmetricPassphrase)
+                    .textFieldStyle(.roundedBorder)
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                labelText("")
+                Text(L10n.text("szs.create.encryptFiles.hint"))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func recipientChip(_ fingerprint: String) -> some View {
+        let key = availableEncryptionKeys.first(where: { $0.fingerprint == fingerprint })
+        HStack(spacing: 4) {
+            Text(key.map { "\($0.userID) · \($0.shortFingerprint)" }
+                ?? L10n.format("archive.gpgEncrypt.unknownRecipient", String(fingerprint.suffix(16))))
+                .font(.caption2)
+                .lineLimit(1)
+                .truncationMode(.middle)
+            Button {
+                recipientFingerprints.removeAll { $0 == fingerprint }
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 3)
+        .background(Color.accentColor.opacity(0.12))
+        .clipShape(Capsule())
+    }
+
+    private func toggleRecipient(_ fingerprint: String) {
+        if let index = recipientFingerprints.firstIndex(of: fingerprint) {
+            recipientFingerprints.remove(at: index)
+        } else {
+            recipientFingerprints.append(fingerprint)
+        }
+    }
+
     private var outputRow: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             labelText("szs.create.outputLocation")
@@ -221,7 +339,12 @@ struct CreateSZSSheet: View {
     // MARK: - Actions
 
     private var canCreate: Bool {
-        payloadRoot != nil && !selectedFiles.isEmpty && outputURL != nil && !isCreating
+        guard payloadRoot != nil, !selectedFiles.isEmpty, outputURL != nil, !isCreating else { return false }
+        // 开了加密文件但既没选收件人也没设密码 → 没人能解，禁用。
+        if encryptFiles {
+            return !recipientFingerprints.isEmpty || !symmetricPassphrase.isEmpty
+        }
+        return true
     }
 
     private func applyPrefillIfAny() {
@@ -249,6 +372,7 @@ struct CreateSZSSheet: View {
         Task { @MainActor in
             if let loaded = try? await GPGBackend.listKeys() {
                 availableSecretKeys = loaded.filter { $0.hasSecretKey }
+                availableEncryptionKeys = loaded.filter { $0.source == .userKeyring }
             }
         }
     }
@@ -319,18 +443,40 @@ struct CreateSZSSheet: View {
         guard let payloadRoot, let outputURL, !selectedFiles.isEmpty else { return }
         isCreating = true
         statusMessage = nil
+        // 接入活动中心：创建签名清单和「创建压缩包」一样，在「归档操作」里建一个任务，
+        // 标题带 `.szs` 名，展开后用 transferLog 列出清单覆盖的每个文件 + `.szs` 本身（「新增」），
+        // 和「粘贴」一样的逐文件密度。之前 szs 创建完全不进活动中心。
+        let outputName = outputURL.lastPathComponent
+        let detailsSession = ArchiveOperationDetailsSession(title: outputName)
+        let task = TaskCenter.shared.begin(
+            category: .archive,
+            kind: .compress,
+            title: L10n.format("status.creating", outputName),
+            cancellable: false,
+            detailsSession: detailsSession
+        )
         Task {
             do {
-                try await SZSArchive.create(
+                let manifest = try await SZSArchive.create(
                     payloadRoot: payloadRoot,
                     files: selectedFiles,
                     signingKeyFingerprint: signingKeyFingerprint.isEmpty ? nil : signingKeyFingerprint,
                     title: title.isEmpty ? nil : title,
                     description: description.isEmpty ? nil : description,
+                    encryptionRecipients: encryptFiles ? recipientFingerprints : [],
+                    encryptionPassphrase: encryptFiles && !symmetricPassphrase.isEmpty ? symmetricPassphrase : nil,
                     outputURL: outputURL
                 )
                 await MainActor.run {
-                    statusMessage = L10n.format("szs.create.succeeded", outputURL.lastPathComponent)
+                    var log = manifest.files.map {
+                        TransferLogEntry(name: $0.relativePath, action: .added, isDirectory: false)
+                    }
+                    log.append(TransferLogEntry(name: outputName, action: .added, isDirectory: false))
+                    task.transferLog = log
+                    detailsSession.finishedAt = Date()
+                    TaskCenter.shared.finish(task, outcome: .succeeded(outputURL))
+                    SystemSound.operationComplete?.play()
+                    statusMessage = L10n.format("szs.create.succeeded", outputName)
                     statusIsError = false
                     isCreating = false
                     // 1.5s 后自动关 sheet —— 让用户看到成功反馈，但不挡屏幕太久。
@@ -340,6 +486,9 @@ struct CreateSZSSheet: View {
                 }
             } catch {
                 await MainActor.run {
+                    detailsSession.append(error.localizedDescription)
+                    detailsSession.finishedAt = Date()
+                    TaskCenter.shared.finish(task, outcome: .failed(error.localizedDescription))
                     statusMessage = L10n.format("szs.create.failed", error.localizedDescription)
                     statusIsError = true
                     isCreating = false

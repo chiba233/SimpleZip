@@ -20,6 +20,9 @@ struct GPGEncryptRequest: Identifiable {
     let directoryURL: URL
     var recipientFingerprints: [String] = []
     var symmetricPassphrase: String = ""
+    /// 多选时的加密方式：true = 逐个文件各产一个 `.gpg`；false = 打包成一个 `.tar.gpg`。
+    /// 默认逐个（用户更直觉的「一个文件一个 .gpg」）。单个源时此项无影响（两种产物一致）。
+    var perFile: Bool = true
 }
 
 struct GPGEncryptOptionsView: View {
@@ -29,9 +32,16 @@ struct GPGEncryptOptionsView: View {
     @State private var availableKeys: [GPGBackend.GPGKey] = []
     /// 预设密码快照：开了「预设密码」时自动填进对称密码框（与创建对话框对称）。dialog 关即丢。
     @State private var presetPassword = ""
+    /// 选区里是否含文件夹 —— 含文件夹时即使只选了一个，「逐个 vs 打包」也有区别，要显示模式选择。
+    @State private var hasDirectory = false
     @AppStorage(AppPreferences.Key.presetPasswordEnabled) private var presetPasswordEnabled = false
     let confirm: (GPGEncryptRequest) -> Void
     let cancel: () -> Void
+
+    /// 多选、或选区含文件夹时才显示「加密方式」——这两种情况「逐个 vs 打包」产物不同。
+    private var showsModePicker: Bool {
+        request.sourceURLs.count > 1 || hasDirectory
+    }
 
     private var encryptionEligibleKeys: [GPGBackend.GPGKey] {
         availableKeys.filter { $0.source == .userKeyring }
@@ -52,6 +62,15 @@ struct GPGEncryptOptionsView: View {
                 Text(L10n.format("gpgEncrypt.sourceSummary", "\(request.sourceURLs.count)"))
                     .font(.callout)
                     .foregroundStyle(.secondary)
+
+                // 多选 / 含文件夹才有意义：逐个文件分别加密 vs 打包成一个归档再加密。
+                if showsModePicker {
+                    Picker(L10n.text("gpgEncrypt.mode.label"), selection: $request.perFile) {
+                        Text(L10n.text("gpgEncrypt.mode.perFile")).tag(true)
+                        Text(L10n.text("gpgEncrypt.mode.bundle")).tag(false)
+                    }
+                    .pickerStyle(.radioGroup)
+                }
 
                 recipientsRow
                 encryptionPassphraseRow
@@ -84,6 +103,11 @@ struct GPGEncryptOptionsView: View {
         .frame(width: 480)
         .onAppear {
             presetPassword = AppPreferences.presetPassword
+            hasDirectory = request.sourceURLs.contains { url in
+                var isDir: ObjCBool = false
+                FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir)
+                return isDir.boolValue
+            }
             // 开了预设密码 → 默认填入对称密码框（用户可清空改用公钥）。与创建对话框的 preset 自动填一致。
             if presetPasswordEnabled, !presetPassword.isEmpty {
                 request.symmetricPassphrase = presetPassword

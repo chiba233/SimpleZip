@@ -302,10 +302,14 @@
 "szs.create.descriptionPlaceholder" = "Brief note shown to people who read the signed manifest";
 "szs.create.signingKeyLabel" = "Signing key";
 "szs.create.signingKey.auto" = "Default / let GPG choose";
+"szs.create.encryptLabel" = "Encrypt files";
+"szs.create.encryptFiles.toggle" = "Encrypt the listed files to .gpg";
+"szs.create.encryptFiles.hint" = "Each file is encrypted to a <name>.gpg next to the original (originals are kept), and the manifest then covers those .gpg files (their hashes). You distribute the signed manifest plus the encrypted .gpg files; recipients verify the signature, then decrypt with their key or passphrase. Encrypting to a public key needs no passphrase or touch — only the signing step uses your key. The manifest itself stays a plaintext signed file; it only holds hashes.";
 "szs.create.outputLocation" = "Output";
 "szs.create.outputLocation.choose" = "Choose…";
 "szs.create.outputLocation.placeholder" = "Save to…";
 "szs.create.createButton" = "Create";
+"szs.create.creating" = "Creating…";
 "szs.create.cancelButton" = "Cancel";
 "szs.create.succeeded" = "Signed manifest generated: %@";
 "szs.create.failed" = "Creation failed: %@";
@@ -1143,6 +1147,11 @@
 "gpgEncrypt.sourceSummary" = "Encrypting %@ selected item(s) to a .gpg file next to them.";
 "gpgEncrypt.description" = "A single file becomes name.gpg; folders or multiple items are packed into one .tar first, then encrypted to name.tar.gpg. Choose recipient public keys, a passphrase, or both — anyone with a recipient's private key or the passphrase can decrypt it. SimpleZip never manages your GPG private-key passphrase.";
 "gpgEncrypt.button" = "Encrypt";
+"gpgEncrypt.mode.label" = "How to encrypt";
+"gpgEncrypt.mode.perFile" = "Each file separately (one .gpg per file)";
+"gpgEncrypt.mode.bundle" = "Pack into one archive, then encrypt (.tar.gpg)";
 "gpgEncrypt.needsRecipientOrPassphrase" = "Add a recipient or a passphrase.";
-"status.gpgEncrypting" = "Encrypting…";
+"status.gpgEncrypting" = "Encrypting %@…";
+"status.gpgEncryptingMultiple" = "Encrypting %@ items…";
 "status.gpgEncrypted" = "Encrypted to %@";
+"status.gpgEncryptedMultiple" = "Encrypted %@ files";

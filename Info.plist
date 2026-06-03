@@ -84,6 +84,7 @@
 			<key>CFBundleTypeExtensions</key>
 			<array>
 				<string>asc</string>
+				<string>key</string>
 			</array>
 			<key>CFBundleTypeIconSystemGenerated</key>
 			<true/>

@@ -99,29 +99,45 @@ extension ArchiveBrowserModel {
     /// 执行加密为 `.gpg`：走 startManagedArchiveTask（进度 / 活动中心 / 可取消），完成后刷新当前文件夹
     /// 并在 Finder 里选中产物。folder/多选会先 tar 进加密临时卷再加密（GPGFileService.encryptToGPG）。
     func performEncryptToGPG(_ request: GPGEncryptRequest) {
-        var producedURL: URL?
+        var producedURLs: [URL] = []
+        // 标题带信息：单个 → 「正在加密 a.txt」；多选 → 「正在加密 3 项」。产物名等成功后从 producedURLs 拿。
+        let title: String
+        if request.sourceURLs.count == 1 {
+            title = L10n.format("status.gpgEncrypting", request.sourceURLs[0].lastPathComponent)
+        } else {
+            title = L10n.format("status.gpgEncryptingMultiple", "\(request.sourceURLs.count)")
+        }
         startManagedArchiveTask(
-            title: L10n.text("status.gpgEncrypting"),
+            title: title,
             kind: .compress,
             showsDetails: false,
             successStatus: nil,
             refreshOnSuccess: { [weak self] in
-                guard let self, let producedURL else { return }
-                self.status = L10n.format("status.gpgEncrypted", producedURL.lastPathComponent)
-                // 产物就在当前浏览的文件夹里 —— 只刷新当前视图让它出现在列表，并把光标落到它身上。
+                guard let self, let first = producedURLs.first else { return }
+                self.status = producedURLs.count == 1
+                    ? L10n.format("status.gpgEncrypted", first.lastPathComponent)
+                    : L10n.format("status.gpgEncryptedMultiple", "\(producedURLs.count)")
+                // 产物就在当前浏览的文件夹里 —— 只刷新当前视图让它出现在列表，并把光标落到第一个产物。
                 // **绝不**调 NSWorkspace 把 Finder 拉到前台（与创建压缩包流程一致，全程留在 app 内）。
-                self.pendingSelectionURL = producedURL.standardizedFileURL
-                self.refreshVisibleFolder(containing: producedURL)
+                self.pendingSelectionURL = first.standardizedFileURL
+                self.refreshVisibleFolder(containing: first)
+            },
+            onSucceeded: { task in
+                // 活动中心展开后显示「新增：<产物>.gpg」（逐个加密时是多条）——给「正在加密」真实的结果密度。
+                task.transferLog = producedURLs.map {
+                    TransferLogEntry(name: $0.lastPathComponent, action: .added, isDirectory: false)
+                }
             }
         ) { operationID, _, _ in
-            let url = try await GPGFileService.encryptToGPG(
+            let urls = try await GPGFileService.encryptToGPG(
                 sources: request.sourceURLs,
                 in: request.directoryURL,
                 recipients: request.recipientFingerprints,
                 symmetricPassphrase: request.symmetricPassphrase.isEmpty ? nil : request.symmetricPassphrase,
+                perFile: request.perFile,
                 operationID: operationID
             )
-            producedURL = url
+            producedURLs = urls
         }
     }
 

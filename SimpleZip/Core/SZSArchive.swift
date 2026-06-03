@@ -230,6 +230,24 @@ enum SZSArchive {
         return result
     }
 
+    /// 在文件原位旁边算一个不覆盖已有文件的 `<name>.gpg` 落点（重名 ` 2`、` 3`…）。
+    /// 与 app 端 `GPGFileService.encryptedDestination` 同口径，但 Core 不依赖 app 层，这里自带一份。
+    static func uniqueEncryptedDestination(for fileURL: URL) -> URL {
+        let fm = FileManager.default
+        let directory = fileURL.deletingLastPathComponent()
+        let name = fileURL.lastPathComponent
+        func candidate(_ tail: String) -> URL {
+            directory.appendingPathComponent("\(name)\(tail).gpg")
+        }
+        var destination = candidate("")
+        var n = 2
+        while fm.fileExists(atPath: destination.path) {
+            destination = candidate(" \(n)")
+            n += 1
+        }
+        return destination
+    }
+
     // MARK: - 创建
 
     /// 给定 root + 文件列表 + 签名密钥，生成签名的 `.szs` 文件。
@@ -242,6 +260,14 @@ enum SZSArchive {
     /// 5. 临时 plaintext 在 defer 里清掉。
     ///
     /// 签名 passphrase 跟 `.siz` 一样走 gpg-agent + pinentry-mac，本函数不接触。
+    ///
+    /// **可选：把列出的文件加密成 `.gpg`**（`encryptionRecipients` / `encryptionPassphrase` 给了任一即触发）。
+    /// 这时每个文件先在**原位旁边**生成 `<名字>.gpg`（原文件保留不动，重名自动 ` 2`、` 3`…，绝不覆盖），
+    /// 然后**清单覆盖的是加密后的 `.gpg`**（relativePath = `xxx.gpg`，size / sha256 都按 `.gpg` 算）——
+    /// 因为既然要加密分发，明文就不该进清单 / 分发物。清单本身仍是 clearsigned 明文（清单只是哈希信息，
+    /// 加密它没意义）。加密用收件人公钥不需要私钥 / 卡 / passphrase；签名那一步照常走卡 PIN。
+    /// 返回最终写进 `.szs` 的 `Manifest`（含 files 列表）—— 调用方据此往活动中心填「逐文件结果」。
+    @discardableResult
     static func create(
         payloadRoot: URL,
         files: [URL],
@@ -249,13 +275,17 @@ enum SZSArchive {
         title: String? = nil,
         description: String? = nil,
         rootDirectoryHint: String? = nil,
+        encryptionRecipients: [String] = [],
+        encryptionPassphrase: String? = nil,
         outputURL: URL,
         operationID: UUID? = nil
-    ) async throws {
+    ) async throws -> Manifest {
         guard !files.isEmpty else {
             throw SZSError.noFilesToSign
         }
         let payloadRootPath = payloadRoot.standardizedFileURL.path
+        let normalizedPassphrase = encryptionPassphrase?.isEmpty == false ? encryptionPassphrase : nil
+        let shouldEncrypt = !encryptionRecipients.isEmpty || normalizedPassphrase != nil
 
         // Step 0：把选中的目录递归展开成普通文件（`.szs` 目录支持）。文件原样、目录递归、符号链接跳过。
         // 展开后可能为空（只选了空目录 / 符号链接）→ 视为「没东西可签」。
@@ -265,6 +295,7 @@ enum SZSArchive {
         }
 
         // Step 1：扫每个文件 → relativePath + size + sha256。
+        // 开了加密：先把文件加密成旁边的 `<name>.gpg`，清单记的是这个 `.gpg`（哈希 / 大小都按 .gpg 算）。
         var entries: [FileEntry] = []
         for fileURL in resolvedFiles {
             let absolutePath = fileURL.standardizedFileURL.path
@@ -274,11 +305,29 @@ enum SZSArchive {
             guard absolutePath.hasPrefix(normalizedRoot) else {
                 throw SZSError.fileOutsidePayloadRoot(absolutePath)
             }
-            let rawRelative = String(absolutePath.dropFirst(normalizedRoot.count))
+
+            // 要进清单的「目标文件」：加密则是新生成的 .gpg，否则是原文件。
+            let manifestFileURL: URL
+            if shouldEncrypt {
+                let gpgURL = uniqueEncryptedDestination(for: fileURL)
+                try await GPGBackend.encrypt(
+                    fileURL: fileURL,
+                    recipients: encryptionRecipients,
+                    symmetricPassphrase: normalizedPassphrase,
+                    outputURL: gpgURL,
+                    operationID: operationID
+                )
+                manifestFileURL = gpgURL
+            } else {
+                manifestFileURL = fileURL
+            }
+
+            let manifestAbsolute = manifestFileURL.standardizedFileURL.path
+            let rawRelative = String(manifestAbsolute.dropFirst(normalizedRoot.count))
             let relativePath = try validatedRelativePath(rawRelative)
-            let attrs = try FileManager.default.attributesOfItem(atPath: absolutePath)
+            let attrs = try FileManager.default.attributesOfItem(atPath: manifestAbsolute)
             let size = (attrs[.size] as? Int) ?? 0
-            let sha256 = try SIZArchive.computeInnerArchiveSHA256(of: fileURL)
+            let sha256 = try SIZArchive.computeInnerArchiveSHA256(of: manifestFileURL)
             entries.append(FileEntry(relativePath: relativePath, size: size, sha256: sha256, mediaType: nil))
         }
 
@@ -318,6 +367,7 @@ enum SZSArchive {
             outputURL: outputURL,
             operationID: operationID
         )
+        return manifest
     }
 
     // MARK: - 校验

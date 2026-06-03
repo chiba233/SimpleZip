@@ -185,6 +185,9 @@ extension ArchiveBrowserModel {
         cancellable: Bool = true,
         successStatus: String? = nil,
         refreshOnSuccess: (() -> Void)? = nil,
+        // 成功后、归档进历史前的钩子 —— 给调用方往任务上挂「逐文件结果」(transferLog) / detail，
+        // 让活动中心展开后有「新增 N 项」那样的密度（加密 / 创建签名清单用）。默认 nil = 老行为不变。
+        onSucceeded: ((OperationTask) -> Void)? = nil,
         operation: @escaping (UUID?, @escaping @Sendable (ArchiveProgressState) -> Void, (@Sendable (String) -> Void)?) async throws -> Void
     ) {
         let detailsSession = ArchiveOperationDetailsSession(title: title)
@@ -229,6 +232,7 @@ extension ArchiveBrowserModel {
                 progressCoalescer.submit(ArchiveProgressState(fraction: 1, currentFile: nil, statusText: L10n.text("status.done")))
                 detailsOutput.flushNow()
                 detailsSession.finishedAt = Date()
+                onSucceeded?(operationTask)
                 taskCenter.finish(operationTask, outcome: .succeeded(nil))
                 if let successStatus {
                     status = successStatus

@@ -302,10 +302,14 @@
 "szs.create.descriptionPlaceholder" = "用户阅读签名清单时显示的简短说明";
 "szs.create.signingKeyLabel" = "签名密钥";
 "szs.create.signingKey.auto" = "默认 / 让 GPG 挑";
+"szs.create.encryptLabel" = "加密文件";
+"szs.create.encryptFiles.toggle" = "把列出的文件加密成 .gpg";
+"szs.create.encryptFiles.hint" = "每个文件会在原位旁边加密成 <名字>.gpg（原文件保留），清单随后覆盖这些 .gpg（哈希它们）。你分发的是签名清单 + 加密的 .gpg 文件；收件人验签后用自己的钥匙或密码解密。用公钥加密无需密码或 touch——只有签名那一步用到你的钥匙。清单本身仍是明文签名文件，只装哈希信息。";
 "szs.create.outputLocation" = "输出路径";
 "szs.create.outputLocation.choose" = "选择…";
 "szs.create.outputLocation.placeholder" = "保存到…";
 "szs.create.createButton" = "创建";
+"szs.create.creating" = "正在创建…";
 "szs.create.cancelButton" = "取消";
 "szs.create.succeeded" = "签名清单已生成：%@";
 "szs.create.failed" = "生成失败：%@";
@@ -1143,6 +1147,11 @@
 "gpgEncrypt.sourceSummary" = "把选中的 %@ 个项目加密成它们旁边的 .gpg 文件。";
 "gpgEncrypt.description" = "单个文件会变成 name.gpg；文件夹或多选会先打包成一个 .tar 再加密成 name.tar.gpg。可选收件人公钥、对称密码或两者皆选——任一收件人的私钥或该密码都能解密。SimpleZip 从不经手你的 GPG 私钥 passphrase。";
 "gpgEncrypt.button" = "加密";
+"gpgEncrypt.mode.label" = "加密方式";
+"gpgEncrypt.mode.perFile" = "逐个文件分别加密（每个文件一个 .gpg）";
+"gpgEncrypt.mode.bundle" = "打包成一个归档再加密（.tar.gpg）";
 "gpgEncrypt.needsRecipientOrPassphrase" = "请添加收件人或设置密码。";
-"status.gpgEncrypting" = "正在加密…";
+"status.gpgEncrypting" = "正在加密 %@…";
+"status.gpgEncryptingMultiple" = "正在加密 %@ 项…";
 "status.gpgEncrypted" = "已加密为 %@";
+"status.gpgEncryptedMultiple" = "已加密 %@ 个文件";

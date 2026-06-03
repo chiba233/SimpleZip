@@ -302,10 +302,11 @@ extension ArchiveBrowserModel {
             // 之前这里没有 .szs 分支 → 掉进 NSWorkspace.open → 系统按 UTI 把它当外部打开转回来 →
             // 走 handleRunningExternalOpen 永远开新标签（用户反馈「.szs 固定在新标签打开」的根因）。
             pendingSZSOpen = item.url
-        } else if AppPreferences.gpgEnabled, GPGFileService.isRecognizedGPGFile(item.url) {
-            // `.gpg`/`.pgp`/`.asc`：当带密码压缩包/钥匙串材料处理 —— openGPGFile 内部嗅探包头再路由
+        } else if AppPreferences.gpgEnabled, !item.isDirectory, GPGFileService.isRecognizedGPGFile(item.url) {
+            // `.gpg`/`.pgp`/`.asc`/`.key`：当带密码压缩包/钥匙串材料处理 —— openGPGFile 内部嗅探包头再路由
             // （加密数据→解密浏览、公钥/私钥→导入 sheet）。**仅 gpgEnabled==true 时启用**（A4）；
             // 关了 GPG 主开关就落到 NSWorkspace.open 走系统默认 app，不暴露任何 GPG 行为。
+            // `!item.isDirectory`：`.key` 也是 Keynote 文稿（目录包）的扩展名，排除目录包不误送进 GPG。
             openGPGFile(item.url)
         } else if ArchiveService.isSupportedArchive(item.url) {
             openArchive(item.url)
