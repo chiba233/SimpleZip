@@ -260,15 +260,20 @@ jobs:
         run: |
           set -euo pipefail
 
-          # 幂等:release 已存在(重跑 / 补 appcast 场景)时不报错,改为覆盖上传 DMG 资产,
-          # 让流程能继续走到「提交 appcast」那步,而不是卡在「release already exists」。
+          # 幂等 + 自愈:
+          #  - release 已存在(含**草稿**态:删 tag 会把已发布 release 打成 draft)→ 覆盖上传 DMG +
+          #    `--draft=false` **强制重新发布**,否则会一直卡在草稿、公开下载 URL 404。
+          #  - 不存在 → 直接新建(默认即已发布)。
+          # 无论哪条路径,最终都是「已发布、带最新 DMG」的 release。
+          NOTES="Unsigned ad-hoc signed macOS DMG. macOS Gatekeeper may warn because this build is not Developer ID signed or notarized."
           if gh release view "v$RELEASE_VERSION" >/dev/null 2>&1; then
             gh release upload "v$RELEASE_VERSION" artifacts/*.dmg --clobber
+            gh release edit "v$RELEASE_VERSION" --draft=false
           else
             gh release create "v$RELEASE_VERSION" \
               artifacts/*.dmg \
               --title "SimpleZip $RELEASE_VERSION" \
-              --notes "Unsigned ad-hoc signed macOS DMG. macOS Gatekeeper may warn because this build is not Developer ID signed or notarized."
+              --notes "$NOTES"
           fi
 
       # 把 appcast.xml 推回 main，让 raw.githubusercontent.com/.../main/docs/appcast.xml 拿到新版。
