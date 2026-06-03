@@ -65,7 +65,8 @@ nonisolated final class ThrottledDetailsOutput: @unchecked Sendable {
 }
 
 /// 进度节流：后端逐文件回调进度（几万次），只保留最新值，主 actor 最多每 ~80ms 应用一次，避免状态栏被刷爆。
-private nonisolated final class ProgressCoalescer: @unchecked Sendable {
+/// 0.3.0：从 `private` 放宽到模块内可见——拖出解压（+CreateExtract 的 `exportArchiveItem`）也复用它做进度节流。
+nonisolated final class ProgressCoalescer: @unchecked Sendable {
     private let lock = NSLock()
     private var latest: ArchiveProgressState?
     private var scheduled = false

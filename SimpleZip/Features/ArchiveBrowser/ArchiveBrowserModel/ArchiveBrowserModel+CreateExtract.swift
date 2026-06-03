@@ -157,6 +157,10 @@ extension ArchiveBrowserModel {
     /// 拖出解压:把档案条目解到目标。`destinationURL` 是 `NSFilePromiseProvider` 给的**完整目标文件 URL**
     /// （AppKit 已经用 `fileNameForType` 把文件名拼好,并放在它准备好的位置;父目录已存在）——
     /// ⚠️ 不要再 `appendingPathComponent(displayName)`,否则会拼成 `…/名字/名字`、父目录不存在 → 移动失败、拖出无产物。
+    ///
+    /// 全程登记成一个**活动中心任务**(进度 + 可取消):本函数被 file promise 的回调 `await`,任务生命周期
+    /// (begin→进度→finish)就在这里收尾,promise 的 `completionHandler` 在它返回/抛错时自然触发。
+    /// 不主动弹活动中心窗口(拖拽场景弹窗打扰),用户想看时自己打开即可。
     func exportArchiveItem(_ item: ArchiveItem, to destinationURL: URL) async throws {
         guard case .archive(let archiveURL) = mode else {
             throw ArchiveError.unsupportedFormat
@@ -167,29 +171,63 @@ extension ArchiveBrowserModel {
             throw ArchiveError.extractedItemNotFound
         }
 
-        status = L10n.format("status.exportingArchiveItem", item.displayName)
+        let operationID = UUID()
+        let taskCenter = TaskCenter.shared
+        let title = L10n.format("status.exportingArchiveItem", item.displayName)
+        let task = taskCenter.begin(
+            category: .archive,
+            kind: .extract,
+            title: title,
+            cancellable: true,
+            operationID: operationID
+        )
+        task.progress = ArchiveProgressState(fraction: 0, currentFile: nil)
+        // 取消:活动中心点取消 → 杀掉后端命令(extract 随即抛错)。didCancel 让 catch 把结果标成「已取消」而非「失败」。
+        var didCancel = false
+        task.cancel = {
+            didCancel = true
+            ArchiveService.cancelRunningCommand(operationID: operationID)
+        }
+        let progressCoalescer = ProgressCoalescer { [weak task] progress in
+            guard let task, task.status.isRunning else { return }
+            task.progress = progress
+            taskCenter.notifyTaskChanged()
+        }
+
+        status = title
         let stagingURL = try extractionCoordinator.makeExtractionStagingDirectory()
         defer { try? fileManager.removeItem(at: stagingURL) }
 
-        try confirmArchiveExtractionSafety(entries: entries)
-        try await ArchiveService.extract(
-            archiveURL,
-            entries: entries,
-            to: stagingURL,
-            overwriteBehavior: .overwrite,
-            pathMode: .preserve,
-            safetyPolicy: .skipValidation,
-            force: isForced(archiveURL)
-        )
-        try confirmExtractedArchiveLinks(at: stagingURL)
+        do {
+            try confirmArchiveExtractionSafety(entries: entries)
+            try await ArchiveService.extract(
+                archiveURL,
+                entries: entries,
+                to: stagingURL,
+                overwriteBehavior: .overwrite,
+                pathMode: .preserve,
+                safetyPolicy: .skipValidation,
+                operationID: operationID,
+                progress: { progressCoalescer.submit($0) },
+                force: isForced(archiveURL)
+            )
+            try confirmExtractedArchiveLinks(at: stagingURL)
 
-        let extractedURL = try extractedURL(for: item, in: stagingURL)
-        // AppKit 保证 destinationURL 唯一(冲突时它已自行去重),正常不该存在;存在则按安全策略拒绝覆盖。
-        if fileManager.fileExists(atPath: destinationURL.path) {
-            throw ArchiveError.exportDestinationExists
+            let extractedURL = try extractedURL(for: item, in: stagingURL)
+            // AppKit 保证 destinationURL 唯一(冲突时它已自行去重),正常不该存在;存在则按安全策略拒绝覆盖。
+            if fileManager.fileExists(atPath: destinationURL.path) {
+                throw ArchiveError.exportDestinationExists
+            }
+            try fileManager.moveItem(at: extractedURL, to: destinationURL)
+            progressCoalescer.submit(ArchiveProgressState(fraction: 1, currentFile: nil, statusText: L10n.text("status.done")))
+            taskCenter.finish(task, outcome: .succeeded(nil))
+            status = L10n.format("status.exportedArchiveItem", item.displayName)
+        } catch {
+            let cancelled = didCancel || error is CancellationError || (error as? CocoaError)?.code == .userCancelled
+            taskCenter.finish(task, outcome: cancelled ? .cancelled : .failed(error.localizedDescription))
+            status = cancelled ? L10n.text("status.cancelled") : L10n.text("status.failed")
+            throw error  // 让 file promise 的 completionHandler(error) 知道失败/取消
         }
-        try fileManager.moveItem(at: extractedURL, to: destinationURL)
-        status = L10n.format("status.exportedArchiveItem", item.displayName)
     }
 
     func createArchive() {
