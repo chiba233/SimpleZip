@@ -36,6 +36,7 @@ let package = Package(
                 "Core/AppPreferences.swift",
                 "Core/ArchiveError.swift",
                 "Core/ArchiveOperationFeedback.swift",
+                "Core/ArchiveCreationService.swift",
                 "Core/ArchiveModels.swift",
                 "Core/ArchiveOperationOptions.swift",
                 "Core/ArchiveSafety.swift",

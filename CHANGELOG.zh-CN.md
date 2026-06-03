@@ -13,6 +13,7 @@ _内部架构重构 —— 无任何用户可见行为变更。把几个臃肿�
 - **内部:把 UI 与数据模型从 `ArchiveExtractionCoordinator` 中分离(1266 → 814 行)。** 数据模型(`ConflictResolutionSession`、`PasteConflictChoice`、`TransferAction`、`TransferLogEntry`、`TransferStats`、`HashOverwriteResult`)挪到 `ArchiveTransferModels`,冲突 / 传输汇总的 SwiftUI 视图挪到 `ArchiveConflictViews`。冲突决策 + 传输 + 合并 + 哈希比对那个类**刻意保持完整**(它的私有方法高度互相依赖,且属于数据安全敏感区)。
 - **内部:拆分 `ExternalExtractWindow`(1092 → 408 行)。** 解压 runner 挪到 `ExternalExtractRunner`,四个浮窗会话(单任务 / 批量 / 准备 / 创建)挪到 `ExternalExtractSessions`,它们的 SwiftUI 内容视图挪到 `ExternalExtractViews`;窗口控制器留在 `ExternalExtractWindow`。
 - **内部:从 `GPGPane` 抽出 `GPGKeyRow`(1352 → 938 行)。** 391 行的钥匙串行子视图和信任级别本地化扩展挪到 `GPGKeyRow`。设置 GPG 面板 View 本身**刻意保持完整**(状态 + body + 动作);抽出编排型 `GPGPaneModel` 会改变该面板的数据流,作为需要手测的独立改动延后,不当纯移动处理。
+- **内部:把创建 / 签名 `.siz` 的后端编排抽到 Core `ArchiveCreationService`。** `performCreateArchive` 那段约 145 行的任务闭包(普通创建 + GPG 签名 `.siz` 组装)原样搬到 `SimpleZip/Core/ArchiveCreationService.swift`(现在 SwiftPM 可测),模型只在 `startManagedArchiveTask` 里调用它。纯移动,无行为变更。
 
 ## 0.2.7
 
