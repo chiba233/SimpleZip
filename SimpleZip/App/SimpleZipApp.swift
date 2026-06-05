@@ -376,13 +376,13 @@ struct ArchiveFileCommands: Commands {
             .disabled(!canManageSelectedFiles)
 
             Button {
-                model?.deleteSelectedFiles()
+                model?.deleteSelectionInCurrentContext()
             } label: {
                 Label(L10n.text("file.delete"), systemImage: "trash")
             }
-            // Finder 标准：⌘⌫ 删除（移到废纸篓）。不绑裸 Delete —— 裸退格在浏览 / 选中状态下太容易误触。
+            // Finder 标准：⌘⌫ 删除（文件移废纸篓；可编辑归档里删条目）。不绑裸 Delete —— 太容易误触。
             .keyboardShortcut(.delete, modifiers: [.command])
-            .disabled(!canManageSelectedFiles)
+            .disabled(!canDeleteCurrentSelection)
         }
     }
 
@@ -445,6 +445,14 @@ struct ArchiveFileCommands: Commands {
     private var canManageSelectedFiles: Bool {
         guard let model, case .folder = model.mode else { return false }
         return !model.selectedFileItems.isEmpty
+    }
+
+    /// ⌘⌫ 删除可用：文件夹里选中文件，或可编辑归档里选中条目。
+    private var canDeleteCurrentSelection: Bool {
+        guard let model else { return false }
+        if case .folder = model.mode { return !model.selectedFileItems.isEmpty }
+        if model.canDropIntoOpenArchive { return !model.selectedArchiveItems.isEmpty }
+        return false
     }
 
     private var isTextInputFocused: Bool {

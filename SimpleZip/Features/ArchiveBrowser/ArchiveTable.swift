@@ -121,6 +121,10 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
             outlineView.setDraggingSourceOperationMask(.copy, forLocal: false)
             // 拖动只在 name 列图标/文字上起手，行内空白处恢复橡皮筋复选。
             (outlineView as? ContentDragOutlineView)?.primaryColumnIdentifier = ArchiveColumn.name.identifier
+            // Return 键 + 重压文字区 → 内联重命名（跟文件浏览器同一 idiom）。可编辑归档里才会真正进入编辑。
+            (outlineView as? ContentDragOutlineView)?.returnKeyAction = { [weak coordinator = context.coordinator] in
+                coordinator?.beginRenameSelectedArchiveEntry() ?? false
+            }
             outlineView.headerView?.menu = context.coordinator.headerMenu()
             context.coordinator.outlineView = outlineView
         }
@@ -165,10 +169,14 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
     }
 
     @MainActor
-    final class Coordinator: NSObject, NSOutlineViewDataSource, NSOutlineViewDelegate, NSMenuDelegate {
+    final class Coordinator: NSObject, NSOutlineViewDataSource, NSOutlineViewDelegate, NSMenuDelegate, NSTextFieldDelegate {
         var model: ArchiveBrowserModel
         weak var outlineView: NSOutlineView?
         private var isApplyingSelection = false
+        /// 内联重命名进行中的条目（跟文件浏览器同一 idiom）。
+        private var renamingArchiveItem: ArchiveItem?
+        /// Esc 取消标记 —— `control(_:textView:doCommandBy:)` 置位，`controlTextDidEndEditing` 据此跳过改名。
+        private var renameCancelled = false
         private var isSyncingExpansion = false
 
         private var topLevelNodes: [ArchiveOutlineNode] = []
@@ -415,7 +423,79 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
         }
 
         @objc private func renameArchiveEntry() {
-            model.renameSelectedArchiveEntry()
+            beginRenameSelectedArchiveEntry()
+        }
+
+        // MARK: - 内联重命名（复用文件浏览器同一 idiom：把名字列的 textField 变可编辑，不弹窗）
+
+        /// 开始内联重命名选中条目。返回是否真的进入了编辑（给 returnKeyAction / 重压用——文件浏览器同款）。
+        @discardableResult
+        func beginRenameSelectedArchiveEntry() -> Bool {
+            guard model.canDropIntoOpenArchive,
+                  model.selectedArchiveItems.count == 1,
+                  let item = model.selectedArchiveItems.first, !item.isDirectory,
+                  let outlineView,
+                  let nameColIndex = outlineView.tableColumns.firstIndex(where: { $0.identifier.rawValue == ArchiveColumn.name.identifier }),
+                  let node = allItemNodes().first(where: { $0.archiveItem?.id == item.id })
+            else { return false }
+            let row = outlineView.row(forItem: node)
+            guard row >= 0 else { return false }
+            outlineView.scrollRowToVisible(row)
+            guard let cell = outlineView.view(atColumn: nameColIndex, row: row, makeIfNecessary: true) as? NSTableCellView,
+                  let textField = cell.textField else { return false }
+
+            renamingArchiveItem = item
+            textField.isEditable = true
+            textField.isSelectable = true
+            textField.isBordered = true
+            textField.bezelStyle = .squareBezel
+            textField.drawsBackground = true
+            textField.delegate = self
+            textField.stringValue = item.displayName
+            outlineView.window?.makeFirstResponder(textField)
+            // 像 Finder：默认选中不含扩展名的主名。
+            if let editor = textField.currentEditor() {
+                let name = item.displayName
+                let stem = (name as NSString).deletingPathExtension
+                let length = stem.isEmpty ? (name as NSString).length : (stem as NSString).length
+                editor.selectedRange = NSRange(location: 0, length: length)
+            }
+            return true
+        }
+
+        func controlTextDidEndEditing(_ obj: Notification) {
+            guard let textField = obj.object as? NSTextField, let item = renamingArchiveItem else { return }
+            renamingArchiveItem = nil
+            let cancelled = renameCancelled
+            renameCancelled = false
+            let newName = textField.stringValue
+
+            // 还原成 label 外观（成功 rename 后 reload 会换成新名）。
+            textField.isEditable = false
+            textField.isSelectable = false
+            textField.isBordered = false
+            textField.drawsBackground = false
+            textField.delegate = nil
+            textField.stringValue = item.displayName
+
+            let movement = (obj.userInfo?["NSTextMovement"] as? Int) ?? NSTextMovement.other.rawValue
+            guard !cancelled, movement != NSTextMovement.cancel.rawValue else { return }
+            model.renameArchiveEntry(item, to: newName)
+        }
+
+        func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+            guard renamingArchiveItem != nil else { return false }
+            switch commandSelector {
+            case #selector(NSResponder.cancelOperation(_:)):
+                renameCancelled = true
+                outlineView?.window?.makeFirstResponder(outlineView)
+                return true
+            case #selector(NSResponder.insertNewline(_:)):
+                outlineView?.window?.makeFirstResponder(outlineView)
+                return true
+            default:
+                return false
+            }
         }
 
         @objc private func deleteArchiveEntries() {
@@ -468,6 +548,8 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
 
         func applySelection() {
             guard let outlineView else { return }
+            // 内联重命名进行中：不回灌选区，否则 selectRowIndexes 会结束字段编辑、输入框瞬间消失。
+            if renamingArchiveItem != nil { return }
             // 鼠标按下（框选 / 拖动中）时不回灌选区，避免跟 live 橡皮筋打架（闪烁 / 抽搐）。松手后再同步。
             if NSEvent.pressedMouseButtons & 0x1 != 0 { return }
             var indexes = IndexSet()

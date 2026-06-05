@@ -490,37 +490,34 @@ extension ArchiveBrowserModel {
         }
     }
 
-    /// 重命名单个归档条目(仅普通文件)—— 弹原生输入框拿新名,走活动中心 + 安全重命名。
-    func renameSelectedArchiveEntry() {
-        guard canDropIntoOpenArchive, case .archive(let archiveURL) = mode,
-              selectedArchiveItems.count == 1, let item = selectedArchiveItems.first, !item.isDirectory else { return }
+    /// 提交一个归档条目的**内联重命名**(由 ArchiveTable 的内联编辑器调用,跟文件浏览器同一 idiom——不弹窗)。
+    /// `newLeaf` = 用户在内联输入框里改的叶名;走活动中心 + 安全重命名(失败不破坏原包)。
+    func renameArchiveEntry(_ item: ArchiveItem, to newLeaf: String) {
+        guard canDropIntoOpenArchive, case .archive(let archiveURL) = mode else { return }
+        let trimmed = newLeaf.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed != item.displayName, !trimmed.contains("/") else { return }
 
-        let alert = NSAlert()
-        alert.messageText = L10n.format("archive.renameEntry.title", item.displayName)
-        alert.informativeText = L10n.text("archive.renameEntry.message")
-        alert.addButton(withTitle: L10n.text("archive.renameEntry.confirmButton"))
-        alert.addButton(withTitle: L10n.text("button.cancel"))
-        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
-        field.stringValue = item.displayName
-        alert.accessoryView = field
-        alert.window.initialFirstResponder = field
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
-        let newLeaf = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !newLeaf.isEmpty, newLeaf != item.displayName, !newLeaf.contains("/") else { return }
-
-        // 新全路径 = 旧路径的父目录 + 新叶名。
         let oldPath = item.name
         let parent = (oldPath as NSString).deletingLastPathComponent
-        let newPath = parent.isEmpty ? newLeaf : "\(parent)/\(newLeaf)"
+        let newPath = parent.isEmpty ? trimmed : "\(parent)/\(trimmed)"
 
         startManagedArchiveTask(
-            title: L10n.format("archive.renameEntry.taskTitle", item.displayName, newLeaf),
+            title: L10n.format("archive.renameEntry.taskTitle", item.displayName, trimmed),
             kind: .rename,
             showsDetails: true,
             refreshOnSuccess: { [weak self] in self?.reload() }
         ) { operationID, _, observer in
             try await ArchiveService.renameEntry(in: archiveURL, from: oldPath, to: newPath, password: "",
                                                  operationID: operationID, outputObserver: observer)
+        }
+    }
+
+    /// 当前上下文的「删除」——给菜单栏 ⌘⌫ 命令统一入口:归档(可编辑)里删条目,否则删文件(移废纸篓)。
+    func deleteSelectionInCurrentContext() {
+        if case .archive = mode, canDropIntoOpenArchive {
+            deleteSelectedArchiveEntries()
+        } else {
+            deleteSelectedFiles()
         }
     }
 
