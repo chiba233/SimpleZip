@@ -9,7 +9,7 @@ import Combine
 import Foundation
 
 /// 创建压缩包时可选择的格式。
-enum ArchiveCreateFormat: String, CaseIterable, Identifiable {
+enum ArchiveCreateFormat: String, CaseIterable, Identifiable, Codable {
     case zip
     case sevenZip = "7z"
     case dmg
@@ -125,7 +125,7 @@ enum ArchiveCreateFormat: String, CaseIterable, Identifiable {
 }
 
 /// 压缩等级。数值直接映射到 zip/7zz 的常用等级。
-enum CompressionLevel: Int, CaseIterable, Identifiable {
+enum CompressionLevel: Int, CaseIterable, Identifiable, Codable {
     case store = 0
     case fast = 1
     case normal = 5
@@ -147,7 +147,7 @@ enum CompressionLevel: Int, CaseIterable, Identifiable {
     }
 }
 
-enum SevenZipCompressionMethod: String, CaseIterable, Identifiable {
+enum SevenZipCompressionMethod: String, CaseIterable, Identifiable, Codable {
     case automatic
     case lzma2
     case lzma
@@ -197,7 +197,7 @@ enum SevenZipCompressionMethod: String, CaseIterable, Identifiable {
     }
 }
 
-enum SevenZipPathMode: String, CaseIterable, Identifiable {
+enum SevenZipPathMode: String, CaseIterable, Identifiable, Codable {
     case relative
     case full
 
@@ -213,7 +213,7 @@ enum SevenZipPathMode: String, CaseIterable, Identifiable {
     }
 }
 
-enum SevenZipSolidBlockSize: String, CaseIterable, Identifiable {
+enum SevenZipSolidBlockSize: String, CaseIterable, Identifiable, Codable {
     case automatic
     case size1m = "1m"
     case size4m = "4m"
@@ -251,7 +251,7 @@ enum SevenZipSolidBlockSize: String, CaseIterable, Identifiable {
     }
 }
 
-enum ArchiveUpdateMode: String, CaseIterable, Identifiable {
+enum ArchiveUpdateMode: String, CaseIterable, Identifiable, Codable {
     case addAndReplace
     case updateAndAdd
     case freshen
@@ -273,7 +273,7 @@ enum ArchiveUpdateMode: String, CaseIterable, Identifiable {
     }
 }
 
-enum ArchiveEncryptionMethod: String, CaseIterable, Identifiable {
+enum ArchiveEncryptionMethod: String, CaseIterable, Identifiable, Codable {
     case zipCrypto
     case aes128
     case aes192
@@ -309,7 +309,7 @@ enum ArchiveEncryptionMethod: String, CaseIterable, Identifiable {
 }
 
 /// 创建压缩包时收集的选项。
-struct ArchiveCreationOptions {
+struct ArchiveCreationOptions: Codable, Equatable {
     var format: ArchiveCreateFormat = .zip
     var compressionLevel: CompressionLevel = .normal
     var password = ""
