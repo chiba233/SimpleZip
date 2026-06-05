@@ -376,7 +376,8 @@ extension GPGBackend {
     private static func ownertrustLevel(forFingerprint fingerprint: String) async -> GPGBackend.GPGTrustLevel? {
         guard let tool = try? resolve() else { return nil }
         let key = fingerprint.uppercased()
-        func read(_ arguments: [String]) async -> GPGBackend.GPGTrustLevel? {
+        // `async let` 并发执行 → 闭包必须 @Sendable（捕获的 tool / key 都是 String，Sendable）。
+        let read: @Sendable ([String]) async -> GPGBackend.GPGTrustLevel? = { arguments in
             let output = (try? await BackendProcessRunner.runAndCapture(tool, arguments: arguments)) ?? ""
             return parseOwnertrust(output)[key]
         }

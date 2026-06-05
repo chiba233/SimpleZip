@@ -72,8 +72,10 @@ enum ArchiveDiff {
                 changed.append(ArchiveEntryChange(path: path, before: leftItem, after: rightItem, fields: fields))
             }
         }
-        // 左侧独有 = 删除。
-        for (path, leftItem) in leftByPath where rightByPath[path] == nil {
+        // 左侧独有 = 删除。用 String key 判存在（`keys.contains`），不要 `rightByPath[path] == nil`——
+        // 后者会用到 ArchiveItem 的 Equatable，而 app target 默认 MainActor 隔离下该 conformance 是 main-actor 的，
+        // 在本 nonisolated 方法里用会触发 Swift 6「main actor-isolated conformance ... in nonisolated context」。
+        for (path, leftItem) in leftByPath where !rightByPath.keys.contains(path) {
             removed.append(leftItem)
         }
 
