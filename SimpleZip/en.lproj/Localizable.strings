@@ -400,6 +400,7 @@
 "settings.gpg.addSubkey.title" = "Add Subkey";
 "settings.gpg.addSubkey.subject" = "%1$@ · …%2$@";
 "settings.gpg.addSubkey.capabilityLabel" = "Capability";
+"settings.gpg.addSubkey.unlockPlaceholder" = "Unlock the primary key to sign the new subkey (leave empty if it has no passphrase)";
 "settings.gpg.addSubkey.cap.sign" = "Sign";
 "settings.gpg.addSubkey.cap.encrypt" = "Encrypt";
 "settings.gpg.addSubkey.cap.auth" = "Authenticate";

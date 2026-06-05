@@ -473,11 +473,18 @@ struct ArchiveCreationOptionsView: View {
         .padding(.leading, 18)
     }
 
-    /// 加密收件人**候选公钥**：必须在 user keyring（`~/.gnupg/`）—— `GPGBackend.encrypt` 默认只在 user homedir 找 recipient。
-    /// 把 SimpleZip 私有 ring 的 key 放进 picker 会让用户选到，然后 gpg 找不到 recipient → 加密失败。
-    /// 历史上 `availableKeys` 同时含两个 ring（签名 picker 需要看全部 hasSecretKey），收件人 picker 必须额外过滤。
+    /// 加密收件人**候选公钥**：两个 ring 都列（`~/.gnupg/` + SimpleZip 私有环），但**只列有加密能力的**——
+    /// 纯签名 / 认证密钥不能当收件人，gpg 会报「unusable public key」。私有环收件人的加密走私有 `--homedir`
+    /// （ArchiveCreationService 按收件人所在环选 homedir）；不允许一次加密混选两环（下方 `recipientRingValidationMessage` 拦）。
     private var encryptionEligibleKeys: [GPGBackend.GPGKey] {
-        availableKeys.filter { $0.source == .userKeyring }
+        availableKeys.filter { $0.canEncryptToRecipient }
+    }
+
+    /// 已选收件人分布在哪些 ring —— 用于「混选两环」拦截。一次 gpg 加密只能用一个 homedir。
+    private var selectedRecipientSources: Set<GPGBackend.GPGKeyringSource> {
+        Set(request.options.gpgRecipientFingerprints.compactMap { fp in
+            availableKeys.first(where: { $0.fingerprint == fp })?.source
+        })
     }
 
     /// 对称加密密码 SecureField —— 跟收件人 picker **互不排斥**。空 = 不用对称密码加密。
@@ -663,7 +670,15 @@ struct ArchiveCreationOptionsView: View {
         if let singleFileValidationMessage {
             return singleFileValidationMessage
         }
+        if let recipientRingValidationMessage {
+            return recipientRingValidationMessage
+        }
         return nil
+    }
+
+    /// 收件人混选了两个 keyring → 一次 gpg 加密做不到，拦下来（跟「加密为 GPG」对话框同口径）。
+    private var recipientRingValidationMessage: String? {
+        selectedRecipientSources.count > 1 ? L10n.text("gpgEncrypt.mixedKeyrings") : nil
     }
 
     private var passwordValidationMessage: String? {

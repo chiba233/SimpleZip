@@ -278,6 +278,7 @@ enum SZSArchive {
         rootDirectoryHint: String? = nil,
         encryptionRecipients: [String] = [],
         encryptionPassphrase: String? = nil,
+        encryptionUsesSimpleZipKeyring: Bool = false,
         outputURL: URL,
         operationID: UUID? = nil
     ) async throws -> Manifest {
@@ -328,6 +329,7 @@ enum SZSArchive {
                     recipients: encryptionRecipients,
                     symmetricPassphrase: normalizedPassphrase,
                     outputURL: gpgURL,
+                    useSimpleZipKeyring: encryptionUsesSimpleZipKeyring,
                     operationID: operationID
                 )
                 producedEncryptedFiles.append(gpgURL)

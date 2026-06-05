@@ -98,7 +98,9 @@ struct CreateSZSSheet: View {
     // MARK: - 子行布局
 
     private func labelText(_ key: String) -> some View {
-        Text(L10n.text(key))
+        // 空 key 当「占位空标签」用（对齐用）—— **不能**走 L10n.text("")：NSLocalizedString 查空 key 会
+        // 返回字面量 "localized string not found"(macOS 怪癖),会显示成乱字。空 key → 显示空串。
+        Text(key.isEmpty ? "" : L10n.text(key))
             .font(.callout)
             .foregroundStyle(.secondary)
             .frame(width: labelColumnWidth, alignment: .trailing)
@@ -227,6 +229,16 @@ struct CreateSZSSheet: View {
                 SecureField(L10n.text("archive.gpgEncrypt.passphrasePlaceholder"), text: $symmetricPassphrase)
                     .textFieldStyle(.roundedBorder)
             }
+            if hasMixedRecipientRings {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    labelText("")
+                    Text(L10n.text("gpgEncrypt.mixedKeyrings"))
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer()
+                }
+            }
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 labelText("")
                 Text(L10n.text("szs.create.encryptFiles.hint"))
@@ -258,11 +270,23 @@ struct CreateSZSSheet: View {
 
     private var canCreate: Bool {
         guard payloadRoot != nil, !selectedFiles.isEmpty, outputURL != nil, !isCreating else { return false }
-        // 开了加密文件但既没选收件人也没设密码 → 没人能解，禁用。
+        // 开了加密文件但既没选收件人也没设密码 → 没人能解，禁用；收件人混选两环也禁用。
         if encryptFiles {
+            if hasMixedRecipientRings { return false }
             return !recipientFingerprints.isEmpty || !symmetricPassphrase.isEmpty
         }
         return true
+    }
+
+    /// 已选收件人分布在哪些 ring —— 一次 gpg 加密只能用一个 homedir，混选两环做不到。
+    private var selectedRecipientSources: Set<GPGBackend.GPGKeyringSource> {
+        Set(recipientFingerprints.compactMap { fp in
+            availableEncryptionKeys.first(where: { $0.fingerprint == fp })?.source
+        })
+    }
+
+    private var hasMixedRecipientRings: Bool {
+        selectedRecipientSources.count > 1
     }
 
     private func applyPrefillIfAny() {
@@ -290,7 +314,8 @@ struct CreateSZSSheet: View {
         Task { @MainActor in
             if let loaded = try? await GPGBackend.listKeys() {
                 availableSecretKeys = loaded.filter { $0.hasSecretKey }
-                availableEncryptionKeys = loaded.filter { $0.source == .userKeyring }
+                // 收件人候选：两个 ring 都列，但只列**有加密能力**的（纯签名密钥不能当收件人）。
+                availableEncryptionKeys = loaded.filter { $0.canEncryptToRecipient }
             }
         }
     }
@@ -386,6 +411,8 @@ struct CreateSZSSheet: View {
                     description: description.isEmpty ? nil : description,
                     encryptionRecipients: encryptFiles ? recipientFingerprints : [],
                     encryptionPassphrase: encryptFiles && !symmetricPassphrase.isEmpty ? symmetricPassphrase : nil,
+                    // 收件人全在 SimpleZip 私有环 → 加密走私有 homedir。混选两环已被 canCreate 拦住。
+                    encryptionUsesSimpleZipKeyring: encryptFiles && selectedRecipientSources == [.simpleZipKeyring],
                     outputURL: outputURL
                 )
                 await MainActor.run {

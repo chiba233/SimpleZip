@@ -22,7 +22,6 @@ struct AddSubkeySheet: View {
     @State private var algorithm: GPGBackend.GPGKeyAlgorithm = .ed25519
     @State private var expiration: GPGBackend.GPGKeyExpiration = .oneYear
     @State private var passphrase = ""
-    @State private var validationError: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -70,14 +69,8 @@ struct AddSubkeySheet: View {
                     .labelsHidden()
                 }
                 formRow(label: L10n.text("settings.gpg.addUID.unlockLabel")) {
-                    SecureField(L10n.text("settings.gpg.addUID.unlockPlaceholder"), text: $passphrase)
+                    SecureField(L10n.text("settings.gpg.addSubkey.unlockPlaceholder"), text: $passphrase)
                         .textFieldStyle(.roundedBorder)
-                }
-
-                if let validationError {
-                    Text(validationError)
-                        .font(.caption2)
-                        .foregroundStyle(.red)
                 }
 
                 HStack(alignment: .top, spacing: 6) {
@@ -100,10 +93,14 @@ struct AddSubkeySheet: View {
                 Spacer()
                 Button(L10n.text("button.cancel")) { isPresented = false }
                     .keyboardShortcut(.cancelAction)
-                Button(L10n.text("settings.gpg.addSubkey.applyButton")) { onClickApply() }
+                Button(L10n.text("settings.gpg.addSubkey.applyButton")) {
+                    // passphrase 不强制非空 —— 主密钥可能本来就没设 passphrase(无密码密钥)。
+                    // 若密钥确实有 passphrase 而这里留空 / 填错,gpg 会失败,错误回到 keyOperationMessage。
+                    onApply(capability, algorithm, expiration, passphrase)
+                    isPresented = false
+                }
                     .keyboardShortcut(.defaultAction)
                     .buttonStyle(.borderedProminent)
-                    .disabled(passphrase.isEmpty)
             }
             .padding(16)
         }
@@ -121,15 +118,6 @@ struct AddSubkeySheet: View {
         }
     }
 
-    private func onClickApply() {
-        validationError = nil
-        guard !passphrase.isEmpty else {
-            validationError = L10n.text("settings.gpg.addSubkey.requiredHint")
-            return
-        }
-        onApply(capability, algorithm, expiration, passphrase)
-        isPresented = false
-    }
 }
 
 // MARK: - 子密钥用途本地化

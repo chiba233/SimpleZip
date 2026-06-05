@@ -88,18 +88,25 @@ enum ArchiveCreationService {
         } else {
             let encryptedName = plaintextInnerName + ".gpg"
             let encryptedURL = staging.appendingPathComponent(encryptedName)
+            // 把每个 recipient fingerprint 反查 keyring 拿 UID + 所在 ring。
+            // listKeys 失败时 fall back 到「只有 fingerprint，没有 UID」的占位 RecipientInfo —— metadata 仍合法。
+            let allKeys = recipients.isEmpty ? [] : ((try? await GPGBackend.listKeys()) ?? [])
+            // 收件人全在 SimpleZip 私有环 → 加密走私有 `--homedir`，否则 gpg 在 ~/.gnupg 找不到这些公钥。
+            // 混选两环已被创建对话框拦住（一次 gpg 加密只能用一个 homedir），到这里收件人同环。
+            let recipientSources = Set(recipients.compactMap { fp in
+                allKeys.first(where: { $0.fingerprint == fp })?.source
+            })
+            let recipientsUseSimpleZipKeyring = recipientSources == [.simpleZipKeyring]
             try await GPGBackend.encrypt(
                 fileURL: plaintextInnerURL,
                 recipients: recipients,
                 symmetricPassphrase: symmetricPassphrase,
                 outputURL: encryptedURL,
+                useSimpleZipKeyring: recipientsUseSimpleZipKeyring,
                 operationID: operationID
             )
             // 把明文从临时目录抹掉，最小化在磁盘上停留时间。
             try? FileManager.default.removeItem(at: plaintextInnerURL)
-            // 把每个 recipient fingerprint 反查 keyring 拿 UID，metadata 里同时记 fp + UID 给 UI 显示。
-            // listKeys 失败时 fall back 到「只有 fingerprint，没有 UID」的占位 RecipientInfo —— metadata 仍合法。
-            let allKeys = recipients.isEmpty ? [] : ((try? await GPGBackend.listKeys()) ?? [])
             let recipientInfos: [SIZArchive.RecipientInfo] = recipients.map { fp in
                 let uid = allKeys.first(where: { $0.fingerprint == fp })?.userID ?? ""
                 return SIZArchive.RecipientInfo(fingerprint: fp, userID: uid)

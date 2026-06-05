@@ -400,6 +400,7 @@
 "settings.gpg.addSubkey.title" = "添加子密钥";
 "settings.gpg.addSubkey.subject" = "%1$@ · …%2$@";
 "settings.gpg.addSubkey.capabilityLabel" = "用途";
+"settings.gpg.addSubkey.unlockPlaceholder" = "解锁主密钥以签名新子密钥（无 passphrase 的密钥留空）";
 "settings.gpg.addSubkey.cap.sign" = "签名";
 "settings.gpg.addSubkey.cap.encrypt" = "加密";
 "settings.gpg.addSubkey.cap.auth" = "认证";

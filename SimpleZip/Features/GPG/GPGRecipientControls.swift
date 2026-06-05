@@ -81,22 +81,70 @@ struct GPGAddRecipientMenu: View {
     }
 }
 
-/// 已选收件人的横向 chip 列表 —— `selection` 非空时展示。内部用 `GPGRecipientChip`。
+/// 已选收件人 chip 列表 —— `selection` 非空时展示。chip **自动换行**(`WrapLayout`),多个收件人不再
+/// 横向溢出对话框右边缘（之前用 `ScrollView(.horizontal)`，超宽 chip 会顶出窗口）。内部用 `GPGRecipientChip`。
 struct GPGRecipientChipRow: View {
     @Binding var selection: [String]
     let lookupKeys: [GPGBackend.GPGKey]
 
     var body: some View {
         if !selection.isEmpty {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 6) {
-                    ForEach(selection, id: \.self) { fingerprint in
-                        GPGRecipientChip(fingerprint: fingerprint, lookupKeys: lookupKeys) {
-                            selection.removeAll { $0 == fingerprint }
-                        }
+            WrapLayout(horizontalSpacing: 6, verticalSpacing: 6) {
+                ForEach(selection, id: \.self) { fingerprint in
+                    GPGRecipientChip(fingerprint: fingerprint, lookupKeys: lookupKeys) {
+                        selection.removeAll { $0 == fingerprint }
                     }
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
+/// 简单的自动换行流式布局（macOS 13+ `Layout`）。子视图按提议宽度从左到右排，放不下就换行。
+/// 用于收件人 chip 这种「数量不定、宽度不定、要在固定宽度对话框里换行而不是溢出」的场景。
+struct WrapLayout: Layout {
+    var horizontalSpacing: CGFloat = 6
+    var verticalSpacing: CGFloat = 6
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout Void) -> CGSize {
+        let maxWidth = proposal.width ?? .infinity
+        var rowWidth: CGFloat = 0
+        var rowHeight: CGFloat = 0
+        var totalHeight: CGFloat = 0
+        var totalWidth: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if rowWidth > 0, rowWidth + horizontalSpacing + size.width > maxWidth {
+                totalHeight += rowHeight + verticalSpacing
+                totalWidth = max(totalWidth, rowWidth)
+                rowWidth = size.width
+                rowHeight = size.height
+            } else {
+                rowWidth += (rowWidth > 0 ? horizontalSpacing : 0) + size.width
+                rowHeight = max(rowHeight, size.height)
+            }
+        }
+        totalHeight += rowHeight
+        totalWidth = max(totalWidth, rowWidth)
+        return CGSize(width: min(totalWidth, maxWidth), height: totalHeight)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout Void) {
+        let maxWidth = bounds.width
+        var x = bounds.minX
+        var y = bounds.minY
+        var rowHeight: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > bounds.minX, x + size.width - bounds.minX > maxWidth {
+                x = bounds.minX
+                y += rowHeight + verticalSpacing
+                rowHeight = 0
+            }
+            subview.place(at: CGPoint(x: x, y: y), anchor: .topLeading, proposal: ProposedViewSize(size))
+            x += size.width + horizontalSpacing
+            rowHeight = max(rowHeight, size.height)
         }
     }
 }
