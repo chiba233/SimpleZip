@@ -385,11 +385,22 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
             guard let outlineView else { return }
             selectClickedRowIfNeeded(in: outlineView)
             menu.removeAllItems()
-            // 区块头 / 空白处右键：没有有效条目就不出操作项。
             let clickedItem = outlineView.clickedRow >= 0 ? outlineView.item(atRow: outlineView.clickedRow) : nil
-            guard (clickedItem as? ArchiveOutlineNode)?.archiveItem != nil else { return }
+            let clickedArchiveItem = (clickedItem as? ArchiveOutlineNode)?.archiveItem
+
+            // 空白处 / 区块头右键：可编辑归档时给「添加文件 / 粘贴 / 新建」入口；否则空菜单。
+            guard let item = clickedArchiveItem else {
+                if model.canDropIntoOpenArchive {
+                    appendArchiveBlankAreaMenu(to: menu)
+                }
+                return
+            }
 
             menu.addItem(menuItem(L10n.text("button.open"), systemImage: "arrow.turn.up.right", action: #selector(openSelected)))
+            // 「打开方式 ▸」—— 单选时出现，**不白名单**：任何格式的条目解出来都能用外部 app 打开。
+            if model.selectedArchiveItems.count == 1, !item.isDirectory {
+                appendArchiveOpenWithMenu(to: menu, for: item)
+            }
             menu.addItem(menuItem(L10n.text("button.extractSelected"), systemImage: "arrow.down.doc", action: #selector(extractSelected)))
             menu.addItem(menuItem(L10n.text("button.extract"), systemImage: "tray.and.arrow.down", action: #selector(extractWholeArchive)))
             menu.addItem(menuItem(L10n.text("button.test"), systemImage: "checkmark.seal", action: #selector(testArchive)))
@@ -412,6 +423,62 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
 
             menu.addItem(.separator())
             menu.addItem(menuItem(L10n.text("button.revealInFinder"), systemImage: "arrow.up.forward.app", action: #selector(revealArchive)))
+        }
+
+        /// 空白处右键菜单（可编辑归档）：添加文件 / 粘贴 / 新建文件夹 / 新建文件 / Reveal。
+        private func appendArchiveBlankAreaMenu(to menu: NSMenu) {
+            menu.addItem(menuItem(L10n.text("archive.addFiles"), systemImage: "plus.rectangle.on.folder", action: #selector(addFilesToArchive)))
+            if model.clipboardHasFileURLsForArchivePaste {
+                menu.addItem(menuItem(L10n.text("file.paste"), systemImage: "clipboard", action: #selector(pasteIntoArchive)))
+            }
+            menu.addItem(.separator())
+            menu.addItem(menuItem(L10n.text("file.newFolder"), systemImage: "folder.badge.plus", action: #selector(newArchiveFolder)))
+            menu.addItem(menuItem(L10n.text("file.newFile"), systemImage: "doc.badge.plus", action: #selector(newArchiveFile)))
+            menu.addItem(.separator())
+            menu.addItem(menuItem(L10n.text("button.revealInFinder"), systemImage: "arrow.up.forward.app", action: #selector(revealArchive)))
+        }
+
+        /// 「打开方式 ▸」子菜单 —— 用条目扩展名探测能打开此类型的 app（条目还在归档里、没有真实 URL）。
+        private func appendArchiveOpenWithMenu(to menu: NSMenu, for item: ArchiveItem) {
+            let ext = (item.displayName as NSString).pathExtension
+            let probe = URL(fileURLWithPath: ext.isEmpty ? item.displayName : "probe.\(ext)")
+            let submenu = NSMenu()
+            for appURL in OpenWithService.commonApplicationURLs(toOpen: [probe]) {
+                let name = FileManager.default.displayName(atPath: appURL.path)
+                let mi = NSMenuItem(title: name, action: #selector(openArchiveItemWithApp(_:)), keyEquivalent: "")
+                mi.target = self
+                mi.representedObject = appURL
+                let icon = NSWorkspace.shared.icon(forFile: appURL.path)
+                icon.size = NSSize(width: 16, height: 16)
+                mi.image = icon
+                submenu.addItem(mi)
+            }
+            if !submenu.items.isEmpty { submenu.addItem(.separator()) }
+            let other = NSMenuItem(title: L10n.text("file.openWith.other"), action: #selector(openArchiveItemWithOtherApp), keyEquivalent: "")
+            other.target = self
+            submenu.addItem(other)
+            let parent = NSMenuItem(title: L10n.text("file.openWith"), action: nil, keyEquivalent: "")
+            parent.image = NSImage(systemSymbolName: "arrow.up.forward.app", accessibilityDescription: nil)
+            parent.submenu = submenu
+            menu.addItem(parent)
+        }
+
+        @objc private func openArchiveItemWithApp(_ sender: NSMenuItem) {
+            guard let appURL = sender.representedObject as? URL, let item = model.selectedArchiveItems.first else { return }
+            model.openArchiveItemExternally(item, openWith: .app(appURL))
+        }
+
+        @objc private func openArchiveItemWithOtherApp() {
+            guard let item = model.selectedArchiveItems.first else { return }
+            model.openArchiveItemExternally(item, openWith: .chooseApp)
+        }
+
+        @objc private func newArchiveFolder() {
+            model.createNewArchiveEntry(isDirectory: true)
+        }
+
+        @objc private func newArchiveFile() {
+            model.createNewArchiveEntry(isDirectory: false)
         }
 
         @objc private func addFilesToArchive() {

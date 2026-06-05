@@ -534,6 +534,8 @@
 // Edit entries inside an archive (#109, zip/7z only)
 "archive.addFiles" = "Add Files…";
 "archive.addFiles.prompt" = "Add to Archive";
+"archive.newFolder.defaultName" = "untitled folder";
+"archive.newFile.defaultName" = "untitled.txt";
 "archive.deleteEntry.confirmSingle" = "Delete “%@” from the archive?";
 "archive.deleteEntry.confirmMultiple" = "Delete %@ items from the archive?";
 "archive.deleteEntry.confirmMessage" = "The selected entries will be removed from the archive. The original file isn't modified until this succeeds.";

@@ -11,8 +11,14 @@ import AppKit
 import Foundation
 import UniformTypeIdentifiers
 
+/// 归档条目「打开方式」目标 —— 用指定 app 打开,或弹系统 app 选择器。
+enum ArchiveOpenWithTarget {
+    case app(URL)
+    case chooseApp
+}
+
 extension ArchiveBrowserModel {
-    func openArchiveItemExternally(_ item: ArchiveItem) {
+    func openArchiveItemExternally(_ item: ArchiveItem, openWith: ArchiveOpenWithTarget? = nil) {
         guard case .archive(let archiveURL) = mode else { return }
 
         if ArchiveSafety.requiresExternalOpenConfirmation(item), !allowPotentiallyUnsafeArchiveItemOpen(item) {
@@ -77,6 +83,15 @@ extension ArchiveBrowserModel {
                         try self.confirmExtractedArchiveLinks(at: destination)
 
                         let extractedURL = try self.extractedURL(for: item, in: destination)
+                        // 「打开方式」：解出来后直接用指定 app / 系统选择器打开,**绕过** dmg/嵌套/.siz 等 in-app 路由
+                        // ——用户要的就是「用外部 app 打开这个解出来的文件」。任何格式都适用(不白名单)。
+                        if let openWith {
+                            switch openWith {
+                            case .app(let appURL): OpenWithService.open([extractedURL], withApplicationAt: appURL)
+                            case .chooseApp: OpenWithService.chooseApplicationAndOpen([extractedURL])
+                            }
+                            return
+                        }
                         if extractedURL.pathExtension.lowercased() == "dmg" {
                             extractedDiskImageURL = extractedURL
                             return
@@ -510,6 +525,59 @@ extension ArchiveBrowserModel {
             try await ArchiveService.renameEntry(in: archiveURL, from: oldPath, to: newPath, password: "",
                                                  operationID: operationID, outputObserver: observer)
         }
+    }
+
+    /// 在当前归档内文件夹新建一个空文件夹 / 空文件(zip/7z)。复用安全写回后端。
+    func createNewArchiveEntry(isDirectory: Bool) {
+        guard canDropIntoOpenArchive else { return }
+        let base = session.archivePath.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let prefix = base.isEmpty ? "" : base + "/"
+        let existing = Set(archiveItems.map(\.displayName))
+        let defaultName = isDirectory ? L10n.text("archive.newFolder.defaultName") : L10n.text("archive.newFile.defaultName")
+        let leaf = Self.uniqueArchiveLeaf(defaultName, existing: existing)
+
+        // 在系统临时目录建一个空文件 / 空文件夹,加进归档后清掉。
+        let fm = FileManager.default
+        let tempRoot = fm.temporaryDirectory.appendingPathComponent("SimpleZip-NewEntry-\(UUID().uuidString)", isDirectory: true)
+        let source = tempRoot.appendingPathComponent(leaf, isDirectory: isDirectory)
+        do {
+            try fm.createDirectory(at: tempRoot, withIntermediateDirectories: true)
+            if isDirectory {
+                try fm.createDirectory(at: source, withIntermediateDirectories: true)
+            } else {
+                try Data().write(to: source)
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+            try? fm.removeItem(at: tempRoot)
+            return
+        }
+
+        guard case .archive(let archiveURL) = mode else { try? fm.removeItem(at: tempRoot); return }
+        let additions = [ArchiveEntryAddition(sourceFile: source, entryPath: prefix + leaf)]
+        startManagedArchiveTask(
+            title: L10n.format("archive.addEntry.single", leaf),
+            kind: .compress,
+            showsDetails: true,
+            refreshOnSuccess: { [weak self] in
+                try? FileManager.default.removeItem(at: tempRoot)
+                self?.reload()
+            },
+            onSucceeded: { task in
+                task.transferLog = [TransferLogEntry(name: prefix + leaf, action: .added, isDirectory: isDirectory)]
+            }
+        ) { operationID, _, observer in
+            try await ArchiveService.addOrReplaceEntries(in: archiveURL, additions: additions, password: "",
+                                                         operationID: operationID, outputObserver: observer)
+        }
+    }
+
+    /// 在 `existing` 名字集合里给 `base` 找一个不冲突的名字(`base`、`base 2`、`base 3`…)。
+    static func uniqueArchiveLeaf(_ base: String, existing: Set<String>) -> String {
+        guard existing.contains(base) else { return base }
+        var n = 2
+        while existing.contains("\(base) \(n)") { n += 1 }
+        return "\(base) \(n)"
     }
 
     /// 当前上下文的「删除」——给菜单栏 ⌘⌫ 命令统一入口:归档(可编辑)里删条目,否则删文件(移废纸篓)。

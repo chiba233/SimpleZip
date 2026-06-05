@@ -532,6 +532,8 @@
 // 压缩包内编辑条目（#109，仅 zip/7z）
 "archive.addFiles" = "添加文件…";
 "archive.addFiles.prompt" = "加进压缩包";
+"archive.newFolder.defaultName" = "新建文件夹";
+"archive.newFile.defaultName" = "未命名.txt";
 "archive.deleteEntry.confirmSingle" = "从压缩包删除「%@」？";
 "archive.deleteEntry.confirmMultiple" = "从压缩包删除 %@ 项？";
 "archive.deleteEntry.confirmMessage" = "选中的条目将从压缩包里移除。操作成功前原文件不会被改动。";
