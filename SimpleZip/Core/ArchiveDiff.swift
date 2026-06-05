@@ -42,13 +42,15 @@ struct ArchiveDiffResult: Hashable {
     var hasDifferences: Bool { !added.isEmpty || !removed.isEmpty || !changed.isEmpty }
 }
 
+// 纯比对逻辑，可从任意 actor 调用 —— app target 默认 MainActor 隔离下，
+// 不标 nonisolated 会让 `sorted(by:)`/`filter` 传入这些静态方法时报「main actor-isolated ... in nonisolated context」。
 enum ArchiveDiff {
 
     /// 比对两个已列出的条目集合。
     ///
     /// 配对键 = 归一化路径（去掉前导 `./`、去掉首尾 `/`），所以 `dir/` 与 `dir` 视为同一路径
     /// （类型差异由 `.type` 字段单独标出）。同一侧若出现重复路径（理论上不该发生），后者覆盖前者。
-    static func compare(left: [ArchiveItem], right: [ArchiveItem]) -> ArchiveDiffResult {
+    nonisolated static func compare(left: [ArchiveItem], right: [ArchiveItem]) -> ArchiveDiffResult {
         let leftByPath = indexByPath(left)
         let rightByPath = indexByPath(right)
 
@@ -84,7 +86,7 @@ enum ArchiveDiff {
     }
 
     /// 归一化条目路径：去前导 `./`、去首尾 `/`。供配对与展示用。
-    static func normalizedPath(_ name: String) -> String {
+    nonisolated static func normalizedPath(_ name: String) -> String {
         var path = name
         while path.hasPrefix("./") { path.removeFirst(2) }
         return path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
@@ -92,7 +94,7 @@ enum ArchiveDiff {
 
     // MARK: - 内部
 
-    private static func indexByPath(_ items: [ArchiveItem]) -> [String: ArchiveItem] {
+    nonisolated private static func indexByPath(_ items: [ArchiveItem]) -> [String: ArchiveItem] {
         var map: [String: ArchiveItem] = [:]
         for item in items {
             let key = normalizedPath(item.name)
@@ -103,7 +105,7 @@ enum ArchiveDiff {
     }
 
     /// 算出 before→after 改了哪些字段。空集合 = 未变。
-    private static func changedFields(before: ArchiveItem, after: ArchiveItem) -> Set<ArchiveDiffField> {
+    nonisolated private static func changedFields(before: ArchiveItem, after: ArchiveItem) -> Set<ArchiveDiffField> {
         var fields: Set<ArchiveDiffField> = []
         if before.isDirectory != after.isDirectory { fields.insert(.type) }
         if before.isEncrypted != after.isEncrypted { fields.insert(.encryption) }
@@ -123,14 +125,14 @@ enum ArchiveDiff {
     }
 
     /// CRC 归一化：去空白、统一大写、丢掉无意义占位（空 / 全 0）。
-    private static func normalizedCRC(_ raw: String) -> String {
+    nonisolated private static func normalizedCRC(_ raw: String) -> String {
         let trimmed = raw.trimmingCharacters(in: .whitespaces).uppercased()
         if trimmed.isEmpty { return "" }
         if trimmed.allSatisfy({ $0 == "0" }) { return "" }
         return trimmed
     }
 
-    private static func byNormalizedName(_ a: ArchiveItem, _ b: ArchiveItem) -> Bool {
+    nonisolated private static func byNormalizedName(_ a: ArchiveItem, _ b: ArchiveItem) -> Bool {
         normalizedPath(a.name) < normalizedPath(b.name)
     }
 }
