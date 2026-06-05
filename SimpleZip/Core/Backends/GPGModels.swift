@@ -20,7 +20,7 @@ extension GPGBackend {
         case expired    // gpg field "e"
         case revoked    // gpg field "r"
 
-        /// 从 gpg --with-colons 输出第 2 字段单字符解析。
+        /// 从 gpg --with-colons 输出第 2 字段单字符解析 —— 这是**计算出的 validity**(有效性),不是用户设的 ownertrust。
         static func parse(_ raw: String) -> GPGTrustLevel {
             switch raw {
             case "n": return .never
@@ -33,14 +33,30 @@ extension GPGBackend {
             }
         }
 
-        /// 喂给 `gpg --command-fd 0 trust` menu 的数字（unknown / expired / revoked 不可设置，返回 nil）。
+        /// 从 `gpg --export-ownertrust` 的数字值解析**用户设置的 ownertrust**(跟 validity 不同 —— 这是你在 UI 里选的那个)。
+        /// 值:2=undefined/未设置、3=never、4=marginal、5=full、6=ultimate。
+        /// ⚠️ 之前 UI 信任 dropdown 读的是 validity(parse),所以设 never/marginal/full 后 validity 仍是 unknown →
+        /// 看起来「只有终极信任成功」。dropdown 应该读这个 ownertrust。
+        static func parseOwnertrust(_ raw: String) -> GPGTrustLevel {
+            switch raw {
+            case "3": return .never
+            case "4": return .marginal
+            case "5": return .full
+            case "6": return .ultimate
+            default: return .unknown   // 2 / 空 / 其它 = 未设置
+            }
+        }
+
+        /// 喂给 `gpg --command-fd 0 trust` menu 的数字。expired / revoked 是密钥状态、不可设置 → nil。
+        /// `unknown` = gpg 菜单「1 = I don't know or won't say」,可设置(撤回信任),返回 "1"。
         var editTrustMenuNumber: String? {
             switch self {
+            case .unknown: return "1"
             case .never: return "2"
             case .marginal: return "3"
             case .full: return "4"
             case .ultimate: return "5"
-            case .unknown, .expired, .revoked: return nil
+            case .expired, .revoked: return nil
             }
         }
 
@@ -91,7 +107,11 @@ extension GPGBackend {
         /// 兼容旧 UI 字段：「私钥不在本机」（卡上 或 stripped 都算）。
         var isSecretKeyStub: Bool { isSecretKeyOnSmartcard || isSecretKeyStripped }
         let isExpired: Bool
+        /// gpg --with-colons 第 2 字段:**计算出的 validity**(有效性,看签名网 + ownertrust 推出来)。UI 的 trust 徽章用它。
         let trust: GPGTrustLevel
+        /// 用户**设置的 ownertrust**(来自 --export-ownertrust),信任 dropdown 的「当前值」用它 —— 跟 validity 区分开,
+        /// 否则设 never/marginal/full 后 validity 不变会显示成「未设置」。
+        var ownerTrust: GPGTrustLevel = .unknown
         /// gpg field 11 capability 字符串（小写表示主密钥本身能力，大写表示整个组合能力 —— UI 主要看 subkey）。
         let capabilities: String
         let subkeys: [GPGSubkey]

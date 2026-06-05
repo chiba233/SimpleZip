@@ -392,9 +392,11 @@ struct GPGKeyRow: View {
             Picker(
                 "",
                 selection: Binding(
-                    get: { key.trust },
+                    // 「当前值」用**用户设置的 ownertrust**,不是 validity —— 否则设 never/marginal/full 后
+                    // validity 仍是 unknown,dropdown 会弹回「未设置」,看起来只有终极信任生效。
+                    get: { key.ownerTrust },
                     set: { newValue in
-                        if newValue != key.trust {
+                        if newValue != key.ownerTrust {
                             onTrustChange(newValue)
                         }
                     }

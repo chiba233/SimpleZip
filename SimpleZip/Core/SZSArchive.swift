@@ -272,6 +272,7 @@ enum SZSArchive {
         payloadRoot: URL,
         files: [URL],
         signingKeyFingerprint: String?,
+        signingKeyUsesSimpleZipKeyring: Bool = false,
         title: String? = nil,
         description: String? = nil,
         rootDirectoryHint: String? = nil,
@@ -377,6 +378,7 @@ enum SZSArchive {
         try await GPGBackend.clearsign(
             plaintextURL: plaintextURL,
             signingKeyFingerprint: signingKeyFingerprint,
+            useSimpleZipKeyring: signingKeyUsesSimpleZipKeyring,
             outputURL: outputURL,
             operationID: operationID
         )

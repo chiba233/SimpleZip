@@ -379,6 +379,9 @@ struct CreateSZSSheet: View {
                     payloadRoot: payloadRoot,
                     files: selectedFiles,
                     signingKeyFingerprint: signingKeyFingerprint.isEmpty ? nil : signingKeyFingerprint,
+                    // 所选签名密钥在 SimpleZip 私有环时,clearsign 要用其独立 homedir(否则 ~/.gnupg 找不到私钥)。
+                    // 空 = 让 gpg 用默认签名密钥(~/.gnupg),故为 false。
+                    signingKeyUsesSimpleZipKeyring: availableSecretKeys.first(where: { $0.fingerprint == signingKeyFingerprint })?.source == .simpleZipKeyring,
                     title: title.isEmpty ? nil : title,
                     description: description.isEmpty ? nil : description,
                     encryptionRecipients: encryptFiles ? recipientFingerprints : [],

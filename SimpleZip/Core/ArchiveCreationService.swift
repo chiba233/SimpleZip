@@ -154,6 +154,9 @@ enum ArchiveCreationService {
         let signatureURL = try await GPGBackend.sign(
             archiveURL: metadataForSigning,
             signingKeyFingerprint: keyFingerprint,
+            // 签名密钥在 SimpleZip 私有环时用其独立 homedir,否则 ~/.gnupg 找不到这把私钥 → 签名失败。
+            // `signerKey` 已从合并 listKeys() 解析出,直接看它的 source,无需 UI 另传。
+            useSimpleZipKeyring: signerKey?.source == .simpleZipKeyring,
             operationID: operationID
         )
 

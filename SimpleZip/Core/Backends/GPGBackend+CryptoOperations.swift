@@ -125,12 +125,18 @@ extension GPGBackend {
     static func clearsign(
         plaintextURL: URL,
         signingKeyFingerprint: String?,
+        useSimpleZipKeyring: Bool = false,
         outputURL: URL,
         operationID: UUID? = nil
     ) async throws {
         let tool = try resolve()
         try? FileManager.default.removeItem(at: outputURL)
         var arguments: [String] = ["--batch", "--yes", "--clearsign"]
+        // 签名密钥在 SimpleZip 私有环时,必须用它的独立 `--homedir`,否则 `--local-user <fp>` 在 ~/.gnupg
+        // 里找不到这把私钥而签名失败。私有环是独立 GNUPGHOME(非 --keyring),一次调用只能用一个 homedir。
+        if useSimpleZipKeyring {
+            arguments.insert(contentsOf: simpleZipKeyringArguments(), at: 0)
+        }
         if let key = signingKeyFingerprint {
             arguments.append(contentsOf: ["--local-user", key])
         }
@@ -211,6 +217,7 @@ extension GPGBackend {
     static func sign(
         archiveURL: URL,
         signingKeyFingerprint: String?,
+        useSimpleZipKeyring: Bool = false,
         operationID: UUID? = nil
     ) async throws -> URL {
         let tool = try resolve()
@@ -218,6 +225,10 @@ extension GPGBackend {
         // 已存在 → 先删，否则 gpg 会拒绝覆盖。
         try? FileManager.default.removeItem(at: signatureURL)
         var arguments: [String] = ["--batch", "--yes", "--armor", "--detach-sign"]
+        // 见 clearsign 注释:私有环签名密钥要用其独立 `--homedir`,否则在 ~/.gnupg 找不到私钥。
+        if useSimpleZipKeyring {
+            arguments.insert(contentsOf: simpleZipKeyringArguments(), at: 0)
+        }
         if let key = signingKeyFingerprint {
             arguments.append(contentsOf: ["--local-user", key])
         }

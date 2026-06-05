@@ -139,6 +139,7 @@ extension ArchiveBrowserModel {
                 recipients: request.recipientFingerprints,
                 symmetricPassphrase: request.symmetricPassphrase.isEmpty ? nil : request.symmetricPassphrase,
                 perFile: request.perFile,
+                useSimpleZipKeyring: request.useSimpleZipKeyring,
                 operationID: operationID
             )
             producedURLs = urls

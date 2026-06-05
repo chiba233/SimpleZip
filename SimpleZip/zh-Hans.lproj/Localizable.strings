@@ -1157,6 +1157,7 @@
 "gpgEncrypt.mode.perFile" = "逐个文件分别加密（每个文件一个 .gpg）";
 "gpgEncrypt.mode.bundle" = "打包成一个归档再加密（.tar.gpg）";
 "gpgEncrypt.needsRecipientOrPassphrase" = "请添加收件人或设置密码。";
+"gpgEncrypt.mixedKeyrings" = "不能同时选 ~/.gnupg 和 SimpleZip 私有钥匙串的收件人——一次加密只能用一个钥匙串。";
 "status.gpgEncrypting" = "正在加密 %@…";
 "status.gpgEncryptingMultiple" = "正在加密 %@ 项…";
 "status.gpgEncrypted" = "已加密为 %@";

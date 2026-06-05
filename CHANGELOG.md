@@ -2,6 +2,13 @@
 
 # Changelog
 
+## 0.3.1
+
+- **Fixed: keys in SimpleZip's private keyring ("独立 GNUPGHOME") couldn't actually be used — they showed up but every operation failed or was hidden.** SimpleZip's private keyring is a separate, isolated `GNUPGHOME`, but several flows only ever ran gpg against the system `~/.gnupg`, so a key that lived only in the private keyring was unusable:
+  - **Signing a `.szs` / `.siz` with a private-keyring key now works.** `gpg --detach-sign` / `--clearsign` ran against `~/.gnupg` and couldn't find the private-keyring secret key, so signing failed; they now use the key's own keyring.
+  - **"Encrypt to GPG" now lists private-keyring recipients.** The recipient picker only showed `~/.gnupg` keys; it now lists both keyrings and encrypts against the right one. (One gpg encryption can only use one keyring, so mixing recipients from `~/.gnupg` and the private keyring in a single encryption is blocked with a clear note.)
+- **Fixed: the GPG trust-level dropdown only seemed to work for "Ultimate".** It displayed the *computed validity* instead of the *ownertrust you set*, so setting Never / Marginal / Full appeared to snap back to "Not set" (only Ultimate happens to make validity match). The dropdown now reads the actual ownertrust (via `gpg --export-ownertrust`), and "Not set" is selectable again to clear a trust setting.
+
 ## 0.3.0
 
 - **Fixed: opening a nested archive (archive-inside-archive — a `.zip` in a `.zip`, a `.tar` in a `.tgz`, etc.) was broken once the encrypted scratch volume was in use, failing to open the inner archive.** The 0.2.7 encrypted scratch volume mounts via `hdiutil`, which reports its mount point as a `/private/var/…` realpath, but the "is this a disposable temp path?" check compared it (without resolving symlinks) against `FileManager.temporaryDirectory`'s `/var/…` form — so the check returned false, and opening the inner archive triggered the "leaving the archive" cleanup that **deleted the just-extracted inner archive before it could be read**. The check now resolves symlinks on both sides (and also recognizes the scratch volume's mount point), so nested archives open correctly again. (This also fixes opening a `.gpg`/`.siz` whose decrypted payload is an archive, which went through the same path.)

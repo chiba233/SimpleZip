@@ -93,6 +93,7 @@ enum GPGFileService {
         recipients: [String],
         symmetricPassphrase: String?,
         perFile: Bool,
+        useSimpleZipKeyring: Bool = false,
         operationID: UUID? = nil
     ) async throws -> [URL] {
         guard !sources.isEmpty else { throw ArchiveError.commandFailed("no sources to encrypt") }
@@ -108,7 +109,8 @@ enum GPGFileService {
                 let destination = encryptedDestination(for: file.lastPathComponent, in: file.deletingLastPathComponent())
                 try await GPGBackend.encrypt(
                     fileURL: file, recipients: recipients,
-                    symmetricPassphrase: symmetricPassphrase, outputURL: destination, operationID: operationID
+                    symmetricPassphrase: symmetricPassphrase, outputURL: destination,
+                    useSimpleZipKeyring: useSimpleZipKeyring, operationID: operationID
                 )
                 outputs.append(destination)
             }
@@ -118,7 +120,8 @@ enum GPGFileService {
         // 打包加密：全部源 → 一个 tar → base.tar.gpg。
         let output = try await encryptBundle(
             sources, in: directory, recipients: recipients,
-            symmetricPassphrase: symmetricPassphrase, operationID: operationID
+            symmetricPassphrase: symmetricPassphrase,
+            useSimpleZipKeyring: useSimpleZipKeyring, operationID: operationID
         )
         return [output]
     }
@@ -129,6 +132,7 @@ enum GPGFileService {
         in directory: URL,
         recipients: [String],
         symmetricPassphrase: String?,
+        useSimpleZipKeyring: Bool,
         operationID: UUID?
     ) async throws -> URL {
         let fm = FileManager.default
@@ -147,7 +151,8 @@ enum GPGFileService {
         let destination = encryptedDestination(for: "\(baseName).tar", in: directory)
         try await GPGBackend.encrypt(
             fileURL: tarURL, recipients: recipients,
-            symmetricPassphrase: symmetricPassphrase, outputURL: destination, operationID: operationID
+            symmetricPassphrase: symmetricPassphrase, outputURL: destination,
+            useSimpleZipKeyring: useSimpleZipKeyring, operationID: operationID
         )
         return destination
     }

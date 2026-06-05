@@ -77,7 +77,17 @@ extension GPGBackend {
             smartcardSubkey.formUnion(cardFingerprints)
         }
 
-        return parseColonsList(
+        // 读**用户设置的 ownertrust**（跟 colons 里的 validity 不同）。`--export-ownertrust` 输出
+        // `<fingerprint>:<value>:` 行（# 开头是注释）；信任 dropdown 的「当前值」要用这个,否则设
+        // never/marginal/full 后 validity 不变会显示「未设置」。失败（首次无 trustdb 等）→ 空 map。
+        var ownertrustArguments = ["--export-ownertrust"]
+        if source == .simpleZipKeyring {
+            ownertrustArguments = simpleZipKeyringArguments() + ownertrustArguments
+        }
+        let ownertrustOutput = (try? await BackendProcessRunner.runAndCapture(tool, arguments: ownertrustArguments)) ?? ""
+        let ownertrustByFingerprint = parseOwnertrust(ownertrustOutput)
+
+        var keys = parseColonsList(
             publicOutput,
             secretFingerprints: fullSecret,
             smartcardFingerprints: smartcardPrimary,
@@ -86,6 +96,26 @@ extension GPGBackend {
             strippedSubkeyFingerprints: strippedSubkey,
             source: source
         )
+        for i in keys.indices {
+            if let owner = ownertrustByFingerprint[keys[i].fingerprint] {
+                keys[i].ownerTrust = owner
+            }
+        }
+        return keys
+    }
+
+    /// 解析 `gpg --export-ownertrust` 输出 → `[fingerprint: ownertrust]`。
+    /// 每行 `<40hex fingerprint>:<value>:`；`#` 注释跳过。
+    static func parseOwnertrust(_ output: String) -> [String: GPGTrustLevel] {
+        var map: [String: GPGTrustLevel] = [:]
+        for rawLine in output.split(separator: "\n", omittingEmptySubsequences: true) {
+            let line = rawLine.trimmingCharacters(in: .whitespaces)
+            guard !line.hasPrefix("#") else { continue }
+            let fields = line.split(separator: ":", omittingEmptySubsequences: false).map(String.init)
+            guard fields.count >= 2, !fields[0].isEmpty else { continue }
+            map[fields[0]] = GPGTrustLevel.parseOwnertrust(fields[1])
+        }
+        return map
     }
 
     /// 跑 `gpg --card-status --with-colons` 抽出卡上 subkey fingerprint 集合。

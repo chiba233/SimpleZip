@@ -1157,6 +1157,7 @@
 "gpgEncrypt.mode.perFile" = "Each file separately (one .gpg per file)";
 "gpgEncrypt.mode.bundle" = "Pack into one archive, then encrypt (.tar.gpg)";
 "gpgEncrypt.needsRecipientOrPassphrase" = "Add a recipient or a passphrase.";
+"gpgEncrypt.mixedKeyrings" = "Can't mix recipients from ~/.gnupg and SimpleZip's private keyring — one encryption uses one keyring.";
 "status.gpgEncrypting" = "Encrypting %@…";
 "status.gpgEncryptingMultiple" = "Encrypting %@ items…";
 "status.gpgEncrypted" = "Encrypted to %@";

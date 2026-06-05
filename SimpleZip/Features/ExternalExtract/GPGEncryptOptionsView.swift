@@ -23,6 +23,9 @@ struct GPGEncryptRequest: Identifiable {
     /// 多选时的加密方式：true = 逐个文件各产一个 `.gpg`；false = 打包成一个 `.tar.gpg`。
     /// 默认逐个（用户更直觉的「一个文件一个 .gpg」）。单个源时此项无影响（两种产物一致）。
     var perFile: Bool = true
+    /// 收件人公钥都在 SimpleZip 私有环时 → 加密走私有 `--homedir`（否则 ~/.gnupg 里找不到这些公钥）。
+    /// 一次 gpg 调用只能用一个 homedir,所以不允许混选两环(UI 在前面拦)。
+    var useSimpleZipKeyring: Bool = false
 }
 
 struct GPGEncryptOptionsView: View {
@@ -43,13 +46,26 @@ struct GPGEncryptOptionsView: View {
         request.sourceURLs.count > 1 || hasDirectory
     }
 
+    /// 收件人候选公钥 —— **两个环都列**(~/.gnupg 的 + SimpleZip 私有环的)。加密时按所选收件人所在环选 homedir。
     private var encryptionEligibleKeys: [GPGBackend.GPGKey] {
-        availableKeys.filter { $0.source == .userKeyring }
+        availableKeys
     }
 
-    /// 收件人或对称密码至少一个非空 —— 否则没有任何方式能解密产物。
+    /// 已选收件人分布在哪些环(用于「混选两环」拦截 + 选 homedir)。
+    private var selectedRecipientSources: Set<GPGBackend.GPGKeyringSource> {
+        Set(request.recipientFingerprints.compactMap { fp in
+            availableKeys.first(where: { $0.fingerprint == fp })?.source
+        })
+    }
+
+    /// 收件人来自两个不同钥匙串 —— 一次 gpg 加密只能用一个 homedir,做不到,拦下来。
+    private var hasMixedRecipientRings: Bool {
+        selectedRecipientSources.count > 1
+    }
+
+    /// 收件人或对称密码至少一个非空,且收件人没混选两环 —— 否则没法加密。
     private var canEncrypt: Bool {
-        !request.recipientFingerprints.isEmpty || !request.symmetricPassphrase.isEmpty
+        (!request.recipientFingerprints.isEmpty || !request.symmetricPassphrase.isEmpty) && !hasMixedRecipientRings
     }
 
     var body: some View {
@@ -84,7 +100,11 @@ struct GPGEncryptOptionsView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
 
             HStack {
-                if !canEncrypt {
+                if hasMixedRecipientRings {
+                    Text(L10n.text("gpgEncrypt.mixedKeyrings"))
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                } else if !canEncrypt {
                     Text(L10n.text("gpgEncrypt.needsRecipientOrPassphrase"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -92,6 +112,8 @@ struct GPGEncryptOptionsView: View {
                 Spacer()
                 Button(L10n.text("button.cancel"), action: cancel)
                 Button(L10n.text("gpgEncrypt.button")) {
+                    // 收件人全在 SimpleZip 私有环 → 加密用私有 homedir。混选已被 canEncrypt 拦住,到不了这里。
+                    request.useSimpleZipKeyring = selectedRecipientSources == [.simpleZipKeyring]
                     confirm(request)
                 }
                 .disabled(!canEncrypt)
