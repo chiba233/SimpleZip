@@ -1011,6 +1011,8 @@
 "transfer.section.overwritten" = "Overwritten";
 "transfer.section.skipped" = "Skipped";
 "transfer.section.deleted" = "Deleted";
+"transfer.section.failed" = "Failed";
+"transfer.retryFailed" = "Retry %@ failed item(s)";
 "transfer.section.count" = "%@ (%d)";
 "transfer.summary.title" = "Transfer Summary";
 "transfer.summary.message" = "%d added, %d overwritten, %d skipped.";
@@ -1200,3 +1202,4 @@
 "status.gpgEncryptingMultiple" = "Encrypting %@ items…";
 "status.gpgEncrypted" = "Encrypted to %@";
 "status.gpgEncryptedMultiple" = "Encrypted %@ files";
+"status.gpgEncryptedPartial" = "Encrypted %1$@, %2$@ failed";

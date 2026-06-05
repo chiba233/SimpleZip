@@ -87,6 +87,19 @@ enum GPGFileService {
     /// 打包模式的 tar 中转落进**加密临时卷**（fail-closed：明文中转绝不裸落普通磁盘），用完即删。
     /// `recipients` 与 `symmetricPassphrase` 至少给一个非空（sheet 已用按钮禁用拦在前面）。
     /// 逐个模式下产物落在各自源文件旁；打包模式产物落在 `directory`。
+    /// 单项加密失败记录（批量「逐个文件」模式里某些文件失败时收集）。
+    struct EncryptFailure {
+        let source: URL
+        let reason: String
+    }
+
+    /// 加密结果：成功产物 + 失败项。逐个文件模式下**不**因单个文件失败就整批中止 ——
+    /// 收集每项结果，让活动中心能展示「哪些成功 / 哪些失败 / 原因」并支持重试失败项。
+    struct EncryptResult {
+        let produced: [URL]
+        let failures: [EncryptFailure]
+    }
+
     static func encryptToGPG(
         sources: [URL],
         in directory: URL,
@@ -95,7 +108,7 @@ enum GPGFileService {
         perFile: Bool,
         useSimpleZipKeyring: Bool = false,
         operationID: UUID? = nil
-    ) async throws -> [URL] {
+    ) async throws -> EncryptResult {
         guard !sources.isEmpty else { throw ArchiveError.commandFailed("no sources to encrypt") }
 
         if perFile {
@@ -104,26 +117,37 @@ enum GPGFileService {
             let files = SZSArchive.expandToRegularFiles(sources)
             guard !files.isEmpty else { throw ArchiveError.commandFailed("no files to encrypt") }
             var outputs: [URL] = []
+            var failures: [EncryptFailure] = []
             for file in files {
                 // .gpg 落在**该文件自己的目录**里（不是顶层 directory），保持「就在原文件旁边」。
                 let destination = encryptedDestination(for: file.lastPathComponent, in: file.deletingLastPathComponent())
-                try await GPGBackend.encrypt(
-                    fileURL: file, recipients: recipients,
-                    symmetricPassphrase: symmetricPassphrase, outputURL: destination,
-                    useSimpleZipKeyring: useSimpleZipKeyring, operationID: operationID
-                )
-                outputs.append(destination)
+                do {
+                    try await GPGBackend.encrypt(
+                        fileURL: file, recipients: recipients,
+                        symmetricPassphrase: symmetricPassphrase, outputURL: destination,
+                        useSimpleZipKeyring: useSimpleZipKeyring, operationID: operationID
+                    )
+                    outputs.append(destination)
+                } catch is CancellationError {
+                    throw CancellationError()   // 用户取消 → 整批停，按取消处理（不算失败项）。
+                } catch {
+                    failures.append(EncryptFailure(source: file, reason: error.localizedDescription))
+                }
             }
-            return outputs
+            // 全军覆没 → 抛错（任务标失败）；有任何成功 → 返回部分结果（活动中心展示失败项 + 重试）。
+            if outputs.isEmpty, let first = failures.first {
+                throw ArchiveError.commandFailed(first.reason)
+            }
+            return EncryptResult(produced: outputs, failures: failures)
         }
 
-        // 打包加密：全部源 → 一个 tar → base.tar.gpg。
+        // 打包加密：全部源 → 一个 tar → base.tar.gpg。整批是一个原子操作，失败即抛错。
         let output = try await encryptBundle(
             sources, in: directory, recipients: recipients,
             symmetricPassphrase: symmetricPassphrase,
             useSimpleZipKeyring: useSimpleZipKeyring, operationID: operationID
         )
-        return [output]
+        return EncryptResult(produced: [output], failures: [])
     }
 
     /// 把若干同级源打包成一个 tar（落加密临时卷）再加密。`base` = 单项名 / 所在目录名。

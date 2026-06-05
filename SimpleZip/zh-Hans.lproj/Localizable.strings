@@ -989,6 +989,8 @@
 "transfer.section.overwritten" = "覆盖";
 "transfer.section.skipped" = "跳过";
 "transfer.section.deleted" = "已删除";
+"transfer.section.failed" = "失败";
+"transfer.retryFailed" = "重试 %@ 个失败项";
 "transfer.section.count" = "%@（%d）";
 "transfer.summary.title" = "传输汇总";
 "transfer.summary.message" = "新增 %d，覆盖 %d，跳过 %d。";
@@ -1200,3 +1202,4 @@
 "status.gpgEncryptingMultiple" = "正在加密 %@ 项…";
 "status.gpgEncrypted" = "已加密为 %@";
 "status.gpgEncryptedMultiple" = "已加密 %@ 个文件";
+"status.gpgEncryptedPartial" = "已加密 %1$@ 项，%2$@ 项失败";

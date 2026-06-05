@@ -103,8 +103,8 @@ extension ArchiveBrowserModel {
     /// 执行加密为 `.gpg`：走 startManagedArchiveTask（进度 / 活动中心 / 可取消），完成后刷新当前文件夹
     /// 并在 Finder 里选中产物。folder/多选会先 tar 进加密临时卷再加密（GPGFileService.encryptToGPG）。
     func performEncryptToGPG(_ request: GPGEncryptRequest) {
-        var producedURLs: [URL] = []
-        // 标题带信息：单个 → 「正在加密 a.txt」；多选 → 「正在加密 3 项」。产物名等成功后从 producedURLs 拿。
+        var result: GPGFileService.EncryptResult?
+        // 标题带信息：单个 → 「正在加密 a.txt」；多选 → 「正在加密 3 项」。产物名等成功后从 result 拿。
         let title: String
         if request.sourceURLs.count == 1 {
             title = L10n.format("status.gpgEncrypting", request.sourceURLs[0].lastPathComponent)
@@ -117,23 +117,47 @@ extension ArchiveBrowserModel {
             showsDetails: false,
             successStatus: nil,
             refreshOnSuccess: { [weak self] in
-                guard let self, let first = producedURLs.first else { return }
-                self.status = producedURLs.count == 1
-                    ? L10n.format("status.gpgEncrypted", first.lastPathComponent)
-                    : L10n.format("status.gpgEncryptedMultiple", "\(producedURLs.count)")
+                guard let self, let result, let first = result.produced.first else { return }
+                let produced = result.produced.count
+                if result.failures.isEmpty {
+                    self.status = produced == 1
+                        ? L10n.format("status.gpgEncrypted", first.lastPathComponent)
+                        : L10n.format("status.gpgEncryptedMultiple", "\(produced)")
+                } else {
+                    // 部分成功 → 状态栏明确写「成功 N，失败 M」，别让用户以为全成了。
+                    self.status = L10n.format("status.gpgEncryptedPartial", "\(produced)", "\(result.failures.count)")
+                }
                 // 产物就在当前浏览的文件夹里 —— 只刷新当前视图让它出现在列表，并把光标落到第一个产物。
                 // **绝不**调 NSWorkspace 把 Finder 拉到前台（与创建压缩包流程一致，全程留在 app 内）。
                 self.pendingSelectionURL = first.standardizedFileURL
                 self.refreshVisibleFolder(containing: first)
             },
-            onSucceeded: { task in
-                // 活动中心展开后显示「新增：<产物>.gpg」（逐个加密时是多条）——给「正在加密」真实的结果密度。
-                task.transferLog = producedURLs.map {
+            onSucceeded: { [weak self] task in
+                guard let result else { return }
+                // 活动中心展开后显示「新增：<产物>.gpg」+ 失败项（红色 + 原因）——给批量加密真实的结果密度。
+                var log = result.produced.map {
                     TransferLogEntry(name: $0.lastPathComponent, action: .added, isDirectory: false)
+                }
+                log += result.failures.map {
+                    TransferLogEntry(name: $0.source.lastPathComponent, action: .failed, isDirectory: false, detail: $0.reason)
+                }
+                task.transferLog = log
+                // 有失败项 → 挂「重试失败项」：用同样的收件人 / 密码 / 模式，只对失败的源重跑。
+                if !result.failures.isEmpty {
+                    let failedSources = result.failures.map(\.source)
+                    task.retryFailed = { [weak self] in
+                        guard let self else { return }
+                        var retry = GPGEncryptRequest(sourceURLs: failedSources, directoryURL: request.directoryURL)
+                        retry.recipientFingerprints = request.recipientFingerprints
+                        retry.symmetricPassphrase = request.symmetricPassphrase
+                        retry.perFile = request.perFile
+                        retry.useSimpleZipKeyring = request.useSimpleZipKeyring
+                        self.performEncryptToGPG(retry)
+                    }
                 }
             }
         ) { operationID, _, _ in
-            let urls = try await GPGFileService.encryptToGPG(
+            result = try await GPGFileService.encryptToGPG(
                 sources: request.sourceURLs,
                 in: request.directoryURL,
                 recipients: request.recipientFingerprints,
@@ -142,7 +166,6 @@ extension ArchiveBrowserModel {
                 useSimpleZipKeyring: request.useSimpleZipKeyring,
                 operationID: operationID
             )
-            producedURLs = urls
         }
     }
 

@@ -61,6 +61,9 @@ final class OperationTask: ObservableObject, Identifiable {
     var transferLog: [TransferLogEntry] = []
     var operationID: UUID?
     var cancel: (() -> Void)?
+    /// 批量操作里有项失败时的「重试失败项」动作 —— 仅重跑失败的那些项。
+    /// 运行时态（不持久化，重启后历史任务不再可重试）。活动中心在有失败项且此项非 nil 时展示重试按钮。
+    var retryFailed: (() -> Void)?
 
     @Published var status: Status = .running
     @Published var progress = ArchiveProgressState()

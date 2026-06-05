@@ -49,6 +49,7 @@ enum TransferAction: String, Codable {
     case overwritten  // 覆盖：目标已有同名项，被替换
     case skipped      // 跳过：同名项未替换（用户选跳过 / 哈希相同）
     case deleted      // 删除：移到废纸篓
+    case failed       // 失败：该项未能完成（批量操作里某些项失败但其它项成功）；`detail` 带原因
 }
 
 /// 活动中心逐文件日志条目。随任务历史持久化，重启后仍可查看。
@@ -56,19 +57,23 @@ struct TransferLogEntry: Codable {
     let name: String
     let action: TransferAction
     let isDirectory: Bool
+    /// 可空备注 —— 目前用于 `.failed` 项的失败原因（活动中心红色行下展示）。向后兼容（旧历史无此键）。
+    let detail: String?
 
-    init(name: String, action: TransferAction, isDirectory: Bool) {
+    init(name: String, action: TransferAction, isDirectory: Bool, detail: String? = nil) {
         self.name = name
         self.action = action
         self.isDirectory = isDirectory
+        self.detail = detail
     }
 
-    // 自定义解码：旧版本历史没有 isDirectory 键，缺省按 false，避免整段历史解码失败。
+    // 自定义解码：旧版本历史没有 isDirectory / detail 键，缺省安全回退，避免整段历史解码失败。
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         name = try container.decode(String.self, forKey: .name)
         action = try container.decode(TransferAction.self, forKey: .action)
         isDirectory = try container.decodeIfPresent(Bool.self, forKey: .isDirectory) ?? false
+        detail = try container.decodeIfPresent(String.self, forKey: .detail)
     }
 }
 

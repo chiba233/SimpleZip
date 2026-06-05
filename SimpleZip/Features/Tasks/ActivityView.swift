@@ -498,15 +498,25 @@ private struct ActivityTaskRow: View {
         let overwritten = entries.filter { $0.action == .overwritten }
         let skipped = entries.filter { $0.action == .skipped }
         let deleted = entries.filter { $0.action == .deleted }
+        let failed = entries.filter { $0.action == .failed }
         var hashByName: [String: HashOverwriteResult] = [:]
         for result in hashComparisons {
             hashByName[result.targetURL.lastPathComponent] = result
         }
         return VStack(alignment: .leading, spacing: 7) {
-            Text(detailsHeaderTitle)
-                .font(.caption.weight(.semibold))
+            HStack {
+                Text(detailsHeaderTitle)
+                    .font(.caption.weight(.semibold))
+                Spacer()
+                transferLogSummary(added: added.count, overwritten: overwritten.count,
+                                   skipped: skipped.count, failed: failed.count)
+            }
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 10) {
+                    // 失败项排最前 —— 用户最关心「哪些没成」。
+                    if !failed.isEmpty {
+                        TransferLogGroup(title: L10n.text("transfer.section.failed"), entries: failed, icon: "exclamationmark.circle.fill", tint: .red, hashByName: hashByName)
+                    }
                     if !added.isEmpty {
                         TransferLogGroup(title: L10n.text("transfer.section.added"), entries: added, icon: "plus.circle.fill", tint: .green, hashByName: hashByName)
                     }
@@ -524,7 +534,41 @@ private struct ActivityTaskRow: View {
                 .padding(.trailing, 16)
             }
             .frame(maxHeight: 280)
+
+            // 重试失败项 —— 仅当有失败项且任务挂了重试动作（运行时态，历史任务不可重试）。
+            if !failed.isEmpty, let retry = task.retryFailed {
+                Button {
+                    retry()
+                } label: {
+                    Label(L10n.format("transfer.retryFailed", "\(failed.count)"), systemImage: "arrow.clockwise")
+                }
+                .controlSize(.small)
+            }
         }
+    }
+
+    /// 详情顶部的「✓N · ⤼K · ✗M」计数摘要 —— 一眼看清批量结果分布。
+    @ViewBuilder
+    private func transferLogSummary(added: Int, overwritten: Int, skipped: Int, failed: Int) -> some View {
+        HStack(spacing: 8) {
+            if added + overwritten > 0 {
+                summaryChip(count: added + overwritten, system: "checkmark.circle.fill", tint: .green)
+            }
+            if skipped > 0 {
+                summaryChip(count: skipped, system: "minus.circle.fill", tint: .secondary)
+            }
+            if failed > 0 {
+                summaryChip(count: failed, system: "exclamationmark.circle.fill", tint: .red)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func summaryChip(count: Int, system: String, tint: Color) -> some View {
+        Label("\(count)", systemImage: system)
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(tint)
+            .labelStyle(.titleAndIcon)
     }
 
     /// 后端命令详情：实时命令输出文本日志（解压 / 压缩 / 测试）。
@@ -732,15 +776,25 @@ private struct TransferLogGroup: View {
                         // 有哈希比对 → 内嵌那张格式化卡片（源/目标哈希 + 状态）。
                         HashComparisonCard(result: hash)
                     } else {
-                        HStack(spacing: 6) {
-                            Image(systemName: icon)
-                                .foregroundStyle(tint)
-                            Text(entry.isDirectory ? L10n.format("transfer.folderName", entry.name) : entry.name)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-                            Spacer()
+                        VStack(alignment: .leading, spacing: 1) {
+                            HStack(spacing: 6) {
+                                Image(systemName: icon)
+                                    .foregroundStyle(tint)
+                                Text(entry.isDirectory ? L10n.format("transfer.folderName", entry.name) : entry.name)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                Spacer()
+                            }
+                            .font(.callout)
+                            // 失败原因等备注 —— 缩进对齐文件名，灰色小字。
+                            if let detail = entry.detail, !detail.isEmpty {
+                                Text(detail)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(2)
+                                    .padding(.leading, 20)
+                            }
                         }
-                        .font(.callout)
                         .padding(.leading, 12)
                     }
                 }
