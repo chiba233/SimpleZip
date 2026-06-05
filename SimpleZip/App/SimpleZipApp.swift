@@ -85,6 +85,15 @@ struct ArchiveFileCommands: Commands {
     @FocusedObject private var model: ArchiveBrowserModel?
 
     var body: some Commands {
+        // #113 查找 ⌘F —— 聚焦主窗口的原生 `.searchable` 搜索框（编辑菜单的标准 Find 位置）。
+        CommandGroup(after: .textEditing) {
+            Button(L10n.text("menu.find")) {
+                model?.requestSearchFocus()
+            }
+            .keyboardShortcut("f", modifiers: [.command])
+            .disabled(model == nil)
+        }
+
         CommandGroup(replacing: .newItem) {
             // 「新建标签页」⌘T —— 在当前窗口里新开一个标签（全新 ContentView / ArchiveBrowserModel）。
             // 自己用 AppKit 建窗 + addTabbedWindow，零闪烁；不依赖 model，任何时候都可用。

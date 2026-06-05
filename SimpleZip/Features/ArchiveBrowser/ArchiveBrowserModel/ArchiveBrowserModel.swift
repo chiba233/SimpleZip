@@ -25,6 +25,13 @@ final class ArchiveBrowserModel: ObservableObject {
     @Published var searchText = ""
     /// 搜索栏是否可见。⌘F / 右键「查找」/ 菜单栏「查找」置 true；Esc 或清空收起。
     @Published var isSearchActive = false
+    /// ⌘F / 菜单栏「查找」自增它 → ContentView 的 `.onChange` 把原生 `.searchable` 字段（`.searchFocused`）聚焦。
+    @Published var searchFocusRequestID = 0
+
+    /// 请求聚焦原生搜索框（⌘F / 菜单栏「查找」用）。
+    func requestSearchFocus() {
+        searchFocusRequestID += 1
+    }
 
     /// 过滤后的归档条目（主列表展示用）。空搜索返回全部；非空时按完整路径名大小写不敏感匹配（复用 Core `ArchiveSearch`）。
     var displayedArchiveItems: [ArchiveItem] {

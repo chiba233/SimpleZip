@@ -12,6 +12,8 @@ import UniformTypeIdentifiers
 /// 主窗口视图：只负责把侧边栏、工具栏、列表和状态栏组合在一起。
 struct ContentView: View {
     @StateObject private var model = ArchiveBrowserModel()
+    /// #113 原生搜索框焦点 —— ⌘F / 菜单「查找」经 `model.searchFocusRequestID` 触发，绑到 `.searchFocused`。
+    @FocusState private var isSearchFieldFocused: Bool
 
     /// 工厂建窗时传入：窗口/标签出现后在本浏览器里浏览这个 URL（右键「在新标签 / 新窗口打开」用）。
     private let openURLOnAppear: URL?
@@ -93,13 +95,18 @@ struct ContentView: View {
             }
             .frame(minWidth: 620)
             .navigationTitle(model.title)
-            // #113 查找：原生 `.searchable` 给 toolbar 搜索框 + ⌘F 聚焦 + 系统「编辑 → 查找」菜单项。
-            // 文本绑到 model.searchText，主列表（文件 / 归档）按 model.displayedItems 过滤。
+            // #113 查找：原生 `.searchable` —— 文本绑 model.searchText，主列表按 model.displayedItems 过滤。
+            // `.searchToolbarBehavior(.minimize)`（macOS 26 官方）让搜索框折叠成工具栏图标、点开 / ⌘F 才展开。
+            // `.searchFocused` + 菜单「查找」让 ⌘F 聚焦它。两者都按可用版本守，部署目标 13 下旧系统自动跳过。
             .searchable(
                 text: $model.searchText,
                 placement: .toolbar,
                 prompt: L10n.text("search.prompt")
             )
+            .nativeSearchFocused($isSearchFieldFocused)
+            .onChange(of: model.searchFocusRequestID) { _ in
+                isSearchFieldFocused = true
+            }
         }
         .frame(minWidth: 980, minHeight: 620)
         // focusedSceneObject 服务 WindowGroup 自动建的首窗；focusedObject 让工厂手建的窗口/标签
@@ -906,5 +913,22 @@ struct ContentView: View {
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
         ContentView()
+    }
+}
+
+// MARK: - #113 原生搜索的版本可用性包装
+
+private extension View {
+    /// `.searchFocused`（macOS 15+）让 ⌘F / 菜单「查找」能聚焦原生 `.searchable` 搜索框。
+    /// 部署目标 13 下旧系统跳过（旧系统仍可点搜索框搜索，只是 ⌘F 不聚焦）。
+    /// 注：macOS 26 的 `.searchable` 在工具栏里本就**自动折叠**成搜索图标，不需要额外修饰符
+    /// （`.searchToolbarBehavior(.minimize)` 是 iOS/iPadOS 专有，macOS 不可用）。
+    @ViewBuilder
+    func nativeSearchFocused(_ binding: FocusState<Bool>.Binding) -> some View {
+        if #available(macOS 15.0, *) {
+            self.searchFocused(binding)
+        } else {
+            self
+        }
     }
 }

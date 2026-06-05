@@ -698,6 +698,7 @@
 "column.characteristics" = "Characteristics";
 "column.symlink" = "Symlink Target";
 "search.prompt" = "Search";
+"menu.find" = "Find";
 "menu.aboutSimpleZip" = "About SimpleZip";
 "menu.tools" = "Tools";
 "menu.activityCenter" = "Activity Center";

@@ -696,6 +696,7 @@
 "column.characteristics" = "特征";
 "column.symlink" = "符号链接目标";
 "search.prompt" = "搜索";
+"menu.find" = "查找";
 "menu.aboutSimpleZip" = "关于 SimpleZip";
 "menu.tools" = "工具";
 "menu.activityCenter" = "活动中心";
