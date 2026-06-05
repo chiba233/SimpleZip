@@ -464,18 +464,18 @@ enum SZSArchive {
         payloadRoot: URL,
         operationID: UUID? = nil
     ) async throws -> VerifyReport {
-        // Step 1：gpg 校验 + 拿明文 JSON。
-        let (signatureResult, plaintext) = try await GPGBackend.verifyClearsign(
+        // Step 1：gpg 校验签名（真伪 / 信任级别）。
+        let signatureResult = try await GPGBackend.verifyClearsign(
             signedURL: manifestURL,
             operationID: operationID
-        )
-        guard !plaintext.isEmpty else {
-            // 拿不到明文 → 既无法解析 manifest，也算不上完整 verify。caller 把 signatureResult 当主信息展示就行。
-            throw SZSError.manifestParseFailed("empty plaintext after gpg --decrypt")
-        }
+        ).verify
 
-        // Step 2：解析 + 校验 Manifest schema。
-        let manifest = try decodeManifest(from: plaintext)
+        // Step 2：明文 manifest 直接解析 `.szs` 文件自身的 clearsigned armor，**不**从 gpg 的
+        // stdout/stderr 合并输出里抽。原因：签名密钥不是「终极信任」时，gpg 会打印「此密钥未经可信
+        // 签名证明」警告，其续行是一条行首为空格的缩进指纹行（既非 `gpg: ` 也非 `[GNUPG:] `），会漏过
+        // 明文前缀过滤器、混进 JSON 导致解析失败（勉强 / 完全 / 永不信任都会触发，只有终极信任不打这条警告）。
+        // gpg 验的正是这段 armor 正文，直接解析它与 gpg 输出等价、且不受信任状态影响。
+        let manifest = try extractClearsignedManifest(manifestURL: manifestURL)
 
         // Step 3：每文件 SHA256 校验。
         let entries = checkFiles(manifest: manifest, payloadRoot: payloadRoot)
@@ -489,14 +489,13 @@ enum SZSArchive {
         manifestURL: URL,
         operationID: UUID? = nil
     ) async throws -> (signature: GPGBackend.GPGVerifyResult, manifest: Manifest) {
-        let (signatureResult, plaintext) = try await GPGBackend.verifyClearsign(
+        // 签名结果来自 gpg；明文 manifest 直接解析 `.szs` 的 clearsigned armor（见 verify 中的说明：
+        // 未达终极信任的密钥，其 gpg 警告续行会污染合并输出 → 解析失败，所以绕开 gpg 输出直接读文件）。
+        let signatureResult = try await GPGBackend.verifyClearsign(
             signedURL: manifestURL,
             operationID: operationID
-        )
-        guard !plaintext.isEmpty else {
-            throw SZSError.manifestParseFailed("empty plaintext after gpg --decrypt")
-        }
-        let manifest = try decodeManifest(from: plaintext)
+        ).verify
+        let manifest = try extractClearsignedManifest(manifestURL: manifestURL)
         return (signatureResult, manifest)
     }
 
