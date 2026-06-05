@@ -468,10 +468,8 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
 
         /// 「打开方式 ▸」子菜单 —— 用条目扩展名探测能打开此类型的 app（条目还在归档里、没有真实 URL）。
         private func appendArchiveOpenWithMenu(to menu: NSMenu, for item: ArchiveItem) {
-            let ext = (item.displayName as NSString).pathExtension
-            let probe = URL(fileURLWithPath: ext.isEmpty ? item.displayName : "probe.\(ext)")
             let submenu = NSMenu()
-            for appURL in OpenWithService.commonApplicationURLs(toOpen: [probe]) {
+            for appURL in OpenWithService.applicationURLs(forFileNamed: item.displayName) {
                 let name = FileManager.default.displayName(atPath: appURL.path)
                 let mi = NSMenuItem(title: name, action: #selector(openArchiveItemWithApp(_:)), keyEquivalent: "")
                 mi.target = self

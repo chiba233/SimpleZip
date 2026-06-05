@@ -22,6 +22,25 @@ enum OpenWithService {
         }
     }
 
+    /// 列出能打开「某种文件类型」的 app —— 用于归档内条目(还没解出来、没有真实 URL)。
+    /// **关键**:`NSWorkspace.urlsForApplications(toOpen:)` 对**不存在的文件**会返回空(系统判不出类型),
+    /// 所以这里先按扩展名建一个真实的临时空文件再查,查完即删 —— 否则「打开方式」永远只剩「其他…」。
+    static func applicationURLs(forFileNamed fileName: String) -> [URL] {
+        let fm = FileManager.default
+        let dir = fm.temporaryDirectory.appendingPathComponent("SimpleZip-OpenWithProbe-\(UUID().uuidString)", isDirectory: true)
+        let ext = (fileName as NSString).pathExtension
+        let probeName = ext.isEmpty ? "probe" : "probe.\(ext)"
+        let probe = dir.appendingPathComponent(probeName)
+        guard (try? fm.createDirectory(at: dir, withIntermediateDirectories: true)) != nil,
+              (try? Data().write(to: probe)) != nil else {
+            try? fm.removeItem(at: dir)
+            return []
+        }
+        defer { try? fm.removeItem(at: dir) }
+        var seen = Set<String>()
+        return NSWorkspace.shared.urlsForApplications(toOpen: probe).filter { seen.insert($0.path).inserted }
+    }
+
     static func open(_ urls: [URL], withApplicationAt appURL: URL) {
         guard !urls.isEmpty else { return }
         NSWorkspace.shared.open(urls, withApplicationAt: appURL, configuration: NSWorkspace.OpenConfiguration())
