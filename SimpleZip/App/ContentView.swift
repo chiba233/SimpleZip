@@ -111,6 +111,10 @@ struct ContentView: View {
         .onDrop(of: [UTType.fileURL.identifier], isTargeted: $isDropTargeted) { providers in
             receiveDroppedFileURLs(from: providers)
         }
+        // 回到前台 → 检查「在外部 app 打开的归档内文件」有没有被编辑，有就询问写回（#109 part 3）。
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            model.checkPendingArchiveWriteBacks()
+        }
         .alert(L10n.text("alert.operationFailed"), isPresented: Binding(get: {
             model.isShowingOperationFailureAlert
         }, set: { newValue in

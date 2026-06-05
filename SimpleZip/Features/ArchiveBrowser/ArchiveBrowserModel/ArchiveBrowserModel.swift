@@ -175,6 +175,8 @@ final class ArchiveBrowserModel: ObservableObject {
     var activeLoadGeneration = 0
     var mountedDiskImage: MountedDiskImageSession?
     var openedArchiveItemDirectories: [URL] = []
+    /// 在外部 app 打开的归档内文件 → 监视它的临时副本，回前台时若被外部编辑就询问写回原归档（#109 part 3）。
+    var pendingArchiveWriteBacks: [PendingArchiveWriteBack] = []
 
     init() {
         // 注意：不在这里清理临时目录 —— 那是「全 app 一次性」职责，已移到 AppDelegate 启动时 stale-only 执行。

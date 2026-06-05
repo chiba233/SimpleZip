@@ -17,6 +17,14 @@ enum ArchiveOpenWithTarget {
     case chooseApp
 }
 
+/// 「在外部 app 打开的归档内文件」的写回监视项 —— 记临时副本 + 已知 hash,回前台时比对。
+struct PendingArchiveWriteBack {
+    let archiveURL: URL
+    let entryPath: String
+    let tempFileURL: URL
+    var lastKnownHash: String
+}
+
 extension ArchiveBrowserModel {
     func openArchiveItemExternally(_ item: ArchiveItem, openWith: ArchiveOpenWithTarget? = nil) {
         guard case .archive(let archiveURL) = mode else { return }
@@ -31,12 +39,16 @@ extension ArchiveBrowserModel {
             ? ArchiveService.detectZipEncryption(in: archiveURL)
             : .unknown
         let shouldPromptBeforeExtraction = ArchiveService.archiveItemsSuggestPasswordRequirement(entries, in: archiveURL)
+        // 普通「在外部 app 打开」单个文件 + 当前是可编辑归档 → 之后监视临时副本变化以便写回。
+        let allowWriteBack = openWith == nil && !item.isDirectory && canDropIntoOpenArchive
+        let writeBackEntryPath = item.name
 
         startOperationTask(cancellable: true) { [weak self] operationID in
             guard let self else { return }
             var extractedDiskImageURL: URL?
             var extractedNestedArchiveURL: URL?
             var extractedSpecialFileURL: URL?
+            var registeredWriteBack: PendingArchiveWriteBack?
             let didSucceed = await runArchiveTask(L10n.format("status.openingArchiveItem", item.displayName)) { progress in
                 let destination = try self.makeArchiveItemOpenDirectory()
                 self.openedArchiveItemDirectories.append(destination)
@@ -115,6 +127,13 @@ extension ArchiveBrowserModel {
                             extractedSpecialFileURL = extractedURL
                             return
                         }
+                        // 监视写回:记下临时副本 + 它当前的 hash,回前台时若 hash 变了就询问写回(#109 part 3)。
+                        if allowWriteBack, let hash = try? SIZArchive.computeInnerArchiveSHA256(of: extractedURL) {
+                            registeredWriteBack = PendingArchiveWriteBack(
+                                archiveURL: archiveURL, entryPath: writeBackEntryPath,
+                                tempFileURL: extractedURL, lastKnownHash: hash
+                            )
+                        }
                         guard NSWorkspace.shared.open(extractedURL) else {
                             throw ArchiveError.openExtractedItemFailed
                         }
@@ -138,6 +157,11 @@ extension ArchiveBrowserModel {
                 }
             }
             if didSucceed {
+                // 登记写回监视(去重:同一归档同一条目只留最新)。
+                if let registeredWriteBack {
+                    pendingArchiveWriteBacks.removeAll { $0.archiveURL == registeredWriteBack.archiveURL && $0.entryPath == registeredWriteBack.entryPath }
+                    pendingArchiveWriteBacks.append(registeredWriteBack)
+                }
                 if let extractedDiskImageURL {
                     openDiskImage(extractedDiskImageURL)
                 } else if let extractedNestedArchiveURL {
@@ -581,6 +605,60 @@ extension ArchiveBrowserModel {
         var n = 2
         while existing.contains("\(base) \(n)") { n += 1 }
         return "\(base) \(n)"
+    }
+
+    // MARK: - 外部编辑写回(#109 part 3)
+
+    /// app 回到前台时调:检查所有被监视的临时副本,有外部编辑(hash 变了)就逐个询问写回。
+    /// 临时副本 / 原归档已不在 → 丢弃该监视。
+    func checkPendingArchiveWriteBacks() {
+        guard !pendingArchiveWriteBacks.isEmpty else { return }
+        var keep: [PendingArchiveWriteBack] = []
+        var changed: [PendingArchiveWriteBack] = []
+        for wb in pendingArchiveWriteBacks {
+            guard fileManager.fileExists(atPath: wb.tempFileURL.path),
+                  fileManager.fileExists(atPath: wb.archiveURL.path) else { continue }
+            if let hash = try? SIZArchive.computeInnerArchiveSHA256(of: wb.tempFileURL), hash != wb.lastKnownHash {
+                changed.append(wb)
+            } else {
+                keep.append(wb)
+            }
+        }
+        pendingArchiveWriteBacks = keep
+        for wb in changed { promptArchiveWriteBack(wb) }
+    }
+
+    /// 单个条目被外部编辑 → 询问写回。不管选啥都更新已知 hash 并继续监视(避免对同一改动反复弹)。
+    private func promptArchiveWriteBack(_ wb: PendingArchiveWriteBack) {
+        let leaf = (wb.entryPath as NSString).lastPathComponent
+        let alert = NSAlert()
+        alert.alertStyle = .informational
+        alert.messageText = L10n.format("archive.writeBack.title", leaf)
+        alert.informativeText = L10n.format("archive.writeBack.message", wb.archiveURL.lastPathComponent)
+        alert.addButton(withTitle: L10n.text("archive.writeBack.confirmButton"))
+        alert.addButton(withTitle: L10n.text("button.cancel"))
+        let response = alert.runModal()
+
+        // 继续监视:把已知 hash 更新到当前(无论写不写回),下次再编辑才会重新提示。
+        var updated = wb
+        updated.lastKnownHash = (try? SIZArchive.computeInnerArchiveSHA256(of: wb.tempFileURL)) ?? wb.lastKnownHash
+        pendingArchiveWriteBacks.removeAll { $0.archiveURL == wb.archiveURL && $0.entryPath == wb.entryPath }
+        pendingArchiveWriteBacks.append(updated)
+
+        guard response == .alertFirstButtonReturn else { return }
+        let archiveURL = wb.archiveURL, entryPath = wb.entryPath, tempURL = wb.tempFileURL
+        startManagedArchiveTask(
+            title: L10n.format("archive.writeBack.taskTitle", leaf),
+            kind: .compress,
+            showsDetails: true,
+            refreshOnSuccess: { [weak self] in self?.reload() }
+        ) { operationID, _, observer in
+            try await ArchiveService.addOrReplaceEntries(
+                in: archiveURL,
+                additions: [ArchiveEntryAddition(sourceFile: tempURL, entryPath: entryPath)],
+                password: "", operationID: operationID, outputObserver: observer
+            )
+        }
     }
 
     /// 当前上下文的「删除」——给菜单栏 ⌘⌫ 命令统一入口:归档(可编辑)里删条目,否则删文件(移废纸篓)。

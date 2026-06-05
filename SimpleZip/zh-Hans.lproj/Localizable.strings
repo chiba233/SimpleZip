@@ -534,6 +534,11 @@
 "archive.addFiles.prompt" = "加进压缩包";
 "archive.newFolder.defaultName" = "新建文件夹";
 "archive.newFile.defaultName" = "未命名.txt";
+// 外部编辑写回（#109 part 3）
+"archive.writeBack.title" = "「%@」在外部被编辑了";
+"archive.writeBack.message" = "把改动写回「%@」吗？写回是安全的（复制→更新→原子替换），失败绝不破坏原包。";
+"archive.writeBack.confirmButton" = "写回";
+"archive.writeBack.taskTitle" = "正在把「%@」写回压缩包";
 "archive.deleteEntry.confirmSingle" = "从压缩包删除「%@」？";
 "archive.deleteEntry.confirmMultiple" = "从压缩包删除 %@ 项？";
 "archive.deleteEntry.confirmMessage" = "选中的条目将从压缩包里移除。操作成功前原文件不会被改动。";

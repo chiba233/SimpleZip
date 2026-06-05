@@ -536,6 +536,11 @@
 "archive.addFiles.prompt" = "Add to Archive";
 "archive.newFolder.defaultName" = "untitled folder";
 "archive.newFile.defaultName" = "untitled.txt";
+// External-edit write-back (#109 part 3)
+"archive.writeBack.title" = "“%@” was edited externally";
+"archive.writeBack.message" = "Save the changes back into “%@”? The archive is updated safely (copied, updated, then atomically replaced) — the original is never damaged on failure.";
+"archive.writeBack.confirmButton" = "Save Back";
+"archive.writeBack.taskTitle" = "Saving “%@” back to the archive";
 "archive.deleteEntry.confirmSingle" = "Delete “%@” from the archive?";
 "archive.deleteEntry.confirmMultiple" = "Delete %@ items from the archive?";
 "archive.deleteEntry.confirmMessage" = "The selected entries will be removed from the archive. The original file isn't modified until this succeeds.";
