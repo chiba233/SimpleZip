@@ -395,6 +395,19 @@
 "settings.gpg.addUID.applyButton" = "Add";
 "settings.gpg.addUID.succeeded" = "Added UID \"%@\".";
 "settings.gpg.addUID.failed" = "Add UID failed: %@";
+// Add subkey ("补票") sheet — append a sign/encrypt/auth subkey to an existing key
+"settings.gpg.keys.contextAddSubkey" = "Add Subkey…";
+"settings.gpg.addSubkey.title" = "Add Subkey";
+"settings.gpg.addSubkey.subject" = "%1$@ · …%2$@";
+"settings.gpg.addSubkey.capabilityLabel" = "Capability";
+"settings.gpg.addSubkey.cap.sign" = "Sign";
+"settings.gpg.addSubkey.cap.encrypt" = "Encrypt";
+"settings.gpg.addSubkey.cap.auth" = "Authenticate";
+"settings.gpg.addSubkey.note" = "The new subkey is bound to the primary key (gpg `--quick-add-key`). An Ed25519 key uses a cv25519 encryption subkey and ed25519 for sign / auth; RSA keys use same-size RSA. Smartcard / stripped keys aren't offered here — their private key can't sign a new subkey.";
+"settings.gpg.addSubkey.requiredHint" = "Passphrase is required to unlock the primary key.";
+"settings.gpg.addSubkey.applyButton" = "Add";
+"settings.gpg.addSubkey.succeeded" = "Added %1$@ subkey to \"%2$@\".";
+"settings.gpg.addSubkey.failed" = "Add subkey failed: %@";
 "settings.gpg.keys.contextGenerateRevocation" = "Generate Revocation Certificate…";
 "settings.gpg.keys.contextExportPrivateKey" = "Export Private Key as .asc…";
 "settings.gpg.keys.contextDelete" = "Delete Key…";

@@ -57,6 +57,8 @@ struct GPGPane: View {
     @State private var pendingPassphraseKey: GPGBackend.GPGKey?
     /// 「添加 User ID」sheet 的目标密钥。
     @State private var pendingAddUIDKey: GPGBackend.GPGKey?
+    /// 「补票」添加子密钥 sheet 的目标密钥。
+    @State private var pendingAddSubkeyKey: GPGBackend.GPGKey?
 
     var body: some View {
         Form {
@@ -127,6 +129,15 @@ struct GPGPane: View {
                 set: { if !$0 { pendingAddUIDKey = nil } }
             )) { name, email, comment, passphrase in
                 applyAddUserID(for: key, name: name, email: email, comment: comment, passphrase: passphrase)
+            }
+        }
+        // 补票添加子密钥 sheet
+        .sheet(item: $pendingAddSubkeyKey) { key in
+            AddSubkeySheet(key: key, isPresented: Binding(
+                get: { pendingAddSubkeyKey != nil },
+                set: { if !$0 { pendingAddSubkeyKey = nil } }
+            )) { capability, algorithm, expiration, passphrase in
+                applyAddSubkey(for: key, capability: capability, algorithm: algorithm, expiration: expiration, passphrase: passphrase)
             }
         }
         // 生成撤销证书 sheet
@@ -503,6 +514,9 @@ struct GPGPane: View {
                         onChangePassphrase: {
                             pendingPassphraseKey = key
                         },
+                        onAddSubkey: {
+                            pendingAddSubkeyKey = key
+                        },
                         onAddUserID: {
                             pendingAddUIDKey = key
                         },
@@ -788,6 +802,38 @@ struct GPGPane: View {
             } catch {
                 await MainActor.run {
                     keyOperationMessage = L10n.format("settings.gpg.addUID.failed", error.localizedDescription)
+                }
+            }
+        }
+    }
+
+    /// 「补票」给现有密钥追加子密钥 —— `gpg --quick-add-key <fp> <algo> <usage> <expire>`，需 passphrase 解锁主密钥。
+    private func applyAddSubkey(
+        for key: GPGBackend.GPGKey,
+        capability: GPGBackend.GPGSubkeyCapability,
+        algorithm: GPGBackend.GPGKeyAlgorithm,
+        expiration: GPGBackend.GPGKeyExpiration,
+        passphrase: String
+    ) {
+        keyOperationMessage = nil
+        Task {
+            do {
+                try await GPGBackend.addSubkey(
+                    fingerprint: key.fingerprint,
+                    capability: capability,
+                    algorithm: algorithm,
+                    expiration: expiration,
+                    passphrase: passphrase,
+                    source: key.source
+                )
+                let refreshed = try? await GPGBackend.listKeys()
+                await MainActor.run {
+                    keys = refreshed ?? keys
+                    keyOperationMessage = L10n.format("settings.gpg.addSubkey.succeeded", capability.displayName, key.userID)
+                }
+            } catch {
+                await MainActor.run {
+                    keyOperationMessage = L10n.format("settings.gpg.addSubkey.failed", error.localizedDescription)
                 }
             }
         }

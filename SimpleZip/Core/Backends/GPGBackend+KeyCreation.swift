@@ -19,15 +19,38 @@ extension GPGBackend {
 
         var id: String { rawValue }
 
-        /// 加密子密钥用的算法字符串。**EdDSA(ed25519) 主密钥只能签 / 认证**,加密子密钥必须用 Curve25519
-        /// 的 `cv25519`;RSA 主密钥的加密子密钥同位数。`--quick-generate-key <uid> ed25519 default` 不会
-        /// 自动建加密子密钥(实测 gpg 2.5),所以 createKey 用这个算法显式 `--quick-add-key ... encrypt`。
-        var encryptionSubkeyAlgorithm: String {
+        /// 某个用途的子密钥该用什么 gpg 算法字符串。
+        /// **EdDSA(ed25519) 只能签 / 认证**,加密子密钥必须用 Curve25519 的 `cv25519`;
+        /// 签名 / 认证子密钥用 `ed25519`。RSA 主密钥的子密钥都用同位数 RSA。
+        func subkeyAlgorithm(for capability: GPGSubkeyCapability) -> String {
             switch self {
-            case .ed25519: return "cv25519"
-            case .rsa4096: return "rsa4096"
-            case .rsa3072: return "rsa3072"
-            case .rsa2048: return "rsa2048"
+            case .ed25519:
+                return capability == .encrypt ? "cv25519" : "ed25519"
+            case .rsa4096, .rsa3072, .rsa2048:
+                return rawValue
+            }
+        }
+
+        /// 加密子密钥算法。`--quick-generate-key <uid> ed25519 default` 不会自动建加密子密钥(实测 gpg 2.5),
+        /// 所以 createKey 用这个显式 `--quick-add-key ... encrypt`。
+        var encryptionSubkeyAlgorithm: String { subkeyAlgorithm(for: .encrypt) }
+    }
+
+    /// 子密钥用途 —— 新建密钥时(加密自动 + 认证可选)与给现有密钥「补票」加子密钥时共用。
+    /// `gpgUsage` 是喂给 `--quick-add-key <fp> <algo> <usage>` 的用途字符串。
+    /// certify(签证)只属于主密钥、不作为可加的子密钥用途,故不在此列。
+    enum GPGSubkeyCapability: String, CaseIterable, Hashable, Identifiable {
+        case sign
+        case encrypt
+        case authenticate
+
+        var id: String { rawValue }
+
+        var gpgUsage: String {
+            switch self {
+            case .sign: return "sign"
+            case .encrypt: return "encrypt"
+            case .authenticate: return "auth"
             }
         }
     }
@@ -180,6 +203,43 @@ extension GPGBackend {
         // 创建确实成功了（gpg 退出码 0）但 fingerprint 没解析出来 —— 返回空串让 UI 提示「成功但未拿到指纹」，
         // 调用方 refresh keyring 还能看到新密钥。
         return ""
+    }
+
+    /// 给**现有密钥**追加一个子密钥（「补票」）—— 例如给只有签名能力的旧密钥补一个加密子密钥。
+    ///
+    /// 走 `gpg --quick-add-key <fp> <algo> <usage> <expire>`，passphrase 通过 stdin loopback 喂 gpg 解锁主密钥
+    /// （新子密钥要用主密钥签名绑定）。算法按 `algorithm.subkeyAlgorithm(for:)` 映射
+    /// （ed25519 的加密子密钥 → cv25519，签名 / 认证 → ed25519；RSA → 同位数）。
+    ///
+    /// **不支持卡上 / stripped 主密钥**：卡上私钥不出卡，`--quick-add-key` 没有可用主私钥签新子密钥 → 调用方
+    /// （UI）必须在入口处用 `isSecretKeyStub` 把这条路对智能卡密钥隐藏，本函数不为卡场景做特殊处理。
+    static func addSubkey(
+        fingerprint: String,
+        capability: GPGSubkeyCapability,
+        algorithm: GPGKeyAlgorithm,
+        expiration: GPGKeyExpiration,
+        passphrase: String,
+        source: GPGKeyringSource = .userKeyring
+    ) async throws {
+        let tool = try resolve()
+        await ensureGPGAgentLaunched(near: tool)
+        var args: [String] = ["--batch", "--pinentry-mode", "loopback", "--passphrase-fd", "0"]
+        if source == .simpleZipKeyring {
+            args.insert(contentsOf: simpleZipKeyringArguments(), at: 0)
+        }
+        args.append(contentsOf: [
+            "--status-fd", "1",
+            "--quick-add-key",
+            fingerprint,
+            algorithm.subkeyAlgorithm(for: capability),
+            capability.gpgUsage,
+            expiration.rawValue
+        ])
+        _ = try await BackendProcessRunner.runAndCapture(
+            tool,
+            arguments: args,
+            inputStrategy: .staticInput(passphrase + "\n")
+        )
     }
 
     /// 导入公钥（也兼容公私钥对，gpg 自动识别）到指定 ring。

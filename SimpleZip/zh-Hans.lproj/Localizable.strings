@@ -395,6 +395,19 @@
 "settings.gpg.addUID.applyButton" = "添加";
 "settings.gpg.addUID.succeeded" = "已添加 UID「%@」。";
 "settings.gpg.addUID.failed" = "添加 UID 失败：%@";
+// 「补票」给现有密钥追加子密钥（签 / 密 / 认）
+"settings.gpg.keys.contextAddSubkey" = "添加子密钥…";
+"settings.gpg.addSubkey.title" = "添加子密钥";
+"settings.gpg.addSubkey.subject" = "%1$@ · …%2$@";
+"settings.gpg.addSubkey.capabilityLabel" = "用途";
+"settings.gpg.addSubkey.cap.sign" = "签名";
+"settings.gpg.addSubkey.cap.encrypt" = "加密";
+"settings.gpg.addSubkey.cap.auth" = "认证";
+"settings.gpg.addSubkey.note" = "新子密钥由主密钥签名绑定（gpg `--quick-add-key`）。Ed25519 密钥的加密子密钥用 cv25519、签名 / 认证用 ed25519；RSA 密钥用同位数 RSA。智能卡 / stripped 密钥不在此提供 —— 它们的私钥不出卡，无法签名新子密钥。";
+"settings.gpg.addSubkey.requiredHint" = "需要 passphrase 解锁主密钥。";
+"settings.gpg.addSubkey.applyButton" = "添加";
+"settings.gpg.addSubkey.succeeded" = "已给「%2$@」添加%1$@子密钥。";
+"settings.gpg.addSubkey.failed" = "添加子密钥失败：%@";
 "settings.gpg.keys.contextGenerateRevocation" = "生成撤销证书…";
 "settings.gpg.keys.contextExportPrivateKey" = "导出私钥为 .asc…";
 "settings.gpg.keys.contextDelete" = "删除密钥…";

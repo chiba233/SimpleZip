@@ -39,6 +39,7 @@ struct GPGKeyRow: View {
     let onExportPublicKey: () -> Void
     let onExportPrivateKey: () -> Void
     let onChangePassphrase: () -> Void
+    let onAddSubkey: () -> Void
     let onAddUserID: () -> Void
     let onEditExpiration: () -> Void
     let onGenerateRevocation: () -> Void
@@ -134,6 +135,13 @@ struct GPGKeyRow: View {
             if !key.isSecretKeyStub {
                 Button(L10n.text("settings.gpg.keys.contextExportPrivateKey")) {
                     onExportPrivateKey()
+                }
+            }
+            // 「补票」追加子密钥(签 / 密 / 认)—— **只对本机持有私钥、非卡上 / 非 stripped** 的密钥给:
+            // 卡上私钥不出卡,gpg 没有可用主私钥签新子密钥;给智能卡密钥显示这个入口是误导(A4 同款硬约束)。
+            if !key.isSecretKeyStub {
+                Button(L10n.text("settings.gpg.keys.contextAddSubkey")) {
+                    onAddSubkey()
                 }
             }
             Divider()
