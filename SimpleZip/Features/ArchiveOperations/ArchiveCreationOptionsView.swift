@@ -476,6 +476,8 @@ struct ArchiveCreationOptionsView: View {
             // 起始 1 行、最多长到 3 行就停 —— 之前 2...5 在窄 sheet 里太高,把下方加密选项挤到 ScrollView 外被截断。
             .lineLimit(1...3)
         }
+        // 跟签名密钥 / 收件人 / 对称密码行一样缩进 18 —— 之前没缩进,留言行比上下兄弟行多顶出去一截(左边不齐)。
+        .padding(.leading, 18)
     }
 
     /// 收件人 picker 行 —— GPG 签名勾上时显示。当前选中的收件人以 chip 形式横列；右侧 Menu 按钮可点开添加新收件人。

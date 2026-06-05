@@ -210,21 +210,20 @@ struct SIZSignatureSheet: View {
     private func deliveryInstructionsSection(_ text: String) -> some View {
         DisclosureGroup(isExpanded: $showInstructions) {
             VStack(alignment: .leading, spacing: 10) {
-                // 文字单独嵌一层带内边距的浅色板：跟上面的签名信息卡一致地「内容不贴边」，
-                // 右侧留白让滚动条不压住文字。
-                ScrollView {
-                    Text(text)
-                        .font(.system(.caption, design: .monospaced))
-                        .lineSpacing(2)
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.vertical, 10)
-                        .padding(.leading, 12)
-                        .padding(.trailing, 16)
-                }
-                .frame(maxHeight: 200)
-                .background(Color(nsColor: .textBackgroundColor))
-                .clipShape(RoundedRectangle(cornerRadius: 6))
+                // **不套 ScrollView** —— ScrollView 在无固定高度的 sheet 里会贪心占满 maxHeight,
+                // 内容短就留一截莫名空白、内容长又被压矮。直接让 Text 按内容自适应高度(说明就十几行,完整显示)。
+                // 浅色板 + 左右内边距让文字不贴边(左右留白,不是上下)。
+                Text(text)
+                    .font(.system(.caption, design: .monospaced))
+                    .lineSpacing(2)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.vertical, 10)
+                    .padding(.leading, 12)
+                    .padding(.trailing, 14)
+                    .background(Color(nsColor: .textBackgroundColor))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
                 Button {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(text, forType: .string)
@@ -233,13 +232,14 @@ struct SIZSignatureSheet: View {
                 }
                 .controlSize(.small)
             }
-            .padding(.top, 10)
+            .padding(.top, 8)
         } label: {
             Label(L10n.text("siz.instructions.disclosure"), systemImage: "doc.text")
                 .font(.callout.weight(.medium))
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        // 跟上面的签名信息卡**同样的 .padding(12)** —— 两张卡左内边距一致,内容左边对齐(不再「不平」)。
+        // 文字的左右留白靠内层那块 textBackground 面板自己的 padding,不靠加大外层 padding。
+        .padding(12)
         .background(Color(nsColor: .controlBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }
