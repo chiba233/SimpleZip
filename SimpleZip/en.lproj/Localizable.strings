@@ -865,6 +865,18 @@
 "settings.section.general" = "General";
 "settings.section.archive" = "Archive";
 "settings.section.security" = "Security";
+// Format capability matrix (Settings → Archive)
+"settings.formatMatrix.title" = "Format Capabilities";
+"settings.formatMatrix.description" = "What each container format supports in SimpleZip.";
+"settings.formatMatrix.format" = "Format";
+"settings.formatMatrix.col.create" = "Create";
+"settings.formatMatrix.col.extract" = "Extract";
+"settings.formatMatrix.col.encrypt" = "Encrypt";
+"settings.formatMatrix.col.header" = "Header";
+"settings.formatMatrix.col.split" = "Split";
+"settings.formatMatrix.col.test" = "Test";
+"settings.formatMatrix.col.comment" = "Comment";
+"settings.formatMatrix.conditionalNote" = "✓* Creating RAR requires installing the rar command-line tool yourself. Encrypt = password (ZIP/7z/RAR) or GPG (.gpg/.siz/.szs); Test for .siz/.szs means signature verification.";
 "settings.language" = "Language";
 "settings.language.system" = "System";
 "settings.language.en" = "English";

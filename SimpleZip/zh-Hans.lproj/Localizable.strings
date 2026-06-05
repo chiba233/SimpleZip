@@ -858,6 +858,18 @@
 "settings.section.general" = "通用";
 "settings.section.archive" = "压缩";
 "settings.section.security" = "安全性";
+// 格式能力矩阵（设置 → 压缩）
+"settings.formatMatrix.title" = "格式能力";
+"settings.formatMatrix.description" = "SimpleZip 里各容器格式各自支持哪些操作。";
+"settings.formatMatrix.format" = "格式";
+"settings.formatMatrix.col.create" = "创建";
+"settings.formatMatrix.col.extract" = "解压";
+"settings.formatMatrix.col.encrypt" = "加密";
+"settings.formatMatrix.col.header" = "头加密";
+"settings.formatMatrix.col.split" = "分卷";
+"settings.formatMatrix.col.test" = "测试";
+"settings.formatMatrix.col.comment" = "注释";
+"settings.formatMatrix.conditionalNote" = "✓* 创建 RAR 需自行安装 rar 命令行工具。加密 = 口令（ZIP/7z/RAR）或 GPG（.gpg/.siz/.szs）；.siz/.szs 的「测试」指验签。";
 "settings.language" = "语言";
 "settings.language.system" = "跟随系统";
 "settings.language.en" = "英语";

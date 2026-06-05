@@ -29,9 +29,21 @@ struct ArchivePane: View {
             SevenZipBackendSection(systemInstallMessage: $systemInstallMessage)
 
             RarBackendSection(systemInstallMessage: $systemInstallMessage)
+
+            formatCapabilitySection
         }
         .formStyle(.grouped)
         .controlSize(.small)
+    }
+
+    /// 各容器格式支持哪些操作的对照表（创建 / 解压 / 加密 / 头加密 / 分卷 / 测试 / 注释）。
+    private var formatCapabilitySection: some View {
+        Section(L10n.text("settings.formatMatrix.title")) {
+            Text(L10n.text("settings.formatMatrix.description"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            FormatCapabilityMatrixView()
+        }
     }
 
     private var securitySection: some View {
