@@ -789,6 +789,12 @@
 "settings.section.columns" = "列表列";
 "settings.section.view" = "视图";
 "settings.section.health" = "运行状态";
+"settings.section.diagnostics" = "诊断报告";
+"diagnostics.general.description" = "遇到问题？一键抓取诊断快照 —— app 与 macOS 版本、后端版本、GPG 状态、以及最近任务摘要。密码已脱敏，不含任何密钥身份信息。";
+"diagnostics.general.copy" = "复制报告";
+"diagnostics.general.export" = "导出为文件…";
+"diagnostics.general.title" = "诊断快照";
+"diagnostics.general.exported" = "已导出到「%@」。";
 "settings.section.tempFiles" = "临时文件";
 "settings.tempFiles" = "临时文件";
 "settings.tempFiles.description" = "打开压缩包、生成签名清单会在系统临时目录留下临时产物。当前占用 %@。";

@@ -796,6 +796,12 @@
 "settings.section.columns" = "Columns";
 "settings.section.view" = "View";
 "settings.section.health" = "Health";
+"settings.section.diagnostics" = "Diagnostics";
+"diagnostics.general.description" = "Hit a problem? Grab a diagnostic snapshot — app & macOS version, backend versions, GPG status, and a summary of recent tasks. Passwords are redacted; no key identities are included.";
+"diagnostics.general.copy" = "Copy Report";
+"diagnostics.general.export" = "Export to File…";
+"diagnostics.general.title" = "Diagnostics snapshot";
+"diagnostics.general.exported" = "Exported to “%@”.";
 "settings.section.tempFiles" = "Temporary Files";
 "settings.tempFiles" = "Temporary files";
 "settings.tempFiles.description" = "Opening archives and creating signed manifests leave scratch files in the system temporary folder. Currently using %@.";

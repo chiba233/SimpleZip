@@ -27,6 +27,10 @@ struct HealthPane: View {
     @State private var isMeasuringTemp = false
     @State private var isClearingTemp = false
 
+    /// 「诊断报告」区状态：生成中 + 操作后的短暂反馈文案（复制成功 / 已导出）。
+    @State private var isBuildingDiagnostics = false
+    @State private var diagnosticsFeedback: String?
+
     var body: some View {
         Form {
             Section(L10n.text("settings.section.health")) {
@@ -56,6 +60,28 @@ struct HealthPane: View {
                     Spacer()
                     Button(L10n.text("health.recheck"), action: refresh)
                         .disabled(isChecking)
+                }
+            }
+
+            // 诊断报告 —— 遇到问题时的「第一出口」：一键拿到 app/macOS/后端版本 + GPG 状态 + 最近任务摘要（已脱敏）。
+            Section(L10n.text("settings.section.diagnostics")) {
+                Text(L10n.text("diagnostics.general.description"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 8) {
+                    if isBuildingDiagnostics {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Button(L10n.text("diagnostics.general.copy"), action: copyDiagnostics)
+                        Button(L10n.text("diagnostics.general.export"), action: exportDiagnostics)
+                    }
+                    if let diagnosticsFeedback {
+                        Label(diagnosticsFeedback, systemImage: "checkmark.circle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.green)
+                    }
+                    Spacer()
                 }
             }
 
@@ -91,6 +117,37 @@ struct HealthPane: View {
         }
         let size = ByteCountFormatter.string(fromByteCount: tempBytes, countStyle: .file)
         return L10n.format("settings.tempFiles.description", size)
+    }
+
+    // MARK: - 诊断报告
+
+    private func copyDiagnostics() {
+        isBuildingDiagnostics = true
+        Task {
+            await DiagnosticsCopier.copyGeneralReport()
+            isBuildingDiagnostics = false
+            flashDiagnosticsFeedback(L10n.text("diagnostics.copied"))
+        }
+    }
+
+    private func exportDiagnostics() {
+        isBuildingDiagnostics = true
+        Task {
+            let url = await DiagnosticsCopier.exportGeneralReport()
+            isBuildingDiagnostics = false
+            if let url {
+                flashDiagnosticsFeedback(L10n.format("diagnostics.general.exported", url.lastPathComponent))
+            }
+        }
+    }
+
+    /// 操作成功后短暂显示一行反馈，2 秒后自动消失。
+    private func flashDiagnosticsFeedback(_ text: String) {
+        diagnosticsFeedback = text
+        Task {
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            diagnosticsFeedback = nil
+        }
     }
 
     /// 后台测量**可清理（陈旧）**临时文件占用 —— 只算本次会话之前留下的，当前在用的不计入。完成后回主线程更新。

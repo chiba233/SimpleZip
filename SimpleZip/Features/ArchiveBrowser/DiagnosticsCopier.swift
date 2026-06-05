@@ -7,6 +7,7 @@
 
 import AppKit
 import Foundation
+import UniformTypeIdentifiers
 
 /// 「复制诊断」按钮背后的胶水：
 /// (1) 从 session + ArchiveService + Bundle + ProcessInfo 拼出 reporter 需要的 inputs；
@@ -28,6 +29,95 @@ enum DiagnosticsCopier {
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(report, forType: .string)
         }
+    }
+
+    // MARK: - 通用诊断报告（不绑定某个失败任务的「遇到问题第一出口」）
+
+    /// 生成一份**通用**诊断报告文本：app / macOS 版本 + 后端版本 + GPG 状态 + 最近任务摘要。
+    /// 不绑定具体失败 session —— 用户遇到任何问题时都能一键拿到可贴 Issue 的现场快照（已脱敏）。
+    static func makeGeneralReport() async -> String {
+        let inputs = await makeGeneralInputs()
+        return OperationDiagnosticsReporter.makeReport(from: inputs)
+    }
+
+    /// 复制通用诊断报告到剪贴板。
+    static func copyGeneralReport() async {
+        let report = await makeGeneralReport()
+        await MainActor.run {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(report, forType: .string)
+        }
+    }
+
+    /// 导出通用诊断报告为 `.txt`（NSSavePanel）。返回写入的 URL；用户取消 → nil。
+    @discardableResult
+    static func exportGeneralReport() async -> URL? {
+        let report = await makeGeneralReport()
+        return await MainActor.run { () -> URL? in
+            let panel = NSSavePanel()
+            panel.nameFieldStringValue = "SimpleZip-diagnostics.txt"
+            panel.allowedContentTypes = [.plainText]
+            guard panel.runModal() == .OK, let url = panel.url else { return nil }
+            try? report.data(using: .utf8)?.write(to: url, options: .atomic)
+            return url
+        }
+    }
+
+    private static func makeGeneralInputs() async -> OperationDiagnosticsInputs {
+        let now = Date()
+        let recent = await recentTasksSummary()
+        return await OperationDiagnosticsInputs(
+            appVersion: appVersionString(),
+            appBuild: appBuildString(),
+            macOSVersion: ProcessInfo.processInfo.operatingSystemVersionString,
+            sevenZipDescription: ArchiveService.sevenZipBackendDescription(),
+            sevenZipVersion: ArchiveService.sevenZipVersion(),
+            rarDescription: ArchiveService.rarBackendDescription(),
+            rarVersion: ArchiveService.rarVersion(),
+            title: L10n.text("diagnostics.general.title"),
+            startedAt: now,
+            finishedAt: now,
+            rawOutput: recent,
+            errorMessage: nil,
+            gpgSection: collectGPGSection()
+        )
+    }
+
+    /// 最近任务摘要（活动中心 active + history，最多 20 条，最新在前）。
+    /// 只记 状态 / 类别 / 标题 / 失败原因 —— 给维护者「最近发生了什么」的脉络。失败原因经 reporter 统一脱敏。
+    private static func recentTasksSummary() async -> String {
+        let tasks: [OperationTask] = await MainActor.run {
+            (TaskCenter.shared.active + TaskCenter.shared.history)
+                .sorted { ($0.finishedAt ?? $0.startedAt) > ($1.finishedAt ?? $1.startedAt) }
+        }
+        guard !tasks.isEmpty else { return "(no recent tasks)" }
+        var lines: [String] = []
+        for task in tasks.prefix(20) {
+            let (label, reason) = await MainActor.run { () -> (String, String?) in
+                switch task.status {
+                case .running: return ("RUNNING", nil)
+                case .succeeded: return ("OK", nil)
+                case .skipped(let why): return ("SKIPPED", why)
+                case .cancelled: return ("CANCELLED", nil)
+                case .failed(let message): return ("FAILED", message)
+                }
+            }
+            let (kind, title) = await MainActor.run { (task.kind.rawValue, task.title) }
+            var line = "[\(label)] \(kind): \(title)"
+            if let reason, !reason.isEmpty {
+                line += " — \(reason.replacingOccurrences(of: "\n", with: " "))"
+            }
+            lines.append(line)
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    private static func appVersionString() -> String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
+    }
+
+    private static func appBuildString() -> String {
+        Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "?"
     }
 
     private static func makeInputs(
