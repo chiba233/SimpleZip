@@ -57,6 +57,15 @@ struct ArchiveItem: Identifiable, Hashable {
     let created: Date?
     let createdText: String
     let attributes: String
+    // 0.3.2 起的可选列（对照官方 7-Zip GUI）。都来自 7zz `-slt` 长格式；zip 后备路径 / DMG 后端留空。
+    let accessed: Date?
+    let accessedText: String
+    /// 主操作系统（`Host OS`）—— 归档由哪个系统创建（Unix / FAT / NTFS …）。
+    let hostOS: String
+    /// 特征（`Characteristics`）—— 7zz 报告的条目内部标志位串。
+    let characteristics: String
+    /// 符号链接目标（`Symbolic Link`）—— 条目是符号链接时其指向；非符号链接为空。
+    let symlinkTarget: String
 
     init(
         name: String,
@@ -72,7 +81,12 @@ struct ArchiveItem: Identifiable, Hashable {
         crc: String = "",
         created: Date? = nil,
         createdText: String = "",
-        attributes: String = ""
+        attributes: String = "",
+        accessed: Date? = nil,
+        accessedText: String = "",
+        hostOS: String = "",
+        characteristics: String = "",
+        symlinkTarget: String = ""
     ) {
         self.name = name
         self.isDirectory = isDirectory
@@ -88,6 +102,11 @@ struct ArchiveItem: Identifiable, Hashable {
         self.created = created
         self.createdText = createdText
         self.attributes = attributes
+        self.accessed = accessed
+        self.accessedText = accessedText
+        self.hostOS = hostOS
+        self.characteristics = characteristics
+        self.symlinkTarget = symlinkTarget
     }
 
     /// 列表里只展示当前层级的名称，完整路径继续保留在 name 中用于解压。

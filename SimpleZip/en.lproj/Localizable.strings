@@ -693,6 +693,10 @@
 "column.packedSize" = "Packed Size";
 "column.crc" = "CRC";
 "column.attributes" = "Attributes";
+"column.accessed" = "Accessed";
+"column.hostOS" = "Host OS";
+"column.characteristics" = "Characteristics";
+"column.symlink" = "Symlink Target";
 "menu.aboutSimpleZip" = "About SimpleZip";
 "menu.tools" = "Tools";
 "menu.activityCenter" = "Activity Center";

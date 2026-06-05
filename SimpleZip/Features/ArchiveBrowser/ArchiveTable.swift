@@ -23,6 +23,10 @@ struct ArchiveTable: View {
     @AppStorage(AppPreferences.Key.showArchiveCrcColumn) private var showCrcColumn = false
     @AppStorage(AppPreferences.Key.showArchiveCreatedColumn) private var showCreatedColumn = false
     @AppStorage(AppPreferences.Key.showArchiveAttributesColumn) private var showAttributesColumn = false
+    @AppStorage(AppPreferences.Key.showArchiveAccessedColumn) private var showAccessedColumn = false
+    @AppStorage(AppPreferences.Key.showArchiveHostOSColumn) private var showHostOSColumn = false
+    @AppStorage(AppPreferences.Key.showArchiveCharacteristicsColumn) private var showCharacteristicsColumn = false
+    @AppStorage(AppPreferences.Key.showArchiveSymlinkColumn) private var showSymlinkColumn = false
     // 观察分组方式 —— 在 Settings 改时靠它触发重渲染 → updateNSView → 重新分组。
     @AppStorage(AppPreferences.Key.archiveGroupBy) private var archiveGroupBy = BrowserGrouping.GroupBy.none.rawValue
     @AppStorage(AppPreferences.Key.rowDensity) private var rowDensity = FileBrowserOutline.RowDensity.standard.rawValue
@@ -41,6 +45,10 @@ struct ArchiveTable: View {
                 showCrcColumn: showCrcColumn,
                 showCreatedColumn: showCreatedColumn,
                 showAttributesColumn: showAttributesColumn,
+                showAccessedColumn: showAccessedColumn,
+                showHostOSColumn: showHostOSColumn,
+                showCharacteristicsColumn: showCharacteristicsColumn,
+                showSymlinkColumn: showSymlinkColumn,
                 groupBy: archiveGroupBy,
                 rowDensity: rowDensity
             )
@@ -104,6 +112,10 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
     let showCrcColumn: Bool
     let showCreatedColumn: Bool
     let showAttributesColumn: Bool
+    let showAccessedColumn: Bool
+    let showHostOSColumn: Bool
+    let showCharacteristicsColumn: Bool
+    let showSymlinkColumn: Bool
     // 仅作变化触发器：值变 → 重建 representable → updateNSView → 重新分组。真值由 coordinator 读 AppPreferences。
     let groupBy: String
     let rowDensity: String
@@ -164,6 +176,10 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
         if showMethodColumn { columns.append(.method) }
         if showCrcColumn { columns.append(.crc) }
         if showAttributesColumn { columns.append(.attributes) }
+        if showAccessedColumn { columns.append(.accessed) }
+        if showHostOSColumn { columns.append(.hostOS) }
+        if showCharacteristicsColumn { columns.append(.characteristics) }
+        if showSymlinkColumn { columns.append(.symlink) }
         if showEncryptedColumn { columns.append(.encrypted) }
         return orderedColumns(columns, key: AppPreferences.Key.archiveColumnOrder)
     }
@@ -768,6 +784,11 @@ enum ArchiveColumn: String, TableColumnDescriptor {
     case crc
     case created
     case attributes
+    // 0.3.2：对照官方 7-Zip GUI 补的可选列（accessed / host OS / characteristics / symlink target）。
+    case accessed
+    case hostOS
+    case characteristics
+    case symlink
 
     init?(identifier: String) {
         self.init(rawValue: identifier)
@@ -799,6 +820,14 @@ enum ArchiveColumn: String, TableColumnDescriptor {
             return L10n.text("column.created")
         case .attributes:
             return L10n.text("column.attributes")
+        case .accessed:
+            return L10n.text("column.accessed")
+        case .hostOS:
+            return L10n.text("column.hostOS")
+        case .characteristics:
+            return L10n.text("column.characteristics")
+        case .symlink:
+            return L10n.text("column.symlink")
         }
     }
 
@@ -826,6 +855,14 @@ enum ArchiveColumn: String, TableColumnDescriptor {
             return 180
         case .attributes:
             return 120
+        case .accessed:
+            return 180
+        case .hostOS:
+            return 110
+        case .characteristics:
+            return 150
+        case .symlink:
+            return 220
         }
     }
 
@@ -853,6 +890,14 @@ enum ArchiveColumn: String, TableColumnDescriptor {
             return 140
         case .attributes:
             return 80
+        case .accessed:
+            return 140
+        case .hostOS:
+            return 80
+        case .characteristics:
+            return 100
+        case .symlink:
+            return 140
         }
     }
 
@@ -881,6 +926,14 @@ enum ArchiveColumn: String, TableColumnDescriptor {
             return item.createdText
         case .attributes:
             return item.attributes
+        case .accessed:
+            return item.accessedText
+        case .hostOS:
+            return item.hostOS
+        case .characteristics:
+            return item.characteristics
+        case .symlink:
+            return item.symlinkTarget
         }
     }
 }

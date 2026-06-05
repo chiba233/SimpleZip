@@ -167,6 +167,7 @@ extension ArchiveService {
             let packedSizeRaw = values["Packed Size"] ?? ""
             let packedSize = Int64(packedSizeRaw)
             let createdText = values["Created"] ?? ""
+            let accessedText = values["Accessed"] ?? ""
             rows.append(
                 ArchiveItem(
                     name: path,
@@ -184,7 +185,12 @@ extension ArchiveService {
                     crc: values["CRC"] ?? "",
                     created: parseSevenZipModified(createdText),
                     createdText: createdText,
-                    attributes: values["Attributes"] ?? ""
+                    attributes: values["Attributes"] ?? "",
+                    accessed: parseSevenZipModified(accessedText),
+                    accessedText: accessedText,
+                    hostOS: values["Host OS"] ?? "",
+                    characteristics: values["Characteristics"] ?? "",
+                    symlinkTarget: values["Symbolic Link"] ?? ""
                 )
             )
             values.removeAll()

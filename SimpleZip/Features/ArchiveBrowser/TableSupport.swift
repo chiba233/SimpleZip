@@ -212,6 +212,10 @@ enum ColumnHeaderMenuScope {
                 ("column.method", AppPreferences.Key.showArchiveMethodColumn, true),
                 ("column.crc", AppPreferences.Key.showArchiveCrcColumn, false),
                 ("column.attributes", AppPreferences.Key.showArchiveAttributesColumn, false),
+                ("column.accessed", AppPreferences.Key.showArchiveAccessedColumn, false),
+                ("column.hostOS", AppPreferences.Key.showArchiveHostOSColumn, false),
+                ("column.characteristics", AppPreferences.Key.showArchiveCharacteristicsColumn, false),
+                ("column.symlink", AppPreferences.Key.showArchiveSymlinkColumn, false),
                 ("column.encrypted", AppPreferences.Key.showArchiveEncryptedColumn, false)
             ]
         }

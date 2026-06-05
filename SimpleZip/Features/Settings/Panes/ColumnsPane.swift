@@ -30,6 +30,10 @@ struct ColumnsPane: View {
     @AppStorage(AppPreferences.Key.showArchiveCrcColumn) private var showArchiveCrcColumn = false
     @AppStorage(AppPreferences.Key.showArchiveCreatedColumn) private var showArchiveCreatedColumn = false
     @AppStorage(AppPreferences.Key.showArchiveAttributesColumn) private var showArchiveAttributesColumn = false
+    @AppStorage(AppPreferences.Key.showArchiveAccessedColumn) private var showArchiveAccessedColumn = false
+    @AppStorage(AppPreferences.Key.showArchiveHostOSColumn) private var showArchiveHostOSColumn = false
+    @AppStorage(AppPreferences.Key.showArchiveCharacteristicsColumn) private var showArchiveCharacteristicsColumn = false
+    @AppStorage(AppPreferences.Key.showArchiveSymlinkColumn) private var showArchiveSymlinkColumn = false
     // 分组（视图分组）—— 这里是「全局默认值」，不是总开关；按文件夹范围下可右键单独覆盖。
     @AppStorage(AppPreferences.Key.fileGroupingScope) private var fileGroupingScopeRaw = BrowserGrouping.GroupingScope.global.rawValue
     @AppStorage(AppPreferences.Key.fileGroupBy) private var fileGroupByRaw = BrowserGrouping.GroupBy.none.rawValue
@@ -117,6 +121,26 @@ struct ColumnsPane: View {
                     GridRow {
                         Color.clear
                         Toggle(L10n.text("column.encrypted"), isOn: $showArchiveEncryptedColumn)
+                    }
+
+                    GridRow {
+                        Color.clear
+                        Toggle(L10n.text("column.accessed"), isOn: $showArchiveAccessedColumn)
+                    }
+
+                    GridRow {
+                        Color.clear
+                        Toggle(L10n.text("column.hostOS"), isOn: $showArchiveHostOSColumn)
+                    }
+
+                    GridRow {
+                        Color.clear
+                        Toggle(L10n.text("column.characteristics"), isOn: $showArchiveCharacteristicsColumn)
+                    }
+
+                    GridRow {
+                        Color.clear
+                        Toggle(L10n.text("column.symlink"), isOn: $showArchiveSymlinkColumn)
                     }
                 }
             }
@@ -218,6 +242,10 @@ struct ColumnsPane: View {
         if showArchiveMethodColumn { columns.append(.method) }
         if showArchiveCrcColumn { columns.append(.crc) }
         if showArchiveAttributesColumn { columns.append(.attributes) }
+        if showArchiveAccessedColumn { columns.append(.accessed) }
+        if showArchiveHostOSColumn { columns.append(.hostOS) }
+        if showArchiveCharacteristicsColumn { columns.append(.characteristics) }
+        if showArchiveSymlinkColumn { columns.append(.symlink) }
         if showArchiveEncryptedColumn { columns.append(.encrypted) }
 
         return orderedColumns(columns, key: AppPreferences.Key.archiveColumnOrder).map { column in
@@ -251,6 +279,10 @@ struct ColumnsPane: View {
         case .crc: return "12AB34CD"
         case .attributes: return "A"
         case .encrypted: return "🔒"
+        case .accessed: return "2026-05-30 14:02"
+        case .hostOS: return "Unix"
+        case .characteristics: return "Archive"
+        case .symlink: return "../target.txt"
         }
     }
 
@@ -273,6 +305,10 @@ struct ColumnsPane: View {
         case .crc: return 96
         case .attributes: return 90
         case .encrypted: return 56
+        case .accessed: return 140
+        case .hostOS: return 80
+        case .characteristics: return 110
+        case .symlink: return 160
         }
     }
 }

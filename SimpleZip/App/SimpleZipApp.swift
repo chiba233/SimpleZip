@@ -522,6 +522,10 @@ struct ColumnsViewCommands: Commands {
     @AppStorage(AppPreferences.Key.showArchiveCrcColumn) private var showArchiveCrcColumn = false
     @AppStorage(AppPreferences.Key.showArchiveCreatedColumn) private var showArchiveCreatedColumn = false
     @AppStorage(AppPreferences.Key.showArchiveAttributesColumn) private var showArchiveAttributesColumn = false
+    @AppStorage(AppPreferences.Key.showArchiveAccessedColumn) private var showArchiveAccessedColumn = false
+    @AppStorage(AppPreferences.Key.showArchiveHostOSColumn) private var showArchiveHostOSColumn = false
+    @AppStorage(AppPreferences.Key.showArchiveCharacteristicsColumn) private var showArchiveCharacteristicsColumn = false
+    @AppStorage(AppPreferences.Key.showArchiveSymlinkColumn) private var showArchiveSymlinkColumn = false
 
     var body: some Commands {
         CommandMenu(L10n.text("menu.view")) {
@@ -547,6 +551,10 @@ struct ColumnsViewCommands: Commands {
                 Toggle(L10n.text("column.method"), isOn: $showArchiveMethodColumn)
                 Toggle(L10n.text("column.crc"), isOn: $showArchiveCrcColumn)
                 Toggle(L10n.text("column.attributes"), isOn: $showArchiveAttributesColumn)
+                Toggle(L10n.text("column.accessed"), isOn: $showArchiveAccessedColumn)
+                Toggle(L10n.text("column.hostOS"), isOn: $showArchiveHostOSColumn)
+                Toggle(L10n.text("column.characteristics"), isOn: $showArchiveCharacteristicsColumn)
+                Toggle(L10n.text("column.symlink"), isOn: $showArchiveSymlinkColumn)
                 Toggle(L10n.text("column.encrypted"), isOn: $showArchiveEncryptedColumn)
             }
         }

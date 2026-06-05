@@ -296,6 +296,10 @@ enum AppPreferences {
         nonisolated static let showArchiveCrcColumn = "showArchiveCrcColumn"
         nonisolated static let showArchiveCreatedColumn = "showArchiveCreatedColumn"
         nonisolated static let showArchiveAttributesColumn = "showArchiveAttributesColumn"
+        nonisolated static let showArchiveAccessedColumn = "showArchiveAccessedColumn"
+        nonisolated static let showArchiveHostOSColumn = "showArchiveHostOSColumn"
+        nonisolated static let showArchiveCharacteristicsColumn = "showArchiveCharacteristicsColumn"
+        nonisolated static let showArchiveSymlinkColumn = "showArchiveSymlinkColumn"
         nonisolated static let appLanguage = "appLanguage"
         nonisolated static let sevenZipBackend = "sevenZipBackend"
         nonisolated static let rarBackend = "rarBackend"
@@ -586,6 +590,22 @@ enum AppPreferences {
         defaults.bool(forKey: Key.showArchiveAttributesColumn)
     }
 
+    nonisolated static var showArchiveAccessedColumn: Bool {
+        defaults.bool(forKey: Key.showArchiveAccessedColumn)
+    }
+
+    nonisolated static var showArchiveHostOSColumn: Bool {
+        defaults.bool(forKey: Key.showArchiveHostOSColumn)
+    }
+
+    nonisolated static var showArchiveCharacteristicsColumn: Bool {
+        defaults.bool(forKey: Key.showArchiveCharacteristicsColumn)
+    }
+
+    nonisolated static var showArchiveSymlinkColumn: Bool {
+        defaults.bool(forKey: Key.showArchiveSymlinkColumn)
+    }
+
     nonisolated static var lastFolderURL: URL? {
         guard let path = defaults.string(forKey: Key.lastFolderPath), !path.isEmpty else {
             return nil
@@ -857,6 +877,10 @@ enum AppPreferences {
         Key.showArchiveCrcColumn,
         Key.showArchiveCreatedColumn,
         Key.showArchiveAttributesColumn,
+        Key.showArchiveAccessedColumn,
+        Key.showArchiveHostOSColumn,
+        Key.showArchiveCharacteristicsColumn,
+        Key.showArchiveSymlinkColumn,
         Key.fileColumnOrder,
         Key.archiveColumnOrder,
         // 「导出时是否包含按文件夹记忆」这个偏好本身也算用户选择，纳入备份。
@@ -948,6 +972,10 @@ enum AppPreferences {
         v[Key.showArchiveCrcColumn] = showArchiveCrcColumn
         v[Key.showArchiveCreatedColumn] = showArchiveCreatedColumn
         v[Key.showArchiveAttributesColumn] = showArchiveAttributesColumn
+        v[Key.showArchiveAccessedColumn] = showArchiveAccessedColumn
+        v[Key.showArchiveHostOSColumn] = showArchiveHostOSColumn
+        v[Key.showArchiveCharacteristicsColumn] = showArchiveCharacteristicsColumn
+        v[Key.showArchiveSymlinkColumn] = showArchiveSymlinkColumn
         v[Key.fileColumnOrder] = stringArray(forKey: Key.fileColumnOrder)
         v[Key.archiveColumnOrder] = stringArray(forKey: Key.archiveColumnOrder)
         // 备份元开关

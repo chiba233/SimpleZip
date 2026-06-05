@@ -691,6 +691,10 @@
 "column.packedSize" = "压缩后大小";
 "column.crc" = "CRC";
 "column.attributes" = "属性";
+"column.accessed" = "访问时间";
+"column.hostOS" = "主操作系统";
+"column.characteristics" = "特征";
+"column.symlink" = "符号链接目标";
 "menu.aboutSimpleZip" = "关于 SimpleZip";
 "menu.tools" = "工具";
 "menu.activityCenter" = "活动中心";

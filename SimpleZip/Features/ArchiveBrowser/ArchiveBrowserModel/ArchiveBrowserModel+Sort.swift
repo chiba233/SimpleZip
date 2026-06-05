@@ -69,6 +69,14 @@ extension ArchiveBrowserModel {
             result = (lhs.created ?? .distantPast).compare(rhs.created ?? .distantPast)
         case "attributes":
             result = lhs.attributes.localizedStandardCompare(rhs.attributes)
+        case "accessed":
+            result = (lhs.accessed ?? .distantPast).compare(rhs.accessed ?? .distantPast)
+        case "hostOS":
+            result = lhs.hostOS.localizedStandardCompare(rhs.hostOS)
+        case "characteristics":
+            result = lhs.characteristics.localizedStandardCompare(rhs.characteristics)
+        case "symlink":
+            result = lhs.symlinkTarget.localizedStandardCompare(rhs.symlinkTarget)
         default:
             result = lhs.displayName.localizedStandardCompare(rhs.displayName)
         }
