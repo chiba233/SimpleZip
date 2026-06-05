@@ -317,7 +317,7 @@
 "szs.create.titleLabel" = "标题（可选）";
 "szs.create.titlePlaceholder" = "如：MyRelease v3.1";
 "szs.create.descriptionLabel" = "说明（可选）";
-"szs.create.descriptionPlaceholder" = "用户阅读签名清单时显示的简短说明";
+"szs.create.descriptionPlaceholder" = "给收到的人的一段话 —— 对方验证清单时显示，且已签名、防篡改";
 "szs.create.signingKeyLabel" = "签名密钥";
 "szs.create.signingKey.auto" = "默认 / 让 GPG 挑";
 "szs.create.encryptLabel" = "加密文件";

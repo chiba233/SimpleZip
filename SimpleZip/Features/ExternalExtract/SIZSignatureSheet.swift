@@ -209,14 +209,22 @@ struct SIZSignatureSheet: View {
     @ViewBuilder
     private func deliveryInstructionsSection(_ text: String) -> some View {
         DisclosureGroup(isExpanded: $showInstructions) {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 10) {
+                // 文字单独嵌一层带内边距的浅色板：跟上面的签名信息卡一致地「内容不贴边」，
+                // 右侧留白让滚动条不压住文字。
                 ScrollView {
                     Text(text)
                         .font(.system(.caption, design: .monospaced))
+                        .lineSpacing(2)
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 10)
+                        .padding(.leading, 12)
+                        .padding(.trailing, 16)
                 }
-                .frame(maxHeight: 180)
+                .frame(maxHeight: 200)
+                .background(Color(nsColor: .textBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
                 Button {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(text, forType: .string)
@@ -225,12 +233,13 @@ struct SIZSignatureSheet: View {
                 }
                 .controlSize(.small)
             }
-            .padding(.top, 6)
+            .padding(.top, 10)
         } label: {
             Label(L10n.text("siz.instructions.disclosure"), systemImage: "doc.text")
                 .font(.callout.weight(.medium))
         }
-        .padding(12)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
         .background(Color(nsColor: .controlBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: 8))
     }

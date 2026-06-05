@@ -473,7 +473,8 @@ struct ArchiveCreationOptionsView: View {
                 axis: .vertical
             )
             .textFieldStyle(.roundedBorder)
-            .lineLimit(2...5)
+            // 起始 1 行、最多长到 3 行就停 —— 之前 2...5 在窄 sheet 里太高,把下方加密选项挤到 ScrollView 外被截断。
+            .lineLimit(1...3)
         }
     }
 

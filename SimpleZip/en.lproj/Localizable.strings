@@ -317,7 +317,7 @@
 "szs.create.titleLabel" = "Title (optional)";
 "szs.create.titlePlaceholder" = "e.g. MyRelease v3.1";
 "szs.create.descriptionLabel" = "Description (optional)";
-"szs.create.descriptionPlaceholder" = "Brief note shown to people who read the signed manifest";
+"szs.create.descriptionPlaceholder" = "A note for whoever receives this — shown when they verify the manifest, and signed so it can't be tampered with";
 "szs.create.signingKeyLabel" = "Signing key";
 "szs.create.signingKey.auto" = "Default / let GPG choose";
 "szs.create.encryptLabel" = "Encrypt files";
