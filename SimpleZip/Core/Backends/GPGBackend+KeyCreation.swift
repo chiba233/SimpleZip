@@ -149,15 +149,8 @@ extension GPGBackend {
             // **加密子密钥必须显式追加**：`--quick-generate-key <uid> ed25519 default` 造出的主密钥只有
             // sign+certify(caps `scSC`)、没有加密子密钥(实测 gpg 2.5：ed25519/EdDSA 本身不能加密，
             // gpg 也不替你补一个 cv25519)。对话框承诺「加密 — encryption subkey(自动)」，这里把它真正建出来。
-            // auth 子密钥只在用户勾选时追加。两者都用 `--quick-add-key <fp> <algo> <usage> <expire>`，
-            // passphrase 走同款 loopback stdin。失败不抛错（主密钥已造好），但通过 outputObserver 透出来。
-            var subkeysToAdd: [(algorithm: String, usage: String)] = [
-                (algorithm.encryptionSubkeyAlgorithm, "encrypt")
-            ]
-            if addAuthenticationSubkey {
-                subkeysToAdd.append((algorithm.rawValue, "auth"))
-            }
-            for subkey in subkeysToAdd {
+            // 跑一次 `--quick-add-key <fp> <algo> <usage> <expire>`，passphrase 走同款 loopback stdin。
+            func addSubkeyDuringCreation(algorithm subkeyAlgorithm: String, usage: String) async throws {
                 var subArgs: [String] = ["--batch", "--pinentry-mode", "loopback", "--passphrase-fd", "0"]
                 if ring == .simpleZipKeyring {
                     subArgs.insert(contentsOf: simpleZipKeyringArguments(), at: 0)
@@ -166,18 +159,39 @@ extension GPGBackend {
                     "--status-fd", "1",
                     "--quick-add-key",
                     primaryFingerprint,
-                    subkey.algorithm,
-                    subkey.usage,
+                    subkeyAlgorithm,
+                    usage,
                     expiration.rawValue
                 ])
-                let subOutput = (try? await BackendProcessRunner.runAndCapture(
+                let subOutput = try await BackendProcessRunner.runAndCapture(
                     tool,
                     arguments: subArgs,
                     inputStrategy: .staticInput(stdinInput),
                     outputObserver: outputObserver,
                     operationID: operationID
-                )) ?? ""
-                output += "\n[SimpleZip] add \(subkey.usage) subkey\n" + subOutput
+                )
+                output += "\n[SimpleZip] add \(usage) subkey\n" + subOutput
+            }
+
+            // **加密子密钥是硬需求 → 失败必须抛错**（否则会返回一把「假装成功」的 sign-only key，
+            // UI / CHANGELOG 都显示创建成功，实际不能加密）。失败时把已建出来的残缺主密钥删掉，
+            // 保持「要么完整要么没有」，再抛错让 UI 显示失败。
+            do {
+                try await addSubkeyDuringCreation(algorithm: algorithm.encryptionSubkeyAlgorithm, usage: "encrypt")
+            } catch {
+                _ = try? await deleteKey(fingerprint: primaryFingerprint, deleteSecret: true, source: ring)
+                throw ArchiveError.commandFailed(
+                    "Key created but the required encryption subkey could not be added: \(error.localizedDescription)"
+                )
+            }
+
+            // auth 子密钥**可选** → 软失败：主密钥 + 加密子密钥已 OK，auth 失败不该毁掉整把可用密钥。
+            if addAuthenticationSubkey {
+                do {
+                    try await addSubkeyDuringCreation(algorithm: algorithm.rawValue, usage: "auth")
+                } catch {
+                    output += "\n[SimpleZip] auth subkey add failed (non-fatal): \(error.localizedDescription)\n"
+                }
             }
         }
 
