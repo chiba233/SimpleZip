@@ -260,10 +260,6 @@ struct ArchiveCreationOptionsView: View {
                         }
                     }
 
-                    if request.options.format.supportsSFX {
-                        Toggle(L10n.text("archive.createSFX"), isOn: $request.options.createSFXArchive)
-                    }
-
                     if request.options.format.supportsRawParameters {
                         VStack(alignment: .leading, spacing: 6) {
                             TextField(L10n.text("archive.parameters"), text: $request.options.rawParameters)
@@ -626,9 +622,6 @@ struct ArchiveCreationOptionsView: View {
         if !request.options.format.supportsUpdateMode {
             request.options.updateMode = .addAndReplace
             request.options.sevenZipPathMode = .relative
-        }
-        if !request.options.format.supportsSFX {
-            request.options.createSFXArchive = false
         }
         if !request.options.format.supportsRawParameters {
             request.options.rawParameters = ""

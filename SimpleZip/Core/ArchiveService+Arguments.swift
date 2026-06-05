@@ -65,9 +65,6 @@ extension ArchiveService {
             arguments.append("-p")
             arguments.append(options.sevenZipEncryptFileNames ? "-mhe=on" : "-mhe=off")
         }
-        if options.createSFXArchive {
-            arguments.append("-sfx")
-        }
         arguments.append("-md=\(options.sevenZipDictionarySizeMB)m")
         arguments.append("-mfb=\(options.sevenZipWordSize)")
         if options.sevenZipSolidArchive {
@@ -138,9 +135,6 @@ extension ArchiveService {
         var arguments = [rarCommand(for: options.updateMode), "-ma5", "-m\(rarCompressionLevel(for: options.compressionLevel))", "-r"]
         if options.sevenZipPathMode == .relative {
             arguments.append("-ep1")
-        }
-        if options.createSFXArchive {
-            arguments.append("-sfx")
         }
         if options.sevenZipDeleteSourceFiles {
             arguments.append("-df")
@@ -259,7 +253,6 @@ extension ArchiveService {
 
     static func nativeZipFallbackSupported(for options: ArchiveCreationOptions) -> Bool {
         options.updateMode == .addAndReplace &&
-        !options.createSFXArchive &&
         options.rawParameters.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
         options.sevenZipPathMode == .relative &&
         (try? normalizedSevenZipVolumeSize(from: options.sevenZipVolumeSize)) == nil &&

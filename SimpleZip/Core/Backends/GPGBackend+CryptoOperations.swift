@@ -187,7 +187,7 @@ extension GPGBackend {
         let user = await r1
         let sz = await r2
         // 优先选「拿到明文 + 验签更佳」的那 pass —— 跟 .siz 的 mergeVerifyResults 风格一致。
-        let merged = mergeVerifyResults(user.verify, sz.verify)
+        let merged = await applyOwnertrust(to: mergeVerifyResults(user.verify, sz.verify))
         // plaintext 选「拿到明文且 not empty」的；如果都空就给空 Data（让 caller 报「解析失败」）。
         let plaintext: Data = {
             if !user.plaintext.isEmpty { return user.plaintext }
@@ -292,7 +292,7 @@ extension GPGBackend {
         async let szResult = verifySingleRing(tool: tool, args: simpleZipKeyringArguments() + baseArgs, operationID: operationID)
         let r1 = await userResult
         let r2 = await szResult
-        return mergeVerifyResults(r1, r2)
+        return await applyOwnertrust(to: mergeVerifyResults(r1, r2))
     }
 
     /// 单次验签调用 —— wrap 现有的「跑命令 + 解析输出」逻辑。
@@ -346,5 +346,44 @@ extension GPGBackend {
             return (trusted, fp)
         }
         return nil
+    }
+
+    /// 用**用户设置的 ownertrust** 重定 validSignature 的 `trusted`，而不是用 gpg `--verify` 报的 validity。
+    ///
+    /// 为什么必须这么做：gpg `--verify` 的 `TRUST_*` 是**计算出的 validity**（看签名网 + 别的 key 的 ownertrust 推），
+    /// 对「用户给导入公钥设了完全/勉强信任、但没用自己的密钥签过它」的情形，validity 仍是 UNDEFINED →
+    /// 之前会把**完全信任**的 key 误判成「公钥已导入但未信任」（用户报的 bug）。
+    /// 信任徽章应当跟「信任」下拉一致 —— 都读 ownertrust：勉强/完全/终极 → 受信任；永不 / 未定义 → 不受信任。
+    /// 读不到 ownertrust（无指纹 / gpg 出错）时保留原 validity-based 判定，不至于更糟。
+    private static func applyOwnertrust(to result: GPGVerifyResult) async -> GPGVerifyResult {
+        guard case .validSignature(let signer, let fingerprint, _, let concerns) = result,
+              let fingerprint, !fingerprint.isEmpty,
+              let level = await ownertrustLevel(forFingerprint: fingerprint) else {
+            return result
+        }
+        let trusted: Bool
+        switch level {
+        case .marginal, .full, .ultimate:
+            trusted = true
+        case .never, .unknown, .expired, .revoked:
+            trusted = false
+        }
+        return .validSignature(signer: signer, fingerprint: fingerprint, trusted: trusted, concerns: concerns)
+    }
+
+    /// 读某 fingerprint 的 ownertrust —— 跨默认 + SimpleZip 私有两个 homedir（优先默认环的设置）。
+    /// `--export-ownertrust` 输出大写 40hex 指纹，跟验签 VALIDSIG 的 `.uppercased()` 指纹对齐。
+    private static func ownertrustLevel(forFingerprint fingerprint: String) async -> GPGBackend.GPGTrustLevel? {
+        guard let tool = try? resolve() else { return nil }
+        let key = fingerprint.uppercased()
+        func read(_ arguments: [String]) async -> GPGBackend.GPGTrustLevel? {
+            let output = (try? await BackendProcessRunner.runAndCapture(tool, arguments: arguments)) ?? ""
+            return parseOwnertrust(output)[key]
+        }
+        async let user = read(["--export-ownertrust"])
+        async let simpleZip = read(simpleZipKeyringArguments() + ["--export-ownertrust"])
+        let userTrust = await user
+        let simpleZipTrust = await simpleZip
+        return userTrust ?? simpleZipTrust
     }
 }

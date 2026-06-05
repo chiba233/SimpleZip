@@ -163,12 +163,8 @@ struct ArchiveServiceArgumentsTests {
     }
 
     @Test
-    func nativeZipFallbackBlockedBySFXAndRawParameters() {
+    func nativeZipFallbackBlockedByRawParameters() {
         var options = ArchiveCreationOptions()
-        options.createSFXArchive = true
-        #expect(!ArchiveService.nativeZipFallbackSupported(for: options))
-
-        options = ArchiveCreationOptions()
         options.rawParameters = "-mx9"
         #expect(!ArchiveService.nativeZipFallbackSupported(for: options))
     }
@@ -244,7 +240,6 @@ struct ArchiveServiceArgumentsTests {
         options.sevenZipStoreHardLinks = true
         options.sevenZipCompressSharedFiles = true
         options.sevenZipDeleteSourceFiles = true
-        options.createSFXArchive = true
 
         let arguments = try ArchiveService.sevenZipCreateArguments(
             destination: URL(fileURLWithPath: "/tmp/a.7z"),
@@ -256,7 +251,6 @@ struct ArchiveServiceArgumentsTests {
         #expect(arguments.contains("-snh"))
         #expect(arguments.contains("-ssw"))
         #expect(arguments.contains("-sdel"))
-        #expect(arguments.contains("-sfx"))
     }
 
     @Test

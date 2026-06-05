@@ -322,7 +322,6 @@ struct ArchiveServiceTests {
         options.password = "secret"
         options.sevenZipEncryptFileNames = true
         options.sevenZipPathMode = .relative
-        options.createSFXArchive = true
         options.sevenZipVolumeSize = "1G"
         options.customExcludes = "*.tmp"
         options.rawParameters = "-rr5"
@@ -337,7 +336,6 @@ struct ArchiveServiceTests {
         #expect(arguments.contains("-ma5"))
         #expect(arguments.contains("-m5"))
         #expect(arguments.contains("-ep1"))
-        #expect(arguments.contains("-sfx"))
         #expect(arguments.contains("-v1g"))
         #expect(arguments.contains("-hp"))
         #expect(arguments.contains("-x*.tmp"))
