@@ -219,7 +219,7 @@ the top level (no subdirectories):
 
 ```
 archive.<ext>      ← the inner archive, byte-for-byte unmodified
-metadata.json     ← schema = SimpleZip.siz, version = 2
+metadata.json     ← schema = SimpleZip.siz, version = 4 (v2/v3 still accepted)
 signature.asc     ← GPG detached signature (ASCII armor)
 ```
 
@@ -277,7 +277,7 @@ inner archive doesn't load into memory.
 ```jsonc
 {
   "schema": "SimpleZip.siz",
-  "version": 2,
+  "version": 4,                                  // v2 = signed-only; v3 += encryption; v4 += deliveryInstructions
   "innerArchiveName": "archive.zip",            // e.g. archive.7z
   "innerFormat": "zip",                          // for UI display
   "originalArchiveName": "MyProject.zip",       // user's chosen name pre-wrap
@@ -385,7 +385,7 @@ files.
 | Path traversal via `metadata.innerArchiveName` (`../escape.zip`) | `validatedInnerArchiveName` rejects names with separators / unsafe components before extraction               |
 | Path traversal via tar entry names                               | `ArchiveSafety.unsafeEntryNames` check before `tar -xf`                                                       |
 | Symlink in the container pointing into user's home               | tar entry type check rejects non-regular-file entries; only `-` (regular file) is accepted                    |
-| Old `.siz` v1 (inner-archive-signed) used to bypass metadata sig | `unwrap` rejects `schema != "SimpleZip.siz"` and the encoder's `version != 2` will mismatch                   |
+| Old `.siz` v1 (inner-archive-signed) used to bypass metadata sig | `unwrap` rejects `schema != "SimpleZip.siz"` and any `version` not in the accepted set (`{2, 3, 4}`); v1 is refused |
 | User opens `.siz` with GPG disabled in Settings                  | unwrap still works; verify is skipped and no signature UI surfaces (so a missing GPG isn't a denial-of-service) |
 
 ### v3 multi-recipient encryption (0.1.9)

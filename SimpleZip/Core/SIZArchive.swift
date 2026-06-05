@@ -40,12 +40,14 @@ enum SIZArchive {
     /// schema 标记 —— 跟偏好导入用的 `SimpleZip.preferences` 一个套路，
     /// 让以后增加字段 / 改格式时能用 `version` 升级而不破坏老文件兼容。
     static let schemaIdentifier = "SimpleZip.siz"
-    /// 当前 schema 版本 —— **v3** 新加 `encryption` 字段（多收件人 GPG 加密）。
-    /// 版本兼容：unwrap 接受 v2 **或** v3（v3 不带 encryption 字段等同于 v2，向前向后都安全）；
-    /// 创建端总是写 v3。老 v1 文件（如果有）schema mismatch 直接拒绝。
-    static let schemaVersion = 3
+    /// 当前 schema 版本 —— **v4** 新加 `deliveryInstructions` 字段（#110 收件人说明，签名背书、防篡改）。
+    /// 历史：v2 = 仅签名；v3 加 `encryption`（多收件人加密）；v4 加 `deliveryInstructions`。
+    /// 版本兼容：unwrap 接受 v2 / v3 / v4（缺哪个新字段就等同于不带它，向前向后都安全）；**创建端总是写最新 v4**。
+    /// 跟 v3 同一惯例：新增字段就 bump version + 在 `acceptedSchemaVersions` 加一项。老 v1（如果有）schema mismatch 直接拒绝。
+    /// 注意:0.3.1 之前的 SimpleZip(accepted 只到 v3)打不开 v4 .siz —— 跟当年 v2-only 打不开 v3 是同一取舍。
+    static let schemaVersion = 4
     /// unwrap 时接受的所有 schema 版本号，新版进来时只在这里加一项就行。
-    static let acceptedSchemaVersions: Set<Int> = [2, 3]
+    static let acceptedSchemaVersions: Set<Int> = [2, 3, 4]
 
     /// `metadata.json` 反序列化产物 —— 描述内层压缩包 + 签名者 + （可选）加密信息。
     struct Metadata: Codable, Equatable {
