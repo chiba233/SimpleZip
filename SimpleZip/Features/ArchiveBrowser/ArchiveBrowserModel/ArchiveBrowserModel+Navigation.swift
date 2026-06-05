@@ -573,6 +573,19 @@ extension ArchiveBrowserModel {
         }
     }
 
+    /// 「显示简介」——对选中的真实文件调起 Finder 原生 Get Info 窗口（AppleScript 控 Finder）。
+    /// 只需选中 URL，不依赖 NSOutlineView，所以右键菜单（FileTable 协调器）和菜单栏 File 菜单共用这一份实现。
+    /// 首次会弹「SimpleZip 想要控制 Finder」自动化授权，拒绝则走 errorMessage 提示。
+    func showGetInfoForSelection() {
+        let urls = selectedFileItems.map(\.url)
+        guard !urls.isEmpty else { return }
+        do {
+            try FinderInfoService.openInfoWindows(for: urls)
+        } catch {
+            errorMessage = L10n.format("file.getInfo.failed", error.localizedDescription)
+        }
+    }
+
     /// 不论当前 selection 是什么，都把「当前所在文件夹 / 标签 / 压缩包文件」自身在 Finder 里露出来。
     /// 给空白处右键菜单用 —— 那里点 `revealInFinder()` 会优先 reveal 残留的旧 selection，
     /// 跟用户的意图（"打开我现在看的这个文件夹"）对不上。

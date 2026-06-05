@@ -248,6 +248,16 @@ struct ArchiveFileCommands: Commands {
 
             Divider()
 
+            // 「显示简介」⌘I —— 右键菜单已有，补进 File 菜单做 parity（Quick Look / 重命名 / 打开方式
+            // 绑在 NSOutlineView 协调器上，菜单栏 parity 留作专项 #93；Get Info 只需选中 URL，可直接走 model）。
+            Button {
+                model?.showGetInfoForSelection()
+            } label: {
+                Label(L10n.text("file.getInfo"), systemImage: "info.circle")
+            }
+            .keyboardShortcut("i", modifiers: [.command])
+            .disabled(!canManageSelectedFiles)
+
             Button {
                 model?.revealInFinder()
             } label: {

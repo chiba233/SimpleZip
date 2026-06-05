@@ -941,17 +941,9 @@ private struct FileNSOutlineView: NSViewRepresentable {
             (outlineView as? ContentDragOutlineView)?.presentQuickLook()
         }
 
-        /// 「显示简介」—— 调起 Finder 原生的 Get Info 窗口（AppleScript 控制 Finder）。
-        /// app 未沙盒、非硬化运行时，只需 Info.plist 里的 NSAppleEventsUsageDescription；
-        /// 首次会弹「SimpleZip 想要控制 Finder」自动化授权，拒绝则失败提示。
+        /// 「显示简介」—— 右键菜单入口，复用 model 上那份实现（菜单栏 File 菜单也走它，避免两份逻辑漂移）。
         @objc private func getInfoSelected() {
-            let urls = model.selectedFileItems.map(\.url)
-            guard !urls.isEmpty else { return }
-            do {
-                try FinderInfoService.openInfoWindows(for: urls)
-            } catch {
-                model.errorMessage = L10n.format("file.getInfo.failed", error.localizedDescription)
-            }
+            model.showGetInfoForSelection()
         }
 
         /// 空白处右键专用：reveal「我现在看的这个文件夹」本身，忽略 selection。
