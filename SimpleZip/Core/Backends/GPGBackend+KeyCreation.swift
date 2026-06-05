@@ -18,6 +18,18 @@ extension GPGBackend {
         case rsa2048 = "rsa2048"
 
         var id: String { rawValue }
+
+        /// 加密子密钥用的算法字符串。**EdDSA(ed25519) 主密钥只能签 / 认证**,加密子密钥必须用 Curve25519
+        /// 的 `cv25519`;RSA 主密钥的加密子密钥同位数。`--quick-generate-key <uid> ed25519 default` 不会
+        /// 自动建加密子密钥(实测 gpg 2.5),所以 createKey 用这个算法显式 `--quick-add-key ... encrypt`。
+        var encryptionSubkeyAlgorithm: String {
+            switch self {
+            case .ed25519: return "cv25519"
+            case .rsa4096: return "rsa4096"
+            case .rsa3072: return "rsa3072"
+            case .rsa2048: return "rsa2048"
+            }
+        }
     }
 
     /// 新建密钥的过期时间选项。`never` 给 gpg 传字面 "never"。
@@ -110,30 +122,40 @@ extension GPGBackend {
             }
         }
 
-        if addAuthenticationSubkey && !primaryFingerprint.isEmpty {
-            // 主密钥造完后追加 auth subkey：`gpg --quick-add-key <fp> <algo> auth <expire>`。
-            // 子密钥算法跟主密钥同：ed25519 / rsaXXXX；passphrase 用 stdin 同款 loopback 传。
-            var subArgs: [String] = ["--batch", "--pinentry-mode", "loopback", "--passphrase-fd", "0"]
-            if ring == .simpleZipKeyring {
-                subArgs.insert(contentsOf: simpleZipKeyringArguments(), at: 0)
+        if !primaryFingerprint.isEmpty {
+            // **加密子密钥必须显式追加**：`--quick-generate-key <uid> ed25519 default` 造出的主密钥只有
+            // sign+certify(caps `scSC`)、没有加密子密钥(实测 gpg 2.5：ed25519/EdDSA 本身不能加密，
+            // gpg 也不替你补一个 cv25519)。对话框承诺「加密 — encryption subkey(自动)」，这里把它真正建出来。
+            // auth 子密钥只在用户勾选时追加。两者都用 `--quick-add-key <fp> <algo> <usage> <expire>`，
+            // passphrase 走同款 loopback stdin。失败不抛错（主密钥已造好），但通过 outputObserver 透出来。
+            var subkeysToAdd: [(algorithm: String, usage: String)] = [
+                (algorithm.encryptionSubkeyAlgorithm, "encrypt")
+            ]
+            if addAuthenticationSubkey {
+                subkeysToAdd.append((algorithm.rawValue, "auth"))
             }
-            subArgs.append(contentsOf: [
-                "--status-fd", "1",
-                "--quick-add-key",
-                primaryFingerprint,
-                algorithm.rawValue,
-                "auth",
-                expiration.rawValue
-            ])
-            // 跑 add-key —— 失败也不抛错（主密钥已造好），UI 自己刷 keyring 用户能看到结果。
-            _ = try? await BackendProcessRunner.runAndCapture(
-                tool,
-                arguments: subArgs,
-                inputStrategy: .staticInput(stdinInput),
-                outputObserver: outputObserver,
-                operationID: operationID
-            )
-            output += "\n[SimpleZip] auth subkey added\n"
+            for subkey in subkeysToAdd {
+                var subArgs: [String] = ["--batch", "--pinentry-mode", "loopback", "--passphrase-fd", "0"]
+                if ring == .simpleZipKeyring {
+                    subArgs.insert(contentsOf: simpleZipKeyringArguments(), at: 0)
+                }
+                subArgs.append(contentsOf: [
+                    "--status-fd", "1",
+                    "--quick-add-key",
+                    primaryFingerprint,
+                    subkey.algorithm,
+                    subkey.usage,
+                    expiration.rawValue
+                ])
+                let subOutput = (try? await BackendProcessRunner.runAndCapture(
+                    tool,
+                    arguments: subArgs,
+                    inputStrategy: .staticInput(stdinInput),
+                    outputObserver: outputObserver,
+                    operationID: operationID
+                )) ?? ""
+                output += "\n[SimpleZip] add \(subkey.usage) subkey\n" + subOutput
+            }
         }
 
         // `[GNUPG:] KEY_CREATED B <fingerprint>` —— B 表示 both（主 + 子）。

@@ -46,9 +46,11 @@ struct GPGEncryptOptionsView: View {
         request.sourceURLs.count > 1 || hasDirectory
     }
 
-    /// 收件人候选公钥 —— **两个环都列**(~/.gnupg 的 + SimpleZip 私有环的)。加密时按所选收件人所在环选 homedir。
+    /// 收件人候选公钥 —— **两个环都列**(~/.gnupg 的 + SimpleZip 私有环的),但**只列有加密能力的 key**:
+    /// gpg 不能加密给纯签名/认证密钥(caps 里没有 `e`/`E`),选了会报「使用できない公開鍵」。
+    /// 加密时按所选收件人所在环选 homedir。
     private var encryptionEligibleKeys: [GPGBackend.GPGKey] {
-        availableKeys
+        availableKeys.filter { $0.canEncryptToRecipient }
     }
 
     /// 已选收件人分布在哪些环(用于「混选两环」拦截 + 选 homedir)。

@@ -219,21 +219,23 @@ struct GPGKeyRow: View {
 
     // MARK: 行内组件
 
-    /// 主密钥能力 chip —— 从 `key.capabilities` 中提取小写 s/e/a/c 字符；大写表示「整把密钥（主 + 子）合并能力」，
-    /// 主密钥这一行只显示小写 = 主密钥自己能做什么。这样用户能立刻看出主密钥是不是签名密钥。
+    /// 能力 chip —— 反映**整把密钥(主密钥 + 未过期子密钥)的有效能力**(`key.effectiveCapabilities`)，
+    /// 不是只看主密钥。加密能力几乎总在加密子密钥上，只看主密钥的话「主签证 + 子加密」的正常密钥永远不显示「密」，
+    /// 会误导用户以为不能加密 —— 徽章看整把才如实(反之 dadba 这种只 `scSC` 无加密子密钥的，如实只显示 签/证)。
     /// 纯文字单字 chip（不带 SF Symbol）—— 「签 / 密 / 认 / 证」是单 unicode 字符，等宽天然，避免不同 icon 视觉宽度漂移。
     @ViewBuilder
     private var primaryCapabilityChips: some View {
-        if key.capabilities.contains("s") {
+        let caps = key.effectiveCapabilities
+        if caps.sign {
             capabilityBadge(label: L10n.text("settings.gpg.subkey.cap.sign"), tint: .accentColor)
         }
-        if key.capabilities.contains("e") {
+        if caps.encrypt {
             capabilityBadge(label: L10n.text("settings.gpg.subkey.cap.encrypt"), tint: .accentColor)
         }
-        if key.capabilities.contains("a") {
+        if caps.authenticate {
             capabilityBadge(label: L10n.text("settings.gpg.subkey.cap.auth"), tint: .accentColor)
         }
-        if key.capabilities.contains("c") {
+        if caps.certify {
             capabilityBadge(label: L10n.text("settings.gpg.subkey.cap.certify"), tint: .secondary)
         }
     }

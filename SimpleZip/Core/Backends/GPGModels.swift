@@ -127,6 +127,31 @@ extension GPGBackend {
             String(fingerprint.suffix(16))
         }
 
+        /// 整把密钥(主密钥自身 + **未过期子密钥**)的有效能力 —— UI 能力徽章用这个。
+        /// 加密能力几乎总在加密子密钥上(主密钥往往只 sign+certify),如果只看主密钥 `capabilities`,
+        /// 一把「主签证 + 子加密」的正常密钥会**永远不显示「密」**,误导用户以为它不能加密 → 徽章必须看整把。
+        /// certify 只看主密钥(子密钥极少 certify)。
+        var effectiveCapabilities: (sign: Bool, encrypt: Bool, authenticate: Bool, certify: Bool) {
+            let primary = capabilities.lowercased()
+            var sign = primary.contains("s")
+            var encrypt = primary.contains("e")
+            var authenticate = primary.contains("a")
+            let certify = primary.contains("c")
+            for subkey in subkeys where !subkey.isExpired {
+                if subkey.canSign { sign = true }
+                if subkey.canEncrypt { encrypt = true }
+                if subkey.canAuthenticate { authenticate = true }
+            }
+            return (sign, encrypt, authenticate, certify)
+        }
+
+        /// 能否作为**加密收件人** —— 必须有加密能力(主密钥或某个未过期子密钥能加密),且密钥本身未过期/撤销。
+        /// 纯签名/认证密钥(如只有 `scSC`)不能当收件人,gpg 会报「unusable public key」。
+        var canEncryptToRecipient: Bool {
+            guard !isExpired, trust != .expired, trust != .revoked else { return false }
+            return effectiveCapabilities.encrypt
+        }
+
         static func formatFingerprint(_ raw: String) -> String {
             var formatted = ""
             for (index, char) in raw.enumerated() {
