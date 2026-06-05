@@ -881,6 +881,7 @@
 "settings.formatMatrix.format" = "Format";
 "settings.formatMatrix.col.create" = "Create";
 "settings.formatMatrix.col.extract" = "Extract";
+"settings.formatMatrix.col.edit" = "Edit";
 "settings.formatMatrix.col.encrypt" = "Encrypt";
 "settings.formatMatrix.col.header" = "Header";
 "settings.formatMatrix.col.split" = "Split";

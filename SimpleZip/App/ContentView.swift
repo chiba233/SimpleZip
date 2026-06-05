@@ -23,6 +23,8 @@ struct ContentView: View {
     }
 
     @State private var isDropTargeted = false
+    /// 落在归档文件列表区的拖入高亮（#109 加进归档）—— 跟整片区域的 `isDropTargeted` 分开。
+    @State private var isArchiveListDropTargeted = false
 
     /// 启动期校验「保存的 startupLocation 当前是否指向不存在的目录」用的弹窗 flag。
     /// 只在 app 第一次 onAppear 时计算一次，避免后续重新 layout 反复弹。
@@ -63,6 +65,25 @@ struct ContentView: View {
 
                 if case .archive = model.mode {
                     ArchiveTable(model: model)
+                        // 落在**文件列表区**的拖入 = 加进归档（#109）；落在上面 TopBar 地址栏的拖入归外层 onDrop → 导航。
+                        // 这条内层 onDrop 比 ContentView 整片的 onDrop 更靠内，命中列表区时优先它处理。
+                        .overlay {
+                            if isArchiveListDropTargeted, model.canDropIntoOpenArchive {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color.accentColor, lineWidth: 3)
+                                    .padding(4)
+                                    .allowsHitTesting(false)
+                            }
+                        }
+                        .onDrop(of: [UTType.fileURL.identifier], isTargeted: $isArchiveListDropTargeted) { providers in
+                            extractDroppedFileURLs(from: providers) { urls in
+                                if model.canDropIntoOpenArchive {
+                                    model.addFilesToOpenArchive(urls)   // 可编辑 zip/7z → 加进归档
+                                } else {
+                                    model.openDroppedURLs(urls)          // 嵌套/临时/不可写归档 → 当「打开」处理
+                                }
+                            }
+                        }
                 } else {
                     FileTable(model: model)
                 }

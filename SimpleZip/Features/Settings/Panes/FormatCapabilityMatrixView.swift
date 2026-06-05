@@ -72,6 +72,7 @@ struct FormatCapabilityMatrixView: View {
         switch kind {
         case .create: return L10n.text("settings.formatMatrix.col.create")
         case .extract: return L10n.text("settings.formatMatrix.col.extract")
+        case .editEntries: return L10n.text("settings.formatMatrix.col.edit")
         case .encrypt: return L10n.text("settings.formatMatrix.col.encrypt")
         case .headerEncrypt: return L10n.text("settings.formatMatrix.col.header")
         case .splitVolumes: return L10n.text("settings.formatMatrix.col.split")

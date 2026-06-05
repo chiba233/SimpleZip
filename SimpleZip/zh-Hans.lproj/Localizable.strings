@@ -874,6 +874,7 @@
 "settings.formatMatrix.format" = "格式";
 "settings.formatMatrix.col.create" = "创建";
 "settings.formatMatrix.col.extract" = "解压";
+"settings.formatMatrix.col.edit" = "编辑";
 "settings.formatMatrix.col.encrypt" = "加密";
 "settings.formatMatrix.col.header" = "头加密";
 "settings.formatMatrix.col.split" = "分卷";

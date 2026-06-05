@@ -640,15 +640,8 @@ private struct FileNSOutlineView: NSViewRepresentable {
             proposedItem item: Any?,
             proposedChildIndex index: Int
         ) -> NSDragOperation {
-            // 外部文件拖进**可编辑的真实压缩包**（zip/7z 顶层）→ 加进归档（copy）。#109
-            // 把放置目标定到整张表（root）——加进当前所在的归档内文件夹，而非某一行。
-            let isExternal = info.draggingSource as? NSOutlineView !== outlineView
-            if isExternal, model.canDropIntoOpenArchive {
-                outlineView.setDropItem(nil, dropChildIndex: NSOutlineViewDropOnItemIndex)
-                return .copy
-            }
             guard fileDropDestination(item: item, childIndex: index) != nil else { return [] }
-            return isExternal ? .copy : .move
+            return info.draggingSource as? NSOutlineView === outlineView ? .move : .copy
         }
 
         func outlineView(
@@ -657,20 +650,13 @@ private struct FileNSOutlineView: NSViewRepresentable {
             item: Any?,
             childIndex index: Int
         ) -> Bool {
-            let isExternal = info.draggingSource as? NSOutlineView !== outlineView
-            let urls = info.draggingPasteboard.readObjects(forClasses: [NSURL.self]) as? [URL] ?? []
-            // 拖进打开的压缩包：加进归档（走活动中心 + 安全写回）。#109
-            if isExternal, model.canDropIntoOpenArchive {
-                guard !urls.isEmpty else { return false }
-                model.addFilesToOpenArchive(urls)
-                return true
-            }
             guard let destination = fileDropDestination(item: item, childIndex: index) else { return false }
+            let urls = info.draggingPasteboard.readObjects(forClasses: [NSURL.self]) as? [URL] ?? []
             guard !urls.isEmpty else { return false }
             model.dropFileURLs(
                 urls,
                 to: destination,
-                shouldMove: !isExternal
+                shouldMove: info.draggingSource as? NSOutlineView === outlineView
             )
             return true
         }

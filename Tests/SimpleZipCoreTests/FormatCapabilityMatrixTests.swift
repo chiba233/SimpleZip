@@ -37,6 +37,17 @@ struct FormatCapabilityMatrixTests {
         #expect(row("tar")?.headerEncrypt == .no)
     }
 
+    @Test func editColumnOnlyZipAndSevenZip() {
+        // 「编辑/增删条目」与 ArchiveService.supportsEntryUpdate 同口径:仅 zip/7z。
+        #expect(row("zip")?.editEntries == .yes)
+        #expect(row("7z")?.editEntries == .yes)
+        #expect(row("rar")?.editEntries == .no)
+        #expect(row("tar")?.editEntries == .no)
+        #expect(row("dmg")?.editEntries == .no)
+        #expect(row("siz")?.editEntries == .no)
+        #expect(row("szs")?.editEntries == .no)
+    }
+
     @Test func splitColumnMatchesVolumeSupport() {
         #expect(row("zip")?.splitVolumes == .yes)
         #expect(row("7z")?.splitVolumes == .yes)

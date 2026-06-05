@@ -22,6 +22,7 @@ public enum CapabilityState: String, Hashable {
 public enum FormatCapabilityKind: String, CaseIterable, Identifiable {
     case create        // 创建 / 打包
     case extract       // 解压 / 打开
+    case editEntries   // 打开后增 / 替换条目（拖入、归档内编辑写回）—— 仅 7zz 可写的 zip/7z
     case encrypt       // 加密（口令对称 或 GPG 公钥）
     case headerEncrypt // 头部 / 文件名加密
     case splitVolumes  // 分卷
@@ -37,6 +38,7 @@ public struct FormatCapabilityRow: Identifiable, Hashable {
     public let displayName: String
     public let create: CapabilityState
     public let extract: CapabilityState
+    public let editEntries: CapabilityState
     public let encrypt: CapabilityState
     public let headerEncrypt: CapabilityState
     public let splitVolumes: CapabilityState
@@ -47,6 +49,7 @@ public struct FormatCapabilityRow: Identifiable, Hashable {
         switch kind {
         case .create: return create
         case .extract: return extract
+        case .editEntries: return editEntries
         case .encrypt: return encrypt
         case .headerEncrypt: return headerEncrypt
         case .splitVolumes: return splitVolumes
@@ -70,6 +73,11 @@ public enum FormatCapabilityMatrix {
         format.supportsVolumeSplitting ? .yes : .no
     }
 
+    /// 「打开后增 / 替换条目」能力 —— 跟 `ArchiveService.supportsEntryUpdate` 同口径:仅 zip/7z(7zz 可写)。
+    private static func editState(_ format: ArchiveCreateFormat) -> CapabilityState {
+        (format == .zip || format == .sevenZip) ? .yes : .no
+    }
+
     /// 全部行。7-Zip / RAR / TAR 家族 + DMG 走标准列；GPG / SIZ / SZS 是 SimpleZip 的容器，
     /// 「加密」列指它们的 GPG 加密、「测试」列指验签（密码学完整性校验）。
     public static var rows: [FormatCapabilityRow] {
@@ -84,21 +92,21 @@ public enum FormatCapabilityMatrix {
                         extract: .yes, headerEncrypt: .no, test: .yes, comment: .no),
             standardRow(.tarGzip,
                         extract: .yes, headerEncrypt: .no, test: .yes, comment: .no),
-            // DMG：app 内创建（hdiutil）+ 挂载浏览；不做口令加密 / 分卷 / 注释。
+            // DMG：app 内创建（hdiutil）+ 挂载浏览；不做口令加密 / 分卷 / 注释 / 编辑。
             FormatCapabilityRow(id: "dmg", displayName: "DMG",
-                                create: .yes, extract: .yes, encrypt: .no, headerEncrypt: .no,
+                                create: .yes, extract: .yes, editEntries: .no, encrypt: .no, headerEncrypt: .no,
                                 splitVolumes: .no, test: .no, comment: .no),
-            // .gpg：加密 = 创建、解密 = 打开；GPG 容器没有头部加密 / 分卷 / 注释概念。
+            // .gpg：加密 = 创建、解密 = 打开；GPG 容器没有头部加密 / 分卷 / 注释 / 编辑概念。
             FormatCapabilityRow(id: "gpg", displayName: ".gpg",
-                                create: .yes, extract: .yes, encrypt: .yes, headerEncrypt: .no,
+                                create: .yes, extract: .yes, editEntries: .no, encrypt: .yes, headerEncrypt: .no,
                                 splitVolumes: .no, test: .no, comment: .no),
-            // .siz：签名容器（内层 archive + 签名 + 元数据）；测试 = 验签；可选 GPG 公钥加密内层。
+            // .siz：签名容器（内层 archive + 签名 + 元数据）；测试 = 验签；可选 GPG 公钥加密内层。编辑会破坏签名 → 不开放。
             FormatCapabilityRow(id: "siz", displayName: ".siz",
-                                create: .yes, extract: .yes, encrypt: .yes, headerEncrypt: .no,
+                                create: .yes, extract: .yes, editEntries: .no, encrypt: .yes, headerEncrypt: .no,
                                 splitVolumes: .no, test: .yes, comment: .no),
-            // .szs：签名清单（clearsigned JSON）；测试 = 验签；可选把列出文件加密成 .gpg。
+            // .szs：签名清单（clearsigned JSON）；测试 = 验签；可选把列出文件加密成 .gpg。编辑会破坏签名 → 不开放。
             FormatCapabilityRow(id: "szs", displayName: ".szs",
-                                create: .yes, extract: .yes, encrypt: .yes, headerEncrypt: .no,
+                                create: .yes, extract: .yes, editEntries: .no, encrypt: .yes, headerEncrypt: .no,
                                 splitVolumes: .no, test: .yes, comment: .no),
         ]
     }
@@ -116,6 +124,7 @@ public enum FormatCapabilityMatrix {
             displayName: format.title,
             create: createState(format),
             extract: extract,
+            editEntries: editState(format),
             encrypt: encryptState(format),
             headerEncrypt: headerEncrypt,
             splitVolumes: splitState(format),
