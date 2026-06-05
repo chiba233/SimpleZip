@@ -288,9 +288,20 @@ inner archive doesn't load into memory.
     "signerFingerprint": "…40 hex…",            // *claim* (verified by gpg)
     "signerUserID": "Alice <alice@example.com>", // *claim* (informational)
     "armorFormat": true                          // signature.asc is ASCII armor
-  }
+  },
+  "deliveryInstructions": "…optional, signed…"   // human-readable recipient note (#110)
 }
 ```
+
+`deliveryInstructions` (optional, added in 0.3.1) is a human-readable note —
+"this is a signed `.siz`, here's how to verify and decrypt it with `tar` + `gpg`",
+plus any message the sender typed. It is **deliberately a metadata field, not a
+fourth file in the container**: that keeps the "exactly three files" unwrap
+hardening intact, and because `metadata.json` is the signature target, the note is
+**tamper-proof** (editing it breaks the gpg signature, exactly like every other
+metadata field). It carries no secret material (no passphrases, no private keys).
+Omitted entirely when absent, so older `.siz` files and the on-disk bytes of
+signature-only containers are unchanged.
 
 `signature.signerFingerprint` and `signature.signerUserID` in metadata are
 **claims**, not proof. The actual trust comes from gpg verifying
