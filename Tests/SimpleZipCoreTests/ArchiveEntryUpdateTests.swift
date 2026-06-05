@@ -134,6 +134,81 @@ struct ArchiveEntryUpdateTests {
         #expect(throws: (any Error).self) { try ArchiveService.normalizedEntryRelativePath("a/../../b") }
     }
 
+    /// P1 回归:Windows 风格逃逸路径(反斜杠分隔 / UNC / 盘符)必须被拒,否则在 Windows 解压器会写到目标目录之外。
+    @Test func rejectsWindowsStyleEscapePaths() {
+        // 反斜杠分隔 / `..\` 逃逸。
+        #expect(throws: (any Error).self) { try ArchiveService.normalizedEntryRelativePath("..\\evil.txt") }
+        #expect(throws: (any Error).self) { try ArchiveService.normalizedEntryRelativePath("a\\b\\c.txt") }
+        // 盘符路径。
+        #expect(throws: (any Error).self) { try ArchiveService.normalizedEntryRelativePath("C:\\Users\\x") }
+        #expect(throws: (any Error).self) { try ArchiveService.normalizedEntryRelativePath("C:Users") }
+        #expect(throws: (any Error).self) { try ArchiveService.normalizedEntryRelativePath("docs/C:evil") }
+        // UNC。
+        #expect(throws: (any Error).self) { try ArchiveService.normalizedEntryRelativePath("\\\\server\\share\\x") }
+    }
+
+    /// P3 回归:把一个**空目录**作为 addition 加进去,解压后该空目录应存在(7zz 保留空目录条目)。
+    @Test func preservesEmptyDirectoryEntry() async throws {
+        let temp = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: temp) }
+        let archive = try await makeZip(in: temp)
+
+        let emptyDir = temp.appendingPathComponent("emptyDirSource", isDirectory: true)
+        try FileManager.default.createDirectory(at: emptyDir, withIntermediateDirectories: true)
+        try await ArchiveService.addOrReplaceEntries(in: archive, additions: [
+            ArchiveEntryAddition(sourceFile: emptyDir, entryPath: "source/emptydir"),
+        ])
+
+        let dest = temp.appendingPathComponent("out-empty", isDirectory: true)
+        try FileManager.default.createDirectory(at: dest, withIntermediateDirectories: true)
+        try await ArchiveService.extract(archive, to: dest)
+        var isDir: ObjCBool = false
+        let exists = FileManager.default.fileExists(atPath: dest.appendingPathComponent("source/emptydir").path, isDirectory: &isDir)
+        #expect(exists && isDir.boolValue)   // 空目录被保留
+    }
+
+    /// P2 回归:header-encrypted 7z 用**正确口令**编辑后,① 新旧条目都在;② 包仍是 header-encrypted(无口令列不出)。
+    /// 空口令编辑加密包会失败 —— 这正是 `resolvedArchivePassword` 透传要解决的(此测试锁住「带口令能成」+「加密未丢」)。
+    @Test func editsHeaderEncryptedSevenZipWithPassword() async throws {
+        let temp = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: temp) }
+        let password = "s3cr3t-pw"
+
+        let source = temp.appendingPathComponent("src", isDirectory: true)
+        try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+        try "original A".write(to: source.appendingPathComponent("a.txt"), atomically: true, encoding: .utf8)
+        var options = ArchiveCreationOptions()
+        options.format = .sevenZip
+        options.password = password
+        options.passwordConfirmation = password
+        options.sevenZipEncryptFileNames = true   // header encryption
+        options.skipDSStore = false
+        options.skipHiddenFiles = false
+        let archive = temp.appendingPathComponent("enc.7z")
+        try await ArchiveService.createArchive(from: [source], destination: archive, options: options)
+
+        // 无口令列不出 = 确实 header-encrypted(前置条件)。
+        await #expect(throws: (any Error).self) { _ = try await ArchiveService.list(archive) }
+
+        // 带口令编辑:加一个新文件。
+        let newB = temp.appendingPathComponent("newB.txt")
+        try "NEW B".write(to: newB, atomically: true, encoding: .utf8)
+        try await ArchiveService.addOrReplaceEntries(in: archive, additions: [
+            ArchiveEntryAddition(sourceFile: newB, entryPath: "src/b.txt"),
+        ], password: password)
+
+        // ① 带口令解压 → 新旧条目都在。
+        let dest = temp.appendingPathComponent("out-enc", isDirectory: true)
+        try FileManager.default.createDirectory(at: dest, withIntermediateDirectories: true)
+        try await ArchiveService.extract(archive, to: dest, password: password)
+        let contents = try Self.walkTextFiles(under: dest)
+        #expect(contents["src/a.txt"] == "original A")
+        #expect(contents["src/b.txt"] == "NEW B")
+
+        // ② 编辑后仍是 header-encrypted —— 无口令列不出。
+        await #expect(throws: (any Error).self) { _ = try await ArchiveService.list(archive) }
+    }
+
     @Test func normalizesCleanPaths() throws {
         #expect(try ArchiveService.normalizedEntryRelativePath("docs/a.txt") == "docs/a.txt")
         #expect(try ArchiveService.normalizedEntryRelativePath("a.txt") == "a.txt")

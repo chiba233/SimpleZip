@@ -178,6 +178,11 @@ final class ArchiveBrowserModel: ObservableObject {
     /// 在外部 app 打开的归档内文件 → 监视它的临时副本，回前台时若被外部编辑就询问写回原归档（#109 part 3）。
     var pendingArchiveWriteBacks: [PendingArchiveWriteBack] = []
 
+    /// 当前打开的压缩包**已解析口令**：明文包 = `""`；加密包(header-encrypted 7z / 加密 zip)= 打开时
+    /// 预设 / 用户输入并验证成功的那个口令。归档内编辑(增删改 / 新建 / 写回)复用它,否则对加密包用空口令
+    /// 会直接失败(`addOrReplaceEntries` 等的 `-p` 缺失)。`loadArchive` 每次按当前包重新解析,始终对应正在显示的包。
+    var resolvedArchivePassword: String = ""
+
     init() {
         // 注意：不在这里清理临时目录 —— 那是「全 app 一次性」职责，已移到 AppDelegate 启动时 stale-only 执行。
         // 模型每次 init 都删全局临时根，会误删其它窗口正在用的解压目录（见 cleanStaleOpenedArchiveItems 注释）。

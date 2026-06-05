@@ -198,15 +198,23 @@ extension ArchiveService {
 
     /// 归档内相对路径校验 / 规范化 —— 拒绝绝对路径、`..` 逃逸、空段,防止 staging 时写到 payload 之外
     /// 或在归档里塞出诡异路径。返回用 `/` 连接的干净相对路径。
+    ///
+    /// **跨平台路径逃逸面(archive safety)**:macOS 本机只把 `/` 当分隔符,但归档条目会被喂给 7zz / 别的
+    /// 解压器,在 **Windows 语义**下 `\` 是路径分隔、`C:` 是盘符、`\\server\share` 是 UNC —— 这些若作为
+    /// 「普通单段路径」放进包里,在 Windows 解压时就会写到目标目录之外。所以一律拒绝(绝不静默改写,符合
+    /// CLAUDE.md「不静默破坏 / 不隐藏失败」):
+    /// - 含反斜杠 `\`(Windows 分隔 / UNC) → 拒绝;
+    /// - 任一段是 `..` / `.`(`/` 分隔的逃逸) → 拒绝;
+    /// - 任一段形如盘符 `C:` / `C:foo`(字母 + 冒号开头) → 拒绝。
     static func normalizedEntryRelativePath(_ raw: String) throws -> String {
         let trimmed = raw.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty, !trimmed.hasPrefix("/") else {
+        guard !trimmed.isEmpty, !trimmed.hasPrefix("/"), !trimmed.contains("\\") else {
             throw ArchiveError.commandFailed("Invalid entry path: \(raw)")
         }
         var components: [String] = []
         for segment in trimmed.split(separator: "/", omittingEmptySubsequences: true) {
             let part = String(segment)
-            guard part != "..", part != "." else {
+            guard part != "..", part != ".", !isWindowsDriveComponent(part) else {
                 throw ArchiveError.commandFailed("Invalid entry path: \(raw)")
             }
             components.append(part)
@@ -215,5 +223,13 @@ extension ArchiveService {
             throw ArchiveError.commandFailed("Invalid entry path: \(raw)")
         }
         return components.joined(separator: "/")
+    }
+
+    /// 某段是否是 Windows 盘符语义(`C:` / `c:` / `C:foo`)—— 字母开头紧跟冒号。这类段在 Windows 解压器
+    /// 会被当作「切换到 C 盘根」,属逃逸面,拒绝。`:` 在 macOS 文件名里本就非法(legacy 路径分隔符),不误伤本机名。
+    private static func isWindowsDriveComponent(_ part: String) -> Bool {
+        let chars = Array(part)
+        guard chars.count >= 2 else { return false }
+        return chars[0].isLetter && chars[1] == ":"
     }
 }

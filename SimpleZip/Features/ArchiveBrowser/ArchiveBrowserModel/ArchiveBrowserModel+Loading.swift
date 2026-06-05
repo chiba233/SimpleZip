@@ -137,10 +137,13 @@ extension ArchiveBrowserModel {
             let items: [ArchiveItem]
             do {
                 items = try await ArchiveService.list(url, force: force)
+                // 明文包:无口令。归档内编辑用空口令即可(新条目不加密)。
+                resolvedArchivePassword = ""
             } catch {
                 // header-encrypted 7z 这类「不给密码连 list 都拿不到」的档案:先用预设密码静默重试,
                 // 仍失败 / 没预设 → **弹密码框**让用户输入并重试(和解压流程同款),而不是直接报错放弃
                 //（之前只在「有可用预设密码」时重试,没预设就掉到外层 catch 报错 = 不弹密码直接死）。
+                // 成功的口令存进 `resolvedArchivePassword`,归档内编辑复用(见该属性注释)。
                 guard shouldPromptForArchivePassword(error) else { throw error }
                 items = try await listArchivePromptingForPassword(url, force: force)
             }
@@ -166,8 +169,16 @@ extension ArchiveBrowserModel {
     /// 列出需要密码的档案:先用预设密码静默试一次,再弹密码框重试,直到成功或用户取消(抛 `CancellationError`)。
     /// 给 header-encrypted 7z 这类「连列表都需要密码」的档案用 —— 与解压前的密码重试循环同款,复用 `promptForArchivePassword`。
     private func listArchivePromptingForPassword(_ url: URL, force: Bool) async throws -> [ArchiveItem] {
+        // 先试「上一次记住的口令」—— 刚编辑完同一加密包后 reload 时免去重复输入(编辑会用同口令重写原包)。
+        // 是别的包的残留口令也无妨:对不上只会静默失败,落到下面预设 / 弹框。
+        let remembered = resolvedArchivePassword
+        if !remembered.isEmpty,
+           let items = try? await ArchiveService.list(url, password: remembered, force: force) {
+            return items  // resolvedArchivePassword 已是 remembered,不变
+        }
         if AppPreferences.hasUsablePresetPassword,
            let items = try? await ArchiveService.list(url, password: AppPreferences.presetPassword, force: force) {
+            resolvedArchivePassword = AppPreferences.presetPassword
             return items
         }
         let detectedZipEncryption: ZipEncryptionDetection = url.pathExtension.lowercased() == "zip"
@@ -185,7 +196,9 @@ extension ArchiveBrowserModel {
                 throw CancellationError()
             }
             do {
-                return try await ArchiveService.list(url, password: authentication.password, force: force)
+                let items = try await ArchiveService.list(url, password: authentication.password, force: force)
+                resolvedArchivePassword = authentication.password
+                return items
             } catch {
                 guard shouldPromptForArchivePassword(error) else { throw error }
                 isRetry = true

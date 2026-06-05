@@ -421,11 +421,11 @@ extension ArchiveBrowserModel {
                     TransferLogEntry(name: $0.entryPath, action: .added, isDirectory: false)
                 }
             }
-        ) { operationID, _, observer in
+        ) { [resolvedArchivePassword] operationID, _, observer in
             try await ArchiveService.addOrReplaceEntries(
                 in: archiveURL,
                 additions: additions,
-                password: "",
+                password: resolvedArchivePassword,
                 operationID: operationID,
                 outputObserver: observer
             )
@@ -434,6 +434,11 @@ extension ArchiveBrowserModel {
 
     /// 把拖入的顶层 URL 列表展开成 `ArchiveEntryAddition`：文件 → 1 条（`targetDir/文件名`）；
     /// 文件夹 → 递归其下所有普通文件，路径保留 `targetDir/文件夹名/…`。非 async（用 `nextObject()` 同步遍历）。
+    ///
+    /// **空目录保留**：只枚举普通文件会丢掉「空子目录」——用户拖一个含空文件夹的目录进去，结构会少一截。
+    /// 所以额外把**空目录**（`contentsOfDirectory` 为空）显式作为一条 addition 加进去（`sourceFile` 是该空目录，
+    /// `addOrReplaceEntries` 复制它 + 7zz `a` 会落成空目录条目）。非空目录无需显式加——它会被其下文件的路径隐式创建。
+    /// 符号链接 / 特殊文件仍被跳过（只收 regular file + 空目录），保持既有的链接安全策略。
     static func archiveAdditions(for urls: [URL], targetDir: String) -> [ArchiveEntryAddition] {
         let fm = FileManager.default
         let base: String = {
@@ -446,11 +451,25 @@ extension ArchiveBrowserModel {
             guard fm.fileExists(atPath: url.path, isDirectory: &isDir) else { continue }
             if isDir.boolValue {
                 let folderName = url.lastPathComponent
-                let enumerator = fm.enumerator(at: url, includingPropertiesForKeys: [.isRegularFileKey])
-                while let file = enumerator?.nextObject() as? URL {
-                    guard (try? file.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true else { continue }
-                    let relWithin = file.path.dropFirst(url.path.count + 1)
-                    result.append(ArchiveEntryAddition(sourceFile: file, entryPath: base + folderName + "/" + relWithin))
+                let enumerator = fm.enumerator(at: url, includingPropertiesForKeys: [.isRegularFileKey, .isDirectoryKey])
+                var addedAnyDescendant = false
+                while let child = enumerator?.nextObject() as? URL {
+                    let values = try? child.resourceValues(forKeys: [.isRegularFileKey, .isDirectoryKey])
+                    let relWithin = child.path.dropFirst(url.path.count + 1)
+                    if values?.isRegularFile == true {
+                        result.append(ArchiveEntryAddition(sourceFile: child, entryPath: base + folderName + "/" + relWithin))
+                        addedAnyDescendant = true
+                    } else if values?.isDirectory == true,
+                              ((try? fm.contentsOfDirectory(atPath: child.path))?.isEmpty ?? false) {
+                        // 空子目录：显式加,否则拖整个文件夹进归档会丢失空目录结构。
+                        result.append(ArchiveEntryAddition(sourceFile: child, entryPath: base + folderName + "/" + relWithin))
+                        addedAnyDescendant = true
+                    }
+                }
+                // 整个文件夹本身就是空的（无任何普通文件 / 空子目录被收进来）→ 加它本身,
+                // 否则拖一个空文件夹进归档什么都不会发生。
+                if !addedAnyDescendant {
+                    result.append(ArchiveEntryAddition(sourceFile: url, entryPath: base + folderName))
                 }
             } else {
                 result.append(ArchiveEntryAddition(sourceFile: url, entryPath: base + url.lastPathComponent))
@@ -523,8 +542,8 @@ extension ArchiveBrowserModel {
             onSucceeded: { task in
                 task.transferLog = entryPaths.map { TransferLogEntry(name: $0, action: .deleted, isDirectory: false) }
             }
-        ) { operationID, _, observer in
-            try await ArchiveService.deleteEntries(from: archiveURL, entryPaths: entryPaths, password: "",
+        ) { [resolvedArchivePassword] operationID, _, observer in
+            try await ArchiveService.deleteEntries(from: archiveURL, entryPaths: entryPaths, password: resolvedArchivePassword,
                                                    operationID: operationID, outputObserver: observer)
         }
     }
@@ -534,7 +553,10 @@ extension ArchiveBrowserModel {
     func renameArchiveEntry(_ item: ArchiveItem, to newLeaf: String) {
         guard canDropIntoOpenArchive, case .archive(let archiveURL) = mode else { return }
         let trimmed = newLeaf.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, trimmed != item.displayName, !trimmed.contains("/") else { return }
+        // 叶名不得含路径分隔符 `/` 或 `\`(后者是 Windows 分隔 / UNC,属归档路径逃逸面,见
+        // ArchiveEntryUpdate.normalizedEntryRelativePath)。无效名静默忽略,跟文件浏览器内联改名一致。
+        guard !trimmed.isEmpty, trimmed != item.displayName,
+              !trimmed.contains("/"), !trimmed.contains("\\") else { return }
 
         let oldPath = item.name
         let parent = (oldPath as NSString).deletingLastPathComponent
@@ -545,8 +567,8 @@ extension ArchiveBrowserModel {
             kind: .rename,
             showsDetails: true,
             refreshOnSuccess: { [weak self] in self?.reload() }
-        ) { operationID, _, observer in
-            try await ArchiveService.renameEntry(in: archiveURL, from: oldPath, to: newPath, password: "",
+        ) { [resolvedArchivePassword] operationID, _, observer in
+            try await ArchiveService.renameEntry(in: archiveURL, from: oldPath, to: newPath, password: resolvedArchivePassword,
                                                  operationID: operationID, outputObserver: observer)
         }
     }
@@ -593,8 +615,8 @@ extension ArchiveBrowserModel {
             onSucceeded: { task in
                 task.transferLog = [TransferLogEntry(name: entryPath, action: .added, isDirectory: isDirectory)]
             }
-        ) { operationID, _, observer in
-            try await ArchiveService.addOrReplaceEntries(in: archiveURL, additions: additions, password: "",
+        ) { [resolvedArchivePassword] operationID, _, observer in
+            try await ArchiveService.addOrReplaceEntries(in: archiveURL, additions: additions, password: resolvedArchivePassword,
                                                          operationID: operationID, outputObserver: observer)
         }
     }
@@ -652,11 +674,11 @@ extension ArchiveBrowserModel {
             kind: .compress,
             showsDetails: true,
             refreshOnSuccess: { [weak self] in self?.reload() }
-        ) { operationID, _, observer in
+        ) { [resolvedArchivePassword] operationID, _, observer in
             try await ArchiveService.addOrReplaceEntries(
                 in: archiveURL,
                 additions: [ArchiveEntryAddition(sourceFile: tempURL, entryPath: entryPath)],
-                password: "", operationID: operationID, outputObserver: observer
+                password: resolvedArchivePassword, operationID: operationID, outputObserver: observer
             )
         }
     }
