@@ -21,6 +21,35 @@ final class ArchiveBrowserModel: ObservableObject {
     @Published var mode: BrowserMode
     @Published var fileItems: [FileItem] = []
     @Published var archiveItems: [ArchiveItem] = []
+    /// #113 查找：当前搜索文本（空 = 不过滤）。绑定搜索栏；主列表（文件 / 归档）按它过滤展示。
+    @Published var searchText = ""
+    /// 搜索栏是否可见。⌘F / 右键「查找」/ 菜单栏「查找」置 true；Esc 或清空收起。
+    @Published var isSearchActive = false
+
+    /// 过滤后的归档条目（主列表展示用）。空搜索返回全部；非空时按完整路径名大小写不敏感匹配（复用 Core `ArchiveSearch`）。
+    var displayedArchiveItems: [ArchiveItem] {
+        let text = searchText.trimmingCharacters(in: .whitespaces)
+        guard !text.isEmpty else { return archiveItems }
+        var query = ArchiveSearchQuery()
+        query.text = text
+        query.scope = .fullPath
+        return ArchiveSearch.filter(archiveItems, with: query)
+    }
+
+    /// 过滤后的文件浏览条目。空搜索返回全部；非空时按显示名 / 完整名匹配。
+    var displayedFileItems: [FileItem] {
+        let text = searchText.trimmingCharacters(in: .whitespaces)
+        guard !text.isEmpty else { return fileItems }
+        return fileItems.filter {
+            $0.displayName.localizedCaseInsensitiveContains(text) || $0.name.localizedCaseInsensitiveContains(text)
+        }
+    }
+
+    /// 收起搜索栏并清空文本 —— Esc / 关闭按钮用。
+    func dismissSearch() {
+        searchText = ""
+        isSearchActive = false
+    }
     @Published var selection = Set<UUID>()
     @Published var selectedArchiveRows = Set<UUID>()
     @Published var status = L10n.text("status.ready")

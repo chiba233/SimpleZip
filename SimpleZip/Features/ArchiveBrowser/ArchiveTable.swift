@@ -227,7 +227,7 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
             hasher.combine(groupBy.rawValue)
             hasher.combine(AppPreferences.rowDensity.rawValue)
             hasher.combine(outlineView?.tableColumns.map { $0.identifier.rawValue }.joined(separator: ",") ?? "")
-            for item in model.archiveItems { hasher.combine(item.id) }
+            for item in model.displayedArchiveItems { hasher.combine(item.id) }
             let contentSignature = hasher.finalize()
             guard contentSignature != lastContentSignature else { return }
             lastContentSignature = contentSignature
@@ -260,7 +260,7 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
         private func rebuildTopLevel(groupBy: BrowserGrouping.GroupBy) {
             var reused: [String: ArchiveOutlineNode] = [:]
             if groupBy.isGrouping {
-                topLevelNodes = BrowserGrouping.group(model.archiveItems, by: groupBy, now: Date()).map { section in
+                topLevelNodes = BrowserGrouping.group(model.displayedArchiveItems, by: groupBy, now: Date()).map { section in
                     let key = "g:\(section.title)"
                     let node = sectionNodesByKey[key] ?? ArchiveOutlineNode.section(key: key)
                     node.title = "\(section.title) (\(section.items.count))"
@@ -269,7 +269,7 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
                     return node
                 }
             } else {
-                topLevelNodes = model.archiveItems.map { ArchiveOutlineNode.item($0) }
+                topLevelNodes = model.displayedArchiveItems.map { ArchiveOutlineNode.item($0) }
             }
             sectionNodesByKey = reused
         }

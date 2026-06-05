@@ -301,7 +301,7 @@ private struct FileNSOutlineView: NSViewRepresentable {
             hasher.combine(configSignature)
             hasher.combine(AppPreferences.rowDensity.rawValue)
             hasher.combine(outlineView?.tableColumns.map { $0.identifier.rawValue }.joined(separator: ",") ?? "")
-            for item in model.fileItems { hasher.combine(item.id) }
+            for item in model.displayedFileItems { hasher.combine(item.id) }
             let contentSignature = hasher.finalize()
             guard contentSignature != lastContentSignature else { return }
 
@@ -367,7 +367,7 @@ private struct FileNSOutlineView: NSViewRepresentable {
                 fileSection(key: "hidden", isHidden: true, title: L10n.format("file.hiddenGroup", items.count), items: items)
             }
 
-            let split = FileBrowserOutline.split(model.fileItems)
+            let split = FileBrowserOutline.split(model.displayedFileItems)
             let groupBy = effectiveGroupBy
 
             if groupBy.isGrouping {
@@ -375,7 +375,7 @@ private struct FileNSOutlineView: NSViewRepresentable {
                 switch AppPreferences.hiddenWithGrouping {
                 case .foldIntoGroups:
                     // 全部条目（含隐藏）一起按当前维度分组。
-                    topLevelNodes = groupedSections(model.fileItems, keyPrefix: "g:", groupBy: groupBy)
+                    topLevelNodes = groupedSections(model.displayedFileItems, keyPrefix: "g:", groupBy: groupBy)
                 case .separateGroup:
                     // 可见文件按维度分组 + 隐藏文件单独成一个组，且组内再按同一维度分子组（嵌套）。
                     var nodes = groupedSections(split.visible, keyPrefix: "g:", groupBy: groupBy)
@@ -394,7 +394,7 @@ private struct FileNSOutlineView: NSViewRepresentable {
                     topLevelNodes = nodes
                 } else {
                     // inline opt-out：全平铺。
-                    topLevelNodes = model.fileItems.map { FileOutlineNode.file($0) }
+                    topLevelNodes = model.displayedFileItems.map { FileOutlineNode.file($0) }
                 }
             }
 

@@ -93,6 +93,13 @@ struct ContentView: View {
             }
             .frame(minWidth: 620)
             .navigationTitle(model.title)
+            // #113 查找：原生 `.searchable` 给 toolbar 搜索框 + ⌘F 聚焦 + 系统「编辑 → 查找」菜单项。
+            // 文本绑到 model.searchText，主列表（文件 / 归档）按 model.displayedItems 过滤。
+            .searchable(
+                text: $model.searchText,
+                placement: .toolbar,
+                prompt: L10n.text("search.prompt")
+            )
         }
         .frame(minWidth: 980, minHeight: 620)
         // focusedSceneObject 服务 WindowGroup 自动建的首窗；focusedObject 让工厂手建的窗口/标签
