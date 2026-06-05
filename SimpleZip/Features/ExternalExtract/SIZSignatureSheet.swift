@@ -86,6 +86,11 @@ struct SIZSignatureSheet: View {
                 detailRow(L10n.text("siz.signatureSheet.keyFingerprint"), signature.signerFingerprint, monospaced: true)
                 detailRow(L10n.text("siz.signatureSheet.signedAt"), signature.signedAt)
                 detailRow(L10n.text("siz.signatureSheet.source"), signature.sourceURL.path, monospaced: true)
+                // #110 收件人说明：作为 detail 块里的**一行**（标题对齐标签列、展开正文对齐值列），
+                // 而不是下面另起一张浮卡 —— 解决「跟上面间距太大 / 正文贴左 / 左右 margin 太小」。
+                if let instructions = signature.deliveryInstructions, !instructions.isEmpty {
+                    instructionsRow(instructions)
+                }
             }
             .padding(12)
             .background(Color(nsColor: .controlBackgroundColor))
@@ -94,11 +99,6 @@ struct SIZSignatureSheet: View {
             // 加密容器：在 detail 块下方加 picker + passphrase 字段；passphrase 字段优先于 pinentry-mac 兜底。
             if showsDecryptionKeyPicker || showsDecryptionPassphraseField {
                 decryptionControls
-            }
-
-            // #110 收件人说明：创建者在 metadata 里随签名带过来的「怎么验签 / 解密」说明（防篡改）。折叠展示 + 一键复制。
-            if let instructions = signature.deliveryInstructions, !instructions.isEmpty {
-                deliveryInstructionsSection(instructions)
             }
 
             // 解密失败内联提示（密码 / 密钥错）—— 红字，留在 sheet 里让用户改了重试。
@@ -204,44 +204,52 @@ struct SIZSignatureSheet: View {
         .padding(.horizontal, 4)
     }
 
-    /// #110「收件人说明」折叠卡片 —— 复用 detail 块同款 controlBackground 圆角卡(A1:不另造视觉风格)。
-    /// 内容滚动区限高,附「复制」按钮方便连同 .siz 转给别人或留底。
+    /// #110「收件人说明」—— detail 块里的**一行**：标题右对齐到标签列（跟「签名者/源文件」齐），
+    /// 点标题区折叠展开；展开的正文缩进到**值列**（`88 + 12`，跟上面各行的值左对齐），不贴左、有舒适内边距。
     @ViewBuilder
-    private func deliveryInstructionsSection(_ text: String) -> some View {
-        DisclosureGroup(isExpanded: $showInstructions) {
-            VStack(alignment: .leading, spacing: 10) {
-                // **不套 ScrollView** —— ScrollView 在无固定高度的 sheet 里会贪心占满 maxHeight,
-                // 内容短就留一截莫名空白、内容长又被压矮。直接让 Text 按内容自适应高度(说明就十几行,完整显示)。
-                // 浅色板 + 左右内边距让文字不贴边(左右留白,不是上下)。
-                Text(text)
-                    .font(.system(.caption, design: .monospaced))
-                    .lineSpacing(2)
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.vertical, 10)
-                    .padding(.leading, 12)
-                    .padding(.trailing, 14)
-                    .background(Color(nsColor: .textBackgroundColor))
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                Button {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(text, forType: .string)
-                } label: {
-                    Label(L10n.text("siz.instructions.copy"), systemImage: "doc.on.doc")
+    private func instructionsRow(_ text: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Button {
+                showInstructions.toggle()
+            } label: {
+                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                    Text(L10n.text("siz.instructions.disclosure"))
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 88, alignment: .trailing)
+                    Image(systemName: showInstructions ? "chevron.down" : "chevron.right")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Spacer(minLength: 0)
                 }
-                .controlSize(.small)
+                .contentShape(Rectangle())
             }
-            .padding(.top, 8)
-        } label: {
-            Label(L10n.text("siz.instructions.disclosure"), systemImage: "doc.text")
-                .font(.callout.weight(.medium))
+            .buttonStyle(.plain)
+
+            if showInstructions {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(text)
+                        .font(.system(.caption, design: .monospaced))
+                        .lineSpacing(2)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 14)
+                        .background(Color(nsColor: .textBackgroundColor))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                    Button {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(text, forType: .string)
+                    } label: {
+                        Label(L10n.text("siz.instructions.copy"), systemImage: "doc.on.doc")
+                    }
+                    .controlSize(.small)
+                }
+                // 正文缩进到值列（标签宽 88 + HStack spacing 12），跟上面各行的值左对齐。
+                .padding(.leading, 88 + 12)
+            }
         }
-        // 跟上面的签名信息卡**同样的 .padding(12)** —— 两张卡左内边距一致,内容左边对齐(不再「不平」)。
-        // 文字的左右留白靠内层那块 textBackground 面板自己的 padding,不靠加大外层 padding。
-        .padding(12)
-        .background(Color(nsColor: .controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
     /// 「打开」按钮文案根据验签结果换措辞（unknownSigner / badSignature 时强调风险）。

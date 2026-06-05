@@ -61,9 +61,6 @@ struct SZSVerificationSheet: View {
             signatureBlock
             Divider()
             manifestBlock
-            if let instructions = manifest.instructions, !instructions.isEmpty {
-                instructionsBlock(instructions)
-            }
             Divider()
             payloadRootBlock
             Divider()
@@ -148,41 +145,61 @@ struct SZSVerificationSheet: View {
             infoRow(L10n.text("szs.verify.manifestCreatedAt"), manifest.createdAt)
             infoRow(L10n.text("szs.verify.manifestCreatedBy"), manifest.createdBy)
             infoRow(L10n.text("szs.verify.manifestFileCount"), "\(manifest.files.count)")
+            // #110 收件人说明：作为 manifest 信息块里的一行（标题对齐标签列、展开正文对齐值列），跟其它行一致。
+            if let instructions = manifest.instructions, !instructions.isEmpty {
+                instructionsRow(instructions)
+            }
         }
     }
 
     // MARK: - #110 收件人说明
 
-    /// 折叠展示 manifest 里随签名带来的收件人说明（防篡改）+ 复制按钮。复用 `.siz` 验签 sheet 同款卡片样式。
+    /// #110「收件人说明」—— manifest 信息块里的一行：标题右对齐到标签列（跟「源文件/说明/文件数」齐），
+    /// 点标题区折叠展开；展开正文缩进到**值列**（`labelColumnWidth + 8`，跟上面各行的值左对齐），不贴左、有舒适内边距。
     @ViewBuilder
-    private func instructionsBlock(_ text: String) -> some View {
-        DisclosureGroup(isExpanded: $showInstructions) {
-            VStack(alignment: .leading, spacing: 10) {
-                Text(text)
-                    .font(.system(.caption, design: .monospaced))
-                    .lineSpacing(2)
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.vertical, 10)
-                    .padding(.leading, 12)
-                    .padding(.trailing, 14)
-                    .background(Color(nsColor: .textBackgroundColor))
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                Button {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(text, forType: .string)
-                } label: {
-                    Label(L10n.text("siz.instructions.copy"), systemImage: "doc.on.doc")
+    private func instructionsRow(_ text: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Button {
+                showInstructions.toggle()
+            } label: {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(L10n.text("siz.instructions.disclosure"))
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .frame(width: labelColumnWidth, alignment: .trailing)
+                    Image(systemName: showInstructions ? "chevron.down" : "chevron.right")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Spacer(minLength: 0)
                 }
-                .controlSize(.small)
+                .contentShape(Rectangle())
             }
-            .padding(.top, 8)
-        } label: {
-            Label(L10n.text("siz.instructions.disclosure"), systemImage: "doc.text")
-                .font(.callout.weight(.medium))
+            .buttonStyle(.plain)
+
+            if showInstructions {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(text)
+                        .font(.system(.caption, design: .monospaced))
+                        .lineSpacing(2)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 14)
+                        .background(Color(nsColor: .textBackgroundColor))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                    Button {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(text, forType: .string)
+                    } label: {
+                        Label(L10n.text("siz.instructions.copy"), systemImage: "doc.on.doc")
+                    }
+                    .controlSize(.small)
+                }
+                // 正文缩进到值列（标签宽 + HStack spacing 8），跟上面各行的值左对齐。
+                .padding(.leading, labelColumnWidth + 8)
+            }
         }
-        .padding(.vertical, 4)
     }
 
     @ViewBuilder
