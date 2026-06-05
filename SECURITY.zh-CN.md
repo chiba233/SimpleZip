@@ -181,7 +181,7 @@ SimpleZip 把每个压缩包都视为**不可信输入**。App 有意不进沙�
 
 ```
 archive.<ext>      ← 内层压缩包，原封不动
-metadata.json     ← schema = SimpleZip.siz, version = 2
+metadata.json     ← schema = SimpleZip.siz, version = 4（v2/v3 仍接受）
 signature.asc     ← GPG detached signature（ASCII armor）
 ```
 
@@ -231,7 +231,7 @@ SHA256 用 1 MiB 流式块算（`CryptoKit.SHA256`），50 GB 的内层 archive 
 ```jsonc
 {
   "schema": "SimpleZip.siz",
-  "version": 2,
+  "version": 4,                                  // v2 = 仅签名；v3 += encryption；v4 += deliveryInstructions
   "innerArchiveName": "archive.zip",            // 比如 archive.7z
   "innerFormat": "zip",                          // UI 展示用
   "originalArchiveName": "MyProject.zip",       // 用户打包前选的文件名
@@ -242,9 +242,12 @@ SHA256 用 1 MiB 流式块算（`CryptoKit.SHA256`），50 GB 的内层 archive 
     "signerFingerprint": "…40 hex…",            // *声称*（由 gpg 校验）
     "signerUserID": "Alice <alice@example.com>", // *声称*（仅信息展示）
     "armorFormat": true                          // signature.asc 是 ASCII armor
-  }
+  },
+  "deliveryInstructions": "…可选，已签名…"        // 人类可读的收件人说明（#110）
 }
 ```
+
+`deliveryInstructions`（可选，0.3.1 起）是一段人类可读说明 ——「这是个签名的 `.siz`，怎么验证、怎么用 `tar` + `gpg` 解开」，外加发送者写的留言。它**刻意放在 metadata 字段里，而不是容器里的第四个文件**：既保住「容器内只允许三个文件」的 unwrap 加固，又因为 `metadata.json` 是签名目标，这段说明**防篡改**（改一个字就让 gpg 签名失效，跟其它 metadata 字段一样）。它不含任何机密（无 passphrase、无私钥）。缺省时整个字段不出现，所以老 `.siz` 文件和仅签名容器的落盘字节不变。
 
 `signature.signerFingerprint` 和 `signature.signerUserID` 在 metadata 里是
 **声称**，不是证据。真正的信任来自 gpg 用 `signature.asc` 校验
@@ -330,7 +333,7 @@ passphrase 」之间的取舍。这两个场景受影响的密钥是 SimpleZip �
 | 用 `metadata.innerArchiveName`（`../escape.zip`）做路径穿越                  | `validatedInnerArchiveName` 在解包前拒绝带分隔符 / 不安全成分的名字                              |
 | 用 tar 条目名做路径穿越                                                       | `tar -xf` 前先过 `ArchiveSafety.unsafeEntryNames` 检查                              |
 | 容器里塞符号链接指向用户 home                                                    | tar 条目类型检查拒绝非常规文件，只接受 `-`（普通文件）                                              |
-| 用旧 `.siz` v1（签内层 archive 的格式）来绕过 metadata 签名                         | `unwrap` 拒绝 `schema != "SimpleZip.siz"`，且编码器 `version != 2` 也会不一致              |
+| 用旧 `.siz` v1（签内层 archive 的格式）来绕过 metadata 签名                         | `unwrap` 拒绝 `schema != "SimpleZip.siz"`，以及不在接受集 `{2, 3, 4}` 里的任何 `version`；v1 被拒 |
 | 用户在设置里关了 GPG 集成时打开 `.siz`                                            | unwrap 仍工作；验签跳过且不弹任何签名 UI（缺 GPG 不应该是 denial-of-service）                       |
 | 内层 archive `.zip` / `.7z` 的密码 / 加密                                   | 不动用户原本的加密；解压时仍由内层格式自己询问密码                                                     |
 
@@ -385,7 +388,7 @@ Hash: SHA512
 
 {
   "schema": "SimpleZip.szs",
-  "version": 1,
+  "version": 2,                        // v1 = 初版；v2 += instructions（v1 仍接受）
   "createdAt": "2026-05-30T10:23:45Z",
   "createdBy": "SimpleZip 0.1.9",
   "title": "MyRelease v3.1",          // 可选
@@ -393,7 +396,8 @@ Hash: SHA512
     { "relativePath": "LICENSE.txt",
       "size": 1078, "sha256": "<64 hex>" },
     ...
-  ]
+  ],
+  "instructions": "…可选，已签名…"      // 人类可读的收件人说明（#110）
 }
 -----BEGIN PGP SIGNATURE-----
 ...

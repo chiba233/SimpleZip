@@ -320,7 +320,7 @@ Mos.app/
 -----BEGIN PGP SIGNED MESSAGE-----
 Hash: SHA512
 
-{ "schema": "SimpleZip.szs", "version": 1,
+{ "schema": "SimpleZip.szs", "version": 2,
   "files": [
     { "relativePath": "README.md", "size": 1234, "sha256": "abc..." },
     ...
