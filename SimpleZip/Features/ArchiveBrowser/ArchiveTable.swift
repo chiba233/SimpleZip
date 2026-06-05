@@ -386,8 +386,40 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
             menu.addItem(menuItem(L10n.text("button.extract"), systemImage: "tray.and.arrow.down", action: #selector(extractWholeArchive)))
             menu.addItem(menuItem(L10n.text("button.test"), systemImage: "checkmark.seal", action: #selector(testArchive)))
             menu.addItem(menuItem(L10n.text("button.hash"), systemImage: "number.square", action: #selector(hashArchive)))
+
+            // 编辑类操作（增 / 删 / 改名 / 粘贴）—— **白名单**：仅对可编辑的真实 zip/7z 顶层归档显示，
+            // 不支持的格式（tar/rar/嵌套/临时）整段不出现（#109）。
+            if model.canDropIntoOpenArchive {
+                menu.addItem(.separator())
+                menu.addItem(menuItem(L10n.text("archive.addFiles"), systemImage: "plus.rectangle.on.folder", action: #selector(addFilesToArchive)))
+                if model.clipboardHasFileURLsForArchivePaste {
+                    menu.addItem(menuItem(L10n.text("file.paste"), systemImage: "clipboard", action: #selector(pasteIntoArchive)))
+                }
+                // 重命名仅单个普通文件。
+                if model.selectedArchiveItems.count == 1, model.selectedArchiveItems.first?.isDirectory == false {
+                    menu.addItem(menuItem(L10n.text("file.rename"), systemImage: "pencil", action: #selector(renameArchiveEntry)))
+                }
+                menu.addItem(menuItem(L10n.text("file.delete"), systemImage: "trash", action: #selector(deleteArchiveEntries)))
+            }
+
             menu.addItem(.separator())
             menu.addItem(menuItem(L10n.text("button.revealInFinder"), systemImage: "arrow.up.forward.app", action: #selector(revealArchive)))
+        }
+
+        @objc private func addFilesToArchive() {
+            model.addArchiveFilesViaPanel()
+        }
+
+        @objc private func pasteIntoArchive() {
+            model.pasteIntoOpenArchive()
+        }
+
+        @objc private func renameArchiveEntry() {
+            model.renameSelectedArchiveEntry()
+        }
+
+        @objc private func deleteArchiveEntries() {
+            model.deleteSelectedArchiveEntries()
         }
 
         @objc func doubleClick(_ sender: NSOutlineView) {

@@ -103,6 +103,99 @@ extension ArchiveService {
         _ = try fm.replaceItemAt(archiveURL, withItemAt: workCopy)
     }
 
+    /// 安全地从 `archiveURL`(zip/7z)删除若干条目(按归档内相对路径)。同样**绝不原地破坏**:
+    /// 复制原包 → 在副本上跑 7zz `d`(delete)→ 原子替换。失败时原包不变。
+    public static func deleteEntries(
+        from archiveURL: URL,
+        entryPaths: [String],
+        password: String = "",
+        operationID: UUID? = nil,
+        outputObserver: (@Sendable (String) -> Void)? = nil
+    ) async throws {
+        guard !entryPaths.isEmpty else { return }
+        guard supportsEntryUpdate(archiveURL) else {
+            throw ArchiveError.commandFailed("This archive format does not support deleting entries.")
+        }
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: archiveURL.path) else {
+            throw ArchiveError.commandFailed("Archive no longer exists.")
+        }
+        let normalized = try entryPaths.map { try normalizedEntryRelativePath($0) }
+
+        let staging = fm.temporaryDirectory
+            .appendingPathComponent("SimpleZip-EntryDelete-\(UUID().uuidString)", isDirectory: true)
+        try fm.createDirectory(at: staging, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: staging) }
+
+        let workCopy = staging.appendingPathComponent("work." + archiveURL.pathExtension)
+        try fm.copyItem(at: archiveURL, to: workCopy)
+
+        let tool = try SevenZipBackend.toolPath()
+        var arguments = ["d", workCopy.path]
+        if !password.isEmpty {
+            arguments.append("-p\(password)")
+        }
+        arguments.append(contentsOf: normalized)
+        arguments.append(contentsOf: ["-y", "-bb1", "-bsp1"])
+        _ = try await BackendProcessRunner.runAndCapture(
+            tool,
+            arguments: arguments,
+            inputStrategy: .none,
+            outputObserver: outputObserver,
+            operationID: operationID,
+            outputRetentionLimit: BackendProcessRunner.diagnosticsOutputRetentionLimit
+        )
+
+        _ = try fm.replaceItemAt(archiveURL, withItemAt: workCopy)
+    }
+
+    /// 安全地把 `archiveURL`(zip/7z)里的一个条目从 `oldPath` 重命名到 `newPath`。
+    /// 复制原包 → 在副本上跑 7zz `rn old new` → 原子替换。失败时原包不变。
+    public static func renameEntry(
+        in archiveURL: URL,
+        from oldPath: String,
+        to newPath: String,
+        password: String = "",
+        operationID: UUID? = nil,
+        outputObserver: (@Sendable (String) -> Void)? = nil
+    ) async throws {
+        guard supportsEntryUpdate(archiveURL) else {
+            throw ArchiveError.commandFailed("This archive format does not support renaming entries.")
+        }
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: archiveURL.path) else {
+            throw ArchiveError.commandFailed("Archive no longer exists.")
+        }
+        let from = try normalizedEntryRelativePath(oldPath)
+        let to = try normalizedEntryRelativePath(newPath)
+        guard from != to else { return }
+
+        let staging = fm.temporaryDirectory
+            .appendingPathComponent("SimpleZip-EntryRename-\(UUID().uuidString)", isDirectory: true)
+        try fm.createDirectory(at: staging, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: staging) }
+
+        let workCopy = staging.appendingPathComponent("work." + archiveURL.pathExtension)
+        try fm.copyItem(at: archiveURL, to: workCopy)
+
+        let tool = try SevenZipBackend.toolPath()
+        var arguments = ["rn", workCopy.path]
+        if !password.isEmpty {
+            arguments.append("-p\(password)")
+        }
+        arguments.append(contentsOf: [from, to, "-y"])
+        _ = try await BackendProcessRunner.runAndCapture(
+            tool,
+            arguments: arguments,
+            inputStrategy: .none,
+            outputObserver: outputObserver,
+            operationID: operationID,
+            outputRetentionLimit: BackendProcessRunner.diagnosticsOutputRetentionLimit
+        )
+
+        _ = try fm.replaceItemAt(archiveURL, withItemAt: workCopy)
+    }
+
     /// 归档内相对路径校验 / 规范化 —— 拒绝绝对路径、`..` 逃逸、空段,防止 staging 时写到 payload 之外
     /// 或在归档里塞出诡异路径。返回用 `/` 连接的干净相对路径。
     static func normalizedEntryRelativePath(_ raw: String) throws -> String {

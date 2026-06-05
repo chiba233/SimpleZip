@@ -529,6 +529,19 @@
 "archive.addEntry.single" = "正在把「%@」加进压缩包";
 "archive.addEntry.multiple" = "正在把 %1$@ 项加进 %2$@";
 "archive.addEntry.done" = "已把 %@ 项加进压缩包";
+// 压缩包内编辑条目（#109，仅 zip/7z）
+"archive.addFiles" = "添加文件…";
+"archive.addFiles.prompt" = "加进压缩包";
+"archive.deleteEntry.confirmSingle" = "从压缩包删除「%@」？";
+"archive.deleteEntry.confirmMultiple" = "从压缩包删除 %@ 项？";
+"archive.deleteEntry.confirmMessage" = "选中的条目将从压缩包里移除。操作成功前原文件不会被改动。";
+"archive.deleteEntry.confirmButton" = "删除";
+"archive.deleteEntry.titleSingle" = "正在从压缩包删除「%@」";
+"archive.deleteEntry.titleMultiple" = "正在从压缩包删除 %@ 项";
+"archive.renameEntry.title" = "重命名「%@」";
+"archive.renameEntry.message" = "给这个条目输入新名字。";
+"archive.renameEntry.confirmButton" = "重命名";
+"archive.renameEntry.taskTitle" = "正在重命名「%1$@」→「%2$@」";
 "status.countingFiles" = "正在统计待压缩文件数量...";
 "status.extracting" = "正在解压 %@";
 "status.currentFile" = "当前：%@";

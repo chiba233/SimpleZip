@@ -531,6 +531,19 @@
 "archive.addEntry.single" = "Adding “%@” to archive";
 "archive.addEntry.multiple" = "Adding %1$@ items to %2$@";
 "archive.addEntry.done" = "Added %@ item(s) to the archive";
+// Edit entries inside an archive (#109, zip/7z only)
+"archive.addFiles" = "Add Files…";
+"archive.addFiles.prompt" = "Add to Archive";
+"archive.deleteEntry.confirmSingle" = "Delete “%@” from the archive?";
+"archive.deleteEntry.confirmMultiple" = "Delete %@ items from the archive?";
+"archive.deleteEntry.confirmMessage" = "The selected entries will be removed from the archive. The original file isn't modified until this succeeds.";
+"archive.deleteEntry.confirmButton" = "Delete";
+"archive.deleteEntry.titleSingle" = "Deleting “%@” from archive";
+"archive.deleteEntry.titleMultiple" = "Deleting %@ entries from archive";
+"archive.renameEntry.title" = "Rename “%@”";
+"archive.renameEntry.message" = "Enter a new name for this entry.";
+"archive.renameEntry.confirmButton" = "Rename";
+"archive.renameEntry.taskTitle" = "Renaming “%1$@” → “%2$@”";
 "status.countingFiles" = "Counting files before creating the archive...";
 "status.extracting" = "Extracting %@";
 "status.currentFile" = "Current: %@";

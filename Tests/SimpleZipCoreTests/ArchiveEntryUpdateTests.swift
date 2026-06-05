@@ -90,6 +90,43 @@ struct ArchiveEntryUpdateTests {
         #expect(before == after)   // 原包字节级不变
     }
 
+    @Test func deletesEntryAndKeepsOthers() async throws {
+        let temp = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: temp) }
+        let archive = try await makeZip(in: temp)
+
+        try await ArchiveService.deleteEntries(from: archive, entryPaths: ["source/a.txt"])
+
+        let contents = try await extractContents(archive, in: temp)
+        #expect(contents["source/a.txt"] == nil)      // 已删
+        #expect(contents["source/b.txt"] == "keep B")  // 未涉及 → 保留
+    }
+
+    @Test func deleteFailureLeavesOriginalUntouched() async throws {
+        let temp = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: temp) }
+        let archive = try await makeZip(in: temp)
+        let before = try Data(contentsOf: archive)
+        await #expect(throws: (any Error).self) {
+            // 非法路径 → 规范化阶段抛错,原包不动。
+            try await ArchiveService.deleteEntries(from: archive, entryPaths: ["../escape"])
+        }
+        #expect(try Data(contentsOf: archive) == before)
+    }
+
+    @Test func renamesEntry() async throws {
+        let temp = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: temp) }
+        let archive = try await makeZip(in: temp)
+
+        try await ArchiveService.renameEntry(in: archive, from: "source/a.txt", to: "source/renamed.txt")
+
+        let contents = try await extractContents(archive, in: temp)
+        #expect(contents["source/a.txt"] == nil)
+        #expect(contents["source/renamed.txt"] == "original A")  // 内容不变,只改名
+        #expect(contents["source/b.txt"] == "keep B")
+    }
+
     @Test func rejectsUnsafeEntryPaths() {
         #expect(throws: (any Error).self) { try ArchiveService.normalizedEntryRelativePath("../escape.txt") }
         #expect(throws: (any Error).self) { try ArchiveService.normalizedEntryRelativePath("/abs/path.txt") }

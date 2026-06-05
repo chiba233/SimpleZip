@@ -420,6 +420,110 @@ extension ArchiveBrowserModel {
         return result
     }
 
+    /// 「添加文件…」入口(右键菜单)—— NSOpenPanel 选文件 / 文件夹加进当前归档。比拖入可靠(不跟 AppKit 文件承诺抢)。
+    func addArchiveFilesViaPanel() {
+        guard canDropIntoOpenArchive else { return }
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = true
+        panel.prompt = L10n.text("archive.addFiles.prompt")
+        guard panel.runModal() == .OK, !panel.urls.isEmpty else { return }
+        addFilesToOpenArchive(panel.urls)
+    }
+
+    /// 「粘贴」到归档 —— 剪贴板里有 file URL 时,把它们加进当前归档内文件夹。
+    func pasteIntoOpenArchive() {
+        guard canDropIntoOpenArchive else { return }
+        let urls = NSPasteboard.general.readObjects(forClasses: [NSURL.self],
+                                                    options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
+        guard !urls.isEmpty else { return }
+        addFilesToOpenArchive(urls)
+    }
+
+    /// 剪贴板是否有可粘贴进归档的 file URL(菜单是否显示「粘贴」用)。
+    var clipboardHasFileURLsForArchivePaste: Bool {
+        NSPasteboard.general.canReadObject(forClasses: [NSURL.self],
+                                           options: [.urlReadingFileURLsOnly: true])
+    }
+
+    /// 删除选中的归档条目(目录递归)—— 二次确认 + 走活动中心 + 安全删除(失败不破坏原包)。
+    func deleteSelectedArchiveEntries() {
+        guard canDropIntoOpenArchive, case .archive(let archiveURL) = mode else { return }
+        let items = selectedArchiveItems
+        guard !items.isEmpty else { return }
+        // 收集归档内路径:每个选中项;目录还要带上其所有后代条目。
+        var paths = Set<String>()
+        for item in items {
+            paths.insert(item.name)
+            if item.isDirectory {
+                for child in expandedArchiveItems(for: item) { paths.insert(child.name) }
+            }
+        }
+        let entryPaths = Array(paths)
+        guard !entryPaths.isEmpty else { return }
+
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = items.count == 1
+            ? L10n.format("archive.deleteEntry.confirmSingle", items[0].displayName)
+            : L10n.format("archive.deleteEntry.confirmMultiple", "\(items.count)")
+        alert.informativeText = L10n.text("archive.deleteEntry.confirmMessage")
+        alert.addButton(withTitle: L10n.text("archive.deleteEntry.confirmButton"))
+        alert.addButton(withTitle: L10n.text("button.cancel"))
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+
+        let title = items.count == 1
+            ? L10n.format("archive.deleteEntry.titleSingle", items[0].displayName)
+            : L10n.format("archive.deleteEntry.titleMultiple", "\(entryPaths.count)")
+        startManagedArchiveTask(
+            title: title,
+            kind: .delete,
+            showsDetails: true,
+            refreshOnSuccess: { [weak self] in self?.reload() },
+            onSucceeded: { task in
+                task.transferLog = entryPaths.map { TransferLogEntry(name: $0, action: .deleted, isDirectory: false) }
+            }
+        ) { operationID, _, observer in
+            try await ArchiveService.deleteEntries(from: archiveURL, entryPaths: entryPaths, password: "",
+                                                   operationID: operationID, outputObserver: observer)
+        }
+    }
+
+    /// 重命名单个归档条目(仅普通文件)—— 弹原生输入框拿新名,走活动中心 + 安全重命名。
+    func renameSelectedArchiveEntry() {
+        guard canDropIntoOpenArchive, case .archive(let archiveURL) = mode,
+              selectedArchiveItems.count == 1, let item = selectedArchiveItems.first, !item.isDirectory else { return }
+
+        let alert = NSAlert()
+        alert.messageText = L10n.format("archive.renameEntry.title", item.displayName)
+        alert.informativeText = L10n.text("archive.renameEntry.message")
+        alert.addButton(withTitle: L10n.text("archive.renameEntry.confirmButton"))
+        alert.addButton(withTitle: L10n.text("button.cancel"))
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
+        field.stringValue = item.displayName
+        alert.accessoryView = field
+        alert.window.initialFirstResponder = field
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        let newLeaf = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !newLeaf.isEmpty, newLeaf != item.displayName, !newLeaf.contains("/") else { return }
+
+        // 新全路径 = 旧路径的父目录 + 新叶名。
+        let oldPath = item.name
+        let parent = (oldPath as NSString).deletingLastPathComponent
+        let newPath = parent.isEmpty ? newLeaf : "\(parent)/\(newLeaf)"
+
+        startManagedArchiveTask(
+            title: L10n.format("archive.renameEntry.taskTitle", item.displayName, newLeaf),
+            kind: .rename,
+            showsDetails: true,
+            refreshOnSuccess: { [weak self] in self?.reload() }
+        ) { operationID, _, observer in
+            try await ArchiveService.renameEntry(in: archiveURL, from: oldPath, to: newPath, password: "",
+                                                 operationID: operationID, outputObserver: observer)
+        }
+    }
+
     func extractFromCurrentContext() {
         if case .archive = mode, !selectedArchiveItems.isEmpty {
             extractSelectedArchiveItems()
