@@ -160,9 +160,10 @@ enum SIZSignatureStatus {
 
     static func color(for verify: GPGBackend.GPGVerifyResult) -> Color {
         switch verify {
-        case .validSignature(_, _, _, let concerns):
-            // concerns 非空时降级为 orange 提示用户「签名是真的但密钥状态有问题」。
-            return concerns.isEmpty ? .green : .orange
+        case .validSignature(_, _, let trusted, let concerns):
+            // 只有「受信任 + 无 concerns」才给绿；未受信任（ownertrust undefined/never）虽然 GOODSIG
+            // 但密码学有效 ≠ 可信，必须降级为 orange，跟 iconName/title 的区分保持一致（避免「永不信任的 key 标绿」）。
+            return (trusted && concerns.isEmpty) ? .green : .orange
         case .unknownSigner, .verificationError: return .orange
         case .badSignature: return .red
         }
@@ -186,10 +187,13 @@ enum SIZSignatureStatus {
     /// sheet 用的副标题文案 —— 短句解释当前状态。
     static func summary(for verify: GPGBackend.GPGVerifyResult) -> String {
         switch verify {
-        case .validSignature(_, _, _, let concerns):
+        case .validSignature(_, _, let trusted, let concerns):
             if concerns.contains(.keyRevoked) { return L10n.text("siz.signatureSheet.valid.keyRevoked.summary") }
             if concerns.contains(.keyExpired) { return L10n.text("siz.signatureSheet.valid.keyExpired.summary") }
             if concerns.contains(.signatureExpired) { return L10n.text("siz.signatureSheet.valid.sigExpired.summary") }
+            // 未受信任：签名密码学有效但 ownertrust 不足，副标题要明确告诉用户「公钥在但没标信任」，
+            // 不能再显示「一切正常」的 valid.summary（跟降级为 orange 的颜色 / untrusted 标题保持一致）。
+            if !trusted { return L10n.text("siz.signatureSheet.untrusted.note") }
             return L10n.text("siz.signatureSheet.valid.summary")
         case .unknownSigner: return L10n.text("siz.signatureSheet.unknownSigner.summary")
         case .badSignature: return L10n.text("siz.signatureSheet.bad.summary")
