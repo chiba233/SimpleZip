@@ -137,7 +137,7 @@ enum ArchiveCreationService {
             return key.hasSecretKey
         })
         let innerSHA256 = try SIZArchive.computeInnerArchiveSHA256(of: innerURL)
-        let metadata = SIZArchive.Metadata(
+        var metadata = SIZArchive.Metadata(
             schema: SIZArchive.schemaIdentifier,
             version: SIZArchive.schemaVersion,
             innerArchiveName: innerName,
@@ -152,6 +152,13 @@ enum ArchiveCreationService {
                 armorFormat: true
             ),
             encryption: encryptionInfo
+        )
+        // #110 加密投递包：把人类可读的「收件人说明」灌进 metadata（→ 随 metadata.json 一起被签名 = 防篡改，
+        // 且不动容器「只三个文件」防御）。必须在 encode/sign 之前设好,这样签名覆盖它。
+        // 用户在创建对话框键入的留言(gpgDeliveryNote)作为说明最前面的「发送者留言」,也一并被签名。
+        metadata.deliveryInstructions = SIZArchive.makeDeliveryInstructions(
+            for: metadata,
+            senderNote: request.options.gpgDeliveryNote
         )
 
         // Step 4：把 metadata 落到 staging（用同一个确定性 encoder 让 wrap 和签名字节一致），

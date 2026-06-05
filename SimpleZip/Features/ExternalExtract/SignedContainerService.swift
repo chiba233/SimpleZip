@@ -62,7 +62,8 @@ enum SignedContainerService {
                 signerFingerprint: unwrap.metadata.signature.signerFingerprint,
                 signedAt: unwrap.metadata.createdAt,
                 verify: verify,
-                encryption: unwrap.metadata.encryption
+                encryption: unwrap.metadata.encryption,
+                deliveryInstructions: unwrap.metadata.deliveryInstructions
             )
         )
     }

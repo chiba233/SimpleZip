@@ -398,12 +398,45 @@ extension ArchiveBrowserModel {
         return true
     }
 
+    /// 归档内编辑前**确保拿到加密包口令**（若该包需要）。返回 `false` = 用户取消 → 调用方必须中止编辑。
+    ///
+    /// 为什么需要：header-encrypted 7z 打开时连 list 都要口令，已在 `loadArchive` 存进 `resolvedArchivePassword`；
+    /// 但**加密 zip / 内容加密(非 header)7z** 是「列目录不要口令、解压才要」，所以打开时 `resolvedArchivePassword` 还是空。
+    /// 若不在这里补口令，增删改 / 写回会用**空口令**跑 7zz —— 要么失败、要么把新/替换条目写成**未加密**塞进加密包（安全混淆）。
+    ///
+    /// 同步实现（`promptForArchivePassword` 是 NSAlert 同步弹框），所以可在 `startManagedArchiveTask` **之前**调用，
+    /// 保证任务闭包按值捕获到的 `resolvedArchivePassword` 已是用户输入的口令。
+    /// 不做单独的「先 test 校验口令」：① 大包 `7zz t` 很慢；② 安全写回失败时原包字节不变（增删改用错口令会失败、原包安然）。
+    /// 残余：给加密 zip **新增**条目时若口令打错，新条目会用错口令加密进包（非破坏性、用户打开时会发现）—— 可接受。
+    @discardableResult
+    func ensureArchiveEditPassword(for archiveURL: URL) -> Bool {
+        guard resolvedArchivePassword.isEmpty else { return true }   // 已有（header-encrypted 7z 在打开时拿到）
+        guard ArchiveService.archiveItemsSuggestPasswordRequirement(session.allItems, in: archiveURL) else {
+            return true   // 明文包：空口令正确，无需弹框
+        }
+        let detectedZipEncryption: ZipEncryptionDetection = archiveURL.pathExtension.lowercased() == "zip"
+            ? ArchiveService.detectZipEncryption(in: archiveURL)
+            : .unknown
+        guard let authentication = promptForArchivePassword(
+            archiveURL: archiveURL,
+            displayName: (archiveDisplayOverride ?? archiveURL).lastPathComponent,
+            detectedZipEncryption: detectedZipEncryption,
+            isRetry: false,
+            actionTitle: L10n.text("button.continue")
+        ) else {
+            return false   // 用户取消
+        }
+        resolvedArchivePassword = authentication.password
+        return true
+    }
+
     /// 把拖入的文件 / 文件夹加入当前打开的压缩包 —— 目标路径 = 当前所在的归档内虚拟文件夹。
     /// 走活动中心；后端 `addOrReplaceEntries` 安全写回（复制原包→更新副本→原子替换，失败不破坏原包）。
     func addFilesToOpenArchive(_ urls: [URL]) {
         guard canDropIntoOpenArchive, case .archive(let archiveURL) = mode else { return }
         let additions = Self.archiveAdditions(for: urls, targetDir: session.archivePath)
         guard !additions.isEmpty else { return }
+        guard ensureArchiveEditPassword(for: archiveURL) else { return }   // 加密包先拿口令(否则空口令编辑失败/塞明文)
 
         let title = additions.count == 1
             ? L10n.format("archive.addEntry.single", (additions[0].entryPath as NSString).lastPathComponent)
@@ -530,6 +563,7 @@ extension ArchiveBrowserModel {
         alert.addButton(withTitle: L10n.text("archive.deleteEntry.confirmButton"))
         alert.addButton(withTitle: L10n.text("button.cancel"))
         guard alert.runModal() == .alertFirstButtonReturn else { return }
+        guard ensureArchiveEditPassword(for: archiveURL) else { return }   // 加密包先拿口令
 
         let title = items.count == 1
             ? L10n.format("archive.deleteEntry.titleSingle", items[0].displayName)
@@ -561,6 +595,7 @@ extension ArchiveBrowserModel {
         let oldPath = item.name
         let parent = (oldPath as NSString).deletingLastPathComponent
         let newPath = parent.isEmpty ? trimmed : "\(parent)/\(trimmed)"
+        guard ensureArchiveEditPassword(for: archiveURL) else { return }   // 加密包先拿口令
 
         startManagedArchiveTask(
             title: L10n.format("archive.renameEntry.taskTitle", item.displayName, trimmed),
@@ -578,6 +613,7 @@ extension ArchiveBrowserModel {
     /// 建完进内联重命名(跟文件夹模式一致),靠 `pendingInlineRenameArchiveEntry` + ArchiveTable 消费。
     func createNewArchiveEntry(isDirectory: Bool, contents: Data?, defaultName: String) {
         guard canDropIntoOpenArchive, case .archive(let archiveURL) = mode else { return }
+        guard ensureArchiveEditPassword(for: archiveURL) else { return }   // 加密包先拿口令
         let base = session.archivePath.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         let prefix = base.isEmpty ? "" : base + "/"
         let existing = Set(archiveItems.map(\.displayName))
@@ -669,6 +705,7 @@ extension ArchiveBrowserModel {
 
         guard response == .alertFirstButtonReturn else { return }
         let archiveURL = wb.archiveURL, entryPath = wb.entryPath, tempURL = wb.tempFileURL
+        guard ensureArchiveEditPassword(for: archiveURL) else { return }   // 加密包先拿口令
         startManagedArchiveTask(
             title: L10n.format("archive.writeBack.taskTitle", leaf),
             kind: .compress,

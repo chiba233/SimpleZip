@@ -343,6 +343,9 @@ struct ArchiveCreationOptionsView: View {
                             if gpgPromptForSigningKey {
                                 signingKeyPickerRow
                             }
+                            // #110 给收件人的留言（可选）—— 跟 .szs 的描述同一 idiom（一个多行 TextField，非卡片）。
+                            // 填的内容会进 .siz 的「收件人说明」最前面，且随签名防篡改。
+                            deliveryNoteRow
                             // GPG 加密相关设置 —— 总开关 + 收件人 picker + 对称密码。
                             // **总开关默认关 = 仅签名 v2 行为**；关闭时下方两组控件 **灰掉但仍可见**（用户能看到「这里有
                             // 加密选项」），同时清空 options 避免「用户先填后关 toggle 但加密 params 还潜伏在 options 里被发送」的 footgun。
@@ -453,6 +456,24 @@ struct ArchiveCreationOptionsView: View {
                     }
                 }
             }
+        }
+    }
+
+    /// #110 给收件人的留言行 —— 一个多行 TextField（同 .szs 描述的 idiom，不另造卡片，A1）。
+    /// 内容进 `.siz` 「收件人说明」最前面并随签名防篡改；留空则只生成自动的验签 / 解密说明。
+    @ViewBuilder
+    private var deliveryNoteRow: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(L10n.text("archive.gpgSign.deliveryNote.label"))
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+            TextField(
+                L10n.text("archive.gpgSign.deliveryNote.placeholder"),
+                text: $request.options.gpgDeliveryNote,
+                axis: .vertical
+            )
+            .textFieldStyle(.roundedBorder)
+            .lineLimit(2...5)
         }
     }
 

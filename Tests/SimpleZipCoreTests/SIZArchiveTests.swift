@@ -121,6 +121,51 @@ struct SIZArchiveTests {
         }
     }
 
+    // MARK: - #110 收件人说明 (deliveryInstructions)
+
+    @Test func deliveryInstructionsIncludeSignerVerifyCommandsAndIntegrity() {
+        let md = metadata(innerArchiveName: "archive.zip")
+        let text = SIZArchive.makeDeliveryInstructions(for: md)
+        // 签名者指纹 + 验签命令 + 解包命令 + SHA + 内层名都得在里面。
+        #expect(text.contains("0123456789ABCDEF0123456789ABCDEF01234567"))
+        #expect(text.contains("gpg --verify signature.asc metadata.json"))
+        #expect(text.contains("tar -xf"))
+        #expect(text.contains(String(repeating: "0", count: 64)))   // inner SHA
+        #expect(text.contains("archive.zip"))
+        // 未加密 → 不应出现 decrypt 命令。
+        #expect(!text.contains("--decrypt"))
+    }
+
+    @Test func deliveryInstructionsForEncryptedListRecipientsAndDecryptCommand() {
+        var md = metadata(innerArchiveName: "archive.zip.gpg")
+        md.encryption = SIZArchive.EncryptionInfo(
+            recipients: [SIZArchive.RecipientInfo(fingerprint: "AAAA1111BBBB2222CCCC3333DDDD4444EEEE5555",
+                                                  userID: "Bob <bob@example.com>")],
+            algorithm: "gpg",
+            hasSymmetricPassphrase: nil
+        )
+        let text = SIZArchive.makeDeliveryInstructions(for: md)
+        #expect(text.contains("Bob <bob@example.com>"))
+        #expect(text.contains("AAAA1111BBBB2222CCCC3333DDDD4444EEEE5555"))
+        // 加密内层 → 应给出 decrypt 命令,且目标去掉 .gpg 后缀。
+        #expect(text.contains("gpg --output archive.zip --decrypt archive.zip.gpg"))
+    }
+
+    /// 防篡改的关键前提:deliveryInstructions 必须能 round-trip 过确定性 encoder(它是签名字节的一部分)。
+    /// 同时 **nil 时绝不进 JSON** —— 保证老 .siz(无此字段)字节与旧格式一致,向前向后兼容。
+    @Test func deliveryInstructionsRoundTripAndNilOmitted() throws {
+        var md = metadata(innerArchiveName: "archive.zip")
+        md.deliveryInstructions = "line one\nline two"
+        let data = try SIZArchive.encodeMetadata(md)
+        let decoded = try JSONDecoder().decode(SIZArchive.Metadata.self, from: data)
+        #expect(decoded.deliveryInstructions == "line one\nline two")
+
+        // nil 字段不出现在 JSON 里。
+        let plain = metadata(innerArchiveName: "archive.zip")   // deliveryInstructions == nil
+        let plainJSON = try String(decoding: SIZArchive.encodeMetadata(plain), as: UTF8.self)
+        #expect(!plainJSON.contains("deliveryInstructions"))
+    }
+
     private func metadata(innerArchiveName: String) -> SIZArchive.Metadata {
         SIZArchive.Metadata(
             schema: SIZArchive.schemaIdentifier,

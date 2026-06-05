@@ -349,6 +349,10 @@ struct ArchiveCreationOptions {
     /// 二者都给时，任一收件人私钥**或**密码都能解；仅给密码 = 纯 symmetric；仅给收件人 = 纯公钥加密；都空 = 不加密。
     /// 仅 `gpgSign == true` 时有意义；密码本身不会写进 metadata，只有「是否有 symmetric passphrase」flag 进 metadata。
     var gpgSymmetricPassphrase: String = ""
+    /// **#110 给收件人的留言**（可选）—— 创建对话框里用户键入的一段话，放进 `.siz` 的「收件人说明」最前面。
+    /// 随 metadata 被 GPG 签名 → 防篡改。仅 `gpgSign == true`（产物是 `.siz`）时有意义；纯 zip/7z 不消费。
+    /// 空 = 只生成自动的验签 / 解密说明，不附留言。
+    var gpgDeliveryNote: String = ""
 }
 
 /// 创建压缩包的待确认请求。
@@ -398,6 +402,9 @@ struct SIZSignatureSummary: Equatable {
     /// `.siz` v3 加密元信息 —— nil = 未加密（v2 兼容 / v3 仅签名）；非 nil = 内层 archive 是 gpg 加密包。
     /// UI 用此字段决定是否在解压对话框显示「解密密码」字段、是否展示「加密给：Alice、Bob」收件人列表。
     let encryption: SIZArchive.EncryptionInfo?
+    /// **#110 收件人说明**（`metadata.deliveryInstructions`）—— 创建时生成、随 metadata 被签名背书的人类可读投递说明。
+    /// nil = 老 `.siz` 没带（创建前的容器）。验签 sheet 展示它，让收件人看到「怎么验签 / 解密」。
+    let deliveryInstructions: String?
 }
 
 /// ZIP 解密方式。实际 ZIP 文件会记录具体算法；选择项用于决定兼容解压路径。

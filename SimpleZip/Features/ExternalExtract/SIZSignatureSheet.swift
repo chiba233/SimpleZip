@@ -5,6 +5,7 @@
 //  Created by HoshinoYumeka on 2026/05/29.
 //
 
+import AppKit
 import SwiftUI
 
 /// `.siz` 容器打开前的签名信息展示 sheet。
@@ -41,6 +42,8 @@ struct SIZSignatureSheet: View {
     @State private var isOpening = false
     /// 解密失败（密码 / 密钥错）的内联错误文案；非空时在按钮上方红字显示，sheet 保留让用户重试。
     @State private var inlineError: String?
+    /// 「收件人说明」(#110)折叠展开状态 —— 默认收起,信息密度优先,用户想看再展开。
+    @State private var showInstructions = false
 
     /// `.badSignature` 时把 Cancel 设为 default action（回车 / Esc 都退出），引导用户不要打开被篡改的容器。
     private var cancelIsDefault: Bool {
@@ -91,6 +94,11 @@ struct SIZSignatureSheet: View {
             // 加密容器：在 detail 块下方加 picker + passphrase 字段；passphrase 字段优先于 pinentry-mac 兜底。
             if showsDecryptionKeyPicker || showsDecryptionPassphraseField {
                 decryptionControls
+            }
+
+            // #110 收件人说明：创建者在 metadata 里随签名带过来的「怎么验签 / 解密」说明（防篡改）。折叠展示 + 一键复制。
+            if let instructions = signature.deliveryInstructions, !instructions.isEmpty {
+                deliveryInstructionsSection(instructions)
             }
 
             // 解密失败内联提示（密码 / 密钥错）—— 红字，留在 sheet 里让用户改了重试。
@@ -194,6 +202,37 @@ struct SIZSignatureSheet: View {
             }
         }
         .padding(.horizontal, 4)
+    }
+
+    /// #110「收件人说明」折叠卡片 —— 复用 detail 块同款 controlBackground 圆角卡(A1:不另造视觉风格)。
+    /// 内容滚动区限高,附「复制」按钮方便连同 .siz 转给别人或留底。
+    @ViewBuilder
+    private func deliveryInstructionsSection(_ text: String) -> some View {
+        DisclosureGroup(isExpanded: $showInstructions) {
+            VStack(alignment: .leading, spacing: 8) {
+                ScrollView {
+                    Text(text)
+                        .font(.system(.caption, design: .monospaced))
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(maxHeight: 180)
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(text, forType: .string)
+                } label: {
+                    Label(L10n.text("siz.instructions.copy"), systemImage: "doc.on.doc")
+                }
+                .controlSize(.small)
+            }
+            .padding(.top, 6)
+        } label: {
+            Label(L10n.text("siz.instructions.disclosure"), systemImage: "doc.text")
+                .font(.callout.weight(.medium))
+        }
+        .padding(12)
+        .background(Color(nsColor: .controlBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
     /// 「打开」按钮文案根据验签结果换措辞（unknownSigner / badSignature 时强调风险）。

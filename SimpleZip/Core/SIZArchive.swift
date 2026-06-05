@@ -78,6 +78,12 @@ enum SIZArchive {
         /// 不过对验证 / 显示而言，metadata 里这份签了名的清单已经够用：因为整个 metadata 由 gpg 签名背书，
         /// 攻击者改不了 recipients 列表又不让签名失效。
         var encryption: EncryptionInfo?
+        /// **收件人说明（#110 加密投递包）** —— 人类可读的「这是什么 / 谁签的 / 怎么验签 / 怎么解密」一段文字。
+        /// **故意放进 metadata 而不是往容器塞第四个文件**：metadata.json 正是签名目标，所以这段说明被签名背书 →
+        /// **防篡改**（改一个字签名就失效），同时**完全不动 `.siz` 的「容器内只允许三个文件」防御**（SECURITY.md 威胁模型）。
+        /// 由 `makeDeliveryInstructions(for:)` 在创建时生成。`nil` = 老 .siz / 未生成（Optional 缺省不进 JSON,字节与旧格式一致 →
+        /// 向前向后兼容:老版本读到未知键会忽略,签名仍校验通过)。
+        var deliveryInstructions: String? = nil
     }
 
     /// 加密元信息。出现 = 内层 archive 是 `archive.<ext>.gpg` 形式的 gpg 加密包。
@@ -166,6 +172,95 @@ enum SIZArchive {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         return try encoder.encode(metadata)
+    }
+
+    /// **#110 收件人说明生成器** —— 从 metadata 派生一段人类可读的「投递说明」,写进 `metadata.deliveryInstructions`,
+    /// 随 metadata.json 一起被 gpg 签名(防篡改)。给收到 `.siz` 的人(无论有没有装 SimpleZip)讲清楚:
+    /// 这是什么、谁签的、(若加密)加密给谁、用 SimpleZip 怎么验、不用 SimpleZip 怎么手动 tar + gpg 验签 / 解密 / 校验完整性。
+    ///
+    /// 纯函数(只读 metadata + L10n),无副作用、可单测。
+    /// **数据值(指纹 / SHA / 文件名 / 命令)一律用 Swift 插值直接拼**,不走 `L10n.format` 的 `%@` ——
+    /// 这样即便某语言没翻全 / 测试环境拿不到 .lproj(SwiftPM Core 排除了本地化),数据也永远在文本里、不会丢。
+    /// 只有「解说文字 / 标签」走 `L10n.text`(跟创建者语言)。
+    ///
+    /// - `senderNote`:创建者自己写给收件人的话(可选,来自创建对话框),放最前面。它也随 metadata 被签名 → 防篡改。
+    static func makeDeliveryInstructions(for metadata: Metadata, senderNote: String? = nil) -> String {
+        var lines: [String] = []
+
+        // 发送者留言(可选)——放最前。
+        if let note = senderNote?.trimmingCharacters(in: .whitespacesAndNewlines), !note.isEmpty {
+            lines.append(L10n.text("siz.instructions.senderNote"))
+            lines.append(note)
+            lines.append("")
+        }
+
+        lines.append(L10n.text("siz.instructions.header"))
+        lines.append("")
+
+        // 签名者(标签走 L10n,值用插值)。
+        let signerName = metadata.signature.signerUserID.isEmpty
+            ? metadata.signature.signerFingerprint
+            : metadata.signature.signerUserID
+        if !signerName.isEmpty {
+            lines.append("\(L10n.text("siz.instructions.signer")) \(signerName)")
+        }
+        if !metadata.signature.signerFingerprint.isEmpty {
+            lines.append("\(L10n.text("siz.instructions.fingerprint")) \(metadata.signature.signerFingerprint)")
+        }
+        if !metadata.createdAt.isEmpty {
+            lines.append("\(L10n.text("siz.instructions.created")) \(metadata.createdAt)")
+        }
+
+        // 加密状态。
+        if let encryption = metadata.encryption {
+            if encryption.recipients.isEmpty {
+                lines.append(L10n.text("siz.instructions.encryptedSymmetric"))
+            } else {
+                lines.append(L10n.text("siz.instructions.encryptedRecipients"))
+                for recipient in encryption.recipients {
+                    let who = recipient.userID.isEmpty ? recipient.fingerprint : recipient.userID
+                    lines.append("  • \(who) (\(recipient.fingerprint))")
+                }
+                if encryption.hasSymmetricPassphrase == true {
+                    lines.append(L10n.text("siz.instructions.alsoSymmetric"))
+                }
+            }
+        } else {
+            lines.append(L10n.text("siz.instructions.notEncrypted"))
+        }
+        lines.append("")
+
+        // 用 SimpleZip。
+        lines.append(L10n.text("siz.instructions.withSimpleZip"))
+        lines.append("")
+
+        // 手动验签 / 解密(命令固定,值插值)。
+        lines.append(L10n.text("siz.instructions.manualHeader"))
+        lines.append("  tar -xf <name>.\(extensionName)")
+        lines.append("  gpg --verify \(signatureFileName) \(metadataFileName)")
+        let extractTarget: String
+        if metadata.encryption != nil {
+            // 加密内层:innerArchiveName 形如 archive.<ext>.gpg → 解密出 archive.<ext>。
+            let decryptedName = metadata.innerArchiveName.lowercased().hasSuffix(".gpg")
+                ? String(metadata.innerArchiveName.dropLast(4))
+                : metadata.innerArchiveName
+            lines.append("  gpg --output \(decryptedName) --decrypt \(metadata.innerArchiveName)")
+            extractTarget = decryptedName
+        } else {
+            extractTarget = metadata.innerArchiveName
+        }
+        lines.append("  \(L10n.text("siz.instructions.thenExtract")) \(extractTarget)")
+        lines.append("")
+
+        // 完整性校验(SHA 是 innerArchiveName 本体的 SHA;加密态是密文 SHA,可在不解密时先校验)。
+        lines.append(L10n.text("siz.instructions.integrity"))
+        lines.append("  shasum -a 256 \(metadata.innerArchiveName)")
+        lines.append("  = \(metadata.innerArchiveSHA256)")
+        lines.append("")
+
+        // SimpleZip 从不经手私钥 passphrase 的提醒(发布说明一贯强调,见 feedback_gpg_release_emphasis)。
+        lines.append(L10n.text("siz.instructions.passphraseNote"))
+        return lines.joined(separator: "\n")
     }
 
     /// 流式算 inner archive 的 SHA256 hex（小写 64 字符），不一次性 load 整个 archive 进内存。
