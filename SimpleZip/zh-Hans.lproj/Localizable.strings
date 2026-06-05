@@ -525,6 +525,10 @@
 "error.invalidSevenZipVolumeSize" = "分卷大小格式无效，应类似 100m、2g 或 512k。";
 "error.singleFileCompressionRequiresSingleFile" = "这种格式一次只能压缩一个普通文件。";
 "status.creating" = "正在创建 %@";
+// 拖入文件加进打开的压缩包（#109）
+"archive.addEntry.single" = "正在把「%@」加进压缩包";
+"archive.addEntry.multiple" = "正在把 %1$@ 项加进 %2$@";
+"archive.addEntry.done" = "已把 %@ 项加进压缩包";
 "status.countingFiles" = "正在统计待压缩文件数量...";
 "status.extracting" = "正在解压 %@";
 "status.currentFile" = "当前：%@";

@@ -527,6 +527,10 @@
 "error.singleFileCompressionRequiresSingleFile" = "This format can only compress one regular file at a time.";
 "error.passwordsDoNotMatch" = "The password and confirmation password must match.";
 "status.creating" = "Creating %@";
+// Add files into an open archive (#109 drag-in)
+"archive.addEntry.single" = "Adding “%@” to archive";
+"archive.addEntry.multiple" = "Adding %1$@ items to %2$@";
+"archive.addEntry.done" = "Added %@ item(s) to the archive";
 "status.countingFiles" = "Counting files before creating the archive...";
 "status.extracting" = "Extracting %@";
 "status.currentFile" = "Current: %@";

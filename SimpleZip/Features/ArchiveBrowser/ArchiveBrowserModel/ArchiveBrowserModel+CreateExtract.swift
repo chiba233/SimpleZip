@@ -346,6 +346,80 @@ extension ArchiveBrowserModel {
         }
     }
 
+    // MARK: - 拖入文件加进打开的压缩包（#109，走活动中心 + 安全写回）
+
+    /// 当前是否允许把外部文件拖进打开的压缩包：必须是**真实顶层** zip/7z（非嵌套 / 非 `.siz`·`.gpg` 解出来的临时包），
+    /// 否则写回 `/tmp` 临时包毫无意义、还可能误导。`archiveDisplayOverride != nil` 即代表当前看的是临时/虚拟链 → 不允许。
+    var canDropIntoOpenArchive: Bool {
+        guard case .archive(let url) = mode,
+              archiveDisplayOverride == nil,
+              nestedArchiveReturnStack.isEmpty,
+              fileManager.fileExists(atPath: url.path),
+              ArchiveService.supportsEntryUpdate(url) else { return false }
+        return true
+    }
+
+    /// 把拖入的文件 / 文件夹加入当前打开的压缩包 —— 目标路径 = 当前所在的归档内虚拟文件夹。
+    /// 走活动中心；后端 `addOrReplaceEntries` 安全写回（复制原包→更新副本→原子替换，失败不破坏原包）。
+    func addFilesToOpenArchive(_ urls: [URL]) {
+        guard canDropIntoOpenArchive, case .archive(let archiveURL) = mode else { return }
+        let additions = Self.archiveAdditions(for: urls, targetDir: session.archivePath)
+        guard !additions.isEmpty else { return }
+
+        let title = additions.count == 1
+            ? L10n.format("archive.addEntry.single", (additions[0].entryPath as NSString).lastPathComponent)
+            : L10n.format("archive.addEntry.multiple", "\(additions.count)", archiveURL.lastPathComponent)
+        startManagedArchiveTask(
+            title: title,
+            kind: .compress,
+            showsDetails: true,
+            refreshOnSuccess: { [weak self] in
+                self?.status = L10n.format("archive.addEntry.done", "\(additions.count)")
+                self?.reload()
+            },
+            onSucceeded: { task in
+                task.transferLog = additions.map {
+                    TransferLogEntry(name: $0.entryPath, action: .added, isDirectory: false)
+                }
+            }
+        ) { operationID, _, observer in
+            try await ArchiveService.addOrReplaceEntries(
+                in: archiveURL,
+                additions: additions,
+                password: "",
+                operationID: operationID,
+                outputObserver: observer
+            )
+        }
+    }
+
+    /// 把拖入的顶层 URL 列表展开成 `ArchiveEntryAddition`：文件 → 1 条（`targetDir/文件名`）；
+    /// 文件夹 → 递归其下所有普通文件，路径保留 `targetDir/文件夹名/…`。非 async（用 `nextObject()` 同步遍历）。
+    static func archiveAdditions(for urls: [URL], targetDir: String) -> [ArchiveEntryAddition] {
+        let fm = FileManager.default
+        let base: String = {
+            let trimmed = targetDir.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            return trimmed.isEmpty ? "" : trimmed + "/"
+        }()
+        var result: [ArchiveEntryAddition] = []
+        for url in urls {
+            var isDir: ObjCBool = false
+            guard fm.fileExists(atPath: url.path, isDirectory: &isDir) else { continue }
+            if isDir.boolValue {
+                let folderName = url.lastPathComponent
+                let enumerator = fm.enumerator(at: url, includingPropertiesForKeys: [.isRegularFileKey])
+                while let file = enumerator?.nextObject() as? URL {
+                    guard (try? file.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true else { continue }
+                    let relWithin = file.path.dropFirst(url.path.count + 1)
+                    result.append(ArchiveEntryAddition(sourceFile: file, entryPath: base + folderName + "/" + relWithin))
+                }
+            } else {
+                result.append(ArchiveEntryAddition(sourceFile: url, entryPath: base + url.lastPathComponent))
+            }
+        }
+        return result
+    }
+
     func extractFromCurrentContext() {
         if case .archive = mode, !selectedArchiveItems.isEmpty {
             extractSelectedArchiveItems()
