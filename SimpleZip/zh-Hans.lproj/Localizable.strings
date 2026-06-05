@@ -660,7 +660,7 @@
 "settings.hiddenSuffixesEnabled" = "隐藏已配置的后缀";
 "settings.language.description" = "选择 SimpleZip 的界面语言。部分文字需要重启后完整生效。";
 "settings.startupLocation.description" = "选择 SimpleZip 启动后文件浏览器默认打开的位置。";
-"settings.overwriteBehavior.description" = "解压、复制或移动时遇到同名文件，默认使用这个处理策略。";
+"settings.overwriteBehavior.description" = "解压、复制、移动或创建压缩包时遇到同名文件，默认使用这个处理策略。";
 "settings.showHiddenFiles.description" = "在文件浏览器里显示点开头文件和 Finder 隐藏项目。";
 "settings.hiddenDetection" = "什么算隐藏文件";
 "settings.hiddenDetection.description" = "决定哪些项目视为隐藏：仅 dotfile（以「.」开头的名称），或同时包含带 macOS 隐藏标志的项目（如 /etc、~/Library）。";
@@ -985,6 +985,12 @@
 "conflict.keepBoth" = "保留两者";
 "conflict.skip" = "跳过";
 "conflict.replaceIfDifferent" = "哈希不同时覆盖";
+// 创建压缩包输出与已有文件同名（遵循「遇到同名文件时」偏好）
+"conflict.create.title" = "「%@」已存在";
+"conflict.create.message" = "目标位置已有同名文件。请选择如何处理。";
+"conflict.create.overwrite" = "覆盖";
+"conflict.create.keepBoth" = "两者都保留";
+"status.createSkippedExisting" = "已跳过「%@」（已存在）";
 "settings.editColumns" = "编辑列表列...";
 "settings.7zip.backend" = "7-Zip 后端";
 "settings.7zip.backend.description" = "「自动」优先用内置 7-Zip，找不到再回退到系统安装的；也可固定只用内置，或只用系统安装的 7-Zip。";

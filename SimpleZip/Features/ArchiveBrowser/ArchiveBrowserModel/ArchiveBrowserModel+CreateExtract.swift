@@ -267,9 +267,28 @@ extension ArchiveBrowserModel {
     func performCreateArchive(_ request: ArchiveCreationRequest) {
         // 勾选 GPG 签名 → 实际输出会被改名成 `<name>.siz` —— title 也跟着用最终文件名，
         // 避免长任务面板显示「正在创建 1.zip」但实际产物是 1.siz 的违和。
-        let finalDestination = request.options.gpgSign
+        let intendedDestination = request.options.gpgSign
             ? request.destinationURL.deletingPathExtension().appendingPathExtension(SIZArchive.extensionName)
             : request.destinationURL
+        // **输出与已有文件同名** → 按「遇到同名文件时」偏好处理（覆盖 / 跳过 / 询问），
+        // 不再像以前那样直接抛「已有同名文件」错误硬跳过。resolved == nil 表示用户/策略放弃创建。
+        guard let finalDestination = resolveArchiveOutputConflict(intendedDestination) else {
+            return
+        }
+        // 如果冲突解决把目标改了名（「两者都保留」）→ 同步改 request 的输出基名，让后端写到新路径。
+        var request = request
+        if finalDestination != intendedDestination {
+            if request.options.gpgSign {
+                // finalDestination 是改名后的 `.siz`；后端用 request.destinationURL（内层基名，如 .zip）再 append `.siz`，
+                // 所以把基名 stem 换成 finalDestination 的 stem、保留原内层扩展名。
+                let innerExt = request.destinationURL.pathExtension
+                let stem = finalDestination.deletingPathExtension().lastPathComponent
+                let newBaseName = innerExt.isEmpty ? stem : "\(stem).\(innerExt)"
+                request.destinationURL = finalDestination.deletingLastPathComponent().appendingPathComponent(newBaseName)
+            } else {
+                request.destinationURL = finalDestination
+            }
+        }
         let title = L10n.format("status.creating", finalDestination.lastPathComponent)
         startManagedArchiveTask(
             title: title,
@@ -280,6 +299,50 @@ extension ArchiveBrowserModel {
             }
         ) { operationID, progress, outputObserver in
             try await ArchiveCreationService.run(request, operationID: operationID, progress: progress, outputObserver: outputObserver)
+        }
+    }
+
+    /// 创建压缩包输出与已有同名文件冲突时按「遇到同名文件时」偏好（`AppPreferences.overwriteBehavior`）处理。
+    /// 返回要写入的最终目标（可能改名）；`nil` = 放弃创建（用户取消 / 策略跳过）。
+    /// - `.overwrite` → 删掉已有文件后用原名。
+    /// - `.skipExisting` → 不创建，给状态提示。
+    /// - `.ask` / `.replaceIfDifferent` → 弹原生 alert 让用户选「覆盖 / 两者都保留 / 取消」
+    ///   （新建产物无从比较内容，`replaceIfDifferent` 退化为询问，绝不静默覆盖）。
+    private func resolveArchiveOutputConflict(_ destination: URL) -> URL? {
+        guard fileManager.fileExists(atPath: destination.path) else { return destination }
+        switch AppPreferences.overwriteBehavior {
+        case .overwrite:
+            try? fileManager.removeItem(at: destination)
+            return destination
+        case .skipExisting:
+            status = L10n.format("status.createSkippedExisting", destination.lastPathComponent)
+            return nil
+        case .ask, .replaceIfDifferent:
+            return askArchiveOutputConflict(destination)
+        }
+    }
+
+    /// 创建输出同名冲突的「询问」alert —— 覆盖（默认）/ 两者都保留（去重改名）/ 取消。
+    private func askArchiveOutputConflict(_ destination: URL) -> URL? {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = L10n.format("conflict.create.title", destination.lastPathComponent)
+        alert.informativeText = L10n.text("conflict.create.message")
+        alert.addButton(withTitle: L10n.text("conflict.create.overwrite"))   // 第 1 = 默认回车
+        alert.addButton(withTitle: L10n.text("conflict.create.keepBoth"))
+        alert.addButton(withTitle: L10n.text("button.cancel"))
+        switch alert.runModal() {
+        case .alertFirstButtonReturn:
+            try? fileManager.removeItem(at: destination)
+            return destination
+        case .alertSecondButtonReturn:
+            return UniqueFileName.numbered(
+                in: destination.deletingLastPathComponent(),
+                preferredName: destination.lastPathComponent,
+                exists: { fileManager.fileExists(atPath: $0.path) }
+            )
+        default:
+            return nil
         }
     }
 

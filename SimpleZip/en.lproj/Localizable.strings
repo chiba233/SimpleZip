@@ -662,7 +662,7 @@
 "settings.hiddenSuffixesEnabled" = "Hide configured suffixes";
 "settings.language.description" = "Choose the display language used by SimpleZip. Some text updates after restarting.";
 "settings.startupLocation.description" = "Choose which folder the browser opens when SimpleZip starts.";
-"settings.overwriteBehavior.description" = "Choose the default action when extracting, copying, or moving into an existing file name.";
+"settings.overwriteBehavior.description" = "Choose the default action when extracting, copying, moving, or creating an archive runs into an existing file name.";
 "settings.showHiddenFiles.description" = "Show dotfiles and other hidden Finder items in the file browser.";
 "settings.hiddenDetection" = "What counts as hidden";
 "settings.hiddenDetection.description" = "Decide what counts as hidden: only dotfiles (names beginning with a dot), or also items carrying the macOS hidden flag (such as /etc and ~/Library).";
@@ -1007,6 +1007,12 @@
 "conflict.keepBoth" = "Keep Both";
 "conflict.skip" = "Skip";
 "conflict.replaceIfDifferent" = "Replace if Hash Differs";
+// Archive-creation output collides with an existing file (honors the "When a file with the same name exists" preference)
+"conflict.create.title" = "“%@” already exists";
+"conflict.create.message" = "A file with this name already exists at the destination. Choose what to do.";
+"conflict.create.overwrite" = "Overwrite";
+"conflict.create.keepBoth" = "Keep Both";
+"status.createSkippedExisting" = "Skipped “%@” (already exists)";
 "settings.editColumns" = "Edit Columns...";
 "settings.7zip.backend" = "7-Zip backend";
 "settings.7zip.backend.description" = "“Automatic” prefers the bundled 7-Zip and falls back to a system install. Or pin SimpleZip to only the bundled copy, or only a system-installed 7-Zip.";
