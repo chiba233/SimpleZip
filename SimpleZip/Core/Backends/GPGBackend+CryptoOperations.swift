@@ -85,6 +85,12 @@ extension GPGBackend {
     /// - `decryptionKeyFingerprint`：「优先尝试用哪把私钥」hint，多密钥用户在 UI 选过的密钥；nil = gpg 自挑。
     /// - `passphrase`：对称密码模式 / 私钥 passphrase（如果 gpg-agent 没缓存且文件是对称加密）。**走 stdin**，不进 ps。
     /// - 不给 passphrase 时由 gpg-agent + pinentry-mac 弹原生密码框（公钥模式 + agent 没缓存私钥 passphrase 的常规路径）。
+    ///
+    /// **两环都试**：公钥加密的文件，其私钥可能在 `~/.gnupg`、**也可能在 SimpleZip 私有环**（独立 GNUPGHOME，
+    /// 私钥存私有 `private-keys-v1.d/`）。一次 gpg 解密只能用一个 homedir，而文件本身不带「该用哪个 homedir」信息——
+    /// 所以 `useSimpleZipKeyring == false`(默认/自动)时**先试 `~/.gnupg`，失败再试私有环**，任一成功即返回。
+    /// （对称密码文件不需要私钥，第一次就成；之前只试 `~/.gnupg` → 加密给私有环收件人的文件「能加密却解不开」。）
+    /// `useSimpleZipKeyring == true` 时只用私有环（调用方已确定 ring，不浪费一次尝试）。
     static func decrypt(
         fileURL: URL,
         outputURL: URL,
@@ -95,25 +101,45 @@ extension GPGBackend {
     ) async throws {
         let normalizedPassphrase = passphrase?.isEmpty == false ? passphrase : nil
         let tool = try resolve()
-        try? FileManager.default.removeItem(at: outputURL)
-        var arguments: [String] = ["--batch", "--yes"]
+
+        // 单次解密尝试（指定用哪个 ring）。成功返回、失败抛错。
+        func attempt(useSZRing: Bool) async throws {
+            try? FileManager.default.removeItem(at: outputURL)
+            var arguments: [String] = ["--batch", "--yes"]
+            if useSZRing {
+                arguments.insert(contentsOf: simpleZipKeyringArguments(), at: 0)
+            }
+            if normalizedPassphrase != nil {
+                arguments.append(contentsOf: ["--pinentry-mode", "loopback", "--passphrase-fd", "0"])
+            }
+            arguments.append("--decrypt")
+            if let key = decryptionKeyFingerprint, !key.isEmpty {
+                arguments.append(contentsOf: ["--local-user", key])
+            }
+            arguments.append(contentsOf: ["--output", outputURL.path, fileURL.path])
+            _ = try await BackendProcessRunner.runAndCapture(
+                tool,
+                arguments: arguments,
+                inputStrategy: normalizedPassphrase.map { .staticInput($0) } ?? .none,
+                operationID: operationID
+            )
+        }
+
+        // 调用方明确要私有环 → 只试私有环。
         if useSimpleZipKeyring {
-            arguments.insert(contentsOf: simpleZipKeyringArguments(), at: 0)
+            try await attempt(useSZRing: true)
+            return
         }
-        if normalizedPassphrase != nil {
-            arguments.append(contentsOf: ["--pinentry-mode", "loopback", "--passphrase-fd", "0"])
+        // 自动：先 ~/.gnupg，失败再私有环。两次都失败 → 抛**第一次**(用户主环)的错误，信息更贴近常规场景。
+        do {
+            try await attempt(useSZRing: false)
+        } catch let userKeyringError {
+            do {
+                try await attempt(useSZRing: true)
+            } catch {
+                throw userKeyringError
+            }
         }
-        arguments.append("--decrypt")
-        if let key = decryptionKeyFingerprint, !key.isEmpty {
-            arguments.append(contentsOf: ["--local-user", key])
-        }
-        arguments.append(contentsOf: ["--output", outputURL.path, fileURL.path])
-        _ = try await BackendProcessRunner.runAndCapture(
-            tool,
-            arguments: arguments,
-            inputStrategy: normalizedPassphrase.map { .staticInput($0) } ?? .none,
-            operationID: operationID
-        )
     }
 
     /// **Clearsign** —— 把整个文本文件签名后输出为「clearsigned message」格式（`-----BEGIN PGP SIGNED MESSAGE-----` … 包住原文，
