@@ -97,12 +97,12 @@ enum ArchiveCreateFormat: String, CaseIterable, Identifiable, Codable {
     }
 
     var supportsSFX: Bool {
-        switch self {
-        case .sevenZip, .rar:
-            return true
-        case .dmg, .zip, .tar, .gzip, .tarGzip, .bzip2, .xz:
-            return false
-        }
+        // **macOS 不提供自解压(SFX)创建。** 7-Zip / RAR 的 SFX 模块(7zCon.sfx / 7z.sfx / Default.SFX 等)
+        // 是 Windows .exe 桩,官方 macOS 版 7zz / rar 不随附,产物也是只能在 Windows 上运行的 .exe。
+        // 既没有可用模块(会报 `cannot find specified SFX module`)、在 Mac 上又跑不起来,所以彻底隐藏该选项。
+        // 创建对话框据此不渲染 SFX 开关,并把 createSFXArchive 复位为 false → 后端参数永不加 `-sfx`。
+        // 若将来决定打包 Windows SFX 模块以「制作发给 Windows 用户的自解压包」,在此按格式放开即可。
+        false
     }
 
     var supportsRawParameters: Bool {
