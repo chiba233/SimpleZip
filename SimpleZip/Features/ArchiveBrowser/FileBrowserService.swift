@@ -232,6 +232,9 @@ final class FileBrowserService {
                 displayName: displayName,
                 isDirectory: isDirectory,
                 isSymbolicLink: isSymbolicLink,
+                symlinkTarget: isSymbolicLink
+                    ? ((try? fileManager.destinationOfSymbolicLink(atPath: fileURL.path)) ?? "")
+                    : "",
                 // 「隐藏」判定按用户选的模式：
                 // - dotfilesOnly（默认）：仅名字以 . 开头的 dotfile（Unix 习惯）；
                 // - macOSHidden：再算上带 macOS UF_HIDDEN 标志的项（/etc、~/Library 等）。

@@ -16,6 +16,9 @@ struct FileItem: Identifiable, Hashable {
     let displayName: String
     let isDirectory: Bool
     let isSymbolicLink: Bool
+    /// 符号链接目标路径（仅 `isSymbolicLink` 时非空）—— 可选「符号链接目标」列展示。本地文件的「访问时间」
+    /// 已由现有「最近打开」列(contentAccessDate)覆盖，故文件浏览不再单列 Accessed。
+    let symlinkTarget: String
     /// 是否算隐藏。判定方式由用户偏好 `hiddenDetectionMode` 决定：
     /// `.dotfilesOnly`（默认）仅看名字是否以 . 开头；`.macOSHidden` 再算上 macOS UF_HIDDEN 标志。
     /// 0.2.0：开启「显示隐藏文件」后，隐藏项不再平铺，而是收进默认折叠的「隐藏文件」分组节点。

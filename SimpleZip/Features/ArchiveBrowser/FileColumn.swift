@@ -17,6 +17,7 @@ enum FileColumn: String, TableColumnDescriptor {
     case dateAdded
     case modified
     case created
+    case symlink
 
     init?(identifier: String) {
         self.init(rawValue: identifier)
@@ -42,6 +43,8 @@ enum FileColumn: String, TableColumnDescriptor {
             return L10n.text("column.modified")
         case .created:
             return L10n.text("column.created")
+        case .symlink:
+            return L10n.text("column.symlink")
         }
     }
 
@@ -57,6 +60,8 @@ enum FileColumn: String, TableColumnDescriptor {
             return 160
         case .lastOpened, .dateAdded, .modified, .created:
             return 170
+        case .symlink:
+            return 240
         }
     }
 
@@ -71,6 +76,8 @@ enum FileColumn: String, TableColumnDescriptor {
         case .application:
             return 120
         case .lastOpened, .dateAdded, .modified, .created:
+            return 140
+        case .symlink:
             return 140
         }
     }
@@ -93,6 +100,8 @@ enum FileColumn: String, TableColumnDescriptor {
             return item.modified.map(Self.dateFormatter.string(from:)) ?? ""
         case .created:
             return item.created.map(Self.dateFormatter.string(from:)) ?? ""
+        case .symlink:
+            return item.symlinkTarget
         }
     }
 

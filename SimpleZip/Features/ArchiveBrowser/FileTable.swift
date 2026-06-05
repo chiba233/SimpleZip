@@ -21,6 +21,7 @@ struct FileTable: View {
     @AppStorage(AppPreferences.Key.showFileDateAddedColumn) private var showDateAddedColumn = true
     @AppStorage(AppPreferences.Key.showFileModifiedColumn) private var showModifiedColumn = true
     @AppStorage(AppPreferences.Key.showFileCreatedColumn) private var showCreatedColumn = true
+    @AppStorage(AppPreferences.Key.showFileSymlinkColumn) private var showSymlinkColumn = false
     // 观察分组相关偏好 —— 在 Settings 改这些时靠这几个 @AppStorage 触发本视图重渲染，
     // 进而调 updateNSView → syncContent 重新分组（设置只翻 UserDefaults，本身不发通知）。
     @AppStorage(AppPreferences.Key.fileGroupingScope) private var fileGroupingScope = BrowserGrouping.GroupingScope.global.rawValue
@@ -39,6 +40,7 @@ struct FileTable: View {
             showDateAddedColumn: showDateAddedColumn,
             showModifiedColumn: showModifiedColumn,
             showCreatedColumn: showCreatedColumn,
+            showSymlinkColumn: showSymlinkColumn,
             groupingScope: fileGroupingScope,
             groupBy: fileGroupBy,
             hiddenWithGrouping: hiddenWithGrouping,
@@ -103,6 +105,7 @@ private struct FileNSOutlineView: NSViewRepresentable {
     let showDateAddedColumn: Bool
     let showModifiedColumn: Bool
     let showCreatedColumn: Bool
+    let showSymlinkColumn: Bool
     // 仅作为「变化触发器」：值变 → SwiftUI 重建本 representable → updateNSView → syncContent 重新分组。
     // 真值仍由 coordinator 直接读 AppPreferences（@AppStorage 与 UserDefaults 始终一致）。
     let groupingScope: String
@@ -187,6 +190,7 @@ private struct FileNSOutlineView: NSViewRepresentable {
         if showDateAddedColumn { columns.append(.dateAdded) }
         if showModifiedColumn { columns.append(.modified) }
         if showCreatedColumn { columns.append(.created) }
+        if showSymlinkColumn { columns.append(.symlink) }
         return orderedColumns(columns, key: AppPreferences.Key.fileColumnOrder)
     }
 

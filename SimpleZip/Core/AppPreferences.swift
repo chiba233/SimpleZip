@@ -283,6 +283,7 @@ enum AppPreferences {
         nonisolated static let showFileDateAddedColumn = "showFileDateAddedColumn"
         nonisolated static let showFileModifiedColumn = "showFileModifiedColumn"
         nonisolated static let showFileCreatedColumn = "showFileCreatedColumn"
+        nonisolated static let showFileSymlinkColumn = "showFileSymlinkColumn"
         nonisolated static let showArchiveKindColumn = "showArchiveKindColumn"
         nonisolated static let showArchiveSizeColumn = "showArchiveSizeColumn"
         nonisolated static let showArchiveModifiedColumn = "showArchiveModifiedColumn"
@@ -547,6 +548,10 @@ enum AppPreferences {
 
     nonisolated static var showFileCreatedColumn: Bool {
         defaultTrueBool(forKey: Key.showFileCreatedColumn)
+    }
+
+    nonisolated static var showFileSymlinkColumn: Bool {
+        defaults.bool(forKey: Key.showFileSymlinkColumn)
     }
 
     nonisolated static var showArchiveKindColumn: Bool {
@@ -867,6 +872,7 @@ enum AppPreferences {
         Key.showFileDateAddedColumn,
         Key.showFileModifiedColumn,
         Key.showFileCreatedColumn,
+        Key.showFileSymlinkColumn,
         Key.showArchiveKindColumn,
         Key.showArchiveSizeColumn,
         Key.showArchiveModifiedColumn,
@@ -962,6 +968,7 @@ enum AppPreferences {
         v[Key.showFileDateAddedColumn] = showFileDateAddedColumn
         v[Key.showFileModifiedColumn] = showFileModifiedColumn
         v[Key.showFileCreatedColumn] = showFileCreatedColumn
+        v[Key.showFileSymlinkColumn] = showFileSymlinkColumn
         v[Key.showArchiveKindColumn] = showArchiveKindColumn
         v[Key.showArchiveSizeColumn] = showArchiveSizeColumn
         v[Key.showArchiveModifiedColumn] = showArchiveModifiedColumn

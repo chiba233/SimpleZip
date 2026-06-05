@@ -20,6 +20,7 @@ struct ColumnsPane: View {
     @AppStorage(AppPreferences.Key.showFileDateAddedColumn) private var showFileDateAddedColumn = true
     @AppStorage(AppPreferences.Key.showFileModifiedColumn) private var showFileModifiedColumn = true
     @AppStorage(AppPreferences.Key.showFileCreatedColumn) private var showFileCreatedColumn = true
+    @AppStorage(AppPreferences.Key.showFileSymlinkColumn) private var showFileSymlinkColumn = false
     @AppStorage(AppPreferences.Key.showArchiveKindColumn) private var showArchiveKindColumn = true
     @AppStorage(AppPreferences.Key.showArchiveSizeColumn) private var showArchiveSizeColumn = true
     @AppStorage(AppPreferences.Key.showArchiveModifiedColumn) private var showArchiveModifiedColumn = true
@@ -139,7 +140,7 @@ struct ColumnsPane: View {
                     }
 
                     GridRow {
-                        Color.clear
+                        Toggle(L10n.text("column.symlink"), isOn: $showFileSymlinkColumn)
                         Toggle(L10n.text("column.symlink"), isOn: $showArchiveSymlinkColumn)
                     }
                 }
@@ -263,6 +264,7 @@ struct ColumnsPane: View {
         case .dateAdded: return "May 28, 2026"
         case .modified: return "May 27, 2026"
         case .created: return "May 20, 2026"
+        case .symlink: return "../target.txt"
         }
     }
 
@@ -292,6 +294,7 @@ struct ColumnsPane: View {
         case .size: return 86
         case .type, .application: return 128
         case .lastOpened, .dateAdded, .modified, .created: return 136
+        case .symlink: return 160
         }
     }
 

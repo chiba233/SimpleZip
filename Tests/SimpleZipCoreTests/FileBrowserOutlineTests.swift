@@ -11,6 +11,7 @@ struct FileBrowserOutlineTests {
             displayName: name,
             isDirectory: false,
             isSymbolicLink: false,
+            symlinkTarget: "",
             isHidden: hidden,
             size: 0,
             modified: nil,
