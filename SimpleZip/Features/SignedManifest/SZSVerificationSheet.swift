@@ -33,6 +33,10 @@ struct SZSVerificationSheet: View {
     @State private var verifyGeneration: Int = 0
     /// #110「收件人说明」折叠展开状态 —— 默认收起。
     @State private var showInstructions = false
+    /// 实测的说明正文高度（GeometryReader 量）—— 用于「自适应高度,到上限才滚动」。
+    @State private var instructionsContentHeight: CGFloat = 0
+    /// 说明正文最大显示高度；超过就在面板内滚动，避免超长留言把 sheet 撑出屏幕。
+    private let maxInstructionsHeight: CGFloat = 280
 
     private let labelColumnWidth: CGFloat = 96
 
@@ -144,6 +148,7 @@ struct SZSVerificationSheet: View {
             }
             infoRow(L10n.text("szs.verify.manifestCreatedAt"), manifest.createdAt)
             infoRow(L10n.text("szs.verify.manifestCreatedBy"), manifest.createdBy)
+            infoRow(L10n.text("siz.signatureSheet.formatVersion"), ".\(SZSArchive.extensionName) v\(manifest.version)")
             infoRow(L10n.text("szs.verify.manifestFileCount"), "\(manifest.files.count)")
             // #110 收件人说明：作为 manifest 信息块里的一行（标题对齐标签列、展开正文对齐值列），跟其它行一致。
             if let instructions = manifest.instructions, !instructions.isEmpty {
@@ -178,16 +183,23 @@ struct SZSVerificationSheet: View {
 
             if showInstructions {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(text)
-                        .font(.system(.caption, design: .monospaced))
-                        .lineSpacing(2)
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.vertical, 10)
-                        .padding(.horizontal, 14)
-                        .background(Color(nsColor: .textBackgroundColor))
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                    // 自适应高度：到上限后面板内滚动，避免超长留言撑出屏幕（见 .siz 同款实现）。
+                    ScrollView {
+                        Text(text)
+                            .font(.system(.caption, design: .monospaced))
+                            .lineSpacing(2)
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.vertical, 10)
+                            .padding(.horizontal, 14)
+                            .background(GeometryReader { proxy in
+                                Color.clear.preference(key: InstructionsHeightKey.self, value: proxy.size.height)
+                            })
+                    }
+                    .frame(height: min(instructionsContentHeight, maxInstructionsHeight))
+                    .background(Color(nsColor: .textBackgroundColor))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .onPreferenceChange(InstructionsHeightKey.self) { instructionsContentHeight = $0 }
                     Button {
                         NSPasteboard.general.clearContents()
                         NSPasteboard.general.setString(text, forType: .string)
@@ -484,4 +496,10 @@ struct SZSVerificationSheet: View {
             }
         }
     }
+}
+
+/// 量「收件人说明」正文真实高度的 PreferenceKey —— 给「自适应高度,到上限才滚动」用。
+private struct InstructionsHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
 }

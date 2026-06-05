@@ -123,6 +123,7 @@
 "siz.signatureSheet.innerArchive" = "内层压缩包";
 "siz.signatureSheet.signedAt" = "签名时间";
 "siz.signatureSheet.source" = "源文件";
+"siz.signatureSheet.formatVersion" = "格式";
 "siz.signatureSheet.keyID" = "Key ID";
 "siz.signatureSheet.unknownSigner" = "（未知）";
 "siz.signatureSheet.valid.summary" = "签名通过，内层文件未被改动。";

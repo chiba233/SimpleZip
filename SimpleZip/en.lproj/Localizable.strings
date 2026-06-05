@@ -123,6 +123,7 @@
 "siz.signatureSheet.innerArchive" = "Inner archive";
 "siz.signatureSheet.signedAt" = "Signed at";
 "siz.signatureSheet.source" = "Source";
+"siz.signatureSheet.formatVersion" = "Format";
 "siz.signatureSheet.keyID" = "Key ID";
 "siz.signatureSheet.unknownSigner" = "(unknown)";
 "siz.signatureSheet.valid.summary" = "Signature checks out — the contents have not been altered.";

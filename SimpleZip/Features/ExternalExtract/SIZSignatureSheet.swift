@@ -44,6 +44,10 @@ struct SIZSignatureSheet: View {
     @State private var inlineError: String?
     /// 「收件人说明」(#110)折叠展开状态 —— 默认收起,信息密度优先,用户想看再展开。
     @State private var showInstructions = false
+    /// 实测的说明正文高度（GeometryReader 量）—— 用于「自适应高度,到上限才滚动」。
+    @State private var instructionsContentHeight: CGFloat = 0
+    /// 说明正文的最大显示高度；超过就在面板内滚动，避免超长留言把 sheet 撑出屏幕。
+    private let maxInstructionsHeight: CGFloat = 260
 
     /// `.badSignature` 时把 Cancel 设为 default action（回车 / Esc 都退出），引导用户不要打开被篡改的容器。
     private var cancelIsDefault: Bool {
@@ -86,6 +90,7 @@ struct SIZSignatureSheet: View {
                 detailRow(L10n.text("siz.signatureSheet.keyFingerprint"), signature.signerFingerprint, monospaced: true)
                 detailRow(L10n.text("siz.signatureSheet.signedAt"), signature.signedAt)
                 detailRow(L10n.text("siz.signatureSheet.source"), signature.sourceURL.path, monospaced: true)
+                detailRow(L10n.text("siz.signatureSheet.formatVersion"), ".\(SIZArchive.extensionName) v\(signature.schemaVersion)")
                 // #110 收件人说明：作为 detail 块里的**一行**（标题对齐标签列、展开正文对齐值列），
                 // 而不是下面另起一张浮卡 —— 解决「跟上面间距太大 / 正文贴左 / 左右 margin 太小」。
                 if let instructions = signature.deliveryInstructions, !instructions.isEmpty {
@@ -228,16 +233,24 @@ struct SIZSignatureSheet: View {
 
             if showInstructions {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(text)
-                        .font(.system(.caption, design: .monospaced))
-                        .lineSpacing(2)
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.vertical, 10)
-                        .padding(.horizontal, 14)
-                        .background(Color(nsColor: .textBackgroundColor))
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                    // 自适应高度：GeometryReader 量正文真实高度，frame 取 min(实测, 上限)。
+                    // 内容短 → 刚好贴合不留白；内容长(超长留言) → 到上限后面板内滚动，绝不撑出屏幕。
+                    ScrollView {
+                        Text(text)
+                            .font(.system(.caption, design: .monospaced))
+                            .lineSpacing(2)
+                            .textSelection(.enabled)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.vertical, 10)
+                            .padding(.horizontal, 14)
+                            .background(GeometryReader { proxy in
+                                Color.clear.preference(key: InstructionsHeightKey.self, value: proxy.size.height)
+                            })
+                    }
+                    .frame(height: min(instructionsContentHeight, maxInstructionsHeight))
+                    .background(Color(nsColor: .textBackgroundColor))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .onPreferenceChange(InstructionsHeightKey.self) { instructionsContentHeight = $0 }
                     Button {
                         NSPasteboard.general.clearContents()
                         NSPasteboard.general.setString(text, forType: .string)
@@ -277,4 +290,10 @@ struct SIZSignatureSheet: View {
             Spacer(minLength: 0)
         }
     }
+}
+
+/// 量「收件人说明」正文真实高度的 PreferenceKey —— 给「自适应高度,到上限才滚动」用。
+private struct InstructionsHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
 }

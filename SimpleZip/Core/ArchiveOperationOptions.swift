@@ -405,6 +405,8 @@ struct SIZSignatureSummary: Equatable {
     /// **#110 收件人说明**（`metadata.deliveryInstructions`）—— 创建时生成、随 metadata 被签名背书的人类可读投递说明。
     /// nil = 老 `.siz` 没带（创建前的容器）。验签 sheet 展示它，让收件人看到「怎么验签 / 解密」。
     let deliveryInstructions: String?
+    /// `.siz` 容器 schema 版本（`metadata.version`，2/3/4）—— UI 展示「格式 .siz v4」。
+    let schemaVersion: Int
 }
 
 /// ZIP 解密方式。实际 ZIP 文件会记录具体算法；选择项用于决定兼容解压路径。

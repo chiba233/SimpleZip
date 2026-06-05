@@ -63,7 +63,8 @@ enum SignedContainerService {
                 signedAt: unwrap.metadata.createdAt,
                 verify: verify,
                 encryption: unwrap.metadata.encryption,
-                deliveryInstructions: unwrap.metadata.deliveryInstructions
+                deliveryInstructions: unwrap.metadata.deliveryInstructions,
+                schemaVersion: unwrap.metadata.version
             )
         )
     }
