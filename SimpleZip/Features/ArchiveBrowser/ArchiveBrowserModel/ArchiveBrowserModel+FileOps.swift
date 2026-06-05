@@ -69,6 +69,11 @@ extension ArchiveBrowserModel {
     }
 
     func createNewFolderAndBeginRename() {
+        // 同一入口,归档模式(可编辑 zip/7z)走「往归档里加空文件夹条目」分支。
+        if canDropIntoOpenArchive {
+            createNewArchiveEntry(isDirectory: true, contents: nil, defaultName: L10n.text("archive.newFolder.defaultName"))
+            return
+        }
         guard case .folder(let folderURL) = mode else { return }
         let target = uniqueNewItemURL(in: folderURL, preferredName: L10n.text("file.newFolder.defaultName"))
         do {
@@ -87,6 +92,11 @@ extension ArchiveBrowserModel {
     }
 
     func createNewFileAndBeginRename(template: NewFileTemplate) {
+        // 同一入口,归档模式(可编辑 zip/7z)走「往归档里加空文件条目」分支,复用模板的默认名 / 内容。
+        if canDropIntoOpenArchive {
+            createNewArchiveEntry(isDirectory: false, contents: template.contents, defaultName: template.defaultName)
+            return
+        }
         guard case .folder(let folderURL) = mode else { return }
         let target = uniqueNewItemURL(in: folderURL, preferredName: template.defaultName)
         do {

@@ -527,13 +527,14 @@ extension ArchiveBrowserModel {
         }
     }
 
-    /// 在当前归档内文件夹新建一个空文件夹 / 空文件(zip/7z)。复用安全写回后端。
-    func createNewArchiveEntry(isDirectory: Bool) {
-        guard canDropIntoOpenArchive else { return }
+    /// 在当前归档内文件夹新建一个空文件夹 / 空文件(zip/7z)。**给 `createNewFolderAndBeginRename` /
+    /// `createNewFileAndBeginRename` 在归档模式下复用**——不是另起 API,只是它们在归档里的实现分支。
+    /// 建完进内联重命名(跟文件夹模式一致),靠 `pendingInlineRenameArchiveEntry` + ArchiveTable 消费。
+    func createNewArchiveEntry(isDirectory: Bool, contents: Data?, defaultName: String) {
+        guard canDropIntoOpenArchive, case .archive(let archiveURL) = mode else { return }
         let base = session.archivePath.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         let prefix = base.isEmpty ? "" : base + "/"
         let existing = Set(archiveItems.map(\.displayName))
-        let defaultName = isDirectory ? L10n.text("archive.newFolder.defaultName") : L10n.text("archive.newFile.defaultName")
         let leaf = Self.uniqueArchiveLeaf(defaultName, existing: existing)
 
         // 在系统临时目录建一个空文件 / 空文件夹,加进归档后清掉。
@@ -545,7 +546,7 @@ extension ArchiveBrowserModel {
             if isDirectory {
                 try fm.createDirectory(at: source, withIntermediateDirectories: true)
             } else {
-                try Data().write(to: source)
+                try (contents ?? Data()).write(to: source)
             }
         } catch {
             errorMessage = error.localizedDescription
@@ -553,18 +554,20 @@ extension ArchiveBrowserModel {
             return
         }
 
-        guard case .archive(let archiveURL) = mode else { try? fm.removeItem(at: tempRoot); return }
-        let additions = [ArchiveEntryAddition(sourceFile: source, entryPath: prefix + leaf)]
+        let entryPath = prefix + leaf
+        let additions = [ArchiveEntryAddition(sourceFile: source, entryPath: entryPath)]
         startManagedArchiveTask(
             title: L10n.format("archive.addEntry.single", leaf),
-            kind: .compress,
+            kind: .create,
             showsDetails: true,
             refreshOnSuccess: { [weak self] in
                 try? FileManager.default.removeItem(at: tempRoot)
+                // 建完进内联重命名(跟文件夹模式 pendingInlineRenameURL 一致的 idiom)。
+                self?.pendingInlineRenameArchiveEntry = entryPath
                 self?.reload()
             },
             onSucceeded: { task in
-                task.transferLog = [TransferLogEntry(name: prefix + leaf, action: .added, isDirectory: isDirectory)]
+                task.transferLog = [TransferLogEntry(name: entryPath, action: .added, isDirectory: isDirectory)]
             }
         ) { operationID, _, observer in
             try await ArchiveService.addOrReplaceEntries(in: archiveURL, additions: additions, password: "",

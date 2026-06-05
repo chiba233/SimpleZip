@@ -223,6 +223,22 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
             rebuildTopLevel(groupBy: groupBy)
             outlineView?.reloadData()
             enforceExpansion()
+            performPendingInlineRenameIfNeeded()
+        }
+
+        /// 新建归档条目后自动进入内联重命名（跟文件夹模式 pendingInlineRenameURL 同一 idiom）。
+        private func performPendingInlineRenameIfNeeded() {
+            guard renamingArchiveItem == nil, let entryPath = model.pendingInlineRenameArchiveEntry else { return }
+            // 目录条目的 name 可能带尾斜杠 → 去掉再比。
+            func normalize(_ s: String) -> String { s.hasSuffix("/") ? String(s.dropLast()) : s }
+            guard let node = allItemNodes().first(where: { ($0.archiveItem?.name).map(normalize) == normalize(entryPath) }),
+                  let item = node.archiveItem,
+                  let outlineView, outlineView.row(forItem: node) >= 0 else { return }  // 还没出现 → 留着下次 reload 再试
+            model.selectedArchiveRows = [item.id]
+            applySelection(IndexSet(integer: outlineView.row(forItem: node)))
+            if beginInlineRename(item) {
+                model.pendingInlineRenameArchiveEntry = nil
+            }
         }
 
         private func rebuildTopLevel(groupBy: BrowserGrouping.GroupBy) {
@@ -433,7 +449,19 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
             }
             menu.addItem(.separator())
             menu.addItem(menuItem(L10n.text("file.newFolder"), systemImage: "folder.badge.plus", action: #selector(newArchiveFolder)))
-            menu.addItem(menuItem(L10n.text("file.newFile"), systemImage: "doc.badge.plus", action: #selector(newArchiveFile)))
+            // 「新建文件 ▸」复用文件浏览器的 NewFileTemplate 模板子菜单（空 / 文本 / Markdown / JSON）。
+            let newFileParent = NSMenuItem(title: L10n.text("file.newFile"), action: nil, keyEquivalent: "")
+            newFileParent.image = NSImage(systemSymbolName: "doc.badge.plus", accessibilityDescription: nil)
+            let submenu = NSMenu()
+            for template in ArchiveBrowserModel.NewFileTemplate.allCases {
+                let mi = NSMenuItem(title: template.title, action: #selector(newArchiveFile(_:)), keyEquivalent: "")
+                mi.target = self
+                mi.representedObject = template.rawValue
+                mi.image = NSImage(systemSymbolName: template.systemImage, accessibilityDescription: nil)
+                submenu.addItem(mi)
+            }
+            newFileParent.submenu = submenu
+            menu.addItem(newFileParent)
             menu.addItem(.separator())
             menu.addItem(menuItem(L10n.text("button.revealInFinder"), systemImage: "arrow.up.forward.app", action: #selector(revealArchive)))
         }
@@ -474,11 +502,13 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
         }
 
         @objc private func newArchiveFolder() {
-            model.createNewArchiveEntry(isDirectory: true)
+            model.createNewFolderAndBeginRename()   // 同一 API,归档模式自动走加条目分支
         }
 
-        @objc private func newArchiveFile() {
-            model.createNewArchiveEntry(isDirectory: false)
+        @objc private func newArchiveFile(_ sender: NSMenuItem) {
+            guard let raw = sender.representedObject as? String,
+                  let template = ArchiveBrowserModel.NewFileTemplate(rawValue: raw) else { return }
+            model.createNewFileAndBeginRename(template: template)
         }
 
         @objc private func addFilesToArchive() {
@@ -495,13 +525,19 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
 
         // MARK: - 内联重命名（复用文件浏览器同一 idiom：把名字列的 textField 变可编辑，不弹窗）
 
-        /// 开始内联重命名选中条目。返回是否真的进入了编辑（给 returnKeyAction / 重压用——文件浏览器同款）。
+        /// 开始内联重命名选中条目（仅普通文件）。返回是否真的进入了编辑（给 returnKeyAction / 重压用——文件浏览器同款）。
         @discardableResult
         func beginRenameSelectedArchiveEntry() -> Bool {
             guard model.canDropIntoOpenArchive,
                   model.selectedArchiveItems.count == 1,
-                  let item = model.selectedArchiveItems.first, !item.isDirectory,
-                  let outlineView,
+                  let item = model.selectedArchiveItems.first, !item.isDirectory else { return false }
+            return beginInlineRename(item)
+        }
+
+        /// 内联重命名核心 —— 把指定条目名字列的 textField 变可编辑。新建条目后的「建完进重命名」也走这条（含文件夹）。
+        @discardableResult
+        private func beginInlineRename(_ item: ArchiveItem) -> Bool {
+            guard let outlineView,
                   let nameColIndex = outlineView.tableColumns.firstIndex(where: { $0.identifier.rawValue == ArchiveColumn.name.identifier }),
                   let node = allItemNodes().first(where: { $0.archiveItem?.id == item.id })
             else { return false }

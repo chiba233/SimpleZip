@@ -158,6 +158,8 @@ final class ArchiveBrowserModel: ObservableObject {
     @Published var fileRedoActionName: String?
     /// 创建新文件 / 文件夹后，等 FileTable 刷出对应行再自动进入现有内联重命名。
     @Published var pendingInlineRenameURL: URL?
+    /// 归档里新建条目后，待自动进入内联重命名的归档内路径（跟 `pendingInlineRenameURL` 同一 idiom，ArchiveTable 消费）。
+    @Published var pendingInlineRenameArchiveEntry: String?
     /// 删除后键盘光标应落到的「邻居」URL：等 FileTable 刷出后选中它并把焦点交回表格，
     /// 这样删除一项后方向键能从邻居继续，而不是丢焦点、回到列表顶端。
     @Published var pendingSelectionURL: URL?
