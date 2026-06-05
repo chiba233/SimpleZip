@@ -449,7 +449,7 @@ Hash: SHA512
 
 {
   "schema": "SimpleZip.szs",
-  "version": 1,
+  "version": 2,                        // v1 = original; v2 += instructions (v1 still accepted)
   "createdAt": "2026-05-30T10:23:45Z",
   "createdBy": "SimpleZip 0.1.9",
   "title": "MyRelease v3.1",          // optional
@@ -457,7 +457,8 @@ Hash: SHA512
     { "relativePath": "LICENSE.txt",
       "size": 1078, "sha256": "<64 hex>" },
     ...
-  ]
+  ],
+  "instructions": "…optional, signed…" // human-readable recipient note (#110)
 }
 -----BEGIN PGP SIGNATURE-----
 ...

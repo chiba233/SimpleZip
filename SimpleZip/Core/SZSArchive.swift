@@ -35,7 +35,12 @@ import Foundation
 enum SZSArchive {
     static let extensionName = "szs"
     static let schemaIdentifier = "SimpleZip.szs"
-    static let schemaVersion = 1
+    /// 当前 schema 版本 —— **v2** 新加 `instructions` 字段（#110 收件人说明模板，整份 manifest 由 clearsign 背书 → 防篡改）。
+    /// 跟 `.siz` 同一惯例：新增字段就 bump version + 在 `acceptedSchemaVersions` 加一项；创建端总是写最新 v2。
+    static let schemaVersion = 2
+    /// 解析时接受的所有 schema 版本（缺哪个新字段就等同于不带它，向前向后兼容）。新版进来只在这里加一项。
+    /// 注意：0.3.1 之前的 SimpleZip（只认 v1）打不开 v2 .szs —— 跟 `.siz` v4 同一取舍。
+    static let acceptedSchemaVersions: Set<Int> = [1, 2]
 
     /// 清单 JSON 顶层结构。所有字段在 SZS-FORMAT.md 里有详细说明。
     struct Manifest: Codable, Equatable {
@@ -53,6 +58,10 @@ enum SZSArchive {
         var rootDirectoryHint: String?
         /// 文件条目列表。**约定**：调用方序列化前必须按 `relativePath` 字典序排好（让签名字节确定）。
         var files: [FileEntry]
+        /// **#110 收件人说明（v2 起，可选）** —— 人类可读的「这是什么 / 谁怎么验 / 怎么校验每个文件 SHA」模板，
+        /// 由 `makeRecipientInstructions(for:senderNote:)` 创建时生成。整份 manifest 经 `gpg --clearsign` 背书 →
+        /// 这段说明**防篡改**（改一个字签名就失效）。`nil` = 老 .szs / 未生成（Optional 缺省不进 JSON，字节与旧格式一致）。
+        var instructions: String?
     }
 
     /// 单个文件条目。`relativePath` 是相对路径（forward slash 分隔）；`sha256` 是 64 字符小写 hex。
@@ -146,6 +155,61 @@ enum SZSArchive {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         return try encoder.encode(manifest)
+    }
+
+    /// **#110 .szs 收件人说明生成器**（对应 `SIZArchive.makeDeliveryInstructions`）—— 从 manifest 派生一段人类可读
+    /// 「投递说明」写进 `manifest.instructions`，随整份 clearsigned manifest 被签名（防篡改）。给收到 `.szs` 的人讲清楚：
+    /// 这是什么、用 SimpleZip 怎么验、不用 SimpleZip 怎么 `gpg --verify` + 逐文件 `shasum -a 256` 核对、（若加密）怎么解密。
+    ///
+    /// 纯函数（只读 manifest + L10n），可单测。数据值（文件数 / 命令 / 示例 SHA）用 Swift 插值（永远在），解说走 L10n。
+    /// - `senderNote`：创建者写的话（`.szs` 里就是 description），放最前。
+    static func makeRecipientInstructions(for manifest: Manifest, senderNote: String? = nil) -> String {
+        var lines: [String] = []
+
+        if let note = senderNote?.trimmingCharacters(in: .whitespacesAndNewlines), !note.isEmpty {
+            lines.append(L10n.text("szs.instructions.senderNote"))
+            lines.append(note)
+            lines.append("")
+        }
+
+        lines.append(L10n.text("szs.instructions.header"))
+        lines.append("")
+        if let title = manifest.title, !title.isEmpty {
+            lines.append("\(L10n.text("szs.instructions.title")) \(title)")
+        }
+        lines.append("\(L10n.text("szs.instructions.fileCount")) \(manifest.files.count)")
+        if !manifest.createdAt.isEmpty {
+            lines.append("\(L10n.text("szs.instructions.created")) \(manifest.createdAt)")
+        }
+        let encrypted = manifest.files.contains { $0.relativePath.lowercased().hasSuffix(".gpg") }
+        if encrypted {
+            lines.append(L10n.text("szs.instructions.encrypted"))
+        }
+        lines.append("")
+
+        lines.append(L10n.text("szs.instructions.withSimpleZip"))
+        lines.append("")
+
+        // 手动验签 + 逐文件 SHA 核对（每文件的 SHA 已在 manifest 的 files 列表里，这里给命令 + 一个示例）。
+        lines.append(L10n.text("szs.instructions.manualHeader"))
+        lines.append("  gpg --verify <name>.\(extensionName)")
+        lines.append(L10n.text("szs.instructions.manualSha"))
+        if let first = manifest.files.first {
+            lines.append("  shasum -a 256 \(first.relativePath)")
+            lines.append("  = \(first.sha256)")
+            if manifest.files.count > 1 {
+                lines.append(L10n.format("szs.instructions.moreFiles", "\(manifest.files.count - 1)"))
+            }
+        }
+        if encrypted {
+            lines.append("")
+            lines.append(L10n.text("szs.instructions.decrypt"))
+            lines.append("  gpg --decrypt <file>.gpg")
+        }
+        lines.append("")
+
+        lines.append(L10n.text("szs.instructions.passphraseNote"))
+        return lines.joined(separator: "\n")
     }
 
     // MARK: - 路径校验
@@ -357,7 +421,7 @@ enum SZSArchive {
         }
 
         // Step 3：组装 Manifest + 确定性 encode。
-        let manifest = Manifest(
+        var manifest = Manifest(
             schema: schemaIdentifier,
             version: schemaVersion,
             createdAt: ISO8601DateFormatter().string(from: Date()),
@@ -365,8 +429,12 @@ enum SZSArchive {
             title: title?.isEmpty == false ? title : nil,
             description: description?.isEmpty == false ? description : nil,
             rootDirectoryHint: rootDirectoryHint?.isEmpty == false ? rootDirectoryHint : nil,
-            files: entries
+            files: entries,
+            instructions: nil
         )
+        // #110：生成收件人说明（用户的 description 作为「发送者留言」），灌进 manifest → 随 clearsign 防篡改。
+        // 必须在 encode/clearsign 之前设好，这样签名覆盖它。
+        manifest.instructions = makeRecipientInstructions(for: manifest, senderNote: manifest.description)
         let manifestData = try encodeManifest(manifest)
 
         // Step 4：plaintext 写 staging，clearsign 写到 outputURL。
@@ -509,7 +577,7 @@ enum SZSArchive {
         guard manifest.schema == schemaIdentifier else {
             throw SZSError.unexpectedSchema(manifest.schema)
         }
-        guard manifest.version == schemaVersion else {
+        guard acceptedSchemaVersions.contains(manifest.version) else {
             throw SZSError.unexpectedSchema("\(manifest.schema) v\(manifest.version)")
         }
         return manifest

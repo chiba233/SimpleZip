@@ -27,6 +27,67 @@ struct SZSArchiveTests {
         return url
     }
 
+    // MARK: - #110 收件人说明 (instructions)
+
+    @Test func recipientInstructionsIncludeVerifyCommandsAndFileCount() {
+        let manifest = SZSArchive.Manifest(
+            schema: SZSArchive.schemaIdentifier,
+            version: SZSArchive.schemaVersion,
+            createdAt: "2026-06-05T00:00:00Z",
+            createdBy: "SimpleZip test",
+            title: "MyRelease",
+            description: "hi there",
+            rootDirectoryHint: nil,
+            files: [
+                SZSArchive.FileEntry(relativePath: "a.txt", size: 5, sha256: String(repeating: "a", count: 64), mediaType: nil),
+                SZSArchive.FileEntry(relativePath: "b.txt", size: 9, sha256: String(repeating: "b", count: 64), mediaType: nil)
+            ]
+        )
+        let text = SZSArchive.makeRecipientInstructions(for: manifest, senderNote: manifest.description)
+        #expect(text.contains("hi there"))                          // sender note
+        #expect(text.contains("gpg --verify <name>.szs"))           // verify command (interpolated extension)
+        #expect(text.contains("shasum -a 256 a.txt"))               // example file SHA check
+        #expect(text.contains(String(repeating: "a", count: 64)))   // example SHA value
+        #expect(text.contains("MyRelease"))                          // title
+        #expect(!text.contains("--decrypt"))                         // not encrypted → no decrypt line
+    }
+
+    @Test func recipientInstructionsForEncryptedManifestMentionDecrypt() {
+        let manifest = SZSArchive.Manifest(
+            schema: SZSArchive.schemaIdentifier,
+            version: SZSArchive.schemaVersion,
+            createdAt: "2026-06-05T00:00:00Z",
+            createdBy: "SimpleZip test",
+            title: nil,
+            description: nil,
+            rootDirectoryHint: nil,
+            files: [
+                SZSArchive.FileEntry(relativePath: "secret.txt.gpg", size: 5, sha256: String(repeating: "0", count: 64), mediaType: nil)
+            ]
+        )
+        let text = SZSArchive.makeRecipientInstructions(for: manifest)
+        #expect(text.contains("--decrypt"))   // encrypted (.gpg) → decrypt guidance present
+    }
+
+    /// v2 字段 round-trip + nil 时不进 JSON（老 .szs 字节不变）。
+    @Test func instructionsRoundTripAndNilOmitted() throws {
+        var manifest = SZSArchive.Manifest(
+            schema: SZSArchive.schemaIdentifier,
+            version: SZSArchive.schemaVersion,
+            createdAt: "2026-06-05T00:00:00Z",
+            createdBy: "SimpleZip test",
+            title: nil, description: nil, rootDirectoryHint: nil,
+            files: [SZSArchive.FileEntry(relativePath: "a.txt", size: 1, sha256: String(repeating: "0", count: 64), mediaType: nil)]
+        )
+        manifest.instructions = "line one\nline two"
+        let decoded = try JSONDecoder().decode(SZSArchive.Manifest.self, from: SZSArchive.encodeManifest(manifest))
+        #expect(decoded.instructions == "line one\nline two")
+
+        manifest.instructions = nil
+        let json = try String(decoding: SZSArchive.encodeManifest(manifest), as: UTF8.self)
+        #expect(!json.contains("instructions"))
+    }
+
     @Test
     func extractClearsignedManifestReadsPayloadWithoutGPG() throws {
         let dir = try makeTemporaryDirectory()

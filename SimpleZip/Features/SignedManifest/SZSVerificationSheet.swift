@@ -31,6 +31,8 @@ struct SZSVerificationSheet: View {
     /// 每次 `verifyNow` 自增；Task 写回前 guard 当前 generation 一致，避免「用户切 payloadRoot 触发第二次 verify，
     /// 第一次因体积大慢到了才回写，覆盖第二次结果」的 race。
     @State private var verifyGeneration: Int = 0
+    /// #110「收件人说明」折叠展开状态 —— 默认收起。
+    @State private var showInstructions = false
 
     private let labelColumnWidth: CGFloat = 96
 
@@ -59,6 +61,9 @@ struct SZSVerificationSheet: View {
             signatureBlock
             Divider()
             manifestBlock
+            if let instructions = manifest.instructions, !instructions.isEmpty {
+                instructionsBlock(instructions)
+            }
             Divider()
             payloadRootBlock
             Divider()
@@ -144,6 +149,40 @@ struct SZSVerificationSheet: View {
             infoRow(L10n.text("szs.verify.manifestCreatedBy"), manifest.createdBy)
             infoRow(L10n.text("szs.verify.manifestFileCount"), "\(manifest.files.count)")
         }
+    }
+
+    // MARK: - #110 收件人说明
+
+    /// 折叠展示 manifest 里随签名带来的收件人说明（防篡改）+ 复制按钮。复用 `.siz` 验签 sheet 同款卡片样式。
+    @ViewBuilder
+    private func instructionsBlock(_ text: String) -> some View {
+        DisclosureGroup(isExpanded: $showInstructions) {
+            VStack(alignment: .leading, spacing: 10) {
+                Text(text)
+                    .font(.system(.caption, design: .monospaced))
+                    .lineSpacing(2)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.vertical, 10)
+                    .padding(.leading, 12)
+                    .padding(.trailing, 14)
+                    .background(Color(nsColor: .textBackgroundColor))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(text, forType: .string)
+                } label: {
+                    Label(L10n.text("siz.instructions.copy"), systemImage: "doc.on.doc")
+                }
+                .controlSize(.small)
+            }
+            .padding(.top, 8)
+        } label: {
+            Label(L10n.text("siz.instructions.disclosure"), systemImage: "doc.text")
+                .font(.callout.weight(.medium))
+        }
+        .padding(.vertical, 4)
     }
 
     @ViewBuilder

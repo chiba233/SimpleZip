@@ -88,12 +88,12 @@ right answer; deferring keeps the v1 spec small and reviewable.
 
 ## Manifest schema
 
-Top-level object, schema `SimpleZip.szs`, version 1:
+Top-level object, schema `SimpleZip.szs`, current version 2 (v1 still accepted):
 
 ```jsonc
 {
   "schema": "SimpleZip.szs",
-  "version": 1,
+  "version": 2,
   "createdAt": "2026-05-30T03:04:05Z",        // ISO-8601 UTC
   "createdBy": "SimpleZip 0.1.10",             // creator version
   "title": "MyRelease v3.1",                   // optional display title
@@ -111,16 +111,22 @@ Top-level object, schema `SimpleZip.szs`, version 1:
       "size": 1078,
       "sha256": "abcdef...64 hex..."
     }
-  ]
+  ],
+  "instructions": "…optional, signed…"         // v2: human-readable recipient note (#110)
 }
 ```
 
 Field rules (enforced at create + verify time):
 
 - `schema`: must be exactly `"SimpleZip.szs"`. Any other value rejects.
-- `version`: integer. Current = 1. Forward-compat: SimpleZip accepts only
-  versions it knows. Unknown version = "this `.szs` was made by a newer
-  SimpleZip; please upgrade".
+- `version`: integer. Current = **2** (v2 added the optional `instructions`
+  field); the verifier accepts the set `{1, 2}`. Unknown version = "this `.szs`
+  was made by a newer SimpleZip; please upgrade".
+- `instructions` (v2, optional): human-readable recipient note — what this is,
+  how to verify the signature, and how to check each file's SHA-256 by hand.
+  Auto-generated at create time; part of the clearsigned manifest, so it's
+  **tamper-proof** (editing it breaks the signature). Omitted when absent, so v1
+  `.szs` bytes are unchanged. Carries no secret material.
 - `createdAt`: ISO-8601 UTC. UI displays in user's local timezone.
 - `createdBy`: free-form. Display-only.
 - `title`, `description`, `rootDirectoryHint`: optional metadata for UI.
