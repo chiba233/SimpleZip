@@ -311,57 +311,93 @@ extension ArchiveBrowserModel {
         )
     }
 
-    /// 应用权限 / 属主改动 —— 走活动中心管理任务（进度 / 历史 / 逐文件结果),跟加密 / 解压等其它操作一致。
+    /// 应用权限 / 属主改动 —— 走**文件操作**类活动中心任务（不是归档操作）,跟复制 / 移动 / 删除同类。
+    /// 标题带真实目标值（「更改 a.txt 的权限为 755」/「…属主为 alice」/多选「更改 3 个项目的…」）。
     /// 真正的 chmod / chown 在后台线程执行（自有文件免提权直改,失败的 + 改属主合并成一次系统授权);
     /// 用户取消授权弹窗 → 任务标「已取消」,部分失败 → 活动中心红色行带原因。
     func applyPermissions(mode newMode: UInt16?, owner newOwner: String?, to urls: [URL]) {
         guard newMode != nil || (newOwner?.isEmpty == false), !urls.isEmpty else { return }
 
-        var outcome: FilePermissionService.ApplyOutcome?
-        let title = urls.count == 1
-            ? L10n.format("status.permissionsChanging", urls[0].lastPathComponent)
-            : L10n.format("status.permissionsChangingMultiple", "\(urls.count)")
+        let subject = urls.count == 1
+            ? urls[0].lastPathComponent
+            : L10n.format("status.permissions.items", "\(urls.count)")
+        let clauses = permissionChangeClauses(mode: newMode, owner: newOwner)
+        let changingTitle = L10n.format("status.permissions.changing", subject, clauses)
 
-        startManagedArchiveTask(
-            title: title,
+        let operationTask = beginFileTask(
             kind: .permissions,
-            showsDetails: false,
-            cancellable: false,   // 取消点就是系统授权弹窗本身;操作本身瞬时,不另设中途取消。
-            refreshOnSuccess: { [weak self] in
-                guard let self, let outcome else { return }
-                if outcome.failures.isEmpty {
-                    self.status = outcome.changed.count == 1
-                        ? L10n.format("status.permissionsChanged", urls[0].lastPathComponent)
-                        : L10n.format("status.permissionsChangedMultiple", "\(outcome.changed.count)")
-                } else {
-                    self.status = L10n.format("status.permissionsChangedPartial", "\(outcome.changed.count)", "\(outcome.failures.count)")
-                }
-                self.reload()
-            },
-            onSucceeded: { task in
-                guard let outcome else { return }
-                var log = outcome.changed.map {
-                    TransferLogEntry(
-                        name: $0.lastPathComponent,
+            title: changingTitle,
+            detail: nil,
+            total: urls.count,
+            cancellable: false   // 取消点就是系统授权弹窗本身;操作本身瞬时,不另设中途取消。
+        )
+
+        Task { @MainActor [weak self, weak operationTask] in
+            guard let self, let operationTask else { return }
+            self.status = changingTitle
+            do {
+                let outcome = try await Task.detached(priority: .userInitiated) {
+                    try FilePermissionService.apply(mode: newMode, owner: newOwner, to: urls)
+                }.value
+
+                var log = outcome.changed.map { url -> TransferLogEntry in
+                    let isDir = (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
+                    return TransferLogEntry(
+                        name: url.lastPathComponent,
                         action: .changed,
-                        isDirectory: (try? $0.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
+                        isDirectory: isDir,
+                        detail: self.permissionAppliedDetail(mode: newMode, owner: newOwner, isDirectory: isDir)
                     )
                 }
                 log += outcome.failures.map {
                     TransferLogEntry(name: $0.url.lastPathComponent, action: .failed, isDirectory: false, detail: $0.reason)
                 }
-                task.transferLog = log
-            }
-        ) { _, _, _ in
-            do {
-                outcome = try await Task.detached(priority: .userInitiated) {
-                    try FilePermissionService.apply(mode: newMode, owner: newOwner, to: urls)
-                }.value
+                operationTask.transferLog = log
+
+                if outcome.failures.isEmpty {
+                    self.status = L10n.format("status.permissions.changed", subject, clauses)
+                    TaskCenter.shared.finish(operationTask, outcome: .succeeded(nil))
+                    SystemSound.operationComplete?.play()
+                } else {
+                    let partial = L10n.format("status.permissionsChangedPartial", "\(outcome.changed.count)", "\(outcome.failures.count)")
+                    self.status = outcome.changed.isEmpty ? L10n.text("status.failed") : partial
+                    TaskCenter.shared.finish(operationTask, outcome: .failed(outcome.changed.isEmpty ? (outcome.failures.first?.reason ?? partial) : partial))
+                }
+                self.reload()
             } catch FilePermissionService.Failure.cancelled {
-                // 用户取消授权弹窗 → 映射成取消,活动中心标「已取消」而非失败。
-                throw CancellationError()
+                // 用户取消授权弹窗 → 标「已取消」而非失败。
+                self.status = L10n.text("status.cancelled")
+                TaskCenter.shared.finish(operationTask, outcome: .cancelled)
+            } catch {
+                self.status = L10n.text("status.failed")
+                TaskCenter.shared.finish(operationTask, outcome: .failed(error.localizedDescription))
             }
         }
+    }
+
+    /// 标题 / 状态栏用的「权限为 755、属主为 alice」描述片段（按实际要改的项拼）。
+    private func permissionChangeClauses(mode: UInt16?, owner: String?) -> String {
+        var parts: [String] = []
+        if let mode {
+            parts.append(L10n.format("status.permissions.modeClause", String(format: "%03o", Int(mode) & 0o777)))
+        }
+        if let owner, !owner.isEmpty {
+            parts.append(L10n.format("status.permissions.ownerClause", owner))
+        }
+        return parts.joined(separator: L10n.text("status.permissions.clauseSeparator"))
+    }
+
+    /// 活动中心逐文件「已更改」行的明细：`rwxr-xr-x (755) · alice`（只列实际改了的项）。
+    private func permissionAppliedDetail(mode: UInt16?, owner: String?, isDirectory: Bool) -> String? {
+        var parts: [String] = []
+        if let mode {
+            let symbolic = FileBrowserService.posixModeString(mode: mode, isDirectory: isDirectory, isSymbolicLink: false)
+            parts.append("\(symbolic) (\(String(format: "%03o", Int(mode) & 0o777)))")
+        }
+        if let owner, !owner.isEmpty {
+            parts.append(owner)
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
     /// 删除选中项后，键盘光标应落到的「邻居」URL。

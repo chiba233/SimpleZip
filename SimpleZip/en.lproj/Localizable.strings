@@ -1302,10 +1302,12 @@
 "gpgEncrypt.mode.bundle" = "Pack into one archive, then encrypt (.tar.gpg)";
 "gpgEncrypt.needsRecipientOrPassphrase" = "Add a recipient or a passphrase.";
 "gpgEncrypt.mixedKeyrings" = "Can't mix recipients from ~/.gnupg and SimpleZip's private keyring — one encryption uses one keyring.";
-"status.permissionsChanging" = "Updating permissions for %@…";
-"status.permissionsChangingMultiple" = "Updating permissions for %@ items…";
-"status.permissionsChanged" = "Updated permissions for %@";
-"status.permissionsChangedMultiple" = "Updated permissions for %@ items";
+"status.permissions.items" = "%@ items";
+"status.permissions.modeClause" = "mode %@";
+"status.permissions.ownerClause" = "owner %@";
+"status.permissions.clauseSeparator" = ", ";
+"status.permissions.changing" = "Updating %@ — %@…";
+"status.permissions.changed" = "Updated %@ — %@";
 "status.permissionsChangedPartial" = "Updated %@, failed %@";
 "file.permissions.chmodFailed" = "Could not change permissions (operation not permitted).";
 "status.gpgEncrypting" = "Encrypting %@…";

@@ -1302,10 +1302,12 @@
 "gpgEncrypt.mode.bundle" = "打包成一个归档再加密（.tar.gpg）";
 "gpgEncrypt.needsRecipientOrPassphrase" = "请添加收件人或设置密码。";
 "gpgEncrypt.mixedKeyrings" = "不能同时选 ~/.gnupg 和 SimpleZip 私有钥匙串的收件人——一次加密只能用一个钥匙串。";
-"status.permissionsChanging" = "正在更改 %@ 的权限…";
-"status.permissionsChangingMultiple" = "正在更改 %@ 个项目的权限…";
-"status.permissionsChanged" = "已更改 %@ 的权限";
-"status.permissionsChangedMultiple" = "已更改 %@ 个项目的权限";
+"status.permissions.items" = "%@ 个项目";
+"status.permissions.modeClause" = "权限为 %@";
+"status.permissions.ownerClause" = "属主为 %@";
+"status.permissions.clauseSeparator" = "、";
+"status.permissions.changing" = "更改 %@ 的%@…";
+"status.permissions.changed" = "已更改 %@ 的%@";
 "status.permissionsChangedPartial" = "成功 %@,失败 %@";
 "file.permissions.chmodFailed" = "无法更改权限（操作不被允许）。";
 "status.gpgEncrypting" = "正在加密 %@…";
