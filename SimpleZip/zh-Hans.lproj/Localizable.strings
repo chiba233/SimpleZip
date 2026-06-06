@@ -706,7 +706,7 @@
 "file.permissions.execute" = "执行";
 "file.permissions.class.owner" = "所有者";
 "file.permissions.class.group" = "群组";
-"file.permissions.class.everyone" = "所有人";
+"file.permissions.class.everyone" = "他人";
 "file.permissions.ownerLabel" = "所有者:";
 "file.permissions.ownerHint" = "更改所有者需要管理员授权。";
 "file.permissions.recursive" = "应用到文件夹内所有项目";
