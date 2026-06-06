@@ -296,6 +296,14 @@ struct ArchiveFileCommands: Commands {
             // ⌘Z / ⇧⌘Z：正在编辑文本（地址栏 / 内联重命名）时交给字段编辑器的 undo（撤销打字）；
             // 否则走主窗口的文件操作撤销栈（移动 / 粘贴 / 副本 / 重命名 / 删除）。按真实 first responder
             // 路由，不依赖 isTextInputFocused（内联重命名是 AppKit 字段编辑器，未必被它跟踪）。
+            //
+            // ⚠️ 顶部 global 菜单栏闪烁根因（务必别改回 `.disabled(空栈)`）：
+            // 我们用 `CommandGroup(replacing: .undoRedo)` 替换了系统 Undo/Redo。AppKit 对「编辑菜单里带 ⌘Z
+            // 的系统 Undo」有一套**原生菜单验证**；当这个被替换出来的 Undo 项处于 **disabled** 状态时（空撤销栈），
+            // AppKit 的原生 Undo 验证和 SwiftUI 的菜单重建会**反复争抢**，菜单栏 hover/打开时就一直闪、一级菜单
+            // 都难点开。一旦 Undo 变 enabled（做过一次文件操作后），验证路径稳定，闪就消失——这正是「重命名一次
+            // 就不闪」的现象。因此这里**只在没有窗口时禁用**（`model == nil`），空栈时保持 enabled：
+            // 点击/⌘Z 的动作闭包本就对空栈 no-op（或落到文本框原生 undo），不会误操作。
             Button(undoMenuTitle) {
                 if let text = NSApp.keyWindow?.firstResponder as? NSText, text.undoManager?.canUndo == true {
                     text.undoManager?.undo()
@@ -304,7 +312,7 @@ struct ArchiveFileCommands: Commands {
                 }
             }
             .keyboardShortcut("z", modifiers: [.command])
-            .disabled(!canUndoMenuItem)
+            .disabled(model == nil)
 
             Button(redoMenuTitle) {
                 if let text = NSApp.keyWindow?.firstResponder as? NSText, text.undoManager?.canRedo == true {
@@ -314,7 +322,7 @@ struct ArchiveFileCommands: Commands {
                 }
             }
             .keyboardShortcut("z", modifiers: [.command, .shift])
-            .disabled(!canRedoMenuItem)
+            .disabled(model == nil)
         }
 
         CommandGroup(replacing: .pasteboard) {
@@ -473,14 +481,10 @@ struct ArchiveFileCommands: Commands {
             responder.responds(to: #selector(NSText.paste(_:)))
     }
 
-    // 注意：以下四个**绝不能**读 `NSApp.keyWindow?.firstResponder`。
-    // 它们在 `Commands.body` 求值时被读取，而 AppKit 在菜单栏 hover / tracking 期间会**高频 validate**
-    // 菜单项；一旦这里实时读易变的 first responder（菜单 tracking 本身会改 first responder / keyWindow），
-    // 标题与 disabled 状态就会在 tracking 期间反复翻动 → 顶部 global 菜单栏一直闪、一级菜单都难打开
-    // （历史上 b56bc32 把标题/禁用改成实时读 `firstResponder.undoManager` 引入/放大了这个抖动）。
-    // 改为**只读 model 的稳定状态**（SwiftUI 观察、仅在真有 undo 操作时变）。文本框 undo 不丢：
-    // 无文件 undo 时菜单项 disabled → ⌘Z 顺响应链落到文本框原生 undo；有文件 undo 时点击闭包仍**先判**
-    // 文本响应者（在点击那一刻读 firstResponder，不在 validate 期读）→ 优先文本 undo。
+    // 标题只读 model 的稳定状态（SwiftUI 观察、仅真有 undo 操作时变），**绝不**在 `Commands.body` 里读
+    // `NSApp.keyWindow?.firstResponder`——那会在菜单 tracking 期间随 first responder 变化而翻动，引发闪。
+    // 文本框 undo 不丢：点击闭包在「点击那一刻」才判文本响应者并优先文本 undo（见 undo Button）。
+    // 撤销栈空/非空都用同一标题，`.disabled` 也只看 `model == nil`（见上方注释，空栈禁用会触发菜单栏闪）。
 
     private var undoMenuTitle: String {
         guard let actionName = model?.fileUndoActionName else {
@@ -494,14 +498,6 @@ struct ArchiveFileCommands: Commands {
             return L10n.text("menu.redo")
         }
         return L10n.format("menu.redoNamed", actionName)
-    }
-
-    private var canUndoMenuItem: Bool {
-        model?.fileUndoManager.canUndo == true
-    }
-
-    private var canRedoMenuItem: Bool {
-        model?.fileUndoManager.canRedo == true
     }
 }
 
