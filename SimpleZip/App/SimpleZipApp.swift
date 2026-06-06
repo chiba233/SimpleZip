@@ -473,36 +473,35 @@ struct ArchiveFileCommands: Commands {
             responder.responds(to: #selector(NSText.paste(_:)))
     }
 
+    // 注意：以下四个**绝不能**读 `NSApp.keyWindow?.firstResponder`。
+    // 它们在 `Commands.body` 求值时被读取，而 AppKit 在菜单栏 hover / tracking 期间会**高频 validate**
+    // 菜单项；一旦这里实时读易变的 first responder（菜单 tracking 本身会改 first responder / keyWindow），
+    // 标题与 disabled 状态就会在 tracking 期间反复翻动 → 顶部 global 菜单栏一直闪、一级菜单都难打开
+    // （历史上 b56bc32 把标题/禁用改成实时读 `firstResponder.undoManager` 引入/放大了这个抖动）。
+    // 改为**只读 model 的稳定状态**（SwiftUI 观察、仅在真有 undo 操作时变）。文本框 undo 不丢：
+    // 无文件 undo 时菜单项 disabled → ⌘Z 顺响应链落到文本框原生 undo；有文件 undo 时点击闭包仍**先判**
+    // 文本响应者（在点击那一刻读 firstResponder，不在 validate 期读）→ 优先文本 undo。
+
     private var undoMenuTitle: String {
-        guard !textResponderCanUndo, let actionName = model?.fileUndoActionName else {
+        guard let actionName = model?.fileUndoActionName else {
             return L10n.text("menu.undo")
         }
         return L10n.format("menu.undoNamed", actionName)
     }
 
     private var redoMenuTitle: String {
-        guard !textResponderCanRedo, let actionName = model?.fileRedoActionName else {
+        guard let actionName = model?.fileRedoActionName else {
             return L10n.text("menu.redo")
         }
         return L10n.format("menu.redoNamed", actionName)
     }
 
-    private var textResponderCanUndo: Bool {
-        guard let text = NSApp.keyWindow?.firstResponder as? NSText else { return false }
-        return text.undoManager?.canUndo == true
-    }
-
-    private var textResponderCanRedo: Bool {
-        guard let text = NSApp.keyWindow?.firstResponder as? NSText else { return false }
-        return text.undoManager?.canRedo == true
-    }
-
     private var canUndoMenuItem: Bool {
-        textResponderCanUndo || model?.fileUndoManager.canUndo == true
+        model?.fileUndoManager.canUndo == true
     }
 
     private var canRedoMenuItem: Bool {
-        textResponderCanRedo || model?.fileUndoManager.canRedo == true
+        model?.fileUndoManager.canRedo == true
     }
 }
 

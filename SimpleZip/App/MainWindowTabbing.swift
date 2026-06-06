@@ -6,7 +6,6 @@
 //
 
 import AppKit
-import Combine
 import SwiftUI
 
 /// 主窗口原生标签（macOS window tabs）相关常量。
@@ -133,138 +132,26 @@ enum MainWindowFactory {
     }
 }
 
-/// 把 SwiftUI 视图挂到宿主 `NSWindow` 上：给它打上标签标识 + 装上原生折叠搜索工具栏（#113）。
-/// 主要服务于普通启动时由 `WindowGroup` 自动建出的那个首窗（让它也能成为 `addTabbedWindow` 的宿主）。
-/// 工厂建出的窗口已经在创建时设好了标签属性，这里重复设也是幂等的；搜索工具栏对每个窗口各自装一套。
+/// 把 SwiftUI 视图挂到宿主 `NSWindow` 上，给它打上标签标识 —— 主要服务于普通启动时由
+/// `WindowGroup` 自动建出的那个首窗（让它也能成为 `addTabbedWindow` 的宿主）。
+/// 工厂建出的窗口已经在创建时设好了这些属性，这里重复设也是幂等的。
 struct WindowAccessor: NSViewRepresentable {
-    /// 本窗口的浏览器模型 —— 搜索工具栏绑它的 `searchText` / `searchFocusRequestID`。
-    let model: ArchiveBrowserModel
-
-    func makeCoordinator() -> Coordinator { Coordinator(model: model) }
-
     func makeNSView(context: Context) -> NSView {
         let view = NSView(frame: .zero)
-        DispatchQueue.main.async { context.coordinator.attach(to: view.window) }
+        DispatchQueue.main.async { Self.configure(view.window) }
         return view
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
-        context.coordinator.attach(to: nsView.window)
+        Self.configure(nsView.window)
     }
 
-    /// 持有本窗口的搜索工具栏控制器，生命周期跟随 SwiftUI 视图（= 窗口内容）。
-    @MainActor
-    final class Coordinator {
-        private let searchToolbar: SearchToolbarController
-        /// 搜索工具栏只装一次 —— 见 attach 里的说明。
-        private var didInstallToolbar = false
-        init(model: ArchiveBrowserModel) {
-            searchToolbar = SearchToolbarController(model: model)
-        }
-
-        func attach(to window: NSWindow?) {
-            guard let window else { return }
-            // 已是辅助窗口（Settings/About/Sparkle/sheet）不染标签属性、不装搜索栏 —— 它们不该并进主标签组。
-            if window.parent != nil { return }
-            window.tabbingMode = .automatic
-            window.tabbingIdentifier = MainWindow.tabbingIdentifier
-            window.identifier = MainWindow.windowIdentifier
-
-            // 搜索工具栏**只装一次**，且**异步**派发到 SwiftUI 更新事务之外再装。
-            // updateNSView 是在 SwiftUI 的同步更新过程里被调用的；若在这里直接改 `window.toolbar` /
-            // `toolbarStyle`，会触发标题栏重排并与 SwiftUI 的更新事务重入 → `EXC_BREAKPOINT` 崩溃，
-            // 且每次更新都重配工具栏 → 搜索框反复闪烁。原版只设便宜的标签属性（不触发布局）所以没事。
-            guard !didInstallToolbar else { return }
-            didInstallToolbar = true
-            DispatchQueue.main.async { [searchToolbar] in searchToolbar.install(on: window) }
-        }
+    private static func configure(_ window: NSWindow?) {
+        guard let window else { return }
+        // 已是辅助窗口（Settings/About/Sparkle/sheet）不染标签属性 —— 它们不该并进主标签组。
+        if window.parent != nil { return }
+        window.tabbingMode = .automatic
+        window.tabbingIdentifier = MainWindow.tabbingIdentifier
+        window.identifier = MainWindow.windowIdentifier
     }
-}
-
-/// #113 原生折叠搜索：把 `NSSearchToolbarItem` 装进主窗口标题栏工具栏，双向绑到 `ArchiveBrowserModel.searchText`。
-///
-/// 为什么不用 SwiftUI `.searchable`：macOS 平台**没有** `.searchToolbarBehavior(.minimize)`
-/// （SDK 里它标了 `@available(macOS, unavailable)`，仅 iOS/visionOS）；而本 app 用自定义 `TopBar`、
-/// 窗口上没有任何 `.toolbar{}`，`.searchable(.toolbar)` 因此渲染成一个**不折叠的大输入框**。
-/// `NSSearchToolbarItem` 自 macOS 11 起原生支持折叠：平时是放大镜图标，点开 / `beginSearchInteraction()`
-/// （⌘F / 菜单栏「查找」触发）才展开输入框 —— 正是用户要的 macOS 26 折叠搜索。
-@MainActor
-final class SearchToolbarController: NSObject, NSToolbarDelegate, NSSearchFieldDelegate {
-    private weak var model: ArchiveBrowserModel?
-    private let toolbar = NSToolbar(identifier: "SimpleZip.MainToolbar")
-    private let searchItem = NSSearchToolbarItem(itemIdentifier: .searchField)
-    private var cancellables = Set<AnyCancellable>()
-    /// 防止「model → 字段」与「字段 → model」相互回灌成无限循环。
-    private var isSyncingFromModel = false
-
-    init(model: ArchiveBrowserModel) {
-        self.model = model
-        super.init()
-
-        toolbar.delegate = self
-        toolbar.displayMode = .iconOnly
-        toolbar.allowsUserCustomization = false
-
-        searchItem.searchField.delegate = self
-        searchItem.searchField.placeholderString = L10n.text("search.prompt")
-        searchItem.resignsFirstResponderWithCancel = true
-
-        // model.searchText → 字段：外部清空 / 程序设值时把输入框同步过来（仅在值不同才写，避免回灌）。
-        model.$searchText
-            .receive(on: RunLoop.main)
-            .sink { [weak self] text in self?.syncFieldFromModel(text) }
-            .store(in: &cancellables)
-
-        // ⌘F / 菜单栏「查找」/ 右键「查找」自增 searchFocusRequestID → 展开并聚焦搜索框。
-        model.$searchFocusRequestID
-            .dropFirst()
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in self?.searchItem.beginSearchInteraction() }
-            .store(in: &cancellables)
-    }
-
-    /// 把工具栏装到窗口上（幂等：已是同一个就不重设）。
-    func install(on window: NSWindow) {
-        if window.toolbar !== toolbar { window.toolbar = toolbar }
-        window.toolbarStyle = .unified
-    }
-
-    private func syncFieldFromModel(_ text: String) {
-        let field = searchItem.searchField
-        guard field.stringValue != text else { return }
-        isSyncingFromModel = true
-        field.stringValue = text
-        isSyncingFromModel = false
-    }
-
-    // MARK: NSControlTextEditingDelegate
-
-    func controlTextDidChange(_ obj: Notification) {
-        guard !isSyncingFromModel, let model else { return }
-        let text = searchItem.searchField.stringValue
-        model.searchText = text
-        model.isSearchActive = !text.isEmpty
-    }
-
-    // MARK: NSToolbarDelegate
-
-    func toolbar(
-        _ toolbar: NSToolbar,
-        itemForItemIdentifier itemIdentifier: NSToolbarItem.Identifier,
-        willBeInsertedIntoToolbar flag: Bool
-    ) -> NSToolbarItem? {
-        itemIdentifier == .searchField ? searchItem : nil
-    }
-
-    func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.flexibleSpace, .searchField]
-    }
-
-    func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [.flexibleSpace, .searchField]
-    }
-}
-
-private extension NSToolbarItem.Identifier {
-    static let searchField = NSToolbarItem.Identifier("SimpleZip.searchField")
 }
