@@ -106,4 +106,66 @@ struct CompressionPresetTests {
         defaults.set(Data("not json".utf8), forKey: "SimpleZip.CompressionPresets.v1")
         #expect(store.load().isEmpty)
     }
+
+    // MARK: - 默认预设（Finder / NSService 一键简化压缩用）
+
+    @Test func defaultPresetRoundTrips() {
+        let (store, _) = makeStore()
+        let a = CompressionPreset(name: "a", options: ArchiveCreationOptions())
+        var bOptions = ArchiveCreationOptions()
+        bOptions.format = .sevenZip
+        bOptions.compressionLevel = .maximum
+        let b = CompressionPreset(name: "b", options: bOptions)
+        store.add(a); store.add(b)
+
+        #expect(store.defaultPresetID() == nil)
+        #expect(store.defaultPreset() == nil)
+
+        store.setDefaultPresetID(b.id)
+        #expect(store.defaultPresetID() == b.id)
+        let def = try! #require(store.defaultPreset())
+        #expect(def.name == "b")
+        #expect(def.options.format == .sevenZip)
+        #expect(def.options.compressionLevel == .maximum)
+    }
+
+    @Test func setDefaultIgnoresUnknownIDAndClearsOnNil() {
+        let (store, _) = makeStore()
+        let a = CompressionPreset(name: "a", options: ArchiveCreationOptions())
+        store.add(a)
+        store.setDefaultPresetID(a.id)
+        #expect(store.defaultPresetID() == a.id)
+
+        // 未知 id 不改变现有默认。
+        store.setDefaultPresetID(UUID())
+        #expect(store.defaultPresetID() == a.id)
+
+        // nil 清除。
+        store.setDefaultPresetID(nil)
+        #expect(store.defaultPresetID() == nil)
+    }
+
+    @Test func removingDefaultClearsDefault() {
+        let (store, _) = makeStore()
+        let a = CompressionPreset(name: "a", options: ArchiveCreationOptions())
+        let b = CompressionPreset(name: "b", options: ArchiveCreationOptions())
+        store.add(a); store.add(b)
+        store.setDefaultPresetID(a.id)
+
+        store.remove(id: a.id)
+        #expect(store.defaultPresetID() == nil)
+        #expect(store.defaultPreset() == nil)
+        // 删非默认的不影响默认。
+        store.setDefaultPresetID(b.id)
+        store.remove(id: UUID())
+        #expect(store.defaultPresetID() == b.id)
+    }
+
+    @Test func defaultIDDanglingPointerTreatedAsUnset() {
+        let (store, defaults) = makeStore()
+        // 手动写一个指向不存在预设的默认 id（模拟历史数据）。
+        defaults.set(UUID().uuidString, forKey: "SimpleZip.CompressionPresets.defaultID.v1")
+        #expect(store.defaultPresetID() == nil)
+        #expect(store.defaultPreset() == nil)
+    }
 }

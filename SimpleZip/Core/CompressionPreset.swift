@@ -44,9 +44,34 @@ struct CompressionPreset: Codable, Identifiable, Equatable {
 final class CompressionPresetStore {
     private let defaults: UserDefaults
     private let storageKey = "SimpleZip.CompressionPresets.v1"
+    /// 「默认预设」id —— Finder / NSService 一键「简化压缩」自动套用它的等级 / 方法 / 加密设置（格式仍由各入口决定）。
+    private let defaultIDKey = "SimpleZip.CompressionPresets.defaultID.v1"
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
+    }
+
+    /// 当前默认预设的 id（没设 / 已被删 → nil）。
+    func defaultPresetID() -> UUID? {
+        guard let raw = defaults.string(forKey: defaultIDKey), let id = UUID(uuidString: raw) else { return nil }
+        // 防御：默认 id 指向的预设已被删 → 视为未设。
+        return load().contains { $0.id == id } ? id : nil
+    }
+
+    /// 设 / 清默认预设。传 nil 清除；传不存在的 id 不写入（保持「默认指向真实预设」不变量）。
+    func setDefaultPresetID(_ id: UUID?) {
+        guard let id else {
+            defaults.removeObject(forKey: defaultIDKey)
+            return
+        }
+        guard load().contains(where: { $0.id == id }) else { return }
+        defaults.set(id.uuidString, forKey: defaultIDKey)
+    }
+
+    /// 取默认预设（已 sanitized，不含密码 / GPG 私钥）。没设 / 没有预设 → nil。
+    func defaultPreset() -> CompressionPreset? {
+        guard let id = defaultPresetID() else { return nil }
+        return load().first { $0.id == id }
     }
 
     /// 读出全部预设。数据缺失 / 损坏 → 返回空数组（不抛、不崩）。
@@ -81,12 +106,15 @@ final class CompressionPresetStore {
         return all
     }
 
-    /// 按 id 删除。返回写入后的完整列表。
+    /// 按 id 删除。返回写入后的完整列表。删的若是默认预设 → 一并清掉默认指向。
     @discardableResult
     func remove(id: UUID) -> [CompressionPreset] {
         var all = load()
         all.removeAll { $0.id == id }
         save(all)
+        if defaults.string(forKey: defaultIDKey) == id.uuidString {
+            defaults.removeObject(forKey: defaultIDKey)
+        }
         return all
     }
 }
