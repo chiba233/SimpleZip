@@ -238,6 +238,8 @@ struct FormatPresetEditorSheet: View {
                 }
             }
             .formStyle(.grouped)
+            // 高度跟随内容 —— 选项少的格式（zip）不再底部留一大片空白；多的（7z）自然变高。
+            .fixedSize(horizontal: false, vertical: true)
 
             Divider()
             HStack {
@@ -251,7 +253,7 @@ struct FormatPresetEditorSheet: View {
             }
             .padding(18)
         }
-        .frame(width: 480, height: 520)
+        .frame(width: 480)
     }
 
     /// 一行：左边「启用」勾选，右边值控件（没勾时禁用 + 变淡）。
