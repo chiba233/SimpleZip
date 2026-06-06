@@ -139,14 +139,15 @@ struct FormatPresetEditorSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(L10n.format("settings.defaults.editorTitle", format.title))
-                .font(.headline)
+                .font(.title3)
+                .fontWeight(.semibold)
                 .padding([.horizontal, .top], 18)
-                .padding(.bottom, 4)
+                .padding(.bottom, 2)
             Text(L10n.text("settings.defaults.editorHint"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 18)
-                .padding(.bottom, 8)
+                .padding(.bottom, 2)
 
             Form {
                 if format.supportsCompressionLevel {
