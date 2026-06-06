@@ -75,6 +75,8 @@ final class ArchiveBrowserModel: ObservableObject {
     @Published var gpgEncryptRequest: GPGEncryptRequest?
     @Published var extractArchiveRequest: ExtractArchiveRequest?
     @Published var extractSelectionRequest: ExtractSelectionRequest?
+    /// 右键「权限与属主…」的待确认请求 —— 非 nil 时 ContentView 弹 FilePermissionsEditorSheet。
+    @Published var permissionsEditRequest: FilePermissionsEditRequest?
     @Published var operationProgress = ArchiveProgressState()
     /// 0.1.10 拆文件前是 `private(set)`，但 setter 现在跑在 +OperationLifecycle extension 里，
     /// `private(set)` 会拒绝 extension 写入；降到默认 internal(set) —— 模块内可读写。

@@ -216,6 +216,14 @@ struct ContentView: View {
                 model.extractArchiveRequest = nil
             }
         }
+        .sheet(item: $model.permissionsEditRequest) { request in
+            FilePermissionsEditorSheet(request: request) { mode, owner, urls in
+                model.permissionsEditRequest = nil
+                model.applyPermissions(mode: mode, owner: owner, to: urls)
+            } cancel: {
+                model.permissionsEditRequest = nil
+            }
+        }
         .sheet(item: $pendingSZSVerification) { pending in
             SZSVerificationSheet(
                 sourceURL: pending.sourceURL,

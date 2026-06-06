@@ -199,6 +199,10 @@ final class FileBrowserService {
             .localizedTypeDescriptionKey
         ]
         var applicationNameCache: [String: String] = [:]
+        // 仅当「权限 / 属主」列至少有一个启用时,才逐项 stat 取 POSIX 元数据。
+        // attributesOfItem 会对 ~/Desktop、~/Downloads 这类 TCC 受保护目录发起一次带属主 / ACL 属性的
+        // getattrlist,从而触发系统权限弹窗;两列默认都关,默认情况下不该平白申请这些目录的访问权限。
+        let wantsPosixMetadata = AppPreferences.showFilePermissionsColumn || AppPreferences.showFileOwnerColumn
         return urls.compactMap { fileURL in
             guard let values = try? fileURL.resourceValues(forKeys: resourceKeys) else {
                 return nil
@@ -227,7 +231,8 @@ final class FileBrowserService {
             applicationNameCache[applicationKey] = applicationName
 
             // Unix 权限 / 属主 —— lstat 语义（不跟随符号链接,显示链接自身的权限与属主）。取不到就留空 / 退回 uid。
-            let posixAttributes = try? fileManager.attributesOfItem(atPath: fileURL.path)
+            // 只在列启用时 stat,避免对受保护目录平白触发 TCC 弹窗（见上方 wantsPosixMetadata）。
+            let posixAttributes = wantsPosixMetadata ? (try? fileManager.attributesOfItem(atPath: fileURL.path)) : nil
             let permissions: String = (posixAttributes?[.posixPermissions] as? NSNumber).map {
                 Self.posixModeString(mode: $0.uint16Value, isDirectory: isDirectory, isSymbolicLink: isSymbolicLink)
             } ?? ""

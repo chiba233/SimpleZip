@@ -291,6 +291,46 @@ extension ArchiveBrowserModel {
         alert.runModal()
     }
 
+    // MARK: - Task4 权限 / 属主（chmod / chown）
+
+    /// 右键「权限与属主…」：从选中的真实文件构造编辑请求（仅文件夹浏览模式;虚拟只读浏览不适用）。
+    func editSelectedPermissions() {
+        guard case .folder = mode else { return }
+        let items = selectedFileItems
+        guard let first = items.first else { return }
+        let initialMode = FilePermissionService.currentMode(of: first.url) ?? 0o644
+        let initialOwner = FilePermissionService.currentOwner(of: first.url)
+        let mixed = items.dropFirst().contains { FilePermissionService.currentMode(of: $0.url) != initialMode }
+        permissionsEditRequest = FilePermissionsEditRequest(
+            urls: items.map(\.url),
+            title: items.count == 1 ? first.displayName : L10n.format("file.permissions.multiTitle", "\(items.count)"),
+            initialMode: initialMode,
+            initialOwner: initialOwner,
+            isDirectory: first.isDirectory,
+            mixedSelection: mixed
+        )
+    }
+
+    /// 应用权限 / 属主改动。chmod 先免提权直改,失败的 + 改属主一起走单次系统授权;用户取消静默,其它失败弹错误。
+    func applyPermissions(mode newMode: UInt16?, owner newOwner: String?, to urls: [URL]) {
+        do {
+            var chmodFailed: [URL] = []
+            if let newMode {
+                chmodFailed = FilePermissionService.directChmod(newMode, to: urls)
+            }
+            let chmodArg: (mode: UInt16, urls: [URL])? = (newMode != nil && !chmodFailed.isEmpty) ? (newMode!, chmodFailed) : nil
+            let chownArg: (owner: String, urls: [URL])? = (newOwner != nil && !newOwner!.isEmpty) ? (newOwner!, urls) : nil
+            if chmodArg != nil || chownArg != nil {
+                try FilePermissionService.privileged(chmod: chmodArg, chown: chownArg)
+            }
+            reload()
+        } catch FilePermissionService.Failure.cancelled {
+            // 用户在授权弹窗点了取消 —— 静默,不报错。
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     /// 删除选中项后，键盘光标应落到的「邻居」URL。
     /// 取 fileItems 顺序里**第一个被删项的前一项**（一定是幸存项）；若删的就是开头，则取被删之后第一个幸存项。
     /// 全删空 / 算不出 → nil。用 fileItems（模型排序顺序）近似视觉顺序，符合「回到上一个文件」的直觉。

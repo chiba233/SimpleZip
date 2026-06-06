@@ -50,6 +50,10 @@ struct FileTable: View {
             hiddenWithGrouping: hiddenWithGrouping,
             rowDensity: rowDensity
         )
+        // 权限 / 属主列是惰性填充的（默认不 stat,避免对 Desktop/Downloads 触发 TCC）。
+        // 用户刚启用某列时,当前已加载的 FileItem 还没有这份数据 —— 触发一次重载补齐。
+        .onChange(of: showPermissionsColumn) { on in if on { model.reload() } }
+        .onChange(of: showOwnerColumn) { on in if on { model.reload() } }
     }
 }
 
@@ -797,6 +801,8 @@ private struct FileNSOutlineView: NSViewRepresentable {
             // ④ 在 Finder 中显示 / 简介 / 分组
             menu.addItem(.separator())
             menu.addItem(menuItem(L10n.text("file.getInfo"), systemImage: "info.circle", action: #selector(getInfoSelected)))
+            // 权限与属主（chmod / chown）—— 真实文件浏览才有意义（虚拟只读浏览上面已 return）。
+            menu.addItem(menuItem(L10n.text("file.permissions.menuItem"), systemImage: "lock.shield", action: #selector(editPermissionsSelected)))
             menu.addItem(menuItem(L10n.text("button.revealInFinder"), systemImage: "arrow.up.forward.app", action: #selector(revealSelected)))
             appendFolderGroupingMenu(to: menu)
         }
@@ -990,6 +996,10 @@ private struct FileNSOutlineView: NSViewRepresentable {
         /// 「显示简介」—— 右键菜单入口，复用 model 上那份实现（菜单栏 File 菜单也走它，避免两份逻辑漂移）。
         @objc private func getInfoSelected() {
             model.showGetInfoForSelection()
+        }
+
+        @objc private func editPermissionsSelected() {
+            model.editSelectedPermissions()
         }
 
         /// 空白处右键专用：reveal「我现在看的这个文件夹」本身，忽略 selection。
