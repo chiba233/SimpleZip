@@ -286,6 +286,8 @@ enum AppPreferences {
         nonisolated static let showFileSymlinkColumn = "showFileSymlinkColumn"
         nonisolated static let showFilePermissionsColumn = "showFilePermissionsColumn"
         nonisolated static let showFileOwnerColumn = "showFileOwnerColumn"
+        /// #115 每格式默认压缩设置（CompressionDefaultsStore 的存储 key）—— 备份导出 / 导入 / 恢复默认都覆盖它。
+        nonisolated static let compressionFormatPresets = "SimpleZip.CompressionFormatPresets.v1"
         nonisolated static let showArchiveKindColumn = "showArchiveKindColumn"
         nonisolated static let showArchiveSizeColumn = "showArchiveSizeColumn"
         nonisolated static let showArchiveModifiedColumn = "showArchiveModifiedColumn"
@@ -1012,7 +1014,19 @@ enum AppPreferences {
             values[Key.fileFolderGrouping] = fileFolderGroupingEntries
             values[Key.hiddenGroupPerFolderExpanded] = Array(hiddenGroupExpandedFolders)
         }
+        // #115 默认压缩设置：存的是 JSON Data,转成 JSON 对象塞进 payload（Data 本身不是 JSON 可序列化类型）。
+        if let presets = compressionFormatPresetsExportValue() {
+            values[Key.compressionFormatPresets] = presets
+        }
         return PreferencesPayloadCodec.makePayload(values: values)
+    }
+
+    /// 默认压缩设置的导出值：把存盘的 JSON Data 还原成 JSON 对象（[String: Any]）以便进 payload;
+    /// 没存过 / 损坏返回 nil。导入时再 `JSONSerialization` 写回 Data（见 `importPayload`）。
+    nonisolated static func compressionFormatPresetsExportValue() -> Any? {
+        guard let data = defaults.data(forKey: Key.compressionFormatPresets),
+              let object = try? JSONSerialization.jsonObject(with: data) else { return nil }
+        return object
     }
 
     /// 把一份外部 payload 写回 UserDefaults。
@@ -1034,6 +1048,14 @@ enum AppPreferences {
         for (key, value) in values where allowed.contains(key) {
             defaults.set(value, forKey: key)
         }
+        // #115 默认压缩设置（JSON 对象 → Data）。还原备份语义:备份里有就写、没有就清掉本机现有的。
+        // 它不在 `exportableUserDefaultsKeys` 里（存的是 Data 而非简单标量,得 JSON 重编码），故在此单独处理。
+        defaults.removeObject(forKey: Key.compressionFormatPresets)
+        if let presetsObject = values[Key.compressionFormatPresets],
+           JSONSerialization.isValidJSONObject(presetsObject),
+           let data = try? JSONSerialization.data(withJSONObject: presetsObject) {
+            defaults.set(data, forKey: Key.compressionFormatPresets)
+        }
     }
 
     /// 把所有可导出 key + 按文件夹记忆全部抹掉 + 顺手把 Keychain 里的预设密码也清掉。
@@ -1042,6 +1064,8 @@ enum AppPreferences {
         for key in exportableUserDefaultsKeys + perFolderMemoryKeys {
             defaults.removeObject(forKey: key)
         }
+        // #115 默认压缩设置不在白名单里（单独 JSON 处理），恢复默认时也要一并清掉。
+        defaults.removeObject(forKey: Key.compressionFormatPresets)
         PresetPasswordStore.clear()
     }
 

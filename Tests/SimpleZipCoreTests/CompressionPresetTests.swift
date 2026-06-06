@@ -221,4 +221,31 @@ struct CompressionPresetTests {
         #expect(store.hasPreset(for: .sevenZip) == false)
         #expect(store.hasPreset(for: .zip))            // 互不影响
     }
+
+    /// #115 备份覆盖:默认压缩设置存的是 JSON Data,备份导出要把它转成 JSON 对象、导入再 JSON 重编码回 Data。
+    /// 这条守住那段「Data ↔ JSON 对象」round-trip —— 也是 `exportablePayload` / `importPayload` 实际依赖的逻辑。
+    @Test func formatPresetSurvivesBackupJSONRoundTrip() throws {
+        let key = AppPreferences.Key.compressionFormatPresets
+        let suiteA = UserDefaults(suiteName: "SimpleZipTests.backupA.\(UUID().uuidString)")!
+        let storeA = CompressionDefaultsStore(defaults: suiteA)
+        var options = ArchiveCreationOptions()
+        options.compressionLevel = .maximum
+        storeA.save(CompressionFormatPreset(format: .sevenZip, includedFields: [.level], options: options))
+
+        // 模拟备份导出:读存盘 Data → JSON 对象（必须是合法 JSON 对象,否则进不了 payload）。
+        let exportedData = try #require(suiteA.data(forKey: key))
+        let jsonObject = try JSONSerialization.jsonObject(with: exportedData)
+        #expect(JSONSerialization.isValidJSONObject(jsonObject))
+
+        // 模拟备份导入:JSON 对象 → Data → 写进另一台机器的 suite。
+        let reEncoded = try JSONSerialization.data(withJSONObject: jsonObject)
+        let suiteB = UserDefaults(suiteName: "SimpleZipTests.backupB.\(UUID().uuidString)")!
+        suiteB.set(reEncoded, forKey: key)
+
+        let storeB = CompressionDefaultsStore(defaults: suiteB)
+        let restored = try #require(storeB.preset(for: .sevenZip))
+        #expect(restored.includedFields == [.level])
+        #expect(restored.options.compressionLevel == .maximum)
+        #expect(restored.format == .sevenZip)
+    }
 }

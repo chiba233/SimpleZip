@@ -112,7 +112,8 @@ struct CompressionFormatPreset: Codable, Identifiable, Equatable {
 /// 密码 / GPG 私钥永不入库（见 `sanitizedForStorage()`）。
 final class CompressionDefaultsStore {
     private let defaults: UserDefaults
-    private let storageKey = "SimpleZip.CompressionFormatPresets.v1"
+    /// 与 `AppPreferences.Key.compressionFormatPresets` 同一个 key —— 备份导出 / 导入 / 恢复默认据此覆盖。
+    private let storageKey = AppPreferences.Key.compressionFormatPresets
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
