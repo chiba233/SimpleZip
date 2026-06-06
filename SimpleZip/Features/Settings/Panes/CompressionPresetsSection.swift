@@ -2,215 +2,161 @@
 //  CompressionPresetsSection.swift
 //  SimpleZip
 //
-//  #115 压缩预设 GUI —— 设置 → 压缩 → 默认值。
-//  列出 / 增删 / 编辑命名预设，并指定一个「默认预设」：Finder / NSService 一键「简化压缩」会自动套用它的
-//  可复用设置（等级 / 方法 / solid 等；密码 / GPG 私钥不随预设走 —— 见 CompressionPreset.sanitized()）。
-//  纯 UI；持久化全交给 Core 的 CompressionPresetStore。
+//  #115（重做）设置 → 压缩 → 默认值：**按格式**配一份完整的可复用压缩选项。
+//  每个格式（zip / 7z / rar / tar.gz …）最多一份默认值，开关控制「这个格式要不要配默认值」。
+//  这是**新写的设置 UI**（不复用创建对话框）；持久化交给 Core 的 CompressionDefaultsStore。
+//  Finder / NSService 一键压缩按目标格式取它；创建对话框可勾选「使用本格式默认值」消费它。
 //
 
 import SwiftUI
 
-/// 压缩预设管理区（嵌进 ArchivePane 的一个 Section）。
-struct CompressionPresetsSection: View {
-    private let store = CompressionPresetStore()
+struct CompressionDefaultsSection: View {
+    private let store = CompressionDefaultsStore()
 
-    @State private var presets: [CompressionPreset] = []
-    @State private var defaultID: UUID?
-    /// 非 nil = 正在编辑 / 新建（弹编辑 sheet）。
-    @State private var editorTarget: PresetEditorTarget?
+    /// 当前正在编辑哪个格式的默认值。
+    @State private var format: ArchiveCreateFormat = .zip
+    /// 这个格式是否启用了默认值（= store 里有没有这一份）。
+    @State private var enabled = false
+    /// 编辑中的整套选项（启用时绑定到各控件，变化即存）。
+    @State private var options = ArchiveCreationOptions()
+
+    /// 可配默认值的格式（压缩相关；DMG 是挂载不在内）。
+    private let selectableFormats: [ArchiveCreateFormat] = [.zip, .sevenZip, .rar, .tar, .tarGzip, .gzip, .bzip2, .xz]
+    private let dictionarySizeOptions = [1, 2, 4, 8, 16, 24, 32, 48, 64, 96, 128, 192, 256]
+    private let wordSizeOptions = [16, 24, 32, 48, 64, 96, 128, 192, 256, 273]
+    private var maxThreadCount: Int { max(1, ProcessInfo.processInfo.activeProcessorCount) }
 
     var body: some View {
-        Section(L10n.text("settings.presets.title")) {
-            Text(L10n.text("settings.presets.description"))
+        Section(L10n.text("settings.defaults.title")) {
+            Text(L10n.text("settings.defaults.description"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            if presets.isEmpty {
-                Text(L10n.text("settings.presets.empty"))
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .padding(.vertical, 2)
-            } else {
-                ForEach(presets) { preset in
-                    presetRow(preset)
-                    if preset.id != presets.last?.id { Divider() }
+            Picker(L10n.text("settings.defaults.format"), selection: $format) {
+                ForEach(selectableFormats) { format in
+                    Text(format.title).tag(format)
                 }
             }
+            .onChange(of: format) { _ in loadForCurrentFormat() }
 
-            Button {
-                editorTarget = PresetEditorTarget(preset: CompressionPreset(name: "", options: ArchiveCreationOptions()), isNew: true)
-            } label: {
-                Label(L10n.text("settings.presets.add"), systemImage: "plus")
-            }
-        }
-        .onAppear(perform: reload)
-        .sheet(item: $editorTarget) { target in
-            CompressionPresetEditorSheet(preset: target.preset, isNew: target.isNew) { saved in
-                if target.isNew {
-                    store.add(saved)
-                } else {
-                    store.update(saved)
-                }
-                editorTarget = nil
-                reload()
-            } onCancel: {
-                editorTarget = nil
-            }
-        }
-    }
-
-    private func presetRow(_ preset: CompressionPreset) -> some View {
-        HStack(spacing: 10) {
-            // 设为默认（单选）：点圆点切换。默认预设 = Finder 一键简化压缩用的那个。
-            Button {
-                store.setDefaultPresetID(preset.id)
-                reload()
-            } label: {
-                Image(systemName: defaultID == preset.id ? "largecircle.fill.circle" : "circle")
-                    .foregroundStyle(defaultID == preset.id ? Color.accentColor : .secondary)
-            }
-            .buttonStyle(.borderless)
-            .help(L10n.text("settings.presets.makeDefault"))
-
-            VStack(alignment: .leading, spacing: 1) {
-                HStack(spacing: 6) {
-                    Text(preset.name.isEmpty ? L10n.text("settings.presets.unnamed") : preset.name)
-                    if defaultID == preset.id {
-                        Text(L10n.text("settings.presets.default"))
-                            .font(.caption2)
-                            .padding(.horizontal, 5).padding(.vertical, 1)
-                            .background(Color.accentColor.opacity(0.18), in: Capsule())
+            Toggle(L10n.text("settings.defaults.enable"), isOn: $enabled)
+                .onChange(of: enabled) { on in
+                    if on {
+                        options.format = format
+                        store.setOptions(options, for: format)
+                    } else {
+                        store.reset(for: format)
                     }
                 }
-                Text(summary(preset.options))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
 
-            Spacer()
-
-            Button(L10n.text("settings.presets.edit")) {
-                editorTarget = PresetEditorTarget(preset: preset, isNew: false)
-            }
-            .buttonStyle(.borderless)
-
-            Button {
-                store.remove(id: preset.id)
-                reload()
-            } label: {
-                Image(systemName: "trash")
-            }
-            .buttonStyle(.borderless)
-            .help(L10n.text("file.delete"))
-        }
-        .padding(.vertical, 2)
-    }
-
-    private func reload() {
-        presets = store.load()
-        defaultID = store.defaultPresetID()
-    }
-
-    /// 一行摘要：格式 · 等级（· 7z 方法）。
-    private func summary(_ options: ArchiveCreationOptions) -> String {
-        var parts: [String] = [options.format.title]
-        if options.format.supportsCompressionLevel {
-            parts.append(options.compressionLevel.title)
-        }
-        if options.format == .sevenZip, options.sevenZipMethod != .automatic {
-            parts.append(options.sevenZipMethod.title)
-        }
-        return parts.joined(separator: " · ")
-    }
-}
-
-/// sheet(item:) 需要 Identifiable 的载荷：包住「在编辑哪个预设 + 是否新建」。
-private struct PresetEditorTarget: Identifiable {
-    let id = UUID()
-    var preset: CompressionPreset
-    let isNew: Bool
-}
-
-/// 预设编辑表单：名称 + 格式 + 随格式自适应的等级 / 7z 方法 / solid。
-/// 密码 / GPG 这类逐次操作字段**不在预设里编辑**（存储时也会被 sanitized 抹掉）。
-struct CompressionPresetEditorSheet: View {
-    @State private var name: String
-    @State private var options: ArchiveCreationOptions
-    let isNew: Bool
-    let onSave: (CompressionPreset) -> Void
-    let onCancel: () -> Void
-
-    private let presetID: UUID
-
-    /// 预设可选的格式（压缩相关；排除 DMG 挂载 / RAR 创建需外部工具）。
-    private let selectableFormats: [ArchiveCreateFormat] = [.zip, .sevenZip, .tar, .tarGzip, .gzip, .bzip2, .xz]
-
-    init(preset: CompressionPreset, isNew: Bool, onSave: @escaping (CompressionPreset) -> Void, onCancel: @escaping () -> Void) {
-        _name = State(initialValue: preset.name)
-        _options = State(initialValue: preset.options)
-        self.presetID = preset.id
-        self.isNew = isNew
-        self.onSave = onSave
-        self.onCancel = onCancel
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(isNew ? L10n.text("settings.presets.editor.titleNew") : L10n.text("settings.presets.editor.titleEdit"))
-                .font(.headline)
-                .padding([.horizontal, .top], 18)
-                .padding(.bottom, 10)
-
-            Form {
-                Section {
-                    TextField(L10n.text("settings.presets.editor.name"), text: $name)
-
-                    Picker(L10n.text("settings.presets.editor.format"), selection: $options.format) {
-                        ForEach(selectableFormats) { format in
-                            Text(format.title).tag(format)
-                        }
+            if enabled {
+                optionControls
+                    // 任何选项变化即存（已 sanitize；不含密码 / GPG）。
+                    .onChange(of: options) { _ in
+                        store.setOptions(options, for: format)
                     }
+            }
+        }
+        .onAppear(perform: loadForCurrentFormat)
+    }
 
-                    if options.format.supportsCompressionLevel {
-                        Picker(L10n.text("settings.presets.editor.level"), selection: $options.compressionLevel) {
-                            ForEach(CompressionLevel.allCases) { level in
-                                Text(level.title).tag(level)
-                            }
-                        }
-                    }
+    /// 全套可复用选项 —— 按格式自适应显示。逐次操作字段（密码 / GPG / 删除源文件）**不在默认值里**。
+    @ViewBuilder private var optionControls: some View {
+        if format.supportsCompressionLevel {
+            Picker(L10n.text("archive.compressionLevel"), selection: $options.compressionLevel) {
+                ForEach(CompressionLevel.allCases) { level in
+                    Text(level.title).tag(level)
+                }
+            }
+        }
 
-                    // 7z 专属：方法 + 固实。其它格式不显示（格式自适应）。
-                    if options.format == .sevenZip {
-                        Picker(L10n.text("settings.presets.editor.method"), selection: $options.sevenZipMethod) {
-                            ForEach(SevenZipCompressionMethod.allCases) { method in
-                                Text(method.title).tag(method)
-                            }
-                        }
-                        Toggle(L10n.text("settings.presets.editor.solid"), isOn: $options.sevenZipSolidArchive)
-                    }
-                } footer: {
-                    Text(L10n.text("settings.presets.editor.footer"))
-                        .font(.caption)
+        if format.supportsUpdateMode {
+            Picker(L10n.text("archive.updateMode"), selection: $options.updateMode) {
+                ForEach(ArchiveUpdateMode.allCases) { mode in
+                    Text(mode.title).tag(mode)
+                }
+            }
+        }
+
+        // ZIP 加密算法（AES-256 / ZipCrypto）—— 与密码无关的可复用偏好。
+        if format == .zip {
+            Picker(L10n.text("archive.encryptionMethod"), selection: $options.encryptionMethod) {
+                ForEach(ArchiveEncryptionMethod.allCases) { method in
+                    Text(method.title).tag(method)
+                }
+            }
+        }
+
+        if format == .sevenZip {
+            Picker(L10n.text("archive.7z.method"), selection: $options.sevenZipMethod) {
+                ForEach(SevenZipCompressionMethod.allCases) { method in
+                    Text(method.title).tag(method)
+                }
+            }
+            Picker(L10n.text("archive.7z.dictionarySize"), selection: $options.sevenZipDictionarySizeMB) {
+                ForEach(dictionarySizeOptions, id: \.self) { Text("\($0) MB").tag($0) }
+            }
+            Picker(L10n.text("archive.7z.wordSize"), selection: $options.sevenZipWordSize) {
+                ForEach(wordSizeOptions, id: \.self) { Text("\($0)").tag($0) }
+            }
+            HStack {
+                Text(L10n.text("archive.7z.threads"))
+                Spacer()
+                Stepper(value: $options.sevenZipThreadCount, in: 0...maxThreadCount) {
+                    Text(options.sevenZipThreadCount == 0 ? L10n.text("archive.7z.method.automatic") : "\(options.sevenZipThreadCount)")
                         .foregroundStyle(.secondary)
                 }
             }
-            .formStyle(.grouped)
-
-            Divider()
-            HStack {
-                Spacer()
-                Button(L10n.text("button.cancel"), role: .cancel) { onCancel() }
-                    .keyboardShortcut(.cancelAction)
-                Button(L10n.text("button.save")) {
-                    var clean = options
-                    clean.format = options.format
-                    onSave(CompressionPreset(id: presetID, name: name.trimmingCharacters(in: .whitespacesAndNewlines), options: clean))
+            Toggle(L10n.text("archive.7z.solid"), isOn: $options.sevenZipSolidArchive)
+            if options.sevenZipSolidArchive {
+                Picker(L10n.text("archive.7z.solidBlockSize"), selection: $options.sevenZipSolidBlockSize) {
+                    ForEach(SevenZipSolidBlockSize.allCases) { Text($0.title).tag($0) }
                 }
-                .keyboardShortcut(.defaultAction)
-                .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
-            .padding(18)
+            Toggle(L10n.text("archive.7z.storeSymbolicLinks"), isOn: $options.sevenZipStoreSymbolicLinks)
+            Toggle(L10n.text("archive.7z.storeHardLinks"), isOn: $options.sevenZipStoreHardLinks)
+            Toggle(L10n.text("archive.7z.compressSharedFiles"), isOn: $options.sevenZipCompressSharedFiles)
         }
-        .frame(width: 460, height: 380)
+
+        // 路径模式：7z 和支持「更新模式」的格式都用得上。
+        if format == .sevenZip || format.supportsUpdateMode {
+            Picker(L10n.text("archive.7z.pathMode"), selection: $options.sevenZipPathMode) {
+                ForEach(SevenZipPathMode.allCases) { Text($0.title).tag($0) }
+            }
+        }
+
+        // 加密文件名（7z / rar，需配密码时才生效；作为偏好仍可在默认值里设）。
+        if format == .sevenZip || format == .rar {
+            Toggle(L10n.text("archive.7z.encryptFileNames"), isOn: $options.sevenZipEncryptFileNames)
+        }
+
+        if format.supportsRawParameters {
+            TextField(L10n.text("archive.parameters"), text: $options.rawParameters)
+                .textFieldStyle(.roundedBorder)
+        }
+
+        if format.supportsExcludeRules {
+            Toggle(L10n.text("archive.skipDSStore"), isOn: $options.skipDSStore)
+            Toggle(L10n.text("archive.skipHiddenFiles"), isOn: $options.skipHiddenFiles)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(L10n.text("archive.customExcludes")).font(.caption)
+                TextEditor(text: $options.customExcludes)
+                    .font(.system(.body, design: .monospaced))
+                    .frame(height: 56)
+                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(nsColor: .separatorColor)))
+            }
+        }
+    }
+
+    private func loadForCurrentFormat() {
+        if let stored = store.options(for: format) {
+            enabled = true
+            options = stored
+        } else {
+            enabled = false
+            var fresh = ArchiveCreationOptions()
+            fresh.format = format
+            options = fresh
+        }
     }
 }

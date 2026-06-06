@@ -24,10 +24,18 @@ struct CompressionPreset: Codable, Identifiable, Equatable {
         self.options = options
     }
 
-    /// 去掉**不该随预设持久化**的逐次操作字段：明文密码 / GPG 私钥指纹 / 收件人 / 对称密码 / 给收件人的留言 /
-    /// 纯 UI 展开态。保留格式 / 等级 / 方法 / 是否签名等「可复用」设置（签名 key 仍由用户在创建时选）。
+    /// 去掉**不该随预设持久化**的逐次操作字段。见 `ArchiveCreationOptions.sanitizedForStorage()`。
     func sanitized() -> CompressionPreset {
-        var clean = options
+        CompressionPreset(id: id, name: name, options: options.sanitizedForStorage())
+    }
+}
+
+extension ArchiveCreationOptions {
+    /// 抹掉**不该随「默认值 / 预设」持久化**的逐次操作字段：明文密码 / 密码确认 / 显示密码 / UI 展开态 /
+    /// GPG 私钥指纹 / 收件人 / 对称密码 / 给收件人的留言。保留格式 / 等级 / 方法 / 7z 全套 / 排除规则 /
+    /// 更新模式 / 加密方式等所有「可复用」设置 —— 这些就是「默认值」要绝对覆盖全的通用选项。
+    func sanitizedForStorage() -> ArchiveCreationOptions {
+        var clean = self
         clean.password = ""
         clean.passwordConfirmation = ""
         clean.showPassword = false
@@ -36,7 +44,65 @@ struct CompressionPreset: Codable, Identifiable, Equatable {
         clean.gpgRecipientFingerprints = []
         clean.gpgSymmetricPassphrase = ""
         clean.gpgDeliveryNote = ""
-        return CompressionPreset(id: id, name: name, options: clean)
+        return clean
+    }
+}
+
+/// #115（重做）**按格式**存一份完整的默认压缩选项：每个格式（zip / 7z / rar / tar.gz …）最多一份。
+/// 「默认值」= 该格式下所有可复用选项的整套配置。Finder / NSService 一键压缩按**目标格式**取其默认值；
+/// 创建对话框可「套用本格式默认值」。密码 / GPG 私钥永不入库（见 `sanitizedForStorage()`）。
+final class CompressionDefaultsStore {
+    private let defaults: UserDefaults
+    private let storageKey = "SimpleZip.CompressionDefaults.v1"
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+    }
+
+    /// 全部已存的「格式 → 默认选项」。损坏 / 缺失 → 空。
+    func loadAll() -> [ArchiveCreateFormat: ArchiveCreationOptions] {
+        guard let data = defaults.data(forKey: storageKey),
+              let raw = try? JSONDecoder().decode([String: ArchiveCreationOptions].self, from: data) else { return [:] }
+        var result: [ArchiveCreateFormat: ArchiveCreationOptions] = [:]
+        for (key, value) in raw {
+            guard let format = ArchiveCreateFormat(rawValue: key) else { continue }
+            var options = value
+            options.format = format
+            result[format] = options
+        }
+        return result
+    }
+
+    /// 该格式存过的默认选项（已 sanitize）。没存过 → nil（调用方退回内建默认）。
+    func options(for format: ArchiveCreateFormat) -> ArchiveCreationOptions? {
+        loadAll()[format]
+    }
+
+    /// 是否给该格式配过默认值。
+    func hasOptions(for format: ArchiveCreateFormat) -> Bool {
+        loadAll()[format] != nil
+    }
+
+    /// 存 / 覆盖某格式的默认选项（自动 sanitize + 把 format 钉成该格式）。
+    func setOptions(_ options: ArchiveCreationOptions, for format: ArchiveCreateFormat) {
+        var all = loadAll()
+        var clean = options.sanitizedForStorage()
+        clean.format = format
+        all[format] = clean
+        persist(all)
+    }
+
+    /// 清掉某格式的默认值（回到内建默认）。
+    func reset(for format: ArchiveCreateFormat) {
+        var all = loadAll()
+        all[format] = nil
+        persist(all)
+    }
+
+    private func persist(_ all: [ArchiveCreateFormat: ArchiveCreationOptions]) {
+        let raw = Dictionary(uniqueKeysWithValues: all.map { ($0.key.rawValue, $0.value) })
+        guard let data = try? JSONEncoder().encode(raw) else { return }
+        defaults.set(data, forKey: storageKey)
     }
 }
 

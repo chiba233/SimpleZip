@@ -168,4 +168,47 @@ struct CompressionPresetTests {
         #expect(store.defaultPresetID() == nil)
         #expect(store.defaultPreset() == nil)
     }
+
+    // MARK: - 按格式默认值（CompressionDefaultsStore，#115 重做）
+
+    private func makeDefaultsStore() -> CompressionDefaultsStore {
+        let defaults = UserDefaults(suiteName: "SimpleZipTests.defaults.\(UUID().uuidString)")!
+        return CompressionDefaultsStore(defaults: defaults)
+    }
+
+    @Test func perFormatDefaultsRoundTripAndSanitize() {
+        let store = makeDefaultsStore()
+        #expect(store.options(for: .sevenZip) == nil)
+        #expect(store.hasOptions(for: .sevenZip) == false)
+
+        var o = ArchiveCreationOptions()
+        o.format = .zip                 // 故意填错格式
+        o.compressionLevel = .maximum
+        o.sevenZipMethod = .lzma2
+        o.password = "secret"           // 必须被抹掉
+        o.gpgSigningKeyFingerprint = "DEAD"
+        store.setOptions(o, for: .sevenZip)
+
+        #expect(store.hasOptions(for: .sevenZip))
+        let loaded = try! #require(store.options(for: .sevenZip))
+        #expect(loaded.format == .sevenZip)            // format 被钉成存的那个
+        #expect(loaded.compressionLevel == .maximum)
+        #expect(loaded.sevenZipMethod == .lzma2)
+        #expect(loaded.password.isEmpty)               // sanitize
+        #expect(loaded.gpgSigningKeyFingerprint.isEmpty)
+        // 别的格式不受影响
+        #expect(store.options(for: .zip) == nil)
+    }
+
+    @Test func perFormatDefaultsResetAndIndependence() {
+        let store = makeDefaultsStore()
+        store.setOptions(ArchiveCreationOptions(), for: .zip)
+        store.setOptions(ArchiveCreationOptions(), for: .tarGzip)
+        #expect(store.hasOptions(for: .zip))
+        #expect(store.hasOptions(for: .tarGzip))
+
+        store.reset(for: .zip)
+        #expect(store.hasOptions(for: .zip) == false)
+        #expect(store.hasOptions(for: .tarGzip))       // 互不影响
+    }
 }
