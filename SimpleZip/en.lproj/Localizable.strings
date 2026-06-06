@@ -940,6 +940,8 @@
 "settings.defaults.optionCount" = "%@ option(s) enabled";
 "settings.defaults.editorTitle" = "%@ Defaults";
 "settings.defaults.editorHint" = "Tick only the options you want this format to default; unticked options keep the create-time default and can be changed each time.";
+"archive.useFormatDefaults" = "Use the saved %@ defaults";
+"archive.useFormatDefaults.help" = "Apply the options you saved for this format under Settings → Compression → Default Compression Settings, and hide those configured options. Uncheck to show every option again.";
 "settings.presets.title" = "Compression Presets";
 "settings.presets.description" = "Save named compression settings. The one you mark as the default is used by the Finder \"compress\" quick actions (its level / method / options — passwords and GPG keys are never stored in a preset).";
 "settings.presets.empty" = "No presets yet.";

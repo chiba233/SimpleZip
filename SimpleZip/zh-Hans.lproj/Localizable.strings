@@ -933,6 +933,8 @@
 "settings.defaults.optionCount" = "已启用 %@ 项";
 "settings.defaults.editorTitle" = "%@ 默认值";
 "settings.defaults.editorHint" = "只勾选你想让这个格式默认设定的选项;没勾的保持创建时的默认值、每次仍可改。";
+"archive.useFormatDefaults" = "使用已保存的 %@ 默认值";
+"archive.useFormatDefaults.help" = "套用你在「设置 → 压缩 → 默认压缩设置」里为该格式存的选项,并隐藏这些已配置项。取消勾选可重新显示全部选项。";
 "settings.presets.title" = "压缩预设";
 "settings.presets.description" = "把常用的压缩设置存成命名预设。设为「默认」的那个会被 Finder「压缩」一键服务自动套用（等级 / 方法 / 选项——密码和 GPG 私钥永不存进预设）。";
 "settings.presets.empty" = "还没有预设。";

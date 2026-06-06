@@ -30,10 +30,35 @@ struct ArchiveCreationOptionsView: View {
     /// 预设密码从 Keychain 拉到 view 内，dialog 关闭即丢；不绑定 @AppStorage 是因为 Keychain
     /// 没有 @AppStorage 等价物，而且业务侧也只需要打开时的快照。
     @State private var presetPassword = ""
+    /// #115 当前格式已保存的「默认压缩设置」模板（启用且至少配了一项）；没有就是 nil。
+    @State private var formatDefaultsPreset: CompressionFormatPreset?
+    /// 「使用本格式默认值」复选框。有模板时默认勾上 = 套用模板值 + 隐藏模板已配的那些选项；
+    /// 取消勾选则恢复显示全部选项（值不回滚，用户可继续手改）。
+    @State private var useFormatDefaults = false
+    private let compressionDefaultsStore = CompressionDefaultsStore()
     let create: (ArchiveCreationRequest) -> Void
     let cancel: () -> Void
 
     private var hasUsablePreset: Bool { presetPasswordEnabled && !presetPassword.isEmpty }
+
+    /// 某选项是否被本格式模板接管而应在创建对话框里隐藏 —— 勾了「使用默认值」且该字段在模板里。
+    private func hidden(_ field: CompressionOptionField) -> Bool {
+        useFormatDefaults && (formatDefaultsPreset?.includedFields.contains(field) ?? false)
+    }
+
+    /// 重新读取当前格式的模板：有启用且非空的就缓存 + 默认勾选 + 立即套用；否则清空。
+    /// onAppear 与切换格式时调用。
+    private func reloadFormatDefaults() {
+        if let preset = compressionDefaultsStore.preset(for: request.options.format),
+           preset.enabled, !preset.includedFields.isEmpty {
+            formatDefaultsPreset = preset
+            useFormatDefaults = true
+            preset.apply(to: &request.options)
+        } else {
+            formatDefaultsPreset = nil
+            useFormatDefaults = false
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -65,7 +90,7 @@ struct ArchiveCreationOptionsView: View {
                             }
                         }
 
-                        if request.options.format.supportsCompressionLevel {
+                        if request.options.format.supportsCompressionLevel, !hidden(.level) {
                             HStack(spacing: 6) {
                                 Text(L10n.text("archive.compressionLevel"))
                                     .font(.caption)
@@ -81,7 +106,7 @@ struct ArchiveCreationOptionsView: View {
                             }
                         }
 
-                        if request.options.format.supportsUpdateMode {
+                        if request.options.format.supportsUpdateMode, !hidden(.updateMode) {
                             HStack(spacing: 6) {
                                 Text(L10n.text("archive.updateMode"))
                                     .font(.caption)
@@ -97,6 +122,16 @@ struct ArchiveCreationOptionsView: View {
                             }
                         }
                         Spacer(minLength: 0)
+                    }
+
+                    // #115 本格式存了默认值模板 → 一个复选框：勾上套用模板并隐藏其已配选项,取消则全显。
+                    if formatDefaultsPreset != nil {
+                        Toggle(L10n.format("archive.useFormatDefaults", request.options.format.title), isOn: $useFormatDefaults)
+                            .toggleStyle(.checkbox)
+                            .help(L10n.text("archive.useFormatDefaults.help"))
+                            .onChange(of: useFormatDefaults) { on in
+                                if on, let preset = formatDefaultsPreset { preset.apply(to: &request.options) }
+                            }
                     }
 
                     if request.options.format.supportsPassword {
@@ -129,9 +164,11 @@ struct ArchiveCreationOptionsView: View {
                         }
                         if !request.options.password.isEmpty || !request.options.passwordConfirmation.isEmpty {
                             if request.options.format == .zip {
-                                Picker(L10n.text("archive.encryptionMethod"), selection: $request.options.encryptionMethod) {
-                                    ForEach(ArchiveEncryptionMethod.allCases) { method in
-                                        Text(method.title).tag(method)
+                                if !hidden(.encryptionMethod) {
+                                    Picker(L10n.text("archive.encryptionMethod"), selection: $request.options.encryptionMethod) {
+                                        ForEach(ArchiveEncryptionMethod.allCases) { method in
+                                            Text(method.title).tag(method)
+                                        }
                                     }
                                 }
                             } else {
@@ -169,24 +206,31 @@ struct ArchiveCreationOptionsView: View {
 
                     if request.options.format == .sevenZip {
                         VStack(alignment: .leading, spacing: 12) {
-                            Picker(L10n.text("archive.7z.method"), selection: $request.options.sevenZipMethod) {
-                                ForEach(SevenZipCompressionMethod.allCases) { method in
-                                    Text(method.title).tag(method)
+                            if !hidden(.sevenZipMethod) {
+                                Picker(L10n.text("archive.7z.method"), selection: $request.options.sevenZipMethod) {
+                                    ForEach(SevenZipCompressionMethod.allCases) { method in
+                                        Text(method.title).tag(method)
+                                    }
                                 }
                             }
 
-                            Picker(L10n.text("archive.7z.dictionarySize"), selection: $request.options.sevenZipDictionarySizeMB) {
-                                ForEach(dictionarySizeOptions, id: \.self) { size in
-                                    Text("\(size) MB").tag(size)
+                            if !hidden(.dictionarySize) {
+                                Picker(L10n.text("archive.7z.dictionarySize"), selection: $request.options.sevenZipDictionarySizeMB) {
+                                    ForEach(dictionarySizeOptions, id: \.self) { size in
+                                        Text("\(size) MB").tag(size)
+                                    }
                                 }
                             }
 
-                            Picker(L10n.text("archive.7z.wordSize"), selection: $request.options.sevenZipWordSize) {
-                                ForEach(wordSizeOptions, id: \.self) { wordSize in
-                                    Text("\(wordSize)").tag(wordSize)
+                            if !hidden(.wordSize) {
+                                Picker(L10n.text("archive.7z.wordSize"), selection: $request.options.sevenZipWordSize) {
+                                    ForEach(wordSizeOptions, id: \.self) { wordSize in
+                                        Text("\(wordSize)").tag(wordSize)
+                                    }
                                 }
                             }
 
+                            if !hidden(.threadCount) {
                             HStack {
                                 Text(L10n.text("archive.7z.threads"))
                                 Spacer()
@@ -196,6 +240,7 @@ struct ArchiveCreationOptionsView: View {
                                     Text(threadCountLabel)
                                         .foregroundStyle(.secondary)
                                 }
+                            }
                             }
 
                             HStack {
@@ -214,8 +259,10 @@ struct ArchiveCreationOptionsView: View {
 
                             DisclosureGroup(L10n.text("archive.7z.advanced"), isExpanded: $showsSevenZipAdvancedOptions) {
                                 VStack(alignment: .leading, spacing: 10) {
-                                    Toggle(L10n.text("archive.7z.solid"), isOn: $request.options.sevenZipSolidArchive)
-                                    if request.options.sevenZipSolidArchive {
+                                    if !hidden(.solid) {
+                                        Toggle(L10n.text("archive.7z.solid"), isOn: $request.options.sevenZipSolidArchive)
+                                    }
+                                    if request.options.sevenZipSolidArchive, !hidden(.solidBlockSize) {
                                         Picker(L10n.text("archive.7z.solidBlockSize"), selection: $request.options.sevenZipSolidBlockSize) {
                                             ForEach(SevenZipSolidBlockSize.allCases) { size in
                                                 Text(size.title).tag(size)
@@ -223,15 +270,23 @@ struct ArchiveCreationOptionsView: View {
                                         }
                                     }
 
-                                    Picker(L10n.text("archive.7z.pathMode"), selection: $request.options.sevenZipPathMode) {
-                                        ForEach(SevenZipPathMode.allCases) { mode in
-                                            Text(mode.title).tag(mode)
+                                    if !hidden(.pathMode) {
+                                        Picker(L10n.text("archive.7z.pathMode"), selection: $request.options.sevenZipPathMode) {
+                                            ForEach(SevenZipPathMode.allCases) { mode in
+                                                Text(mode.title).tag(mode)
+                                            }
                                         }
                                     }
 
-                                    Toggle(L10n.text("archive.7z.storeSymbolicLinks"), isOn: $request.options.sevenZipStoreSymbolicLinks)
-                                    Toggle(L10n.text("archive.7z.storeHardLinks"), isOn: $request.options.sevenZipStoreHardLinks)
-                                    Toggle(L10n.text("archive.7z.compressSharedFiles"), isOn: $request.options.sevenZipCompressSharedFiles)
+                                    if !hidden(.storeSymlinks) {
+                                        Toggle(L10n.text("archive.7z.storeSymbolicLinks"), isOn: $request.options.sevenZipStoreSymbolicLinks)
+                                    }
+                                    if !hidden(.storeHardlinks) {
+                                        Toggle(L10n.text("archive.7z.storeHardLinks"), isOn: $request.options.sevenZipStoreHardLinks)
+                                    }
+                                    if !hidden(.compressShared) {
+                                        Toggle(L10n.text("archive.7z.compressSharedFiles"), isOn: $request.options.sevenZipCompressSharedFiles)
+                                    }
                                     Toggle(L10n.text("archive.7z.deleteAfterCompression"), isOn: $request.options.sevenZipDeleteSourceFiles)
                                 }
                                 .padding(.top, 6)
@@ -239,7 +294,7 @@ struct ArchiveCreationOptionsView: View {
                         }
                     }
 
-                    if request.options.format != .sevenZip, request.options.format.supportsUpdateMode {
+                    if request.options.format != .sevenZip, request.options.format.supportsUpdateMode, !hidden(.pathMode) {
                         Picker(L10n.text("archive.7z.pathMode"), selection: $request.options.sevenZipPathMode) {
                             ForEach(SevenZipPathMode.allCases) { mode in
                                 Text(mode.title).tag(mode)
@@ -247,7 +302,7 @@ struct ArchiveCreationOptionsView: View {
                         }
                     }
 
-                    if request.options.format == .sevenZip || request.options.format == .rar {
+                    if request.options.format == .sevenZip || request.options.format == .rar, !hidden(.encryptFileNames) {
                         VStack(alignment: .leading, spacing: 4) {
                             Toggle(L10n.text("archive.7z.encryptFileNames"), isOn: $request.options.sevenZipEncryptFileNames)
                                 .disabled(request.options.password.isEmpty)
@@ -260,7 +315,7 @@ struct ArchiveCreationOptionsView: View {
                         }
                     }
 
-                    if request.options.format.supportsRawParameters {
+                    if request.options.format.supportsRawParameters, !hidden(.rawParameters) {
                         VStack(alignment: .leading, spacing: 6) {
                             TextField(L10n.text("archive.parameters"), text: $request.options.rawParameters)
                                 .textFieldStyle(.roundedBorder)
@@ -271,15 +326,20 @@ struct ArchiveCreationOptionsView: View {
                     }
 
                     if request.options.format.supportsExcludeRules {
-                        Toggle(L10n.text("archive.skipDSStore"), isOn: $request.options.skipDSStore)
-                        VStack(alignment: .leading, spacing: 4) {
-                            Toggle(L10n.text("archive.skipHiddenFiles"), isOn: $request.options.skipHiddenFiles)
-                            Text(L10n.text("archive.skipHiddenFilesHint"))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .padding(.leading, 2)
+                        if !hidden(.skipDSStore) {
+                            Toggle(L10n.text("archive.skipDSStore"), isOn: $request.options.skipDSStore)
+                        }
+                        if !hidden(.skipHiddenFiles) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Toggle(L10n.text("archive.skipHiddenFiles"), isOn: $request.options.skipHiddenFiles)
+                                Text(L10n.text("archive.skipHiddenFilesHint"))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .padding(.leading, 2)
+                            }
                         }
 
+                        if !hidden(.customExcludes) {
                         VStack(alignment: .leading, spacing: 6) {
                             Text(L10n.text("archive.customExcludes"))
                             TextEditor(text: $request.options.customExcludes)
@@ -307,6 +367,7 @@ struct ArchiveCreationOptionsView: View {
                                     .font(.caption)
                                     .foregroundStyle((excludedFileCount ?? 0) > 0 ? .secondary : .tertiary)
                             }
+                        }
                         }
                     }
 
@@ -428,9 +489,13 @@ struct ArchiveCreationOptionsView: View {
             if gpgSigningDisabledBySplitVolume {
                 request.options.gpgSign = false
             }
+            // 切换格式 → 重新取新格式的默认值模板(有就默认勾上并套用,没有就隐藏复选框)。
+            reloadFormatDefaults()
         }
         .onAppear {
             presetPassword = AppPreferences.presetPassword
+            // #115 初次打开:若当前格式存了默认值模板,默认勾「使用默认值」并套用 + 隐藏其已配选项。
+            reloadFormatDefaults()
             // 默认行为：预设密码可用时复选框默认勾上 + 把预设填入 options.password 和 confirmation。
             // 这样用户「打开设置 → 预设打开 → 点新建压缩包」三步流程里不需要再手动勾或填密码。
             if hasUsablePreset {
