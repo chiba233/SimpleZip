@@ -152,38 +152,38 @@ struct FormatPresetEditorSheet: View {
                     row(.level, L10n.text("archive.compressionLevel")) {
                         Picker("", selection: $options.compressionLevel) {
                             ForEach(CompressionLevel.allCases) { Text($0.title).tag($0) }
-                        }.labelsHidden().frame(width: 130)
+                        }.labelsHidden()
                     }
                 }
                 if format.supportsUpdateMode {
                     row(.updateMode, L10n.text("archive.updateMode")) {
                         Picker("", selection: $options.updateMode) {
                             ForEach(ArchiveUpdateMode.allCases) { Text($0.title).tag($0) }
-                        }.labelsHidden().frame(width: 160)
+                        }.labelsHidden()
                     }
                 }
                 if format == .zip {
                     row(.encryptionMethod, L10n.text("archive.encryptionMethod")) {
                         Picker("", selection: $options.encryptionMethod) {
                             ForEach(ArchiveEncryptionMethod.allCases) { Text($0.title).tag($0) }
-                        }.labelsHidden().frame(width: 160)
+                        }.labelsHidden()
                     }
                 }
                 if format == .sevenZip {
                     row(.sevenZipMethod, L10n.text("archive.7z.method")) {
                         Picker("", selection: $options.sevenZipMethod) {
                             ForEach(SevenZipCompressionMethod.allCases) { Text($0.title).tag($0) }
-                        }.labelsHidden().frame(width: 130)
+                        }.labelsHidden()
                     }
                     row(.dictionarySize, L10n.text("archive.7z.dictionarySize")) {
                         Picker("", selection: $options.sevenZipDictionarySizeMB) {
                             ForEach(dictionarySizeOptions, id: \.self) { Text("\($0) MB").tag($0) }
-                        }.labelsHidden().frame(width: 110)
+                        }.labelsHidden()
                     }
                     row(.wordSize, L10n.text("archive.7z.wordSize")) {
                         Picker("", selection: $options.sevenZipWordSize) {
                             ForEach(wordSizeOptions, id: \.self) { Text("\($0)").tag($0) }
-                        }.labelsHidden().frame(width: 90)
+                        }.labelsHidden()
                     }
                     row(.threadCount, L10n.text("archive.7z.threads")) {
                         HStack(spacing: 6) {
@@ -199,7 +199,7 @@ struct FormatPresetEditorSheet: View {
                     row(.solidBlockSize, L10n.text("archive.7z.solidBlockSize")) {
                         Picker("", selection: $options.sevenZipSolidBlockSize) {
                             ForEach(SevenZipSolidBlockSize.allCases) { Text($0.title).tag($0) }
-                        }.labelsHidden().frame(width: 110)
+                        }.labelsHidden()
                     }
                     row(.storeSymlinks, L10n.text("archive.7z.storeSymbolicLinks")) {
                         Toggle("", isOn: $options.sevenZipStoreSymbolicLinks).labelsHidden()
@@ -215,7 +215,7 @@ struct FormatPresetEditorSheet: View {
                     row(.pathMode, L10n.text("archive.7z.pathMode")) {
                         Picker("", selection: $options.sevenZipPathMode) {
                             ForEach(SevenZipPathMode.allCases) { Text($0.title).tag($0) }
-                        }.labelsHidden().frame(width: 140)
+                        }.labelsHidden()
                     }
                 }
                 if format == .sevenZip || format == .rar {
@@ -225,7 +225,7 @@ struct FormatPresetEditorSheet: View {
                 }
                 if format.supportsRawParameters {
                     row(.rawParameters, L10n.text("archive.parameters")) {
-                        TextField("", text: $options.rawParameters).frame(width: 160)
+                        TextField("", text: $options.rawParameters)
                     }
                 }
                 if format.supportsExcludeRules {
