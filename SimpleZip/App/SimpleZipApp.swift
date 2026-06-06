@@ -296,14 +296,6 @@ struct ArchiveFileCommands: Commands {
             // ⌘Z / ⇧⌘Z：正在编辑文本（地址栏 / 内联重命名）时交给字段编辑器的 undo（撤销打字）；
             // 否则走主窗口的文件操作撤销栈（移动 / 粘贴 / 副本 / 重命名 / 删除）。按真实 first responder
             // 路由，不依赖 isTextInputFocused（内联重命名是 AppKit 字段编辑器，未必被它跟踪）。
-            //
-            // ⚠️ 顶部 global 菜单栏闪烁根因（务必别改回 `.disabled(空栈)`）：
-            // 我们用 `CommandGroup(replacing: .undoRedo)` 替换了系统 Undo/Redo。AppKit 对「编辑菜单里带 ⌘Z
-            // 的系统 Undo」有一套**原生菜单验证**；当这个被替换出来的 Undo 项处于 **disabled** 状态时（空撤销栈），
-            // AppKit 的原生 Undo 验证和 SwiftUI 的菜单重建会**反复争抢**，菜单栏 hover/打开时就一直闪、一级菜单
-            // 都难点开。一旦 Undo 变 enabled（做过一次文件操作后），验证路径稳定，闪就消失——这正是「重命名一次
-            // 就不闪」的现象。因此这里**只在没有窗口时禁用**（`model == nil`），空栈时保持 enabled：
-            // 点击/⌘Z 的动作闭包本就对空栈 no-op（或落到文本框原生 undo），不会误操作。
             Button(undoMenuTitle) {
                 if let text = NSApp.keyWindow?.firstResponder as? NSText, text.undoManager?.canUndo == true {
                     text.undoManager?.undo()
@@ -312,7 +304,7 @@ struct ArchiveFileCommands: Commands {
                 }
             }
             .keyboardShortcut("z", modifiers: [.command])
-            .disabled(model == nil)
+            .disabled(!canUndoMenuItem)
 
             Button(redoMenuTitle) {
                 if let text = NSApp.keyWindow?.firstResponder as? NSText, text.undoManager?.canRedo == true {
@@ -322,7 +314,7 @@ struct ArchiveFileCommands: Commands {
                 }
             }
             .keyboardShortcut("z", modifiers: [.command, .shift])
-            .disabled(model == nil)
+            .disabled(!canRedoMenuItem)
         }
 
         CommandGroup(replacing: .pasteboard) {
@@ -481,23 +473,36 @@ struct ArchiveFileCommands: Commands {
             responder.responds(to: #selector(NSText.paste(_:)))
     }
 
-    // 标题只读 model 的稳定状态（SwiftUI 观察、仅真有 undo 操作时变），**绝不**在 `Commands.body` 里读
-    // `NSApp.keyWindow?.firstResponder`——那会在菜单 tracking 期间随 first responder 变化而翻动，引发闪。
-    // 文本框 undo 不丢：点击闭包在「点击那一刻」才判文本响应者并优先文本 undo（见 undo Button）。
-    // 撤销栈空/非空都用同一标题，`.disabled` 也只看 `model == nil`（见上方注释，空栈禁用会触发菜单栏闪）。
-
     private var undoMenuTitle: String {
-        guard let actionName = model?.fileUndoActionName else {
+        guard !textResponderCanUndo, let actionName = model?.fileUndoActionName else {
             return L10n.text("menu.undo")
         }
         return L10n.format("menu.undoNamed", actionName)
     }
 
     private var redoMenuTitle: String {
-        guard let actionName = model?.fileRedoActionName else {
+        guard !textResponderCanRedo, let actionName = model?.fileRedoActionName else {
             return L10n.text("menu.redo")
         }
         return L10n.format("menu.redoNamed", actionName)
+    }
+
+    private var textResponderCanUndo: Bool {
+        guard let text = NSApp.keyWindow?.firstResponder as? NSText else { return false }
+        return text.undoManager?.canUndo == true
+    }
+
+    private var textResponderCanRedo: Bool {
+        guard let text = NSApp.keyWindow?.firstResponder as? NSText else { return false }
+        return text.undoManager?.canRedo == true
+    }
+
+    private var canUndoMenuItem: Bool {
+        textResponderCanUndo || model?.fileUndoManager.canUndo == true
+    }
+
+    private var canRedoMenuItem: Bool {
+        textResponderCanRedo || model?.fileUndoManager.canRedo == true
     }
 }
 
