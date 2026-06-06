@@ -238,8 +238,6 @@ struct FormatPresetEditorSheet: View {
                 }
             }
             .formStyle(.grouped)
-            // 高度跟随内容 —— 选项少的格式（zip）不再底部留一大片空白；多的（7z）自然变高。
-            .fixedSize(horizontal: false, vertical: true)
 
             Divider()
             HStack {
@@ -253,7 +251,22 @@ struct FormatPresetEditorSheet: View {
             }
             .padding(18)
         }
-        .frame(width: 480)
+        // 高度跟随选项行数,但封顶 620 —— 选项少不留大空白,选项多(7z)也不会超出屏幕(超了 Form 内部滚动)。
+        .frame(width: 480, height: min(estimatedHeight, 620))
+    }
+
+    /// 按当前格式实际显示的选项行数估算内容高度。
+    private var estimatedHeight: CGFloat {
+        var rows = 0
+        if format.supportsCompressionLevel { rows += 1 }
+        if format.supportsUpdateMode { rows += 1 }
+        if format == .zip { rows += 1 }                                  // 加密方式
+        if format == .sevenZip { rows += 9 }                             // 方法/字典/字/线程/固实/固实块/符号/硬链/共享
+        if format == .sevenZip || format.supportsUpdateMode { rows += 1 } // 路径模式
+        if format == .sevenZip || format == .rar { rows += 1 }           // 加密文件名
+        if format.supportsRawParameters { rows += 1 }                    // 参数
+        if format.supportsExcludeRules { rows += 2 }                     // 跳过 .DS_Store / 隐藏文件
+        return CGFloat(96 + rows * 40 + 70)   // 标题+提示 + 每行 + 分隔线+按钮
     }
 
     /// 一行：左边「启用」勾选，右边值控件（没勾时禁用 + 变淡）。
