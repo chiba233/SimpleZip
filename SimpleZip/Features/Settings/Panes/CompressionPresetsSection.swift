@@ -59,19 +59,6 @@ struct CompressionDefaultsSection: View {
     /// 已添加的一行：左边开关（启用 / 停用本模板），名字 + 摘要，右边编辑 / 删除。
     private func formatRow(_ preset: CompressionFormatPreset) -> some View {
         HStack(spacing: 12) {
-            // 开关放最左 —— 每行的开关左边缘对齐成一列。
-            Toggle("", isOn: Binding(
-                get: { preset.enabled },
-                set: { on in
-                    var updated = preset
-                    updated.enabled = on
-                    store.save(updated)
-                    reload()
-                }
-            ))
-            .labelsHidden()
-            .toggleStyle(.switch)
-
             VStack(alignment: .leading, spacing: 1) {
                 Text(preset.format.title)
                 Text(summary(preset))
@@ -93,6 +80,19 @@ struct CompressionDefaultsSection: View {
             }
             .buttonStyle(.borderless)
             .help(L10n.text("file.delete"))
+
+            // 启用开关放最右 —— macOS 设置项开关的惯例位置。
+            Toggle("", isOn: Binding(
+                get: { preset.enabled },
+                set: { on in
+                    var updated = preset
+                    updated.enabled = on
+                    store.save(updated)
+                    reload()
+                }
+            ))
+            .labelsHidden()
+            .toggleStyle(.switch)
         }
         .padding(.vertical, 2)
     }
@@ -186,10 +186,12 @@ struct FormatPresetEditorSheet: View {
                         }.labelsHidden().frame(width: 90)
                     }
                     row(.threadCount, L10n.text("archive.7z.threads")) {
-                        Stepper(value: $options.sevenZipThreadCount, in: 0...maxThreadCount) {
+                        HStack(spacing: 6) {
                             Text(options.sevenZipThreadCount == 0 ? L10n.text("archive.7z.method.automatic") : "\(options.sevenZipThreadCount)")
                                 .foregroundStyle(.secondary)
-                        }.fixedSize()
+                            Stepper("", value: $options.sevenZipThreadCount, in: 0...maxThreadCount)
+                                .labelsHidden()
+                        }
                     }
                     row(.solid, L10n.text("archive.7z.solid")) {
                         Toggle("", isOn: $options.sevenZipSolidArchive).labelsHidden()
