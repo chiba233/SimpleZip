@@ -117,6 +117,16 @@ func configureTableColumns<Column: TableColumnDescriptor>(_ columns: [Column], f
         (tableView as? NSOutlineView)?.outlineTableColumn = nil
         duplicateColumns.forEach { tableView.removeTableColumn($0) }
     }
+
+    // 把每个幸存列的宽度按描述符钉回去。关键:去重「保留先出现的」——在 macOS 26 上 `outlineTableColumn = nil`
+    // 删不掉的那个**旧 name 列**就是「先出现的」,被保留;新加的(宽度正确 420)反而被当重复删掉。旧 name 列带着
+    // 上几轮 autoresize 累积的旧宽度,不重置就会**每切一次列越变越宽**(用户报「名称列特别长」)。这里统一钉回描述符宽度。
+    let widthByID = Dictionary(uniqueKeysWithValues: uniqueColumns.map { ($0.identifier, $0) })
+    for tableColumn in tableView.tableColumns {
+        guard let descriptor = widthByID[tableColumn.identifier.rawValue] else { continue }
+        tableColumn.width = descriptor.width
+        tableColumn.minWidth = descriptor.minWidth
+    }
 }
 
 func orderedColumns<Column: TableColumnDescriptor>(_ columns: [Column], key: String) -> [Column] {
