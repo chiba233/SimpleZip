@@ -86,7 +86,11 @@ func configureTableColumns<Column: TableColumnDescriptor>(_ columns: [Column], f
     var seenIdentifiers = Set<String>()
     let uniqueColumns = columns.filter { seenIdentifiers.insert($0.identifier).inserted }
     let columnIDs = uniqueColumns.map(\.identifier)
-    if tableView.tableColumns.map(\.identifier.rawValue) == columnIDs {
+    let currentIDs = tableView.tableColumns.map(\.identifier.rawValue)
+    // 已是目标列集**且当前没有重复 identifier** 才跳过。current 里若已混入重复列（见下方兜底说明），
+    // 必须落到重建路径把它清掉，不能因为「列集看着对」就 return 把重复留着。
+    let currentHasDuplicates = Set(currentIDs).count != currentIDs.count
+    if currentIDs == columnIDs, !currentHasDuplicates {
         return
     }
 
@@ -102,6 +106,16 @@ func configureTableColumns<Column: TableColumnDescriptor>(_ columns: [Column], f
         tableColumn.minWidth = column.minWidth
         tableColumn.sortDescriptorPrototype = NSSortDescriptor(key: column.identifier, ascending: true)
         tableView.addTableColumn(tableColumn)
+    }
+
+    // 兜底去重（关键）：某些 macOS 版本下 `outlineTableColumn = nil` 不会真正解绑旧 name 列，
+    // 上面的 removeTableColumn 删不掉它，于是重建后表里出现 2 个相同 identifier 的「名称」列。
+    // 这里再扫一遍真实 tableColumns，把重复 identifier 的列删到每个只剩一个（保留先出现的）。
+    var seenColumnIDs = Set<String>()
+    let duplicateColumns = tableView.tableColumns.filter { !seenColumnIDs.insert($0.identifier.rawValue).inserted }
+    if !duplicateColumns.isEmpty {
+        (tableView as? NSOutlineView)?.outlineTableColumn = nil
+        duplicateColumns.forEach { tableView.removeTableColumn($0) }
     }
 }
 
