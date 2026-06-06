@@ -280,11 +280,11 @@ final class ExternalCreateSession: ObservableObject {
     init(format: ArchiveCreateFormat, files: [URL], destination: URL) {
         self.files = files
         self.destination = destination
-        // #115 按格式默认值：Finder / NSService 一键压缩按**目标格式**取该格式在 设置→压缩→默认值 配好的整套
-        // 可复用选项（等级 / 方法 / 7z 全套 / 排除规则 / 加密方式…；密码 / GPG 私钥不入库，见 sanitizedForStorage()）。
-        // 没给该格式配过 → 退回内建默认（与旧行为一致）。
-        var options = CompressionDefaultsStore().options(for: format) ?? ArchiveCreationOptions()
+        // #115 按格式默认值：Finder / NSService 一键压缩按**目标格式**套用该格式在 设置→压缩→默认值 里**启用**的
+        // 那些选项（没启用的字段保持内建默认；密码 / GPG 私钥不入库，见 sanitizedForStorage()）。
+        var options = ArchiveCreationOptions()
         options.format = format
+        CompressionDefaultsStore().preset(for: format)?.apply(to: &options)
         // GPG 签名是创建对话框里的交互项（要选签名 key）。预设可能带 gpgSign=true（sanitized 保留意图但抹掉 key），
         // 一键「简化压缩」是无对话框路径，不该用 default-key 静默签名 / 弹 passphrase —— 清掉，只走纯压缩。
         options.gpgSign = false

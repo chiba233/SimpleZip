@@ -48,58 +48,112 @@ extension ArchiveCreationOptions {
     }
 }
 
-/// #115（重做）**按格式**存一份完整的默认压缩选项：每个格式（zip / 7z / rar / tar.gz …）最多一份。
-/// 「默认值」= 该格式下所有可复用选项的整套配置。Finder / NSService 一键压缩按**目标格式**取其默认值；
-/// 创建对话框可「套用本格式默认值」。密码 / GPG 私钥永不入库（见 `sanitizedForStorage()`）。
+/// #115 一条可复用压缩选项 —— 预设里**可选**包含哪些。用户在编辑器里逐项勾选「启用」，只有启用的字段
+/// 才会进预设、才会在创建 / 一键压缩时覆盖默认值；没勾的字段保持创建时的内建默认（「可以选择不配置某个选项」）。
+enum CompressionOptionField: String, Codable, CaseIterable, Identifiable, Sendable {
+    case level, updateMode, encryptionMethod
+    case sevenZipMethod, dictionarySize, wordSize, threadCount, solid, solidBlockSize, pathMode
+    case encryptFileNames, storeSymlinks, storeHardlinks, compressShared
+    case rawParameters, skipDSStore, skipHiddenFiles, customExcludes
+
+    public var id: String { rawValue }
+}
+
+/// 某格式的「默认值预设」：一组**被启用**的字段 + 它们的值。每个格式最多一份（id = 格式）。
+struct CompressionFormatPreset: Codable, Identifiable, Equatable {
+    var format: ArchiveCreateFormat
+    /// 用户勾选「启用」的字段；只有这些会覆盖。空集 = 这个格式有预设但不覆盖任何字段（合法，等于全用默认）。
+    var includedFields: Set<CompressionOptionField>
+    /// 各字段的值（仅 `includedFields` 里的有意义；其它忽略）。已 sanitize（无密码 / GPG）。
+    var options: ArchiveCreationOptions
+
+    var id: String { format.rawValue }
+
+    init(format: ArchiveCreateFormat, includedFields: Set<CompressionOptionField> = [], options: ArchiveCreationOptions = ArchiveCreationOptions()) {
+        self.format = format
+        self.includedFields = includedFields
+        var clean = options.sanitizedForStorage()
+        clean.format = format
+        self.options = clean
+    }
+
+    /// 把**已启用**的字段值覆盖到 target（其余字段不动，保留 target 的默认）。
+    func apply(to target: inout ArchiveCreationOptions) {
+        for field in includedFields {
+            switch field {
+            case .level: target.compressionLevel = options.compressionLevel
+            case .updateMode: target.updateMode = options.updateMode
+            case .encryptionMethod: target.encryptionMethod = options.encryptionMethod
+            case .sevenZipMethod: target.sevenZipMethod = options.sevenZipMethod
+            case .dictionarySize: target.sevenZipDictionarySizeMB = options.sevenZipDictionarySizeMB
+            case .wordSize: target.sevenZipWordSize = options.sevenZipWordSize
+            case .threadCount: target.sevenZipThreadCount = options.sevenZipThreadCount
+            case .solid: target.sevenZipSolidArchive = options.sevenZipSolidArchive
+            case .solidBlockSize: target.sevenZipSolidBlockSize = options.sevenZipSolidBlockSize
+            case .pathMode: target.sevenZipPathMode = options.sevenZipPathMode
+            case .encryptFileNames: target.sevenZipEncryptFileNames = options.sevenZipEncryptFileNames
+            case .storeSymlinks: target.sevenZipStoreSymbolicLinks = options.sevenZipStoreSymbolicLinks
+            case .storeHardlinks: target.sevenZipStoreHardLinks = options.sevenZipStoreHardLinks
+            case .compressShared: target.sevenZipCompressSharedFiles = options.sevenZipCompressSharedFiles
+            case .rawParameters: target.rawParameters = options.rawParameters
+            case .skipDSStore: target.skipDSStore = options.skipDSStore
+            case .skipHiddenFiles: target.skipHiddenFiles = options.skipHiddenFiles
+            case .customExcludes: target.customExcludes = options.customExcludes
+            }
+        }
+    }
+}
+
+/// #115（重做）**按格式**存预设：每个格式（zip / 7z / rar / tar.gz …）最多一份 `CompressionFormatPreset`。
+/// Finder / NSService 一键压缩按**目标格式**取其预设并 `apply`；创建对话框可勾选「套用本格式默认值」。
+/// 密码 / GPG 私钥永不入库（见 `sanitizedForStorage()`）。
 final class CompressionDefaultsStore {
     private let defaults: UserDefaults
-    private let storageKey = "SimpleZip.CompressionDefaults.v1"
+    private let storageKey = "SimpleZip.CompressionFormatPresets.v1"
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
     }
 
-    /// 全部已存的「格式 → 默认选项」。损坏 / 缺失 → 空。
-    func loadAll() -> [ArchiveCreateFormat: ArchiveCreationOptions] {
+    /// 全部已存的「格式 → 预设」。损坏 / 缺失 → 空。
+    func loadAll() -> [ArchiveCreateFormat: CompressionFormatPreset] {
         guard let data = defaults.data(forKey: storageKey),
-              let raw = try? JSONDecoder().decode([String: ArchiveCreationOptions].self, from: data) else { return [:] }
-        var result: [ArchiveCreateFormat: ArchiveCreationOptions] = [:]
+              let raw = try? JSONDecoder().decode([String: CompressionFormatPreset].self, from: data) else { return [:] }
+        var result: [ArchiveCreateFormat: CompressionFormatPreset] = [:]
         for (key, value) in raw {
             guard let format = ArchiveCreateFormat(rawValue: key) else { continue }
-            var options = value
-            options.format = format
-            result[format] = options
+            result[format] = value
         }
         return result
     }
 
-    /// 该格式存过的默认选项（已 sanitize）。没存过 → nil（调用方退回内建默认）。
-    func options(for format: ArchiveCreateFormat) -> ArchiveCreationOptions? {
+    /// 所有已配置的格式预设（按格式枚举顺序，方便 UI 稳定列出）。
+    func allPresets() -> [CompressionFormatPreset] {
+        let map = loadAll()
+        return ArchiveCreateFormat.allCases.compactMap { map[$0] }
+    }
+
+    func preset(for format: ArchiveCreateFormat) -> CompressionFormatPreset? {
         loadAll()[format]
     }
 
-    /// 是否给该格式配过默认值。
-    func hasOptions(for format: ArchiveCreateFormat) -> Bool {
+    func hasPreset(for format: ArchiveCreateFormat) -> Bool {
         loadAll()[format] != nil
     }
 
-    /// 存 / 覆盖某格式的默认选项（自动 sanitize + 把 format 钉成该格式）。
-    func setOptions(_ options: ArchiveCreationOptions, for format: ArchiveCreateFormat) {
+    func save(_ preset: CompressionFormatPreset) {
         var all = loadAll()
-        var clean = options.sanitizedForStorage()
-        clean.format = format
-        all[format] = clean
+        all[preset.format] = preset
         persist(all)
     }
 
-    /// 清掉某格式的默认值（回到内建默认）。
     func reset(for format: ArchiveCreateFormat) {
         var all = loadAll()
         all[format] = nil
         persist(all)
     }
 
-    private func persist(_ all: [ArchiveCreateFormat: ArchiveCreationOptions]) {
+    private func persist(_ all: [ArchiveCreateFormat: CompressionFormatPreset]) {
         let raw = Dictionary(uniqueKeysWithValues: all.map { ($0.key.rawValue, $0.value) })
         guard let data = try? JSONEncoder().encode(raw) else { return }
         defaults.set(data, forKey: storageKey)

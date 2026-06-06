@@ -927,8 +927,12 @@
 "settings.section.security" = "安全性";
 "settings.defaults.title" = "默认压缩设置";
 "settings.defaults.description" = "为每个格式配一份可复用的默认值。Finder「压缩」一键服务会用对应格式的默认值,创建对话框也能套用。密码和 GPG 私钥永不存在这里。";
-"settings.defaults.format" = "格式";
-"settings.defaults.enable" = "为此格式启用默认值";
+"settings.defaults.empty" = "还没有配置任何格式默认值。";
+"settings.defaults.add" = "添加格式…";
+"settings.defaults.noOptions" = "未启用任何选项";
+"settings.defaults.optionCount" = "已启用 %@ 项";
+"settings.defaults.editorTitle" = "%@ 默认值";
+"settings.defaults.editorHint" = "只勾选你想让这个格式默认设定的选项;没勾的保持创建时的默认值、每次仍可改。";
 "settings.presets.title" = "压缩预设";
 "settings.presets.description" = "把常用的压缩设置存成命名预设。设为「默认」的那个会被 Finder「压缩」一键服务自动套用（等级 / 方法 / 选项——密码和 GPG 私钥永不存进预设）。";
 "settings.presets.empty" = "还没有预设。";

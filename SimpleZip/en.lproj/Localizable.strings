@@ -933,9 +933,13 @@
 "settings.section.archive" = "Archive";
 "settings.section.security" = "Security";
 "settings.defaults.title" = "Default Compression Settings";
-"settings.defaults.description" = "Set a reusable default for each format. The Finder \"Compress\" quick actions use the matching format's default, and the create dialog can apply it. Passwords and GPG keys are never stored here.";
-"settings.defaults.format" = "Format";
-"settings.defaults.enable" = "Use a saved default for this format";
+"settings.defaults.description" = "Set reusable defaults per format. The Finder \"Compress\" quick actions use the matching format's defaults, and the create dialog can apply them. Passwords and GPG keys are never stored here.";
+"settings.defaults.empty" = "No format defaults configured.";
+"settings.defaults.add" = "Add Format…";
+"settings.defaults.noOptions" = "No options enabled";
+"settings.defaults.optionCount" = "%@ option(s) enabled";
+"settings.defaults.editorTitle" = "%@ Defaults";
+"settings.defaults.editorHint" = "Tick only the options you want this format to default; unticked options keep the create-time default and can be changed each time.";
 "settings.presets.title" = "Compression Presets";
 "settings.presets.description" = "Save named compression settings. The one you mark as the default is used by the Finder \"compress\" quick actions (its level / method / options — passwords and GPG keys are never stored in a preset).";
 "settings.presets.empty" = "No presets yet.";

@@ -2,10 +2,9 @@
 //  CompressionPresetsSection.swift
 //  SimpleZip
 //
-//  #115（重做）设置 → 压缩 → 默认值：**按格式**配一份完整的可复用压缩选项。
-//  每个格式（zip / 7z / rar / tar.gz …）最多一份默认值，开关控制「这个格式要不要配默认值」。
-//  这是**新写的设置 UI**（不复用创建对话框）；持久化交给 Core 的 CompressionDefaultsStore。
-//  Finder / NSService 一键压缩按目标格式取它；创建对话框可勾选「使用本格式默认值」消费它。
+//  #115 设置 → 压缩 → 默认值：**按格式**的默认压缩设置。每个格式（zip / 7z / rar / tar.gz …）最多一份预设。
+//  列表 + 添加（选格式）+ 编辑 sheet。编辑器里每个选项前面有「启用」勾选 —— **不勾就不进预设**，创建 /
+//  一键压缩时该项保持内建默认（「可以选择不配置某个选项」）。持久化交给 Core 的 CompressionDefaultsStore。
 //
 
 import SwiftUI
@@ -13,18 +12,11 @@ import SwiftUI
 struct CompressionDefaultsSection: View {
     private let store = CompressionDefaultsStore()
 
-    /// 当前正在编辑哪个格式的默认值。
-    @State private var format: ArchiveCreateFormat = .zip
-    /// 这个格式是否启用了默认值（= store 里有没有这一份）。
-    @State private var enabled = false
-    /// 编辑中的整套选项（启用时绑定到各控件，变化即存）。
-    @State private var options = ArchiveCreationOptions()
+    @State private var presets: [CompressionFormatPreset] = []
+    @State private var editorTarget: FormatPresetEditorTarget?
 
     /// 可配默认值的格式（压缩相关；DMG 是挂载不在内）。
-    private let selectableFormats: [ArchiveCreateFormat] = [.zip, .sevenZip, .rar, .tar, .tarGzip, .gzip, .bzip2, .xz]
-    private let dictionarySizeOptions = [1, 2, 4, 8, 16, 24, 32, 48, 64, 96, 128, 192, 256]
-    private let wordSizeOptions = [16, 24, 32, 48, 64, 96, 128, 192, 256, 273]
-    private var maxThreadCount: Int { max(1, ProcessInfo.processInfo.activeProcessorCount) }
+    private let allFormats: [ArchiveCreateFormat] = [.zip, .sevenZip, .rar, .tar, .tarGzip, .gzip, .bzip2, .xz]
 
     var body: some View {
         Section(L10n.text("settings.defaults.title")) {
@@ -32,131 +24,243 @@ struct CompressionDefaultsSection: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            Picker(L10n.text("settings.defaults.format"), selection: $format) {
-                ForEach(selectableFormats) { format in
-                    Text(format.title).tag(format)
+            if presets.isEmpty {
+                Text(L10n.text("settings.defaults.empty"))
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical, 2)
+            } else {
+                ForEach(presets) { preset in
+                    presetRow(preset)
+                    if preset.id != presets.last?.id { Divider() }
                 }
             }
-            .onChange(of: format) { _ in loadForCurrentFormat() }
 
-            Toggle(L10n.text("settings.defaults.enable"), isOn: $enabled)
-                .onChange(of: enabled) { on in
-                    if on {
-                        options.format = format
-                        store.setOptions(options, for: format)
-                    } else {
-                        store.reset(for: format)
+            let configured = Set(presets.map(\.format))
+            let available = allFormats.filter { !configured.contains($0) }
+            if !available.isEmpty {
+                Menu {
+                    ForEach(available) { format in
+                        Button(format.title) {
+                            editorTarget = FormatPresetEditorTarget(preset: CompressionFormatPreset(format: format))
+                        }
                     }
+                } label: {
+                    Label(L10n.text("settings.defaults.add"), systemImage: "plus")
                 }
-
-            if enabled {
-                optionControls
-                    // 任何选项变化即存（已 sanitize；不含密码 / GPG）。
-                    .onChange(of: options) { _ in
-                        store.setOptions(options, for: format)
-                    }
             }
         }
-        .onAppear(perform: loadForCurrentFormat)
+        .onAppear(perform: reload)
+        .sheet(item: $editorTarget) { target in
+            FormatPresetEditorSheet(preset: target.preset) { saved in
+                store.save(saved)
+                editorTarget = nil
+                reload()
+            } onCancel: {
+                editorTarget = nil
+            }
+        }
     }
 
-    /// 全套可复用选项 —— 按格式自适应显示。逐次操作字段（密码 / GPG / 删除源文件）**不在默认值里**。
-    @ViewBuilder private var optionControls: some View {
-        if format.supportsCompressionLevel {
-            Picker(L10n.text("archive.compressionLevel"), selection: $options.compressionLevel) {
-                ForEach(CompressionLevel.allCases) { level in
-                    Text(level.title).tag(level)
-                }
+    private func presetRow(_ preset: CompressionFormatPreset) -> some View {
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(preset.format.title)
+                Text(summary(preset))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
+            Spacer()
+            Button(L10n.text("settings.presets.edit")) {
+                editorTarget = FormatPresetEditorTarget(preset: preset)
+            }
+            .buttonStyle(.borderless)
+            Button {
+                store.reset(for: preset.format)
+                reload()
+            } label: {
+                Image(systemName: "trash")
+            }
+            .buttonStyle(.borderless)
+            .help(L10n.text("file.delete"))
         }
+        .padding(.vertical, 2)
+    }
 
-        if format.supportsUpdateMode {
-            Picker(L10n.text("archive.updateMode"), selection: $options.updateMode) {
-                ForEach(ArchiveUpdateMode.allCases) { mode in
-                    Text(mode.title).tag(mode)
-                }
-            }
+    private func reload() {
+        presets = store.allPresets()
+    }
+
+    private func summary(_ preset: CompressionFormatPreset) -> String {
+        if preset.includedFields.isEmpty {
+            return L10n.text("settings.defaults.noOptions")
         }
+        return L10n.format("settings.defaults.optionCount", "\(preset.includedFields.count)")
+    }
+}
 
-        // ZIP 加密算法（AES-256 / ZipCrypto）—— 与密码无关的可复用偏好。
-        if format == .zip {
-            Picker(L10n.text("archive.encryptionMethod"), selection: $options.encryptionMethod) {
-                ForEach(ArchiveEncryptionMethod.allCases) { method in
-                    Text(method.title).tag(method)
+/// sheet(item:) 载荷。
+private struct FormatPresetEditorTarget: Identifiable {
+    let id = UUID()
+    var preset: CompressionFormatPreset
+}
+
+/// 某格式的默认值编辑器：每个适用选项前面一个「启用」勾选，勾上才配置 + 进预设。
+struct FormatPresetEditorSheet: View {
+    private let format: ArchiveCreateFormat
+    @State private var included: Set<CompressionOptionField>
+    @State private var options: ArchiveCreationOptions
+    let onSave: (CompressionFormatPreset) -> Void
+    let onCancel: () -> Void
+
+    private let dictionarySizeOptions = [1, 2, 4, 8, 16, 24, 32, 48, 64, 96, 128, 192, 256]
+    private let wordSizeOptions = [16, 24, 32, 48, 64, 96, 128, 192, 256, 273]
+    private var maxThreadCount: Int { max(1, ProcessInfo.processInfo.activeProcessorCount) }
+
+    init(preset: CompressionFormatPreset, onSave: @escaping (CompressionFormatPreset) -> Void, onCancel: @escaping () -> Void) {
+        self.format = preset.format
+        _included = State(initialValue: preset.includedFields)
+        _options = State(initialValue: preset.options)
+        self.onSave = onSave
+        self.onCancel = onCancel
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(L10n.format("settings.defaults.editorTitle", format.title))
+                .font(.headline)
+                .padding([.horizontal, .top], 18)
+                .padding(.bottom, 4)
+            Text(L10n.text("settings.defaults.editorHint"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 18)
+                .padding(.bottom, 8)
+
+            Form {
+                if format.supportsCompressionLevel {
+                    row(.level, L10n.text("archive.compressionLevel")) {
+                        Picker("", selection: $options.compressionLevel) {
+                            ForEach(CompressionLevel.allCases) { Text($0.title).tag($0) }
+                        }.labelsHidden().frame(width: 130)
+                    }
+                }
+                if format.supportsUpdateMode {
+                    row(.updateMode, L10n.text("archive.updateMode")) {
+                        Picker("", selection: $options.updateMode) {
+                            ForEach(ArchiveUpdateMode.allCases) { Text($0.title).tag($0) }
+                        }.labelsHidden().frame(width: 160)
+                    }
+                }
+                if format == .zip {
+                    row(.encryptionMethod, L10n.text("archive.encryptionMethod")) {
+                        Picker("", selection: $options.encryptionMethod) {
+                            ForEach(ArchiveEncryptionMethod.allCases) { Text($0.title).tag($0) }
+                        }.labelsHidden().frame(width: 160)
+                    }
+                }
+                if format == .sevenZip {
+                    row(.sevenZipMethod, L10n.text("archive.7z.method")) {
+                        Picker("", selection: $options.sevenZipMethod) {
+                            ForEach(SevenZipCompressionMethod.allCases) { Text($0.title).tag($0) }
+                        }.labelsHidden().frame(width: 130)
+                    }
+                    row(.dictionarySize, L10n.text("archive.7z.dictionarySize")) {
+                        Picker("", selection: $options.sevenZipDictionarySizeMB) {
+                            ForEach(dictionarySizeOptions, id: \.self) { Text("\($0) MB").tag($0) }
+                        }.labelsHidden().frame(width: 110)
+                    }
+                    row(.wordSize, L10n.text("archive.7z.wordSize")) {
+                        Picker("", selection: $options.sevenZipWordSize) {
+                            ForEach(wordSizeOptions, id: \.self) { Text("\($0)").tag($0) }
+                        }.labelsHidden().frame(width: 90)
+                    }
+                    row(.threadCount, L10n.text("archive.7z.threads")) {
+                        Stepper(value: $options.sevenZipThreadCount, in: 0...maxThreadCount) {
+                            Text(options.sevenZipThreadCount == 0 ? L10n.text("archive.7z.method.automatic") : "\(options.sevenZipThreadCount)")
+                                .foregroundStyle(.secondary)
+                        }.fixedSize()
+                    }
+                    row(.solid, L10n.text("archive.7z.solid")) {
+                        Toggle("", isOn: $options.sevenZipSolidArchive).labelsHidden()
+                    }
+                    row(.solidBlockSize, L10n.text("archive.7z.solidBlockSize")) {
+                        Picker("", selection: $options.sevenZipSolidBlockSize) {
+                            ForEach(SevenZipSolidBlockSize.allCases) { Text($0.title).tag($0) }
+                        }.labelsHidden().frame(width: 110)
+                    }
+                    row(.storeSymlinks, L10n.text("archive.7z.storeSymbolicLinks")) {
+                        Toggle("", isOn: $options.sevenZipStoreSymbolicLinks).labelsHidden()
+                    }
+                    row(.storeHardlinks, L10n.text("archive.7z.storeHardLinks")) {
+                        Toggle("", isOn: $options.sevenZipStoreHardLinks).labelsHidden()
+                    }
+                    row(.compressShared, L10n.text("archive.7z.compressSharedFiles")) {
+                        Toggle("", isOn: $options.sevenZipCompressSharedFiles).labelsHidden()
+                    }
+                }
+                if format == .sevenZip || format.supportsUpdateMode {
+                    row(.pathMode, L10n.text("archive.7z.pathMode")) {
+                        Picker("", selection: $options.sevenZipPathMode) {
+                            ForEach(SevenZipPathMode.allCases) { Text($0.title).tag($0) }
+                        }.labelsHidden().frame(width: 140)
+                    }
+                }
+                if format == .sevenZip || format == .rar {
+                    row(.encryptFileNames, L10n.text("archive.7z.encryptFileNames")) {
+                        Toggle("", isOn: $options.sevenZipEncryptFileNames).labelsHidden()
+                    }
+                }
+                if format.supportsRawParameters {
+                    row(.rawParameters, L10n.text("archive.parameters")) {
+                        TextField("", text: $options.rawParameters).frame(width: 160)
+                    }
+                }
+                if format.supportsExcludeRules {
+                    row(.skipDSStore, L10n.text("archive.skipDSStore")) {
+                        Toggle("", isOn: $options.skipDSStore).labelsHidden()
+                    }
+                    row(.skipHiddenFiles, L10n.text("archive.skipHiddenFiles")) {
+                        Toggle("", isOn: $options.skipHiddenFiles).labelsHidden()
+                    }
                 }
             }
-        }
+            .formStyle(.grouped)
 
-        if format == .sevenZip {
-            Picker(L10n.text("archive.7z.method"), selection: $options.sevenZipMethod) {
-                ForEach(SevenZipCompressionMethod.allCases) { method in
-                    Text(method.title).tag(method)
-                }
-            }
-            Picker(L10n.text("archive.7z.dictionarySize"), selection: $options.sevenZipDictionarySizeMB) {
-                ForEach(dictionarySizeOptions, id: \.self) { Text("\($0) MB").tag($0) }
-            }
-            Picker(L10n.text("archive.7z.wordSize"), selection: $options.sevenZipWordSize) {
-                ForEach(wordSizeOptions, id: \.self) { Text("\($0)").tag($0) }
-            }
+            Divider()
             HStack {
-                Text(L10n.text("archive.7z.threads"))
                 Spacer()
-                Stepper(value: $options.sevenZipThreadCount, in: 0...maxThreadCount) {
-                    Text(options.sevenZipThreadCount == 0 ? L10n.text("archive.7z.method.automatic") : "\(options.sevenZipThreadCount)")
-                        .foregroundStyle(.secondary)
+                Button(L10n.text("button.cancel"), role: .cancel) { onCancel() }
+                    .keyboardShortcut(.cancelAction)
+                Button(L10n.text("button.save")) {
+                    onSave(CompressionFormatPreset(format: format, includedFields: included, options: options))
                 }
+                .keyboardShortcut(.defaultAction)
             }
-            Toggle(L10n.text("archive.7z.solid"), isOn: $options.sevenZipSolidArchive)
-            if options.sevenZipSolidArchive {
-                Picker(L10n.text("archive.7z.solidBlockSize"), selection: $options.sevenZipSolidBlockSize) {
-                    ForEach(SevenZipSolidBlockSize.allCases) { Text($0.title).tag($0) }
-                }
-            }
-            Toggle(L10n.text("archive.7z.storeSymbolicLinks"), isOn: $options.sevenZipStoreSymbolicLinks)
-            Toggle(L10n.text("archive.7z.storeHardLinks"), isOn: $options.sevenZipStoreHardLinks)
-            Toggle(L10n.text("archive.7z.compressSharedFiles"), isOn: $options.sevenZipCompressSharedFiles)
+            .padding(18)
         }
+        .frame(width: 480, height: 520)
+    }
 
-        // 路径模式：7z 和支持「更新模式」的格式都用得上。
-        if format == .sevenZip || format.supportsUpdateMode {
-            Picker(L10n.text("archive.7z.pathMode"), selection: $options.sevenZipPathMode) {
-                ForEach(SevenZipPathMode.allCases) { Text($0.title).tag($0) }
-            }
-        }
-
-        // 加密文件名（7z / rar，需配密码时才生效；作为偏好仍可在默认值里设）。
-        if format == .sevenZip || format == .rar {
-            Toggle(L10n.text("archive.7z.encryptFileNames"), isOn: $options.sevenZipEncryptFileNames)
-        }
-
-        if format.supportsRawParameters {
-            TextField(L10n.text("archive.parameters"), text: $options.rawParameters)
-                .textFieldStyle(.roundedBorder)
-        }
-
-        if format.supportsExcludeRules {
-            Toggle(L10n.text("archive.skipDSStore"), isOn: $options.skipDSStore)
-            Toggle(L10n.text("archive.skipHiddenFiles"), isOn: $options.skipHiddenFiles)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(L10n.text("archive.customExcludes")).font(.caption)
-                TextEditor(text: $options.customExcludes)
-                    .font(.system(.body, design: .monospaced))
-                    .frame(height: 56)
-                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(nsColor: .separatorColor)))
-            }
+    /// 一行：左边「启用」勾选，右边值控件（没勾时禁用 + 变淡）。
+    @ViewBuilder
+    private func row(_ field: CompressionOptionField, _ label: String, @ViewBuilder _ control: () -> some View) -> some View {
+        HStack {
+            Toggle(label, isOn: includeBinding(field))
+                .toggleStyle(.checkbox)
+            Spacer(minLength: 12)
+            control()
+                .disabled(!included.contains(field))
+                .opacity(included.contains(field) ? 1 : 0.35)
         }
     }
 
-    private func loadForCurrentFormat() {
-        if let stored = store.options(for: format) {
-            enabled = true
-            options = stored
-        } else {
-            enabled = false
-            var fresh = ArchiveCreationOptions()
-            fresh.format = format
-            options = fresh
-        }
+    private func includeBinding(_ field: CompressionOptionField) -> Binding<Bool> {
+        Binding(
+            get: { included.contains(field) },
+            set: { on in
+                if on { included.insert(field) } else { included.remove(field) }
+            }
+        )
     }
 }
