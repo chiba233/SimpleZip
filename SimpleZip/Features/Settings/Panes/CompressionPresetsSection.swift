@@ -58,8 +58,9 @@ struct CompressionDefaultsSection: View {
 
     /// 已添加的一行：左边开关（启用 / 停用本模板），名字 + 摘要，右边编辑 / 删除。
     private func formatRow(_ preset: CompressionFormatPreset) -> some View {
-        HStack(spacing: 10) {
-            Toggle(isOn: Binding(
+        HStack(spacing: 12) {
+            // 开关放最左 —— 每行的开关左边缘对齐成一列。
+            Toggle("", isOn: Binding(
                 get: { preset.enabled },
                 set: { on in
                     var updated = preset
@@ -67,15 +68,16 @@ struct CompressionDefaultsSection: View {
                     store.save(updated)
                     reload()
                 }
-            )) {
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(preset.format.title)
-                    Text(summary(preset))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
+            ))
+            .labelsHidden()
             .toggleStyle(.switch)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(preset.format.title)
+                Text(summary(preset))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
 
             Spacer()
 
@@ -258,6 +260,7 @@ struct FormatPresetEditorSheet: View {
                 .toggleStyle(.checkbox)
             Spacer(minLength: 12)
             control()
+                .frame(width: 190, alignment: .trailing)   // 统一列宽 + 右对齐 → 右边缘齐
                 .disabled(!included.contains(field))
                 .opacity(included.contains(field) ? 1 : 0.35)
         }
