@@ -62,6 +62,8 @@ enum CompressionOptionField: String, Codable, CaseIterable, Identifiable, Sendab
 /// 某格式的「默认值预设」：一组**被启用**的字段 + 它们的值。每个格式最多一份（id = 格式）。
 struct CompressionFormatPreset: Codable, Identifiable, Equatable {
     var format: ArchiveCreateFormat
+    /// 这份模板是否启用。列表里的开关绑它：关掉 → 模板还在列表但不生效（Finder / 创建对话框不套用）。
+    var enabled: Bool
     /// 用户勾选「启用」的字段；只有这些会覆盖。空集 = 这个格式有预设但不覆盖任何字段（合法，等于全用默认）。
     var includedFields: Set<CompressionOptionField>
     /// 各字段的值（仅 `includedFields` 里的有意义；其它忽略）。已 sanitize（无密码 / GPG）。
@@ -69,8 +71,9 @@ struct CompressionFormatPreset: Codable, Identifiable, Equatable {
 
     var id: String { format.rawValue }
 
-    init(format: ArchiveCreateFormat, includedFields: Set<CompressionOptionField> = [], options: ArchiveCreationOptions = ArchiveCreationOptions()) {
+    init(format: ArchiveCreateFormat, enabled: Bool = true, includedFields: Set<CompressionOptionField> = [], options: ArchiveCreationOptions = ArchiveCreationOptions()) {
         self.format = format
+        self.enabled = enabled
         self.includedFields = includedFields
         var clean = options.sanitizedForStorage()
         clean.format = format

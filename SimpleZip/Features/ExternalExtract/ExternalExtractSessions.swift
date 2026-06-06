@@ -284,7 +284,9 @@ final class ExternalCreateSession: ObservableObject {
         // 那些选项（没启用的字段保持内建默认；密码 / GPG 私钥不入库，见 sanitizedForStorage()）。
         var options = ArchiveCreationOptions()
         options.format = format
-        CompressionDefaultsStore().preset(for: format)?.apply(to: &options)
+        if let preset = CompressionDefaultsStore().preset(for: format), preset.enabled {
+            preset.apply(to: &options)
+        }
         // GPG 签名是创建对话框里的交互项（要选签名 key）。预设可能带 gpgSign=true（sanitized 保留意图但抹掉 key），
         // 一键「简化压缩」是无对话框路径，不该用 default-key 静默签名 / 弹 passphrase —— 清掉，只走纯压缩。
         options.gpgSign = false
