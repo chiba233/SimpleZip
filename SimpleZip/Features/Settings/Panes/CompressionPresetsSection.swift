@@ -25,9 +25,10 @@ struct CompressionDefaultsSection: View {
                 .foregroundStyle(.secondary)
 
             // 只列出**用户已添加**的格式模板；每条一个启用开关。没添加的不显示。
+            // 注意：不要在行间插 Divider() —— 在 Form/Section 里它会单独占一整行(显示成空灰行)，
+            // 行间分隔线 Form 已自带。
             ForEach(presets) { preset in
                 formatRow(preset)
-                if preset.id != presets.last?.id { Divider() }
             }
 
             let available = allFormats.filter { format in !presets.contains { $0.format == format } }
