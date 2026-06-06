@@ -311,23 +311,56 @@ extension ArchiveBrowserModel {
         )
     }
 
-    /// 应用权限 / 属主改动。chmod 先免提权直改,失败的 + 改属主一起走单次系统授权;用户取消静默,其它失败弹错误。
+    /// 应用权限 / 属主改动 —— 走活动中心管理任务（进度 / 历史 / 逐文件结果),跟加密 / 解压等其它操作一致。
+    /// 真正的 chmod / chown 在后台线程执行（自有文件免提权直改,失败的 + 改属主合并成一次系统授权);
+    /// 用户取消授权弹窗 → 任务标「已取消」,部分失败 → 活动中心红色行带原因。
     func applyPermissions(mode newMode: UInt16?, owner newOwner: String?, to urls: [URL]) {
-        do {
-            var chmodFailed: [URL] = []
-            if let newMode {
-                chmodFailed = FilePermissionService.directChmod(newMode, to: urls)
+        guard newMode != nil || (newOwner?.isEmpty == false), !urls.isEmpty else { return }
+
+        var outcome: FilePermissionService.ApplyOutcome?
+        let title = urls.count == 1
+            ? L10n.format("status.permissionsChanging", urls[0].lastPathComponent)
+            : L10n.format("status.permissionsChangingMultiple", "\(urls.count)")
+
+        startManagedArchiveTask(
+            title: title,
+            kind: .permissions,
+            showsDetails: false,
+            cancellable: false,   // 取消点就是系统授权弹窗本身;操作本身瞬时,不另设中途取消。
+            refreshOnSuccess: { [weak self] in
+                guard let self, let outcome else { return }
+                if outcome.failures.isEmpty {
+                    self.status = outcome.changed.count == 1
+                        ? L10n.format("status.permissionsChanged", urls[0].lastPathComponent)
+                        : L10n.format("status.permissionsChangedMultiple", "\(outcome.changed.count)")
+                } else {
+                    self.status = L10n.format("status.permissionsChangedPartial", "\(outcome.changed.count)", "\(outcome.failures.count)")
+                }
+                self.reload()
+            },
+            onSucceeded: { task in
+                guard let outcome else { return }
+                var log = outcome.changed.map {
+                    TransferLogEntry(
+                        name: $0.lastPathComponent,
+                        action: .changed,
+                        isDirectory: (try? $0.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
+                    )
+                }
+                log += outcome.failures.map {
+                    TransferLogEntry(name: $0.url.lastPathComponent, action: .failed, isDirectory: false, detail: $0.reason)
+                }
+                task.transferLog = log
             }
-            let chmodArg: (mode: UInt16, urls: [URL])? = (newMode != nil && !chmodFailed.isEmpty) ? (newMode!, chmodFailed) : nil
-            let chownArg: (owner: String, urls: [URL])? = (newOwner != nil && !newOwner!.isEmpty) ? (newOwner!, urls) : nil
-            if chmodArg != nil || chownArg != nil {
-                try FilePermissionService.privileged(chmod: chmodArg, chown: chownArg)
+        ) { _, _, _ in
+            do {
+                outcome = try await Task.detached(priority: .userInitiated) {
+                    try FilePermissionService.apply(mode: newMode, owner: newOwner, to: urls)
+                }.value
+            } catch FilePermissionService.Failure.cancelled {
+                // 用户取消授权弹窗 → 映射成取消,活动中心标「已取消」而非失败。
+                throw CancellationError()
             }
-            reload()
-        } catch FilePermissionService.Failure.cancelled {
-            // 用户在授权弹窗点了取消 —— 静默,不报错。
-        } catch {
-            errorMessage = error.localizedDescription
         }
     }
 

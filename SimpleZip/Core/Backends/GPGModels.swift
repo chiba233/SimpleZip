@@ -37,7 +37,7 @@ extension GPGBackend {
         /// 值:2=undefined/未设置、3=never、4=marginal、5=full、6=ultimate。
         /// ⚠️ 之前 UI 信任 dropdown 读的是 validity(parse),所以设 never/marginal/full 后 validity 仍是 unknown →
         /// 看起来「只有终极信任成功」。dropdown 应该读这个 ownertrust。
-        static func parseOwnertrust(_ raw: String) -> GPGTrustLevel {
+        nonisolated static func parseOwnertrust(_ raw: String) -> GPGTrustLevel {
             switch raw {
             case "3": return .never
             case "4": return .marginal

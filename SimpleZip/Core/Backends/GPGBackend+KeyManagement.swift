@@ -106,7 +106,8 @@ extension GPGBackend {
 
     /// 解析 `gpg --export-ownertrust` 输出 → `[fingerprint: ownertrust]`。
     /// 每行 `<40hex fingerprint>:<value>:`；`#` 注释跳过。
-    static func parseOwnertrust(_ output: String) -> [String: GPGTrustLevel] {
+    /// `nonisolated`：纯字符串解析、不碰任何 actor 状态,需从 `ownertrustLevel` 的 `@Sendable` 并发闭包里调用。
+    nonisolated static func parseOwnertrust(_ output: String) -> [String: GPGTrustLevel] {
         var map: [String: GPGTrustLevel] = [:]
         for rawLine in output.split(separator: "\n", omittingEmptySubsequences: true) {
             let line = rawLine.trimmingCharacters(in: .whitespaces)

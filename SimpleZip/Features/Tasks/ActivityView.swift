@@ -496,6 +496,7 @@ private struct ActivityTaskRow: View {
     private func transferLogDetails(_ entries: [TransferLogEntry], hashComparisons: [HashOverwriteResult]) -> some View {
         let added = entries.filter { $0.action == .added }
         let overwritten = entries.filter { $0.action == .overwritten }
+        let changed = entries.filter { $0.action == .changed }
         let skipped = entries.filter { $0.action == .skipped }
         let deleted = entries.filter { $0.action == .deleted }
         let failed = entries.filter { $0.action == .failed }
@@ -508,7 +509,7 @@ private struct ActivityTaskRow: View {
                 Text(detailsHeaderTitle)
                     .font(.caption.weight(.semibold))
                 Spacer()
-                transferLogSummary(added: added.count, overwritten: overwritten.count,
+                transferLogSummary(added: added.count, overwritten: overwritten.count + changed.count,
                                    skipped: skipped.count, failed: failed.count)
             }
             ScrollView {
@@ -522,6 +523,9 @@ private struct ActivityTaskRow: View {
                     }
                     if !overwritten.isEmpty {
                         TransferLogGroup(title: L10n.text("transfer.section.overwritten"), entries: overwritten, icon: "arrow.triangle.2.circlepath.circle.fill", tint: .orange, hashByName: hashByName)
+                    }
+                    if !changed.isEmpty {
+                        TransferLogGroup(title: L10n.text("transfer.section.changed"), entries: changed, icon: "lock.shield.fill", tint: .green, hashByName: hashByName)
                     }
                     if !skipped.isEmpty {
                         TransferLogGroup(title: L10n.text("transfer.section.skipped"), entries: skipped, icon: "minus.circle.fill", tint: .secondary, hashByName: hashByName)
@@ -659,6 +663,8 @@ private struct ActivityTaskRow: View {
             return "trash"
         case .rename:
             return "pencil"
+        case .permissions:
+            return "lock.shield"
         }
     }
 

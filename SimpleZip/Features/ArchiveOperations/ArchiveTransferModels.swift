@@ -47,6 +47,7 @@ enum PasteConflictChoice: Equatable {
 enum TransferAction: String, Codable {
     case added        // 新增：目标原本没有，直接写入
     case overwritten  // 覆盖：目标已有同名项，被替换
+    case changed      // 更改：项目本身保留，只改了属性（如 chmod / chown 权限与属主）；`detail` 带新值
     case skipped      // 跳过：同名项未替换（用户选跳过 / 哈希相同）
     case deleted      // 删除：移到废纸篓
     case failed       // 失败：该项未能完成（批量操作里某些项失败但其它项成功）；`detail` 带原因

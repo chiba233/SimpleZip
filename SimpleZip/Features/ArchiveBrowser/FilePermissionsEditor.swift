@@ -61,9 +61,59 @@ enum FilePermissionService {
         ((try? FileManager.default.attributesOfItem(atPath: url.path))?[.ownerAccountName] as? String) ?? ""
     }
 
+    /// 单个文件的失败记录（活动中心红色行展示）。
+    struct FileFailure: Sendable {
+        let url: URL
+        let reason: String
+    }
+
+    /// 一次 apply 的逐文件结果 —— 喂给活动中心 transferLog。
+    struct ApplyOutcome: Sendable {
+        var changed: [URL]
+        var failures: [FileFailure]
+    }
+
+    /// 统一入口（活动中心任务里调用）：先对自有文件免提权直改 chmod,失败的 + 改属主合并成一次系统授权批处理。
+    /// 返回逐文件结果;用户取消授权弹窗时抛 `Failure.cancelled`（调用方映射成 CancellationError）。
+    /// `mode` 为 nil = 不改权限;`owner` 为空 = 不改属主。`nonisolated`：在后台 `Task.detached` 执行,避开 main actor。
+    nonisolated static func apply(mode: UInt16?, owner: String?, to urls: [URL]) throws -> ApplyOutcome {
+        let wantsChown = (owner?.isEmpty == false)
+
+        // 1. 自有文件直接 chmod（无弹窗）。
+        var chmodFailed: [URL] = []
+        if let mode {
+            chmodFailed = directChmod(mode, to: urls)
+        }
+        let needsPrivilegedChmod = (mode != nil && !chmodFailed.isEmpty)
+
+        // 2. 需要提权（改属主,或有 chmod 因权限不足失败）→ 一次系统授权批处理。
+        if needsPrivilegedChmod || wantsChown {
+            do {
+                try privileged(
+                    chmod: needsPrivilegedChmod ? (mode!, chmodFailed) : nil,
+                    chown: wantsChown ? (owner!, urls) : nil
+                )
+                return ApplyOutcome(changed: urls, failures: [])   // 提权成功 → 所有项视为已更改
+            } catch Failure.cancelled {
+                throw Failure.cancelled                            // 透传:调用方静默成「已取消」
+            } catch {
+                let reason = error.localizedDescription
+                return ApplyOutcome(changed: [], failures: urls.map { FileFailure(url: $0, reason: reason) })
+            }
+        }
+
+        // 3. 只做了直接 chmod：成功 = 没失败的那些;失败 = chmodFailed。
+        let failedSet = Set(chmodFailed)
+        return ApplyOutcome(
+            changed: urls.filter { !failedSet.contains($0) },
+            failures: chmodFailed.map { FileFailure(url: $0, reason: L10n.text("file.permissions.chmodFailed")) }
+        )
+    }
+
     /// 直接 chmod（本用户拥有的文件免提权）。返回**失败**、需要提权重试的 URL 列表。
+    /// `nonisolated`：在活动中心的后台 `Task.detached` 里执行,不能要求 main actor。
     @discardableResult
-    static func directChmod(_ mode: UInt16, to urls: [URL]) -> [URL] {
+    nonisolated static func directChmod(_ mode: UInt16, to urls: [URL]) -> [URL] {
         var failed: [URL] = []
         for url in urls {
             do {
@@ -75,8 +125,8 @@ enum FilePermissionService {
         return failed
     }
 
-    /// 提权执行 chmod / chown —— 一次系统授权弹窗做完所有路径。两者都可为 nil（什么都不做）。
-    static func privileged(chmod: (mode: UInt16, urls: [URL])?, chown: (owner: String, urls: [URL])?) throws {
+    /// 提权执行 chmod / chown —— 一次系统授权弹窗做完所有路径。两者都可为 nil（什么都不做）。`nonisolated`：后台执行。
+    nonisolated static func privileged(chmod: (mode: UInt16, urls: [URL])?, chown: (owner: String, urls: [URL])?) throws {
         var commands: [String] = []
         if let chmod, !chmod.urls.isEmpty {
             let paths = chmod.urls.map { shellQuote($0.path) }.joined(separator: " ")
@@ -91,7 +141,7 @@ enum FilePermissionService {
         try runPrivileged(commands.joined(separator: " && "))
     }
 
-    private static func runPrivileged(_ shellCommand: String) throws {
+    nonisolated private static func runPrivileged(_ shellCommand: String) throws {
         let source = "do shell script \"\(appleScriptLiteral(shellCommand))\" with administrator privileges"
         guard let script = NSAppleScript(source: source) else { throw Failure.scriptUnavailable }
         var errorInfo: NSDictionary?
@@ -107,12 +157,12 @@ enum FilePermissionService {
     }
 
     /// shell 单引号转义：包一层单引号,内部单引号用 `'\''`。
-    private static func shellQuote(_ value: String) -> String {
+    nonisolated private static func shellQuote(_ value: String) -> String {
         "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 
     /// AppleScript 字符串字面量转义（先反斜杠再双引号）。
-    private static func appleScriptLiteral(_ value: String) -> String {
+    nonisolated private static func appleScriptLiteral(_ value: String) -> String {
         value
             .replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "\"", with: "\\\"")

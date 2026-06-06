@@ -1112,6 +1112,7 @@
 "conflict.applyToAll" = "Apply to the remaining conflicts in this operation";
 "transfer.section.added" = "Added";
 "transfer.section.overwritten" = "Overwritten";
+"transfer.section.changed" = "Changed";
 "transfer.section.skipped" = "Skipped";
 "transfer.section.deleted" = "Deleted";
 "transfer.section.failed" = "Failed";
@@ -1301,6 +1302,12 @@
 "gpgEncrypt.mode.bundle" = "Pack into one archive, then encrypt (.tar.gpg)";
 "gpgEncrypt.needsRecipientOrPassphrase" = "Add a recipient or a passphrase.";
 "gpgEncrypt.mixedKeyrings" = "Can't mix recipients from ~/.gnupg and SimpleZip's private keyring — one encryption uses one keyring.";
+"status.permissionsChanging" = "Updating permissions for %@…";
+"status.permissionsChangingMultiple" = "Updating permissions for %@ items…";
+"status.permissionsChanged" = "Updated permissions for %@";
+"status.permissionsChangedMultiple" = "Updated permissions for %@ items";
+"status.permissionsChangedPartial" = "Updated %@, failed %@";
+"file.permissions.chmodFailed" = "Could not change permissions (operation not permitted).";
 "status.gpgEncrypting" = "Encrypting %@…";
 "status.gpgEncryptingMultiple" = "Encrypting %@ items…";
 "status.gpgEncrypted" = "Encrypted to %@";
