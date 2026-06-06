@@ -75,17 +75,27 @@ extension ArchiveBrowserModel {
                 includeMacOSHidden: AppPreferences.hiddenDetectionMode.includesMacOSHiddenFlag,
                 folderFirst: true
             )
-            // 列表内容（按稳定标识 url + 目录标志 + 大小 + 修改时间）没变就**不重新赋值**。
-            // 关键：FileItem.id 每次都是新 UUID，无脑赋值会让等价列表看起来「变了」。FSEvents watcher 在
-            // Desktop 这类目录被 .DS_Store / Spotlight 等无关写入频繁触发时，会一遍遍 loadFolder 出等价但
-            // 全新 UUID 的 items → @Published → reloadData → **空闲时反复闪烁**。内容真变了才赋值刷新。
-            if !Self.fileItemsRepresentSameListing(newItems, fileItems) {
+            // 列表内容（按稳定标识 url + 目录标志 + 大小 + 修改时间）没变就**一个 @Published 都不碰**。
+            //
+            // 关键 / 顶部 global 菜单栏闪烁的真根因（debug log 实测确认）：FileItem.id 每次都是新 UUID，
+            // 无脑赋值会让等价列表看起来「变了」。FSEvents watcher 在 Desktop / Downloads / 家目录这类被
+            // .DS_Store / Spotlight / 缩略图缓存等无关写入持续触发的目录上，会**每 ~120ms 触发一次 loadFolder**
+            // （去抖周期），形成自维持反馈环。`fileItems` 早有等价守卫，但 `archiveItems = []` 和
+            // `status = ...` 之前**每次都无条件重新赋值** —— `@Published` 不做去重，赋同样的值也照发
+            // `objectWillChange` → `@FocusedObject` 把整条 `.commands`（顶部菜单栏）反复重建 → 正打开的菜单
+            // 被冲掉 → 一直闪、一级菜单都难点开。所以这里**每个 @Published 都先比对、只在真变了才赋值**。
+            let sameListing = Self.fileItemsRepresentSameListing(newItems, fileItems)
+            if !sameListing {
                 fileItems = newItems
             }
-
-            archiveItems = []
+            if !archiveItems.isEmpty {
+                archiveItems = []
+            }
             session.clearArchive()
-            status = L10n.format("status.itemCount", fileItems.count)
+            let newStatus = L10n.format("status.itemCount", fileItems.count)
+            if status != newStatus {
+                status = newStatus
+            }
         } catch {
             fileItems = []
             archiveItems = []
