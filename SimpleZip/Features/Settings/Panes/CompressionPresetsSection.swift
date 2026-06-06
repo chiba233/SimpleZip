@@ -35,8 +35,8 @@ struct CompressionDefaultsSection: View {
                 Menu {
                     ForEach(available) { format in
                         Button(format.title) {
-                            store.save(CompressionFormatPreset(format: format))
-                            reload()
+                            // 添加即弹编辑器：在 sheet 里配置完点保存才真正加进列表（取消则不加）。
+                            editorTarget = FormatPresetEditorTarget(preset: CompressionFormatPreset(format: format))
                         }
                     }
                 } label: {
