@@ -680,15 +680,46 @@ private struct FileNSOutlineView: NSViewRepresentable {
                 appendSectionMenu(to: menu, for: clickedNode)
                 return
             }
+            // `.gpg` / `.szs` 解密出的是**临时只读内容**（manifestVirtualMode）。像浏览压缩包内容一样受限：
+            // 不提供任何会改动 / 删除临时内容的操作（新建 / 粘贴 / 重命名 / 副本 / 符号链接 / 剪切 / 移动 / 删除），
+            // 也不提供「压缩 / 签名 / 加密」这类完整文件管理项 —— 只留查看、导出、校验。
+            let isVirtualBrowse = model.manifestVirtualMode != nil
+
             let clickedFile = (clickedItem as? FileOutlineNode)?.fileItem
             guard clickedFile != nil else {
-                appendNewItemMenu(to: menu)
-                menu.addItem(.separator())
-                menu.addItem(menuItem(L10n.text("file.paste"), systemImage: "clipboard", action: #selector(pasteFiles)))
-                menu.addItem(.separator())
+                if !isVirtualBrowse {
+                    appendNewItemMenu(to: menu)
+                    menu.addItem(.separator())
+                    menu.addItem(menuItem(L10n.text("file.paste"), systemImage: "clipboard", action: #selector(pasteFiles)))
+                    menu.addItem(.separator())
+                }
                 // 用 revealCurrentLocation 不用 revealSelected —— 用户右键空白处的意图是「打开我现在看的这个文件夹本身」。
                 menu.addItem(menuItem(L10n.text("button.revealInFinder"), systemImage: "arrow.up.forward.app", action: #selector(revealCurrentLocation)))
                 appendFolderGroupingMenu(to: menu)
+                return
+            }
+
+            // 受限「归档式」菜单（虚拟只读浏览）：查看 / 导出 / 校验，仅此而已。
+            if isVirtualBrowse {
+                menu.addItem(menuItem(L10n.text("button.open"), systemImage: "arrow.turn.up.right", action: #selector(openSelected)))
+                if model.selectedFileItems.count == 1, let item = model.selectedFileItems.first, canOpenInNewBrowser(item) {
+                    menu.addItem(menuItem(L10n.text("file.openInNewTab"), systemImage: "plus.rectangle.on.rectangle", action: #selector(openSelectedInNewTab)))
+                    menu.addItem(menuItem(L10n.text("file.openInNewWindow"), systemImage: "macwindow.badge.plus", action: #selector(openSelectedInNewWindow)))
+                }
+                if let first = model.selectedFileItems.first, !FileBrowserService.isNavigableDirectory(first) {
+                    appendOpenWithMenu(to: menu)
+                }
+                menu.addItem(menuItem(L10n.text("file.quickLook"), systemImage: "eye", action: #selector(quickLookSelected)))
+                if let item = model.selectedFileItems.first, model.selectedFileItems.count == 1, model.canShowPackageContents(item) {
+                    menu.addItem(menuItem(L10n.text("file.showPackageContents"), systemImage: "folder", action: #selector(showPackageContents)))
+                }
+                menu.addItem(.separator())
+                menu.addItem(menuItem(L10n.text("button.hash"), systemImage: "number.square", action: #selector(hashSelected)))
+                // 复制 = 导出到剪贴板（只读，不改动临时内容）。不提供剪切 / 粘贴 / 移动 / 删除。
+                menu.addItem(menuItem(L10n.text("file.copy"), systemImage: "doc.on.doc", action: #selector(copySelected)))
+                menu.addItem(.separator())
+                menu.addItem(menuItem(L10n.text("file.getInfo"), systemImage: "info.circle", action: #selector(getInfoSelected)))
+                menu.addItem(menuItem(L10n.text("button.revealInFinder"), systemImage: "arrow.up.forward.app", action: #selector(revealSelected)))
                 return
             }
 
