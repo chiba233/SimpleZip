@@ -63,85 +63,55 @@ struct ColumnsPane: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                Grid(alignment: .leading, horizontalSpacing: 24, verticalSpacing: 8) {
-                    GridRow {
-                        Text(L10n.text("settings.columns.fileBrowser"))
-                            .font(.headline)
-                        Text(L10n.text("settings.columns.archiveBrowser"))
-                            .font(.headline)
-                    }
-
-                    // 两侧共用的 4 个名字（大小/种类/修改时间/创建日期）必须落在同一行，
-                    // 否则用户左右扫一眼会误以为它们是两个不同的概念。
-                    // 文件浏览 7 项放完后剩 3 行用 Color.clear；archive 那 6 个独占项填满剩余空位。
-                    GridRow {
+                // 紧凑布局：列越加越多后，原来「2 列 × 14 行」的稀疏网格把整页撑得很高（用户反馈一屏看不到
+                // 预览 + 全部选项）。改成左右两块、压缩包侧拆成 2 个子列 → 高度从 14 行降到 ~8 行，宽度只略增。
+                HStack(alignment: .top, spacing: 36) {
+                    // 文件浏览（8 项，单列）
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(L10n.text("settings.columns.fileBrowser")).font(.headline)
                         Toggle(L10n.text("column.size"), isOn: $showFileSizeColumn)
-                        Toggle(L10n.text("column.size"), isOn: $showArchiveSizeColumn)
-                    }
-
-                    GridRow {
                         Toggle(L10n.text("column.kind"), isOn: $showFileTypeColumn)
-                        Toggle(L10n.text("column.kind"), isOn: $showArchiveKindColumn)
-                    }
-
-                    GridRow {
                         Toggle(L10n.text("column.application"), isOn: $showFileApplicationColumn)
-                        Toggle(L10n.text("column.path"), isOn: $showArchivePathColumn)
-                    }
-
-                    GridRow {
                         Toggle(L10n.text("column.lastOpened"), isOn: $showFileLastOpenedColumn)
-                        Toggle(L10n.text("column.packedSize"), isOn: $showArchivePackedSizeColumn)
-                    }
-
-                    GridRow {
                         Toggle(L10n.text("column.dateAdded"), isOn: $showFileDateAddedColumn)
-                        Toggle(L10n.text("column.method"), isOn: $showArchiveMethodColumn)
-                    }
-
-                    GridRow {
                         Toggle(L10n.text("column.modified"), isOn: $showFileModifiedColumn)
-                        Toggle(L10n.text("column.modified"), isOn: $showArchiveModifiedColumn)
-                    }
-
-                    GridRow {
                         Toggle(L10n.text("column.created"), isOn: $showFileCreatedColumn)
-                        Toggle(L10n.text("column.created"), isOn: $showArchiveCreatedColumn)
-                    }
-
-                    GridRow {
-                        Color.clear
-                        Toggle(L10n.text("column.crc"), isOn: $showArchiveCrcColumn)
-                    }
-
-                    GridRow {
-                        Color.clear
-                        Toggle(L10n.text("column.attributes"), isOn: $showArchiveAttributesColumn)
-                    }
-
-                    GridRow {
-                        Color.clear
-                        Toggle(L10n.text("column.encrypted"), isOn: $showArchiveEncryptedColumn)
-                    }
-
-                    GridRow {
-                        Color.clear
-                        Toggle(L10n.text("column.accessed"), isOn: $showArchiveAccessedColumn)
-                    }
-
-                    GridRow {
-                        Color.clear
-                        Toggle(L10n.text("column.hostOS"), isOn: $showArchiveHostOSColumn)
-                    }
-
-                    GridRow {
-                        Color.clear
-                        Toggle(L10n.text("column.characteristics"), isOn: $showArchiveCharacteristicsColumn)
-                    }
-
-                    GridRow {
                         Toggle(L10n.text("column.symlink"), isOn: $showFileSymlinkColumn)
-                        Toggle(L10n.text("column.symlink"), isOn: $showArchiveSymlinkColumn)
+                    }
+
+                    // 压缩包浏览（14 项 → 2 子列 × 7 行）
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(L10n.text("settings.columns.archiveBrowser")).font(.headline)
+                        Grid(alignment: .leading, horizontalSpacing: 20, verticalSpacing: 6) {
+                            GridRow {
+                                Toggle(L10n.text("column.kind"), isOn: $showArchiveKindColumn)
+                                Toggle(L10n.text("column.size"), isOn: $showArchiveSizeColumn)
+                            }
+                            GridRow {
+                                Toggle(L10n.text("column.path"), isOn: $showArchivePathColumn)
+                                Toggle(L10n.text("column.packedSize"), isOn: $showArchivePackedSizeColumn)
+                            }
+                            GridRow {
+                                Toggle(L10n.text("column.modified"), isOn: $showArchiveModifiedColumn)
+                                Toggle(L10n.text("column.created"), isOn: $showArchiveCreatedColumn)
+                            }
+                            GridRow {
+                                Toggle(L10n.text("column.method"), isOn: $showArchiveMethodColumn)
+                                Toggle(L10n.text("column.crc"), isOn: $showArchiveCrcColumn)
+                            }
+                            GridRow {
+                                Toggle(L10n.text("column.attributes"), isOn: $showArchiveAttributesColumn)
+                                Toggle(L10n.text("column.encrypted"), isOn: $showArchiveEncryptedColumn)
+                            }
+                            GridRow {
+                                Toggle(L10n.text("column.accessed"), isOn: $showArchiveAccessedColumn)
+                                Toggle(L10n.text("column.hostOS"), isOn: $showArchiveHostOSColumn)
+                            }
+                            GridRow {
+                                Toggle(L10n.text("column.characteristics"), isOn: $showArchiveCharacteristicsColumn)
+                                Toggle(L10n.text("column.symlink"), isOn: $showArchiveSymlinkColumn)
+                            }
+                        }
                     }
                 }
             }
