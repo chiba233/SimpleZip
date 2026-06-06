@@ -12,10 +12,10 @@ import SwiftUI
 struct CompressionDefaultsSection: View {
     private let store = CompressionDefaultsStore()
 
-    @State private var presets: [CompressionFormatPreset] = []
+    @State private var presetsByFormat: [ArchiveCreateFormat: CompressionFormatPreset] = [:]
     @State private var editorTarget: FormatPresetEditorTarget?
 
-    /// 可配默认值的格式（压缩相关；DMG 是挂载不在内）。
+    /// 可配默认值的格式（压缩相关；DMG 是挂载不在内）。每个格式一行 + 自己的开关。
     private let allFormats: [ArchiveCreateFormat] = [.zip, .sevenZip, .rar, .tar, .tarGzip, .gzip, .bzip2, .xz]
 
     var body: some View {
@@ -24,30 +24,9 @@ struct CompressionDefaultsSection: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            if presets.isEmpty {
-                Text(L10n.text("settings.defaults.empty"))
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .padding(.vertical, 2)
-            } else {
-                ForEach(presets) { preset in
-                    presetRow(preset)
-                    if preset.id != presets.last?.id { Divider() }
-                }
-            }
-
-            let configured = Set(presets.map(\.format))
-            let available = allFormats.filter { !configured.contains($0) }
-            if !available.isEmpty {
-                Menu {
-                    ForEach(available) { format in
-                        Button(format.title) {
-                            editorTarget = FormatPresetEditorTarget(preset: CompressionFormatPreset(format: format))
-                        }
-                    }
-                } label: {
-                    Label(L10n.text("settings.defaults.add"), systemImage: "plus")
-                }
+            ForEach(allFormats) { format in
+                formatRow(format)
+                if format != allFormats.last { Divider() }
             }
         }
         .onAppear(perform: reload)
@@ -62,33 +41,46 @@ struct CompressionDefaultsSection: View {
         }
     }
 
-    private func presetRow(_ preset: CompressionFormatPreset) -> some View {
-        HStack(spacing: 10) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(preset.format.title)
-                Text(summary(preset))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+    /// 每个格式一行：左边「启用」开关，启用后右边出「编辑」。
+    private func formatRow(_ format: ArchiveCreateFormat) -> some View {
+        let preset = presetsByFormat[format]
+        let isEnabled = preset != nil
+        return HStack(spacing: 10) {
+            Toggle(isOn: Binding(
+                get: { presetsByFormat[format] != nil },
+                set: { on in
+                    if on {
+                        store.save(CompressionFormatPreset(format: format))
+                    } else {
+                        store.reset(for: format)
+                    }
+                    reload()
+                }
+            )) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(format.title)
+                    if let preset {
+                        Text(summary(preset))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
+
             Spacer()
-            Button(L10n.text("settings.presets.edit")) {
-                editorTarget = FormatPresetEditorTarget(preset: preset)
+
+            if isEnabled {
+                Button(L10n.text("settings.presets.edit")) {
+                    editorTarget = FormatPresetEditorTarget(preset: preset ?? CompressionFormatPreset(format: format))
+                }
+                .buttonStyle(.borderless)
             }
-            .buttonStyle(.borderless)
-            Button {
-                store.reset(for: preset.format)
-                reload()
-            } label: {
-                Image(systemName: "trash")
-            }
-            .buttonStyle(.borderless)
-            .help(L10n.text("file.delete"))
         }
         .padding(.vertical, 2)
     }
 
     private func reload() {
-        presets = store.allPresets()
+        presetsByFormat = store.loadAll()
     }
 
     private func summary(_ preset: CompressionFormatPreset) -> String {
