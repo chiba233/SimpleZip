@@ -697,6 +697,8 @@
 "column.hostOS" = "Host OS";
 "column.characteristics" = "Characteristics";
 "column.symlink" = "Symlink Target";
+"column.permissions" = "Permissions";
+"column.owner" = "Owner";
 "search.prompt" = "Search";
 "menu.find" = "Find";
 "menu.aboutSimpleZip" = "About SimpleZip";

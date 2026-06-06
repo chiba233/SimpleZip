@@ -214,7 +214,9 @@ enum ColumnHeaderMenuScope {
                 ("column.dateAdded", AppPreferences.Key.showFileDateAddedColumn, true),
                 ("column.modified", AppPreferences.Key.showFileModifiedColumn, true),
                 ("column.created", AppPreferences.Key.showFileCreatedColumn, true),
-                ("column.symlink", AppPreferences.Key.showFileSymlinkColumn, false)
+                ("column.symlink", AppPreferences.Key.showFileSymlinkColumn, false),
+                ("column.permissions", AppPreferences.Key.showFilePermissionsColumn, false),
+                ("column.owner", AppPreferences.Key.showFileOwnerColumn, false)
             ]
         case .archiveBrowser:
             return [

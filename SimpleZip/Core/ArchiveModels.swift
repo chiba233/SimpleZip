@@ -30,6 +30,46 @@ struct FileItem: Identifiable, Hashable {
     let lastOpened: Date?
     let typeDescription: String
     let applicationName: String
+    /// Unix 权限串（`-rw-r--r--` / `drwxr-xr-x` / `lrwxr-xr-x`）—— 可选「权限」列展示。取不到时为空。
+    let permissions: String
+    /// 属主用户名（取不到时退回数字 uid 字符串）—— 可选「属主」列展示。
+    let owner: String
+
+    init(
+        url: URL,
+        name: String,
+        displayName: String,
+        isDirectory: Bool,
+        isSymbolicLink: Bool,
+        symlinkTarget: String,
+        isHidden: Bool,
+        size: Int64?,
+        modified: Date?,
+        created: Date?,
+        dateAdded: Date?,
+        lastOpened: Date?,
+        typeDescription: String,
+        applicationName: String,
+        permissions: String = "",
+        owner: String = ""
+    ) {
+        self.url = url
+        self.name = name
+        self.displayName = displayName
+        self.isDirectory = isDirectory
+        self.isSymbolicLink = isSymbolicLink
+        self.symlinkTarget = symlinkTarget
+        self.isHidden = isHidden
+        self.size = size
+        self.modified = modified
+        self.created = created
+        self.dateAdded = dateAdded
+        self.lastOpened = lastOpened
+        self.typeDescription = typeDescription
+        self.applicationName = applicationName
+        self.permissions = permissions
+        self.owner = owner
+    }
 }
 
 /// 地址栏补全候选项。

@@ -695,6 +695,8 @@
 "column.hostOS" = "主操作系统";
 "column.characteristics" = "特征";
 "column.symlink" = "符号链接目标";
+"column.permissions" = "权限";
+"column.owner" = "属主";
 "search.prompt" = "搜索";
 "menu.find" = "查找";
 "menu.aboutSimpleZip" = "关于 SimpleZip";

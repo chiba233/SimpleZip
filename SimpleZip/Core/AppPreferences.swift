@@ -284,6 +284,8 @@ enum AppPreferences {
         nonisolated static let showFileModifiedColumn = "showFileModifiedColumn"
         nonisolated static let showFileCreatedColumn = "showFileCreatedColumn"
         nonisolated static let showFileSymlinkColumn = "showFileSymlinkColumn"
+        nonisolated static let showFilePermissionsColumn = "showFilePermissionsColumn"
+        nonisolated static let showFileOwnerColumn = "showFileOwnerColumn"
         nonisolated static let showArchiveKindColumn = "showArchiveKindColumn"
         nonisolated static let showArchiveSizeColumn = "showArchiveSizeColumn"
         nonisolated static let showArchiveModifiedColumn = "showArchiveModifiedColumn"
@@ -552,6 +554,14 @@ enum AppPreferences {
 
     nonisolated static var showFileSymlinkColumn: Bool {
         defaults.bool(forKey: Key.showFileSymlinkColumn)
+    }
+
+    nonisolated static var showFilePermissionsColumn: Bool {
+        defaults.bool(forKey: Key.showFilePermissionsColumn)
+    }
+
+    nonisolated static var showFileOwnerColumn: Bool {
+        defaults.bool(forKey: Key.showFileOwnerColumn)
     }
 
     nonisolated static var showArchiveKindColumn: Bool {
@@ -873,6 +883,8 @@ enum AppPreferences {
         Key.showFileModifiedColumn,
         Key.showFileCreatedColumn,
         Key.showFileSymlinkColumn,
+        Key.showFilePermissionsColumn,
+        Key.showFileOwnerColumn,
         Key.showArchiveKindColumn,
         Key.showArchiveSizeColumn,
         Key.showArchiveModifiedColumn,
@@ -969,6 +981,8 @@ enum AppPreferences {
         v[Key.showFileModifiedColumn] = showFileModifiedColumn
         v[Key.showFileCreatedColumn] = showFileCreatedColumn
         v[Key.showFileSymlinkColumn] = showFileSymlinkColumn
+        v[Key.showFilePermissionsColumn] = showFilePermissionsColumn
+        v[Key.showFileOwnerColumn] = showFileOwnerColumn
         v[Key.showArchiveKindColumn] = showArchiveKindColumn
         v[Key.showArchiveSizeColumn] = showArchiveSizeColumn
         v[Key.showArchiveModifiedColumn] = showArchiveModifiedColumn

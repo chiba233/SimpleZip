@@ -21,6 +21,8 @@ struct ColumnsPane: View {
     @AppStorage(AppPreferences.Key.showFileModifiedColumn) private var showFileModifiedColumn = true
     @AppStorage(AppPreferences.Key.showFileCreatedColumn) private var showFileCreatedColumn = true
     @AppStorage(AppPreferences.Key.showFileSymlinkColumn) private var showFileSymlinkColumn = false
+    @AppStorage(AppPreferences.Key.showFilePermissionsColumn) private var showFilePermissionsColumn = false
+    @AppStorage(AppPreferences.Key.showFileOwnerColumn) private var showFileOwnerColumn = false
     @AppStorage(AppPreferences.Key.showArchiveKindColumn) private var showArchiveKindColumn = true
     @AppStorage(AppPreferences.Key.showArchiveSizeColumn) private var showArchiveSizeColumn = true
     @AppStorage(AppPreferences.Key.showArchiveModifiedColumn) private var showArchiveModifiedColumn = true
@@ -77,6 +79,8 @@ struct ColumnsPane: View {
                         Toggle(L10n.text("column.modified"), isOn: $showFileModifiedColumn)
                         Toggle(L10n.text("column.created"), isOn: $showFileCreatedColumn)
                         Toggle(L10n.text("column.symlink"), isOn: $showFileSymlinkColumn)
+                        Toggle(L10n.text("column.permissions"), isOn: $showFilePermissionsColumn)
+                        Toggle(L10n.text("column.owner"), isOn: $showFileOwnerColumn)
                     }
 
                     // 压缩包浏览（14 项 → 2 子列 × 7 行）
@@ -235,6 +239,8 @@ struct ColumnsPane: View {
         case .modified: return "May 27, 2026"
         case .created: return "May 20, 2026"
         case .symlink: return "../target.txt"
+        case .permissions: return "-rw-r--r--"
+        case .owner: return "yumeka"
         }
     }
 
@@ -265,6 +271,8 @@ struct ColumnsPane: View {
         case .type, .application: return 128
         case .lastOpened, .dateAdded, .modified, .created: return 136
         case .symlink: return 160
+        case .permissions: return 110
+        case .owner: return 90
         }
     }
 

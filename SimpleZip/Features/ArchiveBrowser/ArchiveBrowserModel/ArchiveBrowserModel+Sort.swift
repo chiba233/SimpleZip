@@ -41,6 +41,10 @@ extension ArchiveBrowserModel {
             result = (lhs.created ?? .distantPast).compare(rhs.created ?? .distantPast)
         case "symlink":
             result = lhs.symlinkTarget.localizedStandardCompare(rhs.symlinkTarget)
+        case "permissions":
+            result = lhs.permissions.localizedStandardCompare(rhs.permissions)
+        case "owner":
+            result = lhs.owner.localizedStandardCompare(rhs.owner)
         default:
             result = lhs.displayName.localizedStandardCompare(rhs.displayName)
         }

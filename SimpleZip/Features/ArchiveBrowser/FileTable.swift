@@ -22,6 +22,8 @@ struct FileTable: View {
     @AppStorage(AppPreferences.Key.showFileModifiedColumn) private var showModifiedColumn = true
     @AppStorage(AppPreferences.Key.showFileCreatedColumn) private var showCreatedColumn = true
     @AppStorage(AppPreferences.Key.showFileSymlinkColumn) private var showSymlinkColumn = false
+    @AppStorage(AppPreferences.Key.showFilePermissionsColumn) private var showPermissionsColumn = false
+    @AppStorage(AppPreferences.Key.showFileOwnerColumn) private var showOwnerColumn = false
     // 观察分组相关偏好 —— 在 Settings 改这些时靠这几个 @AppStorage 触发本视图重渲染，
     // 进而调 updateNSView → syncContent 重新分组（设置只翻 UserDefaults，本身不发通知）。
     @AppStorage(AppPreferences.Key.fileGroupingScope) private var fileGroupingScope = BrowserGrouping.GroupingScope.global.rawValue
@@ -41,6 +43,8 @@ struct FileTable: View {
             showModifiedColumn: showModifiedColumn,
             showCreatedColumn: showCreatedColumn,
             showSymlinkColumn: showSymlinkColumn,
+            showPermissionsColumn: showPermissionsColumn,
+            showOwnerColumn: showOwnerColumn,
             groupingScope: fileGroupingScope,
             groupBy: fileGroupBy,
             hiddenWithGrouping: hiddenWithGrouping,
@@ -106,6 +110,8 @@ private struct FileNSOutlineView: NSViewRepresentable {
     let showModifiedColumn: Bool
     let showCreatedColumn: Bool
     let showSymlinkColumn: Bool
+    let showPermissionsColumn: Bool
+    let showOwnerColumn: Bool
     // 仅作为「变化触发器」：值变 → SwiftUI 重建本 representable → updateNSView → syncContent 重新分组。
     // 真值仍由 coordinator 直接读 AppPreferences（@AppStorage 与 UserDefaults 始终一致）。
     let groupingScope: String
@@ -191,6 +197,8 @@ private struct FileNSOutlineView: NSViewRepresentable {
         if showModifiedColumn { columns.append(.modified) }
         if showCreatedColumn { columns.append(.created) }
         if showSymlinkColumn { columns.append(.symlink) }
+        if showPermissionsColumn { columns.append(.permissions) }
+        if showOwnerColumn { columns.append(.owner) }
         return orderedColumns(columns, key: AppPreferences.Key.fileColumnOrder)
     }
 

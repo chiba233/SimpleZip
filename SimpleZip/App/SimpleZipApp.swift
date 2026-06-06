@@ -522,6 +522,8 @@ struct ColumnsViewCommands: Commands {
     @AppStorage(AppPreferences.Key.showFileModifiedColumn) private var showFileModifiedColumn = true
     @AppStorage(AppPreferences.Key.showFileCreatedColumn) private var showFileCreatedColumn = true
     @AppStorage(AppPreferences.Key.showFileSymlinkColumn) private var showFileSymlinkColumn = false
+    @AppStorage(AppPreferences.Key.showFilePermissionsColumn) private var showFilePermissionsColumn = false
+    @AppStorage(AppPreferences.Key.showFileOwnerColumn) private var showFileOwnerColumn = false
     @AppStorage(AppPreferences.Key.showArchiveKindColumn) private var showArchiveKindColumn = true
     @AppStorage(AppPreferences.Key.showArchiveSizeColumn) private var showArchiveSizeColumn = true
     @AppStorage(AppPreferences.Key.showArchiveModifiedColumn) private var showArchiveModifiedColumn = true
@@ -551,6 +553,8 @@ struct ColumnsViewCommands: Commands {
                 Toggle(L10n.text("column.modified"), isOn: $showFileModifiedColumn)
                 Toggle(L10n.text("column.created"), isOn: $showFileCreatedColumn)
                 Toggle(L10n.text("column.symlink"), isOn: $showFileSymlinkColumn)
+                Toggle(L10n.text("column.permissions"), isOn: $showFilePermissionsColumn)
+                Toggle(L10n.text("column.owner"), isOn: $showFileOwnerColumn)
             }
             Menu(L10n.text("view.columns.archiveBrowser")) {
                 Toggle(L10n.text("column.path"), isOn: $showArchivePathColumn)

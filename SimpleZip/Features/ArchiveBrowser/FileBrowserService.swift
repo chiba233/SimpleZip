@@ -226,6 +226,15 @@ final class FileBrowserService {
             let applicationName = applicationNameCache[applicationKey] ?? Self.preferredApplicationName(for: fileURL, isDirectory: isDirectory, isPackage: isPackage)
             applicationNameCache[applicationKey] = applicationName
 
+            // Unix 权限 / 属主 —— lstat 语义（不跟随符号链接,显示链接自身的权限与属主）。取不到就留空 / 退回 uid。
+            let posixAttributes = try? fileManager.attributesOfItem(atPath: fileURL.path)
+            let permissions: String = (posixAttributes?[.posixPermissions] as? NSNumber).map {
+                Self.posixModeString(mode: $0.uint16Value, isDirectory: isDirectory, isSymbolicLink: isSymbolicLink)
+            } ?? ""
+            let owner: String = (posixAttributes?[.ownerAccountName] as? String)
+                ?? (posixAttributes?[.ownerAccountID] as? NSNumber).map { $0.stringValue }
+                ?? ""
+
             return FileItem(
                 url: fileURL,
                 name: fileURL.lastPathComponent,
@@ -247,7 +256,9 @@ final class FileBrowserService {
                 dateAdded: values.addedToDirectoryDate,
                 lastOpened: values.contentAccessDate,
                 typeDescription: typeDescription,
-                applicationName: applicationName
+                applicationName: applicationName,
+                permissions: permissions,
+                owner: owner
             )
         }
         .sorted { lhs, rhs in
@@ -256,6 +267,23 @@ final class FileBrowserService {
             if folderFirst, Self.isNavigableDirectory(lhs) != Self.isNavigableDirectory(rhs) { return Self.isNavigableDirectory(lhs) }
             return lhs.displayName.localizedStandardCompare(rhs.displayName) == .orderedAscending
         }
+    }
+
+    /// 把 POSIX 权限位格式化成 `ls -l` 风格的 10 字符串（`-rw-r--r--` / `drwxr-xr-x` / `lrwxr-xr-x`）。
+    /// `mode` 为 `st_mode & 07777`（含 setuid/setgid/sticky）。首字符按目录 / 符号链接 / 普通文件区分。
+    static func posixModeString(mode: UInt16, isDirectory: Bool, isSymbolicLink: Bool) -> String {
+        let m = Int(mode)
+        var chars: [Character] = [isSymbolicLink ? "l" : (isDirectory ? "d" : "-")]
+        let bits = [0o400, 0o200, 0o100, 0o040, 0o020, 0o010, 0o004, 0o002, 0o001]
+        let letters: [Character] = ["r", "w", "x", "r", "w", "x", "r", "w", "x"]
+        for (bit, letter) in zip(bits, letters) {
+            chars.append((m & bit) != 0 ? letter : "-")
+        }
+        // setuid / setgid / sticky 落在各自的 execute 位上：有 x 用小写 s/t，无 x 用大写 S/T。
+        if m & 0o4000 != 0 { chars[3] = (m & 0o100 != 0) ? "s" : "S" }
+        if m & 0o2000 != 0 { chars[6] = (m & 0o010 != 0) ? "s" : "S" }
+        if m & 0o1000 != 0 { chars[9] = (m & 0o001 != 0) ? "t" : "T" }
+        return String(chars)
     }
 
     /// 地址栏输入补全：在 directoryURL 中列出名字以 prefix 开头的子目录。
