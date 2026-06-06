@@ -709,6 +709,8 @@
 "file.permissions.class.everyone" = "所有人";
 "file.permissions.ownerLabel" = "属主:";
 "file.permissions.ownerHint" = "更改属主需要管理员授权。";
+"file.permissions.recursive" = "应用到文件夹内所有项目";
+"file.permissions.recursive.hint" = "递归套用到所选文件夹里的每个文件和子文件夹（chmod -R / chown -R）。";
 "button.apply" = "应用";
 "search.prompt" = "搜索";
 "menu.find" = "查找";
@@ -1308,6 +1310,7 @@
 "status.permissions.clauseSeparator" = "、";
 "status.permissions.changing" = "更改 %@ 的%@…";
 "status.permissions.changed" = "已更改 %@ 的%@";
+"status.permissions.recursiveSubject" = "%@ 及其内所有项目";
 "status.permissionsChangedPartial" = "成功 %@,失败 %@";
 "file.permissions.chmodFailed" = "无法更改权限（操作不被允许）。";
 "status.gpgEncrypting" = "正在加密 %@…";

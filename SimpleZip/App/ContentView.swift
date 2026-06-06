@@ -217,9 +217,9 @@ struct ContentView: View {
             }
         }
         .sheet(item: $model.permissionsEditRequest) { request in
-            FilePermissionsEditorSheet(request: request) { mode, owner, urls in
+            FilePermissionsEditorSheet(request: request) { mode, owner, recursive, urls in
                 model.permissionsEditRequest = nil
-                model.applyPermissions(mode: mode, owner: owner, to: urls)
+                model.applyPermissions(mode: mode, owner: owner, recursive: recursive, to: urls)
             } cancel: {
                 model.permissionsEditRequest = nil
             }

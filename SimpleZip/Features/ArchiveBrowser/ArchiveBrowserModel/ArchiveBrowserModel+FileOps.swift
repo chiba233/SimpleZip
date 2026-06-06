@@ -307,6 +307,7 @@ extension ArchiveBrowserModel {
             initialMode: initialMode,
             initialOwner: initialOwner,
             isDirectory: first.isDirectory,
+            containsDirectory: items.contains { $0.isDirectory },
             mixedSelection: mixed
         )
     }
@@ -315,12 +316,14 @@ extension ArchiveBrowserModel {
     /// 标题带真实目标值（「更改 a.txt 的权限为 755」/「…属主为 alice」/多选「更改 3 个项目的…」）。
     /// 真正的 chmod / chown 在后台线程执行（自有文件免提权直改,失败的 + 改属主合并成一次系统授权);
     /// 用户取消授权弹窗 → 任务标「已取消」,部分失败 → 活动中心红色行带原因。
-    func applyPermissions(mode newMode: UInt16?, owner newOwner: String?, to urls: [URL]) {
+    func applyPermissions(mode newMode: UInt16?, owner newOwner: String?, recursive: Bool, to urls: [URL]) {
         guard newMode != nil || (newOwner?.isEmpty == false), !urls.isEmpty else { return }
 
-        let subject = urls.count == 1
+        let baseSubject = urls.count == 1
             ? urls[0].lastPathComponent
             : L10n.format("status.permissions.items", "\(urls.count)")
+        // 递归时标题点明「含子项」,让活动中心一眼看出是整棵树而非仅选中项。
+        let subject = recursive ? L10n.format("status.permissions.recursiveSubject", baseSubject) : baseSubject
         let clauses = permissionChangeClauses(mode: newMode, owner: newOwner)
         let changingTitle = L10n.format("status.permissions.changing", subject, clauses)
 
@@ -337,7 +340,7 @@ extension ArchiveBrowserModel {
             self.status = changingTitle
             do {
                 let outcome = try await Task.detached(priority: .userInitiated) {
-                    try FilePermissionService.apply(mode: newMode, owner: newOwner, to: urls)
+                    try FilePermissionService.apply(mode: newMode, owner: newOwner, to: urls, recursive: recursive)
                 }.value
 
                 var log = outcome.changed.map { url -> TransferLogEntry in

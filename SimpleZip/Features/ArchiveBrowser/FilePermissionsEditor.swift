@@ -26,6 +26,8 @@ struct FilePermissionsEditRequest: Identifiable {
     let initialOwner: String
     /// 第一项是否目录（仅用于符号化预览的首字符）。
     let isDirectory: Bool
+    /// 选区里是否含文件夹 —— 含则显示「应用到文件夹内所有项目」勾选（递归 chmod -R / chown -R）。
+    let containsDirectory: Bool
     /// 多选且各项权限不一致 —— 提示用户「应用会统一」。
     let mixedSelection: Bool
 }
@@ -76,22 +78,27 @@ enum FilePermissionService {
     /// 统一入口（活动中心任务里调用）：先对自有文件免提权直改 chmod,失败的 + 改属主合并成一次系统授权批处理。
     /// 返回逐文件结果;用户取消授权弹窗时抛 `Failure.cancelled`（调用方映射成 CancellationError）。
     /// `mode` 为 nil = 不改权限;`owner` 为空 = 不改属主。`nonisolated`：在后台 `Task.detached` 执行,避开 main actor。
-    nonisolated static func apply(mode: UInt16?, owner: String?, to urls: [URL]) throws -> ApplyOutcome {
+    nonisolated static func apply(mode: UInt16?, owner: String?, to urls: [URL], recursive: Bool = false) throws -> ApplyOutcome {
         let wantsChown = (owner?.isEmpty == false)
 
-        // 1. 自有文件直接 chmod（无弹窗）。
+        // 1. 自有文件直接 chmod（无弹窗）。递归走 `/bin/chmod -R` 子进程,非递归逐个 setAttributes（拿到逐项失败）。
         var chmodFailed: [URL] = []
         if let mode {
-            chmodFailed = directChmod(mode, to: urls)
+            if recursive {
+                if !runChmod(mode, recursive: true, paths: urls) { chmodFailed = urls }
+            } else {
+                chmodFailed = directChmod(mode, to: urls)
+            }
         }
         let needsPrivilegedChmod = (mode != nil && !chmodFailed.isEmpty)
 
-        // 2. 需要提权（改属主,或有 chmod 因权限不足失败）→ 一次系统授权批处理。
+        // 2. 需要提权（改属主,或有 chmod 因权限不足失败）→ 一次系统授权批处理（递归则带 -R）。
         if needsPrivilegedChmod || wantsChown {
             do {
                 try privileged(
-                    chmod: needsPrivilegedChmod ? (mode!, chmodFailed) : nil,
-                    chown: wantsChown ? (owner!, urls) : nil
+                    chmod: needsPrivilegedChmod ? (mode!, recursive ? urls : chmodFailed) : nil,
+                    chown: wantsChown ? (owner!, urls) : nil,
+                    recursive: recursive
                 )
                 return ApplyOutcome(changed: urls, failures: [])   // 提权成功 → 所有项视为已更改
             } catch Failure.cancelled {
@@ -110,6 +117,23 @@ enum FilePermissionService {
         )
     }
 
+    /// 非提权 `/bin/chmod`（可选 `-R`）—— 自有文件免弹窗。返回是否全部成功（退出码 0）。
+    nonisolated private static func runChmod(_ mode: UInt16, recursive: Bool, paths: [URL]) -> Bool {
+        guard !paths.isEmpty else { return true }
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/chmod")
+        process.arguments = (recursive ? ["-R"] : []) + [String(format: "%o", mode)] + paths.map(\.path)
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        do {
+            try process.run()
+            process.waitUntilExit()
+        } catch {
+            return false
+        }
+        return process.terminationStatus == 0
+    }
+
     /// 直接 chmod（本用户拥有的文件免提权）。返回**失败**、需要提权重试的 URL 列表。
     /// `nonisolated`：在活动中心的后台 `Task.detached` 里执行,不能要求 main actor。
     @discardableResult
@@ -125,17 +149,20 @@ enum FilePermissionService {
         return failed
     }
 
-    /// 提权执行 chmod / chown —— 一次系统授权弹窗做完所有路径。两者都可为 nil（什么都不做）。`nonisolated`：后台执行。
-    nonisolated static func privileged(chmod: (mode: UInt16, urls: [URL])?, chown: (owner: String, urls: [URL])?) throws {
+    /// 提权执行 chmod / chown —— 一次系统授权弹窗做完所有路径。两者都可为 nil（什么都不做）。
+    /// `recursive` = 加 `-R` 递归到文件夹内所有项目。`nonisolated`：后台执行。
+    nonisolated static func privileged(chmod: (mode: UInt16, urls: [URL])?, chown: (owner: String, urls: [URL])?, recursive: Bool) throws {
         var commands: [String] = []
         if let chmod, !chmod.urls.isEmpty {
             let paths = chmod.urls.map { shellQuote($0.path) }.joined(separator: " ")
-            commands.append("/bin/chmod \(String(format: "%o", chmod.mode)) \(paths)")
+            let flag = recursive ? "-R " : ""
+            commands.append("/bin/chmod \(flag)\(String(format: "%o", chmod.mode)) \(paths)")
         }
         if let chown, !chown.owner.isEmpty, !chown.urls.isEmpty {
             let paths = chown.urls.map { shellQuote($0.path) }.joined(separator: " ")
-            // -h：作用在符号链接本身而非其指向，避免误改链接目标的属主。
-            commands.append("/usr/sbin/chown -h \(shellQuote(chown.owner)) \(paths)")
+            // -h：作用在符号链接本身而非其指向,避免误改链接目标的属主;递归再加 -R。
+            let flags = recursive ? "-R -h " : "-h "
+            commands.append("/usr/sbin/chown \(flags)\(shellQuote(chown.owner)) \(paths)")
         }
         guard !commands.isEmpty else { return }
         try runPrivileged(commands.joined(separator: " && "))
@@ -172,17 +199,18 @@ enum FilePermissionService {
 /// 权限 / 属主编辑 sheet —— 3×3 读 / 写 / 执行复选框 + 属主输入框。沿用现有 sheet 的「标题 + 表单 + 取消/应用」idiom。
 struct FilePermissionsEditorSheet: View {
     let request: FilePermissionsEditRequest
-    /// (mode?, owner?, urls) —— mode 为 nil 表示权限未变;owner 为 nil 表示属主未变。
-    let apply: (UInt16?, String?, [URL]) -> Void
+    /// (mode?, owner?, recursive, urls) —— mode 为 nil 表示权限未变;owner 为 nil 表示属主未变;recursive = 递归到文件夹内所有项目。
+    let apply: (UInt16?, String?, Bool, [URL]) -> Void
     let cancel: () -> Void
 
     @State private var bits: [Bool]
     @State private var owner: String
+    @State private var applyRecursively = false
 
     /// 9 位顺序：属主 r/w/x、组 r/w/x、其他 r/w/x。
     private static let bitMasks = [0o400, 0o200, 0o100, 0o040, 0o020, 0o010, 0o004, 0o002, 0o001]
 
-    init(request: FilePermissionsEditRequest, apply: @escaping (UInt16?, String?, [URL]) -> Void, cancel: @escaping () -> Void) {
+    init(request: FilePermissionsEditRequest, apply: @escaping (UInt16?, String?, Bool, [URL]) -> Void, cancel: @escaping () -> Void) {
         self.request = request
         self.apply = apply
         self.cancel = cancel
@@ -233,6 +261,19 @@ struct FilePermissionsEditorSheet: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
+            // 选区含文件夹时才出现：递归套用到文件夹内所有项目（chmod -R / chown -R）。
+            if request.containsDirectory {
+                Divider()
+                VStack(alignment: .leading, spacing: 4) {
+                    Toggle(L10n.text("file.permissions.recursive"), isOn: $applyRecursively)
+                        .toggleStyle(.checkbox)
+                    Text(L10n.text("file.permissions.recursive.hint"))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
             HStack {
                 Spacer()
                 Button(L10n.text("button.cancel"), role: .cancel) { cancel() }
@@ -271,6 +312,6 @@ struct FilePermissionsEditorSheet: View {
         let modeArg: UInt16? = newMode != request.initialMode ? newMode : nil
         let trimmedOwner = owner.trimmingCharacters(in: .whitespacesAndNewlines)
         let ownerArg: String? = (!trimmedOwner.isEmpty && trimmedOwner != request.initialOwner) ? trimmedOwner : nil
-        apply(modeArg, ownerArg, request.urls)
+        apply(modeArg, ownerArg, applyRecursively, request.urls)
     }
 }

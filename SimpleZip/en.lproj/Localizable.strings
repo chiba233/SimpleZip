@@ -711,6 +711,8 @@
 "file.permissions.class.everyone" = "Everyone";
 "file.permissions.ownerLabel" = "Owner:";
 "file.permissions.ownerHint" = "Changing the owner requires administrator authorization.";
+"file.permissions.recursive" = "Apply to all enclosed items";
+"file.permissions.recursive.hint" = "Recursively applies to every file and folder inside the selected folders (chmod -R / chown -R).";
 "button.apply" = "Apply";
 "search.prompt" = "Search";
 "menu.find" = "Find";
@@ -1308,6 +1310,7 @@
 "status.permissions.clauseSeparator" = ", ";
 "status.permissions.changing" = "Updating %@ — %@…";
 "status.permissions.changed" = "Updated %@ — %@";
+"status.permissions.recursiveSubject" = "%@ and all enclosed items";
 "status.permissionsChangedPartial" = "Updated %@, failed %@";
 "file.permissions.chmodFailed" = "Could not change permissions (operation not permitted).";
 "status.gpgEncrypting" = "Encrypting %@…";
