@@ -932,6 +932,22 @@
 "settings.section.general" = "General";
 "settings.section.archive" = "Archive";
 "settings.section.security" = "Security";
+"settings.presets.title" = "Compression Presets";
+"settings.presets.description" = "Save named compression settings. The one you mark as the default is used by the Finder \"compress\" quick actions (its level / method / options — passwords and GPG keys are never stored in a preset).";
+"settings.presets.empty" = "No presets yet.";
+"settings.presets.add" = "Add Preset…";
+"settings.presets.unnamed" = "Untitled";
+"settings.presets.default" = "Default";
+"settings.presets.makeDefault" = "Use as the default for quick compress";
+"settings.presets.edit" = "Edit";
+"settings.presets.editor.titleNew" = "New Compression Preset";
+"settings.presets.editor.titleEdit" = "Edit Compression Preset";
+"settings.presets.editor.name" = "Name";
+"settings.presets.editor.format" = "Format";
+"settings.presets.editor.level" = "Compression Level";
+"settings.presets.editor.method" = "Method";
+"settings.presets.editor.solid" = "Solid archive";
+"settings.presets.editor.footer" = "Passwords and GPG signing keys are not saved in a preset — choose those each time you create an archive.";
 // Format capability matrix (Settings → Archive)
 "settings.formatMatrix.title" = "Format Capabilities";
 "settings.formatMatrix.description" = "What each container format supports in SimpleZip.";

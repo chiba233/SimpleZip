@@ -26,6 +26,9 @@ struct ArchivePane: View {
         Form {
             securitySection
 
+            // #115 压缩预设（默认值）：命名预设 + 指定默认 → Finder 一键简化压缩自动套用。
+            CompressionPresetsSection()
+
             SevenZipBackendSection(systemInstallMessage: $systemInstallMessage)
 
             RarBackendSection(systemInstallMessage: $systemInstallMessage)

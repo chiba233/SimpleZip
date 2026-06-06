@@ -925,6 +925,22 @@
 "settings.section.general" = "通用";
 "settings.section.archive" = "压缩";
 "settings.section.security" = "安全性";
+"settings.presets.title" = "压缩预设";
+"settings.presets.description" = "把常用的压缩设置存成命名预设。设为「默认」的那个会被 Finder「压缩」一键服务自动套用（等级 / 方法 / 选项——密码和 GPG 私钥永不存进预设）。";
+"settings.presets.empty" = "还没有预设。";
+"settings.presets.add" = "添加预设…";
+"settings.presets.unnamed" = "未命名";
+"settings.presets.default" = "默认";
+"settings.presets.makeDefault" = "设为一键快速压缩的默认预设";
+"settings.presets.edit" = "编辑";
+"settings.presets.editor.titleNew" = "新建压缩预设";
+"settings.presets.editor.titleEdit" = "编辑压缩预设";
+"settings.presets.editor.name" = "名称";
+"settings.presets.editor.format" = "格式";
+"settings.presets.editor.level" = "压缩等级";
+"settings.presets.editor.method" = "方法";
+"settings.presets.editor.solid" = "固实压缩";
+"settings.presets.editor.footer" = "密码和 GPG 签名私钥不会存进预设——这些在每次创建压缩包时单独选。";
 // 格式能力矩阵（设置 → 压缩）
 "settings.formatMatrix.title" = "格式能力";
 "settings.formatMatrix.description" = "SimpleZip 里各容器格式各自支持哪些操作。";
