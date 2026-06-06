@@ -11,8 +11,10 @@ import Foundation
 
 extension ArchiveBrowserModel {
     /// 两批 FileItem 是否代表「同一份目录列表」—— 按**稳定标识**（url + 目录标志 + 符号链接 + 隐藏 +
-    /// 大小 + 修改时间）逐项比较，忽略每次重建都会变的 `id`(UUID)。顺序敏感（makeFileItems 排序是确定的）。
+    /// 大小 + 修改时间 + 权限 + 属主）逐项比较，忽略每次重建都会变的 `id`(UUID)。顺序敏感（makeFileItems 排序是确定的）。
     /// 用于 loadFolder 判断「内容真的变了吗」，避免 watcher 无关刷新引发空闲闪烁。
+    /// permissions/owner 也要比：chmod/chown 只改 mode/属主、不动 size/mtime,漏掉这俩会让「权限 / 属主」列在
+    /// 改完后被判定「列表没变」而跳过发布,显示旧值。这两列默认关时值恒为空串,不会引入额外刷新。
     nonisolated static func fileItemsRepresentSameListing(_ lhs: [FileItem], _ rhs: [FileItem]) -> Bool {
         guard lhs.count == rhs.count else { return false }
         for (a, b) in zip(lhs, rhs) {
@@ -21,7 +23,9 @@ extension ArchiveBrowserModel {
                 || a.isSymbolicLink != b.isSymbolicLink
                 || a.isHidden != b.isHidden
                 || a.size != b.size
-                || a.modified != b.modified {
+                || a.modified != b.modified
+                || a.permissions != b.permissions
+                || a.owner != b.owner {
                 return false
             }
         }

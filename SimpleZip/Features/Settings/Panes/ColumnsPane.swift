@@ -199,6 +199,9 @@ struct ColumnsPane: View {
         if showFileDateAddedColumn { columns.append(.dateAdded) }
         if showFileModifiedColumn { columns.append(.modified) }
         if showFileCreatedColumn { columns.append(.created) }
+        if showFileSymlinkColumn { columns.append(.symlink) }
+        if showFilePermissionsColumn { columns.append(.permissions) }
+        if showFileOwnerColumn { columns.append(.owner) }
 
         // 保留用户在主界面里手动调过的列顺序，预览也按这个顺序展示。
         return orderedColumns(columns, key: AppPreferences.Key.fileColumnOrder).map { column in

@@ -332,12 +332,15 @@ final class ArchiveBrowserModel: ObservableObject {
         return virtual.manifestURL.path + "/" + rel
     }
 
+    // 注意：从**显示中**的列表取选区,不是完整 fileItems / archiveItems。
+    // 否则搜索过滤后,选中项被过滤掉不可见时,Delete / 右键 / 菜单仍会作用在那个看不见的项上（数据安全隐患）。
+    // 空搜索时 displayed* == 完整列表,行为不变。
     var selectedFileItems: [FileItem] {
-        fileItems.filter { selection.contains($0.id) }
+        displayedFileItems.filter { selection.contains($0.id) }
     }
 
     var selectedArchiveItems: [ArchiveItem] {
-        archiveItems.filter { selectedArchiveRows.contains($0.id) }
+        displayedArchiveItems.filter { selectedArchiveRows.contains($0.id) }
     }
 
     var errorMessage: String? {
