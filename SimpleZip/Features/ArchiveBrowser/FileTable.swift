@@ -529,7 +529,10 @@ private struct FileNSOutlineView: NSViewRepresentable {
 
         func outlineViewColumnDidMove(_ notification: Notification) {
             guard let outlineView else { return }
-            AppPreferences.setStringArray(outlineView.tableColumns.map(\.identifier.rawValue), forKey: AppPreferences.Key.fileColumnOrder)
+            // 按 identifier 去重再存 —— 绝不把重复列（历史上的「名称」列堆叠 bug）写回偏好。
+            var seen = Set<String>()
+            let ids = outlineView.tableColumns.map(\.identifier.rawValue).filter { seen.insert($0).inserted }
+            AppPreferences.setStringArray(ids, forKey: AppPreferences.Key.fileColumnOrder)
         }
 
         // 用户手动展开 / 折叠某区块 —— 更新真值（隐藏组按 #49 持久化，分类组只记本次会话）。

@@ -367,7 +367,10 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
 
         func outlineViewColumnDidMove(_ notification: Notification) {
             guard let outlineView else { return }
-            AppPreferences.setStringArray(outlineView.tableColumns.map(\.identifier.rawValue), forKey: AppPreferences.Key.archiveColumnOrder)
+            // 按 identifier 去重再存 —— 绝不把重复列写回偏好（与文件表同一防护）。
+            var seen = Set<String>()
+            let ids = outlineView.tableColumns.map(\.identifier.rawValue).filter { seen.insert($0).inserted }
+            AppPreferences.setStringArray(ids, forKey: AppPreferences.Key.archiveColumnOrder)
         }
 
         func outlineViewItemDidExpand(_ notification: Notification) {

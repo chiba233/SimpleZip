@@ -40,6 +40,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         DispatchQueue.main.async { [weak self] in
             self?.ensureWindowForPendingExternalOpens()
         }
+
+        // 清洗列顺序偏好：历史上 outlineTableColumn 未解绑的 bug 会把 name 列重复堆进 fileColumnOrder
+        // （曾出现 [name, name, size, …]），表头就冒出 2~3 个重复「名称」列。读路径已去重，但**存储里的
+        // 污染源没清掉**，仍会被「列移动」重新写回 / 在没走去重的旧路径下复发。启动时按 identifier 去重一次，根除。
+        Self.sanitizeColumnOrderPreferences()
+    }
+
+    /// 去掉列顺序偏好里的重复 identifier（修复历史污染，幂等）。
+    private static func sanitizeColumnOrderPreferences() {
+        for key in [AppPreferences.Key.fileColumnOrder, AppPreferences.Key.archiveColumnOrder] {
+            let raw = AppPreferences.stringArray(forKey: key)
+            guard !raw.isEmpty else { continue }
+            var seen = Set<String>()
+            let deduped = raw.filter { seen.insert($0).inserted }
+            if deduped != raw {
+                AppPreferences.setStringArray(deduped, forKey: key)
+            }
+        }
     }
 
     /// 退出时拆除加密临时卷：detach 挂载 + 删镜像。同步尽力（terminate 不能 await）；
