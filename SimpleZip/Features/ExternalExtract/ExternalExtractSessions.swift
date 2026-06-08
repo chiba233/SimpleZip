@@ -332,10 +332,11 @@ final class ExternalCreateSession: ObservableObject {
                 options: options,
                 operationID: operationID,
                 progress: { [weak self, weak task] state in
-                    // 弱捕获放在 @Sendable 进度闭包这一层（self / task 都是 MainActor 隔离=Sendable，可弱捕获），
-                    // 内层 Task 沿用同一份弱引用 —— 否则内层 [weak] 与外层隐式强捕获不一致会告警。state 是 Sendable 值。
+                    // @Sendable 进度闭包弱捕获 self / task（都是 MainActor 隔离=Sendable）。在跳进内层 Task 之前
+                    // 先把弱引用解开 / 快照成局部 let —— 否则内层并发 Task 直接引用外层弱 var 在 Swift 6 是错误。
+                    guard let self else { return }
+                    let task = task
                     Task { @MainActor in
-                        guard let self else { return }
                         self.fraction = state.fraction
                         self.currentFileName = state.currentFile
                         if let text = state.statusText { self.statusText = text }
