@@ -331,10 +331,10 @@ final class ExternalCreateSession: ObservableObject {
                 destination: destination,
                 options: options,
                 operationID: operationID,
-                progress: { state in
-                    // 外层是 @Sendable 闭包，弱捕获放到内层 Task（并发上下文）里，
-                    // 避免「在并发代码里引用捕获的 self」错误。state 是 Sendable 值，外层捕获它无碍。
-                    Task { @MainActor [weak self, weak task] in
+                progress: { [weak self, weak task] state in
+                    // 弱捕获放在 @Sendable 进度闭包这一层（self / task 都是 MainActor 隔离=Sendable，可弱捕获），
+                    // 内层 Task 沿用同一份弱引用 —— 否则内层 [weak] 与外层隐式强捕获不一致会告警。state 是 Sendable 值。
+                    Task { @MainActor in
                         guard let self else { return }
                         self.fraction = state.fraction
                         self.currentFileName = state.currentFile

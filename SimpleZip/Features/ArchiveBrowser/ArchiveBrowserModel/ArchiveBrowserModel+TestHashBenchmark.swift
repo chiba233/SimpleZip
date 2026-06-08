@@ -92,11 +92,13 @@ extension ArchiveBrowserModel {
 
             do {
                 let report = try await ArchiveService.benchmark(options: request.options, operationID: operationID) { report, output in
-                    Task { @MainActor [weak session, weak detailsSession, weak operationTask] in
-                        guard operationTask?.status.isRunning == true else { return }
-                        session?.report = report
-                        session?.rawOutput = output
-                        detailsSession?.rawOutput = output
+                    // 不再单独 [weak …]：外层 Task 在整个 benchmark 期间已强持有 session/detailsSession/
+                    // operationTask,内层再标 weak 与外层强捕获不一致（编译告警）且无实际收益。
+                    Task { @MainActor in
+                        guard operationTask.status.isRunning else { return }
+                        session.report = report
+                        session.rawOutput = output
+                        detailsSession.rawOutput = output
                     }
                 }
                 session.report = report
