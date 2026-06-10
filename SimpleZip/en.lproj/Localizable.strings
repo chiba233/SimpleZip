@@ -573,6 +573,7 @@
 "status.taggedCount" = "Tagged %1$@ item(s) with “%2$@”";
 "error.tagFailed" = "Couldn't tag %@ item(s).";
 "file.removeFromTag" = "Remove from Tag “%@”";
+"file.removeFromTag.fallback" = "Remove from Tag";
 "status.untaggedCount" = "Removed %1$@ item(s) from “%2$@”";
 "error.split.invalidVolumeSize" = "Volume size must be greater than zero.";
 "error.split.partExists" = "“%@” already exists — move it away and try again.";

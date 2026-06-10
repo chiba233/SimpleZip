@@ -378,11 +378,32 @@ struct ArchiveFileCommands: Commands {
             .disabled(!canManageSelectedFiles)
 
             Button {
+                model?.combineSelectedVolumes()
+            } label: {
+                Label(L10n.text("file.combine.menuItem"), systemImage: "arrow.triangle.merge")
+            }
+            .disabled(!canCombineSelectedVolumes)
+
+            Button {
+                model?.splitSelectedFile()
+            } label: {
+                Label(L10n.text("file.split.menuItem"), systemImage: "rectangle.split.2x1")
+            }
+            .disabled(!canSplitSelectedFile)
+
+            Button {
                 model?.moveSelectedFilesToFolder()
             } label: {
                 Label(L10n.text("file.moveTo"), systemImage: "folder.badge.gearshape")
             }
             .disabled(!canManageSelectedFiles)
+
+            Button {
+                model?.removeSelectedFromCurrentTag()
+            } label: {
+                Label(removeFromCurrentTagTitle, systemImage: "tag.slash")
+            }
+            .disabled(!canRemoveFromCurrentTag)
 
             Button {
                 model?.deleteSelectionInCurrentContext()
@@ -454,6 +475,46 @@ struct ArchiveFileCommands: Commands {
     private var canManageSelectedFiles: Bool {
         guard let model, case .folder = model.mode else { return false }
         return !model.selectedFileItems.isEmpty
+    }
+
+    private var canSplitSelectedFile: Bool {
+        guard let model else { return false }
+        switch model.mode {
+        case .folder, .tag:
+            return canSplitFileItemSelection(model)
+        case .archive:
+            return false
+        }
+    }
+
+    private var canCombineSelectedVolumes: Bool {
+        guard let model else { return false }
+        switch model.mode {
+        case .folder, .tag:
+            guard model.selectedFileItems.count == 1,
+                  let item = model.selectedFileItems.first else { return false }
+            return FileSplitCombine.isFirstVolume(item.url)
+        case .archive:
+            return false
+        }
+    }
+
+    private func canSplitFileItemSelection(_ model: ArchiveBrowserModel) -> Bool {
+        guard model.selectedFileItems.count == 1,
+              let item = model.selectedFileItems.first else { return false }
+        return !item.isDirectory
+    }
+
+    private var canRemoveFromCurrentTag: Bool {
+        guard let model, case .tag = model.mode else { return false }
+        return !model.selectedFileItems.isEmpty
+    }
+
+    private var removeFromCurrentTagTitle: String {
+        guard let model, case .tag(let tag) = model.mode else {
+            return L10n.text("file.removeFromTag.fallback")
+        }
+        return L10n.format("file.removeFromTag", tag)
     }
 
     /// ⌘⌫ 删除可用：文件夹里选中文件，或可编辑归档里选中条目。

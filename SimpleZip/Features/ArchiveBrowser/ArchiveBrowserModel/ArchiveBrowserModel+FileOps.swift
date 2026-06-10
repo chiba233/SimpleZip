@@ -415,6 +415,7 @@ extension ArchiveBrowserModel {
     func removeSelectedFromCurrentTag() {
         guard case .tag(let tag) = mode, !selectedFileItems.isEmpty else { return }
         let urls = selectedFileItems.map(\.url)
+        var removedURLs: [URL] = []
         var failureCount = 0
         for url in urls {
             do {
@@ -428,18 +429,25 @@ extension ArchiveBrowserModel {
                 } else {
                     try Self.removeTagViaExtendedAttribute(tag, from: url)
                 }
+                removedURLs.append(url.standardizedFileURL)
             } catch {
                 failureCount += 1
             }
         }
+        if !removedURLs.isEmpty {
+            let removedURLSet = Set(removedURLs)
+            let removedItemIDs = Set(fileItems.compactMap { item in
+                removedURLSet.contains(item.url.standardizedFileURL) ? item.id : nil
+            })
+            fileItems.removeAll { removedURLSet.contains($0.url.standardizedFileURL) }
+            selection.subtract(removedItemIDs)
+        }
         if failureCount == 0 {
-            status = L10n.format("status.untaggedCount", "\(urls.count)", tag)
+            status = L10n.format("status.untaggedCount", "\(removedURLs.count)", tag)
         } else {
             status = L10n.text("status.failed")
             errorMessage = L10n.format("error.tagFailed", "\(failureCount)")
         }
-        // 标签搜索结果里这些文件应当消失 —— 重跑搜索。
-        reload()
     }
 
     /// macOS 26 以下的标签移除兜底：过滤 `kMDItemUserTags` 原始条目（名字或「名字\n颜色号」），
