@@ -4,6 +4,7 @@
 
 ## 0.3.3
 
+- **Fixed: refresh no longer swaps the glass toolbar actions for a spinner.** Loading feedback remains in the status bar, while the titlebar toolbar keeps a stable Liquid Glass button group during refreshes.
 - **Refactor: FileTable inline rename handling is split out.** The folder table keeps the same behavior, but its rename editor logic now lives in a focused `FileTableEditing.swift` extension to make the large AppKit bridge easier to review.
 - **UI: the main toolbar navigation cluster is tighter.** Refresh now lives beside Back / Forward / Up, and the redundant toolbar Open button is removed; opening folders and archives remains available from the File menu and other existing entry points.
 - **Fixed: native toolbar display mode now really persists.** The main toolbar still defaults to icon+label on a fresh install, but the user's right-click choice ("Icon Only" / "Icon and Text") is now stored under SimpleZip's own stable preference key and restored for new windows/tabs. This avoids relying on SwiftUI's generated `NSToolbar` identifier, which can prevent AppKit's autosave from remembering the display mode reliably. The native tab bar's `+` button also now opens a real SimpleZip tab instead of doing nothing.

@@ -132,8 +132,6 @@ struct ContentView: View {
                 }
 
                 ToolbarItemGroup(placement: .primaryAction) {
-                    ToolbarBusyIndicator(model: model)
-
                     Button(action: model.createArchive) {
                         Label(L10n.text("button.add"), systemImage: "plus.square.on.square")
                     }
@@ -989,20 +987,6 @@ struct ContentView: View {
     private func receiveDroppedFileURLs(from providers: [NSItemProvider]) -> Bool {
         extractDroppedFileURLs(from: providers) { urls in
             model.openDroppedURLs(urls)
-        }
-    }
-}
-
-/// 工具栏忙碌指示：有运行中任务时在动作按钮左侧转个小菊花。
-/// 单独成 view 是为了把 TaskCenter 的高频发布隔离在这一小块，不拖着整个 ContentView 重渲染。
-private struct ToolbarBusyIndicator: View {
-    @ObservedObject var model: ArchiveBrowserModel
-    @ObservedObject private var taskCenter = TaskCenter.shared
-
-    var body: some View {
-        if taskCenter.runningCount > 0 || model.isWorking {
-            ProgressView()
-                .controlSize(.small)
         }
     }
 }
