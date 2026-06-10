@@ -37,15 +37,15 @@ struct ActivityView: View {
             .padding(.horizontal, 10)
             .frame(maxHeight: .infinity)
             // 定宽侧栏：同设置窗口 —— 可拖宽度会被拖到消失且无法恢复，直接固定。
-            // 240：默认 210 放不下「文件操作 + 计数」这类长行（用户报显示不全）。
-            .navigationSplitViewColumnWidth(240)
+            // 280：活动中心的行是「彩色瓦片 + 长标题 + 多位数计数」三件套，240 仍被截（用户二报）。
+            .navigationSplitViewColumnWidth(280)
             .hidingSidebarToggle()
         } detail: {
             selectedPaneView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(
-            minWidth: 820, idealWidth: 960, maxWidth: .infinity,
+            minWidth: 880, idealWidth: 1020, maxWidth: .infinity,
             minHeight: 560, idealHeight: 700, maxHeight: .infinity
         )
         .navigationTitle(L10n.text("tasks.window.title"))
