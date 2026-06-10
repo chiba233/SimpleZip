@@ -22,11 +22,24 @@ struct SettingsView: View {
         // 侧栏**常驻**：columnVisibility 钉死 .all + 去掉系统的收起按钮 ——
         // 设置这种小窗口收起侧栏后很难用（用户拍板砍掉隐藏边栏）。
         NavigationSplitView(columnVisibility: .constant(.all)) {
-            List(SettingsPane.allCases, selection: $selectedPane) { pane in
-                SidebarIconLabel(title: pane.title, systemImage: pane.systemImage, color: pane.iconColor)
-                    .tag(pane)
+            // 自绘居中侧栏（用户点名「项目上下居中」—— 原生 List 做不到）：
+            // 上下 Spacer 夹住行组，外层仍是 NavigationSplitView 侧栏列、系统材质照吃。
+            VStack(alignment: .leading, spacing: 3) {
+                Spacer(minLength: 12)
+                ForEach(SettingsPane.allCases) { pane in
+                    CenteredSidebarRow(
+                        title: pane.title,
+                        systemImage: pane.systemImage,
+                        color: pane.iconColor,
+                        isSelected: selectedPane == pane
+                    ) {
+                        selectedPane = pane
+                    }
+                }
+                Spacer(minLength: 12)
             }
-            .listStyle(.sidebar)
+            .padding(.horizontal, 10)
+            .frame(maxHeight: .infinity)
             .navigationSplitViewColumnWidth(min: 170, ideal: 195, max: 250)
             .hidingSidebarToggle()
         } detail: {

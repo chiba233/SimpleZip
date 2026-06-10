@@ -26,24 +26,59 @@ extension View {
     }
 }
 
-/// System Settings 风格的侧栏行标签：白色 SF Symbol 嵌在彩色渐变圆角瓦片里 + 标题。
-/// 设置窗口和活动中心的侧栏共用（0.3.3「越华丽越好」UI 令）。用 Label 包装保证
-/// List 侧栏的对齐 / 选中态 / badge 都照常工作。
-struct SidebarIconLabel: View {
+/// 上下居中侧栏的自绘行：彩色瓦片 + 标题 + 可选计数，自绘选中 / hover 高亮。
+/// 原生 List(.sidebar) 做不到「项目整体垂直居中」（用户点名要的布局），
+/// 所以行为自绘、外层仍放在 NavigationSplitView 的侧栏列里吃系统材质。
+struct CenteredSidebarRow: View {
     let title: String
     let systemImage: String
     let color: Color
+    var badge: Int = 0
+    let isSelected: Bool
+    let action: () -> Void
+
+    @State private var isHovering = false
 
     var body: some View {
-        Label {
-            Text(title)
-        } icon: {
-            Image(systemName: systemImage)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: 21, height: 21)
-                .background(color.gradient, in: RoundedRectangle(cornerRadius: 5.5, style: .continuous))
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 21, height: 21)
+                    .background(color.gradient, in: RoundedRectangle(cornerRadius: 5.5, style: .continuous))
+                Text(title)
+                    .font(.callout)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+                if badge > 0 {
+                    Text("\(badge)")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .background {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(
+                        isSelected
+                            ? AnyShapeStyle(Color.accentColor.opacity(0.22))
+                            : isHovering
+                                ? AnyShapeStyle(Color.primary.opacity(0.07))
+                                : AnyShapeStyle(Color.clear)
+                    )
+            }
         }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.easeOut(duration: 0.12)) {
+                isHovering = hovering
+            }
+        }
+        .help(title)
     }
 }
 

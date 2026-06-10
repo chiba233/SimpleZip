@@ -18,14 +18,24 @@ struct ActivityView: View {
     var body: some View {
         // 侧栏**常驻**：columnVisibility 钉死 .all + 去掉系统的收起按钮（跟设置窗口同一决定）。
         NavigationSplitView(columnVisibility: .constant(.all)) {
-            List(selection: paneSelectionBinding) {
+            // 自绘居中侧栏（跟设置窗口同款）：行组垂直居中，任务计数挂行尾。
+            VStack(alignment: .leading, spacing: 3) {
+                Spacer(minLength: 12)
                 ForEach(ActivityPane.allCases) { pane in
-                    SidebarIconLabel(title: pane.title, systemImage: pane.systemImage, color: pane.iconColor)
-                        .badge(pane.category.map(taskCount(in:)) ?? 0)
-                        .tag(pane)
+                    CenteredSidebarRow(
+                        title: pane.title,
+                        systemImage: pane.systemImage,
+                        color: pane.iconColor,
+                        badge: pane.category.map(taskCount(in:)) ?? 0,
+                        isSelected: windowState.selectedPane == pane
+                    ) {
+                        windowState.selectedPane = pane
+                    }
                 }
+                Spacer(minLength: 12)
             }
-            .listStyle(.sidebar)
+            .padding(.horizontal, 10)
+            .frame(maxHeight: .infinity)
             .navigationSplitViewColumnWidth(min: 165, ideal: 190, max: 240)
             .hidingSidebarToggle()
         } detail: {
@@ -37,18 +47,6 @@ struct ActivityView: View {
             minHeight: 420, idealHeight: 540, maxHeight: .infinity
         )
         .navigationTitle(L10n.text("tasks.window.title"))
-    }
-
-    /// List 的 selection 是 Optional；窗口状态里的 selectedPane 不是 —— 清空选择时维持原 pane。
-    private var paneSelectionBinding: Binding<ActivityPane?> {
-        Binding(
-            get: { windowState.selectedPane },
-            set: { newValue in
-                if let newValue {
-                    windowState.selectedPane = newValue
-                }
-            }
-        )
     }
 
     private func tasks(in category: OperationTask.Category) -> [OperationTask] {
