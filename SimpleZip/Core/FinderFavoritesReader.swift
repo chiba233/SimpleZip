@@ -27,7 +27,6 @@ enum FinderFavoritesReader {
     struct Item: Equatable {
         let url: URL
         let displayName: String
-        let systemImage: String
     }
 
     /// UserDefaults key —— 持久化最近一次成功读到的路径列表。
@@ -57,7 +56,7 @@ enum FinderFavoritesReader {
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory),
               isDirectory.boolValue else { return nil }
-        return Item(url: url, displayName: displayName(for: url), systemImage: systemImage(for: url))
+        return Item(url: url, displayName: displayName(for: url))
     }
 
     /// 读出当前所有 Finder 收藏目录。读不到或一条都没解析出来 → 返回空数组，让调用方走回退。
@@ -91,8 +90,7 @@ enum FinderFavoritesReader {
 
             results.append(Item(
                 url: url,
-                displayName: displayName(for: url),
-                systemImage: systemImage(for: url)
+                displayName: displayName(for: url)
             ))
         }
         return results
@@ -141,26 +139,4 @@ enum FinderFavoritesReader {
         return url.lastPathComponent
     }
 
-    /// 把常见系统目录映射到 SF Symbol，跟 SimpleZip 侧栏原本的硬编码图标保持一致。
-    /// 未知目录用通用 folder 图标。
-    private nonisolated static func systemImage(for url: URL) -> String {
-        let fm = FileManager.default
-        let standardized = url.standardizedFileURL
-
-        func standardize(_ search: FileManager.SearchPathDirectory) -> URL? {
-            fm.urls(for: search, in: .userDomainMask).first?.standardizedFileURL
-        }
-
-        if standardized == fm.homeDirectoryForCurrentUser.standardizedFileURL { return "house" }
-        if standardized == standardize(.downloadsDirectory) { return "arrow.down.circle" }
-        if standardized == standardize(.desktopDirectory) { return "display" }
-        if standardized == standardize(.documentDirectory) { return "doc.text" }
-        if standardized == standardize(.moviesDirectory) { return "film" }
-        if standardized == standardize(.musicDirectory) { return "music.note" }
-        if standardized == standardize(.picturesDirectory) { return "photo" }
-        if standardized.path == "/Applications" { return "app" }
-        if standardized == fm.homeDirectoryForCurrentUser.appendingPathComponent("Applications").standardizedFileURL { return "app" }
-        if standardized.path.hasPrefix(fm.homeDirectoryForCurrentUser.path + "/Library/Mobile Documents") { return "icloud" }
-        return "folder"
-    }
 }

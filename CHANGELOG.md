@@ -4,6 +4,7 @@
 
 ## 0.3.3
 
+- **Fixed: Finder favorite icons now follow the actual item icons.** The main sidebar still mirrors Finder's Favorite order and names, and now renders those rows with the system icon for each favorite path instead of SimpleZip's hard-coded symbol mapping.
 - **Fixed: File menu parity for recent file actions.** Split, Combine Volumes, and Remove from Tag now appear in the macOS File menu as well as the file table context menu; removing items from a tag also updates the visible tag result list immediately.
 - **Fixed: refresh no longer swaps the glass toolbar actions for a spinner.** Loading feedback remains in the status bar, while the titlebar toolbar keeps a stable Liquid Glass button group during refreshes.
 - **Refactor: FileTable inline rename handling is split out.** The folder table keeps the same behavior, but its rename editor logic now lives in a focused `FileTableEditing.swift` extension to make the large AppKit bridge easier to review.

@@ -23,7 +23,7 @@ struct Sidebar: View {
     private var favoriteRows: [FavoriteRow] {
         if !model.finderFavorites.isEmpty {
             return model.finderFavorites.map { item in
-                FavoriteRow(id: item.url.path, title: item.displayName, systemImage: item.systemImage, openURL: item.url)
+                FavoriteRow(id: item.url.path, title: item.displayName, systemImage: nil, openURL: item.url)
             }
         }
         let home = FileManager.default.homeDirectoryForCurrentUser
@@ -64,11 +64,13 @@ struct Sidebar: View {
         List {
             Section(L10n.text("section.favorites")) {
                 ForEach(favoriteRows) { row in
-                    SidebarButton(
-                        title: row.title,
-                        systemImage: row.systemImage,
-                        action: { model.openFolder(row.openURL) }
-                    )
+                    SidebarRowButton(action: { model.openFolder(row.openURL) }) {
+                        if let systemImage = row.systemImage {
+                            Label(row.title, systemImage: systemImage)
+                        } else {
+                            sidebarFileLabel(for: row.openURL, displayName: row.title)
+                        }
+                    }
                     .modifier(folderDropTarget(row.openURL, id: "fav:\(row.id)"))
                 }
             }
@@ -204,10 +206,10 @@ struct Sidebar: View {
 
     /// 「最近 / 固定」行：系统真实文件图标 + 显示名。NSWorkspace 取的是该路径当前实际渲染的
     /// 图标（自定义文件夹色 / 特殊目录 / 包都对），比一刀切的 SF Symbol 信息量大得多。
-    private func sidebarFileLabel(for url: URL) -> some View {
+    private func sidebarFileLabel(for url: URL, displayName explicitDisplayName: String? = nil) -> some View {
         HStack(spacing: 7) {
             Image(nsImage: fileIcon(for: url))
-            Text(displayName(for: url))
+            Text(explicitDisplayName ?? displayName(for: url))
                 .lineLimit(1)
                 .truncationMode(.middle)
             Spacer(minLength: 0)
@@ -297,7 +299,8 @@ private struct FolderDropTargetModifier: ViewModifier {
 private struct FavoriteRow: Identifiable {
     let id: String
     let title: String
-    let systemImage: String
+    /// `nil` 表示这是 Finder sfl4 读出的真实收藏，图标应按实际路径从 NSWorkspace 取。
+    let systemImage: String?
     let openURL: URL
 }
 
