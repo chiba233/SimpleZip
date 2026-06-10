@@ -711,6 +711,7 @@
 "column.hostOS" = "主操作系统";
 "column.characteristics" = "特征";
 "column.symlink" = "符号链接目标";
+"column.comment" = "注释";
 "column.permissions" = "权限";
 "column.owner" = "所有者";
 "file.permissions.menuItem" = "权限与所有者…";

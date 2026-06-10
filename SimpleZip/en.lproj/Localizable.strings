@@ -713,6 +713,7 @@
 "column.hostOS" = "Host OS";
 "column.characteristics" = "Characteristics";
 "column.symlink" = "Symlink Target";
+"column.comment" = "Comment";
 "column.permissions" = "Permissions";
 "column.owner" = "Owner";
 "file.permissions.menuItem" = "Permissions & Owner…";

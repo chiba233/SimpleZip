@@ -109,6 +109,8 @@ struct ArchiveItem: Identifiable, Hashable {
     let characteristics: String
     /// 符号链接目标（`Symbolic Link`）—— 条目是符号链接时其指向；非符号链接为空。
     let symlinkTarget: String
+    /// 条目注释（zip 的 per-entry `Comment`）—— 没有注释的格式 / 条目为空。
+    let comment: String
 
     init(
         name: String,
@@ -129,7 +131,8 @@ struct ArchiveItem: Identifiable, Hashable {
         accessedText: String = "",
         hostOS: String = "",
         characteristics: String = "",
-        symlinkTarget: String = ""
+        symlinkTarget: String = "",
+        comment: String = ""
     ) {
         self.name = name
         self.isDirectory = isDirectory
@@ -150,6 +153,7 @@ struct ArchiveItem: Identifiable, Hashable {
         self.hostOS = hostOS
         self.characteristics = characteristics
         self.symlinkTarget = symlinkTarget
+        self.comment = comment
     }
 
     /// 列表里只展示当前层级的名称，完整路径继续保留在 name 中用于解压。

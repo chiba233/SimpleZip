@@ -83,6 +83,8 @@ extension ArchiveBrowserModel {
             result = lhs.characteristics.localizedStandardCompare(rhs.characteristics)
         case "symlink":
             result = lhs.symlinkTarget.localizedStandardCompare(rhs.symlinkTarget)
+        case "comment":
+            result = lhs.comment.localizedStandardCompare(rhs.comment)
         default:
             result = lhs.displayName.localizedStandardCompare(rhs.displayName)
         }

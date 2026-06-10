@@ -27,6 +27,7 @@ struct ArchiveTable: View {
     @AppStorage(AppPreferences.Key.showArchiveHostOSColumn) private var showHostOSColumn = false
     @AppStorage(AppPreferences.Key.showArchiveCharacteristicsColumn) private var showCharacteristicsColumn = false
     @AppStorage(AppPreferences.Key.showArchiveSymlinkColumn) private var showSymlinkColumn = false
+    @AppStorage(AppPreferences.Key.showArchiveCommentColumn) private var showCommentColumn = false
     // 观察分组方式 —— 在 Settings 改时靠它触发重渲染 → updateNSView → 重新分组。
     @AppStorage(AppPreferences.Key.archiveGroupBy) private var archiveGroupBy = BrowserGrouping.GroupBy.none.rawValue
     @AppStorage(AppPreferences.Key.rowDensity) private var rowDensity = FileBrowserOutline.RowDensity.standard.rawValue
@@ -49,6 +50,7 @@ struct ArchiveTable: View {
                 showHostOSColumn: showHostOSColumn,
                 showCharacteristicsColumn: showCharacteristicsColumn,
                 showSymlinkColumn: showSymlinkColumn,
+                showCommentColumn: showCommentColumn,
                 groupBy: archiveGroupBy,
                 rowDensity: rowDensity
             )
@@ -116,6 +118,7 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
     let showHostOSColumn: Bool
     let showCharacteristicsColumn: Bool
     let showSymlinkColumn: Bool
+    let showCommentColumn: Bool
     // 仅作变化触发器：值变 → 重建 representable → updateNSView → 重新分组。真值由 coordinator 读 AppPreferences。
     let groupBy: String
     let rowDensity: String
@@ -180,6 +183,7 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
         if showHostOSColumn { columns.append(.hostOS) }
         if showCharacteristicsColumn { columns.append(.characteristics) }
         if showSymlinkColumn { columns.append(.symlink) }
+        if showCommentColumn { columns.append(.comment) }
         if showEncryptedColumn { columns.append(.encrypted) }
         return orderedColumns(columns, key: AppPreferences.Key.archiveColumnOrder)
     }
@@ -792,6 +796,8 @@ enum ArchiveColumn: String, TableColumnDescriptor {
     case hostOS
     case characteristics
     case symlink
+    // 0.3.3：注释列（zip per-entry Comment，7zz -slt 的 `Comment` 字段；无注释的格式留空）。
+    case comment
 
     init?(identifier: String) {
         self.init(rawValue: identifier)
@@ -831,6 +837,8 @@ enum ArchiveColumn: String, TableColumnDescriptor {
             return L10n.text("column.characteristics")
         case .symlink:
             return L10n.text("column.symlink")
+        case .comment:
+            return L10n.text("column.comment")
         }
     }
 
@@ -865,6 +873,8 @@ enum ArchiveColumn: String, TableColumnDescriptor {
         case .characteristics:
             return 150
         case .symlink:
+            return 220
+        case .comment:
             return 220
         }
     }
@@ -901,6 +911,8 @@ enum ArchiveColumn: String, TableColumnDescriptor {
             return 100
         case .symlink:
             return 140
+        case .comment:
+            return 120
         }
     }
 
@@ -937,6 +949,8 @@ enum ArchiveColumn: String, TableColumnDescriptor {
             return item.characteristics
         case .symlink:
             return item.symlinkTarget
+        case .comment:
+            return item.comment
         }
     }
 }

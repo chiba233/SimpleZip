@@ -538,6 +538,7 @@ struct ColumnsViewCommands: Commands {
     @AppStorage(AppPreferences.Key.showArchiveHostOSColumn) private var showArchiveHostOSColumn = false
     @AppStorage(AppPreferences.Key.showArchiveCharacteristicsColumn) private var showArchiveCharacteristicsColumn = false
     @AppStorage(AppPreferences.Key.showArchiveSymlinkColumn) private var showArchiveSymlinkColumn = false
+    @AppStorage(AppPreferences.Key.showArchiveCommentColumn) private var showArchiveCommentColumn = false
 
     var body: some Commands {
         CommandMenu(L10n.text("menu.view")) {
@@ -570,6 +571,7 @@ struct ColumnsViewCommands: Commands {
                 Toggle(L10n.text("column.hostOS"), isOn: $showArchiveHostOSColumn)
                 Toggle(L10n.text("column.characteristics"), isOn: $showArchiveCharacteristicsColumn)
                 Toggle(L10n.text("column.symlink"), isOn: $showArchiveSymlinkColumn)
+                Toggle(L10n.text("column.comment"), isOn: $showArchiveCommentColumn)
                 Toggle(L10n.text("column.encrypted"), isOn: $showArchiveEncryptedColumn)
             }
         }

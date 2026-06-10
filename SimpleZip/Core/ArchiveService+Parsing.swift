@@ -190,7 +190,8 @@ extension ArchiveService {
                     accessedText: accessedText,
                     hostOS: values["Host OS"] ?? "",
                     characteristics: values["Characteristics"] ?? "",
-                    symlinkTarget: values["Symbolic Link"] ?? ""
+                    symlinkTarget: values["Symbolic Link"] ?? "",
+                    comment: values["Comment"] ?? ""
                 )
             )
             values.removeAll()

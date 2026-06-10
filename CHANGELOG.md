@@ -4,6 +4,8 @@
 
 ## 0.3.3
 
+- **New: Comment column in the archive browser.** An optional column (off by default) shows each entry's comment as reported by the backend — e.g. ZIP per-entry comments. Toggle it from View → Archive Browser Columns, the column-header menu, or Settings → View; it sorts, participates in column ordering, and is included in preferences backup like every other column. Entries and formats without comments show blank. Archive-level comments (the kind RAR uses) aren't shown yet — that needs its own spot in the UI and is tracked separately.
+
 - **New: compare two archives (Archive Diff).** Select two archives in the file browser and right-click → "Compare Archives" (or select one and pick the other via "Compare with Another Archive…"). SimpleZip lists both and shows a comparison sheet: entries only in one archive, entries present in both but different — with a per-entry breakdown of exactly what differs (size, CRC, modified time, file ↔ folder, became (un)encrypted) — and a count of identical entries. Results are grouped into a collapsible folder tree (folders first, Finder-like ordering), not flat full paths. The whole report can be copied as plain text (flat paths there on purpose — pasteable into mail/diffs), and the comparison runs as a cancellable task in the Activity Center whose details panel shows the same formatted tree. Wording is direction-neutral ("only in A" / "only in B") since neither archive is inherently the "old" one.
 
 ## 0.3.2

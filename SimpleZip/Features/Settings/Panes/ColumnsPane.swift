@@ -36,6 +36,7 @@ struct ColumnsPane: View {
     @AppStorage(AppPreferences.Key.showArchiveAccessedColumn) private var showArchiveAccessedColumn = false
     @AppStorage(AppPreferences.Key.showArchiveHostOSColumn) private var showArchiveHostOSColumn = false
     @AppStorage(AppPreferences.Key.showArchiveCharacteristicsColumn) private var showArchiveCharacteristicsColumn = false
+    @AppStorage(AppPreferences.Key.showArchiveCommentColumn) private var showArchiveCommentColumn = false
     @AppStorage(AppPreferences.Key.showArchiveSymlinkColumn) private var showArchiveSymlinkColumn = false
     // 分组（视图分组）—— 这里是「全局默认值」，不是总开关；按文件夹范围下可右键单独覆盖。
     @AppStorage(AppPreferences.Key.fileGroupingScope) private var fileGroupingScopeRaw = BrowserGrouping.GroupingScope.global.rawValue
@@ -114,6 +115,9 @@ struct ColumnsPane: View {
                             GridRow {
                                 Toggle(L10n.text("column.characteristics"), isOn: $showArchiveCharacteristicsColumn)
                                 Toggle(L10n.text("column.symlink"), isOn: $showArchiveSymlinkColumn)
+                            }
+                            GridRow {
+                                Toggle(L10n.text("column.comment"), isOn: $showArchiveCommentColumn)
                             }
                         }
                     }
@@ -224,6 +228,7 @@ struct ColumnsPane: View {
         if showArchiveHostOSColumn { columns.append(.hostOS) }
         if showArchiveCharacteristicsColumn { columns.append(.characteristics) }
         if showArchiveSymlinkColumn { columns.append(.symlink) }
+        if showArchiveCommentColumn { columns.append(.comment) }
         if showArchiveEncryptedColumn { columns.append(.encrypted) }
 
         return orderedColumns(columns, key: AppPreferences.Key.archiveColumnOrder).map { column in
@@ -264,6 +269,7 @@ struct ColumnsPane: View {
         case .hostOS: return "Unix"
         case .characteristics: return "Archive"
         case .symlink: return "../target.txt"
+        case .comment: return "Final build"
         }
     }
 
@@ -293,6 +299,7 @@ struct ColumnsPane: View {
         case .hostOS: return 80
         case .characteristics: return 110
         case .symlink: return 160
+        case .comment: return 150
         }
     }
 }

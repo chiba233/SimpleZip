@@ -305,6 +305,7 @@ enum AppPreferences {
         nonisolated static let showArchiveHostOSColumn = "showArchiveHostOSColumn"
         nonisolated static let showArchiveCharacteristicsColumn = "showArchiveCharacteristicsColumn"
         nonisolated static let showArchiveSymlinkColumn = "showArchiveSymlinkColumn"
+        nonisolated static let showArchiveCommentColumn = "showArchiveCommentColumn"
         nonisolated static let appLanguage = "appLanguage"
         nonisolated static let sevenZipBackend = "sevenZipBackend"
         nonisolated static let rarBackend = "rarBackend"
@@ -623,6 +624,10 @@ enum AppPreferences {
         defaults.bool(forKey: Key.showArchiveSymlinkColumn)
     }
 
+    nonisolated static var showArchiveCommentColumn: Bool {
+        defaults.bool(forKey: Key.showArchiveCommentColumn)
+    }
+
     nonisolated static var lastFolderURL: URL? {
         guard let path = defaults.string(forKey: Key.lastFolderPath), !path.isEmpty else {
             return nil
@@ -901,6 +906,7 @@ enum AppPreferences {
         Key.showArchiveHostOSColumn,
         Key.showArchiveCharacteristicsColumn,
         Key.showArchiveSymlinkColumn,
+        Key.showArchiveCommentColumn,
         Key.fileColumnOrder,
         Key.archiveColumnOrder,
         // 「导出时是否包含按文件夹记忆」这个偏好本身也算用户选择，纳入备份。
@@ -999,6 +1005,7 @@ enum AppPreferences {
         v[Key.showArchiveHostOSColumn] = showArchiveHostOSColumn
         v[Key.showArchiveCharacteristicsColumn] = showArchiveCharacteristicsColumn
         v[Key.showArchiveSymlinkColumn] = showArchiveSymlinkColumn
+        v[Key.showArchiveCommentColumn] = showArchiveCommentColumn
         v[Key.fileColumnOrder] = stringArray(forKey: Key.fileColumnOrder)
         v[Key.archiveColumnOrder] = stringArray(forKey: Key.archiveColumnOrder)
         // 备份元开关
