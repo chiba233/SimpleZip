@@ -19,9 +19,11 @@ struct SettingsControlRow<Control: View>: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 4) {
+                // 0.3.3 设置右侧加深：标题升到正文字号、行距和上下留白放宽 ——
+                // 跟系统设置的行密度对齐，不再挤成一团（用户点名「像老 macOS」的一部分）。
                 Text(title)
-                    .font(.callout)
+                    .font(.body)
                 Text(description)
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -32,7 +34,7 @@ struct SettingsControlRow<Control: View>: View {
 
             control()
         }
-        .padding(.vertical, 3)
+        .padding(.vertical, 6)
     }
 }
 
@@ -75,9 +77,9 @@ struct SettingsActionRow: View {
                 .foregroundStyle(.secondary)
                 .frame(width: 22)
 
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(title)
-                    .font(.callout)
+                    .font(.body)
                 Text(description)
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -93,6 +95,6 @@ struct SettingsActionRow: View {
             .buttonStyle(.bordered)
             .disabled(isDisabled)
         }
-        .padding(.vertical, 5)
+        .padding(.vertical, 7)
     }
 }

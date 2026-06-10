@@ -104,15 +104,7 @@ struct ActivityView: View {
                 ScrollView {
                     LazyVStack(spacing: 10) {
                         ForEach(tasks) { task in
-                            ActivityTaskRow(task: task)
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 6)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                        .fill(Color(nsColor: .controlBackgroundColor))
-                                        .shadow(color: .black.opacity(0.08), radius: 3, y: 1)
-                                )
+                            ActivityTaskCard(task: task)
                                 .id(task.id)
                         }
                     }
@@ -288,6 +280,49 @@ final class ActivityWindowState: ObservableObject {
 
     func select(category: OperationTask.Category) {
         selectedPane = ActivityPane.pane(for: category)
+    }
+}
+
+/// 单张任务卡片：圆角卡 + 软阴影；**运行中**外圈跑一道旋转的强调色渐变描边（微动画）。
+/// 单独成 view 是为了 @ObservedObject 单独观察该任务 —— 状态翻转（跑完 / 取消）时
+/// 只这张卡重渲染、描边动画即时停。
+private struct ActivityTaskCard: View {
+    @ObservedObject var task: OperationTask
+    @State private var borderAngle = 0.0
+
+    var body: some View {
+        ActivityTaskRow(task: task)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color(nsColor: .controlBackgroundColor))
+                    .shadow(color: .black.opacity(0.08), radius: 3, y: 1)
+            )
+            .overlay {
+                if task.status.isRunning {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .strokeBorder(
+                            AngularGradient(
+                                gradient: Gradient(colors: [
+                                    Color.accentColor.opacity(0.04),
+                                    Color.accentColor.opacity(0.9),
+                                    Color.accentColor.opacity(0.04)
+                                ]),
+                                center: .center,
+                                angle: .degrees(borderAngle)
+                            ),
+                            lineWidth: 1.5
+                        )
+                        .allowsHitTesting(false)
+                        .onAppear {
+                            withAnimation(.linear(duration: 2.2).repeatForever(autoreverses: false)) {
+                                borderAngle = 360
+                            }
+                        }
+                }
+            }
     }
 }
 
