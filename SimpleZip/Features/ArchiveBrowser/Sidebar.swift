@@ -73,7 +73,11 @@ struct Sidebar: View {
             if !recentURLs.isEmpty {
                 Section(L10n.text("section.recents")) {
                     ForEach(recentURLs, id: \.path) { url in
-                        SidebarButton(title: displayName(for: url), systemImage: "clock", action: { model.openFolder(url) })
+                        // 动态识别真实图标(用户点名):自定义文件夹图标 / 包 / 彩色 App 目录等
+                        // 都按系统实际渲染,不再一律灰色时钟。
+                        SidebarRowButton(action: { model.openFolder(url) }) {
+                            sidebarFileLabel(for: url)
+                        }
                     }
                 }
             }
@@ -83,7 +87,7 @@ struct Sidebar: View {
 
                 ForEach(pinnedURLs, id: \.path) { url in
                     SidebarRowButton(action: { model.openFolder(url) }) {
-                        Label(displayName(for: url), systemImage: "pin.fill")
+                        sidebarFileLabel(for: url)
                     }
                     .contextMenu {
                         Button(L10n.text("button.unpin")) { unpinSidebarURL(url) }
@@ -125,10 +129,8 @@ struct Sidebar: View {
                 }
             }
 
-            Section(L10n.text("section.archives")) {
-                SidebarButton(title: L10n.text("button.openArchive"), systemImage: "doc.zipper", action: model.chooseArchive)
-                SidebarButton(title: L10n.text("button.openFolder"), systemImage: "folder", action: model.chooseFolder)
-            }
+            // 「压缩包」组(打开压缩包 / 打开文件夹两个按钮)已删 —— 用户拍板:工具栏 / 文件菜单 /
+            // 拖入都能打开,侧栏占两行毫无价值。
         }
         .listStyle(.sidebar)
         .navigationTitle("SimpleZip")
@@ -184,6 +186,24 @@ struct Sidebar: View {
 
     private func displayName(for url: URL) -> String {
         FileManager.default.displayName(atPath: url.path).isEmpty ? url.path : FileManager.default.displayName(atPath: url.path)
+    }
+
+    /// 「最近 / 固定」行：系统真实文件图标 + 显示名。NSWorkspace 取的是该路径当前实际渲染的
+    /// 图标（自定义文件夹色 / 特殊目录 / 包都对），比一刀切的 SF Symbol 信息量大得多。
+    private func sidebarFileLabel(for url: URL) -> some View {
+        HStack(spacing: 7) {
+            Image(nsImage: fileIcon(for: url))
+            Text(displayName(for: url))
+                .lineLimit(1)
+                .truncationMode(.middle)
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func fileIcon(for url: URL) -> NSImage {
+        let icon = NSWorkspace.shared.icon(forFile: url.path)
+        icon.size = NSSize(width: 16, height: 16)
+        return icon
     }
 }
 
