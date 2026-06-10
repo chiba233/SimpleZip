@@ -223,7 +223,7 @@
 "settings.gpg.newKey.exp.5y" = "5 年";
 "settings.gpg.newKey.passphraseNote" = "私钥 passphrase 由 gpg-agent + pinentry-mac 弹原生密码框收 —— SimpleZip 不接触 passphrase。如果对话框没弹出，请检查本机有没有装 pinentry-mac。";
 "settings.gpg.newKey.passphraseHeader" = "Passphrase";
-"settings.gpg.newKey.passphraseExplain" = "为这把新密钥设置一个 passphrase。考虑到本机 pinentry-mac 配置不一定就绪，SimpleZip 在此**短暂收集** passphrase 然后通过 gpg loopback 模式喂给 gpg；几秒后子进程退出即释放。不会写入磁盘、不会出现在 ps 命令行参数里。其它 GPG 操作（签名 / 解密）仍走 pinentry-mac 由 gpg-agent 缓存。";
+"settings.gpg.newKey.passphraseExplain" = "为这把新密钥设置一个 passphrase。SimpleZip 只在创建密钥的几秒内临时使用它，不写入磁盘、也不保存；之后的签名 / 解密照常由系统的 GPG 密码框（pinentry）处理。";
 "settings.gpg.newKey.passphraseLabel" = "Passphrase";
 "settings.gpg.newKey.passphrasePlaceholder" = "至少 8 字符；建议短句 + 数字 + 符号";
 "settings.gpg.newKey.passphraseConfirmLabel" = "再输一次";
@@ -236,12 +236,12 @@
 "settings.gpg.newKey.statusStarting" = "正在启动 gpg-agent…";
 "settings.gpg.newKey.statusGenerating" = "正在生成密钥材料…";
 "settings.gpg.newKey.statusNeedEntropy" = "等待系统熵（敲键盘 / 鼠标移动可以加速）…";
-"settings.gpg.newKey.cancelHint" = "卡太久了点「取消」可以终止 gpg 进程。";
-"settings.gpg.newKey.cancelled" = "已取消密钥生成（gpg 进程被终止）。";
+"settings.gpg.newKey.cancelHint" = "等待过久可点「取消」中止。";
+"settings.gpg.newKey.cancelled" = "已取消密钥生成。";
 "settings.gpg.newKey.createButton" = "创建";
 "settings.gpg.newKey.creating" = "正在生成密钥…（可能需要几秒到几十秒）";
 "settings.gpg.newKey.succeeded" = "已创建新密钥：…%@";
-"settings.gpg.newKey.succeededNoFingerprint" = "密钥已创建（gpg 未回报 fingerprint —— 已刷新钥匙串）。";
+"settings.gpg.newKey.succeededNoFingerprint" = "密钥已创建，列表已刷新。";
 // 删除 / 修改过期 / 撤销证书 context menu
 // 默认值子段（创建 / 解压时的 GPG 默认行为）
 "settings.gpg.defaults.title" = "默认值";
@@ -313,7 +313,7 @@
 "szs.create.payloadRoot.placeholder" = "尚未选择根目录";
 "szs.create.filesLabel" = "要签名的文件";
 "szs.create.addFiles" = "添加文件 / 文件夹…";
-"szs.create.addFiles.help" = "可添加文件，也可整选文件夹 —— 文件夹会被递归展开成其中包含的所有文件。";
+"szs.create.addFiles.help" = "可添加文件，也可整选文件夹 —— 文件夹内的所有文件都会被包含。";
 "szs.create.fileCount" = "已选 %d 个文件";
 "szs.create.titleLabel" = "标题（可选）";
 "szs.create.titlePlaceholder" = "如：MyRelease v3.1";
@@ -335,7 +335,7 @@
 "szs.create.signingKey.auto" = "默认 / 让 GPG 挑";
 "szs.create.encryptLabel" = "加密文件";
 "szs.create.encryptFiles.toggle" = "把列出的文件加密成 .gpg";
-"szs.create.encryptFiles.hint" = "每个文件会在原位旁边加密成 <名字>.gpg（原文件保留），清单随后覆盖这些 .gpg（哈希它们）。你分发的是签名清单 + 加密的 .gpg 文件；收件人验签后用自己的钥匙或密码解密。用公钥加密无需密码或 touch——只有签名那一步用到你的钥匙。清单本身仍是明文签名文件，只装哈希信息。";
+"szs.create.encryptFiles.hint" = "每个文件会在原文件旁生成加密副本 <名字>.gpg（原文件保留），签名清单覆盖的是这些加密文件。把签名清单和 .gpg 文件一起发给对方，对方验签后自行解密。加密只用收件人的公钥，不需要你的密码；清单本身不加密。";
 "szs.create.outputLocation" = "输出路径";
 "szs.create.outputLocation.choose" = "选择…";
 "szs.create.outputLocation.placeholder" = "保存到…";
@@ -567,7 +567,7 @@
 "archive.newFile.defaultName" = "未命名.txt";
 // 外部编辑写回（#109 part 3）
 "archive.writeBack.title" = "「%@」在外部被编辑了";
-"archive.writeBack.message" = "把改动写回「%@」吗？写回是安全的（复制→更新→原子替换），失败绝不破坏原包。";
+"archive.writeBack.message" = "要把改动保存回「%@」吗？即使保存失败，原压缩包也不会受影响。";
 "archive.writeBack.confirmButton" = "写回";
 "archive.writeBack.taskTitle" = "正在把「%@」写回压缩包";
 "archive.deleteEntry.confirmSingle" = "从压缩包删除「%@」？";
@@ -726,7 +726,7 @@
 "file.permissions.ownerLabel" = "所有者:";
 "file.permissions.ownerHint" = "更改所有者需要管理员授权。";
 "file.permissions.recursive" = "应用到文件夹内所有项目";
-"file.permissions.recursive.hint" = "递归套用到所选文件夹里的每个文件和子文件夹（chmod -R / chown -R）。";
+"file.permissions.recursive.hint" = "同时更改所选文件夹内的所有文件和子文件夹。";
 "button.apply" = "应用";
 "search.prompt" = "搜索";
 "menu.find" = "查找";
@@ -967,7 +967,7 @@
 "settings.defaults.editorTitle" = "%@ 默认值";
 "settings.defaults.editorHint" = "只勾选你想让这个格式默认设定的选项;没勾的保持创建时的默认值、每次仍可改。";
 "archive.useFormatDefaults" = "使用已保存的 %@ 默认值";
-"archive.useFormatDefaults.help" = "套用你在「设置 → 压缩 → 默认压缩设置」里为该格式存的选项,并隐藏这些已配置项。取消勾选可重新显示全部选项。";
+"archive.useFormatDefaults.help" = "套用你在「设置 → 压缩 → 默认压缩设置」里为该格式保存的选项。取消勾选可自行调整全部选项。";
 "settings.presets.title" = "压缩预设";
 "settings.presets.description" = "把常用的压缩设置存成命名预设。设为「默认」的那个会被 Finder「压缩」一键服务自动套用（等级 / 方法 / 选项——密码和 GPG 私钥永不存进预设）。";
 "settings.presets.empty" = "还没有预设。";

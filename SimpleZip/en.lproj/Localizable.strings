@@ -223,7 +223,7 @@
 "settings.gpg.newKey.exp.5y" = "5 years";
 "settings.gpg.newKey.passphraseNote" = "The private-key passphrase is collected by gpg-agent + pinentry-mac via the system dialog — SimpleZip never touches it. If the dialog doesn't appear, verify pinentry-mac is installed locally.";
 "settings.gpg.newKey.passphraseHeader" = "Passphrase";
-"settings.gpg.newKey.passphraseExplain" = "Set a passphrase for the new key. Because the local pinentry-mac setup isn't always reliable, SimpleZip briefly collects the passphrase here and feeds it to gpg through loopback mode; the child process exits in seconds, releasing it. It is never written to disk and does not appear in `ps` command-line arguments. Other GPG operations (signing / decrypting) still use pinentry-mac via gpg-agent's cache.";
+"settings.gpg.newKey.passphraseExplain" = "Set a passphrase for the new key. SimpleZip uses it only for the few seconds it takes to create the key — it is never saved or written to disk. Signing and decrypting afterwards use the system GPG passphrase prompt (pinentry) as usual.";
 "settings.gpg.newKey.passphraseLabel" = "Passphrase";
 "settings.gpg.newKey.passphrasePlaceholder" = "≥ 8 chars; a memorable phrase + digits + symbols";
 "settings.gpg.newKey.passphraseConfirmLabel" = "Confirm";
@@ -236,12 +236,12 @@
 "settings.gpg.newKey.statusStarting" = "Starting gpg-agent…";
 "settings.gpg.newKey.statusGenerating" = "Generating key material…";
 "settings.gpg.newKey.statusNeedEntropy" = "Waiting for system entropy (typing / mouse movement helps)…";
-"settings.gpg.newKey.cancelHint" = "Stuck too long? Tap \"Cancel\" to terminate the gpg process.";
-"settings.gpg.newKey.cancelled" = "Key generation cancelled (gpg process terminated).";
+"settings.gpg.newKey.cancelHint" = "Taking too long? Click \"Cancel\" to stop.";
+"settings.gpg.newKey.cancelled" = "Key generation cancelled.";
 "settings.gpg.newKey.createButton" = "Create";
 "settings.gpg.newKey.creating" = "Generating key… (this can take seconds to tens of seconds)";
 "settings.gpg.newKey.succeeded" = "Created new key: …%@";
-"settings.gpg.newKey.succeededNoFingerprint" = "Key created (gpg didn't report a fingerprint — the keyring has been refreshed).";
+"settings.gpg.newKey.succeededNoFingerprint" = "Key created — the key list has been refreshed.";
 // Delete / edit expiration / revocation cert context menu
 // Defaults sub-section (GPG default behavior at create / extract time)
 "settings.gpg.defaults.title" = "Defaults";
@@ -313,7 +313,7 @@
 "szs.create.payloadRoot.placeholder" = "No root folder selected";
 "szs.create.filesLabel" = "Files to sign";
 "szs.create.addFiles" = "Add Files / Folders…";
-"szs.create.addFiles.help" = "Add files, or whole folders — folders are expanded into all the files they contain.";
+"szs.create.addFiles.help" = "Add files or whole folders — every file inside a folder is included.";
 "szs.create.fileCount" = "%d file(s) selected";
 "szs.create.titleLabel" = "Title (optional)";
 "szs.create.titlePlaceholder" = "e.g. MyRelease v3.1";
@@ -335,7 +335,7 @@
 "szs.create.signingKey.auto" = "Default / let GPG choose";
 "szs.create.encryptLabel" = "Encrypt files";
 "szs.create.encryptFiles.toggle" = "Encrypt the listed files to .gpg";
-"szs.create.encryptFiles.hint" = "Each file is encrypted to a <name>.gpg next to the original (originals are kept), and the manifest then covers those .gpg files (their hashes). You distribute the signed manifest plus the encrypted .gpg files; recipients verify the signature, then decrypt with their key or passphrase. Encrypting to a public key needs no passphrase or touch — only the signing step uses your key. The manifest itself stays a plaintext signed file; it only holds hashes.";
+"szs.create.encryptFiles.hint" = "Each file gets an encrypted copy named <name>.gpg next to the original (originals are kept), and the signed manifest covers those encrypted files. Send the manifest together with the .gpg files; recipients verify the signature, then decrypt. Encryption uses only the recipients' public keys — it never asks for your passphrase. The manifest itself is not encrypted.";
 "szs.create.outputLocation" = "Output";
 "szs.create.outputLocation.choose" = "Choose…";
 "szs.create.outputLocation.placeholder" = "Save to…";
@@ -569,7 +569,7 @@
 "archive.newFile.defaultName" = "untitled.txt";
 // External-edit write-back (#109 part 3)
 "archive.writeBack.title" = "“%@” was edited externally";
-"archive.writeBack.message" = "Save the changes back into “%@”? The archive is updated safely (copied, updated, then atomically replaced) — the original is never damaged on failure.";
+"archive.writeBack.message" = "Save the changes back into “%@”? If saving fails, the original archive is left untouched.";
 "archive.writeBack.confirmButton" = "Save Back";
 "archive.writeBack.taskTitle" = "Saving “%@” back to the archive";
 "archive.deleteEntry.confirmSingle" = "Delete “%@” from the archive?";
@@ -728,7 +728,7 @@
 "file.permissions.ownerLabel" = "Owner:";
 "file.permissions.ownerHint" = "Changing the owner requires administrator authorization.";
 "file.permissions.recursive" = "Apply to all enclosed items";
-"file.permissions.recursive.hint" = "Recursively applies to every file and folder inside the selected folders (chmod -R / chown -R).";
+"file.permissions.recursive.hint" = "Also applies to every file and folder inside the selected folders.";
 "button.apply" = "Apply";
 "search.prompt" = "Search";
 "menu.find" = "Find";
@@ -974,7 +974,7 @@
 "settings.defaults.editorTitle" = "%@ Defaults";
 "settings.defaults.editorHint" = "Tick only the options you want this format to default; unticked options keep the create-time default and can be changed each time.";
 "archive.useFormatDefaults" = "Use the saved %@ defaults";
-"archive.useFormatDefaults.help" = "Apply the options you saved for this format under Settings → Compression → Default Compression Settings, and hide those configured options. Uncheck to show every option again.";
+"archive.useFormatDefaults.help" = "Applies the options you saved for this format under Settings → Compression → Default Compression Settings. Uncheck to adjust every option yourself.";
 "settings.presets.title" = "Compression Presets";
 "settings.presets.description" = "Save named compression settings. The one you mark as the default is used by the Finder \"compress\" quick actions (its level / method / options — passwords and GPG keys are never stored in a preset).";
 "settings.presets.empty" = "No presets yet.";
