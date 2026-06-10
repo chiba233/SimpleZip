@@ -699,6 +699,8 @@
 "column.owner" = "所有者";
 "file.permissions.menuItem" = "权限与所有者…";
 "file.permissions.title" = "%@ 的权限";
+"file.permissions.section.mode" = "权限";
+"file.permissions.section.owner" = "属主";
 "file.permissions.multiTitle" = "%@ 个项目";
 "file.permissions.mixedNote" = "所选项目的权限不一致;应用后会统一为下面的设置。";
 "file.permissions.read" = "读取";

@@ -219,71 +219,96 @@ struct FilePermissionsEditorSheet: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text(L10n.format("file.permissions.title", request.title))
-                .font(.headline)
-
-            if request.mixedSelection {
-                Text(L10n.text("file.permissions.mixedNote"))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Grid(alignment: .center, horizontalSpacing: 14, verticalSpacing: 8) {
-                GridRow {
-                    Text("").gridColumnAlignment(.leading)
-                    Text(L10n.text("file.permissions.read")).font(.caption).foregroundStyle(.secondary)
-                    Text(L10n.text("file.permissions.write")).font(.caption).foregroundStyle(.secondary)
-                    Text(L10n.text("file.permissions.execute")).font(.caption).foregroundStyle(.secondary)
+        // 0.4.1 重构：与创建 / 解压对话框同一套现代体例 —— hero 头 + grouped Form + 钉底操作栏。
+        VStack(spacing: 0) {
+            HStack(spacing: 12) {
+                Image(systemName: "lock.shield")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 40, height: 40)
+                    .background(
+                        LinearGradient(colors: [.purple, .indigo], startPoint: .topLeading, endPoint: .bottomTrailing),
+                        in: RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    )
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L10n.format("file.permissions.title", request.title))
+                        .font(.title3.weight(.semibold))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    // 副标题实时显示符号化权限预览（-rw-r--r-- (644)）—— 改勾选立刻看到效果。
+                    Text(symbolicPreview)
+                        .font(.caption.monospaced())
+                        .foregroundStyle(.secondary)
                 }
-                permissionRow(L10n.text("file.permissions.class.owner"), base: 0)
-                permissionRow(L10n.text("file.permissions.class.group"), base: 3)
-                permissionRow(L10n.text("file.permissions.class.everyone"), base: 6)
+                Spacer()
             }
+            .padding(.horizontal, 20)
+            .padding(.top, 18)
+            .padding(.bottom, 10)
 
-            Text(symbolicPreview)
-                .font(.system(.body, design: .monospaced))
-                .foregroundStyle(.secondary)
+            Form {
+                Section(L10n.text("file.permissions.section.mode")) {
+                    if request.mixedSelection {
+                        Text(L10n.text("file.permissions.mixedNote"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Grid(alignment: .center, horizontalSpacing: 18, verticalSpacing: 10) {
+                        GridRow {
+                            Text("").gridColumnAlignment(.leading)
+                            Text(L10n.text("file.permissions.read")).font(.caption).foregroundStyle(.secondary)
+                            Text(L10n.text("file.permissions.write")).font(.caption).foregroundStyle(.secondary)
+                            Text(L10n.text("file.permissions.execute")).font(.caption).foregroundStyle(.secondary)
+                        }
+                        permissionRow(L10n.text("file.permissions.class.owner"), base: 0)
+                        permissionRow(L10n.text("file.permissions.class.group"), base: 3)
+                        permissionRow(L10n.text("file.permissions.class.everyone"), base: 6)
+                    }
+                }
+
+                Section(L10n.text("file.permissions.section.owner")) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        LabeledContent(L10n.text("file.permissions.ownerLabel")) {
+                            TextField("", text: $owner)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 200)
+                        }
+                        Text(L10n.text("file.permissions.ownerHint"))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    // 选区含文件夹时才出现：递归套用到文件夹内所有项目（chmod -R / chown -R）。
+                    if request.containsDirectory {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Toggle(L10n.text("file.permissions.recursive"), isOn: $applyRecursively)
+                            Text(L10n.text("file.permissions.recursive.hint"))
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+            }
+            .formStyle(.grouped)
 
             Divider()
-
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 8) {
-                    Text(L10n.text("file.permissions.ownerLabel"))
-                    TextField("", text: $owner)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 180)
-                }
-                Text(L10n.text("file.permissions.ownerHint"))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            // 选区含文件夹时才出现：递归套用到文件夹内所有项目（chmod -R / chown -R）。
-            if request.containsDirectory {
-                Divider()
-                VStack(alignment: .leading, spacing: 4) {
-                    Toggle(L10n.text("file.permissions.recursive"), isOn: $applyRecursively)
-                        .toggleStyle(.checkbox)
-                    Text(L10n.text("file.permissions.recursive.hint"))
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
 
             HStack {
                 Spacer()
                 Button(L10n.text("button.cancel"), role: .cancel) { cancel() }
                     .keyboardShortcut(.cancelAction)
                 Button(L10n.text("button.apply")) { applyChanges() }
+                    .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.defaultAction)
             }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .background(.bar)
         }
-        .padding(20)
-        .frame(width: 380)
+        .frame(width: 440, height: request.containsDirectory ? 540 : 480)
     }
 
     private func permissionRow(_ label: String, base: Int) -> some View {

@@ -701,6 +701,8 @@
 "column.owner" = "Owner";
 "file.permissions.menuItem" = "Permissions & Owner…";
 "file.permissions.title" = "Permissions for %@";
+"file.permissions.section.mode" = "Permissions";
+"file.permissions.section.owner" = "Owner";
 "file.permissions.multiTitle" = "%@ items";
 "file.permissions.mixedNote" = "The selected items have different permissions; applying will set them all to the values below.";
 "file.permissions.read" = "Read";
