@@ -99,23 +99,29 @@ struct ActivityView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
+            // 用 ScrollView + LazyVStack 而不是 List：List 底下的 NSTableView 会缓存行高，
+            // 任务行展开「详情」后行高不重算 → 内容撑不开卡片被截断（用户报的 bug）。
+            // LazyVStack 行高随内容自然生长，展开多少撑多少。
             ScrollViewReader { proxy in
-                List {
-                    ForEach(tasks) { task in
-                        ActivityTaskRow(task: task)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 4)
-                            .background(
-                                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                    .fill(Color(nsColor: .controlBackgroundColor))
-                                    .shadow(color: .black.opacity(0.08), radius: 3, y: 1)
-                            )
-                            .listRowSeparator(.hidden)
-                            .listRowInsets(EdgeInsets(top: 5, leading: 14, bottom: 5, trailing: 14))
+                ScrollView {
+                    LazyVStack(spacing: 10) {
+                        ForEach(tasks) { task in
+                            ActivityTaskRow(task: task)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 6)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                        .fill(Color(nsColor: .controlBackgroundColor))
+                                        .shadow(color: .black.opacity(0.08), radius: 3, y: 1)
+                                )
+                                .id(task.id)
+                        }
                     }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 2)
+                    .padding(.bottom, 16)
                 }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
                 // 新任务插在最前；列表顶部条目变化（= 有新任务）时自动滚到最上，用户不会错过。
                 .onChange(of: tasks.first?.id) { newTopID in
                     guard let newTopID else { return }
