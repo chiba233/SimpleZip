@@ -39,13 +39,9 @@ struct WelcomeAssistantView: View {
     @AppStorage(AppPreferences.Key.suspiciousPathPolicy) private var suspiciousPathPolicy = ArchiveSecurityDecision.ask.rawValue
     @AppStorage(AppPreferences.Key.symbolicLinkPolicy) private var symbolicLinkPolicy = ArchiveSecurityDecision.ask.rawValue
     @AppStorage(AppPreferences.Key.activeContentOpenPolicy) private var activeContentOpenPolicy = ArchiveSecurityDecision.ask.rawValue
-    // 0.2.0 新增进向导的浏览 / 视图设置。
+    // 向导只留「显示隐藏文件」总开关 —— 判定方式 / 折叠策略 / 行密度 / 分组等细粒度视图偏好
+    // 已砍出向导（0.3.3），统一在 设置 → 浏览 / 视图 里调。
     @AppStorage(AppPreferences.Key.showHiddenFiles) private var showHiddenFiles = false
-    @AppStorage(AppPreferences.Key.hiddenDetectionMode) private var hiddenDetectionMode = FileBrowserOutline.HiddenDetectionMode.dotfilesOnly.rawValue
-    @AppStorage(AppPreferences.Key.hiddenGroupCollapseMode) private var hiddenGroupCollapseMode = FileBrowserOutline.CollapseMode.alwaysCollapsed.rawValue
-    @AppStorage(AppPreferences.Key.rowDensity) private var rowDensity = FileBrowserOutline.RowDensity.standard.rawValue
-    @AppStorage(AppPreferences.Key.fileGroupingScope) private var fileGroupingScope = BrowserGrouping.GroupingScope.global.rawValue
-    @AppStorage(AppPreferences.Key.fileGroupBy) private var fileGroupBy = BrowserGrouping.GroupBy.none.rawValue
 
     @State private var currentStep: Int = 0
 
@@ -84,7 +80,7 @@ struct WelcomeAssistantView: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 14)
         }
-        .frame(width: 640, height: 580)
+        .frame(width: 780, height: 700)
         .background(Color(nsColor: .windowBackgroundColor))
         .alert(L10n.text("welcome.cancelConfirm.title"), isPresented: $showsCancelConfirmation) {
             Button(L10n.text("welcome.cancelConfirm.cancel"), role: .cancel) {}
@@ -147,12 +143,7 @@ struct WelcomeAssistantView: View {
                 WelcomeGeneralStep(
                     startupLocation: $startupLocation,
                     overwriteBehavior: $overwriteBehavior,
-                    showHidden: $showHiddenFiles,
-                    detectionMode: $hiddenDetectionMode,
-                    collapseMode: $hiddenGroupCollapseMode,
-                    rowDensity: $rowDensity,
-                    groupingScope: $fileGroupingScope,
-                    fileGroupBy: $fileGroupBy
+                    showHidden: $showHiddenFiles
                 )
             }
         case 2:
@@ -231,7 +222,7 @@ struct WelcomeAssistantView: View {
             if currentStep > 0 {
                 Button(L10n.text("welcome.button.back")) {
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
-                        currentStep -= 1
+                        currentStep = max(currentStep - 1, 0)
                     }
                 }
             }
@@ -239,8 +230,11 @@ struct WelcomeAssistantView: View {
             // 主行动按钮用 prominent —— 现代 onboarding 的视觉重点，回退 / 取消保持常规按钮。
             if currentStep < totalSteps - 1 {
                 Button(L10n.text("welcome.button.next")) {
+                    // 必须在 action 里 clamp：按钮显隐的守卫是「渲染期」的，按住回车 / 快速连点时
+                    // 旧按钮还在屏上、新状态没渲染，裸 += 会把 currentStep 顶过界 ——
+                    // 越界后 default 分支连续渲染完成页，往回走就「多出两页」（用户报的 bug）。
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
-                        currentStep += 1
+                        currentStep = min(currentStep + 1, totalSteps - 1)
                     }
                 }
                 .buttonStyle(.borderedProminent)
@@ -405,11 +399,6 @@ private struct WelcomeGeneralStep: View {
     @Binding var startupLocation: String
     @Binding var overwriteBehavior: String
     @Binding var showHidden: Bool
-    @Binding var detectionMode: String
-    @Binding var collapseMode: String
-    @Binding var rowDensity: String
-    @Binding var groupingScope: String
-    @Binding var fileGroupBy: String
 
     /// 当 `startupLocation == .custom` 时显示的具体路径 —— 从 UserDefaults 读，避免又开一个 @AppStorage。
     @State private var customPath: String = AppPreferences.startupCustomLocationURL?.path ?? ""
@@ -453,66 +442,12 @@ private struct WelcomeGeneralStep: View {
 
                 Divider()
 
+                // 0.3.3 砍设置（用户「不适合放欢迎助手的砍了」）：隐藏文件的判定方式 / 折叠策略、
+                // 行密度、分组范围 / 方式都是细粒度视图偏好 —— 留在 设置 → 浏览 / 视图，
+                // 向导只留「显示隐藏文件」这一个总开关。
                 section(L10n.text("welcome.hiddenFiles.title"), caption: L10n.text("welcome.hiddenFiles.body")) {
-                    VStack(alignment: .leading, spacing: 14) {
-                        Toggle(L10n.text("settings.showHiddenFiles"), isOn: $showHidden)
-                            .toggleStyle(.switch)
-
-                        if showHidden {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(L10n.text("settings.hiddenDetection"))
-                                    .font(.subheadline.weight(.medium))
-                                Picker("", selection: $detectionMode) {
-                                    ForEach(FileBrowserOutline.HiddenDetectionMode.allCases, id: \.self) { mode in
-                                        Text(mode.title).tag(mode.rawValue)
-                                    }
-                                }
-                                .labelsHidden()
-                                .pickerStyle(.inline)
-                            }
-
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(L10n.text("settings.hiddenGroupCollapse"))
-                                    .font(.subheadline.weight(.medium))
-                                Picker("", selection: $collapseMode) {
-                                    ForEach(FileBrowserOutline.CollapseMode.allCases, id: \.self) { mode in
-                                        Text(mode.title).tag(mode.rawValue)
-                                    }
-                                }
-                                .labelsHidden()
-                                .pickerStyle(.inline)
-                            }
-                        }
-                    }
-                }
-
-                Divider()
-
-                section(L10n.text("welcome.rowDensity.title"), caption: L10n.text("welcome.rowDensity.body")) {
-                    Picker("", selection: $rowDensity) {
-                        ForEach(FileBrowserOutline.RowDensity.allCases, id: \.self) { density in
-                            Text(density.title).tag(density.rawValue)
-                        }
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.inline)
-                }
-
-                Divider()
-
-                section(L10n.text("welcome.grouping.title"), caption: L10n.text("welcome.grouping.body")) {
-                    VStack(alignment: .leading, spacing: 14) {
-                        labeledPicker(L10n.text("settings.grouping.scope"), selection: $groupingScope) {
-                            ForEach(BrowserGrouping.GroupingScope.allCases, id: \.self) { value in
-                                Text(value.title).tag(value.rawValue)
-                            }
-                        }
-                        labeledPicker(L10n.text("settings.grouping.fileDefault"), selection: $fileGroupBy) {
-                            ForEach(BrowserGrouping.GroupBy.allCases, id: \.self) { value in
-                                Text(value.title).tag(value.rawValue)
-                            }
-                        }
-                    }
+                    Toggle(L10n.text("settings.showHiddenFiles"), isOn: $showHidden)
+                        .toggleStyle(.switch)
                 }
             }
         }
@@ -534,19 +469,6 @@ private struct WelcomeGeneralStep: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             content()
-        }
-    }
-
-    private func labeledPicker<Content: View>(
-        _ label: String,
-        selection: Binding<String>,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(label).font(.subheadline.weight(.medium))
-            Picker("", selection: selection, content: content)
-                .labelsHidden()
-                .fixedSize()
         }
     }
 
