@@ -798,6 +798,14 @@ private struct FileNSOutlineView: NSViewRepresentable {
                 menu.addItem(menuItem(L10n.text("file.rename"), systemImage: "pencil", action: #selector(renameSelected)))
             }
             menu.addItem(menuItem(L10n.text("file.duplicate"), systemImage: "plus.square.on.square", action: #selector(duplicateSelected)))
+            // 拆分 / 合并分卷（字节级，对齐官方 7-Zip 的 Split / Combine）：单选非目录文件可拆；
+            // 选中 .001 首卷多一项「合并分卷」。
+            if model.selectedFileItems.count == 1, let item = model.selectedFileItems.first, !item.isDirectory {
+                if FileSplitCombine.isFirstVolume(item.url) {
+                    menu.addItem(menuItem(L10n.text("file.combine.menuItem"), systemImage: "arrow.triangle.merge", action: #selector(combineVolumesSelected)))
+                }
+                menu.addItem(menuItem(L10n.text("file.split.menuItem"), systemImage: "rectangle.split.2x1", action: #selector(splitFileSelected)))
+            }
             menu.addItem(menuItem(L10n.text("file.makeSymlink"), systemImage: "link", action: #selector(makeSymbolicLinkSelected)))
             menu.addItem(menuItem(L10n.text("file.copy"), systemImage: "doc.on.doc", action: #selector(copySelected)))
             menu.addItem(menuItem(L10n.text("file.cut"), systemImage: "scissors", action: #selector(cutSelected)))
@@ -1011,6 +1019,14 @@ private struct FileNSOutlineView: NSViewRepresentable {
 
         @objc private func editPermissionsSelected() {
             model.editSelectedPermissions()
+        }
+
+        @objc private func splitFileSelected() {
+            model.splitSelectedFile()
+        }
+
+        @objc private func combineVolumesSelected() {
+            model.combineSelectedVolumes()
         }
 
         /// 空白处右键专用：reveal「我现在看的这个文件夹」本身，忽略 selection。

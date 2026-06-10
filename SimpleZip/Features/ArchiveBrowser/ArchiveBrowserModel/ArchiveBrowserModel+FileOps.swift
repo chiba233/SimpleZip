@@ -378,6 +378,99 @@ extension ArchiveBrowserModel {
         }
     }
 
+    // MARK: - 拆分 / 合并分卷（字节级，对齐官方 7-Zip 的 Split / Combine；引擎在 Core/FileSplitCombine）
+
+    /// 右键「拆分…」：单选非目录文件 → 弹卷大小 sheet（确认后走 `performSplit`）。
+    func splitSelectedFile() {
+        guard selectedFileItems.count == 1,
+              let item = selectedFileItems.first,
+              !item.isDirectory else { return }
+        let attributes = try? FileManager.default.attributesOfItem(atPath: item.url.path)
+        fileSplitRequest = FileSplitRequest(url: item.url, fileSize: (attributes?[.size] as? Int64) ?? 0)
+    }
+
+    /// 字节级拆分成 `<名>.001/002…`。文件操作类任务：可取消（块间检查）、逐分片记到活动中心。
+    func performSplit(_ url: URL, volumeSize: Int64) {
+        let title = L10n.format("status.splitting", url.lastPathComponent)
+        let operationTask = beginFileTask(kind: .split, title: title, detail: nil, total: 1, cancellable: true)
+
+        let worker = Task.detached(priority: .userInitiated) {
+            try FileSplitCombine.split(url, volumeSize: volumeSize) { written, total in
+                let fraction = total > 0 ? min(1, Double(written) / Double(total)) : nil
+                Task { @MainActor in
+                    operationTask.progress = ArchiveProgressState(fraction: fraction, currentFile: url.lastPathComponent)
+                }
+            }
+        }
+        operationTask.cancel = { worker.cancel() }
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            self.status = title
+            do {
+                let parts = try await worker.value
+                operationTask.transferLog = parts.map {
+                    TransferLogEntry(name: $0.lastPathComponent, action: .added, isDirectory: false)
+                }
+                self.status = L10n.format("status.splitDone", "\(parts.count)")
+                TaskCenter.shared.finish(operationTask, outcome: .succeeded(nil))
+                SystemSound.operationComplete?.play()
+                self.reload()
+            } catch is CancellationError {
+                self.status = L10n.text("status.cancelled")
+                TaskCenter.shared.finish(operationTask, outcome: .cancelled)
+                self.reload()
+            } catch {
+                self.status = L10n.text("status.failed")
+                self.errorMessage = error.localizedDescription
+                TaskCenter.shared.finish(operationTask, outcome: .failed(error.localizedDescription))
+            }
+        }
+    }
+
+    /// 右键「合并分卷」：选中 `.001` 首卷 → 把连续分片按序拼回单文件（输出避让重名，不覆盖）。
+    func combineSelectedVolumes() {
+        guard selectedFileItems.count == 1,
+              let item = selectedFileItems.first,
+              FileSplitCombine.isFirstVolume(item.url) else { return }
+        let firstVolume = item.url
+        let title = L10n.format("status.combining", firstVolume.lastPathComponent)
+        let operationTask = beginFileTask(kind: .combine, title: title, detail: nil, total: 1, cancellable: true)
+
+        let worker = Task.detached(priority: .userInitiated) {
+            try FileSplitCombine.combine(firstVolume: firstVolume) { written, total in
+                let fraction = total > 0 ? min(1, Double(written) / Double(total)) : nil
+                Task { @MainActor in
+                    operationTask.progress = ArchiveProgressState(fraction: fraction, currentFile: firstVolume.lastPathComponent)
+                }
+            }
+        }
+        operationTask.cancel = { worker.cancel() }
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            self.status = title
+            do {
+                let output = try await worker.value
+                operationTask.transferLog = [
+                    TransferLogEntry(name: output.lastPathComponent, action: .added, isDirectory: false)
+                ]
+                self.status = L10n.format("status.combined", output.lastPathComponent)
+                TaskCenter.shared.finish(operationTask, outcome: .succeeded(nil))
+                SystemSound.operationComplete?.play()
+                self.reload()
+            } catch is CancellationError {
+                self.status = L10n.text("status.cancelled")
+                TaskCenter.shared.finish(operationTask, outcome: .cancelled)
+                self.reload()
+            } catch {
+                self.status = L10n.text("status.failed")
+                self.errorMessage = error.localizedDescription
+                TaskCenter.shared.finish(operationTask, outcome: .failed(error.localizedDescription))
+            }
+        }
+    }
+
     /// 标题 / 状态栏用的「权限为 755、属主为 alice」描述片段（按实际要改的项拼）。
     private func permissionChangeClauses(mode: UInt16?, owner: String?) -> String {
         var parts: [String] = []

@@ -28,6 +28,8 @@ final class OperationTask: ObservableObject, Identifiable {
         case delete
         case rename
         case permissions
+        case split
+        case combine
     }
 
     enum Status: Equatable {

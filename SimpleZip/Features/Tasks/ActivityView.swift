@@ -646,6 +646,10 @@ private struct ActivityTaskRow: View {
             return "pencil"
         case .permissions:
             return "lock.shield"
+        case .split:
+            return "rectangle.split.2x1"
+        case .combine:
+            return "arrow.triangle.merge"
         }
     }
 

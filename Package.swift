@@ -66,6 +66,7 @@ let package = Package(
                 "Core/Backends/SevenZipBackend.swift",
                 "Core/Backends/XIPBackend.swift",
                 "Core/FileBrowserOutline.swift",
+                "Core/FileSplitCombine.swift",
                 "Core/FinderFavoritesReader.swift",
                 "Core/GPGFileKind.swift",
                 "Core/L10n.swift",

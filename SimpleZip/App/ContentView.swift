@@ -296,6 +296,14 @@ struct ContentView: View {
                 model.archiveDiffReport = nil
             }
         }
+        .sheet(item: $model.fileSplitRequest) { request in
+            FileSplitSheet(request: request) { volumeSize in
+                model.fileSplitRequest = nil
+                model.performSplit(request.url, volumeSize: volumeSize)
+            } cancel: {
+                model.fileSplitRequest = nil
+            }
+        }
         .sheet(item: $pendingSZSVerification) { pending in
             SZSVerificationSheet(
                 sourceURL: pending.sourceURL,
