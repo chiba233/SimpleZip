@@ -38,11 +38,14 @@ struct SettingsView: View {
                 Spacer(minLength: 12)
             }
             .padding(.horizontal, 10)
-            .frame(width: 280)
+            // 自适应宽（同活动中心）：取最宽 pane 名的内容宽度，任何语言都不截断。
+            .frame(minWidth: 200)
+            .fixedSize(horizontal: true, vertical: false)
             .frame(maxHeight: .infinity)
-            .background(SidebarBackdrop())
+            .background(SidebarBackdrop().ignoresSafeArea())
 
             Divider()
+                .ignoresSafeArea()
 
             selectedPaneView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

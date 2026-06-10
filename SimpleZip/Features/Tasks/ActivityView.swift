@@ -33,11 +33,15 @@ struct ActivityView: View {
                 Spacer(minLength: 12)
             }
             .padding(.horizontal, 10)
-            .frame(width: 300)
+            // 自适应宽（用户拍板「不要定死」）：fixedSize 让侧栏取**最宽一行的内容宽度**，
+            // 文字与计数永远完整；minWidth 只是极短文字时的下限。毛玻璃铺满到窗口顶（沉浸式标题栏）。
+            .frame(minWidth: 220)
+            .fixedSize(horizontal: true, vertical: false)
             .frame(maxHeight: .infinity)
-            .background(SidebarBackdrop())
+            .background(SidebarBackdrop().ignoresSafeArea())
 
             Divider()
+                .ignoresSafeArea()
 
             selectedPaneView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
