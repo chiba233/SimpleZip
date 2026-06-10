@@ -42,6 +42,7 @@ struct BackupPane: View {
                 SettingsToggleRow(
                     title: L10n.text("backup.includePerFolderMemory"),
                     description: L10n.text("backup.includePerFolderMemory.description"),
+                    systemImage: "clock",
                     isOn: $includePerFolderMemoryInBackup
                 )
 

@@ -22,7 +22,8 @@ struct SevenZipBackendSection: View {
         Section(L10n.text("settings.7zip.backend")) {
             SettingsControlRow(
                 title: L10n.text("settings.7zip.backend"),
-                description: L10n.text("settings.7zip.backend.description")
+                description: L10n.text("settings.7zip.backend.description"),
+                systemImage: "7.square"
             ) {
                 Picker("", selection: $sevenZipBackend) {
                     ForEach(SevenZipBackendChoice.allCases) { backend in

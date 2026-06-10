@@ -50,7 +50,8 @@ struct ColumnsPane: View {
             Section(L10n.text("settings.section.display")) {
                 SettingsControlRow(
                     title: L10n.text("settings.rowDensity"),
-                    description: L10n.text("settings.rowDensity.description")
+                    description: L10n.text("settings.rowDensity.description"),
+                    systemImage: "text.justify.left"
                 ) {
                     Picker("", selection: $rowDensityRaw) {
                         ForEach(FileBrowserOutline.RowDensity.allCases, id: \.self) { density in
@@ -150,7 +151,8 @@ struct ColumnsPane: View {
                     .font(.headline)
                 SettingsControlRow(
                     title: L10n.text("settings.grouping.scope"),
-                    description: L10n.text("settings.grouping.scope.description")
+                    description: L10n.text("settings.grouping.scope.description"),
+                    systemImage: "slider.horizontal.3"
                 ) {
                     Picker("", selection: $fileGroupingScopeRaw) {
                         ForEach(BrowserGrouping.GroupingScope.allCases, id: \.self) { scope in
@@ -161,7 +163,8 @@ struct ColumnsPane: View {
                 }
                 SettingsControlRow(
                     title: L10n.text("settings.grouping.fileDefault"),
-                    description: L10n.text("settings.grouping.fileDefault.description")
+                    description: L10n.text("settings.grouping.fileDefault.description"),
+                    systemImage: "folder"
                 ) {
                     Picker("", selection: $fileGroupByRaw) {
                         ForEach(BrowserGrouping.GroupBy.allCases, id: \.self) { option in
@@ -177,7 +180,8 @@ struct ColumnsPane: View {
                     .padding(.top, 6)
                 SettingsControlRow(
                     title: L10n.text("settings.grouping.default"),
-                    description: L10n.text("settings.grouping.default.description")
+                    description: L10n.text("settings.grouping.default.description"),
+                    systemImage: "archivebox"
                 ) {
                     Picker("", selection: $archiveGroupByRaw) {
                         ForEach(BrowserGrouping.GroupBy.allCases, id: \.self) { option in

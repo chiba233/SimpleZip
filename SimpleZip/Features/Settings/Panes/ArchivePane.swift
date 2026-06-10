@@ -58,26 +58,29 @@ struct ArchivePane: View {
             securityPickerRow(
                 title: L10n.text("settings.security.suspiciousPaths"),
                 description: L10n.text("settings.security.suspiciousPaths.description"),
+                systemImage: "exclamationmark.triangle",
                 selection: $suspiciousPathPolicy
             )
 
             securityPickerRow(
                 title: L10n.text("settings.security.symbolicLinks"),
                 description: L10n.text("settings.security.symbolicLinks.description"),
+                systemImage: "link",
                 selection: $symbolicLinkPolicy
             )
 
             securityPickerRow(
                 title: L10n.text("settings.security.activeContent"),
                 description: L10n.text("settings.security.activeContent.description"),
+                systemImage: "checkmark.shield",
                 selection: $activeContentOpenPolicy
             )
         }
     }
 
     /// 三个安全策略的下拉是同一种结构，抽个小辅助避免重复代码。
-    private func securityPickerRow(title: String, description: String, selection: Binding<String>) -> some View {
-        SettingsControlRow(title: title, description: description) {
+    private func securityPickerRow(title: String, description: String, systemImage: String, selection: Binding<String>) -> some View {
+        SettingsControlRow(title: title, description: description, systemImage: systemImage) {
             Picker("", selection: selection) {
                 ForEach(ArchiveSecurityDecision.allCases) { decision in
                     Text(decision.title).tag(decision.rawValue)

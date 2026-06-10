@@ -53,7 +53,8 @@ struct GeneralPane: View {
             Section(L10n.text("settings.section.general")) {
                 SettingsControlRow(
                     title: L10n.text("settings.language"),
-                    description: L10n.text("settings.language.description")
+                    description: L10n.text("settings.language.description"),
+                    systemImage: "globe"
                 ) {
                     Picker("", selection: $appLanguage) {
                         ForEach(AppLanguage.allCases) { language in
@@ -78,7 +79,8 @@ struct GeneralPane: View {
 
                 SettingsControlRow(
                     title: L10n.text("settings.startupLocation"),
-                    description: L10n.text("settings.startupLocation.description")
+                    description: L10n.text("settings.startupLocation.description"),
+                    systemImage: "location"
                 ) {
                     // 用 Menu 而不是 Picker —— Picker 在「下拉项 label」和「已选状态 label」
                     // 用同一个 Text，没办法让自定义位置在选中时显示文件夹名、在下拉里仍是「自定义位置」。
@@ -120,12 +122,14 @@ struct GeneralPane: View {
                 SettingsToggleRow(
                     title: L10n.text("settings.rememberLastFolder"),
                     description: L10n.text("settings.rememberLastFolder.description"),
+                    systemImage: "clock.arrow.circlepath",
                     isOn: $rememberLastFolder
                 )
 
                 SettingsToggleRow(
                     title: L10n.text("settings.checkForUpdatesOnLaunch"),
                     description: L10n.text("settings.checkForUpdatesOnLaunch.description"),
+                    systemImage: "arrow.triangle.2.circlepath",
                     isOn: $checkForUpdatesOnLaunch
                 )
             }
@@ -133,7 +137,8 @@ struct GeneralPane: View {
             Section(L10n.text("settings.section.defaults")) {
                 SettingsControlRow(
                     title: L10n.text("settings.overwriteBehavior"),
-                    description: L10n.text("settings.overwriteBehavior.description")
+                    description: L10n.text("settings.overwriteBehavior.description"),
+                    systemImage: "doc.on.doc"
                 ) {
                     Picker("", selection: $overwriteBehavior) {
                         ForEach(OverwriteBehavior.allCases) { behavior in
@@ -148,18 +153,21 @@ struct GeneralPane: View {
                 SettingsToggleRow(
                     title: L10n.text("settings.confirmBeforeDeletingFiles"),
                     description: L10n.text("settings.confirmBeforeDeletingFiles.description"),
+                    systemImage: "trash",
                     isOn: $confirmBeforeDeletingFiles
                 )
 
                 SettingsToggleRow(
                     title: L10n.text("settings.finderOpenAutoExtract"),
                     description: L10n.text("settings.finderOpenAutoExtract.description"),
+                    systemImage: "archivebox",
                     isOn: $finderOpenAutoExtract
                 )
 
                 SettingsToggleRow(
                     title: L10n.text("settings.openExternalInNewTab"),
                     description: L10n.text("settings.openExternalInNewTab.description"),
+                    systemImage: "plus.rectangle.on.rectangle",
                     isOn: $openExternalInNewTab
                 )
             }
@@ -182,6 +190,7 @@ struct GeneralPane: View {
                 SettingsToggleRow(
                     title: L10n.text("settings.presetPasswordEnabled"),
                     description: L10n.text("settings.presetPasswordEnabled.description"),
+                    systemImage: "key",
                     isOn: $presetPasswordEnabled
                 )
                 .onChange(of: presetPasswordEnabled) { isOn in
@@ -245,7 +254,8 @@ struct GeneralPane: View {
     private var presetPasswordEditor: some View {
         SettingsControlRow(
             title: L10n.text("settings.presetPassword"),
-            description: L10n.text("settings.presetPassword.description")
+            description: L10n.text("settings.presetPassword.description"),
+            systemImage: "lock"
         ) {
             VStack(alignment: .trailing, spacing: 4) {
                 // alignmentGuide 解释见 eye / Save 注释：
@@ -271,7 +281,7 @@ struct GeneralPane: View {
                         }
                     }
                     .textFieldStyle(.roundedBorder)
-                    .frame(width: 220)
+                    .frame(minWidth: 160, idealWidth: 220, maxWidth: 220)
 
                     Button {
                         togglePresetPasswordVisibility()
@@ -291,6 +301,7 @@ struct GeneralPane: View {
                     Button(L10n.text("button.save")) {
                         savePresetPassword()
                     }
+                    .fixedSize(horizontal: true, vertical: false)
                     .disabled(presetPasswordBuffer == savedPresetPassword)
                     .alignmentGuide(VerticalAlignment.center) { dimensions in
                         dimensions[VerticalAlignment.center] + 3

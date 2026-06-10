@@ -27,7 +27,8 @@ struct RarBackendSection: View {
         Section(L10n.text("settings.rar.backend")) {
             SettingsControlRow(
                 title: L10n.text("settings.rar.backend"),
-                description: L10n.text("settings.rar.backend.description")
+                description: L10n.text("settings.rar.backend.description"),
+                systemImage: "r.square"
             ) {
                 Picker("", selection: $rarBackend) {
                     ForEach(RarBackendChoice.allCases) { backend in

@@ -33,12 +33,14 @@ struct BrowserPane: View {
                 SettingsToggleRow(
                     title: L10n.text("settings.showHiddenFiles"),
                     description: L10n.text("settings.showHiddenFiles.description"),
+                    systemImage: "eye.slash",
                     isOn: $showHiddenFiles
                 )
                 // 「什么算隐藏文件」判定方式：仅 dotfile（Unix）vs 再算上 macOS UF_HIDDEN 标志。
                 SettingsControlRow(
                     title: L10n.text("settings.hiddenDetection"),
-                    description: L10n.text("settings.hiddenDetection.description")
+                    description: L10n.text("settings.hiddenDetection.description"),
+                    systemImage: "list.bullet"
                 ) {
                     Picker("", selection: $hiddenDetectionModeRaw) {
                         ForEach(FileBrowserOutline.HiddenDetectionMode.allCases, id: \.self) { mode in
@@ -55,7 +57,8 @@ struct BrowserPane: View {
                 // 让用户知道这个选项存在。改了之后从下一次进文件夹起生效。
                 SettingsControlRow(
                     title: L10n.text("settings.hiddenGroupCollapse"),
-                    description: L10n.text("settings.hiddenGroupCollapse.description")
+                    description: L10n.text("settings.hiddenGroupCollapse.description"),
+                    systemImage: "arrow.down.right.and.arrow.up.left"
                 ) {
                     Picker("", selection: $hiddenGroupCollapseModeRaw) {
                         ForEach(FileBrowserOutline.CollapseMode.allCases, id: \.self) { mode in
@@ -71,7 +74,8 @@ struct BrowserPane: View {
                 // 开启「按种类」分类 + 显示隐藏文件时，隐藏文件融进各分类组、还是单列一个隐藏组。
                 SettingsControlRow(
                     title: L10n.text("settings.hiddenWithGrouping"),
-                    description: L10n.text("settings.hiddenWithGrouping.description")
+                    description: L10n.text("settings.hiddenWithGrouping.description"),
+                    systemImage: "square.grid.2x2"
                 ) {
                     Picker("", selection: $hiddenWithGroupingRaw) {
                         ForEach(BrowserGrouping.HiddenWithGrouping.allCases, id: \.self) { mode in
@@ -87,11 +91,13 @@ struct BrowserPane: View {
                 SettingsToggleRow(
                     title: L10n.text("settings.showSymbolicLinks"),
                     description: L10n.text("settings.showSymbolicLinks.description"),
+                    systemImage: "link",
                     isOn: $showSymbolicLinks
                 )
                 SettingsToggleRow(
                     title: L10n.text("settings.followFinderStructure"),
                     description: L10n.text("settings.followFinderStructure.description"),
+                    systemImage: "sidebar.leading",
                     isOn: $followFinderStructure
                 )
 
@@ -133,7 +139,9 @@ struct BrowserPane: View {
     /// 之所以没用 `SettingsToggleRow`：这一行不仅有 toggle，还要带一个抽屉展开按钮，
     /// 描述与开关之间还要塞一个 chevron，跟通用模板有差异。
     private var hiddenSuffixHeader: some View {
-        HStack(alignment: .center, spacing: 8) {
+        HStack(alignment: .center, spacing: 12) {
+            SettingsRowIcon(systemImage: "textformat")
+
             VStack(alignment: .leading, spacing: 3) {
                 Text(L10n.text("settings.hiddenSuffixesEnabled"))
                     .font(.callout)

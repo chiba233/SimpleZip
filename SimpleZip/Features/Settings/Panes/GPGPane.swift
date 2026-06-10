@@ -198,6 +198,7 @@ struct GPGPane: View {
             SettingsToggleRow(
                 title: L10n.text("settings.gpg.enabledTitle"),
                 description: L10n.text("settings.gpg.enabledDescription"),
+                systemImage: "key",
                 isOn: $gpgEnabled
             )
         }
@@ -328,9 +329,11 @@ struct GPGPane: View {
     /// 设置 / 清除走 GPGKeyRow 的「设为默认」按钮，不在这一行操作 —— 这一行只展示当前状态。
     @ViewBuilder
     private var defaultSigningKeyRow: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Image(systemName: defaultSigningKeyFingerprint.isEmpty ? "signature" : "signature")
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Image(systemName: "signature")
+                .font(.system(size: 16, weight: .medium))
                 .foregroundStyle(defaultSigningKeyFingerprint.isEmpty ? .secondary : Color.accentColor)
+                .frame(width: 22, alignment: .center)
             VStack(alignment: .leading, spacing: 2) {
                 Text(L10n.text("settings.gpg.defaultSigning.label"))
                     .font(.caption.weight(.medium))
@@ -365,9 +368,11 @@ struct GPGPane: View {
     /// 检测到时显示：vendor + serial + 反查的主密钥 UID（找不到对应主密钥时给「卡上 subkey 在本机 keyring 找不到 → 「拉公钥」提示」）。
     @ViewBuilder
     private var cardStatusRow: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
             Image(systemName: "creditcard")
+                .font(.system(size: 16, weight: .medium))
                 .foregroundStyle(cardStatus == nil ? Color.secondary : Color.orange)
+                .frame(width: 22, alignment: .center)
             VStack(alignment: .leading, spacing: 2) {
                 Text(L10n.text("settings.gpg.smartcard.statusLabel"))
                     .font(.caption.weight(.medium))
@@ -545,30 +550,24 @@ struct GPGPane: View {
     @ViewBuilder
     private var defaultsSection: some View {
         Section(L10n.text("settings.gpg.defaults.title")) {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(L10n.text("settings.gpg.defaults.signingStrategy.label"))
-                        .font(.caption.weight(.medium))
-                    Spacer()
-                    Picker("", selection: $promptForSigningKey) {
-                        Text(L10n.text("settings.gpg.defaults.signingStrategy.silent"))
-                            .tag(false)
-                        Text(L10n.text("settings.gpg.defaults.signingStrategy.ask"))
-                            .tag(true)
-                    }
-                    .pickerStyle(.menu)
-                    .labelsHidden()
-                    .controlSize(.small)
-                    .fixedSize()
-                }
-                Text(L10n.text(promptForSigningKey
+            SettingsControlRow(
+                title: L10n.text("settings.gpg.defaults.signingStrategy.label"),
+                description: L10n.text(promptForSigningKey
                     ? "settings.gpg.defaults.signingStrategy.askDescription"
-                    : "settings.gpg.defaults.signingStrategy.silentDescription"))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                    : "settings.gpg.defaults.signingStrategy.silentDescription"),
+                systemImage: "signature"
+            ) {
+                Picker("", selection: $promptForSigningKey) {
+                    Text(L10n.text("settings.gpg.defaults.signingStrategy.silent"))
+                        .tag(false)
+                    Text(L10n.text("settings.gpg.defaults.signingStrategy.ask"))
+                        .tag(true)
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+                .controlSize(.small)
+                .fixedSize()
             }
-            .padding(.vertical, 2)
         }
     }
 
@@ -582,6 +581,7 @@ struct GPGPane: View {
                     SettingsToggleRow(
                         title: L10n.text("settings.gpg.smartcard.enableTitle"),
                         description: L10n.text("settings.gpg.smartcard.enableDescription"),
+                        systemImage: "creditcard",
                         isOn: $gpgSmartcardEnabled
                     )
 
@@ -628,6 +628,7 @@ struct GPGPane: View {
     @ViewBuilder
     private func advancedInfoRow(label: String, value: String, monospaced: Bool = false, tintMissing: Bool = false) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
+            SettingsRowIcon(systemImage: nil)
             Text(label)
                 .font(.caption)
                 .foregroundStyle(.secondary)

@@ -15,10 +15,13 @@ import SwiftUI
 struct SettingsControlRow<Control: View>: View {
     let title: String
     let description: String
+    var systemImage: String? = nil
     @ViewBuilder let control: () -> Control
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
+            SettingsRowIcon(systemImage: systemImage)
+
             VStack(alignment: .leading, spacing: 4) {
                 // 0.3.3 设置右侧加深：标题升到正文字号、行距和上下留白放宽 ——
                 // 跟系统设置的行密度对齐，不再挤成一团（用户点名「像老 macOS」的一部分）。
@@ -44,10 +47,11 @@ struct SettingsControlRow<Control: View>: View {
 struct SettingsToggleRow: View {
     let title: String
     let description: String
+    var systemImage: String? = nil
     @Binding var isOn: Bool
 
     var body: some View {
-        SettingsControlRow(title: title, description: description) {
+        SettingsControlRow(title: title, description: description, systemImage: systemImage) {
             Toggle("", isOn: $isOn)
                 .labelsHidden()
                 // System Settings 同款小型 switch —— macOS Form 默认的 checkbox 是「老 macOS 感」
@@ -72,10 +76,7 @@ struct SettingsActionRow: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
-            Image(systemName: systemImage)
-                .font(.system(size: 16, weight: .medium))
-                .foregroundStyle(.secondary)
-                .frame(width: 22)
+            SettingsRowIcon(systemImage: systemImage)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
@@ -96,5 +97,23 @@ struct SettingsActionRow: View {
             .disabled(isDisabled)
         }
         .padding(.vertical, 7)
+    }
+}
+
+struct SettingsRowIcon: View {
+    let systemImage: String?
+
+    var body: some View {
+        Group {
+            if let systemImage {
+                Image(systemName: systemImage)
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(.secondary)
+            } else {
+                Color.clear
+            }
+        }
+        .frame(width: 22, alignment: .center)
+        .accessibilityHidden(systemImage == nil)
     }
 }
