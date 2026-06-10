@@ -8,6 +8,22 @@
 import AppKit
 import SwiftUI
 
+/// 浮窗头部的渐变图标瓦片 —— 跟侧栏彩色瓦片同一设计语言，稍大一号、带同色软阴影
+/// （0.3.3「越华丽越好」UI 令：解压蓝 / 创建橙 / 验证绿，一眼分清浮窗在干什么）。
+private struct FloatIconTile: View {
+    let systemImage: String
+    let color: Color
+
+    var body: some View {
+        Image(systemName: systemImage)
+            .font(.system(size: 15, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(width: 32, height: 32)
+            .background(color.gradient, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .shadow(color: color.opacity(0.35), radius: 4, y: 1)
+    }
+}
+
 /// 单任务浮窗内容：固定 360 宽，VStack 包标题 / 进度条 / 当前文件 / 状态行。
 struct ExternalExtractView: View {
     @ObservedObject var session: ExternalExtractSession
@@ -15,9 +31,7 @@ struct ExternalExtractView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
-                Image(systemName: "doc.zipper")
-                    .font(.system(size: 22))
-                    .foregroundStyle(.tint)
+                FloatIconTile(systemImage: "doc.zipper", color: .blue)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(session.displayName)
                         .font(.headline)
@@ -98,9 +112,7 @@ struct ExternalExtractBatchView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
-                Image(systemName: "doc.zipper")
-                    .font(.system(size: 22))
-                    .foregroundStyle(.tint)
+                FloatIconTile(systemImage: "doc.zipper", color: .blue)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(L10n.format("externalExtract.batch.title", session.total))
                         .font(.headline)
@@ -171,9 +183,7 @@ struct ExternalPrepareView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
-                Image(systemName: "checkmark.seal")
-                    .font(.system(size: 22))
-                    .foregroundStyle(.tint)
+                FloatIconTile(systemImage: "checkmark.seal", color: .green)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(session.displayName)
                         .font(.headline)
@@ -229,9 +239,7 @@ struct ExternalCreateView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
-                Image(systemName: "doc.zipper")
-                    .font(.system(size: 22))
-                    .foregroundStyle(.tint)
+                FloatIconTile(systemImage: "plus.square.on.square", color: .orange)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(session.displayName)
                         .font(.headline)

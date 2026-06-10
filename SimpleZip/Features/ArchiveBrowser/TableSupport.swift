@@ -21,6 +21,9 @@ func makeTableScrollView(
     configure: (NSTableView) -> Void = { _ in }
 ) -> NSScrollView {
     let tableView = NSTableView()
+    // 0.3.3 UI 现代化：.inset = Big Sur+ 的现代表格样式（圆角选中条 + 两侧留白），
+    // 默认 .automatic 在我们这种非 SwiftUI List 宿主里落到老式通栏选中，像旧 macOS。
+    tableView.style = .inset
     tableView.usesAlternatingRowBackgroundColors = false
     tableView.allowsMultipleSelection = true
     tableView.allowsEmptySelection = true
@@ -53,6 +56,8 @@ func makeOutlineScrollView(
     configure: (NSOutlineView) -> Void = { _ in }
 ) -> NSScrollView {
     let outlineView = ContentDragOutlineView()
+    // 同上：现代圆角选中样式（文件浏览 / 压缩包浏览两张表共用这里）。
+    outlineView.style = .inset
     outlineView.usesAlternatingRowBackgroundColors = false
     outlineView.allowsMultipleSelection = true
     outlineView.allowsEmptySelection = true

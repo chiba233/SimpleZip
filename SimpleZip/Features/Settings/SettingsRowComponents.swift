@@ -48,6 +48,10 @@ struct SettingsToggleRow: View {
         SettingsControlRow(title: title, description: description) {
             Toggle("", isOn: $isOn)
                 .labelsHidden()
+                // System Settings 同款小型 switch —— macOS Form 默认的 checkbox 是「老 macOS 感」
+                // 的最大来源（用户点名）。一处改，全部 pane 的开关行生效。
+                .toggleStyle(.switch)
+                .controlSize(.small)
         }
     }
 }
