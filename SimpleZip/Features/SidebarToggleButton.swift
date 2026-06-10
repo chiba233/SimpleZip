@@ -26,6 +26,27 @@ extension View {
     }
 }
 
+/// System Settings 风格的侧栏行标签：白色 SF Symbol 嵌在彩色渐变圆角瓦片里 + 标题。
+/// 设置窗口和活动中心的侧栏共用（0.3.3「越华丽越好」UI 令）。用 Label 包装保证
+/// List 侧栏的对齐 / 选中态 / badge 都照常工作。
+struct SidebarIconLabel: View {
+    let title: String
+    let systemImage: String
+    let color: Color
+
+    var body: some View {
+        Label {
+            Text(title)
+        } icon: {
+            Image(systemName: systemImage)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 21, height: 21)
+                .background(color.gradient, in: RoundedRectangle(cornerRadius: 5.5, style: .continuous))
+        }
+    }
+}
+
 /// 工具栏里的「折叠/展开侧栏」按钮。`systemImage` 用 `sidebar.leading` / `sidebar.left` 等，
 /// `help` 是 hover 提示文案（各窗口不同）。
 struct SidebarToggleButton: View {

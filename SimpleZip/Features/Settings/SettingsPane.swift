@@ -63,6 +63,28 @@ enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
             return "arrow.up.arrow.down.square"
         }
     }
+
+    /// 侧栏彩色图标瓦片的底色（System Settings 风格，每个分区一色）。
+    var iconColor: Color {
+        switch self {
+        case .general:
+            return .gray
+        case .archive:
+            return .orange
+        case .browser:
+            return .blue
+        case .view:
+            return .purple
+        case .fileAssociations:
+            return .teal
+        case .gpg:
+            return .green
+        case .health:
+            return .pink
+        case .backup:
+            return .indigo
+        }
+    }
 }
 
 // SettingsPaneSidebarButton（自绘侧栏按钮）已删 —— 设置窗口改用原生

@@ -20,7 +20,7 @@ struct ActivityView: View {
         NavigationSplitView(columnVisibility: .constant(.all)) {
             List(selection: paneSelectionBinding) {
                 ForEach(ActivityPane.allCases) { pane in
-                    Label(pane.title, systemImage: pane.systemImage)
+                    SidebarIconLabel(title: pane.title, systemImage: pane.systemImage, color: pane.iconColor)
                         .badge(pane.category.map(taskCount(in:)) ?? 0)
                         .tag(pane)
                 }
@@ -56,38 +56,73 @@ struct ActivityView: View {
     }
 
     private var selectedPaneView: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text(selectedPane.title)
-                    .font(.title2.weight(.semibold))
-                Spacer()
-                if let category = selectedPane.category {
-                    filterMenu(for: category)
-                }
-                if selectedPane != .settings, taskCenter.runningCount > 0 {
-                    Button(L10n.text("tasks.cancelAll")) {
-                        taskCenter.cancelAll()
-                    }
-                }
-            }
-
+        Group {
             if selectedPane == .settings {
+                // 设置页用系统设置同款 grouped Form —— 自带滚动与顶部安全区处理，
+                // 修掉「点设置后内容往上错位」（之前是裸 VStack，不像 List/Form 那样吃标题栏 inset）。
                 activitySettingsView
             } else if let category = selectedPane.category {
-                ScrollViewReader { proxy in
-                    List {
-                        taskRows(tasks: filteredTasks(in: category))
+                VStack(spacing: 0) {
+                    HStack {
+                        Text(selectedPane.title)
+                            .font(.title2.weight(.semibold))
+                        Spacer()
+                        filterMenu(for: category)
+                        if taskCenter.runningCount > 0 {
+                            Button(L10n.text("tasks.cancelAll")) {
+                                taskCenter.cancelAll()
+                            }
+                        }
                     }
-                    .listStyle(.inset)
-                    // 新任务插在最前；列表顶部条目变化（= 有新任务）时自动滚到最上，用户不会错过。
-                    .onChange(of: filteredTasks(in: category).first?.id) { newTopID in
-                        guard let newTopID else { return }
-                        withAnimation { proxy.scrollTo(newTopID, anchor: .top) }
-                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 14)
+                    .padding(.bottom, 8)
+
+                    taskList(in: category)
                 }
             }
         }
-        .padding(16)
+    }
+
+    /// 任务列表：每条任务一张圆角卡片（替代平铺行），空时给居中的大图标空状态。
+    @ViewBuilder
+    private func taskList(in category: OperationTask.Category) -> some View {
+        let tasks = filteredTasks(in: category)
+        if tasks.isEmpty {
+            VStack(spacing: 10) {
+                Image(systemName: "tray")
+                    .font(.system(size: 42, weight: .light))
+                    .foregroundStyle(.tertiary)
+                Text(L10n.text("tasks.empty"))
+                    .font(.title3.weight(.medium))
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            ScrollViewReader { proxy in
+                List {
+                    ForEach(tasks) { task in
+                        ActivityTaskRow(task: task)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 4)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .fill(Color(nsColor: .controlBackgroundColor))
+                                    .shadow(color: .black.opacity(0.08), radius: 3, y: 1)
+                            )
+                            .listRowSeparator(.hidden)
+                            .listRowInsets(EdgeInsets(top: 5, leading: 14, bottom: 5, trailing: 14))
+                    }
+                }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                // 新任务插在最前；列表顶部条目变化（= 有新任务）时自动滚到最上，用户不会错过。
+                .onChange(of: tasks.first?.id) { newTopID in
+                    guard let newTopID else { return }
+                    withAnimation { proxy.scrollTo(newTopID, anchor: .top) }
+                }
+            }
+        }
     }
 
     private func taskCount(in category: OperationTask.Category) -> Int {
@@ -139,61 +174,41 @@ struct ActivityView: View {
     }
 
     private var activitySettingsView: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(L10n.text("tasks.settings.history"))
-                .font(.headline)
-                .padding(.bottom, 8)
-
-            SettingsControlRow(
-                title: L10n.text("tasks.settings.historyLimit"),
-                description: L10n.text("tasks.settings.historyLimit.description")
-            ) {
-                HStack(spacing: 8) {
-                    Text(L10n.format("tasks.settings.historyLimit.value", historyLimit))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 84, alignment: .trailing)
-                    Stepper("", value: $historyLimit, in: 1...500)
-                        .labelsHidden()
+        Form {
+            Section(L10n.text("tasks.settings.history")) {
+                SettingsControlRow(
+                    title: L10n.text("tasks.settings.historyLimit"),
+                    description: L10n.text("tasks.settings.historyLimit.description")
+                ) {
+                    HStack(spacing: 8) {
+                        Text(L10n.format("tasks.settings.historyLimit.value", historyLimit))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 84, alignment: .trailing)
+                        Stepper("", value: $historyLimit, in: 1...500)
+                            .labelsHidden()
+                    }
+                    .onChange(of: historyLimit) { newValue in
+                        AppPreferences.activityHistoryLimit = newValue
+                        taskCenter.applyHistoryLimitChange()
+                    }
                 }
-                .onChange(of: historyLimit) { newValue in
-                    AppPreferences.activityHistoryLimit = newValue
-                    taskCenter.applyHistoryLimitChange()
+
+                SettingsControlRow(
+                    title: L10n.text("tasks.settings.clearHistory"),
+                    description: L10n.text("tasks.settings.clearHistory.description")
+                ) {
+                    Button(role: .destructive) {
+                        taskCenter.clearHistory()
+                    } label: {
+                        Label(L10n.text("tasks.settings.clearHistory.button"), systemImage: "trash")
+                            .labelStyle(.titleAndIcon)
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(taskCenter.history.isEmpty)
                 }
-            }
-
-            Divider()
-
-            SettingsControlRow(
-                title: L10n.text("tasks.settings.clearHistory"),
-                description: L10n.text("tasks.settings.clearHistory.description")
-            ) {
-                Button(role: .destructive) {
-                    taskCenter.clearHistory()
-                } label: {
-                    Label(L10n.text("tasks.settings.clearHistory.button"), systemImage: "trash")
-                        .labelStyle(.titleAndIcon)
-                }
-                .buttonStyle(.bordered)
-                .disabled(taskCenter.history.isEmpty)
-            }
-
-            Spacer()
-        }
-        // 自适应窗口宽度：填满可用宽度（与任务列表一致），不再固定 640 左对齐留一大片空白。
-        // 行内有 Spacer 把控件顶到右侧，宽窗口也不会有死区。
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-
-    @ViewBuilder
-    private func taskRows(tasks: [OperationTask]) -> some View {
-        if tasks.isEmpty {
-            Text(L10n.text("tasks.empty"))
-                .foregroundStyle(.secondary)
-        } else {
-            ForEach(tasks) { task in
-                ActivityTaskRow(task: task)
             }
         }
+        .formStyle(.grouped)
     }
 
     private var selectedPane: ActivityPane {
@@ -247,6 +262,18 @@ enum ActivityPane: CaseIterable, Identifiable, Hashable {
             return "folder"
         case .settings:
             return "gearshape"
+        }
+    }
+
+    /// 侧栏彩色图标瓦片的底色（与设置窗口同一套 System Settings 风格）。
+    var iconColor: Color {
+        switch self {
+        case .archive:
+            return .blue
+        case .fileOperation:
+            return .orange
+        case .settings:
+            return .gray
         }
     }
 }

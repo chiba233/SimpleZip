@@ -23,7 +23,7 @@ struct SettingsView: View {
         // 设置这种小窗口收起侧栏后很难用（用户拍板砍掉隐藏边栏）。
         NavigationSplitView(columnVisibility: .constant(.all)) {
             List(SettingsPane.allCases, selection: $selectedPane) { pane in
-                Label(pane.title, systemImage: pane.systemImage)
+                SidebarIconLabel(title: pane.title, systemImage: pane.systemImage, color: pane.iconColor)
                     .tag(pane)
             }
             .listStyle(.sidebar)
