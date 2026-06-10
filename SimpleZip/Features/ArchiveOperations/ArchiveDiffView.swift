@@ -6,7 +6,8 @@
 //
 //  #111 Archive Diff —— 比较结果弹窗。引擎在 Core/ArchiveDiff.swift（纯逻辑、已单测），
 //  这里只做展示：仅在 A / 仅在 B / 有差异（逐字段 before→after）/ 相同计数。
-//  布局沿用 HashResultsView 的弹窗体例（标题 + 复制 + 确定，卡片列表）。
+//  条目按目录层级组织成可收起的 outline 树（OutlineGroup），不平铺完整路径 —— 用户反馈。
+//  分区视图（ArchiveDiffSections）被活动中心详情复用，保持弹窗和任务详情一个长相。
 //
 
 import AppKit
@@ -19,6 +20,30 @@ struct ArchiveDiffReport: Identifiable {
     let leftName: String
     let rightName: String
     let result: ArchiveDiffResult
+
+    /// 整份报告的纯文本（「复制」按钮 + 活动中心复制用）。文本形态保留平铺完整路径 —— 便于粘进 diff/邮件。
+    var plainTextSummary: String {
+        var lines: [String] = []
+        lines.append("\(L10n.text("diff.title")): \(leftName) ↔ \(rightName)")
+        if !result.removed.isEmpty {
+            lines.append("")
+            lines.append("\(L10n.format("diff.onlyIn", leftName)) (\(result.removed.count)):")
+            lines.append(contentsOf: result.removed.map { "  - \(ArchiveDiff.normalizedPath($0.name))" })
+        }
+        if !result.added.isEmpty {
+            lines.append("")
+            lines.append("\(L10n.format("diff.onlyIn", rightName)) (\(result.added.count)):")
+            lines.append(contentsOf: result.added.map { "  + \(ArchiveDiff.normalizedPath($0.name))" })
+        }
+        if !result.changed.isEmpty {
+            lines.append("")
+            lines.append("\(L10n.text("diff.changed")) (\(result.changed.count)):")
+            lines.append(contentsOf: result.changed.map { "  ~ \($0.path): \(ArchiveDiffSections.changeDescription($0))" })
+        }
+        lines.append("")
+        lines.append(L10n.format("diff.unchangedCount", result.unchanged.count))
+        return lines.joined(separator: "\n")
+    }
 }
 
 struct ArchiveDiffView: View {
@@ -40,7 +65,8 @@ struct ArchiveDiffView: View {
                 Spacer()
 
                 Button(L10n.text("button.copyAll")) {
-                    copyReport()
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(report.plainTextSummary, forType: .string)
                 }
 
                 Button(L10n.text("button.ok")) {
@@ -49,26 +75,12 @@ struct ArchiveDiffView: View {
                 .keyboardShortcut(.defaultAction)
             }
 
-            summaryLine
+            ArchiveDiffSummaryLine(report: report)
 
             if report.result.hasDifferences {
                 ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 12) {
-                        diffSection(
-                            title: L10n.format("diff.onlyIn", report.leftName),
-                            systemImage: "minus.circle",
-                            tint: .red,
-                            items: report.result.removed
-                        )
-                        diffSection(
-                            title: L10n.format("diff.onlyIn", report.rightName),
-                            systemImage: "plus.circle",
-                            tint: .green,
-                            items: report.result.added
-                        )
-                        changedSection
-                    }
-                    .padding(.vertical, 2)
+                    ArchiveDiffSections(report: report)
+                        .padding(.vertical, 2)
                 }
                 .frame(minHeight: 300)
             } else {
@@ -86,8 +98,13 @@ struct ArchiveDiffView: View {
         .padding(20)
         .frame(minWidth: 640, idealWidth: 760, minHeight: 420, idealHeight: 560)
     }
+}
 
-    private var summaryLine: some View {
+/// 比对计数摘要行（弹窗 + 活动中心共用）。
+struct ArchiveDiffSummaryLine: View {
+    let report: ArchiveDiffReport
+
+    var body: some View {
         HStack(spacing: 14) {
             Label("\(report.result.removed.count)", systemImage: "minus.circle")
                 .foregroundStyle(.red)
@@ -103,25 +120,51 @@ struct ArchiveDiffView: View {
         }
         .font(.callout)
     }
+}
+
+/// 三个差异分区（仅在 A / 仅在 B / 有差异），每区一棵按目录层级可收起的 outline 树。
+/// `internal` 以便活动中心任务详情直接复用同一套展示（不要重画）。
+struct ArchiveDiffSections: View {
+    let report: ArchiveDiffReport
+
+    var body: some View {
+        LazyVStack(alignment: .leading, spacing: 12) {
+            sectionCard(
+                title: L10n.format("diff.onlyIn", report.leftName),
+                systemImage: "minus.circle",
+                tint: .red,
+                nodes: ArchiveDiffTreeNode.tree(items: report.result.removed)
+            )
+            sectionCard(
+                title: L10n.format("diff.onlyIn", report.rightName),
+                systemImage: "plus.circle",
+                tint: .green,
+                nodes: ArchiveDiffTreeNode.tree(items: report.result.added)
+            )
+            sectionCard(
+                title: L10n.text("diff.changed"),
+                systemImage: "arrow.left.arrow.right.circle",
+                tint: .orange,
+                nodes: ArchiveDiffTreeNode.tree(changes: report.result.changed)
+            )
+        }
+    }
 
     @ViewBuilder
-    private func diffSection(title: String, systemImage: String, tint: Color, items: [ArchiveItem]) -> some View {
-        if !items.isEmpty {
+    private func sectionCard(title: String, systemImage: String, tint: Color, nodes: [ArchiveDiffTreeNode]) -> some View {
+        if !nodes.isEmpty {
             VStack(alignment: .leading, spacing: 6) {
-                sectionHeader(title, systemImage: systemImage, tint: tint, count: items.count)
-                ForEach(items) { item in
-                    HStack {
-                        Image(systemName: item.isDirectory ? "folder" : "doc")
-                            .foregroundStyle(.secondary)
-                        Text(ArchiveDiff.normalizedPath(item.name))
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                        Spacer()
-                        Text(item.sizeText)
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                    }
-                    .font(.callout)
+                HStack {
+                    Label(title, systemImage: systemImage)
+                        .font(.headline)
+                        .foregroundStyle(tint)
+                    Spacer()
+                    Text("\(ArchiveDiffTreeNode.leafAndFolderEntryCount(nodes))")
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+                OutlineGroup(nodes, children: \.children) { node in
+                    nodeRow(node)
                 }
             }
             .padding(12)
@@ -131,49 +174,33 @@ struct ArchiveDiffView: View {
         }
     }
 
-    @ViewBuilder
-    private var changedSection: some View {
-        if !report.result.changed.isEmpty {
-            VStack(alignment: .leading, spacing: 6) {
-                sectionHeader(L10n.text("diff.changed"), systemImage: "arrow.left.arrow.right.circle", tint: .orange, count: report.result.changed.count)
-                ForEach(report.result.changed, id: \.path) { change in
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack {
-                            Image(systemName: change.after.isDirectory ? "folder" : "doc")
-                                .foregroundStyle(.secondary)
-                            Text(change.path)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-                        }
-                        Text(Self.changeDescription(change))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .padding(.leading, 22)
-                    }
-                    .font(.callout)
+    private func nodeRow(_ node: ArchiveDiffTreeNode) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack {
+                Image(systemName: node.isFolder ? "folder" : "doc")
+                    .foregroundStyle(.secondary)
+                Text(node.name)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Spacer()
+                if !node.sizeText.isEmpty {
+                    Text(node.sizeText)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
                 }
             }
-            .padding(12)
-            .background(Color(nsColor: .textBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(nsColor: .separatorColor)))
+            if !node.changeText.isEmpty {
+                Text(node.changeText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.leading, 22)
+            }
         }
-    }
-
-    private func sectionHeader(_ title: String, systemImage: String, tint: Color, count: Int) -> some View {
-        HStack {
-            Label(title, systemImage: systemImage)
-                .font(.headline)
-                .foregroundStyle(tint)
-            Spacer()
-            Text("\(count)")
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
-        }
+        .font(.callout)
     }
 
     /// 一条修改的逐字段摘要：「大小 1.2 MB → 1.4 MB · CRC A1B2 → C3D4 · …」。
-    /// 也被「复制报告」复用，保证看到的和拷走的一致。
+    /// 也被纯文本报告复用，保证看到的和拷走的一致。
     static func changeDescription(_ change: ArchiveEntryChange) -> String {
         var parts: [String] = []
         // 按固定顺序输出，保证同一结果文案稳定。
@@ -194,28 +221,119 @@ struct ArchiveDiffView: View {
         }
         return parts.joined(separator: " · ")
     }
+}
 
-    private func copyReport() {
-        var lines: [String] = []
-        lines.append("\(L10n.text("diff.title")): \(report.leftName) ↔ \(report.rightName)")
-        if !report.result.removed.isEmpty {
-            lines.append("")
-            lines.append("\(L10n.format("diff.onlyIn", report.leftName)) (\(report.result.removed.count)):")
-            lines.append(contentsOf: report.result.removed.map { "  - \(ArchiveDiff.normalizedPath($0.name))" })
+/// 差异条目的目录层级树节点。`children == nil` 即叶子（OutlineGroup 据此决定有没有展开三角）。
+/// 中间目录可能只是路径前缀（包里没有对应条目）—— 一样成节点，让层级完整可收起。
+struct ArchiveDiffTreeNode: Identifiable {
+    let id: String          // 归一化完整路径，树内唯一
+    let name: String        // 最后一段路径分量（行内显示用）
+    let isFolder: Bool
+    let sizeText: String    // 文件条目的大小（目录 / 前缀节点为空）
+    let changeText: String  // 「有差异」区的逐字段摘要（其他区为空）
+    var children: [ArchiveDiffTreeNode]?
+
+    /// 「仅在 …」区：把 ArchiveItem 列表按路径组成树。
+    static func tree(items: [ArchiveItem]) -> [ArchiveDiffTreeNode] {
+        build(entries: items.map { item in
+            Entry(
+                path: ArchiveDiff.normalizedPath(item.name),
+                isDirectory: item.isDirectory,
+                sizeText: item.isDirectory ? "" : item.sizeText,
+                changeText: ""
+            )
+        })
+    }
+
+    /// 「有差异」区：每条修改带逐字段摘要。
+    static func tree(changes: [ArchiveEntryChange]) -> [ArchiveDiffTreeNode] {
+        build(entries: changes.map { change in
+            Entry(
+                path: ArchiveDiff.normalizedPath(change.path),
+                isDirectory: change.after.isDirectory,
+                sizeText: change.after.isDirectory ? "" : change.after.sizeText,
+                changeText: ArchiveDiffSections.changeDescription(change)
+            )
+        })
+    }
+
+    /// 区头计数 = 实际差异条目数（叶子 + 自身就是差异条目的目录），不算凑层级的前缀节点。
+    static func leafAndFolderEntryCount(_ nodes: [ArchiveDiffTreeNode]) -> Int {
+        nodes.reduce(0) { count, node in
+            count + (node.isRealEntry ? 1 : 0) + leafAndFolderEntryCount(node.children ?? [])
         }
-        if !report.result.added.isEmpty {
-            lines.append("")
-            lines.append("\(L10n.format("diff.onlyIn", report.rightName)) (\(report.result.added.count)):")
-            lines.append(contentsOf: report.result.added.map { "  + \(ArchiveDiff.normalizedPath($0.name))" })
+    }
+
+    // MARK: - 构建
+
+    private struct Entry {
+        let path: String
+        let isDirectory: Bool
+        let sizeText: String
+        let changeText: String
+    }
+
+    /// 仅路径前缀、本身不是差异条目的目录节点不计数。
+    private var isRealEntry: Bool { !sizeText.isEmpty || !changeText.isEmpty || isEntryFolder }
+    private let isEntryFolder: Bool
+
+    private init(id: String, name: String, isFolder: Bool, isEntryFolder: Bool, sizeText: String, changeText: String, children: [ArchiveDiffTreeNode]?) {
+        self.id = id
+        self.name = name
+        self.isFolder = isFolder
+        self.isEntryFolder = isEntryFolder
+        self.sizeText = sizeText
+        self.changeText = changeText
+        self.children = children
+    }
+
+    private final class MutableNode {
+        var entry: Entry?
+        var children: [String: MutableNode] = [:]
+    }
+
+    private static func build(entries: [Entry]) -> [ArchiveDiffTreeNode] {
+        let root = MutableNode()
+        for entry in entries {
+            let components = entry.path.split(separator: "/").map(String.init)
+            guard !components.isEmpty else { continue }
+            var node = root
+            for component in components {
+                if let child = node.children[component] {
+                    node = child
+                } else {
+                    let child = MutableNode()
+                    node.children[component] = child
+                    node = child
+                }
+            }
+            node.entry = entry
         }
-        if !report.result.changed.isEmpty {
-            lines.append("")
-            lines.append("\(L10n.text("diff.changed")) (\(report.result.changed.count)):")
-            lines.append(contentsOf: report.result.changed.map { "  ~ \($0.path): \(Self.changeDescription($0))" })
-        }
-        lines.append("")
-        lines.append(L10n.format("diff.unchangedCount", report.result.unchanged.count))
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(lines.joined(separator: "\n"), forType: .string)
+        return convert(root, parentPath: "")
+    }
+
+    private static func convert(_ node: MutableNode, parentPath: String) -> [ArchiveDiffTreeNode] {
+        node.children
+            .map { name, child -> ArchiveDiffTreeNode in
+                let path = parentPath.isEmpty ? name : "\(parentPath)/\(name)"
+                let childNodes = convert(child, parentPath: path)
+                // 目录 = 包里标了目录的条目，或有子节点的路径前缀。
+                let isEntryFolder = child.entry?.isDirectory ?? false
+                let isFolder = isEntryFolder || !childNodes.isEmpty
+                return ArchiveDiffTreeNode(
+                    id: path,
+                    name: name,
+                    isFolder: isFolder,
+                    isEntryFolder: isEntryFolder,
+                    sizeText: child.entry?.sizeText ?? "",
+                    changeText: child.entry?.changeText ?? "",
+                    children: childNodes.isEmpty ? nil : childNodes
+                )
+            }
+            .sorted { a, b in
+                // 文件夹排前面，再按本地化字典序 —— 跟 Finder 列表一个习惯。
+                if a.isFolder != b.isFolder { return a.isFolder }
+                return a.name.localizedStandardCompare(b.name) == .orderedAscending
+            }
     }
 }
