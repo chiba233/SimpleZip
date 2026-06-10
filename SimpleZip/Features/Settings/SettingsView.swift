@@ -42,7 +42,8 @@ struct SettingsView: View {
             .frame(maxHeight: .infinity)
             // 定宽侧栏：可拖动宽度曾让用户把侧栏拖到 0 后再也打不开（收起按钮已砍）—— 直接固定。
             // min=ideal=max 钉死（对抗早期可拖时持久化下来的旧宽度，见活动中心同款注释）。
-            .navigationSplitViewColumnWidth(min: 240, ideal: 240, max: 240)
+            // 280：给长翻译留余量（德语 Sichern & Wiederherstellen 这类 pane 名 240 会贴边）。
+            .navigationSplitViewColumnWidth(min: 280, ideal: 280, max: 280)
             .hidingSidebarToggle()
         } detail: {
             selectedPaneView
@@ -50,7 +51,7 @@ struct SettingsView: View {
         }
         // 有理想尺寸但可以拉，遵循 macOS 原生 Settings 风格（写死尺寸会被长翻译撑爆）。
         .frame(
-            minWidth: 840, idealWidth: 940, maxWidth: .infinity,
+            minWidth: 880, idealWidth: 980, maxWidth: .infinity,
             minHeight: 660, idealHeight: 780, maxHeight: .infinity
         )
         .navigationTitle(L10n.text("settings.title"))
