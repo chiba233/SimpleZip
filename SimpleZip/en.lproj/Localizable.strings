@@ -4,7 +4,6 @@
 "welcome.button.back" = "Back";
 "welcome.button.next" = "Continue";
 "welcome.button.finish" = "Start Using SimpleZip";
-"welcome.button.skip" = "Skip";
 "welcome.stepLabel" = "Step %d of %d";
 "welcome.intro.title" = "Get the key settings sorted in a few steps";
 "welcome.intro.body" = "SimpleZip is a native macOS archive manager. The next few steps walk you through the switches new users miss most often. You can replay this assistant any time from SimpleZip → Run Welcome Assistant Again.";
@@ -42,7 +41,6 @@
 "welcome.backend.sevenZip.missing" = "7-Zip ✗ Unavailable";
 "welcome.backend.rar.available" = "RAR ✓ Ready";
 "welcome.backend.rar.missing" = "RAR ⓘ Unavailable (only needed for creating .rar)";
-"welcome.backend.openSettings" = "Install / pick a backend in Settings";
 "welcome.gpg.title" = "GPG (PGP signing) — optional";
 "welcome.gpg.body" = "GPG lets you sign archives so recipients can verify origin and integrity, and lets you encrypt to specific recipients' public keys. Entirely optional — turning it off keeps SimpleZip behaving as if GPG isn't there at all; you can opt in here anytime.";
 "welcome.gpg.enable" = "Enable GPG integration";
@@ -64,10 +62,6 @@
 "welcome.versionCheck.title" = "Check for Updates";
 "welcome.versionCheck.body" = "Currently installed version: %@. SimpleZip will fetch the latest version from GitHub and tell you whether an upgrade is available.";
 "welcome.versionCheck.button" = "Check Now";
-"welcome.versionCheck.checking" = "Checking…";
-"welcome.versionCheck.upToDate" = "You're on the latest release.";
-"welcome.versionCheck.outOfDate" = "New version available: %@. Click Check for Updates… to open Sparkle's download dialog.";
-"welcome.versionCheck.failed" = "Check failed: %@";
 "error.missingGPG" = "GnuPG isn't installed. Use Homebrew or GPGTools to install it first.";
 "archive.gpgSign" = "Sign with GPG (wrap as .siz container)";
 "archive.gpgSign.hint" = "Output becomes a single-file .siz container: the chosen archive format goes inside along with the signature and metadata via tar, so the signature can't get lost during transfer.";
@@ -90,18 +84,13 @@
 "siz.signatureSheet.valid.keyExpired.summary" = "The signature is cryptographically valid, but the signing key has since expired. You can still open it if you trust the signer — but ask them to rotate the key.";
 "siz.signatureSheet.valid.keyRevoked.summary" = "The signature is cryptographically valid, but the signing key has been revoked by its owner. Revocation usually means the key is suspected compromised — strongly recommend not trusting this signature any further.";
 "siz.signatureSheet.valid.sigExpired.summary" = "The signature is cryptographically valid, but the signer set an expiration on the signature and it has passed. Common for short-lived signatures.";
-"siz.verify.valid.message" = "Signer: %1$@\nInner archive: %2$@\nSigned at: %3$@\n\nThe contents have not been tampered with.";
 "siz.verify.unknownSigner.title" = "⚠ Signer's public key not imported";
-"siz.verify.unknownSigner.message" = "Claimed signer: %1$@\nKey ID: %2$@\n\nThe signature format is valid, but the signer's public key is not in your keyring, so the signer's identity cannot be verified. Consider importing the public key before opening.";
 "siz.verify.unknownSigner.openAnyway" = "Open Anyway";
 "siz.verify.bad.title" = "✗ Bad signature / file tampered";
-"siz.verify.bad.message" = "The contents of %@ do not match the signature. The file may have been modified or replaced in transit. Opening is strongly discouraged.";
 "siz.verify.bad.openAnyway" = "I understand the risk, open anyway";
 "siz.verify.error.title" = "⚠ Verification failed";
-"siz.verify.error.message" = "GPG could not verify the signature: %@";
 "siz.verify.openButton" = "Open";
 "siz.verify.gpgMissing.title" = ".siz contains a GPG signature, but GnuPG isn't installed";
-"siz.verify.gpgMissing.message" = "The signature cannot be verified. \"Open\" will skip verification and extract the inner archive directly; \"Cancel\" goes back. Consider installing GnuPG via Settings → GPG before opening.";
 "siz.instructions.disclosure" = "Recipient instructions";
 "siz.instructions.copy" = "Copy instructions";
 "siz.instructions.senderNote" = "Message from the sender:";
@@ -120,21 +109,14 @@
 "siz.instructions.passphraseNote" = "SimpleZip never handles your private-key passphrase — GPG's own agent (pinentry) prompts for it.";
 "siz.signatureSheet.signer" = "Signer";
 "siz.signatureSheet.keyFingerprint" = "Key fingerprint";
-"siz.signatureSheet.innerArchive" = "Inner archive";
 "siz.signatureSheet.signedAt" = "Signed at";
 "siz.signatureSheet.source" = "Source";
 "siz.signatureSheet.formatVersion" = "Format";
-"siz.signatureSheet.keyID" = "Key ID";
 "siz.signatureSheet.unknownSigner" = "(unknown)";
 "siz.signatureSheet.valid.summary" = "Signature checks out — the contents have not been altered.";
 "siz.signatureSheet.untrusted.note" = "The signer's public key is in your keyring but you haven't marked it as trusted. Safe to open if you know the signer.";
 "siz.signatureSheet.unknownSigner.summary" = "The signature format is valid, but the signer's public key isn't in your keyring, so their identity can't be verified.";
-"siz.signatureSheet.unknownSigner.note" = "Consider importing the signer's public key from Settings → GPG → Import Key first.";
 "siz.signatureSheet.bad.summary" = "The contents don't match the signature — the file may have been modified or replaced.";
-"siz.signatureSheet.bad.note" = "Opening is strongly discouraged. Cancel is the default action (Enter / Esc both cancel).";
-"siz.signatureSheet.error.note" = "GPG didn't complete the verification flow normally. Opening anyway skips signature validation.";
-"siz.signatureSheet.gpgMissing.summary" = "The .siz contains a GPG signature, but GnuPG isn't installed on this machine.";
-"siz.signatureSheet.gpgMissing.note" = "Consider installing GnuPG from Settings → GPG before opening. \"Open\" skips verification.";
 "settings.section.gpg" = "GPG (PGP Signing)";
 "settings.gpg.enabledTitle" = "Enable GPG integration";
 "settings.gpg.enabledDescription" = "When on, the Create Archive sheet offers a signing checkbox, opening a .siz container shows signer info, and key management is available in Settings. When off, every GPG entry point is hidden so users who don't use GPG aren't bothered.";
@@ -281,11 +263,8 @@
 "error.szs.duplicateRelativePath" = "Duplicate relativePath: %@";
 // .szs UI
 "szs.verify.title" = "Signed manifest verification";
-"szs.verify.signatureSection" = "Signature";
 "szs.verify.filesSection" = "Files";
 "szs.verify.summary" = "%1$d / %2$d match · %3$d mismatch · %4$d missing";
-"szs.verify.allOk" = "All checks passed";
-"szs.verify.hasIssues" = "Issues found";
 "szs.verify.entry.match" = "✓ Match";
 "szs.verify.entry.mismatch" = "✗ SHA mismatch";
 "szs.verify.entry.missing" = "⚠ File not found";
@@ -293,7 +272,6 @@
 "szs.verify.entry.expectedSHA" = "Expected SHA256";
 "szs.verify.entry.actualSHA" = "Actual SHA256";
 "szs.verify.pickPayloadRoot" = "Choose folder containing the files…";
-"szs.verify.payloadRootNotPicked" = "No file root selected yet — click the button above to choose the folder containing the signed files.";
 "szs.verify.payloadRoot" = "File root";
 "szs.verify.manifestTitle" = "Title";
 "szs.verify.manifestDescription" = "Description";
@@ -359,8 +337,6 @@
 "menu.newTab" = "New Tab";
 "menu.newWindow" = "New Window";
 "menu.view" = "View";
-"view.groupBy.fileBrowser" = "Group Files By";
-"view.groupBy.archiveBrowser" = "Group Archive By";
 "view.groupBy.none" = "None";
 "view.groupBy.kind" = "Kind";
 "view.groupBy.dateModified" = "Date Modified";
@@ -384,8 +360,6 @@
 "settings.rowDensity.loose" = "Comfortable";
 "settings.section.grouping" = "Grouping";
 "settings.grouping.description" = "Group the browser list into collapsible sections.";
-"settings.grouping.enable" = "Enable grouping";
-"settings.grouping.enable.description" = "Split the list into sections by the chosen criterion.";
 "settings.grouping.scope" = "Grouping scope";
 "settings.grouping.scope.description" = "Use one grouping everywhere, or remember a grouping per folder (set via right-click in a folder).";
 "settings.grouping.scope.global" = "Global";
@@ -436,7 +410,6 @@
 "settings.gpg.addSubkey.cap.encrypt" = "Encrypt";
 "settings.gpg.addSubkey.cap.auth" = "Authenticate";
 "settings.gpg.addSubkey.note" = "The new subkey is bound to the primary key (gpg `--quick-add-key`). An Ed25519 key uses a cv25519 encryption subkey and ed25519 for sign / auth; RSA keys use same-size RSA. Smartcard / stripped keys aren't offered here — their private key can't sign a new subkey.";
-"settings.gpg.addSubkey.requiredHint" = "Passphrase is required to unlock the primary key.";
 "settings.gpg.addSubkey.applyButton" = "Add";
 "settings.gpg.addSubkey.succeeded" = "Added %1$@ subkey to \"%2$@\".";
 "settings.gpg.addSubkey.failed" = "Add subkey failed: %@";
@@ -488,7 +461,6 @@
 "settings.gpg.keys.revokeGenerateButton" = "Generate Certificate";
 "settings.gpg.keys.revokeSavePanelMessage" = "Choose where to save (USB stick / offline media recommended, also print a paper copy)";
 "settings.gpg.keys.revokeSucceeded" = "Revocation certificate saved to %@. Keep it safe — it's as important as the key itself.";
-"settings.gpg.keys.revokeCancelledByUser" = "Revocation certificate was generated but not saved (save dialog cancelled).";
 "settings.gpg.keys.revokeWriteFailed" = "Failed to write revocation certificate file: %@";
 "settings.gpg.keys.revokeFailed" = "Generate revocation certificate failed: %@";
 "settings.gpg.trust.unknown" = "Unset";
@@ -566,7 +538,6 @@
 "archive.addFiles" = "Add Files…";
 "archive.addFiles.prompt" = "Add to Archive";
 "archive.newFolder.defaultName" = "untitled folder";
-"archive.newFile.defaultName" = "untitled.txt";
 // External-edit write-back (#109 part 3)
 "archive.writeBack.title" = "“%@” was edited externally";
 "archive.writeBack.message" = "Save the changes back into “%@”? If saving fails, the original archive is left untouched.";
@@ -578,13 +549,9 @@
 "archive.deleteEntry.confirmButton" = "Delete";
 "archive.deleteEntry.titleSingle" = "Deleting “%@” from archive";
 "archive.deleteEntry.titleMultiple" = "Deleting %@ entries from archive";
-"archive.renameEntry.title" = "Rename “%@”";
-"archive.renameEntry.message" = "Enter a new name for this entry.";
-"archive.renameEntry.confirmButton" = "Rename";
 "archive.renameEntry.taskTitle" = "Renaming “%1$@” → “%2$@”";
 "status.countingFiles" = "Counting files before creating the archive...";
 "status.extracting" = "Extracting %@";
-"status.currentFile" = "Current: %@";
 "status.testing" = "Testing %@";
 "status.benchmarking" = "Running 7-Zip benchmark...";
 "status.benchmarkReady" = "7-Zip benchmark finished";
@@ -677,7 +644,6 @@
 "file.openInNewTab" = "Open in New Tab";
 "file.openInNewWindow" = "Open in New Window";
 "diagnostics.copied" = "Diagnostics copied to clipboard.";
-"section.locations" = "Locations";
 "section.favorites" = "Favorites";
 "section.recents" = "Frequently Used";
 "section.pinned" = "Pinned";
@@ -714,7 +680,6 @@
 "help.goUp" = "Go Up";
 "column.name" = "Name";
 "column.size" = "Size";
-"column.type" = "Type";
 "column.modified" = "Modified";
 "column.method" = "Method";
 "column.path" = "Path";
@@ -750,8 +715,6 @@
 "menu.tools" = "Tools";
 "menu.activityCenter" = "Activity Center";
 "about.description" = "A native macOS archive utility — create, extract, browse, encrypt, hash, and mount DMGs without leaving Finder.";
-"about.projectPage" = "Project Page";
-"about.license" = "MIT License";
 "about.author" = "By Hoshino Yumeka";
 "about.copyright" = "© Hoshino Yumeka. Released under the MIT License.";
 "menu.projectPage" = "SimpleZip Project Page";
@@ -761,7 +724,6 @@
 "settings.section.defaults" = "Defaults";
 "settings.section.browser" = "Browser";
 "settings.startupLocation" = "Startup location";
-"settings.defaultExtractLocation" = "Default extract location";
 "settings.overwriteBehavior" = "When files already exist";
 "settings.showHiddenFiles" = "Show hidden files";
 "settings.rememberLastFolder" = "Remember last opened folder";
@@ -798,7 +760,6 @@
 "settings.presetPassword" = "Preset password";
 "settings.presetPassword.description" = "Stored locally as plain text — turn off when sharing this Mac.";
 "settings.presetPassword.placeholder" = "Enter your preset password";
-"settings.presetPassword.empty" = "Not configured yet — turn on the toggle above and enter a password.";
 "settings.presetPassword.saved" = "Saved to Keychain.";
 "settings.presetPassword.saveFailed" = "Keychain refused the write. Check your access permissions and try again.";
 "settings.presetPassword.clearFailed" = "Keychain refused the delete. The toggle has been restored to ON; check Keychain Access permissions and try again.";
@@ -807,8 +768,6 @@
 "button.save" = "Save";
 "button.usePresetPassword" = "Use preset password";
 "button.usePresetPassword.help" = "Use the preset password from Settings → General. Untick to type a different one.";
-"status.presetPasswordTryingFirst" = "Trying preset password...";
-"status.presetPasswordAccepted" = "Preset password accepted";
 "settings.hiddenSuffixesEnabled.description" = "Hide selected package-style suffixes only in the displayed name. Real file names do not change.";
 "settings.hiddenSuffixes.hint" = "Hide selected suffixes only in the file name display. Real file names and paths are unchanged.";
 "settings.hiddenSuffixes.recommended" = "Recommended suffixes";
@@ -831,9 +790,6 @@
 "startup.missing.message" = "The folder set as your startup location no longer exists. SimpleZip is showing your home folder for now. Choose a new location in Settings, or reset to your home folder.";
 "startup.missing.openSettings" = "Open Settings…";
 "startup.missing.reset" = "Reset to Home";
-"settings.extract.askEveryTime" = "Ask every time";
-"settings.extract.archiveFolder" = "Archive folder";
-"settings.extract.downloads" = "Downloads";
 "settings.overwrite.overwrite" = "Overwrite";
 "settings.overwrite.skipExisting" = "Skip existing files";
 "settings.overwrite.ask" = "Ask";
@@ -859,17 +815,12 @@
 "hashOverwrite.progress.incoming" = "Calculating incoming file hash: %@";
 "hashOverwrite.summary.title" = "Hash Conflict Summary";
 "hashOverwrite.summary.message" = "%d item(s) matched and were skipped. %d item(s) differed and were replaced.";
-"hashOverwrite.summary.same" = "Skipped";
-"hashOverwrite.summary.different" = "Replaced";
-"hashOverwrite.summary.column.status" = "Action";
 "hashOverwrite.summary.column.file" = "File";
-"hashOverwrite.summary.column.detail" = "Comparison";
 "hashOverwrite.summary.column.existingHash" = "Existing Hash";
 "hashOverwrite.summary.column.incomingHash" = "Incoming Hash";
 "hashOverwrite.summary.section.replaced" = "Replaced";
 "hashOverwrite.summary.section.skipped" = "Skipped";
 "hashOverwrite.summary.section.title" = "%@ (%d)";
-"hashOverwrite.summary.section.empty" = "No items in this group.";
 "button.extractSelected" = "Extract Selected";
 "error.selectArchiveItemsToExtract" = "Select one or more items inside the archive to extract.";
 "error.missingBundleIdentifier" = "The app bundle identifier could not be found.";
@@ -893,8 +844,6 @@
 "status.exportedArchiveItem" = "Extracted %@";
 "status.copyingFiles" = "Copying files...";
 "status.movingFiles" = "Moving files...";
-"settings.setDefaultArchiveApp" = "Set SimpleZip as Default for Archives";
-"settings.defaultArchiveAppDone" = "SimpleZip has been set as the default app for supported archive formats.";
 "settings.defaultArchiveTypeDone" = "SimpleZip has been set as the default app for %@ files.";
 "settings.association.currentDefault" = "Current default: %@";
 "settings.association.noDefault" = "No default app";
@@ -981,7 +930,6 @@
 "settings.section.security" = "Security";
 "settings.defaults.title" = "Default Compression Settings";
 "settings.defaults.description" = "Set reusable defaults per format. The Finder \"Compress\" quick actions use the matching format's defaults, and the create dialog can apply them. Passwords and GPG keys are never stored here.";
-"settings.defaults.empty" = "No format defaults configured.";
 "settings.defaults.add" = "Add Format…";
 "settings.defaults.noOptions" = "No options enabled";
 "settings.defaults.optionCount" = "%@ option(s) enabled";
@@ -989,22 +937,7 @@
 "settings.defaults.editorHint" = "Tick only the options you want this format to default; unticked options keep the create-time default and can be changed each time.";
 "archive.useFormatDefaults" = "Use the saved %@ defaults";
 "archive.useFormatDefaults.help" = "Applies the options you saved for this format under Settings → Compression → Default Compression Settings. Uncheck to adjust every option yourself.";
-"settings.presets.title" = "Compression Presets";
-"settings.presets.description" = "Save named compression settings. The one you mark as the default is used by the Finder \"compress\" quick actions (its level / method / options — passwords and GPG keys are never stored in a preset).";
-"settings.presets.empty" = "No presets yet.";
-"settings.presets.add" = "Add Preset…";
-"settings.presets.unnamed" = "Untitled";
-"settings.presets.default" = "Default";
-"settings.presets.makeDefault" = "Use as the default for quick compress";
 "settings.presets.edit" = "Edit";
-"settings.presets.editor.titleNew" = "New Compression Preset";
-"settings.presets.editor.titleEdit" = "Edit Compression Preset";
-"settings.presets.editor.name" = "Name";
-"settings.presets.editor.format" = "Format";
-"settings.presets.editor.level" = "Compression Level";
-"settings.presets.editor.method" = "Method";
-"settings.presets.editor.solid" = "Solid archive";
-"settings.presets.editor.footer" = "Passwords and GPG signing keys are not saved in a preset — choose those each time you create an archive.";
 // Format capability matrix (Settings → Archive)
 "settings.formatMatrix.title" = "Format Capabilities";
 "settings.formatMatrix.description" = "What each container format supports in SimpleZip.";
@@ -1066,7 +999,6 @@
 "archive.7z.encryptFileNamesHint" = "Set a password first to enable header encryption.";
 "archive.7z.volumeSize" = "Split volume size";
 "archive.7z.volumeSizeHint" = "Examples: 100m, 2g, 512k. Leave empty for a single archive.";
-"archive.createSFX" = "Create SFX archive";
 "archive.parameters" = "Parameters";
 "archive.parametersHint" = "Optional extra command-line parameters for advanced backends.";
 "archive.memoryUsageCompressing" = "Memory usage for compressing (estimated)";
@@ -1084,7 +1016,6 @@
 "archive.rar.requiresTool" = "RAR creation needs the external rar command-line tool.";
 "benchmark.title" = "7-Zip Benchmark";
 "benchmark.dictionarySize" = "Dictionary Size";
-"benchmark.copyRawOutput" = "Copy Raw Output";
 "benchmark.threads" = "Threads";
 "benchmark.backendThreads" = "Benchmark Threads";
 "benchmark.elapsedTime" = "Elapsed Time";
@@ -1138,7 +1069,6 @@
 "confirm.pasteConflict.title" = "\"%@\" already exists";
 "confirm.pasteConflict.message" = "Choose how SimpleZip should handle this name conflict.";
 "confirm.folderConflict.message" = "A folder with the same name already exists. By default the folders are merged, keeping files that exist only in the destination. Use the options below to change that.";
-"conflict.rememberForOperation" = "Apply this choice to remaining conflicts in this operation";
 "conflict.replaceWholeFolder" = "Replace the entire folder (don't merge; discard files that exist only in the destination)";
 "conflict.hashGate" = "Only overwrite when the contents (hash) differ";
 "conflict.applyToAll" = "Apply to the remaining conflicts in this operation";
@@ -1159,8 +1089,6 @@
 "confirm.unsafeArchiveEntries.message" = "Some entries try to use absolute paths or parent-directory segments: %@. Continue only if you trust this archive.";
 "confirm.unsafeArchiveLinks.title" = "This archive contains symbolic links";
 "confirm.unsafeArchiveLinks.message" = "Symbolic links can point outside the extracted folder: %@. Continue only if you trust this archive.";
-"conflict.replace" = "Replace";
-"conflict.keepBoth" = "Keep Both";
 "conflict.skip" = "Skip";
 "conflict.replaceIfDifferent" = "Replace if Hash Differs";
 // Archive-creation output collides with an existing file (honors the "When a file with the same name exists" preference)
@@ -1169,7 +1097,6 @@
 "conflict.create.overwrite" = "Overwrite";
 "conflict.create.keepBoth" = "Keep Both";
 "status.createSkippedExisting" = "Skipped “%@” (already exists)";
-"settings.editColumns" = "Edit Columns...";
 "settings.7zip.backend" = "7-Zip backend";
 "settings.7zip.backend.description" = "“Automatic” prefers the bundled 7-Zip and falls back to a system install. Or pin SimpleZip to only the bundled copy, or only a system-installed 7-Zip.";
 "settings.7zip.automatic" = "Automatic";

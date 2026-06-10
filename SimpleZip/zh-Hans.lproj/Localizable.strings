@@ -4,7 +4,6 @@
 "welcome.button.back" = "上一步";
 "welcome.button.next" = "下一步";
 "welcome.button.finish" = "开始使用";
-"welcome.button.skip" = "跳过";
 "welcome.stepLabel" = "第 %d 步 / 共 %d 步";
 "welcome.intro.title" = "几步搞定关键设置";
 "welcome.intro.body" = "SimpleZip 是一个原生 macOS 压缩包管理器。下面这几步会帮你打开几个新用户最容易错过的开关。你随时能在 SimpleZip → 重新运行欢迎助手 里再次打开本向导。";
@@ -42,7 +41,6 @@
 "welcome.backend.sevenZip.missing" = "7-Zip ✗ 不可用";
 "welcome.backend.rar.available" = "RAR ✓ 已就绪";
 "welcome.backend.rar.missing" = "RAR ⓘ 不可用（仅创建 .rar 时需要）";
-"welcome.backend.openSettings" = "在偏好设置里安装 / 切换";
 "welcome.gpg.title" = "GPG（PGP 签名）— 可选";
 "welcome.gpg.body" = "GPG 让你给压缩包签名，证明文件来源可信、内容未被改动；也支持「指定收件人解密」。完全可选 —— 关掉就跟没装过一样；想用再来这里开。";
 "welcome.gpg.enable" = "启用 GPG 集成";
@@ -64,10 +62,6 @@
 "welcome.versionCheck.title" = "检查更新";
 "welcome.versionCheck.body" = "你正在使用的版本：%@。SimpleZip 会自动从 GitHub 拉一份最新版本号，告诉你是否需要升级。";
 "welcome.versionCheck.button" = "现在检查";
-"welcome.versionCheck.checking" = "正在检查…";
-"welcome.versionCheck.upToDate" = "已经是最新版本。";
-"welcome.versionCheck.outOfDate" = "有新版本：%@。点「检查更新…」打开 Sparkle 下载窗口。";
-"welcome.versionCheck.failed" = "检查失败：%@";
 "error.missingGPG" = "未找到 GnuPG。请先用 Homebrew 或 GPGTools 安装。";
 "archive.gpgSign" = "用 GPG 签名（包装成 .siz 容器）";
 "archive.gpgSign.hint" = "输出会变成 .siz 单文件容器：内层是你选的压缩格式 + 签名 + 元数据 一起打 tar 包，传输时签名不会脱落。";
@@ -90,18 +84,13 @@
 "siz.signatureSheet.valid.keyExpired.summary" = "签名密码学有效，但签名时所用的密钥目前已过期。如果信任签名者，仍可打开 —— 但今后请让对方更新密钥。";
 "siz.signatureSheet.valid.keyRevoked.summary" = "签名密码学有效，但签名密钥已被密钥持有者撤销。撤销通常意味着密钥被怀疑泄露 —— 强烈建议不要再信任此签名。";
 "siz.signatureSheet.valid.sigExpired.summary" = "签名密码学有效，但签名创建时设置了有效期，且已过。常见于「短期签名」场景。";
-"siz.verify.valid.message" = "签名者：%1$@\n内层压缩包：%2$@\n签名时间：%3$@\n\n文件未被篡改。";
 "siz.verify.unknownSigner.title" = "⚠ 签名者公钥未导入";
-"siz.verify.unknownSigner.message" = "声明的签名者：%1$@\nKey ID：%2$@\n\n签名格式有效，但你的钥匙串里没有这个公钥，所以无法验证签名者身份。建议先导入对方的公钥再决定是否打开。";
 "siz.verify.unknownSigner.openAnyway" = "仍然打开";
 "siz.verify.bad.title" = "✗ 签名无效 / 文件被篡改";
-"siz.verify.bad.message" = "压缩包 %@ 的内容与签名不匹配。文件可能在传输过程中被改动 / 替换。强烈建议不要打开。";
 "siz.verify.bad.openAnyway" = "我了解风险，仍然打开";
 "siz.verify.error.title" = "⚠ 验签失败";
-"siz.verify.error.message" = "GPG 没能成功验证签名：%@";
 "siz.verify.openButton" = "打开";
 "siz.verify.gpgMissing.title" = ".siz 含 GPG 签名，但本机未安装 GnuPG";
-"siz.verify.gpgMissing.message" = "无法验证压缩包的签名来源。点「打开」会跳过验签直接解压内层；点「取消」回到上一步。建议先在「设置 → GPG」里装上 GnuPG 再打开。";
 "siz.instructions.disclosure" = "收件人说明";
 "siz.instructions.copy" = "复制说明";
 "siz.instructions.senderNote" = "发送者留言：";
@@ -120,21 +109,14 @@
 "siz.instructions.passphraseNote" = "SimpleZip 从不经手你的私钥密码 —— 由 GPG 自己的 agent（pinentry）来提示输入。";
 "siz.signatureSheet.signer" = "签名者";
 "siz.signatureSheet.keyFingerprint" = "公钥指纹";
-"siz.signatureSheet.innerArchive" = "内层压缩包";
 "siz.signatureSheet.signedAt" = "签名时间";
 "siz.signatureSheet.source" = "源文件";
 "siz.signatureSheet.formatVersion" = "格式";
-"siz.signatureSheet.keyID" = "Key ID";
 "siz.signatureSheet.unknownSigner" = "（未知）";
 "siz.signatureSheet.valid.summary" = "签名通过，内层文件未被改动。";
 "siz.signatureSheet.untrusted.note" = "你的钥匙串里有签名者的公钥，但还没把它标记为「已信任」。如果你认识签名者就可以放心打开。";
 "siz.signatureSheet.unknownSigner.summary" = "签名格式有效，但签名者公钥不在你的钥匙串里，身份无法核实。";
-"siz.signatureSheet.unknownSigner.note" = "建议先去「设置 → GPG → 导入公钥」加上对方公钥再打开。";
 "siz.signatureSheet.bad.summary" = "压缩包内容跟签名对不上，文件可能被改过 / 替换过。";
-"siz.signatureSheet.bad.note" = "强烈不建议打开。Cancel 是默认按钮（回车 / Esc 都退出）。";
-"siz.signatureSheet.error.note" = "GPG 没能正常完成验签流程。仍然打开 = 跳过签名校验。";
-"siz.signatureSheet.gpgMissing.summary" = ".siz 含 GPG 签名，但你这台机器没装 GnuPG。";
-"siz.signatureSheet.gpgMissing.note" = "建议先去「设置 → GPG」按提示装上 GnuPG 再打开；点「打开」会跳过校验直接解压。";
 "settings.section.gpg" = "GPG（PGP 签名）";
 "settings.gpg.enabledTitle" = "启用 GPG 集成";
 "settings.gpg.enabledDescription" = "开启后，创建压缩包时可勾选签名、打开 .siz 时显示签名信息、设置里可以管理密钥。关闭时所有 GPG 相关入口都隐藏，不打扰不使用的人。";
@@ -281,11 +263,8 @@
 "error.szs.duplicateRelativePath" = "重复的 relativePath：%@";
 // .szs UI
 "szs.verify.title" = "签名清单验证";
-"szs.verify.signatureSection" = "签名";
 "szs.verify.filesSection" = "文件";
 "szs.verify.summary" = "%1$d / %2$d 通过 · %3$d 失败 · %4$d 缺失";
-"szs.verify.allOk" = "全部通过";
-"szs.verify.hasIssues" = "有问题";
 "szs.verify.entry.match" = "✓ 匹配";
 "szs.verify.entry.mismatch" = "✗ SHA 不一致";
 "szs.verify.entry.missing" = "⚠ 找不到文件";
@@ -293,7 +272,6 @@
 "szs.verify.entry.expectedSHA" = "期望 SHA256";
 "szs.verify.entry.actualSHA" = "实际 SHA256";
 "szs.verify.pickPayloadRoot" = "选择文件所在文件夹…";
-"szs.verify.payloadRootNotPicked" = "尚未选择文件根目录 —— 点上方按钮选一个含被签名文件的文件夹。";
 "szs.verify.payloadRoot" = "文件根目录";
 "szs.verify.manifestTitle" = "标题";
 "szs.verify.manifestDescription" = "说明";
@@ -359,8 +337,6 @@
 "menu.newTab" = "新建标签页";
 "menu.newWindow" = "新建窗口";
 "menu.view" = "视图";
-"view.groupBy.fileBrowser" = "文件按…分类";
-"view.groupBy.archiveBrowser" = "压缩包按…分类";
 "view.groupBy.none" = "不分类";
 "view.groupBy.kind" = "按种类";
 "view.groupBy.dateModified" = "按修改时间";
@@ -384,8 +360,6 @@
 "settings.rowDensity.loose" = "宽松";
 "settings.section.grouping" = "分组";
 "settings.grouping.description" = "把浏览列表按维度切成可折叠的区块。";
-"settings.grouping.enable" = "开启分组";
-"settings.grouping.enable.description" = "按所选维度把列表分成区块。";
 "settings.grouping.scope" = "分组范围";
 "settings.grouping.scope.description" = "全局统一一种分组，或每个文件夹各记各的（在文件夹里右键设定）。";
 "settings.grouping.scope.global" = "全局";
@@ -436,7 +410,6 @@
 "settings.gpg.addSubkey.cap.encrypt" = "加密";
 "settings.gpg.addSubkey.cap.auth" = "认证";
 "settings.gpg.addSubkey.note" = "新子密钥由主密钥签名绑定（gpg `--quick-add-key`）。Ed25519 密钥的加密子密钥用 cv25519、签名 / 认证用 ed25519；RSA 密钥用同位数 RSA。智能卡 / stripped 密钥不在此提供 —— 它们的私钥不出卡，无法签名新子密钥。";
-"settings.gpg.addSubkey.requiredHint" = "需要 passphrase 解锁主密钥。";
 "settings.gpg.addSubkey.applyButton" = "添加";
 "settings.gpg.addSubkey.succeeded" = "已给「%2$@」添加%1$@子密钥。";
 "settings.gpg.addSubkey.failed" = "添加子密钥失败：%@";
@@ -488,7 +461,6 @@
 "settings.gpg.keys.revokeGenerateButton" = "生成证书";
 "settings.gpg.keys.revokeSavePanelMessage" = "选择保存位置（建议保存到 U 盘 / 离线介质，并打印一份纸质副本）";
 "settings.gpg.keys.revokeSucceeded" = "已生成撤销证书到 %@。请存好 —— 它跟密钥本身同等重要。";
-"settings.gpg.keys.revokeCancelledByUser" = "撤销证书已生成但未保存（取消了保存对话框）。";
 "settings.gpg.keys.revokeWriteFailed" = "写入撤销证书文件失败：%@";
 "settings.gpg.keys.revokeFailed" = "生成撤销证书失败：%@";
 "settings.gpg.trust.unknown" = "未设置";
@@ -564,7 +536,6 @@
 "archive.addFiles" = "添加文件…";
 "archive.addFiles.prompt" = "加进压缩包";
 "archive.newFolder.defaultName" = "新建文件夹";
-"archive.newFile.defaultName" = "未命名.txt";
 // 外部编辑写回（#109 part 3）
 "archive.writeBack.title" = "「%@」在外部被编辑了";
 "archive.writeBack.message" = "要把改动保存回「%@」吗？即使保存失败，原压缩包也不会受影响。";
@@ -576,13 +547,9 @@
 "archive.deleteEntry.confirmButton" = "删除";
 "archive.deleteEntry.titleSingle" = "正在从压缩包删除「%@」";
 "archive.deleteEntry.titleMultiple" = "正在从压缩包删除 %@ 项";
-"archive.renameEntry.title" = "重命名「%@」";
-"archive.renameEntry.message" = "给这个条目输入新名字。";
-"archive.renameEntry.confirmButton" = "重命名";
 "archive.renameEntry.taskTitle" = "正在重命名「%1$@」→「%2$@」";
 "status.countingFiles" = "正在统计待压缩文件数量...";
 "status.extracting" = "正在解压 %@";
-"status.currentFile" = "当前：%@";
 "status.testing" = "正在测试 %@";
 "status.benchmarking" = "正在运行 7-Zip 跑分...";
 "status.benchmarkReady" = "7-Zip 跑分已完成";
@@ -675,7 +642,6 @@
 "file.openInNewTab" = "在新标签页打开";
 "file.openInNewWindow" = "在新窗口打开";
 "diagnostics.copied" = "诊断信息已复制到剪贴板。";
-"section.locations" = "位置";
 "section.favorites" = "个人收藏";
 "section.recents" = "经常使用";
 "section.pinned" = "固定路径";
@@ -712,7 +678,6 @@
 "help.goUp" = "上一级";
 "column.name" = "名称";
 "column.size" = "大小";
-"column.type" = "类型";
 "column.modified" = "修改时间";
 "column.method" = "方法";
 "column.path" = "路径";
@@ -748,8 +713,6 @@
 "menu.tools" = "工具";
 "menu.activityCenter" = "活动中心";
 "about.description" = "macOS 原生压缩包工具 —— 创建、解压、浏览、加密、哈希、挂载 DMG，全部在 Finder 风格的窗口内完成。";
-"about.projectPage" = "项目主页";
-"about.license" = "MIT 许可证";
 "about.author" = "作者：Hoshino Yumeka";
 "about.copyright" = "© Hoshino Yumeka. 采用 MIT 许可证发布。";
 "menu.projectPage" = "SimpleZip 项目主页";
@@ -759,7 +722,6 @@
 "settings.section.defaults" = "默认项";
 "settings.section.browser" = "浏览器";
 "settings.startupLocation" = "启动位置";
-"settings.defaultExtractLocation" = "默认解压位置";
 "settings.overwriteBehavior" = "遇到同名文件时";
 "settings.showHiddenFiles" = "显示隐藏文件";
 "settings.rememberLastFolder" = "记住上次打开的文件夹";
@@ -796,7 +758,6 @@
 "settings.presetPassword" = "预设密码";
 "settings.presetPassword.description" = "以明文保存到本机偏好，与其他 App 共用 Mac 或借出设备时建议关闭。";
 "settings.presetPassword.placeholder" = "输入要预设的密码";
-"settings.presetPassword.empty" = "尚未配置 —— 打开上面的开关并在此输入密码。";
 "settings.presetPassword.saved" = "已加密保存到钥匙串。";
 "settings.presetPassword.saveFailed" = "钥匙串拒绝了写入。请检查访问权限后重试。";
 "settings.presetPassword.clearFailed" = "钥匙串拒绝了删除。开关已回弹至开启；请检查「钥匙串访问」权限后重试。";
@@ -805,8 +766,6 @@
 "button.save" = "保存";
 "button.usePresetPassword" = "使用预设密码";
 "button.usePresetPassword.help" = "使用「通用」设置里的预设密码。取消勾选后可以输入其它密码。";
-"status.presetPasswordTryingFirst" = "正在尝试预设密码...";
-"status.presetPasswordAccepted" = "预设密码已通过";
 "settings.hiddenSuffixesEnabled.description" = "只隐藏列表里显示的包类后缀，真实文件名和路径不会改变。";
 "settings.hiddenSuffixes.hint" = "这里只隐藏文件名显示里的后缀，真实文件名和路径不会改动。";
 "settings.hiddenSuffixes.recommended" = "推荐隐藏后缀";
@@ -829,9 +788,6 @@
 "startup.missing.message" = "你设置的启动位置文件夹已不存在，SimpleZip 暂时显示个人文件夹。可以去设置里重新选择，或重置为个人文件夹。";
 "startup.missing.openSettings" = "打开设置…";
 "startup.missing.reset" = "重置为个人文件夹";
-"settings.extract.askEveryTime" = "每次询问";
-"settings.extract.archiveFolder" = "压缩包所在文件夹";
-"settings.extract.downloads" = "下载";
 "settings.overwrite.overwrite" = "覆盖";
 "settings.overwrite.skipExisting" = "跳过已有文件";
 "settings.overwrite.ask" = "询问";
@@ -857,17 +813,12 @@
 "hashOverwrite.progress.incoming" = "正在计算试图覆盖的文件哈希：%@";
 "hashOverwrite.summary.title" = "哈希冲突汇总";
 "hashOverwrite.summary.message" = "%d 个项目内容一致，已跳过；%d 个项目内容不同，已替换。";
-"hashOverwrite.summary.same" = "已跳过";
-"hashOverwrite.summary.different" = "已替换";
-"hashOverwrite.summary.column.status" = "处理";
 "hashOverwrite.summary.column.file" = "文件";
-"hashOverwrite.summary.column.detail" = "比较结果";
 "hashOverwrite.summary.column.existingHash" = "原文件哈希";
 "hashOverwrite.summary.column.incomingHash" = "试图覆盖文件哈希";
 "hashOverwrite.summary.section.replaced" = "已替换";
 "hashOverwrite.summary.section.skipped" = "已跳过";
 "hashOverwrite.summary.section.title" = "%@（%d）";
-"hashOverwrite.summary.section.empty" = "这个分组没有项目。";
 "button.extractSelected" = "解压选中项";
 "error.selectArchiveItemsToExtract" = "请选择压缩包内一个或多个要解压的项目。";
 "error.missingBundleIdentifier" = "无法读取当前 App 的 Bundle Identifier。";
@@ -886,8 +837,6 @@
 "status.exportedArchiveItem" = "已解压 %@";
 "status.copyingFiles" = "正在复制文件...";
 "status.movingFiles" = "正在移动文件...";
-"settings.setDefaultArchiveApp" = "将 SimpleZip 设为压缩包默认 App";
-"settings.defaultArchiveAppDone" = "已将 SimpleZip 设为支持的压缩包格式默认 App。";
 "settings.defaultArchiveTypeDone" = "已将 SimpleZip 设为 %@ 文件的默认 App。";
 "settings.association.currentDefault" = "当前默认：%@";
 "settings.association.noDefault" = "未设置默认 App";
@@ -974,7 +923,6 @@
 "settings.section.security" = "安全性";
 "settings.defaults.title" = "默认压缩设置";
 "settings.defaults.description" = "为每个格式配一份可复用的默认值。Finder「压缩」一键服务会用对应格式的默认值,创建对话框也能套用。密码和 GPG 私钥永不存在这里。";
-"settings.defaults.empty" = "还没有配置任何格式默认值。";
 "settings.defaults.add" = "添加格式…";
 "settings.defaults.noOptions" = "未启用任何选项";
 "settings.defaults.optionCount" = "已启用 %@ 项";
@@ -982,22 +930,7 @@
 "settings.defaults.editorHint" = "只勾选你想让这个格式默认设定的选项;没勾的保持创建时的默认值、每次仍可改。";
 "archive.useFormatDefaults" = "使用已保存的 %@ 默认值";
 "archive.useFormatDefaults.help" = "套用你在「设置 → 压缩 → 默认压缩设置」里为该格式保存的选项。取消勾选可自行调整全部选项。";
-"settings.presets.title" = "压缩预设";
-"settings.presets.description" = "把常用的压缩设置存成命名预设。设为「默认」的那个会被 Finder「压缩」一键服务自动套用（等级 / 方法 / 选项——密码和 GPG 私钥永不存进预设）。";
-"settings.presets.empty" = "还没有预设。";
-"settings.presets.add" = "添加预设…";
-"settings.presets.unnamed" = "未命名";
-"settings.presets.default" = "默认";
-"settings.presets.makeDefault" = "设为一键快速压缩的默认预设";
 "settings.presets.edit" = "编辑";
-"settings.presets.editor.titleNew" = "新建压缩预设";
-"settings.presets.editor.titleEdit" = "编辑压缩预设";
-"settings.presets.editor.name" = "名称";
-"settings.presets.editor.format" = "格式";
-"settings.presets.editor.level" = "压缩等级";
-"settings.presets.editor.method" = "方法";
-"settings.presets.editor.solid" = "固实压缩";
-"settings.presets.editor.footer" = "密码和 GPG 签名私钥不会存进预设——这些在每次创建压缩包时单独选。";
 // 格式能力矩阵（设置 → 压缩）
 "settings.formatMatrix.title" = "格式能力";
 "settings.formatMatrix.description" = "SimpleZip 里各容器格式各自支持哪些操作。";
@@ -1062,7 +995,6 @@
 "archive.destination" = "保存到";
 "benchmark.title" = "7-Zip 跑分";
 "benchmark.dictionarySize" = "字典大小";
-"benchmark.copyRawOutput" = "复制原始输出";
 "benchmark.threads" = "线程数";
 "benchmark.backendThreads" = "跑分线程数";
 "benchmark.elapsedTime" = "已耗时";
@@ -1116,7 +1048,6 @@
 "confirm.pasteConflict.title" = "“%@”已经存在";
 "confirm.pasteConflict.message" = "请选择 SimpleZip 如何处理这个同名冲突。";
 "confirm.folderConflict.message" = "已存在同名文件夹。默认会合并两个文件夹，保留只存在于目标里的文件。用下面的选项可以改变这一行为。";
-"conflict.rememberForOperation" = "将此选择应用到本次操作剩余的同名冲突";
 "conflict.replaceWholeFolder" = "替换整个文件夹（不合并，丢弃只存在于目标里的文件）";
 "conflict.hashGate" = "仅当内容（哈希）不同时才覆盖";
 "conflict.applyToAll" = "应用到本次操作剩余的冲突";
@@ -1137,8 +1068,6 @@
 "confirm.unsafeArchiveEntries.message" = "部分项目试图使用绝对路径或上级目录片段：%@。只有在你信任这个压缩包时才应继续。";
 "confirm.unsafeArchiveLinks.title" = "这个压缩包包含符号链接";
 "confirm.unsafeArchiveLinks.message" = "符号链接可能指向解压目录外部：%@。只有在你信任这个压缩包时才应继续。";
-"conflict.replace" = "覆盖";
-"conflict.keepBoth" = "保留两者";
 "conflict.skip" = "跳过";
 "conflict.replaceIfDifferent" = "哈希不同时覆盖";
 // 创建压缩包输出与已有文件同名（遵循「遇到同名文件时」偏好）
@@ -1147,7 +1076,6 @@
 "conflict.create.overwrite" = "覆盖";
 "conflict.create.keepBoth" = "两者都保留";
 "status.createSkippedExisting" = "已跳过「%@」（已存在）";
-"settings.editColumns" = "编辑列表列...";
 "settings.7zip.backend" = "7-Zip 后端";
 "settings.7zip.backend.description" = "「自动」优先用内置 7-Zip，找不到再回退到系统安装的；也可固定只用内置，或只用系统安装的 7-Zip。";
 "settings.7zip.automatic" = "自动";
@@ -1238,7 +1166,6 @@
 "archive.showPassword" = "显示密码";
 "archive.encryptionMethod" = "加密方式";
 "archive.encryption.zipCrypto" = "ZipCrypto";
-"archive.createSFX" = "创建 SFX 自解压压缩包";
 "archive.parameters" = "参数";
 "archive.parametersHint" = "高级后端可选的额外命令行参数。";
 "archive.memoryUsageCompressing" = "压缩内存占用（估算）";
