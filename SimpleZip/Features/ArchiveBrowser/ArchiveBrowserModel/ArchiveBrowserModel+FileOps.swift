@@ -410,6 +410,67 @@ extension ArchiveBrowserModel {
         reload()
     }
 
+    /// 右键「从标签移除」：把当前浏览的标签从选中文件上摘掉（文件本体不动）。
+    /// 只在 `.tag` 模式有意义 —— 菜单也只在该模式渲染此项。
+    func removeSelectedFromCurrentTag() {
+        guard case .tag(let tag) = mode, !selectedFileItems.isEmpty else { return }
+        let urls = selectedFileItems.map(\.url)
+        var failureCount = 0
+        for url in urls {
+            do {
+                if #available(macOS 26.0, *) {
+                    let existing = try url.resourceValues(forKeys: [.tagNamesKey]).tagNames ?? []
+                    guard existing.contains(tag) else { continue }
+                    var writable = url
+                    var values = URLResourceValues()
+                    values.tagNames = existing.filter { $0 != tag }
+                    try writable.setResourceValues(values)
+                } else {
+                    try Self.removeTagViaExtendedAttribute(tag, from: url)
+                }
+            } catch {
+                failureCount += 1
+            }
+        }
+        if failureCount == 0 {
+            status = L10n.format("status.untaggedCount", "\(urls.count)", tag)
+        } else {
+            status = L10n.text("status.failed")
+            errorMessage = L10n.format("error.tagFailed", "\(failureCount)")
+        }
+        // 标签搜索结果里这些文件应当消失 —— 重跑搜索。
+        reload()
+    }
+
+    /// macOS 26 以下的标签移除兜底：过滤 `kMDItemUserTags` 原始条目（名字或「名字\n颜色号」），
+    /// 清空则整个删掉扩展属性。
+    private nonisolated static func removeTagViaExtendedAttribute(_ tag: String, from url: URL) throws {
+        let attributeName = "com.apple.metadata:_kMDItemUserTags"
+        let length = getxattr(url.path, attributeName, nil, 0, 0, 0)
+        guard length > 0 else { return }
+        var data = Data(count: length)
+        let read = data.withUnsafeMutableBytes { buffer in
+            getxattr(url.path, attributeName, buffer.baseAddress, length, 0, 0)
+        }
+        guard read > 0,
+              let entries = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String] else { return }
+        let remaining = entries.filter { $0 != tag && !$0.hasPrefix(tag + "\n") }
+        guard remaining.count != entries.count else { return }
+        if remaining.isEmpty {
+            guard removexattr(url.path, attributeName, 0) == 0 else {
+                throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno))
+            }
+            return
+        }
+        let payload = try PropertyListSerialization.data(fromPropertyList: remaining, format: .binary, options: 0)
+        let result = payload.withUnsafeBytes { buffer in
+            setxattr(url.path, attributeName, buffer.baseAddress, payload.count, 0, 0)
+        }
+        guard result == 0 else {
+            throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno))
+        }
+    }
+
     /// macOS 26 以下的兜底：直接写 `com.apple.metadata:_kMDItemUserTags` 扩展属性。
     /// 读**原始条目**再追加 —— 既有标签可能带「名字\n颜色号」后缀，从 tagNames getter 读会丢颜色。
     private nonisolated static func appendTagViaExtendedAttribute(_ tag: String, to url: URL) throws {
@@ -564,7 +625,15 @@ extension ArchiveBrowserModel {
     }
 
     func deleteSelectedFiles() {
-        guard case .folder = mode, !selectedFileItems.isEmpty else { return }
+        // 文件夹和标签两种模式列出的都是真实文件,都可删 —— 旧 guard 只认 .folder,
+        // 标签视图里删除**静默无操作**(用户报的 bug)。归档模式的条目删除走归档自己的入口。
+        switch mode {
+        case .folder, .tag:
+            break
+        case .archive:
+            return
+        }
+        guard !selectedFileItems.isEmpty else { return }
         if AppPreferences.confirmBeforeDeletingFiles {
             guard confirmDelete(items: selectedFileItems) else { return }
         }
@@ -604,7 +673,11 @@ extension ArchiveBrowserModel {
                 detail: transferSummary(from: trashed.map(\.original), to: L10n.text("tasks.trashDestination")),
                 transferLog: deleteLog(trashed.map(\.original))
             )
-            // 刷新交给 FolderWatcher：从当前文件夹移除条目会触发 FSEvents 自动 reload。
+            // 文件夹模式刷新交给 FolderWatcher（FSEvents 自动 reload）；
+            // 标签模式没有 watcher（搜索结果），删完显式重跑标签搜索。
+            if case .tag = mode {
+                reload()
+            }
         } catch {
             errorMessage = error.localizedDescription
             status = L10n.text("status.failed")

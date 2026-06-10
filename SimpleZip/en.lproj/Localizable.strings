@@ -572,6 +572,8 @@
 "status.combined" = "Combined into %@";
 "status.taggedCount" = "Tagged %1$@ item(s) with “%2$@”";
 "error.tagFailed" = "Couldn't tag %@ item(s).";
+"file.removeFromTag" = "Remove from Tag “%@”";
+"status.untaggedCount" = "Removed %1$@ item(s) from “%2$@”";
 "error.split.invalidVolumeSize" = "Volume size must be greater than zero.";
 "error.split.partExists" = "“%@” already exists — move it away and try again.";
 "error.combine.notFirstVolume" = "Select the first volume of the set (the .001 file) to combine.";

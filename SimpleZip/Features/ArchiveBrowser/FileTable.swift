@@ -847,6 +847,10 @@ private struct FileNSOutlineView: NSViewRepresentable {
             menu.addItem(menuItem(L10n.text("file.cut"), systemImage: "scissors", action: #selector(cutSelected)))
             menu.addItem(menuItem(L10n.text("file.paste"), systemImage: "clipboard", action: #selector(pasteFiles)))
             menu.addItem(menuItem(L10n.text("file.moveTo"), systemImage: "folder.badge.gearshape", action: #selector(moveSelected)))
+            // 标签视图专属：从当前标签移除（文件本体不动）—— 用户报「无法从标签里移除」的补全。
+            if case .tag(let tagName) = model.mode {
+                menu.addItem(menuItem(L10n.format("file.removeFromTag", tagName), systemImage: "tag.slash", action: #selector(removeFromTagSelected)))
+            }
             menu.addItem(menuItem(L10n.text("file.delete"), systemImage: "trash", action: #selector(deleteSelected)))
 
             // ④ 在 Finder 中显示 / 简介 / 分组
@@ -1063,6 +1067,10 @@ private struct FileNSOutlineView: NSViewRepresentable {
 
         @objc private func combineVolumesSelected() {
             model.combineSelectedVolumes()
+        }
+
+        @objc private func removeFromTagSelected() {
+            model.removeSelectedFromCurrentTag()
         }
 
         /// 空白处右键专用：reveal「我现在看的这个文件夹」本身，忽略 selection。

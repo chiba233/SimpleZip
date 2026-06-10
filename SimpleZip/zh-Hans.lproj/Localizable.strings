@@ -570,6 +570,8 @@
 "status.combined" = "已合并为 %@";
 "status.taggedCount" = "已给 %1$@ 个项目加标签「%2$@」";
 "error.tagFailed" = "%@ 个项目加标签失败。";
+"file.removeFromTag" = "从标签「%@」移除";
+"status.untaggedCount" = "已从「%2$@」移除 %1$@ 个项目";
 "error.split.invalidVolumeSize" = "每卷大小必须大于 0。";
 "error.split.partExists" = "「%@」已存在——请先移开再试。";
 "error.combine.notFirstVolume" = "请选中分卷集的第一卷（.001 文件）再合并。";
