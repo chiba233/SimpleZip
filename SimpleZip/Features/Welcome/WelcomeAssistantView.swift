@@ -100,24 +100,34 @@ struct WelcomeAssistantView: View {
     // MARK: - Header
 
     private var progressHeader: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "shippingbox")
-                .font(.system(size: 22, weight: .regular))
-                .foregroundStyle(Color.accentColor)
+        VStack(spacing: 0) {
+            HStack(spacing: 12) {
+                Image(systemName: "shippingbox")
+                    .font(.system(size: 26, weight: .regular))
+                    .foregroundStyle(Color.accentColor)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(L10n.text("welcome.window.title"))
-                    .font(.headline)
-                if currentStep >= firstSettingStepIndex && currentStep < firstSettingStepIndex + settingStepCount {
-                    Text(L10n.format("welcome.stepLabel", currentStep - firstSettingStepIndex + 1, settingStepCount))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L10n.text("welcome.window.title"))
+                        .font(.headline)
+                    if currentStep >= firstSettingStepIndex && currentStep < firstSettingStepIndex + settingStepCount {
+                        Text(L10n.format("welcome.stepLabel", currentStep - firstSettingStepIndex + 1, settingStepCount))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
+                Spacer()
             }
-            Spacer()
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+
+            // 全程进度条：走到哪一步一眼可见（之前只有「第 N 步 / M」文字，且只在设置段显示）。
+            ProgressView(value: Double(currentStep + 1), total: Double(totalSteps))
+                .progressViewStyle(.linear)
+                .controlSize(.small)
+                .tint(.accentColor)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 10)
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
         .background(.bar)
     }
 
@@ -184,16 +194,19 @@ struct WelcomeAssistantView: View {
                 }
             }
 
+            // 主行动按钮用 prominent —— 现代 onboarding 的视觉重点，回退 / 取消保持常规按钮。
             if currentStep < totalSteps - 1 {
                 Button(L10n.text("welcome.button.next")) {
                     currentStep += 1
                 }
+                .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
             } else {
                 Button(L10n.text("welcome.button.finish")) {
                     AppPreferences.markWelcomeAssistantCompleted()
                     onComplete()
                 }
+                .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
             }
         }
