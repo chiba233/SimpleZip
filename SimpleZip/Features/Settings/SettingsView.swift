@@ -19,13 +19,16 @@ struct SettingsView: View {
     @State private var selectedPane: SettingsPane? = .general
 
     var body: some View {
-        NavigationSplitView {
+        // 侧栏**常驻**：columnVisibility 钉死 .all + 去掉系统的收起按钮 ——
+        // 设置这种小窗口收起侧栏后很难用（用户拍板砍掉隐藏边栏）。
+        NavigationSplitView(columnVisibility: .constant(.all)) {
             List(SettingsPane.allCases, selection: $selectedPane) { pane in
                 Label(pane.title, systemImage: pane.systemImage)
                     .tag(pane)
             }
             .listStyle(.sidebar)
             .navigationSplitViewColumnWidth(min: 170, ideal: 195, max: 250)
+            .hidingSidebarToggle()
         } detail: {
             selectedPaneView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

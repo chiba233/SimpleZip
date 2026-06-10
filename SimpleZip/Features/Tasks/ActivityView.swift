@@ -16,7 +16,8 @@ struct ActivityView: View {
     // 0.3.3 UI 现代化：手画的 HStack 侧栏重绘成原生 NavigationSplitView + List(selection:)，
     // 任务计数用原生 .badge —— 选中态 / 开关 / 材质全交给系统（跟设置窗口同一套做法）。
     var body: some View {
-        NavigationSplitView {
+        // 侧栏**常驻**：columnVisibility 钉死 .all + 去掉系统的收起按钮（跟设置窗口同一决定）。
+        NavigationSplitView(columnVisibility: .constant(.all)) {
             List(selection: paneSelectionBinding) {
                 ForEach(ActivityPane.allCases) { pane in
                     Label(pane.title, systemImage: pane.systemImage)
@@ -26,6 +27,7 @@ struct ActivityView: View {
             }
             .listStyle(.sidebar)
             .navigationSplitViewColumnWidth(min: 165, ideal: 190, max: 240)
+            .hidingSidebarToggle()
         } detail: {
             selectedPaneView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

@@ -12,6 +12,20 @@
 
 import SwiftUI
 
+extension View {
+    /// 去掉 NavigationSplitView 标题栏里系统自动加的「收起侧栏」按钮（macOS 14+；13 上无此 API，
+    /// 但 13 也没有自动按钮问题的反馈面）。设置 / 活动中心这类小窗口侧栏收起后体验很差 ——
+    /// 用户拍板「砍掉隐藏边栏」：侧栏常驻，此按钮不再出现。
+    @ViewBuilder
+    func hidingSidebarToggle() -> some View {
+        if #available(macOS 14.0, *) {
+            self.toolbar(removing: .sidebarToggle)
+        } else {
+            self
+        }
+    }
+}
+
 /// 工具栏里的「折叠/展开侧栏」按钮。`systemImage` 用 `sidebar.leading` / `sidebar.left` 等，
 /// `help` 是 hover 提示文案（各窗口不同）。
 struct SidebarToggleButton: View {
