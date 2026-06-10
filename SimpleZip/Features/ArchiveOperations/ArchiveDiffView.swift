@@ -163,8 +163,10 @@ struct ArchiveDiffSections: View {
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
                 }
-                OutlineGroup(nodes, children: \.children) { node in
-                    nodeRow(node)
+                // 不用 OutlineGroup：它在 List 之外不给子级缩进（只换折叠三角，内容跟父级同一 x），
+                // 层级完全看不出来 —— 用户反馈。改成递归 DisclosureGroup，每层子级显式缩进。
+                ForEach(nodes) { node in
+                    ArchiveDiffNodeView(node: node)
                 }
             }
             .padding(12)
@@ -172,31 +174,6 @@ struct ArchiveDiffSections: View {
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(nsColor: .separatorColor)))
         }
-    }
-
-    private func nodeRow(_ node: ArchiveDiffTreeNode) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack {
-                Image(systemName: node.isFolder ? "folder" : "doc")
-                    .foregroundStyle(.secondary)
-                Text(node.name)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                Spacer()
-                if !node.sizeText.isEmpty {
-                    Text(node.sizeText)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                }
-            }
-            if !node.changeText.isEmpty {
-                Text(node.changeText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.leading, 22)
-            }
-        }
-        .font(.callout)
     }
 
     /// 一条修改的逐字段摘要：「大小 1.2 MB → 1.4 MB · CRC A1B2 → C3D4 · …」。
@@ -220,6 +197,55 @@ struct ArchiveDiffSections: View {
             parts.append(L10n.text(change.after.isEncrypted ? "diff.field.becameEncrypted" : "diff.field.becameUnencrypted"))
         }
         return parts.joined(separator: " · ")
+    }
+}
+
+/// 树节点的递归渲染：目录 = DisclosureGroup（默认收起），子级整体左缩进一档；
+/// 叶子 = 普通行，补一段与折叠三角等宽的前导留白，跟同级目录行的图标对齐。
+private struct ArchiveDiffNodeView: View {
+    let node: ArchiveDiffTreeNode
+
+    var body: some View {
+        if let children = node.children {
+            DisclosureGroup {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(children) { child in
+                        ArchiveDiffNodeView(node: child)
+                    }
+                }
+                .padding(.leading, 16)   // 每层级缩进一档，层级肉眼可分 —— 用户反馈修复
+            } label: {
+                nodeRow
+            }
+        } else {
+            nodeRow
+                .padding(.leading, 16)   // 对齐同级 DisclosureGroup 的折叠三角宽度
+        }
+    }
+
+    private var nodeRow: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack {
+                Image(systemName: node.isFolder ? "folder" : "doc")
+                    .foregroundStyle(.secondary)
+                Text(node.name)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Spacer()
+                if !node.sizeText.isEmpty {
+                    Text(node.sizeText)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+            }
+            if !node.changeText.isEmpty {
+                Text(node.changeText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.leading, 22)
+            }
+        }
+        .font(.callout)
     }
 }
 
