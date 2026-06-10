@@ -970,6 +970,12 @@
 "settings.language.th" = "Thai";
 "settings.languageRestartHint" = "Language changes apply fully after restarting SimpleZip.";
 "archive.create.title" = "Create Archive";
+"archive.create.subtitle" = "Compressing %@ item(s)";
+"archive.create.section.basics" = "Basics";
+"archive.create.section.security" = "Password & Encryption";
+"archive.create.section.sevenZip" = "7-Zip Parameters";
+"archive.create.section.excludes" = "Exclude Rules";
+"archive.create.section.gpg" = "GPG Signing & Delivery";
 "archive.fileName" = "File name";
 "archive.format" = "Format";
 "archive.compressionLevel" = "Compression level";

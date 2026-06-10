@@ -61,397 +61,71 @@ struct ArchiveCreationOptionsView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text(L10n.text("archive.create.title"))
-                .font(.title3)
-                .fontWeight(.semibold)
+        VStack(spacing: 0) {
+            // 顶部 hero：彩色渐变瓦片 + 标题 + 「压缩 N 个项目」副标题 —— 与浮窗 / 欢迎助手同一套视觉语言。
+            HStack(spacing: 12) {
+                Image(systemName: "plus.square.on.square")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 40, height: 40)
+                    .background(
+                        LinearGradient(colors: [.orange, .pink], startPoint: .topLeading, endPoint: .bottomTrailing),
+                        in: RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    )
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L10n.text("archive.create.title"))
+                        .font(.title3.weight(.semibold))
+                    Text(L10n.format("archive.create.subtitle", "\(request.sourceURLs.count)"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 18)
+            .padding(.bottom, 10)
 
+            // 0.4.1 重构：平铺 ScrollView → grouped Form 分区卡片（系统设置同款体例）。
+            // 所有选项、显隐门控（hidden() / supports*）、onChange 行为与 0.3.x 完全一致，只换排版。
             ScrollViewReader { scrollProxy in
-            ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    TextField(L10n.text("archive.fileName"), text: fileNameBinding)
-                        .textFieldStyle(.roundedBorder)
-
-                    HStack(alignment: .center, spacing: 14) {
-                        HStack(spacing: 6) {
-                            Text(L10n.text("archive.format"))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Picker(L10n.text("archive.format"), selection: $request.options.format) {
-                                ForEach(ArchiveCreateFormat.allCases) { format in
-                                    Text(format.title).tag(format)
-                                }
-                            }
-                            .labelsHidden()
-                            .pickerStyle(.menu)
-                            .frame(width: 112)
-                            .onChange(of: request.options.format) { _ in
-                                updateDestinationExtension()
-                            }
-                        }
-
-                        if request.options.format.supportsCompressionLevel, !hidden(.level) {
-                            HStack(spacing: 6) {
-                                Text(L10n.text("archive.compressionLevel"))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                Picker(L10n.text("archive.compressionLevel"), selection: $request.options.compressionLevel) {
-                                    ForEach(CompressionLevel.allCases) { level in
-                                        Text(level.title).tag(level)
-                                    }
-                                }
-                                .labelsHidden()
-                                .pickerStyle(.menu)
-                                .frame(width: 124)
-                            }
-                        }
-
-                        if request.options.format.supportsUpdateMode, !hidden(.updateMode) {
-                            HStack(spacing: 6) {
-                                Text(L10n.text("archive.updateMode"))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                Picker(L10n.text("archive.updateMode"), selection: $request.options.updateMode) {
-                                    ForEach(ArchiveUpdateMode.allCases) { mode in
-                                        Text(mode.title).tag(mode)
-                                    }
-                                }
-                                .labelsHidden()
-                                .pickerStyle(.menu)
-                                .frame(width: 152)
-                            }
-                        }
-                        Spacer(minLength: 0)
-                    }
-
-                    // #115 本格式存了默认值模板 → 一个复选框：勾上套用模板并隐藏其已配选项,取消则全显。
-                    if formatDefaultsPreset != nil {
-                        Toggle(L10n.format("archive.useFormatDefaults", request.options.format.title), isOn: $useFormatDefaults)
-                            .toggleStyle(.checkbox)
-                            .help(L10n.text("archive.useFormatDefaults.help"))
-                            .onChange(of: useFormatDefaults) { on in
-                                if on, let preset = formatDefaultsPreset { preset.apply(to: &request.options) }
-                            }
-                    }
-
+                Form {
+                    basicsSection
                     if request.options.format.supportsPassword {
-                        if hasUsablePreset {
-                            Toggle(L10n.text("button.usePresetPassword"), isOn: $useArchivePresetPassword)
-                                .help(L10n.text("button.usePresetPassword.help"))
-                                .toggleStyle(.checkbox)
-                                .onChange(of: useArchivePresetPassword) { newValue in
-                                    if newValue {
-                                        // 勾选 = password 和 confirmation 都用预设。
-                                        // 不动 encryptionMethod —— 用户对加密算法的偏好与「用什么密码」无关。
-                                        request.options.password = presetPassword
-                                        request.options.passwordConfirmation = presetPassword
-                                    } else {
-                                        request.options.password = ""
-                                        request.options.passwordConfirmation = ""
-                                    }
-                                }
-                        }
-                        if !(hasUsablePreset && useArchivePresetPassword) {
-                            passwordField(L10n.text("archive.password"), text: $request.options.password)
-                            if !request.options.password.isEmpty || !request.options.passwordConfirmation.isEmpty {
-                                passwordField(L10n.text("archive.passwordConfirm"), text: $request.options.passwordConfirmation)
-                                Toggle(L10n.text("archive.showPassword"), isOn: $request.options.showPassword)
-                                    .toggleStyle(.checkbox)
-                                if passwordValidationMessage != nil {
-                                    validationText(L10n.text("error.passwordsDoNotMatch"))
-                                }
-                            }
-                        }
-                        if !request.options.password.isEmpty || !request.options.passwordConfirmation.isEmpty {
-                            if request.options.format == .zip {
-                                if !hidden(.encryptionMethod) {
-                                    Picker(L10n.text("archive.encryptionMethod"), selection: $request.options.encryptionMethod) {
-                                        ForEach(ArchiveEncryptionMethod.allCases) { method in
-                                            Text(method.title).tag(method)
-                                        }
-                                    }
-                                }
-                            } else {
-                                HStack {
-                                    Text(L10n.text("archive.encryptionMethod"))
-                                    Spacer()
-                                    Text(ArchiveEncryptionMethod.aes256.title)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        }
+                        passwordSection
                     }
-
-                    if let singleFileValidationMessage {
-                        validationText(singleFileValidationMessage)
-                    }
-
-                    if request.options.format == .rar, !ArchiveService.canCreateRAR() {
-                        validationText(L10n.text("archive.rar.requiresTool"))
-                    }
-
-                    if request.options.format.supportsVolumeSplitting {
-                        VStack(alignment: .leading, spacing: 6) {
-                            TextField(L10n.text("archive.7z.volumeSize"), text: $request.options.sevenZipVolumeSize)
-                                .textFieldStyle(.roundedBorder)
-                            if let volumeSizeValidationMessage {
-                                validationText(volumeSizeValidationMessage)
-                            } else {
-                                Text(L10n.text("archive.7z.volumeSizeHint"))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-
                     if request.options.format == .sevenZip {
-                        VStack(alignment: .leading, spacing: 12) {
-                            if !hidden(.sevenZipMethod) {
-                                Picker(L10n.text("archive.7z.method"), selection: $request.options.sevenZipMethod) {
-                                    ForEach(SevenZipCompressionMethod.allCases) { method in
-                                        Text(method.title).tag(method)
-                                    }
-                                }
-                            }
-
-                            if !hidden(.dictionarySize) {
-                                Picker(L10n.text("archive.7z.dictionarySize"), selection: $request.options.sevenZipDictionarySizeMB) {
-                                    ForEach(dictionarySizeOptions, id: \.self) { size in
-                                        Text("\(size) MB").tag(size)
-                                    }
-                                }
-                            }
-
-                            if !hidden(.wordSize) {
-                                Picker(L10n.text("archive.7z.wordSize"), selection: $request.options.sevenZipWordSize) {
-                                    ForEach(wordSizeOptions, id: \.self) { wordSize in
-                                        Text("\(wordSize)").tag(wordSize)
-                                    }
-                                }
-                            }
-
-                            if !hidden(.threadCount) {
-                            HStack {
-                                Text(L10n.text("archive.7z.threads"))
-                                Spacer()
-                                // 不能 .labelsHidden() —— Stepper 的「label」正是要显示的线程数值（自动 / N），
-                                // 隐藏了就只剩 ▲▼ 没有数字（用户反馈「线程数不显示」）。
-                                Stepper(value: $request.options.sevenZipThreadCount, in: 0...maxThreadCount) {
-                                    Text(threadCountLabel)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                            }
-
-                            HStack {
-                                Text(L10n.text("archive.memoryUsageCompressing"))
-                                Spacer()
-                                Text(estimatedCompressionMemoryText)
-                                    .foregroundStyle(.secondary)
-                            }
-
-                            HStack {
-                                Text(L10n.text("archive.memoryUsageDecompressing"))
-                                Spacer()
-                                Text(estimatedDecompressionMemoryText)
-                                    .foregroundStyle(.secondary)
-                            }
-
-                            DisclosureGroup(L10n.text("archive.7z.advanced"), isExpanded: $showsSevenZipAdvancedOptions) {
-                                VStack(alignment: .leading, spacing: 10) {
-                                    if !hidden(.solid) {
-                                        Toggle(L10n.text("archive.7z.solid"), isOn: $request.options.sevenZipSolidArchive)
-                                    }
-                                    if request.options.sevenZipSolidArchive, !hidden(.solidBlockSize) {
-                                        Picker(L10n.text("archive.7z.solidBlockSize"), selection: $request.options.sevenZipSolidBlockSize) {
-                                            ForEach(SevenZipSolidBlockSize.allCases) { size in
-                                                Text(size.title).tag(size)
-                                            }
-                                        }
-                                    }
-
-                                    if !hidden(.pathMode) {
-                                        Picker(L10n.text("archive.7z.pathMode"), selection: $request.options.sevenZipPathMode) {
-                                            ForEach(SevenZipPathMode.allCases) { mode in
-                                                Text(mode.title).tag(mode)
-                                            }
-                                        }
-                                    }
-
-                                    if !hidden(.storeSymlinks) {
-                                        Toggle(L10n.text("archive.7z.storeSymbolicLinks"), isOn: $request.options.sevenZipStoreSymbolicLinks)
-                                    }
-                                    if !hidden(.storeHardlinks) {
-                                        Toggle(L10n.text("archive.7z.storeHardLinks"), isOn: $request.options.sevenZipStoreHardLinks)
-                                    }
-                                    if !hidden(.compressShared) {
-                                        Toggle(L10n.text("archive.7z.compressSharedFiles"), isOn: $request.options.sevenZipCompressSharedFiles)
-                                    }
-                                    Toggle(L10n.text("archive.7z.deleteAfterCompression"), isOn: $request.options.sevenZipDeleteSourceFiles)
-                                }
-                                .padding(.top, 6)
-                            }
-                        }
+                        sevenZipSection
                     }
-
-                    if request.options.format != .sevenZip, request.options.format.supportsUpdateMode, !hidden(.pathMode) {
-                        Picker(L10n.text("archive.7z.pathMode"), selection: $request.options.sevenZipPathMode) {
-                            ForEach(SevenZipPathMode.allCases) { mode in
-                                Text(mode.title).tag(mode)
-                            }
-                        }
-                    }
-
-                    if request.options.format == .sevenZip || request.options.format == .rar, !hidden(.encryptFileNames) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Toggle(L10n.text("archive.7z.encryptFileNames"), isOn: $request.options.sevenZipEncryptFileNames)
-                                .disabled(request.options.password.isEmpty)
-                            if request.options.password.isEmpty {
-                                Text(L10n.text("archive.7z.encryptFileNamesHint"))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .padding(.leading, 2)
-                            }
-                        }
-                    }
-
-                    if request.options.format.supportsRawParameters, !hidden(.rawParameters) {
-                        VStack(alignment: .leading, spacing: 6) {
-                            TextField(L10n.text("archive.parameters"), text: $request.options.rawParameters)
-                                .textFieldStyle(.roundedBorder)
-                            Text(L10n.text("archive.parametersHint"))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-
                     if request.options.format.supportsExcludeRules {
-                        if !hidden(.skipDSStore) {
-                            Toggle(L10n.text("archive.skipDSStore"), isOn: $request.options.skipDSStore)
-                        }
-                        if !hidden(.skipHiddenFiles) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Toggle(L10n.text("archive.skipHiddenFiles"), isOn: $request.options.skipHiddenFiles)
-                                Text(L10n.text("archive.skipHiddenFilesHint"))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .padding(.leading, 2)
-                            }
-                        }
-
-                        if !hidden(.customExcludes) {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(L10n.text("archive.customExcludes"))
-                            TextEditor(text: $request.options.customExcludes)
-                                .font(.system(.body, design: .monospaced))
-                                .frame(height: 72)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 6)
-                                        .stroke(Color(nsColor: .separatorColor))
-                                )
-                            Text(L10n.text("archive.customExcludesHint"))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            HStack(spacing: 8) {
-                                Button(L10n.text("archive.countExcludedFiles")) {
-                                    countExcludedFiles()
-                                }
-                                .disabled(isCountingExcludedFiles || !hasExcludeRulesEnabled)
-
-                                if isCountingExcludedFiles {
-                                    ProgressView()
-                                        .controlSize(.small)
-                                }
-
-                                Text(excludedFileCountText)
-                                    .font(.caption)
-                                    .foregroundStyle((excludedFileCount ?? 0) > 0 ? .secondary : .tertiary)
-                            }
-                        }
-                        }
+                        excludeSection
                     }
-
-                    HStack {
-                        Text(L10n.text("archive.destination"))
-                        Text(request.destinationURL.path)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        Button(L10n.text("button.choose")) {
-                            chooseDestination()
-                        }
-                    }
-
-                    // GPG 签名 —— 只在「主开关 + 后端可用」时才显示，关掉的用户完全看不见。
-                    // 勾选 → 输出文件改成 .siz 容器（内层是当前 format，签名 + 元数据一起打 tar 包）。
                     if AppPreferences.gpgEnabled && GPGBackend.isAvailable() {
-                        Toggle(L10n.text("archive.gpgSign"), isOn: $request.options.gpgSign)
-                            .disabled(gpgSigningDisabledBySplitVolume)
-                        if gpgSigningDisabledBySplitVolume {
-                            validationText(L10n.text("archive.gpgSign.disabledBySplitVolume"))
-                        }
-                        if request.options.gpgSign {
-                            Text(L10n.text("archive.gpgSign.hint"))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                            // ask 模式下显示密钥 picker；silent 模式静默用默认密钥（在 onAppear 已 seed 到 options）。
-                            if gpgPromptForSigningKey {
-                                signingKeyPickerRow
-                            }
-                            // #110 给收件人的留言（可选）—— 跟 .szs 的描述同一 idiom（一个多行 TextField，非卡片）。
-                            // 填的内容会进 .siz 的「收件人说明」最前面，且随签名防篡改。
-                            deliveryNoteRow
-                            // GPG 加密相关设置 —— 总开关 + 收件人 picker + 对称密码。
-                            // **总开关默认关 = 仅签名 v2 行为**；关闭时下方两组控件 **灰掉但仍可见**（用户能看到「这里有
-                            // 加密选项」），同时清空 options 避免「用户先填后关 toggle 但加密 params 还潜伏在 options 里被发送」的 footgun。
-                            // 关闭时**不隐藏**是为了让用户一眼看到 sheet 完整可能性 —— 隐藏只展示「下一刻可能变化的 UI」会迷惑。
-                            Toggle(L10n.text("archive.gpgEncrypt.useEncryption"), isOn: $useGPGEncryption)
-                                .onChange(of: useGPGEncryption) { enabled in
-                                    if !enabled {
-                                        request.options.gpgRecipientFingerprints.removeAll()
-                                        request.options.gpgSymmetricPassphrase = ""
-                                    }
-                                }
-                            recipientsRow
-                                .disabled(!useGPGEncryption)
-                                .opacity(useGPGEncryption ? 1 : 0.5)
-                            encryptionPassphraseRow
-                                .disabled(!useGPGEncryption)
-                                .opacity(useGPGEncryption ? 1 : 0.5)
-                                // scrollProxy 滚到这一行（GPG 段最后一行）：勾上签名后所有加密相关 UI 都能看到，
-                                // 不像之前 anchor 钉在 signingKeyPickerRow 上 —— 加密 toggle / recipients / passphrase 还是会被截在 ScrollView 底部。
-                                .id("gpgSignAnchor")
+                        gpgSection
+                    }
+                }
+                .formStyle(.grouped)
+                .onChange(of: request.options.gpgSign) { newValue in
+                    // 用户勾 GPG 签名后，新增的多组 UI 都在 Form 底部，默认看不见 —— 自动滚下来。
+                    guard newValue else { return }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            scrollProxy.scrollTo("gpgSignAnchor", anchor: .bottom)
                         }
                     }
                 }
-                .controlSize(.small)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.top, 6)
-                .padding(.bottom, 6)
-                .padding(.trailing, 8)
             }
-            .frame(maxHeight: 520)
-            .onChange(of: request.options.gpgSign) { newValue in
-                // 用户勾 GPG 签名后，新增的多组 UI（签名密钥 picker 在 ask 模式 / 加密总开关 / recipients / passphrase）
-                // 都出现在 ScrollView 底部，默认看不见 —— 自动滚下来。anchor 钉在最后一行（encryptionPassphraseRow），
-                // 不再判 ask / silent 模式 —— 即使没 picker，加密那三行依然在 ScrollView 底部需要可见。
-                guard newValue else { return }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        scrollProxy.scrollTo("gpgSignAnchor", anchor: .bottom)
-                    }
-                }
-            }
-            } // ScrollViewReader
 
+            Divider()
+
+            // 钉底操作栏：bar 材质 + prominent 主按钮。
             HStack {
                 ShowDetailsToggleButton(isOn: $request.options.showDetails)
                 if let validationMessage {
                     Text(validationMessage)
                         .font(.caption)
                         .foregroundStyle(.red)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer()
                 Button(L10n.text("button.cancel"), action: cancel)
@@ -459,13 +133,15 @@ struct ArchiveCreationOptionsView: View {
                     normalizeDestinationForCurrentFormat()
                     create(request)
                 }
+                .buttonStyle(.borderedProminent)
                 .disabled(validationMessage != nil)
                 .keyboardShortcut(.defaultAction)
             }
-            .controlSize(.small)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .background(.bar)
         }
-        .padding(20)
-        .frame(width: 700)
+        .frame(width: 700, height: 680)
         .animation(.default, value: request.options.format)
         .animation(.default, value: showsSevenZipAdvancedOptions)
         .animation(.default, value: request.options.password.isEmpty)
@@ -497,25 +173,334 @@ struct ArchiveCreationOptionsView: View {
             // #115 初次打开:若当前格式存了默认值模板,默认勾「使用默认值」并套用 + 隐藏其已配选项。
             reloadFormatDefaults()
             // 默认行为：预设密码可用时复选框默认勾上 + 把预设填入 options.password 和 confirmation。
-            // 这样用户「打开设置 → 预设打开 → 点新建压缩包」三步流程里不需要再手动勾或填密码。
             if hasUsablePreset {
                 useArchivePresetPassword = true
                 request.options.password = presetPassword
                 request.options.passwordConfirmation = presetPassword
             }
-            // Seed 默认签名密钥。silent 模式：用户从未选过 → 走 prefs 默认；ask 模式 picker 初值也来自此。
-            // 注意：只在 options 当前是空字符串时 seed，避免覆盖调用方预设的值（如 Finder 入口）。
+            // Seed 默认签名密钥。只在 options 当前是空字符串时 seed，避免覆盖调用方预设的值（如 Finder 入口）。
             let defaultFp = AppPreferences.gpgDefaultSigningKeyFingerprint
             if !defaultFp.isEmpty && request.options.gpgSigningKeyFingerprint.isEmpty {
                 request.options.gpgSigningKeyFingerprint = defaultFp
             }
-            // 加载钥匙串（含自有私钥 + 他人公钥）。GPG 启用 + 后端可用时跑；失败静默忽略 picker 退化到「让 GPG 自动选」/「无可选收件人」。
+            // 加载钥匙串（含自有私钥 + 他人公钥）。失败静默忽略，picker 退化到「让 GPG 自动选」/「无可选收件人」。
             if AppPreferences.gpgEnabled && GPGBackend.isAvailable() {
                 Task { @MainActor in
                     if let loaded = try? await GPGBackend.listKeys() {
                         availableKeys = loaded
                     }
                 }
+            }
+        }
+    }
+
+    // MARK: - 分区（grouped Form 现代体例；选项集与门控逻辑保持 0.3.x 原样）
+
+    /// 基本：文件名 / 保存位置 / 格式 / 级别 / 更新模式 / 路径模式(非 7z) / 默认值模板 / 分卷。
+    @ViewBuilder
+    private var basicsSection: some View {
+        Section(L10n.text("archive.create.section.basics")) {
+            TextField(L10n.text("archive.fileName"), text: fileNameBinding)
+
+            LabeledContent(L10n.text("archive.destination")) {
+                HStack(spacing: 8) {
+                    Text(request.destinationURL.path)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .foregroundStyle(.secondary)
+                    Button(L10n.text("button.choose")) {
+                        chooseDestination()
+                    }
+                }
+            }
+
+            Picker(L10n.text("archive.format"), selection: $request.options.format) {
+                ForEach(ArchiveCreateFormat.allCases) { format in
+                    Text(format.title).tag(format)
+                }
+            }
+            .onChange(of: request.options.format) { _ in
+                updateDestinationExtension()
+            }
+
+            if request.options.format.supportsCompressionLevel, !hidden(.level) {
+                Picker(L10n.text("archive.compressionLevel"), selection: $request.options.compressionLevel) {
+                    ForEach(CompressionLevel.allCases) { level in
+                        Text(level.title).tag(level)
+                    }
+                }
+            }
+
+            if request.options.format.supportsUpdateMode, !hidden(.updateMode) {
+                Picker(L10n.text("archive.updateMode"), selection: $request.options.updateMode) {
+                    ForEach(ArchiveUpdateMode.allCases) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
+            }
+
+            if request.options.format != .sevenZip, request.options.format.supportsUpdateMode, !hidden(.pathMode) {
+                Picker(L10n.text("archive.7z.pathMode"), selection: $request.options.sevenZipPathMode) {
+                    ForEach(SevenZipPathMode.allCases) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
+            }
+
+            // #115 本格式存了默认值模板 → 勾上套用模板并隐藏其已配选项，取消则全显。
+            if formatDefaultsPreset != nil {
+                Toggle(L10n.format("archive.useFormatDefaults", request.options.format.title), isOn: $useFormatDefaults)
+                    .help(L10n.text("archive.useFormatDefaults.help"))
+                    .onChange(of: useFormatDefaults) { on in
+                        if on, let preset = formatDefaultsPreset { preset.apply(to: &request.options) }
+                    }
+            }
+
+            if request.options.format.supportsVolumeSplitting {
+                VStack(alignment: .leading, spacing: 4) {
+                    TextField(L10n.text("archive.7z.volumeSize"), text: $request.options.sevenZipVolumeSize)
+                    if let volumeSizeValidationMessage {
+                        validationText(volumeSizeValidationMessage)
+                    } else {
+                        Text(L10n.text("archive.7z.volumeSizeHint"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            if request.options.format == .rar, !ArchiveService.canCreateRAR() {
+                validationText(L10n.text("archive.rar.requiresTool"))
+            }
+            if let singleFileValidationMessage {
+                validationText(singleFileValidationMessage)
+            }
+        }
+    }
+
+    /// 密码与加密：预设密码 / 密码对 / 显示密码 / 加密算法 / 文件名加密(7z·rar)。
+    @ViewBuilder
+    private var passwordSection: some View {
+        Section(L10n.text("archive.create.section.security")) {
+            if hasUsablePreset {
+                Toggle(L10n.text("button.usePresetPassword"), isOn: $useArchivePresetPassword)
+                    .help(L10n.text("button.usePresetPassword.help"))
+                    .onChange(of: useArchivePresetPassword) { newValue in
+                        if newValue {
+                            // 勾选 = password 和 confirmation 都用预设。不动 encryptionMethod。
+                            request.options.password = presetPassword
+                            request.options.passwordConfirmation = presetPassword
+                        } else {
+                            request.options.password = ""
+                            request.options.passwordConfirmation = ""
+                        }
+                    }
+            }
+            if !(hasUsablePreset && useArchivePresetPassword) {
+                passwordField(L10n.text("archive.password"), text: $request.options.password)
+                if !request.options.password.isEmpty || !request.options.passwordConfirmation.isEmpty {
+                    passwordField(L10n.text("archive.passwordConfirm"), text: $request.options.passwordConfirmation)
+                    Toggle(L10n.text("archive.showPassword"), isOn: $request.options.showPassword)
+                    if passwordValidationMessage != nil {
+                        validationText(L10n.text("error.passwordsDoNotMatch"))
+                    }
+                }
+            }
+            if !request.options.password.isEmpty || !request.options.passwordConfirmation.isEmpty {
+                if request.options.format == .zip {
+                    if !hidden(.encryptionMethod) {
+                        Picker(L10n.text("archive.encryptionMethod"), selection: $request.options.encryptionMethod) {
+                            ForEach(ArchiveEncryptionMethod.allCases) { method in
+                                Text(method.title).tag(method)
+                            }
+                        }
+                    }
+                } else {
+                    LabeledContent(L10n.text("archive.encryptionMethod")) {
+                        Text(ArchiveEncryptionMethod.aes256.title)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            if request.options.format == .sevenZip || request.options.format == .rar, !hidden(.encryptFileNames) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Toggle(L10n.text("archive.7z.encryptFileNames"), isOn: $request.options.sevenZipEncryptFileNames)
+                        .disabled(request.options.password.isEmpty)
+                    if request.options.password.isEmpty {
+                        Text(L10n.text("archive.7z.encryptFileNamesHint"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+    }
+
+    /// 7-Zip 参数：算法 / 字典 / 单词 / 线程 / 内存预估 + 高级折叠区。
+    @ViewBuilder
+    private var sevenZipSection: some View {
+        Section(L10n.text("archive.create.section.sevenZip")) {
+            if !hidden(.sevenZipMethod) {
+                Picker(L10n.text("archive.7z.method"), selection: $request.options.sevenZipMethod) {
+                    ForEach(SevenZipCompressionMethod.allCases) { method in
+                        Text(method.title).tag(method)
+                    }
+                }
+            }
+            if !hidden(.dictionarySize) {
+                Picker(L10n.text("archive.7z.dictionarySize"), selection: $request.options.sevenZipDictionarySizeMB) {
+                    ForEach(dictionarySizeOptions, id: \.self) { size in
+                        Text("\(size) MB").tag(size)
+                    }
+                }
+            }
+            if !hidden(.wordSize) {
+                Picker(L10n.text("archive.7z.wordSize"), selection: $request.options.sevenZipWordSize) {
+                    ForEach(wordSizeOptions, id: \.self) { wordSize in
+                        Text("\(wordSize)").tag(wordSize)
+                    }
+                }
+            }
+            if !hidden(.threadCount) {
+                HStack {
+                    Text(L10n.text("archive.7z.threads"))
+                    Spacer()
+                    // 不能 .labelsHidden() —— Stepper 的「label」正是要显示的线程数值（自动 / N）。
+                    Stepper(value: $request.options.sevenZipThreadCount, in: 0...maxThreadCount) {
+                        Text(threadCountLabel)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            LabeledContent(L10n.text("archive.memoryUsageCompressing")) {
+                Text(estimatedCompressionMemoryText)
+                    .foregroundStyle(.secondary)
+            }
+            LabeledContent(L10n.text("archive.memoryUsageDecompressing")) {
+                Text(estimatedDecompressionMemoryText)
+                    .foregroundStyle(.secondary)
+            }
+
+            DisclosureGroup(L10n.text("archive.7z.advanced"), isExpanded: $showsSevenZipAdvancedOptions) {
+                VStack(alignment: .leading, spacing: 10) {
+                    if !hidden(.solid) {
+                        Toggle(L10n.text("archive.7z.solid"), isOn: $request.options.sevenZipSolidArchive)
+                    }
+                    if request.options.sevenZipSolidArchive, !hidden(.solidBlockSize) {
+                        Picker(L10n.text("archive.7z.solidBlockSize"), selection: $request.options.sevenZipSolidBlockSize) {
+                            ForEach(SevenZipSolidBlockSize.allCases) { size in
+                                Text(size.title).tag(size)
+                            }
+                        }
+                    }
+                    if !hidden(.pathMode) {
+                        Picker(L10n.text("archive.7z.pathMode"), selection: $request.options.sevenZipPathMode) {
+                            ForEach(SevenZipPathMode.allCases) { mode in
+                                Text(mode.title).tag(mode)
+                            }
+                        }
+                    }
+                    if !hidden(.storeSymlinks) {
+                        Toggle(L10n.text("archive.7z.storeSymbolicLinks"), isOn: $request.options.sevenZipStoreSymbolicLinks)
+                    }
+                    if !hidden(.storeHardlinks) {
+                        Toggle(L10n.text("archive.7z.storeHardLinks"), isOn: $request.options.sevenZipStoreHardLinks)
+                    }
+                    if !hidden(.compressShared) {
+                        Toggle(L10n.text("archive.7z.compressSharedFiles"), isOn: $request.options.sevenZipCompressSharedFiles)
+                    }
+                    Toggle(L10n.text("archive.7z.deleteAfterCompression"), isOn: $request.options.sevenZipDeleteSourceFiles)
+                }
+                .padding(.top, 6)
+            }
+        }
+    }
+
+    /// 排除规则：.DS_Store / 隐藏文件 / 自定义模式 + 命中计数。
+    @ViewBuilder
+    private var excludeSection: some View {
+        Section(L10n.text("archive.create.section.excludes")) {
+            if !hidden(.skipDSStore) {
+                Toggle(L10n.text("archive.skipDSStore"), isOn: $request.options.skipDSStore)
+            }
+            if !hidden(.skipHiddenFiles) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Toggle(L10n.text("archive.skipHiddenFiles"), isOn: $request.options.skipHiddenFiles)
+                    Text(L10n.text("archive.skipHiddenFilesHint"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            if !hidden(.customExcludes) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(L10n.text("archive.customExcludes"))
+                    TextEditor(text: $request.options.customExcludes)
+                        .font(.system(.body, design: .monospaced))
+                        .frame(height: 72)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6)
+                                .stroke(Color(nsColor: .separatorColor))
+                        )
+                    Text(L10n.text("archive.customExcludesHint"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    HStack(spacing: 8) {
+                        Button(L10n.text("archive.countExcludedFiles")) {
+                            countExcludedFiles()
+                        }
+                        .disabled(isCountingExcludedFiles || !hasExcludeRulesEnabled)
+
+                        if isCountingExcludedFiles {
+                            ProgressView()
+                                .controlSize(.small)
+                        }
+
+                        Text(excludedFileCountText)
+                            .font(.caption)
+                            .foregroundStyle((excludedFileCount ?? 0) > 0 ? .secondary : .tertiary)
+                    }
+                }
+            }
+        }
+    }
+
+    /// GPG 签名与投递：签名开关 / 密钥 picker(ask 模式) / 留言 / 加密总开关 + 收件人 + 对称密码。
+    /// 只在「主开关 + 后端可用」时整段渲染（A4 可见性铁律）。
+    @ViewBuilder
+    private var gpgSection: some View {
+        Section(L10n.text("archive.create.section.gpg")) {
+            Toggle(L10n.text("archive.gpgSign"), isOn: $request.options.gpgSign)
+                .disabled(gpgSigningDisabledBySplitVolume)
+            if gpgSigningDisabledBySplitVolume {
+                validationText(L10n.text("archive.gpgSign.disabledBySplitVolume"))
+            }
+            if request.options.gpgSign {
+                Text(L10n.text("archive.gpgSign.hint"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                // ask 模式下显示密钥 picker；silent 模式静默用默认密钥（onAppear 已 seed 到 options）。
+                if gpgPromptForSigningKey {
+                    signingKeyPickerRow
+                }
+                deliveryNoteRow
+                // **总开关默认关 = 仅签名 v2 行为**；关闭时下方两组控件灰掉但仍可见，同时清空 options
+                // 避免「用户先填后关 toggle 但加密 params 还潜伏在 options 里被发送」的 footgun。
+                Toggle(L10n.text("archive.gpgEncrypt.useEncryption"), isOn: $useGPGEncryption)
+                    .onChange(of: useGPGEncryption) { enabled in
+                        if !enabled {
+                            request.options.gpgRecipientFingerprints.removeAll()
+                            request.options.gpgSymmetricPassphrase = ""
+                        }
+                    }
+                recipientsRow
+                    .disabled(!useGPGEncryption)
+                    .opacity(useGPGEncryption ? 1 : 0.5)
+                encryptionPassphraseRow
+                    .disabled(!useGPGEncryption)
+                    .opacity(useGPGEncryption ? 1 : 0.5)
+                    .id("gpgSignAnchor")
             }
         }
     }
