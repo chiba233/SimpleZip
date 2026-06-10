@@ -16,6 +16,7 @@ struct ExtractSelectionOptionsView: View {
     var body: some View {
         ExtractOptionsForm(
             title: L10n.text("extract.selected.title"),
+            subtitle: request.archiveURL.lastPathComponent,
             destinationURL: $request.destinationURL,
             password: $request.password,
             zipDecryptionMethod: $request.zipDecryptionMethod,
@@ -31,6 +32,6 @@ struct ExtractSelectionOptionsView: View {
                 }
             }
         }
-        .frame(width: 520)
+        .frame(width: 560)
     }
 }

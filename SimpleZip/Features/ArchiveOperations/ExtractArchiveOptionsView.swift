@@ -18,6 +18,9 @@ struct ExtractArchiveOptionsView: View {
     var body: some View {
         ExtractOptionsForm(
             title: L10n.text("extract.archive.title"),
+            subtitle: request.archiveURL.lastPathComponent,
+            // .siz 多出签名三行 + 解密密钥 picker（可能再加对称密码行）—— 给更高的 sheet。
+            preferredHeight: request.sizSignature != nil ? 560 : 400,
             destinationURL: $request.destinationURL,
             password: $request.password,
             zipDecryptionMethod: $request.zipDecryptionMethod,
@@ -43,7 +46,7 @@ struct ExtractArchiveOptionsView: View {
                 }
             }
         }
-        .frame(width: 540)
+        .frame(width: 560)
         .onAppear {
             // 仅 .siz 才需要载入密钥列表 —— 通用格式 picker 不显示，省一次 listKeys 调用。
             if isSizExtract && AppPreferences.gpgEnabled && GPGBackend.isAvailable() {

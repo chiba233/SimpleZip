@@ -9,6 +9,10 @@ import SwiftUI
 
 struct ExtractOptionsForm<ExtraControls: View>: View {
     let title: String
+    /// hero 副标题（通常是压缩包文件名）；nil 则只显示标题。
+    var subtitle: String?
+    /// sheet 高度 —— grouped Form（List）是贪婪布局，必须给定高；内容多的入口（.siz 带签名行）传大值。
+    var preferredHeight: CGFloat = 400
     @Binding var destinationURL: URL
     @Binding var password: String
     @Binding var zipDecryptionMethod: ArchiveDecryptionMethod
@@ -33,57 +37,84 @@ struct ExtractOptionsForm<ExtraControls: View>: View {
     private var hasUsablePreset: Bool { presetPasswordEnabled && !presetPassword.isEmpty }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text(title)
-                .font(.title3)
-                .fontWeight(.semibold)
+        // 0.4.1 重构：与创建对话框同一套现代体例 —— hero 头 + grouped Form + 钉底 bar 操作栏。
+        VStack(spacing: 0) {
+            HStack(spacing: 12) {
+                Image(systemName: "doc.zipper")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 40, height: 40)
+                    .background(
+                        LinearGradient(colors: [.blue, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing),
+                        in: RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    )
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.title3.weight(.semibold))
+                    if let subtitle {
+                        Text(subtitle)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                }
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 18)
+            .padding(.bottom, 10)
 
             Form {
-                extraControls()
-                destinationRow
-                if hasUsablePreset {
-                    Toggle(L10n.text("button.usePresetPassword"), isOn: $usePresetPassword)
-                        .help(L10n.text("button.usePresetPassword.help"))
-                        .onChange(of: usePresetPassword) { newValue in
-                            // 勾上：把预设值灌进 password binding；
-                            // 取消：清空让用户重新输入（保留旧值会让人迷惑「这是哪个密码」）。
-                            password = newValue ? presetPassword : ""
-                        }
-                }
-                if !(hasUsablePreset && usePresetPassword) {
-                    SecureField(L10n.text("extract.password.placeholder"), text: $password)
-                }
-                if showsZipDecryptionMethod {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Picker(L10n.text("extract.decryptionMethod"), selection: $zipDecryptionMethod) {
-                            ForEach(ArchiveDecryptionMethod.allCases) { method in
-                                Text(method.title).tag(method)
+                Section {
+                    extraControls()
+                    destinationRow
+                    if hasUsablePreset {
+                        Toggle(L10n.text("button.usePresetPassword"), isOn: $usePresetPassword)
+                            .help(L10n.text("button.usePresetPassword.help"))
+                            .onChange(of: usePresetPassword) { newValue in
+                                // 勾上：把预设值灌进 password binding；
+                                // 取消：清空让用户重新输入（保留旧值会让人迷惑「这是哪个密码」）。
+                                password = newValue ? presetPassword : ""
+                            }
+                    }
+                    if !(hasUsablePreset && usePresetPassword) {
+                        SecureField(L10n.text("extract.password.placeholder"), text: $password)
+                    }
+                    if showsZipDecryptionMethod {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Picker(L10n.text("extract.decryptionMethod"), selection: $zipDecryptionMethod) {
+                                ForEach(ArchiveDecryptionMethod.allCases) { method in
+                                    Text(method.title).tag(method)
+                                }
+                            }
+
+                            if zipDecryptionMethod == .automatic, let zipEncryptionDetectionText {
+                                Text(zipEncryptionDetectionText)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
                             }
                         }
-
-                        if zipDecryptionMethod == .automatic, let zipEncryptionDetectionText {
-                            Text(zipEncryptionDetectionText)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
                     }
-                    .padding(.top, 6)
                 }
             }
-            // 故意不在 Form 上加 .controlSize(.small)：会让 Picker 被缩成 small，
-            // 跟同 Form 里的裸 Text（SIZ 签名 / 解压目标 / 密码 placeholder 等 body 字号）大小不一致。
-            // 底部按钮行有自己单独的 .controlSize(.small)，不受影响。
+            .formStyle(.grouped)
+
+            Divider()
 
             HStack {
                 ShowDetailsToggleButton(isOn: $showDetails)
                 Spacer()
                 Button(L10n.text("button.cancel"), action: cancel)
                 Button(L10n.text("button.extract"), action: confirm)
+                    .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.defaultAction)
             }
-            .controlSize(.small)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .background(.bar)
         }
-        .padding(20)
+        .frame(height: preferredHeight)
         .onAppear {
             // 从 Keychain 拉预设密码到本地 @State，view 打开后不会再变。
             presetPassword = AppPreferences.presetPassword
