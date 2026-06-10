@@ -378,6 +378,64 @@ extension ArchiveBrowserModel {
         }
     }
 
+    // MARK: - Finder 标签
+
+    /// 给文件追加一个 Finder 标签（拖文件到侧栏标签行触发，Finder 同款交互）。
+    /// 已有该标签的文件跳过；瞬时操作不进活动中心，结果走状态栏，失败弹错误。
+    func applyFinderTag(_ tag: String, to urls: [URL]) {
+        var failureCount = 0
+        for url in urls {
+            do {
+                let existing = try url.resourceValues(forKeys: [.tagNamesKey]).tagNames ?? []
+                guard !existing.contains(tag) else { continue }
+                if #available(macOS 26.0, *) {
+                    // 原生 setter（macOS 26 起开放）：系统补全颜色等元数据。
+                    var writable = url
+                    var values = URLResourceValues()
+                    values.tagNames = existing + [tag]
+                    try writable.setResourceValues(values)
+                } else {
+                    try Self.appendTagViaExtendedAttribute(tag, to: url)
+                }
+            } catch {
+                failureCount += 1
+            }
+        }
+        if failureCount == 0 {
+            status = L10n.format("status.taggedCount", "\(urls.count)", tag)
+        } else {
+            status = L10n.text("status.failed")
+            errorMessage = L10n.format("error.tagFailed", "\(failureCount)")
+        }
+        reload()
+    }
+
+    /// macOS 26 以下的兜底：直接写 `com.apple.metadata:_kMDItemUserTags` 扩展属性。
+    /// 读**原始条目**再追加 —— 既有标签可能带「名字\n颜色号」后缀，从 tagNames getter 读会丢颜色。
+    private nonisolated static func appendTagViaExtendedAttribute(_ tag: String, to url: URL) throws {
+        let attributeName = "com.apple.metadata:_kMDItemUserTags"
+        var entries: [String] = []
+        let length = getxattr(url.path, attributeName, nil, 0, 0, 0)
+        if length > 0 {
+            var data = Data(count: length)
+            let read = data.withUnsafeMutableBytes { buffer in
+                getxattr(url.path, attributeName, buffer.baseAddress, length, 0, 0)
+            }
+            if read > 0, let decoded = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String] {
+                entries = decoded
+            }
+        }
+        guard !entries.contains(where: { $0 == tag || $0.hasPrefix(tag + "\n") }) else { return }
+        entries.append(tag)
+        let payload = try PropertyListSerialization.data(fromPropertyList: entries, format: .binary, options: 0)
+        let result = payload.withUnsafeBytes { buffer in
+            setxattr(url.path, attributeName, buffer.baseAddress, payload.count, 0, 0)
+        }
+        guard result == 0 else {
+            throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno))
+        }
+    }
+
     // MARK: - 拆分 / 合并分卷（字节级，对齐官方 7-Zip 的 Split / Combine；引擎在 Core/FileSplitCombine）
 
     /// 右键「拆分…」：单选非目录文件 → 弹卷大小 sheet（确认后走 `performSplit`）。

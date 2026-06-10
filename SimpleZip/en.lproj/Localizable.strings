@@ -570,6 +570,8 @@
 "status.splitDone" = "Split into %@ volumes";
 "status.combining" = "Combining %@…";
 "status.combined" = "Combined into %@";
+"status.taggedCount" = "Tagged %1$@ item(s) with “%2$@”";
+"error.tagFailed" = "Couldn't tag %@ item(s).";
 "error.split.invalidVolumeSize" = "Volume size must be greater than zero.";
 "error.split.partExists" = "“%@” already exists — move it away and try again.";
 "error.combine.notFirstVolume" = "Select the first volume of the set (the .001 file) to combine.";

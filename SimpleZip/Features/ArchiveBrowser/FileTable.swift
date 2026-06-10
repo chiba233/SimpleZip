@@ -685,7 +685,7 @@ private struct FileNSOutlineView: NSViewRepresentable {
                 return []
             }
 
-            let draggedURLs = info.draggingPasteboard.readObjects(forClasses: [NSURL.self]) as? [URL] ?? []
+            let draggedURLs = cachedDraggedURLs(from: info)
             // 防呆（Finder 同款）：不许把项目拖进它自己 / 它的子孙。
             if draggedURLs.contains(where: { destination.path == $0.path || (destination.path + "/").hasPrefix($0.path + "/") }) {
                 return []
@@ -1308,6 +1308,19 @@ private struct FileNSOutlineView: NSViewRepresentable {
         }
 
         /// 拖放目标：拖到某个「非包目录」文件行上 → 进那个目录；否则（拖到空白 / 文件 / 分组头）→ 当前文件夹。
+        /// 拖动会话内的 URL 缓存：validateDrop 在拖动时每次鼠标移动都会触发，
+        /// 每次都 readObjects 解整个剪贴板很浪费 —— 按 draggingSequenceNumber 缓存一份。
+        private var dragURLsCache: (sequence: Int, urls: [URL])?
+
+        private func cachedDraggedURLs(from info: NSDraggingInfo) -> [URL] {
+            if let cache = dragURLsCache, cache.sequence == info.draggingSequenceNumber {
+                return cache.urls
+            }
+            let urls = info.draggingPasteboard.readObjects(forClasses: [NSURL.self]) as? [URL] ?? []
+            dragURLsCache = (info.draggingSequenceNumber, urls)
+            return urls
+        }
+
         private func fileDropDestination(item: Any?, childIndex index: Int) -> URL? {
             if index == NSOutlineViewDropOnItemIndex,
                let node = item as? FileOutlineNode,

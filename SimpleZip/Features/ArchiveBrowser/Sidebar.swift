@@ -15,6 +15,8 @@ struct Sidebar: View {
     @State private var recentURLs: [URL] = []
     @State private var pinnedURLs: [URL] = []
     @State private var isPinnedDropTargeted = false
+    /// 当前被拖拽悬停的侧栏行(行级投递目标高亮)。值 = 行的唯一 id(路径 / "tag:名")。
+    @State private var dropTargetID: String?
 
     /// 实际渲染到侧栏的「个人收藏」条目 —— Finder 收藏有就用 Finder 的，没有就用默认 5 项。
     /// `finderFavorites` 数据源在 `ArchiveBrowserModel` 而不是 Sidebar 的 @State（详见 model 上的注释）。
@@ -67,6 +69,7 @@ struct Sidebar: View {
                         systemImage: row.systemImage,
                         action: { model.openFolder(row.openURL) }
                     )
+                    .modifier(folderDropTarget(row.openURL, id: "fav:\(row.id)"))
                 }
             }
 
@@ -78,6 +81,7 @@ struct Sidebar: View {
                         SidebarRowButton(action: { model.openFolder(url) }) {
                             sidebarFileLabel(for: url)
                         }
+                        .modifier(folderDropTarget(url, id: "recent:\(url.path)"))
                     }
                 }
             }
@@ -92,6 +96,7 @@ struct Sidebar: View {
                     .contextMenu {
                         Button(L10n.text("button.unpin")) { unpinSidebarURL(url) }
                     }
+                    .modifier(folderDropTarget(url, id: "pin:\(url.path)"))
                 }
             }
             .onDrop(of: [UTType.fileURL.identifier], isTargeted: $isPinnedDropTargeted) { providers in
@@ -125,6 +130,15 @@ struct Sidebar: View {
                             }
                         }
                         .accessibilityLabel(tag.name)
+                        // 拖文件到标签行 = 给文件打这个 Finder 标签(Finder 同款交互)。
+                        .background(dropHighlight(id: "tag:\(tag.name)"))
+                        .dropDestination(for: URL.self) { urls, _ in
+                            guard !urls.isEmpty else { return false }
+                            model.applyFinderTag(tag.name, to: urls)
+                            return true
+                        } isTargeted: { targeted in
+                            updateDropTarget("tag:\(tag.name)", targeted: targeted)
+                        }
                     }
                 }
             }
@@ -200,10 +214,80 @@ struct Sidebar: View {
         }
     }
 
+    /// 图标缓存：NSWorkspace 取图标有 IO 成本，侧栏每次重渲染都查会浪费 —— 按路径缓存。
+    /// 用 NSCache 而不是 @State 字典：渲染期间可写（@State 不行）、内存压力下自动清。
+    private static let iconCache = NSCache<NSString, NSImage>()
+
     private func fileIcon(for url: URL) -> NSImage {
+        if let cached = Self.iconCache.object(forKey: url.path as NSString) {
+            return cached
+        }
         let icon = NSWorkspace.shared.icon(forFile: url.path)
         icon.size = NSSize(width: 16, height: 16)
+        Self.iconCache.setObject(icon, forKey: url.path as NSString)
         return icon
+    }
+
+    // MARK: - 行级拖放（拖文件进侧栏文件夹 = 移动；拖到标签 = 打标签）
+
+    /// 文件夹行的投递目标：高亮 + dropDestination 一起挂。`id` 唯一标识这一行（区分同路径出现在多个分区）。
+    private func folderDropTarget(_ folder: URL, id: String) -> FolderDropTargetModifier {
+        FolderDropTargetModifier(
+            highlighted: dropTargetID == id,
+            onTargeted: { targeted in updateDropTarget(id, targeted: targeted) },
+            onDrop: { urls in receiveFolderDrop(urls, into: folder) }
+        )
+    }
+
+    @ViewBuilder
+    private func dropHighlight(id: String) -> some View {
+        if dropTargetID == id {
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(Color.accentColor.opacity(0.18))
+        }
+    }
+
+    private func updateDropTarget(_ id: String, targeted: Bool) {
+        if targeted {
+            dropTargetID = id
+        } else if dropTargetID == id {
+            dropTargetID = nil
+        }
+    }
+
+    /// 拖文件到侧栏文件夹行 = **移动**进该文件夹（Finder 同卷拖拽语义），走现有传输管线
+    /// （冲突询问 / 撤销 / 活动中心日志）。拖进自己 / 自己的子孙被过滤。
+    private func receiveFolderDrop(_ urls: [URL], into folder: URL) -> Bool {
+        guard isExistingDirectory(folder) else { return false }
+        let safeURLs = urls.filter { url in
+            folder.path != url.path && !(folder.path + "/").hasPrefix(url.path + "/")
+        }
+        guard !safeURLs.isEmpty else { return false }
+        model.dropFileURLs(safeURLs, to: folder, shouldMove: true)
+        return true
+    }
+}
+
+/// 侧栏行的「文件夹投递目标」修饰器：dropDestination + 高亮背景。
+/// 抽成 ViewModifier 是因为收藏 / 最近 / 固定三种行结构不同，但投递行为完全一致。
+private struct FolderDropTargetModifier: ViewModifier {
+    let highlighted: Bool
+    let onTargeted: (Bool) -> Void
+    let onDrop: ([URL]) -> Bool
+
+    func body(content: Content) -> some View {
+        content
+            .background {
+                if highlighted {
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(Color.accentColor.opacity(0.18))
+                }
+            }
+            .dropDestination(for: URL.self) { urls, _ in
+                onDrop(urls)
+            } isTargeted: { targeted in
+                onTargeted(targeted)
+            }
     }
 }
 
