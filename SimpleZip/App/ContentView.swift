@@ -124,6 +124,11 @@ struct ContentView: View {
                     }
                     .disabled(!model.canGoUp)
                     .help(L10n.text("help.goUp"))
+
+                    Button(action: model.reload) {
+                        Label(L10n.text("help.refresh"), systemImage: "arrow.clockwise")
+                    }
+                    .help(L10n.text("help.refresh"))
                 }
 
                 ToolbarItemGroup(placement: .primaryAction) {
@@ -148,16 +153,6 @@ struct ContentView: View {
                         Label(L10n.text("button.hash"), systemImage: "number.square")
                     }
                     .help(L10n.text("button.hash"))
-
-                    Button(action: model.chooseFolder) {
-                        Label(L10n.text("button.open"), systemImage: "folder.badge.gearshape")
-                    }
-                    .help(L10n.text("button.open"))
-
-                    Button(action: model.reload) {
-                        Label(L10n.text("help.refresh"), systemImage: "arrow.clockwise")
-                    }
-                    .help(L10n.text("help.refresh"))
 
                     Button(action: model.revealInFinder) {
                         Label(L10n.text("button.reveal"), systemImage: "arrow.up.forward.app")
