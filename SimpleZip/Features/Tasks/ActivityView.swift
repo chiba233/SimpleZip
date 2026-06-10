@@ -9,38 +9,44 @@ import SwiftUI
 struct ActivityView: View {
     @ObservedObject var taskCenter: TaskCenter
     @ObservedObject var windowState: ActivityWindowState
-    @State private var isSidebarVisible = true
     @State private var archiveFilter = ActivityTaskFilter.all
     @State private var fileFilter = ActivityTaskFilter.all
     @AppStorage(AppPreferences.Key.activityHistoryLimit) private var historyLimit = AppPreferences.activityHistoryLimit
 
+    // 0.3.3 UI 现代化：手画的 HStack 侧栏重绘成原生 NavigationSplitView + List(selection:)，
+    // 任务计数用原生 .badge —— 选中态 / 开关 / 材质全交给系统（跟设置窗口同一套做法）。
     var body: some View {
-        HStack(spacing: 0) {
-            if isSidebarVisible {
-                activitySidebar
-                Divider()
-            }
-
-            ZStack(alignment: .topLeading) {
-                selectedPaneView
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-                if !isSidebarVisible {
-                    SidebarToggleButton(systemImage: "sidebar.leading", help: L10n.text("tasks.window.title")) {
-                        withAnimation(.easeInOut(duration: 0.16)) {
-                            isSidebarVisible = true
-                        }
-                    }
-                    .padding(.leading, 10)
-                    .padding(.top, 10)
+        NavigationSplitView {
+            List(selection: paneSelectionBinding) {
+                ForEach(ActivityPane.allCases) { pane in
+                    Label(pane.title, systemImage: pane.systemImage)
+                        .badge(pane.category.map(taskCount(in:)) ?? 0)
+                        .tag(pane)
                 }
             }
+            .listStyle(.sidebar)
+            .navigationSplitViewColumnWidth(min: 165, ideal: 190, max: 240)
+        } detail: {
+            selectedPaneView
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(
             minWidth: 620, idealWidth: 760, maxWidth: .infinity,
             minHeight: 420, idealHeight: 540, maxHeight: .infinity
         )
         .navigationTitle(L10n.text("tasks.window.title"))
+    }
+
+    /// List 的 selection 是 Optional；窗口状态里的 selectedPane 不是 —— 清空选择时维持原 pane。
+    private var paneSelectionBinding: Binding<ActivityPane?> {
+        Binding(
+            get: { windowState.selectedPane },
+            set: { newValue in
+                if let newValue {
+                    windowState.selectedPane = newValue
+                }
+            }
+        )
     }
 
     private func tasks(in category: OperationTask.Category) -> [OperationTask] {
@@ -62,7 +68,6 @@ struct ActivityView: View {
                     }
                 }
             }
-            .padding(.leading, isSidebarVisible ? 0 : 34)
 
             if selectedPane == .settings {
                 activitySettingsView
@@ -81,42 +86,6 @@ struct ActivityView: View {
             }
         }
         .padding(16)
-    }
-
-    private var activitySidebar: some View {
-        VStack(spacing: 0) {
-            HStack {
-                SidebarToggleButton(systemImage: "sidebar.left", help: L10n.text("tasks.window.title")) {
-                    withAnimation(.easeInOut(duration: 0.16)) {
-                        isSidebarVisible = false
-                    }
-                }
-
-                Spacer()
-            }
-            .padding(.horizontal, 10)
-            .frame(height: 36)
-
-            VStack(alignment: .leading, spacing: 4) {
-                ForEach(ActivityPane.allCases) { pane in
-                    ActivityPaneSidebarButton(
-                        pane: pane,
-                        count: pane.category.map(taskCount(in:)),
-                        isSelected: selectedPane == pane
-                    ) {
-                        windowState.selectedPane = pane
-                    }
-                }
-
-                Spacer()
-            }
-            .padding(.horizontal, 12)
-            .padding(.top, 4)
-            .padding(.bottom, 16)
-        }
-        .frame(width: 178)
-        .frame(maxHeight: .infinity, alignment: .topLeading)
-        .background(.bar)
     }
 
     private func taskCount(in category: OperationTask.Category) -> Int {
@@ -289,43 +258,8 @@ final class ActivityWindowState: ObservableObject {
     }
 }
 
-private struct ActivityPaneSidebarButton: View {
-    let pane: ActivityPane
-    let count: Int?
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 9) {
-                Image(systemName: pane.systemImage)
-                    .font(.system(size: 14, weight: .medium))
-                    .frame(width: 18)
-                Text(pane.title)
-                    .font(.callout)
-                    .lineLimit(1)
-                Spacer(minLength: 0)
-                if let count, count > 0 {
-                    Text("\(count)")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
-            .padding(.horizontal, 8)
-            .frame(height: 32)
-            .contentShape(Rectangle())
-            .background {
-                if isSelected {
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        .fill(Color.accentColor.opacity(0.14))
-                }
-            }
-        }
-        .buttonStyle(.plain)
-        .help(pane.title)
-    }
-}
+// ActivityPaneSidebarButton（自绘侧栏按钮）已删 —— 活动中心改用原生
+// NavigationSplitView + List(selection:) + .badge，跟设置窗口同一套做法。
 
 private enum ActivityTaskFilter: CaseIterable, Identifiable, Hashable {
     case all
