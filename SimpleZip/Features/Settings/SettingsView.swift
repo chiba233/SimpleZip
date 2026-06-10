@@ -41,7 +41,8 @@ struct SettingsView: View {
             .padding(.horizontal, 10)
             .frame(maxHeight: .infinity)
             // 定宽侧栏：可拖动宽度曾让用户把侧栏拖到 0 后再也打不开（收起按钮已砍）—— 直接固定。
-            .navigationSplitViewColumnWidth(210)
+            // 240 而不是 210：长 pane 名（File Associations / 备份与还原）+ 26pt 瓦片在 210 下被截断。
+            .navigationSplitViewColumnWidth(240)
             .hidingSidebarToggle()
         } detail: {
             selectedPaneView
