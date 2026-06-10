@@ -377,15 +377,24 @@ final class ExternalExtractWindowController {
         cancelActive = cancel
 
         // 用 NSWindow 而不是 NSPanel —— Panel 在 NSApp.activate 时夺焦后可能立刻 deactivate，行为不稳。
+        // 0.3.3 UI 现代化：去掉 utility 小标题栏，改成隐藏标题栏 + 整窗系统材质的浮动卡片
+        // （标题保留给 Mission Control / 辅助功能），内容顶上留出红绿灯位，整窗可拖。
         let frame = NSRect(x: 0, y: 0, width: 360, height: 190)
         let window = NSWindow(
             contentRect: frame,
-            styleMask: [.titled, .closable, .utilityWindow, .resizable],
+            styleMask: [.titled, .closable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
-        window.contentViewController = NSHostingController(rootView: content)
+        let rootView = content
+            .padding(.top, 16)               // 隐藏标题栏后给关闭按钮留出呼吸位
+            .frame(width: 360)
+            .background(.regularMaterial)
+        window.contentViewController = NSHostingController(rootView: rootView)
         window.title = windowTitle
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.isMovableByWindowBackground = true
         window.isReleasedWhenClosed = false
         window.level = .floating
         window.center()
