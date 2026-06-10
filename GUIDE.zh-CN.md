@@ -141,6 +141,10 @@ legacy.r01         → legacy.rar
 payload.7z.003     → payload.7z.001
 ```
 
+`.xip`(Apple 签名归档,Xcode 等的分发格式)也能打开和解压:浏览显示容器结构,
+解压走系统自带的 `xip` 工具——由系统校验 Apple 签名,拿到的是真实内容物(比如 .app)。
+非 Apple 信任签名的 xip 会被系统拒绝。SimpleZip 不提供创建 xip(需要 Apple 证书)。
+
 ## 浏览压缩包
 
 压缩包内部按真实目录树浏览。哪怕原 archive 没存目录项，SimpleZip 也会自动

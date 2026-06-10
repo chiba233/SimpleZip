@@ -11,13 +11,16 @@ import UniformTypeIdentifiers
 
 /// 归档命令服务：封装 zip/unzip/7zz 调用，让界面层不直接接触命令行细节。
 enum ArchiveService {
-    static let supportedExtensions = ["zip", "7z", "tar", "gz", "tgz", "bz2", "xz", "rar", "dmg"]
+    static let supportedExtensions = ["zip", "7z", "tar", "gz", "tgz", "bz2", "xz", "rar", "dmg", "xip"]
     static let supportedArchiveTypes: [UTType] = supportedExtensions.compactMap { UTType(filenameExtension: $0) }
 
     private enum ArchiveBackendKind {
         case zipNative
         case sevenZip
         case diskImage
+        /// `.xip`：浏览 / 测试 / 选条目解压走 7zz（xar 容器），整包解压走 `/usr/bin/xip --expand`
+        /// （拿真实载荷 + Apple 签名校验）。
+        case xip
     }
 
     private struct ResolvedArchiveInput {
@@ -32,6 +35,8 @@ enum ArchiveService {
         case .zipNative: return NativeZipBackend.self
         case .sevenZip: return SevenZipBackend.self
         case .diskImage: return DiskImageBackend.self
+        // xip 的 list / test 用 7zz 的 xar 支持（秒列容器成员、校验 xar 校验和）。
+        case .xip: return SevenZipBackend.self
         }
     }
 
@@ -270,6 +275,19 @@ enum ArchiveService {
             if safetyPolicy == .validate {
                 try ArchiveSafety.validateExtractedTree(at: destination)
             }
+        case .xip:
+            // 整包解压走系统 xip：拿到真实载荷（如 .app）并由系统校验 Apple 签名，
+            // 不是 7zz 那两个 xar 成员（Content / Metadata）。
+            try await XIPBackend.extract(
+                resolved.url,
+                to: destination,
+                operationID: operationID,
+                progress: progress,
+                outputObserver: outputObserver
+            )
+            if safetyPolicy == .validate {
+                try ArchiveSafety.validateExtractedTree(at: destination)
+            }
         }
     }
 
@@ -315,7 +333,9 @@ enum ArchiveService {
             if safetyPolicy == .validate {
                 try ArchiveSafety.validateExtractedTree(at: destination)
             }
-        case .sevenZip:
+        // xip 的「选条目解压」= 取出 xar 成员（Content / Metadata 原始 blob），跟浏览看到的一致；
+        // 想要真实载荷（.app）请整包解压（上面的无 entries overload 走 xip --expand）。
+        case .sevenZip, .xip:
             try await SevenZipBackend.extract(
                 resolved.url,
                 entries: entryNames,
@@ -414,6 +434,9 @@ enum ArchiveService {
         }
         if ext == "dmg" {
             return ResolvedArchiveInput(url: url, backend: .diskImage)
+        }
+        if ext == "xip" {
+            return ResolvedArchiveInput(url: url, backend: .xip)
         }
         if supportedExtensions.contains(ext) {
             if ext == "zip", hasSplitZipSidecar(for: url) {

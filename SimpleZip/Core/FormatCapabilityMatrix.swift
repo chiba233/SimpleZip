@@ -96,6 +96,11 @@ public enum FormatCapabilityMatrix {
             FormatCapabilityRow(id: "dmg", displayName: "DMG",
                                 create: .yes, extract: .yes, editEntries: .no, encrypt: .no, headerEncrypt: .no,
                                 splitVolumes: .no, test: .no, comment: .no),
+            // XIP：Apple 签名归档（Xcode 分发用）。只读：可浏览（xar 容器）/ 解压（系统校验 Apple 签名）/
+            // 测试（xar 校验和）；创建需 Apple 证书，不提供。
+            FormatCapabilityRow(id: "xip", displayName: "XIP",
+                                create: .no, extract: .yes, editEntries: .no, encrypt: .no, headerEncrypt: .no,
+                                splitVolumes: .no, test: .yes, comment: .no),
             // .gpg：加密 = 创建、解密 = 打开；GPG 容器没有头部加密 / 分卷 / 注释 / 编辑概念。
             FormatCapabilityRow(id: "gpg", displayName: ".gpg",
                                 create: .yes, extract: .yes, editEntries: .no, encrypt: .yes, headerEncrypt: .no,

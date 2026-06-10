@@ -20,6 +20,7 @@
 				<string>xz</string>
 				<string>rar</string>
 				<string>dmg</string>
+				<string>xip</string>
 				<string>siz</string>
 				<string>szs</string>
 				<string>001</string>
@@ -56,6 +57,7 @@
 				<string>org.tukaani.xz-archive</string>
 				<string>com.rarlab.rar-archive</string>
 				<string>com.apple.disk-image-udif</string>
+				<string>com.apple.xip-archive</string>
 				<string>com.simplezip.siz-archive</string>
 				<string>com.simplezip.szs-manifest</string>
 				<string>public.archive</string>

@@ -67,6 +67,7 @@ That's it — drag an archive onto the window, or open one with **File → Open*
 | gz / bz2 / xz | ✓ | ✓ | ✓ | Single-file compression |
 | tgz / tar.gz | ✓ | ✓ | ✓ | |
 | DMG | ✓ | ✓ | ✓ | Apple disk images (mounted read-only when browsing) |
+| XIP | ✓ | ✓ | — | Apple-signed archives (Xcode etc.) — extraction goes through Apple's own `xip` tool, which verifies the signature |
 | `.siz` | ✓ | ✓ | ✓ | Signed container — an archive with its signature attached |
 | `.szs` | ✓ | — | ✓ | Signed manifest — signs files *in place* (not an archive) |
 | Split sets (`.001`, `.z01`, `.r00`, `partN.rar`) | ✓ | ✓ | — | Just open the first piece |
