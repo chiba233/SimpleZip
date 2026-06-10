@@ -4,7 +4,7 @@
 
 ## 0.3.3
 
-- **New: compare two archives (Archive Diff).** Select two archives in the file browser and right-click → "Compare Archives" (or select one and pick the other via "Compare with Another Archive…"). SimpleZip lists both and shows a comparison sheet: entries only in one archive, entries present in both but different — with a per-entry breakdown of exactly what differs (size, CRC, modified time, file ↔ folder, became (un)encrypted) — and a count of identical entries. The whole report can be copied as plain text, and the comparison runs as a cancellable task in the Activity Center. Wording is direction-neutral ("only in A" / "only in B") since neither archive is inherently the "old" one.
+- **New: compare two archives (Archive Diff).** Select two archives in the file browser and right-click → "Compare Archives" (or select one and pick the other via "Compare with Another Archive…"). SimpleZip lists both and shows a comparison sheet: entries only in one archive, entries present in both but different — with a per-entry breakdown of exactly what differs (size, CRC, modified time, file ↔ folder, became (un)encrypted) — and a count of identical entries. Results are grouped into a collapsible folder tree (folders first, Finder-like ordering), not flat full paths. The whole report can be copied as plain text (flat paths there on purpose — pasteable into mail/diffs), and the comparison runs as a cancellable task in the Activity Center whose details panel shows the same formatted tree. Wording is direction-neutral ("only in A" / "only in B") since neither archive is inherently the "old" one.
 
 ## 0.3.2
 
