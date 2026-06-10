@@ -24,7 +24,7 @@ struct SettingsView: View {
         NavigationSplitView(columnVisibility: .constant(.all)) {
             // 自绘居中侧栏（用户点名「项目上下居中」—— 原生 List 做不到）：
             // 上下 Spacer 夹住行组，外层仍是 NavigationSplitView 侧栏列、系统材质照吃。
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 6) {
                 Spacer(minLength: 12)
                 ForEach(SettingsPane.allCases) { pane in
                     CenteredSidebarRow(
@@ -40,7 +40,8 @@ struct SettingsView: View {
             }
             .padding(.horizontal, 10)
             .frame(maxHeight: .infinity)
-            .navigationSplitViewColumnWidth(min: 170, ideal: 195, max: 250)
+            // 定宽侧栏：可拖动宽度曾让用户把侧栏拖到 0 后再也打不开（收起按钮已砍）—— 直接固定。
+            .navigationSplitViewColumnWidth(210)
             .hidingSidebarToggle()
         } detail: {
             selectedPaneView
@@ -48,8 +49,8 @@ struct SettingsView: View {
         }
         // 有理想尺寸但可以拉，遵循 macOS 原生 Settings 风格（写死尺寸会被长翻译撑爆）。
         .frame(
-            minWidth: 760, idealWidth: 860, maxWidth: .infinity,
-            minHeight: 600, idealHeight: 720, maxHeight: .infinity
+            minWidth: 840, idealWidth: 940, maxWidth: .infinity,
+            minHeight: 660, idealHeight: 780, maxHeight: .infinity
         )
         .navigationTitle(L10n.text("settings.title"))
     }

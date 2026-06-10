@@ -19,7 +19,7 @@ struct ActivityView: View {
         // 侧栏**常驻**：columnVisibility 钉死 .all + 去掉系统的收起按钮（跟设置窗口同一决定）。
         NavigationSplitView(columnVisibility: .constant(.all)) {
             // 自绘居中侧栏（跟设置窗口同款）：行组垂直居中，任务计数挂行尾。
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 6) {
                 Spacer(minLength: 12)
                 ForEach(ActivityPane.allCases) { pane in
                     CenteredSidebarRow(
@@ -36,15 +36,16 @@ struct ActivityView: View {
             }
             .padding(.horizontal, 10)
             .frame(maxHeight: .infinity)
-            .navigationSplitViewColumnWidth(min: 165, ideal: 190, max: 240)
+            // 定宽侧栏：同设置窗口 —— 可拖宽度会被拖到消失且无法恢复，直接固定。
+            .navigationSplitViewColumnWidth(210)
             .hidingSidebarToggle()
         } detail: {
             selectedPaneView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(
-            minWidth: 620, idealWidth: 760, maxWidth: .infinity,
-            minHeight: 420, idealHeight: 540, maxHeight: .infinity
+            minWidth: 720, idealWidth: 860, maxWidth: .infinity,
+            minHeight: 500, idealHeight: 620, maxHeight: .infinity
         )
         .navigationTitle(L10n.text("tasks.window.title"))
     }

@@ -41,25 +41,25 @@ struct CenteredSidebarRow: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 8) {
+            HStack(spacing: 10) {
                 Image(systemName: systemImage)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(.white)
-                    .frame(width: 21, height: 21)
-                    .background(color.gradient, in: RoundedRectangle(cornerRadius: 5.5, style: .continuous))
+                    .frame(width: 26, height: 26)
+                    .background(color.gradient, in: RoundedRectangle(cornerRadius: 6.5, style: .continuous))
                 Text(title)
-                    .font(.callout)
+                    .font(.body)
                     .lineLimit(1)
                 Spacer(minLength: 0)
                 if badge > 0 {
                     Text("\(badge)")
-                        .font(.caption.weight(.medium))
+                        .font(.callout.weight(.medium))
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
                 }
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
             .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             .background {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
