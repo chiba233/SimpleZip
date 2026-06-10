@@ -178,7 +178,8 @@ struct ActivityView: View {
             Section(L10n.text("tasks.settings.history")) {
                 SettingsControlRow(
                     title: L10n.text("tasks.settings.historyLimit"),
-                    description: L10n.text("tasks.settings.historyLimit.description")
+                    description: L10n.text("tasks.settings.historyLimit.description"),
+                    systemImage: "clock"
                 ) {
                     HStack(spacing: 8) {
                         Text(L10n.format("tasks.settings.historyLimit.value", historyLimit))
@@ -195,7 +196,8 @@ struct ActivityView: View {
 
                 SettingsControlRow(
                     title: L10n.text("tasks.settings.clearHistory"),
-                    description: L10n.text("tasks.settings.clearHistory.description")
+                    description: L10n.text("tasks.settings.clearHistory.description"),
+                    systemImage: "trash"
                 ) {
                     Button(role: .destructive) {
                         taskCenter.clearHistory()

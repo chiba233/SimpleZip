@@ -384,7 +384,8 @@ private struct WelcomeLanguageStep: View {
                 }
             }
             .labelsHidden()
-            .pickerStyle(.inline)
+            .pickerStyle(.menu)
+            .fixedSize()
         }
     }
 }
@@ -420,7 +421,8 @@ private struct WelcomeGeneralStep: View {
                             }
                         }
                         .labelsHidden()
-                        .pickerStyle(.inline)
+                        .pickerStyle(.menu)
+                        .fixedSize()
 
                         Button(L10n.text("welcome.startupLocation.pickCustom")) {
                             pickCustomLocation()
@@ -437,7 +439,8 @@ private struct WelcomeGeneralStep: View {
                         }
                     }
                     .labelsHidden()
-                    .pickerStyle(.inline)
+                    .pickerStyle(.menu)
+                    .fixedSize()
                 }
 
                 Divider()

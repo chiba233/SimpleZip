@@ -2,8 +2,10 @@
 
 # Changelog
 
-## 0.3.3
+## 0.4.0
 
+- **UI: the Welcome Assistant's choice controls are more compact.** Language, startup location, and overwrite behavior now use menu pickers instead of expanded inline radio lists, keeping the onboarding page shorter without changing the single-choice behavior.
+- **UI: Activity Center settings rows now match Settings icons.** The history limit and clear-history rows now use the same leading icon column as the main Settings window.
 - **UI: Settings rows now use a consistent leading icon column.** Common settings such as Language, Startup Location, browser options, backend choices, GPG defaults, and maintenance actions now show leading icons, while rows without a meaningful icon still reserve the same space so labels line up across a pane.
 - **Fixed: Finder favorite icons now follow the actual item icons.** The main sidebar still mirrors Finder's Favorite order and names, and now renders those rows with the system icon for each favorite path instead of SimpleZip's hard-coded symbol mapping.
 - **Fixed: File menu parity for recent file actions.** Split, Combine Volumes, and Remove from Tag now appear in the macOS File menu as well as the file table context menu; removing items from a tag also updates the visible tag result list immediately.
