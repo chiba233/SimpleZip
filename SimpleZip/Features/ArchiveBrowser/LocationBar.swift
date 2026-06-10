@@ -1,17 +1,20 @@
 //
-//  TopBar.swift
+//  LocationBar.swift
 //  SimpleZip
 //
 //  Created by HoshinoYumeka on 2026/05/12.
+//
+//  0.3.3 UI 现代化：原 TopBar 的两行自绘工具条（大按钮行 + 导航行）瘦身成单行地址栏。
+//  动作 / 导航按钮全部迁入 ContentView 的原生 `.toolbar`（标题栏内，系统自动应用当代材质、
+//  自动 overflow）；这里只剩 Finder 式路径栏：可编辑、带补全 popover。
 //
 
 import SwiftUI
 import AppKit
 
-/// 顶部工具栏：提供添加、解压、测试、哈希、打开和定位等常用操作。
-struct TopBar: View {
+/// 标题栏下方的单行地址栏：显示 / 编辑当前位置，输入时弹补全。
+struct LocationBar: View {
     @ObservedObject var model: ArchiveBrowserModel
-    @ObservedObject private var taskCenter = TaskCenter.shared
     @State private var pathText = ""
     @State private var locationCompletions: [LocationCompletion] = []
     @State private var isShowingLocationCompletions = false
@@ -19,87 +22,44 @@ struct TopBar: View {
     @State private var selectedLocationCompletionIndex: Int?
 
     var body: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 8) {
-                ToolButton(title: L10n.text("button.add"), systemImage: "plus.square.on.square", action: model.createArchive)
-                ToolButton(title: L10n.text("button.extract"), systemImage: "arrow.down.doc", action: model.extractFromCurrentContext)
-                ToolButton(title: L10n.text("button.test"), systemImage: "checkmark.seal", action: model.testArchive)
-                ToolButton(title: L10n.text("button.hash"), systemImage: "number.square", action: { model.calculateHash() })
-                ToolButton(title: L10n.text("button.open"), systemImage: "folder.badge.gearshape", action: model.chooseFolder)
-                ToolButton(title: L10n.text("button.reveal"), systemImage: "arrow.up.forward.app", action: model.revealInFinder)
-
-                Divider()
-                    .frame(height: 54)
-                    .padding(.horizontal, 8)
-
-                ToolButton(
-                    title: L10n.text("button.activityCenter"),
-                    systemImage: "list.bullet.rectangle",
-                    action: { ActivityWindowController.shared.show() }
-                )
-
-                Spacer()
-
-                if taskCenter.runningCount > 0 || model.isWorking {
-                    ProgressView()
-                        .controlSize(.small)
-                }
+        locationField
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(.bar)
+            .onAppear {
+                pathText = model.editableLocationText
             }
-
-            HStack(spacing: 6) {
-                navButton("chevron.left", disabled: !model.canGoBack, help: L10n.text("help.goBack"), action: model.goBack)
-                navButton("chevron.right", disabled: !model.canGoForward, help: L10n.text("help.goForward"), action: model.goForward)
-                navButton("chevron.up", disabled: !model.canGoUp, help: L10n.text("help.goUp"), action: model.goUp)
-                navButton("arrow.clockwise", help: L10n.text("help.refresh"), action: model.reload)
-
-                locationField
+            .onChange(of: model.locationText) { _ in
+                pathText = model.editableLocationText
+                hideLocationCompletions()
             }
-        }
-        .padding(12)
-        .background(Color(nsColor: .windowBackgroundColor))
-        .onAppear {
-            pathText = model.editableLocationText
-        }
-        .onChange(of: model.locationText) { _ in
-            pathText = model.editableLocationText
-            hideLocationCompletions()
-        }
-        .onChange(of: pathText) { _ in
-            showLocationCompletionsForTyping()
-        }
-        .onChange(of: isPathFieldFocused) { focused in
-            if !focused {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                    if !isPathFieldFocused {
-                        hideLocationCompletions()
+            .onChange(of: pathText) { _ in
+                showLocationCompletionsForTyping()
+            }
+            .onChange(of: isPathFieldFocused) { focused in
+                if !focused {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                        if !isPathFieldFocused {
+                            hideLocationCompletions()
+                        }
                     }
                 }
             }
-        }
     }
 
-    /// 地址栏左侧四个导航按钮共享的 chrome（icon 18×18 / bordered 小号 / 30×30 框 / disabled 可选 / tooltip）。
-    /// 4 处行内复制粘贴的最直接合并 —— 不抽组件，private func 本地够用。
-    @ViewBuilder
-    private func navButton(
-        _ systemImage: String,
-        disabled: Bool = false,
-        help: String,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            Image(systemName: systemImage)
-                .frame(width: 18, height: 18)
-        }
-        .buttonStyle(.bordered)
-        .controlSize(.small)
-        .frame(width: 30, height: 30)
-        .disabled(disabled)
-        .help(help)
+    /// 地址栏前导小图标：归档模式给 zipper、其他给文件夹 —— 一眼区分「在浏览什么」。
+    private var locationIconName: String {
+        if case .archive = model.mode { return "doc.zipper" }
+        return "folder"
     }
 
     private var locationField: some View {
         HStack(spacing: 0) {
+            Image(systemName: locationIconName)
+                .foregroundStyle(.secondary)
+                .font(.system(size: 12))
+                .padding(.leading, 9)
+
             LocationKeyboardTextField(
                 text: $pathText,
                 isFocused: $isPathFieldFocused,
@@ -110,12 +70,12 @@ struct TopBar: View {
                 onRequestSuggestions: showLocationCompletions
             )
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.leading, 10)
+                .padding(.leading, 7)
                 .padding(.trailing, 8)
-                .padding(.vertical, 6)
+                .padding(.vertical, 5)
 
             Divider()
-                .frame(height: 18)
+                .frame(height: 16)
 
             Button(action: toggleLocationCompletions) {
                 Image(systemName: "chevron.down")
@@ -123,14 +83,14 @@ struct TopBar: View {
                     .frame(width: 24, height: 24)
             }
             .buttonStyle(.plain)
-            .frame(width: 28, height: 28)
+            .frame(width: 28, height: 26)
             .help(L10n.text("help.locationCompletions"))
         }
-        .frame(maxWidth: .infinity, minHeight: 30, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
         .background(Color(nsColor: .textBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .clipShape(RoundedRectangle(cornerRadius: 7))
         .overlay(
-            RoundedRectangle(cornerRadius: 6)
+            RoundedRectangle(cornerRadius: 7)
                 .stroke(Color(nsColor: .separatorColor))
         )
         .popover(isPresented: $isShowingLocationCompletions, arrowEdge: .top) {
@@ -438,30 +398,5 @@ private final class KeyboardTextField: NSTextField {
         default:
             return super.performKeyEquivalent(with: event)
         }
-    }
-}
-
-/// 工具栏大按钮，模仿传统压缩软件的图标加文字入口。
-struct ToolButton: View {
-    let title: String
-    let systemImage: String
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 4) {
-                Image(systemName: systemImage)
-                    .font(.system(size: 19))
-                    .frame(height: 20)
-                Text(title)
-                    .font(.caption)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
-            }
-            .frame(width: 72, height: 54)
-        }
-        .buttonStyle(.bordered)
-        .controlSize(.small)
-        .help(title)
     }
 }

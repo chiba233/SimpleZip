@@ -61,7 +61,7 @@ struct ContentView: View {
                 .navigationSplitViewColumnWidth(min: 180, ideal: 230, max: 320)
         } detail: {
             VStack(spacing: 0) {
-                TopBar(model: model)
+                LocationBar(model: model)
 
                 Divider()
 
@@ -103,6 +103,73 @@ struct ContentView: View {
                 placement: .toolbar,
                 prompt: L10n.text("search.prompt")
             )
+            // 0.3.3 UI 现代化：动作 / 导航按钮从自绘 TopBar 迁入原生标题栏工具栏 ——
+            // 系统材质、自动 overflow、跟 Finder 同一套交互语言。
+            .toolbar {
+                ToolbarItemGroup(placement: .navigation) {
+                    Button(action: model.goBack) {
+                        Label(L10n.text("help.goBack"), systemImage: "chevron.left")
+                    }
+                    .disabled(!model.canGoBack)
+                    .help(L10n.text("help.goBack"))
+
+                    Button(action: model.goForward) {
+                        Label(L10n.text("help.goForward"), systemImage: "chevron.right")
+                    }
+                    .disabled(!model.canGoForward)
+                    .help(L10n.text("help.goForward"))
+
+                    Button(action: model.goUp) {
+                        Label(L10n.text("help.goUp"), systemImage: "chevron.up")
+                    }
+                    .disabled(!model.canGoUp)
+                    .help(L10n.text("help.goUp"))
+                }
+
+                ToolbarItemGroup(placement: .primaryAction) {
+                    ToolbarBusyIndicator(model: model)
+
+                    Button(action: model.createArchive) {
+                        Label(L10n.text("button.add"), systemImage: "plus.square.on.square")
+                    }
+                    .help(L10n.text("button.add"))
+
+                    Button(action: model.extractFromCurrentContext) {
+                        Label(L10n.text("button.extract"), systemImage: "arrow.down.doc")
+                    }
+                    .help(L10n.text("button.extract"))
+
+                    Button(action: model.testArchive) {
+                        Label(L10n.text("button.test"), systemImage: "checkmark.seal")
+                    }
+                    .help(L10n.text("button.test"))
+
+                    Button(action: { model.calculateHash() }) {
+                        Label(L10n.text("button.hash"), systemImage: "number.square")
+                    }
+                    .help(L10n.text("button.hash"))
+
+                    Button(action: model.chooseFolder) {
+                        Label(L10n.text("button.open"), systemImage: "folder.badge.gearshape")
+                    }
+                    .help(L10n.text("button.open"))
+
+                    Button(action: model.reload) {
+                        Label(L10n.text("help.refresh"), systemImage: "arrow.clockwise")
+                    }
+                    .help(L10n.text("help.refresh"))
+
+                    Button(action: model.revealInFinder) {
+                        Label(L10n.text("button.reveal"), systemImage: "arrow.up.forward.app")
+                    }
+                    .help(L10n.text("button.reveal"))
+
+                    Button(action: { ActivityWindowController.shared.show() }) {
+                        Label(L10n.text("button.activityCenter"), systemImage: "list.bullet.rectangle")
+                    }
+                    .help(L10n.text("button.activityCenter"))
+                }
+            }
             .nativeSearchFocused($isSearchFieldFocused)
             .onChange(of: model.searchFocusRequestID) { _ in
                 isSearchFieldFocused = true
@@ -919,6 +986,20 @@ struct ContentView: View {
     private func receiveDroppedFileURLs(from providers: [NSItemProvider]) -> Bool {
         extractDroppedFileURLs(from: providers) { urls in
             model.openDroppedURLs(urls)
+        }
+    }
+}
+
+/// 工具栏忙碌指示：有运行中任务时在动作按钮左侧转个小菊花。
+/// 单独成 view 是为了把 TaskCenter 的高频发布隔离在这一小块，不拖着整个 ContentView 重渲染。
+private struct ToolbarBusyIndicator: View {
+    @ObservedObject var model: ArchiveBrowserModel
+    @ObservedObject private var taskCenter = TaskCenter.shared
+
+    var body: some View {
+        if taskCenter.runningCount > 0 || model.isWorking {
+            ProgressView()
+                .controlSize(.small)
         }
     }
 }
