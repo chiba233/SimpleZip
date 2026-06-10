@@ -659,8 +659,44 @@ private struct FileNSOutlineView: NSViewRepresentable {
             proposedItem item: Any?,
             proposedChildIndex index: Int
         ) -> NSDragOperation {
-            guard fileDropDestination(item: item, childIndex: index) != nil else { return [] }
-            return info.draggingSource as? NSOutlineView === outlineView ? .move : .copy
+            // 只读虚拟浏览（.gpg / .szs 解密出的临时内容）不收任何拖入。
+            guard model.manifestVirtualMode == nil else { return [] }
+
+            // Finder 语义（用户报「不会正确捕获」的修复）：
+            // - 精确悬停在「文件夹行」上 → 定点投递进该文件夹（系统高亮那一行）；
+            // - 悬停在文件行 / 行间 / 空白 → **重定向**为「放进当前浏览的文件夹」（整表高亮）。
+            //   旧实现不重定向，悬在文件行上目标解析失败 → 直接显示禁止符，列表大半是死区。
+            let folderRowURL: URL? = {
+                guard index == NSOutlineViewDropOnItemIndex,
+                      let node = item as? FileOutlineNode,
+                      let fileItem = node.fileItem,
+                      fileItem.isDirectory,
+                      !model.canShowPackageContents(fileItem) else { return nil }
+                return fileItem.url
+            }()
+
+            let destination: URL
+            if let folderRowURL {
+                destination = folderRowURL
+            } else if case .folder(let url) = model.mode {
+                destination = url
+                outlineView.setDropItem(nil, dropChildIndex: NSOutlineViewDropOnItemIndex)
+            } else {
+                return []
+            }
+
+            let draggedURLs = info.draggingPasteboard.readObjects(forClasses: [NSURL.self]) as? [URL] ?? []
+            // 防呆（Finder 同款）：不许把项目拖进它自己 / 它的子孙。
+            if draggedURLs.contains(where: { destination.path == $0.path || (destination.path + "/").hasPrefix($0.path + "/") }) {
+                return []
+            }
+            let isInternalMove = info.draggingSource as? NSOutlineView === outlineView
+            // 应用内移动到「它本来就在的文件夹」= 无操作，直接不允许（避免误触发自我移动）。
+            if isInternalMove, !draggedURLs.isEmpty,
+               draggedURLs.allSatisfy({ $0.deletingLastPathComponent().path == destination.path }) {
+                return []
+            }
+            return isInternalMove ? .move : .copy
         }
 
         func outlineView(
