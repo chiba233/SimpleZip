@@ -68,7 +68,8 @@ struct StatusBar: View {
         .font(.caption)
         .padding(.horizontal, 12)
         .padding(.vertical, 7)
-        .background(Color(nsColor: .controlBackgroundColor))
+        // 跟地址栏同一 .bar 材质 —— 上下两条工具条一个质感（0.3.3 UI 现代化）。
+        .background(.bar)
     }
 
     private var legacyProgressView: some View {
