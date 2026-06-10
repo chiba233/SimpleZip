@@ -37,8 +37,9 @@ struct ActivityView: View {
             .padding(.horizontal, 10)
             .frame(maxHeight: .infinity)
             // 定宽侧栏：同设置窗口 —— 可拖宽度会被拖到消失且无法恢复，直接固定。
-            // 280：活动中心的行是「彩色瓦片 + 长标题 + 多位数计数」三件套，240 仍被截（用户二报）。
-            .navigationSplitViewColumnWidth(280)
+            // 用 min=ideal=max 钉死而不是固定式单值：侧栏早期可拖时的**持久化旧宽度**会在恢复时
+            // 压过单值声明（用户拖窄过 → 怎么加宽都显示不全的真因）；区间钉死能强制覆盖恢复值。
+            .navigationSplitViewColumnWidth(min: 300, ideal: 300, max: 300)
             .hidingSidebarToggle()
         } detail: {
             selectedPaneView

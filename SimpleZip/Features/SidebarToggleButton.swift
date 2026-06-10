@@ -50,6 +50,8 @@ struct CenteredSidebarRow: View {
                 Text(title)
                     .font(.body)
                     .lineLimit(1)
+                    // 标题优先吃宽度：就算列宽被异常压缩，截断也先发生在留白而不是文字上。
+                    .layoutPriority(1)
                 Spacer(minLength: 0)
                 if badge > 0 {
                     Text("\(badge)")
