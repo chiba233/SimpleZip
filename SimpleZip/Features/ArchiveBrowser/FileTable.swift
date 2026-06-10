@@ -783,6 +783,13 @@ private struct FileNSOutlineView: NSViewRepresentable {
             }
             menu.addItem(menuItem(L10n.text("button.extractHere"), systemImage: "arrow.down.doc", action: #selector(extractSelectedArchive)))
             menu.addItem(menuItem(L10n.text("button.test"), systemImage: "checkmark.seal", action: #selector(testSelectedArchive)))
+            // #111 比较归档：恰好选中 2 个受支持归档 → 直接比；只选中 1 个归档 → 再挑一个比。
+            let selectedArchiveCount = model.selectedFileItems.filter { !$0.isDirectory && ArchiveService.isSupportedArchive($0.url) }.count
+            if selectedArchiveCount == 2 {
+                menu.addItem(menuItem(L10n.text("file.compareArchives"), systemImage: "arrow.left.arrow.right.circle", action: #selector(compareArchivesSelected)))
+            } else if selectedArchiveCount == 1, model.selectedFileItems.count == 1 {
+                menu.addItem(menuItem(L10n.text("file.compareArchives.withOther"), systemImage: "arrow.left.arrow.right.circle", action: #selector(compareArchivesSelected)))
+            }
             menu.addItem(menuItem(L10n.text("button.hash"), systemImage: "number.square", action: #selector(hashSelected)))
 
             // ③ 编辑 / 文件管理（重命名归到这里，跟复制剪切移动删除一组）
@@ -979,6 +986,10 @@ private struct FileNSOutlineView: NSViewRepresentable {
 
         @objc private func testSelectedArchive() {
             model.testArchive()
+        }
+
+        @objc private func compareArchivesSelected() {
+            model.compareSelectedArchives()
         }
 
         @objc private func hashSelected() {

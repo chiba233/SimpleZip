@@ -51,6 +51,67 @@ extension ArchiveBrowserModel {
         }
     }
 
+    // MARK: - #111 归档比较
+
+    /// 右键「比较归档」入口：选中 2 个归档直接比；选中 1 个时用 NSOpenPanel 挑第二个。
+    /// 菜单项只在这两种选区下出现，这里的兜底报错只防御直接调用。
+    func compareSelectedArchives() {
+        let archiveURLs = selectedFileItems
+            .filter { !$0.isDirectory && ArchiveService.isSupportedArchive($0.url) }
+            .map(\.url)
+
+        if archiveURLs.count >= 2 {
+            runArchiveComparison(left: archiveURLs[0], right: archiveURLs[1])
+            return
+        }
+        guard let first = archiveURLs.first else {
+            errorMessage = L10n.text("error.openOrSelectArchive")
+            return
+        }
+
+        let panel = NSOpenPanel()
+        panel.title = L10n.text("panel.openArchive")
+        panel.message = L10n.format("diff.choosePrompt", first.lastPathComponent)
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = ArchiveService.supportedArchiveTypes
+        panel.allowsOtherFileTypes = true
+
+        if panel.runModal() == .OK, let other = panel.url {
+            guard ArchiveService.isSupportedArchive(other) else {
+                errorMessage = L10n.text("error.openOrSelectArchive")
+                return
+            }
+            runArchiveComparison(left: first, right: other)
+        }
+    }
+
+    /// 列出两个包 → Core `ArchiveDiff.compare` → 弹结果 sheet。走托管归档任务（活动中心可见、可取消）。
+    /// 加密归档按现状用空密码列出 —— header 加密的包会直接以后端错误失败，错误对用户可见，不静默吞。
+    func runArchiveComparison(left: URL, right: URL) {
+        let title = L10n.format("status.comparing", left.lastPathComponent, right.lastPathComponent)
+        let forceLeft = isForced(left)
+        let forceRight = isForced(right)
+        startManagedArchiveTask(
+            title: title,
+            kind: .compare,
+            showsDetails: false,
+            successStatus: L10n.text("status.compared")
+        ) { [weak self] operationID, _, _ in
+            let leftItems = try await ArchiveService.list(left, operationID: operationID, force: forceLeft)
+            let rightItems = try await ArchiveService.list(right, operationID: operationID, force: forceRight)
+            let result = ArchiveDiff.compare(left: leftItems, right: rightItems)
+            await MainActor.run {
+                self?.archiveDiffReport = ArchiveDiffReport(
+                    leftName: left.lastPathComponent,
+                    rightName: right.lastPathComponent,
+                    result: result
+                )
+            }
+        }
+    }
+
     func showSevenZipBenchmarkOptions() {
         benchmarkRequest = SevenZipBenchmarkRequest()
     }

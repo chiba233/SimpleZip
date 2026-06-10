@@ -224,6 +224,11 @@ struct ContentView: View {
                 model.permissionsEditRequest = nil
             }
         }
+        .sheet(item: $model.archiveDiffReport) { report in
+            ArchiveDiffView(report: report) {
+                model.archiveDiffReport = nil
+            }
+        }
         .sheet(item: $pendingSZSVerification) { pending in
             SZSVerificationSheet(
                 sourceURL: pending.sourceURL,

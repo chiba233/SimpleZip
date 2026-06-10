@@ -2,6 +2,10 @@
 
 # Changelog
 
+## 0.3.3
+
+- **New: compare two archives (Archive Diff).** Select two archives in the file browser and right-click → "Compare Archives" (or select one and pick the other via "Compare with Another Archive…"). SimpleZip lists both and shows a comparison sheet: entries only in one archive, entries present in both but different — with a per-entry breakdown of exactly what differs (size, CRC, modified time, file ↔ folder, became (un)encrypted) — and a count of identical entries. The whole report can be copied as plain text, and the comparison runs as a cancellable task in the Activity Center. Wording is direction-neutral ("only in A" / "only in B") since neither archive is inherently the "old" one.
+
 ## 0.3.2
 
 - **New: per-format default compression settings.** Settings → Compression → Default Compression Settings lets you add one default per format (ZIP, 7z, RAR, TAR.GZ …) in a small editor where you tick **only** the options you want that format to default — level, 7-Zip method / dictionary / solid / path mode, exclude rules, raw parameters, and more (the rest stay at the create-time default and remain editable each time). The Finder "Compress to ZIP / 7z / TAR.GZ" quick actions (and the matching NSServices) automatically apply the matching format's enabled options. Passwords and GPG keys are never stored, and the quick actions never sign, so quick compress stays non-interactive. The Create Archive dialog also consumes these: when the chosen format has a saved default, a "Use the saved … defaults" checkbox appears (on by default) that applies the template and **hides each option it configures** so you only see what's left to decide; uncheck it to reveal and edit every option again.

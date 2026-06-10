@@ -17,6 +17,7 @@ final class OperationTask: ObservableObject, Identifiable {
         case extract
         case compress
         case test
+        case compare
         case benchmark
         case hash
         case paste

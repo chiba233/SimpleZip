@@ -647,6 +647,8 @@ private struct ActivityTaskRow: View {
             return "doc.zipper"
         case .test:
             return "checkmark.seal"
+        case .compare:
+            return "arrow.left.arrow.right.circle"
         case .benchmark:
             return "speedometer"
         case .hash:
