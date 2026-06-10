@@ -49,15 +49,10 @@ struct WelcomeAssistantView: View {
 
     @State private var currentStep: Int = 0
 
-    /// 总步数：0 = backup restore，1 = version check，2 = intro，3..10 = 实际设置步骤（含 GPG），11 = completion。
-    /// 进度条只展示「设置类」步骤（3..10 → 1/8..8/8），backup / version check / intro / completion 不计入。
-    /// 0.2.1：用户反馈向导太长，把「启动位置 / 覆盖行为 / 隐藏文件 / 列表密度 / 分组」五个原各占一步的设置
-    /// 合并进单个「常规设置」步骤（`WelcomeGeneralStep`），设置步数 12 → 8。
-    /// GPG 单独成步是因为它是「特殊功能 / 可选禁用」性质，跟 7-Zip / RAR 这类「必装后端」语义不同，
-    /// 用户得明确做出 opt-in / opt-out 的决定 —— 塞进 backend 步骤里会让用户误以为「必须装」。
-    private let totalSteps = 12
-    private let settingStepCount = 8
-    private let firstSettingStepIndex = 3
+    /// 总页数。0.3.3 用户拍板「压到 6 页」：原 12 步按主题合并 ——
+    /// 0 欢迎（hero + 版本检查 + 备份导入）/ 1 通用（语言 + 常规）/ 2 便利（预设密码 + 自动解压 + 文件关联）/
+    /// 3 安全策略 / 4 引擎（后端 + GPG）/ 5 完成。每个设置仍直接绑 @AppStorage，改的瞬间落盘。
+    private let totalSteps = 6
 
     /// 「取消」按钮的二次确认 alert flag。
     /// 不直接关 sheet：用户可能误点 ESC / 关闭，已经做出的选项可能想留也想看后面的步骤。
@@ -76,6 +71,12 @@ struct WelcomeAssistantView: View {
                     .padding(.vertical, 24)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // 换页过场：新页淡入 + 轻微右侧滑入，旧页淡出左移（footer 按钮里用 spring 驱动）。
+            .id(currentStep)
+            .transition(.asymmetric(
+                insertion: .opacity.combined(with: .offset(x: 28)),
+                removal: .opacity.combined(with: .offset(x: -20))
+            ))
 
             Divider()
 
@@ -83,7 +84,7 @@ struct WelcomeAssistantView: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 14)
         }
-        .frame(width: 620, height: 540)
+        .frame(width: 640, height: 580)
         .background(Color(nsColor: .windowBackgroundColor))
         .alert(L10n.text("welcome.cancelConfirm.title"), isPresented: $showsCancelConfirmation) {
             Button(L10n.text("welcome.cancelConfirm.cancel"), role: .cancel) {}
@@ -106,15 +107,8 @@ struct WelcomeAssistantView: View {
                     .font(.system(size: 26, weight: .regular))
                     .foregroundStyle(Color.accentColor)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(L10n.text("welcome.window.title"))
-                        .font(.headline)
-                    if currentStep >= firstSettingStepIndex && currentStep < firstSettingStepIndex + settingStepCount {
-                        Text(L10n.format("welcome.stepLabel", currentStep - firstSettingStepIndex + 1, settingStepCount))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
+                Text(L10n.text("welcome.window.title"))
+                    .font(.headline)
                 Spacer()
             }
             .padding(.horizontal, 20)
@@ -137,43 +131,89 @@ struct WelcomeAssistantView: View {
     private var stepContent: some View {
         switch currentStep {
         case 0:
-            WelcomeBackupRestoreStep()
+            // 欢迎页：hero（大渐变图标 + 标题 + 简介）+ 版本检查 + 备份导入，三合一。
+            VStack(alignment: .leading, spacing: 22) {
+                welcomeHero
+                Divider()
+                WelcomeVersionCheckStep()
+                Divider()
+                WelcomeBackupRestoreStep()
+            }
         case 1:
-            WelcomeVersionCheckStep()
+            // 通用：语言 + 常规（启动位置 / 覆盖 / 隐藏文件 / 密度 / 分组）。
+            VStack(alignment: .leading, spacing: 22) {
+                WelcomeLanguageStep(appLanguage: $appLanguage)
+                Divider()
+                WelcomeGeneralStep(
+                    startupLocation: $startupLocation,
+                    overwriteBehavior: $overwriteBehavior,
+                    showHidden: $showHiddenFiles,
+                    detectionMode: $hiddenDetectionMode,
+                    collapseMode: $hiddenGroupCollapseMode,
+                    rowDensity: $rowDensity,
+                    groupingScope: $fileGroupingScope,
+                    fileGroupBy: $fileGroupBy
+                )
+            }
         case 2:
-            WelcomeIntroStep()
+            // 便利：预设密码 + Finder 自动解压 + 文件关联。
+            VStack(alignment: .leading, spacing: 22) {
+                WelcomePresetPasswordStep(enabled: $presetPasswordEnabled)
+                Divider()
+                WelcomeFinderAutoExtractStep(enabled: $finderOpenAutoExtract)
+                Divider()
+                WelcomeFileAssociationsStep()
+            }
         case 3:
-            WelcomeLanguageStep(appLanguage: $appLanguage)
-        case 4:
-            WelcomeGeneralStep(
-                startupLocation: $startupLocation,
-                overwriteBehavior: $overwriteBehavior,
-                showHidden: $showHiddenFiles,
-                detectionMode: $hiddenDetectionMode,
-                collapseMode: $hiddenGroupCollapseMode,
-                rowDensity: $rowDensity,
-                groupingScope: $fileGroupingScope,
-                fileGroupBy: $fileGroupBy
-            )
-        case 5:
-            WelcomePresetPasswordStep(enabled: $presetPasswordEnabled)
-        case 6:
-            WelcomeFinderAutoExtractStep(enabled: $finderOpenAutoExtract)
-        case 7:
-            WelcomeFileAssociationsStep()
-        case 8:
             WelcomeSafetyStep(
                 suspiciousPathPolicy: suspiciousPathPolicy,
                 symbolicLinkPolicy: symbolicLinkPolicy,
                 activeContentOpenPolicy: activeContentOpenPolicy
             )
-        case 9:
-            WelcomeBackendStep()
-        case 10:
-            WelcomeGPGStep()
+        case 4:
+            // 引擎：压缩后端 + GPG（GPG 保持独立 section —— opt-in/opt-out 决定仍然显式）。
+            VStack(alignment: .leading, spacing: 22) {
+                WelcomeBackendStep()
+                Divider()
+                WelcomeGPGStep()
+            }
         default:
             WelcomeCompletionStep()
         }
+    }
+
+    /// 欢迎页 hero：大渐变图标 + 大标题 + 简介 + 小贴士。原 WelcomeIntroStep 的内容升级合并到这里。
+    private var welcomeHero: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "shippingbox.fill")
+                .font(.system(size: 34, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 76, height: 76)
+                .background(
+                    LinearGradient(colors: [.blue, .indigo], startPoint: .topLeading, endPoint: .bottomTrailing),
+                    in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+                )
+                .shadow(color: .blue.opacity(0.35), radius: 12, y: 5)
+
+            Text(L10n.text("welcome.intro.title"))
+                .font(.largeTitle.weight(.bold))
+
+            Text(L10n.text("welcome.intro.body"))
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack(spacing: 6) {
+                Image(systemName: "lightbulb")
+                Text(L10n.text("welcome.intro.note"))
+            }
+            .font(.caption)
+            .foregroundStyle(.tertiary)
+            .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 6)
     }
 
     // MARK: - Footer
@@ -190,14 +230,18 @@ struct WelcomeAssistantView: View {
 
             if currentStep > 0 {
                 Button(L10n.text("welcome.button.back")) {
-                    currentStep -= 1
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+                        currentStep -= 1
+                    }
                 }
             }
 
             // 主行动按钮用 prominent —— 现代 onboarding 的视觉重点，回退 / 取消保持常规按钮。
             if currentStep < totalSteps - 1 {
                 Button(L10n.text("welcome.button.next")) {
-                    currentStep += 1
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+                        currentStep += 1
+                    }
                 }
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
@@ -330,26 +374,7 @@ private struct WelcomeVersionCheckStep: View {
     }
 }
 
-private struct WelcomeIntroStep: View {
-    var body: some View {
-        WelcomeStepShell(
-            title: L10n.text("welcome.intro.title"),
-            body1: L10n.text("welcome.intro.body")
-        ) {
-            HStack(alignment: .top, spacing: 10) {
-                Image(systemName: "lightbulb")
-                    .foregroundStyle(.secondary)
-                Text(L10n.text("welcome.intro.note"))
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(12)
-            .background(Color(nsColor: .controlBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-        }
-    }
-}
+// WelcomeIntroStep 已并入第 0 页的 welcomeHero（0.3.3「压到 6 页」改版）。
 
 private struct WelcomeLanguageStep: View {
     @Binding var appLanguage: String
@@ -1065,21 +1090,40 @@ private struct WelcomeGPGStep: View {
     }
 }
 
+/// 完成页：庆祝式 hero —— 渐变圆形大徽章弹簧弹入 + 大标题。
 private struct WelcomeCompletionStep: View {
+    @State private var celebrate = false
+
     var body: some View {
-        WelcomeStepShell(
-            title: L10n.text("welcome.completion.title"),
-            body1: L10n.text("welcome.completion.body")
-        ) {
-            HStack {
-                Spacer()
-                Image(systemName: "checkmark.seal.fill")
-                    .font(.system(size: 48))
-                    .foregroundStyle(.tint)
-                    .accessibilityHidden(true)
-                Spacer()
+        VStack(spacing: 14) {
+            Image(systemName: "checkmark.seal.fill")
+                .font(.system(size: 44, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 92, height: 92)
+                .background(
+                    LinearGradient(colors: [.green, .teal], startPoint: .topLeading, endPoint: .bottomTrailing),
+                    in: Circle()
+                )
+                .shadow(color: .green.opacity(0.38), radius: 14, y: 5)
+                .scaleEffect(celebrate ? 1 : 0.5)
+                .opacity(celebrate ? 1 : 0)
+                .accessibilityHidden(true)
+
+            Text(L10n.text("welcome.completion.title"))
+                .font(.largeTitle.weight(.bold))
+
+            Text(L10n.text("welcome.completion.body"))
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 40)
+        .onAppear {
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.6).delay(0.12)) {
+                celebrate = true
             }
-            .padding(.vertical, 12)
         }
     }
 }
