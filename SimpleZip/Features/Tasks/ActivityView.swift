@@ -416,6 +416,8 @@ private struct ActivityTaskRow: View {
             if isShowingDetails, hasDetails {
                 if let report = task.hashReport {
                     hashResultDetails(report)
+                } else if let diffReport = task.diffReport {
+                    diffResultDetails(diffReport)
                 } else if !task.transferLog.isEmpty {
                     // 文件操作：唯一一段「结果」。逐文件分组（新增/覆盖/跳过），
                     // 有哈希比对的项内嵌哈希卡片，不再单列第二段。
@@ -468,6 +470,49 @@ private struct ActivityTaskRow: View {
                 .padding(.trailing, 16)   // 预留竖向滚动条宽度，避免盖住右侧长哈希值
             }
             .frame(maxHeight: 280)
+        }
+    }
+
+    /// 归档比较任务详情：复用比较弹窗的同一套分区树（ArchiveDiffSections），不画文本日志。
+    @ViewBuilder
+    private func diffResultDetails(_ report: ArchiveDiffReport) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack {
+                Text(detailsHeaderTitle)
+                    .font(.caption.weight(.semibold))
+                Spacer()
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(report.plainTextSummary, forType: .string)
+                    withAnimation { showsCopiedConfirmation = true }
+                    Task {
+                        try? await Task.sleep(nanoseconds: 2_500_000_000)
+                        withAnimation { showsCopiedConfirmation = false }
+                    }
+                } label: {
+                    Image(systemName: "doc.on.doc")
+                }
+                .buttonStyle(.borderless)
+                .help(L10n.text("button.copyAll"))
+            }
+            if showsCopiedConfirmation {
+                Text(L10n.text("diagnostics.copied"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            ArchiveDiffSummaryLine(report: report)
+            if report.result.hasDifferences {
+                ScrollView {
+                    ArchiveDiffSections(report: report)
+                        .padding(.vertical, 2)
+                        .padding(.trailing, 16)   // 预留竖向滚动条宽度
+                }
+                .frame(maxHeight: 280)
+            } else {
+                Text(L10n.format("diff.identical", report.result.unchanged.count))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 
@@ -725,8 +770,9 @@ private struct ActivityTaskRow: View {
     /// - 其它情况：仅当 detailsSession 已有内容（哈希结果 / 粘贴的源·目标哈希等）。
     ///   平凡的复制/移动 + 失败任务都没有内容 → 不出空面板，也不再卡「正在等待命令输出…」。
     private var hasDetails: Bool {
-        // 哈希任务 / 粘贴·移动的哈希比对：有结构化结果就给详情入口（格式化卡片）。
+        // 哈希任务 / 归档比较 / 粘贴·移动的哈希比对：有结构化结果就给详情入口（格式化卡片）。
         if task.hashReport != nil { return true }
+        if task.diffReport != nil { return true }
         if !task.hashComparisons.isEmpty { return true }
         if !task.transferLog.isEmpty { return true }
         guard let session = task.detailsSession else { return false }

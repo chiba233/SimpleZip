@@ -97,7 +97,12 @@ extension ArchiveBrowserModel {
             title: title,
             kind: .compare,
             showsDetails: false,
-            successStatus: L10n.text("status.compared")
+            successStatus: L10n.text("status.compared"),
+            // 把结构化结果挂到任务上 —— 活动中心详情渲染和弹窗同款的分区树。
+            // 时序：operation 闭包先在 MainActor 上写 archiveDiffReport，任务才被标成功，这里读到的就是本次结果。
+            onSucceeded: { [weak self] task in
+                task.diffReport = self?.archiveDiffReport
+            }
         ) { [weak self] operationID, _, _ in
             let leftItems = try await ArchiveService.list(left, operationID: operationID, force: forceLeft)
             let rightItems = try await ArchiveService.list(right, operationID: operationID, force: forceRight)
