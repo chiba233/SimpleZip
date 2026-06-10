@@ -20,7 +20,7 @@ public enum UniqueFileName {
     ///   - suffix: 追加在基名后的后缀词（如本地化的「 副本」「 符号链接」，含调用方想要的前导空格）。
     ///   - exists: 判定某 URL 是否已被占用 —— 普通文件用 `fileExists`；符号链接用 `lstat`（`attributesOfItem`）
     ///     语义以识别失效链接。
-    public static func suffixed(
+    public nonisolated static func suffixed(
         for url: URL,
         suffix: String,
         exists: (URL) -> Bool
@@ -45,7 +45,7 @@ public enum UniqueFileName {
     /// `preferredName` 作为首选名，重名则在基名后补空格 + 编号：`Name 2`、`Name 3`…（编号从 2 起，无后缀词）。
     /// 保留 `preferredName` 的扩展名。用于「新建文件夹 / 新建文件」的去重命名。
     /// - Parameter exists: 判定某 URL 是否已被占用。
-    public static func numbered(
+    public nonisolated static func numbered(
         in folderURL: URL,
         preferredName: String,
         exists: (URL) -> Bool

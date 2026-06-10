@@ -153,5 +153,22 @@ struct WindowAccessor: NSViewRepresentable {
         window.tabbingMode = .automatic
         window.tabbingIdentifier = MainWindow.tabbingIdentifier
         window.identifier = MainWindow.windowIdentifier
+        configureToolbarDisplay(window)
+    }
+
+    /// 主窗口工具栏的「图标 / 图标和文字」显示模式：
+    /// - 持久化：开 `autosavesConfiguration`，用户右键工具栏改的模式跨启动保留；
+    /// - 首次默认 = **图标和文字**（用户拍板：纯图标根本看不懂哪个是哪个）——
+    ///   只在该 toolbar 从未保存过配置时设置，已有保存值则尊重用户的选择。
+    /// SwiftUI 不暴露 NSToolbar.displayMode，所以从宿主 NSWindow 上配；toolbar 由 SwiftUI
+    /// 异步挂上，updateNSView 会反复进来，等到非 nil 那次配一回（autosaves 标志兼当幂等闸）。
+    private static func configureToolbarDisplay(_ window: NSWindow) {
+        guard let toolbar = window.toolbar, !toolbar.autosavesConfiguration else { return }
+        let savedConfigurationKey = "NSToolbar Configuration \(toolbar.identifier)"
+        let hasSavedConfiguration = UserDefaults.standard.dictionary(forKey: savedConfigurationKey) != nil
+        toolbar.autosavesConfiguration = true
+        if !hasSavedConfiguration {
+            toolbar.displayMode = .iconAndLabel
+        }
     }
 }
