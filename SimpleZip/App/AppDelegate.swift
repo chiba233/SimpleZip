@@ -88,6 +88,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         MainWindowFactory.open(asTab: true)
     }
 
+    /// 原生标签栏右侧「+」按钮发送 AppKit 标准 `newWindowForTab:` action。
+    /// SwiftUI Commands 里的「新建标签页」只覆盖菜单 / 快捷键，不会自动接住这个按钮。
+    @objc private func newWindowForTab(_ sender: Any?) {
+        MainWindowFactory.open(asTab: true)
+    }
+
     @objc private func openDockNewWindow() {
         MainWindowFactory.open(asTab: false)
     }

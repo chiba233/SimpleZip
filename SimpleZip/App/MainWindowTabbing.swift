@@ -136,39 +136,75 @@ enum MainWindowFactory {
 /// `WindowGroup` 自动建出的那个首窗（让它也能成为 `addTabbedWindow` 的宿主）。
 /// 工厂建出的窗口已经在创建时设好了这些属性，这里重复设也是幂等的。
 struct WindowAccessor: NSViewRepresentable {
+    final class Coordinator {
+        weak var observedToolbar: NSToolbar?
+        var displayModeObservation: NSKeyValueObservation?
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
     func makeNSView(context: Context) -> NSView {
         let view = NSView(frame: .zero)
-        DispatchQueue.main.async { Self.configure(view.window) }
+        DispatchQueue.main.async { Self.configure(view.window, coordinator: context.coordinator) }
         return view
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
-        Self.configure(nsView.window)
+        Self.configure(nsView.window, coordinator: context.coordinator)
     }
 
-    private static func configure(_ window: NSWindow?) {
+    private static func configure(_ window: NSWindow?, coordinator: Coordinator) {
         guard let window else { return }
         // 已是辅助窗口（Settings/About/Sparkle/sheet）不染标签属性 —— 它们不该并进主标签组。
         if window.parent != nil { return }
         window.tabbingMode = .automatic
         window.tabbingIdentifier = MainWindow.tabbingIdentifier
         window.identifier = MainWindow.windowIdentifier
-        configureToolbarDisplay(window)
+        configureToolbarDisplay(window, coordinator: coordinator)
     }
 
     /// 主窗口工具栏的「图标 / 图标和文字」显示模式：
-    /// - 持久化：开 `autosavesConfiguration`，用户右键工具栏改的模式跨启动保留；
+    /// - 持久化：直接观察 `displayMode` 并写进稳定 key；SwiftUI 生成的 toolbar identifier 不稳定，不能只靠
+    ///   `autosavesConfiguration`；
     /// - 首次默认 = **图标和文字**（用户拍板：纯图标根本看不懂哪个是哪个）——
     ///   只在该 toolbar 从未保存过配置时设置，已有保存值则尊重用户的选择。
     /// SwiftUI 不暴露 NSToolbar.displayMode，所以从宿主 NSWindow 上配；toolbar 由 SwiftUI
-    /// 异步挂上，updateNSView 会反复进来，等到非 nil 那次配一回（autosaves 标志兼当幂等闸）。
-    private static func configureToolbarDisplay(_ window: NSWindow) {
-        guard let toolbar = window.toolbar, !toolbar.autosavesConfiguration else { return }
-        let savedConfigurationKey = "NSToolbar Configuration \(toolbar.identifier)"
-        let hasSavedConfiguration = UserDefaults.standard.dictionary(forKey: savedConfigurationKey) != nil
+    /// 异步挂上，updateNSView 会反复进来；用 coordinator 绑定当前 toolbar 的 KVO，避免静态持有窗口。
+    private static func configureToolbarDisplay(_ window: NSWindow, coordinator: Coordinator) {
+        guard let toolbar = window.toolbar else { return }
         toolbar.autosavesConfiguration = true
-        if !hasSavedConfiguration {
-            toolbar.displayMode = .iconAndLabel
+
+        if coordinator.observedToolbar !== toolbar {
+            coordinator.displayModeObservation = nil
+            coordinator.observedToolbar = toolbar
+            coordinator.displayModeObservation = toolbar.observe(\.displayMode, options: [.new]) { toolbar, _ in
+                UserDefaults.standard.set(Int(toolbar.displayMode.rawValue), forKey: toolbarDisplayModeKey)
+            }
         }
+
+        if let savedDisplayMode = savedToolbarDisplayMode {
+            toolbar.displayMode = savedDisplayMode
+            return
+        }
+
+        let savedConfigurationKey = "NSToolbar Configuration \(toolbar.identifier)"
+        let hasAppKitSavedConfiguration = UserDefaults.standard.dictionary(forKey: savedConfigurationKey) != nil
+        if hasAppKitSavedConfiguration {
+            UserDefaults.standard.set(Int(toolbar.displayMode.rawValue), forKey: toolbarDisplayModeKey)
+            return
+        }
+
+        toolbar.displayMode = .iconAndLabel
+    }
+
+    private static let toolbarDisplayModeKey = "mainToolbarDisplayMode"
+
+    private static var savedToolbarDisplayMode: NSToolbar.DisplayMode? {
+        guard let rawValue = UserDefaults.standard.object(forKey: toolbarDisplayModeKey) as? Int else {
+            return nil
+        }
+        return NSToolbar.DisplayMode(rawValue: UInt(rawValue))
     }
 }
