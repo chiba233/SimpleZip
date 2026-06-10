@@ -13,12 +13,10 @@ struct ActivityView: View {
     @State private var fileFilter = ActivityTaskFilter.all
     @AppStorage(AppPreferences.Key.activityHistoryLimit) private var historyLimit = AppPreferences.activityHistoryLimit
 
-    // 0.3.3 UI 现代化：手画的 HStack 侧栏重绘成原生 NavigationSplitView + List(selection:)，
-    // 任务计数用原生 .badge —— 选中态 / 开关 / 材质全交给系统（跟设置窗口同一套做法）。
+    // 弃用 NavigationSplitView（详见 SettingsView 同款注释）：普通 HStack + 绝对定宽侧栏，
+    // 物理上没有把手、没有折叠、没有持久化；毛玻璃用 SidebarBackdrop 补回。
     var body: some View {
-        // 侧栏**常驻**：columnVisibility 钉死 .all + 去掉系统的收起按钮（跟设置窗口同一决定）。
-        NavigationSplitView(columnVisibility: .constant(.all)) {
-            // 自绘居中侧栏（跟设置窗口同款）：行组垂直居中，任务计数挂行尾。
+        HStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 6) {
                 Spacer(minLength: 12)
                 ForEach(ActivityPane.allCases) { pane in
@@ -35,13 +33,12 @@ struct ActivityView: View {
                 Spacer(minLength: 12)
             }
             .padding(.horizontal, 10)
+            .frame(width: 300)
             .frame(maxHeight: .infinity)
-            // 定宽侧栏：同设置窗口 —— 可拖宽度会被拖到消失且无法恢复，直接固定。
-            // 用 min=ideal=max 钉死而不是固定式单值：侧栏早期可拖时的**持久化旧宽度**会在恢复时
-            // 压过单值声明（用户拖窄过 → 怎么加宽都显示不全的真因）；区间钉死能强制覆盖恢复值。
-            .navigationSplitViewColumnWidth(min: 300, ideal: 300, max: 300)
-            .hidingSidebarToggle()
-        } detail: {
+            .background(SidebarBackdrop())
+
+            Divider()
+
             selectedPaneView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }

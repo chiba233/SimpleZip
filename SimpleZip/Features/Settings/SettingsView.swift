@@ -19,11 +19,10 @@ struct SettingsView: View {
     @State private var selectedPane: SettingsPane? = .general
 
     var body: some View {
-        // 侧栏**常驻**：columnVisibility 钉死 .all + 去掉系统的收起按钮 ——
-        // 设置这种小窗口收起侧栏后很难用（用户拍板砍掉隐藏边栏）。
-        NavigationSplitView(columnVisibility: .constant(.all)) {
-            // 自绘居中侧栏（用户点名「项目上下居中」—— 原生 List 做不到）：
-            // 上下 Spacer 夹住行组，外层仍是 NavigationSplitView 侧栏列、系统材质照吃。
+        // 弃用 NavigationSplitView：macOS 上它的把手照样能把侧栏拖塌（constant(.all) 拦不住）、
+        // 持久化旧宽度还会压过钉宽声明（用户连报两次）。普通 HStack + frame(width:) 绝对定宽 ——
+        // 物理上没有把手、没有折叠、没有持久化；侧栏毛玻璃用 SidebarBackdrop 补回。
+        HStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 6) {
                 Spacer(minLength: 12)
                 ForEach(SettingsPane.allCases) { pane in
@@ -39,13 +38,12 @@ struct SettingsView: View {
                 Spacer(minLength: 12)
             }
             .padding(.horizontal, 10)
+            .frame(width: 280)
             .frame(maxHeight: .infinity)
-            // 定宽侧栏：可拖动宽度曾让用户把侧栏拖到 0 后再也打不开（收起按钮已砍）—— 直接固定。
-            // min=ideal=max 钉死（对抗早期可拖时持久化下来的旧宽度，见活动中心同款注释）。
-            // 280：给长翻译留余量（德语 Sichern & Wiederherstellen 这类 pane 名 240 会贴边）。
-            .navigationSplitViewColumnWidth(min: 280, ideal: 280, max: 280)
-            .hidingSidebarToggle()
-        } detail: {
+            .background(SidebarBackdrop())
+
+            Divider()
+
             selectedPaneView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }

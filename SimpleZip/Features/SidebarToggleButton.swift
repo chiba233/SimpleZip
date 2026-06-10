@@ -12,18 +12,19 @@
 
 import SwiftUI
 
-extension View {
-    /// 去掉 NavigationSplitView 标题栏里系统自动加的「收起侧栏」按钮（macOS 14+；13 上无此 API，
-    /// 但 13 也没有自动按钮问题的反馈面）。设置 / 活动中心这类小窗口侧栏收起后体验很差 ——
-    /// 用户拍板「砍掉隐藏边栏」：侧栏常驻，此按钮不再出现。
-    @ViewBuilder
-    func hidingSidebarToggle() -> some View {
-        if #available(macOS 14.0, *) {
-            self.toolbar(removing: .sidebarToggle)
-        } else {
-            self
-        }
+/// 侧栏底色：原生 NSVisualEffectView 的 .sidebar 材质（毛玻璃透窗）。
+/// 设置 / 活动中心弃用 NavigationSplitView 后（它在 macOS 上既挡不住把手拖塌、也压不过
+/// 持久化旧宽度），侧栏改普通 HStack 绝对定宽 —— 材质用这个 representable 补回来。
+struct SidebarBackdrop: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = .sidebar
+        view.blendingMode = .behindWindow
+        view.state = .followsWindowActiveState
+        return view
     }
+
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
 }
 
 /// 上下居中侧栏的自绘行：彩色瓦片 + 标题 + 可选计数，自绘选中 / hover 高亮。
