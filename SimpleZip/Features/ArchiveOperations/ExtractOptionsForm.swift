@@ -47,7 +47,7 @@ struct ExtractOptionsForm<ExtraControls: View>: View {
             )
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 18) {
                     DialogSection {
                         extraControls()
                         destinationRow

@@ -72,7 +72,7 @@ struct ArchiveCreationOptionsView: View {
             // 排除 / GPG）。高度自适应内容，maxHeight 兜底防超屏 —— 不再写死 sheet 高度。
             ScrollViewReader { scrollProxy in
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 14) {
+                    VStack(alignment: .leading, spacing: 18) {
                         basicsSection
                         if request.options.format.supportsPassword {
                             passwordSection

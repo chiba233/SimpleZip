@@ -82,7 +82,7 @@ struct GPGEncryptOptionsView: View {
             )
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 18) {
                     DialogSection(L10n.text("gpgEncrypt.section.recipients")) {
                         // 多选 / 含文件夹才有意义：逐个文件分别加密 vs 打包成一个归档再加密。
                         if showsModePicker {

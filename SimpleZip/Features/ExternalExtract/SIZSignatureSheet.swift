@@ -94,7 +94,7 @@ struct SIZSignatureSheet: View {
             .padding(.bottom, 14)
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 18) {
                     DialogSection {
                         detailRow(L10n.text("siz.signatureSheet.signer"), signature.signerDisplay)
                         detailRow(L10n.text("siz.signatureSheet.keyFingerprint"), signature.signerFingerprint, monospaced: true)

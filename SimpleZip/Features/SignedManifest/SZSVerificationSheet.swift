@@ -87,7 +87,7 @@ struct SZSVerificationSheet: View {
             .padding(.bottom, 14)
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 18) {
                     DialogSection { signerDetailBlock }
                     DialogSection(L10n.text("szs.verify.manifestSection")) { manifestBlock }
                     DialogSection(L10n.text("szs.verify.payloadRoot")) {

@@ -58,25 +58,26 @@ struct DialogSection<Content: View>: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             if let title {
                 Text(title)
-                    .font(.caption.weight(.medium))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.secondary)
-                    .padding(.leading, 12)
+                    .padding(.leading, 14)
             }
-            VStack(alignment: .leading, spacing: 12) {
+            // 行间距放宽到 16(原 12)—— 用户报「间距太小、重叠」。卡片内边距同步加大。
+            VStack(alignment: .leading, spacing: 16) {
                 content()
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 16)
             .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(Color(nsColor: .controlBackgroundColor))
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .strokeBorder(Color.primary.opacity(0.06))
             )
         }
@@ -136,12 +137,12 @@ struct DialogDrawer<Content: View>: View {
             if isExpanded {
                 Divider()
                     .padding(.horizontal, 14)
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 16) {
                     content()
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 16)
             }
         }
         .background(

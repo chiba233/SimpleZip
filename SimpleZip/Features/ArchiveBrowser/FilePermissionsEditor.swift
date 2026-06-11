@@ -230,7 +230,7 @@ struct FilePermissionsEditorSheet: View {
             )
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 18) {
                     DialogSection(L10n.text("file.permissions.section.mode")) {
                         if request.mixedSelection {
                             Text(L10n.text("file.permissions.mixedNote"))

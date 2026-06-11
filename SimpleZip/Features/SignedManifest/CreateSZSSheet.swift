@@ -52,7 +52,7 @@ struct CreateSZSSheet: View {
             )
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 18) {
                     DialogSection(L10n.text("szs.create.section.content")) {
                         payloadRootRow
                         filesRow
