@@ -189,6 +189,7 @@ final class FileBrowserService {
     ) -> [FileItem] {
         let resourceKeys: Set<URLResourceKey> = [
             .isDirectoryKey,
+            .isPackageKey,
             .isSymbolicLinkKey,
             .isHiddenKey,
             .fileSizeKey,
@@ -213,7 +214,10 @@ final class FileBrowserService {
                 return nil
             }
             let isDirectory = isSymbolicLink ? Self.isDirectorySymbolicLinkTarget(fileURL, fileManager: fileManager) : values.isDirectory == true
-            let isPackage = isDirectory && Self.isLocalFilePackage(fileURL)
+            // 包判定**就在这里做一次、存进 FileItem**：普通目录直接用批量取来的 isPackageKey（零额外 IO），
+            // 只有符号链接才走 NSWorkspace + 解析目标（isPackageKey 看链接本身,对 symlink→.app 会误判 false）。
+            // 下游(排序 / 可进入判断 / 显示包内容 / 拖拽校验)一律读字段,不准再现场查文件系统。
+            let isPackage = isDirectory && (isSymbolicLink ? Self.isLocalFilePackage(fileURL) : values.isPackage == true)
             let typeDescription = isDirectory && !isPackage
                 ? L10n.text("type.folder")
                 : (values.localizedTypeDescription ?? (isDirectory ? L10n.text("type.folder") : L10n.text("type.file")))
@@ -245,6 +249,7 @@ final class FileBrowserService {
                 name: fileURL.lastPathComponent,
                 displayName: displayName,
                 isDirectory: isDirectory,
+                isPackage: isPackage,
                 isSymbolicLink: isSymbolicLink,
                 symlinkTarget: isSymbolicLink
                     ? ((try? fileManager.destinationOfSymbolicLink(atPath: fileURL.path)) ?? "")
@@ -337,8 +342,10 @@ final class FileBrowserService {
     // MARK: - 纯静态辅助
 
     /// 「可点进去」的目录 —— 普通目录是的，.app / .pkg 这类「包」不是。
+    /// 读列目录时存好的字段,**零 IO** —— 它在排序比较器里被 O(n log n) 次调用,
+    /// 以前每次现场 resolvingSymlinksInPath + LaunchServices,大目录列表直接卡死。
     static func isNavigableDirectory(_ item: FileItem) -> Bool {
-        item.isDirectory && !isLocalFilePackage(item.url)
+        item.isDirectory && !item.isPackage
     }
 
     /// `NSWorkspace` 判定 path 是不是 macOS 意义上的「包」。
@@ -380,7 +387,8 @@ final class FileBrowserService {
     /// 2. 包 —— 读包自己的 Info.plist，优先 CFBundleDisplayName，再 CFBundleName，再去后缀名；
     /// 3. 普通文件 —— LaunchServices 给出的默认 app，仍按 Display/Name/去后缀名顺序取标签。
     static func preferredApplicationName(for url: URL, isDirectory: Bool, isPackage: Bool) -> String {
-        if isDirectory, !isLocalFilePackage(url) {
+        // 调用方已算好 isPackage,不准再查一遍文件系统（以前这里冗余地又 resolvingSymlinks + LaunchServices）。
+        if isDirectory, !isPackage {
             return "Finder"
         }
         if isPackage,

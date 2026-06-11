@@ -347,7 +347,9 @@ extension ArchiveBrowserModel {
     }
 
     func canShowPackageContents(_ item: FileItem) -> Bool {
-        item.isDirectory && FileBrowserService.isLocalFilePackage(item.url)
+        // 读列目录时存好的字段,零 IO —— 表格每行的可展开判定 / 拖拽 validateDrop 每次鼠标移动都会调,
+        // 以前现场 resolvingSymlinksInPath + LaunchServices,大目录下把 UI 拖死。
+        item.isDirectory && item.isPackage
     }
 
     func showPackageContents(_ item: FileItem) {

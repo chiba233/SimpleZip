@@ -15,6 +15,10 @@ struct FileItem: Identifiable, Hashable {
     let name: String
     let displayName: String
     let isDirectory: Bool
+    /// 是否是 macOS「包」（.app/.bundle 等）。**列目录时判定一次存下来** —— 以前排序比较器 /
+    /// 表格每行 / 拖拽校验都现场 resolvingSymlinksInPath + LaunchServices 查询，大目录直接卡死
+    ///（用户抓到 Task 卡在 _NSTransmutePathSlashes 里被 SIGTERM）。
+    let isPackage: Bool
     let isSymbolicLink: Bool
     /// 符号链接目标路径（仅 `isSymbolicLink` 时非空）—— 可选「符号链接目标」列展示。本地文件的「访问时间」
     /// 已由现有「最近打开」列(contentAccessDate)覆盖，故文件浏览不再单列 Accessed。
@@ -40,6 +44,7 @@ struct FileItem: Identifiable, Hashable {
         name: String,
         displayName: String,
         isDirectory: Bool,
+        isPackage: Bool = false,
         isSymbolicLink: Bool,
         symlinkTarget: String,
         isHidden: Bool,
@@ -57,6 +62,7 @@ struct FileItem: Identifiable, Hashable {
         self.name = name
         self.displayName = displayName
         self.isDirectory = isDirectory
+        self.isPackage = isPackage
         self.isSymbolicLink = isSymbolicLink
         self.symlinkTarget = symlinkTarget
         self.isHidden = isHidden
