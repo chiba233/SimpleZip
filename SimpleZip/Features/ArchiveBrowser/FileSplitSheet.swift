@@ -77,6 +77,7 @@ struct FileSplitSheet: View {
                                 .frame(width: 90)
                                 .multilineTextAlignment(.trailing)
                                 .textFieldStyle(.roundedBorder)
+                                .dialogFieldEmphasis()
                             Picker("", selection: $sizeUnit) {
                                 ForEach(SizeUnit.allCases) { unit in
                                     Text(unit.title).tag(unit)
@@ -86,7 +87,7 @@ struct FileSplitSheet: View {
                             .fixedSize()
                         }
                     } label: {
-                        Label(L10n.text("split.size.label"), systemImage: "square.split.2x1.fill")
+                        DialogRowLabel(L10n.text("split.size.label"), systemImage: "square.split.2x1.fill", tint: .orange)
                     }
 
                     // 预估片数：总大小 / 卷大小,给个直觉,避免「1MB 拆 8GB 文件」这种误操作无感发生。
@@ -105,10 +106,14 @@ struct FileSplitSheet: View {
 
             HStack {
                 Spacer()
-                Button(L10n.text("button.cancel"), action: cancel)
-                    .keyboardShortcut(.cancelAction)
-                Button(L10n.text("split.button")) {
+                Button(action: cancel) {
+                    Label(L10n.text("button.cancel"), systemImage: "xmark")
+                }
+                .keyboardShortcut(.cancelAction)
+                Button {
                     apply(volumeSizeBytes)
+                } label: {
+                    Label(L10n.text("split.button"), systemImage: "scissors")
                 }
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)

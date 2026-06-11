@@ -67,10 +67,12 @@ struct ExtractOptionsForm<ExtraControls: View>: View {
                         }
                         if !(hasUsablePreset && usePresetPassword) {
                             LabeledContent {
+                                // 值列靠右对齐(用户拍板:「路径和密码靠右对齐,不要左对齐」)。
                                 SecureField(L10n.text("extract.password.placeholder"), text: $password)
                                     .textFieldStyle(.roundedBorder)
                                     .dialogFieldEmphasis()
                                     .frame(maxWidth: 260)
+                                    .frame(maxWidth: .infinity, alignment: .trailing)
                             } label: {
                                 alignedRowLabel("archive.password", systemImage: "key.fill", tint: .orange)
                             }
@@ -85,6 +87,7 @@ struct ExtractOptionsForm<ExtraControls: View>: View {
                                     }
                                     .labelsHidden()
                                     .fixedSize()
+                                    .frame(maxWidth: .infinity, alignment: .trailing)
                                 } label: {
                                     alignedRowLabel("extract.decryptionMethod", systemImage: "shield.lefthalf.filled", tint: .purple)
                                 }
@@ -137,6 +140,7 @@ struct ExtractOptionsForm<ExtraControls: View>: View {
 
     private var destinationRow: some View {
         LabeledContent {
+            // 值列靠右对齐(用户拍板:「路径和密码靠右对齐,不要左对齐」)。
             HStack(spacing: 8) {
                 Text(destinationURL.path)
                     .lineLimit(1)
@@ -146,6 +150,7 @@ struct ExtractOptionsForm<ExtraControls: View>: View {
                     chooseDestination()
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .trailing)
         } label: {
             alignedRowLabel("archive.destination", systemImage: "folder.fill", tint: .blue)
         }

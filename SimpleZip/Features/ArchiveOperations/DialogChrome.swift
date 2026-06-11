@@ -129,8 +129,8 @@ struct DialogRowLabel: View {
     }
 }
 
-/// 卡片内一级开关行：彩色瓦片 + 标题(可带说明副标题)在左，**复选框钉在行最右**
-/// (用户拍板：「复选框放在最右边，放在最左边很丑」)。
+/// 卡片内一级开关行：彩色瓦片 + 标题(可带说明副标题)，**复选框在文字右侧、固定间距贴着文字**
+/// (用户拍板：复选框一律不靠左；也不钉行尾——「就得贴着文字 固定margin」)。
 struct DialogToggleRow: View {
     let title: String
     var subtitle: String?
@@ -139,13 +139,12 @@ struct DialogToggleRow: View {
     @Binding var isOn: Bool
 
     var body: some View {
-        HStack(alignment: .center, spacing: 10) {
+        HStack(alignment: .center, spacing: 12) {
             DialogRowLabel(title, subtitle: subtitle, systemImage: systemImage, tint: tint)
-            Spacer(minLength: 12)
             Toggle("", isOn: $isOn)
                 .labelsHidden()
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

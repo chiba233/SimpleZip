@@ -48,7 +48,7 @@ struct ConvertArchiveSheet: View {
                             .labelsHidden()
                             .fixedSize()
                         } label: {
-                            Label(L10n.text("archive.format"), systemImage: "shippingbox.fill")
+                            DialogRowLabel(L10n.text("archive.format"), systemImage: "shippingbox.fill", tint: .brown)
                         }
 
                         if request.targetFormat.supportsCompressionLevel {
@@ -61,7 +61,7 @@ struct ConvertArchiveSheet: View {
                                 .labelsHidden()
                                 .fixedSize()
                             } label: {
-                                Label(L10n.text("archive.compressionLevel"), systemImage: "gauge.with.dots.needle.67percent")
+                                DialogRowLabel(L10n.text("archive.compressionLevel"), systemImage: "gauge.with.dots.needle.67percent", tint: .green)
                             }
                         }
 
@@ -69,9 +69,10 @@ struct ConvertArchiveSheet: View {
                             LabeledContent {
                                 SecureField(L10n.text("convert.password.placeholder"), text: $request.password)
                                     .textFieldStyle(.roundedBorder)
+                                    .dialogFieldEmphasis()
                                     .frame(maxWidth: 220)
                             } label: {
-                                Label(L10n.text("archive.password"), systemImage: "key.fill")
+                                DialogRowLabel(L10n.text("archive.password"), systemImage: "key.fill", tint: .orange)
                             }
                         }
 
@@ -107,10 +108,14 @@ struct ConvertArchiveSheet: View {
 
             HStack {
                 Spacer()
-                Button(L10n.text("button.cancel"), action: cancel)
-                    .keyboardShortcut(.cancelAction)
-                Button(L10n.text("convert.button")) {
+                Button(action: cancel) {
+                    Label(L10n.text("button.cancel"), systemImage: "xmark")
+                }
+                .keyboardShortcut(.cancelAction)
+                Button {
                     confirm(request)
+                } label: {
+                    Label(L10n.text("convert.button"), systemImage: "arrow.triangle.2.circlepath")
                 }
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
