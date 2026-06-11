@@ -297,9 +297,14 @@ struct GPGPane: View {
 
             // 搜索过滤 —— 姓名 / 邮箱 / 指纹(含子密钥指纹)都能搜,keyring 一多没有它没法用。
             if !keys.isEmpty {
-                TextField(L10n.text("settings.gpg.keys.filter.prompt"), text: $keyFilterText)
-                    .textFieldStyle(.roundedBorder)
-                    .controlSize(.small)
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.secondary)
+                    TextField(L10n.text("settings.gpg.keys.filter.prompt"), text: $keyFilterText)
+                        .textFieldStyle(.roundedBorder)
+                }
+                .padding(.vertical, 2)
             }
 
             if isLoadingKeys {
@@ -323,40 +328,60 @@ struct GPGPane: View {
                 keyGroupsView
             }
 
-            // 操作按钮组：新建 / 导入到 ~/.gnupg / 导入到 SimpleZip / (智能卡) / 刷新
-            HStack(spacing: 8) {
-                Button(L10n.text("settings.gpg.newKey.button")) {
-                    isShowingNewKeySheet = true
-                }
-                Button(L10n.text("settings.gpg.keys.importUserButton")) {
-                    importKey(into: .userKeyring)
-                }
-                Button(L10n.text("settings.gpg.keys.importSimpleZipButton")) {
-                    importKey(into: .simpleZipKeyring)
-                }
-                // 剪贴板导入 —— 收到别人贴来的 armored 公钥块时不必先存盘(GPG Keychain 同款便利)。
-                Menu(L10n.text("settings.gpg.keys.clipboardMenu")) {
-                    Button(L10n.text("settings.gpg.keys.clipboardImportUser")) {
-                        importFromClipboard(into: .userKeyring)
+            // 操作按钮组(0.4.3 用户点名「按钮大一些、多个图标、别紧凑」):带图标 Label、常规尺寸、分两行呼吸。
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 10) {
+                    Button {
+                        isShowingNewKeySheet = true
+                    } label: {
+                        Label(L10n.text("settings.gpg.newKey.button"), systemImage: "plus.circle.fill")
                     }
-                    Button(L10n.text("settings.gpg.keys.clipboardImportSimpleZip")) {
-                        importFromClipboard(into: .simpleZipKeyring)
+                    Button {
+                        importKey(into: .userKeyring)
+                    } label: {
+                        Label(L10n.text("settings.gpg.keys.importUserButton"), systemImage: "square.and.arrow.down")
                     }
-                }
-                .fixedSize()
-                if gpgSmartcardEnabled {
-                    Button(L10n.text("settings.gpg.smartcard.importButton")) {
-                        importFromSmartcard()
+                    Button {
+                        importKey(into: .simpleZipKeyring)
+                    } label: {
+                        Label(L10n.text("settings.gpg.keys.importSimpleZipButton"), systemImage: "square.and.arrow.down.on.square")
                     }
-                    .disabled(isImportingFromSmartcard)
+                    Spacer()
                 }
-                Button(L10n.text("settings.gpg.keys.refresh")) {
-                    refreshKeys()
-                    if gpgSmartcardEnabled { detectCard() }
+                HStack(spacing: 10) {
+                    // 剪贴板导入 —— 收到别人贴来的 armored 公钥块时不必先存盘(GPG Keychain 同款便利)。
+                    // .menuStyle(.button) 让它渲染成普通按钮(默认 pull-down 样式在 Form 行里贴边发虚)。
+                    Menu {
+                        Button(L10n.text("settings.gpg.keys.clipboardImportUser")) {
+                            importFromClipboard(into: .userKeyring)
+                        }
+                        Button(L10n.text("settings.gpg.keys.clipboardImportSimpleZip")) {
+                            importFromClipboard(into: .simpleZipKeyring)
+                        }
+                    } label: {
+                        Label(L10n.text("settings.gpg.keys.clipboardMenu"), systemImage: "doc.on.clipboard")
+                    }
+                    .menuStyle(.button)
+                    .fixedSize()
+                    if gpgSmartcardEnabled {
+                        Button {
+                            importFromSmartcard()
+                        } label: {
+                            Label(L10n.text("settings.gpg.smartcard.importButton"), systemImage: "creditcard")
+                        }
+                        .disabled(isImportingFromSmartcard)
+                    }
+                    Button {
+                        refreshKeys()
+                        if gpgSmartcardEnabled { detectCard() }
+                    } label: {
+                        Label(L10n.text("settings.gpg.keys.refresh"), systemImage: "arrow.clockwise")
+                    }
+                    .disabled(isLoadingKeys)
+                    Spacer()
                 }
-                .disabled(isLoadingKeys)
-                Spacer()
             }
+            .padding(.vertical, 4)
 
             // 两个导入入口的区别说明 —— 用户反馈光看按钮名不知道差异（目录不同 / 私有钥匙串在应用内 / 不污染命令行 gpg）。
             Text(L10n.text("settings.gpg.keys.importHint"))
@@ -644,13 +669,18 @@ struct GPGPane: View {
                 }
 
             HStack(spacing: 8) {
+                Image(systemName: "globe")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(.secondary)
                 TextField(L10n.text("settings.gpg.keyserver.searchPrompt"), text: $keyserverQuery)
                     .textFieldStyle(.roundedBorder)
-                    .controlSize(.small)
                     .onSubmit(searchKeyserver)
-                Button(L10n.text("settings.gpg.keyserver.searchButton"), action: searchKeyserver)
-                    .disabled(isSearchingKeyserver || keyserverQuery.trimmingCharacters(in: .whitespaces).isEmpty)
+                Button(action: searchKeyserver) {
+                    Label(L10n.text("settings.gpg.keyserver.searchButton"), systemImage: "magnifyingglass")
+                }
+                .disabled(isSearchingKeyserver || keyserverQuery.trimmingCharacters(in: .whitespaces).isEmpty)
             }
+            .padding(.vertical, 2)
 
             if isSearchingKeyserver {
                 HStack {
@@ -714,14 +744,17 @@ struct GPGPane: View {
                 }
             }
             Spacer()
-            Menu(L10n.text("settings.gpg.keyserver.importMenu")) {
+            Menu {
                 Button(L10n.text("settings.gpg.keys.importUserButton")) {
                     receiveKeyserverHit(hit, into: .userKeyring)
                 }
                 Button(L10n.text("settings.gpg.keys.importSimpleZipButton")) {
                     receiveKeyserverHit(hit, into: .simpleZipKeyring)
                 }
+            } label: {
+                Label(L10n.text("settings.gpg.keyserver.importMenu"), systemImage: "square.and.arrow.down")
             }
+            .menuStyle(.button)
             .fixedSize()
         }
         .padding(.vertical, 3)
