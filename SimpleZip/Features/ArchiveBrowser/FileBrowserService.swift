@@ -34,7 +34,7 @@ final class FileBrowserService {
     /// 会抛 POSIX 20「Not a directory」；但解析到真实挂载路径（`/System/Volumes/Data/home`）
     /// 后能正常列出。普通 symlink（`/etc`、`/var`、`/tmp`）直接列就成功，走不到 fallback，
     /// 因此条目 URL 仍保持原路径、地址栏不会突然跳成 `/private/...`。
-    private func directoryContents(
+    private nonisolated func directoryContents(
         at url: URL,
         includingPropertiesForKeys keys: [URLResourceKey],
         options: FileManager.DirectoryEnumerationOptions
@@ -54,7 +54,7 @@ final class FileBrowserService {
     /// `/System/Cryptexes/App/...` 合并成 Finder 视图里看到的同一份「应用」列表，
     /// 并补上 `/System/Library/CoreServices/Finder.app` 这类 Finder 显式列出的条目。
     /// 同名条目按大小写不敏感去重。
-    func contents(
+    nonisolated func contents(
         of url: URL,
         showHiddenFiles: Bool,
         followFinderStructure: Bool,
@@ -180,7 +180,7 @@ final class FileBrowserService {
     ///
     /// applicationName 在循环里通过 cache 命中重复后缀，避免对 Documents 这种几十万文件的目录
     /// 做几十万次 LaunchServices 查询。
-    func makeFileItems(
+    nonisolated func makeFileItems(
         from urls: [URL],
         showSymbolicLinks: Bool,
         hiddenSuffixes: [String],
@@ -300,7 +300,7 @@ final class FileBrowserService {
 
     /// 把 POSIX 权限位格式化成 `ls -l` 风格的 10 字符串（`-rw-r--r--` / `drwxr-xr-x` / `lrwxr-xr-x`）。
     /// `mode` 为 `st_mode & 07777`（含 setuid/setgid/sticky）。首字符按目录 / 符号链接 / 普通文件区分。
-    static func posixModeString(mode: UInt16, isDirectory: Bool, isSymbolicLink: Bool) -> String {
+    nonisolated static func posixModeString(mode: UInt16, isDirectory: Bool, isSymbolicLink: Bool) -> String {
         let m = Int(mode)
         var chars: [Character] = [isSymbolicLink ? "l" : (isDirectory ? "d" : "-")]
         let bits = [0o400, 0o200, 0o100, 0o040, 0o020, 0o010, 0o004, 0o002, 0o001]
@@ -363,7 +363,7 @@ final class FileBrowserService {
     /// 「可点进去」的目录 —— 普通目录是的，.app / .pkg 这类「包」不是。
     /// 读列目录时存好的字段,**零 IO** —— 它在排序比较器里被 O(n log n) 次调用,
     /// 以前每次现场 resolvingSymlinksInPath + LaunchServices,大目录列表直接卡死。
-    static func isNavigableDirectory(_ item: FileItem) -> Bool {
+    nonisolated static func isNavigableDirectory(_ item: FileItem) -> Bool {
         item.isDirectory && !item.isPackage
     }
 
@@ -372,12 +372,12 @@ final class FileBrowserService {
     /// 必须先 `resolvingSymlinksInPath()` 再判：`isFilePackage(atPath:)` 对「指向 .app/.bundle 的
     /// 符号链接」会返回 false（它看的是链接本身，不是目标），导致 symlink→Safari.app 被当成可进入
     /// 目录、双击进目录而不是启动 App（用户反馈）。解析到真实目标后就能正确识别为包。
-    static func isLocalFilePackage(_ url: URL) -> Bool {
+    nonisolated static func isLocalFilePackage(_ url: URL) -> Bool {
         NSWorkspace.shared.isFilePackage(atPath: url.resolvingSymlinksInPath().path)
     }
 
     /// 符号链接指向的目标是否是目录 —— 用来决定 link 应该按文件还是目录展示。
-    static func isDirectorySymbolicLinkTarget(_ url: URL, fileManager: FileManager) -> Bool {
+    nonisolated static func isDirectorySymbolicLinkTarget(_ url: URL, fileManager: FileManager) -> Bool {
         var isDirectory: ObjCBool = false
         guard fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory) else {
             return false
@@ -389,7 +389,7 @@ final class FileBrowserService {
     ///
     /// 按后缀长度倒序匹配，先尝试 `.tar.gz` 这类多段后缀；
     /// `rawName.count > suffix.count + 1` 避免把全名就是后缀的文件（罕见）变成空字符串。
-    static func displayedName(for rawName: String, hiddenSuffixes: [String]) -> String {
+    nonisolated static func displayedName(for rawName: String, hiddenSuffixes: [String]) -> String {
         let lowercasedName = rawName.lowercased()
         guard let suffix = hiddenSuffixes
             .sorted(by: { $0.count > $1.count })
@@ -405,7 +405,7 @@ final class FileBrowserService {
     /// 1. 文件夹（非包）—— 一律「Finder」；
     /// 2. 包 —— 读包自己的 Info.plist，优先 CFBundleDisplayName，再 CFBundleName，再去后缀名；
     /// 3. 普通文件 —— LaunchServices 给出的默认 app，仍按 Display/Name/去后缀名顺序取标签。
-    static func preferredApplicationName(for url: URL, isDirectory: Bool, isPackage: Bool) -> String {
+    nonisolated static func preferredApplicationName(for url: URL, isDirectory: Bool, isPackage: Bool) -> String {
         // 调用方已算好 isPackage,不准再查一遍文件系统（以前这里冗余地又 resolvingSymlinks + LaunchServices）。
         if isDirectory, !isPackage {
             return "Finder"

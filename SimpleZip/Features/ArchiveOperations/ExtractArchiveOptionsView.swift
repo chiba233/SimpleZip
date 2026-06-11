@@ -267,19 +267,23 @@ private struct SIZSignatureRows: View {
 
     var body: some View {
         // Form 内部会按行折行，每个 HStack = 一行。标签 = 彩色瓦片,180pt 对齐其余行(保存到/密码)。
-        HStack(alignment: .center, spacing: 6) {
+        // 值列竖排:状态一行 + 签名者一行 —— 状态标题(如「签名无效 / 文件被篡改」)较长,
+        // 和签名者挤同一行会在 560pt 窗宽下折行炸版(用户报「UI炸了」)。
+        HStack(alignment: .top, spacing: 6) {
             DialogRowLabel(L10n.text("siz.signatureSheet.signer"), systemImage: "person.fill", tint: .green, width: 180)
-            Image(systemName: SIZSignatureStatus.iconName(for: signature.verify))
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 4) {
+                    Image(systemName: SIZSignatureStatus.iconName(for: signature.verify))
+                    Text(SIZSignatureStatus.title(for: signature.verify))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 .foregroundStyle(SIZSignatureStatus.color(for: signature.verify))
-            Text(SIZSignatureStatus.title(for: signature.verify))
-                .foregroundStyle(SIZSignatureStatus.color(for: signature.verify))
-            Text("·")
-                .foregroundStyle(.secondary)
-            Text(signature.signerDisplay)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .textSelection(.enabled)
+                Text(signature.signerDisplay)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .textSelection(.enabled)
+            }
             Spacer()
         }
         HStack(alignment: .center, spacing: 6) {

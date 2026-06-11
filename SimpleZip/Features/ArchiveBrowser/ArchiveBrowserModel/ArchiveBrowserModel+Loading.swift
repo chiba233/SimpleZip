@@ -150,85 +150,118 @@ extension ArchiveBrowserModel {
             expandedFolderOwnerPath = ownerPath
             expandedFolderChildrenByPath = [:]
         }
-        do {
-            let rawURLs = try fileBrowser.contents(
-                of: url,
-                showHiddenFiles: AppPreferences.showHiddenFiles,
-                followFinderStructure: AppPreferences.followFinderStructure,
-                resourceKeys: [
-                    .isDirectoryKey,
-                    .isSymbolicLinkKey,
-                    .fileSizeKey,
-                    .contentModificationDateKey,
-                    .creationDateKey,
-                    .contentAccessDateKey,
-                    .addedToDirectoryDateKey,
-                    .localizedTypeDescriptionKey,
-                    .isHiddenKey
-                ]
-            )
+        // 列举 + 建项**整体离开主线程**(用户 lldb 实测:大目录/慢卷时 contentsOfDirectory 的
+        // getattrlistbulk 循环把主线程钉死,启动 init→reload 即冻屏)。主线程只取偏好/虚拟模式快照,
+        // 后台算完按 generation 守卫回主线程提交;等价守卫原样保留(见 applyLoadedFolder)。
+        loadTask?.cancel()
+        let generation = nextLoadGeneration()
+        let showHidden = AppPreferences.showHiddenFiles
+        let followFinder = AppPreferences.followFinderStructure
+        let showSymbolicLinks = AppPreferences.showSymbolicLinks
+        let hiddenSuffixes = AppPreferences.hiddenDisplaySuffixes
+        let includeMacOSHidden = AppPreferences.hiddenDetectionMode.includesMacOSHiddenFlag
+        let virtual = manifestVirtualMode
+        let browser = fileBrowser
+        loadTask = Task { [weak self] in
+            do {
+                let listed: (items: [FileItem], exitsVirtualMode: Bool) = try await Task.detached(priority: .userInitiated) {
+                    let rawURLs = try browser.contents(
+                        of: url,
+                        showHiddenFiles: showHidden,
+                        followFinderStructure: followFinder,
+                        resourceKeys: [
+                            .isDirectoryKey,
+                            .isSymbolicLinkKey,
+                            .fileSizeKey,
+                            .contentModificationDateKey,
+                            .creationDateKey,
+                            .contentAccessDateKey,
+                            .addedToDirectoryDateKey,
+                            .localizedTypeDescriptionKey,
+                            .isHiddenKey
+                        ]
+                    )
 
-            // `.szs` 虚拟目录模式：在 payloadRoot 下时，过滤掉**不在 manifest 里出现 + 不是签名文件祖先目录**的条目。
-            // 走出 payloadRoot 后（用户「上一级」越过 root）filter 不再适用，自动退出虚拟模式 —— 视觉上回到正常 Finder。
-            let urls: [URL]
-            if let virtual = manifestVirtualMode {
-                let stdCurrent = url.standardizedFileURL
-                let stdRoot = virtual.payloadRoot
-                if stdCurrent.path == stdRoot.path || stdCurrent.path.hasPrefix(stdRoot.path + "/") {
-                    urls = rawURLs.filter { candidate in
-                        let std = candidate.standardizedFileURL
-                        return virtual.allowedFiles.contains(std) || virtual.allowedDirs.contains(std)
+                    // `.szs` 虚拟目录模式：在 payloadRoot 下时，过滤掉**不在 manifest 里出现 + 不是签名文件祖先目录**的条目。
+                    // 走出 payloadRoot 后（用户「上一级」越过 root）filter 不再适用，自动退出虚拟模式 —— 视觉上回到正常 Finder。
+                    let urls: [URL]
+                    var exitsVirtualMode = false
+                    if let virtual {
+                        let stdCurrent = url.standardizedFileURL
+                        let stdRoot = virtual.payloadRoot
+                        if stdCurrent.path == stdRoot.path || stdCurrent.path.hasPrefix(stdRoot.path + "/") {
+                            urls = rawURLs.filter { candidate in
+                                let std = candidate.standardizedFileURL
+                                return virtual.allowedFiles.contains(std) || virtual.allowedDirs.contains(std)
+                            }
+                        } else {
+                            // 走出 root —— 退出虚拟模式（模型状态回主线程再清），回到原始 listing。
+                            exitsVirtualMode = true
+                            urls = rawURLs
+                        }
+                    } else {
+                        urls = rawURLs
                     }
-                } else {
-                    // 走出 root —— 自动退出虚拟模式，回到原始 listing。
-                    exitManifestVirtualMode()
-                    urls = rawURLs
-                }
-            } else {
-                urls = rawURLs
-            }
 
-            let newItems = fileBrowser.makeFileItems(
-                from: urls,
-                showSymbolicLinks: AppPreferences.showSymbolicLinks,
-                hiddenSuffixes: AppPreferences.hiddenDisplaySuffixes,
-                includeMacOSHidden: AppPreferences.hiddenDetectionMode.includesMacOSHiddenFlag,
-                folderFirst: true
-            )
-            // 列表内容（按稳定标识 url + 目录标志 + 大小 + 修改时间）没变就**一个 @Published 都不碰**。
-            //
-            // 关键 / 顶部 global 菜单栏闪烁的真根因（debug log 实测确认）：FileItem.id 每次都是新 UUID，
-            // 无脑赋值会让等价列表看起来「变了」。FSEvents watcher 在 Desktop / Downloads / 家目录这类被
-            // .DS_Store / Spotlight / 缩略图缓存等无关写入持续触发的目录上，会**每 ~120ms 触发一次 loadFolder**
-            // （去抖周期），形成自维持反馈环。`fileItems` 早有等价守卫，但 `archiveItems = []` 和
-            // `status = ...` 之前**每次都无条件重新赋值** —— `@Published` 不做去重，赋同样的值也照发
-            // `objectWillChange` → `@FocusedObject` 把整条 `.commands`（顶部菜单栏）反复重建 → 正打开的菜单
-            // 被冲掉 → 一直闪、一级菜单都难点开。所以这里**每个 @Published 都先比对、只在真变了才赋值**。
-            let sameListing = Self.fileItemsRepresentSameListing(newItems, fileItems)
-            if !sameListing {
-                fileItems = newItems
+                    let items = browser.makeFileItems(
+                        from: urls,
+                        showSymbolicLinks: showSymbolicLinks,
+                        hiddenSuffixes: hiddenSuffixes,
+                        includeMacOSHidden: includeMacOSHidden,
+                        folderFirst: true
+                    )
+                    return (items, exitsVirtualMode)
+                }.value
+
+                guard let self, self.isCurrentLoad(generation, mode: .folder(url)) else { return }
+                if listed.exitsVirtualMode {
+                    self.exitManifestVirtualMode()
+                }
+                self.applyLoadedFolder(listed.items)
+            } catch is CancellationError {
+                return
+            } catch {
+                guard let self, self.isCurrentLoad(generation, mode: .folder(url)) else { return }
+                self.fileItems = []
+                self.archiveItems = []
+                if !self.archiveHeaderComment.isEmpty { self.archiveHeaderComment = "" }
+                if !self.archiveSecurityFindings.isEmpty { self.archiveSecurityFindings = [] }
+                self.session.clearArchive()
+                self.errorMessage = error.localizedDescription
+                self.status = L10n.text("status.couldNotOpenFolder")
+                self.loadTask = nil
             }
-            if !archiveItems.isEmpty {
-                archiveItems = []
-                if !archiveHeaderComment.isEmpty { archiveHeaderComment = "" }
-                if !archiveSecurityFindings.isEmpty { archiveSecurityFindings = [] }
-            }
-            session.clearArchive()
-            // 已展开文件夹的子级同步核对（增删改 / 目录消失都在这里反映,详见方法注释）。
-            refreshExpandedFolderChildren()
-            let newStatus = L10n.format("status.itemCount", fileItems.count)
-            if status != newStatus {
-                status = newStatus
-            }
-        } catch {
-            fileItems = []
+        }
+    }
+
+    /// loadFolder 后台列举完成后的主线程提交。
+    /// 列表内容（按稳定标识 url + 目录标志 + 大小 + 修改时间）没变就**一个 @Published 都不碰**。
+    ///
+    /// 关键 / 顶部 global 菜单栏闪烁的真根因（debug log 实测确认）：FileItem.id 每次都是新 UUID，
+    /// 无脑赋值会让等价列表看起来「变了」。FSEvents watcher 在 Desktop / Downloads / 家目录这类被
+    /// .DS_Store / Spotlight / 缩略图缓存等无关写入持续触发的目录上，会**每 ~120ms 触发一次 loadFolder**
+    /// （去抖周期），形成自维持反馈环。`fileItems` 早有等价守卫，但 `archiveItems = []` 和
+    /// `status = ...` 之前**每次都无条件重新赋值** —— `@Published` 不做去重，赋同样的值也照发
+    /// `objectWillChange` → `@FocusedObject` 把整条 `.commands`（顶部菜单栏）反复重建 → 正打开的菜单
+    /// 被冲掉 → 一直闪、一级菜单都难点开。所以这里**每个 @Published 都先比对、只在真变了才赋值**。
+    private func applyLoadedFolder(_ newItems: [FileItem]) {
+        let sameListing = Self.fileItemsRepresentSameListing(newItems, fileItems)
+        if !sameListing {
+            fileItems = newItems
+        }
+        if !archiveItems.isEmpty {
             archiveItems = []
             if !archiveHeaderComment.isEmpty { archiveHeaderComment = "" }
             if !archiveSecurityFindings.isEmpty { archiveSecurityFindings = [] }
-            session.clearArchive()
-            errorMessage = error.localizedDescription
-            status = L10n.text("status.couldNotOpenFolder")
         }
+        session.clearArchive()
+        // 已展开文件夹的子级同步核对（增删改 / 目录消失都在这里反映,详见方法注释）。
+        refreshExpandedFolderChildren()
+        let newStatus = L10n.format("status.itemCount", fileItems.count)
+        if status != newStatus {
+            status = newStatus
+        }
+        loadTask = nil
     }
 
     /// 使用 Spotlight 查询 Finder tag。结果仍显示成普通文件行，方便继续打开、哈希或创建压缩包。
