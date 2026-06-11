@@ -1078,7 +1078,8 @@ extension ArchiveBrowserModel {
         TaskCenter.shared.notifyTaskChanged()
     }
 
-    private func recordInstantFileTask(
+    // 0.4.2:批量重命名(+CreateExtract.swift)也要记即时任务 —— private 降 internal(跨 extension 文件,同仓库拆分惯例)。
+    func recordInstantFileTask(
         kind: OperationTask.Kind,
         title: String,
         detail: String? = nil,

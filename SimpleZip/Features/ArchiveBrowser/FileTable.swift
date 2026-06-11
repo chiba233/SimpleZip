@@ -937,6 +937,10 @@ struct FileNSOutlineView: NSViewRepresentable {
 
             // ③ 编辑 / 文件管理（重命名归到这里，跟复制剪切移动删除一组）
             menu.addItem(.separator())
+            // 0.4.2：文件浏览批量重命名（≥2 选中;与归档内共用引擎与 sheet）。
+            if model.selectedFileItems.count >= 2 {
+                menu.addItem(menuItem(L10n.text("archive.batchRename.menu"), systemImage: "pencil.line", action: #selector(batchRenameFiles)))
+            }
             if model.selectedFileItems.count == 1 {
                 menu.addItem(menuItem(L10n.text("file.rename"), systemImage: "pencil", action: #selector(renameSelected)))
             }
@@ -1138,6 +1142,10 @@ struct FileNSOutlineView: NSViewRepresentable {
 
         @objc private func encryptSelectedToGPG() {
             model.encryptSelectionToGPG()
+        }
+
+        @objc private func batchRenameFiles() {
+            model.requestBatchRenameFiles()
         }
 
         @objc private func compareSZSWithFolder() {

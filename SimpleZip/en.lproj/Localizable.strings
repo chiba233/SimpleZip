@@ -859,6 +859,11 @@
 "extract.skipJunk.detail" = ".DS_Store, __MACOSX, ._* AppleDouble files, Thumbs.db — removed before merging; existing files in the destination are never touched.";
 "archive.dryRun.calculating" = "Calculating…";
 
+/* 0.4.2 batch rename in the file browser */
+"batchRename.needTwoFiles" = "Select at least two files or folders to batch rename.";
+"batchRename.taskTitle.files" = "Renamed %1$@ items";
+"batchRename.done.files" = "Renamed %1$@ items";
+
 
 
 

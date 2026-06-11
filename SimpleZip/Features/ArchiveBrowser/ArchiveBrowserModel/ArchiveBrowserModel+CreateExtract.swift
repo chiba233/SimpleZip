@@ -1079,6 +1079,79 @@ extension ArchiveBrowserModel {
         let archiveURL: URL
         let items: [ArchiveItem]
         let allEntryPaths: [String]
+        /// 0.4.2：非 nil = **文件浏览**批量重命名（重命名磁盘文件,不是归档条目）。
+        /// 复用同一个 sheet / 同一套 BatchRename 引擎 —— 只有落盘方式不同（moveItem vs 7zz rn）。
+        var fileURLs: [URL]? = nil
+    }
+
+    /// 0.4.2（用户点名）：批量重命名扩展到**文件浏览** —— 选中 ≥2 个文件 / 文件夹右键或菜单栏触发。
+    /// 引擎与归档内共用（替换 / 前后缀 / 大小写 / 序号 + 实时预览 + 冲突标红）；
+    /// 落盘 = 逐个 moveItem + 整批注册撤销（⌘Z 一次全部回退）。
+    func requestBatchRenameFiles() {
+        guard case .folder(let folderURL) = mode else { return }
+        let items = selectedFileItems
+        guard items.count >= 2 else {
+            errorMessage = L10n.text("batchRename.needTwoFiles")
+            return
+        }
+        // 「全部名字」= 当前目录可见项 + 隐藏项的名字,用于与未选中项的冲突检查。
+        let allNames = fileItems.map { $0.url.lastPathComponent }
+        batchRenameRequest = BatchRenameRequest(
+            archiveURL: folderURL,
+            items: items.map { item in
+                ArchiveItem(name: item.url.lastPathComponent, isDirectory: item.isDirectory, size: nil, modified: nil, sizeText: "", modifiedText: "", method: "")
+            },
+            allEntryPaths: allNames,
+            fileURLs: items.map(\.url)
+        )
+    }
+
+    /// 文件浏览批量重命名落盘：逐对 moveItem,成功对整批注册撤销;任何一对失败立即停（已成功的保留并可撤销）。
+    func performFileBatchRename(_ request: BatchRenameRequest, changes: [BatchRenameChange]) {
+        guard let fileURLs = request.fileURLs else { return }
+        let byOldName = Dictionary(uniqueKeysWithValues: fileURLs.map { ($0.lastPathComponent, $0) })
+        var movedPairs: [(URL, URL)] = []
+        var failureMessage: String?
+        for change in changes where !change.isConflicting && change.toPath != change.fromPath {
+            guard let source = byOldName[change.fromPath] else { continue }
+            let target = source.deletingLastPathComponent().appendingPathComponent(change.toPath)
+            let caseOnly = target.path.caseInsensitiveCompare(source.path) == .orderedSame
+            if !caseOnly, fileManager.fileExists(atPath: target.path) {
+                failureMessage = L10n.format("file.rename.conflict.message", change.toPath)
+                break
+            }
+            do {
+                try fileManager.moveItem(at: source, to: target)
+                movedPairs.append((source, target))
+            } catch {
+                failureMessage = error.localizedDescription
+                break
+            }
+        }
+        if !movedPairs.isEmpty {
+            registerMoveUndo(movedPairs.map { (from: $0.0, to: $0.1) }, actionName: L10n.text("undo.action.rename"))
+            pendingSelectionURL = movedPairs[0].1.standardizedFileURL
+            recordInstantFileTask(
+                kind: .rename,
+                title: L10n.format("batchRename.taskTitle.files", "\(movedPairs.count)"),
+                detail: movedPairs.map { "\($0.0.lastPathComponent) → \($0.1.lastPathComponent)" }.joined(separator: "\n")
+            )
+            status = L10n.format("batchRename.done.files", "\(movedPairs.count)")
+        }
+        if let failureMessage {
+            errorMessage = failureMessage
+        }
+        // 刷新交给 FolderWatcher（同目录改名触发 FSEvents 自动 reload）。
+    }
+
+    /// 菜单栏「批量重命名…」：按当前模式路由（归档条目 vs 磁盘文件）。
+    func requestBatchRenameAnywhere() {
+        switch mode {
+        case .archive:
+            requestBatchRename()
+        case .folder, .tag:
+            requestBatchRenameFiles()
+        }
     }
 
     /// 右键「批量重命名…」：可编辑归档里选中 ≥2 个文件条目 → 弹计划 sheet。

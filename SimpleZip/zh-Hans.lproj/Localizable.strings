@@ -857,6 +857,11 @@
 "extract.skipJunk.detail" = ".DS_Store、__MACOSX、._* AppleDouble、Thumbs.db——合并前清掉；目标目录原有文件绝不会被碰。";
 "archive.dryRun.calculating" = "正在统计…";
 
+/* 0.4.2 文件浏览批量重命名 */
+"batchRename.needTwoFiles" = "请先选中至少两个文件或文件夹再批量重命名。";
+"batchRename.taskTitle.files" = "已重命名 %1$@ 项";
+"batchRename.done.files" = "已重命名 %1$@ 项";
+
 
 
 

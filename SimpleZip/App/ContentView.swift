@@ -1214,7 +1214,12 @@ private struct ArchiveExtrasSheets: ViewModifier {
             .sheet(item: $model.batchRenameRequest) { request in
                 BatchRenameSheet(request: request) { changes in
                     model.batchRenameRequest = nil
-                    model.performBatchRename(request, changes: changes)
+                    // 双模：fileURLs 非 nil = 文件浏览批量重命名（moveItem）；nil = 归档条目（7zz rn）。
+                    if request.fileURLs != nil {
+                        model.performFileBatchRename(request, changes: changes)
+                    } else {
+                        model.performBatchRename(request, changes: changes)
+                    }
                 } cancel: {
                     model.batchRenameRequest = nil
                 }

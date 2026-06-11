@@ -93,6 +93,25 @@ struct ArchiveFileCommands: Commands {
             }
             .keyboardShortcut("f", modifiers: [.command])
             .disabled(model == nil)
+
+            Divider()
+
+            // 0.4.2（用户点名菜单栏 parity）：批量重命名（文件浏览 / 归档内都通,按模式路由）。
+            Button(L10n.text("archive.batchRename.menu")) {
+                model?.requestBatchRenameAnywhere()
+            }
+            .keyboardShortcut("r", modifiers: [.command, .option])
+            .disabled(model == nil)
+
+            // 查找重复文件（归档模式;只读分析）。
+            Button(L10n.text("duplicates.menu")) {
+                model?.findDuplicateFilesInArchive()
+            }
+            .disabled({
+                guard let model else { return true }
+                if case .archive = model.mode { return false }
+                return true
+            }())
         }
 
         CommandGroup(replacing: .newItem) {
