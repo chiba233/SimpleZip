@@ -27,6 +27,11 @@ final class ArchiveBrowserModel: ObservableObject {
     @Published var archiveHeaderComment = ""
     /// 归档注释编辑 sheet flag（0.4.2）。横幅铅笔按钮 / 空白区右键置 true → ContentView 弹编辑 sheet。
     @Published var showsArchiveCommentEditor = false
+    /// 0.4.2 #7：当前归档的路径安全发现（打开成功后后台分析）。空 = 干净 / 非归档模式。
+    /// 只**告知**（横幅 + 报告 sheet），不改变解压 / 打开时既有的安全拦截与确认。
+    @Published var archiveSecurityFindings: [ArchiveSecurityFinding] = []
+    /// 安全报告 sheet flag。横幅「查看报告」置 true。
+    @Published var showsArchiveSecurityReport = false
     /// #113 查找：当前搜索文本（空 = 不过滤）。绑定搜索栏；主列表（文件 / 归档）按它过滤展示。
     @Published var searchText = ""
     /// 搜索栏是否可见。⌘F / 右键「查找」/ 菜单栏「查找」置 true；Esc 或清空收起。

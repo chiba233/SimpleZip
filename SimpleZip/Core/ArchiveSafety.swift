@@ -91,3 +91,107 @@ enum ArchiveSafety {
         return riskyExtensions.contains(ext)
     }
 }
+
+// MARK: - 路径安全报告（0.4.2 #7）
+
+/// 报告级安全发现的类别。比 `isUnsafeEntryName` 的硬拦截更宽：这里是**告知**，
+/// 不改变任何拦截行为 —— 解压 / 打开时的既有安全确认照旧。rawValue 拼 L10n key。
+enum ArchiveSecurityFindingKind: String, CaseIterable {
+    case absolutePath        // `/` 或 `~` 开头 —— 解出来可能落到任意位置
+    case parentTraversal     // `..` 上跳段
+    case windowsDrivePath    // `C:\` 盘符
+    case uncPath             // `\\server` / `//server` 网络共享
+    case backslashPath       // 含反斜杠（Windows 分隔，解出来文件名怪异 / 混淆视线）
+    case controlCharacters   // 控制字符 / Unicode 双向覆盖（终端与文件名混淆）
+    case overlongPath        // 路径超长（整条 >1024 字节或单段 >255 字节）
+    case setuidExecutable    // setuid / setgid 权限位
+    case externalSymlink     // 符号链接指向归档外（绝对路径 / `..`）
+    case caseCollision       // 大小写不同的重名 —— 大小写不敏感卷上互相覆盖
+}
+
+struct ArchiveSecurityFinding: Equatable, Identifiable {
+    let kind: ArchiveSecurityFindingKind
+    /// 命中的条目（externalSymlink 形如 `name → target`，caseCollision 形如 `a ↔ A`）。
+    let entryPaths: [String]
+    var id: String { kind.rawValue }
+}
+
+/// 打开归档时的静态路径分析。纯函数、只读条目元数据，不碰文件系统。
+enum ArchiveSecurityReport {
+
+    nonisolated static func analyze(_ items: [ArchiveItem]) -> [ArchiveSecurityFinding] {
+        var byKind: [ArchiveSecurityFindingKind: [String]] = [:]
+        func record(_ kind: ArchiveSecurityFindingKind, _ path: String) {
+            byKind[kind, default: []].append(path)
+        }
+        // 大小写冲突：lower(归一路径) → 首次出现的原文。再次出现且原文不同 = 冲突。
+        var firstSpellingByLowercased: [String: String] = [:]
+
+        for item in items {
+            let name = item.name
+            let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.hasPrefix("/") || trimmed.hasPrefix("~") { record(.absolutePath, name) }
+            let separatorNormalized = trimmed.replacingOccurrences(of: "\\", with: "/")
+            if separatorNormalized.split(separator: "/", omittingEmptySubsequences: false).contains("..") {
+                record(.parentTraversal, name)
+            }
+            if trimmed.range(of: #"^[A-Za-z]:[\\/]"#, options: .regularExpression) != nil {
+                record(.windowsDrivePath, name)
+            }
+            if trimmed.hasPrefix("\\\\") || trimmed.hasPrefix("//") {
+                record(.uncPath, name)
+            } else if trimmed.contains("\\") {
+                record(.backslashPath, name)
+            }
+            if name.unicodeScalars.contains(where: isSuspiciousScalar) { record(.controlCharacters, name) }
+            if isOverlongPath(trimmed) { record(.overlongPath, name) }
+            if hasSetuidMode(item.attributes) { record(.setuidExecutable, name) }
+            if !item.symlinkTarget.isEmpty, isExternalLinkTarget(item.symlinkTarget) {
+                record(.externalSymlink, "\(name) → \(item.symlinkTarget)")
+            }
+
+            let normalized = normalizedEntryPath(name)
+            guard !normalized.isEmpty else { continue }
+            let key = normalized.lowercased()
+            if let first = firstSpellingByLowercased[key] {
+                if first != normalized { record(.caseCollision, "\(first) ↔ \(normalized)") }
+            } else {
+                firstSpellingByLowercased[key] = normalized
+            }
+        }
+
+        // 按枚举声明序输出，结果确定（测试 + 展示稳定）。
+        return ArchiveSecurityFindingKind.allCases.compactMap { kind in
+            guard let paths = byKind[kind], !paths.isEmpty else { return nil }
+            return ArchiveSecurityFinding(kind: kind, entryPaths: paths)
+        }
+    }
+
+    /// 控制字符（C0 / DEL）+ Unicode 双向覆盖（RLO 等文件名伪装）。
+    nonisolated private static func isSuspiciousScalar(_ scalar: Unicode.Scalar) -> Bool {
+        if scalar.value < 0x20 || scalar.value == 0x7F { return true }
+        return (0x202A...0x202E).contains(scalar.value) || (0x2066...0x2069).contains(scalar.value)
+    }
+
+    nonisolated private static func isOverlongPath(_ path: String) -> Bool {
+        if path.utf8.count > 1024 { return true }
+        return path.split(separator: "/").contains { $0.utf8.count > 255 }
+    }
+
+    /// 7zz `-slt` 的 Attributes 模式串里出现 setuid/setgid 位（`rws` / `rwS` 形态）。
+    nonisolated private static func hasSetuidMode(_ attributes: String) -> Bool {
+        attributes.range(of: #"[rwx-]{2}[sS][rwx-]"#, options: .regularExpression) != nil
+    }
+
+    nonisolated private static func isExternalLinkTarget(_ target: String) -> Bool {
+        let trimmed = target.trimmingCharacters(in: .whitespaces)
+        if trimmed.hasPrefix("/") || trimmed.hasPrefix("~") { return true }
+        return trimmed.split(separator: "/").contains("..")
+    }
+
+    nonisolated private static func normalizedEntryPath(_ name: String) -> String {
+        var path = name
+        while path.hasPrefix("./") { path.removeFirst(2) }
+        return path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+    }
+}

@@ -655,6 +655,33 @@
 "search.saved.saveCurrent" = "Save Current Search…";
 "search.saved.namePlaceholder" = "Filter name";
 "search.recent.section" = "Recent Searches";
+/* 0.4.2 archive path security report */
+"security.banner" = "This archive contains %1$@ suspicious entries";
+"security.banner.review" = "View Report";
+"security.report.title" = "Path Security Report";
+"security.report.note" = "These findings are informational — the usual safety prompts still apply when extracting or opening. Nothing has been blocked yet.";
+"security.report.more" = "and %1$@ more…";
+"security.kind.absolutePath" = "Absolute paths";
+"security.kind.absolutePath.desc" = "Entries starting with / or ~ could extract outside the chosen folder.";
+"security.kind.parentTraversal" = "Parent-directory traversal";
+"security.kind.parentTraversal.desc" = "Entries using .. could climb out of the extraction folder.";
+"security.kind.windowsDrivePath" = "Windows drive paths";
+"security.kind.windowsDrivePath.desc" = "Entries like C:\\… target a fixed Windows location.";
+"security.kind.uncPath" = "UNC network paths";
+"security.kind.uncPath.desc" = "Entries like \\\\server\\share point at network locations.";
+"security.kind.backslashPath" = "Backslash separators";
+"security.kind.backslashPath.desc" = "Windows-style separators extract as odd one-segment names on macOS and can disguise the real path.";
+"security.kind.controlCharacters" = "Control / bidirectional characters";
+"security.kind.controlCharacters.desc" = "Invisible characters in names can disguise a file's real name or extension.";
+"security.kind.overlongPath" = "Overlong paths";
+"security.kind.overlongPath.desc" = "Paths over 1024 bytes (or single names over 255) may fail or behave oddly on extraction.";
+"security.kind.setuidExecutable" = "setuid / setgid permissions";
+"security.kind.setuidExecutable.desc" = "Entries carrying privilege-escalation permission bits.";
+"security.kind.externalSymlink" = "Symlinks pointing outside";
+"security.kind.externalSymlink.desc" = "Symbolic links targeting absolute paths or .. can reach files outside the archive.";
+"security.kind.caseCollision" = "Case collisions";
+"security.kind.caseCollision.desc" = "Names differing only in letter case overwrite each other on case-insensitive volumes (the macOS default).";
+
 
 
 

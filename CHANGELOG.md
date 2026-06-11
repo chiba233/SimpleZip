@@ -4,6 +4,8 @@
 
 ## 0.4.2 (unreleased)
 
+- **New: path security report on archive open.** When an archive's listing contains suspicious entries — absolute paths, `..` traversal, Windows drive / UNC paths, backslash separators, control or bidirectional-override characters, overlong paths, setuid/setgid permission bits, symlinks pointing outside the archive, or case-colliding names — an orange banner appears above the list with a **View Report** button. The report groups findings by category with a plain-language explanation and the affected entries. Purely informational: the existing extraction-time safety prompts and blocks are unchanged.
+
 - **New: saved filters, quick filters, and recent searches.** The archive filter menu gains one-click quick filters (encrypted files only, large files >100 MB, modified in the last 7 days, suspicious paths), **Save Current Search…** which captures the search text *and* the toolbar filters as a named filter (a new `kind:files` / `kind:folders` token makes the round-trip lossless), saved filters applied with one click (with a delete submenu), and your last 8 submitted searches replayed from a Recent Searches section.
 
 - **New: search syntax inside archives.** The archive search field now understands power tokens, combinable with plain words: `*.swift` (glob, `?` works too), `ext:pdf`, `size:>1MB` / `size:<=500k`, `encrypted:true` / `encrypted:false`, `crc:A1B2C3D4`, `comment:draft`, `path:src/`, `modified:<7d` (h/d/w units), and `regex:^docs/.*\.md$`. Everything combines as AND, toolbar filters still apply on top, a half-typed regex quietly degrades to substring matching instead of erroring, and unknown `foo:bar` tokens are just searched literally.

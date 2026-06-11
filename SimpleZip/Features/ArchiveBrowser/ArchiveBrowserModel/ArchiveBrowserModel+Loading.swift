@@ -200,6 +200,7 @@ extension ArchiveBrowserModel {
             if !archiveItems.isEmpty {
                 archiveItems = []
                 if !archiveHeaderComment.isEmpty { archiveHeaderComment = "" }
+                if !archiveSecurityFindings.isEmpty { archiveSecurityFindings = [] }
             }
             session.clearArchive()
             // 已展开文件夹的子级同步核对（增删改 / 目录消失都在这里反映,详见方法注释）。
@@ -212,6 +213,7 @@ extension ArchiveBrowserModel {
             fileItems = []
             archiveItems = []
             if !archiveHeaderComment.isEmpty { archiveHeaderComment = "" }
+            if !archiveSecurityFindings.isEmpty { archiveSecurityFindings = [] }
             session.clearArchive()
             errorMessage = error.localizedDescription
             status = L10n.text("status.couldNotOpenFolder")
@@ -235,6 +237,7 @@ extension ArchiveBrowserModel {
             )
             archiveItems = []
             if !archiveHeaderComment.isEmpty { archiveHeaderComment = "" }
+            if !archiveSecurityFindings.isEmpty { archiveSecurityFindings = [] }
             session.clearArchive()
             status = L10n.format("status.tagItemCount", fileItems.count)
         } catch {
@@ -242,6 +245,7 @@ extension ArchiveBrowserModel {
             fileItems = []
             archiveItems = []
             if !archiveHeaderComment.isEmpty { archiveHeaderComment = "" }
+            if !archiveSecurityFindings.isEmpty { archiveSecurityFindings = [] }
             session.clearArchive()
             errorMessage = error.localizedDescription
             status = L10n.text("status.failed")
@@ -281,20 +285,38 @@ extension ArchiveBrowserModel {
                 archiveHeaderComment = comment
             }
             refreshArchiveItems()
+            // 0.4.2 #7：路径安全分析（绝对路径 / `..` / 盘符 / 控制字符 / setuid / 外指 symlink / 大小写冲突）。
+            // 纯 CPU 字符串检查，丢后台跑完再回主 actor；只告知，不改变解压时的既有拦截。
+            updateArchiveSecurityFindings(for: items, url: url, generation: generation)
         } catch is CancellationError {
             // 用户在密码框点了取消 → 不当错误处理,只回到中性「读不到」状态,不弹错误 alert。
             guard isCurrentLoad(generation, mode: .archive(url)) else { return }
             archiveItems = []
             if !archiveHeaderComment.isEmpty { archiveHeaderComment = "" }
+            if !archiveSecurityFindings.isEmpty { archiveSecurityFindings = [] }
             session.clearArchive()
             status = L10n.text("status.couldNotReadArchive")
         } catch {
             guard isCurrentLoad(generation, mode: .archive(url)) else { return }
             archiveItems = []
             if !archiveHeaderComment.isEmpty { archiveHeaderComment = "" }
+            if !archiveSecurityFindings.isEmpty { archiveSecurityFindings = [] }
             session.clearArchive()
             errorMessage = error.localizedDescription
             status = L10n.text("status.couldNotReadArchive")
+        }
+    }
+
+    /// 0.4.2 #7：后台分析归档条目的路径安全问题，回主 actor 后核对仍是同一次加载才发布。
+    private func updateArchiveSecurityFindings(for items: [ArchiveItem], url: URL, generation: Int) {
+        Task.detached(priority: .utility) { [weak self] in
+            let findings = ArchiveSecurityReport.analyze(items)
+            await MainActor.run { [weak self] in
+                guard let self, self.isCurrentLoad(generation, mode: .archive(url)) else { return }
+                if self.archiveSecurityFindings != findings {
+                    self.archiveSecurityFindings = findings
+                }
+            }
         }
     }
 

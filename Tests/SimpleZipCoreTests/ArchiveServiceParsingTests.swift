@@ -370,3 +370,71 @@ struct ArchiveTestFailureClassificationTests {
         #expect(ArchiveService.classifyTestFailure("") == .other)
     }
 }
+
+/// 0.4.2 #7:归档路径安全报告(纯静态分析)。
+struct ArchiveSecurityReportTests {
+
+    private func entry(_ name: String, attributes: String = "", symlinkTarget: String = "") -> ArchiveItem {
+        ArchiveItem(name: name, isDirectory: false, size: 1, modified: nil, sizeText: "", modifiedText: "", method: "", attributes: attributes, symlinkTarget: symlinkTarget)
+    }
+
+    @Test func cleanArchiveYieldsNoFindings() {
+        let items = [entry("docs/a.txt"), entry("docs/b.txt"), entry("src/main.swift")]
+        #expect(ArchiveSecurityReport.analyze(items).isEmpty)
+    }
+
+    @Test func detectsPathEscapeFamilies() {
+        let items = [
+            entry("/etc/passwd"),
+            entry("../../escape.txt"),
+            entry("C:\\Windows\\evil.dll"),
+            entry("\\\\server\\share\\x"),
+            entry("dir\\windows-style.txt")
+        ]
+        let kinds = ArchiveSecurityReport.analyze(items).map(\.kind)
+        #expect(kinds.contains(.absolutePath))
+        #expect(kinds.contains(.parentTraversal))
+        #expect(kinds.contains(.windowsDrivePath))
+        #expect(kinds.contains(.uncPath))
+        #expect(kinds.contains(.backslashPath))
+    }
+
+    @Test func detectsControlAndBidiCharacters() {
+        let rlo = "invoice\u{202E}fdp.exe"
+        let findings = ArchiveSecurityReport.analyze([entry(rlo), entry("tab\tname.txt")])
+        #expect(findings.first?.kind == .controlCharacters)
+        #expect(findings.first?.entryPaths.count == 2)
+    }
+
+    @Test func detectsOverlongPaths() {
+        let longComponent = String(repeating: "a", count: 256)
+        let findings = ArchiveSecurityReport.analyze([entry("dir/\(longComponent).txt")])
+        #expect(findings.map(\.kind) == [.overlongPath])
+    }
+
+    @Test func detectsSetuidMode() {
+        let findings = ArchiveSecurityReport.analyze([entry("bin/su", attributes: "_ -rwsr-xr-x"), entry("bin/ok", attributes: "_ -rwxr-xr-x")])
+        #expect(findings.map(\.kind) == [.setuidExecutable])
+        #expect(findings.first?.entryPaths == ["bin/su"])
+    }
+
+    @Test func flagsOnlyExternalSymlinks() {
+        let findings = ArchiveSecurityReport.analyze([
+            entry("link-out", symlinkTarget: "/etc/passwd"),
+            entry("link-up", symlinkTarget: "../../outside"),
+            entry("link-in", symlinkTarget: "sibling/file.txt")
+        ])
+        #expect(findings.count == 1)
+        #expect(findings.first?.kind == .externalSymlink)
+        #expect(findings.first?.entryPaths.count == 2)
+    }
+
+    @Test func detectsCaseCollisionsButNotPlainDuplicates() {
+        let findings = ArchiveSecurityReport.analyze([
+            entry("README.md"), entry("readme.md"),   // 大小写冲突
+            entry("same.txt"), entry("same.txt")      // 纯重复——不是大小写问题,不报
+        ])
+        #expect(findings.map(\.kind) == [.caseCollision])
+        #expect(findings.first?.entryPaths == ["README.md ↔ readme.md"])
+    }
+}

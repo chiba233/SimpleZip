@@ -66,35 +66,9 @@ struct ContentView: View {
                 Divider()
 
                 if case .archive = model.mode {
-                    // 0.4.1 #114：归档级注释横幅（zip / rar 头部 Comment）。0.4.2：zip 可编辑（EOCD 原生改写）。
-                    if !model.archiveHeaderComment.isEmpty {
-                        HStack(alignment: .firstTextBaseline, spacing: 8) {
-                            Image(systemName: "text.bubble.fill")
-                                .font(.system(size: 12))
-                                .foregroundStyle(Color.accentColor)
-                            Text(model.archiveHeaderComment)
-                                .font(.callout)
-                                .lineLimit(2)
-                                .truncationMode(.tail)
-                                .textSelection(.enabled)
-                                .help(model.archiveHeaderComment)
-                            Spacer(minLength: 0)
-                            if model.canEditArchiveComment {
-                                Button {
-                                    model.showsArchiveCommentEditor = true
-                                } label: {
-                                    Image(systemName: "pencil")
-                                        .font(.system(size: 11))
-                                }
-                                .buttonStyle(.borderless)
-                                .help(L10n.text("archive.comment.editorTitle"))
-                            }
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.accentColor.opacity(0.08))
-                        Divider()
-                    }
+                    // 0.4.1 #114 注释横幅 + 0.4.2 #7 安全报告横幅（抽成子视图：body 内联会让类型检查超时）。
+                    archiveCommentBanner
+                    archiveSecurityBanner
                     ArchiveTable(model: model)
                         // 落在**文件列表区**的拖入 = 加进归档（#109）；落在上面 TopBar 地址栏的拖入归外层 onDrop → 导航。
                         // 这条内层 onDrop 比 ContentView 整片的 onDrop 更靠内，命中列表区时优先它处理。
@@ -144,53 +118,7 @@ struct ContentView: View {
                 ToolbarItem(placement: .automatic) {
                     if case .archive = model.mode {
                         Menu {
-                            Picker(L10n.text("search.filter.kind"), selection: $model.searchKind) {
-                                Text(L10n.text("search.filter.kind.any")).tag(ArchiveSearchQuery.Kind.any)
-                                Text(L10n.text("search.filter.kind.files")).tag(ArchiveSearchQuery.Kind.filesOnly)
-                                Text(L10n.text("search.filter.kind.folders")).tag(ArchiveSearchQuery.Kind.foldersOnly)
-                            }
-                            Picker(L10n.text("search.filter.modified"), selection: $model.searchModifiedWithin) {
-                                ForEach(ArchiveBrowserModel.SearchModifiedWindow.allCases) { window in
-                                    Text(window.title).tag(window)
-                                }
-                            }
-                            Toggle(L10n.text("search.filter.encryptedOnly"), isOn: $model.searchEncryptedOnly)
-                            if model.hasActiveAdvancedFilters {
-                                Divider()
-                                Button(L10n.text("search.filter.reset")) {
-                                    model.resetAdvancedFilters()
-                                }
-                            }
-                            // 0.4.2 #6：一键快速过滤（token 语法填回搜索框）+ 保存的过滤器 + 最近搜索。
-                            Divider()
-                            Section(L10n.text("search.quick.section")) {
-                                Button(L10n.text("search.quick.encrypted")) { model.applySearchQueryString("encrypted:true") }
-                                Button(L10n.text("search.quick.large")) { model.applySearchQueryString("size:>100mb") }
-                                Button(L10n.text("search.quick.recentlyModified")) { model.applySearchQueryString("modified:<7d") }
-                                Button(L10n.text("search.quick.suspicious")) { model.applySearchQueryString(ArchiveBrowserModel.suspiciousPathSearchQuery) }
-                            }
-                            if !model.savedSearchFilters.isEmpty {
-                                Section(L10n.text("search.saved.section")) {
-                                    ForEach(model.savedSearchFilters) { filter in
-                                        Button(filter.name) { model.applySearchQueryString(filter.query) }
-                                    }
-                                    Menu(L10n.text("search.saved.delete")) {
-                                        ForEach(model.savedSearchFilters) { filter in
-                                            Button(filter.name, role: .destructive) { model.deleteSavedSearchFilter(id: filter.id) }
-                                        }
-                                    }
-                                }
-                            }
-                            if !model.recentSearchQueries.isEmpty {
-                                Section(L10n.text("search.recent.section")) {
-                                    ForEach(model.recentSearchQueries, id: \.self) { query in
-                                        Button(query) { model.applySearchQueryString(query) }
-                                    }
-                                }
-                            }
-                            Divider()
-                            Button(L10n.text("search.saved.saveCurrent")) { promptSaveCurrentSearchFilter() }
-                                .disabled(model.currentComposedSearchQuery.isEmpty)
+                            archiveFilterMenuContent
                         } label: {
                             Label(
                                 L10n.text("search.filter.menu"),
@@ -395,6 +323,9 @@ struct ContentView: View {
         .sheet(isPresented: $model.showsArchiveCommentEditor) {
             ArchiveCommentEditorView(model: model)
         }
+        .sheet(isPresented: $model.showsArchiveSecurityReport) {
+            ArchiveSecurityReportView(model: model)
+        }
         .sheet(item: $model.fileSplitRequest) { request in
             FileSplitSheet(request: request) { volumeSize in
                 model.fileSplitRequest = nil
@@ -485,36 +416,8 @@ struct ContentView: View {
             GPGKeyImportSheet(request: request) { model.pendingGPGKeyImport = nil }
         }
         .onAppear {
-            ExternalFileOpenQueue.shared.drain().forEach(openExternalURL)
-            FinderServiceActionQueue.shared.drain().forEach(handleFinderServiceAction)
-            // 独立浮窗「在主窗口打开」.szs：已验签报告直达，直接进虚拟目录浏览，不再重弹验签 sheet。
-            if let request = openSZSVirtualFolderOnAppear {
-                model.openSZSAsVirtualFolder(
-                    manifestURL: request.manifestURL,
-                    verifyReport: request.report,
-                    payloadRoot: request.payloadRoot
-                )
-            }
-            // 右键「在新标签 / 新窗口打开」：工厂把目标 URL 传进来，本浏览器在出现后浏览它（强制浏览，不走自动解压）。
-            if let url = openURLOnAppear { openURLInThisBrowser(url) }
-            // 校验保存的 startupLocation 是不是指向一个还活着的目录；
-            // 只校验一次 —— 后续窗口大小变化重渲染时不会反复弹。
-            if !didCheckStartupLocation {
-                didCheckStartupLocation = true
-                if AppPreferences.startupLocationIsMissing {
-                    showsStartupMissingAlert = true
-                }
-            }
-            // 首次启动自动弹欢迎助手 —— 只跑一次，后续 layout 重渲染不会反复触发。
-            if !didCheckWelcomeAssistant {
-                didCheckWelcomeAssistant = true
-                if !AppPreferences.welcomeAssistantCompleted {
-                    // 异步触发让 onAppear 的其它处理先跑完；避免一打开主窗口就立刻被 sheet 盖住。
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                        showsWelcomeAssistant = true
-                    }
-                }
-            }
+            // 闭包体抽成方法：留在巨型 body 表达式里会让类型检查超时（0.4.2 #7 加横幅后压垮预算）。
+            handleMainViewAppear()
         }
         .sheet(isPresented: $showsWelcomeAssistant) {
             WelcomeAssistantView {
@@ -635,6 +538,153 @@ struct ContentView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .browserPreferencesChanged)) { _ in
             model.reload()
+        }
+    }
+
+    /// #113 高级过滤 + 0.4.2 #6 快速过滤 / 保存的过滤器 / 最近搜索 —— 工具栏漏斗菜单的内容。
+    /// 抽成子视图：留在 body 的 toolbar 闭包里会让整条 body 表达式类型检查超时。
+    @ViewBuilder
+    private var archiveFilterMenuContent: some View {
+        Picker(L10n.text("search.filter.kind"), selection: $model.searchKind) {
+            Text(L10n.text("search.filter.kind.any")).tag(ArchiveSearchQuery.Kind.any)
+            Text(L10n.text("search.filter.kind.files")).tag(ArchiveSearchQuery.Kind.filesOnly)
+            Text(L10n.text("search.filter.kind.folders")).tag(ArchiveSearchQuery.Kind.foldersOnly)
+        }
+        Picker(L10n.text("search.filter.modified"), selection: $model.searchModifiedWithin) {
+            ForEach(ArchiveBrowserModel.SearchModifiedWindow.allCases) { window in
+                Text(window.title).tag(window)
+            }
+        }
+        Toggle(L10n.text("search.filter.encryptedOnly"), isOn: $model.searchEncryptedOnly)
+        if model.hasActiveAdvancedFilters {
+            Divider()
+            Button(L10n.text("search.filter.reset")) {
+                model.resetAdvancedFilters()
+            }
+        }
+        // 0.4.2 #6：一键快速过滤（token 语法填回搜索框）+ 保存的过滤器 + 最近搜索。
+        Divider()
+        Section(L10n.text("search.quick.section")) {
+            Button(L10n.text("search.quick.encrypted")) { model.applySearchQueryString("encrypted:true") }
+            Button(L10n.text("search.quick.large")) { model.applySearchQueryString("size:>100mb") }
+            Button(L10n.text("search.quick.recentlyModified")) { model.applySearchQueryString("modified:<7d") }
+            Button(L10n.text("search.quick.suspicious")) { model.applySearchQueryString(ArchiveBrowserModel.suspiciousPathSearchQuery) }
+        }
+        if !model.savedSearchFilters.isEmpty {
+            Section(L10n.text("search.saved.section")) {
+                ForEach(model.savedSearchFilters) { filter in
+                    Button(filter.name) { model.applySearchQueryString(filter.query) }
+                }
+                Menu(L10n.text("search.saved.delete")) {
+                    ForEach(model.savedSearchFilters) { filter in
+                        Button(filter.name, role: .destructive) { model.deleteSavedSearchFilter(id: filter.id) }
+                    }
+                }
+            }
+        }
+        if !model.recentSearchQueries.isEmpty {
+            Section(L10n.text("search.recent.section")) {
+                ForEach(model.recentSearchQueries, id: \.self) { query in
+                    Button(query) { model.applySearchQueryString(query) }
+                }
+            }
+        }
+        Divider()
+        Button(L10n.text("search.saved.saveCurrent")) { promptSaveCurrentSearchFilter() }
+            .disabled(model.currentComposedSearchQuery.isEmpty)
+    }
+
+    /// 0.4.1 #114：归档级注释横幅（zip / rar 头部 Comment）。0.4.2：zip 可编辑（EOCD 原生改写）。
+    @ViewBuilder
+    private var archiveCommentBanner: some View {
+        if !model.archiveHeaderComment.isEmpty {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Image(systemName: "text.bubble.fill")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.accentColor)
+                Text(model.archiveHeaderComment)
+                    .font(.callout)
+                    .lineLimit(2)
+                    .truncationMode(.tail)
+                    .textSelection(.enabled)
+                    .help(model.archiveHeaderComment)
+                Spacer(minLength: 0)
+                if model.canEditArchiveComment {
+                    Button {
+                        model.showsArchiveCommentEditor = true
+                    } label: {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 11))
+                    }
+                    .buttonStyle(.borderless)
+                    .help(L10n.text("archive.comment.editorTitle"))
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(Color.accentColor.opacity(0.08))
+            Divider()
+        }
+    }
+
+    /// 0.4.2 #7：路径安全报告横幅 —— 打开归档后台分析出可疑条目时出现。只告知，不拦截。
+    @ViewBuilder
+    private var archiveSecurityBanner: some View {
+        if !model.archiveSecurityFindings.isEmpty {
+            HStack(spacing: 8) {
+                Image(systemName: "exclamationmark.shield.fill")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.orange)
+                Text(L10n.format(
+                    "security.banner",
+                    "\(model.archiveSecurityFindings.reduce(0) { $0 + $1.entryPaths.count })"
+                ))
+                .font(.callout)
+                .lineLimit(1)
+                Spacer(minLength: 0)
+                Button(L10n.text("security.banner.review")) {
+                    model.showsArchiveSecurityReport = true
+                }
+                .controlSize(.small)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(Color.orange.opacity(0.10))
+            Divider()
+        }
+    }
+
+    /// 主窗口 onAppear 的一次性处理（外部打开队列 / 新标签定向 / 启动位置校验 / 欢迎助手）。
+    private func handleMainViewAppear() {
+        ExternalFileOpenQueue.shared.drain().forEach(openExternalURL)
+        FinderServiceActionQueue.shared.drain().forEach(handleFinderServiceAction)
+        // 独立浮窗「在主窗口打开」.szs：已验签报告直达，直接进虚拟目录浏览，不再重弹验签 sheet。
+        if let request = openSZSVirtualFolderOnAppear {
+            model.openSZSAsVirtualFolder(
+                manifestURL: request.manifestURL,
+                verifyReport: request.report,
+                payloadRoot: request.payloadRoot
+            )
+        }
+        // 右键「在新标签 / 新窗口打开」：工厂把目标 URL 传进来，本浏览器在出现后浏览它（强制浏览，不走自动解压）。
+        if let url = openURLOnAppear { openURLInThisBrowser(url) }
+        // 校验保存的 startupLocation 是不是指向一个还活着的目录；
+        // 只校验一次 —— 后续窗口大小变化重渲染时不会反复弹。
+        if !didCheckStartupLocation {
+            didCheckStartupLocation = true
+            if AppPreferences.startupLocationIsMissing {
+                showsStartupMissingAlert = true
+            }
+        }
+        // 首次启动自动弹欢迎助手 —— 只跑一次，后续 layout 重渲染不会反复触发。
+        if !didCheckWelcomeAssistant {
+            didCheckWelcomeAssistant = true
+            if !AppPreferences.welcomeAssistantCompleted {
+                // 异步触发让 onAppear 的其它处理先跑完；避免一打开主窗口就立刻被 sheet 盖住。
+                DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(150)) {
+                    showsWelcomeAssistant = true
+                }
+            }
         }
     }
 

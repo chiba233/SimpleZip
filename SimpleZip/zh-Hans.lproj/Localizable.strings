@@ -653,6 +653,33 @@
 "search.saved.saveCurrent" = "保存当前搜索…";
 "search.saved.namePlaceholder" = "过滤器名称";
 "search.recent.section" = "最近搜索";
+/* 0.4.2 归档路径安全报告 */
+"security.banner" = "此压缩包包含 %1$@ 个可疑条目";
+"security.banner.review" = "查看报告";
+"security.report.title" = "路径安全报告";
+"security.report.note" = "以下发现仅供知情——解压 / 打开时的常规安全确认仍会照常生效，目前没有任何内容被拦截。";
+"security.report.more" = "还有 %1$@ 项…";
+"security.kind.absolutePath" = "绝对路径";
+"security.kind.absolutePath.desc" = "以 / 或 ~ 开头的条目可能解压到所选文件夹之外。";
+"security.kind.parentTraversal" = "上级目录穿越";
+"security.kind.parentTraversal.desc" = "使用 .. 的条目可能爬出解压目录。";
+"security.kind.windowsDrivePath" = "Windows 盘符路径";
+"security.kind.windowsDrivePath.desc" = "形如 C:\\… 的条目指向固定的 Windows 位置。";
+"security.kind.uncPath" = "UNC 网络路径";
+"security.kind.uncPath.desc" = "形如 \\\\server\\share 的条目指向网络位置。";
+"security.kind.backslashPath" = "反斜杠分隔符";
+"security.kind.backslashPath.desc" = "Windows 风格分隔符在 macOS 上会解成奇怪的单段文件名，并可能掩盖真实路径。";
+"security.kind.controlCharacters" = "控制字符 / 双向覆盖字符";
+"security.kind.controlCharacters.desc" = "文件名里的不可见字符可以伪装文件的真实名称或扩展名。";
+"security.kind.overlongPath" = "超长路径";
+"security.kind.overlongPath.desc" = "整条超过 1024 字节（或单段超过 255 字节）的路径解压时可能失败或行为异常。";
+"security.kind.setuidExecutable" = "setuid / setgid 权限";
+"security.kind.setuidExecutable.desc" = "带有提权权限位的条目。";
+"security.kind.externalSymlink" = "外指符号链接";
+"security.kind.externalSymlink.desc" = "指向绝对路径或 .. 的符号链接可触达归档之外的文件。";
+"security.kind.caseCollision" = "大小写冲突";
+"security.kind.caseCollision.desc" = "仅大小写不同的重名在大小写不敏感卷（macOS 默认）上会互相覆盖。";
+
 
 
 
