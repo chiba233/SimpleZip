@@ -440,6 +440,13 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
             if model.selectedArchiveItems.count == 1, !item.isDirectory {
                 appendArchiveOpenWithMenu(to: menu, for: item)
             }
+            // 0.4.2 #10：快速预览（解到临时副本，关归档自动清理）+ 单文件「保存副本到…」。
+            if !item.isDirectory {
+                menu.addItem(menuItem(L10n.text("file.quickLook"), systemImage: "eye", action: #selector(quickLookArchiveEntry)))
+            }
+            if model.selectedArchiveItems.count == 1, !item.isDirectory {
+                menu.addItem(menuItem(L10n.text("archive.saveCopyAs"), systemImage: "square.and.arrow.down", action: #selector(saveArchiveEntryCopy)))
+            }
             menu.addItem(menuItem(L10n.text("button.extractSelected"), systemImage: "arrow.down.doc", action: #selector(extractSelected)))
             menu.addItem(menuItem(L10n.text("button.extract"), systemImage: "tray.and.arrow.down", action: #selector(extractWholeArchive)))
             menu.addItem(menuItem(L10n.text("button.test"), systemImage: "checkmark.seal", action: #selector(testArchive)))
@@ -659,6 +666,16 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
 
         @objc private func editArchiveComment() {
             model.showsArchiveCommentEditor = true
+        }
+
+        @objc private func quickLookArchiveEntry() {
+            model.quickLookSelectedArchiveItems { [weak self] urls in
+                (self?.outlineView as? ContentDragOutlineView)?.presentQuickLook(urls: urls)
+            }
+        }
+
+        @objc private func saveArchiveEntryCopy() {
+            model.saveSelectedArchiveItemCopy()
         }
 
         @objc private func extractSelected() {

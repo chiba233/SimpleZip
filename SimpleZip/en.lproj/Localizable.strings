@@ -692,6 +692,10 @@
 "extract.preflight.symlinks" = "Contains %1$@ symbolic links";
 /* 0.4.2 session password memory */
 "password.hintComment" = "Archive comment: %1$@";
+/* 0.4.2 archive entry preview / save copy */
+"archive.saveCopyAs" = "Save a Copy As…";
+"archive.saveCopy.done" = "Saved a copy as %1$@";
+
 
 
 

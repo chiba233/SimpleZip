@@ -690,6 +690,10 @@
 "extract.preflight.symlinks" = "包含 %1$@ 个符号链接";
 /* 0.4.2 会话级密码记忆 */
 "password.hintComment" = "归档注释：%1$@";
+/* 0.4.2 归档条目预览 / 保存副本 */
+"archive.saveCopyAs" = "保存副本到…";
+"archive.saveCopy.done" = "已保存副本 %1$@";
+
 
 
 

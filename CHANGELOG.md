@@ -4,6 +4,8 @@
 
 ## 0.4.2 (unreleased)
 
+- **New: Quick Look and "Save a Copy As…" for archive entries.** Right-click a file inside an archive → **Quick Look** previews it from a temporary copy that is cleaned up automatically when the archive closes — no manual extraction, nothing left behind. A single selected file also gets **Save a Copy As…**, which extracts straight to a location you pick in the save panel, skipping the extract dialog entirely. Both reuse the session password memory and the same safety checks as opening an entry. (Double-click + edit + write-back already existed; this rounds out the "peek without extracting" workflow.)
+
 - **New: session-level password memory.** A password that works is remembered **in memory only** for the rest of the session (never written to disk or the Keychain): re-opening, extracting from, or editing the same archive reuses it silently, and when you extract several archives that share one password, the next archive tries the last successful password before prompting. The password prompt also now shows the archive's comment when there is one — comments are a common place for password hints.
 
 - **New: pre-extraction summary in the extract dialog.** The extract dialog now opens with an installer-style preview: how many files / folders will be extracted and their total size, plus targeted warnings — encrypted entries (a password will be needed), same-name items already at the destination (the conflict dialog will ask), missing volumes in a split set, suspicious path entries, and symbolic links. The overwrite check re-evaluates live when you change the destination, and an unreadable archive (e.g. encrypted headers) just collapses the summary without blocking extraction.

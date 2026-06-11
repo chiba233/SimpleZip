@@ -80,7 +80,13 @@ final class ContentDragOutlineView: NSOutlineView, QLPreviewPanelDataSource, QLP
     @discardableResult
     func presentQuickLook() -> Bool {
         guard let provider = quickLookURLsProvider else { return false }
-        let urls = provider()
+        return presentQuickLook(urls: provider())
+    }
+
+    /// 0.4.2 #10：直接喂 URL 的变体 —— 归档条目「快速预览」先解到临时目录再调这里
+    /// （provider 是同步的，归档条目拿不出现成磁盘 URL）。
+    @discardableResult
+    func presentQuickLook(urls: [URL]) -> Bool {
         guard !urls.isEmpty else { return false }
         quickLookURLs = urls
         guard let panel = QLPreviewPanel.shared() else { return false }

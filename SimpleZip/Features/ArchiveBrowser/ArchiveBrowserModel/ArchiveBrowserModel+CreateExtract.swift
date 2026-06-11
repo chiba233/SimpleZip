@@ -1019,6 +1019,111 @@ extension ArchiveBrowserModel {
         }
     }
 
+    // MARK: - 临时预览 / 保存副本（0.4.2 #10）
+
+    /// 把选中的**文件**条目解到注册过清理的临时目录（随归档关闭 / 退出自动清掉，预览副本不落地），
+    /// 成功后回调解出的 URL。「快速预览」与「保存副本到…」共用。
+    /// 口令：已解析口令 + 会话缓存静默试，失败弹框重试 —— 与打开条目同款语义。
+    private func extractSelectedFileEntriesToTemp(completion: @escaping ([URL]) -> Void) {
+        guard case .archive(let archiveURL) = mode else { return }
+        let items = selectedArchiveItems.filter { !$0.isDirectory }
+        guard !items.isEmpty else { return }
+        let detectedZipEncryption: ZipEncryptionDetection = archiveURL.pathExtension.lowercased() == "zip"
+            ? ArchiveService.detectZipEncryption(in: archiveURL)
+            : .unknown
+        let force = isForced(archiveURL)
+
+        startOperationTask(cancellable: true) { [weak self] operationID in
+            guard let self else { return }
+            var extracted: [URL] = []
+            let didSucceed = await runArchiveTask(L10n.format("status.openingArchiveItem", items[0].displayName)) { progress in
+                let destination = try self.makeArchiveItemOpenDirectory()
+                self.openedArchiveItemDirectories.append(destination)
+                try self.confirmArchiveExtractionSafety(entries: items)
+                var password = self.resolvedArchivePassword
+                var zipDecryptionMethod: ArchiveDecryptionMethod = .automatic
+                var isRetry = false
+                var untriedSessionPasswords = SessionPasswordCache.shared.candidates(for: archiveURL).filter { $0 != password }
+                while true {
+                    do {
+                        try? self.fileManager.removeItem(at: destination)
+                        try self.fileManager.createDirectory(at: destination, withIntermediateDirectories: true)
+                        try await ArchiveService.extract(
+                            archiveURL,
+                            entries: items,
+                            to: destination,
+                            overwriteBehavior: .overwrite,
+                            pathMode: .preserve,
+                            password: password,
+                            zipDecryptionMethod: zipDecryptionMethod,
+                            safetyPolicy: .skipValidation,
+                            operationID: operationID,
+                            progress: progress,
+                            force: force
+                        )
+                        try self.confirmExtractedArchiveLinks(at: destination)
+                        SessionPasswordCache.shared.record(password, for: archiveURL)
+                        break
+                    } catch {
+                        guard self.shouldPromptForArchivePassword(error) else { throw error }
+                        if !untriedSessionPasswords.isEmpty {
+                            password = untriedSessionPasswords.removeFirst()
+                            continue
+                        }
+                        guard let authentication = self.promptForArchivePassword(
+                            archiveURL: archiveURL,
+                            displayName: items[0].displayName,
+                            detectedZipEncryption: detectedZipEncryption,
+                            isRetry: isRetry,
+                            actionTitle: L10n.text("button.open")
+                        ) else {
+                            throw CancellationError()
+                        }
+                        password = authentication.password
+                        zipDecryptionMethod = authentication.zipDecryptionMethod
+                        isRetry = true
+                    }
+                }
+                extracted = items.compactMap { try? self.extractedURL(for: $0, in: destination) }
+            }
+            if didSucceed, !extracted.isEmpty {
+                completion(extracted)
+            }
+        }
+    }
+
+    /// 右键「快速预览」（归档条目）：解到临时目录后回调，coordinator 拿去喂 QLPreviewPanel。
+    func quickLookSelectedArchiveItems(present: @escaping ([URL]) -> Void) {
+        extractSelectedFileEntriesToTemp(completion: present)
+    }
+
+    /// 右键「保存副本到…」（单文件条目）：NSSavePanel 选位置 → 解到临时 → 落位。
+    /// 不走解压对话框 / 冲突流程 —— 保存面板自身已让用户确认过覆盖；已存在时原子替换。
+    func saveSelectedArchiveItemCopy() {
+        guard case .archive = mode,
+              selectedArchiveItems.count == 1,
+              let item = selectedArchiveItems.first,
+              !item.isDirectory else { return }
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = item.displayName
+        panel.canCreateDirectories = true
+        guard panel.runModal() == .OK, let target = panel.url else { return }
+        extractSelectedFileEntriesToTemp { [weak self] urls in
+            guard let self, let source = urls.first else { return }
+            do {
+                if self.fileManager.fileExists(atPath: target.path) {
+                    _ = try self.fileManager.replaceItemAt(target, withItemAt: source)
+                } else {
+                    try self.fileManager.copyItem(at: source, to: target)
+                }
+                self.status = L10n.format("archive.saveCopy.done", target.lastPathComponent)
+                self.refreshVisibleFolder(containing: target)
+            } catch {
+                self.errorMessage = error.localizedDescription
+            }
+        }
+    }
+
     func extractSelectedArchiveItems() {
         guard case .archive(let archiveURL) = mode else {
             errorMessage = L10n.text("error.openOrSelectArchive")
