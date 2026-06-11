@@ -15,6 +15,8 @@ struct Sidebar: View {
     @State private var recentURLs: [URL] = []
     @State private var pinnedURLs: [URL] = []
     @State private var isPinnedDropTargeted = false
+    /// 图标缓存世代：app 重激活时自增,强制所有行重建、重取 NSWorkspace 图标（见 didBecomeActive）。
+    @State private var iconGeneration = 0
     /// 当前被拖拽悬停的侧栏行(行级投递目标高亮)。值 = 行的唯一 id(路径 / "tag:名")。
     @State private var dropTargetID: String?
 
@@ -89,7 +91,7 @@ struct Sidebar: View {
             }
 
             Section(L10n.text("section.pinned")) {
-                SidebarButton(title: L10n.text("button.pinCurrentLocation"), systemImage: "pin", action: pinCurrentLocation)
+                SidebarButton(title: L10n.text("button.pinCurrentLocation"), systemImage: "pin.fill", action: pinCurrentLocation)
 
                 ForEach(pinnedURLs, id: \.path) { url in
                     SidebarRowButton(action: { model.openFolder(url) }) {
@@ -153,7 +155,11 @@ struct Sidebar: View {
         .onAppear(perform: refreshSidebarURLs)
         // 用户从 Finder 调过收藏切回 SimpleZip 时重读 sfl4。
         // sfl4 没有官方变化通知，App 重激活是「肯定刚操作过 Finder」的最近时间点。
+        // 图标缓存同时清掉强制重取（用户报：别的 app 更新 / 文件夹换图标后,侧栏一直显示老图标 ——
+        // NSCache 整个会话不失效,列表刷新了图标还是旧的）。generation 自增驱动行重建,Image 才会重新取图。
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            Self.iconCache.removeAllObjects()
+            iconGeneration += 1
             refreshSidebarURLs()
         }
     }
@@ -340,7 +346,9 @@ private struct SidebarRowButton<Content: View>: View {
     }
 }
 
-/// 普通侧边栏按钮：Label 图标 + 标题。`SidebarRowButton` 的预制 facade。
+/// 侧边栏**动作行**按钮（唯一消费者：固定当前位置）。0.4.2 重绘：白色符号 + 强调色渐变
+/// 圆角瓦片,对齐真实文件图标行的 16px 节拍 —— 与设置 / 活动中心侧栏的彩色瓦片同一套语言,
+/// 不再是孤零零的灰色模板 Label（用户报「大头针还没重绘」）。
 struct SidebarButton: View {
     let title: String
     let systemImage: String
@@ -348,7 +356,19 @@ struct SidebarButton: View {
 
     var body: some View {
         SidebarRowButton(action: action) {
-            Label(title, systemImage: systemImage)
+            HStack(spacing: 7) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 16, height: 16)
+                    .background(
+                        Color.accentColor.gradient,
+                        in: RoundedRectangle(cornerRadius: 4.5, style: .continuous)
+                    )
+                Text(title)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+            }
         }
     }
 }

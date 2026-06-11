@@ -4,6 +4,7 @@
 
 ## 0.4.2 (unreleased)
 
+- **Fix: sidebar icons refresh when you come back to the app; the pin row joins the new design.** The sidebar's file-icon cache never invalidated during a session, so a folder or app whose icon changed (say, after an app update) kept its old icon until relaunch — switching back to SimpleZip now clears the cache and refetches. The "Pin Current Location" row trades its gray template pin for an accent-gradient icon tile matching the redesigned sidebar language.
 - **Fix: expansion memory survives navigation.** "Remember expanded folders / split-volume sets" was wiped on every path change, so leaving a folder and coming back collapsed everything. Expansion records are absolute paths, so they now persist for the whole session and replay when you return; they're only cleared when you switch the memory off.
 - **Internal: fixed a CI-only compile failure** — the archive-diff CSV row expression exceeded the stable compiler's type-check budget ("unable to type-check in reasonable time"); the columns now land in typed locals first.
 - **Fix: split-volume sets remember whether you expanded them.** An expanded set used to snap shut on every list refresh (file changes, manual refresh, sorting) — it now stays open like expanded folders do. Both memories get switches under Settings → Browser ("Remember expanded folders" / "Remember expanded split-volume sets", on by default, included in preference backups); turning one off means every refresh starts collapsed, with selection safely pulled back from rows that disappear.
