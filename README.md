@@ -54,9 +54,10 @@ on the official 7-Zip engine, which ships inside the app.
 - ↩️ **Undo / redo.** Move, rename, copy, duplicate, delete, split, combine,
   convert, even permission changes — ⌘Z takes them back (safely; it never
   silently clobbers your data).
-- 🔍 **Search, filter, compare.** Search the current list by name or path, filter
-  an archive by kind / size / date / encrypted-only, and diff two archives to see
-  exactly what was added, removed, or changed.
+- 🔍 **Search, filter, compare.** Search with power tokens (`*.swift size:>1MB
+  encrypted:true modified:<7d regex:…`), save your favorite filters, and diff two
+  archives — or a folder against an archive — exporting the result as JSON / CSV /
+  Markdown.
 - 🔄 **The list keeps itself fresh.** Add or remove files in Finder and
   SimpleZip's view updates on its own — no manual refresh, and your selection
   stays put.
@@ -80,14 +81,24 @@ on the official 7-Zip engine, which ships inside the app.
   `.siz`, in one step (right-click → Convert…).
 - **Split & combine** — break a large file into `partN` volumes and rejoin them,
   byte-for-byte, matching 7-Zip's Split / Combine.
-- **Archive comments** — read the comment stored inside a `.7z` / `.zip` right in
-  the browser.
-- **Compression presets** — save your favorite level / format / password settings
-  as a named default.
+- **Archive comments** — read *and edit* the whole-archive comment of a ZIP, right
+  in the browser.
+- **Templates & presets** — start from a ready-made recipe (GitHub Release ZIP,
+  max-compression 7z, encrypted delivery, source tarball without `node_modules`…)
+  or save your own named default.
+- **Pre-flight checks** — a creation dry-run (file count, size, what gets excluded),
+  a pre-extraction summary, and a one-click **Release Check** (integrity test,
+  suspicious paths, junk, empty dirs, SHA-256) before you ship a build.
+- **Batch tools** — test, convert, or rename many entries at once, find duplicate
+  files, and clean macOS metadata junk (`.DS_Store` / `__MACOSX`).
+- **Split-set awareness** — `.001 / .002 / partN.rar` recognized as a group, with
+  missing-volume warnings before you combine.
 - **Permissions & owner** — a Unix-permissions column and right-click chmod /
   chown for local files.
 - **Benchmark** — measure the 7-Zip engine's compression / decompression speed on
   your Mac.
+- **Activity Center** — every operation, re-runnable, with copyable equivalent
+  commands and an exportable diagnostics bundle.
 - **Tabs & multiple windows** — open archives and folders in native window tabs.
 - **Quick Look, Get Info, Open With** — the Finder essentials, right in the list.
 

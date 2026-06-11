@@ -121,6 +121,22 @@ silently overwrite**.
 - **Unsafe in-archive entry paths** (Windows-style `..\` escapes, drive letters)
   are rejected before the backend is invoked, so an attacker-controlled file name
   cannot make an edit write outside the archive's logical tree.
+- **Entry names are isolated from switches.** Entry names — untrusted input from a
+  possibly-crafted archive — are passed to `7zz a` / `d` / `rn` only **after** a
+  `--` end-of-options marker, so an entry literally named `-r`, `-p…`, or any other
+  switch-shaped string cannot be interpreted as a 7-Zip option when you edit that
+  archive. (This mirrors the extraction-side `--` hardening.)
+- **The ZIP archive comment is rewritten natively, not re-packed.** Editing a ZIP's
+  whole-archive comment rewrites only the trailing End-of-Central-Directory record
+  on a same-directory temp copy and atomically swaps it in; the archive body is
+  never touched, and a failure leaves the original intact. Per-entry comments are
+  deliberately read-only.
+- **Path security report (informational).** On open, listed entries are statically
+  scanned for nine suspicious-path families (absolute / `..` / drive / UNC /
+  backslash paths, control or bidirectional-override characters, overlong paths,
+  setuid bits, outward symlinks, case collisions) and surfaced as a banner +
+  report. This is purely advisory — it changes nothing about the extraction-time
+  prompts and blocks above.
 - **Conflict resolution is explicit.** Extract / paste / drop / create all route
   through one dialog: replace, keep both, skip, *replace only if the SHA-256
   differs*, and — for folders — merge (Finder-style) vs. replace-the-whole-folder
