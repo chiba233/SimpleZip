@@ -119,9 +119,9 @@ struct UpdatesPane: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.vertical, 4)
         } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "shippingbox.fill")
-                    .foregroundStyle(Color.accentColor)
+            HStack(spacing: 12) {
+                // 版本抽屉头 = 一级,彩色瓦片(与全设置同制度)。
+                SettingsRowIcon(systemImage: "shippingbox.fill", tint: .brown)
                 Text(L10n.format("updates.changelog.version", release.version))
                     .font(.body.weight(.medium))
                 if release.version == Self.shortVersion {

@@ -279,7 +279,8 @@ struct GeneralPane: View {
         SettingsControlRow(
             title: L10n.text("settings.presetPassword"),
             description: L10n.text("settings.presetPassword.description"),
-            systemImage: "lock"
+            systemImage: "lock",
+            iconTint: .orange
         ) {
             VStack(alignment: .trailing, spacing: 4) {
                 // alignmentGuide 解释见 eye / Save 注释：
