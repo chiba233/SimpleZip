@@ -10,6 +10,7 @@
 //  （两者皆空时 `GPGBackend.encrypt` 会抛错 → 这里用按钮禁用 + 提示拦在前面）。
 //
 
+import AppKit
 import SwiftUI
 
 /// 「加密为 .gpg」的待确认请求。沿用 ArchiveCreationRequest 的极简形态：源 + 所在目录 + 加密参数。
@@ -71,45 +72,57 @@ struct GPGEncryptOptionsView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text(L10n.text("gpgEncrypt.title"))
-                .font(.title3)
-                .fontWeight(.semibold)
+        // 0.4.1 重构：与创建 / 解压对话框同一套现代体例（DialogChrome）。
+        VStack(spacing: 0) {
+            DialogHero(
+                systemImage: "lock.fill",
+                colors: [.green, .mint],
+                title: L10n.text("gpgEncrypt.title"),
+                subtitle: L10n.format("gpgEncrypt.sourceSummary", "\(request.sourceURLs.count)")
+            )
 
-            VStack(alignment: .leading, spacing: 12) {
-                Text(L10n.format("gpgEncrypt.sourceSummary", "\(request.sourceURLs.count)"))
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-
-                // 多选 / 含文件夹才有意义：逐个文件分别加密 vs 打包成一个归档再加密。
-                if showsModePicker {
-                    Picker(L10n.text("gpgEncrypt.mode.label"), selection: $request.perFile) {
-                        Text(L10n.text("gpgEncrypt.mode.perFile")).tag(true)
-                        Text(L10n.text("gpgEncrypt.mode.bundle")).tag(false)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    DialogSection(L10n.text("gpgEncrypt.section.recipients")) {
+                        // 多选 / 含文件夹才有意义：逐个文件分别加密 vs 打包成一个归档再加密。
+                        if showsModePicker {
+                            LabeledContent {
+                                Picker("", selection: $request.perFile) {
+                                    Text(L10n.text("gpgEncrypt.mode.perFile")).tag(true)
+                                    Text(L10n.text("gpgEncrypt.mode.bundle")).tag(false)
+                                }
+                                .labelsHidden()
+                                .fixedSize()
+                            } label: {
+                                Label(L10n.text("gpgEncrypt.mode.label"), systemImage: "doc.on.doc.fill")
+                            }
+                        }
+                        recipientsRow
+                        encryptionPassphraseRow
+                        Text(L10n.text("gpgEncrypt.description"))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
-                    .pickerStyle(.radioGroup)
                 }
-
-                recipientsRow
-                encryptionPassphraseRow
-
-                Text(L10n.text("gpgEncrypt.description"))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 16)
             }
-            .controlSize(.small)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxHeight: 520)
+
+            Divider()
 
             HStack {
                 if hasMixedRecipientRings {
                     Text(L10n.text("gpgEncrypt.mixedKeyrings"))
                         .font(.caption)
                         .foregroundStyle(.orange)
+                        .lineLimit(2)
                 } else if !canEncrypt {
                     Text(L10n.text("gpgEncrypt.needsRecipientOrPassphrase"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .lineLimit(2)
                 }
                 Spacer()
                 Button(L10n.text("button.cancel"), action: cancel)
@@ -118,13 +131,16 @@ struct GPGEncryptOptionsView: View {
                     request.useSimpleZipKeyring = selectedRecipientSources == [.simpleZipKeyring]
                     confirm(request)
                 }
+                .buttonStyle(.borderedProminent)
                 .disabled(!canEncrypt)
                 .keyboardShortcut(.defaultAction)
             }
-            .controlSize(.small)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .background(.bar)
         }
-        .padding(20)
-        .frame(width: 480)
+        .frame(width: 520)
+        .onTapGesture { NSApp.keyWindow?.makeFirstResponder(nil) }
         .onAppear {
             presetPassword = AppPreferences.presetPassword
             hasDirectory = request.sourceURLs.contains { url in
@@ -152,7 +168,7 @@ struct GPGEncryptOptionsView: View {
     private var recipientsRow: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(L10n.text("archive.gpgEncrypt.recipientsLabel"))
+                Label(L10n.text("archive.gpgEncrypt.recipientsLabel"), systemImage: "person.2.fill")
                     .font(.caption.weight(.medium))
                     .foregroundStyle(.secondary)
                 GPGAddRecipientMenu(eligibleKeys: encryptionEligibleKeys, selection: $request.recipientFingerprints)
@@ -164,14 +180,12 @@ struct GPGEncryptOptionsView: View {
 
     @ViewBuilder
     private var encryptionPassphraseRow: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(L10n.text("archive.gpgEncrypt.passphraseLabel"))
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.secondary)
-                SecureField(L10n.text("archive.gpgEncrypt.passphrasePlaceholder"), text: $request.symmetricPassphrase)
-                    .textFieldStyle(.roundedBorder)
-            }
+        VStack(alignment: .leading, spacing: 4) {
+            Label(L10n.text("archive.gpgEncrypt.passphraseLabel"), systemImage: "lock.rectangle.fill")
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+            SecureField(L10n.text("archive.gpgEncrypt.passphrasePlaceholder"), text: $request.symmetricPassphrase)
+                .textFieldStyle(.roundedBorder)
             Text(L10n.text("archive.gpgEncrypt.passphraseHint"))
                 .font(.caption2)
                 .foregroundStyle(.secondary)
