@@ -47,6 +47,8 @@ struct GPGPane: View {
     @State private var pendingDroppedKeyURLs: [URL] = []
     /// 剪贴板导入的「选目标钥匙串」对话框。
     @State private var showsClipboardImportDialog = false
+    /// 文件导入的「选目标钥匙串」对话框(选完再开文件面板)。
+    @State private var showsFileImportDialog = false
 
     // 密钥服务器(keys.openpgp.org)搜索状态。
     @State private var keyserverQuery = ""
@@ -338,19 +340,24 @@ struct GPGPane: View {
                     } label: {
                         Label(L10n.text("settings.gpg.newKey.button"), systemImage: "plus")
                     }
+                    // 文件导入合并成一个按钮(用户拍板):点击 → 同剪贴板的「选目标钥匙串」对话框 → 文件面板。
                     Button {
-                        importKey(into: .userKeyring)
+                        showsFileImportDialog = true
                     } label: {
-                        Label(L10n.text("settings.gpg.keys.importUserButton"), systemImage: "square.and.arrow.down")
+                        Label(L10n.text("settings.gpg.keys.importButton"), systemImage: "square.and.arrow.down")
                     }
-                    Button {
-                        importKey(into: .simpleZipKeyring)
-                    } label: {
-                        Label(L10n.text("settings.gpg.keys.importSimpleZipButton"), systemImage: "square.and.arrow.down.on.square")
+                    .confirmationDialog(
+                        L10n.text("settings.gpg.keys.importButton"),
+                        isPresented: $showsFileImportDialog
+                    ) {
+                        Button(L10n.text("settings.gpg.keys.importUserButton")) {
+                            importKey(into: .userKeyring)
+                        }
+                        Button(L10n.text("settings.gpg.keys.importSimpleZipButton")) {
+                            importKey(into: .simpleZipKeyring)
+                        }
+                        Button(L10n.text("button.cancel"), role: .cancel) {}
                     }
-                    Spacer()
-                }
-                HStack(spacing: 10) {
                     // 剪贴板导入 —— 收到别人贴来的 armored 公钥块时不必先存盘(GPG Keychain 同款便利)。
                     // 普通按钮 + 选环确认对话框(与拖放导入同款 UX)—— Menu 在这里渲染破碎(图标文字出框),用户拍丑。
                     Button {

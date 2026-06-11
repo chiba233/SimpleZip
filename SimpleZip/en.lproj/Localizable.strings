@@ -180,6 +180,7 @@
 "settings.gpg.keys.filter.prompt" = "Search keys: name, email, or fingerprint";
 "settings.gpg.keys.filter.noMatch" = "No keys match “%1$@”.";
 "settings.gpg.keys.clipboardMenu" = "Clipboard";
+"settings.gpg.keys.importButton" = "Import Key File…";
 "settings.gpg.keys.clipboardImportUser" = "Import from Clipboard to ~/.gnupg";
 "settings.gpg.keys.clipboardImportSimpleZip" = "Import from Clipboard to SimpleZip-private keyring";
 "settings.gpg.keys.clipboardNoKey" = "The clipboard doesn't contain a PGP key block (-----BEGIN PGP …-----).";

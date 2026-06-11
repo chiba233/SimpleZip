@@ -180,6 +180,7 @@
 "settings.gpg.keys.filter.prompt" = "搜索密钥：姓名、邮箱或指纹";
 "settings.gpg.keys.filter.noMatch" = "没有匹配「%1$@」的密钥。";
 "settings.gpg.keys.clipboardMenu" = "剪贴板";
+"settings.gpg.keys.importButton" = "导入密钥文件…";
 "settings.gpg.keys.clipboardImportUser" = "从剪贴板导入到 ~/.gnupg";
 "settings.gpg.keys.clipboardImportSimpleZip" = "从剪贴板导入到 SimpleZip 私有钥匙串";
 "settings.gpg.keys.clipboardNoKey" = "剪贴板里没有 PGP 密钥块（-----BEGIN PGP …-----）。";
