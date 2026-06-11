@@ -83,7 +83,8 @@ struct WelcomeAssistantView: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 14)
         }
-        .frame(width: 780, height: 760)
+        // 高度随首页紧凑化回落(760 → 700):按最高的「便利」三段页核算,留 ViewThatFits 兜底。
+        .frame(width: 780, height: 700)
         .background(
             // 顶部一抹主题色柔光 —— 华丽但不喧宾夺主,深浅色模式都成立。
             ZStack {
