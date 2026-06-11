@@ -287,20 +287,46 @@ struct WelcomeAssistantView: View {
 /// 抽出来主要是让每个 step 的 padding / 字号 / 段落间距保持一致。
 private struct WelcomeStepShell<Content: View>: View {
     let title: String
+    /// 0.4.2 重绘：可选彩色图标瓦片（与设置侧栏 / 帮助页同语言）。不传 = 纯文字标题（兼容旧调用）。
+    var systemImage: String? = nil
+    var tint: Color = .accentColor
     let body1: String
     @ViewBuilder var content: () -> Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(title)
-                    .font(.title2.weight(.semibold))
-                Text(body1)
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .top, spacing: 12) {
+                if let systemImage {
+                    Image(systemName: systemImage)
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 38, height: 38)
+                        .background(tint.gradient, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(title)
+                        .font(.title2.weight(.semibold))
+                    Text(body1)
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
-            content()
+            // 内容进卡片 —— 与全 app 的 DialogSection 一个外观,欢迎页不再是裸控件铺地。
+            VStack(alignment: .leading, spacing: 14) {
+                content()
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 16)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color(nsColor: .controlBackgroundColor))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.06))
+            )
         }
     }
 }
@@ -313,6 +339,8 @@ private struct WelcomeBackupRestoreStep: View {
     var body: some View {
         WelcomeStepShell(
             title: L10n.text("welcome.backupRestore.title"),
+            systemImage: "arrow.down.doc.fill",
+            tint: .indigo,
             body1: L10n.text("welcome.backupRestore.body")
         ) {
             VStack(alignment: .leading, spacing: 12) {
@@ -406,6 +434,8 @@ private struct WelcomeLanguageStep: View {
     var body: some View {
         WelcomeStepShell(
             title: L10n.text("welcome.language.title"),
+            systemImage: "globe",
+            tint: .blue,
             body1: L10n.text("welcome.language.body")
         ) {
             Picker("", selection: $appLanguage) {
@@ -437,6 +467,8 @@ private struct WelcomeGeneralStep: View {
     var body: some View {
         WelcomeStepShell(
             title: L10n.text("welcome.general.title"),
+            systemImage: "gearshape.fill",
+            tint: .gray,
             body1: L10n.text("welcome.general.body")
         ) {
             VStack(alignment: .leading, spacing: 20) {
@@ -547,6 +579,8 @@ private struct WelcomePresetPasswordStep: View {
     var body: some View {
         WelcomeStepShell(
             title: L10n.text("welcome.presetPassword.title"),
+            systemImage: "key.fill",
+            tint: .orange,
             body1: L10n.text("welcome.presetPassword.body")
         ) {
             VStack(alignment: .leading, spacing: 12) {
@@ -641,6 +675,8 @@ private struct WelcomeFileAssociationsStep: View {
     var body: some View {
         WelcomeStepShell(
             title: L10n.text("welcome.fileAssociations.title"),
+            systemImage: "doc.badge.gearshape",
+            tint: .teal,
             body1: L10n.text("welcome.fileAssociations.body")
         ) {
             VStack(alignment: .leading, spacing: 12) {
@@ -724,6 +760,8 @@ private struct WelcomeSafetyStep: View {
     var body: some View {
         WelcomeStepShell(
             title: L10n.text("welcome.safety.title"),
+            systemImage: "shield.lefthalf.filled",
+            tint: .pink,
             body1: L10n.text("welcome.safety.body")
         ) {
             VStack(alignment: .leading, spacing: 14) {
@@ -765,6 +803,8 @@ private struct WelcomeBackendStep: View {
     var body: some View {
         WelcomeStepShell(
             title: L10n.text("welcome.backend.title"),
+            systemImage: "cpu",
+            tint: .purple,
             body1: L10n.text("welcome.backend.body")
         ) {
             // GroupBox + SettingsControlRow / SettingsActionRow 是 Settings 同款组件 ——
@@ -960,6 +1000,8 @@ private struct WelcomeGPGStep: View {
     var body: some View {
         WelcomeStepShell(
             title: L10n.text("welcome.gpg.title"),
+            systemImage: "signature",
+            tint: .green,
             body1: L10n.text("welcome.gpg.body")
         ) {
             VStack(alignment: .leading, spacing: 16) {

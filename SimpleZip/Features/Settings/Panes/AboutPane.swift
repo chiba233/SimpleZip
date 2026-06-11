@@ -20,24 +20,20 @@ struct AboutPane: View {
     }
 
     var body: some View {
-        // 0.4.2 用户报「明明显示完整还有滚动条碍眼」：放得下直接铺,放不下才包 ScrollView。
-        ViewThatFits(in: .vertical) {
-            aboutContent
-            ScrollView {
-                aboutContent
-            }
-        }
+        // 0.4.2 用户拍板：关于**必须一页显示、绝不出现滚动条** —— 不包任何滚动容器,
+        // 间距按设置窗最小高度（660pt）压实。
+        aboutContent
     }
 
     private var aboutContent: some View {
             VStack(spacing: 0) {
                 // 顶部主视觉：大图标 + 渐变大名 + 版本胶囊。
-                VStack(spacing: 14) {
+                VStack(spacing: 10) {
                     if let icon = NSApp.applicationIconImage {
                         Image(nsImage: icon)
                             .resizable()
-                            .frame(width: 128, height: 128)
-                            .shadow(color: .black.opacity(0.25), radius: 14, y: 8)
+                            .frame(width: 104, height: 104)
+                            .shadow(color: .black.opacity(0.25), radius: 12, y: 6)
                     }
                     // 0.4.2 用户点名：标题改液态玻璃风格,玻璃色跟 macOS 主题强调色。
                     appTitle
@@ -56,8 +52,8 @@ struct AboutPane: View {
                     Text(L10n.text("about.author"))
                         .font(.callout.weight(.medium))
                 }
-                .padding(.top, 36)
-                .padding(.bottom, 28)
+                .padding(.top, 20)
+                .padding(.bottom, 18)
 
                 // 链接卡：仓库 / 许可证 / 提交 Bug —— 全部跳浏览器。
                 HStack(spacing: 12) {
@@ -78,7 +74,7 @@ struct AboutPane: View {
                     ) { AboutPanel.openNewIssuePage() }
                 }
                 .frame(maxWidth: 560)
-                .padding(.bottom, 28)
+                .padding(.bottom, 18)
 
                 // 第三方致谢：站在谁的肩膀上。
                 VStack(alignment: .leading, spacing: 10) {
@@ -92,29 +88,35 @@ struct AboutPane: View {
                     }
                 }
                 .frame(maxWidth: 560)
-                .padding(.bottom, 24)
+                .padding(.bottom, 14)
 
                 Text(L10n.text("about.copyright"))
                     .font(.caption)
                     .foregroundStyle(.tertiary)
-                    .padding(.bottom, 28)
+                    .padding(.bottom, 16)
             }
             .frame(maxWidth: .infinity)
     }
 
-    /// 液态玻璃标题：macOS 26 用系统 Liquid Glass（accent tint）；老系统退回主题色渐变字。
+    private var titleText: Text {
+        Text("SimpleZip")
+            .font(.system(size: 42, weight: .bold, design: .rounded))
+    }
+
+    /// 液态玻璃**字形**（用户点名：像系统激活欢迎字那样,玻璃是字本身、不是垫底）：
+    /// 玻璃层按文字轮廓 mask —— 笔画里是折射的主题色玻璃,字外完全透明。老系统退回主题色渐变字。
     @ViewBuilder
     private var appTitle: some View {
         if #available(macOS 26.0, *) {
-            Text("SimpleZip")
-                .font(.system(size: 42, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 26)
-                .padding(.vertical, 8)
-                .glassEffect(.regular.tint(Color.accentColor.opacity(0.55)), in: Capsule())
+            titleText
+                .foregroundStyle(.clear)
+                .overlay {
+                    Rectangle()
+                        .glassEffect(.regular.tint(Color.accentColor.opacity(0.6)), in: Rectangle())
+                        .mask(titleText)
+                }
         } else {
-            Text("SimpleZip")
-                .font(.system(size: 42, weight: .bold, design: .rounded))
+            titleText
                 .foregroundStyle(
                     LinearGradient(
                         colors: [Color.accentColor, Color.accentColor.opacity(0.55)],
