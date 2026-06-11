@@ -812,6 +812,13 @@
 "duplicates.groupWaste" = "浪费 %1$@";
 /* 0.4.2 .szs 与当前文件夹比较 */
 "szs.compareWithFolder.menuItem" = "与当前文件夹比较";
+/* 0.4.2 未知签名者本地导入公钥 */
+"siz.keyImport.section" = "导入签名者公钥";
+"siz.keyImport.hint" = "签名者的公钥不在你的钥匙串里。若对方的公钥文件（.asc）随容器一起发来，可在下方导入——SimpleZip 绝不联网查 keyserver。导入后重新打开此文件即可重验，并请到 设置 → GPG 为该密钥设置信任。";
+"siz.keyImport.ring" = "导入到";
+"siz.keyImport.noSiblings" = "容器旁没有发现公钥文件（.asc / .pub / .key / .pgp）。";
+"siz.keyImport.success" = "已导入。重新打开此文件即可重新验签；请到 设置 → GPG 为该密钥设置信任。";
+
 
 
 

@@ -49,6 +49,19 @@ struct SIZSignatureSheet: View {
     /// 说明正文的最大显示高度；超过就在面板内滚动，避免超长留言把 sheet 撑出屏幕。
     private let maxInstructionsHeight: CGFloat = 260
 
+    // 0.4.2 #29：unknownSigner 时的本地公钥导入。**绝不联网 keyserver** —— 只扫 .siz 同目录的
+    // 公钥文件 + 接受拖入。导入成功后提示重新打开以重验（验证发生在打开时，不在 sheet 内重跑）。
+    @State private var siblingKeyFiles: [URL] = []
+    @State private var importRing: GPGBackend.GPGKeyringSource = .userKeyring
+    @State private var isImportingKey = false
+    @State private var keyImportMessage: String?
+    @State private var keyImportSucceeded = false
+
+    private var showsUnknownSignerImport: Bool {
+        if case .unknownSigner = signature.verify { return true }
+        return false
+    }
+
     /// `.badSignature` 时把 Cancel 设为 default action（回车 / Esc 都退出），引导用户不要打开被篡改的容器。
     private var cancelIsDefault: Bool {
         if case .badSignature = signature.verify { return true }
@@ -106,6 +119,13 @@ struct SIZSignatureSheet: View {
                         }
                     }
 
+                    // 0.4.2 #29：签名者公钥未导入 → 本地导入区（同目录公钥文件 + 拖入；不联网）。
+                    if showsUnknownSignerImport {
+                        DialogSection(L10n.text("siz.keyImport.section")) {
+                            unknownSignerImportControls
+                        }
+                    }
+
                     // 加密容器：picker + passphrase 字段；passphrase 字段优先于 pinentry-mac 兜底。
                     if showsDecryptionKeyPicker || showsDecryptionPassphraseField {
                         DialogSection(L10n.text("siz.signatureSheet.section.decryption")) {
@@ -158,6 +178,10 @@ struct SIZSignatureSheet: View {
         .frame(width: 560)
         .onTapGesture { NSApp.keyWindow?.makeFirstResponder(nil) }
         .onAppear {
+            // 0.4.2 #29：unknownSigner 时扫同目录公钥候选（本地文件枚举，瞬时）。
+            if showsUnknownSignerImport {
+                scanSiblingKeyFiles()
+            }
             // 仅加密容器才需要载入 hasSecretKey 密钥列表 —— 没加密的容器 picker 不显示，省一次 listKeys 调用。
             guard showsDecryptionKeyPicker, AppPreferences.gpgEnabled, GPGBackend.isAvailable() else { return }
             Task { @MainActor in
@@ -288,6 +312,76 @@ struct SIZSignatureSheet: View {
         case .unknownSigner: return L10n.text("siz.verify.unknownSigner.openAnyway")
         case .badSignature: return L10n.text("siz.verify.bad.openAnyway")
         default: return L10n.text("siz.verify.openButton")
+        }
+    }
+
+    /// 0.4.2 #29：本地导入签名者公钥。扫同目录的公钥文件逐个给「导入」按钮，整区也接受拖入；
+    /// 目标环可选（我的钥匙串 / SimpleZip 专用环）。导入只是第一步 —— 提示重新打开以重验 + 设信任。
+    @ViewBuilder
+    private var unknownSignerImportControls: some View {
+        Text(L10n.text("siz.keyImport.hint"))
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+        Picker(L10n.text("siz.keyImport.ring"), selection: $importRing) {
+            Text(L10n.text("gpgImport.ring.user")).tag(GPGBackend.GPGKeyringSource.userKeyring)
+            Text(L10n.text("gpgImport.ring.simpleZip")).tag(GPGBackend.GPGKeyringSource.simpleZipKeyring)
+        }
+        .pickerStyle(.segmented)
+        if siblingKeyFiles.isEmpty {
+            Label(L10n.text("siz.keyImport.noSiblings"), systemImage: "questionmark.folder")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+        } else {
+            ForEach(siblingKeyFiles, id: \.self) { keyURL in
+                HStack {
+                    Label(keyURL.lastPathComponent, systemImage: "person.badge.key")
+                        .font(.callout)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Spacer()
+                    Button(L10n.text("gpgImport.action.import")) {
+                        importSignerKey(from: keyURL)
+                    }
+                    .controlSize(.small)
+                    .disabled(isImportingKey)
+                }
+            }
+        }
+        if isImportingKey {
+            ProgressView().controlSize(.small)
+        }
+        if let keyImportMessage {
+            Label(keyImportMessage, systemImage: keyImportSucceeded ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                .font(.caption)
+                .foregroundStyle(keyImportSucceeded ? Color.green : Color.red)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// 扫 .siz 同目录的公钥候选文件（.asc / .pub / .key / .pgp / .gpg，排除 .siz 自己解出来的内层 .gpg 大文件不现实——
+    /// 只按扩展名列出，由用户决定导入哪个；导入失败 gpg 会拒绝非密钥文件，不会污染钥匙串）。
+    private func scanSiblingKeyFiles() {
+        let directory = signature.sourceURL.deletingLastPathComponent()
+        let keyExtensions: Set<String> = ["asc", "pub", "key", "pgp"]
+        siblingKeyFiles = ((try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? [])
+            .filter { keyExtensions.contains($0.pathExtension.lowercased()) }
+            .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+    }
+
+    private func importSignerKey(from url: URL) {
+        isImportingKey = true
+        keyImportMessage = nil
+        Task { @MainActor in
+            do {
+                _ = try await GPGBackend.importKey(from: url, into: importRing)
+                keyImportSucceeded = true
+                keyImportMessage = L10n.text("siz.keyImport.success")
+            } catch {
+                keyImportSucceeded = false
+                keyImportMessage = error.localizedDescription
+            }
+            isImportingKey = false
         }
     }
 

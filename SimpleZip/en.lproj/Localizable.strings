@@ -814,6 +814,13 @@
 "duplicates.groupWaste" = "%1$@ wasted";
 /* 0.4.2 .szs vs folder comparison */
 "szs.compareWithFolder.menuItem" = "Compare with Current Folder";
+/* 0.4.2 unknown-signer local key import */
+"siz.keyImport.section" = "Import the Signer's Public Key";
+"siz.keyImport.hint" = "The signer's public key isn't in your keyring. If their key file (.asc) travels next to this container, import it below — SimpleZip never contacts a keyserver. After importing, reopen the file to verify again, and set the key's trust in Settings → GPG.";
+"siz.keyImport.ring" = "Import into";
+"siz.keyImport.noSiblings" = "No key files (.asc / .pub / .key / .pgp) found next to this container.";
+"siz.keyImport.success" = "Key imported. Reopen this file to verify the signature again, then set the key's trust in Settings → GPG.";
+
 
 
 
