@@ -238,15 +238,16 @@ extension ArchiveBrowserModel {
     /// 右键「比较归档」入口：选中 2 个归档直接比；选中 1 个时用 NSOpenPanel 挑第二个。
     /// 菜单项只在这两种选区下出现，这里的兜底报错只防御直接调用。
     func compareSelectedArchives() {
-        let archiveURLs = selectedFileItems
-            .filter { !$0.isDirectory && ArchiveService.isSupportedArchive($0.url) }
+        // 0.4.2 #25:可比对的「侧」= 受支持归档 或 文件夹。归档 vs 归档 / 文件夹 vs 归档 / 文件夹 vs 文件夹都行。
+        let comparableURLs = selectedFileItems
+            .filter { $0.isDirectory || ArchiveService.isSupportedArchive($0.url) }
             .map(\.url)
 
-        if archiveURLs.count >= 2 {
-            runArchiveComparison(left: archiveURLs[0], right: archiveURLs[1])
+        if comparableURLs.count >= 2 {
+            runArchiveComparison(left: comparableURLs[0], right: comparableURLs[1])
             return
         }
-        guard let first = archiveURLs.first else {
+        guard let first = comparableURLs.first else {
             errorMessage = L10n.text("error.openOrSelectArchive")
             return
         }
@@ -254,14 +255,16 @@ extension ArchiveBrowserModel {
         let panel = NSOpenPanel()
         panel.title = L10n.text("panel.openArchive")
         panel.message = L10n.format("diff.choosePrompt", first.lastPathComponent)
-        panel.canChooseDirectories = false
+        panel.canChooseDirectories = true   // 0.4.2 #25:第二侧也可以选文件夹
         panel.canChooseFiles = true
         panel.allowsMultipleSelection = false
         panel.allowedContentTypes = ArchiveService.supportedArchiveTypes
         panel.allowsOtherFileTypes = true
 
         if panel.runModal() == .OK, let other = panel.url {
-            guard ArchiveService.isSupportedArchive(other) else {
+            var isDirectory: ObjCBool = false
+            let exists = FileManager.default.fileExists(atPath: other.path, isDirectory: &isDirectory)
+            guard exists, isDirectory.boolValue || ArchiveService.isSupportedArchive(other) else {
                 errorMessage = L10n.text("error.openOrSelectArchive")
                 return
             }
@@ -286,8 +289,9 @@ extension ArchiveBrowserModel {
                 task.diffReport = self?.archiveDiffReport
             }
         ) { [weak self] operationID, _, _ in
-            let leftItems = try await ArchiveService.list(left, operationID: operationID, force: forceLeft)
-            let rightItems = try await ArchiveService.list(right, operationID: operationID, force: forceRight)
+            // 0.4.2 #25:任一侧是文件夹 → 文件系统快照;是归档 → 照常列出。归档 vs 文件夹随便混。
+            let leftItems = try await Self.comparisonItems(for: left, operationID: operationID, force: forceLeft)
+            let rightItems = try await Self.comparisonItems(for: right, operationID: operationID, force: forceRight)
             let result = ArchiveDiff.compare(left: leftItems, right: rightItems)
             await MainActor.run {
                 self?.archiveDiffReport = ArchiveDiffReport(
@@ -297,6 +301,19 @@ extension ArchiveBrowserModel {
                 )
             }
         }
+    }
+
+    /// 比较的一侧取条目:文件夹(且不是受支持归档)→ 文件系统快照;否则按归档列出。
+    nonisolated private static func comparisonItems(for url: URL, operationID: UUID?, force: Bool) async throws -> [ArchiveItem] {
+        var isDirectory: ObjCBool = false
+        if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory),
+           isDirectory.boolValue,
+           !ArchiveService.isSupportedArchive(url) {
+            return await Task.detached(priority: .userInitiated) {
+                ArchiveDiff.folderItems(at: url)
+            }.value
+        }
+        return try await ArchiveService.list(url, operationID: operationID, force: force)
     }
 
     func showSevenZipBenchmarkOptions() {

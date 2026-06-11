@@ -4,6 +4,8 @@
 
 ## 0.4.2 (unreleased)
 
+- **New: compare folders, not just archives.** Archive Diff now accepts a folder on either side — select an archive + a folder, two folders, or two archives, or pick the second side (folders allowed) from the panel. Folder sides are snapshotted from the file system; since file systems store no CRC, content comparison falls back to size + date there. Modification times also gained a 2-second tolerance across all comparisons — ZIP's DOS timestamps only have 2-second resolution, which previously flagged every file as "modified" when comparing against a folder; one-sided missing timestamps no longer count as a change either.
+
 - **New: find duplicate files inside an archive.** Right-click the blank area of an archive → **Find Duplicate Files**: entries are grouped by size + CRC (entries without a reliable CRC are skipped rather than guessed), groups are sorted by wasted space with a total at the top, and the report can be copied as plain text. Works read-only on any archive format.
 
 - **New: unclean-exit recovery.** If the previous session ended without a clean quit (crash or force-kill), the next launch says so: leftover temporary files and the encrypted scratch volume are cleaned up automatically (as before), tasks that were still running are now restored into the Activity Center history as **Interrupted** instead of spinning forever, and the notice offers one-click **Export Diagnostics Report…** for an issue.

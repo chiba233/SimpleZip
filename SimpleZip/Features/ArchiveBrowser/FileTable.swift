@@ -919,10 +919,12 @@ struct FileNSOutlineView: NSViewRepresentable {
             } else {
                 menu.addItem(menuItem(L10n.text("button.test"), systemImage: "checkmark.seal", action: #selector(testSelectedArchive)))
             }
-            // #111 比较归档：恰好选中 2 个受支持归档 → 直接比；只选中 1 个归档 → 再挑一个比。
-            if selectedArchiveCount == 2 {
+            // #111 比较：恰好选中 2 个可比对项（归档或文件夹，0.4.2 #25）→ 直接比；
+            // 单选 1 个归档 / 文件夹 → 再挑一个比（面板可选文件夹）。
+            let comparableCount = model.selectedFileItems.filter { $0.isDirectory || ArchiveService.isSupportedArchive($0.url) }.count
+            if comparableCount == 2, model.selectedFileItems.count == 2 {
                 menu.addItem(menuItem(L10n.text("file.compareArchives"), systemImage: "arrow.left.arrow.right.circle", action: #selector(compareArchivesSelected)))
-            } else if selectedArchiveCount == 1, model.selectedFileItems.count == 1 {
+            } else if comparableCount == 1, model.selectedFileItems.count == 1 {
                 menu.addItem(menuItem(L10n.text("file.compareArchives.withOther"), systemImage: "arrow.left.arrow.right.circle", action: #selector(compareArchivesSelected)))
             }
             // 0.4.2 #15：发布包检查 —— 单选受支持归档时出现。

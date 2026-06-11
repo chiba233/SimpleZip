@@ -233,3 +233,38 @@ struct ArchiveDuplicatesTests {
         #expect(groups.first?.wastedBytes == 2000)
     }
 }
+
+/// 0.4.2 #25:文件夹快照 + 修改时间容差。
+struct FolderComparisonTests {
+
+    @Test func folderItemsSnapshotTree() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("SimpleZip-FolderDiffTests-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root.appendingPathComponent("docs"), withIntermediateDirectories: true)
+        try Data("hello".utf8).write(to: root.appendingPathComponent("docs/a.txt"))
+        try Data().write(to: root.appendingPathComponent("top.txt"))
+
+        let items = ArchiveDiff.folderItems(at: root)
+        let byName = Dictionary(uniqueKeysWithValues: items.map { ($0.name, $0) })
+        #expect(byName["docs"]?.isDirectory == true)
+        #expect(byName["docs/a.txt"]?.size == 5)
+        #expect(byName["top.txt"]?.isDirectory == false)
+        #expect(items.count == 3)
+    }
+
+    @Test func modifiedToleranceAbsorbsDOSTimestampJitter() {
+        let base = Date(timeIntervalSince1970: 1_000_000)
+        let left = [ArchiveItem(name: "a.txt", isDirectory: false, size: 1, modified: base, sizeText: "", modifiedText: "", method: "")]
+        let within = [ArchiveItem(name: "a.txt", isDirectory: false, size: 1, modified: base.addingTimeInterval(1.5), sizeText: "", modifiedText: "", method: "")]
+        let beyond = [ArchiveItem(name: "a.txt", isDirectory: false, size: 1, modified: base.addingTimeInterval(10), sizeText: "", modifiedText: "", method: "")]
+        #expect(ArchiveDiff.compare(left: left, right: within).changed.isEmpty)   // 2 秒内 = 同
+        #expect(ArchiveDiff.compare(left: left, right: beyond).changed.first?.fields == [.modified])
+    }
+
+    @Test func oneSidedMissingTimestampIsNotAChange() {
+        let dated = [ArchiveItem(name: "a.txt", isDirectory: false, size: 1, modified: Date(timeIntervalSince1970: 1), sizeText: "", modifiedText: "", method: "")]
+        let undated = [ArchiveItem(name: "a.txt", isDirectory: false, size: 1, modified: nil, sizeText: "", modifiedText: "", method: "")]
+        #expect(ArchiveDiff.compare(left: dated, right: undated).changed.isEmpty)
+    }
+}

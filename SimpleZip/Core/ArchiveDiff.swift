@@ -125,7 +125,13 @@ enum ArchiveDiff {
         let afterCRC = normalizedCRC(after.crc)
         if !beforeCRC.isEmpty, !afterCRC.isEmpty, beforeCRC != afterCRC { fields.insert(.crc) }
 
-        if before.modified != after.modified { fields.insert(.modified) }
+        // 修改时间给 2 秒容差:zip 的 DOS 时间戳只有 2 秒分辨率,文件夹 vs 归档(0.4.2 #25)
+        // 不容差会把每个文件都误标「已修改」。两侧都缺时间不比。
+        if let beforeModified = before.modified, let afterModified = after.modified {
+            if abs(beforeModified.timeIntervalSince(afterModified)) > 2 { fields.insert(.modified) }
+        } else if (before.modified == nil) != (after.modified == nil) {
+            // 单侧缺时间(文件夹快照 vs 不记时间的格式)→ 不算差异,避免系统性误报。
+        }
         return fields
     }
 
@@ -316,5 +322,38 @@ enum ArchiveDuplicates {
                 if lhs.wastedBytes != rhs.wastedBytes { return lhs.wastedBytes > rhs.wastedBytes }
                 return lhs.id < rhs.id
             }
+    }
+}
+
+// MARK: - 文件夹快照（0.4.2 #25）
+
+extension ArchiveDiff {
+    /// 把文件夹快照成可比对的条目列表：相对路径 / 目录标记 / 大小 / 修改时间。
+    /// 文件系统不存 CRC → CRC 维度自动不参与（compare 对空 CRC 跳过）。符号链接按条目记录、不跟随。
+    nonisolated static func folderItems(at root: URL, fileManager: FileManager = .default) -> [ArchiveItem] {
+        let keys: Set<URLResourceKey> = [.isDirectoryKey, .isSymbolicLinkKey, .fileSizeKey, .contentModificationDateKey]
+        guard let enumerator = fileManager.enumerator(at: root, includingPropertiesForKeys: Array(keys)) else { return [] }
+        let rootPath = root.standardizedFileURL.path
+        var items: [ArchiveItem] = []
+        for case let url as URL in enumerator {
+            let values = try? url.resourceValues(forKeys: keys)
+            let path = url.standardizedFileURL.path
+            guard path.hasPrefix(rootPath + "/") else { continue }
+            let relative = String(path.dropFirst(rootPath.count + 1))
+            let isSymlink = values?.isSymbolicLink == true
+            let isDirectory = values?.isDirectory == true && !isSymlink
+            let size = Int64(values?.fileSize ?? 0)
+            items.append(ArchiveItem(
+                name: relative,
+                isDirectory: isDirectory,
+                size: isDirectory ? nil : size,
+                modified: values?.contentModificationDate,
+                sizeText: isDirectory ? "" : ByteCountFormatter.string(fromByteCount: size, countStyle: .file),
+                modifiedText: "",
+                method: "",
+                symlinkTarget: isSymlink ? ((try? fileManager.destinationOfSymbolicLink(atPath: path)) ?? "") : ""
+            ))
+        }
+        return items
     }
 }
