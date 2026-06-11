@@ -1639,6 +1639,10 @@
 "virtual.export.done" = "已保存 %1$@ 个文件";
 "feedback.copied" = "已复制";
 "command.copied" = "命令已复制";
+"tasks.settings.openOnFailure" = "任务失败时自动打开活动中心";
+"tasks.settings.openOnFailure.description" = "任何任务失败都自动把本窗口带到前台。";
+"tasks.settings.playSound" = "任务结束播放提示音";
+"tasks.settings.playSound.description" = "成功播 Glass，失败播 Basso。";
 "button.close" = "关闭";
 "gpgFile.disabled.message" = "GPG 集成已关闭。请在「设置 ▸ GPG」中启用后再打开加密文件。";
 "gpgFile.backendMissing.message" = "未找到 GPG 后端（gpg）。请安装 GnuPG 后再打开加密文件。";

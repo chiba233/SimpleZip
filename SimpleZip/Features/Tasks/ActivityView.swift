@@ -198,6 +198,26 @@ struct ActivityView: View {
                 }
 
                 SettingsControlRow(
+                    title: L10n.text("tasks.settings.openOnFailure"),
+                    description: L10n.text("tasks.settings.openOnFailure.description"),
+                    systemImage: "exclamationmark.bubble"
+                ) {
+                    Toggle("", isOn: openOnFailureBinding)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
+
+                SettingsControlRow(
+                    title: L10n.text("tasks.settings.playSound"),
+                    description: L10n.text("tasks.settings.playSound.description"),
+                    systemImage: "speaker.wave.2"
+                ) {
+                    Toggle("", isOn: playSoundBinding)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
+
+                SettingsControlRow(
                     title: L10n.text("tasks.settings.clearHistory"),
                     description: L10n.text("tasks.settings.clearHistory.description"),
                     systemImage: "trash"
@@ -218,6 +238,21 @@ struct ActivityView: View {
 
     private var selectedPane: ActivityPane {
         windowState.selectedPane
+    }
+
+    // 0.4.2 活动中心设置:两个行为开关(UserDefaults 直绑,TaskCenter.finish 消费)。
+    private var openOnFailureBinding: Binding<Bool> {
+        Binding(
+            get: { UserDefaults.standard.bool(forKey: AppPreferences.Key.tasksOpenOnFailure) },
+            set: { UserDefaults.standard.set($0, forKey: AppPreferences.Key.tasksOpenOnFailure) }
+        )
+    }
+
+    private var playSoundBinding: Binding<Bool> {
+        Binding(
+            get: { UserDefaults.standard.bool(forKey: AppPreferences.Key.tasksPlaySoundOnFinish) },
+            set: { UserDefaults.standard.set($0, forKey: AppPreferences.Key.tasksPlaySoundOnFinish) }
+        )
     }
 }
 

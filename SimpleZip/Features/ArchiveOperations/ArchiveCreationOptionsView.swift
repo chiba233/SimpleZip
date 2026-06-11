@@ -670,8 +670,9 @@ struct ArchiveCreationOptionsView: View {
         DialogSection(L10n.text("archive.dryRun.section")) {
             HStack(alignment: .firstTextBaseline, spacing: 14) {
                 if let dryRun {
-                    // 一行流式概要：文件数+大小 恒显;排除/symlink/包/分卷 非零才显。
-                    HStack(spacing: 14) {
+                    // 概要项进自适应网格：每项**强制单行**（lineLimit(1)+fixedSize），
+                    // 放不下换列不换行 —— 0.4.2 用户报「有的挤成两行有的一行」。
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), alignment: .leading)], alignment: .leading, spacing: 8) {
                         Label(
                             L10n.format(
                                 "archive.dryRun.input",
@@ -680,17 +681,22 @@ struct ArchiveCreationOptionsView: View {
                             ),
                             systemImage: "doc.on.doc"
                         )
+                        .lineLimit(1).fixedSize()
                         if dryRun.excludedCount > 0 {
                             Label(L10n.format("archive.dryRun.excluded", "\(dryRun.excludedCount)"), systemImage: "eye.slash")
+                                .lineLimit(1).fixedSize()
                         }
                         if dryRun.symlinkCount > 0 {
                             Label(L10n.format("archive.dryRun.symlinks", "\(dryRun.symlinkCount)"), systemImage: "link")
+                                .lineLimit(1).fixedSize()
                         }
                         if dryRun.packageCount > 0 {
                             Label(L10n.format("archive.dryRun.packages", "\(dryRun.packageCount)"), systemImage: "shippingbox")
+                                .lineLimit(1).fixedSize()
                         }
                         if let volumes = dryRun.estimatedVolumeCount {
                             Label(L10n.format("archive.dryRun.volumes", "\(volumes)"), systemImage: "square.stack.3d.up")
+                                .lineLimit(1).fixedSize()
                         }
                     }
                     .font(.callout)

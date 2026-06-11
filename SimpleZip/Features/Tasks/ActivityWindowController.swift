@@ -35,7 +35,8 @@ final class ActivityWindowController {
             defer: false
         )
         window.title = L10n.text("tasks.window.title")
-        window.titleVisibility = .hidden
+        // 0.4.2 用户点名:活动中心要有标题文本(与其他窗口一致)。
+        window.titleVisibility = .visible
         window.titlebarAppearsTransparent = true
         window.minSize = NSSize(width: 760, height: 560)
         window.contentViewController = NSHostingController(rootView: ActivityView(taskCenter: .shared, windowState: windowState))

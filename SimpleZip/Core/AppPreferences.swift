@@ -327,6 +327,8 @@ enum AppPreferences {
         nonisolated static let welcomeAssistantCompleted = "welcomeAssistantCompleted"
         nonisolated static let activityHistory = "activityHistory"
         nonisolated static let activityHistoryLimit = "activityHistoryLimit"
+        nonisolated static let tasksOpenOnFailure = "tasksOpenOnFailure"
+        nonisolated static let tasksPlaySoundOnFinish = "tasksPlaySoundOnFinish"
 
         // GPG 集成主开关 —— 关 → 创建 / 解压 / 状态徽章里所有 GPG 入口隐藏；设置 pane 始终可见让用户能开它。
         nonisolated static let gpgEnabled = "gpgEnabled"
@@ -358,10 +360,21 @@ enum AppPreferences {
         defaultTrueBool(forKey: Key.confirmBeforeDeletingFiles)
     }
 
+    /// 0.4.2:任务失败时自动弹出活动中心（默认关）。
+    nonisolated static var tasksOpenOnFailure: Bool {
+        defaults.bool(forKey: Key.tasksOpenOnFailure)
+    }
+
+    /// 0.4.2:任务结束播放提示音（成功 Glass / 失败 Basso,默认关）。
+    nonisolated static var tasksPlaySoundOnFinish: Bool {
+        defaults.bool(forKey: Key.tasksPlaySoundOnFinish)
+    }
+
     nonisolated static var activityHistoryLimit: Int {
         get {
             let value = defaults.integer(forKey: Key.activityHistoryLimit)
-            return value > 0 ? min(max(value, 1), 500) : 50
+            // 0.4.2:默认 50 → 200。50 条几次批量操作就滚没了,是用户「丢历史」体感的来源之一。
+            return value > 0 ? min(max(value, 1), 500) : 200
         }
         set {
             defaults.set(min(max(newValue, 1), 500), forKey: Key.activityHistoryLimit)

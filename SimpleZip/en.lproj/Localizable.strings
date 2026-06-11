@@ -1639,6 +1639,10 @@
 "virtual.export.done" = "Saved %1$@ files";
 "feedback.copied" = "Copied";
 "command.copied" = "Command copied";
+"tasks.settings.openOnFailure" = "Open Activity Center on failure";
+"tasks.settings.openOnFailure.description" = "Bring this window forward automatically whenever a task fails.";
+"tasks.settings.playSound" = "Play sound when tasks finish";
+"tasks.settings.playSound.description" = "Glass on success, Basso on failure.";
 "button.close" = "Close";
 "gpgFile.disabled.message" = "GPG integration is turned off. Enable it in Settings ▸ GPG to open encrypted files.";
 "gpgFile.backendMissing.message" = "The GPG backend (gpg) was not found. Install GnuPG to open encrypted files.";

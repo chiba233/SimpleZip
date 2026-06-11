@@ -3,6 +3,7 @@
 //  SimpleZip
 //
 
+import AppKit
 import Combine
 import Foundation
 
@@ -81,6 +82,17 @@ final class TaskCenter: ObservableObject {
         history.insert(finishedTask, at: 0)
         trimHistoryToLimit()
         persistHistory()
+        // 0.4.2 活动中心设置:失败自动弹出 / 完成提示音(都默认关,纯可选行为)。
+        if case .failed = outcome, AppPreferences.tasksOpenOnFailure {
+            ActivityWindowController.shared.show()
+        }
+        if AppPreferences.tasksPlaySoundOnFinish {
+            switch outcome {
+            case .succeeded: NSSound(named: "Glass")?.play()
+            case .failed: NSSound(named: "Basso")?.play()
+            default: break
+            }
+        }
     }
 
     func cancelAll() {

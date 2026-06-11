@@ -20,7 +20,16 @@ struct AboutPane: View {
     }
 
     var body: some View {
-        ScrollView {
+        // 0.4.2 用户报「明明显示完整还有滚动条碍眼」：放得下直接铺,放不下才包 ScrollView。
+        ViewThatFits(in: .vertical) {
+            aboutContent
+            ScrollView {
+                aboutContent
+            }
+        }
+    }
+
+    private var aboutContent: some View {
             VStack(spacing: 0) {
                 // 顶部主视觉：大图标 + 渐变大名 + 版本胶囊。
                 VStack(spacing: 14) {
@@ -94,7 +103,6 @@ struct AboutPane: View {
                     .padding(.bottom, 28)
             }
             .frame(maxWidth: .infinity)
-        }
     }
 
     @ViewBuilder
