@@ -1283,6 +1283,10 @@
 "undo.action.copy" = "Copy";
 "undo.action.rename" = "Rename";
 "undo.action.delete" = "Delete";
+"undo.action.split" = "Split";
+"undo.action.combine" = "Combine Volumes";
+"undo.action.convert" = "Convert Format";
+"undo.action.permissions" = "Change Permissions";
 "undo.action.duplicate" = "Duplicate";
 "undo.action.symlink" = "Create Symbolic Link";
 "undo.partiallySkipped" = "%d item(s) couldn’t be undone — the original is missing or the destination is already taken.";

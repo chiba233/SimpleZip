@@ -71,6 +71,44 @@ extension ArchiveBrowserModel {
         registerMoveUndo(forwardPairs.map { (from: $0.original, to: $0.trashURL) }, actionName: actionName)
     }
 
+    /// 权限 / 属主：forward 已把每个 url 改成新值。撤销 = 恢复 `steps` 里记录的**旧** mode / owner。
+    /// `mode` / `owner` 为 nil 表示该维度没改、撤销时也不动它。仅非递归操作注册（递归一整棵树的旧权限无法可靠快照）。
+    func registerPermissionsUndo(_ steps: [UndoPermissionsStep], actionName: String) {
+        let valid = steps.filter { $0.mode != nil || ($0.owner?.isEmpty == false) }
+        guard !valid.isEmpty else { return }
+        fileUndoManager.setActionName(actionName)
+        fileUndoManager.registerUndo(withTarget: self) { model in
+            model.performUndoablePermissions(valid, actionName: actionName)
+        }
+        refreshUndoActionNames()
+    }
+
+    /// 恢复 `steps` 的 mode / owner，并把**当前**值（撤销前的状态）注册成下一步重做。
+    /// chown 维度恢复仍需系统授权（会再弹一次密码框）—— 跟 forward 一致，可接受。
+    private func performUndoablePermissions(_ steps: [UndoPermissionsStep], actionName: String) {
+        // 先抓「现在的值」给重做用（必须在 apply 之前抓）。
+        let redoSteps = steps.map { step in
+            UndoPermissionsStep(
+                url: step.url,
+                mode: step.mode != nil ? FilePermissionService.currentMode(of: step.url) : nil,
+                owner: (step.owner?.isEmpty == false) ? FilePermissionService.currentOwner(of: step.url) : nil
+            )
+        }
+        Task { @MainActor [weak self] in
+            for step in steps {
+                _ = try? await Task.detached(priority: .userInitiated) {
+                    try FilePermissionService.apply(mode: step.mode, owner: step.owner, to: [step.url], recursive: false)
+                }.value
+            }
+            self?.reload()
+        }
+        fileUndoManager.setActionName(actionName)
+        fileUndoManager.registerUndo(withTarget: self) { model in
+            model.performUndoablePermissions(redoSteps, actionName: actionName)
+        }
+        refreshUndoActionNames()
+    }
+
     // MARK: - 原语
 
     /// 把每个 from 移到 to（保守：源在且没变、目标空才动），然后注册反向移动作为下一步撤销 / 重做。
@@ -215,6 +253,13 @@ private struct UndoCopyStep {
 private struct UndoCreateStep {
     let url: URL
     let snapshot: UndoFileSnapshot
+}
+
+/// 权限 / 属主撤销步骤：把 `url` 恢复到 `mode` / `owner`（nil = 该维度不动）。
+struct UndoPermissionsStep {
+    let url: URL
+    let mode: UInt16?
+    let owner: String?
 }
 
 // `UndoFileSnapshot`（撤销/重做的「文件未被改动」安全判定）已抽到 Core/UndoFileSnapshot.swift（SwiftPM 可测）。

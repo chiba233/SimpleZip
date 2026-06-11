@@ -4,6 +4,7 @@
 
 ## 0.4.1
 
+- **Fixed: split / combine / convert now show in the Activity Center** under **Archive operations** (they were filed under File operations, where you wouldn't think to look), **and they're undoable.** Splitting, combining volumes, and format conversion register an undo (⌘Z trashes the produced files; ⇧⌘Z restores them). Changing permissions / owner is undoable too (non-recursive changes restore the previous mode and owner).
 - **New: convert archives to another format.** Right-click one or more archives → Convert Format… picks a target format / level / optional password and repacks each via the Activity Center (extract → repack; the bundled 7-Zip has no single-step convert).
 - **UI: more dialogs adopt the modern shell.** Encrypt-to-GPG, Create Signed Manifest, the .siz/.szs double-click verification views, and the Settings default-compression editor now all use the same hero header + grouped section cards + bar footer as the create/extract dialogs.
 - **Security: hardened external-tool arguments.** Archive entry names (untrusted input from a crafted archive) and source filenames are now separated from 7-Zip switches with a `--` end-of-options marker, so a file or entry named like a `-switch` can no longer be interpreted as one. Archive-edit passwords (add/delete/rename) no longer appear on the 7-Zip command line — they go through the same PTY-prompt channel as every other operation, so they're never visible in the process list. Untrusted disk images mount with ownership disabled (`-owners off`), neutralizing setuid/forged-owner tricks.

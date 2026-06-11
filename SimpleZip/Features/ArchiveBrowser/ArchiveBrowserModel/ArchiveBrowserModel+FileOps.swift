@@ -319,6 +319,15 @@ extension ArchiveBrowserModel {
     func applyPermissions(mode newMode: UInt16?, owner newOwner: String?, recursive: Bool, to urls: [URL]) {
         guard newMode != nil || (newOwner?.isEmpty == false), !urls.isEmpty else { return }
 
+        // 撤销快照：在改之前抓每个 url 的旧 mode / owner（仅非递归 —— 递归整棵树的旧权限无法可靠快照）。
+        let undoSteps: [UndoPermissionsStep] = recursive ? [] : urls.map { url in
+            UndoPermissionsStep(
+                url: url,
+                mode: newMode != nil ? FilePermissionService.currentMode(of: url) : nil,
+                owner: (newOwner?.isEmpty == false) ? FilePermissionService.currentOwner(of: url) : nil
+            )
+        }
+
         let baseSubject = urls.count == 1
             ? urls[0].lastPathComponent
             : L10n.format("status.permissions.items", "\(urls.count)")
@@ -358,6 +367,10 @@ extension ArchiveBrowserModel {
                 operationTask.transferLog = log
 
                 if outcome.failures.isEmpty {
+                    // 撤销 = 恢复改之前的 mode / owner（非递归才注册,见 undoSteps 的说明）。
+                    if !undoSteps.isEmpty {
+                        self.registerPermissionsUndo(undoSteps, actionName: L10n.text("undo.action.permissions"))
+                    }
                     self.status = L10n.format("status.permissions.changed", subject, clauses)
                     TaskCenter.shared.finish(operationTask, outcome: .succeeded(nil))
                     SystemSound.operationComplete?.play()
@@ -542,7 +555,7 @@ extension ArchiveBrowserModel {
                 destinationURL: destination
             )
             let title = L10n.format("convert.task.title", sourceURL.lastPathComponent, request.targetFormat.title)
-            let operationTask = beginFileTask(kind: .convert, title: title, detail: destination.lastPathComponent, total: 1, cancellable: true)
+            let operationTask = beginFileTask(kind: .convert, title: title, detail: destination.lastPathComponent, total: 1, cancellable: true, category: .archive)
             let operationID = UUID()
             operationTask.cancel = { BackendProcessRunner.cancelRunningCommand(operationID: operationID) }
 
@@ -559,6 +572,8 @@ extension ArchiveBrowserModel {
                     operationTask.transferLog = [
                         TransferLogEntry(name: destination.lastPathComponent, action: .added, isDirectory: false)
                     ]
+                    // 撤销 = 把转换产物移废纸篓（源包不动）；重做 = 移回。
+                    self.registerCreateUndo([destination], actionName: L10n.text("undo.action.convert"))
                     TaskCenter.shared.finish(operationTask, outcome: .succeeded(destination))
                     SystemSound.operationComplete?.play()
                     self.reload()
@@ -587,7 +602,7 @@ extension ArchiveBrowserModel {
     /// 字节级拆分成 `<名>.001/002…`。文件操作类任务：可取消（块间检查）、逐分片记到活动中心。
     func performSplit(_ url: URL, volumeSize: Int64) {
         let title = L10n.format("status.splitting", url.lastPathComponent)
-        let operationTask = beginFileTask(kind: .split, title: title, detail: nil, total: 1, cancellable: true)
+        let operationTask = beginFileTask(kind: .split, title: title, detail: nil, total: 1, cancellable: true, category: .archive)
 
         let worker = Task.detached(priority: .userInitiated) {
             try FileSplitCombine.split(url, volumeSize: volumeSize) { written, total in
@@ -607,6 +622,8 @@ extension ArchiveBrowserModel {
                 operationTask.transferLog = parts.map {
                     TransferLogEntry(name: $0.lastPathComponent, action: .added, isDirectory: false)
                 }
+                // 撤销 = 把拆出来的分片移废纸篓（registerCreateUndo,非破坏可恢复）；重做 = 从废纸篓移回。
+                self.registerCreateUndo(parts, actionName: L10n.text("undo.action.split"))
                 self.status = L10n.format("status.splitDone", "\(parts.count)")
                 TaskCenter.shared.finish(operationTask, outcome: .succeeded(nil))
                 SystemSound.operationComplete?.play()
@@ -630,7 +647,7 @@ extension ArchiveBrowserModel {
               FileSplitCombine.isFirstVolume(item.url) else { return }
         let firstVolume = item.url
         let title = L10n.format("status.combining", firstVolume.lastPathComponent)
-        let operationTask = beginFileTask(kind: .combine, title: title, detail: nil, total: 1, cancellable: true)
+        let operationTask = beginFileTask(kind: .combine, title: title, detail: nil, total: 1, cancellable: true, category: .archive)
 
         let worker = Task.detached(priority: .userInitiated) {
             try FileSplitCombine.combine(firstVolume: firstVolume) { written, total in
@@ -650,6 +667,8 @@ extension ArchiveBrowserModel {
                 operationTask.transferLog = [
                     TransferLogEntry(name: output.lastPathComponent, action: .added, isDirectory: false)
                 ]
+                // 撤销 = 把合并出来的文件移废纸篓；重做 = 移回。
+                self.registerCreateUndo([output], actionName: L10n.text("undo.action.combine"))
                 self.status = L10n.format("status.combined", output.lastPathComponent)
                 TaskCenter.shared.finish(operationTask, outcome: .succeeded(nil))
                 SystemSound.operationComplete?.play()
@@ -990,12 +1009,15 @@ extension ArchiveBrowserModel {
         title: String,
         detail: String?,
         total: Int,
-        cancellable: Bool
+        cancellable: Bool,
+        category: OperationTask.Category = .fileOperation
     ) -> OperationTask {
         // 复制/移动/粘贴不接文本 detailsSession：覆盖前的「源 vs 目标」哈希比对存到 task.hashComparisons，
         // 活动中心用格式化卡片渲染（而非命令输出文本）。没有冲突的平凡转移 → 无比对 → 不出详情入口。
+        // category 默认文件操作；拆分 / 合并分卷 / 转换格式这类**作用于归档**的操作传 .archive，
+        // 落在活动中心「归档操作」分区（用户预期在那找,而非文件操作）。
         let task = TaskCenter.shared.begin(
-            category: .fileOperation,
+            category: category,
             kind: kind,
             title: title,
             detail: detail,

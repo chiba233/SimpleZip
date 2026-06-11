@@ -1283,6 +1283,10 @@
 "undo.action.copy" = "复制";
 "undo.action.rename" = "重命名";
 "undo.action.delete" = "删除";
+"undo.action.split" = "拆分";
+"undo.action.combine" = "合并分卷";
+"undo.action.convert" = "转换格式";
+"undo.action.permissions" = "更改权限";
 "undo.action.duplicate" = "创建副本";
 "undo.action.symlink" = "创建符号链接";
 "undo.partiallySkipped" = "%d 项无法撤销 —— 源已不在，或目标位置已被占用。";
