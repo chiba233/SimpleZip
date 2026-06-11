@@ -1591,6 +1591,7 @@
 
 /* GPG 加密文件打开 / 密钥导入（0.2.7） */
 "status.gpgDecrypting" = "正在解密 %@…";
+"status.gpgExtracted" = "已解密 %@";
 "button.close" = "关闭";
 "gpgFile.disabled.message" = "GPG 集成已关闭。请在「设置 ▸ GPG」中启用后再打开加密文件。";
 "gpgFile.backendMissing.message" = "未找到 GPG 后端（gpg）。请安装 GnuPG 后再打开加密文件。";

@@ -77,6 +77,72 @@ extension ArchiveBrowserModel {
         }
     }
 
+    // MARK: - .gpg「解压到此」（0.4.2）
+
+    /// 文件浏览里对 `.gpg`/`.pgp`/`.asc` 点「解压」：解密产物落在源文件**旁边**（同名先到先得、
+    /// 重名自动编号，绝不覆盖）。嗅探分类与双击打开同源：钥匙串材料 → 导入 sheet；非加密数据 → 明确报错。
+    func extractGPGFileHere(_ url: URL) {
+        guard AppPreferences.gpgEnabled else {
+            errorMessage = L10n.text("gpgFile.disabled.message")
+            return
+        }
+        guard GPGBackend.isAvailable() else {
+            errorMessage = L10n.text("gpgFile.backendMissing.message")
+            return
+        }
+        switch GPGBackend.classifyFile(at: url) {
+        case .publicKey:
+            pendingGPGKeyImport = GPGKeyImportRequest(sourceURL: url, isPrivateKey: false)
+        case .privateKey:
+            pendingGPGKeyImport = GPGKeyImportRequest(sourceURL: url, isPrivateKey: true)
+        case .encryptedMessage:
+            runGPGExtractHere(url)
+        case .detachedSignature, .clearSigned, .unknown:
+            errorMessage = L10n.text("gpgFile.notDecryptable.message")
+        }
+    }
+
+    /// 执行解密落盘：先解到加密临时卷（fail-closed），成功后才移到源目录 —— 半截失败不会留下半个明文。
+    /// 用户在 pinentry 取消 → 任务按取消收尾（不报失败）。
+    private func runGPGExtractHere(_ url: URL) {
+        var product: URL?
+        startManagedArchiveTask(
+            title: L10n.format("status.gpgDecrypting", url.lastPathComponent),
+            kind: .extract,
+            showsDetails: false,
+            successStatus: nil,
+            refreshOnSuccess: { [weak self] in
+                guard let self, let product else { return }
+                self.status = L10n.format("status.gpgExtracted", product.lastPathComponent)
+                // 产物就在当前文件夹 —— 刷新当前视图并把光标落上去（与加密为 .gpg 流程一致，不拉起 Finder）。
+                self.pendingSelectionURL = product.standardizedFileURL
+                self.refreshVisibleFolder(containing: product)
+            },
+            onSucceeded: { task in
+                if let product {
+                    task.transferLog = [TransferLogEntry(name: product.lastPathComponent, action: .added, isDirectory: false)]
+                }
+            },
+            rerunAction: { [weak self] in self?.runGPGExtractHere(url) }
+        ) { operationID, _, _ in
+            // 解密中转仍在加密临时卷（fail-closed）；用户点的是「解压到此」，明文落到源目录是明确意图。
+            let decrypted: URL
+            do {
+                decrypted = try await GPGFileService.decryptToTemporary(url, operationID: operationID)
+            } catch where Self.errorLooksLikeUserCancellation(error) {
+                // pinentry 取消是用户主动动作 —— 映射成任务取消，不在活动中心标红「失败」。
+                throw CancellationError()
+            }
+            let fm = FileManager.default
+            let desired = url.deletingLastPathComponent().appendingPathComponent(decrypted.lastPathComponent)
+            let target = fm.fileExists(atPath: desired.path)
+                ? UniqueFileName.suffixed(for: desired, suffix: "", exists: { fm.fileExists(atPath: $0.path) })
+                : desired
+            try fm.moveItem(at: decrypted, to: target)
+            await MainActor.run { product = target }
+        }
+    }
+
     /// 右键「加密为 .gpg」：门控 + 取选区 → 弹 GPGEncryptOptionsView（收件人 / 对称密码）。
     /// 仅 gpgEnabled + 后端可用时可达（菜单项本身也按 A4 门控，不渲染时进不来）。
     func encryptSelectionToGPG() {

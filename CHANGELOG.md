@@ -4,6 +4,8 @@
 
 ## 0.4.2 (unreleased)
 
+- **Fix: "Extract Here" now works on `.gpg` / `.pgp` / `.asc` files.** Extracting an encrypted GPG file decrypts it through the full task pipeline (Activity Center entry, re-runnable, pinentry cancel counts as cancel, not failure) and places the plaintext next to the source with collision-safe naming — never overwriting. Key files route to the import sheet; non-decryptable content gets a clear explanation.
+
 - **UI: the comparison window joins the modern dialog shell.** Archive Diff now has the same hero header, card sections, and pinned bottom bar as the create/extract dialogs — export, ignore-junk, and copy moved into the bottom bar, and the difference cards match the shared section styling.
 
 - **Security (self-review of this release): two hardenings.** ① The new equivalent-command log now redacts the value after any `--passphrase` argument — GPG's change-passphrase flow passes the old passphrase via argv (a documented reliability trade-off), and without redaction it would have been persisted into the Activity Center history and diagnostics. ② Entry names are untrusted input: add / delete / rename inside archives now place every entry name after a `--` end-of-options marker (matching the 0.4.1 extraction-side hardening), so an entry literally named `-r` or `-p…` inside a crafted archive can no longer be parsed as a 7-Zip switch when you edit that archive. Verified against the real bundled 7zz by the existing entry-update test suite.

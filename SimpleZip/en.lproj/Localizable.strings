@@ -1591,6 +1591,7 @@
 
 /* GPG encrypted-file open / key import (0.2.7) */
 "status.gpgDecrypting" = "Decrypting %@…";
+"status.gpgExtracted" = "Decrypted %@";
 "button.close" = "Close";
 "gpgFile.disabled.message" = "GPG integration is turned off. Enable it in Settings ▸ GPG to open encrypted files.";
 "gpgFile.backendMissing.message" = "The GPG backend (gpg) was not found. Install GnuPG to open encrypted files.";

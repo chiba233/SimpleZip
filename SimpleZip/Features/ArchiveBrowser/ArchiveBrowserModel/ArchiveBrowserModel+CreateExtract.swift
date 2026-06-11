@@ -867,6 +867,13 @@ extension ArchiveBrowserModel {
             pendingSZSExtractHint = szsURL
             return
         }
+        // 0.4.2 用户点名：`.gpg`/`.pgp`/`.asc` 的「解压」要真的能用 —— 解密产物落在源文件旁
+        //（唯一名、绝不覆盖），走完整任务管线（活动中心 / 可重跑）。钥匙串材料则引去导入。
+        if case .folder = mode,
+           let gpgURL = selectedFileItems.first(where: { !$0.isDirectory && GPGFileService.isRecognizedGPGFile($0.url) })?.url {
+            extractGPGFileHere(gpgURL)
+            return
+        }
 
         let archiveURL: URL?
         switch mode {
