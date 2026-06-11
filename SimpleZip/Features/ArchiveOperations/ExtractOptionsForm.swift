@@ -52,9 +52,12 @@ struct ExtractOptionsForm<ExtraControls: View>: View {
                         extraControls()
                         destinationRow
                         if hasUsablePreset {
-                            Toggle(isOn: $usePresetPassword) {
-                                Label(L10n.text("button.usePresetPassword"), systemImage: "key.fill")
-                            }
+                            DialogToggleRow(
+                                title: L10n.text("button.usePresetPassword"),
+                                systemImage: "key.fill",
+                                tint: .orange,
+                                isOn: $usePresetPassword
+                            )
                             .help(L10n.text("button.usePresetPassword.help"))
                             .onChange(of: usePresetPassword) { newValue in
                                 // 勾上：把预设值灌进 password binding；
@@ -66,6 +69,7 @@ struct ExtractOptionsForm<ExtraControls: View>: View {
                             LabeledContent {
                                 SecureField(L10n.text("extract.password.placeholder"), text: $password)
                                     .textFieldStyle(.roundedBorder)
+                                    .dialogFieldEmphasis()
                                     .frame(maxWidth: 260)
                             } label: {
                                 alignedRowLabel("archive.password", systemImage: "key.fill", tint: .orange)

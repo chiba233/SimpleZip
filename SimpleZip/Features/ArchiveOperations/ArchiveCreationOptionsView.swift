@@ -305,9 +305,12 @@ struct ArchiveCreationOptionsView: View {
 
             // #115 本格式存了默认值模板 → 勾上套用模板并隐藏其已配选项，取消则全显。
             if formatDefaultsPreset != nil {
-                Toggle(isOn: $useFormatDefaults) {
-                    Label(L10n.format("archive.useFormatDefaults", request.options.format.title), systemImage: "square.stack.3d.up.fill")
-                }
+                DialogToggleRow(
+                    title: L10n.format("archive.useFormatDefaults", request.options.format.title),
+                    systemImage: "square.stack.3d.up.fill",
+                    tint: .indigo,
+                    isOn: $useFormatDefaults
+                )
                 .help(L10n.text("archive.useFormatDefaults.help"))
                 .onChange(of: useFormatDefaults) { on in
                     if on, let preset = formatDefaultsPreset { preset.apply(to: &request.options) }
@@ -328,9 +331,12 @@ struct ArchiveCreationOptionsView: View {
     private var passwordSection: some View {
         DialogSection(L10n.text("archive.create.section.security")) {
             if hasUsablePreset {
-                Toggle(isOn: $useArchivePresetPassword) {
-                    Label(L10n.text("button.usePresetPassword"), systemImage: "key.fill")
-                }
+                DialogToggleRow(
+                    title: L10n.text("button.usePresetPassword"),
+                    systemImage: "key.fill",
+                    tint: .orange,
+                    isOn: $useArchivePresetPassword
+                )
                 .help(L10n.text("button.usePresetPassword.help"))
                 .onChange(of: useArchivePresetPassword) { newValue in
                     if newValue {
@@ -347,9 +353,12 @@ struct ArchiveCreationOptionsView: View {
                 passwordField(L10n.text("archive.password"), systemImage: "key.fill", text: $request.options.password)
                 if !request.options.password.isEmpty || !request.options.passwordConfirmation.isEmpty {
                     passwordField(L10n.text("archive.passwordConfirm"), systemImage: "key.viewfinder", text: $request.options.passwordConfirmation)
-                    Toggle(isOn: $request.options.showPassword) {
-                        Label(L10n.text("archive.showPassword"), systemImage: "eye.fill")
-                    }
+                    DialogToggleRow(
+                        title: L10n.text("archive.showPassword"),
+                        systemImage: "eye.fill",
+                        tint: .gray,
+                        isOn: $request.options.showPassword
+                    )
                     if passwordValidationMessage != nil {
                         validationText(L10n.text("error.passwordsDoNotMatch"))
                     }
@@ -381,9 +390,12 @@ struct ArchiveCreationOptionsView: View {
             }
             if request.options.format == .sevenZip || request.options.format == .rar, !hidden(.encryptFileNames) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Toggle(isOn: $request.options.sevenZipEncryptFileNames) {
-                        Label(L10n.text("archive.7z.encryptFileNames"), systemImage: "eye.slash.fill")
-                    }
+                    DialogToggleRow(
+                        title: L10n.text("archive.7z.encryptFileNames"),
+                        systemImage: "eye.slash.fill",
+                        tint: .purple,
+                        isOn: $request.options.sevenZipEncryptFileNames
+                    )
                     .disabled(request.options.password.isEmpty)
                     if request.options.password.isEmpty {
                         Text(L10n.text("archive.7z.encryptFileNamesHint"))
@@ -1154,6 +1166,7 @@ struct ArchiveCreationOptionsView: View {
                 }
             }
             .textFieldStyle(.roundedBorder)
+            .dialogFieldEmphasis()
             .frame(maxWidth: 260)
         } label: {
             DialogRowLabel(title, systemImage: systemImage, tint: .orange)

@@ -82,26 +82,24 @@ struct ExtractArchiveOptionsView: View {
 
     @ViewBuilder
     private var skipJunkToggle: some View {
-        Toggle(isOn: $request.skipJunk) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(L10n.text("extract.skipJunk"))
-                Text(L10n.text("extract.skipJunk.detail"))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
+        DialogToggleRow(
+            title: L10n.text("extract.skipJunk"),
+            subtitle: L10n.text("extract.skipJunk.detail"),
+            systemImage: "doc.badge.gearshape.fill",
+            tint: .teal,
+            isOn: $request.skipJunk
+        )
     }
 
     @ViewBuilder
     private var skipSymlinksToggle: some View {
-        Toggle(isOn: $request.skipSymlinks) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(L10n.text("extract.skipSymlinks"))
-                Text(L10n.text("extract.skipSymlinks.detail"))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
+        DialogToggleRow(
+            title: L10n.text("extract.skipSymlinks"),
+            subtitle: L10n.text("extract.skipSymlinks.detail"),
+            systemImage: "link",
+            tint: .orange,
+            isOn: $request.skipSymlinks
+        )
     }
 
     // MARK: - 解压前预检（0.4.2 #8）
@@ -110,6 +108,7 @@ struct ExtractArchiveOptionsView: View {
     private var preflightRows: some View {
         VStack(alignment: .leading, spacing: 4) {
             if let preflight {
+                // 预检概要是不可选择的信息行 —— 低调化(callout + secondary),跟创建对话框预检条同档。
                 Label(
                     L10n.format(
                         "extract.preflight.summary",
@@ -119,6 +118,8 @@ struct ExtractArchiveOptionsView: View {
                     ),
                     systemImage: "list.bullet.rectangle"
                 )
+                .font(.callout)
+                .foregroundStyle(.secondary)
                 if preflight.encryptedEntryCount > 0 {
                     preflightCaption("extract.preflight.encrypted", "\(preflight.encryptedEntryCount)", icon: "key.fill", tint: .secondary)
                 }
@@ -145,6 +146,7 @@ struct ExtractArchiveOptionsView: View {
                 }
             } else if preflightUnavailable {
                 Label(L10n.text("extract.preflight.unavailable"), systemImage: "list.bullet.rectangle")
+                    .font(.callout)
                     .foregroundStyle(.secondary)
             } else {
                 HStack(spacing: 6) {
@@ -241,6 +243,7 @@ struct ExtractArchiveOptionsView: View {
                 Text(L10n.text("extract.gpgDecryptionPassphrase.label"))
                 SecureField(L10n.text("extract.gpgDecryptionPassphrase.placeholder"), text: $request.gpgDecryptionPassphrase)
                     .textFieldStyle(.roundedBorder)
+                    .dialogFieldEmphasis()
             }
             Text(L10n.text("extract.gpgDecryptionPassphrase.hint"))
                 .font(.caption2)

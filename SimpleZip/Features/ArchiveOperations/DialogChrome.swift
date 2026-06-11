@@ -90,12 +90,14 @@ struct DialogSection<Content: View>: View {
 /// 预检概要那类信息行不用它，保持单色。`width` 给需要定宽对齐值列的行（解压对话框 180pt）。
 struct DialogRowLabel: View {
     let title: String
+    var subtitle: String?
     let systemImage: String
     let tint: Color
     var width: CGFloat?
 
-    init(_ title: String, systemImage: String, tint: Color, width: CGFloat? = nil) {
+    init(_ title: String, subtitle: String? = nil, systemImage: String, tint: Color, width: CGFloat? = nil) {
         self.title = title
+        self.subtitle = subtitle
         self.systemImage = systemImage
         self.tint = tint
         self.width = width
@@ -111,9 +113,50 @@ struct DialogRowLabel: View {
                         .foregroundStyle(.white)
                 )
                 .frame(width: 22, height: 22)
-            Text(title)
+            if let subtitle {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            } else {
+                Text(title)
+            }
         }
         .frame(width: width, alignment: .leading)
+    }
+}
+
+/// 卡片内一级开关行：彩色瓦片 + 标题(可带说明副标题)在左，**复选框钉在行最右**
+/// (用户拍板：「复选框放在最右边，放在最左边很丑」)。
+struct DialogToggleRow: View {
+    let title: String
+    var subtitle: String?
+    let systemImage: String
+    let tint: Color
+    @Binding var isOn: Bool
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 10) {
+            DialogRowLabel(title, subtitle: subtitle, systemImage: systemImage, tint: tint)
+            Spacer(minLength: 12)
+            Toggle("", isOn: $isOn)
+                .labelsHidden()
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+/// 文本输入框在白色卡片上的描边增强 —— 系统 .roundedBorder 的浅灰描边几乎隐形
+/// (用户报「密码输入框饱和度太低,几乎看不清」)。
+extension View {
+    func dialogFieldEmphasis() -> some View {
+        overlay(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.22))
+        )
     }
 }
 

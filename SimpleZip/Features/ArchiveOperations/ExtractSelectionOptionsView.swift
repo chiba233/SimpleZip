@@ -27,29 +27,33 @@ struct ExtractSelectionOptionsView: View {
             confirm: { extract(request) },
             cancel: cancel
         ) {
-            Picker(L10n.text("extract.pathMode"), selection: $request.pathMode) {
-                ForEach(ExtractPathMode.allCases) { mode in
-                    Text(mode.title).tag(mode)
+            LabeledContent {
+                Picker("", selection: $request.pathMode) {
+                    ForEach(ExtractPathMode.allCases) { mode in
+                        Text(mode.title).tag(mode)
+                    }
                 }
+                .labelsHidden()
+                .fixedSize()
+            } label: {
+                DialogRowLabel(L10n.text("extract.pathMode"), systemImage: "point.topleft.down.to.point.bottomright.curvepath", tint: .indigo)
             }
             // 0.4.2：不解压 macOS 元数据垃圾 —— 与整包解压同款开关。
-            Toggle(isOn: $request.skipJunk) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(L10n.text("extract.skipJunk"))
-                    Text(L10n.text("extract.skipJunk.detail"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
+            DialogToggleRow(
+                title: L10n.text("extract.skipJunk"),
+                subtitle: L10n.text("extract.skipJunk.detail"),
+                systemImage: "doc.badge.gearshape.fill",
+                tint: .teal,
+                isOn: $request.skipJunk
+            )
             // 0.4.3 #15：不解压符号链接 —— 与整包解压同款开关。
-            Toggle(isOn: $request.skipSymlinks) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(L10n.text("extract.skipSymlinks"))
-                    Text(L10n.text("extract.skipSymlinks.detail"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
+            DialogToggleRow(
+                title: L10n.text("extract.skipSymlinks"),
+                subtitle: L10n.text("extract.skipSymlinks.detail"),
+                systemImage: "link",
+                tint: .orange,
+                isOn: $request.skipSymlinks
+            )
         }
         .frame(width: 560)
     }
@@ -74,12 +78,14 @@ struct GPGExtractOptionsView: View {
 
             VStack(alignment: .leading, spacing: 16) {
                 DialogSection {
+                    // 解密产物名是不可选择的信息行 —— 保持单色低调。
                     LabeledContent {
                         Text(request.productName)
                             .lineLimit(1)
                             .truncationMode(.middle)
                     } label: {
                         Label(L10n.text("gpgExtract.product"), systemImage: "doc")
+                            .foregroundStyle(.secondary)
                     }
 
                     LabeledContent {
@@ -94,7 +100,7 @@ struct GPGExtractOptionsView: View {
                             }
                         }
                     } label: {
-                        Label(L10n.text("archive.destination"), systemImage: "folder")
+                        DialogRowLabel(L10n.text("archive.destination"), systemImage: "folder.fill", tint: .blue)
                     }
                 }
 
@@ -110,6 +116,7 @@ struct GPGExtractOptionsView: View {
 
             DialogFooter(
                 confirmTitle: L10n.text("button.extract"),
+                confirmSystemImage: "lock.open.fill",
                 confirmDisabled: false,
                 confirm: { extract(request) },
                 cancel: cancel
@@ -175,7 +182,7 @@ struct VirtualExportOptionsView: View {
                             }
                         }
                     } label: {
-                        Label(L10n.text("archive.destination"), systemImage: "folder")
+                        DialogRowLabel(L10n.text("archive.destination"), systemImage: "folder.fill", tint: .blue)
                     }
                 }
 
@@ -191,6 +198,7 @@ struct VirtualExportOptionsView: View {
 
             DialogFooter(
                 confirmTitle: L10n.text("button.extract"),
+                confirmSystemImage: "square.and.arrow.down.on.square",
                 confirmDisabled: false,
                 confirm: { export(request) },
                 cancel: cancel
