@@ -23,19 +23,35 @@ struct FileSplitSheet: View {
     let cancel: () -> Void
 
     private enum SizeUnit: String, CaseIterable, Identifiable {
+        case kilobytes
         case megabytes
         case gigabytes
 
         var id: String { rawValue }
-        var title: String { self == .megabytes ? "MB" : "GB" }
-        var multiplier: Int64 { self == .megabytes ? 1_000_000 : 1_000_000_000 }
+        var title: String {
+            switch self {
+            case .kilobytes: return "KB"
+            case .megabytes: return "MB"
+            case .gigabytes: return "GB"
+            }
+        }
+        var multiplier: Double {
+            switch self {
+            case .kilobytes: return 1_000
+            case .megabytes: return 1_000_000
+            case .gigabytes: return 1_000_000_000
+            }
+        }
     }
 
-    @State private var sizeValue = 100
+    // 0.4.2 用户点名：数值支持小数（1.5 GB / 4.7 GB 刻 DVD 这类都是真实需求）+ 补 KB 档。
+    @State private var sizeValue = 100.0
     @State private var sizeUnit = SizeUnit.megabytes
 
     private var volumeSizeBytes: Int64 {
-        Int64(max(0, sizeValue)) * sizeUnit.multiplier
+        let bytes = max(0, sizeValue) * sizeUnit.multiplier
+        guard bytes.isFinite, bytes < 9e18 else { return 0 }
+        return Int64(bytes)
     }
 
     private var estimatedPartCount: Int {
