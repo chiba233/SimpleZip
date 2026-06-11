@@ -76,6 +76,9 @@ final class FileOutlineNode {
     var children: [FileOutlineNode]
     /// 是否是「隐藏文件」组（GroupBy=none 时走 #49 折叠记忆策略；其余区块默认展开、不持久化）。
     let isHiddenSection: Bool
+    /// 0.4.1 文件夹原位展开：目录叶子的懒加载子级。nil = 还没展开过（首次展开时才列目录）。
+    /// 父文件夹内容变化触发 reload 后顶层节点重建,展开状态随之回收 —— 子级不会拿着过期缓存。
+    var folderChildren: [FileOutlineNode]?
 
     private init(kind: Kind, sectionKey: String, title: String, isHiddenSection: Bool) {
         self.kind = kind
@@ -442,19 +445,40 @@ struct FileNSOutlineView: NSViewRepresentable {
 
         func outlineView(_ outlineView: NSOutlineView, numberOfChildrenOfItem item: Any?) -> Int {
             guard let node = item as? FileOutlineNode else { return topLevelNodes.count }
-            return node.isSection ? node.children.count : 0
+            if node.isSection { return node.children.count }
+            if isExpandableFolder(node) { return loadedFolderChildren(of: node).count }
+            return 0
         }
 
         func outlineView(_ outlineView: NSOutlineView, child index: Int, ofItem item: Any?) -> Any {
             guard let node = item as? FileOutlineNode else {
                 return index < topLevelNodes.count ? topLevelNodes[index] : topLevelNodes
             }
-            guard index < node.children.count else { return node }
-            return node.children[index]
+            let children = node.isSection ? node.children : loadedFolderChildren(of: node)
+            guard index < children.count else { return node }
+            return children[index]
         }
 
         func outlineView(_ outlineView: NSOutlineView, isItemExpandable item: Any) -> Bool {
-            (item as? FileOutlineNode)?.isSection == true
+            guard let node = item as? FileOutlineNode else { return false }
+            return node.isSection || isExpandableFolder(node)
+        }
+
+        // MARK: - 0.4.1 文件夹原位展开（参考隐藏组 / 分类区块的折叠骨架：层级靠 NSOutlineView 固定缩进）
+
+        /// 文件夹叶子可展开：是目录、不是包（包要么双击进入要么交给系统打开,不在列表里摊开）。
+        private func isExpandableFolder(_ node: FileOutlineNode) -> Bool {
+            guard let item = node.fileItem else { return false }
+            return item.isDirectory && !model.canShowPackageContents(item)
+        }
+
+        /// 懒加载文件夹子级：首次展开时按主列表同一口径（隐藏文件开关 / 虚拟模式过滤 / 文件夹在前）列目录。
+        private func loadedFolderChildren(of node: FileOutlineNode) -> [FileOutlineNode] {
+            if let cached = node.folderChildren { return cached }
+            guard let item = node.fileItem else { return [] }
+            let children = model.childFileItems(of: item.url).map { FileOutlineNode.file($0) }
+            node.folderChildren = children
+            return children
         }
 
         // MARK: - NSOutlineViewDelegate
