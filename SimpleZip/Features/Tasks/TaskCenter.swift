@@ -127,7 +127,16 @@ final class TaskCenter: ObservableObject {
         guard let data = UserDefaults.standard.data(forKey: AppPreferences.Key.activityHistory),
               let snapshots = try? JSONDecoder().decode([PersistedTask].self, from: data)
         else { return [] }
-        return snapshots.map(\.task)
+        return snapshots.map { snapshot in
+            let task = snapshot.task
+            // 0.4.2 #23：上次会话退出时仍在运行的任务 = 被中断。恢复成明确的「已中断」失败态，
+            // 不再在历史里永远转圈 —— 这本身也是「上次没退干净」的可见痕迹。
+            if task.status.isRunning {
+                task.status = .failed(L10n.text("tasks.interruptedPreviousSession"))
+                if task.finishedAt == nil { task.finishedAt = task.startedAt }
+            }
+            return task
+        }
     }
 }
 

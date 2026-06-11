@@ -801,6 +801,12 @@
 "button.copyCommand.help" = "Copy the equivalent backend command. Passwords never appear on the command line (they go through a secure channel); paths may point at this operation's temporary working directory.";
 "button.rerunTask" = "Run Again";
 "button.exportDiagnostics" = "Export Diagnostics…";
+/* 0.4.2 unclean-exit recovery */
+"tasks.interruptedPreviousSession" = "Interrupted — the previous session ended unexpectedly";
+"recovery.title" = "SimpleZip didn't quit cleanly last time";
+"recovery.message" = "Leftover temporary files and the encrypted scratch volume from the previous session have been cleaned up automatically. Tasks that were still running are marked as interrupted in the Activity Center. If this keeps happening, export a diagnostics report and attach it to an issue.";
+"recovery.exportDiagnostics" = "Export Diagnostics Report…";
+
 
 
 

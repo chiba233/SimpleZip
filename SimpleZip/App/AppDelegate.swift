@@ -41,6 +41,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.ensureWindowForPendingExternalOpens()
         }
 
+        // 0.4.2 #23：异常退出检测。上次会话没走到 applicationWillTerminate（崩溃 / 强杀）→
+        // 启动后提示：残留临时卷 / 临时目录已自动清理（上面两步），可一键导出诊断报告。
+        let hadPreviousSession = UserDefaults.standard.object(forKey: Self.cleanShutdownKey) != nil
+        let previousWasClean = UserDefaults.standard.bool(forKey: Self.cleanShutdownKey)
+        UserDefaults.standard.set(false, forKey: Self.cleanShutdownKey)
+        if hadPreviousSession && !previousWasClean {
+            DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(800)) { [weak self] in
+                self?.presentUncleanExitNotice()
+            }
+        }
+
         // 清洗列顺序偏好：历史上 outlineTableColumn 未解绑的 bug 会把 name 列重复堆进 fileColumnOrder
         // （曾出现 [name, name, size, …]），表头就冒出 2~3 个重复「名称」列。读路径已去重，但**存储里的
         // 污染源没清掉**，仍会被「列移动」重新写回 / 在没走去重的旧路径下复发。启动时按 identifier 去重一次，根除。
@@ -64,6 +75,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// 万一没跑成（强杀），残留的镜像是 AES 密文、无害，下次启动 `sweepStale()` 收口。
     func applicationWillTerminate(_ notification: Notification) {
         SecureScratchVolume.shared.teardown()
+        // 0.4.2 #23：正常退出 → 落「干净关闭」标记；崩溃 / 强杀走不到这里，下次启动据此提示。
+        UserDefaults.standard.set(true, forKey: Self.cleanShutdownKey)
+    }
+
+    /// 0.4.2 #23：异常退出标记 key（会话状态，不进偏好备份）。
+    private static let cleanShutdownKey = "SimpleZip.session.cleanShutdown"
+
+    /// 异常退出后的提示：临时资源已自动清理 + 中断任务已在活动中心标出，可导出诊断报告。
+    private func presentUncleanExitNotice() {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = L10n.text("recovery.title")
+        alert.informativeText = L10n.text("recovery.message")
+        alert.addButton(withTitle: L10n.text("button.ok"))
+        alert.addButton(withTitle: L10n.text("recovery.exportDiagnostics"))
+        if alert.runModal() == .alertSecondButtonReturn {
+            Task { await DiagnosticsCopier.exportGeneralReport() }
+        }
     }
 
     /// reopen（点 Dock 图标 / 无可见窗口时被激活）让 SwiftUI 重建主窗口 —— 标准做法，

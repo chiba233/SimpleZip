@@ -4,6 +4,8 @@
 
 ## 0.4.2 (unreleased)
 
+- **New: unclean-exit recovery.** If the previous session ended without a clean quit (crash or force-kill), the next launch says so: leftover temporary files and the encrypted scratch volume are cleaned up automatically (as before), tasks that were still running are now restored into the Activity Center history as **Interrupted** instead of spinning forever, and the notice offers one-click **Export Diagnostics Report…** for an issue.
+
 - **New: per-task diagnostics bundle.** Task details gain an **Export Diagnostics…** button that writes a single `.txt` for that operation: app/macOS/backend versions, the equivalent backend command lines, the sanitized output tail, the error text, and a new **file-system snapshot** (free space on the temp and home volumes — a full disk is the classic cause of mysterious backend failures). The same snapshot now also appears in the copy-diagnostics text and the general diagnostics report. Paste-ready for an issue.
 
 - **New: re-run tasks from the Activity Center.** Finished tasks (extraction, extract-selection, single and batch integrity tests, Release Check, format conversion, file splitting) get a one-click **Run Again** button that repeats the operation with the same inputs — outputs still dodge existing names and conflicts still ask, so re-running can't silently overwrite anything. This generalizes the existing "retry failed items" of batch operations. (Runtime-only: tasks restored from history after a relaunch can't be re-run.)

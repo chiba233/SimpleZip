@@ -799,6 +799,12 @@
 "button.copyCommand.help" = "复制等价的后端命令。口令从不出现在命令行上（经安全通道输入）；路径可能指向本次操作的临时工作目录。";
 "button.rerunTask" = "重新运行";
 "button.exportDiagnostics" = "导出诊断包…";
+/* 0.4.2 异常退出恢复 */
+"tasks.interruptedPreviousSession" = "已中断——上次会话异常结束";
+"recovery.title" = "SimpleZip 上次没有正常退出";
+"recovery.message" = "上次会话残留的临时文件和加密临时卷已自动清理；当时仍在运行的任务已在活动中心标为「已中断」。如果反复出现，请导出诊断报告并附到 issue。";
+"recovery.exportDiagnostics" = "导出诊断报告…";
+
 
 
 
