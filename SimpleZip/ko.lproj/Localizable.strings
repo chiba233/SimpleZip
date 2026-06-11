@@ -1666,3 +1666,11 @@
 "settings.rememberFolderExpansion.description" = "목록 새로고침(파일 변경, 수동 새로고침, 정렬) 후 열어 두었던 폴더를 다시 펼칩니다. 끄면 새로고침할 때마다 모두 접힌 상태로 시작합니다.";
 "settings.rememberVolumeSetExpansion" = "펼친 분할 볼륨 세트 기억";
 "settings.rememberVolumeSetExpansion.description" = "접힌 분할 볼륨 세트(.001/.002…)를 한 번 펼치면 목록 새로고침 후에도 열린 상태로 유지합니다. 끄면 새로고침할 때마다 다시 접습니다.";
+"settings.finderService.addToArchive" = "아카이브에 추가";
+"settings.finderService.extract" = "추출";
+"settings.finderService.createZip" = "ZIP 만들기";
+"settings.finderService.createSevenZip" = "7z 만들기";
+"settings.finderService.createTarGz" = "TAR.GZ 만들기";
+"settings.finderService.hash" = "해시 계산";
+"settings.finderExtension.register" = "지금 다시 등록";
+"settings.finderExtension.registered" = "Finder 서비스가 다시 등록되었습니다. 오른쪽 클릭 항목이 여전히 나타나지 않으면 새 Finder 창을 열거나 로그아웃 후 다시 로그인하세요.";

@@ -1667,3 +1667,11 @@
 "settings.rememberFolderExpansion.description" = "一覧の更新後（ファイル変更、手動更新、並べ替え）に、開いていたフォルダを再展開します。オフにすると毎回すべて折りたたまれた状態から始まります。";
 "settings.rememberVolumeSetExpansion" = "展開した分割ボリュームセットを記憶";
 "settings.rememberVolumeSetExpansion.description" = "折りたたまれた分割ボリュームセット（.001/.002…）を一度展開したら、一覧更新後も開いたままにします。オフにすると毎回再び折りたたみます。";
+"settings.finderService.addToArchive" = "アーカイブに追加";
+"settings.finderService.extract" = "展開";
+"settings.finderService.createZip" = "ZIP を作成";
+"settings.finderService.createSevenZip" = "7z を作成";
+"settings.finderService.createTarGz" = "TAR.GZ を作成";
+"settings.finderService.hash" = "ハッシュを計算";
+"settings.finderExtension.register" = "今すぐ再登録";
+"settings.finderExtension.registered" = "Finder サービスを再登録しました。右クリック項目がまだ表示されない場合は、新しい Finder ウィンドウを開くか、ログアウトしてから再ログインしてください。";

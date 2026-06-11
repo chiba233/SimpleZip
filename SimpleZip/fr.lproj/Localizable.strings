@@ -1665,3 +1665,11 @@
 "settings.rememberFolderExpansion.description" = "Redéveloppe les dossiers ouverts après l’actualisation de la liste (changements de fichiers, rafraîchissement manuel, tri). Désactivez pour que chaque actualisation commence entièrement repliée.";
 "settings.rememberVolumeSetExpansion" = "Mémoriser les jeux de volumes fractionnés développés";
 "settings.rememberVolumeSetExpansion.description" = "Garde ouverts les jeux de volumes fractionnés repliés (.001/.002…) après leur développement, même après actualisation de la liste. Désactivez pour les replier à chaque actualisation.";
+"settings.finderService.addToArchive" = "Ajouter à l’archive";
+"settings.finderService.extract" = "Extraire";
+"settings.finderService.createZip" = "Créer ZIP";
+"settings.finderService.createSevenZip" = "Créer 7z";
+"settings.finderService.createTarGz" = "Créer TAR.GZ";
+"settings.finderService.hash" = "Calculer le hachage";
+"settings.finderExtension.register" = "Réenregistrer maintenant";
+"settings.finderExtension.registered" = "Les services Finder ont été réenregistrés. Si les éléments du clic droit n’apparaissent toujours pas, ouvrez une nouvelle fenêtre Finder ou déconnectez-vous puis reconnectez-vous.";

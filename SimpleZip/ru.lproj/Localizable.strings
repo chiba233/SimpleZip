@@ -1665,3 +1665,11 @@
 "settings.rememberFolderExpansion.description" = "Повторно раскрывать папки, которые были открыты, после обновления списка (изменения файлов, ручное обновление, сортировка). Отключите, чтобы каждое обновление начиналось полностью свернутым.";
 "settings.rememberVolumeSetExpansion" = "Запоминать раскрытые наборы разделенных томов";
 "settings.rememberVolumeSetExpansion.description" = "Сохранять раскрытыми наборы разделенных томов (.001/.002…) после того, как вы их раскрыли, при обновлениях списка. Отключите, чтобы при каждом обновлении они снова сворачивались.";
+"settings.finderService.addToArchive" = "Добавить в архив";
+"settings.finderService.extract" = "Распаковать";
+"settings.finderService.createZip" = "Создать ZIP";
+"settings.finderService.createSevenZip" = "Создать 7z";
+"settings.finderService.createTarGz" = "Создать TAR.GZ";
+"settings.finderService.hash" = "Вычислить хеш";
+"settings.finderExtension.register" = "Перерегистрировать сейчас";
+"settings.finderExtension.registered" = "Службы Finder перерегистрированы. Если пункты контекстного меню все еще не появились, откройте новое окно Finder или выйдите из системы и войдите снова.";

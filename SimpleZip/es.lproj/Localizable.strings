@@ -1665,3 +1665,11 @@
 "settings.rememberFolderExpansion.description" = "Vuelve a expandir las carpetas que tenías abiertas después de actualizar la lista (cambios de archivos, actualización manual, ordenación). Desactívalo para que cada actualización empiece totalmente contraída.";
 "settings.rememberVolumeSetExpansion" = "Recordar conjuntos de volúmenes divididos expandidos";
 "settings.rememberVolumeSetExpansion.description" = "Mantiene abiertos los conjuntos de volúmenes divididos contraídos (.001/.002…) tras expandirlos, incluso al actualizar la lista. Desactívalo para volver a contraerlos en cada actualización.";
+"settings.finderService.addToArchive" = "Añadir al archivo";
+"settings.finderService.extract" = "Extraer";
+"settings.finderService.createZip" = "Crear ZIP";
+"settings.finderService.createSevenZip" = "Crear 7z";
+"settings.finderService.createTarGz" = "Crear TAR.GZ";
+"settings.finderService.hash" = "Calcular hash";
+"settings.finderExtension.register" = "Volver a registrar ahora";
+"settings.finderExtension.registered" = "Los servicios de Finder se volvieron a registrar. Si los elementos de clic derecho aún no aparecen, abre una nueva ventana de Finder o cierra sesión y vuelve a entrar.";

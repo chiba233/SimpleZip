@@ -1667,3 +1667,11 @@
 "settings.rememberFolderExpansion.description" = "列表重新整理（檔案變動、手動重新整理、排序）後自動恢復你展開過的資料夾。關閉後每次重新整理都從全部摺疊開始。";
 "settings.rememberVolumeSetExpansion" = "記住分卷集展開狀態";
 "settings.rememberVolumeSetExpansion.description" = "展開過的分卷集（.001/.002…）在列表重新整理後保持展開。關閉後每次重新整理重新收起。";
+"settings.finderService.addToArchive" = "加入到壓縮檔";
+"settings.finderService.extract" = "解壓";
+"settings.finderService.createZip" = "建立 ZIP";
+"settings.finderService.createSevenZip" = "建立 7z";
+"settings.finderService.createTarGz" = "建立 TAR.GZ";
+"settings.finderService.hash" = "計算雜湊";
+"settings.finderExtension.register" = "立即重新註冊";
+"settings.finderExtension.registered" = "已重新註冊 Finder 服務。若右鍵選單仍未出現，請新開一個 Finder 視窗，或登出後重新登入。";

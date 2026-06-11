@@ -1666,3 +1666,11 @@
 "settings.rememberFolderExpansion.description" = "Ordner, die geöffnet waren, nach Listenaktualisierungen erneut aufklappen (Dateiänderungen, manuelle Aktualisierung, Sortierung). Ausschalten, damit jede Aktualisierung vollständig eingeklappt startet.";
 "settings.rememberVolumeSetExpansion" = "Aufgeklappte geteilte Volume-Sets merken";
 "settings.rememberVolumeSetExpansion.description" = "Eingeklappte geteilte Volume-Sets (.001/.002…) nach dem Aufklappen über Listenaktualisierungen hinweg offen halten. Ausschalten, um sie bei jeder Aktualisierung erneut einzuklappen.";
+"settings.finderService.addToArchive" = "Zum Archiv hinzufügen";
+"settings.finderService.extract" = "Extrahieren";
+"settings.finderService.createZip" = "ZIP erstellen";
+"settings.finderService.createSevenZip" = "7z erstellen";
+"settings.finderService.createTarGz" = "TAR.GZ erstellen";
+"settings.finderService.hash" = "Hash berechnen";
+"settings.finderExtension.register" = "Jetzt erneut registrieren";
+"settings.finderExtension.registered" = "Finder-Dienste wurden erneut registriert. Wenn die Rechtsklick-Einträge weiterhin nicht erscheinen, öffnen Sie ein neues Finder-Fenster oder melden Sie sich ab und wieder an.";

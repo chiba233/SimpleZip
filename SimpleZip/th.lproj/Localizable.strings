@@ -1665,3 +1665,11 @@
 "settings.rememberFolderExpansion.description" = "ขยายโฟลเดอร์ที่คุณเปิดไว้กลับมาอีกครั้งหลังรายการรีเฟรช (ไฟล์เปลี่ยน, รีเฟรชเอง, เรียงลำดับ) ปิดเพื่อให้ทุกการรีเฟรชเริ่มแบบพับทั้งหมด";
 "settings.rememberVolumeSetExpansion" = "จำชุดแบ่งพาร์ตที่ขยายไว้";
 "settings.rememberVolumeSetExpansion.description" = "คงชุดแบ่งพาร์ตที่พับอยู่ (.001/.002…) ให้เปิดข้ามการรีเฟรชรายการหลังจากที่คุณขยายแล้ว ปิดเพื่อให้พับใหม่ทุกครั้งที่รีเฟรช";
+"settings.finderService.addToArchive" = "เพิ่มไปยังไฟล์บีบอัด";
+"settings.finderService.extract" = "แตกไฟล์";
+"settings.finderService.createZip" = "สร้าง ZIP";
+"settings.finderService.createSevenZip" = "สร้าง 7z";
+"settings.finderService.createTarGz" = "สร้าง TAR.GZ";
+"settings.finderService.hash" = "คำนวณแฮช";
+"settings.finderExtension.register" = "ลงทะเบียนใหม่ตอนนี้";
+"settings.finderExtension.registered" = "ลงทะเบียนบริการ Finder ใหม่แล้ว หากรายการคลิกขวายังไม่ปรากฏ ให้เปิดหน้าต่าง Finder ใหม่ หรือออกจากระบบแล้วเข้าสู่ระบบอีกครั้ง";
