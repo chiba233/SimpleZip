@@ -65,8 +65,7 @@ struct SZSVerificationSheet: View {
         VStack(spacing: 0) {
             HStack(spacing: 14) {
                 RoundedRectangle(cornerRadius: 11, style: .continuous)
-                    .fill(SIZSignatureStatus.color(for: signature))
-                    .saturation(0.75)
+                    .fill(SIZSignatureStatus.color(for: signature).gradient)
                     .overlay(
                         Image(systemName: SIZSignatureStatus.iconName(for: signature))
                             .font(.system(size: 30, weight: .semibold))

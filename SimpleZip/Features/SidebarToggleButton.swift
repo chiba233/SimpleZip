@@ -44,7 +44,7 @@ struct CenteredSidebarRow: View {
         Button(action: action) {
             HStack(spacing: 10) {
                 RoundedRectangle(cornerRadius: 6.5, style: .continuous)
-                    .fill(color)
+                    .fill(color.gradient)
                     .overlay(
                         Image(systemName: systemImage)
                             .font(.system(size: 13, weight: .semibold))

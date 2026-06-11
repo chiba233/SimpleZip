@@ -9,8 +9,8 @@
 
 import SwiftUI
 
-/// 弹窗顶部 hero：纯色图标瓦片 + 标题 + 可选副标题。
-/// 设计准则：box 一律不渐变（纯色平涂 + 降饱和）；colors 数组保留兼容旧调用点，只取首色平涂。
+/// 弹窗顶部 hero：渐变图标瓦片 + 标题 + 可选副标题。
+/// 设计准则：hero 在窗口外层（不在卡片内），外层允许渐变；降饱和只属于带侧栏的窗口内容区。
 struct DialogHero: View {
     let systemImage: String
     let colors: [Color]
@@ -20,8 +20,7 @@ struct DialogHero: View {
     var body: some View {
         HStack(spacing: 14) {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(colors.first ?? Color.accentColor)
-                .saturation(0.75)
+                .fill(LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing))
                 .overlay(
                     Image(systemName: systemImage)
                         .font(.system(size: 21, weight: .semibold))
@@ -86,6 +85,38 @@ struct DialogSection<Content: View>: View {
     }
 }
 
+/// 卡片内一级行的标签：彩色瓦片 + 标题（设计准则：一级行彩色瓦片；
+/// 无侧栏的对话框不降饱和——降饱和只属于设置/活动中心这类带侧栏窗口的内容区）。
+/// 预检概要那类信息行不用它，保持单色。`width` 给需要定宽对齐值列的行（解压对话框 180pt）。
+struct DialogRowLabel: View {
+    let title: String
+    let systemImage: String
+    let tint: Color
+    var width: CGFloat?
+
+    init(_ title: String, systemImage: String, tint: Color, width: CGFloat? = nil) {
+        self.title = title
+        self.systemImage = systemImage
+        self.tint = tint
+        self.width = width
+    }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(tint)
+                .overlay(
+                    Image(systemName: systemImage)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.white)
+                )
+                .frame(width: 22, height: 22)
+            Text(title)
+        }
+        .frame(width: width, alignment: .leading)
+    }
+}
+
 /// 抽屉分区：不常用选项收进可展开的卡片（默认收起）—— 保护常用路径的界面密度。
 /// 头部 = 彩色小图标 + 标题 + 旋转 chevron；展开后内容在同一张卡片里。
 struct DialogDrawer<Content: View>: View {
@@ -118,8 +149,7 @@ struct DialogDrawer<Content: View>: View {
             } label: {
                 HStack(spacing: 9) {
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(color)
-                        .saturation(0.75)
+                        .fill(color.gradient)
                         .overlay(
                             Image(systemName: systemImage)
                                 .font(.system(size: 12, weight: .semibold))
@@ -165,8 +195,10 @@ struct DialogDrawer<Content: View>: View {
 }
 
 /// 弹窗钉底操作栏：bar 材质，左侧自定义内容（详情开关 / 校验信息），右侧取消 + prominent 主按钮。
+/// 设计准则：按钮带单色图标——取消统一 xmark，主操作图标由各对话框传（通常呼应 hero 图标）。
 struct DialogFooter<Leading: View>: View {
     let confirmTitle: String
+    var confirmSystemImage: String?
     let confirmDisabled: Bool
     let confirm: () -> Void
     let cancel: () -> Void
@@ -176,11 +208,19 @@ struct DialogFooter<Leading: View>: View {
         HStack {
             leading()
             Spacer()
-            Button(L10n.text("button.cancel"), action: cancel)
-            Button(confirmTitle, action: confirm)
-                .buttonStyle(.borderedProminent)
-                .disabled(confirmDisabled)
-                .keyboardShortcut(.defaultAction)
+            Button(action: cancel) {
+                Label(L10n.text("button.cancel"), systemImage: "xmark")
+            }
+            Button(action: confirm) {
+                if let confirmSystemImage {
+                    Label(confirmTitle, systemImage: confirmSystemImage)
+                } else {
+                    Text(confirmTitle)
+                }
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(confirmDisabled)
+            .keyboardShortcut(.defaultAction)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)

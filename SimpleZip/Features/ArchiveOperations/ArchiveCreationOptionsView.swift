@@ -165,10 +165,14 @@ struct ArchiveCreationOptionsView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer()
-                Button(L10n.text("button.cancel"), action: cancel)
-                Button(L10n.text("button.create")) {
+                Button(action: cancel) {
+                    Label(L10n.text("button.cancel"), systemImage: "xmark")
+                }
+                Button {
                     normalizeDestinationForCurrentFormat()
                     create(request)
+                } label: {
+                    Label(L10n.text("button.create"), systemImage: "plus.square.on.square")
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(validationMessage != nil)
@@ -253,7 +257,7 @@ struct ArchiveCreationOptionsView: View {
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: 340)
             } label: {
-                Label(L10n.text("archive.fileName"), systemImage: "character.cursor.ibeam")
+                DialogRowLabel(L10n.text("archive.fileName"), systemImage: "character.cursor.ibeam", tint: .pink)
             }
 
             LabeledContent {
@@ -267,7 +271,7 @@ struct ArchiveCreationOptionsView: View {
                     }
                 }
             } label: {
-                Label(L10n.text("archive.destination"), systemImage: "folder.fill")
+                DialogRowLabel(L10n.text("archive.destination"), systemImage: "folder.fill", tint: .blue)
             }
 
             LabeledContent {
@@ -282,7 +286,7 @@ struct ArchiveCreationOptionsView: View {
                     updateDestinationExtension()
                 }
             } label: {
-                Label(L10n.text("archive.format"), systemImage: "shippingbox.fill")
+                DialogRowLabel(L10n.text("archive.format"), systemImage: "shippingbox.fill", tint: .brown)
             }
 
             if request.options.format.supportsCompressionLevel, !hidden(.level) {
@@ -295,7 +299,7 @@ struct ArchiveCreationOptionsView: View {
                     .labelsHidden()
                     .fixedSize()
                 } label: {
-                    Label(L10n.text("archive.compressionLevel"), systemImage: "gauge.with.dots.needle.67percent")
+                    DialogRowLabel(L10n.text("archive.compressionLevel"), systemImage: "gauge.with.dots.needle.67percent", tint: .green)
                 }
             }
 
@@ -363,7 +367,7 @@ struct ArchiveCreationOptionsView: View {
                             .labelsHidden()
                             .fixedSize()
                         } label: {
-                            Label(L10n.text("archive.encryptionMethod"), systemImage: "shield.lefthalf.filled")
+                            DialogRowLabel(L10n.text("archive.encryptionMethod"), systemImage: "shield.lefthalf.filled", tint: .purple)
                         }
                     }
                 } else {
@@ -371,7 +375,7 @@ struct ArchiveCreationOptionsView: View {
                         Text(ArchiveEncryptionMethod.aes256.title)
                             .foregroundStyle(.secondary)
                     } label: {
-                        Label(L10n.text("archive.encryptionMethod"), systemImage: "shield.lefthalf.filled")
+                        DialogRowLabel(L10n.text("archive.encryptionMethod"), systemImage: "shield.lefthalf.filled", tint: .purple)
                     }
                 }
             }
@@ -1152,7 +1156,7 @@ struct ArchiveCreationOptionsView: View {
             .textFieldStyle(.roundedBorder)
             .frame(maxWidth: 260)
         } label: {
-            Label(title, systemImage: systemImage)
+            DialogRowLabel(title, systemImage: systemImage, tint: .orange)
         }
     }
 

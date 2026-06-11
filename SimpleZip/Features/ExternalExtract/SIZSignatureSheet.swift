@@ -85,8 +85,7 @@ struct SIZSignatureSheet: View {
         VStack(spacing: 0) {
             HStack(spacing: 14) {
                 RoundedRectangle(cornerRadius: 11, style: .continuous)
-                    .fill(SIZSignatureStatus.color(for: signature.verify))
-                    .saturation(0.75)
+                    .fill(SIZSignatureStatus.color(for: signature.verify).gradient)
                     .overlay(
                         Image(systemName: SIZSignatureStatus.iconName(for: signature.verify))
                             .font(.system(size: 30, weight: .semibold))

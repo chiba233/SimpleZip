@@ -68,7 +68,7 @@ struct ExtractOptionsForm<ExtraControls: View>: View {
                                     .textFieldStyle(.roundedBorder)
                                     .frame(maxWidth: 260)
                             } label: {
-                                alignedRowLabel("archive.password", systemImage: "key.fill")
+                                alignedRowLabel("archive.password", systemImage: "key.fill", tint: .orange)
                             }
                         }
                         if showsZipDecryptionMethod {
@@ -82,7 +82,7 @@ struct ExtractOptionsForm<ExtraControls: View>: View {
                                     .labelsHidden()
                                     .fixedSize()
                                 } label: {
-                                    alignedRowLabel("extract.decryptionMethod", systemImage: "shield.lefthalf.filled")
+                                    alignedRowLabel("extract.decryptionMethod", systemImage: "shield.lefthalf.filled", tint: .purple)
                                 }
 
                                 if zipDecryptionMethod == .automatic, let zipEncryptionDetectionText {
@@ -103,10 +103,14 @@ struct ExtractOptionsForm<ExtraControls: View>: View {
             HStack {
                 ShowDetailsToggleButton(isOn: $showDetails)
                 Spacer()
-                Button(L10n.text("button.cancel"), action: cancel)
-                Button(L10n.text("button.extract"), action: confirm)
-                    .buttonStyle(.borderedProminent)
-                    .keyboardShortcut(.defaultAction)
+                Button(action: cancel) {
+                    Label(L10n.text("button.cancel"), systemImage: "xmark")
+                }
+                Button(action: confirm) {
+                    Label(L10n.text("button.extract"), systemImage: "doc.zipper")
+                }
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
@@ -139,15 +143,15 @@ struct ExtractOptionsForm<ExtraControls: View>: View {
                 }
             }
         } label: {
-            alignedRowLabel("archive.destination", systemImage: "folder.fill")
+            alignedRowLabel("archive.destination", systemImage: "folder.fill", tint: .blue)
         }
     }
 
     /// 「保存到 / 密码 / 解密方式」三行的标签统一定宽 —— 标签长短不一时值列各自起步,
     /// 用户报「保存到和密码不齐」。定宽后值列垂直对齐(en 最长的 "Password (optional)" 也放得下)。
-    private func alignedRowLabel(_ key: String, systemImage: String) -> some View {
-        Label(L10n.text(key), systemImage: systemImage)
-            .frame(width: 180, alignment: .leading)
+    /// 一级行彩色瓦片（无侧栏不降饱和）。
+    private func alignedRowLabel(_ key: String, systemImage: String, tint: Color) -> some View {
+        DialogRowLabel(L10n.text(key), systemImage: systemImage, tint: tint, width: 180)
     }
 
     private func chooseDestination() {

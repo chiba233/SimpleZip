@@ -358,7 +358,7 @@ struct SidebarButton: View {
         SidebarRowButton(action: action) {
             HStack(spacing: 7) {
                 RoundedRectangle(cornerRadius: 4.5, style: .continuous)
-                    .fill(Color.accentColor)
+                    .fill(Color.accentColor.gradient)
                     .overlay(
                         Image(systemName: systemImage)
                             .font(.system(size: 9, weight: .semibold))

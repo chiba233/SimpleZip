@@ -52,11 +52,10 @@ struct ConflictResolutionView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // hero：橙色警告瓦片 + 文件名 + 说明（纯色平涂，box 不渐变）。
+            // hero：橙黄警告瓦片 + 文件名 + 说明（hero 在窗口外层，可渐变）。
             HStack(spacing: 14) {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color.orange)
-                    .saturation(0.75)
+                    .fill(LinearGradient(colors: [.orange, .yellow], startPoint: .topLeading, endPoint: .bottomTrailing))
                     .overlay(
                         Image(systemName: "exclamationmark.triangle.fill")
                             .font(.system(size: 21, weight: .semibold))
