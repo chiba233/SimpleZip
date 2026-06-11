@@ -100,15 +100,21 @@ struct DuplicateFilesView: View {
             Divider()
 
             HStack {
-                Button(L10n.text("button.copyAll")) {
+                Button {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(report.plainTextSummary, forType: .string)
+                } label: {
+                    Label(L10n.text("button.copyAll"), systemImage: "doc.on.doc")
                 }
                 .disabled(report.groups.isEmpty)
                 Spacer()
-                Button(L10n.text("button.ok")) { onClose() }
-                    .buttonStyle(.borderedProminent)
-                    .keyboardShortcut(.defaultAction)
+                Button {
+                    onClose()
+                } label: {
+                    Label(L10n.text("button.ok"), systemImage: "checkmark")
+                }
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)

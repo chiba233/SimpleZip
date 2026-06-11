@@ -155,15 +155,21 @@ struct SIZSignatureSheet: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button(L10n.text("button.cancel"), action: onCancel)
-                    .keyboardShortcut(cancelIsDefault ? .defaultAction : .cancelAction)
-                    .disabled(isOpening)
-                if let onOpenInMainWindow {
-                    Button(L10n.text("externalExtract.openInMainWindow"), action: onOpenInMainWindow)
-                        .disabled(isOpening)
+                Button(action: onCancel) {
+                    Label(L10n.text("button.cancel"), systemImage: "xmark")
                 }
-                Button(primaryActionTitle ?? openButtonTitle) {
+                .keyboardShortcut(cancelIsDefault ? .defaultAction : .cancelAction)
+                .disabled(isOpening)
+                if let onOpenInMainWindow {
+                    Button(action: onOpenInMainWindow) {
+                        Label(L10n.text("externalExtract.openInMainWindow"), systemImage: "macwindow")
+                    }
+                    .disabled(isOpening)
+                }
+                Button {
                     runOpen()
+                } label: {
+                    Label(primaryActionTitle ?? openButtonTitle, systemImage: "doc.zipper")
                 }
                 .keyboardShortcut(cancelIsDefault ? nil : .defaultAction)
                 .buttonStyle(.borderedProminent)
@@ -339,8 +345,10 @@ struct SIZSignatureSheet: View {
                         .lineLimit(1)
                         .truncationMode(.middle)
                     Spacer()
-                    Button(L10n.text("gpgImport.action.import")) {
+                    Button {
                         importSignerKey(from: keyURL)
+                    } label: {
+                        Label(L10n.text("gpgImport.action.import"), systemImage: "square.and.arrow.down")
                     }
                     .controlSize(.small)
                     .disabled(isImportingKey)

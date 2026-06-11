@@ -103,12 +103,16 @@ struct SZSVerificationSheet: View {
 
             HStack {
                 Spacer()
-                Button(L10n.text("szs.verify.dismissButton"), action: onClose)
-                    .keyboardShortcut(.cancelAction)
-                Button(L10n.text("szs.verify.openAsVirtualFolderButton")) {
+                Button(action: onClose) {
+                    Label(L10n.text("szs.verify.dismissButton"), systemImage: "xmark")
+                }
+                .keyboardShortcut(.cancelAction)
+                Button {
                     if let report {
                         onOpenAsVirtualFolder(payloadRoot, report)
                     }
+                } label: {
+                    Label(L10n.text("szs.verify.openAsVirtualFolderButton"), systemImage: "folder")
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(isVerifying || report == nil)

@@ -81,21 +81,27 @@ struct ConflictResolutionView: View {
             // 可组合的修饰开关，卡片化呈现（比裸 checkbox 现代）。每个轴一行带说明。
             VStack(alignment: .leading, spacing: 12) {
                 if kind == .folderTransfer {
-                    conflictToggle(
-                        L10n.text("conflict.toggle.replaceWholeFolder"),
+                    DialogToggleRow(
+                        title: L10n.text("conflict.toggle.replaceWholeFolder"),
                         subtitle: L10n.text("conflict.toggle.replaceWholeFolder.desc"),
+                        systemImage: "folder.fill",
+                        tint: .blue,
                         isOn: $replaceWholeFolder
                     )
                 }
-                conflictToggle(
-                    L10n.text("conflict.toggle.hashGate"),
+                DialogToggleRow(
+                    title: L10n.text("conflict.toggle.hashGate"),
                     subtitle: L10n.text("conflict.toggle.hashGate.desc"),
+                    systemImage: "number.square",
+                    tint: .cyan,
                     isOn: $hashGate
                 )
                 if allowsRememberedChoice {
-                    conflictToggle(
-                        L10n.text("conflict.applyToAll"),
+                    DialogToggleRow(
+                        title: L10n.text("conflict.applyToAll"),
                         subtitle: L10n.text("conflict.applyToAll.desc"),
+                        systemImage: "repeat",
+                        tint: .gray,
                         isOn: $applyToAll
                     )
                 }
@@ -105,18 +111,34 @@ struct ConflictResolutionView: View {
             Divider().padding(.top, 16)
 
             HStack(spacing: 10) {
-                Button(L10n.text("button.cancel")) { onChoice(.cancel, false) }
-                    .keyboardShortcut(.cancelAction)
+                Button {
+                    onChoice(.cancel, false)
+                } label: {
+                    Label(L10n.text("button.cancel"), systemImage: "xmark")
+                }
+                .keyboardShortcut(.cancelAction)
                 Spacer()
                 // 创建场景没有「跳过」（单一输出），但有「两者都保留」。
                 if kind == .archiveOutput {
-                    Button(L10n.text("conflict.action.keepBoth")) { onChoice(.keepBoth, false) }
+                    Button {
+                        onChoice(.keepBoth, false)
+                    } label: {
+                        Label(L10n.text("conflict.action.keepBoth"), systemImage: "plus.square.on.square")
+                    }
                 } else {
-                    Button(L10n.text("conflict.action.skip")) { onChoice(.skip, applyToAll) }
+                    Button {
+                        onChoice(.skip, applyToAll)
+                    } label: {
+                        Label(L10n.text("conflict.action.skip"), systemImage: "arrow.right.to.line")
+                    }
                 }
-                Button(continueButtonTitle) { onChoice(continueChoice, applyToAll) }
-                    .buttonStyle(.borderedProminent)
-                    .keyboardShortcut(.defaultAction)
+                Button {
+                    onChoice(continueChoice, applyToAll)
+                } label: {
+                    Label(continueButtonTitle, systemImage: "checkmark")
+                }
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
@@ -135,17 +157,6 @@ struct ConflictResolutionView: View {
         }
     }
 
-    @ViewBuilder
-    private func conflictToggle(_ title: String, subtitle: String, isOn: Binding<Bool>) -> some View {
-        Toggle(isOn: isOn) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(.body)
-                Text(subtitle).font(.caption).foregroundStyle(.secondary)
-            }
-        }
-        .toggleStyle(.checkbox)
-        .fixedSize(horizontal: false, vertical: true)
-    }
 }
 
 /// 文件操作结束汇总：沿用原哈希汇总的列对齐表格样式（文件 | 原文件哈希 | 试图覆盖文件哈希），
@@ -192,9 +203,11 @@ struct TransferSummaryView: View {
 
             HStack {
                 Spacer()
-                Button(L10n.text("button.ok"), action: close)
-                    .buttonStyle(.borderedProminent)
-                    .keyboardShortcut(.defaultAction)
+                Button(action: close) {
+                    Label(L10n.text("button.ok"), systemImage: "checkmark")
+                }
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
@@ -352,9 +365,11 @@ struct HashOverwriteSummaryView: View {
 
             HStack {
                 Spacer()
-                Button(L10n.text("button.ok"), action: close)
-                    .buttonStyle(.borderedProminent)
-                    .keyboardShortcut(.defaultAction)
+                Button(action: close) {
+                    Label(L10n.text("button.ok"), systemImage: "checkmark")
+                }
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)

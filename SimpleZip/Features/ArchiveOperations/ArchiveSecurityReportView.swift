@@ -59,8 +59,10 @@ struct ArchiveSecurityReportView: View {
 
             HStack {
                 Spacer()
-                Button(L10n.text("button.ok")) {
+                Button {
                     model.showsArchiveSecurityReport = false
+                } label: {
+                    Label(L10n.text("button.ok"), systemImage: "checkmark")
                 }
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)

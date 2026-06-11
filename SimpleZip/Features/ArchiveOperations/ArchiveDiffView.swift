@@ -87,6 +87,7 @@ struct ArchiveDiffView: View {
 
     /// 0.4.2 #16：忽略 macOS 元数据垃圾（.DS_Store / __MACOSX / ._* …）—— 复制 / 导出同样遵守。
     @State private var hideJunk = false
+    @State private var showsExportFormatDialog = false
 
     private var displayedReport: ArchiveDiffReport {
         hideJunk
@@ -131,26 +132,40 @@ struct ArchiveDiffView: View {
             Divider()
 
             // 钉底操作栏：左侧工具（导出 / 忽略垃圾 / 复制），右侧主按钮 —— 与创建 / 解压同款。
+            // Menu 不当按钮用（Form/bar 里渲染破碎）→ 普通按钮 + confirmationDialog 选格式。
             HStack(spacing: 12) {
-                Menu(L10n.text("diff.export")) {
+                Button {
+                    showsExportFormatDialog = true
+                } label: {
+                    Label(L10n.text("diff.export"), systemImage: "square.and.arrow.up")
+                }
+                .confirmationDialog(L10n.text("diff.export"), isPresented: $showsExportFormatDialog) {
                     Button(L10n.text("diff.export.json")) { exportReport(.json) }
                     Button(L10n.text("diff.export.csv")) { exportReport(.csv) }
                     Button(L10n.text("diff.export.markdown")) { exportReport(.markdown) }
                 }
-                .fixedSize()
 
-                Toggle(L10n.text("diff.hideJunk"), isOn: $hideJunk)
-                    .toggleStyle(.checkbox)
+                // 复选框不靠左：文字在前,checkbox 跟在右边。
+                HStack(spacing: 6) {
+                    Text(L10n.text("diff.hideJunk"))
+                    Toggle("", isOn: $hideJunk)
+                        .labelsHidden()
+                        .toggleStyle(.checkbox)
+                }
 
-                Button(L10n.text("button.copyAll")) {
+                Button {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(displayedReport.plainTextSummary, forType: .string)
+                } label: {
+                    Label(L10n.text("button.copyAll"), systemImage: "doc.on.doc")
                 }
 
                 Spacer()
 
-                Button(L10n.text("button.ok")) {
+                Button {
                     onClose()
+                } label: {
+                    Label(L10n.text("button.ok"), systemImage: "checkmark")
                 }
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)

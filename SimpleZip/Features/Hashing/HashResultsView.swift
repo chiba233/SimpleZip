@@ -34,12 +34,16 @@ struct HashResultsView: View {
 
                 Spacer()
 
-                Button(L10n.text("button.copyAll")) {
+                Button {
                     copyAllResults()
+                } label: {
+                    Label(L10n.text("button.copyAll"), systemImage: "doc.on.doc")
                 }
 
-                Button(L10n.text("button.ok")) {
+                Button {
                     onClose()
+                } label: {
+                    Label(L10n.text("button.ok"), systemImage: "checkmark")
                 }
                 .keyboardShortcut(.defaultAction)
             }

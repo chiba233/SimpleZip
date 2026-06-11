@@ -82,19 +82,27 @@ struct ReleaseInspectionView: View {
             Divider()
 
             HStack {
-                Button(L10n.text("button.copyAll")) {
+                Button {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(plainTextSummary, forType: .string)
+                } label: {
+                    Label(L10n.text("button.copyAll"), systemImage: "doc.on.doc")
                 }
                 if let onExportChecksums {
-                    Button(L10n.text("checksum.export.button")) {
+                    Button {
                         onExportChecksums()
+                    } label: {
+                        Label(L10n.text("checksum.export.button"), systemImage: "square.and.arrow.up")
                     }
                 }
                 Spacer()
-                Button(L10n.text("button.ok")) { onClose() }
-                    .buttonStyle(.borderedProminent)
-                    .keyboardShortcut(.defaultAction)
+                Button {
+                    onClose()
+                } label: {
+                    Label(L10n.text("button.ok"), systemImage: "checkmark")
+                }
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
