@@ -161,58 +161,62 @@ struct ColumnsPane: View {
                 .padding(.vertical, 2)
             }
 
+            // 0.4.3 用户拍板重写:分组也折叠化,逻辑说人话 ——
+            // 「分组方式」一个 picker + 「按文件夹单独记忆」一个开关,替代原「分组范围 + 全局默认分组方式」
+            // 两个互相指涉的下拉(用户原话:个人都看不懂)。存储不变(scope/groupBy 同 key)。
             Section(L10n.text("settings.section.grouping")) {
-                Text(L10n.text("settings.grouping.description"))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                // 文件浏览
-                HStack(spacing: 12) {
-                    SettingsRowIcon(systemImage: "folder", tint: .blue)
-                    Text(L10n.text("settings.columns.fileBrowser")).font(.headline)
-                }
-                SettingsControlRow(
-                    title: L10n.text("settings.grouping.scope"),
-                    description: L10n.text("settings.grouping.scope.description"),
-                    systemImage: "slider.horizontal.3"
-                ) {
-                    Picker("", selection: $fileGroupingScopeRaw) {
-                        ForEach(BrowserGrouping.GroupingScope.allCases, id: \.self) { scope in
-                            Text(scope.title).tag(scope.rawValue)
+                DisclosureGroup {
+                    VStack(alignment: .leading, spacing: 0) {
+                        SettingsControlRow(
+                            title: L10n.text("settings.grouping.groupBy"),
+                            description: L10n.text("settings.grouping.groupBy.file.description"),
+                            systemImage: "square.grid.3x1.below.line.grid.1x2"
+                        ) {
+                            Picker("", selection: $fileGroupByRaw) {
+                                ForEach(BrowserGrouping.GroupBy.allCases, id: \.self) { option in
+                                    Text(option.title).tag(option.rawValue)
+                                }
+                            }
+                            .labelsHidden().fixedSize().frame(minWidth: 200, alignment: .trailing)
                         }
+                        SettingsToggleRow(
+                            title: L10n.text("settings.grouping.perFolder"),
+                            description: L10n.text("settings.grouping.perFolder.description"),
+                            systemImage: "folder.badge.gearshape",
+                            isOn: Binding(
+                                get: { fileGroupingScopeRaw == BrowserGrouping.GroupingScope.perFolder.rawValue },
+                                set: { fileGroupingScopeRaw = ($0 ? BrowserGrouping.GroupingScope.perFolder : .global).rawValue }
+                            )
+                        )
                     }
-                    .labelsHidden().fixedSize().frame(minWidth: 200, alignment: .trailing)
-                }
-                SettingsControlRow(
-                    title: L10n.text("settings.grouping.fileDefault"),
-                    description: L10n.text("settings.grouping.fileDefault.description"),
-                    systemImage: "folder"
-                ) {
-                    Picker("", selection: $fileGroupByRaw) {
-                        ForEach(BrowserGrouping.GroupBy.allCases, id: \.self) { option in
-                            Text(option.title).tag(option.rawValue)
-                        }
+                    .padding(.leading, 34)
+                } label: {
+                    HStack(spacing: 12) {
+                        SettingsRowIcon(systemImage: "folder", tint: .blue)
+                        Text(L10n.text("settings.columns.fileBrowser")).font(.headline)
                     }
-                    .labelsHidden().fixedSize().frame(minWidth: 200, alignment: .trailing)
                 }
 
-                // 压缩包浏览（无「按文件夹」—— 档案内路径不持久，只全局）
-                HStack(spacing: 12) {
-                    SettingsRowIcon(systemImage: "archivebox", tint: .orange)
-                    Text(L10n.text("settings.columns.archiveBrowser")).font(.headline)
-                }
-                .padding(.top, 6)
-                SettingsControlRow(
-                    title: L10n.text("settings.grouping.default"),
-                    description: L10n.text("settings.grouping.default.description"),
-                    systemImage: "archivebox"
-                ) {
-                    Picker("", selection: $archiveGroupByRaw) {
-                        ForEach(BrowserGrouping.GroupBy.allCases, id: \.self) { option in
-                            Text(option.title).tag(option.rawValue)
+                // 压缩包浏览(无「按文件夹」—— 档案内路径不持久,只有一个全局分组方式)。
+                DisclosureGroup {
+                    SettingsControlRow(
+                        title: L10n.text("settings.grouping.groupBy"),
+                        description: L10n.text("settings.grouping.groupBy.archive.description"),
+                        systemImage: "square.grid.3x1.below.line.grid.1x2"
+                    ) {
+                        Picker("", selection: $archiveGroupByRaw) {
+                            ForEach(BrowserGrouping.GroupBy.allCases, id: \.self) { option in
+                                Text(option.title).tag(option.rawValue)
+                            }
                         }
+                        .labelsHidden().fixedSize().frame(minWidth: 200, alignment: .trailing)
                     }
-                    .labelsHidden().fixedSize().frame(minWidth: 200, alignment: .trailing)
+                    .padding(.leading, 34)
+                } label: {
+                    HStack(spacing: 12) {
+                        SettingsRowIcon(systemImage: "archivebox", tint: .orange)
+                        Text(L10n.text("settings.columns.archiveBrowser")).font(.headline)
+                    }
                 }
             }
         }

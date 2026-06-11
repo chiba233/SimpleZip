@@ -414,6 +414,11 @@
 "settings.rowDensity.loose" = "Comfortable";
 "settings.section.grouping" = "Grouping";
 "settings.grouping.description" = "Group the browser list into collapsible sections.";
+"settings.grouping.groupBy" = "Group items by";
+"settings.grouping.groupBy.file.description" = "How file listings are grouped.";
+"settings.grouping.groupBy.archive.description" = "How entries inside archives are grouped.";
+"settings.grouping.perFolder" = "Remember per folder";
+"settings.grouping.perFolder.description" = "Each folder keeps its own grouping (set it via right-click inside the folder). Off = the grouping above applies everywhere.";
 "settings.grouping.scope" = "Grouping scope";
 "settings.grouping.scope.description" = "Use one grouping everywhere, or remember a grouping per folder (set via right-click in a folder).";
 "settings.grouping.scope.global" = "Global";

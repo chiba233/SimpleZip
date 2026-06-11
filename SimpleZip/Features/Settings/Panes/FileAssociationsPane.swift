@@ -108,17 +108,19 @@ struct FileAssociationRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            // 与全设置同一套瓦片制度:按扩展名稳定取色(同 GPG 头像的思路),统一 doc.zipper 符号。
-            SettingsRowIcon(systemImage: "doc.zipper", tint: tileColor)
+            // 与全设置同一套瓦片制度,但「图标」就是扩展名本身:彩色底 + 文字(用户拍板)。
+            Text(association.fileExtension)
+                .font(.system(size: 9, weight: .bold, design: .rounded))
+                .foregroundStyle(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.55)
+                .padding(.horizontal, 3)
+                .frame(width: 36, height: 22)
+                .background(tileColor, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                .saturation(0.75)
 
             VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 6) {
-                    Text(".\(association.fileExtension)")
-                        .font(.system(.body, design: .monospaced))
-                        .fontWeight(.semibold)
-                    Text(association.title)
-                        .foregroundStyle(.secondary)
-                }
+                Text(association.title)
                 Text(L10n.format("settings.association.currentDefault", currentDefaultApp))
                     .font(.caption)
                     .foregroundStyle(.secondary)

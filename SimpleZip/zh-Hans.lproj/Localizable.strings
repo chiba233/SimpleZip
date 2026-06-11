@@ -414,6 +414,11 @@
 "settings.rowDensity.loose" = "宽松";
 "settings.section.grouping" = "分组";
 "settings.grouping.description" = "把浏览列表按维度切成可折叠的区块。";
+"settings.grouping.groupBy" = "分组方式";
+"settings.grouping.groupBy.file.description" = "文件列表默认按什么分组。";
+"settings.grouping.groupBy.archive.description" = "压缩包内条目按什么分组。";
+"settings.grouping.perFolder" = "按文件夹单独记忆";
+"settings.grouping.perFolder.description" = "每个文件夹各记各的分组（在文件夹里右键设定）。关闭 = 上面的分组方式全局生效。";
 "settings.grouping.scope" = "分组范围";
 "settings.grouping.scope.description" = "全局统一一种分组，或每个文件夹各记各的（在文件夹里右键设定）。";
 "settings.grouping.scope.global" = "全局";
