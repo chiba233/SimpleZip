@@ -81,12 +81,15 @@ final class ArchiveBrowserModel: ObservableObject {
     var displayedArchiveItems: [ArchiveItem] {
         let text = searchText.trimmingCharacters(in: .whitespaces)
         guard !text.isEmpty || hasActiveAdvancedFilters else { return archiveItems }
-        var query = ArchiveSearchQuery()
-        query.text = text
+        // 0.4.2 #5：搜索框文本走 token 语法（*.swift / size:>1MB / ext: / encrypted: / crc: /
+        // comment: / path: / modified:<7d / regex:），普通词照旧子串。工具栏过滤与 token 合并取交集。
+        var query = ArchiveSearchQuery.parse(text)
         query.scope = .fullPath
         query.kind = searchKind
-        query.encryptedOnly = searchEncryptedOnly
-        query.modifiedAfter = searchModifiedWithin.cutoff
+        query.encryptedOnly = query.encryptedOnly || searchEncryptedOnly
+        if let cutoff = searchModifiedWithin.cutoff {
+            query.modifiedAfter = max(query.modifiedAfter ?? .distantPast, cutoff)
+        }
         return ArchiveSearch.filter(archiveItems, with: query)
     }
 

@@ -112,3 +112,110 @@ struct ArchiveSearchTests {
         #expect(!query.isEmpty)
     }
 }
+
+/// 0.4.2 #5:搜索 token 语法解析 + 新维度匹配。
+struct ArchiveSearchQueryParseTests {
+
+    private func file(_ name: String, size: Int64? = nil, crc: String = "", encrypted: Bool = false, comment: String = "") -> ArchiveItem {
+        ArchiveItem(name: name, isDirectory: false, size: size, modified: nil, sizeText: "", modifiedText: "", method: "", isEncrypted: encrypted, crc: crc, comment: comment)
+    }
+
+    @Test func plainWordsStayAsSubstringText() {
+        let query = ArchiveSearchQuery.parse("annual report")
+        #expect(query.text == "annual report")
+        #expect(query.namePatterns.isEmpty)
+    }
+
+    @Test func parsesSizeRangeAndUnits() {
+        let query = ArchiveSearchQuery.parse("size:>1mb")
+        #expect(query.minSize == 1_048_577)
+        let upper = ArchiveSearchQuery.parse("size:<=500k")
+        #expect(upper.maxSize == 512_000)
+        let exact = ArchiveSearchQuery.parse("size:=1024")
+        #expect(exact.minSize == 1024)
+        #expect(exact.maxSize == 1024)
+    }
+
+    @Test func parsesGlobExtEncryptedCRCCommentPathRegex() {
+        let query = ArchiveSearchQuery.parse("*.swift ext:pdf encrypted:true crc:a1b2 comment:草稿 path:src/ regex:^docs/")
+        #expect(query.namePatterns == ["*.swift"])
+        #expect(query.fileExtension == "pdf")
+        #expect(query.encryptedOnly == true)
+        #expect(query.crc == "A1B2")
+        #expect(query.commentText == "草稿")
+        #expect(query.pathText == "src/")
+        #expect(query.nameRegex == "^docs/")
+    }
+
+    @Test func parsesModifiedAge() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        let query = ArchiveSearchQuery.parse("modified:<7d", now: now)
+        #expect(query.modifiedAfter == now.addingTimeInterval(-7 * 86_400))
+    }
+
+    @Test func unknownTokenFallsBackToPlainText() {
+        let query = ArchiveSearchQuery.parse("foo:bar")
+        #expect(query.text == "foo:bar")
+    }
+
+    @Test func encryptedFalseExcludesEncrypted() {
+        let query = ArchiveSearchQuery.parse("encrypted:false")
+        #expect(query.excludeEncrypted == true)
+        let items = [file("a.txt", encrypted: true), file("b.txt", encrypted: false)]
+        #expect(ArchiveSearch.filter(items, with: query).map(\.name) == ["b.txt"])
+    }
+
+    @Test func globMatchesDisplayNameCaseInsensitively() {
+        var query = ArchiveSearchQuery()
+        query.namePatterns = ["*.SWIFT"]
+        let items = [file("src/main.swift"), file("src/readme.md")]
+        #expect(ArchiveSearch.filter(items, with: query).map(\.name) == ["src/main.swift"])
+    }
+
+    @Test func globWithSlashMatchesFullPath() {
+        var query = ArchiveSearchQuery()
+        query.namePatterns = ["docs/*.md"]
+        let items = [file("docs/a.md"), file("src/b.md")]
+        #expect(ArchiveSearch.filter(items, with: query).map(\.name) == ["docs/a.md"])
+    }
+
+    @Test func extensionAndCRCAndCommentMatch() {
+        var query = ArchiveSearchQuery()
+        query.fileExtension = "pdf"
+        let items = [file("a.pdf"), file("b.txt")]
+        #expect(ArchiveSearch.filter(items, with: query).map(\.name) == ["a.pdf"])
+
+        var crcQuery = ArchiveSearchQuery()
+        crcQuery.crc = "A1B2C3D4"
+        let crcItems = [file("x", crc: "a1b2c3d4"), file("y", crc: "FFFF0000"), file("z", crc: "")]
+        #expect(ArchiveSearch.filter(crcItems, with: crcQuery).map(\.name) == ["x"])
+
+        var commentQuery = ArchiveSearchQuery()
+        commentQuery.commentText = "draft"
+        let commentItems = [file("a", comment: "Final DRAFT v2"), file("b", comment: "")]
+        #expect(ArchiveSearch.filter(commentItems, with: commentQuery).map(\.name) == ["a"])
+    }
+
+    @Test func regexMatchesFullPathAndInvalidRegexDegradesToSubstring() {
+        var query = ArchiveSearchQuery()
+        query.nameRegex = "^docs/.*\\.md$"
+        let items = [file("docs/a.md"), file("docs/a.md.bak"), file("src/b.md")]
+        #expect(ArchiveSearch.filter(items, with: query).map(\.name) == ["docs/a.md"])
+
+        var broken = ArchiveSearchQuery()
+        broken.nameRegex = "[unclosed"
+        let fallbackItems = [file("notes/[unclosed].txt"), file("other.txt")]
+        #expect(ArchiveSearch.filter(fallbackItems, with: broken).map(\.name) == ["notes/[unclosed].txt"])
+    }
+
+    @Test func combinedTokensAreANDed() {
+        let query = ArchiveSearchQuery.parse("*.log size:>1k encrypted:false")
+        let items = [
+            file("big.log", size: 2048, encrypted: false),
+            file("small.log", size: 10, encrypted: false),
+            file("big-secret.log", size: 4096, encrypted: true),
+            file("big.txt", size: 4096, encrypted: false)
+        ]
+        #expect(ArchiveSearch.filter(items, with: query).map(\.name) == ["big.log"])
+    }
+}
