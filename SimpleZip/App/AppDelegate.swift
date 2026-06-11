@@ -149,6 +149,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private static let cleanShutdownKey = "SimpleZip.session.cleanShutdown"
 
     /// 异常退出后的提示：临时资源已自动清理 + 中断任务已在活动中心标出，可导出诊断报告。
+    /// 0.4.3 修「启动卡死假象」:以前无条件 `runModal` —— 启动 800ms 后若 app 不在前台
+    /// (开机自启 / 焦点被别的 app 抢走),模态面板開在别人后面,主线程困在模态循环,
+    /// 整个 app 看起来挂了,用户只能 SIGTERM 强杀(实测调试器停在 runModal 上)。
+    /// 现在:有主窗口就挂 **sheet**(不卡全局、永远贴着自己窗口可见);没窗口才回退
+    /// runModal,且先显式把 app 拉到前台。
     private func presentUncleanExitNotice() {
         let alert = NSAlert()
         alert.alertStyle = .warning
@@ -156,8 +161,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.informativeText = L10n.text("recovery.message")
         alert.addButton(withTitle: L10n.text("button.ok"))
         alert.addButton(withTitle: L10n.text("recovery.exportDiagnostics"))
-        if alert.runModal() == .alertSecondButtonReturn {
-            DiagnosticsCopier.exportGeneralReport()
+        let handleResponse: (NSApplication.ModalResponse) -> Void = { response in
+            if response == .alertSecondButtonReturn {
+                DiagnosticsCopier.exportGeneralReport()
+            }
+        }
+        if let window = NSApp.windows.first(where: { $0.isVisible && $0.canBecomeKey }) {
+            alert.beginSheetModal(for: window, completionHandler: handleResponse)
+        } else {
+            NSApp.activate(ignoringOtherApps: true)
+            handleResponse(alert.runModal())
         }
     }
 
