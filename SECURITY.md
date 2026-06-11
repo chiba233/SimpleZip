@@ -99,6 +99,42 @@ choice is preferred for shared / public machines.
 
 ---
 
+## Non-destructive file operations
+
+SimpleZip writes to the user's disk in several flows beyond extraction: in-place
+archive editing, format conversion, overwrite-on-create, split / combine, and the
+copy / move / paste / rename / delete operations. The data-integrity rule across
+all of them is **never lose the user's data to a partial failure, and never
+silently overwrite**.
+
+- **Atomic overwrite.** Replacing an existing file (creating an archive over an
+  existing name, "Replace" in the conflict dialog, finishing an in-place edit or a
+  format conversion) writes to a unique temporary path first and atomically swaps
+  it in on success. A failed or cancelled operation leaves the original intact —
+  the old file is never deleted before the new one exists.
+- **In-place archive editing.** Adding / renaming / deleting entries or saving an
+  edited file back into a ZIP/7z stages the change on a copy, runs the backend
+  (`7zz a` / `d` / `rn`), and atomically replaces the original archive. If the
+  backend fails, the original archive is byte-for-byte unchanged. Editing an
+  encrypted archive first obtains the password, so new entries are never written
+  unencrypted into an otherwise-encrypted container.
+- **Unsafe in-archive entry paths** (Windows-style `..\` escapes, drive letters)
+  are rejected before the backend is invoked, so an attacker-controlled file name
+  cannot make an edit write outside the archive's logical tree.
+- **Conflict resolution is explicit.** Extract / paste / drop / create all route
+  through one dialog: replace, keep both, skip, *replace only if the SHA-256
+  differs*, and — for folders — merge (Finder-style) vs. replace-the-whole-folder
+  (tar-style). Nothing is overwritten without a choice or a saved policy.
+- **Undo is conservative.** Every undoable file operation re-checks that the source
+  is unchanged and the target slot is free before acting, and prefers recoverable
+  moves (to Trash) over destructive deletes; steps it can't safely reverse are
+  reported, not forced.
+- **Permission / owner changes** (`chmod` / `chown`) are undoable (the previous
+  mode and owner are snapshotted before the change); `chown` still requires the
+  system authorization prompt, exactly like the forward operation.
+
+---
+
 ## Preset Password Storage
 
 Preset password is opt-in (`Settings → General → Use a preset password`). When

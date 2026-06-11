@@ -7,11 +7,13 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
 **A native macOS archive manager that feels like Finder.** Open archives like
-folders, peek at files inside without unpacking, make ZIPs (and 7z / RAR / TAR /
-DMG / gz / bz2 / xz) in a couple of clicks — and, when you need it, sign and
-verify archives so the people you send them to know they're really from you.
+folders, peek at — or *edit* — files inside without unpacking, make and convert
+ZIP / 7z / RAR / TAR / DMG / gz / bz2 / xz in a couple of clicks, and — when you
+need it — sign and verify archives so the people you send them to know they're
+really from you.
 
-No subscriptions, no telemetry, no clutter. Just a fast, native window.
+No subscriptions, no telemetry, no clutter. Just a fast, native window — built
+on the official 7-Zip engine, which ships inside the app.
 
 ➡️ **[Download the latest release](https://github.com/chiba233/SimpleZip/releases)** ·
 [Project page](https://github.com/chiba233/SimpleZip)
@@ -37,27 +39,57 @@ No subscriptions, no telemetry, no clutter. Just a fast, native window.
 
 - 📂 **Browse an archive like a folder.** Double-click a `.zip` or `.7z` and
   walk through it as a normal file tree — no "extract everything first" step.
+  Folders in the local file browser expand in place too, Finder list-view style.
 - 👁 **Open files without unpacking.** Double-click a document inside an archive
   and it opens in its usual app, on a temporary copy. Done with it? Nothing was
   left lying around.
-- 🗜 **Make archives fast.** Select files → choose a format → done. ZIP with a
-  password, a tidy 7z, a `.tar.gz` for a colleague — all from one dialog.
+- ✍️ **Edit inside an archive.** Open a file from a ZIP/7z, edit it, and the
+  change is written back into the archive — no unpack/repack dance. You can also
+  add, rename, or delete entries, or drag files straight into an open archive.
+- 🗜 **Make, convert, split.** Select files → choose a format → done (ZIP with a
+  password, a tidy 7z, a `.tar.gz`). Convert an archive to another format, or
+  split a large file into volumes and recombine them later — byte for byte.
 - 🖐 **Drag straight to Finder.** Drag a file out of an archive onto your
   Desktop; it's extracted only when you drop it.
+- ↩️ **Undo / redo.** Move, rename, copy, duplicate, delete, split, combine,
+  convert, even permission changes — ⌘Z takes them back (safely; it never
+  silently clobbers your data).
+- 🔍 **Search, filter, compare.** Search the current list by name or path, filter
+  an archive by kind / size / date / encrypted-only, and diff two archives to see
+  exactly what was added, removed, or changed.
 - 🔄 **The list keeps itself fresh.** Add or remove files in Finder and
   SimpleZip's view updates on its own — no manual refresh, and your selection
   stays put.
 - 🙈 **Hidden files, out of your way.** Show hidden files when you need them;
   they're tucked into a collapsible group instead of cluttering the list.
-- 🔤 **Group, resize, rename.** Group a folder by kind or date, pick a
-  comfortable row size, and rename files right in the list (select + Return).
+- 🔤 **Group, resize, rename, chmod.** Group a folder by kind or date, pick a
+  comfortable row size, rename in the list (select + Return), and view or change
+  Unix permissions / owner from the right-click menu.
 - 🔐 **Sign & verify (optional).** Wrap an archive into a single signed `.siz`
   file so its signature travels with it, or sign a folder's contents in place
-  with a `.szs` manifest. Encrypt to specific people and/or a password.
+  with a `.szs` manifest. Encrypt to specific people and/or a password, and hand
+  someone a self-explaining **Secure Bundle**.
 - 🍎 **Finder integration.** Right-click any file in Finder to hash it or zip it
   up, without even opening the main window.
 - 🌍 **Speaks your language.** English, 简体中文, 繁體中文, 日本語, 한국어,
   Русский, Deutsch, Français, Español, ไทย.
+
+### 🧰 Power tools, when you reach for them
+
+- **Convert formats** — re-pack a `.rar` as `.7z`, a `.zip` as an encrypted
+  `.siz`, in one step (right-click → Convert…).
+- **Split & combine** — break a large file into `partN` volumes and rejoin them,
+  byte-for-byte, matching 7-Zip's Split / Combine.
+- **Archive comments** — read the comment stored inside a `.7z` / `.zip` right in
+  the browser.
+- **Compression presets** — save your favorite level / format / password settings
+  as a named default.
+- **Permissions & owner** — a Unix-permissions column and right-click chmod /
+  chown for local files.
+- **Benchmark** — measure the 7-Zip engine's compression / decompression speed on
+  your Mac.
+- **Tabs & multiple windows** — open archives and folders in native window tabs.
+- **Quick Look, Get Info, Open With** — the Finder essentials, right in the list.
 
 ## 🚀 Get started in a minute
 
@@ -101,27 +133,46 @@ built on standard GPG/OpenPGP:
   packing them up: a small signature file travels alongside, and SimpleZip can
   later confirm every file still matches. Right-click a selection →
   **Create Signed Manifest…**.
+- **Secure Bundle** — a `.siz` you hand to someone carries human-readable,
+  tamper-proof recipient instructions, so the person on the other end knows what
+  they received and how to verify it.
 
-SimpleZip keeps any keys you create for it in its own private keyring, separate
-from your system `~/.gnupg`, and never stores your passphrase — the standard
-macOS passphrase prompt handles that. The full cryptographic design and threat
-model live in **[SECURITY.md](./SECURITY.md)**.
+You manage keys in **Settings → GPG**: a five-group keyring (your local secret
+keys, your smartcard / OpenPGP-token keys, and others' public keys), per-key
+trust levels, add-a-subkey, and optional hardware-token support. SimpleZip keeps
+any keys it creates in its own private keyring, separate from your system
+`~/.gnupg`, and never stores your passphrase — the standard macOS prompt handles
+that. The full cryptographic design and threat model live in
+**[SECURITY.md](./SECURITY.md)**.
 
 > Using signing requires GPG. SimpleZip's GPG settings pane shows a one-line
 > `brew install gnupg pinentry-mac` when it's missing, and runs a live health
 > check so you know everything's wired up.
 
 ## 🛡 Your data stays yours
+<a id="safety-model"></a>
 
 - **Nothing is uploaded.** No accounts, no analytics, no network calls except
   the optional "check for updates".
-- **Extraction never silently overwrites.** Name clashes ask you what to do
-  (replace, keep both, skip — or *replace only if the contents differ*).
+- **Nothing is silently overwritten.** Extracting, pasting, dropping, or creating
+  an archive over an existing name all use the same conflict dialog — replace,
+  keep both, merge (Finder-style) or replace the whole folder (tar-style), skip,
+  or *replace only if the contents differ*. Overwrites write to a temp file and
+  atomically swap on success, so a failed operation can't lose both copies.
+- **Editing inside an archive is non-destructive.** Saving a change back into a
+  ZIP/7z stages a copy and atomically replaces the original; if anything fails,
+  your archive is left byte-for-byte intact.
 - **Untrusted archives are treated as untrusted.** Suspicious paths, symlinks,
-  and executable/active content each prompt before they can touch your disk —
-  and you can set any of them to **always block** on a shared machine.
+  hardlinks, and executable/active content each prompt before they can touch your
+  disk — and you can set any of them to **always block** on a shared machine.
+- **Temporary extractions live in a per-session encrypted scratch volume** and are
+  cleaned up the moment you close the archive.
 - **Saved passwords live in the macOS Keychain**, and revealing one in the open
-  requires Touch ID / your login password.
+  requires Touch ID / your login password. SimpleZip never stores GPG passphrases.
+
+> The full threat model, the `.siz` / `.szs` cryptographic design, the encrypted
+> scratch volume, and the Sparkle update-signature scheme are documented in
+> **[SECURITY.md](./SECURITY.md)**.
 
 ## 💡 Good to know
 
