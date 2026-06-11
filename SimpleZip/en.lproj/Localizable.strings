@@ -627,6 +627,18 @@
 "diff.export.csv" = "CSV…";
 "diff.export.markdown" = "Markdown Report…";
 "diff.export.failedTitle" = "Export Failed";
+/* 0.4.2 batch archive test */
+"file.batchTest" = "Test %1$@ Archives";
+"status.batchTesting" = "Testing %1$@ archives";
+"status.batchTestAllPassed" = "Tested %1$@ archives — all passed";
+"status.batchTestPartial" = "Archive test: %1$@ passed, %2$@ with problems";
+"transfer.section.passed" = "Passed";
+"test.failure.encrypted" = "Password protected / wrong password";
+"test.failure.missingVolume" = "Missing volume";
+"test.failure.corrupted" = "Data damaged";
+"test.failure.unsupported" = "Unsupported format";
+"test.failure.other" = "Test failed";
+
 
 
 /* 0.4.2 ZIP archive-level comment editing */

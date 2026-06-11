@@ -912,9 +912,14 @@ struct FileNSOutlineView: NSViewRepresentable {
                 menu.addItem(menuItem(L10n.text("file.encrypt.gpg"), systemImage: "lock.doc", action: #selector(encryptSelectedToGPG)))
             }
             menu.addItem(menuItem(L10n.text("button.extractHere"), systemImage: "arrow.down.doc", action: #selector(extractSelectedArchive)))
-            menu.addItem(menuItem(L10n.text("button.test"), systemImage: "checkmark.seal", action: #selector(testSelectedArchive)))
-            // #111 比较归档：恰好选中 2 个受支持归档 → 直接比；只选中 1 个归档 → 再挑一个比。
+            // 0.4.2 批量测试：选中 ≥2 个受支持归档时，「测试」变成整批测试 + 活动中心逐包汇总。
             let selectedArchiveCount = model.selectedFileItems.filter { !$0.isDirectory && ArchiveService.isSupportedArchive($0.url) }.count
+            if selectedArchiveCount >= 2 {
+                menu.addItem(menuItem(L10n.format("file.batchTest", "\(selectedArchiveCount)"), systemImage: "checkmark.seal", action: #selector(batchTestArchives)))
+            } else {
+                menu.addItem(menuItem(L10n.text("button.test"), systemImage: "checkmark.seal", action: #selector(testSelectedArchive)))
+            }
+            // #111 比较归档：恰好选中 2 个受支持归档 → 直接比；只选中 1 个归档 → 再挑一个比。
             if selectedArchiveCount == 2 {
                 menu.addItem(menuItem(L10n.text("file.compareArchives"), systemImage: "arrow.left.arrow.right.circle", action: #selector(compareArchivesSelected)))
             } else if selectedArchiveCount == 1, model.selectedFileItems.count == 1 {
@@ -1133,6 +1138,10 @@ struct FileNSOutlineView: NSViewRepresentable {
 
         @objc private func extractSelectedArchive() {
             model.extractArchive()
+        }
+
+        @objc private func batchTestArchives() {
+            model.batchTestSelectedArchives()
         }
 
         @objc private func testSelectedArchive() {

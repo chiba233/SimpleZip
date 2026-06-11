@@ -625,6 +625,18 @@
 "diff.export.csv" = "CSV…";
 "diff.export.markdown" = "Markdown 报告…";
 "diff.export.failedTitle" = "导出失败";
+/* 0.4.2 批量测试 */
+"file.batchTest" = "批量测试 %1$@ 个压缩包";
+"status.batchTesting" = "正在测试 %1$@ 个压缩包";
+"status.batchTestAllPassed" = "已测试 %1$@ 个压缩包——全部通过";
+"status.batchTestPartial" = "压缩包测试：%1$@ 个通过，%2$@ 个有问题";
+"transfer.section.passed" = "通过";
+"test.failure.encrypted" = "口令保护或口令错误";
+"test.failure.missingVolume" = "缺少分卷";
+"test.failure.corrupted" = "数据损坏";
+"test.failure.unsupported" = "格式不支持";
+"test.failure.other" = "测试未通过";
+
 
 
 /* 0.4.2 ZIP 归档级注释编辑 */

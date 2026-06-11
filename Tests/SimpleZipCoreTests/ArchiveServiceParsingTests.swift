@@ -334,3 +334,39 @@ struct ArchiveServiceParsingTests {
         return url
     }
 }
+
+/// 0.4.2 批量测试:失败诊断文本 → 失败桶 的归类启发式。
+struct ArchiveTestFailureClassificationTests {
+
+    @Test func classifiesPasswordFailures() {
+        #expect(ArchiveService.classifyTestFailure("ERROR: Wrong password : data.7z") == .encrypted)
+        #expect(ArchiveService.classifyTestFailure("Cannot open encrypted archive. Wrong password?") == .encrypted)
+        #expect(ArchiveService.classifyTestFailure("\nEnter password (will not be echoed):") == .encrypted)
+    }
+
+    @Test func classifiesMissingVolume() {
+        #expect(ArchiveService.classifyTestFailure("ERROR: Missing volume : archive.7z.002") == .missingVolume)
+    }
+
+    @Test func classifiesUnsupported() {
+        #expect(ArchiveService.classifyTestFailure("ERROR: x.bin\nCannot open the file as archive") == .unsupported)
+        #expect(ArchiveService.classifyTestFailure("Unsupported Method") == .unsupported)
+    }
+
+    @Test func classifiesCorruption() {
+        #expect(ArchiveService.classifyTestFailure("CRC Failed : docs/report.pdf") == .corrupted)
+        #expect(ArchiveService.classifyTestFailure("ERROR: Data Error : a.txt") == .corrupted)
+        #expect(ArchiveService.classifyTestFailure("ERRORS:\nHeaders Error\nUnconfirmed start of archive") == .corrupted)
+        #expect(ArchiveService.classifyTestFailure("WARNINGS:\nThere are some data after the end of the payload data") == .corrupted)
+    }
+
+    @Test func passwordWinsOverCRCWhenBothPresent() {
+        // 加密包口令错时 7zz 常同时报 CRC 错 —— 根因是口令,归 encrypted。
+        #expect(ArchiveService.classifyTestFailure("Wrong password? CRC Failed in encrypted file") == .encrypted)
+    }
+
+    @Test func unknownTextFallsBackToOther() {
+        #expect(ArchiveService.classifyTestFailure("something exploded") == .other)
+        #expect(ArchiveService.classifyTestFailure("") == .other)
+    }
+}

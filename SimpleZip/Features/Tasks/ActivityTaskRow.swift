@@ -182,6 +182,7 @@ struct ActivityTaskRow: View {
         let skipped = entries.filter { $0.action == .skipped }
         let deleted = entries.filter { $0.action == .deleted }
         let failed = entries.filter { $0.action == .failed }
+        let passed = entries.filter { $0.action == .passed }
         var hashByName: [String: HashOverwriteResult] = [:]
         for result in hashComparisons {
             hashByName[result.targetURL.lastPathComponent] = result
@@ -191,7 +192,7 @@ struct ActivityTaskRow: View {
                 Text(detailsHeaderTitle)
                     .font(.caption.weight(.semibold))
                 Spacer()
-                transferLogSummary(added: added.count, overwritten: overwritten.count + changed.count,
+                transferLogSummary(added: added.count + passed.count, overwritten: overwritten.count + changed.count,
                                    skipped: skipped.count, failed: failed.count)
             }
             ScrollView {
@@ -199,6 +200,9 @@ struct ActivityTaskRow: View {
                     // 失败项排最前 —— 用户最关心「哪些没成」。
                     if !failed.isEmpty {
                         TransferLogGroup(title: L10n.text("transfer.section.failed"), entries: failed, icon: "exclamationmark.circle.fill", tint: .red, hashByName: hashByName)
+                    }
+                    if !passed.isEmpty {
+                        TransferLogGroup(title: L10n.text("transfer.section.passed"), entries: passed, icon: "checkmark.seal.fill", tint: .green, hashByName: hashByName)
                     }
                     if !added.isEmpty {
                         TransferLogGroup(title: L10n.text("transfer.section.added"), entries: added, icon: "plus.circle.fill", tint: .green, hashByName: hashByName)

@@ -545,6 +545,53 @@ extension ArchiveService {
         }
         return Double(line[valueRange])
     }
+
+    // MARK: - 测试失败归类（0.4.2 批量测试）
+
+    /// 把一次 `test` 失败的错误文本归类成用户能行动的桶 —— 批量测试汇总用。
+    /// 启发式匹配 7zz / unzip 的英文诊断词（后端输出不本地化），匹配不上回落 `.other`。
+    /// 顺序有意义：口令类词优先（加密包测试常同时报 CRC 错，根因是口令）。
+    nonisolated static func classifyTestFailure(_ message: String) -> ArchiveTestFailureKind {
+        let lower = message.lowercased()
+        if lower.contains("wrong password")
+            || lower.contains("incorrect password")
+            || lower.contains("enter password")
+            || lower.contains("cannot open encrypted")
+            || lower.contains("password is required") {
+            return .encrypted
+        }
+        if lower.contains("missing volume") || lower.contains("cannot find volume") {
+            return .missingVolume
+        }
+        if lower.contains("cannot open the file as archive")
+            || lower.contains("cannot open the file as [")
+            || lower.contains("is not supported archive")
+            || lower.contains("unsupported archive")
+            || lower.contains("unsupported method")
+            || lower.contains("unsupported feature") {
+            return .unsupported
+        }
+        if lower.contains("crc failed")
+            || lower.contains("data error")
+            || lower.contains("headers error")
+            || lower.contains("unexpected end of archive")
+            || lower.contains("unexpected end of data")
+            || lower.contains("unconfirmed start of archive")
+            || lower.contains("there are some data after the end")
+            || lower.contains("archive is broken") {
+            return .corrupted
+        }
+        return .other
+    }
+}
+
+/// 批量测试的失败桶。rawValue 直接拼 L10n key（`test.failure.<rawValue>`）。
+enum ArchiveTestFailureKind: String, CaseIterable {
+    case encrypted
+    case missingVolume
+    case corrupted
+    case unsupported
+    case other
 }
 
 private extension Data {

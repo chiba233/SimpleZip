@@ -51,6 +51,90 @@ extension ArchiveBrowserModel {
         }
     }
 
+    // MARK: - 批量测试（0.4.2）
+
+    /// 批量测试选中的多个压缩包：逐个跑 `ArchiveService.test`，活动中心里逐包列结果
+    /// （通过 / 口令保护 / 缺分卷 / 数据损坏 / 格式不支持），失败项可一键重试。
+    /// 单个失败不打断整批 —— 跟批量 GPG 加密同一套语义。
+    func batchTestSelectedArchives() {
+        let urls = selectedFileItems
+            .filter { !$0.isDirectory && ArchiveService.isSupportedArchive($0.url) }
+            .map(\.url)
+        guard urls.count >= 2 else {
+            testArchive()   // 防御：菜单只在 ≥2 时出现，直接调用时退回单包流程。
+            return
+        }
+        runBatchArchiveTest(urls)
+    }
+
+    private struct BatchTestOutcome {
+        let url: URL
+        let failureMessage: String?   // nil = 通过
+    }
+
+    private func runBatchArchiveTest(_ urls: [URL]) {
+        let forced = Set(urls.filter { isForced($0) })
+        var outcomes: [BatchTestOutcome] = []
+        startManagedArchiveTask(
+            title: L10n.format("status.batchTesting", "\(urls.count)"),
+            kind: .test,
+            showsDetails: true,
+            successStatus: nil,
+            refreshOnSuccess: { [weak self] in
+                guard let self else { return }
+                let failedCount = outcomes.filter { $0.failureMessage != nil }.count
+                status = failedCount == 0
+                    ? L10n.format("status.batchTestAllPassed", "\(outcomes.count)")
+                    : L10n.format("status.batchTestPartial", "\(outcomes.count - failedCount)", "\(failedCount)")
+            },
+            onSucceeded: { [weak self] task in
+                task.transferLog = outcomes.map { outcome in
+                    guard let message = outcome.failureMessage else {
+                        return TransferLogEntry(name: outcome.url.lastPathComponent, action: .passed, isDirectory: false)
+                    }
+                    let kind = ArchiveService.classifyTestFailure(message)
+                    let label = L10n.text("test.failure.\(kind.rawValue)")
+                    // detail = 归类标签 + 原始诊断（截断防超长行）；完整输出在任务详情日志里。
+                    let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
+                    return TransferLogEntry(
+                        name: outcome.url.lastPathComponent,
+                        action: .failed,
+                        isDirectory: false,
+                        detail: trimmed.isEmpty ? label : "\(label) — \(trimmed.prefix(200))"
+                    )
+                }
+                let failedURLs = outcomes.compactMap { $0.failureMessage != nil ? $0.url : nil }
+                if !failedURLs.isEmpty {
+                    task.retryFailed = { [weak self] in
+                        self?.runBatchArchiveTest(failedURLs)
+                    }
+                }
+            }
+        ) { operationID, progress, outputObserver in
+            var collected: [BatchTestOutcome] = []
+            for (index, url) in urls.enumerated() {
+                try Task.checkCancellation()
+                progress(ArchiveProgressState(
+                    fraction: Double(index) / Double(urls.count),
+                    currentFile: url.lastPathComponent,
+                    completedUnitCount: index,
+                    totalUnitCount: urls.count
+                ))
+                outputObserver?("\n=== \(url.lastPathComponent) ===\n")
+                do {
+                    try await ArchiveService.test(url, operationID: operationID, force: forced.contains(url), outputObserver: outputObserver)
+                    collected.append(BatchTestOutcome(url: url, failureMessage: nil))
+                } catch is CancellationError {
+                    throw CancellationError()
+                } catch {
+                    collected.append(BatchTestOutcome(url: url, failureMessage: error.localizedDescription))
+                }
+            }
+            outcomes = collected
+            progress(ArchiveProgressState(fraction: 1.0, completedUnitCount: urls.count, totalUnitCount: urls.count))
+        }
+    }
+
     // MARK: - #111 归档比较
 
     /// 右键「比较归档」入口：选中 2 个归档直接比；选中 1 个时用 NSOpenPanel 挑第二个。

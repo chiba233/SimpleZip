@@ -53,6 +53,7 @@ enum TransferAction: String, Codable {
     case skipped      // 跳过：同名项未替换（用户选跳过 / 哈希相同）
     case deleted      // 删除：移到废纸篓
     case failed       // 失败：该项未能完成（批量操作里某些项失败但其它项成功）；`detail` 带原因
+    case passed       // 通过：完整性测试通过（0.4.2 批量测试）
 }
 
 /// 活动中心逐文件日志条目。随任务历史持久化，重启后仍可查看。
