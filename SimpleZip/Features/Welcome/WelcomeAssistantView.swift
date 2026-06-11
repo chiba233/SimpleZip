@@ -44,13 +44,16 @@ struct WelcomeAssistantView: View {
     @AppStorage(AppPreferences.Key.showHiddenFiles) private var showHiddenFiles = false
     /// 0.4.2:安全策略页新增「删除文件前二次确认」开关(默认开,与设置页同 key)。
     @AppStorage(AppPreferences.Key.confirmBeforeDeletingFiles) private var confirmBeforeDeletingFiles = true
+    /// 0.4.3 #7:安全策略页随设置 → 压缩 → 安全 同步新增两个写入验证开关(同 key,默认值同设置页)。
+    @AppStorage(AppPreferences.Key.verifyAfterArchiveRewrite) private var verifyAfterArchiveRewrite = true
+    @AppStorage(AppPreferences.Key.verifyAfterArchiveCreate) private var verifyAfterArchiveCreate = false
 
     @State private var currentStep: Int = 0
 
-    /// 总页数。0.3.3 用户拍板「压到 6 页」：原 12 步按主题合并 ——
+    /// 总页数。0.3.3 用户拍板「压到 6 页」后 0.4.3 用户点名加回一页 Finder 右键集成 ——
     /// 0 欢迎（hero + 版本检查 + 备份导入）/ 1 通用（语言 + 常规）/ 2 便利（预设密码 + 自动解压 + 文件关联）/
-    /// 3 安全策略 / 4 引擎（后端 + GPG）/ 5 完成。每个设置仍直接绑 @AppStorage，改的瞬间落盘。
-    private let totalSteps = 6
+    /// 3 Finder 右键集成 / 4 安全策略 / 5 引擎（后端 + GPG）/ 6 完成。每个设置仍直接绑 @AppStorage，改的瞬间落盘。
+    private let totalSteps = 7
 
     /// 「取消」按钮的二次确认 alert flag。
     /// 不直接关 sheet：用户可能误点 ESC / 关闭，已经做出的选项可能想留也想看后面的步骤。
@@ -184,13 +187,18 @@ struct WelcomeAssistantView: View {
                 WelcomeFileAssociationsStep()
             }
         case 3:
+            // Finder 右键集成（0.4.3 用户点名）：macOS 默认不激活第三方服务,首启就让用户挑要哪些右键项。
+            WelcomeFinderServicesStep()
+        case 4:
             WelcomeSafetyStep(
                 suspiciousPathPolicy: $suspiciousPathPolicy,
                 symbolicLinkPolicy: $symbolicLinkPolicy,
                 activeContentOpenPolicy: $activeContentOpenPolicy,
-                confirmBeforeDelete: $confirmBeforeDeletingFiles
+                confirmBeforeDelete: $confirmBeforeDeletingFiles,
+                verifyAfterRewrite: $verifyAfterArchiveRewrite,
+                verifyAfterCreate: $verifyAfterArchiveCreate
             )
-        case 4:
+        case 5:
             // 引擎：压缩后端 + GPG（GPG 保持独立 section —— opt-in/opt-out 决定仍然显式）。
             VStack(alignment: .leading, spacing: 16) {
                 WelcomeBackendStep()
@@ -740,6 +748,9 @@ private struct WelcomeSafetyStep: View {
     @Binding var symbolicLinkPolicy: String
     @Binding var activeContentOpenPolicy: String
     @Binding var confirmBeforeDelete: Bool
+    /// 0.4.3 #7:写入后验证两开关 —— 与 设置 → 压缩 → 安全 同 key,文案直接复用设置页的。
+    @Binding var verifyAfterRewrite: Bool
+    @Binding var verifyAfterCreate: Bool
 
     var body: some View {
         WelcomeStepShell(
@@ -752,24 +763,45 @@ private struct WelcomeSafetyStep: View {
             policyRow(label: L10n.text("welcome.safety.symlink"), selection: $symbolicLinkPolicy)
             policyRow(label: L10n.text("welcome.safety.activeContent"), selection: $activeContentOpenPolicy)
 
-            // 与上面策略行同构（左图标 + 标题/副文,右侧控件）—— 用户报独立 Toggle+Divider 长相对不上。
-            HStack(spacing: 12) {
-                Image(systemName: "trash")
-                    .foregroundStyle(.pink)
-                    .frame(width: 18)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(L10n.text("welcome.safety.confirmDelete"))
-                        .font(.callout.weight(.medium))
-                    Text(L10n.text("welcome.safety.confirmDelete.detail"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer()
-                Toggle("", isOn: $confirmBeforeDelete)
-                    .labelsHidden()
-                    .toggleStyle(.switch)
+            toggleRow(
+                icon: "trash",
+                title: L10n.text("welcome.safety.confirmDelete"),
+                detail: L10n.text("welcome.safety.confirmDelete.detail"),
+                isOn: $confirmBeforeDelete
+            )
+            toggleRow(
+                icon: "checkmark.seal",
+                title: L10n.text("settings.verifyAfterRewrite"),
+                detail: L10n.text("settings.verifyAfterRewrite.description"),
+                isOn: $verifyAfterRewrite
+            )
+            toggleRow(
+                icon: "checkmark.seal.fill",
+                title: L10n.text("settings.verifyAfterCreate"),
+                detail: L10n.text("settings.verifyAfterCreate.description"),
+                isOn: $verifyAfterCreate
+            )
+        }
+    }
+
+    /// 开关行,与上面策略行同构（左图标 + 标题/副文,右侧控件）—— 用户报独立 Toggle+Divider 长相对不上。
+    private func toggleRow(icon: String, title: String, detail: String, isOn: Binding<Bool>) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .foregroundStyle(.pink)
+                .frame(width: 18)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.callout.weight(.medium))
+                Text(detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
+            Spacer()
+            Toggle("", isOn: isOn)
+                .labelsHidden()
+                .toggleStyle(.switch)
         }
     }
 
@@ -789,6 +821,74 @@ private struct WelcomeSafetyStep: View {
             .labelsHidden()
             .fixedSize()
         }
+    }
+}
+
+/// Finder 右键集成步骤（0.4.3 用户点名加页）：macOS 对第三方服务默认不激活,首启时
+/// 直接挑要哪些「… 用 SimpleZip」右键项。逐服务开关 + 立即重新注册按钮与
+/// 设置 → 通用 → Finder 右键集成完全同一份状态（pbs NSServicesStatus 写穿,文案同 key 复用）。
+private struct WelcomeFinderServicesStep: View {
+    /// 各服务激活状态镜像（真值在 pbs 偏好域,onAppear 拉取、开关写穿）—— 同 GeneralPane。
+    @State private var serviceStates: [String: Bool] = [:]
+    @State private var statusMessage: String?
+
+    var body: some View {
+        WelcomeStepShell(
+            title: L10n.text("settings.finderExtension"),
+            systemImage: "filemenu.and.cursorarrow",
+            tint: .cyan,
+            body1: L10n.text("settings.finderExtension.description")
+        ) {
+            ForEach(FinderServicesRegistry.services) { service in
+                SettingsToggleRow(
+                    title: L10n.text(service.titleKey),
+                    description: service.menuName,
+                    systemImage: service.systemImage,
+                    isOn: serviceBinding(service)
+                )
+            }
+
+            HStack {
+                // 启动时已按版本自动注册（AppDelegate）；这里是手动兜底 —— 右键菜单没出现时立即重刷。
+                Button(L10n.text("settings.finderExtension.register")) {
+                    NSUpdateDynamicServices()
+                    statusMessage = L10n.text("settings.finderExtension.registered")
+                }
+                Button(L10n.text("settings.finderExtension.manage")) {
+                    // 系统设置 → 键盘 → 键盘快捷键 → 服务 仍可管理（与上面的开关同一份状态）。
+                    if let url = URL(string: "x-apple.systempreferences:com.apple.Keyboard-Settings.extension") {
+                        NSWorkspace.shared.open(url)
+                    }
+                }
+            }
+
+            if let statusMessage {
+                Text(statusMessage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .onAppear(perform: reloadServiceStates)
+    }
+
+    private func reloadServiceStates() {
+        var states: [String: Bool] = [:]
+        for service in FinderServicesRegistry.services {
+            states[service.message] = FinderServicesRegistry.isEnabled(service)
+        }
+        serviceStates = states
+    }
+
+    /// 单个服务开关的写穿 binding：set 时直接写 pbs + 刷新注册,再更新镜像 —— 同 GeneralPane。
+    private func serviceBinding(_ service: FinderServicesRegistry.Service) -> Binding<Bool> {
+        Binding(
+            get: { serviceStates[service.message] ?? false },
+            set: { enabled in
+                FinderServicesRegistry.setEnabled(enabled, for: service)
+                serviceStates[service.message] = enabled
+            }
+        )
     }
 }
 
