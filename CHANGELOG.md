@@ -2,7 +2,7 @@
 
 # Changelog
 
-## 0.4.2 (unreleased)
+## 0.4.2
 
 - **UI: the RAR install/upgrade review sheet adopts the dialog chrome** — gradient hero up top and a bar footer with a prominent confirm; the license/README panes keep their own scroll cards. It was the last dialog still on the pre-0.4.2 look (full-app audit confirms every other sheet is migrated); the read-both-documents requirement is unchanged.
 - **New: pick your Finder right-click items inside the app.** macOS leaves third-party Services disabled by default, so the "… with SimpleZip" items meant a manual trip to System Settings → Keyboard → Services every time. Settings → General → Finder Right-Click Integration now lists all six services (Add to Archive / Extract / Create ZIP / 7z / TAR.GZ / Calculate Hash) as switches — want only Calculate Hash, flip just that one; changes apply to Finder immediately. SimpleZip also re-registers its services automatically on the first launch of each version (with a "Re-register Now" fallback button), so the items can't silently vanish after an update.
