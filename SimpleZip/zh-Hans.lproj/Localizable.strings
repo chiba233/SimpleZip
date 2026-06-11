@@ -668,6 +668,7 @@
 "type.file" = "文件";
 "alert.operationFailed" = "操作失败";
 "button.ok" = "确定";
+"button.copyLog" = "复制日志";
 "button.details" = "详情";
 "button.copyDiagnostics" = "复制诊断信息";
 "button.activityCenter" = "活动中心";

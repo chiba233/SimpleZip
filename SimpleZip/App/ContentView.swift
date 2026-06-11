@@ -259,6 +259,13 @@ struct ContentView: View {
                 Button(L10n.text("button.details")) {
                     model.openOperationDetailsFromFailureAlert()
                 }
+            } else if let full = model.operationFailureFullMessage, !full.isEmpty {
+                // 没有诊断 session（如把非归档文件当压缩包打开 → list 直接失败）时也给一个
+                // 「复制日志」—— 把完整错误（含 7zz 原始输出）拷到剪贴板,方便用户贴出来排查（用户点名）。
+                Button(L10n.text("button.copyLog")) {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(full, forType: .string)
+                }
             }
             Button(L10n.text("button.ok"), role: .cancel) { model.dismissOperationFailureAlert() }
         } message: {

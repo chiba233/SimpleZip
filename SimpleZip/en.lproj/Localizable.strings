@@ -670,6 +670,7 @@
 "type.file" = "File";
 "alert.operationFailed" = "Operation Failed";
 "button.ok" = "OK";
+"button.copyLog" = "Copy Log";
 "button.details" = "Details";
 "button.copyDiagnostics" = "Copy Diagnostics";
 "button.activityCenter" = "Activity";
