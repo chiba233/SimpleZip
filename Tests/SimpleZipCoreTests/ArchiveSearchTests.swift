@@ -219,3 +219,41 @@ struct ArchiveSearchQueryParseTests {
         #expect(ArchiveSearch.filter(items, with: query).map(\.name) == ["big.log"])
     }
 }
+
+/// 0.4.2 #6:保存的过滤器 / 最近搜索 持久化,kind: token。
+struct SavedSearchFilterStoreTests {
+
+    private func makeStore() -> SavedSearchFilterStore {
+        let suite = UserDefaults(suiteName: "SavedSearchFilterStoreTests-\(UUID().uuidString)")!
+        return SavedSearchFilterStore(defaults: suite)
+    }
+
+    @Test func addLoadRemoveRoundTrip() {
+        let store = makeStore()
+        #expect(store.load().isEmpty)
+        let filter = SavedSearchFilter(name: "大加密文件", query: "size:>100mb encrypted:true")
+        store.add(filter)
+        #expect(store.load() == [filter])
+        store.remove(id: filter.id)
+        #expect(store.load().isEmpty)
+    }
+
+    @Test func recentsDedupePromoteAndCap() {
+        let store = makeStore()
+        store.recordRecent("a")
+        store.recordRecent("b")
+        store.recordRecent("a")          // 去重置顶
+        #expect(store.recents() == ["a", "b"])
+        store.recordRecent("   ")        // 空白不记
+        #expect(store.recents() == ["a", "b"])
+        for index in 0..<10 { store.recordRecent("q\(index)") }
+        #expect(store.recents().count == SavedSearchFilterStore.recentsLimit)
+        #expect(store.recents().first == "q9")
+    }
+
+    @Test func kindTokenParses() {
+        #expect(ArchiveSearchQuery.parse("kind:files").kind == .filesOnly)
+        #expect(ArchiveSearchQuery.parse("kind:folders").kind == .foldersOnly)
+        #expect(ArchiveSearchQuery.parse("kind:nonsense").text == "kind:nonsense")
+    }
+}

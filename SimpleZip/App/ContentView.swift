@@ -132,6 +132,10 @@ struct ContentView: View {
                 placement: .toolbar,
                 prompt: L10n.text("search.prompt")
             )
+            // 0.4.2 #6：回车确认搜索时记入「最近搜索」（过滤菜单里可一键重放）。
+            .onSubmit(of: .search) {
+                model.recordRecentSearch()
+            }
             // 0.3.3 UI 现代化：动作 / 导航按钮从自绘 TopBar 迁入原生标题栏工具栏 ——
             // 系统材质、自动 overflow、跟 Finder 同一套交互语言。
             .toolbar {
@@ -157,6 +161,36 @@ struct ContentView: View {
                                     model.resetAdvancedFilters()
                                 }
                             }
+                            // 0.4.2 #6：一键快速过滤（token 语法填回搜索框）+ 保存的过滤器 + 最近搜索。
+                            Divider()
+                            Section(L10n.text("search.quick.section")) {
+                                Button(L10n.text("search.quick.encrypted")) { model.applySearchQueryString("encrypted:true") }
+                                Button(L10n.text("search.quick.large")) { model.applySearchQueryString("size:>100mb") }
+                                Button(L10n.text("search.quick.recentlyModified")) { model.applySearchQueryString("modified:<7d") }
+                                Button(L10n.text("search.quick.suspicious")) { model.applySearchQueryString(ArchiveBrowserModel.suspiciousPathSearchQuery) }
+                            }
+                            if !model.savedSearchFilters.isEmpty {
+                                Section(L10n.text("search.saved.section")) {
+                                    ForEach(model.savedSearchFilters) { filter in
+                                        Button(filter.name) { model.applySearchQueryString(filter.query) }
+                                    }
+                                    Menu(L10n.text("search.saved.delete")) {
+                                        ForEach(model.savedSearchFilters) { filter in
+                                            Button(filter.name, role: .destructive) { model.deleteSavedSearchFilter(id: filter.id) }
+                                        }
+                                    }
+                                }
+                            }
+                            if !model.recentSearchQueries.isEmpty {
+                                Section(L10n.text("search.recent.section")) {
+                                    ForEach(model.recentSearchQueries, id: \.self) { query in
+                                        Button(query) { model.applySearchQueryString(query) }
+                                    }
+                                }
+                            }
+                            Divider()
+                            Button(L10n.text("search.saved.saveCurrent")) { promptSaveCurrentSearchFilter() }
+                                .disabled(model.currentComposedSearchQuery.isEmpty)
                         } label: {
                             Label(
                                 L10n.text("search.filter.menu"),
@@ -602,6 +636,25 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .browserPreferencesChanged)) { _ in
             model.reload()
         }
+    }
+
+    /// 0.4.2 #6：保存当前搜索为命名过滤器 —— NSAlert + 文本框要名字（与口令弹窗同体例）。
+    private func promptSaveCurrentSearchFilter() {
+        let query = model.currentComposedSearchQuery
+        guard !query.isEmpty else { return }
+        let alert = NSAlert()
+        alert.messageText = L10n.text("search.saved.saveCurrent")
+        alert.informativeText = query
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
+        field.placeholderString = L10n.text("search.saved.namePlaceholder")
+        alert.accessoryView = field
+        alert.addButton(withTitle: L10n.text("button.save"))
+        alert.addButton(withTitle: L10n.text("button.cancel"))
+        alert.window.initialFirstResponder = field
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        let name = field.stringValue.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else { return }
+        model.saveCurrentSearchFilter(named: name)
     }
 
     private func handleFinderServiceAction(_ action: FinderServiceAction) {

@@ -644,6 +644,18 @@
 "volumeSet.missing.more" = " and %1$@ more";
 "combine.confirm.message" = "%1$@ volumes will be combined into “%2$@” (%3$@ total).";
 "combine.confirm.gapWarning" = "Volume %1$@ is missing — only the first %2$@ contiguous volumes will be combined, so the result will be incomplete.";
+/* 0.4.2 saved search filters */
+"search.quick.section" = "Quick Filters";
+"search.quick.encrypted" = "Encrypted files only";
+"search.quick.large" = "Large files (>100 MB)";
+"search.quick.recentlyModified" = "Modified in last 7 days";
+"search.quick.suspicious" = "Suspicious paths";
+"search.saved.section" = "Saved Filters";
+"search.saved.delete" = "Delete Filter";
+"search.saved.saveCurrent" = "Save Current Search…";
+"search.saved.namePlaceholder" = "Filter name";
+"search.recent.section" = "Recent Searches";
+
 
 
 

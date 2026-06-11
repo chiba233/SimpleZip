@@ -4,6 +4,8 @@
 
 ## 0.4.2 (unreleased)
 
+- **New: saved filters, quick filters, and recent searches.** The archive filter menu gains one-click quick filters (encrypted files only, large files >100 MB, modified in the last 7 days, suspicious paths), **Save Current Search…** which captures the search text *and* the toolbar filters as a named filter (a new `kind:files` / `kind:folders` token makes the round-trip lossless), saved filters applied with one click (with a delete submenu), and your last 8 submitted searches replayed from a Recent Searches section.
+
 - **New: search syntax inside archives.** The archive search field now understands power tokens, combinable with plain words: `*.swift` (glob, `?` works too), `ext:pdf`, `size:>1MB` / `size:<=500k`, `encrypted:true` / `encrypted:false`, `crc:A1B2C3D4`, `comment:draft`, `path:src/`, `modified:<7d` (h/d/w units), and `regex:^docs/.*\.md$`. Everything combines as AND, toolbar filters still apply on top, a half-typed regex quietly degrades to substring matching instead of erroring, and unknown `foo:bar` tokens are just searched literally.
 
 - **New: split-set awareness.** Right-click any volume of a split set (`a.7z.001/.002…` or `movie.part2.rar`) and the menu now shows which set it belongs to — "Split set a.7z — volume 2 of 5 · 1.2 GB" — plus a warning listing any missing volume numbers. **Combine Volumes** now confirms before running with the volume count, the output name, and the total size, and warns explicitly when the set is interrupted (a gap means only the contiguous head would be joined). Lone files that merely *look* like a volume (`report.2024`) aren't misdetected.

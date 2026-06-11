@@ -85,7 +85,7 @@ final class ArchiveBrowserModel: ObservableObject {
         // comment: / path: / modified:<7d / regex:），普通词照旧子串。工具栏过滤与 token 合并取交集。
         var query = ArchiveSearchQuery.parse(text)
         query.scope = .fullPath
-        query.kind = searchKind
+        if searchKind != .any { query.kind = searchKind }   // 工具栏只在设了值时覆盖 `kind:` token
         query.encryptedOnly = query.encryptedOnly || searchEncryptedOnly
         if let cutoff = searchModifiedWithin.cutoff {
             query.modifiedAfter = max(query.modifiedAfter ?? .distantPast, cutoff)
@@ -106,6 +106,62 @@ final class ArchiveBrowserModel: ObservableObject {
     func dismissSearch() {
         searchText = ""
         isSearchActive = false
+    }
+
+    // MARK: - 保存的过滤器 / 最近搜索（0.4.2 #6）
+
+    @Published var savedSearchFilters: [SavedSearchFilter] = []
+    @Published var recentSearchQueries: [String] = []
+    private static let searchFilterStore = SavedSearchFilterStore()
+
+    /// 「可疑路径」一键过滤：绝对路径 / `..` 上跳 / 反斜杠 / Windows 盘符 —— 全是路径逃逸样式。
+    static let suspiciousPathSearchQuery = #"regex:(^/|(^|/)\.\.(/|$)|\\|^[A-Za-z]:)"#
+
+    /// 应用一条过滤器 / 最近搜索：填回搜索框（token 语法由 displayedArchiveItems 解析）。
+    func applySearchQueryString(_ query: String) {
+        searchText = query
+        isSearchActive = true
+    }
+
+    /// 当前搜索状态合成一条可保存的查询串：搜索框原文 + 工具栏过滤折成 token。空 = 没东西可存。
+    var currentComposedSearchQuery: String {
+        var parts: [String] = []
+        let text = searchText.trimmingCharacters(in: .whitespaces)
+        if !text.isEmpty { parts.append(text) }
+        switch searchKind {
+        case .filesOnly: parts.append("kind:files")
+        case .foldersOnly: parts.append("kind:folders")
+        case .any: break
+        }
+        if searchEncryptedOnly { parts.append("encrypted:true") }
+        switch searchModifiedWithin {
+        case .day: parts.append("modified:<24h")
+        case .week: parts.append("modified:<7d")
+        case .month: parts.append("modified:<30d")
+        case .any: break
+        }
+        return parts.joined(separator: " ")
+    }
+
+    func saveCurrentSearchFilter(named name: String) {
+        let query = currentComposedSearchQuery
+        guard !query.isEmpty else { return }
+        savedSearchFilters = Self.searchFilterStore.add(SavedSearchFilter(name: name, query: query))
+    }
+
+    func deleteSavedSearchFilter(id: UUID) {
+        savedSearchFilters = Self.searchFilterStore.remove(id: id)
+    }
+
+    /// 搜索框按回车时记一条最近搜索（去重置顶、上限 8 条）。
+    func recordRecentSearch() {
+        recentSearchQueries = Self.searchFilterStore.recordRecent(searchText)
+    }
+
+    /// 启动 / 建窗时从持久层灌入（init 调）。
+    func loadSavedSearchState() {
+        savedSearchFilters = Self.searchFilterStore.load()
+        recentSearchQueries = Self.searchFilterStore.recents()
     }
     @Published var selection = Set<UUID>()
     @Published var selectedArchiveRows = Set<UUID>()
@@ -295,6 +351,7 @@ final class ArchiveBrowserModel: ObservableObject {
         // 模型每次 init 都删全局临时根，会误删其它窗口正在用的解压目录（见 cleanStaleOpenedArchiveItems 注释）。
         mode = .folder(AppPreferences.defaultStartupURL(fileManager: fileManager))
         finderFavorites = FinderFavoritesReader.readWithCache()
+        loadSavedSearchState()
         folderWatcher = FolderWatcher { [weak self] in
             // FSEvents 回调可能在任意线程；跳回主 actor 再碰 model。
             Task { @MainActor [weak self] in

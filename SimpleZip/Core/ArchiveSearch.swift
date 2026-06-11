@@ -126,6 +126,14 @@ struct ArchiveSearchQuery: Equatable {
         case "regex", "re":
             query.nameRegex = value
             return true
+        case "kind", "type":
+            switch value.lowercased() {
+            case "file", "files": query.kind = .filesOnly
+            case "folder", "folders", "dir", "dirs": query.kind = .foldersOnly
+            case "any": query.kind = .any
+            default: return false
+            }
+            return true
         default:
             return false
         }
@@ -281,5 +289,75 @@ enum ArchiveSearch {
         }
 
         return true
+    }
+}
+
+// MARK: - 保存的过滤器（0.4.2 #6）
+
+/// 一条命名的搜索过滤器。`query` 就是搜索框字符串（token 语法），apply = 填回搜索框。
+struct SavedSearchFilter: Codable, Equatable, Identifiable {
+    let id: UUID
+    var name: String
+    var query: String
+
+    init(id: UUID = UUID(), name: String, query: String) {
+        self.id = id
+        self.name = name
+        self.query = query
+    }
+}
+
+/// 保存的过滤器 + 最近搜索 的持久化仓库。UserDefaults 注入，方便测试用独立 suite。
+/// 体例对齐 `CompressionPresetStore`。
+final class SavedSearchFilterStore {
+    private let defaults: UserDefaults
+    private let filtersKey = "SimpleZip.SavedSearchFilters.v1"
+    private let recentsKey = "SimpleZip.RecentSearchQueries.v1"
+    /// 最近搜索保留条数。
+    static let recentsLimit = 8
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+    }
+
+    func load() -> [SavedSearchFilter] {
+        guard let data = defaults.data(forKey: filtersKey) else { return [] }
+        return (try? JSONDecoder().decode([SavedSearchFilter].self, from: data)) ?? []
+    }
+
+    func save(_ filters: [SavedSearchFilter]) {
+        guard let data = try? JSONEncoder().encode(filters) else { return }
+        defaults.set(data, forKey: filtersKey)
+    }
+
+    @discardableResult
+    func add(_ filter: SavedSearchFilter) -> [SavedSearchFilter] {
+        var all = load()
+        all.append(filter)
+        save(all)
+        return all
+    }
+
+    @discardableResult
+    func remove(id: UUID) -> [SavedSearchFilter] {
+        let remaining = load().filter { $0.id != id }
+        save(remaining)
+        return remaining
+    }
+
+    func recents() -> [String] {
+        defaults.stringArray(forKey: recentsKey) ?? []
+    }
+
+    /// 记一条最近搜索：去首尾空白、去重（提到最前）、截到 `recentsLimit` 条。空串不记。
+    @discardableResult
+    func recordRecent(_ query: String) -> [String] {
+        let trimmed = query.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return recents() }
+        var all = recents().filter { $0 != trimmed }
+        all.insert(trimmed, at: 0)
+        if all.count > Self.recentsLimit { all = Array(all.prefix(Self.recentsLimit)) }
+        defaults.set(all, forKey: recentsKey)
+        return all
     }
 }

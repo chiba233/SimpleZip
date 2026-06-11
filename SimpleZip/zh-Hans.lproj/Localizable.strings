@@ -642,6 +642,18 @@
 "volumeSet.missing.more" = " 等 %1$@ 个";
 "combine.confirm.message" = "将把 %1$@ 个分卷合并为「%2$@」（共 %3$@）。";
 "combine.confirm.gapWarning" = "缺少第 %1$@ 卷——只会合并连续的前 %2$@ 卷，结果将不完整。";
+/* 0.4.2 保存的搜索过滤器 */
+"search.quick.section" = "快速过滤";
+"search.quick.encrypted" = "只看加密文件";
+"search.quick.large" = "大文件（>100 MB）";
+"search.quick.recentlyModified" = "最近 7 天修改";
+"search.quick.suspicious" = "可疑路径";
+"search.saved.section" = "保存的过滤器";
+"search.saved.delete" = "删除过滤器";
+"search.saved.saveCurrent" = "保存当前搜索…";
+"search.saved.namePlaceholder" = "过滤器名称";
+"search.recent.section" = "最近搜索";
+
 
 
 
