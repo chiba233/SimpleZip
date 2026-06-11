@@ -499,15 +499,24 @@ extension ArchiveBrowserModel {
             loadFolder(url)
         case .tag(let tag):
             folderWatcher?.stop()
+            clearExpandedFolderRegistry()
             loadTask = Task { [weak self] in
                 await self?.loadTaggedFiles(tag, generation: loadGeneration)
             }
         case .archive(let url):
             folderWatcher?.stop()
+            clearExpandedFolderRegistry()
             loadTask = Task { [weak self] in
                 await self?.loadArchive(url, generation: loadGeneration)
             }
         }
+    }
+
+    /// 离开文件夹模式（tag / archive）时清掉文件夹原位展开注册表 —— 这两种模式不经 loadFolder,
+    /// 不清的话陈旧子级会一直挂在注册表里（虽然 selection 已清、构不成实害,但没必要留）。
+    private func clearExpandedFolderRegistry() {
+        expandedFolderOwnerPath = nil
+        expandedFolderChildrenByPath = [:]
     }
 
     /// FolderWatcher 回调：当前文件夹内容变了 → 去抖后重新列出。
@@ -546,9 +555,12 @@ extension ArchiveBrowserModel {
         loadFolder(current)
         // 按 URL 重映射选区（loadFolder 内容没变时会跳过赋值，fileItems / id 不变 → 重映射结果与现状一致）。
         // 只在结果真的不同才赋值，避免无谓的 @Published 抖动。
+        // 0.4.1 文件夹原位展开：展开子级也参与重映射 —— 上一版漏了这层,自动刷新一来子行选区直接蒸发
+        // （revert 信里的「闪一下就没了」）。loadFolder 刚 refresh 过注册表,这里读到的已是新实例。
+        let listedEverything = fileItems + expandedFolderChildrenByPath.values.flatMap { $0 }
         let remapped = previousSelectedURLs.isEmpty
             ? Set<UUID>()
-            : Set(fileItems.filter { previousSelectedURLs.contains($0.url.standardizedFileURL) }.map(\.id))
+            : Set(listedEverything.filter { previousSelectedURLs.contains($0.url.standardizedFileURL) }.map(\.id))
         if selection != remapped {
             selection = remapped
         }

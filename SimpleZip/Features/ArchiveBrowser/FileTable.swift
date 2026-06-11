@@ -76,6 +76,10 @@ final class FileOutlineNode {
     var children: [FileOutlineNode]
     /// 是否是「隐藏文件」组（GroupBy=none 时走 #49 折叠记忆策略；其余区块默认展开、不持久化）。
     let isHiddenSection: Bool
+    /// 0.4.1 文件夹原位展开：目录叶子的子级节点缓存。nil = 还没展开过。
+    /// 子级 FileItem 的**真值在模型注册表**（expandedFolderChildrenByPath）—— 这里只是包成节点的视图缓存,
+    /// reload 重建顶层节点后由 enforceExpansion 按记忆重新展开、重新从注册表构建。
+    var folderChildren: [FileOutlineNode]?
 
     private init(kind: Kind, sectionKey: String, title: String, isHiddenSection: Bool) {
         self.kind = kind
@@ -230,6 +234,9 @@ struct FileNSOutlineView: NSViewRepresentable {
         // - 「隐藏文件」组（GroupBy=none）走 #49：hiddenGroupExpanded + 按折叠策略持久化。
         private var userCollapsedSectionKeys: Set<String> = []
         private var hiddenGroupExpanded = false
+        /// 0.4.1 文件夹原位展开：当前展开的文件夹（标准化路径）。reloadData 重建节点后据此重展开
+        /// （expandRememberedFolders）。会话内、当前文件夹内有效；换文件夹 / 改配置随 configSignature 重置。
+        private var expandedFolderPaths: Set<String> = []
         // folder / 折叠策略 / GroupBy / 共存策略 任一变 → 重置展开状态。
         private var lastConfigSignature: String?
         // 上次真正 reloadData 时的「内容指纹」。选区变化不改它 → 跳过 reload，避免橡皮筋复选时闪烁 / 抽搐。
@@ -271,12 +278,18 @@ struct FileNSOutlineView: NSViewRepresentable {
             return result
         }
 
-        /// 所有文件叶子节点（递归进任意层区块），选择同步用。
+        /// 所有文件节点（递归进任意层区块 **和已展开文件夹的子级**），选择同步用。
+        /// 展开文件夹的子行若不在名单里,applySelection 回放时会把刚选中的子行当「不在选区」反选掉,多选当场散架。
         func allFileNodes() -> [FileOutlineNode] {
             var result: [FileOutlineNode] = []
             func walk(_ nodes: [FileOutlineNode]) {
                 for node in nodes {
-                    if node.isSection { walk(node.children) } else { result.append(node) }
+                    if node.isSection {
+                        walk(node.children)
+                    } else {
+                        result.append(node)
+                        if let folderChildren = node.folderChildren { walk(folderChildren) }
+                    }
                 }
             }
             walk(topLevelNodes)
@@ -294,6 +307,11 @@ struct FileNSOutlineView: NSViewRepresentable {
                         return (node, ancestors)
                     }
                     if node.isSection, let found = walk(node.children, ancestors: ancestors + [node]) {
+                        return found
+                    }
+                    // 已展开文件夹的子级也找（内联重命名 / 删除后落选的目标可能在子层）。
+                    if let folderChildren = node.folderChildren,
+                       let found = walk(folderChildren, ancestors: ancestors + [node]) {
                         return found
                     }
                 }
@@ -314,6 +332,10 @@ struct FileNSOutlineView: NSViewRepresentable {
             hasher.combine(AppPreferences.rowDensity.rawValue)
             hasher.combine(outlineView?.tableColumns.map { $0.identifier.rawValue }.joined(separator: ",") ?? "")
             for item in model.displayedFileItems { hasher.combine(item.id) }
+            // 展开子级的内容世代：顶层没变、只有展开层内容变（refreshExpandedFolderChildren 换了新实例并
+            // objectWillChange）时,靠它判定「内容变了」并 reload。故意不哈希注册表本身 —— 首次展开的懒登记
+            // 会改注册表但行已画出,算进指纹会让展开后的下一次 updateNSView 误触发全表 reload（闪烁）。
+            hasher.combine(model.expandedChildrenGeneration)
             let contentSignature = hasher.finalize()
             guard contentSignature != lastContentSignature else { return }
 
@@ -336,6 +358,8 @@ struct FileNSOutlineView: NSViewRepresentable {
             if signature != lastConfigSignature {
                 lastConfigSignature = signature
                 userCollapsedSectionKeys = []
+                // 换文件夹 / 改配置：文件夹展开记忆作废（folder key 在 configSignature 里,导航必走这支）。
+                expandedFolderPaths = []
                 hiddenGroupExpanded = FileBrowserOutline.initialExpanded(
                     mode: AppPreferences.hiddenGroupCollapseMode,
                     folderKey: currentFolderKey,
@@ -435,26 +459,69 @@ struct FileNSOutlineView: NSViewRepresentable {
                     outlineView.collapseItem(node)
                 }
             }
+            // 0.4.1 文件夹原位展开：reloadData 后文件节点全是新实例（全折叠）,按记忆把上次展开的文件夹
+            // 重新展开 —— 上一版漏了这步,FSEvents 一刷新展开层连行带选区直接坍掉（revert 信里的「闪一下就没」）。
+            expandRememberedFolders(in: topLevelNodes)
             isSyncingExpansion = false
+        }
+
+        /// 递归重展开记忆中的文件夹。**先展开父层**（expandItem 触发数据源,从模型注册表懒构建子节点）,
+        /// 子层节点存在后才能继续下钻嵌套展开的子文件夹。折叠区块里的不展（区块开了再说）。
+        private func expandRememberedFolders(in nodes: [FileOutlineNode]) {
+            guard let outlineView, !expandedFolderPaths.isEmpty else { return }
+            for node in nodes {
+                if node.isSection {
+                    if outlineView.isItemExpanded(node) { expandRememberedFolders(in: node.children) }
+                    continue
+                }
+                guard let item = node.fileItem, item.isDirectory,
+                      expandedFolderPaths.contains(item.url.standardizedFileURL.path) else { continue }
+                outlineView.expandItem(node)
+                if let children = node.folderChildren { expandRememberedFolders(in: children) }
+            }
         }
 
         // MARK: - NSOutlineViewDataSource
 
         func outlineView(_ outlineView: NSOutlineView, numberOfChildrenOfItem item: Any?) -> Int {
             guard let node = item as? FileOutlineNode else { return topLevelNodes.count }
-            return node.isSection ? node.children.count : 0
+            if node.isSection { return node.children.count }
+            if isExpandableFolder(node) { return loadedFolderChildren(of: node).count }
+            return 0
         }
 
         func outlineView(_ outlineView: NSOutlineView, child index: Int, ofItem item: Any?) -> Any {
             guard let node = item as? FileOutlineNode else {
                 return index < topLevelNodes.count ? topLevelNodes[index] : topLevelNodes
             }
-            guard index < node.children.count else { return node }
-            return node.children[index]
+            let children = node.isSection ? node.children : loadedFolderChildren(of: node)
+            guard index < children.count else { return node }
+            return children[index]
         }
 
         func outlineView(_ outlineView: NSOutlineView, isItemExpandable item: Any) -> Bool {
-            (item as? FileOutlineNode)?.isSection == true
+            guard let node = item as? FileOutlineNode else { return false }
+            return node.isSection || isExpandableFolder(node)
+        }
+
+        // MARK: - 0.4.1 文件夹原位展开（子级真值在模型注册表,这里只做节点缓存 + 展开记忆）
+
+        /// 文件夹叶子可展开：是目录、不是包（包要么双击进入要么交给系统打开）、不是符号链接
+        /// （符号链接展开可能成环 a/link/a/link/…,Finder 列表视图同样不给符号链接展开箭头）。
+        private func isExpandableFolder(_ node: FileOutlineNode) -> Bool {
+            guard let item = node.fileItem else { return false }
+            return item.isDirectory && !item.isSymbolicLink && !model.canShowPackageContents(item)
+        }
+
+        /// 懒构建文件夹子级节点：子级 FileItem 从**模型注册表**取（没列过会现列 + 登记）。
+        /// 模型登记是这次重做的核心 —— 选区解析 / FSEvents 重映射 / 操作目标全从模型走,
+        /// 节点树只是视图缓存,跨 reload 由 enforceExpansion 重建。
+        private func loadedFolderChildren(of node: FileOutlineNode) -> [FileOutlineNode] {
+            if let cached = node.folderChildren { return cached }
+            guard let item = node.fileItem else { return [] }
+            let children = model.expandedChildren(of: item.url).map { FileOutlineNode.file($0) }
+            node.folderChildren = children
+            return children
         }
 
         // MARK: - NSOutlineViewDelegate
@@ -547,15 +614,40 @@ struct FileNSOutlineView: NSViewRepresentable {
             AppPreferences.setStringArray(ids, forKey: AppPreferences.Key.fileColumnOrder)
         }
 
-        // 用户手动展开 / 折叠某区块 —— 更新真值（隐藏组按 #49 持久化，分类组只记本次会话）。
+        // 用户手动展开 / 折叠某区块或文件夹 —— 更新真值
+        // （隐藏组按 #49 持久化；分类组只记本次会话；文件夹进展开记忆 + 模型注册表）。
         func outlineViewItemDidExpand(_ notification: Notification) {
-            guard !isSyncingExpansion, let node = sectionNode(from: notification) else { return }
-            setSectionExpanded(node, true)
+            guard !isSyncingExpansion else { return }
+            if let node = sectionNode(from: notification) {
+                setSectionExpanded(node, true)
+                return
+            }
+            if let item = expandedFolderNode(from: notification)?.fileItem {
+                expandedFolderPaths.insert(item.url.standardizedFileURL.path)
+                // 模型注册表由数据源的 loadedFolderChildren → model.expandedChildren 在展开时已登记,这里不必重复。
+            }
         }
 
         func outlineViewItemDidCollapse(_ notification: Notification) {
-            guard !isSyncingExpansion, let node = sectionNode(from: notification) else { return }
-            setSectionExpanded(node, false)
+            guard !isSyncingExpansion else { return }
+            if let node = sectionNode(from: notification) {
+                setSectionExpanded(node, false)
+                return
+            }
+            guard let node = expandedFolderNode(from: notification), let item = node.fileItem else { return }
+            let path = item.url.standardizedFileURL.path
+            // 连同其下层展开的子孙一起忘掉（折叠父层后子孙的展开状态作废,Finder 同款）。
+            expandedFolderPaths.remove(path)
+            expandedFolderPaths = expandedFolderPaths.filter { !$0.hasPrefix(path + "/") }
+            // 丢节点缓存 + 模型注册表出表：折叠后子级不再可见,不应再可被选中 / 操作；重新展开时现列最新内容。
+            node.folderChildren = nil
+            model.folderDidCollapse(item.url)
+        }
+
+        private func expandedFolderNode(from notification: Notification) -> FileOutlineNode? {
+            guard let node = notification.userInfo?["NSObject"] as? FileOutlineNode,
+                  let item = node.fileItem, item.isDirectory else { return nil }
+            return node
         }
 
         private func sectionNode(from notification: Notification) -> FileOutlineNode? {
@@ -1164,7 +1256,7 @@ struct FileNSOutlineView: NSViewRepresentable {
                   let item = found.node.fileItem else { return }
             for ancestor in found.ancestors {
                 outlineView.expandItem(ancestor)
-                setSectionExpanded(ancestor, true)
+                rememberAncestorExpanded(ancestor)
             }
             let row = outlineView.row(forItem: found.node)
             guard row >= 0 else { return }
@@ -1172,6 +1264,15 @@ struct FileNSOutlineView: NSViewRepresentable {
             applySelection(IndexSet(integer: row))
             if beginRename(item) {
                 model.pendingInlineRenameURL = nil
+            }
+        }
+
+        /// 展开「目标所在的祖先链」时更新对应真值：区块走原有记忆；文件夹进展开记忆（否则下次 reload 又缩回去）。
+        private func rememberAncestorExpanded(_ ancestor: FileOutlineNode) {
+            if ancestor.isSection {
+                setSectionExpanded(ancestor, true)
+            } else if let item = ancestor.fileItem, item.isDirectory {
+                expandedFolderPaths.insert(item.url.standardizedFileURL.path)
             }
         }
 
@@ -1186,7 +1287,7 @@ struct FileNSOutlineView: NSViewRepresentable {
                   let item = found.node.fileItem else { return }
             for ancestor in found.ancestors {
                 outlineView.expandItem(ancestor)
-                setSectionExpanded(ancestor, true)
+                rememberAncestorExpanded(ancestor)
             }
             let row = outlineView.row(forItem: found.node)
             guard row >= 0 else { return }

@@ -7,6 +7,7 @@
 //  本地文件夹 / Spotlight tag 搜索 / 压缩包列出 + 异步任务的 generation 跟踪。
 //
 
+import Combine
 import Foundation
 
 extension ArchiveBrowserModel {
@@ -32,7 +33,102 @@ extension ArchiveBrowserModel {
         return true
     }
 
+    // MARK: - 0.4.1 文件夹原位展开（子级清单的真值在模型,见 expandedFolderChildrenByPath 注释）
+
+    /// 列某个子目录的条目，**口径与 loadFolder 完全一致**（隐藏文件开关 / 符号链接 / macOS 隐藏标志 /
+    /// `.szs` 虚拟模式过滤 / 文件夹在前），但不动任何 @Published 状态 —— 纯查询。
+    /// 列不动（无权限 / 已删除）返回空数组：展开后看到空层级，跟 Finder 行为一致。
+    func childFileItems(of url: URL) -> [FileItem] {
+        guard let rawURLs = try? fileBrowser.contents(
+            of: url,
+            showHiddenFiles: AppPreferences.showHiddenFiles,
+            followFinderStructure: false,
+            resourceKeys: [
+                .isDirectoryKey,
+                .isSymbolicLinkKey,
+                .fileSizeKey,
+                .contentModificationDateKey,
+                .creationDateKey,
+                .contentAccessDateKey,
+                .addedToDirectoryDateKey,
+                .localizedTypeDescriptionKey,
+                .isHiddenKey
+            ]
+        ) else { return [] }
+
+        let urls: [URL]
+        if let virtual = manifestVirtualMode {
+            urls = rawURLs.filter { candidate in
+                let std = candidate.standardizedFileURL
+                return virtual.allowedFiles.contains(std) || virtual.allowedDirs.contains(std)
+            }
+        } else {
+            urls = rawURLs
+        }
+
+        return fileBrowser.makeFileItems(
+            from: urls,
+            showSymbolicLinks: AppPreferences.showSymbolicLinks,
+            hiddenSuffixes: AppPreferences.hiddenDisplaySuffixes,
+            includeMacOSHidden: AppPreferences.hiddenDetectionMode.includesMacOSHiddenFlag,
+            folderFirst: true
+        )
+    }
+
+    /// 数据源懒加载入口：取某已展开文件夹的子级；没列过就现列 + 登记进注册表。
+    /// 登记是模型成为「子级真值持有者」的关键 —— selectedFileItems / 选区重映射都靠它。
+    func expandedChildren(of url: URL) -> [FileItem] {
+        let path = url.standardizedFileURL.path
+        if let cached = expandedFolderChildrenByPath[path] { return cached }
+        let children = childFileItems(of: url)
+        expandedFolderChildrenByPath[path] = children
+        return children
+    }
+
+    /// 文件夹折叠：把它（连同其下层所有展开的子孙）从注册表移除 —— 折叠后子级不再可见,不应再可被操作。
+    func folderDidCollapse(_ url: URL) {
+        let path = url.standardizedFileURL.path
+        expandedFolderChildrenByPath.removeValue(forKey: path)
+        let prefix = path + "/"
+        for key in expandedFolderChildrenByPath.keys where key.hasPrefix(prefix) {
+            expandedFolderChildrenByPath.removeValue(forKey: key)
+        }
+    }
+
+    /// 同文件夹 reload（FSEvents / 手动刷新）后重新核对每个已展开文件夹的子级：
+    /// 目录没了 → 出表；内容变了 → 换新清单并 objectWillChange.send() 驱动表格重建
+    /// （顶层没变时 loadFolder 不发布,没有这一脚,展开层里的增删改永远刷不出来）；
+    /// 内容没变 → 保留原实例（id 稳定,选区 / 内容指纹都不抖）。
+    func refreshExpandedFolderChildren() {
+        guard !expandedFolderChildrenByPath.isEmpty else { return }
+        var changed = false
+        for (path, oldItems) in expandedFolderChildrenByPath {
+            var isDirectory: ObjCBool = false
+            guard fileManager.fileExists(atPath: path, isDirectory: &isDirectory), isDirectory.boolValue else {
+                folderDidCollapse(URL(fileURLWithPath: path))
+                changed = true
+                continue
+            }
+            let fresh = childFileItems(of: URL(fileURLWithPath: path))
+            if !Self.fileItemsRepresentSameListing(fresh, oldItems) {
+                expandedFolderChildrenByPath[path] = fresh
+                changed = true
+            }
+        }
+        if changed {
+            expandedChildrenGeneration += 1
+            objectWillChange.send()
+        }
+    }
+
     func loadFolder(_ url: URL) {
+        // 文件夹原位展开的注册表跟着「当前浏览的文件夹」走：导航到别处 → 整表清空（展开状态不跨目录）；
+        // 同文件夹 reload → 留着,listing 更新后由 refreshExpandedFolderChildren 逐项核对。
+        let ownerPath = url.standardizedFileURL.path
+        if expandedFolderOwnerPath != ownerPath {
+            expandedFolderOwnerPath = ownerPath
+            expandedFolderChildrenByPath = [:]
+        }
         do {
             let rawURLs = try fileBrowser.contents(
                 of: url,
@@ -96,6 +192,8 @@ extension ArchiveBrowserModel {
                 if !archiveHeaderComment.isEmpty { archiveHeaderComment = "" }
             }
             session.clearArchive()
+            // 已展开文件夹的子级同步核对（增删改 / 目录消失都在这里反映,详见方法注释）。
+            refreshExpandedFolderChildren()
             let newStatus = L10n.format("status.itemCount", fileItems.count)
             if status != newStatus {
                 status = newStatus

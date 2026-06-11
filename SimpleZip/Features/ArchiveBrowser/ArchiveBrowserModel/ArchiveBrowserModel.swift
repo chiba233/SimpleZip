@@ -103,6 +103,19 @@ final class ArchiveBrowserModel: ObservableObject {
     }
     @Published var selection = Set<UUID>()
     @Published var selectedArchiveRows = Set<UUID>()
+    /// 0.4.1 文件夹原位展开：已展开文件夹的子级清单（key = 文件夹标准化路径）。
+    /// **模型必须知道展开的子级** —— 选区解析（selectedFileItems）/ 右键 / 各操作都从这里取。
+    /// 上一版把子级只存在 NSOutlineView 节点树里（模型不知道 → 选中子行解析成空选区、右键全失灵），
+    /// 被 revert（9775479）；这次注册表就是真值，节点树只是它的视图缓存。
+    /// 故意**不加 @Published**：数据源回调里懒加载登记不能触发 SwiftUI 发布；
+    /// 子级内容真变化时由 refreshExpandedFolderChildren 显式 objectWillChange.send() 驱动重建。
+    var expandedFolderChildrenByPath: [String: [FileItem]] = [:]
+    /// 注册表归属的文件夹（标准化路径）。loadFolder 进了别的文件夹 → 整表清空（展开状态不跨目录）。
+    var expandedFolderOwnerPath: String?
+    /// 展开子级的「内容世代」：refreshExpandedFolderChildren 真换了清单才递增,进表格内容指纹。
+    /// 首次展开的懒登记**不**递增 —— 行已由 expandItem 画出,若把登记本身算成内容变化,
+    /// 展开后的下一次 updateNSView 会误判变化触发全表 reloadData（无谓闪烁）。
+    var expandedChildrenGeneration = 0
     @Published var status = L10n.text("status.ready")
     @Published var isWorking = false
     /// 失败 alert 的完整文案；setter 在 `errorMessage` 上 trim 一次。`nil` = 不展示 alert。
@@ -385,8 +398,14 @@ final class ArchiveBrowserModel: ObservableObject {
     // 注意：从**显示中**的列表取选区,不是完整 fileItems / archiveItems。
     // 否则搜索过滤后,选中项被过滤掉不可见时,Delete / 右键 / 菜单仍会作用在那个看不见的项上（数据安全隐患）。
     // 空搜索时 displayed* == 完整列表,行为不变。
+    // 0.4.1 文件夹原位展开：已展开文件夹的子级也是可见行,一并解析 —— 这正是上一版 revert 的根因
+    // （子级不在平铺名单里 → 选中子行解析成空选区）。子级行不受搜索过滤,但它们确实显示着,可操作是对的。
     var selectedFileItems: [FileItem] {
-        displayedFileItems.filter { selection.contains($0.id) }
+        var result = displayedFileItems.filter { selection.contains($0.id) }
+        if !expandedFolderChildrenByPath.isEmpty {
+            result += expandedFolderChildrenByPath.values.flatMap { $0 }.filter { selection.contains($0.id) }
+        }
+        return result
     }
 
     var selectedArchiveItems: [ArchiveItem] {
