@@ -90,7 +90,7 @@ struct HealthPane: View {
                 SettingsControlRow(
                     title: L10n.text("settings.tempFiles"),
                     description: tempFilesDescription,
-                    systemImage: "trash"
+                    systemImage: "trash", iconTint: .red
                 ) {
                     if isClearingTemp {
                         ProgressView().controlSize(.small)

@@ -451,9 +451,11 @@ struct GPGPane: View {
             }
             Spacer()
             if !defaultSigningKeyFingerprint.isEmpty {
-                Button(L10n.text("settings.gpg.defaultSigning.clear")) {
+                Button {
                     defaultSigningKeyFingerprint = ""
                     keyOperationMessage = L10n.text("settings.gpg.defaultSigning.cleared")
+                } label: {
+                    Label(L10n.text("settings.gpg.defaultSigning.clear"), systemImage: "xmark.circle")
                 }
                 .controlSize(.small)
             }
@@ -483,8 +485,10 @@ struct GPGPane: View {
                 }
             }
             Spacer()
-            Button(L10n.text("settings.gpg.smartcard.detect")) {
+            Button {
                 detectCard()
+            } label: {
+                Label(L10n.text("settings.gpg.smartcard.detect"), systemImage: "magnifyingglass")
             }
             .controlSize(.small)
             .disabled(isDetectingCard)

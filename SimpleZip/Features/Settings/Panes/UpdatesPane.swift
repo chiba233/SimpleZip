@@ -23,7 +23,7 @@ struct UpdatesPane: View {
                 SettingsControlRow(
                     title: L10n.text("updates.currentVersion"),
                     description: L10n.text("updates.currentVersion.description"),
-                    systemImage: "app.badge.checkmark"
+                    systemImage: "app.badge.checkmark", iconTint: .green
                 ) {
                     Text(Self.currentVersionText)
                         .foregroundStyle(.secondary)
@@ -33,7 +33,7 @@ struct UpdatesPane: View {
                 SettingsControlRow(
                     title: L10n.text("updates.lastCheck"),
                     description: L10n.text("updates.lastCheck.description"),
-                    systemImage: "clock.fill"
+                    systemImage: "clock.fill", iconTint: .purple
                 ) {
                     Text(lastCheckText)
                         .foregroundStyle(.secondary)
@@ -42,7 +42,7 @@ struct UpdatesPane: View {
                 SettingsControlRow(
                     title: L10n.text("updates.checkNow"),
                     description: L10n.text("updates.checkNow.description"),
-                    systemImage: "arrow.triangle.2.circlepath"
+                    systemImage: "arrow.triangle.2.circlepath", iconTint: .blue
                 ) {
                     Button {
                         SparkleUpdater.shared.checkForUpdates()
@@ -56,14 +56,14 @@ struct UpdatesPane: View {
                 SettingsToggleRow(
                     title: L10n.text("settings.checkForUpdatesOnLaunch"),
                     description: L10n.text("settings.checkForUpdatesOnLaunch.description"),
-                    systemImage: "power",
+                    systemImage: "power", iconTint: .orange,
                     isOn: $checkForUpdatesOnLaunch
                 )
 
                 SettingsToggleRow(
                     title: L10n.text("updates.autoDownload"),
                     description: L10n.text("updates.autoDownload.description"),
-                    systemImage: "arrow.down.circle.fill",
+                    systemImage: "arrow.down.circle.fill", iconTint: .teal,
                     isOn: $automaticallyDownloads
                 )
                 .onChange(of: automaticallyDownloads) { newValue in

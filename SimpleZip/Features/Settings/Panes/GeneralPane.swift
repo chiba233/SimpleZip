@@ -59,7 +59,7 @@ struct GeneralPane: View {
                 SettingsControlRow(
                     title: L10n.text("settings.language"),
                     description: L10n.text("settings.language.description"),
-                    systemImage: "globe"
+                    systemImage: "globe", iconTint: .blue
                 ) {
                     Picker("", selection: $appLanguage) {
                         ForEach(AppLanguage.allCases) { language in
@@ -85,7 +85,7 @@ struct GeneralPane: View {
                 SettingsControlRow(
                     title: L10n.text("settings.startupLocation"),
                     description: L10n.text("settings.startupLocation.description"),
-                    systemImage: "location"
+                    systemImage: "location", iconTint: .teal
                 ) {
                     // 用 Menu 而不是 Picker —— Picker 在「下拉项 label」和「已选状态 label」
                     // 用同一个 Text，没办法让自定义位置在选中时显示文件夹名、在下拉里仍是「自定义位置」。
@@ -127,7 +127,7 @@ struct GeneralPane: View {
                 SettingsToggleRow(
                     title: L10n.text("settings.rememberLastFolder"),
                     description: L10n.text("settings.rememberLastFolder.description"),
-                    systemImage: "clock.arrow.circlepath",
+                    systemImage: "clock.arrow.circlepath", iconTint: .purple,
                     isOn: $rememberLastFolder
                 )
 
@@ -138,7 +138,7 @@ struct GeneralPane: View {
                 SettingsControlRow(
                     title: L10n.text("settings.overwriteBehavior"),
                     description: L10n.text("settings.overwriteBehavior.description"),
-                    systemImage: "doc.on.doc"
+                    systemImage: "doc.on.doc", iconTint: .orange
                 ) {
                     Picker("", selection: $overwriteBehavior) {
                         ForEach(OverwriteBehavior.allCases) { behavior in
@@ -153,21 +153,21 @@ struct GeneralPane: View {
                 SettingsToggleRow(
                     title: L10n.text("settings.confirmBeforeDeletingFiles"),
                     description: L10n.text("settings.confirmBeforeDeletingFiles.description"),
-                    systemImage: "trash",
+                    systemImage: "trash", iconTint: .red,
                     isOn: $confirmBeforeDeletingFiles
                 )
 
                 SettingsToggleRow(
                     title: L10n.text("settings.finderOpenAutoExtract"),
                     description: L10n.text("settings.finderOpenAutoExtract.description"),
-                    systemImage: "archivebox",
+                    systemImage: "archivebox", iconTint: .blue,
                     isOn: $finderOpenAutoExtract
                 )
 
                 SettingsToggleRow(
                     title: L10n.text("settings.openExternalInNewTab"),
                     description: L10n.text("settings.openExternalInNewTab.description"),
-                    systemImage: "plus.rectangle.on.rectangle",
+                    systemImage: "plus.rectangle.on.rectangle", iconTint: .cyan,
                     isOn: $openExternalInNewTab
                 )
             }
@@ -184,6 +184,7 @@ struct GeneralPane: View {
                         title: L10n.text(service.titleKey),
                         description: service.menuName,
                         systemImage: service.systemImage,
+                        iconTint: .blue,
                         isOn: finderServiceBinding(service)
                     )
                 }
@@ -213,7 +214,7 @@ struct GeneralPane: View {
                 SettingsToggleRow(
                     title: L10n.text("settings.presetPasswordEnabled"),
                     description: L10n.text("settings.presetPasswordEnabled.description"),
-                    systemImage: "key",
+                    systemImage: "key", iconTint: .orange,
                     isOn: $presetPasswordEnabled
                 )
                 .onChange(of: presetPasswordEnabled) { isOn in

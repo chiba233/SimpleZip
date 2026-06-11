@@ -28,7 +28,7 @@ struct RarBackendSection: View {
             SettingsControlRow(
                 title: L10n.text("settings.rar.backend"),
                 description: L10n.text("settings.rar.backend.description"),
-                systemImage: "r.square"
+                systemImage: "r.square", iconTint: .purple
             ) {
                 Picker("", selection: $rarBackend) {
                     ForEach(RarBackendChoice.allCases) { backend in
@@ -103,7 +103,7 @@ struct RarBackendSection: View {
             SettingsActionRow(
                 title: L10n.text("settings.rar.openReadme"),
                 description: L10n.text("settings.rar.openReadme.description"),
-                systemImage: "doc.text",
+                systemImage: "doc.text", iconTint: .blue,
                 buttonTitle: L10n.text("settings.rar.openReadme"),
                 action: openInstallReadme
             )
@@ -111,7 +111,7 @@ struct RarBackendSection: View {
             SettingsActionRow(
                 title: L10n.text("settings.rar.revealInstallFiles"),
                 description: L10n.text("settings.rar.revealInstallFiles.description"),
-                systemImage: "folder",
+                systemImage: "folder", iconTint: .teal,
                 buttonTitle: L10n.text("settings.rar.revealInstallFiles"),
                 action: revealInstallFiles
             )
@@ -119,7 +119,7 @@ struct RarBackendSection: View {
             SettingsActionRow(
                 title: L10n.text("settings.rar.runInstaller"),
                 description: L10n.text("settings.rar.runInstaller.description"),
-                systemImage: "arrow.down.circle",
+                systemImage: "arrow.down.circle", iconTint: .green,
                 buttonTitle: L10n.text("settings.rar.runInstaller"),
                 // 已经装过本地版的禁掉「安装」，避免重复安装；正在装的过程中也整体禁掉。
                 isDisabled: isInstallingRar || hasLocalRarBackend
@@ -130,7 +130,7 @@ struct RarBackendSection: View {
             SettingsActionRow(
                 title: L10n.text("settings.rar.updateBackend"),
                 description: L10n.text("settings.rar.updateBackend.description"),
-                systemImage: "arrow.triangle.2.circlepath",
+                systemImage: "arrow.triangle.2.circlepath", iconTint: .orange,
                 buttonTitle: L10n.text("settings.rar.updateBackend"),
                 isDisabled: isInstallingRar || !hasLocalRarBackend
             ) {
@@ -140,7 +140,7 @@ struct RarBackendSection: View {
             SettingsActionRow(
                 title: L10n.text("settings.rar.deleteBackend"),
                 description: L10n.text("settings.rar.deleteBackend.description"),
-                systemImage: "trash",
+                systemImage: "trash", iconTint: .red,
                 buttonTitle: L10n.text("settings.rar.deleteBackend"),
                 role: .destructive,
                 isDisabled: isInstallingRar || !hasLocalRarBackend,

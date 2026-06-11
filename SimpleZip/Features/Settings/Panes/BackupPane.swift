@@ -34,7 +34,7 @@ struct BackupPane: View {
                 SettingsActionRow(
                     title: L10n.text("backup.export.title"),
                     description: L10n.text("backup.export.description"),
-                    systemImage: "square.and.arrow.up",
+                    systemImage: "square.and.arrow.up", iconTint: .blue,
                     buttonTitle: L10n.text("backup.export.button"),
                     action: exportPreferences
                 )
@@ -42,14 +42,14 @@ struct BackupPane: View {
                 SettingsToggleRow(
                     title: L10n.text("backup.includePerFolderMemory"),
                     description: L10n.text("backup.includePerFolderMemory.description"),
-                    systemImage: "clock",
+                    systemImage: "clock", iconTint: .purple,
                     isOn: $includePerFolderMemoryInBackup
                 )
 
                 SettingsActionRow(
                     title: L10n.text("backup.import.title"),
                     description: L10n.text("backup.import.description"),
-                    systemImage: "square.and.arrow.down",
+                    systemImage: "square.and.arrow.down", iconTint: .green,
                     buttonTitle: L10n.text("backup.import.button"),
                     action: pickImportFile
                 )
@@ -57,7 +57,7 @@ struct BackupPane: View {
                 SettingsActionRow(
                     title: L10n.text("backup.restore.title"),
                     description: L10n.text("backup.restore.description"),
-                    systemImage: "arrow.counterclockwise",
+                    systemImage: "arrow.counterclockwise", iconTint: .red,
                     buttonTitle: L10n.text("backup.restore.button"),
                     role: .destructive
                 ) {

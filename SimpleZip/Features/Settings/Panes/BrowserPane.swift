@@ -36,14 +36,14 @@ struct BrowserPane: View {
                 SettingsToggleRow(
                     title: L10n.text("settings.showHiddenFiles"),
                     description: L10n.text("settings.showHiddenFiles.description"),
-                    systemImage: "eye.slash",
+                    systemImage: "eye.slash", iconTint: .gray,
                     isOn: $showHiddenFiles
                 )
                 // 「什么算隐藏文件」判定方式：仅 dotfile（Unix）vs 再算上 macOS UF_HIDDEN 标志。
                 SettingsControlRow(
                     title: L10n.text("settings.hiddenDetection"),
                     description: L10n.text("settings.hiddenDetection.description"),
-                    systemImage: "list.bullet"
+                    systemImage: "list.bullet", iconTint: .blue
                 ) {
                     Picker("", selection: $hiddenDetectionModeRaw) {
                         ForEach(FileBrowserOutline.HiddenDetectionMode.allCases, id: \.self) { mode in
@@ -61,7 +61,7 @@ struct BrowserPane: View {
                 SettingsControlRow(
                     title: L10n.text("settings.hiddenGroupCollapse"),
                     description: L10n.text("settings.hiddenGroupCollapse.description"),
-                    systemImage: "arrow.down.right.and.arrow.up.left"
+                    systemImage: "arrow.down.right.and.arrow.up.left", iconTint: .purple
                 ) {
                     Picker("", selection: $hiddenGroupCollapseModeRaw) {
                         ForEach(FileBrowserOutline.CollapseMode.allCases, id: \.self) { mode in
@@ -78,7 +78,7 @@ struct BrowserPane: View {
                 SettingsControlRow(
                     title: L10n.text("settings.hiddenWithGrouping"),
                     description: L10n.text("settings.hiddenWithGrouping.description"),
-                    systemImage: "square.grid.2x2"
+                    systemImage: "square.grid.2x2", iconTint: .teal
                 ) {
                     Picker("", selection: $hiddenWithGroupingRaw) {
                         ForEach(BrowserGrouping.HiddenWithGrouping.allCases, id: \.self) { mode in
@@ -94,33 +94,33 @@ struct BrowserPane: View {
                 SettingsToggleRow(
                     title: L10n.text("settings.showSymbolicLinks"),
                     description: L10n.text("settings.showSymbolicLinks.description"),
-                    systemImage: "link",
+                    systemImage: "link", iconTint: .orange,
                     isOn: $showSymbolicLinks
                 )
                 SettingsToggleRow(
                     title: L10n.text("settings.folderInlineExpansion"),
                     description: L10n.text("settings.folderInlineExpansion.description"),
-                    systemImage: "chevron.down.square",
+                    systemImage: "chevron.down.square", iconTint: .indigo,
                     isOn: $folderInlineExpansion
                 )
                 // 展开记忆：刷新（FSEvents / 手动 / 排序分组）后恢复展开状态。文件夹记忆依赖原位展开,关掉时变灰。
                 SettingsToggleRow(
                     title: L10n.text("settings.rememberFolderExpansion"),
                     description: L10n.text("settings.rememberFolderExpansion.description"),
-                    systemImage: "arrow.clockwise.square",
+                    systemImage: "arrow.clockwise.square", iconTint: .green,
                     isOn: $rememberFolderExpansion
                 )
                 .disabled(!folderInlineExpansion)
                 SettingsToggleRow(
                     title: L10n.text("settings.rememberVolumeSetExpansion"),
                     description: L10n.text("settings.rememberVolumeSetExpansion.description"),
-                    systemImage: "square.stack.3d.down.right",
+                    systemImage: "square.stack.3d.down.right", iconTint: .brown,
                     isOn: $rememberVolumeSetExpansion
                 )
                 SettingsToggleRow(
                     title: L10n.text("settings.followFinderStructure"),
                     description: L10n.text("settings.followFinderStructure.description"),
-                    systemImage: "sidebar.leading",
+                    systemImage: "sidebar.leading", iconTint: .cyan,
                     isOn: $followFinderStructure
                 )
 
@@ -166,7 +166,7 @@ struct BrowserPane: View {
     /// 描述与开关之间还要塞一个 chevron，跟通用模板有差异。
     private var hiddenSuffixHeader: some View {
         HStack(alignment: .center, spacing: 12) {
-            SettingsRowIcon(systemImage: "textformat")
+            SettingsRowIcon(systemImage: "textformat", tint: .pink)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(L10n.text("settings.hiddenSuffixesEnabled"))

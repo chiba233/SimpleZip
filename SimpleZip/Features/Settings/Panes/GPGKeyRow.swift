@@ -449,8 +449,10 @@ struct GPGKeyRow: View {
             )
             .fixedSize()
         } else {
-            Button(L10n.text("settings.gpg.defaultSigning.setButton")) {
+            Button {
                 onSetDefaultSigning()
+            } label: {
+                Label(L10n.text("settings.gpg.defaultSigning.setButton"), systemImage: "checkmark.circle")
             }
             .controlSize(.small)
         }

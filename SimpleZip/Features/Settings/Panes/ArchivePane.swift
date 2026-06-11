@@ -49,43 +49,43 @@ struct ArchivePane: View {
             securityPickerRow(
                 title: L10n.text("settings.security.suspiciousPaths"),
                 description: L10n.text("settings.security.suspiciousPaths.description"),
-                systemImage: "exclamationmark.triangle",
+                systemImage: "exclamationmark.triangle", iconTint: .orange,
                 selection: $suspiciousPathPolicy
             )
 
             securityPickerRow(
                 title: L10n.text("settings.security.symbolicLinks"),
                 description: L10n.text("settings.security.symbolicLinks.description"),
-                systemImage: "link",
+                systemImage: "link", iconTint: .purple,
                 selection: $symbolicLinkPolicy
             )
 
             securityPickerRow(
                 title: L10n.text("settings.security.activeContent"),
                 description: L10n.text("settings.security.activeContent.description"),
-                systemImage: "checkmark.shield",
+                systemImage: "checkmark.shield", iconTint: .green,
                 selection: $activeContentOpenPolicy
             )
 
             SettingsToggleRow(
                 title: L10n.text("settings.verifyAfterRewrite"),
                 description: L10n.text("settings.verifyAfterRewrite.description"),
-                systemImage: "checkmark.seal",
+                systemImage: "checkmark.seal", iconTint: .blue,
                 isOn: $verifyAfterArchiveRewrite
             )
 
             SettingsToggleRow(
                 title: L10n.text("settings.verifyAfterCreate"),
                 description: L10n.text("settings.verifyAfterCreate.description"),
-                systemImage: "checkmark.seal.fill",
+                systemImage: "checkmark.seal.fill", iconTint: .indigo,
                 isOn: $verifyAfterArchiveCreate
             )
         }
     }
 
     /// 三个安全策略的下拉是同一种结构，抽个小辅助避免重复代码。
-    private func securityPickerRow(title: String, description: String, systemImage: String, selection: Binding<String>) -> some View {
-        SettingsControlRow(title: title, description: description, systemImage: systemImage) {
+    private func securityPickerRow(title: String, description: String, systemImage: String, iconTint: Color? = nil, selection: Binding<String>) -> some View {
+        SettingsControlRow(title: title, description: description, systemImage: systemImage, iconTint: iconTint) {
             Picker("", selection: selection) {
                 ForEach(ArchiveSecurityDecision.allCases) { decision in
                     Text(decision.title).tag(decision.rawValue)

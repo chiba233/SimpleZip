@@ -51,7 +51,7 @@ struct ColumnsPane: View {
                 SettingsControlRow(
                     title: L10n.text("settings.rowDensity"),
                     description: L10n.text("settings.rowDensity.description"),
-                    systemImage: "text.justify.left"
+                    systemImage: "text.justify.left", iconTint: .blue
                 ) {
                     Picker("", selection: $rowDensityRaw) {
                         ForEach(FileBrowserOutline.RowDensity.allCases, id: \.self) { density in
@@ -147,8 +147,10 @@ struct ColumnsPane: View {
                     .foregroundStyle(.secondary)
 
                 // 文件浏览
-                Text(L10n.text("settings.columns.fileBrowser"))
-                    .font(.headline)
+                HStack(spacing: 12) {
+                    SettingsRowIcon(systemImage: "folder", tint: .blue)
+                    Text(L10n.text("settings.columns.fileBrowser")).font(.headline)
+                }
                 SettingsControlRow(
                     title: L10n.text("settings.grouping.scope"),
                     description: L10n.text("settings.grouping.scope.description"),
@@ -175,9 +177,11 @@ struct ColumnsPane: View {
                 }
 
                 // 压缩包浏览（无「按文件夹」—— 档案内路径不持久，只全局）
-                Text(L10n.text("settings.columns.archiveBrowser"))
-                    .font(.headline)
-                    .padding(.top, 6)
+                HStack(spacing: 12) {
+                    SettingsRowIcon(systemImage: "archivebox", tint: .orange)
+                    Text(L10n.text("settings.columns.archiveBrowser")).font(.headline)
+                }
+                .padding(.top, 6)
                 SettingsControlRow(
                     title: L10n.text("settings.grouping.default"),
                     description: L10n.text("settings.grouping.default.description"),

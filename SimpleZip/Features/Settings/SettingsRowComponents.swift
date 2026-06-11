@@ -73,6 +73,8 @@ struct SettingsActionRow: View {
     let title: String
     let description: String
     let systemImage: String
+    /// 一级行的彩色瓦片色;nil = 二级行单色(默认)。右侧按钮图标始终单色(规范)。
+    var iconTint: Color? = nil
     let buttonTitle: String
     var role: ButtonRole?
     var isDisabled = false
@@ -80,7 +82,7 @@ struct SettingsActionRow: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
-            SettingsRowIcon(systemImage: systemImage)
+            SettingsRowIcon(systemImage: systemImage, tint: iconTint)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
@@ -114,8 +116,10 @@ struct SettingsRowIcon: View {
             if let systemImage {
                 if let tint {
                     // shape + overlay:符号在瓦片内绝对居中(直接给 Image 套 frame+background 会随字形偏移看着歪)。
+                    // 饱和度压一档(0.75):侧栏图标保持高饱和,内容区行瓦片柔和一些 —— 用户拍板的层次。
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
                         .fill(tint)
+                        .saturation(0.75)
                         .overlay(
                             Image(systemName: systemImage)
                                 .font(.system(size: 12, weight: .semibold))
