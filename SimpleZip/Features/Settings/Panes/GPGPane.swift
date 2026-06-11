@@ -939,8 +939,11 @@ struct GPGPane: View {
                 .lineLimit(2)
                 .truncationMode(.middle)
                 .textSelection(.enabled)
+                // 长路径(SimpleZip 私有 ring 等)折两行时行高被压、下缘截断 —— 垂直方向放开让行随内容长高。
+                .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
         }
+        .padding(.vertical, 1)
     }
 
     // MARK: - 钥匙串操作
