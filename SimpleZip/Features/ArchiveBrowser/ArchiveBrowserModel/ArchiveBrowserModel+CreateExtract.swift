@@ -310,11 +310,25 @@ extension ArchiveBrowserModel {
             ? request.destinationURL.deletingPathExtension().appendingPathExtension(SIZArchive.extensionName)
             : request.destinationURL
         // **输出与已有文件同名** → 按「遇到同名文件时」偏好处理（覆盖 / 跳过 / 询问），
-        // 不再像以前那样直接抛「已有同名文件」错误硬跳过。resolved == nil 表示用户/策略放弃创建。
-        guard let finalDestination = resolveArchiveOutputConflict(intendedDestination) else {
+        // 不再像以前那样直接抛「已有同名文件」错误硬跳过。
+        let plan = resolveArchiveOutputConflict(intendedDestination)
+        let finalDestination: URL
+        // 创建成功后的收尾动作：nil = 直接刷新;.replace = 原子替换;.replaceIfDifferent = 比哈希后替换/丢弃。
+        let postCreate: PostCreateReplacement?
+        switch plan {
+        case .abort:
             return
+        case .write(let url):
+            finalDestination = url
+            postCreate = nil
+        case .writeThenReplace(let temp, let existing):
+            finalDestination = temp
+            postCreate = .replace(existing)
+        case .writeThenReplaceIfDifferent(let temp, let existing):
+            finalDestination = temp
+            postCreate = .replaceIfDifferent(existing)
         }
-        // 如果冲突解决把目标改了名（「两者都保留」）→ 同步改 request 的输出基名，让后端写到新路径。
+        // 如果冲突解决把目标改了名（「两者都保留」/「仅不同时替换」的临时名）→ 同步改 request 的输出基名。
         var request = request
         if finalDestination != intendedDestination {
             if request.options.gpgSign {
@@ -334,54 +348,105 @@ extension ArchiveBrowserModel {
             kind: .compress,
             showsDetails: request.options.showDetails,
             refreshOnSuccess: { [weak self] in
-                self?.refreshVisibleFolder(containing: finalDestination)
+                guard let self else { return }
+                // 临时产物已生成 → 按收尾动作原子替换 / 比哈希替换;无冲突则直接刷新。
+                switch postCreate {
+                case .none:
+                    self.refreshVisibleFolder(containing: finalDestination)
+                case .replace(let existing):
+                    _ = try? self.fileManager.replaceItemAt(existing, withItemAt: finalDestination)
+                    self.status = L10n.format("status.created", existing.lastPathComponent)
+                    self.refreshVisibleFolder(containing: existing)
+                case .replaceIfDifferent(let existing):
+                    self.finishReplaceIfDifferent(produced: finalDestination, existing: existing)
+                }
             }
         ) { operationID, progress, outputObserver in
             try await ArchiveCreationService.run(request, operationID: operationID, progress: progress, outputObserver: outputObserver)
         }
     }
 
-    /// 创建压缩包输出与已有同名文件冲突时按「遇到同名文件时」偏好（`AppPreferences.overwriteBehavior`）处理。
-    /// 返回要写入的最终目标（可能改名）；`nil` = 放弃创建（用户取消 / 策略跳过）。
-    /// - `.overwrite` → 删掉已有文件后用原名。
-    /// - `.skipExisting` → 不创建，给状态提示。
-    /// - `.ask` / `.replaceIfDifferent` → 弹原生 alert 让用户选「覆盖 / 两者都保留 / 取消」
-    ///   （新建产物无从比较内容，`replaceIfDifferent` 退化为询问，绝不静默覆盖）。
-    private func resolveArchiveOutputConflict(_ destination: URL) -> URL? {
-        guard fileManager.fileExists(atPath: destination.path) else { return destination }
+    /// 创建成功后对已有文件的收尾动作。
+    private enum PostCreateReplacement {
+        case replace(URL)            // 无条件原子替换 existing
+        case replaceIfDifferent(URL) // 比哈希,不同才替换、相同则丢弃临时产物
+    }
+
+    /// 创建压缩包输出的写入计划。**数据安全**：替换已有文件时一律「写临时 → 创建成功后原子替换」，
+    /// 绝不在创建前先删旧文件（否则创建失败会连旧带新都丢）。
+    enum ArchiveOutputPlan {
+        /// 直接写这个路径（无冲突 / 唯一名,目标本就不存在）。
+        case write(URL)
+        /// 写到 `temp`（唯一临时名），创建成功后**无条件**用它原子替换 `existing`。
+        case writeThenReplace(temp: URL, existing: URL)
+        /// 写到 `temp`，创建成功后与 `existing` 比哈希：不同才替换、相同则丢弃临时产物。
+        case writeThenReplaceIfDifferent(temp: URL, existing: URL)
+        /// 放弃创建（取消 / 跳过）。
+        case abort
+    }
+
+    /// 创建压缩包输出与已有同名文件冲突时按「遇到同名文件时」偏好处理。
+    /// - `.overwrite` → 写临时后原子替换（不再先删后建）。
+    /// - `.skipExisting` → 不创建。
+    /// - `.ask` → 弹**现代冲突对话框**（与解压 / 粘贴同一套 UI）让用户选；
+    /// - `.replaceIfDifferent` → 写临时后比哈希,不同才替换。
+    private func resolveArchiveOutputConflict(_ destination: URL) -> ArchiveOutputPlan {
+        guard fileManager.fileExists(atPath: destination.path) else { return .write(destination) }
         switch AppPreferences.overwriteBehavior {
         case .overwrite:
-            try? fileManager.removeItem(at: destination)
-            return destination
+            return .writeThenReplace(temp: uniqueSibling(of: destination), existing: destination)
         case .skipExisting:
             status = L10n.format("status.createSkippedExisting", destination.lastPathComponent)
-            return nil
-        case .ask, .replaceIfDifferent:
-            return askArchiveOutputConflict(destination)
+            return .abort
+        case .replaceIfDifferent:
+            return .writeThenReplaceIfDifferent(temp: uniqueSibling(of: destination), existing: destination)
+        case .ask:
+            return planFromArchiveOutputConflictDialog(destination)
         }
     }
 
-    /// 创建输出同名冲突的「询问」alert —— 覆盖（默认）/ 两者都保留（去重改名）/ 取消。
-    private func askArchiveOutputConflict(_ destination: URL) -> URL? {
-        let alert = NSAlert()
-        alert.alertStyle = .warning
-        alert.messageText = L10n.format("conflict.create.title", destination.lastPathComponent)
-        alert.informativeText = L10n.text("conflict.create.message")
-        alert.addButton(withTitle: L10n.text("conflict.create.overwrite"))   // 第 1 = 默认回车
-        alert.addButton(withTitle: L10n.text("conflict.create.keepBoth"))
-        alert.addButton(withTitle: L10n.text("button.cancel"))
-        switch alert.runModal() {
-        case .alertFirstButtonReturn:
-            try? fileManager.removeItem(at: destination)
-            return destination
-        case .alertSecondButtonReturn:
-            return UniqueFileName.numbered(
-                in: destination.deletingLastPathComponent(),
-                preferredName: destination.lastPathComponent,
-                exists: { fileManager.fileExists(atPath: $0.path) }
-            )
+    /// 弹现代冲突对话框,把用户选择翻译成写入计划。
+    private func planFromArchiveOutputConflictDialog(_ destination: URL) -> ArchiveOutputPlan {
+        switch extractionCoordinator.archiveOutputConflictChoice(fileName: destination.lastPathComponent) {
+        case .replace:
+            return .writeThenReplace(temp: uniqueSibling(of: destination), existing: destination)
+        case .keepBoth:
+            return .write(uniqueSibling(of: destination))
+        case .replaceIfDifferent:
+            return .writeThenReplaceIfDifferent(temp: uniqueSibling(of: destination), existing: destination)
         default:
-            return nil
+            return .abort
+        }
+    }
+
+    /// 给 `destination` 在同目录算一个不冲突的名字（`a.zip` → `a 2.zip`）。
+    private func uniqueSibling(of destination: URL) -> URL {
+        UniqueFileName.numbered(
+            in: destination.deletingLastPathComponent(),
+            preferredName: destination.lastPathComponent,
+            exists: { fileManager.fileExists(atPath: $0.path) }
+        )
+    }
+
+    /// 「仅当内容不同时替换」的收尾（创建成功后调）：比对新产物 `produced` 与 `existing` 的 SHA256。
+    /// 不同 → 删 existing、把 produced 改名成 existing 的原路径（完成替换）；
+    /// 相同 → 删 produced、保留 existing,状态提示「内容相同已跳过」。
+    private func finishReplaceIfDifferent(produced: URL, existing: URL) {
+        Task { @MainActor in
+            // 哈希计算在后台,避免大包阻塞主线程。
+            let hashes = await Task.detached(priority: .utility) {
+                (try? HashService.sha256(for: produced), try? HashService.sha256(for: existing))
+            }.value
+            if let producedHash = hashes.0, let existingHash = hashes.1, producedHash == existingHash {
+                // 内容相同 → 丢弃新产物,保留旧文件。
+                try? fileManager.removeItem(at: produced)
+                status = L10n.format("status.createSameContentSkipped", existing.lastPathComponent)
+            } else {
+                // 不同（或哈希读不到 → 保守替换）→ 用新产物替换旧文件。
+                _ = try? fileManager.replaceItemAt(existing, withItemAt: produced)
+                status = L10n.format("status.createReplacedDifferent", existing.lastPathComponent)
+            }
+            refreshVisibleFolder(containing: existing)
         }
     }
 

@@ -558,6 +558,7 @@
 "error.singleFileCompressionRequiresSingleFile" = "This format can only compress one regular file at a time.";
 "error.passwordsDoNotMatch" = "The password and confirmation password must match.";
 "status.creating" = "Creating %@";
+"status.created" = "Created “%@”";
 // Add files into an open archive (#109 drag-in)
 "archive.addEntry.single" = "Adding “%@” to archive";
 "archive.addEntry.multiple" = "Adding %1$@ items to %2$@";
@@ -1170,6 +1171,24 @@
 "conflict.create.overwrite" = "Overwrite";
 "conflict.create.keepBoth" = "Keep Both";
 "status.createSkippedExisting" = "Skipped “%@” (already exists)";
+"conflict.title" = "“%@” already exists here";
+"conflict.message" = "Choose how to handle the name conflict.";
+"conflict.action.replace" = "Replace";
+"conflict.action.replace.desc" = "Overwrite the existing item.";
+"conflict.action.replaceIfDifferent" = "Replace if contents differ";
+"conflict.action.replaceIfDifferent.desc" = "Skip if the contents are identical; replace only when they differ.";
+"conflict.action.skip" = "Skip";
+"conflict.action.skip.desc" = "Keep the existing item unchanged.";
+"conflict.action.merge" = "Merge (Finder style)";
+"conflict.action.merge.desc" = "Keep extra files in the target folder; only update matching names.";
+"conflict.action.mergeIfDifferent" = "Merge, replacing only differing files";
+"conflict.action.mergeIfDifferent.desc" = "Merge, but overwrite a matching file only when its contents differ.";
+"conflict.action.replaceFolder" = "Replace whole folder (tar style)";
+"conflict.action.replaceFolder.desc" = "Discard the target folder entirely and replace it.";
+"conflict.action.keepBoth" = "Keep both";
+"conflict.action.keepBoth.desc" = "Save the new archive under a different name.";
+"status.createSameContentSkipped" = "“%@” already exists with identical contents — kept the existing file.";
+"status.createReplacedDifferent" = "Replaced “%@” (contents differed)";
 "settings.7zip.backend" = "7-Zip backend";
 "settings.7zip.backend.description" = "“Automatic” prefers the bundled 7-Zip and falls back to a system install. Or pin SimpleZip to only the bundled copy, or only a system-installed 7-Zip.";
 "settings.7zip.automatic" = "Automatic";

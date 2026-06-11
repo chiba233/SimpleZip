@@ -103,7 +103,8 @@ final class ArchiveExtractionCoordinator {
         case .replace, .merge:
             try trashExistingItem(at: requestedTargetURL)
             return requestedTargetURL
-        case .skip:
+        case .skip, .keepBoth:
+            // .keepBoth 仅创建压缩包场景出现，传输路径到不了；当 skip 兜底。
             return nil
         case .replaceIfDifferent, .mergeIfDifferent:
             let result = try await compareItemsForOverwrite(
@@ -214,7 +215,8 @@ final class ArchiveExtractionCoordinator {
                 stats.transferred += 1
                 conflictSession?.transferLog.append(TransferLogEntry(name: name, action: .overwritten, isDirectory: true))
                 return stats
-            case .skip:
+            case .skip, .keepBoth:
+                // .keepBoth 仅创建场景出现，传输路径到不了；当 skip 兜底。
                 stats.skipped += 1
                 conflictSession?.transferLog.append(TransferLogEntry(name: name, action: .skipped, isDirectory: true))
                 return stats
@@ -533,6 +535,36 @@ final class ArchiveExtractionCoordinator {
             panel.close()
         }
 
+        let hosting = NSHostingController(rootView: rootView)
+        panel.contentViewController = hosting
+        panel.setContentSize(hosting.view.fittingSize)
+        panel.center()
+        panel.makeKeyAndOrderFront(nil)
+        NSApp.runModal(for: panel)
+        return result
+    }
+
+    /// 创建压缩包输出与已有文件同名时的冲突对话框（复用 ConflictResolutionView，kind = .archiveOutput）。
+    /// 返回 .replace / .replaceIfDifferent / .keepBoth / .cancel —— 由调用方（模型）执行对应写入策略。
+    func archiveOutputConflictChoice(fileName: String) -> PasteConflictChoice {
+        var result: PasteConflictChoice = .cancel
+        let panel = NSPanel(
+            contentRect: NSRect(x: 0, y: 0, width: 460, height: 320),
+            styleMask: [.titled],
+            backing: .buffered,
+            defer: false
+        )
+        panel.isReleasedWhenClosed = false
+        panel.title = ""
+        let rootView = ConflictResolutionView(
+            fileName: fileName,
+            kind: .archiveOutput,
+            allowsRememberedChoice: false
+        ) { choice, _ in
+            result = choice
+            NSApp.stopModal()
+            panel.close()
+        }
         let hosting = NSHostingController(rootView: rootView)
         panel.contentViewController = hosting
         panel.setContentSize(hosting.view.fittingSize)

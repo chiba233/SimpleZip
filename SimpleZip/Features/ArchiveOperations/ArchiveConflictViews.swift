@@ -8,65 +8,146 @@
 import AppKit
 import SwiftUI
 
-/// 同名冲突对话框的内容视图。两个正交的轴各一个开关 + 「应用到全部」，动作按钮三个一行。
+/// 同名冲突对话框。0.4.1 重做：放弃「俩开关改写继续按钮」的隐晦设计，改成**每个处理方式一行明确的动作按钮**
+/// （图标 + 标题 + 一句说明），用户一眼看懂、一点到位；「应用到全部」作底部 toggle。
+/// 三种场景共用：解压/粘贴的文件冲突、文件夹冲突、以及创建压缩包的输出冲突（kind = .create）。
 struct ConflictResolutionView: View {
+    enum Kind {
+        case fileTransfer       // 解压 / 粘贴：文件 vs 文件
+        case folderTransfer     // 解压 / 粘贴：文件夹 vs 文件夹（可合并）
+        case archiveOutput      // 创建压缩包：新产物 vs 已有文件（可「两者都保留」）
+    }
+
     let fileName: String
-    let isDirectory: Bool
+    let kind: Kind
     let allowsRememberedChoice: Bool
     let onChoice: (PasteConflictChoice, Bool) -> Void
 
-    @State private var replaceWholeFolder = false
-    @State private var hashGate = false
     @State private var applyToAll = false
 
-    private var continueChoice: PasteConflictChoice {
-        if isDirectory, !replaceWholeFolder {
-            return hashGate ? .mergeIfDifferent : .merge
+    init(fileName: String, isDirectory: Bool, allowsRememberedChoice: Bool, onChoice: @escaping (PasteConflictChoice, Bool) -> Void) {
+        self.fileName = fileName
+        self.kind = isDirectory ? .folderTransfer : .fileTransfer
+        self.allowsRememberedChoice = allowsRememberedChoice
+        self.onChoice = onChoice
+    }
+
+    init(fileName: String, kind: Kind, allowsRememberedChoice: Bool, onChoice: @escaping (PasteConflictChoice, Bool) -> Void) {
+        self.fileName = fileName
+        self.kind = kind
+        self.allowsRememberedChoice = allowsRememberedChoice
+        self.onChoice = onChoice
+    }
+
+    /// 该场景下可选的处理方式（按推荐顺序）。每项 = (选择, 图标, 标题, 说明)。
+    private var actions: [(choice: PasteConflictChoice, icon: String, title: String, subtitle: String)] {
+        switch kind {
+        case .fileTransfer:
+            return [
+                (.replace, "arrow.2.squarepath", L10n.text("conflict.action.replace"), L10n.text("conflict.action.replace.desc")),
+                (.replaceIfDifferent, "doc.badge.gearshape", L10n.text("conflict.action.replaceIfDifferent"), L10n.text("conflict.action.replaceIfDifferent.desc")),
+                (.skip, "arrow.uturn.forward", L10n.text("conflict.action.skip"), L10n.text("conflict.action.skip.desc")),
+            ]
+        case .folderTransfer:
+            return [
+                (.merge, "arrow.triangle.merge", L10n.text("conflict.action.merge"), L10n.text("conflict.action.merge.desc")),
+                (.mergeIfDifferent, "arrow.triangle.merge", L10n.text("conflict.action.mergeIfDifferent"), L10n.text("conflict.action.mergeIfDifferent.desc")),
+                (.replace, "folder.badge.minus", L10n.text("conflict.action.replaceFolder"), L10n.text("conflict.action.replaceFolder.desc")),
+                (.skip, "arrow.uturn.forward", L10n.text("conflict.action.skip"), L10n.text("conflict.action.skip.desc")),
+            ]
+        case .archiveOutput:
+            return [
+                (.replace, "arrow.2.squarepath", L10n.text("conflict.action.replace"), L10n.text("conflict.action.replace.desc")),
+                (.replaceIfDifferent, "doc.badge.gearshape", L10n.text("conflict.action.replaceIfDifferent"), L10n.text("conflict.action.replaceIfDifferent.desc")),
+                (.keepBoth, "plus.square.on.square", L10n.text("conflict.action.keepBoth"), L10n.text("conflict.action.keepBoth.desc")),
+            ]
         }
-        return hashGate ? .replaceIfDifferent : .replace
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .top, spacing: 12) {
-                Image(nsImage: NSApp.applicationIconImage)
-                    .resizable()
-                    .frame(width: 48, height: 48)
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(L10n.format("confirm.pasteConflict.title", fileName))
+        VStack(spacing: 0) {
+            // hero：橙黄警告瓦片 + 文件名 + 说明。
+            HStack(spacing: 14) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 21, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+                    .background(
+                        LinearGradient(colors: [.orange, .yellow], startPoint: .topLeading, endPoint: .bottomTrailing),
+                        in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    )
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(L10n.format("conflict.title", fileName))
                         .font(.headline)
                         .lineLimit(2)
                         .truncationMode(.middle)
-                    Text(L10n.text(isDirectory ? "confirm.folderConflict.message" : "confirm.pasteConflict.message"))
+                    Text(L10n.text("conflict.message"))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
+            .padding(.bottom, 14)
+
+            // 「应用到本次操作的其余冲突」—— 必须放在动作按钮**之上**：每个动作（含 skip，对文件夹是整体跳过）
+            // 一点即生效并关闭对话框，所以这个修饰开关要先于动作可设。仅在可能有多个冲突时显示（allowsRememberedChoice）。
+            if allowsRememberedChoice {
+                Toggle(L10n.text("conflict.applyToAll"), isOn: $applyToAll)
+                    .toggleStyle(.checkbox)
+                    .padding(.horizontal, 22)
+                    .padding(.bottom, 12)
             }
 
-            VStack(alignment: .leading, spacing: 8) {
-                if isDirectory {
-                    Toggle(L10n.text("conflict.replaceWholeFolder"), isOn: $replaceWholeFolder)
-                }
-                Toggle(L10n.text("conflict.hashGate"), isOn: $hashGate)
-                if allowsRememberedChoice {
-                    Toggle(L10n.text("conflict.applyToAll"), isOn: $applyToAll)
+            VStack(spacing: 8) {
+                ForEach(Array(actions.enumerated()), id: \.offset) { index, action in
+                    Button {
+                        onChoice(action.choice, applyToAll)
+                    } label: {
+                        HStack(spacing: 11) {
+                            Image(systemName: action.icon)
+                                .font(.system(size: 15))
+                                .foregroundStyle(Color.accentColor)
+                                .frame(width: 22)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(action.title).font(.body.weight(.medium))
+                                Text(action.subtitle).font(.caption).foregroundStyle(.secondary)
+                            }
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(
+                            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                                .fill(Color(nsColor: .controlBackgroundColor))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                                .strokeBorder(Color.primary.opacity(0.07))
+                        )
+                        .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .keyboardShortcut(index == 0 ? .defaultAction : nil)
                 }
             }
-            .toggleStyle(.checkbox)
-            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, 20)
 
-            HStack(spacing: 12) {
+            Divider().padding(.top, 14)
+
+            HStack {
                 Spacer()
                 Button(L10n.text("button.cancel")) { onChoice(.cancel, false) }
                     .keyboardShortcut(.cancelAction)
-                Button(L10n.text("conflict.skip")) { onChoice(.skip, applyToAll) }
-                Button(L10n.text("button.continue")) { onChoice(continueChoice, applyToAll) }
-                    .keyboardShortcut(.defaultAction)
             }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .background(.bar)
         }
-        .padding(20)
-        .frame(width: 420, alignment: .leading)
+        .frame(width: 460)
     }
 }
 

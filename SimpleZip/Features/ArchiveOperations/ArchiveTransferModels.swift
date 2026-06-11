@@ -31,6 +31,8 @@ enum PasteConflictChoice: Equatable {
     case mergeIfDifferent
     case skip
     case cancel
+    /// 创建压缩包输出冲突专用：两个都保留（产物自动去重改名）。仅 .archiveOutput 场景出现。
+    case keepBoth
 
     /// 该选择在「仅当哈希不同时才覆盖」这个轴上是否开启。
     var prefersHashGate: Bool {

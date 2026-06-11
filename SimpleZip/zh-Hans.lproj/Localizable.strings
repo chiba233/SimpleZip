@@ -556,6 +556,7 @@
 "error.invalidSevenZipVolumeSize" = "分卷大小格式无效，应类似 100m、2g 或 512k。";
 "error.singleFileCompressionRequiresSingleFile" = "这种格式一次只能压缩一个普通文件。";
 "status.creating" = "正在创建 %@";
+"status.created" = "已创建「%@」";
 // 拖入文件加进打开的压缩包（#109）
 "archive.addEntry.single" = "正在把「%@」加进压缩包";
 "archive.addEntry.multiple" = "正在把 %1$@ 项加进 %2$@";
@@ -1149,6 +1150,24 @@
 "conflict.create.overwrite" = "覆盖";
 "conflict.create.keepBoth" = "两者都保留";
 "status.createSkippedExisting" = "已跳过「%@」（已存在）";
+"conflict.title" = "这里已存在「%@」";
+"conflict.message" = "请选择如何处理这个同名冲突。";
+"conflict.action.replace" = "替换";
+"conflict.action.replace.desc" = "覆盖已有的同名项。";
+"conflict.action.replaceIfDifferent" = "仅当内容不同时替换";
+"conflict.action.replaceIfDifferent.desc" = "内容相同则跳过,只有不同时才覆盖。";
+"conflict.action.skip" = "跳过";
+"conflict.action.skip.desc" = "保留已有项,不做改动。";
+"conflict.action.merge" = "合并（Finder 风格）";
+"conflict.action.merge.desc" = "保留目标文件夹里多出来的文件,只更新同名项。";
+"conflict.action.mergeIfDifferent" = "合并,仅替换内容不同的文件";
+"conflict.action.mergeIfDifferent.desc" = "合并,但同名文件只在内容不同时才覆盖。";
+"conflict.action.replaceFolder" = "替换整个文件夹（tar 风格）";
+"conflict.action.replaceFolder.desc" = "整体丢弃目标文件夹并替换。";
+"conflict.action.keepBoth" = "两者都保留";
+"conflict.action.keepBoth.desc" = "把新压缩包另存为不冲突的名字。";
+"status.createSameContentSkipped" = "「%@」已存在且内容相同——保留了原文件。";
+"status.createReplacedDifferent" = "已替换「%@」(内容不同)";
 "settings.7zip.backend" = "7-Zip 后端";
 "settings.7zip.backend.description" = "「自动」优先用内置 7-Zip，找不到再回退到系统安装的；也可固定只用内置，或只用系统安装的 7-Zip。";
 "settings.7zip.automatic" = "自动";
