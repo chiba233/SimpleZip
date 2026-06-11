@@ -106,3 +106,56 @@ import Testing
         #expect(parts.map(\.lastPathComponent) == ["x.zip.001", "x.zip.002"])
     }
 }
+
+/// 0.4.2:分卷集识别(纯文件名逻辑)。
+struct SplitVolumeSetTests {
+
+    @Test func recognizesNumericFamilyFromAnyMember() {
+        let siblings = ["a.7z.001", "a.7z.002", "a.7z.003", "other.txt"]
+        let set = FileSplitCombine.volumeSet(forMemberNamed: "a.7z.002", among: siblings)
+        #expect(set?.baseName == "a.7z")
+        #expect(set?.memberIndex == 2)
+        #expect(set?.presentIndices == [1, 2, 3])
+        #expect(set?.missingIndices == [])
+        #expect(set?.isComplete == true)
+    }
+
+    @Test func reportsMissingVolumes() {
+        let siblings = ["a.7z.001", "a.7z.003", "a.7z.005"]
+        let set = FileSplitCombine.volumeSet(forMemberNamed: "a.7z.001", among: siblings)
+        #expect(set?.missingIndices == [2, 4])
+        #expect(set?.isComplete == false)
+        #expect(set?.highestIndex == 5)
+    }
+
+    @Test func recognizesPartRarFamily() {
+        let siblings = ["movie.part1.rar", "movie.part2.rar", "movie.part3.rar"]
+        let set = FileSplitCombine.volumeSet(forMemberNamed: "movie.part2.rar", among: siblings)
+        #expect(set?.baseName == "movie.rar")
+        #expect(set?.memberIndex == 2)
+        #expect(set?.volumeCount == 3)
+    }
+
+    @Test func lonelyNumericExtensionIsNotASet() {
+        // 「碰巧全数字扩展名」的孤立文件(卷号≠1、同目录无同伴)不能误判成分卷。
+        #expect(FileSplitCombine.volumeSet(forMemberNamed: "report.2024", among: ["report.2024", "x.txt"]) == nil)
+    }
+
+    @Test func lonelyFirstVolumeIsStillASet() {
+        let set = FileSplitCombine.volumeSet(forMemberNamed: "a.zip.001", among: ["a.zip.001"])
+        #expect(set?.presentIndices == [1])
+        #expect(set?.isComplete == true)
+    }
+
+    @Test func nonVolumeNamesReturnNil() {
+        #expect(FileSplitCombine.volumeSet(forMemberNamed: "a.zip", among: ["a.zip"]) == nil)
+        #expect(FileSplitCombine.volumeSet(forMemberNamed: "a.01", among: ["a.01", "a.02"]) == nil)   // 2 位数字不算(避免误伤)
+    }
+
+    @Test func volumesPastThousandKeepWorking() {
+        let siblings = ["big.bin.999", "big.bin.1000", "big.bin.001"]
+        let set = FileSplitCombine.volumeSet(forMemberNamed: "big.bin.1000", among: siblings)
+        #expect(set?.presentIndices == [1, 999, 1000])
+        #expect(set?.missingIndices.count == 997)
+    }
+}

@@ -638,6 +638,13 @@
 "test.failure.corrupted" = "Data damaged";
 "test.failure.unsupported" = "Unsupported format";
 "test.failure.other" = "Test failed";
+/* 0.4.2 split-volume set awareness */
+"volumeSet.info" = "Split set %1$@ — volume %2$@ of %3$@ · %4$@";
+"volumeSet.missing" = "Missing volumes: %1$@";
+"volumeSet.missing.more" = " and %1$@ more";
+"combine.confirm.message" = "%1$@ volumes will be combined into “%2$@” (%3$@ total).";
+"combine.confirm.gapWarning" = "Volume %1$@ is missing — only the first %2$@ contiguous volumes will be combined, so the result will be incomplete.";
+
 
 
 

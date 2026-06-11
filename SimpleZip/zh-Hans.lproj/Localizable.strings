@@ -636,6 +636,13 @@
 "test.failure.corrupted" = "数据损坏";
 "test.failure.unsupported" = "格式不支持";
 "test.failure.other" = "测试未通过";
+/* 0.4.2 分卷集识别 */
+"volumeSet.info" = "分卷集 %1$@——第 %2$@ 卷，共 %3$@ 卷 · %4$@";
+"volumeSet.missing" = "缺少分卷：%1$@";
+"volumeSet.missing.more" = " 等 %1$@ 个";
+"combine.confirm.message" = "将把 %1$@ 个分卷合并为「%2$@」（共 %3$@）。";
+"combine.confirm.gapWarning" = "缺少第 %1$@ 卷——只会合并连续的前 %2$@ 卷，结果将不完整。";
+
 
 
 

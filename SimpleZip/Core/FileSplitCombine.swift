@@ -168,4 +168,98 @@ enum FileSplitCombine {
 
     /// 流式块大小。4 MiB：足够摊薄系统调用，又不会让取消检查迟钝。
     nonisolated private static let chunkSize: Int64 = 4 * 1024 * 1024
+
+    // MARK: - 分卷集识别（0.4.2）
+
+    /// 防御荒谬卷号（如把 `backup.2024` 误判成第 2024 卷）：超过此上限不做缺卷枚举。
+    nonisolated private static let maxReasonableVolumeIndex = 5000
+
+    /// 从任意一个成员的**文件名**出发，在同目录文件名集合里识别整个分卷家族。
+    /// 纯名字逻辑（可单测）；大小 / 存在性等文件系统事实由调用方自取。
+    ///
+    /// 识别两种家族：
+    /// - 数字尾缀 `name.001 / name.002 …`（7-Zip Split、本 app 自产；009 → 010、999 → 1000 自然增长）
+    /// - `name.part1.rar / name.part2.rar`（RAR 现代分卷）
+    ///
+    /// 防误判：孤立的 `report.2024` 这类「碰巧全数字扩展名」**不算**分卷 ——
+    /// 只有成员卷号为 1，或同目录还有同家族其它卷时才认。
+    nonisolated static func volumeSet(forMemberNamed memberName: String, among siblingNames: [String]) -> SplitVolumeSet? {
+        if let set = numericVolumeSet(memberName: memberName, siblingNames: siblingNames) { return set }
+        return partRarVolumeSet(memberName: memberName, siblingNames: siblingNames)
+    }
+
+    nonisolated private static func numericVolumeSet(memberName: String, siblingNames: [String]) -> SplitVolumeSet? {
+        guard let (base, memberIndex) = splitNumericSuffix(memberName) else { return nil }
+        var members: [(index: Int, name: String)] = []
+        for name in siblingNames {
+            guard let (candidateBase, index) = splitNumericSuffix(name), candidateBase == base else { continue }
+            members.append((index, name))
+        }
+        guard memberIndex == 1 || members.count >= 2 else { return nil }
+        return makeSet(baseName: base, memberIndex: memberIndex, members: members)
+    }
+
+    /// `name.001` → ("name", 1)。扩展名必须 ≥3 位纯数字（7-Zip 卷号格式，999 后是 1000）。
+    nonisolated private static func splitNumericSuffix(_ name: String) -> (base: String, index: Int)? {
+        guard let dot = name.lastIndex(of: "."), dot != name.startIndex else { return nil }
+        let suffix = name[name.index(after: dot)...]
+        guard suffix.count >= 3, !suffix.isEmpty, suffix.allSatisfy(\.isNumber), let index = Int(suffix) else { return nil }
+        return (String(name[..<dot]), index)
+    }
+
+    nonisolated private static func partRarVolumeSet(memberName: String, siblingNames: [String]) -> SplitVolumeSet? {
+        guard let (base, memberIndex) = splitPartRar(memberName) else { return nil }
+        var members: [(index: Int, name: String)] = []
+        for name in siblingNames {
+            guard let (candidateBase, index) = splitPartRar(name), candidateBase == base else { continue }
+            members.append((index, name))
+        }
+        guard memberIndex == 1 || members.count >= 2 else { return nil }
+        return makeSet(baseName: base + ".rar", memberIndex: memberIndex, members: members)
+    }
+
+    /// `name.part2.rar` → ("name", 2)（大小写不敏感）。
+    nonisolated private static func splitPartRar(_ name: String) -> (base: String, index: Int)? {
+        let lower = name.lowercased()
+        guard lower.hasSuffix(".rar") else { return nil }
+        let withoutRar = String(name.dropLast(4))
+        guard let partRange = withoutRar.range(of: #"\.[pP][aA][rR][tT]\d+$"#, options: .regularExpression) else { return nil }
+        let digits = withoutRar[partRange].dropFirst(5)   // ".part" 后的数字
+        guard let index = Int(digits) else { return nil }
+        return (String(withoutRar[..<partRange.lowerBound]), index)
+    }
+
+    nonisolated private static func makeSet(baseName: String, memberIndex: Int, members: [(index: Int, name: String)]) -> SplitVolumeSet {
+        var byIndex: [Int: String] = [:]
+        for member in members { byIndex[member.index] = member.name }
+        let presentIndices = byIndex.keys.sorted()
+        let highest = presentIndices.last ?? 0
+        // 缺卷 = 1...最大现存卷号之间的空洞。荒谬大的卷号（误判保护）不枚举。
+        let missing: [Int]
+        if highest <= maxReasonableVolumeIndex {
+            missing = (1...max(highest, 1)).filter { byIndex[$0] == nil }
+        } else {
+            missing = []
+        }
+        return SplitVolumeSet(
+            baseName: baseName,
+            memberIndex: memberIndex,
+            presentIndices: presentIndices,
+            presentNames: presentIndices.compactMap { byIndex[$0] },
+            missingIndices: missing
+        )
+    }
+}
+
+/// 分卷集识别结果（0.4.2）。`presentNames` 与 `presentIndices` 一一对应（升序）。
+struct SplitVolumeSet: Equatable {
+    let baseName: String        // 合并产物名（`a.7z` / `a.rar`）
+    let memberIndex: Int        // 被查询成员的卷号
+    let presentIndices: [Int]
+    let presentNames: [String]
+    let missingIndices: [Int]   // 1...最大现存卷号 之间缺失的卷号
+
+    var volumeCount: Int { presentIndices.count }
+    var highestIndex: Int { presentIndices.last ?? 0 }
+    var isComplete: Bool { missingIndices.isEmpty }
 }

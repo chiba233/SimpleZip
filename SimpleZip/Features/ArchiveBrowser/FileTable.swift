@@ -936,6 +936,8 @@ struct FileNSOutlineView: NSViewRepresentable {
             // 拆分 / 合并分卷（字节级，对齐官方 7-Zip 的 Split / Combine）：单选非目录文件可拆；
             // 选中 .001 首卷多一项「合并分卷」。
             if model.selectedFileItems.count == 1, let item = model.selectedFileItems.first, !item.isDirectory {
+                // 0.4.2 分卷集识别：右键任意一卷显示「第 N 卷，共 M 卷 · 总大小」+ 缺卷警告（信息行，不可点）。
+                appendVolumeSetInfo(to: menu, for: item.url)
                 if FileSplitCombine.isFirstVolume(item.url) {
                     menu.addItem(menuItem(L10n.text("file.combine.menuItem"), systemImage: "arrow.triangle.merge", action: #selector(combineVolumesSelected)))
                 }
@@ -1138,6 +1140,41 @@ struct FileNSOutlineView: NSViewRepresentable {
 
         @objc private func extractSelectedArchive() {
             model.extractArchive()
+        }
+
+        /// 0.4.2 分卷集意识：识别选中文件所属的分卷家族，往菜单里加「分卷集 …」信息行
+        /// （disabled —— 纯展示）和缺卷警告。识别基于同目录的**全部**文件名（不受隐藏过滤影响）。
+        private func appendVolumeSetInfo(to menu: NSMenu, for url: URL) {
+            let directory = url.deletingLastPathComponent()
+            guard let siblings = try? FileManager.default.contentsOfDirectory(atPath: directory.path),
+                  let set = FileSplitCombine.volumeSet(forMemberNamed: url.lastPathComponent, among: siblings) else { return }
+
+            let totalBytes = set.presentNames.reduce(Int64(0)) { sum, name in
+                let path = directory.appendingPathComponent(name).path
+                return sum + (((try? FileManager.default.attributesOfItem(atPath: path))?[.size] as? Int64) ?? 0)
+            }
+            let sizeText = ByteCountFormatter.string(fromByteCount: totalBytes, countStyle: .file)
+            let info = NSMenuItem(
+                title: L10n.format("volumeSet.info", set.baseName, "\(set.memberIndex)", "\(set.volumeCount)", sizeText),
+                action: nil,
+                keyEquivalent: ""
+            )
+            info.image = NSImage(systemSymbolName: "square.stack.3d.up", accessibilityDescription: nil)
+            info.isEnabled = false
+            menu.addItem(info)
+
+            if !set.missingIndices.isEmpty {
+                let shown = set.missingIndices.prefix(6).map { String(format: "%03d", $0) }.joined(separator: ", ")
+                let suffix = set.missingIndices.count > 6 ? L10n.format("volumeSet.missing.more", "\(set.missingIndices.count - 6)") : ""
+                let warning = NSMenuItem(
+                    title: L10n.format("volumeSet.missing", shown + suffix),
+                    action: nil,
+                    keyEquivalent: ""
+                )
+                warning.image = NSImage(systemSymbolName: "exclamationmark.triangle", accessibilityDescription: nil)
+                warning.isEnabled = false
+                menu.addItem(warning)
+            }
         }
 
         @objc private func batchTestArchives() {

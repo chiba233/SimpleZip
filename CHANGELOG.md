@@ -4,6 +4,8 @@
 
 ## 0.4.2 (unreleased)
 
+- **New: split-set awareness.** Right-click any volume of a split set (`a.7z.001/.002…` or `movie.part2.rar`) and the menu now shows which set it belongs to — "Split set a.7z — volume 2 of 5 · 1.2 GB" — plus a warning listing any missing volume numbers. **Combine Volumes** now confirms before running with the volume count, the output name, and the total size, and warns explicitly when the set is interrupted (a gap means only the contiguous head would be joined). Lone files that merely *look* like a volume (`report.2024`) aren't misdetected.
+
 - **New: batch integrity testing.** Select several archives → right-click → **Test N Archives**: every archive is tested in one Activity Center task, with a per-archive verdict list — passed, password protected / wrong password, missing volume, data damaged, or unsupported format — plus a one-click **Retry failed** for just the problem files. One bad archive no longer aborts the rest.
 
 - **New: export Archive Diff reports.** The compare window gains an Export menu: a machine-readable **JSON report** (stable English field names, ISO-8601 dates, deterministic output), a spreadsheet-friendly **CSV** (one row per difference, RFC-4180 escaping), and a human-readable **Markdown report** in your UI language. All three export differences only — unchanged entries appear as a count in the summary, not as rows.

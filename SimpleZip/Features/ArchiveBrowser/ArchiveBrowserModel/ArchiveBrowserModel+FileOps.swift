@@ -646,6 +646,35 @@ extension ArchiveBrowserModel {
               let item = selectedFileItems.first,
               FileSplitCombine.isFirstVolume(item.url) else { return }
         let firstVolume = item.url
+
+        // 0.4.2 合并前预检：卷数 + 总大小 + 中断警告，确认后才动手（同步 NSAlert，跟口令弹窗同一体例）。
+        let parts = FileSplitCombine.volumeParts(for: firstVolume)
+        guard !parts.isEmpty else { return }
+        let totalBytes = parts.reduce(Int64(0)) { sum, part in
+            sum + (((try? fileManager.attributesOfItem(atPath: part.path))?[.size] as? Int64) ?? 0)
+        }
+        let outputName = firstVolume.deletingPathExtension().lastPathComponent
+        let alert = NSAlert()
+        alert.alertStyle = .informational
+        alert.messageText = L10n.text("file.combine.menuItem")
+        var message = L10n.format(
+            "combine.confirm.message",
+            "\(parts.count)",
+            outputName,
+            ByteCountFormatter.string(fromByteCount: totalBytes, countStyle: .file)
+        )
+        // 连续前缀之外还有更高卷号（中段缺卷）→ 拼出来必然不完整，给醒目警告但允许继续（用户可能就要前段）。
+        if let siblings = try? fileManager.contentsOfDirectory(atPath: firstVolume.deletingLastPathComponent().path),
+           let set = FileSplitCombine.volumeSet(forMemberNamed: firstVolume.lastPathComponent, among: siblings),
+           set.highestIndex > parts.count {
+            alert.alertStyle = .warning
+            message += "\n\n" + L10n.format("combine.confirm.gapWarning", String(format: "%03d", parts.count + 1), "\(parts.count)")
+        }
+        alert.informativeText = message
+        alert.addButton(withTitle: L10n.text("file.combine.menuItem"))
+        alert.addButton(withTitle: L10n.text("button.cancel"))
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+
         let title = L10n.format("status.combining", firstVolume.lastPathComponent)
         let operationTask = beginFileTask(kind: .combine, title: title, detail: nil, total: 1, cancellable: true, category: .archive)
 
