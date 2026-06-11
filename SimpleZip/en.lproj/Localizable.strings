@@ -1109,6 +1109,7 @@
 "archive.destination" = "Save to";
 "archive.rar.requiresTool" = "RAR creation needs the external rar command-line tool.";
 "benchmark.title" = "7-Zip Benchmark";
+"benchmark.hero.subtitle" = "Measure the 7-Zip engine's compression and decompression performance on this Mac.";
 "benchmark.dictionarySize" = "Dictionary Size";
 "benchmark.threads" = "Threads";
 "benchmark.backendThreads" = "Benchmark Threads";

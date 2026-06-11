@@ -1086,6 +1086,7 @@
 "archive.excludedFilesDetected" = "检测到 %d 个待排除的文件。";
 "archive.destination" = "保存到";
 "benchmark.title" = "7-Zip 跑分";
+"benchmark.hero.subtitle" = "测一测 7-Zip 引擎在这台 Mac 上的压缩 / 解压性能。";
 "benchmark.dictionarySize" = "字典大小";
 "benchmark.threads" = "线程数";
 "benchmark.backendThreads" = "跑分线程数";

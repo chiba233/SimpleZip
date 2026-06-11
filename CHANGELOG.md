@@ -4,6 +4,7 @@
 
 ## 0.4.1
 
+- **UI: the 7-Zip benchmark dialogs join the modern shell.** Options get the hero header + card form + pinned footer; the results window shows compression/decompression as big-number metric cards (speed, MIPS, CPU) for both current and average passes, with the raw engine output tucked into a collapsed drawer and a live progress indicator in the footer while running.
 - **Settings → Health Check now audits more of the app wiring.** It now reports missing Finder Services / `simplezip://` callbacks, unavailable startup folders, archive-safety policies set to Always Allow / Always Deny, and incomplete Sparkle update configuration (appcast URL, EdDSA public key, and scheduled-check interval). Each warning links back to the relevant Settings pane instead of leaving you to hunt for the switch.
 - **Localization coverage is back in lockstep across all 10 languages.** Every locale now carries the same key set as English / Simplified Chinese, and the bad mixed-language `.siz` / GPG strings (for example "Signer's 公開鍵 not imported") have been replaced with real localized text rather than placeholder-ish hybrids.
 - **Fixed: the signed-container service no longer emits a useless Swift concurrency warning** about an `await` expression with no async work.
