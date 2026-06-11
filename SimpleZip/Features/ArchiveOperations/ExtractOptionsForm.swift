@@ -68,7 +68,7 @@ struct ExtractOptionsForm<ExtraControls: View>: View {
                                     .textFieldStyle(.roundedBorder)
                                     .frame(maxWidth: 260)
                             } label: {
-                                Label(L10n.text("archive.password"), systemImage: "key.fill")
+                                alignedRowLabel("archive.password", systemImage: "key.fill")
                             }
                         }
                         if showsZipDecryptionMethod {
@@ -82,7 +82,7 @@ struct ExtractOptionsForm<ExtraControls: View>: View {
                                     .labelsHidden()
                                     .fixedSize()
                                 } label: {
-                                    Label(L10n.text("extract.decryptionMethod"), systemImage: "shield.lefthalf.filled")
+                                    alignedRowLabel("extract.decryptionMethod", systemImage: "shield.lefthalf.filled")
                                 }
 
                                 if zipDecryptionMethod == .automatic, let zipEncryptionDetectionText {
@@ -139,8 +139,15 @@ struct ExtractOptionsForm<ExtraControls: View>: View {
                 }
             }
         } label: {
-            Label(L10n.text("archive.destination"), systemImage: "folder.fill")
+            alignedRowLabel("archive.destination", systemImage: "folder.fill")
         }
+    }
+
+    /// 「保存到 / 密码 / 解密方式」三行的标签统一定宽 —— 标签长短不一时值列各自起步,
+    /// 用户报「保存到和密码不齐」。定宽后值列垂直对齐(en 最长的 "Password (optional)" 也放得下)。
+    private func alignedRowLabel(_ key: String, systemImage: String) -> some View {
+        Label(L10n.text(key), systemImage: systemImage)
+            .frame(width: 180, alignment: .leading)
     }
 
     private func chooseDestination() {
