@@ -665,6 +665,11 @@
 "error.archive.externallyModified" = "“%1$@” was modified by another app after it was opened — this change was not written, to avoid overwriting those edits. Refresh the archive and try again, or save your work as a copy.";
 "status.waitingForArchiveLock" = "Waiting for another task to finish writing this archive…";
 "error.insufficientDiskSpace" = "Not enough free disk space: this operation needs about %1$@, but only %2$@ is available. Free up space (or empty the Trash) and try again.";
+"quit.tasksRunning.title" = "%1$@ task(s) still running";
+"quit.tasksRunning.message" = "Quitting now interrupts them — safe write-back guarantees no archive is damaged, but the interrupted work is lost. You can also let SimpleZip quit by itself once everything finishes.";
+"quit.tasksRunning.keepRunning" = "Keep Running";
+"quit.tasksRunning.afterTasks" = "Quit When Tasks Finish";
+"quit.tasksRunning.quitNow" = "Quit Now";
 "extract.preflight.lowSpace" = "Destination volume may be too small — extraction needs at least about %1$@, only %2$@ free";
 "security.report.clean" = "No suspicious entries found";
 "security.report.clean.desc" = "Every listed path was checked for absolute paths, “..” traversal, drive letters, UNC and backslash paths, control or bidirectional-override characters, overlong paths, setuid bits, outward-pointing symlinks, and case collisions — nothing was flagged.";

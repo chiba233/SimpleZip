@@ -14,6 +14,12 @@ final class TaskCenter: ObservableObject {
     @Published private(set) var active: [OperationTask] = []
     @Published private(set) var history: [OperationTask] = []
 
+    /// 0.4.3 #5:任务运行期间的系统活动断言 —— 阻止系统空闲睡眠 + 禁用 sudden termination,
+    /// 大任务不再因为合盖 / 闲置被腰斩。非 nil = 正在持有。
+    private var activityAssertion: NSObjectProtocol?
+    /// 0.4.3 #5:「完成后退出」已被用户选择(applicationShouldTerminate 返回 terminateLater 中)。
+    private(set) var quitAfterTasksFinish = false
+
     private var historyLimit: Int {
         AppPreferences.activityHistoryLimit
     }
@@ -70,7 +76,35 @@ final class TaskCenter: ObservableObject {
         )
         // 新任务插到最前：活动中心列表整体「越新越靠上」（历史也是 insert(at: 0)），用户一眼能看到刚建的任务。
         active.insert(task, at: 0)
+        updateActivityAssertion()
         return task
+    }
+
+    /// 0.4.3 #5:有任务在跑 → 持系统活动断言（防空闲睡眠 + 防 sudden termination）；清零 → 释放。
+    private func updateActivityAssertion() {
+        if active.isEmpty {
+            if let assertion = activityAssertion {
+                ProcessInfo.processInfo.endActivity(assertion)
+                activityAssertion = nil
+            }
+        } else if activityAssertion == nil {
+            activityAssertion = ProcessInfo.processInfo.beginActivity(
+                options: [.idleSystemSleepDisabled, .suddenTerminationDisabled],
+                reason: "SimpleZip archive tasks running"
+            )
+        }
+    }
+
+    /// 0.4.3 #5:「完成后退出」—— applicationShouldTerminate 返回 `.terminateLater` 后由这里接管:
+    /// 全部任务收尾时回 `reply(toApplicationShouldTerminate: true)` 完成退出。
+    func quitWhenAllTasksFinish() {
+        quitAfterTasksFinish = true
+        completeQuitIfIdle()
+    }
+
+    private func completeQuitIfIdle() {
+        guard quitAfterTasksFinish, active.isEmpty else { return }
+        NSApp.reply(toApplicationShouldTerminate: true)
     }
 
     func finish(_ task: OperationTask, outcome: OperationTask.Status) {
@@ -93,6 +127,9 @@ final class TaskCenter: ObservableObject {
             default: break
             }
         }
+        // 0.4.3 #5:断言随任务清零释放;「完成后退出」在最后一个任务收尾时兑现。
+        updateActivityAssertion()
+        completeQuitIfIdle()
     }
 
     func cancelAll() {

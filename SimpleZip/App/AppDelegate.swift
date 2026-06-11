@@ -110,6 +110,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// 0.4.3 #5:有任务在跑时退出要确认 —— 半路退出会腰斩写回 / 解压(安全写回保证原包不坏,
+    /// 但用户的这次操作白做)。三选:继续任务(默认) / 完成后退出(terminateLater,TaskCenter
+    /// 在最后一个任务收尾时回 reply) / 立即退出。无任务照常直接退。
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        let running = TaskCenter.shared.runningCount
+        guard running > 0 else { return .terminateNow }
+
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = L10n.format("quit.tasksRunning.title", "\(running)")
+        alert.informativeText = L10n.text("quit.tasksRunning.message")
+        alert.addButton(withTitle: L10n.text("quit.tasksRunning.keepRunning"))
+        alert.addButton(withTitle: L10n.text("quit.tasksRunning.afterTasks"))
+        alert.addButton(withTitle: L10n.text("quit.tasksRunning.quitNow"))
+        switch alert.runModal() {
+        case .alertSecondButtonReturn:
+            TaskCenter.shared.quitWhenAllTasksFinish()
+            return .terminateLater
+        case .alertThirdButtonReturn:
+            return .terminateNow
+        default:
+            return .terminateCancel
+        }
+    }
+
     /// 退出时拆除加密临时卷：detach 挂载 + 删镜像。同步尽力（terminate 不能 await）；
     /// 万一没跑成（强杀），残留的镜像是 AES 密文、无害，下次启动 `sweepStale()` 收口。
     func applicationWillTerminate(_ notification: Notification) {
