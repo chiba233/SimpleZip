@@ -75,10 +75,36 @@ enum HealthChecker {
         items.append(await checkRAR(onOpenSettings: { onOpenPane(.archive) }))
         items.append(checkFileAssociations(onOpenSettings: { onOpenPane(.fileAssociations) }))
         items.append(checkPresetPassword(onOpenSettings: { onOpenPane(.general) }))
+        items.append(checkSecureScratchVolume())
         if let gpgItem = await checkGPG(onOpenSettings: { onOpenPane(.gpg) }) {
             items.append(gpgItem)
         }
         return items
+    }
+
+    /// 加密临时卷（0.4.1，用户点名）：解密 / 解压的临时产物应落在启动时挂载的 AES-256 加密卷里。
+    /// 挂着 → ok（带挂载点路径）；没挂着 → warning（临时产物会回落普通临时目录,明文可能落盘）+
+    /// 「重新挂载」修复按钮（挂载是异步的,按完再点「重新检查」看结果）。
+    private static func checkSecureScratchVolume() -> HealthCheckItem {
+        if let mountPoint = SecureScratchVolume.shared.currentMountPoint {
+            return HealthCheckItem(
+                title: L10n.text("health.scratchVolume.title"),
+                detail: L10n.format("health.scratchVolume.ok", mountPoint.path),
+                status: .ok,
+                action: nil
+            )
+        }
+        return HealthCheckItem(
+            title: L10n.text("health.scratchVolume.title"),
+            detail: L10n.text("health.scratchVolume.notMounted"),
+            status: .warning,
+            action: HealthCheckItem.FixAction(
+                title: L10n.text("health.scratchVolume.remount"),
+                perform: {
+                    Task { _ = try? await SecureScratchVolume.shared.ensureMounted() }
+                }
+            )
+        )
     }
 
     // MARK: - 单项检查

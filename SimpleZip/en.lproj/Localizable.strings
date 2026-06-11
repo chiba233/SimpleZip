@@ -942,6 +942,10 @@
 "health.gpg.agentDown" = "GnuPG + pinentry-mac present, but gpg-agent is not running. gpg will spawn it on demand, so this is usually not fatal. Keyring: %1$d / %2$d with secret key.";
 "health.gpg.openSettings" = "Open GPG Settings";
 "health.presetPassword.title" = "Preset password";
+"health.scratchVolume.title" = "Encrypted temporary volume";
+"health.scratchVolume.ok" = "Mounted — decrypted/extracted temporary files live on an AES-256 volume at %@ and are destroyed on quit.";
+"health.scratchVolume.notMounted" = "Not mounted. Temporary files fall back to the regular temp directory, where plaintext may touch disk.";
+"health.scratchVolume.remount" = "Remount Now";
 "health.presetPassword.disabled" = "Disabled. Enable in General settings if you want auto-fill and silent retry.";
 "health.presetPassword.ok" = "Configured and stored in Keychain.";
 "health.presetPassword.empty" = "Enabled but no password set yet.";

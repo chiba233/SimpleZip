@@ -929,6 +929,10 @@
 "health.associations.partial" = "SimpleZip 是 %d / %d 种受支持压缩包格式的默认 App。";
 "health.openAssociations" = "管理文件关联";
 "health.presetPassword.title" = "预设密码";
+"health.scratchVolume.title" = "加密临时卷";
+"health.scratchVolume.ok" = "已挂载 —— 解密 / 解压的临时文件落在 %@ 的 AES-256 加密卷上,退出即销毁。";
+"health.scratchVolume.notMounted" = "未挂载。临时文件会回落到普通临时目录,明文可能落盘。";
+"health.scratchVolume.remount" = "立即重新挂载";
 "health.presetPassword.disabled" = "未启用。要自动填充 + 静默尝试，请在「通用」设置里开启。";
 "health.presetPassword.ok" = "已配置，保存在钥匙串。";
 "health.presetPassword.empty" = "已启用，但还没填密码。";
