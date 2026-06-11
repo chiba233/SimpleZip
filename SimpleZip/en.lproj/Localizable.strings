@@ -70,6 +70,11 @@
 "archive.gpgSign.disabledBySplitVolume" = "GPG .siz signing isn't available for split archives — a single-file container is fundamentally incompatible with split volumes. To sign all the split parts together, generate the split archive first, then use right-click → Create Signed Manifest to bundle every part into a .szs (no repackaging; the files stay in place).";
 "error.siz.missingComponents" = "The .siz container is missing required files (metadata.json / signature.asc / inner archive).";
 "error.siz.unexpectedSchema" = ".siz container schema not recognized: %@";
+"error.siz.versionTooNew" = "This .siz was created by a newer version of SimpleZip (format v%1$@; this version supports up to v%2$@). Update SimpleZip to open it normally.";
+"error.szs.versionTooNew" = "This .szs was created by a newer version of SimpleZip (format v%1$@; this version supports up to v%2$@). Update SimpleZip to open it normally.";
+"container.versionTooNew.title" = "Created by a Newer Version of SimpleZip";
+"container.versionTooNew.message" = "“%1$@” uses format version v%2$@, but this copy of SimpleZip only understands up to v%3$@ — that's why it won't open. Updating SimpleZip is the safe fix. You can also force it open: fields this version doesn't know will be ignored, so signature or encryption details may be incomplete.";
+"container.versionTooNew.forceOpen" = "Open Anyway";
 "error.siz.missingInnerArchive" = ".siz container doesn't contain the inner archive: %@";
 "error.siz.invalidContainerEntry" = ".siz container contains an unsafe or unsupported entry: %@";
 "error.siz.unexpectedContainerComponents" = ".siz container contains unexpected files: %@";

@@ -4,6 +4,7 @@
 
 ## 0.4.1
 
+- **New: future-format .siz/.szs files explain themselves and can be force-opened.** A container written by a newer SimpleZip used to fail with a generic "unexpected schema" error. Now a dedicated message tells you exactly why it won't open (file format vN vs. supported vM, fix = update SimpleZip) and offers "Open Anyway" — unknown new fields are ignored on a best-effort decode, with the caveat that signature/encryption details may be incomplete. One consent covers the whole open flow per file.
 - **UI: the Create Archive dialog is rebuilt around a "common vs. drawer" layout.** A hero header (gradient icon + "Compressing N items"), the everyday options (name, destination, format, level, password) out in the open, and everything else folded into expandable drawer cards — Advanced (update/path mode, volume size, custom parameters), 7-Zip Parameters, Exclude Rules, and GPG Signing & Delivery. Every row carries an icon, the 7z thread count value is pinned next to its stepper instead of floating, and the GPG note/passphrase fields use a label-above-field two-line layout.
 - **UI: Extract and Permissions & Owner dialogs share the same modern shell.** Hero header with the archive name, icon-labelled rows, self-sizing section cards and a pinned action bar with a prominent default button.
 - **UI: dialogs now size to their content.** The grouped-Form experiment left large fixed blanks (especially in the extract dialog); sheets now hug their content with a max-height cap to stay on screen.

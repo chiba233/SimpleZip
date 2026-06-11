@@ -292,7 +292,7 @@ final class ExternalExtractWindowController {
         let task = Task { [weak self] in
             guard let self else { return }
             do {
-                let (signature, manifest) = try await SZSArchive.peek(manifestURL: sourceURL)
+                let (signature, manifest) = try await SignedContainerService.peekSZS(manifestURL: sourceURL)
                 try Task.checkCancellation()
                 self.presentSZSVerificationSheet(sourceURL: sourceURL, signature: signature, manifest: manifest)
             } catch is CancellationError {

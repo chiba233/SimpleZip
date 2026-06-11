@@ -70,6 +70,11 @@
 "archive.gpgSign.disabledBySplitVolume" = ".siz GPG 签名不支持分卷压缩 —— 单文件容器跟分卷是矛盾的。如果要给分卷的所有分片做签名，建议生成完分卷后用「右键 → 创建签名清单」，把所有分片一起打 .szs 签名清单（不打包，原文件留在原地）。";
 "error.siz.missingComponents" = ".siz 容器缺少必需文件（metadata.json / signature.asc / 内层压缩包）。";
 "error.siz.unexpectedSchema" = ".siz 容器 schema 不识别：%@";
+"error.siz.versionTooNew" = "这个 .siz 由更新版本的 SimpleZip 创建(格式 v%1$@,本版最高支持 v%2$@)。升级 SimpleZip 即可正常打开。";
+"error.szs.versionTooNew" = "这个 .szs 由更新版本的 SimpleZip 创建(格式 v%1$@,本版最高支持 v%2$@)。升级 SimpleZip 即可正常打开。";
+"container.versionTooNew.title" = "由更新版本的 SimpleZip 创建";
+"container.versionTooNew.message" = "「%1$@」使用了 v%2$@ 格式,而当前 SimpleZip 最高只支持 v%3$@——这就是它打不开的原因。升级 SimpleZip 是最稳妥的办法;也可以强制打开:本版不认识的新字段会被忽略,签名或加密信息可能不完整。";
+"container.versionTooNew.forceOpen" = "仍要打开";
 "error.siz.missingInnerArchive" = ".siz 容器里没找到内层压缩包：%@";
 "error.siz.invalidContainerEntry" = ".siz 容器包含不安全或不支持的条目：%@";
 "error.siz.unexpectedContainerComponents" = ".siz 容器包含预期外文件：%@";

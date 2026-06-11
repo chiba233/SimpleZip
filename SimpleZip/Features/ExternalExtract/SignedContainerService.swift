@@ -12,6 +12,7 @@
 //  不再各写一份（避免 DTO 套 DTO / 逻辑重复）。
 //
 
+import AppKit
 import Foundation
 
 /// `.siz` 容器打开/解压前的共享编排。纯静态、可跨 actor 调用（返回值均为 Sendable 值类型）。
@@ -26,7 +27,18 @@ enum SignedContainerService {
         // **加密容器 → fail-closed**：unwrap 出来的内层档案（及随后内层 .gpg 解密产物）落进加密临时卷；
         // 卷挂不上就抛错，绝不把签名容器的内容明文裸落盘。
         let tempRoot = try await TemporaryResourceManager.makeSecureTemporaryDirectory(prefix: "SimpleZip-SIZ-Unwrap")
-        let unwrap = try await SIZArchive.unwrap(at: sourceURL, to: tempRoot)
+        // 0.4.1 前向兼容：格式版本过高（更新版 SimpleZip 创建）→ 弹「为什么打不开」专属说明 +
+        // 「仍要尝试打开」。这里是 .siz 的唯一咽喉（主窗口 + Finder 浮窗共用），拦一处全覆盖。
+        let unwrap: SIZArchive.UnwrapResult
+        do {
+            unwrap = try await SIZArchive.unwrap(at: sourceURL, to: tempRoot)
+        } catch let error as SIZArchive.SIZError {
+            guard case .versionTooNew(let found, let supported) = error,
+                  await consentToForceOpenNewerFormat(fileURL: sourceURL, found: found, supported: supported) else {
+                throw error
+            }
+            unwrap = try await SIZArchive.unwrap(at: sourceURL, to: tempRoot, allowNewerVersion: true)
+        }
 
         // 用户关 GPG 集成 = 主页面所有 GPG 相关入口隐藏（打开 .siz 是刚需例外，但不能露 GPG UI）。
         guard AppPreferences.gpgEnabled else {
@@ -79,6 +91,78 @@ enum SignedContainerService {
             return trusted && concerns.isEmpty
         }
         return false
+    }
+
+    // MARK: - 0.4.1 前向兼容（版本过高 → 专属说明 + 强制打开）
+
+    /// 本次会话内已同意强制打开的文件 —— 同一个文件 peek / verify 连续两步只问一次。
+    @MainActor private static var forceOpenConsents = Set<String>()
+
+    /// 版本过高的「为什么打不开 + 仍要尝试打开」弹窗。同意则记入会话白名单并返回 true。
+    @MainActor
+    static func consentToForceOpenNewerFormat(fileURL: URL, found: Int, supported: Int) -> Bool {
+        if forceOpenConsents.contains(fileURL.path) { return true }
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = L10n.text("container.versionTooNew.title")
+        alert.informativeText = L10n.format(
+            "container.versionTooNew.message",
+            fileURL.lastPathComponent, "\(found)", "\(supported)"
+        )
+        alert.addButton(withTitle: L10n.text("container.versionTooNew.forceOpen"))
+        alert.addButton(withTitle: L10n.text("button.cancel"))
+        guard alert.runModal() == .alertFirstButtonReturn else { return false }
+        forceOpenConsents.insert(fileURL.path)
+        return true
+    }
+
+    /// `.szs` 的 peek 一律走这层（版本过高时统一弹专属说明 + 按同意强制重试）。
+    static func peekSZS(
+        manifestURL: URL,
+        operationID: UUID? = nil
+    ) async throws -> (signature: GPGBackend.GPGVerifyResult, manifest: SZSArchive.Manifest) {
+        do {
+            return try await SZSArchive.peek(manifestURL: manifestURL, operationID: operationID)
+        } catch let error as SZSArchive.SZSError {
+            guard case .versionTooNew(let found, let supported) = error,
+                  await consentToForceOpenNewerFormat(fileURL: manifestURL, found: found, supported: supported) else {
+                throw error
+            }
+            return try await SZSArchive.peek(manifestURL: manifestURL, operationID: operationID, allowNewerVersion: true)
+        }
+    }
+
+    /// `.szs` 完整校验的前向兼容包装（同 peekSZS）。
+    static func verifySZS(
+        manifestURL: URL,
+        payloadRoot: URL,
+        operationID: UUID? = nil
+    ) async throws -> SZSArchive.VerifyReport {
+        do {
+            return try await SZSArchive.verify(manifestURL: manifestURL, payloadRoot: payloadRoot, operationID: operationID)
+        } catch let error as SZSArchive.SZSError {
+            guard case .versionTooNew(let found, let supported) = error,
+                  await consentToForceOpenNewerFormat(fileURL: manifestURL, found: found, supported: supported) else {
+                throw error
+            }
+            return try await SZSArchive.verify(
+                manifestURL: manifestURL, payloadRoot: payloadRoot,
+                operationID: operationID, allowNewerVersion: true
+            )
+        }
+    }
+
+    /// `.szs` 明文路径（GPG 关闭）的前向兼容包装。
+    static func verifySZSWithoutSignature(manifestURL: URL, payloadRoot: URL) async throws -> SZSArchive.VerifyReport {
+        do {
+            return try SZSArchive.verifyWithoutSignature(manifestURL: manifestURL, payloadRoot: payloadRoot)
+        } catch let error as SZSArchive.SZSError {
+            guard case .versionTooNew(let found, let supported) = error,
+                  await consentToForceOpenNewerFormat(fileURL: manifestURL, found: found, supported: supported) else {
+                throw error
+            }
+            return try SZSArchive.verifyWithoutSignature(manifestURL: manifestURL, payloadRoot: payloadRoot, allowNewerVersion: true)
+        }
     }
 
     /// 内层 archive 若是加密包（`.gpg` 后缀）→ 走 `SIZArchive.decryptInnerArchive`；否则原样返回。

@@ -762,7 +762,7 @@ struct ContentView: View {
     private func handleSZSOpen(_ url: URL) {
         Task {
             do {
-                let (signature, manifest) = try await SZSArchive.peek(manifestURL: url)
+                let (signature, manifest) = try await SignedContainerService.peekSZS(manifestURL: url)
                 await MainActor.run {
                     pendingSZSVerification = SZSPendingVerification(
                         sourceURL: url,
@@ -789,12 +789,12 @@ struct ContentView: View {
                 let manifest: SZSArchive.Manifest
                 let report: SZSArchive.VerifyReport
                 if AppPreferences.gpgEnabled {
-                    (signature, manifest) = try await SZSArchive.peek(manifestURL: url)
-                    report = try await SZSArchive.verify(manifestURL: url, payloadRoot: payloadRoot)
+                    (signature, manifest) = try await SignedContainerService.peekSZS(manifestURL: url)
+                    report = try await SignedContainerService.verifySZS(manifestURL: url, payloadRoot: payloadRoot)
                 } else {
                     // GPG 未启用（常见原因是 gpg 没装）：走不依赖 GPG 的明文路径 —— 抽明文 manifest + 只跑文件 SHA256。
                     // `.szs` 是注册文件类型，「以虚拟目录浏览」不该因为缺 GPG 而失败；签名状态在 gpgEnabled 关时本就被忽略。
-                    report = try SZSArchive.verifyWithoutSignature(manifestURL: url, payloadRoot: payloadRoot)
+                    report = try await SignedContainerService.verifySZSWithoutSignature(manifestURL: url, payloadRoot: payloadRoot)
                     manifest = report.manifest
                     signature = report.signature
                 }

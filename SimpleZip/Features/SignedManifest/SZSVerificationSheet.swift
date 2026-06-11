@@ -605,7 +605,7 @@ struct SZSVerificationSheet: View {
         verifyError = nil
         Task {
             do {
-                let result = try await SZSArchive.verify(
+                let result = try await SignedContainerService.verifySZS(
                     manifestURL: sourceURL,
                     payloadRoot: payloadRoot
                 )

@@ -283,7 +283,7 @@ enum SIZArchive {
 
     /// 把 `.siz` 拆开到指定目录，返回内层 archive URL + signature URL + 解析过的 metadata。
     /// 调用方应自己清理 destination（unwrap 用 caller 提供的目录，不自己起临时目录）。
-    static func unwrap(at sizURL: URL, to destination: URL) async throws -> UnwrapResult {
+    static func unwrap(at sizURL: URL, to destination: URL, allowNewerVersion: Bool = false) async throws -> UnwrapResult {
         let fileManager = FileManager.default
         if !fileManager.fileExists(atPath: destination.path) {
             try fileManager.createDirectory(at: destination, withIntermediateDirectories: true)
@@ -295,13 +295,7 @@ enum SIZArchive {
         let metadataURL = destination.appendingPathComponent(metadataFileName)
         let metadataData = try Data(contentsOf: metadataURL)
         let metadata = try JSONDecoder().decode(Metadata.self, from: metadataData)
-        guard metadata.schema == schemaIdentifier else {
-            throw SIZError.unexpectedSchema(metadata.schema)
-        }
-        // v2 / v3 都接受 —— 创建端总是写最新 schemaVersion，unwrap 端兼容历史版本。
-        guard acceptedSchemaVersions.contains(metadata.version) else {
-            throw SIZError.unexpectedSchema("\(metadata.schema) v\(metadata.version)")
-        }
+        try validateSchemaVersion(metadata, allowNewerVersion: allowNewerVersion)
         let innerName = try validatedInnerArchiveName(metadata.innerArchiveName)
         let signatureEntry = try requiredEntry(signatureFileName, in: entries)
         let innerEntry = try requiredEntry(innerName, in: entries)
@@ -367,7 +361,23 @@ enum SIZArchive {
 
     /// 仅检查容器结构是否合法 + 读 metadata，不真正解开内层 archive。
     /// 给「打开压缩包之前快速看签名信息」用 —— 比完整 unwrap 轻量。
-    static func peekMetadata(at sizURL: URL) async throws -> Metadata {
+    /// schema / version 校验。0.4.1 前向兼容：**版本过高**单独成错误（`versionTooNew`，带专属解释文案），
+    /// 跟「schema 不认识」区分开；`allowNewerVersion = true` 时放行更新版本（强制打开：未知新字段被
+    /// Codable 静默忽略 —— 尽力解码，签名 / 加密语义可能不完整,UI 层弹窗已向用户说明风险）。
+    private static func validateSchemaVersion(_ metadata: Metadata, allowNewerVersion: Bool) throws {
+        guard metadata.schema == schemaIdentifier else {
+            throw SIZError.unexpectedSchema(metadata.schema)
+        }
+        if acceptedSchemaVersions.contains(metadata.version) { return }
+        let maxSupported = acceptedSchemaVersions.max() ?? 0
+        if metadata.version > maxSupported {
+            if allowNewerVersion { return }
+            throw SIZError.versionTooNew(found: metadata.version, supported: maxSupported)
+        }
+        throw SIZError.unexpectedSchema("\(metadata.schema) v\(metadata.version)")
+    }
+
+    static func peekMetadata(at sizURL: URL, allowNewerVersion: Bool = false) async throws -> Metadata {
         let entries = try await validatedContainerEntries(at: sizURL)
         let metadataEntry = try requiredEntry(metadataFileName, in: entries)
         // tar -O 把指定文件内容打到 stdout，不解到磁盘。
@@ -379,12 +389,7 @@ enum SIZArchive {
             throw SIZError.missingContainerComponents
         }
         let metadata = try JSONDecoder().decode(Metadata.self, from: data)
-        guard metadata.schema == schemaIdentifier else {
-            throw SIZError.unexpectedSchema(metadata.schema)
-        }
-        guard acceptedSchemaVersions.contains(metadata.version) else {
-            throw SIZError.unexpectedSchema("\(metadata.schema) v\(metadata.version)")
-        }
+        try validateSchemaVersion(metadata, allowNewerVersion: allowNewerVersion)
         let innerName = try validatedInnerArchiveName(metadata.innerArchiveName)
         _ = try requiredEntry(signatureFileName, in: entries)
         _ = try requiredEntry(innerName, in: entries)
@@ -447,6 +452,8 @@ enum SIZArchive {
     enum SIZError: LocalizedError {
         case missingContainerComponents
         case unexpectedSchema(String)
+        /// 文件格式版本比本版 App 支持的还新（由更新版本的 SimpleZip 创建）。
+        case versionTooNew(found: Int, supported: Int)
         case missingInnerArchive(String)
         case invalidContainerEntry(String)
         case unexpectedContainerComponents(String)
@@ -457,6 +464,8 @@ enum SIZArchive {
                 return L10n.text("error.siz.missingComponents")
             case .unexpectedSchema(let schema):
                 return L10n.format("error.siz.unexpectedSchema", schema)
+            case .versionTooNew(let found, let supported):
+                return L10n.format("error.siz.versionTooNew", "\(found)", "\(supported)")
             case .missingInnerArchive(let name):
                 return L10n.format("error.siz.missingInnerArchive", name)
             case .invalidContainerEntry(let name):

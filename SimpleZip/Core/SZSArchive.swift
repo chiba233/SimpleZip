@@ -125,6 +125,8 @@ enum SZSArchive {
     enum SZSError: LocalizedError {
         case manifestParseFailed(String)
         case unexpectedSchema(String)
+        /// 文件格式版本比本版 App 支持的还新（由更新版本的 SimpleZip 创建）。
+        case versionTooNew(found: Int, supported: Int)
         case unsafeRelativePath(String)
         case fileOutsidePayloadRoot(String)
         case noFilesToSign
@@ -136,6 +138,8 @@ enum SZSArchive {
                 return L10n.format("error.szs.manifestParseFailed", reason)
             case .unexpectedSchema(let schema):
                 return L10n.format("error.szs.unexpectedSchema", schema)
+            case .versionTooNew(let found, let supported):
+                return L10n.format("error.szs.versionTooNew", "\(found)", "\(supported)")
             case .unsafeRelativePath(let path):
                 return L10n.format("error.szs.unsafeRelativePath", path)
             case .fileOutsidePayloadRoot(let path):
@@ -462,7 +466,8 @@ enum SZSArchive {
     static func verify(
         manifestURL: URL,
         payloadRoot: URL,
-        operationID: UUID? = nil
+        operationID: UUID? = nil,
+        allowNewerVersion: Bool = false
     ) async throws -> VerifyReport {
         // Step 1：gpg 校验签名（真伪 / 信任级别）。
         let signatureResult = try await GPGBackend.verifyClearsign(
@@ -475,7 +480,7 @@ enum SZSArchive {
         // 签名证明」警告，其续行是一条行首为空格的缩进指纹行（既非 `gpg: ` 也非 `[GNUPG:] `），会漏过
         // 明文前缀过滤器、混进 JSON 导致解析失败（勉强 / 完全 / 永不信任都会触发，只有终极信任不打这条警告）。
         // gpg 验的正是这段 armor 正文，直接解析它与 gpg 输出等价、且不受信任状态影响。
-        let manifest = try extractClearsignedManifest(manifestURL: manifestURL)
+        let manifest = try extractClearsignedManifest(manifestURL: manifestURL, allowNewerVersion: allowNewerVersion)
 
         // Step 3：每文件 SHA256 校验。
         let entries = checkFiles(manifest: manifest, payloadRoot: payloadRoot)
@@ -487,7 +492,8 @@ enum SZSArchive {
     /// 签名结果一起返回，UI 可以在「让用户选 payloadRoot」之前先显示「这份 .szs 是 chiba 签的，含 12 个文件」。
     static func peek(
         manifestURL: URL,
-        operationID: UUID? = nil
+        operationID: UUID? = nil,
+        allowNewerVersion: Bool = false
     ) async throws -> (signature: GPGBackend.GPGVerifyResult, manifest: Manifest) {
         // 签名结果来自 gpg；明文 manifest 直接解析 `.szs` 的 clearsigned armor（见 verify 中的说明：
         // 未达终极信任的密钥，其 gpg 警告续行会污染合并输出 → 解析失败，所以绕开 gpg 输出直接读文件）。
@@ -495,7 +501,7 @@ enum SZSArchive {
             signedURL: manifestURL,
             operationID: operationID
         ).verify
-        let manifest = try extractClearsignedManifest(manifestURL: manifestURL)
+        let manifest = try extractClearsignedManifest(manifestURL: manifestURL, allowNewerVersion: allowNewerVersion)
         return (signatureResult, manifest)
     }
 
@@ -509,7 +515,7 @@ enum SZSArchive {
     /// 取 `-----BEGIN PGP SIGNED MESSAGE-----` 之后的 armor header 块、跳过其后的空行，
     /// 收集到 `-----BEGIN PGP SIGNATURE-----` 之前的正文，并还原 dash-escape（行首 `- ` → 去掉）。
     /// JSON 解析对多余空白宽容，所以不需要逐字节复刻签名时的规范化。
-    static func extractClearsignedManifest(manifestURL: URL) throws -> Manifest {
+    static func extractClearsignedManifest(manifestURL: URL, allowNewerVersion: Bool = false) throws -> Manifest {
         let raw: String
         do {
             raw = try String(contentsOf: manifestURL, encoding: .utf8)
@@ -545,7 +551,7 @@ enum SZSArchive {
         guard let data = body.data(using: .utf8) else {
             throw SZSError.manifestParseFailed("cleartext not valid UTF-8")
         }
-        return try decodeManifest(from: data)
+        return try decodeManifest(from: data, allowNewerVersion: allowNewerVersion)
     }
 
     /// GPG 关闭时的浏览校验：不验签，只抽明文 manifest + 跑文件 SHA256。
@@ -553,8 +559,8 @@ enum SZSArchive {
     /// 返回的 `VerifyReport.signature` 用 `.verificationError`（带「GPG 未启用」文案）占位 ——
     /// 调用方（silent browse）在 `gpgEnabled == false` 时本就忽略签名状态、只看文件校验结果，
     /// 这个占位仅在用户主动点开「详情」时显示，明确告知「签名未校验，因为 GPG 未启用」。
-    static func verifyWithoutSignature(manifestURL: URL, payloadRoot: URL) throws -> VerifyReport {
-        let manifest = try extractClearsignedManifest(manifestURL: manifestURL)
+    static func verifyWithoutSignature(manifestURL: URL, payloadRoot: URL, allowNewerVersion: Bool = false) throws -> VerifyReport {
+        let manifest = try extractClearsignedManifest(manifestURL: manifestURL, allowNewerVersion: allowNewerVersion)
         let entries = checkFiles(manifest: manifest, payloadRoot: payloadRoot)
         return VerifyReport(
             signature: .verificationError(message: L10n.text("szs.signature.gpgDisabled")),
@@ -566,7 +572,7 @@ enum SZSArchive {
     // MARK: - 共享内部逻辑
 
     /// 解码 manifest JSON 字节 + 校验 schema / version。peek / verify / 明文路径共用。
-    private static func decodeManifest(from data: Data) throws -> Manifest {
+    private static func decodeManifest(from data: Data, allowNewerVersion: Bool = false) throws -> Manifest {
         let manifest: Manifest
         do {
             manifest = try JSONDecoder().decode(Manifest.self, from: data)
@@ -576,8 +582,17 @@ enum SZSArchive {
         guard manifest.schema == schemaIdentifier else {
             throw SZSError.unexpectedSchema(manifest.schema)
         }
-        guard acceptedSchemaVersions.contains(manifest.version) else {
-            throw SZSError.unexpectedSchema("\(manifest.schema) v\(manifest.version)")
+        if !acceptedSchemaVersions.contains(manifest.version) {
+            // 0.4.1 前向兼容：版本过高单独成错误（带「为什么打不开」专属文案）；
+            // allowNewerVersion = 强制打开（未知新字段被 Codable 忽略,尽力解码）。
+            let maxSupported = acceptedSchemaVersions.max() ?? 0
+            if manifest.version > maxSupported {
+                if !allowNewerVersion {
+                    throw SZSError.versionTooNew(found: manifest.version, supported: maxSupported)
+                }
+            } else {
+                throw SZSError.unexpectedSchema("\(manifest.schema) v\(manifest.version)")
+            }
         }
         return manifest
     }
