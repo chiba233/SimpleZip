@@ -664,6 +664,8 @@
 /* 0.4.3 archive write gate (per-archive write lock + external-change detection) */
 "error.archive.externallyModified" = "“%1$@” was modified by another app after it was opened — this change was not written, to avoid overwriting those edits. Refresh the archive and try again, or save your work as a copy.";
 "status.waitingForArchiveLock" = "Waiting for another task to finish writing this archive…";
+"error.insufficientDiskSpace" = "Not enough free disk space: this operation needs about %1$@, but only %2$@ is available. Free up space (or empty the Trash) and try again.";
+"extract.preflight.lowSpace" = "Destination volume may be too small — extraction needs at least about %1$@, only %2$@ free";
 "security.report.clean" = "No suspicious entries found";
 "security.report.clean.desc" = "Every listed path was checked for absolute paths, “..” traversal, drive letters, UNC and backslash paths, control or bidirectional-override characters, overlong paths, setuid bits, outward-pointing symlinks, and case collisions — nothing was flagged.";
 "security.kind.absolutePath" = "Absolute paths";

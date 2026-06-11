@@ -26,6 +26,8 @@ enum ArchiveError: LocalizedError {
     case passwordPromptExhausted
     /// 0.4.3 #3:写回前发现归档在打开后被外部(Finder / 其他 App / 其他窗口进程)修改 —— 停止写入。
     case archiveExternallyModified(String)
+    /// 0.4.3 #4:磁盘空间预检不通过(needed = 估算需要,available = 当前剩余,均字节)。
+    case insufficientDiskSpace(needed: Int64, available: Int64)
     case commandFailed(String)
 
     var errorDescription: String? {
@@ -62,6 +64,12 @@ enum ArchiveError: LocalizedError {
             return L10n.text("error.passwordPromptExhausted")
         case .archiveExternallyModified(let name):
             return L10n.format("error.archive.externallyModified", name)
+        case .insufficientDiskSpace(let needed, let available):
+            return L10n.format(
+                "error.insufficientDiskSpace",
+                ByteCountFormatter.string(fromByteCount: needed, countStyle: .file),
+                ByteCountFormatter.string(fromByteCount: available, countStyle: .file)
+            )
         case .commandFailed(let message):
             return message.trimmingCharacters(in: .whitespacesAndNewlines)
         }

@@ -100,6 +100,10 @@ enum ZipArchiveComment {
         let location = try locateEndOfCentralDirectory(at: url)
 
         let fileManager = FileManager.default
+        // 0.4.3 #4:空间预检 —— 同目录整包副本,需要 ~1x 包大小。
+        if let size = ((try? fileManager.attributesOfItem(atPath: url.path))?[.size] as? NSNumber)?.int64Value {
+            try DiskSpacePreflight.ensure(estimatedBytes: size, at: url.deletingLastPathComponent())
+        }
         // 临时副本放归档同目录（同卷才能 `replaceItemAt` 原子替换），隐藏名 + UUID 防撞。
         let temporary = url.deletingLastPathComponent()
             .appendingPathComponent(".\(url.lastPathComponent).simplezip-comment-\(UUID().uuidString).tmp")

@@ -20,6 +20,9 @@ struct ExtractArchiveOptionsView: View {
     @State private var preflight: ArchiveExtractPreflight?
     @State private var preflightTopLevelNames: [String] = []
     @State private var preflightUnavailable = false
+    /// 0.4.3 #4:目标卷剩余空间不足时的警示(needed/available 已格式化)。nil = 空间够 / 未知。
+    /// 预计大小是**下限**(后端没报大小的条目按 0 计),所以只警示不硬拦 —— 用户可换目标卷再解。
+    @State private var lowSpaceWarning: (needed: String, available: String)?
     @State private var overwriteCount = 0
     @State private var missingVolumeCount = 0
 
@@ -105,6 +108,15 @@ struct ExtractArchiveOptionsView: View {
                 if preflight.encryptedEntryCount > 0 {
                     preflightCaption("extract.preflight.encrypted", "\(preflight.encryptedEntryCount)", icon: "key.fill", tint: .secondary)
                 }
+                if let lowSpaceWarning {
+                    Label(
+                        L10n.format("extract.preflight.lowSpace", lowSpaceWarning.needed, lowSpaceWarning.available),
+                        systemImage: "externaldrive.fill.badge.exclamationmark"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .padding(.leading, 2)
+                }
                 if overwriteCount > 0 {
                     preflightCaption("extract.preflight.overwrite", "\(overwriteCount)", icon: "exclamationmark.triangle.fill", tint: .orange)
                 }
@@ -158,6 +170,21 @@ struct ExtractArchiveOptionsView: View {
         overwriteCount = preflightTopLevelNames.filter {
             FileManager.default.fileExists(atPath: destination.appendingPathComponent($0).path)
         }.count
+        recomputeLowSpaceWarning()
+    }
+
+    /// 0.4.3 #4:目标卷剩余 < 预计解出大小 → 橙色警示「至少需要约 X,当前剩余 Y」。
+    private func recomputeLowSpaceWarning() {
+        guard let preflight, preflight.totalBytes > 0,
+              let available = DiskSpacePreflight.availableCapacity(at: request.destinationURL),
+              available < preflight.totalBytes else {
+            lowSpaceWarning = nil
+            return
+        }
+        lowSpaceWarning = (
+            needed: ByteCountFormatter.string(fromByteCount: preflight.totalBytes, countStyle: .file),
+            available: ByteCountFormatter.string(fromByteCount: available, countStyle: .file)
+        )
     }
 
     private func computeMissingVolumes() {

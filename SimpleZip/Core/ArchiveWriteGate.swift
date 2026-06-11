@@ -89,6 +89,27 @@ public actor ArchiveWriteLock {
     }
 }
 
+/// 0.4.3 #4:磁盘空间预检。「复制原包 → 工作副本 → 原子替换」族操作需要约 2~3 倍原包的
+/// 空间;不足时后端会以各种难懂的方式半途失败 —— 开工前显式拦截,
+/// 报错明确给出「至少需要约 X,当前剩余 Y」。
+public enum DiskSpacePreflight {
+    /// url 所在卷的可用容量(importantUsage 口径:含系统可清除空间,与 Finder 显示一致)。
+    /// 取不到(罕见)返回 nil —— 调用方不拦截,宁可放行也不误杀。
+    public static func availableCapacity(at url: URL) -> Int64? {
+        let values = try? url.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
+        return values?.volumeAvailableCapacityForImportantUsage
+    }
+
+    /// 确保 url 所在卷至少有 estimatedBytes 可用,否则抛 `insufficientDiskSpace`。
+    /// estimatedBytes <= 0(未知大小)或容量读不到 → 不检查。
+    public static func ensure(estimatedBytes: Int64, at url: URL) throws {
+        guard estimatedBytes > 0, let available = availableCapacity(at: url) else { return }
+        if available < estimatedBytes {
+            throw ArchiveError.insufficientDiskSpace(needed: estimatedBytes, available: available)
+        }
+    }
+}
+
 public extension Notification.Name {
     /// 某归档刚被安全写回(原子替换完成)。打开同一归档的其他窗口 / 标签页应刷新列表。
     /// userInfo["path"] = 标准化路径。主线程派发。

@@ -662,6 +662,8 @@
 /* 0.4.3 归档写入闸门(同包写锁 + 外部改动检测) */
 "error.archive.externallyModified" = "「%1$@」在打开后被其他 App 修改过——为避免覆盖那些改动，本次写入已停止。请刷新归档后重试，或把你的修改另存为副本。";
 "status.waitingForArchiveLock" = "正在等待另一个任务写完此归档…";
+"error.insufficientDiskSpace" = "磁盘空间不足：本操作至少需要约 %1$@，当前仅剩 %2$@。请清理空间（或清倒废纸篓）后重试。";
+"extract.preflight.lowSpace" = "目标卷空间可能不够——解压至少需要约 %1$@，当前仅剩 %2$@";
 "security.report.clean" = "未发现可疑条目";
 "security.report.clean.desc" = "已检查全部条目路径：绝对路径、“..” 逃逸、盘符、UNC 与反斜杠路径、控制及双向覆盖字符、超长路径、setuid 位、外指符号链接、大小写冲突——均未命中。";
 "security.kind.absolutePath" = "绝对路径";

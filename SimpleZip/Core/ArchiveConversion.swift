@@ -48,6 +48,12 @@ enum ArchiveConversion {
         try fileManager.createDirectory(at: workDir, withIntermediateDirectories: true)
         defer { try? fileManager.removeItem(at: workDir) }
 
+        // 0.4.3 #4:空间预检 —— 临时卷要装下解压展开(常见 1~2x 源包)+ 重压中间产物,按 3x 源包估;
+        // 目标卷按 1x 源包估(输出同数量级)。「约」估算:拦下绝大多数写一半的神秘失败。
+        let sourceSize = (((try? fileManager.attributesOfItem(atPath: request.sourceURL.path))?[.size] as? NSNumber)?.int64Value) ?? 0
+        try DiskSpacePreflight.ensure(estimatedBytes: sourceSize * 3, at: workDir)
+        try DiskSpacePreflight.ensure(estimatedBytes: sourceSize, at: request.destinationURL.deletingLastPathComponent())
+
         // 1) 解压源 → 临时目录（带安全校验）。
         progress(ArchiveProgressState(fraction: nil, currentFile: nil, statusText: L10n.text("convert.status.extracting")))
         try await ArchiveService.extract(

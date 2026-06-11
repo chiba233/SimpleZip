@@ -74,6 +74,14 @@ extension ArchiveService {
         try expectedStamp?.ensureUnchanged(at: archiveURL)
         let preWorkStamp = try FileStateStamp.capture(archiveURL)
 
+        // 0.4.3 #4:空间预检 —— 临时卷要装下「原包副本 + 7zz 重写中间产物 + 新增内容」(~2x 包 + 新增),
+        // 目标卷要装下跨卷原子替换的落地拷贝(~1x 包 + 新增)。不足时开工前拦截,而不是写一半神秘失败。
+        let additionsBytes = additions.reduce(Int64(0)) { sum, addition in
+            sum + ((try? FileStateStamp.capture(addition.sourceFile).size) ?? 0)
+        }
+        try DiskSpacePreflight.ensure(estimatedBytes: preWorkStamp.size * 2 + additionsBytes, at: fm.temporaryDirectory)
+        try DiskSpacePreflight.ensure(estimatedBytes: preWorkStamp.size + additionsBytes, at: archiveURL.deletingLastPathComponent())
+
         // 全程在系统临时目录的隔离子目录里干活,结束即清(成功 / 失败都清)。
         let staging = fm.temporaryDirectory
             .appendingPathComponent("SimpleZip-EntryUpdate-\(UUID().uuidString)", isDirectory: true)
@@ -153,6 +161,10 @@ extension ArchiveService {
         try expectedStamp?.ensureUnchanged(at: archiveURL)
         let preWorkStamp = try FileStateStamp.capture(archiveURL)
 
+        // 0.4.3 #4:空间预检(语义见 addOrReplaceEntries;本操作无新增内容)。
+        try DiskSpacePreflight.ensure(estimatedBytes: preWorkStamp.size * 2, at: fm.temporaryDirectory)
+        try DiskSpacePreflight.ensure(estimatedBytes: preWorkStamp.size, at: archiveURL.deletingLastPathComponent())
+
         let staging = fm.temporaryDirectory
             .appendingPathComponent("SimpleZip-EntryDelete-\(UUID().uuidString)", isDirectory: true)
         try fm.createDirectory(at: staging, withIntermediateDirectories: true)
@@ -213,6 +225,10 @@ extension ArchiveService {
         defer { ArchiveWriteLock.shared.scheduleRelease(archiveURL) }
         try expectedStamp?.ensureUnchanged(at: archiveURL)
         let preWorkStamp = try FileStateStamp.capture(archiveURL)
+
+        // 0.4.3 #4:空间预检(语义见 addOrReplaceEntries;本操作无新增内容)。
+        try DiskSpacePreflight.ensure(estimatedBytes: preWorkStamp.size * 2, at: fm.temporaryDirectory)
+        try DiskSpacePreflight.ensure(estimatedBytes: preWorkStamp.size, at: archiveURL.deletingLastPathComponent())
 
         let staging = fm.temporaryDirectory
             .appendingPathComponent("SimpleZip-EntryRename-\(UUID().uuidString)", isDirectory: true)
@@ -277,6 +293,10 @@ extension ArchiveService {
         defer { ArchiveWriteLock.shared.scheduleRelease(archiveURL) }
         try expectedStamp?.ensureUnchanged(at: archiveURL)
         let preWorkStamp = try FileStateStamp.capture(archiveURL)
+
+        // 0.4.3 #4:空间预检(语义见 addOrReplaceEntries;本操作无新增内容)。
+        try DiskSpacePreflight.ensure(estimatedBytes: preWorkStamp.size * 2, at: fm.temporaryDirectory)
+        try DiskSpacePreflight.ensure(estimatedBytes: preWorkStamp.size, at: archiveURL.deletingLastPathComponent())
 
         let staging = fm.temporaryDirectory
             .appendingPathComponent("SimpleZip-EntryRename-\(UUID().uuidString)", isDirectory: true)
