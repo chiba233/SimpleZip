@@ -4,6 +4,7 @@
 
 ## 0.4.1
 
+- **New: convert archives to another format.** Right-click one or more archives → Convert Format… picks a target format / level / optional password and repacks each via the Activity Center (extract → repack; the bundled 7-Zip has no single-step convert).
 - **UI: more dialogs adopt the modern shell.** Encrypt-to-GPG, Create Signed Manifest, the .siz/.szs double-click verification views, and the Settings default-compression editor now all use the same hero header + grouped section cards + bar footer as the create/extract dialogs.
 - **Security: hardened external-tool arguments.** Archive entry names (untrusted input from a crafted archive) and source filenames are now separated from 7-Zip switches with a `--` end-of-options marker, so a file or entry named like a `-switch` can no longer be interpreted as one. Archive-edit passwords (add/delete/rename) no longer appear on the 7-Zip command line — they go through the same PTY-prompt channel as every other operation, so they're never visible in the process list. Untrusted disk images mount with ownership disabled (`-owners off`), neutralizing setuid/forged-owner tricks.
 - **New: archive-level comments are shown.** ZIP/RAR archives that carry a whole-archive comment now display it in a banner above the file list (read-only — the bundled 7-Zip has no comment-writing flag).

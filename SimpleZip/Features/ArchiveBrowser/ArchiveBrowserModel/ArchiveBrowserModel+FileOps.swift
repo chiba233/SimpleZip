@@ -505,6 +505,74 @@ extension ArchiveBrowserModel {
         }
     }
 
+    // MARK: - #112 批量格式转换（extract → repack，引擎在 Core/ArchiveConversion）
+
+    /// 选中的归档文件是否都可转换（是 ArchiveService 支持的归档类型）。菜单据此显隐「转换格式…」。
+    var canConvertSelectedArchives: Bool {
+        guard case .folder = mode, !selectedFileItems.isEmpty else { return false }
+        return selectedFileItems.allSatisfy { !$0.isDirectory && ArchiveService.isSupportedArchive($0.url) }
+    }
+
+    /// 右键「转换格式…」：弹确认 sheet（选目标格式 / 级别 / 可选密码），确认后批量转换。
+    func requestConvertSelectedArchives() {
+        guard canConvertSelectedArchives else { return }
+        convertArchiveRequest = ConvertArchiveRequest(sourceURLs: selectedFileItems.map(\.url))
+    }
+
+    /// 执行批量转换：逐个源走 `ArchiveConversion.convert`，每个一条可取消的活动中心任务。
+    /// 目标落在源同目录，文件名避让重名（UniqueFileName）。失败 / 取消逐项独立,不影响其它。
+    func performConversion(_ request: ConvertArchiveRequest) {
+        for sourceURL in request.sourceURLs {
+            let baseName = sourceURL.deletingPathExtension().lastPathComponent
+            let destination = UniqueFileName.numbered(
+                in: sourceURL.deletingLastPathComponent(),
+                preferredName: "\(baseName).\(request.targetFormat.pathExtension)",
+                exists: { fileManager.fileExists(atPath: $0.path) }
+            )
+            var options = ArchiveCreationOptions()
+            options.format = request.targetFormat
+            options.compressionLevel = request.compressionLevel
+            options.password = request.password
+            options.passwordConfirmation = request.password
+
+            let convertRequest = ArchiveConversionRequest(
+                sourceURL: sourceURL,
+                sourcePassword: resolvedArchivePassword,
+                targetOptions: options,
+                destinationURL: destination
+            )
+            let title = L10n.format("convert.task.title", sourceURL.lastPathComponent, request.targetFormat.title)
+            let operationTask = beginFileTask(kind: .convert, title: title, detail: destination.lastPathComponent, total: 1, cancellable: true)
+            let operationID = UUID()
+            operationTask.cancel = { BackendProcessRunner.cancelRunningCommand(operationID: operationID) }
+
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                do {
+                    try await ArchiveConversion.convert(
+                        convertRequest,
+                        operationID: operationID,
+                        progress: { state in
+                            Task { @MainActor in operationTask.progress = state }
+                        }
+                    )
+                    operationTask.transferLog = [
+                        TransferLogEntry(name: destination.lastPathComponent, action: .added, isDirectory: false)
+                    ]
+                    TaskCenter.shared.finish(operationTask, outcome: .succeeded(destination))
+                    SystemSound.operationComplete?.play()
+                    self.reload()
+                } catch is CancellationError {
+                    TaskCenter.shared.finish(operationTask, outcome: .cancelled)
+                } catch {
+                    self.errorMessage = error.localizedDescription
+                    TaskCenter.shared.finish(operationTask, outcome: .failed(error.localizedDescription))
+                }
+            }
+        }
+        status = L10n.format("convert.status.started", "\(request.sourceURLs.count)")
+    }
+
     // MARK: - 拆分 / 合并分卷（字节级，对齐官方 7-Zip 的 Split / Combine；引擎在 Core/FileSplitCombine）
 
     /// 右键「拆分…」：单选非目录文件 → 弹卷大小 sheet（确认后走 `performSplit`）。

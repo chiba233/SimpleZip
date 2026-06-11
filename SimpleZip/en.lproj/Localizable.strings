@@ -749,6 +749,16 @@
 "search.prompt" = "Search";
 "search.filter.menu" = "Filter";
 "convert.status.extracting" = "Extracting source…";
+"file.convert.menuItem" = "Convert Format…";
+"convert.title" = "Convert Format";
+"convert.subtitle" = "Convert %@ archive(s) to another format";
+"convert.section.target" = "Target Format";
+"convert.section.sources" = "Archives";
+"convert.password.placeholder" = "Optional output password";
+"convert.note" = "Conversion extracts each archive to a temporary folder, then repacks it in the chosen format.";
+"convert.button" = "Convert";
+"convert.task.title" = "Converting %1$@ to %2$@";
+"convert.status.started" = "Converting %@ archive(s)…";
 "convert.status.repacking" = "Repacking…";
 "convert.error.empty" = "The source archive is empty.";
 "search.filter.kind" = "Kind";
@@ -1317,6 +1327,8 @@
 "file.encrypt.gpg" = "Encrypt to .gpg…";
 "gpgEncrypt.title" = "Encrypt to GPG";
 "gpgEncrypt.section.recipients" = "Recipients & Passphrase";
+"gpgEncrypt.section.mode" = "Mode";
+"gpgEncrypt.section.passphrase" = "Passphrase";
 "gpgEncrypt.sourceSummary" = "Encrypting %@ selected item(s) to a .gpg file next to them.";
 "gpgEncrypt.description" = "A single file becomes name.gpg; folders or multiple items are packed into one .tar first, then encrypted to name.tar.gpg. Choose recipient public keys, a passphrase, or both — anyone with a recipient's private key or the passphrase can decrypt it. SimpleZip never manages your GPG private-key passphrase.";
 "gpgEncrypt.button" = "Encrypt";

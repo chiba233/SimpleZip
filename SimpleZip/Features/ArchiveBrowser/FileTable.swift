@@ -842,6 +842,10 @@ struct FileNSOutlineView: NSViewRepresentable {
                 }
                 menu.addItem(menuItem(L10n.text("file.split.menuItem"), systemImage: "rectangle.split.2x1", action: #selector(splitFileSelected)))
             }
+            // #112 转换格式：选中项全是支持的归档时出现，弹格式选择 sheet 批量转换。
+            if model.canConvertSelectedArchives {
+                menu.addItem(menuItem(L10n.text("file.convert.menuItem"), systemImage: "arrow.triangle.2.circlepath", action: #selector(convertArchivesSelected)))
+            }
             menu.addItem(menuItem(L10n.text("file.makeSymlink"), systemImage: "link", action: #selector(makeSymbolicLinkSelected)))
             menu.addItem(menuItem(L10n.text("file.copy"), systemImage: "doc.on.doc", action: #selector(copySelected)))
             menu.addItem(menuItem(L10n.text("file.cut"), systemImage: "scissors", action: #selector(cutSelected)))
@@ -1067,6 +1071,10 @@ struct FileNSOutlineView: NSViewRepresentable {
 
         @objc private func combineVolumesSelected() {
             model.combineSelectedVolumes()
+        }
+
+        @objc private func convertArchivesSelected() {
+            model.requestConvertSelectedArchives()
         }
 
         @objc private func removeFromTagSelected() {

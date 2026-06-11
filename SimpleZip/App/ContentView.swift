@@ -356,6 +356,14 @@ struct ContentView: View {
                 model.fileSplitRequest = nil
             }
         }
+        .sheet(item: $model.convertArchiveRequest) { request in
+            ConvertArchiveSheet(request: request) { confirmed in
+                model.convertArchiveRequest = nil
+                model.performConversion(confirmed)
+            } cancel: {
+                model.convertArchiveRequest = nil
+            }
+        }
         .sheet(item: $pendingSZSVerification) { pending in
             SZSVerificationSheet(
                 sourceURL: pending.sourceURL,

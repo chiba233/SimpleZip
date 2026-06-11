@@ -747,6 +747,16 @@
 "search.prompt" = "搜索";
 "search.filter.menu" = "过滤";
 "convert.status.extracting" = "正在解压源…";
+"file.convert.menuItem" = "转换格式…";
+"convert.title" = "转换格式";
+"convert.subtitle" = "把 %@ 个压缩包转换为其它格式";
+"convert.section.target" = "目标格式";
+"convert.section.sources" = "压缩包";
+"convert.password.placeholder" = "可选 · 输出密码";
+"convert.note" = "转换会先把每个压缩包解压到临时目录,再以所选格式重新打包。";
+"convert.button" = "转换";
+"convert.task.title" = "正在把 %1$@ 转换为 %2$@";
+"convert.status.started" = "正在转换 %@ 个压缩包…";
 "convert.status.repacking" = "正在重新打包…";
 "convert.error.empty" = "源压缩包是空的。";
 "search.filter.kind" = "类型";
@@ -1317,6 +1327,8 @@
 "file.encrypt.gpg" = "加密为 .gpg…";
 "gpgEncrypt.title" = "加密为 GPG";
 "gpgEncrypt.section.recipients" = "收件人与密码";
+"gpgEncrypt.section.mode" = "方式";
+"gpgEncrypt.section.passphrase" = "对称密码";
 "gpgEncrypt.sourceSummary" = "把选中的 %@ 个项目加密成它们旁边的 .gpg 文件。";
 "gpgEncrypt.description" = "单个文件会变成 name.gpg；文件夹或多选会先打包成一个 .tar 再加密成 name.tar.gpg。可选收件人公钥、对称密码或两者皆选——任一收件人的私钥或该密码都能解密。SimpleZip 从不经手你的 GPG 私钥 passphrase。";
 "gpgEncrypt.button" = "加密";

@@ -353,6 +353,8 @@ struct ActivityTaskRow: View {
             return "rectangle.split.2x1"
         case .combine:
             return "arrow.triangle.merge"
+        case .convert:
+            return "arrow.triangle.2.circlepath"
         }
     }
 

@@ -83,21 +83,23 @@ struct GPGEncryptOptionsView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    DialogSection(L10n.text("gpgEncrypt.section.recipients")) {
-                        // 多选 / 含文件夹才有意义：逐个文件分别加密 vs 打包成一个归档再加密。
-                        if showsModePicker {
-                            LabeledContent {
-                                Picker("", selection: $request.perFile) {
-                                    Text(L10n.text("gpgEncrypt.mode.perFile")).tag(true)
-                                    Text(L10n.text("gpgEncrypt.mode.bundle")).tag(false)
-                                }
-                                .labelsHidden()
-                                .fixedSize()
-                            } label: {
-                                Label(L10n.text("gpgEncrypt.mode.label"), systemImage: "doc.on.doc.fill")
+                    // 多选 / 含文件夹才有意义：逐个文件分别加密 vs 打包成一个归档再加密。
+                    if showsModePicker {
+                        DialogSection(L10n.text("gpgEncrypt.section.mode")) {
+                            Picker("", selection: $request.perFile) {
+                                Label(L10n.text("gpgEncrypt.mode.perFile"), systemImage: "doc.on.doc").tag(true)
+                                Label(L10n.text("gpgEncrypt.mode.bundle"), systemImage: "shippingbox").tag(false)
                             }
+                            .labelsHidden()
+                            .pickerStyle(.radioGroup)
                         }
+                    }
+                    // 收件人公钥单独成卡 —— 内含「添加菜单 + chip 行」，挤在别的控件旁边会重叠（用户报间距问题）。
+                    DialogSection(L10n.text("gpgEncrypt.section.recipients")) {
                         recipientsRow
+                    }
+                    // 对称密码 + 说明单独成卡。
+                    DialogSection(L10n.text("gpgEncrypt.section.passphrase")) {
                         encryptionPassphraseRow
                         Text(L10n.text("gpgEncrypt.description"))
                             .font(.caption2)
@@ -166,13 +168,13 @@ struct GPGEncryptOptionsView: View {
 
     @ViewBuilder
     private var recipientsRow: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
                 Label(L10n.text("archive.gpgEncrypt.recipientsLabel"), systemImage: "person.2.fill")
-                    .font(.caption.weight(.medium))
+                    .font(.callout.weight(.medium))
                     .foregroundStyle(.secondary)
-                GPGAddRecipientMenu(eligibleKeys: encryptionEligibleKeys, selection: $request.recipientFingerprints)
                 Spacer()
+                GPGAddRecipientMenu(eligibleKeys: encryptionEligibleKeys, selection: $request.recipientFingerprints)
             }
             GPGRecipientChipRow(selection: $request.recipientFingerprints, lookupKeys: availableKeys)
         }

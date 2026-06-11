@@ -125,6 +125,8 @@ final class ArchiveBrowserModel: ObservableObject {
     @Published var archiveDiffReport: ArchiveDiffReport?
     /// 右键「拆分…」的待确认请求 —— 非 nil 时 ContentView 弹 FileSplitSheet。
     @Published var fileSplitRequest: FileSplitRequest?
+    /// #112 批量格式转换确认 sheet 的载荷（非 nil 时弹 ConvertArchiveSheet）。
+    @Published var convertArchiveRequest: ConvertArchiveRequest?
     @Published var operationProgress = ArchiveProgressState()
     /// 0.1.10 拆文件前是 `private(set)`，但 setter 现在跑在 +OperationLifecycle extension 里，
     /// `private(set)` 会拒绝 extension 写入；降到默认 internal(set) —— 模块内可读写。

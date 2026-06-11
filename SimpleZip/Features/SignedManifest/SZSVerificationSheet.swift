@@ -122,20 +122,16 @@ struct SZSVerificationSheet: View {
         .onAppear { verifyNow() }
     }
 
-    /// 签名者细节（fingerprint / 签名者名）—— 从原 signatureBlock 拆出状态印章后剩下的部分。
+    /// 签名者细节（签名者名 / fingerprint / 源文件）—— 用对齐的 label+value 行，跟 manifest 块同一风格,
+    /// 不再把名字 / 公钥指纹各甩一行裸 Text（用户报「邮箱和公钥不在同一行太丑」）。
     @ViewBuilder
     private var signerDetailBlock: some View {
         VStack(alignment: .leading, spacing: 4) {
             if let signerLine = extractSignerLine() {
-                Text(signerLine)
-                    .font(.callout.weight(.medium))
-                    .textSelection(.enabled)
+                infoRow(L10n.text("siz.signatureSheet.signer"), signerLine)
             }
             if let fp = extractFingerprint() {
-                Text(fp)
-                    .font(.system(.caption, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .textSelection(.enabled)
+                infoRow(L10n.text("siz.signatureSheet.keyFingerprint"), fp, monospaced: true)
             }
             infoRow(L10n.text("siz.signatureSheet.source"), sourceURL.path, monospaced: true)
         }
