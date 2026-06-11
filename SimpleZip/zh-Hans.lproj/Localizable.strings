@@ -889,6 +889,8 @@
 "help.topic.create.title" = "创建压缩包";
 "help.topic.create.body" = "• 选中文件 →「添加到压缩包」。可以套模板（GitHub Release、最大压缩 7z、加密投递…），也可以全手调。\n• 排除规则可预览：打包前看清哪些文件会被跳过。\n• 「创建前预检」抽屉提前统计文件数与大小，输出重名即时提醒。";
 "help.topic.edit.title" = "归档内编辑";
+"help.topic.metadata.title" = "macOS 元数据：进了压缩包还剩什么";
+"help.topic.metadata.body" = "• Unix 权限（读/写/执行位）在 ZIP、7z、tar 里都保留——已用内置引擎实测往返。\n• 扩展属性——Finder 标签、com.apple.quarantine、resource fork、自定义 xattr——**tar / tar.gz 完整保留**（系统 tar 负责存取，连隔离标记都会原样还原），但 SimpleZip 创建的 **ZIP 和 7z 不保留**：7-Zip 引擎不存这些。\n• Finder「归档实用工具」打的 ZIP 把 mac 元数据存成 __MACOSX / ._AppleDouble 条目。SimpleZip 的「清理 macOS 元数据」删的正是这些条目——跨平台分享很有用，但代价是有意丢弃那些文件的 mac 元数据。\n• 修改时间各格式都存（「可复现压缩」选项会刻意去掉）；创建时间、访问时间和 ACL 任何格式都不承诺保留。\n• 经验法则：发给其他 Mac → tar.gz 什么都在；发给全世界 → ZIP + 清理垃圾。";
 "help.topic.edit.body" = "• 可写的 ZIP / 7z 支持拖入、重命名、删除、批量重命名——全部先在副本上做、原子替换，失败绝不弄坏原包。\n• ZIP 的归档级注释可从横幅或空白区右键直接编辑。\n• 任意条目可快速预览，或单独「保存副本到…」而不用解压整包。";
 "help.topic.search.title" = "搜索、过滤与比较";
 "help.topic.search.body" = "• 搜索框认 token 语法：*.swift size:>1MB encrypted:true modified:<7d regex:…\n• 常用过滤可保存；一键预设涵盖加密、大文件、最近修改、可疑路径。\n• 比较两个压缩包——或拿文件夹跟压缩包比——差异可导出 JSON / CSV / Markdown。\n• 「查找重复文件」按 大小 + CRC 找出内容相同的条目。";

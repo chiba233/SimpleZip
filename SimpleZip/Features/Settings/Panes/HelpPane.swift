@@ -27,6 +27,9 @@ private struct HelpTopic: Identifiable {
         HelpTopic(key: "extract", systemImage: "arrow.down.doc", colors: [.green, .teal]),
         HelpTopic(key: "create", systemImage: "plus.square.on.square", colors: [.orange, .yellow]),
         HelpTopic(key: "edit", systemImage: "pencil.and.outline", colors: [.purple, .indigo]),
+        // 0.4.3 #9:macOS 元数据策略(xattr / quarantine / Finder 标签 / resource fork / 权限)——
+        // 内容逐条用捆绑 7zz 与系统 tar 实测过,改引擎行为时必须同步这页。
+        HelpTopic(key: "metadata", systemImage: "doc.badge.gearshape", colors: [.brown, .orange]),
         HelpTopic(key: "search", systemImage: "magnifyingglass", colors: [.pink, .orange]),
         HelpTopic(key: "sign", systemImage: "signature", colors: [.teal, .green]),
         HelpTopic(key: "tasks", systemImage: "list.bullet.rectangle", colors: [.gray, .blue])
