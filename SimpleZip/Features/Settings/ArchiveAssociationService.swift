@@ -7,6 +7,7 @@
 
 import AppKit
 import CoreServices
+import SwiftUI
 import UniformTypeIdentifiers
 
 /// 设置页里展示的一种可关联压缩包格式。
@@ -16,6 +17,29 @@ struct ArchiveAssociation: Identifiable, Hashable {
     let contentTypes: [String]
 
     var id: String { fileExtension }
+
+    /// 类别(0.4.3 用户拍板:文件关联按类分组、同类同色)。
+    enum Category {
+        case archive    // 常规压缩包 / 镜像
+        case simpleZip  // SimpleZip 专属格式
+        case volume     // 分卷
+
+        var tint: Color {
+            switch self {
+            case .archive: return .blue
+            case .simpleZip: return .green
+            case .volume: return .orange
+            }
+        }
+    }
+
+    var category: Category {
+        switch fileExtension {
+        case "siz", "szs": return .simpleZip
+        case "001", "z01", "r00": return .volume
+        default: return .archive
+        }
+    }
 }
 
 /// 默认打开方式服务：通过 Launch Services 将压缩包格式关联到当前 App。

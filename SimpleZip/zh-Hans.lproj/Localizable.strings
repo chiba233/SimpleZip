@@ -414,6 +414,9 @@
 "settings.rowDensity.loose" = "宽松";
 "settings.section.grouping" = "分组";
 "settings.grouping.description" = "把浏览列表按维度切成可折叠的区块。";
+"settings.association.group.archives" = "压缩包与磁盘镜像";
+"settings.association.group.simplezip" = "SimpleZip 专属格式";
+"settings.association.group.volumes" = "分卷";
 "settings.grouping.groupBy" = "分组方式";
 "settings.grouping.groupBy.file.description" = "文件列表默认按什么分组。";
 "settings.grouping.groupBy.archive.description" = "压缩包内条目按什么分组。";

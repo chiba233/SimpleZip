@@ -25,22 +25,25 @@ struct FileAssociationsPane: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                VStack(spacing: 0) {
-                    ForEach(ArchiveAssociationService.supportedAssociations) { association in
-                        FileAssociationRow(
-                            association: association,
-                            currentDefaultApp: associationStatus[association.id] ?? L10n.text("settings.association.loading"),
-                            isSimpleZipDefault: ArchiveAssociationService.isSimpleZipDefault(for: association)
-                        ) {
-                            setDefaultArchiveApp(for: association)
-                        }
-
-                        if association.id != ArchiveAssociationService.supportedAssociations.last?.id {
-                            Divider()
-                                .padding(.leading, 52)
-                        }
-                    }
-                }
+                // 0.4.3 用户拍板:按类别分组排布,同类同色(压缩包蓝 / SimpleZip 专属绿 / 分卷橙)。
+                associationGroup(
+                    titleKey: "settings.association.group.archives",
+                    systemImage: "doc.zipper",
+                    tint: .blue,
+                    category: .archive
+                )
+                associationGroup(
+                    titleKey: "settings.association.group.simplezip",
+                    systemImage: "checkmark.seal",
+                    tint: .green,
+                    category: .simpleZip
+                )
+                associationGroup(
+                    titleKey: "settings.association.group.volumes",
+                    systemImage: "square.stack.3d.down.right",
+                    tint: .orange,
+                    category: .volume
+                )
 
                 if let defaultAppMessage {
                     Text(defaultAppMessage)
@@ -57,6 +60,37 @@ struct FileAssociationsPane: View {
             defaultAppMessage = nil
             lastSucceededID = nil
             refresh()
+        }
+    }
+
+    /// 一个类别的分组:瓦片小标题 + 该类格式行(行内徽章用类别色,同类同色)。
+    @ViewBuilder
+    private func associationGroup(
+        titleKey: String,
+        systemImage: String,
+        tint: Color,
+        category: ArchiveAssociation.Category
+    ) -> some View {
+        let items = ArchiveAssociationService.supportedAssociations.filter { $0.category == category }
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 12) {
+                SettingsRowIcon(systemImage: systemImage, tint: tint)
+                Text(L10n.text(titleKey)).font(.headline)
+            }
+            .padding(.vertical, 6)
+
+            ForEach(items) { association in
+                FileAssociationRow(
+                    association: association,
+                    currentDefaultApp: associationStatus[association.id] ?? L10n.text("settings.association.loading"),
+                    isSimpleZipDefault: ArchiveAssociationService.isSimpleZipDefault(for: association)
+                ) {
+                    setDefaultArchiveApp(for: association)
+                }
+                if association.id != items.last?.id {
+                    Divider().padding(.leading, 48)
+                }
+            }
         }
     }
 
@@ -108,15 +142,15 @@ struct FileAssociationRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            // 与全设置同一套瓦片制度,但「图标」就是扩展名本身:彩色底 + 文字(用户拍板)。
+            // 与全设置同一套瓦片制度,但「图标」就是扩展名本身:彩色底 + 文字(用户拍板),同类同色。
             Text(association.fileExtension)
-                .font(.system(size: 9, weight: .bold, design: .rounded))
+                .font(.system(size: 10, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
                 .lineLimit(1)
                 .minimumScaleFactor(0.55)
                 .padding(.horizontal, 3)
-                .frame(width: 36, height: 22)
-                .background(tileColor, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                .frame(width: 38, height: 24)
+                .background(association.category.tint, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
                 .saturation(0.75)
 
             VStack(alignment: .leading, spacing: 3) {
@@ -141,14 +175,7 @@ struct FileAssociationRow: View {
                 }
             }
         }
-        .padding(.vertical, 8)
-        .controlSize(.small)
-    }
-
-    /// 扩展名 → 稳定配色(调色板同 GPG 头像;纯色平涂)。
-    private var tileColor: Color {
-        let palette: [Color] = [.blue, .purple, .pink, .orange, .teal, .indigo, .green, .cyan, .mint, .brown]
-        let sum = association.fileExtension.unicodeScalars.reduce(0) { $0 &+ Int($1.value) }
-        return palette[sum % palette.count]
+        // 0.4.3 用户点名「太紧凑」:行距放宽到新间距。
+        .padding(.vertical, 10)
     }
 }

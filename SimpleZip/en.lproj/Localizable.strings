@@ -414,6 +414,9 @@
 "settings.rowDensity.loose" = "Comfortable";
 "settings.section.grouping" = "Grouping";
 "settings.grouping.description" = "Group the browser list into collapsible sections.";
+"settings.association.group.archives" = "Archives & Disk Images";
+"settings.association.group.simplezip" = "SimpleZip Formats";
+"settings.association.group.volumes" = "Split Volumes";
 "settings.grouping.groupBy" = "Group items by";
 "settings.grouping.groupBy.file.description" = "How file listings are grouped.";
 "settings.grouping.groupBy.archive.description" = "How entries inside archives are grouped.";
