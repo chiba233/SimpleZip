@@ -912,6 +912,8 @@ struct GPGPane: View {
                         )
                     }
                 }
+                // 二级内容统一缩进,与其它折叠组同口径(用户点名「子项没做缩进」)。
+                .padding(.leading, 34)
             } label: {
                 // 高级抽屉头 = 一级,彩色瓦片(开启智能卡等内层行 = 二级,保持单色)。
                 HStack(spacing: 12) {

@@ -676,19 +676,11 @@ private struct WelcomeFileAssociationsStep: View {
                     setAllDefaults()
                 }
 
-                VStack(spacing: 0) {
-                    ForEach(ArchiveAssociationService.supportedAssociations) { association in
-                        FileAssociationRow(
-                            association: association,
-                            currentDefaultApp: associationStatus[association.id] ?? L10n.text("settings.association.loading"),
-                            isSimpleZipDefault: ArchiveAssociationService.isSimpleZipDefault(for: association)
-                        ) {
-                            setDefault(for: association)
-                        }
-                        if association.id != ArchiveAssociationService.supportedAssociations.last?.id {
-                            Divider().padding(.leading, 52)
-                        }
-                    }
+                // 与 设置 → 文件关联 同制度:按类分组、同类同色(类别色在 ArchiveAssociation.category 上)。
+                VStack(alignment: .leading, spacing: 0) {
+                    associationGroup(titleKey: "settings.association.group.archives", systemImage: "doc.zipper", tint: .blue, category: .archive)
+                    associationGroup(titleKey: "settings.association.group.simplezip", systemImage: "checkmark.seal", tint: .green, category: .simpleZip)
+                    associationGroup(titleKey: "settings.association.group.volumes", systemImage: "square.stack.3d.down.right", tint: .orange, category: .volume)
                 }
 
                 if let statusMessage {
@@ -700,6 +692,31 @@ private struct WelcomeFileAssociationsStep: View {
             }
         }
         .onAppear(perform: refresh)
+    }
+
+    /// 一个类别的分组(与 FileAssociationsPane 同构:瓦片小标题 + 类内行)。
+    @ViewBuilder
+    private func associationGroup(titleKey: String, systemImage: String, tint: Color, category: ArchiveAssociation.Category) -> some View {
+        let items = ArchiveAssociationService.supportedAssociations.filter { $0.category == category }
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 12) {
+                SettingsRowIcon(systemImage: systemImage, tint: tint)
+                Text(L10n.text(titleKey)).font(.headline)
+            }
+            .padding(.vertical, 6)
+            ForEach(items) { association in
+                FileAssociationRow(
+                    association: association,
+                    currentDefaultApp: associationStatus[association.id] ?? L10n.text("settings.association.loading"),
+                    isSimpleZipDefault: ArchiveAssociationService.isSimpleZipDefault(for: association)
+                ) {
+                    setDefault(for: association)
+                }
+                if association.id != items.last?.id {
+                    Divider().padding(.leading, 48)
+                }
+            }
+        }
     }
 
     private func setAllDefaults() {

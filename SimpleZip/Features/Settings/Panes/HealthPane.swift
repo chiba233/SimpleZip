@@ -58,7 +58,7 @@ struct HealthPane: View {
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
-                    Button(L10n.text("health.recheck"), action: refresh)
+                    Button(action: refresh) { Label(L10n.text("health.recheck"), systemImage: "arrow.clockwise") }
                         .disabled(isChecking)
                 }
             }
@@ -73,8 +73,8 @@ struct HealthPane: View {
                     if isBuildingDiagnostics {
                         ProgressView().controlSize(.small)
                     } else {
-                        Button(L10n.text("diagnostics.general.copy"), action: copyDiagnostics)
-                        Button(L10n.text("diagnostics.general.export"), action: exportDiagnostics)
+                        Button(action: copyDiagnostics) { Label(L10n.text("diagnostics.general.copy"), systemImage: "doc.on.doc") }
+                        Button(action: exportDiagnostics) { Label(L10n.text("diagnostics.general.export"), systemImage: "square.and.arrow.up") }
                     }
                     if let diagnosticsFeedback {
                         Label(diagnosticsFeedback, systemImage: "checkmark.circle.fill")
@@ -95,7 +95,7 @@ struct HealthPane: View {
                     if isClearingTemp {
                         ProgressView().controlSize(.small)
                     } else {
-                        Button(L10n.text("settings.tempFiles.clear"), action: clearTempFiles)
+                        Button(action: clearTempFiles) { Label(L10n.text("settings.tempFiles.clear"), systemImage: "trash") }
                             .disabled(tempBytes == 0 || isMeasuringTemp)
                     }
                 }

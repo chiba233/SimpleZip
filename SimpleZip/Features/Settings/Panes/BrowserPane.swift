@@ -32,7 +32,10 @@ struct BrowserPane: View {
 
     var body: some View {
         Form {
-            Section(L10n.text("settings.section.browser")) {
+            // 0.4.3 用户拍板:浏览器选项按主题拆成**独立 Form Section**(隐藏文件 / 展开与记忆 / 显示与结构,
+            // 同 通用 页的 通用/默认项/Finder集成 制度);冗余的「浏览器」section 标题砍掉,行 = 一级彩色瓦片。
+            // 明确不要抽屉、不要行内小标题(用户连续纠正后的最终形态)。
+            Section(L10n.text("settings.browser.group.hidden")) {
                 SettingsToggleRow(
                     title: L10n.text("settings.showHiddenFiles"),
                     description: L10n.text("settings.showHiddenFiles.description"),
@@ -91,12 +94,16 @@ struct BrowserPane: View {
                 }
                 .disabled(!showHiddenFiles)
 
-                SettingsToggleRow(
-                    title: L10n.text("settings.showSymbolicLinks"),
-                    description: L10n.text("settings.showSymbolicLinks.description"),
-                    systemImage: "link", iconTint: .orange,
-                    isOn: $showSymbolicLinks
-                )
+                hiddenSuffixHeader
+
+                if showsHiddenSuffixDrawer {
+                    hiddenSuffixDrawer
+                }
+
+            }
+
+            // 展开与记忆:原位展开 + 两个展开记忆。
+            Section(L10n.text("settings.browser.group.expansion")) {
                 SettingsToggleRow(
                     title: L10n.text("settings.folderInlineExpansion"),
                     description: L10n.text("settings.folderInlineExpansion.description"),
@@ -117,18 +124,23 @@ struct BrowserPane: View {
                     systemImage: "square.stack.3d.down.right", iconTint: .brown,
                     isOn: $rememberVolumeSetExpansion
                 )
+
+            }
+
+            // 显示与结构:符号链接 + Finder 结构跟随。
+            Section(L10n.text("settings.browser.group.display")) {
+                SettingsToggleRow(
+                    title: L10n.text("settings.showSymbolicLinks"),
+                    description: L10n.text("settings.showSymbolicLinks.description"),
+                    systemImage: "link", iconTint: .orange,
+                    isOn: $showSymbolicLinks
+                )
                 SettingsToggleRow(
                     title: L10n.text("settings.followFinderStructure"),
                     description: L10n.text("settings.followFinderStructure.description"),
                     systemImage: "sidebar.leading", iconTint: .cyan,
                     isOn: $followFinderStructure
                 )
-
-                hiddenSuffixHeader
-
-                if showsHiddenSuffixDrawer {
-                    hiddenSuffixDrawer
-                }
             }
         }
         .formStyle(.grouped)

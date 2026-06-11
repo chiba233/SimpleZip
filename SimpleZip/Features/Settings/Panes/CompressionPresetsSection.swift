@@ -69,8 +69,10 @@ struct CompressionDefaultsSection: View {
 
             Spacer()
 
-            Button(L10n.text("settings.presets.edit")) {
+            Button {
                 editorTarget = FormatPresetEditorTarget(preset: preset)
+            } label: {
+                Label(L10n.text("settings.presets.edit"), systemImage: "pencil")
             }
             .buttonStyle(.borderless)
             Button {
