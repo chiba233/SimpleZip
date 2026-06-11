@@ -357,3 +357,52 @@ struct ArchiveServiceArgumentsTests {
         #expect(try ArchiveService.normalizedSevenZipVolumeSize(from: "100B") == "100b")
     }
 }
+
+/// 0.4.2 #18/#19:排除预览列表 + 压缩前 dry run。
+struct ArchiveCreationDryRunTests {
+
+    private func makeTree() throws -> URL {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("SimpleZip-DryRunTests-\(UUID().uuidString)", isDirectory: true)
+        let src = root.appendingPathComponent("src", isDirectory: true)
+        try FileManager.default.createDirectory(at: src.appendingPathComponent("node_modules"), withIntermediateDirectories: true)
+        try Data("hello".utf8).write(to: src.appendingPathComponent("main.swift"))
+        try Data("dep".utf8).write(to: src.appendingPathComponent("node_modules/dep.js"))
+        try Data([0]).write(to: src.appendingPathComponent(".DS_Store"))
+        try FileManager.default.createSymbolicLink(
+            at: src.appendingPathComponent("link"),
+            withDestinationURL: src.appendingPathComponent("main.swift")
+        )
+        return root
+    }
+
+    @Test func excludedPreviewMatchesCount() throws {
+        let root = try makeTree()
+        defer { try? FileManager.default.removeItem(at: root) }
+        var options = ArchiveCreationOptions()
+        options.format = .zip
+        options.skipDSStore = true
+        options.customExcludes = "node_modules"
+        let sources = [root.appendingPathComponent("src")]
+        let preview = ArchiveService.excludedFilePreview(in: sources, options: options)
+        #expect(preview.count == ArchiveService.excludedFileCount(in: sources, options: options))
+        #expect(preview.contains { $0.hasSuffix(".DS_Store") })
+        #expect(preview.contains { $0.contains("node_modules") })
+    }
+
+    @Test func dryRunCountsInputsExclusionsSymlinksAndVolumes() throws {
+        let root = try makeTree()
+        defer { try? FileManager.default.removeItem(at: root) }
+        var options = ArchiveCreationOptions()
+        options.format = .sevenZip
+        options.skipDSStore = true
+        options.customExcludes = "node_modules"
+        options.sevenZipVolumeSize = "2b"
+        let summary = ArchiveService.dryRunSummary(sourceURLs: [root.appendingPathComponent("src")], options: options)
+        #expect(summary.inputFileCount == 1)         // 只剩 main.swift
+        #expect(summary.totalBytes == 5)
+        #expect(summary.excludedCount == 2)          // .DS_Store + dep.js
+        #expect(summary.symlinkCount == 1)
+        #expect(summary.estimatedVolumeCount == 3)   // 5B / 2B → 3 卷
+    }
+}

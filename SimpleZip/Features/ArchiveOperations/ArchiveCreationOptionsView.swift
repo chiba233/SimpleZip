@@ -11,6 +11,11 @@ import SwiftUI
 struct ArchiveCreationOptionsView: View {
     @State var request: ArchiveCreationRequest
     @State private var excludedFileCount: Int?
+    /// 0.4.2 #18：被排除文件的相对路径预览（跟 count 同一次扫描取回）。nil = 还没统计过。
+    @State private var excludedPreview: [String]?
+    /// 0.4.2 #19：压缩前预检结果。nil = 还没跑。
+    @State private var dryRun: ArchiveService.ArchiveCreationDryRun?
+    @State private var isRunningDryRun = false
     @State private var isCountingExcludedFiles = false
     /// 「使用预设密码」复选框的当前勾选状态。仅在用户在通用设置里启用了预设密码时显示。
     /// 默认勾选 —— 与「设置里开了 = 默认走预设」的用户预期一致。
@@ -124,6 +129,8 @@ struct ArchiveCreationOptionsView: View {
                         if request.options.format.supportsExcludeRules {
                             excludeDrawer
                         }
+                        // 0.4.2 #19：创建前预检（输入统计 / 输出冲突 / 分卷估算）。
+                        dryRunDrawer
                         if AppPreferences.gpgEnabled && GPGBackend.isAvailable() {
                             gpgDrawer
                         }
@@ -629,7 +636,75 @@ struct ArchiveCreationOptionsView: View {
                             .font(.caption)
                             .foregroundStyle((excludedFileCount ?? 0) > 0 ? .secondary : .tertiary)
                     }
+                    // 0.4.2 #18：被排除文件的预览列表（前 15 条 + 折叠计数），跟统计同一次扫描。
+                    if let excludedPreview, !excludedPreview.isEmpty {
+                        VStack(alignment: .leading, spacing: 2) {
+                            ForEach(excludedPreview.prefix(15), id: \.self) { path in
+                                Text(path)
+                                    .font(.caption.monospaced())
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                    .help(path)
+                            }
+                            if excludedPreview.count > 15 {
+                                Text(L10n.format("archive.excludedPreview.more", "\(excludedPreview.count - 15)"))
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
+                    }
                 }
+            }
+        }
+    }
+
+    /// 0.4.2 #19：压缩前预检抽屉 —— 输入侧统计（不估压缩后大小），输出名冲突即时显示。
+    @ViewBuilder
+    private var dryRunDrawer: some View {
+        DialogDrawer(L10n.text("archive.dryRun.section"), systemImage: "list.clipboard", color: .cyan) {
+            HStack(spacing: 8) {
+                Button {
+                    runDryRun()
+                } label: {
+                    Label(L10n.text("archive.dryRun.run"), systemImage: "play.circle.fill")
+                }
+                .disabled(isRunningDryRun)
+                if isRunningDryRun {
+                    ProgressView().controlSize(.small)
+                }
+            }
+            if let dryRun {
+                VStack(alignment: .leading, spacing: 4) {
+                    Label(
+                        L10n.format(
+                            "archive.dryRun.input",
+                            "\(dryRun.inputFileCount)",
+                            ByteCountFormatter.string(fromByteCount: dryRun.totalBytes, countStyle: .file)
+                        ),
+                        systemImage: "doc.on.doc"
+                    )
+                    if dryRun.excludedCount > 0 {
+                        Label(L10n.format("archive.dryRun.excluded", "\(dryRun.excludedCount)"), systemImage: "eye.slash")
+                    }
+                    if dryRun.symlinkCount > 0 {
+                        Label(L10n.format("archive.dryRun.symlinks", "\(dryRun.symlinkCount)"), systemImage: "link")
+                    }
+                    if dryRun.packageCount > 0 {
+                        Label(L10n.format("archive.dryRun.packages", "\(dryRun.packageCount)"), systemImage: "shippingbox")
+                    }
+                    if let volumes = dryRun.estimatedVolumeCount {
+                        Label(L10n.format("archive.dryRun.volumes", "\(volumes)"), systemImage: "square.stack.3d.up")
+                    }
+                }
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            }
+            // 输出名冲突即时检查 —— 不用走文件树，随渲染刷新。
+            if FileManager.default.fileExists(atPath: request.destinationURL.path) {
+                Label(L10n.text("archive.dryRun.outputExists"), systemImage: "exclamationmark.triangle.fill")
+                    .font(.callout)
+                    .foregroundStyle(.orange)
             }
         }
     }
@@ -797,17 +872,34 @@ struct ArchiveCreationOptionsView: View {
     private func countExcludedFiles() {
         guard request.options.format.supportsExcludeRules else {
             excludedFileCount = 0
+            excludedPreview = []
             return
         }
         let sourceURLs = request.sourceURLs
         let options = request.options
         isCountingExcludedFiles = true
         Task { @MainActor in
-            let count = await Task.detached(priority: .utility) {
-                ArchiveService.excludedFileCount(in: sourceURLs, options: options)
+            // 0.4.2 #18：同一次扫描顺便取回被排除文件列表（预览）——count 和列表绝不允许两套口径。
+            let preview = await Task.detached(priority: .utility) {
+                ArchiveService.excludedFilePreview(in: sourceURLs, options: options)
             }.value
-            excludedFileCount = count
+            excludedFileCount = preview.count
+            excludedPreview = preview
             isCountingExcludedFiles = false
+        }
+    }
+
+    /// 0.4.2 #19：压缩前预检 —— 输入文件数 / 总大小 / 排除数 / 符号链接 / 包目录 / 分卷估算。
+    private func runDryRun() {
+        let sourceURLs = request.sourceURLs
+        let options = request.options
+        isRunningDryRun = true
+        Task { @MainActor in
+            let summary = await Task.detached(priority: .utility) {
+                ArchiveService.dryRunSummary(sourceURLs: sourceURLs, options: options)
+            }.value
+            dryRun = summary
+            isRunningDryRun = false
         }
     }
 

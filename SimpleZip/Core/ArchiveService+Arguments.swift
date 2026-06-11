@@ -190,6 +190,96 @@ extension ArchiveService {
         }.count
     }
 
+    /// 0.4.2 #18：被排除文件的**相对路径列表**（预览用，升序）。匹配逻辑与 `excludedFileCount` 完全同源。
+    nonisolated static func excludedFilePreview(in sourceURLs: [URL], options: ArchiveCreationOptions) -> [String] {
+        let patterns = zipExcludePatterns(from: options)
+        guard !patterns.isEmpty, let parentURL = sourceURLs.first?.deletingLastPathComponent() else {
+            return []
+        }
+        return regularFileURLs(in: sourceURLs).compactMap { url -> String? in
+            let relativePath = relativePathForExcludePreview(url, parent: parentURL)
+            let matched = patterns.contains { pattern in
+                matchesExcludePattern(pattern, relativePath: relativePath, fileName: url.lastPathComponent)
+            }
+            return matched ? relativePath : nil
+        }.sorted()
+    }
+
+    /// 0.4.2 #19：压缩前 dry run —— **输入侧**统计。刻意不估压缩后大小（不准没意义）。
+    struct ArchiveCreationDryRun: Equatable {
+        /// 将被打包的常规文件数（已扣掉被排除的）。
+        let inputFileCount: Int
+        /// 将被打包文件的原始字节总和。
+        let totalBytes: Int64
+        let excludedCount: Int
+        let symlinkCount: Int
+        /// 包目录（.app 等 bundle）数 —— 解出来不是普通文件夹，提示用。
+        let packageCount: Int
+        /// 设了分卷大小时，按**未压缩**输入估算的分卷数上限（压缩后通常更少）。
+        let estimatedVolumeCount: Int?
+    }
+
+    nonisolated static func dryRunSummary(sourceURLs: [URL], options: ArchiveCreationOptions) -> ArchiveCreationDryRun {
+        let patterns = options.format.supportsExcludeRules ? zipExcludePatterns(from: options) : []
+        let parentURL = sourceURLs.first?.deletingLastPathComponent()
+        var fileCount = 0
+        var bytes: Int64 = 0
+        var excluded = 0
+        var symlinks = 0
+        var packages = 0
+        let keys: Set<URLResourceKey> = [.isRegularFileKey, .isDirectoryKey, .isSymbolicLinkKey, .isPackageKey, .fileSizeKey]
+
+        func process(_ url: URL) {
+            guard let values = try? url.resourceValues(forKeys: keys) else { return }
+            if values.isSymbolicLink == true {
+                symlinks += 1
+                return
+            }
+            guard values.isRegularFile == true else { return }
+            if !patterns.isEmpty, let parentURL {
+                let relativePath = relativePathForExcludePreview(url, parent: parentURL)
+                if patterns.contains(where: { matchesExcludePattern($0, relativePath: relativePath, fileName: url.lastPathComponent) }) {
+                    excluded += 1
+                    return
+                }
+            }
+            fileCount += 1
+            bytes += Int64(values.fileSize ?? 0)
+        }
+
+        for source in sourceURLs {
+            let values = try? source.resourceValues(forKeys: keys)
+            if values?.isPackage == true { packages += 1 }
+            if values?.isDirectory == true, values?.isSymbolicLink != true {
+                if let enumerator = FileManager.default.enumerator(at: source, includingPropertiesForKeys: Array(keys)) {
+                    for case let child as URL in enumerator {
+                        if (try? child.resourceValues(forKeys: [.isPackageKey]))?.isPackage == true { packages += 1 }
+                        process(child)
+                    }
+                }
+            } else {
+                process(source)
+            }
+        }
+
+        var estimatedVolumes: Int?
+        if options.format.supportsVolumeSplitting,
+           !options.sevenZipVolumeSize.trimmingCharacters(in: .whitespaces).isEmpty,
+           let volumeBytes = ArchiveSearchQuery.parseByteCount(options.sevenZipVolumeSize.trimmingCharacters(in: .whitespaces)),
+           volumeBytes > 0, bytes > 0 {
+            estimatedVolumes = Int((bytes + volumeBytes - 1) / volumeBytes)
+        }
+
+        return ArchiveCreationDryRun(
+            inputFileCount: fileCount,
+            totalBytes: bytes,
+            excludedCount: excluded,
+            symlinkCount: symlinks,
+            packageCount: packages,
+            estimatedVolumeCount: estimatedVolumes
+        )
+    }
+
     nonisolated static func regularFileURLs(in urls: [URL]) -> [URL] {
         let resourceKeys: Set<URLResourceKey> = [.isRegularFileKey, .isDirectoryKey]
         return urls.flatMap { url -> [URL] in
@@ -334,6 +424,9 @@ extension ArchiveService {
     }
 
     private nonisolated static func matchesExcludePattern(_ pattern: String, relativePath: String, fileName: String) -> Bool {
-        fnmatch(pattern, relativePath, 0) == 0 || fnmatch(pattern, fileName, 0) == 0
+        if fnmatch(pattern, relativePath, 0) == 0 || fnmatch(pattern, fileName, 0) == 0 { return true }
+        // 0.4.2 对齐后端真实语义：创建走 7zz `-xr!`（**递归**按名排除）——模式命中**任一路径段**
+        // 即整支被排除（裸目录名如 `node_modules` 在后端是生效的，预览不该漏数它下面的文件）。
+        return relativePath.split(separator: "/").contains { fnmatch(pattern, String($0), 0) == 0 }
     }
 }

@@ -787,6 +787,17 @@
 "template.encryptedDelivery" = "Encrypted delivery (7z)";
 "template.sourceCode" = "Source code (excl. node_modules/.git)";
 "template.backup" = "Backup (keep links, fast)";
+/* 0.4.2 exclude preview + creation dry run */
+"archive.excludedPreview.more" = "and %1$@ more excluded files…";
+"archive.dryRun.section" = "Preflight";
+"archive.dryRun.run" = "Run Preflight";
+"archive.dryRun.input" = "Will pack %1$@ files (%2$@ uncompressed)";
+"archive.dryRun.excluded" = "%1$@ files excluded by the rules";
+"archive.dryRun.symlinks" = "%1$@ symbolic links";
+"archive.dryRun.packages" = "%1$@ package bundles (.app etc.)";
+"archive.dryRun.volumes" = "At most ~%1$@ volumes (estimated from uncompressed size)";
+"archive.dryRun.outputExists" = "A file with the output name already exists — the conflict dialog will ask.";
+
 
 
 

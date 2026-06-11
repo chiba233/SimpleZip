@@ -785,6 +785,17 @@
 "template.encryptedDelivery" = "加密投递包（7z）";
 "template.sourceCode" = "源码包（排除 node_modules/.git）";
 "template.backup" = "备份包（保留链接、快速）";
+/* 0.4.2 排除预览 + 创建前预检 */
+"archive.excludedPreview.more" = "还有 %1$@ 个被排除的文件…";
+"archive.dryRun.section" = "创建前预检";
+"archive.dryRun.run" = "运行预检";
+"archive.dryRun.input" = "将打包 %1$@ 个文件（未压缩 %2$@）";
+"archive.dryRun.excluded" = "%1$@ 个文件被排除规则跳过";
+"archive.dryRun.symlinks" = "%1$@ 个符号链接";
+"archive.dryRun.packages" = "%1$@ 个包目录（.app 等）";
+"archive.dryRun.volumes" = "至多约 %1$@ 卷（按未压缩大小估算）";
+"archive.dryRun.outputExists" = "输出位置已有同名文件——创建时会进入冲突处理询问。";
+
 
 
 
