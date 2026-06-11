@@ -1641,6 +1641,9 @@
 "virtual.export.subtitle" = "%1$@ files";
 "virtual.export.filesSection" = "Files to save";
 "virtual.export.note" = "Files are copied with collision-safe names — nothing in the destination is ever overwritten.";
+"welcome.completion.highlight.search" = "Search with power tokens: *.swift size:>1MB encrypted:true";
+"welcome.completion.highlight.compare" = "Compare archives — or a folder against an archive — and export the diff";
+"welcome.completion.highlight.help" = "The illustrated guide lives in Settings → Help";
 "feedback.copied" = "Copied";
 "command.copied" = "Command copied";
 "tasks.settings.openOnFailure" = "Open Activity Center on failure";

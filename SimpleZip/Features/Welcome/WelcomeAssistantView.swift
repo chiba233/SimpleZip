@@ -60,11 +60,12 @@ struct WelcomeAssistantView: View {
 
             Divider()
 
-            ScrollView {
-                stepContent
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 32)
-                    .padding(.vertical, 24)
+            // 0.4.2 重绘：放得下直接铺（默认**无滚动条**），放不下才退回 ScrollView。
+            ViewThatFits(in: .vertical) {
+                paddedStepContent
+                ScrollView {
+                    paddedStepContent
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             // 换页过场：新页淡入 + 轻微右侧滑入，旧页淡出左移（footer 按钮里用 spring 驱动）。
@@ -80,8 +81,18 @@ struct WelcomeAssistantView: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 14)
         }
-        .frame(width: 780, height: 700)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .frame(width: 780, height: 730)
+        .background(
+            // 顶部一抹主题色柔光 —— 华丽但不喧宾夺主,深浅色模式都成立。
+            ZStack {
+                Color(nsColor: .windowBackgroundColor)
+                LinearGradient(
+                    colors: [Color.accentColor.opacity(0.10), .clear],
+                    startPoint: .top,
+                    endPoint: .center
+                )
+            }
+        )
         .alert(L10n.text("welcome.cancelConfirm.title"), isPresented: $showsCancelConfirmation) {
             Button(L10n.text("welcome.cancelConfirm.cancel"), role: .cancel) {}
             Button(L10n.text("welcome.cancelConfirm.confirm"), role: .destructive) {
@@ -92,6 +103,13 @@ struct WelcomeAssistantView: View {
         } message: {
             Text(L10n.text("welcome.cancelConfirm.message"))
         }
+    }
+
+    private var paddedStepContent: some View {
+        stepContent
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 32)
+            .padding(.vertical, 24)
     }
 
     // MARK: - Header
@@ -110,13 +128,18 @@ struct WelcomeAssistantView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
 
-            // 全程进度条：走到哪一步一眼可见（之前只有「第 N 步 / M」文字，且只在设置段显示）。
-            ProgressView(value: Double(currentStep + 1), total: Double(totalSteps))
-                .progressViewStyle(.linear)
-                .controlSize(.small)
-                .tint(.accentColor)
-                .padding(.horizontal, 20)
-                .padding(.bottom, 10)
+            // 0.4.2 重绘：线性进度条 → onboarding 风分段步骤点（当前步 = 加宽主题色胶囊）。
+            HStack(spacing: 7) {
+                ForEach(0..<totalSteps, id: \.self) { step in
+                    Capsule()
+                        .fill(step <= currentStep ? Color.accentColor : Color.primary.opacity(0.14))
+                        .frame(width: step == currentStep ? 26 : 8, height: 8)
+                        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: currentStep)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 10)
         }
         .background(.bar)
     }
@@ -176,15 +199,22 @@ struct WelcomeAssistantView: View {
     /// 欢迎页 hero：大渐变图标 + 大标题 + 简介 + 小贴士。原 WelcomeIntroStep 的内容升级合并到这里。
     private var welcomeHero: some View {
         VStack(spacing: 12) {
-            Image(systemName: "shippingbox.fill")
-                .font(.system(size: 34, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: 76, height: 76)
-                .background(
-                    LinearGradient(colors: [.blue, .indigo], startPoint: .topLeading, endPoint: .bottomTrailing),
-                    in: RoundedRectangle(cornerRadius: 18, style: .continuous)
-                )
-                .shadow(color: .blue.opacity(0.35), radius: 12, y: 5)
+            // 0.4.2 重绘：符号图标 → 真 app 图标（带投影）,与「设置 → 关于」一个气质。
+            if let icon = NSApp.applicationIconImage {
+                Image(nsImage: icon)
+                    .resizable()
+                    .frame(width: 84, height: 84)
+                    .shadow(color: .black.opacity(0.22), radius: 10, y: 6)
+            } else {
+                Image(systemName: "shippingbox.fill")
+                    .font(.system(size: 34, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 76, height: 76)
+                    .background(
+                        LinearGradient(colors: [.blue, .indigo], startPoint: .topLeading, endPoint: .bottomTrailing),
+                        in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    )
+            }
 
             Text(L10n.text("welcome.intro.title"))
                 .font(.largeTitle.weight(.bold))
@@ -1042,6 +1072,24 @@ private struct WelcomeCompletionStep: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
+
+            // 0.4.2：当前版本亮点速览 + 指路「设置 → 帮助」（图文指南就在那）。
+            VStack(alignment: .leading, spacing: 8) {
+                highlightRow("magnifyingglass", "welcome.completion.highlight.search")
+                highlightRow("arrow.left.arrow.right.circle", "welcome.completion.highlight.compare")
+                highlightRow("lifepreserver", "welcome.completion.highlight.help")
+            }
+            .padding(16)
+            .frame(maxWidth: 480)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color(nsColor: .controlBackgroundColor))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.06))
+            )
+            .padding(.top, 6)
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 40)
@@ -1050,5 +1098,13 @@ private struct WelcomeCompletionStep: View {
                 celebrate = true
             }
         }
+    }
+
+    @ViewBuilder
+    private func highlightRow(_ systemImage: String, _ key: String) -> some View {
+        Label(L10n.text(key), systemImage: systemImage)
+            .font(.callout)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
     }
 }

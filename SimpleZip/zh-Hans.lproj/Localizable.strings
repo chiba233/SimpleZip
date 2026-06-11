@@ -1641,6 +1641,9 @@
 "virtual.export.subtitle" = "%1$@ 个文件";
 "virtual.export.filesSection" = "将保存的文件";
 "virtual.export.note" = "复制时重名自动编号——目标目录里的任何文件都不会被覆盖。";
+"welcome.completion.highlight.search" = "搜索框认高级 token：*.swift size:>1MB encrypted:true";
+"welcome.completion.highlight.compare" = "比较两个压缩包——或拿文件夹跟压缩包比——差异可导出";
+"welcome.completion.highlight.help" = "图文使用指南就在 设置 → 帮助";
 "feedback.copied" = "已复制";
 "command.copied" = "命令已复制";
 "tasks.settings.openOnFailure" = "任务失败时自动打开活动中心";
