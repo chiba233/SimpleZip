@@ -118,6 +118,15 @@ silently overwrite**.
   backend fails, the original archive is byte-for-byte unchanged. Editing an
   encrypted archive first obtains the password, so new entries are never written
   unencrypted into an otherwise-encrypted container.
+- **Per-archive write lock + external-change guard (0.4.3).** All archive rewrites
+  (entry add/delete/rename, batch rename, junk cleanup, comment editing) acquire a
+  process-wide per-archive write lock, so two write tasks can never race on the
+  same file and silently overwrite each other's result; queued tasks report
+  "waiting" in their details. Every rewrite also verifies — both before starting
+  and again right before the atomic swap — that the archive still matches the
+  size/mtime/inode snapshot taken when it was listed. If another app modified the
+  file in between, the write stops with an explicit error instead of clobbering
+  the external edit.
 - **Unsafe in-archive entry paths** (Windows-style `..\` escapes, drive letters)
   are rejected before the backend is invoked, so an attacker-controlled file name
   cannot make an edit write outside the archive's logical tree.

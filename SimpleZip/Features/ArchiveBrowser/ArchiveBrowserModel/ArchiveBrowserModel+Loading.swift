@@ -289,6 +289,8 @@ extension ArchiveBrowserModel {
             }
             guard isCurrentLoad(generation, mode: .archive(url)) else { return }
             session.setItems(items)
+            // 0.4.3 #3:列表成功的瞬间记下包的磁盘状态戳 —— 这就是「用户所见版本」,写回前据此检测外部改动。
+            archiveListingStamp = try? FileStateStamp.capture(url)
             fileItems = []
             // 0.4.1 #114：list 解析时旁路缓存了归档级注释（zip/rar 头部 Comment）——取出来给横幅展示。
             let comment = ArchiveService.headerComment(for: url)

@@ -40,6 +40,7 @@ let package = Package(
                 "Core/ArchiveDiff.swift",
                 "Core/ArchiveModels.swift",
                 "Core/ArchiveEntryUpdate.swift",
+                "Core/ArchiveWriteGate.swift",
                 "Core/ArchiveOperationOptions.swift",
                 "Core/ArchiveSafety.swift",
                 "Core/ArchiveSearch.swift",

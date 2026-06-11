@@ -507,10 +507,15 @@ extension ArchiveBrowserModel {
                 ArchiveService.recordHeaderComment(comment, for: archiveURL)
                 self?.archiveHeaderComment = comment
             }
-        ) { _, _, _ in
+        ) { [archiveListingStamp] _, _, observer in
+            // 0.4.3 #2/#3:注释改写也是「整包安全写回」,同样过写锁 + 外部改动检测。
+            await ArchiveWriteLock.shared.acquire(archiveURL, onWait: self.writeLockWaitReporter(observer))
+            defer { ArchiveWriteLock.shared.scheduleRelease(archiveURL) }
+            try archiveListingStamp?.ensureUnchanged(at: archiveURL)
             try await Task.detached(priority: .userInitiated) {
                 try ZipArchiveComment.writeComment(comment, to: archiveURL)
             }.value
+            ArchiveService.notifyArchiveRewritten(archiveURL)
         }
     }
 
@@ -570,13 +575,15 @@ extension ArchiveBrowserModel {
                     TransferLogEntry(name: $0.entryPath, action: .added, isDirectory: false)
                 }
             }
-        ) { [resolvedArchivePassword] operationID, _, observer in
+        ) { [resolvedArchivePassword, archiveListingStamp] operationID, _, observer in
             try await ArchiveService.addOrReplaceEntries(
                 in: archiveURL,
                 additions: additions,
                 password: resolvedArchivePassword,
                 operationID: operationID,
-                outputObserver: observer
+                outputObserver: observer,
+                expectedStamp: archiveListingStamp,
+                onWaitForLock: self.writeLockWaitReporter(observer)
             )
         }
     }
@@ -692,9 +699,11 @@ extension ArchiveBrowserModel {
             onSucceeded: { task in
                 task.transferLog = entryPaths.map { TransferLogEntry(name: $0, action: .deleted, isDirectory: false) }
             }
-        ) { [resolvedArchivePassword] operationID, _, observer in
+        ) { [resolvedArchivePassword, archiveListingStamp] operationID, _, observer in
             try await ArchiveService.deleteEntries(from: archiveURL, entryPaths: entryPaths, password: resolvedArchivePassword,
-                                                   operationID: operationID, outputObserver: observer)
+                                                   operationID: operationID, outputObserver: observer,
+                                                   expectedStamp: archiveListingStamp,
+                                                   onWaitForLock: self.writeLockWaitReporter(observer))
         }
     }
 
@@ -718,9 +727,11 @@ extension ArchiveBrowserModel {
             kind: .rename,
             showsDetails: true,
             refreshOnSuccess: { [weak self] in self?.reload() }
-        ) { [resolvedArchivePassword] operationID, _, observer in
+        ) { [resolvedArchivePassword, archiveListingStamp] operationID, _, observer in
             try await ArchiveService.renameEntry(in: archiveURL, from: oldPath, to: newPath, password: resolvedArchivePassword,
-                                                 operationID: operationID, outputObserver: observer)
+                                                 operationID: operationID, outputObserver: observer,
+                                                 expectedStamp: archiveListingStamp,
+                                                 onWaitForLock: self.writeLockWaitReporter(observer))
         }
     }
 
@@ -767,9 +778,11 @@ extension ArchiveBrowserModel {
             onSucceeded: { task in
                 task.transferLog = [TransferLogEntry(name: entryPath, action: .added, isDirectory: isDirectory)]
             }
-        ) { [resolvedArchivePassword] operationID, _, observer in
+        ) { [resolvedArchivePassword, archiveListingStamp] operationID, _, observer in
             try await ArchiveService.addOrReplaceEntries(in: archiveURL, additions: additions, password: resolvedArchivePassword,
-                                                         operationID: operationID, outputObserver: observer)
+                                                         operationID: operationID, outputObserver: observer,
+                                                         expectedStamp: archiveListingStamp,
+                                                         onWaitForLock: self.writeLockWaitReporter(observer))
         }
     }
 
@@ -827,11 +840,13 @@ extension ArchiveBrowserModel {
             kind: .compress,
             showsDetails: true,
             refreshOnSuccess: { [weak self] in self?.reload() }
-        ) { [resolvedArchivePassword] operationID, _, observer in
+        ) { [resolvedArchivePassword, archiveListingStamp] operationID, _, observer in
             try await ArchiveService.addOrReplaceEntries(
                 in: archiveURL,
                 additions: [ArchiveEntryAddition(sourceFile: tempURL, entryPath: entryPath)],
-                password: resolvedArchivePassword, operationID: operationID, outputObserver: observer
+                password: resolvedArchivePassword, operationID: operationID, outputObserver: observer,
+                expectedStamp: archiveListingStamp,
+                onWaitForLock: self.writeLockWaitReporter(observer)
             )
         }
     }
@@ -1110,13 +1125,15 @@ extension ArchiveBrowserModel {
                     TransferLogEntry(name: $0, action: .deleted, isDirectory: false)
                 }
             }
-        ) { operationID, _, outputObserver in
+        ) { [archiveListingStamp] operationID, _, outputObserver in
             try await ArchiveService.deleteEntries(
                 from: archiveURL,
                 entryPaths: paths,
                 password: password,
                 operationID: operationID,
-                outputObserver: outputObserver
+                outputObserver: outputObserver,
+                expectedStamp: archiveListingStamp,
+                onWaitForLock: self.writeLockWaitReporter(outputObserver)
             )
         }
     }
@@ -1235,13 +1252,15 @@ extension ArchiveBrowserModel {
                     TransferLogEntry(name: $0.fromLeaf, action: .changed, isDirectory: false, detail: "→ \($0.toLeaf)")
                 }
             }
-        ) { operationID, _, outputObserver in
+        ) { [archiveListingStamp] operationID, _, outputObserver in
             try await ArchiveService.renameEntries(
                 in: request.archiveURL,
                 pairs: valid.map { (from: $0.fromPath, to: $0.toPath) },
                 password: password,
                 operationID: operationID,
-                outputObserver: outputObserver
+                outputObserver: outputObserver,
+                expectedStamp: archiveListingStamp,
+                onWaitForLock: self.writeLockWaitReporter(outputObserver)
             )
         }
     }

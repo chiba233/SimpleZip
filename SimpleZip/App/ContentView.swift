@@ -231,11 +231,7 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             model.checkPendingArchiveWriteBacks()
         }
-        .alert(L10n.text("alert.operationFailed"), isPresented: Binding(get: {
-            model.isShowingOperationFailureAlert
-        }, set: { newValue in
-            if !newValue { model.dismissOperationFailureAlert() }
-        })) {
+        .alert(L10n.text("alert.operationFailed"), isPresented: operationFailureAlertBinding) {
             if let session = model.operationDetailsSession {
                 // 点了「复制诊断」alert 会被自动关掉（SwiftUI 默认行为），
                 // 但 NSPasteboard.setString 是同步的，await ArchiveService.*Version 的取版本
@@ -261,11 +257,7 @@ struct ContentView: View {
         } message: {
             Text(model.operationFailurePreviewMessage)
         }
-        .sheet(isPresented: Binding(get: {
-            model.isShowingOperationDetails && model.operationDetailsSession != nil
-        }, set: { newValue in
-            model.handleOperationDetailsPresentationChange(newValue)
-        })) {
+        .sheet(isPresented: operationDetailsSheetBinding) {
             if let session = model.operationDetailsSession {
                 ArchiveOperationDetailsView(session: session) {
                     model.closeOperationDetails()
@@ -553,6 +545,39 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .browserPreferencesChanged)) { _ in
             model.reload()
         }
+        // 0.4.3 #2:某归档被安全写回后,打开同一归档的**其他**窗口 / 标签页刷新列表
+        //（写入方自己的 refreshOnSuccess 已 reload;重复 reload 由内容指纹去抖,无害）。
+        // 逻辑在独立方法里 —— 内联 guard-case 会把 body 表达式压过类型检查预算(此文件惯例)。
+        .onReceive(NotificationCenter.default.publisher(for: .simpleZipArchiveDidRewrite)) { notification in
+            handleArchiveRewriteNotification(notification)
+        }
+    }
+
+    // 两个 presentation Binding 抽出 body —— 内联 Binding(get:set:) 闭包是 body 类型检查
+    // 预算的大头,0.4.3 加 onReceive 后整条 body 表达式超时(此文件的固有约束,见 toolbar 注释)。
+    private var operationFailureAlertBinding: Binding<Bool> {
+        Binding(
+            get: { model.isShowingOperationFailureAlert },
+            set: { newValue in
+                if !newValue { model.dismissOperationFailureAlert() }
+            }
+        )
+    }
+
+    private var operationDetailsSheetBinding: Binding<Bool> {
+        Binding(
+            get: { model.isShowingOperationDetails && model.operationDetailsSession != nil },
+            set: { newValue in
+                model.handleOperationDetailsPresentationChange(newValue)
+            }
+        )
+    }
+
+    private func handleArchiveRewriteNotification(_ notification: Notification) {
+        guard case .archive(let url) = model.mode,
+              let path = notification.userInfo?["path"] as? String,
+              url.standardizedFileURL.path == path else { return }
+        model.reload()
     }
 
     /// #113 高级过滤 + 0.4.2 #6 快速过滤 / 保存的过滤器 / 最近搜索 —— 工具栏漏斗菜单的内容。

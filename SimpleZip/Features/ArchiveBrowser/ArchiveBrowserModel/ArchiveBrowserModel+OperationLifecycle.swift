@@ -179,6 +179,19 @@ extension ArchiveBrowserModel {
         )
     }
 
+    /// 0.4.3 #2：写引擎排队等「同包写锁」时的统一上报 —— 任务详情日志打一行 + 状态栏显示
+    /// 「等待归档释放」。写操作的 onWaitForLock 都用它,免得六个调用点各抄一遍。
+    nonisolated func writeLockWaitReporter(_ observer: (@Sendable (String) -> Void)?) -> @Sendable () -> Void {
+        { [weak self] in
+            let message = L10n.text("status.waitingForArchiveLock")
+            observer?(message + "\n")
+            guard let self else { return }   // 先解成不可变强引用,Task 才能安全捕获(Swift 6 并发口径)
+            Task { @MainActor in
+                self.status = message
+            }
+        }
+    }
+
     func startManagedArchiveTask(
         title: String,
         kind: OperationTask.Kind = .extract,

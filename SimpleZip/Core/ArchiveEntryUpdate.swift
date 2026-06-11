@@ -54,7 +54,9 @@ extension ArchiveService {
         additions: [ArchiveEntryAddition],
         password: String = "",
         operationID: UUID? = nil,
-        outputObserver: (@Sendable (String) -> Void)? = nil
+        outputObserver: (@Sendable (String) -> Void)? = nil,
+        expectedStamp: FileStateStamp? = nil,
+        onWaitForLock: (@Sendable () -> Void)? = nil
     ) async throws {
         guard !additions.isEmpty else { return }
         guard supportsEntryUpdate(archiveURL) else {
@@ -64,6 +66,13 @@ extension ArchiveService {
         guard fm.fileExists(atPath: archiveURL.path) else {
             throw ArchiveError.commandFailed("Archive no longer exists.")
         }
+
+        // 0.4.3 #2/#3:同包写互斥(排队,等待时上报)+ 外部改动检测。锁内先核对「用户所见版本」,
+        // 替换前再核对一次 —— Finder / 其他 App 不走进程内锁,只能靠快照戳兜底。
+        await ArchiveWriteLock.shared.acquire(archiveURL, onWait: onWaitForLock)
+        defer { ArchiveWriteLock.shared.scheduleRelease(archiveURL) }
+        try expectedStamp?.ensureUnchanged(at: archiveURL)
+        let preWorkStamp = try FileStateStamp.capture(archiveURL)
 
         // 全程在系统临时目录的隔离子目录里干活,结束即清(成功 / 失败都清)。
         let staging = fm.temporaryDirectory
@@ -111,7 +120,10 @@ extension ArchiveService {
         )
 
         // 4) 工作副本现在是「更新后的归档」→ 原子替换原包。失败前原包始终是旧的完整包。
+        // 替换前最后核对:干活期间原包被外部改过就放弃(否则会覆盖外部改动)。
+        try preWorkStamp.ensureUnchanged(at: archiveURL)
         _ = try fm.replaceItemAt(archiveURL, withItemAt: workCopy)
+        ArchiveService.notifyArchiveRewritten(archiveURL)
     }
 
     /// 安全地从 `archiveURL`(zip/7z)删除若干条目(按归档内相对路径)。同样**绝不原地破坏**:
@@ -121,7 +133,9 @@ extension ArchiveService {
         entryPaths: [String],
         password: String = "",
         operationID: UUID? = nil,
-        outputObserver: (@Sendable (String) -> Void)? = nil
+        outputObserver: (@Sendable (String) -> Void)? = nil,
+        expectedStamp: FileStateStamp? = nil,
+        onWaitForLock: (@Sendable () -> Void)? = nil
     ) async throws {
         guard !entryPaths.isEmpty else { return }
         guard supportsEntryUpdate(archiveURL) else {
@@ -132,6 +146,12 @@ extension ArchiveService {
             throw ArchiveError.commandFailed("Archive no longer exists.")
         }
         let normalized = try entryPaths.map { try normalizedEntryRelativePath($0) }
+
+        // 0.4.3 #2/#3:同包写互斥 + 外部改动检测(语义见 addOrReplaceEntries)。
+        await ArchiveWriteLock.shared.acquire(archiveURL, onWait: onWaitForLock)
+        defer { ArchiveWriteLock.shared.scheduleRelease(archiveURL) }
+        try expectedStamp?.ensureUnchanged(at: archiveURL)
+        let preWorkStamp = try FileStateStamp.capture(archiveURL)
 
         let staging = fm.temporaryDirectory
             .appendingPathComponent("SimpleZip-EntryDelete-\(UUID().uuidString)", isDirectory: true)
@@ -160,7 +180,9 @@ extension ArchiveService {
             outputRetentionLimit: BackendProcessRunner.diagnosticsOutputRetentionLimit
         )
 
+        try preWorkStamp.ensureUnchanged(at: archiveURL)
         _ = try fm.replaceItemAt(archiveURL, withItemAt: workCopy)
+        ArchiveService.notifyArchiveRewritten(archiveURL)
     }
 
     /// 安全地把 `archiveURL`(zip/7z)里的一个条目从 `oldPath` 重命名到 `newPath`。
@@ -171,7 +193,9 @@ extension ArchiveService {
         to newPath: String,
         password: String = "",
         operationID: UUID? = nil,
-        outputObserver: (@Sendable (String) -> Void)? = nil
+        outputObserver: (@Sendable (String) -> Void)? = nil,
+        expectedStamp: FileStateStamp? = nil,
+        onWaitForLock: (@Sendable () -> Void)? = nil
     ) async throws {
         guard supportsEntryUpdate(archiveURL) else {
             throw ArchiveError.commandFailed("This archive format does not support renaming entries.")
@@ -183,6 +207,12 @@ extension ArchiveService {
         let from = try normalizedEntryRelativePath(oldPath)
         let to = try normalizedEntryRelativePath(newPath)
         guard from != to else { return }
+
+        // 0.4.3 #2/#3:同包写互斥 + 外部改动检测(语义见 addOrReplaceEntries)。
+        await ArchiveWriteLock.shared.acquire(archiveURL, onWait: onWaitForLock)
+        defer { ArchiveWriteLock.shared.scheduleRelease(archiveURL) }
+        try expectedStamp?.ensureUnchanged(at: archiveURL)
+        let preWorkStamp = try FileStateStamp.capture(archiveURL)
 
         let staging = fm.temporaryDirectory
             .appendingPathComponent("SimpleZip-EntryRename-\(UUID().uuidString)", isDirectory: true)
@@ -210,7 +240,9 @@ extension ArchiveService {
             outputRetentionLimit: BackendProcessRunner.diagnosticsOutputRetentionLimit
         )
 
+        try preWorkStamp.ensureUnchanged(at: archiveURL)
         _ = try fm.replaceItemAt(archiveURL, withItemAt: workCopy)
+        ArchiveService.notifyArchiveRewritten(archiveURL)
     }
 
     /// 0.4.2 #11：批量重命名 —— 一份工作副本上跑**一次** `7zz rn old1 new1 old2 new2 …`，
@@ -220,7 +252,9 @@ extension ArchiveService {
         pairs: [(from: String, to: String)],
         password: String = "",
         operationID: UUID? = nil,
-        outputObserver: (@Sendable (String) -> Void)? = nil
+        outputObserver: (@Sendable (String) -> Void)? = nil,
+        expectedStamp: FileStateStamp? = nil,
+        onWaitForLock: (@Sendable () -> Void)? = nil
     ) async throws {
         guard supportsEntryUpdate(archiveURL) else {
             throw ArchiveError.commandFailed("This archive format does not support renaming entries.")
@@ -237,6 +271,12 @@ extension ArchiveService {
             if from != to { normalizedPairs.append((from, to)) }
         }
         guard !normalizedPairs.isEmpty else { return }
+
+        // 0.4.3 #2/#3:同包写互斥 + 外部改动检测(语义见 addOrReplaceEntries)。
+        await ArchiveWriteLock.shared.acquire(archiveURL, onWait: onWaitForLock)
+        defer { ArchiveWriteLock.shared.scheduleRelease(archiveURL) }
+        try expectedStamp?.ensureUnchanged(at: archiveURL)
+        let preWorkStamp = try FileStateStamp.capture(archiveURL)
 
         let staging = fm.temporaryDirectory
             .appendingPathComponent("SimpleZip-EntryRename-\(UUID().uuidString)", isDirectory: true)
@@ -265,7 +305,9 @@ extension ArchiveService {
             outputRetentionLimit: BackendProcessRunner.diagnosticsOutputRetentionLimit
         )
 
+        try preWorkStamp.ensureUnchanged(at: archiveURL)
         _ = try fm.replaceItemAt(archiveURL, withItemAt: workCopy)
+        ArchiveService.notifyArchiveRewritten(archiveURL)
     }
 
     /// 归档内相对路径校验 / 规范化 —— 拒绝绝对路径、`..` 逃逸、空段,防止 staging 时写到 payload 之外

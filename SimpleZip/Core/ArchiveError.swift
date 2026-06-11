@@ -24,6 +24,8 @@ enum ArchiveError: LocalizedError {
     case blockedBySecurityPolicy
     case sizContainerUnsupportedOptions(String)
     case passwordPromptExhausted
+    /// 0.4.3 #3:写回前发现归档在打开后被外部(Finder / 其他 App / 其他窗口进程)修改 —— 停止写入。
+    case archiveExternallyModified(String)
     case commandFailed(String)
 
     var errorDescription: String? {
@@ -58,6 +60,8 @@ enum ArchiveError: LocalizedError {
             return L10n.format("error.siz.unsupportedOptions", reason)
         case .passwordPromptExhausted:
             return L10n.text("error.passwordPromptExhausted")
+        case .archiveExternallyModified(let name):
+            return L10n.format("error.archive.externallyModified", name)
         case .commandFailed(let message):
             return message.trimmingCharacters(in: .whitespacesAndNewlines)
         }

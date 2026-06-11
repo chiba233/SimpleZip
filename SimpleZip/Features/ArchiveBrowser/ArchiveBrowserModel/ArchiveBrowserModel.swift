@@ -32,6 +32,10 @@ final class ArchiveBrowserModel: ObservableObject {
     @Published var archiveSecurityFindings: [ArchiveSecurityFinding] = []
     /// 安全报告 sheet flag。横幅「查看报告」置 true。
     @Published var showsArchiveSecurityReport = false
+    /// 0.4.3 #3：当前归档列表对应的磁盘状态戳（size/mtime/inode，列出成功时记录）。
+    /// 写回前传给写引擎核对 —— 打开后被 Finder / 其他 App 改过的包,写入会被拦下而不是覆盖外部改动。
+    /// 非 @Published：纯写回守门数据,不驱动 UI。
+    var archiveListingStamp: FileStateStamp?
     /// 0.4.2 #11：批量重命名 sheet（非 nil = 显示）。右键多选文件条目触发。
     @Published var batchRenameRequest: BatchRenameRequest?
     /// 0.4.2 #15：发布包检查报告 sheet（非 nil = 显示）。右键单个归档触发，检查跑完赋值。

@@ -2,6 +2,10 @@
 
 # Changelog
 
+## 0.4.3 (unreleased)
+
+- **New: a unified write gate guards every archive rewrite.** All safe write-back operations (add/drop files into an archive, rename, batch rename, delete entries, junk cleanup, comment editing) now go through one per-archive write lock: writes to the same archive queue up instead of racing — two tasks rewriting one zip used to silently overwrite each other's result, last one wins. While queued, the task's detail log and the status bar show "waiting for another task to finish writing this archive". On top of that, every write now verifies the archive is still the file you opened (size/mtime/inode snapshot taken at listing): if Finder, another app or another window modified it in between — or while the rewrite was being prepared — the write stops with "modified by another app" instead of overwriting those external edits; refresh and retry. After any successful rewrite, every other window or tab showing the same archive refreshes automatically.
+
 ## 0.4.2
 
 - **Fix: large folders no longer hang the file browser.** Package detection (.app/.bundle vs plain folder) used to resolve symlinks and ask LaunchServices on the spot — inside the sort comparator (hundreds of thousands of calls for a 10k-item folder), per table row, and on every drag movement; the listing was observed stuck in path resolution until the app got killed. The package flag is now determined once per item while listing (via the batched isPackage resource value; only symlinks still resolve their target) and stored on the item — everything downstream reads the field with zero I/O.
