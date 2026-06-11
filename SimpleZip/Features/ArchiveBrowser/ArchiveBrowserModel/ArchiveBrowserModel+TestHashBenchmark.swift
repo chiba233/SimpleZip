@@ -141,6 +141,18 @@ extension ArchiveBrowserModel {
         }
     }
 
+    // MARK: - 重复文件检测（0.4.2 #24）
+
+    /// 归档空白处右键「查找重复文件」：按 大小 + CRC 在当前包内配组（纯内存，毫秒级），出报告 sheet。
+    func findDuplicateFilesInArchive() {
+        guard case .archive(let url) = mode else { return }
+        let groups = ArchiveDuplicates.findDuplicates(in: session.allItems)
+        duplicateFilesReport = DuplicateFilesReport(
+            archiveName: (archiveDisplayOverride ?? url).lastPathComponent,
+            groups: groups
+        )
+    }
+
     // MARK: - 发布包检查（0.4.2 #15）
 
     /// 一次发布包检查的结果。条目侧统计在 Core（ReleaseInspection），这里聚合 测试 / SHA-256 / 注释。

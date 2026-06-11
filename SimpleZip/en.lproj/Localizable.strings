@@ -806,6 +806,13 @@
 "recovery.title" = "SimpleZip didn't quit cleanly last time";
 "recovery.message" = "Leftover temporary files and the encrypted scratch volume from the previous session have been cleaned up automatically. Tasks that were still running are marked as interrupted in the Activity Center. If this keeps happening, export a diagnostics report and attach it to an issue.";
 "recovery.exportDiagnostics" = "Export Diagnostics Report…";
+/* 0.4.2 duplicate files in archive */
+"duplicates.menu" = "Find Duplicate Files";
+"duplicates.title" = "Duplicate Files";
+"duplicates.none" = "No duplicate files found (by size + CRC).";
+"duplicates.summary" = "%1$@ duplicate groups — %2$@ wasted";
+"duplicates.groupWaste" = "%1$@ wasted";
+
 
 
 

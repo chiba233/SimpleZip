@@ -1219,5 +1219,10 @@ private struct ArchiveExtrasSheets: ViewModifier {
                     model.batchRenameRequest = nil
                 }
             }
+            .sheet(item: $model.duplicateFilesReport) { report in
+                DuplicateFilesView(report: report) {
+                    model.duplicateFilesReport = nil
+                }
+            }
     }
 }

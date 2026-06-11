@@ -4,6 +4,8 @@
 
 ## 0.4.2 (unreleased)
 
+- **New: find duplicate files inside an archive.** Right-click the blank area of an archive → **Find Duplicate Files**: entries are grouped by size + CRC (entries without a reliable CRC are skipped rather than guessed), groups are sorted by wasted space with a total at the top, and the report can be copied as plain text. Works read-only on any archive format.
+
 - **New: unclean-exit recovery.** If the previous session ended without a clean quit (crash or force-kill), the next launch says so: leftover temporary files and the encrypted scratch volume are cleaned up automatically (as before), tasks that were still running are now restored into the Activity Center history as **Interrupted** instead of spinning forever, and the notice offers one-click **Export Diagnostics Report…** for an issue.
 
 - **New: per-task diagnostics bundle.** Task details gain an **Export Diagnostics…** button that writes a single `.txt` for that operation: app/macOS/backend versions, the equivalent backend command lines, the sanitized output tail, the error text, and a new **file-system snapshot** (free space on the temp and home volumes — a full disk is the classic cause of mysterious backend failures). The same snapshot now also appears in the copy-diagnostics text and the general diagnostics report. Paste-ready for an issue.

@@ -499,6 +499,8 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
             if model.canEditArchiveComment {
                 menu.addItem(menuItem(L10n.text("archive.comment.menu"), systemImage: "text.bubble", action: #selector(editArchiveComment)))
             }
+            // 0.4.2 #24：包内重复文件检测（只读分析，任何归档都可用）。
+            menu.addItem(menuItem(L10n.text("duplicates.menu"), systemImage: "doc.on.doc", action: #selector(findDuplicateFiles)))
             // 0.4.2 #16：清理 macOS 元数据 —— 有垃圾条目时显示（带数量），删掉走安全写回。
             let junkCount = model.archiveJunkEntryCount
             if junkCount > 0 {
@@ -691,6 +693,10 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
 
         @objc private func cleanJunkEntries() {
             model.cleanArchiveJunkEntries()
+        }
+
+        @objc private func findDuplicateFiles() {
+            model.findDuplicateFilesInArchive()
         }
 
         @objc private func extractSelected() {

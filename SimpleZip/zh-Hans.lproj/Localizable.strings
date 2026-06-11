@@ -804,6 +804,13 @@
 "recovery.title" = "SimpleZip 上次没有正常退出";
 "recovery.message" = "上次会话残留的临时文件和加密临时卷已自动清理；当时仍在运行的任务已在活动中心标为「已中断」。如果反复出现，请导出诊断报告并附到 issue。";
 "recovery.exportDiagnostics" = "导出诊断报告…";
+/* 0.4.2 归档内重复文件 */
+"duplicates.menu" = "查找重复文件";
+"duplicates.title" = "重复文件";
+"duplicates.none" = "未发现重复文件（按 大小 + CRC 判定）。";
+"duplicates.summary" = "%1$@ 组重复——浪费 %2$@";
+"duplicates.groupWaste" = "浪费 %1$@";
+
 
 
 

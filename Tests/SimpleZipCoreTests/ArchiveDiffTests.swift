@@ -190,3 +190,46 @@ struct ArchiveJunkFilesTests {
         #expect(filtered.removed.isEmpty)
     }
 }
+
+/// 0.4.2 #24:包内重复文件检测。
+struct ArchiveDuplicatesTests {
+
+    private func file(_ name: String, size: Int64?, crc: String) -> ArchiveItem {
+        ArchiveItem(name: name, isDirectory: false, size: size, modified: nil, sizeText: "", modifiedText: "", method: "", crc: crc)
+    }
+
+    @Test func groupsBySizeAndCRC() {
+        let items = [
+            file("a/dup.bin", size: 100, crc: "AAAA"),
+            file("b/dup-copy.bin", size: 100, crc: "aaaa"),   // CRC 大小写归一
+            file("c/other.bin", size: 100, crc: "BBBB"),
+            file("d/unique.bin", size: 50, crc: "AAAA")       // 同 CRC 不同大小,不算
+        ]
+        let groups = ArchiveDuplicates.findDuplicates(in: items)
+        #expect(groups.count == 1)
+        #expect(groups.first?.paths == ["a/dup.bin", "b/dup-copy.bin"])
+        #expect(groups.first?.wastedBytes == 100)
+    }
+
+    @Test func skipsUnreliableEntries() {
+        let items = [
+            file("no-crc-1", size: 10, crc: ""),
+            file("no-crc-2", size: 10, crc: ""),
+            file("zero-crc-1", size: 10, crc: "00000000"),
+            file("zero-crc-2", size: 10, crc: "00000000"),
+            file("empty-1", size: 0, crc: "AAAA"),
+            file("empty-2", size: 0, crc: "AAAA")
+        ]
+        #expect(ArchiveDuplicates.findDuplicates(in: items).isEmpty)
+    }
+
+    @Test func sortsByWastedBytesDescending() {
+        let items = [
+            file("small-1", size: 10, crc: "AAAA"), file("small-2", size: 10, crc: "AAAA"),
+            file("big-1", size: 1000, crc: "BBBB"), file("big-2", size: 1000, crc: "BBBB"), file("big-3", size: 1000, crc: "BBBB")
+        ]
+        let groups = ArchiveDuplicates.findDuplicates(in: items)
+        #expect(groups.map(\.crc) == ["BBBB", "AAAA"])
+        #expect(groups.first?.wastedBytes == 2000)
+    }
+}

@@ -281,3 +281,40 @@ extension ArchiveDiffResult {
         )
     }
 }
+
+// MARK: - 重复文件检测（0.4.2 #24）
+
+/// 一组内容重复的条目（按 大小 + CRC 配组）。`paths` ≥ 2、升序。
+struct DuplicateFileGroup: Identifiable, Equatable {
+    let size: Int64
+    let crc: String
+    let paths: [String]
+    var id: String { "\(size)-\(crc)" }
+
+    /// 这组里「多出来」的浪费字节（保留一份，其余都算浪费）。
+    var wastedBytes: Int64 { Int64(paths.count - 1) * size }
+}
+
+enum ArchiveDuplicates {
+
+    /// 找包内重复文件：按 (原始大小, CRC) 分组，两者都有效才参与 —— 没有 CRC 的格式 / 条目
+    /// 没法可靠判重，宁可漏报不误报。空文件（size 0）也跳过（CRC 全一样，全是噪音）。
+    /// 结果按浪费空间降序（最值得清的排前面）。
+    nonisolated static func findDuplicates(in items: [ArchiveItem]) -> [DuplicateFileGroup] {
+        var groups: [String: (size: Int64, crc: String, paths: [String])] = [:]
+        for item in items {
+            guard !item.isDirectory, let size = item.size, size > 0 else { continue }
+            let crc = item.crc.trimmingCharacters(in: .whitespaces).uppercased()
+            guard !crc.isEmpty, !crc.allSatisfy({ $0 == "0" }) else { continue }
+            let key = "\(size)-\(crc)"
+            groups[key, default: (size, crc, [])].paths.append(ArchiveDiff.normalizedPath(item.name))
+        }
+        return groups.values
+            .filter { $0.paths.count >= 2 }
+            .map { DuplicateFileGroup(size: $0.size, crc: $0.crc, paths: $0.paths.sorted()) }
+            .sorted { lhs, rhs in
+                if lhs.wastedBytes != rhs.wastedBytes { return lhs.wastedBytes > rhs.wastedBytes }
+                return lhs.id < rhs.id
+            }
+    }
+}
