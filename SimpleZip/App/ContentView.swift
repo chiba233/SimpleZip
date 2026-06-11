@@ -155,9 +155,10 @@ struct ContentView: View {
                     .help(L10n.text("help.refresh"))
                 }
 
-                // 0.4.2 用户点名：液态玻璃工具栏按上下文动态给出「当前最可能要的两个操作」
-                //（归档/文件夹 × 有无选中 = 四种组合,各两枚）。抽成子视图防 body 类型检查超时。
-                ToolbarItemGroup(placement: .primaryAction) {
+                // 0.4.2 用户点名：上下文动态双操作。v2 反馈修订：① **绝不推荐常驻按钮已有的操作**
+                //（添加/解压/测试/哈希都常驻了,推了=双重按钮）；② 按选中内容细分（分卷/多归档/.szs/
+                // 普通文件…各有各的推荐）；③ 放 `.principal`（工具栏中央）,与右侧常驻簇物理分离。
+                ToolbarItemGroup(placement: .principal) {
                     ContextualToolbarButtons(model: model)
                 }
 
@@ -1249,71 +1250,153 @@ private struct ArchiveExtrasSheets: ViewModifier {
 }
 
 
-/// 0.4.2：工具栏的上下文动态双按钮 —— 按「归档 / 文件夹 × 有无选中」给出当前最可能的两个操作。
-/// 观察 model（selection / mode 都是 @Published）→ 选区一变按钮即时切换。
+/// 0.4.2 v2：工具栏的上下文动态双按钮。
+/// 规则：**不与右侧常驻按钮重复**（添加/解压/测试/哈希/显示/活动中心都不推荐）；
+/// 按选中内容细分 —— 分卷给合并、多归档给批量测试+比较、.szs 给快照比较、单归档给转换+发布检查、
+/// 普通文件给加密/签名（GPG 开时）或重命名/副本。观察 model（selection / mode 都是 @Published）。
 private struct ContextualToolbarButtons: View {
     @ObservedObject var model: ArchiveBrowserModel
 
     var body: some View {
         switch model.mode {
         case .archive:
-            if !model.selectedArchiveItems.isEmpty {
-                // 归档 + 有选中：解压选中项；≥2 给批量重命名,单选给哈希。
-                toolbarButton("button.extractSelected", systemImage: "arrow.down.doc.fill") {
-                    model.extractSelectedArchiveItems()
-                }
-                if model.selectedArchiveItems.count >= 2 {
-                    toolbarButton("archive.batchRename.menu", systemImage: "pencil.line") {
-                        model.requestBatchRename()
-                    }
-                } else {
-                    toolbarButton("button.hash", systemImage: "number.square") {
-                        model.calculateHash()
-                    }
+            archiveSuggestions
+        case .folder, .tag:
+            folderSuggestions
+        }
+    }
+
+    // MARK: - 归档模式
+
+    @ViewBuilder
+    private var archiveSuggestions: some View {
+        let selection = model.selectedArchiveItems
+        if selection.isEmpty {
+            toolbarButton("duplicates.menu", systemImage: "doc.on.doc") {
+                model.findDuplicateFilesInArchive()
+            }
+            if model.canEditArchiveComment {
+                toolbarButton("archive.comment.menu", systemImage: "text.bubble") {
+                    model.showsArchiveCommentEditor = true
                 }
             } else {
-                // 归档 + 无选中：重复检测；可写包给编辑注释,只读包给测试。
+                toolbarButton("security.banner.review", systemImage: "shield.lefthalf.filled") {
+                    model.showsArchiveSecurityReport = true
+                }
+                .disabled(model.archiveSecurityFindings.isEmpty)
+            }
+        } else if selection.count >= 2 {
+            toolbarButton("archive.batchRename.menu", systemImage: "pencil.line") {
+                model.requestBatchRename()
+            }
+            if model.canDropIntoOpenArchive {
+                toolbarButton("archive.delete.menu", systemImage: "trash") {
+                    model.deleteSelectedArchiveEntries()
+                }
+            } else {
                 toolbarButton("duplicates.menu", systemImage: "doc.on.doc") {
                     model.findDuplicateFilesInArchive()
                 }
-                if model.canEditArchiveComment {
-                    toolbarButton("archive.comment.menu", systemImage: "text.bubble") {
-                        model.showsArchiveCommentEditor = true
-                    }
-                } else {
-                    toolbarButton("button.test", systemImage: "checkmark.seal") {
-                        model.testArchive()
-                    }
-                }
             }
-        case .folder, .tag:
-            if !model.selectedFileItems.isEmpty {
-                // 文件夹 + 有选中：添加到压缩包；选中含归档/GPG 给解压,≥2 给批量重命名,单选给创建副本。
-                toolbarButton("button.addToArchive", systemImage: "plus.square.on.square.fill") {
-                    model.createArchive()
-                }
-                if model.selectedFileItems.contains(where: { !$0.isDirectory && (ArchiveService.isSupportedArchive($0.url) || GPGFileService.isRecognizedGPGFile($0.url)) }) {
-                    toolbarButton("button.extractHere", systemImage: "arrow.down.doc.fill") {
-                        model.extractArchive()
-                    }
-                } else if model.selectedFileItems.count >= 2 {
-                    toolbarButton("archive.batchRename.menu", systemImage: "pencil.line") {
-                        model.requestBatchRenameFiles()
-                    }
-                } else {
-                    toolbarButton("file.duplicate", systemImage: "plus.square.on.square") {
-                        model.duplicateSelectedFiles()
-                    }
+        } else {
+            toolbarButton("archive.saveCopyAs", systemImage: "square.and.arrow.down") {
+                model.saveSelectedArchiveItemCopy()
+            }
+            if model.canDropIntoOpenArchive {
+                toolbarButton("archive.delete.menu", systemImage: "trash") {
+                    model.deleteSelectedArchiveEntries()
                 }
             } else {
-                // 文件夹 + 无选中：新建文件夹 + 粘贴。
-                toolbarButton("file.newFolder", systemImage: "folder.badge.plus") {
-                    model.createNewFolderAndBeginRename()
-                }
-                toolbarButton("file.paste", systemImage: "doc.on.clipboard") {
-                    model.pasteFiles()
+                toolbarButton("duplicates.menu", systemImage: "doc.on.doc") {
+                    model.findDuplicateFilesInArchive()
                 }
             }
+        }
+    }
+
+    // MARK: - 文件夹模式（按选中内容细分）
+
+    private var selectedArchives: [FileItem] {
+        model.selectedFileItems.filter { !$0.isDirectory && ArchiveService.isSupportedArchive($0.url) }
+    }
+
+    private var gpgUIAvailable: Bool {
+        AppPreferences.gpgEnabled && GPGBackend.isAvailable()
+    }
+
+    @ViewBuilder
+    private var folderSuggestions: some View {
+        let selection = model.selectedFileItems
+        if selection.isEmpty {
+            toolbarButton("file.newFolder", systemImage: "folder.badge.plus") {
+                model.createNewFolderAndBeginRename()
+            }
+            toolbarButton("file.paste", systemImage: "doc.on.clipboard") {
+                model.pasteFiles()
+            }
+        } else if selection.contains(where: { $0.url.pathExtension.lowercased() == "001" || $0.url.lastPathComponent.lowercased().contains(".part") }) {
+            // 分卷成员 → 合并 + 比较（合并预检对话框自带缺卷警告）。
+            toolbarButton("file.combine.menuItem", systemImage: "square.stack.3d.down.right") {
+                model.combineSelectedVolumes()
+            }
+            toolbarButton("file.compareArchives", systemImage: "arrow.left.arrow.right.circle") {
+                model.compareSelectedArchives()
+            }
+        } else if selectedArchives.count >= 2 {
+            // 多归档 → 批量测试 + 比较 / 批量转换。
+            toolbarButton("file.batchTest.button", systemImage: "checkmark.seal") {
+                model.batchTestSelectedArchives()
+            }
+            if selectedArchives.count == 2 {
+                toolbarButton("file.compareArchives", systemImage: "arrow.left.arrow.right.circle") {
+                    model.compareSelectedArchives()
+                }
+            } else {
+                toolbarButton("file.convert.menuItem", systemImage: "arrow.triangle.2.circlepath") {
+                    model.requestConvertSelectedArchives()
+                }
+            }
+        } else if selectedArchives.count == 1, selection.count == 1 {
+            // 单归档 → 转换格式 + 发布包检查。
+            toolbarButton("file.convert.menuItem", systemImage: "arrow.triangle.2.circlepath") {
+                model.requestConvertSelectedArchives()
+            }
+            toolbarButton("inspect.menu", systemImage: "checklist") {
+                model.inspectSelectedArchiveForRelease()
+            }
+        } else if selection.count == 1, selection[0].url.pathExtension.lowercased() == SZSArchive.extensionName {
+            // .szs → 快照比较 + 虚拟浏览。
+            toolbarButton("szs.compareWithFolder.menuItem", systemImage: "arrow.left.arrow.right.circle") {
+                model.compareSelectedSZSWithFolder()
+            }
+            toolbarButton("szs.silentBrowse.menuItem", systemImage: "folder.badge.questionmark") {
+                if let url = model.selectedFileItems.first?.url {
+                    model.pendingSZSSilentVirtualBrowse = url
+                }
+            }
+        } else if gpgUIAvailable {
+            // 普通文件 + GPG 开 → 加密投递两件套。
+            toolbarButton("file.encrypt.gpg", systemImage: "lock.doc") {
+                model.encryptSelectionToGPG()
+            }
+            toolbarButton("szs.create.menuItem", systemImage: "signature") {
+                model.createSignedManifest()
+            }
+        } else if selection.count >= 2 {
+            toolbarButton("archive.batchRename.menu", systemImage: "pencil.line") {
+                model.requestBatchRenameFiles()
+            }
+            toolbarButton("file.duplicate", systemImage: "plus.square.on.square") {
+                model.duplicateSelectedFiles()
+            }
+        } else {
+            toolbarButton("file.duplicate", systemImage: "plus.square.on.square") {
+                model.duplicateSelectedFiles()
+            }
+            toolbarButton("file.split.menuItem", systemImage: "scissors") {
+                model.splitSelectedFile()
+            }
+            .disabled(selection[0].isDirectory)
         }
     }
 
