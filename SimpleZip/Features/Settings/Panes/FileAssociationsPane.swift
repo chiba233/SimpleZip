@@ -108,13 +108,17 @@ struct FileAssociationRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Text(".\(association.fileExtension)")
-                .font(.system(.body, design: .monospaced))
-                .fontWeight(.semibold)
-                .frame(width: 48, alignment: .leading)
+            // 与全设置同一套瓦片制度:按扩展名稳定取色(同 GPG 头像的思路),统一 doc.zipper 符号。
+            SettingsRowIcon(systemImage: "doc.zipper", tint: tileColor)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(association.title)
+                HStack(spacing: 6) {
+                    Text(".\(association.fileExtension)")
+                        .font(.system(.body, design: .monospaced))
+                        .fontWeight(.semibold)
+                    Text(association.title)
+                        .foregroundStyle(.secondary)
+                }
                 Text(L10n.format("settings.association.currentDefault", currentDefaultApp))
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -128,12 +132,21 @@ struct FileAssociationRow: View {
                     .font(.caption)
                     .foregroundStyle(.green)
             } else {
-                Button(L10n.text("settings.association.setDefault")) {
+                Button {
                     setDefault()
+                } label: {
+                    Label(L10n.text("settings.association.setDefault"), systemImage: "checkmark.circle")
                 }
             }
         }
         .padding(.vertical, 8)
         .controlSize(.small)
+    }
+
+    /// 扩展名 → 稳定配色(调色板同 GPG 头像;纯色平涂)。
+    private var tileColor: Color {
+        let palette: [Color] = [.blue, .purple, .pink, .orange, .teal, .indigo, .green, .cyan, .mint, .brown]
+        let sum = association.fileExtension.unicodeScalars.reduce(0) { $0 &+ Int($1.value) }
+        return palette[sum % palette.count]
     }
 }
