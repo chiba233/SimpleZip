@@ -113,6 +113,7 @@
 "siz.instructions.integrity" = "Integrity — verify the inner archive's SHA-256 matches:";
 "siz.instructions.passphraseNote" = "SimpleZip never handles your private-key passphrase — GPG's own agent (pinentry) prompts for it.";
 "siz.signatureSheet.signer" = "Signer";
+"siz.signatureSheet.section.decryption" = "Decryption";
 "siz.signatureSheet.keyFingerprint" = "Key fingerprint";
 "siz.signatureSheet.signedAt" = "Signed at";
 "siz.signatureSheet.source" = "Source";
@@ -286,6 +287,7 @@
 "error.szs.duplicateRelativePath" = "Duplicate relativePath: %@";
 // .szs UI
 "szs.verify.title" = "Signed manifest verification";
+"szs.verify.manifestSection" = "Manifest";
 "szs.verify.filesSection" = "Files";
 "szs.verify.summary" = "%1$d / %2$d match · %3$d mismatch · %4$d missing";
 "szs.verify.entry.match" = "✓ Match";

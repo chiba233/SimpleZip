@@ -67,12 +67,19 @@ struct SIZSignatureSheet: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .top, spacing: 14) {
+        // 0.4.1 重构：套现代体例 —— 验签状态本身就是 hero（大彩色印章 + 标题 + 摘要）,
+        // detail 进 DialogSection 卡片,操作钉底 bar,内容区可滚动自适应。
+        VStack(spacing: 0) {
+            HStack(spacing: 14) {
                 Image(systemName: SIZSignatureStatus.iconName(for: signature.verify))
-                    .font(.system(size: 32, weight: .semibold))
-                    .foregroundStyle(SIZSignatureStatus.color(for: signature.verify))
-                VStack(alignment: .leading, spacing: 4) {
+                    .font(.system(size: 30, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 48, height: 48)
+                    .background(
+                        SIZSignatureStatus.color(for: signature.verify).gradient,
+                        in: RoundedRectangle(cornerRadius: 11, style: .continuous)
+                    )
+                VStack(alignment: .leading, spacing: 3) {
                     Text(SIZSignatureStatus.title(for: signature.verify))
                         .font(.title3.weight(.semibold))
                     Text(SIZSignatureStatus.summary(for: signature.verify))
@@ -80,39 +87,46 @@ struct SIZSignatureSheet: View {
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                Spacer()
+                Spacer(minLength: 0)
             }
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
+            .padding(.bottom, 14)
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    DialogSection {
+                        detailRow(L10n.text("siz.signatureSheet.signer"), signature.signerDisplay)
+                        detailRow(L10n.text("siz.signatureSheet.keyFingerprint"), signature.signerFingerprint, monospaced: true)
+                        detailRow(L10n.text("siz.signatureSheet.signedAt"), signature.signedAt)
+                        detailRow(L10n.text("siz.signatureSheet.source"), signature.sourceURL.path, monospaced: true)
+                        detailRow(L10n.text("siz.signatureSheet.formatVersion"), ".\(SIZArchive.extensionName) v\(signature.schemaVersion)")
+                        if let instructions = signature.deliveryInstructions, !instructions.isEmpty {
+                            instructionsRow(instructions)
+                        }
+                    }
+
+                    // 加密容器：picker + passphrase 字段；passphrase 字段优先于 pinentry-mac 兜底。
+                    if showsDecryptionKeyPicker || showsDecryptionPassphraseField {
+                        DialogSection(L10n.text("siz.signatureSheet.section.decryption")) {
+                            decryptionControls
+                        }
+                    }
+
+                    // 解密失败内联提示（密码 / 密钥错）—— 红字，留在 sheet 里让用户改了重试。
+                    if let inlineError {
+                        Label(inlineError, systemImage: "exclamationmark.triangle.fill")
+                            .font(.callout)
+                            .foregroundStyle(.red)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 16)
+            }
+            .frame(maxHeight: 520)
 
             Divider()
-
-            VStack(alignment: .leading, spacing: 8) {
-                detailRow(L10n.text("siz.signatureSheet.signer"), signature.signerDisplay)
-                detailRow(L10n.text("siz.signatureSheet.keyFingerprint"), signature.signerFingerprint, monospaced: true)
-                detailRow(L10n.text("siz.signatureSheet.signedAt"), signature.signedAt)
-                detailRow(L10n.text("siz.signatureSheet.source"), signature.sourceURL.path, monospaced: true)
-                detailRow(L10n.text("siz.signatureSheet.formatVersion"), ".\(SIZArchive.extensionName) v\(signature.schemaVersion)")
-                // #110 收件人说明：作为 detail 块里的**一行**（标题对齐标签列、展开正文对齐值列），
-                // 而不是下面另起一张浮卡 —— 解决「跟上面间距太大 / 正文贴左 / 左右 margin 太小」。
-                if let instructions = signature.deliveryInstructions, !instructions.isEmpty {
-                    instructionsRow(instructions)
-                }
-            }
-            .padding(12)
-            .background(Color(nsColor: .controlBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-
-            // 加密容器：在 detail 块下方加 picker + passphrase 字段；passphrase 字段优先于 pinentry-mac 兜底。
-            if showsDecryptionKeyPicker || showsDecryptionPassphraseField {
-                decryptionControls
-            }
-
-            // 解密失败内联提示（密码 / 密钥错）—— 红字，留在 sheet 里让用户改了重试。
-            if let inlineError {
-                Label(inlineError, systemImage: "exclamationmark.triangle.fill")
-                    .font(.callout)
-                    .foregroundStyle(.red)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
 
             HStack {
                 if isOpening {
@@ -137,9 +151,12 @@ struct SIZSignatureSheet: View {
                 .tint(SIZSignatureStatus.color(for: signature.verify))
                 .disabled(isOpening)
             }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .background(.bar)
         }
-        .padding(24)
-        .frame(width: 540)
+        .frame(width: 560)
+        .onTapGesture { NSApp.keyWindow?.makeFirstResponder(nil) }
         .onAppear {
             // 仅加密容器才需要载入 hasSecretKey 密钥列表 —— 没加密的容器 picker 不显示，省一次 listKeys 调用。
             guard showsDecryptionKeyPicker, AppPreferences.gpgEnabled, GPGBackend.isAvailable() else { return }

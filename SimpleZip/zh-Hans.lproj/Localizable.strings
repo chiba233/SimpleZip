@@ -113,6 +113,7 @@
 "siz.instructions.integrity" = "完整性 —— 校验内层压缩包的 SHA-256 是否等于：";
 "siz.instructions.passphraseNote" = "SimpleZip 从不经手你的私钥密码 —— 由 GPG 自己的 agent（pinentry）来提示输入。";
 "siz.signatureSheet.signer" = "签名者";
+"siz.signatureSheet.section.decryption" = "解密";
 "siz.signatureSheet.keyFingerprint" = "公钥指纹";
 "siz.signatureSheet.signedAt" = "签名时间";
 "siz.signatureSheet.source" = "源文件";
@@ -286,6 +287,7 @@
 "error.szs.duplicateRelativePath" = "重复的 relativePath：%@";
 // .szs UI
 "szs.verify.title" = "签名清单验证";
+"szs.verify.manifestSection" = "清单信息";
 "szs.verify.filesSection" = "文件";
 "szs.verify.summary" = "%1$d / %2$d 通过 · %3$d 失败 · %4$d 缺失";
 "szs.verify.entry.match" = "✓ 匹配";

@@ -61,68 +61,86 @@ struct SZSVerificationSheet: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(L10n.text("szs.verify.title"))
-                .font(.title3.weight(.semibold))
+        // 0.4.1 重构：验签状态作 hero（大彩色印章），各信息块进 DialogSection 卡片,操作钉底 bar。
+        VStack(spacing: 0) {
+            HStack(spacing: 14) {
+                Image(systemName: SIZSignatureStatus.iconName(for: signature))
+                    .font(.system(size: 30, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 48, height: 48)
+                    .background(
+                        SIZSignatureStatus.color(for: signature).gradient,
+                        in: RoundedRectangle(cornerRadius: 11, style: .continuous)
+                    )
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(SIZSignatureStatus.title(for: signature))
+                        .font(.title3.weight(.semibold))
+                    Text(SIZSignatureStatus.summary(for: signature))
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
+            .padding(.bottom, 14)
 
-            signatureBlock
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    DialogSection { signerDetailBlock }
+                    DialogSection(L10n.text("szs.verify.manifestSection")) { manifestBlock }
+                    DialogSection(L10n.text("szs.verify.payloadRoot")) {
+                        payloadRootBlock
+                        filesBlock
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 16)
+            }
+            .frame(maxHeight: 560)
+
             Divider()
-            manifestBlock
-            Divider()
-            payloadRootBlock
-            Divider()
-            filesBlock
 
             HStack {
                 Spacer()
+                Button(L10n.text("szs.verify.dismissButton"), action: onClose)
+                    .keyboardShortcut(.cancelAction)
                 Button(L10n.text("szs.verify.openAsVirtualFolderButton")) {
                     if let report {
                         onOpenAsVirtualFolder(payloadRoot, report)
                     }
                 }
+                .buttonStyle(.borderedProminent)
                 .disabled(isVerifying || report == nil)
-                Button(L10n.text("szs.verify.dismissButton"), action: onClose)
-                    .keyboardShortcut(.cancelAction)
             }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .background(.bar)
         }
-        .padding(20)
-        .frame(width: 680)
+        .frame(width: 700)
         .onAppear { verifyNow() }
     }
 
-    // MARK: - 签名块
-
-    private var signatureBlock: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: SIZSignatureStatus.iconName(for: signature))
-                .font(.system(size: 28, weight: .semibold))
-                .foregroundStyle(SIZSignatureStatus.color(for: signature))
-            VStack(alignment: .leading, spacing: 3) {
-                Text(SIZSignatureStatus.title(for: signature))
-                    .font(.headline)
-                Text(SIZSignatureStatus.summary(for: signature))
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                // 签名者名 + email 拆出来显示 —— GPG VALIDSIG 的 signer 文案通常是 `Name <email>` 这种 RFC 2822 格式。
-                // 是「这签名是谁的」最直接的回答，比 fingerprint 更人话。
-                if let signerLine = extractSignerLine() {
-                    Text(signerLine)
-                        .font(.callout.weight(.medium))
-                        .foregroundStyle(.primary)
-                        .textSelection(.enabled)
-                        .padding(.top, 2)
-                }
-                if let fp = extractFingerprint() {
-                    Text(fp)
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                        .textSelection(.enabled)
-                }
+    /// 签名者细节（fingerprint / 签名者名）—— 从原 signatureBlock 拆出状态印章后剩下的部分。
+    @ViewBuilder
+    private var signerDetailBlock: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if let signerLine = extractSignerLine() {
+                Text(signerLine)
+                    .font(.callout.weight(.medium))
+                    .textSelection(.enabled)
             }
-            Spacer()
+            if let fp = extractFingerprint() {
+                Text(fp)
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+            }
+            infoRow(L10n.text("siz.signatureSheet.source"), sourceURL.path, monospaced: true)
         }
     }
+
 
     private func extractSignerLine() -> String? {
         if case .validSignature(let signer, _, _, _) = signature, let s = signer, !s.isEmpty { return s }
@@ -141,8 +159,7 @@ struct SZSVerificationSheet: View {
     @ViewBuilder
     private var manifestBlock: some View {
         VStack(alignment: .leading, spacing: 4) {
-            // 复用 `.siz` 的「源文件」标签 —— 同语义不开重复 key。
-            infoRow(L10n.text("siz.signatureSheet.source"), sourceURL.path, monospaced: true)
+            // 源文件路径已移到 signerDetailBlock，这里不重复。
             if let title = manifest.title, !title.isEmpty {
                 infoRow(L10n.text("szs.verify.manifestTitle"), title)
             }
