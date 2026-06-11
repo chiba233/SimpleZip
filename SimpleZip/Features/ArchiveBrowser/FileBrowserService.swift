@@ -204,6 +204,9 @@ final class FileBrowserService {
         // attributesOfItem 会对 ~/Desktop、~/Downloads 这类 TCC 受保护目录发起一次带属主 / ACL 属性的
         // getattrlist,从而触发系统权限弹窗;两列默认都关,默认情况下不该平白申请这些目录的访问权限。
         let wantsPosixMetadata = AppPreferences.showFilePermissionsColumn || AppPreferences.showFileOwnerColumn
+        // uid → 用户名只解析一次：getpwuid 可能走 OpenDirectory（网络账户下是真网络请求），
+        // 同一文件夹里属主通常就一两个，按 uid 缓存把几万次解析压成几次。
+        var ownerNameByUID: [uid_t: String] = [:]
         return urls.compactMap { fileURL in
             guard let values = try? fileURL.resourceValues(forKeys: resourceKeys) else {
                 return nil
@@ -236,13 +239,29 @@ final class FileBrowserService {
 
             // Unix 权限 / 属主 —— lstat 语义（不跟随符号链接,显示链接自身的权限与属主）。取不到就留空 / 退回 uid。
             // 只在列启用时 stat,避免对受保护目录平白触发 TCC 弹窗（见上方 wantsPosixMetadata）。
-            let posixAttributes = wantsPosixMetadata ? (try? fileManager.attributesOfItem(atPath: fileURL.path)) : nil
-            let permissions: String = (posixAttributes?[.posixPermissions] as? NSNumber).map {
-                Self.posixModeString(mode: $0.uint16Value, isDirectory: isDirectory, isSymbolicLink: isSymbolicLink)
-            } ?? ""
-            let owner: String = (posixAttributes?[.ownerAccountName] as? String)
-                ?? (posixAttributes?[.ownerAccountID] as? NSNumber).map { $0.stringValue }
-                ?? ""
+            // 用裸 lstat 而不是 attributesOfItem：后者每项一次 getattrlist **加一次属主用户名解析**，
+            // 大目录在主线程直接卡死（实测挂在这行被 SIGTERM 强杀）；lstat 是微秒级 syscall，
+            // 用户名走上面的 uid 缓存。语义不变 —— attributesOfItem 本身就是 lstat 语义。
+            var permissions = ""
+            var owner = ""
+            if wantsPosixMetadata {
+                var status = stat()
+                if lstat(fileURL.path, &status) == 0 {
+                    permissions = Self.posixModeString(
+                        mode: UInt16(status.st_mode & 0o7777),
+                        isDirectory: isDirectory,
+                        isSymbolicLink: isSymbolicLink
+                    )
+                    if let cached = ownerNameByUID[status.st_uid] {
+                        owner = cached
+                    } else {
+                        let name = getpwuid(status.st_uid).map { String(cString: $0.pointee.pw_name) }
+                            ?? String(status.st_uid)
+                        ownerNameByUID[status.st_uid] = name
+                        owner = name
+                    }
+                }
+            }
 
             return FileItem(
                 url: fileURL,
