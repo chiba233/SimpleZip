@@ -26,6 +26,23 @@ struct LocationBar: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
             .background(.bar)
+            // 0.4.1 手绘补全面板（替代系统 popover）：固定吸附在地址栏正下方、与地址栏同宽，
+            // 整面液态玻璃，只有选中项有色块。overlay + alignmentGuide 让面板顶边挂在 bar 底边下 4pt；
+            // zIndex 抬高绘制层级,盖住下方的文件列表。
+            .overlay(alignment: .bottom) {
+                if isShowingLocationCompletions {
+                    LocationCompletionMenu(
+                        completions: locationCompletions,
+                        selectedIndex: selectedLocationCompletionIndex,
+                        select: selectLocationCompletion
+                    )
+                    .padding(.horizontal, 10)
+                    .alignmentGuide(.bottom) { dimensions in dimensions[.top] - 4 }
+                    .transition(.opacity.combined(with: .offset(y: -4)))
+                }
+            }
+            .zIndex(1)
+            .animation(.easeOut(duration: 0.12), value: isShowingLocationCompletions)
             .onAppear {
                 pathText = model.editableLocationText
             }
@@ -93,15 +110,6 @@ struct LocationBar: View {
             RoundedRectangle(cornerRadius: 7)
                 .stroke(Color(nsColor: .separatorColor))
         )
-        .popover(isPresented: $isShowingLocationCompletions, arrowEdge: .top) {
-            LocationCompletionMenu(
-                completions: locationCompletions,
-                selectedIndex: selectedLocationCompletionIndex,
-                select: selectLocationCompletion
-            )
-            .padding(6)
-            .frame(width: 520, height: LocationCompletionMenu.height(for: locationCompletions.count))
-        }
     }
 
     private func openLocationFromField() {
@@ -189,52 +197,27 @@ struct LocationBar: View {
     }
 }
 
+/// 0.4.1 手绘补全面板：整面液态玻璃（ultraThin 材质），行与行之间无分隔线、无底色 ——
+/// **只有键盘 / 鼠标选中的那一行有强调色块**（用户点名的视觉规则）。
 private struct LocationCompletionMenu: View {
     let completions: [LocationCompletion]
     let selectedIndex: Int?
     let select: (LocationCompletion) -> Void
-    private static let rowHeight: CGFloat = 48
-    private static let maximumVisibleRows = 10
-    private static let footerHeight: CGFloat = 31
-    private static let verticalPadding: CGFloat = 12
+    private static let rowHeight: CGFloat = 44
+    private static let rowSpacing: CGFloat = 2
+    private static let maximumVisibleRows = 9
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ScrollViewReader { proxy in
                 ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 0) {
+                    LazyVStack(alignment: .leading, spacing: Self.rowSpacing) {
                         ForEach(Array(completions.enumerated()), id: \.offset) { index, completion in
-                            Button {
-                                select(completion)
-                            } label: {
-                                HStack(spacing: 8) {
-                                    Image(systemName: "folder")
-                                        .foregroundStyle(.secondary)
-                                        .frame(width: 16)
-                                    VStack(alignment: .leading, spacing: 1) {
-                                        Text(completion.displayName)
-                                            .lineLimit(1)
-                                        Text(completion.path)
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                            .lineLimit(1)
-                                    }
-                                    Spacer(minLength: 0)
-                                }
-                                .frame(height: Self.rowHeight)
-                                .contentShape(Rectangle())
-                                .padding(.horizontal, 10)
-                                .background(index == selectedIndex ? Color.accentColor.opacity(0.16) : Color.clear)
-                            }
-                            .buttonStyle(.plain)
-                            .id(index)
-                            .overlay(alignment: .bottom) {
-                                if index != completions.count - 1 {
-                                    Divider()
-                                }
-                            }
+                            completionRow(completion, isSelected: index == selectedIndex)
+                                .id(index)
                         }
                     }
+                    .padding(6)
                 }
                 .frame(height: listHeight)
                 .scrollIndicators(completions.count > Self.maximumVisibleRows ? .visible : .hidden)
@@ -246,35 +229,60 @@ private struct LocationCompletionMenu: View {
                 }
             }
 
-            Divider()
-
             Text(L10n.format("locationCompletion.count", completions.count))
-                .font(.caption)
+                .font(.caption2)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
+                .padding(.horizontal, 14)
+                .padding(.bottom, 8)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 6)
-                .stroke(Color(nsColor: .separatorColor))
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.08))
         )
-        .shadow(color: Color.black.opacity(0.16), radius: 12, y: 6)
+        .shadow(color: Color.black.opacity(0.22), radius: 18, y: 8)
     }
 
-    static func height(for count: Int) -> CGFloat {
-        listHeight(for: count) + footerHeight + verticalPadding
+    @ViewBuilder
+    private func completionRow(_ completion: LocationCompletion, isSelected: Bool) -> some View {
+        Button {
+            select(completion)
+        } label: {
+            HStack(spacing: 9) {
+                Image(systemName: "folder.fill")
+                    .font(.system(size: 13))
+                    .foregroundStyle(isSelected ? AnyShapeStyle(.white) : AnyShapeStyle(Color.accentColor))
+                    .frame(width: 18)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(completion.displayName)
+                        .foregroundStyle(isSelected ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
+                        .lineLimit(1)
+                    Text(completion.path)
+                        .font(.caption)
+                        .foregroundStyle(isSelected ? AnyShapeStyle(.white.opacity(0.8)) : AnyShapeStyle(.secondary))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 10)
+            .frame(height: Self.rowHeight)
+            .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .background {
+                if isSelected {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color.accentColor)
+                }
+            }
+        }
+        .buttonStyle(.plain)
     }
 
     private var listHeight: CGFloat {
-        Self.listHeight(for: completions.count)
-    }
-
-    private static func listHeight(for count: Int) -> CGFloat {
-        CGFloat(min(max(count, 1), maximumVisibleRows)) * rowHeight
+        let visible = CGFloat(min(max(completions.count, 1), Self.maximumVisibleRows))
+        return visible * Self.rowHeight + (visible - 1) * Self.rowSpacing + 12
     }
 }
 
