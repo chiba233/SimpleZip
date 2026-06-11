@@ -445,3 +445,55 @@ struct CommandLineRedactionTests {
         #expect(line.contains("--passphrase '[REDACTED]'"))   // 占位符含特殊字符,被 shell 引号包裹是预期行为
     }
 }
+
+/// 0.4.3 #10:可复现压缩参数 + 真实 round-trip(同输入两次打包 hash 必须一致)。
+struct ReproducibleArchiveTests {
+
+    @Test func reproducibleFlagAppendsMtmOff() throws {
+        var options = ArchiveCreationOptions()
+        options.reproducibleArchive = true
+        let zipArgs = try ArchiveService.sevenZipZipCreateArguments(
+            destination: URL(fileURLWithPath: "/tmp/a.zip"), relativeNames: ["x"], options: options)
+        #expect(zipArgs.contains("-mtm=off"))
+        options.format = .sevenZip
+        let sevenZipArgs = try ArchiveService.sevenZipCreateArguments(
+            destination: URL(fileURLWithPath: "/tmp/a.7z"), relativeNames: ["x"], options: options)
+        #expect(sevenZipArgs.contains("-mtm=off"))
+
+        // 关掉(nil / false)都不加 —— 默认行为不变。
+        options.reproducibleArchive = nil
+        let plain = try ArchiveService.sevenZipCreateArguments(
+            destination: URL(fileURLWithPath: "/tmp/a.7z"), relativeNames: ["x"], options: options)
+        #expect(!plain.contains("-mtm=off"))
+    }
+
+    @Test func sameInputProducesIdenticalZipBytes() async throws {
+        let fm = FileManager.default
+        let temp = fm.temporaryDirectory.appendingPathComponent("SZRepro-\(UUID().uuidString)", isDirectory: true)
+        try fm.createDirectory(at: temp, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: temp) }
+        let source = temp.appendingPathComponent("payload", isDirectory: true)
+        try fm.createDirectory(at: source.appendingPathComponent("sub"), withIntermediateDirectories: true)
+        try "alpha".write(to: source.appendingPathComponent("a.txt"), atomically: true, encoding: .utf8)
+        try "beta".write(to: source.appendingPathComponent("sub/b.txt"), atomically: true, encoding: .utf8)
+
+        var options = ArchiveCreationOptions()
+        options.format = .zip
+        options.skipDSStore = false
+        options.skipHiddenFiles = false
+        options.reproducibleArchive = true
+
+        let first = temp.appendingPathComponent("one.zip")
+        try await ArchiveService.createArchive(from: [source], destination: first, options: options)
+
+        // 改 mtime(可复现性要消除的正是它),内容不变 → 字节必须一致。
+        try fm.setAttributes([.modificationDate: Date()], ofItemAtPath: source.appendingPathComponent("a.txt").path)
+        let second = temp.appendingPathComponent("two.zip")
+        try await ArchiveService.createArchive(from: [source], destination: second, options: options)
+
+        #expect(try Data(contentsOf: first) == Data(contentsOf: second))
+        // 产物必须仍是合法 zip。
+        let listed = try await ArchiveService.list(first)
+        #expect(listed.contains { $0.name.hasSuffix("a.txt") })
+    }
+}

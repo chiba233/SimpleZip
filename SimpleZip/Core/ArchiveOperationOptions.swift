@@ -313,6 +313,10 @@ struct ArchiveCreationOptions: Codable, Equatable {
     var showDetails = false
     var skipDSStore = true
     var skipHiddenFiles = false
+    /// 0.4.3 #10:可复现压缩(仅 zip / 7z) —— 7zz `-mtm=off` 不存修改时间,同一输入多次打包
+    /// 得到相同 SHA-256(实测;条目顺序 7zz 本就稳定)。**Optional 是刻意的**:本结构随压缩预设
+    /// Codable 持久化,合成解码对 Optional 走 decodeIfPresent —— 旧预设缺这个键照常解码(nil=关)。
+    var reproducibleArchive: Bool? = nil
     var customExcludes = ""
     var updateMode: ArchiveUpdateMode = .addAndReplace
     var rawParameters = ""

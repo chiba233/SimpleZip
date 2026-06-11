@@ -402,6 +402,22 @@ struct ArchiveCreationOptionsView: View {
     @ViewBuilder
     private var advancedDrawer: some View {
         DialogDrawer(L10n.text("archive.create.section.advanced"), systemImage: "slider.horizontal.3", color: .gray) {
+            // 0.4.3 #10:可复现压缩(仅 zip / 7z —— tar 系走系统 tar,无时间戳钳制参数)。
+            if request.options.format == .zip || request.options.format == .sevenZip {
+                VStack(alignment: .leading, spacing: 4) {
+                    Toggle(isOn: Binding(
+                        get: { request.options.reproducibleArchive == true },
+                        set: { request.options.reproducibleArchive = $0 ? true : nil }
+                    )) {
+                        Label(L10n.text("archive.reproducible"), systemImage: "equal.circle")
+                    }
+                    Text(L10n.text("archive.reproducible.hint"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
             if request.options.format.supportsUpdateMode, !hidden(.updateMode) {
                 LabeledContent {
                     Picker("", selection: $request.options.updateMode) {

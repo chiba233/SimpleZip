@@ -680,6 +680,8 @@
 "tasks.recovery.clear" = "清理恢复区";
 "tasks.recovery.clear.description" = "删除全部保全的恢复副本。成功的操作从不在这里留文件。";
 "tasks.recovery.clear.button" = "删除 %1$@ 个文件";
+"archive.reproducible" = "可复现压缩";
+"archive.reproducible.hint" = "不存修改时间——同一输入每次打包都得到字节级一致的归档（同一个 SHA-256）。适合 GitHub Release 和可验证构建。解压时条目时间显示为 1980-01-01。仅 ZIP 与 7z。";
 "extract.skipSymlinks" = "不解压符号链接";
 "extract.skipSymlinks.detail" = "合并前在 staging 上删掉所有符号链接——来自其他系统的包,链接常指向本机不存在的路径。上方预检概要里有链接数量可对照。";
 /* 0.4.3 校验文件 */

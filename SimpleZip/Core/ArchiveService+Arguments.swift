@@ -105,6 +105,11 @@ extension ArchiveService {
         if let volumeSize = try normalizedSevenZipVolumeSize(from: options.sevenZipVolumeSize) {
             arguments.append("-v\(volumeSize)")
         }
+        // 0.4.3 #10:可复现压缩 —— 不存修改时间(实测同输入多次打包得到相同 SHA-256;
+        // 条目顺序 7zz 本就稳定排序)。条目时间在解压侧呈现为 DOS 纪元 1980-01-01。
+        if options.reproducibleArchive == true {
+            arguments.append("-mtm=off")
+        }
         arguments.append(contentsOf: sevenZipExcludeArguments(from: options))
         arguments.append(contentsOf: splitCommandLineArguments(from: options.rawParameters))
         // 安全（审计 P1）：destination / 源文件名前加 `--` —— 文件名以 `-` 开头时不被 7zz 当开关。
@@ -130,6 +135,10 @@ extension ArchiveService {
         }
         if let volumeSize = try normalizedSevenZipVolumeSize(from: options.sevenZipVolumeSize) {
             arguments.append("-v\(volumeSize)")
+        }
+        // 0.4.3 #10:可复现压缩(语义见 sevenZipCreateArguments;zip 的条目时间字段落为 DOS 纪元)。
+        if options.reproducibleArchive == true {
+            arguments.append("-mtm=off")
         }
         arguments.append(contentsOf: sevenZipExcludeArguments(from: options))
         arguments.append(contentsOf: splitCommandLineArguments(from: options.rawParameters))

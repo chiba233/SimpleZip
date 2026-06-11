@@ -682,6 +682,8 @@
 "tasks.recovery.clear" = "Clear recovery area";
 "tasks.recovery.clear.description" = "Deletes all preserved recovery copies. Successful operations never leave files here.";
 "tasks.recovery.clear.button" = "Delete %1$@ file(s)";
+"archive.reproducible" = "Reproducible archive";
+"archive.reproducible.hint" = "Don't store modification times — the same input produces a byte-identical archive (same SHA-256) every time. Great for GitHub releases and verifiable builds. Entry times read as 1980-01-01 when extracted. ZIP and 7z only.";
 "extract.skipSymlinks" = "Don't extract symbolic links";
 "extract.skipSymlinks.detail" = "Symlinks are removed from the staged output before merging — useful for archives from other systems whose links point at paths that don't exist here. The preflight summary above shows how many the archive contains.";
 /* 0.4.3 checksum files */
