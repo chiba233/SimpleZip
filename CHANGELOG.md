@@ -4,6 +4,8 @@
 
 ## 0.4.2 (unreleased)
 
+- **UI: all seven GPG sheets join the modern dialog shell.** Key import, new key, edit expiration, change passphrase, add user ID, add subkey, and generate revocation certificate now share the same hero header, card sections, and pinned bottom bar as the rest of the app — heights hug their content instead of being hard-coded.
+
 - **Fix: "Extract Here" now works on `.gpg` / `.pgp` / `.asc` files.** Extracting an encrypted GPG file decrypts it through the full task pipeline (Activity Center entry, re-runnable, pinentry cancel counts as cancel, not failure) and places the plaintext next to the source with collision-safe naming — never overwriting. Key files route to the import sheet; non-decryptable content gets a clear explanation.
 
 - **UI: the comparison window joins the modern dialog shell.** Archive Diff now has the same hero header, card sections, and pinned bottom bar as the create/extract dialogs — export, ignore-junk, and copy moved into the bottom bar, and the difference cards match the shared section styling.

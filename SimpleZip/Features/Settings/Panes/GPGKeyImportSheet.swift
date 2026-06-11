@@ -38,59 +38,54 @@ struct GPGKeyImportSheet: View {
     @State private var didSucceed = false
 
     var body: some View {
+        // 0.4.2 体例统一：GPG 全套 sheet 并入现代弹窗壳（DialogHero + DialogSection + 钉底 bar）。
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 10) {
-                Image(systemName: request.isPrivateKey ? "key.fill" : "person.badge.key.fill")
-                    .font(.system(size: 22))
-                    .foregroundStyle(request.isPrivateKey ? Color.orange : Color.accentColor)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(L10n.text(request.isPrivateKey
-                        ? "gpgImport.title.private"
-                        : "gpgImport.title.public"))
-                        .font(.title3.weight(.semibold))
-                    Text(request.sourceURL.lastPathComponent)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
-                Spacer()
-            }
-            .padding(20)
-            .background(.bar)
+            DialogHero(
+                systemImage: request.isPrivateKey ? "key.fill" : "person.badge.key.fill",
+                colors: request.isPrivateKey ? [.orange, .red] : [.teal, .blue],
+                title: L10n.text(request.isPrivateKey ? "gpgImport.title.private" : "gpgImport.title.public"),
+                subtitle: request.sourceURL.lastPathComponent
+            )
 
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 16) {
                 Text(L10n.text("gpgImport.body"))
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
 
-                Picker(L10n.text("gpgImport.ring.label"), selection: $ring) {
-                    Text(L10n.text("gpgImport.ring.user")).tag(GPGBackend.GPGKeyringSource.userKeyring)
-                    Text(L10n.text("gpgImport.ring.simpleZip")).tag(GPGBackend.GPGKeyringSource.simpleZipKeyring)
-                }
-                .pickerStyle(.radioGroup)
-                .disabled(isImporting || didSucceed)
+                DialogSection(L10n.text("gpgImport.ring.label")) {
+                    Picker("", selection: $ring) {
+                        Text(L10n.text("gpgImport.ring.user")).tag(GPGBackend.GPGKeyringSource.userKeyring)
+                        Text(L10n.text("gpgImport.ring.simpleZip")).tag(GPGBackend.GPGKeyringSource.simpleZipKeyring)
+                    }
+                    .pickerStyle(.radioGroup)
+                    .labelsHidden()
+                    .disabled(isImporting || didSucceed)
 
-                if request.isPrivateKey {
-                    Label(L10n.text("gpgImport.privateKey.note"), systemImage: "exclamationmark.triangle.fill")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                        .fixedSize(horizontal: false, vertical: true)
+                    if request.isPrivateKey {
+                        Label(L10n.text("gpgImport.privateKey.note"), systemImage: "exclamationmark.triangle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
 
                 if let resultMessage {
-                    Text(resultMessage)
+                    Label(resultMessage, systemImage: didSucceed ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
                         .font(.caption)
-                        .foregroundStyle(didSucceed ? .green : .red)
+                        .foregroundStyle(didSucceed ? Color.green : Color.red)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            .padding(20)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 16)
 
             Divider()
 
             HStack {
+                if isImporting {
+                    ProgressView().controlSize(.small)
+                }
                 Spacer()
                 Button(L10n.text(didSucceed ? "button.close" : "button.cancel")) {
                     onClose()
@@ -100,13 +95,16 @@ struct GPGKeyImportSheet: View {
                     Button(L10n.text("gpgImport.action.import")) {
                         performImport()
                     }
+                    .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.defaultAction)
                     .disabled(isImporting)
                 }
             }
-            .padding(20)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .background(.bar)
         }
-        .frame(width: 420)
+        .frame(width: 440)
     }
 
     private func performImport() {

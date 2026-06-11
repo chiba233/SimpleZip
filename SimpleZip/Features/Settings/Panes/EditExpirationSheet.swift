@@ -19,72 +19,52 @@ struct EditExpirationSheet: View {
     @State private var expiration: GPGBackend.GPGKeyExpiration = .oneYear
 
     var body: some View {
+        // 0.4.2 体例统一：并入现代弹窗壳。高度贴内容（DialogSection 自适应），不再写死 280。
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 10) {
-                Image(systemName: "calendar.badge.clock")
-                    .font(.system(size: 22))
-                    .foregroundStyle(Color.accentColor)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(L10n.text("settings.gpg.keys.editExpirationTitle"))
-                        .font(.title3.weight(.semibold))
-                    Text(L10n.format("settings.gpg.keys.editExpirationSubject", key.userID, key.shortFingerprint))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
-                Spacer()
-            }
-            .padding(20)
-            .background(.bar)
+            DialogHero(
+                systemImage: "calendar.badge.clock",
+                colors: [.indigo, .purple],
+                title: L10n.text("settings.gpg.keys.editExpirationTitle"),
+                subtitle: L10n.format("settings.gpg.keys.editExpirationSubject", key.userID, key.shortFingerprint)
+            )
 
             VStack(alignment: .leading, spacing: 16) {
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    Text(L10n.text("settings.gpg.newKey.expirationLabel"))
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 90, alignment: .trailing)
-                    Picker("", selection: $expiration) {
-                        ForEach(GPGBackend.GPGKeyExpiration.allCases) { exp in
-                            Text(exp.displayName).tag(exp)
+                DialogSection {
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        Text(L10n.text("settings.gpg.newKey.expirationLabel"))
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.secondary)
+                        Picker("", selection: $expiration) {
+                            ForEach(GPGBackend.GPGKeyExpiration.allCases) { exp in
+                                Text(exp.displayName).tag(exp)
+                            }
                         }
+                        .labelsHidden()
                     }
-                    .labelsHidden()
                 }
 
-                HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: "info.circle")
-                        .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
-                    Text(L10n.text("settings.gpg.keys.editExpirationNote"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Spacer(minLength: 0)
-                }
+                Label(L10n.text("settings.gpg.keys.editExpirationNote"), systemImage: "info.circle")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(20)
-
-            Spacer(minLength: 0)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 16)
 
             Divider()
 
-            HStack {
-                Spacer()
-                Button(L10n.text("button.cancel")) {
-                    isPresented = false
-                }
-                .keyboardShortcut(.cancelAction)
-
-                Button(L10n.text("settings.gpg.keys.applyButton")) {
+            DialogFooter(
+                confirmTitle: L10n.text("settings.gpg.keys.applyButton"),
+                confirmDisabled: false,
+                confirm: {
                     onApply(expiration)
                     isPresented = false
-                }
-                .keyboardShortcut(.defaultAction)
-                .buttonStyle(.borderedProminent)
+                },
+                cancel: { isPresented = false }
+            ) {
+                EmptyView()
             }
-            .padding(16)
         }
-        .frame(width: 480, height: 280)
+        .frame(width: 480)
     }
 }

@@ -24,87 +24,72 @@ struct AddSubkeySheet: View {
     @State private var passphrase = ""
 
     var body: some View {
+        // 0.4.2 体例统一：并入现代弹窗壳，高度贴内容。
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 10) {
-                Image(systemName: "key.viewfinder")
-                    .font(.system(size: 22))
-                    .foregroundStyle(Color.accentColor)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(L10n.text("settings.gpg.addSubkey.title"))
-                        .font(.title3.weight(.semibold))
-                    Text(L10n.format("settings.gpg.addSubkey.subject", key.userID, key.shortFingerprint))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
+            DialogHero(
+                systemImage: "key.viewfinder",
+                colors: [.purple, .indigo],
+                title: L10n.text("settings.gpg.addSubkey.title"),
+                subtitle: L10n.format("settings.gpg.addSubkey.subject", key.userID, key.shortFingerprint)
+            )
+
+            VStack(alignment: .leading, spacing: 16) {
+                DialogSection {
+                    formRow(label: L10n.text("settings.gpg.addSubkey.capabilityLabel")) {
+                        Picker("", selection: $capability) {
+                            ForEach(GPGBackend.GPGSubkeyCapability.allCases) { cap in
+                                Text(cap.displayName).tag(cap)
+                            }
+                        }
+                        .labelsHidden()
+                    }
+                    formRow(label: L10n.text("settings.gpg.newKey.algoLabel")) {
+                        Picker("", selection: $algorithm) {
+                            ForEach(GPGBackend.GPGKeyAlgorithm.allCases) { algo in
+                                Text(algo.displayName).tag(algo)
+                            }
+                        }
+                        .labelsHidden()
+                    }
+                    formRow(label: L10n.text("settings.gpg.newKey.expirationLabel")) {
+                        Picker("", selection: $expiration) {
+                            ForEach(GPGBackend.GPGKeyExpiration.allCases) { exp in
+                                Text(exp.displayName).tag(exp)
+                            }
+                        }
+                        .labelsHidden()
+                    }
+                    formRow(label: L10n.text("settings.gpg.addUID.unlockLabel")) {
+                        SecureField(L10n.text("settings.gpg.addSubkey.unlockPlaceholder"), text: $passphrase)
+                            .textFieldStyle(.roundedBorder)
+                    }
                 }
-                Spacer()
+
+                Label(L10n.text("settings.gpg.addSubkey.note"), systemImage: "info.circle")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(20)
-            .background(.bar)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 16)
 
-            VStack(alignment: .leading, spacing: 14) {
-                formRow(label: L10n.text("settings.gpg.addSubkey.capabilityLabel")) {
-                    Picker("", selection: $capability) {
-                        ForEach(GPGBackend.GPGSubkeyCapability.allCases) { cap in
-                            Text(cap.displayName).tag(cap)
-                        }
-                    }
-                    .labelsHidden()
-                }
-                formRow(label: L10n.text("settings.gpg.newKey.algoLabel")) {
-                    Picker("", selection: $algorithm) {
-                        ForEach(GPGBackend.GPGKeyAlgorithm.allCases) { algo in
-                            Text(algo.displayName).tag(algo)
-                        }
-                    }
-                    .labelsHidden()
-                }
-                formRow(label: L10n.text("settings.gpg.newKey.expirationLabel")) {
-                    Picker("", selection: $expiration) {
-                        ForEach(GPGBackend.GPGKeyExpiration.allCases) { exp in
-                            Text(exp.displayName).tag(exp)
-                        }
-                    }
-                    .labelsHidden()
-                }
-                formRow(label: L10n.text("settings.gpg.addUID.unlockLabel")) {
-                    SecureField(L10n.text("settings.gpg.addSubkey.unlockPlaceholder"), text: $passphrase)
-                        .textFieldStyle(.roundedBorder)
-                }
-
-                HStack(alignment: .top, spacing: 6) {
-                    Image(systemName: "info.circle")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                    Text(L10n.text("settings.gpg.addSubkey.note"))
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Spacer(minLength: 0)
-                }
-            }
-            .padding(20)
-
-            Spacer(minLength: 0)
             Divider()
 
-            HStack {
-                Spacer()
-                Button(L10n.text("button.cancel")) { isPresented = false }
-                    .keyboardShortcut(.cancelAction)
-                Button(L10n.text("settings.gpg.addSubkey.applyButton")) {
+            DialogFooter(
+                confirmTitle: L10n.text("settings.gpg.addSubkey.applyButton"),
+                confirmDisabled: false,
+                confirm: {
                     // passphrase 不强制非空 —— 主密钥可能本来就没设 passphrase(无密码密钥)。
                     // 若密钥确实有 passphrase 而这里留空 / 填错,gpg 会失败,错误回到 keyOperationMessage。
                     onApply(capability, algorithm, expiration, passphrase)
                     isPresented = false
-                }
-                    .keyboardShortcut(.defaultAction)
-                    .buttonStyle(.borderedProminent)
+                },
+                cancel: { isPresented = false }
+            ) {
+                EmptyView()
             }
-            .padding(16)
         }
-        .frame(width: 520, height: 420)
+        .frame(width: 520)
     }
 
     @ViewBuilder

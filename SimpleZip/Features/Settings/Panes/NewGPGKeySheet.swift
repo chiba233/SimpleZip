@@ -42,22 +42,14 @@ struct NewGPGKeySheet: View {
     @State private var operationID = UUID()
 
     var body: some View {
+        // 0.4.2 体例统一：并入现代弹窗壳。
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 10) {
-                Image(systemName: "key.fill")
-                    .font(.system(size: 22))
-                    .foregroundStyle(Color.accentColor)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(L10n.text("settings.gpg.newKey.title"))
-                        .font(.title3.weight(.semibold))
-                    Text(L10n.text("settings.gpg.newKey.subtitle"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-            }
-            .padding(20)
-            .background(.bar)
+            DialogHero(
+                systemImage: "key.fill",
+                colors: [.green, .teal],
+                title: L10n.text("settings.gpg.newKey.title"),
+                subtitle: L10n.text("settings.gpg.newKey.subtitle")
+            )
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
@@ -69,44 +61,40 @@ struct NewGPGKeySheet: View {
                         liveStatusBanner
                     }
                     if let errorMessage {
-                        Text(errorMessage)
+                        Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
                             .font(.caption)
                             .foregroundStyle(.red)
                             .fixedSize(horizontal: false, vertical: true)
-                            .padding(10)
+                            .padding(12)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .background(
-                                RoundedRectangle(cornerRadius: 6)
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
                                     .fill(Color.red.opacity(0.1))
                             )
                     }
                 }
-                .padding(20)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 16)
             }
 
             Divider()
 
-            HStack(spacing: 10) {
-                Spacer()
-                Button(L10n.text("button.cancel")) {
+            DialogFooter(
+                confirmTitle: L10n.text("settings.gpg.newKey.createButton"),
+                confirmDisabled: !canCreate,
+                confirm: { onClickCreate() },
+                cancel: {
                     if isCreating {
                         cancelCreation()
                     } else {
                         isPresented = false
                     }
                 }
-                .keyboardShortcut(.cancelAction)
-
-                Button(L10n.text("settings.gpg.newKey.createButton")) {
-                    onClickCreate()
-                }
-                .keyboardShortcut(.defaultAction)
-                .buttonStyle(.borderedProminent)
-                .disabled(!canCreate)
+            ) {
+                EmptyView()
             }
-            .padding(16)
         }
-        .frame(width: 560, height: 660)
+        .frame(width: 560, height: 680)
         .alert(L10n.text("settings.gpg.newKey.noPassphraseTitle"), isPresented: $showsNoPassphraseConfirm) {
             Button(L10n.text("settings.gpg.newKey.noPassphraseConfirm"), role: .destructive) {
                 create()
@@ -121,10 +109,7 @@ struct NewGPGKeySheet: View {
 
     @ViewBuilder
     private var destinationSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(L10n.text("settings.gpg.newKey.destinationSection"))
-                .font(.callout.weight(.semibold))
-
+        DialogSection(L10n.text("settings.gpg.newKey.destinationSection")) {
             Picker("", selection: $destination) {
                 Text(L10n.text("settings.gpg.newKey.dest.userKeyring"))
                     .tag(GPGBackend.GPGKeyringSource.userKeyring)
@@ -142,20 +127,11 @@ struct NewGPGKeySheet: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color(nsColor: .controlBackgroundColor))
-        )
     }
 
     @ViewBuilder
     private var keyInfoSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(L10n.text("settings.gpg.newKey.keyInfoSection"))
-                .font(.callout.weight(.semibold))
-
+        DialogSection(L10n.text("settings.gpg.newKey.keyInfoSection")) {
             formRow(label: L10n.text("settings.gpg.newKey.nameLabel")) {
                 TextField(L10n.text("settings.gpg.newKey.namePlaceholder"), text: $name)
                     .textFieldStyle(.roundedBorder)
@@ -185,12 +161,6 @@ struct NewGPGKeySheet: View {
                 .disabled(isCreating)
             }
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color(nsColor: .controlBackgroundColor))
-        )
     }
 
     @ViewBuilder
@@ -207,10 +177,7 @@ struct NewGPGKeySheet: View {
     /// **子密钥配置区**：默认就有签名（主密钥）+ 加密 subkey；可选加认证 subkey。
     @ViewBuilder
     private var subkeysSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(L10n.text("settings.gpg.newKey.subkeysSection"))
-                .font(.callout.weight(.semibold))
-
+        DialogSection(L10n.text("settings.gpg.newKey.subkeysSection")) {
             // 默认有的两把（不可关）—— 给用户看清楚自己即将得到什么。
             VStack(alignment: .leading, spacing: 6) {
                 bundledCapabilityRow(label: L10n.text("settings.gpg.newKey.subkey.signFixed"), detail: L10n.text("settings.gpg.newKey.subkey.signFixedDetail"))
@@ -232,12 +199,6 @@ struct NewGPGKeySheet: View {
             }
             .disabled(isCreating)
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color(nsColor: .controlBackgroundColor))
-        )
     }
 
     @ViewBuilder
@@ -309,13 +270,14 @@ struct NewGPGKeySheet: View {
                 }
             }
         }
-        .padding(12)
+        .padding(.horizontal, 18)
+        .padding(.vertical, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 8)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(Color.accentColor.opacity(0.08))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 8)
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .stroke(Color.accentColor.opacity(0.3), lineWidth: 1)
                 )
         )

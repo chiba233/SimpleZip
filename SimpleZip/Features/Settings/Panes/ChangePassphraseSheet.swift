@@ -24,77 +24,61 @@ struct ChangePassphraseSheet: View {
     @State private var showsNoPassphraseConfirm = false
 
     var body: some View {
+        // 0.4.2 体例统一：并入现代弹窗壳，高度贴内容（不再写死 380）。
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 10) {
-                Image(systemName: "key.horizontal.fill")
-                    .font(.system(size: 22))
-                    .foregroundStyle(Color.accentColor)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(L10n.text("settings.gpg.changePassphrase.title"))
-                        .font(.title3.weight(.semibold))
-                    Text(L10n.format("settings.gpg.changePassphrase.subject", key.userID, key.shortFingerprint))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
-                Spacer()
-            }
-            .padding(20)
-            .background(.bar)
+            DialogHero(
+                systemImage: "key.horizontal.fill",
+                colors: [.orange, .yellow],
+                title: L10n.text("settings.gpg.changePassphrase.title"),
+                subtitle: L10n.format("settings.gpg.changePassphrase.subject", key.userID, key.shortFingerprint)
+            )
 
-            VStack(alignment: .leading, spacing: 14) {
-                formRow(label: L10n.text("settings.gpg.changePassphrase.oldLabel")) {
-                    SecureField(L10n.text("settings.gpg.changePassphrase.oldPlaceholder"), text: $oldPassphrase)
-                        .textFieldStyle(.roundedBorder)
-                }
-                formRow(label: L10n.text("settings.gpg.changePassphrase.newLabel")) {
-                    SecureField(L10n.text("settings.gpg.changePassphrase.newPlaceholder"), text: $newPassphrase)
-                        .textFieldStyle(.roundedBorder)
-                        .onChange(of: newPassphrase) { _ in validationError = nil }
-                }
-                formRow(label: L10n.text("settings.gpg.changePassphrase.confirmLabel")) {
-                    SecureField(L10n.text("settings.gpg.changePassphrase.confirmPlaceholder"), text: $confirmPassphrase)
-                        .textFieldStyle(.roundedBorder)
-                        .onChange(of: confirmPassphrase) { _ in validationError = nil }
+            VStack(alignment: .leading, spacing: 16) {
+                DialogSection {
+                    formRow(label: L10n.text("settings.gpg.changePassphrase.oldLabel")) {
+                        SecureField(L10n.text("settings.gpg.changePassphrase.oldPlaceholder"), text: $oldPassphrase)
+                            .textFieldStyle(.roundedBorder)
+                    }
+                    formRow(label: L10n.text("settings.gpg.changePassphrase.newLabel")) {
+                        SecureField(L10n.text("settings.gpg.changePassphrase.newPlaceholder"), text: $newPassphrase)
+                            .textFieldStyle(.roundedBorder)
+                            .onChange(of: newPassphrase) { _ in validationError = nil }
+                    }
+                    formRow(label: L10n.text("settings.gpg.changePassphrase.confirmLabel")) {
+                        SecureField(L10n.text("settings.gpg.changePassphrase.confirmPlaceholder"), text: $confirmPassphrase)
+                            .textFieldStyle(.roundedBorder)
+                            .onChange(of: confirmPassphrase) { _ in validationError = nil }
+                    }
                 }
 
                 if let validationError {
-                    Text(validationError)
-                        .font(.caption2)
+                    Label(validationError, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
                         .foregroundStyle(.red)
                 }
 
                 if newPassphrase.isEmpty && confirmPassphrase.isEmpty {
-                    HStack(alignment: .top, spacing: 6) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .font(.system(size: 11))
-                            .foregroundStyle(.orange)
-                        Text(L10n.text("settings.gpg.changePassphrase.removeHint"))
-                            .font(.caption2)
-                            .foregroundStyle(.orange)
-                            .fixedSize(horizontal: false, vertical: true)
-                        Spacer(minLength: 0)
-                    }
+                    Label(L10n.text("settings.gpg.changePassphrase.removeHint"), systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            .padding(20)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 16)
 
-            Spacer(minLength: 0)
             Divider()
 
-            HStack {
-                Spacer()
-                Button(L10n.text("button.cancel")) { isPresented = false }
-                    .keyboardShortcut(.cancelAction)
-                Button(L10n.text("settings.gpg.changePassphrase.applyButton")) { onClickApply() }
-                    .keyboardShortcut(.defaultAction)
-                    .buttonStyle(.borderedProminent)
-                    .disabled(oldPassphrase.isEmpty)
+            DialogFooter(
+                confirmTitle: L10n.text("settings.gpg.changePassphrase.applyButton"),
+                confirmDisabled: oldPassphrase.isEmpty,
+                confirm: { onClickApply() },
+                cancel: { isPresented = false }
+            ) {
+                EmptyView()
             }
-            .padding(16)
         }
-        .frame(width: 520, height: 380)
+        .frame(width: 520)
         .alert(L10n.text("settings.gpg.newKey.noPassphraseTitle"), isPresented: $showsNoPassphraseConfirm) {
             Button(L10n.text("settings.gpg.newKey.noPassphraseConfirm"), role: .destructive) {
                 onApply(oldPassphrase, "")

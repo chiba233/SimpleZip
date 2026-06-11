@@ -34,49 +34,30 @@ struct GenerateRevocationSheet: View {
     }
 
     var body: some View {
+        // 0.4.2 体例统一：并入现代弹窗壳（hero + DialogSection + 钉底 DialogFooter）。
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 10) {
-                Image(systemName: "xmark.shield.fill")
-                    .font(.system(size: 22))
-                    .foregroundStyle(Color.orange)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(L10n.text("settings.gpg.keys.revokeTitle"))
-                        .font(.title3.weight(.semibold))
-                    Text(L10n.format("settings.gpg.keys.revokeSubject", key.userID, key.shortFingerprint))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
-                Spacer()
-            }
-            .padding(20)
-            .background(.bar)
+            DialogHero(
+                systemImage: "xmark.shield.fill",
+                colors: [.orange, .red],
+                title: L10n.text("settings.gpg.keys.revokeTitle"),
+                subtitle: L10n.format("settings.gpg.keys.revokeSubject", key.userID, key.shortFingerprint)
+            )
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     // 何时该生成 / 为什么提前生成的关键说明 —— 用户经常不知道这是干啥的。
-                    HStack(alignment: .top, spacing: 8) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .font(.system(size: 13))
-                            .foregroundStyle(.orange)
-                        Text(L10n.text("settings.gpg.keys.revokeIntro"))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                        Spacer(minLength: 0)
-                    }
-                    .padding(10)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(Color.orange.opacity(0.1))
-                    )
+                    Label(L10n.text("settings.gpg.keys.revokeIntro"), systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(Color.orange.opacity(0.1))
+                        )
 
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text(L10n.text("settings.gpg.keys.revokeReasonSection"))
-                            .font(.callout.weight(.semibold))
-
+                    DialogSection(L10n.text("settings.gpg.keys.revokeReasonSection")) {
                         Picker("", selection: $reason) {
                             Text(L10n.text("settings.gpg.keys.revokeReason.none")).tag(GPGBackend.GPGRevocationReason.none)
                             Text(L10n.text("settings.gpg.keys.revokeReason.compromised")).tag(GPGBackend.GPGRevocationReason.compromised)
@@ -86,36 +67,18 @@ struct GenerateRevocationSheet: View {
                         .pickerStyle(.radioGroup)
                         .labelsHidden()
                     }
-                    .padding(12)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color(nsColor: .controlBackgroundColor))
-                    )
 
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(L10n.text("settings.gpg.keys.revokeDescriptionLabel"))
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(.secondary)
+                    DialogSection(L10n.text("settings.gpg.keys.revokeDescriptionLabel")) {
                         TextField(L10n.text("settings.gpg.keys.revokeDescriptionPlaceholder"), text: $description, axis: .vertical)
                             .textFieldStyle(.roundedBorder)
                             .lineLimit(3...5)
                         Text(L10n.text("settings.gpg.keys.revokeDescriptionHint"))
-                            .font(.caption2)
+                            .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    .padding(12)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color(nsColor: .controlBackgroundColor))
-                    )
 
                     // 保存位置：直接在 sheet 里选好，用户清楚 `.asc` 会落到哪 —— 不再事后另弹保存框。
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(L10n.text("settings.gpg.keys.revokeDestinationLabel"))
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(.secondary)
+                    DialogSection(L10n.text("settings.gpg.keys.revokeDestinationLabel")) {
                         HStack(spacing: 8) {
                             Image(systemName: "folder")
                                 .foregroundStyle(.secondary)
@@ -129,48 +92,32 @@ struct GenerateRevocationSheet: View {
                             }
                         }
                     }
-                    .padding(12)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color(nsColor: .controlBackgroundColor))
-                    )
 
-                    HStack(alignment: .top, spacing: 8) {
-                        Image(systemName: "info.circle")
-                            .font(.system(size: 13))
-                            .foregroundStyle(.secondary)
-                        Text(L10n.text("settings.gpg.newKey.passphraseNote"))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                        Spacer(minLength: 0)
-                    }
+                    Label(L10n.text("settings.gpg.newKey.passphraseNote"), systemImage: "info.circle")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                .padding(20)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 16)
             }
 
             Divider()
 
-            HStack {
-                Spacer()
-                Button(L10n.text("button.cancel")) {
-                    isPresented = false
-                }
-                .keyboardShortcut(.cancelAction)
-
-                Button(L10n.text("settings.gpg.keys.revokeGenerateButton")) {
+            DialogFooter(
+                confirmTitle: L10n.text("settings.gpg.keys.revokeGenerateButton"),
+                confirmDisabled: destinationURL == nil,
+                confirm: {
                     guard let destinationURL else { return }
                     onGenerate(reason, description, destinationURL)
                     isPresented = false
-                }
-                .keyboardShortcut(.defaultAction)
-                .buttonStyle(.borderedProminent)
-                .disabled(destinationURL == nil)
+                },
+                cancel: { isPresented = false }
+            ) {
+                EmptyView()
             }
-            .padding(16)
         }
-        .frame(width: 560, height: 540)
+        .frame(width: 560, height: 560)
         .onAppear {
             // 默认落到桌面（桌面取不到则退到用户主目录）+ 自动文件名。
             if destinationURL == nil {
