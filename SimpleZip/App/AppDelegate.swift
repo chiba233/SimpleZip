@@ -11,7 +11,25 @@ import SwiftUI
 
 /// AppKit 代理：接收 Finder 或“打开方式”传入的文件路径。
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    /// 「点空白取消文本焦点」监视器的持有引用（与 app 同生命周期，不移除）。
+    private var textFocusMonitor: Any?
+
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // 0.4.2 用户报：批量重命名等对话框的输入框点空白处不会失焦——SwiftUI TextField 在 macOS
+        // 上没有这个原生行为,且全 app 的 sheet 都中招。应用级一次性修复:任何 mouseDown 落在
+        // 「正在编辑的文本」(字段编辑器 / TextEditor)之外时,把第一响应者交还窗口 = 提交并取消焦点
+        // （Finder 同款）。事件原样放行,点中的控件照常响应;点在文本自己(含其滚动条)上不受影响。
+        textFocusMonitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { event in
+            guard let window = event.window,
+                  let textView = window.firstResponder as? NSTextView,
+                  textView.isEditable else { return event }
+            let container: NSView = textView.enclosingScrollView ?? textView
+            let point = container.convert(event.locationInWindow, from: nil)
+            if !container.bounds.contains(point) {
+                window.makeFirstResponder(nil)
+            }
+            return event
+        }
         if let icon = NSImage(named: NSImage.Name("AppIcon")) {
             NSApp.applicationIconImage = icon
         }
