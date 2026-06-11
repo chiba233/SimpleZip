@@ -19,7 +19,6 @@ struct GeneralPane: View {
     /// 当前活跃的 custom 路径，跟 history 头部 + Menu label 文案绑在一起。
     @AppStorage(AppPreferences.Key.startupCustomLocationPath) private var startupCustomLocationPath = ""
     @AppStorage(AppPreferences.Key.rememberLastFolder) private var rememberLastFolder = true
-    @AppStorage(AppPreferences.Key.checkForUpdatesOnLaunch) private var checkForUpdatesOnLaunch = false
 
     /// custom 历史快照（@AppStorage 不能直接绑 array），onAppear 拉一次，每次操作后 reload。
     @State private var startupCustomLocationHistory: [URL] = []
@@ -126,12 +125,7 @@ struct GeneralPane: View {
                     isOn: $rememberLastFolder
                 )
 
-                SettingsToggleRow(
-                    title: L10n.text("settings.checkForUpdatesOnLaunch"),
-                    description: L10n.text("settings.checkForUpdatesOnLaunch.description"),
-                    systemImage: "arrow.triangle.2.circlepath",
-                    isOn: $checkForUpdatesOnLaunch
-                )
+                // 「每次启动时检查更新」已搬到 设置 → 软件更新（0.4.1 新 pane）。
             }
 
             Section(L10n.text("settings.section.defaults")) {

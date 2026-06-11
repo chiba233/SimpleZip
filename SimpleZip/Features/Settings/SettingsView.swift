@@ -82,6 +82,8 @@ struct SettingsView: View {
             FileAssociationsPane()
         case .gpg:
             GPGPane()
+        case .updates:
+            UpdatesPane()
         case .health:
             HealthPane(selectedPane: selectedPaneBinding)
         case .backup:
