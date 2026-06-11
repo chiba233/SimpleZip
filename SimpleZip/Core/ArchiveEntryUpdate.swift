@@ -25,6 +25,13 @@ public struct ArchiveEntryAddition: Hashable {
 }
 
 extension ArchiveService {
+    /// 归档编辑（add/delete/rename）的口令输入策略：空口令 → 不喂 stdin；非空 → PTY 提示后灌口令。
+    /// 给两个响应（`[password, password]`）：7zz `a` 加密时会提示「输入 + 确认」两次,delete/rename 通常只一次；
+    /// 多余响应不会被消费（responder 按提示出现次数逐个取），不足才会抛 passwordPromptExhausted,所以给两个最稳。
+    private static func passwordInputStrategy(_ password: String) -> ProcessInputStrategy {
+        password.isEmpty ? .none : .passwordPrompts([password, password])
+    }
+
     /// 一个归档是否可被 SimpleZip 安全地「加 / 替换条目」—— 仅 **zip / 7z**(7zz 可写)且 7zz 可用。
     /// TAR 系 / DMG / RAR(7zz 不可写)/ GPG 容器 都不开放(返回 false),调用方据此决定是否给「拖入 / 写回」入口。
     public static func supportsEntryUpdate(_ archiveURL: URL) -> Bool {
@@ -85,7 +92,9 @@ extension ArchiveService {
         let tool = try SevenZipBackend.toolPath()
         var arguments = ["a", workCopy.path]
         if !password.isEmpty {
-            arguments.append("-p\(password)")
+            // 安全（审计 P1，口令暴露）：不把口令拼进 argv（`ps -ww` 可见）。
+            // 改用裸 `-p` 让 7zz 在 PTY 上提示,口令经 stdin 灌入（跟 list/extract 同款）。
+            arguments.append("-p")
         }
         arguments.append(contentsOf: relativePaths)
         arguments.append(contentsOf: ["-y", "-bb1", "-bsp1"])
@@ -93,7 +102,7 @@ extension ArchiveService {
             tool,
             arguments: arguments,
             currentDirectory: payloadRoot,
-            inputStrategy: .none,
+            inputStrategy: passwordInputStrategy(password),
             outputObserver: outputObserver,
             operationID: operationID,
             outputRetentionLimit: BackendProcessRunner.diagnosticsOutputRetentionLimit
@@ -133,14 +142,16 @@ extension ArchiveService {
         let tool = try SevenZipBackend.toolPath()
         var arguments = ["d", workCopy.path]
         if !password.isEmpty {
-            arguments.append("-p\(password)")
+            // 安全（审计 P1，口令暴露）：不把口令拼进 argv（`ps -ww` 可见）。
+            // 改用裸 `-p` 让 7zz 在 PTY 上提示,口令经 stdin 灌入（跟 list/extract 同款）。
+            arguments.append("-p")
         }
         arguments.append(contentsOf: normalized)
         arguments.append(contentsOf: ["-y", "-bb1", "-bsp1"])
         _ = try await BackendProcessRunner.runAndCapture(
             tool,
             arguments: arguments,
-            inputStrategy: .none,
+            inputStrategy: passwordInputStrategy(password),
             outputObserver: outputObserver,
             operationID: operationID,
             outputRetentionLimit: BackendProcessRunner.diagnosticsOutputRetentionLimit
@@ -181,13 +192,15 @@ extension ArchiveService {
         let tool = try SevenZipBackend.toolPath()
         var arguments = ["rn", workCopy.path]
         if !password.isEmpty {
-            arguments.append("-p\(password)")
+            // 安全（审计 P1，口令暴露）：不把口令拼进 argv（`ps -ww` 可见）。
+            // 改用裸 `-p` 让 7zz 在 PTY 上提示,口令经 stdin 灌入（跟 list/extract 同款）。
+            arguments.append("-p")
         }
         arguments.append(contentsOf: [from, to, "-y"])
         _ = try await BackendProcessRunner.runAndCapture(
             tool,
             arguments: arguments,
-            inputStrategy: .none,
+            inputStrategy: passwordInputStrategy(password),
             outputObserver: outputObserver,
             operationID: operationID,
             outputRetentionLimit: BackendProcessRunner.diagnosticsOutputRetentionLimit

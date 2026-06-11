@@ -41,11 +41,16 @@ extension ArchiveService {
         overwriteBehavior: OverwriteBehavior,
         password _: String
     ) -> [String] {
+        // 安全（审计 P1，switch 注入）：归档条目名是**不可信输入**。恶意包可以把条目命名成
+        // `-snl` / `-o/tmp/elsewhere` 等 7zz 开关样子,直接拼进 argv 会被当开关解释（重定向解压 / 改安全行为）。
+        // 所有开关放 `--` 之前、所有位置参数（条目名）放 `--` 之后,7zz 从此把后面的一律当文件名。
+        // `-o<dest>` 等开关必须在 `--` 前。已实测 bundled 7zz 支持 `--`。
         var arguments = [command, archive.path]
-        arguments.append(contentsOf: entries)
         // `-mmt=on`：让 7zz 按可用核心数多线程解压（ZIP 等「每文件独立」的格式能并行多个文件）。
         // 默认解压偏单线程、大量文件时跑不满 CPU；对不支持并行的格式 7zz 自行忽略，无副作用。
         arguments.append(contentsOf: ["-o\(destination.path)", sevenZipOverwriteArgument(for: overwriteBehavior), "-mmt=on", "-bb1", "-bsp1", "-y"])
+        arguments.append("--")
+        arguments.append(contentsOf: entries)
         return arguments
     }
 
@@ -102,6 +107,8 @@ extension ArchiveService {
         }
         arguments.append(contentsOf: sevenZipExcludeArguments(from: options))
         arguments.append(contentsOf: splitCommandLineArguments(from: options.rawParameters))
+        // 安全（审计 P1）：destination / 源文件名前加 `--` —— 文件名以 `-` 开头时不被 7zz 当开关。
+        arguments.append("--")
         arguments.append(destination.path)
         arguments.append(contentsOf: relativeNames)
         return arguments
@@ -126,6 +133,8 @@ extension ArchiveService {
         }
         arguments.append(contentsOf: sevenZipExcludeArguments(from: options))
         arguments.append(contentsOf: splitCommandLineArguments(from: options.rawParameters))
+        // 安全（审计 P1）：destination / 源文件名前加 `--` —— 文件名以 `-` 开头时不被 7zz 当开关。
+        arguments.append("--")
         arguments.append(destination.path)
         arguments.append(contentsOf: relativeNames)
         return arguments

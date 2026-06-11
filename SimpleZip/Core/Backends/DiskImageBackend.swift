@@ -21,12 +21,15 @@ enum DiskImageBackend {
     // MARK: - 公开操作
 
     /// 挂载 DMG 为只读卷，返回 mount-point URL。
-    /// 用 `-readonly -nobrowse -noverify -noautoopen` 这些 flag 是为了不污染 Finder /
-    /// 不弹「正在验证」/ 不自动打开内容，纯后台用。
+    /// 用 `-readonly -nobrowse -noautoopen` 这些 flag 是为了不污染 Finder /
+    /// 不弹窗 / 不自动打开内容，纯后台用。
+    /// 安全（审计 P2）：`-owners off` —— DMG 是**不可信输入**,关闭属主语义后镜像内的 setuid/setgid
+    /// 位、伪造属主都失效（跟 SecureScratchVolume 挂自有加密卷同口径）；否则 copyContents 会把这些属性
+    /// 一并拷进用户目录。去掉了 `-noverify`：对攻击者可控的镜像保留校验和验证。
     static func mount(_ url: URL) async throws -> URL {
         let output = try await BackendProcessRunner.runAndCapture(
             "/usr/bin/hdiutil",
-            arguments: ["attach", "-plist", "-readonly", "-nobrowse", "-noverify", "-noautoopen", url.path]
+            arguments: ["attach", "-plist", "-readonly", "-owners", "off", "-nobrowse", "-noautoopen", url.path]
         )
         guard
             let data = output.data(using: .utf8),

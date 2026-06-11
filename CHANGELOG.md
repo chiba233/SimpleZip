@@ -4,6 +4,7 @@
 
 ## 0.4.1
 
+- **Security: hardened external-tool arguments.** Archive entry names (untrusted input from a crafted archive) and source filenames are now separated from 7-Zip switches with a `--` end-of-options marker, so a file or entry named like a `-switch` can no longer be interpreted as one. Archive-edit passwords (add/delete/rename) no longer appear on the 7-Zip command line — they go through the same PTY-prompt channel as every other operation, so they're never visible in the process list. Untrusted disk images mount with ownership disabled (`-owners off`), neutralizing setuid/forged-owner tricks.
 - **New: archive-level comments are shown.** ZIP/RAR archives that carry a whole-archive comment now display it in a banner above the file list (read-only — the bundled 7-Zip has no comment-writing flag).
 - **New: advanced filters in archive view.** A toolbar filter menu narrows the listing by kind (files/folders), encrypted-only, and modified time (last 24h/7d/30d), combined with the search text.
 - **New: future-format .siz/.szs files explain themselves and can be force-opened.** A container written by a newer SimpleZip used to fail with a generic "unexpected schema" error. Now a dedicated message tells you exactly why it won't open (file format vN vs. supported vM, fix = update SimpleZip) and offers "Open Anyway" — unknown new fields are ignored on a best-effort decode, with the caveat that signature/encryption details may be incomplete. One consent covers the whole open flow per file.
