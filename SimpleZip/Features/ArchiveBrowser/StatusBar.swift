@@ -45,20 +45,26 @@ struct StatusBar: View {
 
             // 右侧固定操作区：详情（有 session 时）+ 取消（运行中且可取消）+ 后端能力提示。
             if taskCenter.runningCount > 0 {
-                Button(L10n.text("button.details")) {
+                Button {
                     ActivityWindowController.shared.show(category: taskCenter.primaryActiveCategory)
+                } label: {
+                    Label(L10n.text("button.details"), systemImage: "info.circle")
                 }
                 .buttonStyle(.borderless)
-                Button(L10n.text("tasks.cancelAll")) {
+                Button {
                     taskCenter.cancelAll()
+                } label: {
+                    Label(L10n.text("tasks.cancelAll"), systemImage: "xmark.circle")
                 }
                 .buttonStyle(.borderless)
             } else if model.operationDetailsSession != nil {
                 detailsButton
             }
             if taskCenter.runningCount == 0 && model.isWorking && model.canCancelCurrentOperation {
-                Button(L10n.text("button.cancel")) {
+                Button {
                     model.cancelCurrentOperation()
+                } label: {
+                    Label(L10n.text("button.cancel"), systemImage: "xmark")
                 }
                 .buttonStyle(.borderless)
             }
@@ -94,8 +100,10 @@ struct StatusBar: View {
     }
 
     private var detailsButton: some View {
-        Button(L10n.text("button.details")) {
+        Button {
             model.showOperationDetails()
+        } label: {
+            Label(L10n.text("button.details"), systemImage: "info.circle")
         }
         .buttonStyle(.borderless)
     }
@@ -146,16 +154,20 @@ struct ArchiveOperationDetailsView: View {
                     }
                 }
                 Spacer()
-                Button(L10n.text("button.copyDiagnostics")) {
+                Button {
                     Task {
                         await DiagnosticsCopier.copy(session: session, errorMessage: nil)
                         withAnimation { showsCopiedConfirmation = true }
                         try? await Task.sleep(nanoseconds: 2_500_000_000)
                         withAnimation { showsCopiedConfirmation = false }
                     }
+                } label: {
+                    Label(L10n.text("button.copyDiagnostics"), systemImage: "doc.on.doc")
                 }
-                Button(L10n.text("button.ok")) {
+                Button {
                     close()
+                } label: {
+                    Label(L10n.text("button.ok"), systemImage: "checkmark")
                 }
                 .keyboardShortcut(.defaultAction)
             }

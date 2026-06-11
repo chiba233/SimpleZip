@@ -332,8 +332,10 @@ private struct WelcomeBackupRestoreStep: View {
             body1: L10n.text("welcome.backupRestore.body")
         ) {
             VStack(alignment: .leading, spacing: 12) {
-                Button(L10n.text("welcome.backupRestore.button")) {
+                Button {
                     pickBackupFile()
+                } label: {
+                    Label(L10n.text("welcome.backupRestore.button"), systemImage: "square.and.arrow.down")
                 }
 
                 // 导入是 destructive-ish（会按白名单清掉现有设置再写备份值）。首启流程不弹二次确认 ——
@@ -403,11 +405,19 @@ private struct WelcomeVersionCheckStep: View {
             // 简化版：直接复用菜单栏「检查更新」相同入口。
             // Sparkle 会自己弹「正在检查 / 已经最新 / 有新版下载」UI，不需要助手内嵌状态机。
             // 如果将来想做内嵌 banner，可以接 SPUUpdater 的 delegate 自己 driver。
-            Button(L10n.text("welcome.versionCheck.button")) {
+            Button {
                 SparkleUpdater.shared.checkForUpdates()
+            } label: {
+                Label(L10n.text("welcome.versionCheck.button"), systemImage: "arrow.clockwise")
             }
 
-            Toggle(L10n.text("settings.checkForUpdatesOnLaunch"), isOn: $checkForUpdatesOnLaunch)
+            // 复选框不靠左:文字在前,开关跟在右侧。
+            HStack(spacing: 12) {
+                Text(L10n.text("settings.checkForUpdatesOnLaunch"))
+                Toggle("", isOn: $checkForUpdatesOnLaunch)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+            }
             Text(L10n.text("settings.checkForUpdatesOnLaunch.description"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -476,8 +486,10 @@ private struct WelcomeGeneralStep: View {
                         .pickerStyle(.menu)
                         .fixedSize()
 
-                        Button(L10n.text("welcome.startupLocation.pickCustom")) {
+                        Button {
                             pickCustomLocation()
+                        } label: {
+                            Label(L10n.text("welcome.startupLocation.pickCustom"), systemImage: "folder")
                         }
                     }
                 }
@@ -605,8 +617,10 @@ private struct WelcomePresetPasswordStep: View {
                         .textFieldStyle(.roundedBorder)
                         .frame(maxWidth: 320)
 
-                        Button(L10n.text("button.save")) {
+                        Button {
                             savePassword()
+                        } label: {
+                            Label(L10n.text("button.save"), systemImage: "checkmark")
                         }
                         .disabled(passwordBuffer == savedValue)
                     }
@@ -672,8 +686,10 @@ private struct WelcomeFileAssociationsStep: View {
             body1: L10n.text("welcome.fileAssociations.body")
         ) {
             VStack(alignment: .leading, spacing: 12) {
-                Button(L10n.text("welcome.fileAssociations.setAll")) {
+                Button {
                     setAllDefaults()
+                } label: {
+                    Label(L10n.text("welcome.fileAssociations.setAll"), systemImage: "checkmark.seal")
                 }
 
                 // 与 设置 → 文件关联 同制度:按类分组、同类同色(类别色在 ArchiveAssociation.category 上)。

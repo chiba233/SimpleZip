@@ -57,11 +57,15 @@ struct BenchmarkOptionsView: View {
             Divider()
 
             HStack {
-                Button(L10n.text("button.cancel"), action: cancel)
-                    .keyboardShortcut(.cancelAction)
                 Spacer()
-                Button(L10n.text("button.benchmark")) {
+                Button(action: cancel) {
+                    Label(L10n.text("button.cancel"), systemImage: "xmark")
+                }
+                .keyboardShortcut(.cancelAction)
+                Button {
                     start(request)
+                } label: {
+                    Label(L10n.text("button.benchmark"), systemImage: "speedometer")
                 }
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)

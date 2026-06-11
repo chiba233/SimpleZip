@@ -66,15 +66,21 @@ struct ExternalExtractView: View {
             HStack {
                 switch session.status {
                 case .running:
-                    Button(L10n.text("tasks.window.title")) {
+                    Button {
                         ActivityWindowController.shared.show(category: .archive)
+                    } label: {
+                        Label(L10n.text("tasks.window.title"), systemImage: "list.bullet.rectangle")
                     }
                     if let onOpenInMainWindow = session.onOpenInMainWindow {
-                        Button(L10n.text("externalExtract.openInMainWindow"), action: onOpenInMainWindow)
+                        Button(action: onOpenInMainWindow) {
+                            Label(L10n.text("externalExtract.openInMainWindow"), systemImage: "macwindow")
+                        }
                     }
                     Spacer()
-                    Button(L10n.text("button.cancel")) {
+                    Button {
                         session.cancel()
+                    } label: {
+                        Label(L10n.text("button.cancel"), systemImage: "xmark")
                     }
                 case .succeeded:
                     Label(L10n.text("externalExtract.done"), systemImage: "checkmark.circle.fill")
@@ -92,10 +98,14 @@ struct ExternalExtractView: View {
                     }
                     Spacer()
                     if let onOpenInMainWindow = session.onOpenInMainWindow {
-                        Button(L10n.text("externalExtract.openInMainWindow"), action: onOpenInMainWindow)
+                        Button(action: onOpenInMainWindow) {
+                            Label(L10n.text("externalExtract.openInMainWindow"), systemImage: "macwindow")
+                        }
                     }
-                    Button(L10n.text("tasks.window.title")) {
+                    Button {
                         ActivityWindowController.shared.show(category: .archive)
+                    } label: {
+                        Label(L10n.text("tasks.window.title"), systemImage: "list.bullet.rectangle")
                     }
                 }
             }
@@ -143,11 +153,15 @@ struct ExternalExtractBatchView: View {
                         .truncationMode(.middle)
                 }
                 HStack {
-                    Button(L10n.text("tasks.window.title")) {
+                    Button {
                         ActivityWindowController.shared.show(category: .archive)
+                    } label: {
+                        Label(L10n.text("tasks.window.title"), systemImage: "list.bullet.rectangle")
                     }
                     Spacer()
-                    Button(L10n.text("button.cancel")) { session.cancel() }
+                    Button(action: { session.cancel() }) {
+                        Label(L10n.text("button.cancel"), systemImage: "xmark")
+                    }
                 }
             } else if session.failures.isEmpty {
                 Label(L10n.format("externalExtract.batch.allDone", session.succeeded.count), systemImage: "checkmark.circle.fill")
@@ -217,7 +231,9 @@ struct ExternalPrepareView: View {
                 HStack {
                     Spacer()
                     if let onOpenInMainWindow = session.onOpenInMainWindow {
-                        Button(L10n.text("externalExtract.openInMainWindow"), action: onOpenInMainWindow)
+                        Button(action: onOpenInMainWindow) {
+                            Label(L10n.text("externalExtract.openInMainWindow"), systemImage: "macwindow")
+                        }
                     }
                 }
             }
@@ -274,12 +290,16 @@ struct ExternalCreateView: View {
             HStack {
                 switch session.status {
                 case .running:
-                    Button(L10n.text("tasks.window.title")) {
+                    Button {
                         ActivityWindowController.shared.show(category: .archive)
+                    } label: {
+                        Label(L10n.text("tasks.window.title"), systemImage: "list.bullet.rectangle")
                     }
                     Spacer()
-                    Button(L10n.text("button.cancel")) {
+                    Button {
                         session.cancel()
+                    } label: {
+                        Label(L10n.text("button.cancel"), systemImage: "xmark")
                     }
                 case .succeeded:
                     Label(L10n.text("externalCreate.done"), systemImage: "checkmark.circle.fill")
@@ -296,8 +316,10 @@ struct ExternalCreateView: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer()
-                    Button(L10n.text("tasks.window.title")) {
+                    Button {
                         ActivityWindowController.shared.show(category: .archive)
+                    } label: {
+                        Label(L10n.text("tasks.window.title"), systemImage: "list.bullet.rectangle")
                     }
                 }
             }
