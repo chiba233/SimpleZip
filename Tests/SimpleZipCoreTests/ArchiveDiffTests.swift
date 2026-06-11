@@ -161,3 +161,32 @@ struct ArchiveDiffTests {
         #expect(result.added.map(\.name) == ["a.txt", "m.txt", "z.txt"])
     }
 }
+
+/// 0.4.2 #16:垃圾识别 + diff 垃圾过滤。
+struct ArchiveJunkFilesTests {
+
+    @Test func recognizesClassicJunk() {
+        #expect(ArchiveJunkFiles.isJunkPath(".DS_Store"))
+        #expect(ArchiveJunkFiles.isJunkPath("docs/.DS_Store"))
+        #expect(ArchiveJunkFiles.isJunkPath("__MACOSX/docs/._a.txt"))
+        #expect(ArchiveJunkFiles.isJunkPath("__MACOSX/"))
+        #expect(ArchiveJunkFiles.isJunkPath("docs/._report.pdf"))
+        #expect(ArchiveJunkFiles.isJunkPath("Thumbs.db"))
+        #expect(ArchiveJunkFiles.isJunkPath("photos/desktop.ini"))
+        #expect(!ArchiveJunkFiles.isJunkPath("docs/report.pdf"))
+        #expect(!ArchiveJunkFiles.isJunkPath("._"))            // 光杆 ._ 不算
+        #expect(!ArchiveJunkFiles.isJunkPath("my__MACOSX.txt")) // 仅目录段精确匹配
+    }
+
+    @Test func diffFilteringJunkDropsNoiseEverywhere() {
+        let junk = ArchiveItem(name: "docs/.DS_Store", isDirectory: false, size: 1, modified: nil, sizeText: "", modifiedText: "", method: "")
+        let real = ArchiveItem(name: "docs/a.txt", isDirectory: false, size: 1, modified: nil, sizeText: "", modifiedText: "", method: "")
+        let result = ArchiveDiff.compare(left: [junk], right: [real, junk])
+        #expect(result.added.count == 1)
+        #expect(result.unchanged.count == 1)
+        let filtered = result.filteringJunk()
+        #expect(filtered.added.map(\.name) == ["docs/a.txt"])
+        #expect(filtered.unchanged.isEmpty)
+        #expect(filtered.removed.isEmpty)
+    }
+}

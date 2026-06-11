@@ -1019,6 +1019,46 @@ extension ArchiveBrowserModel {
         }
     }
 
+    // MARK: - 清理 macOS 元数据（0.4.2 #16）
+
+    /// 当前归档里的元数据垃圾条目数（.DS_Store / __MACOSX / ._* / Thumbs.db / desktop.ini）。
+    /// 右键菜单按需调用（菜单打开时算一次，O(n) 字符串检查）。
+    var archiveJunkEntryCount: Int {
+        ArchiveJunkFiles.junkEntries(in: session.allItems).count
+    }
+
+    /// 右键「清理 macOS 元数据」：把垃圾条目从可编辑归档里删掉（安全写回：副本上删 + 原子替换）。
+    func cleanArchiveJunkEntries() {
+        guard canDropIntoOpenArchive, case .archive(let archiveURL) = mode else { return }
+        let junk = ArchiveJunkFiles.junkEntries(in: session.allItems)
+        guard !junk.isEmpty else { return }
+        guard ensureArchiveEditPassword(for: archiveURL) else { return }
+        let password = resolvedArchivePassword
+        let paths = junk.map(\.name)
+        startManagedArchiveTask(
+            title: L10n.format("archive.cleanJunk.taskTitle", "\(paths.count)"),
+            kind: .compress,
+            showsDetails: true,
+            successStatus: L10n.format("archive.cleanJunk.done", "\(paths.count)"),
+            refreshOnSuccess: { [weak self] in
+                self?.reload()
+            },
+            onSucceeded: { task in
+                task.transferLog = paths.map {
+                    TransferLogEntry(name: $0, action: .deleted, isDirectory: false)
+                }
+            }
+        ) { operationID, _, outputObserver in
+            try await ArchiveService.deleteEntries(
+                from: archiveURL,
+                entryPaths: paths,
+                password: password,
+                operationID: operationID,
+                outputObserver: outputObserver
+            )
+        }
+    }
+
     // MARK: - 批量重命名（0.4.2 #11）
 
     /// 批量重命名 sheet 的输入：选中的文件条目 + 包内全部条目路径（预览查撞名用）。

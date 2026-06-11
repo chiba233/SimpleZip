@@ -751,6 +751,12 @@
 "settings.formatMatrix.detail.siz" = "SimpleZip's signed container: an inner archive plus a detached signature and metadata, optionally encrypted to recipients. Editing would break the signature, so entries are read-only; Test means signature verification.";
 "settings.formatMatrix.backend.szs" = "Backend: SimpleZip + GnuPG";
 "settings.formatMatrix.detail.szs" = "A signed manifest (clearsigned JSON) that signs a folder's files in place. It isn't an archive — there is nothing to extract; opening verifies the signature and browses virtually.";
+/* 0.4.2 macOS metadata junk cleaner */
+"archive.cleanJunk.menu" = "Clean macOS Metadata (%1$@ items)";
+"archive.cleanJunk.taskTitle" = "Removing %1$@ metadata entries";
+"archive.cleanJunk.done" = "Removed %1$@ metadata entries";
+"diff.hideJunk" = "Ignore macOS metadata";
+
 
 
 

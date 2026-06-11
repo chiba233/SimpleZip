@@ -266,3 +266,18 @@ enum ArchiveDiffExport {
         return lines.joined(separator: "\n") + "\n"
     }
 }
+
+// MARK: - 垃圾过滤视图（0.4.2 #16）
+
+extension ArchiveDiffResult {
+    /// 过滤掉 macOS / Windows 元数据垃圾（.DS_Store / __MACOSX / ._* / Thumbs.db / desktop.ini）后的
+    /// 结果视图 —— 比较两个包时这些噪音常淹没真实差异。纯过滤，不改原结果。
+    func filteringJunk() -> ArchiveDiffResult {
+        ArchiveDiffResult(
+            added: added.filter { !ArchiveJunkFiles.isJunkPath($0.name) },
+            removed: removed.filter { !ArchiveJunkFiles.isJunkPath($0.name) },
+            changed: changed.filter { !ArchiveJunkFiles.isJunkPath($0.path) },
+            unchanged: unchanged.filter { !ArchiveJunkFiles.isJunkPath($0.name) }
+        )
+    }
+}

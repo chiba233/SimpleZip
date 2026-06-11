@@ -85,6 +85,15 @@ struct ArchiveDiffView: View {
     let report: ArchiveDiffReport
     let onClose: () -> Void
 
+    /// 0.4.2 #16：忽略 macOS 元数据垃圾（.DS_Store / __MACOSX / ._* …）—— 复制 / 导出同样遵守。
+    @State private var hideJunk = false
+
+    private var displayedReport: ArchiveDiffReport {
+        hideJunk
+            ? ArchiveDiffReport(leftName: report.leftName, rightName: report.rightName, result: report.result.filteringJunk())
+            : report
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
@@ -107,9 +116,12 @@ struct ArchiveDiffView: View {
                 }
                 .fixedSize()
 
+                Toggle(L10n.text("diff.hideJunk"), isOn: $hideJunk)
+                    .toggleStyle(.checkbox)
+
                 Button(L10n.text("button.copyAll")) {
                     NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(report.plainTextSummary, forType: .string)
+                    NSPasteboard.general.setString(displayedReport.plainTextSummary, forType: .string)
                 }
 
                 Button(L10n.text("button.ok")) {
@@ -118,11 +130,11 @@ struct ArchiveDiffView: View {
                 .keyboardShortcut(.defaultAction)
             }
 
-            ArchiveDiffSummaryLine(report: report)
+            ArchiveDiffSummaryLine(report: displayedReport)
 
-            if report.result.hasDifferences {
+            if displayedReport.result.hasDifferences {
                 ScrollView {
-                    ArchiveDiffSections(report: report)
+                    ArchiveDiffSections(report: displayedReport)
                         .padding(.vertical, 2)
                 }
                 .frame(minHeight: 300)
@@ -132,7 +144,7 @@ struct ArchiveDiffView: View {
                     Image(systemName: "checkmark.circle")
                         .font(.system(size: 36))
                         .foregroundStyle(.green)
-                    Text(L10n.format("diff.identical", report.result.unchanged.count))
+                    Text(L10n.format("diff.identical", displayedReport.result.unchanged.count))
                         .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, minHeight: 300)
@@ -161,11 +173,11 @@ struct ArchiveDiffView: View {
         do {
             switch format {
             case .json:
-                content = try ArchiveDiffExport.json(result: report.result, leftName: report.leftName, rightName: report.rightName)
+                content = try ArchiveDiffExport.json(result: displayedReport.result, leftName: report.leftName, rightName: report.rightName)
             case .csv:
-                content = ArchiveDiffExport.csv(result: report.result, leftName: report.leftName, rightName: report.rightName)
+                content = ArchiveDiffExport.csv(result: displayedReport.result, leftName: report.leftName, rightName: report.rightName)
             case .markdown:
-                content = report.markdownReport
+                content = displayedReport.markdownReport
             }
         } catch {
             presentExportError(error)

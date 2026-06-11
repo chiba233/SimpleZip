@@ -499,6 +499,11 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
             if model.canEditArchiveComment {
                 menu.addItem(menuItem(L10n.text("archive.comment.menu"), systemImage: "text.bubble", action: #selector(editArchiveComment)))
             }
+            // 0.4.2 #16：清理 macOS 元数据 —— 有垃圾条目时显示（带数量），删掉走安全写回。
+            let junkCount = model.archiveJunkEntryCount
+            if junkCount > 0 {
+                menu.addItem(menuItem(L10n.format("archive.cleanJunk.menu", "\(junkCount)"), systemImage: "paintbrush", action: #selector(cleanJunkEntries)))
+            }
             menu.addItem(menuItem(L10n.text("help.refresh"), systemImage: "arrow.clockwise", action: #selector(refreshArchive)))
             menu.addItem(menuItem(L10n.text("button.revealInFinder"), systemImage: "arrow.up.forward.app", action: #selector(revealArchive)))
         }
@@ -682,6 +687,10 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
 
         @objc private func batchRenameEntries() {
             model.requestBatchRename()
+        }
+
+        @objc private func cleanJunkEntries() {
+            model.cleanArchiveJunkEntries()
         }
 
         @objc private func extractSelected() {

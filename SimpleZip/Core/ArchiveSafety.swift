@@ -250,3 +250,24 @@ struct ArchiveExtractPreflight: Equatable {
         return names.sorted()
     }
 }
+
+// MARK: - macOS 元数据垃圾（0.4.2 #16）
+
+/// 压缩包里经典的 macOS / Windows 元数据垃圾的识别。创建侧已有「跳过 .DS_Store」排除；
+/// 这里服务读侧：右键「清理 macOS 元数据」与归档比较的「忽略垃圾」过滤。
+enum ArchiveJunkFiles {
+
+    /// `.DS_Store` / `__MACOSX/…` / AppleDouble `._*` / `Thumbs.db` / `desktop.ini`。
+    nonisolated static func isJunkPath(_ path: String) -> Bool {
+        let components = path.split(separator: "/").map(String.init)
+        guard let leaf = components.last else { return false }
+        if components.contains("__MACOSX") { return true }
+        if leaf == ".DS_Store" || leaf == "Thumbs.db" || leaf == "desktop.ini" { return true }
+        if leaf.hasPrefix("._"), leaf.count > 2 { return true }   // AppleDouble 资源叉
+        return false
+    }
+
+    nonisolated static func junkEntries(in items: [ArchiveItem]) -> [ArchiveItem] {
+        items.filter { isJunkPath($0.name) }
+    }
+}

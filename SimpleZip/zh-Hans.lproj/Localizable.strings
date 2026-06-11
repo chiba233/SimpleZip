@@ -749,6 +749,12 @@
 "settings.formatMatrix.detail.siz" = "SimpleZip 的签名容器：内层归档 + 分离签名 + 元数据，可选对收件人加密。编辑会破坏签名，所以条目只读；「测试」即验签。";
 "settings.formatMatrix.backend.szs" = "后端：SimpleZip + GnuPG";
 "settings.formatMatrix.detail.szs" = "签名清单（clearsigned JSON），给文件夹里的文件原位签名。它不是压缩包——没有「解压」可言；打开即验签并以虚拟目录浏览。";
+/* 0.4.2 macOS 元数据清理器 */
+"archive.cleanJunk.menu" = "清理 macOS 元数据（%1$@ 项）";
+"archive.cleanJunk.taskTitle" = "正在移除 %1$@ 个元数据条目";
+"archive.cleanJunk.done" = "已移除 %1$@ 个元数据条目";
+"diff.hideJunk" = "忽略 macOS 元数据";
+
 
 
 
