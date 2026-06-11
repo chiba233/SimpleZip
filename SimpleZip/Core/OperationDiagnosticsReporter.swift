@@ -28,6 +28,8 @@ public struct OperationDiagnosticsInputs {
     public let outputTailCharacterLimit: Int
     /// 可选 GPG 后端 snapshot —— 用户 `gpgEnabled == true` 时填，否则 nil（报告不会出现 GPG 段）。
     public let gpgSection: GPGDiagnosticsSection?
+    /// 0.4.2 #22：文件系统现场（临时卷 / 用户卷剩余空间）—— 磁盘满是后端神秘失败的常见根因。
+    public let fileSystemSummary: String?
 
     public init(
         appVersion: String,
@@ -43,7 +45,8 @@ public struct OperationDiagnosticsInputs {
         rawOutput: String,
         errorMessage: String?,
         outputTailCharacterLimit: Int = 4000,
-        gpgSection: GPGDiagnosticsSection? = nil
+        gpgSection: GPGDiagnosticsSection? = nil,
+        fileSystemSummary: String? = nil
     ) {
         self.appVersion = appVersion
         self.appBuild = appBuild
@@ -58,6 +61,7 @@ public struct OperationDiagnosticsInputs {
         self.rawOutput = rawOutput
         self.errorMessage = errorMessage
         self.outputTailCharacterLimit = outputTailCharacterLimit
+        self.fileSystemSummary = fileSystemSummary
         self.gpgSection = gpgSection
     }
 }
@@ -146,6 +150,13 @@ public enum OperationDiagnosticsReporter {
             lines.append("          gpg-agent:    \(gpg.agentAlive ? "alive" : "not running")")
             lines.append("          GNUPGHOME:    \(gpg.gnupgHome ?? "(default ~/.gnupg)")")
             lines.append("          keys:         \(gpg.totalKeyCount) total, \(gpg.secretKeyCount) with secret key")
+        }
+        if let fileSystem = inputs.fileSystemSummary, !fileSystem.isEmpty {
+            lines.append("")
+            lines.append("File system:")
+            for fsLine in fileSystem.split(separator: "\n", omittingEmptySubsequences: false) {
+                lines.append("  \(fsLine)")
+            }
         }
         lines.append("")
         lines.append("Command output (sanitized, last \(inputs.outputTailCharacterLimit) chars):")

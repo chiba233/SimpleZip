@@ -4,6 +4,8 @@
 
 ## 0.4.2 (unreleased)
 
+- **New: per-task diagnostics bundle.** Task details gain an **Export Diagnostics…** button that writes a single `.txt` for that operation: app/macOS/backend versions, the equivalent backend command lines, the sanitized output tail, the error text, and a new **file-system snapshot** (free space on the temp and home volumes — a full disk is the classic cause of mysterious backend failures). The same snapshot now also appears in the copy-diagnostics text and the general diagnostics report. Paste-ready for an issue.
+
 - **New: re-run tasks from the Activity Center.** Finished tasks (extraction, extract-selection, single and batch integrity tests, Release Check, format conversion, file splitting) get a one-click **Run Again** button that repeats the operation with the same inputs — outputs still dodge existing names and conflicts still ask, so re-running can't silently overwrite anything. This generalizes the existing "retry failed items" of batch operations. (Runtime-only: tasks restored from history after a relaunch can't be re-run.)
 
 - **New: copy the equivalent backend command.** Every backend invocation now logs its shell-pasteable command line (`$ …`) at the top of the task's output log, and the Activity Center task details gain a terminal button that copies all commands from the run. Nothing needs redacting — passwords never appear on the command line by design (they're fed through a secure prompt channel); the tooltip notes that paths may point at the operation's temporary working directory. Great for debugging, and for seeing exactly what SimpleZip runs on your behalf.

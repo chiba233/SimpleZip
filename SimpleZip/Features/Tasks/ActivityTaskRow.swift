@@ -303,6 +303,16 @@ struct ActivityTaskRow: View {
                 }
                 .buttonStyle(.borderless)
                 .help(L10n.text("button.copyDiagnostics"))
+                // 0.4.2 #22：把这单任务的诊断包导出成 .txt（脱敏 + 后端版本 + 文件系统现场）。
+                Button {
+                    Task {
+                        await DiagnosticsCopier.exportReport(session: session, errorMessage: errorMessage)
+                    }
+                } label: {
+                    Image(systemName: "square.and.arrow.up")
+                }
+                .buttonStyle(.borderless)
+                .help(L10n.text("button.exportDiagnostics"))
             }
             if showsCopiedConfirmation {
                 Text(L10n.text("diagnostics.copied"))

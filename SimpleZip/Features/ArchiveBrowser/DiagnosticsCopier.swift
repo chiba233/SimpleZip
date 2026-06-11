@@ -31,6 +31,39 @@ enum DiagnosticsCopier {
         }
     }
 
+    /// 0.4.2 #22：导出**单个任务**的诊断包为 `.txt` —— 等价命令行已在输出里、密码已脱敏，
+    /// 外加后端版本与文件系统现场。返回写入的 URL；用户取消 → nil。
+    @discardableResult
+    static func exportReport(session: ArchiveOperationDetailsSession, errorMessage: String?) async -> URL? {
+        let inputs = await makeInputs(session: session, errorMessage: errorMessage)
+        let report = OperationDiagnosticsReporter.makeReport(from: inputs)
+        return await MainActor.run { () -> URL? in
+            let panel = NSSavePanel()
+            panel.nameFieldStringValue = "SimpleZip-task-diagnostics.txt"
+            panel.allowedContentTypes = [.plainText]
+            guard panel.runModal() == .OK, let url = panel.url else { return nil }
+            try? report.data(using: .utf8)?.write(to: url, options: .atomic)
+            return url
+        }
+    }
+
+    /// 0.4.2 #22：文件系统现场 —— 临时卷 / 用户卷的剩余与总空间（磁盘满是后端神秘失败的常见根因）。
+    private static func fileSystemSummaryText() -> String {
+        func line(_ label: String, _ url: URL) -> String {
+            let keys: Set<URLResourceKey> = [.volumeAvailableCapacityForImportantUsageKey, .volumeTotalCapacityKey]
+            let values = try? url.resourceValues(forKeys: keys)
+            let free = values?.volumeAvailableCapacityForImportantUsage
+                .map { ByteCountFormatter.string(fromByteCount: $0, countStyle: .file) } ?? "?"
+            let total = values?.volumeTotalCapacity
+                .map { ByteCountFormatter.string(fromByteCount: Int64($0), countStyle: .file) } ?? "?"
+            return "\(label): \(free) free of \(total)"
+        }
+        return [
+            line("temp volume", FileManager.default.temporaryDirectory),
+            line("home volume", FileManager.default.homeDirectoryForCurrentUser)
+        ].joined(separator: "\n")
+    }
+
     // MARK: - 通用诊断报告（不绑定某个失败任务的「遇到问题第一出口」）
 
     /// 生成一份**通用**诊断报告文本：app / macOS 版本 + 后端版本 + GPG 状态 + 最近任务摘要。
@@ -79,7 +112,8 @@ enum DiagnosticsCopier {
             finishedAt: now,
             rawOutput: recent,
             errorMessage: nil,
-            gpgSection: collectGPGSection()
+            gpgSection: collectGPGSection(),
+            fileSystemSummary: fileSystemSummaryText()
         )
     }
 
@@ -145,7 +179,8 @@ enum DiagnosticsCopier {
             finishedAt: session.finishedAt,
             rawOutput: session.rawOutput,
             errorMessage: errorMessage,
-            gpgSection: gpgSection
+            gpgSection: gpgSection,
+            fileSystemSummary: fileSystemSummaryText()
         )
     }
 
