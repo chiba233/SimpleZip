@@ -407,6 +407,15 @@ struct ArchiveCreationOptionsView: View {
         }
     }
 
+    /// 抽屉内的二级开关行：单色 Label，**复选框紧随文字右侧**（复选框一律不靠左,设计准则）。
+    private func drawerToggle(_ titleKey: String, systemImage: String, isOn: Binding<Bool>) -> some View {
+        HStack(spacing: 8) {
+            Label(L10n.text(titleKey), systemImage: systemImage)
+            Toggle("", isOn: isOn)
+                .labelsHidden()
+        }
+    }
+
     /// 高级抽屉是否有内容可展示（没有任何适用行就整个不渲染）。
     private var showsAdvancedDrawer: Bool {
         request.options.format.supportsUpdateMode
@@ -421,12 +430,10 @@ struct ArchiveCreationOptionsView: View {
             // 0.4.3 #10:可复现压缩(仅 zip / 7z —— tar 系走系统 tar,无时间戳钳制参数)。
             if request.options.format == .zip || request.options.format == .sevenZip {
                 VStack(alignment: .leading, spacing: 4) {
-                    Toggle(isOn: Binding(
+                    drawerToggle("archive.reproducible", systemImage: "equal.circle", isOn: Binding(
                         get: { request.options.reproducibleArchive == true },
                         set: { request.options.reproducibleArchive = $0 ? true : nil }
-                    )) {
-                        Label(L10n.text("archive.reproducible"), systemImage: "equal.circle")
-                    }
+                    ))
                     Text(L10n.text("archive.reproducible.hint"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -572,9 +579,7 @@ struct ArchiveCreationOptionsView: View {
             Divider()
 
             if !hidden(.solid) {
-                Toggle(isOn: $request.options.sevenZipSolidArchive) {
-                    Label(L10n.text("archive.7z.solid"), systemImage: "cube.fill")
-                }
+                drawerToggle("archive.7z.solid", systemImage: "cube.fill", isOn: $request.options.sevenZipSolidArchive)
             }
             if request.options.sevenZipSolidArchive, !hidden(.solidBlockSize) {
                 LabeledContent {
@@ -603,23 +608,15 @@ struct ArchiveCreationOptionsView: View {
                 }
             }
             if !hidden(.storeSymlinks) {
-                Toggle(isOn: $request.options.sevenZipStoreSymbolicLinks) {
-                    Label(L10n.text("archive.7z.storeSymbolicLinks"), systemImage: "link")
-                }
+                drawerToggle("archive.7z.storeSymbolicLinks", systemImage: "link", isOn: $request.options.sevenZipStoreSymbolicLinks)
             }
             if !hidden(.storeHardlinks) {
-                Toggle(isOn: $request.options.sevenZipStoreHardLinks) {
-                    Label(L10n.text("archive.7z.storeHardLinks"), systemImage: "link.badge.plus")
-                }
+                drawerToggle("archive.7z.storeHardLinks", systemImage: "link.badge.plus", isOn: $request.options.sevenZipStoreHardLinks)
             }
             if !hidden(.compressShared) {
-                Toggle(isOn: $request.options.sevenZipCompressSharedFiles) {
-                    Label(L10n.text("archive.7z.compressSharedFiles"), systemImage: "doc.on.doc.fill")
-                }
+                drawerToggle("archive.7z.compressSharedFiles", systemImage: "doc.on.doc.fill", isOn: $request.options.sevenZipCompressSharedFiles)
             }
-            Toggle(isOn: $request.options.sevenZipDeleteSourceFiles) {
-                Label(L10n.text("archive.7z.deleteAfterCompression"), systemImage: "trash.fill")
-            }
+            drawerToggle("archive.7z.deleteAfterCompression", systemImage: "trash.fill", isOn: $request.options.sevenZipDeleteSourceFiles)
         }
     }
 
@@ -628,15 +625,11 @@ struct ArchiveCreationOptionsView: View {
     private var excludeDrawer: some View {
         DialogDrawer(L10n.text("archive.create.section.excludes"), systemImage: "eye.slash.fill", color: .teal) {
             if !hidden(.skipDSStore) {
-                Toggle(isOn: $request.options.skipDSStore) {
-                    Label(L10n.text("archive.skipDSStore"), systemImage: "doc.badge.gearshape.fill")
-                }
+                drawerToggle("archive.skipDSStore", systemImage: "doc.badge.gearshape.fill", isOn: $request.options.skipDSStore)
             }
             if !hidden(.skipHiddenFiles) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Toggle(isOn: $request.options.skipHiddenFiles) {
-                        Label(L10n.text("archive.skipHiddenFiles"), systemImage: "eye.slash")
-                    }
+                    drawerToggle("archive.skipHiddenFiles", systemImage: "eye.slash", isOn: $request.options.skipHiddenFiles)
                     Text(L10n.text("archive.skipHiddenFilesHint"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -770,10 +763,8 @@ struct ArchiveCreationOptionsView: View {
     @ViewBuilder
     private var gpgDrawer: some View {
         DialogDrawer(L10n.text("archive.create.section.gpg"), systemImage: "signature", color: .green, initiallyExpanded: request.options.gpgSign) {
-            Toggle(isOn: $request.options.gpgSign) {
-                Label(L10n.text("archive.gpgSign"), systemImage: "checkmark.seal.fill")
-            }
-            .disabled(gpgSigningDisabledBySplitVolume)
+            drawerToggle("archive.gpgSign", systemImage: "checkmark.seal.fill", isOn: $request.options.gpgSign)
+                .disabled(gpgSigningDisabledBySplitVolume)
             if gpgSigningDisabledBySplitVolume {
                 validationText(L10n.text("archive.gpgSign.disabledBySplitVolume"))
             }
@@ -789,9 +780,7 @@ struct ArchiveCreationOptionsView: View {
                 deliveryNoteRow
                 // **总开关默认关 = 仅签名 v2 行为**；关闭时下方两组控件灰掉但仍可见，同时清空 options
                 // 避免「用户先填后关 toggle 但加密 params 还潜伏在 options 里被发送」的 footgun。
-                Toggle(isOn: $useGPGEncryption) {
-                    Label(L10n.text("archive.gpgEncrypt.useEncryption"), systemImage: "lock.fill")
-                }
+                drawerToggle("archive.gpgEncrypt.useEncryption", systemImage: "lock.fill", isOn: $useGPGEncryption)
                 .onChange(of: useGPGEncryption) { enabled in
                     if !enabled {
                         request.options.gpgRecipientFingerprints.removeAll()

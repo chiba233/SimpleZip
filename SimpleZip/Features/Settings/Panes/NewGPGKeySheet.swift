@@ -187,7 +187,8 @@ struct NewGPGKeySheet: View {
             Divider().padding(.vertical, 4)
 
             // 可选的认证 subkey
-            Toggle(isOn: $addAuthSubkey) {
+            // 复选框不靠左:文字在前,checkbox 跟在右侧。
+            HStack(alignment: .center, spacing: 8) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(L10n.text("settings.gpg.newKey.subkey.authOption"))
                         .font(.callout)
@@ -196,6 +197,8 @@ struct NewGPGKeySheet: View {
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                Toggle("", isOn: $addAuthSubkey)
+                    .labelsHidden()
             }
             .disabled(isCreating)
         }
