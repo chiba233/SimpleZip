@@ -1088,6 +1088,10 @@ extension ArchiveBrowserModel {
             if request.skipJunk {
                 ArchiveJunkFiles.removeJunk(in: stagingURL)
             }
+            // 0.4.3 #15:「不解压符号链接」—— 同样在 staging 上处理,目标目录零接触。
+            if request.skipSymlinks {
+                ArchiveJunkFiles.removeSymlinks(in: stagingURL)
+            }
             try await self.extractionCoordinator.mergeExtractedItems(
                 from: stagingURL,
                 to: request.destinationURL,
@@ -1462,6 +1466,10 @@ extension ArchiveBrowserModel {
             // 0.4.2：「不解压 macOS 元数据垃圾」—— 合并前在 staging 上清掉，目标目录原有文件零接触。
             if request.skipJunk {
                 ArchiveJunkFiles.removeJunk(in: stagingURL)
+            }
+            // 0.4.3 #15:「不解压符号链接」—— 同样在 staging 上处理,目标目录零接触。
+            if request.skipSymlinks {
+                ArchiveJunkFiles.removeSymlinks(in: stagingURL)
             }
             try await self.extractionCoordinator.mergeExtractedItems(
                 from: stagingURL,

@@ -41,6 +41,15 @@ struct ExtractSelectionOptionsView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            // 0.4.3 #15：不解压符号链接 —— 与整包解压同款开关。
+            Toggle(isOn: $request.skipSymlinks) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L10n.text("extract.skipSymlinks"))
+                    Text(L10n.text("extract.skipSymlinks.detail"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
         .frame(width: 560)
     }

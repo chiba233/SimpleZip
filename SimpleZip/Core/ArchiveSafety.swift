@@ -309,6 +309,25 @@ enum ArchiveJunkFiles {
         items.filter { isJunkPath($0.name) }
     }
 
+    /// 0.4.3 #15:解压「跳过符号链接」—— 合并前在 **staging 树**上删掉所有符号链接(含失效链接)。
+    /// 与 removeJunk 同位同口径:目标目录原有文件零接触;链接删干净后,符号链接安全策略自然无须再问。
+    @discardableResult
+    nonisolated static func removeSymlinks(in root: URL, fileManager: FileManager = .default) -> Int {
+        guard let enumerator = fileManager.enumerator(
+            at: root,
+            includingPropertiesForKeys: [.isSymbolicLinkKey]
+        ) else { return 0 }
+        var removed = 0
+        for case let url as URL in enumerator {
+            let values = try? url.resourceValues(forKeys: [.isSymbolicLinkKey])
+            if values?.isSymbolicLink == true {
+                try? fileManager.removeItem(at: url)
+                removed += 1
+            }
+        }
+        return removed
+    }
+
     /// 0.4.2：解压「跳过 macOS 元数据垃圾」—— 在 **staging 树**上删垃圾（解压先进 staging 再合并，
     /// 所以这里删的全是本次解压产物，绝不会碰目标目录原有文件）。返回删除条目数。
     ///

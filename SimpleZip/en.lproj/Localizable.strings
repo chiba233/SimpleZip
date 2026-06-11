@@ -670,6 +670,8 @@
 "settings.verifyAfterCreate" = "Test new archives after creating";
 "settings.verifyAfterCreate.description" = "Run a full integrity test on newly created or converted archives. Thorough but can take a while on large archives; encrypted outputs are skipped.";
 "tasks.verifyingOutput" = "Verifying the result…";
+"extract.skipSymlinks" = "Don't extract symbolic links";
+"extract.skipSymlinks.detail" = "Symlinks are removed from the staged output before merging — useful for archives from other systems whose links point at paths that don't exist here. The preflight summary above shows how many the archive contains.";
 /* 0.4.3 checksum files */
 "checksum.generate.menu" = "Generate SHA256SUMS";
 "checksum.verify.menu" = "Verify Checksum File";

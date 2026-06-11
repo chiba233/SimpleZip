@@ -369,6 +369,8 @@ struct ExtractArchiveRequest: Identifiable {
     var showDetails = false
     /// 0.4.2：不解压 macOS 元数据垃圾（.DS_Store / __MACOSX / ._*…）—— 在 staging 上清掉再合并。
     var skipJunk = false
+    /// 0.4.3 #15：不解压符号链接 —— 在 staging 上删光再合并（符号链接安全策略自然无须再问）。
+    var skipSymlinks = false
     /// `.siz` 走解压 / 浏览路径时附带的签名摘要 —— 解压对话框里多出「签名 / 签名时间」两行展示。
     /// nil = 不是 .siz / 用户关了 GPG 集成。
     /// 跟签名 sheet 共用同一份 model，UI 状态全部从 `verify`（GPG 原始枚举）派生。
@@ -495,6 +497,8 @@ struct ExtractSelectionRequest: Identifiable {
     var showDetails = false
     /// 0.4.2：不解压 macOS 元数据垃圾 —— 与整包解压同语义（staging 上清扫）。
     var skipJunk = false
+    /// 0.4.3 #15：不解压符号链接 —— 与整包解压同语义（staging 上删光再合并）。
+    var skipSymlinks = false
 }
 
 /// 压缩/解压过程中的进度信息。

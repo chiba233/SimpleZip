@@ -43,6 +43,8 @@ struct ExtractArchiveOptionsView: View {
             preflightRows
             // 0.4.2 用户点名：不解压 macOS 元数据垃圾（staging 上清扫,目标目录原有文件零接触）。
             skipJunkToggle
+            // 0.4.3 #15：不解压符号链接（同样 staging 上处理;预检概要里有链接计数行可对照）。
+            skipSymlinksToggle
             // `.siz` 直接解压时多三行：签名状态 / 签名时间 / 签名指纹。普通归档时为 nil，extraControls 为空。
             if let signature = request.sizSignature {
                 SIZSignatureRows(signature: signature)
@@ -84,6 +86,18 @@ struct ExtractArchiveOptionsView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(L10n.text("extract.skipJunk"))
                 Text(L10n.text("extract.skipJunk.detail"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var skipSymlinksToggle: some View {
+        Toggle(isOn: $request.skipSymlinks) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(L10n.text("extract.skipSymlinks"))
+                Text(L10n.text("extract.skipSymlinks.detail"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

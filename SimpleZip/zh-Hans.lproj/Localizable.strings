@@ -668,6 +668,8 @@
 "settings.verifyAfterCreate" = "创建后测试新归档";
 "settings.verifyAfterCreate.description" = "对新创建或转换出的归档跑一次完整性测试。更稳妥，但大包耗时；加密产物会跳过。";
 "tasks.verifyingOutput" = "正在验证产物…";
+"extract.skipSymlinks" = "不解压符号链接";
+"extract.skipSymlinks.detail" = "合并前在 staging 上删掉所有符号链接——来自其他系统的包,链接常指向本机不存在的路径。上方预检概要里有链接数量可对照。";
 /* 0.4.3 校验文件 */
 "checksum.generate.menu" = "生成 SHA256SUMS";
 "checksum.verify.menu" = "验证校验文件";
