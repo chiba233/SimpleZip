@@ -240,20 +240,31 @@ enum ArchiveDiffExport {
         }
         func row(status: String, path: String, isDirectory: Bool, fields: String,
                  before: ArchiveItem?, after: ArchiveItem?) -> String {
-            [
+            // 列值先落显式类型的局部变量再拼数组 —— 12 个混合 optional 链的字面量会让
+            // CI 的稳定版编译器类型检查超时（"unable to type-check in reasonable time"）。
+            let sizeBefore: String = before?.size.map(String.init) ?? ""
+            let sizeAfter: String = after?.size.map(String.init) ?? ""
+            let crcBefore: String = field(before?.crc ?? "")
+            let crcAfter: String = field(after?.crc ?? "")
+            let modifiedBefore: String = before?.modified.map(iso.string(from:)) ?? ""
+            let modifiedAfter: String = after?.modified.map(iso.string(from:)) ?? ""
+            let encryptedBefore: String = before.map { $0.isEncrypted ? "true" : "false" } ?? ""
+            let encryptedAfter: String = after.map { $0.isEncrypted ? "true" : "false" } ?? ""
+            let columns: [String] = [
                 status,
                 field(path),
                 isDirectory ? "true" : "false",
                 field(fields),
-                before?.size.map(String.init) ?? "",
-                after?.size.map(String.init) ?? "",
-                field(before?.crc ?? ""),
-                field(after?.crc ?? ""),
-                before?.modified.map(iso.string(from:)) ?? "",
-                after?.modified.map(iso.string(from:)) ?? "",
-                before.map { $0.isEncrypted ? "true" : "false" } ?? "",
-                after.map { $0.isEncrypted ? "true" : "false" } ?? ""
-            ].joined(separator: ",")
+                sizeBefore,
+                sizeAfter,
+                crcBefore,
+                crcAfter,
+                modifiedBefore,
+                modifiedAfter,
+                encryptedBefore,
+                encryptedAfter
+            ]
+            return columns.joined(separator: ",")
         }
         for item in result.removed {
             lines.append(row(status: "removed", path: ArchiveDiff.normalizedPath(item.name),
