@@ -18,6 +18,8 @@ struct BrowserPane: View {
     @AppStorage(AppPreferences.Key.hiddenWithGrouping) private var hiddenWithGroupingRaw = BrowserGrouping.HiddenWithGrouping.separateGroup.rawValue
     @AppStorage(AppPreferences.Key.showSymbolicLinks) private var showSymbolicLinks = true
     @AppStorage(AppPreferences.Key.folderInlineExpansion) private var folderInlineExpansion = true
+    @AppStorage(AppPreferences.Key.rememberFolderExpansion) private var rememberFolderExpansion = true
+    @AppStorage(AppPreferences.Key.rememberVolumeSetExpansion) private var rememberVolumeSetExpansion = true
     @AppStorage(AppPreferences.Key.followFinderStructure) private var followFinderStructure = false
     @AppStorage(AppPreferences.Key.hiddenSuffixesEnabled) private var hiddenSuffixesEnabled = true
 
@@ -101,6 +103,20 @@ struct BrowserPane: View {
                     systemImage: "chevron.down.square",
                     isOn: $folderInlineExpansion
                 )
+                // 展开记忆：刷新（FSEvents / 手动 / 排序分组）后恢复展开状态。文件夹记忆依赖原位展开,关掉时变灰。
+                SettingsToggleRow(
+                    title: L10n.text("settings.rememberFolderExpansion"),
+                    description: L10n.text("settings.rememberFolderExpansion.description"),
+                    systemImage: "arrow.clockwise.square",
+                    isOn: $rememberFolderExpansion
+                )
+                .disabled(!folderInlineExpansion)
+                SettingsToggleRow(
+                    title: L10n.text("settings.rememberVolumeSetExpansion"),
+                    description: L10n.text("settings.rememberVolumeSetExpansion.description"),
+                    systemImage: "square.stack.3d.down.right",
+                    isOn: $rememberVolumeSetExpansion
+                )
                 SettingsToggleRow(
                     title: L10n.text("settings.followFinderStructure"),
                     description: L10n.text("settings.followFinderStructure.description"),
@@ -127,6 +143,8 @@ struct BrowserPane: View {
         .onChange(of: hiddenGroupCollapseModeRaw) { _ in notifyBrowserRefresh() }
         .onChange(of: showSymbolicLinks) { _ in notifyBrowserRefresh() }
         .onChange(of: folderInlineExpansion) { _ in notifyBrowserRefresh() }
+        .onChange(of: rememberFolderExpansion) { _ in notifyBrowserRefresh() }
+        .onChange(of: rememberVolumeSetExpansion) { _ in notifyBrowserRefresh() }
         .onChange(of: followFinderStructure) { _ in notifyBrowserRefresh() }
         .onChange(of: hiddenSuffixesEnabled) { _ in notifyBrowserRefresh() }
         .onChange(of: hiddenRecommendedSuffixes) { newValue in

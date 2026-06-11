@@ -85,6 +85,17 @@ extension ArchiveBrowserModel {
         return children
     }
 
+    /// 0.4.2 展开记忆开关：文件夹展开记忆关闭时,reload 后没被重展开的文件夹行已折叠,
+    /// 注册表里的残留条目会让隐形子级仍可被选区 / 操作命中 —— 只保留 keeping 名单
+    /// （= enforceExpansion 刚重展开的,如待重命名目标的祖先链）,其余出表。
+    func pruneExpandedFolderRegistry(keeping paths: Set<String>) {
+        let stale = expandedFolderChildrenByPath.keys.filter { !paths.contains($0) }
+        guard !stale.isEmpty else { return }
+        for key in stale {
+            expandedFolderChildrenByPath.removeValue(forKey: key)
+        }
+    }
+
     /// 文件夹折叠：把它（连同其下层所有展开的子孙）从注册表移除 —— 折叠后子级不再可见,不应再可被操作。
     func folderDidCollapse(_ url: URL) {
         let path = url.standardizedFileURL.path

@@ -255,6 +255,9 @@ enum AppPreferences {
         nonisolated static let hiddenDetectionMode = "hiddenDetectionMode"
         nonisolated static let showSymbolicLinks = "showSymbolicLinks"
         nonisolated static let folderInlineExpansion = "folderInlineExpansion"
+        // 0.4.2：展开状态记忆开关（文件夹 / 分卷集，会话内跨刷新记忆；默认开）。
+        nonisolated static let rememberFolderExpansion = "rememberFolderExpansion"
+        nonisolated static let rememberVolumeSetExpansion = "rememberVolumeSetExpansion"
         nonisolated static let followFinderStructure = "followFinderApplicationStructure"
         nonisolated static let hiddenSuffixesEnabled = "hiddenSuffixesEnabled"
         nonisolated static let hiddenRecommendedSuffixes = "hiddenRecommendedSuffixes"
@@ -424,6 +427,16 @@ enum AppPreferences {
     /// 文件浏览器里文件夹可原位展开（目录行带展开箭头）。默认开；关掉回到纯平铺列表。
     nonisolated static var folderInlineExpansion: Bool {
         defaultTrueBool(forKey: Key.folderInlineExpansion)
+    }
+
+    /// 列表刷新（FSEvents / 手动刷新 / 排序分组变化）后恢复已展开的文件夹。默认开；关掉每次刷新回到全折叠。
+    nonisolated static var rememberFolderExpansion: Bool {
+        defaultTrueBool(forKey: Key.rememberFolderExpansion)
+    }
+
+    /// 列表刷新后恢复已展开的分卷集（0.4.2 #4 折叠行）。默认开。
+    nonisolated static var rememberVolumeSetExpansion: Bool {
+        defaultTrueBool(forKey: Key.rememberVolumeSetExpansion)
     }
 
     nonisolated static var followFinderStructure: Bool {
@@ -902,6 +915,8 @@ enum AppPreferences {
         Key.hiddenDetectionMode,
         Key.showSymbolicLinks,
         Key.folderInlineExpansion,
+        Key.rememberFolderExpansion,
+        Key.rememberVolumeSetExpansion,
         Key.followFinderStructure,
         Key.hiddenSuffixesEnabled,
         Key.hiddenRecommendedSuffixes,
@@ -1006,6 +1021,8 @@ enum AppPreferences {
         v[Key.hiddenDetectionMode] = hiddenDetectionMode.rawValue
         v[Key.showSymbolicLinks] = showSymbolicLinks
         v[Key.folderInlineExpansion] = folderInlineExpansion
+        v[Key.rememberFolderExpansion] = rememberFolderExpansion
+        v[Key.rememberVolumeSetExpansion] = rememberVolumeSetExpansion
         v[Key.followFinderStructure] = followFinderStructure
         v[Key.hiddenSuffixesEnabled] = hiddenSuffixesEnabled
         v[Key.hiddenRecommendedSuffixes] = hiddenRecommendedSuffixes

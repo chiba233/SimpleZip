@@ -1549,6 +1549,10 @@
 "settings.showSymbolicLinks.description" = "在文件夹列表和搜索结果里包含符号链接。";
 "settings.folderInlineExpansion" = "文件夹原位展开";
 "settings.folderInlineExpansion.description" = "目录行带展开箭头,可像 Finder 一样在列表内展开内容。关闭则回到纯平铺列表。";
+"settings.rememberFolderExpansion" = "记住文件夹展开状态";
+"settings.rememberFolderExpansion.description" = "列表刷新（文件变动、手动刷新、排序）后自动恢复你展开过的文件夹。关闭后每次刷新都从全部折叠开始。";
+"settings.rememberVolumeSetExpansion" = "记住分卷集展开状态";
+"settings.rememberVolumeSetExpansion.description" = "展开过的分卷集（.001/.002…）在列表刷新后保持展开。关闭后每次刷新重新收起。";
 "settings.followFinderStructure.description" = "像 Finder 一样合并特殊文件夹，例如“应用程序”和 Utilities。";
 "settings.association.description" = "选择哪些压缩包类型默认用 SimpleZip 打开。每一行都会显示当前默认 App。";
 "error.missingRarTool" = "未找到 RAR 命令行工具。请安装 rar 以创建 RAR 压缩包。";

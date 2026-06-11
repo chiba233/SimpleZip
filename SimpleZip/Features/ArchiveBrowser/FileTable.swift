@@ -243,6 +243,9 @@ struct FileNSOutlineView: NSViewRepresentable {
         /// 0.4.1 文件夹原位展开：当前展开的文件夹（标准化路径）。reloadData 重建节点后据此重展开
         /// （expandRememberedFolders）。会话内、当前文件夹内有效；换文件夹 / 改配置随 configSignature 重置。
         private var expandedFolderPaths: Set<String> = []
+        /// 0.4.2 #4 跟进：已展开分卷集的首卷路径（用户报「分卷抽屉不会记忆是否收起」——
+        /// reload 重建节点后由 enforceExpansion 按此回放,与文件夹展开记忆同机制;受设置开关门控）。
+        private var expandedVolumeSetPaths: Set<String> = []
         // folder / 折叠策略 / GroupBy / 共存策略 任一变 → 重置展开状态。
         private var lastConfigSignature: String?
         // 上次真正 reloadData 时的「内容指纹」。选区变化不改它 → 跳过 reload，避免橡皮筋复选时闪烁 / 抽搐。
@@ -268,7 +271,7 @@ struct FileNSOutlineView: NSViewRepresentable {
         }
 
         private var configSignature: String {
-            "\(currentFolderKey)|\(AppPreferences.collapseVolumeSets)|\(AppPreferences.hiddenGroupCollapseMode.rawValue)|\(effectiveGroupBy.rawValue)|\(AppPreferences.fileGroupingScope.rawValue)|\(AppPreferences.hiddenWithGrouping.rawValue)|\(AppPreferences.folderInlineExpansion)"
+            "\(currentFolderKey)|\(AppPreferences.collapseVolumeSets)|\(AppPreferences.hiddenGroupCollapseMode.rawValue)|\(effectiveGroupBy.rawValue)|\(AppPreferences.fileGroupingScope.rawValue)|\(AppPreferences.hiddenWithGrouping.rawValue)|\(AppPreferences.folderInlineExpansion)|\(AppPreferences.rememberFolderExpansion)|\(AppPreferences.rememberVolumeSetExpansion)"
         }
 
         /// 所有区块节点，父在子前（top-down）—— enforceExpansion 需要先展开父再展开子。支持嵌套（隐藏组里再分子组）。
@@ -373,8 +376,9 @@ struct FileNSOutlineView: NSViewRepresentable {
             if signature != lastConfigSignature {
                 lastConfigSignature = signature
                 userCollapsedSectionKeys = []
-                // 换文件夹 / 改配置：文件夹展开记忆作废（folder key 在 configSignature 里,导航必走这支）。
+                // 换文件夹 / 改配置：文件夹 / 分卷集展开记忆作废（folder key 在 configSignature 里,导航必走这支）。
                 expandedFolderPaths = []
+                expandedVolumeSetPaths = []
                 hiddenGroupExpanded = FileBrowserOutline.initialExpanded(
                     mode: AppPreferences.hiddenGroupCollapseMode,
                     folderKey: currentFolderKey,
@@ -478,21 +482,66 @@ struct FileNSOutlineView: NSViewRepresentable {
             // 重新展开 —— 上一版漏了这步,FSEvents 一刷新展开层连行带选区直接坍掉（revert 信里的「闪一下就没」）。
             expandRememberedFolders(in: topLevelNodes)
             isSyncingExpansion = false
+            // 文件夹展开记忆关掉时,reload 后没被重展开的文件夹其注册表条目成了「隐形但可被选区命中」——
+            // 把记忆名单之外的条目清掉(名单内 = 刚被 enforce 重展开的,如待重命名目标的祖先链)。
+            if !AppPreferences.rememberFolderExpansion {
+                model.pruneExpandedFolderRegistry(keeping: expandedFolderPaths)
+            }
+            // reload 后仍折叠的分卷集:落在隐形成员上的选区收回首卷(与手动折叠同款防误删)。
+            recallSelectionFromCollapsedVolumeSets()
         }
 
-        /// 递归重展开记忆中的文件夹。**先展开父层**（expandItem 触发数据源,从模型注册表懒构建子节点）,
+        /// 递归重展开记忆中的文件夹**和分卷集**。**先展开父层**（expandItem 触发数据源,从模型注册表懒构建子节点）,
         /// 子层节点存在后才能继续下钻嵌套展开的子文件夹。折叠区块里的不展（区块开了再说）。
         private func expandRememberedFolders(in nodes: [FileOutlineNode]) {
-            guard let outlineView, !expandedFolderPaths.isEmpty else { return }
+            guard let outlineView, !(expandedFolderPaths.isEmpty && expandedVolumeSetPaths.isEmpty) else { return }
             for node in nodes {
                 if node.isSection {
                     if outlineView.isItemExpanded(node) { expandRememberedFolders(in: node.children) }
                     continue
                 }
-                guard let item = node.fileItem, item.isDirectory,
+                guard let item = node.fileItem else { continue }
+                if node.volumeChildren != nil {
+                    if expandedVolumeSetPaths.contains(item.url.standardizedFileURL.path) {
+                        outlineView.expandItem(node)
+                    }
+                    continue
+                }
+                guard item.isDirectory,
                       expandedFolderPaths.contains(item.url.standardizedFileURL.path) else { continue }
                 outlineView.expandItem(node)
                 if let children = node.folderChildren { expandRememberedFolders(in: children) }
+            }
+        }
+
+        /// reload 后处于折叠态的分卷集（记忆关闭 / 本就没展开）：把落在隐形成员行上的选区收回首卷。
+        /// 成员是真实顶层 FileItem,折叠不会把它们移出 selectedFileItems 的解析池 —— 不收回的话
+        /// Delete / 菜单仍会作用在看不见的成员上（与 outlineViewItemDidCollapse 的防护同源）。
+        private func recallSelectionFromCollapsedVolumeSets() {
+            guard let outlineView else { return }
+            var selection = model.selection
+            var changed = false
+            func walk(_ nodes: [FileOutlineNode]) {
+                for node in nodes {
+                    if node.isSection { walk(node.children); continue }
+                    if let firstVolume = node.fileItem, let volumes = node.volumeChildren,
+                       !outlineView.isItemExpanded(node) {
+                        let memberIDs = Set(volumes.compactMap { $0.fileItem?.id }).subtracting([firstVolume.id])
+                        let hidden = selection.intersection(memberIDs)
+                        if !hidden.isEmpty {
+                            selection.subtract(hidden)
+                            selection.insert(firstVolume.id)
+                            changed = true
+                        }
+                    }
+                    if let children = node.folderChildren { walk(children) }
+                }
+            }
+            walk(topLevelNodes)
+            guard changed else { return }
+            let newSelection = selection
+            DispatchQueue.main.async { [weak self] in
+                self?.model.selection = newSelection
             }
         }
 
@@ -681,7 +730,15 @@ struct FileNSOutlineView: NSViewRepresentable {
                 setSectionExpanded(node, true)
                 return
             }
-            if let item = expandedFolderNode(from: notification)?.fileItem {
+            // 0.4.2 #4 跟进：分卷集展开进记忆（记忆开关关掉则不记,reload 后回到折叠）。
+            if let node = notification.userInfo?["NSObject"] as? FileOutlineNode,
+               node.volumeChildren != nil, let item = node.fileItem {
+                if AppPreferences.rememberVolumeSetExpansion {
+                    expandedVolumeSetPaths.insert(item.url.standardizedFileURL.path)
+                }
+                return
+            }
+            if let item = expandedFolderNode(from: notification)?.fileItem, AppPreferences.rememberFolderExpansion {
                 expandedFolderPaths.insert(item.url.standardizedFileURL.path)
                 // 模型注册表由数据源的 loadedFolderChildren → model.expandedChildren 在展开时已登记,这里不必重复。
             }
@@ -694,9 +751,10 @@ struct FileNSOutlineView: NSViewRepresentable {
                 return
             }
             // 0.4.2 #4：折叠分卷集时,落在成员行上的选区收回首卷（Finder 折叠文件夹同款）——
-            // 成员不再可见,不应再被 Delete / 菜单悄悄作用。
+            // 成员不再可见,不应再被 Delete / 菜单悄悄作用。展开记忆同步遗忘。
             if let node = notification.userInfo?["NSObject"] as? FileOutlineNode,
                let firstVolume = node.fileItem, let volumes = node.volumeChildren {
+                expandedVolumeSetPaths.remove(firstVolume.url.standardizedFileURL.path)
                 let memberIDs = Set(volumes.compactMap { $0.fileItem?.id }).subtracting([firstVolume.id])
                 let hiddenSelected = model.selection.intersection(memberIDs)
                 if !hiddenSelected.isEmpty {

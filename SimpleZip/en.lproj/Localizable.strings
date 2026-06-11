@@ -1183,6 +1183,10 @@
 "settings.showSymbolicLinks.description" = "Include symbolic links in folder listings and search results.";
 "settings.folderInlineExpansion" = "Expand folders in place";
 "settings.folderInlineExpansion.description" = "Folder rows get a disclosure chevron to unfold their contents inside the list, Finder style. Turn off for a flat list.";
+"settings.rememberFolderExpansion" = "Remember expanded folders";
+"settings.rememberFolderExpansion.description" = "Re-expand the folders you had open after the list refreshes (file changes, manual refresh, sorting). Turn off to start every refresh fully collapsed.";
+"settings.rememberVolumeSetExpansion" = "Remember expanded split-volume sets";
+"settings.rememberVolumeSetExpansion.description" = "Keep collapsed split-volume sets (.001/.002…) open across list refreshes once you expand them. Turn off to re-collapse on every refresh.";
 "settings.followFinderStructure.description" = "Merge special folders the way Finder does, such as Applications and Utilities.";
 "status.exportingArchiveItem" = "Extracting %@ to %@";
 "status.exportedArchiveItem" = "Extracted %@";
