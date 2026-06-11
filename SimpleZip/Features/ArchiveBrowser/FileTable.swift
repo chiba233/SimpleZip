@@ -894,6 +894,8 @@ struct FileNSOutlineView: NSViewRepresentable {
                !item.isDirectory,
                item.url.pathExtension.lowercased() == SZSArchive.extensionName {
                 menu.addItem(menuItem(L10n.text("szs.silentBrowse.menuItem"), systemImage: "folder.badge.questionmark", action: #selector(silentBrowseSelectedSZS)))
+                // 0.4.2 #26：.szs 当快照用 —— 清单 vs 目录现状的结构比较（新增=未签名新文件）。
+                menu.addItem(menuItem(L10n.text("szs.compareWithFolder.menuItem"), systemImage: "arrow.left.arrow.right.circle", action: #selector(compareSZSWithFolder)))
             }
             // 「以压缩包打开」—— 只在选中单个非目录、且不是已识别压缩包时显示。
             if let item = model.selectedFileItems.first,
@@ -1136,6 +1138,10 @@ struct FileNSOutlineView: NSViewRepresentable {
 
         @objc private func encryptSelectedToGPG() {
             model.encryptSelectionToGPG()
+        }
+
+        @objc private func compareSZSWithFolder() {
+            model.compareSelectedSZSWithFolder()
         }
 
         @objc private func silentBrowseSelectedSZS() {

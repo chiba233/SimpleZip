@@ -4,6 +4,8 @@
 
 ## 0.4.2 (unreleased)
 
+- **New: use a `.szs` manifest as a folder snapshot.** Right-click a `.szs` → **Compare with Current Folder**: the signed manifest is compared structurally against what's in the folder right now — *added* entries are unsigned new files, *removed* means a signed file is gone, *changed* means the size differs. The result opens in the regular comparison window, so JSON/CSV/Markdown export comes for free. (This is the fast structural view; byte-level verification remains the full signature check when opening the `.szs`.)
+
 - **New: compare folders, not just archives.** Archive Diff now accepts a folder on either side — select an archive + a folder, two folders, or two archives, or pick the second side (folders allowed) from the panel. Folder sides are snapshotted from the file system; since file systems store no CRC, content comparison falls back to size + date there. Modification times also gained a 2-second tolerance across all comparisons — ZIP's DOS timestamps only have 2-second resolution, which previously flagged every file as "modified" when comparing against a folder; one-sided missing timestamps no longer count as a change either.
 
 - **New: find duplicate files inside an archive.** Right-click the blank area of an archive → **Find Duplicate Files**: entries are grouped by size + CRC (entries without a reliable CRC are skipped rather than guessed), groups are sorted by wasted space with a total at the top, and the report can be copied as plain text. Works read-only on any archive format.

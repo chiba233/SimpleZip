@@ -812,6 +812,9 @@
 "duplicates.none" = "No duplicate files found (by size + CRC).";
 "duplicates.summary" = "%1$@ duplicate groups — %2$@ wasted";
 "duplicates.groupWaste" = "%1$@ wasted";
+/* 0.4.2 .szs vs folder comparison */
+"szs.compareWithFolder.menuItem" = "Compare with Current Folder";
+
 
 
 

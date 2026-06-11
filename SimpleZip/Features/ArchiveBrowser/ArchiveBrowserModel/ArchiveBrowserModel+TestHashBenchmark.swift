@@ -303,6 +303,61 @@ extension ArchiveBrowserModel {
         }
     }
 
+    // MARK: - .szs 清单 vs 当前文件夹（0.4.2 #26）
+
+    /// 右键 .szs「与当前文件夹比较」：清单条目 vs 同目录现状的结构比较 ——
+    /// **新增** = 目录里出现的未签名新文件；**删除** = 清单里有但目录里没了；**修改** = 大小变了。
+    /// 清单不存 mtime → 时间维度自动不比；这是快速结构对照，逐字节核验请走完整验证（双击 .szs）。
+    /// 复用归档比较的报告 sheet —— 导出 JSON / CSV / Markdown 全部白送。
+    func compareSelectedSZSWithFolder() {
+        guard case .folder = mode,
+              let szsURL = selectedFileItems.first(where: { $0.url.pathExtension.lowercased() == SZSArchive.extensionName })?.url else { return }
+        runSZSFolderComparison(szsURL)
+    }
+
+    private func runSZSFolderComparison(_ szsURL: URL) {
+        let folderURL = szsURL.deletingLastPathComponent()
+        let szsName = szsURL.lastPathComponent
+        startManagedArchiveTask(
+            title: L10n.format("status.comparing", szsName, folderURL.lastPathComponent),
+            kind: .compare,
+            showsDetails: false,
+            successStatus: L10n.text("status.compared"),
+            onSucceeded: { [weak self] task in
+                task.diffReport = self?.archiveDiffReport
+            },
+            rerunAction: { [weak self] in self?.runSZSFolderComparison(szsURL) }
+        ) { [weak self] _, _, _ in
+            // 结构比较不验签（extractClearsignedManifest 只解析 armor 内 JSON）——
+            // 签名真伪与逐文件 SHA 由完整验证流程负责，这里比的是「清单 vs 目录现状」的形状。
+            let manifest = try SZSArchive.extractClearsignedManifest(manifestURL: szsURL)
+            let manifestItems = manifest.files.map { entry in
+                ArchiveItem(
+                    name: entry.relativePath,
+                    isDirectory: false,
+                    size: Int64(entry.size),
+                    modified: nil,
+                    sizeText: ByteCountFormatter.string(fromByteCount: Int64(entry.size), countStyle: .file),
+                    modifiedText: "",
+                    method: ""
+                )
+            }
+            let folderSnapshot = await Task.detached(priority: .userInitiated) {
+                ArchiveDiff.folderItems(at: folderURL)
+            }.value
+            // 清单只记文件：目录条目剔除；.szs 自己也剔除（它不该算「未签名新增」）。
+            let folderFiles = folderSnapshot.filter { !$0.isDirectory && $0.name != szsName }
+            let result = ArchiveDiff.compare(left: manifestItems, right: folderFiles)
+            await MainActor.run {
+                self?.archiveDiffReport = ArchiveDiffReport(
+                    leftName: szsName,
+                    rightName: folderURL.lastPathComponent,
+                    result: result
+                )
+            }
+        }
+    }
+
     /// 比较的一侧取条目:文件夹(且不是受支持归档)→ 文件系统快照;否则按归档列出。
     nonisolated private static func comparisonItems(for url: URL, operationID: UUID?, force: Bool) async throws -> [ArchiveItem] {
         var isDirectory: ObjCBool = false

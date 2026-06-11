@@ -810,6 +810,9 @@
 "duplicates.none" = "未发现重复文件（按 大小 + CRC 判定）。";
 "duplicates.summary" = "%1$@ 组重复——浪费 %2$@";
 "duplicates.groupWaste" = "浪费 %1$@";
+/* 0.4.2 .szs 与当前文件夹比较 */
+"szs.compareWithFolder.menuItem" = "与当前文件夹比较";
+
 
 
 
