@@ -13,7 +13,16 @@ import SwiftUI
 struct ActivityTaskRow: View {
     @ObservedObject var task: OperationTask
     @State private var isShowingDetails = false
-    @State private var showsCopiedConfirmation = false
+    /// 复制反馈文案（nil = 不显示）。0.4.2 用户报「复制命令也显示诊断信息已复制」—— 按按钮分流。
+    @State private var copiedConfirmationText: String?
+
+    private func flashCopied(_ key: String) {
+        withAnimation { copiedConfirmationText = L10n.text(key) }
+        Task {
+            try? await Task.sleep(nanoseconds: 2_500_000_000)
+            withAnimation { copiedConfirmationText = nil }
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -81,32 +90,26 @@ struct ActivityTaskRow: View {
                 Button {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(report.plainTextSummary, forType: .string)
-                    withAnimation { showsCopiedConfirmation = true }
-                    Task {
-                        try? await Task.sleep(nanoseconds: 2_500_000_000)
-                        withAnimation { showsCopiedConfirmation = false }
-                    }
+                    flashCopied("feedback.copied")
                 } label: {
                     Image(systemName: "doc.on.doc")
                 }
                 .buttonStyle(.borderless)
                 .help(L10n.text("button.copyAll"))
             }
-            if showsCopiedConfirmation {
-                Text(L10n.text("diagnostics.copied"))
+            if let copiedConfirmationText {
+                Text(copiedConfirmationText)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 8) {
-                    ForEach(report.results) { result in
-                        HashResultCard(report: report, result: result)
-                    }
+            // 0.4.2 用户报「二级滚动条瞬间接管」：详情不再内嵌滚动 —— 内容直接铺开，
+            // 只剩外层一条滚动条（长内容 = 卡片变高，由外层滚）。
+            LazyVStack(alignment: .leading, spacing: 8) {
+                ForEach(report.results) { result in
+                    HashResultCard(report: report, result: result)
                 }
-                .padding(.vertical, 2)
-                .padding(.trailing, 16)   // 预留竖向滚动条宽度，避免盖住右侧长哈希值
             }
-            .frame(maxHeight: 280)
+            .padding(.vertical, 2)
         }
     }
 
@@ -121,30 +124,23 @@ struct ActivityTaskRow: View {
                 Button {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(report.plainTextSummary, forType: .string)
-                    withAnimation { showsCopiedConfirmation = true }
-                    Task {
-                        try? await Task.sleep(nanoseconds: 2_500_000_000)
-                        withAnimation { showsCopiedConfirmation = false }
-                    }
+                    flashCopied("feedback.copied")
                 } label: {
                     Image(systemName: "doc.on.doc")
                 }
                 .buttonStyle(.borderless)
                 .help(L10n.text("button.copyAll"))
             }
-            if showsCopiedConfirmation {
-                Text(L10n.text("diagnostics.copied"))
+            if let copiedConfirmationText {
+                Text(copiedConfirmationText)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             ArchiveDiffSummaryLine(report: report)
             if report.result.hasDifferences {
-                ScrollView {
-                    ArchiveDiffSections(report: report)
-                        .padding(.vertical, 2)
-                        .padding(.trailing, 16)   // 预留竖向滚动条宽度
-                }
-                .frame(maxHeight: 280)
+                // 同上：不内嵌滚动，铺开随外层滚。
+                ArchiveDiffSections(report: report)
+                    .padding(.vertical, 2)
             } else {
                 Text(L10n.format("diff.identical", report.result.unchanged.count))
                     .font(.caption)
@@ -159,16 +155,13 @@ struct ActivityTaskRow: View {
         VStack(alignment: .leading, spacing: 7) {
             Text(detailsHeaderTitle)
                 .font(.caption.weight(.semibold))
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 8) {
-                    ForEach(Array(comparisons.enumerated()), id: \.offset) { _, result in
-                        HashComparisonCard(result: result)
-                    }
+            // 同上：不内嵌滚动，铺开随外层滚。
+            LazyVStack(alignment: .leading, spacing: 8) {
+                ForEach(Array(comparisons.enumerated()), id: \.offset) { _, result in
+                    HashComparisonCard(result: result)
                 }
-                .padding(.vertical, 2)
-                .padding(.trailing, 16)   // 预留竖向滚动条宽度，避免盖住右侧长哈希值
             }
-            .frame(maxHeight: 280)
+            .padding(.vertical, 2)
         }
     }
 
@@ -195,8 +188,8 @@ struct ActivityTaskRow: View {
                 transferLogSummary(added: added.count + passed.count, overwritten: overwritten.count + changed.count,
                                    skipped: skipped.count, failed: failed.count)
             }
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 10) {
+            // 0.4.2：不内嵌滚动（二级滚动条接管恶心），铺开随外层滚。
+            LazyVStack(alignment: .leading, spacing: 10) {
                     // 失败项排最前 —— 用户最关心「哪些没成」。
                     if !failed.isEmpty {
                         TransferLogGroup(title: L10n.text("transfer.section.failed"), entries: failed, icon: "exclamationmark.circle.fill", tint: .red, hashByName: hashByName)
@@ -219,11 +212,8 @@ struct ActivityTaskRow: View {
                     if !deleted.isEmpty {
                         TransferLogGroup(title: L10n.text("transfer.section.deleted"), entries: deleted, icon: "trash.fill", tint: .red, hashByName: hashByName)
                     }
-                }
-                .padding(.vertical, 2)
-                .padding(.trailing, 16)
             }
-            .frame(maxHeight: 280)
+            .padding(.vertical, 2)
 
             // 重试失败项 —— 仅当有失败项且任务挂了重试动作（运行时态，历史任务不可重试）。
             if !failed.isEmpty, let retry = task.retryFailed {
@@ -280,11 +270,7 @@ struct ActivityTaskRow: View {
                     Button {
                         NSPasteboard.general.clearContents()
                         NSPasteboard.general.setString(commands.map { String($0.dropFirst(2)) }.joined(separator: "\n"), forType: .string)
-                        withAnimation { showsCopiedConfirmation = true }
-                        Task {
-                            try? await Task.sleep(nanoseconds: 2_500_000_000)
-                            withAnimation { showsCopiedConfirmation = false }
-                        }
+                        flashCopied("command.copied")
                     } label: {
                         Image(systemName: "terminal")
                     }
@@ -294,9 +280,7 @@ struct ActivityTaskRow: View {
                 Button {
                     Task {
                         await DiagnosticsCopier.copy(session: session, errorMessage: errorMessage)
-                        withAnimation { showsCopiedConfirmation = true }
-                        try? await Task.sleep(nanoseconds: 2_500_000_000)
-                        withAnimation { showsCopiedConfirmation = false }
+                        flashCopied("diagnostics.copied")
                     }
                 } label: {
                     Image(systemName: "doc.on.doc")
@@ -314,8 +298,8 @@ struct ActivityTaskRow: View {
                 .buttonStyle(.borderless)
                 .help(L10n.text("button.exportDiagnostics"))
             }
-            if showsCopiedConfirmation {
-                Text(L10n.text("diagnostics.copied"))
+            if let copiedConfirmationText {
+                Text(copiedConfirmationText)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

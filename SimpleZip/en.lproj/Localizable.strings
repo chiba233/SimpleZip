@@ -1637,6 +1637,8 @@
 "gpgExtract.note" = "Decryption is staged on the encrypted scratch volume; the plaintext only lands in the chosen folder on success — never overwriting existing files. gpg-agent / pinentry may ask for your key passphrase.";
 "virtual.export.panelMessage" = "Choose where to save the decrypted files";
 "virtual.export.done" = "Saved %1$@ files";
+"feedback.copied" = "Copied";
+"command.copied" = "Command copied";
 "button.close" = "Close";
 "gpgFile.disabled.message" = "GPG integration is turned off. Enable it in Settings ▸ GPG to open encrypted files.";
 "gpgFile.backendMissing.message" = "The GPG backend (gpg) was not found. Install GnuPG to open encrypted files.";

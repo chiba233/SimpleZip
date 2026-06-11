@@ -180,11 +180,35 @@ struct ArchiveOperationDetailsView: View {
 
 /// 高性能命令输出日志视图 —— 用 NSTextView（懒布局 + 原生滚动 / 文本选择），
 /// 远比 SwiftUI `Text` 渲染大段流式文本流畅；配合 session 端只留最近 500 行，详情面板不再卡。
+/// 0.4.2 用户报「二级滚动条瞬间接管很恶心」：日志框滚到顶/底后继续滚 → 把滚轮事件交还父级，
+/// 外层列表无缝接管 —— 与原生 App 嵌套滚动手感一致。
+final class EdgePassthroughScrollView: NSScrollView {
+    override func scrollWheel(with event: NSEvent) {
+        let visible = documentVisibleRect
+        let docHeight = documentView?.frame.height ?? 0
+        let atTop = visible.minY <= 0.5
+        let atBottom = visible.maxY >= docHeight - 0.5
+        let delta = event.scrollingDeltaY
+        // 内容根本不用滚 / 已到边缘还往外滚 → 整个事件给父级。
+        if docHeight <= visible.height || (delta > 0 && atTop) || (delta < 0 && atBottom) {
+            nextResponder?.scrollWheel(with: event)
+            return
+        }
+        super.scrollWheel(with: event)
+    }
+}
+
 struct CommandOutputLogView: NSViewRepresentable {
     let text: String
 
     func makeNSView(context: Context) -> NSScrollView {
-        let scrollView = NSTextView.scrollableTextView()
+        // 手搭（不用 NSTextView.scrollableTextView()）—— 为了换成边缘穿透的 scroll view 子类。
+        let scrollView = EdgePassthroughScrollView()
+        let textView = NSTextView()
+        textView.autoresizingMask = [.width]
+        textView.isVerticallyResizable = true
+        textView.textContainer?.widthTracksTextView = true
+        scrollView.documentView = textView
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = false
         scrollView.borderType = .noBorder
