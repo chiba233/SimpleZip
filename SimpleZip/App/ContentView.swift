@@ -155,6 +155,12 @@ struct ContentView: View {
                     .help(L10n.text("help.refresh"))
                 }
 
+                // 0.4.2 用户点名：液态玻璃工具栏按上下文动态给出「当前最可能要的两个操作」
+                //（归档/文件夹 × 有无选中 = 四种组合,各两枚）。抽成子视图防 body 类型检查超时。
+                ToolbarItemGroup(placement: .primaryAction) {
+                    ContextualToolbarButtons(model: model)
+                }
+
                 ToolbarItemGroup(placement: .primaryAction) {
                     Button(action: model.createArchive) {
                         Label(L10n.text("button.add"), systemImage: "plus.square.on.square")
@@ -1231,5 +1237,83 @@ private struct ArchiveExtrasSheets: ViewModifier {
             }
             // 设置开窗桥（0.4.2）：菜单栏「关于」等深链入口靠它用官方 openSettings 开窗。
             .background(SettingsOpenerBridge())
+    }
+}
+
+
+/// 0.4.2：工具栏的上下文动态双按钮 —— 按「归档 / 文件夹 × 有无选中」给出当前最可能的两个操作。
+/// 观察 model（selection / mode 都是 @Published）→ 选区一变按钮即时切换。
+private struct ContextualToolbarButtons: View {
+    @ObservedObject var model: ArchiveBrowserModel
+
+    var body: some View {
+        switch model.mode {
+        case .archive:
+            if !model.selectedArchiveItems.isEmpty {
+                // 归档 + 有选中：解压选中项；≥2 给批量重命名,单选给哈希。
+                toolbarButton("button.extractSelected", systemImage: "arrow.down.doc.fill") {
+                    model.extractSelectedArchiveItems()
+                }
+                if model.selectedArchiveItems.count >= 2 {
+                    toolbarButton("archive.batchRename.menu", systemImage: "pencil.line") {
+                        model.requestBatchRename()
+                    }
+                } else {
+                    toolbarButton("button.hash", systemImage: "number.square") {
+                        model.calculateHash()
+                    }
+                }
+            } else {
+                // 归档 + 无选中：重复检测；可写包给编辑注释,只读包给测试。
+                toolbarButton("duplicates.menu", systemImage: "doc.on.doc") {
+                    model.findDuplicateFilesInArchive()
+                }
+                if model.canEditArchiveComment {
+                    toolbarButton("archive.comment.menu", systemImage: "text.bubble") {
+                        model.showsArchiveCommentEditor = true
+                    }
+                } else {
+                    toolbarButton("button.test", systemImage: "checkmark.seal") {
+                        model.testArchive()
+                    }
+                }
+            }
+        case .folder, .tag:
+            if !model.selectedFileItems.isEmpty {
+                // 文件夹 + 有选中：添加到压缩包；选中含归档/GPG 给解压,≥2 给批量重命名,单选给创建副本。
+                toolbarButton("button.addToArchive", systemImage: "plus.square.on.square.fill") {
+                    model.createArchive()
+                }
+                if model.selectedFileItems.contains(where: { !$0.isDirectory && (ArchiveService.isSupportedArchive($0.url) || GPGFileService.isRecognizedGPGFile($0.url)) }) {
+                    toolbarButton("button.extractHere", systemImage: "arrow.down.doc.fill") {
+                        model.extractArchive()
+                    }
+                } else if model.selectedFileItems.count >= 2 {
+                    toolbarButton("archive.batchRename.menu", systemImage: "pencil.line") {
+                        model.requestBatchRenameFiles()
+                    }
+                } else {
+                    toolbarButton("file.duplicate", systemImage: "plus.square.on.square") {
+                        model.duplicateSelectedFiles()
+                    }
+                }
+            } else {
+                // 文件夹 + 无选中：新建文件夹 + 粘贴。
+                toolbarButton("file.newFolder", systemImage: "folder.badge.plus") {
+                    model.createNewFolderAndBeginRename()
+                }
+                toolbarButton("file.paste", systemImage: "doc.on.clipboard") {
+                    model.pasteFiles()
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func toolbarButton(_ titleKey: String, systemImage: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(L10n.text(titleKey), systemImage: systemImage)
+        }
+        .help(L10n.text(titleKey))
     }
 }

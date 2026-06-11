@@ -4,6 +4,8 @@
 
 ## 0.4.2 (unreleased)
 
+- **New: the toolbar adapts to what you're doing.** Two context-aware quick actions appear ahead of the fixed buttons and switch live with your selection — archive with entries selected: *Extract Selected* + *Batch Rename* (or *Hash* for a single entry); archive with nothing selected: *Find Duplicate Files* + *Edit Comment* (writable) / *Test* (read-only); folder with files selected: *Add to Archive* + *Extract Here* (when an archive or `.gpg` is in the selection) / *Batch Rename* / *Duplicate*; empty folder selection: *New Folder* + *Paste*.
+
 - **New: batch rename comes to the file browser — and gets discoverable.** Select two or more files/folders → right-click **Batch Rename…** (or Edit menu, ⌥⌘R, which routes to archive entries or disk files depending on context). Same engine as inside archives: find-and-replace text, prefix/suffix, case conversion, numbered sequences, live preview with conflicts flagged — applied with per-item moves and a single undo (⌘Z reverts the whole batch). **Find Duplicate Files** also joins the Edit menu for archive windows.
 
 - **UI: creation preflight promoted to first-class.** The dry-run summary leaves its collapsed drawer and becomes an always-visible strip right under the basics: it computes automatically when the dialog opens and recalculates live when exclude rules, volume size, or format change — file count, total size, excluded/symlink/package counts, estimated volumes, and the output-name conflict warning, all at a glance.
