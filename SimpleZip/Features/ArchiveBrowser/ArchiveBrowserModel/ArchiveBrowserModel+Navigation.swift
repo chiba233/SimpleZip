@@ -222,14 +222,18 @@ extension ArchiveBrowserModel {
     /// - `entryName`：该 entry 在**父档案**里的完整内部路径（如 `xa/a.zip`）。
     /// - `archiveDisplayOverride` 指向**最外层真实档案** → 「上一级」从嵌套根直接退出整条虚拟链、回到真实文件夹。
     /// - **不记导航历史**（recordsHistory: false）：嵌套临时档案永不进后退栈，所以「后退」也不会蹦出 `/var/folders`。
-    func openNestedArchive(_ tempURL: URL, entryName: String) {
+    func openNestedArchive(_ tempURL: URL, entryName: String, recordsReturnLocation: Bool = true) {
         guard case .archive(let currentURL) = mode else { return }
         // 进嵌套档案 = 一次导航:把「进来时的父档案位置」(父档案 + 当前子目录,**真实可导航**)既压进**后退栈**
         //（← 像 Finder 一样回到父档案那个子目录），也压进**嵌套返回栈**（^ 上一级回到同一处）。
         // 压的是父位置、不是临时档案本身;临时档案走下面 recordsHistory:false 不会被 recordCurrentLocation 压进栈。
-        recordCurrentLocationForNavigation()
-        if let parentLocation = currentNavigationLocation {
-            nestedArchiveReturnStack.append(parentLocation)
+        // `recordsReturnLocation: false` = 压缩 tar 壳的**自动下钻**(tar.gz/tar.zst 直开内层 tar):
+        // 壳层对用户不可见,不进任何栈 —— 「上一级」走空栈分支直接回真实文件夹,← 回打开壳之前的位置。
+        if recordsReturnLocation {
+            recordCurrentLocationForNavigation()
+            if let parentLocation = currentNavigationLocation {
+                nestedArchiveReturnStack.append(parentLocation)
+            }
         }
         let parentBase = nestedDisplayPath ?? (archiveDisplayOverride ?? currentURL).path
         let cleanedEntry = entryName.trimmingCharacters(in: CharacterSet(charactersIn: "/"))

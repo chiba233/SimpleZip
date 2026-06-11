@@ -565,4 +565,35 @@ struct RemoveJunkTests {
         #expect(!fm.fileExists(atPath: root.appendingPathComponent("docs/.DS_Store").path))
         #expect(fm.fileExists(atPath: root.appendingPathComponent("docs/b.txt").path))
     }
+
+    /// 0.4.3 zstd 单流(实测 7zz 26.01):`-slt` 条目块没有 Path,只有空 Size/Packed Size 行——
+    /// 解析器按 7zz 自己的命名规则合成内层名,否则 zst/tar.zst 打开是空列表。
+    @Test func zstdSingleStreamListSynthesizesInnerEntry() {
+        // 显式数组拼接:真实 7zz 输出的空值行是「Size = 」**带尾随空格**(没有空格的话
+        // split 会丢掉空子串、key 记不上)——多行字面量里的尾随空格会被编辑器吞,这里写死。
+        let output = [
+            "Listing archive: /tmp/sample.tar.zst",
+            "",
+            "--",
+            "Path = /tmp/sample.tar.zst",
+            "Type = zstd",
+            "Method = header-open-only: XXH64 single-segments",
+            "",
+            "----------",
+            "Size = ",
+            "Packed Size = ",
+            ""
+        ].joined(separator: "\n")
+        let items = ArchiveService.parseSevenZipList(output)
+        #expect(items.count == 1)
+        #expect(items.first?.name == "sample.tar")
+        #expect(items.first?.isDirectory == false)
+    }
+
+    /// 合成名规则与 7zz 解压产物命名一致(实测):去掉 .zst;.tzst → stem + ".tar"。
+    @Test func zstdInnerNameSynthesisMatchesSevenZip() {
+        #expect(ArchiveService.singleStreamInnerName(forArchiveNamed: "a.txt.zst") == "a.txt")
+        #expect(ArchiveService.singleStreamInnerName(forArchiveNamed: "sample.tar.zst") == "sample.tar")
+        #expect(ArchiveService.singleStreamInnerName(forArchiveNamed: "foo.tzst") == "foo.tar")
+    }
 }

@@ -840,6 +840,11 @@
 "settings.formatMatrix.backend.xip" = "Backend: Apple's system xip tool (extraction) + 7zz (browsing the xar container)";
 "settings.formatMatrix.detail.xip" = "Apple-signed archive (Xcode distribution). Extraction goes through Apple's own tool, which verifies the signature. Creating XIPs requires an Apple signing certificate, so it isn't offered.";
 "settings.formatMatrix.backend.gpg" = "Backend: GnuPG (user-installed)";
+"settings.formatMatrix.backend.zst" = "Backend: bundled 7-Zip engine (7zz) — decode only, zstd has no encoder in 7zz";
+"settings.formatMatrix.backend.iso" = "Backend: bundled 7-Zip engine (7zz) — read-only";
+"settings.formatMatrix.backend.cab" = "Backend: bundled 7-Zip engine (7zz) — read-only";
+"settings.formatMatrix.backend.cpio" = "Backend: bundled 7-Zip engine (7zz) — read-only";
+"settings.formatMatrix.backend.xar" = "Backend: bundled 7-Zip engine (7zz) — read-only";
 "settings.formatMatrix.detail.gpg" = "OpenPGP encrypted container: encrypting is \"creating\", decrypting is \"opening\". It wraps a single stream — there is no entry structure to edit, split, or comment.";
 "settings.formatMatrix.backend.siz" = "Backend: SimpleZip (tar shell) + GnuPG";
 "settings.formatMatrix.detail.siz" = "SimpleZip's signed container: an inner archive plus a detached signature and metadata, optionally encrypted to recipients. Editing would break the signature, so entries are read-only; Test means signature verification.";

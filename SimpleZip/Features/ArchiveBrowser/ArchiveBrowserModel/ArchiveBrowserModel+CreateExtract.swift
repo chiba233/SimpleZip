@@ -26,7 +26,7 @@ struct PendingArchiveWriteBack {
 }
 
 extension ArchiveBrowserModel {
-    func openArchiveItemExternally(_ item: ArchiveItem, openWith: ArchiveOpenWithTarget? = nil) {
+    func openArchiveItemExternally(_ item: ArchiveItem, openWith: ArchiveOpenWithTarget? = nil, nestedRecordsReturnLocation: Bool = true) {
         guard case .archive(let archiveURL) = mode else { return }
 
         if ArchiveSafety.requiresExternalOpenConfirmation(item), !allowPotentiallyUnsafeArchiveItemOpen(item) {
@@ -178,7 +178,7 @@ extension ArchiveBrowserModel {
                 } else if let extractedNestedArchiveURL {
                     // 在 app 内浏览嵌套档案：地址栏把整条虚拟链堆叠出来（`…/xx.zip/xa/a.zip`），
                     // 「上一级」退出整条链回到最外层档案所在的真实文件夹，全程不露 /tmp。
-                    openNestedArchive(extractedNestedArchiveURL, entryName: item.name)
+                    openNestedArchive(extractedNestedArchiveURL, entryName: item.name, recordsReturnLocation: nestedRecordsReturnLocation)
                 } else if let extractedSpecialFileURL {
                     routeExtractedSpecialFile(extractedSpecialFileURL, entryName: item.name)
                 } else {

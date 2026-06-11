@@ -334,6 +334,13 @@ extension ArchiveBrowserModel {
             // 0.4.2 #7：路径安全分析（绝对路径 / `..` / 盘符 / 控制字符 / setuid / 外指 symlink / 大小写冲突）。
             // 纯 CPU 字符串检查，丢后台跑完再回主 actor；只告知，不改变解压时的既有拦截。
             updateArchiveSecurityFindings(for: items, url: url, generation: generation)
+            // 压缩 tar 壳(tar.gz/tgz/tar.zst/tzst/tar.bz2/tar.xz)默认**直接打开内层 tar**(用户拍板):
+            // 唯一 .tar 条目时自动走双击下钻 —— 地址栏显示 …/foo.tar.zst/foo.tar 虚拟链;
+            // 壳层不进返回栈(「上一级」直接回真实文件夹,不在壳层弹跳),全程不露 /tmp。
+            // 内层 tar 扩展名是 "tar"、不在壳名单里 → 不会递归触发。
+            if let innerTar = Self.compressedTarWrapperInnerEntry(items: items, archiveURL: url) {
+                openArchiveItemExternally(innerTar, nestedRecordsReturnLocation: false)
+            }
         } catch is CancellationError {
             // 用户在密码框点了取消 → 不当错误处理,只回到中性「读不到」状态,不弹错误 alert。
             guard isCurrentLoad(generation, mode: .archive(url)) else { return }
@@ -351,6 +358,18 @@ extension ArchiveBrowserModel {
             errorMessage = error.localizedDescription
             status = L10n.text("status.couldNotReadArchive")
         }
+    }
+
+    /// 「压缩 tar 壳」判定:gz/tgz/bz2/xz/zst/tzst 且列表只有**一个 .tar 文件条目** → 返回该条目
+    /// (普通 .gz/.zst 单文件压缩不命中——内层不是 tar,正常浏览)。
+    static func compressedTarWrapperInnerEntry(items: [ArchiveItem], archiveURL: URL) -> ArchiveItem? {
+        let wrapperExtensions: Set<String> = ["gz", "tgz", "bz2", "xz", "zst", "tzst"]
+        guard wrapperExtensions.contains(archiveURL.pathExtension.lowercased()),
+              items.count == 1,
+              let only = items.first,
+              !only.isDirectory,
+              only.name.lowercased().hasSuffix(".tar") else { return nil }
+        return only
     }
 
     /// 0.4.2 #7 跟进：「查看报告」打开归档即可用 —— 干净包显示绿色「未发现可疑条目」报告。

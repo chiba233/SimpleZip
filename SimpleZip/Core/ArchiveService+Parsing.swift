@@ -147,6 +147,17 @@ extension ArchiveService {
         return ""
     }
 
+    /// zstd 单流的内层文件名合成 —— 与 7zz 解压产物命名**完全一致**(实测):
+    /// `a.txt.zst → a.txt`、`sample.tar.zst → sample.tar`、`foo.tzst → foo.tar`。
+    static func singleStreamInnerName(forArchiveNamed archiveName: String) -> String {
+        let ns = archiveName as NSString
+        if ns.pathExtension.lowercased() == "tzst" {
+            return ns.deletingPathExtension + ".tar"
+        }
+        let stem = ns.deletingPathExtension
+        return stem.isEmpty ? archiveName : stem
+    }
+
     static func parseSevenZipList(_ output: String) -> [ArchiveItem] {
         // 当 list 走密码路径时（runWithPseudoTerminal），底层 PTY 在 macOS 默认 ONLCR
         // 状态下会把 7zz 输出里的每个 \n 转成 \r\n。下面按 \n 分行后每行末尾会留 \r：
@@ -156,9 +167,44 @@ extension ArchiveService {
         let output = output.replacingOccurrences(of: "\r", with: "")
         var rows: [ArchiveItem] = []
         var values: [String: String] = [:]
+        // 头块信息(zstd 单流合成内层名要用):Type + 归档文件名。
+        var headerType = ""
+        var headerArchiveName = ""
 
         func flush() {
             guard let rawPath = values["Path"] else {
+                // zstd 单流(0.4.3 实测):`-slt` 的条目块**没有 Path**,只有空的 Size/Packed Size 行
+                // (gzip/xz 都带 Path,唯独 zstd 不带)。7zz 自己在普通 `l` 输出和解压时按
+                // 「归档名去掉 .zst / .tzst → stem.tar」合成内层名 —— 这里照同一规则合成,
+                // 否则 zst/tar.zst 打开永远是空列表。按名解选中条目实测可用(7zz 接受合成名)。
+                if headerType == "zstd", !headerArchiveName.isEmpty,
+                   values.keys.contains("Size") || values.keys.contains("Packed Size") {
+                    let inner = singleStreamInnerName(forArchiveNamed: headerArchiveName)
+                    rows.append(
+                        ArchiveItem(
+                            name: inner,
+                            isDirectory: false,
+                            size: nil,
+                            modified: nil,
+                            sizeText: "",
+                            modifiedText: "",
+                            method: "zstd",
+                            isEncrypted: false,
+                            packedSize: nil,
+                            packedSizeText: "",
+                            crc: "",
+                            created: nil,
+                            createdText: "",
+                            attributes: "",
+                            accessed: nil,
+                            accessedText: "",
+                            hostOS: "",
+                            characteristics: "",
+                            symlinkTarget: "",
+                            comment: ""
+                        )
+                    )
+                }
                 values.removeAll()
                 return
             }
@@ -176,6 +222,11 @@ extension ArchiveService {
                 || values["Physical Size"] != nil
                 || values["Headers Size"] != nil
             guard !isArchiveHeaderBlock else {
+                // 记下头块的 Type + 归档文件名 —— zstd 单流条目块没有 Path,合成内层名时要用。
+                if let type = values["Type"] {
+                    headerType = type
+                    headerArchiveName = (path as NSString).lastPathComponent
+                }
                 values.removeAll()
                 return
             }
