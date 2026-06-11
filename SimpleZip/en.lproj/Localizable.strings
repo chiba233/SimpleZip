@@ -621,6 +621,13 @@
 "diff.field.becameEncrypted" = "Became encrypted";
 "diff.field.becameUnencrypted" = "Became unencrypted";
 "diff.field.comment" = "Comment changed";
+/* 0.4.2 Archive Diff export */
+"diff.export" = "Export";
+"diff.export.json" = "JSON Report…";
+"diff.export.csv" = "CSV…";
+"diff.export.markdown" = "Markdown Report…";
+"diff.export.failedTitle" = "Export Failed";
+
 
 /* 0.4.2 ZIP archive-level comment editing */
 "archive.comment.menu" = "Edit Archive Comment…";

@@ -141,3 +141,128 @@ enum ArchiveDiff {
         normalizedPath(a.name) < normalizedPath(b.name)
     }
 }
+
+// MARK: - 导出（0.4.2）
+
+/// 比较结果的**机器可读**导出：JSON / CSV。字段名固定英文（交换格式不跟 UI 语言走），
+/// 输出确定性（条目已排序 + JSON sortedKeys + ISO8601 时间）—— 同一结果导两次逐字节一致，可单测。
+/// 默认**只导差异项**（added/removed/changed），unchanged 只进 summary 计数 —— 用户要的是差异报告。
+/// 人看的 Markdown 报告在 app 侧（`ArchiveDiffReport`，跟着 UI 语言）。
+enum ArchiveDiffExport {
+
+    /// JSON 里的一条条目快照。
+    private struct EntrySnapshot: Codable {
+        let path: String
+        let isDirectory: Bool
+        let size: Int64?
+        let crc: String?
+        let modified: Date?
+        let encrypted: Bool
+    }
+
+    private struct ChangeRecord: Codable {
+        let path: String
+        let fields: [String]
+        let before: EntrySnapshot
+        let after: EntrySnapshot
+    }
+
+    private struct Report: Codable {
+        let left: String
+        let right: String
+        let summary: [String: Int]
+        let added: [EntrySnapshot]
+        let removed: [EntrySnapshot]
+        let changed: [ChangeRecord]
+    }
+
+    nonisolated private static func snapshot(_ item: ArchiveItem) -> EntrySnapshot {
+        EntrySnapshot(
+            path: ArchiveDiff.normalizedPath(item.name),
+            isDirectory: item.isDirectory,
+            size: item.isDirectory ? nil : item.size,
+            crc: item.crc.isEmpty ? nil : item.crc,
+            modified: item.modified,
+            encrypted: item.isEncrypted
+        )
+    }
+
+    /// 字段集 → 稳定排序的英文名数组（按 CaseIterable 声明序，保证输出确定性）。
+    nonisolated private static func fieldNames(_ fields: Set<ArchiveDiffField>) -> [String] {
+        ArchiveDiffField.allCases.filter(fields.contains).map(\.rawValue)
+    }
+
+    nonisolated static func json(result: ArchiveDiffResult, leftName: String, rightName: String) throws -> String {
+        let report = Report(
+            left: leftName,
+            right: rightName,
+            summary: [
+                "added": result.added.count,
+                "removed": result.removed.count,
+                "changed": result.changed.count,
+                "unchanged": result.unchanged.count
+            ],
+            added: result.added.map(snapshot),
+            removed: result.removed.map(snapshot),
+            changed: result.changed.map { change in
+                ChangeRecord(
+                    path: change.path,
+                    fields: fieldNames(change.fields),
+                    before: snapshot(change.before),
+                    after: snapshot(change.after)
+                )
+            }
+        )
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        encoder.dateEncodingStrategy = .iso8601
+        return String(decoding: try encoder.encode(report), as: UTF8.self)
+    }
+
+    /// CSV：一行一条差异。`status` = added / removed / changed；before/after 成对列，
+    /// added 只填 after 侧、removed 只填 before 侧。RFC4180 转义（引号包裹 + 内部引号翻倍）。
+    nonisolated static func csv(result: ArchiveDiffResult, leftName: String, rightName: String) -> String {
+        var lines = [
+            "status,path,is_directory,fields,size_before,size_after,crc_before,crc_after,modified_before,modified_after,encrypted_before,encrypted_after"
+        ]
+        let iso = ISO8601DateFormatter()
+        func field(_ raw: String) -> String {
+            if raw.contains(",") || raw.contains("\"") || raw.contains("\n") {
+                return "\"\(raw.replacingOccurrences(of: "\"", with: "\"\""))\""
+            }
+            return raw
+        }
+        func row(status: String, path: String, isDirectory: Bool, fields: String,
+                 before: ArchiveItem?, after: ArchiveItem?) -> String {
+            [
+                status,
+                field(path),
+                isDirectory ? "true" : "false",
+                field(fields),
+                before?.size.map(String.init) ?? "",
+                after?.size.map(String.init) ?? "",
+                field(before?.crc ?? ""),
+                field(after?.crc ?? ""),
+                before?.modified.map(iso.string(from:)) ?? "",
+                after?.modified.map(iso.string(from:)) ?? "",
+                before.map { $0.isEncrypted ? "true" : "false" } ?? "",
+                after.map { $0.isEncrypted ? "true" : "false" } ?? ""
+            ].joined(separator: ",")
+        }
+        for item in result.removed {
+            lines.append(row(status: "removed", path: ArchiveDiff.normalizedPath(item.name),
+                             isDirectory: item.isDirectory, fields: "", before: item, after: nil))
+        }
+        for item in result.added {
+            lines.append(row(status: "added", path: ArchiveDiff.normalizedPath(item.name),
+                             isDirectory: item.isDirectory, fields: "", before: nil, after: item))
+        }
+        for change in result.changed {
+            lines.append(row(status: "changed", path: change.path,
+                             isDirectory: change.after.isDirectory,
+                             fields: fieldNames(change.fields).joined(separator: "+"),
+                             before: change.before, after: change.after))
+        }
+        return lines.joined(separator: "\n") + "\n"
+    }
+}

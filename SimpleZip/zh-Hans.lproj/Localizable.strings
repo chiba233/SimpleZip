@@ -619,6 +619,13 @@
 "diff.field.becameEncrypted" = "变为加密";
 "diff.field.becameUnencrypted" = "变为未加密";
 "diff.field.comment" = "注释已更改";
+/* 0.4.2 归档比较导出 */
+"diff.export" = "导出";
+"diff.export.json" = "JSON 报告…";
+"diff.export.csv" = "CSV…";
+"diff.export.markdown" = "Markdown 报告…";
+"diff.export.failedTitle" = "导出失败";
+
 
 /* 0.4.2 ZIP 归档级注释编辑 */
 "archive.comment.menu" = "编辑归档注释…";

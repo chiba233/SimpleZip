@@ -12,6 +12,7 @@
 
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// 一次归档比较的展示模型。`leftName` / `rightName` 用文件名标注方向 —— 比较任意两个包
 /// 没有天然的「旧 / 新」，所以 UI 全部用「仅在 xxx 中」这种中性措辞，不说「新增 / 删除」。
@@ -44,6 +45,40 @@ struct ArchiveDiffReport: Identifiable {
         lines.append(L10n.format("diff.unchangedCount", result.unchanged.count))
         return lines.joined(separator: "\n")
     }
+
+    /// 人看的 Markdown 报告（导出用,跟 UI 语言走）。只列差异项,unchanged 进摘要计数 ——
+    /// 机器可读的 JSON / CSV 在 Core `ArchiveDiffExport`（字段名固定英文）。
+    var markdownReport: String {
+        var lines: [String] = []
+        lines.append("# \(L10n.text("diff.title"))")
+        lines.append("")
+        lines.append("**\(leftName) ↔ \(rightName)**")
+        lines.append("")
+        lines.append("- \(L10n.format("diff.onlyIn", leftName)): \(result.removed.count)")
+        lines.append("- \(L10n.format("diff.onlyIn", rightName)): \(result.added.count)")
+        lines.append("- \(L10n.text("diff.changed")): \(result.changed.count)")
+        lines.append("- \(L10n.format("diff.unchangedCount", result.unchanged.count))")
+        if !result.removed.isEmpty {
+            lines.append("")
+            lines.append("## \(L10n.format("diff.onlyIn", leftName)) (\(result.removed.count))")
+            lines.append("")
+            lines.append(contentsOf: result.removed.map { "- `\(ArchiveDiff.normalizedPath($0.name))`" })
+        }
+        if !result.added.isEmpty {
+            lines.append("")
+            lines.append("## \(L10n.format("diff.onlyIn", rightName)) (\(result.added.count))")
+            lines.append("")
+            lines.append(contentsOf: result.added.map { "- `\(ArchiveDiff.normalizedPath($0.name))`" })
+        }
+        if !result.changed.isEmpty {
+            lines.append("")
+            lines.append("## \(L10n.text("diff.changed")) (\(result.changed.count))")
+            lines.append("")
+            lines.append(contentsOf: result.changed.map { "- `\($0.path)` — \(ArchiveDiffSections.changeDescription($0))" })
+        }
+        lines.append("")
+        return lines.joined(separator: "\n")
+    }
 }
 
 struct ArchiveDiffView: View {
@@ -63,6 +98,14 @@ struct ArchiveDiffView: View {
                 }
 
                 Spacer()
+
+                // 0.4.2:导出报告(JSON/CSV 机器可读、Markdown 给人看;都只含差异项)。
+                Menu(L10n.text("diff.export")) {
+                    Button(L10n.text("diff.export.json")) { exportReport(.json) }
+                    Button(L10n.text("diff.export.csv")) { exportReport(.csv) }
+                    Button(L10n.text("diff.export.markdown")) { exportReport(.markdown) }
+                }
+                .fixedSize()
 
                 Button(L10n.text("button.copyAll")) {
                     NSPasteboard.general.clearContents()
@@ -97,6 +140,57 @@ struct ArchiveDiffView: View {
         }
         .padding(20)
         .frame(minWidth: 640, idealWidth: 760, minHeight: 420, idealHeight: 560)
+    }
+
+    // MARK: - 导出（0.4.2）
+
+    private enum ExportFormat {
+        case json, csv, markdown
+
+        var fileExtension: String {
+            switch self {
+            case .json: return "json"
+            case .csv: return "csv"
+            case .markdown: return "md"
+            }
+        }
+    }
+
+    private func exportReport(_ format: ExportFormat) {
+        let content: String
+        do {
+            switch format {
+            case .json:
+                content = try ArchiveDiffExport.json(result: report.result, leftName: report.leftName, rightName: report.rightName)
+            case .csv:
+                content = ArchiveDiffExport.csv(result: report.result, leftName: report.leftName, rightName: report.rightName)
+            case .markdown:
+                content = report.markdownReport
+            }
+        } catch {
+            presentExportError(error)
+            return
+        }
+
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "\(report.leftName)-vs-\(report.rightName).\(format.fileExtension)"
+        if let type = UTType(filenameExtension: format.fileExtension) {
+            panel.allowedContentTypes = [type]
+        }
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try content.write(to: url, atomically: true, encoding: .utf8)
+        } catch {
+            presentExportError(error)
+        }
+    }
+
+    private func presentExportError(_ error: Error) {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = L10n.text("diff.export.failedTitle")
+        alert.informativeText = error.localizedDescription
+        alert.runModal()
     }
 }
 

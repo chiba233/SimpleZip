@@ -111,6 +111,49 @@ struct ArchiveDiffTests {
         #expect(result.changed.first?.fields == [.comment])
     }
 
+    // MARK: - 导出（0.4.2）
+
+    @Test func jsonExportIsDeterministicAndDiffOnly() throws {
+        let left = [file("gone.txt", size: 1, crc: "AAAA"), file("same.txt", size: 5, crc: "5555")]
+        let right = [file("new.txt", size: 2, crc: "BBBB"), file("same.txt", size: 5, crc: "5555")]
+        let result = ArchiveDiff.compare(left: left, right: right)
+
+        let once = try ArchiveDiffExport.json(result: result, leftName: "a.zip", rightName: "b.zip")
+        let twice = try ArchiveDiffExport.json(result: result, leftName: "a.zip", rightName: "b.zip")
+        #expect(once == twice)
+
+        let object = try JSONSerialization.jsonObject(with: Data(once.utf8)) as? [String: Any]
+        #expect(object?["left"] as? String == "a.zip")
+        let summary = object?["summary"] as? [String: Int]
+        #expect(summary == ["added": 1, "removed": 1, "changed": 0, "unchanged": 1])
+        // 只导差异项：unchanged 不出现条目数组。
+        #expect((object?["added"] as? [[String: Any]])?.count == 1)
+        #expect(object?["unchangedEntries"] == nil)
+    }
+
+    @Test func jsonExportRecordsChangedFieldsStably() throws {
+        let left = [file("a.txt", size: 1, crc: "AAAA")]
+        let right = [file("a.txt", size: 2, crc: "BBBB")]
+        let result = ArchiveDiff.compare(left: left, right: right)
+        let json = try ArchiveDiffExport.json(result: result, leftName: "l", rightName: "r")
+        let object = try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any]
+        let changed = object?["changed"] as? [[String: Any]]
+        #expect(changed?.first?["fields"] as? [String] == ["size", "crc"])
+    }
+
+    @Test func csvExportEscapesAndCoversAllStatuses() {
+        let left = [file("with,comma.txt", size: 1, crc: "AAAA"), file("mod.txt", size: 1, crc: "AAAA")]
+        let right = [file("added.txt", size: 2, crc: "BBBB"), file("mod.txt", size: 3, crc: "CCCC")]
+        let result = ArchiveDiff.compare(left: left, right: right)
+        let csv = ArchiveDiffExport.csv(result: result, leftName: "l", rightName: "r")
+        let lines = csv.split(separator: "\n").map(String.init)
+        #expect(lines.count == 4)   // header + removed + added + changed
+        #expect(lines[0].hasPrefix("status,path,is_directory,fields,"))
+        #expect(lines.contains { $0.hasPrefix("removed,\"with,comma.txt\"") })
+        #expect(lines.contains { $0.hasPrefix("added,added.txt") })
+        #expect(lines.contains { $0.hasPrefix("changed,mod.txt,false,size+crc") })
+    }
+
     @Test func resultsAreSortedByPath() {
         let left: [ArchiveItem] = []
         let right = [file("z.txt", size: 1), file("a.txt", size: 1), file("m.txt", size: 1)]
