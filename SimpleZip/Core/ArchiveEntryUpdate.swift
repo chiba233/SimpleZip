@@ -26,10 +26,10 @@ public struct ArchiveEntryAddition: Hashable {
 
 extension ArchiveService {
     /// 归档编辑（add/delete/rename）的口令输入策略：空口令 → 不喂 stdin；非空 → PTY 提示后灌口令。
-    /// 给两个响应（`[password, password]`）：7zz `a` 加密时会提示「输入 + 确认」两次,delete/rename 通常只一次；
-    /// 多余响应不会被消费（responder 按提示出现次数逐个取），不足才会抛 passwordPromptExhausted,所以给两个最稳。
+    /// header-encrypted 7z 更新时有的 7zz 版本会依次提示「旧包口令 + 新口令 + 确认新口令」；
+    /// 多余响应不会被消费（responder 按提示出现次数逐个取），不足才会抛 passwordPromptExhausted。
     private static func passwordInputStrategy(_ password: String) -> ProcessInputStrategy {
-        password.isEmpty ? .none : .passwordPrompts([password, password])
+        password.isEmpty ? .none : .passwordPrompts(Array(repeating: password, count: 4))
     }
 
     /// 一个归档是否可被 SimpleZip 安全地「加 / 替换条目」—— 仅 **zip / 7z**(7zz 可写)且 7zz 可用。

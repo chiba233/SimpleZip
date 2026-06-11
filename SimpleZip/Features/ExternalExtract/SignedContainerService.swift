@@ -34,7 +34,7 @@ enum SignedContainerService {
             unwrap = try await SIZArchive.unwrap(at: sourceURL, to: tempRoot)
         } catch let error as SIZArchive.SIZError {
             guard case .versionTooNew(let found, let supported) = error,
-                  await consentToForceOpenNewerFormat(fileURL: sourceURL, found: found, supported: supported) else {
+                  consentToForceOpenNewerFormat(fileURL: sourceURL, found: found, supported: supported) else {
                 throw error
             }
             unwrap = try await SIZArchive.unwrap(at: sourceURL, to: tempRoot, allowNewerVersion: true)
@@ -125,7 +125,7 @@ enum SignedContainerService {
             return try await SZSArchive.peek(manifestURL: manifestURL, operationID: operationID)
         } catch let error as SZSArchive.SZSError {
             guard case .versionTooNew(let found, let supported) = error,
-                  await consentToForceOpenNewerFormat(fileURL: manifestURL, found: found, supported: supported) else {
+                  consentToForceOpenNewerFormat(fileURL: manifestURL, found: found, supported: supported) else {
                 throw error
             }
             return try await SZSArchive.peek(manifestURL: manifestURL, operationID: operationID, allowNewerVersion: true)
@@ -142,7 +142,7 @@ enum SignedContainerService {
             return try await SZSArchive.verify(manifestURL: manifestURL, payloadRoot: payloadRoot, operationID: operationID)
         } catch let error as SZSArchive.SZSError {
             guard case .versionTooNew(let found, let supported) = error,
-                  await consentToForceOpenNewerFormat(fileURL: manifestURL, found: found, supported: supported) else {
+                  consentToForceOpenNewerFormat(fileURL: manifestURL, found: found, supported: supported) else {
                 throw error
             }
             return try await SZSArchive.verify(
@@ -158,7 +158,7 @@ enum SignedContainerService {
             return try SZSArchive.verifyWithoutSignature(manifestURL: manifestURL, payloadRoot: payloadRoot)
         } catch let error as SZSArchive.SZSError {
             guard case .versionTooNew(let found, let supported) = error,
-                  await consentToForceOpenNewerFormat(fileURL: manifestURL, found: found, supported: supported) else {
+                  consentToForceOpenNewerFormat(fileURL: manifestURL, found: found, supported: supported) else {
                 throw error
             }
             return try SZSArchive.verifyWithoutSignature(manifestURL: manifestURL, payloadRoot: payloadRoot, allowNewerVersion: true)

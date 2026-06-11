@@ -17,6 +17,10 @@ import Foundation
 /// 状态约束：mount → 操作 → detach。调用方必须保证 detach 总会跑（用 defer / Task 都行），
 /// 否则用户机器上会留下幽灵挂载点；ArchiveService.list/extract 的实现里已经这么做了。
 enum DiskImageBackend {
+    private struct MountSession {
+        let mountPoint: URL
+        let detachTargets: [String]
+    }
 
     // MARK: - 公开操作
 
@@ -27,10 +31,20 @@ enum DiskImageBackend {
     /// 位、伪造属主都失效（跟 SecureScratchVolume 挂自有加密卷同口径）；否则 copyContents 会把这些属性
     /// 一并拷进用户目录。去掉了 `-noverify`：对攻击者可控的镜像保留校验和验证。
     static func mount(_ url: URL) async throws -> URL {
-        let output = try await BackendProcessRunner.runAndCapture(
-            "/usr/bin/hdiutil",
-            arguments: ["attach", "-plist", "-readonly", "-owners", "off", "-nobrowse", "-noautoopen", url.path]
-        )
+        try await mountSession(url).mountPoint
+    }
+
+    private static func mountSession(_ url: URL) async throws -> MountSession {
+        let output: String
+        do {
+            output = try await BackendProcessRunner.runAndCapture(
+                "/usr/bin/hdiutil",
+                arguments: ["attach", "-plist", "-readonly", "-owners", "off", "-nobrowse", "-noautoopen", url.path]
+            )
+        } catch {
+            await detachImage(matching: url)
+            throw error
+        }
         guard
             let data = output.data(using: .utf8),
             let plist = try PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
@@ -39,12 +53,21 @@ enum DiskImageBackend {
             throw ArchiveError.commandFailed(output)
         }
 
+        var mountPoint: URL?
+        var detachTargets: [String] = []
         for entity in entities {
-            if let mountPoint = entity["mount-point"] as? String {
-                return URL(fileURLWithPath: mountPoint)
+            if let mount = entity["mount-point"] as? String, !mount.isEmpty {
+                mountPoint = URL(fileURLWithPath: mount)
+                detachTargets.append(mount)
+            }
+            if let devEntry = entity["dev-entry"] as? String, !devEntry.isEmpty {
+                detachTargets.append(devEntry)
             }
         }
-        throw ArchiveError.commandFailed(output)
+        guard let mountPoint else {
+            throw ArchiveError.commandFailed(output)
+        }
+        return MountSession(mountPoint: mountPoint, detachTargets: uniqueDetachingTargets(detachTargets))
     }
 
     /// 卸载挂载点。`-force` 容忍占用 / 子进程未关闭，DMG 临时用就该粗暴一点。
@@ -55,15 +78,53 @@ enum DiskImageBackend {
         )
     }
 
+    private static func detach(_ session: MountSession) async {
+        for target in session.detachTargets {
+            _ = try? await BackendProcessRunner.runAndCapture(
+                "/usr/bin/hdiutil",
+                arguments: ["detach", target, "-force"]
+            )
+        }
+    }
+
+    private static func detachImage(matching imageURL: URL) async {
+        guard
+            let info = try? await BackendProcessRunner.runAndCapture("/usr/bin/hdiutil", arguments: ["info", "-plist"]),
+            let data = info.data(using: .utf8),
+            let plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
+            let images = plist["images"] as? [[String: Any]]
+        else { return }
+
+        let targetPath = imageURL.resolvingSymlinksInPath().path
+        for image in images {
+            guard let imagePath = image["image-path"] as? String,
+                  URL(fileURLWithPath: imagePath).resolvingSymlinksInPath().path == targetPath,
+                  let entities = image["system-entities"] as? [[String: Any]] else { continue }
+            let targets = entities.flatMap { entity in
+                [entity["mount-point"] as? String, entity["dev-entry"] as? String].compactMap { $0 }
+            }
+            await detach(MountSession(mountPoint: imageURL, detachTargets: uniqueDetachingTargets(targets)))
+        }
+    }
+
+    private static func uniqueDetachingTargets(_ targets: [String]) -> [String] {
+        var seen = Set<String>()
+        var result: [String] = []
+        for target in targets where seen.insert(target).inserted {
+            result.append(target)
+        }
+        return result
+    }
+
     /// 列 DMG 内容 = 挂载 + 列顶层文件 + 卸载。
     static func list(_ archive: URL) async throws -> [ArchiveItem] {
-        let mountPoint = try await mount(archive)
+        let session = try await mountSession(archive)
         do {
-            let items = try archiveItems(at: mountPoint)
-            try await detach(at: mountPoint)
+            let items = try archiveItems(at: session.mountPoint)
+            await detach(session)
             return items
         } catch {
-            try? await detach(at: mountPoint)
+            await detach(session)
             throw error
         }
     }
@@ -76,20 +137,20 @@ enum DiskImageBackend {
         to destination: URL,
         progress: @escaping @Sendable (ArchiveProgressState) -> Void
     ) async throws {
-        let mountPoint = try await mount(archive)
+        let session = try await mountSession(archive)
         do {
-            try copyContents(from: mountPoint, to: destination, progress: progress)
-            try await detach(at: mountPoint)
+            try copyContents(from: session.mountPoint, to: destination, progress: progress)
+            await detach(session)
         } catch {
-            try? await detach(at: mountPoint)
+            await detach(session)
             throw error
         }
     }
 
     /// 「测试」DMG = 挂上再卸 —— 系统 hdiutil 不报错就算结构 OK。
     static func test(_ archive: URL) async throws {
-        let mountPoint = try await mount(archive)
-        try await detach(at: mountPoint)
+        let session = try await mountSession(archive)
+        await detach(session)
     }
 
     /// 创建压缩 DMG。`hdiutil create -srcfolder` 只接受一个源目录，所以这里先把用户选中的

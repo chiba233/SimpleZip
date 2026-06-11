@@ -74,6 +74,10 @@ enum HealthChecker {
         items.append(await checkSevenZip())
         items.append(await checkRAR(onOpenSettings: { onOpenPane(.archive) }))
         items.append(checkFileAssociations(onOpenSettings: { onOpenPane(.fileAssociations) }))
+        items.append(checkFinderServices(onOpenSettings: { onOpenPane(.general) }))
+        items.append(checkStartupLocation(onOpenSettings: { onOpenPane(.general) }))
+        items.append(checkSecurityPolicies(onOpenSettings: { onOpenPane(.archive) }))
+        items.append(checkSoftwareUpdates(onOpenSettings: { onOpenPane(.updates) }))
         items.append(checkPresetPassword(onOpenSettings: { onOpenPane(.general) }))
         items.append(checkSecureScratchVolume())
         if let gpgItem = await checkGPG(onOpenSettings: { onOpenPane(.gpg) }) {
@@ -151,6 +155,137 @@ enum HealthChecker {
                 title: L10n.text("health.openRarSettings"),
                 perform: onOpenSettings
             )
+        )
+    }
+
+    /// Finder Services + simplezip:// 回调都来自 Info.plist。Services 缺失时右键快捷操作不会注册；
+    /// URL scheme 缺失时 Services / 外部入口回调无法回到 App。
+    private static func checkFinderServices(onOpenSettings: @escaping () -> Void) -> HealthCheckItem {
+        let services = Bundle.main.object(forInfoDictionaryKey: "NSServices") as? [[String: Any]] ?? []
+        let urlTypes = Bundle.main.object(forInfoDictionaryKey: "CFBundleURLTypes") as? [[String: Any]] ?? []
+        let hasSimpleZipScheme = urlTypes.contains { type in
+            let schemes = type["CFBundleURLSchemes"] as? [String] ?? []
+            return schemes.contains("simplezip")
+        }
+        guard !services.isEmpty, hasSimpleZipScheme else {
+            return HealthCheckItem(
+                title: L10n.text("health.finderServices.title"),
+                detail: L10n.text("health.finderServices.missing"),
+                status: .error,
+                action: HealthCheckItem.FixAction(
+                    title: L10n.text("health.openGeneral"),
+                    perform: onOpenSettings
+                )
+            )
+        }
+        return HealthCheckItem(
+            title: L10n.text("health.finderServices.title"),
+            detail: L10n.format("health.finderServices.ok", services.count),
+            status: .ok,
+            action: nil
+        )
+    }
+
+    /// 启动位置失效时 App 会回落到 home，但用户在「为什么没打开我选的文件夹」时需要在运行状态里看到原因。
+    private static func checkStartupLocation(onOpenSettings: @escaping () -> Void) -> HealthCheckItem {
+        let location = AppPreferences.startupLocation
+        if AppPreferences.startupLocationIsMissing {
+            let configured = AppPreferences.resolvedURL(for: location)?.path ?? location.title
+            return HealthCheckItem(
+                title: L10n.text("health.startupLocation.title"),
+                detail: L10n.format("health.startupLocation.missing", configured),
+                status: .warning,
+                action: HealthCheckItem.FixAction(
+                    title: L10n.text("health.openGeneral"),
+                    perform: onOpenSettings
+                )
+            )
+        }
+        if let url = AppPreferences.resolvedURL(for: location) {
+            return HealthCheckItem(
+                title: L10n.text("health.startupLocation.title"),
+                detail: L10n.format("health.startupLocation.ok", location.title, url.path),
+                status: .ok,
+                action: nil
+            )
+        }
+        return HealthCheckItem(
+            title: L10n.text("health.startupLocation.title"),
+            detail: L10n.format("health.startupLocation.fallback", location.title),
+            status: .info,
+            action: HealthCheckItem.FixAction(
+                title: L10n.text("health.openGeneral"),
+                perform: onOpenSettings
+            )
+        )
+    }
+
+    /// 安全策略是 archive manager 的高风险开关：Allow 会让不可信归档更容易落盘/执行；
+    /// Deny 会阻止对应工作流但不降低安全性，所以只作为 info 展示。
+    private static func checkSecurityPolicies(onOpenSettings: @escaping () -> Void) -> HealthCheckItem {
+        let policies: [(name: String, decision: ArchiveSecurityDecision)] = [
+            (L10n.text("settings.security.suspiciousPaths"), AppPreferences.suspiciousPathPolicy),
+            (L10n.text("settings.security.symbolicLinks"), AppPreferences.symbolicLinkPolicy),
+            (L10n.text("settings.security.activeContent"), AppPreferences.activeContentOpenPolicy)
+        ]
+        let allowed = policies.filter { $0.decision == .allow }.map(\.name)
+        if !allowed.isEmpty {
+            return HealthCheckItem(
+                title: L10n.text("health.security.title"),
+                detail: L10n.format("health.security.allows", allowed.joined(separator: ", ")),
+                status: .warning,
+                action: HealthCheckItem.FixAction(
+                    title: L10n.text("health.openArchiveSettings"),
+                    perform: onOpenSettings
+                )
+            )
+        }
+        let denied = policies.filter { $0.decision == .deny }.map(\.name)
+        if !denied.isEmpty {
+            return HealthCheckItem(
+                title: L10n.text("health.security.title"),
+                detail: L10n.format("health.security.denies", denied.joined(separator: ", ")),
+                status: .info,
+                action: HealthCheckItem.FixAction(
+                    title: L10n.text("health.openArchiveSettings"),
+                    perform: onOpenSettings
+                )
+            )
+        }
+        return HealthCheckItem(
+            title: L10n.text("health.security.title"),
+            detail: L10n.text("health.security.ok"),
+            status: .ok,
+            action: nil
+        )
+    }
+
+    /// Sparkle 的 release 安全依赖 Info.plist 里的 appcast URL + EdDSA 公钥；缺任一项都应该在运行状态里标红。
+    private static func checkSoftwareUpdates(onOpenSettings: @escaping () -> Void) -> HealthCheckItem {
+        let rawFeedURL = (Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") as? String) ?? ""
+        let publicKey = (Bundle.main.object(forInfoDictionaryKey: "SUPublicEDKey") as? String) ?? ""
+        let intervalValue = Bundle.main.object(forInfoDictionaryKey: "SUScheduledCheckInterval")
+        let interval = (intervalValue as? Int) ?? (intervalValue as? NSNumber)?.intValue ?? 0
+        let feedURL = URL(string: rawFeedURL)
+        guard let feedURL, feedURL.scheme == "https", !publicKey.isEmpty, interval > 0 else {
+            return HealthCheckItem(
+                title: L10n.text("health.updates.title"),
+                detail: L10n.text("health.updates.missing"),
+                status: .error,
+                action: HealthCheckItem.FixAction(
+                    title: L10n.text("health.openUpdates"),
+                    perform: onOpenSettings
+                )
+            )
+        }
+        let launchCheck = AppPreferences.checkForUpdatesOnLaunch
+            ? L10n.text("health.updates.launchCheckOn")
+            : L10n.text("health.updates.launchCheckOff")
+        return HealthCheckItem(
+            title: L10n.text("health.updates.title"),
+            detail: L10n.format("health.updates.ok", feedURL.host ?? feedURL.absoluteString, launchCheck),
+            status: .ok,
+            action: nil
         )
     }
 
