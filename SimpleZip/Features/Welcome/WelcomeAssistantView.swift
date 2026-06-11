@@ -978,7 +978,9 @@ private struct WelcomeBackendStep: View {
                         VStack(alignment: .leading, spacing: 8) {
                             SettingsControlRow(
                                 title: L10n.text("settings.7zip.backend"),
-                                description: L10n.text("settings.7zip.backend.description")
+                                description: L10n.text("settings.7zip.backend.description"),
+                                systemImage: "7.square",
+                                iconTint: .orange
                             ) {
                                 Picker("", selection: $sevenZipBackend) {
                                     ForEach(SevenZipBackendChoice.allCases) { choice in
@@ -1015,7 +1017,9 @@ private struct WelcomeBackendStep: View {
                         VStack(alignment: .leading, spacing: 8) {
                             SettingsControlRow(
                                 title: L10n.text("settings.rar.backend"),
-                                description: L10n.text("settings.rar.backend.description")
+                                description: L10n.text("settings.rar.backend.description"),
+                                systemImage: "r.square",
+                                iconTint: .purple
                             ) {
                                 Picker("", selection: $rarBackend) {
                                     ForEach(RarBackendChoice.allCases) { choice in
@@ -1070,6 +1074,7 @@ private struct WelcomeBackendStep: View {
                     title: L10n.text("settings.rar.runInstaller"),
                     description: L10n.text("settings.rar.runInstaller.description"),
                     systemImage: "arrow.down.circle",
+                    iconTint: .green,
                     buttonTitle: L10n.text("settings.rar.runInstaller"),
                     isDisabled: isInstallingRar
                 ) {
@@ -1080,6 +1085,7 @@ private struct WelcomeBackendStep: View {
                     title: L10n.text("settings.rar.updateBackend"),
                     description: L10n.text("settings.rar.updateBackend.description"),
                     systemImage: "arrow.triangle.2.circlepath",
+                    iconTint: .orange,
                     buttonTitle: L10n.text("settings.rar.updateBackend"),
                     isDisabled: isInstallingRar
                 ) {
@@ -1089,6 +1095,7 @@ private struct WelcomeBackendStep: View {
                     title: L10n.text("settings.rar.deleteBackend"),
                     description: L10n.text("settings.rar.deleteBackend.description"),
                     systemImage: "trash",
+                    iconTint: .red,
                     buttonTitle: L10n.text("settings.rar.deleteBackend"),
                     role: .destructive,
                     isDisabled: isInstallingRar,
@@ -1165,6 +1172,8 @@ private struct WelcomeGPGStep: View {
                     SettingsToggleRow(
                         title: L10n.text("welcome.gpg.enable"),
                         description: L10n.text("welcome.gpg.enable.description"),
+                        systemImage: "key",
+                        iconTint: .green,
                         isOn: $gpgEnabled
                     )
                 }
@@ -1197,6 +1206,7 @@ private struct WelcomeGPGStep: View {
                                     title: L10n.text("settings.gpg.install.gpgsuite.title"),
                                     description: "https://gpgtools.org/",
                                     systemImage: "safari",
+                                    iconTint: .blue,
                                     buttonTitle: L10n.text("settings.gpg.install.gpgsuite.button")
                                 ) {
                                     if let url = URL(string: "https://gpgtools.org/") {
