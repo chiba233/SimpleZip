@@ -160,14 +160,13 @@ struct TransferSummaryView: View {
     private var skipped: [TransferLogEntry] { entries.filter { $0.action == .skipped } }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(L10n.text("transfer.summary.title"))
-                    .font(.title3)
-                    .fontWeight(.semibold)
-                Text(L10n.format("transfer.summary.message", added.count, overwritten.count, skipped.count))
-                    .foregroundStyle(.secondary)
-            }
+        VStack(spacing: 0) {
+            DialogHero(
+                systemImage: "doc.on.doc.fill",
+                colors: [.blue, .cyan],
+                title: L10n.text("transfer.summary.title"),
+                subtitle: L10n.format("transfer.summary.message", added.count, overwritten.count, skipped.count)
+            )
 
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
@@ -181,20 +180,27 @@ struct TransferSummaryView: View {
                         TransferSummaryGroup(title: L10n.text("transfer.section.skipped"), entries: skipped, hashByName: hashByName, showsHashColumns: true)
                     }
                 }
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Color.primary.opacity(0.07))
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 16)
             }
-            .clipShape(RoundedRectangle(cornerRadius: 6))
-            .overlay {
-                RoundedRectangle(cornerRadius: 6).stroke(Color.secondary.opacity(0.25))
-            }
+
+            Divider()
 
             HStack {
                 Spacer()
                 Button(L10n.text("button.ok"), action: close)
+                    .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.defaultAction)
             }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .background(.bar)
         }
-        .padding(20)
-        .frame(minWidth: 560, idealWidth: 720, minHeight: 360, idealHeight: 480)
+        .frame(minWidth: 560, idealWidth: 720, minHeight: 380, idealHeight: 500)
     }
 }
 
@@ -309,49 +315,52 @@ struct HashOverwriteSummaryView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(L10n.text("hashOverwrite.summary.title"))
-                    .font(.title3)
-                    .fontWeight(.semibold)
-                Text(L10n.format("hashOverwrite.summary.message", sameCount, differentCount))
-                    .foregroundStyle(.secondary)
-            }
+        VStack(spacing: 0) {
+            DialogHero(
+                systemImage: "number.square.fill",
+                colors: [.cyan, .blue],
+                title: L10n.text("hashOverwrite.summary.title"),
+                subtitle: L10n.format("hashOverwrite.summary.message", sameCount, differentCount)
+            )
 
-            VStack(spacing: 0) {
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 0) {
-                        if !replacedResults.isEmpty {
-                            HashOverwriteSummaryGroup(
-                                title: L10n.text("hashOverwrite.summary.section.replaced"),
-                                count: differentCount,
-                                results: replacedResults
-                            )
-                        }
-                        if !skippedResults.isEmpty {
-                            HashOverwriteSummaryGroup(
-                                title: L10n.text("hashOverwrite.summary.section.skipped"),
-                                count: sameCount,
-                                results: skippedResults
-                            )
-                        }
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    if !replacedResults.isEmpty {
+                        HashOverwriteSummaryGroup(
+                            title: L10n.text("hashOverwrite.summary.section.replaced"),
+                            count: differentCount,
+                            results: replacedResults
+                        )
+                    }
+                    if !skippedResults.isEmpty {
+                        HashOverwriteSummaryGroup(
+                            title: L10n.text("hashOverwrite.summary.section.skipped"),
+                            count: sameCount,
+                            results: skippedResults
+                        )
                     }
                 }
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Color.primary.opacity(0.07))
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 16)
             }
-            .clipShape(RoundedRectangle(cornerRadius: 6))
-            .overlay {
-                RoundedRectangle(cornerRadius: 6)
-                    .stroke(Color.secondary.opacity(0.25))
-            }
+
+            Divider()
 
             HStack {
                 Spacer()
                 Button(L10n.text("button.ok"), action: close)
+                    .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.defaultAction)
             }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .background(.bar)
         }
-        .padding(20)
-        .frame(minWidth: 640, idealWidth: 760, minHeight: 360, idealHeight: 480)
+        .frame(minWidth: 640, idealWidth: 760, minHeight: 380, idealHeight: 500)
     }
 }
 
