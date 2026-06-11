@@ -56,6 +56,7 @@ struct ExtractOptionsForm<ExtraControls: View>: View {
                                 title: L10n.text("button.usePresetPassword"),
                                 systemImage: "key.fill",
                                 tint: .orange,
+                                pinsToTrailing: true,
                                 isOn: $usePresetPassword
                             )
                             .help(L10n.text("button.usePresetPassword.help"))

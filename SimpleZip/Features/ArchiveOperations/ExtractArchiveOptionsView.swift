@@ -87,6 +87,7 @@ struct ExtractArchiveOptionsView: View {
             subtitle: L10n.text("extract.skipJunk.detail"),
             systemImage: "doc.badge.gearshape.fill",
             tint: .teal,
+            pinsToTrailing: true,
             isOn: $request.skipJunk
         )
     }
@@ -98,6 +99,7 @@ struct ExtractArchiveOptionsView: View {
             subtitle: L10n.text("extract.skipSymlinks.detail"),
             systemImage: "link",
             tint: .orange,
+            pinsToTrailing: true,
             isOn: $request.skipSymlinks
         )
     }
@@ -224,13 +226,13 @@ struct ExtractArchiveOptionsView: View {
         // 跟同 Form 里其它行（保存到 / 密码 / 解密方式）保持 body 字号，不专门 .font(.caption)，避免视觉错落。
         HStack(alignment: .center, spacing: 6) {
             DialogRowLabel(L10n.text("extract.gpgDecryptionKey.label"), systemImage: "person.badge.key.fill", tint: .green, width: 180)
+            Spacer()
             GPGSecretKeyMenu(
                 selection: $request.gpgDecryptionKeyFingerprint,
                 secretKeys: availableSecretKeys,
                 autoLabelKey: "extract.gpgDecryptionKey.auto",
                 missingFingerprintKey: "extract.gpgDecryptionKey.missingFingerprint"
             )
-            Spacer()
         }
     }
 
@@ -244,6 +246,8 @@ struct ExtractArchiveOptionsView: View {
                 SecureField(L10n.text("extract.gpgDecryptionPassphrase.placeholder"), text: $request.gpgDecryptionPassphrase)
                     .textFieldStyle(.roundedBorder)
                     .dialogFieldEmphasis()
+                    .frame(maxWidth: 260)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
             }
             Text(L10n.text("extract.gpgDecryptionPassphrase.hint"))
                 .font(.caption2)

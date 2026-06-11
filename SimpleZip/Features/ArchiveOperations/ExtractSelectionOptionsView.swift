@@ -28,6 +28,7 @@ struct ExtractSelectionOptionsView: View {
             cancel: cancel
         ) {
             LabeledContent {
+                // 控件钉行最右(解压对话框拍板:选择框/复选框/输入框全部靠最右)。
                 Picker("", selection: $request.pathMode) {
                     ForEach(ExtractPathMode.allCases) { mode in
                         Text(mode.title).tag(mode)
@@ -35,6 +36,7 @@ struct ExtractSelectionOptionsView: View {
                 }
                 .labelsHidden()
                 .fixedSize()
+                .frame(maxWidth: .infinity, alignment: .trailing)
             } label: {
                 DialogRowLabel(L10n.text("extract.pathMode"), systemImage: "point.topleft.down.to.point.bottomright.curvepath", tint: .indigo)
             }
@@ -44,6 +46,7 @@ struct ExtractSelectionOptionsView: View {
                 subtitle: L10n.text("extract.skipJunk.detail"),
                 systemImage: "doc.badge.gearshape.fill",
                 tint: .teal,
+                pinsToTrailing: true,
                 isOn: $request.skipJunk
             )
             // 0.4.3 #15：不解压符号链接 —— 与整包解压同款开关。
@@ -52,6 +55,7 @@ struct ExtractSelectionOptionsView: View {
                 subtitle: L10n.text("extract.skipSymlinks.detail"),
                 systemImage: "link",
                 tint: .orange,
+                pinsToTrailing: true,
                 isOn: $request.skipSymlinks
             )
         }
