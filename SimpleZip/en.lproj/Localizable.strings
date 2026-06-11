@@ -857,6 +857,7 @@
 /* 0.4.2 extract: skip macOS junk */
 "extract.skipJunk" = "Don\'t extract macOS metadata junk";
 "extract.skipJunk.detail" = ".DS_Store, __MACOSX, ._* AppleDouble files, Thumbs.db — removed before merging; existing files in the destination are never touched.";
+"archive.dryRun.calculating" = "Calculating…";
 
 
 

@@ -120,6 +120,9 @@ struct ArchiveCreationOptionsView: View {
                     VStack(alignment: .leading, spacing: 18) {
                         templateMenuRow
                         basicsSection
+                        // 0.4.2 用户点名：预检是高频 UI，不进二级抽屉 —— 常驻概要条，
+                        // 出现即自动统计，排除规则 / 分卷 / 格式变更自动重算。
+                        preflightStrip
                         if request.options.format.supportsPassword {
                             passwordSection
                         }
@@ -132,8 +135,6 @@ struct ArchiveCreationOptionsView: View {
                         if request.options.format.supportsExcludeRules {
                             excludeDrawer
                         }
-                        // 0.4.2 #19：创建前预检（输入统计 / 输出冲突 / 分卷估算）。
-                        dryRunDrawer
                         if AppPreferences.gpgEnabled && GPGBackend.isAvailable() {
                             gpgDrawer
                         }
@@ -662,46 +663,55 @@ struct ArchiveCreationOptionsView: View {
         }
     }
 
-    /// 0.4.2 #19：压缩前预检抽屉 —— 输入侧统计（不估压缩后大小），输出名冲突即时显示。
+    /// 0.4.2（用户点名升一级）：创建前预检 —— 常驻概要条。出现即自动统计；
+    /// 排除规则 / 分卷 / 格式变更自动重算（onChange 挂在本条上）。输出名冲突即时显示。
     @ViewBuilder
-    private var dryRunDrawer: some View {
-        DialogDrawer(L10n.text("archive.dryRun.section"), systemImage: "list.clipboard", color: .cyan) {
-            HStack(spacing: 8) {
-                Button {
-                    runDryRun()
-                } label: {
-                    Label(L10n.text("archive.dryRun.run"), systemImage: "play.circle.fill")
+    private var preflightStrip: some View {
+        DialogSection(L10n.text("archive.dryRun.section")) {
+            HStack(alignment: .firstTextBaseline, spacing: 14) {
+                if let dryRun {
+                    // 一行流式概要：文件数+大小 恒显;排除/symlink/包/分卷 非零才显。
+                    HStack(spacing: 14) {
+                        Label(
+                            L10n.format(
+                                "archive.dryRun.input",
+                                "\(dryRun.inputFileCount)",
+                                ByteCountFormatter.string(fromByteCount: dryRun.totalBytes, countStyle: .file)
+                            ),
+                            systemImage: "doc.on.doc"
+                        )
+                        if dryRun.excludedCount > 0 {
+                            Label(L10n.format("archive.dryRun.excluded", "\(dryRun.excludedCount)"), systemImage: "eye.slash")
+                        }
+                        if dryRun.symlinkCount > 0 {
+                            Label(L10n.format("archive.dryRun.symlinks", "\(dryRun.symlinkCount)"), systemImage: "link")
+                        }
+                        if dryRun.packageCount > 0 {
+                            Label(L10n.format("archive.dryRun.packages", "\(dryRun.packageCount)"), systemImage: "shippingbox")
+                        }
+                        if let volumes = dryRun.estimatedVolumeCount {
+                            Label(L10n.format("archive.dryRun.volumes", "\(volumes)"), systemImage: "square.stack.3d.up")
+                        }
+                    }
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                } else {
+                    Label(L10n.text("archive.dryRun.calculating"), systemImage: "doc.on.doc")
+                        .font(.callout)
+                        .foregroundStyle(.tertiary)
                 }
-                .disabled(isRunningDryRun)
+                Spacer(minLength: 0)
                 if isRunningDryRun {
                     ProgressView().controlSize(.small)
+                } else {
+                    Button {
+                        runDryRun()
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                    .buttonStyle(.borderless)
+                    .help(L10n.text("archive.dryRun.run"))
                 }
-            }
-            if let dryRun {
-                VStack(alignment: .leading, spacing: 4) {
-                    Label(
-                        L10n.format(
-                            "archive.dryRun.input",
-                            "\(dryRun.inputFileCount)",
-                            ByteCountFormatter.string(fromByteCount: dryRun.totalBytes, countStyle: .file)
-                        ),
-                        systemImage: "doc.on.doc"
-                    )
-                    if dryRun.excludedCount > 0 {
-                        Label(L10n.format("archive.dryRun.excluded", "\(dryRun.excludedCount)"), systemImage: "eye.slash")
-                    }
-                    if dryRun.symlinkCount > 0 {
-                        Label(L10n.format("archive.dryRun.symlinks", "\(dryRun.symlinkCount)"), systemImage: "link")
-                    }
-                    if dryRun.packageCount > 0 {
-                        Label(L10n.format("archive.dryRun.packages", "\(dryRun.packageCount)"), systemImage: "shippingbox")
-                    }
-                    if let volumes = dryRun.estimatedVolumeCount {
-                        Label(L10n.format("archive.dryRun.volumes", "\(volumes)"), systemImage: "square.stack.3d.up")
-                    }
-                }
-                .font(.callout)
-                .foregroundStyle(.secondary)
             }
             // 输出名冲突即时检查 —— 不用走文件树，随渲染刷新。
             if FileManager.default.fileExists(atPath: request.destinationURL.path) {
@@ -710,6 +720,12 @@ struct ArchiveCreationOptionsView: View {
                     .foregroundStyle(.orange)
             }
         }
+        .onAppear { runDryRun() }
+        .onChange(of: request.options.skipDSStore) { _ in runDryRun() }
+        .onChange(of: request.options.skipHiddenFiles) { _ in runDryRun() }
+        .onChange(of: request.options.customExcludes) { _ in runDryRun() }
+        .onChange(of: request.options.sevenZipVolumeSize) { _ in runDryRun() }
+        .onChange(of: request.options.format) { _ in runDryRun() }
     }
 
     /// GPG 签名与投递（抽屉·不常用）。只在「主开关 + 后端可用」时整个抽屉渲染（A4 可见性铁律）。

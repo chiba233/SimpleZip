@@ -4,6 +4,8 @@
 
 ## 0.4.2 (unreleased)
 
+- **UI: creation preflight promoted to first-class.** The dry-run summary leaves its collapsed drawer and becomes an always-visible strip right under the basics: it computes automatically when the dialog opens and recalculates live when exclude rules, volume size, or format change — file count, total size, excluded/symlink/package counts, estimated volumes, and the output-name conflict warning, all at a glance.
+
 - **New: "Don't extract macOS metadata junk".** Both extract dialogs gain a toggle that strips `.DS_Store`, `__MACOSX`, AppleDouble `._*` files, `Thumbs.db`, and `desktop.ini` from the extraction before merging — files already in the destination are never touched (the sweep runs on the staging copy). Implementation note: the sweep walks the tree with POSIX `readdir`, because Foundation's directory enumeration silently hides AppleDouble files.
 - **Fix: file split accepts decimals and a KB unit.** Volume size can now be `1.5 GB` or `700 KB`, not just whole MB/GB.
 
