@@ -1672,6 +1672,14 @@
 /* 0.4.2 welcome safety page becomes editable */
 "welcome.safety.confirmDelete" = "Confirm before deleting files";
 "welcome.safety.confirmDelete.detail" = "Ask for confirmation before moving files to the Trash from the browser.";
+
+/* 0.4.2 #4 split-volume folding */
+"file.volumeBadge" = "%1$@ · %2$@ volumes";
+"menu.view.collapseVolumes" = "Collapse Split-Volume Sets";
+"file.deleteVolumeFamily.title" = "Delete the whole volume set?";
+"file.deleteVolumeFamily.message" = "The selection belongs to a split-volume set with %1$@ more volume(s) not selected. An incomplete set can't be combined.";
+"file.deleteVolumeFamily.whole" = "Delete Whole Set";
+"file.deleteVolumeFamily.selectionOnly" = "Only Selected";
 "feedback.copied" = "Copied";
 "command.copied" = "Command copied";
 "tasks.settings.openOnFailure" = "Open Activity Center on failure";

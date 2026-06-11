@@ -31,6 +31,8 @@ struct FileTable: View {
     @AppStorage(AppPreferences.Key.hiddenWithGrouping) private var hiddenWithGrouping = BrowserGrouping.HiddenWithGrouping.separateGroup.rawValue
     // 显示密度：值变 → updateNSView 调整 rowHeight + 重画单元格。
     @AppStorage(AppPreferences.Key.rowDensity) private var rowDensity = FileBrowserOutline.RowDensity.standard.rawValue
+    // 0.4.2 #4:分卷折叠开关 —— 观察它让 View 菜单切换即时重建(值经 configSignature 进指纹)。
+    @AppStorage(AppPreferences.Key.collapseVolumeSets) private var collapseVolumeSets = true
 
     var body: some View {
         FileNSOutlineView(
@@ -76,6 +78,10 @@ final class FileOutlineNode {
     var children: [FileOutlineNode]
     /// 是否是「隐藏文件」组（GroupBy=none 时走 #49 折叠记忆策略；其余区块默认展开、不持久化）。
     let isHiddenSection: Bool
+    /// 0.4.2 #4 分卷集折叠：首卷节点挂全家族成员(含自己)为子级;nil = 不是折叠首卷。
+    var volumeChildren: [FileOutlineNode]?
+    /// 折叠首卷的家族卷数(name 列徽记「· N 卷」);0 = 无徽记。
+    var volumeBadgeCount = 0
     /// 0.4.1 文件夹原位展开：目录叶子的子级节点缓存。nil = 还没展开过。
     /// 子级 FileItem 的**真值在模型注册表**（expandedFolderChildrenByPath）—— 这里只是包成节点的视图缓存,
     /// reload 重建顶层节点后由 enforceExpansion 按记忆重新展开、重新从注册表构建。
@@ -262,7 +268,7 @@ struct FileNSOutlineView: NSViewRepresentable {
         }
 
         private var configSignature: String {
-            "\(currentFolderKey)|\(AppPreferences.hiddenGroupCollapseMode.rawValue)|\(effectiveGroupBy.rawValue)|\(AppPreferences.fileGroupingScope.rawValue)|\(AppPreferences.hiddenWithGrouping.rawValue)|\(AppPreferences.folderInlineExpansion)"
+            "\(currentFolderKey)|\(AppPreferences.collapseVolumeSets)|\(AppPreferences.hiddenGroupCollapseMode.rawValue)|\(effectiveGroupBy.rawValue)|\(AppPreferences.fileGroupingScope.rawValue)|\(AppPreferences.hiddenWithGrouping.rawValue)|\(AppPreferences.folderInlineExpansion)"
         }
 
         /// 所有区块节点，父在子前（top-down）—— enforceExpansion 需要先展开父再展开子。支持嵌套（隐藏组里再分子组）。
@@ -389,7 +395,7 @@ struct FileNSOutlineView: NSViewRepresentable {
             // 一个「标题 → 文件」的叶子区块。
             func fileSection(key: String, isHidden: Bool, title: String, items: [FileItem]) -> FileOutlineNode {
                 let node = reuseSection(key: key, isHidden: isHidden, title: title)
-                node.children = items.map { FileOutlineNode.file($0) }
+                node.children = volumeFoldedNodes(items)
                 return node
             }
             // 把一组文件按某维度切成「标题 (n)」叶子区块。
@@ -425,12 +431,12 @@ struct FileNSOutlineView: NSViewRepresentable {
             } else {
                 // GroupBy=none：复用 #49 行为，受 hiddenGroupCollapseMode 的 inline 影响。
                 if AppPreferences.hiddenGroupCollapseMode.groupsHiddenFiles {
-                    var nodes = split.visible.map { FileOutlineNode.file($0) }
+                    var nodes = volumeFoldedNodes(split.visible)
                     if !split.hidden.isEmpty { nodes.append(flatHiddenSection(split.hidden)) }
                     topLevelNodes = nodes
                 } else {
                     // inline opt-out：全平铺。
-                    topLevelNodes = model.displayedFileItems.map { FileOutlineNode.file($0) }
+                    topLevelNodes = volumeFoldedNodes(model.displayedFileItems)
                 }
             }
 
@@ -486,6 +492,7 @@ struct FileNSOutlineView: NSViewRepresentable {
         func outlineView(_ outlineView: NSOutlineView, numberOfChildrenOfItem item: Any?) -> Int {
             guard let node = item as? FileOutlineNode else { return topLevelNodes.count }
             if node.isSection { return node.children.count }
+            if let volumes = node.volumeChildren { return volumes.count }
             if isExpandableFolder(node) { return loadedFolderChildren(of: node).count }
             return 0
         }
@@ -494,14 +501,14 @@ struct FileNSOutlineView: NSViewRepresentable {
             guard let node = item as? FileOutlineNode else {
                 return index < topLevelNodes.count ? topLevelNodes[index] : topLevelNodes
             }
-            let children = node.isSection ? node.children : loadedFolderChildren(of: node)
+            let children = node.isSection ? node.children : (node.volumeChildren ?? loadedFolderChildren(of: node))
             guard index < children.count else { return node }
             return children[index]
         }
 
         func outlineView(_ outlineView: NSOutlineView, isItemExpandable item: Any) -> Bool {
             guard let node = item as? FileOutlineNode else { return false }
-            return node.isSection || isExpandableFolder(node)
+            return node.isSection || node.volumeChildren != nil || isExpandableFolder(node)
         }
 
         // MARK: - 0.4.1 文件夹原位展开（子级真值在模型注册表,这里只做节点缓存 + 展开记忆）
@@ -514,13 +521,50 @@ struct FileNSOutlineView: NSViewRepresentable {
             return item.isDirectory && !item.isSymbolicLink && !model.canShowPackageContents(item)
         }
 
+        /// 0.4.2 #4：把同目录的分卷家族（.001/.002… / part1.rar…）折叠成首卷一行,
+        /// 全家族(含首卷)挂成子级 —— 展开箭头看成员、双击首卷=照常打开、右键合并照常认首卷。
+        /// 识别复用 Core SplitVolumeSet（与右键「分卷集」信息行同源）。开关:View 菜单「折叠分卷集」。
+        private func volumeFoldedNodes(_ items: [FileItem]) -> [FileOutlineNode] {
+            guard AppPreferences.collapseVolumeSets else { return items.map { FileOutlineNode.file($0) } }
+            let fileNames = items.filter { !$0.isDirectory }.map { $0.url.lastPathComponent }
+            guard fileNames.count >= 2 else { return items.map { FileOutlineNode.file($0) } }
+            var memberToFirst: [String: String] = [:]
+            var firstToFamily: [String: [String]] = [:]
+            var seenFamilies = Set<String>()
+            for name in fileNames {
+                guard let set = FileSplitCombine.volumeSet(forMemberNamed: name, among: fileNames),
+                      set.volumeCount >= 2,
+                      !seenFamilies.contains(set.baseName),
+                      let first = set.presentNames.first else { continue }
+                seenFamilies.insert(set.baseName)
+                firstToFamily[first] = set.presentNames
+                for member in set.presentNames.dropFirst() {
+                    memberToFirst[member] = first
+                }
+            }
+            guard !firstToFamily.isEmpty else { return items.map { FileOutlineNode.file($0) } }
+            let byName = Dictionary(items.map { ($0.url.lastPathComponent, $0) }, uniquingKeysWith: { first, _ in first })
+            var nodes: [FileOutlineNode] = []
+            for item in items {
+                let name = item.url.lastPathComponent
+                if memberToFirst[name] != nil { continue }   // 非首卷成员:从顶层抽走,挂进首卷子级
+                let node = FileOutlineNode.file(item)
+                if let family = firstToFamily[name] {
+                    node.volumeChildren = family.compactMap { byName[$0] }.map { FileOutlineNode.file($0) }
+                    node.volumeBadgeCount = family.count
+                }
+                nodes.append(node)
+            }
+            return nodes
+        }
+
         /// 懒构建文件夹子级节点：子级 FileItem 从**模型注册表**取（没列过会现列 + 登记）。
         /// 模型登记是这次重做的核心 —— 选区解析 / FSEvents 重映射 / 操作目标全从模型走,
         /// 节点树只是视图缓存,跨 reload 由 enforceExpansion 重建。
         private func loadedFolderChildren(of node: FileOutlineNode) -> [FileOutlineNode] {
             if let cached = node.folderChildren { return cached }
             guard let item = node.fileItem else { return [] }
-            let children = model.expandedChildren(of: item.url).map { FileOutlineNode.file($0) }
+            let children = volumeFoldedNodes(model.expandedChildren(of: item.url))
             node.folderChildren = children
             return children
         }
@@ -549,11 +593,16 @@ struct FileNSOutlineView: NSViewRepresentable {
             }
 
             guard let fileItem = node.fileItem else { return nil }
+            // 0.4.2 #4：折叠首卷的名称带「· N 卷」徽记。
+            var cellText = column.value(for: fileItem)
+            if column == .name, node.volumeBadgeCount > 0 {
+                cellText = L10n.format("file.volumeBadge", cellText, "\(node.volumeBadgeCount)")
+            }
             return makeTableCell(
                 in: outlineView,
                 owner: self,
                 identifier: "FileCell-\(column.identifier)",
-                text: column.value(for: fileItem),
+                text: cellText,
                 isPrimaryColumn: column == .name,
                 icon: column == .name ? icon(for: fileItem) : nil,
                 iconSize: density.iconSize,

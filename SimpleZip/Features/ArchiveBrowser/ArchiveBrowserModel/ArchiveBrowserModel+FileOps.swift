@@ -768,17 +768,51 @@ extension ArchiveBrowserModel {
             return
         }
         guard !selectedFileItems.isEmpty else { return }
+        // 0.4.2 #4：选中项属于分卷家族且家族还有未选中成员 → 问「删除整组还是仅所选」。
+        // 折叠显示下选中首卷删除,十有八九是想删整组;但绝不静默扩大删除范围 —— 必须显式确认。
+        var targets = selectedFileItems
+        if AppPreferences.collapseVolumeSets {
+            let names = fileItems.filter { !$0.isDirectory }.map { $0.url.lastPathComponent }
+            let selectedNames = Set(targets.map { $0.url.lastPathComponent })
+            var extraNames: Set<String> = []
+            for item in targets where !item.isDirectory {
+                if let set = FileSplitCombine.volumeSet(forMemberNamed: item.url.lastPathComponent, among: names),
+                   set.volumeCount >= 2 {
+                    for name in set.presentNames where !selectedNames.contains(name) {
+                        extraNames.insert(name)
+                    }
+                }
+            }
+            if !extraNames.isEmpty {
+                let alert = NSAlert()
+                alert.alertStyle = .warning
+                alert.messageText = L10n.text("file.deleteVolumeFamily.title")
+                alert.informativeText = L10n.format("file.deleteVolumeFamily.message", "\(extraNames.count)")
+                alert.addButton(withTitle: L10n.text("file.deleteVolumeFamily.whole"))
+                alert.addButton(withTitle: L10n.text("file.deleteVolumeFamily.selectionOnly"))
+                alert.addButton(withTitle: L10n.text("button.cancel"))
+                switch alert.runModal() {
+                case .alertFirstButtonReturn:
+                    let byName = Dictionary(fileItems.map { ($0.url.lastPathComponent, $0) }, uniquingKeysWith: { first, _ in first })
+                    targets += extraNames.compactMap { byName[$0] }
+                case .alertSecondButtonReturn:
+                    break
+                default:
+                    return
+                }
+            }
+        }
         if AppPreferences.confirmBeforeDeletingFiles {
-            guard confirmDelete(items: selectedFileItems) else { return }
+            guard confirmDelete(items: targets) else { return }
         }
 
         // 删除前先算好「光标该落到哪」—— 用删除前的 fileItems 顺序，删成功后置 pendingSelectionURL，
         // FileTable 刷新后会选中它并把键盘焦点交回表格（删一项后方向键从邻居继续，不回顶端）。
-        let neighborURL = selectionNeighborURL(removing: Set(selectedFileItems.map(\.id)))
+        let neighborURL = selectionNeighborURL(removing: Set(targets.map(\.id)))
 
         // 删除前记下每项是否目录 —— 用于活动中心逐文件「已删除」记录里加「（文件夹）」后缀。
         let isDirectoryByPath = Dictionary(
-            selectedFileItems.map { ($0.url.standardizedFileURL.path, $0.isDirectory) },
+            targets.map { ($0.url.standardizedFileURL.path, $0.isDirectory) },
             uniquingKeysWith: { first, _ in first }
         )
         func deleteLog(_ urls: [URL]) -> [TransferLogEntry] {
@@ -791,7 +825,7 @@ extension ArchiveBrowserModel {
             registerTrashUndo(trashed, actionName: L10n.text("undo.action.delete"))
         }
         do {
-            for item in selectedFileItems {
+            for item in targets {
                 var resultingURL: NSURL?
                 try fileManager.trashItem(at: item.url, resultingItemURL: &resultingURL)
                 if let trashURL = resultingURL as URL? {
@@ -818,8 +852,8 @@ extension ArchiveBrowserModel {
             // 失败时仍把已经成功移走的那些列进逐文件记录（best-effort，不假装全删了）。
             recordInstantFileTask(
                 kind: .delete,
-                title: L10n.format("tasks.deleteCount", selectedFileItems.count),
-                detail: transferSummary(from: selectedFileItems.map(\.url), to: L10n.text("tasks.trashDestination")),
+                title: L10n.format("tasks.deleteCount", targets.count),
+                detail: transferSummary(from: targets.map(\.url), to: L10n.text("tasks.trashDestination")),
                 outcome: .failed(error.localizedDescription),
                 transferLog: deleteLog(trashed.map(\.original))
             )

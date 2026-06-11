@@ -1672,6 +1672,14 @@
 /* 0.4.2 欢迎助手安全策略页可编辑 */
 "welcome.safety.confirmDelete" = "删除文件前需要确认";
 "welcome.safety.confirmDelete.detail" = "在浏览器里把文件移到废纸篓前先弹确认。";
+
+/* 0.4.2 #4 分卷集折叠 */
+"file.volumeBadge" = "%1$@ · %2$@ 卷";
+"menu.view.collapseVolumes" = "折叠分卷集";
+"file.deleteVolumeFamily.title" = "删除整个分卷集？";
+"file.deleteVolumeFamily.message" = "所选项属于一个分卷集，还有 %1$@ 个成员卷未选中。残缺的分卷集将无法合并。";
+"file.deleteVolumeFamily.whole" = "删除整组";
+"file.deleteVolumeFamily.selectionOnly" = "仅删所选";
 "feedback.copied" = "已复制";
 "command.copied" = "命令已复制";
 "tasks.settings.openOnFailure" = "任务失败时自动打开活动中心";

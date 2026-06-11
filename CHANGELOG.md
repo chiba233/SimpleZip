@@ -4,6 +4,9 @@
 
 ## 0.4.2 (unreleased)
 
+- **New: split-volume sets collapse into one row.** In the file browser, a `.001/.002…` (or `part1.rar…`) family now shows as its first volume with a "· N volumes" badge — expand the disclosure to see the members, double-click opens the set as usual, and Combine still works from the right-click menu. Deleting a selection that belongs to a set asks whether to delete the whole set or only the selection (an incomplete set can't be combined). Toggle under View → Collapse Split-Volume Sets (on by default, included in preference backups).
+- **Menu bar parity round 2.** The File menu gains Open (⌘O), Open as Archive, New Folder (⇧⌘N), Duplicate, Get Info (⌘I), and Reveal in Finder; the Actions menu gains Extract Selected and Save a Copy As…. Quick Look stays in the context menu (it needs the list's preview host).
+
 - **Fix: the Finder auto-extract floating window no longer has a mystery blank area.** Its phases (signature check / progress / done / failed) differ a lot in height and the window never shrank back, so short content floated in a tall window with empty space above. The window now tracks the content's ideal size and snaps to fit on every phase change.
 
 - **New: hidden Developer Tools.** ⌘-click the version pill in Settings → About: environment versions (app/macOS/7zz/RAR/GPG), key paths with Reveal buttons (Application Support, the SimpleZip GPG keyring, temp, the preferences plist), debug actions (reset the welcome assistant, arm the unclean-exit flag, copy the redacted environment report), and a read-only UserDefaults snapshot of the backup whitelist.

@@ -329,6 +329,7 @@ enum AppPreferences {
         nonisolated static let activityHistoryLimit = "activityHistoryLimit"
         nonisolated static let tasksOpenOnFailure = "tasksOpenOnFailure"
         nonisolated static let tasksPlaySoundOnFinish = "tasksPlaySoundOnFinish"
+        nonisolated static let collapseVolumeSets = "collapseVolumeSets"
 
         // GPG 集成主开关 —— 关 → 创建 / 解压 / 状态徽章里所有 GPG 入口隐藏；设置 pane 始终可见让用户能开它。
         nonisolated static let gpgEnabled = "gpgEnabled"
@@ -368,6 +369,11 @@ enum AppPreferences {
     /// 0.4.2:任务结束播放提示音（成功 Glass / 失败 Basso,默认关）。
     nonisolated static var tasksPlaySoundOnFinish: Bool {
         defaults.bool(forKey: Key.tasksPlaySoundOnFinish)
+    }
+
+    /// 0.4.2 #4:文件浏览里把分卷家族(.001/.002…)折叠成首卷一行(默认开,View 菜单可关)。
+    nonisolated static var collapseVolumeSets: Bool {
+        defaultTrueBool(forKey: Key.collapseVolumeSets)
     }
 
     nonisolated static var activityHistoryLimit: Int {
@@ -868,6 +874,7 @@ enum AppPreferences {
         Key.activityHistoryLimit,
         Key.tasksOpenOnFailure,
         Key.tasksPlaySoundOnFinish,
+        Key.collapseVolumeSets,
         Key.appLanguage,
         Key.startupLocation,
         Key.startupCustomLocationPath,
@@ -967,6 +974,7 @@ enum AppPreferences {
         v[Key.activityHistoryLimit] = activityHistoryLimit
         v[Key.tasksOpenOnFailure] = tasksOpenOnFailure
         v[Key.tasksPlaySoundOnFinish] = tasksPlaySoundOnFinish
+        v[Key.collapseVolumeSets] = collapseVolumeSets
         // 启动 / 语言
         v[Key.appLanguage] = appLanguage.rawValue
         v[Key.startupLocation] = startupLocation.rawValue

@@ -701,9 +701,16 @@ struct ColumnsViewCommands: Commands {
     @AppStorage(AppPreferences.Key.showArchiveCharacteristicsColumn) private var showArchiveCharacteristicsColumn = false
     @AppStorage(AppPreferences.Key.showArchiveSymlinkColumn) private var showArchiveSymlinkColumn = false
     @AppStorage(AppPreferences.Key.showArchiveCommentColumn) private var showArchiveCommentColumn = false
+    // 0.4.2 #4:分卷集折叠开关(默认开)。注意 getter 是 defaultTrueBool —— @AppStorage 初值必须同为 true。
+    @AppStorage(AppPreferences.Key.collapseVolumeSets) private var collapseVolumeSets = true
 
     var body: some Commands {
         CommandMenu(L10n.text("menu.view")) {
+            // 0.4.2 #4:分卷集折叠(文件浏览把 .001/.002… 家族折叠成首卷一行)。
+            Toggle(L10n.text("menu.view.collapseVolumes"), isOn: $collapseVolumeSets)
+
+            Divider()
+
             // 「显示标签页栏」由 AppKit 在有标签组时自动插入（避免重复，这里不再自建）；
             // 它默认没有快捷键，我们在运行时给它绑 ⇧⌘T（见 MainWindowFactory.bindTabBarMenuShortcut）。
             // 分组（Group By）已挪到 设置 → 视图（含总开关 / 范围 / 默认方式 / 按文件夹）。
