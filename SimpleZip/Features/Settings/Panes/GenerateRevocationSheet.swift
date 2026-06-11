@@ -43,7 +43,7 @@ struct GenerateRevocationSheet: View {
                 subtitle: L10n.format("settings.gpg.keys.revokeSubject", key.userID, key.shortFingerprint)
             )
 
-            ScrollView {
+            HeightCappedScrollView(maxHeight: 520) {
                 VStack(alignment: .leading, spacing: 16) {
                     // 何时该生成 / 为什么提前生成的关键说明 —— 用户经常不知道这是干啥的。
                     Label(L10n.text("settings.gpg.keys.revokeIntro"), systemImage: "exclamationmark.triangle.fill")
@@ -117,7 +117,7 @@ struct GenerateRevocationSheet: View {
                 EmptyView()
             }
         }
-        .frame(width: 560, height: 560)
+        .frame(width: 560)
         .onAppear {
             // 默认落到桌面（桌面取不到则退到用户主目录）+ 自动文件名。
             if destinationURL == nil {

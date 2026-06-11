@@ -106,7 +106,7 @@ struct SIZSignatureSheet: View {
             .padding(.top, 20)
             .padding(.bottom, 14)
 
-            ScrollView {
+            HeightCappedScrollView(maxHeight: 520) {
                 VStack(alignment: .leading, spacing: 18) {
                     DialogSection {
                         detailRow(L10n.text("siz.signatureSheet.signer"), signature.signerDisplay)
@@ -144,7 +144,6 @@ struct SIZSignatureSheet: View {
                 .padding(.horizontal, 20)
                 .padding(.bottom, 16)
             }
-            .frame(maxHeight: 520)
 
             Divider()
 

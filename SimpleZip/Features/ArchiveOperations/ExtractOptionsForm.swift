@@ -46,7 +46,7 @@ struct ExtractOptionsForm<ExtraControls: View>: View {
                 subtitle: subtitle
             )
 
-            ScrollView {
+            HeightCappedScrollView(maxHeight: 560) {
                 VStack(alignment: .leading, spacing: 18) {
                     DialogSection {
                         extraControls()
@@ -97,7 +97,6 @@ struct ExtractOptionsForm<ExtraControls: View>: View {
                 .padding(.horizontal, 20)
                 .padding(.bottom, 16)
             }
-            .frame(maxHeight: 560)
 
             Divider()
 

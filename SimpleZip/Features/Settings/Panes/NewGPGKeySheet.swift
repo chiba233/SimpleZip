@@ -51,7 +51,7 @@ struct NewGPGKeySheet: View {
                 subtitle: L10n.text("settings.gpg.newKey.subtitle")
             )
 
-            ScrollView {
+            HeightCappedScrollView(maxHeight: 600) {
                 VStack(alignment: .leading, spacing: 18) {
                     destinationSection
                     keyInfoSection
@@ -94,7 +94,7 @@ struct NewGPGKeySheet: View {
                 EmptyView()
             }
         }
-        .frame(width: 560, height: 680)
+        .frame(width: 560)
         .alert(L10n.text("settings.gpg.newKey.noPassphraseTitle"), isPresented: $showsNoPassphraseConfirm) {
             Button(L10n.text("settings.gpg.newKey.noPassphraseConfirm"), role: .destructive) {
                 create()

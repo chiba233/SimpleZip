@@ -86,7 +86,7 @@ struct SZSVerificationSheet: View {
             .padding(.top, 20)
             .padding(.bottom, 14)
 
-            ScrollView {
+            HeightCappedScrollView(maxHeight: 560) {
                 VStack(alignment: .leading, spacing: 18) {
                     DialogSection { signerDetailBlock }
                     DialogSection(L10n.text("szs.verify.manifestSection")) { manifestBlock }
@@ -98,7 +98,6 @@ struct SZSVerificationSheet: View {
                 .padding(.horizontal, 20)
                 .padding(.bottom, 16)
             }
-            .frame(maxHeight: 560)
 
             Divider()
 
