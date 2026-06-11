@@ -196,7 +196,8 @@ struct CreateSZSSheet: View {
     private var titleRow: some View {
         HStack(alignment: .center, spacing: 8) {
             DialogRowLabel(L10n.text("szs.create.titleLabel"), systemImage: "character.cursor.ibeam", tint: .pink, width: labelColumnWidth)
-            TextField(L10n.text("szs.create.titlePlaceholder"), text: $title)
+            TextField(L10n.text("szs.create.titlePlaceholder"), text: $title, axis: .vertical)
+                .lineLimit(1...3)
                 .textFieldStyle(.roundedBorder)
                 .dialogFieldEmphasis()
         }
@@ -205,7 +206,8 @@ struct CreateSZSSheet: View {
     private var descriptionRow: some View {
         HStack(alignment: .center, spacing: 8) {
             DialogRowLabel(L10n.text("szs.create.descriptionLabel"), systemImage: "text.alignleft", tint: .pink, width: labelColumnWidth)
-            TextField(L10n.text("szs.create.descriptionPlaceholder"), text: $description)
+            TextField(L10n.text("szs.create.descriptionPlaceholder"), text: $description, axis: .vertical)
+                .lineLimit(1...5)
                 .textFieldStyle(.roundedBorder)
                 .dialogFieldEmphasis()
         }
@@ -232,6 +234,7 @@ struct CreateSZSSheet: View {
             title: L10n.text("szs.create.encryptFiles.toggle"),
             systemImage: "lock.fill",
             tint: .purple,
+            pinsToTrailing: true,
             isOn: $encryptFiles
         )
         .onChange(of: encryptFiles) { enabled in

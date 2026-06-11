@@ -75,9 +75,12 @@ struct ActivityView: View {
                         Spacer()
                         filterMenu(for: category)
                         if taskCenter.runningCount > 0 {
-                            Button(L10n.text("tasks.cancelAll")) {
+                            Button {
                                 taskCenter.cancelAll()
+                            } label: {
+                                Label(L10n.text("tasks.cancelAll"), systemImage: "xmark.circle")
                             }
+                            .buttonStyle(.bordered)
                         }
                     }
                     .padding(.horizontal, 16)
@@ -161,24 +164,21 @@ struct ActivityView: View {
     }
 
     private func filterMenu(for category: OperationTask.Category) -> some View {
-        Menu {
-            ForEach(ActivityTaskFilter.allCases) { filter in
-                Button {
-                    setFilter(filter, for: category)
-                } label: {
-                    if self.filter(for: category) == filter {
-                        Label(filter.title, systemImage: "checkmark")
-                    } else {
-                        Text(filter.title)
-                    }
+        // Menu 不当按钮用（设计准则）→ 原生 Picker 弹出菜单，选中态由系统打勾。
+        HStack(spacing: 6) {
+            Image(systemName: "line.3.horizontal.decrease.circle")
+                .foregroundStyle(.secondary)
+            Picker("", selection: Binding(
+                get: { filter(for: category) },
+                set: { setFilter($0, for: category) }
+            )) {
+                ForEach(ActivityTaskFilter.allCases) { filter in
+                    Text(filter.title).tag(filter)
                 }
             }
-        } label: {
-            Label(filter(for: category).title, systemImage: "line.3.horizontal.decrease.circle")
-                .labelStyle(.titleAndIcon)
+            .labelsHidden()
+            .fixedSize()
         }
-        .menuStyle(.button)
-        .fixedSize()
     }
 
     private var activitySettingsView: some View {
@@ -187,7 +187,8 @@ struct ActivityView: View {
                 SettingsControlRow(
                     title: L10n.text("tasks.settings.historyLimit"),
                     description: L10n.text("tasks.settings.historyLimit.description"),
-                    systemImage: "clock"
+                    systemImage: "clock",
+                    iconTint: .purple
                 ) {
                     HStack(spacing: 8) {
                         Text(L10n.format("tasks.settings.historyLimit.value", historyLimit))
@@ -205,7 +206,8 @@ struct ActivityView: View {
                 SettingsControlRow(
                     title: L10n.text("tasks.settings.openOnFailure"),
                     description: L10n.text("tasks.settings.openOnFailure.description"),
-                    systemImage: "exclamationmark.bubble"
+                    systemImage: "exclamationmark.bubble",
+                    iconTint: .orange
                 ) {
                     Toggle("", isOn: $openOnFailure)
                         .labelsHidden()
@@ -215,7 +217,8 @@ struct ActivityView: View {
                 SettingsControlRow(
                     title: L10n.text("tasks.settings.playSound"),
                     description: L10n.text("tasks.settings.playSound.description"),
-                    systemImage: "speaker.wave.2"
+                    systemImage: "speaker.wave.2",
+                    iconTint: .pink
                 ) {
                     Toggle("", isOn: $playSound)
                         .labelsHidden()
@@ -225,7 +228,8 @@ struct ActivityView: View {
                 SettingsControlRow(
                     title: L10n.text("tasks.settings.clearHistory"),
                     description: L10n.text("tasks.settings.clearHistory.description"),
-                    systemImage: "trash"
+                    systemImage: "trash",
+                    iconTint: .red
                 ) {
                     Button(role: .destructive) {
                         taskCenter.clearHistory()
@@ -243,18 +247,23 @@ struct ActivityView: View {
                 SettingsControlRow(
                     title: L10n.text("tasks.recovery.show"),
                     description: L10n.text("tasks.recovery.show.description"),
-                    systemImage: "externaldrive.badge.timemachine"
+                    systemImage: "externaldrive.badge.timemachine",
+                    iconTint: .teal
                 ) {
-                    Button(L10n.text("tasks.recovery.show.button")) {
+                    Button {
                         try? FileManager.default.createDirectory(at: ArchiveRecoveryArea.directory, withIntermediateDirectories: true)
                         NSWorkspace.shared.activateFileViewerSelecting([ArchiveRecoveryArea.directory])
+                    } label: {
+                        Label(L10n.text("tasks.recovery.show.button"), systemImage: "folder")
+                            .labelStyle(.titleAndIcon)
                     }
                     .buttonStyle(.bordered)
                 }
                 SettingsControlRow(
                     title: L10n.text("tasks.recovery.clear"),
                     description: L10n.text("tasks.recovery.clear.description"),
-                    systemImage: "trash"
+                    systemImage: "trash",
+                    iconTint: .red
                 ) {
                     Button(role: .destructive) {
                         try? ArchiveRecoveryArea.clear()

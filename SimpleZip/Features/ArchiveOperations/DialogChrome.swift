@@ -129,18 +129,23 @@ struct DialogRowLabel: View {
     }
 }
 
-/// 卡片内一级开关行：彩色瓦片 + 标题(可带说明副标题)，**复选框在文字右侧、固定间距贴着文字**
-/// (用户拍板：复选框一律不靠左；也不钉行尾——「就得贴着文字 固定margin」)。
+/// 卡片内一级开关行：彩色瓦片 + 标题(可带说明副标题)，复选框一律不靠左。
+/// 默认**固定间距贴着文字**(创建对话框「使用已保存默认值」拍板)；带宽对齐值列的表单
+/// (如创建 .szs)按需传 `pinsToTrailing: true` 钉到行尾——对齐方式看需求,用户原话。
 struct DialogToggleRow: View {
     let title: String
     var subtitle: String?
     let systemImage: String
     let tint: Color
+    var pinsToTrailing: Bool = false
     @Binding var isOn: Bool
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
             DialogRowLabel(title, subtitle: subtitle, systemImage: systemImage, tint: tint)
+            if pinsToTrailing {
+                Spacer(minLength: 12)
+            }
             Toggle("", isOn: $isOn)
                 .labelsHidden()
         }

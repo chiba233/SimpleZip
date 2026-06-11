@@ -805,11 +805,10 @@ private struct WelcomeSafetyStep: View {
     }
 
     /// 开关行,与上面策略行同构（左图标 + 标题/副文,右侧控件）—— 用户报独立 Toggle+Divider 长相对不上。
+    /// 安全策略页图标 = 圆角矩形瓦片、统一固定红色（用户拍板）。
     private func toggleRow(icon: String, title: String, detail: String, isOn: Binding<Bool>) -> some View {
         HStack(spacing: 12) {
-            Image(systemName: icon)
-                .foregroundStyle(.pink)
-                .frame(width: 18)
+            safetyTile(icon)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.callout.weight(.medium))
@@ -827,9 +826,7 @@ private struct WelcomeSafetyStep: View {
 
     private func policyRow(label: String, selection: Binding<String>) -> some View {
         HStack(spacing: 12) {
-            Image(systemName: "shield.lefthalf.filled")
-                .foregroundStyle(.pink)
-                .frame(width: 18)
+            safetyTile("shield.lefthalf.filled")
             Text(label)
                 .font(.callout.weight(.medium))
             Spacer()
@@ -841,6 +838,17 @@ private struct WelcomeSafetyStep: View {
             .labelsHidden()
             .fixedSize()
         }
+    }
+
+    private func safetyTile(_ icon: String) -> some View {
+        RoundedRectangle(cornerRadius: 6, style: .continuous)
+            .fill(Color.red)
+            .overlay(
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.white)
+            )
+            .frame(width: 22, height: 22)
     }
 }
 
@@ -864,6 +872,7 @@ private struct WelcomeFinderServicesStep: View {
                     title: L10n.text(service.titleKey),
                     description: service.menuName,
                     systemImage: service.systemImage,
+                    iconTint: .blue,
                     isOn: serviceBinding(service)
                 )
             }
