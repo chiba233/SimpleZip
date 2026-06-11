@@ -795,6 +795,9 @@
 "archive.dryRun.packages" = "%1$@ 个包目录（.app 等）";
 "archive.dryRun.volumes" = "至多约 %1$@ 卷（按未压缩大小估算）";
 "archive.dryRun.outputExists" = "输出位置已有同名文件——创建时会进入冲突处理询问。";
+/* 0.4.2 复制等价后端命令 */
+"button.copyCommand.help" = "复制等价的后端命令。口令从不出现在命令行上（经安全通道输入）；路径可能指向本次操作的临时工作目录。";
+
 
 
 

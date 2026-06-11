@@ -261,6 +261,11 @@ struct ActivityTaskRow: View {
             .labelStyle(.titleAndIcon)
     }
 
+    /// 任务日志里的等价后端命令行（BackendProcessRunner 统一打的 `$ ` 前缀行）。
+    private func backendCommandLines(in session: ArchiveOperationDetailsSession) -> [String] {
+        session.rawOutput.components(separatedBy: "\n").filter { $0.hasPrefix("$ ") }
+    }
+
     /// 后端命令详情：实时命令输出文本日志（解压 / 压缩 / 测试）。
     @ViewBuilder
     private func commandOutputDetails(_ session: ArchiveOperationDetailsSession) -> some View {
@@ -269,6 +274,23 @@ struct ActivityTaskRow: View {
                 Text(detailsHeaderTitle)
                     .font(.caption.weight(.semibold))
                 Spacer()
+                // 0.4.2 #20：复制等价后端命令（口令不进 argv 无需脱敏；路径含本次操作的临时工作目录）。
+                let commands = backendCommandLines(in: session)
+                if !commands.isEmpty {
+                    Button {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(commands.map { String($0.dropFirst(2)) }.joined(separator: "\n"), forType: .string)
+                        withAnimation { showsCopiedConfirmation = true }
+                        Task {
+                            try? await Task.sleep(nanoseconds: 2_500_000_000)
+                            withAnimation { showsCopiedConfirmation = false }
+                        }
+                    } label: {
+                        Image(systemName: "terminal")
+                    }
+                    .buttonStyle(.borderless)
+                    .help(L10n.text("button.copyCommand.help"))
+                }
                 Button {
                     Task {
                         await DiagnosticsCopier.copy(session: session, errorMessage: errorMessage)

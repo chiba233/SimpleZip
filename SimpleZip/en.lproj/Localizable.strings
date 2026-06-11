@@ -797,6 +797,9 @@
 "archive.dryRun.packages" = "%1$@ package bundles (.app etc.)";
 "archive.dryRun.volumes" = "At most ~%1$@ volumes (estimated from uncompressed size)";
 "archive.dryRun.outputExists" = "A file with the output name already exists — the conflict dialog will ask.";
+/* 0.4.2 copy equivalent backend command */
+"button.copyCommand.help" = "Copy the equivalent backend command. Passwords never appear on the command line (they go through a secure channel); paths may point at this operation's temporary working directory.";
+
 
 
 

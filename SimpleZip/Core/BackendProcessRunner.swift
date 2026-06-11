@@ -69,6 +69,24 @@ enum BackendProcessRunner {
         activeProcessRegistry.cancelProcess(operationID: operationID)
     }
 
+    // MARK: - 等价命令行（0.4.2 #20）
+
+    /// 本次调用的**等价命令行**（shell 可粘贴）。安全口径：口令从不进 argv（裸 `-p` 走 PTY），
+    /// 所以这里没有任何需要打码的内容；含空白 / 特殊字符的参数加单引号。
+    /// 行首 `$ ` 前缀是任务详情里「复制命令」按钮的提取标记 —— 改动要两头同步。
+    nonisolated static func commandLineDescription(executable: String, arguments: [String]) -> String {
+        let parts = ([executable] + arguments).map(shellQuoted)
+        return "$ " + parts.joined(separator: " ")
+    }
+
+    nonisolated private static func shellQuoted(_ argument: String) -> String {
+        let safeCharacters = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_./=+:!,@%"))
+        if !argument.isEmpty, argument.unicodeScalars.allSatisfy({ safeCharacters.contains($0) }) {
+            return argument
+        }
+        return "'" + argument.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
+
     // MARK: - 同步内部实现
 
     private nonisolated static func runAndCaptureSync(
@@ -81,6 +99,8 @@ enum BackendProcessRunner {
         operationID: UUID?,
         outputRetentionLimit: Int?
     ) throws -> String {
+        // 0.4.2 #20：每次后端调用先把等价命令打进任务详情日志（口令本就不进 argv，无脱敏负担）。
+        outputObserver?(commandLineDescription(executable: executable, arguments: arguments) + "\n")
         switch inputStrategy {
         case .none:
             return try runWithPipe(

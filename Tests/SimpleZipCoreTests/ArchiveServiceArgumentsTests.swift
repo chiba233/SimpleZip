@@ -406,3 +406,20 @@ struct ArchiveCreationDryRunTests {
         #expect(summary.estimatedVolumeCount == 3)   // 5B / 2B → 3 卷
     }
 }
+
+/// 0.4.2 #20:等价命令行的拼装与引号。
+struct CommandLineDescriptionTests {
+
+    @Test func quotesOnlyWhenNeeded() {
+        let line = BackendProcessRunner.commandLineDescription(
+            executable: "/usr/local/bin/7zz",
+            arguments: ["a", "-p", "--", "My Archive.zip", "file's.txt", "plain.txt"]
+        )
+        #expect(line == "$ /usr/local/bin/7zz a -p -- 'My Archive.zip' 'file'\\''s.txt' plain.txt")
+    }
+
+    @Test func emptyArgumentIsQuoted() {
+        let line = BackendProcessRunner.commandLineDescription(executable: "/bin/echo", arguments: [""])
+        #expect(line == "$ /bin/echo ''")
+    }
+}
