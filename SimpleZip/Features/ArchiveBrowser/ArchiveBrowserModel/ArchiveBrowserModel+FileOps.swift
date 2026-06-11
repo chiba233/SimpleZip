@@ -604,6 +604,14 @@ extension ArchiveBrowserModel {
                             Task { @MainActor in operationTask.progress = state }
                         }
                     )
+                    // 0.4.3 #7:按设置(默认关)测试转换产物。加密输出跳过(test 不带口令)。
+                    if AppPreferences.verifyAfterArchiveCreate, convertRequest.targetOptions.password.isEmpty {
+                        operationTask.progress = ArchiveProgressState(
+                            fraction: nil, currentFile: nil,
+                            statusText: L10n.text("tasks.verifyingOutput")
+                        )
+                        try await ArchiveService.test(destination, operationID: operationID)
+                    }
                     operationTask.transferLog = [
                         TransferLogEntry(name: destination.lastPathComponent, action: .added, isDirectory: false)
                     ]

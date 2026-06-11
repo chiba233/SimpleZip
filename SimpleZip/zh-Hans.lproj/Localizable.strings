@@ -663,6 +663,11 @@
 "error.archive.externallyModified" = "「%1$@」在打开后被其他 App 修改过——为避免覆盖那些改动，本次写入已停止。请刷新归档后重试，或把你的修改另存为副本。";
 "status.waitingForArchiveLock" = "正在等待另一个任务写完此归档…";
 "error.insufficientDiskSpace" = "磁盘空间不足：本操作至少需要约 %1$@，当前仅剩 %2$@。请清理空间（或清倒废纸篓）后重试。";
+"settings.verifyAfterRewrite" = "改写归档后验证";
+"settings.verifyAfterRewrite.description" = "编辑条目、批量重命名、清理垃圾或编辑注释后，先测试改写副本再替换原包——坏副本绝不落地。建议保持开启。";
+"settings.verifyAfterCreate" = "创建后测试新归档";
+"settings.verifyAfterCreate.description" = "对新创建或转换出的归档跑一次完整性测试。更稳妥，但大包耗时；加密产物会跳过。";
+"tasks.verifyingOutput" = "正在验证产物…";
 "quit.tasksRunning.title" = "还有 %1$@ 个任务进行中";
 "quit.tasksRunning.message" = "现在退出会打断它们——安全写回保证归档不会损坏，但被打断的操作就白做了。也可以让 SimpleZip 在全部完成后自动退出。";
 "quit.tasksRunning.keepRunning" = "继续任务";

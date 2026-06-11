@@ -17,6 +17,9 @@ struct ArchivePane: View {
     @AppStorage(AppPreferences.Key.suspiciousPathPolicy) private var suspiciousPathPolicy = ArchiveSecurityDecision.ask.rawValue
     @AppStorage(AppPreferences.Key.symbolicLinkPolicy) private var symbolicLinkPolicy = ArchiveSecurityDecision.ask.rawValue
     @AppStorage(AppPreferences.Key.activeContentOpenPolicy) private var activeContentOpenPolicy = ArchiveSecurityDecision.ask.rawValue
+    // 0.4.3 #7:写入后自动验证。改写族(高风险)默认开;创建/转换默认关(大包测试耗时)。
+    @AppStorage(AppPreferences.Key.verifyAfterArchiveRewrite) private var verifyAfterArchiveRewrite = true
+    @AppStorage(AppPreferences.Key.verifyAfterArchiveCreate) private var verifyAfterArchiveCreate = false
 
     /// 「复制 brew 命令」的反馈文案。两个后端共用一个 state，
     /// 因为用户一次只会盯着一处反馈，不需要拆成两份。
@@ -62,6 +65,20 @@ struct ArchivePane: View {
                 description: L10n.text("settings.security.activeContent.description"),
                 systemImage: "checkmark.shield",
                 selection: $activeContentOpenPolicy
+            )
+
+            SettingsToggleRow(
+                title: L10n.text("settings.verifyAfterRewrite"),
+                description: L10n.text("settings.verifyAfterRewrite.description"),
+                systemImage: "checkmark.seal",
+                isOn: $verifyAfterArchiveRewrite
+            )
+
+            SettingsToggleRow(
+                title: L10n.text("settings.verifyAfterCreate"),
+                description: L10n.text("settings.verifyAfterCreate.description"),
+                systemImage: "checkmark.seal.fill",
+                isOn: $verifyAfterArchiveCreate
             )
         }
     }

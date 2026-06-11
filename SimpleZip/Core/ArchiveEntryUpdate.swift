@@ -32,6 +32,29 @@ extension ArchiveService {
         password.isEmpty ? .none : .passwordPrompts(Array(repeating: password, count: 4))
     }
 
+    /// 0.4.3 #7:写后验证 —— **替换原包前**在工作副本上跑 `7zz t`。验证失败抛错 → 原包一字不动,
+    /// 坏副本绝不落地。`verifyOverride`:nil = 按设置(写回验证默认开);测试可显式传定值。
+    private static func verifyWorkCopyIfEnabled(
+        _ workCopy: URL,
+        verifyOverride: Bool?,
+        password: String,
+        operationID: UUID?,
+        outputObserver: (@Sendable (String) -> Void)?
+    ) async throws {
+        guard verifyOverride ?? AppPreferences.verifyAfterArchiveRewrite else { return }
+        let tool = try SevenZipBackend.toolPath()
+        // 读类命令(t/l)的口令口径与写不同:**不带 `-p`**,让 7zz 在 PTY 上自然提问、
+        // passwordPrompts 应答(与 SevenZipBackend.list 同配方;裸 `-p` 在 t 下会被当空口令,实测打不开)。
+        _ = try await BackendProcessRunner.runAndCapture(
+            tool,
+            arguments: ["t", workCopy.path, "-mmt=on"],
+            inputStrategy: password.isEmpty ? .none : .passwordPrompts([password]),
+            outputObserver: outputObserver,
+            operationID: operationID,
+            outputRetentionLimit: BackendProcessRunner.diagnosticsOutputRetentionLimit
+        )
+    }
+
     /// 一个归档是否可被 SimpleZip 安全地「加 / 替换条目」—— 仅 **zip / 7z**(7zz 可写)且 7zz 可用。
     /// TAR 系 / DMG / RAR(7zz 不可写)/ GPG 容器 都不开放(返回 false),调用方据此决定是否给「拖入 / 写回」入口。
     public static func supportsEntryUpdate(_ archiveURL: URL) -> Bool {
@@ -56,7 +79,8 @@ extension ArchiveService {
         operationID: UUID? = nil,
         outputObserver: (@Sendable (String) -> Void)? = nil,
         expectedStamp: FileStateStamp? = nil,
-        onWaitForLock: (@Sendable () -> Void)? = nil
+        onWaitForLock: (@Sendable () -> Void)? = nil,
+        verifyAfterWrite: Bool? = nil
     ) async throws {
         guard !additions.isEmpty else { return }
         guard supportsEntryUpdate(archiveURL) else {
@@ -129,6 +153,8 @@ extension ArchiveService {
 
         // 4) 工作副本现在是「更新后的归档」→ 原子替换原包。失败前原包始终是旧的完整包。
         // 替换前最后核对:干活期间原包被外部改过就放弃(否则会覆盖外部改动)。
+        try await verifyWorkCopyIfEnabled(workCopy, verifyOverride: verifyAfterWrite, password: password,
+                                          operationID: operationID, outputObserver: outputObserver)
         try preWorkStamp.ensureUnchanged(at: archiveURL)
         _ = try fm.replaceItemAt(archiveURL, withItemAt: workCopy)
         ArchiveService.notifyArchiveRewritten(archiveURL)
@@ -143,7 +169,8 @@ extension ArchiveService {
         operationID: UUID? = nil,
         outputObserver: (@Sendable (String) -> Void)? = nil,
         expectedStamp: FileStateStamp? = nil,
-        onWaitForLock: (@Sendable () -> Void)? = nil
+        onWaitForLock: (@Sendable () -> Void)? = nil,
+        verifyAfterWrite: Bool? = nil
     ) async throws {
         guard !entryPaths.isEmpty else { return }
         guard supportsEntryUpdate(archiveURL) else {
@@ -192,6 +219,8 @@ extension ArchiveService {
             outputRetentionLimit: BackendProcessRunner.diagnosticsOutputRetentionLimit
         )
 
+        try await verifyWorkCopyIfEnabled(workCopy, verifyOverride: verifyAfterWrite, password: password,
+                                          operationID: operationID, outputObserver: outputObserver)
         try preWorkStamp.ensureUnchanged(at: archiveURL)
         _ = try fm.replaceItemAt(archiveURL, withItemAt: workCopy)
         ArchiveService.notifyArchiveRewritten(archiveURL)
@@ -207,7 +236,8 @@ extension ArchiveService {
         operationID: UUID? = nil,
         outputObserver: (@Sendable (String) -> Void)? = nil,
         expectedStamp: FileStateStamp? = nil,
-        onWaitForLock: (@Sendable () -> Void)? = nil
+        onWaitForLock: (@Sendable () -> Void)? = nil,
+        verifyAfterWrite: Bool? = nil
     ) async throws {
         guard supportsEntryUpdate(archiveURL) else {
             throw ArchiveError.commandFailed("This archive format does not support renaming entries.")
@@ -256,6 +286,8 @@ extension ArchiveService {
             outputRetentionLimit: BackendProcessRunner.diagnosticsOutputRetentionLimit
         )
 
+        try await verifyWorkCopyIfEnabled(workCopy, verifyOverride: verifyAfterWrite, password: password,
+                                          operationID: operationID, outputObserver: outputObserver)
         try preWorkStamp.ensureUnchanged(at: archiveURL)
         _ = try fm.replaceItemAt(archiveURL, withItemAt: workCopy)
         ArchiveService.notifyArchiveRewritten(archiveURL)
@@ -270,7 +302,8 @@ extension ArchiveService {
         operationID: UUID? = nil,
         outputObserver: (@Sendable (String) -> Void)? = nil,
         expectedStamp: FileStateStamp? = nil,
-        onWaitForLock: (@Sendable () -> Void)? = nil
+        onWaitForLock: (@Sendable () -> Void)? = nil,
+        verifyAfterWrite: Bool? = nil
     ) async throws {
         guard supportsEntryUpdate(archiveURL) else {
             throw ArchiveError.commandFailed("This archive format does not support renaming entries.")
@@ -325,6 +358,8 @@ extension ArchiveService {
             outputRetentionLimit: BackendProcessRunner.diagnosticsOutputRetentionLimit
         )
 
+        try await verifyWorkCopyIfEnabled(workCopy, verifyOverride: verifyAfterWrite, password: password,
+                                          operationID: operationID, outputObserver: outputObserver)
         try preWorkStamp.ensureUnchanged(at: archiveURL)
         _ = try fm.replaceItemAt(archiveURL, withItemAt: workCopy)
         ArchiveService.notifyArchiveRewritten(archiveURL)

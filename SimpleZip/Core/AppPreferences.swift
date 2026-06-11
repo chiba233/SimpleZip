@@ -333,6 +333,9 @@ enum AppPreferences {
         nonisolated static let tasksOpenOnFailure = "tasksOpenOnFailure"
         nonisolated static let tasksPlaySoundOnFinish = "tasksPlaySoundOnFinish"
         nonisolated static let collapseVolumeSets = "collapseVolumeSets"
+        // 0.4.3 #7:写入后自动验证(改写族默认开 / 创建与转换默认关)。
+        nonisolated static let verifyAfterArchiveRewrite = "verifyAfterArchiveRewrite"
+        nonisolated static let verifyAfterArchiveCreate = "verifyAfterArchiveCreate"
 
         // GPG 集成主开关 —— 关 → 创建 / 解压 / 状态徽章里所有 GPG 入口隐藏；设置 pane 始终可见让用户能开它。
         nonisolated static let gpgEnabled = "gpgEnabled"
@@ -377,6 +380,17 @@ enum AppPreferences {
     /// 0.4.2 #4:文件浏览里把分卷家族(.001/.002…)折叠成首卷一行(默认开,View 菜单可关)。
     nonisolated static var collapseVolumeSets: Bool {
         defaultTrueBool(forKey: Key.collapseVolumeSets)
+    }
+
+    /// 0.4.3 #7:归档**改写**(增删改条目 / 批量重命名 / 清理垃圾)后,替换原包前先在工作副本上
+    /// 跑 `7zz t` 验证 —— 验证失败原包不动。高风险操作,默认开。
+    nonisolated static var verifyAfterArchiveRewrite: Bool {
+        defaultTrueBool(forKey: Key.verifyAfterArchiveRewrite)
+    }
+
+    /// 0.4.3 #7:创建 / 格式转换产出新包后自动测试产物。普通创建风险低、大包测试耗时,默认关。
+    nonisolated static var verifyAfterArchiveCreate: Bool {
+        defaults.bool(forKey: Key.verifyAfterArchiveCreate)
     }
 
     nonisolated static var activityHistoryLimit: Int {
@@ -888,6 +902,8 @@ enum AppPreferences {
         Key.tasksOpenOnFailure,
         Key.tasksPlaySoundOnFinish,
         Key.collapseVolumeSets,
+        Key.verifyAfterArchiveRewrite,
+        Key.verifyAfterArchiveCreate,
         Key.appLanguage,
         Key.startupLocation,
         Key.startupCustomLocationPath,
@@ -990,6 +1006,8 @@ enum AppPreferences {
         v[Key.tasksOpenOnFailure] = tasksOpenOnFailure
         v[Key.tasksPlaySoundOnFinish] = tasksPlaySoundOnFinish
         v[Key.collapseVolumeSets] = collapseVolumeSets
+        v[Key.verifyAfterArchiveRewrite] = verifyAfterArchiveRewrite
+        v[Key.verifyAfterArchiveCreate] = verifyAfterArchiveCreate
         // 启动 / 语言
         v[Key.appLanguage] = appLanguage.rawValue
         v[Key.startupLocation] = startupLocation.rawValue

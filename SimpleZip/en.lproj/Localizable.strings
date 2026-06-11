@@ -665,6 +665,11 @@
 "error.archive.externallyModified" = "“%1$@” was modified by another app after it was opened — this change was not written, to avoid overwriting those edits. Refresh the archive and try again, or save your work as a copy.";
 "status.waitingForArchiveLock" = "Waiting for another task to finish writing this archive…";
 "error.insufficientDiskSpace" = "Not enough free disk space: this operation needs about %1$@, but only %2$@ is available. Free up space (or empty the Trash) and try again.";
+"settings.verifyAfterRewrite" = "Verify archive after rewriting";
+"settings.verifyAfterRewrite.description" = "After editing entries, batch renaming, cleaning junk or editing the comment, test the rewritten copy before it replaces the original — a corrupt result never lands. Recommended.";
+"settings.verifyAfterCreate" = "Test new archives after creating";
+"settings.verifyAfterCreate.description" = "Run a full integrity test on newly created or converted archives. Thorough but can take a while on large archives; encrypted outputs are skipped.";
+"tasks.verifyingOutput" = "Verifying the result…";
 "quit.tasksRunning.title" = "%1$@ task(s) still running";
 "quit.tasksRunning.message" = "Quitting now interrupts them — safe write-back guarantees no archive is damaged, but the interrupted work is lost. You can also let SimpleZip quit by itself once everything finishes.";
 "quit.tasksRunning.keepRunning" = "Keep Running";

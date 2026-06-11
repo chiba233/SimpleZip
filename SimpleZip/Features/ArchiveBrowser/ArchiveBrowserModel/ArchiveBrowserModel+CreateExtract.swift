@@ -383,8 +383,12 @@ extension ArchiveBrowserModel {
                     self.finishReplaceIfDifferent(produced: finalDestination, existing: existing)
                 }
             }
-        ) { operationID, progress, outputObserver in
+        ) { [request] operationID, progress, outputObserver in
             try await ArchiveCreationService.run(request, operationID: operationID, progress: progress, outputObserver: outputObserver)
+            // 0.4.3 #7:按设置(默认关)测试刚创建的产物。加密包(test 不带口令)和 .siz(另有验签)跳过。
+            if AppPreferences.verifyAfterArchiveCreate, request.options.password.isEmpty, !request.options.gpgSign {
+                try await ArchiveService.test(finalDestination, operationID: operationID, outputObserver: outputObserver)
+            }
         }
     }
 

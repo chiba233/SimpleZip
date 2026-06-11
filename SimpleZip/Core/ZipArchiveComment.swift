@@ -29,6 +29,8 @@ enum ZipArchiveCommentError: Error, Equatable {
     case eocdNotFound
     /// 注释 UTF-8 字节数超过 ZIP 格式上限 65535。
     case commentTooLong(Int)
+    /// 0.4.3 #7:写后回读验证失败 —— 临时副本的注释区解析结果与刚写入的不一致(绝不替换原包)。
+    case verificationFailed
 }
 
 enum ZipArchiveComment {
@@ -125,6 +127,13 @@ enum ZipArchiveComment {
         } catch {
             try? handle.close()
             throw error
+        }
+
+        // 0.4.3 #7:写后验证 —— 替换前在**临时副本**上回读 EOCD,确认注释区可解析且与写入一致;
+        // 失败则不替换,原包不动。微秒级开销,无条件做。
+        let written = try readComment(at: temporary)
+        guard written == comment else {
+            throw ZipArchiveCommentError.verificationFailed
         }
 
         _ = try fileManager.replaceItemAt(url, withItemAt: temporary)
