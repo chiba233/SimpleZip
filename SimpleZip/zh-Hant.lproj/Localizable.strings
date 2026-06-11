@@ -1675,3 +1675,64 @@
 "settings.finderService.hash" = "計算雜湊";
 "settings.finderExtension.register" = "立即重新註冊";
 "settings.finderExtension.registered" = "已重新註冊 Finder 服務。若右鍵選單仍未出現，請新開一個 Finder 視窗，或登出後重新登入。";
+
+/* 0.4.2 write-back, checksum, safety */
+"error.archive.externallyModified" = "「%1$@」在開啟後已被其他 App 修改；為避免覆蓋那些改動，本次寫入已停止。請重新整理歸檔後再試，或將你的修改另存為副本。";
+"status.waitingForArchiveLock" = "正在等待另一個任務寫完此歸檔…";
+"error.insufficientDiskSpace" = "磁碟空間不足：本操作至少需要約 %1$@，目前僅剩 %2$@。請清理空間（或清倒垃圾桶）後再試。";
+"settings.verifyAfterRewrite" = "改寫歸檔後驗證";
+"settings.verifyAfterRewrite.description" = "編輯項目、批次重新命名、清理垃圾或編輯註解後，先測試改寫副本再取代原檔；損壞的結果絕不會落地。建議保持開啟。";
+"settings.verifyAfterCreate" = "建立後測試新歸檔";
+"settings.verifyAfterCreate.description" = "對新建立或轉換出的歸檔執行一次完整性測試。更穩妥，但大型歸檔可能耗時；加密輸出會略過。";
+"tasks.verifyingOutput" = "正在驗證結果…";
+"error.rewritePreserved" = "%1$@\n\n本次改寫的成品已保留為復原副本：\n%2$@\n可直接把它當作你這次編輯的另存副本使用；復原區可在 活動中心 → 設定 中顯示或清理。";
+"tasks.undoRedoSection" = "復原與重做";
+"tasks.undoRedo.generic" = "檔案操作";
+"tasks.undo.title" = "已復原：%1$@";
+"tasks.redo.title" = "已重做：%1$@";
+"tasks.recovery.section" = "寫回復原區";
+"tasks.recovery.show" = "復原檔案";
+"tasks.recovery.show.description" = "寫回失敗時保全的工作副本（外部改動攔截保留的是你完成的編輯成果；驗證失敗保留的是診斷樣本）。";
+"tasks.recovery.show.button" = "在 Finder 中顯示";
+"tasks.recovery.clear" = "清理復原區";
+"tasks.recovery.clear.description" = "刪除全部保全的復原副本。成功的操作從不會在這裡留下檔案。";
+"tasks.recovery.clear.button" = "刪除 %1$@ 個檔案";
+"archive.reproducible" = "可重現壓縮";
+"archive.reproducible.hint" = "不儲存修改時間；同一輸入每次打包都會得到位元組完全一致的歸檔（同一個 SHA-256）。適合 GitHub Release 和可驗證建置。解壓時項目時間會顯示為 1980-01-01。僅限 ZIP 與 7z。";
+"extract.skipSymlinks" = "不解壓符號連結";
+"extract.skipSymlinks.detail" = "合併前會在 staging 輸出中刪除所有符號連結；來自其他系統的包，其連結常指向本機不存在的路徑。上方預檢概要會顯示歸檔內的連結數量。";
+"checksum.generate.menu" = "產生 SHA256SUMS";
+"checksum.verify.menu" = "驗證校驗檔案";
+"checksum.export.button" = "匯出 SHA256SUMS";
+"checksum.generate.taskTitle" = "正在為 %1$@ 個檔案產生 SHA256SUMS";
+"checksum.generate.done" = "已寫入 %1$@";
+"checksum.verify.taskTitle" = "正在驗證 %1$@";
+"checksum.verify.unreadable" = "無法將校驗檔案作為文字讀取。";
+"checksum.verify.noEntries" = "未辨識出任何校驗記錄；支援 GNU（sha256sum）、BSD、SFV 與單一 digest sidecar 格式。";
+"checksum.verify.unsafePath" = "校驗檔案中的路徑不安全；已略過";
+"checksum.verify.missing" = "找不到檔案";
+"checksum.verify.mismatch" = "%1$@ digest 不相符";
+"checksum.verify.allPassed" = "全部 %1$@ 條校驗已通過";
+"checksum.verify.failures" = "%2$@ 條校驗中有 %1$@ 條未通過；詳見活動中心的任務詳細資訊";
+"quit.tasksRunning.title" = "仍有 %1$@ 個任務執行中";
+"quit.tasksRunning.message" = "現在結束會中斷它們；安全寫回可確保歸檔不會損壞，但被中斷的工作會遺失。你也可以讓 SimpleZip 在全部完成後自動結束。";
+"quit.tasksRunning.keepRunning" = "繼續任務";
+"quit.tasksRunning.afterTasks" = "任務完成後結束";
+"quit.tasksRunning.quitNow" = "立即結束";
+"extract.preflight.lowSpace" = "目標卷空間可能不足；解壓至少需要約 %1$@，目前僅剩 %2$@";
+"security.kind.normalizationCollision" = "Unicode 正規化衝突";
+"security.kind.normalizationCollision.desc" = "名稱看起來完全相同、但使用不同 Unicode 位元組形式（NFC 與 NFD；macOS 與 Windows/Linux 來源混用的 ZIP 常見）的項目。在另一平台解壓時可能得到兩個「同名」檔案，或其中一個被靜默覆蓋。";
+"security.kind.windowsReservedName" = "Windows 保留名稱";
+"security.kind.windowsReservedName.desc" = "CON、PRN、AUX、NUL、COM1–9、LPT1–9（不論是否帶副檔名）在 Windows 上都無法建立；此歸檔在 Windows 解壓會失敗。";
+"security.kind.trailingSpaceOrDot" = "尾端空格或點";
+"security.kind.trailingSpaceOrDot.desc" = "Windows 會剝除名稱尾端的空格和點，因此這些項目在 Windows 解壓時會被重新命名或彼此衝突。";
+
+/* 0.4.2 help metadata */
+"help.topic.metadata.title" = "macOS 中繼資料：進了壓縮包還剩什麼";
+"help.topic.metadata.body" = "• Unix 權限（讀/寫/執行位元）在 ZIP、7z、tar 中都會保留；已用內建引擎實測往返。\n• 延伸屬性——Finder 標籤、com.apple.quarantine、resource fork、自訂 xattr——**tar / tar.gz 會完整保留**（系統 tar 負責存取，連隔離標記都會原樣還原），但 SimpleZip 建立的 **ZIP 和 7z 不保留**：7-Zip 引擎不會儲存這些。\n• Finder「封存工具程式」建立的 ZIP 會把 Mac 中繼資料存成 __MACOSX / ._AppleDouble 項目。SimpleZip 的「清理 macOS 垃圾」刪的正是這些項目；跨平台分享很有用，但代價是有意丟棄那些檔案的 Mac 中繼資料。\n• 修改時間各格式都會儲存（「可重現壓縮」選項會刻意移除）；建立時間、存取時間和 ACL 任何格式都不保證保留。\n• 經驗法則：發給其他 Mac → tar.gz 什麼都在；發給全世界 → ZIP + 清理垃圾。";
+
+/* 0.4.2 dev tools self-test */
+"devtools.section.selfTest" = "自檢樣本";
+"devtools.selfTest.run" = "執行自檢樣本";
+"devtools.selfTest.allPassed" = "全部 %1$@ 個樣本通過";
+"devtools.selfTest.failures" = "%2$@ 個樣本中有 %1$@ 個未通過";

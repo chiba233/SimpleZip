@@ -19,6 +19,9 @@ struct DevToolsView: View {
     @State private var sevenZipVersion = "…"
     @State private var rarVersion = "…"
     @State private var actionFeedback: String?
+    // 0.4.3 #12:自检样本结果(运行时现造恶意样本对真实后端断言)。
+    @State private var sampleResults: [SelfTestSampleRunner.SampleResult] = []
+    @State private var isRunningSamples = false
 
     private var appVersionLine: String {
         let short = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
@@ -85,6 +88,47 @@ struct DevToolsView: View {
                                 NSPasteboard.general.clearContents()
                                 NSPasteboard.general.setString(report, forType: .string)
                                 flash(L10n.text("devtools.feedback.reportCopied"))
+                            }
+                        }
+                    }
+
+                    // 0.4.3 #12:自检样本库 —— 现造路径逃逸 / 加密 / 损坏 / 缺分卷等样本,
+                    // 对装进 app 的真实后端逐项断言,发版前确认安全逻辑没回归。
+                    DialogSection(L10n.text("devtools.section.selfTest")) {
+                        HStack {
+                            Button {
+                                isRunningSamples = true
+                                sampleResults = []
+                                Task { @MainActor in
+                                    sampleResults = await SelfTestSampleRunner.runAll()
+                                    isRunningSamples = false
+                                }
+                            } label: {
+                                Label(L10n.text("devtools.selfTest.run"), systemImage: "stethoscope")
+                            }
+                            .disabled(isRunningSamples)
+                            if isRunningSamples {
+                                ProgressView().controlSize(.small)
+                            } else if !sampleResults.isEmpty {
+                                let failed = sampleResults.filter { !$0.passed }.count
+                                Text(failed == 0
+                                     ? L10n.format("devtools.selfTest.allPassed", "\(sampleResults.count)")
+                                     : L10n.format("devtools.selfTest.failures", "\(failed)", "\(sampleResults.count)"))
+                                    .font(.caption)
+                                    .foregroundStyle(failed == 0 ? Color.green : Color.red)
+                            }
+                        }
+                        ForEach(sampleResults) { result in
+                            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                                Image(systemName: result.passed ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                    .foregroundStyle(result.passed ? Color.green : Color.red)
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(result.name).font(.caption)
+                                    Text(result.detail)
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                        .textSelection(.enabled)
+                                }
                             }
                         }
                     }

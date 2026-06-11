@@ -682,6 +682,10 @@
 "tasks.recovery.clear" = "Clear recovery area";
 "tasks.recovery.clear.description" = "Deletes all preserved recovery copies. Successful operations never leave files here.";
 "tasks.recovery.clear.button" = "Delete %1$@ file(s)";
+"devtools.section.selfTest" = "Self-Test Samples";
+"devtools.selfTest.run" = "Run Self-Test Samples";
+"devtools.selfTest.allPassed" = "All %1$@ samples passed";
+"devtools.selfTest.failures" = "%1$@ of %2$@ samples FAILED";
 "archive.reproducible" = "Reproducible archive";
 "archive.reproducible.hint" = "Don't store modification times — the same input produces a byte-identical archive (same SHA-256) every time. Great for GitHub releases and verifiable builds. Entry times read as 1980-01-01 when extracted. ZIP and 7z only.";
 "extract.skipSymlinks" = "Don't extract symbolic links";

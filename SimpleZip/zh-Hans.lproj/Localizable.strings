@@ -680,6 +680,10 @@
 "tasks.recovery.clear" = "清理恢复区";
 "tasks.recovery.clear.description" = "删除全部保全的恢复副本。成功的操作从不在这里留文件。";
 "tasks.recovery.clear.button" = "删除 %1$@ 个文件";
+"devtools.section.selfTest" = "自检样本";
+"devtools.selfTest.run" = "运行自检样本";
+"devtools.selfTest.allPassed" = "全部 %1$@ 个样本通过";
+"devtools.selfTest.failures" = "%2$@ 个样本中有 %1$@ 个未通过";
 "archive.reproducible" = "可复现压缩";
 "archive.reproducible.hint" = "不存修改时间——同一输入每次打包都得到字节级一致的归档（同一个 SHA-256）。适合 GitHub Release 和可验证构建。解压时条目时间显示为 1980-01-01。仅 ZIP 与 7z。";
 "extract.skipSymlinks" = "不解压符号链接";
