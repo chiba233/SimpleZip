@@ -4,6 +4,7 @@
 
 ## 0.4.2 (unreleased)
 
+- **UI: the Activity Center toolbar button sits in its own glass cluster**, separated from the archive-action buttons (Add/Extract/Test/Hash/Reveal) — it opens a window-level panel rather than acting on the archive, so it gets the same adjacent-but-independent capsule treatment as the contextual pair.
 - **Fix: clicking blank space now dismisses text-field focus, app-wide.** Input fields (Batch Rename was the repeat offender, but every dialog had it) kept their focus no matter where you clicked. A single app-level mouse monitor now commits and unfocuses the active text field whenever a click lands outside it — the Finder behavior — in every window and sheet, current and future.
 - **Fix: "View Report" is no longer permanently grayed out.** The path security report used to be openable only while the archive actually had suspicious entries — for every clean archive the Actions-menu item (and the contextual toolbar button) stayed disabled forever, so it looked useless. It is now available whenever an archive is open: clean archives get an explicit green all-clear report listing what was checked, suspicious ones keep the orange findings view. The report also joins the archive view's blank-area right-click menu (next to duplicate detection, for editable and read-only archives alike) — it used to be reachable only from the contextual toolbar and the Actions menu.
 - **UI: the About acknowledgement cards (7-Zip / GnuPG / Sparkle) are equal height now** instead of each card following its own caption's line count.

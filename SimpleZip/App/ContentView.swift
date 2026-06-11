@@ -190,7 +190,15 @@ struct ContentView: View {
                         Label(L10n.text("button.reveal"), systemImage: "arrow.up.forward.app")
                     }
                     .help(L10n.text("button.reveal"))
+                }
 
+                // 活动中心独立成簇（用户点名）：它是「窗口级面板」不是档案操作,
+                // 与上下文双操作同款 —— ToolbarSpacer(.fixed) 拆出相邻但独立的玻璃囊。
+                if #available(macOS 26.0, *) {
+                    ToolbarSpacer(.fixed, placement: .primaryAction)
+                }
+
+                ToolbarItemGroup(placement: .primaryAction) {
                     Button(action: { ActivityWindowController.shared.show() }) {
                         Label(L10n.text("button.activityCenter"), systemImage: "list.bullet.rectangle")
                     }
