@@ -45,6 +45,8 @@ struct GPGPane: View {
     @State private var keyFilterText = ""
     /// 拖进面板待导入的密钥文件 —— 非空时弹「导入到哪个钥匙串」确认对话框(别静默污染 ~/.gnupg)。
     @State private var pendingDroppedKeyURLs: [URL] = []
+    /// 剪贴板导入的「选目标钥匙串」对话框。
+    @State private var showsClipboardImportDialog = false
 
     // 密钥服务器(keys.openpgp.org)搜索状态。
     @State private var keyserverQuery = ""
@@ -334,7 +336,7 @@ struct GPGPane: View {
                     Button {
                         isShowingNewKeySheet = true
                     } label: {
-                        Label(L10n.text("settings.gpg.newKey.button"), systemImage: "plus.circle.fill")
+                        Label(L10n.text("settings.gpg.newKey.button"), systemImage: "plus")
                     }
                     Button {
                         importKey(into: .userKeyring)
@@ -350,19 +352,24 @@ struct GPGPane: View {
                 }
                 HStack(spacing: 10) {
                     // 剪贴板导入 —— 收到别人贴来的 armored 公钥块时不必先存盘(GPG Keychain 同款便利)。
-                    // .menuStyle(.button) 让它渲染成普通按钮(默认 pull-down 样式在 Form 行里贴边发虚)。
-                    Menu {
+                    // 普通按钮 + 选环确认对话框(与拖放导入同款 UX)—— Menu 在这里渲染破碎(图标文字出框),用户拍丑。
+                    Button {
+                        showsClipboardImportDialog = true
+                    } label: {
+                        Label(L10n.text("settings.gpg.keys.clipboardMenu"), systemImage: "doc.on.clipboard")
+                    }
+                    .confirmationDialog(
+                        L10n.text("settings.gpg.keys.clipboardMenu"),
+                        isPresented: $showsClipboardImportDialog
+                    ) {
                         Button(L10n.text("settings.gpg.keys.clipboardImportUser")) {
                             importFromClipboard(into: .userKeyring)
                         }
                         Button(L10n.text("settings.gpg.keys.clipboardImportSimpleZip")) {
                             importFromClipboard(into: .simpleZipKeyring)
                         }
-                    } label: {
-                        Label(L10n.text("settings.gpg.keys.clipboardMenu"), systemImage: "doc.on.clipboard")
+                        Button(L10n.text("button.cancel"), role: .cancel) {}
                     }
-                    .menuStyle(.button)
-                    .fixedSize()
                     if gpgSmartcardEnabled {
                         Button {
                             importFromSmartcard()
@@ -381,6 +388,8 @@ struct GPGPane: View {
                     Spacer()
                 }
             }
+            // 统一按钮外观:全部 bordered + 描线图标(混用 .fill 实心图标会出现黑块,用户拍丑)。
+            .buttonStyle(.bordered)
             .padding(.vertical, 4)
 
             // 两个导入入口的区别说明 —— 用户反馈光看按钮名不知道差异（目录不同 / 私有钥匙串在应用内 / 不污染命令行 gpg）。
