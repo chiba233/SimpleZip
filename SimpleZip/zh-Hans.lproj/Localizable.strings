@@ -777,6 +777,15 @@
 "inspect.symlinks.some" = "%1$@ 个符号链接";
 "inspect.comment.present" = "带归档注释";
 "inspect.comment.none" = "无归档注释";
+/* 0.4.2 内置归档模板 */
+"archive.template.menu" = "套用模板";
+"template.githubRelease" = "发 GitHub Release 的 ZIP";
+"template.windowsFriendly" = "给 Windows 用户的 ZIP";
+"template.max7z" = "最大压缩 7z";
+"template.encryptedDelivery" = "加密投递包（7z）";
+"template.sourceCode" = "源码包（排除 node_modules/.git）";
+"template.backup" = "备份包（保留链接、快速）";
+
 
 
 

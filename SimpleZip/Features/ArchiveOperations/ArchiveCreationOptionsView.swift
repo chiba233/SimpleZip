@@ -34,6 +34,8 @@ struct ArchiveCreationOptionsView: View {
     /// 「使用本格式默认值」复选框。有模板时默认勾上 = 套用模板值 + 隐藏模板已配的那些选项；
     /// 取消勾选则恢复显示全部选项（值不回滚，用户可继续手改）。
     @State private var useFormatDefaults = false
+    /// 0.4.2 #17：套模板改格式时跳过一次「按格式默认值」重套 —— 模板优先于格式默认值。
+    @State private var suppressFormatDefaultsOnce = false
     private let compressionDefaultsStore = CompressionDefaultsStore()
     let create: (ArchiveCreationRequest) -> Void
     let cancel: () -> Void
@@ -43,6 +45,41 @@ struct ArchiveCreationOptionsView: View {
     /// 某选项是否被本格式模板接管而应在创建对话框里隐藏 —— 勾了「使用默认值」且该字段在模板里。
     private func hidden(_ field: CompressionOptionField) -> Bool {
         useFormatDefaults && (formatDefaultsPreset?.includedFields.contains(field) ?? false)
+    }
+
+    /// 0.4.2 #17：内置任务模板菜单 —— 一键套常见场景（GitHub Release ZIP / Windows 友好 ZIP /
+    /// 最大压缩 7z / 加密投递包 / 源码包 / 备份包）。只动通用选项；密码 / GPG / 名字目的地保留。
+    @ViewBuilder
+    private var templateMenuRow: some View {
+        HStack {
+            Menu {
+                ForEach(CompressionPreset.builtInTemplates()) { template in
+                    Button(template.name) { applyBuiltInTemplate(template) }
+                }
+            } label: {
+                Label(L10n.text("archive.template.menu"), systemImage: "wand.and.stars")
+            }
+            .fixedSize()
+            Spacer()
+        }
+    }
+
+    private func applyBuiltInTemplate(_ template: CompressionPreset) {
+        var options = template.options
+        // 逐次字段不受模板影响：密码区 / 详情开关 / GPG 配置都保留用户当前所填。
+        options.password = request.options.password
+        options.passwordConfirmation = request.options.passwordConfirmation
+        options.showPassword = request.options.showPassword
+        options.showDetails = request.options.showDetails
+        options.gpgSign = request.options.gpgSign
+        options.gpgSigningKeyFingerprint = request.options.gpgSigningKeyFingerprint
+        options.gpgRecipientFingerprints = request.options.gpgRecipientFingerprints
+        options.gpgSymmetricPassphrase = request.options.gpgSymmetricPassphrase
+        options.gpgDeliveryNote = request.options.gpgDeliveryNote
+        // 模板优先：若格式因此切换，跳过那一次「按格式默认值」重套；同格式时直接关掉默认值接管。
+        suppressFormatDefaultsOnce = options.format != request.options.format
+        useFormatDefaults = false
+        request.options = options
     }
 
     /// 重新读取当前格式的模板：有启用且非空的就缓存 + 默认勾选 + 立即套用；否则清空。
@@ -73,6 +110,7 @@ struct ArchiveCreationOptionsView: View {
             ScrollViewReader { scrollProxy in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 18) {
+                        templateMenuRow
                         basicsSection
                         if request.options.format.supportsPassword {
                             passwordSection
@@ -158,7 +196,14 @@ struct ArchiveCreationOptionsView: View {
                 request.options.gpgSign = false
             }
             // 切换格式 → 重新取新格式的默认值模板(有就默认勾上并套用,没有就隐藏复选框)。
-            reloadFormatDefaults()
+            // 0.4.2 #17:刚套完内置模板的那次格式切换除外 —— 模板的值优先,不被默认值盖掉。
+            if suppressFormatDefaultsOnce {
+                suppressFormatDefaultsOnce = false
+                formatDefaultsPreset = compressionDefaultsStore.preset(for: request.options.format)
+                useFormatDefaults = false
+            } else {
+                reloadFormatDefaults()
+            }
         }
         .onAppear {
             presetPassword = AppPreferences.presetPassword

@@ -779,6 +779,15 @@
 "inspect.symlinks.some" = "%1$@ symbolic links";
 "inspect.comment.present" = "Has an archive comment";
 "inspect.comment.none" = "No archive comment";
+/* 0.4.2 built-in archive templates */
+"archive.template.menu" = "Apply Template";
+"template.githubRelease" = "GitHub Release ZIP";
+"template.windowsFriendly" = "ZIP for Windows users";
+"template.max7z" = "Maximum-compression 7z";
+"template.encryptedDelivery" = "Encrypted delivery (7z)";
+"template.sourceCode" = "Source code (excl. node_modules/.git)";
+"template.backup" = "Backup (keep links, fast)";
+
 
 
 

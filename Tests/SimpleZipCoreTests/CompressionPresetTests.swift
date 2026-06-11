@@ -249,3 +249,26 @@ struct CompressionPresetTests {
         #expect(restored.format == .sevenZip)
     }
 }
+
+/// 0.4.2 #17:内置任务模板的关键事实。
+struct BuiltInTemplateTests {
+
+    @Test func templatesNeverCarrySecrets() {
+        for template in CompressionPreset.builtInTemplates() {
+            #expect(template.options.password.isEmpty)
+            #expect(template.options.gpgSymmetricPassphrase.isEmpty)
+            #expect(template.options.gpgRecipientFingerprints.isEmpty)
+        }
+    }
+
+    @Test func templateKeyFacts() {
+        let templates = CompressionPreset.builtInTemplates()
+        #expect(templates.count == 6)
+        let source = templates.first { $0.options.customExcludes.contains("node_modules") }
+        #expect(source?.options.format == .tarGzip)
+        let encrypted = templates.first { $0.options.sevenZipEncryptFileNames && $0.options.format == .sevenZip && $0.options.compressionLevel == .normal }
+        #expect(encrypted != nil)
+        let backup = templates.first { $0.options.sevenZipStoreSymbolicLinks }
+        #expect(backup?.options.sevenZipStoreHardLinks == true)
+    }
+}

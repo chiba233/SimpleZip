@@ -4,6 +4,8 @@
 
 ## 0.4.2 (unreleased)
 
+- **New: built-in archive templates.** The Create Archive dialog gains an **Apply Template** menu with six ready-made recipes: *GitHub Release ZIP* (max compression, junk and hidden files excluded), *ZIP for Windows users* (no `._*` / `__MACOSX` litter), *Maximum-compression 7z*, *Encrypted delivery 7z* (file names encrypted; you type the password), *Source code* (tar.gz excluding `node_modules` / `.git` / build dirs), and *Backup* (fast 7z preserving sym/hard links). Templates never carry passwords, only touch the general options, and everything stays editable after applying — they take precedence over per-format defaults.
+
 - **New: Release Check.** Right-click an archive → **Release Check…** runs the pre-publish gauntlet in one go: integrity test, entry counts and size, suspicious-path scan, macOS/Windows metadata junk, empty directories, executable permission bits, symbolic links, archive comment presence, and the file's SHA-256 (one-click copy). Every check is a clear ✓/⚠/✗ row, and the whole report can be copied as plain text for release notes or an issue.
 
 - **New: macOS metadata cleaner.** Editable archives that contain `.DS_Store`, `__MACOSX/`, AppleDouble `._*`, `Thumbs.db`, or `desktop.ini` entries get a right-click **Clean macOS Metadata (N items)** that removes them all through the safe write-back path (work copy + atomic replace). Archive Diff gains an **Ignore macOS metadata** checkbox so junk noise doesn't drown real differences — copy and export honor it too. (Creation-side exclusion of `.DS_Store` already existed.)
