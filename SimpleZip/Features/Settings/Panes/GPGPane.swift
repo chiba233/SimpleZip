@@ -87,7 +87,7 @@ struct GPGPane: View {
             }
         }
         .formStyle(.grouped)
-        .controlSize(.small)
+        // 0.4.3 用户点名「紧凑非现代,大改」:去掉全局 .controlSize(.small),控件回到常规尺寸,行距放开。
         // 拖 .asc/.gpg 公钥文件到面板任意位置 = 导入(GPG Keychain 同款交互)。落点钥匙串弹对话框让用户选。
         .dropDestination(for: URL.self) { urls, _ in
             receiveDroppedKeyFiles(urls)
@@ -542,10 +542,17 @@ struct GPGPane: View {
     @ViewBuilder
     private func keyGroup(title: String, keys: [GPGBackend.GPGKey]) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(title)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .padding(.vertical, 4)
+            HStack(spacing: 6) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                Text("\(keys.count)")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 1)
+                    .background(Capsule().fill(Color.primary.opacity(0.08)))
+            }
+            .padding(.vertical, 6)
             VStack(spacing: 0) {
                 ForEach(keys) { key in
                     GPGKeyRow(
@@ -675,14 +682,19 @@ struct GPGPane: View {
     /// 一条搜索命中:UID + 指纹尾 16 + 算法 + 创建日期,行尾「导入…」菜单选目标钥匙串。
     @ViewBuilder
     private func keyserverHitRow(_ hit: GPGBackend.GPGKeyserverHit) -> some View {
-        HStack(alignment: .center, spacing: 10) {
-            Image(systemName: "globe")
-                .font(.system(size: 16))
-                .foregroundStyle(.secondary)
-                .frame(width: 26)
+        HStack(alignment: .center, spacing: 12) {
+            // 与钥匙串行同语言的圆形头像 —— 远端密钥统一地球图,平涂灰底(box 不渐变)。
+            Circle()
+                .fill(Color.secondary.opacity(0.22))
+                .frame(width: 36, height: 36)
+                .overlay(
+                    Image(systemName: "globe")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(.secondary)
+                )
             VStack(alignment: .leading, spacing: 2) {
                 Text(hit.userIDs.first ?? hit.displayFingerprint)
-                    .font(.callout)
+                    .font(.callout.weight(.semibold))
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .help(hit.userIDs.joined(separator: "\n"))

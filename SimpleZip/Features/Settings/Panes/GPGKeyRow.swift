@@ -52,15 +52,14 @@ struct GPGKeyRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .center, spacing: 10) {
-                keyIcon
-                    .frame(width: 26)
+            HStack(alignment: .center, spacing: 12) {
+                avatar
                     .help(rowIconHelp)
 
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
-                        Text(key.userID)
-                            .font(.callout)
+                        Text(displayName)
+                            .font(.callout.weight(.semibold))
                             .lineLimit(1)
                             .truncationMode(.middle)
                         if key.isExpired {
@@ -75,10 +74,18 @@ struct GPGKeyRow: View {
                             strippedBadge
                         }
                     }
+                    if let email = displayEmail {
+                        Text(email)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                            .textSelection(.enabled)
+                    }
                     HStack(spacing: 6) {
                         Text(key.shortFingerprint)
                             .font(.system(.caption2, design: .monospaced))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.tertiary)
                             .textSelection(.enabled)
                         detailsToggleButton
                     }
@@ -99,10 +106,79 @@ struct GPGKeyRow: View {
                 expandedDetails
             }
         }
-        .padding(.vertical, 5)
+        .padding(.vertical, 8)
         .contextMenu {
             menuItems
         }
+    }
+
+    // MARK: 头像与身份拆解
+
+    /// `Name (comment) <email>` 里的姓名部分;UID 只有邮箱(`<a@b>`)时回退邮箱。
+    private var displayName: String {
+        let beforeBracket = key.userID.split(separator: "<").first.map {
+            String($0).trimmingCharacters(in: .whitespaces)
+        } ?? ""
+        if !beforeBracket.isEmpty { return beforeBracket }
+        return displayEmail ?? key.userID
+    }
+
+    private var displayEmail: String? {
+        guard let lt = key.userID.firstIndex(of: "<"),
+              let gt = key.userID.lastIndex(of: ">"),
+              lt < gt else { return nil }
+        let email = String(key.userID[key.userID.index(after: lt)..<gt])
+        return email.isEmpty ? nil : email
+    }
+
+    /// Contacts 风头像圈:姓名缩写 + 按指纹稳定取色(同一把密钥永远同色)。私钥 / 卡上状态用右下角小徽章表达。
+    private var avatar: some View {
+        ZStack(alignment: .bottomTrailing) {
+            Circle()
+                .fill(avatarColor)
+                .frame(width: 36, height: 36)
+                .overlay(
+                    Text(avatarInitials)
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white)
+                )
+            if key.isSecretKeyOnSmartcard {
+                avatarBadge(systemImage: "creditcard.fill", tint: .orange)
+            } else if key.hasSecretKey && !key.isSecretKeyStripped {
+                avatarBadge(systemImage: "key.fill", tint: .accentColor)
+            } else if key.isSecretKeyStripped {
+                avatarBadge(systemImage: "key.slash", tint: .secondary)
+            }
+        }
+    }
+
+    private func avatarBadge(systemImage: String, tint: Color) -> some View {
+        Image(systemName: systemImage)
+            .font(.system(size: 8, weight: .bold))
+            .foregroundStyle(tint)
+            .frame(width: 15, height: 15)
+            .background(Circle().fill(Color(nsColor: .windowBackgroundColor)))
+            .overlay(Circle().strokeBorder(Color.primary.opacity(0.08)))
+            .offset(x: 3, y: 3)
+    }
+
+    private var avatarInitials: String {
+        let base = displayName
+        let words = base.split(separator: " ").filter { !$0.isEmpty }
+        let initials = words.prefix(2).compactMap(\.first)
+        guard let first = initials.first else { return "?" }
+        // CJK 单字名取一个字;拉丁名取两个词首字母。
+        if String(first).range(of: #"\p{Han}|\p{Hiragana}|\p{Katakana}|\p{Hangul}"#, options: .regularExpression) != nil {
+            return String(first)
+        }
+        return String(initials).uppercased()
+    }
+
+    /// 按指纹字节和挑色 —— 调色板取系统色,平涂(box 不渐变是用户拍板的硬规矩)。
+    private var avatarColor: Color {
+        let palette: [Color] = [.blue, .purple, .pink, .orange, .teal, .indigo, .green, .cyan, .mint, .brown]
+        let sum = key.fingerprint.unicodeScalars.reduce(0) { $0 &+ Int($1.value) }
+        return palette[sum % palette.count]
     }
 
     /// 可见的 `…` Menu 按钮 —— 把所有操作摊出来让用户知道有什么可做的（右键 context menu 是 power user shortcut）。
@@ -222,7 +298,7 @@ struct GPGKeyRow: View {
                 subkeyList
             }
         }
-        .padding(.leading, 36)
+        .padding(.leading, 48)
         .padding(.top, 2)
     }
 
@@ -293,22 +369,6 @@ struct GPGKeyRow: View {
             RoundedRectangle(cornerRadius: 3)
                 .fill(Color.secondary.opacity(0.14))
         )
-    }
-
-    @ViewBuilder
-    private var keyIcon: some View {
-        ZStack(alignment: .bottomTrailing) {
-            Image(systemName: key.hasSecretKey ? "key.fill" : "key")
-                .font(.system(size: 16))
-                .foregroundStyle(key.hasSecretKey ? Color.accentColor : Color.secondary)
-            if key.isSecretKeyOnSmartcard {
-                Image(systemName: "creditcard.fill")
-                    .font(.system(size: 9))
-                    .foregroundStyle(.orange)
-                    .background(Circle().fill(Color(nsColor: .windowBackgroundColor)).frame(width: 14, height: 14))
-                    .offset(x: 4, y: 3)
-            }
-        }
     }
 
     /// 子密钥列表 —— 每行缩进，显示短指纹 + 能力图标 + 卡 / stripped 标记 + 过期。
