@@ -38,6 +38,8 @@ struct GPGKeyRow: View {
     let onCopyFingerprint: () -> Void
     let onCopyPublicKey: () -> Void
     let onExportPublicKey: () -> Void
+    /// 发布公钥到密钥服务器(公开动作,面板侧带确认)。nil = 该密钥不可发布(SimpleZip 私有环不走 keyserver)。
+    var onPublishToKeyserver: (() -> Void)?
     let onExportPrivateKey: () -> Void
     let onChangePassphrase: () -> Void
     let onAddSubkey: () -> Void
@@ -129,6 +131,11 @@ struct GPGKeyRow: View {
         }
         Button(L10n.text("settings.gpg.keys.contextExportPublicKey")) {
             onExportPublicKey()
+        }
+        if let onPublishToKeyserver {
+            Button(L10n.text("settings.gpg.keys.contextPublish")) {
+                onPublishToKeyserver()
+            }
         }
         // 修改 passphrase / 添加 UID / 改过期 / 生成撤销证书：本机持有私钥的密钥可用（智能卡 stub 也算 ——
         // gpg 会要求插卡 + 输入卡 PIN 来用卡上私钥做这些操作）。

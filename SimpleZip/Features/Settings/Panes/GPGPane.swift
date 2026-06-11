@@ -46,6 +46,15 @@ struct GPGPane: View {
     /// 拖进面板待导入的密钥文件 —— 非空时弹「导入到哪个钥匙串」确认对话框(别静默污染 ~/.gnupg)。
     @State private var pendingDroppedKeyURLs: [URL] = []
 
+    // 密钥服务器(keys.openpgp.org)搜索状态。
+    @State private var keyserverQuery = ""
+    @State private var keyserverHits: [GPGBackend.GPGKeyserverHit] = []
+    @State private var isSearchingKeyserver = false
+    @State private var hasSearchedKeyserver = false
+    @State private var keyserverMessage: String?
+    /// 待发布到 keyserver 的密钥 —— 发布是公开动作,必须确认后才动手。
+    @State private var pendingPublishKey: GPGBackend.GPGKey?
+
     @State private var cardStatus: GPGBackend.GPGCardStatus?
     @State private var isDetectingCard = false
 
@@ -70,6 +79,7 @@ struct GPGPane: View {
             backendStatusSection
             if gpgEnabled && gpgAvailable {
                 keyringSection
+                keyserverSection
                 defaultsSection
             }
             if gpgEnabled {
@@ -563,6 +573,10 @@ struct GPGPane: View {
                         onExportPublicKey: {
                             exportPublicKey(for: key)
                         },
+                        // 发布只对用户 keyring 开放(publish 不带 homedir,SimpleZip 私有环的键发不出去)。
+                        onPublishToKeyserver: key.source == .userKeyring
+                            ? { pendingPublishKey = key }
+                            : nil,
                         onExportPrivateKey: {
                             exportPrivateKey(for: key)
                         },
@@ -588,6 +602,176 @@ struct GPGPane: View {
                     if key.id != keys.last?.id {
                         Divider().padding(.leading, 30)
                     }
+                }
+            }
+        }
+    }
+
+    // MARK: - 密钥服务器
+
+    /// keys.openpgp.org 搜索 / 接收区。发布入口在每行密钥的菜单里(带确认 alert,挂在本区描述上)。
+    @ViewBuilder
+    private var keyserverSection: some View {
+        Section(L10n.text("settings.gpg.keyserver.title")) {
+            Text(L10n.text("settings.gpg.keyserver.description"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .alert(
+                    L10n.format("settings.gpg.keyserver.publishConfirmTitle", pendingPublishKey?.userID ?? ""),
+                    isPresented: Binding(
+                        get: { pendingPublishKey != nil },
+                        set: { if !$0 { pendingPublishKey = nil } }
+                    ),
+                    presenting: pendingPublishKey
+                ) { key in
+                    Button(L10n.text("settings.gpg.keyserver.publishConfirmButton")) {
+                        pendingPublishKey = nil
+                        publishKeyToKeyserver(key)
+                    }
+                    Button(L10n.text("button.cancel"), role: .cancel) {
+                        pendingPublishKey = nil
+                    }
+                } message: { key in
+                    Text(L10n.format("settings.gpg.keyserver.publishConfirmMessage", key.displayFingerprint))
+                }
+
+            HStack(spacing: 8) {
+                TextField(L10n.text("settings.gpg.keyserver.searchPrompt"), text: $keyserverQuery)
+                    .textFieldStyle(.roundedBorder)
+                    .controlSize(.small)
+                    .onSubmit(searchKeyserver)
+                Button(L10n.text("settings.gpg.keyserver.searchButton"), action: searchKeyserver)
+                    .disabled(isSearchingKeyserver || keyserverQuery.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+
+            if isSearchingKeyserver {
+                HStack {
+                    ProgressView().controlSize(.small)
+                    Text(L10n.text("settings.gpg.keyserver.searching"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            } else if hasSearchedKeyserver && keyserverHits.isEmpty {
+                Text(L10n.text("settings.gpg.keyserver.noResults"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            ForEach(keyserverHits) { hit in
+                keyserverHitRow(hit)
+            }
+
+            if let keyserverMessage {
+                Text(keyserverMessage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    /// 一条搜索命中:UID + 指纹尾 16 + 算法 + 创建日期,行尾「导入…」菜单选目标钥匙串。
+    @ViewBuilder
+    private func keyserverHitRow(_ hit: GPGBackend.GPGKeyserverHit) -> some View {
+        HStack(alignment: .center, spacing: 10) {
+            Image(systemName: "globe")
+                .font(.system(size: 16))
+                .foregroundStyle(.secondary)
+                .frame(width: 26)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(hit.userIDs.first ?? hit.displayFingerprint)
+                    .font(.callout)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .help(hit.userIDs.joined(separator: "\n"))
+                HStack(spacing: 6) {
+                    Text(String(hit.fingerprint.suffix(16)))
+                        .font(.system(.caption2, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                    Text(hit.algorithm)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    if let created = hit.created {
+                        Text(created, style: .date)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            Spacer()
+            Menu(L10n.text("settings.gpg.keyserver.importMenu")) {
+                Button(L10n.text("settings.gpg.keys.importUserButton")) {
+                    receiveKeyserverHit(hit, into: .userKeyring)
+                }
+                Button(L10n.text("settings.gpg.keys.importSimpleZipButton")) {
+                    receiveKeyserverHit(hit, into: .simpleZipKeyring)
+                }
+            }
+            .fixedSize()
+        }
+        .padding(.vertical, 3)
+    }
+
+    private func searchKeyserver() {
+        let query = keyserverQuery.trimmingCharacters(in: .whitespaces)
+        guard !query.isEmpty, !isSearchingKeyserver else { return }
+        isSearchingKeyserver = true
+        keyserverMessage = nil
+        Task {
+            do {
+                let hits = try await GPGBackend.searchKeyserver(query)
+                await MainActor.run {
+                    keyserverHits = hits
+                    hasSearchedKeyserver = true
+                    isSearchingKeyserver = false
+                }
+            } catch {
+                await MainActor.run {
+                    keyserverHits = []
+                    hasSearchedKeyserver = true
+                    isSearchingKeyserver = false
+                    keyserverMessage = L10n.format("settings.gpg.keyserver.searchFailed", error.localizedDescription)
+                }
+            }
+        }
+    }
+
+    private func receiveKeyserverHit(_ hit: GPGBackend.GPGKeyserverHit, into ring: GPGBackend.GPGKeyringSource) {
+        keyserverMessage = nil
+        Task {
+            do {
+                _ = try await GPGBackend.receiveKey(fingerprint: hit.fingerprint, into: ring)
+                let refreshed = try? await GPGBackend.listKeys()
+                await MainActor.run {
+                    keys = refreshed ?? keys
+                    keyserverMessage = L10n.format(
+                        "settings.gpg.keyserver.receiveSucceeded",
+                        hit.userIDs.first ?? String(hit.fingerprint.suffix(16))
+                    )
+                }
+            } catch {
+                await MainActor.run {
+                    keyserverMessage = L10n.format("settings.gpg.keyserver.receiveFailed", error.localizedDescription)
+                }
+            }
+        }
+    }
+
+    /// 真正执行发布(确认 alert 之后)。只对用户 keyring 的密钥开放 —— publish 不带 homedir 参数。
+    private func publishKeyToKeyserver(_ key: GPGBackend.GPGKey) {
+        keyOperationMessage = nil
+        Task {
+            do {
+                try await GPGBackend.publishKey(fingerprint: key.fingerprint)
+                await MainActor.run {
+                    keyOperationMessage = L10n.format("settings.gpg.keyserver.publishSucceeded", key.userID)
+                }
+            } catch {
+                await MainActor.run {
+                    keyOperationMessage = L10n.format("settings.gpg.keyserver.publishFailed", error.localizedDescription)
                 }
             }
         }

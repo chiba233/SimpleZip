@@ -63,6 +63,7 @@ let package = Package(
                 "Core/Backends/GPGBackend+KeyCreation.swift",
                 "Core/Backends/GPGBackend+CryptoOperations.swift",
                 "Core/Backends/GPGBackend+Parsing.swift",
+                "Core/Backends/GPGBackend+Keyserver.swift",
                 "Core/Backends/GPGModels.swift",
                 "Core/Backends/NativeZipBackend.swift",
                 "Core/Backends/RarBackend.swift",
