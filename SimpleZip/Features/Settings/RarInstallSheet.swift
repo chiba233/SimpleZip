@@ -104,27 +104,26 @@ struct RarInstallReviewSheet: View {
                 title: review.action.title
             )
 
-            // 不套外层滚动：两份文档各自带 HeightCappedScrollView,再包一层会滚轮打架。
+            // 文档区保持迁移前验证过的结构：裸 VStack + 文档自带的滚动小卡片。
+            // **不要**套 DialogSection —— 卡片的 frame/背景与 HeightCappedScrollView 的
+            // 高度测量打架,整页元素互相叠印（用户截图「彻底炸了」）;也不套外层滚动(滚轮打架)。
             VStack(alignment: .leading, spacing: 12) {
-                DialogSection {
-                    RarInstallDocumentView(
-                        title: L10n.text("settings.rar.licenseHeading"),
-                        text: review.licenseText,
-                        checkboxTitle: L10n.text("settings.rar.licenseReadCheckbox"),
-                        isRead: $hasReadLicense
-                    )
-                }
-                DialogSection {
-                    RarInstallDocumentView(
-                        title: L10n.text("settings.rar.readmeHeading"),
-                        text: review.readmeText,
-                        checkboxTitle: L10n.text("settings.rar.readmeReadCheckbox"),
-                        isRead: $hasReadReadme
-                    )
-                }
+                RarInstallDocumentView(
+                    title: L10n.text("settings.rar.licenseHeading"),
+                    text: review.licenseText,
+                    checkboxTitle: L10n.text("settings.rar.licenseReadCheckbox"),
+                    isRead: $hasReadLicense
+                )
+
+                RarInstallDocumentView(
+                    title: L10n.text("settings.rar.readmeHeading"),
+                    text: review.readmeText,
+                    checkboxTitle: L10n.text("settings.rar.readmeReadCheckbox"),
+                    isRead: $hasReadReadme
+                )
             }
             .padding(.horizontal, 20)
-            .padding(.bottom, 16)
+            .padding(.bottom, 14)
 
             Divider()
 
