@@ -383,6 +383,10 @@ struct ActivityTaskRow: View {
             return "arrow.triangle.merge"
         case .convert:
             return "arrow.triangle.2.circlepath"
+        case .undo:
+            return "arrow.uturn.backward"
+        case .redo:
+            return "arrow.uturn.forward"
         }
     }
 
