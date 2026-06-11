@@ -41,6 +41,9 @@ struct ArchiveCreationOptionsView: View {
     @State private var useFormatDefaults = false
     /// 0.4.2 #17：套模板改格式时跳过一次「按格式默认值」重套 —— 模板优先于格式默认值。
     @State private var suppressFormatDefaultsOnce = false
+    /// 0.4.2 #30：智能卡在位状态。nil = 还没检测（或检测中）。
+    @State private var smartcardPresent: Bool?
+    @State private var isCheckingSmartcard = false
     private let compressionDefaultsStore = CompressionDefaultsStore()
     let create: (ArchiveCreationRequest) -> Void
     let cancel: () -> Void
@@ -835,6 +838,64 @@ struct ArchiveCreationOptionsView: View {
                 autoLabelKey: "archive.gpgSign.key.auto",
                 missingFingerprintKey: "archive.gpgSign.key.missingFingerprint"
             )
+            // 0.4.2 #30：选中的签名密钥在智能卡上 → 明确预告（需插卡 / 可能弹 PIN）+ 实测卡在不在位。
+            if selectedSigningKeyUsesSmartcard {
+                smartcardStatusRow
+            }
+        }
+    }
+
+    /// 选中的签名密钥（或其能签名的子密钥）私钥是否在智能卡上。
+    private var selectedSigningKeyUsesSmartcard: Bool {
+        let fingerprint = request.options.gpgSigningKeyFingerprint
+        guard !fingerprint.isEmpty,
+              let key = availableKeys.first(where: { $0.fingerprint == fingerprint }) else { return false }
+        return key.isSecretKeyOnSmartcard || key.subkeys.contains { $0.isOnSmartcard && $0.canSign }
+    }
+
+    @ViewBuilder
+    private var smartcardStatusRow: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Label(L10n.text("archive.gpgSign.smartcard.notice"), systemImage: "creditcard")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 8) {
+                switch smartcardPresent {
+                case .some(true):
+                    Label(L10n.text("archive.gpgSign.smartcard.present"), systemImage: "checkmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.green)
+                case .some(false):
+                    Label(L10n.text("archive.gpgSign.smartcard.absent"), systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                case .none:
+                    if isCheckingSmartcard {
+                        ProgressView().controlSize(.small)
+                    }
+                }
+                Button(L10n.text("archive.gpgSign.smartcard.recheck")) {
+                    checkSmartcardPresence()
+                }
+                .controlSize(.small)
+                .disabled(isCheckingSmartcard)
+            }
+        }
+        .onAppear { checkSmartcardPresence() }
+        .onChange(of: request.options.gpgSigningKeyFingerprint) { _ in
+            checkSmartcardPresence()
+        }
+    }
+
+    /// 问 gpg 卡在不在位（`--card-status`）。抛错 / 返回 nil 都按「未检测到卡」处理。
+    private func checkSmartcardPresence() {
+        guard !isCheckingSmartcard else { return }
+        isCheckingSmartcard = true
+        Task { @MainActor in
+            let status = try? await GPGBackend.cardStatus()
+            smartcardPresent = (status != nil)
+            isCheckingSmartcard = false
         }
     }
 

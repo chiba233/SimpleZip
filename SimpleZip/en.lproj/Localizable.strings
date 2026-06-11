@@ -820,6 +820,12 @@
 "siz.keyImport.ring" = "Import into";
 "siz.keyImport.noSiblings" = "No key files (.asc / .pub / .key / .pgp) found next to this container.";
 "siz.keyImport.success" = "Key imported. Reopen this file to verify the signature again, then set the key's trust in Settings → GPG.";
+/* 0.4.2 smartcard signing status */
+"archive.gpgSign.smartcard.notice" = "This key lives on a smartcard / OpenPGP token: the card must be inserted when signing, and the system may prompt for its PIN.";
+"archive.gpgSign.smartcard.present" = "Card detected";
+"archive.gpgSign.smartcard.absent" = "No card detected — insert it before creating, or signing will fail";
+"archive.gpgSign.smartcard.recheck" = "Check Again";
+
 
 
 

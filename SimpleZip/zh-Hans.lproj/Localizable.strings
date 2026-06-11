@@ -818,6 +818,12 @@
 "siz.keyImport.ring" = "导入到";
 "siz.keyImport.noSiblings" = "容器旁没有发现公钥文件（.asc / .pub / .key / .pgp）。";
 "siz.keyImport.success" = "已导入。重新打开此文件即可重新验签；请到 设置 → GPG 为该密钥设置信任。";
+/* 0.4.2 智能卡签名状态 */
+"archive.gpgSign.smartcard.notice" = "这把密钥在智能卡 / OpenPGP 令牌上：签名时必须插卡，系统可能弹出 PIN 输入。";
+"archive.gpgSign.smartcard.present" = "已检测到卡";
+"archive.gpgSign.smartcard.absent" = "未检测到卡——请先插卡再创建，否则签名会失败";
+"archive.gpgSign.smartcard.recheck" = "重新检测";
+
 
 
 

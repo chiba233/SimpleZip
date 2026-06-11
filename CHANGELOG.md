@@ -4,6 +4,8 @@
 
 ## 0.4.2 (unreleased)
 
+- **New: smartcard signing status in the Create dialog.** When the selected signing key lives on a smartcard / OpenPGP token, the GPG section now says so up front — the card must be inserted, and the system may prompt for its PIN — and runs a live card check: a green "Card detected" or an orange "No card detected — insert it before creating" with a **Check Again** button. No more silent signing failures from a missing card.
+
 - **New: import an unknown signer's public key on the spot.** When a `.siz` verifies as "signer's public key not imported", the signature sheet now grows an **Import the Signer's Public Key** section: key files (`.asc` / `.pub` / `.key` / `.pgp`) sitting next to the container are listed with one-click import into either your keyring or SimpleZip's private one. SimpleZip never contacts a keyserver — local files only. After importing, reopen the file to re-verify and set the key's trust in Settings → GPG. (Schema-version display for `.siz`/`.szs` already shipped in 0.4.1; "save as newer version" is deliberately not offered — re-signing would replace the original signer's signature with yours.)
 
 - **New: use a `.szs` manifest as a folder snapshot.** Right-click a `.szs` → **Compare with Current Folder**: the signed manifest is compared structurally against what's in the folder right now — *added* entries are unsigned new files, *removed* means a signed file is gone, *changed* means the size differs. The result opens in the regular comparison window, so JSON/CSV/Markdown export comes for free. (This is the fast structural view; byte-level verification remains the full signature check when opening the `.szs`.)
