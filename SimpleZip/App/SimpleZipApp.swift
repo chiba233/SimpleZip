@@ -153,7 +153,7 @@ struct ArchiveFileCommands: Commands {
             Button(L10n.text("archive.cleanJunk.plain")) { model?.cleanArchiveJunkEntries() }
                 .disabled(model?.canDropIntoOpenArchive != true)
             Button(L10n.text("security.banner.review")) { model?.showsArchiveSecurityReport = true }
-                .disabled(model?.archiveSecurityFindings.isEmpty != false)
+                .disabled(model?.canShowArchiveSecurityReport != true)
 
             if AppPreferences.gpgEnabled && GPGBackend.isAvailable() {
                 Divider()

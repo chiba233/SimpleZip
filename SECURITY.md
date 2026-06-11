@@ -135,8 +135,10 @@ silently overwrite**.
   scanned for nine suspicious-path families (absolute / `..` / drive / UNC /
   backslash paths, control or bidirectional-override characters, overlong paths,
   setuid bits, outward symlinks, case collisions) and surfaced as a banner +
-  report. This is purely advisory — it changes nothing about the extraction-time
-  prompts and blocks above.
+  report. The report can also be opened from the Actions menu at any time while
+  an archive is open; a clean archive shows an explicit all-clear instead of a
+  disabled menu item. This is purely advisory — it changes nothing about the
+  extraction-time prompts and blocks above.
 - **Conflict resolution is explicit.** Extract / paste / drop / create all route
   through one dialog: replace, keep both, skip, *replace only if the SHA-256
   differs*, and — for folders — merge (Finder-style) vs. replace-the-whole-folder

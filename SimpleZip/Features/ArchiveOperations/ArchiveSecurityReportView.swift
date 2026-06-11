@@ -22,24 +22,33 @@ struct ArchiveSecurityReportView: View {
         return ""
     }
 
+    /// 干净包也能看报告（菜单项随归档打开常亮）：有发现 = 橙色警示态,没发现 = 绿色全清态。
+    private var hasFindings: Bool {
+        !model.archiveSecurityFindings.isEmpty
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             DialogHero(
-                systemImage: "exclamationmark.shield.fill",
-                colors: [.orange, .red],
+                systemImage: hasFindings ? "exclamationmark.shield.fill" : "checkmark.shield.fill",
+                colors: hasFindings ? [.orange, .red] : [.green, .mint],
                 title: L10n.text("security.report.title"),
                 subtitle: archiveName
             )
 
             HeightCappedScrollView(maxHeight: 620) {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text(L10n.text("security.report.note"))
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                    if hasFindings {
+                        Text(L10n.text("security.report.note"))
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
 
-                    ForEach(model.archiveSecurityFindings) { finding in
-                        findingSection(finding)
+                        ForEach(model.archiveSecurityFindings) { finding in
+                            findingSection(finding)
+                        }
+                    } else {
+                        allClearSection
                     }
                 }
                 .padding(.horizontal, 20)
@@ -61,6 +70,20 @@ struct ArchiveSecurityReportView: View {
             .background(.bar)
         }
         .frame(width: 560)
+    }
+
+    private var allClearSection: some View {
+        DialogSection {
+            VStack(alignment: .leading, spacing: 6) {
+                Label(L10n.text("security.report.clean"), systemImage: "checkmark.circle.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.green)
+                Text(L10n.text("security.report.clean.desc"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
     }
 
     @ViewBuilder

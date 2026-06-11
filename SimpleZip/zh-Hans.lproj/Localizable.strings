@@ -659,6 +659,8 @@
 "security.report.title" = "路径安全报告";
 "security.report.note" = "以下发现仅供知情——解压 / 打开时的常规安全确认仍会照常生效，目前没有任何内容被拦截。";
 "security.report.more" = "还有 %1$@ 项…";
+"security.report.clean" = "未发现可疑条目";
+"security.report.clean.desc" = "已检查全部条目路径：绝对路径、“..” 逃逸、盘符、UNC 与反斜杠路径、控制及双向覆盖字符、超长路径、setuid 位、外指符号链接、大小写冲突——均未命中。";
 "security.kind.absolutePath" = "绝对路径";
 "security.kind.absolutePath.desc" = "以 / 或 ~ 开头的条目可能解压到所选文件夹之外。";
 "security.kind.parentTraversal" = "上级目录穿越";

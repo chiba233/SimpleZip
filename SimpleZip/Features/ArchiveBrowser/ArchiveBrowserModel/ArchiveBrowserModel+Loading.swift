@@ -307,6 +307,13 @@ extension ArchiveBrowserModel {
         }
     }
 
+    /// 0.4.2 #7 跟进：「查看报告」打开归档即可用 —— 干净包显示绿色「未发现可疑条目」报告。
+    /// 之前只在检出可疑条目时才可点,菜单项常年灰着,用户根本无从知道它是干什么的。
+    var canShowArchiveSecurityReport: Bool {
+        if case .archive = mode { return true }
+        return false
+    }
+
     /// 0.4.2 #7：后台分析归档条目的路径安全问题，回主 actor 后核对仍是同一次加载才发布。
     private func updateArchiveSecurityFindings(for items: [ArchiveItem], url: URL, generation: Int) {
         Task.detached(priority: .utility) { [weak self] in

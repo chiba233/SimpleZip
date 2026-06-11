@@ -99,6 +99,9 @@ struct AboutPane: View {
                         acknowledgementCard(name: "GnuPG", systemImage: "key.fill", detail: L10n.text("about.ack.gnupg"))
                         acknowledgementCard(name: "Sparkle", systemImage: "sparkles", detail: L10n.text("about.ack.sparkle"))
                     }
+                    // 等高的关键:把 HStack 高度钉在「最高那张卡的理想高度」,卡片的 maxHeight:.infinity
+                    // 只在这个有界高度里撑满 —— 既等高,又不会贪婪高度吃掉整窗(关于页没有滚动容器)。
+                    .fixedSize(horizontal: false, vertical: true)
                 }
                 .frame(maxWidth: 560)
                 .padding(.bottom, 14)
@@ -185,8 +188,9 @@ struct AboutPane: View {
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        // 不能 maxHeight:.infinity —— 关于页没有滚动容器,贪婪高度会把窗口剩余空间全吃进卡片(用户报"被异常拉高")。
-        .frame(maxWidth: .infinity, alignment: .top)
+        // maxHeight:.infinity 必须配合外层 HStack 的 fixedSize(vertical:true) 用 —— 单独用会把窗口
+        // 剩余空间全吃进卡片(用户报"被异常拉高");钉住后它只负责把三张卡撑到一样高(用户报"不一样高真的好丑")。
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)

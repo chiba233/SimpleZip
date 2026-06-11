@@ -1294,7 +1294,6 @@ private struct ContextualToolbarButtons: View {
                 toolbarButton("security.banner.review", systemImage: "shield.lefthalf.filled") {
                     model.showsArchiveSecurityReport = true
                 }
-                .disabled(model.archiveSecurityFindings.isEmpty)
             }
         } else if selection.count >= 2 {
             toolbarButton("archive.batchRename.menu", systemImage: "pencil.line") {
