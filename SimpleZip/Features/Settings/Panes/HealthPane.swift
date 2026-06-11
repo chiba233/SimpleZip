@@ -132,14 +132,9 @@ struct HealthPane: View {
     }
 
     private func exportDiagnostics() {
-        isBuildingDiagnostics = true
-        Task {
-            let url = await DiagnosticsCopier.exportGeneralReport()
-            isBuildingDiagnostics = false
-            if let url {
-                flashDiagnosticsFeedback(L10n.format("diagnostics.general.exported", url.lastPathComponent))
-            }
-        }
+        // 0.4.2:面板同步弹(在 Task 里跑 runModal 会锁死主 actor),写入由 copier 异步完成。
+        guard let url = DiagnosticsCopier.exportGeneralReport() else { return }
+        flashDiagnosticsFeedback(L10n.format("diagnostics.general.exported", url.lastPathComponent))
     }
 
     /// 操作成功后短暂显示一行反馈，2 秒后自动消失。

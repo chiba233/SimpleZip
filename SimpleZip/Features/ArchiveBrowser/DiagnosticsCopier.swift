@@ -86,16 +86,19 @@ enum DiagnosticsCopier {
 
     /// 导出通用诊断报告为 `.txt`（NSSavePanel）。返回写入的 URL；用户取消 → nil。
     /// 同上：先同步弹面板,再异步收集写入(MainActor.run + runModal = 主 actor 死锁)。
+    /// 返回用户选的 URL(取消 = nil);写入在后台完成 —— 健康面板用返回值即时给「已导出」反馈。
+    @discardableResult
     @MainActor
-    static func exportGeneralReport() {
+    static func exportGeneralReport() -> URL? {
         let panel = NSSavePanel()
         panel.nameFieldStringValue = "SimpleZip-diagnostics.txt"
         panel.allowedContentTypes = [.plainText]
-        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard panel.runModal() == .OK, let url = panel.url else { return nil }
         Task {
             let report = await makeGeneralReport()
             try? report.data(using: .utf8)?.write(to: url, options: .atomic)
         }
+        return url
     }
 
     private static func makeGeneralInputs() async -> OperationDiagnosticsInputs {
