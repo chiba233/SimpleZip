@@ -115,6 +115,38 @@ extension ArchiveService {
             }
     }
 
+    /// 0.4.1 #114（**只读**；实测 bundled 7zz 不支持写注释参数,绝不瞎猜后端旗标）：
+    /// 从 `l -slt` 输出抽**归档级**注释（头部块的 Comment；条目块的不算）。
+    /// 7-Zip 对多行值用花括号形式：`Comment = `（空值行）后跟 `{`、内容若干行、`}`（实测 zip 注释如此输出）；
+    /// 单行注释直接 `Comment = xxx`。只扫到条目分隔线 `----------` 为止 —— 之后是条目区。
+    static func parseArchiveHeaderComment(_ output: String) -> String {
+        let lines = output
+            .replacingOccurrences(of: "\r", with: "")
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .map(String.init)
+        var index = 0
+        while index < lines.count {
+            let line = lines[index]
+            if line.hasPrefix("----------") { return "" }
+            if line.hasPrefix("Comment =") {
+                let inline = line.dropFirst("Comment =".count).trimmingCharacters(in: .whitespaces)
+                if !inline.isEmpty { return inline }
+                if index + 1 < lines.count, lines[index + 1] == "{" {
+                    var body: [String] = []
+                    var cursor = index + 2
+                    while cursor < lines.count, lines[cursor] != "}" {
+                        body.append(lines[cursor])
+                        cursor += 1
+                    }
+                    return body.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+                }
+                return ""
+            }
+            index += 1
+        }
+        return ""
+    }
+
     static func parseSevenZipList(_ output: String) -> [ArchiveItem] {
         // 当 list 走密码路径时（runWithPseudoTerminal），底层 PTY 在 macOS 默认 ONLCR
         // 状态下会把 7zz 输出里的每个 \n 转成 \r\n。下面按 \n 分行后每行末尾会留 \r：

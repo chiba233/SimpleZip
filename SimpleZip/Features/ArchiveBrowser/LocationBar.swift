@@ -20,6 +20,8 @@ struct LocationBar: View {
     @State private var isShowingLocationCompletions = false
     @State private var isPathFieldFocused = false
     @State private var selectedLocationCompletionIndex: Int?
+    /// 地址栏（含内边距与 .bar 背景）的实测高度 —— 补全面板用它精确吸附到栏的正下方。
+    @State private var barHeight: CGFloat = 0
 
     var body: some View {
         locationField
@@ -27,9 +29,15 @@ struct LocationBar: View {
             .padding(.vertical, 6)
             .background(.bar)
             // 0.4.1 手绘补全面板（替代系统 popover）：固定吸附在地址栏正下方、与地址栏同宽，
-            // 整面液态玻璃，只有选中项有色块。overlay + alignmentGuide 让面板顶边挂在 bar 底边下 4pt；
-            // zIndex 抬高绘制层级,盖住下方的文件列表。
-            .overlay(alignment: .bottom) {
+            // 整面液态玻璃，只有选中项有色块。定位用「实测栏高 + 顶对齐偏移」——
+            // 此前的 alignmentGuide 方案在实机上把面板叠在栏上挡住 UI（用户报废），笨办法才稳。
+            .background(
+                GeometryReader { proxy in
+                    Color.clear.preference(key: LocationBarHeightKey.self, value: proxy.size.height)
+                }
+            )
+            .onPreferenceChange(LocationBarHeightKey.self) { barHeight = $0 }
+            .overlay(alignment: .topLeading) {
                 if isShowingLocationCompletions {
                     LocationCompletionMenu(
                         completions: locationCompletions,
@@ -37,7 +45,8 @@ struct LocationBar: View {
                         select: selectLocationCompletion
                     )
                     .padding(.horizontal, 10)
-                    .alignmentGuide(.bottom) { dimensions in dimensions[.top] - 4 }
+                    .frame(maxWidth: .infinity)
+                    .offset(y: barHeight + 4)
                     .transition(.opacity.combined(with: .offset(y: -4)))
                 }
             }
@@ -195,6 +204,12 @@ struct LocationBar: View {
         }
         return locationCompletions[selectedLocationCompletionIndex]
     }
+}
+
+/// 量地址栏总高的 PreferenceKey —— 补全面板吸附定位用。
+private struct LocationBarHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
 }
 
 /// 0.4.1 手绘补全面板：整面液态玻璃（ultraThin 材质），行与行之间无分隔线、无底色 ——

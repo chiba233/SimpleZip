@@ -274,12 +274,21 @@ struct FileNSOutlineView: NSViewRepresentable {
             return result
         }
 
-        /// 所有文件叶子节点（递归进任意层区块），选择同步用。
+        /// 所有文件节点（递归进任意层区块 **和已展开过的文件夹子级**），选择同步用。
+        /// 0.4.1 修复（用户报「文件夹抽屉形态下不能复选」）：旧版只走区块,展开文件夹的子行
+        /// 不在名单里 → applySelection 回放时把刚选中的子行当「不在选区」反选掉,多选当场散架。
         func allFileNodes() -> [FileOutlineNode] {
             var result: [FileOutlineNode] = []
             func walk(_ nodes: [FileOutlineNode]) {
                 for node in nodes {
-                    if node.isSection { walk(node.children) } else { result.append(node) }
+                    if node.isSection {
+                        walk(node.children)
+                    } else {
+                        result.append(node)
+                        if let folderChildren = node.folderChildren {
+                            walk(folderChildren)
+                        }
+                    }
                 }
             }
             walk(topLevelNodes)
@@ -297,6 +306,11 @@ struct FileNSOutlineView: NSViewRepresentable {
                         return (node, ancestors)
                     }
                     if node.isSection, let found = walk(node.children, ancestors: ancestors + [node]) {
+                        return found
+                    }
+                    // 展开过的文件夹子级也找（0.4.1 文件夹原位展开后,内联重命名目标可能在子层）。
+                    if let folderChildren = node.folderChildren,
+                       let found = walk(folderChildren, ancestors: ancestors + [node]) {
                         return found
                     }
                 }

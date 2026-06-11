@@ -38,6 +38,50 @@ struct ArchiveServiceParsingTests {
         #expect(items[0].name == "foo.txt")
     }
 
+    // MARK: - parseArchiveHeaderComment（0.4.1 #114 归档级注释,只读）
+
+    @Test func headerCommentParsesBraceForm() {
+        let output = """
+        Listing archive: a.zip
+
+        --
+        Path = a.zip
+        Type = zip
+        Physical Size = 164
+        Comment = 
+        {
+        第一行注释
+        line two
+        }
+
+        ----------
+        Path = src/a.txt
+        Comment = entry-level 注释不该被取到
+        """
+        #expect(ArchiveService.parseArchiveHeaderComment(output) == "第一行注释\nline two")
+    }
+
+    @Test func headerCommentParsesInlineFormAndEmpty() {
+        let inline = """
+        Path = a.zip
+        Type = zip
+        Comment = single line
+
+        ----------
+        """
+        #expect(ArchiveService.parseArchiveHeaderComment(inline) == "single line")
+        let none = """
+        Path = a.zip
+        Type = zip
+        Comment = 
+
+        ----------
+        Path = b.txt
+        """
+        #expect(ArchiveService.parseArchiveHeaderComment(none).isEmpty)
+        #expect(ArchiveService.parseArchiveHeaderComment("").isEmpty)
+    }
+
     // MARK: - parseSevenZipList 边角
 
     @Test

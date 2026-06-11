@@ -93,6 +93,8 @@ enum SevenZipBackend {
             inputStrategy: inputStrategy,
             operationID: operationID
         )
+        // 0.4.1 #114：顺手抽归档级注释进旁路缓存（zip / rar 头部 Comment;只读 —— 7zz 无写注释参数）。
+        ArchiveService.recordHeaderComment(ArchiveService.parseArchiveHeaderComment(output), for: archive)
         return ArchiveService.parseSevenZipList(output)
     }
 

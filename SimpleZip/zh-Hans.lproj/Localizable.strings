@@ -994,6 +994,7 @@
 "archive.create.title" = "创建压缩包";
 "archive.create.subtitle" = "压缩 %@ 个项目";
 "archive.create.section.basics" = "基本";
+"archive.create.section.advanced" = "高级选项";
 "archive.create.section.security" = "密码与加密";
 "archive.create.section.sevenZip" = "7-Zip 参数";
 "archive.create.section.excludes" = "排除规则";

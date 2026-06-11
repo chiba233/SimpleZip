@@ -1001,6 +1001,7 @@
 "archive.create.title" = "Create Archive";
 "archive.create.subtitle" = "Compressing %@ item(s)";
 "archive.create.section.basics" = "Basics";
+"archive.create.section.advanced" = "Advanced Options";
 "archive.create.section.security" = "Password & Encryption";
 "archive.create.section.sevenZip" = "7-Zip Parameters";
 "archive.create.section.excludes" = "Exclude Rules";

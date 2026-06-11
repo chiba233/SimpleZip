@@ -135,6 +135,7 @@ extension ArchiveBrowserModel {
             }
             if !archiveItems.isEmpty {
                 archiveItems = []
+                if !archiveHeaderComment.isEmpty { archiveHeaderComment = "" }
             }
             session.clearArchive()
             let newStatus = L10n.format("status.itemCount", fileItems.count)
@@ -144,6 +145,7 @@ extension ArchiveBrowserModel {
         } catch {
             fileItems = []
             archiveItems = []
+            if !archiveHeaderComment.isEmpty { archiveHeaderComment = "" }
             session.clearArchive()
             errorMessage = error.localizedDescription
             status = L10n.text("status.couldNotOpenFolder")
@@ -166,12 +168,14 @@ extension ArchiveBrowserModel {
                 folderFirst: false
             )
             archiveItems = []
+            if !archiveHeaderComment.isEmpty { archiveHeaderComment = "" }
             session.clearArchive()
             status = L10n.format("status.tagItemCount", fileItems.count)
         } catch {
             guard isCurrentLoad(generation, mode: .tag(tag)) else { return }
             fileItems = []
             archiveItems = []
+            if !archiveHeaderComment.isEmpty { archiveHeaderComment = "" }
             session.clearArchive()
             errorMessage = error.localizedDescription
             status = L10n.text("status.failed")
@@ -205,16 +209,23 @@ extension ArchiveBrowserModel {
             guard isCurrentLoad(generation, mode: .archive(url)) else { return }
             session.setItems(items)
             fileItems = []
+            // 0.4.1 #114：list 解析时旁路缓存了归档级注释（zip/rar 头部 Comment）——取出来给横幅展示。
+            let comment = ArchiveService.headerComment(for: url)
+            if archiveHeaderComment != comment {
+                archiveHeaderComment = comment
+            }
             refreshArchiveItems()
         } catch is CancellationError {
             // 用户在密码框点了取消 → 不当错误处理,只回到中性「读不到」状态,不弹错误 alert。
             guard isCurrentLoad(generation, mode: .archive(url)) else { return }
             archiveItems = []
+            if !archiveHeaderComment.isEmpty { archiveHeaderComment = "" }
             session.clearArchive()
             status = L10n.text("status.couldNotReadArchive")
         } catch {
             guard isCurrentLoad(generation, mode: .archive(url)) else { return }
             archiveItems = []
+            if !archiveHeaderComment.isEmpty { archiveHeaderComment = "" }
             session.clearArchive()
             errorMessage = error.localizedDescription
             status = L10n.text("status.couldNotReadArchive")

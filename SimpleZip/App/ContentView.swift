@@ -66,6 +66,25 @@ struct ContentView: View {
                 Divider()
 
                 if case .archive = model.mode {
+                    // 0.4.1 #114：归档级注释横幅（zip / rar 头部 Comment，只读 —— 7zz 不支持写）。
+                    if !model.archiveHeaderComment.isEmpty {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            Image(systemName: "text.bubble.fill")
+                                .font(.system(size: 12))
+                                .foregroundStyle(Color.accentColor)
+                            Text(model.archiveHeaderComment)
+                                .font(.callout)
+                                .lineLimit(2)
+                                .truncationMode(.tail)
+                                .textSelection(.enabled)
+                                .help(model.archiveHeaderComment)
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.accentColor.opacity(0.08))
+                        Divider()
+                    }
                     ArchiveTable(model: model)
                         // 落在**文件列表区**的拖入 = 加进归档（#109）；落在上面 TopBar 地址栏的拖入归外层 onDrop → 导航。
                         // 这条内层 onDrop 比 ContentView 整片的 onDrop 更靠内，命中列表区时优先它处理。

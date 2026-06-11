@@ -380,6 +380,26 @@ enum ArchiveService {
             .list(resolved.url, password: password, operationID: operationID)
     }
 
+    // MARK: - 归档级注释（0.4.1 #114，只读旁路）
+
+    /// 最近一次 list 解析出的「归档级注释」缓存（zip / rar 头部 Comment）。
+    /// 旁路缓存而不是改 `list` 返回值：list 有 7 个调用点层层透传，为次要展示信息改签名不成比例。
+    /// NSCache 线程安全；key = 归档绝对路径。后端在 list 解析时写入，UI 在 list 完成后取。
+    // NSCache 本身线程安全（Apple 文档保证）；nonisolated(unsafe) 只是向严格并发检查明示这一点。
+    private nonisolated(unsafe) static let headerCommentCache = NSCache<NSString, NSString>()
+
+    static func recordHeaderComment(_ comment: String, for url: URL) {
+        if comment.isEmpty {
+            headerCommentCache.removeObject(forKey: url.path as NSString)
+        } else {
+            headerCommentCache.setObject(comment as NSString, forKey: url.path as NSString)
+        }
+    }
+
+    static func headerComment(for url: URL) -> String {
+        (headerCommentCache.object(forKey: url.path as NSString) as String?) ?? ""
+    }
+
     private static func validateSingleRegularFileSource(_ sourceURLs: [URL], format: ArchiveCreateFormat) throws -> URL {
         guard format.requiresSingleRegularFile, sourceURLs.count == 1 else {
             throw ArchiveError.singleFileCompressionRequiresSingleFile

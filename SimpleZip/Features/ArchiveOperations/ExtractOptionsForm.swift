@@ -113,6 +113,10 @@ struct ExtractOptionsForm<ExtraControls: View>: View {
             .padding(.vertical, 12)
             .background(.bar)
         }
+        // 点空白释放输入框焦点（与创建对话框同款 UX 修复）。
+        .onTapGesture {
+            NSApp.keyWindow?.makeFirstResponder(nil)
+        }
         .onAppear {
             // 从 Keychain 拉预设密码到本地 @State，view 打开后不会再变。
             presetPassword = AppPreferences.presetPassword

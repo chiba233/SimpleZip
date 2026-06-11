@@ -130,6 +130,11 @@ struct ArchiveCreationOptionsView: View {
             .background(.bar)
         }
         .frame(width: 700)
+        // 点输入框以外的任意空白 → 释放第一响应者（用户报：焦点一直黏在输入框上，UX 很差）。
+        // 手势挂在整个 sheet 上：控件自己吃掉点击，只有空白区会落到这里。
+        .onTapGesture {
+            NSApp.keyWindow?.makeFirstResponder(nil)
+        }
         .animation(.default, value: request.options.format)
         .animation(.default, value: request.options.password.isEmpty)
         .animation(.default, value: request.options.passwordConfirmation.isEmpty)
