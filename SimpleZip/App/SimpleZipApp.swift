@@ -114,6 +114,52 @@ struct ArchiveFileCommands: Commands {
             }())
         }
 
+        // 0.4.2 用户点名「左上角菜单栏选项不全」：顶级「操作」菜单 —— 右键里的主力操作全部上桌。
+        // GPG 项按 A4 门控（关总开关不渲染）；其余粗粒度 disabled(model == nil)，
+        // 细粒度前置条件由各 model 方法自己把关（选区不对会给明确错误提示,不会静默）。
+        CommandMenu(L10n.text("menu.actions")) {
+            Button(L10n.text("button.addToArchive")) { model?.createArchive() }
+                .disabled(model == nil)
+            Button(L10n.text("button.extract")) { model?.extractArchive() }
+                .disabled(model == nil)
+            Button(L10n.text("button.test")) { model?.testArchive() }
+                .disabled(model == nil)
+            Button(L10n.text("file.batchTest.button")) { model?.batchTestSelectedArchives() }
+                .disabled(model == nil)
+            Button(L10n.text("button.hash")) { model?.calculateHash() }
+                .disabled(model == nil)
+
+            Divider()
+
+            Button(L10n.text("file.compareArchives")) { model?.compareSelectedArchives() }
+                .disabled(model == nil)
+            Button(L10n.text("file.convert.menuItem")) { model?.requestConvertSelectedArchives() }
+                .disabled(model == nil)
+            Button(L10n.text("file.split.menuItem")) { model?.splitSelectedFile() }
+                .disabled(model == nil)
+            Button(L10n.text("file.combine.menuItem")) { model?.combineSelectedVolumes() }
+                .disabled(model == nil)
+            Button(L10n.text("inspect.menu")) { model?.inspectSelectedArchiveForRelease() }
+                .disabled(model == nil)
+
+            Divider()
+
+            Button(L10n.text("archive.comment.menu")) { model?.showsArchiveCommentEditor = true }
+                .disabled(model?.canEditArchiveComment != true)
+            Button(L10n.text("archive.cleanJunk.plain")) { model?.cleanArchiveJunkEntries() }
+                .disabled(model?.canDropIntoOpenArchive != true)
+            Button(L10n.text("security.banner.review")) { model?.showsArchiveSecurityReport = true }
+                .disabled(model?.archiveSecurityFindings.isEmpty != false)
+
+            if AppPreferences.gpgEnabled && GPGBackend.isAvailable() {
+                Divider()
+                Button(L10n.text("file.encrypt.gpg")) { model?.encryptSelectionToGPG() }
+                    .disabled(model == nil)
+                Button(L10n.text("szs.create.menuItem")) { model?.createSignedManifest() }
+                    .disabled(model == nil)
+            }
+        }
+
         CommandGroup(replacing: .newItem) {
             // 「新建标签页」⌘T —— 在当前窗口里新开一个标签（全新 ContentView / ArchiveBrowserModel）。
             // 自己用 AppKit 建窗 + addTabbedWindow，零闪烁；不依赖 model，任何时候都可用。
