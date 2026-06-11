@@ -96,8 +96,10 @@ extension ArchiveService {
             // 改用裸 `-p` 让 7zz 在 PTY 上提示,口令经 stdin 灌入（跟 list/extract 同款）。
             arguments.append("-p")
         }
+        // 0.4.2 自审：条目名是不可信输入（形如 `-r` 的名字会被当开关）——开关全部放 `--` 之前，
+        // 条目名一律 `--` 之后（与解压侧 0.4.1 的加固同口径）。
+        arguments.append(contentsOf: ["-y", "-bb1", "-bsp1", "--"])
         arguments.append(contentsOf: relativePaths)
-        arguments.append(contentsOf: ["-y", "-bb1", "-bsp1"])
         _ = try await BackendProcessRunner.runAndCapture(
             tool,
             arguments: arguments,
@@ -146,8 +148,9 @@ extension ArchiveService {
             // 改用裸 `-p` 让 7zz 在 PTY 上提示,口令经 stdin 灌入（跟 list/extract 同款）。
             arguments.append("-p")
         }
+        // 0.4.2 自审：条目名（来自归档内,不可信）放 `--` 之后,防 `-r` 之类的名字被当开关。
+        arguments.append(contentsOf: ["-y", "-bb1", "-bsp1", "--"])
         arguments.append(contentsOf: normalized)
-        arguments.append(contentsOf: ["-y", "-bb1", "-bsp1"])
         _ = try await BackendProcessRunner.runAndCapture(
             tool,
             arguments: arguments,
@@ -196,7 +199,8 @@ extension ArchiveService {
             // 改用裸 `-p` 让 7zz 在 PTY 上提示,口令经 stdin 灌入（跟 list/extract 同款）。
             arguments.append("-p")
         }
-        arguments.append(contentsOf: [from, to, "-y"])
+        // 0.4.2 自审：条目名放 `--` 之后（不可信输入,防被当开关）；开关须在 `--` 之前。
+        arguments.append(contentsOf: ["-y", "--", from, to])
         _ = try await BackendProcessRunner.runAndCapture(
             tool,
             arguments: arguments,
@@ -247,10 +251,11 @@ extension ArchiveService {
         if !password.isEmpty {
             arguments.append("-p")   // 口令走 PTY，不进 argv（与单条 rename 同款）。
         }
+        // 0.4.2 自审：开关在前、`--` 之后全是条目名（不可信输入,防被当开关）。
+        arguments.append(contentsOf: ["-y", "--"])
         for (from, to) in normalizedPairs {
             arguments.append(contentsOf: [from, to])
         }
-        arguments.append("-y")
         _ = try await BackendProcessRunner.runAndCapture(
             tool,
             arguments: arguments,

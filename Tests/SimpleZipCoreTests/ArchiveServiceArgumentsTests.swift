@@ -423,3 +423,25 @@ struct CommandLineDescriptionTests {
         #expect(line == "$ /bin/echo ''")
     }
 }
+
+/// 0.4.2 自审:argv 口令打码(GPG changePassphrase 的 --passphrase 折中绝不能进任务日志)。
+struct CommandLineRedactionTests {
+
+    @Test func passphraseValueIsRedacted() {
+        let line = BackendProcessRunner.commandLineDescription(
+            executable: "/opt/homebrew/bin/gpg",
+            arguments: ["--batch", "--passphrase", "super secret", "--command-fd", "0", "--edit-key", "ABCD"]
+        )
+        #expect(!line.contains("super secret"))
+        #expect(line.contains("--passphrase '[REDACTED]'"))   // 占位符含特殊字符,被 shell 引号包裹是预期行为
+        #expect(line.hasSuffix("--edit-key ABCD"))
+    }
+
+    @Test func emptyPassphraseAlsoRedacted() {
+        let line = BackendProcessRunner.commandLineDescription(
+            executable: "/usr/bin/gpg",
+            arguments: ["--passphrase", "", "--quick-add-uid"]
+        )
+        #expect(line.contains("--passphrase '[REDACTED]'"))   // 占位符含特殊字符,被 shell 引号包裹是预期行为
+    }
+}

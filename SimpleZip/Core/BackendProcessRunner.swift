@@ -71,11 +71,27 @@ enum BackendProcessRunner {
 
     // MARK: - 等价命令行（0.4.2 #20）
 
-    /// 本次调用的**等价命令行**（shell 可粘贴）。安全口径：口令从不进 argv（裸 `-p` 走 PTY），
-    /// 所以这里没有任何需要打码的内容；含空白 / 特殊字符的参数加单引号。
+    /// 本次调用的**等价命令行**（shell 可粘贴）。7zz 侧口令从不进 argv（裸 `-p` 走 PTY）；
+    /// GPG 侧仍有 `--passphrase <值>` 的历史折中（changePassphrase 等）—— 这里**纵深防御**：
+    /// `--passphrase` 的下一个参数一律打码成 `[REDACTED]`，确保现在与将来任何 argv 口令
+    /// 都不会进任务日志 / 诊断 / 活动中心历史。含空白 / 特殊字符的参数加单引号。
     /// 行首 `$ ` 前缀是任务详情里「复制命令」按钮的提取标记 —— 改动要两头同步。
     nonisolated static func commandLineDescription(executable: String, arguments: [String]) -> String {
-        let parts = ([executable] + arguments).map(shellQuoted)
+        var sanitized: [String] = []
+        sanitized.reserveCapacity(arguments.count)
+        var redactNext = false
+        for argument in arguments {
+            if redactNext {
+                sanitized.append("[REDACTED]")
+                redactNext = false
+                continue
+            }
+            if argument == "--passphrase" {
+                redactNext = true
+            }
+            sanitized.append(argument)
+        }
+        let parts = ([executable] + sanitized).map(shellQuoted)
         return "$ " + parts.joined(separator: " ")
     }
 
