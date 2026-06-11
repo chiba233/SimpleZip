@@ -39,11 +39,8 @@ struct AboutPane: View {
                             .frame(width: 128, height: 128)
                             .shadow(color: .black.opacity(0.25), radius: 14, y: 8)
                     }
-                    Text("SimpleZip")
-                        .font(.system(size: 42, weight: .bold, design: .rounded))
-                        .foregroundStyle(
-                            LinearGradient(colors: [.blue, .purple], startPoint: .leading, endPoint: .trailing)
-                        )
+                    // 0.4.2 用户点名：标题改液态玻璃风格,玻璃色跟 macOS 主题强调色。
+                    appTitle
                     Text(versionLine)
                         .font(.callout.weight(.medium))
                         .monospacedDigit()
@@ -103,6 +100,29 @@ struct AboutPane: View {
                     .padding(.bottom, 28)
             }
             .frame(maxWidth: .infinity)
+    }
+
+    /// 液态玻璃标题：macOS 26 用系统 Liquid Glass（accent tint）；老系统退回主题色渐变字。
+    @ViewBuilder
+    private var appTitle: some View {
+        if #available(macOS 26.0, *) {
+            Text("SimpleZip")
+                .font(.system(size: 42, weight: .bold, design: .rounded))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 26)
+                .padding(.vertical, 8)
+                .glassEffect(.regular.tint(Color.accentColor.opacity(0.55)), in: Capsule())
+        } else {
+            Text("SimpleZip")
+                .font(.system(size: 42, weight: .bold, design: .rounded))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [Color.accentColor, Color.accentColor.opacity(0.55)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+        }
     }
 
     @ViewBuilder
