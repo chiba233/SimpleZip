@@ -8,9 +8,10 @@
 import AppKit
 import SwiftUI
 
-/// 同名冲突对话框。0.4.1 重做：放弃「俩开关改写继续按钮」的隐晦设计，改成**每个处理方式一行明确的动作按钮**
-/// （图标 + 标题 + 一句说明），用户一眼看懂、一点到位；「应用到全部」作底部 toggle。
-/// 三种场景共用：解压/粘贴的文件冲突、文件夹冲突、以及创建压缩包的输出冲突（kind = .create）。
+/// 同名冲突对话框。0.4.1 视觉现代化（hero 头 + 卡片化开关 + bar 操作栏），**保留可组合的修饰开关**——
+/// 「把整个文件夹替换（tar 风格）」是一个独立的**模式轴**，它和「仅内容不同时覆盖」正交，且影响所有动作
+/// （连 skip 在内：tar 模式下 skip = 整体跳过，Finder 模式 = 合并里逐项处理）。所以它必须是开关、不能拆成动作按钮。
+/// 三种场景共用：解压/粘贴文件冲突、文件夹冲突、创建压缩包输出冲突（kind = .archiveOutput）。
 struct ConflictResolutionView: View {
     enum Kind {
         case fileTransfer       // 解压 / 粘贴：文件 vs 文件
@@ -23,6 +24,8 @@ struct ConflictResolutionView: View {
     let allowsRememberedChoice: Bool
     let onChoice: (PasteConflictChoice, Bool) -> Void
 
+    @State private var replaceWholeFolder = false
+    @State private var hashGate = false
     @State private var applyToAll = false
 
     init(fileName: String, isDirectory: Bool, allowsRememberedChoice: Bool, onChoice: @escaping (PasteConflictChoice, Bool) -> Void) {
@@ -39,29 +42,12 @@ struct ConflictResolutionView: View {
         self.onChoice = onChoice
     }
 
-    /// 该场景下可选的处理方式（按推荐顺序）。每项 = (选择, 图标, 标题, 说明)。
-    private var actions: [(choice: PasteConflictChoice, icon: String, title: String, subtitle: String)] {
-        switch kind {
-        case .fileTransfer:
-            return [
-                (.replace, "arrow.2.squarepath", L10n.text("conflict.action.replace"), L10n.text("conflict.action.replace.desc")),
-                (.replaceIfDifferent, "doc.badge.gearshape", L10n.text("conflict.action.replaceIfDifferent"), L10n.text("conflict.action.replaceIfDifferent.desc")),
-                (.skip, "arrow.uturn.forward", L10n.text("conflict.action.skip"), L10n.text("conflict.action.skip.desc")),
-            ]
-        case .folderTransfer:
-            return [
-                (.merge, "arrow.triangle.merge", L10n.text("conflict.action.merge"), L10n.text("conflict.action.merge.desc")),
-                (.mergeIfDifferent, "arrow.triangle.merge", L10n.text("conflict.action.mergeIfDifferent"), L10n.text("conflict.action.mergeIfDifferent.desc")),
-                (.replace, "folder.badge.minus", L10n.text("conflict.action.replaceFolder"), L10n.text("conflict.action.replaceFolder.desc")),
-                (.skip, "arrow.uturn.forward", L10n.text("conflict.action.skip"), L10n.text("conflict.action.skip.desc")),
-            ]
-        case .archiveOutput:
-            return [
-                (.replace, "arrow.2.squarepath", L10n.text("conflict.action.replace"), L10n.text("conflict.action.replace.desc")),
-                (.replaceIfDifferent, "doc.badge.gearshape", L10n.text("conflict.action.replaceIfDifferent"), L10n.text("conflict.action.replaceIfDifferent.desc")),
-                (.keepBoth, "plus.square.on.square", L10n.text("conflict.action.keepBoth"), L10n.text("conflict.action.keepBoth.desc")),
-            ]
+    /// 「继续」按钮按修饰开关组合出的实际选择。
+    private var continueChoice: PasteConflictChoice {
+        if kind == .folderTransfer, !replaceWholeFolder {
+            return hashGate ? .mergeIfDifferent : .merge
         }
+        return hashGate ? .replaceIfDifferent : .replace
     }
 
     var body: some View {
@@ -92,62 +78,73 @@ struct ConflictResolutionView: View {
             .padding(.top, 20)
             .padding(.bottom, 14)
 
-            // 「应用到本次操作的其余冲突」—— 必须放在动作按钮**之上**：每个动作（含 skip，对文件夹是整体跳过）
-            // 一点即生效并关闭对话框，所以这个修饰开关要先于动作可设。仅在可能有多个冲突时显示（allowsRememberedChoice）。
-            if allowsRememberedChoice {
-                Toggle(L10n.text("conflict.applyToAll"), isOn: $applyToAll)
-                    .toggleStyle(.checkbox)
-                    .padding(.horizontal, 22)
-                    .padding(.bottom, 12)
-            }
-
-            VStack(spacing: 8) {
-                ForEach(Array(actions.enumerated()), id: \.offset) { index, action in
-                    Button {
-                        onChoice(action.choice, applyToAll)
-                    } label: {
-                        HStack(spacing: 11) {
-                            Image(systemName: action.icon)
-                                .font(.system(size: 15))
-                                .foregroundStyle(Color.accentColor)
-                                .frame(width: 22)
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(action.title).font(.body.weight(.medium))
-                                Text(action.subtitle).font(.caption).foregroundStyle(.secondary)
-                            }
-                            Spacer(minLength: 0)
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 10)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(
-                            RoundedRectangle(cornerRadius: 9, style: .continuous)
-                                .fill(Color(nsColor: .controlBackgroundColor))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 9, style: .continuous)
-                                .strokeBorder(Color.primary.opacity(0.07))
-                        )
-                        .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
-                    }
-                    .buttonStyle(.plain)
-                    .keyboardShortcut(index == 0 ? .defaultAction : nil)
+            // 可组合的修饰开关，卡片化呈现（比裸 checkbox 现代）。每个轴一行带说明。
+            VStack(alignment: .leading, spacing: 12) {
+                if kind == .folderTransfer {
+                    conflictToggle(
+                        L10n.text("conflict.toggle.replaceWholeFolder"),
+                        subtitle: L10n.text("conflict.toggle.replaceWholeFolder.desc"),
+                        isOn: $replaceWholeFolder
+                    )
+                }
+                conflictToggle(
+                    L10n.text("conflict.toggle.hashGate"),
+                    subtitle: L10n.text("conflict.toggle.hashGate.desc"),
+                    isOn: $hashGate
+                )
+                if allowsRememberedChoice {
+                    conflictToggle(
+                        L10n.text("conflict.applyToAll"),
+                        subtitle: L10n.text("conflict.applyToAll.desc"),
+                        isOn: $applyToAll
+                    )
                 }
             }
             .padding(.horizontal, 20)
 
-            Divider().padding(.top, 14)
+            Divider().padding(.top, 16)
 
-            HStack {
-                Spacer()
+            HStack(spacing: 10) {
                 Button(L10n.text("button.cancel")) { onChoice(.cancel, false) }
                     .keyboardShortcut(.cancelAction)
+                Spacer()
+                // 创建场景没有「跳过」（单一输出），但有「两者都保留」。
+                if kind == .archiveOutput {
+                    Button(L10n.text("conflict.action.keepBoth")) { onChoice(.keepBoth, false) }
+                } else {
+                    Button(L10n.text("conflict.action.skip")) { onChoice(.skip, applyToAll) }
+                }
+                Button(continueButtonTitle) { onChoice(continueChoice, applyToAll) }
+                    .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.defaultAction)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
             .background(.bar)
         }
-        .frame(width: 460)
+        .frame(width: 480)
+    }
+
+    /// 「继续」按钮文案随当前组合变化，让用户一眼看出会做什么（替换 / 合并 / 仅不同时…）。
+    private var continueButtonTitle: String {
+        switch continueChoice {
+        case .merge: return L10n.text("conflict.action.merge")
+        case .mergeIfDifferent: return L10n.text("conflict.action.mergeIfDifferent")
+        case .replaceIfDifferent: return L10n.text("conflict.action.replaceIfDifferent")
+        default: return L10n.text("conflict.action.replace")
+        }
+    }
+
+    @ViewBuilder
+    private func conflictToggle(_ title: String, subtitle: String, isOn: Binding<Bool>) -> some View {
+        Toggle(isOn: isOn) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title).font(.body)
+                Text(subtitle).font(.caption).foregroundStyle(.secondary)
+            }
+        }
+        .toggleStyle(.checkbox)
+        .fixedSize(horizontal: false, vertical: true)
     }
 }
 

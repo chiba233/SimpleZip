@@ -1187,6 +1187,11 @@
 "conflict.action.replaceFolder.desc" = "Discard the target folder entirely and replace it.";
 "conflict.action.keepBoth" = "Keep both";
 "conflict.action.keepBoth.desc" = "Save the new archive under a different name.";
+"conflict.toggle.replaceWholeFolder" = "Replace the whole folder (tar style)";
+"conflict.toggle.replaceWholeFolder.desc" = "Off = merge like Finder (keep extra files in the target). On = discard the target folder entirely.";
+"conflict.toggle.hashGate" = "Only overwrite when contents differ";
+"conflict.toggle.hashGate.desc" = "Skip items whose contents are identical.";
+"conflict.applyToAll.desc" = "Use this choice for every remaining conflict in this operation.";
 "status.createSameContentSkipped" = "“%@” already exists with identical contents — kept the existing file.";
 "status.createReplacedDifferent" = "Replaced “%@” (contents differed)";
 "settings.7zip.backend" = "7-Zip backend";

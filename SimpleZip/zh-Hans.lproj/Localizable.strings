@@ -1166,6 +1166,11 @@
 "conflict.action.replaceFolder.desc" = "整体丢弃目标文件夹并替换。";
 "conflict.action.keepBoth" = "两者都保留";
 "conflict.action.keepBoth.desc" = "把新压缩包另存为不冲突的名字。";
+"conflict.toggle.replaceWholeFolder" = "替换整个文件夹（tar 风格）";
+"conflict.toggle.replaceWholeFolder.desc" = "关 = 像 Finder 一样合并(保留目标里多余的文件);开 = 整体丢弃目标文件夹。";
+"conflict.toggle.hashGate" = "仅当内容不同时才覆盖";
+"conflict.toggle.hashGate.desc" = "内容相同的项跳过。";
+"conflict.applyToAll.desc" = "本次操作其余的同名冲突都用这个选择。";
 "status.createSameContentSkipped" = "「%@」已存在且内容相同——保留了原文件。";
 "status.createReplacedDifferent" = "已替换「%@」(内容不同)";
 "settings.7zip.backend" = "7-Zip 后端";
