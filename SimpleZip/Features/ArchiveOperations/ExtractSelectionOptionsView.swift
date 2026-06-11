@@ -5,6 +5,7 @@
 //  Created by HoshinoYumeka on 2026/05/12.
 //
 
+import AppKit
 import SwiftUI
 
 /// 解压选中条目前的选项面板。
@@ -42,5 +43,81 @@ struct ExtractSelectionOptionsView: View {
             }
         }
         .frame(width: 560)
+    }
+}
+
+/// 0.4.2：`.gpg` 解压确认对话框 —— 用户点名「不能静默解」。展示解密产物名 + 可改目标目录，
+/// 确认后走任务化解密（活动中心 / 可重跑）。轻量 sheet,套统一弹窗体例。
+struct GPGExtractOptionsView: View {
+    @State var request: ArchiveBrowserModel.GPGExtractRequest
+    let extract: (ArchiveBrowserModel.GPGExtractRequest) -> Void
+    let cancel: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            DialogHero(
+                systemImage: "lock.open.doc",
+                colors: [.teal, .blue],
+                title: L10n.text("gpgExtract.title"),
+                subtitle: request.url.lastPathComponent
+            )
+
+            VStack(alignment: .leading, spacing: 16) {
+                DialogSection {
+                    LabeledContent {
+                        Text(request.productName)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    } label: {
+                        Label(L10n.text("gpgExtract.product"), systemImage: "doc")
+                    }
+
+                    LabeledContent {
+                        HStack(spacing: 8) {
+                            Text(request.destinationURL.path)
+                                .font(.caption)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                                .frame(maxWidth: .infinity, alignment: .trailing)
+                            Button(L10n.text("button.choose")) {
+                                chooseDestination()
+                            }
+                        }
+                    } label: {
+                        Label(L10n.text("archive.destination"), systemImage: "folder")
+                    }
+                }
+
+                Label(L10n.text("gpgExtract.note"), systemImage: "info.circle")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 16)
+
+            Divider()
+
+            DialogFooter(
+                confirmTitle: L10n.text("button.extract"),
+                confirmDisabled: false,
+                confirm: { extract(request) },
+                cancel: cancel
+            ) {
+                EmptyView()
+            }
+        }
+        .frame(width: 520)
+    }
+
+    private func chooseDestination() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = true
+        panel.directoryURL = request.destinationURL
+        if panel.runModal() == .OK, let url = panel.url {
+            request.destinationURL = url
+        }
     }
 }

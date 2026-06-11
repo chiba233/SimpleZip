@@ -1235,6 +1235,14 @@ private struct ArchiveExtrasSheets: ViewModifier {
                     model.duplicateFilesReport = nil
                 }
             }
+            .sheet(item: $model.gpgExtractRequest) { request in
+                GPGExtractOptionsView(request: request) { confirmed in
+                    model.gpgExtractRequest = nil
+                    model.runGPGExtract(confirmed.url, to: confirmed.destinationURL)
+                } cancel: {
+                    model.gpgExtractRequest = nil
+                }
+            }
             // 设置开窗桥（0.4.2）：菜单栏「关于」等深链入口靠它用官方 openSettings 开窗。
             .background(SettingsOpenerBridge())
     }

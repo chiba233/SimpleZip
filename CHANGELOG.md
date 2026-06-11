@@ -4,6 +4,8 @@
 
 ## 0.4.2 (unreleased)
 
+- **Fix: `.gpg` extraction grew a proper dialog — and works in the virtual browser.** Extracting a `.gpg` now shows a confirmation dialog first (decrypted file name + changeable destination) instead of silently decrypting next to the source. Inside the decrypted virtual-browse view, Extract now means "save the decrypted files to a folder of your choice" rather than erroring with "open an archive first". (Finder auto-extract for `.gpg` was already routed since 0.2.7 — it needs both the Finder auto-extract preference and the GPG master switch enabled.)
+
 - **New: the toolbar adapts to what you're doing.** Two context-aware quick actions appear ahead of the fixed buttons and switch live with your selection — archive with entries selected: *Extract Selected* + *Batch Rename* (or *Hash* for a single entry); archive with nothing selected: *Find Duplicate Files* + *Edit Comment* (writable) / *Test* (read-only); folder with files selected: *Add to Archive* + *Extract Here* (when an archive or `.gpg` is in the selection) / *Batch Rename* / *Duplicate*; empty folder selection: *New Folder* + *Paste*.
 
 - **New: batch rename comes to the file browser — and gets discoverable.** Select two or more files/folders → right-click **Batch Rename…** (or Edit menu, ⌥⌘R, which routes to archive entries or disk files depending on context). Same engine as inside archives: find-and-replace text, prefix/suffix, case conversion, numbered sequences, live preview with conflicts flagged — applied with per-item moves and a single undo (⌘Z reverts the whole batch). **Find Duplicate Files** also joins the Edit menu for archive windows.

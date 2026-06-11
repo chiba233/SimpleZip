@@ -1632,6 +1632,11 @@
 /* GPG 加密文件打开 / 密钥导入（0.2.7） */
 "status.gpgDecrypting" = "正在解密 %@…";
 "status.gpgExtracted" = "已解密 %@";
+"gpgExtract.title" = "解密并解压";
+"gpgExtract.product" = "解密产物";
+"gpgExtract.note" = "解密在加密临时卷上进行，成功后明文才落到所选目录——绝不覆盖已有文件。gpg-agent / pinentry 可能弹出私钥口令输入。";
+"virtual.export.panelMessage" = "选择解密文件的保存位置";
+"virtual.export.done" = "已保存 %1$@ 个文件";
 "button.close" = "关闭";
 "gpgFile.disabled.message" = "GPG 集成已关闭。请在「设置 ▸ GPG」中启用后再打开加密文件。";
 "gpgFile.backendMissing.message" = "未找到 GPG 后端（gpg）。请安装 GnuPG 后再打开加密文件。";

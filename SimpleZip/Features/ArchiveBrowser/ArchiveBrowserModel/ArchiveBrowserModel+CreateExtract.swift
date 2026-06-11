@@ -867,8 +867,14 @@ extension ArchiveBrowserModel {
             pendingSZSExtractHint = szsURL
             return
         }
-        // 0.4.2 用户点名：`.gpg`/`.pgp`/`.asc` 的「解压」要真的能用 —— 解密产物落在源文件旁
-        //（唯一名、绝不覆盖），走完整任务管线（活动中心 / 可重跑）。钥匙串材料则引去导入。
+        // 0.4.2：.gpg/.szs **虚拟浏览**里点「解压」= 把解密出的文件保存到用户选的目录
+        //（这个视图里的文件本来就是解密产物,「解压」的合理语义就是导出）。
+        if case .folder = mode, manifestVirtualMode != nil {
+            exportVirtualModeFiles()
+            return
+        }
+        // 0.4.2 用户点名：`.gpg`/`.pgp`/`.asc` 的「解压」要真的能用 —— 弹确认对话框（产物名 / 目标目录），
+        // 走完整任务管线（活动中心 / 可重跑）。钥匙串材料则引去导入。
         if case .folder = mode,
            let gpgURL = selectedFileItems.first(where: { !$0.isDirectory && GPGFileService.isRecognizedGPGFile($0.url) })?.url {
             extractGPGFileHere(gpgURL)
@@ -897,6 +903,41 @@ extension ArchiveBrowserModel {
             password: preset,
             detectedZipEncryption: ArchiveService.detectZipEncryption(in: archiveURL)
         )
+    }
+
+    /// 0.4.2：虚拟浏览（.gpg/.szs 解密临时内容）的「解压」= 导出。选中的文件优先,没选就全部；
+    /// NSOpenPanel 选目标目录,逐个复制（唯一名,绝不覆盖）。
+    private func exportVirtualModeFiles() {
+        let candidates = selectedFileItems.isEmpty ? fileItems : selectedFileItems
+        let files = candidates.filter { !$0.isDirectory }
+        guard !files.isEmpty else {
+            errorMessage = L10n.text("error.selectFilesToArchive")
+            return
+        }
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = true
+        panel.prompt = L10n.text("button.extract")
+        panel.message = L10n.text("virtual.export.panelMessage")
+        guard panel.runModal() == .OK, let destination = panel.url else { return }
+        var exported = 0
+        for file in files {
+            let desired = destination.appendingPathComponent(file.url.lastPathComponent)
+            let target = fileManager.fileExists(atPath: desired.path)
+                ? UniqueFileName.suffixed(for: desired, suffix: "", exists: { self.fileManager.fileExists(atPath: $0.path) })
+                : desired
+            do {
+                try fileManager.copyItem(at: file.url, to: target)
+                exported += 1
+            } catch {
+                errorMessage = error.localizedDescription
+                break
+            }
+        }
+        if exported > 0 {
+            status = L10n.format("virtual.export.done", "\(exported)")
+        }
     }
 
     /// 解压默认目标路径 —— 普通 archive 用自身父目录；`.siz` 打开内层时 archiveURL 是 /tmp 路径，

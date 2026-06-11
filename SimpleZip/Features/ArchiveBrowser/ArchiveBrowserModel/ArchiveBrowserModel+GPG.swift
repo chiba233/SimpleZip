@@ -77,6 +77,16 @@ extension ArchiveBrowserModel {
         }
     }
 
+    /// 0.4.2：.gpg 解压确认请求（非 nil = 弹对话框）。用户点名「不能静默解压」——
+    /// 解压前给正规对话框：看清产物名、可改目标目录。
+    struct GPGExtractRequest: Identifiable {
+        let id = UUID()
+        let url: URL
+        var destinationURL: URL
+        /// 解密产物文件名（剥一层 .gpg/.asc 后缀）。
+        var productName: String { GPGFileService.decryptedInnerName(for: url) }
+    }
+
     // MARK: - .gpg「解压到此」（0.4.2）
 
     /// 文件浏览里对 `.gpg`/`.pgp`/`.asc` 点「解压」：解密产物落在源文件**旁边**（同名先到先得、
@@ -96,15 +106,16 @@ extension ArchiveBrowserModel {
         case .privateKey:
             pendingGPGKeyImport = GPGKeyImportRequest(sourceURL: url, isPrivateKey: true)
         case .encryptedMessage:
-            runGPGExtractHere(url)
+            // 0.4.2 用户点名：不静默解 —— 弹解压对话框（产物名 + 可改目标目录）再动手。
+            gpgExtractRequest = GPGExtractRequest(url: url, destinationURL: url.deletingLastPathComponent())
         case .detachedSignature, .clearSigned, .unknown:
             errorMessage = L10n.text("gpgFile.notDecryptable.message")
         }
     }
 
-    /// 执行解密落盘：先解到加密临时卷（fail-closed），成功后才移到源目录 —— 半截失败不会留下半个明文。
+    /// 执行解密落盘：先解到加密临时卷（fail-closed），成功后才移到 `destination` —— 半截失败不会留下半个明文。
     /// 用户在 pinentry 取消 → 任务按取消收尾（不报失败）。
-    private func runGPGExtractHere(_ url: URL) {
+    func runGPGExtract(_ url: URL, to destination: URL) {
         var product: URL?
         startManagedArchiveTask(
             title: L10n.format("status.gpgDecrypting", url.lastPathComponent),
@@ -114,7 +125,7 @@ extension ArchiveBrowserModel {
             refreshOnSuccess: { [weak self] in
                 guard let self, let product else { return }
                 self.status = L10n.format("status.gpgExtracted", product.lastPathComponent)
-                // 产物就在当前文件夹 —— 刷新当前视图并把光标落上去（与加密为 .gpg 流程一致，不拉起 Finder）。
+                // 产物落在当前浏览目录时刷新视图并把光标落上去（不拉起 Finder,与加密流程一致）。
                 self.pendingSelectionURL = product.standardizedFileURL
                 self.refreshVisibleFolder(containing: product)
             },
@@ -123,9 +134,9 @@ extension ArchiveBrowserModel {
                     task.transferLog = [TransferLogEntry(name: product.lastPathComponent, action: .added, isDirectory: false)]
                 }
             },
-            rerunAction: { [weak self] in self?.runGPGExtractHere(url) }
+            rerunAction: { [weak self] in self?.runGPGExtract(url, to: destination) }
         ) { operationID, _, _ in
-            // 解密中转仍在加密临时卷（fail-closed）；用户点的是「解压到此」，明文落到源目录是明确意图。
+            // 解密中转仍在加密临时卷（fail-closed）；明文落到用户确认过的目标目录是明确意图。
             let decrypted: URL
             do {
                 decrypted = try await GPGFileService.decryptToTemporary(url, operationID: operationID)
@@ -134,7 +145,7 @@ extension ArchiveBrowserModel {
                 throw CancellationError()
             }
             let fm = FileManager.default
-            let desired = url.deletingLastPathComponent().appendingPathComponent(decrypted.lastPathComponent)
+            let desired = destination.appendingPathComponent(decrypted.lastPathComponent)
             let target = fm.fileExists(atPath: desired.path)
                 ? UniqueFileName.suffixed(for: desired, suffix: "", exists: { fm.fileExists(atPath: $0.path) })
                 : desired
