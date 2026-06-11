@@ -39,7 +39,8 @@ struct CreateSZSSheet: View {
     @State private var statusMessage: String?
     @State private var statusIsError = false
 
-    private let labelColumnWidth: CGFloat = 88
+    /// 标签列定宽(en 最长 "Description (optional)" + 22pt 瓦片也放得下)；hint 行用它对齐值列。
+    private let labelColumnWidth: CGFloat = 190
 
     var body: some View {
         // 0.4.1 重构：套创建 / 解压对话框同款 DialogChrome 体例。
@@ -89,11 +90,15 @@ struct CreateSZSSheet: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button(L10n.text("szs.create.cancelButton"), action: onClose)
-                    .keyboardShortcut(.cancelAction)
-                    .disabled(isCreating)
-                Button(L10n.text("szs.create.createButton")) {
+                Button(action: onClose) {
+                    Label(L10n.text("szs.create.cancelButton"), systemImage: "xmark")
+                }
+                .keyboardShortcut(.cancelAction)
+                .disabled(isCreating)
+                Button {
                     runCreate()
+                } label: {
+                    Label(L10n.text("szs.create.createButton"), systemImage: "signature")
                 }
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
@@ -124,8 +129,8 @@ struct CreateSZSSheet: View {
     }
 
     private var payloadRootRow: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            labelText("szs.create.payloadRoot")
+        HStack(alignment: .center, spacing: 8) {
+            DialogRowLabel(L10n.text("szs.create.payloadRoot"), systemImage: "folder.fill", tint: .blue, width: labelColumnWidth)
             Text(payloadRoot?.path ?? L10n.text("szs.create.payloadRoot.placeholder"))
                 .font(.system(.callout, design: .monospaced))
                 .lineLimit(1)
@@ -142,7 +147,7 @@ struct CreateSZSSheet: View {
     @ViewBuilder
     private var filesRow: some View {
         HStack(alignment: .top, spacing: 8) {
-            labelText("szs.create.filesLabel")
+            DialogRowLabel(L10n.text("szs.create.filesLabel"), systemImage: "doc.on.doc.fill", tint: .cyan, width: labelColumnWidth)
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text(L10n.format("szs.create.fileCount", selectedFiles.count))
@@ -189,24 +194,26 @@ struct CreateSZSSheet: View {
     }
 
     private var titleRow: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            labelText("szs.create.titleLabel")
+        HStack(alignment: .center, spacing: 8) {
+            DialogRowLabel(L10n.text("szs.create.titleLabel"), systemImage: "character.cursor.ibeam", tint: .pink, width: labelColumnWidth)
             TextField(L10n.text("szs.create.titlePlaceholder"), text: $title)
                 .textFieldStyle(.roundedBorder)
+                .dialogFieldEmphasis()
         }
     }
 
     private var descriptionRow: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            labelText("szs.create.descriptionLabel")
+        HStack(alignment: .center, spacing: 8) {
+            DialogRowLabel(L10n.text("szs.create.descriptionLabel"), systemImage: "text.alignleft", tint: .pink, width: labelColumnWidth)
             TextField(L10n.text("szs.create.descriptionPlaceholder"), text: $description)
                 .textFieldStyle(.roundedBorder)
+                .dialogFieldEmphasis()
         }
     }
 
     private var signingKeyRow: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            labelText("szs.create.signingKeyLabel")
+        HStack(alignment: .center, spacing: 8) {
+            DialogRowLabel(L10n.text("szs.create.signingKeyLabel"), systemImage: "signature", tint: .green, width: labelColumnWidth)
             GPGSecretKeyMenu(
                 selection: $signingKeyFingerprint,
                 secretKeys: availableSecretKeys,
@@ -221,30 +228,31 @@ struct CreateSZSSheet: View {
 
     @ViewBuilder
     private var encryptFilesRows: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            labelText("szs.create.encryptLabel")
-            Toggle(L10n.text("szs.create.encryptFiles.toggle"), isOn: $encryptFiles)
-                .toggleStyle(.checkbox)
-                .onChange(of: encryptFiles) { enabled in
-                    if !enabled {
-                        recipientFingerprints.removeAll()
-                        symmetricPassphrase = ""
-                    }
-                }
-            Spacer()
+        DialogToggleRow(
+            title: L10n.text("szs.create.encryptFiles.toggle"),
+            systemImage: "lock.fill",
+            tint: .purple,
+            isOn: $encryptFiles
+        )
+        .onChange(of: encryptFiles) { enabled in
+            if !enabled {
+                recipientFingerprints.removeAll()
+                symmetricPassphrase = ""
+            }
         }
         if encryptFiles {
             HStack(alignment: .top, spacing: 8) {
-                labelText("archive.gpgEncrypt.recipientsLabel")
+                DialogRowLabel(L10n.text("archive.gpgEncrypt.recipientsLabel"), systemImage: "person.2.fill", tint: .green, width: labelColumnWidth)
                 VStack(alignment: .leading, spacing: 4) {
                     GPGAddRecipientMenu(eligibleKeys: availableEncryptionKeys, selection: $recipientFingerprints)
                     GPGRecipientChipRow(selection: $recipientFingerprints, lookupKeys: availableEncryptionKeys)
                 }
             }
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                labelText("archive.gpgEncrypt.passphraseLabel")
+            HStack(alignment: .center, spacing: 8) {
+                DialogRowLabel(L10n.text("archive.gpgEncrypt.passphraseLabel"), systemImage: "lock.rectangle.fill", tint: .orange, width: labelColumnWidth)
                 SecureField(L10n.text("archive.gpgEncrypt.passphrasePlaceholder"), text: $symmetricPassphrase)
                     .textFieldStyle(.roundedBorder)
+                    .dialogFieldEmphasis()
             }
             if hasMixedRecipientRings {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -268,8 +276,8 @@ struct CreateSZSSheet: View {
     }
 
     private var outputRow: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            labelText("szs.create.outputLocation")
+        HStack(alignment: .center, spacing: 8) {
+            DialogRowLabel(L10n.text("szs.create.outputLocation"), systemImage: "square.and.arrow.down.fill", tint: .indigo, width: labelColumnWidth)
             Text(outputURL?.path ?? L10n.text("szs.create.outputLocation.placeholder"))
                 .font(.system(.callout, design: .monospaced))
                 .lineLimit(1)
