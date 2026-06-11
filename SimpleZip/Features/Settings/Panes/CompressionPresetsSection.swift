@@ -137,17 +137,14 @@ struct FormatPresetEditorSheet: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(L10n.format("settings.defaults.editorTitle", format.title))
-                .font(.title3)
-                .fontWeight(.semibold)
-                .padding([.horizontal, .top], 18)
-                .padding(.bottom, 2)
-            Text(L10n.text("settings.defaults.editorHint"))
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 18)
-                .padding(.bottom, 2)
+        VStack(spacing: 0) {
+            // 0.4.1 重构：套创建 / 解压对话框同款 DialogHero（hero 头 + 钉底 bar），保留 grouped Form 内容。
+            DialogHero(
+                systemImage: "slider.horizontal.3",
+                colors: [.indigo, .purple],
+                title: L10n.format("settings.defaults.editorTitle", format.title),
+                subtitle: L10n.text("settings.defaults.editorHint")
+            )
 
             Form {
                 if format.supportsCompressionLevel {
@@ -249,9 +246,12 @@ struct FormatPresetEditorSheet: View {
                 Button(L10n.text("button.save")) {
                     onSave(CompressionFormatPreset(format: format, includedFields: included, options: options))
                 }
+                .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
             }
-            .padding(18)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .background(.bar)
         }
         // 高度跟随选项行数,但封顶 620 —— 选项少不留大空白,选项多(7z)也不会超出屏幕(超了 Form 内部滚动)。
         .frame(width: 480, height: min(estimatedHeight, 620))
