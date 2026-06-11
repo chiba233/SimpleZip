@@ -120,9 +120,16 @@ struct WelcomeAssistantView: View {
     private var progressHeader: some View {
         VStack(spacing: 0) {
             HStack(spacing: 12) {
-                Image(systemName: "shippingbox")
-                    .font(.system(size: 26, weight: .regular))
-                    .foregroundStyle(Color.accentColor)
+                // 0.4.2 用户点名：真 app 图标放左上角 header（hero 区不再放图标）。
+                if let icon = NSApp.applicationIconImage {
+                    Image(nsImage: icon)
+                        .resizable()
+                        .frame(width: 30, height: 30)
+                } else {
+                    Image(systemName: "shippingbox")
+                        .font(.system(size: 26, weight: .regular))
+                        .foregroundStyle(Color.accentColor)
+                }
 
                 Text(L10n.text("welcome.window.title"))
                     .font(.headline)
@@ -198,23 +205,15 @@ struct WelcomeAssistantView: View {
     private var welcomeHero: some View {
         // 0.4.2 修「第一页默认就有滚动条」：竖排居中大 hero 占掉 ~250pt,挤掉下面两段 ——
         // 改横排紧凑头(真 app 图标 + 标题/简介),与设置页 hero 同语言;note 行与 body 信息重复,删。
-        HStack(alignment: .center, spacing: 14) {
-            if let icon = NSApp.applicationIconImage {
-                Image(nsImage: icon)
-                    .resizable()
-                    .frame(width: 64, height: 64)
-                    .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
-            }
-            VStack(alignment: .leading, spacing: 5) {
-                Text(L10n.text("welcome.intro.title"))
-                    .font(.title.weight(.bold))
-                Text(L10n.text("welcome.intro.body"))
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Spacer(minLength: 0)
+        VStack(alignment: .leading, spacing: 5) {
+            Text(L10n.text("welcome.intro.title"))
+                .font(.title.weight(.bold))
+            Text(L10n.text("welcome.intro.body"))
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - Footer
