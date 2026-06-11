@@ -4,6 +4,8 @@
 
 ## 0.4.2 (unreleased)
 
+- **Fix: the Finder auto-extract floating window no longer has a mystery blank area.** Its phases (signature check / progress / done / failed) differ a lot in height and the window never shrank back, so short content floated in a tall window with empty space above. The window now tracks the content's ideal size and snaps to fit on every phase change.
+
 - **New: hidden Developer Tools.** ⌘-click the version pill in Settings → About: environment versions (app/macOS/7zz/RAR/GPG), key paths with Reveal buttons (Application Support, the SimpleZip GPG keyring, temp, the preferences plist), debug actions (reset the welcome assistant, arm the unclean-exit flag, copy the redacted environment report), and a read-only UserDefaults snapshot of the backup whitelist.
 - **Welcome assistant: the safety page is editable now.** The three security policies (suspicious paths / symlinks / active content) become pickers you can change right there instead of a read-only display, and the page gains a "confirm before deleting files" switch (same preference as Settings → General).
 

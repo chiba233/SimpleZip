@@ -389,8 +389,14 @@ final class ExternalExtractWindowController {
         let rootView = content
             .padding(.top, 16)               // 隐藏标题栏后给关闭按钮留出呼吸位
             .frame(width: 360)
+            // 0.4.2 修「迷之空白」：各阶段（验签 / 进度 / 完成 / 失败）内容高度差很大，
+            // 窗口不缩回时矮内容在高窗里垂直居中 → 顶部一大块空白。fixedSize 让 ideal 高 = 内容高。
+            .fixedSize(horizontal: false, vertical: true)
             .background(.regularMaterial)
-        window.contentViewController = NSHostingController(rootView: rootView)
+        let hosting = NSHostingController(rootView: rootView)
+        // 配合 fixedSize：窗口实时跟随 SwiftUI 内容的理想尺寸（阶段切换时自动收/放）。
+        hosting.sizingOptions = [.preferredContentSize]
+        window.contentViewController = hosting
         window.title = windowTitle
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
