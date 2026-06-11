@@ -13,7 +13,6 @@
 - **UI: dialogs now size to their content.** The grouped-Form experiment left large fixed blanks (especially in the extract dialog); sheets now hug their content with a max-height cap to stay on screen.
 - **UI: the .szs verification file list becomes a collapsible directory tree** — folder drawers with descendant counts and an aggregate status dot, fixed per-level indentation, full paths in tooltips.
 - **UI: the address bar's autocomplete is a hand-drawn liquid-glass panel** docked directly under the bar at full width: one sheet of material, no row dividers, and only the selected row gets an accent block.
-- **New: folders expand in place in the file browser.** Directory rows get a disclosure chevron; expansion lazily lists the subfolder with the main listing's exact rules (hidden files, symlinks, .szs virtual filtering), with Finder-style per-level indentation.
 - **UI: the main toolbar defaults to icon-and-text** and remembers your right-click display-mode choice across launches.
 
 ## 0.4.0

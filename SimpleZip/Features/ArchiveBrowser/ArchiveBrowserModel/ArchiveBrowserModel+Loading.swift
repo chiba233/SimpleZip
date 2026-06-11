@@ -32,48 +32,6 @@ extension ArchiveBrowserModel {
         return true
     }
 
-    /// 加载本地文件夹内容，并按"文件夹优先、名称自然排序"展示。
-    /// 0.4.1 文件夹原位展开：列某个子目录的条目，**口径与 loadFolder 完全一致**
-    /// （隐藏文件开关 / 符号链接 / macOS 隐藏标志 / `.szs` 虚拟模式过滤 / 文件夹在前），
-    /// 但不动任何 @Published 状态 —— 纯查询给 NSOutlineView 的懒加载子级用。
-    /// 列不动（无权限 / 已删除）返回空数组：展开后看到空层级，跟 Finder 行为一致。
-    func childFileItems(of url: URL) -> [FileItem] {
-        guard let rawURLs = try? fileBrowser.contents(
-            of: url,
-            showHiddenFiles: AppPreferences.showHiddenFiles,
-            followFinderStructure: false,
-            resourceKeys: [
-                .isDirectoryKey,
-                .isSymbolicLinkKey,
-                .fileSizeKey,
-                .contentModificationDateKey,
-                .creationDateKey,
-                .contentAccessDateKey,
-                .addedToDirectoryDateKey,
-                .localizedTypeDescriptionKey,
-                .isHiddenKey
-            ]
-        ) else { return [] }
-
-        let urls: [URL]
-        if let virtual = manifestVirtualMode {
-            urls = rawURLs.filter { candidate in
-                let std = candidate.standardizedFileURL
-                return virtual.allowedFiles.contains(std) || virtual.allowedDirs.contains(std)
-            }
-        } else {
-            urls = rawURLs
-        }
-
-        return fileBrowser.makeFileItems(
-            from: urls,
-            showSymbolicLinks: AppPreferences.showSymbolicLinks,
-            hiddenSuffixes: AppPreferences.hiddenDisplaySuffixes,
-            includeMacOSHidden: AppPreferences.hiddenDetectionMode.includesMacOSHiddenFlag,
-            folderFirst: true
-        )
-    }
-
     func loadFolder(_ url: URL) {
         do {
             let rawURLs = try fileBrowser.contents(
