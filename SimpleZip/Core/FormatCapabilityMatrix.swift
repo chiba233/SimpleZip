@@ -138,3 +138,49 @@ public enum FormatCapabilityMatrix {
         )
     }
 }
+
+// MARK: - 转换保真度（0.4.2 #13）
+
+/// 转换目标格式能**保留 / 支持**哪些语义 —— 7zz / hdiutil 实际行为的静态知识表。
+/// 转换 = 解压 → 重打包：目标格式不支持的语义（如 tar 无加密、gz 无目录结构权限）在转换中丢失。
+struct ConversionFidelity: Equatable {
+    let preservesPermissions: Bool
+    let preservesSymlinks: Bool
+    let preservesModificationDates: Bool
+    let supportsEncryption: Bool
+    let supportsArchiveComment: Bool
+    let supportsMultiVolume: Bool
+}
+
+extension ArchiveCreateFormat {
+    /// 该格式作为**转换目标**时的保真度。
+    var conversionFidelity: ConversionFidelity {
+        switch self {
+        case .zip:
+            // 7zz 在 zip 的 unix 扩展属性里存权限 / 符号链接；注释（EOCD）可读可写；分卷可创建。
+            return ConversionFidelity(preservesPermissions: true, preservesSymlinks: true, preservesModificationDates: true,
+                                      supportsEncryption: true, supportsArchiveComment: true, supportsMultiVolume: true)
+        case .sevenZip:
+            return ConversionFidelity(preservesPermissions: true, preservesSymlinks: true, preservesModificationDates: true,
+                                      supportsEncryption: true, supportsArchiveComment: false, supportsMultiVolume: true)
+        case .rar:
+            // rar 工具支持注释,但 SimpleZip 当前只读不写。
+            return ConversionFidelity(preservesPermissions: true, preservesSymlinks: true, preservesModificationDates: true,
+                                      supportsEncryption: true, supportsArchiveComment: true, supportsMultiVolume: true)
+        case .tar, .tarGzip:
+            return ConversionFidelity(preservesPermissions: true, preservesSymlinks: true, preservesModificationDates: true,
+                                      supportsEncryption: false, supportsArchiveComment: false, supportsMultiVolume: false)
+        case .gzip:
+            // 单文件流：没有条目结构。gzip 头存一份 mtime。
+            return ConversionFidelity(preservesPermissions: false, preservesSymlinks: false, preservesModificationDates: true,
+                                      supportsEncryption: false, supportsArchiveComment: false, supportsMultiVolume: false)
+        case .bzip2, .xz:
+            return ConversionFidelity(preservesPermissions: false, preservesSymlinks: false, preservesModificationDates: false,
+                                      supportsEncryption: false, supportsArchiveComment: false, supportsMultiVolume: false)
+        case .dmg:
+            // APFS/HFS+ 镜像：文件系统语义全保留；SimpleZip 不创建加密 DMG / 不分卷。
+            return ConversionFidelity(preservesPermissions: true, preservesSymlinks: true, preservesModificationDates: true,
+                                      supportsEncryption: false, supportsArchiveComment: false, supportsMultiVolume: false)
+        }
+    }
+}

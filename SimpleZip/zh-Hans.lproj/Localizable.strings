@@ -718,6 +718,16 @@
 "batchRename.preview.empty" = "没有名字会改变。";
 "batchRename.preview.conflictNote" = "红色条目与其它名字冲突或不合法——执行时会被跳过。";
 "batchRename.confirm" = "重命名 %1$@ 项";
+/* 0.4.2 转换保真度报告 */
+"convert.section.fidelity" = "转换后保留什么";
+"convert.fidelity.note" = "目标格式不支持的语义会在转换中丢失。";
+"fidelity.permissions" = "Unix 权限";
+"fidelity.symlinks" = "符号链接";
+"fidelity.dates" = "修改时间";
+"fidelity.encryption" = "密码加密";
+"fidelity.comment" = "归档注释";
+"fidelity.multiVolume" = "分卷";
+
 
 
 

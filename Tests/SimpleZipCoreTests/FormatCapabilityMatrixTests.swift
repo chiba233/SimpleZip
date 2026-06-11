@@ -66,3 +66,18 @@ struct FormatCapabilityMatrixTests {
         #expect(row("szs")?.encrypt == .yes)
     }
 }
+
+/// 0.4.2 #13:转换保真度知识表的关键事实回归。
+struct ConversionFidelityTests {
+
+    @Test func keyFidelityFacts() {
+        #expect(ArchiveCreateFormat.zip.conversionFidelity.supportsEncryption == true)
+        #expect(ArchiveCreateFormat.zip.conversionFidelity.supportsArchiveComment == true)
+        #expect(ArchiveCreateFormat.sevenZip.conversionFidelity.supportsArchiveComment == false)
+        #expect(ArchiveCreateFormat.tar.conversionFidelity.supportsEncryption == false)
+        #expect(ArchiveCreateFormat.tar.conversionFidelity.preservesPermissions == true)
+        #expect(ArchiveCreateFormat.gzip.conversionFidelity.preservesPermissions == false)
+        #expect(ArchiveCreateFormat.xz.conversionFidelity.preservesModificationDates == false)
+        #expect(ArchiveCreateFormat.dmg.conversionFidelity.preservesSymlinks == true)
+    }
+}

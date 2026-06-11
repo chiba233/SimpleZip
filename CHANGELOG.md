@@ -4,6 +4,8 @@
 
 ## 0.4.2 (unreleased)
 
+- **New: conversion fidelity report.** The Convert Format dialog now shows a "What Survives the Conversion" panel for the chosen target format — whether Unix permissions, symbolic links, modification dates, password encryption, archive comments, and multi-volume support carry over — updating live as you switch formats. RAR → ZIP and TAR → 7z are not semantically equal, and now the dialog says exactly what gets dropped before you commit.
+
 - **New: batch rename inside archives.** Select several files in an editable ZIP/7z → right-click → **Batch Rename…**: replace text, add a prefix or suffix (inserted before the extension), upper/lowercase, or sequential numbering — with a live preview of every old → new name. Collisions (with each other or with untouched entries) and invalid names show in red and are skipped. The whole batch runs as a single 7-Zip rename on a working copy that atomically replaces the archive, so a failure can never leave it half-renamed.
 
 - **New: Quick Look and "Save a Copy As…" for archive entries.** Right-click a file inside an archive → **Quick Look** previews it from a temporary copy that is cleaned up automatically when the archive closes — no manual extraction, nothing left behind. A single selected file also gets **Save a Copy As…**, which extracts straight to a location you pick in the save panel, skipping the extract dialog entirely. Both reuse the session password memory and the same safety checks as opening an entry. (Double-click + edit + write-back already existed; this rounds out the "peek without extracting" workflow.)

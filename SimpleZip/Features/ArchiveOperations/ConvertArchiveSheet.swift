@@ -81,6 +81,15 @@ struct ConvertArchiveSheet: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
 
+                    // 0.4.2 #13：保真度报告 —— 目标格式保留 / 丢失哪些语义，选格式时实时切换。
+                    DialogSection(L10n.text("convert.section.fidelity")) {
+                        fidelityRows(request.targetFormat.conversionFidelity)
+                        Label(L10n.text("convert.fidelity.note"), systemImage: "info.circle")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
                     DialogSection(L10n.text("convert.section.sources")) {
                         ForEach(request.sourceURLs, id: \.self) { url in
                             Label(url.lastPathComponent, systemImage: "doc.zipper")
@@ -114,5 +123,29 @@ struct ConvertArchiveSheet: View {
         }
         .frame(width: 500)
         .onTapGesture { NSApp.keyWindow?.makeFirstResponder(nil) }
+    }
+
+    /// 六行保真度（✓ 保留 / ✗ 丢失），两列排布省高度。
+    @ViewBuilder
+    private func fidelityRows(_ fidelity: ConversionFidelity) -> some View {
+        let entries: [(String, Bool)] = [
+            ("fidelity.permissions", fidelity.preservesPermissions),
+            ("fidelity.symlinks", fidelity.preservesSymlinks),
+            ("fidelity.dates", fidelity.preservesModificationDates),
+            ("fidelity.encryption", fidelity.supportsEncryption),
+            ("fidelity.comment", fidelity.supportsArchiveComment),
+            ("fidelity.multiVolume", fidelity.supportsMultiVolume)
+        ]
+        LazyVGrid(columns: [GridItem(.flexible(), alignment: .leading), GridItem(.flexible(), alignment: .leading)], spacing: 6) {
+            ForEach(entries, id: \.0) { entry in
+                Label {
+                    Text(L10n.text(entry.0))
+                } icon: {
+                    Image(systemName: entry.1 ? "checkmark.circle.fill" : "xmark.circle")
+                        .foregroundStyle(entry.1 ? Color.green : Color.secondary)
+                }
+                .font(.callout)
+            }
+        }
     }
 }

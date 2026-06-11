@@ -720,6 +720,16 @@
 "batchRename.preview.empty" = "No names would change.";
 "batchRename.preview.conflictNote" = "Red entries collide with another name or are invalid — they will be skipped.";
 "batchRename.confirm" = "Rename %1$@ Entries";
+/* 0.4.2 conversion fidelity report */
+"convert.section.fidelity" = "What Survives the Conversion";
+"convert.fidelity.note" = "Anything the target format doesn't support is dropped during conversion.";
+"fidelity.permissions" = "Unix permissions";
+"fidelity.symlinks" = "Symbolic links";
+"fidelity.dates" = "Modification dates";
+"fidelity.encryption" = "Password encryption";
+"fidelity.comment" = "Archive comment";
+"fidelity.multiVolume" = "Multi-volume";
+
 
 
 
