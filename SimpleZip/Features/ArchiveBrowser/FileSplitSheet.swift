@@ -44,33 +44,48 @@ struct FileSplitSheet: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text(L10n.format("split.title", request.url.lastPathComponent))
-                .font(.title3.weight(.semibold))
-                .lineLimit(1)
-                .truncationMode(.middle)
+        // 0.4.1 重构：套 DialogChrome 体例（hero + 分区卡片 + 钉底 bar），跟其它对话框统一。
+        VStack(spacing: 0) {
+            DialogHero(
+                systemImage: "scissors",
+                colors: [.orange, .red],
+                title: L10n.text("split.heroTitle"),
+                subtitle: request.url.lastPathComponent
+            )
 
-            Form {
-                HStack {
-                    Text(L10n.text("split.size.label"))
-                    Spacer()
-                    TextField("", value: $sizeValue, format: .number)
-                        .frame(width: 80)
-                        .multilineTextAlignment(.trailing)
-                    Picker("", selection: $sizeUnit) {
-                        ForEach(SizeUnit.allCases) { unit in
-                            Text(unit.title).tag(unit)
+            VStack(alignment: .leading, spacing: 18) {
+                DialogSection {
+                    LabeledContent {
+                        HStack(spacing: 8) {
+                            TextField("", value: $sizeValue, format: .number)
+                                .frame(width: 90)
+                                .multilineTextAlignment(.trailing)
+                                .textFieldStyle(.roundedBorder)
+                            Picker("", selection: $sizeUnit) {
+                                ForEach(SizeUnit.allCases) { unit in
+                                    Text(unit.title).tag(unit)
+                                }
+                            }
+                            .labelsHidden()
+                            .fixedSize()
                         }
+                    } label: {
+                        Label(L10n.text("split.size.label"), systemImage: "square.split.2x1.fill")
                     }
-                    .labelsHidden()
-                    .fixedSize()
-                }
 
-                // 预估片数：总大小 / 卷大小,给个直觉,避免「1MB 拆 8GB 文件」这种误操作无感发生。
-                Text(L10n.format("split.estimate", ByteCountFormatter.string(fromByteCount: request.fileSize, countStyle: .file), estimatedPartCount))
+                    // 预估片数：总大小 / 卷大小,给个直觉,避免「1MB 拆 8GB 文件」这种误操作无感发生。
+                    Label(
+                        L10n.format("split.estimate", ByteCountFormatter.string(fromByteCount: request.fileSize, countStyle: .file), estimatedPartCount),
+                        systemImage: "number.square.fill"
+                    )
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                }
             }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+
+            Divider()
 
             HStack {
                 Spacer()
@@ -83,8 +98,10 @@ struct FileSplitSheet: View {
                 .keyboardShortcut(.defaultAction)
                 .disabled(volumeSizeBytes <= 0)
             }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .background(.bar)
         }
-        .padding(20)
-        .frame(width: 380)
+        .frame(width: 440)
     }
 }

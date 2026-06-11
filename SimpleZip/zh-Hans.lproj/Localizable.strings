@@ -589,6 +589,7 @@
 "file.split.menuItem" = "拆分…";
 "file.combine.menuItem" = "合并分卷";
 "split.title" = "拆分「%@」";
+"split.heroTitle" = "拆分文件为分卷";
 "split.size.label" = "每卷大小";
 "split.estimate" = "%1$@ → 约 %2$d 个分卷（.001、.002…）";
 "split.button" = "拆分";

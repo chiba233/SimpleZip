@@ -591,6 +591,7 @@
 "file.split.menuItem" = "Split…";
 "file.combine.menuItem" = "Combine Volumes";
 "split.title" = "Split “%@”";
+"split.heroTitle" = "Split File into Volumes";
 "split.size.label" = "Volume size";
 "split.estimate" = "%1$@ → about %2$d volume(s) (.001, .002, …)";
 "split.button" = "Split";
