@@ -122,6 +122,10 @@ struct ArchiveFileCommands: Commands {
                 .disabled(model == nil)
             Button(L10n.text("button.extract")) { model?.extractArchive() }
                 .disabled(model == nil)
+            Button(L10n.text("button.extractSelected")) { model?.extractSelectedArchiveItems() }
+                .disabled(model == nil)
+            Button(L10n.text("archive.saveCopyAs")) { model?.saveSelectedArchiveItemCopy() }
+                .disabled(model == nil)
             Button(L10n.text("button.test")) { model?.testArchive() }
                 .disabled(model == nil)
             Button(L10n.text("file.batchTest.button")) { model?.batchTestSelectedArchives() }
@@ -158,6 +162,37 @@ struct ArchiveFileCommands: Commands {
                 Button(L10n.text("szs.create.menuItem")) { model?.createSignedManifest() }
                     .disabled(model == nil)
             }
+        }
+
+        // 0.4.2 #93 菜单一致性收尾：右键的高频项补进菜单栏(文件域)。
+        CommandGroup(after: .newItem) {
+            Divider()
+            Button(L10n.text("button.open")) {
+                if let item = model?.selectedFileItems.first { model?.open(item) }
+            }
+            .keyboardShortcut("o", modifiers: [.command])
+            .disabled(model?.selectedFileItems.isEmpty != false)
+
+            Button(L10n.text("file.openAsArchive")) {
+                if let item = model?.selectedFileItems.first { model?.openAsArchive(item.url) }
+            }
+            .disabled(model?.selectedFileItems.isEmpty != false)
+
+            Button(L10n.text("file.newFolder")) { model?.createNewFolderAndBeginRename() }
+                .keyboardShortcut("n", modifiers: [.command, .shift])
+                .disabled(model == nil)
+
+            Button(L10n.text("file.duplicate")) { model?.duplicateSelectedFiles() }
+                .disabled(model?.selectedFileItems.isEmpty != false)
+
+            Divider()
+
+            Button(L10n.text("file.getInfo")) { model?.showGetInfoForSelection() }
+                .keyboardShortcut("i", modifiers: [.command])
+                .disabled(model == nil)
+
+            Button(L10n.text("button.revealInFinder")) { model?.revealInFinder() }
+                .disabled(model == nil)
         }
 
         CommandGroup(replacing: .newItem) {
