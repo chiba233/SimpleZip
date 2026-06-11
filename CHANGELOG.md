@@ -4,6 +4,8 @@
 
 ## 0.4.2 (unreleased)
 
+- **New: batch rename inside archives.** Select several files in an editable ZIP/7z → right-click → **Batch Rename…**: replace text, add a prefix or suffix (inserted before the extension), upper/lowercase, or sequential numbering — with a live preview of every old → new name. Collisions (with each other or with untouched entries) and invalid names show in red and are skipped. The whole batch runs as a single 7-Zip rename on a working copy that atomically replaces the archive, so a failure can never leave it half-renamed.
+
 - **New: Quick Look and "Save a Copy As…" for archive entries.** Right-click a file inside an archive → **Quick Look** previews it from a temporary copy that is cleaned up automatically when the archive closes — no manual extraction, nothing left behind. A single selected file also gets **Save a Copy As…**, which extracts straight to a location you pick in the save panel, skipping the extract dialog entirely. Both reuse the session password memory and the same safety checks as opening an entry. (Double-click + edit + write-back already existed; this rounds out the "peek without extracting" workflow.)
 
 - **New: session-level password memory.** A password that works is remembered **in memory only** for the rest of the session (never written to disk or the Keychain): re-opening, extracting from, or editing the same archive reuses it silently, and when you extract several archives that share one password, the next archive tries the last successful password before prompting. The password prompt also now shows the archive's comment when there is one — comments are a common place for password hints.

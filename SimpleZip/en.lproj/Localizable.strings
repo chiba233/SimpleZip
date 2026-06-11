@@ -695,6 +695,32 @@
 /* 0.4.2 archive entry preview / save copy */
 "archive.saveCopyAs" = "Save a Copy As…";
 "archive.saveCopy.done" = "Saved a copy as %1$@";
+/* 0.4.2 batch rename inside archives */
+"archive.batchRename.menu" = "Batch Rename…";
+"archive.batchRename.taskTitle" = "Renaming %1$@ entries";
+"archive.batchRename.done" = "Renamed %1$@ entries";
+"batchRename.title" = "Batch Rename";
+"batchRename.subtitle" = "%1$@ entries in %2$@";
+"batchRename.mode" = "Operation";
+"batchRename.mode.replace" = "Replace Text";
+"batchRename.mode.prefix" = "Add Prefix";
+"batchRename.mode.suffix" = "Add Suffix";
+"batchRename.mode.lowercase" = "Make Lowercase";
+"batchRename.mode.uppercase" = "Make Uppercase";
+"batchRename.mode.sequence" = "Sequential Numbers";
+"batchRename.find" = "Find";
+"batchRename.replaceWith" = "Replace with";
+"batchRename.prefixText" = "Prefix";
+"batchRename.suffixText" = "Suffix";
+"batchRename.suffixHint" = "Inserted before the file extension.";
+"batchRename.sequenceBase" = "Base name";
+"batchRename.sequenceStart" = "Start at";
+"batchRename.sequenceDigits" = "Digits";
+"batchRename.preview" = "Preview";
+"batchRename.preview.empty" = "No names would change.";
+"batchRename.preview.conflictNote" = "Red entries collide with another name or are invalid — they will be skipped.";
+"batchRename.confirm" = "Rename %1$@ Entries";
+
 
 
 

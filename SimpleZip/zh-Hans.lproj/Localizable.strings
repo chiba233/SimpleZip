@@ -693,6 +693,32 @@
 /* 0.4.2 归档条目预览 / 保存副本 */
 "archive.saveCopyAs" = "保存副本到…";
 "archive.saveCopy.done" = "已保存副本 %1$@";
+/* 0.4.2 归档内批量重命名 */
+"archive.batchRename.menu" = "批量重命名…";
+"archive.batchRename.taskTitle" = "正在重命名 %1$@ 个条目";
+"archive.batchRename.done" = "已重命名 %1$@ 个条目";
+"batchRename.title" = "批量重命名";
+"batchRename.subtitle" = "%2$@ 中的 %1$@ 个条目";
+"batchRename.mode" = "操作";
+"batchRename.mode.replace" = "替换文本";
+"batchRename.mode.prefix" = "添加前缀";
+"batchRename.mode.suffix" = "添加后缀";
+"batchRename.mode.lowercase" = "转为小写";
+"batchRename.mode.uppercase" = "转为大写";
+"batchRename.mode.sequence" = "按序号";
+"batchRename.find" = "查找";
+"batchRename.replaceWith" = "替换为";
+"batchRename.prefixText" = "前缀";
+"batchRename.suffixText" = "后缀";
+"batchRename.suffixHint" = "插入在扩展名之前。";
+"batchRename.sequenceBase" = "基础名";
+"batchRename.sequenceStart" = "起始序号";
+"batchRename.sequenceDigits" = "位数";
+"batchRename.preview" = "预览";
+"batchRename.preview.empty" = "没有名字会改变。";
+"batchRename.preview.conflictNote" = "红色条目与其它名字冲突或不合法——执行时会被跳过。";
+"batchRename.confirm" = "重命名 %1$@ 项";
+
 
 
 

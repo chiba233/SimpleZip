@@ -223,3 +223,66 @@ struct ArchiveEntryUpdateTests {
         #expect(!ArchiveService.supportsEntryUpdate(URL(fileURLWithPath: "/tmp/a.rar")))
     }
 }
+
+/// 0.4.2 #11:批量重命名计划引擎(纯名字变换)。
+struct BatchRenamePlanTests {
+
+    @Test func replaceTextOnlyTouchesLeaf() {
+        let changes = BatchRename.plan(
+            paths: ["docs/IMG_001.jpg", "docs/IMG_002.jpg", "docs/readme.txt"],
+            operation: .replaceText(find: "IMG_", replacement: "Photo-"),
+            allEntryPaths: ["docs/IMG_001.jpg", "docs/IMG_002.jpg", "docs/readme.txt"]
+        )
+        #expect(changes.map(\.toPath) == ["docs/Photo-001.jpg", "docs/Photo-002.jpg"])
+        #expect(changes.allSatisfy { !$0.isConflicting })
+    }
+
+    @Test func suffixInsertsBeforeExtension() {
+        let changes = BatchRename.plan(paths: ["report.pdf", "noext"], operation: .addSuffix("-final"), allEntryPaths: ["report.pdf", "noext"])
+        #expect(changes.map(\.toPath) == ["report-final.pdf", "noext-final"])
+    }
+
+    @Test func sequenceKeepsExtensionsAndPads() {
+        let changes = BatchRename.plan(
+            paths: ["a.jpg", "b.png", "c"],
+            operation: .sequence(baseName: "shot", start: 9, digits: 3),
+            allEntryPaths: ["a.jpg", "b.png", "c"]
+        )
+        #expect(changes.map(\.toPath) == ["shot009.jpg", "shot010.png", "shot011"])
+    }
+
+    @Test func collisionsWithinBatchAreFlagged() {
+        // 两个不同名都被替换成同一个新名 → 互撞,都标冲突。
+        let changes = BatchRename.plan(
+            paths: ["a-1.txt", "a-2.txt"],
+            operation: .replaceText(find: "-1", replacement: ""),
+            allEntryPaths: ["a-1.txt", "a-2.txt", "a.txt"]
+        )
+        // a-1.txt → a.txt 撞上包内未改名的 a.txt。
+        #expect(changes.count == 1)
+        #expect(changes.first?.isConflicting == true)
+    }
+
+    @Test func collisionWithUntouchedEntryIsFlagged() {
+        let changes = BatchRename.plan(
+            paths: ["draft.txt"],
+            operation: .replaceText(find: "draft", replacement: "final"),
+            allEntryPaths: ["draft.txt", "final.txt"]
+        )
+        #expect(changes.first?.isConflicting == true)
+    }
+
+    @Test func unchangedNamesAreOmitted() {
+        let changes = BatchRename.plan(paths: ["abc.txt"], operation: .lowercased, allEntryPaths: ["abc.txt"])
+        #expect(changes.isEmpty)
+    }
+
+    @Test func slashInReplacementIsInvalid() {
+        let changes = BatchRename.plan(
+            paths: ["a.txt"],
+            operation: .replaceText(find: "a", replacement: "x/y"),
+            allEntryPaths: ["a.txt"]
+        )
+        #expect(changes.first?.isConflicting == true)
+    }
+}

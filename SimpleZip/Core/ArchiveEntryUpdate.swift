@@ -209,6 +209,60 @@ extension ArchiveService {
         _ = try fm.replaceItemAt(archiveURL, withItemAt: workCopy)
     }
 
+    /// 0.4.2 #11：批量重命名 —— 一份工作副本上跑**一次** `7zz rn old1 new1 old2 new2 …`，
+    /// 成功后原子替换。任何一对路径非法或 7zz 失败 → 整批不落地、原包字节不变（不会改一半）。
+    public static func renameEntries(
+        in archiveURL: URL,
+        pairs: [(from: String, to: String)],
+        password: String = "",
+        operationID: UUID? = nil,
+        outputObserver: (@Sendable (String) -> Void)? = nil
+    ) async throws {
+        guard supportsEntryUpdate(archiveURL) else {
+            throw ArchiveError.commandFailed("This archive format does not support renaming entries.")
+        }
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: archiveURL.path) else {
+            throw ArchiveError.commandFailed("Archive no longer exists.")
+        }
+        // 先整批校验（任何一对坏就不开工），并丢掉 from == to 的空操作。
+        var normalizedPairs: [(String, String)] = []
+        for pair in pairs {
+            let from = try normalizedEntryRelativePath(pair.from)
+            let to = try normalizedEntryRelativePath(pair.to)
+            if from != to { normalizedPairs.append((from, to)) }
+        }
+        guard !normalizedPairs.isEmpty else { return }
+
+        let staging = fm.temporaryDirectory
+            .appendingPathComponent("SimpleZip-EntryRename-\(UUID().uuidString)", isDirectory: true)
+        try fm.createDirectory(at: staging, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: staging) }
+
+        let workCopy = staging.appendingPathComponent("work." + archiveURL.pathExtension)
+        try fm.copyItem(at: archiveURL, to: workCopy)
+
+        let tool = try SevenZipBackend.toolPath()
+        var arguments = ["rn", workCopy.path]
+        if !password.isEmpty {
+            arguments.append("-p")   // 口令走 PTY，不进 argv（与单条 rename 同款）。
+        }
+        for (from, to) in normalizedPairs {
+            arguments.append(contentsOf: [from, to])
+        }
+        arguments.append("-y")
+        _ = try await BackendProcessRunner.runAndCapture(
+            tool,
+            arguments: arguments,
+            inputStrategy: passwordInputStrategy(password),
+            outputObserver: outputObserver,
+            operationID: operationID,
+            outputRetentionLimit: BackendProcessRunner.diagnosticsOutputRetentionLimit
+        )
+
+        _ = try fm.replaceItemAt(archiveURL, withItemAt: workCopy)
+    }
+
     /// 归档内相对路径校验 / 规范化 —— 拒绝绝对路径、`..` 逃逸、空段,防止 staging 时写到 payload 之外
     /// 或在归档里塞出诡异路径。返回用 `/` 连接的干净相对路径。
     ///
@@ -244,5 +298,88 @@ extension ArchiveService {
         let chars = Array(part)
         guard chars.count >= 2 else { return false }
         return chars[0].isLetter && chars[1] == ":"
+    }
+}
+
+// MARK: - 批量重命名计划（0.4.2 #11）
+
+/// 批量重命名的一种变换。都只作用于条目的**最后一段**（文件名），目录前缀不动。
+enum BatchRenameOperation: Equatable {
+    case replaceText(find: String, replacement: String)
+    case addPrefix(String)
+    /// 插在扩展名之前：`report.pdf` + "-final" → `report-final.pdf`。无扩展名直接追加。
+    case addSuffix(String)
+    case lowercased
+    case uppercased
+    /// 按序号重命名：`base001.ext / base002.ext …`（保留各自扩展名）。
+    case sequence(baseName: String, start: Int, digits: Int)
+}
+
+/// 一条计划中的改名。`isConflicting` = 新名与组内另一新名 / 包内未改名的既有条目撞名，
+/// 或变换产生了非法文件名（空 / 含路径分隔符）—— 执行时必须排除。
+struct BatchRenameChange: Equatable, Identifiable {
+    let fromPath: String
+    let toPath: String
+    let isConflicting: Bool
+    var id: String { fromPath }
+
+    var fromLeaf: String { String(fromPath.split(separator: "/").last ?? Substring(fromPath)) }
+    var toLeaf: String { String(toPath.split(separator: "/").last ?? Substring(toPath)) }
+}
+
+/// 纯名字变换引擎 —— 给预览列表和执行共用，无副作用、可单测。
+enum BatchRename {
+
+    /// 对 `paths`（归档内完整路径）套用变换。返回**有变化**的条目（含冲突标记，按输入顺序）。
+    /// `allEntryPaths` = 包内全部条目路径，用于检测「撞上没被改名的既有条目」。
+    nonisolated static func plan(paths: [String], operation: BatchRenameOperation, allEntryPaths: [String]) -> [BatchRenameChange] {
+        let selectedSet = Set(paths)
+        // 未参与改名的既有条目 —— 新名撞上它们 = 冲突。
+        let untouched = Set(allEntryPaths.filter { !selectedSet.contains($0) })
+
+        var proposals: [(from: String, to: String, invalidName: Bool)] = []
+        for (index, path) in paths.enumerated() {
+            let directory = path.contains("/") ? String(path[..<path.range(of: "/", options: .backwards)!.upperBound]) : ""
+            let leaf = String(path.split(separator: "/").last ?? Substring(path))
+            let newLeaf = transform(leaf, operation: operation, index: index)
+            guard newLeaf != leaf else { continue }
+            // 合法性必须在拼回路径**之前**用变换后的 leaf 判 —— 替换引入的 `/` 拼进路径后就看不出来了。
+            let invalidName = newLeaf.isEmpty || newLeaf.contains("/") || newLeaf.contains("\\")
+                || newLeaf == "." || newLeaf == ".."
+            proposals.append((from: path, to: directory + newLeaf, invalidName: invalidName))
+        }
+
+        // 组内新名出现次数（>1 = 互撞）。
+        var newPathCounts: [String: Int] = [:]
+        for proposal in proposals { newPathCounts[proposal.to, default: 0] += 1 }
+
+        return proposals.map { proposal in
+            let collides = (newPathCounts[proposal.to] ?? 0) > 1 || untouched.contains(proposal.to)
+            return BatchRenameChange(fromPath: proposal.from, toPath: proposal.to, isConflicting: proposal.invalidName || collides)
+        }
+    }
+
+    nonisolated private static func transform(_ leaf: String, operation: BatchRenameOperation, index: Int) -> String {
+        switch operation {
+        case .replaceText(let find, let replacement):
+            guard !find.isEmpty else { return leaf }
+            return leaf.replacingOccurrences(of: find, with: replacement)
+        case .addPrefix(let prefix):
+            return prefix + leaf
+        case .addSuffix(let suffix):
+            guard !suffix.isEmpty else { return leaf }
+            let ext = (leaf as NSString).pathExtension
+            let stem = (leaf as NSString).deletingPathExtension
+            return ext.isEmpty ? leaf + suffix : "\(stem)\(suffix).\(ext)"
+        case .lowercased:
+            return leaf.lowercased()
+        case .uppercased:
+            return leaf.uppercased()
+        case .sequence(let baseName, let start, let digits):
+            guard !baseName.isEmpty else { return leaf }
+            let number = String(format: "%0\(max(1, digits))d", start + index)
+            let ext = (leaf as NSString).pathExtension
+            return ext.isEmpty ? baseName + number : "\(baseName)\(number).\(ext)"
+        }
     }
 }

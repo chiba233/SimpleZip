@@ -460,9 +460,11 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
                 if model.clipboardHasFileURLsForArchivePaste {
                     menu.addItem(menuItem(L10n.text("file.paste"), systemImage: "clipboard", action: #selector(pasteIntoArchive)))
                 }
-                // 重命名仅单个普通文件。
+                // 重命名仅单个普通文件；多选文件 → 批量重命名（0.4.2 #11）。
                 if model.selectedArchiveItems.count == 1, model.selectedArchiveItems.first?.isDirectory == false {
                     menu.addItem(menuItem(L10n.text("file.rename"), systemImage: "pencil", action: #selector(renameArchiveEntry)))
+                } else if model.selectedArchiveItems.filter({ !$0.isDirectory }).count >= 2 {
+                    menu.addItem(menuItem(L10n.text("archive.batchRename.menu"), systemImage: "pencil.line", action: #selector(batchRenameEntries)))
                 }
                 menu.addItem(menuItem(L10n.text("file.delete"), systemImage: "trash", action: #selector(deleteArchiveEntries)))
             }
@@ -676,6 +678,10 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
 
         @objc private func saveArchiveEntryCopy() {
             model.saveSelectedArchiveItemCopy()
+        }
+
+        @objc private func batchRenameEntries() {
+            model.requestBatchRename()
         }
 
         @objc private func extractSelected() {

@@ -326,6 +326,14 @@ struct ContentView: View {
         .sheet(isPresented: $model.showsArchiveSecurityReport) {
             ArchiveSecurityReportView(model: model)
         }
+        .sheet(item: $model.batchRenameRequest) { request in
+            BatchRenameSheet(request: request) { changes in
+                model.batchRenameRequest = nil
+                model.performBatchRename(request, changes: changes)
+            } cancel: {
+                model.batchRenameRequest = nil
+            }
+        }
         .sheet(item: $model.fileSplitRequest) { request in
             FileSplitSheet(request: request) { volumeSize in
                 model.fileSplitRequest = nil

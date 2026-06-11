@@ -1019,6 +1019,58 @@ extension ArchiveBrowserModel {
         }
     }
 
+    // MARK: - 批量重命名（0.4.2 #11）
+
+    /// 批量重命名 sheet 的输入：选中的文件条目 + 包内全部条目路径（预览查撞名用）。
+    struct BatchRenameRequest: Identifiable {
+        let id = UUID()
+        let archiveURL: URL
+        let items: [ArchiveItem]
+        let allEntryPaths: [String]
+    }
+
+    /// 右键「批量重命名…」：可编辑归档里选中 ≥2 个文件条目 → 弹计划 sheet。
+    func requestBatchRename() {
+        guard canDropIntoOpenArchive, case .archive(let archiveURL) = mode else { return }
+        let files = selectedArchiveItems.filter { !$0.isDirectory }
+        guard files.count >= 2 else { return }
+        batchRenameRequest = BatchRenameRequest(
+            archiveURL: archiveURL,
+            items: files,
+            allEntryPaths: session.allItems.map(\.name)
+        )
+    }
+
+    /// 执行批量重命名：冲突项已被 sheet 排除；一次 7zz `rn` 多对 + 原子替换（改一半不会发生）。
+    func performBatchRename(_ request: BatchRenameRequest, changes: [BatchRenameChange]) {
+        let valid = changes.filter { !$0.isConflicting }
+        guard !valid.isEmpty else { return }
+        guard ensureArchiveEditPassword(for: request.archiveURL) else { return }
+        let password = resolvedArchivePassword
+        startManagedArchiveTask(
+            title: L10n.format("archive.batchRename.taskTitle", "\(valid.count)"),
+            kind: .compress,
+            showsDetails: true,
+            successStatus: L10n.format("archive.batchRename.done", "\(valid.count)"),
+            refreshOnSuccess: { [weak self] in
+                self?.reload()
+            },
+            onSucceeded: { task in
+                task.transferLog = valid.map {
+                    TransferLogEntry(name: $0.fromLeaf, action: .changed, isDirectory: false, detail: "→ \($0.toLeaf)")
+                }
+            }
+        ) { operationID, _, outputObserver in
+            try await ArchiveService.renameEntries(
+                in: request.archiveURL,
+                pairs: valid.map { (from: $0.fromPath, to: $0.toPath) },
+                password: password,
+                operationID: operationID,
+                outputObserver: outputObserver
+            )
+        }
+    }
+
     // MARK: - 临时预览 / 保存副本（0.4.2 #10）
 
     /// 把选中的**文件**条目解到注册过清理的临时目录（随归档关闭 / 退出自动清掉，预览副本不落地），
