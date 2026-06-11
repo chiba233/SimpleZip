@@ -74,6 +74,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// 退出时拆除加密临时卷：detach 挂载 + 删镜像。同步尽力（terminate 不能 await）；
     /// 万一没跑成（强杀），残留的镜像是 AES 密文、无害，下次启动 `sweepStale()` 收口。
     func applicationWillTerminate(_ notification: Notification) {
+        // 0.4.2:活动中心历史的异步写盘在退出前排空 —— 否则最后完成的任务可能丢。
+        TaskCenter.shared.flushHistoryNow()
         SecureScratchVolume.shared.teardown()
         // 0.4.2 #23：正常退出 → 落「干净关闭」标记；崩溃 / 强杀走不到这里，下次启动据此提示。
         UserDefaults.standard.set(true, forKey: Self.cleanShutdownKey)

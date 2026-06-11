@@ -54,6 +54,13 @@ enum TransferAction: String, Codable {
     case deleted      // 删除：移到废纸篓
     case failed       // 失败：该项未能完成（批量操作里某些项失败但其它项成功）；`detail` 带原因
     case passed       // 通过：完整性测试通过（0.4.2 批量测试）
+
+    /// 解码容错：**新版本写的新 case 被旧版本读到**时不抛错（抛错会废掉那条任务乃至整段历史 ——
+    /// 0.4.2 用户报「活动中心经常丢历史」的根因之一）。未知值降级成中性的 `.changed`。
+    init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        self = TransferAction(rawValue: raw) ?? .changed
+    }
 }
 
 /// 活动中心逐文件日志条目。随任务历史持久化，重启后仍可查看。

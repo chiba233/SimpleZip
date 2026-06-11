@@ -31,6 +31,12 @@ final class OperationTask: ObservableObject, Identifiable {
         case split
         case combine
         case convert
+
+        /// 解码容错：新版本的新 kind 被旧版本读到时降级 `.extract`，不废掉整条历史。
+        init(from decoder: Decoder) throws {
+            let raw = try decoder.singleValueContainer().decode(String.self)
+            self = Kind(rawValue: raw) ?? .extract
+        }
     }
 
     enum Status: Equatable {

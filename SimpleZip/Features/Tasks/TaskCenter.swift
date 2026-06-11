@@ -123,10 +123,27 @@ final class TaskCenter: ObservableObject {
         }
     }
 
+    /// 退出前同步落盘 —— persistQueue 的异步写在 terminate 时可能没跑完，最后一批完成的任务会丢。
+    /// applicationWillTerminate 调它（sync 等队列排空即可，写本身极快）。
+    func flushHistoryNow() {
+        Self.persistQueue.sync { }
+    }
+
+    /// 0.4.2 修「经常丢历史」：以前 `try? decode([PersistedTask])` **一条解码失败 = 整段历史归零**，
+    /// 而且下一次任务完成就把空数组写回盘（新旧版本混用时新枚举 case 必触发）。
+    /// 现在逐条 lossy 解码：坏的丢、好的留；配合 Kind / TransferAction 的未知值降级，单条也很难再坏。
+    private struct LossyTask: Decodable {
+        let value: PersistedTask?
+        init(from decoder: Decoder) throws {
+            value = try? PersistedTask(from: decoder)
+        }
+    }
+
     private static func loadPersistedHistory() -> [OperationTask] {
         guard let data = UserDefaults.standard.data(forKey: AppPreferences.Key.activityHistory),
-              let snapshots = try? JSONDecoder().decode([PersistedTask].self, from: data)
+              let lossy = try? JSONDecoder().decode([LossyTask].self, from: data)
         else { return [] }
+        let snapshots = lossy.compactMap(\.value)
         return snapshots.map { snapshot in
             let task = snapshot.task
             // 0.4.2 #23：上次会话退出时仍在运行的任务 = 被中断。恢复成明确的「已中断」失败态，
