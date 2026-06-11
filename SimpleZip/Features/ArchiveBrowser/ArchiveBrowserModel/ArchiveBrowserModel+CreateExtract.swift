@@ -304,6 +304,17 @@ extension ArchiveBrowserModel {
     }
 
     func performCreateArchive(_ request: ArchiveCreationRequest) {
+        // **必须延后一个 runloop**：本方法由创建选项 sheet 的「创建」按钮调用，调用方刚把
+        // `archiveCreationRequest = nil`（请求 SwiftUI 关闭 sheet），但 sheet 的关闭是异步的。
+        // 若立刻在同步路径里跑 `NSApp.runModal`（同名冲突对话框），会卡在 sheet 还没关、模态面板
+        // 拿不到 key window 的死锁 → 整个 app 卡死（用户报：创建后撞同名直接卡死）。
+        // 延后到下一拍让 sheet 先关掉,模态面板就能正常成为 key window。
+        DispatchQueue.main.async { [weak self] in
+            self?.performCreateArchiveNow(request)
+        }
+    }
+
+    private func performCreateArchiveNow(_ request: ArchiveCreationRequest) {
         // 勾选 GPG 签名 → 实际输出会被改名成 `<name>.siz` —— title 也跟着用最终文件名，
         // 避免长任务面板显示「正在创建 1.zip」但实际产物是 1.siz 的违和。
         let intendedDestination = request.options.gpgSign

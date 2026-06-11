@@ -522,7 +522,7 @@ final class ArchiveExtractionCoordinator {
         panel.isReleasedWhenClosed = false
         panel.title = ""
 
-        let rootView = ConflictResolutionView(
+        presentConflictPanel(panel, hosting: ConflictResolutionView(
             fileName: targetURL.lastPathComponent,
             isDirectory: isDirectory,
             allowsRememberedChoice: conflictSession?.allowsRememberedChoice == true
@@ -533,14 +533,7 @@ final class ArchiveExtractionCoordinator {
             }
             NSApp.stopModal()
             panel.close()
-        }
-
-        let hosting = NSHostingController(rootView: rootView)
-        panel.contentViewController = hosting
-        panel.setContentSize(hosting.view.fittingSize)
-        panel.center()
-        panel.makeKeyAndOrderFront(nil)
-        NSApp.runModal(for: panel)
+        })
         return result
     }
 
@@ -549,14 +542,14 @@ final class ArchiveExtractionCoordinator {
     func archiveOutputConflictChoice(fileName: String) -> PasteConflictChoice {
         var result: PasteConflictChoice = .cancel
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 460, height: 320),
+            contentRect: NSRect(x: 0, y: 0, width: 480, height: 320),
             styleMask: [.titled],
             backing: .buffered,
             defer: false
         )
         panel.isReleasedWhenClosed = false
         panel.title = ""
-        let rootView = ConflictResolutionView(
+        presentConflictPanel(panel, hosting: ConflictResolutionView(
             fileName: fileName,
             kind: .archiveOutput,
             allowsRememberedChoice: false
@@ -564,14 +557,22 @@ final class ArchiveExtractionCoordinator {
             result = choice
             NSApp.stopModal()
             panel.close()
-        }
+        })
+        return result
+    }
+
+    /// 共享的冲突面板呈现：挂 SwiftUI 视图 → **强制布局后**再读 fittingSize（否则多行说明文字下 fittingSize
+    /// 偏小、底部按钮被裁掉 → 看着「按不了」）→ 居中 → 激活 App + 成为 key window → 跑模态。
+    private func presentConflictPanel<Content: View>(_ panel: NSPanel, hosting rootView: Content) {
         let hosting = NSHostingController(rootView: rootView)
         panel.contentViewController = hosting
+        hosting.view.layoutSubtreeIfNeeded()
         panel.setContentSize(hosting.view.fittingSize)
         panel.center()
+        panel.level = .modalPanel
+        NSApp.activate(ignoringOtherApps: true)
         panel.makeKeyAndOrderFront(nil)
         NSApp.runModal(for: panel)
-        return result
     }
 
     private func confirmUnsafeArchiveLinks(_ names: [String]) -> Bool {
