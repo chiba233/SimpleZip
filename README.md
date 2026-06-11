@@ -18,7 +18,22 @@ No subscriptions, no telemetry, no clutter. Just a fast, native window.
 
 ---
 
-## Why you'll like it
+## 📸 A look inside
+
+| | |
+|---|---|
+| ![Browsing files](https://raw.githubusercontent.com/chiba233/SimpleZip/main/demo/mainView.png) | ![Inside an archive](https://raw.githubusercontent.com/chiba233/SimpleZip/main/demo/archiveView.png) |
+| **Browse like Finder** — your files, a modern native window. | **Open an archive like a folder** — walk the tree, no unpacking. |
+| ![Activity Center](https://raw.githubusercontent.com/chiba233/SimpleZip/main/demo/ActivityView.png) | ![Checksums](https://raw.githubusercontent.com/chiba233/SimpleZip/main/demo/hashView.png) |
+| **Activity Center** — every operation, with live progress. | **Checksums** — hash files in a click, copy results. |
+
+![Settings](https://raw.githubusercontent.com/chiba233/SimpleZip/main/demo/SettingView.png)
+
+> *Settings — everything in one tidy, native window.*
+
+---
+
+## ✨ Why you'll like it
 
 - 📂 **Browse an archive like a folder.** Double-click a `.zip` or `.7z` and
   walk through it as a normal file tree — no "extract everything first" step.
@@ -44,7 +59,7 @@ No subscriptions, no telemetry, no clutter. Just a fast, native window.
 - 🌍 **Speaks your language.** English, 简体中文, 繁體中文, 日本語, 한국어,
   Русский, Deutsch, Français, Español, ไทย.
 
-## Get started in a minute
+## 🚀 Get started in a minute
 
 1. **Download** the latest DMG from
    [Releases](https://github.com/chiba233/SimpleZip/releases) and drag
@@ -56,13 +71,13 @@ No subscriptions, no telemetry, no clutter. Just a fast, native window.
 
 That's it — drag an archive onto the window, or open one with **File → Open**.
 
-## What it can open and make
+## 🗂 What it can open and make
 
 | Format | Browse | Extract | Create | Notes |
 |---|:---:|:---:|:---:|---|
 | ZIP | ✓ | ✓ | ✓ | Optional AES-256 password |
 | 7z | ✓ | ✓ | ✓ | Strong compression |
-| RAR | ✓ | ✓ | ✓\* | Opening always works; *creating* needs RARLAB's `rar` (see below) |
+| RAR | ✓ | ✓ | ✓\* | Opening always works; *creating* needs RARLAB's `rar` (an optional add-on) |
 | TAR | ✓ | ✓ | ✓ | |
 | gz / bz2 / xz | ✓ | ✓ | ✓ | Single-file compression |
 | tgz / tar.gz | ✓ | ✓ | ✓ | |
@@ -72,7 +87,7 @@ That's it — drag an archive onto the window, or open one with **File → Open*
 | `.szs` | ✓ | — | ✓ | Signed manifest — signs files *in place* (not an archive) |
 | Split sets (`.001`, `.z01`, `.r00`, `partN.rar`) | ✓ | ✓ | — | Just open the first piece |
 
-## Signing, in plain terms
+## 🔏 Signing, in plain terms
 
 Most people never need this — but if you share files and want recipients to be
 sure they came from you and weren't tampered with, SimpleZip has two options
@@ -96,7 +111,7 @@ model live in **[SECURITY.md](./SECURITY.md)**.
 > `brew install gnupg pinentry-mac` when it's missing, and runs a live health
 > check so you know everything's wired up.
 
-## Your data stays yours
+## 🛡 Your data stays yours
 
 - **Nothing is uploaded.** No accounts, no analytics, no network calls except
   the optional "check for updates".
@@ -108,7 +123,7 @@ model live in **[SECURITY.md](./SECURITY.md)**.
 - **Saved passwords live in the macOS Keychain**, and revealing one in the open
   requires Touch ID / your login password.
 
-## Good to know
+## 💡 Good to know
 
 - SimpleZip is **ad-hoc signed** (a single-maintainer project, not yet notarized
   with a paid Developer ID). The first launch needs right-click → **Open**;
@@ -118,7 +133,7 @@ model live in **[SECURITY.md](./SECURITY.md)**.
 - The official 7-Zip engine is **bundled** — ZIP/7z/TAR/etc. work out of the
   box with nothing else to install. GPG and RAR-creation are optional add-ons.
 
-## Settings at a glance
+## ⚙️ Settings at a glance
 
 - **General** — startup location, language, preset password, re-run the welcome
   assistant, back up / restore your preferences.
@@ -128,11 +143,12 @@ model live in **[SECURITY.md](./SECURITY.md)**.
 - **View** — list size (compact / standard / comfortable), which columns show,
   and optional grouping defaults.
 - **File Associations** — make SimpleZip the default opener for archive types.
+- **Software Update** — check for new versions and read the release notes in-app.
 - **GPG** — turn signing on, manage keys, pick a default signing key.
 - **Health** — a quick "is everything working?" dashboard with one-click
   *Copy Diagnostics*.
 
-## Found a bug? Have an idea?
+## 🐞 Found a bug? Have an idea?
 
 Please [open an issue](https://github.com/chiba233/SimpleZip/issues/new/choose) —
 there are quick templates for bug reports and feature requests. The in-app
@@ -141,49 +157,11 @@ security-related, see [SECURITY.md](./SECURITY.md) first.
 
 ---
 
-## For developers
-
-<details>
-<summary>Build, test, and contribute</summary>
-
-**Build:**
-
-```bash
-/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
-  -project SimpleZip.xcodeproj -scheme SimpleZip -configuration Debug build
-```
-
-Or open `SimpleZip.xcodeproj` and run the `SimpleZip` scheme.
-
-**Test** (the pure-logic core lives in a SwiftPM package, `SimpleZipCoreTests` —
-command construction, archive parsers, split-volume normalization, path
-safety, `.siz` wrap/unwrap, etc.):
-
-```bash
-/usr/bin/xcrun swift test \
-  --scratch-path /private/tmp/SimpleZipSwiftPM \
-  -Xswiftc -module-cache-path -Xswiftc /private/tmp/SimpleZipSwiftPM/ModuleCache
-```
-
-**Optional backends from a checkout:**
-
-```bash
-brew install sevenzip                 # system 7-Zip (a copy is also bundled)
-brew install gnupg pinentry-mac       # GPG signing / verification
-./scripts/install_rar_backend.sh      # RARLAB rar, for creating .rar (not redistributable)
-```
-
-**More docs:** [Architecture](./docs/ARCHITECTURE.md) ·
-[Contributing](./CONTRIBUTING.md) · [Release checklist](./docs/release-checklist.md) ·
-[Bundled tools](./SimpleZip/Tools/README.md)
-
-</details>
-
-## Documentation
+## 📚 More
 
 - [中文指南 (Chinese Guide)](./GUIDE.zh-CN.md)
-- [Changelog](./CHANGELOG.md) · [中文更新日志](./CHANGELOG.zh-CN.md)
-- [Security Policy](./SECURITY.md) · [中文安全策略](./SECURITY.zh-CN.md)
+- [What's new (Changelog)](./CHANGELOG.md) · [中文更新日志](./CHANGELOG.zh-CN.md)
+- [Security & signing details](./SECURITY.md) · [中文安全策略](./SECURITY.zh-CN.md)
 
 ## License
 

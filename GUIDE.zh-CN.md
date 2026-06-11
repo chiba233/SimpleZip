@@ -11,7 +11,24 @@
 ➡️ **[下载最新版本](https://github.com/chiba233/SimpleZip/releases)** ·
 [项目主页](https://github.com/chiba233/SimpleZip)
 
-## 你会喜欢它的地方
+---
+
+## 📸 界面一览
+
+| | |
+|---|---|
+| ![浏览文件](https://raw.githubusercontent.com/chiba233/SimpleZip/main/demo/mainView.png) | ![浏览压缩包](https://raw.githubusercontent.com/chiba233/SimpleZip/main/demo/archiveView.png) |
+| **像 Finder 一样浏览** —— 现代原生窗口。 | **把压缩包当文件夹打开** —— 直接走目录树，不用先解压。 |
+| ![活动中心](https://raw.githubusercontent.com/chiba233/SimpleZip/main/demo/ActivityView.png) | ![校验和](https://raw.githubusercontent.com/chiba233/SimpleZip/main/demo/hashView.png) |
+| **活动中心** —— 每个操作都有实时进度。 | **校验和** —— 一键算哈希、复制结果。 |
+
+![设置](https://raw.githubusercontent.com/chiba233/SimpleZip/main/demo/SettingView.png)
+
+> *设置 —— 全部收在一个整洁的原生窗口里。*
+
+---
+
+## ✨ 你会喜欢它的地方
 
 - 📂 **把压缩包当文件夹~~浏览** —— 双击 `.zip` / `.7z` 直接走目录树，路径不是平铺
   的长字符串，不用先「全部解压」。
@@ -31,7 +48,7 @@
 - 🍎 **Finder 集成** —— 在 Finder 右键就能哈希文件或打包，不用先开主窗口。~~
 - 🌍 **多语言**（英 / 简中 / 繁中 / 日 / 韩 / 俄 / 德 / 法 / 西 / 泰）。
 
-## 快速开始
+## 🚀 快速开始
 
 1. 从 [Releases](https://github.com/chiba233/SimpleZip/releases) 下载最新
    DMG，把 `SimpleZip.app` 拖进 `/Applications`。
@@ -42,7 +59,7 @@
 4. 想用 GPG 签名 / 验签功能，去**设置 → GPG**打开主开关。缺组件的话面板会
    显示完整的 `brew install` 命令。
 
-## 安装与后端
+## 🧩 安装与后端
 
 ### 7-Zip（内置）
 
@@ -97,7 +114,7 @@ brew install ykman
 设置 → GPG 面板会跑一次活检：gpg 路径 / 版本 / `gpg-agent` 状态 /
 `pinentry-mac` 解析路径，组件缺失时直接给你显示需要跑的 `brew install` 命令。
 
-## 支持格式
+## 🗂 支持格式
 
 | 格式                               | 浏览       | 解压 | 创建   | 说明                                                              |
 |----------------------------------|----------|----|------|-----------------------------------------------------------------|
@@ -112,7 +129,7 @@ brew install ykman
 | `.szs`                           | 支持（虚拟目录） | —  | 支持   | SimpleZip 独家：GPG 签名清单（clearsign 的 JSON，记录每个文件的 SHA256） —— 不是压缩包 |
 | `.001`、`.z01`、`.r00`、`partN.rar` | 支持       | 支持 | 暂不支持 | 自动归一化到首卷                                                        |
 
-## 打开文件夹和压缩包
+## 📂 打开文件夹和压缩包
 
 ### 打开文件夹
 
@@ -145,7 +162,7 @@ payload.7z.003     → payload.7z.001
 解压走系统自带的 `xip` 工具——由系统校验 Apple 签名,拿到的是真实内容物(比如 .app)。
 非 Apple 信任签名的 xip 会被系统拒绝。SimpleZip 不提供创建 xip(需要 Apple 证书)。
 
-## 浏览压缩包
+## 🔍 浏览压缩包
 
 压缩包内部按真实目录树浏览。哪怕原 archive 没存目录项，SimpleZip 也会自动
 合成节点，让浏览体验跟普通文件夹一致。比如压缩包里只有：
@@ -171,7 +188,7 @@ Mos.app/
 - 项目右键 = 打开 / 解压选中项 / 解压整个压缩包 / 测试 / 哈希 / 在 Finder 显示
   源压缩包。
 
-## 不解压直接打开
+## 👁 不解压直接打开
 
 双击压缩包里的普通文件时，SimpleZip 会：
 
@@ -189,7 +206,7 @@ Mos.app/
 **注意**：修改临时打开的文件**不会**写回原压缩包。要保留改动请另存。SimpleZip
 在下次启动时清理上次残留的临时打开目录。
 
-## 拖拽
+## 🖐 拖拽
 
 ### 从压缩包拖出
 
@@ -206,7 +223,7 @@ Mos.app/
 - 从 Finder 拖文件进当前文件夹 = 复制；
 - 拖文件 / 文件夹出去 = 让外部 App / Finder 接管。
 
-## 解压
+## 📤 解压
 
 ### 整包解压
 
@@ -236,7 +253,7 @@ Mos.app/
 进度条是尽力而为的后端输出解析，不是字节级精确。不同格式、不同后端版本可能
 只提供不确定进度，或者百分比跳跃。
 
-## 创建压缩包
+## 🗜 创建压缩包
 
 在普通文件夹模式下选中文件 / 文件夹，点工具栏「添加」或菜单 `文件 →
 添加到压缩包`。
@@ -364,7 +381,7 @@ root 当成普通文件夹打开，**但只显示** `.match` 的条目 + 它们�
 完整格式规范见 [docs/SZS-FORMAT.md](./docs/SZS-FORMAT.md)，威胁模型见
 [SECURITY.zh-CN.md](./SECURITY.zh-CN.md#szs-签名清单格式)。
 
-## GPG 集成
+## 🔐 GPG 集成
 
 设置 → GPG 面板把 GPG 钥匙管理做齐了：
 
@@ -417,7 +434,7 @@ SimpleZip 主流程下**不碰**你的私钥 passphrase，所有 `gpg --sign` /
 SecureField 里输入 —— 这是因为 pinentry-mac 在 GUI App 进程环境下不稳定，
 是用「可靠的 SimpleZip 自己收 → 立刻喂给 gpg → 不存任何地方」换取的权衡。
 
-## 安全边界
+## 🛡 安全边界
 
 SimpleZip 目前**不**是沙盒 App —— 它要浏览 / 管理用户文件、跑 CLI 后端、
 挂 DMG、拖拽导出、打开临时解出的文件。所以信任边界必须明确：**下载来的所有
@@ -443,7 +460,7 @@ SimpleZip 目前**不**是沙盒 App —— 它要浏览 / 管理用户文件、
 三个策略门（可疑路径 / 符号链接 / 主动内容）每个都可以改成「**始终拒绝**」，
 共享 / 公共机器上推荐这么干。
 
-## 文件管理（本地）
+## 🗃 文件管理（本地）
 
 普通文件夹列表支持的操作：
 
@@ -466,7 +483,7 @@ SimpleZip 目前**不**是沙盒 App —— 它要浏览 / 管理用户文件、
 - 跳过；
 - **哈希不同时替换** —— 计算双方 SHA256，仅在不一致时替换并显示比较结果。
 
-## Finder 右键服务
+## 🍎 Finder 右键服务
 
 SimpleZip 把右键动作注册成 macOS 系统服务（NSServices）。在 Finder 里选中任意
 文件 / 文件夹后右键，在 **服务**（或直接出现在右键菜单）里能看到「… with SimpleZip」：
@@ -480,7 +497,7 @@ SimpleZip 把右键动作注册成 macOS 系统服务（NSServices）。在 Find
 首次使用若没出现，在 系统设置 → 键盘 → 键盘快捷键 → 服务 里勾选启用即可。
 （早期版本曾用一个独立的 Finder Sync 扩展实现这些动作，现已移除，统一走系统服务。）
 
-## 文件关联
+## 🔗 文件关联
 
 设置 → 文件关联里按格式单独设置默认打开方式。当前覆盖：
 
@@ -492,7 +509,7 @@ SimpleZip 把右键动作注册成 macOS 系统服务（NSServices）。在 Find
 
 每行显示当前默认 App + 「设为默认」按钮。
 
-## 设置
+## ⚙️ 设置
 
 按面板分：
 
@@ -510,36 +527,7 @@ SimpleZip 把右键动作注册成 macOS 系统服务（NSServices）。在 Find
 
 切语言后，**重启 SimpleZip** 才完整生效（顶部菜单栏跟主体内容一起翻）。
 
-## 构建
-
-命令行：
-
-```bash
-/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild \
-  -project SimpleZip.xcodeproj \
-  -scheme SimpleZip \
-  -configuration Debug build
-```
-
-或者直接 Xcode 打开 `SimpleZip.xcodeproj` → 跑 `SimpleZip` scheme。Finder
-Sync 扩展 target 会自动跟主 target 一起构建。
-
-## 测试
-
-核心回归测试在 SwiftPM 的 `SimpleZipCoreTests` —— 覆盖参数生成、列表解析、
-分卷归一化、排除规则、选中项展开、ZIP / TAR 往返、`.siz` wrap / unwrap /
-metadata 确定性、签名流程 stub：
-
-```bash
-/usr/bin/xcrun swift test \
-  --scratch-path /private/tmp/SimpleZipSwiftPM \
-  -Xswiftc -module-cache-path -Xswiftc /private/tmp/SimpleZipSwiftPM/ModuleCache
-```
-
-Xcode project 里也有 `SimpleZipCoreTests` 聚合 target，跑的是同一套 SwiftPM
-测试。
-
-## 常见问题
+## ❓ 常见问题
 
 ### 为什么 7z / RAR 打不开？
 
