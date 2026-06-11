@@ -61,7 +61,7 @@ struct RarInstallDocumentView: View {
             Text(title)
                 .font(.subheadline.weight(.semibold))
 
-            ScrollView {
+            HeightCappedScrollView(maxHeight: 540) {
                 // 空字符串会让 Text 折叠成 0 行，给个空格保留最小高度。
                 Text(text.isEmpty ? " " : text)
                     .font(.system(.caption, design: .monospaced))
@@ -129,6 +129,6 @@ struct RarInstallReviewSheet: View {
         // sheet 是模态弹层，没有可拖动的窗口边来「涨到 idealHeight」，
         // 用 min/ideal 会被实际渲染成 minHeight，导致两份 ScrollView + 复选框 + 按钮行被裁。
         // 这里保留固定尺寸，跟重构前一致。
-        .frame(width: 680, height: 620)
+        .frame(width: 680)
     }
 }

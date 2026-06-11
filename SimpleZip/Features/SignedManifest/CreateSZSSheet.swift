@@ -51,7 +51,7 @@ struct CreateSZSSheet: View {
                 subtitle: L10n.text("szs.create.subtitle")
             )
 
-            ScrollView {
+            HeightCappedScrollView(maxHeight: 560) {
                 VStack(alignment: .leading, spacing: 18) {
                     DialogSection(L10n.text("szs.create.section.content")) {
                         payloadRootRow
@@ -75,7 +75,6 @@ struct CreateSZSSheet: View {
                 .padding(.horizontal, 20)
                 .padding(.bottom, 16)
             }
-            .frame(maxHeight: 560)
 
             Divider()
 

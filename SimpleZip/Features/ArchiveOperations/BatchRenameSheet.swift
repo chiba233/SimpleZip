@@ -56,7 +56,7 @@ struct BatchRenameSheet: View {
                 subtitle: L10n.format("batchRename.subtitle", "\(request.items.count)", request.archiveURL.lastPathComponent)
             )
 
-            ScrollView {
+            HeightCappedScrollView(maxHeight: 480) {
                 VStack(alignment: .leading, spacing: 14) {
                     DialogSection {
                         Picker(L10n.text("batchRename.mode"), selection: $mode) {
@@ -106,7 +106,6 @@ struct BatchRenameSheet: View {
                 .padding(.horizontal, 20)
                 .padding(.bottom, 16)
             }
-            .frame(maxHeight: 480)
 
             Divider()
 

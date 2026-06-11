@@ -229,7 +229,7 @@ struct FilePermissionsEditorSheet: View {
                 subtitle: symbolicPreview
             )
 
-            ScrollView {
+            HeightCappedScrollView(maxHeight: 560) {
                 VStack(alignment: .leading, spacing: 18) {
                     DialogSection(L10n.text("file.permissions.section.mode")) {
                         if request.mixedSelection {
@@ -283,7 +283,6 @@ struct FilePermissionsEditorSheet: View {
                 .padding(.horizontal, 20)
                 .padding(.bottom, 16)
             }
-            .frame(maxHeight: 560)
 
             Divider()
 

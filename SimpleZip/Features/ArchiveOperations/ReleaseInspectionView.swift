@@ -24,7 +24,7 @@ struct ReleaseInspectionView: View {
                 subtitle: report.archiveURL.lastPathComponent
             )
 
-            ScrollView {
+            HeightCappedScrollView(maxHeight: 520) {
                 VStack(alignment: .leading, spacing: 12) {
                     DialogSection {
                         testRow
@@ -76,7 +76,6 @@ struct ReleaseInspectionView: View {
                 .padding(.horizontal, 20)
                 .padding(.bottom, 16)
             }
-            .frame(maxHeight: 520)
 
             Divider()
 

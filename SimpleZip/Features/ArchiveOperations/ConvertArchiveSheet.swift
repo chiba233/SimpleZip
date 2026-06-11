@@ -36,7 +36,7 @@ struct ConvertArchiveSheet: View {
                 subtitle: L10n.format("convert.subtitle", "\(request.sourceURLs.count)")
             )
 
-            ScrollView {
+            HeightCappedScrollView(maxHeight: 480) {
                 VStack(alignment: .leading, spacing: 18) {
                     DialogSection(L10n.text("convert.section.target")) {
                         LabeledContent {
@@ -102,7 +102,6 @@ struct ConvertArchiveSheet: View {
                 .padding(.horizontal, 20)
                 .padding(.bottom, 16)
             }
-            .frame(maxHeight: 480)
 
             Divider()
 

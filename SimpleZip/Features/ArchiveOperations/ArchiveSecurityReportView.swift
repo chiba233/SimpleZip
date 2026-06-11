@@ -31,7 +31,7 @@ struct ArchiveSecurityReportView: View {
                 subtitle: archiveName
             )
 
-            ScrollView {
+            HeightCappedScrollView(maxHeight: 620) {
                 VStack(alignment: .leading, spacing: 12) {
                     Text(L10n.text("security.report.note"))
                         .font(.callout)
@@ -61,7 +61,6 @@ struct ArchiveSecurityReportView: View {
             .background(.bar)
         }
         .frame(width: 560)
-        .frame(minHeight: 320, idealHeight: 480, maxHeight: 620)
     }
 
     @ViewBuilder

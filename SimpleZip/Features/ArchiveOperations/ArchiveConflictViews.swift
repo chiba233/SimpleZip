@@ -168,7 +168,7 @@ struct TransferSummaryView: View {
                 subtitle: L10n.format("transfer.summary.message", added.count, overwritten.count, skipped.count)
             )
 
-            ScrollView {
+            HeightCappedScrollView(maxHeight: 460) {
                 LazyVStack(alignment: .leading, spacing: 0) {
                     if !added.isEmpty {
                         TransferSummaryGroup(title: L10n.text("transfer.section.added"), entries: added, hashByName: [:], showsHashColumns: false)
@@ -200,7 +200,7 @@ struct TransferSummaryView: View {
             .padding(.vertical, 12)
             .background(.bar)
         }
-        .frame(minWidth: 560, idealWidth: 720, minHeight: 380, idealHeight: 500)
+        .frame(minWidth: 560, idealWidth: 720)
     }
 }
 
@@ -323,7 +323,7 @@ struct HashOverwriteSummaryView: View {
                 subtitle: L10n.format("hashOverwrite.summary.message", sameCount, differentCount)
             )
 
-            ScrollView {
+            HeightCappedScrollView(maxHeight: 460) {
                 LazyVStack(alignment: .leading, spacing: 0) {
                     if !replacedResults.isEmpty {
                         HashOverwriteSummaryGroup(
@@ -360,7 +360,7 @@ struct HashOverwriteSummaryView: View {
             .padding(.vertical, 12)
             .background(.bar)
         }
-        .frame(minWidth: 640, idealWidth: 760, minHeight: 380, idealHeight: 500)
+        .frame(minWidth: 640, idealWidth: 760)
     }
 }
 

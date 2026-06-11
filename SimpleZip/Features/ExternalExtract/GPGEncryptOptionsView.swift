@@ -81,7 +81,7 @@ struct GPGEncryptOptionsView: View {
                 subtitle: L10n.format("gpgEncrypt.sourceSummary", "\(request.sourceURLs.count)")
             )
 
-            ScrollView {
+            HeightCappedScrollView(maxHeight: 520) {
                 VStack(alignment: .leading, spacing: 18) {
                     // 多选 / 含文件夹才有意义：逐个文件分别加密 vs 打包成一个归档再加密。
                     if showsModePicker {
@@ -110,7 +110,6 @@ struct GPGEncryptOptionsView: View {
                 .padding(.horizontal, 20)
                 .padding(.bottom, 16)
             }
-            .frame(maxHeight: 520)
 
             Divider()
 

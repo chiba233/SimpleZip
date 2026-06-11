@@ -87,7 +87,7 @@ struct BenchmarkRunView: View {
                 subtitle: session.report?.backendDescription
             )
 
-            ScrollView {
+            HeightCappedScrollView(maxHeight: 560) {
                 VStack(alignment: .leading, spacing: 14) {
                     DialogSection {
                         infoRow(L10n.text("benchmark.dictionarySize"), "\(session.options.dictionarySizeMB) MB")
@@ -150,7 +150,7 @@ struct BenchmarkRunView: View {
             .padding(.vertical, 12)
             .background(.bar)
         }
-        .frame(minWidth: 620, idealWidth: 680, minHeight: 540, idealHeight: 640)
+        .frame(minWidth: 620, idealWidth: 680)
     }
 
     private var averageMetrics: (SevenZipBenchmarkMetrics?, SevenZipBenchmarkMetrics?) {
