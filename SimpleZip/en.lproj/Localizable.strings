@@ -690,6 +690,9 @@
 "extract.preflight.missingVolumes" = "Split set is missing %1$@ volumes";
 "extract.preflight.suspicious" = "%1$@ suspicious path entries — see the report in the archive view";
 "extract.preflight.symlinks" = "Contains %1$@ symbolic links";
+/* 0.4.2 session password memory */
+"password.hintComment" = "Archive comment: %1$@";
+
 
 
 

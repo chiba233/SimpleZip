@@ -152,6 +152,11 @@ extension ArchiveBrowserModel {
         alert.alertStyle = .informational
         alert.messageText = archiveURL.lastPathComponent
         alert.informativeText = isRetry ? L10n.text("error.passwordPromptExhausted") : displayName
+        // 0.4.2 #9：归档级注释常被用作密码提示 —— 有注释时附在弹窗里（截断防超长）。
+        let hintComment = ArchiveService.headerComment(for: archiveURL)
+        if !hintComment.isEmpty {
+            alert.informativeText += "\n\n" + L10n.format("password.hintComment", String(hintComment.prefix(200)))
+        }
         alert.addButton(withTitle: actionTitle)
         alert.addButton(withTitle: L10n.text("button.cancel"))
 

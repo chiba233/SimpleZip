@@ -661,3 +661,38 @@ struct ArchiveServiceTests {
         return output
     }
 }
+
+/// 0.4.2 #9:会话级密码缓存(纯内存)。
+struct SessionPasswordCacheTests {
+
+    @Test func recordsPerPathAndLastSuccessful() {
+        let cache = SessionPasswordCache()
+        let a = URL(fileURLWithPath: "/tmp/a.zip")
+        let b = URL(fileURLWithPath: "/tmp/b.zip")
+        #expect(cache.candidates(for: a).isEmpty)
+
+        cache.record("secret-a", for: a)
+        #expect(cache.candidates(for: a) == ["secret-a"])
+        // b 没记过自己的 → 给「最近成功」的 secret-a(批量解压同密码场景)。
+        #expect(cache.candidates(for: b) == ["secret-a"])
+
+        cache.record("secret-b", for: b)
+        // a 的候选 = 自己的 + 最近成功的(去重)。
+        #expect(cache.candidates(for: a) == ["secret-a", "secret-b"])
+        #expect(cache.candidates(for: b) == ["secret-b"])
+    }
+
+    @Test func emptyPasswordIsNeverRecorded() {
+        let cache = SessionPasswordCache()
+        cache.record("", for: URL(fileURLWithPath: "/tmp/x.zip"))
+        #expect(cache.candidates(for: URL(fileURLWithPath: "/tmp/x.zip")).isEmpty)
+    }
+
+    @Test func clearAllForgetsEverything() {
+        let cache = SessionPasswordCache()
+        let url = URL(fileURLWithPath: "/tmp/x.zip")
+        cache.record("pw", for: url)
+        cache.clearAll()
+        #expect(cache.candidates(for: url).isEmpty)
+    }
+}

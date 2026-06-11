@@ -59,19 +59,25 @@ extension ArchiveBrowserModel {
                 var password = hasPreset ? AppPreferences.presetPassword : ""
                 var zipDecryptionMethod: ArchiveDecryptionMethod = .automatic
                 var isRetry = false
+                // 0.4.2 #9：会话里记过的口令优先静默试（先于弹框）；失败再逐个消耗、最后才弹框。
+                var untriedSessionPasswords = SessionPasswordCache.shared.candidates(for: archiveURL).filter { $0 != password }
 
                 if shouldPromptBeforeExtraction && !hasPreset {
-                    guard let authentication = self.promptForArchiveItemPassword(
-                        item: item,
-                        archiveURL: archiveURL,
-                        detectedZipEncryption: detectedZipEncryption,
-                        isRetry: false
-                    ) else {
-                        throw CancellationError()
+                    if !untriedSessionPasswords.isEmpty {
+                        password = untriedSessionPasswords.removeFirst()
+                    } else {
+                        guard let authentication = self.promptForArchiveItemPassword(
+                            item: item,
+                            archiveURL: archiveURL,
+                            detectedZipEncryption: detectedZipEncryption,
+                            isRetry: false
+                        ) else {
+                            throw CancellationError()
+                        }
+                        password = authentication.password
+                        zipDecryptionMethod = authentication.zipDecryptionMethod
+                        isRetry = true
                     }
-                    password = authentication.password
-                    zipDecryptionMethod = authentication.zipDecryptionMethod
-                    isRetry = true
                 }
 
                 let force = self.isForced(archiveURL)
@@ -93,6 +99,7 @@ extension ArchiveBrowserModel {
                             force: force
                         )
                         try self.confirmExtractedArchiveLinks(at: destination)
+                        SessionPasswordCache.shared.record(password, for: archiveURL)
 
                         let extractedURL = try self.extractedURL(for: item, in: destination)
                         // 「打开方式」：解出来后直接用指定 app / 系统选择器打开,**绕过** dmg/嵌套/.siz 等 in-app 路由
@@ -141,6 +148,10 @@ extension ArchiveBrowserModel {
                     } catch {
                         guard self.shouldPromptForArchivePassword(error) else {
                             throw error
+                        }
+                        if !untriedSessionPasswords.isEmpty {
+                            password = untriedSessionPasswords.removeFirst()
+                            continue
                         }
                         guard let authentication = self.promptForArchiveItemPassword(
                             item: item,
@@ -943,6 +954,8 @@ extension ArchiveBrowserModel {
             var didCheckSafety = false
             // 安全检查 list 出的文件数 —— 复用给 ArchiveService.extract 的 knownFileCount，省掉解压时再 list 一遍。
             var knownFileCount: Int?
+            // 0.4.2 #9：会话里记过的口令，口令失败时先静默逐个试，全试完才弹框。
+            var untriedSessionPasswords = SessionPasswordCache.shared.candidates(for: archiveURLForExtract).filter { $0 != password }
             while true {
                 do {
                     if !didCheckSafety {
@@ -975,6 +988,10 @@ extension ArchiveBrowserModel {
                     guard self.shouldPromptForArchivePassword(error) else {
                         throw error
                     }
+                    if !untriedSessionPasswords.isEmpty {
+                        password = untriedSessionPasswords.removeFirst()
+                        continue
+                    }
                     guard let authentication = self.promptForArchivePassword(
                         archiveURL: archiveURLForExtract,
                         displayName: request.archiveURL.lastPathComponent,
@@ -989,6 +1006,7 @@ extension ArchiveBrowserModel {
                     isRetry = true
                 }
             }
+            SessionPasswordCache.shared.record(password, for: archiveURLForExtract)
             try await self.extractionCoordinator.mergeExtractedItems(
                 from: stagingURL,
                 to: request.destinationURL,
@@ -1041,6 +1059,8 @@ extension ArchiveBrowserModel {
             var password = request.password
             var zipDecryptionMethod = request.zipDecryptionMethod
             var isRetry = !password.isEmpty
+            // 0.4.2 #9：会话里记过的口令，口令失败时先静默逐个试，全试完才弹框。
+            var untriedSessionPasswords = SessionPasswordCache.shared.candidates(for: request.archiveURL).filter { $0 != password }
             while true {
                 do {
                     try? self.fileManager.removeItem(at: stagingURL)
@@ -1064,6 +1084,10 @@ extension ArchiveBrowserModel {
                     guard self.shouldPromptForArchivePassword(error) else {
                         throw error
                     }
+                    if !untriedSessionPasswords.isEmpty {
+                        password = untriedSessionPasswords.removeFirst()
+                        continue
+                    }
                     guard let authentication = self.promptForArchivePassword(
                         archiveURL: request.archiveURL,
                         displayName: L10n.format("status.extractingSelected", request.entries.count),
@@ -1078,6 +1102,7 @@ extension ArchiveBrowserModel {
                     isRetry = true
                 }
             }
+            SessionPasswordCache.shared.record(password, for: request.archiveURL)
             try await self.extractionCoordinator.mergeExtractedItems(
                 from: stagingURL,
                 to: request.destinationURL,

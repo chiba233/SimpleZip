@@ -328,12 +328,22 @@ extension ArchiveBrowserModel {
         let remembered = resolvedArchivePassword
         if !remembered.isEmpty,
            let items = try? await ArchiveService.list(url, password: remembered, force: force) {
+            SessionPasswordCache.shared.record(remembered, for: url)
             return items  // resolvedArchivePassword 已是 remembered,不变
         }
         if AppPreferences.hasUsablePresetPassword,
            let items = try? await ArchiveService.list(url, password: AppPreferences.presetPassword, force: force) {
             resolvedArchivePassword = AppPreferences.presetPassword
+            SessionPasswordCache.shared.record(resolvedArchivePassword, for: url)
             return items
+        }
+        // 0.4.2 #9：会话里记过的口令（同包用过的 / 上一个包成功的）静默试，都不行才弹框。
+        for candidate in SessionPasswordCache.shared.candidates(for: url) where candidate != remembered {
+            if let items = try? await ArchiveService.list(url, password: candidate, force: force) {
+                resolvedArchivePassword = candidate
+                SessionPasswordCache.shared.record(candidate, for: url)
+                return items
+            }
         }
         let detectedZipEncryption: ZipEncryptionDetection = url.pathExtension.lowercased() == "zip"
             ? ArchiveService.detectZipEncryption(in: url)
@@ -352,6 +362,7 @@ extension ArchiveBrowserModel {
             do {
                 let items = try await ArchiveService.list(url, password: authentication.password, force: force)
                 resolvedArchivePassword = authentication.password
+                SessionPasswordCache.shared.record(authentication.password, for: url)
                 return items
             } catch {
                 guard shouldPromptForArchivePassword(error) else { throw error }

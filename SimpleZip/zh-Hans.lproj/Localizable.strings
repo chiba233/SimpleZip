@@ -688,6 +688,9 @@
 "extract.preflight.missingVolumes" = "分卷集缺少 %1$@ 个分卷";
 "extract.preflight.suspicious" = "%1$@ 个可疑路径条目——详见归档视图里的安全报告";
 "extract.preflight.symlinks" = "包含 %1$@ 个符号链接";
+/* 0.4.2 会话级密码记忆 */
+"password.hintComment" = "归档注释：%1$@";
+
 
 
 

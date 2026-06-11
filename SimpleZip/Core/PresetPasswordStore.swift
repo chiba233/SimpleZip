@@ -178,3 +178,49 @@ enum PresetPasswordStore {
         defaults.removeObject(forKey: legacyUserDefaultsKey)
     }
 }
+
+// MARK: - 会话级密码记忆（0.4.2 #9）
+
+/// 会话级密码缓存。**只存内存**（进程退出即忘），绝不落盘、不进钥匙串 —— 这是有意的
+/// 「session-level，不做密码库」边界。两个记忆维度：
+/// - 按归档路径记「这个包验证过的口令」→ 同一归档的后续操作（解压 / 打开条目 / 编辑）免重输；
+/// - 全局记「最近一次成功口令」→ 批量解压同密码的多个包时，后一个先静默试它再弹框。
+/// 静默试错口令无害：后端只会失败，流程随即落回预设密码 / 弹框。
+final class SessionPasswordCache: @unchecked Sendable {
+    static let shared = SessionPasswordCache()
+
+    private let lock = NSLock()
+    private var passwordByPath: [String: String] = [:]
+    private var lastSuccessfulPassword = ""
+
+    /// 记一条**已验证成功**的口令。空串不记。
+    func record(_ password: String, for url: URL) {
+        guard !password.isEmpty else { return }
+        lock.lock()
+        defer { lock.unlock() }
+        passwordByPath[url.standardizedFileURL.path] = password
+        lastSuccessfulPassword = password
+    }
+
+    /// 静默尝试顺序：该包记过的 → 本会话最近一次成功的。去重、不含空串。
+    func candidates(for url: URL) -> [String] {
+        lock.lock()
+        defer { lock.unlock() }
+        var result: [String] = []
+        if let own = passwordByPath[url.standardizedFileURL.path] {
+            result.append(own)
+        }
+        if !lastSuccessfulPassword.isEmpty, !result.contains(lastSuccessfulPassword) {
+            result.append(lastSuccessfulPassword)
+        }
+        return result
+    }
+
+    /// 清空本会话全部记忆（测试 / 将来「忘记会话密码」入口用）。
+    func clearAll() {
+        lock.lock()
+        defer { lock.unlock() }
+        passwordByPath = [:]
+        lastSuccessfulPassword = ""
+    }
+}
