@@ -51,8 +51,97 @@ extension ArchiveBrowserModel {
             showsDetails: false,
             successStatus: L10n.text("status.archiveTested"),
             rerunAction: { [weak self] in self?.runSingleArchiveTest(archiveURL) }
-        ) { operationID, _, outputObserver in
-            try await ArchiveService.test(archiveURL, operationID: operationID, force: force, outputObserver: outputObserver)
+        ) { [weak self] operationID, _, outputObserver in
+            guard let self else { return }
+            switch try await self.passwordAwareArchiveTest(archiveURL, operationID: operationID, force: force, outputObserver: outputObserver) {
+            case .passed:
+                return
+            case .skippedNoPassword:
+                // 取消密码框 = 任务取消,不算失败(0.4.3 #6 拍板语义)。
+                throw CancellationError()
+            case .failed(let message):
+                throw ArchiveError.commandFailed(message)
+            }
+        }
+    }
+
+    /// 0.4.3 #6 统一密码中心:带密码智能测试的结果三态。
+    enum PasswordAwareTestOutcome {
+        case passed
+        case skippedNoPassword
+        case failed(String)
+    }
+
+    /// 0.4.3 #6:带密码智能的归档完整性测试。
+    /// 顺序:①无口令直测 → ②错误表明要口令时,**静默**依次试 会话缓存(本包→本会话最近成功)+ 预设密码
+    /// → ③仍不行才弹密码框(等待期间任务详情 + 状态栏显示「等待输入密码」),口令错就带提示重弹。
+    /// 成功口令记入会话缓存 —— 同归档本会话只问一次,批量任务里后续同口令的包静默通过。
+    /// 取消密码框返回 `.skippedNoPassword`(语义=跳过/取消,不是失败)。
+    func passwordAwareArchiveTest(
+        _ archiveURL: URL,
+        operationID: UUID?,
+        force: Bool,
+        outputObserver: (@Sendable (String) -> Void)?
+    ) async throws -> PasswordAwareTestOutcome {
+        func attempt(_ password: String) async throws {
+            try await ArchiveService.test(archiveURL, password: password, operationID: operationID, force: force, outputObserver: outputObserver)
+        }
+        do {
+            try await attempt("")
+            return .passed
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            guard ArchiveService.errorSuggestsPasswordRequirement(error) else {
+                return .failed(error.localizedDescription)
+            }
+            // ② 静默候选:本包记过的 → 本会话最近成功的 → 预设密码(去重)。错口令无害,后端只会再报错。
+            var candidates = SessionPasswordCache.shared.candidates(for: archiveURL)
+            if AppPreferences.hasUsablePresetPassword {
+                let preset = AppPreferences.presetPassword
+                if !preset.isEmpty, !candidates.contains(preset) { candidates.append(preset) }
+            }
+            for candidate in candidates {
+                do {
+                    try await attempt(candidate)
+                    SessionPasswordCache.shared.record(candidate, for: archiveURL)
+                    return .passed
+                } catch is CancellationError {
+                    throw CancellationError()
+                } catch {
+                    guard ArchiveService.errorSuggestsPasswordRequirement(error) else {
+                        return .failed(error.localizedDescription)
+                    }
+                }
+            }
+            // ③ 弹框循环。等待期间把状态写进任务详情 + 状态栏 —— 活动中心能看到「等待输入密码」。
+            var isRetry = false
+            while true {
+                let waiting = L10n.format("status.waitingForPassword", archiveURL.lastPathComponent)
+                outputObserver?("\n" + waiting + "\n")
+                status = waiting
+                guard let authentication = promptForArchivePassword(
+                    archiveURL: archiveURL,
+                    displayName: archiveURL.lastPathComponent,
+                    detectedZipEncryption: ArchiveService.detectZipEncryption(in: archiveURL),
+                    isRetry: isRetry,
+                    actionTitle: L10n.text("password.action.test")
+                ) else {
+                    return .skippedNoPassword
+                }
+                do {
+                    try await attempt(authentication.password)
+                    SessionPasswordCache.shared.record(authentication.password, for: archiveURL)
+                    return .passed
+                } catch is CancellationError {
+                    throw CancellationError()
+                } catch {
+                    guard ArchiveService.errorSuggestsPasswordRequirement(error) else {
+                        return .failed(error.localizedDescription)
+                    }
+                    isRetry = true
+                }
+            }
         }
     }
 
@@ -74,7 +163,7 @@ extension ArchiveBrowserModel {
 
     private struct BatchTestOutcome {
         let url: URL
-        let failureMessage: String?   // nil = 通过
+        let result: PasswordAwareTestOutcome
     }
 
     private func runBatchArchiveTest(_ urls: [URL]) {
@@ -87,36 +176,51 @@ extension ArchiveBrowserModel {
             successStatus: nil,
             refreshOnSuccess: { [weak self] in
                 guard let self else { return }
-                let failedCount = outcomes.filter { $0.failureMessage != nil }.count
-                status = failedCount == 0
+                let passedCount = outcomes.filter { if case .passed = $0.result { return true } else { return false } }.count
+                status = passedCount == outcomes.count
                     ? L10n.format("status.batchTestAllPassed", "\(outcomes.count)")
-                    : L10n.format("status.batchTestPartial", "\(outcomes.count - failedCount)", "\(failedCount)")
+                    : L10n.format("status.batchTestPartial", "\(passedCount)", "\(outcomes.count - passedCount)")
             },
             onSucceeded: { [weak self] task in
                 task.transferLog = outcomes.map { outcome in
-                    guard let message = outcome.failureMessage else {
+                    switch outcome.result {
+                    case .passed:
                         return TransferLogEntry(name: outcome.url.lastPathComponent, action: .passed, isDirectory: false)
+                    case .skippedNoPassword:
+                        // 0.4.3 #6:取消密码框 = 跳过,不打成失败。
+                        return TransferLogEntry(
+                            name: outcome.url.lastPathComponent,
+                            action: .skipped,
+                            isDirectory: false,
+                            detail: L10n.text("test.skipped.noPassword")
+                        )
+                    case .failed(let message):
+                        let kind = ArchiveService.classifyTestFailure(message)
+                        let label = L10n.text("test.failure.\(kind.rawValue)")
+                        // detail = 归类标签 + 原始诊断（截断防超长行）；完整输出在任务详情日志里。
+                        let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
+                        return TransferLogEntry(
+                            name: outcome.url.lastPathComponent,
+                            action: .failed,
+                            isDirectory: false,
+                            detail: trimmed.isEmpty ? label : "\(label) — \(trimmed.prefix(200))"
+                        )
                     }
-                    let kind = ArchiveService.classifyTestFailure(message)
-                    let label = L10n.text("test.failure.\(kind.rawValue)")
-                    // detail = 归类标签 + 原始诊断（截断防超长行）；完整输出在任务详情日志里。
-                    let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
-                    return TransferLogEntry(
-                        name: outcome.url.lastPathComponent,
-                        action: .failed,
-                        isDirectory: false,
-                        detail: trimmed.isEmpty ? label : "\(label) — \(trimmed.prefix(200))"
-                    )
                 }
-                let failedURLs = outcomes.compactMap { $0.failureMessage != nil ? $0.url : nil }
-                if !failedURLs.isEmpty {
+                // 失败 + 跳过(没给密码)的都可重试 —— 重试时会话缓存里可能已经有别的包验证过的口令。
+                let retryURLs = outcomes.compactMap { outcome -> URL? in
+                    if case .passed = outcome.result { return nil }
+                    return outcome.url
+                }
+                if !retryURLs.isEmpty {
                     task.retryFailed = { [weak self] in
-                        self?.runBatchArchiveTest(failedURLs)
+                        self?.runBatchArchiveTest(retryURLs)
                     }
                 }
             },
             rerunAction: { [weak self] in self?.runBatchArchiveTest(urls) }
-        ) { operationID, progress, outputObserver in
+        ) { [weak self] operationID, progress, outputObserver in
+            guard let self else { return }
             var collected: [BatchTestOutcome] = []
             for (index, url) in urls.enumerated() {
                 try Task.checkCancellation()
@@ -128,12 +232,14 @@ extension ArchiveBrowserModel {
                 ))
                 outputObserver?("\n=== \(url.lastPathComponent) ===\n")
                 do {
-                    try await ArchiveService.test(url, operationID: operationID, force: forced.contains(url), outputObserver: outputObserver)
-                    collected.append(BatchTestOutcome(url: url, failureMessage: nil))
+                    // 0.4.3 #6:批量测试走密码智能 —— 加密包先静默试会话缓存/预设,要弹框也只弹一次,
+                    // 验证过的口令进缓存,同口令的后续包全部静默通过。
+                    let result = try await self.passwordAwareArchiveTest(url, operationID: operationID, force: forced.contains(url), outputObserver: outputObserver)
+                    collected.append(BatchTestOutcome(url: url, result: result))
                 } catch is CancellationError {
                     throw CancellationError()
                 } catch {
-                    collected.append(BatchTestOutcome(url: url, failureMessage: error.localizedDescription))
+                    collected.append(BatchTestOutcome(url: url, result: .failed(error.localizedDescription)))
                 }
             }
             outcomes = collected

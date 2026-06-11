@@ -1045,6 +1045,9 @@
 "tasks.filter.cancelled" = "已取消";
 "status.backend" = "原生 ZIP | 7Z 通过 7zz";
 "status.readOnly" = "只读";
+"status.waitingForPassword" = "等待输入密码：%@";
+"test.skipped.noPassword" = "已跳过——未提供密码";
+"password.action.test" = "测试";
 "writeGate.backendUnavailable" = "7-Zip 后端不可用，无法改写归档。";
 "writeGate.readOnlyFormat" = "「%@」是只读格式——不支持原位改写条目。可解压后编辑，或转换为 ZIP / 7z 再编辑。";
 "writeGate.temporaryCopy" = "当前浏览的是解包出的临时副本（.siz / .szs / .gpg）——改写不会落回原容器，还会破坏签名 / 加密。请先导出文件再编辑。";

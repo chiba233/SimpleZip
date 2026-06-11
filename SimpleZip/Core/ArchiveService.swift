@@ -365,12 +365,43 @@ enum ArchiveService {
 
     static func test(
         _ archive: URL,
+        password: String = "",
         operationID: UUID? = nil,
         force: Bool = false,
         outputObserver: (@Sendable (String) -> Void)? = nil
     ) async throws {
         let resolved = try resolvedInput(for: archive, force: force)
+        // 0.4.3 #6:带口令的完整性测试只有 7zz 路径支持(`t` + PTY 应答,口令绝不进可见 argv)。
+        // 有口令时强制走 7zz —— 调用方只在「错误表明需要口令」后才带口令重试,zip/7z 都可被 7zz 测。
+        if !password.isEmpty {
+            try await SevenZipBackend.test(resolved.url, password: password, operationID: operationID, outputObserver: outputObserver)
+            return
+        }
         try await backendType(for: resolved.backend).test(resolved.url, operationID: operationID, outputObserver: outputObserver)
+    }
+
+    /// 错误是否表明「归档需要口令 / 口令不对」(0.4.3 #6 统一密码中心的共用判定)。
+    /// 模型层 shouldPromptForArchivePassword、批量测试与 Finder 批量解压的静默重试都走这一份。
+    static func errorSuggestsPasswordRequirement(_ error: Error) -> Bool {
+        if let archiveError = error as? ArchiveError {
+            switch archiveError {
+            case .passwordPromptExhausted:
+                return true
+            case .commandFailed(let output):
+                return commandOutputSuggestsPasswordRequirement(output)
+            default:
+                return false
+            }
+        }
+        return commandOutputSuggestsPasswordRequirement(error.localizedDescription)
+    }
+
+    private static func commandOutputSuggestsPasswordRequirement(_ output: String) -> Bool {
+        let normalized = output.lowercased()
+        return normalized.contains("enter password")
+            || normalized.contains("wrong password")
+            || normalized.contains("can not open encrypted archive")
+            || normalized.contains("cannot open encrypted archive")
     }
 
     static func benchmark(

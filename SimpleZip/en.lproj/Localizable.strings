@@ -1047,6 +1047,9 @@
 "tasks.filter.cancelled" = "Cancelled";
 "status.backend" = "ZIP native | 7Z via 7zz";
 "status.readOnly" = "Read-Only";
+"status.waitingForPassword" = "Waiting for password: %@";
+"test.skipped.noPassword" = "Skipped — no password provided";
+"password.action.test" = "Test";
 "writeGate.backendUnavailable" = "The 7-Zip backend is unavailable, so archives can’t be modified.";
 "writeGate.readOnlyFormat" = "“%@” is a read-only format — its entries can’t be modified in place. Extract the files, or convert the archive to ZIP or 7z to edit it.";
 "writeGate.temporaryCopy" = "You’re browsing a temporary extracted copy (.siz / .szs / .gpg) — edits wouldn’t reach the original container and would break its signature or encryption. Export the files to edit them.";

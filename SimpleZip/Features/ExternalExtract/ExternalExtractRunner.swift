@@ -34,20 +34,44 @@ enum ExternalExtractRunner {
             ? .skipExisting
             : .overwrite
 
-        try await ArchiveService.extract(
-            supportedURL,
-            to: stagingURL,
-            overwriteBehavior: overwriteBehavior,
-            password: preset,
-            operationID: operationID,
-            progress: { state in
-                Task { @MainActor in
-                    onProgress(state.fraction, state.currentFile)
-                    if let text = state.statusText { onStatus(text) }
+        // 0.4.3 #6 统一密码中心:候选顺序 = 预设密码(原行为) → 会话缓存(本包记过的 → 本会话最近成功的)。
+        // 「错误表明要口令」才换下一个候选静默重试,其余错误原样抛给浮窗;候选用尽抛最后的口令错误。
+        // 成功口令记入会话缓存 —— Finder 批量解压同口令的一组包,后面的包静默通过。
+        var passwordCandidates: [String] = [preset]
+        for cached in SessionPasswordCache.shared.candidates(for: supportedURL) where !passwordCandidates.contains(cached) {
+            passwordCandidates.append(cached)
+        }
+        for (index, candidate) in passwordCandidates.enumerated() {
+            do {
+                try await ArchiveService.extract(
+                    supportedURL,
+                    to: stagingURL,
+                    overwriteBehavior: overwriteBehavior,
+                    password: candidate,
+                    operationID: operationID,
+                    progress: { state in
+                        Task { @MainActor in
+                            onProgress(state.fraction, state.currentFile)
+                            if let text = state.statusText { onStatus(text) }
+                        }
+                    },
+                    outputObserver: outputObserver
+                )
+                if !candidate.isEmpty {
+                    SessionPasswordCache.shared.record(candidate, for: supportedURL)
                 }
-            },
-            outputObserver: outputObserver
-        )
+                break
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                guard ArchiveService.errorSuggestsPasswordRequirement(error), index < passwordCandidates.count - 1 else {
+                    throw error
+                }
+                // 换口令重试前清掉半解压残渣,staging 目录原位重建。
+                try? FileManager.default.removeItem(at: stagingURL)
+                try FileManager.default.createDirectory(at: stagingURL, withIntermediateDirectories: true)
+            }
+        }
 
         let baseName = outputBaseNameOverride ?? supportedURL.deletingPathExtension().lastPathComponent
         let target = coordinator.uniqueDestinationURL(for: baseName, in: destinationDir)

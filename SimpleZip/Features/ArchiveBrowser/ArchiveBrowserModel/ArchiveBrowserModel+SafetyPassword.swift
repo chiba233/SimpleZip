@@ -104,26 +104,9 @@ extension ArchiveBrowserModel {
         }
     }
 
+    /// 0.4.3 #6:判定收敛到 Core 的同一份(批量测试 / Finder 批量解压的静默重试共用),这里只是转发。
     func shouldPromptForArchivePassword(_ error: Error) -> Bool {
-        if let archiveError = error as? ArchiveError {
-            switch archiveError {
-            case .passwordPromptExhausted:
-                return true
-            case .commandFailed(let output):
-                return archiveCommandSuggestsPasswordRequirement(output)
-            default:
-                return false
-            }
-        }
-        return archiveCommandSuggestsPasswordRequirement(error.localizedDescription)
-    }
-
-    private func archiveCommandSuggestsPasswordRequirement(_ output: String) -> Bool {
-        let normalized = output.lowercased()
-        return normalized.contains("enter password")
-            || normalized.contains("wrong password")
-            || normalized.contains("can not open encrypted archive")
-            || normalized.contains("cannot open encrypted archive")
+        ArchiveService.errorSuggestsPasswordRequirement(error)
     }
 
     func promptForArchiveItemPassword(

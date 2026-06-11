@@ -137,11 +137,18 @@ enum SevenZipBackend {
 
     /// 用 `7zz t` 跑完整性测试 —— 7zz 输出非零退出码 → BackendProcessRunner 转成抛错。
     static func test(_ archive: URL, operationID: UUID? = nil, outputObserver: (@Sendable (String) -> Void)? = nil) async throws {
+        try await test(archive, password: "", operationID: operationID, outputObserver: outputObserver)
+    }
+
+    /// 0.4.3 #6:带口令的完整性测试。读类命令(t/l)的口令**不带 -p**、走 PTY passwordPrompts 应答
+    /// (#7 的教训:裸 -p 会被当空口令)——口令因此也绝不出现在可见 argv 里。
+    static func test(_ archive: URL, password: String, operationID: UUID? = nil, outputObserver: (@Sendable (String) -> Void)? = nil) async throws {
         let tool = try toolPath()
         _ = try await BackendProcessRunner.runAndCapture(
             tool,
             // -mmt=on：完整性测试按核心数并行校验各文件 CRC，大归档更快。
             arguments: ["t", archive.path, "-mmt=on"],
+            inputStrategy: password.isEmpty ? .none : .passwordPrompts(Array(repeating: password, count: 4)),
             outputObserver: outputObserver,
             operationID: operationID,
             // 解压 / 压缩 / 测试：调用方丢弃返回串、只用进度 + 活动中心日志，故只保留尾部供失败诊断，
