@@ -30,9 +30,16 @@ enum NativeZipBackend {
 
     // MARK: - list
 
-    /// `unzip -l` 给可读条目列表，`tar -tf` 给完整路径（unzip 输出会被截断的）；二者合并解析。
-    /// 解析交给 `ArchiveService.parseZipList` —— 那一段已经被 fixture 测试覆盖。
-    static func list(_ archive: URL, operationID: UUID? = nil) async throws -> [ArchiveItem] {
+    /// zip 条目列表优先走 7zz `l -slt` —— 只有它给得出加密标记（`Encrypted = +`）和
+    /// **原始字节**的条目名。系统工具会丢这两样安全关键信息（0.4.3 自检样本抓出的真实漏报）：
+    /// - `unzip -l` / `tar -tf` 的输出里没有加密标记 → AES 加密包被列成「未加密」；
+    /// - 系统 tar 把文件名统一归一化成 NFD → NFC/NFD 混用包在安全报告里漏报 normalizationCollision。
+    /// `unzip -l` + `tar -tf` 合并解析（`ArchiveService.parseZipList`，fixture 已覆盖）保留为
+    /// 7zz 不可用时的兜底。
+    static func list(_ archive: URL, password: String = "", operationID: UUID? = nil) async throws -> [ArchiveItem] {
+        if SevenZipBackend.isAvailable() {
+            return try await SevenZipBackend.list(archive, password: password, operationID: operationID)
+        }
         let unzipOutput = try await BackendProcessRunner.runAndCapture(
             "/usr/bin/unzip",
             arguments: ["-l", archive.path],

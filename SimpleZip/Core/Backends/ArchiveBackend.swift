@@ -36,11 +36,8 @@ extension SevenZipBackend: ArchiveBackend {
 }
 
 extension NativeZipBackend: ArchiveBackend {
-    /// NativeZip 自己的 `list(_:operationID:)` 不吃 password ——
-    /// 这层 wrapper 把协议要求的 password 参数吞掉，行为完全一致。
-    static func list(_ archive: URL, password: String, operationID: UUID?) async throws -> [ArchiveItem] {
-        try await list(archive, operationID: operationID)
-    }
+    // 自己的 `list(_:password:operationID:)` 和 `test(_:operationID:outputObserver:)` 已经跟
+    // 协议签名一致，空 extension 宣告 conformance 即可。
 }
 
 extension DiskImageBackend: ArchiveBackend {
