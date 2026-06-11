@@ -1244,6 +1244,14 @@ private struct ArchiveExtrasSheets: ViewModifier {
                     model.gpgExtractRequest = nil
                 }
             }
+            .sheet(item: $model.virtualExportRequest) { request in
+                VirtualExportOptionsView(request: request) { confirmed in
+                    model.virtualExportRequest = nil
+                    model.performVirtualExport(confirmed)
+                } cancel: {
+                    model.virtualExportRequest = nil
+                }
+            }
             // 设置开窗桥（0.4.2）：菜单栏「关于」等深链入口靠它用官方 openSettings 开窗。
             .background(SettingsOpenerBridge())
     }

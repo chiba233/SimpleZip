@@ -1637,6 +1637,10 @@
 "gpgExtract.note" = "Decryption is staged on the encrypted scratch volume; the plaintext only lands in the chosen folder on success — never overwriting existing files. gpg-agent / pinentry may ask for your key passphrase.";
 "virtual.export.panelMessage" = "Choose where to save the decrypted files";
 "virtual.export.done" = "Saved %1$@ files";
+"virtual.export.title" = "Save Decrypted Files";
+"virtual.export.subtitle" = "%1$@ files";
+"virtual.export.filesSection" = "Files to save";
+"virtual.export.note" = "Files are copied with collision-safe names — nothing in the destination is ever overwritten.";
 "feedback.copied" = "Copied";
 "command.copied" = "Command copied";
 "tasks.settings.openOnFailure" = "Open Activity Center on failure";

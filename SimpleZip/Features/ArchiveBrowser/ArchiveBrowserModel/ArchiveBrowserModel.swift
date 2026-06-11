@@ -40,6 +40,8 @@ final class ArchiveBrowserModel: ObservableObject {
     @Published var duplicateFilesReport: DuplicateFilesReport?
     /// 0.4.2：.gpg 解压确认对话框（非 nil = 显示）。
     @Published var gpgExtractRequest: GPGExtractRequest?
+    /// 0.4.2：虚拟浏览导出对话框（非 nil = 显示）。
+    @Published var virtualExportRequest: VirtualExportRequest?
     /// #113 查找：当前搜索文本（空 = 不过滤）。绑定搜索栏；主列表（文件 / 归档）按它过滤展示。
     @Published var searchText = ""
     /// 搜索栏是否可见。⌘F / 右键「查找」/ 菜单栏「查找」置 true；Esc 或清空收起。

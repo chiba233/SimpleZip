@@ -905,30 +905,39 @@ extension ArchiveBrowserModel {
         )
     }
 
-    /// 0.4.2：虚拟浏览（.gpg/.szs 解密临时内容）的「解压」= 导出。选中的文件优先,没选就全部；
-    /// NSOpenPanel 选目标目录,逐个复制（唯一名,绝不覆盖）。
+    /// 0.4.2：虚拟浏览导出确认请求（非 nil = 弹专用对话框）。用户点名「不能偷懒用系统面板」。
+    struct VirtualExportRequest: Identifiable {
+        let id = UUID()
+        let files: [URL]
+        var destinationURL: URL
+    }
+
+    /// 虚拟浏览（.gpg/.szs 解密临时内容）的「解压」= 导出。选中的文件优先,没选就全部；
+    /// 弹专用对话框（文件清单 + 可改目标目录）。
     private func exportVirtualModeFiles() {
         let candidates = selectedFileItems.isEmpty ? fileItems : selectedFileItems
-        let files = candidates.filter { !$0.isDirectory }
+        let files = candidates.filter { !$0.isDirectory }.map(\.url)
         guard !files.isEmpty else {
             errorMessage = L10n.text("error.selectFilesToArchive")
             return
         }
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = false
-        panel.canChooseDirectories = true
-        panel.canCreateDirectories = true
-        panel.prompt = L10n.text("button.extract")
-        panel.message = L10n.text("virtual.export.panelMessage")
-        guard panel.runModal() == .OK, let destination = panel.url else { return }
+        // 默认目的地：原容器（.gpg/.szs）所在目录;拿不到就退回下载目录。
+        let fallback = fileManager.urls(for: .downloadsDirectory, in: .userDomainMask).first
+            ?? fileManager.homeDirectoryForCurrentUser
+        let defaultDestination = archiveDisplayOverride?.deletingLastPathComponent() ?? fallback
+        virtualExportRequest = VirtualExportRequest(files: files, destinationURL: defaultDestination)
+    }
+
+    /// 执行虚拟导出：逐个复制（唯一名,绝不覆盖），任一失败立即停（已成功的保留）。
+    func performVirtualExport(_ request: VirtualExportRequest) {
         var exported = 0
-        for file in files {
-            let desired = destination.appendingPathComponent(file.url.lastPathComponent)
+        for file in request.files {
+            let desired = request.destinationURL.appendingPathComponent(file.lastPathComponent)
             let target = fileManager.fileExists(atPath: desired.path)
                 ? UniqueFileName.suffixed(for: desired, suffix: "", exists: { self.fileManager.fileExists(atPath: $0.path) })
                 : desired
             do {
-                try fileManager.copyItem(at: file.url, to: target)
+                try fileManager.copyItem(at: file, to: target)
                 exported += 1
             } catch {
                 errorMessage = error.localizedDescription

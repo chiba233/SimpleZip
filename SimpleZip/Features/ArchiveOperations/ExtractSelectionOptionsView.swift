@@ -121,3 +121,84 @@ struct GPGExtractOptionsView: View {
         }
     }
 }
+
+/// 0.4.2：虚拟浏览导出对话框 —— 列出将导出的解密文件 + 可改目标目录（专用绘制,不偷懒用系统面板）。
+struct VirtualExportOptionsView: View {
+    @State var request: ArchiveBrowserModel.VirtualExportRequest
+    let export: (ArchiveBrowserModel.VirtualExportRequest) -> Void
+    let cancel: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            DialogHero(
+                systemImage: "square.and.arrow.down.on.square",
+                colors: [.blue, .cyan],
+                title: L10n.text("virtual.export.title"),
+                subtitle: L10n.format("virtual.export.subtitle", "\(request.files.count)")
+            )
+
+            VStack(alignment: .leading, spacing: 16) {
+                DialogSection(L10n.text("virtual.export.filesSection")) {
+                    HeightCappedScrollView(maxHeight: 180) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            ForEach(request.files, id: \.self) { file in
+                                Label(file.lastPathComponent, systemImage: "doc")
+                                    .font(.callout)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+
+                DialogSection {
+                    LabeledContent {
+                        HStack(spacing: 8) {
+                            Text(request.destinationURL.path)
+                                .font(.caption)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                                .frame(maxWidth: .infinity, alignment: .trailing)
+                            Button(L10n.text("button.choose")) {
+                                chooseDestination()
+                            }
+                        }
+                    } label: {
+                        Label(L10n.text("archive.destination"), systemImage: "folder")
+                    }
+                }
+
+                Label(L10n.text("virtual.export.note"), systemImage: "info.circle")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 16)
+
+            Divider()
+
+            DialogFooter(
+                confirmTitle: L10n.text("button.extract"),
+                confirmDisabled: false,
+                confirm: { export(request) },
+                cancel: cancel
+            ) {
+                EmptyView()
+            }
+        }
+        .frame(width: 520)
+    }
+
+    private func chooseDestination() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.canCreateDirectories = true
+        panel.directoryURL = request.destinationURL
+        if panel.runModal() == .OK, let url = panel.url {
+            request.destinationURL = url
+        }
+    }
+}

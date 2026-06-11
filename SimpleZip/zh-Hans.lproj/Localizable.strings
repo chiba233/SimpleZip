@@ -1637,6 +1637,10 @@
 "gpgExtract.note" = "解密在加密临时卷上进行，成功后明文才落到所选目录——绝不覆盖已有文件。gpg-agent / pinentry 可能弹出私钥口令输入。";
 "virtual.export.panelMessage" = "选择解密文件的保存位置";
 "virtual.export.done" = "已保存 %1$@ 个文件";
+"virtual.export.title" = "保存解密文件";
+"virtual.export.subtitle" = "%1$@ 个文件";
+"virtual.export.filesSection" = "将保存的文件";
+"virtual.export.note" = "复制时重名自动编号——目标目录里的任何文件都不会被覆盖。";
 "feedback.copied" = "已复制";
 "command.copied" = "命令已复制";
 "tasks.settings.openOnFailure" = "任务失败时自动打开活动中心";
