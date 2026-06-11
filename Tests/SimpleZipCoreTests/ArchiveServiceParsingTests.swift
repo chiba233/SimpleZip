@@ -470,3 +470,38 @@ struct ArchiveExtractPreflightTests {
         #expect(ArchiveExtractPreflight.topLevelNames(of: items) == ["abs", "alpha", "root.txt", "zeta"])
     }
 }
+
+/// 0.4.2 #15:发布包检查的条目侧统计。
+struct ReleaseInspectionTests {
+
+    private func entry(_ name: String, isDirectory: Bool = false, size: Int64? = nil, attributes: String = "", symlinkTarget: String = "") -> ArchiveItem {
+        ArchiveItem(name: name, isDirectory: isDirectory, size: size, modified: nil, sizeText: "", modifiedText: "", method: "", attributes: attributes, symlinkTarget: symlinkTarget)
+    }
+
+    @Test func statsCoverAllDimensions() {
+        let items = [
+            entry("docs/", isDirectory: true),
+            entry("docs/a.txt", size: 100),
+            entry("empty-dir/", isDirectory: true),
+            entry(".DS_Store", size: 1),
+            entry("bin/tool", size: 50, attributes: "_ -rwxr-xr-x"),
+            entry("link", size: 0, symlinkTarget: "target")
+        ]
+        let stats = ReleaseInspection.stats(for: items)
+        #expect(stats.fileCount == 4)
+        #expect(stats.folderCount == 2)
+        #expect(stats.totalBytes == 151)
+        #expect(stats.junkCount == 1)
+        #expect(stats.emptyDirectoryCount == 1)   // empty-dir 没有子条目;docs 有
+        #expect(stats.executableCount == 1)
+        #expect(stats.symlinkCount == 1)
+    }
+
+    @Test func executableModeDetection() {
+        #expect(ReleaseInspection.isExecutableMode("_ -rwxr-xr-x"))
+        #expect(ReleaseInspection.isExecutableMode("_ -rwsr-xr-x"))
+        #expect(!ReleaseInspection.isExecutableMode("_ -rw-r--r--"))
+        #expect(!ReleaseInspection.isExecutableMode("A"))
+        #expect(!ReleaseInspection.isExecutableMode(""))
+    }
+}

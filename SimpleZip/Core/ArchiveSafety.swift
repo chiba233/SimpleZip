@@ -271,3 +271,81 @@ enum ArchiveJunkFiles {
         items.filter { isJunkPath($0.name) }
     }
 }
+
+// MARK: - 发布包检查（0.4.2 #15）
+
+/// 「发布前检查」的条目侧统计 —— 纯函数。测试结果 / SHA-256 / 签名归属由调用方异步补齐。
+struct ReleaseInspectionStats: Equatable {
+    let fileCount: Int
+    let folderCount: Int
+    let totalBytes: Int64
+    let junkCount: Int
+    let emptyDirectoryCount: Int
+    let executableCount: Int
+    let symlinkCount: Int
+}
+
+enum ReleaseInspection {
+
+    nonisolated static func stats(for items: [ArchiveItem]) -> ReleaseInspectionStats {
+        var files = 0
+        var folders = 0
+        var bytes: Int64 = 0
+        var executables = 0
+        var symlinks = 0
+        var directoryPaths: [String] = []
+        var allPaths: [String] = []
+
+        for item in items {
+            let normalized = normalizedPath(item.name)
+            allPaths.append(normalized)
+            if item.isDirectory {
+                folders += 1
+                directoryPaths.append(normalized)
+            } else {
+                files += 1
+                bytes += item.size ?? 0
+                if isExecutableMode(item.attributes) { executables += 1 }
+            }
+            if !item.symlinkTarget.isEmpty { symlinks += 1 }
+        }
+
+        // 空目录：没有任何条目以它为前缀。O(d×n) 在发布包尺度可接受；大包用前缀集合优化。
+        let pathSet = Set(allPaths)
+        var prefixSet = Set<String>()
+        for path in pathSet {
+            var components = path.split(separator: "/").map(String.init)
+            components.removeLast()
+            var prefix = ""
+            for component in components {
+                prefix = prefix.isEmpty ? component : prefix + "/" + component
+                prefixSet.insert(prefix)
+            }
+        }
+        let emptyDirectories = directoryPaths.filter { !$0.isEmpty && !prefixSet.contains($0) }.count
+
+        return ReleaseInspectionStats(
+            fileCount: files,
+            folderCount: folders,
+            totalBytes: bytes,
+            junkCount: ArchiveJunkFiles.junkEntries(in: items).count,
+            emptyDirectoryCount: emptyDirectories,
+            executableCount: executables,
+            symlinkCount: symlinks
+        )
+    }
+
+    /// 7zz `-slt` Attributes 的模式串里 owner/group/other 任一执行位（x/s/t）置位。
+    nonisolated static func isExecutableMode(_ attributes: String) -> Bool {
+        guard let range = attributes.range(of: #"[-dlbcps][rwxsStT-]{9}"#, options: .regularExpression) else { return false }
+        let mode = Array(attributes[range])
+        let executableBits: Set<Character> = ["x", "s", "t"]
+        return executableBits.contains(mode[3]) || executableBits.contains(mode[6]) || executableBits.contains(mode[9])
+    }
+
+    nonisolated private static func normalizedPath(_ name: String) -> String {
+        var path = name
+        while path.hasPrefix("./") { path.removeFirst(2) }
+        return path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+    }
+}

@@ -135,6 +135,85 @@ extension ArchiveBrowserModel {
         }
     }
 
+    // MARK: - 发布包检查（0.4.2 #15）
+
+    /// 一次发布包检查的结果。条目侧统计在 Core（ReleaseInspection），这里聚合 测试 / SHA-256 / 注释。
+    struct ReleaseInspectionReport: Identifiable {
+        let id = UUID()
+        let archiveURL: URL
+        var listable = false
+        var stats: ReleaseInspectionStats?
+        var securityFindings: [ArchiveSecurityFinding] = []
+        var testPassed: Bool?
+        var testFailureMessage: String?
+        var sha256: String?
+        var hasComment = false
+    }
+
+    /// 右键「发布包检查…」：对选中的单个归档跑一套发布前检查（能否解压 / 危险路径 / 垃圾 /
+    /// 空目录 / 大小写冲突 / symlink / 可执行权限 / SHA-256），出报告 sheet。
+    func inspectSelectedArchiveForRelease() {
+        let archiveURL: URL?
+        switch mode {
+        case .archive(let url):
+            archiveURL = url
+        case .folder, .tag:
+            archiveURL = selectedFileItems.first(where: { ArchiveService.isSupportedArchive($0.url) })?.url
+        }
+        guard let archiveURL else {
+            errorMessage = L10n.text("error.openOrSelectArchive")
+            return
+        }
+        runReleaseInspection(archiveURL)
+    }
+
+    private func runReleaseInspection(_ url: URL) {
+        let force = isForced(url)
+        var report = ReleaseInspectionReport(archiveURL: url)
+        startManagedArchiveTask(
+            title: L10n.format("inspect.taskTitle", url.lastPathComponent),
+            kind: .test,
+            showsDetails: true,
+            successStatus: nil,
+            refreshOnSuccess: { [weak self] in
+                self?.releaseInspectionReport = report
+            }
+        ) { operationID, progress, outputObserver in
+            // ① 列目录：空口令 + 会话缓存里的口令逐个静默试；全失败 = 读不了条目（报告里如实标注）。
+            progress(ArchiveProgressState(fraction: 0.1, statusText: nil))
+            var items: [ArchiveItem] = []
+            for password in [""] + SessionPasswordCache.shared.candidates(for: url) {
+                if let listed = try? await ArchiveService.list(url, password: password, force: force) {
+                    items = listed
+                    report.listable = true
+                    break
+                }
+            }
+            if report.listable {
+                report.stats = ReleaseInspection.stats(for: items)
+                report.securityFindings = ArchiveSecurityReport.analyze(items)
+                report.hasComment = !ArchiveService.headerComment(for: url).isEmpty
+            }
+            // ② 完整性测试（失败不让任务失败 —— 失败本身就是报告内容）。
+            progress(ArchiveProgressState(fraction: 0.4, statusText: nil))
+            do {
+                try await ArchiveService.test(url, operationID: operationID, force: force, outputObserver: outputObserver)
+                report.testPassed = true
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                report.testPassed = false
+                report.testFailureMessage = error.localizedDescription
+            }
+            // ③ SHA-256（发布说明 / 校验文件用）。
+            progress(ArchiveProgressState(fraction: 0.8, statusText: nil))
+            report.sha256 = try? await Task.detached(priority: .userInitiated) {
+                try HashService.sha256(for: url)
+            }.value
+            progress(ArchiveProgressState(fraction: 1.0, statusText: nil))
+        }
+    }
+
     // MARK: - #111 归档比较
 
     /// 右键「比较归档」入口：选中 2 个归档直接比；选中 1 个时用 NSOpenPanel 挑第二个。

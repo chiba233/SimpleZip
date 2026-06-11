@@ -34,6 +34,8 @@ final class ArchiveBrowserModel: ObservableObject {
     @Published var showsArchiveSecurityReport = false
     /// 0.4.2 #11：批量重命名 sheet（非 nil = 显示）。右键多选文件条目触发。
     @Published var batchRenameRequest: BatchRenameRequest?
+    /// 0.4.2 #15：发布包检查报告 sheet（非 nil = 显示）。右键单个归档触发，检查跑完赋值。
+    @Published var releaseInspectionReport: ReleaseInspectionReport?
     /// #113 查找：当前搜索文本（空 = 不过滤）。绑定搜索栏；主列表（文件 / 归档）按它过滤展示。
     @Published var searchText = ""
     /// 搜索栏是否可见。⌘F / 右键「查找」/ 菜单栏「查找」置 true；Esc 或清空收起。

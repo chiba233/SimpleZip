@@ -925,6 +925,10 @@ struct FileNSOutlineView: NSViewRepresentable {
             } else if selectedArchiveCount == 1, model.selectedFileItems.count == 1 {
                 menu.addItem(menuItem(L10n.text("file.compareArchives.withOther"), systemImage: "arrow.left.arrow.right.circle", action: #selector(compareArchivesSelected)))
             }
+            // 0.4.2 #15：发布包检查 —— 单选受支持归档时出现。
+            if selectedArchiveCount == 1, model.selectedFileItems.count == 1 {
+                menu.addItem(menuItem(L10n.text("inspect.menu"), systemImage: "checklist", action: #selector(inspectArchiveForRelease)))
+            }
             menu.addItem(menuItem(L10n.text("button.hash"), systemImage: "number.square", action: #selector(hashSelected)))
 
             // ③ 编辑 / 文件管理（重命名归到这里，跟复制剪切移动删除一组）
@@ -1179,6 +1183,10 @@ struct FileNSOutlineView: NSViewRepresentable {
 
         @objc private func batchTestArchives() {
             model.batchTestSelectedArchives()
+        }
+
+        @objc private func inspectArchiveForRelease() {
+            model.inspectSelectedArchiveForRelease()
         }
 
         @objc private func testSelectedArchive() {

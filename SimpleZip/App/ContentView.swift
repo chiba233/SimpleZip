@@ -320,20 +320,8 @@ struct ContentView: View {
                 model.archiveDiffReport = nil
             }
         }
-        .sheet(isPresented: $model.showsArchiveCommentEditor) {
-            ArchiveCommentEditorView(model: model)
-        }
-        .sheet(isPresented: $model.showsArchiveSecurityReport) {
-            ArchiveSecurityReportView(model: model)
-        }
-        .sheet(item: $model.batchRenameRequest) { request in
-            BatchRenameSheet(request: request) { changes in
-                model.batchRenameRequest = nil
-                model.performBatchRename(request, changes: changes)
-            } cancel: {
-                model.batchRenameRequest = nil
-            }
-        }
+        // 0.4.2 新增的四个 sheet 收进一个 modifier —— 直接挂主链会把 body 表达式撑过类型检查预算。
+        .modifier(ArchiveExtrasSheets(model: model))
         .sheet(item: $model.fileSplitRequest) { request in
             FileSplitSheet(request: request) { volumeSize in
                 model.fileSplitRequest = nil
@@ -1202,5 +1190,34 @@ private extension View {
         } else {
             self
         }
+    }
+}
+
+/// 0.4.2 新增的四个 sheet（注释编辑 / 安全报告 / 发布包检查 / 批量重命名）。
+/// 抽成 ViewModifier 是为了给 ContentView.body 的巨型修饰链减负 —— 直接内联会让类型检查超时。
+private struct ArchiveExtrasSheets: ViewModifier {
+    @ObservedObject var model: ArchiveBrowserModel
+
+    func body(content: Content) -> some View {
+        content
+            .sheet(isPresented: $model.showsArchiveCommentEditor) {
+                ArchiveCommentEditorView(model: model)
+            }
+            .sheet(isPresented: $model.showsArchiveSecurityReport) {
+                ArchiveSecurityReportView(model: model)
+            }
+            .sheet(item: $model.releaseInspectionReport) { report in
+                ReleaseInspectionView(report: report) {
+                    model.releaseInspectionReport = nil
+                }
+            }
+            .sheet(item: $model.batchRenameRequest) { request in
+                BatchRenameSheet(request: request) { changes in
+                    model.batchRenameRequest = nil
+                    model.performBatchRename(request, changes: changes)
+                } cancel: {
+                    model.batchRenameRequest = nil
+                }
+            }
     }
 }

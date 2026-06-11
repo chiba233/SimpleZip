@@ -754,6 +754,30 @@
 "archive.cleanJunk.taskTitle" = "正在移除 %1$@ 个元数据条目";
 "archive.cleanJunk.done" = "已移除 %1$@ 个元数据条目";
 "diff.hideJunk" = "忽略 macOS 元数据";
+/* 0.4.2 发布包检查 */
+"inspect.menu" = "发布包检查…";
+"inspect.taskTitle" = "正在检查 %1$@";
+"inspect.title" = "发布包检查";
+"inspect.section.hygiene" = "卫生检查";
+"inspect.section.checksum" = "SHA-256";
+"inspect.test.passed" = "完整性测试通过";
+"inspect.test.failed" = "完整性测试未通过";
+"inspect.test.skipped" = "未执行完整性测试";
+"inspect.entries" = "%1$@ 个文件、%2$@ 个文件夹（%3$@）";
+"inspect.notListable" = "无法列出条目（压缩包可能需要密码）——条目检查已跳过。";
+"inspect.suspiciousPaths.none" = "无可疑路径%1$@";
+"inspect.suspiciousPaths.some" = "%1$@ 个可疑路径条目";
+"inspect.junk.none" = "无 macOS/Windows 元数据垃圾%1$@";
+"inspect.junk.some" = "%1$@ 个元数据垃圾条目（.DS_Store / __MACOSX / …）";
+"inspect.emptyDirs.none" = "无空目录%1$@";
+"inspect.emptyDirs.some" = "%1$@ 个空目录";
+"inspect.executables.none" = "无可执行权限位%1$@";
+"inspect.executables.some" = "%1$@ 个条目带可执行权限";
+"inspect.symlinks.none" = "无符号链接%1$@";
+"inspect.symlinks.some" = "%1$@ 个符号链接";
+"inspect.comment.present" = "带归档注释";
+"inspect.comment.none" = "无归档注释";
+
 
 
 

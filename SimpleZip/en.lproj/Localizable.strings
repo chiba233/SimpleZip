@@ -756,6 +756,30 @@
 "archive.cleanJunk.taskTitle" = "Removing %1$@ metadata entries";
 "archive.cleanJunk.done" = "Removed %1$@ metadata entries";
 "diff.hideJunk" = "Ignore macOS metadata";
+/* 0.4.2 release inspection */
+"inspect.menu" = "Release Check…";
+"inspect.taskTitle" = "Inspecting %1$@";
+"inspect.title" = "Release Check";
+"inspect.section.hygiene" = "Hygiene";
+"inspect.section.checksum" = "SHA-256";
+"inspect.test.passed" = "Integrity test passed";
+"inspect.test.failed" = "Integrity test failed";
+"inspect.test.skipped" = "Integrity test not run";
+"inspect.entries" = "%1$@ files, %2$@ folders (%3$@)";
+"inspect.notListable" = "Couldn't list entries (the archive may require a password) — entry checks skipped.";
+"inspect.suspiciousPaths.none" = "No suspicious paths%1$@";
+"inspect.suspiciousPaths.some" = "%1$@ suspicious path entries";
+"inspect.junk.none" = "No macOS/Windows metadata junk%1$@";
+"inspect.junk.some" = "%1$@ metadata junk entries (.DS_Store / __MACOSX / …)";
+"inspect.emptyDirs.none" = "No empty directories%1$@";
+"inspect.emptyDirs.some" = "%1$@ empty directories";
+"inspect.executables.none" = "No executable permission bits%1$@";
+"inspect.executables.some" = "%1$@ entries carry executable permissions";
+"inspect.symlinks.none" = "No symbolic links%1$@";
+"inspect.symlinks.some" = "%1$@ symbolic links";
+"inspect.comment.present" = "Has an archive comment";
+"inspect.comment.none" = "No archive comment";
+
 
 
 

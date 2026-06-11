@@ -4,6 +4,8 @@
 
 ## 0.4.2 (unreleased)
 
+- **New: Release Check.** Right-click an archive → **Release Check…** runs the pre-publish gauntlet in one go: integrity test, entry counts and size, suspicious-path scan, macOS/Windows metadata junk, empty directories, executable permission bits, symbolic links, archive comment presence, and the file's SHA-256 (one-click copy). Every check is a clear ✓/⚠/✗ row, and the whole report can be copied as plain text for release notes or an issue.
+
 - **New: macOS metadata cleaner.** Editable archives that contain `.DS_Store`, `__MACOSX/`, AppleDouble `._*`, `Thumbs.db`, or `desktop.ini` entries get a right-click **Clean macOS Metadata (N items)** that removes them all through the safe write-back path (work copy + atomic replace). Archive Diff gains an **Ignore macOS metadata** checkbox so junk noise doesn't drown real differences — copy and export honor it too. (Creation-side exclusion of `.DS_Store` already existed.)
 
 - **New: the format capability table is interactive.** In Settings → Compression, click any format row to expand a detail card: which backend handles it (bundled 7zz, system tar/hdiutil/xip, GnuPG, RARLAB's rar) and a plain-language explanation of its boundaries — why RAR creation needs the user-installed rar tool, why XIP can't be created without an Apple certificate, why 7z has no comment column, why TAR can't take a password.
