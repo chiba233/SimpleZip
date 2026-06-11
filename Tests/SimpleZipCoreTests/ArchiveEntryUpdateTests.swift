@@ -234,6 +234,17 @@ struct ArchiveEntryUpdateTests {
         #expect(ArchiveService.entryUpdateRestriction(forExtension: "dmg") == .readOnlyFormat(fileExtension: "dmg"))
         #expect(ArchiveService.entryUpdateRestriction(forExtension: "siz") == .readOnlyFormat(fileExtension: "siz"))
     }
+
+    /// 2026-06 新增只读格式家族(zst/tar.zst 及 iso/cab/cpio/xar/pkg):可打开、不可写、
+    /// 写门控解释为只读格式。能力以实测内置 7zz 26.01 为准(zstd 无创建支持,`a -tzstd` = E_NOTIMPL)。
+    @Test func readOnlyFormatFamilyIsOpenableButNotWritable() {
+        for ext in ["zst", "tzst", "iso", "cab", "cpio", "xar", "pkg"] {
+            let url = URL(fileURLWithPath: "/tmp/sample.\(ext)")
+            #expect(ArchiveService.isSupportedArchive(url), "\(ext) should open")
+            #expect(!ArchiveService.supportsEntryUpdate(url), "\(ext) must stay read-only")
+            #expect(ArchiveService.entryUpdateRestriction(forExtension: ext) == .readOnlyFormat(fileExtension: ext))
+        }
+    }
 }
 
 /// 0.4.2 #11:批量重命名计划引擎(纯名字变换)。

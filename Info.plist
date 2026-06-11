@@ -21,6 +21,13 @@
 				<string>rar</string>
 				<string>dmg</string>
 				<string>xip</string>
+				<string>zst</string>
+				<string>tzst</string>
+				<string>iso</string>
+				<string>cab</string>
+				<string>cpio</string>
+				<string>xar</string>
+				<string>pkg</string>
 				<string>siz</string>
 				<string>szs</string>
 				<string>001</string>

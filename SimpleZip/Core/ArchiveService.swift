@@ -11,7 +11,14 @@ import UniformTypeIdentifiers
 
 /// 归档命令服务：封装 zip/unzip/7zz 调用，让界面层不直接接触命令行细节。
 enum ArchiveService {
-    static let supportedExtensions = ["zip", "7z", "tar", "gz", "tgz", "bz2", "xz", "rar", "dmg", "xip"]
+    /// 可打开(读取)的扩展名。后半段是**只读家族**(2026-06 实测内置 7zz 26.01):
+    /// zst/tzst(zstd,7zz 只读——`a -tzstd` 实测 E_NOTIMPL;tar.zst 与 tar.gz 同款双层管道)、
+    /// iso(Iso/Udf 自动识别)、cab、cpio、xar、pkg(xar 容器)。这些格式 7zz 不能写,
+    /// 写门控(ArchiveWriteRestriction.readOnlyFormat)自动给出只读解释。
+    static let supportedExtensions = [
+        "zip", "7z", "tar", "gz", "tgz", "bz2", "xz", "rar", "dmg", "xip",
+        "zst", "tzst", "iso", "cab", "cpio", "xar", "pkg"
+    ]
     static let supportedArchiveTypes: [UTType] = supportedExtensions.compactMap { UTType(filenameExtension: $0) }
 
     private enum ArchiveBackendKind {
