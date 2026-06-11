@@ -172,7 +172,8 @@ struct AboutPane: View {
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        // 不能 maxHeight:.infinity —— 关于页没有滚动容器,贪婪高度会把窗口剩余空间全吃进卡片(用户报"被异常拉高")。
+        .frame(maxWidth: .infinity, alignment: .top)
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
