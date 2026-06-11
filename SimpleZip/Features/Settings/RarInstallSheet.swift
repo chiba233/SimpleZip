@@ -95,25 +95,38 @@ struct RarInstallReviewSheet: View {
     @State private var hasReadReadme = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text(review.action.title)
-                .font(.headline)
+        // 0.4.2 体例统一（发版前最后一个未迁移的 sheet）：DialogHero + DialogSection 卡片 + bar 底栏，
+        // 与创建 / 解压 / GPG 系列同款。
+        VStack(spacing: 0) {
+            DialogHero(
+                systemImage: "shippingbox",
+                colors: [.purple, .indigo],
+                title: review.action.title
+            )
 
+            // 不套外层滚动：两份文档各自带 HeightCappedScrollView,再包一层会滚轮打架。
             VStack(alignment: .leading, spacing: 12) {
-                RarInstallDocumentView(
-                    title: L10n.text("settings.rar.licenseHeading"),
-                    text: review.licenseText,
-                    checkboxTitle: L10n.text("settings.rar.licenseReadCheckbox"),
-                    isRead: $hasReadLicense
-                )
-
-                RarInstallDocumentView(
-                    title: L10n.text("settings.rar.readmeHeading"),
-                    text: review.readmeText,
-                    checkboxTitle: L10n.text("settings.rar.readmeReadCheckbox"),
-                    isRead: $hasReadReadme
-                )
+                DialogSection {
+                    RarInstallDocumentView(
+                        title: L10n.text("settings.rar.licenseHeading"),
+                        text: review.licenseText,
+                        checkboxTitle: L10n.text("settings.rar.licenseReadCheckbox"),
+                        isRead: $hasReadLicense
+                    )
+                }
+                DialogSection {
+                    RarInstallDocumentView(
+                        title: L10n.text("settings.rar.readmeHeading"),
+                        text: review.readmeText,
+                        checkboxTitle: L10n.text("settings.rar.readmeReadCheckbox"),
+                        isRead: $hasReadReadme
+                    )
+                }
             }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 16)
+
+            Divider()
 
             HStack {
                 Spacer()
@@ -121,14 +134,14 @@ struct RarInstallReviewSheet: View {
                 Button(review.action.confirmButtonTitle) {
                     onConfirm(review.action)
                 }
+                .buttonStyle(.borderedProminent)
                 // 用户必须双勾才能确认 —— 协议没读就装下去会带来许可纠纷。
                 .disabled(!hasReadLicense || !hasReadReadme || isInstalling)
             }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .background(.bar)
         }
-        .padding(20)
-        // sheet 是模态弹层，没有可拖动的窗口边来「涨到 idealHeight」，
-        // 用 min/ideal 会被实际渲染成 minHeight，导致两份 ScrollView + 复选框 + 按钮行被裁。
-        // 这里保留固定尺寸，跟重构前一致。
         .frame(width: 680)
     }
 }
