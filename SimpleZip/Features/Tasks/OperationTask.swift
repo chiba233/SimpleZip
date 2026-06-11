@@ -11,6 +11,15 @@ final class OperationTask: ObservableObject, Identifiable {
     enum Category: String, Codable, Hashable {
         case fileOperation
         case archive
+        /// 0.4.3:撤销 / 重做留痕 —— 活动中心独立一组,与归档 / 文件操作分开计数与展示。
+        case undoRedo
+
+        /// 解码容错(与 Kind / TransferAction 同口径):新版本写的新分类被旧版本读到时降级,
+        /// 不让一条记录废掉整段历史。
+        init(from decoder: Decoder) throws {
+            let raw = try decoder.singleValueContainer().decode(String.self)
+            self = Category(rawValue: raw) ?? .fileOperation
+        }
     }
 
     enum Kind: String, Codable {
@@ -31,6 +40,8 @@ final class OperationTask: ObservableObject, Identifiable {
         case split
         case combine
         case convert
+        case undo
+        case redo
 
         /// 解码容错：新版本的新 kind 被旧版本读到时降级 `.extract`，不废掉整条历史。
         init(from decoder: Decoder) throws {

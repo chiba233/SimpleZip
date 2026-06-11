@@ -11,6 +11,7 @@ struct ActivityView: View {
     @ObservedObject var windowState: ActivityWindowState
     @State private var archiveFilter = ActivityTaskFilter.all
     @State private var fileFilter = ActivityTaskFilter.all
+    @State private var undoRedoFilter = ActivityTaskFilter.all
     @AppStorage(AppPreferences.Key.activityHistoryLimit) private var historyLimit = AppPreferences.activityHistoryLimit
 
     // 弃用 NavigationSplitView（详见 SettingsView 同款注释）：普通 HStack + 绝对定宽侧栏，
@@ -143,6 +144,8 @@ struct ActivityView: View {
             return archiveFilter
         case .fileOperation:
             return fileFilter
+        case .undoRedo:
+            return undoRedoFilter
         }
     }
 
@@ -152,6 +155,8 @@ struct ActivityView: View {
             archiveFilter = filter
         case .fileOperation:
             fileFilter = filter
+        case .undoRedo:
+            undoRedoFilter = filter
         }
     }
 
@@ -232,8 +237,39 @@ struct ActivityView: View {
                     .disabled(taskCenter.history.isEmpty)
                 }
             }
+
+            // 0.4.3 #8:写回恢复区(用户可见入口 —— 开发者工具是隐藏区,不放那)。
+            Section(L10n.text("tasks.recovery.section")) {
+                SettingsControlRow(
+                    title: L10n.text("tasks.recovery.show"),
+                    description: L10n.text("tasks.recovery.show.description"),
+                    systemImage: "externaldrive.badge.timemachine"
+                ) {
+                    Button(L10n.text("tasks.recovery.show.button")) {
+                        try? FileManager.default.createDirectory(at: ArchiveRecoveryArea.directory, withIntermediateDirectories: true)
+                        NSWorkspace.shared.activateFileViewerSelecting([ArchiveRecoveryArea.directory])
+                    }
+                    .buttonStyle(.bordered)
+                }
+                SettingsControlRow(
+                    title: L10n.text("tasks.recovery.clear"),
+                    description: L10n.text("tasks.recovery.clear.description"),
+                    systemImage: "trash"
+                ) {
+                    Button(role: .destructive) {
+                        try? ArchiveRecoveryArea.clear()
+                        recoveryCount = ArchiveRecoveryArea.contents().count
+                    } label: {
+                        Label(L10n.format("tasks.recovery.clear.button", "\(recoveryCount)"), systemImage: "trash")
+                            .labelStyle(.titleAndIcon)
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(recoveryCount == 0)
+                }
+            }
         }
         .formStyle(.grouped)
+        .onAppear { recoveryCount = ArchiveRecoveryArea.contents().count }
     }
 
     private var selectedPane: ActivityPane {
@@ -244,11 +280,14 @@ struct ActivityView: View {
     // 会读到陈旧快照,用户报「重开窗口开关复位」;@AppStorage 响应式且与 UserDefaults 双向同步)。
     @AppStorage(AppPreferences.Key.tasksOpenOnFailure) private var openOnFailure = false
     @AppStorage(AppPreferences.Key.tasksPlaySoundOnFinish) private var playSound = false
+    /// 0.4.3 #8:恢复区文件数(进设置页时刷新;清理后归零驱动按钮禁用)。
+    @State private var recoveryCount = 0
 }
 
 enum ActivityPane: CaseIterable, Identifiable, Hashable {
     case archive
     case fileOperation
+    case undoRedo
     case help
     case settings
 
@@ -260,6 +299,8 @@ enum ActivityPane: CaseIterable, Identifiable, Hashable {
             return .archive
         case .fileOperation:
             return .fileOperation
+        case .undoRedo:
+            return .undoRedo
         }
     }
 
@@ -269,6 +310,8 @@ enum ActivityPane: CaseIterable, Identifiable, Hashable {
             return .archive
         case .fileOperation:
             return .fileOperation
+        case .undoRedo:
+            return .undoRedo
         case .help, .settings:
             return nil
         }
@@ -280,6 +323,8 @@ enum ActivityPane: CaseIterable, Identifiable, Hashable {
             return L10n.text("tasks.archiveSection")
         case .fileOperation:
             return L10n.text("tasks.fileSection")
+        case .undoRedo:
+            return L10n.text("tasks.undoRedoSection")
         case .help:
             return L10n.text("settings.section.help")
         case .settings:
@@ -293,6 +338,8 @@ enum ActivityPane: CaseIterable, Identifiable, Hashable {
             return "archivebox"
         case .fileOperation:
             return "folder"
+        case .undoRedo:
+            return "arrow.uturn.backward"
         case .help:
             return "lifepreserver"
         case .settings:
@@ -307,6 +354,8 @@ enum ActivityPane: CaseIterable, Identifiable, Hashable {
             return .blue
         case .fileOperation:
             return .orange
+        case .undoRedo:
+            return .purple
         case .help:
             return .cyan
         case .settings:

@@ -668,11 +668,18 @@
 "settings.verifyAfterCreate" = "创建后测试新归档";
 "settings.verifyAfterCreate.description" = "对新创建或转换出的归档跑一次完整性测试。更稳妥，但大包耗时；加密产物会跳过。";
 "tasks.verifyingOutput" = "正在验证产物…";
-"error.rewritePreserved" = "%1$@\n\n本次改写的成品已保留为恢复副本：\n%2$@\n可直接把它当作你这次编辑的另存副本使用；不需要时可在 设置 → 关于 → 开发者工具 清理恢复区。";
-"devtools.path.recovery" = "写回恢复区";
-"devtools.action.clearRecovery" = "清理恢复区";
-"devtools.action.clearRecovery.detail" = "删除写回失败时保全的工作副本（外部改动拦截与验证失败两类）。";
-"devtools.feedback.recoveryCleared" = "已删除 %1$@ 个恢复文件。";
+"error.rewritePreserved" = "%1$@\n\n本次改写的成品已保留为恢复副本：\n%2$@\n可直接把它当作你这次编辑的另存副本使用；恢复区可在 活动中心 → 设置 里显示或清理。";
+"tasks.undoRedoSection" = "撤销与重做";
+"tasks.undoRedo.generic" = "文件操作";
+"tasks.undo.title" = "已撤销：%1$@";
+"tasks.redo.title" = "已重做：%1$@";
+"tasks.recovery.section" = "写回恢复区";
+"tasks.recovery.show" = "恢复文件";
+"tasks.recovery.show.description" = "写回失败时保全的工作副本（外部改动拦截保的是你完成的编辑成果；验证失败保的是诊断样本）。";
+"tasks.recovery.show.button" = "在 Finder 中显示";
+"tasks.recovery.clear" = "清理恢复区";
+"tasks.recovery.clear.description" = "删除全部保全的恢复副本。成功的操作从不在这里留文件。";
+"tasks.recovery.clear.button" = "删除 %1$@ 个文件";
 "extract.skipSymlinks" = "不解压符号链接";
 "extract.skipSymlinks.detail" = "合并前在 staging 上删掉所有符号链接——来自其他系统的包,链接常指向本机不存在的路径。上方预检概要里有链接数量可对照。";
 /* 0.4.3 校验文件 */
@@ -976,7 +983,7 @@
 "tasks.settings" = "设置";
 "tasks.settings.history" = "历史记录";
 "tasks.settings.historyLimit" = "最多记录数";
-"tasks.settings.historyLimit.description" = "在这台 Mac 上保留的已完成活动记录数量。";
+"tasks.settings.historyLimit.description" = "每个分组各自保留的已完成记录数量（归档操作、文件操作、撤销与重做各有各的配额）。";
 "tasks.settings.historyLimit.value" = "%d 条记录";
 "tasks.settings.clearHistory" = "清理历史记录";
 "tasks.settings.clearHistory.description" = "移除已完成的活动记录；正在运行的任务不受影响。";

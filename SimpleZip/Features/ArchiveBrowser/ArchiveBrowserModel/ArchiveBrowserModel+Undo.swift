@@ -211,13 +211,32 @@ extension ArchiveBrowserModel {
     }
 
     func undoFileOperation() {
+        guard fileUndoManager.canUndo else { return }
+        let actionName = nonEmptyActionName(fileUndoManager.undoActionName)
         fileUndoManager.undo()
         refreshUndoActionNames()
+        recordUndoRedoHistory(isUndo: true, actionName: actionName)
     }
 
     func redoFileOperation() {
+        guard fileUndoManager.canRedo else { return }
+        let actionName = nonEmptyActionName(fileUndoManager.redoActionName)
         fileUndoManager.redo()
         refreshUndoActionNames()
+        recordUndoRedoHistory(isUndo: false, actionName: actionName)
+    }
+
+    /// 0.4.3:撤销 / 重做留痕活动中心 —— 独立「撤销与重做」分组的即时记录(开始即完成)。
+    /// 唯一漏斗:⌘Z / ⇧⌘Z / 菜单都走 undoFileOperation / redoFileOperation。
+    private func recordUndoRedoHistory(isUndo: Bool, actionName: String?) {
+        let name = actionName ?? L10n.text("tasks.undoRedo.generic")
+        let task = TaskCenter.shared.begin(
+            category: .undoRedo,
+            kind: isUndo ? .undo : .redo,
+            title: L10n.format(isUndo ? "tasks.undo.title" : "tasks.redo.title", name),
+            cancellable: false
+        )
+        TaskCenter.shared.finish(task, outcome: .succeeded(nil))
     }
 
     func refreshUndoActionNames() {

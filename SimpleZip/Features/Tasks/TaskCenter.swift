@@ -153,8 +153,20 @@ final class TaskCenter: ObservableObject {
     }
 
     private func trimHistoryToLimit() {
-        if history.count > historyLimit {
-            history.removeLast(history.count - historyLimit)
+        // 0.4.3 用户纠正:上限是**每个分类各自**最多 N 条,不是全部分类合计 N 条 ——
+        // 否则一轮批量文件操作就把归档操作的历史全挤掉。history 已是新→旧,各分类保留最新的 N 条。
+        let limit = historyLimit
+        var countByCategory: [OperationTask.Category: Int] = [:]
+        var kept: [OperationTask] = []
+        kept.reserveCapacity(history.count)
+        for task in history {
+            let count = countByCategory[task.category, default: 0]
+            guard count < limit else { continue }
+            countByCategory[task.category] = count + 1
+            kept.append(task)
+        }
+        if kept.count != history.count {
+            history = kept
         }
     }
 

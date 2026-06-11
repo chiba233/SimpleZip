@@ -56,8 +56,6 @@ struct DevToolsView: View {
                         pathRow(L10n.text("devtools.path.keyring"), GPGBackend.simpleZipGPGHomeDirectory())
                         pathRow(L10n.text("devtools.path.temp"), FileManager.default.temporaryDirectory)
                         pathRow(L10n.text("devtools.path.preferences"), preferencesPlistURL)
-                        // 0.4.3 #8:写回失败保全的工作副本落在这里(显示恢复文件)。
-                        pathRow(L10n.text("devtools.path.recovery"), ArchiveRecoveryArea.directory)
                     }
 
                     DialogSection(L10n.text("devtools.section.actions")) {
@@ -76,19 +74,6 @@ struct DevToolsView: View {
                         ) {
                             UserDefaults.standard.set(false, forKey: "SimpleZip.session.cleanShutdown")
                             flash(L10n.text("devtools.feedback.crashArmed"))
-                        }
-                        actionRow(
-                            "trash",
-                            L10n.text("devtools.action.clearRecovery"),
-                            L10n.text("devtools.action.clearRecovery.detail")
-                        ) {
-                            let count = ArchiveRecoveryArea.contents().count
-                            do {
-                                try ArchiveRecoveryArea.clear()
-                                flash(L10n.format("devtools.feedback.recoveryCleared", "\(count)"))
-                            } catch {
-                                flash(error.localizedDescription)
-                            }
                         }
                         actionRow(
                             "doc.on.clipboard",

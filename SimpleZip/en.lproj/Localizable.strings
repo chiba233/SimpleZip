@@ -670,11 +670,18 @@
 "settings.verifyAfterCreate" = "Test new archives after creating";
 "settings.verifyAfterCreate.description" = "Run a full integrity test on newly created or converted archives. Thorough but can take a while on large archives; encrypted outputs are skipped.";
 "tasks.verifyingOutput" = "Verifying the result…";
-"error.rewritePreserved" = "%1$@\n\nThe prepared rewrite was kept as a recovery copy:\n%2$@\nUse it as a saved copy of your edit, or clear the recovery area from Settings → About → Developer Tools.";
-"devtools.path.recovery" = "Write-back recovery area";
-"devtools.action.clearRecovery" = "Clear recovery area";
-"devtools.action.clearRecovery.detail" = "Deletes work copies preserved from failed archive rewrites (external-change blocks and verification failures).";
-"devtools.feedback.recoveryCleared" = "Removed %1$@ recovery file(s).";
+"error.rewritePreserved" = "%1$@\n\nThe prepared rewrite was kept as a recovery copy:\n%2$@\nUse it as a saved copy of your edit. The recovery area can be shown or cleared from Activity Center → Settings.";
+"tasks.undoRedoSection" = "Undo & Redo";
+"tasks.undoRedo.generic" = "file operation";
+"tasks.undo.title" = "Undid: %1$@";
+"tasks.redo.title" = "Redid: %1$@";
+"tasks.recovery.section" = "Write-Back Recovery Area";
+"tasks.recovery.show" = "Recovery files";
+"tasks.recovery.show.description" = "Work copies preserved from failed archive rewrites (external-change blocks keep your completed edit; verification failures keep a diagnostic sample).";
+"tasks.recovery.show.button" = "Show in Finder";
+"tasks.recovery.clear" = "Clear recovery area";
+"tasks.recovery.clear.description" = "Deletes all preserved recovery copies. Successful operations never leave files here.";
+"tasks.recovery.clear.button" = "Delete %1$@ file(s)";
 "extract.skipSymlinks" = "Don't extract symbolic links";
 "extract.skipSymlinks.detail" = "Symlinks are removed from the staged output before merging — useful for archives from other systems whose links point at paths that don't exist here. The preflight summary above shows how many the archive contains.";
 /* 0.4.3 checksum files */
@@ -978,7 +985,7 @@
 "tasks.settings" = "Settings";
 "tasks.settings.history" = "History";
 "tasks.settings.historyLimit" = "Maximum records";
-"tasks.settings.historyLimit.description" = "Keep this many completed activity records on this Mac.";
+"tasks.settings.historyLimit.description" = "Keep this many completed records per section (archive operations, file operations, undo & redo each get their own quota).";
 "tasks.settings.historyLimit.value" = "%d records";
 "tasks.settings.clearHistory" = "Clear history";
 "tasks.settings.clearHistory.description" = "Remove completed activity records. Running tasks are not affected.";
