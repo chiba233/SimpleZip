@@ -28,6 +28,9 @@ struct SZSVerificationSheet: View {
     @State private var isVerifying = false
     @State private var verifyError: String?
     @State private var expandedMismatches: Set<String> = []
+    /// 0.4.1：文件清单从平铺改目录树。记**收起**的目录集合（默认全展开 = 报告一眼可见），
+    /// 跟比较归档折叠树同一套思路：每层固定缩进、目录行 chevron 开合。
+    @State private var collapsedFolders: Set<String> = []
     /// 每次 `verifyNow` 自增；Task 写回前 guard 当前 generation 一致，避免「用户切 payloadRoot 触发第二次 verify，
     /// 第一次因体积大慢到了才回写，覆盖第二次结果」的 race。
     @State private var verifyGeneration: Int = 0
@@ -286,12 +289,10 @@ struct SZSVerificationSheet: View {
                 // 骨架屏：默认渲染 5 行占位（按 manifest.files.count 上限取 min 避免少文件清单也撑出 5 行）。
                 skeletonFileList(count: min(manifest.files.count, 5))
             } else if let report {
+                // 目录树（0.4.1）：按 relativePath 分层，目录行可折叠（抽屉），每层固定缩进 16pt。
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 0) {
-                        ForEach(Array(report.entries.enumerated()), id: \.offset) { _, entry in
-                            entryRow(entry)
-                            Divider()
-                        }
+                        treeRows(buildTree(from: report.entries), depth: 0)
                     }
                 }
                 .frame(maxHeight: 280)
@@ -299,6 +300,131 @@ struct SZSVerificationSheet: View {
                 .clipShape(RoundedRectangle(cornerRadius: 6))
             }
         }
+    }
+
+    // MARK: - 目录树（0.4.1：平铺 → 抽屉式文件夹）
+
+    /// 树节点：目录（children 非空、entry 为 nil）或文件叶子。`path` 作折叠状态的稳定 key。
+    private struct SZSPathNode: Identifiable {
+        let name: String
+        let path: String
+        var children: [SZSPathNode] = []
+        var entry: SZSArchive.VerifyReport.Entry?
+        var id: String { path }
+
+        /// 目录聚合：自己 / 后代里有没有未通过项（mismatch/missing/unreadable）。
+        var hasProblem: Bool {
+            if let entry {
+                if case .match = entry { return false }
+                return true
+            }
+            return children.contains(where: \.hasProblem)
+        }
+
+        /// 后代文件总数（目录行右侧的计数）。
+        var fileCount: Int {
+            if entry != nil { return 1 }
+            return children.reduce(0) { $0 + $1.fileCount }
+        }
+    }
+
+    /// 把平铺的报告条目按路径折成树：目录在前、文件在后，各自字母序。
+    private func buildTree(from entries: [SZSArchive.VerifyReport.Entry]) -> [SZSPathNode] {
+        var root = SZSPathNode(name: "", path: "")
+        for entry in entries {
+            let components = entry.relativePath.split(separator: "/").map(String.init)
+            insert(entry: entry, components: components, into: &root, parentPath: "")
+        }
+        sortNodes(&root.children)
+        return root.children
+    }
+
+    private func insert(entry: SZSArchive.VerifyReport.Entry, components: [String], into node: inout SZSPathNode, parentPath: String) {
+        guard let first = components.first else { return }
+        let childPath = parentPath.isEmpty ? first : parentPath + "/" + first
+        if components.count == 1 {
+            var leaf = SZSPathNode(name: first, path: childPath)
+            leaf.entry = entry
+            node.children.append(leaf)
+            return
+        }
+        if let index = node.children.firstIndex(where: { $0.path == childPath && $0.entry == nil }) {
+            insert(entry: entry, components: Array(components.dropFirst()), into: &node.children[index], parentPath: childPath)
+        } else {
+            var folder = SZSPathNode(name: first, path: childPath)
+            insert(entry: entry, components: Array(components.dropFirst()), into: &folder, parentPath: childPath)
+            node.children.append(folder)
+        }
+    }
+
+    private func sortNodes(_ nodes: inout [SZSPathNode]) {
+        nodes.sort { lhs, rhs in
+            let lhsIsDir = lhs.entry == nil
+            let rhsIsDir = rhs.entry == nil
+            if lhsIsDir != rhsIsDir { return lhsIsDir }
+            return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
+        }
+        for index in nodes.indices where nodes[index].entry == nil {
+            sortNodes(&nodes[index].children)
+        }
+    }
+
+    /// 递归渲染：目录行（chevron + 文件夹图标 + 名 + 计数 + 状态点）+ 展开时的子级。
+    /// 递归进 ViewBuilder 必须 AnyView 断环（与比较归档折叠树同款手法）。
+    private func treeRows(_ nodes: [SZSPathNode], depth: Int) -> AnyView {
+        AnyView(
+            ForEach(nodes) { node in
+                if let entry = node.entry {
+                    entryRow(entry, displayName: node.name, depth: depth)
+                    Divider()
+                } else {
+                    folderRow(node, depth: depth)
+                    Divider()
+                    if !collapsedFolders.contains(node.path) {
+                        treeRows(node.children, depth: depth + 1)
+                    }
+                }
+            }
+        )
+    }
+
+    @ViewBuilder
+    private func folderRow(_ node: SZSPathNode, depth: Int) -> some View {
+        Button {
+            if collapsedFolders.contains(node.path) {
+                collapsedFolders.remove(node.path)
+            } else {
+                collapsedFolders.insert(node.path)
+            }
+        } label: {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Image(systemName: collapsedFolders.contains(node.path) ? "chevron.right" : "chevron.down")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 12)
+                Image(systemName: "folder.fill")
+                    .font(.caption)
+                    .foregroundStyle(Color.accentColor)
+                Text(node.name)
+                    .font(.caption.weight(.medium))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Text("\(node.fileCount)")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                Spacer()
+                // 聚合状态点：目录下有任何未通过项 → 橙；全部通过 → 绿。收起也能一眼看到问题在哪个抽屉里。
+                Circle()
+                    .fill(node.hasProblem ? Color.orange : Color.green)
+                    .frame(width: 7, height: 7)
+            }
+            .padding(.vertical, 5)
+            .padding(.horizontal, 8)
+            .padding(.leading, CGFloat(depth) * 16)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder
@@ -359,17 +485,19 @@ struct SZSVerificationSheet: View {
     }
 
     @ViewBuilder
-    private func entryRow(_ entry: SZSArchive.VerifyReport.Entry) -> some View {
+    private func entryRow(_ entry: SZSArchive.VerifyReport.Entry, displayName: String, depth: Int) -> some View {
         // 从 manifest 反查这一行对应的 FileEntry —— 拿 size / sha256 / mediaType 给行尾展示。
         let manifestEntry = manifest.files.first(where: { $0.relativePath == entry.relativePath })
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 entryBadge(entry)
-                Text(entry.relativePath)
+                // 树模式只显示文件名（层级由缩进表达）；完整相对路径进 tooltip。
+                Text(displayName)
                     .font(.system(.caption, design: .monospaced))
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .textSelection(.enabled)
+                    .help(entry.relativePath)
                 Spacer()
                 if let bytes = manifestEntry?.size {
                     Text(formattedBytes(bytes))
@@ -405,6 +533,7 @@ struct SZSVerificationSheet: View {
         }
         .padding(.vertical, 4)
         .padding(.horizontal, 8)
+        .padding(.leading, CGFloat(depth) * 16)
     }
 
     /// 展开后的 expected / actual SHA 行：标签放固定宽列、SHA 另起一个 Text —— 这样两行 SHA 起始位置严格对齐。
