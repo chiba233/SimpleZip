@@ -33,6 +33,12 @@ struct GeneralPane: View {
 
     @State private var languageMessage: String?
 
+    /// 「立即重新注册」Finder 服务后的确认提示（会话内、不持久化）。
+    @State private var finderServicesMessage: String?
+
+    /// 各 Finder 服务的激活状态镜像（真值在 pbs 偏好域，onAppear 拉取、开关写穿）。
+    @State private var finderServiceStates: [String: Bool] = [:]
+
     /// 「预设密码」编辑器的本地缓冲区。
     /// 用户键入只改这里，不会立即写入 Keychain —— 必须显式点「保存」才落盘。
     /// 关闭设置窗口（视图被 dismiss）会丢失未保存的修改，与 macOS Settings 习惯一致。
@@ -171,14 +177,37 @@ struct GeneralPane: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                Button(L10n.text("settings.finderExtension.manage")) {
-                    // 右键「…with SimpleZip」是 macOS 服务（NSServices），在 系统设置 → 键盘 → 键盘快捷键 → 服务
-                    // 里勾选启用。这里直接把用户送到键盘设置。
-                    if let url = URL(string: "x-apple.systempreferences:com.apple.Keyboard-Settings.extension") {
-                        NSWorkspace.shared.open(url)
+                // 0.4.2 用户反馈：macOS 对第三方服务默认不激活、每次都得去键盘设置手动勾「这真的很蠢」——
+                // 在这里逐服务直接开关（写 pbs 的 NSServicesStatus + 立即重读），想只要「计算哈希」就只开它。
+                ForEach(FinderServicesRegistry.services) { service in
+                    SettingsToggleRow(
+                        title: L10n.text(service.titleKey),
+                        description: service.menuName,
+                        systemImage: service.systemImage,
+                        isOn: finderServiceBinding(service)
+                    )
+                }
+                HStack {
+                    // 启动时已按版本自动注册（AppDelegate）；这里是手动兜底 —— 右键菜单没出现时立即重刷。
+                    Button(L10n.text("settings.finderExtension.register")) {
+                        NSUpdateDynamicServices()
+                        finderServicesMessage = L10n.text("settings.finderExtension.registered")
+                    }
+                    Button(L10n.text("settings.finderExtension.manage")) {
+                        // 系统设置 → 键盘 → 键盘快捷键 → 服务 仍可管理（与上面的开关同一份状态）。
+                        if let url = URL(string: "x-apple.systempreferences:com.apple.Keyboard-Settings.extension") {
+                            NSWorkspace.shared.open(url)
+                        }
                     }
                 }
+                if let finderServicesMessage {
+                    Text(finderServicesMessage)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
+            .onAppear(perform: reloadFinderServiceStates)
 
             Section(L10n.text("settings.presetPasswordEnabled")) {
                 SettingsToggleRow(
@@ -308,6 +337,26 @@ struct GeneralPane: View {
                 }
             }
         }
+    }
+
+    /// 把 pbs 里的激活状态拉进本地镜像（进入面板时一次；外部在键盘设置里改过也会被刷进来）。
+    private func reloadFinderServiceStates() {
+        var states: [String: Bool] = [:]
+        for service in FinderServicesRegistry.services {
+            states[service.message] = FinderServicesRegistry.isEnabled(service)
+        }
+        finderServiceStates = states
+    }
+
+    /// 单个服务开关的写穿 binding：set 时直接写 pbs + 刷新注册，再更新镜像。
+    private func finderServiceBinding(_ service: FinderServicesRegistry.Service) -> Binding<Bool> {
+        Binding(
+            get: { finderServiceStates[service.message] ?? false },
+            set: { enabled in
+                FinderServicesRegistry.setEnabled(enabled, for: service)
+                finderServiceStates[service.message] = enabled
+            }
+        )
     }
 
     private func reloadPresetPasswordBuffer() {

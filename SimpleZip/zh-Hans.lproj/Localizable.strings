@@ -1093,8 +1093,16 @@
 "settings.openExternalInNewTab" = "在新标签页打开";
 "settings.openExternalInNewTab.description" = "SimpleZip 已在运行时，从 Finder 打开压缩包或文件夹会在新标签页打开。关闭则复用当前窗口（在当前标签里打开）。";
 "settings.finderExtension" = "Finder 右键集成";
-"settings.finderExtension.description" = "右键菜单里的「… with SimpleZip」（添加到压缩包 / 解压 / 创建 / 计算哈希）是 macOS 服务。在 系统设置 → 键盘 → 键盘快捷键 → 服务 里勾选启用或停用。";
+"settings.finderExtension.description" = "右键菜单里的「… with SimpleZip」是 macOS 服务。SimpleZip 每个版本首次启动时会自动注册——想在 Finder 右键里看到哪几项，直接在下面勾选，不用再去系统设置。";
+"settings.finderService.addToArchive" = "添加到压缩包";
+"settings.finderService.extract" = "解压";
+"settings.finderService.createZip" = "创建 ZIP";
+"settings.finderService.createSevenZip" = "创建 7z";
+"settings.finderService.createTarGz" = "创建 TAR.GZ";
+"settings.finderService.hash" = "计算哈希";
 "settings.finderExtension.manage" = "打开键盘设置…";
+"settings.finderExtension.register" = "立即重新注册";
+"settings.finderExtension.registered" = "已重新注册 Finder 服务。若右键菜单仍未出现，请新开一个 Finder 窗口，或注销后重新登录。";
 "settings.presetPasswordEnabled" = "使用预设密码";
 "settings.presetPasswordEnabled.description" = "创建加密压缩包时自动填入此密码；打开 / 解压有密码的压缩包时先尝试这个密码，失败再弹输入框。";
 "settings.presetPassword" = "预设密码";

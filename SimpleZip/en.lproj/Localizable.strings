@@ -1095,8 +1095,16 @@
 "settings.openExternalInNewTab" = "Open in a New Tab";
 "settings.openExternalInNewTab.description" = "When you open an archive or folder from Finder while SimpleZip is already running, open it in a new tab. Turn off to reuse the current window instead.";
 "settings.finderExtension" = "Finder Right-Click Integration";
-"settings.finderExtension.description" = "The \"… with SimpleZip\" right-click items (Add to Archive, Extract, Create, Calculate Hash) are macOS Services. Turn them on or off in System Settings → Keyboard → Keyboard Shortcuts → Services.";
+"settings.finderExtension.description" = "The \"… with SimpleZip\" right-click items are macOS Services. SimpleZip registers them automatically on the first launch of each version — pick below which ones appear in Finder's right-click menu, no trip to System Settings needed.";
+"settings.finderService.addToArchive" = "Add to Archive";
+"settings.finderService.extract" = "Extract";
+"settings.finderService.createZip" = "Create ZIP";
+"settings.finderService.createSevenZip" = "Create 7z";
+"settings.finderService.createTarGz" = "Create TAR.GZ";
+"settings.finderService.hash" = "Calculate Hash";
 "settings.finderExtension.manage" = "Open Keyboard Settings…";
+"settings.finderExtension.register" = "Re-register Now";
+"settings.finderExtension.registered" = "Finder services re-registered. If the right-click items still don't appear, open a new Finder window or log out and back in.";
 "settings.presetPasswordEnabled" = "Use a preset password";
 "settings.presetPasswordEnabled.description" = "Auto-fill the password when creating an encrypted archive, and try this password first when opening or extracting password-protected archives.";
 "settings.presetPassword" = "Preset password";

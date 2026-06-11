@@ -80,6 +80,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
+        // 0.4.2 用户反馈：Finder 右键服务（NSServices）在装新版后常要等系统缓存刷新才出现。
+        // 每个版本首次启动时主动刷一次服务缓存（NSUpdateDynamicServices），右键菜单即刻可用，
+        // 不必让用户去 系统设置 → 键盘 手动折腾。按版本门控 —— 不在每次启动都打扰 pbs。
+        let servicesVersionKey = "SimpleZip.services.lastRegisteredVersion"
+        let bundleInfo = Bundle.main.infoDictionary
+        let currentVersion = "\(bundleInfo?["CFBundleShortVersionString"] as? String ?? "?")-\(bundleInfo?["CFBundleVersion"] as? String ?? "?")"
+        if UserDefaults.standard.string(forKey: servicesVersionKey) != currentVersion {
+            NSUpdateDynamicServices()
+            UserDefaults.standard.set(currentVersion, forKey: servicesVersionKey)
+        }
+
         // 清洗列顺序偏好：历史上 outlineTableColumn 未解绑的 bug 会把 name 列重复堆进 fileColumnOrder
         // （曾出现 [name, name, size, …]），表头就冒出 2~3 个重复「名称」列。读路径已去重，但**存储里的
         // 污染源没清掉**，仍会被「列移动」重新写回 / 在没走去重的旧路径下复发。启动时按 identifier 去重一次，根除。

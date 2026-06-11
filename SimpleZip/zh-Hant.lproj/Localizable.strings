@@ -756,7 +756,7 @@
 "settings.gpg.smartcard.detecting" = "偵測中…";
 "settings.gpg.smartcard.notDetected" = "未偵測到 OpenPGP 卡（請插入卡後点「偵測」）";
 "settings.gpg.smartcard.unnamedCard" = "OpenPGP 智慧卡";
-"settings.gpg.smartcard.serial" = "(serial: %@)";
+"settings.gpg.smartcard.serial" = "（序號：%@）";
 "settings.gpg.smartcard.linkedKey" = "→ 绑定：%@ · %@";
 "settings.gpg.smartcard.linkedKeyMissing" = "→ 卡上 subkey 在本機 keyring 找不到对應主金鑰。請先用「從智慧卡匯入公鑰」拉公鑰到 keyring。";
 "settings.gpg.subkey.cap.sign" = "簽";
@@ -792,9 +792,9 @@
 "settings.gpg.newKey.exp.2y" = "2 年";
 "settings.gpg.newKey.exp.5y" = "5 年";
 "settings.gpg.newKey.passphraseNote" = "私鑰 passphrase 由 gpg-agent + pinentry-mac 彈原生密碼框收 —— SimpleZip 不接触 passphrase。如果對話框没彈出，請检查本機有没有装 pinentry-mac。";
-"settings.gpg.newKey.passphraseHeader" = "Passphrase";
+"settings.gpg.newKey.passphraseHeader" = "密碼";
 "settings.gpg.newKey.passphraseExplain" = "為這把新金鑰設定一個 passphrase。考虑到本機 pinentry-mac 配置不一定就绪，SimpleZip 在此**短暂收集** passphrase 然後通過 gpg loopback 模式喂给 gpg；几秒後子程序退出即释放。不會寫入磁碟、不會出現在 ps 命令行參數裡。其它 GPG 操作（簽章 / 解密）仍走 pinentry-mac 由 gpg-agent 快取。";
-"settings.gpg.newKey.passphraseLabel" = "Passphrase";
+"settings.gpg.newKey.passphraseLabel" = "密碼";
 "settings.gpg.newKey.passphrasePlaceholder" = "至少 8 字符；建議短句 + 數字 + 符号";
 "settings.gpg.newKey.passphraseConfirmLabel" = "再輸一次";
 "settings.gpg.newKey.passphraseConfirmPlaceholder" = "确認 passphrase";
@@ -850,7 +850,7 @@
 "settings.gpg.addUID.subject" = "%1$@ · …%2$@";
 "settings.gpg.addUID.commentLabel" = "備注（可选）";
 "settings.gpg.addUID.commentPlaceholder" = "如：工作邮箱 / 備用 / 別名";
-"settings.gpg.addUID.unlockLabel" = "Passphrase";
+"settings.gpg.addUID.unlockLabel" = "密碼";
 "settings.gpg.addUID.unlockPlaceholder" = "解锁主金鑰以簽章新 UID";
 "settings.gpg.addUID.note" = "新 UID 會由主金鑰簽章（gpg `--quick-add-uid`）。一把 GPG 金鑰可以挂多個 UID —— 比如你換了邮箱、有工作 / 私人两個地址、或想加個昵称。原有 UID 不动。";
 "settings.gpg.addUID.requiredHint" = "姓名、邮箱、passphrase 都得填。";
@@ -1661,3 +1661,9 @@
 "file.deleteVolumeFamily.message" = "所選項屬於一個分卷集，還有 %1$@ 個成員卷未選取。殘缺的分卷集將無法合併。";
 "file.deleteVolumeFamily.whole" = "刪除整組";
 "file.deleteVolumeFamily.selectionOnly" = "僅刪所選";
+"security.report.clean" = "未發現可疑項目";
+"security.report.clean.desc" = "已檢查全部項目路徑：絕對路徑、「..」逃逸、磁碟機代號、UNC 與反斜線路徑、控制及雙向覆蓋字元、超長路徑、setuid 位、外指符號連結、大小寫衝突——均未命中。";
+"settings.rememberFolderExpansion" = "記住資料夾展開狀態";
+"settings.rememberFolderExpansion.description" = "列表重新整理（檔案變動、手動重新整理、排序）後自動恢復你展開過的資料夾。關閉後每次重新整理都從全部摺疊開始。";
+"settings.rememberVolumeSetExpansion" = "記住分卷集展開狀態";
+"settings.rememberVolumeSetExpansion.description" = "展開過的分卷集（.001/.002…）在列表重新整理後保持展開。關閉後每次重新整理重新收起。";
