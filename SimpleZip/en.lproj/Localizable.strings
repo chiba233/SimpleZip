@@ -902,6 +902,8 @@
 "settings.showSymbolicLinks" = "Show symbolic-linked files and folders";
 "settings.followFinderStructure" = "Make folders follow Finder structure";
 "settings.showSymbolicLinks.description" = "Include symbolic links in folder listings and search results.";
+"settings.folderInlineExpansion" = "Expand folders in place";
+"settings.folderInlineExpansion.description" = "Folder rows get a disclosure chevron to unfold their contents inside the list, Finder style. Turn off for a flat list.";
 "settings.followFinderStructure.description" = "Merge special folders the way Finder does, such as Applications and Utilities.";
 "status.exportingArchiveItem" = "Extracting %@ to %@";
 "status.exportedArchiveItem" = "Extracted %@";

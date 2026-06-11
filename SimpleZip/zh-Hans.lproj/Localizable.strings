@@ -1249,6 +1249,8 @@
 "settings.showSymbolicLinks" = "显示符号链接的文件及文件夹";
 "settings.followFinderStructure" = "文件夹遵循 Finder 结构";
 "settings.showSymbolicLinks.description" = "在文件夹列表和搜索结果里包含符号链接。";
+"settings.folderInlineExpansion" = "文件夹原位展开";
+"settings.folderInlineExpansion.description" = "目录行带展开箭头,可像 Finder 一样在列表内展开内容。关闭则回到纯平铺列表。";
 "settings.followFinderStructure.description" = "像 Finder 一样合并特殊文件夹，例如“应用程序”和 Utilities。";
 "settings.association.description" = "选择哪些压缩包类型默认用 SimpleZip 打开。每一行都会显示当前默认 App。";
 "error.missingRarTool" = "未找到 RAR 命令行工具。请安装 rar 以创建 RAR 压缩包。";

@@ -254,6 +254,7 @@ enum AppPreferences {
         nonisolated static let showHiddenFiles = "showHiddenFiles"
         nonisolated static let hiddenDetectionMode = "hiddenDetectionMode"
         nonisolated static let showSymbolicLinks = "showSymbolicLinks"
+        nonisolated static let folderInlineExpansion = "folderInlineExpansion"
         nonisolated static let followFinderStructure = "followFinderApplicationStructure"
         nonisolated static let hiddenSuffixesEnabled = "hiddenSuffixesEnabled"
         nonisolated static let hiddenRecommendedSuffixes = "hiddenRecommendedSuffixes"
@@ -399,6 +400,11 @@ enum AppPreferences {
 
     nonisolated static var showSymbolicLinks: Bool {
         defaultTrueBool(forKey: Key.showSymbolicLinks)
+    }
+
+    /// 文件浏览器里文件夹可原位展开（目录行带展开箭头）。默认开；关掉回到纯平铺列表。
+    nonisolated static var folderInlineExpansion: Bool {
+        defaultTrueBool(forKey: Key.folderInlineExpansion)
     }
 
     nonisolated static var followFinderStructure: Bool {
@@ -871,6 +877,7 @@ enum AppPreferences {
         Key.showHiddenFiles,
         Key.hiddenDetectionMode,
         Key.showSymbolicLinks,
+        Key.folderInlineExpansion,
         Key.followFinderStructure,
         Key.hiddenSuffixesEnabled,
         Key.hiddenRecommendedSuffixes,
@@ -969,6 +976,7 @@ enum AppPreferences {
         v[Key.showHiddenFiles] = showHiddenFiles
         v[Key.hiddenDetectionMode] = hiddenDetectionMode.rawValue
         v[Key.showSymbolicLinks] = showSymbolicLinks
+        v[Key.folderInlineExpansion] = folderInlineExpansion
         v[Key.followFinderStructure] = followFinderStructure
         v[Key.hiddenSuffixesEnabled] = hiddenSuffixesEnabled
         v[Key.hiddenRecommendedSuffixes] = hiddenRecommendedSuffixes

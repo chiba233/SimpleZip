@@ -262,7 +262,7 @@ struct FileNSOutlineView: NSViewRepresentable {
         }
 
         private var configSignature: String {
-            "\(currentFolderKey)|\(AppPreferences.hiddenGroupCollapseMode.rawValue)|\(effectiveGroupBy.rawValue)|\(AppPreferences.fileGroupingScope.rawValue)|\(AppPreferences.hiddenWithGrouping.rawValue)"
+            "\(currentFolderKey)|\(AppPreferences.hiddenGroupCollapseMode.rawValue)|\(effectiveGroupBy.rawValue)|\(AppPreferences.fileGroupingScope.rawValue)|\(AppPreferences.hiddenWithGrouping.rawValue)|\(AppPreferences.folderInlineExpansion)"
         }
 
         /// 所有区块节点，父在子前（top-down）—— enforceExpansion 需要先展开父再展开子。支持嵌套（隐藏组里再分子组）。
@@ -506,10 +506,11 @@ struct FileNSOutlineView: NSViewRepresentable {
 
         // MARK: - 0.4.1 文件夹原位展开（子级真值在模型注册表,这里只做节点缓存 + 展开记忆）
 
-        /// 文件夹叶子可展开：是目录、不是包（包要么双击进入要么交给系统打开）、不是符号链接
+        /// 文件夹叶子可展开：偏好开着（设置→浏览,可整体关闭回平铺列表）、是目录、
+        /// 不是包（包要么双击进入要么交给系统打开）、不是符号链接
         /// （符号链接展开可能成环 a/link/a/link/…,Finder 列表视图同样不给符号链接展开箭头）。
         private func isExpandableFolder(_ node: FileOutlineNode) -> Bool {
-            guard let item = node.fileItem else { return false }
+            guard AppPreferences.folderInlineExpansion, let item = node.fileItem else { return false }
             return item.isDirectory && !item.isSymbolicLink && !model.canShowPackageContents(item)
         }
 

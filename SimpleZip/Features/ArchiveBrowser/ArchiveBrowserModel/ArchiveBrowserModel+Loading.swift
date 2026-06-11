@@ -100,6 +100,16 @@ extension ArchiveBrowserModel {
     /// （顶层没变时 loadFolder 不发布,没有这一脚,展开层里的增删改永远刷不出来）；
     /// 内容没变 → 保留原实例（id 稳定,选区 / 内容指纹都不抖）。
     func refreshExpandedFolderChildren() {
+        // 偏好关掉（设置→浏览→文件夹原位展开）：清空注册表 —— 行没了,残留子级不该再可被选中 / 操作,
+        // 也省得之后每次 reload 都白列一遍子目录。
+        guard AppPreferences.folderInlineExpansion else {
+            if !expandedFolderChildrenByPath.isEmpty {
+                expandedFolderChildrenByPath = [:]
+                expandedChildrenGeneration += 1
+                objectWillChange.send()
+            }
+            return
+        }
         guard !expandedFolderChildrenByPath.isEmpty else { return }
         var changed = false
         for (path, oldItems) in expandedFolderChildrenByPath {

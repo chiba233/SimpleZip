@@ -17,6 +17,7 @@ struct BrowserPane: View {
     @AppStorage(AppPreferences.Key.hiddenGroupCollapseMode) private var hiddenGroupCollapseModeRaw = FileBrowserOutline.CollapseMode.alwaysCollapsed.rawValue
     @AppStorage(AppPreferences.Key.hiddenWithGrouping) private var hiddenWithGroupingRaw = BrowserGrouping.HiddenWithGrouping.separateGroup.rawValue
     @AppStorage(AppPreferences.Key.showSymbolicLinks) private var showSymbolicLinks = true
+    @AppStorage(AppPreferences.Key.folderInlineExpansion) private var folderInlineExpansion = true
     @AppStorage(AppPreferences.Key.followFinderStructure) private var followFinderStructure = false
     @AppStorage(AppPreferences.Key.hiddenSuffixesEnabled) private var hiddenSuffixesEnabled = true
 
@@ -95,6 +96,12 @@ struct BrowserPane: View {
                     isOn: $showSymbolicLinks
                 )
                 SettingsToggleRow(
+                    title: L10n.text("settings.folderInlineExpansion"),
+                    description: L10n.text("settings.folderInlineExpansion.description"),
+                    systemImage: "chevron.down.square",
+                    isOn: $folderInlineExpansion
+                )
+                SettingsToggleRow(
                     title: L10n.text("settings.followFinderStructure"),
                     description: L10n.text("settings.followFinderStructure.description"),
                     systemImage: "sidebar.leading",
@@ -119,6 +126,7 @@ struct BrowserPane: View {
         .onChange(of: hiddenDetectionModeRaw) { _ in notifyBrowserRefresh() }
         .onChange(of: hiddenGroupCollapseModeRaw) { _ in notifyBrowserRefresh() }
         .onChange(of: showSymbolicLinks) { _ in notifyBrowserRefresh() }
+        .onChange(of: folderInlineExpansion) { _ in notifyBrowserRefresh() }
         .onChange(of: followFinderStructure) { _ in notifyBrowserRefresh() }
         .onChange(of: hiddenSuffixesEnabled) { _ in notifyBrowserRefresh() }
         .onChange(of: hiddenRecommendedSuffixes) { newValue in
