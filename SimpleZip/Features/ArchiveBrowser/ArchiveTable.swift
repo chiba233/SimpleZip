@@ -427,10 +427,15 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
             let clickedItem = outlineView.clickedRow >= 0 ? outlineView.item(atRow: outlineView.clickedRow) : nil
             let clickedArchiveItem = (clickedItem as? ArchiveOutlineNode)?.archiveItem
 
-            // 空白处 / 区块头右键：可编辑归档时给「添加文件 / 粘贴 / 新建」入口；否则空菜单。
+            // 空白处 / 区块头右键：可编辑归档给完整「添加 / 粘贴 / 新建 / 注释 / 清理 / 重复检测」入口；
+            // 只读归档(tar/rar/嵌套/临时)仅给只读分析入口（重复检测 + 刷新）—— 这些不写归档,任何格式都该可用。
             guard let item = clickedArchiveItem else {
                 if model.canDropIntoOpenArchive {
                     appendArchiveBlankAreaMenu(to: menu)
+                } else {
+                    menu.addItem(menuItem(L10n.text("duplicates.menu"), systemImage: "doc.on.doc", action: #selector(findDuplicateFiles)))
+                    menu.addItem(menuItem(L10n.text("help.refresh"), systemImage: "arrow.clockwise", action: #selector(refreshArchive)))
+                    menu.addItem(menuItem(L10n.text("button.revealInFinder"), systemImage: "arrow.up.forward.app", action: #selector(revealArchive)))
                 }
                 return
             }
