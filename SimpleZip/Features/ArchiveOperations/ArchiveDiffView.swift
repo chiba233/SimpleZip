@@ -95,20 +95,43 @@ struct ArchiveDiffView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(L10n.text("diff.title"))
-                        .font(.title2.weight(.semibold))
-                    Text("\(report.leftName) ↔ \(report.rightName)")
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
+        // 0.4.2 用户点名：比较窗也套 0.4.1 的现代弹窗体例 —— hero 头 + 滚动内容 + 钉底操作栏。
+        VStack(spacing: 0) {
+            DialogHero(
+                systemImage: "arrow.left.arrow.right",
+                colors: [.orange, .pink],
+                title: L10n.text("diff.title"),
+                subtitle: "\(report.leftName) ↔ \(report.rightName)"
+            )
+
+            ArchiveDiffSummaryLine(report: displayedReport)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 12)
+
+            if displayedReport.result.hasDifferences {
+                ScrollView {
+                    ArchiveDiffSections(report: displayedReport)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 16)
                 }
+                .frame(minHeight: 300, maxHeight: .infinity)
+            } else {
+                // 没有差异时不渲染空列表，给一个明确的「完全一致」状态。
+                VStack(spacing: 8) {
+                    Image(systemName: "checkmark.circle")
+                        .font(.system(size: 36))
+                        .foregroundStyle(.green)
+                    Text(L10n.format("diff.identical", displayedReport.result.unchanged.count))
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, minHeight: 300, maxHeight: .infinity)
+            }
 
-                Spacer()
+            Divider()
 
-                // 0.4.2:导出报告(JSON/CSV 机器可读、Markdown 给人看;都只含差异项)。
+            // 钉底操作栏：左侧工具（导出 / 忽略垃圾 / 复制），右侧主按钮 —— 与创建 / 解压同款。
+            HStack(spacing: 12) {
                 Menu(L10n.text("diff.export")) {
                     Button(L10n.text("diff.export.json")) { exportReport(.json) }
                     Button(L10n.text("diff.export.csv")) { exportReport(.csv) }
@@ -124,34 +147,19 @@ struct ArchiveDiffView: View {
                     NSPasteboard.general.setString(displayedReport.plainTextSummary, forType: .string)
                 }
 
+                Spacer()
+
                 Button(L10n.text("button.ok")) {
                     onClose()
                 }
+                .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
             }
-
-            ArchiveDiffSummaryLine(report: displayedReport)
-
-            if displayedReport.result.hasDifferences {
-                ScrollView {
-                    ArchiveDiffSections(report: displayedReport)
-                        .padding(.vertical, 2)
-                }
-                .frame(minHeight: 300)
-            } else {
-                // 没有差异时不渲染空列表，给一个明确的「完全一致」状态。
-                VStack(spacing: 8) {
-                    Image(systemName: "checkmark.circle")
-                        .font(.system(size: 36))
-                        .foregroundStyle(.green)
-                    Text(L10n.format("diff.identical", displayedReport.result.unchanged.count))
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, minHeight: 300)
-            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .background(.bar)
         }
-        .padding(20)
-        .frame(minWidth: 640, idealWidth: 760, minHeight: 420, idealHeight: 560)
+        .frame(minWidth: 640, idealWidth: 760, minHeight: 460, idealHeight: 580)
     }
 
     // MARK: - 导出（0.4.2）
@@ -275,10 +283,17 @@ struct ArchiveDiffSections: View {
                     ArchiveDiffNodeView(node: node)
                 }
             }
-            .padding(12)
-            .background(Color(nsColor: .textBackgroundColor))
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(nsColor: .separatorColor)))
+            // 卡片外观对齐 DialogSection（12pt 圆角 + control 背景 + 弱描边）—— 0.4.2 体例统一。
+            .padding(.horizontal, 18)
+            .padding(.vertical, 14)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color(nsColor: .controlBackgroundColor))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.06))
+            )
         }
     }
 
