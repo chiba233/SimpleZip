@@ -753,9 +753,11 @@ private struct WelcomeSafetyStep: View {
             policyRow(label: L10n.text("welcome.safety.symlink"), selection: $symbolicLinkPolicy)
             policyRow(label: L10n.text("welcome.safety.activeContent"), selection: $activeContentOpenPolicy)
 
-            Divider()
-
-            Toggle(isOn: $confirmBeforeDelete) {
+            // 与上面策略行同构（左图标 + 标题/副文,右侧控件）—— 用户报独立 Toggle+Divider 长相对不上。
+            HStack(spacing: 12) {
+                Image(systemName: "trash")
+                    .foregroundStyle(.pink)
+                    .frame(width: 18)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(L10n.text("welcome.safety.confirmDelete"))
                         .font(.callout.weight(.medium))
@@ -764,6 +766,10 @@ private struct WelcomeSafetyStep: View {
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                Spacer()
+                Toggle("", isOn: $confirmBeforeDelete)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
             }
         }
     }
@@ -772,6 +778,7 @@ private struct WelcomeSafetyStep: View {
         HStack(spacing: 12) {
             Image(systemName: "shield.lefthalf.filled")
                 .foregroundStyle(.pink)
+                .frame(width: 18)
             Text(label)
                 .font(.callout.weight(.medium))
             Spacer()
