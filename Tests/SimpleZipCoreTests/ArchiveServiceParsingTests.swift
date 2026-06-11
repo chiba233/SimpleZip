@@ -438,3 +438,35 @@ struct ArchiveSecurityReportTests {
         #expect(findings.first?.entryPaths == ["README.md ↔ readme.md"])
     }
 }
+
+/// 0.4.2 #8:解压前预检统计。
+struct ArchiveExtractPreflightTests {
+
+    private func entry(_ name: String, isDirectory: Bool = false, size: Int64? = nil, encrypted: Bool = false, symlinkTarget: String = "") -> ArchiveItem {
+        ArchiveItem(name: name, isDirectory: isDirectory, size: size, modified: nil, sizeText: "", modifiedText: "", method: "", isEncrypted: encrypted, symlinkTarget: symlinkTarget)
+    }
+
+    @Test func countsFilesFoldersBytesSymlinksEncrypted() {
+        let items = [
+            entry("docs/", isDirectory: true),
+            entry("docs/a.txt", size: 100),
+            entry("docs/b.txt", size: 200, encrypted: true),
+            entry("link", size: 0, symlinkTarget: "/etc/passwd")
+        ]
+        let preflight = ArchiveExtractPreflight.analyze(items)
+        #expect(preflight.fileCount == 3)
+        #expect(preflight.folderCount == 1)
+        #expect(preflight.totalBytes == 300)
+        #expect(preflight.symlinkCount == 1)
+        #expect(preflight.encryptedEntryCount == 1)
+        #expect(preflight.suspiciousEntryCount == 1)   // 外指 symlink
+    }
+
+    @Test func topLevelNamesDeduplicateAndSort() {
+        let items = [
+            entry("zeta/x.txt"), entry("zeta/y.txt"),
+            entry("./alpha/a.txt"), entry("root.txt"), entry("/abs/ignore-leading.txt")
+        ]
+        #expect(ArchiveExtractPreflight.topLevelNames(of: items) == ["abs", "alpha", "root.txt", "zeta"])
+    }
+}

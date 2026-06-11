@@ -195,3 +195,58 @@ enum ArchiveSecurityReport {
         return path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
     }
 }
+
+// MARK: - 解压前预检（0.4.2 #8）
+
+/// 解压前的「这包会干什么」概要 —— 安装器式预告。纯统计，不碰文件系统；
+/// 覆盖风险（目标已有同名项）等文件系统事实由 UI 层用 `topLevelNames` 自查。
+struct ArchiveExtractPreflight: Equatable {
+    let fileCount: Int
+    let folderCount: Int
+    /// 原始（解压后）字节总和。后端没报大小的条目按 0 计 —— 是下限不是精确值。
+    let totalBytes: Int64
+    let symlinkCount: Int
+    /// `ArchiveSecurityReport` 命中的条目总数（横幅同源）。
+    let suspiciousEntryCount: Int
+    let encryptedEntryCount: Int
+
+    nonisolated static func analyze(_ items: [ArchiveItem]) -> ArchiveExtractPreflight {
+        var files = 0
+        var folders = 0
+        var symlinks = 0
+        var encrypted = 0
+        var bytes: Int64 = 0
+        for item in items {
+            if item.isDirectory {
+                folders += 1
+            } else {
+                files += 1
+                bytes += item.size ?? 0
+            }
+            if !item.symlinkTarget.isEmpty { symlinks += 1 }
+            if item.isEncrypted { encrypted += 1 }
+        }
+        let suspicious = ArchiveSecurityReport.analyze(items).reduce(0) { $0 + $1.entryPaths.count }
+        return ArchiveExtractPreflight(
+            fileCount: files,
+            folderCount: folders,
+            totalBytes: bytes,
+            symlinkCount: symlinks,
+            suspiciousEntryCount: suspicious,
+            encryptedEntryCount: encrypted
+        )
+    }
+
+    /// 解压会在目标目录落下的**顶层**名字（去重、升序）—— UI 拿去查覆盖风险。
+    nonisolated static func topLevelNames(of items: [ArchiveItem]) -> [String] {
+        var names = Set<String>()
+        for item in items {
+            var path = item.name
+            while path.hasPrefix("./") { path.removeFirst(2) }
+            let trimmed = path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            guard let first = trimmed.split(separator: "/").first, !first.isEmpty else { continue }
+            names.insert(String(first))
+        }
+        return names.sorted()
+    }
+}

@@ -681,6 +681,16 @@
 "security.kind.externalSymlink.desc" = "Symbolic links targeting absolute paths or .. can reach files outside the archive.";
 "security.kind.caseCollision" = "Case collisions";
 "security.kind.caseCollision.desc" = "Names differing only in letter case overwrite each other on case-insensitive volumes (the macOS default).";
+/* 0.4.2 extract preflight summary */
+"extract.preflight.summary" = "Will extract %1$@ files, %2$@ folders (%3$@)";
+"extract.preflight.loading" = "Reading summary…";
+"extract.preflight.unavailable" = "Couldn't read the entry summary (the archive may require a password).";
+"extract.preflight.encrypted" = "Contains %1$@ encrypted entries — a password is needed";
+"extract.preflight.overwrite" = "%1$@ items with the same name already exist at the destination — the conflict dialog will ask";
+"extract.preflight.missingVolumes" = "Split set is missing %1$@ volumes";
+"extract.preflight.suspicious" = "%1$@ suspicious path entries — see the report in the archive view";
+"extract.preflight.symlinks" = "Contains %1$@ symbolic links";
+
 
 
 

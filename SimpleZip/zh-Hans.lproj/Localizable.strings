@@ -679,6 +679,16 @@
 "security.kind.externalSymlink.desc" = "指向绝对路径或 .. 的符号链接可触达归档之外的文件。";
 "security.kind.caseCollision" = "大小写冲突";
 "security.kind.caseCollision.desc" = "仅大小写不同的重名在大小写不敏感卷（macOS 默认）上会互相覆盖。";
+/* 0.4.2 解压前预检 */
+"extract.preflight.summary" = "将解出 %1$@ 个文件、%2$@ 个文件夹（共 %3$@）";
+"extract.preflight.loading" = "正在读取概要…";
+"extract.preflight.unavailable" = "无法读取条目概要（压缩包可能需要密码）。";
+"extract.preflight.encrypted" = "包含 %1$@ 个加密条目——解压需要密码";
+"extract.preflight.overwrite" = "目标位置已有 %1$@ 个同名项——会进入冲突处理询问";
+"extract.preflight.missingVolumes" = "分卷集缺少 %1$@ 个分卷";
+"extract.preflight.suspicious" = "%1$@ 个可疑路径条目——详见归档视图里的安全报告";
+"extract.preflight.symlinks" = "包含 %1$@ 个符号链接";
+
 
 
 

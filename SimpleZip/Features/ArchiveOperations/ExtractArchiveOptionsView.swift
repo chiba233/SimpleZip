@@ -15,6 +15,14 @@ struct ExtractArchiveOptionsView: View {
     /// 用户可用于解密的私钥（hasSecretKey）。GPG 启用 + 后端可用时 onAppear 异步加载。
     @State private var availableSecretKeys: [GPGBackend.GPGKey] = []
 
+    // 0.4.2 #8 解压前预检：onAppear 后台 list 一次，算「将解出多少 / 多大 / 有无 symlink /
+    // 可疑路径 / 加密 / 覆盖风险 / 缺分卷」。读不到（加密 header 等）只收起概要，绝不挡解压。
+    @State private var preflight: ArchiveExtractPreflight?
+    @State private var preflightTopLevelNames: [String] = []
+    @State private var preflightUnavailable = false
+    @State private var overwriteCount = 0
+    @State private var missingVolumeCount = 0
+
     var body: some View {
         ExtractOptionsForm(
             title: L10n.text("extract.archive.title"),
@@ -28,6 +36,8 @@ struct ExtractArchiveOptionsView: View {
             confirm: { extract(request) },
             cancel: cancel
         ) {
+            // 0.4.2 #8：解压前概要（文件数 / 大小 / 风险行）。
+            preflightRows
             // `.siz` 直接解压时多三行：签名状态 / 签名时间 / 签名指纹。普通归档时为 nil，extraControls 为空。
             if let signature = request.sizSignature {
                 SIZSignatureRows(signature: signature)
@@ -54,7 +64,92 @@ struct ExtractArchiveOptionsView: View {
                     }
                 }
             }
+            loadPreflight()
+            computeMissingVolumes()
         }
+        // 用户换目标目录 → 覆盖风险行实时重算。
+        .onChange(of: request.destinationURL) { _ in
+            recomputeOverwriteCount()
+        }
+    }
+
+    // MARK: - 解压前预检（0.4.2 #8）
+
+    @ViewBuilder
+    private var preflightRows: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if let preflight {
+                Label(
+                    L10n.format(
+                        "extract.preflight.summary",
+                        "\(preflight.fileCount)",
+                        "\(preflight.folderCount)",
+                        ByteCountFormatter.string(fromByteCount: preflight.totalBytes, countStyle: .file)
+                    ),
+                    systemImage: "list.bullet.rectangle"
+                )
+                if preflight.encryptedEntryCount > 0 {
+                    preflightCaption("extract.preflight.encrypted", "\(preflight.encryptedEntryCount)", icon: "key.fill", tint: .secondary)
+                }
+                if overwriteCount > 0 {
+                    preflightCaption("extract.preflight.overwrite", "\(overwriteCount)", icon: "exclamationmark.triangle.fill", tint: .orange)
+                }
+                if missingVolumeCount > 0 {
+                    preflightCaption("extract.preflight.missingVolumes", "\(missingVolumeCount)", icon: "exclamationmark.triangle.fill", tint: .orange)
+                }
+                if preflight.suspiciousEntryCount > 0 {
+                    preflightCaption("extract.preflight.suspicious", "\(preflight.suspiciousEntryCount)", icon: "exclamationmark.shield.fill", tint: .orange)
+                }
+                if preflight.symlinkCount > 0 {
+                    preflightCaption("extract.preflight.symlinks", "\(preflight.symlinkCount)", icon: "link", tint: .secondary)
+                }
+            } else if preflightUnavailable {
+                Label(L10n.text("extract.preflight.unavailable"), systemImage: "list.bullet.rectangle")
+                    .foregroundStyle(.secondary)
+            } else {
+                HStack(spacing: 6) {
+                    ProgressView().controlSize(.small)
+                    Text(L10n.text("extract.preflight.loading"))
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
+    private func preflightCaption(_ key: String, _ value: String, icon: String, tint: Color) -> some View {
+        Label(L10n.format(key, value), systemImage: icon)
+            .font(.caption)
+            .foregroundStyle(tint)
+            .padding(.leading, 2)
+    }
+
+    private func loadPreflight() {
+        let url = request.archiveURL
+        let password = request.password
+        Task { @MainActor in
+            do {
+                let items = try await ArchiveService.list(url, password: password)
+                preflight = ArchiveExtractPreflight.analyze(items)
+                preflightTopLevelNames = ArchiveExtractPreflight.topLevelNames(of: items)
+                recomputeOverwriteCount()
+            } catch {
+                // 读不到（header 加密没密码 / 损坏）→ 收起概要即可，对话框本职（选目录、给密码）不受影响。
+                preflightUnavailable = true
+            }
+        }
+    }
+
+    private func recomputeOverwriteCount() {
+        let destination = request.destinationURL
+        overwriteCount = preflightTopLevelNames.filter {
+            FileManager.default.fileExists(atPath: destination.appendingPathComponent($0).path)
+        }.count
+    }
+
+    private func computeMissingVolumes() {
+        guard let siblings = try? FileManager.default.contentsOfDirectory(atPath: request.archiveURL.deletingLastPathComponent().path),
+              let set = FileSplitCombine.volumeSet(forMemberNamed: request.archiveURL.lastPathComponent, among: siblings) else { return }
+        missingVolumeCount = set.missingIndices.count
     }
 
     /// 是否在解压 `.siz` 单文件签名容器 —— 决定 GPG 解密密钥 picker 是否出现。
