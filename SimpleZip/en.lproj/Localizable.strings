@@ -311,6 +311,9 @@
 "szs.extractHint.browseButton" = "Browse as virtual folder";
 "szs.create.menuItem" = "Create Signed Manifest…";
 "szs.create.title" = "Create Signed Manifest (.szs)";
+"szs.create.subtitle" = "Sign a set of files with a clearsigned manifest";
+"szs.create.section.content" = "Content";
+"szs.create.section.signing" = "Signing & Output";
 "szs.create.payloadRoot" = "Root folder";
 "szs.create.payloadRoot.choose" = "Choose…";
 "szs.create.payloadRoot.placeholder" = "No root folder selected";

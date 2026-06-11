@@ -42,27 +42,42 @@ struct CreateSZSSheet: View {
     private let labelColumnWidth: CGFloat = 88
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text(L10n.text("szs.create.title"))
-                .font(.title3.weight(.semibold))
+        // 0.4.1 重构：套创建 / 解压对话框同款 DialogChrome 体例。
+        VStack(spacing: 0) {
+            DialogHero(
+                systemImage: "signature",
+                colors: [.green, .teal],
+                title: L10n.text("szs.create.title"),
+                subtitle: L10n.text("szs.create.subtitle")
+            )
 
-            VStack(alignment: .leading, spacing: 10) {
-                payloadRootRow
-                filesRow
-                titleRow
-                descriptionRow
-                signingKeyRow
-                encryptFilesRows
-                outputRow
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    DialogSection(L10n.text("szs.create.section.content")) {
+                        payloadRootRow
+                        filesRow
+                        titleRow
+                        descriptionRow
+                    }
+                    DialogSection(L10n.text("szs.create.section.signing")) {
+                        signingKeyRow
+                        encryptFilesRows
+                        outputRow
+                    }
+                    if let message = statusMessage {
+                        Label(message, systemImage: statusIsError ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                            .font(.caption)
+                            .foregroundStyle(statusIsError ? .red : .green)
+                            .textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 16)
             }
+            .frame(maxHeight: 560)
 
-            if let message = statusMessage {
-                Text(message)
-                    .font(.caption)
-                    .foregroundStyle(statusIsError ? .red : .green)
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+            Divider()
 
             HStack {
                 // 创建中显示菊花 + 「正在创建…」——加密多个文件 + 签名要跑好几个 gpg 进程，
@@ -85,9 +100,12 @@ struct CreateSZSSheet: View {
                 .keyboardShortcut(.defaultAction)
                 .disabled(!canCreate)
             }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
+            .background(.bar)
         }
-        .padding(20)
-        .frame(width: 640)
+        .frame(width: 660)
+        .onTapGesture { NSApp.keyWindow?.makeFirstResponder(nil) }
         .onAppear {
             applyPrefillIfAny()
             seedDefaultSigningKey()
