@@ -43,7 +43,8 @@ struct SimpleZipApp: App {
 
             CommandGroup(replacing: .appInfo) {
                 Button(L10n.text("menu.aboutSimpleZip")) {
-                    AboutPanel.show()
+                    // 0.4.2 用户点名：系统 About 面板下岗，重定向到内容更全的「设置 → 关于」。
+                    SettingsDeepLink.open(.about)
                 }
                 // 「重新运行欢迎助手」放在 SimpleZip 菜单里、紧跟「关于」后面 ——
                 // 是 macOS 一线 App（Mail / Pages 等）「重置体验」类菜单的常见落位。

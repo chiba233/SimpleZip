@@ -59,7 +59,10 @@ struct ActivityView: View {
 
     private var selectedPaneView: some View {
         Group {
-            if selectedPane == .settings {
+            if selectedPane == .help {
+                // 0.4.2：活动中心的「帮助」与「设置 → 帮助」同一个视图（A1：不重画）。
+                HelpPane()
+            } else if selectedPane == .settings {
                 // 设置页用系统设置同款 grouped Form —— 自带滚动与顶部安全区处理，
                 // 修掉「点设置后内容往上错位」（之前是裸 VStack，不像 List/Form 那样吃标题栏 inset）。
                 activitySettingsView
@@ -221,6 +224,7 @@ struct ActivityView: View {
 enum ActivityPane: CaseIterable, Identifiable, Hashable {
     case archive
     case fileOperation
+    case help
     case settings
 
     var id: Self { self }
@@ -240,7 +244,7 @@ enum ActivityPane: CaseIterable, Identifiable, Hashable {
             return .archive
         case .fileOperation:
             return .fileOperation
-        case .settings:
+        case .help, .settings:
             return nil
         }
     }
@@ -251,6 +255,8 @@ enum ActivityPane: CaseIterable, Identifiable, Hashable {
             return L10n.text("tasks.archiveSection")
         case .fileOperation:
             return L10n.text("tasks.fileSection")
+        case .help:
+            return L10n.text("settings.section.help")
         case .settings:
             return L10n.text("tasks.settings")
         }
@@ -262,6 +268,8 @@ enum ActivityPane: CaseIterable, Identifiable, Hashable {
             return "archivebox"
         case .fileOperation:
             return "folder"
+        case .help:
+            return "lifepreserver"
         case .settings:
             return "gearshape"
         }
@@ -274,6 +282,8 @@ enum ActivityPane: CaseIterable, Identifiable, Hashable {
             return .blue
         case .fileOperation:
             return .orange
+        case .help:
+            return .cyan
         case .settings:
             return .gray
         }

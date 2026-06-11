@@ -56,6 +56,17 @@ struct SettingsView: View {
             minHeight: 660, idealHeight: 780, maxHeight: .infinity
         )
         .navigationTitle(L10n.text("settings.title"))
+        // 0.4.2 深链：菜单栏「关于 SimpleZip」等入口直接定位到指定 pane。
+        .onAppear {
+            if let pending = SettingsDeepLink.consumePending() {
+                selectedPane = pending
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openSettingsPane)) { note in
+            if let pane = note.object as? SettingsPane {
+                selectedPane = pane
+            }
+        }
     }
 
     /// 健康面板需要可写的 selectedPane（修复按钮跳对应 pane）；List 的 selection 是 Optional，
@@ -88,6 +99,10 @@ struct SettingsView: View {
             HealthPane(selectedPane: selectedPaneBinding)
         case .backup:
             BackupPane()
+        case .help:
+            HelpPane()
+        case .about:
+            AboutPane()
         }
     }
 }

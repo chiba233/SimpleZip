@@ -4,6 +4,8 @@
 
 ## 0.4.2 (unreleased)
 
+- **New: Help and About move into Settings — and get a real upgrade.** Settings grows two sidebar categories: **Help** is an illustrated, spacious usage guide (open/browse, extract, create, edit-inside, search & compare, GPG, Activity Center) with the **format capability matrix moved here from the Archive pane** as its lead content; **About** replaces the cramped system panel with a proper page — big icon, gradient title, version pill, source/license/bug-report link cards, and acknowledgements (7-Zip, GnuPG, Sparkle). The menu-bar **About SimpleZip** now opens Settings → About directly, and the Activity Center sidebar gains the same **Help** section.
+
 - **UI: all seven GPG sheets join the modern dialog shell.** Key import, new key, edit expiration, change passphrase, add user ID, add subkey, and generate revocation certificate now share the same hero header, card sections, and pinned bottom bar as the rest of the app — heights hug their content instead of being hard-coded.
 
 - **Fix: "Extract Here" now works on `.gpg` / `.pgp` / `.asc` files.** Extracting an encrypted GPG file decrypts it through the full task pipeline (Activity Center entry, re-runnable, pinentry cancel counts as cancel, not failure) and places the plaintext next to the source with collision-safe naming — never overwriting. Key files route to the import sheet; non-decryptable content gets a clear explanation.

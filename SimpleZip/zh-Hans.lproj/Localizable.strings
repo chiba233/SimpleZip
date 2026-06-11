@@ -824,6 +824,35 @@
 "archive.gpgSign.smartcard.absent" = "未检测到卡——请先插卡再创建，否则签名会失败";
 "archive.gpgSign.smartcard.recheck" = "重新检测";
 
+/* 0.4.2 设置 - 帮助与关于 */
+"settings.section.help" = "帮助";
+"settings.section.about" = "关于";
+"help.intro" = "SimpleZip 的一切都在这——每种格式能做什么、日常操作怎么走。";
+"help.topics.title" = "怎么做…";
+"help.topic.open.title" = "打开与浏览压缩包";
+"help.topic.open.body" = "• 双击任何压缩包——ZIP、7z、RAR、TAR 系、DMG、xip——不解压直接浏览。\n• 把压缩包拖进窗口，或对任意文件右键「以压缩包打开」强制识别。\n• 签名容器 .siz / .szs 会先验签再打开，其余与普通压缩包无异。";
+"help.topic.extract.title" = "解压";
+"help.topic.extract.body" = "• 右键「解压到此」，或打开压缩包后用「解压」按钮进完整对话框。\n• 对话框自带预检概要：文件数、大小、覆盖风险、缺卷提醒。\n• 加密包只问一次口令——本次会话内同包复用。\n• .gpg 文件解密产物落在源文件旁，绝不覆盖任何东西。";
+"help.topic.create.title" = "创建压缩包";
+"help.topic.create.body" = "• 选中文件 →「添加到压缩包」。可以套模板（GitHub Release、最大压缩 7z、加密投递…），也可以全手调。\n• 排除规则可预览：打包前看清哪些文件会被跳过。\n• 「创建前预检」抽屉提前统计文件数与大小，输出重名即时提醒。";
+"help.topic.edit.title" = "归档内编辑";
+"help.topic.edit.body" = "• 可写的 ZIP / 7z 支持拖入、重命名、删除、批量重命名——全部先在副本上做、原子替换，失败绝不弄坏原包。\n• ZIP 的归档级注释可从横幅或空白区右键直接编辑。\n• 任意条目可快速预览，或单独「保存副本到…」而不用解压整包。";
+"help.topic.search.title" = "搜索、过滤与比较";
+"help.topic.search.body" = "• 搜索框认 token 语法：*.swift size:>1MB encrypted:true modified:<7d regex:…\n• 常用过滤可保存；一键预设涵盖加密、大文件、最近修改、可疑路径。\n• 比较两个压缩包——或拿文件夹跟压缩包比——差异可导出 JSON / CSV / Markdown。\n• 「查找重复文件」按 大小 + CRC 找出内容相同的条目。";
+"help.topic.sign.title" = "签名与加密（GPG）";
+"help.topic.sign.body" = "• 先在 设置 → GPG 打开总开关——不开时所有入口都不显示。\n• 把压缩包封进带签名的 .siz、用 .szs 清单就地签名一个文件夹，或把文件加密给收件人和 / 或一个密码。\n• SimpleZip 绝不经手你的私钥口令：解锁始终由 gpg-agent / pinentry 完成。";
+"help.topic.tasks.title" = "活动中心";
+"help.topic.tasks.body" = "• 每个操作都会进活动中心：进度、日志、等价后端命令（可复制）。\n• 已结束的任务一键重跑；批量失败可以只重试失败项。\n• 出问题时可按任务导出诊断报告——口令绝不包含在内。";
+"about.versionLine" = "版本 %1$@（%2$@）";
+"about.link.project" = "源代码";
+"about.link.license" = "MIT 许可证";
+"about.link.issue" = "提交 Bug";
+"about.ack.title" = "站在这些项目的肩膀上";
+"about.ack.sevenzip" = "内置 7zz 引擎承担归档操作（LGPL）。";
+"about.ack.gnupg" = "可选的签名 / 加密后端——密钥始终归你。";
+"about.ack.sparkle" = "安全、带签名的应用内更新。";
+
+
 
 
 

@@ -826,6 +826,35 @@
 "archive.gpgSign.smartcard.absent" = "No card detected — insert it before creating, or signing will fail";
 "archive.gpgSign.smartcard.recheck" = "Check Again";
 
+/* 0.4.2 Settings - Help & About panes */
+"settings.section.help" = "Help";
+"settings.section.about" = "About";
+"help.intro" = "Everything in SimpleZip, explained — what each format can do, and how the everyday flows work.";
+"help.topics.title" = "How do I…";
+"help.topic.open.title" = "Open & browse archives";
+"help.topic.open.body" = "• Double-click any archive — ZIP, 7z, RAR, TAR…, DMG, or xip — to browse it without extracting.\n• Drag an archive into the window, or right-click any file → Open as Archive to force it.\n• Signed .siz / .szs containers verify their signature first, then open like a normal archive.";
+"help.topic.extract.title" = "Extract";
+"help.topic.extract.body" = "• Right-click → Extract Here, or open the archive and use the Extract button for the full dialog.\n• The dialog shows a pre-flight summary: file count, size, overwrite risk, missing volumes.\n• Encrypted archives ask once — the password is remembered for the rest of the session.\n• .gpg files decrypt right next to the source, never overwriting anything.";
+"help.topic.create.title" = "Create archives";
+"help.topic.create.body" = "• Select files → Add to Archive. Pick a template (GitHub Release, max-compression 7z, encrypted delivery…) or tune everything by hand.\n• Exclude rules can be previewed: see exactly which files will be skipped before you pack.\n• The dry-run drawer counts files and bytes up front, and warns if the output name already exists.";
+"help.topic.edit.title" = "Edit inside an archive";
+"help.topic.edit.body" = "• Writable ZIP / 7z archives accept drag-in, rename, delete, and batch rename — all staged on a copy and swapped in atomically, so a failure never corrupts the original.\n• Edit the ZIP archive comment from the banner or the blank-area context menu.\n• Quick Look any entry, or save a single entry copy without extracting everything.";
+"help.topic.search.title" = "Search, filter & compare";
+"help.topic.search.body" = "• The search field understands tokens: *.swift size:>1MB encrypted:true modified:<7d regex:…\n• Save your favorite filters; one-click presets cover encrypted, large, recent, and suspicious paths.\n• Compare two archives — or a folder against an archive — and export the differences as JSON, CSV, or Markdown.\n• Find Duplicate Files groups identical content by size + CRC.";
+"help.topic.sign.title" = "Sign & encrypt (GPG)";
+"help.topic.sign.body" = "• Turn on GPG in Settings → GPG first — all entry points stay hidden until you do.\n• Wrap an archive into a signed .siz, sign a folder in place with a .szs manifest, or encrypt files to recipients and/or a password.\n• SimpleZip never touches your private-key passphrase: unlocking is always handled by gpg-agent / pinentry.";
+"help.topic.tasks.title" = "Activity Center";
+"help.topic.tasks.body" = "• Every operation lands here: progress, logs, and the exact backend command (copyable).\n• Finished tasks can be re-run with one click; batch failures offer retry-failed-only.\n• Export a per-task diagnostics report when something goes wrong — passwords are never included.";
+"about.versionLine" = "Version %1$@ (%2$@)";
+"about.link.project" = "Source Code";
+"about.link.license" = "MIT License";
+"about.link.issue" = "Report a Bug";
+"about.ack.title" = "Built on the shoulders of";
+"about.ack.sevenzip" = "Bundled 7zz engine for archive operations (LGPL).";
+"about.ack.gnupg" = "Optional signing & encryption backend — your keys stay yours.";
+"about.ack.sparkle" = "Secure, signed in-app updates.";
+
+
 
 
 

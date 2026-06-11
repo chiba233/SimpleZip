@@ -5,6 +5,7 @@
 //  Created by HoshinoYumeka on 2026/05/12.
 //
 
+import AppKit
 import SwiftUI
 
 /// 设置窗口侧栏的分页。
@@ -20,6 +21,8 @@ enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
     case updates
     case health
     case backup
+    case help
+    case about
 
     var id: String { rawValue }
 
@@ -43,6 +46,10 @@ enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
             return L10n.text("settings.section.health")
         case .backup:
             return L10n.text("settings.section.backup")
+        case .help:
+            return L10n.text("settings.section.help")
+        case .about:
+            return L10n.text("settings.section.about")
         }
     }
 
@@ -66,6 +73,10 @@ enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
             return "heart.text.square"
         case .backup:
             return "arrow.up.arrow.down.square"
+        case .help:
+            return "lifepreserver"
+        case .about:
+            return "info.circle"
         }
     }
 
@@ -90,7 +101,37 @@ enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
             return .pink
         case .backup:
             return .indigo
+        case .help:
+            return .cyan
+        case .about:
+            return .mint
         }
+    }
+}
+
+// MARK: - 跨窗口深链（0.4.2）
+
+extension Notification.Name {
+    /// 「跳到设置的某个 pane」：菜单栏「关于 SimpleZip」、各处「打开设置」入口共用 —— 多发布者，
+    /// 满足 A3 的通知使用条件。object = 目标 `SettingsPane`。
+    static let openSettingsPane = Notification.Name("SimpleZip.openSettingsPane")
+}
+
+/// 设置窗口深链：窗口没开时用 `pendingPane`（SettingsView onAppear 消费），已开着时走通知即时切页。
+@MainActor
+enum SettingsDeepLink {
+    static var pendingPane: SettingsPane?
+
+    /// 打开设置窗口并定位到 `pane`。走 AppKit 旧式 selector，不依赖 macOS 14+ 的 openSettings。
+    static func open(_ pane: SettingsPane) {
+        pendingPane = pane
+        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        NotificationCenter.default.post(name: .openSettingsPane, object: pane)
+    }
+
+    static func consumePending() -> SettingsPane? {
+        defer { pendingPane = nil }
+        return pendingPane
     }
 }
 
