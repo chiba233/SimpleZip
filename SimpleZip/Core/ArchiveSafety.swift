@@ -107,6 +107,10 @@ enum ArchiveSecurityFindingKind: String, CaseIterable {
     case setuidExecutable    // setuid / setgid 权限位
     case externalSymlink     // 符号链接指向归档外（绝对路径 / `..`）
     case caseCollision       // 大小写不同的重名 —— 大小写不敏感卷上互相覆盖
+    // 0.4.3 #14:跨平台文件名风险(Windows/Linux 来的 zip 在 macOS 上的经典雷区,反之亦然)。
+    case normalizationCollision // NFC/NFD 字节不同但显示相同 —— 跨平台解出两个「同名」文件或互覆
+    case windowsReservedName    // CON / NUL / PRN / COM1… —— Windows 上无法创建,解压直接失败
+    case trailingSpaceOrDot     // 段尾空格 / 点 —— Windows 会剥掉,造成改名或冲突
 }
 
 struct ArchiveSecurityFinding: Equatable, Identifiable {
@@ -145,6 +149,19 @@ enum ArchiveSecurityReport {
             }
             if name.unicodeScalars.contains(where: isSuspiciousScalar) { record(.controlCharacters, name) }
             if isOverlongPath(trimmed) { record(.overlongPath, name) }
+            // 0.4.3 #14:Windows 保留名 / 段尾空格点 —— 按段检查(目录段同样致命)。
+            for segment in trimmed.split(separator: "/") {
+                if isWindowsReservedName(String(segment)) {
+                    record(.windowsReservedName, name)
+                    break
+                }
+            }
+            for segment in trimmed.split(separator: "/") {
+                if segment.hasSuffix(" ") || segment.hasSuffix(".") {
+                    record(.trailingSpaceOrDot, name)
+                    break
+                }
+            }
             if hasSetuidMode(item.attributes) { record(.setuidExecutable, name) }
             if !item.symlinkTarget.isEmpty, isExternalLinkTarget(item.symlinkTarget) {
                 record(.externalSymlink, "\(name) → \(item.symlinkTarget)")
@@ -154,7 +171,13 @@ enum ArchiveSecurityReport {
             guard !normalized.isEmpty else { continue }
             let key = normalized.lowercased()
             if let first = firstSpellingByLowercased[key] {
-                if first != normalized { record(.caseCollision, "\(first) ↔ \(normalized)") }
+                if first != normalized {
+                    record(.caseCollision, "\(first) ↔ \(normalized)")
+                } else if Array(first.utf8) != Array(normalized.utf8) {
+                    // 0.4.3 #14:Swift 字符串比较是**规范等价**的 —— first == normalized 但字节不同,
+                    // 就是 NFC/NFD 混用(显示完全一样)。跨平台解压会变成两个文件或静默互覆。
+                    record(.normalizationCollision, "\(normalized) (NFC ↔ NFD)")
+                }
             } else {
                 firstSpellingByLowercased[key] = normalized
             }
@@ -171,6 +194,21 @@ enum ArchiveSecurityReport {
     nonisolated private static func isSuspiciousScalar(_ scalar: Unicode.Scalar) -> Bool {
         if scalar.value < 0x20 || scalar.value == 0x7F { return true }
         return (0x202A...0x202E).contains(scalar.value) || (0x2066...0x2069).contains(scalar.value)
+    }
+
+    /// Windows 保留设备名(整段或「保留名.扩展名」形态都无法在 Windows 上创建)。
+    nonisolated private static let windowsReservedBaseNames: Set<String> = {
+        var names: Set<String> = ["con", "prn", "aux", "nul"]
+        for n in 1...9 {
+            names.insert("com\(n)")
+            names.insert("lpt\(n)")
+        }
+        return names
+    }()
+
+    nonisolated private static func isWindowsReservedName(_ segment: String) -> Bool {
+        let base = segment.split(separator: ".", maxSplits: 1, omittingEmptySubsequences: false)[0]
+        return windowsReservedBaseNames.contains(base.lowercased())
     }
 
     nonisolated private static func isOverlongPath(_ path: String) -> Bool {

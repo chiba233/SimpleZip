@@ -437,6 +437,41 @@ struct ArchiveSecurityReportTests {
         #expect(findings.map(\.kind) == [.caseCollision])
         #expect(findings.first?.entryPaths == ["README.md ↔ readme.md"])
     }
+
+    // MARK: - 0.4.3 #14 跨平台文件名风险
+
+    @Test func detectsNormalizationCollisions() {
+        // 同一个「ä.txt」:NFC(单码位)vs NFD(a + 组合分音符)。Swift 字符串比较规范等价,
+        // 所以必须按 UTF-8 字节区分 —— 这正是被检测的风险本身。
+        let nfc = "\u{00E4}.txt"
+        let nfd = "a\u{0308}.txt"
+        let findings = ArchiveSecurityReport.analyze([entry(nfc), entry(nfd)])
+        #expect(findings.map(\.kind) == [.normalizationCollision])
+        // 同字节的重复不报。
+        #expect(ArchiveSecurityReport.analyze([entry(nfc), entry(nfc)]).isEmpty)
+    }
+
+    @Test func detectsWindowsReservedNames() {
+        let findings = ArchiveSecurityReport.analyze([
+            entry("docs/CON"),          // 整段保留名
+            entry("aux.txt"),           // 保留名 + 扩展名同样致命
+            entry("COM3/file.txt"),     // 目录段也算
+            entry("console.txt"),       // 前缀相同但不是保留名 —— 不报
+            entry("com0.txt")           // COM0 不在保留集 —— 不报
+        ])
+        #expect(findings.map(\.kind) == [.windowsReservedName])
+        #expect(findings.first?.entryPaths.count == 3)
+    }
+
+    @Test func detectsTrailingSpaceOrDot() {
+        let findings = ArchiveSecurityReport.analyze([
+            entry("report. "),          // 尾随空格
+            entry("notes./readme.txt"), // 目录段尾随点
+            entry("normal.txt")         // 正常名 —— 不报(扩展名前的点不算尾随)
+        ])
+        #expect(findings.map(\.kind) == [.trailingSpaceOrDot])
+        #expect(findings.first?.entryPaths.count == 2)
+    }
 }
 
 /// 0.4.2 #8:解压前预检统计。

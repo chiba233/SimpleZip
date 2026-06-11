@@ -698,6 +698,12 @@
 "security.kind.externalSymlink.desc" = "Symbolic links targeting absolute paths or .. can reach files outside the archive.";
 "security.kind.caseCollision" = "Case collisions";
 "security.kind.caseCollision.desc" = "Names differing only in letter case overwrite each other on case-insensitive volumes (the macOS default).";
+"security.kind.normalizationCollision" = "Unicode normalization collisions";
+"security.kind.normalizationCollision.desc" = "Entries whose names look identical but use different Unicode byte forms (NFC vs NFD — common when a ZIP mixes macOS and Windows/Linux origins). Extracting on another platform can yield two \"same-named\" files or silently overwrite one with the other.";
+"security.kind.windowsReservedName" = "Windows reserved names";
+"security.kind.windowsReservedName.desc" = "CON, PRN, AUX, NUL, COM1–9 and LPT1–9 (with or without an extension) cannot be created on Windows — extracting this archive there will fail.";
+"security.kind.trailingSpaceOrDot" = "Trailing spaces or dots";
+"security.kind.trailingSpaceOrDot.desc" = "Windows strips trailing spaces and dots from names, so these entries get renamed or collide when the archive is extracted there.";
 /* 0.4.2 extract preflight summary */
 "extract.preflight.summary" = "Will extract %1$@ files, %2$@ folders (%3$@)";
 "extract.preflight.loading" = "Reading summary…";

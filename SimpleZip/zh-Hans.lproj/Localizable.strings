@@ -696,6 +696,12 @@
 "security.kind.externalSymlink.desc" = "指向绝对路径或 .. 的符号链接可触达归档之外的文件。";
 "security.kind.caseCollision" = "大小写冲突";
 "security.kind.caseCollision.desc" = "仅大小写不同的重名在大小写不敏感卷（macOS 默认）上会互相覆盖。";
+"security.kind.normalizationCollision" = "Unicode 规范化冲突";
+"security.kind.normalizationCollision.desc" = "名字显示完全相同、但 Unicode 字节形式不同（NFC 与 NFD——macOS 与 Windows/Linux 来源混用的 ZIP 常见）。在另一平台解压会得到两个「同名」文件，或其中一个被静默覆盖。";
+"security.kind.windowsReservedName" = "Windows 保留名";
+"security.kind.windowsReservedName.desc" = "CON、PRN、AUX、NUL、COM1–9、LPT1–9（带不带扩展名都算）在 Windows 上无法创建——这个包在 Windows 解压会失败。";
+"security.kind.trailingSpaceOrDot" = "尾随空格或点";
+"security.kind.trailingSpaceOrDot.desc" = "Windows 会剥掉名字末尾的空格和点，这些条目在 Windows 解压时会被改名或相互冲突。";
 /* 0.4.2 解压前预检 */
 "extract.preflight.summary" = "将解出 %1$@ 个文件、%2$@ 个文件夹（共 %3$@）";
 "extract.preflight.loading" = "正在读取概要…";
