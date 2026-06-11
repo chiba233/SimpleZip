@@ -91,7 +91,9 @@ struct GPGPane: View {
             }
         }
         .formStyle(.grouped)
-        // 0.4.3 用户点名「紧凑非现代,大改」:去掉全局 .controlSize(.small),控件回到常规尺寸,行距放开。
+        // 间距/控件尺寸与其它设置 pane 一致(全部 .small 紧凑 Form)—— 用户点名 GPG 间距不合格、要对齐其他 UI。
+        // 现代感来自密钥行的头像/排版,不靠把控件放大。
+        .controlSize(.small)
         // 拖 .asc/.gpg 公钥文件到面板任意位置 = 导入(GPG Keychain 同款交互)。落点钥匙串弹对话框让用户选。
         .dropDestination(for: URL.self) { urls, _ in
             receiveDroppedKeyFiles(urls)
@@ -288,7 +290,7 @@ struct GPGPane: View {
 
     @ViewBuilder
     private var keyringSection: some View {
-        Section(L10n.text("settings.gpg.keys.title")) {
+        Section {
             Text(L10n.text("settings.gpg.keys.description"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -301,14 +303,12 @@ struct GPGPane: View {
 
             // 搜索过滤 —— 姓名 / 邮箱 / 指纹(含子密钥指纹)都能搜,keyring 一多没有它没法用。
             if !keys.isEmpty {
-                HStack(spacing: 8) {
-                    Image(systemName: "magnifyingglass")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(.secondary)
+                HStack(spacing: 12) {
+                    SettingsRowIcon(systemImage: "magnifyingglass", tint: .blue)
                     TextField(L10n.text("settings.gpg.keys.filter.prompt"), text: $keyFilterText)
                         .textFieldStyle(.roundedBorder)
                 }
-                .padding(.vertical, 2)
+                .padding(.vertical, 4)
             }
 
             if isLoadingKeys {
@@ -427,11 +427,8 @@ struct GPGPane: View {
     /// 设置 / 清除走 GPGKeyRow 的「设为默认」按钮，不在这一行操作 —— 这一行只展示当前状态。
     @ViewBuilder
     private var defaultSigningKeyRow: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Image(systemName: "signature")
-                .font(.system(size: 16, weight: .medium))
-                .foregroundStyle(defaultSigningKeyFingerprint.isEmpty ? .secondary : Color.accentColor)
-                .frame(width: 22, alignment: .center)
+        HStack(alignment: .center, spacing: 12) {
+            SettingsRowIcon(systemImage: "signature", tint: .green)
             VStack(alignment: .leading, spacing: 2) {
                 Text(L10n.text("settings.gpg.defaultSigning.label"))
                     .font(.caption.weight(.medium))
@@ -459,18 +456,15 @@ struct GPGPane: View {
                 .controlSize(.small)
             }
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 4)
     }
 
     /// 「当前插入卡」一行展示 —— 仅智能卡支持开启时出现。卡未检测到时显示「未检测到卡 [检测]」。
     /// 检测到时显示：vendor + serial + 反查的主密钥 UID（找不到对应主密钥时给「卡上 subkey 在本机 keyring 找不到 → 「拉公钥」提示」）。
     @ViewBuilder
     private var cardStatusRow: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Image(systemName: "creditcard")
-                .font(.system(size: 16, weight: .medium))
-                .foregroundStyle(cardStatus == nil ? Color.secondary : Color.orange)
-                .frame(width: 22, alignment: .center)
+        HStack(alignment: .center, spacing: 12) {
+            SettingsRowIcon(systemImage: "creditcard", tint: .orange)
             VStack(alignment: .leading, spacing: 2) {
                 Text(L10n.text("settings.gpg.smartcard.statusLabel"))
                     .font(.caption.weight(.medium))
@@ -493,7 +487,7 @@ struct GPGPane: View {
             .controlSize(.small)
             .disabled(isDetectingCard)
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 4)
     }
 
     @ViewBuilder
@@ -684,10 +678,8 @@ struct GPGPane: View {
                     Text(L10n.format("settings.gpg.keyserver.publishConfirmMessage", key.displayFingerprint))
                 }
 
-            HStack(spacing: 8) {
-                Image(systemName: "globe")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(.secondary)
+            HStack(spacing: 12) {
+                SettingsRowIcon(systemImage: "globe", tint: .cyan)
                 TextField(L10n.text("settings.gpg.keyserver.searchPrompt"), text: $keyserverQuery)
                     .textFieldStyle(.roundedBorder)
                     .onSubmit(searchKeyserver)
@@ -696,7 +688,7 @@ struct GPGPane: View {
                 }
                 .disabled(isSearchingKeyserver || keyserverQuery.trimmingCharacters(in: .whitespaces).isEmpty)
             }
-            .padding(.vertical, 2)
+            .padding(.vertical, 4)
 
             if isSearchingKeyserver {
                 HStack {
@@ -850,7 +842,8 @@ struct GPGPane: View {
                 description: L10n.text(promptForSigningKey
                     ? "settings.gpg.defaults.signingStrategy.askDescription"
                     : "settings.gpg.defaults.signingStrategy.silentDescription"),
-                systemImage: "signature"
+                systemImage: "signature",
+                iconTint: .indigo
             ) {
                 Picker("", selection: $promptForSigningKey) {
                     Text(L10n.text("settings.gpg.defaults.signingStrategy.silent"))
@@ -914,8 +907,12 @@ struct GPGPane: View {
                     }
                 }
             } label: {
-                Text(L10n.text("settings.gpg.advanced.title"))
-                    .font(.callout.weight(.medium))
+                // 高级抽屉头 = 一级,彩色瓦片(开启智能卡等内层行 = 二级,保持单色)。
+                HStack(spacing: 12) {
+                    SettingsRowIcon(systemImage: "gearshape.2", tint: .gray)
+                    Text(L10n.text("settings.gpg.advanced.title"))
+                        .font(.callout.weight(.medium))
+                }
             }
         }
     }

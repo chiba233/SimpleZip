@@ -16,11 +16,13 @@ struct SettingsControlRow<Control: View>: View {
     let title: String
     let description: String
     var systemImage: String? = nil
+    /// 一级行的彩色瓦片色;nil = 二级行单色(默认)。
+    var iconTint: Color? = nil
     @ViewBuilder let control: () -> Control
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
-            SettingsRowIcon(systemImage: systemImage)
+            SettingsRowIcon(systemImage: systemImage, tint: iconTint)
 
             VStack(alignment: .leading, spacing: 4) {
                 // 0.3.3 设置右侧加深：标题升到正文字号、行距和上下留白放宽 ——
@@ -102,13 +104,23 @@ struct SettingsActionRow: View {
 
 struct SettingsRowIcon: View {
     let systemImage: String?
+    /// 非 nil = **一级行**的彩色瓦片(纯色平涂 + 白色符号;box 不渐变是硬规矩);nil = **二级行**单色图标。
+    var tint: Color? = nil
 
     var body: some View {
         Group {
             if let systemImage {
-                Image(systemName: systemImage)
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(.secondary)
+                if let tint {
+                    Image(systemName: systemImage)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 22, height: 22)
+                        .background(tint, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                } else {
+                    Image(systemName: systemImage)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
             } else {
                 Color.clear
             }
