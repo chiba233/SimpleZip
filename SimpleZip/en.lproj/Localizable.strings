@@ -700,10 +700,6 @@
 "tasks.undoRedo.generic" = "file operation";
 "tasks.undo.title" = "Undid: %1$@";
 "tasks.redo.title" = "Redid: %1$@";
-"tasks.undoRedo.detail.move" = "Moved: %1$@ → %2$@";
-"tasks.undoRedo.detail.copy" = "Copied: %1$@ → %2$@";
-"tasks.undoRedo.detail.trash" = "Moved to Trash: %1$@";
-"tasks.undoRedo.detail.permissions" = "Restored permissions/owner: %1$@";
 "tasks.recovery.section" = "Write-Back Recovery Area";
 "tasks.recovery.show" = "Recovery files";
 "tasks.recovery.show.description" = "Work copies preserved from failed archive rewrites (external-change blocks keep your completed edit; verification failures keep a diagnostic sample).";

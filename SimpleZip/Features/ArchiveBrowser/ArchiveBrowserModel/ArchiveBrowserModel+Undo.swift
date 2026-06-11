@@ -94,9 +94,9 @@ extension ArchiveBrowserModel {
                 owner: (step.owner?.isEmpty == false) ? FilePermissionService.currentOwner(of: step.url) : nil
             )
         }
-        // 详情行同步记（异步 apply 之前）—— recordUndoRedoHistory 在 undo() 返回后立刻收割,等不到 Task。
+        // 详情同步记（异步 apply 之前）—— recordUndoRedoHistory 在 undo() 返回后立刻收割,等不到 Task。
         for step in steps {
-            undoRedoDetailLines.append(L10n.format("tasks.undoRedo.detail.permissions", step.url.path))
+            appendUndoRedoLog(.changed, at: step.url, detail: abbreviatedPath(step.url))
         }
         Task { @MainActor [weak self] in
             for step in steps {
@@ -125,7 +125,7 @@ extension ArchiveBrowserModel {
             do {
                 try fileManager.createDirectory(at: step.to.deletingLastPathComponent(), withIntermediateDirectories: true)
                 try fileManager.moveItem(at: step.from, to: step.to)
-                undoRedoDetailLines.append(L10n.format("tasks.undoRedo.detail.move", step.from.path, step.to.path))
+                appendUndoRedoLog(.changed, at: step.to, detail: "\(abbreviatedPath(step.from)) → \(abbreviatedPath(step.to))")
                 if let snapshot = UndoFileSnapshot(url: step.to, fileManager: fileManager) {
                     done.append(UndoMoveStep(from: step.to, to: step.from, sourceSnapshot: snapshot))
                 }
@@ -151,7 +151,7 @@ extension ArchiveBrowserModel {
             guard !fileManager.fileExists(atPath: step.dest.path) else { skipped += 1; continue }
             do {
                 try fileManager.copyItem(at: step.source, to: step.dest)
-                undoRedoDetailLines.append(L10n.format("tasks.undoRedo.detail.copy", step.source.path, step.dest.path))
+                appendUndoRedoLog(.added, at: step.dest, detail: "\(abbreviatedPath(step.source)) → \(abbreviatedPath(step.dest))")
                 if let destSnapshot = UndoFileSnapshot(url: step.dest, fileManager: fileManager) {
                     done.append(UndoCopyStep(
                         source: step.source,
@@ -182,7 +182,7 @@ extension ArchiveBrowserModel {
             do {
                 var trashURL: NSURL?
                 try fileManager.trashItem(at: step.dest, resultingItemURL: &trashURL)
-                undoRedoDetailLines.append(L10n.format("tasks.undoRedo.detail.trash", step.dest.path))
+                appendUndoRedoLog(.deleted, at: step.dest, detail: abbreviatedPath(step.dest))
                 done.append(step)
             } catch {
                 skipped += 1
@@ -206,7 +206,7 @@ extension ArchiveBrowserModel {
             do {
                 var trashURL: NSURL?
                 try fileManager.trashItem(at: step.url, resultingItemURL: &trashURL)
-                undoRedoDetailLines.append(L10n.format("tasks.undoRedo.detail.trash", step.url.path))
+                appendUndoRedoLog(.deleted, at: step.url, detail: abbreviatedPath(step.url))
                 if let trashURL = trashURL as URL? {
                     trashed.append((original: step.url, trashURL: trashURL))
                 }
@@ -221,7 +221,7 @@ extension ArchiveBrowserModel {
     func undoFileOperation() {
         guard fileUndoManager.canUndo else { return }
         let actionName = nonEmptyActionName(fileUndoManager.undoActionName)
-        undoRedoDetailLines = []
+        undoRedoTransferLog = []
         fileUndoManager.undo()
         refreshUndoActionNames()
         recordUndoRedoHistory(isUndo: true, actionName: actionName)
@@ -230,7 +230,7 @@ extension ArchiveBrowserModel {
     func redoFileOperation() {
         guard fileUndoManager.canRedo else { return }
         let actionName = nonEmptyActionName(fileUndoManager.redoActionName)
-        undoRedoDetailLines = []
+        undoRedoTransferLog = []
         fileUndoManager.redo()
         refreshUndoActionNames()
         recordUndoRedoHistory(isUndo: false, actionName: actionName)
@@ -238,27 +238,38 @@ extension ArchiveBrowserModel {
 
     /// 0.4.3:撤销 / 重做留痕活动中心 —— 独立「撤销与重做」分组的即时记录(开始即完成)。
     /// 唯一漏斗:⌘Z / ⇧⌘Z / 菜单都走 undoFileOperation / redoFileOperation。
-    /// 用户点名「不显示详情毫无价值」:undo 原语执行时把每个实际动过的文件写进
-    /// `undoRedoDetailLines`,这里收割 —— 行内副标题给条数,「详情」面板给逐文件清单。
+    /// 用户点名要详情且要**格式化**:undo 原语执行时逐文件写 `undoRedoTransferLog`,
+    /// 这里收割挂成 task.transferLog —— 跟解压 / 粘贴同一套分组卡片(图标 + 文件名 + 路径小字),历史也持久化。
     private func recordUndoRedoHistory(isUndo: Bool, actionName: String?) {
         let name = actionName ?? L10n.text("tasks.undoRedo.generic")
-        let title = L10n.format(isUndo ? "tasks.undo.title" : "tasks.redo.title", name)
-        let lines = undoRedoDetailLines
-        undoRedoDetailLines = []
-        let detailsSession: ArchiveOperationDetailsSession? = lines.isEmpty ? nil : ArchiveOperationDetailsSession(
-            title: title,
-            rawOutput: lines.joined(separator: "\n") + "\n",
-            finishedAt: Date()
-        )
+        let entries = undoRedoTransferLog
+        undoRedoTransferLog = []
         let task = TaskCenter.shared.begin(
             category: .undoRedo,
             kind: isUndo ? .undo : .redo,
-            title: title,
-            detail: lines.isEmpty ? nil : L10n.format("status.itemCount", lines.count),
-            cancellable: false,
-            detailsSession: detailsSession
+            title: L10n.format(isUndo ? "tasks.undo.title" : "tasks.redo.title", name),
+            detail: entries.isEmpty ? nil : L10n.format("status.itemCount", entries.count),
+            cancellable: false
         )
+        task.transferLog = entries
         TaskCenter.shared.finish(task, outcome: .succeeded(nil))
+    }
+
+    /// 收集一条撤销 / 重做的逐文件记录。`isDirectory` 就地 stat(N 小,文件可能已不在则回退 false)。
+    private func appendUndoRedoLog(_ action: TransferAction, at url: URL, detail: String) {
+        var isDirectory: ObjCBool = false
+        _ = fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory)
+        undoRedoTransferLog.append(TransferLogEntry(
+            name: url.lastPathComponent,
+            action: action,
+            isDirectory: isDirectory.boolValue,
+            detail: detail
+        ))
+    }
+
+    /// `/Users/<me>/…` → `~/…`,活动中心详情里的路径不再一长串。
+    private func abbreviatedPath(_ url: URL) -> String {
+        (url.path as NSString).abbreviatingWithTildeInPath
     }
 
     func refreshUndoActionNames() {
