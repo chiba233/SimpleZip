@@ -69,8 +69,12 @@ SimpleZip 把每个压缩包都视为**不可信输入**。App 有意不进沙�
 - **macOS Gatekeeper bypass**。SimpleZip 是 ad-hoc 未签名，用户首次运行时
   显式绕过 Gatekeeper —— README 里已说明。Developer ID 签名是 Phase 11 路线
   的事。
-- **网络攻击**。压缩包工作流不发任何网络请求。唯一的网络访问点是用户主动
-  触发的 RAR 安装脚本，以及「打开项目主页」菜单项。
+- **网络攻击**。压缩包工作流不发任何网络请求。全部网络访问都由用户主动触发,
+  且仅限于:Sparkle 更新检查(EdDSA 签名的 appcast,见更新章节)、设置 → GPG 的
+  密钥服务器搜索 / 接收 / 发布(网络请求由 GnuPG 自带的 `dirmngr` 对
+  `keys.openpgp.org` 发起,发布公钥前必有显式确认)、可选的 RAR 后端安装脚本,
+  以及「打开项目主页」菜单项。这些通道在 Sparkle / GnuPG 既有保障之外的传输
+  加固不在范围内。
 
 ---
 

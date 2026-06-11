@@ -77,8 +77,13 @@ images, but that trust must be enforced inside the app's own code.
   bypasses Gatekeeper on first launch. This is documented in `README.md`. A real
   Developer ID build is on the Phase 11 roadmap.
 - **Network attacks.** SimpleZip does not make outbound network calls in the
-  archive workflows. The only network access is the user-initiated RAR
-  installer script and the "open project page" menu item.
+  archive workflows. All network access is user-initiated and limited to:
+  the Sparkle update check (EdDSA-signed appcast, see the update section),
+  GPG key-server search / receive / publish in Settings → GPG (the request is
+  performed by GnuPG's own `dirmngr` against `keys.openpgp.org`, and publishing
+  a public key requires an explicit confirmation), the optional RAR backend
+  installer script, and the "open project page" menu item. Hardening those
+  transports beyond what Sparkle / GnuPG already provide is out of scope.
 
 ---
 

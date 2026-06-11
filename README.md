@@ -8,9 +8,9 @@
 
 **A native macOS archive manager that feels like Finder.** Open archives like
 folders, peek at — or *edit* — files inside without unpacking, make and convert
-ZIP / 7z / RAR / TAR / DMG / gz / bz2 / xz in a couple of clicks, and — when you
-need it — sign and verify archives so the people you send them to know they're
-really from you.
+ZIP / 7z / RAR / TAR / DMG / gz / bz2 / xz in a couple of clicks — and open
+`tar.zst`, ISO, CAB, CPIO and installer PKGs read-only. When you need it, sign
+and verify archives so the people you send them to know they're really from you.
 
 No subscriptions, no telemetry, no clutter. Just a fast, native window — built
 on the official 7-Zip engine, which ships inside the app.
@@ -26,6 +26,8 @@ on the official 7-Zip engine, which ships inside the app.
 |---|---|
 | ![Browsing files](https://raw.githubusercontent.com/chiba233/SimpleZip/main/demo/mainView.png) | ![Inside an archive](https://raw.githubusercontent.com/chiba233/SimpleZip/main/demo/archiveView.png) |
 | **Browse like Finder** — your files, a modern native window. | **Open an archive like a folder** — walk the tree, no unpacking. |
+| ![Creating an archive](https://raw.githubusercontent.com/chiba233/SimpleZip/main/demo/addArchiveView.png) | ![Extracting](https://raw.githubusercontent.com/chiba233/SimpleZip/main/demo/unzipView.png) |
+| **Create** — format, password, templates, a live dry-run. | **Extract** — pre-flight summary before anything touches disk. |
 | ![Activity Center](https://raw.githubusercontent.com/chiba233/SimpleZip/main/demo/ActivityView.png) | ![Checksums](https://raw.githubusercontent.com/chiba233/SimpleZip/main/demo/hashView.png) |
 | **Activity Center** — every operation, with live progress. | **Checksums** — hash files in a click, copy results. |
 
@@ -87,8 +89,25 @@ on the official 7-Zip engine, which ships inside the app.
   max-compression 7z, encrypted delivery, source tarball without `node_modules`…)
   or save your own named default.
 - **Pre-flight checks** — a creation dry-run (file count, size, what gets excluded),
-  a pre-extraction summary, and a one-click **Release Check** (integrity test,
-  suspicious paths, junk, empty dirs, SHA-256) before you ship a build.
+  a pre-extraction summary with a disk-space warning, and a one-click
+  **Release Check** (integrity test, suspicious paths, junk, empty dirs, SHA-256)
+  before you ship a build.
+- **Reproducible archives** — a switch in the create dialog makes the same input
+  produce a byte-identical ZIP/7z (same SHA-256) on every run. Made for GitHub
+  releases and verifiable builds; pairs with **Export SHA256SUMS**.
+- **Checksum files** — generate GNU-compatible `SHA256SUMS` for a selection, and
+  verify `SHA256SUMS` / `.sha256` / `.md5` / `.sfv` files someone sent you, with
+  per-file pass/fail in the Activity Center.
+- **Verified writes, recoverable failures** — every archive rewrite is tested
+  *before* it atomically replaces the original, and a rewrite stopped at the last
+  gate (external change, failed verification) parks its work copy in a Recovery
+  area instead of burning it. Big operations check disk space up front.
+- **Session passwords** — an archive's password is asked once per session: tests,
+  batch jobs and Finder auto-extract silently reuse passwords you've already
+  proven (memory only — forgotten the moment the app quits; only the optional
+  preset password persists, in the macOS Keychain).
+- **Long tasks are protected** — running tasks hold off idle sleep, and quitting
+  with work in flight asks first (or quits by itself when the last task ends).
 - **Batch tools** — test, convert, or rename many entries at once, find duplicate
   files, and clean macOS metadata junk (`.DS_Store` / `__MACOSX`).
 - **Split-set awareness** — `.001 / .002 / partN.rar` recognized as a group, with
@@ -116,19 +135,26 @@ That's it — drag an archive onto the window, or open one with **File → Open*
 
 ## 🗂 What it can open and make
 
-| Format | Browse | Extract | Create | Notes |
+| Format | Open | Extract | Create | Notes |
 |---|:---:|:---:|:---:|---|
 | ZIP | ✓ | ✓ | ✓ | Optional AES-256 password |
 | 7z | ✓ | ✓ | ✓ | Strong compression |
 | RAR | ✓ | ✓ | ✓\* | Opening always works; *creating* needs RARLAB's `rar` (an optional add-on) |
 | TAR | ✓ | ✓ | ✓ | |
 | gz / bz2 / xz | ✓ | ✓ | ✓ | Single-file compression |
-| tgz / tar.gz | ✓ | ✓ | ✓ | |
+| tgz / tar.gz | ✓ | ✓ | ✓ | Opens straight into the inner tar |
+| zst / tar.zst | ✓ | ✓ | — | Zstandard, read-only — the bundled 7-Zip decodes it but has no zstd encoder |
+| ISO / CAB / CPIO / XAR / PKG | ✓ | ✓ | — | Read-only — browse and extract disk images, cabinets and installer packages |
 | DMG | ✓ | ✓ | ✓ | Apple disk images (mounted read-only when browsing) |
 | XIP | ✓ | ✓ | — | Apple-signed archives (Xcode etc.) — extraction goes through Apple's own `xip` tool, which verifies the signature |
+| `.gpg` / `.pgp` / `.asc` / `.key` | ✓ | ✓ | ✓ | GPG-encrypted files decrypt and open in place; key material offers to import into a keyring. "Create" = right-click → Encrypt to `.gpg` |
 | `.siz` | ✓ | ✓ | ✓ | Signed container — an archive with its signature attached |
-| `.szs` | ✓ | — | ✓ | Signed manifest — signs files *in place* (not an archive) |
+| `.szs` | ✓ (verify) | in place | ✓ | Signed manifest — *verifies* a folder's files where they sit and browses them as a virtual folder; nothing unpacks, because nothing was packed |
 | Split sets (`.001`, `.z01`, `.r00`, `partN.rar`) | ✓ | ✓ | — | Just open the first piece |
+
+> Anything SimpleZip can't modify in place (tar family, RAR, the read-only family
+> above) wears a **Read-Only** badge in the status bar that explains why — and
+> conversion to ZIP/7z is one right-click away.
 
 ## 🔏 Signing, in plain terms
 
@@ -163,8 +189,12 @@ that. The full cryptographic design and threat model live in
 ## 🛡 Your data stays yours
 <a id="safety-model"></a>
 
-- **Nothing is uploaded.** No accounts, no analytics, no network calls except
-  the optional "check for updates".
+- **Nothing is uploaded.** No accounts, no analytics, and the archive workflows
+  never touch the network. The only network activity is what you explicitly ask
+  for: the optional update check (Sparkle), GPG key-server search / publish from
+  the key-server section (performed by GnuPG's own `dirmngr`, and publishing a
+  key always confirms first), and the optional RAR backend installer you run
+  yourself.
 - **Nothing is silently overwritten.** Extracting, pasting, dropping, or creating
   an archive over an existing name all use the same conflict dialog — replace,
   keep both, merge (Finder-style) or replace the whole folder (tar-style), skip,
@@ -179,7 +209,13 @@ that. The full cryptographic design and threat model live in
 - **Temporary extractions live in a per-session encrypted scratch volume** and are
   cleaned up the moment you close the archive.
 - **Saved passwords live in the macOS Keychain**, and revealing one in the open
-  requires Touch ID / your login password. SimpleZip never stores GPG passphrases.
+  requires Touch ID / your login password. Session-remembered archive passwords
+  are memory-only and vanish when the app quits. SimpleZip never stores GPG
+  passphrases.
+- **Rewrites are verified before they land.** An edited archive is integrity-tested
+  on its work copy *before* the atomic swap; if the original changed externally in
+  the meantime, the write stops and your finished work copy is preserved in a
+  visible Recovery area.
 
 > The full threat model, the `.siz` / `.szs` cryptographic design, the encrypted
 > scratch volume, and the Sparkle update-signature scheme are documented in
