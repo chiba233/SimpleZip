@@ -32,18 +32,20 @@ enum DiagnosticsCopier {
     }
 
     /// 0.4.2 #22：导出**单个任务**的诊断包为 `.txt` —— 等价命令行已在输出里、密码已脱敏，
-    /// 外加后端版本与文件系统现场。返回写入的 URL；用户取消 → nil。
-    @discardableResult
-    static func exportReport(session: ArchiveOperationDetailsSession, errorMessage: String?) async -> URL? {
-        let inputs = await makeInputs(session: session, errorMessage: errorMessage)
-        let report = OperationDiagnosticsReporter.makeReport(from: inputs)
-        return await MainActor.run { () -> URL? in
-            let panel = NSSavePanel()
-            panel.nameFieldStringValue = "SimpleZip-task-diagnostics.txt"
-            panel.allowedContentTypes = [.plainText]
-            guard panel.runModal() == .OK, let url = panel.url else { return nil }
+    /// 外加后端版本与文件系统现场。
+    /// **同步弹面板 → 异步收集写入**。绝不能反过来在 `MainActor.run`/Task 上下文里跑 `runModal()`：
+    /// 模态事件循环会占住主 actor 执行器,所有要 hop 回 MainActor 的工作(含面板回调)排队 →
+    /// 整个 app 冻结、点哪都没反应(用户报的卡死)。
+    @MainActor
+    static func exportReport(session: ArchiveOperationDetailsSession, errorMessage: String?) {
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "SimpleZip-task-diagnostics.txt"
+        panel.allowedContentTypes = [.plainText]
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        Task {
+            let inputs = await makeInputs(session: session, errorMessage: errorMessage)
+            let report = OperationDiagnosticsReporter.makeReport(from: inputs)
             try? report.data(using: .utf8)?.write(to: url, options: .atomic)
-            return url
         }
     }
 
@@ -83,16 +85,16 @@ enum DiagnosticsCopier {
     }
 
     /// 导出通用诊断报告为 `.txt`（NSSavePanel）。返回写入的 URL；用户取消 → nil。
-    @discardableResult
-    static func exportGeneralReport() async -> URL? {
-        let report = await makeGeneralReport()
-        return await MainActor.run { () -> URL? in
-            let panel = NSSavePanel()
-            panel.nameFieldStringValue = "SimpleZip-diagnostics.txt"
-            panel.allowedContentTypes = [.plainText]
-            guard panel.runModal() == .OK, let url = panel.url else { return nil }
+    /// 同上：先同步弹面板,再异步收集写入(MainActor.run + runModal = 主 actor 死锁)。
+    @MainActor
+    static func exportGeneralReport() {
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "SimpleZip-diagnostics.txt"
+        panel.allowedContentTypes = [.plainText]
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        Task {
+            let report = await makeGeneralReport()
             try? report.data(using: .utf8)?.write(to: url, options: .atomic)
-            return url
         }
     }
 

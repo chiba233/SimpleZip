@@ -93,7 +93,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.addButton(withTitle: L10n.text("button.ok"))
         alert.addButton(withTitle: L10n.text("recovery.exportDiagnostics"))
         if alert.runModal() == .alertSecondButtonReturn {
-            Task { await DiagnosticsCopier.exportGeneralReport() }
+            DiagnosticsCopier.exportGeneralReport()
         }
     }
 

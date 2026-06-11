@@ -864,6 +864,10 @@ enum AppPreferences {
     ///    （比如 AppleLanguages 这种全局系统 key）。
     /// 添加新 settings key 时，记得来这里登记一下 + 同步更新 release-checklist.md。
     nonisolated static let exportableUserDefaultsKeys: [String] = [
+        // 活动中心(0.4.2)
+        Key.activityHistoryLimit,
+        Key.tasksOpenOnFailure,
+        Key.tasksPlaySoundOnFinish,
         Key.appLanguage,
         Key.startupLocation,
         Key.startupCustomLocationPath,
@@ -959,6 +963,10 @@ enum AppPreferences {
     /// （`startupCustomLocationPath` 是可选路径，未设置时不落键 —— 该 key 不参与那条覆盖断言。）
     nonisolated static func exportableSnapshot() -> [String: Any] {
         var v: [String: Any] = [:]
+        // 活动中心(0.4.2)
+        v[Key.activityHistoryLimit] = activityHistoryLimit
+        v[Key.tasksOpenOnFailure] = tasksOpenOnFailure
+        v[Key.tasksPlaySoundOnFinish] = tasksPlaySoundOnFinish
         // 启动 / 语言
         v[Key.appLanguage] = appLanguage.rawValue
         v[Key.startupLocation] = startupLocation.rawValue

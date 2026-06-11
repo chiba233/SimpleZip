@@ -202,7 +202,7 @@ struct ActivityView: View {
                     description: L10n.text("tasks.settings.openOnFailure.description"),
                     systemImage: "exclamationmark.bubble"
                 ) {
-                    Toggle("", isOn: openOnFailureBinding)
+                    Toggle("", isOn: $openOnFailure)
                         .labelsHidden()
                         .toggleStyle(.switch)
                 }
@@ -212,7 +212,7 @@ struct ActivityView: View {
                     description: L10n.text("tasks.settings.playSound.description"),
                     systemImage: "speaker.wave.2"
                 ) {
-                    Toggle("", isOn: playSoundBinding)
+                    Toggle("", isOn: $playSound)
                         .labelsHidden()
                         .toggleStyle(.switch)
                 }
@@ -240,20 +240,10 @@ struct ActivityView: View {
         windowState.selectedPane
     }
 
-    // 0.4.2 活动中心设置:两个行为开关(UserDefaults 直绑,TaskCenter.finish 消费)。
-    private var openOnFailureBinding: Binding<Bool> {
-        Binding(
-            get: { UserDefaults.standard.bool(forKey: AppPreferences.Key.tasksOpenOnFailure) },
-            set: { UserDefaults.standard.set($0, forKey: AppPreferences.Key.tasksOpenOnFailure) }
-        )
-    }
-
-    private var playSoundBinding: Binding<Bool> {
-        Binding(
-            get: { UserDefaults.standard.bool(forKey: AppPreferences.Key.tasksPlaySoundOnFinish) },
-            set: { UserDefaults.standard.set($0, forKey: AppPreferences.Key.tasksPlaySoundOnFinish) }
-        )
-    }
+    // 0.4.2 活动中心设置开关 —— @AppStorage(自定义 Binding 在被长持有的活动中心视图树里
+    // 会读到陈旧快照,用户报「重开窗口开关复位」;@AppStorage 响应式且与 UserDefaults 双向同步)。
+    @AppStorage(AppPreferences.Key.tasksOpenOnFailure) private var openOnFailure = false
+    @AppStorage(AppPreferences.Key.tasksPlaySoundOnFinish) private var playSound = false
 }
 
 enum ActivityPane: CaseIterable, Identifiable, Hashable {

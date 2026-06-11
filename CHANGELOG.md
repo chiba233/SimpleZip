@@ -4,6 +4,8 @@
 
 ## 0.4.2 (unreleased)
 
+- **Fix: two Activity Center bugs.** ① Exporting a diagnostics report froze the whole app — the save panel's modal loop ran inside a main-actor task, blocking every callback including the panel's own; the panel now opens synchronously first and the report is gathered and written afterwards (the general diagnostics export from the unclean-exit alert had the same bug). ② The new settings toggles (open-on-failure, finish sound) reverted visually after reopening the window — they now bind through @AppStorage; both switches plus the history limit also join the preferences backup/restore set.
+
 - **UI: the idle-scrollbar sweep reaches every remaining dialog.** Convert Format, Release Check, Batch Rename, Permissions & Owner, Create Signed Manifest, Encrypt as GPG, the path security report, the RAR install guide, benchmark results, and both transfer/hash summary sheets now hug their content — across the whole app, a dialog scrollbar only ever appears when content genuinely overflows.
 
 - **UI: the About wordmark is now glass *glyphs*, and the page always fits.** Per feedback, the Liquid Glass effect is masked to the letterforms themselves (like the system activation greeting) — tinted with your accent color — instead of a glass capsule behind white text; older systems keep the gradient wordmark. The About pane drops its scroll container entirely and compacts to guarantee a single page at the settings window's minimum height. The welcome assistant's inner pages also got the repaint: every step now has a colored icon tile and card-backed controls matching the rest of the app.
