@@ -41,6 +41,10 @@ struct GPGPane: View {
     @State private var isLoadingKeys = false
     @State private var keyOperationMessage: String?
     @State private var isImportingFromSmartcard = false
+    /// 钥匙串搜索过滤(姓名 / 邮箱 / 指纹,大 keyring 必备)。空 = 不过滤。
+    @State private var keyFilterText = ""
+    /// 拖进面板待导入的密钥文件 —— 非空时弹「导入到哪个钥匙串」确认对话框(别静默污染 ~/.gnupg)。
+    @State private var pendingDroppedKeyURLs: [URL] = []
 
     @State private var cardStatus: GPGBackend.GPGCardStatus?
     @State private var isDetectingCard = false
@@ -74,6 +78,27 @@ struct GPGPane: View {
         }
         .formStyle(.grouped)
         .controlSize(.small)
+        // 拖 .asc/.gpg 公钥文件到面板任意位置 = 导入(GPG Keychain 同款交互)。落点钥匙串弹对话框让用户选。
+        .dropDestination(for: URL.self) { urls, _ in
+            receiveDroppedKeyFiles(urls)
+        }
+        .confirmationDialog(
+            L10n.format("settings.gpg.keys.dropTitle", pendingDroppedKeyURLs.count),
+            isPresented: Binding(
+                get: { !pendingDroppedKeyURLs.isEmpty },
+                set: { if !$0 { pendingDroppedKeyURLs = [] } }
+            )
+        ) {
+            Button(L10n.text("settings.gpg.keys.importUserButton")) {
+                importDroppedKeys(into: .userKeyring)
+            }
+            Button(L10n.text("settings.gpg.keys.importSimpleZipButton")) {
+                importDroppedKeys(into: .simpleZipKeyring)
+            }
+            Button(L10n.text("button.cancel"), role: .cancel) {
+                pendingDroppedKeyURLs = []
+            }
+        }
         .onAppear {
             refreshStatus()
             if gpgEnabled && gpgAvailable {
@@ -260,6 +285,13 @@ struct GPGPane: View {
                 cardStatusRow
             }
 
+            // 搜索过滤 —— 姓名 / 邮箱 / 指纹(含子密钥指纹)都能搜,keyring 一多没有它没法用。
+            if !keys.isEmpty {
+                TextField(L10n.text("settings.gpg.keys.filter.prompt"), text: $keyFilterText)
+                    .textFieldStyle(.roundedBorder)
+                    .controlSize(.small)
+            }
+
             if isLoadingKeys {
                 HStack {
                     ProgressView().controlSize(.small)
@@ -269,6 +301,11 @@ struct GPGPane: View {
                 }
             } else if keys.isEmpty {
                 Text(L10n.text("settings.gpg.keys.empty"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else if displayedKeys.isEmpty {
+                Text(L10n.format("settings.gpg.keys.filter.noMatch", keyFilterText))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -287,6 +324,16 @@ struct GPGPane: View {
                 Button(L10n.text("settings.gpg.keys.importSimpleZipButton")) {
                     importKey(into: .simpleZipKeyring)
                 }
+                // 剪贴板导入 —— 收到别人贴来的 armored 公钥块时不必先存盘(GPG Keychain 同款便利)。
+                Menu(L10n.text("settings.gpg.keys.clipboardMenu")) {
+                    Button(L10n.text("settings.gpg.keys.clipboardImportUser")) {
+                        importFromClipboard(into: .userKeyring)
+                    }
+                    Button(L10n.text("settings.gpg.keys.clipboardImportSimpleZip")) {
+                        importFromClipboard(into: .simpleZipKeyring)
+                    }
+                }
+                .fixedSize()
                 if gpgSmartcardEnabled {
                     Button(L10n.text("settings.gpg.smartcard.importButton")) {
                         importFromSmartcard()
@@ -434,16 +481,16 @@ struct GPGPane: View {
         // - 我的密钥（SimpleZip 私有）：simpleZip + secret —— 用户在 SimpleZip 私有 homedir 里新建 / 导入私钥的目标组
         // - 他人公钥（GPG keyring）：user + 无 secret （智能卡 toggle 关时 user stub 也算）
         // - 他人公钥（仅 SimpleZip）：simpleZip + 无 secret
-        let myLocalUserKeys = keys.filter { $0.hasSecretKey && !$0.isSecretKeyStub && $0.source == .userKeyring }
-        let mySmartcardKeys = keys.filter { $0.hasSecretKey && $0.isSecretKeyStub && $0.source == .userKeyring }
-        let mySimpleZipKeys = keys.filter { $0.hasSecretKey && $0.source == .simpleZipKeyring }
-        let publicGPGKeys = keys.filter { key in
+        let myLocalUserKeys = displayedKeys.filter { $0.hasSecretKey && !$0.isSecretKeyStub && $0.source == .userKeyring }
+        let mySmartcardKeys = displayedKeys.filter { $0.hasSecretKey && $0.isSecretKeyStub && $0.source == .userKeyring }
+        let mySimpleZipKeys = displayedKeys.filter { $0.hasSecretKey && $0.source == .simpleZipKeyring }
+        let publicGPGKeys = displayedKeys.filter { key in
             guard key.source == .userKeyring else { return false }
             if !key.hasSecretKey { return true }
             if !gpgSmartcardEnabled && key.isSecretKeyStub { return true }
             return false
         }
-        let publicSZKeys = keys.filter { key in
+        let publicSZKeys = displayedKeys.filter { key in
             guard key.source == .simpleZipKeyring else { return false }
             return !key.hasSecretKey
         }
@@ -509,6 +556,9 @@ struct GPGPane: View {
                             NSPasteboard.general.clearContents()
                             NSPasteboard.general.setString(key.fingerprint, forType: .string)
                             keyOperationMessage = L10n.text("settings.gpg.keys.fingerprintCopied")
+                        },
+                        onCopyPublicKey: {
+                            copyPublicKeyToClipboard(for: key)
                         },
                         onExportPublicKey: {
                             exportPublicKey(for: key)
@@ -644,6 +694,105 @@ struct GPGPane: View {
     }
 
     // MARK: - 钥匙串操作
+
+    /// 过滤后的密钥列表 —— 姓名 / 邮箱(userID)按本地化大小写不敏感匹配;指纹(主密钥 + 子密钥)
+    /// 忽略空格按 hex 子串匹配,贴一段格式化过的 `2A2A 2A2A …` 也能搜到。
+    private var displayedKeys: [GPGBackend.GPGKey] {
+        let query = keyFilterText.trimmingCharacters(in: .whitespaces)
+        guard !query.isEmpty else { return keys }
+        let hexQuery = query.uppercased().replacingOccurrences(of: " ", with: "")
+        return keys.filter { key in
+            if key.userID.localizedCaseInsensitiveContains(query) { return true }
+            if !hexQuery.isEmpty, key.fingerprint.uppercased().contains(hexQuery) { return true }
+            if !hexQuery.isEmpty, key.subkeys.contains(where: { $0.fingerprint.uppercased().contains(hexQuery) }) { return true }
+            return false
+        }
+    }
+
+    /// 拖入文件:按扩展名挑出像密钥的(.asc/.gpg/.pgp/.key/.pub),进确认对话框选目标钥匙串。
+    private func receiveDroppedKeyFiles(_ urls: [URL]) -> Bool {
+        guard gpgEnabled, gpgAvailable else { return false }
+        let keyExtensions: Set<String> = ["asc", "gpg", "pgp", "key", "pub"]
+        let keyFiles = urls.filter { keyExtensions.contains($0.pathExtension.lowercased()) }
+        guard !keyFiles.isEmpty else { return false }
+        pendingDroppedKeyURLs = keyFiles
+        return true
+    }
+
+    /// 把确认对话框选定的拖入文件逐个导入。逐文件容错 —— 一个坏文件不拖垮整批,失败的逐个点名。
+    private func importDroppedKeys(into ring: GPGBackend.GPGKeyringSource) {
+        let urls = pendingDroppedKeyURLs
+        pendingDroppedKeyURLs = []
+        keyOperationMessage = nil
+        Task {
+            var failures: [String] = []
+            for url in urls {
+                do {
+                    _ = try await GPGBackend.importKey(from: url, into: ring)
+                } catch {
+                    failures.append(url.lastPathComponent)
+                }
+            }
+            let refreshed = try? await GPGBackend.listKeys()
+            await MainActor.run {
+                keys = refreshed ?? keys
+                keyOperationMessage = failures.isEmpty
+                    ? (ring == .simpleZipKeyring
+                        ? L10n.text("settings.gpg.keys.importSimpleZipSucceeded")
+                        : L10n.text("settings.gpg.keys.importSucceeded"))
+                    : L10n.format("settings.gpg.keys.importFailed", failures.joined(separator: ", "))
+            }
+        }
+    }
+
+    /// 从剪贴板导入 armored 密钥块 —— 写进临时文件走现有 importKey,用完即删(A7)。
+    private func importFromClipboard(into ring: GPGBackend.GPGKeyringSource) {
+        guard let text = NSPasteboard.general.string(forType: .string),
+              text.contains("-----BEGIN PGP") else {
+            keyOperationMessage = L10n.text("settings.gpg.keys.clipboardNoKey")
+            return
+        }
+        keyOperationMessage = nil
+        let temp = FileManager.default.temporaryDirectory
+            .appendingPathComponent("SimpleZip-ClipboardKey-\(UUID().uuidString).asc")
+        Task {
+            defer { try? FileManager.default.removeItem(at: temp) }
+            do {
+                try text.write(to: temp, atomically: true, encoding: .utf8)
+                _ = try await GPGBackend.importKey(from: temp, into: ring)
+                let refreshed = try? await GPGBackend.listKeys()
+                await MainActor.run {
+                    keys = refreshed ?? keys
+                    keyOperationMessage = ring == .simpleZipKeyring
+                        ? L10n.text("settings.gpg.keys.importSimpleZipSucceeded")
+                        : L10n.text("settings.gpg.keys.importSucceeded")
+                }
+            } catch {
+                await MainActor.run {
+                    keyOperationMessage = L10n.format("settings.gpg.keys.importFailed", error.localizedDescription)
+                }
+            }
+        }
+    }
+
+    /// 复制公钥 armor 到剪贴板 —— 发公钥给别人最常见的动作,不必经存盘。
+    private func copyPublicKeyToClipboard(for key: GPGBackend.GPGKey) {
+        keyOperationMessage = nil
+        Task {
+            do {
+                let armor = try await GPGBackend.exportPublicKey(fingerprint: key.fingerprint, source: key.source)
+                await MainActor.run {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(armor, forType: .string)
+                    keyOperationMessage = L10n.text("settings.gpg.keys.publicKeyCopied")
+                }
+            } catch {
+                await MainActor.run {
+                    keyOperationMessage = L10n.format("settings.gpg.keys.exportFailed", error.localizedDescription)
+                }
+            }
+        }
+    }
 
     private func refreshKeys() {
         guard GPGBackend.isAvailable() else { return }

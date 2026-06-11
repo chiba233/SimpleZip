@@ -36,6 +36,7 @@ struct GPGKeyRow: View {
     let onTrustChange: (GPGBackend.GPGTrustLevel) -> Void
     let onSetDefaultSigning: () -> Void
     let onCopyFingerprint: () -> Void
+    let onCopyPublicKey: () -> Void
     let onExportPublicKey: () -> Void
     let onExportPrivateKey: () -> Void
     let onChangePassphrase: () -> Void
@@ -122,6 +123,9 @@ struct GPGKeyRow: View {
     private var menuItems: some View {
         Button(L10n.text("settings.gpg.keys.contextCopyFingerprint")) {
             onCopyFingerprint()
+        }
+        Button(L10n.text("settings.gpg.keys.contextCopyPublicKey")) {
+            onCopyPublicKey()
         }
         Button(L10n.text("settings.gpg.keys.contextExportPublicKey")) {
             onExportPublicKey()

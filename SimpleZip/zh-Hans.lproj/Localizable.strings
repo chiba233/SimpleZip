@@ -175,6 +175,15 @@
 "settings.gpg.keys.stripped" = "主密钥私钥已从本机移除；subkey 视情况仍可用。";
 "settings.gpg.keys.fingerprintCopied" = "已复制公钥指纹到剪贴板。";
 "settings.gpg.keys.contextCopyFingerprint" = "复制公钥指纹";
+"settings.gpg.keys.contextCopyPublicKey" = "复制公钥";
+"settings.gpg.keys.publicKeyCopied" = "公钥已复制到剪贴板 —— 直接贴给需要验签或给你加密的人。";
+"settings.gpg.keys.filter.prompt" = "搜索密钥：姓名、邮箱或指纹";
+"settings.gpg.keys.filter.noMatch" = "没有匹配「%1$@」的密钥。";
+"settings.gpg.keys.clipboardMenu" = "剪贴板";
+"settings.gpg.keys.clipboardImportUser" = "从剪贴板导入到 ~/.gnupg";
+"settings.gpg.keys.clipboardImportSimpleZip" = "从剪贴板导入到 SimpleZip 私有钥匙串";
+"settings.gpg.keys.clipboardNoKey" = "剪贴板里没有 PGP 密钥块（-----BEGIN PGP …-----）。";
+"settings.gpg.keys.dropTitle" = "把拖入的 %1$@ 个密钥文件导入到哪个钥匙串？";
 "settings.gpg.keys.contextExportPublicKey" = "导出公钥为 .asc…";
 "settings.gpg.keys.exportPanelTitle" = "选择导出位置";
 "settings.gpg.keys.exportSucceeded" = "已导出公钥到 %@";

@@ -175,6 +175,15 @@
 "settings.gpg.keys.stripped" = "Primary secret key has been removed locally; subkeys may still be usable.";
 "settings.gpg.keys.fingerprintCopied" = "Copied public key fingerprint to clipboard.";
 "settings.gpg.keys.contextCopyFingerprint" = "Copy public key fingerprint";
+"settings.gpg.keys.contextCopyPublicKey" = "Copy Public Key";
+"settings.gpg.keys.publicKeyCopied" = "Public key copied to the clipboard — paste it to whoever needs to verify or encrypt for you.";
+"settings.gpg.keys.filter.prompt" = "Search keys: name, email, or fingerprint";
+"settings.gpg.keys.filter.noMatch" = "No keys match “%1$@”.";
+"settings.gpg.keys.clipboardMenu" = "Clipboard";
+"settings.gpg.keys.clipboardImportUser" = "Import from Clipboard to ~/.gnupg";
+"settings.gpg.keys.clipboardImportSimpleZip" = "Import from Clipboard to SimpleZip-private keyring";
+"settings.gpg.keys.clipboardNoKey" = "The clipboard doesn't contain a PGP key block (-----BEGIN PGP …-----).";
+"settings.gpg.keys.dropTitle" = "Import %1$@ dropped key file(s) into which keyring?";
 "settings.gpg.keys.contextExportPublicKey" = "Export public key as .asc…";
 "settings.gpg.keys.exportPanelTitle" = "Choose export destination";
 "settings.gpg.keys.exportSucceeded" = "Exported public key to %@";
