@@ -12,6 +12,9 @@ struct FormatCapabilityMatrixView: View {
     private let rows = FormatCapabilityMatrix.rows
     private let kinds = FormatCapabilityKind.allCases
 
+    /// 0.4.2 #14：点格式名展开「后端 + 为什么能 / 不能」详情卡。nil = 全收起。
+    @State private var expandedFormatID: String?
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Grid(alignment: .center, horizontalSpacing: 8, verticalSpacing: 6) {
@@ -29,12 +32,33 @@ struct FormatCapabilityMatrixView: View {
                 Divider().gridCellColumns(kinds.count + 1)
                 ForEach(rows) { row in
                     GridRow {
-                        Text(row.displayName)
-                            .font(.caption.weight(.medium))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .gridColumnAlignment(.leading)
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.15)) {
+                                expandedFormatID = expandedFormatID == row.id ? nil : row.id
+                            }
+                        } label: {
+                            HStack(spacing: 3) {
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 7, weight: .bold))
+                                    .foregroundStyle(.tertiary)
+                                    .rotationEffect(.degrees(expandedFormatID == row.id ? 90 : 0))
+                                Text(row.displayName)
+                                    .font(.caption.weight(.medium))
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .help(L10n.text("settings.formatMatrix.rowHelp"))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .gridColumnAlignment(.leading)
                         ForEach(kinds) { kind in
                             cell(for: row.state(for: kind))
+                        }
+                    }
+                    if expandedFormatID == row.id {
+                        GridRow {
+                            formatDetailCard(row)
+                                .gridCellColumns(kinds.count + 1)
                         }
                     }
                 }
@@ -45,6 +69,24 @@ struct FormatCapabilityMatrixView: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    /// 展开的格式详情：处理后端 + 能力边界的「为什么」。文案按格式 id 走 L10n（一格式一段）。
+    private func formatDetailCard(_ row: FormatCapabilityRow) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Label(L10n.text("settings.formatMatrix.backend.\(row.id)"), systemImage: "gearshape.2")
+                .font(.caption.weight(.medium))
+            Text(L10n.text("settings.formatMatrix.detail.\(row.id)"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(8)
+        .background(
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(Color(nsColor: .controlBackgroundColor))
+        )
     }
 
     @ViewBuilder

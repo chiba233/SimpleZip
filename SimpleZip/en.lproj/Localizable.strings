@@ -729,6 +729,29 @@
 "fidelity.encryption" = "Password encryption";
 "fidelity.comment" = "Archive comment";
 "fidelity.multiVolume" = "Multi-volume";
+/* 0.4.2 interactive format capability matrix */
+"settings.formatMatrix.rowHelp" = "Click for details";
+"settings.formatMatrix.backend.zip" = "Backend: bundled 7-Zip engine (7zz), with the system unzip as fallback";
+"settings.formatMatrix.detail.zip" = "Full capability: create, extract, edit entries, AES-256 encryption, volumes, and an editable archive comment. File names are never encrypted — the ZIP format has no header encryption.";
+"settings.formatMatrix.backend.7z" = "Backend: bundled 7-Zip engine (7zz)";
+"settings.formatMatrix.detail.7z" = "Strongest compression plus header encryption (hides file names). The 7z format itself has no archive-comment field, which is why the comment column is empty.";
+"settings.formatMatrix.backend.rar" = "Backend: extraction via bundled 7zz; creation needs RARLAB's rar tool (user-installed)";
+"settings.formatMatrix.detail.rar" = "RAR is a proprietary format — 7-Zip only implements reading it. Creating RAR archives requires RARLAB's licensed command-line tool; install it yourself and the option appears automatically.";
+"settings.formatMatrix.backend.tar" = "Backend: system tar + bundled 7zz";
+"settings.formatMatrix.detail.tar" = "tar packs without compressing and preserves Unix permissions and symlinks faithfully. The format has no encryption field — wrap it (e.g. encrypt to .gpg) or use 7z/ZIP if you need a password.";
+"settings.formatMatrix.backend.tgz" = "Backend: system tar + gzip";
+"settings.formatMatrix.detail.tgz" = "A gzip-compressed tar: same faithful Unix semantics as tar, still no encryption field in the format.";
+"settings.formatMatrix.backend.dmg" = "Backend: system hdiutil";
+"settings.formatMatrix.detail.dmg" = "Apple disk image. Browsing mounts it read-only (untrusted images mount with ownership disabled). SimpleZip doesn't create encrypted DMGs, volumes, or comments.";
+"settings.formatMatrix.backend.xip" = "Backend: Apple's system xip tool (extraction) + 7zz (browsing the xar container)";
+"settings.formatMatrix.detail.xip" = "Apple-signed archive (Xcode distribution). Extraction goes through Apple's own tool, which verifies the signature. Creating XIPs requires an Apple signing certificate, so it isn't offered.";
+"settings.formatMatrix.backend.gpg" = "Backend: GnuPG (user-installed)";
+"settings.formatMatrix.detail.gpg" = "OpenPGP encrypted container: encrypting is \"creating\", decrypting is \"opening\". It wraps a single stream — there is no entry structure to edit, split, or comment.";
+"settings.formatMatrix.backend.siz" = "Backend: SimpleZip (tar shell) + GnuPG";
+"settings.formatMatrix.detail.siz" = "SimpleZip's signed container: an inner archive plus a detached signature and metadata, optionally encrypted to recipients. Editing would break the signature, so entries are read-only; Test means signature verification.";
+"settings.formatMatrix.backend.szs" = "Backend: SimpleZip + GnuPG";
+"settings.formatMatrix.detail.szs" = "A signed manifest (clearsigned JSON) that signs a folder's files in place. It isn't an archive — there is nothing to extract; opening verifies the signature and browses virtually.";
+
 
 
 

@@ -727,6 +727,29 @@
 "fidelity.encryption" = "密码加密";
 "fidelity.comment" = "归档注释";
 "fidelity.multiVolume" = "分卷";
+/* 0.4.2 可交互格式能力表 */
+"settings.formatMatrix.rowHelp" = "点按查看详情";
+"settings.formatMatrix.backend.zip" = "后端：自带 7-Zip 引擎（7zz），系统 unzip 兜底";
+"settings.formatMatrix.detail.zip" = "全能力：创建、解压、编辑条目、AES-256 加密、分卷、可编辑的归档注释。文件名永远不加密——ZIP 格式没有头部加密。";
+"settings.formatMatrix.backend.7z" = "后端：自带 7-Zip 引擎（7zz）";
+"settings.formatMatrix.detail.7z" = "压缩最强，且支持头部加密（隐藏文件名）。7z 格式本身没有归档注释字段，所以注释列是空的。";
+"settings.formatMatrix.backend.rar" = "后端：解压走自带 7zz；创建需要 RARLAB 的 rar 工具（用户自装）";
+"settings.formatMatrix.detail.rar" = "RAR 是专有格式——7-Zip 只实现了读取。创建 RAR 必须用 RARLAB 的授权命令行工具；自行安装后选项会自动出现。";
+"settings.formatMatrix.backend.tar" = "后端：系统 tar + 自带 7zz";
+"settings.formatMatrix.detail.tar" = "tar 只打包不压缩，忠实保留 Unix 权限和符号链接。格式没有加密字段——需要密码请外面再套一层（如加密为 .gpg）或改用 7z/ZIP。";
+"settings.formatMatrix.backend.tgz" = "后端：系统 tar + gzip";
+"settings.formatMatrix.detail.tgz" = "gzip 压缩的 tar：跟 tar 一样忠实的 Unix 语义，格式同样没有加密字段。";
+"settings.formatMatrix.backend.dmg" = "后端：系统 hdiutil";
+"settings.formatMatrix.detail.dmg" = "Apple 磁盘镜像。浏览时只读挂载（不可信镜像关闭属主语义）。SimpleZip 不创建加密 DMG，也不支持分卷和注释。";
+"settings.formatMatrix.backend.xip" = "后端：Apple 系统 xip 工具（解压）+ 7zz（浏览 xar 容器）";
+"settings.formatMatrix.detail.xip" = "Apple 签名归档（Xcode 分发用）。解压由 Apple 自己的工具执行并校验签名。创建 XIP 需要 Apple 签名证书，所以不提供。";
+"settings.formatMatrix.backend.gpg" = "后端：GnuPG（用户自装）";
+"settings.formatMatrix.detail.gpg" = "OpenPGP 加密容器：加密即「创建」，解密即「打开」。它包装的是单一数据流——没有条目结构，无所谓编辑、分卷或注释。";
+"settings.formatMatrix.backend.siz" = "后端：SimpleZip（tar 壳）+ GnuPG";
+"settings.formatMatrix.detail.siz" = "SimpleZip 的签名容器：内层归档 + 分离签名 + 元数据，可选对收件人加密。编辑会破坏签名，所以条目只读；「测试」即验签。";
+"settings.formatMatrix.backend.szs" = "后端：SimpleZip + GnuPG";
+"settings.formatMatrix.detail.szs" = "签名清单（clearsigned JSON），给文件夹里的文件原位签名。它不是压缩包——没有「解压」可言；打开即验签并以虚拟目录浏览。";
+
 
 
 

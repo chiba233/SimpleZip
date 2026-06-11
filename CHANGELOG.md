@@ -4,6 +4,8 @@
 
 ## 0.4.2 (unreleased)
 
+- **New: the format capability table is interactive.** In Settings → Compression, click any format row to expand a detail card: which backend handles it (bundled 7zz, system tar/hdiutil/xip, GnuPG, RARLAB's rar) and a plain-language explanation of its boundaries — why RAR creation needs the user-installed rar tool, why XIP can't be created without an Apple certificate, why 7z has no comment column, why TAR can't take a password.
+
 - **New: conversion fidelity report.** The Convert Format dialog now shows a "What Survives the Conversion" panel for the chosen target format — whether Unix permissions, symbolic links, modification dates, password encryption, archive comments, and multi-volume support carry over — updating live as you switch formats. RAR → ZIP and TAR → 7z are not semantically equal, and now the dialog says exactly what gets dropped before you commit.
 
 - **New: batch rename inside archives.** Select several files in an editable ZIP/7z → right-click → **Batch Rename…**: replace text, add a prefix or suffix (inserted before the extension), upper/lowercase, or sequential numbering — with a live preview of every old → new name. Collisions (with each other or with untouched entries) and invalid names show in red and are skipped. The whole batch runs as a single 7-Zip rename on a working copy that atomically replaces the archive, so a failure can never leave it half-renamed.
