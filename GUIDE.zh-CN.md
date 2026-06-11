@@ -125,6 +125,7 @@ brew install ykman
 | `.gz` / `.bz2` / `.xz`           | 支持       | 支持 | 支持   | 单文件压缩流                                                          |
 | `.tgz` / `.tar.gz`               | 支持       | 支持 | 支持   | 创建走 `/usr/bin/tar`                                              |
 | `.dmg`                           | 支持       | 支持 | 支持   | 通过 macOS `hdiutil` 创建和只读挂载                                      |
+| `.xip`                           | 支持       | 支持 | 暂不支持 | Apple 签名归档（Xcode 等）；浏览走 7-Zip，解压走系统 `xip`（校验 Apple 签名）          |
 | `.siz`                           | 支持       | 支持 | 支持   | SimpleZip 独家：GPG 签名单文件容器（tar 壳）；v3 起支持多收件人 + 对称口令加密             |
 | `.szs`                           | 支持（虚拟目录） | —  | 支持   | SimpleZip 独家：GPG 签名清单（clearsign 的 JSON，记录每个文件的 SHA256） —— 不是压缩包 |
 | `.001`、`.z01`、`.r00`、`partN.rar` | 支持       | 支持 | 暂不支持 | 自动归一化到首卷                                                        |
