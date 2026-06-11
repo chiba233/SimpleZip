@@ -81,7 +81,13 @@ struct RarInstallDocumentView: View {
                     .stroke(.quaternary)
             }
 
-            Toggle(checkboxTitle, isOn: $isRead)
+            // 复选框不靠左:文字在前,checkbox 跟在右侧。
+            HStack(spacing: 8) {
+                Text(checkboxTitle)
+                Toggle("", isOn: $isRead)
+                    .labelsHidden()
+                    .toggleStyle(.checkbox)
+            }
         }
     }
 }
@@ -134,9 +140,13 @@ struct RarInstallReviewSheet: View {
 
             HStack {
                 Spacer()
-                Button(L10n.text("button.cancel"), action: onCancel)
-                Button(review.action.confirmButtonTitle) {
+                Button(action: onCancel) {
+                    Label(L10n.text("button.cancel"), systemImage: "xmark")
+                }
+                Button {
                     onConfirm(review.action)
+                } label: {
+                    Label(review.action.confirmButtonTitle, systemImage: "square.and.arrow.down")
                 }
                 .buttonStyle(.borderedProminent)
                 // 用户必须双勾才能确认 —— 协议没读就装下去会带来许可纠纷。

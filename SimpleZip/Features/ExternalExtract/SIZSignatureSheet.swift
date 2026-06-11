@@ -109,11 +109,11 @@ struct SIZSignatureSheet: View {
             HeightCappedScrollView(maxHeight: 520) {
                 VStack(alignment: .leading, spacing: 18) {
                     DialogSection {
-                        detailRow(L10n.text("siz.signatureSheet.signer"), signature.signerDisplay)
-                        detailRow(L10n.text("siz.signatureSheet.keyFingerprint"), signature.signerFingerprint, monospaced: true)
-                        detailRow(L10n.text("siz.signatureSheet.signedAt"), signature.signedAt)
-                        detailRow(L10n.text("siz.signatureSheet.source"), signature.sourceURL.path, monospaced: true)
-                        detailRow(L10n.text("siz.signatureSheet.formatVersion"), ".\(SIZArchive.extensionName) v\(signature.schemaVersion)")
+                        detailRow(L10n.text("siz.signatureSheet.signer"), signature.signerDisplay, systemImage: "person.fill", tint: .green)
+                        detailRow(L10n.text("siz.signatureSheet.keyFingerprint"), signature.signerFingerprint, systemImage: "touchid", tint: .indigo, monospaced: true)
+                        detailRow(L10n.text("siz.signatureSheet.signedAt"), signature.signedAt, systemImage: "clock.fill", tint: .purple)
+                        detailRow(L10n.text("siz.signatureSheet.source"), signature.sourceURL.path, systemImage: "doc.fill", tint: .cyan, monospaced: true)
+                        detailRow(L10n.text("siz.signatureSheet.formatVersion"), ".\(SIZArchive.extensionName) v\(signature.schemaVersion)", systemImage: "shippingbox.fill", tint: .brown)
                         if let instructions = signature.deliveryInstructions, !instructions.isEmpty {
                             instructionsRow(instructions)
                         }
@@ -217,11 +217,8 @@ struct SIZSignatureSheet: View {
     private var decryptionControls: some View {
         VStack(alignment: .leading, spacing: 8) {
             if showsDecryptionKeyPicker {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(L10n.text("extract.gpgDecryptionKey.label"))
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 80, alignment: .trailing)
+                HStack(alignment: .center, spacing: 8) {
+                    DialogRowLabel(L10n.text("extract.gpgDecryptionKey.label"), systemImage: "person.badge.key.fill", tint: .green, width: Self.labelColumnWidth)
                     GPGSecretKeyMenu(
                         selection: $selectedDecryptionKey,
                         secretKeys: availableSecretKeys,
@@ -233,21 +230,19 @@ struct SIZSignatureSheet: View {
             }
             if showsDecryptionPassphraseField {
                 VStack(alignment: .leading, spacing: 2) {
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text(L10n.text("extract.gpgDecryptionPassphrase.label"))
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(.secondary)
-                            .frame(width: 80, alignment: .trailing)
+                    HStack(alignment: .center, spacing: 8) {
+                        DialogRowLabel(L10n.text("extract.gpgDecryptionPassphrase.label"), systemImage: "lock.rectangle.fill", tint: .orange, width: Self.labelColumnWidth)
                         SecureField(
                             L10n.text("extract.gpgDecryptionPassphrase.placeholder"),
                             text: $decryptionPassphrase
                         )
                         .textFieldStyle(.roundedBorder)
+                        .dialogFieldEmphasis()
                     }
                     Text(L10n.text("extract.gpgDecryptionPassphrase.hint"))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
-                        .padding(.leading, 96)
+                        .padding(.leading, Self.labelColumnWidth + 8)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -393,12 +388,9 @@ struct SIZSignatureSheet: View {
     }
 
     @ViewBuilder
-    private func detailRow(_ label: String, _ value: String, monospaced: Bool = false) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Text(label)
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.secondary)
-                .frame(width: 88, alignment: .trailing)
+    private func detailRow(_ label: String, _ value: String, systemImage: String, tint: Color, monospaced: Bool = false) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            DialogRowLabel(label, systemImage: systemImage, tint: tint, width: Self.labelColumnWidth)
             Text(value)
                 .font(monospaced ? .system(.caption, design: .monospaced) : .callout)
                 .foregroundStyle(.primary)
@@ -408,6 +400,9 @@ struct SIZSignatureSheet: View {
             Spacer(minLength: 0)
         }
     }
+
+    /// 标签列定宽(en 最长 "Decryption passphrase" + 22pt 瓦片也放得下)。
+    static let labelColumnWidth: CGFloat = 185
 }
 
 /// 量「收件人说明」正文真实高度的 PreferenceKey —— 给「自适应高度,到上限才滚动」用。

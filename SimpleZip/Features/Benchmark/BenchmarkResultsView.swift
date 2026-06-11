@@ -33,7 +33,7 @@ struct BenchmarkOptionsView: View {
             DialogSection {
                 Stepper(value: $request.options.dictionarySizeMB, in: 1...256) {
                     HStack {
-                        Text(L10n.text("benchmark.dictionarySize"))
+                        DialogRowLabel(L10n.text("benchmark.dictionarySize"), systemImage: "memorychip.fill", tint: .indigo)
                         Spacer()
                         Text("\(request.options.dictionarySizeMB) MB")
                             .monospacedDigit()
@@ -43,7 +43,7 @@ struct BenchmarkOptionsView: View {
 
                 Stepper(value: $request.options.threadCount, in: 0...maxThreadCount) {
                     HStack {
-                        Text(L10n.text("benchmark.threads"))
+                        DialogRowLabel(L10n.text("benchmark.threads"), systemImage: "square.stack.3d.forward.dottedline.fill", tint: .purple)
                         Spacer()
                         Text(request.options.threadCount == 0 ? L10n.text("archive.7z.threads.auto") : "\(request.options.threadCount)")
                             .monospacedDigit()
@@ -144,8 +144,13 @@ struct BenchmarkRunView: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button(session.isRunning ? L10n.text("button.cancel") : L10n.text("button.ok")) {
+                Button {
                     close()
+                } label: {
+                    Label(
+                        session.isRunning ? L10n.text("button.cancel") : L10n.text("button.ok"),
+                        systemImage: session.isRunning ? "xmark" : "checkmark"
+                    )
                 }
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)

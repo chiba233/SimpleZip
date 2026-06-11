@@ -41,7 +41,8 @@ struct SZSVerificationSheet: View {
     /// 说明正文最大显示高度；超过就在面板内滚动，避免超长留言把 sheet 撑出屏幕。
     private let maxInstructionsHeight: CGFloat = 280
 
-    private let labelColumnWidth: CGFloat = 96
+    /// 标签列定宽:彩色瓦片(22pt)+文字也放得下 en 最长标签。
+    private let labelColumnWidth: CGFloat = 170
 
     init(
         sourceURL: URL,
@@ -131,12 +132,12 @@ struct SZSVerificationSheet: View {
     private var signerDetailBlock: some View {
         VStack(alignment: .leading, spacing: 4) {
             if let signerLine = extractSignerLine() {
-                infoRow(L10n.text("siz.signatureSheet.signer"), signerLine)
+                infoRow(L10n.text("siz.signatureSheet.signer"), signerLine, systemImage: "person.fill", tint: .green)
             }
             if let fp = extractFingerprint() {
-                infoRow(L10n.text("siz.signatureSheet.keyFingerprint"), fp, monospaced: true)
+                infoRow(L10n.text("siz.signatureSheet.keyFingerprint"), fp, systemImage: "touchid", tint: .indigo, monospaced: true)
             }
-            infoRow(L10n.text("siz.signatureSheet.source"), sourceURL.path, monospaced: true)
+            infoRow(L10n.text("siz.signatureSheet.source"), sourceURL.path, systemImage: "doc.fill", tint: .cyan, monospaced: true)
         }
     }
 
@@ -160,15 +161,15 @@ struct SZSVerificationSheet: View {
         VStack(alignment: .leading, spacing: 4) {
             // 源文件路径已移到 signerDetailBlock，这里不重复。
             if let title = manifest.title, !title.isEmpty {
-                infoRow(L10n.text("szs.verify.manifestTitle"), title)
+                infoRow(L10n.text("szs.verify.manifestTitle"), title, systemImage: "character.cursor.ibeam", tint: .pink)
             }
             if let desc = manifest.description, !desc.isEmpty {
-                infoRow(L10n.text("szs.verify.manifestDescription"), desc)
+                infoRow(L10n.text("szs.verify.manifestDescription"), desc, systemImage: "text.alignleft", tint: .pink)
             }
-            infoRow(L10n.text("szs.verify.manifestCreatedAt"), manifest.createdAt)
-            infoRow(L10n.text("szs.verify.manifestCreatedBy"), manifest.createdBy)
-            infoRow(L10n.text("siz.signatureSheet.formatVersion"), ".\(SZSArchive.extensionName) v\(manifest.version)")
-            infoRow(L10n.text("szs.verify.manifestFileCount"), "\(manifest.files.count)")
+            infoRow(L10n.text("szs.verify.manifestCreatedAt"), manifest.createdAt, systemImage: "clock.fill", tint: .purple)
+            infoRow(L10n.text("szs.verify.manifestCreatedBy"), manifest.createdBy, systemImage: "hammer.fill", tint: .brown)
+            infoRow(L10n.text("siz.signatureSheet.formatVersion"), ".\(SZSArchive.extensionName) v\(manifest.version)", systemImage: "shippingbox.fill", tint: .brown)
+            infoRow(L10n.text("szs.verify.manifestFileCount"), "\(manifest.files.count)", systemImage: "number.square.fill", tint: .teal)
             // #110 收件人说明：作为 manifest 信息块里的一行（标题对齐标签列、展开正文对齐值列），跟其它行一致。
             if let instructions = manifest.instructions, !instructions.isEmpty {
                 instructionsRow(instructions)
@@ -186,11 +187,8 @@ struct SZSVerificationSheet: View {
             Button {
                 showInstructions.toggle()
             } label: {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(L10n.text("siz.instructions.disclosure"))
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.secondary)
-                        .frame(width: labelColumnWidth, alignment: .trailing)
+                HStack(alignment: .center, spacing: 8) {
+                    DialogRowLabel(L10n.text("siz.instructions.disclosure"), systemImage: "text.bubble.fill", tint: .blue, width: labelColumnWidth)
                     Image(systemName: showInstructions ? "chevron.down" : "chevron.right")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
@@ -234,12 +232,9 @@ struct SZSVerificationSheet: View {
     }
 
     @ViewBuilder
-    private func infoRow(_ label: String, _ value: String, monospaced: Bool = false) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(label)
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.secondary)
-                .frame(width: labelColumnWidth, alignment: .trailing)
+    private func infoRow(_ label: String, _ value: String, systemImage: String, tint: Color, monospaced: Bool = false) -> some View {
+        HStack(alignment: .center, spacing: 8) {
+            DialogRowLabel(label, systemImage: systemImage, tint: tint, width: labelColumnWidth)
             Text(value)
                 .font(monospaced ? .system(.caption, design: .monospaced) : .callout)
                 .textSelection(.enabled)
@@ -252,11 +247,8 @@ struct SZSVerificationSheet: View {
     // MARK: - payload 根目录
 
     private var payloadRootBlock: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(L10n.text("szs.verify.payloadRoot"))
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.secondary)
-                .frame(width: labelColumnWidth, alignment: .trailing)
+        HStack(alignment: .center, spacing: 8) {
+            DialogRowLabel(L10n.text("szs.verify.payloadRoot"), systemImage: "folder.fill", tint: .blue, width: labelColumnWidth)
             Text(payloadRoot.path)
                 .font(.system(.caption, design: .monospaced))
                 .lineLimit(1)

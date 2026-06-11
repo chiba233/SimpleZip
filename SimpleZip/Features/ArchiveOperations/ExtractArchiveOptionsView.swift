@@ -222,8 +222,8 @@ struct ExtractArchiveOptionsView: View {
     @ViewBuilder
     private var gpgDecryptionKeyRow: some View {
         // 跟同 Form 里其它行（保存到 / 密码 / 解密方式）保持 body 字号，不专门 .font(.caption)，避免视觉错落。
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Text(L10n.text("extract.gpgDecryptionKey.label"))
+        HStack(alignment: .center, spacing: 6) {
+            DialogRowLabel(L10n.text("extract.gpgDecryptionKey.label"), systemImage: "person.badge.key.fill", tint: .green, width: 180)
             GPGSecretKeyMenu(
                 selection: $request.gpgDecryptionKeyFingerprint,
                 secretKeys: availableSecretKeys,
@@ -239,8 +239,8 @@ struct ExtractArchiveOptionsView: View {
     @ViewBuilder
     private var gpgDecryptionPassphraseRow: some View {
         VStack(alignment: .leading, spacing: 2) {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(L10n.text("extract.gpgDecryptionPassphrase.label"))
+            HStack(alignment: .center, spacing: 6) {
+                DialogRowLabel(L10n.text("extract.gpgDecryptionPassphrase.label"), systemImage: "lock.rectangle.fill", tint: .orange, width: 180)
                 SecureField(L10n.text("extract.gpgDecryptionPassphrase.placeholder"), text: $request.gpgDecryptionPassphrase)
                     .textFieldStyle(.roundedBorder)
                     .dialogFieldEmphasis()
@@ -248,6 +248,7 @@ struct ExtractArchiveOptionsView: View {
             Text(L10n.text("extract.gpgDecryptionPassphrase.hint"))
                 .font(.caption2)
                 .foregroundStyle(.secondary)
+                .padding(.leading, 186)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -261,9 +262,9 @@ private struct SIZSignatureRows: View {
     let signature: SIZSignatureSummary
 
     var body: some View {
-        // Form 内部会按行折行，每个 HStack = 一行。
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Text(L10n.text("siz.signatureSheet.signer"))
+        // Form 内部会按行折行，每个 HStack = 一行。标签 = 彩色瓦片,180pt 对齐其余行(保存到/密码)。
+        HStack(alignment: .center, spacing: 6) {
+            DialogRowLabel(L10n.text("siz.signatureSheet.signer"), systemImage: "person.fill", tint: .green, width: 180)
             Image(systemName: SIZSignatureStatus.iconName(for: signature.verify))
                 .foregroundStyle(SIZSignatureStatus.color(for: signature.verify))
             Text(SIZSignatureStatus.title(for: signature.verify))
@@ -277,15 +278,15 @@ private struct SIZSignatureRows: View {
                 .textSelection(.enabled)
             Spacer()
         }
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Text(L10n.text("siz.signatureSheet.signedAt"))
+        HStack(alignment: .center, spacing: 6) {
+            DialogRowLabel(L10n.text("siz.signatureSheet.signedAt"), systemImage: "clock.fill", tint: .purple, width: 180)
             Text(signature.signedAt)
                 .foregroundStyle(.secondary)
                 .textSelection(.enabled)
             Spacer()
         }
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Text(L10n.text("siz.signatureSheet.keyFingerprint"))
+        HStack(alignment: .center, spacing: 6) {
+            DialogRowLabel(L10n.text("siz.signatureSheet.keyFingerprint"), systemImage: "touchid", tint: .indigo, width: 180)
             Text(signature.signerFingerprint)
                 .font(.system(.body, design: .monospaced))
                 .foregroundStyle(.secondary)
