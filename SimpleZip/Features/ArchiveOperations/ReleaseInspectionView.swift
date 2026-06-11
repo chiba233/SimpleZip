@@ -13,6 +13,8 @@ import SwiftUI
 
 struct ReleaseInspectionView: View {
     let report: ArchiveBrowserModel.ReleaseInspectionReport
+    /// 0.4.3 #11:「导出 SHA256SUMS」—— 在归档旁写 GNU 兼容校验文件(非 SimpleZip 用户可验)。nil = 不显示。
+    var onExportChecksums: (() -> Void)?
     let onClose: () -> Void
 
     var body: some View {
@@ -83,6 +85,11 @@ struct ReleaseInspectionView: View {
                 Button(L10n.text("button.copyAll")) {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(plainTextSummary, forType: .string)
+                }
+                if let onExportChecksums {
+                    Button(L10n.text("checksum.export.button")) {
+                        onExportChecksums()
+                    }
                 }
                 Spacer()
                 Button(L10n.text("button.ok")) { onClose() }

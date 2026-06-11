@@ -1250,7 +1250,10 @@ private struct ArchiveExtrasSheets: ViewModifier {
                 ArchiveSecurityReportView(model: model)
             }
             .sheet(item: $model.releaseInspectionReport) { report in
-                ReleaseInspectionView(report: report) {
+                ReleaseInspectionView(
+                    report: report,
+                    onExportChecksums: { model.exportSHA256SUMS(forArchiveAt: report.archiveURL) }
+                ) {
                     model.releaseInspectionReport = nil
                 }
             }

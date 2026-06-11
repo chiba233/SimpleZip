@@ -537,3 +537,147 @@ extension ArchiveBrowserModel {
         }
     }
 }
+
+// MARK: - 0.4.3 #11 校验文件(SHA256SUMS / .sha256 / .md5 / .sfv)
+
+extension ArchiveBrowserModel {
+
+    /// 右键「生成 SHA256SUMS」:对选中的非目录文件各算 SHA-256,在当前文件夹写一份 GNU 兼容的
+    /// SHA256SUMS(`sha256sum -c` 直接可验)。同名按「SHA256SUMS 2」避让,绝不覆盖。
+    func generateChecksumFileForSelection() {
+        guard case .folder(let folderURL) = mode else { return }
+        let files = selectedFileItems.filter { !$0.isDirectory }
+        guard !files.isEmpty else { return }
+        writeSHA256SUMS(for: files.map { (name: $0.name, url: $0.url) }, in: folderURL)
+    }
+
+    /// 发布检查「导出 SHA256SUMS」:对单个归档在其所在目录写校验文件(非 SimpleZip 用户也能验证)。
+    func exportSHA256SUMS(forArchiveAt url: URL) {
+        writeSHA256SUMS(for: [(name: url.lastPathComponent, url: url)], in: url.deletingLastPathComponent())
+    }
+
+    private func writeSHA256SUMS(for files: [(name: String, url: URL)], in folderURL: URL) {
+        let operationTask = TaskCenter.shared.begin(
+            category: .fileOperation,
+            kind: .hash,
+            title: L10n.format("checksum.generate.taskTitle", "\(files.count)"),
+            cancellable: true
+        )
+        TaskCenter.shared.notifyTaskChanged()
+        var swiftTask: Task<Void, Never>?
+        operationTask.cancel = { swiftTask?.cancel() }
+        swiftTask = Task { @MainActor [weak self, weak operationTask] in
+            guard let self, let operationTask else { return }
+            do {
+                var entries: [(name: String, digestHex: String)] = []
+                for file in files {
+                    try Task.checkCancellation()
+                    operationTask.progress = ArchiveProgressState(fraction: nil, currentFile: file.name, statusText: nil)
+                    TaskCenter.shared.notifyTaskChanged()
+                    let url = file.url
+                    let digest = try await Task.detached(priority: .userInitiated) {
+                        try HashService.sha256(for: url)
+                    }.value
+                    entries.append((name: file.name, digestHex: digest))
+                }
+                let preferred = folderURL.appendingPathComponent("SHA256SUMS")
+                let destination = UniqueFileName.suffixed(for: preferred, suffix: "") {
+                    FileManager.default.fileExists(atPath: $0.path)
+                }
+                try ChecksumFile.generateSHA256SUMS(entries).write(to: destination, atomically: true, encoding: .utf8)
+                operationTask.transferLog = entries.map {
+                    TransferLogEntry(name: $0.name, action: .passed, isDirectory: false, detail: $0.digestHex)
+                }
+                status = L10n.format("checksum.generate.done", destination.lastPathComponent)
+                TaskCenter.shared.finish(operationTask, outcome: .succeeded(destination))
+                reload()
+            } catch is CancellationError {
+                TaskCenter.shared.finish(operationTask, outcome: .cancelled)
+            } catch {
+                errorMessage = error.localizedDescription
+                TaskCenter.shared.finish(operationTask, outcome: .failed(error.localizedDescription))
+            }
+        }
+    }
+
+    /// 右键「验证校验文件」:解析(GNU / BSD / SFV / 单摘要 sidecar),对同目录的每个目标重算
+    /// 对应算法的摘要比对。不匹配 / 缺失 / 不安全路径 → 任务失败并逐行列明;全过 = 成功。
+    func verifyChecksumFile(_ item: FileItem) {
+        let checksumURL = item.url
+        let baseDir = checksumURL.deletingLastPathComponent()
+        guard let text = try? String(contentsOf: checksumURL, encoding: .utf8) else {
+            errorMessage = L10n.text("checksum.verify.unreadable")
+            return
+        }
+        let entries = ChecksumFile.parse(text, fileName: checksumURL.lastPathComponent)
+        guard !entries.isEmpty else {
+            errorMessage = L10n.text("checksum.verify.noEntries")
+            return
+        }
+
+        let operationTask = TaskCenter.shared.begin(
+            category: .fileOperation,
+            kind: .hash,
+            title: L10n.format("checksum.verify.taskTitle", checksumURL.lastPathComponent),
+            cancellable: true
+        )
+        TaskCenter.shared.notifyTaskChanged()
+        var swiftTask: Task<Void, Never>?
+        operationTask.cancel = { swiftTask?.cancel() }
+        swiftTask = Task { @MainActor [weak self, weak operationTask] in
+            guard let self, let operationTask else { return }
+            do {
+                var rows: [TransferLogEntry] = []
+                var failureCount = 0
+                for entry in entries {
+                    try Task.checkCancellation()
+                    operationTask.progress = ArchiveProgressState(fraction: nil, currentFile: entry.name, statusText: nil)
+                    TaskCenter.shared.notifyTaskChanged()
+                    // 校验文件是不可信输入:名字带 `..` / 绝对路径 / 反斜杠逃逸 → 不碰文件系统,按失败记。
+                    let separatorNormalized = entry.name.replacingOccurrences(of: "\\", with: "/")
+                    if entry.name.hasPrefix("/")
+                        || separatorNormalized.split(separator: "/").contains("..") {
+                        rows.append(TransferLogEntry(name: entry.name, action: .failed, isDirectory: false,
+                                                     detail: L10n.text("checksum.verify.unsafePath")))
+                        failureCount += 1
+                        continue
+                    }
+                    let target = baseDir.appendingPathComponent(entry.name)
+                    guard FileManager.default.fileExists(atPath: target.path) else {
+                        rows.append(TransferLogEntry(name: entry.name, action: .failed, isDirectory: false,
+                                                     detail: L10n.text("checksum.verify.missing")))
+                        failureCount += 1
+                        continue
+                    }
+                    guard let algorithm = HashAlgorithm(rawValue: entry.algorithm.rawValue) else { continue }
+                    let report = try await HashService.calculate(for: [target], includeHiddenFiles: true, algorithms: [algorithm])
+                    let actual = report.results.first?.hashes[algorithm]?.lowercased() ?? ""
+                    if actual == entry.digestHex {
+                        rows.append(TransferLogEntry(name: entry.name, action: .passed, isDirectory: false,
+                                                     detail: entry.algorithm.rawValue))
+                    } else {
+                        rows.append(TransferLogEntry(name: entry.name, action: .failed, isDirectory: false,
+                                                     detail: L10n.format("checksum.verify.mismatch", entry.algorithm.rawValue)))
+                        failureCount += 1
+                    }
+                }
+                operationTask.transferLog = rows
+                if failureCount == 0 {
+                    let done = L10n.format("checksum.verify.allPassed", "\(entries.count)")
+                    status = done
+                    operationTask.progress = ArchiveProgressState(fraction: 1, currentFile: nil, statusText: done)
+                    TaskCenter.shared.finish(operationTask, outcome: .succeeded(nil))
+                } else {
+                    let message = L10n.format("checksum.verify.failures", "\(failureCount)", "\(entries.count)")
+                    errorMessage = message
+                    TaskCenter.shared.finish(operationTask, outcome: .failed(message))
+                }
+            } catch is CancellationError {
+                TaskCenter.shared.finish(operationTask, outcome: .cancelled)
+            } catch {
+                errorMessage = error.localizedDescription
+                TaskCenter.shared.finish(operationTask, outcome: .failed(error.localizedDescription))
+            }
+        }
+    }
+}

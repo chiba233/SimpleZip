@@ -1092,6 +1092,14 @@ struct FileNSOutlineView: NSViewRepresentable {
                 menu.addItem(menuItem(L10n.text("inspect.menu"), systemImage: "checklist", action: #selector(inspectArchiveForRelease)))
             }
             menu.addItem(menuItem(L10n.text("button.hash"), systemImage: "number.square", action: #selector(hashSelected)))
+            // 0.4.3 #11:校验文件 —— 选中含文件给「生成 SHA256SUMS」;单选校验文件给「验证」。
+            if model.selectedFileItems.contains(where: { !$0.isDirectory }) {
+                menu.addItem(menuItem(L10n.text("checksum.generate.menu"), systemImage: "number.square.fill", action: #selector(generateChecksumFile)))
+            }
+            if model.selectedFileItems.count == 1, let only = model.selectedFileItems.first,
+               !only.isDirectory, ChecksumFile.isChecksumFileName(only.name) {
+                menu.addItem(menuItem(L10n.text("checksum.verify.menu"), systemImage: "checkmark.seal", action: #selector(verifyChecksumFileSelected)))
+            }
 
             // ③ 编辑 / 文件管理（重命名归到这里，跟复制剪切移动删除一组）
             menu.addItem(.separator())
@@ -1373,6 +1381,15 @@ struct FileNSOutlineView: NSViewRepresentable {
 
         @objc private func hashSelected() {
             model.calculateHash()
+        }
+
+        @objc private func generateChecksumFile() {
+            model.generateChecksumFileForSelection()
+        }
+
+        @objc private func verifyChecksumFileSelected() {
+            guard let item = model.selectedFileItems.first else { return }
+            model.verifyChecksumFile(item)
         }
 
         @objc private func revealSelected() {

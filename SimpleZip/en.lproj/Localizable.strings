@@ -670,6 +670,20 @@
 "settings.verifyAfterCreate" = "Test new archives after creating";
 "settings.verifyAfterCreate.description" = "Run a full integrity test on newly created or converted archives. Thorough but can take a while on large archives; encrypted outputs are skipped.";
 "tasks.verifyingOutput" = "Verifying the result…";
+/* 0.4.3 checksum files */
+"checksum.generate.menu" = "Generate SHA256SUMS";
+"checksum.verify.menu" = "Verify Checksum File";
+"checksum.export.button" = "Export SHA256SUMS";
+"checksum.generate.taskTitle" = "Generating SHA256SUMS for %1$@ file(s)";
+"checksum.generate.done" = "Wrote %1$@";
+"checksum.verify.taskTitle" = "Verifying %1$@";
+"checksum.verify.unreadable" = "Could not read the checksum file as text.";
+"checksum.verify.noEntries" = "No checksum entries recognized — supported formats: GNU (sha256sum), BSD, SFV, and single-digest sidecars.";
+"checksum.verify.unsafePath" = "unsafe path in checksum file — skipped";
+"checksum.verify.missing" = "file not found";
+"checksum.verify.mismatch" = "%1$@ digest does not match";
+"checksum.verify.allPassed" = "All %1$@ checksum(s) verified";
+"checksum.verify.failures" = "%1$@ of %2$@ checksum entries failed — see the task details in Activity Center";
 "quit.tasksRunning.title" = "%1$@ task(s) still running";
 "quit.tasksRunning.message" = "Quitting now interrupts them — safe write-back guarantees no archive is damaged, but the interrupted work is lost. You can also let SimpleZip quit by itself once everything finishes.";
 "quit.tasksRunning.keepRunning" = "Keep Running";

@@ -668,6 +668,20 @@
 "settings.verifyAfterCreate" = "创建后测试新归档";
 "settings.verifyAfterCreate.description" = "对新创建或转换出的归档跑一次完整性测试。更稳妥，但大包耗时；加密产物会跳过。";
 "tasks.verifyingOutput" = "正在验证产物…";
+/* 0.4.3 校验文件 */
+"checksum.generate.menu" = "生成 SHA256SUMS";
+"checksum.verify.menu" = "验证校验文件";
+"checksum.export.button" = "导出 SHA256SUMS";
+"checksum.generate.taskTitle" = "正在为 %1$@ 个文件生成 SHA256SUMS";
+"checksum.generate.done" = "已写入 %1$@";
+"checksum.verify.taskTitle" = "正在验证 %1$@";
+"checksum.verify.unreadable" = "校验文件无法按文本读取。";
+"checksum.verify.noEntries" = "未识别出任何校验记录——支持 GNU（sha256sum）、BSD、SFV 与单摘要 sidecar 格式。";
+"checksum.verify.unsafePath" = "校验文件里的路径不安全——已跳过";
+"checksum.verify.missing" = "文件不存在";
+"checksum.verify.mismatch" = "%1$@ 摘要不匹配";
+"checksum.verify.allPassed" = "全部 %1$@ 条校验通过";
+"checksum.verify.failures" = "%2$@ 条校验中有 %1$@ 条未通过——详见活动中心任务详情";
 "quit.tasksRunning.title" = "还有 %1$@ 个任务进行中";
 "quit.tasksRunning.message" = "现在退出会打断它们——安全写回保证归档不会损坏，但被打断的操作就白做了。也可以让 SimpleZip 在全部完成后自动退出。";
 "quit.tasksRunning.keepRunning" = "继续任务";
