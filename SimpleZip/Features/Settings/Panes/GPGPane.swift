@@ -240,6 +240,8 @@ struct GPGPane: View {
                 title: L10n.text("settings.gpg.enabledTitle"),
                 description: L10n.text("settings.gpg.enabledDescription"),
                 systemImage: "key",
+                // 主开关 = 一级行,绿色瓦片(与侧栏 GPG 项同色系)。
+                iconTint: .green,
                 isOn: $gpgEnabled
             )
         }

@@ -50,10 +50,12 @@ struct SettingsToggleRow: View {
     let title: String
     let description: String
     var systemImage: String? = nil
+    /// 一级行的彩色瓦片色;nil = 二级行单色(默认)。
+    var iconTint: Color? = nil
     @Binding var isOn: Bool
 
     var body: some View {
-        SettingsControlRow(title: title, description: description, systemImage: systemImage) {
+        SettingsControlRow(title: title, description: description, systemImage: systemImage, iconTint: iconTint) {
             Toggle("", isOn: $isOn)
                 .labelsHidden()
                 // System Settings 同款小型 switch —— macOS Form 默认的 checkbox 是「老 macOS 感」
@@ -111,11 +113,15 @@ struct SettingsRowIcon: View {
         Group {
             if let systemImage {
                 if let tint {
-                    Image(systemName: systemImage)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.white)
+                    // shape + overlay:符号在瓦片内绝对居中(直接给 Image 套 frame+background 会随字形偏移看着歪)。
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(tint)
+                        .overlay(
+                            Image(systemName: systemImage)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(.white)
+                        )
                         .frame(width: 22, height: 22)
-                        .background(tint, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
                 } else {
                     Image(systemName: systemImage)
                         .font(.system(size: 16, weight: .medium))
