@@ -434,6 +434,7 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
                     appendArchiveBlankAreaMenu(to: menu)
                 } else {
                     menu.addItem(menuItem(L10n.text("duplicates.menu"), systemImage: "doc.on.doc", action: #selector(findDuplicateFiles)))
+                    menu.addItem(menuItem(L10n.text("security.report.title"), systemImage: "shield.lefthalf.filled", action: #selector(showSecurityReport)))
                     menu.addItem(menuItem(L10n.text("help.refresh"), systemImage: "arrow.clockwise", action: #selector(refreshArchive)))
                     menu.addItem(menuItem(L10n.text("button.revealInFinder"), systemImage: "arrow.up.forward.app", action: #selector(revealArchive)))
                 }
@@ -506,6 +507,8 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
             }
             // 0.4.2 #24：包内重复文件检测（只读分析，任何归档都可用）。
             menu.addItem(menuItem(L10n.text("duplicates.menu"), systemImage: "doc.on.doc", action: #selector(findDuplicateFiles)))
+            // 0.4.2 #7 跟进：路径安全报告(只读分析,干净包显示绿色全清) —— 之前只在动态工具栏/操作菜单,右键孤儿。
+            menu.addItem(menuItem(L10n.text("security.report.title"), systemImage: "shield.lefthalf.filled", action: #selector(showSecurityReport)))
             // 0.4.2 #16：清理 macOS 元数据 —— 有垃圾条目时显示（带数量），删掉走安全写回。
             let junkCount = model.archiveJunkEntryCount
             if junkCount > 0 {
@@ -702,6 +705,10 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
 
         @objc private func findDuplicateFiles() {
             model.findDuplicateFilesInArchive()
+        }
+
+        @objc private func showSecurityReport() {
+            model.showsArchiveSecurityReport = true
         }
 
         @objc private func extractSelected() {
