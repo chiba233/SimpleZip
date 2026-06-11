@@ -81,7 +81,7 @@ struct WelcomeAssistantView: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 14)
         }
-        .frame(width: 780, height: 730)
+        .frame(width: 780, height: 760)
         .background(
             // 顶部一抹主题色柔光 —— 华丽但不喧宾夺主,深浅色模式都成立。
             ZStack {
@@ -153,16 +153,13 @@ struct WelcomeAssistantView: View {
             // 欢迎页：hero（大渐变图标 + 标题 + 简介）+ 版本检查 + 备份导入，三合一。
             VStack(alignment: .leading, spacing: 22) {
                 welcomeHero
-                Divider()
                 WelcomeVersionCheckStep()
-                Divider()
                 WelcomeBackupRestoreStep()
             }
         case 1:
             // 通用：语言 + 常规（启动位置 / 覆盖 / 隐藏文件 / 密度 / 分组）。
             VStack(alignment: .leading, spacing: 22) {
                 WelcomeLanguageStep(appLanguage: $appLanguage)
-                Divider()
                 WelcomeGeneralStep(
                     startupLocation: $startupLocation,
                     overwriteBehavior: $overwriteBehavior,
@@ -173,9 +170,7 @@ struct WelcomeAssistantView: View {
             // 便利：预设密码 + Finder 自动解压 + 文件关联。
             VStack(alignment: .leading, spacing: 22) {
                 WelcomePresetPasswordStep(enabled: $presetPasswordEnabled)
-                Divider()
                 WelcomeFinderAutoExtractStep(enabled: $finderOpenAutoExtract)
-                Divider()
                 WelcomeFileAssociationsStep()
             }
         case 3:
@@ -188,7 +183,6 @@ struct WelcomeAssistantView: View {
             // 引擎：压缩后端 + GPG（GPG 保持独立 section —— opt-in/opt-out 决定仍然显式）。
             VStack(alignment: .leading, spacing: 22) {
                 WelcomeBackendStep()
-                Divider()
                 WelcomeGPGStep()
             }
         default:
