@@ -39,13 +39,18 @@ extension ArchiveBrowserModel {
             errorMessage = L10n.text("error.openOrSelectArchive")
             return
         }
+        runSingleArchiveTest(archiveURL)
+    }
 
+    /// 单包测试本体（0.4.2 #21 抽出：URL 捕获后可整单重跑，不依赖当时的选区）。
+    private func runSingleArchiveTest(_ archiveURL: URL) {
         let force = isForced(archiveURL)
         startManagedArchiveTask(
             title: L10n.format("status.testing", archiveURL.lastPathComponent),
             kind: .test,
             showsDetails: false,
-            successStatus: L10n.text("status.archiveTested")
+            successStatus: L10n.text("status.archiveTested"),
+            rerunAction: { [weak self] in self?.runSingleArchiveTest(archiveURL) }
         ) { operationID, _, outputObserver in
             try await ArchiveService.test(archiveURL, operationID: operationID, force: force, outputObserver: outputObserver)
         }
@@ -109,7 +114,8 @@ extension ArchiveBrowserModel {
                         self?.runBatchArchiveTest(failedURLs)
                     }
                 }
-            }
+            },
+            rerunAction: { [weak self] in self?.runBatchArchiveTest(urls) }
         ) { operationID, progress, outputObserver in
             var collected: [BatchTestOutcome] = []
             for (index, url) in urls.enumerated() {
@@ -177,7 +183,8 @@ extension ArchiveBrowserModel {
             successStatus: nil,
             refreshOnSuccess: { [weak self] in
                 self?.releaseInspectionReport = report
-            }
+            },
+            rerunAction: { [weak self] in self?.runReleaseInspection(url) }
         ) { operationID, progress, outputObserver in
             // ① 列目录：空口令 + 会话缓存里的口令逐个静默试；全失败 = 读不了条目（报告里如实标注）。
             progress(ArchiveProgressState(fraction: 0.1, statusText: nil))

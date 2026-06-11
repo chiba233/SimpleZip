@@ -189,6 +189,8 @@ extension ArchiveBrowserModel {
         // 成功后、归档进历史前的钩子 —— 给调用方往任务上挂「逐文件结果」(transferLog) / detail，
         // 让活动中心展开后有「新增 N 项」那样的密度（加密 / 创建签名清单用）。默认 nil = 老行为不变。
         onSucceeded: ((OperationTask) -> Void)? = nil,
+        // 0.4.2 #21:「重新运行」动作 —— 用同样的输入把整个操作再跑一遍。nil = 该任务不可重跑。
+        rerunAction: (() -> Void)? = nil,
         operation: @escaping (UUID?, @escaping @Sendable (ArchiveProgressState) -> Void, (@Sendable (String) -> Void)?) async throws -> Void
     ) {
         let detailsSession = ArchiveOperationDetailsSession(title: title)
@@ -207,6 +209,7 @@ extension ArchiveBrowserModel {
             operationID: operationID
         )
         operationTask.progress = ArchiveProgressState(fraction: 0, currentFile: nil)
+        operationTask.rerun = rerunAction
         if showsDetails {
             ActivityWindowController.shared.show(category: .archive)
         }

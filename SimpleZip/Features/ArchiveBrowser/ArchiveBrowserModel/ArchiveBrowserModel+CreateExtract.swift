@@ -910,7 +910,8 @@ extension ArchiveBrowserModel {
             showsDetails: request.showDetails,
             refreshOnSuccess: { [weak self] in
                 self?.refreshVisibleFolder(request.destinationURL)
-            }
+            },
+            rerunAction: { [weak self] in self?.performExtractArchive(request) }
         ) { operationID, progress, outputObserver in
             let stagingURL = try self.extractionCoordinator.makeExtractionStagingDirectory()
             defer { try? self.fileManager.removeItem(at: stagingURL) }
@@ -1246,7 +1247,8 @@ extension ArchiveBrowserModel {
             showsDetails: request.showDetails,
             refreshOnSuccess: { [weak self] in
                 self?.refreshVisibleFolder(request.destinationURL)
-            }
+            },
+            rerunAction: { [weak self] in self?.performExtractSelection(request) }
         ) { operationID, progress, outputObserver in
             let stagingURL = try self.extractionCoordinator.makeExtractionStagingDirectory()
             defer { try? self.fileManager.removeItem(at: stagingURL) }

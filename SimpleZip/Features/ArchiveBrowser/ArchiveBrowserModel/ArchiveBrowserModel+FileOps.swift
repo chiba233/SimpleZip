@@ -558,6 +558,14 @@ extension ArchiveBrowserModel {
             let operationTask = beginFileTask(kind: .convert, title: title, detail: destination.lastPathComponent, total: 1, cancellable: true, category: .archive)
             let operationID = UUID()
             operationTask.cancel = { BackendProcessRunner.cancelRunningCommand(operationID: operationID) }
+            // 0.4.2 #21：整单重跑（仅本源包；输出名会按「名 2」避让，不覆盖上次产物）。
+            operationTask.rerun = { [weak self] in
+                var rerunRequest = ConvertArchiveRequest(sourceURLs: [sourceURL])
+                rerunRequest.targetFormat = request.targetFormat
+                rerunRequest.compressionLevel = request.compressionLevel
+                rerunRequest.password = request.password
+                self?.performConversion(rerunRequest)
+            }
 
             Task { @MainActor [weak self] in
                 guard let self else { return }
@@ -603,6 +611,8 @@ extension ArchiveBrowserModel {
     func performSplit(_ url: URL, volumeSize: Int64) {
         let title = L10n.format("status.splitting", url.lastPathComponent)
         let operationTask = beginFileTask(kind: .split, title: title, detail: nil, total: 1, cancellable: true, category: .archive)
+        // 0.4.2 #21：整单重跑（同样的卷大小；目标分片已存在会照常整组拒绝，不覆盖）。
+        operationTask.rerun = { [weak self] in self?.performSplit(url, volumeSize: volumeSize) }
 
         let worker = Task.detached(priority: .userInitiated) {
             try FileSplitCombine.split(url, volumeSize: volumeSize) { written, total in

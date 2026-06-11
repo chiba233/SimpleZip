@@ -322,6 +322,16 @@ struct ActivityTaskRow: View {
     @ViewBuilder
     private var trailingControls: some View {
         HStack(spacing: 6) {
+            // 0.4.2 #21：任务结束后可整单重跑（运行时态——重启后的历史任务没有重跑闭包，按钮自然不出现）。
+            if !task.status.isRunning, task.rerun != nil {
+                Button {
+                    task.rerun?()
+                } label: {
+                    Image(systemName: "arrow.clockwise.circle")
+                }
+                .buttonStyle(.borderless)
+                .help(L10n.text("button.rerunTask"))
+            }
             if task.status.isRunning, task.cancel != nil {
                 Button {
                     task.cancel?()
