@@ -190,15 +190,19 @@ struct GeneralPane: View {
                 }
                 HStack {
                     // 启动时已按版本自动注册（AppDelegate）；这里是手动兜底 —— 右键菜单没出现时立即重刷。
-                    Button(L10n.text("settings.finderExtension.register")) {
+                    Button {
                         NSUpdateDynamicServices()
                         finderServicesMessage = L10n.text("settings.finderExtension.registered")
+                    } label: {
+                        Label(L10n.text("settings.finderExtension.register"), systemImage: "arrow.clockwise")
                     }
-                    Button(L10n.text("settings.finderExtension.manage")) {
+                    Button {
                         // 系统设置 → 键盘 → 键盘快捷键 → 服务 仍可管理（与上面的开关同一份状态）。
                         if let url = URL(string: "x-apple.systempreferences:com.apple.Keyboard-Settings.extension") {
                             NSWorkspace.shared.open(url)
                         }
+                    } label: {
+                        Label(L10n.text("settings.finderExtension.manage"), systemImage: "keyboard")
                     }
                 }
                 if let finderServicesMessage {
