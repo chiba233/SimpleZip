@@ -288,7 +288,8 @@ private struct WelcomeStepShell<Content: View>: View {
                         .font(.system(size: 17, weight: .semibold))
                         .foregroundStyle(.white)
                         .frame(width: 38, height: 38)
-                        .background(tint.gradient, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                        // 用户拍板:窗口背景可以渐变,**box 不渐变** —— 图标瓦片用纯色。
+                        .background(tint, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
                 }
                 VStack(alignment: .leading, spacing: 5) {
                     Text(title)
@@ -648,6 +649,8 @@ private struct WelcomeFinderAutoExtractStep: View {
     var body: some View {
         WelcomeStepShell(
             title: L10n.text("welcome.finderAutoExtract.title"),
+            systemImage: "finder",
+            tint: .blue,
             body1: L10n.text("welcome.finderAutoExtract.body")
         ) {
             Toggle(L10n.text("settings.finderOpenAutoExtract"), isOn: $enabled)
@@ -1202,10 +1205,8 @@ private struct WelcomeCompletionStep: View {
                 .font(.system(size: 44, weight: .semibold))
                 .foregroundStyle(.white)
                 .frame(width: 92, height: 92)
-                .background(
-                    LinearGradient(colors: [.green, .teal], startPoint: .topLeading, endPoint: .bottomTrailing),
-                    in: Circle()
-                )
+                // 同上「box 不渐变」拍板 —— 完成徽章也用纯色。
+                .background(Color.green, in: Circle())
                 .shadow(color: .green.opacity(0.38), radius: 14, y: 5)
                 .scaleEffect(celebrate ? 1 : 0.5)
                 .opacity(celebrate ? 1 : 0)
