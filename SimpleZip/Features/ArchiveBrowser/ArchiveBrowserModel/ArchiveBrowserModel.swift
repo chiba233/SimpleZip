@@ -339,6 +339,9 @@ final class ArchiveBrowserModel: ObservableObject {
     let fileUndoManager = UndoManager()
     @Published var fileUndoActionName: String?
     @Published var fileRedoActionName: String?
+    /// 撤销 / 重做执行期间的逐文件详情行(瞬态收集器)：undo 原语每动一个文件就 append 一行,
+    /// `recordUndoRedoHistory` 收割后挂成活动中心任务的「详情」会话。非 undo/redo 期间始终为空。
+    var undoRedoDetailLines: [String] = []
     /// 创建新文件 / 文件夹后，等 FileTable 刷出对应行再自动进入现有内联重命名。
     @Published var pendingInlineRenameURL: URL?
     /// 归档里新建条目后，待自动进入内联重命名的归档内路径（跟 `pendingInlineRenameURL` 同一 idiom，ArchiveTable 消费）。

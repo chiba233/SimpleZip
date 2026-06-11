@@ -673,6 +673,10 @@
 "tasks.undoRedo.generic" = "文件操作";
 "tasks.undo.title" = "已撤销：%1$@";
 "tasks.redo.title" = "已重做：%1$@";
+"tasks.undoRedo.detail.move" = "移动：%1$@ → %2$@";
+"tasks.undoRedo.detail.copy" = "复制：%1$@ → %2$@";
+"tasks.undoRedo.detail.trash" = "移到废纸篓：%1$@";
+"tasks.undoRedo.detail.permissions" = "恢复权限/属主：%1$@";
 "tasks.recovery.section" = "写回恢复区";
 "tasks.recovery.show" = "恢复文件";
 "tasks.recovery.show.description" = "写回失败时保全的工作副本（外部改动拦截保的是你完成的编辑成果；验证失败保的是诊断样本）。";

@@ -94,6 +94,10 @@ extension ArchiveBrowserModel {
                 owner: (step.owner?.isEmpty == false) ? FilePermissionService.currentOwner(of: step.url) : nil
             )
         }
+        // 详情行同步记（异步 apply 之前）—— recordUndoRedoHistory 在 undo() 返回后立刻收割,等不到 Task。
+        for step in steps {
+            undoRedoDetailLines.append(L10n.format("tasks.undoRedo.detail.permissions", step.url.path))
+        }
         Task { @MainActor [weak self] in
             for step in steps {
                 _ = try? await Task.detached(priority: .userInitiated) {
@@ -121,6 +125,7 @@ extension ArchiveBrowserModel {
             do {
                 try fileManager.createDirectory(at: step.to.deletingLastPathComponent(), withIntermediateDirectories: true)
                 try fileManager.moveItem(at: step.from, to: step.to)
+                undoRedoDetailLines.append(L10n.format("tasks.undoRedo.detail.move", step.from.path, step.to.path))
                 if let snapshot = UndoFileSnapshot(url: step.to, fileManager: fileManager) {
                     done.append(UndoMoveStep(from: step.to, to: step.from, sourceSnapshot: snapshot))
                 }
@@ -146,6 +151,7 @@ extension ArchiveBrowserModel {
             guard !fileManager.fileExists(atPath: step.dest.path) else { skipped += 1; continue }
             do {
                 try fileManager.copyItem(at: step.source, to: step.dest)
+                undoRedoDetailLines.append(L10n.format("tasks.undoRedo.detail.copy", step.source.path, step.dest.path))
                 if let destSnapshot = UndoFileSnapshot(url: step.dest, fileManager: fileManager) {
                     done.append(UndoCopyStep(
                         source: step.source,
@@ -176,6 +182,7 @@ extension ArchiveBrowserModel {
             do {
                 var trashURL: NSURL?
                 try fileManager.trashItem(at: step.dest, resultingItemURL: &trashURL)
+                undoRedoDetailLines.append(L10n.format("tasks.undoRedo.detail.trash", step.dest.path))
                 done.append(step)
             } catch {
                 skipped += 1
@@ -199,6 +206,7 @@ extension ArchiveBrowserModel {
             do {
                 var trashURL: NSURL?
                 try fileManager.trashItem(at: step.url, resultingItemURL: &trashURL)
+                undoRedoDetailLines.append(L10n.format("tasks.undoRedo.detail.trash", step.url.path))
                 if let trashURL = trashURL as URL? {
                     trashed.append((original: step.url, trashURL: trashURL))
                 }
@@ -213,6 +221,7 @@ extension ArchiveBrowserModel {
     func undoFileOperation() {
         guard fileUndoManager.canUndo else { return }
         let actionName = nonEmptyActionName(fileUndoManager.undoActionName)
+        undoRedoDetailLines = []
         fileUndoManager.undo()
         refreshUndoActionNames()
         recordUndoRedoHistory(isUndo: true, actionName: actionName)
@@ -221,6 +230,7 @@ extension ArchiveBrowserModel {
     func redoFileOperation() {
         guard fileUndoManager.canRedo else { return }
         let actionName = nonEmptyActionName(fileUndoManager.redoActionName)
+        undoRedoDetailLines = []
         fileUndoManager.redo()
         refreshUndoActionNames()
         recordUndoRedoHistory(isUndo: false, actionName: actionName)
@@ -228,13 +238,25 @@ extension ArchiveBrowserModel {
 
     /// 0.4.3:撤销 / 重做留痕活动中心 —— 独立「撤销与重做」分组的即时记录(开始即完成)。
     /// 唯一漏斗:⌘Z / ⇧⌘Z / 菜单都走 undoFileOperation / redoFileOperation。
+    /// 用户点名「不显示详情毫无价值」:undo 原语执行时把每个实际动过的文件写进
+    /// `undoRedoDetailLines`,这里收割 —— 行内副标题给条数,「详情」面板给逐文件清单。
     private func recordUndoRedoHistory(isUndo: Bool, actionName: String?) {
         let name = actionName ?? L10n.text("tasks.undoRedo.generic")
+        let title = L10n.format(isUndo ? "tasks.undo.title" : "tasks.redo.title", name)
+        let lines = undoRedoDetailLines
+        undoRedoDetailLines = []
+        let detailsSession: ArchiveOperationDetailsSession? = lines.isEmpty ? nil : ArchiveOperationDetailsSession(
+            title: title,
+            rawOutput: lines.joined(separator: "\n") + "\n",
+            finishedAt: Date()
+        )
         let task = TaskCenter.shared.begin(
             category: .undoRedo,
             kind: isUndo ? .undo : .redo,
-            title: L10n.format(isUndo ? "tasks.undo.title" : "tasks.redo.title", name),
-            cancellable: false
+            title: title,
+            detail: lines.isEmpty ? nil : L10n.format("status.itemCount", lines.count),
+            cancellable: false,
+            detailsSession: detailsSession
         )
         TaskCenter.shared.finish(task, outcome: .succeeded(nil))
     }
