@@ -112,7 +112,8 @@ struct ArchiveItem: Identifiable, Hashable {
     /// 条目注释（zip 的 per-entry `Comment`）—— 没有注释的格式 / 条目为空。
     let comment: String
 
-    init(
+    // `nonisolated`:文件夹快照(ArchiveDiff.folderItems)等后台路径需要在非主 actor 构造条目。
+    nonisolated init(
         name: String,
         isDirectory: Bool,
         size: Int64?,

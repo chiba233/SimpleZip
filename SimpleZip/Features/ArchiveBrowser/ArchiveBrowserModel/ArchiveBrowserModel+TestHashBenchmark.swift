@@ -278,6 +278,10 @@ extension ArchiveBrowserModel {
         let title = L10n.format("status.comparing", left.lastPathComponent, right.lastPathComponent)
         let forceLeft = isForced(left)
         let forceRight = isForced(right)
+        // 0.4.2 #25：「这一侧是文件夹还是归档」在主 actor 上**预判**（isSupportedArchive 是
+        // 主 actor 隔离的），把结论传进后台闭包 —— 闭包里不再碰隔离 API。
+        let leftIsFolder = Self.urlIsPlainDirectory(left) && !ArchiveService.isSupportedArchive(left)
+        let rightIsFolder = Self.urlIsPlainDirectory(right) && !ArchiveService.isSupportedArchive(right)
         startManagedArchiveTask(
             title: title,
             kind: .compare,
@@ -290,8 +294,8 @@ extension ArchiveBrowserModel {
             }
         ) { [weak self] operationID, _, _ in
             // 0.4.2 #25:任一侧是文件夹 → 文件系统快照;是归档 → 照常列出。归档 vs 文件夹随便混。
-            let leftItems = try await Self.comparisonItems(for: left, operationID: operationID, force: forceLeft)
-            let rightItems = try await Self.comparisonItems(for: right, operationID: operationID, force: forceRight)
+            let leftItems = try await Self.comparisonItems(for: left, isFolder: leftIsFolder, operationID: operationID, force: forceLeft)
+            let rightItems = try await Self.comparisonItems(for: right, isFolder: rightIsFolder, operationID: operationID, force: forceRight)
             let result = ArchiveDiff.compare(left: leftItems, right: rightItems)
             await MainActor.run {
                 self?.archiveDiffReport = ArchiveDiffReport(
@@ -358,12 +362,16 @@ extension ArchiveBrowserModel {
         }
     }
 
-    /// 比较的一侧取条目:文件夹(且不是受支持归档)→ 文件系统快照;否则按归档列出。
-    nonisolated private static func comparisonItems(for url: URL, operationID: UUID?, force: Bool) async throws -> [ArchiveItem] {
+    /// URL 是否是普通目录（存在且 isDirectory）。主 actor 上给 runArchiveComparison 预判用。
+    private static func urlIsPlainDirectory(_ url: URL) -> Bool {
         var isDirectory: ObjCBool = false
-        if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory),
-           isDirectory.boolValue,
-           !ArchiveService.isSupportedArchive(url) {
+        return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) && isDirectory.boolValue
+    }
+
+    /// 比较的一侧取条目:文件夹 → 文件系统快照;否则按归档列出。`isFolder` 由调用方在主 actor 预判
+    ///（isSupportedArchive 是主 actor 隔离的,不能在本 nonisolated 函数里调）。
+    nonisolated private static func comparisonItems(for url: URL, isFolder: Bool, operationID: UUID?, force: Bool) async throws -> [ArchiveItem] {
+        if isFolder {
             return await Task.detached(priority: .userInitiated) {
                 ArchiveDiff.folderItems(at: url)
             }.value

@@ -17,7 +17,8 @@
 import Foundation
 
 /// 搜索条件。所有字段都「未设 = 不约束」，组合时取交集（AND）。空条件匹配全部。
-struct ArchiveSearchQuery: Equatable {
+/// `nonisolated`：纯值类型，`parse` 等 nonisolated 函数要能在任意上下文构造它。
+nonisolated struct ArchiveSearchQuery: Equatable {
     /// 大小写不敏感的子串匹配文本。空串 = 不按文本过滤。
     var text: String = ""
     /// 文本匹配范围：只看当前层级名（`displayName`）还是完整条目路径（`name`）。

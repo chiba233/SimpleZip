@@ -69,7 +69,7 @@ enum ArchiveCreateFormat: String, CaseIterable, Identifiable, Codable {
         }
     }
 
-    var supportsExcludeRules: Bool {
+    nonisolated var supportsExcludeRules: Bool {
         switch self {
         case .zip, .sevenZip, .tar, .tarGzip, .rar:
             return true
@@ -78,7 +78,7 @@ enum ArchiveCreateFormat: String, CaseIterable, Identifiable, Codable {
         }
     }
 
-    var supportsVolumeSplitting: Bool {
+    nonisolated var supportsVolumeSplitting: Bool {
         switch self {
         case .zip, .sevenZip, .rar:
             return true
@@ -302,6 +302,9 @@ enum ArchiveEncryptionMethod: String, CaseIterable, Identifiable, Codable {
 
 /// 创建压缩包时收集的选项。
 struct ArchiveCreationOptions: Codable, Equatable {
+    /// `nonisolated`：内置模板等 nonisolated 工厂需要在任意上下文起一份默认配置。
+    nonisolated init() {}
+
     var format: ArchiveCreateFormat = .zip
     var compressionLevel: CompressionLevel = .normal
     var password = ""

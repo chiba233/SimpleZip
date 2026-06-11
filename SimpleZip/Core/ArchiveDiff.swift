@@ -156,8 +156,8 @@ enum ArchiveDiff {
 /// 人看的 Markdown 报告在 app 侧（`ArchiveDiffReport`，跟着 UI 语言）。
 enum ArchiveDiffExport {
 
-    /// JSON 里的一条条目快照。
-    private struct EntrySnapshot: Codable {
+    /// JSON 里的一条条目快照。`nonisolated`:纯数据,Codable conformance 须可在后台编码。
+    private nonisolated struct EntrySnapshot: Codable {
         let path: String
         let isDirectory: Bool
         let size: Int64?
@@ -166,14 +166,14 @@ enum ArchiveDiffExport {
         let encrypted: Bool
     }
 
-    private struct ChangeRecord: Codable {
+    private nonisolated struct ChangeRecord: Codable {
         let path: String
         let fields: [String]
         let before: EntrySnapshot
         let after: EntrySnapshot
     }
 
-    private struct Report: Codable {
+    private nonisolated struct Report: Codable {
         let left: String
         let right: String
         let summary: [String: Int]
@@ -291,7 +291,7 @@ extension ArchiveDiffResult {
 // MARK: - 重复文件检测（0.4.2 #24）
 
 /// 一组内容重复的条目（按 大小 + CRC 配组）。`paths` ≥ 2、升序。
-struct DuplicateFileGroup: Identifiable, Equatable {
+nonisolated struct DuplicateFileGroup: Identifiable, Equatable {
     let size: Int64
     let crc: String
     let paths: [String]

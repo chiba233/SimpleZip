@@ -18,7 +18,7 @@ struct CompressionPreset: Codable, Identifiable, Equatable {
     var name: String
     var options: ArchiveCreationOptions
 
-    init(id: UUID = UUID(), name: String, options: ArchiveCreationOptions) {
+    nonisolated init(id: UUID = UUID(), name: String, options: ArchiveCreationOptions) {
         self.id = id
         self.name = name
         self.options = options
