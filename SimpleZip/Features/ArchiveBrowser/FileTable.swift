@@ -294,6 +294,9 @@ struct FileNSOutlineView: NSViewRepresentable {
                         walk(node.children)
                     } else {
                         result.append(node)
+                        // 0.4.2 #4：展开后的分卷成员行也得在名单里,否则 applySelection 回放把刚选中的成员行反选掉
+                        // （与下面文件夹子级同一坑）。成员都是文件叶子,不用再递归。
+                        if let volumeChildren = node.volumeChildren { result.append(contentsOf: volumeChildren) }
                         if let folderChildren = node.folderChildren { walk(folderChildren) }
                     }
                 }
@@ -318,6 +321,12 @@ struct FileNSOutlineView: NSViewRepresentable {
                     // 已展开文件夹的子级也找（内联重命名 / 删除后落选的目标可能在子层）。
                     if let folderChildren = node.folderChildren,
                        let found = walk(folderChildren, ancestors: ancestors + [node]) {
+                        return found
+                    }
+                    // 0.4.2 #4：分卷成员行也找（删除单个成员后邻居落选可能是成员行）。
+                    // 首卷自身的 path 与折叠行相同,上面 fileItem 分支已先命中折叠行,不会误下钻。
+                    if let volumeChildren = node.volumeChildren,
+                       let found = walk(volumeChildren, ancestors: ancestors + [node]) {
                         return found
                     }
                 }
@@ -684,6 +693,20 @@ struct FileNSOutlineView: NSViewRepresentable {
                 setSectionExpanded(node, false)
                 return
             }
+            // 0.4.2 #4：折叠分卷集时,落在成员行上的选区收回首卷（Finder 折叠文件夹同款）——
+            // 成员不再可见,不应再被 Delete / 菜单悄悄作用。
+            if let node = notification.userInfo?["NSObject"] as? FileOutlineNode,
+               let firstVolume = node.fileItem, let volumes = node.volumeChildren {
+                let memberIDs = Set(volumes.compactMap { $0.fileItem?.id }).subtracting([firstVolume.id])
+                let hiddenSelected = model.selection.intersection(memberIDs)
+                if !hiddenSelected.isEmpty {
+                    let newSelection = model.selection.subtracting(hiddenSelected).union([firstVolume.id])
+                    DispatchQueue.main.async { [weak self] in
+                        self?.model.selection = newSelection
+                    }
+                }
+                return
+            }
             guard let node = expandedFolderNode(from: notification), let item = node.fileItem else { return }
             let path = item.url.standardizedFileURL.path
             // 连同其下层展开的子孙一起忘掉（折叠父层后子孙的展开状态作废,Finder 同款）。
@@ -793,6 +816,28 @@ struct FileNSOutlineView: NSViewRepresentable {
             sourceOperationMaskFor context: NSDraggingContext
         ) -> NSDragOperation {
             context == .withinApplication ? .move : [.copy, .move]
+        }
+
+        func outlineView(
+            _ outlineView: NSOutlineView,
+            draggingSession session: NSDraggingSession,
+            willBeginAt screenPoint: NSPoint,
+            forItems draggedItems: [Any]
+        ) {
+            // 0.4.2 #4：拖动折叠首卷 = 拖整组。pasteboardWriter 一项只能写一个 URL（首卷已写入），
+            // 这里把家族其余成员补进拖拽剪贴板 —— 拖去 Finder / 应用内移动读到的就是全家族。
+            // 展开箭头后拖单个成员行（节点无 volumeChildren）不扩,尊重字面选择。
+            var seenPaths = Set((session.draggingPasteboard.readObjects(forClasses: [NSURL.self]) as? [URL] ?? []).map(\.path))
+            var missingMembers: [NSURL] = []
+            for case let node as FileOutlineNode in draggedItems {
+                guard let volumes = node.volumeChildren else { continue }
+                for member in volumes.compactMap(\.fileItem) where seenPaths.insert(member.url.path).inserted {
+                    missingMembers.append(member.url as NSURL)
+                }
+            }
+            if !missingMembers.isEmpty {
+                session.draggingPasteboard.writeObjects(missingMembers)
+            }
         }
 
         func outlineView(
@@ -1355,10 +1400,23 @@ struct FileNSOutlineView: NSViewRepresentable {
             // selectRowIndexes 会把选区猛拽回旧值 → 闪烁 / 疯狂抽搐。松手后下一次 updateNSView（按钮已抬起）再正常同步。
             if NSEvent.pressedMouseButtons & 0x1 != 0 { return }
             var indexes = IndexSet()
+            // 0.4.2 #4：首卷在「折叠行」和「展开后的成员行」是两个节点、同一个 FileItem id。
+            // 同 id 命中多行时只回放用户当前实际选着的那几行;都没选（如外部刷新重映射）才取最上面那行 ——
+            // 否则点折叠行会把展开里的首卷成员行也点亮成双选。
+            var rowsByItemID: [UUID: [Int]] = [:]
             for node in allFileNodes() {
                 guard let item = node.fileItem, model.selection.contains(item.id) else { continue }
                 let row = outlineView.row(forItem: node)
-                if row >= 0 { indexes.insert(row) }
+                if row >= 0 { rowsByItemID[item.id, default: []].append(row) }
+            }
+            let liveSelection = outlineView.selectedRowIndexes
+            for rows in rowsByItemID.values {
+                let alreadySelected = rows.filter { liveSelection.contains($0) }
+                if alreadySelected.isEmpty {
+                    if let topmost = rows.min() { indexes.insert(topmost) }
+                } else {
+                    for row in alreadySelected { indexes.insert(row) }
+                }
             }
             // 保留用户用上下方向键 / 点击导航到的「分组头」行 —— 分组头没有 fileItem、不进 model.selection，
             // 若不保留，下面的 reapply 会把它清掉：方向键一碰到分组头选择就归零，光标卡在组里跨不过去（用户反馈）。

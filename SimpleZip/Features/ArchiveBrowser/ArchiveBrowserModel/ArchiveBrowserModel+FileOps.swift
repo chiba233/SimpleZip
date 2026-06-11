@@ -116,14 +116,41 @@ extension ArchiveBrowserModel {
         }
     }
 
+    /// 0.4.2 #4：折叠显示下,选中「首卷」行代表整组 —— 复制 / 剪切把全家族分卷一并带上,
+    /// 粘贴出来才是完整可合并的分卷集。只扩首卷:用户展开箭头后显式单选某个成员,尊重字面选择。
+    /// 家族识别与折叠视图同源（Core FileSplitCombine.volumeSet）;兄弟池 = 顶层显示列表 /
+    /// 已展开子文件夹注册表,跟折叠视图喂给 volumeFoldedNodes 的输入一致。
+    private func expandingCollapsedVolumeSets(_ items: [FileItem]) -> [FileItem] {
+        guard AppPreferences.collapseVolumeSets else { return items }
+        var result: [FileItem] = []
+        var seenIDs = Set<UUID>()
+        for item in items where seenIDs.insert(item.id).inserted {
+            result.append(item)
+            guard !item.isDirectory else { continue }
+            let parentPath = item.url.deletingLastPathComponent().standardizedFileURL.path
+            let siblings = expandedFolderChildrenByPath[parentPath] ?? displayedFileItems
+            let siblingNames = siblings.filter { !$0.isDirectory }.map { $0.url.lastPathComponent }
+            let name = item.url.lastPathComponent
+            guard let set = FileSplitCombine.volumeSet(forMemberNamed: name, among: siblingNames),
+                  set.volumeCount >= 2, set.presentNames.first == name else { continue }
+            let byName = Dictionary(siblings.map { ($0.url.lastPathComponent, $0) }, uniquingKeysWith: { first, _ in first })
+            for member in set.presentNames.dropFirst() {
+                if let memberItem = byName[member], seenIDs.insert(memberItem.id).inserted {
+                    result.append(memberItem)
+                }
+            }
+        }
+        return result
+    }
+
     func copySelectedFiles() {
         guard case .folder = mode else { return }
-        copyFileURLs(selectedFileItems.map(\.url))
+        copyFileURLs(expandingCollapsedVolumeSets(selectedFileItems).map(\.url))
     }
 
     func cutSelectedFiles() {
         guard case .folder = mode else { return }
-        cutFileURLs(selectedFileItems.map(\.url))
+        cutFileURLs(expandingCollapsedVolumeSets(selectedFileItems).map(\.url))
     }
 
     func copyFileURLs(_ urls: [URL]) {

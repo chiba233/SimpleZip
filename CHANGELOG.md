@@ -4,6 +4,7 @@
 
 ## 0.4.2 (unreleased)
 
+- **Fix: collapsed split-volume sets now behave like real rows.** Expanded member rows can be selected, multi-selected, and reached with the arrow keys (they were instantly deselected before); collapsing the set moves any member selection back to the first volume, Finder-style. Dragging the collapsed row now carries the whole family (it used to move only `.001`), and Copy/Cut on the collapsed row put the entire set on the clipboard so Paste reproduces a combinable set — explicitly selecting a single member inside the expanded set still acts on just that file.
 - **New: split-volume sets collapse into one row.** In the file browser, a `.001/.002…` (or `part1.rar…`) family now shows as its first volume with a "· N volumes" badge — expand the disclosure to see the members, double-click opens the set as usual, and Combine still works from the right-click menu. Deleting a selection that belongs to a set asks whether to delete the whole set or only the selection (an incomplete set can't be combined). Toggle under View → Collapse Split-Volume Sets (on by default, included in preference backups).
 - **Menu bar parity round 2.** The File menu gains Open (⌘O), Open as Archive, New Folder (⇧⌘N), Duplicate, Get Info (⌘I), and Reveal in Finder; the Actions menu gains Extract Selected and Save a Copy As…. Quick Look stays in the context menu (it needs the list's preview host).
 
