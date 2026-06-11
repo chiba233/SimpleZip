@@ -155,11 +155,14 @@ struct ContentView: View {
                     .help(L10n.text("help.refresh"))
                 }
 
-                // 0.4.2 用户点名：上下文动态双操作。v2 反馈修订：① **绝不推荐常驻按钮已有的操作**
-                //（添加/解压/测试/哈希都常驻了,推了=双重按钮）；② 按选中内容细分（分卷/多归档/.szs/
-                // 普通文件…各有各的推荐）；③ 放 `.principal`（工具栏中央）,与右侧常驻簇物理分离。
-                ToolbarItemGroup(placement: .principal) {
+                // 0.4.2 上下文动态双操作 v3：`.principal` 会被系统顶到正中、离右簇一大截（用户报）——
+                // 改回 `.primaryAction` 紧邻右簇，中间垫 ToolbarSpacer(.fixed) 拆成**相邻但独立**的玻璃囊。
+                ToolbarItemGroup(placement: .primaryAction) {
                     ContextualToolbarButtons(model: model)
+                }
+
+                if #available(macOS 26.0, *) {
+                    ToolbarSpacer(.fixed, placement: .primaryAction)
                 }
 
                 ToolbarItemGroup(placement: .primaryAction) {
@@ -1339,8 +1342,11 @@ private struct ContextualToolbarButtons: View {
             toolbarButton("file.newFolder", systemImage: "folder.badge.plus") {
                 model.createNewFolderAndBeginRename()
             }
-            toolbarButton("file.paste", systemImage: "doc.on.clipboard") {
-                model.pasteFiles()
+            // 「粘贴」只在剪贴板里真有东西时出现（用户报：还没复制就推粘贴,太奇怪）。
+            if model.fileClipboard?.urls.isEmpty == false {
+                toolbarButton("file.paste", systemImage: "doc.on.clipboard") {
+                    model.pasteFiles()
+                }
             }
         } else if selection.contains(where: { $0.url.pathExtension.lowercased() == "001" || $0.url.lastPathComponent.lowercased().contains(".part") }) {
             // 分卷成员 → 合并 + 比较（合并预检对话框自带缺卷警告）。

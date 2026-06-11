@@ -328,7 +328,8 @@ final class ArchiveBrowserModel: ObservableObject {
     let fileBrowser = FileBrowserService()
     /// 「一次一个」长任务的生命周期管理（取消、ID 跟踪、跟 ArchiveService 的子进程联动）。
     let operationRunner = ArchiveOperationRunner()
-    var fileClipboard: (urls: [URL], shouldMove: Bool)?
+    /// 0.4.2 升 @Published：动态工具栏按「剪贴板里有没有东西」显隐「粘贴」,复制/剪切瞬间要刷新。
+    @Published var fileClipboard: (urls: [URL], shouldMove: Bool)?
     /// 本地文件操作（移动 / 粘贴复制 / 创建副本 / 重命名 / 删除）的撤销 / 重做栈。
     /// 各操作成功后注册逆操作（见 +Undo）；逆操作保守执行 —— 源不在 / 目标被占就跳过报错，绝不覆盖用户数据。
     let fileUndoManager = UndoManager()
