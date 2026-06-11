@@ -179,3 +179,33 @@ struct DialogFooter<Leading: View>: View {
         .background(.bar)
     }
 }
+
+/// 高度贴内容、到上限才出现滚动的 ScrollView —— 报告类弹窗用。
+/// 动机（0.4.2 用户报）：裸 ScrollView 是贪婪布局,内容短时弹窗下面一大片空白；
+/// 这里量出内容实高,frame 取 min(内容, 上限)。
+struct HeightCappedScrollView<Content: View>: View {
+    let maxHeight: CGFloat
+    @ViewBuilder let content: () -> Content
+    @State private var contentHeight: CGFloat = 0
+
+    var body: some View {
+        ScrollView {
+            content()
+                .background(
+                    GeometryReader { proxy in
+                        Color.clear.preference(key: ContentHeightKey.self, value: proxy.size.height)
+                    }
+                )
+        }
+        .onPreferenceChange(ContentHeightKey.self) { contentHeight = $0 }
+        .frame(height: min(max(contentHeight, 1), maxHeight))
+    }
+}
+
+/// HeightCappedScrollView 的内容实高 preference。泛型类型里不能放静态存储属性，所以独立在外。
+private struct ContentHeightKey: PreferenceKey {
+    nonisolated static let defaultValue: CGFloat = 0
+    nonisolated static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}

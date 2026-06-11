@@ -110,12 +110,12 @@ struct ArchiveDiffView: View {
                 .padding(.bottom, 12)
 
             if displayedReport.result.hasDifferences {
-                ScrollView {
+                // 0.4.2 用户报空白:高度贴内容、到 560 才滚 —— 差异少时窗口跟着矮。
+                HeightCappedScrollView(maxHeight: 560) {
                     ArchiveDiffSections(report: displayedReport)
                         .padding(.horizontal, 20)
                         .padding(.bottom, 16)
                 }
-                .frame(minHeight: 300, maxHeight: .infinity)
             } else {
                 // 没有差异时不渲染空列表，给一个明确的「完全一致」状态。
                 VStack(spacing: 8) {
@@ -125,7 +125,7 @@ struct ArchiveDiffView: View {
                     Text(L10n.format("diff.identical", displayedReport.result.unchanged.count))
                         .foregroundStyle(.secondary)
                 }
-                .frame(maxWidth: .infinity, minHeight: 300, maxHeight: .infinity)
+                .frame(maxWidth: .infinity, minHeight: 160)
             }
 
             Divider()
@@ -159,7 +159,7 @@ struct ArchiveDiffView: View {
             .padding(.vertical, 12)
             .background(.bar)
         }
-        .frame(minWidth: 640, idealWidth: 760, minHeight: 460, idealHeight: 580)
+        .frame(minWidth: 640, idealWidth: 760)
     }
 
     // MARK: - 导出（0.4.2）

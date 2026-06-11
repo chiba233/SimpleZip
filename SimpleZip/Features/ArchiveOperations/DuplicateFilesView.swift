@@ -48,7 +48,7 @@ struct DuplicateFilesView: View {
                 subtitle: report.archiveName
             )
 
-            ScrollView {
+            HeightCappedScrollView(maxHeight: 460) {
                 VStack(alignment: .leading, spacing: 12) {
                     if report.groups.isEmpty {
                         Label(L10n.text("duplicates.none"), systemImage: "checkmark.circle.fill")
@@ -96,7 +96,6 @@ struct DuplicateFilesView: View {
                 .padding(.horizontal, 20)
                 .padding(.bottom, 16)
             }
-            .frame(maxHeight: 520)
 
             Divider()
 
@@ -116,6 +115,5 @@ struct DuplicateFilesView: View {
             .background(.bar)
         }
         .frame(width: 540)
-        .frame(minHeight: 280)
     }
 }
