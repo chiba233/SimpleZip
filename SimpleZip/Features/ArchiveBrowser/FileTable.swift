@@ -838,6 +838,7 @@ struct FileNSOutlineView: NSViewRepresentable {
                     menu.addItem(.separator())
                 }
                 // 用 revealCurrentLocation 不用 revealSelected —— 用户右键空白处的意图是「打开我现在看的这个文件夹本身」。
+                menu.addItem(menuItem(L10n.text("help.refresh"), systemImage: "arrow.clockwise", action: #selector(refreshBrowser)))
                 menu.addItem(menuItem(L10n.text("button.revealInFinder"), systemImage: "arrow.up.forward.app", action: #selector(revealCurrentLocation)))
                 appendFolderGroupingMenu(to: menu)
                 return
@@ -972,6 +973,7 @@ struct FileNSOutlineView: NSViewRepresentable {
             menu.addItem(cut)
             menu.addItem(menuItem(L10n.text("file.paste"), systemImage: "clipboard", action: #selector(pasteFiles)))
             menu.addItem(.separator())
+            menu.addItem(menuItem(L10n.text("help.refresh"), systemImage: "arrow.clockwise", action: #selector(refreshBrowser)))
             menu.addItem(menuItem(L10n.text("button.revealInFinder"), systemImage: "arrow.up.forward.app", action: #selector(revealCurrentLocation)))
             appendFolderGroupingMenu(to: menu)
         }
@@ -1008,6 +1010,10 @@ struct FileNSOutlineView: NSViewRepresentable {
             if let item = model.selectedFileItems.first {
                 model.openAsArchive(item.url)
             }
+        }
+
+        @objc private func refreshBrowser() {
+            model.reload()
         }
 
         /// 「在新标签 / 新窗口打开」是否适用于该项：可浏览的文件夹、受支持压缩包、或 .siz/.szs。

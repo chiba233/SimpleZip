@@ -2,6 +2,10 @@
 
 # Changelog
 
+## 0.4.2 (unreleased)
+
+- **Main-window blank-area context menus now include Refresh.** Right-click empty space in the file browser or editable archive view to reload the current location without moving to the toolbar.
+
 ## 0.4.1
 
 - **UI: the 7-Zip benchmark dialogs join the modern shell.** Options get the hero header + card form + pinned footer; the results window shows compression/decompression as big-number metric cards (speed, MIPS, CPU) for both current and average passes, with the raw engine output tucked into a collapsed drawer and a live progress indicator in the footer while running.

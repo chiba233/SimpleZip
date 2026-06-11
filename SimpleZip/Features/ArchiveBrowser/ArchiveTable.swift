@@ -486,6 +486,7 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
             newFileParent.submenu = submenu
             menu.addItem(newFileParent)
             menu.addItem(.separator())
+            menu.addItem(menuItem(L10n.text("help.refresh"), systemImage: "arrow.clockwise", action: #selector(refreshArchive)))
             menu.addItem(menuItem(L10n.text("button.revealInFinder"), systemImage: "arrow.up.forward.app", action: #selector(revealArchive)))
         }
 
@@ -646,6 +647,10 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
             if let item = model.selectedArchiveItems.first {
                 model.open(item)
             }
+        }
+
+        @objc private func refreshArchive() {
+            model.reload()
         }
 
         @objc private func extractSelected() {
