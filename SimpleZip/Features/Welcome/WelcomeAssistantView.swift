@@ -109,7 +109,7 @@ struct WelcomeAssistantView: View {
         stepContent
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 32)
-            .padding(.vertical, 24)
+            .padding(.vertical, 16)
     }
 
     // MARK: - Header
@@ -151,14 +151,14 @@ struct WelcomeAssistantView: View {
         switch currentStep {
         case 0:
             // 欢迎页：hero（大渐变图标 + 标题 + 简介）+ 版本检查 + 备份导入，三合一。
-            VStack(alignment: .leading, spacing: 22) {
+            VStack(alignment: .leading, spacing: 16) {
                 welcomeHero
                 WelcomeVersionCheckStep()
                 WelcomeBackupRestoreStep()
             }
         case 1:
             // 通用：语言 + 常规（启动位置 / 覆盖 / 隐藏文件 / 密度 / 分组）。
-            VStack(alignment: .leading, spacing: 22) {
+            VStack(alignment: .leading, spacing: 16) {
                 WelcomeLanguageStep(appLanguage: $appLanguage)
                 WelcomeGeneralStep(
                     startupLocation: $startupLocation,
@@ -168,7 +168,7 @@ struct WelcomeAssistantView: View {
             }
         case 2:
             // 便利：预设密码 + Finder 自动解压 + 文件关联。
-            VStack(alignment: .leading, spacing: 22) {
+            VStack(alignment: .leading, spacing: 16) {
                 WelcomePresetPasswordStep(enabled: $presetPasswordEnabled)
                 WelcomeFinderAutoExtractStep(enabled: $finderOpenAutoExtract)
                 WelcomeFileAssociationsStep()
@@ -181,7 +181,7 @@ struct WelcomeAssistantView: View {
             )
         case 4:
             // 引擎：压缩后端 + GPG（GPG 保持独立 section —— opt-in/opt-out 决定仍然显式）。
-            VStack(alignment: .leading, spacing: 22) {
+            VStack(alignment: .leading, spacing: 16) {
                 WelcomeBackendStep()
                 WelcomeGPGStep()
             }
@@ -192,43 +192,25 @@ struct WelcomeAssistantView: View {
 
     /// 欢迎页 hero：大渐变图标 + 大标题 + 简介 + 小贴士。原 WelcomeIntroStep 的内容升级合并到这里。
     private var welcomeHero: some View {
-        VStack(spacing: 12) {
-            // 0.4.2 重绘：符号图标 → 真 app 图标（带投影）,与「设置 → 关于」一个气质。
+        // 0.4.2 修「第一页默认就有滚动条」：竖排居中大 hero 占掉 ~250pt,挤掉下面两段 ——
+        // 改横排紧凑头(真 app 图标 + 标题/简介),与设置页 hero 同语言;note 行与 body 信息重复,删。
+        HStack(alignment: .center, spacing: 14) {
             if let icon = NSApp.applicationIconImage {
                 Image(nsImage: icon)
                     .resizable()
-                    .frame(width: 84, height: 84)
-                    .shadow(color: .black.opacity(0.22), radius: 10, y: 6)
-            } else {
-                Image(systemName: "shippingbox.fill")
-                    .font(.system(size: 34, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 76, height: 76)
-                    .background(
-                        LinearGradient(colors: [.blue, .indigo], startPoint: .topLeading, endPoint: .bottomTrailing),
-                        in: RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    )
+                    .frame(width: 64, height: 64)
+                    .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
             }
-
-            Text(L10n.text("welcome.intro.title"))
-                .font(.largeTitle.weight(.bold))
-
-            Text(L10n.text("welcome.intro.body"))
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-
-            HStack(spacing: 6) {
-                Image(systemName: "lightbulb")
-                Text(L10n.text("welcome.intro.note"))
+            VStack(alignment: .leading, spacing: 5) {
+                Text(L10n.text("welcome.intro.title"))
+                    .font(.title.weight(.bold))
+                Text(L10n.text("welcome.intro.body"))
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .font(.caption)
-            .foregroundStyle(.tertiary)
-            .multilineTextAlignment(.center)
+            Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.top, 6)
     }
 
     // MARK: - Footer
@@ -297,9 +279,9 @@ private struct WelcomeStepShell<Content: View>: View {
                         .frame(width: 38, height: 38)
                         .background(tint.gradient, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
                 }
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 5) {
                     Text(title)
-                        .font(.title2.weight(.semibold))
+                        .font(.title3.weight(.semibold))
                     Text(body1)
                         .font(.body)
                         .foregroundStyle(.secondary)
@@ -307,12 +289,12 @@ private struct WelcomeStepShell<Content: View>: View {
                 }
             }
             // 内容进卡片 —— 与全 app 的 DialogSection 一个外观,欢迎页不再是裸控件铺地。
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 12) {
                 content()
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 18)
-            .padding(.vertical, 16)
+            .padding(.vertical, 12)
             .background(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(Color(nsColor: .controlBackgroundColor))
@@ -402,6 +384,8 @@ private struct WelcomeVersionCheckStep: View {
     var body: some View {
         WelcomeStepShell(
             title: L10n.text("welcome.versionCheck.title"),
+            systemImage: "arrow.triangle.2.circlepath",
+            tint: .red,
             body1: L10n.format("welcome.versionCheck.body", currentVersion)
         ) {
             // 简化版：直接复用菜单栏「检查更新」相同入口。
@@ -803,7 +787,7 @@ private struct WelcomeBackendStep: View {
         ) {
             // GroupBox + SettingsControlRow / SettingsActionRow 是 Settings 同款组件 ——
             // 助手里直接复用让视觉一致，避免「快速开始」UI 跟「偏好设置」差太多的违和感。
-            VStack(alignment: .leading, spacing: 22) {
+            VStack(alignment: .leading, spacing: 16) {
                 // 7-Zip section
                 VStack(alignment: .leading, spacing: 8) {
                     Text(L10n.text("settings.7zip.backend"))
