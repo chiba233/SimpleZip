@@ -478,15 +478,23 @@ extension ArchiveBrowserModel {
 
     // MARK: - 拖入文件加进打开的压缩包（#109，走活动中心 + 安全写回）
 
+    /// 0.4.3 #13:当前打开归档的**写入受限原因**(nil = 可写)。`canDropIntoOpenArchive` 的解释版——
+    /// 状态栏只读徽章、各写入口的说明共用这一份原因,统一回答「为什么这个包不能编辑」。
+    /// 非归档模式 / 归档文件已消失返回 nil(那是另一类问题,不属于能力门控)。
+    var archiveWriteRestriction: ArchiveWriteRestriction? {
+        guard case .archive(let url) = mode else { return nil }
+        if archiveDisplayOverride != nil { return .temporaryExtractedCopy }
+        if !nestedArchiveReturnStack.isEmpty { return .nestedArchive }
+        guard fileManager.fileExists(atPath: url.path) else { return nil }
+        return ArchiveService.entryUpdateRestriction(forExtension: url.pathExtension)
+    }
+
     /// 当前是否允许把外部文件拖进打开的压缩包：必须是**真实顶层** zip/7z（非嵌套 / 非 `.siz`·`.gpg` 解出来的临时包），
-    /// 否则写回 `/tmp` 临时包毫无意义、还可能误导。`archiveDisplayOverride != nil` 即代表当前看的是临时/虚拟链 → 不允许。
+    /// 否则写回 `/tmp` 临时包毫无意义、还可能误导。判定收敛到 `archiveWriteRestriction`(#13 单一来源)。
     var canDropIntoOpenArchive: Bool {
         guard case .archive(let url) = mode,
-              archiveDisplayOverride == nil,
-              nestedArchiveReturnStack.isEmpty,
-              fileManager.fileExists(atPath: url.path),
-              ArchiveService.supportsEntryUpdate(url) else { return false }
-        return true
+              fileManager.fileExists(atPath: url.path) else { return false }
+        return archiveWriteRestriction == nil
     }
 
     // MARK: - 归档级注释编辑（0.4.2，仅 zip —— EOCD 原生改写）

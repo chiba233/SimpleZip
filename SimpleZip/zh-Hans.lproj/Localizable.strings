@@ -1039,6 +1039,12 @@
 "tasks.filter.failed" = "失败";
 "tasks.filter.cancelled" = "已取消";
 "status.backend" = "原生 ZIP | 7Z 通过 7zz";
+"status.readOnly" = "只读";
+"writeGate.backendUnavailable" = "7-Zip 后端不可用，无法改写归档。";
+"writeGate.readOnlyFormat" = "「%@」是只读格式——不支持原位改写条目。可解压后编辑，或转换为 ZIP / 7z 再编辑。";
+"writeGate.temporaryCopy" = "当前浏览的是解包出的临时副本（.siz / .szs / .gpg）——改写不会落回原容器，还会破坏签名 / 加密。请先导出文件再编辑。";
+"writeGate.nestedArchive" = "嵌套归档以只读临时副本打开。先把这个包解压出来再编辑。";
+"archive.comment.zipOnly.menu" = "归档注释（仅 ZIP 支持）";
 "type.folder" = "文件夹";
 "type.file" = "文件";
 "alert.operationFailed" = "操作失败";

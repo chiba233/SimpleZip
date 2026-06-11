@@ -222,6 +222,18 @@ struct ArchiveEntryUpdateTests {
         #expect(!ArchiveService.supportsEntryUpdate(URL(fileURLWithPath: "/tmp/a.tar.gz")))
         #expect(!ArchiveService.supportsEntryUpdate(URL(fileURLWithPath: "/tmp/a.rar")))
     }
+
+    /// 0.4.3 #13:supportsEntryUpdate 的解释版 —— 可写格式返回 nil,只读格式给出带扩展名的具体原因
+    /// (大小写归一)。后端缺失分支(backendUnavailable)无法在装有 7zz 的测试环境里直接构造,不在此覆盖。
+    @Test func entryUpdateRestrictionExplainsReadOnlyFormats() {
+        #expect(ArchiveService.entryUpdateRestriction(forExtension: "zip") == nil)
+        #expect(ArchiveService.entryUpdateRestriction(forExtension: "7z") == nil)
+        #expect(ArchiveService.entryUpdateRestriction(forExtension: "ZIP") == nil)
+        #expect(ArchiveService.entryUpdateRestriction(forExtension: "rar") == .readOnlyFormat(fileExtension: "rar"))
+        #expect(ArchiveService.entryUpdateRestriction(forExtension: "TAR") == .readOnlyFormat(fileExtension: "tar"))
+        #expect(ArchiveService.entryUpdateRestriction(forExtension: "dmg") == .readOnlyFormat(fileExtension: "dmg"))
+        #expect(ArchiveService.entryUpdateRestriction(forExtension: "siz") == .readOnlyFormat(fileExtension: "siz"))
+    }
 }
 
 /// 0.4.2 #11:批量重命名计划引擎(纯名字变换)。

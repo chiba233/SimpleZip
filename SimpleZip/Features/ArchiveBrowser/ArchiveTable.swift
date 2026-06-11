@@ -504,6 +504,11 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
             // 0.4.2：zip 归档级注释编辑（EOCD 原生改写）。没有注释时这是唯一的「添加注释」入口。
             if model.canEditArchiveComment {
                 menu.addItem(menuItem(L10n.text("archive.comment.menu"), systemImage: "text.bubble", action: #selector(editArchiveComment)))
+            } else if model.canDropIntoOpenArchive {
+                // 0.4.3 #13:可写包但非 zip —— 显式解释「注释仅 ZIP 支持」,不再静默消失留人疑惑。
+                let unavailable = NSMenuItem(title: L10n.text("archive.comment.zipOnly.menu"), action: nil, keyEquivalent: "")
+                unavailable.isEnabled = false
+                menu.addItem(unavailable)
             }
             // 0.4.2 #24：包内重复文件检测（只读分析，任何归档都可用）。
             menu.addItem(menuItem(L10n.text("duplicates.menu"), systemImage: "doc.on.doc", action: #selector(findDuplicateFiles)))

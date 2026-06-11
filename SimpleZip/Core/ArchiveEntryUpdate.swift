@@ -11,6 +11,19 @@
 
 import Foundation
 
+/// 写操作不可用的统一原因(0.4.3 #13 可写能力边界门控)——
+/// 所有写入口(拖入/重命名/删除/清垃圾/注释/新建)共享同一份解释,不再「为什么这能那不能」。
+public enum ArchiveWriteRestriction: Equatable, Sendable {
+    /// 7-Zip 后端不可用,任何归档都改不了。
+    case backendUnavailable
+    /// 只读格式(7zz 不能写:tar 系 / rar / dmg / xip / gpg 容器 / 单文件压缩等)。
+    case readOnlyFormat(fileExtension: String)
+    /// 当前浏览的是 .siz/.szs/.gpg 解出来的临时副本——改写不会落回原容器,还会破坏签名/加密。
+    case temporaryExtractedCopy
+    /// 嵌套归档(包中包)以只读临时副本打开。
+    case nestedArchive
+}
+
 /// 要加入 / 替换进归档的一个条目:磁盘上的真实文件 + 它在归档内的目标相对路径。
 public struct ArchiveEntryAddition: Hashable {
     /// 磁盘上的源文件(拖入的文件 / 加密临时卷里编辑过的副本)。
@@ -58,12 +71,18 @@ extension ArchiveService {
     /// 一个归档是否可被 SimpleZip 安全地「加 / 替换条目」—— 仅 **zip / 7z**(7zz 可写)且 7zz 可用。
     /// TAR 系 / DMG / RAR(7zz 不可写)/ GPG 容器 都不开放(返回 false),调用方据此决定是否给「拖入 / 写回」入口。
     public static func supportsEntryUpdate(_ archiveURL: URL) -> Bool {
-        guard SevenZipBackend.isAvailable() else { return false }
-        switch archiveURL.pathExtension.lowercased() {
+        entryUpdateRestriction(forExtension: archiveURL.pathExtension) == nil
+    }
+
+    /// `supportsEntryUpdate` 的**解释版**(0.4.3 #13 可写能力统一门控):不可写时返回具体原因,
+    /// 所有写入口共享这一份解释,不再各自静默隐藏。可写返回 nil。
+    public static func entryUpdateRestriction(forExtension fileExtension: String) -> ArchiveWriteRestriction? {
+        guard SevenZipBackend.isAvailable() else { return .backendUnavailable }
+        switch fileExtension.lowercased() {
         case "zip", "7z":
-            return true
+            return nil
         default:
-            return false
+            return .readOnlyFormat(fileExtension: fileExtension.lowercased())
         }
     }
 

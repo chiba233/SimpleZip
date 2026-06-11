@@ -1041,6 +1041,12 @@
 "tasks.filter.failed" = "Failed";
 "tasks.filter.cancelled" = "Cancelled";
 "status.backend" = "ZIP native | 7Z via 7zz";
+"status.readOnly" = "Read-Only";
+"writeGate.backendUnavailable" = "The 7-Zip backend is unavailable, so archives can’t be modified.";
+"writeGate.readOnlyFormat" = "“%@” is a read-only format — its entries can’t be modified in place. Extract the files, or convert the archive to ZIP or 7z to edit it.";
+"writeGate.temporaryCopy" = "You’re browsing a temporary extracted copy (.siz / .szs / .gpg) — edits wouldn’t reach the original container and would break its signature or encryption. Export the files to edit them.";
+"writeGate.nestedArchive" = "Nested archives open as read-only temporary copies. Extract this archive first to edit it.";
+"archive.comment.zipOnly.menu" = "Archive Comment (ZIP Only)";
 "type.folder" = "Folder";
 "type.file" = "File";
 "alert.operationFailed" = "Operation Failed";

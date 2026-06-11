@@ -68,6 +68,16 @@ struct StatusBar: View {
                 }
                 .buttonStyle(.borderless)
             }
+            // 0.4.3 #13:打开的归档不可改写时,状态栏挂「只读」徽章,悬停给统一解释
+            // (只读格式 / 临时解包副本 / 嵌套归档 / 后端缺失)—— 写入口不再静默消失得不明不白。
+            if let restriction = model.archiveWriteRestriction {
+                Label(L10n.text("status.readOnly"), systemImage: "lock.fill")
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(Color.primary.opacity(0.08)))
+                    .help(Self.restrictionExplanation(restriction))
+            }
             Text(L10n.text("status.backend"))
                 .foregroundStyle(.secondary)
         }
@@ -76,6 +86,20 @@ struct StatusBar: View {
         .padding(.vertical, 7)
         // 跟地址栏同一 .bar 材质 —— 上下两条工具条一个质感（0.3.3 UI 现代化）。
         .background(.bar)
+    }
+
+    /// 写入受限原因 → 用户可读解释(#13 统一文案,en+zh)。
+    static func restrictionExplanation(_ restriction: ArchiveWriteRestriction) -> String {
+        switch restriction {
+        case .backendUnavailable:
+            return L10n.text("writeGate.backendUnavailable")
+        case .readOnlyFormat(let fileExtension):
+            return L10n.format("writeGate.readOnlyFormat", fileExtension)
+        case .temporaryExtractedCopy:
+            return L10n.text("writeGate.temporaryCopy")
+        case .nestedArchive:
+            return L10n.text("writeGate.nestedArchive")
+        }
     }
 
     private var legacyProgressView: some View {
