@@ -23,9 +23,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard let window = event.window,
                   let textView = window.firstResponder as? NSTextView,
                   textView.isEditable else { return event }
-            let container: NSView = textView.enclosingScrollView ?? textView
-            let point = container.convert(event.locationInWindow, from: nil)
-            if !container.bounds.contains(point) {
+            // 命中判定的宿主——字段编辑器(TextField/SecureField)用它正在编辑的控件
+            // (field editor 的 delegate 就是那个 NSTextField)。**不能**用 enclosingScrollView:
+            // 弹窗内容整体包在 HeightCappedScrollView 里,字段编辑器的最近滚动视图 = 整个弹窗,
+            // 点哪都算「在框内」→ 永不失焦(首版用户回报「死都取消不了」的根因)。
+            // 只有 TextEditor(非字段编辑器的 NSTextView)才用自己的滚动视图,让点它的滚动条不丢焦点。
+            let host: NSView
+            if textView.isFieldEditor {
+                host = (textView.delegate as? NSView) ?? textView
+            } else {
+                host = textView.enclosingScrollView ?? textView
+            }
+            let point = host.convert(event.locationInWindow, from: nil)
+            if !host.bounds.contains(point) {
                 window.makeFirstResponder(nil)
             }
             return event
