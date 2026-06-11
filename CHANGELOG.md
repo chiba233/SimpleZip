@@ -4,6 +4,9 @@
 
 ## 0.4.2 (unreleased)
 
+- **New: hidden Developer Tools.** ⌘-click the version pill in Settings → About: environment versions (app/macOS/7zz/RAR/GPG), key paths with Reveal buttons (Application Support, the SimpleZip GPG keyring, temp, the preferences plist), debug actions (reset the welcome assistant, arm the unclean-exit flag, copy the redacted environment report), and a read-only UserDefaults snapshot of the backup whitelist.
+- **Welcome assistant: the safety page is editable now.** The three security policies (suspicious paths / symlinks / active content) become pickers you can change right there instead of a read-only display, and the page gains a "confirm before deleting files" switch (same preference as Settings → General).
+
 - **Fix: two Activity Center bugs.** ① Exporting a diagnostics report froze the whole app — the save panel's modal loop ran inside a main-actor task, blocking every callback including the panel's own; the panel now opens synchronously first and the report is gathered and written afterwards (the general diagnostics export from the unclean-exit alert had the same bug). ② The new settings toggles (open-on-failure, finish sound) reverted visually after reopening the window — they now bind through @AppStorage; both switches plus the history limit also join the preferences backup/restore set.
 
 - **UI: the idle-scrollbar sweep reaches every remaining dialog.** Convert Format, Release Check, Batch Rename, Permissions & Owner, Create Signed Manifest, Encrypt as GPG, the path security report, the RAR install guide, benchmark results, and both transfer/hash summary sheets now hug their content — across the whole app, a dialog scrollbar only ever appears when content genuinely overflows.

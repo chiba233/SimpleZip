@@ -42,6 +42,8 @@ struct WelcomeAssistantView: View {
     // 向导只留「显示隐藏文件」总开关 —— 判定方式 / 折叠策略 / 行密度 / 分组等细粒度视图偏好
     // 已砍出向导（0.3.3），统一在 设置 → 浏览 / 视图 里调。
     @AppStorage(AppPreferences.Key.showHiddenFiles) private var showHiddenFiles = false
+    /// 0.4.2:安全策略页新增「删除文件前二次确认」开关(默认开,与设置页同 key)。
+    @AppStorage(AppPreferences.Key.confirmBeforeDeletingFiles) private var confirmBeforeDeletingFiles = true
 
     @State private var currentStep: Int = 0
 
@@ -175,9 +177,10 @@ struct WelcomeAssistantView: View {
             }
         case 3:
             WelcomeSafetyStep(
-                suspiciousPathPolicy: suspiciousPathPolicy,
-                symbolicLinkPolicy: symbolicLinkPolicy,
-                activeContentOpenPolicy: activeContentOpenPolicy
+                suspiciousPathPolicy: $suspiciousPathPolicy,
+                symbolicLinkPolicy: $symbolicLinkPolicy,
+                activeContentOpenPolicy: $activeContentOpenPolicy,
+                confirmBeforeDelete: $confirmBeforeDeletingFiles
             )
         case 4:
             // 引擎：压缩后端 + GPG（GPG 保持独立 section —— opt-in/opt-out 决定仍然显式）。
@@ -731,9 +734,12 @@ private struct WelcomeFileAssociationsStep: View {
 }
 
 private struct WelcomeSafetyStep: View {
-    let suspiciousPathPolicy: String
-    let symbolicLinkPolicy: String
-    let activeContentOpenPolicy: String
+    // 0.4.2 用户点名「只读太蠢」：三个策略改成 Picker 直接改（@AppStorage Binding 从主 view 透传,
+    // 改的瞬间落盘）;新增「删除文件前二次确认」开关(与 设置 → 通用 同 key)。
+    @Binding var suspiciousPathPolicy: String
+    @Binding var symbolicLinkPolicy: String
+    @Binding var activeContentOpenPolicy: String
+    @Binding var confirmBeforeDelete: Bool
 
     var body: some View {
         WelcomeStepShell(
@@ -742,25 +748,39 @@ private struct WelcomeSafetyStep: View {
             tint: .pink,
             body1: L10n.text("welcome.safety.body")
         ) {
-            VStack(alignment: .leading, spacing: 14) {
-                row(label: L10n.text("welcome.safety.suspiciousPath"), policy: suspiciousPathPolicy)
-                row(label: L10n.text("welcome.safety.symlink"), policy: symbolicLinkPolicy)
-                row(label: L10n.text("welcome.safety.activeContent"), policy: activeContentOpenPolicy)
+            policyRow(label: L10n.text("welcome.safety.suspiciousPath"), selection: $suspiciousPathPolicy)
+            policyRow(label: L10n.text("welcome.safety.symlink"), selection: $symbolicLinkPolicy)
+            policyRow(label: L10n.text("welcome.safety.activeContent"), selection: $activeContentOpenPolicy)
+
+            Divider()
+
+            Toggle(isOn: $confirmBeforeDelete) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L10n.text("welcome.safety.confirmDelete"))
+                        .font(.callout.weight(.medium))
+                    Text(L10n.text("welcome.safety.confirmDelete.detail"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
     }
 
-    private func row(label: String, policy: String) -> some View {
-        let decision = ArchiveSecurityDecision(rawValue: policy) ?? .ask
-        return HStack(alignment: .top, spacing: 12) {
+    private func policyRow(label: String, selection: Binding<String>) -> some View {
+        HStack(spacing: 12) {
             Image(systemName: "shield.lefthalf.filled")
-                .foregroundStyle(.tint)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(label).font(.callout.weight(.medium))
-                Text(L10n.format("welcome.safety.currentValue", decision.title))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                .foregroundStyle(.pink)
+            Text(label)
+                .font(.callout.weight(.medium))
+            Spacer()
+            Picker("", selection: selection) {
+                ForEach(ArchiveSecurityDecision.allCases) { decision in
+                    Text(decision.title).tag(decision.rawValue)
+                }
             }
+            .labelsHidden()
+            .fixedSize()
         }
     }
 }

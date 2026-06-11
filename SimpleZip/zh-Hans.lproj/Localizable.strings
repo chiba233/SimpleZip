@@ -1644,6 +1644,34 @@
 "welcome.completion.highlight.search" = "搜索框认高级 token：*.swift size:>1MB encrypted:true";
 "welcome.completion.highlight.compare" = "比较两个压缩包——或拿文件夹跟压缩包比——差异可导出";
 "welcome.completion.highlight.help" = "图文使用指南就在 设置 → 帮助";
+
+/* 0.4.2 开发者工具(关于页 ⌘点版本胶囊) */
+"devtools.title" = "开发者工具";
+"devtools.section.environment" = "环境";
+"devtools.gpg.available" = "可用";
+"devtools.gpg.unavailable" = "未安装 / 已停用";
+"devtools.section.paths" = "关键路径";
+"devtools.path.appSupport" = "Application Support";
+"devtools.path.keyring" = "SimpleZip GPG 钥匙串";
+"devtools.path.temp" = "临时目录";
+"devtools.path.preferences" = "偏好 plist";
+"devtools.section.actions" = "调试动作";
+"devtools.action.resetWelcome" = "重置欢迎助手";
+"devtools.action.resetWelcome.detail" = "下次启动会自动弹出欢迎助手。";
+"devtools.action.simulateCrash" = "布防异常退出标记";
+"devtools.action.simulateCrash.detail" = "下次启动会按「上次会话崩溃」处理（恢复提示 + 中断任务标记）。";
+"devtools.action.copyReport" = "复制环境报告";
+"devtools.action.copyReport.detail" = "与 设置 → 健康检查 同一份脱敏报告，直接进剪贴板。";
+"devtools.feedback.welcomeReset" = "已重置——重启后可见欢迎助手";
+"devtools.feedback.crashArmed" = "已布防——重启即可触发恢复提示";
+"devtools.feedback.reportCopied" = "报告已复制";
+"devtools.section.defaults" = "UserDefaults 快照（备份白名单口径）";
+"devtools.defaults.copyAll" = "全部复制";
+"devtools.feedback.defaultsCopied" = "快照已复制";
+
+/* 0.4.2 欢迎助手安全策略页可编辑 */
+"welcome.safety.confirmDelete" = "删除文件前需要确认";
+"welcome.safety.confirmDelete.detail" = "在浏览器里把文件移到废纸篓前先弹确认。";
 "feedback.copied" = "已复制";
 "command.copied" = "命令已复制";
 "tasks.settings.openOnFailure" = "任务失败时自动打开活动中心";

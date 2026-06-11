@@ -13,6 +13,9 @@ import AppKit
 import SwiftUI
 
 struct AboutPane: View {
+    /// 隐藏开发者工具(⌘+点击版本胶囊进入)。
+    @State private var showsDevTools = false
+
     private var versionLine: String {
         let short = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
         let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "—"
@@ -23,6 +26,9 @@ struct AboutPane: View {
         // 0.4.2 用户拍板：关于**必须一页显示、绝不出现滚动条** —— 不包任何滚动容器,
         // 间距按设置窗最小高度（660pt）压实。
         aboutContent
+            .sheet(isPresented: $showsDevTools) {
+                DevToolsView { showsDevTools = false }
+            }
     }
 
     private var aboutContent: some View {
@@ -43,6 +49,13 @@ struct AboutPane: View {
                         .padding(.horizontal, 14)
                         .padding(.vertical, 5)
                         .background(Capsule().fill(Color.primary.opacity(0.07)))
+                        .contentShape(Capsule())
+                        // 0.4.2 彩蛋：⌘+点击版本胶囊 → 开发者工具(普通点击无事发生,不打扰常规用户)。
+                        .onTapGesture {
+                            if NSEvent.modifierFlags.contains(.command) {
+                                showsDevTools = true
+                            }
+                        }
                     Text(L10n.text("about.description"))
                         .font(.callout)
                         .foregroundStyle(.secondary)

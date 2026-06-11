@@ -1644,6 +1644,34 @@
 "welcome.completion.highlight.search" = "Search with power tokens: *.swift size:>1MB encrypted:true";
 "welcome.completion.highlight.compare" = "Compare archives — or a folder against an archive — and export the diff";
 "welcome.completion.highlight.help" = "The illustrated guide lives in Settings → Help";
+
+/* 0.4.2 dev tools (cmd-click the version pill in About) */
+"devtools.title" = "Developer Tools";
+"devtools.section.environment" = "Environment";
+"devtools.gpg.available" = "Available";
+"devtools.gpg.unavailable" = "Not installed / disabled";
+"devtools.section.paths" = "Paths";
+"devtools.path.appSupport" = "Application Support";
+"devtools.path.keyring" = "SimpleZip GPG keyring";
+"devtools.path.temp" = "Temporary directory";
+"devtools.path.preferences" = "Preferences plist";
+"devtools.section.actions" = "Debug actions";
+"devtools.action.resetWelcome" = "Reset welcome assistant";
+"devtools.action.resetWelcome.detail" = "The assistant will open automatically on the next launch.";
+"devtools.action.simulateCrash" = "Arm unclean-exit flag";
+"devtools.action.simulateCrash.detail" = "The next launch behaves as if the previous session crashed (recovery notice + interrupted tasks).";
+"devtools.action.copyReport" = "Copy environment report";
+"devtools.action.copyReport.detail" = "Same redacted report as Settings → Health, straight to the clipboard.";
+"devtools.feedback.welcomeReset" = "Welcome assistant reset — relaunch to see it";
+"devtools.feedback.crashArmed" = "Armed — relaunch to trigger the recovery notice";
+"devtools.feedback.reportCopied" = "Report copied";
+"devtools.section.defaults" = "UserDefaults snapshot (backup whitelist)";
+"devtools.defaults.copyAll" = "Copy All";
+"devtools.feedback.defaultsCopied" = "Snapshot copied";
+
+/* 0.4.2 welcome safety page becomes editable */
+"welcome.safety.confirmDelete" = "Confirm before deleting files";
+"welcome.safety.confirmDelete.detail" = "Ask for confirmation before moving files to the Trash from the browser.";
 "feedback.copied" = "Copied";
 "command.copied" = "Command copied";
 "tasks.settings.openOnFailure" = "Open Activity Center on failure";
