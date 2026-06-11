@@ -84,14 +84,15 @@ struct SIZSignatureSheet: View {
         // detail 进 DialogSection 卡片,操作钉底 bar,内容区可滚动自适应。
         VStack(spacing: 0) {
             HStack(spacing: 14) {
-                Image(systemName: SIZSignatureStatus.iconName(for: signature.verify))
-                    .font(.system(size: 30, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 48, height: 48)
-                    .background(
-                        SIZSignatureStatus.color(for: signature.verify).gradient,
-                        in: RoundedRectangle(cornerRadius: 11, style: .continuous)
+                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                    .fill(SIZSignatureStatus.color(for: signature.verify))
+                    .saturation(0.75)
+                    .overlay(
+                        Image(systemName: SIZSignatureStatus.iconName(for: signature.verify))
+                            .font(.system(size: 30, weight: .semibold))
+                            .foregroundStyle(.white)
                     )
+                    .frame(width: 48, height: 48)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(SIZSignatureStatus.title(for: signature.verify))
                         .font(.title3.weight(.semibold))

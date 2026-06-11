@@ -9,7 +9,8 @@
 
 import SwiftUI
 
-/// 弹窗顶部 hero：渐变图标瓦片 + 标题 + 可选副标题。
+/// 弹窗顶部 hero：纯色图标瓦片 + 标题 + 可选副标题。
+/// 设计准则：box 一律不渐变（纯色平涂 + 降饱和）；colors 数组保留兼容旧调用点，只取首色平涂。
 struct DialogHero: View {
     let systemImage: String
     let colors: [Color]
@@ -18,14 +19,15 @@ struct DialogHero: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            Image(systemName: systemImage)
-                .font(.system(size: 21, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: 44, height: 44)
-                .background(
-                    LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing),
-                    in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(colors.first ?? Color.accentColor)
+                .saturation(0.75)
+                .overlay(
+                    Image(systemName: systemImage)
+                        .font(.system(size: 21, weight: .semibold))
+                        .foregroundStyle(.white)
                 )
+                .frame(width: 44, height: 44)
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.title3.weight(.semibold))
@@ -115,11 +117,15 @@ struct DialogDrawer<Content: View>: View {
                 }
             } label: {
                 HStack(spacing: 9) {
-                    Image(systemName: systemImage)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.white)
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(color)
+                        .saturation(0.75)
+                        .overlay(
+                            Image(systemName: systemImage)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(.white)
+                        )
                         .frame(width: 22, height: 22)
-                        .background(color.gradient, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
                     Text(title)
                         .font(.body.weight(.medium))
                     Spacer(minLength: 0)
@@ -137,11 +143,13 @@ struct DialogDrawer<Content: View>: View {
             if isExpanded {
                 Divider()
                     .padding(.horizontal, 14)
+                // 抽屉内容 = 二级，统一缩进 34（对齐设置区抽屉的层级制度）。
                 VStack(alignment: .leading, spacing: 16) {
                     content()
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 18)
+                .padding(.leading, 34)
+                .padding(.trailing, 18)
                 .padding(.vertical, 16)
             }
         }

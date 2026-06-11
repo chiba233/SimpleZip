@@ -357,14 +357,14 @@ struct SidebarButton: View {
     var body: some View {
         SidebarRowButton(action: action) {
             HStack(spacing: 7) {
-                Image(systemName: systemImage)
-                    .font(.system(size: 9, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 16, height: 16)
-                    .background(
-                        Color.accentColor.gradient,
-                        in: RoundedRectangle(cornerRadius: 4.5, style: .continuous)
+                RoundedRectangle(cornerRadius: 4.5, style: .continuous)
+                    .fill(Color.accentColor)
+                    .overlay(
+                        Image(systemName: systemImage)
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(.white)
                     )
+                    .frame(width: 16, height: 16)
                 Text(title)
                     .lineLimit(1)
                 Spacer(minLength: 0)

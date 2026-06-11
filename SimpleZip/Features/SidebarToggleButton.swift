@@ -43,11 +43,14 @@ struct CenteredSidebarRow: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 10) {
-                Image(systemName: systemImage)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.white)
+                RoundedRectangle(cornerRadius: 6.5, style: .continuous)
+                    .fill(color)
+                    .overlay(
+                        Image(systemName: systemImage)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(.white)
+                    )
                     .frame(width: 26, height: 26)
-                    .background(color.gradient, in: RoundedRectangle(cornerRadius: 6.5, style: .continuous))
                 Text(title)
                     .font(.body)
                     .lineLimit(1)

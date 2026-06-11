@@ -64,14 +64,15 @@ struct SZSVerificationSheet: View {
         // 0.4.1 重构：验签状态作 hero（大彩色印章），各信息块进 DialogSection 卡片,操作钉底 bar。
         VStack(spacing: 0) {
             HStack(spacing: 14) {
-                Image(systemName: SIZSignatureStatus.iconName(for: signature))
-                    .font(.system(size: 30, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 48, height: 48)
-                    .background(
-                        SIZSignatureStatus.color(for: signature).gradient,
-                        in: RoundedRectangle(cornerRadius: 11, style: .continuous)
+                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                    .fill(SIZSignatureStatus.color(for: signature))
+                    .saturation(0.75)
+                    .overlay(
+                        Image(systemName: SIZSignatureStatus.iconName(for: signature))
+                            .font(.system(size: 30, weight: .semibold))
+                            .foregroundStyle(.white)
                     )
+                    .frame(width: 48, height: 48)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(SIZSignatureStatus.title(for: signature))
                         .font(.title3.weight(.semibold))

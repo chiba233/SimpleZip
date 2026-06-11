@@ -16,15 +16,16 @@ struct HashResultsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 14) {
-                // 0.4.1：title 左加大彩色图标瓦片，跟其它对话框 hero 统一。
-                Image(systemName: "number.square.fill")
-                    .font(.system(size: 21, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 44, height: 44)
-                    .background(
-                        LinearGradient(colors: [.cyan, .blue], startPoint: .topLeading, endPoint: .bottomTrailing),
-                        in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+                // 0.4.1：title 左加大彩色图标瓦片，跟其它对话框 hero 统一（纯色平涂，box 不渐变）。
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color.cyan)
+                    .saturation(0.75)
+                    .overlay(
+                        Image(systemName: "number.square.fill")
+                            .font(.system(size: 21, weight: .semibold))
+                            .foregroundStyle(.white)
                     )
+                    .frame(width: 44, height: 44)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(L10n.text("hash.title"))
                         .font(.title2.weight(.semibold))

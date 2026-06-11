@@ -8,18 +8,22 @@
 import AppKit
 import SwiftUI
 
-/// 浮窗头部的渐变图标瓦片 —— 跟侧栏彩色瓦片同一设计语言，稍大一号、带同色软阴影
-/// （0.3.3「越华丽越好」UI 令：解压蓝 / 创建橙 / 验证绿，一眼分清浮窗在干什么）。
+/// 浮窗头部的纯色图标瓦片 —— 跟侧栏彩色瓦片同一设计语言，稍大一号、带同色软阴影
+/// （解压蓝 / 创建橙 / 验证绿，一眼分清浮窗在干什么；box 不渐变）。
 private struct FloatIconTile: View {
     let systemImage: String
     let color: Color
 
     var body: some View {
-        Image(systemName: systemImage)
-            .font(.system(size: 15, weight: .semibold))
-            .foregroundStyle(.white)
+        RoundedRectangle(cornerRadius: 8, style: .continuous)
+            .fill(color)
+            .saturation(0.75)
+            .overlay(
+                Image(systemName: systemImage)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+            )
             .frame(width: 32, height: 32)
-            .background(color.gradient, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             .shadow(color: color.opacity(0.35), radius: 4, y: 1)
     }
 }
