@@ -43,8 +43,9 @@ struct ArchiveCommentEditorView: View {
                             .fill(Color(nsColor: .textBackgroundColor))
                     )
                     .overlay(
+                        // 输入区描边与 dialogFieldEmphasis 同档(0.22)——0.1 在白卡上几乎隐形。
                         RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .strokeBorder(Color.primary.opacity(0.1))
+                            .strokeBorder(Color.primary.opacity(0.22))
                     )
                 HStack {
                     Text(L10n.text("archive.comment.editorHint"))
@@ -62,19 +63,27 @@ struct ArchiveCommentEditorView: View {
             Divider()
 
             HStack {
-                Button(L10n.text("button.cancel")) { close() }
-                    .keyboardShortcut(.cancelAction)
                 // 一键清除：只在包里已有注释时出现（清空草稿再保存的快捷径）。
                 if !model.archiveHeaderComment.isEmpty {
-                    Button(L10n.text("archive.comment.clear"), role: .destructive) {
+                    Button(role: .destructive) {
                         model.saveArchiveComment("")
                         close()
+                    } label: {
+                        Label(L10n.text("archive.comment.clear"), systemImage: "trash")
                     }
                 }
                 Spacer()
-                Button(L10n.text("button.save")) {
+                Button {
+                    close()
+                } label: {
+                    Label(L10n.text("button.cancel"), systemImage: "xmark")
+                }
+                .keyboardShortcut(.cancelAction)
+                Button {
                     model.saveArchiveComment(draft)
                     close()
+                } label: {
+                    Label(L10n.text("button.save"), systemImage: "text.bubble")
                 }
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)

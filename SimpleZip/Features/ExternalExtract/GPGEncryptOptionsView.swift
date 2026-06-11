@@ -126,11 +126,15 @@ struct GPGEncryptOptionsView: View {
                         .lineLimit(2)
                 }
                 Spacer()
-                Button(L10n.text("button.cancel"), action: cancel)
-                Button(L10n.text("gpgEncrypt.button")) {
+                Button(action: cancel) {
+                    Label(L10n.text("button.cancel"), systemImage: "xmark")
+                }
+                Button {
                     // 收件人全在 SimpleZip 私有环 → 加密用私有 homedir。混选已被 canEncrypt 拦住,到不了这里。
                     request.useSimpleZipKeyring = selectedRecipientSources == [.simpleZipKeyring]
                     confirm(request)
+                } label: {
+                    Label(L10n.text("gpgEncrypt.button"), systemImage: "lock")
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(!canEncrypt)
@@ -169,9 +173,7 @@ struct GPGEncryptOptionsView: View {
     private var recipientsRow: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
-                Label(L10n.text("archive.gpgEncrypt.recipientsLabel"), systemImage: "person.2.fill")
-                    .font(.callout.weight(.medium))
-                    .foregroundStyle(.secondary)
+                DialogRowLabel(L10n.text("archive.gpgEncrypt.recipientsLabel"), systemImage: "person.2.fill", tint: .green)
                 Spacer()
                 GPGAddRecipientMenu(eligibleKeys: encryptionEligibleKeys, selection: $request.recipientFingerprints)
             }
@@ -181,12 +183,11 @@ struct GPGEncryptOptionsView: View {
 
     @ViewBuilder
     private var encryptionPassphraseRow: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Label(L10n.text("archive.gpgEncrypt.passphraseLabel"), systemImage: "lock.rectangle.fill")
-                .font(.caption.weight(.medium))
-                .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 6) {
+            DialogRowLabel(L10n.text("archive.gpgEncrypt.passphraseLabel"), systemImage: "lock.rectangle.fill", tint: .orange)
             SecureField(L10n.text("archive.gpgEncrypt.passphrasePlaceholder"), text: $request.symmetricPassphrase)
                 .textFieldStyle(.roundedBorder)
+                .dialogFieldEmphasis()
             Text(L10n.text("archive.gpgEncrypt.passphraseHint"))
                 .font(.caption2)
                 .foregroundStyle(.secondary)

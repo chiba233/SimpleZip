@@ -59,10 +59,16 @@ struct BatchRenameSheet: View {
             HeightCappedScrollView(maxHeight: 480) {
                 VStack(alignment: .leading, spacing: 14) {
                     DialogSection {
-                        Picker(L10n.text("batchRename.mode"), selection: $mode) {
-                            ForEach(Mode.allCases) { candidate in
-                                Text(candidate.title).tag(candidate)
+                        LabeledContent {
+                            Picker("", selection: $mode) {
+                                ForEach(Mode.allCases) { candidate in
+                                    Text(candidate.title).tag(candidate)
+                                }
                             }
+                            .labelsHidden()
+                            .fixedSize()
+                        } label: {
+                            DialogRowLabel(L10n.text("batchRename.mode"), systemImage: "wand.and.stars", tint: .indigo)
                         }
                         modeFields
                     }
@@ -110,11 +116,15 @@ struct BatchRenameSheet: View {
             Divider()
 
             HStack {
-                Button(L10n.text("button.cancel"), action: cancel)
-                    .keyboardShortcut(.cancelAction)
                 Spacer()
-                Button(L10n.format("batchRename.confirm", "\(validCount)")) {
+                Button(action: cancel) {
+                    Label(L10n.text("button.cancel"), systemImage: "xmark")
+                }
+                .keyboardShortcut(.cancelAction)
+                Button {
                     confirm(changes)
+                } label: {
+                    Label(L10n.format("batchRename.confirm", "\(validCount)"), systemImage: "pencil.line")
                 }
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
@@ -131,21 +141,13 @@ struct BatchRenameSheet: View {
     private var modeFields: some View {
         switch mode {
         case .replace:
-            LabeledContent(L10n.text("batchRename.find")) {
-                TextField("", text: $findText).textFieldStyle(.roundedBorder).frame(maxWidth: 260)
-            }
-            LabeledContent(L10n.text("batchRename.replaceWith")) {
-                TextField("", text: $replacementText).textFieldStyle(.roundedBorder).frame(maxWidth: 260)
-            }
+            parameterField("batchRename.find", systemImage: "magnifyingglass", text: $findText)
+            parameterField("batchRename.replaceWith", systemImage: "arrow.right", text: $replacementText)
         case .prefix:
-            LabeledContent(L10n.text("batchRename.prefixText")) {
-                TextField("", text: $affixText).textFieldStyle(.roundedBorder).frame(maxWidth: 260)
-            }
+            parameterField("batchRename.prefixText", systemImage: "text.insert", text: $affixText)
         case .suffix:
             VStack(alignment: .leading, spacing: 4) {
-                LabeledContent(L10n.text("batchRename.suffixText")) {
-                    TextField("", text: $affixText).textFieldStyle(.roundedBorder).frame(maxWidth: 260)
-                }
+                parameterField("batchRename.suffixText", systemImage: "text.append", text: $affixText)
                 Text(L10n.text("batchRename.suffixHint"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -153,21 +155,35 @@ struct BatchRenameSheet: View {
         case .lowercase, .uppercase:
             EmptyView()
         case .sequence:
-            LabeledContent(L10n.text("batchRename.sequenceBase")) {
-                TextField("", text: $sequenceBase).textFieldStyle(.roundedBorder).frame(maxWidth: 260)
-            }
-            LabeledContent(L10n.text("batchRename.sequenceStart")) {
+            parameterField("batchRename.sequenceBase", systemImage: "character.cursor.ibeam", text: $sequenceBase)
+            LabeledContent {
                 Stepper(value: $sequenceStart, in: 0...9999) {
                     Text("\(sequenceStart)").monospacedDigit()
                 }
                 .fixedSize()
+            } label: {
+                DialogRowLabel(L10n.text("batchRename.sequenceStart"), systemImage: "number", tint: .indigo)
             }
-            LabeledContent(L10n.text("batchRename.sequenceDigits")) {
+            LabeledContent {
                 Stepper(value: $sequenceDigits, in: 1...6) {
                     Text("\(sequenceDigits)").monospacedDigit()
                 }
                 .fixedSize()
+            } label: {
+                DialogRowLabel(L10n.text("batchRename.sequenceDigits"), systemImage: "number.square", tint: .indigo)
             }
+        }
+    }
+
+    /// 参数输入行：彩色瓦片标签 + 描边增强的输入框（同色 = 同属重命名参数一族）。
+    private func parameterField(_ key: String, systemImage: String, text: Binding<String>) -> some View {
+        LabeledContent {
+            TextField("", text: text)
+                .textFieldStyle(.roundedBorder)
+                .dialogFieldEmphasis()
+                .frame(maxWidth: 260)
+        } label: {
+            DialogRowLabel(L10n.text(key), systemImage: systemImage, tint: .indigo)
         }
     }
 }

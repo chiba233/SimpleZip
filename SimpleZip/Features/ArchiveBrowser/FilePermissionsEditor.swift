@@ -256,9 +256,10 @@ struct FilePermissionsEditorSheet: View {
                             LabeledContent {
                                 TextField("", text: $owner)
                                     .textFieldStyle(.roundedBorder)
+                                    .dialogFieldEmphasis()
                                     .frame(width: 200)
                             } label: {
-                                Label(L10n.text("file.permissions.ownerLabel"), systemImage: "person.fill")
+                                DialogRowLabel(L10n.text("file.permissions.ownerLabel"), systemImage: "person.fill", tint: .cyan)
                             }
                             Text(L10n.text("file.permissions.ownerHint"))
                                 .font(.caption2)
@@ -268,15 +269,13 @@ struct FilePermissionsEditorSheet: View {
 
                         // 选区含文件夹时才出现：递归套用到文件夹内所有项目（chmod -R / chown -R）。
                         if request.containsDirectory {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Toggle(isOn: $applyRecursively) {
-                                    Label(L10n.text("file.permissions.recursive"), systemImage: "arrow.down.forward.square.fill")
-                                }
-                                Text(L10n.text("file.permissions.recursive.hint"))
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
+                            DialogToggleRow(
+                                title: L10n.text("file.permissions.recursive"),
+                                subtitle: L10n.text("file.permissions.recursive.hint"),
+                                systemImage: "arrow.down.forward.square.fill",
+                                tint: .purple,
+                                isOn: $applyRecursively
+                            )
                         }
                     }
                 }
@@ -288,11 +287,19 @@ struct FilePermissionsEditorSheet: View {
 
             HStack {
                 Spacer()
-                Button(L10n.text("button.cancel"), role: .cancel) { cancel() }
-                    .keyboardShortcut(.cancelAction)
-                Button(L10n.text("button.apply")) { applyChanges() }
-                    .buttonStyle(.borderedProminent)
-                    .keyboardShortcut(.defaultAction)
+                Button(role: .cancel) {
+                    cancel()
+                } label: {
+                    Label(L10n.text("button.cancel"), systemImage: "xmark")
+                }
+                .keyboardShortcut(.cancelAction)
+                Button {
+                    applyChanges()
+                } label: {
+                    Label(L10n.text("button.apply"), systemImage: "lock.shield")
+                }
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)

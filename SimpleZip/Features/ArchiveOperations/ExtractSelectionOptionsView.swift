@@ -116,7 +116,7 @@ struct GPGExtractOptionsView: View {
 
             DialogFooter(
                 confirmTitle: L10n.text("button.extract"),
-                confirmSystemImage: "lock.open.fill",
+                confirmSystemImage: "lock.open",
                 confirmDisabled: false,
                 confirm: { extract(request) },
                 cancel: cancel
