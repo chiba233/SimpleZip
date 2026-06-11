@@ -376,9 +376,15 @@ struct FileNSOutlineView: NSViewRepresentable {
             if signature != lastConfigSignature {
                 lastConfigSignature = signature
                 userCollapsedSectionKeys = []
-                // 换文件夹 / 改配置：文件夹 / 分卷集展开记忆作废（folder key 在 configSignature 里,导航必走这支）。
-                expandedFolderPaths = []
-                expandedVolumeSetPaths = []
+                // 展开记忆**跨导航保留**（用户报「切换个路径就不工作了」）：记的是绝对路径,全局唯一,
+                // 离开文件夹后留着,回来时 enforceExpansion 自然回放;别的文件夹根本匹配不上,无副作用。
+                // 记忆开关关掉时才清(开关在 configSignature 里,关掉必走这支) —— 关掉 = 用户要「刷新即折叠」。
+                if !AppPreferences.rememberFolderExpansion {
+                    expandedFolderPaths = []
+                }
+                if !AppPreferences.rememberVolumeSetExpansion {
+                    expandedVolumeSetPaths = []
+                }
                 hiddenGroupExpanded = FileBrowserOutline.initialExpanded(
                     mode: AppPreferences.hiddenGroupCollapseMode,
                     folderKey: currentFolderKey,

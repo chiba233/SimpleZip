@@ -4,6 +4,7 @@
 
 ## 0.4.2 (unreleased)
 
+- **Fix: expansion memory survives navigation.** "Remember expanded folders / split-volume sets" was wiped on every path change, so leaving a folder and coming back collapsed everything. Expansion records are absolute paths, so they now persist for the whole session and replay when you return; they're only cleared when you switch the memory off.
 - **Internal: fixed a CI-only compile failure** — the archive-diff CSV row expression exceeded the stable compiler's type-check budget ("unable to type-check in reasonable time"); the columns now land in typed locals first.
 - **Fix: split-volume sets remember whether you expanded them.** An expanded set used to snap shut on every list refresh (file changes, manual refresh, sorting) — it now stays open like expanded folders do. Both memories get switches under Settings → Browser ("Remember expanded folders" / "Remember expanded split-volume sets", on by default, included in preference backups); turning one off means every refresh starts collapsed, with selection safely pulled back from rows that disappear.
 - **UI: the Activity Center toolbar button sits in its own glass cluster**, separated from the archive-action buttons (Add/Extract/Test/Hash/Reveal) — it opens a window-level panel rather than acting on the archive, so it gets the same adjacent-but-independent capsule treatment as the contextual pair.
