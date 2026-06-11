@@ -61,7 +61,12 @@ struct RarInstallDocumentView: View {
             Text(title)
                 .font(.subheadline.weight(.semibold))
 
-            HeightCappedScrollView(maxHeight: 540) {
+            // 必须用**可压缩**的普通 ScrollView,不能用 HeightCappedScrollView：
+            // 这个 sheet 的高度被宿主窗口钳制(设置窗很矮),而 HeightCapped 量出长文后
+            // 给自己定的是 540 的**刚性**高度 —— 两份一叠远超可用空间,VStack 不压缩刚性
+            // 子视图,整页元素直接叠印(实测截图「彻底炸了」)。协议 / README 永远是长文本,
+            // min/max 弹性高度让两份文档在矮窗里均分空间、各自滚动,高窗里贴到上限。
+            ScrollView {
                 // 空字符串会让 Text 折叠成 0 行，给个空格保留最小高度。
                 Text(text.isEmpty ? " " : text)
                     .font(.system(.caption, design: .monospaced))
@@ -69,12 +74,12 @@ struct RarInstallDocumentView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(8)
             }
+            .frame(minHeight: 100, maxHeight: 420)
             .background(.quaternary, in: RoundedRectangle(cornerRadius: 6))
             .overlay {
                 RoundedRectangle(cornerRadius: 6)
                     .stroke(.quaternary)
             }
-            .frame(minHeight: 190)
 
             Toggle(checkboxTitle, isOn: $isRead)
         }
