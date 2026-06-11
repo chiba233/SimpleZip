@@ -20,7 +20,8 @@ import UniformTypeIdentifiers
 /// 那种「记着当前是哪个压缩包」。
 @MainActor
 final class FileBrowserService {
-    private let fileManager: FileManager
+    // FileManager 按 Apple 文档线程安全(委托除外,这里不用委托);SDK 未标 Sendable → unsafe 注记。
+    private nonisolated(unsafe) let fileManager: FileManager
 
     init(fileManager: FileManager = .default) {
         self.fileManager = fileManager

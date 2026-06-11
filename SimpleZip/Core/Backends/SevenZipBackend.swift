@@ -300,13 +300,29 @@ enum SevenZipBackend {
     /// App bundle 自带的 7zz 路径 —— DMG 发布版会把 `Contents/Resources/Tools/7zz` 一起打包。
     /// 罗列多个备选名是为了兼容历史 build / 不同打包脚本的产物。
     private static var bundledCandidates: [ResolvedSevenZipTool] {
-        guard let resourcePath = Bundle.main.resourceURL?.path else { return [] }
-        return [
-            "\(resourcePath)/Tools/7zz",
-            "\(resourcePath)/Tools/7z",
-            "\(resourcePath)/7zz",
-            "\(resourcePath)/7z"
-        ].map { ResolvedSevenZipTool(path: $0, source: .bundled) }
+        var paths: [String] = []
+        // 显式覆盖钩子(测试 / 诊断用):SIMPLEZIP_7ZZ_PATH 指向的二进制优先于一切。
+        if let override = ProcessInfo.processInfo.environment["SIMPLEZIP_7ZZ_PATH"], !override.isEmpty {
+            paths.append(override)
+        }
+        if let resourcePath = Bundle.main.resourceURL?.path {
+            paths += [
+                "\(resourcePath)/Tools/7zz",
+                "\(resourcePath)/Tools/7z",
+                "\(resourcePath)/7zz",
+                "\(resourcePath)/7z"
+            ]
+        }
+        // SwiftPM 测试没有 app bundle:按源码相对路径补仓库内置 7zz,保证测试跑的就是出货引擎——
+        // 否则会落到机器上的系统 p7zip(实测 17.05 连 `-mtm=off` 都不认,可复现压缩测试直接 E_INVALIDARG)。
+        // 发布构建里这个编译期路径不存在,resolve() 的 isExecutableFile 检查自然跳过,零影响。
+        let repoTool = URL(fileURLWithPath: #filePath)  // …/SimpleZip/Core/Backends/SevenZipBackend.swift
+            .deletingLastPathComponent()                // Backends
+            .deletingLastPathComponent()                // Core
+            .deletingLastPathComponent()                // SimpleZip
+            .appendingPathComponent("Tools/7zz").path
+        paths.append(repoTool)
+        return paths.map { ResolvedSevenZipTool(path: $0, source: .bundled) }
     }
 
     /// 系统级 7zz —— Homebrew、p7zip Cellar、$PATH 各种来源。

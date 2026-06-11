@@ -101,6 +101,24 @@ public enum FormatCapabilityMatrix {
             FormatCapabilityRow(id: "xip", displayName: "XIP",
                                 create: .no, extract: .yes, editEntries: .no, encrypt: .no, headerEncrypt: .no,
                                 splitVolumes: .no, test: .yes, comment: .no),
+            // Zstandard（2026-06 实测内置 7zz 26.01）：list/extract/test 全支持,tar.zst 与 tar.gz
+            // 同款双层管道;创建 = 7zz 无 zstd 编码器(`a -tzstd` 实测 E_NOTIMPL)+ 系统 bsdtar 无 zstd → 只读。
+            FormatCapabilityRow(id: "zst", displayName: "Zstandard (zst / tar.zst)",
+                                create: .no, extract: .yes, editEntries: .no, encrypt: .no, headerEncrypt: .no,
+                                splitVolumes: .no, test: .yes, comment: .no),
+            // 只读镜像 / 容器家族（实测 7zz 可列 / 解 / 测,均不可写）。
+            FormatCapabilityRow(id: "iso", displayName: "ISO / UDF",
+                                create: .no, extract: .yes, editEntries: .no, encrypt: .no, headerEncrypt: .no,
+                                splitVolumes: .no, test: .yes, comment: .no),
+            FormatCapabilityRow(id: "cab", displayName: "CAB",
+                                create: .no, extract: .yes, editEntries: .no, encrypt: .no, headerEncrypt: .no,
+                                splitVolumes: .no, test: .yes, comment: .no),
+            FormatCapabilityRow(id: "cpio", displayName: "CPIO",
+                                create: .no, extract: .yes, editEntries: .no, encrypt: .no, headerEncrypt: .no,
+                                splitVolumes: .no, test: .yes, comment: .no),
+            FormatCapabilityRow(id: "xar", displayName: "XAR / PKG",
+                                create: .no, extract: .yes, editEntries: .no, encrypt: .no, headerEncrypt: .no,
+                                splitVolumes: .no, test: .yes, comment: .no),
             // .gpg：加密 = 创建、解密 = 打开；GPG 容器没有头部加密 / 分卷 / 注释 / 编辑概念。
             FormatCapabilityRow(id: "gpg", displayName: ".gpg",
                                 create: .yes, extract: .yes, editEntries: .no, encrypt: .yes, headerEncrypt: .no,

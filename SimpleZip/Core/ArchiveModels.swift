@@ -39,7 +39,7 @@ struct FileItem: Identifiable, Hashable {
     /// 属主用户名（取不到时退回数字 uid 字符串）—— 可选「属主」列展示。
     let owner: String
 
-    init(
+    nonisolated init(
         url: URL,
         name: String,
         displayName: String,

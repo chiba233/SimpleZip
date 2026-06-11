@@ -95,14 +95,14 @@ public actor ArchiveWriteLock {
 public enum DiskSpacePreflight {
     /// url 所在卷的可用容量(importantUsage 口径:含系统可清除空间,与 Finder 显示一致)。
     /// 取不到(罕见)返回 nil —— 调用方不拦截,宁可放行也不误杀。
-    public static func availableCapacity(at url: URL) -> Int64? {
+    public nonisolated static func availableCapacity(at url: URL) -> Int64? {
         let values = try? url.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
         return values?.volumeAvailableCapacityForImportantUsage
     }
 
     /// 确保 url 所在卷至少有 estimatedBytes 可用,否则抛 `insufficientDiskSpace`。
     /// estimatedBytes <= 0(未知大小)或容量读不到 → 不检查。
-    public static func ensure(estimatedBytes: Int64, at url: URL) throws {
+    public nonisolated static func ensure(estimatedBytes: Int64, at url: URL) throws {
         guard estimatedBytes > 0, let available = availableCapacity(at: url) else { return }
         if available < estimatedBytes {
             throw ArchiveError.insufficientDiskSpace(needed: estimatedBytes, available: available)

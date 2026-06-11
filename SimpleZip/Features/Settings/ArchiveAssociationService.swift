@@ -56,6 +56,12 @@ enum ArchiveAssociationService {
         ArchiveAssociation(fileExtension: "dmg", title: "DMG Disk Image", contentTypes: contentTypes(for: "dmg", fallback: ["com.apple.disk-image-udif"])),
         // XIP（Apple 签名归档,0.3.3 起支持浏览 / 解压 / 测试）。
         ArchiveAssociation(fileExtension: "xip", title: "XIP Archive", contentTypes: contentTypes(for: "xip", fallback: ["com.apple.xip-archive"])),
+        // Zstandard（0.4.3 起只读支持:zst / tar.zst / tzst,内置 7zz 解码）。
+        ArchiveAssociation(
+            fileExtension: "zst",
+            title: "Zstandard Archive",
+            contentTypes: contentTypes(for: ["zst", "tzst"], fallback: ["org.zstandard.zst"])
+        ),
         // SimpleZip 自有的「带签名 tar 容器」格式 —— UTI 在 Info.plist 的 UTExportedTypeDeclarations 里声明。
         ArchiveAssociation(fileExtension: "siz", title: "SimpleZip Signed Container", contentTypes: contentTypes(for: "siz", fallback: ["com.simplezip.siz-archive"])),
         // SimpleZip 自有的签名清单格式（v0.1.9 起）。
