@@ -2,6 +2,16 @@
 
 # Changelog
 
+## 0.4.1
+
+- **UI: the Create Archive dialog is rebuilt around a "common vs. drawer" layout.** A hero header (gradient icon + "Compressing N items"), the everyday options (name, destination, format, level, password) out in the open, and everything else folded into expandable drawer cards — Advanced (update/path mode, volume size, custom parameters), 7-Zip Parameters, Exclude Rules, and GPG Signing & Delivery. Every row carries an icon, the 7z thread count value is pinned next to its stepper instead of floating, and the GPG note/passphrase fields use a label-above-field two-line layout.
+- **UI: Extract and Permissions & Owner dialogs share the same modern shell.** Hero header with the archive name, icon-labelled rows, self-sizing section cards and a pinned action bar with a prominent default button.
+- **UI: dialogs now size to their content.** The grouped-Form experiment left large fixed blanks (especially in the extract dialog); sheets now hug their content with a max-height cap to stay on screen.
+- **UI: the .szs verification file list becomes a collapsible directory tree** — folder drawers with descendant counts and an aggregate status dot, fixed per-level indentation, full paths in tooltips.
+- **UI: the address bar's autocomplete is a hand-drawn liquid-glass panel** docked directly under the bar at full width: one sheet of material, no row dividers, and only the selected row gets an accent block.
+- **New: folders expand in place in the file browser.** Directory rows get a disclosure chevron; expansion lazily lists the subfolder with the main listing's exact rules (hidden files, symlinks, .szs virtual filtering), with Finder-style per-level indentation.
+- **UI: the main toolbar defaults to icon-and-text** and remembers your right-click display-mode choice across launches.
+
 ## 0.4.0
 
 - **UI: the Welcome Assistant's choice controls are more compact.** Language, startup location, and overwrite behavior now use menu pickers instead of expanded inline radio lists, keeping the onboarding page shorter without changing the single-choice behavior.

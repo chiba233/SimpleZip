@@ -10,7 +10,6 @@ import SwiftUI
 /// 创建压缩包前的选项面板。
 struct ArchiveCreationOptionsView: View {
     @State var request: ArchiveCreationRequest
-    @State private var showsSevenZipAdvancedOptions = false
     @State private var excludedFileCount: Int?
     @State private var isCountingExcludedFiles = false
     /// 「使用预设密码」复选框的当前勾选状态。仅在用户在通用设置里启用了预设密码时显示。
@@ -62,50 +61,40 @@ struct ArchiveCreationOptionsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // 顶部 hero：彩色渐变瓦片 + 标题 + 「压缩 N 个项目」副标题 —— 与浮窗 / 欢迎助手同一套视觉语言。
-            HStack(spacing: 12) {
-                Image(systemName: "plus.square.on.square")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 40, height: 40)
-                    .background(
-                        LinearGradient(colors: [.orange, .pink], startPoint: .topLeading, endPoint: .bottomTrailing),
-                        in: RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    )
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(L10n.text("archive.create.title"))
-                        .font(.title3.weight(.semibold))
-                    Text(L10n.format("archive.create.subtitle", "\(request.sourceURLs.count)"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 18)
-            .padding(.bottom, 10)
+            DialogHero(
+                systemImage: "plus.square.on.square",
+                colors: [.orange, .pink],
+                title: L10n.text("archive.create.title"),
+                subtitle: L10n.format("archive.create.subtitle", "\(request.sourceURLs.count)")
+            )
 
-            // 0.4.1 重构：平铺 ScrollView → grouped Form 分区卡片（系统设置同款体例）。
-            // 所有选项、显隐门控（hidden() / supports*）、onChange 行为与 0.3.x 完全一致，只换排版。
+            // 0.4.1（用户拍板）：常用选项直出（基本 / 密码），不常用选项全部进抽屉（高级 / 7-Zip /
+            // 排除 / GPG）。高度自适应内容，maxHeight 兜底防超屏 —— 不再写死 sheet 高度。
             ScrollViewReader { scrollProxy in
-                Form {
-                    basicsSection
-                    if request.options.format.supportsPassword {
-                        passwordSection
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        basicsSection
+                        if request.options.format.supportsPassword {
+                            passwordSection
+                        }
+                        if showsAdvancedDrawer {
+                            advancedDrawer
+                        }
+                        if request.options.format == .sevenZip {
+                            sevenZipDrawer
+                        }
+                        if request.options.format.supportsExcludeRules {
+                            excludeDrawer
+                        }
+                        if AppPreferences.gpgEnabled && GPGBackend.isAvailable() {
+                            gpgDrawer
+                        }
                     }
-                    if request.options.format == .sevenZip {
-                        sevenZipSection
-                    }
-                    if request.options.format.supportsExcludeRules {
-                        excludeSection
-                    }
-                    if AppPreferences.gpgEnabled && GPGBackend.isAvailable() {
-                        gpgSection
-                    }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 16)
                 }
-                .formStyle(.grouped)
+                .frame(maxHeight: 620)
                 .onChange(of: request.options.gpgSign) { newValue in
-                    // 用户勾 GPG 签名后，新增的多组 UI 都在 Form 底部，默认看不见 —— 自动滚下来。
                     guard newValue else { return }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                         withAnimation(.easeInOut(duration: 0.25)) {
@@ -117,7 +106,6 @@ struct ArchiveCreationOptionsView: View {
 
             Divider()
 
-            // 钉底操作栏：bar 材质 + prominent 主按钮。
             HStack {
                 ShowDetailsToggleButton(isOn: $request.options.showDetails)
                 if let validationMessage {
@@ -141,9 +129,8 @@ struct ArchiveCreationOptionsView: View {
             .padding(.vertical, 12)
             .background(.bar)
         }
-        .frame(width: 700, height: 680)
+        .frame(width: 700)
         .animation(.default, value: request.options.format)
-        .animation(.default, value: showsSevenZipAdvancedOptions)
         .animation(.default, value: request.options.password.isEmpty)
         .animation(.default, value: request.options.passwordConfirmation.isEmpty)
         .onChange(of: request.options.skipDSStore) { _ in
@@ -194,15 +181,21 @@ struct ArchiveCreationOptionsView: View {
         }
     }
 
-    // MARK: - 分区（grouped Form 现代体例；选项集与门控逻辑保持 0.3.x 原样）
+    // MARK: - 分区（常用直出）与抽屉（不常用收起）。所有选项与门控逻辑保持原样。
 
-    /// 基本：文件名 / 保存位置 / 格式 / 级别 / 更新模式 / 路径模式(非 7z) / 默认值模板 / 分卷。
+    /// 基本（常用）：文件名 / 保存位置 / 格式 / 压缩级别 / 默认值模板。
     @ViewBuilder
     private var basicsSection: some View {
-        Section(L10n.text("archive.create.section.basics")) {
-            TextField(L10n.text("archive.fileName"), text: fileNameBinding)
+        DialogSection(L10n.text("archive.create.section.basics")) {
+            LabeledContent {
+                TextField("", text: fileNameBinding)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(maxWidth: 340)
+            } label: {
+                Label(L10n.text("archive.fileName"), systemImage: "character.cursor.ibeam")
+            }
 
-            LabeledContent(L10n.text("archive.destination")) {
+            LabeledContent {
                 HStack(spacing: 8) {
                     Text(request.destinationURL.path)
                         .lineLimit(1)
@@ -212,60 +205,47 @@ struct ArchiveCreationOptionsView: View {
                         chooseDestination()
                     }
                 }
+            } label: {
+                Label(L10n.text("archive.destination"), systemImage: "folder.fill")
             }
 
-            Picker(L10n.text("archive.format"), selection: $request.options.format) {
-                ForEach(ArchiveCreateFormat.allCases) { format in
-                    Text(format.title).tag(format)
+            LabeledContent {
+                Picker("", selection: $request.options.format) {
+                    ForEach(ArchiveCreateFormat.allCases) { format in
+                        Text(format.title).tag(format)
+                    }
                 }
-            }
-            .onChange(of: request.options.format) { _ in
-                updateDestinationExtension()
+                .labelsHidden()
+                .fixedSize()
+                .onChange(of: request.options.format) { _ in
+                    updateDestinationExtension()
+                }
+            } label: {
+                Label(L10n.text("archive.format"), systemImage: "shippingbox.fill")
             }
 
             if request.options.format.supportsCompressionLevel, !hidden(.level) {
-                Picker(L10n.text("archive.compressionLevel"), selection: $request.options.compressionLevel) {
-                    ForEach(CompressionLevel.allCases) { level in
-                        Text(level.title).tag(level)
+                LabeledContent {
+                    Picker("", selection: $request.options.compressionLevel) {
+                        ForEach(CompressionLevel.allCases) { level in
+                            Text(level.title).tag(level)
+                        }
                     }
-                }
-            }
-
-            if request.options.format.supportsUpdateMode, !hidden(.updateMode) {
-                Picker(L10n.text("archive.updateMode"), selection: $request.options.updateMode) {
-                    ForEach(ArchiveUpdateMode.allCases) { mode in
-                        Text(mode.title).tag(mode)
-                    }
-                }
-            }
-
-            if request.options.format != .sevenZip, request.options.format.supportsUpdateMode, !hidden(.pathMode) {
-                Picker(L10n.text("archive.7z.pathMode"), selection: $request.options.sevenZipPathMode) {
-                    ForEach(SevenZipPathMode.allCases) { mode in
-                        Text(mode.title).tag(mode)
-                    }
+                    .labelsHidden()
+                    .fixedSize()
+                } label: {
+                    Label(L10n.text("archive.compressionLevel"), systemImage: "gauge.with.dots.needle.67percent")
                 }
             }
 
             // #115 本格式存了默认值模板 → 勾上套用模板并隐藏其已配选项，取消则全显。
             if formatDefaultsPreset != nil {
-                Toggle(L10n.format("archive.useFormatDefaults", request.options.format.title), isOn: $useFormatDefaults)
-                    .help(L10n.text("archive.useFormatDefaults.help"))
-                    .onChange(of: useFormatDefaults) { on in
-                        if on, let preset = formatDefaultsPreset { preset.apply(to: &request.options) }
-                    }
-            }
-
-            if request.options.format.supportsVolumeSplitting {
-                VStack(alignment: .leading, spacing: 4) {
-                    TextField(L10n.text("archive.7z.volumeSize"), text: $request.options.sevenZipVolumeSize)
-                    if let volumeSizeValidationMessage {
-                        validationText(volumeSizeValidationMessage)
-                    } else {
-                        Text(L10n.text("archive.7z.volumeSizeHint"))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+                Toggle(isOn: $useFormatDefaults) {
+                    Label(L10n.format("archive.useFormatDefaults", request.options.format.title), systemImage: "square.stack.3d.up.fill")
+                }
+                .help(L10n.text("archive.useFormatDefaults.help"))
+                .onChange(of: useFormatDefaults) { on in
+                    if on, let preset = formatDefaultsPreset { preset.apply(to: &request.options) }
                 }
             }
 
@@ -278,29 +258,33 @@ struct ArchiveCreationOptionsView: View {
         }
     }
 
-    /// 密码与加密：预设密码 / 密码对 / 显示密码 / 加密算法 / 文件名加密(7z·rar)。
+    /// 密码与加密（常用）：预设密码 / 密码对 / 显示密码 / 加密算法 / 文件名加密(7z·rar)。
     @ViewBuilder
     private var passwordSection: some View {
-        Section(L10n.text("archive.create.section.security")) {
+        DialogSection(L10n.text("archive.create.section.security")) {
             if hasUsablePreset {
-                Toggle(L10n.text("button.usePresetPassword"), isOn: $useArchivePresetPassword)
-                    .help(L10n.text("button.usePresetPassword.help"))
-                    .onChange(of: useArchivePresetPassword) { newValue in
-                        if newValue {
-                            // 勾选 = password 和 confirmation 都用预设。不动 encryptionMethod。
-                            request.options.password = presetPassword
-                            request.options.passwordConfirmation = presetPassword
-                        } else {
-                            request.options.password = ""
-                            request.options.passwordConfirmation = ""
-                        }
+                Toggle(isOn: $useArchivePresetPassword) {
+                    Label(L10n.text("button.usePresetPassword"), systemImage: "key.fill")
+                }
+                .help(L10n.text("button.usePresetPassword.help"))
+                .onChange(of: useArchivePresetPassword) { newValue in
+                    if newValue {
+                        // 勾选 = password 和 confirmation 都用预设。不动 encryptionMethod。
+                        request.options.password = presetPassword
+                        request.options.passwordConfirmation = presetPassword
+                    } else {
+                        request.options.password = ""
+                        request.options.passwordConfirmation = ""
                     }
+                }
             }
             if !(hasUsablePreset && useArchivePresetPassword) {
-                passwordField(L10n.text("archive.password"), text: $request.options.password)
+                passwordField(L10n.text("archive.password"), systemImage: "key.fill", text: $request.options.password)
                 if !request.options.password.isEmpty || !request.options.passwordConfirmation.isEmpty {
-                    passwordField(L10n.text("archive.passwordConfirm"), text: $request.options.passwordConfirmation)
-                    Toggle(L10n.text("archive.showPassword"), isOn: $request.options.showPassword)
+                    passwordField(L10n.text("archive.passwordConfirm"), systemImage: "key.viewfinder", text: $request.options.passwordConfirmation)
+                    Toggle(isOn: $request.options.showPassword) {
+                        Label(L10n.text("archive.showPassword"), systemImage: "eye.fill")
+                    }
                     if passwordValidationMessage != nil {
                         validationText(L10n.text("error.passwordsDoNotMatch"))
                     }
@@ -309,23 +293,33 @@ struct ArchiveCreationOptionsView: View {
             if !request.options.password.isEmpty || !request.options.passwordConfirmation.isEmpty {
                 if request.options.format == .zip {
                     if !hidden(.encryptionMethod) {
-                        Picker(L10n.text("archive.encryptionMethod"), selection: $request.options.encryptionMethod) {
-                            ForEach(ArchiveEncryptionMethod.allCases) { method in
-                                Text(method.title).tag(method)
+                        LabeledContent {
+                            Picker("", selection: $request.options.encryptionMethod) {
+                                ForEach(ArchiveEncryptionMethod.allCases) { method in
+                                    Text(method.title).tag(method)
+                                }
                             }
+                            .labelsHidden()
+                            .fixedSize()
+                        } label: {
+                            Label(L10n.text("archive.encryptionMethod"), systemImage: "shield.lefthalf.filled")
                         }
                     }
                 } else {
-                    LabeledContent(L10n.text("archive.encryptionMethod")) {
+                    LabeledContent {
                         Text(ArchiveEncryptionMethod.aes256.title)
                             .foregroundStyle(.secondary)
+                    } label: {
+                        Label(L10n.text("archive.encryptionMethod"), systemImage: "shield.lefthalf.filled")
                     }
                 }
             }
             if request.options.format == .sevenZip || request.options.format == .rar, !hidden(.encryptFileNames) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Toggle(L10n.text("archive.7z.encryptFileNames"), isOn: $request.options.sevenZipEncryptFileNames)
-                        .disabled(request.options.password.isEmpty)
+                    Toggle(isOn: $request.options.sevenZipEncryptFileNames) {
+                        Label(L10n.text("archive.7z.encryptFileNames"), systemImage: "eye.slash.fill")
+                    }
+                    .disabled(request.options.password.isEmpty)
                     if request.options.password.isEmpty {
                         Text(L10n.text("archive.7z.encryptFileNamesHint"))
                             .font(.caption)
@@ -336,97 +330,220 @@ struct ArchiveCreationOptionsView: View {
         }
     }
 
-    /// 7-Zip 参数：算法 / 字典 / 单词 / 线程 / 内存预估 + 高级折叠区。
+    /// 高级抽屉是否有内容可展示（没有任何适用行就整个不渲染）。
+    private var showsAdvancedDrawer: Bool {
+        request.options.format.supportsUpdateMode
+            || request.options.format.supportsVolumeSplitting
+            || request.options.format.supportsRawParameters
+    }
+
+    /// 高级选项（抽屉·不常用）：更新模式 / 路径模式(非 7z) / 分卷 / 自定义参数。
     @ViewBuilder
-    private var sevenZipSection: some View {
-        Section(L10n.text("archive.create.section.sevenZip")) {
-            if !hidden(.sevenZipMethod) {
-                Picker(L10n.text("archive.7z.method"), selection: $request.options.sevenZipMethod) {
-                    ForEach(SevenZipCompressionMethod.allCases) { method in
-                        Text(method.title).tag(method)
+    private var advancedDrawer: some View {
+        DialogDrawer(L10n.text("archive.create.section.advanced"), systemImage: "slider.horizontal.3", color: .gray) {
+            if request.options.format.supportsUpdateMode, !hidden(.updateMode) {
+                LabeledContent {
+                    Picker("", selection: $request.options.updateMode) {
+                        ForEach(ArchiveUpdateMode.allCases) { mode in
+                            Text(mode.title).tag(mode)
+                        }
                     }
+                    .labelsHidden()
+                    .fixedSize()
+                } label: {
+                    Label(L10n.text("archive.updateMode"), systemImage: "arrow.triangle.2.circlepath")
                 }
             }
-            if !hidden(.dictionarySize) {
-                Picker(L10n.text("archive.7z.dictionarySize"), selection: $request.options.sevenZipDictionarySizeMB) {
-                    ForEach(dictionarySizeOptions, id: \.self) { size in
-                        Text("\(size) MB").tag(size)
+
+            if request.options.format != .sevenZip, request.options.format.supportsUpdateMode, !hidden(.pathMode) {
+                LabeledContent {
+                    Picker("", selection: $request.options.sevenZipPathMode) {
+                        ForEach(SevenZipPathMode.allCases) { mode in
+                            Text(mode.title).tag(mode)
+                        }
                     }
+                    .labelsHidden()
+                    .fixedSize()
+                } label: {
+                    Label(L10n.text("archive.7z.pathMode"), systemImage: "point.topleft.down.to.point.bottomright.curvepath")
                 }
             }
-            if !hidden(.wordSize) {
-                Picker(L10n.text("archive.7z.wordSize"), selection: $request.options.sevenZipWordSize) {
-                    ForEach(wordSizeOptions, id: \.self) { wordSize in
-                        Text("\(wordSize)").tag(wordSize)
+
+            if request.options.format.supportsVolumeSplitting {
+                VStack(alignment: .leading, spacing: 4) {
+                    LabeledContent {
+                        TextField("", text: $request.options.sevenZipVolumeSize)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(maxWidth: 220)
+                    } label: {
+                        Label(L10n.text("archive.7z.volumeSize"), systemImage: "square.split.2x1.fill")
                     }
-                }
-            }
-            if !hidden(.threadCount) {
-                HStack {
-                    Text(L10n.text("archive.7z.threads"))
-                    Spacer()
-                    // 不能 .labelsHidden() —— Stepper 的「label」正是要显示的线程数值（自动 / N）。
-                    Stepper(value: $request.options.sevenZipThreadCount, in: 0...maxThreadCount) {
-                        Text(threadCountLabel)
+                    if let volumeSizeValidationMessage {
+                        validationText(volumeSizeValidationMessage)
+                    } else {
+                        Text(L10n.text("archive.7z.volumeSizeHint"))
+                            .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                 }
             }
 
-            LabeledContent(L10n.text("archive.memoryUsageCompressing")) {
-                Text(estimatedCompressionMemoryText)
-                    .foregroundStyle(.secondary)
-            }
-            LabeledContent(L10n.text("archive.memoryUsageDecompressing")) {
-                Text(estimatedDecompressionMemoryText)
-                    .foregroundStyle(.secondary)
-            }
-
-            DisclosureGroup(L10n.text("archive.7z.advanced"), isExpanded: $showsSevenZipAdvancedOptions) {
-                VStack(alignment: .leading, spacing: 10) {
-                    if !hidden(.solid) {
-                        Toggle(L10n.text("archive.7z.solid"), isOn: $request.options.sevenZipSolidArchive)
+            if request.options.format.supportsRawParameters, !hidden(.rawParameters) {
+                VStack(alignment: .leading, spacing: 4) {
+                    LabeledContent {
+                        TextField("", text: $request.options.rawParameters)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(maxWidth: 340)
+                    } label: {
+                        Label(L10n.text("archive.parameters"), systemImage: "terminal.fill")
                     }
-                    if request.options.sevenZipSolidArchive, !hidden(.solidBlockSize) {
-                        Picker(L10n.text("archive.7z.solidBlockSize"), selection: $request.options.sevenZipSolidBlockSize) {
-                            ForEach(SevenZipSolidBlockSize.allCases) { size in
-                                Text(size.title).tag(size)
-                            }
-                        }
-                    }
-                    if !hidden(.pathMode) {
-                        Picker(L10n.text("archive.7z.pathMode"), selection: $request.options.sevenZipPathMode) {
-                            ForEach(SevenZipPathMode.allCases) { mode in
-                                Text(mode.title).tag(mode)
-                            }
-                        }
-                    }
-                    if !hidden(.storeSymlinks) {
-                        Toggle(L10n.text("archive.7z.storeSymbolicLinks"), isOn: $request.options.sevenZipStoreSymbolicLinks)
-                    }
-                    if !hidden(.storeHardlinks) {
-                        Toggle(L10n.text("archive.7z.storeHardLinks"), isOn: $request.options.sevenZipStoreHardLinks)
-                    }
-                    if !hidden(.compressShared) {
-                        Toggle(L10n.text("archive.7z.compressSharedFiles"), isOn: $request.options.sevenZipCompressSharedFiles)
-                    }
-                    Toggle(L10n.text("archive.7z.deleteAfterCompression"), isOn: $request.options.sevenZipDeleteSourceFiles)
+                    Text(L10n.text("archive.parametersHint"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                .padding(.top, 6)
             }
         }
     }
 
-    /// 排除规则：.DS_Store / 隐藏文件 / 自定义模式 + 命中计数。
+    /// 7-Zip 参数（抽屉·不常用）：算法 / 字典 / 单词 / 线程 / 内存预估 / 固实与链接等全部参数。
     @ViewBuilder
-    private var excludeSection: some View {
-        Section(L10n.text("archive.create.section.excludes")) {
+    private var sevenZipDrawer: some View {
+        DialogDrawer(L10n.text("archive.create.section.sevenZip"), systemImage: "gearshape.2.fill", color: .indigo) {
+            if !hidden(.sevenZipMethod) {
+                LabeledContent {
+                    Picker("", selection: $request.options.sevenZipMethod) {
+                        ForEach(SevenZipCompressionMethod.allCases) { method in
+                            Text(method.title).tag(method)
+                        }
+                    }
+                    .labelsHidden()
+                    .fixedSize()
+                } label: {
+                    Label(L10n.text("archive.7z.method"), systemImage: "cpu.fill")
+                }
+            }
+            if !hidden(.dictionarySize) {
+                LabeledContent {
+                    Picker("", selection: $request.options.sevenZipDictionarySizeMB) {
+                        ForEach(dictionarySizeOptions, id: \.self) { size in
+                            Text("\(size) MB").tag(size)
+                        }
+                    }
+                    .labelsHidden()
+                    .fixedSize()
+                } label: {
+                    Label(L10n.text("archive.7z.dictionarySize"), systemImage: "memorychip.fill")
+                }
+            }
+            if !hidden(.wordSize) {
+                LabeledContent {
+                    Picker("", selection: $request.options.sevenZipWordSize) {
+                        ForEach(wordSizeOptions, id: \.self) { wordSize in
+                            Text("\(wordSize)").tag(wordSize)
+                        }
+                    }
+                    .labelsHidden()
+                    .fixedSize()
+                } label: {
+                    Label(L10n.text("archive.7z.wordSize"), systemImage: "textformat.123")
+                }
+            }
+            if !hidden(.threadCount) {
+                // 数值文本钉死在 ▲▼ 按钮左侧（用户报：值会到处飘）。
+                LabeledContent {
+                    HStack(spacing: 8) {
+                        Text(threadCountLabel)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                        Stepper("", value: $request.options.sevenZipThreadCount, in: 0...maxThreadCount)
+                            .labelsHidden()
+                    }
+                } label: {
+                    Label(L10n.text("archive.7z.threads"), systemImage: "square.stack.3d.forward.dottedline.fill")
+                }
+            }
+
+            LabeledContent {
+                Text(estimatedCompressionMemoryText)
+                    .foregroundStyle(.secondary)
+            } label: {
+                Label(L10n.text("archive.memoryUsageCompressing"), systemImage: "memorychip")
+            }
+            LabeledContent {
+                Text(estimatedDecompressionMemoryText)
+                    .foregroundStyle(.secondary)
+            } label: {
+                Label(L10n.text("archive.memoryUsageDecompressing"), systemImage: "arrow.down.circle.fill")
+            }
+
+            Divider()
+
+            if !hidden(.solid) {
+                Toggle(isOn: $request.options.sevenZipSolidArchive) {
+                    Label(L10n.text("archive.7z.solid"), systemImage: "cube.fill")
+                }
+            }
+            if request.options.sevenZipSolidArchive, !hidden(.solidBlockSize) {
+                LabeledContent {
+                    Picker("", selection: $request.options.sevenZipSolidBlockSize) {
+                        ForEach(SevenZipSolidBlockSize.allCases) { size in
+                            Text(size.title).tag(size)
+                        }
+                    }
+                    .labelsHidden()
+                    .fixedSize()
+                } label: {
+                    Label(L10n.text("archive.7z.solidBlockSize"), systemImage: "square.grid.3x3.fill")
+                }
+            }
+            if !hidden(.pathMode) {
+                LabeledContent {
+                    Picker("", selection: $request.options.sevenZipPathMode) {
+                        ForEach(SevenZipPathMode.allCases) { mode in
+                            Text(mode.title).tag(mode)
+                        }
+                    }
+                    .labelsHidden()
+                    .fixedSize()
+                } label: {
+                    Label(L10n.text("archive.7z.pathMode"), systemImage: "point.topleft.down.to.point.bottomright.curvepath")
+                }
+            }
+            if !hidden(.storeSymlinks) {
+                Toggle(isOn: $request.options.sevenZipStoreSymbolicLinks) {
+                    Label(L10n.text("archive.7z.storeSymbolicLinks"), systemImage: "link")
+                }
+            }
+            if !hidden(.storeHardlinks) {
+                Toggle(isOn: $request.options.sevenZipStoreHardLinks) {
+                    Label(L10n.text("archive.7z.storeHardLinks"), systemImage: "link.badge.plus")
+                }
+            }
+            if !hidden(.compressShared) {
+                Toggle(isOn: $request.options.sevenZipCompressSharedFiles) {
+                    Label(L10n.text("archive.7z.compressSharedFiles"), systemImage: "doc.on.doc.fill")
+                }
+            }
+            Toggle(isOn: $request.options.sevenZipDeleteSourceFiles) {
+                Label(L10n.text("archive.7z.deleteAfterCompression"), systemImage: "trash.fill")
+            }
+        }
+    }
+
+    /// 排除规则（抽屉·不常用）：.DS_Store / 隐藏文件 / 自定义模式 + 命中计数。
+    @ViewBuilder
+    private var excludeDrawer: some View {
+        DialogDrawer(L10n.text("archive.create.section.excludes"), systemImage: "eye.slash.fill", color: .teal) {
             if !hidden(.skipDSStore) {
-                Toggle(L10n.text("archive.skipDSStore"), isOn: $request.options.skipDSStore)
+                Toggle(isOn: $request.options.skipDSStore) {
+                    Label(L10n.text("archive.skipDSStore"), systemImage: "doc.badge.gearshape.fill")
+                }
             }
             if !hidden(.skipHiddenFiles) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Toggle(L10n.text("archive.skipHiddenFiles"), isOn: $request.options.skipHiddenFiles)
+                    Toggle(isOn: $request.options.skipHiddenFiles) {
+                        Label(L10n.text("archive.skipHiddenFiles"), systemImage: "eye.slash")
+                    }
                     Text(L10n.text("archive.skipHiddenFilesHint"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -434,7 +551,7 @@ struct ArchiveCreationOptionsView: View {
             }
             if !hidden(.customExcludes) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(L10n.text("archive.customExcludes"))
+                    Label(L10n.text("archive.customExcludes"), systemImage: "line.3.horizontal.decrease.circle.fill")
                     TextEditor(text: $request.options.customExcludes)
                         .font(.system(.body, design: .monospaced))
                         .frame(height: 72)
@@ -446,8 +563,10 @@ struct ArchiveCreationOptionsView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     HStack(spacing: 8) {
-                        Button(L10n.text("archive.countExcludedFiles")) {
+                        Button {
                             countExcludedFiles()
+                        } label: {
+                            Label(L10n.text("archive.countExcludedFiles"), systemImage: "number.circle.fill")
                         }
                         .disabled(isCountingExcludedFiles || !hasExcludeRulesEnabled)
 
@@ -465,13 +584,14 @@ struct ArchiveCreationOptionsView: View {
         }
     }
 
-    /// GPG 签名与投递：签名开关 / 密钥 picker(ask 模式) / 留言 / 加密总开关 + 收件人 + 对称密码。
-    /// 只在「主开关 + 后端可用」时整段渲染（A4 可见性铁律）。
+    /// GPG 签名与投递（抽屉·不常用）。只在「主开关 + 后端可用」时整个抽屉渲染（A4 可见性铁律）。
     @ViewBuilder
-    private var gpgSection: some View {
-        Section(L10n.text("archive.create.section.gpg")) {
-            Toggle(L10n.text("archive.gpgSign"), isOn: $request.options.gpgSign)
-                .disabled(gpgSigningDisabledBySplitVolume)
+    private var gpgDrawer: some View {
+        DialogDrawer(L10n.text("archive.create.section.gpg"), systemImage: "signature", color: .green, initiallyExpanded: request.options.gpgSign) {
+            Toggle(isOn: $request.options.gpgSign) {
+                Label(L10n.text("archive.gpgSign"), systemImage: "checkmark.seal.fill")
+            }
+            .disabled(gpgSigningDisabledBySplitVolume)
             if gpgSigningDisabledBySplitVolume {
                 validationText(L10n.text("archive.gpgSign.disabledBySplitVolume"))
             }
@@ -487,13 +607,15 @@ struct ArchiveCreationOptionsView: View {
                 deliveryNoteRow
                 // **总开关默认关 = 仅签名 v2 行为**；关闭时下方两组控件灰掉但仍可见，同时清空 options
                 // 避免「用户先填后关 toggle 但加密 params 还潜伏在 options 里被发送」的 footgun。
-                Toggle(L10n.text("archive.gpgEncrypt.useEncryption"), isOn: $useGPGEncryption)
-                    .onChange(of: useGPGEncryption) { enabled in
-                        if !enabled {
-                            request.options.gpgRecipientFingerprints.removeAll()
-                            request.options.gpgSymmetricPassphrase = ""
-                        }
+                Toggle(isOn: $useGPGEncryption) {
+                    Label(L10n.text("archive.gpgEncrypt.useEncryption"), systemImage: "lock.fill")
+                }
+                .onChange(of: useGPGEncryption) { enabled in
+                    if !enabled {
+                        request.options.gpgRecipientFingerprints.removeAll()
+                        request.options.gpgSymmetricPassphrase = ""
                     }
+                }
                 recipientsRow
                     .disabled(!useGPGEncryption)
                     .opacity(useGPGEncryption ? 1 : 0.5)
@@ -505,12 +627,14 @@ struct ArchiveCreationOptionsView: View {
         }
     }
 
+
     /// #110 给收件人的留言行 —— 一个多行 TextField（同 .szs 描述的 idiom，不另造卡片，A1）。
     /// 内容进 `.siz` 「收件人说明」最前面并随签名防篡改；留空则只生成自动的验签 / 解密说明。
     @ViewBuilder
     private var deliveryNoteRow: some View {
+        // 用户拍板：标签和输入框必须两行（标签在上、输入框整行在下），不搞「标签 + 右侧输入框」。
         VStack(alignment: .leading, spacing: 4) {
-            Text(L10n.text("archive.gpgSign.deliveryNote.label"))
+            Label(L10n.text("archive.gpgSign.deliveryNote.label"), systemImage: "text.bubble.fill")
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)
             TextField(
@@ -519,11 +643,8 @@ struct ArchiveCreationOptionsView: View {
                 axis: .vertical
             )
             .textFieldStyle(.roundedBorder)
-            // 起始 1 行、最多长到 3 行就停 —— 之前 2...5 在窄 sheet 里太高,把下方加密选项挤到 ScrollView 外被截断。
             .lineLimit(1...3)
         }
-        // 跟签名密钥 / 收件人 / 对称密码行一样缩进 18 —— 之前没缩进,留言行比上下兄弟行多顶出去一截(左边不齐)。
-        .padding(.leading, 18)
     }
 
     /// 收件人 picker 行 —— GPG 签名勾上时显示。当前选中的收件人以 chip 形式横列；右侧 Menu 按钮可点开添加新收件人。
@@ -532,7 +653,7 @@ struct ArchiveCreationOptionsView: View {
     private var recipientsRow: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(L10n.text("archive.gpgEncrypt.recipientsLabel"))
+                Label(L10n.text("archive.gpgEncrypt.recipientsLabel"), systemImage: "person.2.fill")
                     .font(.caption.weight(.medium))
                     .foregroundStyle(.secondary)
                 GPGAddRecipientMenu(eligibleKeys: encryptionEligibleKeys, selection: $request.options.gpgRecipientFingerprints)
@@ -540,7 +661,6 @@ struct ArchiveCreationOptionsView: View {
             }
             GPGRecipientChipRow(selection: $request.options.gpgRecipientFingerprints, lookupKeys: availableKeys)
         }
-        .padding(.leading, 18)
     }
 
     /// 加密收件人**候选公钥**：两个 ring 都列（`~/.gnupg/` + SimpleZip 私有环），但**只列有加密能力的**——
@@ -562,28 +682,26 @@ struct ArchiveCreationOptionsView: View {
     /// placeholder 「可选 · 对称密码」+ 下方 hint 已经说清楚「留空 = 不设密码」。
     @ViewBuilder
     private var encryptionPassphraseRow: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(L10n.text("archive.gpgEncrypt.passphraseLabel"))
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(.secondary)
-                SecureField(L10n.text("archive.gpgEncrypt.passphrasePlaceholder"), text: $request.options.gpgSymmetricPassphrase)
-                    .textFieldStyle(.roundedBorder)
-            }
+        // 标签在上、输入框整行在下（用户拍板的两行布局），提示再占一行。
+        VStack(alignment: .leading, spacing: 4) {
+            Label(L10n.text("archive.gpgEncrypt.passphraseLabel"), systemImage: "lock.rectangle.fill")
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
+            SecureField(L10n.text("archive.gpgEncrypt.passphrasePlaceholder"), text: $request.options.gpgSymmetricPassphrase)
+                .textFieldStyle(.roundedBorder)
             Text(L10n.text("archive.gpgEncrypt.passphraseHint"))
                 .font(.caption2)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(.leading, 18)
     }
 
     /// 签名密钥 picker —— ask 模式下显示在「用 GPG 签名」复选框正下方。
     /// 列出所有 `hasSecretKey` 密钥（含智能卡 stub），首项「让 GPG 自动选」对应空 fingerprint = 走 gpg default-key。
     @ViewBuilder
     private var signingKeyPickerRow: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(L10n.text("archive.gpgSign.keyLabel"))
+        VStack(alignment: .leading, spacing: 4) {
+            Label(L10n.text("archive.gpgSign.keyLabel"), systemImage: "person.badge.key.fill")
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)
             GPGSecretKeyMenu(
@@ -593,7 +711,6 @@ struct ArchiveCreationOptionsView: View {
                 missingFingerprintKey: "archive.gpgSign.key.missingFingerprint"
             )
         }
-        .padding(.leading, 18)
     }
 
     private var fileNameBinding: Binding<String> {
@@ -782,11 +899,19 @@ struct ArchiveCreationOptionsView: View {
     }
 
     @ViewBuilder
-    private func passwordField(_ title: String, text: Binding<String>) -> some View {
-        if request.options.showPassword {
-            TextField(title, text: text)
-        } else {
-            SecureField(title, text: text)
+    private func passwordField(_ title: String, systemImage: String, text: Binding<String>) -> some View {
+        LabeledContent {
+            Group {
+                if request.options.showPassword {
+                    TextField("", text: text)
+                } else {
+                    SecureField("", text: text)
+                }
+            }
+            .textFieldStyle(.roundedBorder)
+            .frame(maxWidth: 260)
+        } label: {
+            Label(title, systemImage: systemImage)
         }
     }
 

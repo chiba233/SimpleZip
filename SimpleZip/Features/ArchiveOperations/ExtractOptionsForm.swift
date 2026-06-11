@@ -11,8 +11,6 @@ struct ExtractOptionsForm<ExtraControls: View>: View {
     let title: String
     /// hero 副标题（通常是压缩包文件名）；nil 则只显示标题。
     var subtitle: String?
-    /// sheet 高度 —— grouped Form（List）是贪婪布局，必须给定高；内容多的入口（.siz 带签名行）传大值。
-    var preferredHeight: CGFloat = 400
     @Binding var destinationURL: URL
     @Binding var password: String
     @Binding var zipDecryptionMethod: ArchiveDecryptionMethod
@@ -37,68 +35,69 @@ struct ExtractOptionsForm<ExtraControls: View>: View {
     private var hasUsablePreset: Bool { presetPasswordEnabled && !presetPassword.isEmpty }
 
     var body: some View {
-        // 0.4.1 重构：与创建对话框同一套现代体例 —— hero 头 + grouped Form + 钉底 bar 操作栏。
+        // 0.4.1 重构：hero 头 + 自适应分区卡片 + 钉底 bar 操作栏。
+        // 不用 grouped Form（List 贪婪布局要写死高度 → 内容少时一大片固定空白,用户点名的问题）；
+        // DialogSection 高度贴内容,ScrollView 只设 maxHeight 防超屏。
         VStack(spacing: 0) {
-            HStack(spacing: 12) {
-                Image(systemName: "doc.zipper")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 40, height: 40)
-                    .background(
-                        LinearGradient(colors: [.blue, .cyan], startPoint: .topLeading, endPoint: .bottomTrailing),
-                        in: RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    )
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.title3.weight(.semibold))
-                    if let subtitle {
-                        Text(subtitle)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                    }
-                }
-                Spacer()
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 18)
-            .padding(.bottom, 10)
+            DialogHero(
+                systemImage: "doc.zipper",
+                colors: [.blue, .cyan],
+                title: title,
+                subtitle: subtitle
+            )
 
-            Form {
-                Section {
-                    extraControls()
-                    destinationRow
-                    if hasUsablePreset {
-                        Toggle(L10n.text("button.usePresetPassword"), isOn: $usePresetPassword)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    DialogSection {
+                        extraControls()
+                        destinationRow
+                        if hasUsablePreset {
+                            Toggle(isOn: $usePresetPassword) {
+                                Label(L10n.text("button.usePresetPassword"), systemImage: "key.fill")
+                            }
                             .help(L10n.text("button.usePresetPassword.help"))
                             .onChange(of: usePresetPassword) { newValue in
                                 // 勾上：把预设值灌进 password binding；
                                 // 取消：清空让用户重新输入（保留旧值会让人迷惑「这是哪个密码」）。
                                 password = newValue ? presetPassword : ""
                             }
-                    }
-                    if !(hasUsablePreset && usePresetPassword) {
-                        SecureField(L10n.text("extract.password.placeholder"), text: $password)
-                    }
-                    if showsZipDecryptionMethod {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Picker(L10n.text("extract.decryptionMethod"), selection: $zipDecryptionMethod) {
-                                ForEach(ArchiveDecryptionMethod.allCases) { method in
-                                    Text(method.title).tag(method)
-                                }
+                        }
+                        if !(hasUsablePreset && usePresetPassword) {
+                            LabeledContent {
+                                SecureField(L10n.text("extract.password.placeholder"), text: $password)
+                                    .textFieldStyle(.roundedBorder)
+                                    .frame(maxWidth: 260)
+                            } label: {
+                                Label(L10n.text("archive.password"), systemImage: "key.fill")
                             }
+                        }
+                        if showsZipDecryptionMethod {
+                            VStack(alignment: .leading, spacing: 6) {
+                                LabeledContent {
+                                    Picker("", selection: $zipDecryptionMethod) {
+                                        ForEach(ArchiveDecryptionMethod.allCases) { method in
+                                            Text(method.title).tag(method)
+                                        }
+                                    }
+                                    .labelsHidden()
+                                    .fixedSize()
+                                } label: {
+                                    Label(L10n.text("extract.decryptionMethod"), systemImage: "shield.lefthalf.filled")
+                                }
 
-                            if zipDecryptionMethod == .automatic, let zipEncryptionDetectionText {
-                                Text(zipEncryptionDetectionText)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
+                                if zipDecryptionMethod == .automatic, let zipEncryptionDetectionText {
+                                    Text(zipEncryptionDetectionText)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
                             }
                         }
                     }
                 }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 16)
             }
-            .formStyle(.grouped)
+            .frame(maxHeight: 560)
 
             Divider()
 
@@ -114,7 +113,6 @@ struct ExtractOptionsForm<ExtraControls: View>: View {
             .padding(.vertical, 12)
             .background(.bar)
         }
-        .frame(height: preferredHeight)
         .onAppear {
             // 从 Keychain 拉预设密码到本地 @State，view 打开后不会再变。
             presetPassword = AppPreferences.presetPassword
@@ -127,16 +125,18 @@ struct ExtractOptionsForm<ExtraControls: View>: View {
     }
 
     private var destinationRow: some View {
-        HStack {
-            Text(L10n.text("archive.destination"))
-            Text(destinationURL.path)
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .foregroundStyle(.secondary)
-            Spacer()
-            Button(L10n.text("button.choose")) {
-                chooseDestination()
+        LabeledContent {
+            HStack(spacing: 8) {
+                Text(destinationURL.path)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .foregroundStyle(.secondary)
+                Button(L10n.text("button.choose")) {
+                    chooseDestination()
+                }
             }
+        } label: {
+            Label(L10n.text("archive.destination"), systemImage: "folder.fill")
         }
     }
 

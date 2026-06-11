@@ -19,8 +19,6 @@ struct ExtractArchiveOptionsView: View {
         ExtractOptionsForm(
             title: L10n.text("extract.archive.title"),
             subtitle: request.archiveURL.lastPathComponent,
-            // .siz 多出签名三行 + 解密密钥 picker（可能再加对称密码行）—— 给更高的 sheet。
-            preferredHeight: request.sizSignature != nil ? 560 : 400,
             destinationURL: $request.destinationURL,
             password: $request.password,
             zipDecryptionMethod: $request.zipDecryptionMethod,
