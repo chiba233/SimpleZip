@@ -86,6 +86,7 @@ struct ConflictResolutionView: View {
                         subtitle: L10n.text("conflict.toggle.replaceWholeFolder.desc"),
                         systemImage: "folder.fill",
                         tint: .blue,
+                        pinsToTrailing: true,
                         isOn: $replaceWholeFolder
                     )
                 }
@@ -94,6 +95,7 @@ struct ConflictResolutionView: View {
                     subtitle: L10n.text("conflict.toggle.hashGate.desc"),
                     systemImage: "number.square",
                     tint: .cyan,
+                    pinsToTrailing: true,
                     isOn: $hashGate
                 )
                 if allowsRememberedChoice {
@@ -102,6 +104,7 @@ struct ConflictResolutionView: View {
                         subtitle: L10n.text("conflict.applyToAll.desc"),
                         systemImage: "repeat",
                         tint: .gray,
+                        pinsToTrailing: true,
                         isOn: $applyToAll
                     )
                 }
@@ -251,11 +254,11 @@ private struct TransferSummaryGroup: View {
                 if showsHashColumns {
                     HStack(spacing: 12) {
                         Text(L10n.text("hashOverwrite.summary.column.file"))
-                            .frame(minWidth: 180, maxWidth: .infinity, alignment: .leading)
+                            .frame(minWidth: 120, maxWidth: .infinity, alignment: .leading)
                         Text(L10n.text("hashOverwrite.summary.column.existingHash"))
-                            .frame(minWidth: 190, maxWidth: .infinity, alignment: .leading)
+                            .frame(minWidth: 140, maxWidth: .infinity, alignment: .leading)
                         Text(L10n.text("hashOverwrite.summary.column.incomingHash"))
-                            .frame(minWidth: 190, maxWidth: .infinity, alignment: .leading)
+                            .frame(minWidth: 140, maxWidth: .infinity, alignment: .leading)
                     }
                     .font(.caption)
                     .fontWeight(.semibold)
@@ -289,7 +292,7 @@ private struct TransferSummaryRow: View {
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .help(entry.name)
-                .frame(minWidth: 180, maxWidth: .infinity, alignment: .leading)
+                .frame(minWidth: 120, maxWidth: .infinity, alignment: .leading)
             if showsHashColumns {
                 Text(hash?.targetHash ?? "—")
                     .font(.system(.caption, design: .monospaced))
@@ -297,14 +300,14 @@ private struct TransferSummaryRow: View {
                     .truncationMode(.middle)
                     .help(hash?.targetHash ?? "")
                     .foregroundStyle(.secondary)
-                    .frame(minWidth: 190, maxWidth: .infinity, alignment: .leading)
+                    .frame(minWidth: 140, maxWidth: .infinity, alignment: .leading)
                 Text(hash?.sourceHash ?? "—")
                     .font(.system(.caption, design: .monospaced))
                     .lineLimit(1)
                     .truncationMode(.middle)
                     .help(hash?.sourceHash ?? "")
                     .foregroundStyle(.secondary)
-                    .frame(minWidth: 190, maxWidth: .infinity, alignment: .leading)
+                    .frame(minWidth: 140, maxWidth: .infinity, alignment: .leading)
             }
         }
         .font(.callout)
@@ -399,11 +402,11 @@ private struct HashOverwriteSummaryGroup: View {
 
                 HStack(spacing: 12) {
                     Text(L10n.text("hashOverwrite.summary.column.file"))
-                        .frame(minWidth: 180, maxWidth: .infinity, alignment: .leading)
+                        .frame(minWidth: 120, maxWidth: .infinity, alignment: .leading)
                     Text(L10n.text("hashOverwrite.summary.column.existingHash"))
-                        .frame(minWidth: 190, maxWidth: .infinity, alignment: .leading)
+                        .frame(minWidth: 140, maxWidth: .infinity, alignment: .leading)
                     Text(L10n.text("hashOverwrite.summary.column.incomingHash"))
-                        .frame(minWidth: 190, maxWidth: .infinity, alignment: .leading)
+                        .frame(minWidth: 140, maxWidth: .infinity, alignment: .leading)
                 }
                 .font(.caption)
                 .fontWeight(.semibold)
@@ -430,21 +433,21 @@ private struct HashOverwriteSummaryRow: View {
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .help(result.targetURL.path)
-                .frame(minWidth: 180, maxWidth: .infinity, alignment: .leading)
+                .frame(minWidth: 120, maxWidth: .infinity, alignment: .leading)
             Text(result.targetHash)
                 .font(.system(.caption, design: .monospaced))
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .help(result.targetHash)
                 .foregroundStyle(.secondary)
-                .frame(minWidth: 190, maxWidth: .infinity, alignment: .leading)
+                .frame(minWidth: 140, maxWidth: .infinity, alignment: .leading)
             Text(result.sourceHash)
                 .font(.system(.caption, design: .monospaced))
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .help(result.sourceHash)
                 .foregroundStyle(.secondary)
-                .frame(minWidth: 190, maxWidth: .infinity, alignment: .leading)
+                .frame(minWidth: 140, maxWidth: .infinity, alignment: .leading)
         }
         .font(.callout)
         .padding(.horizontal, 12)

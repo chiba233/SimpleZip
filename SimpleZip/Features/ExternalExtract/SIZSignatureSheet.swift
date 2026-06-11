@@ -258,11 +258,8 @@ struct SIZSignatureSheet: View {
             Button {
                 showInstructions.toggle()
             } label: {
-                HStack(alignment: .firstTextBaseline, spacing: 12) {
-                    Text(L10n.text("siz.instructions.disclosure"))
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 88, alignment: .trailing)
+                HStack(alignment: .center, spacing: 12) {
+                    DialogRowLabel(L10n.text("siz.instructions.disclosure"), systemImage: "text.bubble.fill", tint: .blue, width: Self.labelColumnWidth)
                     Image(systemName: showInstructions ? "chevron.down" : "chevron.right")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
