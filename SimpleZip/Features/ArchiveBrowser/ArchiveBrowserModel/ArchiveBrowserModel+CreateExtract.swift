@@ -474,6 +474,35 @@ extension ArchiveBrowserModel {
         return true
     }
 
+    // MARK: - 归档级注释编辑（0.4.2，仅 zip —— EOCD 原生改写）
+
+    /// 是否允许编辑当前归档的归档级注释。「真实顶层可写包」的判定复用 `canDropIntoOpenArchive`，
+    /// 再限定 zip —— 写入走 `ZipArchiveComment` 的 EOCD 原生改写；7z/rar 没有安全的写注释路径（7zz 无参数）。
+    var canEditArchiveComment: Bool {
+        guard canDropIntoOpenArchive, case .archive(let url) = mode else { return false }
+        return url.pathExtension.lowercased() == "zip"
+    }
+
+    /// 保存归档级注释（空串 = 清除）。Core 侧临时副本 + 原子替换，失败原包字节不变。
+    /// 走活动中心：好处是有失败提示 + 历史可查；坏处可忽略（APFS clonefile 副本瞬时）。
+    func saveArchiveComment(_ comment: String) {
+        guard canEditArchiveComment, case .archive(let archiveURL) = mode else { return }
+        startManagedArchiveTask(
+            title: L10n.format("archive.comment.taskTitle", archiveURL.lastPathComponent),
+            kind: .compress,
+            showsDetails: false,
+            successStatus: L10n.text(comment.isEmpty ? "archive.comment.cleared" : "archive.comment.saved"),
+            refreshOnSuccess: { [weak self] in
+                ArchiveService.recordHeaderComment(comment, for: archiveURL)
+                self?.archiveHeaderComment = comment
+            }
+        ) { _, _, _ in
+            try await Task.detached(priority: .userInitiated) {
+                try ZipArchiveComment.writeComment(comment, to: archiveURL)
+            }.value
+        }
+    }
+
     /// 归档内编辑前**确保拿到加密包口令**（若该包需要）。返回 `false` = 用户取消 → 调用方必须中止编辑。
     ///
     /// 为什么需要：header-encrypted 7z 打开时连 list 都要口令，已在 `loadArchive` 存进 `resolvedArchivePassword`；

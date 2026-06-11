@@ -618,6 +618,16 @@
 "diff.field.modified" = "修改时间 %1$@ → %2$@";
 "diff.field.becameEncrypted" = "变为加密";
 "diff.field.becameUnencrypted" = "变为未加密";
+"diff.field.comment" = "注释已更改";
+
+/* 0.4.2 ZIP 归档级注释编辑 */
+"archive.comment.menu" = "编辑归档注释…";
+"archive.comment.editorTitle" = "编辑归档注释";
+"archive.comment.editorHint" = "保存在 ZIP 文件本身——任何归档工具都能读取。";
+"archive.comment.clear" = "清除注释";
+"archive.comment.taskTitle" = "更新 %1$@ 的注释";
+"archive.comment.saved" = "归档注释已保存";
+"archive.comment.cleared" = "归档注释已清除";
 "status.itemCount" = "%d 个项目";
 "status.tagItemCount" = "%d 个标签项目";
 "status.searchingTag" = "正在搜索标签 %@...";

@@ -196,6 +196,10 @@ struct ArchiveDiffSections: View {
         if change.fields.contains(.encryption) {
             parts.append(L10n.text(change.after.isEncrypted ? "diff.field.becameEncrypted" : "diff.field.becameUnencrypted"))
         }
+        if change.fields.contains(.comment) {
+            // 注释可多行可超长，逐字段摘要里只标「注释已更改」，不内联正文。
+            parts.append(L10n.text("diff.field.comment"))
+        }
         return parts.joined(separator: " · ")
     }
 }

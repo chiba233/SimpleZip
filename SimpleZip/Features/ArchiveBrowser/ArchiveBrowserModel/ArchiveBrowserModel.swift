@@ -21,9 +21,12 @@ final class ArchiveBrowserModel: ObservableObject {
     @Published var mode: BrowserMode
     @Published var fileItems: [FileItem] = []
     @Published var archiveItems: [ArchiveItem] = []
-    /// 0.4.1 #114：当前打开归档的**归档级**注释（zip / rar 头部 Comment，只读）。
+    /// 0.4.1 #114：当前打开归档的**归档级**注释（zip / rar 头部 Comment）。
     /// 空 = 没有注释或非归档模式。loadArchive 成功后从 ArchiveService 旁路缓存取。
+    /// 0.4.2 起 zip 可编辑（EOCD 原生改写，见 `saveArchiveComment`）。
     @Published var archiveHeaderComment = ""
+    /// 归档注释编辑 sheet flag（0.4.2）。横幅铅笔按钮 / 空白区右键置 true → ContentView 弹编辑 sheet。
+    @Published var showsArchiveCommentEditor = false
     /// #113 查找：当前搜索文本（空 = 不过滤）。绑定搜索栏；主列表（文件 / 归档）按它过滤展示。
     @Published var searchText = ""
     /// 搜索栏是否可见。⌘F / 右键「查找」/ 菜单栏「查找」置 true；Esc 或清空收起。

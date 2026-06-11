@@ -66,7 +66,7 @@ struct ContentView: View {
                 Divider()
 
                 if case .archive = model.mode {
-                    // 0.4.1 #114：归档级注释横幅（zip / rar 头部 Comment，只读 —— 7zz 不支持写）。
+                    // 0.4.1 #114：归档级注释横幅（zip / rar 头部 Comment）。0.4.2：zip 可编辑（EOCD 原生改写）。
                     if !model.archiveHeaderComment.isEmpty {
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
                             Image(systemName: "text.bubble.fill")
@@ -79,6 +79,16 @@ struct ContentView: View {
                                 .textSelection(.enabled)
                                 .help(model.archiveHeaderComment)
                             Spacer(minLength: 0)
+                            if model.canEditArchiveComment {
+                                Button {
+                                    model.showsArchiveCommentEditor = true
+                                } label: {
+                                    Image(systemName: "pencil")
+                                        .font(.system(size: 11))
+                                }
+                                .buttonStyle(.borderless)
+                                .help(L10n.text("archive.comment.editorTitle"))
+                            }
                         }
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
@@ -347,6 +357,9 @@ struct ContentView: View {
             ArchiveDiffView(report: report) {
                 model.archiveDiffReport = nil
             }
+        }
+        .sheet(isPresented: $model.showsArchiveCommentEditor) {
+            ArchiveCommentEditorView(model: model)
         }
         .sheet(item: $model.fileSplitRequest) { request in
             FileSplitSheet(request: request) { volumeSize in

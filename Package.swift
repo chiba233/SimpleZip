@@ -79,7 +79,8 @@ let package = Package(
                 "Core/SZSArchive.swift",
                 "Core/TemporaryResourceManager.swift",
                 "Core/UndoFileSnapshot.swift",
-                "Core/UniqueFileName.swift"
+                "Core/UniqueFileName.swift",
+                "Core/ZipArchiveComment.swift"
             ]
         ),
         .testTarget(

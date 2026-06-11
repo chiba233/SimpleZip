@@ -102,6 +102,15 @@ struct ArchiveDiffTests {
         #expect(result.changed.first?.fields == [.modified])
     }
 
+    /// 0.4.2:条目注释参与比对。
+    @Test func detectsCommentChange() {
+        let left = [ArchiveItem(name: "a.txt", isDirectory: false, size: 1, modified: nil, sizeText: "1", modifiedText: "", method: "", crc: "AAAA", comment: "old note")]
+        let right = [ArchiveItem(name: "a.txt", isDirectory: false, size: 1, modified: nil, sizeText: "1", modifiedText: "", method: "", crc: "AAAA", comment: "new note")]
+        let result = ArchiveDiff.compare(left: left, right: right)
+        #expect(result.changed.count == 1)
+        #expect(result.changed.first?.fields == [.comment])
+    }
+
     @Test func resultsAreSortedByPath() {
         let left: [ArchiveItem] = []
         let right = [file("z.txt", size: 1), file("a.txt", size: 1), file("m.txt", size: 1)]

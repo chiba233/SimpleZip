@@ -18,6 +18,7 @@ enum ArchiveDiffField: String, CaseIterable, Hashable {
     case crc         // CRC（仅文件、两边都有 CRC 时才比）
     case modified    // 修改时间
     case encryption  // 是否加密
+    case comment     // 条目注释（zip per-entry Comment；0.4.2 起参与比对）
 }
 
 /// 同一路径在两个包里都存在、但有差异的一条修改。`before` / `after` 分别是左 / 右两侧条目。
@@ -111,6 +112,8 @@ enum ArchiveDiff {
         var fields: Set<ArchiveDiffField> = []
         if before.isDirectory != after.isDirectory { fields.insert(.type) }
         if before.isEncrypted != after.isEncrypted { fields.insert(.encryption) }
+        // 注释目录也能有（zip 允许），放在目录早退之前。
+        if before.comment != after.comment { fields.insert(.comment) }
 
         // 目录没有有意义的 size/crc/mtime 对比（很多后端对目录留空），只比类型/加密。
         guard !before.isDirectory, !after.isDirectory else { return fields }

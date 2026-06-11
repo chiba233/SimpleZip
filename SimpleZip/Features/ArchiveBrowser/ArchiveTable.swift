@@ -486,6 +486,10 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
             newFileParent.submenu = submenu
             menu.addItem(newFileParent)
             menu.addItem(.separator())
+            // 0.4.2：zip 归档级注释编辑（EOCD 原生改写）。没有注释时这是唯一的「添加注释」入口。
+            if model.canEditArchiveComment {
+                menu.addItem(menuItem(L10n.text("archive.comment.menu"), systemImage: "text.bubble", action: #selector(editArchiveComment)))
+            }
             menu.addItem(menuItem(L10n.text("help.refresh"), systemImage: "arrow.clockwise", action: #selector(refreshArchive)))
             menu.addItem(menuItem(L10n.text("button.revealInFinder"), systemImage: "arrow.up.forward.app", action: #selector(revealArchive)))
         }
@@ -651,6 +655,10 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
 
         @objc private func refreshArchive() {
             model.reload()
+        }
+
+        @objc private func editArchiveComment() {
+            model.showsArchiveCommentEditor = true
         }
 
         @objc private func extractSelected() {

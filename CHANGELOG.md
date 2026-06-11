@@ -4,6 +4,8 @@
 
 ## 0.4.2 (unreleased)
 
+- **New: edit the ZIP archive-level comment.** The comment banner gets a pencil button (and editable archives a blank-area right-click "Edit Archive Comment…" entry, which is also how you *add* a comment to a ZIP that has none). The editor supports clearing the comment and shows the 65,535-byte format limit live. Writing doesn't touch the archive body at all — the comment lives in the ZIP's trailing EOCD record, so SimpleZip rewrites just that tail on a temp copy and atomically swaps it in; a failure leaves the original byte-for-byte intact. 7z/RAR comments stay read-only (the bundled engines have no safe write path), and per-entry comments are deliberately not editable (that would mean rewriting the whole central directory). Entry comments now also participate in **Archive Diff** — a changed comment marks the entry as modified.
+
 - **Main-window blank-area context menus now include Refresh.** Right-click empty space in the file browser or editable archive view to reload the current location without moving to the toolbar.
 
 ## 0.4.1

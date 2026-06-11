@@ -620,6 +620,16 @@
 "diff.field.modified" = "Modified %1$@ → %2$@";
 "diff.field.becameEncrypted" = "Became encrypted";
 "diff.field.becameUnencrypted" = "Became unencrypted";
+"diff.field.comment" = "Comment changed";
+
+/* 0.4.2 ZIP archive-level comment editing */
+"archive.comment.menu" = "Edit Archive Comment…";
+"archive.comment.editorTitle" = "Edit Archive Comment";
+"archive.comment.editorHint" = "Stored inside the ZIP file itself — any archive tool can read it.";
+"archive.comment.clear" = "Clear Comment";
+"archive.comment.taskTitle" = "Update comment of %1$@";
+"archive.comment.saved" = "Archive comment saved";
+"archive.comment.cleared" = "Archive comment cleared";
 "status.itemCount" = "%d items";
 "status.tagItemCount" = "%d tagged items";
 "status.searchingTag" = "Searching tag %@...";
