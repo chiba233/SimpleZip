@@ -741,6 +741,9 @@
 "button.apply" = "Apply";
 "search.prompt" = "Search";
 "search.filter.menu" = "Filter";
+"convert.status.extracting" = "Extracting source…";
+"convert.status.repacking" = "Repacking…";
+"convert.error.empty" = "The source archive is empty.";
 "search.filter.kind" = "Kind";
 "search.filter.kind.any" = "Any";
 "search.filter.kind.files" = "Files only";

@@ -739,6 +739,9 @@
 "button.apply" = "应用";
 "search.prompt" = "搜索";
 "search.filter.menu" = "过滤";
+"convert.status.extracting" = "正在解压源…";
+"convert.status.repacking" = "正在重新打包…";
+"convert.error.empty" = "源压缩包是空的。";
 "search.filter.kind" = "类型";
 "search.filter.kind.any" = "全部";
 "search.filter.kind.files" = "仅文件";
