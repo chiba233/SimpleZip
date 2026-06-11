@@ -56,7 +56,8 @@ struct GPGExtractOptionsView: View {
     var body: some View {
         VStack(spacing: 0) {
             DialogHero(
-                systemImage: "lock.open.doc",
+                // "lock.open.doc" 不是合法 SF Symbol(渲染成空白,用户报"只有颜色没图标")。
+                systemImage: "lock.open.fill",
                 colors: [.teal, .blue],
                 title: L10n.text("gpgExtract.title"),
                 subtitle: request.url.lastPathComponent
