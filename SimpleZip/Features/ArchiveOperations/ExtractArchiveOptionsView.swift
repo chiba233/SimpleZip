@@ -267,14 +267,16 @@ private struct SIZSignatureRows: View {
 
     var body: some View {
         // Form 内部会按行折行，每个 HStack = 一行。标签 = 彩色瓦片,180pt 对齐其余行(保存到/密码)。
-        // 值列竖排:状态一行 + 签名者一行 —— 状态标题(如「签名无效 / 文件被篡改」)较长,
-        // 和签名者挤同一行会在 560pt 窗宽下折行炸版(用户报「UI炸了」)。
+        // 值列竖排(状态一行+签名者一行,长状态标题不再炸版)且**靠右对齐** ——
+        // 解压对话框拍板:所有值列靠最右(与 保存到/密码 同列)。
         HStack(alignment: .top, spacing: 6) {
             DialogRowLabel(L10n.text("siz.signatureSheet.signer"), systemImage: "person.fill", tint: .green, width: 180)
-            VStack(alignment: .leading, spacing: 2) {
+            Spacer(minLength: 12)
+            VStack(alignment: .trailing, spacing: 2) {
                 HStack(spacing: 4) {
                     Image(systemName: SIZSignatureStatus.iconName(for: signature.verify))
                     Text(SIZSignatureStatus.title(for: signature.verify))
+                        .multilineTextAlignment(.trailing)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .foregroundStyle(SIZSignatureStatus.color(for: signature.verify))
@@ -284,24 +286,23 @@ private struct SIZSignatureRows: View {
                     .truncationMode(.middle)
                     .textSelection(.enabled)
             }
-            Spacer()
         }
         HStack(alignment: .center, spacing: 6) {
             DialogRowLabel(L10n.text("siz.signatureSheet.signedAt"), systemImage: "clock.fill", tint: .purple, width: 180)
+            Spacer(minLength: 12)
             Text(signature.signedAt)
                 .foregroundStyle(.secondary)
                 .textSelection(.enabled)
-            Spacer()
         }
         HStack(alignment: .center, spacing: 6) {
             DialogRowLabel(L10n.text("siz.signatureSheet.keyFingerprint"), systemImage: "touchid", tint: .indigo, width: 180)
+            Spacer(minLength: 12)
             Text(signature.signerFingerprint)
                 .font(.system(.body, design: .monospaced))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .textSelection(.enabled)
-            Spacer()
         }
     }
 }

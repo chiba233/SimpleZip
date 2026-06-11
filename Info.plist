@@ -65,6 +65,7 @@
 				<string>com.rarlab.rar-archive</string>
 				<string>com.apple.disk-image-udif</string>
 				<string>com.apple.xip-archive</string>
+				<string>org.zstandard.zst</string>
 				<string>com.simplezip.siz-archive</string>
 				<string>com.simplezip.szs-manifest</string>
 				<string>public.archive</string>
@@ -126,6 +127,25 @@
 				<key>public.filename-extension</key>
 				<array>
 					<string>rar</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.archive</string>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Zstandard Archive</string>
+			<key>UTTypeIdentifier</key>
+			<string>org.zstandard.zst</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>zst</string>
+					<string>tzst</string>
 				</array>
 			</dict>
 		</dict>
