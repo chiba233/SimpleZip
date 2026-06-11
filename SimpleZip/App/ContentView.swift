@@ -428,9 +428,9 @@ struct ContentView: View {
             L10n.text("startup.missing.title"),
             isPresented: $showsStartupMissingAlert
         ) {
-            // 「打开设置…」走 AppKit 旧式 selector，不依赖 macOS 14+ 的 @Environment(\.openSettings) —— 全版本都能开窗口。
+            // 走 SettingsDeepLink（桥 + 兜底 selector）——私有 selector 在 macOS 26 上已失效。
             Button(L10n.text("startup.missing.openSettings")) {
-                NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+                SettingsDeepLink.open(.general)
             }
             // 「重置为个人文件夹」清掉 startupLocation 配置 + 切到 home。
             // role: .cancel 是为了让回车键默认走重置（更安全的行为，不会带用户离开主界面）。
@@ -1224,5 +1224,7 @@ private struct ArchiveExtrasSheets: ViewModifier {
                     model.duplicateFilesReport = nil
                 }
             }
+            // 设置开窗桥（0.4.2）：菜单栏「关于」等深链入口靠它用官方 openSettings 开窗。
+            .background(SettingsOpenerBridge())
     }
 }
