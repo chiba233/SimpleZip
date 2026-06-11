@@ -100,4 +100,15 @@ struct ArchiveSearchTests {
         var q2 = ArchiveSearchQuery(); q2.text = "  "
         #expect(q2.isEmpty) // 纯空白文本不算约束
     }
+
+    @Test func modifiedAfterFiltersByDate() {
+        let old = ArchiveItem(name: "old.txt", isDirectory: false, size: 1, modified: Date(timeIntervalSince1970: 1_000), sizeText: "1 B", modifiedText: "", method: "")
+        let fresh = ArchiveItem(name: "fresh.txt", isDirectory: false, size: 1, modified: Date(timeIntervalSince1970: 2_000_000), sizeText: "1 B", modifiedText: "", method: "")
+        let dated = ArchiveItem(name: "nodate.txt", isDirectory: false, size: 1, modified: nil, sizeText: "1 B", modifiedText: "", method: "")
+        var query = ArchiveSearchQuery()
+        query.modifiedAfter = Date(timeIntervalSince1970: 1_000_000)
+        let result = ArchiveSearch.filter([old, fresh, dated], with: query)
+        #expect(result.map(\.name) == ["fresh.txt"])
+        #expect(!query.isEmpty)
+    }
 }

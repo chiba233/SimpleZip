@@ -25,6 +25,8 @@ struct ArchiveSearchQuery: Equatable {
     var minSize: Int64?
     /// 原始大小上限（字节，含）。nil = 不限。
     var maxSize: Int64?
+    /// 修改时间下限（含）。nil = 不限。无修改时间的条目在设了约束时不匹配。
+    var modifiedAfter: Date?
 
     enum Scope: String, CaseIterable, Hashable { case name, fullPath }
     enum Kind: String, CaseIterable, Hashable { case any, filesOnly, foldersOnly }
@@ -36,6 +38,7 @@ struct ArchiveSearchQuery: Equatable {
             && !encryptedOnly
             && minSize == nil
             && maxSize == nil
+            && modifiedAfter == nil
     }
 }
 
@@ -62,6 +65,10 @@ enum ArchiveSearch {
             guard let size = item.size else { return false }
             if let minSize = query.minSize, size < minSize { return false }
             if let maxSize = query.maxSize, size > maxSize { return false }
+        }
+
+        if let modifiedAfter = query.modifiedAfter {
+            guard let modified = item.modified, modified >= modifiedAfter else { return false }
         }
 
         let needle = query.text.trimmingCharacters(in: .whitespaces)

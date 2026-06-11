@@ -125,6 +125,39 @@ struct ContentView: View {
             // 0.3.3 UI 现代化：动作 / 导航按钮从自绘 TopBar 迁入原生标题栏工具栏 ——
             // 系统材质、自动 overflow、跟 Finder 同一套交互语言。
             .toolbar {
+                // #113 高级过滤（仅归档模式）：类型 / 仅加密 / 最近修改，与搜索框文本 AND。
+                // 过滤生效中漏斗实心化提醒「列表不是全量」。
+                ToolbarItem(placement: .automatic) {
+                    if case .archive = model.mode {
+                        Menu {
+                            Picker(L10n.text("search.filter.kind"), selection: $model.searchKind) {
+                                Text(L10n.text("search.filter.kind.any")).tag(ArchiveSearchQuery.Kind.any)
+                                Text(L10n.text("search.filter.kind.files")).tag(ArchiveSearchQuery.Kind.filesOnly)
+                                Text(L10n.text("search.filter.kind.folders")).tag(ArchiveSearchQuery.Kind.foldersOnly)
+                            }
+                            Picker(L10n.text("search.filter.modified"), selection: $model.searchModifiedWithin) {
+                                ForEach(ArchiveBrowserModel.SearchModifiedWindow.allCases) { window in
+                                    Text(window.title).tag(window)
+                                }
+                            }
+                            Toggle(L10n.text("search.filter.encryptedOnly"), isOn: $model.searchEncryptedOnly)
+                            if model.hasActiveAdvancedFilters {
+                                Divider()
+                                Button(L10n.text("search.filter.reset")) {
+                                    model.resetAdvancedFilters()
+                                }
+                            }
+                        } label: {
+                            Label(
+                                L10n.text("search.filter.menu"),
+                                systemImage: model.hasActiveAdvancedFilters
+                                    ? "line.3.horizontal.decrease.circle.fill"
+                                    : "line.3.horizontal.decrease.circle"
+                            )
+                        }
+                        .help(L10n.text("search.filter.menu"))
+                    }
+                }
                 ToolbarItemGroup(placement: .navigation) {
                     Button(action: model.goBack) {
                         Label(L10n.text("help.goBack"), systemImage: "chevron.left")

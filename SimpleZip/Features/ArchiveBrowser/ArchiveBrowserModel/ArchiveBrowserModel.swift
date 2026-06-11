@@ -36,13 +36,54 @@ final class ArchiveBrowserModel: ObservableObject {
         searchFocusRequestID += 1
     }
 
-    /// 过滤后的归档条目（主列表展示用）。空搜索返回全部；非空时按完整路径名大小写不敏感匹配（复用 Core `ArchiveSearch`）。
+    // #113 高级过滤（归档模式工具栏漏斗菜单）：类型 / 仅加密 / 修改时间窗，与搜索文本 AND。
+    @Published var searchKind: ArchiveSearchQuery.Kind = .any
+    @Published var searchEncryptedOnly = false
+    @Published var searchModifiedWithin: SearchModifiedWindow = .any
+
+    /// 修改时间窗（高级过滤的「最近修改」维度）。cutoff 现算 —— 菜单换挡即时生效。
+    enum SearchModifiedWindow: String, CaseIterable, Identifiable {
+        case any, day, week, month
+        var id: String { rawValue }
+        var cutoff: Date? {
+            switch self {
+            case .any: return nil
+            case .day: return Date().addingTimeInterval(-86_400)
+            case .week: return Date().addingTimeInterval(-7 * 86_400)
+            case .month: return Date().addingTimeInterval(-30 * 86_400)
+            }
+        }
+        var title: String {
+            switch self {
+            case .any: return L10n.text("search.filter.modified.any")
+            case .day: return L10n.text("search.filter.modified.day")
+            case .week: return L10n.text("search.filter.modified.week")
+            case .month: return L10n.text("search.filter.modified.month")
+            }
+        }
+    }
+
+    /// 高级过滤是否生效中（漏斗图标实心化 + 重置项显隐）。
+    var hasActiveAdvancedFilters: Bool {
+        searchKind != .any || searchEncryptedOnly || searchModifiedWithin != .any
+    }
+
+    func resetAdvancedFilters() {
+        searchKind = .any
+        searchEncryptedOnly = false
+        searchModifiedWithin = .any
+    }
+
+    /// 过滤后的归档条目（主列表展示用）。文本 + 高级过滤都空返回全部；否则按 Core `ArchiveSearch` AND 过滤。
     var displayedArchiveItems: [ArchiveItem] {
         let text = searchText.trimmingCharacters(in: .whitespaces)
-        guard !text.isEmpty else { return archiveItems }
+        guard !text.isEmpty || hasActiveAdvancedFilters else { return archiveItems }
         var query = ArchiveSearchQuery()
         query.text = text
         query.scope = .fullPath
+        query.kind = searchKind
+        query.encryptedOnly = searchEncryptedOnly
+        query.modifiedAfter = searchModifiedWithin.cutoff
         return ArchiveSearch.filter(archiveItems, with: query)
     }
 
