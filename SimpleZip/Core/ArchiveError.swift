@@ -28,6 +28,8 @@ enum ArchiveError: LocalizedError {
     case archiveExternallyModified(String)
     /// 0.4.3 #4:磁盘空间预检不通过(needed = 估算需要,available = 当前剩余,均字节)。
     case insufficientDiskSpace(needed: Int64, available: Int64)
+    /// 0.4.3 #8:写回在替换前失败,但工作副本已保进恢复区(underlying = 原始错误文案)。
+    case rewritePreservedToRecovery(underlying: String, recoveryPath: String)
     case commandFailed(String)
 
     var errorDescription: String? {
@@ -70,6 +72,8 @@ enum ArchiveError: LocalizedError {
                 ByteCountFormatter.string(fromByteCount: needed, countStyle: .file),
                 ByteCountFormatter.string(fromByteCount: available, countStyle: .file)
             )
+        case .rewritePreservedToRecovery(let underlying, let recoveryPath):
+            return L10n.format("error.rewritePreserved", underlying, recoveryPath)
         case .commandFailed(let message):
             return message.trimmingCharacters(in: .whitespacesAndNewlines)
         }

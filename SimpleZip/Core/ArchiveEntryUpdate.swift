@@ -153,9 +153,22 @@ extension ArchiveService {
 
         // 4) 工作副本现在是「更新后的归档」→ 原子替换原包。失败前原包始终是旧的完整包。
         // 替换前最后核对:干活期间原包被外部改过就放弃(否则会覆盖外部改动)。
-        try await verifyWorkCopyIfEnabled(workCopy, verifyOverride: verifyAfterWrite, password: password,
-                                          operationID: operationID, outputObserver: outputObserver)
-        try preWorkStamp.ensureUnchanged(at: archiveURL)
+        do {
+            try await verifyWorkCopyIfEnabled(workCopy, verifyOverride: verifyAfterWrite, password: password,
+                                              operationID: operationID, outputObserver: outputObserver)
+            try preWorkStamp.ensureUnchanged(at: archiveURL)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            // 0.4.3 #8:替换前失败 → 工作副本进恢复区。外部改动拦截时它是基于旧版的**完整改写成果**
+            //(可直接当「另存的副本」用);验证失败时它是诊断样本。保全失败按原错误抛,绝不掩盖。
+            let isExternalChange: Bool
+            if case ArchiveError.archiveExternallyModified = error { isExternalChange = true } else { isExternalChange = false }
+            if let saved = ArchiveRecoveryArea.preserve(workCopy, for: archiveURL, label: isExternalChange ? "rewrite" : "unverified") {
+                throw ArchiveError.rewritePreservedToRecovery(underlying: error.localizedDescription, recoveryPath: saved.path)
+            }
+            throw error
+        }
         _ = try fm.replaceItemAt(archiveURL, withItemAt: workCopy)
         ArchiveService.notifyArchiveRewritten(archiveURL)
     }
@@ -219,9 +232,22 @@ extension ArchiveService {
             outputRetentionLimit: BackendProcessRunner.diagnosticsOutputRetentionLimit
         )
 
-        try await verifyWorkCopyIfEnabled(workCopy, verifyOverride: verifyAfterWrite, password: password,
-                                          operationID: operationID, outputObserver: outputObserver)
-        try preWorkStamp.ensureUnchanged(at: archiveURL)
+        do {
+            try await verifyWorkCopyIfEnabled(workCopy, verifyOverride: verifyAfterWrite, password: password,
+                                              operationID: operationID, outputObserver: outputObserver)
+            try preWorkStamp.ensureUnchanged(at: archiveURL)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            // 0.4.3 #8:替换前失败 → 工作副本进恢复区。外部改动拦截时它是基于旧版的**完整改写成果**
+            //(可直接当「另存的副本」用);验证失败时它是诊断样本。保全失败按原错误抛,绝不掩盖。
+            let isExternalChange: Bool
+            if case ArchiveError.archiveExternallyModified = error { isExternalChange = true } else { isExternalChange = false }
+            if let saved = ArchiveRecoveryArea.preserve(workCopy, for: archiveURL, label: isExternalChange ? "rewrite" : "unverified") {
+                throw ArchiveError.rewritePreservedToRecovery(underlying: error.localizedDescription, recoveryPath: saved.path)
+            }
+            throw error
+        }
         _ = try fm.replaceItemAt(archiveURL, withItemAt: workCopy)
         ArchiveService.notifyArchiveRewritten(archiveURL)
     }
@@ -286,9 +312,22 @@ extension ArchiveService {
             outputRetentionLimit: BackendProcessRunner.diagnosticsOutputRetentionLimit
         )
 
-        try await verifyWorkCopyIfEnabled(workCopy, verifyOverride: verifyAfterWrite, password: password,
-                                          operationID: operationID, outputObserver: outputObserver)
-        try preWorkStamp.ensureUnchanged(at: archiveURL)
+        do {
+            try await verifyWorkCopyIfEnabled(workCopy, verifyOverride: verifyAfterWrite, password: password,
+                                              operationID: operationID, outputObserver: outputObserver)
+            try preWorkStamp.ensureUnchanged(at: archiveURL)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            // 0.4.3 #8:替换前失败 → 工作副本进恢复区。外部改动拦截时它是基于旧版的**完整改写成果**
+            //(可直接当「另存的副本」用);验证失败时它是诊断样本。保全失败按原错误抛,绝不掩盖。
+            let isExternalChange: Bool
+            if case ArchiveError.archiveExternallyModified = error { isExternalChange = true } else { isExternalChange = false }
+            if let saved = ArchiveRecoveryArea.preserve(workCopy, for: archiveURL, label: isExternalChange ? "rewrite" : "unverified") {
+                throw ArchiveError.rewritePreservedToRecovery(underlying: error.localizedDescription, recoveryPath: saved.path)
+            }
+            throw error
+        }
         _ = try fm.replaceItemAt(archiveURL, withItemAt: workCopy)
         ArchiveService.notifyArchiveRewritten(archiveURL)
     }
@@ -358,9 +397,22 @@ extension ArchiveService {
             outputRetentionLimit: BackendProcessRunner.diagnosticsOutputRetentionLimit
         )
 
-        try await verifyWorkCopyIfEnabled(workCopy, verifyOverride: verifyAfterWrite, password: password,
-                                          operationID: operationID, outputObserver: outputObserver)
-        try preWorkStamp.ensureUnchanged(at: archiveURL)
+        do {
+            try await verifyWorkCopyIfEnabled(workCopy, verifyOverride: verifyAfterWrite, password: password,
+                                              operationID: operationID, outputObserver: outputObserver)
+            try preWorkStamp.ensureUnchanged(at: archiveURL)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            // 0.4.3 #8:替换前失败 → 工作副本进恢复区。外部改动拦截时它是基于旧版的**完整改写成果**
+            //(可直接当「另存的副本」用);验证失败时它是诊断样本。保全失败按原错误抛,绝不掩盖。
+            let isExternalChange: Bool
+            if case ArchiveError.archiveExternallyModified = error { isExternalChange = true } else { isExternalChange = false }
+            if let saved = ArchiveRecoveryArea.preserve(workCopy, for: archiveURL, label: isExternalChange ? "rewrite" : "unverified") {
+                throw ArchiveError.rewritePreservedToRecovery(underlying: error.localizedDescription, recoveryPath: saved.path)
+            }
+            throw error
+        }
         _ = try fm.replaceItemAt(archiveURL, withItemAt: workCopy)
         ArchiveService.notifyArchiveRewritten(archiveURL)
     }

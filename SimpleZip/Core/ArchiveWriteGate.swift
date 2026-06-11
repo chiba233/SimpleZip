@@ -110,6 +110,50 @@ public enum DiskSpacePreflight {
     }
 }
 
+/// 0.4.3 #8:写回失败的「恢复区」。两类失败时工作副本有价值,不该随 staging 一起焚毁:
+/// - 外部改动拦截(替换前发现包被别人改了)→ 副本是**基于旧版的完整改写成果**,用户的编辑没白做;
+/// - 写后验证失败 → 副本是诊断样本(什么样的输入让 7zz 写坏了)。
+/// 恢复区在 Application Support 下(临时目录会被系统清);成功的操作照旧随 staging 即焚,
+/// 不会越积越多。入口:设置 → 关于 → 开发者工具(显示 / 一键清理),失败信息里也带路径。
+public enum ArchiveRecoveryArea {
+    public static var directory: URL {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? FileManager.default.temporaryDirectory
+        return base.appendingPathComponent("SimpleZip/Recovery", isDirectory: true)
+    }
+
+    /// 把工作副本搬进恢复区,返回落点(失败返回 nil —— 恢复是尽力而为,绝不让保全动作掩盖原始错误)。
+    /// 命名:`<原包名>-<标签>-<短ID>.<扩展名>`,一眼能对回原包。
+    public static func preserve(_ workCopy: URL, for archiveURL: URL, label: String) -> URL? {
+        let fm = FileManager.default
+        do {
+            try fm.createDirectory(at: directory, withIntermediateDirectories: true)
+            let stem = archiveURL.deletingPathExtension().lastPathComponent
+            let ext = archiveURL.pathExtension
+            let shortID = UUID().uuidString.prefix(8)
+            let name = ext.isEmpty ? "\(stem)-\(label)-\(shortID)" : "\(stem)-\(label)-\(shortID).\(ext)"
+            let destination = directory.appendingPathComponent(name)
+            try fm.moveItem(at: workCopy, to: destination)
+            return destination
+        } catch {
+            return nil
+        }
+    }
+
+    /// 恢复区当前内容(不存在 = 空)。
+    public static func contents() -> [URL] {
+        (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []
+    }
+
+    /// 一键清空恢复区。
+    public static func clear() throws {
+        let fm = FileManager.default
+        for url in contents() {
+            try fm.removeItem(at: url)
+        }
+    }
+}
+
 public extension Notification.Name {
     /// 某归档刚被安全写回(原子替换完成)。打开同一归档的其他窗口 / 标签页应刷新列表。
     /// userInfo["path"] = 标准化路径。主线程派发。
