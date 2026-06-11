@@ -505,3 +505,29 @@ struct ReleaseInspectionTests {
         #expect(!ReleaseInspection.isExecutableMode(""))
     }
 }
+
+/// 0.4.2:解压「跳过垃圾」的 staging 清扫。
+struct RemoveJunkTests {
+
+    @Test func removesJunkAndKeepsRealFiles() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("SimpleZip-RemoveJunkTests-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let fm = FileManager.default
+        try fm.createDirectory(at: root.appendingPathComponent("__MACOSX/sub"), withIntermediateDirectories: true)
+        try fm.createDirectory(at: root.appendingPathComponent("docs"), withIntermediateDirectories: true)
+        try Data().write(to: root.appendingPathComponent("__MACOSX/sub/._a.txt"))
+        try Data().write(to: root.appendingPathComponent(".DS_Store"))
+        try Data().write(to: root.appendingPathComponent("docs/.DS_Store"))
+        try Data().write(to: root.appendingPathComponent("docs/._b.txt"))
+        try Data("real".utf8).write(to: root.appendingPathComponent("docs/b.txt"))
+
+        let removed = ArchiveJunkFiles.removeJunk(in: root)
+        #expect(removed == 4)   // __MACOSX 整目录 + 两个 .DS_Store + 一个 ._b.txt
+        // AppleDouble 对 Foundation 枚举不可见 —— 必须用 fileExists 验证它真被删了。
+        #expect(!fm.fileExists(atPath: root.appendingPathComponent("docs/._b.txt").path))
+        #expect(!fm.fileExists(atPath: root.appendingPathComponent("__MACOSX").path))
+        #expect(!fm.fileExists(atPath: root.appendingPathComponent("docs/.DS_Store").path))
+        #expect(fm.fileExists(atPath: root.appendingPathComponent("docs/b.txt").path))
+    }
+}

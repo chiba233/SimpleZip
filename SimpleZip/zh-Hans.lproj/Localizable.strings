@@ -852,6 +852,11 @@
 "about.ack.gnupg" = "可选的签名 / 加密后端——密钥始终归你。";
 "about.ack.sparkle" = "安全、带签名的应用内更新。";
 
+/* 0.4.2 解压:跳过 macOS 垃圾 */
+"extract.skipJunk" = "不解压 macOS 元数据垃圾";
+"extract.skipJunk.detail" = ".DS_Store、__MACOSX、._* AppleDouble、Thumbs.db——合并前清掉；目标目录原有文件绝不会被碰。";
+
+
 
 
 

@@ -31,6 +31,15 @@ struct ExtractSelectionOptionsView: View {
                     Text(mode.title).tag(mode)
                 }
             }
+            // 0.4.2：不解压 macOS 元数据垃圾 —— 与整包解压同款开关。
+            Toggle(isOn: $request.skipJunk) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L10n.text("extract.skipJunk"))
+                    Text(L10n.text("extract.skipJunk.detail"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
         .frame(width: 560)
     }

@@ -270,6 +270,52 @@ enum ArchiveJunkFiles {
     nonisolated static func junkEntries(in items: [ArchiveItem]) -> [ArchiveItem] {
         items.filter { isJunkPath($0.name) }
     }
+
+    /// 0.4.2：解压「跳过 macOS 元数据垃圾」—— 在 **staging 树**上删垃圾（解压先进 staging 再合并，
+    /// 所以这里删的全是本次解压产物，绝不会碰目标目录原有文件）。返回删除条目数。
+    ///
+    /// **必须走 POSIX `readdir`**：实测 Foundation 的目录枚举（enumerator / contentsOfDirectory）
+    /// 会把 AppleDouble `._*` 文件**整个藏起来**（盘上存在、`ls`/`fileExists` 可见，枚举就是不吐）——
+    /// 清垃圾恰恰要看见这些文件。`__MACOSX` 整目录删；目录判定用 lstat 语义（不跟符号链接下钻）。
+    @discardableResult
+    nonisolated static func removeJunk(in root: URL, fileManager: FileManager = .default) -> Int {
+        var removed = 0
+        func walk(_ directory: URL) {
+            for name in posixChildren(of: directory.path) {
+                let child = directory.appendingPathComponent(name)
+                if name == "__MACOSX" || isJunkPath(name) {
+                    if (try? fileManager.removeItem(at: child)) != nil {
+                        removed += 1
+                    }
+                    continue
+                }
+                // lstat 语义判目录（attributesOfItem 不跟符号链接）：symlink 指向外部目录时绝不下钻。
+                let type = (try? fileManager.attributesOfItem(atPath: child.path))?[.type] as? FileAttributeType
+                if type == .typeDirectory {
+                    walk(child)
+                }
+            }
+        }
+        walk(root)
+        return removed
+    }
+
+    /// POSIX 目录列举（readdir）—— 不经 Foundation 的 AppleDouble 过滤。
+    nonisolated private static func posixChildren(of directoryPath: String) -> [String] {
+        guard let dir = opendir(directoryPath) else { return [] }
+        defer { closedir(dir) }
+        var names: [String] = []
+        while let entry = readdir(dir) {
+            let name = withUnsafeBytes(of: entry.pointee.d_name) { raw -> String in
+                guard let base = raw.baseAddress else { return "" }
+                return String(cString: base.assumingMemoryBound(to: CChar.self))
+            }
+            if !name.isEmpty, name != ".", name != ".." {
+                names.append(name)
+            }
+        }
+        return names
+    }
 }
 
 // MARK: - 发布包检查（0.4.2 #15）

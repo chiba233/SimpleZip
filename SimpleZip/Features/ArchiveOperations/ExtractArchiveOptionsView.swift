@@ -38,6 +38,8 @@ struct ExtractArchiveOptionsView: View {
         ) {
             // 0.4.2 #8：解压前概要（文件数 / 大小 / 风险行）。
             preflightRows
+            // 0.4.2 用户点名：不解压 macOS 元数据垃圾（staging 上清扫,目标目录原有文件零接触）。
+            skipJunkToggle
             // `.siz` 直接解压时多三行：签名状态 / 签名时间 / 签名指纹。普通归档时为 nil，extraControls 为空。
             if let signature = request.sizSignature {
                 SIZSignatureRows(signature: signature)
@@ -70,6 +72,18 @@ struct ExtractArchiveOptionsView: View {
         // 用户换目标目录 → 覆盖风险行实时重算。
         .onChange(of: request.destinationURL) { _ in
             recomputeOverwriteCount()
+        }
+    }
+
+    @ViewBuilder
+    private var skipJunkToggle: some View {
+        Toggle(isOn: $request.skipJunk) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(L10n.text("extract.skipJunk"))
+                Text(L10n.text("extract.skipJunk.detail"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 

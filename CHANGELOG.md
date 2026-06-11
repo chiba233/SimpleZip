@@ -4,6 +4,9 @@
 
 ## 0.4.2 (unreleased)
 
+- **New: "Don't extract macOS metadata junk".** Both extract dialogs gain a toggle that strips `.DS_Store`, `__MACOSX`, AppleDouble `._*` files, `Thumbs.db`, and `desktop.ini` from the extraction before merging — files already in the destination are never touched (the sweep runs on the staging copy). Implementation note: the sweep walks the tree with POSIX `readdir`, because Foundation's directory enumeration silently hides AppleDouble files.
+- **Fix: file split accepts decimals and a KB unit.** Volume size can now be `1.5 GB` or `700 KB`, not just whole MB/GB.
+
 - **Fix: the menu-bar "About SimpleZip" (and "Open Settings…") actually opens Settings again.** The private `showSettingsWindow:` selector no longer works on current macOS; deep links now ride the official `openSettings` action through a hidden bridge in the main window, with the legacy selector kept only as a fallback.
 
 - **New: Help and About move into Settings — and get a real upgrade.** Settings grows two sidebar categories: **Help** is an illustrated, spacious usage guide (open/browse, extract, create, edit-inside, search & compare, GPG, Activity Center) with the **format capability matrix moved here from the Archive pane** as its lead content; **About** replaces the cramped system panel with a proper page — big icon, gradient title, version pill, source/license/bug-report link cards, and acknowledgements (7-Zip, GnuPG, Sparkle). The menu-bar **About SimpleZip** now opens Settings → About directly, and the Activity Center sidebar gains the same **Help** section.
