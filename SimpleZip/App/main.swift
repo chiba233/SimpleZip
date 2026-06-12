@@ -17,11 +17,14 @@ if CLIInvocation.isCLIInvocation(
     firstArgument: processArguments.count > 1 ? processArguments[1] : nil
 ) {
     // CLI 是 async 流程(ArchiveService 入口在默认 MainActor 隔离下要主 actor 执行;
-    // 同步阻塞主线程等结果会死锁,首版冒烟实测)。Task 排上主执行器,dispatchMain()
-    // 让主线程专职服务主队列,跑完在任务里 exit。
+    // 同步阻塞主线程等结果会死锁,首版冒烟实测)。Task 排上主执行器,跑完在任务里 exit。
+    // 必须 RunLoop.main.run() 而非 dispatchMain():dispatch_main() 把真主线程停车,主队列
+    // 任务改由「主队列语义的工作线程」执行 —— MainActor 满足,但 AppKit 按 pthread_main_np()
+    // 校验,promptPassword 的 NSAlert 一实例化就 NSInternalInconsistencyException(加密包实测)。
+    // RunLoop.main.run() 让真主线程留在原地伺服主队列,口令小窗才能弹。
     Task { @MainActor in
         exit(await CLIRunner.run(arguments: processArguments))
     }
-    dispatchMain()
+    RunLoop.main.run()
 }
 SimpleZipApp.main()
