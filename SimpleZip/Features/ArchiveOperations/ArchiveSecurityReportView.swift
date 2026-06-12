@@ -58,6 +58,12 @@ struct ArchiveSecurityReportView: View {
             Divider()
 
             PinnedBottomBar {
+                // F2:统一导出。UI 每类截 12 条,导出给全量路径。
+                ReportExportControl(report: ArchiveSecurityExportReport(
+                    archiveName: archiveName,
+                    archivePath: { if case .archive(let url) = model.mode { return url.path } else { return nil } }(),
+                    findings: model.archiveSecurityFindings
+                ))
                 Spacer()
                 Button {
                     model.showsArchiveSecurityReport = false
@@ -82,6 +88,73 @@ struct ArchiveSecurityReportView: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
+        }
+    }
+
+    /// F2:导出包装 —— 安全发现挂在 model 上没有独立报告类型,这里拼一个值类型给统一导出用。
+    struct ArchiveSecurityExportReport: ReportExportable {
+        let archiveName: String
+        let archivePath: String?
+        let findings: [ArchiveSecurityFinding]
+
+        var reportTitle: String { "\(L10n.text("security.report.title")) — \(archiveName)" }
+        var reportTargetPath: String? { archivePath }
+
+        var reportSummaryLine: String {
+            guard !findings.isEmpty else {
+                return "\(archiveName) — \(L10n.text("security.report.clean"))"
+            }
+            let total = findings.reduce(0) { $0 + $1.entryPaths.count }
+            let kinds = findings.map { L10n.text("security.kind.\($0.kind.rawValue)") }.joined(separator: ", ")
+            return "\(archiveName) — \(L10n.format("security.report.summary", "\(total)", kinds))"
+        }
+
+        func reportMarkdown(metadata: ReportMetadata?) -> String {
+            var lines: [String] = []
+            lines.append("# \(L10n.text("security.report.title"))")
+            lines.append("")
+            lines.append("**\(archiveName)**")
+            lines.append("")
+            if findings.isEmpty {
+                lines.append("✓ \(L10n.text("security.report.clean"))")
+            } else {
+                for finding in findings {
+                    lines.append("## \(L10n.text("security.kind.\(finding.kind.rawValue)")) (\(finding.entryPaths.count))")
+                    lines.append("")
+                    lines.append(L10n.text("security.kind.\(finding.kind.rawValue).desc"))
+                    lines.append("")
+                    lines.append(contentsOf: finding.entryPaths.map { "- `\($0)`" })
+                    lines.append("")
+                }
+            }
+            lines.append("")
+            var markdown = lines.joined(separator: "\n")
+            if let metadata {
+                markdown += ReportExport.markdownFooter(metadata) + "\n"
+            }
+            return markdown
+        }
+
+        private struct JSONReport: Encodable {
+            struct Finding: Encodable {
+                let kind: String
+                let count: Int
+                let paths: [String]
+            }
+            let archive: String
+            let findings: [Finding]
+            let metadata: ReportMetadata?
+        }
+
+        func reportJSON(metadata: ReportMetadata?) throws -> String {
+            let snapshot = JSONReport(
+                archive: archiveName,
+                findings: findings.map {
+                    JSONReport.Finding(kind: $0.kind.rawValue, count: $0.entryPaths.count, paths: $0.entryPaths)
+                },
+                metadata: metadata
+            )
+            return String(decoding: try ReportExport.jsonEncoder().encode(snapshot), as: UTF8.self)
         }
     }
 
