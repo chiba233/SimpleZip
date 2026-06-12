@@ -51,6 +51,11 @@ struct ContentView: View {
     @State private var createSZSPrefill: ArchiveBrowserModel.CreateSZSPrefill?
     /// 右键「解压」.szs 触发的提示 alert 状态。非 nil = alert 显示中；button 点了就清。
     @State private var szsExtractHintURL: URL?
+
+    /// 发布助手确认后的请求，压到 sheet 的 onDismiss 再起任务 —— 小目录打包快到能在助手
+    /// sheet 收场动画结束前完成，refreshOnSuccess 此时 set 报告 item 会被 SwiftUI 静默丢弃
+    /// （报告 sheet 不弹，实测）。等 onDismiss（动画完毕）再 run，报告必能呈现。
+    @State private var pendingReleaseAssistantRun: ReleaseAssistantRequest?
     /// 右键「以虚拟目录浏览」静默校验失败时的警告 alert 状态。
     /// nil = 没问题（已直接进入虚拟模式）/ 还没触发；非 nil = 验证发现问题，用户需决定。
     @State private var szsSilentBrowseWarning: SZSSilentBrowseWarning?
@@ -357,10 +362,15 @@ struct ContentView: View {
                 model.spaceAnalysisReport = nil
             }
         }
-        .sheet(item: $model.releaseAssistantRequest) { request in
-            ReleaseAssistantSheet(request: request) { confirmed in
-                model.releaseAssistantRequest = nil
+        .sheet(item: $model.releaseAssistantRequest, onDismiss: {
+            if let confirmed = pendingReleaseAssistantRun {
+                pendingReleaseAssistantRun = nil
                 model.runReleaseAssistant(confirmed)
+            }
+        }) { request in
+            ReleaseAssistantSheet(request: request) { confirmed in
+                pendingReleaseAssistantRun = confirmed
+                model.releaseAssistantRequest = nil
             } cancel: {
                 model.releaseAssistantRequest = nil
             }
