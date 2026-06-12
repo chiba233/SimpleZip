@@ -1163,6 +1163,19 @@
 "releaseAssistant.versionLabel.placeholder" = "e.g. 1.2.0 (optional)";
 "releaseAssistant.section.history" = "Release History";
 "releaseAssistant.history.artifactMissing" = "artifact missing";
+/* 0.4.4 #3 release comparison */
+"releaseCompare.button" = "Compare with previous release";
+"releaseCompare.title" = "Release Comparison";
+"releaseCompare.dates" = "Dates";
+"releaseCompare.size" = "Size";
+"releaseCompare.fileCount" = "Files";
+"releaseCompare.fingerprint" = "Structural fingerprint";
+"releaseCompare.fingerprint.same" = "unchanged — same content";
+"releaseCompare.fingerprint.changed" = "changed";
+"releaseCompare.junkRegression" = "Junk regression: previous release was clean, this one has %@ junk entries.";
+"releaseCompare.section.hygiene" = "Release Hygiene (previous → this)";
+"releaseCompare.fileLevel" = "File-level Comparison";
+"releaseCompare.fileLevel.missing" = "Both archives must still exist on disk.";
 /* 0.4.4 #10 release gate */
 "releaseAssistant.section.gate" = "Quality Gate";
 "releaseGate.section" = "Quality Gate";

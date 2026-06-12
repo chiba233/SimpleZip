@@ -368,12 +368,21 @@ struct ContentView: View {
                 model.runReleaseAssistant(confirmed)
             }
         }) { request in
-            ReleaseAssistantSheet(request: request) { confirmed in
-                pendingReleaseAssistantRun = confirmed
-                model.releaseAssistantRequest = nil
-            } cancel: {
-                model.releaseAssistantRequest = nil
-            }
+            ReleaseAssistantSheet(
+                request: request,
+                confirm: { confirmed in
+                    pendingReleaseAssistantRun = confirmed
+                    model.releaseAssistantRequest = nil
+                },
+                cancel: {
+                    model.releaseAssistantRequest = nil
+                },
+                // #3:文件级对比走现有归档比较任务流(关掉助手 sheet,diff 报告随任务弹出)。
+                onCompareArtifacts: { oldURL, newURL in
+                    model.releaseAssistantRequest = nil
+                    model.runArchiveComparison(left: oldURL, right: newURL)
+                }
+            )
         }
         .sheet(item: $pendingSZSVerification) { pending in
             SZSVerificationSheet(

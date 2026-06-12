@@ -38,11 +38,15 @@ struct ReleaseAssistantSheet: View {
     @State var request: ReleaseAssistantRequest
     let confirm: (ReleaseAssistantRequest) -> Void
     let cancel: () -> Void
+    /// #3:文件级对比回调(两个产物都还在时) —— 调现有归档比较任务流,结果走现有 ArchiveDiffView。
+    var onCompareArtifacts: ((URL, URL) -> Void)? = nil
 
     /// #18:命名工作区预设(整套发布配置一把存取;store 在 Core,随设置备份)。
     @State private var workspacePresets: [ReleaseWorkspacePreset] = ReleaseWorkspacePresetStore().loadAll()
     /// #2:发布账本(sheet 打开时读一次;本次跑完的记录下次打开可见)。
     @State private var ledgerEntries: [ReleaseLedgerEntry] = ReleaseLedgerStore().loadAll()
+    /// #3:待展示的账面对比(新条目 vs 它的上一条)。
+    @State private var ledgerComparison: LedgerComparisonRequest?
 
     private var canConfirm: Bool {
         request.sourceFolder != nil
@@ -288,11 +292,20 @@ struct ReleaseAssistantSheet: View {
             // 子行单色。没跑过 = 整个抽屉不渲染,零占位。
             if !ledgerEntries.isEmpty {
                 DialogDrawer(L10n.text("releaseAssistant.section.history"), systemImage: "clock.arrow.circlepath", color: .indigo) {
-                    ForEach(ledgerEntries.prefix(8)) { entry in
-                        ledgerRow(entry)
+                    ForEach(Array(ledgerEntries.prefix(8).enumerated()), id: \.element.id) { index, entry in
+                        ledgerRow(entry, previous: ledgerEntries[safe: index + 1])
                     }
                 }
             }
+        }
+        // #3:账面对比小弹窗(嵌套 sheet;文件级对比按钮转交回调走现有比较任务流)。
+        .sheet(item: $ledgerComparison) { comparison in
+            LedgerComparisonView(
+                old: comparison.old,
+                new: comparison.new,
+                onCompareArtifacts: onCompareArtifacts,
+                onClose: { ledgerComparison = nil }
+            )
         }
     }
 
@@ -314,8 +327,8 @@ struct ReleaseAssistantSheet: View {
         }
     }
 
-    /// #2:历史抽屉里的一条账本记录(单色子行)。
-    private func ledgerRow(_ entry: ReleaseLedgerEntry) -> some View {
+    /// #2:历史抽屉里的一条账本记录(单色子行)。#3:有上一条时给「与上次对比」。
+    private func ledgerRow(_ entry: ReleaseLedgerEntry, previous: ReleaseLedgerEntry?) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 8) {
                 Label(entry.versionLabel, systemImage: "shippingbox")
@@ -328,6 +341,16 @@ struct ReleaseAssistantSheet: View {
                         .foregroundStyle(.orange)
                 }
                 Spacer(minLength: 8)
+                if let previous {
+                    Button {
+                        ledgerComparison = LedgerComparisonRequest(old: previous, new: entry)
+                    } label: {
+                        Image(systemName: "arrow.left.arrow.right")
+                            .font(.caption2)
+                    }
+                    .buttonStyle(.borderless)
+                    .help(L10n.text("releaseCompare.button"))
+                }
                 Text(entry.date.formatted(date: .abbreviated, time: .shortened))
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -397,5 +420,151 @@ struct ReleaseAssistantSheet: View {
                 Label(L10n.text("button.choose"), systemImage: "folder")
             }
         }
+    }
+}
+
+
+// MARK: - #3 发布产物对比
+
+private extension Array {
+    subscript(safe index: Int) -> Element? {
+        indices.contains(index) ? self[index] : nil
+    }
+}
+
+/// 一次「与上次对比」请求(嵌套 sheet 的 item)。
+struct LedgerComparisonRequest: Identifiable {
+    let id = UUID()
+    let old: ReleaseLedgerEntry
+    let new: ReleaseLedgerEntry
+}
+
+/// #3:账面对比小报告(close-only)。账面字段产物不在也能比;两个产物都在时
+/// 给「文件级对比」按钮 —— 转交回调走现有归档比较任务流(A1:不另画 diff 页)。
+struct LedgerComparisonView: View {
+    let old: ReleaseLedgerEntry
+    let new: ReleaseLedgerEntry
+    let onCompareArtifacts: ((URL, URL) -> Void)?
+    let onClose: () -> Void
+
+    private var comparison: ReleaseLedgerComparison {
+        ReleaseLedgerComparison.compare(old: old, new: new)
+    }
+
+    private var bothArtifactsExist: Bool {
+        old.artifactExists && new.artifactExists
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            DialogHero(
+                systemImage: "arrow.left.arrow.right",
+                colors: [.indigo, .blue],
+                title: L10n.text("releaseCompare.title"),
+                subtitle: "\(old.versionLabel) → \(new.versionLabel)"
+            )
+
+            HeightCappedScrollView(maxHeight: 520) {
+                VStack(alignment: .leading, spacing: 12) {
+                    DialogSection {
+                        infoRow(L10n.text("releaseCompare.dates"),
+                                value: "\(old.date.formatted(date: .abbreviated, time: .shortened)) → \(new.date.formatted(date: .abbreviated, time: .shortened))",
+                                systemImage: "clock.fill", tint: .purple)
+                        if let delta = comparison.totalBytesDelta, let oldBytes = old.totalBytes, let newBytes = new.totalBytes {
+                            infoRow(L10n.text("releaseCompare.size"),
+                                    value: "\(bytes(oldBytes)) → \(bytes(newBytes)) (\(signedBytes(delta)))",
+                                    systemImage: "scalemass.fill", tint: .blue)
+                        }
+                        if let delta = comparison.fileCountDelta, let oldCount = old.fileCount, let newCount = new.fileCount {
+                            infoRow(L10n.text("releaseCompare.fileCount"),
+                                    value: "\(oldCount) → \(newCount) (\(delta >= 0 ? "+" : "")\(delta))",
+                                    systemImage: "number.square.fill", tint: .teal)
+                        }
+                        if let changed = comparison.fingerprintChanged {
+                            infoRow(L10n.text("releaseCompare.fingerprint"),
+                                    value: L10n.text(changed ? "releaseCompare.fingerprint.changed" : "releaseCompare.fingerprint.same"),
+                                    systemImage: "touchid", tint: changed ? .orange : .green)
+                        }
+                        if comparison.junkRegression {
+                            Label(L10n.format("releaseCompare.junkRegression", "\(new.junkCount ?? 0)"), systemImage: "exclamationmark.triangle.fill")
+                                .font(.callout)
+                                .foregroundStyle(.orange)
+                        }
+                    }
+
+                    // 发布卫生清单:上次 vs 这次 逐项 ✓/✗。
+                    DialogSection(L10n.text("releaseCompare.section.hygiene")) {
+                        checkRow(L10n.text("releaseAssistant.reproducible"), old: old.reproducible, new: new.reproducible)
+                        checkRow(L10n.text("releaseAssistant.checksums"), old: old.wroteChecksums, new: new.wroteChecksums)
+                        checkRow(L10n.text("releaseAssistant.sign"), old: old.signRequested, new: new.signRequested)
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 16)
+            }
+
+            Divider()
+
+            PinnedBottomBar {
+                if let onCompareArtifacts {
+                    Button {
+                        onCompareArtifacts(URL(fileURLWithPath: old.artifactPath), URL(fileURLWithPath: new.artifactPath))
+                        onClose()
+                    } label: {
+                        Label(L10n.text("releaseCompare.fileLevel"), systemImage: "doc.text.magnifyingglass")
+                    }
+                    .disabled(!bothArtifactsExist)
+                    .help(bothArtifactsExist ? "" : L10n.text("releaseCompare.fileLevel.missing"))
+                }
+                Spacer()
+                Button(action: onClose) {
+                    Label(L10n.text("button.ok"), systemImage: "checkmark")
+                }
+                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.defaultAction)
+            }
+        }
+        .frame(width: 520)
+    }
+
+    private func infoRow(_ label: String, value: String, systemImage: String, tint: Color) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            DialogRowLabel(label, systemImage: systemImage, tint: tint)
+            Spacer(minLength: 12)
+            Text(value)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.trailing)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func checkRow(_ label: String, old oldValue: Bool, new newValue: Bool) -> some View {
+        HStack(spacing: 12) {
+            Text(label)
+                .font(.callout)
+            Spacer(minLength: 12)
+            HStack(spacing: 10) {
+                mark(oldValue)
+                Image(systemName: "arrow.right")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                mark(newValue)
+            }
+        }
+    }
+
+    private func mark(_ value: Bool) -> some View {
+        Image(systemName: value ? "checkmark.circle.fill" : "xmark.circle")
+            .foregroundStyle(value ? Color.green : Color.secondary)
+    }
+
+    private func bytes(_ value: Int64) -> String {
+        ByteCountFormatter.string(fromByteCount: value, countStyle: .file)
+    }
+
+    private func signedBytes(_ delta: Int64) -> String {
+        let formatted = ByteCountFormatter.string(fromByteCount: abs(delta), countStyle: .file)
+        if delta == 0 { return "±0" }
+        return (delta > 0 ? "+" : "-") + formatted
     }
 }

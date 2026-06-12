@@ -1161,6 +1161,19 @@
 "releaseAssistant.versionLabel.placeholder" = "如 1.2.0(可选)";
 "releaseAssistant.section.history" = "发布历史";
 "releaseAssistant.history.artifactMissing" = "产物已不在";
+/* 0.4.4 #3 发布对比 */
+"releaseCompare.button" = "与上一次发布对比";
+"releaseCompare.title" = "发布对比";
+"releaseCompare.dates" = "日期";
+"releaseCompare.size" = "体积";
+"releaseCompare.fileCount" = "文件数";
+"releaseCompare.fingerprint" = "结构指纹";
+"releaseCompare.fingerprint.same" = "未变——同一份内容";
+"releaseCompare.fingerprint.changed" = "已变化";
+"releaseCompare.junkRegression" = "垃圾回潮:上次发布是干净的,这次出现 %@ 条垃圾条目。";
+"releaseCompare.section.hygiene" = "发布卫生(上次 → 这次)";
+"releaseCompare.fileLevel" = "文件级对比";
+"releaseCompare.fileLevel.missing" = "两个归档都还在磁盘上才能比。";
 /* 0.4.4 #10 质量门 */
 "releaseAssistant.section.gate" = "质量门";
 "releaseGate.section" = "质量门";
