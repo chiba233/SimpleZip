@@ -112,7 +112,7 @@ struct CreateSZSSheet: View {
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .trailing)
             Button(L10n.text("szs.create.payloadRoot.choose")) {
                 choosePayloadRoot()
             }
@@ -277,7 +277,7 @@ struct CreateSZSSheet: View {
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .trailing)
             Button(L10n.text("szs.create.outputLocation.choose")) {
                 chooseOutput()
             }
