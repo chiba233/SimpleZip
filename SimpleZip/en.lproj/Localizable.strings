@@ -1092,6 +1092,11 @@
 "tasks.cancelAll" = "Cancel All";
 /* 0.4.4 F4 queue-level pause */
 "tasks.queuePause" = "Pause Queue";
+/* 0.4.4 #17 activity center pane heroes */
+"tasks.pane.archive.subtitle" = "Extract, create, test and convert tasks";
+"tasks.pane.fileOperation.subtitle" = "Copy, move, delete and hashing tasks";
+"tasks.pane.undoRedo.subtitle" = "Undo and redo history";
+"tasks.pane.settings.subtitle" = "History, queue and recovery options";
 "tasks.queueResume" = "Resume Queue";
 "tasks.queuePause.help" = "Pause every pausable running task and hold new tasks in the queue. Resuming releases only the tasks this button paused.";
 /* 0.4.4 F2 unified report export */

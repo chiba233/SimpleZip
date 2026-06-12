@@ -1090,6 +1090,11 @@
 "tasks.cancelAll" = "全部取消";
 /* 0.4.4 F4 队列级暂停 */
 "tasks.queuePause" = "暂停队列";
+/* 0.4.4 #17 活动中心 hero 头 */
+"tasks.pane.archive.subtitle" = "解压、创建、测试与转换任务";
+"tasks.pane.fileOperation.subtitle" = "复制、移动、删除与哈希任务";
+"tasks.pane.undoRedo.subtitle" = "撤销与重做留痕";
+"tasks.pane.settings.subtitle" = "历史、队列与恢复区选项";
 "tasks.queueResume" = "恢复队列";
 "tasks.queuePause.help" = "暂停所有可暂停的运行中任务,并让新任务排队等待。恢复时只放行被本按钮暂停的任务。";
 /* 0.4.4 F2 统一报告导出 */

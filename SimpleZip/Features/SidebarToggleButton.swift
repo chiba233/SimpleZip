@@ -36,6 +36,9 @@ struct CenteredSidebarRow: View {
     let color: Color
     var badge: Int = 0
     let isSelected: Bool
+    /// 0.4.4 #17:选中态用「行色层叠渐变 chrome」(渐变底 + 同色渐变描边)替代 accent 平涂。
+    /// opt-in —— 活动中心开;设置窗维持原 accent 样式不受影响。
+    var chromeSelection: Bool = false
     let action: () -> Void
 
     @State private var isHovering = false
@@ -68,14 +71,34 @@ struct CenteredSidebarRow: View {
             .padding(.vertical, 8)
             .contentShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
             .background {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(
-                        isSelected
-                            ? AnyShapeStyle(Color.accentColor.opacity(0.22))
-                            : isHovering
-                                ? AnyShapeStyle(Color.primary.opacity(0.07))
-                                : AnyShapeStyle(Color.clear)
-                    )
+                if chromeSelection, isSelected {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [color.opacity(0.20), color.opacity(0.07)],
+                                startPoint: .topLeading, endPoint: .bottomTrailing
+                            )
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .strokeBorder(
+                                    LinearGradient(
+                                        colors: [color.opacity(0.55), color.opacity(0.10)],
+                                        startPoint: .topLeading, endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 1
+                                )
+                        )
+                } else {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(
+                            isSelected
+                                ? AnyShapeStyle(Color.accentColor.opacity(0.22))
+                                : isHovering
+                                    ? AnyShapeStyle(Color.primary.opacity(0.07))
+                                    : AnyShapeStyle(Color.clear)
+                        )
+                }
             }
         }
         .buttonStyle(.plain)

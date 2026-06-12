@@ -22,12 +22,14 @@ struct ActivityView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Spacer(minLength: 12)
                 ForEach(ActivityPane.allCases) { pane in
+                    // #17:选中态 = 行色渐变 chrome(opt-in;设置窗的同款行不受影响)。
                     CenteredSidebarRow(
                         title: pane.title,
                         systemImage: pane.systemImage,
                         color: pane.iconColor,
                         badge: pane.category.map(taskCount(in:)) ?? 0,
-                        isSelected: windowState.selectedPane == pane
+                        isSelected: windowState.selectedPane == pane,
+                        chromeSelection: true
                     ) {
                         windowState.selectedPane = pane
                     }
@@ -67,12 +69,21 @@ struct ActivityView: View {
             } else if selectedPane == .settings {
                 // 设置页用系统设置同款 grouped Form —— 自带滚动与顶部安全区处理，
                 // 修掉「点设置后内容往上错位」（之前是裸 VStack，不像 List/Form 那样吃标题栏 inset）。
-                activitySettingsView
+                // #17:顶部加同款 hero 头(Form 本体维持设置区已验收的原生样式)。
+                VStack(spacing: 0) {
+                    HStack {
+                        paneHero(selectedPane)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 14)
+                    .padding(.bottom, 4)
+                    activitySettingsView
+                }
             } else if let category = selectedPane.category {
                 VStack(spacing: 0) {
                     HStack {
-                        Text(selectedPane.title)
-                            .font(.title2.weight(.semibold))
+                        paneHero(selectedPane)
                         Spacer()
                         filterMenu(for: category)
                         // F4:队列级暂停/恢复 —— 暂停态下即使任务跑完也保持可见(不然没法恢复闸门)。
@@ -124,15 +135,58 @@ struct ActivityView: View {
         }
     }
 
+    /// #17:pane 顶部的小 hero 头 —— 渐变发光图标瓦片 + 标题 + 副标题(纯静态,无 hover)。
+    private func paneHero(_ pane: ActivityPane) -> some View {
+        HStack(spacing: 12) {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [pane.iconColor.opacity(0.95), pane.iconColor.opacity(0.65)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    )
+                )
+                .overlay(
+                    Image(systemName: pane.systemImage)
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(.white)
+                )
+                .frame(width: 38, height: 38)
+                .shadow(color: pane.iconColor.opacity(0.45), radius: 7, y: 3)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(pane.title)
+                    .font(.title2.weight(.semibold))
+                if let subtitle = pane.subtitle {
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+    }
+
     /// 任务列表：每条任务一张圆角卡片（替代平铺行），空时给居中的大图标空状态。
     @ViewBuilder
     private func taskList(in category: OperationTask.Category) -> some View {
         let tasks = filteredTasks(in: category)
         if tasks.isEmpty {
-            VStack(spacing: 10) {
-                Image(systemName: "tray")
-                    .font(.system(size: 42, weight: .light))
-                    .foregroundStyle(.tertiary)
+            // #17:空状态换手绘风 —— 分类色渐变发光瓦片(对齐欢迎助手完成页),纯静态。
+            let tint = ActivityPane.pane(for: category).iconColor
+            VStack(spacing: 14) {
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [tint.opacity(0.9), tint.opacity(0.55)],
+                            startPoint: .topLeading, endPoint: .bottomTrailing
+                        )
+                    )
+                    .overlay(
+                        Image(systemName: "tray")
+                            .font(.system(size: 32, weight: .semibold))
+                            .foregroundStyle(.white)
+                    )
+                    .frame(width: 76, height: 76)
+                    .shadow(color: tint.opacity(0.40), radius: 14, y: 6)
                 Text(L10n.text("tasks.empty"))
                     .font(.title3.weight(.medium))
                     .foregroundStyle(.secondary)
@@ -151,7 +205,7 @@ struct ActivityView: View {
                         // 队列管理③:写锁可视化 —— 有归档被写锁占用时,在归档分类顶部点名
                         // 谁占着锁、谁在排队。锁释放即消失,平时零占位。
                         if category == .archive, !taskCenter.writeLockSnapshot.entries.isEmpty {
-                            taskGroupHeader(L10n.text("tasks.writeLockSection"), systemImage: "lock.fill")
+                            taskGroupHeader(L10n.text("tasks.writeLockSection"), systemImage: "lock.fill", tint: .orange)
                             ForEach(taskCenter.writeLockSnapshot.entries) { entry in
                                 writeLockCard(entry)
                             }
@@ -161,7 +215,8 @@ struct ActivityView: View {
                         if !waiting.isEmpty {
                             taskGroupHeader(
                                 L10n.format("tasks.waitingSection", "\(waiting.count)"),
-                                systemImage: "hourglass"
+                                systemImage: "hourglass",
+                                tint: .gray
                             )
                             ForEach(waiting) { task in
                                 ActivityTaskCard(task: task)
@@ -190,16 +245,26 @@ struct ActivityView: View {
         }
     }
 
-    /// 任务卡片列表里的小组头（目前只有「等待中」用）—— 次要灰字 + 图标，不抢卡片视觉。
-    private func taskGroupHeader(_ title: String, systemImage: String) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: systemImage)
-            Text(title)
-            Spacer()
+    /// 任务卡片列表里的小组头(写锁区 / 等待组)。#17:换 chrome 小节卡 —— 彩色渐变小瓦片 +
+    /// 标题,层叠渐变底;纯静态(无 hover / 无动画)。
+    private func taskGroupHeader(_ title: String, systemImage: String, tint: Color) -> some View {
+        HeroChromeCard(color: tint, cornerRadius: 10) {
+            HStack(spacing: 8) {
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(tint.gradient)
+                    .overlay(
+                        Image(systemName: systemImage)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.white)
+                    )
+                    .frame(width: 22, height: 22)
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                Spacer()
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
         }
-        .font(.subheadline.weight(.medium))
-        .foregroundStyle(.secondary)
-        .padding(.horizontal, 2)
     }
 
     /// 队列管理③:单个被占用归档的写锁卡片 —— 包名 + 持有任务 + 排队任务。
@@ -509,6 +574,22 @@ enum ActivityPane: CaseIterable, Identifiable, Hashable {
         }
     }
 
+    /// #17 hero 头副标题(帮助页自带 chrome,不走 hero 头,无副标题)。
+    var subtitle: String? {
+        switch self {
+        case .archive:
+            return L10n.text("tasks.pane.archive.subtitle")
+        case .fileOperation:
+            return L10n.text("tasks.pane.fileOperation.subtitle")
+        case .undoRedo:
+            return L10n.text("tasks.pane.undoRedo.subtitle")
+        case .settings:
+            return L10n.text("tasks.pane.settings.subtitle")
+        case .help:
+            return nil
+        }
+    }
+
     /// 侧栏彩色图标瓦片的底色（与设置窗口同一套 System Settings 风格）。
     var iconColor: Color {
         switch self {
@@ -535,46 +616,53 @@ final class ActivityWindowState: ObservableObject {
     }
 }
 
-/// 单张任务卡片：圆角卡 + 软阴影；**运行中**外圈跑一道旋转的强调色渐变描边（微动画）。
+/// 单张任务卡片。#17:外壳换分类色层叠渐变 chrome(归档蓝 / 文件橙 / 撤销紫);**性能阉割版** ——
+/// 任务卡 progress 每秒多帧重渲染,chrome 必须纯静态:无 hover @State、渐变层无动画。
+/// **运行中**外圈的旋转强调色渐变描边保留现状不动(唯一既有动画)。
 /// 单独成 view 是为了 @ObservedObject 单独观察该任务 —— 状态翻转（跑完 / 取消）时
 /// 只这张卡重渲染、描边动画即时停。
 private struct ActivityTaskCard: View {
     @ObservedObject var task: OperationTask
     @State private var borderAngle = 0.0
 
+    private var tint: Color {
+        switch task.category {
+        case .archive: return .blue
+        case .fileOperation: return .orange
+        case .undoRedo: return .purple
+        }
+    }
+
     var body: some View {
-        ActivityTaskRow(task: task)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 6)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(Color(nsColor: .controlBackgroundColor))
-                    .shadow(color: .black.opacity(0.08), radius: 3, y: 1)
-            )
-            .overlay {
-                if task.status.isRunning {
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .strokeBorder(
-                            AngularGradient(
-                                gradient: Gradient(colors: [
-                                    Color.accentColor.opacity(0.04),
-                                    Color.accentColor.opacity(0.9),
-                                    Color.accentColor.opacity(0.04)
-                                ]),
-                                center: .center,
-                                angle: .degrees(borderAngle)
-                            ),
-                            lineWidth: 1.5
-                        )
-                        .allowsHitTesting(false)
-                        .onAppear {
-                            withAnimation(.linear(duration: 2.2).repeatForever(autoreverses: false)) {
-                                borderAngle = 360
-                            }
+        HeroChromeCard(color: tint, cornerRadius: 12) {
+            ActivityTaskRow(task: task)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 6)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .overlay {
+            if task.status.isRunning {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(
+                        AngularGradient(
+                            gradient: Gradient(colors: [
+                                Color.accentColor.opacity(0.04),
+                                Color.accentColor.opacity(0.9),
+                                Color.accentColor.opacity(0.04)
+                            ]),
+                            center: .center,
+                            angle: .degrees(borderAngle)
+                        ),
+                        lineWidth: 1.5
+                    )
+                    .allowsHitTesting(false)
+                    .onAppear {
+                        withAnimation(.linear(duration: 2.2).repeatForever(autoreverses: false)) {
+                            borderAngle = 360
                         }
-                }
+                    }
             }
+        }
     }
 }
 

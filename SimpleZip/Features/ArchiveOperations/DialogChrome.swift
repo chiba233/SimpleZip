@@ -262,6 +262,63 @@ struct DialogDrawer<Content: View>: View {
     }
 }
 
+/// 层叠渐变手绘 chrome 卡(design system,0.4.4 #17):帮助页 / 欢迎助手 / 关于页的同款三层皮 ——
+/// ① tint 斜向渐变底(0.16→0.05) ② 顶部白色高光(0.22→clear,玻璃厚度感) ③ 同色渐变描边
+/// (1.2pt,亮左上隐右下),外加彩色软阴影。
+/// **hover 是可选项且默认关**:高频重渲染的宿主(活动中心任务卡,progress 每秒多帧)绝不挂
+/// hover @State;Help/Welcome/About 回迁时各自决定开不开。防抖动规则:本卡永不 scaleEffect、
+/// 渐变层无动画 —— 纯静态绘制。
+struct HeroChromeCard<Content: View>: View {
+    let color: Color
+    var cornerRadius: CGFloat = 18
+    var enablesHover: Bool = false
+    @ViewBuilder let content: () -> Content
+
+    @State private var isHovering = false
+
+    var body: some View {
+        let card = content()
+            .background(
+                ZStack {
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [color.opacity(0.16), color.opacity(0.05)],
+                                startPoint: .topLeading, endPoint: .bottomTrailing
+                            )
+                        )
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.white.opacity(0.22), .clear],
+                                startPoint: .top, endPoint: .center
+                            )
+                        )
+                }
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [color.opacity(0.55), color.opacity(0.10)],
+                            startPoint: .topLeading, endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1.2
+                    )
+            )
+            .shadow(color: color.opacity(enablesHover && isHovering ? 0.22 : 0.10), radius: 7, y: 5)
+        if enablesHover {
+            card.onHover { hovering in
+                withAnimation(.easeOut(duration: 0.18)) {
+                    isHovering = hovering
+                }
+            }
+        } else {
+            card
+        }
+    }
+}
+
 /// 钉底操作栏的裸壳(design system:PinnedBottomBar):bar 材质 + 统一内边距(h20/v12),内容自定。
 /// 标准「取消 + 确认」请用 DialogFooter;报告类弹窗(导出 / 过滤 / 复制 / 关闭)往里塞自己的控件,
 /// 不再各写一份 padding / 材质。
