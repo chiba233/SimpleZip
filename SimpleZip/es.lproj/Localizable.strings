@@ -2011,3 +2011,4 @@
 "Format" = "Formato";
 "Archive Name" = "Nombre del archivo";
 "Archive Format" = "Formato del archivo";
+"intent.error.badName" = "\"%@\" no es un nombre de archivo válido; usa un nombre de archivo simple sin separadores de ruta.";

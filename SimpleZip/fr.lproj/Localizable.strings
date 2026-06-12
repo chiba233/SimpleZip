@@ -2011,3 +2011,4 @@
 "Format" = "Format";
 "Archive Name" = "Nom de l’archive";
 "Archive Format" = "Format de l’archive";
+"intent.error.badName" = "« %@ » n’est pas un nom d’archive valide ; utilisez un simple nom de fichier sans séparateur de chemin.";

@@ -2013,3 +2013,4 @@
 "Format" = "格式";
 "Archive Name" = "歸檔名稱";
 "Archive Format" = "歸檔格式";
+"intent.error.badName" = "「%@」不是有效的歸檔名稱，請使用不含路徑分隔符的純檔名。";

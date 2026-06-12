@@ -2012,3 +2012,4 @@
 "Format" = "형식";
 "Archive Name" = "아카이브 이름";
 "Archive Format" = "아카이브 형식";
+"intent.error.badName" = "「%@」은(는) 올바른 아카이브 이름이 아닙니다. 경로 구분자가 없는 단순한 파일 이름을 사용하세요.";

@@ -2012,3 +2012,4 @@
 "Format" = "Format";
 "Archive Name" = "Archivname";
 "Archive Format" = "Archivformat";
+"intent.error.badName" = "\"%@\" ist kein gültiger Archivname - verwenden Sie einen einfachen Dateinamen ohne Pfadtrenner.";
