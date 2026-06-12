@@ -254,17 +254,18 @@ struct CreateSZSSheet: View {
                     }
                 }
             }
-            HStack(alignment: .top, spacing: 8) {
-                DialogRowLabel(L10n.text("archive.gpgEncrypt.passphraseLabel"), systemImage: "lock.rectangle.fill", tint: .orange, width: labelColumnWidth)
-                VStack(alignment: .leading, spacing: 6) {
+            // 说明横跨整行(同「加密为 GPG」对话框的规则:备注不挤在右值列)。
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .center, spacing: 8) {
+                    DialogRowLabel(L10n.text("archive.gpgEncrypt.passphraseLabel"), systemImage: "lock.rectangle.fill", tint: .orange, width: labelColumnWidth)
                     SecureField(L10n.text("archive.gpgEncrypt.passphrasePlaceholder"), text: $symmetricPassphrase)
                         .textFieldStyle(.roundedBorder)
                         .dialogFieldEmphasis()
-                    Text(L10n.text("szs.create.encryptFiles.hint"))
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
                 }
+                Text(L10n.text("szs.create.encryptFiles.hint"))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
