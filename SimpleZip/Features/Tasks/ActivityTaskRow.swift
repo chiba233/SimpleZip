@@ -29,6 +29,8 @@ struct ActivityTaskRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
+            // 用户拍板:卡头整行任意位置可点 = 展开/收起(帮助页同款手感);
+            // 行内按钮(重跑/暂停/取消)自己接管点击,不受影响。
             HStack(alignment: .top, spacing: 12) {
                 // 用户反馈:左侧彩色图标长得像按钮,点了没反应 —— 让它真的能点:
                 // 有详情时点击 = 展开 / 收起(与右侧 ⓘ 同款),没详情保持纯装饰。
@@ -66,6 +68,12 @@ struct ActivityTaskRow: View {
                 Spacer()
 
                 trailingControls
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                if hasDetails {
+                    isShowingDetails.toggle()
+                }
             }
 
             if task.status.isRunning {
@@ -353,6 +361,16 @@ struct ActivityTaskRow: View {
     @ViewBuilder
     private var trailingControls: some View {
         HStack(spacing: 6) {
+            // 0.4.4 C:发布助手失败但产物还在 → 「从失败步继续」(跳过重新打包,对既有产物续跑)。
+            if case .failed = task.status, task.resumeFromFailure != nil {
+                Button {
+                    task.resumeFromFailure?()
+                } label: {
+                    Image(systemName: "arrow.uturn.forward.circle")
+                }
+                .buttonStyle(.borderless)
+                .help(L10n.text("button.resumeFromFailure"))
+            }
             // 0.4.2 #21：任务结束后可整单重跑（运行时态——重启后的历史任务没有重跑闭包，按钮自然不出现）。
             if !task.status.isRunning, task.rerun != nil {
                 Button {
@@ -386,12 +404,18 @@ struct ActivityTaskRow: View {
             // 哈希信息的任务。这样文件操作平平无奇的复制/移动不再出空面板，失败的也不再卡「正在等待命令输出…」，
             // 而哈希结果 / 粘贴时的源·目标哈希这类有用信息照样能展开看。
             if hasDetails {
+                // 用户拍板:详情开关换帮助页同款 —— 分类色 chevron + 淡色圆底,展开旋转 90°。
                 Button {
                     isShowingDetails.toggle()
                 } label: {
-                    Image(systemName: isShowingDetails ? "chevron.up.circle" : "info.circle")
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(categoryTint)
+                        .frame(width: 24, height: 24)
+                        .background(Circle().fill(categoryTint.opacity(0.14)))
+                        .rotationEffect(.degrees(isShowingDetails ? 90 : 0))
                 }
-                .buttonStyle(.borderless)
+                .buttonStyle(.plain)
                 .help(L10n.text("button.details"))
             }
         }
@@ -436,6 +460,15 @@ struct ActivityTaskRow: View {
             return "arrow.uturn.backward"
         case .redo:
             return "arrow.uturn.forward"
+        }
+    }
+
+    /// 卡片分类色(与外层 chrome 同源:归档蓝 / 文件橙 / 撤销紫)。
+    private var categoryTint: Color {
+        switch task.category {
+        case .archive: return .blue
+        case .fileOperation: return .orange
+        case .undoRedo: return .purple
         }
     }
 
