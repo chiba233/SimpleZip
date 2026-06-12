@@ -1206,6 +1206,9 @@
 "search.filter.menu" = "Filter";
 "convert.status.extracting" = "Extracting source…";
 "file.convert.menuItem" = "Convert Format…";
+"file.submenu.signEncrypt" = "Sign & Encrypt";
+"file.submenu.archiveTools" = "Archive Tools";
+"file.submenu.checksums" = "Checksums";
 "convert.title" = "Convert Format";
 "convert.subtitle" = "Convert %@ archive(s) to another format";
 "convert.section.target" = "Target Format";

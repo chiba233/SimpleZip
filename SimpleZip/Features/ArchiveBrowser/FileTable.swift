@@ -1030,9 +1030,9 @@ struct FileNSOutlineView: NSViewRepresentable {
                 return
             }
 
-            // 右键菜单按「分类」分组，组间用分隔线，方便扫读（用户反馈：项目太多、乱、找不到）。
-            // 分组顺序：① 打开 / 查看 → ② 压缩 / 校验 → ③ 编辑（文件管理）→ ④ 在 Finder 中显示 / 分组。
-            // 各项的显示条件与原来完全一致，只调整了顺序与分隔。
+            // 右键菜单按「分类」分组，组间用分隔线；低频工具折进二级菜单（用户反馈：太长太长太长）。
+            // 分组顺序：① 打开 / 查看 → ② 添加 / 解压 + 签名与加密 ▸ / 归档工具 ▸ / 校验 ▸ → ③ 编辑（文件管理）
+            // → ④ 简介 / 在 Finder 中显示 / 分组。各项的显示条件与原来完全一致，只调整了归属与分隔。
 
             // ① 打开 / 查看
             menu.addItem(menuItem(L10n.text("button.open"), systemImage: "arrow.turn.up.right", action: #selector(openSelected)))
@@ -1067,45 +1067,68 @@ struct FileNSOutlineView: NSViewRepresentable {
                 menu.addItem(menuItem(L10n.text("file.openAsArchive"), systemImage: "doc.zipper", action: #selector(openSelectedAsArchive)))
             }
 
-            // ② 压缩 / 校验
+            // ② 压缩 / 归档工具（用户反馈菜单太长 → 同类项折进二级菜单；高频的「添加 / 解压」留一级）。
             menu.addItem(.separator())
             menu.addItem(menuItem(L10n.text("button.addToArchive"), systemImage: "plus.square.on.square", action: #selector(addSelectedToArchive)))
-            // 创建签名清单 / 加密为 .gpg —— 仅 GPG 启用 + 后端可用时出现（A4：关了主开关不渲染）。
-            if AppPreferences.gpgEnabled && GPGBackend.isAvailable() {
-                menu.addItem(menuItem(L10n.text("szs.create.menuItem"), systemImage: "signature", action: #selector(createSignedManifestFromSelection)))
-                menu.addItem(menuItem(L10n.text("file.encrypt.gpg"), systemImage: "lock.doc", action: #selector(encryptSelectedToGPG)))
-            }
             menu.addItem(menuItem(L10n.text("button.extractHere"), systemImage: "arrow.down.doc", action: #selector(extractSelectedArchive)))
+            // 「签名与加密 ▸」—— 仅 GPG 启用 + 后端可用时出现（A4：关了主开关整个子菜单不渲染）。
+            if AppPreferences.gpgEnabled && GPGBackend.isAvailable() {
+                let gpgMenu = NSMenu()
+                gpgMenu.addItem(menuItem(L10n.text("szs.create.menuItem"), systemImage: "signature", action: #selector(createSignedManifestFromSelection)))
+                gpgMenu.addItem(menuItem(L10n.text("file.encrypt.gpg"), systemImage: "lock.doc", action: #selector(encryptSelectedToGPG)))
+                menu.addItem(submenuItem(L10n.text("file.submenu.signEncrypt"), systemImage: "lock.shield", submenu: gpgMenu))
+            }
+            // 「归档工具 ▸」—— 测试 / 比较 / 发布检查 / 空间分析 / 转换 / 拆分合并，各项显示条件不变。
+            let toolsMenu = NSMenu()
             // 0.4.2 批量测试：选中 ≥2 个受支持归档时，「测试」变成整批测试 + 活动中心逐包汇总。
             let selectedArchiveCount = model.selectedFileItems.filter { !$0.isDirectory && ArchiveService.isSupportedArchive($0.url) }.count
             if selectedArchiveCount >= 2 {
-                menu.addItem(menuItem(L10n.format("file.batchTest", "\(selectedArchiveCount)"), systemImage: "checkmark.seal", action: #selector(batchTestArchives)))
+                toolsMenu.addItem(menuItem(L10n.format("file.batchTest", "\(selectedArchiveCount)"), systemImage: "checkmark.seal", action: #selector(batchTestArchives)))
             } else {
-                menu.addItem(menuItem(L10n.text("button.test"), systemImage: "checkmark.seal", action: #selector(testSelectedArchive)))
+                toolsMenu.addItem(menuItem(L10n.text("button.test"), systemImage: "checkmark.seal", action: #selector(testSelectedArchive)))
             }
             // #111 比较：恰好选中 2 个可比对项（归档或文件夹，0.4.2 #25）→ 直接比；
             // 单选 1 个归档 / 文件夹 → 再挑一个比（面板可选文件夹）。
             let comparableCount = model.selectedFileItems.filter { $0.isDirectory || ArchiveService.isSupportedArchive($0.url) }.count
             if comparableCount == 2, model.selectedFileItems.count == 2 {
-                menu.addItem(menuItem(L10n.text("file.compareArchives"), systemImage: "arrow.left.arrow.right.circle", action: #selector(compareArchivesSelected)))
+                toolsMenu.addItem(menuItem(L10n.text("file.compareArchives"), systemImage: "arrow.left.arrow.right.circle", action: #selector(compareArchivesSelected)))
             } else if comparableCount == 1, model.selectedFileItems.count == 1 {
-                menu.addItem(menuItem(L10n.text("file.compareArchives.withOther"), systemImage: "arrow.left.arrow.right.circle", action: #selector(compareArchivesSelected)))
+                toolsMenu.addItem(menuItem(L10n.text("file.compareArchives.withOther"), systemImage: "arrow.left.arrow.right.circle", action: #selector(compareArchivesSelected)))
             }
             // 0.4.2 #15：发布包检查 —— 单选受支持归档时出现。
             if selectedArchiveCount == 1, model.selectedFileItems.count == 1 {
-                menu.addItem(menuItem(L10n.text("inspect.menu"), systemImage: "checklist", action: #selector(inspectArchiveForRelease)))
+                toolsMenu.addItem(menuItem(L10n.text("inspect.menu"), systemImage: "checklist", action: #selector(inspectArchiveForRelease)))
                 // #8:空间分析 —— 同样单选受支持归档时出现。
-                menu.addItem(menuItem(L10n.text("space.menu"), systemImage: "chart.pie", action: #selector(analyzeArchiveSpace)))
+                toolsMenu.addItem(menuItem(L10n.text("space.menu"), systemImage: "chart.pie", action: #selector(analyzeArchiveSpace)))
             }
-            menu.addItem(menuItem(L10n.text("button.hash"), systemImage: "number.square", action: #selector(hashSelected)))
+            // #112 转换格式：选中项全是支持的归档时出现，弹格式选择 sheet 批量转换。
+            if model.canConvertSelectedArchives {
+                toolsMenu.addItem(menuItem(L10n.text("file.convert.menuItem"), systemImage: "arrow.triangle.2.circlepath", action: #selector(convertArchivesSelected)))
+            }
+            // 拆分 / 合并分卷（字节级，对齐官方 7-Zip 的 Split / Combine）：单选非目录文件可拆；
+            // 选中 .001 首卷多一项「合并分卷」。
+            if model.selectedFileItems.count == 1, let item = model.selectedFileItems.first, !item.isDirectory {
+                toolsMenu.addItem(.separator())
+                // 0.4.2 分卷集识别：右键任意一卷显示「第 N 卷，共 M 卷 · 总大小」+ 缺卷警告（信息行，不可点）。
+                appendVolumeSetInfo(to: toolsMenu, for: item.url)
+                if FileSplitCombine.isFirstVolume(item.url) {
+                    toolsMenu.addItem(menuItem(L10n.text("file.combine.menuItem"), systemImage: "arrow.triangle.merge", action: #selector(combineVolumesSelected)))
+                }
+                toolsMenu.addItem(menuItem(L10n.text("file.split.menuItem"), systemImage: "rectangle.split.2x1", action: #selector(splitFileSelected)))
+            }
+            menu.addItem(submenuItem(L10n.text("file.submenu.archiveTools"), systemImage: "wrench.and.screwdriver", submenu: toolsMenu))
+            // 「校验 ▸」—— 哈希 / 生成 SHA256SUMS / 验证校验文件。
+            let checksumMenu = NSMenu()
+            checksumMenu.addItem(menuItem(L10n.text("button.hash"), systemImage: "number.square", action: #selector(hashSelected)))
             // 0.4.3 #11:校验文件 —— 选中含文件给「生成 SHA256SUMS」;单选校验文件给「验证」。
             if model.selectedFileItems.contains(where: { !$0.isDirectory }) {
-                menu.addItem(menuItem(L10n.text("checksum.generate.menu"), systemImage: "number.square.fill", action: #selector(generateChecksumFile)))
+                checksumMenu.addItem(menuItem(L10n.text("checksum.generate.menu"), systemImage: "number.square.fill", action: #selector(generateChecksumFile)))
             }
             if model.selectedFileItems.count == 1, let only = model.selectedFileItems.first,
                !only.isDirectory, ChecksumFile.isChecksumFileName(only.name) {
-                menu.addItem(menuItem(L10n.text("checksum.verify.menu"), systemImage: "checkmark.seal", action: #selector(verifyChecksumFileSelected)))
+                checksumMenu.addItem(menuItem(L10n.text("checksum.verify.menu"), systemImage: "checkmark.seal", action: #selector(verifyChecksumFileSelected)))
             }
+            menu.addItem(submenuItem(L10n.text("file.submenu.checksums"), systemImage: "number.square", submenu: checksumMenu))
 
             // ③ 编辑 / 文件管理（重命名归到这里，跟复制剪切移动删除一组）
             menu.addItem(.separator())
@@ -1117,20 +1140,6 @@ struct FileNSOutlineView: NSViewRepresentable {
                 menu.addItem(menuItem(L10n.text("file.rename"), systemImage: "pencil", action: #selector(renameSelected)))
             }
             menu.addItem(menuItem(L10n.text("file.duplicate"), systemImage: "plus.square.on.square", action: #selector(duplicateSelected)))
-            // 拆分 / 合并分卷（字节级，对齐官方 7-Zip 的 Split / Combine）：单选非目录文件可拆；
-            // 选中 .001 首卷多一项「合并分卷」。
-            if model.selectedFileItems.count == 1, let item = model.selectedFileItems.first, !item.isDirectory {
-                // 0.4.2 分卷集识别：右键任意一卷显示「第 N 卷，共 M 卷 · 总大小」+ 缺卷警告（信息行，不可点）。
-                appendVolumeSetInfo(to: menu, for: item.url)
-                if FileSplitCombine.isFirstVolume(item.url) {
-                    menu.addItem(menuItem(L10n.text("file.combine.menuItem"), systemImage: "arrow.triangle.merge", action: #selector(combineVolumesSelected)))
-                }
-                menu.addItem(menuItem(L10n.text("file.split.menuItem"), systemImage: "rectangle.split.2x1", action: #selector(splitFileSelected)))
-            }
-            // #112 转换格式：选中项全是支持的归档时出现，弹格式选择 sheet 批量转换。
-            if model.canConvertSelectedArchives {
-                menu.addItem(menuItem(L10n.text("file.convert.menuItem"), systemImage: "arrow.triangle.2.circlepath", action: #selector(convertArchivesSelected)))
-            }
             menu.addItem(menuItem(L10n.text("file.makeSymlink"), systemImage: "link", action: #selector(makeSymbolicLinkSelected)))
             menu.addItem(menuItem(L10n.text("file.copy"), systemImage: "doc.on.doc", action: #selector(copySelected)))
             menu.addItem(menuItem(L10n.text("file.cut"), systemImage: "scissors", action: #selector(cutSelected)))
@@ -1600,6 +1609,14 @@ struct FileNSOutlineView: NSViewRepresentable {
 
         private func menuItem(_ title: String, systemImage: String, action: Selector) -> NSMenuItem {
             makeTableMenuItem(title, systemImage: systemImage, action: action, target: self)
+        }
+
+        /// 二级菜单的父项（无 action，仅挂 submenu）—— 带图标对齐同级普通项。
+        private func submenuItem(_ title: String, systemImage: String, submenu: NSMenu) -> NSMenuItem {
+            let parent = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+            parent.image = NSImage(systemSymbolName: systemImage, accessibilityDescription: title)
+            parent.submenu = submenu
+            return parent
         }
 
         /// 拖放目标：拖到某个「非包目录」文件行上 → 进那个目录；否则（拖到空白 / 文件 / 分组头）→ 当前文件夹。

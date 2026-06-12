@@ -1204,6 +1204,9 @@
 "search.filter.menu" = "过滤";
 "convert.status.extracting" = "正在解压源…";
 "file.convert.menuItem" = "转换格式…";
+"file.submenu.signEncrypt" = "签名与加密";
+"file.submenu.archiveTools" = "归档工具";
+"file.submenu.checksums" = "校验";
 "convert.title" = "转换格式";
 "convert.subtitle" = "把 %@ 个压缩包转换为其它格式";
 "convert.section.target" = "目标格式";
