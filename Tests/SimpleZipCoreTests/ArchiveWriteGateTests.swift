@@ -51,16 +51,17 @@ struct ArchiveWriteGateTests {
         let url = URL(fileURLWithPath: "/tmp/SZWriteGateTest-lock-\(UUID().uuidString).zip")
         let box = CounterBox()
         let iterations = 64
-        await withTaskGroup(of: Void.self) { group in
+        try await withThrowingTaskGroup(of: Void.self) { group in
             for _ in 0..<iterations {
                 group.addTask {
-                    await lock.acquire(url)
+                    try await lock.acquire(url)
                     let value = box.value
                     await Task.yield()          // 给竞态让出窗口
                     box.value = value + 1
                     await lock.release(url)
                 }
             }
+            try await group.waitForAll()
         }
         #expect(box.value == iterations)
     }
@@ -70,8 +71,8 @@ struct ArchiveWriteGateTests {
         let lock = ArchiveWriteLock()
         let a = URL(fileURLWithPath: "/tmp/SZWriteGateTest-a-\(UUID().uuidString).zip")
         let b = URL(fileURLWithPath: "/tmp/SZWriteGateTest-b-\(UUID().uuidString).zip")
-        await lock.acquire(a)
-        await lock.acquire(b)   // 若按路径互斥失效(全局单锁),这里会死等
+        try await lock.acquire(a)
+        try await lock.acquire(b)   // 若按路径互斥失效(全局单锁),这里会死等
         await lock.release(b)
         await lock.release(a)
     }
@@ -80,18 +81,92 @@ struct ArchiveWriteGateTests {
     @Test func waiterIsReportedAndResumed() async throws {
         let lock = ArchiveWriteLock()
         let url = URL(fileURLWithPath: "/tmp/SZWriteGateTest-wait-\(UUID().uuidString).zip")
-        await lock.acquire(url)
+        try await lock.acquire(url)
 
         let waited = CounterBox()
         let waiter = Task {
-            await lock.acquire(url, onWait: { waited.value += 1 })
+            try await lock.acquire(url, onWait: { waited.value += 1 })
             await lock.release(url)
         }
         // 等待方挂起后释放 —— 它应被唤醒并跑完。
         try await Task.sleep(nanoseconds: 100_000_000)
         await lock.release(url)
-        await waiter.value
+        try await waiter.value
         #expect(waited.value == 1)
+    }
+
+    /// 队列管理③写锁可视化:快照如实反映「谁持有 / 谁在排队」,全部释放后清空。
+    @Test func snapshotTracksHolderAndWaiters() async throws {
+        let lock = ArchiveWriteLock()
+        let url = URL(fileURLWithPath: "/tmp/SZWriteGateTest-snap-\(UUID().uuidString).zip")
+        let holderID = UUID()
+        let waiterID = UUID()
+
+        try await lock.acquire(url, operationID: holderID)
+        var snapshot = await lock.snapshot()
+        #expect(snapshot.entries.count == 1)
+        #expect(snapshot.entries.first?.holderOperationID == holderID)
+        #expect(snapshot.entries.first?.waiterOperationIDs.isEmpty == true)
+
+        let waiter = Task {
+            try await lock.acquire(url, operationID: waiterID)
+            await lock.release(url)
+        }
+        // 等待方真正挂进队列后,快照里能看到它。
+        var sawWaiter = false
+        for _ in 0..<100 {
+            try await Task.sleep(nanoseconds: 10_000_000)
+            snapshot = await lock.snapshot()
+            if snapshot.entries.first?.waiterOperationIDs == [waiterID] {
+                sawWaiter = true
+                break
+            }
+        }
+        #expect(sawWaiter)
+
+        await lock.release(url)   // 移交队首 → 等待方持锁、跑完、释放
+        try await waiter.value
+        snapshot = await lock.snapshot()
+        #expect(snapshot.entries.isEmpty)
+    }
+
+    /// P2 修复:排队等锁的任务被取消 → 立刻以 CancellationError 摘除,绝不在前任释放后
+    /// "复活"继续写包;取消后锁的移交也跳过它,全释放后登记表干净。
+    @Test func cancelledWaiterNeverAcquires() async throws {
+        let lock = ArchiveWriteLock()
+        let url = URL(fileURLWithPath: "/tmp/SZWriteGateTest-cancel-\(UUID().uuidString).zip")
+        try await lock.acquire(url)
+
+        let outcome = CounterBox()   // 1 = 不该发生的「拿到锁」,2 = 正确的取消
+        let waiter = Task {
+            do {
+                try await lock.acquire(url)
+                outcome.value = 1
+                await lock.release(url)
+            } catch is CancellationError {
+                outcome.value = 2
+            } catch {
+                outcome.value = 3   // 意外错误类型 —— 测试该挂
+            }
+        }
+        // 确认真排进了队列再取消。
+        var queued = false
+        for _ in 0..<100 {
+            try await Task.sleep(nanoseconds: 10_000_000)
+            if await lock.snapshot().entries.first?.waiterOperationIDs.count == 1 {
+                queued = true
+                break
+            }
+        }
+        #expect(queued)
+        waiter.cancel()
+        await waiter.value
+        #expect(outcome.value == 2)
+
+        // 持有者释放:被取消的等待者不应复活;锁应彻底空闲。
+        await lock.release(url)
+        let snapshot = await lock.snapshot()
+        #expect(snapshot.entries.isEmpty)
     }
 
     // MARK: - 写引擎集成:过期戳拦截真实写回

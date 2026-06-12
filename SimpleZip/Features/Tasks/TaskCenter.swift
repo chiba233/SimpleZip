@@ -24,6 +24,10 @@ final class TaskCenter: ObservableObject {
     /// 活动中心在有任务运行时给开关;最后一个任务收尾时整机睡眠,开关自动复位。
     @Published var sleepWhenAllTasksFinish = false
 
+    /// 队列管理③:写锁可视化 —— ArchiveWriteLock 的最新快照(谁占着哪个包的写锁/谁在排队)。
+    /// 只在写任务 acquire/release 时变化(低频),活动中心据此渲染「归档写入锁」一节。
+    @Published private(set) var writeLockSnapshot = ArchiveWriteLockSnapshot(entries: [])
+
     private var historyLimit: Int {
         AppPreferences.activityHistoryLimit
     }
@@ -39,6 +43,20 @@ final class TaskCenter: ObservableObject {
             name: Notification.Name(Self.cliTaskNotificationName),
             object: nil
         )
+        // 队列管理③:订阅写锁状态 —— actor 回调跳回主 actor 后落进发布属性。
+        Task { [weak self] in
+            await ArchiveWriteLock.shared.setObserver { snapshot in
+                Task { @MainActor in
+                    self?.writeLockSnapshot = snapshot
+                }
+            }
+        }
+    }
+
+    /// operationID → 运行中任务标题(写锁可视化用;不在跑的返回 nil)。
+    func taskTitle(forOperationID operationID: UUID?) -> String? {
+        guard let operationID else { return nil }
+        return active.first(where: { $0.operationID == operationID })?.title
     }
 
     /// CLI → app 的任务记录通知名。本地任何进程都能发 —— 它只影响历史记录展示,

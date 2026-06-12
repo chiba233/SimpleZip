@@ -87,6 +87,15 @@ enum ArchiveService {
         BackendProcessRunner.cancelRunningCommand(operationID: operationID)
     }
 
+    /// 暂停 / 继续任务的后端子进程(SIGSTOP / SIGCONT,详见 BackendProcessRunner)。
+    static func suspendRunningCommand(operationID: UUID) {
+        BackendProcessRunner.suspendRunningCommand(operationID: operationID)
+    }
+
+    static func resumeRunningCommand(operationID: UUID) {
+        BackendProcessRunner.resumeRunningCommand(operationID: operationID)
+    }
+
     static func createArchive(
         from sourceURLs: [URL],
         destination: URL,

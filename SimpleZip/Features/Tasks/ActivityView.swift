@@ -124,6 +124,16 @@ struct ActivityView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(spacing: 10) {
+                        // 队列管理③:写锁可视化 —— 有归档被写锁占用时,在归档分类顶部点名
+                        // 谁占着锁、谁在排队。锁释放即消失,平时零占位。
+                        if category == .archive, !taskCenter.writeLockSnapshot.entries.isEmpty {
+                            taskGroupHeader(L10n.text("tasks.writeLockSection"), systemImage: "lock.fill")
+                            ForEach(taskCenter.writeLockSnapshot.entries) { entry in
+                                writeLockCard(entry)
+                            }
+                            Divider()
+                                .padding(.vertical, 4)
+                        }
                         if !waiting.isEmpty {
                             taskGroupHeader(
                                 L10n.format("tasks.waitingSection", "\(waiting.count)"),
@@ -166,6 +176,50 @@ struct ActivityView: View {
         .font(.subheadline.weight(.medium))
         .foregroundStyle(.secondary)
         .padding(.horizontal, 2)
+    }
+
+    /// 队列管理③:单个被占用归档的写锁卡片 —— 包名 + 持有任务 + 排队任务。
+    /// operationID 映射回运行中任务的标题;映射不到(理论上极短的交接窗口)给通用文案。
+    private func writeLockCard(_ entry: ArchiveWriteLockSnapshot.Entry) -> some View {
+        let holderTitle = taskCenter.taskTitle(forOperationID: entry.holderOperationID)
+            ?? L10n.text("tasks.writeLock.holder.unknown")
+        let waiterTitles = entry.waiterOperationIDs.map {
+            taskCenter.taskTitle(forOperationID: $0) ?? L10n.text("tasks.writeLock.holder.unknown")
+        }
+        return HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "lock.fill")
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(Color.orange)
+                .frame(width: 24, height: 24)
+                .background(Color.orange.opacity(0.12), in: Circle())
+            VStack(alignment: .leading, spacing: 3) {
+                Text(URL(fileURLWithPath: entry.path).lastPathComponent)
+                    .font(.callout.weight(.semibold))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Text(L10n.format("tasks.writeLock.holder", holderTitle))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                if !waiterTitles.isEmpty {
+                    Text(L10n.format("tasks.writeLock.waiters", "\(waiterTitles.count)", waiterTitles.joined(separator: " · ")))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .truncationMode(.middle)
+                }
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color(nsColor: .controlBackgroundColor))
+                .shadow(color: .black.opacity(0.08), radius: 3, y: 1)
+        )
     }
 
     private func taskCount(in category: OperationTask.Category) -> Int {

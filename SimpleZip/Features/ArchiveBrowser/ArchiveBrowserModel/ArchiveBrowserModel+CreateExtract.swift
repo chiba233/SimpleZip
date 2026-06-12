@@ -519,9 +519,9 @@ extension ArchiveBrowserModel {
                 ArchiveService.recordHeaderComment(comment, for: archiveURL)
                 self?.archiveHeaderComment = comment
             }
-        ) { [archiveListingStamp] _, _, observer in
+        ) { [archiveListingStamp] operationID, _, observer in
             // 0.4.3 #2/#3:注释改写也是「整包安全写回」,同样过写锁 + 外部改动检测。
-            await ArchiveWriteLock.shared.acquire(archiveURL, onWait: self.writeLockWaitReporter(observer))
+            try await ArchiveWriteLock.shared.acquire(archiveURL, operationID: operationID, onWait: self.writeLockWaitReporter(observer))
             defer { ArchiveWriteLock.shared.scheduleRelease(archiveURL) }
             try archiveListingStamp?.ensureUnchanged(at: archiveURL)
             try await Task.detached(priority: .userInitiated) {

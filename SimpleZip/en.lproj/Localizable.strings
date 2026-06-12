@@ -1151,6 +1151,13 @@
 "settings.cli.translocated" = "SimpleZip is running from a temporary location (unverified download). Move it to Applications and relaunch before installing.";
 "tasks.waitingForSlot" = "Waiting for other tasks to finish (concurrency limit)...";
 "tasks.waitingSection" = "Waiting (%@)";
+"tasks.paused" = "Paused";
+"button.pauseTask" = "Pause (freezes the backend process)";
+"button.resumeTask" = "Resume";
+"tasks.writeLockSection" = "Archive Write Locks";
+"tasks.writeLock.holder" = "Writing: %@";
+"tasks.writeLock.waiters" = "Waiting (%1$@): %2$@";
+"tasks.writeLock.holder.unknown" = "Write task";
 "settings.tasks.concurrencyLimit" = "Heavy Task Limit";
 "settings.tasks.concurrencyLimit.description" = "How many heavy archive tasks (extract, create, convert, test, hash) run at once; extra tasks wait in line. 0 = unlimited.";
 "settings.tasks.concurrencyLimit.unlimited" = "Unlimited";

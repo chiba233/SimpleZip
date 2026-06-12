@@ -69,6 +69,16 @@ enum BackendProcessRunner {
         activeProcessRegistry.cancelProcess(operationID: operationID)
     }
 
+    /// 暂停 / 继续 operationID 的后端子进程(SIGSTOP / SIGCONT)。只冻结后端工作:
+    /// 进程间的 Swift 阶段会走完当前步骤,下一个子进程启动即被补停。
+    static func suspendRunningCommand(operationID: UUID) {
+        activeProcessRegistry.suspendProcess(operationID: operationID)
+    }
+
+    static func resumeRunningCommand(operationID: UUID) {
+        activeProcessRegistry.resumeProcess(operationID: operationID)
+    }
+
     // MARK: - 等价命令行（0.4.2 #20）
 
     /// 本次调用的**等价命令行**（shell 可粘贴）。7zz 侧口令从不进 argv（裸 `-p` 走 PTY）；
@@ -189,6 +199,7 @@ enum BackendProcessRunner {
         activeProcessRegistry.register(process, operationID: operationID)
         defer { activeProcessRegistry.clear(process) }
         try process.run()
+        activeProcessRegistry.applyPauseIfNeeded(process)
         if let stdinPipe, let staticStdin {
             // 进程启动后立刻喂 stdin 然后关掉 —— 大多数 interactive CLI 看到 EOF 就会按序处理已喂的命令。
             if let data = staticStdin.data(using: .utf8) {
@@ -247,6 +258,7 @@ enum BackendProcessRunner {
         activeProcessRegistry.register(process, operationID: operationID)
         defer { activeProcessRegistry.clear(process) }
         try process.run()
+        activeProcessRegistry.applyPauseIfNeeded(process)
         try? slaveHandle.close()
         let output: String
         do {
@@ -471,6 +483,9 @@ final class ActiveProcessRegistry: @unchecked Sendable {
     nonisolated(unsafe) private var processesByOperationID: [UUID: Process] = [:]
     nonisolated(unsafe) private var operationIDsByProcess = [ObjectIdentifier: UUID]()
     nonisolated(unsafe) private var cancelledProcesses = Set<ObjectIdentifier>()
+    /// 用户按了暂停的 operationID。按 **operationID** 记而不是按进程记:多步任务(如解压+测试)
+    /// 在两个子进程之间收到暂停时,下一个子进程一启动就会被立刻 SIGSTOP,暂停不会"漏拍"。
+    nonisolated(unsafe) private var pausedOperationIDs = Set<UUID>()
 
     nonisolated func register(_ process: Process, operationID: UUID?) {
         lock.lock()
@@ -509,6 +524,7 @@ final class ActiveProcessRegistry: @unchecked Sendable {
         let process: Process?
         if let operationID {
             process = processesByOperationID[operationID]
+            pausedOperationIDs.remove(operationID)
         } else {
             process = activeProcess
         }
@@ -520,7 +536,47 @@ final class ActiveProcessRegistry: @unchecked Sendable {
         process.map(requestStop)
     }
 
+    // MARK: 暂停 / 继续(SIGSTOP / SIGCONT)
+
+    /// 暂停 operationID 的后端子进程。当前有进程在跑就立刻 SIGSTOP;暂时没有(任务在
+    /// 进程间的 Swift 阶段)也记下标记,下一个子进程启动时由 `applyPauseIfNeeded` 补停。
+    nonisolated func suspendProcess(operationID: UUID) {
+        lock.lock()
+        pausedOperationIDs.insert(operationID)
+        let process = processesByOperationID[operationID]
+        lock.unlock()
+        if let process, process.isRunning {
+            kill(process.processIdentifier, SIGSTOP)
+        }
+    }
+
+    /// 继续 operationID 的后端子进程。
+    nonisolated func resumeProcess(operationID: UUID) {
+        lock.lock()
+        pausedOperationIDs.remove(operationID)
+        let process = processesByOperationID[operationID]
+        lock.unlock()
+        if let process, process.isRunning {
+            kill(process.processIdentifier, SIGCONT)
+        }
+    }
+
+    /// 子进程 `run()` 之后立刻调用:所属任务处于暂停态 → 新进程当场 SIGSTOP,
+    /// 保证「暂停期间任务推进到下一个后端步骤」也不会偷跑。
+    nonisolated func applyPauseIfNeeded(_ process: Process) {
+        lock.lock()
+        let paused = operationIDsByProcess[ObjectIdentifier(process)].map(pausedOperationIDs.contains) ?? false
+        lock.unlock()
+        if paused, process.isRunning {
+            kill(process.processIdentifier, SIGSTOP)
+        }
+    }
+
     private nonisolated func requestStop(_ process: Process) {
+        // 被 SIGSTOP 暂停的进程收不到终止信号 —— 先唤醒再终止(没暂停时 SIGCONT 无副作用)。
+        if process.isRunning {
+            kill(process.processIdentifier, SIGCONT)
+        }
         process.interrupt()
         guard process.isRunning else { return }
         process.terminate()

@@ -239,6 +239,25 @@ extension ArchiveBrowserModel {
             ArchiveService.cancelRunningCommand(operationID: operationID)
         } : nil
 
+        // 队列管理③:暂停 / 继续 —— 只挂给后端驱动的种类(SIGSTOP 冻结子进程;进程间的
+        // Swift 阶段走完当前步骤后,下一个子进程启动即被补停)。暂停态只改任务自己的发布属性。
+        if cancellable, OperationTask.pausableKinds.contains(kind) {
+            operationTask.pause = { [weak operationTask] in
+                guard let operationTask, operationTask.status.isRunning, !operationTask.isPaused else { return }
+                ArchiveService.suspendRunningCommand(operationID: operationID)
+                operationTask.isPaused = true
+                operationTask.progress.statusText = L10n.text("tasks.paused")
+                taskCenter.notifyTaskChanged()
+            }
+            operationTask.resume = { [weak operationTask] in
+                guard let operationTask, operationTask.isPaused else { return }
+                ArchiveService.resumeRunningCommand(operationID: operationID)
+                operationTask.isPaused = false
+                operationTask.progress.statusText = nil
+                taskCenter.notifyTaskChanged()
+            }
+        }
+
         swiftTask = Task { @MainActor [weak self, weak operationTask] in
             guard let self, let operationTask else { return }
             status = title

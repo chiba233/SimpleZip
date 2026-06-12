@@ -324,6 +324,16 @@ struct ActivityTaskRow: View {
                 .buttonStyle(.borderless)
                 .help(L10n.text("button.rerunTask"))
             }
+            // 队列管理③:暂停 / 继续 —— 仅后端驱动的任务有此闭包;等并发槽时还没开跑,不给暂停。
+            if task.status.isRunning, !task.isAwaitingSlot, task.pause != nil {
+                Button {
+                    task.isPaused ? task.resume?() : task.pause?()
+                } label: {
+                    Image(systemName: task.isPaused ? "play.circle" : "pause.circle")
+                }
+                .buttonStyle(.borderless)
+                .help(L10n.text(task.isPaused ? "button.resumeTask" : "button.pauseTask"))
+            }
             if task.status.isRunning, task.cancel != nil {
                 Button {
                     task.cancel?()
@@ -409,6 +419,9 @@ struct ActivityTaskRow: View {
     private var statusText: String {
         switch task.status {
         case .running:
+            if task.isPaused {
+                return L10n.text("tasks.paused")
+            }
             if let detail = task.detail, !detail.isEmpty {
                 return detail
             }

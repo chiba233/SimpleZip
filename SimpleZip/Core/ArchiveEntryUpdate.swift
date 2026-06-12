@@ -112,7 +112,7 @@ extension ArchiveService {
 
         // 0.4.3 #2/#3:同包写互斥(排队,等待时上报)+ 外部改动检测。锁内先核对「用户所见版本」,
         // 替换前再核对一次 —— Finder / 其他 App 不走进程内锁,只能靠快照戳兜底。
-        await ArchiveWriteLock.shared.acquire(archiveURL, onWait: onWaitForLock)
+        try await ArchiveWriteLock.shared.acquire(archiveURL, operationID: operationID, onWait: onWaitForLock)
         defer { ArchiveWriteLock.shared.scheduleRelease(archiveURL) }
         try expectedStamp?.ensureUnchanged(at: archiveURL)
         let preWorkStamp = try FileStateStamp.capture(archiveURL)
@@ -215,7 +215,7 @@ extension ArchiveService {
         let normalized = try entryPaths.map { try normalizedEntryRelativePath($0) }
 
         // 0.4.3 #2/#3:同包写互斥 + 外部改动检测(语义见 addOrReplaceEntries)。
-        await ArchiveWriteLock.shared.acquire(archiveURL, onWait: onWaitForLock)
+        try await ArchiveWriteLock.shared.acquire(archiveURL, operationID: operationID, onWait: onWaitForLock)
         defer { ArchiveWriteLock.shared.scheduleRelease(archiveURL) }
         try expectedStamp?.ensureUnchanged(at: archiveURL)
         let preWorkStamp = try FileStateStamp.capture(archiveURL)
@@ -296,7 +296,7 @@ extension ArchiveService {
         guard from != to else { return }
 
         // 0.4.3 #2/#3:同包写互斥 + 外部改动检测(语义见 addOrReplaceEntries)。
-        await ArchiveWriteLock.shared.acquire(archiveURL, onWait: onWaitForLock)
+        try await ArchiveWriteLock.shared.acquire(archiveURL, operationID: operationID, onWait: onWaitForLock)
         defer { ArchiveWriteLock.shared.scheduleRelease(archiveURL) }
         try expectedStamp?.ensureUnchanged(at: archiveURL)
         let preWorkStamp = try FileStateStamp.capture(archiveURL)
@@ -380,7 +380,7 @@ extension ArchiveService {
         guard !normalizedPairs.isEmpty else { return }
 
         // 0.4.3 #2/#3:同包写互斥 + 外部改动检测(语义见 addOrReplaceEntries)。
-        await ArchiveWriteLock.shared.acquire(archiveURL, onWait: onWaitForLock)
+        try await ArchiveWriteLock.shared.acquire(archiveURL, operationID: operationID, onWait: onWaitForLock)
         defer { ArchiveWriteLock.shared.scheduleRelease(archiveURL) }
         try expectedStamp?.ensureUnchanged(at: archiveURL)
         let preWorkStamp = try FileStateStamp.capture(archiveURL)

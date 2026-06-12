@@ -97,6 +97,18 @@ final class OperationTask: ObservableObject, Identifiable {
     /// 不需要自己再发布。
     var isAwaitingSlot = false
 
+    /// 队列管理③:暂停 / 继续。闭包由 startManagedArchiveTask 注入(SIGSTOP/SIGCONT 后端子进程),
+    /// 运行时态不持久化;只有「后端驱动」的任务种类才会被注入(纯进程内任务无可暂停的东西)。
+    var pause: (() -> Void)?
+    var resume: (() -> Void)?
+    /// 用户视角的暂停态。@Published:翻转由用户点击触发,没有伴生的 progress 发布可搭车。
+    /// (A17 管的是 ArchiveBrowserModel;OperationTask 是逐任务的 ObservableObject,不在禁区。)
+    @Published var isPaused = false
+
+    /// 后端驱动、SIGSTOP 真能冻住主要工作量的任务种类。纯进程内的(哈希 / 拆分合并 / 文件操作)
+    /// 不给暂停按钮 —— 按了没效果比没有按钮更糟。
+    static let pausableKinds: Set<Kind> = [.extract, .compress, .create, .test, .convert, .compare, .benchmark]
+
     @Published var status: Status = .running
     @Published var progress = ArchiveProgressState()
     @Published var finishedAt: Date?

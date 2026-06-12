@@ -43,31 +43,107 @@ public struct FileStateStamp: Equatable, Sendable {
     }
 }
 
+/// 写锁的瞬时快照(队列管理③可视化):哪些包被谁占着、谁在排队。
+/// `operationID` 由 acquire 调用方透传,UI 侧映射回活动中心的任务标题。
+public struct ArchiveWriteLockSnapshot: Equatable, Sendable {
+    public struct Entry: Equatable, Sendable, Identifiable {
+        public let path: String
+        public let holderOperationID: UUID?
+        public let waiterOperationIDs: [UUID?]
+        public var id: String { path }
+
+        // nonisolated:actor 的同步上下文里构造(app target 默认 MainActor 隔离下否则告警)。
+        public nonisolated init(path: String, holderOperationID: UUID?, waiterOperationIDs: [UUID?]) {
+            self.path = path
+            self.holderOperationID = holderOperationID
+            self.waiterOperationIDs = waiterOperationIDs
+        }
+    }
+
+    public let entries: [Entry]
+
+    public nonisolated init(entries: [Entry]) {
+        self.entries = entries
+    }
+}
+
 /// 进程内的「按目标文件互斥」写锁。写任务排队(FIFO),不拒绝;等待时回调上报,
 /// 让任务详情能显示「等待归档释放」。
 public actor ArchiveWriteLock {
     public static let shared = ArchiveWriteLock()
 
-    private var heldKeys: Set<String> = []
-    private var waiters: [String: [CheckedContinuation<Void, Never>]] = [:]
+    /// 占用中的 key → 持有者的 operationID(调用方没传则为 nil,仍占用)。
+    private var holders: [String: UUID?] = [:]
+    /// waiterID 是排队票据(取消时按它摘人);operationID 只用于可视化。
+    private var waiters: [String: [(waiterID: UUID, operationID: UUID?, continuation: CheckedContinuation<Void, Error>)]] = [:]
+    /// 状态变化观察者(活动中心写锁可视化)。每次 acquire/release 后带最新快照回调一次。
+    private var observer: (@Sendable (ArchiveWriteLockSnapshot) -> Void)?
 
     /// 锁按「解析符号链接后的标准化路径」记 —— 同一个包经不同路径(symlink)写也互斥。
     private static func key(for url: URL) -> String {
         url.standardizedFileURL.resolvingSymlinksInPath().path
     }
 
+    public func setObserver(_ callback: (@Sendable (ArchiveWriteLockSnapshot) -> Void)?) {
+        observer = callback
+    }
+
+    public func snapshot() -> ArchiveWriteLockSnapshot {
+        let entries = holders.keys.sorted().map { key in
+            ArchiveWriteLockSnapshot.Entry(
+                path: key,
+                holderOperationID: holders[key] ?? nil,
+                waiterOperationIDs: (waiters[key] ?? []).map(\.operationID)
+            )
+        }
+        return ArchiveWriteLockSnapshot(entries: entries)
+    }
+
+    private func notifyObserver() {
+        observer?(snapshot())
+    }
+
     /// 取得 url 的独占写权。已被占用时挂起排队(先到先得),挂起前回调 `onWait` 一次。
-    public func acquire(_ url: URL, onWait: (@Sendable () -> Void)? = nil) async {
+    /// `operationID` 仅用于可视化(活动中心显示谁占锁 / 谁在等),不参与互斥语义。
+    /// 等待期间任务被取消 → 从队列摘除并抛 CancellationError —— 被取消的写任务绝不能在
+    /// 前一个写任务释放后"复活"继续写包(与 HeavyTaskScheduler.acquire 同口径)。
+    public func acquire(_ url: URL, operationID: UUID? = nil, onWait: (@Sendable () -> Void)? = nil) async throws {
         let key = Self.key(for: url)
-        if !heldKeys.contains(key) {
-            heldKeys.insert(key)
+        try Task.checkCancellation()
+        if holders[key] == nil {
+            holders[key] = operationID
+            notifyObserver()
             return
         }
         onWait?()
-        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            waiters[key, default: []].append(continuation)
+        let waiterID = UUID()
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                waiters[key, default: []].append((waiterID, operationID, continuation))
+                notifyObserver()
+            }
+        } onCancel: {
+            Task { await self.cancelWaiter(key: key, waiterID: waiterID) }
         }
-        // release() 把锁直接移交给队首(heldKeys 保持占用),醒来即持锁。
+        // release() 把锁直接移交给队首(holders 保持占用),醒来即持锁。
+        // 竞态收口:取消与移交同时发生时,cancelWaiter 可能扑空(人已被放行)——
+        // 这里补一次检查,已取消就立刻还锁再抛,锁不滞留、包不被写。
+        do {
+            try Task.checkCancellation()
+        } catch {
+            release(url)
+            throw error
+        }
+    }
+
+    /// 等待中被取消:从队列摘除并以 CancellationError 唤醒(已被移交锁的自然找不到,no-op)。
+    private func cancelWaiter(key: String, waiterID: UUID) {
+        guard var queue = waiters[key],
+              let index = queue.firstIndex(where: { $0.waiterID == waiterID }) else { return }
+        let waiter = queue.remove(at: index)
+        waiters[key] = queue.isEmpty ? nil : queue
+        waiter.continuation.resume(throwing: CancellationError())
+        notifyObserver()
     }
 
     /// 释放写权:有人排队则移交队首,否则摘除占用标记。
@@ -76,10 +152,12 @@ public actor ArchiveWriteLock {
         if var queue = waiters[key], !queue.isEmpty {
             let next = queue.removeFirst()
             waiters[key] = queue.isEmpty ? nil : queue
-            next.resume()
+            holders[key] = next.operationID
+            next.continuation.resume()
         } else {
-            heldKeys.remove(key)
+            holders.removeValue(forKey: key)
         }
+        notifyObserver()
     }
 
     /// `defer { … }` 友好的释放入口(defer 里不能 await)。Task 化的延迟不影响互斥正确性,
