@@ -1246,6 +1246,10 @@
 "extract.preset.menu" = "套用预设";
 "convert.section.output" = "输出与批量选项";
 "missingVolumes.menu" = "搜索缺失分卷…";
+"urlScheme.confirm.title" = "其他 App 请求 SimpleZip 执行动作";
+"urlScheme.confirm.check" = "测试这个压缩包？\n\n%@";
+"urlScheme.confirm.compare" = "比较这两个项目？\n\n%@\n%@";
+"urlScheme.confirm.open" = "在 SimpleZip 中打开这个路径？\n\n%@";
 "missingVolumes.panel.message" = "选择一个目录（递归）搜索缺失的分卷。";
 "missingVolumes.taskTitle" = "正在搜索 %@ 的缺失分卷";
 "missingVolumes.stillMissing" = "仍缺 %@ 个分卷。期望的文件名形如：%@";

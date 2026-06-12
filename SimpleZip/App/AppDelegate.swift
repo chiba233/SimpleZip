@@ -270,11 +270,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func application(_ application: NSApplication, open urls: [URL]) {
         for url in urls {
-            if !FinderServiceActionQueue.shared.enqueue(fromCallbackURL: url) {
-                ExternalFileOpenQueue.shared.enqueue(url)
+            if FinderServiceActionQueue.shared.enqueue(fromCallbackURL: url) { continue }
+            // #16:simplezip://check|compare|open —— 任何进程都能发,先弹确认(列动作+完整路径)。
+            if let command = SimpleZipURLCommand.parse(url) {
+                handleURLCommand(command)
+                continue
             }
+            ExternalFileOpenQueue.shared.enqueue(url)
         }
         scheduleEnsureWindowForPendingExternalOpens()
+    }
+
+    /// #16:URL scheme 动作的确认 + 入队。check/compare 走 FinderServiceAction 管道
+    /// (ContentView 消费,无窗口时由 ensure-window 机制兜底),open 走外部打开队列。
+    private func handleURLCommand(_ command: SimpleZipURLCommand) {
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = L10n.text("urlScheme.confirm.title")
+        switch command {
+        case .check(let path):
+            alert.informativeText = L10n.format("urlScheme.confirm.check", path)
+        case .compare(let left, let right):
+            alert.informativeText = L10n.format("urlScheme.confirm.compare", left, right)
+        case .open(let path):
+            alert.informativeText = L10n.format("urlScheme.confirm.open", path)
+        }
+        alert.addButton(withTitle: L10n.text("button.ok"))
+        alert.addButton(withTitle: L10n.text("button.cancel"))
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        switch command {
+        case .check(let path):
+            FinderServiceActionQueue.shared.enqueue(.testArchives([URL(fileURLWithPath: path)]))
+        case .compare(let left, let right):
+            FinderServiceActionQueue.shared.enqueue(.compareArchives(URL(fileURLWithPath: left), URL(fileURLWithPath: right)))
+        case .open(let path):
+            ExternalFileOpenQueue.shared.enqueue(URL(fileURLWithPath: path))
+        }
     }
 
     @objc func addToArchiveFromFinder(

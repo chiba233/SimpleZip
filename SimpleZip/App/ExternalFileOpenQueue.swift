@@ -106,6 +106,10 @@ enum FinderServiceAction {
     case extract([URL])
     /// 「用 SimpleZip 创建 ▸ ZIP/7z/…」—— 按默认设置直接出包，无对话框。
     case quickCreate(ArchiveCreateFormat, [URL])
+    /// #16 URL scheme `simplezip://check`:测试给定归档(已经过 AppDelegate 确认弹窗)。
+    case testArchives([URL])
+    /// #16 URL scheme `simplezip://compare`:比较两个归档/文件夹(已经过确认弹窗)。
+    case compareArchives(URL, URL)
 }
 
 private struct FinderServiceActionPayload: Decodable {

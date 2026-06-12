@@ -161,6 +161,17 @@ extension ArchiveBrowserModel {
         runBatchArchiveTest(urls)
     }
 
+    /// #16 URL scheme:对外部给定的归档 URL 跑测试(已在 AppDelegate 经确认弹窗)。
+    /// 复用批量测试任务流(单个也走它 —— 结果同样进活动中心逐包汇总)。
+    func testArchives(at urls: [URL]) {
+        let supported = urls.filter { ArchiveService.isSupportedArchive($0) }
+        guard !supported.isEmpty else {
+            errorMessage = L10n.text("error.openOrSelectArchive")
+            return
+        }
+        runBatchArchiveTest(supported)
+    }
+
     private struct BatchTestOutcome {
         let url: URL
         let result: PasswordAwareTestOutcome

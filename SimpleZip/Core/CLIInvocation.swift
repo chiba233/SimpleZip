@@ -124,3 +124,38 @@ enum CLIInvocation: Equatable {
       Exit codes: 0 success · 1 failures or differences found · 2 usage or environment error
     """
 }
+
+// MARK: - simplezip:// URL scheme 动作(队列 #16)
+
+/// `simplezip://` 的用户级动词:`simplezip://check?path=/…`、`simplezip://compare?left=/…&right=/…`、
+/// `simplezip://open?path=/…`。解析是纯函数(SwiftPM 可测);URL scheme 任何本地进程 / 网页都能发,
+/// 所以**动作执行前必须经 app 内确认弹窗**(AppDelegate 弹,列出动作与完整路径)。
+/// 只接受绝对路径;`finder-action` host 是内部管道(独立校验),不在这里。
+enum SimpleZipURLCommand: Equatable {
+    case check(path: String)
+    case compare(left: String, right: String)
+    case open(path: String)
+
+    nonisolated static func parse(_ url: URL) -> SimpleZipURLCommand? {
+        guard url.scheme?.lowercased() == "simplezip",
+              let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return nil }
+        func absolutePath(_ name: String) -> String? {
+            guard let value = components.queryItems?.first(where: { $0.name == name })?.value,
+                  value.hasPrefix("/") else { return nil }
+            return value
+        }
+        switch url.host?.lowercased() {
+        case "check", "test":
+            guard let path = absolutePath("path") else { return nil }
+            return .check(path: path)
+        case "compare":
+            guard let left = absolutePath("left"), let right = absolutePath("right") else { return nil }
+            return .compare(left: left, right: right)
+        case "open":
+            guard let path = absolutePath("path") else { return nil }
+            return .open(path: path)
+        default:
+            return nil
+        }
+    }
+}

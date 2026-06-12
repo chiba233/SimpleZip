@@ -1248,6 +1248,10 @@
 "extract.preset.menu" = "Apply Preset";
 "convert.section.output" = "Output & Batch Options";
 "missingVolumes.menu" = "Search for Missing Volumes…";
+"urlScheme.confirm.title" = "Another app asked SimpleZip to act";
+"urlScheme.confirm.check" = "Test this archive?\n\n%@";
+"urlScheme.confirm.compare" = "Compare these two items?\n\n%@\n%@";
+"urlScheme.confirm.open" = "Open this path in SimpleZip?\n\n%@";
 "missingVolumes.panel.message" = "Pick a folder to search (recursively) for the missing volumes.";
 "missingVolumes.taskTitle" = "Searching for missing volumes of %@";
 "missingVolumes.stillMissing" = "%@ volume(s) still missing. Expected names like: %@";

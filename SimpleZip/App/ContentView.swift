@@ -795,6 +795,11 @@ struct ContentView: View {
         case .quickCreate(let format, let urls):
             // 和解压一样走独立浮窗（进度 + 活动中心 + 自动关窗），全程不碰主窗口。
             ExternalExtractWindowController.shared.startQuickCreate(format: format, sourceURLs: urls)
+        case .testArchives(let urls):
+            // #16 URL scheme:已在 AppDelegate 经确认弹窗,这里直接进现有测试任务流。
+            model.testArchives(at: urls)
+        case .compareArchives(let left, let right):
+            model.runArchiveComparison(left: left, right: right)
         }
     }
 
