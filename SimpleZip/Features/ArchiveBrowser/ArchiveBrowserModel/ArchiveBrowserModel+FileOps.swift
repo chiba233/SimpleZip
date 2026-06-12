@@ -842,6 +842,130 @@ extension ArchiveBrowserModel {
         }
     }
 
+    /// #15 缺分卷搜索:选中分卷集的任意一卷且检测到缺卷 → 另选目录递归搜缺失卷;
+    /// 找到的**复制**(不挪动原文件)到本组目录补齐;找齐后自动合并,产物是受支持归档再顺手测试;
+    /// 仍未找齐 → 任务如实失败并给出「期望命名」提示(列样例名,用户可去改名/再搜别处)。
+    func searchMissingVolumesForSelection() {
+        guard selectedFileItems.count == 1, let item = selectedFileItems.first, !item.isDirectory else { return }
+        let memberURL = item.url
+        let groupDirectory = memberURL.deletingLastPathComponent()
+        guard let siblings = try? fileManager.contentsOfDirectory(atPath: groupDirectory.path),
+              let volumeSet = FileSplitCombine.volumeSet(forMemberNamed: memberURL.lastPathComponent, among: siblings),
+              !volumeSet.missingIndices.isEmpty else { return }
+
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.message = L10n.text("missingVolumes.panel.message")
+        guard panel.runModal() == .OK, let searchDirectory = panel.url else { return }
+
+        let title = L10n.format("missingVolumes.taskTitle", volumeSet.baseName)
+        let operationTask = beginFileTask(kind: .combine, title: title, detail: searchDirectory.path, total: 1, cancellable: true, category: .archive)
+        let worker = Task.detached(priority: .userInitiated) { () -> (copied: [URL], stillMissing: [Int]) in
+            let found = FileSplitCombine.searchForMissingVolumes(of: volumeSet, in: searchDirectory)
+            var copied: [URL] = []
+            for (index, sourceURL) in found.sorted(by: { $0.key < $1.key }) {
+                try Task.checkCancellation()
+                // 复制不挪动:目标名 = 组目录里的期望名;已存在(并发补齐过)就跳过。
+                let targetURL = groupDirectory.appendingPathComponent(sourceURL.lastPathComponent)
+                guard !FileManager.default.fileExists(atPath: targetURL.path) else { continue }
+                try FileManager.default.copyItem(at: sourceURL, to: targetURL)
+                copied.append(targetURL)
+                _ = index
+            }
+            let stillMissing = volumeSet.missingIndices.filter { found[$0] == nil }
+            return (copied, stillMissing)
+        }
+        operationTask.cancel = { worker.cancel() }
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            self.status = title
+            do {
+                let result = try await worker.value
+                operationTask.transferLog = result.copied.map {
+                    TransferLogEntry(name: $0.lastPathComponent, action: .added, isDirectory: false)
+                }
+                if !result.copied.isEmpty {
+                    self.registerCreateUndo(result.copied, actionName: L10n.text("undo.action.copy"))
+                }
+                self.reload()
+                guard result.stillMissing.isEmpty else {
+                    // 没找齐:如实失败 + 命名模式提示(最多列 3 个期望名)。
+                    let examples = result.stillMissing.prefix(3)
+                        .map { FileSplitCombine.expectedVolumeName(for: volumeSet, index: $0) }
+                        .joined(separator: ", ")
+                    let message = L10n.format("missingVolumes.stillMissing", "\(result.stillMissing.count)", examples)
+                    self.errorMessage = message
+                    TaskCenter.shared.finish(operationTask, outcome: .failed(message))
+                    return
+                }
+                TaskCenter.shared.finish(operationTask, outcome: .succeeded(nil))
+                self.status = L10n.format("missingVolumes.completed", "\(result.copied.count)")
+                // 找齐了 → 自动合并(+ 产物是受支持归档则测试)。复用现有合并确认与任务体例:
+                // 直接把首卷喂给 combineSelectedVolumes 的核心是选中态,简单起见这里直接调合并。
+                let firstVolume = groupDirectory.appendingPathComponent(
+                    FileSplitCombine.expectedVolumeName(for: volumeSet, index: 1)
+                )
+                if FileSplitCombine.isFirstVolume(firstVolume), self.fileManager.fileExists(atPath: firstVolume.path) {
+                    self.combineVolumes(firstVolume: firstVolume, testAfterCombine: true)
+                }
+            } catch is CancellationError {
+                self.status = L10n.text("status.cancelled")
+                TaskCenter.shared.finish(operationTask, outcome: .cancelled)
+            } catch {
+                self.errorMessage = error.localizedDescription
+                TaskCenter.shared.finish(operationTask, outcome: .failed(error.localizedDescription))
+            }
+        }
+    }
+
+    /// #15:不经确认弹窗的合并核心(搜索补齐流程自动调用;testAfterCombine = 合并后对受支持
+    /// 归档跑完整性测试)。手动右键合并仍走带确认的 combineSelectedVolumes。
+    private func combineVolumes(firstVolume: URL, testAfterCombine: Bool) {
+        let title = L10n.format("status.combining", firstVolume.lastPathComponent)
+        let operationTask = beginFileTask(kind: .combine, title: title, detail: nil, total: 1, cancellable: true, category: .archive)
+        let worker = Task.detached(priority: .userInitiated) {
+            try FileSplitCombine.combine(firstVolume: firstVolume) { written, total in
+                let fraction = total > 0 ? min(1, Double(written) / Double(total)) : nil
+                Task { @MainActor in
+                    operationTask.progress = ArchiveProgressState(fraction: fraction, currentFile: firstVolume.lastPathComponent)
+                }
+            }
+        }
+        operationTask.cancel = { worker.cancel() }
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                let output = try await worker.value
+                if testAfterCombine, ArchiveService.isSupportedArchive(output) {
+                    operationTask.progress = ArchiveProgressState(
+                        fraction: nil, currentFile: nil,
+                        statusText: L10n.text("tasks.verifyingOutput")
+                    )
+                    try await ArchiveService.test(output)
+                }
+                operationTask.transferLog = [
+                    TransferLogEntry(name: output.lastPathComponent, action: .added, isDirectory: false)
+                ]
+                self.registerCreateUndo([output], actionName: L10n.text("undo.action.combine"))
+                self.status = L10n.format("status.combined", output.lastPathComponent)
+                TaskCenter.shared.finish(operationTask, outcome: .succeeded(output))
+                SystemSound.operationComplete?.play()
+                self.reload()
+            } catch is CancellationError {
+                self.status = L10n.text("status.cancelled")
+                TaskCenter.shared.finish(operationTask, outcome: .cancelled)
+                self.reload()
+            } catch {
+                self.status = L10n.text("status.failed")
+                self.errorMessage = error.localizedDescription
+                TaskCenter.shared.finish(operationTask, outcome: .failed(error.localizedDescription))
+            }
+        }
+    }
+
     /// 标题 / 状态栏用的「权限为 755、属主为 alice」描述片段（按实际要改的项拼）。
     private func permissionChangeClauses(mode: UInt16?, owner: String?) -> String {
         var parts: [String] = []

@@ -263,3 +263,57 @@ struct SplitVolumeSet: Equatable {
     var highestIndex: Int { presentIndices.last ?? 0 }
     var isComplete: Bool { missingIndices.isEmpty }
 }
+
+// MARK: - 缺分卷搜索辅助(队列 #15)
+
+extension FileSplitCombine {
+
+    /// 这组卷在缺卷号 `index` 上**期望**的文件名(给「仍未找齐」的命名模式提示)。
+    /// 数字卷:`base.001` 式;part-rar 卷:`base.part<N>.rar`(不补零 —— WinRAR 两种都产,
+    /// 搜索按解析匹配不靠这个名,提示用最常见形)。
+    nonisolated static func expectedVolumeName(for set: SplitVolumeSet, index: Int) -> String {
+        if set.baseName.lowercased().hasSuffix(".rar"),
+           set.presentNames.first?.lowercased().contains(".part") == true {
+            let stem = String(set.baseName.dropLast(4))
+            return "\(stem).part\(index).rar"
+        }
+        return String(format: "%@.%03d", set.baseName, index)
+    }
+
+    /// #15:在另选目录(递归,跳过隐藏与包内部)搜属于同一组的**缺失卷**。
+    /// 匹配按命名解析(`splitNumericSuffix` / `splitPartRar`),数字宽度 / part 是否补零都兼容;
+    /// 同一卷号撞到多个候选时取第一个(确定性:enumerator 顺序)。返回 缺卷号 → 找到的 URL。
+    nonisolated static func searchForMissingVolumes(
+        of set: SplitVolumeSet,
+        in directory: URL,
+        fileManager: FileManager = .default
+    ) -> [Int: URL] {
+        guard !set.missingIndices.isEmpty else { return [:] }
+        let wanted = Set(set.missingIndices)
+        var found: [Int: URL] = [:]
+        guard let enumerator = fileManager.enumerator(
+            at: directory,
+            includingPropertiesForKeys: [.isRegularFileKey],
+            options: [.skipsHiddenFiles, .skipsPackageDescendants]
+        ) else { return [:] }
+        for case let url as URL in enumerator {
+            guard (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true else { continue }
+            let name = url.lastPathComponent
+            let parsedBase: String
+            let parsedIndex: Int
+            if let (base, index) = splitNumericSuffix(name) {
+                parsedBase = base
+                parsedIndex = index
+            } else if let (base, index) = splitPartRar(name) {
+                parsedBase = base + ".rar"
+                parsedIndex = index
+            } else {
+                continue
+            }
+            guard parsedBase == set.baseName, wanted.contains(parsedIndex), found[parsedIndex] == nil else { continue }
+            found[parsedIndex] = url
+            if found.count == wanted.count { break }
+        }
+        return found
+    }
+}

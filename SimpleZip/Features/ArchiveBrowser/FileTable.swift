@@ -1123,6 +1123,12 @@ struct FileNSOutlineView: NSViewRepresentable {
                 toolsMenu.addItem(.separator())
                 // 0.4.2 分卷集识别：右键任意一卷显示「第 N 卷，共 M 卷 · 总大小」+ 缺卷警告（信息行，不可点）。
                 appendVolumeSetInfo(to: toolsMenu, for: item.url)
+                // #15:检测到缺卷 → 「搜索缺失分卷…」(另选目录递归搜,找齐自动补齐+合并+测试)。
+                if let siblings = try? FileManager.default.contentsOfDirectory(atPath: item.url.deletingLastPathComponent().path),
+                   let volumeSet = FileSplitCombine.volumeSet(forMemberNamed: item.url.lastPathComponent, among: siblings),
+                   !volumeSet.missingIndices.isEmpty {
+                    toolsMenu.addItem(menuItem(L10n.text("missingVolumes.menu"), systemImage: "magnifyingglass.circle", action: #selector(searchMissingVolumes)))
+                }
                 if FileSplitCombine.isFirstVolume(item.url) {
                     toolsMenu.addItem(menuItem(L10n.text("file.combine.menuItem"), systemImage: "arrow.triangle.merge", action: #selector(combineVolumesSelected)))
                 }
@@ -1404,6 +1410,10 @@ struct FileNSOutlineView: NSViewRepresentable {
 
         @objc private func findDuplicateArchives() {
             model.findDuplicateArchivesInFolder()
+        }
+
+        @objc private func searchMissingVolumes() {
+            model.searchMissingVolumesForSelection()
         }
 
         @objc private func testSelectedArchive() {

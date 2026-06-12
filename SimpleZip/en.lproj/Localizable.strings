@@ -1247,6 +1247,11 @@
 "contentSearch.line" = "line %@";
 "extract.preset.menu" = "Apply Preset";
 "convert.section.output" = "Output & Batch Options";
+"missingVolumes.menu" = "Search for Missing Volumes…";
+"missingVolumes.panel.message" = "Pick a folder to search (recursively) for the missing volumes.";
+"missingVolumes.taskTitle" = "Searching for missing volumes of %@";
+"missingVolumes.stillMissing" = "%@ volume(s) still missing. Expected names like: %@";
+"missingVolumes.completed" = "Copied %@ missing volume(s) — set complete";
 "convert.outputDirectory" = "Output folder";
 "convert.outputDirectory.sameAsSource" = "Same folder as each source";
 "convert.outputDirectory.reset" = "Reset";

@@ -1245,6 +1245,11 @@
 "contentSearch.line" = "第 %@ 行";
 "extract.preset.menu" = "套用预设";
 "convert.section.output" = "输出与批量选项";
+"missingVolumes.menu" = "搜索缺失分卷…";
+"missingVolumes.panel.message" = "选择一个目录（递归）搜索缺失的分卷。";
+"missingVolumes.taskTitle" = "正在搜索 %@ 的缺失分卷";
+"missingVolumes.stillMissing" = "仍缺 %@ 个分卷。期望的文件名形如：%@";
+"missingVolumes.completed" = "已补齐 %@ 个缺失分卷——分卷集完整";
 "convert.outputDirectory" = "输出目录";
 "convert.outputDirectory.sameAsSource" = "与各源同目录";
 "convert.outputDirectory.reset" = "复位";
