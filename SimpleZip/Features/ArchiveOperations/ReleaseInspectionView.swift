@@ -80,6 +80,32 @@ struct ReleaseInspectionView: View {
                             }
                         }
                     }
+
+                    // #9 结构指纹:重新打包(时间戳/压缩参数变了)指纹不变 —— 给「这两个包是不是同一份东西」用。
+                    if let fingerprint = report.structuralFingerprint {
+                        DialogSection(L10n.text("inspect.section.fingerprint")) {
+                            HStack(spacing: 8) {
+                                Text(fingerprint)
+                                    .font(.caption.monospaced())
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                    .textSelection(.enabled)
+                                Spacer()
+                                Button {
+                                    NSPasteboard.general.clearContents()
+                                    NSPasteboard.general.setString(fingerprint, forType: .string)
+                                } label: {
+                                    Image(systemName: "doc.on.doc")
+                                }
+                                .buttonStyle(.borderless)
+                                .help(L10n.text("button.copyAll"))
+                            }
+                            Text(L10n.text("inspect.fingerprint.note"))
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 16)
@@ -180,6 +206,9 @@ struct ReleaseInspectionView: View {
         }
         if let sha256 = report.sha256 {
             lines.append("SHA-256: \(sha256)")
+        }
+        if let fingerprint = report.structuralFingerprint {
+            lines.append("\(L10n.text("inspect.section.fingerprint")): \(fingerprint)")
         }
         if let hasPublicKey = report.publicKeyBesideSignature {
             lines.append((hasPublicKey ? "✓ " : "✗ ") + L10n.text(hasPublicKey ? "inspect.publicKey.present" : "inspect.publicKey.missing"))

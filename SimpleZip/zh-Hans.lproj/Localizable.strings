@@ -880,6 +880,8 @@
 "inspect.symlinks.some" = "%1$@ 个符号链接";
 "inspect.comment.present" = "带归档注释";
 "inspect.comment.none" = "无归档注释";
+"inspect.section.fingerprint" = "结构指纹";
+"inspect.fingerprint.note" = "条目结构（路径、大小、CRC）的哈希——时间戳、注释与垃圾条目不参与。指纹相同的两个包内容相同，哪怕重新打包过。";
 "inspect.publicKey.present" = "公钥（.asc）已随签名清单同捆";
 "inspect.publicKey.missing" = "目录里有签名清单，但没有公钥（.asc）——收件人无法独立验证";
 /* 0.4.2 内置归档模板 */

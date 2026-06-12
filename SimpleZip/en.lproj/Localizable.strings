@@ -882,6 +882,8 @@
 "inspect.symlinks.some" = "%1$@ symbolic links";
 "inspect.comment.present" = "Has an archive comment";
 "inspect.comment.none" = "No archive comment";
+"inspect.section.fingerprint" = "Structural Fingerprint";
+"inspect.fingerprint.note" = "Hash of entry structure (paths, sizes, CRCs) — timestamps, comments and junk ignored. Two archives with the same fingerprint hold the same content even if repacked.";
 "inspect.publicKey.present" = "Public key (.asc) ships beside the signed manifest";
 "inspect.publicKey.missing" = "A signed manifest sits in this folder, but no public key (.asc) — recipients can't verify independently";
 /* 0.4.2 built-in archive templates */

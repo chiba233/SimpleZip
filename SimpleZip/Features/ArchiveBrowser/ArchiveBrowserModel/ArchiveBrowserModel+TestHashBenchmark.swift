@@ -372,6 +372,7 @@ extension ArchiveBrowserModel {
                     report.stats = ReleaseInspection.stats(for: items)
                     report.securityFindings = ArchiveSecurityReport.analyze(items)
                     report.hasComment = !ArchiveService.headerComment(for: outputURL).isEmpty
+                    report.structuralFingerprint = ArchiveStructuralFingerprint.compute(for: items)
                 }
                 do {
                     try await ArchiveService.test(outputURL, operationID: operationID, outputObserver: outputObserver)
@@ -419,6 +420,9 @@ extension ArchiveBrowserModel {
         /// 公钥分发检查:归档同目录有签名容器(.szs/.siz)时,旁边有没有可分发的公钥(.asc)。
         /// nil = 目录里没有签名容器,报告不显示该行;false = 有容器没公钥(收件人无法独立验证,提醒)。
         var publicKeyBesideSignature: Bool?
+        /// 结构指纹(#9):条目结构(路径/类型/大小/CRC)的 SHA-256,忽略时间戳/注释/垃圾 ——
+        /// 两个包指纹相同 = 结构上同一份东西(哪怕重新打包、文件级 SHA-256 不同)。listable 才有。
+        var structuralFingerprint: String?
     }
 
     /// 同目录的「签名容器 ↔ 公钥」同捆检查(发包端闭环):有 .szs/.siz 而没有任何 .asc → 提醒。
@@ -474,6 +478,7 @@ extension ArchiveBrowserModel {
                 report.stats = ReleaseInspection.stats(for: items)
                 report.securityFindings = ArchiveSecurityReport.analyze(items)
                 report.hasComment = !ArchiveService.headerComment(for: url).isEmpty
+                report.structuralFingerprint = ArchiveStructuralFingerprint.compute(for: items)
             }
             // ② 完整性测试（失败不让任务失败 —— 失败本身就是报告内容）。
             progress(ArchiveProgressState(fraction: 0.4, statusText: nil))

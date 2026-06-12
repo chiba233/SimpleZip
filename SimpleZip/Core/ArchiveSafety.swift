@@ -5,6 +5,7 @@
 //  Created by Codex on 2026/05/18.
 //
 
+import CryptoKit
 import Foundation
 
 enum ArchiveSafety {
@@ -450,5 +451,47 @@ enum ReleaseInspection {
         var path = name
         while path.hasPrefix("./") { path.removeFirst(2) }
         return path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+    }
+}
+
+// MARK: - 结构指纹(队列 #9)
+
+/// 归档「结构指纹」:对**条目结构**(归一化路径 + 类型 + 大小 + CRC)做 SHA-256,
+/// 刻意忽略时间戳、注释、元数据垃圾条目与压缩参数 —— 同一份内容重新打包(哪怕换了压缩等级 /
+/// 修改时间不同 / 多了 .DS_Store)指纹不变,快速回答「这两个包结构上是不是同一份东西」。
+/// 纯函数、确定性(条目按归一化路径排序),SwiftPM 可测。
+enum ArchiveStructuralFingerprint {
+
+    /// 计算指纹(64 位十六进制 SHA-256)。空集合也有确定指纹(空输入哈希)。
+    nonisolated static func compute(for items: [ArchiveItem]) -> String {
+        let lines = normalizedLines(for: items)
+        let digest = SHA256.hash(data: Data(lines.joined(separator: "\n").utf8))
+        return digest.map { String(format: "%02x", $0) }.joined()
+    }
+
+    /// 参与哈希的归一化行(测试 / 调试可见)。`dir|path` 或 `file|path|size|crc`;
+    /// 大小 / CRC 缺失记 `-`(zip 后备路径 / 目录条目没有 CRC);垃圾条目(.DS_Store / __MACOSX /
+    /// AppleDouble / Thumbs.db / desktop.ini)整行剔除。
+    nonisolated static func normalizedLines(for items: [ArchiveItem]) -> [String] {
+        items.compactMap { item -> String? in
+            let path = normalizedPath(item.name)
+            guard !path.isEmpty, !ArchiveJunkFiles.isJunkPath(item.name) else { return nil }
+            if item.isDirectory {
+                return "dir|\(path)"
+            }
+            let size = item.size.map(String.init) ?? "-"
+            let crc = item.crc.isEmpty ? "-" : item.crc.lowercased()
+            return "file|\(path)|\(size)|\(crc)"
+        }
+        .sorted()
+    }
+
+    /// 与 ArchiveDiff 同口径的路径归一化:统一斜杠、去前导 `./`、去首尾 `/`。
+    private nonisolated static func normalizedPath(_ raw: String) -> String {
+        var path = raw.replacingOccurrences(of: "\\", with: "/")
+        if path.hasPrefix("./") { path.removeFirst(2) }
+        while path.hasPrefix("/") { path.removeFirst() }
+        while path.hasSuffix("/") { path.removeLast() }
+        return path
     }
 }
