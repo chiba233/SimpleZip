@@ -126,7 +126,10 @@
 "tasks.filter.succeeded" = "已完成";
 "tasks.filter.failed" = "失敗";
 "tasks.filter.cancelled" = "已取消";
-"status.backend" = "原生 ZIP | 7Z 透過 7zz";
+"status.selectionCount" = "已選 %d 項";
+"status.selectionSummary" = "已選 %1$d 項 · %2$@";
+"status.archiveSummary" = "解壓後 %1$@ · 封存檔 %2$@";
+"status.freeSpace" = "可用 %@";
 "type.folder" = "資料夾";
 "type.file" = "檔案";
 "alert.operationFailed" = "操作失敗";
@@ -176,7 +179,7 @@
 "menu.aboutSimpleZip" = "關於 SimpleZip";
 "menu.tools" = "工具";
 "menu.activityCenter" = "活動中心";
-"about.description" = "一個更好用的 7zz 圖形客戶端，為 macOS 而生。\n用熟悉的視窗瀏覽壓縮檔、檢視內容、解壓縮與建立檔案，不必總是回到終端機。";
+"about.description" = "macOS 原生的全能壓縮檔管理器。\n建立、瀏覽、原位編輯、格式轉換、加密與驗證，涵蓋數十種格式——並內建 GPG 簽章、可重現壓縮與校驗檔案工作流程。";
 "about.author" = "作者：Hoshino Yumeka";
 "about.copyright" = "© Hoshino Yumeka. 采用 MIT 许可证发布。";
 "menu.projectPage" = "SimpleZip 專案首頁";

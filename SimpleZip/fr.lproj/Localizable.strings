@@ -126,7 +126,10 @@
 "tasks.filter.succeeded" = "Terminées";
 "tasks.filter.failed" = "Échouées";
 "tasks.filter.cancelled" = "Annulées";
-"status.backend" = "ZIP natif | 7Z via 7zz";
+"status.selectionCount" = "%d sélectionnés";
+"status.selectionSummary" = "%1$d sélectionnés · %2$@";
+"status.archiveSummary" = "Décompressé %1$@ · archive %2$@";
+"status.freeSpace" = "%@ libres";
 "type.folder" = "Dossier";
 "type.file" = "Fichier";
 "alert.operationFailed" = "Échec de l'opération";
@@ -176,7 +179,7 @@
 "menu.aboutSimpleZip" = "À propos de SimpleZip";
 "menu.tools" = "Outils";
 "menu.activityCenter" = "Centre d’activité";
-"about.description" = "Un client GUI 7zz plus convivial pour macOS.\nParcourez les archives, inspectez leur contenu et extrayez ou créez des fichiers sans vivre dans le Terminal.";
+"about.description" = "Un gestionnaire d'archives natif et complet pour macOS.\nCréez, parcourez, modifiez sur place, convertissez, chiffrez et vérifiez des dizaines de formats — avec signature GPG, archives reproductibles et sommes de contrôle intégrées.";
 "about.author" = "Par Hoshino Yumeka";
 "about.copyright" = "© Hoshino Yumeka. Publié sous licence MIT.";
 "menu.projectPage" = "Page du projet SimpleZip";

@@ -126,7 +126,10 @@
 "tasks.filter.succeeded" = "完了";
 "tasks.filter.failed" = "失敗";
 "tasks.filter.cancelled" = "キャンセル済み";
-"status.backend" = "ZIP はネイティブ | 7Z は 7zz 経由";
+"status.selectionCount" = "%d 件選択";
+"status.selectionSummary" = "%1$d 件選択 · %2$@";
+"status.archiveSummary" = "展開後 %1$@ · アーカイブ %2$@";
+"status.freeSpace" = "空き %@";
 "type.folder" = "フォルダ";
 "type.file" = "ファイル";
 "alert.operationFailed" = "操作に失敗しました";
@@ -176,7 +179,7 @@
 "menu.aboutSimpleZip" = "SimpleZip について";
 "menu.tools" = "ツール";
 "menu.activityCenter" = "アクティビティセンター";
-"about.description" = "macOS のための、より使いやすい 7zz GUI クライアント。\nターミナルに戻らなくても、アーカイブの閲覧、内容確認、展開、作成を慣れたウィンドウ操作で行えます。";
+"about.description" = "macOS のためのフル機能ネイティブアーカイブマネージャー。\n数十種類の形式の作成・閲覧・その場編集・形式変換・暗号化・検証に加え、GPG 署名、再現可能なアーカイブ、チェックサムのワークフローを内蔵しています。";
 "about.author" = "Hoshino Yumeka 作";
 "about.copyright" = "© Hoshino Yumeka。MITライセンスで公開されています。";
 "menu.projectPage" = "SimpleZip プロジェクトページ";

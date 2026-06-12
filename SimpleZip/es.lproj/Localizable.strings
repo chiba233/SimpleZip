@@ -126,7 +126,10 @@
 "tasks.filter.succeeded" = "Completadas";
 "tasks.filter.failed" = "Fallidas";
 "tasks.filter.cancelled" = "Canceladas";
-"status.backend" = "ZIP nativo | 7Z mediante 7zz";
+"status.selectionCount" = "%d seleccionados";
+"status.selectionSummary" = "%1$d seleccionados · %2$@";
+"status.archiveSummary" = "Descomprimido %1$@ · archivo %2$@";
+"status.freeSpace" = "%@ libres";
 "type.folder" = "Carpeta";
 "type.file" = "Archivo";
 "alert.operationFailed" = "La operación falló";
@@ -176,7 +179,7 @@
 "menu.aboutSimpleZip" = "Acerca de SimpleZip";
 "menu.tools" = "Herramientas";
 "menu.activityCenter" = "Centro de actividad";
-"about.description" = "Un cliente GUI de 7zz más cómodo para macOS.\nExplora archivos comprimidos, inspecciona su contenido y extrae o crea archivos sin vivir en Terminal.";
+"about.description" = "Un gestor de archivos comprimidos nativo y completo para macOS.\nCrea, explora, edita in situ, convierte, cifra y verifica decenas de formatos — con firma GPG, compresión reproducible y flujos de sumas de verificación integrados.";
 "about.author" = "Por Hoshino Yumeka";
 "about.copyright" = "© Hoshino Yumeka. Publicado bajo la licencia MIT.";
 "menu.projectPage" = "Página del proyecto de SimpleZip";

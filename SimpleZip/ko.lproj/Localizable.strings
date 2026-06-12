@@ -126,7 +126,10 @@
 "tasks.filter.succeeded" = "완료됨";
 "tasks.filter.failed" = "실패";
 "tasks.filter.cancelled" = "취소됨";
-"status.backend" = "기본 ZIP | 7zz를 통한 7Z";
+"status.selectionCount" = "%d개 선택됨";
+"status.selectionSummary" = "%1$d개 선택됨 · %2$@";
+"status.archiveSummary" = "압축 해제 시 %1$@ · 아카이브 %2$@";
+"status.freeSpace" = "여유 공간 %@";
 "type.folder" = "폴더";
 "type.file" = "파일";
 "alert.operationFailed" = "작업 실패";
@@ -176,7 +179,7 @@
 "menu.aboutSimpleZip" = "SimpleZip 정보";
 "menu.tools" = "도구";
 "menu.activityCenter" = "활동 센터";
-"about.description" = "macOS를 위한 더 친숙한 7zz GUI 클라이언트입니다.\n터미널에 머무르지 않고 압축 파일을 탐색하고, 내용을 확인하고, 파일을 추출하거나 만들 수 있습니다.";
+"about.description" = "macOS를 위한 풀 기능 네이티브 아카이브 매니저입니다.\n수십 가지 형식의 생성·탐색·즉석 편집·형식 변환·암호화·검증은 물론 GPG 서명, 재현 가능한 아카이브, 체크섬 워크플로를 내장했습니다.";
 "about.author" = "Hoshino Yumeka 제작";
 "about.copyright" = "© Hoshino Yumeka. MIT 라이선스로 배포됩니다.";
 "menu.projectPage" = "SimpleZip 프로젝트 페이지";

@@ -1045,7 +1045,10 @@
 "tasks.filter.succeeded" = "Completed";
 "tasks.filter.failed" = "Failed";
 "tasks.filter.cancelled" = "Cancelled";
-"status.backend" = "ZIP native | 7Z via 7zz";
+"status.selectionCount" = "%d selected";
+"status.selectionSummary" = "%1$d selected · %2$@";
+"status.archiveSummary" = "Unpacks to %1$@ · archive %2$@";
+"status.freeSpace" = "%@ free";
 "status.readOnly" = "Read-Only";
 "status.waitingForPassword" = "Waiting for password: %@";
 "test.skipped.noPassword" = "Skipped — no password provided";
@@ -1164,7 +1167,7 @@
 "menu.aboutSimpleZip" = "About SimpleZip";
 "menu.tools" = "Tools";
 "menu.activityCenter" = "Activity Center";
-"about.description" = "A native macOS archive utility — create, extract, browse, encrypt, hash, and mount DMGs without leaving Finder.";
+"about.description" = "A full-featured native archive manager for macOS.\nCreate, browse, edit in place, convert, encrypt, and verify archives across dozens of formats — with GPG signing, reproducible archives, and checksum workflows built in.";
 "about.author" = "By Hoshino Yumeka";
 "about.copyright" = "© Hoshino Yumeka. Released under the MIT License.";
 "menu.projectPage" = "SimpleZip Project Page";

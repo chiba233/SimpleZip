@@ -126,7 +126,10 @@
 "tasks.filter.succeeded" = "เสร็จสิ้น";
 "tasks.filter.failed" = "ล้มเหลว";
 "tasks.filter.cancelled" = "ยกเลิกแล้ว";
-"status.backend" = "ZIP แบบเนทีฟ | 7Z ผ่าน 7zz";
+"status.selectionCount" = "เลือก %d รายการ";
+"status.selectionSummary" = "เลือก %1$d รายการ · %2$@";
+"status.archiveSummary" = "คลายแล้ว %1$@ · ไฟล์เก็บถาวร %2$@";
+"status.freeSpace" = "ว่าง %@";
 "type.folder" = "โฟลเดอร์";
 "type.file" = "ไฟล์";
 "alert.operationFailed" = "การทำงานล้มเหลว";
@@ -176,7 +179,7 @@
 "menu.aboutSimpleZip" = "เกี่ยวกับ SimpleZip";
 "menu.tools" = "เครื่องมือ";
 "menu.activityCenter" = "ศูนย์กิจกรรม";
-"about.description" = "ไคลเอนต์ GUI สำหรับ 7zz บน macOS ที่ใช้งานง่ายขึ้น\nเรียกดูไฟล์บีบอัด ตรวจสอบเนื้อหา แตกไฟล์ และสร้างไฟล์ใหม่ได้ในหน้าต่างที่คุ้นเคย โดยไม่ต้องกลับไปพึ่ง Terminal ตลอดเวลา";
+"about.description" = "ตัวจัดการไฟล์บีบอัดแบบเนทีฟที่ครบเครื่องสำหรับ macOS\nสร้าง เรียกดู แก้ไขในที่ แปลงรูปแบบ เข้ารหัส และตรวจสอบไฟล์บีบอัดหลายสิบรูปแบบ — พร้อมการเซ็น GPG ไฟล์บีบอัดแบบทำซ้ำได้ และเวิร์กโฟลว์เช็กซัมในตัว";
 "about.author" = "โดย Hoshino Yumeka";
 "about.copyright" = "© Hoshino Yumeka. เผยแพร่ภายใต้สัญญาอนุญาต MIT";
 "menu.projectPage" = "หน้าโปรเจกต์ SimpleZip";

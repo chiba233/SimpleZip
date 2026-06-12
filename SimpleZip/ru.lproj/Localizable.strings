@@ -126,7 +126,10 @@
 "tasks.filter.succeeded" = "Завершены";
 "tasks.filter.failed" = "С ошибкой";
 "tasks.filter.cancelled" = "Отменены";
-"status.backend" = "ZIP встроенный | 7Z через 7zz";
+"status.selectionCount" = "Выбрано: %d";
+"status.selectionSummary" = "Выбрано: %1$d · %2$@";
+"status.archiveSummary" = "После распаковки %1$@ · архив %2$@";
+"status.freeSpace" = "Свободно %@";
 "type.folder" = "Папка";
 "type.file" = "Файл";
 "alert.operationFailed" = "Операция не удалась";
@@ -176,7 +179,7 @@
 "menu.aboutSimpleZip" = "О SimpleZip";
 "menu.tools" = "Инструменты";
 "menu.activityCenter" = "Центр активности";
-"about.description" = "Более удобный GUI-клиент 7zz для macOS.\nПросматривайте архивы, изучайте их содержимое, распаковывайте и создавайте файлы без постоянной работы в Terminal.";
+"about.description" = "Полнофункциональный нативный менеджер архивов для macOS.\nСоздавайте, просматривайте, редактируйте на месте, конвертируйте, шифруйте и проверяйте десятки форматов — со встроенной подписью GPG, воспроизводимой упаковкой и контрольными суммами.";
 "about.author" = "Автор: Hoshino Yumeka";
 "about.copyright" = "© Hoshino Yumeka. Выпущено по лицензии MIT.";
 "menu.projectPage" = "Страница проекта SimpleZip";

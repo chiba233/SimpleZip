@@ -78,14 +78,58 @@ struct StatusBar: View {
                     .background(Capsule().fill(Color.primary.opacity(0.08)))
                     .help(Self.restrictionExplanation(restriction))
             }
-            Text(L10n.text("status.backend"))
-                .foregroundStyle(.secondary)
+            // 右下角上下文信息 —— 原本是写死的「原生 ZIP | 7Z 通过 7zz」(早就过时,支持格式远不止这俩)。
+            // 0.4.3 起换成动态数据:有选中 → 数量+总大小;归档无选中 → 解压后总大小 vs 包体;文件夹无选中 → 卷可用空间。
+            if let contextSummary {
+                Text(contextSummary)
+                    .foregroundStyle(.secondary)
+            }
         }
         .font(.caption)
         .padding(.horizontal, 12)
         .padding(.vertical, 7)
         // 跟地址栏同一 .bar 材质 —— 上下两条工具条一个质感（0.3.3 UI 现代化）。
         .background(.bar)
+    }
+
+    /// 右下角的上下文摘要。选中条目按已知大小求和(目录 / 未知大小条目自然跳过);
+    /// 归档模式的「解压后」是当前列表全部条目的逻辑大小合计,「包体」是归档文件在磁盘上的实际占用;
+    /// 取不到数据(虚拟条目 / 卷信息读取失败)就整段不显示,不放占位假数据。
+    private var contextSummary: String? {
+        switch model.mode {
+        case .archive(let archiveURL):
+            let selected = model.archiveItems.filter { model.selectedArchiveRows.contains($0.id) }
+            if !selected.isEmpty {
+                return Self.selectionSummary(count: selected.count, bytes: selected.compactMap(\.size).reduce(0, +))
+            }
+            let unpacked = model.archiveItems.compactMap(\.size).reduce(0, +)
+            guard unpacked > 0,
+                  let packed = try? archiveURL.resourceValues(forKeys: [.fileSizeKey]).fileSize else { return nil }
+            return L10n.format(
+                "status.archiveSummary",
+                ByteCountFormatter.string(fromByteCount: unpacked, countStyle: .file),
+                ByteCountFormatter.string(fromByteCount: Int64(packed), countStyle: .file)
+            )
+        case .folder(let folderURL):
+            let selected = model.fileItems.filter { model.selection.contains($0.id) }
+            if !selected.isEmpty {
+                return Self.selectionSummary(count: selected.count, bytes: selected.compactMap(\.size).reduce(0, +))
+            }
+            guard let free = try? folderURL.resourceValues(
+                forKeys: [.volumeAvailableCapacityForImportantUsageKey]
+            ).volumeAvailableCapacityForImportantUsage else { return nil }
+            return L10n.format("status.freeSpace", ByteCountFormatter.string(fromByteCount: free, countStyle: .file))
+        case .tag:
+            let selected = model.fileItems.filter { model.selection.contains($0.id) }
+            guard !selected.isEmpty else { return nil }
+            return Self.selectionSummary(count: selected.count, bytes: selected.compactMap(\.size).reduce(0, +))
+        }
+    }
+
+    /// 全选目录时大小合计为 0,这时只报数量 —— 不显示「Zero KB」这种误导值。
+    private static func selectionSummary(count: Int, bytes: Int64) -> String {
+        guard bytes > 0 else { return L10n.format("status.selectionCount", count) }
+        return L10n.format("status.selectionSummary", count, ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file))
     }
 
     /// 写入受限原因 → 用户可读解释(#13 统一文案,en+zh)。

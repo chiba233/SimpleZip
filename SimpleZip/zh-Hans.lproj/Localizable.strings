@@ -1043,7 +1043,10 @@
 "tasks.filter.succeeded" = "已完成";
 "tasks.filter.failed" = "失败";
 "tasks.filter.cancelled" = "已取消";
-"status.backend" = "原生 ZIP | 7Z 通过 7zz";
+"status.selectionCount" = "已选 %d 项";
+"status.selectionSummary" = "已选 %1$d 项 · %2$@";
+"status.archiveSummary" = "解压后 %1$@ · 包体 %2$@";
+"status.freeSpace" = "可用 %@";
 "status.readOnly" = "只读";
 "status.waitingForPassword" = "等待输入密码：%@";
 "test.skipped.noPassword" = "已跳过——未提供密码";
@@ -1162,7 +1165,7 @@
 "menu.aboutSimpleZip" = "关于 SimpleZip";
 "menu.tools" = "工具";
 "menu.activityCenter" = "活动中心";
-"about.description" = "macOS 原生压缩包工具 —— 创建、解压、浏览、加密、哈希、挂载 DMG，全部在 Finder 风格的窗口内完成。";
+"about.description" = "macOS 原生的全能压缩包管理器。\n创建、浏览、原位编辑、格式转换、加密与校验，覆盖数十种格式——并内建 GPG 签名、可复现压缩与校验文件工作流。";
 "about.author" = "作者：Hoshino Yumeka";
 "about.copyright" = "© Hoshino Yumeka. 采用 MIT 许可证发布。";
 "menu.projectPage" = "SimpleZip 项目主页";
