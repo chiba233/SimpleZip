@@ -277,13 +277,15 @@ struct HeroChromeCard<Content: View>: View {
     @State private var isHovering = false
 
     var body: some View {
+        // 用户拍板(0.4.4 #17 两轮调浅):容器底色比帮助页原版浅 60%(0.16/0.05 → 0.06/0.02),
+        // 描边与阴影同步柔化 —— 任务列表整页都是这种卡,原浓度糊成一片色块。
         let card = content()
             .background(
                 ZStack {
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                         .fill(
                             LinearGradient(
-                                colors: [color.opacity(0.16), color.opacity(0.05)],
+                                colors: [color.opacity(0.06), color.opacity(0.02)],
                                 startPoint: .topLeading, endPoint: .bottomTrailing
                             )
                         )
@@ -300,13 +302,13 @@ struct HeroChromeCard<Content: View>: View {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .strokeBorder(
                         LinearGradient(
-                            colors: [color.opacity(0.55), color.opacity(0.10)],
+                            colors: [color.opacity(0.35), color.opacity(0.06)],
                             startPoint: .topLeading, endPoint: .bottomTrailing
                         ),
                         lineWidth: 1.2
                     )
             )
-            .shadow(color: color.opacity(enablesHover && isHovering ? 0.22 : 0.10), radius: 7, y: 5)
+            .shadow(color: color.opacity(enablesHover && isHovering ? 0.16 : 0.06), radius: 7, y: 5)
         if enablesHover {
             card.onHover { hovering in
                 withAnimation(.easeOut(duration: 0.18)) {
