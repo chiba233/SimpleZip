@@ -105,14 +105,16 @@ struct GPGEncryptOptionsView: View {
                 DialogSection(L10n.text("gpgEncrypt.section.recipients")) {
                     recipientsRow
                 }
-                // 对称密码 + 说明单独成卡。
+                // 对称密码单独成卡;科普性长段落不进卡片 —— 卡片里只放「控件 + 紧贴它的说明」,
+                // 孤儿段落浮在卡片中间正是用户点名的「不优雅」。挪出来当脚注,与小节标题同缩进。
                 DialogSection(L10n.text("gpgEncrypt.section.passphrase")) {
                     encryptionPassphraseRow
-                    Text(L10n.text("gpgEncrypt.description"))
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
                 }
+                Text(L10n.text("gpgEncrypt.description"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 14)
             },
             footerLeading: {
                 if hasMixedRecipientRings {

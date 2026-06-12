@@ -104,15 +104,6 @@ struct CreateSZSSheet: View {
 
     // MARK: - 子行布局
 
-    private func labelText(_ key: String) -> some View {
-        // 空 key 当「占位空标签」用（对齐用）—— **不能**走 L10n.text("")：NSLocalizedString 查空 key 会
-        // 返回字面量 "localized string not found"(macOS 怪癖),会显示成乱字。空 key → 显示空串。
-        Text(key.isEmpty ? "" : L10n.text(key))
-            .font(.callout)
-            .foregroundStyle(.secondary)
-            .frame(width: labelColumnWidth, alignment: .trailing)
-    }
-
     private var payloadRootRow: some View {
         HStack(alignment: .center, spacing: 8) {
             DialogRowLabel(L10n.text("szs.create.payloadRoot"), systemImage: "folder.fill", tint: .blue, width: labelColumnWidth)
@@ -133,7 +124,7 @@ struct CreateSZSSheet: View {
     private var filesRow: some View {
         HStack(alignment: .top, spacing: 8) {
             DialogRowLabel(L10n.text("szs.create.filesLabel"), systemImage: "doc.on.doc.fill", tint: .cyan, width: labelColumnWidth)
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text(L10n.format("szs.create.fileCount", selectedFiles.count))
                         .font(.caption)
@@ -165,8 +156,8 @@ struct CreateSZSSheet: View {
                                     }
                                     .buttonStyle(.plain)
                                 }
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
                             }
                         }
                     }
@@ -201,13 +192,14 @@ struct CreateSZSSheet: View {
     private var signingKeyRow: some View {
         HStack(alignment: .center, spacing: 8) {
             DialogRowLabel(L10n.text("szs.create.signingKeyLabel"), systemImage: "signature", tint: .green, width: labelColumnWidth)
+            Spacer(minLength: 12)
+            // 值钉到右缘 —— 与本对话框其他行(选择按钮列)同一条右基线(用户点名)。
             GPGSecretKeyMenu(
                 selection: $signingKeyFingerprint,
                 secretKeys: availableSecretKeys,
                 autoLabelKey: "szs.create.signingKey.auto",
                 missingFingerprintKey: "archive.gpgSign.key.missingFingerprint"
             )
-            Spacer()
         }
     }
 
@@ -247,36 +239,32 @@ struct CreateSZSSheet: View {
             }
         }
         if encryptFiles {
+            // 说明 / 警告紧贴所属控件(同一值列、小间距 6),不再用「空标签 + 浮动说明行」——
+            // 孤儿说明行隔着 16pt 行距浮在卡片里,正是用户点名的「不优雅」。
             HStack(alignment: .top, spacing: 8) {
                 DialogRowLabel(L10n.text("archive.gpgEncrypt.recipientsLabel"), systemImage: "person.2.fill", tint: .green, width: labelColumnWidth)
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 6) {
                     GPGAddRecipientMenu(eligibleKeys: availableEncryptionKeys, selection: $recipientFingerprints)
                     GPGRecipientChipRow(selection: $recipientFingerprints, lookupKeys: availableEncryptionKeys)
+                    if hasMixedRecipientRings {
+                        Text(L10n.text("gpgEncrypt.mixedKeyrings"))
+                            .font(.caption2)
+                            .foregroundStyle(.orange)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
             }
-            HStack(alignment: .center, spacing: 8) {
+            HStack(alignment: .top, spacing: 8) {
                 DialogRowLabel(L10n.text("archive.gpgEncrypt.passphraseLabel"), systemImage: "lock.rectangle.fill", tint: .orange, width: labelColumnWidth)
-                SecureField(L10n.text("archive.gpgEncrypt.passphrasePlaceholder"), text: $symmetricPassphrase)
-                    .textFieldStyle(.roundedBorder)
-                    .dialogFieldEmphasis()
-            }
-            if hasMixedRecipientRings {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    labelText("")
-                    Text(L10n.text("gpgEncrypt.mixedKeyrings"))
+                VStack(alignment: .leading, spacing: 6) {
+                    SecureField(L10n.text("archive.gpgEncrypt.passphrasePlaceholder"), text: $symmetricPassphrase)
+                        .textFieldStyle(.roundedBorder)
+                        .dialogFieldEmphasis()
+                    Text(L10n.text("szs.create.encryptFiles.hint"))
                         .font(.caption2)
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
-                    Spacer()
                 }
-            }
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                labelText("")
-                Text(L10n.text("szs.create.encryptFiles.hint"))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                Spacer()
             }
         }
     }
