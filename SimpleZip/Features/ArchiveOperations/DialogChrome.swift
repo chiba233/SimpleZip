@@ -247,6 +247,8 @@ struct DialogFooter<Leading: View>: View {
     let confirmTitle: String
     var confirmSystemImage: String?
     let confirmDisabled: Bool
+    /// 不可中断阶段(如 .szs 创建中,pinentry 已弹)把取消也禁掉。
+    var cancelDisabled = false
     let confirm: () -> Void
     let cancel: () -> Void
     @ViewBuilder let leading: () -> Leading
@@ -258,6 +260,8 @@ struct DialogFooter<Leading: View>: View {
             Button(action: cancel) {
                 Label(L10n.text("button.cancel"), systemImage: "xmark")
             }
+            .keyboardShortcut(.cancelAction)
+            .disabled(cancelDisabled)
             Button(action: confirm) {
                 if let confirmSystemImage {
                     Label(confirmTitle, systemImage: confirmSystemImage)
@@ -272,6 +276,85 @@ struct DialogFooter<Leading: View>: View {
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
         .background(.bar)
+    }
+}
+
+/// 对话框骨架(design system:TaskDialogShell)—— hero + 内容滚动区 + Divider + 钉底操作栏,
+/// 一个 sheet 一份声明,不再各自手拼 padding / Divider / footer(用户点名的病:
+/// 「每个弹窗都差不多,但每个都自己写一份 padding / icon / color / footer」)。
+/// 内容区自动带标准缩进(水平 20 / 底 16)与 18 行距;底栏即 DialogFooter(h20/v12 + .bar)。
+struct TaskDialogShell<Content: View, FooterLeading: View>: View {
+    let heroSystemImage: String
+    let heroColors: [Color]
+    let title: String
+    var subtitle: String?
+    var width: CGFloat = 560
+    var maxContentHeight: CGFloat = 480
+    let confirmTitle: String
+    var confirmSystemImage: String?
+    var confirmDisabled = false
+    var cancelDisabled = false
+    let confirm: () -> Void
+    let cancel: () -> Void
+    @ViewBuilder let content: () -> Content
+    @ViewBuilder let footerLeading: () -> FooterLeading
+
+    var body: some View {
+        VStack(spacing: 0) {
+            DialogHero(systemImage: heroSystemImage, colors: heroColors, title: title, subtitle: subtitle)
+            HeightCappedScrollView(maxHeight: maxContentHeight) {
+                VStack(alignment: .leading, spacing: 18) {
+                    content()
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 16)
+            }
+            Divider()
+            DialogFooter(
+                confirmTitle: confirmTitle,
+                confirmSystemImage: confirmSystemImage,
+                confirmDisabled: confirmDisabled,
+                cancelDisabled: cancelDisabled,
+                confirm: confirm,
+                cancel: cancel,
+                leading: footerLeading
+            )
+        }
+        .frame(width: width)
+    }
+}
+
+extension TaskDialogShell where FooterLeading == EmptyView {
+    /// 无底栏左侧附件的常规形态。
+    init(
+        heroSystemImage: String,
+        heroColors: [Color],
+        title: String,
+        subtitle: String? = nil,
+        width: CGFloat = 560,
+        maxContentHeight: CGFloat = 480,
+        confirmTitle: String,
+        confirmSystemImage: String? = nil,
+        confirmDisabled: Bool = false,
+        confirm: @escaping () -> Void,
+        cancel: @escaping () -> Void,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        self.init(
+            heroSystemImage: heroSystemImage,
+            heroColors: heroColors,
+            title: title,
+            subtitle: subtitle,
+            width: width,
+            maxContentHeight: maxContentHeight,
+            confirmTitle: confirmTitle,
+            confirmSystemImage: confirmSystemImage,
+            confirmDisabled: confirmDisabled,
+            confirm: confirm,
+            cancel: cancel,
+            content: content,
+            footerLeading: { EmptyView() }
+        )
     }
 }
 

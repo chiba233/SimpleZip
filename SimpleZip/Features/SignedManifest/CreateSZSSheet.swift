@@ -47,44 +47,42 @@ struct CreateSZSSheet: View {
     private let labelColumnWidth: CGFloat = 190
 
     var body: some View {
-        // 0.4.1 重构：套创建 / 解压对话框同款 DialogChrome 体例。
-        VStack(spacing: 0) {
-            DialogHero(
-                systemImage: "signature",
-                colors: [.green, .teal],
-                title: L10n.text("szs.create.title"),
-                subtitle: L10n.text("szs.create.subtitle")
-            )
-
-            HeightCappedScrollView(maxHeight: 560) {
-                VStack(alignment: .leading, spacing: 18) {
-                    DialogSection(L10n.text("szs.create.section.content")) {
-                        payloadRootRow
-                        filesRow
-                        titleRow
-                        descriptionRow
-                    }
-                    DialogSection(L10n.text("szs.create.section.signing")) {
-                        signingKeyRow
-                        exportVerificationKitRow
-                        encryptFilesRows
-                        outputRow
-                    }
-                    if let message = statusMessage {
-                        Label(message, systemImage: statusIsError ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
-                            .font(.caption)
-                            .foregroundStyle(statusIsError ? .red : .green)
-                            .textSelection(.enabled)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
+        // 0.4.1 重构：套创建 / 解压对话框同款 DialogChrome 体例;design system 第一刀改用骨架组件。
+        TaskDialogShell(
+            heroSystemImage: "signature",
+            heroColors: [.green, .teal],
+            title: L10n.text("szs.create.title"),
+            subtitle: L10n.text("szs.create.subtitle"),
+            width: 660,
+            maxContentHeight: 560,
+            confirmTitle: L10n.text("szs.create.createButton"),
+            confirmSystemImage: "signature",
+            confirmDisabled: !canCreate,
+            cancelDisabled: isCreating,
+            confirm: { runCreate() },
+            cancel: onClose,
+            content: {
+                DialogSection(L10n.text("szs.create.section.content")) {
+                    payloadRootRow
+                    filesRow
+                    titleRow
+                    descriptionRow
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 16)
-            }
-
-            Divider()
-
-            HStack {
+                DialogSection(L10n.text("szs.create.section.signing")) {
+                    signingKeyRow
+                    exportVerificationKitRow
+                    encryptFilesRows
+                    outputRow
+                }
+                if let message = statusMessage {
+                    Label(message, systemImage: statusIsError ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(statusIsError ? .red : .green)
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            },
+            footerLeading: {
                 // 创建中显示菊花 + 「正在创建…」——加密多个文件 + 签名要跑好几个 gpg 进程，
                 // 期间还会弹 pinentry，没有进度提示会让人以为卡死了。
                 if isCreating {
@@ -94,26 +92,8 @@ struct CreateSZSSheet: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-                Spacer()
-                Button(action: onClose) {
-                    Label(L10n.text("szs.create.cancelButton"), systemImage: "xmark")
-                }
-                .keyboardShortcut(.cancelAction)
-                .disabled(isCreating)
-                Button {
-                    runCreate()
-                } label: {
-                    Label(L10n.text("szs.create.createButton"), systemImage: "signature")
-                }
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.defaultAction)
-                .disabled(!canCreate)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(.bar)
-        }
-        .frame(width: 660)
+        )
         .onTapGesture { NSApp.keyWindow?.makeFirstResponder(nil) }
         .onAppear {
             applyPrefillIfAny()

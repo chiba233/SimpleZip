@@ -44,127 +44,104 @@ struct ReleaseAssistantSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            DialogHero(
-                systemImage: "shippingbox.and.arrow.backward.fill",
-                colors: [.teal, .green],
-                title: L10n.text("releaseAssistant.title"),
-                subtitle: L10n.text("releaseAssistant.subtitle")
-            )
-
-            HeightCappedScrollView(maxHeight: 480) {
-                VStack(alignment: .leading, spacing: 18) {
-                    DialogSection(L10n.text("releaseAssistant.section.source")) {
-                        // 值一侧全部顶到右缘(用户点名):label + Spacer + 值,与解压家族同款。
-                        // LabeledContent 在普通 VStack 里只按自然宽度排,右缘会参差。
-                        HStack(alignment: .center, spacing: 12) {
-                            DialogRowLabel(L10n.text("releaseAssistant.sourceFolder"), systemImage: "hammer.fill", tint: .orange)
-                            Spacer(minLength: 12)
-                            folderPicker(
-                                selection: $request.sourceFolder,
-                                prompt: L10n.text("releaseAssistant.chooseSource")
-                            ) { chosen in
-                                // 选完产物目录顺手把空着的文件名 / 输出目录补全 —— 已手改过的不动。
-                                if request.fileName.trimmingCharacters(in: .whitespaces).isEmpty {
-                                    request.fileName = chosen.lastPathComponent
-                                }
-                                if request.destinationFolder == nil {
-                                    request.destinationFolder = chosen.deletingLastPathComponent()
-                                }
-                            }
+        TaskDialogShell(
+            heroSystemImage: "shippingbox.and.arrow.backward.fill",
+            heroColors: [.teal, .green],
+            title: L10n.text("releaseAssistant.title"),
+            subtitle: L10n.text("releaseAssistant.subtitle"),
+            confirmTitle: L10n.text("releaseAssistant.start"),
+            confirmSystemImage: "shippingbox.and.arrow.backward",
+            confirmDisabled: !canConfirm,
+            confirm: { confirm(request) },
+            cancel: cancel
+        ) {
+            DialogSection(L10n.text("releaseAssistant.section.source")) {
+                // 值一侧全部顶到右缘(用户点名):label + Spacer + 值,与解压家族同款。
+                // LabeledContent 在普通 VStack 里只按自然宽度排,右缘会参差。
+                HStack(alignment: .center, spacing: 12) {
+                    DialogRowLabel(L10n.text("releaseAssistant.sourceFolder"), systemImage: "hammer.fill", tint: .orange)
+                    Spacer(minLength: 12)
+                    folderPicker(
+                        selection: $request.sourceFolder,
+                        prompt: L10n.text("releaseAssistant.chooseSource")
+                    ) { chosen in
+                        // 选完产物目录顺手把空着的文件名 / 输出目录补全 —— 已手改过的不动。
+                        if request.fileName.trimmingCharacters(in: .whitespaces).isEmpty {
+                            request.fileName = chosen.lastPathComponent
                         }
-
-                        HStack(alignment: .center, spacing: 12) {
-                            DialogRowLabel(L10n.text("archive.fileName"), systemImage: "shippingbox.fill", tint: .brown)
-                            Spacer(minLength: 12)
-                            TextField("", text: $request.fileName)
-                                .textFieldStyle(.roundedBorder)
-                                .dialogFieldEmphasis()
-                                .frame(maxWidth: 200)
-                            Picker("", selection: $request.format) {
-                                ForEach([ArchiveCreateFormat.zip, .sevenZip]) { format in
-                                    Text(format.title).tag(format)
-                                }
-                            }
-                            .labelsHidden()
-                            .fixedSize()
-                        }
-
-                        HStack(alignment: .center, spacing: 12) {
-                            // 与创建对话框「保存到」同键同图标同色(同类同色)。
-                            DialogRowLabel(L10n.text("archive.destination"), systemImage: "folder.fill", tint: .blue)
-                            Spacer(minLength: 12)
-                            folderPicker(
-                                selection: $request.destinationFolder,
-                                prompt: L10n.text("releaseAssistant.chooseDestination")
-                            ) { _ in }
-                        }
-                    }
-
-                    DialogSection(L10n.text("releaseAssistant.section.steps")) {
-                        DialogToggleRow(
-                            title: L10n.text("releaseAssistant.excludeJunk"),
-                            subtitle: L10n.text("releaseAssistant.excludeJunk.subtitle"),
-                            systemImage: "paintbrush.fill", tint: .pink,
-                            pinsToTrailing: true,
-                            isOn: $request.excludeJunk
-                        )
-                        DialogToggleRow(
-                            title: L10n.text("releaseAssistant.reproducible"),
-                            subtitle: L10n.text("releaseAssistant.reproducible.subtitle"),
-                            systemImage: "arrow.triangle.2.circlepath.circle.fill", tint: .purple,
-                            pinsToTrailing: true,
-                            isOn: $request.reproducible
-                        )
-                        DialogToggleRow(
-                            title: L10n.text("releaseAssistant.inspect"),
-                            subtitle: L10n.text("releaseAssistant.inspect.subtitle"),
-                            systemImage: "checklist", tint: .teal,
-                            pinsToTrailing: true,
-                            isOn: $request.runInspection
-                        )
-                        DialogToggleRow(
-                            title: L10n.text("releaseAssistant.checksums"),
-                            subtitle: L10n.text("releaseAssistant.checksums.subtitle"),
-                            systemImage: "number.square.fill", tint: .orange,
-                            pinsToTrailing: true,
-                            isOn: $request.writeChecksums
-                        )
-                        if showsGPGRow {
-                            DialogToggleRow(
-                                title: L10n.text("releaseAssistant.sign"),
-                                subtitle: L10n.text("releaseAssistant.sign.subtitle"),
-                                systemImage: "signature", tint: .green,
-                                pinsToTrailing: true,
-                                isOn: $request.createSignedManifest
-                            )
+                        if request.destinationFolder == nil {
+                            request.destinationFolder = chosen.deletingLastPathComponent()
                         }
                     }
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 16)
+
+                HStack(alignment: .center, spacing: 12) {
+                    DialogRowLabel(L10n.text("archive.fileName"), systemImage: "shippingbox.fill", tint: .brown)
+                    Spacer(minLength: 12)
+                    TextField("", text: $request.fileName)
+                        .textFieldStyle(.roundedBorder)
+                        .dialogFieldEmphasis()
+                        .frame(maxWidth: 200)
+                    Picker("", selection: $request.format) {
+                        ForEach([ArchiveCreateFormat.zip, .sevenZip]) { format in
+                            Text(format.title).tag(format)
+                        }
+                    }
+                    .labelsHidden()
+                    .fixedSize()
+                }
+
+                HStack(alignment: .center, spacing: 12) {
+                    // 与创建对话框「保存到」同键同图标同色(同类同色)。
+                    DialogRowLabel(L10n.text("archive.destination"), systemImage: "folder.fill", tint: .blue)
+                    Spacer(minLength: 12)
+                    folderPicker(
+                        selection: $request.destinationFolder,
+                        prompt: L10n.text("releaseAssistant.chooseDestination")
+                    ) { _ in }
+                }
             }
 
-            Divider()
-
-            HStack {
-                Spacer()
-                Button(action: cancel) {
-                    Label(L10n.text("button.cancel"), systemImage: "xmark")
+            DialogSection(L10n.text("releaseAssistant.section.steps")) {
+                DialogToggleRow(
+                    title: L10n.text("releaseAssistant.excludeJunk"),
+                    subtitle: L10n.text("releaseAssistant.excludeJunk.subtitle"),
+                    systemImage: "paintbrush.fill", tint: .pink,
+                    pinsToTrailing: true,
+                    isOn: $request.excludeJunk
+                )
+                DialogToggleRow(
+                    title: L10n.text("releaseAssistant.reproducible"),
+                    subtitle: L10n.text("releaseAssistant.reproducible.subtitle"),
+                    systemImage: "arrow.triangle.2.circlepath.circle.fill", tint: .purple,
+                    pinsToTrailing: true,
+                    isOn: $request.reproducible
+                )
+                DialogToggleRow(
+                    title: L10n.text("releaseAssistant.inspect"),
+                    subtitle: L10n.text("releaseAssistant.inspect.subtitle"),
+                    systemImage: "checklist", tint: .teal,
+                    pinsToTrailing: true,
+                    isOn: $request.runInspection
+                )
+                DialogToggleRow(
+                    title: L10n.text("releaseAssistant.checksums"),
+                    subtitle: L10n.text("releaseAssistant.checksums.subtitle"),
+                    systemImage: "number.square.fill", tint: .orange,
+                    pinsToTrailing: true,
+                    isOn: $request.writeChecksums
+                )
+                if showsGPGRow {
+                    DialogToggleRow(
+                        title: L10n.text("releaseAssistant.sign"),
+                        subtitle: L10n.text("releaseAssistant.sign.subtitle"),
+                        systemImage: "signature", tint: .green,
+                        pinsToTrailing: true,
+                        isOn: $request.createSignedManifest
+                    )
                 }
-                .keyboardShortcut(.cancelAction)
-                Button {
-                    confirm(request)
-                } label: {
-                    Label(L10n.text("releaseAssistant.start"), systemImage: "shippingbox.and.arrow.backward")
-                }
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.defaultAction)
-                .disabled(!canConfirm)
             }
-            .padding(16)
         }
-        .frame(width: 560)
     }
 
     /// 文件夹选择行:当前选择(可中截断)+「选择…」按钮。

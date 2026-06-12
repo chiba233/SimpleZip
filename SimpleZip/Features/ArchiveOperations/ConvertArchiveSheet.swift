@@ -28,104 +28,80 @@ struct ConvertArchiveSheet: View {
     let cancel: () -> Void
 
     var body: some View {
-        VStack(spacing: 0) {
-            DialogHero(
-                systemImage: "arrow.triangle.2.circlepath",
-                colors: [.purple, .blue],
-                title: L10n.text("convert.title"),
-                subtitle: L10n.format("convert.subtitle", "\(request.sourceURLs.count)")
-            )
-
-            HeightCappedScrollView(maxHeight: 480) {
-                VStack(alignment: .leading, spacing: 18) {
-                    DialogSection(L10n.text("convert.section.target")) {
-                        LabeledContent {
-                            Picker("", selection: $request.targetFormat) {
-                                ForEach(ArchiveCreateFormat.allCases) { format in
-                                    Text(format.title).tag(format)
-                                }
-                            }
-                            .labelsHidden()
-                            .fixedSize()
-                        } label: {
-                            DialogRowLabel(L10n.text("archive.format"), systemImage: "shippingbox.fill", tint: .brown)
-                        }
-
-                        if request.targetFormat.supportsCompressionLevel {
-                            LabeledContent {
-                                Picker("", selection: $request.compressionLevel) {
-                                    ForEach(CompressionLevel.allCases) { level in
-                                        Text(level.title).tag(level)
-                                    }
-                                }
-                                .labelsHidden()
-                                .fixedSize()
-                            } label: {
-                                DialogRowLabel(L10n.text("archive.compressionLevel"), systemImage: "gauge.with.dots.needle.67percent", tint: .green)
-                            }
-                        }
-
-                        if request.targetFormat.supportsPassword {
-                            LabeledContent {
-                                SecureField(L10n.text("convert.password.placeholder"), text: $request.password)
-                                    .textFieldStyle(.roundedBorder)
-                                    .dialogFieldEmphasis()
-                                    .frame(maxWidth: 220)
-                            } label: {
-                                DialogRowLabel(L10n.text("archive.password"), systemImage: "key.fill", tint: .orange)
-                            }
-                        }
-
-                        Label(L10n.text("convert.note"), systemImage: "info.circle.fill")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-
-                    // 0.4.2 #13：保真度报告 —— 目标格式保留 / 丢失哪些语义，选格式时实时切换。
-                    DialogSection(L10n.text("convert.section.fidelity")) {
-                        fidelityRows(request.targetFormat.conversionFidelity)
-                        Label(L10n.text("convert.fidelity.note"), systemImage: "info.circle")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-
-                    DialogSection(L10n.text("convert.section.sources")) {
-                        ForEach(request.sourceURLs, id: \.self) { url in
-                            Label(url.lastPathComponent, systemImage: "doc.zipper")
-                                .font(.callout)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
+        TaskDialogShell(
+            heroSystemImage: "arrow.triangle.2.circlepath",
+            heroColors: [.purple, .blue],
+            title: L10n.text("convert.title"),
+            subtitle: L10n.format("convert.subtitle", "\(request.sourceURLs.count)"),
+            width: 500,
+            confirmTitle: L10n.text("convert.button"),
+            confirmSystemImage: "arrow.triangle.2.circlepath",
+            confirmDisabled: request.sourceURLs.isEmpty,
+            confirm: { confirm(request) },
+            cancel: cancel
+        ) {
+            DialogSection(L10n.text("convert.section.target")) {
+                LabeledContent {
+                    Picker("", selection: $request.targetFormat) {
+                        ForEach(ArchiveCreateFormat.allCases) { format in
+                            Text(format.title).tag(format)
                         }
                     }
-                }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 16)
-            }
-
-            Divider()
-
-            HStack {
-                Spacer()
-                Button(action: cancel) {
-                    Label(L10n.text("button.cancel"), systemImage: "xmark")
-                }
-                .keyboardShortcut(.cancelAction)
-                Button {
-                    confirm(request)
+                    .labelsHidden()
+                    .fixedSize()
                 } label: {
-                    Label(L10n.text("convert.button"), systemImage: "arrow.triangle.2.circlepath")
+                    DialogRowLabel(L10n.text("archive.format"), systemImage: "shippingbox.fill", tint: .brown)
                 }
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.defaultAction)
-                .disabled(request.sourceURLs.isEmpty)
+
+                if request.targetFormat.supportsCompressionLevel {
+                    LabeledContent {
+                        Picker("", selection: $request.compressionLevel) {
+                            ForEach(CompressionLevel.allCases) { level in
+                                Text(level.title).tag(level)
+                            }
+                        }
+                        .labelsHidden()
+                        .fixedSize()
+                    } label: {
+                        DialogRowLabel(L10n.text("archive.compressionLevel"), systemImage: "gauge.with.dots.needle.67percent", tint: .green)
+                    }
+                }
+
+                if request.targetFormat.supportsPassword {
+                    LabeledContent {
+                        SecureField(L10n.text("convert.password.placeholder"), text: $request.password)
+                            .textFieldStyle(.roundedBorder)
+                            .dialogFieldEmphasis()
+                            .frame(maxWidth: 220)
+                    } label: {
+                        DialogRowLabel(L10n.text("archive.password"), systemImage: "key.fill", tint: .orange)
+                    }
+                }
+
+                Label(L10n.text("convert.note"), systemImage: "info.circle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(.bar)
+
+            // 0.4.2 #13：保真度报告 —— 目标格式保留 / 丢失哪些语义，选格式时实时切换。
+            DialogSection(L10n.text("convert.section.fidelity")) {
+                fidelityRows(request.targetFormat.conversionFidelity)
+                Label(L10n.text("convert.fidelity.note"), systemImage: "info.circle")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            DialogSection(L10n.text("convert.section.sources")) {
+                ForEach(request.sourceURLs, id: \.self) { url in
+                    Label(url.lastPathComponent, systemImage: "doc.zipper")
+                        .font(.callout)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+            }
         }
-        .frame(width: 500)
         .onTapGesture { NSApp.keyWindow?.makeFirstResponder(nil) }
     }
 
