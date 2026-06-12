@@ -641,3 +641,57 @@ enum ArchiveDuplicateScan {
         }
     }
 }
+
+// MARK: - 冲突自动重命名(队列 #12,staging 预改名)
+
+/// 「冲突自动重命名」:合并前在 **staging** 上把会与目标目录撞名的**文件**预改成
+/// 「name 2.ext」式唯一名 —— 合并器随后看不到任何文件冲突,目标目录原有文件零接触。
+/// 目录不改名(两边同名目录按既有语义深度合并);与 skipJunk / removeSymlinks /
+/// ArchiveSingleRootFolder 同一族 staging 变换。
+enum ArchiveConflictAutoRename {
+
+    /// 对 staging 里每个文件,若 `destination/<相对路径>` 已存在 → 改名为对 staging 与目标
+    /// 双方都唯一的「name 2.ext」。返回改名数(0 = 无冲突)。
+    @discardableResult
+    nonisolated static func renameConflicts(in stagingURL: URL, mergingInto destination: URL) -> Int {
+        let fileManager = FileManager.default
+        guard let enumerator = fileManager.enumerator(
+            at: stagingURL,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: []
+        ) else { return 0 }
+
+        // 先收集再改名 —— 枚举中途改名会让 enumerator 行为未定义。
+        var stagedFiles: [URL] = []
+        for case let url as URL in enumerator {
+            if (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true { continue }
+            stagedFiles.append(url)
+        }
+
+        let stagingBase = stagingURL.standardizedFileURL.path
+        var renamed = 0
+        for stagedURL in stagedFiles {
+            let standardized = stagedURL.standardizedFileURL.path
+            guard standardized.hasPrefix(stagingBase + "/") else { continue }
+            let relativePath = String(standardized.dropFirst(stagingBase.count + 1))
+            let targetURL = destination.appendingPathComponent(relativePath)
+            guard fileManager.fileExists(atPath: targetURL.path) else { continue }
+
+            let relativeDir = (relativePath as NSString).deletingLastPathComponent
+            let unique = UniqueFileName.suffixed(for: targetURL, suffix: "") { candidate in
+                let name = candidate.lastPathComponent
+                let stagedSibling = stagingURL
+                    .appendingPathComponent(relativeDir)
+                    .appendingPathComponent(name)
+                return fileManager.fileExists(atPath: candidate.path)
+                    || fileManager.fileExists(atPath: stagedSibling.path)
+            }
+            let renamedStagedURL = stagedURL.deletingLastPathComponent()
+                .appendingPathComponent(unique.lastPathComponent)
+            if (try? fileManager.moveItem(at: stagedURL, to: renamedStagedURL)) != nil {
+                renamed += 1
+            }
+        }
+        return renamed
+    }
+}

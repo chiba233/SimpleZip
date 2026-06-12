@@ -380,6 +380,14 @@ struct ExtractArchiveRequest: Identifiable {
     var detectedSingleRootFolder: String? = nil
     /// #13:勾选后在 staging 上把壳内内容上提一层再合并(默认关,不改变既有行为)。
     var stripSingleRootFolder = false
+    /// #12:解到与压缩包同名的子文件夹(重名自动唯一化,绝不并入已有同名目录)。默认关。
+    var extractIntoSubfolder = false
+    /// #12:冲突自动重命名 —— 合并前在 staging 上把撞名文件预改成「name 2.ext」,目标零接触。默认关。
+    var autoRenameConflicts = false
+    /// #12:完成后在 Finder 中显示解压目标。默认关。
+    var revealWhenDone = false
+    /// #12:完成后把原压缩包移到废纸篓(可恢复;仅完整成功才执行)。默认关。
+    var trashOriginalWhenDone = false
     /// `.siz` 走解压 / 浏览路径时附带的签名摘要 —— 解压对话框里多出「签名 / 签名时间」两行展示。
     /// nil = 不是 .siz / 用户关了 GPG 集成。
     /// 跟签名 sheet 共用同一份 model，UI 状态全部从 `verify`（GPG 原始枚举）派生。
@@ -625,4 +633,42 @@ struct SevenZipBenchmarkReport: Identifiable {
     let processTimeSeconds: Double?
     let globalTimeSeconds: Double?
     let output: String
+}
+
+// MARK: - 解压策略预设(队列 #12)
+
+/// 解压对话框的「套用预设」—— 与创建对话框的内置任务模板同款形态:一键把常见场景的
+/// 开关组合填进当前请求,名字 / 目的地 / 密码不动。只有内置目录,字段全是请求里已有的开关。
+struct ExtractionPreset: Identifiable, Hashable {
+    let id: String
+    /// 名字存 L10n key,视图渲染(Core 不产出本地化文案)。
+    let nameKey: String
+    var skipJunk = false
+    var skipSymlinks = false
+    var stripSingleRootFolder = false
+    var extractIntoSubfolder = false
+    var autoRenameConflicts = false
+    var revealWhenDone = false
+    var trashOriginalWhenDone = false
+
+    /// 内置预设目录(顺序即菜单顺序)。
+    /// - 干净解压:垃圾不落地 + 去单层壳 + 解进同名文件夹 —— 拿 GitHub 源码包最顺手的一套。
+    /// - 保守安全:不解符号链接 + 冲突自动改名 + 垃圾不落地 —— 解不可信包/落到已有目录时用。
+    /// - 解完清理:解进同名文件夹 + 完成后在 Finder 显示 + 原包移到废纸篓 —— 「下载→解开→只留内容」。
+    nonisolated static func builtInPresets() -> [ExtractionPreset] {
+        [
+            ExtractionPreset(
+                id: "clean-unpack", nameKey: "extract.preset.cleanUnpack",
+                skipJunk: true, stripSingleRootFolder: true, extractIntoSubfolder: true
+            ),
+            ExtractionPreset(
+                id: "cautious", nameKey: "extract.preset.cautious",
+                skipJunk: true, skipSymlinks: true, autoRenameConflicts: true
+            ),
+            ExtractionPreset(
+                id: "tidy-finish", nameKey: "extract.preset.tidyFinish",
+                extractIntoSubfolder: true, revealWhenDone: true, trashOriginalWhenDone: true
+            )
+        ]
+    }
 }

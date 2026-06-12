@@ -39,6 +39,8 @@ struct ExtractArchiveOptionsView: View {
             confirm: { extract(request) },
             cancel: cancel
         ) {
+            // #12:套用预设 —— 与创建对话框「套用模板」同款形态,一键填常见开关组合。
+            presetMenuRow
             // 0.4.2 #8：解压前概要（文件数 / 大小 / 风险行）。
             preflightRows
             // 0.4.2 用户点名：不解压 macOS 元数据垃圾（staging 上清扫,目标目录原有文件零接触）。
@@ -49,6 +51,11 @@ struct ExtractArchiveOptionsView: View {
             if request.detectedSingleRootFolder != nil {
                 stripSingleRootToggle
             }
+            // #12:解到同名文件夹 / 冲突自动重命名 / 完成后显示 / 原包进废纸篓(全部默认关)。
+            intoSubfolderToggle
+            autoRenameToggle
+            revealWhenDoneToggle
+            trashOriginalToggle
             // `.siz` 直接解压时多三行：签名状态 / 签名时间 / 签名指纹。普通归档时为 nil，extraControls 为空。
             if let signature = request.sizSignature {
                 SIZSignatureRows(signature: signature)
@@ -82,6 +89,86 @@ struct ExtractArchiveOptionsView: View {
         .onChange(of: request.destinationURL) { _ in
             recomputeOverwriteCount()
         }
+    }
+
+    /// #12:套用预设菜单(内置目录,见 ExtractionPreset.builtInPresets 的场景注释)。
+    /// 只动开关组合;目的地 / 密码 / 解密方式保留用户当前所填。
+    @ViewBuilder
+    private var presetMenuRow: some View {
+        HStack {
+            Menu {
+                ForEach(ExtractionPreset.builtInPresets()) { preset in
+                    Button(L10n.text(preset.nameKey)) { apply(preset) }
+                }
+            } label: {
+                Label(L10n.text("extract.preset.menu"), systemImage: "wand.and.stars")
+            }
+            .fixedSize()
+            Spacer()
+        }
+    }
+
+    private func apply(_ preset: ExtractionPreset) {
+        request.skipJunk = preset.skipJunk
+        request.skipSymlinks = preset.skipSymlinks
+        // 去单层壳只有预检发现壳时才有意义(管线对无壳包安静放弃,勾上也无害,但 UI 不显示开关会困惑)。
+        request.stripSingleRootFolder = preset.stripSingleRootFolder && request.detectedSingleRootFolder != nil
+        request.extractIntoSubfolder = preset.extractIntoSubfolder
+        request.autoRenameConflicts = preset.autoRenameConflicts
+        request.revealWhenDone = preset.revealWhenDone
+        request.trashOriginalWhenDone = preset.trashOriginalWhenDone
+    }
+
+    /// #12:解到同名文件夹 —— 副标题实时写出最终落点(同 #13 的硬要求:UI 必须写清最终路径)。
+    @ViewBuilder
+    private var intoSubfolderToggle: some View {
+        let stem = request.archiveURL.deletingPathExtension().lastPathComponent
+        DialogToggleRow(
+            title: L10n.text("extract.intoSubfolder"),
+            subtitle: request.extractIntoSubfolder
+                ? L10n.format("extract.intoSubfolder.on", "\(request.destinationURL.lastPathComponent)/\(stem)/")
+                : L10n.format("extract.intoSubfolder.off", "\(request.destinationURL.lastPathComponent)/"),
+            systemImage: "folder.badge.plus",
+            tint: .blue,
+            pinsToTrailing: true,
+            isOn: $request.extractIntoSubfolder
+        )
+    }
+
+    @ViewBuilder
+    private var autoRenameToggle: some View {
+        DialogToggleRow(
+            title: L10n.text("extract.autoRename"),
+            subtitle: L10n.text("extract.autoRename.detail"),
+            systemImage: "pencil.and.list.clipboard",
+            tint: .purple,
+            pinsToTrailing: true,
+            isOn: $request.autoRenameConflicts
+        )
+    }
+
+    @ViewBuilder
+    private var revealWhenDoneToggle: some View {
+        DialogToggleRow(
+            title: L10n.text("extract.revealWhenDone"),
+            subtitle: L10n.text("extract.revealWhenDone.detail"),
+            systemImage: "arrow.up.forward.app",
+            tint: .cyan,
+            pinsToTrailing: true,
+            isOn: $request.revealWhenDone
+        )
+    }
+
+    @ViewBuilder
+    private var trashOriginalToggle: some View {
+        DialogToggleRow(
+            title: L10n.text("extract.trashOriginal"),
+            subtitle: L10n.text("extract.trashOriginal.detail"),
+            systemImage: "trash",
+            tint: .red,
+            pinsToTrailing: true,
+            isOn: $request.trashOriginalWhenDone
+        )
     }
 
     @ViewBuilder

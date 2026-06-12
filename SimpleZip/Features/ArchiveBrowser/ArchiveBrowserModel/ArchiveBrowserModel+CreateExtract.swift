@@ -989,11 +989,31 @@ extension ArchiveBrowserModel {
     func performExtractArchive(_ request: ExtractArchiveRequest) {
         let title = L10n.format("status.extracting", request.archiveURL.lastPathComponent)
         let force = isForced(request.archiveURL)
+        // #12「解到同名文件夹」:目的地 = 所选目录/<包名>(重名自动唯一化,绝不并入已有目录)。
+        // 在任务开始前定下最终目的地,refreshOnSuccess / 完成后动作共用同一个值。
+        let finalDestination: URL
+        if request.extractIntoSubfolder {
+            let stem = request.archiveURL.deletingPathExtension().lastPathComponent
+            let preferred = request.destinationURL.appendingPathComponent(stem)
+            finalDestination = UniqueFileName.suffixed(for: preferred, suffix: "") {
+                FileManager.default.fileExists(atPath: $0.path)
+            }
+        } else {
+            finalDestination = request.destinationURL
+        }
         startManagedArchiveTask(
             title: title,
             showsDetails: request.showDetails,
             refreshOnSuccess: { [weak self] in
-                self?.refreshVisibleFolder(request.destinationURL)
+                guard let self else { return }
+                self.refreshVisibleFolder(request.destinationURL)
+                // #12 完成后动作(仅完整成功):在 Finder 显示目标;把原包移到废纸篓(可恢复)。
+                if request.revealWhenDone {
+                    NSWorkspace.shared.activateFileViewerSelecting([finalDestination])
+                }
+                if request.trashOriginalWhenDone {
+                    try? self.fileManager.trashItem(at: request.archiveURL, resultingItemURL: nil)
+                }
             },
             rerunAction: { [weak self] in self?.performExtractArchive(request) }
         ) { operationID, progress, outputObserver in
@@ -1105,9 +1125,18 @@ extension ArchiveBrowserModel {
             if request.stripSingleRootFolder {
                 ArchiveSingleRootFolder.lift(in: stagingURL)
             }
+            // #12「解到同名文件夹」:目的地是新建(唯一化过)的子文件夹。
+            if request.extractIntoSubfolder {
+                try self.fileManager.createDirectory(at: finalDestination, withIntermediateDirectories: true)
+            }
+            // #12「冲突自动重命名」:合并前在 staging 上把撞名文件预改成唯一名(目录照旧深度合并),
+            // 合并器随后看不到文件冲突 —— 不弹框、不覆盖、目标原有文件零接触。
+            if request.autoRenameConflicts {
+                ArchiveConflictAutoRename.renameConflicts(in: stagingURL, mergingInto: finalDestination)
+            }
             try await self.extractionCoordinator.mergeExtractedItems(
                 from: stagingURL,
-                to: request.destinationURL,
+                to: finalDestination,
                 defaultOverwriteBehavior: AppPreferences.overwriteBehavior
             ) { status in
                 progress(ArchiveProgressState(fraction: nil, currentFile: nil, statusText: status))
