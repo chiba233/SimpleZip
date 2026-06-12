@@ -1982,3 +1982,33 @@
 "help.topic.safety.body" = "• 의심 경로가 있는 아카이브를 열면 배너가 표시됩니다. 보안 보고서는 각 유형(탈출, 드라이브 문자, 대소문자 충돌, 보이지 않는 문자 등)을 나열합니다.\n• 추출은 항상 먼저 스테이징 영역에 이뤄집니다. 대상 폴더에 이미 있는 파일은 건드리지 않습니다.\n• 개발자 도구의 자체 점검 라이브러리는 실제 백엔드에 15개의 공격적 샘플을 실행합니다. 각 릴리스 전 마지막 실물 점검입니다.";
 "help.topic.cli.title" = "CLI 및 URL 자동화";
 "help.topic.cli.body" = "• 설정 → 일반에서 simplezip 명령을 설치합니다: check / compare / create --template / verify / open, 결과는 활동 센터에 기록됩니다.\n• 다른 앱은 simplezip://check?path=… 같은 URL로 작업을 요청할 수 있으며, 항상 먼저 확인 대화상자가 표시됩니다.\n• Finder 오른쪽 클릭 서비스(압축 / 추출 / 해시)는 설정 → 일반에서 개별로 켜고 끌 수 있습니다.";
+
+/* Safety duplicate paths, task pause/write locks, App Intents */
+"security.kind.duplicateEntryPath" = "중복된 항목 경로";
+"security.kind.duplicateEntryPath.desc" = "완전히 같은 파일 경로가 두 번 이상 나타납니다. 추출할 때 나중 복사본이 앞선 복사본을 조용히 덮어쓰므로 디스크에 저장된 결과가 목록과 다를 수 있습니다.";
+"tasks.paused" = "일시 정지됨";
+"button.pauseTask" = "일시 정지(백엔드 프로세스를 멈춤)";
+"button.resumeTask" = "재개";
+"tasks.writeLockSection" = "아카이브 쓰기 잠금";
+"tasks.writeLock.holder" = "쓰는 중: %@";
+"tasks.writeLock.waiters" = "대기 중(%1$@): %2$@";
+"tasks.writeLock.holder.unknown" = "쓰기 작업";
+"intent.error.noFileURL" = "%@은(는) 디스크의 파일이 아닙니다. 메모리 데이터가 아니라 실제 파일을 전달하세요.";
+"intent.error.missingFile" = "파일이 없습니다: %@";
+"intent.error.noInput" = "제공된 파일이 없습니다.";
+"intent.error.mixedFolders" = "모든 입력은 같은 폴더에 있어야 합니다.";
+"intent.error.itemFailed" = "%1$@: %2$@";
+"intent.task.extract" = "단축어: %@ 추출";
+"intent.task.create" = "단축어: %@ 생성";
+"intent.task.test" = "단축어: %@ 테스트";
+"intent.test.allPassed" = "%@개 아카이브가 모두 통과했습니다.";
+"intent.test.failures" = "%1$@개 아카이브 실패:\n%2$@";
+"Extract Archive" = "아카이브 추출";
+"Create Archive" = "아카이브 생성";
+"Test Archive Integrity" = "아카이브 무결성 테스트";
+"Archives" = "아카이브";
+"Destination Folder" = "대상 폴더";
+"Files" = "파일";
+"Format" = "형식";
+"Archive Name" = "아카이브 이름";
+"Archive Format" = "아카이브 형식";

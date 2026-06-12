@@ -1981,3 +1981,33 @@
 "help.topic.safety.body" = "• Al abrir un archivo con rutas sospechosas se muestra un aviso; el informe de seguridad lista cada familia (escapes, letras de unidad, colisiones de mayúsculas/minúsculas, caracteres invisibles…).\n• La extracción siempre aterriza primero en un área de preparación; los archivos que ya están en el destino nunca se tocan.\n• La biblioteca de autocomprobación de las herramientas de desarrollador ejecuta 15 muestras hostiles contra los backends reales: una última revisión física antes de cada publicación.";
 "help.topic.cli.title" = "CLI y automatización por URL";
 "help.topic.cli.body" = "• Instala el comando simplezip en Ajustes → General: check / compare / create --template / verify / open, con resultados en el Centro de actividad.\n• Otras apps pueden pedir acciones con URLs como simplezip://check?path=…; siempre aparece primero un diálogo de confirmación.\n• Los servicios de clic derecho del Finder (comprimir / extraer / hash) se activan individualmente en Ajustes → General.";
+
+/* Safety duplicate paths, task pause/write locks, App Intents */
+"security.kind.duplicateEntryPath" = "Rutas de entrada duplicadas";
+"security.kind.duplicateEntryPath.desc" = "La misma ruta exacta aparece más de una vez. Al extraer, la copia posterior sobrescribe silenciosamente la anterior, por lo que lo que llega al disco puede no coincidir con la lista.";
+"tasks.paused" = "Pausado";
+"button.pauseTask" = "Pausar (congela el proceso del backend)";
+"button.resumeTask" = "Reanudar";
+"tasks.writeLockSection" = "Bloqueos de escritura de archivos";
+"tasks.writeLock.holder" = "Escribiendo: %@";
+"tasks.writeLock.waiters" = "En espera (%1$@): %2$@";
+"tasks.writeLock.holder.unknown" = "Tarea de escritura";
+"intent.error.noFileURL" = "%@ no tiene archivo en el disco; pasa archivos reales, no datos en memoria.";
+"intent.error.missingFile" = "No existe el archivo: %@";
+"intent.error.noInput" = "No se proporcionaron archivos.";
+"intent.error.mixedFolders" = "Todas las entradas deben estar en la misma carpeta.";
+"intent.error.itemFailed" = "%1$@: %2$@";
+"intent.task.extract" = "Atajo: extraer %@";
+"intent.task.create" = "Atajo: crear %@";
+"intent.task.test" = "Atajo: probar %@";
+"intent.test.allPassed" = "Todos los %@ archivo(s) pasaron.";
+"intent.test.failures" = "%1$@ archivo(s) fallaron:\n%2$@";
+"Extract Archive" = "Extraer archivo";
+"Create Archive" = "Crear archivo";
+"Test Archive Integrity" = "Probar integridad del archivo";
+"Archives" = "Archivos";
+"Destination Folder" = "Carpeta de destino";
+"Files" = "Archivos";
+"Format" = "Formato";
+"Archive Name" = "Nombre del archivo";
+"Archive Format" = "Formato del archivo";

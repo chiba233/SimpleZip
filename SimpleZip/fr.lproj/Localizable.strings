@@ -1981,3 +1981,33 @@
 "help.topic.safety.body" = "• L’ouverture d’une archive avec des chemins suspects affiche une bannière ; le rapport de sécurité liste chaque famille (échappements, lettres de lecteur, collisions de casse, caractères invisibles…).\n• L’extraction arrive toujours d’abord dans une zone de préparation : les fichiers déjà présents dans la destination ne sont jamais touchés.\n• La bibliothèque d’autocontrôle des outils développeur exécute 15 échantillons hostiles contre les vrais backends : une dernière vérification physique avant chaque publication.";
 "help.topic.cli.title" = "CLI et automatisation par URL";
 "help.topic.cli.body" = "• Installez la commande simplezip dans Réglages → Général : check / compare / create --template / verify / open, avec les résultats dans le Centre d’activité.\n• D’autres apps peuvent demander des actions via des URL comme simplezip://check?path=… ; une confirmation apparaît toujours d’abord.\n• Les services Finder au clic droit (compresser / extraire / hash) se règlent individuellement dans Réglages → Général.";
+
+/* Safety duplicate paths, task pause/write locks, App Intents */
+"security.kind.duplicateEntryPath" = "Chemins d’entrée dupliqués";
+"security.kind.duplicateEntryPath.desc" = "Le même chemin de fichier exact apparaît plusieurs fois. Lors de l’extraction, la copie la plus récente écrase silencieusement la précédente ; le résultat sur disque peut donc différer de la liste affichée.";
+"tasks.paused" = "En pause";
+"button.pauseTask" = "Mettre en pause (fige le processus backend)";
+"button.resumeTask" = "Reprendre";
+"tasks.writeLockSection" = "Verrous d’écriture d’archive";
+"tasks.writeLock.holder" = "Écriture : %@";
+"tasks.writeLock.waiters" = "En attente (%1$@) : %2$@";
+"tasks.writeLock.holder.unknown" = "Tâche d’écriture";
+"intent.error.noFileURL" = "%@ n’a pas de fichier sur le disque ; fournissez de vrais fichiers, pas des données en mémoire.";
+"intent.error.missingFile" = "Fichier introuvable : %@";
+"intent.error.noInput" = "Aucun fichier fourni.";
+"intent.error.mixedFolders" = "Toutes les entrées doivent se trouver dans le même dossier.";
+"intent.error.itemFailed" = "%1$@ : %2$@";
+"intent.task.extract" = "Raccourci : extraire %@";
+"intent.task.create" = "Raccourci : créer %@";
+"intent.task.test" = "Raccourci : tester %@";
+"intent.test.allPassed" = "Toutes les %@ archive(s) ont réussi.";
+"intent.test.failures" = "%1$@ archive(s) en échec :\n%2$@";
+"Extract Archive" = "Extraire l’archive";
+"Create Archive" = "Créer une archive";
+"Test Archive Integrity" = "Tester l’intégrité de l’archive";
+"Archives" = "Archives";
+"Destination Folder" = "Dossier de destination";
+"Files" = "Fichiers";
+"Format" = "Format";
+"Archive Name" = "Nom de l’archive";
+"Archive Format" = "Format de l’archive";

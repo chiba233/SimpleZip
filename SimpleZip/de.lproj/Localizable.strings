@@ -1982,3 +1982,33 @@
 "help.topic.safety.body" = "• Archive mit verdächtigen Pfaden zeigen beim Öffnen ein Banner; der Sicherheitsbericht listet jede Familie auf (Ausbrüche, Laufwerksbuchstaben, Groß-/Kleinschreibungskollisionen, unsichtbare Zeichen …).\n• Entpackt wird immer zuerst in einen Staging-Bereich - vorhandene Dateien im Ziel werden nie berührt.\n• Die Selbsttest-Bibliothek in den Entwicklerwerkzeugen lässt 15 feindliche Beispiele gegen die echten Backends laufen - die letzte physische Prüfung vor jedem Release.";
 "help.topic.cli.title" = "CLI & URL-Automatisierung";
 "help.topic.cli.body" = "• Installieren Sie den Befehl simplezip unter Einstellungen → Allgemein: check / compare / create --template / verify / open, mit Ergebnissen im Aktivitätscenter.\n• Andere Apps können Aktionen über URLs wie simplezip://check?path=… anfordern - vorher erscheint immer ein Bestätigungsdialog.\n• Finder-Rechtsklickdienste (komprimieren / entpacken / hash) lassen sich unter Einstellungen → Allgemein einzeln ein- und ausschalten.";
+
+/* Safety duplicate paths, task pause/write locks, App Intents */
+"security.kind.duplicateEntryPath" = "Doppelte Eintragspfade";
+"security.kind.duplicateEntryPath.desc" = "Der exakt gleiche Dateipfad kommt mehr als einmal vor. Beim Entpacken überschreibt die spätere Kopie still die frühere, daher kann das Ergebnis auf der Festplatte von der Liste abweichen.";
+"tasks.paused" = "Pausiert";
+"button.pauseTask" = "Pausieren (friert den Backend-Prozess ein)";
+"button.resumeTask" = "Fortsetzen";
+"tasks.writeLockSection" = "Archiv-Schreibsperren";
+"tasks.writeLock.holder" = "Schreibt: %@";
+"tasks.writeLock.waiters" = "Wartend (%1$@): %2$@";
+"tasks.writeLock.holder.unknown" = "Schreibaufgabe";
+"intent.error.noFileURL" = "%@ hat keine Datei auf der Festplatte - übergeben Sie echte Dateien, keine Daten im Speicher.";
+"intent.error.missingFile" = "Datei nicht gefunden: %@";
+"intent.error.noInput" = "Es wurden keine Dateien übergeben.";
+"intent.error.mixedFolders" = "Alle Eingaben müssen im selben Ordner liegen.";
+"intent.error.itemFailed" = "%1$@: %2$@";
+"intent.task.extract" = "Kurzbefehl: %@ entpacken";
+"intent.task.create" = "Kurzbefehl: %@ erstellen";
+"intent.task.test" = "Kurzbefehl: %@ testen";
+"intent.test.allPassed" = "Alle %@ Archiv(e) bestanden.";
+"intent.test.failures" = "%1$@ Archiv(e) fehlgeschlagen:\n%2$@";
+"Extract Archive" = "Archiv entpacken";
+"Create Archive" = "Archiv erstellen";
+"Test Archive Integrity" = "Archivintegrität testen";
+"Archives" = "Archive";
+"Destination Folder" = "Zielordner";
+"Files" = "Dateien";
+"Format" = "Format";
+"Archive Name" = "Archivname";
+"Archive Format" = "Archivformat";

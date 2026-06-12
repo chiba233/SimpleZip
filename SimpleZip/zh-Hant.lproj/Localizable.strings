@@ -1983,3 +1983,33 @@
 "help.topic.safety.body" = "• 開啟含可疑路徑的壓縮檔會顯示橫幅；安全報告會逐類列出（逃逸、磁碟代號、大小寫衝突、不可見字元…）。\n• 解壓一律先落到暫存準備區，目的地既有檔案絕不會被碰到。\n• 開發者工具的自檢樣本庫會用真實後端跑 15 個惡意樣本，是每次發布前最後一道實機檢查。";
 "help.topic.cli.title" = "CLI 與 URL 自動化";
 "help.topic.cli.body" = "• 在「設定 → 一般」安裝 simplezip 命令：check / compare / create --template / verify / open，結果會進入活動中心。\n• 其他 App 可透過 simplezip://check?path=… 等 URL 要求動作，執行前一定先跳出確認對話框。\n• Finder 右鍵服務（壓縮 / 解壓 / 雜湊）可在「設定 → 一般」逐項開關。";
+
+/* Safety duplicate paths, task pause/write locks, App Intents */
+"security.kind.duplicateEntryPath" = "重複項目路徑";
+"security.kind.duplicateEntryPath.desc" = "完全相同的檔案路徑出現了多次。解壓時後一份會靜默覆蓋前一份，落盤結果可能與列表顯示不符。";
+"tasks.paused" = "已暫停";
+"button.pauseTask" = "暫停（凍結後端行程）";
+"button.resumeTask" = "繼續";
+"tasks.writeLockSection" = "歸檔寫入鎖";
+"tasks.writeLock.holder" = "正在寫入：%@";
+"tasks.writeLock.waiters" = "等待中（%1$@）：%2$@";
+"tasks.writeLock.holder.unknown" = "寫入任務";
+"intent.error.noFileURL" = "%@ 沒有磁碟檔案，請傳入真實檔案，而不是記憶體資料。";
+"intent.error.missingFile" = "檔案不存在：%@";
+"intent.error.noInput" = "沒有提供任何檔案。";
+"intent.error.mixedFolders" = "所有輸入必須位於同一資料夾。";
+"intent.error.itemFailed" = "%1$@：%2$@";
+"intent.task.extract" = "快捷指令：解壓 %@";
+"intent.task.create" = "快捷指令：建立 %@";
+"intent.task.test" = "快捷指令：測試 %@";
+"intent.test.allPassed" = "全部 %@ 個歸檔測試通過。";
+"intent.test.failures" = "%1$@ 個歸檔未通過：\n%2$@";
+"Extract Archive" = "解壓歸檔";
+"Create Archive" = "建立歸檔";
+"Test Archive Integrity" = "測試歸檔完整性";
+"Archives" = "歸檔";
+"Destination Folder" = "目標資料夾";
+"Files" = "檔案";
+"Format" = "格式";
+"Archive Name" = "歸檔名稱";
+"Archive Format" = "歸檔格式";

@@ -1981,3 +1981,33 @@
 "help.topic.safety.body" = "• เมื่อเปิดไฟล์เก็บถาวรที่มีเส้นทางน่าสงสัยจะแสดงแบนเนอร์ รายงานความปลอดภัยจะแยกประเภทปัญหา (หลุดออกจากโฟลเดอร์ ตัวอักษรไดรฟ์ ชนกันจากตัวพิมพ์ อักขระที่มองไม่เห็น…)\n• การแตกไฟล์จะลงพื้นที่เตรียมก่อนเสมอ ไฟล์ที่มีอยู่แล้วในปลายทางจะไม่ถูกแตะต้อง\n• ไลบรารีตรวจตัวเองในเครื่องมือนักพัฒนารันตัวอย่างอันตราย 15 ชุดกับแบ็กเอนด์จริง เป็นการตรวจภาคสนามขั้นสุดท้ายก่อนแต่ละรุ่น";
 "help.topic.cli.title" = "CLI และอัตโนมัติผ่าน URL";
 "help.topic.cli.body" = "• ติดตั้งคำสั่ง simplezip ใน การตั้งค่า → ทั่วไป: check / compare / create --template / verify / open พร้อมผลลัพธ์ในศูนย์กิจกรรม\n• แอปอื่นสามารถขอการทำงานผ่าน URL เช่น simplezip://check?path=… ได้ แต่จะมีหน้าต่างยืนยันก่อนเสมอ\n• บริการคลิกขวาของ Finder (บีบอัด / แตกไฟล์ / แฮช) เปิดปิดแยกรายการได้ใน การตั้งค่า → ทั่วไป";
+
+/* Safety duplicate paths, task pause/write locks, App Intents */
+"security.kind.duplicateEntryPath" = "เส้นทางรายการซ้ำ";
+"security.kind.duplicateEntryPath.desc" = "เส้นทางไฟล์เดียวกันปรากฏมากกว่าหนึ่งครั้ง เมื่อแตกไฟล์ สำเนาที่มาทีหลังจะเขียนทับสำเนาก่อนหน้าแบบเงียบ ๆ ดังนั้นผลบนดิสก์อาจไม่ตรงกับที่แสดงในรายการ";
+"tasks.paused" = "หยุดชั่วคราว";
+"button.pauseTask" = "หยุดชั่วคราว (แช่แข็งกระบวนการแบ็กเอนด์)";
+"button.resumeTask" = "ทำต่อ";
+"tasks.writeLockSection" = "ล็อกการเขียนไฟล์เก็บถาวร";
+"tasks.writeLock.holder" = "กำลังเขียน: %@";
+"tasks.writeLock.waiters" = "กำลังรอ (%1$@): %2$@";
+"tasks.writeLock.holder.unknown" = "งานเขียน";
+"intent.error.noFileURL" = "%@ ไม่มีไฟล์บนดิสก์ โปรดส่งไฟล์จริง ไม่ใช่ข้อมูลในหน่วยความจำ";
+"intent.error.missingFile" = "ไม่มีไฟล์นี้: %@";
+"intent.error.noInput" = "ไม่ได้ระบุไฟล์";
+"intent.error.mixedFolders" = "อินพุตทั้งหมดต้องอยู่ในโฟลเดอร์เดียวกัน";
+"intent.error.itemFailed" = "%1$@: %2$@";
+"intent.task.extract" = "คำสั่งลัด: แตกไฟล์ %@";
+"intent.task.create" = "คำสั่งลัด: สร้าง %@";
+"intent.task.test" = "คำสั่งลัด: ทดสอบ %@";
+"intent.test.allPassed" = "ไฟล์เก็บถาวร %@ รายการผ่านทั้งหมด";
+"intent.test.failures" = "ไฟล์เก็บถาวรล้มเหลว %1$@ รายการ:\n%2$@";
+"Extract Archive" = "แตกไฟล์เก็บถาวร";
+"Create Archive" = "สร้างไฟล์เก็บถาวร";
+"Test Archive Integrity" = "ทดสอบความสมบูรณ์ของไฟล์เก็บถาวร";
+"Archives" = "ไฟล์เก็บถาวร";
+"Destination Folder" = "โฟลเดอร์ปลายทาง";
+"Files" = "ไฟล์";
+"Format" = "รูปแบบ";
+"Archive Name" = "ชื่อไฟล์เก็บถาวร";
+"Archive Format" = "รูปแบบไฟล์เก็บถาวร";
