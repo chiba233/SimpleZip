@@ -65,14 +65,21 @@ struct CreateSZSSheet: View {
                 DialogSection(L10n.text("szs.create.section.content")) {
                     payloadRootRow
                     filesRow
+                }
+                // #18 一级密度治理:可选元数据(标题/说明)收进普通抽屉,子行单色。
+                DialogDrawer(L10n.text("szs.create.section.metadata"), systemImage: "character.cursor.ibeam", color: .pink) {
                     titleRow
                     descriptionRow
                 }
                 DialogSection(L10n.text("szs.create.section.signing")) {
                     signingKeyRow
                     exportVerificationKitRow
-                    encryptFilesRows
                     outputRow
+                }
+                // #18:加密块(开关+收件人+口令)整体收进抽屉;初始展开跟随开关状态
+                // (创建对话框 GPG 抽屉的 initiallyExpanded 先例)。
+                DialogDrawer(L10n.text("szs.create.section.encrypt"), systemImage: "lock.fill", color: .purple, initiallyExpanded: encryptFiles) {
+                    encryptFilesRows
                 }
                 if let message = statusMessage {
                     Label(message, systemImage: statusIsError ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
@@ -169,9 +176,15 @@ struct CreateSZSSheet: View {
         }
     }
 
+    /// #18 抽屉子行标签:单色 Label 定宽(对齐抽屉内的输入框列;彩色瓦片只属于一级行)。
+    private func drawerFieldLabel(_ key: String, systemImage: String) -> some View {
+        Label(L10n.text(key), systemImage: systemImage)
+            .frame(width: 170, alignment: .leading)
+    }
+
     private var titleRow: some View {
         HStack(alignment: .center, spacing: 8) {
-            DialogRowLabel(L10n.text("szs.create.titleLabel"), systemImage: "character.cursor.ibeam", tint: .pink, width: labelColumnWidth)
+            drawerFieldLabel("szs.create.titleLabel", systemImage: "character.cursor.ibeam")
             TextField(L10n.text("szs.create.titlePlaceholder"), text: $title, axis: .vertical)
                 .lineLimit(1...3)
                 .textFieldStyle(.roundedBorder)
@@ -181,7 +194,7 @@ struct CreateSZSSheet: View {
 
     private var descriptionRow: some View {
         HStack(alignment: .center, spacing: 8) {
-            DialogRowLabel(L10n.text("szs.create.descriptionLabel"), systemImage: "text.alignleft", tint: .pink, width: labelColumnWidth)
+            drawerFieldLabel("szs.create.descriptionLabel", systemImage: "text.alignleft")
             TextField(L10n.text("szs.create.descriptionPlaceholder"), text: $description, axis: .vertical)
                 .lineLimit(1...5)
                 .textFieldStyle(.roundedBorder)
@@ -225,13 +238,12 @@ struct CreateSZSSheet: View {
 
     @ViewBuilder
     private var encryptFilesRows: some View {
-        DialogToggleRow(
-            title: L10n.text("szs.create.encryptFiles.toggle"),
-            systemImage: "lock.fill",
-            tint: .purple,
-            pinsToTrailing: true,
-            isOn: $encryptFiles
-        )
+        // #18:整块住进「加密为 .gpg」抽屉,子行一律单色(抽屉头部瓦片已是彩色)。
+        HStack(spacing: 8) {
+            Label(L10n.text("szs.create.encryptFiles.toggle"), systemImage: "lock.fill")
+            Toggle("", isOn: $encryptFiles)
+                .labelsHidden()
+        }
         .onChange(of: encryptFiles) { enabled in
             if !enabled {
                 recipientFingerprints.removeAll()
@@ -242,7 +254,7 @@ struct CreateSZSSheet: View {
             // 说明 / 警告紧贴所属控件(同一值列、小间距 6),不再用「空标签 + 浮动说明行」——
             // 孤儿说明行隔着 16pt 行距浮在卡片里,正是用户点名的「不优雅」。
             HStack(alignment: .top, spacing: 8) {
-                DialogRowLabel(L10n.text("archive.gpgEncrypt.recipientsLabel"), systemImage: "person.2.fill", tint: .green, width: labelColumnWidth)
+                drawerFieldLabel("archive.gpgEncrypt.recipientsLabel", systemImage: "person.2.fill")
                 VStack(alignment: .leading, spacing: 6) {
                     GPGAddRecipientMenu(eligibleKeys: availableEncryptionKeys, selection: $recipientFingerprints)
                     GPGRecipientChipRow(selection: $recipientFingerprints, lookupKeys: availableEncryptionKeys)
@@ -257,7 +269,7 @@ struct CreateSZSSheet: View {
             // 说明横跨整行(同「加密为 GPG」对话框的规则:备注不挤在右值列)。
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .center, spacing: 8) {
-                    DialogRowLabel(L10n.text("archive.gpgEncrypt.passphraseLabel"), systemImage: "lock.rectangle.fill", tint: .orange, width: labelColumnWidth)
+                    drawerFieldLabel("archive.gpgEncrypt.passphraseLabel", systemImage: "lock.rectangle.fill")
                     SecureField(L10n.text("archive.gpgEncrypt.passphrasePlaceholder"), text: $symmetricPassphrase)
                         .textFieldStyle(.roundedBorder)
                         .dialogFieldEmphasis()

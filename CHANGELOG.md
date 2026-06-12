@@ -4,6 +4,7 @@
 
 ## 0.4.4 (unreleased)
 
+- **UI: the signed-manifest (.szs) dialog folds optional fields into drawers.** Title/description move into a collapsed "Metadata (Optional)" drawer and the whole encrypt-as-.gpg block (switch, recipients, passphrase) into an "Encrypt Files as .gpg" drawer that opens pre-expanded when encryption is already on — the dialog opens with just root folder, files, signing key, verification kit and output location. Behavior unchanged.
 - **UI: the convert dialog folds its six behavior switches into a drawer.** Preserve-structure, skip-identical, retry-on-failure, verify-after, trash-original and apply-format-defaults now sit in a collapsed "Conversion Behavior" drawer; the dialog opens with just the target format, password, output directory, fidelity report and source list. Behavior unchanged.
 - **UI: the extract dialog folds its behavior switches into two drawers.** Auto-rename, skip-junk and skip-symlinks now live in a collapsed "Content Handling" drawer, and reveal-in-Finder / trash-the-original in an "After Extracting" drawer — the dialog opens with just the destination, password, preflight summary and the switches that decide where files land (extract-into-subfolder, remove-wrapper-folder). Nothing changed behaviorally; presets still set everything.
 - **UI: the release-inspection report can grow taller.** The report's scroll area now caps at 680pt instead of 520pt, so a typical inspection fits without scrolling on common displays; short reports still shrink to fit as before.

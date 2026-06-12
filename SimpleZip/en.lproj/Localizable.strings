@@ -340,6 +340,8 @@
 "szs.create.subtitle" = "Sign a set of files with a clearsigned manifest";
 "szs.create.section.content" = "Content";
 "szs.create.section.signing" = "Signing & Output";
+"szs.create.section.metadata" = "Metadata (Optional)";
+"szs.create.section.encrypt" = "Encrypt Files as .gpg";
 "szs.create.payloadRoot" = "Root folder";
 "szs.create.payloadRoot.choose" = "Choose…";
 "szs.create.payloadRoot.placeholder" = "No root folder selected";

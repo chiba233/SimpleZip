@@ -340,6 +340,8 @@
 "szs.create.subtitle" = "用 clearsigned 清单为一组文件签名";
 "szs.create.section.content" = "内容";
 "szs.create.section.signing" = "签名与输出";
+"szs.create.section.metadata" = "元数据（可选）";
+"szs.create.section.encrypt" = "加密为 .gpg";
 "szs.create.payloadRoot" = "根目录";
 "szs.create.payloadRoot.choose" = "选择…";
 "szs.create.payloadRoot.placeholder" = "尚未选择根目录";
