@@ -178,13 +178,19 @@ final class ChangelogFeed: ObservableObject {
         /// 渲染前把 `~` 和 `_` 转义成字面量:inlineOnly 模式下整个正文是**一个段落**,
         /// 跨行的两个 `~`(如 `~/.Trash` 与 `~/文稿`)会被 GFM 配成删除线区间,把中间几条
         /// 更新整段画上横线(用户截图实锤);`__MACOSX` 这类双下划线同理有配对风险。
-        /// CHANGELOG 约定从不写删除线/下划线强调,转义零损失;粗体/链接/反引号照常。
+        /// 转义只做在反引号代码段**之外** —— 代码段内不解析反斜杠转义,会把 `\~` 原样
+        /// 漏显出来(实测 129 处)。CHANGELOG 约定从不写删除线/下划线强调,转义零损失。
         var attributedBody: AttributedString {
-            let literal = body
-                .replacingOccurrences(of: "~", with: "\\~")
-                .replacingOccurrences(of: "_", with: "\\_")
+            let segments = body.components(separatedBy: "`")
+            let escaped = segments.enumerated().map { index, segment in
+                index.isMultiple(of: 2)
+                    ? segment
+                        .replacingOccurrences(of: "~", with: "\\~")
+                        .replacingOccurrences(of: "_", with: "\\_")
+                    : segment
+            }.joined(separator: "`")
             return (try? AttributedString(
-                markdown: literal,
+                markdown: escaped,
                 options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
             )) ?? AttributedString(body)
         }

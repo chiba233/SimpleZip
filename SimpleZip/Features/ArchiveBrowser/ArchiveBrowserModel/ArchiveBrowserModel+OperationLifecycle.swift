@@ -284,6 +284,12 @@ extension ArchiveBrowserModel {
                 }
                 defer {
                     if usesSlot { HeavyTaskScheduler.shared.release() }
+                    // 队列管理③收尾:任务在暂停态下结束(如剩余步骤都在进程内)时,
+                    // 把注册表里的暂停标记摘掉 —— 否则 UUID 永远留在 pausedOperationIDs。
+                    // 没暂停过时这是 no-op。
+                    if operationTask.isPaused {
+                        ArchiveService.resumeRunningCommand(operationID: operationID)
+                    }
                 }
                 try await operation(operationID, { progress in
                     progressCoalescer.submit(progress)
