@@ -26,7 +26,7 @@ struct ReleaseInspectionView: View {
                 subtitle: report.archiveURL.lastPathComponent
             )
 
-            HeightCappedScrollView(maxHeight: 520) {
+            HeightCappedScrollView(maxHeight: 680) {
                 VStack(alignment: .leading, spacing: 12) {
                     // 对 .app 目录的纯 bundle 检查没有归档侧步骤,首区(完整性/条目)整段不渲染。
                     if !report.isBundleOnly {

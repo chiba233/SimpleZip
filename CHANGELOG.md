@@ -4,6 +4,7 @@
 
 ## 0.4.4 (unreleased)
 
+- **UI: the release-inspection report can grow taller.** The report's scroll area now caps at 680pt instead of 520pt, so a typical inspection fits without scrolling on common displays; short reports still shrink to fit as before.
 - **Performance: browsing /Applications (and other icon-heavy folders) no longer stutters.** Real file icons used to be fetched and ICNS-decoded on the main thread for every visible row on every redraw — measured at ~740ms per pass over a stock /Applications. Icons are now served from a cache of pre-rasterized bitmaps (a ~1ms draw); on first sight a row shows an instant type-level placeholder while the real icon is fetched and rasterized in the background, then swaps in place. Table cells are also now truly reused instead of being torn down and rebuilt (text fields, image views and constraints) on every scroll frame, and an app's display name is no longer re-read from its Info.plist on every folder refresh.
 
 ## 0.4.3
