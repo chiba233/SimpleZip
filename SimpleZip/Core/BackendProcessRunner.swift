@@ -353,7 +353,12 @@ final class ProgressOutputParser: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
 
-        let normalized = text.replacingOccurrences(of: "\r", with: "\n")
+        // 7zz 在管道下的实时进度是退格流:`  2%\b\b\b\b    \b\b\b\b  4%…`,整个压缩期间
+        // 可以一个 \n 都没有(od 实测)。\b 必须同样当行界,否则百分比全积在 remainder 里
+        // 永不下发——单大文件创建/测试的 UI 会从头到尾卡 0%(用户实报)。
+        let normalized = text
+            .replacingOccurrences(of: "\r", with: "\n")
+            .replacingOccurrences(of: "\u{08}", with: "\n")
         let combined = remainder + normalized
         let lines = combined.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
         remainder = lines.last ?? ""
@@ -394,6 +399,12 @@ final class ProgressOutputParser: @unchecked Sendable {
     }
 
     private nonisolated func currentFile(from line: String) -> String? {
+        // 退格流归一化后的散 token 只承载进度,不是文件名:
+        // 「 2%」「51% 1」(多线程的 百分比+文件计数)以及被切开的纯数字片段。
+        if line.range(of: #"^\d{1,3}%(\s+\d+)?$"#, options: .regularExpression) != nil
+            || line.range(of: #"^\d+$"#, options: .regularExpression) != nil {
+            return nil
+        }
         let prefixes = ["adding:", "updating:", "extracting:", "inflating:", "creating:", "x ", "- "]
         for prefix in prefixes where line.localizedCaseInsensitiveContains(prefix) {
             if let range = line.range(of: prefix, options: .caseInsensitive) {
