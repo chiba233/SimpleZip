@@ -154,6 +154,10 @@ extension ArchiveBrowserModel {
         // getattrlistbulk 循环把主线程钉死,启动 init→reload 即冻屏)。主线程只取偏好/虚拟模式快照,
         // 后台算完按 generation 守卫回主线程提交;等价守卫原样保留(见 applyLoadedFolder)。
         loadTask?.cancel()
+        // 异步列举的中间帧守卫:mode 已切到新文件夹、items 还是旧的 —— 表层见此标志跳过重建
+        // (保持上一帧),applyLoadedFolder 在同一事务里提交 items + 清标志,一帧成型。
+        // 旧同步版本天然没有中间帧(用户报「先闪未分组再闪分组」的根因,探针实测两次 reload)。
+        folderListingInFlight = true
         let generation = nextLoadGeneration()
         let showHidden = AppPreferences.showHiddenFiles
         let followFinder = AppPreferences.followFinderStructure
@@ -222,6 +226,7 @@ extension ArchiveBrowserModel {
                 return
             } catch {
                 guard let self, self.isCurrentLoad(generation, mode: .folder(url)) else { return }
+                self.folderListingInFlight = false
                 self.fileItems = []
                 self.archiveItems = []
                 if !self.archiveHeaderComment.isEmpty { self.archiveHeaderComment = "" }
@@ -245,6 +250,7 @@ extension ArchiveBrowserModel {
     /// `objectWillChange` → `@FocusedObject` 把整条 `.commands`（顶部菜单栏）反复重建 → 正打开的菜单
     /// 被冲掉 → 一直闪、一级菜单都难点开。所以这里**每个 @Published 都先比对、只在真变了才赋值**。
     private func applyLoadedFolder(_ newItems: [FileItem]) {
+        folderListingInFlight = false
         let sameListing = Self.fileItemsRepresentSameListing(newItems, fileItems)
         if !sameListing {
             fileItems = newItems

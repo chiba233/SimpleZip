@@ -340,6 +340,10 @@ struct FileNSOutlineView: NSViewRepresentable {
 
         /// 重建节点 + reload + 强制同步展开状态。make / update 都走这里。
         func syncContent() {
+            // 异步列举的中间帧守卫(0.4.3):导航后 mode(=folderKey/配置)先变、items 还是旧的,
+            // 这一帧不重建 —— 保持上一帧画面,applyLoadedFolder 同一事务提交 items+清标志后一帧成型。
+            // 不更新 lastContentSignature,提交帧照常触发重建。旧同步版本天然没有中间帧(用户报闪烁的根因)。
+            if model.folderListingInFlight { return }
             // 内容指纹 = 影响「画出来的行 / 列」的一切：config（folder/折叠/分类/共存）+ 行密度 +
             // 当前可见列 + 当前 fileItems 实例（按 id + 顺序）。**不含 selection**。
             // 选区变化不改 fileItems 实例 → 指纹不变 → 直接 return 不 reloadData ——
