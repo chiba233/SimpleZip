@@ -173,13 +173,29 @@ enum ArchiveDiffExport {
         let after: EntrySnapshot
     }
 
-    private nonisolated struct Report: Codable {
+    /// 只编码不解码(Encodable):导出是单向的。
+    private nonisolated struct Report: Encodable {
         let left: String
         let right: String
         let summary: [String: Int]
         let added: [EntrySnapshot]
         let removed: [EntrySnapshot]
         let changed: [ChangeRecord]
+        /// 0.4.4 F2:可选环境元数据。nil 时不编码(encodeIfPresent)——既有导出字节不变。
+        let metadata: ReportMetadata?
+
+        enum CodingKeys: String, CodingKey { case left, right, summary, added, removed, changed, metadata }
+
+        nonisolated func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(left, forKey: .left)
+            try container.encode(right, forKey: .right)
+            try container.encode(summary, forKey: .summary)
+            try container.encode(added, forKey: .added)
+            try container.encode(removed, forKey: .removed)
+            try container.encode(changed, forKey: .changed)
+            try container.encodeIfPresent(metadata, forKey: .metadata)
+        }
     }
 
     nonisolated private static func snapshot(_ item: ArchiveItem) -> EntrySnapshot {
@@ -198,7 +214,7 @@ enum ArchiveDiffExport {
         ArchiveDiffField.allCases.filter(fields.contains).map(\.rawValue)
     }
 
-    nonisolated static func json(result: ArchiveDiffResult, leftName: String, rightName: String) throws -> String {
+    nonisolated static func json(result: ArchiveDiffResult, leftName: String, rightName: String, metadata: ReportMetadata? = nil) throws -> String {
         let report = Report(
             left: leftName,
             right: rightName,
@@ -217,7 +233,8 @@ enum ArchiveDiffExport {
                     before: snapshot(change.before),
                     after: snapshot(change.after)
                 )
-            }
+            },
+            metadata: metadata
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]

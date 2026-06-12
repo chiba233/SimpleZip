@@ -81,13 +81,34 @@ struct ArchiveDiffReport: Identifiable {
     }
 }
 
+/// 0.4.4 F2:接统一导出底座。CSV 是 diff 特有格式,保留在自己的导出对话框里,不硬塞进协议。
+extension ArchiveDiffReport: ReportExportable {
+    var reportTitle: String { "\(leftName)-vs-\(rightName)" }
+    var reportTargetPath: String? { nil }
+    var reportSummaryLine: String {
+        "\(L10n.text("diff.title")): \(leftName) ↔ \(rightName) — "
+            + "\(L10n.format("diff.onlyIn", leftName)): \(result.removed.count), "
+            + "\(L10n.format("diff.onlyIn", rightName)): \(result.added.count), "
+            + "\(L10n.text("diff.changed")): \(result.changed.count), "
+            + L10n.format("diff.unchangedCount", result.unchanged.count)
+    }
+
+    func reportMarkdown(metadata: ReportMetadata?) -> String {
+        guard let metadata else { return markdownReport }
+        return markdownReport + ReportExport.markdownFooter(metadata) + "\n"
+    }
+
+    func reportJSON(metadata: ReportMetadata?) throws -> String {
+        try ArchiveDiffExport.json(result: result, leftName: leftName, rightName: rightName, metadata: metadata)
+    }
+}
+
 struct ArchiveDiffView: View {
     let report: ArchiveDiffReport
     let onClose: () -> Void
 
     /// 0.4.2 #16：忽略 macOS 元数据垃圾（.DS_Store / __MACOSX / ._* …）—— 复制 / 导出同样遵守。
     @State private var hideJunk = false
-    @State private var showsExportFormatDialog = false
 
     private var displayedReport: ArchiveDiffReport {
         hideJunk
@@ -134,15 +155,14 @@ struct ArchiveDiffView: View {
             // 钉底操作栏：左侧工具（导出 / 忽略垃圾 / 复制），右侧主按钮 —— 与创建 / 解压同款。
             // Menu 不当按钮用（Form/bar 里渲染破碎）→ 普通按钮 + confirmationDialog 选格式。
             PinnedBottomBar {
+                // F2:统一导出(摘要 / issue / MD / JSON,带环境元数据)。CSV 是 diff 特有格式,
+                // 保留在旁边自己的导出按钮里。
+                ReportExportControl(report: displayedReport)
+
                 Button {
-                    showsExportFormatDialog = true
+                    exportReport(.csv)
                 } label: {
-                    Label(L10n.text("diff.export"), systemImage: "square.and.arrow.up")
-                }
-                .confirmationDialog(L10n.text("diff.export"), isPresented: $showsExportFormatDialog) {
-                    Button(L10n.text("diff.export.json")) { exportReport(.json) }
-                    Button(L10n.text("diff.export.csv")) { exportReport(.csv) }
-                    Button(L10n.text("diff.export.markdown")) { exportReport(.markdown) }
+                    Label(L10n.text("diff.export.csv"), systemImage: "tablecells")
                 }
 
                 // 复选框不靠左：文字在前,checkbox 跟在右边。
@@ -174,35 +194,16 @@ struct ArchiveDiffView: View {
         .frame(minWidth: 640, idealWidth: 760)
     }
 
-    // MARK: - 导出（0.4.2）
+    // MARK: - 导出（0.4.2;0.4.4 F2 后只剩 diff 特有的 CSV —— MD/JSON/摘要/issue 走 ReportExportControl）
 
     private enum ExportFormat {
-        case json, csv, markdown
+        case csv
 
-        var fileExtension: String {
-            switch self {
-            case .json: return "json"
-            case .csv: return "csv"
-            case .markdown: return "md"
-            }
-        }
+        var fileExtension: String { "csv" }
     }
 
     private func exportReport(_ format: ExportFormat) {
-        let content: String
-        do {
-            switch format {
-            case .json:
-                content = try ArchiveDiffExport.json(result: displayedReport.result, leftName: report.leftName, rightName: report.rightName)
-            case .csv:
-                content = ArchiveDiffExport.csv(result: displayedReport.result, leftName: report.leftName, rightName: report.rightName)
-            case .markdown:
-                content = displayedReport.markdownReport
-            }
-        } catch {
-            presentExportError(error)
-            return
-        }
+        let content = ArchiveDiffExport.csv(result: displayedReport.result, leftName: report.leftName, rightName: report.rightName)
 
         let panel = NSSavePanel()
         panel.nameFieldStringValue = "\(report.leftName)-vs-\(report.rightName).\(format.fileExtension)"
