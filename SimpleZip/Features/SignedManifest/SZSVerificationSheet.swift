@@ -103,6 +103,16 @@ struct SZSVerificationSheet: View {
             Divider()
 
             PinnedBottomBar {
+                // F2/#12:统一导出(摘要 / GitHub Issue / Markdown / JSON)。校验跑完才可用。
+                if let report {
+                    ReportExportControl(report: SZSVerifyExportReport(
+                        sourceURL: sourceURL,
+                        signature: signature,
+                        manifest: manifest,
+                        payloadRoot: payloadRoot,
+                        report: report
+                    ))
+                }
                 Spacer()
                 Button(action: onClose) {
                     Label(L10n.text("szs.verify.dismissButton"), systemImage: "xmark")
@@ -636,4 +646,141 @@ struct SZSVerificationSheet: View {
 private struct InstructionsHeightKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
+}
+
+// MARK: - 统一导出（0.4.4 F2 / #12）
+
+/// `.szs` 验证报告的导出包装:签名状态文案复用 SIZSignatureStatus(与 sheet 同源,不二抄 switch);
+/// 指纹用 Core 现成的 4 字符分组。只读 —— 不碰 .szs 本体。
+struct SZSVerifyExportReport: ReportExportable {
+    let sourceURL: URL
+    let signature: GPGBackend.GPGVerifyResult
+    let manifest: SZSArchive.Manifest
+    let payloadRoot: URL
+    let report: SZSArchive.VerifyReport
+
+    var reportTitle: String { "\(L10n.text("szs.verify.filesSection")) — \(sourceURL.lastPathComponent)" }
+    var reportTargetPath: String? { sourceURL.path }
+
+    var reportSummaryLine: String {
+        let s = report.summary
+        return "\(sourceURL.lastPathComponent) — \(SIZSignatureStatus.title(for: signature)) · "
+            + L10n.format("szs.verify.summary", s.matched, s.total, s.mismatched, s.missing)
+    }
+
+    private var fingerprint: String? {
+        if case .validSignature(_, let fp, _, _) = signature, let fp { return fp }
+        if case .badSignature(_, let fp) = signature, let fp { return fp }
+        return nil
+    }
+
+    private var signer: String? {
+        if case .validSignature(let name, _, _, _) = signature, let name, !name.isEmpty { return name }
+        if case .badSignature(let name, _) = signature, let name, !name.isEmpty { return name }
+        return nil
+    }
+
+    func reportMarkdown(metadata: ReportMetadata?) -> String {
+        let s = report.summary
+        var lines: [String] = []
+        lines.append("# \(sourceURL.lastPathComponent)")
+        lines.append("")
+        lines.append("**\(SIZSignatureStatus.title(for: signature))** — \(SIZSignatureStatus.summary(for: signature))")
+        lines.append("")
+        if let signer {
+            lines.append("- \(L10n.text("siz.signatureSheet.signer")): \(signer)")
+        }
+        if let fingerprint {
+            lines.append("- \(L10n.text("siz.signatureSheet.keyFingerprint")): `\(SZSArchive.groupedFingerprint(fingerprint))`")
+        }
+        lines.append("- \(L10n.text("szs.verify.manifestCreatedAt")): \(manifest.createdAt)")
+        lines.append("- \(L10n.text("szs.verify.payloadRoot")): `\(payloadRoot.path)`")
+        lines.append("- \(L10n.format("szs.verify.summary", s.matched, s.total, s.mismatched, s.missing))")
+        lines.append("")
+        let problems = report.entries.filter { if case .match = $0 { return false } else { return true } }
+        if !problems.isEmpty {
+            lines.append("## \(L10n.text("szs.verify.filesSection"))")
+            lines.append("")
+            for entry in problems {
+                switch entry {
+                case .match:
+                    break
+                case .mismatch(let path, let expected, let actual):
+                    lines.append("- ✗ `\(path)` — \(L10n.text("szs.verify.entry.mismatch")) (\(expected.prefix(16))… ≠ \(actual.prefix(16))…)")
+                case .missing(let path):
+                    lines.append("- ⚠ `\(path)` — \(L10n.text("szs.verify.entry.missing"))")
+                case .unreadable(let path, let reason):
+                    lines.append("- ⚠ `\(path)` — \(L10n.format("szs.verify.entry.unreadable", reason))")
+                }
+            }
+            lines.append("")
+        }
+        var markdown = lines.joined(separator: "\n")
+        if let metadata {
+            markdown += ReportExport.markdownFooter(metadata) + "\n"
+        }
+        return markdown
+    }
+
+    private struct JSONReport: Encodable {
+        struct Entry: Encodable {
+            let path: String
+            let status: String
+            let expectedSHA256: String?
+            let actualSHA256: String?
+            let reason: String?
+        }
+        let source: String
+        let signatureStatus: String
+        let signer: String?
+        let fingerprint: String?
+        let manifestCreatedAt: String
+        let payloadRoot: String
+        let total: Int
+        let matched: Int
+        let mismatched: Int
+        let missing: Int
+        let unreadable: Int
+        let entries: [Entry]
+        let metadata: ReportMetadata?
+    }
+
+    func reportJSON(metadata: ReportMetadata?) throws -> String {
+        let statusName: String
+        switch signature {
+        case .validSignature(_, _, let trusted, let concerns):
+            statusName = trusted && concerns.isEmpty ? "valid" : "validWithConcerns"
+        case .unknownSigner: statusName = "unknownSigner"
+        case .badSignature: statusName = "badSignature"
+        case .verificationError: statusName = "verificationError"
+        }
+        let s = report.summary
+        let snapshot = JSONReport(
+            source: sourceURL.lastPathComponent,
+            signatureStatus: statusName,
+            signer: signer,
+            fingerprint: fingerprint,
+            manifestCreatedAt: manifest.createdAt,
+            payloadRoot: payloadRoot.path,
+            total: s.total,
+            matched: s.matched,
+            mismatched: s.mismatched,
+            missing: s.missing,
+            unreadable: s.unreadable,
+            entries: report.entries.map { entry in
+                switch entry {
+                case .match(let path, _):
+                    return JSONReport.Entry(path: path, status: "match", expectedSHA256: nil, actualSHA256: nil, reason: nil)
+                case .mismatch(let path, let expected, let actual):
+                    return JSONReport.Entry(path: path, status: "mismatch", expectedSHA256: expected, actualSHA256: actual, reason: nil)
+                case .missing(let path):
+                    return JSONReport.Entry(path: path, status: "missing", expectedSHA256: nil, actualSHA256: nil, reason: nil)
+                case .unreadable(let path, let reason):
+                    return JSONReport.Entry(path: path, status: "unreadable", expectedSHA256: nil, actualSHA256: nil, reason: reason)
+                }
+            },
+            metadata: metadata
+        )
+        return String(decoding: try ReportExport.jsonEncoder().encode(snapshot), as: UTF8.self)
+    }
 }
