@@ -2050,3 +2050,25 @@
 "status.gpgEncrypted" = "已加密为 %@";
 "status.gpgEncryptedMultiple" = "已加密 %@ 个文件";
 "status.gpgEncryptedPartial" = "已加密 %1$@ 项，%2$@ 项失败";
+
+/* App Intents（快捷指令 / Siri）。运行期字符串走 intent.* 键；下方英文字面量键
+   对应 SimpleZipAppIntents.swift 里的 LocalizedStringResource。 */
+"intent.error.noFileURL" = "%@ 没有磁盘文件——请传真实文件，而不是内存数据。";
+"intent.error.missingFile" = "文件不存在：%@";
+"intent.error.noInput" = "没有提供任何文件。";
+"intent.error.mixedFolders" = "所有输入必须位于同一文件夹。";
+"intent.error.itemFailed" = "%1$@：%2$@";
+"intent.task.extract" = "快捷指令：解压 %@";
+"intent.task.create" = "快捷指令：创建 %@";
+"intent.task.test" = "快捷指令：测试 %@";
+"intent.test.allPassed" = "全部 %@ 个归档测试通过。";
+"intent.test.failures" = "%1$@ 个归档未通过：\n%2$@";
+"Extract Archive" = "解压归档";
+"Create Archive" = "创建归档";
+"Test Archive Integrity" = "测试归档完整性";
+"Archives" = "归档";
+"Destination Folder" = "目标文件夹";
+"Files" = "文件";
+"Format" = "格式";
+"Archive Name" = "归档名称";
+"Archive Format" = "归档格式";

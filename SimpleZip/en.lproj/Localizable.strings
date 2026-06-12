@@ -2050,3 +2050,25 @@
 "status.gpgEncrypted" = "Encrypted to %@";
 "status.gpgEncryptedMultiple" = "Encrypted %@ files";
 "status.gpgEncryptedPartial" = "Encrypted %1$@, %2$@ failed";
+
+/* App Intents (Shortcuts / Siri). Runtime strings use intent.* keys; the bare-English
+   entries below are the literal LocalizedStringResource keys from SimpleZipAppIntents.swift. */
+"intent.error.noFileURL" = "%@ has no file on disk — pass real files, not in-memory data.";
+"intent.error.missingFile" = "No such file: %@";
+"intent.error.noInput" = "No files were provided.";
+"intent.error.mixedFolders" = "All inputs must live in the same folder.";
+"intent.error.itemFailed" = "%1$@: %2$@";
+"intent.task.extract" = "Shortcut: extract %@";
+"intent.task.create" = "Shortcut: create %@";
+"intent.task.test" = "Shortcut: test %@";
+"intent.test.allPassed" = "All %@ archive(s) passed.";
+"intent.test.failures" = "%1$@ archive(s) failed:\n%2$@";
+"Extract Archive" = "Extract Archive";
+"Create Archive" = "Create Archive";
+"Test Archive Integrity" = "Test Archive Integrity";
+"Archives" = "Archives";
+"Destination Folder" = "Destination Folder";
+"Files" = "Files";
+"Format" = "Format";
+"Archive Name" = "Archive Name";
+"Archive Format" = "Archive Format";
