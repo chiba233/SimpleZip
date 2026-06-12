@@ -4,6 +4,7 @@
 
 ## 0.4.4 (unreleased)
 
+- **The space-analysis report can be exported.** Totals, compression ratio, encrypted/junk tallies, largest files, top-level directories and extension breakdown — as Markdown, JSON, a one-line summary or a GitHub issue, via the same Export Report menu.
 - **The security report can be exported.** The open-time path-security report gains the unified Export Report menu; exports list every flagged path per category (the on-screen view caps each category at 12), as Markdown, JSON or a paste-ready GitHub issue.
 - **The release-inspection report can be exported.** The same Export Report menu (copy summary / copy as GitHub issue / Markdown / JSON) lands in the inspection sheet — including bundle findings for .app/DMG/XIP checks, hygiene counts, SHA-256 and the structural fingerprint, all stamped with generation time and versions.
 - **The comparison report adopts the unified export menu.** One Export Report button now offers copy-summary, copy-as-GitHub-issue (with an environment table ready to paste), Markdown and JSON — exports carry generation time, app/macOS/backend versions and the compared names. The diff-specific CSV keeps its own button. Existing JSON exports without metadata are byte-identical to before.

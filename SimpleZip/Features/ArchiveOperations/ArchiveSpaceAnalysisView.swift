@@ -17,6 +17,99 @@ struct ArchiveSpaceAnalysisReport: Identifiable {
     let analysis: ArchiveSpaceAnalysis
 }
 
+/// F2:接统一导出底座。Markdown 跟 UI 语言;JSON 字段名固定英文。
+extension ArchiveSpaceAnalysisReport: ReportExportable {
+    var reportTitle: String { "\(L10n.text("space.title")) — \(archiveName)" }
+    var reportTargetPath: String? { nil }
+
+    var reportSummaryLine: String {
+        var parts = [archiveName, ByteCountFormatter.string(fromByteCount: analysis.totalBytes, countStyle: .file)]
+        if let ratio = analysis.compressionRatio {
+            parts.append(L10n.format("space.packed.value",
+                                     ByteCountFormatter.string(fromByteCount: analysis.packedBytes, countStyle: .file),
+                                     "\(Int(ratio * 100))"))
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    func reportMarkdown(metadata: ReportMetadata?) -> String {
+        func bytes(_ value: Int64) -> String { ByteCountFormatter.string(fromByteCount: value, countStyle: .file) }
+        func section(_ titleKey: String, _ entries: [ArchiveSpaceAnalysis.Entry], emptyName: String) -> [String] {
+            guard !entries.isEmpty else { return [] }
+            var lines = ["## \(L10n.text(titleKey))", ""]
+            lines.append(contentsOf: entries.map { "- `\($0.name.isEmpty ? emptyName : $0.name)` — \(bytes($0.bytes))" })
+            lines.append("")
+            return lines
+        }
+        var lines: [String] = []
+        lines.append("# \(L10n.text("space.title"))")
+        lines.append("")
+        lines.append("**\(archiveName)**")
+        lines.append("")
+        lines.append("- \(L10n.text("space.total")): \(bytes(analysis.totalBytes))")
+        if let ratio = analysis.compressionRatio {
+            lines.append("- \(L10n.text("space.packed")): \(L10n.format("space.packed.value", bytes(analysis.packedBytes), "\(Int(ratio * 100))"))")
+        }
+        if analysis.encryptedCount > 0 {
+            lines.append("- \(L10n.text("space.encrypted")): \(L10n.format("space.count.value", "\(analysis.encryptedCount)", bytes(analysis.encryptedBytes)))")
+        }
+        if analysis.junkCount > 0 {
+            lines.append("- \(L10n.text("space.junk")): \(L10n.format("space.count.value", "\(analysis.junkCount)", bytes(analysis.junkBytes)))")
+        }
+        lines.append("")
+        lines.append(contentsOf: section("space.section.largest", analysis.largestFiles, emptyName: "-"))
+        lines.append(contentsOf: section("space.section.directories", analysis.topLevelDirectories, emptyName: L10n.text("space.rootEntries")))
+        lines.append(contentsOf: section("space.section.extensions", analysis.extensions.map {
+            ArchiveSpaceAnalysis.Entry(name: $0.name.isEmpty ? "" : ".\($0.name)", bytes: $0.bytes)
+        }, emptyName: L10n.text("space.noExtension")))
+        var markdown = lines.joined(separator: "\n")
+        if let metadata {
+            markdown += ReportExport.markdownFooter(metadata) + "\n"
+        }
+        return markdown
+    }
+
+    private struct JSONReport: Encodable {
+        struct Entry: Encodable {
+            let name: String
+            let bytes: Int64
+        }
+        let archive: String
+        let totalBytes: Int64
+        let packedBytes: Int64
+        let fileCount: Int
+        let encryptedCount: Int
+        let encryptedBytes: Int64
+        let junkCount: Int
+        let junkBytes: Int64
+        let largestFiles: [Entry]
+        let topLevelDirectories: [Entry]
+        let extensions: [Entry]
+        let metadata: ReportMetadata?
+    }
+
+    func reportJSON(metadata: ReportMetadata?) throws -> String {
+        func entries(_ source: [ArchiveSpaceAnalysis.Entry]) -> [JSONReport.Entry] {
+            source.map { JSONReport.Entry(name: $0.name, bytes: $0.bytes) }
+        }
+        let snapshot = JSONReport(
+            archive: archiveName,
+            totalBytes: analysis.totalBytes,
+            packedBytes: analysis.packedBytes,
+            fileCount: analysis.fileCount,
+            encryptedCount: analysis.encryptedCount,
+            encryptedBytes: analysis.encryptedBytes,
+            junkCount: analysis.junkCount,
+            junkBytes: analysis.junkBytes,
+            largestFiles: entries(analysis.largestFiles),
+            topLevelDirectories: entries(analysis.topLevelDirectories),
+            extensions: entries(analysis.extensions),
+            metadata: metadata
+        )
+        return String(decoding: try ReportExport.jsonEncoder().encode(snapshot), as: UTF8.self)
+    }
+}
+
 struct ArchiveSpaceAnalysisView: View {
     let report: ArchiveSpaceAnalysisReport
     let onClose: () -> Void
@@ -81,6 +174,8 @@ struct ArchiveSpaceAnalysisView: View {
             Divider()
 
             PinnedBottomBar {
+                // F2:统一导出(摘要 / GitHub Issue / Markdown / JSON)。
+                ReportExportControl(report: report)
                 Spacer()
                 Button {
                     onClose()
