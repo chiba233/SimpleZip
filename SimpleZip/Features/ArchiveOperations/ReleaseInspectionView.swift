@@ -129,6 +129,15 @@ struct ReleaseInspectionView: View {
             PinnedBottomBar {
                 // F2:统一导出(摘要 / GitHub Issue / Markdown / JSON,带环境元数据)。
                 ReportExportControl(report: report)
+                // #5:发布说明草稿(下载/校验/验签样板,粘进 GitHub Release 即用)。bundle-only 不适用。
+                if !report.isBundleOnly {
+                    Button {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(releaseNotesDraft, forType: .string)
+                    } label: {
+                        Label(L10n.text("inspect.copyReleaseNotes"), systemImage: "doc.richtext")
+                    }
+                }
                 Button {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(plainTextSummary, forType: .string)
@@ -236,6 +245,35 @@ struct ReleaseInspectionView: View {
                 .foregroundStyle(neutral ? Color.secondary : (ok ? Color.green : Color.red))
         }
         .font(.callout)
+    }
+
+    /// #5:发布说明草稿。版本 / 可复现 / SHA256SUMS 标记从发布账本认领(账面里有这次产物才有);
+    /// GPG 段三道闸:gpgEnabled(A4)+ 产物旁恰好一个 .szs + 公钥 .asc 在场 + 默认签名密钥指纹可用 ——
+    /// 缺任何一件就整段不出,不猜。
+    private var releaseNotesDraft: String {
+        let ledgerEntry = ReleaseLedgerStore().loadAll().first { $0.artifactPath == report.archiveURL.path }
+        var inputs = ReleaseNotesDraft.Inputs(
+            artifactName: report.archiveURL.lastPathComponent,
+            versionLabel: ledgerEntry?.versionLabel,
+            sha256: report.sha256,
+            fileCount: report.stats?.fileCount,
+            totalBytes: report.stats?.totalBytes,
+            testPassed: report.testPassed,
+            reproducible: ledgerEntry?.reproducible,
+            wroteChecksums: ledgerEntry?.wroteChecksums ?? false
+        )
+        let defaultFingerprint = AppPreferences.gpgDefaultSigningKeyFingerprint
+        if AppPreferences.gpgEnabled, !defaultFingerprint.isEmpty,
+           let names = try? FileManager.default.contentsOfDirectory(atPath: report.archiveURL.deletingLastPathComponent().path) {
+            let containers = names.filter { $0.lowercased().hasSuffix(".\(SZSArchive.extensionName)") }
+            let publicKeys = names.filter { $0.lowercased().hasSuffix(".asc") }
+            if containers.count == 1, publicKeys.count == 1 {
+                inputs.signedContainerName = containers[0]
+                inputs.publicKeyFileName = publicKeys[0]
+                inputs.fingerprint = defaultFingerprint
+            }
+        }
+        return ReleaseNotesDraft.make(inputs)
     }
 
     /// 纯文本报告（复制给 release note / issue）。
