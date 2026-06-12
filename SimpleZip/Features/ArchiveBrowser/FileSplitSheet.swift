@@ -60,16 +60,19 @@ struct FileSplitSheet: View {
     }
 
     var body: some View {
-        // 0.4.1 重构：套 DialogChrome 体例（hero + 分区卡片 + 钉底 bar），跟其它对话框统一。
-        VStack(spacing: 0) {
-            DialogHero(
-                systemImage: "scissors",
-                colors: [.orange, .red],
-                title: L10n.text("split.heroTitle"),
-                subtitle: request.url.lastPathComponent
-            )
-
-            VStack(alignment: .leading, spacing: 18) {
+        // design system:统一走 TaskDialogShell 骨架。
+        TaskDialogShell(
+            heroSystemImage: "scissors",
+            heroColors: [.orange, .red],
+            title: L10n.text("split.heroTitle"),
+            subtitle: request.url.lastPathComponent,
+            width: 440,
+            confirmTitle: L10n.text("split.button"),
+            confirmSystemImage: "scissors",
+            confirmDisabled: volumeSizeBytes <= 0,
+            confirm: { apply(volumeSizeBytes) },
+            cancel: cancel
+        ) {
                 DialogSection {
                     LabeledContent {
                         HStack(spacing: 8) {
@@ -98,31 +101,6 @@ struct FileSplitSheet: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 }
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
-
-            Divider()
-
-            HStack {
-                Spacer()
-                Button(action: cancel) {
-                    Label(L10n.text("button.cancel"), systemImage: "xmark")
-                }
-                .keyboardShortcut(.cancelAction)
-                Button {
-                    apply(volumeSizeBytes)
-                } label: {
-                    Label(L10n.text("split.button"), systemImage: "scissors")
-                }
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.defaultAction)
-                .disabled(volumeSizeBytes <= 0)
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(.bar)
         }
-        .frame(width: 440)
     }
 }

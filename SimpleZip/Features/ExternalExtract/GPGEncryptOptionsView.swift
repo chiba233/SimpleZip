@@ -72,48 +72,49 @@ struct GPGEncryptOptionsView: View {
     }
 
     var body: some View {
-        // 0.4.1 重构：与创建 / 解压对话框同一套现代体例（DialogChrome）。
-        VStack(spacing: 0) {
-            DialogHero(
-                systemImage: "lock.fill",
-                colors: [.green, .mint],
-                title: L10n.text("gpgEncrypt.title"),
-                subtitle: L10n.format("gpgEncrypt.sourceSummary", "\(request.sourceURLs.count)")
-            )
-
-            HeightCappedScrollView(maxHeight: 520) {
-                VStack(alignment: .leading, spacing: 18) {
-                    // 多选 / 含文件夹才有意义：逐个文件分别加密 vs 打包成一个归档再加密。
-                    if showsModePicker {
-                        DialogSection(L10n.text("gpgEncrypt.section.mode")) {
-                            Picker("", selection: $request.perFile) {
-                                Label(L10n.text("gpgEncrypt.mode.perFile"), systemImage: "doc.on.doc").tag(true)
-                                Label(L10n.text("gpgEncrypt.mode.bundle"), systemImage: "shippingbox").tag(false)
-                            }
-                            .labelsHidden()
-                            .pickerStyle(.radioGroup)
+        // design system:统一走 TaskDialogShell 骨架;底栏左侧 = 混环 / 缺收件人提示。
+        TaskDialogShell(
+            heroSystemImage: "lock.fill",
+            heroColors: [.green, .mint],
+            title: L10n.text("gpgEncrypt.title"),
+            subtitle: L10n.format("gpgEncrypt.sourceSummary", "\(request.sourceURLs.count)"),
+            width: 520,
+            maxContentHeight: 520,
+            confirmTitle: L10n.text("gpgEncrypt.button"),
+            confirmSystemImage: "lock",
+            confirmDisabled: !canEncrypt,
+            confirm: {
+                // 收件人全在 SimpleZip 私有环 → 加密用私有 homedir。混选已被 canEncrypt 拦住,到不了这里。
+                request.useSimpleZipKeyring = selectedRecipientSources == [.simpleZipKeyring]
+                confirm(request)
+            },
+            cancel: cancel,
+            content: {
+                // 多选 / 含文件夹才有意义：逐个文件分别加密 vs 打包成一个归档再加密。
+                if showsModePicker {
+                    DialogSection(L10n.text("gpgEncrypt.section.mode")) {
+                        Picker("", selection: $request.perFile) {
+                            Label(L10n.text("gpgEncrypt.mode.perFile"), systemImage: "doc.on.doc").tag(true)
+                            Label(L10n.text("gpgEncrypt.mode.bundle"), systemImage: "shippingbox").tag(false)
                         }
-                    }
-                    // 收件人公钥单独成卡 —— 内含「添加菜单 + chip 行」，挤在别的控件旁边会重叠（用户报间距问题）。
-                    DialogSection(L10n.text("gpgEncrypt.section.recipients")) {
-                        recipientsRow
-                    }
-                    // 对称密码 + 说明单独成卡。
-                    DialogSection(L10n.text("gpgEncrypt.section.passphrase")) {
-                        encryptionPassphraseRow
-                        Text(L10n.text("gpgEncrypt.description"))
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
+                        .labelsHidden()
+                        .pickerStyle(.radioGroup)
                     }
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 16)
-            }
-
-            Divider()
-
-            HStack {
+                // 收件人公钥单独成卡 —— 内含「添加菜单 + chip 行」，挤在别的控件旁边会重叠（用户报间距问题）。
+                DialogSection(L10n.text("gpgEncrypt.section.recipients")) {
+                    recipientsRow
+                }
+                // 对称密码 + 说明单独成卡。
+                DialogSection(L10n.text("gpgEncrypt.section.passphrase")) {
+                    encryptionPassphraseRow
+                    Text(L10n.text("gpgEncrypt.description"))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            },
+            footerLeading: {
                 if hasMixedRecipientRings {
                     Text(L10n.text("gpgEncrypt.mixedKeyrings"))
                         .font(.caption)
@@ -125,26 +126,8 @@ struct GPGEncryptOptionsView: View {
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                 }
-                Spacer()
-                Button(action: cancel) {
-                    Label(L10n.text("button.cancel"), systemImage: "xmark")
-                }
-                Button {
-                    // 收件人全在 SimpleZip 私有环 → 加密用私有 homedir。混选已被 canEncrypt 拦住,到不了这里。
-                    request.useSimpleZipKeyring = selectedRecipientSources == [.simpleZipKeyring]
-                    confirm(request)
-                } label: {
-                    Label(L10n.text("gpgEncrypt.button"), systemImage: "lock")
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(!canEncrypt)
-                .keyboardShortcut(.defaultAction)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(.bar)
-        }
-        .frame(width: 520)
+        )
         .onTapGesture { NSApp.keyWindow?.makeFirstResponder(nil) }
         .onAppear {
             presetPassword = AppPreferences.presetPassword

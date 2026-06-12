@@ -48,93 +48,68 @@ struct BatchRenameSheet: View {
     private var validCount: Int { changes.filter { !$0.isConflicting }.count }
 
     var body: some View {
-        VStack(spacing: 0) {
-            DialogHero(
-                systemImage: "pencil.line",
-                colors: [.indigo, .purple],
-                title: L10n.text("batchRename.title"),
-                subtitle: L10n.format("batchRename.subtitle", "\(request.items.count)", request.archiveURL.lastPathComponent)
-            )
-
-            HeightCappedScrollView(maxHeight: 480) {
-                VStack(alignment: .leading, spacing: 14) {
-                    DialogSection {
-                        LabeledContent {
-                            Picker("", selection: $mode) {
-                                ForEach(Mode.allCases) { candidate in
-                                    Text(candidate.title).tag(candidate)
-                                }
-                            }
-                            .labelsHidden()
-                            .fixedSize()
-                        } label: {
-                            DialogRowLabel(L10n.text("batchRename.mode"), systemImage: "wand.and.stars", tint: .indigo)
-                        }
-                        modeFields
-                    }
-
-                    DialogSection(L10n.text("batchRename.preview")) {
-                        if changes.isEmpty {
-                            Text(L10n.text("batchRename.preview.empty"))
-                                .font(.callout)
-                                .foregroundStyle(.secondary)
-                        } else {
-                            VStack(alignment: .leading, spacing: 4) {
-                                ForEach(changes) { change in
-                                    HStack(spacing: 6) {
-                                        Image(systemName: change.isConflicting ? "exclamationmark.triangle.fill" : "arrow.right")
-                                            .font(.caption)
-                                            .foregroundStyle(change.isConflicting ? Color.red : Color.secondary)
-                                        Text(change.fromLeaf)
-                                            .lineLimit(1)
-                                            .truncationMode(.middle)
-                                        Text("→")
-                                            .foregroundStyle(.secondary)
-                                        Text(change.toLeaf)
-                                            .fontWeight(.medium)
-                                            .lineLimit(1)
-                                            .truncationMode(.middle)
-                                            .foregroundStyle(change.isConflicting ? Color.red : Color.primary)
-                                        Spacer(minLength: 0)
-                                    }
-                                    .font(.callout)
-                                    .help("\(change.fromPath) → \(change.toPath)")
-                                }
-                                if changes.contains(where: \.isConflicting) {
-                                    Text(L10n.text("batchRename.preview.conflictNote"))
-                                        .font(.caption)
-                                        .foregroundStyle(.red)
-                                }
-                            }
+        TaskDialogShell(
+            heroSystemImage: "pencil.line",
+            heroColors: [.indigo, .purple],
+            title: L10n.text("batchRename.title"),
+            subtitle: L10n.format("batchRename.subtitle", "\(request.items.count)", request.archiveURL.lastPathComponent),
+            confirmTitle: L10n.format("batchRename.confirm", "\(validCount)"),
+            confirmSystemImage: "pencil.line",
+            confirmDisabled: validCount == 0,
+            confirm: { confirm(changes) },
+            cancel: cancel
+        ) {
+            DialogSection {
+                LabeledContent {
+                    Picker("", selection: $mode) {
+                        ForEach(Mode.allCases) { candidate in
+                            Text(candidate.title).tag(candidate)
                         }
                     }
-                }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 16)
-            }
-
-            Divider()
-
-            HStack {
-                Spacer()
-                Button(action: cancel) {
-                    Label(L10n.text("button.cancel"), systemImage: "xmark")
-                }
-                .keyboardShortcut(.cancelAction)
-                Button {
-                    confirm(changes)
+                    .labelsHidden()
+                    .fixedSize()
                 } label: {
-                    Label(L10n.format("batchRename.confirm", "\(validCount)"), systemImage: "pencil.line")
+                    DialogRowLabel(L10n.text("batchRename.mode"), systemImage: "wand.and.stars", tint: .indigo)
                 }
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.defaultAction)
-                .disabled(validCount == 0)
+                modeFields
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(.bar)
+
+            DialogSection(L10n.text("batchRename.preview")) {
+                if changes.isEmpty {
+                    Text(L10n.text("batchRename.preview.empty"))
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                } else {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(changes) { change in
+                            HStack(spacing: 6) {
+                                Image(systemName: change.isConflicting ? "exclamationmark.triangle.fill" : "arrow.right")
+                                    .font(.caption)
+                                    .foregroundStyle(change.isConflicting ? Color.red : Color.secondary)
+                                Text(change.fromLeaf)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                Text("→")
+                                    .foregroundStyle(.secondary)
+                                Text(change.toLeaf)
+                                    .fontWeight(.medium)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                    .foregroundStyle(change.isConflicting ? Color.red : Color.primary)
+                                Spacer(minLength: 0)
+                            }
+                            .font(.callout)
+                            .help("\(change.fromPath) → \(change.toPath)")
+                        }
+                        if changes.contains(where: \.isConflicting) {
+                            Text(L10n.text("batchRename.preview.conflictNote"))
+                                .font(.caption)
+                                .foregroundStyle(.red)
+                        }
+                    }
+                }
+            }
         }
-        .frame(width: 560)
     }
 
     @ViewBuilder
