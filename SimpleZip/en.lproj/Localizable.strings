@@ -1249,6 +1249,11 @@
 "convert.section.output" = "Output & Batch Options";
 "missingVolumes.menu" = "Search for Missing Volumes…";
 "urlScheme.confirm.title" = "Another app asked SimpleZip to act";
+"releaseAssistant.workspace.menu" = "Workspace Presets";
+"releaseAssistant.workspace.save" = "Save Current Setup…";
+"releaseAssistant.workspace.delete" = "Delete Preset";
+"releaseAssistant.workspace.savePrompt.title" = "Save Workspace Preset";
+"releaseAssistant.workspace.savePrompt.message" = "Name this release setup (same name overwrites):";
 "urlScheme.confirm.check" = "Test this archive?\n\n%@";
 "urlScheme.confirm.compare" = "Compare these two items?\n\n%@\n%@";
 "urlScheme.confirm.open" = "Open this path in SimpleZip?\n\n%@";

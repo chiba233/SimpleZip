@@ -33,6 +33,9 @@ struct ReleaseAssistantSheet: View {
     let confirm: (ReleaseAssistantRequest) -> Void
     let cancel: () -> Void
 
+    /// #18:命名工作区预设(整套发布配置一把存取;store 在 Core,随设置备份)。
+    @State private var workspacePresets: [ReleaseWorkspacePreset] = ReleaseWorkspacePresetStore().loadAll()
+
     private var canConfirm: Bool {
         request.sourceFolder != nil
             && request.destinationFolder != nil
@@ -41,6 +44,60 @@ struct ReleaseAssistantSheet: View {
 
     private var showsGPGRow: Bool {
         AppPreferences.gpgEnabled && GPGBackend.isAvailable()
+    }
+
+    // MARK: - #18 工作区预设
+
+    /// 套用:路径仅在目录仍存在时回填(项目挪走了就留空让用户重挑,不瞎填死路径)。
+    private func apply(_ preset: ReleaseWorkspacePreset) {
+        func existingDirectory(_ path: String?) -> URL? {
+            guard let path else { return nil }
+            var isDirectory: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory), isDirectory.boolValue else { return nil }
+            return URL(fileURLWithPath: path)
+        }
+        request.sourceFolder = existingDirectory(preset.sourceFolderPath)
+        request.destinationFolder = existingDirectory(preset.destinationFolderPath)
+        request.fileName = preset.fileName
+        if let format = ArchiveCreateFormat(rawValue: preset.formatRawValue),
+           format == .zip || format == .sevenZip {
+            request.format = format
+        }
+        request.excludeJunk = preset.excludeJunk
+        request.reproducible = preset.reproducible
+        request.runInspection = preset.runInspection
+        request.writeChecksums = preset.writeChecksums
+        request.createSignedManifest = preset.createSignedManifest && showsGPGRow
+    }
+
+    /// 保存当前配置为命名预设(同名覆盖)。NSAlert + TextField,与「保存搜索过滤器」同一体例。
+    private func promptSaveWorkspacePreset() {
+        let alert = NSAlert()
+        alert.messageText = L10n.text("releaseAssistant.workspace.savePrompt.title")
+        alert.informativeText = L10n.text("releaseAssistant.workspace.savePrompt.message")
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
+        field.stringValue = request.sourceFolder?.lastPathComponent ?? request.fileName
+        alert.accessoryView = field
+        alert.addButton(withTitle: L10n.text("button.save"))
+        alert.addButton(withTitle: L10n.text("button.cancel"))
+        alert.window.initialFirstResponder = field
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        let name = field.stringValue.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else { return }
+        let preset = ReleaseWorkspacePreset(
+            name: name,
+            sourceFolderPath: request.sourceFolder?.path,
+            fileName: request.fileName,
+            formatRawValue: request.format.rawValue,
+            destinationFolderPath: request.destinationFolder?.path,
+            excludeJunk: request.excludeJunk,
+            reproducible: request.reproducible,
+            runInspection: request.runInspection,
+            writeChecksums: request.writeChecksums,
+            createSignedManifest: request.createSignedManifest
+        )
+        ReleaseWorkspacePresetStore().save(preset)
+        workspacePresets = ReleaseWorkspacePresetStore().loadAll()
     }
 
     var body: some View {
@@ -55,6 +112,32 @@ struct ReleaseAssistantSheet: View {
             confirm: { confirm(request) },
             cancel: cancel
         ) {
+            // #18:工作区预设 —— 与创建对话框「套用模板」同款形态:套用 / 保存当前 / 删除。
+            HStack {
+                Menu {
+                    ForEach(workspacePresets) { preset in
+                        Button(preset.name) { apply(preset) }
+                    }
+                    if !workspacePresets.isEmpty {
+                        Divider()
+                        Menu(L10n.text("releaseAssistant.workspace.delete")) {
+                            ForEach(workspacePresets) { preset in
+                                Button(preset.name) {
+                                    ReleaseWorkspacePresetStore().delete(id: preset.id)
+                                    workspacePresets = ReleaseWorkspacePresetStore().loadAll()
+                                }
+                            }
+                        }
+                    }
+                    Divider()
+                    Button(L10n.text("releaseAssistant.workspace.save")) { promptSaveWorkspacePreset() }
+                } label: {
+                    Label(L10n.text("releaseAssistant.workspace.menu"), systemImage: "square.stack.3d.up")
+                }
+                .fixedSize()
+                Spacer()
+            }
+
             DialogSection(L10n.text("releaseAssistant.section.source")) {
                 // 值一侧全部顶到右缘(用户点名):label + Spacer + 值,与解压家族同款。
                 // LabeledContent 在普通 VStack 里只按自然宽度排,右缘会参差。

@@ -1247,6 +1247,11 @@
 "convert.section.output" = "输出与批量选项";
 "missingVolumes.menu" = "搜索缺失分卷…";
 "urlScheme.confirm.title" = "其他 App 请求 SimpleZip 执行动作";
+"releaseAssistant.workspace.menu" = "工作区预设";
+"releaseAssistant.workspace.save" = "保存当前配置…";
+"releaseAssistant.workspace.delete" = "删除预设";
+"releaseAssistant.workspace.savePrompt.title" = "保存工作区预设";
+"releaseAssistant.workspace.savePrompt.message" = "给这套发布配置起个名字（同名覆盖）：";
 "urlScheme.confirm.check" = "测试这个压缩包？\n\n%@";
 "urlScheme.confirm.compare" = "比较这两个项目？\n\n%@\n%@";
 "urlScheme.confirm.open" = "在 SimpleZip 中打开这个路径？\n\n%@";
