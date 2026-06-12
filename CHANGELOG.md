@@ -4,6 +4,7 @@
 
 ## 0.4.4 (unreleased)
 
+- **Release Assistant runs now record per-step timings.** Packaging, inspection and checksum-writing are tracked as named steps with durations; the step list shows up in the task's Activity Center details and persists with history. Internally the pipeline moved into a reusable engine that can also resume — if a run failed after packaging, the existing artifact can be re-inspected without re-packing (the resume button arrives with the upcoming assistant polish; re-packing always produces a new uniquely-named file, never overwrites).
 - **The .szs verification report can be exported.** Signature status, signer and grouped fingerprint, manifest date, payload root, the match/mismatch/missing tallies and every failing entry (with both SHA-256 values) — exportable as Markdown, JSON or a GitHub issue once verification finishes. Read-only; the container itself is never touched.
 - **The space-analysis report can be exported.** Totals, compression ratio, encrypted/junk tallies, largest files, top-level directories and extension breakdown — as Markdown, JSON, a one-line summary or a GitHub issue, via the same Export Report menu.
 - **The security report can be exported.** The open-time path-security report gains the unified Export Report menu; exports list every flagged path per category (the on-screen view caps each category at 12), as Markdown, JSON or a paste-ready GitHub issue.

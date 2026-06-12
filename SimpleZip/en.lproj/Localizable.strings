@@ -1144,6 +1144,10 @@
 "releaseAssistant.section.source" = "What to Ship";
 "releaseAssistant.section.steps" = "Steps";
 "releaseAssistant.section.outputs" = "Outputs & Signing";
+/* 0.4.4 F3 release pipeline steps */
+"releaseAssistant.step.createArchive" = "Step: package";
+"releaseAssistant.step.inspect" = "Step: release inspection";
+"releaseAssistant.step.checksums" = "Step: checksums";
 "releaseAssistant.sourceFolder" = "Build Folder";
 "releaseAssistant.chooseSource" = "Choose the folder to pack";
 "releaseAssistant.chooseDestination" = "Choose where the archive lands";

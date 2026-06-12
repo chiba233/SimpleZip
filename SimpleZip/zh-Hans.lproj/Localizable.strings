@@ -1142,6 +1142,10 @@
 "releaseAssistant.section.source" = "要发布什么";
 "releaseAssistant.section.steps" = "步骤";
 "releaseAssistant.section.outputs" = "产出与签名";
+/* 0.4.4 F3 发布流水线步骤 */
+"releaseAssistant.step.createArchive" = "步骤:打包";
+"releaseAssistant.step.inspect" = "步骤:发布检查";
+"releaseAssistant.step.checksums" = "步骤:校验文件";
 "releaseAssistant.sourceFolder" = "产物目录";
 "releaseAssistant.chooseSource" = "选择要打包的文件夹";
 "releaseAssistant.chooseDestination" = "选择归档输出位置";

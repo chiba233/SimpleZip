@@ -505,16 +505,27 @@ extension ArchiveBrowserModel {
     /// 发布助手管线:① 打包(可排垃圾 / 可复现,输出重名自动唯一化绝不覆盖) → ② 发布检查
     /// (与右键「发布包检查」同一套步骤) → ③ 写 SHA256SUMS → ④ 可选转入现有「创建签名清单」sheet。
     /// 检查失败不让任务失败 —— 失败本身就是报告内容;打包失败才算任务失败。
-    func runReleaseAssistant(_ request: ReleaseAssistantRequest) {
+    /// F3:执行体在 ReleaseAssistantPipeline(发布 intent 复用同一函数);本方法只是任务壳。
+    /// `resumingWith`:上次跑出的产物还在 → 跳过打包,从检查/校验续跑(createArchive 重跑 =
+    /// UniqueFileName 新文件,不存在「原位续打包」)。
+    func runReleaseAssistant(_ request: ReleaseAssistantRequest, resumingWith existingArtifact: URL? = nil) {
         guard let source = request.sourceFolder, let destination = request.destinationFolder else { return }
         let trimmedName = request.fileName.trimmingCharacters(in: .whitespaces)
         guard !trimmedName.isEmpty else { return }
 
-        let preferred = destination
-            .appendingPathComponent(trimmedName)
-            .appendingPathExtension(request.format.pathExtension)
-        let outputURL = UniqueFileName.suffixed(for: preferred, suffix: "") {
-            FileManager.default.fileExists(atPath: $0.path)
+        let outputURL: URL
+        let skipCreate: Bool
+        if let existingArtifact, FileManager.default.fileExists(atPath: existingArtifact.path) {
+            outputURL = existingArtifact
+            skipCreate = true
+        } else {
+            let preferred = destination
+                .appendingPathComponent(trimmedName)
+                .appendingPathExtension(request.format.pathExtension)
+            outputURL = UniqueFileName.suffixed(for: preferred, suffix: "") {
+                FileManager.default.fileExists(atPath: $0.path)
+            }
+            skipCreate = false
         }
 
         var options = ArchiveCreationOptions()
@@ -531,6 +542,7 @@ extension ArchiveBrowserModel {
         }
 
         var report = ReleaseInspectionReport(archiveURL: outputURL)
+        let recorder = ReleaseStepRecorder()
         startManagedArchiveTask(
             title: L10n.format("releaseAssistant.taskTitle", outputURL.lastPathComponent),
             kind: .create,
@@ -543,71 +555,41 @@ extension ArchiveBrowserModel {
                 }
                 if request.createSignedManifest {
                     // 转入现有「创建签名清单」sheet(payload root = 输出目录,预选刚打的包)——
-                    // 不在助手里重绘密钥选择(A1)。
+                    // 不在助手里重绘密钥选择(A1)。交互式签名步不进步骤引擎(F3 设计如此)。
                     self.pendingCreateSZS = CreateSZSPrefill(payloadRoot: destination, files: [outputURL])
                 }
             },
             onSucceeded: { task in
-                // 活动中心详情里列出产物(路径 + SHA-256)。
+                // 活动中心详情里列出产物(路径 + SHA-256)+ F3 各步骤耗时(现成持久化通道)。
                 var rows = [TransferLogEntry(name: outputURL.path, action: .passed, isDirectory: false,
                                              detail: report.sha256 ?? "")]
                 if request.writeChecksums {
                     rows.append(TransferLogEntry(name: "SHA256SUMS", action: .passed, isDirectory: false, detail: ""))
                 }
+                for step in recorder.steps {
+                    rows.append(TransferLogEntry(
+                        name: L10n.text("releaseAssistant.step.\(step.id.rawValue)"),
+                        action: step.status == .skipped ? .skipped : .passed,
+                        isDirectory: false,
+                        detail: step.status == .skipped ? "" : step.formattedDuration
+                    ))
+                }
                 task.transferLog = rows
             },
             rerunAction: { [weak self] in self?.runReleaseAssistant(request) }
         ) { operationID, progress, outputObserver in
-            // ① 打包。创建占 0~0.6 —— createArchive 自己的 fraction 压缩到这个区间。
-            try await ArchiveService.createArchive(
-                from: [source],
-                destination: outputURL,
+            report = try await ReleaseAssistantPipeline.run(
+                request: request,
+                source: source,
+                destination: destination,
+                outputURL: outputURL,
                 options: options,
+                skipCreate: skipCreate,
+                recorder: recorder,
                 operationID: operationID,
-                progress: { state in
-                    var scaled = state
-                    scaled.fraction = state.fraction.map { $0 * 0.6 }
-                    progress(scaled)
-                },
+                progress: progress,
                 outputObserver: outputObserver
             )
-            // ② 发布检查(与 runReleaseInspection 同一套步骤,对刚生成的归档;新包无密码)。
-            if request.runInspection {
-                progress(ArchiveProgressState(fraction: 0.65, statusText: nil))
-                if let items = try? await ArchiveService.list(outputURL, operationID: operationID) {
-                    report.listable = true
-                    report.stats = ReleaseInspection.stats(for: items)
-                    report.securityFindings = ArchiveSecurityReport.analyze(items)
-                    report.hasComment = !ArchiveService.headerComment(for: outputURL).isEmpty
-                    report.structuralFingerprint = ArchiveStructuralFingerprint.compute(for: items)
-                }
-                do {
-                    try await ArchiveService.test(outputURL, operationID: operationID, outputObserver: outputObserver)
-                    report.testPassed = true
-                } catch is CancellationError {
-                    throw CancellationError()
-                } catch {
-                    report.testPassed = false
-                    report.testFailureMessage = error.localizedDescription
-                }
-            }
-            // ③ SHA-256:检查报告和 SHA256SUMS 共用同一次哈希。
-            if request.runInspection || request.writeChecksums {
-                progress(ArchiveProgressState(fraction: 0.9, statusText: nil))
-                let digest = try? await Task.detached(priority: .userInitiated) {
-                    try HashService.sha256(for: outputURL)
-                }.value
-                report.sha256 = digest
-                if request.writeChecksums, let digest {
-                    let preferredSums = destination.appendingPathComponent("SHA256SUMS")
-                    let sumsURL = UniqueFileName.suffixed(for: preferredSums, suffix: "") {
-                        FileManager.default.fileExists(atPath: $0.path)
-                    }
-                    try ChecksumFile.generateSHA256SUMS([(name: outputURL.lastPathComponent, digestHex: digest)])
-                        .write(to: sumsURL, atomically: true, encoding: .utf8)
-                }
-            }
-            progress(ArchiveProgressState(fraction: 1.0, statusText: nil))
         }
     }
 
