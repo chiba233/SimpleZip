@@ -1230,6 +1230,15 @@
 "convert.status.extracting" = "正在解压源…";
 "file.convert.menuItem" = "转换格式…";
 "file.submenu.signEncrypt" = "签名与加密";
+"dupArchives.menu" = "查找疑似重复归档…";
+"dupArchives.title" = "疑似重复归档";
+"dupArchives.taskTitle" = "正在扫描重复归档：%@";
+"dupArchives.none" = "扫描了 %@ 个归档，没有发现疑似重复";
+"dupArchives.summary" = "扫描了 %2$@ 个归档，发现 %1$@ 组疑似重复";
+"dupArchives.identical" = "结构完全相同（指纹一致）";
+"dupArchives.similar" = "条目数与总大小相同——请人工核对";
+"dupArchives.group.meta" = "%@ 个条目 · %@";
+"dupArchives.skipped" = "%@ 个归档无法读取被跳过：%@";
 "file.submenu.archiveTools" = "归档工具";
 "file.submenu.checksums" = "校验";
 "convert.title" = "转换格式";

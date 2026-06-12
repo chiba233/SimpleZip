@@ -1232,6 +1232,15 @@
 "convert.status.extracting" = "Extracting source…";
 "file.convert.menuItem" = "Convert Format…";
 "file.submenu.signEncrypt" = "Sign & Encrypt";
+"dupArchives.menu" = "Find Suspected Duplicate Archives…";
+"dupArchives.title" = "Suspected Duplicate Archives";
+"dupArchives.taskTitle" = "Scanning for duplicate archives: %@";
+"dupArchives.none" = "No suspected duplicates among %@ scanned archive(s)";
+"dupArchives.summary" = "%@ suspected group(s) among %@ scanned archive(s)";
+"dupArchives.identical" = "Identical structure (matching fingerprint)";
+"dupArchives.similar" = "Same entry count and total size — verify manually";
+"dupArchives.group.meta" = "%@ entries · %@";
+"dupArchives.skipped" = "%@ archive(s) skipped (unreadable): %@";
 "file.submenu.archiveTools" = "Archive Tools";
 "file.submenu.checksums" = "Checksums";
 "convert.title" = "Convert Format";

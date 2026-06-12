@@ -54,6 +54,8 @@ final class ArchiveBrowserModel: ObservableObject {
     @Published var spaceAnalysisReport: ArchiveSpaceAnalysisReport?
     /// 0.4.2 #24：归档内重复文件报告 sheet（非 nil = 显示）。
     @Published var duplicateFilesReport: DuplicateFilesReport?
+    /// #10:疑似重复归档(同文件夹按指纹/条目数/大小归组)报告 sheet(非 nil = 显示)。
+    @Published var duplicateArchivesReport: DuplicateArchivesReport?
     /// 0.4.2：.gpg 解压确认对话框（非 nil = 显示）。
     @Published var gpgExtractRequest: GPGExtractRequest?
     /// 0.4.2：虚拟浏览导出对话框（非 nil = 显示）。

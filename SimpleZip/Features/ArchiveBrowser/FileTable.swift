@@ -999,6 +999,12 @@ struct FileNSOutlineView: NSViewRepresentable {
                     menu.addItem(menuItem(L10n.text("file.paste"), systemImage: "clipboard", action: #selector(pasteFiles)))
                     menu.addItem(.separator())
                 }
+                // #10:当前文件夹里 ≥2 个受支持归档 → 空白处也给「查找疑似重复归档」入口。
+                if !isVirtualBrowse,
+                   model.fileItems.filter({ !$0.isDirectory && ArchiveService.isSupportedArchive($0.url) }).count >= 2 {
+                    menu.addItem(menuItem(L10n.text("dupArchives.menu"), systemImage: "doc.on.doc", action: #selector(findDuplicateArchives)))
+                    menu.addItem(.separator())
+                }
                 // 用 revealCurrentLocation 不用 revealSelected —— 用户右键空白处的意图是「打开我现在看的这个文件夹本身」。
                 menu.addItem(menuItem(L10n.text("help.refresh"), systemImage: "arrow.clockwise", action: #selector(refreshBrowser)))
                 menu.addItem(menuItem(L10n.text("button.revealInFinder"), systemImage: "arrow.up.forward.app", action: #selector(revealCurrentLocation)))
@@ -1084,6 +1090,8 @@ struct FileNSOutlineView: NSViewRepresentable {
             let selectedArchiveCount = model.selectedFileItems.filter { !$0.isDirectory && ArchiveService.isSupportedArchive($0.url) }.count
             if selectedArchiveCount >= 2 {
                 toolsMenu.addItem(menuItem(L10n.format("file.batchTest", "\(selectedArchiveCount)"), systemImage: "checkmark.seal", action: #selector(batchTestArchives)))
+                // #10:选中 ≥2 个归档 → 按结构指纹/条目数/大小找疑似同包。
+                toolsMenu.addItem(menuItem(L10n.text("dupArchives.menu"), systemImage: "doc.on.doc", action: #selector(findDuplicateArchives)))
             } else {
                 toolsMenu.addItem(menuItem(L10n.text("button.test"), systemImage: "checkmark.seal", action: #selector(testSelectedArchive)))
             }
@@ -1392,6 +1400,10 @@ struct FileNSOutlineView: NSViewRepresentable {
 
         @objc private func analyzeArchiveSpace() {
             model.analyzeSelectedArchiveSpace()
+        }
+
+        @objc private func findDuplicateArchives() {
+            model.findDuplicateArchivesInFolder()
         }
 
         @objc private func testSelectedArchive() {

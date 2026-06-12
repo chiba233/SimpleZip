@@ -559,3 +559,85 @@ enum ArchiveSingleRootFolder {
         }
     }
 }
+
+// MARK: - 疑似重复归档检测(队列 #10)
+
+/// 同一文件夹里的「foo.zip / foo (1).zip / foo-副本.7z」按结构归组:
+/// 指纹一致 = 结构完全相同(确认级);指纹不同但条目数 + 解压后总大小一致 = 疑似。
+/// 纯分组逻辑 —— 列归档与算指纹由调用方完成,这里只接收摘要(SwiftPM 可测)。
+enum ArchiveDuplicateScan {
+
+    /// 一个候选归档的结构摘要。`fingerprint` 为 nil = 列不出条目(加密 / 损坏),不参与指纹组,
+    /// 但条目数 / 大小已知时仍可进疑似组(都未知则完全不参与)。
+    struct Source: Hashable {
+        let url: URL
+        let fingerprint: String?
+        let entryCount: Int
+        let totalBytes: Int64
+
+        nonisolated init(url: URL, fingerprint: String?, entryCount: Int, totalBytes: Int64) {
+            self.url = url
+            self.fingerprint = fingerprint
+            self.entryCount = entryCount
+            self.totalBytes = totalBytes
+        }
+    }
+
+    struct Group: Identifiable, Hashable {
+        enum Confidence: Hashable {
+            /// 结构指纹一致 —— 路径/类型/大小/CRC 全同,重新打包也认得出。
+            case identicalStructure
+            /// 指纹不同(或不可得)但条目数与解压后总大小一致 —— 提示人工核对。
+            case sameCountAndSize
+        }
+
+        let id = UUID()
+        let confidence: Confidence
+        let urls: [URL]
+        let entryCount: Int
+        let totalBytes: Int64
+    }
+
+    /// 分组:先按指纹聚(≥2 成组),余下的按 (条目数, 总大小) 聚(≥2 成组)。
+    /// 输出按组内首文件名排序,组内按文件名排序 —— 确定性输出。
+    nonisolated static func groups(from sources: [Source]) -> [Group] {
+        var groups: [Group] = []
+        var consumed = Set<URL>()
+
+        var byFingerprint: [String: [Source]] = [:]
+        for source in sources {
+            guard let fingerprint = source.fingerprint else { continue }
+            byFingerprint[fingerprint, default: []].append(source)
+        }
+        for (_, members) in byFingerprint where members.count >= 2 {
+            let sorted = members.sorted { $0.url.lastPathComponent < $1.url.lastPathComponent }
+            consumed.formUnion(sorted.map(\.url))
+            groups.append(Group(
+                confidence: .identicalStructure,
+                urls: sorted.map(\.url),
+                entryCount: sorted[0].entryCount,
+                totalBytes: sorted[0].totalBytes
+            ))
+        }
+
+        var bySize: [String: [Source]] = [:]
+        for source in sources where !consumed.contains(source.url) {
+            // 0 条目 0 字节的摘要(列不出来又没有元数据)没有归组意义。
+            guard source.entryCount > 0 || source.totalBytes > 0 else { continue }
+            bySize["\(source.entryCount)|\(source.totalBytes)", default: []].append(source)
+        }
+        for (_, members) in bySize where members.count >= 2 {
+            let sorted = members.sorted { $0.url.lastPathComponent < $1.url.lastPathComponent }
+            groups.append(Group(
+                confidence: .sameCountAndSize,
+                urls: sorted.map(\.url),
+                entryCount: sorted[0].entryCount,
+                totalBytes: sorted[0].totalBytes
+            ))
+        }
+
+        return groups.sorted {
+            ($0.urls.first?.lastPathComponent ?? "") < ($1.urls.first?.lastPathComponent ?? "")
+        }
+    }
+}

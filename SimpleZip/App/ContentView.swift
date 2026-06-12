@@ -1302,6 +1302,11 @@ private struct ArchiveExtrasSheets: ViewModifier {
                     model.duplicateFilesReport = nil
                 }
             }
+            .sheet(item: $model.duplicateArchivesReport) { report in
+                DuplicateArchivesView(report: report) {
+                    model.duplicateArchivesReport = nil
+                }
+            }
             .sheet(item: $model.gpgExtractRequest) { request in
                 GPGExtractOptionsView(request: request) { confirmed in
                     model.gpgExtractRequest = nil

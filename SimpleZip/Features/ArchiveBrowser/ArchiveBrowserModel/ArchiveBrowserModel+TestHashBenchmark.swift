@@ -259,6 +259,87 @@ extension ArchiveBrowserModel {
         )
     }
 
+    // MARK: - 疑似重复归档检测(队列 #10)
+
+    /// 一次扫描的展示模型(sheet item)。分组在 Core(ArchiveDuplicateScan,纯函数已测),
+    /// 这里聚合「扫了几个 / 跳过几个」与组列表。
+    struct DuplicateArchivesReport: Identifiable {
+        let id = UUID()
+        let folderName: String
+        let scannedCount: Int
+        let skippedNames: [String]
+        let groups: [ArchiveDuplicateScan.Group]
+    }
+
+    /// 「查找疑似重复归档」:选中 ≥2 个归档只扫选中,否则扫当前文件夹里全部受支持归档。
+    /// 逐包列条目算结构指纹(加密包试会话口令,仍读不了的跳过并在报告里点名),纯只读。
+    func findDuplicateArchivesInFolder() {
+        let selectedArchives = selectedFileItems.filter { !$0.isDirectory && ArchiveService.isSupportedArchive($0.url) }
+        let candidates: [URL]
+        if selectedArchives.count >= 2 {
+            candidates = selectedArchives.map(\.url)
+        } else {
+            candidates = fileItems
+                .filter { !$0.isDirectory && ArchiveService.isSupportedArchive($0.url) }
+                .map(\.url)
+        }
+        guard candidates.count >= 2, case .folder(let folderURL) = mode else {
+            errorMessage = L10n.text("error.openOrSelectArchive")
+            return
+        }
+        runDuplicateArchiveScan(candidates: candidates, folderName: folderURL.lastPathComponent)
+    }
+
+    private func runDuplicateArchiveScan(candidates: [URL], folderName: String) {
+        var report = DuplicateArchivesReport(folderName: folderName, scannedCount: 0, skippedNames: [], groups: [])
+        startManagedArchiveTask(
+            title: L10n.format("dupArchives.taskTitle", folderName),
+            kind: .test,
+            showsDetails: false,
+            successStatus: nil,
+            refreshOnSuccess: { [weak self] in
+                self?.duplicateArchivesReport = report
+            },
+            rerunAction: { [weak self] in self?.runDuplicateArchiveScan(candidates: candidates, folderName: folderName) }
+        ) { operationID, progress, _ in
+            var sources: [ArchiveDuplicateScan.Source] = []
+            var skipped: [String] = []
+            for (index, url) in candidates.enumerated() {
+                try Task.checkCancellation()
+                progress(ArchiveProgressState(
+                    fraction: Double(index) / Double(candidates.count),
+                    currentFile: url.lastPathComponent,
+                    completedUnitCount: index, totalUnitCount: candidates.count
+                ))
+                var listed: [ArchiveItem]?
+                for password in [""] + SessionPasswordCache.shared.candidates(for: url) {
+                    if let items = try? await ArchiveService.list(url, password: password, operationID: operationID) {
+                        listed = items
+                        break
+                    }
+                }
+                guard let items = listed else {
+                    skipped.append(url.lastPathComponent)
+                    continue
+                }
+                let files = items.filter { !$0.isDirectory }
+                sources.append(ArchiveDuplicateScan.Source(
+                    url: url,
+                    fingerprint: ArchiveStructuralFingerprint.compute(for: items),
+                    entryCount: files.count,
+                    totalBytes: files.reduce(0) { $0 + ($1.size ?? 0) }
+                ))
+            }
+            report = DuplicateArchivesReport(
+                folderName: folderName,
+                scannedCount: sources.count,
+                skippedNames: skipped,
+                groups: ArchiveDuplicateScan.groups(from: sources)
+            )
+            progress(ArchiveProgressState(fraction: 1.0, completedUnitCount: candidates.count, totalUnitCount: candidates.count))
+        }
+    }
+
     // MARK: - 发布助手(选目录→打包→检查→校验文件→可选签名一条流)
 
     /// 工具菜单「发布助手…」:预填当前浏览的文件夹,弹确认 sheet。
