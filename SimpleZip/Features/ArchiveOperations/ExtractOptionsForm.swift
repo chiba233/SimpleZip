@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct ExtractOptionsForm<ExtraControls: View>: View {
+struct ExtractOptionsForm<ExtraControls: View, Drawers: View>: View {
     let title: String
     /// hero 副标题（通常是压缩包文件名）；nil 则只显示标题。
     var subtitle: String?
@@ -20,6 +20,9 @@ struct ExtractOptionsForm<ExtraControls: View>: View {
     let confirm: () -> Void
     let cancel: () -> Void
     @ViewBuilder let extraControls: () -> ExtraControls
+    /// 主卡片下方的抽屉区（#18 一级密度治理）：DialogDrawer 是独立卡片,与 DialogSection 同级,
+    /// 不能塞进 extraControls(那会嵌进卡片里)。不需要抽屉的调用方传空闭包。
+    @ViewBuilder let drawers: () -> Drawers
 
     // presetPasswordEnabled 是 bool，放 UserDefaults 安全，@AppStorage 自动响应改动。
     // 密码本身现在存在 Keychain，view 在 onAppear 时拉一次到 @State 缓冲。
@@ -101,6 +104,8 @@ struct ExtractOptionsForm<ExtraControls: View>: View {
                             }
                         }
                     }
+
+                    drawers()
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 16)

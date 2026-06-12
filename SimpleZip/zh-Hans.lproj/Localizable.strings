@@ -732,6 +732,9 @@
 "extract.stripSingleRoot.on" = "内容直接落在 %1$@/ 下——%2$@ 这一层将被去掉";
 "extract.stripSingleRoot.off" = "解出后位于 %1$@/%2$@/（保留包装层）";
 "extract.skipSymlinks.detail" = "合并前在 staging 上删掉所有符号链接——来自其他系统的包,链接常指向本机不存在的路径。上方预检概要里有链接数量可对照。";
+/* 0.4.4 #18 解压对话框抽屉 */
+"extract.section.contentHandling" = "内容处理";
+"extract.section.afterFinish" = "解压完成后";
 /* 0.4.3 校验文件 */
 "checksum.generate.menu" = "生成 SHA256SUMS";
 "checksum.verify.menu" = "验证校验文件";

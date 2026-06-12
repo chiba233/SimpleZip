@@ -734,6 +734,9 @@
 "extract.stripSingleRoot.on" = "Contents land directly in %1$@/ — the %2$@ layer is removed";
 "extract.stripSingleRoot.off" = "Extracts to %1$@/%2$@/ (wrapper kept)";
 "extract.skipSymlinks.detail" = "Symlinks are removed from the staged output before merging — useful for archives from other systems whose links point at paths that don't exist here. The preflight summary above shows how many the archive contains.";
+/* 0.4.4 #18 extract dialog drawers */
+"extract.section.contentHandling" = "Content Handling";
+"extract.section.afterFinish" = "After Extracting";
 /* 0.4.3 checksum files */
 "checksum.generate.menu" = "Generate SHA256SUMS";
 "checksum.verify.menu" = "Verify Checksum File";

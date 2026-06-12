@@ -43,19 +43,12 @@ struct ExtractArchiveOptionsView: View {
             presetMenuRow
             // 0.4.2 #8：解压前概要（文件数 / 大小 / 风险行）。
             preflightRows
-            // 0.4.2 用户点名：不解压 macOS 元数据垃圾（staging 上清扫,目标目录原有文件零接触）。
-            skipJunkToggle
-            // 0.4.3 #15：不解压符号链接（同样 staging 上处理;预检概要里有链接计数行可对照）。
-            skipSymlinksToggle
             // #13 智能去单层目录:仅当预检发现统一壳时出现,副标题写清两种选择的**最终路径**。
             if request.detectedSingleRootFolder != nil {
                 stripSingleRootToggle
             }
-            // #12:解到同名文件夹 / 冲突自动重命名 / 完成后显示 / 原包进废纸篓(全部默认关)。
+            // #12:解到同名文件夹 —— 与去壳一起决定最终落点,留一级(UI 必须写清最终路径的硬要求)。
             intoSubfolderToggle
-            autoRenameToggle
-            revealWhenDoneToggle
-            trashOriginalToggle
             // `.siz` 直接解压时多三行：签名状态 / 签名时间 / 签名指纹。普通归档时为 nil，extraControls 为空。
             if let signature = request.sizSignature {
                 SIZSignatureRows(signature: signature)
@@ -70,6 +63,18 @@ struct ExtractArchiveOptionsView: View {
                 if request.sizSignature?.encryption?.hasSymmetricPassphrase == true {
                     gpgDecryptionPassphraseRow
                 }
+            }
+        } drawers: {
+            // #18 一级密度治理:五个行为开关收进两个普通抽屉(决定最终落点的去壳/同名文件夹留一级)。
+            // 抽屉子行一律单色 Label(设计准则:二级单色 + 34pt 缩进,缩进由 DialogDrawer 统一管)。
+            DialogDrawer(L10n.text("extract.section.contentHandling"), systemImage: "square.3.layers.3d", color: .teal) {
+                drawerToggle("extract.autoRename", subtitleKey: "extract.autoRename.detail", systemImage: "pencil.and.list.clipboard", isOn: $request.autoRenameConflicts)
+                drawerToggle("extract.skipJunk", subtitleKey: "extract.skipJunk.detail", systemImage: "doc.badge.gearshape", isOn: $request.skipJunk)
+                drawerToggle("extract.skipSymlinks", subtitleKey: "extract.skipSymlinks.detail", systemImage: "link", isOn: $request.skipSymlinks)
+            }
+            DialogDrawer(L10n.text("extract.section.afterFinish"), systemImage: "checkmark.seal", color: .cyan) {
+                drawerToggle("extract.revealWhenDone", subtitleKey: "extract.revealWhenDone.detail", systemImage: "arrow.up.forward.app", isOn: $request.revealWhenDone)
+                drawerToggle("extract.trashOriginal", subtitleKey: "extract.trashOriginal.detail", systemImage: "trash", isOn: $request.trashOriginalWhenDone)
             }
         }
         .frame(width: 560)
@@ -135,52 +140,20 @@ struct ExtractArchiveOptionsView: View {
         )
     }
 
-    @ViewBuilder
-    private var autoRenameToggle: some View {
-        DialogToggleRow(
-            title: L10n.text("extract.autoRename"),
-            subtitle: L10n.text("extract.autoRename.detail"),
-            systemImage: "pencil.and.list.clipboard",
-            tint: .purple,
-            pinsToTrailing: true,
-            isOn: $request.autoRenameConflicts
-        )
-    }
-
-    @ViewBuilder
-    private var revealWhenDoneToggle: some View {
-        DialogToggleRow(
-            title: L10n.text("extract.revealWhenDone"),
-            subtitle: L10n.text("extract.revealWhenDone.detail"),
-            systemImage: "arrow.up.forward.app",
-            tint: .cyan,
-            pinsToTrailing: true,
-            isOn: $request.revealWhenDone
-        )
-    }
-
-    @ViewBuilder
-    private var trashOriginalToggle: some View {
-        DialogToggleRow(
-            title: L10n.text("extract.trashOriginal"),
-            subtitle: L10n.text("extract.trashOriginal.detail"),
-            systemImage: "trash",
-            tint: .red,
-            pinsToTrailing: true,
-            isOn: $request.trashOriginalWhenDone
-        )
-    }
-
-    @ViewBuilder
-    private var skipJunkToggle: some View {
-        DialogToggleRow(
-            title: L10n.text("extract.skipJunk"),
-            subtitle: L10n.text("extract.skipJunk.detail"),
-            systemImage: "doc.badge.gearshape.fill",
-            tint: .teal,
-            pinsToTrailing: true,
-            isOn: $request.skipJunk
-        )
+    /// #18 抽屉子行:单色 Label + 紧贴的开关 + 下方 caption 说明(创建对话框 drawerToggle 同款,
+    /// 多了副标题)。彩色瓦片只属于一级行,抽屉内一律单色。
+    private func drawerToggle(_ titleKey: String, subtitleKey: String, systemImage: String, isOn: Binding<Bool>) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                Label(L10n.text(titleKey), systemImage: systemImage)
+                Toggle("", isOn: isOn)
+                    .labelsHidden()
+            }
+            Text(L10n.text(subtitleKey))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     /// #13:去单层目录开关。副标题随勾选实时切换,明确写出最终落点(用户硬要求:UI 必须写清最终路径)。
@@ -197,18 +170,6 @@ struct ExtractArchiveOptionsView: View {
             tint: .indigo,
             pinsToTrailing: true,
             isOn: $request.stripSingleRootFolder
-        )
-    }
-
-    @ViewBuilder
-    private var skipSymlinksToggle: some View {
-        DialogToggleRow(
-            title: L10n.text("extract.skipSymlinks"),
-            subtitle: L10n.text("extract.skipSymlinks.detail"),
-            systemImage: "link",
-            tint: .orange,
-            pinsToTrailing: true,
-            isOn: $request.skipSymlinks
         )
     }
 

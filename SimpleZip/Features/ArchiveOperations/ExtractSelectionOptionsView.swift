@@ -58,7 +58,7 @@ struct ExtractSelectionOptionsView: View {
                 pinsToTrailing: true,
                 isOn: $request.skipSymlinks
             )
-        }
+        } drawers: {}
         .frame(width: 560)
     }
 }
