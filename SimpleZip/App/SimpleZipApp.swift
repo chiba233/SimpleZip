@@ -118,6 +118,8 @@ struct ArchiveFileCommands: Commands {
         // 0.4.2 用户点名「左上角菜单栏选项不全」：顶级「操作」菜单 —— 右键里的主力操作全部上桌。
         // GPG 项按 A4 门控（关总开关不渲染）；其余粗粒度 disabled(model == nil)，
         // 细粒度前置条件由各 model 方法自己把关（选区不对会给明确错误提示,不会静默）。
+        // 「操作」= 对所选执行的主动作(高频,保持短)。工具 / 分析 / 校验全家搬去新顶级菜单「归档」
+        // (用户点名:菜单栏同步右键的新结构 + 长平铺折成分组)。
         CommandMenu(L10n.text("menu.actions")) {
             Button(L10n.text("button.addToArchive")) { model?.createArchive() }
                 .disabled(model == nil)
@@ -127,12 +129,54 @@ struct ArchiveFileCommands: Commands {
                 .disabled(model == nil)
             Button(L10n.text("archive.saveCopyAs")) { model?.saveSelectedArchiveItemCopy() }
                 .disabled(model == nil)
-            Button(L10n.text("button.test")) { model?.testArchive() }
-                .disabled(model == nil)
+
+            // GPG 对(菜单栏既定折中:disabled 而非动态隐藏,防 first-responder 丢失)。
+            Divider()
+            Button(L10n.text("szs.create.menuItem")) { model?.createSignedManifest() }
+                .disabled(!AppPreferences.gpgEnabled || !GPGBackend.isAvailable() || model == nil)
+            Button(L10n.text("file.encrypt.gpg")) { model?.encryptSelectionToGPG() }
+                .disabled(!AppPreferences.gpgEnabled || !GPGBackend.isAvailable() || model == nil)
+        }
+
+        // 新顶级菜单「归档」:测试 / 校验 / 工具 / 分析 / 包内工具,与右键的分组一一对应。
+        CommandMenu(L10n.text("menu.archive")) {
+            Button {
+                model?.testArchive()
+            } label: {
+                Label(L10n.text("button.test"), systemImage: "checkmark.seal")
+            }
+            // ⌃⌘T —— 裸 ⌘T 让给「新建标签页」;原在文件菜单,随测试/哈希家族整体迁来。
+            .keyboardShortcut("t", modifiers: [.command, .control])
+            .disabled(!canTestArchive)
+
             Button(L10n.text("file.batchTest.button")) { model?.batchTestSelectedArchives() }
                 .disabled(model == nil)
-            Button(L10n.text("button.hash")) { model?.calculateHash() }
-                .disabled(model == nil)
+
+            // 「校验 ▸」与右键同款:全部哈希 + 各算法 + 校验文件两件套。
+            Menu(L10n.text("file.submenu.checksums")) {
+                Button(L10n.text("hash.all")) {
+                    model?.calculateHash()
+                }
+                .keyboardShortcut("h", modifiers: [.command, .shift])
+
+                Divider()
+
+                ForEach(HashAlgorithm.allCases) { algorithm in
+                    Button(algorithm.title) {
+                        model?.calculateHash(algorithms: [algorithm])
+                    }
+                }
+
+                Divider()
+
+                Button(L10n.text("checksum.generate.menu")) { model?.generateChecksumFileForSelection() }
+                    .disabled(!canManageSelectedFiles)
+                Button(L10n.text("checksum.verify.menu")) {
+                    if let item = model?.selectedFileItems.first { model?.verifyChecksumFile(item) }
+                }
+                .disabled(!canVerifyChecksumSelection)
+            }
+            .disabled(!canHash)
 
             Divider()
 
@@ -141,30 +185,34 @@ struct ArchiveFileCommands: Commands {
             Button(L10n.text("file.convert.menuItem")) { model?.requestConvertSelectedArchives() }
                 .disabled(model == nil)
             Button(L10n.text("file.split.menuItem")) { model?.splitSelectedFile() }
-                .disabled(model == nil)
+                .disabled(!canSplitSelectedFile)
             Button(L10n.text("file.combine.menuItem")) { model?.combineSelectedVolumes() }
-                .disabled(model == nil)
-            Button(L10n.text("inspect.menu")) { model?.inspectSelectedArchiveForRelease() }
-                .disabled(model == nil)
-            Button(L10n.text("space.menu")) { model?.analyzeSelectedArchiveSpace() }
+                .disabled(!canCombineSelectedVolumes)
+            Button(L10n.text("missingVolumes.menu")) { model?.searchMissingVolumesForSelection() }
                 .disabled(model == nil)
 
             Divider()
 
+            Button(L10n.text("inspect.menu")) { model?.inspectSelectedArchiveForRelease() }
+                .disabled(model == nil)
+            Button(L10n.text("space.menu")) { model?.analyzeSelectedArchiveSpace() }
+                .disabled(model == nil)
+            Button(L10n.text("dupArchives.menu")) { model?.findDuplicateArchivesInFolder() }
+                .disabled(!isFolderMode)
+
+            Divider()
+
+            // 包内工具(打开压缩包后可用)。
+            Button(L10n.text("contentSearch.menu")) { model?.promptContentSearch() }
+                .disabled(!isArchiveOpen)
+            Button(L10n.text("duplicates.menu")) { model?.findDuplicateFilesInArchive() }
+                .disabled(!isArchiveOpen)
+            Button(L10n.text("security.banner.review")) { model?.showsArchiveSecurityReport = true }
+                .disabled(model?.canShowArchiveSecurityReport != true)
             Button(L10n.text("archive.comment.menu")) { model?.showsArchiveCommentEditor = true }
                 .disabled(model?.canEditArchiveComment != true)
             Button(L10n.text("archive.cleanJunk.plain")) { model?.cleanArchiveJunkEntries() }
                 .disabled(model?.canDropIntoOpenArchive != true)
-            Button(L10n.text("security.banner.review")) { model?.showsArchiveSecurityReport = true }
-                .disabled(model?.canShowArchiveSecurityReport != true)
-
-            if AppPreferences.gpgEnabled && GPGBackend.isAvailable() {
-                Divider()
-                Button(L10n.text("file.encrypt.gpg")) { model?.encryptSelectionToGPG() }
-                    .disabled(model == nil)
-                Button(L10n.text("szs.create.menuItem")) { model?.createSignedManifest() }
-                    .disabled(model == nil)
-            }
         }
 
         // 0.4.2 #93 菜单一致性收尾：右键的高频项补进菜单栏(文件域)。
@@ -334,30 +382,7 @@ struct ArchiveFileCommands: Commands {
             .keyboardShortcut("e", modifiers: [.command, .shift])
             .disabled(!canExtractSelected)
 
-            Button {
-                model?.testArchive()
-            } label: {
-                Label(L10n.text("button.test"), systemImage: "checkmark.seal")
-            }
-            // ⌃⌘T —— 把裸 ⌘T 让给「新建标签页」（多标签功能要用），测试仍保留 T 助记。
-            .keyboardShortcut("t", modifiers: [.command, .control])
-            .disabled(!canTestArchive)
-
-            Menu(L10n.text("button.hash")) {
-                Button(L10n.text("hash.all")) {
-                    model?.calculateHash()
-                }
-                .keyboardShortcut("h", modifiers: [.command, .shift])
-
-                Divider()
-
-                ForEach(HashAlgorithm.allCases) { algorithm in
-                    Button(algorithm.title) {
-                        model?.calculateHash(algorithms: [algorithm])
-                    }
-                }
-            }
-            .disabled(!canHash)
+            // 测试(⌃⌘T)与哈希家族已整体迁往新顶级菜单「归档」(校验 ▸),文件菜单瘦身。
 
             Divider()
 
@@ -579,6 +604,19 @@ struct ArchiveFileCommands: Commands {
     private var canManageSelectedFiles: Bool {
         guard let model, case .folder = model.mode else { return false }
         return !model.selectedFileItems.isEmpty
+    }
+
+    /// 「归档」菜单包内工具(内容搜索 / 重复文件)的可用条件:正浏览一个压缩包。
+    private var isArchiveOpen: Bool {
+        guard let model, case .archive = model.mode else { return false }
+        return true
+    }
+
+    /// 「验证校验文件」:单选且文件名是已识别的校验文件(SHA256SUMS / *.sha256 …)。
+    private var canVerifyChecksumSelection: Bool {
+        guard let model, model.selectedFileItems.count == 1,
+              let only = model.selectedFileItems.first, !only.isDirectory else { return false }
+        return ChecksumFile.isChecksumFileName(only.name)
     }
 
     private var canSplitSelectedFile: Bool {

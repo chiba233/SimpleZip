@@ -1135,9 +1135,16 @@ struct FileNSOutlineView: NSViewRepresentable {
                 toolsMenu.addItem(menuItem(L10n.text("file.split.menuItem"), systemImage: "rectangle.split.2x1", action: #selector(splitFileSelected)))
             }
             menu.addItem(submenuItem(L10n.text("file.submenu.archiveTools"), systemImage: "wrench.and.screwdriver", submenu: toolsMenu))
-            // 「校验 ▸」—— 哈希 / 生成 SHA256SUMS / 验证校验文件。
+            // 「校验 ▸」—— 完整哈希家族(全部 + 各算法,与菜单栏「哈希 ▸」同款) / 生成 SHA256SUMS / 验证。
             let checksumMenu = NSMenu()
-            checksumMenu.addItem(menuItem(L10n.text("button.hash"), systemImage: "number.square", action: #selector(hashSelected)))
+            checksumMenu.addItem(menuItem(L10n.text("hash.all"), systemImage: "number.square", action: #selector(hashSelected)))
+            for algorithm in HashAlgorithm.allCases {
+                let algorithmItem = NSMenuItem(title: algorithm.title, action: #selector(hashSelectedWithAlgorithm(_:)), keyEquivalent: "")
+                algorithmItem.target = self
+                algorithmItem.representedObject = algorithm.rawValue
+                checksumMenu.addItem(algorithmItem)
+            }
+            checksumMenu.addItem(.separator())
             // 0.4.3 #11:校验文件 —— 选中含文件给「生成 SHA256SUMS」;单选校验文件给「验证」。
             if model.selectedFileItems.contains(where: { !$0.isDirectory }) {
                 checksumMenu.addItem(menuItem(L10n.text("checksum.generate.menu"), systemImage: "number.square.fill", action: #selector(generateChecksumFile)))
@@ -1426,6 +1433,13 @@ struct FileNSOutlineView: NSViewRepresentable {
 
         @objc private func hashSelected() {
             model.calculateHash()
+        }
+
+        /// 校验子菜单的单算法哈希(representedObject = HashAlgorithm.rawValue)。
+        @objc private func hashSelectedWithAlgorithm(_ sender: NSMenuItem) {
+            guard let raw = sender.representedObject as? String,
+                  let algorithm = HashAlgorithm(rawValue: raw) else { return }
+            model.calculateHash(algorithms: [algorithm])
         }
 
         @objc private func generateChecksumFile() {

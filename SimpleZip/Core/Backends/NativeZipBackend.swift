@@ -81,6 +81,27 @@ enum NativeZipBackend {
 
     // MARK: - extract
 
+    /// #19 跟进(用户拍板):纯 `.tar` **整包**解压走系统 bsdtar —— 7zz 解 tar 会丢 macOS
+    /// 扩展属性(xattr 自检样本实测红),系统 tar 原生往返 PAX 头里的 xattr(创建侧本就走系统 tar)。
+    /// bsdtar 默认拒绝绝对路径与 `..` 成员(不加 -P),外层再叠 validateExtractedTree。
+    /// 选条目 / flatten 仍走 7zz(7zz 列出的条目名与 tar 存储名不保证逐字节一致,不冒险)。
+    static func extractWholeTar(
+        _ archive: URL,
+        to destination: URL,
+        progressParser: ProgressOutputParser?,
+        outputObserver: (@Sendable (String) -> Void)?,
+        operationID: UUID?
+    ) async throws {
+        _ = try await BackendProcessRunner.runAndCapture(
+            "/usr/bin/tar",
+            arguments: ["-xvf", archive.path, "-C", destination.path],
+            progressParser: progressParser,
+            outputObserver: outputObserver,
+            operationID: operationID,
+            outputRetentionLimit: BackendProcessRunner.diagnosticsOutputRetentionLimit
+        )
+    }
+
     /// ZIP 文件的统一解压入口。
     ///
     /// 根据「解压方式」偏好 + 头部加密检测决定 backend 顺序，依次尝试：

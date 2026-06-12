@@ -263,17 +263,29 @@ enum ArchiveService {
                 try ArchiveSafety.validateExtractedTree(at: destination)
             }
         case .sevenZip:
-            try await SevenZipBackend.extract(
-                resolved.url,
-                entries: [],
-                to: destination,
-                overwriteBehavior: overwriteBehavior,
-                pathMode: .preserve,
-                password: password,
-                progressParser: parser,
-                outputObserver: outputObserver,
-                operationID: operationID
-            )
+            // #19 xattr 往返:纯 .tar 整包解压改走系统 tar(恢复 PAX xattr;7zz 会丢,自检样本实测)。
+            // tar 没有密码概念;压缩 tar 壳(tgz/zst…)与选条目解压仍走 7zz。
+            if resolved.url.pathExtension.lowercased() == "tar", password.isEmpty {
+                try await NativeZipBackend.extractWholeTar(
+                    resolved.url,
+                    to: destination,
+                    progressParser: parser,
+                    outputObserver: outputObserver,
+                    operationID: operationID
+                )
+            } else {
+                try await SevenZipBackend.extract(
+                    resolved.url,
+                    entries: [],
+                    to: destination,
+                    overwriteBehavior: overwriteBehavior,
+                    pathMode: .preserve,
+                    password: password,
+                    progressParser: parser,
+                    outputObserver: outputObserver,
+                    operationID: operationID
+                )
+            }
             if safetyPolicy == .validate {
                 try ArchiveSafety.validateExtractedTree(at: destination)
             }

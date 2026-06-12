@@ -1250,6 +1250,7 @@
 "missingVolumes.menu" = "Search for Missing Volumes…";
 "urlScheme.confirm.title" = "Another app asked SimpleZip to act";
 "releaseAssistant.workspace.menu" = "Workspace Presets";
+"menu.archive" = "Archive";
 "releaseAssistant.workspace.save" = "Save Current Setup…";
 "releaseAssistant.workspace.delete" = "Delete Preset";
 "releaseAssistant.workspace.savePrompt.title" = "Save Workspace Preset";
