@@ -14,7 +14,7 @@
 import Foundation
 
 /// 校验文件里一行的算法 —— 按摘要十六进制长度唯一推断。
-public enum ChecksumAlgorithm: String, CaseIterable, Sendable {
+public nonisolated enum ChecksumAlgorithm: String, CaseIterable, Sendable {
     case crc32 = "CRC32"     // 8
     case md5 = "MD5"         // 32
     case sha1 = "SHA1"       // 40
@@ -35,7 +35,7 @@ public enum ChecksumAlgorithm: String, CaseIterable, Sendable {
 }
 
 /// 校验文件里的一条记录:相对文件名 + 期望摘要(小写 hex)+ 算法。
-public struct ChecksumFileEntry: Equatable, Sendable {
+public nonisolated struct ChecksumFileEntry: Equatable, Sendable {
     public let name: String
     public let digestHex: String
     public let algorithm: ChecksumAlgorithm
@@ -47,7 +47,8 @@ public struct ChecksumFileEntry: Equatable, Sendable {
     }
 }
 
-public enum ChecksumFile {
+/// `nonisolated`:纯解析,CLI companion 与后台流程都要在非主隔离上下文调(app target 默认 MainActor 隔离)。
+public nonisolated enum ChecksumFile {
 
     /// 这个文件名是不是校验文件(右键给「验证校验文件」入口的判定)。
     public static func isChecksumFileName(_ name: String) -> Bool {

@@ -45,7 +45,7 @@ enum ArchiveCreateFormat: String, CaseIterable, Identifiable, Codable {
         }
     }
 
-    var pathExtension: String { rawValue }
+    nonisolated var pathExtension: String { rawValue }
 
     var usesSevenZipAdvancedOptions: Bool {
         self == .sevenZip
@@ -506,7 +506,8 @@ struct ExtractSelectionRequest: Identifiable {
 }
 
 /// 压缩/解压过程中的进度信息。
-struct ArchiveProgressState {
+/// `nonisolated`:CLI companion 与各后台回调都在非主隔离上下文构造它(app target 默认 MainActor 隔离)。
+nonisolated struct ArchiveProgressState {
     var fraction: Double?
     var currentFile: String?
     var statusText: String?

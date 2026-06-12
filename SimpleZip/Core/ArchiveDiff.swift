@@ -40,7 +40,7 @@ struct ArchiveDiffResult: Hashable {
     /// 两边都有且完全一致 —— 未变（右侧条目）。UI 通常折叠或忽略，保留以便统计与导出。
     let unchanged: [ArchiveItem]
 
-    var hasDifferences: Bool { !added.isEmpty || !removed.isEmpty || !changed.isEmpty }
+    nonisolated var hasDifferences: Bool { !added.isEmpty || !removed.isEmpty || !changed.isEmpty }
 }
 
 // 纯比对逻辑，可从任意 actor 调用 —— app target 默认 MainActor 隔离下，

@@ -9,7 +9,8 @@ import AppKit
 import SwiftUI
 
 /// SimpleZip 应用入口：负责创建主窗口和注册菜单命令。
-@main
+/// @main 已交给 main.swift —— 它先判 CLI companion(`simplezip` 符号链接 / `--cli`),
+/// 不是 CLI 才走到这里的 `SimpleZipApp.main()`。
 struct SimpleZipApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 

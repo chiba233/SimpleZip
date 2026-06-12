@@ -27,6 +27,86 @@ final class TaskCenter: ObservableObject {
     init() {
         history = Self.loadPersistedHistory()
         trimHistoryToLimit()
+        // CLI companion:接收 `simplezip` 进程发来的已完成任务记录(分布式通知,真·跨进程,
+        // 不在 A3 禁区)。app 在跑时 CLI 走这条道,记录实时进活动中心;没在跑时 CLI 直接写偏好域。
+        DistributedNotificationCenter.default().addObserver(
+            self,
+            selector: #selector(receiveExternalCLITaskRecord(_:)),
+            name: Notification.Name(Self.cliTaskNotificationName),
+            object: nil
+        )
+    }
+
+    /// CLI → app 的任务记录通知名。本地任何进程都能发 —— 它只影响历史记录展示,
+    /// 与直接改偏好 plist 同级,不构成新的攻击面。
+    nonisolated static let cliTaskNotificationName = "SimpleZip.cli.taskRecord"
+
+    /// app 侧:收 CLI 进程的已完成任务记录 → 插历史 + 持久化。分布式通知投递在主运行循环。
+    @objc private func receiveExternalCLITaskRecord(_ notification: Notification) {
+        guard let json = notification.userInfo?["record"] as? String,
+              let data = json.data(using: .utf8),
+              let snapshot = try? JSONDecoder().decode(PersistedTask.self, from: data) else { return }
+        history.insert(snapshot.task, at: 0)
+        trimHistoryToLimit()
+        persistHistory()
+    }
+
+    /// CLI 进程侧:把一条**已完成**的命令记录同步进活动中心。
+    /// app 正在运行 → 发分布式通知(上面的 observer 接住,实时可见);
+    /// 没运行 → 直接合并写进 app 的偏好域(`activityHistory`),下次启动出现在历史里。
+    /// CLI 进程经 PATH 符号链接运行时 `Bundle.main` 不指向 app bundle(实测),所以偏好域与
+    /// 「app 是否在跑」都以显式传入的 bundleID 为准。两个 CLI 进程同时直写有理论竞态 ——
+    /// 后写覆盖、只影响一条历史记录,接受;app 在跑时统一走通知,无竞态。
+    nonisolated static func recordExternalCLITask(
+        appBundleID: String,
+        category: OperationTask.Category,
+        kind: OperationTask.Kind,
+        title: String,
+        detail: String?,
+        startedAt: Date,
+        succeeded: Bool,
+        failureMessage: String?,
+        rawOutput: String
+    ) {
+        let now = Date()
+        let record = PersistedTask(
+            id: UUID(),
+            category: category,
+            kind: kind,
+            title: title,
+            detail: detail,
+            startedAt: startedAt,
+            status: succeeded ? .succeeded(nil) : .failed(failureMessage ?? "failed"),
+            finishedAt: now,
+            progress: PersistedProgress(progress: ArchiveProgressState()),
+            details: rawOutput.isEmpty ? nil : PersistedDetails(title: title, rawOutput: rawOutput, finishedAt: now),
+            hashReport: nil,
+            hashComparisons: nil,
+            transferLog: nil
+        )
+        let appIsRunning = !NSRunningApplication.runningApplications(withBundleIdentifier: appBundleID).isEmpty
+        if appIsRunning {
+            guard let payload = try? JSONEncoder().encode(record),
+                  let json = String(data: payload, encoding: .utf8) else { return }
+            DistributedNotificationCenter.default().postNotificationName(
+                Notification.Name(cliTaskNotificationName),
+                object: nil,
+                userInfo: ["record": json],
+                deliverImmediately: true
+            )
+            return
+        }
+        guard let defaults = UserDefaults(suiteName: appBundleID) else { return }
+        var snapshots: [PersistedTask] = []
+        if let data = defaults.data(forKey: AppPreferences.Key.activityHistory),
+           let existing = try? JSONDecoder().decode([LossyTask].self, from: data) {
+            snapshots = existing.compactMap(\.value)
+        }
+        snapshots.insert(record, at: 0)
+        guard let data = try? JSONEncoder().encode(snapshots) else { return }
+        defaults.set(data, forKey: AppPreferences.Key.activityHistory)
+        // CLI 进程随即 exit —— 强制把 CFPreferences 缓冲落盘,不然记录可能丢。
+        defaults.synchronize()
     }
 
     var runningCount: Int {
@@ -193,7 +273,7 @@ final class TaskCenter: ObservableObject {
     /// 0.4.2 修「经常丢历史」：以前 `try? decode([PersistedTask])` **一条解码失败 = 整段历史归零**，
     /// 而且下一次任务完成就把空数组写回盘（新旧版本混用时新枚举 case 必触发）。
     /// 现在逐条 lossy 解码：坏的丢、好的留；配合 Kind / TransferAction 的未知值降级，单条也很难再坏。
-    private struct LossyTask: Decodable {
+    private nonisolated struct LossyTask: Decodable {
         let value: PersistedTask?
         init(from decoder: Decoder) throws {
             value = try? PersistedTask(from: decoder)
@@ -218,7 +298,9 @@ final class TaskCenter: ObservableObject {
     }
 }
 
-private struct PersistedTask: Codable {
+/// `nonisolated`(本组持久化类型同此):CLI companion 进程在非主隔离上下文构造/编码这些记录,
+/// 历史持久化也在后台队列编码 —— 隔离开销与限制都不需要。读 @MainActor 状态的成员单独标回 @MainActor。
+private nonisolated struct PersistedTask: Codable {
     let id: UUID
     let category: OperationTask.Category
     let kind: OperationTask.Kind
@@ -235,6 +317,7 @@ private struct PersistedTask: Codable {
     let hashComparisons: [HashOverwriteResult]?
     let transferLog: [TransferLogEntry]?
 
+    @MainActor
     init(task: OperationTask) {
         id = task.id
         category = task.category
@@ -253,6 +336,38 @@ private struct PersistedTask: Codable {
         hashReport = task.hashReport
         hashComparisons = task.hashComparisons.isEmpty ? nil : task.hashComparisons
         transferLog = task.transferLog.isEmpty ? nil : task.transferLog
+    }
+
+    /// CLI companion 的直构 init —— CLI 进程里没有(也不能有)@MainActor 的 OperationTask,
+    /// 记录字段直接给。显式 init(task:) 抑制了 memberwise,这里补一份。
+    nonisolated init(
+        id: UUID,
+        category: OperationTask.Category,
+        kind: OperationTask.Kind,
+        title: String,
+        detail: String?,
+        startedAt: Date,
+        status: PersistedStatus,
+        finishedAt: Date?,
+        progress: PersistedProgress,
+        details: PersistedDetails?,
+        hashReport: HashReport?,
+        hashComparisons: [HashOverwriteResult]?,
+        transferLog: [TransferLogEntry]?
+    ) {
+        self.id = id
+        self.category = category
+        self.kind = kind
+        self.title = title
+        self.detail = detail
+        self.startedAt = startedAt
+        self.status = status
+        self.finishedAt = finishedAt
+        self.progress = progress
+        self.details = details
+        self.hashReport = hashReport
+        self.hashComparisons = hashComparisons
+        self.transferLog = transferLog
     }
 
     @MainActor
@@ -277,14 +392,14 @@ private struct PersistedTask: Codable {
     }
 }
 
-private struct PersistedProgress: Codable {
+private nonisolated struct PersistedProgress: Codable {
     let fraction: Double?
     let currentFile: String?
     let statusText: String?
     let completedUnitCount: Int?
     let totalUnitCount: Int?
 
-    init(progress: ArchiveProgressState) {
+    nonisolated init(progress: ArchiveProgressState) {
         fraction = progress.fraction
         currentFile = progress.currentFile
         statusText = progress.statusText
@@ -303,10 +418,18 @@ private struct PersistedProgress: Codable {
     }
 }
 
-private struct PersistedDetails: Codable {
+private nonisolated struct PersistedDetails: Codable {
     let title: String
     let rawOutput: String
     let finishedAt: Date?
+
+    /// 显式 nonisolated 构造 —— CLI 进程在非主隔离上下文组装记录(默认 MainActor 隔离下,
+    /// 隐式 memberwise init 会被钉在主 actor 上)。
+    nonisolated init(title: String, rawOutput: String, finishedAt: Date?) {
+        self.title = title
+        self.rawOutput = rawOutput
+        self.finishedAt = finishedAt
+    }
 
     @MainActor
     var session: ArchiveOperationDetailsSession {
@@ -314,7 +437,7 @@ private struct PersistedDetails: Codable {
     }
 }
 
-private enum PersistedStatus: Codable {
+private nonisolated enum PersistedStatus: Codable {
     case succeeded(URL?)
     case skipped(String?)
     case failed(String)

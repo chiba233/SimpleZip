@@ -42,6 +42,7 @@ let package = Package(
                 "Core/ArchiveEntryUpdate.swift",
                 "Core/ArchiveWriteGate.swift",
                 "Core/ChecksumFile.swift",
+                "Core/CLIInvocation.swift",
                 "Core/ArchiveOperationOptions.swift",
                 "Core/ArchiveSafety.swift",
                 "Core/ArchiveSearch.swift",

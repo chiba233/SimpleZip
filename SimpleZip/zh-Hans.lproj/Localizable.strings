@@ -1043,6 +1043,17 @@
 "tasks.filter.succeeded" = "已完成";
 "tasks.filter.failed" = "失败";
 "tasks.filter.cancelled" = "已取消";
+"settings.cli.section" = "命令行工具";
+"settings.cli.title" = "「simplezip」命令";
+"settings.cli.description" = "在 /usr/local/bin 安装符号链接。在终端里打开、检查、比较、创建、校验压缩包——完成的命令会记录进活动中心。";
+"settings.cli.install" = "安装";
+"settings.cli.uninstall" = "卸载";
+"settings.cli.status.installed" = "已安装：%@";
+"settings.cli.status.missing" = "未安装。安装后可运行「simplezip help」。";
+"settings.cli.status.foreign" = "路径已被其他内容占用：%@——安装会将其重新指向本应用。";
+"settings.cli.manualHint" = "没有写入 /usr/local/bin 的权限——请在终端执行：";
+"settings.cli.copyCommand" = "复制命令";
+"settings.cli.translocated" = "SimpleZip 正在临时位置运行（未验证的下载）。请先将其移入「应用程序」并重新启动，再安装。";
 "status.selectionCount" = "已选 %d 项";
 "status.selectionSummary" = "已选 %1$d 项 · %2$@";
 "status.archiveSummary" = "解压后 %1$@ · 包体 %2$@";

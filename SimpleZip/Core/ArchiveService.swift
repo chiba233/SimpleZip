@@ -382,7 +382,7 @@ enum ArchiveService {
 
     /// 错误是否表明「归档需要口令 / 口令不对」(0.4.3 #6 统一密码中心的共用判定)。
     /// 模型层 shouldPromptForArchivePassword、批量测试与 Finder 批量解压的静默重试都走这一份。
-    static func errorSuggestsPasswordRequirement(_ error: Error) -> Bool {
+    nonisolated static func errorSuggestsPasswordRequirement(_ error: Error) -> Bool {
         if let archiveError = error as? ArchiveError {
             switch archiveError {
             case .passwordPromptExhausted:
@@ -396,7 +396,7 @@ enum ArchiveService {
         return commandOutputSuggestsPasswordRequirement(error.localizedDescription)
     }
 
-    private static func commandOutputSuggestsPasswordRequirement(_ output: String) -> Bool {
+    private nonisolated static func commandOutputSuggestsPasswordRequirement(_ output: String) -> Bool {
         let normalized = output.lowercased()
         return normalized.contains("enter password")
             || normalized.contains("wrong password")

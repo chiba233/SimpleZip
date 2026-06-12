@@ -81,7 +81,8 @@ struct CompressionFormatPreset: Codable, Identifiable, Equatable {
     }
 
     /// 把**已启用**的字段值覆盖到 target（其余字段不动，保留 target 的默认）。
-    func apply(to target: inout ArchiveCreationOptions) {
+    /// `nonisolated`:CLI companion 在非主隔离上下文套用(app target 默认 MainActor 隔离)。
+    nonisolated func apply(to target: inout ArchiveCreationOptions) {
         for field in includedFields {
             switch field {
             case .level: target.compressionLevel = options.compressionLevel
@@ -110,7 +111,8 @@ struct CompressionFormatPreset: Codable, Identifiable, Equatable {
 /// #115（重做）**按格式**存预设：每个格式（zip / 7z / rar / tar.gz …）最多一份 `CompressionFormatPreset`。
 /// Finder / NSService 一键压缩按**目标格式**取其预设并 `apply`；创建对话框可勾选「套用本格式默认值」。
 /// 密码 / GPG 私钥永不入库（见 `sanitizedForStorage()`）。
-final class CompressionDefaultsStore {
+/// `nonisolated`:UserDefaults 线程安全,CLI companion 也要在非主隔离上下文读它。
+nonisolated final class CompressionDefaultsStore {
     private let defaults: UserDefaults
     /// 与 `AppPreferences.Key.compressionFormatPresets` 同一个 key —— 备份导出 / 导入 / 恢复默认据此覆盖。
     private let storageKey = AppPreferences.Key.compressionFormatPresets
