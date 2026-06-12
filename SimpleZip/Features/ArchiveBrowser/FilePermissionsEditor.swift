@@ -219,18 +219,19 @@ struct FilePermissionsEditorSheet: View {
     }
 
     var body: some View {
-        // 0.4.1 重构：hero 头 + 自适应分区卡片（不用 grouped Form —— 贪婪布局要写死高度,留大片空白）。
-        VStack(spacing: 0) {
-            DialogHero(
-                systemImage: "lock.shield.fill",
-                colors: [.purple, .indigo],
-                title: L10n.format("file.permissions.title", request.title),
-                // 副标题实时显示符号化权限预览（-rw-r--r-- (644)）—— 改勾选立刻看到效果。
-                subtitle: symbolicPreview
-            )
-
-            HeightCappedScrollView(maxHeight: 560) {
-                VStack(alignment: .leading, spacing: 18) {
+        // design system:统一走 TaskDialogShell 骨架。副标题实时显示符号化权限预览(-rw-r--r-- (644))。
+        TaskDialogShell(
+            heroSystemImage: "lock.shield.fill",
+            heroColors: [.purple, .indigo],
+            title: L10n.format("file.permissions.title", request.title),
+            subtitle: symbolicPreview,
+            width: 460,
+            maxContentHeight: 560,
+            confirmTitle: L10n.text("button.apply"),
+            confirmSystemImage: "lock.shield",
+            confirm: { applyChanges() },
+            cancel: cancel
+        ) {
                     DialogSection(L10n.text("file.permissions.section.mode")) {
                         if request.mixedSelection {
                             Text(L10n.text("file.permissions.mixedNote"))
@@ -252,14 +253,15 @@ struct FilePermissionsEditorSheet: View {
                     }
 
                     DialogSection(L10n.text("file.permissions.section.owner")) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            LabeledContent {
+                        // 字段与标签同行钉右缘,说明横跨整行(版式规则)。
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack(alignment: .center, spacing: 12) {
+                                DialogRowLabel(L10n.text("file.permissions.ownerLabel"), systemImage: "person.fill", tint: .cyan)
+                                Spacer(minLength: 12)
                                 TextField("", text: $owner)
                                     .textFieldStyle(.roundedBorder)
                                     .dialogFieldEmphasis()
                                     .frame(width: 200)
-                            } label: {
-                                DialogRowLabel(L10n.text("file.permissions.ownerLabel"), systemImage: "person.fill", tint: .cyan)
                             }
                             Text(L10n.text("file.permissions.ownerHint"))
                                 .font(.caption2)
@@ -278,34 +280,7 @@ struct FilePermissionsEditorSheet: View {
                             )
                         }
                     }
-                }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 16)
-            }
-
-            Divider()
-
-            HStack {
-                Spacer()
-                Button(role: .cancel) {
-                    cancel()
-                } label: {
-                    Label(L10n.text("button.cancel"), systemImage: "xmark")
-                }
-                .keyboardShortcut(.cancelAction)
-                Button {
-                    applyChanges()
-                } label: {
-                    Label(L10n.text("button.apply"), systemImage: "lock.shield")
-                }
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.defaultAction)
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(.bar)
         }
-        .frame(width: 460)
     }
 
     private func permissionRow(_ label: String, base: Int) -> some View {

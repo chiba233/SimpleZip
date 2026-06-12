@@ -24,14 +24,22 @@ struct ArchiveCommentEditorView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            DialogHero(
-                systemImage: "text.bubble.fill",
-                colors: [.blue, .cyan],
-                title: L10n.text("archive.comment.editorTitle"),
-                subtitle: archiveName
-            )
-
+        // design system:统一走 TaskDialogShell 骨架;底栏左侧 = 「清除注释」捷径。
+        TaskDialogShell(
+            heroSystemImage: "text.bubble.fill",
+            heroColors: [.blue, .cyan],
+            title: L10n.text("archive.comment.editorTitle"),
+            subtitle: archiveName,
+            width: 480,
+            confirmTitle: L10n.text("button.save"),
+            confirmSystemImage: "text.bubble",
+            confirmDisabled: overLimit || draft == model.archiveHeaderComment,
+            confirm: {
+                model.saveArchiveComment(draft)
+                close()
+            },
+            cancel: close,
+            content: {
             DialogSection {
                 TextEditor(text: $draft)
                     .font(.body)
@@ -57,12 +65,8 @@ struct ArchiveCommentEditorView: View {
                         .foregroundStyle(overLimit ? Color.red : Color.secondary)
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 16)
-
-            Divider()
-
-            HStack {
+            },
+            footerLeading: {
                 // 一键清除：只在包里已有注释时出现（清空草稿再保存的快捷径）。
                 if !model.archiveHeaderComment.isEmpty {
                     Button(role: .destructive) {
@@ -72,28 +76,8 @@ struct ArchiveCommentEditorView: View {
                         Label(L10n.text("archive.comment.clear"), systemImage: "trash")
                     }
                 }
-                Spacer()
-                Button {
-                    close()
-                } label: {
-                    Label(L10n.text("button.cancel"), systemImage: "xmark")
-                }
-                .keyboardShortcut(.cancelAction)
-                Button {
-                    model.saveArchiveComment(draft)
-                    close()
-                } label: {
-                    Label(L10n.text("button.save"), systemImage: "text.bubble")
-                }
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.defaultAction)
-                .disabled(overLimit || draft == model.archiveHeaderComment)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(.bar)
-        }
-        .frame(width: 480)
+        )
         .onAppear { draft = model.archiveHeaderComment }
     }
 
