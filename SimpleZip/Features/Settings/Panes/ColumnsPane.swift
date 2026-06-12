@@ -45,6 +45,23 @@ struct ColumnsPane: View {
     // 列表显示密度（文件 / 压缩包浏览共用）。
     @AppStorage(AppPreferences.Key.rowDensity) private var rowDensityRaw = FileBrowserOutline.RowDensity.standard.rawValue
 
+    // #20 从「浏览器」搬来的呈现类选项(key 一个不改):「列出什么归浏览器、怎么呈现归视图」。
+    // showHiddenFiles 本体留在浏览器,这里只读同一 key 做跨 pane 置灰。
+    @AppStorage(AppPreferences.Key.showHiddenFiles) private var showHiddenFiles = false
+    @AppStorage(AppPreferences.Key.hiddenGroupCollapseMode) private var hiddenGroupCollapseModeRaw = FileBrowserOutline.CollapseMode.alwaysCollapsed.rawValue
+    @AppStorage(AppPreferences.Key.hiddenWithGrouping) private var hiddenWithGroupingRaw = BrowserGrouping.HiddenWithGrouping.separateGroup.rawValue
+    @AppStorage(AppPreferences.Key.folderInlineExpansion) private var folderInlineExpansion = true
+    @AppStorage(AppPreferences.Key.rememberFolderExpansion) private var rememberFolderExpansion = true
+    @AppStorage(AppPreferences.Key.rememberVolumeSetExpansion) private var rememberVolumeSetExpansion = true
+    @AppStorage(AppPreferences.Key.hiddenSuffixesEnabled) private var hiddenSuffixesEnabled = true
+
+    @State private var showsHiddenSuffixDrawer = false
+    // 推荐后缀 / 自定义后缀的真源是 AppPreferences 的辅助方法（带去重 / 归一），
+    // 这里只保留 @State 镜像，再用 onChange 写回真源 + 广播通知(随 #20 从浏览器 pane 整体搬来)。
+    @State private var hiddenRecommendedSuffixes = AppPreferences.hiddenRecommendedSuffixes
+    @State private var hiddenCustomSuffixes = AppPreferences.hiddenCustomSuffixes
+    @State private var hiddenSuffixInput = ""
+
     var body: some View {
         Form {
             Section(L10n.text("settings.section.display")) {
@@ -60,6 +77,23 @@ struct ColumnsPane: View {
                     }
                     .labelsHidden().fixedSize().frame(minWidth: 200, alignment: .trailing)
                 }
+                // #20 搬来:隐藏文件组折叠策略 —— 呈现行为,归视图。只在显示隐藏文件时有意义,
+                // 关掉时置灰但可见(跨 pane 读同一 showHiddenFiles key)。
+                SettingsControlRow(
+                    title: L10n.text("settings.hiddenGroupCollapse"),
+                    description: L10n.text("settings.hiddenGroupCollapse.description"),
+                    systemImage: "arrow.down.right.and.arrow.up.left", iconTint: .purple
+                ) {
+                    Picker("", selection: $hiddenGroupCollapseModeRaw) {
+                        ForEach(FileBrowserOutline.CollapseMode.allCases, id: \.self) { mode in
+                            Text(mode.title).tag(mode.rawValue)
+                        }
+                    }
+                    .labelsHidden()
+                    .fixedSize()
+                    .frame(minWidth: 200, alignment: .trailing)
+                }
+                .disabled(!showHiddenFiles)
             }
 
             Section(L10n.text("settings.section.columns")) {
@@ -218,10 +252,222 @@ struct ColumnsPane: View {
                         Text(L10n.text("settings.columns.archiveBrowser")).font(.headline)
                     }
                 }
+
+                // #20 搬来:分组时隐藏文件单列 / 融入 —— 它本就是 groupBy 的修饰选项,并进分组区。
+                SettingsControlRow(
+                    title: L10n.text("settings.hiddenWithGrouping"),
+                    description: L10n.text("settings.hiddenWithGrouping.description"),
+                    systemImage: "square.grid.2x2", iconTint: .teal
+                ) {
+                    Picker("", selection: $hiddenWithGroupingRaw) {
+                        ForEach(BrowserGrouping.HiddenWithGrouping.allCases, id: \.self) { mode in
+                            Text(mode.title).tag(mode.rawValue)
+                        }
+                    }
+                    .labelsHidden()
+                    .fixedSize()
+                    .frame(minWidth: 200, alignment: .trailing)
+                }
+                .disabled(!showHiddenFiles)
+            }
+
+            // #20 搬来:展开与记忆整组(原位展开 + 两个展开记忆)—— 呈现行为,归视图。
+            Section(L10n.text("settings.browser.group.expansion")) {
+                SettingsToggleRow(
+                    title: L10n.text("settings.folderInlineExpansion"),
+                    description: L10n.text("settings.folderInlineExpansion.description"),
+                    systemImage: "chevron.down.square", iconTint: .indigo,
+                    isOn: $folderInlineExpansion
+                )
+                // 展开记忆：刷新（FSEvents / 手动 / 排序分组）后恢复展开状态。文件夹记忆依赖原位展开,关掉时变灰。
+                SettingsToggleRow(
+                    title: L10n.text("settings.rememberFolderExpansion"),
+                    description: L10n.text("settings.rememberFolderExpansion.description"),
+                    systemImage: "arrow.clockwise.square", iconTint: .green,
+                    isOn: $rememberFolderExpansion
+                )
+                .disabled(!folderInlineExpansion)
+                SettingsToggleRow(
+                    title: L10n.text("settings.rememberVolumeSetExpansion"),
+                    description: L10n.text("settings.rememberVolumeSetExpansion.description"),
+                    systemImage: "square.stack.3d.down.right", iconTint: .brown,
+                    isOn: $rememberVolumeSetExpansion
+                )
+            }
+
+            // #20 搬来:隐藏后缀名(只改显示名,不改列出什么)—— 归视图,独立「显示名」区。
+            Section(L10n.text("settings.view.group.displayName")) {
+                hiddenSuffixHeader
+                if showsHiddenSuffixDrawer {
+                    hiddenSuffixDrawer
+                }
             }
         }
         .formStyle(.grouped)
         .controlSize(.small)
+        .onAppear {
+            // 进入面板时把真源拉一次，避免之前在别处改过造成不一致。
+            hiddenRecommendedSuffixes = AppPreferences.hiddenRecommendedSuffixes
+            hiddenCustomSuffixes = AppPreferences.hiddenCustomSuffixes
+        }
+        // #20:搬来的行保留浏览器刷新广播 —— 这些选项一改主窗口要立刻重列目录
+        // (ColumnsPane 原生行靠 @AppStorage 直接驱动表格,无需广播;搬来的行依赖 ContentView 的监听)。
+        .onChange(of: hiddenGroupCollapseModeRaw) { _ in notifyBrowserRefresh() }
+        .onChange(of: hiddenWithGroupingRaw) { _ in notifyBrowserRefresh() }
+        .onChange(of: folderInlineExpansion) { _ in notifyBrowserRefresh() }
+        .onChange(of: rememberFolderExpansion) { _ in notifyBrowserRefresh() }
+        .onChange(of: rememberVolumeSetExpansion) { _ in notifyBrowserRefresh() }
+        .onChange(of: hiddenSuffixesEnabled) { _ in notifyBrowserRefresh() }
+        .onChange(of: hiddenRecommendedSuffixes) { newValue in
+            AppPreferences.setHiddenRecommendedSuffixes(newValue)
+            // 回填规范化后的值（去重 / 大小写归一），保持 UI 与真源一致。
+            hiddenRecommendedSuffixes = AppPreferences.hiddenRecommendedSuffixes
+            notifyBrowserRefresh()
+        }
+        .onChange(of: hiddenCustomSuffixes) { newValue in
+            AppPreferences.setHiddenCustomSuffixes(newValue)
+            hiddenCustomSuffixes = AppPreferences.hiddenCustomSuffixes
+            notifyBrowserRefresh()
+        }
+    }
+
+    // MARK: - 隐藏后缀名(#20 自浏览器 pane 整体搬来)
+
+    /// 隐藏后缀的「总开关 + 展开抽屉」一行。
+    ///
+    /// 之所以没用 `SettingsToggleRow`：这一行不仅有 toggle，还要带一个抽屉展开按钮，
+    /// 描述与开关之间还要塞一个 chevron，跟通用模板有差异。
+    private var hiddenSuffixHeader: some View {
+        HStack(alignment: .center, spacing: 12) {
+            SettingsRowIcon(systemImage: "textformat", tint: .pink)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(L10n.text("settings.hiddenSuffixesEnabled"))
+                    .font(.callout)
+                Text(L10n.text("settings.hiddenSuffixesEnabled.description"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer()
+            Button {
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    showsHiddenSuffixDrawer.toggle()
+                }
+            } label: {
+                Image(systemName: showsHiddenSuffixDrawer ? "chevron.down" : "chevron.right")
+                    .frame(width: 14, height: 14)
+            }
+            .buttonStyle(.borderless)
+            .help(L10n.text("settings.hiddenSuffixes"))
+            Toggle("", isOn: $hiddenSuffixesEnabled)
+                .labelsHidden()
+        }
+        .padding(.vertical, 3)
+    }
+
+    private var hiddenSuffixDrawer: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(L10n.text("settings.hiddenSuffixes.hint"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            recommendedSuffixGroup
+            customSuffixGroup
+        }
+        .padding(.top, 6)
+        .padding(.leading, 20)
+        // 关掉总开关时整个抽屉变灰但仍可见，让用户知道这里的设置「记着但暂时不生效」。
+        .disabled(!hiddenSuffixesEnabled)
+    }
+
+    private var recommendedSuffixGroup: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(L10n.text("settings.hiddenSuffixes.recommended"))
+                .font(.headline)
+            ForEach(AppPreferences.recommendedHiddenSuffixes, id: \.self) { suffix in
+                let normalizedSuffix = AppPreferences.normalizedHiddenSuffix(suffix)
+                Toggle(
+                    ".\(suffix)",
+                    isOn: Binding(
+                        get: { hiddenRecommendedSuffixes.contains { AppPreferences.normalizedHiddenSuffix($0) == normalizedSuffix } },
+                        set: { shouldHide in
+                            if shouldHide {
+                                hiddenRecommendedSuffixes.append(suffix)
+                            } else {
+                                hiddenRecommendedSuffixes.removeAll { $0.caseInsensitiveCompare(suffix) == .orderedSame }
+                            }
+                        }
+                    )
+                )
+            }
+        }
+    }
+
+    private var customSuffixGroup: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(L10n.text("settings.hiddenSuffixes.custom"))
+                .font(.headline)
+
+            if hiddenCustomSuffixes.isEmpty {
+                Text(L10n.text("settings.hiddenSuffixes.customEmpty"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(hiddenCustomSuffixes, id: \.self) { suffix in
+                    HStack {
+                        Text(".\(suffix)")
+                            .font(.system(.body, design: .monospaced))
+                        Spacer()
+                        Button {
+                            hiddenCustomSuffixes.removeAll { $0 == suffix }
+                        } label: {
+                            Image(systemName: "minus.circle")
+                                .frame(width: 16, height: 16)
+                        }
+                        .buttonStyle(.borderless)
+                        .frame(width: 24, alignment: .center)
+                        .help(L10n.text("settings.hiddenSuffixes.remove"))
+                    }
+                    .frame(minHeight: 24)
+                }
+            }
+
+            customSuffixInputRow
+        }
+    }
+
+    private var customSuffixInputRow: some View {
+        HStack {
+            let normalizedSuffix = AppPreferences.normalizedHiddenSuffix(hiddenSuffixInput)
+            // 避免重复添加：自定义 + 推荐列表里已有的都拦下。
+            let blockedSuffixes = Set((hiddenCustomSuffixes + hiddenRecommendedSuffixes).map { $0.lowercased() })
+            Text(".")
+                .font(.system(.body, design: .monospaced))
+                .foregroundStyle(.secondary)
+            TextField(
+                "",
+                text: $hiddenSuffixInput,
+                prompt: Text(L10n.text("settings.hiddenSuffixes.customPlaceholder"))
+                    .foregroundColor(.secondary)
+            )
+            .font(.system(.body, design: .monospaced))
+            .textFieldStyle(.roundedBorder)
+            .frame(minWidth: 220)
+            Button {
+                hiddenCustomSuffixes.append(normalizedSuffix)
+                hiddenSuffixInput = ""
+            } label: {
+                Label(L10n.text("button.add"), systemImage: "plus")
+            }
+            .buttonStyle(.bordered)
+            .disabled(normalizedSuffix.isEmpty || blockedSuffixes.contains(normalizedSuffix))
+        }
+        .controlSize(.small)
+    }
+
+    private func notifyBrowserRefresh() {
+        NotificationCenter.default.post(name: .browserPreferencesChanged, object: nil)
     }
 
     // MARK: - 预览数据

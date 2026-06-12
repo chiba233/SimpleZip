@@ -423,6 +423,8 @@
 "settings.browser.group.hidden" = "隐藏文件";
 "settings.browser.group.expansion" = "展开与记忆";
 "settings.browser.group.display" = "显示与结构";
+/* 0.4.4 #20 视图 pane 重新归类 */
+"settings.view.group.displayName" = "显示名";
 "settings.association.group.archives" = "压缩包与磁盘镜像";
 "settings.association.group.simplezip" = "SimpleZip 专属格式";
 "settings.association.group.volumes" = "分卷";
