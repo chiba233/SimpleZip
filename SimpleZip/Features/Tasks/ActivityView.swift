@@ -118,10 +118,27 @@ struct ActivityView: View {
             // 用 ScrollView + LazyVStack 而不是 List：List 底下的 NSTableView 会缓存行高，
             // 任务行展开「详情」后行高不重算 → 内容撑不开卡片被截断（用户报的 bug）。
             // LazyVStack 行高随内容自然生长，展开多少撑多少。
+            // 队列管理②跟进：等并发槽的任务单独一组放最上（带组头），不再混在运行中靠状态行区分。
+            let waiting = tasks.filter { $0.status.isRunning && $0.isAwaitingSlot }
+            let rest = tasks.filter { !($0.status.isRunning && $0.isAwaitingSlot) }
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(spacing: 10) {
-                        ForEach(tasks) { task in
+                        if !waiting.isEmpty {
+                            taskGroupHeader(
+                                L10n.format("tasks.waitingSection", "\(waiting.count)"),
+                                systemImage: "hourglass"
+                            )
+                            ForEach(waiting) { task in
+                                ActivityTaskCard(task: task)
+                                    .id(task.id)
+                            }
+                            if !rest.isEmpty {
+                                Divider()
+                                    .padding(.vertical, 4)
+                            }
+                        }
+                        ForEach(rest) { task in
                             ActivityTaskCard(task: task)
                                 .id(task.id)
                         }
@@ -137,6 +154,18 @@ struct ActivityView: View {
                 }
             }
         }
+    }
+
+    /// 任务卡片列表里的小组头（目前只有「等待中」用）—— 次要灰字 + 图标，不抢卡片视觉。
+    private func taskGroupHeader(_ title: String, systemImage: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: systemImage)
+            Text(title)
+            Spacer()
+        }
+        .font(.subheadline.weight(.medium))
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 2)
     }
 
     private func taskCount(in category: OperationTask.Category) -> Int {

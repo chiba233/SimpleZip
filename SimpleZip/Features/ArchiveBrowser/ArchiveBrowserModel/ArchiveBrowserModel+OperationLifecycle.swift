@@ -247,12 +247,19 @@ extension ArchiveBrowserModel {
                 // 显示等待、可取消;与写锁/密码中心同一套 statusText 等待 idiom)。
                 let usesSlot = HeavyTaskScheduler.heavyKinds.contains(kind)
                 if usesSlot {
+                    operationTask.isAwaitingSlot = true
                     operationTask.progress = ArchiveProgressState(
                         fraction: nil, currentFile: nil,
                         statusText: L10n.text("tasks.waitingForSlot")
                     )
                     taskCenter.notifyTaskChanged()
-                    try await HeavyTaskScheduler.shared.acquire(taskID: operationID)
+                    do {
+                        try await HeavyTaskScheduler.shared.acquire(taskID: operationID)
+                    } catch {
+                        operationTask.isAwaitingSlot = false
+                        throw error
+                    }
+                    operationTask.isAwaitingSlot = false
                     operationTask.progress = ArchiveProgressState(fraction: 0, currentFile: nil)
                     taskCenter.notifyTaskChanged()
                 }

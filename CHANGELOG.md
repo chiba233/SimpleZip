@@ -4,6 +4,7 @@
 
 ## 0.4.3 (unreleased)
 
+- **Activity Center: tasks queued behind the concurrency limit now sit in their own "Waiting" group.** Heavy tasks waiting for a slot used to blend into the running list, distinguishable only by their status line; they now gather under a dedicated header at the top of the list (with a count), each still cancellable while queued, and drop back into the normal flow the moment they start.
 - **Fix: the Release Assistant's report sheet no longer gets swallowed on fast runs.** Packing a small folder finished before the assistant sheet's closing animation did, and presenting the inspection report mid-animation made SwiftUI drop it silently. The run now starts only after the assistant sheet has fully closed, so the report always appears.
 - **Fix: testing an encrypted ZIP now asks for the password.** The integrity test used to hand every zip to the system's unzip, which can't read encrypted entries — AES archives "failed" with a cryptic "need PK compat. v5.1" instead of a password prompt, in both the app and `simplezip check`. Detected-encrypted zips now run their test through the bundled 7zz, whose diagnostics the password flow understands, so you get the prompt and a real verdict.
 - **Fix: the `simplezip` CLI no longer crashes when it needs to show the password dialog.** The CLI entry point parked the real main thread, so AppKit refused to build the prompt window and the process aborted; the main thread now services the queue itself and the small password dialog appears as designed.

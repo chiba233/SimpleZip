@@ -92,6 +92,11 @@ final class OperationTask: ObservableObject, Identifiable {
     /// 运行时态（不持久化，重启后历史任务不可重跑）。任务结束后活动中心展示重跑按钮。
     var rerun: (() -> Void)?
 
+    /// 队列管理②跟进:任务正在等并发槽(还没真正开跑)。活动中心据此把它分进「等待中」组。
+    /// 运行时态不持久化;普通 var —— 翻转的两个时刻都伴随 progress 赋值 + notifyTaskChanged,
+    /// 不需要自己再发布。
+    var isAwaitingSlot = false
+
     @Published var status: Status = .running
     @Published var progress = ArchiveProgressState()
     @Published var finishedAt: Date?
