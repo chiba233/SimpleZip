@@ -113,7 +113,7 @@ struct ConflictResolutionView: View {
 
             Divider().padding(.top, 16)
 
-            HStack(spacing: 10) {
+            PinnedBottomBar {
                 Button {
                     onChoice(.cancel, false)
                 } label: {
@@ -143,9 +143,6 @@ struct ConflictResolutionView: View {
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(.bar)
         }
         .frame(width: 480)
     }
@@ -204,7 +201,7 @@ struct TransferSummaryView: View {
 
             Divider()
 
-            HStack {
+            PinnedBottomBar {
                 Spacer()
                 Button(action: close) {
                     Label(L10n.text("button.ok"), systemImage: "checkmark")
@@ -212,9 +209,6 @@ struct TransferSummaryView: View {
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(.bar)
         }
         .frame(minWidth: 560, idealWidth: 720)
     }
@@ -366,7 +360,7 @@ struct HashOverwriteSummaryView: View {
 
             Divider()
 
-            HStack {
+            PinnedBottomBar {
                 Spacer()
                 Button(action: close) {
                     Label(L10n.text("button.ok"), systemImage: "checkmark")
@@ -374,9 +368,6 @@ struct HashOverwriteSummaryView: View {
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(.bar)
         }
         .frame(minWidth: 640, idealWidth: 760)
     }

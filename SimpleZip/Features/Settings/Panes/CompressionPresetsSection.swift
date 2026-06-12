@@ -241,7 +241,7 @@ struct FormatPresetEditorSheet: View {
             .formStyle(.grouped)
 
             Divider()
-            HStack {
+            PinnedBottomBar {
                 Spacer()
                 Button(L10n.text("button.cancel"), role: .cancel) { onCancel() }
                     .keyboardShortcut(.cancelAction)
@@ -251,9 +251,6 @@ struct FormatPresetEditorSheet: View {
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(.bar)
         }
         // 高度跟随选项行数,但封顶 620 —— 选项少不留大空白,选项多(7z)也不会超出屏幕(超了 Form 内部滚动)。
         .frame(width: 480, height: min(estimatedHeight, 620))

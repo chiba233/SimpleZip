@@ -155,15 +155,12 @@ struct DevToolsView: View {
 
             Divider()
 
-            HStack {
+            PinnedBottomBar {
                 Spacer()
                 Button(L10n.text("button.close")) { onClose() }
                     .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.defaultAction)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(.bar)
         }
         .frame(width: 620)
         .onAppear {

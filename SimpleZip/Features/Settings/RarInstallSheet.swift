@@ -138,7 +138,7 @@ struct RarInstallReviewSheet: View {
 
             Divider()
 
-            HStack {
+            PinnedBottomBar {
                 Spacer()
                 Button(action: onCancel) {
                     Label(L10n.text("button.cancel"), systemImage: "xmark")
@@ -152,9 +152,6 @@ struct RarInstallReviewSheet: View {
                 // 用户必须双勾才能确认 —— 协议没读就装下去会带来许可纠纷。
                 .disabled(!hasReadLicense || !hasReadReadme || isInstalling)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(.bar)
         }
         .frame(width: 680)
     }

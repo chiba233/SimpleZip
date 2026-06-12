@@ -108,7 +108,7 @@ struct ExtractOptionsForm<ExtraControls: View>: View {
 
             Divider()
 
-            HStack {
+            PinnedBottomBar {
                 ShowDetailsToggleButton(isOn: $showDetails)
                 Spacer()
                 Button(action: cancel) {
@@ -120,9 +120,6 @@ struct ExtractOptionsForm<ExtraControls: View>: View {
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(.bar)
         }
         // 点空白释放输入框焦点（与创建对话框同款 UX 修复）。
         .onTapGesture {
