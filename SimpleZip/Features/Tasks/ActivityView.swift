@@ -256,8 +256,26 @@ struct ActivityView: View {
     private func filterMenu(for category: OperationTask.Category) -> some View {
         // Menu 不当按钮用（设计准则）→ 原生 Picker 弹出菜单，选中态由系统打勾。
         HStack(spacing: 6) {
-            Image(systemName: "line.3.horizontal.decrease.circle")
-                .foregroundStyle(.secondary)
+            // 用户反馈:这个筛选小图标长得像按钮 —— 让它真的能点:弹出与右侧下拉同一份
+            // 过滤选项(同一绑定,带勾选),不再是纯装饰。
+            Menu {
+                Picker("", selection: Binding(
+                    get: { filter(for: category) },
+                    set: { setFilter($0, for: category) }
+                )) {
+                    ForEach(ActivityTaskFilter.allCases) { filter in
+                        Text(filter.title).tag(filter)
+                    }
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
+            } label: {
+                Image(systemName: "line.3.horizontal.decrease.circle")
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .menuIndicator(.hidden)
+            .fixedSize()
             Picker("", selection: Binding(
                 get: { filter(for: category) },
                 set: { setFilter($0, for: category) }
