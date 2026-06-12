@@ -192,8 +192,13 @@ enum ArchiveSecurityReport {
     }
 
     /// 控制字符（C0 / DEL）+ Unicode 双向覆盖（RLO 等文件名伪装）。
+    /// #19 扩:双向**标记**(LRM/RLM)、零宽空格与 BOM 也算 —— 文件名里没有正当用途,只用来伪装。
+    /// 有意不含 ZWNJ/ZWJ(U+200C/200D):阿拉伯文/印度系文字与 emoji 文件名里是合法成分。
     nonisolated private static func isSuspiciousScalar(_ scalar: Unicode.Scalar) -> Bool {
         if scalar.value < 0x20 || scalar.value == 0x7F { return true }
+        if scalar.value == 0x200B || scalar.value == 0x200E || scalar.value == 0x200F || scalar.value == 0xFEFF {
+            return true
+        }
         return (0x202A...0x202E).contains(scalar.value) || (0x2066...0x2069).contains(scalar.value)
     }
 

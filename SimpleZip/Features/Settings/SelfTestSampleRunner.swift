@@ -49,6 +49,21 @@ enum SelfTestSampleRunner {
         results.append(missingVolumeSample())
         // ⑧ 元数据垃圾识别:.DS_Store / __MACOSX / ._AppleDouble。
         results.append(junkDetectionSample())
+        // —— #19 扩样本 ——
+        // ⑨ 超长路径:单段 300 字节,安全报告必须命中 overlongPath。
+        await results.append(overlongPathSample(in: temp))
+        // ⑩ symlink 外指:tar 里指向 /etc/hosts 的链接,报告必须命中 externalSymlink。
+        await results.append(externalSymlinkSample(in: temp))
+        // ⑪ 重复路径:同名条目出现两次,报告必须命中 duplicateEntryPath。
+        await results.append(duplicatePathSample(in: temp))
+        // ⑫ 空目录:发布检查统计必须数出空目录。
+        await results.append(emptyDirectorySample(in: temp))
+        // ⑬ xattr 往返:tar 创建 → 解压,自定义 xattr 必须原样回来。
+        await results.append(xattrRoundTripSample(in: temp))
+        // ⑭ zip bomb 风险可见性(别真炸):高压缩比包的解压后总大小必须如实可见(空间预检的输入)。
+        await results.append(bombRatioVisibilitySample(in: temp))
+        // ⑮ 更多 Unicode bidi / 不可见字符:RLO/LRE/LRI/LRM 逐个命中 controlCharacters。
+        await results.append(bidiSweepSample(in: temp))
 
         return results
     }
@@ -226,6 +241,181 @@ enum SelfTestSampleRunner {
         return set.missingIndices.isEmpty
             ? SampleResult(name: name, passed: false, detail: "没报缺卷")
             : SampleResult(name: name, passed: true, detail: "缺卷索引:\(set.missingIndices)")
+    }
+
+    // MARK: - #19 扩样本
+
+    private static func overlongPathSample(in temp: URL) async -> SampleResult {
+        let name = "超长路径:单段 300 字节命中 overlongPath"
+        do {
+            let zip = temp.appendingPathComponent("overlong.zip")
+            let longSegment = String(repeating: "a", count: 300)
+            try RawZipWriter.write(entries: [("docs/\(longSegment).txt", "x"), ("ok.txt", "y")], to: zip)
+            let items = try await ArchiveService.list(zip)
+            let kinds = Set(ArchiveSecurityReport.analyze(items).map(\.kind))
+            return kinds.contains(.overlongPath)
+                ? SampleResult(name: name, passed: true, detail: "overlongPath 命中")
+                : SampleResult(name: name, passed: false, detail: "300 字节单段没被报告")
+        } catch {
+            return SampleResult(name: name, passed: false, detail: error.localizedDescription)
+        }
+    }
+
+    private static func externalSymlinkSample(in temp: URL) async -> SampleResult {
+        let name = "symlink 外指:tar 内 → /etc/hosts 命中 externalSymlink"
+        do {
+            let src = temp.appendingPathComponent("link-src", isDirectory: true)
+            try FileManager.default.createDirectory(at: src, withIntermediateDirectories: true)
+            try FileManager.default.createSymbolicLink(
+                at: src.appendingPathComponent("evil-link"),
+                withDestinationURL: URL(fileURLWithPath: "/etc/hosts")
+            )
+            try "plain".write(to: src.appendingPathComponent("plain.txt"), atomically: true, encoding: .utf8)
+            var options = ArchiveCreationOptions()
+            options.format = .tar
+            options.skipDSStore = false
+            let tar = temp.appendingPathComponent("links.tar")
+            try await ArchiveService.createArchive(from: [src], destination: tar, options: options)
+            let items = try await ArchiveService.list(tar)
+            let findings = ArchiveSecurityReport.analyze(items)
+            return findings.contains(where: { $0.kind == .externalSymlink })
+                ? SampleResult(name: name, passed: true, detail: "externalSymlink 命中")
+                : SampleResult(name: name, passed: false, detail: "外指链接没被报告(list 的 symlinkTarget=\(items.map(\.symlinkTarget)))")
+        } catch {
+            return SampleResult(name: name, passed: false, detail: error.localizedDescription)
+        }
+    }
+
+    private static func duplicatePathSample(in temp: URL) async -> SampleResult {
+        // 注:安全报告**有意**不报纯重复(既有测试明确断言);本样本验证列表层不静默去重 ——
+        // 两份同名条目都必须可见,用户在浏览/比较里能察觉。是否升级为安全报告新类别待用户拍板。
+        let name = "重复路径:同名条目两次在列表中都可见"
+        do {
+            let zip = temp.appendingPathComponent("dup.zip")
+            try RawZipWriter.write(entries: [("payload.txt", "first"), ("payload.txt", "second"), ("clean.txt", "c")], to: zip)
+            let items = try await ArchiveService.list(zip)
+            let duplicates = items.filter { $0.name.hasSuffix("payload.txt") }
+            return duplicates.count == 2
+                ? SampleResult(name: name, passed: true, detail: "2/2 重复条目可见,未被静默去重")
+                : SampleResult(name: name, passed: false, detail: "列表只剩 \(duplicates.count) 份(静默去重?)")
+        } catch {
+            return SampleResult(name: name, passed: false, detail: error.localizedDescription)
+        }
+    }
+
+    private static func emptyDirectorySample(in temp: URL) async -> SampleResult {
+        let name = "空目录:发布检查统计数得出空目录"
+        do {
+            let src = temp.appendingPathComponent("emptydir-src", isDirectory: true)
+            try FileManager.default.createDirectory(at: src.appendingPathComponent("empty"), withIntermediateDirectories: true)
+            try "f".write(to: src.appendingPathComponent("file.txt"), atomically: true, encoding: .utf8)
+            var options = ArchiveCreationOptions()
+            options.format = .zip
+            options.skipDSStore = false
+            let zip = temp.appendingPathComponent("emptydir.zip")
+            try await ArchiveService.createArchive(from: [src], destination: zip, options: options)
+            let items = try await ArchiveService.list(zip)
+            let stats = ReleaseInspection.stats(for: items)
+            return stats.emptyDirectoryCount >= 1
+                ? SampleResult(name: name, passed: true, detail: "空目录计数=\(stats.emptyDirectoryCount)")
+                : SampleResult(name: name, passed: false, detail: "空目录没被数出(条目=\(items.count))")
+        } catch {
+            return SampleResult(name: name, passed: false, detail: error.localizedDescription)
+        }
+    }
+
+    private static func xattrRoundTripSample(in temp: URL) async -> SampleResult {
+        let name = "xattr 往返:tar 创建→解压,自定义属性原样回来"
+        do {
+            let src = temp.appendingPathComponent("xattr-src", isDirectory: true)
+            try FileManager.default.createDirectory(at: src, withIntermediateDirectories: true)
+            let file = src.appendingPathComponent("attr.txt")
+            try "body".write(to: file, atomically: true, encoding: .utf8)
+            let attrValue = "selftest-\(UUID().uuidString.prefix(8))"
+            guard setxattr(file.path, "user.simplezip.selftest", attrValue, attrValue.utf8.count, 0, 0) == 0 else {
+                return SampleResult(name: name, passed: false, detail: "setxattr 失败(errno \(errno))")
+            }
+            var options = ArchiveCreationOptions()
+            options.format = .tar
+            options.skipDSStore = false
+            let tar = temp.appendingPathComponent("xattr.tar")
+            try await ArchiveService.createArchive(from: [src], destination: tar, options: options)
+            let dest = temp.appendingPathComponent("xattr-out", isDirectory: true)
+            try FileManager.default.createDirectory(at: dest, withIntermediateDirectories: true)
+            try await ArchiveService.extract(tar, to: dest, overwriteBehavior: .overwrite, safetyPolicy: .skipValidation)
+            guard let extracted = firstFile(named: "attr.txt", under: dest) else {
+                return SampleResult(name: name, passed: false, detail: "解压后找不到 attr.txt")
+            }
+            var buffer = [CChar](repeating: 0, count: 256)
+            let length = getxattr(extracted.path, "user.simplezip.selftest", &buffer, buffer.count, 0, 0)
+            guard length > 0 else {
+                return SampleResult(name: name, passed: false, detail: "解压产物上没有 xattr(可能被剥离)")
+            }
+            let read = String(decoding: buffer.prefix(Int(length)).map { UInt8(bitPattern: $0) }, as: UTF8.self)
+            return read == attrValue
+                ? SampleResult(name: name, passed: true, detail: "xattr round-trip 一致")
+                : SampleResult(name: name, passed: false, detail: "读回值不一致:\(read)")
+        } catch {
+            return SampleResult(name: name, passed: false, detail: error.localizedDescription)
+        }
+    }
+
+    private static func bombRatioVisibilitySample(in temp: URL) async -> SampleResult {
+        let name = "zip bomb 风险可见:高压缩比包的解压后总大小如实可见"
+        do {
+            let src = temp.appendingPathComponent("bomb-src", isDirectory: true)
+            try FileManager.default.createDirectory(at: src, withIntermediateDirectories: true)
+            // 8 MB 全零 → deflate 后 ~8 KB,比率 ~1000:1。不嵌套、不真炸 —— 只验证「解压后大小」
+            // 这个空间预检 / 风险提示的输入是诚实的。
+            let zeros = Data(count: 8_000_000)
+            try zeros.write(to: src.appendingPathComponent("zeros.bin"))
+            var options = ArchiveCreationOptions()
+            options.format = .zip
+            options.skipDSStore = false
+            let zip = temp.appendingPathComponent("ratio.zip")
+            try await ArchiveService.createArchive(from: [src], destination: zip, options: options)
+            let packed = (try? FileManager.default.attributesOfItem(atPath: zip.path))?[.size] as? Int64 ?? 0
+            let items = try await ArchiveService.list(zip)
+            let unpacked = items.filter { !$0.isDirectory }.reduce(Int64(0)) { $0 + ($1.size ?? 0) }
+            guard unpacked >= 8_000_000 else {
+                return SampleResult(name: name, passed: false, detail: "解压后大小漏报:\(unpacked)")
+            }
+            guard packed > 0, unpacked / max(packed, 1) >= 100 else {
+                return SampleResult(name: name, passed: false, detail: "样本压缩比不足(packed=\(packed))")
+            }
+            return SampleResult(name: name, passed: true, detail: "比率 \(unpacked / max(packed, 1)):1,解压后大小如实")
+        } catch {
+            return SampleResult(name: name, passed: false, detail: error.localizedDescription)
+        }
+    }
+
+    private static func bidiSweepSample(in temp: URL) async -> SampleResult {
+        let name = "Unicode bidi/不可见字符:RLO/LRE/LRI/LRM 逐个命中"
+        do {
+            let zip = temp.appendingPathComponent("bidi.zip")
+            try RawZipWriter.write(entries: [
+                ("rlo\u{202E}gpj.exe", "1"),
+                ("lre\u{202A}name.txt", "2"),
+                ("lri\u{2066}name.txt", "3"),
+                ("lrm\u{200E}name.txt", "4")
+            ], to: zip)
+            let items = try await ArchiveService.list(zip)
+            let control = ArchiveSecurityReport.analyze(items).first { $0.kind == .controlCharacters }
+            let hit = control?.entryPaths.count ?? 0
+            return hit >= 4
+                ? SampleResult(name: name, passed: true, detail: "4/4 命中")
+                : SampleResult(name: name, passed: false, detail: "只命中 \(hit)/4:\(control?.entryPaths ?? [])")
+        } catch {
+            return SampleResult(name: name, passed: false, detail: error.localizedDescription)
+        }
+    }
+
+    private static func firstFile(named fileName: String, under root: URL) -> URL? {
+        guard let enumerator = FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil) else { return nil }
+        for case let url as URL in enumerator where url.lastPathComponent == fileName {
+            return url
+        }
+        return nil
     }
 
     private static func junkDetectionSample() -> SampleResult {
