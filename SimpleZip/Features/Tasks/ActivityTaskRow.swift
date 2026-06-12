@@ -27,11 +27,21 @@ struct ActivityTaskRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top, spacing: 12) {
-                Image(systemName: iconName)
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(iconColor)
-                    .frame(width: 24, height: 24)
-                    .background(iconColor.opacity(0.12), in: Circle())
+                // 用户反馈:左侧彩色图标长得像按钮,点了没反应 —— 让它真的能点:
+                // 有详情时点击 = 展开 / 收起(与右侧 ⓘ 同款),没详情保持纯装饰。
+                Button {
+                    if hasDetails {
+                        isShowingDetails.toggle()
+                    }
+                } label: {
+                    Image(systemName: iconName)
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(iconColor)
+                        .frame(width: 24, height: 24)
+                        .background(iconColor.opacity(0.12), in: Circle())
+                }
+                .buttonStyle(.plain)
+                .help(hasDetails ? L10n.text("button.details") : "")
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(task.title)
