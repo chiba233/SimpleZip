@@ -232,6 +232,17 @@ struct ArchiveOperationDetailsView: View {
                 } label: {
                     Label(L10n.text("button.copyDiagnostics"), systemImage: "doc.on.doc")
                 }
+                // #17:同一份现场按 GitHub Issue 模板出 Markdown(环境表+复现占位+脱敏日志)。
+                Button {
+                    Task {
+                        await DiagnosticsCopier.copyGitHubIssue(session: session, errorMessage: nil)
+                        withAnimation { showsCopiedConfirmation = true }
+                        try? await Task.sleep(nanoseconds: 2_500_000_000)
+                        withAnimation { showsCopiedConfirmation = false }
+                    }
+                } label: {
+                    Label(L10n.text("button.copyAsIssue"), systemImage: "ladybug")
+                }
                 Button {
                     close()
                 } label: {

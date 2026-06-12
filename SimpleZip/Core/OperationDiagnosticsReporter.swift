@@ -219,3 +219,60 @@ public enum OperationDiagnosticsReporter {
         return "\(minutes) min \(seconds) s"
     }
 }
+
+// MARK: - GitHub Issue 模板(队列 #17)
+
+extension OperationDiagnosticsReporter {
+    /// 把同一份诊断输入排成可直接粘贴的 GitHub Issue Markdown:
+    /// 环境表 + 「发生了什么 / 复现步骤」占位 + 脱敏错误与日志尾部 + 文件系统现场。
+    /// 复用 makeReport 的同一套脱敏与截尾;纯函数,SwiftPM 可测。
+    public static func makeGitHubIssueMarkdown(from inputs: OperationDiagnosticsInputs) -> String {
+        var lines: [String] = []
+        lines.append("### Environment")
+        lines.append("")
+        lines.append("| | |")
+        lines.append("|---|---|")
+        lines.append("| SimpleZip | \(inputs.appVersion) (build \(inputs.appBuild)) |")
+        lines.append("| macOS | \(inputs.macOSVersion) |")
+        lines.append("| 7-Zip backend | \(inputs.sevenZipDescription) — \(inputs.sevenZipVersion) |")
+        lines.append("| RAR backend | \(inputs.rarDescription) — \(inputs.rarVersion) |")
+        if let gpg = inputs.gpgSection {
+            lines.append("| GPG | \(gpg.backendDescription) — \(gpg.version) |")
+        }
+        lines.append("")
+        lines.append("### What happened")
+        lines.append("")
+        lines.append("<!-- Describe what you expected and what actually happened. -->")
+        lines.append("")
+        lines.append("### Steps to reproduce")
+        lines.append("")
+        lines.append("1. ")
+        lines.append("2. ")
+        lines.append("")
+        lines.append("### Failing operation")
+        lines.append("")
+        lines.append("- Operation: \(inputs.title)")
+        if let error = inputs.errorMessage, !error.isEmpty {
+            lines.append("- Error: \(sanitize(error.replacingOccurrences(of: "\n", with: " ")))")
+        }
+        lines.append("")
+        if !inputs.rawOutput.isEmpty {
+            lines.append("<details><summary>Log (sanitized, tail)</summary>")
+            lines.append("")
+            lines.append("```text")
+            lines.append(sanitize(tail(of: inputs.rawOutput, characterLimit: inputs.outputTailCharacterLimit)))
+            lines.append("```")
+            lines.append("")
+            lines.append("</details>")
+            lines.append("")
+        }
+        if let fileSystemSummary = inputs.fileSystemSummary {
+            lines.append("### File system")
+            lines.append("")
+            lines.append("```text")
+            lines.append(fileSystemSummary)
+            lines.append("```")
+        }
+        return lines.joined(separator: "\n")
+    }
+}

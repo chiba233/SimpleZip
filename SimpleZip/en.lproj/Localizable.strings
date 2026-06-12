@@ -1078,6 +1078,7 @@
 "releaseAssistant.start" = "Start";
 "releaseAssistant.taskTitle" = "Release Assistant: %@";
 "releaseAssistant.done" = "Release package ready: %@";
+"button.copyAsIssue" = "Copy as GitHub Issue";
 "settings.cli.section" = "Command-Line Tool";
 "settings.cli.title" = "simplezip command";
 "settings.cli.description" = "Installs a symlink at /usr/local/bin/simplezip. Open, check, compare, create and verify archives from the terminal — finished commands are recorded in the Activity Center.";

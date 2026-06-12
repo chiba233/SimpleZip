@@ -1076,6 +1076,7 @@
 "releaseAssistant.start" = "开始";
 "releaseAssistant.taskTitle" = "发布助手：%@";
 "releaseAssistant.done" = "发布包就绪：%@";
+"button.copyAsIssue" = "复制为 GitHub Issue";
 "settings.cli.section" = "命令行工具";
 "settings.cli.title" = "「simplezip」命令";
 "settings.cli.description" = "在 /usr/local/bin 安装符号链接。在终端里打开、检查、比较、创建、校验压缩包——完成的命令会记录进活动中心。";

@@ -31,6 +31,17 @@ enum DiagnosticsCopier {
         }
     }
 
+    /// #17:把同一份诊断按 GitHub Issue 模板排成 Markdown 复制 —— 环境表 + 复现占位 + 脱敏日志,
+    /// 一键贴进 issue 表单。
+    static func copyGitHubIssue(session: ArchiveOperationDetailsSession, errorMessage: String?) async {
+        let inputs = await makeInputs(session: session, errorMessage: errorMessage)
+        let markdown = OperationDiagnosticsReporter.makeGitHubIssueMarkdown(from: inputs)
+        await MainActor.run {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(markdown, forType: .string)
+        }
+    }
+
     /// 0.4.2 #22：导出**单个任务**的诊断包为 `.txt` —— 等价命令行已在输出里、密码已脱敏，
     /// 外加后端版本与文件系统现场。
     /// **同步弹面板 → 异步收集写入**。绝不能反过来在 `MainActor.run`/Task 上下文里跑 `runModal()`：
