@@ -96,105 +96,6 @@ struct ColumnsPane: View {
                 .disabled(!showHiddenFiles)
             }
 
-            Section(L10n.text("settings.section.columns")) {
-                Text(L10n.text("settings.columns.description"))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                // 0.4.3 用户拍板:两块列开关改**折叠组**(默认收起)—— 页面不再被几十个 toggle 撑高,
-                // 标签 = 彩色瓦片 + 标题,与「分组」区的小标题同一套一级图标制度。
-                DisclosureGroup {
-                    Grid(alignment: .leading, horizontalSpacing: 20, verticalSpacing: 6) {
-                        GridRow {
-                            Toggle(L10n.text("column.size"), isOn: $showFileSizeColumn)
-                            Toggle(L10n.text("column.kind"), isOn: $showFileTypeColumn)
-                        }
-                        GridRow {
-                            Toggle(L10n.text("column.application"), isOn: $showFileApplicationColumn)
-                            Toggle(L10n.text("column.lastOpened"), isOn: $showFileLastOpenedColumn)
-                        }
-                        GridRow {
-                            Toggle(L10n.text("column.dateAdded"), isOn: $showFileDateAddedColumn)
-                            Toggle(L10n.text("column.modified"), isOn: $showFileModifiedColumn)
-                        }
-                        GridRow {
-                            Toggle(L10n.text("column.created"), isOn: $showFileCreatedColumn)
-                            Toggle(L10n.text("column.symlink"), isOn: $showFileSymlinkColumn)
-                        }
-                        GridRow {
-                            Toggle(L10n.text("column.permissions"), isOn: $showFilePermissionsColumn)
-                            Toggle(L10n.text("column.owner"), isOn: $showFileOwnerColumn)
-                        }
-                    }
-                    .padding(.leading, 34)
-                    .padding(.vertical, 4)
-                } label: {
-                    HStack(spacing: 12) {
-                        SettingsRowIcon(systemImage: "folder", tint: .blue)
-                        Text(L10n.text("settings.columns.fileBrowser")).font(.headline)
-                    }
-                }
-
-                DisclosureGroup {
-                    Grid(alignment: .leading, horizontalSpacing: 20, verticalSpacing: 6) {
-                            GridRow {
-                                Toggle(L10n.text("column.kind"), isOn: $showArchiveKindColumn)
-                                Toggle(L10n.text("column.size"), isOn: $showArchiveSizeColumn)
-                            }
-                            GridRow {
-                                Toggle(L10n.text("column.path"), isOn: $showArchivePathColumn)
-                                Toggle(L10n.text("column.packedSize"), isOn: $showArchivePackedSizeColumn)
-                            }
-                            GridRow {
-                                Toggle(L10n.text("column.modified"), isOn: $showArchiveModifiedColumn)
-                                Toggle(L10n.text("column.created"), isOn: $showArchiveCreatedColumn)
-                            }
-                            GridRow {
-                                Toggle(L10n.text("column.method"), isOn: $showArchiveMethodColumn)
-                                Toggle(L10n.text("column.crc"), isOn: $showArchiveCrcColumn)
-                            }
-                            GridRow {
-                                Toggle(L10n.text("column.attributes"), isOn: $showArchiveAttributesColumn)
-                                Toggle(L10n.text("column.encrypted"), isOn: $showArchiveEncryptedColumn)
-                            }
-                            GridRow {
-                                Toggle(L10n.text("column.accessed"), isOn: $showArchiveAccessedColumn)
-                                Toggle(L10n.text("column.hostOS"), isOn: $showArchiveHostOSColumn)
-                            }
-                            GridRow {
-                                Toggle(L10n.text("column.characteristics"), isOn: $showArchiveCharacteristicsColumn)
-                                Toggle(L10n.text("column.symlink"), isOn: $showArchiveSymlinkColumn)
-                            }
-                            GridRow {
-                                Toggle(L10n.text("column.comment"), isOn: $showArchiveCommentColumn)
-                            }
-                    }
-                    .padding(.leading, 34)
-                    .padding(.vertical, 4)
-                } label: {
-                    HStack(spacing: 12) {
-                        SettingsRowIcon(systemImage: "archivebox", tint: .orange)
-                        Text(L10n.text("settings.columns.archiveBrowser")).font(.headline)
-                    }
-                }
-            }
-
-            // 预览紧跟在列开关后面 —— 这样勾选 / 取消列时下方预览立即可见，无需滚过「分组」一大段
-            // 才看到效果（用户反馈：列设置和预览分开导致没法一屏边调边看）。
-            Section(L10n.text("settings.columns.preview")) {
-                VStack(alignment: .leading, spacing: 14) {
-                    ColumnsPreviewTable(
-                        title: L10n.text("settings.columns.fileBrowser"),
-                        columns: fileColumnPreview
-                    )
-                    ColumnsPreviewTable(
-                        title: L10n.text("settings.columns.archiveBrowser"),
-                        columns: archiveColumnPreview
-                    )
-                }
-                .padding(.vertical, 2)
-            }
-
             // 0.4.3 用户拍板重写:分组也折叠化,逻辑说人话 ——
             // 「分组方式」一个 picker + 「按文件夹单独记忆」一个开关,替代原「分组范围 + 全局默认分组方式」
             // 两个互相指涉的下拉(用户原话:个人都看不懂)。存储不变(scope/groupBy 同 key)。
@@ -301,6 +202,105 @@ struct ColumnsPane: View {
                 if showsHiddenSuffixDrawer {
                     hiddenSuffixDrawer
                 }
+            }
+
+            Section(L10n.text("settings.section.columns")) {
+                Text(L10n.text("settings.columns.description"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                // 0.4.3 用户拍板:两块列开关改**折叠组**(默认收起)—— 页面不再被几十个 toggle 撑高,
+                // 标签 = 彩色瓦片 + 标题,与「分组」区的小标题同一套一级图标制度。
+                DisclosureGroup {
+                    Grid(alignment: .leading, horizontalSpacing: 20, verticalSpacing: 6) {
+                        GridRow {
+                            Toggle(L10n.text("column.size"), isOn: $showFileSizeColumn)
+                            Toggle(L10n.text("column.kind"), isOn: $showFileTypeColumn)
+                        }
+                        GridRow {
+                            Toggle(L10n.text("column.application"), isOn: $showFileApplicationColumn)
+                            Toggle(L10n.text("column.lastOpened"), isOn: $showFileLastOpenedColumn)
+                        }
+                        GridRow {
+                            Toggle(L10n.text("column.dateAdded"), isOn: $showFileDateAddedColumn)
+                            Toggle(L10n.text("column.modified"), isOn: $showFileModifiedColumn)
+                        }
+                        GridRow {
+                            Toggle(L10n.text("column.created"), isOn: $showFileCreatedColumn)
+                            Toggle(L10n.text("column.symlink"), isOn: $showFileSymlinkColumn)
+                        }
+                        GridRow {
+                            Toggle(L10n.text("column.permissions"), isOn: $showFilePermissionsColumn)
+                            Toggle(L10n.text("column.owner"), isOn: $showFileOwnerColumn)
+                        }
+                    }
+                    .padding(.leading, 34)
+                    .padding(.vertical, 4)
+                } label: {
+                    HStack(spacing: 12) {
+                        SettingsRowIcon(systemImage: "folder", tint: .blue)
+                        Text(L10n.text("settings.columns.fileBrowser")).font(.headline)
+                    }
+                }
+
+                DisclosureGroup {
+                    Grid(alignment: .leading, horizontalSpacing: 20, verticalSpacing: 6) {
+                            GridRow {
+                                Toggle(L10n.text("column.kind"), isOn: $showArchiveKindColumn)
+                                Toggle(L10n.text("column.size"), isOn: $showArchiveSizeColumn)
+                            }
+                            GridRow {
+                                Toggle(L10n.text("column.path"), isOn: $showArchivePathColumn)
+                                Toggle(L10n.text("column.packedSize"), isOn: $showArchivePackedSizeColumn)
+                            }
+                            GridRow {
+                                Toggle(L10n.text("column.modified"), isOn: $showArchiveModifiedColumn)
+                                Toggle(L10n.text("column.created"), isOn: $showArchiveCreatedColumn)
+                            }
+                            GridRow {
+                                Toggle(L10n.text("column.method"), isOn: $showArchiveMethodColumn)
+                                Toggle(L10n.text("column.crc"), isOn: $showArchiveCrcColumn)
+                            }
+                            GridRow {
+                                Toggle(L10n.text("column.attributes"), isOn: $showArchiveAttributesColumn)
+                                Toggle(L10n.text("column.encrypted"), isOn: $showArchiveEncryptedColumn)
+                            }
+                            GridRow {
+                                Toggle(L10n.text("column.accessed"), isOn: $showArchiveAccessedColumn)
+                                Toggle(L10n.text("column.hostOS"), isOn: $showArchiveHostOSColumn)
+                            }
+                            GridRow {
+                                Toggle(L10n.text("column.characteristics"), isOn: $showArchiveCharacteristicsColumn)
+                                Toggle(L10n.text("column.symlink"), isOn: $showArchiveSymlinkColumn)
+                            }
+                            GridRow {
+                                Toggle(L10n.text("column.comment"), isOn: $showArchiveCommentColumn)
+                            }
+                    }
+                    .padding(.leading, 34)
+                    .padding(.vertical, 4)
+                } label: {
+                    HStack(spacing: 12) {
+                        SettingsRowIcon(systemImage: "archivebox", tint: .orange)
+                        Text(L10n.text("settings.columns.archiveBrowser")).font(.headline)
+                    }
+                }
+            }
+
+            // 预览紧跟在列开关后面（用户反馈：列设置和预览分开导致没法一屏边调边看）;
+            // 列+预览整块按用户拍板挪到视图页最后,常改的呈现选项在上。
+            Section(L10n.text("settings.columns.preview")) {
+                VStack(alignment: .leading, spacing: 14) {
+                    ColumnsPreviewTable(
+                        title: L10n.text("settings.columns.fileBrowser"),
+                        columns: fileColumnPreview
+                    )
+                    ColumnsPreviewTable(
+                        title: L10n.text("settings.columns.archiveBrowser"),
+                        columns: archiveColumnPreview
+                    )
+                }
+                .padding(.vertical, 2)
             }
         }
         .formStyle(.grouped)
