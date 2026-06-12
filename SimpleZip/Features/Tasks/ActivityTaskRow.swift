@@ -317,7 +317,7 @@ struct ActivityTaskRow: View {
                     .foregroundStyle(.secondary)
             }
             CommandOutputLogView(text: session.rawOutput.isEmpty ? L10n.text("details.waiting") : session.rawOutput)
-                .frame(height: 142)
+                .frame(height: 300)
                 .clipShape(RoundedRectangle(cornerRadius: 6))
                 .overlay(
                     RoundedRectangle(cornerRadius: 6)

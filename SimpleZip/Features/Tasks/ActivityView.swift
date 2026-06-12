@@ -75,8 +75,8 @@ struct ActivityView: View {
                         paneHero(selectedPane)
                         Spacer()
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 14)
+                    .padding(.horizontal, 22)
+                    .padding(.top, 16)
                     .padding(.bottom, 4)
                     activitySettingsView
                 }
@@ -114,9 +114,9 @@ struct ActivityView: View {
                             .buttonStyle(.bordered)
                         }
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 14)
-                    .padding(.bottom, 8)
+                    .padding(.horizontal, 22)
+                    .padding(.top, 16)
+                    .padding(.bottom, 10)
 
                     // F4:暂停态说明 —— 如实写清「不可暂停的种类会继续跑完、新任务排队」,不假装全冻住。
                     if taskCenter.isQueuePaused {
@@ -125,8 +125,8 @@ struct ActivityView: View {
                             .foregroundStyle(.orange)
                             .fixedSize(horizontal: false, vertical: true)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 16)
-                            .padding(.bottom, 8)
+                            .padding(.horizontal, 22)
+                            .padding(.bottom, 10)
                     }
 
                     taskList(in: category)
@@ -193,7 +193,7 @@ struct ActivityView: View {
             let rest = tasks.filter { !($0.status.isRunning && $0.isAwaitingSlot) }
             ScrollViewReader { proxy in
                 ScrollView {
-                    LazyVStack(spacing: 10) {
+                    LazyVStack(spacing: 16) {
                         // 队列管理③:写锁可视化 —— 有归档被写锁占用时,在归档分类顶部点名
                         // 谁占着锁、谁在排队。锁释放即消失,平时零占位。
                         if category == .archive, !taskCenter.writeLockSnapshot.entries.isEmpty {
@@ -224,9 +224,9 @@ struct ActivityView: View {
                                 .id(task.id)
                         }
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 2)
-                    .padding(.bottom, 16)
+                    .padding(.horizontal, 22)
+                    .padding(.top, 6)
+                    .padding(.bottom, 22)
                 }
                 // 新任务插在最前；列表顶部条目变化（= 有新任务）时自动滚到最上，用户不会错过。
                 .onChange(of: tasks.first?.id) { newTopID in
@@ -628,8 +628,8 @@ private struct ActivityTaskCard: View {
     var body: some View {
         HeroChromeCard(color: tint, cornerRadius: 12) {
             ActivityTaskRow(task: task)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 6)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .overlay {
