@@ -2,7 +2,7 @@
 
 # Changelog
 
-## 0.4.3 (unreleased)
+## 0.4.3
 
 - **Fix: the in-app changelog no longer strikes through random paragraphs.** The Settings → Software Update changelog parses each release as a single inline-Markdown block, so two `~` characters in different bullets (home-directory paths like `~/.Trash`) paired up as GFM strikethrough and crossed out everything between them — about a quarter of the text. Tildes and underscores are now rendered literally; bold, links and code spans are unaffected.
 - **UI: the About page joins the layered-gradient family, and the welcome assistant's startup-location row is tidier.** The three link cards (Source / License / Report a Bug) and the three acknowledgement cards (7-Zip / GnuPG / Sparkle) now wear the same tint-gradient shells, sheens, gradient borders and glowing tiles as the Help page and welcome assistant — hover deepens shadows only. In the assistant's General step, the startup-location picker and the "Choose Custom Folder" button now share one row instead of stacking.
