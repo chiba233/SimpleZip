@@ -89,13 +89,19 @@ struct WelcomeAssistantView: View {
         // 高度随首页紧凑化回落(760 → 700):按最高的「便利」三段页核算,留 ViewThatFits 兜底。
         .frame(width: 780, height: 700)
         .background(
-            // 顶部一抹主题色柔光 —— 华丽但不喧宾夺主,深浅色模式都成立。
+            // 多层柔光底(帮助页华丽化的同一波,用户点名欢迎助手也要):顶部主题色 + 右下紫晕,
+            // 渐变只上窗口背景与外壳容器,内容卡保持实底拉层次。深浅色模式都成立。
             ZStack {
                 Color(nsColor: .windowBackgroundColor)
                 LinearGradient(
-                    colors: [Color.accentColor.opacity(0.10), .clear],
+                    colors: [Color.accentColor.opacity(0.13), .clear],
                     startPoint: .top,
                     endPoint: .center
+                )
+                LinearGradient(
+                    colors: [.clear, Color.purple.opacity(0.07)],
+                    startPoint: .center,
+                    endPoint: .bottomTrailing
                 )
             }
         )
@@ -141,12 +147,22 @@ struct WelcomeAssistantView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
 
-            // 0.4.2 重绘：线性进度条 → onboarding 风分段步骤点（当前步 = 加宽主题色胶囊）。
+            // 0.4.2 重绘：线性进度条 → onboarding 风分段步骤点（当前步 = 加宽渐变胶囊）。
             HStack(spacing: 7) {
                 ForEach(0..<totalSteps, id: \.self) { step in
                     Capsule()
-                        .fill(step <= currentStep ? Color.accentColor : Color.primary.opacity(0.14))
+                        .fill(
+                            step <= currentStep
+                                ? AnyShapeStyle(LinearGradient(
+                                    colors: step == currentStep
+                                        ? [Color.accentColor, Color.accentColor.opacity(0.55)]
+                                        : [Color.accentColor.opacity(0.75), Color.accentColor.opacity(0.55)],
+                                    startPoint: .leading, endPoint: .trailing
+                                ))
+                                : AnyShapeStyle(Color.primary.opacity(0.14))
+                        )
                         .frame(width: step == currentStep ? 26 : 8, height: 8)
+                        .shadow(color: step == currentStep ? Color.accentColor.opacity(0.45) : .clear, radius: 4, y: 1)
                         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: currentStep)
                 }
                 Spacer(minLength: 0)
@@ -209,17 +225,29 @@ struct WelcomeAssistantView: View {
         }
     }
 
-    /// 欢迎页 hero：大渐变图标 + 大标题 + 简介 + 小贴士。原 WelcomeIntroStep 的内容升级合并到这里。
+    /// 欢迎页 hero:帮助页 HelpHero 同款(用户点名欢迎助手按帮助页华丽标准)——
+    /// 渐变图标瓦片 + 彩色光晕 + 大标题,保持横排紧凑不挤下面两段(0.4.2 滚动条教训)。
+    /// 瓦片用 sparkles(代表助手本身),真 app 图标仍只在左上 header(0.4.2 拍板不重复)。
     private var welcomeHero: some View {
-        // 0.4.2 修「第一页默认就有滚动条」：竖排居中大 hero 占掉 ~250pt,挤掉下面两段 ——
-        // 改横排紧凑头(真 app 图标 + 标题/简介),与设置页 hero 同语言;note 行与 body 信息重复,删。
-        VStack(alignment: .leading, spacing: 5) {
-            Text(L10n.text("welcome.intro.title"))
-                .font(.title.weight(.bold))
-            Text(L10n.text("welcome.intro.body"))
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+        HStack(spacing: 14) {
+            Image(systemName: "sparkles")
+                .font(.system(size: 26, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 52, height: 52)
+                .background(
+                    LinearGradient(colors: [.blue, .indigo], startPoint: .topLeading, endPoint: .bottomTrailing),
+                    in: RoundedRectangle(cornerRadius: 13, style: .continuous)
+                )
+                .shadow(color: .indigo.opacity(0.35), radius: 10, y: 4)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(L10n.text("welcome.intro.title"))
+                    .font(.title.weight(.bold))
+                Text(L10n.text("welcome.intro.body"))
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -270,26 +298,35 @@ struct WelcomeAssistantView: View {
 
 // MARK: - 步骤子视图
 
-/// 通用步骤外壳：标题 + 描述 + 自定义内容块。
-/// 抽出来主要是让每个 step 的 padding / 字号 / 段落间距保持一致。
+/// 通用步骤外壳:标题 + 描述 + 自定义内容块。
+/// 帮助页 HelpDrawer 同款华丽 chrome(用户点名欢迎助手也按帮助页标准手绘):
+/// 外层 = 步骤色斜向渐变底 + 顶部白高光 + 渐变描边 + 彩色阴影,头部渐变发光瓦片;
+/// 内容卡保持实底 —— 内外层次一眼分明。悬停只动阴影不缩放(鬼畜教训)。
 private struct WelcomeStepShell<Content: View>: View {
     let title: String
-    /// 0.4.2 重绘：可选彩色图标瓦片（与设置侧栏 / 帮助页同语言）。不传 = 纯文字标题（兼容旧调用）。
+    /// 可选彩色图标瓦片(与设置侧栏 / 帮助页同语言)。不传 = 纯文字标题(兼容旧调用)。
     var systemImage: String? = nil
     var tint: Color = .accentColor
     let body1: String
     @ViewBuilder var content: () -> Content
+    @State private var isHovering = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .top, spacing: 12) {
                 if let systemImage {
                     Image(systemName: systemImage)
                         .font(.system(size: 17, weight: .semibold))
                         .foregroundStyle(.white)
-                        .frame(width: 38, height: 38)
-                        // 用户拍板:窗口背景可以渐变,**box 不渐变** —— 图标瓦片用纯色。
-                        .background(tint, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                        .frame(width: 40, height: 40)
+                        .background(
+                            LinearGradient(
+                                colors: [tint.opacity(0.95), tint.opacity(0.65)],
+                                startPoint: .topLeading, endPoint: .bottomTrailing
+                            ),
+                            in: RoundedRectangle(cornerRadius: 11, style: .continuous)
+                        )
+                        .shadow(color: tint.opacity(0.45), radius: 7, y: 3)
                 }
                 VStack(alignment: .leading, spacing: 5) {
                     Text(title)
@@ -299,22 +336,66 @@ private struct WelcomeStepShell<Content: View>: View {
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                Spacer(minLength: 0)
             }
-            // 内容进卡片 —— 与全 app 的 DialogSection 一个外观,欢迎页不再是裸控件铺地。
+            .padding(.horizontal, 16)
+            .padding(.top, 14)
+
+            // 内容卡:实底,与渐变外壳拉开层次(帮助页同语言)。
             VStack(alignment: .leading, spacing: 12) {
                 content()
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 18)
-            .padding(.vertical, 12)
+            .padding(.vertical, 14)
             .background(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color(nsColor: .controlBackgroundColor))
+                    .fill(Color(nsColor: .windowBackgroundColor))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .strokeBorder(Color.primary.opacity(0.06))
             )
+            .padding(.horizontal, 12)
+            .padding(.bottom, 12)
+        }
+        .background(
+            ZStack {
+                // 第一层:步骤色斜向渐变底。
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [tint.opacity(0.16), tint.opacity(0.05)],
+                            startPoint: .topLeading, endPoint: .bottomTrailing
+                        )
+                    )
+                // 第二层:顶部白高光,做出「玻璃面」的厚度。
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.white.opacity(0.22), .clear],
+                            startPoint: .top, endPoint: .center
+                        )
+                    )
+            }
+        )
+        .overlay(
+            // 第三层:同色渐变描边,亮起在左上、隐没在右下。
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [tint.opacity(0.55), tint.opacity(0.10)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1.2
+                )
+        )
+        // 悬停只动阴影,不缩放 —— 容器 scaleEffect 实测鬼畜(帮助页教训)。
+        .shadow(color: tint.opacity(isHovering ? 0.22 : 0.10), radius: isHovering ? 11 : 7, y: 5)
+        .onHover { hovering in
+            withAnimation(.easeOut(duration: 0.18)) {
+                isHovering = hovering
+            }
         }
     }
 }
@@ -1261,9 +1342,12 @@ private struct WelcomeCompletionStep: View {
                 .font(.system(size: 44, weight: .semibold))
                 .foregroundStyle(.white)
                 .frame(width: 92, height: 92)
-                // 同上「box 不渐变」拍板 —— 完成徽章也用纯色。
-                .background(Color.green, in: Circle())
-                .shadow(color: .green.opacity(0.38), radius: 14, y: 5)
+                // 帮助页华丽化同一波:完成徽章升级渐变 + 大光晕(用户点名欢迎助手按帮助页标准)。
+                .background(
+                    LinearGradient(colors: [.green, .mint], startPoint: .topLeading, endPoint: .bottomTrailing),
+                    in: Circle()
+                )
+                .shadow(color: .green.opacity(0.45), radius: 16, y: 6)
                 .scaleEffect(celebrate ? 1 : 0.5)
                 .opacity(celebrate ? 1 : 0)
                 .accessibilityHidden(true)
@@ -1286,13 +1370,35 @@ private struct WelcomeCompletionStep: View {
             .padding(16)
             .frame(maxWidth: 480)
             .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color(nsColor: .controlBackgroundColor))
+                ZStack {
+                    // 亮点卡也走帮助页 chrome:绿调渐变底 + 顶部高光。
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.green.opacity(0.14), Color.green.opacity(0.04)],
+                                startPoint: .topLeading, endPoint: .bottomTrailing
+                            )
+                        )
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.white.opacity(0.20), .clear],
+                                startPoint: .top, endPoint: .center
+                            )
+                        )
+                }
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.06))
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [Color.green.opacity(0.50), Color.green.opacity(0.10)],
+                            startPoint: .topLeading, endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1.2
+                    )
             )
+            .shadow(color: .green.opacity(0.14), radius: 8, y: 4)
             .padding(.top, 6)
         }
         .frame(maxWidth: .infinity)
