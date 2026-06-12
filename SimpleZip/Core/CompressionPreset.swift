@@ -339,6 +339,8 @@ struct ReleaseWorkspacePreset: Codable, Identifiable, Equatable {
     /// #4:写 release-manifest.json(0.4.4 新增,Optional 解码兼容旧预设)。
     var writeManifest: Bool?
     var createSignedManifest: Bool
+    /// #10:质量门规则(0.4.4 新增,Optional 解码兼容;nil = 全关)。
+    var gateRules: ReleaseGateRules?
 }
 
 /// 工作区预设的 UserDefaults JSON 存取(与 CompressionDefaultsStore 同款形态:

@@ -28,6 +28,14 @@ struct ReleaseInspectionView: View {
 
             HeightCappedScrollView(maxHeight: 680) {
                 VStack(alignment: .leading, spacing: 12) {
+                    // #10:质量门触发的规则置顶(警告档;阻断档的运行根本到不了报告 sheet)。
+                    if !report.gateViolations.isEmpty {
+                        DialogSection(L10n.text("releaseGate.section")) {
+                            ForEach(report.gateViolations, id: \.rule) { violation in
+                                gateViolationRow(violation)
+                            }
+                        }
+                    }
                     // 对 .app 目录的纯 bundle 检查没有归档侧步骤,首区(完整性/条目)整段不渲染。
                     if !report.isBundleOnly {
                         DialogSection {
@@ -184,6 +192,19 @@ struct ReleaseInspectionView: View {
         case .none:
             row(ok: false, text: L10n.text("inspect.test.skipped"), neutral: true)
         }
+    }
+
+    /// #10:质量门违规行 —— 警告橙 ⚠ / 阻断红 ✗,带命中数。
+    @ViewBuilder
+    private func gateViolationRow(_ violation: ReleaseGate.Violation) -> some View {
+        let name = L10n.text("releaseGate.rule.\(violation.rule.rawValue)")
+        Label {
+            Text(violation.count.map { "\(name) — \($0)" } ?? name)
+        } icon: {
+            Image(systemName: violation.isBlocking ? "xmark.circle.fill" : "exclamationmark.triangle.fill")
+                .foregroundStyle(violation.isBlocking ? Color.red : Color.orange)
+        }
+        .font(.callout)
     }
 
     /// 计数行：0 = 绿 ✓「无 …」；>0 = 橙 ⚠（informational = 灰 i，如可执行 / symlink 本身不算问题）。

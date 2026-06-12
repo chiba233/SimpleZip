@@ -72,6 +72,29 @@ enum ReleaseAssistantPipeline {
             }
         }
 
+        // #10:质量门 —— 检查步之后评估。警告进报告(sheet 顶部「质量门」区);阻断 = 任务失败,
+        // 失败信息点名触发的规则。计数型事实只在真跑了检查时给(没查 ≠ 没问题)。
+        if !request.gateRules.isAllOff {
+            let facts = ReleaseGate.Facts(
+                suspiciousPathCount: request.runInspection && report.listable
+                    ? report.securityFindings.reduce(0) { $0 + $1.entryPaths.count } : nil,
+                junkCount: report.stats?.junkCount,
+                emptyDirectoryCount: report.stats?.emptyDirectoryCount,
+                wroteChecksums: request.writeChecksums,
+                signRequested: request.createSignedManifest,
+                bundleFailureCount: 0
+            )
+            let violations = ReleaseGate.evaluate(facts: facts, rules: request.gateRules)
+            report.gateViolations = violations
+            let blocking = violations.filter(\.isBlocking)
+            if !blocking.isEmpty {
+                let names = blocking
+                    .map { L10n.text("releaseGate.rule.\($0.rule.rawValue)") }
+                    .joined(separator: ", ")
+                throw ArchiveError.commandFailed(L10n.format("releaseGate.blocked", names))
+            }
+        }
+
         // ③ SHA-256:检查报告 / SHA256SUMS / 发布清单共用同一次哈希。
         if request.runInspection || request.writeChecksums || request.writeManifest {
             try await recorder.perform(.checksums) {

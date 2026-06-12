@@ -647,6 +647,8 @@ extension ArchiveBrowserModel {
         var bundleFindings: [BundleReleaseCheck.Finding] = []
         /// true = 直接对 .app 目录跑的检查 —— 归档侧区块(完整性测试/条目/SHA-256)整段不渲染。
         var isBundleOnly = false
+        /// #10:质量门触发的违规(发布助手跑、且开了规则才非空;阻断的运行不会走到报告 sheet)。
+        var gateViolations: [ReleaseGate.Violation] = []
     }
 
     /// 同目录的「签名容器 ↔ 公钥」同捆检查(发包端闭环):有 .szs/.siz 而没有任何 .asc → 提醒。

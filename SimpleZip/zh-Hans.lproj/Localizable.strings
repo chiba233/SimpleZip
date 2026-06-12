@@ -1161,6 +1161,19 @@
 "releaseAssistant.versionLabel.placeholder" = "如 1.2.0(可选)";
 "releaseAssistant.section.history" = "发布历史";
 "releaseAssistant.history.artifactMissing" = "产物已不在";
+/* 0.4.4 #10 质量门 */
+"releaseAssistant.section.gate" = "质量门";
+"releaseGate.section" = "质量门";
+"releaseGate.mode.off" = "关";
+"releaseGate.mode.warn" = "警告";
+"releaseGate.mode.block" = "阻断";
+"releaseGate.rule.suspiciousPaths" = "可疑条目路径";
+"releaseGate.rule.junkFiles" = "macOS 垃圾文件";
+"releaseGate.rule.emptyDirectories" = "空目录";
+"releaseGate.rule.missingChecksums" = "未生成 SHA256SUMS";
+"releaseGate.rule.missingSignature" = "未签名为 .szs";
+"releaseGate.rule.bundleIssues" = "App bundle 签名问题";
+"releaseGate.blocked" = "被质量门阻断:%@";
 "releaseAssistant.sourceFolder" = "产物目录";
 "releaseAssistant.chooseSource" = "选择要打包的文件夹";
 "releaseAssistant.chooseDestination" = "选择归档输出位置";

@@ -30,6 +30,8 @@ struct ReleaseAssistantRequest: Identifiable {
     var writeManifest = false
     /// 完成后用现有「创建签名清单」sheet 继续签 `.szs`(A4:GPG 主开关关闭时该行不渲染)。
     var createSignedManifest = false
+    /// #10:发布前质量门(默认全关 = 行为不变)。
+    var gateRules = ReleaseGateRules()
 }
 
 struct ReleaseAssistantSheet: View {
@@ -75,6 +77,7 @@ struct ReleaseAssistantSheet: View {
         request.runInspection = preset.runInspection
         request.writeChecksums = preset.writeChecksums
         request.writeManifest = preset.writeManifest ?? false
+        request.gateRules = preset.gateRules ?? ReleaseGateRules()
         request.createSignedManifest = preset.createSignedManifest && showsGPGRow
     }
 
@@ -104,7 +107,8 @@ struct ReleaseAssistantSheet: View {
             runInspection: request.runInspection,
             writeChecksums: request.writeChecksums,
             writeManifest: request.writeManifest,
-            createSignedManifest: request.createSignedManifest
+            createSignedManifest: request.createSignedManifest,
+            gateRules: request.gateRules.isAllOff ? nil : request.gateRules
         )
         ReleaseWorkspacePresetStore().save(preset)
         workspacePresets = ReleaseWorkspacePresetStore().loadAll()
@@ -240,6 +244,17 @@ struct ReleaseAssistantSheet: View {
                 }
             }
 
+            // #10:质量门抽屉 —— 六条规则各三态(关/警告/阻断),默认全关;子行单色。
+            DialogDrawer(L10n.text("releaseAssistant.section.gate"), systemImage: "checkmark.shield", color: .red, initiallyExpanded: !request.gateRules.isAllOff) {
+                gateRow(.suspiciousPaths, systemImage: "exclamationmark.shield")
+                gateRow(.junkFiles, systemImage: "paintbrush")
+                gateRow(.emptyDirectories, systemImage: "folder.badge.minus")
+                gateRow(.missingChecksums, systemImage: "number.square")
+                if showsGPGRow {
+                    gateRow(.missingSignature, systemImage: "signature")
+                }
+            }
+
             // #2:发布历史抽屉 —— 最近几条账本记录(版本 / 日期 / SHA-256 可复制 / 产物在不在),
             // 子行单色。没跑过 = 整个抽屉不渲染,零占位。
             if !ledgerEntries.isEmpty {
@@ -249,6 +264,24 @@ struct ReleaseAssistantSheet: View {
                     }
                 }
             }
+        }
+    }
+
+    /// #10:质量门规则行(单色子行):规则名 + 三态下拉。
+    private func gateRow(_ rule: ReleaseGate.Rule, systemImage: String) -> some View {
+        HStack(spacing: 8) {
+            Label(L10n.text("releaseGate.rule.\(rule.rawValue)"), systemImage: systemImage)
+            Spacer(minLength: 12)
+            Picker("", selection: Binding(
+                get: { request.gateRules.mode(for: rule) },
+                set: { request.gateRules.setMode($0, for: rule) }
+            )) {
+                ForEach(ReleaseGateMode.allCases, id: \.self) { mode in
+                    Text(L10n.text("releaseGate.mode.\(mode.rawValue)")).tag(mode)
+                }
+            }
+            .labelsHidden()
+            .fixedSize()
         }
     }
 

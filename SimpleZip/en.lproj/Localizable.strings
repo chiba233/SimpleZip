@@ -1163,6 +1163,19 @@
 "releaseAssistant.versionLabel.placeholder" = "e.g. 1.2.0 (optional)";
 "releaseAssistant.section.history" = "Release History";
 "releaseAssistant.history.artifactMissing" = "artifact missing";
+/* 0.4.4 #10 release gate */
+"releaseAssistant.section.gate" = "Quality Gate";
+"releaseGate.section" = "Quality Gate";
+"releaseGate.mode.off" = "Off";
+"releaseGate.mode.warn" = "Warn";
+"releaseGate.mode.block" = "Block";
+"releaseGate.rule.suspiciousPaths" = "Suspicious entry paths";
+"releaseGate.rule.junkFiles" = "macOS junk files";
+"releaseGate.rule.emptyDirectories" = "Empty directories";
+"releaseGate.rule.missingChecksums" = "No SHA256SUMS written";
+"releaseGate.rule.missingSignature" = "Not signed as .szs";
+"releaseGate.rule.bundleIssues" = "App bundle signing issues";
+"releaseGate.blocked" = "Blocked by quality gate: %@";
 "releaseAssistant.sourceFolder" = "Build Folder";
 "releaseAssistant.chooseSource" = "Choose the folder to pack";
 "releaseAssistant.chooseDestination" = "Choose where the archive lands";
