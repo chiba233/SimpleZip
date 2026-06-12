@@ -1092,6 +1092,13 @@
 "tasks.queuePause" = "暂停队列";
 "tasks.queueResume" = "恢复队列";
 "tasks.queuePause.help" = "暂停所有可暂停的运行中任务,并让新任务排队等待。恢复时只放行被本按钮暂停的任务。";
+/* 0.4.4 F2 统一报告导出 */
+"report.export.menu" = "导出报告";
+"report.copySummary" = "复制摘要";
+"report.copyAsIssue" = "复制为 GitHub Issue";
+"report.export.markdown" = "导出 Markdown…";
+"report.export.json" = "导出 JSON…";
+"report.export.failedTitle" = "导出失败";
 "tasks.queuePaused.note" = "队列已暂停——新任务将排队等待。无法冻结的任务(哈希、拆分合并、文件操作)会自行跑完。";
 "tasks.archiveSection" = "归档操作";
 "tasks.fileSection" = "文件操作";

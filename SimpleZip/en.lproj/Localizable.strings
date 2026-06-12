@@ -1094,6 +1094,13 @@
 "tasks.queuePause" = "Pause Queue";
 "tasks.queueResume" = "Resume Queue";
 "tasks.queuePause.help" = "Pause every pausable running task and hold new tasks in the queue. Resuming releases only the tasks this button paused.";
+/* 0.4.4 F2 unified report export */
+"report.export.menu" = "Export Report";
+"report.copySummary" = "Copy Summary";
+"report.copyAsIssue" = "Copy as GitHub Issue";
+"report.export.markdown" = "Export Markdown…";
+"report.export.json" = "Export JSON…";
+"report.export.failedTitle" = "Export Failed";
 "tasks.queuePaused.note" = "Queue paused — new tasks wait in line. Tasks that can't be frozen (hashing, split/combine, file operations) finish on their own.";
 "tasks.archiveSection" = "Archive Operations";
 "tasks.fileSection" = "File Operations";
