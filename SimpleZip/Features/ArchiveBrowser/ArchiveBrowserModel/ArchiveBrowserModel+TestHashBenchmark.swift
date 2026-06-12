@@ -259,6 +259,127 @@ extension ArchiveBrowserModel {
         )
     }
 
+    // MARK: - 发布助手(选目录→打包→检查→校验文件→可选签名一条流)
+
+    /// 工具菜单「发布助手…」:预填当前浏览的文件夹,弹确认 sheet。
+    func showReleaseAssistant() {
+        var request = ReleaseAssistantRequest()
+        if case .folder(let url) = mode {
+            request.sourceFolder = url
+            request.fileName = url.lastPathComponent
+            request.destinationFolder = url.deletingLastPathComponent()
+        }
+        releaseAssistantRequest = request
+    }
+
+    /// 发布助手管线:① 打包(可排垃圾 / 可复现,输出重名自动唯一化绝不覆盖) → ② 发布检查
+    /// (与右键「发布包检查」同一套步骤) → ③ 写 SHA256SUMS → ④ 可选转入现有「创建签名清单」sheet。
+    /// 检查失败不让任务失败 —— 失败本身就是报告内容;打包失败才算任务失败。
+    func runReleaseAssistant(_ request: ReleaseAssistantRequest) {
+        guard let source = request.sourceFolder, let destination = request.destinationFolder else { return }
+        let trimmedName = request.fileName.trimmingCharacters(in: .whitespaces)
+        guard !trimmedName.isEmpty else { return }
+
+        let preferred = destination
+            .appendingPathComponent(trimmedName)
+            .appendingPathExtension(request.format.pathExtension)
+        let outputURL = UniqueFileName.suffixed(for: preferred, suffix: "") {
+            FileManager.default.fileExists(atPath: $0.path)
+        }
+
+        var options = ArchiveCreationOptions()
+        options.format = request.format
+        options.skipDSStore = request.excludeJunk
+        if request.excludeJunk {
+            // 与 Core 垃圾识别(ArchiveJunkFiles)同一族:AppleDouble、Thumbs.db、desktop.ini。
+            // .DS_Store 由 skipDSStore 负责;__MACOSX 是 Archive Utility 的归档内产物,源目录不会有。
+            // 创建走 7zz `-xr!`(递归按名排除,命中任一路径段),不需要 `*/` 变体。
+            options.customExcludes = "._*, Thumbs.db, desktop.ini"
+        }
+        if request.reproducible {
+            options.reproducibleArchive = true
+        }
+
+        var report = ReleaseInspectionReport(archiveURL: outputURL)
+        startManagedArchiveTask(
+            title: L10n.format("releaseAssistant.taskTitle", outputURL.lastPathComponent),
+            kind: .create,
+            showsDetails: true,
+            successStatus: L10n.format("releaseAssistant.done", outputURL.lastPathComponent),
+            refreshOnSuccess: { [weak self] in
+                guard let self else { return }
+                if request.runInspection {
+                    self.releaseInspectionReport = report
+                }
+                if request.createSignedManifest {
+                    // 转入现有「创建签名清单」sheet(payload root = 输出目录,预选刚打的包)——
+                    // 不在助手里重绘密钥选择(A1)。
+                    self.pendingCreateSZS = CreateSZSPrefill(payloadRoot: destination, files: [outputURL])
+                }
+            },
+            onSucceeded: { task in
+                // 活动中心详情里列出产物(路径 + SHA-256)。
+                var rows = [TransferLogEntry(name: outputURL.path, action: .passed, isDirectory: false,
+                                             detail: report.sha256 ?? "")]
+                if request.writeChecksums {
+                    rows.append(TransferLogEntry(name: "SHA256SUMS", action: .passed, isDirectory: false, detail: ""))
+                }
+                task.transferLog = rows
+            },
+            rerunAction: { [weak self] in self?.runReleaseAssistant(request) }
+        ) { operationID, progress, outputObserver in
+            // ① 打包。创建占 0~0.6 —— createArchive 自己的 fraction 压缩到这个区间。
+            try await ArchiveService.createArchive(
+                from: [source],
+                destination: outputURL,
+                options: options,
+                operationID: operationID,
+                progress: { state in
+                    var scaled = state
+                    scaled.fraction = state.fraction.map { $0 * 0.6 }
+                    progress(scaled)
+                },
+                outputObserver: outputObserver
+            )
+            // ② 发布检查(与 runReleaseInspection 同一套步骤,对刚生成的归档;新包无密码)。
+            if request.runInspection {
+                progress(ArchiveProgressState(fraction: 0.65, statusText: nil))
+                if let items = try? await ArchiveService.list(outputURL, operationID: operationID) {
+                    report.listable = true
+                    report.stats = ReleaseInspection.stats(for: items)
+                    report.securityFindings = ArchiveSecurityReport.analyze(items)
+                    report.hasComment = !ArchiveService.headerComment(for: outputURL).isEmpty
+                }
+                do {
+                    try await ArchiveService.test(outputURL, operationID: operationID, outputObserver: outputObserver)
+                    report.testPassed = true
+                } catch is CancellationError {
+                    throw CancellationError()
+                } catch {
+                    report.testPassed = false
+                    report.testFailureMessage = error.localizedDescription
+                }
+            }
+            // ③ SHA-256:检查报告和 SHA256SUMS 共用同一次哈希。
+            if request.runInspection || request.writeChecksums {
+                progress(ArchiveProgressState(fraction: 0.9, statusText: nil))
+                let digest = try? await Task.detached(priority: .userInitiated) {
+                    try HashService.sha256(for: outputURL)
+                }.value
+                report.sha256 = digest
+                if request.writeChecksums, let digest {
+                    let preferredSums = destination.appendingPathComponent("SHA256SUMS")
+                    let sumsURL = UniqueFileName.suffixed(for: preferredSums, suffix: "") {
+                        FileManager.default.fileExists(atPath: $0.path)
+                    }
+                    try ChecksumFile.generateSHA256SUMS([(name: outputURL.lastPathComponent, digestHex: digest)])
+                        .write(to: sumsURL, atomically: true, encoding: .utf8)
+                }
+            }
+            progress(ArchiveProgressState(fraction: 1.0, statusText: nil))
+        }
+    }
+
     // MARK: - 发布包检查（0.4.2 #15）
 
     /// 一次发布包检查的结果。条目侧统计在 Core（ReleaseInspection），这里聚合 测试 / SHA-256 / 注释。

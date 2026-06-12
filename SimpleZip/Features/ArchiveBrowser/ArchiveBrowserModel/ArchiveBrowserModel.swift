@@ -40,6 +40,8 @@ final class ArchiveBrowserModel: ObservableObject {
     @Published var batchRenameRequest: BatchRenameRequest?
     /// 0.4.2 #15：发布包检查报告 sheet（非 nil = 显示）。右键单个归档触发，检查跑完赋值。
     @Published var releaseInspectionReport: ReleaseInspectionReport?
+    /// 发布助手(工具菜单):打包→检查→校验文件→可选签名一条流的待确认配置。
+    @Published var releaseAssistantRequest: ReleaseAssistantRequest?
     /// 0.4.2 #24：归档内重复文件报告 sheet（非 nil = 显示）。
     @Published var duplicateFilesReport: DuplicateFilesReport?
     /// 0.4.2：.gpg 解压确认对话框（非 nil = 显示）。

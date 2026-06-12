@@ -759,6 +759,11 @@ struct ToolsCommands: Commands {
 
             Divider()
 
+            Button(L10n.text("releaseAssistant.menu")) {
+                model?.showReleaseAssistant()
+            }
+            .disabled(model == nil)
+
             Button(L10n.text("button.benchmark")) {
                 model?.showSevenZipBenchmarkOptions()
             }

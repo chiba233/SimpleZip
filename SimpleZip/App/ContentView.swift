@@ -348,6 +348,14 @@ struct ContentView: View {
                 model.convertArchiveRequest = nil
             }
         }
+        .sheet(item: $model.releaseAssistantRequest) { request in
+            ReleaseAssistantSheet(request: request) { confirmed in
+                model.releaseAssistantRequest = nil
+                model.runReleaseAssistant(confirmed)
+            } cancel: {
+                model.releaseAssistantRequest = nil
+            }
+        }
         .sheet(item: $pendingSZSVerification) { pending in
             SZSVerificationSheet(
                 sourceURL: pending.sourceURL,
