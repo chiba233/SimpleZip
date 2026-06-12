@@ -451,6 +451,48 @@ extension ArchiveBrowserModel {
         runReleaseInspection(archiveURL)
     }
 
+    /// #8 空间分析:打开的归档直接用已列出的条目(瞬时);文件夹里单选归档则先列出(托管任务)。
+    func analyzeSelectedArchiveSpace() {
+        switch mode {
+        case .archive(let url):
+            spaceAnalysisReport = ArchiveSpaceAnalysisReport(
+                archiveName: (archiveDisplayOverride ?? url).lastPathComponent,
+                analysis: ArchiveSpaceAnalysis.analyze(session.allItems)
+            )
+        case .folder, .tag:
+            guard let archiveURL = selectedFileItems.first(where: { ArchiveService.isSupportedArchive($0.url) })?.url else {
+                errorMessage = L10n.text("error.openOrSelectArchive")
+                return
+            }
+            let force = isForced(archiveURL)
+            startManagedArchiveTask(
+                title: L10n.format("space.taskTitle", archiveURL.lastPathComponent),
+                kind: .test,
+                showsDetails: false,
+                successStatus: nil,
+                rerunAction: { [weak self] in self?.analyzeSelectedArchiveSpace() }
+            ) { [weak self] operationID, _, _ in
+                var items: [ArchiveItem] = []
+                for password in [""] + SessionPasswordCache.shared.candidates(for: archiveURL) {
+                    if let listed = try? await ArchiveService.list(archiveURL, password: password, operationID: operationID, force: force) {
+                        items = listed
+                        break
+                    }
+                }
+                guard !items.isEmpty else {
+                    throw ArchiveError.commandFailed(L10n.text("inspect.notListable"))
+                }
+                let analysis = ArchiveSpaceAnalysis.analyze(items)
+                await MainActor.run {
+                    self?.spaceAnalysisReport = ArchiveSpaceAnalysisReport(
+                        archiveName: archiveURL.lastPathComponent,
+                        analysis: analysis
+                    )
+                }
+            }
+        }
+    }
+
     private func runReleaseInspection(_ url: URL) {
         let force = isForced(url)
         var report = ReleaseInspectionReport(archiveURL: url)

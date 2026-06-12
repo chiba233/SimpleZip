@@ -50,6 +50,8 @@ final class ArchiveBrowserModel: ObservableObject {
     @Published var releaseInspectionReport: ReleaseInspectionReport?
     /// 发布助手(工具菜单):打包→检查→校验文件→可选签名一条流的待确认配置。
     @Published var releaseAssistantRequest: ReleaseAssistantRequest?
+    /// #8 空间分析报告(非 nil = 弹报告 sheet)。
+    @Published var spaceAnalysisReport: ArchiveSpaceAnalysisReport?
     /// 0.4.2 #24：归档内重复文件报告 sheet（非 nil = 显示）。
     @Published var duplicateFilesReport: DuplicateFilesReport?
     /// 0.4.2：.gpg 解压确认对话框（非 nil = 显示）。

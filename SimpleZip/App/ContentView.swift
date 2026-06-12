@@ -352,6 +352,11 @@ struct ContentView: View {
                 model.convertArchiveRequest = nil
             }
         }
+        .sheet(item: $model.spaceAnalysisReport) { report in
+            ArchiveSpaceAnalysisView(report: report) {
+                model.spaceAnalysisReport = nil
+            }
+        }
         .sheet(item: $model.releaseAssistantRequest) { request in
             ReleaseAssistantSheet(request: request) { confirmed in
                 model.releaseAssistantRequest = nil

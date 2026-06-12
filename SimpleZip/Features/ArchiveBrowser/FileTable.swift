@@ -1094,6 +1094,8 @@ struct FileNSOutlineView: NSViewRepresentable {
             // 0.4.2 #15：发布包检查 —— 单选受支持归档时出现。
             if selectedArchiveCount == 1, model.selectedFileItems.count == 1 {
                 menu.addItem(menuItem(L10n.text("inspect.menu"), systemImage: "checklist", action: #selector(inspectArchiveForRelease)))
+                // #8:空间分析 —— 同样单选受支持归档时出现。
+                menu.addItem(menuItem(L10n.text("space.menu"), systemImage: "chart.pie", action: #selector(analyzeArchiveSpace)))
             }
             menu.addItem(menuItem(L10n.text("button.hash"), systemImage: "number.square", action: #selector(hashSelected)))
             // 0.4.3 #11:校验文件 —— 选中含文件给「生成 SHA256SUMS」;单选校验文件给「验证」。
@@ -1373,6 +1375,10 @@ struct FileNSOutlineView: NSViewRepresentable {
 
         @objc private func inspectArchiveForRelease() {
             model.inspectSelectedArchiveForRelease()
+        }
+
+        @objc private func analyzeArchiveSpace() {
+            model.analyzeSelectedArchiveSpace()
         }
 
         @objc private func testSelectedArchive() {

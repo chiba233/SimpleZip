@@ -146,6 +146,8 @@ struct ArchiveFileCommands: Commands {
                 .disabled(model == nil)
             Button(L10n.text("inspect.menu")) { model?.inspectSelectedArchiveForRelease() }
                 .disabled(model == nil)
+            Button(L10n.text("space.menu")) { model?.analyzeSelectedArchiveSpace() }
+                .disabled(model == nil)
 
             Divider()
 
