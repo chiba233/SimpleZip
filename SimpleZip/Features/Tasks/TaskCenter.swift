@@ -28,6 +28,12 @@ final class TaskCenter: ObservableObject {
     /// 只在写任务 acquire/release 时变化(低频),活动中心据此渲染「归档写入锁」一节。
     @Published private(set) var writeLockSnapshot = ArchiveWriteLockSnapshot(entries: [])
 
+    /// 0.4.4 F4:队列级暂停 —— 用户在活动中心一键暂停整个队列。@Published:只随用户点击翻转,
+    /// 不在 reload 路径上。**不持久化、重启不自动恢复**(冻着的子进程不会跨会话存活)。
+    @Published private(set) var isQueuePaused = false
+    /// 被「队列暂停」按下去的任务 id —— 恢复时只恢复这批;用户单独手动暂停的任务不被殃及。
+    private var queuePausedTaskIDs: Set<UUID> = []
+
     private var historyLimit: Int {
         AppPreferences.activityHistoryLimit
     }
@@ -214,6 +220,8 @@ final class TaskCenter: ObservableObject {
 
     func finish(_ task: OperationTask, outcome: OperationTask.Status) {
         guard let index = active.firstIndex(where: { $0.id == task.id }) else { return }
+        // F4:任务在队列暂停期间收尾(取消 / 进程内阶段跑完)→ 摘掉暂停登记,id 不残留。
+        queuePausedTaskIDs.remove(task.id)
         let finishedTask = active.remove(at: index)
         finishedTask.status = outcome
         finishedTask.finishedAt = Date()
@@ -256,6 +264,36 @@ final class TaskCenter: ObservableObject {
         for task in active {
             task.cancel?()
         }
+    }
+
+    /// 0.4.4 F4:暂停 / 恢复整个队列。
+    /// 暂停 = 调度器闸门关上(新重任务全部入队等待)+ 对所有「可暂停且在跑」的任务逐个 SIGSTOP;
+    /// 恢复 = 闸门打开 + 只恢复**被本开关暂停的**那批(用户单独手动暂停的不动)。
+    /// 不可暂停的种类(哈希 / 拆分合并 / 文件操作)继续跑完 —— UI 文案如实说明,不假装能冻住。
+    func setQueuePaused(_ paused: Bool) {
+        guard paused != isQueuePaused else { return }
+        isQueuePaused = paused
+        if paused {
+            HeavyTaskScheduler.shared.pauseQueue()
+            for task in active where task.status.isRunning && !task.isPaused && task.pause != nil && !task.isAwaitingSlot {
+                task.pause?()
+                queuePausedTaskIDs.insert(task.id)
+            }
+        } else {
+            HeavyTaskScheduler.shared.resumeQueue()
+            for task in active where queuePausedTaskIDs.contains(task.id) && task.isPaused {
+                task.resume?()
+            }
+            queuePausedTaskIDs.removeAll()
+        }
+    }
+
+    /// 队列暂停期间新起的「可暂停但不走并发槽」的任务(目前只有 compare):装好闭包后立即补停,
+    /// 不然它会无视暂停直接跑。startManagedArchiveTask 在注入 pause/resume 后调用。
+    func applyQueuePauseIfNeeded(to task: OperationTask) {
+        guard isQueuePaused, task.status.isRunning, !task.isPaused, let pause = task.pause else { return }
+        pause()
+        queuePausedTaskIDs.insert(task.id)
     }
 
     func notifyTaskChanged() {
@@ -358,15 +396,31 @@ final class HeavyTaskScheduler {
     /// 等待中的任务数(调度展示用)。
     var waitingCount: Int { waiters.count }
 
+    /// 0.4.4 F4:队列级暂停 —— 暂停期间不放行任何新重任务(两条快路径 + release 补放全部入队等待)。
+    /// 已在跑的任务不归这里管(TaskCenter.setQueuePaused 对它们逐个 SIGSTOP)。不持久化。
+    private(set) var isQueuePaused = false
+
+    func pauseQueue() {
+        isQueuePaused = true
+    }
+
+    func resumeQueue() {
+        isQueuePaused = false
+        dispenseWaiters()
+    }
+
     /// 取槽:有空位立即返回;满了挂起直到有任务收尾。任务被取消时以 CancellationError 恢复。
+    /// **两条快路径都必须过暂停闸门** —— 否则暂停期间 unlimited / 有空位的新任务直接穿过去。
     func acquire(taskID: UUID) async throws {
-        guard limit > 0 else {
-            runningCount += 1
-            return
-        }
-        if runningCount < limit {
-            runningCount += 1
-            return
+        if !isQueuePaused {
+            guard limit > 0 else {
+                runningCount += 1
+                return
+            }
+            if runningCount < limit {
+                runningCount += 1
+                return
+            }
         }
         try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
@@ -382,6 +436,12 @@ final class HeavyTaskScheduler {
     /// 还槽:按 FIFO 放行下一个等待者(若调小了上限,等到 runningCount 降到新上限以下才放)。
     func release() {
         runningCount = max(0, runningCount - 1)
+        dispenseWaiters()
+    }
+
+    /// 按 FIFO 放行等待者直到上限;队列暂停期间一个都不放(恢复时统一补放)。
+    private func dispenseWaiters() {
+        guard !isQueuePaused else { return }
         while !waiters.isEmpty, limit == 0 || runningCount < limit {
             let next = waiters.removeFirst()
             runningCount += 1

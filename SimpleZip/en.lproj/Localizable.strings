@@ -1090,6 +1090,11 @@
 "tasks.running" = "Running";
 "tasks.runningCount" = "%d tasks running";
 "tasks.cancelAll" = "Cancel All";
+/* 0.4.4 F4 queue-level pause */
+"tasks.queuePause" = "Pause Queue";
+"tasks.queueResume" = "Resume Queue";
+"tasks.queuePause.help" = "Pause every pausable running task and hold new tasks in the queue. Resuming releases only the tasks this button paused.";
+"tasks.queuePaused.note" = "Queue paused — new tasks wait in line. Tasks that can't be frozen (hashing, split/combine, file operations) finish on their own.";
 "tasks.archiveSection" = "Archive Operations";
 "tasks.fileSection" = "File Operations";
 "tasks.empty" = "No tasks";

@@ -1088,6 +1088,11 @@
 "tasks.running" = "运行中";
 "tasks.runningCount" = "%d 个任务进行中";
 "tasks.cancelAll" = "全部取消";
+/* 0.4.4 F4 队列级暂停 */
+"tasks.queuePause" = "暂停队列";
+"tasks.queueResume" = "恢复队列";
+"tasks.queuePause.help" = "暂停所有可暂停的运行中任务,并让新任务排队等待。恢复时只放行被本按钮暂停的任务。";
+"tasks.queuePaused.note" = "队列已暂停——新任务将排队等待。无法冻结的任务(哈希、拆分合并、文件操作)会自行跑完。";
 "tasks.archiveSection" = "归档操作";
 "tasks.fileSection" = "文件操作";
 "tasks.empty" = "无任务";

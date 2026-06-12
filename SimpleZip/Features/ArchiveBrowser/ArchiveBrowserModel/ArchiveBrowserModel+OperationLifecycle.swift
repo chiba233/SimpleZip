@@ -260,6 +260,11 @@ extension ArchiveBrowserModel {
                 operationTask.progress.statusText = nil
                 taskCenter.notifyTaskChanged()
             }
+            // F4:队列处于暂停态时,新起的「可暂停但不走并发槽」任务(compare)立即补停 ——
+            // 重任务由 acquire 的暂停闸门拦,不需要(也不该)在这儿预先标暂停。
+            if !HeavyTaskScheduler.heavyKinds.contains(kind) {
+                taskCenter.applyQueuePauseIfNeeded(to: operationTask)
+            }
         }
 
         swiftTask = Task { @MainActor [weak self, weak operationTask] in

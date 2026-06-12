@@ -75,6 +75,19 @@ struct ActivityView: View {
                             .font(.title2.weight(.semibold))
                         Spacer()
                         filterMenu(for: category)
+                        // F4:队列级暂停/恢复 —— 暂停态下即使任务跑完也保持可见(不然没法恢复闸门)。
+                        if taskCenter.runningCount > 0 || taskCenter.isQueuePaused {
+                            Button {
+                                taskCenter.setQueuePaused(!taskCenter.isQueuePaused)
+                            } label: {
+                                Label(
+                                    L10n.text(taskCenter.isQueuePaused ? "tasks.queueResume" : "tasks.queuePause"),
+                                    systemImage: taskCenter.isQueuePaused ? "play.circle" : "pause.circle"
+                                )
+                            }
+                            .buttonStyle(.bordered)
+                            .help(L10n.text("tasks.queuePause.help"))
+                        }
                         if taskCenter.runningCount > 0 {
                             // 队列管理①:「完成后睡眠」—— 仅任务运行期间可见;最后一个任务收尾时整机睡眠。
                             Toggle(isOn: $taskCenter.sleepWhenAllTasksFinish) {
@@ -93,6 +106,17 @@ struct ActivityView: View {
                     .padding(.horizontal, 16)
                     .padding(.top, 14)
                     .padding(.bottom, 8)
+
+                    // F4:暂停态说明 —— 如实写清「不可暂停的种类会继续跑完、新任务排队」,不假装全冻住。
+                    if taskCenter.isQueuePaused {
+                        Label(L10n.text("tasks.queuePaused.note"), systemImage: "pause.circle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 8)
+                    }
 
                     taskList(in: category)
                 }
