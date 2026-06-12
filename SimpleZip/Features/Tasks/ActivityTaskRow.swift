@@ -12,7 +12,10 @@ import SwiftUI
 
 struct ActivityTaskRow: View {
     @ObservedObject var task: OperationTask
-    @State private var isShowingDetails = false
+    /// 详情展开态**外置**(0.4.4 bug 修复):列表是 LazyVStack,滚远的行被回收,
+    /// 行内 @State 一并丢失 → 展开的卡片滚回来自动收起。真值挂在 ActivityView 的
+    /// expandedTaskIDs(按任务 id),回收/重建都不丢。
+    @Binding var isShowingDetails: Bool
     /// 复制反馈文案（nil = 不显示）。0.4.2 用户报「复制命令也显示诊断信息已复制」—— 按按钮分流。
     @State private var copiedConfirmationText: String?
 

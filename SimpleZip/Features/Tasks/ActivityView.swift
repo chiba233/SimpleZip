@@ -9,6 +9,8 @@ import SwiftUI
 struct ActivityView: View {
     @ObservedObject var taskCenter: TaskCenter
     @ObservedObject var windowState: ActivityWindowState
+    /// 详情展开的任务 id 集合 —— 行内 @State 会被 LazyVStack 回收丢失(滚远自动收起 bug),外置到这里。
+    @State private var expandedTaskIDs: Set<UUID> = []
     @State private var archiveFilter = ActivityTaskFilter.all
     @State private var fileFilter = ActivityTaskFilter.all
     @State private var undoRedoFilter = ActivityTaskFilter.all
@@ -221,7 +223,7 @@ struct ActivityView: View {
                                 tint: .gray
                             )
                             ForEach(waiting) { task in
-                                ActivityTaskCard(task: task)
+                                ActivityTaskCard(task: task, expandedTaskIDs: $expandedTaskIDs)
                                     .id(task.id)
                             }
                             if !rest.isEmpty {
@@ -230,7 +232,7 @@ struct ActivityView: View {
                             }
                         }
                         ForEach(rest) { task in
-                            ActivityTaskCard(task: task)
+                            ActivityTaskCard(task: task, expandedTaskIDs: $expandedTaskIDs)
                                 .id(task.id)
                         }
                     }
@@ -625,6 +627,8 @@ final class ActivityWindowState: ObservableObject {
 /// 只这张卡重渲染、描边动画即时停。
 private struct ActivityTaskCard: View {
     @ObservedObject var task: OperationTask
+    /// 详情展开真值(按任务 id 存在列表层,行被 LazyVStack 回收也不丢)。
+    @Binding var expandedTaskIDs: Set<UUID>
     @State private var borderAngle = 0.0
 
     private var tint: Color {
@@ -637,7 +641,16 @@ private struct ActivityTaskCard: View {
 
     var body: some View {
         HeroChromeCard(color: tint, cornerRadius: 12) {
-            ActivityTaskRow(task: task)
+            ActivityTaskRow(task: task, isShowingDetails: Binding(
+                get: { expandedTaskIDs.contains(task.id) },
+                set: { expanded in
+                    if expanded {
+                        expandedTaskIDs.insert(task.id)
+                    } else {
+                        expandedTaskIDs.remove(task.id)
+                    }
+                }
+            ))
                 .padding(.horizontal, 20)
                 .padding(.vertical, 12)
                 .frame(maxWidth: .infinity, alignment: .leading)
