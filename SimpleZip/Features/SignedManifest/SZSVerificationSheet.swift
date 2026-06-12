@@ -102,7 +102,7 @@ struct SZSVerificationSheet: View {
 
             Divider()
 
-            HStack {
+            PinnedBottomBar {
                 Spacer()
                 Button(action: onClose) {
                     Label(L10n.text("szs.verify.dismissButton"), systemImage: "xmark")
@@ -118,9 +118,6 @@ struct SZSVerificationSheet: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(isVerifying || report == nil)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(.bar)
         }
         .frame(width: 700)
         .onAppear { verifyNow() }

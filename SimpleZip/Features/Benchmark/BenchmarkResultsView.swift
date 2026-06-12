@@ -56,7 +56,7 @@ struct BenchmarkOptionsView: View {
 
             Divider()
 
-            HStack {
+            PinnedBottomBar {
                 Spacer()
                 Button(action: cancel) {
                     Label(L10n.text("button.cancel"), systemImage: "xmark")
@@ -70,9 +70,6 @@ struct BenchmarkOptionsView: View {
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(.bar)
         }
         .frame(width: 460)
     }
@@ -135,7 +132,7 @@ struct BenchmarkRunView: View {
 
             Divider()
 
-            HStack {
+            PinnedBottomBar {
                 if session.isRunning {
                     ProgressView()
                         .controlSize(.small)
@@ -155,9 +152,6 @@ struct BenchmarkRunView: View {
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(.bar)
         }
         .frame(minWidth: 620, idealWidth: 680)
     }

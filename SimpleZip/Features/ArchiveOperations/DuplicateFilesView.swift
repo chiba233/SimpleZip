@@ -99,7 +99,7 @@ struct DuplicateFilesView: View {
 
             Divider()
 
-            HStack {
+            PinnedBottomBar {
                 Button {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(report.plainTextSummary, forType: .string)
@@ -116,9 +116,6 @@ struct DuplicateFilesView: View {
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(.bar)
         }
         .frame(width: 540)
     }

@@ -82,7 +82,7 @@ struct GPGKeyImportSheet: View {
 
             Divider()
 
-            HStack {
+            PinnedBottomBar {
                 if isImporting {
                     ProgressView().controlSize(.small)
                 }
@@ -100,9 +100,6 @@ struct GPGKeyImportSheet: View {
                     .disabled(isImporting)
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(.bar)
         }
         .frame(width: 440)
     }

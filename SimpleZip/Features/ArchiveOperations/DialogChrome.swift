@@ -241,6 +241,22 @@ struct DialogDrawer<Content: View>: View {
     }
 }
 
+/// 钉底操作栏的裸壳(design system:PinnedBottomBar):bar 材质 + 统一内边距(h20/v12),内容自定。
+/// 标准「取消 + 确认」请用 DialogFooter;报告类弹窗(导出 / 过滤 / 复制 / 关闭)往里塞自己的控件,
+/// 不再各写一份 padding / 材质。
+struct PinnedBottomBar<Content: View>: View {
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        HStack(spacing: 12) {
+            content()
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+        .background(.bar)
+    }
+}
+
 /// 弹窗钉底操作栏：bar 材质，左侧自定义内容（详情开关 / 校验信息），右侧取消 + prominent 主按钮。
 /// 设计准则：按钮带单色图标——取消统一 xmark，主操作图标由各对话框传（通常呼应 hero 图标）。
 struct DialogFooter<Leading: View>: View {
@@ -254,7 +270,7 @@ struct DialogFooter<Leading: View>: View {
     @ViewBuilder let leading: () -> Leading
 
     var body: some View {
-        HStack {
+        PinnedBottomBar {
             leading()
             Spacer()
             Button(action: cancel) {
@@ -273,9 +289,6 @@ struct DialogFooter<Leading: View>: View {
             .disabled(confirmDisabled)
             .keyboardShortcut(.defaultAction)
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
-        .background(.bar)
     }
 }
 

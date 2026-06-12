@@ -133,7 +133,7 @@ struct ArchiveDiffView: View {
 
             // 钉底操作栏：左侧工具（导出 / 忽略垃圾 / 复制），右侧主按钮 —— 与创建 / 解压同款。
             // Menu 不当按钮用（Form/bar 里渲染破碎）→ 普通按钮 + confirmationDialog 选格式。
-            HStack(spacing: 12) {
+            PinnedBottomBar {
                 Button {
                     showsExportFormatDialog = true
                 } label: {
@@ -170,9 +170,6 @@ struct ArchiveDiffView: View {
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(.bar)
         }
         .frame(minWidth: 640, idealWidth: 760)
     }

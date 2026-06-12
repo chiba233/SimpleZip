@@ -57,7 +57,7 @@ struct ArchiveSecurityReportView: View {
 
             Divider()
 
-            HStack {
+            PinnedBottomBar {
                 Spacer()
                 Button {
                     model.showsArchiveSecurityReport = false
@@ -67,9 +67,6 @@ struct ArchiveSecurityReportView: View {
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(.bar)
         }
         .frame(width: 560)
     }

@@ -87,7 +87,7 @@ struct ReleaseInspectionView: View {
 
             Divider()
 
-            HStack {
+            PinnedBottomBar {
                 Button {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(plainTextSummary, forType: .string)
@@ -110,9 +110,6 @@ struct ReleaseInspectionView: View {
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(.bar)
         }
         .frame(width: 540)
     }

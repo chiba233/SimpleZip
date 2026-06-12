@@ -147,7 +147,7 @@ struct SIZSignatureSheet: View {
 
             Divider()
 
-            HStack {
+            PinnedBottomBar {
                 if isOpening {
                     ProgressView().controlSize(.small)
                     Text(L10n.text("siz.signatureSheet.decrypting"))
@@ -176,9 +176,6 @@ struct SIZSignatureSheet: View {
                 .tint(SIZSignatureStatus.color(for: signature.verify))
                 .disabled(isOpening)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
-            .background(.bar)
         }
         .frame(width: 560)
         .onTapGesture { NSApp.keyWindow?.makeFirstResponder(nil) }
