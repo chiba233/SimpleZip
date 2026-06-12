@@ -294,6 +294,8 @@ enum AppPreferences {
         nonisolated static let compressionFormatPresets = "SimpleZip.CompressionFormatPresets.v1"
         /// #18:发布助手的工作区预设(JSON Data,备份导出 / 导入 / 恢复默认与上面同款单独处理)。
         nonisolated static let releaseWorkspacePresets = "SimpleZip.ReleaseWorkspacePresets.v1"
+        /// 0.4.4 #2:发布历史账本(JSON Data,上限 100 条)。
+        nonisolated static let releaseLedger = "SimpleZip.ReleaseLedger.v1"
         nonisolated static let showArchiveKindColumn = "showArchiveKindColumn"
         nonisolated static let showArchiveSizeColumn = "showArchiveSizeColumn"
         nonisolated static let showArchiveModifiedColumn = "showArchiveModifiedColumn"
@@ -1118,6 +1120,10 @@ enum AppPreferences {
         if let workspaces = jsonDataExportValue(forKey: Key.releaseWorkspacePresets) {
             values[Key.releaseWorkspacePresets] = workspaces
         }
+        // 0.4.4 #2 发布账本:同款 JSON Data → JSON 对象。
+        if let ledger = jsonDataExportValue(forKey: Key.releaseLedger) {
+            values[Key.releaseLedger] = ledger
+        }
         return PreferencesPayloadCodec.makePayload(values: values)
     }
 
@@ -1170,6 +1176,13 @@ enum AppPreferences {
            let data = try? JSONSerialization.data(withJSONObject: workspacesObject) {
             defaults.set(data, forKey: Key.releaseWorkspacePresets)
         }
+        // 0.4.4 #2 发布账本:同款 JSON 对象 → Data。
+        defaults.removeObject(forKey: Key.releaseLedger)
+        if let ledgerObject = values[Key.releaseLedger],
+           JSONSerialization.isValidJSONObject(ledgerObject),
+           let data = try? JSONSerialization.data(withJSONObject: ledgerObject) {
+            defaults.set(data, forKey: Key.releaseLedger)
+        }
     }
 
     /// 把所有可导出 key + 按文件夹记忆全部抹掉 + 顺手把 Keychain 里的预设密码也清掉。
@@ -1178,9 +1191,10 @@ enum AppPreferences {
         for key in exportableUserDefaultsKeys + perFolderMemoryKeys {
             defaults.removeObject(forKey: key)
         }
-        // #115 默认压缩设置不在白名单里（单独 JSON 处理），恢复默认时也要一并清掉。#18 工作区预设同理。
+        // #115 默认压缩设置不在白名单里（单独 JSON 处理），恢复默认时也要一并清掉。#18 工作区预设 / #2 发布账本同理。
         defaults.removeObject(forKey: Key.compressionFormatPresets)
         defaults.removeObject(forKey: Key.releaseWorkspacePresets)
+        defaults.removeObject(forKey: Key.releaseLedger)
         PresetPasswordStore.clear()
     }
 

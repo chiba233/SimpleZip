@@ -575,6 +575,36 @@ extension ArchiveBrowserModel {
                     ))
                 }
                 task.transferLog = rows
+                // #2:成功跑进发布账本(失败留在活动历史不进账)。后端版本要起进程,异步补记。
+                let steps = recorder.steps
+                let inspection = report
+                let trimmedLabel = request.versionLabel.trimmingCharacters(in: .whitespaces)
+                Task { @MainActor in
+                    let metadata = await ReportMetadataBuilder.make(targetPath: nil)
+                    ReleaseLedgerStore().append(ReleaseLedgerEntry(
+                        date: Date(),
+                        artifactPath: outputURL.path,
+                        versionLabel: trimmedLabel.isEmpty ? trimmedName : trimmedLabel,
+                        formatRawValue: request.format.rawValue,
+                        sha256: inspection.sha256,
+                        structuralFingerprint: inspection.structuralFingerprint,
+                        reproducible: request.reproducible,
+                        excludeJunk: request.excludeJunk,
+                        inspectionRan: request.runInspection,
+                        testPassed: inspection.testPassed,
+                        suspiciousPathCount: request.runInspection
+                            ? inspection.securityFindings.reduce(0) { $0 + $1.entryPaths.count } : nil,
+                        junkCount: inspection.stats?.junkCount,
+                        emptyDirectoryCount: inspection.stats?.emptyDirectoryCount,
+                        fileCount: inspection.stats?.fileCount,
+                        totalBytes: inspection.stats?.totalBytes,
+                        wroteChecksums: request.writeChecksums,
+                        signRequested: request.createSignedManifest,
+                        appVersion: metadata.appVersion,
+                        backendVersion: metadata.backendVersion,
+                        steps: steps
+                    ))
+                }
             },
             rerunAction: { [weak self] in self?.runReleaseAssistant(request) }
         ) { operationID, progress, outputObserver in

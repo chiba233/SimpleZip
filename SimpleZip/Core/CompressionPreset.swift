@@ -327,6 +327,8 @@ struct ReleaseWorkspacePreset: Codable, Identifiable, Equatable {
     var name: String
     var sourceFolderPath: String?
     var fileName: String
+    /// #2:版本标签(0.4.4 新增,Optional —— 旧预设 JSON 没有此键,解码兼容)。
+    var versionLabel: String?
     /// ArchiveCreateFormat.rawValue(zip / sevenZip)。存原始值避免给枚举强加 Codable 形态。
     var formatRawValue: String
     var destinationFolderPath: String?

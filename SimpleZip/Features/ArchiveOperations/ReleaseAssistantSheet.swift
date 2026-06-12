@@ -17,6 +17,8 @@ struct ReleaseAssistantRequest: Identifiable {
     let id = UUID()
     var sourceFolder: URL?
     var fileName: String = ""
+    /// #2:版本标签(可选,进发布账本;空则用文件名顶上)。
+    var versionLabel: String = ""
     /// 仅 zip / 7z —— 可复现压缩只有这两个格式支持(tar 家族走系统 tar 没有时间戳钳制)。
     var format: ArchiveCreateFormat = .zip
     var destinationFolder: URL?
@@ -35,6 +37,8 @@ struct ReleaseAssistantSheet: View {
 
     /// #18:命名工作区预设(整套发布配置一把存取;store 在 Core,随设置备份)。
     @State private var workspacePresets: [ReleaseWorkspacePreset] = ReleaseWorkspacePresetStore().loadAll()
+    /// #2:发布账本(sheet 打开时读一次;本次跑完的记录下次打开可见)。
+    @State private var ledgerEntries: [ReleaseLedgerEntry] = ReleaseLedgerStore().loadAll()
 
     private var canConfirm: Bool {
         request.sourceFolder != nil
@@ -59,6 +63,7 @@ struct ReleaseAssistantSheet: View {
         request.sourceFolder = existingDirectory(preset.sourceFolderPath)
         request.destinationFolder = existingDirectory(preset.destinationFolderPath)
         request.fileName = preset.fileName
+        request.versionLabel = preset.versionLabel ?? ""
         if let format = ArchiveCreateFormat(rawValue: preset.formatRawValue),
            format == .zip || format == .sevenZip {
             request.format = format
@@ -88,6 +93,7 @@ struct ReleaseAssistantSheet: View {
             name: name,
             sourceFolderPath: request.sourceFolder?.path,
             fileName: request.fileName,
+            versionLabel: request.versionLabel.isEmpty ? nil : request.versionLabel,
             formatRawValue: request.format.rawValue,
             destinationFolderPath: request.destinationFolder?.path,
             excludeJunk: request.excludeJunk,
@@ -183,6 +189,17 @@ struct ReleaseAssistantSheet: View {
                         prompt: L10n.text("releaseAssistant.chooseDestination")
                     ) { _ in }
                 }
+
+                // #2:版本标签(可选)—— 进发布账本,历史里按版本认领;空则用文件名顶上。
+                HStack(alignment: .center, spacing: 12) {
+                    DialogRowLabel(L10n.text("releaseAssistant.versionLabel"), systemImage: "tag.fill", tint: .purple)
+                    Spacer(minLength: 12)
+                    TextField(L10n.text("releaseAssistant.versionLabel.placeholder"), text: $request.versionLabel)
+                        .textFieldStyle(.roundedBorder)
+                        .dialogFieldEmphasis()
+                        .frame(maxWidth: 200)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
             }
 
             DialogSection(L10n.text("releaseAssistant.section.steps")) {
@@ -215,6 +232,56 @@ struct ReleaseAssistantSheet: View {
                 drawerToggle("releaseAssistant.checksums", subtitleKey: "releaseAssistant.checksums.subtitle", systemImage: "number.square", isOn: $request.writeChecksums)
                 if showsGPGRow {
                     drawerToggle("releaseAssistant.sign", subtitleKey: "releaseAssistant.sign.subtitle", systemImage: "signature", isOn: $request.createSignedManifest)
+                }
+            }
+
+            // #2:发布历史抽屉 —— 最近几条账本记录(版本 / 日期 / SHA-256 可复制 / 产物在不在),
+            // 子行单色。没跑过 = 整个抽屉不渲染,零占位。
+            if !ledgerEntries.isEmpty {
+                DialogDrawer(L10n.text("releaseAssistant.section.history"), systemImage: "clock.arrow.circlepath", color: .indigo) {
+                    ForEach(ledgerEntries.prefix(8)) { entry in
+                        ledgerRow(entry)
+                    }
+                }
+            }
+        }
+    }
+
+    /// #2:历史抽屉里的一条账本记录(单色子行)。
+    private func ledgerRow(_ entry: ReleaseLedgerEntry) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 8) {
+                Label(entry.versionLabel, systemImage: "shippingbox")
+                    .font(.callout.weight(.medium))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                if !entry.artifactExists {
+                    Text(L10n.text("releaseAssistant.history.artifactMissing"))
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                }
+                Spacer(minLength: 8)
+                Text(entry.date.formatted(date: .abbreviated, time: .shortened))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            if let sha256 = entry.sha256 {
+                HStack(spacing: 6) {
+                    Text(sha256)
+                        .font(.caption2.monospaced())
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                    Button {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(sha256, forType: .string)
+                    } label: {
+                        Image(systemName: "doc.on.doc")
+                            .font(.caption2)
+                    }
+                    .buttonStyle(.borderless)
+                    .help(L10n.text("button.copyAll"))
                 }
             }
         }

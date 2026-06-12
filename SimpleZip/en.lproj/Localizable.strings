@@ -1153,6 +1153,11 @@
 "releaseAssistant.step.createArchive" = "Step: package";
 "releaseAssistant.step.inspect" = "Step: release inspection";
 "releaseAssistant.step.checksums" = "Step: checksums";
+/* 0.4.4 #2 release ledger */
+"releaseAssistant.versionLabel" = "Version Label";
+"releaseAssistant.versionLabel.placeholder" = "e.g. 1.2.0 (optional)";
+"releaseAssistant.section.history" = "Release History";
+"releaseAssistant.history.artifactMissing" = "artifact missing";
 "releaseAssistant.sourceFolder" = "Build Folder";
 "releaseAssistant.chooseSource" = "Choose the folder to pack";
 "releaseAssistant.chooseDestination" = "Choose where the archive lands";
