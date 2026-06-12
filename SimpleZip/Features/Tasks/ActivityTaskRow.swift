@@ -118,9 +118,9 @@ struct ActivityTaskRow: View {
                     NSPasteboard.general.setString(report.plainTextSummary, forType: .string)
                     flashCopied("feedback.copied")
                 } label: {
-                    Image(systemName: "doc.on.doc")
+                    Self.controlIcon("doc.on.doc", tint: .blue)
                 }
-                .buttonStyle(.borderless)
+                .buttonStyle(.plain)
                 .help(L10n.text("button.copyAll"))
             }
             if let copiedConfirmationText {
@@ -154,9 +154,9 @@ struct ActivityTaskRow: View {
                     NSPasteboard.general.setString(report.plainTextSummary, forType: .string)
                     flashCopied("feedback.copied")
                 } label: {
-                    Image(systemName: "doc.on.doc")
+                    Self.controlIcon("doc.on.doc", tint: .blue)
                 }
-                .buttonStyle(.borderless)
+                .buttonStyle(.plain)
                 .help(L10n.text("button.copyAll"))
             }
             if let copiedConfirmationText {
@@ -319,9 +319,9 @@ struct ActivityTaskRow: View {
                         NSPasteboard.general.setString(commands.map { String($0.dropFirst(2)) }.joined(separator: "\n"), forType: .string)
                         flashCopied("command.copied")
                     } label: {
-                        Image(systemName: "terminal")
+                        Self.controlIcon("terminal", tint: .purple)
                     }
-                    .buttonStyle(.borderless)
+                    .buttonStyle(.plain)
                     .help(L10n.text("button.copyCommand.help"))
                 }
                 Button {
@@ -330,17 +330,17 @@ struct ActivityTaskRow: View {
                         flashCopied("diagnostics.copied")
                     }
                 } label: {
-                    Image(systemName: "doc.on.doc")
+                    Self.controlIcon("doc.on.doc", tint: .blue)
                 }
-                .buttonStyle(.borderless)
+                .buttonStyle(.plain)
                 .help(L10n.text("button.copyDiagnostics"))
                 // 0.4.2 #22：把这单任务的诊断包导出成 .txt（脱敏 + 后端版本 + 文件系统现场）。
                 Button {
                     DiagnosticsCopier.exportReport(session: session, errorMessage: errorMessage)
                 } label: {
-                    Image(systemName: "square.and.arrow.up")
+                    Self.controlIcon("square.and.arrow.up", tint: .teal)
                 }
-                .buttonStyle(.borderless)
+                .buttonStyle(.plain)
                 .help(L10n.text("button.exportDiagnostics"))
             }
             if let copiedConfirmationText {
@@ -366,9 +366,9 @@ struct ActivityTaskRow: View {
                 Button {
                     task.resumeFromFailure?()
                 } label: {
-                    Image(systemName: "arrow.uturn.forward.circle")
+                    Self.controlIcon("arrow.uturn.forward", tint: .green)
                 }
-                .buttonStyle(.borderless)
+                .buttonStyle(.plain)
                 .help(L10n.text("button.resumeFromFailure"))
             }
             // 0.4.2 #21：任务结束后可整单重跑（运行时态——重启后的历史任务没有重跑闭包，按钮自然不出现）。
@@ -376,9 +376,9 @@ struct ActivityTaskRow: View {
                 Button {
                     task.rerun?()
                 } label: {
-                    Image(systemName: "arrow.clockwise.circle")
+                    Self.controlIcon("arrow.clockwise", tint: .blue)
                 }
-                .buttonStyle(.borderless)
+                .buttonStyle(.plain)
                 .help(L10n.text("button.rerunTask"))
             }
             // 队列管理③:暂停 / 继续 —— 仅后端驱动的任务有此闭包;等并发槽时还没开跑,不给暂停。
@@ -386,18 +386,18 @@ struct ActivityTaskRow: View {
                 Button {
                     task.isPaused ? task.resume?() : task.pause?()
                 } label: {
-                    Image(systemName: task.isPaused ? "play.circle" : "pause.circle")
+                    Self.controlIcon(task.isPaused ? "play.fill" : "pause.fill", tint: .orange)
                 }
-                .buttonStyle(.borderless)
+                .buttonStyle(.plain)
                 .help(L10n.text(task.isPaused ? "button.resumeTask" : "button.pauseTask"))
             }
             if task.status.isRunning, task.cancel != nil {
                 Button {
                     task.cancel?()
                 } label: {
-                    Image(systemName: "xmark.circle")
+                    Self.controlIcon("xmark", tint: .red)
                 }
-                .buttonStyle(.borderless)
+                .buttonStyle(.plain)
                 .help(L10n.text("button.cancel"))
             }
             // 只有「真有内容可看」时才给详情入口：归档操作运行中（命令输出随时来）或任何已积累了输出/
@@ -461,6 +461,17 @@ struct ActivityTaskRow: View {
         case .redo:
             return "arrow.uturn.forward"
         }
+    }
+
+    /// 小控制图标的统一彩色瓦片样式(用户拍板:活动中心所有小图标都走彩色圆底,
+    /// 与详情 chevron 同款 —— 不再是裸灰描线)。语义色:复制蓝/导出青/命令紫/重跑蓝/
+    /// 续跑绿/暂停橙/取消红。
+    static func controlIcon(_ systemName: String, tint: Color) -> some View {
+        Image(systemName: systemName)
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(tint)
+            .frame(width: 24, height: 24)
+            .background(Circle().fill(tint.opacity(0.14)))
     }
 
     /// 卡片分类色(与外层 chrome 同源:归档蓝 / 文件橙 / 撤销紫)。
