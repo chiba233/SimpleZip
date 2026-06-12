@@ -98,6 +98,10 @@ on the official 7-Zip engine, which ships inside the app.
 - **Checksum files** — generate GNU-compatible `SHA256SUMS` for a selection, and
   verify `SHA256SUMS` / `.sha256` / `.md5` / `.sfv` files someone sent you, with
   per-file pass/fail in the Activity Center.
+- **A real CLI** — install `simplezip` from Settings → General and run
+  `check` / `compare` / `create` / `verify` / `open` in the terminal with real
+  exit codes, against the same bundled engines; finished commands land in the
+  Activity Center too.
 - **Verified writes, recoverable failures** — every archive rewrite is tested
   *before* it atomically replaces the original, and a rewrite stopped at the last
   gate (external change, failed verification) parks its work copy in a Recovery
