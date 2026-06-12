@@ -102,6 +102,24 @@ struct ReleaseInspectionView: View {
                         }
                     }
 
+                    // C:发布运行的步骤耗时(右键检查没有步骤引擎 → 空数组,整段不渲染)。
+                    if !report.steps.isEmpty {
+                        DialogSection(L10n.text("inspect.section.steps")) {
+                            ForEach(report.steps, id: \.id) { step in
+                                HStack(spacing: 8) {
+                                    Image(systemName: step.status == .skipped ? "minus.circle" : (step.status == .succeeded ? "checkmark.circle.fill" : "xmark.circle.fill"))
+                                        .foregroundStyle(step.status == .skipped ? Color.secondary : (step.status == .succeeded ? Color.green : Color.red))
+                                    Text(L10n.text("releaseAssistant.step.\(step.id.rawValue)"))
+                                        .font(.callout)
+                                    Spacer()
+                                    Text(step.status == .skipped ? L10n.text("transfer.section.skipped") : step.formattedDuration)
+                                        .font(.caption.monospacedDigit())
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    }
+
                     // #9 结构指纹:重新打包(时间戳/压缩参数变了)指纹不变 —— 给「这两个包是不是同一份东西」用。
                     if let fingerprint = report.structuralFingerprint {
                         DialogSection(L10n.text("inspect.section.fingerprint")) {

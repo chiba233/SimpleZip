@@ -1176,6 +1176,18 @@
 "releaseGate.rule.missingSignature" = "Not signed as .szs";
 "releaseGate.rule.bundleIssues" = "App bundle signing issues";
 "releaseGate.blocked" = "Blocked by quality gate: %@";
+/* 0.4.4 C release assistant interaction */
+"button.resumeFromFailure" = "Resume from failed step (keeps the existing archive)";
+"inspect.section.steps" = "Steps";
+"releaseAssistant.workspace.rename" = "Rename Preset";
+"releaseAssistant.workspace.renamePrompt.title" = "Rename Workspace Preset";
+"releaseAssistant.workspace.renamePrompt.message" = "New name for “%@”:";
+/* 0.4.4 C release assistant interaction */
+"button.resumeFromFailure" = "Resume from failed step (keeps the existing archive)";
+"inspect.section.steps" = "Steps";
+"releaseAssistant.workspace.rename" = "Rename Preset";
+"releaseAssistant.workspace.renamePrompt.title" = "Rename Workspace Preset";
+"releaseAssistant.workspace.renamePrompt.message" = "New name for “%@”:";
 "releaseAssistant.sourceFolder" = "Build Folder";
 "releaseAssistant.chooseSource" = "Choose the folder to pack";
 "releaseAssistant.chooseDestination" = "Choose where the archive lands";

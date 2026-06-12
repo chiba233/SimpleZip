@@ -200,6 +200,8 @@ extension ArchiveBrowserModel {
         source: OperationTask.Source = .app,
         showsDetails: Bool,
         cancellable: Bool = true,
+        /// 任务副标题(活动中心标题下那行;发布助手用它显示产物路径)。默认 nil = 老行为。
+        detail: String? = nil,
         successStatus: String? = nil,
         refreshOnSuccess: (() -> Void)? = nil,
         // 成功后、归档进历史前的钩子 —— 给调用方往任务上挂「逐文件结果」(transferLog) / detail，
@@ -207,6 +209,8 @@ extension ArchiveBrowserModel {
         onSucceeded: ((OperationTask) -> Void)? = nil,
         // 0.4.2 #21:「重新运行」动作 —— 用同样的输入把整个操作再跑一遍。nil = 该任务不可重跑。
         rerunAction: (() -> Void)? = nil,
+        // 0.4.4 C:失败钩子 —— 在任务标失败之前调用,调用方可往任务上挂「从失败步继续」等动作。
+        onFailed: ((OperationTask, String) -> Void)? = nil,
         operation: @escaping (UUID?, @escaping @Sendable (ArchiveProgressState) -> Void, (@Sendable (String) -> Void)?) async throws -> Void
     ) {
         let detailsSession = ArchiveOperationDetailsSession(title: title)
@@ -221,6 +225,7 @@ extension ArchiveBrowserModel {
             kind: kind,
             source: source,
             title: title,
+            detail: detail,
             cancellable: cancellable,
             detailsSession: detailsSession,
             operationID: operationID
@@ -327,6 +332,7 @@ extension ArchiveBrowserModel {
                     detailsSession.append(error.localizedDescription)
                 }
                 detailsSession.finishedAt = Date()
+                onFailed?(operationTask, error.localizedDescription)
                 taskCenter.finish(operationTask, outcome: .failed(error.localizedDescription))
                 status = L10n.text("status.failed")
             }

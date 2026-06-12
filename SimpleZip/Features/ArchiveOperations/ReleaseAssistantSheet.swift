@@ -114,6 +114,29 @@ struct ReleaseAssistantSheet: View {
         workspacePresets = ReleaseWorkspacePresetStore().loadAll()
     }
 
+    /// C:重命名预设(NSAlert + TextField,与保存同体例)。同名覆盖语义由 store.save 保证 ——
+    /// 这里改完名先删旧条目再存,避免旧名残留。
+    private func promptRenameWorkspacePreset(_ preset: ReleaseWorkspacePreset) {
+        let alert = NSAlert()
+        alert.messageText = L10n.text("releaseAssistant.workspace.renamePrompt.title")
+        alert.informativeText = L10n.format("releaseAssistant.workspace.renamePrompt.message", preset.name)
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
+        field.stringValue = preset.name
+        alert.accessoryView = field
+        alert.addButton(withTitle: L10n.text("button.save"))
+        alert.addButton(withTitle: L10n.text("button.cancel"))
+        alert.window.initialFirstResponder = field
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        let newName = field.stringValue.trimmingCharacters(in: .whitespaces)
+        guard !newName.isEmpty, newName != preset.name else { return }
+        let store = ReleaseWorkspacePresetStore()
+        store.delete(id: preset.id)
+        var renamed = preset
+        renamed.name = newName
+        store.save(renamed)
+        workspacePresets = store.loadAll()
+    }
+
     var body: some View {
         TaskDialogShell(
             heroSystemImage: "shippingbox.and.arrow.backward.fill",
@@ -134,6 +157,12 @@ struct ReleaseAssistantSheet: View {
                     }
                     if !workspacePresets.isEmpty {
                         Divider()
+                        // C:预设可编辑 —— 重命名 / 删除(store 早有 save/delete,这里只补 UI 入口)。
+                        Menu(L10n.text("releaseAssistant.workspace.rename")) {
+                            ForEach(workspacePresets) { preset in
+                                Button(preset.name) { promptRenameWorkspacePreset(preset) }
+                            }
+                        }
                         Menu(L10n.text("releaseAssistant.workspace.delete")) {
                             ForEach(workspacePresets) { preset in
                                 Button(preset.name) {

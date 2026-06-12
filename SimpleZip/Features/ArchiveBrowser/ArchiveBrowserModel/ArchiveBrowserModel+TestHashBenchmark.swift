@@ -547,10 +547,14 @@ extension ArchiveBrowserModel {
             title: L10n.format("releaseAssistant.taskTitle", outputURL.lastPathComponent),
             kind: .create,
             showsDetails: true,
+            // C:运行中活动中心直接可见产物完整路径。
+            detail: outputURL.path,
             successStatus: L10n.format("releaseAssistant.done", outputURL.lastPathComponent),
             refreshOnSuccess: { [weak self] in
                 guard let self else { return }
                 if request.runInspection {
+                    // C:步骤耗时随报告进 sheet(「步骤」小节)。
+                    report.steps = recorder.steps
                     self.releaseInspectionReport = report
                 }
                 if request.createSignedManifest {
@@ -606,7 +610,14 @@ extension ArchiveBrowserModel {
                     ))
                 }
             },
-            rerunAction: { [weak self] in self?.runReleaseAssistant(request) }
+            rerunAction: { [weak self] in self?.runReleaseAssistant(request) },
+            // C:产物已打出、后续步骤失败 → 挂「从失败步继续」(跳过重新打包,对既有产物续跑)。
+            onFailed: { [weak self] task, _ in
+                guard FileManager.default.fileExists(atPath: outputURL.path) else { return }
+                task.resumeFromFailure = { [weak self] in
+                    self?.runReleaseAssistant(request, resumingWith: outputURL)
+                }
+            }
         ) { operationID, progress, outputObserver in
             report = try await ReleaseAssistantPipeline.run(
                 request: request,
@@ -649,6 +660,8 @@ extension ArchiveBrowserModel {
         var isBundleOnly = false
         /// #10:质量门触发的违规(发布助手跑、且开了规则才非空;阻断的运行不会走到报告 sheet)。
         var gateViolations: [ReleaseGate.Violation] = []
+        /// C:本次发布运行的步骤耗时(右键检查流程为空 —— 它没有步骤引擎)。
+        var steps: [ReleaseRunStep] = []
     }
 
     /// 同目录的「签名容器 ↔ 公钥」同捆检查(发包端闭环):有 .szs/.siz 而没有任何 .asc → 提醒。
