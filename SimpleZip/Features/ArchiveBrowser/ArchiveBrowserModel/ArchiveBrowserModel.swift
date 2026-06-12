@@ -21,8 +21,12 @@ final class ArchiveBrowserModel: ObservableObject {
     @Published var mode: BrowserMode
     /// 异步文件夹列举进行中(0.4.3):mode 已发布、新 items 未到 —— FileTable 见此标志跳过
     /// 中间帧重建(否则「新 folderKey + 旧 items」闪一帧未分组视图,用户报的分组闪烁)。
-    /// 只在 +Loading 的 loadFolder / applyLoadedFolder / 错误分支改动(private(set) 跨文件扩展设不了)。
-    @Published var folderListingInFlight = false
+    /// **故意不是 @Published**:FSEvents 在桌面/下载这类目录上每 ~120ms 静默 reload 一次,
+    /// 标志每轮 true→false;发布它 = 把「菜单栏被相同值通知风暴冲掉」的老 bug 原样招回来
+    /// (上线当天用户实测复发,改回普通 var 后归零)。渲染由 mode / fileItems 自己驱动,
+    /// 中间帧守卫只需要在渲染那一刻**读到值**,不需要值的变化去触发渲染。
+    /// 只在 +Loading 的 loadFolder / applyLoadedFolder / 错误分支改动。
+    var folderListingInFlight = false
     @Published var fileItems: [FileItem] = []
     @Published var archiveItems: [ArchiveItem] = []
     /// 0.4.1 #114：当前打开归档的**归档级**注释（zip / rar 头部 Comment）。
