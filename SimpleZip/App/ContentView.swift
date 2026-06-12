@@ -797,9 +797,9 @@ struct ContentView: View {
             ExternalExtractWindowController.shared.startQuickCreate(format: format, sourceURLs: urls)
         case .testArchives(let urls):
             // #16 URL scheme:已在 AppDelegate 经确认弹窗,这里直接进现有测试任务流。
-            model.testArchives(at: urls)
+            model.testArchives(at: urls, source: .urlScheme)
         case .compareArchives(let left, let right):
-            model.runArchiveComparison(left: left, right: right)
+            model.runArchiveComparison(left: left, right: right, source: .urlScheme)
         }
     }
 

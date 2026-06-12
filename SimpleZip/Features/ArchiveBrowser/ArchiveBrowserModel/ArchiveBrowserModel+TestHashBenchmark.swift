@@ -163,13 +163,13 @@ extension ArchiveBrowserModel {
 
     /// #16 URL scheme:对外部给定的归档 URL 跑测试(已在 AppDelegate 经确认弹窗)。
     /// 复用批量测试任务流(单个也走它 —— 结果同样进活动中心逐包汇总)。
-    func testArchives(at urls: [URL]) {
+    func testArchives(at urls: [URL], source: OperationTask.Source = .app) {
         let supported = urls.filter { ArchiveService.isSupportedArchive($0) }
         guard !supported.isEmpty else {
             errorMessage = L10n.text("error.openOrSelectArchive")
             return
         }
-        runBatchArchiveTest(supported)
+        runBatchArchiveTest(supported, source: source)
     }
 
     private struct BatchTestOutcome {
@@ -177,12 +177,13 @@ extension ArchiveBrowserModel {
         let result: PasswordAwareTestOutcome
     }
 
-    private func runBatchArchiveTest(_ urls: [URL]) {
+    private func runBatchArchiveTest(_ urls: [URL], source: OperationTask.Source = .app) {
         let forced = Set(urls.filter { isForced($0) })
         var outcomes: [BatchTestOutcome] = []
         startManagedArchiveTask(
             title: L10n.format("status.batchTesting", "\(urls.count)"),
             kind: .test,
+            source: source,
             showsDetails: true,
             successStatus: nil,
             refreshOnSuccess: { [weak self] in
@@ -840,7 +841,7 @@ extension ArchiveBrowserModel {
 
     /// 列出两个包 → Core `ArchiveDiff.compare` → 弹结果 sheet。走托管归档任务（活动中心可见、可取消）。
     /// 加密归档按现状用空密码列出 —— header 加密的包会直接以后端错误失败，错误对用户可见，不静默吞。
-    func runArchiveComparison(left: URL, right: URL) {
+    func runArchiveComparison(left: URL, right: URL, source: OperationTask.Source = .app) {
         let title = L10n.format("status.comparing", left.lastPathComponent, right.lastPathComponent)
         let forceLeft = isForced(left)
         let forceRight = isForced(right)
@@ -851,6 +852,7 @@ extension ArchiveBrowserModel {
         startManagedArchiveTask(
             title: title,
             kind: .compare,
+            source: source,
             showsDetails: false,
             successStatus: L10n.text("status.compared"),
             // 把结构化结果挂到任务上 —— 活动中心详情渲染和弹窗同款的分区树。
@@ -1044,10 +1046,10 @@ extension ArchiveBrowserModel {
     }
 
     func calculateHash(forFinderURLs urls: [URL]) {
-        calculateHash(for: urls, algorithms: HashAlgorithm.allCases)
+        calculateHash(for: urls, algorithms: HashAlgorithm.allCases, source: .finder)
     }
 
-    private func calculateHash(for urls: [URL], algorithms: [HashAlgorithm]) {
+    private func calculateHash(for urls: [URL], algorithms: [HashAlgorithm], source: OperationTask.Source = .app) {
         let fileURLs = urls.filter { url in
             FileManager.default.fileExists(atPath: url.path)
         }
@@ -1068,6 +1070,7 @@ extension ArchiveBrowserModel {
         let operationTask = TaskCenter.shared.begin(
             category: .fileOperation,
             kind: .hash,
+            source: source,
             title: hashingTitle,
             cancellable: true
         )

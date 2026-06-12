@@ -50,6 +50,22 @@ final class OperationTask: ObservableObject, Identifiable {
         }
     }
 
+    /// 0.4.4 F1:任务来源 —— 谁发起的这次操作(app 内 UI / CLI / Shortcuts·Siri / URL Scheme / Finder 服务)。
+    /// 口径:**经对话框确认后才执行的算 `.app`**(如 Finder 服务拉起创建对话框);来源标记的是「启动执行」的表面。
+    enum Source: String, Codable, CaseIterable {
+        case app
+        case cli
+        case intent
+        case urlScheme
+        case finder
+
+        /// 解码容错(与 Category / Kind 同口径):未知来源降级 `.app`,不废掉历史记录。
+        init(from decoder: Decoder) throws {
+            let raw = try decoder.singleValueContainer().decode(String.self)
+            self = Source(rawValue: raw) ?? .app
+        }
+    }
+
     enum Status: Equatable {
         case running
         case succeeded(URL?)
@@ -68,6 +84,8 @@ final class OperationTask: ObservableObject, Identifiable {
     let id: UUID
     let category: Category
     let kind: Kind
+    /// 任务来源(0.4.4 F1)。begin 时定死,随历史持久化;活动中心来源筛选与自动化中心统计用。
+    let source: Source
     let title: String
     let detail: String?
     let startedAt: Date
@@ -117,6 +135,7 @@ final class OperationTask: ObservableObject, Identifiable {
         id: UUID = UUID(),
         category: Category,
         kind: Kind,
+        source: Source = .app,
         title: String,
         detail: String? = nil,
         startedAt: Date = Date(),
@@ -130,6 +149,7 @@ final class OperationTask: ObservableObject, Identifiable {
         self.id = id
         self.category = category
         self.kind = kind
+        self.source = source
         self.title = title
         self.detail = detail
         self.startedAt = startedAt

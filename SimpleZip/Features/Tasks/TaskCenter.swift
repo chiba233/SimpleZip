@@ -95,6 +95,7 @@ final class TaskCenter: ObservableObject {
             id: UUID(),
             category: category,
             kind: kind,
+            source: .cli,
             title: title,
             detail: detail,
             startedAt: startedAt,
@@ -161,6 +162,7 @@ final class TaskCenter: ObservableObject {
     func begin(
         category: OperationTask.Category,
         kind: OperationTask.Kind,
+        source: OperationTask.Source = .app,
         title: String,
         detail: String? = nil,
         cancellable: Bool,
@@ -170,6 +172,7 @@ final class TaskCenter: ObservableObject {
         let task = OperationTask(
             category: category,
             kind: kind,
+            source: source,
             title: title,
             detail: detail,
             cancellable: cancellable,
@@ -400,6 +403,8 @@ private nonisolated struct PersistedTask: Codable {
     let id: UUID
     let category: OperationTask.Category
     let kind: OperationTask.Kind
+    /// 0.4.4 F1:任务来源。Optional —— 旧版本存的 JSON 没有这个键,decodeIfPresent 容错(nil → .app)。
+    let source: OperationTask.Source?
     let title: String
     let detail: String?
     let startedAt: Date
@@ -418,6 +423,7 @@ private nonisolated struct PersistedTask: Codable {
         id = task.id
         category = task.category
         kind = task.kind
+        source = task.source
         title = task.title
         detail = task.detail
         startedAt = task.startedAt
@@ -440,6 +446,7 @@ private nonisolated struct PersistedTask: Codable {
         id: UUID,
         category: OperationTask.Category,
         kind: OperationTask.Kind,
+        source: OperationTask.Source?,
         title: String,
         detail: String?,
         startedAt: Date,
@@ -454,6 +461,7 @@ private nonisolated struct PersistedTask: Codable {
         self.id = id
         self.category = category
         self.kind = kind
+        self.source = source
         self.title = title
         self.detail = detail
         self.startedAt = startedAt
@@ -472,6 +480,7 @@ private nonisolated struct PersistedTask: Codable {
             id: id,
             category: category,
             kind: kind,
+            source: source ?? .app,
             title: title,
             detail: detail,
             startedAt: startedAt,

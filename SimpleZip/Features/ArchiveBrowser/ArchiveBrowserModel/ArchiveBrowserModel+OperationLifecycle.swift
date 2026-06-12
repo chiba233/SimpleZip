@@ -195,6 +195,9 @@ extension ArchiveBrowserModel {
     func startManagedArchiveTask(
         title: String,
         kind: OperationTask.Kind = .extract,
+        // 0.4.4 F1:任务来源。默认 `.app`(UI 调用点零改动);自动化接缝(intent / URL scheme / Finder
+        // 服务)各自传真值。语义口径:经对话框确认后才执行的算 `.app`。
+        source: OperationTask.Source = .app,
         showsDetails: Bool,
         cancellable: Bool = true,
         successStatus: String? = nil,
@@ -216,6 +219,7 @@ extension ArchiveBrowserModel {
         let operationTask = taskCenter.begin(
             category: .archive,
             kind: kind,
+            source: source,
             title: title,
             cancellable: cancellable,
             detailsSession: detailsSession,

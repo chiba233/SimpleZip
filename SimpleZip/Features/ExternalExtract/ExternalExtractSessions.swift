@@ -75,7 +75,7 @@ final class ExternalExtractSession: ObservableObject {
         let details = ArchiveOperationDetailsSession(title: displayName)
         let detailsOutput = ThrottledDetailsOutput(session: details)
         let task = TaskCenter.shared.begin(
-            category: .archive, kind: .extract, title: displayName, cancellable: true,
+            category: .archive, kind: .extract, source: .finder, title: displayName, cancellable: true,
             detailsSession: details, operationID: operationID
         )
         task.cancel = { [weak self] in self?.cancel() }
@@ -176,7 +176,7 @@ final class ExternalExtractBatchSession: ObservableObject {
             let details = ArchiveOperationDetailsSession(title: url.lastPathComponent)
             let detailsOutput = ThrottledDetailsOutput(session: details)
             let task = TaskCenter.shared.begin(
-                category: .archive, kind: .extract, title: url.lastPathComponent, cancellable: true,
+                category: .archive, kind: .extract, source: .finder, title: url.lastPathComponent, cancellable: true,
                 detailsSession: details, operationID: opID
             )
             task.cancel = { [weak self] in self?.cancel() }
@@ -321,7 +321,7 @@ final class ExternalCreateSession: ObservableObject {
         let details = ArchiveOperationDetailsSession(title: displayName)
         let detailsOutput = ThrottledDetailsOutput(session: details)
         let task = TaskCenter.shared.begin(
-            category: .archive, kind: .compress, title: displayName, cancellable: true,
+            category: .archive, kind: .compress, source: .finder, title: displayName, cancellable: true,
             detailsSession: details, operationID: operationID
         )
         task.cancel = { [weak self] in self?.cancel() }

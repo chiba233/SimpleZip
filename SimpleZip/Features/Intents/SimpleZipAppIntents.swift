@@ -65,6 +65,7 @@ struct ExtractArchiveIntent: AppIntent {
             let task = TaskCenter.shared.begin(
                 category: .archive,
                 kind: .extract,
+                source: .intent,
                 title: L10n.format("intent.task.extract", url.lastPathComponent),
                 cancellable: false,
                 operationID: operationID
@@ -181,6 +182,7 @@ struct CreateArchiveIntent: AppIntent {
         let task = TaskCenter.shared.begin(
             category: .archive,
             kind: .create,
+            source: .intent,
             title: L10n.format("intent.task.create", destination.lastPathComponent),
             cancellable: false,
             operationID: operationID
@@ -235,6 +237,7 @@ struct TestArchiveIntent: AppIntent {
             let task = TaskCenter.shared.begin(
                 category: .archive,
                 kind: .test,
+                source: .intent,
                 title: L10n.format("intent.task.test", url.lastPathComponent),
                 cancellable: false,
                 operationID: operationID
