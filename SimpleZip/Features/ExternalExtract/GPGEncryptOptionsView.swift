@@ -168,20 +168,21 @@ struct GPGEncryptOptionsView: View {
 
     @ViewBuilder
     private var encryptionPassphraseRow: some View {
-        // 输入框与标签同一行、钉右缘(用户点名「不能单起一行」);说明紧贴字段下方同宽。
-        HStack(alignment: .top, spacing: 12) {
-            DialogRowLabel(L10n.text("archive.gpgEncrypt.passphraseLabel"), systemImage: "lock.rectangle.fill", tint: .orange)
-            Spacer(minLength: 12)
-            VStack(alignment: .leading, spacing: 6) {
+        // 输入框与标签同一行、钉右缘(用户点名「不能单起一行」);说明在下一行**横跨整行**
+        // (用户:「备注不能只显示在右边」)。
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .center, spacing: 12) {
+                DialogRowLabel(L10n.text("archive.gpgEncrypt.passphraseLabel"), systemImage: "lock.rectangle.fill", tint: .orange)
+                Spacer(minLength: 12)
                 SecureField(L10n.text("archive.gpgEncrypt.passphrasePlaceholder"), text: $request.symmetricPassphrase)
                     .textFieldStyle(.roundedBorder)
                     .dialogFieldEmphasis()
-                Text(L10n.text("archive.gpgEncrypt.passphraseHint"))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: 260)
             }
-            .frame(maxWidth: 260)
+            Text(L10n.text("archive.gpgEncrypt.passphraseHint"))
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
