@@ -251,45 +251,62 @@ extension CompressionPreset {
     /// 内置一键模板：常见发包场景的预拌配置。**不进 store**（永远可用、删不掉、改不坏），
     /// 套用后所有字段照常可微调。名字走 L10n（`template.<key>`）。模板**绝不带密码**。
     nonisolated static func builtInTemplates() -> [CompressionPreset] {
+        builtInTemplateCatalog().map(\.preset)
+    }
+
+    /// CLI companion:按稳定 slug 取内置模板。GUI 菜单按本地化名展示;CLI 需要不随语言变、
+    /// 可进脚本的键(`simplezip create --template github-release …`)。大小写不敏感。
+    nonisolated static func builtInTemplate(slug: String) -> CompressionPreset? {
+        let normalized = slug.lowercased()
+        return builtInTemplateCatalog().first { $0.slug == normalized }?.preset
+    }
+
+    /// 全部内置模板的 slug(给 CLI 报错 / 帮助列可用值)。
+    nonisolated static var builtInTemplateSlugs: [String] {
+        builtInTemplateCatalog().map(\.slug)
+    }
+
+    /// (slug, 模板) 目录 —— 单一事实来源:GUI 菜单与 CLI `--template` 都从这里出。
+    nonisolated private static func builtInTemplateCatalog() -> [(slug: String, preset: CompressionPreset)] {
         [
             // 发 GitHub Release 的 ZIP：最大压缩 + 排除 macOS 垃圾和隐藏文件。
-            template("githubRelease") { options in
+            ("github-release", template("githubRelease") { options in
                 options.format = .zip
                 options.compressionLevel = .maximum
                 options.skipDSStore = true
                 options.skipHiddenFiles = true
                 options.customExcludes = "__MACOSX"
-            },
+            }),
             // 给 Windows 用户的 ZIP：排除 AppleDouble / __MACOSX，对方解开不见一地 `._*`。
-            template("windowsFriendly") { options in
+            ("windows-friendly", template("windowsFriendly") { options in
                 options.format = .zip
                 options.skipDSStore = true
                 options.customExcludes = "._*, __MACOSX, Thumbs.db"
-            },
+            }),
             // 最大压缩 7z：体积优先（solid + maximum）。
-            template("max7z") { options in
+            ("max-7z", template("max7z") { options in
                 options.format = .sevenZip
                 options.compressionLevel = .maximum
                 options.sevenZipSolidArchive = true
-            },
+            }),
             // 加密投递包：7z + 文件名加密（密码当场填，模板不存任何口令）。
-            template("encryptedDelivery") { options in
+            ("encrypted-delivery", template("encryptedDelivery") { options in
                 options.format = .sevenZip
                 options.sevenZipEncryptFileNames = true
-            },
+            }),
             // 源码包：tar.gz + 排除依赖 / 构建产物目录。
-            template("sourceCode") { options in
+            ("source-code", template("sourceCode") { options in
                 options.format = .tarGzip
                 options.skipDSStore = true
                 options.customExcludes = "node_modules, .git, build, dist, target, .venv, __pycache__, DerivedData"
-            },
+            }),
             // 备份包：7z 快速档 + 保留符号链接 / 硬链接（忠实快照优先于压缩率）。
-            template("backup") { options in
+            ("backup", template("backup") { options in
                 options.format = .sevenZip
                 options.compressionLevel = .fast
                 options.sevenZipStoreSymbolicLinks = true
                 options.sevenZipStoreHardLinks = true
-            }
+            })
         ]
     }
 

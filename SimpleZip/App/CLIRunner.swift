@@ -66,8 +66,8 @@ enum CLIRunner {
             return await runCheck(paths: paths, environment: environment)
         case .compare(let left, let right):
             return await runCompare(left: left, right: right, environment: environment)
-        case .create(let output, let inputs):
-            return await runCreate(output: output, inputs: inputs, environment: environment)
+        case .create(let output, let inputs, let template):
+            return await runCreate(output: output, inputs: inputs, template: template, environment: environment)
         case .verify(let path):
             return await runVerify(path: path, environment: environment)
         }
@@ -145,19 +145,22 @@ enum CLIRunner {
             let output = OutputBuffer()
             print("Testing \(url.lastPathComponent) ...", terminator: " ")
             do {
-                try await ArchiveService.test(url, outputObserver: { output.append($0) })
+                try await testWithPasswordPrompts(url, output: output)
                 print("OK")
                 recordTask(environment: environment, kind: .test,
                            title: "simplezip check \(url.lastPathComponent)", detail: url.path,
                            startedAt: startedAt, succeeded: true, failureMessage: nil, rawOutput: output.text)
+            } catch is CancellationError {
+                failures += 1
+                print("SKIPPED (no password provided)")
+                recordTask(environment: environment, kind: .test,
+                           title: "simplezip check \(url.lastPathComponent)", detail: url.path,
+                           startedAt: startedAt, succeeded: false,
+                           failureMessage: "skipped — no password provided", rawOutput: output.text)
             } catch {
                 failures += 1
-                if ArchiveService.errorSuggestsPasswordRequirement(error) {
-                    print("FAILED (encrypted — passwords are not supported in the CLI yet, use the app)")
-                } else {
-                    print("FAILED")
-                    printError(indent(describe(error)))
-                }
+                print("FAILED")
+                printError(indent(describe(error)))
                 recordTask(environment: environment, kind: .test,
                            title: "simplezip check \(url.lastPathComponent)", detail: url.path,
                            startedAt: startedAt, succeeded: false,
@@ -165,6 +168,50 @@ enum CLIRunner {
             }
         }
         return failures == 0 ? 0 : 1
+    }
+
+    /// 加密归档的口令流程(用户拍板:CLI 也弹小窗,不拉起主窗口、绝不走命令行参数/终端回显):
+    /// 先空口令试,后端报「需要口令」→ 弹 NSAlert + SecureField,最多三次;取消 → CancellationError。
+    private static func testWithPasswordPrompts(_ url: URL, output: OutputBuffer) async throws {
+        do {
+            try await ArchiveService.test(url, outputObserver: { output.append($0) })
+            return
+        } catch {
+            guard ArchiveService.errorSuggestsPasswordRequirement(error) else { throw error }
+            var lastError = error
+            for _ in 0..<3 {
+                guard let password = promptPassword(for: url.lastPathComponent) else {
+                    throw CancellationError()
+                }
+                do {
+                    try await ArchiveService.test(url, password: password, outputObserver: { output.append($0) })
+                    return
+                } catch {
+                    lastError = error
+                    guard ArchiveService.errorSuggestsPasswordRequirement(error) else { throw error }
+                }
+            }
+            throw lastError
+        }
+    }
+
+    /// CLI 进程里的口令小窗。进程没有完整 app 生命周期 —— 初始化 NSApplication、以 accessory
+    /// 策略置前(无 Dock 图标),runModal 在主线程(CLI 流程本就跑在主 actor)。英文同 CLI 输出。
+    private static func promptPassword(for archiveName: String) -> String? {
+        _ = NSApplication.shared
+        NSApp.setActivationPolicy(.accessory)
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = "\(archiveName) is password-protected"
+        alert.informativeText = "Enter the password to continue. SimpleZip feeds it to the engine directly — it never appears on the command line."
+        let field = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 280, height: 24))
+        alert.accessoryView = field
+        alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: "Cancel")
+        alert.window.initialFirstResponder = field
+        let response = alert.runModal()
+        guard response == .alertFirstButtonReturn else { return nil }
+        return field.stringValue
     }
 
     // MARK: - compare
@@ -209,7 +256,7 @@ enum CLIRunner {
 
     // MARK: - create
 
-    private static func runCreate(output: String, inputs: [String], environment: Environment) async -> Int32 {
+    private static func runCreate(output: String, inputs: [String], template templateSlug: String?, environment: Environment) async -> Int32 {
         let outputURL = URL(fileURLWithPath: output)
         let inputURLs = inputs.map { URL(fileURLWithPath: $0) }
 
@@ -235,11 +282,26 @@ enum CLIRunner {
         }
 
         var options = ArchiveCreationOptions()
-        options.format = format
-        // 与 Finder 一键压缩同口径:套用该格式在 app 里保存且启用的默认值(密码/GPG 永不入库)。
-        if let preset = CompressionDefaultsStore(defaults: appDefaults(environment)).preset(for: format),
-           preset.enabled {
-            preset.apply(to: &options)
+        if let templateSlug {
+            // 内置任务模板(与创建对话框「套用模板」同一目录;slug 稳定不随语言变)。
+            // 模板自带格式 —— 输出扩展名必须对得上,对不上是用户笔误,明确报错而不是悄悄改产物格式。
+            guard let template = CompressionPreset.builtInTemplate(slug: templateSlug) else {
+                let known = CompressionPreset.builtInTemplateSlugs.joined(separator: ", ")
+                printError("simplezip: unknown template \"\(templateSlug)\" (available: \(known)).")
+                return 2
+            }
+            guard template.options.format == format else {
+                printError("simplezip: template \"\(templateSlug)\" produces .\(template.options.format.pathExtension) — name the output accordingly.")
+                return 2
+            }
+            options = template.options
+        } else {
+            options.format = format
+            // 与 Finder 一键压缩同口径:套用该格式在 app 里保存且启用的默认值(密码/GPG 永不入库)。
+            if let preset = CompressionDefaultsStore(defaults: appDefaults(environment)).preset(for: format),
+               preset.enabled {
+                preset.apply(to: &options)
+            }
         }
 
         let startedAt = Date()

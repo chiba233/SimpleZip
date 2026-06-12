@@ -62,9 +62,21 @@ struct CLIInvocationTests {
 
     @Test func createNeedsOutputAndInputs() throws {
         #expect(try CLIInvocation.parse(["create", "out.zip", "x.txt", "y.txt"])
-            == .create(output: "out.zip", inputs: ["x.txt", "y.txt"]))
+            == .create(output: "out.zip", inputs: ["x.txt", "y.txt"], template: nil))
         #expect(throws: CLIInvocation.ParseError.missingArguments(command: "create")) {
             try CLIInvocation.parse(["create", "out.zip"])
+        }
+    }
+
+    @Test func createParsesTemplateSlug() throws {
+        #expect(try CLIInvocation.parse(["create", "out.zip", "x.txt", "--template", "github-release"])
+            == .create(output: "out.zip", inputs: ["x.txt"], template: "github-release"))
+        // 模板 slug 与内置目录对得上(单一事实来源在 CompressionPreset)。
+        #expect(CompressionPreset.builtInTemplate(slug: "GitHub-Release") != nil)
+        #expect(CompressionPreset.builtInTemplate(slug: "nope") == nil)
+        #expect(CompressionPreset.builtInTemplateSlugs.count == CompressionPreset.builtInTemplates().count)
+        #expect(throws: CLIInvocation.ParseError.missingArguments(command: "create")) {
+            try CLIInvocation.parse(["create", "out.zip", "x.txt", "--template"])
         }
     }
 
@@ -78,10 +90,6 @@ struct CLIInvocationTests {
     @Test func unknownCommandAndOptionsRejected() {
         #expect(throws: CLIInvocation.ParseError.unknownCommand("explode")) {
             try CLIInvocation.parse(["explode"])
-        }
-        // `--template` 命名模板暂缓(app 内命名预设存储无 UI 使用)—— 显式拒绝,不静默吞。
-        #expect(throws: CLIInvocation.ParseError.unexpectedOption("--template")) {
-            try CLIInvocation.parse(["create", "out.zip", "x.txt", "--template", "fast"])
         }
         #expect(throws: CLIInvocation.ParseError.unexpectedOption("--force")) {
             try CLIInvocation.parse(["check", "a.zip", "--force"])

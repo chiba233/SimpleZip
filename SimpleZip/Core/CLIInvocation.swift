@@ -14,9 +14,10 @@ enum CLIInvocation: Equatable {
     case open(paths: [String])
     case check(paths: [String])
     case compare(left: String, right: String)
-    /// 创建归档。压缩选项自动套用该格式在 app 里保存的默认值(设置 → 压缩,与 Finder 一键压缩同口径)。
-    /// `--template <name>` 命名模板暂缓:app 内命名预设存储当前无 UI 使用,绑定对象待用户拍板。
-    case create(output: String, inputs: [String])
+    /// 创建归档。`template` = 内置任务模板的稳定 slug(github-release / max-7z …,与创建对话框
+    /// 「套用模板」同一目录,用户拍板的绑定对象);nil 时自动套用该格式在 app 里保存的默认值
+    /// (设置 → 压缩,与 Finder 一键压缩同口径)。
+    case create(output: String, inputs: [String], template: String?)
     case verify(path: String)
 
     enum ParseError: Error, Equatable {
@@ -68,9 +69,24 @@ enum CLIInvocation: Equatable {
             guard rest.count == 2 else { throw ParseError.missingArguments(command: command) }
             return .compare(left: rest[0], right: rest[1])
         case "create":
-            try rejectOptions(in: rest)
-            guard rest.count >= 2 else { throw ParseError.missingArguments(command: command) }
-            return .create(output: rest[0], inputs: Array(rest.dropFirst()))
+            var template: String?
+            var positional: [String] = []
+            var index = 0
+            while index < rest.count {
+                let argument = rest[index]
+                if argument == "--template" || argument == "-t" {
+                    guard index + 1 < rest.count else { throw ParseError.missingArguments(command: command) }
+                    template = rest[index + 1]
+                    index += 2
+                } else if argument.hasPrefix("-") {
+                    throw ParseError.unexpectedOption(argument)
+                } else {
+                    positional.append(argument)
+                    index += 1
+                }
+            }
+            guard positional.count >= 2 else { throw ParseError.missingArguments(command: command) }
+            return .create(output: positional[0], inputs: Array(positional.dropFirst()), template: template)
         case "verify":
             try rejectOptions(in: rest)
             guard rest.count == 1 else { throw ParseError.missingArguments(command: command) }
@@ -93,15 +109,18 @@ enum CLIInvocation: Equatable {
       simplezip open <file>...                   Open files or archives in the SimpleZip app
       simplezip check <archive>...               Test archive integrity (exit 1 on any failure)
       simplezip compare <left> <right>           Compare two archives (exit 1 when different)
-      simplezip create <output> <input>...       Create an archive; format from the output extension,
-                                                 your saved per-format defaults apply automatically
+      simplezip create <output> <input>... [--template <name>]
+                                                 Create an archive; format from the output extension,
+                                                 your saved per-format defaults apply automatically.
+                                                 Templates: github-release, windows-friendly, max-7z,
+                                                 encrypted-delivery, source-code, backup
       simplezip verify <checksum-file>           Verify SHA256SUMS / checksums.txt / .sha256 / .md5 / .sfv
       simplezip version                          Print version
       simplezip help                             Show this help
 
     NOTES:
       Finished commands are also recorded in the app's Activity Center.
-      Encrypted archives are not supported by the CLI yet — use the app.
+      Encrypted archives prompt for the password with a small dialog — never on the command line.
       Exit codes: 0 success · 1 failures or differences found · 2 usage or environment error
     """
 }
