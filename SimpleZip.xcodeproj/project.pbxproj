@@ -328,7 +328,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 9999;
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_PREVIEWS = YES;
@@ -341,7 +341,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 0.1.7;
+				MARKETING_VERSION = 99.9.9;
 				PRODUCT_BUNDLE_IDENTIFIER = "yumeka.SimpleZip-in-mac";
 				PRODUCT_NAME = SimpleZip;
 				REGISTER_APP_GROUPS = YES;
@@ -362,7 +362,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 9999;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_APP_SANDBOX = NO;
@@ -376,7 +376,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
-				MARKETING_VERSION = 0.1.7;
+				MARKETING_VERSION = 99.9.9;
 				PRODUCT_BUNDLE_IDENTIFIER = "yumeka.SimpleZip-in-mac";
 				PRODUCT_NAME = SimpleZip;
 				PROVISIONING_PROFILE_SPECIFIER = "";
