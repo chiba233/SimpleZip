@@ -556,22 +556,69 @@ extension ArchiveBrowserModel {
     /// 右键「转换格式…」：弹确认 sheet（选目标格式 / 级别 / 可选密码），确认后批量转换。
     func requestConvertSelectedArchives() {
         guard canConvertSelectedArchives else { return }
-        convertArchiveRequest = ConvertArchiveRequest(sourceURLs: selectedFileItems.map(\.url))
+        var request = ConvertArchiveRequest(sourceURLs: selectedFileItems.map(\.url))
+        // #14:「转换后测试」按设置「创建后验证」预填(面板里可单次改)。
+        request.verifyAfterConvert = AppPreferences.verifyAfterArchiveCreate
+        convertArchiveRequest = request
+    }
+
+    /// #14:多源的公共祖先目录(标准化路径逐级求交)。单源 = 其父目录。
+    private nonisolated static func commonAncestorDirectory(of urls: [URL]) -> URL? {
+        let parents = urls.map { $0.deletingLastPathComponent().standardizedFileURL.pathComponents }
+        guard var common = parents.first else { return nil }
+        for components in parents.dropFirst() {
+            var matched = 0
+            while matched < min(common.count, components.count), common[matched] == components[matched] {
+                matched += 1
+            }
+            common = Array(common.prefix(matched))
+            if common.isEmpty { return nil }
+        }
+        return URL(fileURLWithPath: common.joined(separator: "/").replacingOccurrences(of: "//", with: "/"))
     }
 
     /// 执行批量转换：逐个源走 `ArchiveConversion.convert`，每个一条可取消的活动中心任务。
-    /// 目标落在源同目录，文件名避让重名（UniqueFileName）。失败 / 取消逐项独立,不影响其它。
+    /// 目标默认落在源同目录(#14 可统一输出目录,可按公共祖先保留相对结构),文件名避让重名
+    /// (UniqueFileName);「跳过已存在且相同」按结构指纹比对。失败 / 取消逐项独立,不影响其它。
     func performConversion(_ request: ConvertArchiveRequest) {
+        let commonAncestor = (request.outputDirectory != nil && request.preserveRelativeStructure)
+            ? Self.commonAncestorDirectory(of: request.sourceURLs)
+            : nil
         for sourceURL in request.sourceURLs {
             let baseName = sourceURL.deletingPathExtension().lastPathComponent
+            // #14:目标目录 = 统一输出目录(可 + 相对公共祖先的子路径) ?? 源同目录。
+            let destinationDirectory: URL
+            if let outputDirectory = request.outputDirectory {
+                if let ancestor = commonAncestor {
+                    let parentPath = sourceURL.deletingLastPathComponent().standardizedFileURL.path
+                    let ancestorPath = ancestor.standardizedFileURL.path
+                    let relative = parentPath.hasPrefix(ancestorPath)
+                        ? String(parentPath.dropFirst(ancestorPath.count)).trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+                        : ""
+                    destinationDirectory = relative.isEmpty
+                        ? outputDirectory
+                        : outputDirectory.appendingPathComponent(relative)
+                } else {
+                    destinationDirectory = outputDirectory
+                }
+            } else {
+                destinationDirectory = sourceURL.deletingLastPathComponent()
+            }
+            let preferredName = "\(baseName).\(request.targetFormat.pathExtension)"
+            let preferredURL = destinationDirectory.appendingPathComponent(preferredName)
             let destination = UniqueFileName.numbered(
-                in: sourceURL.deletingLastPathComponent(),
-                preferredName: "\(baseName).\(request.targetFormat.pathExtension)",
+                in: destinationDirectory,
+                preferredName: preferredName,
                 exists: { fileManager.fileExists(atPath: $0.path) }
             )
             var options = ArchiveCreationOptions()
             options.format = request.targetFormat
             options.compressionLevel = request.compressionLevel
+            // #14:套用目标格式的已保存默认值 —— 预设启用的字段覆盖(含级别);密码仍取面板。
+            if request.useTargetFormatDefaults,
+               let preset = CompressionDefaultsStore().preset(for: request.targetFormat), preset.enabled {
+                preset.apply(to: &options)
+            }
             options.password = request.password
             options.passwordConfirmation = request.password
 
@@ -587,25 +634,57 @@ extension ArchiveBrowserModel {
             operationTask.cancel = { BackendProcessRunner.cancelRunningCommand(operationID: operationID) }
             // 0.4.2 #21：整单重跑（仅本源包；输出名会按「名 2」避让，不覆盖上次产物）。
             operationTask.rerun = { [weak self] in
-                var rerunRequest = ConvertArchiveRequest(sourceURLs: [sourceURL])
-                rerunRequest.targetFormat = request.targetFormat
-                rerunRequest.compressionLevel = request.compressionLevel
-                rerunRequest.password = request.password
+                var rerunRequest = request
+                rerunRequest.replaceSources([sourceURL])
                 self?.performConversion(rerunRequest)
             }
 
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 do {
-                    try await ArchiveConversion.convert(
-                        convertRequest,
-                        operationID: operationID,
-                        progress: { state in
-                            Task { @MainActor in operationTask.progress = state }
+                    // #14「跳过已存在且相同」:首选名已被占且结构指纹一致 → 整项 skipped,不重复转。
+                    if request.skipIdenticalExisting, self.fileManager.fileExists(atPath: preferredURL.path) {
+                        operationTask.progress = ArchiveProgressState(
+                            fraction: nil, currentFile: nil,
+                            statusText: L10n.text("convert.status.comparingExisting")
+                        )
+                        if let sourceItems = try? await ArchiveService.list(sourceURL, password: convertRequest.sourcePassword, operationID: operationID),
+                           let existingItems = try? await ArchiveService.list(preferredURL, operationID: operationID),
+                           ArchiveStructuralFingerprint.compute(for: sourceItems) == ArchiveStructuralFingerprint.compute(for: existingItems) {
+                            operationTask.transferLog = [
+                                TransferLogEntry(name: preferredURL.lastPathComponent, action: .skipped, isDirectory: false)
+                            ]
+                            TaskCenter.shared.finish(operationTask, outcome: .skipped(L10n.text("convert.skipped.identical")))
+                            return
                         }
-                    )
-                    // 0.4.3 #7:按设置(默认关)测试转换产物。加密输出跳过(test 不带口令)。
-                    if AppPreferences.verifyAfterArchiveCreate, convertRequest.targetOptions.password.isEmpty {
+                    }
+                    try? self.fileManager.createDirectory(at: destinationDirectory, withIntermediateDirectories: true)
+                    // #14「失败自动重试一次」:清掉半成品再试;第二次仍失败才如实上报。取消不重试。
+                    var attempt = 0
+                    while true {
+                        attempt += 1
+                        do {
+                            try await ArchiveConversion.convert(
+                                convertRequest,
+                                operationID: operationID,
+                                progress: { state in
+                                    Task { @MainActor in operationTask.progress = state }
+                                }
+                            )
+                            break
+                        } catch is CancellationError {
+                            throw CancellationError()
+                        } catch {
+                            guard request.retryOnFailure, attempt == 1 else { throw error }
+                            try? self.fileManager.removeItem(at: destination)
+                            operationTask.progress = ArchiveProgressState(
+                                fraction: nil, currentFile: nil,
+                                statusText: L10n.text("convert.status.retrying")
+                            )
+                        }
+                    }
+                    // #14:转换后测试改为按本单的开关(弹面板时按设置预填)。加密输出跳过(test 不带口令)。
+                    if request.verifyAfterConvert, convertRequest.targetOptions.password.isEmpty {
                         operationTask.progress = ArchiveProgressState(
                             fraction: nil, currentFile: nil,
                             statusText: L10n.text("tasks.verifyingOutput")
@@ -617,6 +696,10 @@ extension ArchiveBrowserModel {
                     ]
                     // 撤销 = 把转换产物移废纸篓（源包不动）；重做 = 移回。
                     self.registerCreateUndo([destination], actionName: L10n.text("undo.action.convert"))
+                    // #14:成功(含验证)后原包进废纸篓(默认关,可恢复)。
+                    if request.trashOriginalWhenDone {
+                        try? self.fileManager.trashItem(at: sourceURL, resultingItemURL: nil)
+                    }
                     TaskCenter.shared.finish(operationTask, outcome: .succeeded(destination))
                     SystemSound.operationComplete?.play()
                     self.reload()
