@@ -26,6 +26,8 @@ struct ReleaseAssistantRequest: Identifiable {
     var reproducible = true
     var runInspection = true
     var writeChecksums = true
+    /// #4:在产物旁写机器可读的 release-manifest.json(名字/版本/SHA-256/大小/结构指纹)。
+    var writeManifest = false
     /// 完成后用现有「创建签名清单」sheet 继续签 `.szs`(A4:GPG 主开关关闭时该行不渲染)。
     var createSignedManifest = false
 }
@@ -72,6 +74,7 @@ struct ReleaseAssistantSheet: View {
         request.reproducible = preset.reproducible
         request.runInspection = preset.runInspection
         request.writeChecksums = preset.writeChecksums
+        request.writeManifest = preset.writeManifest ?? false
         request.createSignedManifest = preset.createSignedManifest && showsGPGRow
     }
 
@@ -100,6 +103,7 @@ struct ReleaseAssistantSheet: View {
             reproducible: request.reproducible,
             runInspection: request.runInspection,
             writeChecksums: request.writeChecksums,
+            writeManifest: request.writeManifest,
             createSignedManifest: request.createSignedManifest
         )
         ReleaseWorkspacePresetStore().save(preset)
@@ -230,6 +234,7 @@ struct ReleaseAssistantSheet: View {
             // 打包行为三开关(排垃圾/可复现/发布检查)是本对话框的灵魂,留一级。
             DialogDrawer(L10n.text("releaseAssistant.section.outputs"), systemImage: "square.and.arrow.down", color: .orange) {
                 drawerToggle("releaseAssistant.checksums", subtitleKey: "releaseAssistant.checksums.subtitle", systemImage: "number.square", isOn: $request.writeChecksums)
+                drawerToggle("releaseAssistant.manifest", subtitleKey: "releaseAssistant.manifest.subtitle", systemImage: "doc.badge.gearshape", isOn: $request.writeManifest)
                 if showsGPGRow {
                     drawerToggle("releaseAssistant.sign", subtitleKey: "releaseAssistant.sign.subtitle", systemImage: "signature", isOn: $request.createSignedManifest)
                 }

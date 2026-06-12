@@ -15,6 +15,8 @@ nonisolated struct ReleaseRunStep: Codable, Equatable {
         case createArchive
         case inspect
         case checksums
+        /// #4:写 release-manifest.json(可选步)。
+        case manifest
 
         /// 解码容错:新版本的新步骤被旧版本读到时降级,不废掉整条记录。
         init(from decoder: Decoder) throws {

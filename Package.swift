@@ -82,6 +82,7 @@ let package = Package(
                 "Core/PreferencesPayloadCodec.swift",
                 "Core/PresetPasswordStore.swift",
                 "Core/ReleaseLedger.swift",
+                "Core/ReleaseManifest.swift",
                 "Core/ReleaseRunRecord.swift",
                 "Core/ReportExport.swift",
                 "Core/SecureScratchVolume.swift",

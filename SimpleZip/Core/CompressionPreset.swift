@@ -336,6 +336,8 @@ struct ReleaseWorkspacePreset: Codable, Identifiable, Equatable {
     var reproducible: Bool
     var runInspection: Bool
     var writeChecksums: Bool
+    /// #4:写 release-manifest.json(0.4.4 新增,Optional 解码兼容旧预设)。
+    var writeManifest: Bool?
     var createSignedManifest: Bool
 }
 

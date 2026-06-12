@@ -1151,6 +1151,10 @@
 "releaseAssistant.step.createArchive" = "步骤:打包";
 "releaseAssistant.step.inspect" = "步骤:发布检查";
 "releaseAssistant.step.checksums" = "步骤:校验文件";
+"releaseAssistant.step.manifest" = "步骤:发布清单";
+/* 0.4.4 #4 发布清单 */
+"releaseAssistant.manifest" = "写 release-manifest.json";
+"releaseAssistant.manifest.subtitle" = "在归档旁生成机器可读清单:名字、版本、SHA-256、大小与结构指纹——给 CI 和下载脚本用。";
 /* 0.4.4 #2 发布账本 */
 "releaseAssistant.versionLabel" = "版本标签";
 "releaseAssistant.versionLabel.placeholder" = "如 1.2.0(可选)";

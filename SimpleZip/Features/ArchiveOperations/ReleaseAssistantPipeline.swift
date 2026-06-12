@@ -72,8 +72,8 @@ enum ReleaseAssistantPipeline {
             }
         }
 
-        // ③ SHA-256:检查报告和 SHA256SUMS 共用同一次哈希。
-        if request.runInspection || request.writeChecksums {
+        // ③ SHA-256:检查报告 / SHA256SUMS / 发布清单共用同一次哈希。
+        if request.runInspection || request.writeChecksums || request.writeManifest {
             try await recorder.perform(.checksums) {
                 progress(ArchiveProgressState(fraction: 0.9, statusText: nil))
                 let digest = try? await Task.detached(priority: .userInitiated) {
@@ -88,6 +88,31 @@ enum ReleaseAssistantPipeline {
                     try ChecksumFile.generateSHA256SUMS([(name: outputURL.lastPathComponent, digestHex: digest)])
                         .write(to: sumsURL, atomically: true, encoding: .utf8)
                 }
+            }
+        }
+
+        // ④ #4:机器可读发布清单(可选步)。UniqueFileName 防覆盖,与 SHA256SUMS 同目录。
+        if request.writeManifest {
+            try await recorder.perform(.manifest) {
+                let trimmedLabel = request.versionLabel.trimmingCharacters(in: .whitespaces)
+                let size = (try? FileManager.default.attributesOfItem(atPath: outputURL.path)[.size] as? Int64) ?? nil
+                let manifest = ReleaseManifest(
+                    name: outputURL.deletingPathExtension().lastPathComponent,
+                    version: trimmedLabel.isEmpty ? nil : trimmedLabel,
+                    generatedBy: "SimpleZip \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?")",
+                    generatedAt: Date(),
+                    files: [ReleaseManifest.File(
+                        name: outputURL.lastPathComponent,
+                        sha256: report.sha256,
+                        sizeBytes: size,
+                        structuralFingerprint: report.structuralFingerprint
+                    )]
+                )
+                let preferredManifest = destination.appendingPathComponent("release-manifest.json")
+                let manifestURL = UniqueFileName.suffixed(for: preferredManifest, suffix: "") {
+                    FileManager.default.fileExists(atPath: $0.path)
+                }
+                try manifest.encoded().write(to: manifestURL, options: .atomic)
             }
         }
         progress(ArchiveProgressState(fraction: 1.0, statusText: nil))
