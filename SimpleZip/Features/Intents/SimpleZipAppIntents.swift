@@ -166,6 +166,11 @@ struct CreateArchiveIntent: AppIntent {
 
         let stem = archiveName?.trimmingCharacters(in: .whitespacesAndNewlines)
         let baseName = (stem?.isEmpty == false ? stem! : inputURLs[0].deletingPathExtension().lastPathComponent)
+        // P1:名字必须是单段纯文件名 —— Shortcuts 是无人值守入口,「../escape」会把产物
+        // 拼到输入目录之外(实测复现)。分隔符 / 上跳 / 盘符 / `~` 一律明确拒绝。
+        guard !ArchiveSafety.isUnsafeOutputBaseName(baseName) else {
+            throw SimpleZipIntentError(message: L10n.format("intent.error.badName", baseName))
+        }
         let preferred = parent.appendingPathComponent("\(baseName).\(createFormat.pathExtension)")
         // 绝不覆盖既有文件:重名走「名 2」「名 3」…(UniqueFileName 同款语义)。
         let destination = UniqueFileName.suffixed(for: preferred, suffix: "") {

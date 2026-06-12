@@ -2058,6 +2058,7 @@
 "intent.error.noInput" = "No files were provided.";
 "intent.error.mixedFolders" = "All inputs must live in the same folder.";
 "intent.error.itemFailed" = "%1$@: %2$@";
+"intent.error.badName" = "\"%@\" is not a valid archive name — use a plain file name without path separators.";
 "intent.task.extract" = "Shortcut: extract %@";
 "intent.task.create" = "Shortcut: create %@";
 "intent.task.test" = "Shortcut: test %@";

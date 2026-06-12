@@ -2058,6 +2058,7 @@
 "intent.error.noInput" = "没有提供任何文件。";
 "intent.error.mixedFolders" = "所有输入必须位于同一文件夹。";
 "intent.error.itemFailed" = "%1$@：%2$@";
+"intent.error.badName" = "「%@」不是有效的归档名——请用不含路径分隔符的纯文件名。";
 "intent.task.extract" = "快捷指令：解压 %@";
 "intent.task.create" = "快捷指令：创建 %@";
 "intent.task.test" = "快捷指令：测试 %@";

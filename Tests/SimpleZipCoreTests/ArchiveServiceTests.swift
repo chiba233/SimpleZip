@@ -246,6 +246,24 @@ struct ArchiveServiceTests {
         #expect(ArchiveSafety.isUnsafeEntryName("\\\\server\\share\\escape.txt"))
     }
 
+    /// P1(Shortcuts 无人值守入口):输出基名必须是单段纯文件名 —— `../escape` 这类名字
+    /// 拼路径会把产物带出目标目录,必须在拼接前拒绝。
+    @Test
+    func archiveSafetyRejectsUnsafeOutputBaseNames() {
+        #expect(!ArchiveSafety.isUnsafeOutputBaseName("release"))
+        #expect(!ArchiveSafety.isUnsafeOutputBaseName("我的归档 2"))
+        #expect(!ArchiveSafety.isUnsafeOutputBaseName("report.final"))   // 含点但非上跳 —— 合法
+        #expect(ArchiveSafety.isUnsafeOutputBaseName(""))
+        #expect(ArchiveSafety.isUnsafeOutputBaseName("."))
+        #expect(ArchiveSafety.isUnsafeOutputBaseName(".."))
+        #expect(ArchiveSafety.isUnsafeOutputBaseName("../escape"))
+        #expect(ArchiveSafety.isUnsafeOutputBaseName("sub/escape"))
+        #expect(ArchiveSafety.isUnsafeOutputBaseName("sub\\escape"))
+        #expect(ArchiveSafety.isUnsafeOutputBaseName("/tmp/abs"))
+        #expect(ArchiveSafety.isUnsafeOutputBaseName("~trick"))
+        #expect(ArchiveSafety.isUnsafeOutputBaseName("C:evil"))
+    }
+
     @Test
     func archiveSafetyValidatorRejectsSymlinksInExtractedTree() throws {
         let tempDirectory = try makeTemporaryDirectory()

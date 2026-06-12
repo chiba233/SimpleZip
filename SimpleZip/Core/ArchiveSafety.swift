@@ -28,6 +28,17 @@ enum ArchiveSafety {
         names.filter(isUnsafeEntryName)
     }
 
+    /// 输出**基名**(不含扩展名)的安全判定 —— 比条目名更严:必须是单段纯文件名,
+    /// 任何分隔符 / 上跳 / 盘符 / `~` 都拒绝。无人值守入口(Shortcuts / URL scheme)用
+    /// 用户给的名字拼输出路径前必须过这道门,否则 `../escape` 会把产物带出目标目录。
+    nonisolated static func isUnsafeOutputBaseName(_ name: String) -> Bool {
+        if name.isEmpty || name == "." || name == ".." { return true }
+        if name.contains("/") || name.contains("\\") || name.contains("\0") { return true }
+        if name.hasPrefix("~") { return true }
+        if name.range(of: #"^[A-Za-z]:"#, options: .regularExpression) != nil { return true }
+        return false
+    }
+
     nonisolated static func isUnsafeEntryName(_ name: String) -> Bool {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty else { return true }
