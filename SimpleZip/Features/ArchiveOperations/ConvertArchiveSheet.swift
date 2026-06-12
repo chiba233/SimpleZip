@@ -126,57 +126,19 @@ struct ConvertArchiveSheet: View {
                     }
                     Button(L10n.text("button.choose")) { chooseOutputDirectory() }
                 }
+            }
+
+            // #18 一级密度治理:六个行为开关收进普通抽屉,子行一律单色(二级制度,缩进由 DialogDrawer 管)。
+            DialogDrawer(L10n.text("convert.section.behavior"), systemImage: "gearshape", color: .indigo) {
                 if request.outputDirectory != nil {
-                    DialogToggleRow(
-                        title: L10n.text("convert.preserveStructure"),
-                        subtitle: L10n.text("convert.preserveStructure.detail"),
-                        systemImage: "square.grid.3x1.folder.badge.plus",
-                        tint: .indigo,
-                        pinsToTrailing: true,
-                        isOn: $request.preserveRelativeStructure
-                    )
+                    drawerToggle("convert.preserveStructure", subtitleKey: "convert.preserveStructure.detail", systemImage: "square.grid.3x1.folder.badge.plus", isOn: $request.preserveRelativeStructure)
                 }
-                DialogToggleRow(
-                    title: L10n.text("convert.skipIdentical"),
-                    subtitle: L10n.text("convert.skipIdentical.detail"),
-                    systemImage: "equal.circle",
-                    tint: .teal,
-                    pinsToTrailing: true,
-                    isOn: $request.skipIdenticalExisting
-                )
-                DialogToggleRow(
-                    title: L10n.text("convert.retryOnFailure"),
-                    subtitle: L10n.text("convert.retryOnFailure.detail"),
-                    systemImage: "arrow.clockwise",
-                    tint: .orange,
-                    pinsToTrailing: true,
-                    isOn: $request.retryOnFailure
-                )
-                DialogToggleRow(
-                    title: L10n.text("convert.verifyAfter"),
-                    subtitle: L10n.text("convert.verifyAfter.detail"),
-                    systemImage: "checkmark.seal",
-                    tint: .green,
-                    pinsToTrailing: true,
-                    isOn: $request.verifyAfterConvert
-                )
-                DialogToggleRow(
-                    title: L10n.text("convert.trashOriginal"),
-                    subtitle: L10n.text("convert.trashOriginal.detail"),
-                    systemImage: "trash",
-                    tint: .red,
-                    pinsToTrailing: true,
-                    isOn: $request.trashOriginalWhenDone
-                )
+                drawerToggle("convert.skipIdentical", subtitleKey: "convert.skipIdentical.detail", systemImage: "equal.circle", isOn: $request.skipIdenticalExisting)
+                drawerToggle("convert.retryOnFailure", subtitleKey: "convert.retryOnFailure.detail", systemImage: "arrow.clockwise", isOn: $request.retryOnFailure)
+                drawerToggle("convert.verifyAfter", subtitleKey: "convert.verifyAfter.detail", systemImage: "checkmark.seal", isOn: $request.verifyAfterConvert)
+                drawerToggle("convert.trashOriginal", subtitleKey: "convert.trashOriginal.detail", systemImage: "trash", isOn: $request.trashOriginalWhenDone)
                 if targetFormatHasDefaults {
-                    DialogToggleRow(
-                        title: L10n.text("convert.useFormatDefaults"),
-                        subtitle: L10n.text("convert.useFormatDefaults.detail"),
-                        systemImage: "square.3.layers.3d",
-                        tint: .purple,
-                        pinsToTrailing: true,
-                        isOn: $request.useTargetFormatDefaults
-                    )
+                    drawerToggle("convert.useFormatDefaults", subtitleKey: "convert.useFormatDefaults.detail", systemImage: "square.3.layers.3d", isOn: $request.useTargetFormatDefaults)
                 }
             }
 
@@ -204,6 +166,21 @@ struct ConvertArchiveSheet: View {
     /// #14:目标格式在「设置 → 压缩 → 默认值」有启用的预设时才显示「套用默认值」开关。
     private var targetFormatHasDefaults: Bool {
         CompressionDefaultsStore().preset(for: request.targetFormat)?.enabled == true
+    }
+
+    /// #18 抽屉子行:单色 Label + 紧贴开关 + caption 说明(解压对话框同款)。
+    private func drawerToggle(_ titleKey: String, subtitleKey: String, systemImage: String, isOn: Binding<Bool>) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                Label(L10n.text(titleKey), systemImage: systemImage)
+                Toggle("", isOn: isOn)
+                    .labelsHidden()
+            }
+            Text(L10n.text(subtitleKey))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     private func chooseOutputDirectory() {

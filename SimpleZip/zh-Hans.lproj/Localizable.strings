@@ -1276,6 +1276,7 @@
 "contentSearch.line" = "第 %@ 行";
 "extract.preset.menu" = "套用预设";
 "convert.section.output" = "输出与批量选项";
+"convert.section.behavior" = "转换行为";
 "missingVolumes.menu" = "搜索缺失分卷…";
 "urlScheme.confirm.title" = "其他 App 请求 SimpleZip 执行动作";
 "releaseAssistant.workspace.menu" = "工作区预设";

@@ -1278,6 +1278,7 @@
 "contentSearch.line" = "line %@";
 "extract.preset.menu" = "Apply Preset";
 "convert.section.output" = "Output & Batch Options";
+"convert.section.behavior" = "Conversion Behavior";
 "missingVolumes.menu" = "Search for Missing Volumes…";
 "urlScheme.confirm.title" = "Another app asked SimpleZip to act";
 "releaseAssistant.workspace.menu" = "Workspace Presets";
