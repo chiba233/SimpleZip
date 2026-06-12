@@ -286,7 +286,11 @@ struct ContentView: View {
             }
         }
         .sheet(item: $model.archiveCreationRequest) { request in
-            ArchiveCreationOptionsView(request: request) { confirmedRequest in
+            ArchiveCreationOptionsView(request: request, openReleaseAssistant: {
+                // 「使用发布助手」转场:关创建对话框,带着已填内容进发布助手。
+                model.archiveCreationRequest = nil
+                model.showReleaseAssistant(prefillFrom: request)
+            }) { confirmedRequest in
                 model.archiveCreationRequest = nil
                 model.performCreateArchive(confirmedRequest)
             } cancel: {

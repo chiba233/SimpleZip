@@ -1049,6 +1049,7 @@
 "tasks.filter.succeeded" = "已完成";
 "tasks.filter.failed" = "失败";
 "tasks.filter.cancelled" = "已取消";
+"archive.useReleaseAssistant" = "使用发布助手";
 "releaseAssistant.menu" = "发布助手...";
 "releaseAssistant.title" = "发布助手";
 "releaseAssistant.subtitle" = "打包产物目录、运行检查、写校验文件——一条流完成";

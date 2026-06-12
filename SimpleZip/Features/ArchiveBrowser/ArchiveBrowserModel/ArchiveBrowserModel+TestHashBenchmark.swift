@@ -272,6 +272,29 @@ extension ArchiveBrowserModel {
         releaseAssistantRequest = request
     }
 
+    /// 创建对话框「使用发布助手」转场:尽量带上用户已填的内容 —— 文件名 / 输出目录 / 格式照搬;
+    /// 选区恰好是单个文件夹时完整映射为产物目录,其他选区(多选 / 单文件)发布助手装不下,
+    /// 源目录留空让用户挑,不瞎猜。
+    func showReleaseAssistant(prefillFrom creationRequest: ArchiveCreationRequest) {
+        var request = ReleaseAssistantRequest()
+        let stem = creationRequest.destinationURL.deletingPathExtension().lastPathComponent
+        if !stem.isEmpty {
+            request.fileName = stem
+        }
+        request.destinationFolder = creationRequest.destinationURL.deletingLastPathComponent()
+        if creationRequest.options.format == .zip || creationRequest.options.format == .sevenZip {
+            request.format = creationRequest.options.format
+        }
+        var isDirectory: ObjCBool = false
+        if creationRequest.sourceURLs.count == 1,
+           let source = creationRequest.sourceURLs.first,
+           FileManager.default.fileExists(atPath: source.path, isDirectory: &isDirectory),
+           isDirectory.boolValue {
+            request.sourceFolder = source
+        }
+        releaseAssistantRequest = request
+    }
+
     /// 发布助手管线:① 打包(可排垃圾 / 可复现,输出重名自动唯一化绝不覆盖) → ② 发布检查
     /// (与右键「发布包检查」同一套步骤) → ③ 写 SHA256SUMS → ④ 可选转入现有「创建签名清单」sheet。
     /// 检查失败不让任务失败 —— 失败本身就是报告内容;打包失败才算任务失败。

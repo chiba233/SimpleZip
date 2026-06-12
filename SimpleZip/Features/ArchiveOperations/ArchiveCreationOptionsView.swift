@@ -45,6 +45,9 @@ struct ArchiveCreationOptionsView: View {
     @State private var smartcardPresent: Bool?
     @State private var isCheckingSmartcard = false
     private let compressionDefaultsStore = CompressionDefaultsStore()
+    /// 「使用发布助手」(套用模板旁,用户点名):关掉本对话框、带着当前请求转进发布助手。
+    /// nil = 不显示按钮(调用方没接)。
+    var openReleaseAssistant: (() -> Void)? = nil
     let create: (ArchiveCreationRequest) -> Void
     let cancel: () -> Void
 
@@ -68,6 +71,13 @@ struct ArchiveCreationOptionsView: View {
                 Label(L10n.text("archive.template.menu"), systemImage: "wand.and.stars")
             }
             .fixedSize()
+            if let openReleaseAssistant {
+                // 发布场景的一键转场:打包+检查+校验文件一条流交给发布助手。
+                Button(action: openReleaseAssistant) {
+                    Label(L10n.text("archive.useReleaseAssistant"), systemImage: "shippingbox.and.arrow.backward")
+                }
+                .fixedSize()
+            }
             Spacer()
         }
     }
