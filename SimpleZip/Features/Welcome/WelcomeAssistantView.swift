@@ -554,7 +554,8 @@ private struct WelcomeGeneralStep: View {
         ) {
             VStack(alignment: .leading, spacing: 20) {
                 section(L10n.text("welcome.startupLocation.title"), caption: L10n.text("welcome.startupLocation.body")) {
-                    VStack(alignment: .leading, spacing: 10) {
+                    // 用户点名:下拉和「选择自定义文件夹」同一排,不再上下堆。
+                    HStack(spacing: 10) {
                         Picker("", selection: $startupLocation) {
                             ForEach(simpleLocations, id: \.rawValue) { location in
                                 Text(location.title).tag(location.rawValue)

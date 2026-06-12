@@ -95,9 +95,9 @@ struct AboutPane: View {
                         .font(.headline)
                         .frame(maxWidth: .infinity, alignment: .center)
                     HStack(alignment: .top, spacing: 12) {
-                        acknowledgementCard(name: "7-Zip", systemImage: "archivebox.fill", detail: L10n.text("about.ack.sevenzip"))
-                        acknowledgementCard(name: "GnuPG", systemImage: "key.fill", detail: L10n.text("about.ack.gnupg"))
-                        acknowledgementCard(name: "Sparkle", systemImage: "sparkles", detail: L10n.text("about.ack.sparkle"))
+                        acknowledgementCard(name: "7-Zip", systemImage: "archivebox.fill", tint: .orange, detail: L10n.text("about.ack.sevenzip"))
+                        acknowledgementCard(name: "GnuPG", systemImage: "key.fill", tint: .green, detail: L10n.text("about.ack.gnupg"))
+                        acknowledgementCard(name: "Sparkle", systemImage: "sparkles", tint: .yellow, detail: L10n.text("about.ack.sparkle"))
                     }
                     // 等高的关键:把 HStack 高度钉在「最高那张卡的理想高度」,卡片的 maxHeight:.infinity
                     // 只在这个有界高度里撑满 —— 既等高,又不会贪婪高度吃掉整窗(关于页没有滚动容器)。
@@ -143,43 +143,51 @@ struct AboutPane: View {
         }
     }
 
+    /// 链接卡(欢迎助手 / 帮助页同款叠层 chrome,用户点名):色调渐变底 + 顶部高光 +
+    /// 渐变描边 + 彩色阴影 + 发光瓦片;悬停只加深阴影,不缩放容器(防鬼畜)。
     @ViewBuilder
     private func aboutLinkCard(title: String, systemImage: String, colors: [Color], action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            VStack(spacing: 8) {
-                Image(systemName: systemImage)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 36, height: 36)
-                    .background(
-                        LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing),
-                        in: RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    )
-                Text(title)
-                    .font(.callout.weight(.medium))
-                    .foregroundStyle(.primary)
+        let tint = colors.first ?? .accentColor
+        AboutHoverChrome(tint: tint) {
+            Button(action: action) {
+                VStack(spacing: 8) {
+                    Image(systemName: systemImage)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 36, height: 36)
+                        .background(
+                            LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing),
+                            in: RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        )
+                        .shadow(color: tint.opacity(0.45), radius: 6, y: 3)
+                    Text(title)
+                        .font(.callout.weight(.medium))
+                        .foregroundStyle(.primary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
-            .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color(nsColor: .controlBackgroundColor))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.06))
-            )
-            .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
     }
 
+    /// 致谢卡(同款叠层 chrome):各自配色的渐变外壳 + 渐变发光小瓦片。
     @ViewBuilder
-    private func acknowledgementCard(name: String, systemImage: String, detail: String) -> some View {
+    private func acknowledgementCard(name: String, systemImage: String, tint: Color, detail: String) -> some View {
         VStack(spacing: 6) {
             Image(systemName: systemImage)
-                .font(.system(size: 15))
-                .foregroundStyle(.secondary)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 28, height: 28)
+                .background(
+                    LinearGradient(
+                        colors: [tint.opacity(0.95), tint.opacity(0.65)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    ),
+                    in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                )
+                .shadow(color: tint.opacity(0.4), radius: 5, y: 2)
             Text(name)
                 .font(.callout.weight(.semibold))
             Text(detail)
@@ -193,12 +201,79 @@ struct AboutPane: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .padding(12)
         .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color(nsColor: .controlBackgroundColor))
+            ZStack {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [tint.opacity(0.14), tint.opacity(0.04)],
+                            startPoint: .topLeading, endPoint: .bottomTrailing
+                        )
+                    )
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.white.opacity(0.20), .clear],
+                            startPoint: .top, endPoint: .center
+                        )
+                    )
+            }
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.06))
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [tint.opacity(0.45), tint.opacity(0.08)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1.2
+                )
         )
+        .shadow(color: tint.opacity(0.10), radius: 6, y: 3)
+    }
+}
+
+/// 关于页卡片的悬停外壳:色调渐变底 + 顶部高光 + 渐变描边,悬停只加深阴影(容器不缩放)。
+/// 抽出来是因为 hover 需要自己的 @State —— @ViewBuilder 函数里放不了。
+private struct AboutHoverChrome<Content: View>: View {
+    let tint: Color
+    @ViewBuilder let content: () -> Content
+    @State private var isHovering = false
+
+    var body: some View {
+        content()
+            .background(
+                ZStack {
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [tint.opacity(0.15), tint.opacity(0.04)],
+                                startPoint: .topLeading, endPoint: .bottomTrailing
+                            )
+                        )
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.white.opacity(0.20), .clear],
+                                startPoint: .top, endPoint: .center
+                            )
+                        )
+                }
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [tint.opacity(0.50), tint.opacity(0.10)],
+                            startPoint: .topLeading, endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1.2
+                    )
+            )
+            .shadow(color: tint.opacity(isHovering ? 0.25 : 0.10), radius: isHovering ? 9 : 6, y: 4)
+            .onHover { hovering in
+                withAnimation(.easeOut(duration: 0.16)) {
+                    isHovering = hovering
+                }
+            }
     }
 }
