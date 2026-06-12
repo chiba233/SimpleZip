@@ -80,7 +80,9 @@ on the official 7-Zip engine, which ships inside the app.
 ### 🧰 Power tools, when you reach for them
 
 - **Convert formats** — re-pack a `.rar` as `.7z`, a `.zip` as an encrypted
-  `.siz`, in one step (right-click → Convert…).
+  `.siz`, in one step (right-click → Convert…). Batch runs get a unified output
+  folder, skip-when-identical (fingerprint-compared, so re-runs don't pile up
+  copies), automatic retry, and an optional post-conversion test.
 - **Split & combine** — break a large file into `partN` volumes and rejoin them,
   byte-for-byte, matching 7-Zip's Split / Combine.
 - **Archive comments** — read *and edit* the whole-archive comment of a ZIP, right
@@ -90,11 +92,26 @@ on the official 7-Zip engine, which ships inside the app.
   or save your own named default.
 - **Pre-flight checks** — a creation dry-run (file count, size, what gets excluded),
   a pre-extraction summary with a disk-space warning, and a one-click
-  **Release Check** (integrity test, suspicious paths, junk, empty dirs, SHA-256)
-  before you ship a build.
+  **Release Check** (integrity test, suspicious paths, junk, empty dirs, SHA-256,
+  plus a **structural fingerprint** that stays stable across repacks). Inspecting
+  a `.app` checks Info.plist, the code signature and Gatekeeper; DMGs check the
+  drag-install layout; XIPs report signature trust.
+- **Extraction presets** — one-click recipes in the extract dialog (clean unpack /
+  cautious / extract & tidy) built from new switches: extract into a folder named
+  after the archive, unwrap a single wrapper directory, auto-rename conflicts
+  (existing files untouched), reveal in Finder when done, and optionally move the
+  archive to the Trash after a fully successful run.
+- **Release Assistant** — pack (reproducible, junk excluded) → inspect →
+  SHA256SUMS → optional signing, in one flow; **workspace presets** save the whole
+  setup under a name for the next time you ship that project.
 - **Reproducible archives** — a switch in the create dialog makes the same input
   produce a byte-identical ZIP/7z (same SHA-256) on every run. Made for GitHub
   releases and verifiable builds; pairs with **Export SHA256SUMS**.
+- **Space analysis & duplicate hunting** — see an archive's largest files and
+  folder/extension breakdown at a glance; scan a folder for **suspected duplicate
+  archives** (fingerprint-grouped, even across formats); and **search file
+  contents** inside an archive — text files only, in a temp area deleted right
+  after.
 - **Checksum files** — generate GNU-compatible `SHA256SUMS` for a selection, and
   verify `SHA256SUMS` / `.sha256` / `.md5` / `.sfv` files someone sent you, with
   per-file pass/fail in the Activity Center.
@@ -102,6 +119,9 @@ on the official 7-Zip engine, which ships inside the app.
   `check` / `compare` / `create` / `verify` / `open` in the terminal with real
   exit codes, against the same bundled engines; finished commands land in the
   Activity Center too.
+- **URL actions** — other apps and scripts can ask SimpleZip to act via
+  `simplezip://check?path=…` / `compare` / `open`; a confirmation dialog naming
+  the action and full paths always comes first.
 - **Verified writes, recoverable failures** — every archive rewrite is tested
   *before* it atomically replaces the original, and a rewrite stopped at the last
   gate (external change, failed verification) parks its work copy in a Recovery
@@ -110,12 +130,17 @@ on the official 7-Zip engine, which ships inside the app.
   batch jobs and Finder auto-extract silently reuse passwords you've already
   proven (memory only — forgotten the moment the app quits; only the optional
   preset password persists, in the macOS Keychain).
-- **Long tasks are protected** — running tasks hold off idle sleep, and quitting
-  with work in flight asks first (or quits by itself when the last task ends).
+- **Long tasks are protected** — running tasks hold off idle sleep, quitting with
+  work in flight asks first (or quits by itself when the last task ends), heavy
+  jobs queue behind a configurable concurrency limit (with a visible Waiting
+  group), and a one-shot **sleep when done** toggle puts the Mac to sleep after
+  the last task.
 - **Batch tools** — test, convert, or rename many entries at once, find duplicate
   files, and clean macOS metadata junk (`.DS_Store` / `__MACOSX`).
 - **Split-set awareness** — `.001 / .002 / partN.rar` recognized as a group, with
-  missing-volume warnings before you combine.
+  missing-volume warnings before you combine — and a **missing-volume search**
+  that scans a folder you pick, copies found parts back, then auto-combines and
+  tests the result.
 - **Permissions & owner** — a Unix-permissions column and right-click chmod /
   chown for local files.
 - **Benchmark** — measure the 7-Zip engine's compression / decompression speed on
