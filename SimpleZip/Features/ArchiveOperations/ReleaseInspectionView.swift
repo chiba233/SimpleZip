@@ -127,6 +127,8 @@ struct ReleaseInspectionView: View {
             Divider()
 
             PinnedBottomBar {
+                // F2:统一导出(摘要 / GitHub Issue / Markdown / JSON,带环境元数据)。
+                ReportExportControl(report: report)
                 Button {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(plainTextSummary, forType: .string)
@@ -286,5 +288,166 @@ struct ReleaseInspectionView: View {
             lines.append((hasPublicKey ? "✓ " : "✗ ") + L10n.text(hasPublicKey ? "inspect.publicKey.present" : "inspect.publicKey.missing"))
         }
         return lines.joined(separator: "\n")
+    }
+}
+
+// MARK: - 统一导出（0.4.4 F2）
+
+/// 发布检查报告接统一导出底座:Markdown 跟 UI 语言;JSON 字段名固定英文(交换格式契约)。
+extension ArchiveBrowserModel.ReleaseInspectionReport: ReportExportable {
+    var reportTitle: String { "\(L10n.text("inspect.title")) — \(archiveURL.lastPathComponent)" }
+    var reportTargetPath: String? { archiveURL.path }
+
+    var reportSummaryLine: String {
+        var parts: [String] = [archiveURL.lastPathComponent]
+        switch testPassed {
+        case .some(true): parts.append(L10n.text("inspect.test.passed"))
+        case .some(false): parts.append(L10n.text("inspect.test.failed"))
+        case .none: break
+        }
+        if let stats {
+            parts.append(L10n.format("inspect.entries", "\(stats.fileCount)", "\(stats.folderCount)",
+                                     ByteCountFormatter.string(fromByteCount: stats.totalBytes, countStyle: .file)))
+            let issues = securityFindings.reduce(0) { $0 + $1.entryPaths.count } + stats.junkCount + stats.emptyDirectoryCount
+            parts.append(L10n.format("inspect.summary.issues", "\(issues)"))
+        }
+        let failures = bundleFindings.filter { $0.severity == .failure || $0.severity == .warning }.count
+        if failures > 0 {
+            parts.append(L10n.format("inspect.summary.bundleIssues", "\(failures)"))
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    func reportMarkdown(metadata: ReportMetadata?) -> String {
+        var lines: [String] = []
+        lines.append("# \(L10n.text("inspect.title"))")
+        lines.append("")
+        lines.append("**\(archiveURL.lastPathComponent)**")
+        lines.append("")
+        if !bundleFindings.isEmpty {
+            lines.append("## \(L10n.text("inspect.section.bundle"))")
+            lines.append("")
+            for finding in bundleFindings {
+                let mark: String
+                switch finding.severity {
+                case .pass: mark = "✓"
+                case .info: mark = "ℹ︎"
+                case .warning: mark = "⚠"
+                case .failure: mark = "✗"
+                }
+                var line = "- \(mark) \(ReleaseInspectionView.bundleFindingTitle(finding))"
+                if let detail = finding.detail, !detail.isEmpty {
+                    line += " — `\(detail)`"
+                }
+                lines.append(line)
+            }
+            lines.append("")
+        }
+        if !isBundleOnly {
+            switch testPassed {
+            case .some(true): lines.append("- ✓ \(L10n.text("inspect.test.passed"))")
+            case .some(false): lines.append("- ✗ \(L10n.text("inspect.test.failed")) — \(testFailureMessage ?? "")")
+            case .none: lines.append("- \(L10n.text("inspect.test.skipped"))")
+            }
+            if let stats {
+                lines.append("- \(L10n.format("inspect.entries", "\(stats.fileCount)", "\(stats.folderCount)", ByteCountFormatter.string(fromByteCount: stats.totalBytes, countStyle: .file)))")
+                let suspicious = securityFindings.reduce(0) { $0 + $1.entryPaths.count }
+                lines.append("- \(L10n.format("inspect.suspiciousPaths.some", "\(suspicious)"))")
+                lines.append("- \(L10n.format("inspect.junk.some", "\(stats.junkCount)"))")
+                lines.append("- \(L10n.format("inspect.emptyDirs.some", "\(stats.emptyDirectoryCount)"))")
+                lines.append("- \(L10n.format("inspect.executables.some", "\(stats.executableCount)"))")
+                lines.append("- \(L10n.format("inspect.symlinks.some", "\(stats.symlinkCount)"))")
+            } else {
+                lines.append("- \(L10n.text("inspect.notListable"))")
+            }
+            if let hasPublicKey = publicKeyBesideSignature {
+                lines.append("- \(hasPublicKey ? "✓" : "✗") \(L10n.text(hasPublicKey ? "inspect.publicKey.present" : "inspect.publicKey.missing"))")
+            }
+            if let sha256 {
+                lines.append("")
+                lines.append("`SHA-256: \(sha256)`")
+            }
+            if let structuralFingerprint {
+                lines.append("")
+                lines.append("`\(L10n.text("inspect.section.fingerprint")): \(structuralFingerprint)`")
+            }
+        }
+        lines.append("")
+        var markdown = lines.joined(separator: "\n")
+        if let metadata {
+            markdown += ReportExport.markdownFooter(metadata) + "\n"
+        }
+        return markdown
+    }
+
+    /// JSON 快照(只编码;字段名固定英文)。
+    private struct JSONReport: Encodable {
+        struct Stats: Encodable {
+            let fileCount: Int
+            let folderCount: Int
+            let totalBytes: Int64
+            let junkCount: Int
+            let emptyDirectoryCount: Int
+            let executableCount: Int
+            let symlinkCount: Int
+        }
+        struct BundleFinding: Encodable {
+            let severity: String
+            let title: String
+            let detail: String?
+        }
+        let archive: String
+        let listable: Bool
+        let testPassed: Bool?
+        let testFailureMessage: String?
+        let stats: Stats?
+        let suspiciousPathCount: Int
+        let hasComment: Bool
+        let publicKeyBesideSignature: Bool?
+        let sha256: String?
+        let structuralFingerprint: String?
+        let bundleFindings: [BundleFinding]
+        let metadata: ReportMetadata?
+    }
+
+    func reportJSON(metadata: ReportMetadata?) throws -> String {
+        let snapshot = JSONReport(
+            archive: archiveURL.lastPathComponent,
+            listable: listable,
+            testPassed: testPassed,
+            testFailureMessage: testFailureMessage,
+            stats: stats.map {
+                JSONReport.Stats(
+                    fileCount: $0.fileCount,
+                    folderCount: $0.folderCount,
+                    totalBytes: $0.totalBytes,
+                    junkCount: $0.junkCount,
+                    emptyDirectoryCount: $0.emptyDirectoryCount,
+                    executableCount: $0.executableCount,
+                    symlinkCount: $0.symlinkCount
+                )
+            },
+            suspiciousPathCount: securityFindings.reduce(0) { $0 + $1.entryPaths.count },
+            hasComment: hasComment,
+            publicKeyBesideSignature: publicKeyBesideSignature,
+            sha256: sha256,
+            structuralFingerprint: structuralFingerprint,
+            bundleFindings: bundleFindings.map { finding in
+                let severity: String
+                switch finding.severity {
+                case .pass: severity = "pass"
+                case .info: severity = "info"
+                case .warning: severity = "warning"
+                case .failure: severity = "failure"
+                }
+                return JSONReport.BundleFinding(
+                    severity: severity,
+                    title: ReleaseInspectionView.bundleFindingTitle(finding),
+                    detail: finding.detail
+                )
+            },
+            metadata: metadata
+        )
+        return String(decoding: try ReportExport.jsonEncoder().encode(snapshot), as: UTF8.self)
     }
 }

@@ -1101,6 +1101,8 @@
 "report.export.markdown" = "Export Markdown…";
 "report.export.json" = "Export JSON…";
 "report.export.failedTitle" = "Export Failed";
+"inspect.summary.issues" = "%@ hygiene findings";
+"inspect.summary.bundleIssues" = "%@ bundle warnings";
 "tasks.queuePaused.note" = "Queue paused — new tasks wait in line. Tasks that can't be frozen (hashing, split/combine, file operations) finish on their own.";
 "tasks.archiveSection" = "Archive Operations";
 "tasks.fileSection" = "File Operations";
