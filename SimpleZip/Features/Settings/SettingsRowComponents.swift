@@ -115,17 +115,10 @@ struct SettingsRowIcon: View {
         Group {
             if let systemImage {
                 if let tint {
-                    // shape + overlay:符号在瓦片内绝对居中(直接给 Image 套 frame+background 会随字形偏移看着歪)。
-                    // 饱和度压一档(0.75):侧栏图标保持高饱和,内容区行瓦片柔和一些 —— 用户拍板的层次。
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(tint)
+                    // 瓦片本体走 design system IconTile(shape+overlay 居中);
+                    // 饱和度压一档(0.75)是**设置/侧栏窗口内容区**的层次规则,在这层叠加。
+                    IconTile(systemImage: systemImage, fill: .solid(tint))
                         .saturation(0.75)
-                        .overlay(
-                            Image(systemName: systemImage)
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(.white)
-                        )
-                        .frame(width: 22, height: 22)
                 } else {
                     Image(systemName: systemImage)
                         .font(.system(size: 16, weight: .medium))
