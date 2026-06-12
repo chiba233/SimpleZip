@@ -45,6 +45,7 @@ let package = Package(
                 "Core/CLIInvocation.swift",
                 "Core/ArchiveOperationOptions.swift",
                 "Core/ArchiveSafety.swift",
+                "Core/ArchiveContentSearch.swift",
                 "Core/ArchiveSearch.swift",
                 "Core/ArchiveSpaceAnalysis.swift",
                 "Core/ArchiveConversion.swift",

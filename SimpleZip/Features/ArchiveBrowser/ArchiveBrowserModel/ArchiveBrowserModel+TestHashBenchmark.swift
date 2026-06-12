@@ -259,6 +259,120 @@ extension ArchiveBrowserModel {
         )
     }
 
+    // MARK: - 内容搜索(队列 #11:只文本/限大小/主动触发/临时区即用即删)
+
+    /// 待确认的内容搜索(sheet item):搜索词 + 单文件大小上限。
+    struct ContentSearchRequest: Identifiable {
+        let id = UUID()
+        let archiveURL: URL
+        var query = ""
+        var maxBytes: Int64 = ArchiveContentSearch.defaultMaxFileBytes
+    }
+
+    /// 一次内容搜索的结果(sheet item)。
+    struct ContentSearchReport: Identifiable {
+        let id = UUID()
+        let archiveName: String
+        let query: String
+        let candidateCount: Int
+        let matches: [ArchiveContentSearch.Match]
+    }
+
+    /// 归档空白处右键「在内容中搜索…」:弹搜索词输入 sheet(主动触发,绝不自动扫)。
+    func promptContentSearch() {
+        guard case .archive(let url) = mode else { return }
+        contentSearchRequest = ContentSearchRequest(archiveURL: url)
+    }
+
+    /// 确认后的搜索:候选 = 文本类扩展名 + ≤大小上限的条目;解到临时目录(搜完即删),
+    /// 逐文件嗅探二进制后逐行匹配。加密包走会话口令静默重试,全失败任务如实失败。
+    func runContentSearch(_ request: ContentSearchRequest) {
+        guard case .archive(let url) = mode else { return }
+        let query = request.query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return }
+        let displayName = (archiveDisplayOverride ?? url).lastPathComponent
+        let candidates = session.allItems.filter { ArchiveContentSearch.isTextCandidate($0, maxBytes: request.maxBytes) }
+        guard !candidates.isEmpty else {
+            contentSearchReport = ContentSearchReport(archiveName: displayName, query: query, candidateCount: 0, matches: [])
+            return
+        }
+        let force = isForced(url)
+        var report = ContentSearchReport(archiveName: displayName, query: query, candidateCount: candidates.count, matches: [])
+        startManagedArchiveTask(
+            title: L10n.format("contentSearch.taskTitle", displayName),
+            kind: .test,
+            showsDetails: false,
+            successStatus: nil,
+            refreshOnSuccess: { [weak self] in
+                self?.contentSearchReport = report
+            },
+            rerunAction: { [weak self] in self?.runContentSearch(request) }
+        ) { operationID, progress, outputObserver in
+            // A7:系统临时目录 + UUID;搜完(含失败路径)立即删除 —— 临时安全区即用即删。
+            let scratch = FileManager.default.temporaryDirectory
+                .appendingPathComponent("SimpleZip-ContentSearch-\(UUID().uuidString)")
+            defer { try? FileManager.default.removeItem(at: scratch) }
+            try FileManager.default.createDirectory(at: scratch, withIntermediateDirectories: true)
+
+            progress(ArchiveProgressState(fraction: 0.05, statusText: nil))
+            var extracted = false
+            var lastError: Error?
+            for password in [""] + SessionPasswordCache.shared.candidates(for: url) {
+                do {
+                    try await ArchiveService.extract(
+                        url,
+                        entries: candidates,
+                        to: scratch,
+                        overwriteBehavior: .overwrite,
+                        pathMode: .preserve,
+                        password: password,
+                        zipDecryptionMethod: .automatic,
+                        safetyPolicy: .skipValidation,
+                        operationID: operationID,
+                        progress: { state in
+                            var scaled = state
+                            scaled.fraction = state.fraction.map { 0.05 + $0 * 0.6 }
+                            progress(scaled)
+                        },
+                        force: force
+                    )
+                    extracted = true
+                    break
+                } catch is CancellationError {
+                    throw CancellationError()
+                } catch {
+                    lastError = error
+                }
+            }
+            guard extracted else {
+                throw lastError ?? ArchiveError.commandFailed(L10n.text("inspect.notListable"))
+            }
+
+            progress(ArchiveProgressState(fraction: 0.7, statusText: nil))
+            var matches: [ArchiveContentSearch.Match] = []
+            for candidate in candidates {
+                try Task.checkCancellation()
+                let relativePath = ArchiveSession.normalizedEntryName(candidate.name, isDirectory: false)
+                let fileURL = scratch.appendingPathComponent(relativePath)
+                // 只读普通文件:解出来的 symlink(可能指向树外)一律不追。
+                guard let values = try? fileURL.resourceValues(forKeys: [.isSymbolicLinkKey, .isRegularFileKey]),
+                      values.isSymbolicLink != true, values.isRegularFile == true,
+                      let data = try? Data(contentsOf: fileURL) else { continue }
+                for hit in ArchiveContentSearch.matches(in: data, query: query) {
+                    matches.append(ArchiveContentSearch.Match(
+                        entryPath: candidate.name, lineNumber: hit.lineNumber, lineText: hit.lineText
+                    ))
+                }
+                if matches.count >= 500 { break }
+            }
+            report = ContentSearchReport(
+                archiveName: displayName, query: query,
+                candidateCount: candidates.count, matches: matches
+            )
+            progress(ArchiveProgressState(fraction: 1.0, statusText: nil))
+        }
+    }
+
     // MARK: - 疑似重复归档检测(队列 #10)
 
     /// 一次扫描的展示模型(sheet item)。分组在 Core(ArchiveDuplicateScan,纯函数已测),

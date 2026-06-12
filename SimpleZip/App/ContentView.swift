@@ -1307,6 +1307,19 @@ private struct ArchiveExtrasSheets: ViewModifier {
                     model.duplicateArchivesReport = nil
                 }
             }
+            .sheet(item: $model.contentSearchRequest) { request in
+                ContentSearchPromptView(request: request) { confirmed in
+                    model.contentSearchRequest = nil
+                    model.runContentSearch(confirmed)
+                } cancel: {
+                    model.contentSearchRequest = nil
+                }
+            }
+            .sheet(item: $model.contentSearchReport) { report in
+                ContentSearchResultsView(report: report) {
+                    model.contentSearchReport = nil
+                }
+            }
             .sheet(item: $model.gpgExtractRequest) { request in
                 GPGExtractOptionsView(request: request) { confirmed in
                     model.gpgExtractRequest = nil
