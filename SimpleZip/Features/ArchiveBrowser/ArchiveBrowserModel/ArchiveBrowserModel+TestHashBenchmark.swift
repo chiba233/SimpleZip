@@ -423,6 +423,11 @@ extension ArchiveBrowserModel {
         /// 结构指纹(#9):条目结构(路径/类型/大小/CRC)的 SHA-256,忽略时间戳/注释/垃圾 ——
         /// 两个包指纹相同 = 结构上同一份东西(哪怕重新打包、文件级 SHA-256 不同)。listable 才有。
         var structuralFingerprint: String?
+        /// #6 专项检查:目标是 .app/.dmg/.xip 时的 bundle 级结论(Info.plist/codesign/spctl/
+        /// DMG 顶层结构/XIP 签名)。空 = 不适用,报告不显示该区。
+        var bundleFindings: [BundleReleaseCheck.Finding] = []
+        /// true = 直接对 .app 目录跑的检查 —— 归档侧区块(完整性测试/条目/SHA-256)整段不渲染。
+        var isBundleOnly = false
     }
 
     /// 同目录的「签名容器 ↔ 公钥」同捆检查(发包端闭环):有 .szs/.siz 而没有任何 .asc → 提醒。
@@ -442,6 +447,12 @@ extension ArchiveBrowserModel {
         case .archive(let url):
             archiveURL = url
         case .folder, .tag:
+            // #6:单选 .app 目录 → 纯 bundle 检查(Info.plist/codesign/Gatekeeper),不走归档管线。
+            if selectedFileItems.count == 1, let item = selectedFileItems.first,
+               BundleReleaseCheck.Target.detect(at: item.url) == .appBundle {
+                runAppBundleInspection(item.url)
+                return
+            }
             archiveURL = selectedFileItems.first(where: { ArchiveService.isSupportedArchive($0.url) })?.url
         }
         guard let archiveURL else {
@@ -449,6 +460,28 @@ extension ArchiveBrowserModel {
             return
         }
         runReleaseInspection(archiveURL)
+    }
+
+    /// #6:.app 目录的专项发布检查(只读;只签名校验不签名)。
+    private func runAppBundleInspection(_ url: URL) {
+        var report = ReleaseInspectionReport(archiveURL: url)
+        report.isBundleOnly = true
+        startManagedArchiveTask(
+            title: L10n.format("inspect.taskTitle", url.lastPathComponent),
+            kind: .test,
+            showsDetails: true,
+            successStatus: nil,
+            refreshOnSuccess: { [weak self] in
+                self?.releaseInspectionReport = report
+            },
+            rerunAction: { [weak self] in self?.runAppBundleInspection(url) }
+        ) { operationID, progress, outputObserver in
+            progress(ArchiveProgressState(fraction: 0.2, statusText: nil))
+            report.bundleFindings = await BundleReleaseCheck.inspectAppBundle(
+                at: url, operationID: operationID, outputObserver: outputObserver
+            )
+            progress(ArchiveProgressState(fraction: 1.0, statusText: nil))
+        }
     }
 
     /// #8 空间分析:打开的归档直接用已列出的条目(瞬时);文件夹里单选归档则先列出(托管任务)。
@@ -540,6 +573,22 @@ extension ArchiveBrowserModel {
             }.value
             // ④ 公钥同捆检查:同目录有签名容器而没有 .asc 公钥 → 报告里提醒(发包端闭环)。
             report.publicKeyBesideSignature = Self.publicKeyPresenceBesideSignature(at: url.deletingLastPathComponent())
+            // ⑤ #6 专项检查:DMG(顶层结构/签名/Gatekeeper)与 XIP(签名摘要)在归档检查之上追加。
+            switch BundleReleaseCheck.Target.detect(at: url) {
+            case .diskImage:
+                progress(ArchiveProgressState(fraction: 0.92, statusText: nil))
+                report.bundleFindings = await BundleReleaseCheck.inspectDiskImage(
+                    at: url, listedItems: report.listable ? items : nil,
+                    operationID: operationID, outputObserver: outputObserver
+                )
+            case .xipArchive:
+                progress(ArchiveProgressState(fraction: 0.92, statusText: nil))
+                report.bundleFindings = await BundleReleaseCheck.inspectXIP(
+                    at: url, operationID: operationID, outputObserver: outputObserver
+                )
+            case .appBundle, .none:
+                break
+            }
             progress(ArchiveProgressState(fraction: 1.0, statusText: nil))
         }
     }

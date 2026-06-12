@@ -1100,6 +1100,10 @@ struct FileNSOutlineView: NSViewRepresentable {
                 toolsMenu.addItem(menuItem(L10n.text("inspect.menu"), systemImage: "checklist", action: #selector(inspectArchiveForRelease)))
                 // #8:空间分析 —— 同样单选受支持归档时出现。
                 toolsMenu.addItem(menuItem(L10n.text("space.menu"), systemImage: "chart.pie", action: #selector(analyzeArchiveSpace)))
+            } else if model.selectedFileItems.count == 1, let only = model.selectedFileItems.first,
+                      only.isDirectory, only.url.pathExtension.lowercased() == "app" {
+                // #6:单选 .app 目录 → 专项发布检查(Info.plist/codesign/Gatekeeper)。
+                toolsMenu.addItem(menuItem(L10n.text("inspect.menu"), systemImage: "checklist", action: #selector(inspectArchiveForRelease)))
             }
             // #112 转换格式：选中项全是支持的归档时出现，弹格式选择 sheet 批量转换。
             if model.canConvertSelectedArchives {

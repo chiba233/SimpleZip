@@ -28,18 +28,31 @@ struct ReleaseInspectionView: View {
 
             HeightCappedScrollView(maxHeight: 520) {
                 VStack(alignment: .leading, spacing: 12) {
-                    DialogSection {
-                        testRow
-                        if let stats = report.stats {
-                            row(ok: true,
-                                text: L10n.format(
-                                    "inspect.entries",
-                                    "\(stats.fileCount)", "\(stats.folderCount)",
-                                    ByteCountFormatter.string(fromByteCount: stats.totalBytes, countStyle: .file)
-                                ),
-                                neutral: true)
-                        } else {
-                            row(ok: false, text: L10n.text("inspect.notListable"))
+                    // 对 .app 目录的纯 bundle 检查没有归档侧步骤,首区(完整性/条目)整段不渲染。
+                    if !report.isBundleOnly {
+                        DialogSection {
+                            testRow
+                            if let stats = report.stats {
+                                row(ok: true,
+                                    text: L10n.format(
+                                        "inspect.entries",
+                                        "\(stats.fileCount)", "\(stats.folderCount)",
+                                        ByteCountFormatter.string(fromByteCount: stats.totalBytes, countStyle: .file)
+                                    ),
+                                    neutral: true)
+                            } else {
+                                row(ok: false, text: L10n.text("inspect.notListable"))
+                            }
+                        }
+                    }
+
+                    // #6 专项检查:.app / DMG / XIP 的 bundle 级结论(Info.plist/codesign/Gatekeeper/
+                    // DMG 顶层结构/XIP 签名)。
+                    if !report.bundleFindings.isEmpty {
+                        DialogSection(L10n.text("inspect.section.bundle")) {
+                            ForEach(report.bundleFindings) { finding in
+                                bundleRow(finding)
+                            }
                         }
                     }
 
@@ -120,7 +133,8 @@ struct ReleaseInspectionView: View {
                 } label: {
                     Label(L10n.text("button.copyAll"), systemImage: "doc.on.doc")
                 }
-                if let onExportChecksums {
+                // .app 目录的 bundle-only 报告没有归档/哈希步骤,「导出 SHA256SUMS」不适用。
+                if let onExportChecksums, !report.isBundleOnly {
                     Button {
                         onExportChecksums()
                     } label: {
@@ -173,6 +187,44 @@ struct ReleaseInspectionView: View {
         }
     }
 
+    /// #6 专项检查行:✓/i/⚠/✗ + 标题(L10n key 渲染)+ 工具原始输出 detail(次要小字)。
+    @ViewBuilder
+    private func bundleRow(_ finding: BundleReleaseCheck.Finding) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Label {
+                Text(Self.bundleFindingTitle(finding))
+            } icon: {
+                switch finding.severity {
+                case .pass:
+                    Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.green)
+                case .info:
+                    Image(systemName: "info.circle").foregroundStyle(Color.secondary)
+                case .warning:
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Color.orange)
+                case .failure:
+                    Image(systemName: "xmark.circle.fill").foregroundStyle(Color.red)
+                }
+            }
+            .font(.callout)
+            if let detail = finding.detail, !detail.isEmpty {
+                Text(detail)
+                    .font(.caption.monospaced())
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .truncationMode(.middle)
+                    .textSelection(.enabled)
+                    .padding(.leading, 22)
+            }
+        }
+    }
+
+    static func bundleFindingTitle(_ finding: BundleReleaseCheck.Finding) -> String {
+        if let argument = finding.titleArgument {
+            return L10n.format(finding.titleKey, argument)
+        }
+        return L10n.text(finding.titleKey)
+    }
+
     @ViewBuilder
     private func row(ok: Bool, text: String, neutral: Bool = false) -> some View {
         Label {
@@ -187,6 +239,26 @@ struct ReleaseInspectionView: View {
     /// 纯文本报告（复制给 release note / issue）。
     private var plainTextSummary: String {
         var lines = ["\(L10n.text("inspect.title")): \(report.archiveURL.lastPathComponent)"]
+        if !report.bundleFindings.isEmpty {
+            lines.append(L10n.text("inspect.section.bundle") + ":")
+            for finding in report.bundleFindings {
+                let mark: String
+                switch finding.severity {
+                case .pass: mark = "✓"
+                case .info: mark = "i"
+                case .warning: mark = "⚠"
+                case .failure: mark = "✗"
+                }
+                var line = "\(mark) \(Self.bundleFindingTitle(finding))"
+                if let detail = finding.detail, !detail.isEmpty {
+                    line += " — \(detail)"
+                }
+                lines.append(line)
+            }
+        }
+        if report.isBundleOnly {
+            return lines.joined(separator: "\n")
+        }
         switch report.testPassed {
         case .some(true): lines.append("✓ \(L10n.text("inspect.test.passed"))")
         case .some(false): lines.append("✗ \(L10n.text("inspect.test.failed")) — \(report.testFailureMessage ?? "")")

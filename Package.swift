@@ -54,6 +54,7 @@ let package = Package(
                 "Core/ArchiveService.swift",
                 "Core/BackendProcessRunner.swift",
                 "Core/BrowserGrouping.swift",
+                "Core/BundleReleaseCheck.swift",
                 "Core/CompressionPreset.swift",
                 "Core/Backends/ArchiveBackend.swift",
                 "Core/Backends/DiskImageBackend.swift",
