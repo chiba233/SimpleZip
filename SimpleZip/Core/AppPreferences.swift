@@ -330,6 +330,7 @@ enum AppPreferences {
         nonisolated static let welcomeAssistantCompleted = "welcomeAssistantCompleted"
         nonisolated static let activityHistory = "activityHistory"
         nonisolated static let activityHistoryLimit = "activityHistoryLimit"
+        nonisolated static let heavyTaskConcurrencyLimit = "heavyTaskConcurrencyLimit"
         nonisolated static let tasksOpenOnFailure = "tasksOpenOnFailure"
         nonisolated static let tasksPlaySoundOnFinish = "tasksPlaySoundOnFinish"
         nonisolated static let collapseVolumeSets = "collapseVolumeSets"
@@ -391,6 +392,18 @@ enum AppPreferences {
     /// 0.4.3 #7:创建 / 格式转换产出新包后自动测试产物。普通创建风险低、大包测试耗时,默认关。
     nonisolated static var verifyAfterArchiveCreate: Bool {
         defaults.bool(forKey: Key.verifyAfterArchiveCreate)
+    }
+
+    /// 队列管理②:重归档任务(解压/创建/转换/测试/哈希等)的并发上限,超出的排队等待。
+    /// 0 = 不限制(关闭调度,旧行为)。默认 3 —— 大任务同时跑太多会互相拖慢且烤硬盘。
+    nonisolated static var heavyTaskConcurrencyLimit: Int {
+        get {
+            guard defaults.object(forKey: Key.heavyTaskConcurrencyLimit) != nil else { return 3 }
+            return min(max(defaults.integer(forKey: Key.heavyTaskConcurrencyLimit), 0), 16)
+        }
+        set {
+            defaults.set(min(max(newValue, 0), 16), forKey: Key.heavyTaskConcurrencyLimit)
+        }
     }
 
     nonisolated static var activityHistoryLimit: Int {
@@ -899,6 +912,7 @@ enum AppPreferences {
     nonisolated static let exportableUserDefaultsKeys: [String] = [
         // 活动中心(0.4.2)
         Key.activityHistoryLimit,
+        Key.heavyTaskConcurrencyLimit,
         Key.tasksOpenOnFailure,
         Key.tasksPlaySoundOnFinish,
         Key.collapseVolumeSets,
@@ -1003,6 +1017,7 @@ enum AppPreferences {
         var v: [String: Any] = [:]
         // 活动中心(0.4.2)
         v[Key.activityHistoryLimit] = activityHistoryLimit
+        v[Key.heavyTaskConcurrencyLimit] = heavyTaskConcurrencyLimit
         v[Key.tasksOpenOnFailure] = tasksOpenOnFailure
         v[Key.tasksPlaySoundOnFinish] = tasksPlaySoundOnFinish
         v[Key.collapseVolumeSets] = collapseVolumeSets

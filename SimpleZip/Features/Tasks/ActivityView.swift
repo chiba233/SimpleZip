@@ -13,6 +13,7 @@ struct ActivityView: View {
     @State private var fileFilter = ActivityTaskFilter.all
     @State private var undoRedoFilter = ActivityTaskFilter.all
     @AppStorage(AppPreferences.Key.activityHistoryLimit) private var historyLimit = AppPreferences.activityHistoryLimit
+    @AppStorage(AppPreferences.Key.heavyTaskConcurrencyLimit) private var concurrencyLimit = AppPreferences.heavyTaskConcurrencyLimit
 
     // 弃用 NavigationSplitView（详见 SettingsView 同款注释）：普通 HStack + 绝对定宽侧栏，
     // 物理上没有把手、没有折叠、没有持久化；毛玻璃用 SidebarBackdrop 补回。
@@ -206,6 +207,27 @@ struct ActivityView: View {
                     .onChange(of: historyLimit) { newValue in
                         AppPreferences.activityHistoryLimit = newValue
                         taskCenter.applyHistoryLimitChange()
+                    }
+                }
+
+                // 队列管理②:重任务并发上限(0 = 不限)。超出上限的任务排队等待,状态行显示等待、可取消。
+                SettingsControlRow(
+                    title: L10n.text("settings.tasks.concurrencyLimit"),
+                    description: L10n.text("settings.tasks.concurrencyLimit.description"),
+                    systemImage: "square.stack.3d.up",
+                    iconTint: .teal
+                ) {
+                    HStack(spacing: 8) {
+                        Text(concurrencyLimit == 0
+                            ? L10n.text("settings.tasks.concurrencyLimit.unlimited")
+                            : "\(concurrencyLimit)")
+                            .foregroundStyle(.secondary)
+                            .frame(width: 84, alignment: .trailing)
+                        Stepper("", value: $concurrencyLimit, in: 0...16)
+                            .labelsHidden()
+                    }
+                    .onChange(of: concurrencyLimit) { newValue in
+                        AppPreferences.heavyTaskConcurrencyLimit = newValue
                     }
                 }
 

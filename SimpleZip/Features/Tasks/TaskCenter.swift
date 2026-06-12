@@ -317,6 +317,65 @@ final class TaskCenter: ObservableObject {
     }
 }
 
+/// 队列管理②:重归档任务的并发调度器 —— 同时运行的重任务不超过用户上限(0 = 不限),
+/// 超出的排队等待(任务在活动中心保持可见,状态行显示「等待空闲槽」,随时可取消)。
+/// 公平 FIFO;上限实时读偏好,调大后下一次 release 按新上限放行。
+@MainActor
+final class HeavyTaskScheduler {
+    static let shared = HeavyTaskScheduler()
+
+    /// 算「重任务」的归档操作 —— 大 CPU / 大 IO,同时跑太多互相拖慢。compare(纯列表)等轻活不进队。
+    nonisolated static let heavyKinds: Set<OperationTask.Kind> = [
+        .extract, .compress, .create, .convert, .test, .hash, .split, .combine, .benchmark, .duplicate
+    ]
+
+    private var runningCount = 0
+    private var waiters: [(id: UUID, continuation: CheckedContinuation<Void, Error>)] = []
+
+    private var limit: Int { AppPreferences.heavyTaskConcurrencyLimit }
+
+    /// 等待中的任务数(调度展示用)。
+    var waitingCount: Int { waiters.count }
+
+    /// 取槽:有空位立即返回;满了挂起直到有任务收尾。任务被取消时以 CancellationError 恢复。
+    func acquire(taskID: UUID) async throws {
+        guard limit > 0 else {
+            runningCount += 1
+            return
+        }
+        if runningCount < limit {
+            runningCount += 1
+            return
+        }
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                waiters.append((taskID, continuation))
+            }
+        } onCancel: {
+            Task { @MainActor in
+                Self.shared.cancelWaiter(taskID)
+            }
+        }
+    }
+
+    /// 还槽:按 FIFO 放行下一个等待者(若调小了上限,等到 runningCount 降到新上限以下才放)。
+    func release() {
+        runningCount = max(0, runningCount - 1)
+        while !waiters.isEmpty, limit == 0 || runningCount < limit {
+            let next = waiters.removeFirst()
+            runningCount += 1
+            next.continuation.resume()
+        }
+    }
+
+    /// 等待中被取消:从队列摘除并抛 CancellationError(已被放行的自然找不到,no-op)。
+    private func cancelWaiter(_ id: UUID) {
+        guard let index = waiters.firstIndex(where: { $0.id == id }) else { return }
+        let waiter = waiters.remove(at: index)
+        waiter.continuation.resume(throwing: CancellationError())
+    }
+}
+
 /// `nonisolated`(本组持久化类型同此):CLI companion 进程在非主隔离上下文构造/编码这些记录,
 /// 历史持久化也在后台队列编码 —— 隔离开销与限制都不需要。读 @MainActor 状态的成员单独标回 @MainActor。
 private nonisolated struct PersistedTask: Codable {

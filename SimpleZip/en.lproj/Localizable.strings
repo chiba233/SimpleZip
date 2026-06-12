@@ -1084,6 +1084,10 @@
 "settings.cli.manualHint" = "Automatic install failed — run this in Terminal instead:";
 "settings.cli.copyCommand" = "Copy Command";
 "settings.cli.translocated" = "SimpleZip is running from a temporary location (unverified download). Move it to Applications and relaunch before installing.";
+"tasks.waitingForSlot" = "Waiting for other tasks to finish (concurrency limit)...";
+"settings.tasks.concurrencyLimit" = "Heavy Task Limit";
+"settings.tasks.concurrencyLimit.description" = "How many heavy archive tasks (extract, create, convert, test, hash) run at once; extra tasks wait in line. 0 = unlimited.";
+"settings.tasks.concurrencyLimit.unlimited" = "Unlimited";
 "tasks.sleepWhenDone" = "Sleep When Done";
 "tasks.sleepWhenDone.help" = "Put the Mac to sleep once the last running task finishes (this session only).";
 "status.selectionCount" = "%d selected";

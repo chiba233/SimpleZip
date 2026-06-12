@@ -1082,6 +1082,10 @@
 "settings.cli.manualHint" = "自动安装失败——请在终端执行：";
 "settings.cli.copyCommand" = "复制命令";
 "settings.cli.translocated" = "SimpleZip 正在临时位置运行（未验证的下载）。请先将其移入「应用程序」并重新启动，再安装。";
+"tasks.waitingForSlot" = "等待其他任务完成（并发上限）...";
+"settings.tasks.concurrencyLimit" = "重任务并发上限";
+"settings.tasks.concurrencyLimit.description" = "同时运行的重归档任务（解压、创建、转换、测试、哈希）数量；超出的排队等待。0 = 不限制。";
+"settings.tasks.concurrencyLimit.unlimited" = "不限制";
 "tasks.sleepWhenDone" = "完成后睡眠";
 "tasks.sleepWhenDone.help" = "最后一个运行中的任务结束后让 Mac 进入睡眠（仅本次会话有效）。";
 "status.selectionCount" = "已选 %d 项";

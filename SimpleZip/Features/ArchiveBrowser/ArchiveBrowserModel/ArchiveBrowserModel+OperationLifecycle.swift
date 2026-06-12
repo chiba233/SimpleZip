@@ -243,6 +243,22 @@ extension ArchiveBrowserModel {
             guard let self, let operationTask else { return }
             status = title
             do {
+                // 队列管理②:重任务先取并发槽 —— 超过上限的排队等待(活动中心可见、状态行
+                // 显示等待、可取消;与写锁/密码中心同一套 statusText 等待 idiom)。
+                let usesSlot = HeavyTaskScheduler.heavyKinds.contains(kind)
+                if usesSlot {
+                    operationTask.progress = ArchiveProgressState(
+                        fraction: nil, currentFile: nil,
+                        statusText: L10n.text("tasks.waitingForSlot")
+                    )
+                    taskCenter.notifyTaskChanged()
+                    try await HeavyTaskScheduler.shared.acquire(taskID: operationID)
+                    operationTask.progress = ArchiveProgressState(fraction: 0, currentFile: nil)
+                    taskCenter.notifyTaskChanged()
+                }
+                defer {
+                    if usesSlot { HeavyTaskScheduler.shared.release() }
+                }
                 try await operation(operationID, { progress in
                     progressCoalescer.submit(progress)
                 }, outputObserver)
