@@ -177,6 +177,15 @@ final class FileBrowserService {
         }
     }
 
+    /// 包（.app 等 bundle）显示名缓存（#16）：/Applications 每次 FSEvents reload 都重读 ~101 份
+    /// Info.plist（实测 74ms，后台线程但纯浪费）。按 path|mtime 缓存 —— bundle 更新会改目录 mtime，
+    /// 旧条目自动失效。NSCache 线程安全（makeFileItems 在 detached task 里跑），条数上限兜底。
+    private nonisolated(unsafe) static let packageNameCache: NSCache<NSString, NSString> = {
+        let cache = NSCache<NSString, NSString>()
+        cache.countLimit = 1024
+        return cache
+    }()
+
     /// 把一组 URL 转成 UI 用的 `FileItem`，并按「文件夹优先 / 名称自然排序」展示。
     ///
     /// applicationName 在循环里通过 cache 命中重复后缀，避免对 Documents 这种几十万文件的目录
@@ -227,16 +236,26 @@ final class FileBrowserService {
                 : (values.localizedTypeDescription ?? (isDirectory ? L10n.text("type.folder") : L10n.text("type.file")))
             let displayName = Self.displayedName(for: fileURL.lastPathComponent, hiddenSuffixes: hiddenSuffixes)
             // 同目录所有同后缀文件共享 application name 查询结果；
-            // 真正按 URL 查询的只有 package 类型（每个 bundle 都不一样）。
-            let applicationKey = if isDirectory && !isPackage {
-                "__folder__"
-            } else if isPackage {
-                "__package__:\(fileURL.path)"
+            // package 每个 bundle 都不一样，走跨次调用的静态缓存（见 packageNameCache —— 以前按
+            // "__package__:path" 进局部 cache，同一次调用内永远不命中，每次 reload 都重读全部 Info.plist）。
+            let applicationName: String
+            if isPackage {
+                let packageKey = "\(fileURL.path)|\(values.contentModificationDate?.timeIntervalSinceReferenceDate ?? 0)" as NSString
+                if let cached = Self.packageNameCache.object(forKey: packageKey) {
+                    applicationName = cached as String
+                } else {
+                    applicationName = Self.preferredApplicationName(for: fileURL, isDirectory: isDirectory, isPackage: true)
+                    Self.packageNameCache.setObject(applicationName as NSString, forKey: packageKey)
+                }
             } else {
-                fileURL.pathExtension.lowercased()
+                let applicationKey = isDirectory ? "__folder__" : fileURL.pathExtension.lowercased()
+                if let cached = applicationNameCache[applicationKey] {
+                    applicationName = cached
+                } else {
+                    applicationName = Self.preferredApplicationName(for: fileURL, isDirectory: isDirectory, isPackage: false)
+                    applicationNameCache[applicationKey] = applicationName
+                }
             }
-            let applicationName = applicationNameCache[applicationKey] ?? Self.preferredApplicationName(for: fileURL, isDirectory: isDirectory, isPackage: isPackage)
-            applicationNameCache[applicationKey] = applicationName
 
             // Unix 权限 / 属主 —— lstat 语义（不跟随符号链接,显示链接自身的权限与属主）。取不到就留空 / 退回 uid。
             // 只在列启用时 stat,避免对受保护目录平白触发 TCC 弹窗（见上方 wantsPosixMetadata）。

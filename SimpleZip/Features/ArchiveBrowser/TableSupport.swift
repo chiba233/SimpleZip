@@ -146,6 +146,13 @@ func orderedColumns<Column: TableColumnDescriptor>(_ columns: [Column], key: Str
     return ordered + columns.filter { !order.contains($0.identifier) }
 }
 
+/// makeTableCell 的真复用载体：记录构建时的布局参数（有无图标 / 图标尺寸），
+/// 复用时结构匹配才走「只刷内容」快路径。结构由 identifier（列）+ 这两个参数共同决定；
+/// 行密度切换会改 iconSize，此时回退到完整重建分支，旧约束不会被错误沿用。
+private final class ReusableTableCellView: NSTableCellView {
+    var configuredIconSize: CGFloat = -1
+}
+
 func makeTableCell(
     in tableView: NSTableView,
     owner: AnyObject,
@@ -157,8 +164,32 @@ func makeTableCell(
     font: NSFont = .systemFont(ofSize: 13)
 ) -> NSTableCellView {
     let cellID = NSUserInterfaceItemIdentifier(identifier)
-    let cell = tableView.makeView(withIdentifier: cellID, owner: owner) as? NSTableCellView ?? NSTableCellView()
+    let reused = tableView.makeView(withIdentifier: cellID, owner: owner) as? NSTableCellView
+    // 真复用快路径：以前这里对复用 cell 也全拆 textField/imageView 重建 + 重新 activate 约束，
+    // 复用名存实亡 —— /Applications 滚动时每行每列每帧都在重建视图树（#16 实测主线程大头之一）。
+    // 同 identifier ⇒ 同列同布局，结构参数匹配时只更新内容。
+    let wantedIconSize = icon == nil ? CGFloat(0) : iconSize
+    if let reusable = reused as? ReusableTableCellView,
+       reusable.configuredIconSize == wantedIconSize,
+       let textField = reusable.textField {
+        // 防御内联重命名残留：beginRename 会把 textField 改成可编辑带边框（以前靠整体重建自动重置）。
+        if textField.isEditable {
+            textField.isEditable = false
+            textField.isSelectable = false
+            textField.isBordered = false
+            textField.drawsBackground = false
+            textField.delegate = nil
+        }
+        textField.stringValue = text
+        textField.font = font
+        textField.textColor = isPrimaryColumn ? .labelColor : .secondaryLabelColor
+        reusable.imageView?.image = icon
+        return reusable
+    }
+
+    let cell = reused as? ReusableTableCellView ?? ReusableTableCellView()
     cell.identifier = cellID
+    cell.configuredIconSize = wantedIconSize
     cell.imageView?.removeFromSuperview()
     cell.textField?.removeFromSuperview()
 

@@ -672,7 +672,7 @@ struct FileNSOutlineView: NSViewRepresentable {
                 identifier: "FileCell-\(column.identifier)",
                 text: cellText,
                 isPrimaryColumn: column == .name,
-                icon: column == .name ? icon(for: fileItem) : nil,
+                icon: column == .name ? icon(for: fileItem, size: density.iconSize) : nil,
                 iconSize: density.iconSize,
                 font: .systemFont(ofSize: density.textPointSize)
             )
@@ -1691,11 +1691,107 @@ struct FileNSOutlineView: NSViewRepresentable {
             makeColumnHeaderMenu(scope: .fileBrowser)
         }
 
-        private func icon(for item: FileItem) -> NSImage {
+        // MARK: - 图标异步缓存（#16 /Applications 卡顿修复）
+
+        /// `icon(forFile:)` 取多分辨率 ICNS + 在 cell 里按 18pt 真正绘制（解码），/Applications 101 项实测
+        /// 107ms + 236ms，全落在主线程 cell 构建。改为：命中缓存直接用预栅格化位图；未命中先给类型级
+        /// 占位图标（实测 ~0.2ms/项），后台取真图标并栅格化（解码一并搬离主线程），回主线程原位刷新可见行。
+        private func icon(for item: FileItem, size: CGFloat) -> NSImage {
             if item.isDirectory, !item.isSymbolicLink, !model.canShowPackageContents(item) {
                 return NSWorkspace.shared.icon(for: .folder)
             }
-            return NSWorkspace.shared.icon(forFile: item.url.path)
+            let key = Self.iconCacheKey(for: item, size: size)
+            if let cached = Self.fileIconCache.object(forKey: key) {
+                return cached
+            }
+            scheduleIconFetch(path: item.url.path, size: size, cacheKey: key)
+            return Self.placeholderIcon(for: item)
+        }
+
+        /// path|尺寸|mtime → 预栅格化图标位图。mtime 进 key：文件被替换后旧图标自动失效；
+        /// 跨窗口共享，NSCache 内存压力自动回收 + 条数上限兜底。
+        private static let fileIconCache: NSCache<NSString, NSImage> = {
+            let cache = NSCache<NSString, NSImage>()
+            cache.countLimit = 4096
+            return cache
+        }()
+        /// 正在后台取的 key —— 同一行在图标到位前反复重绘时不重复入队。
+        private var iconFetchesInFlight: Set<String> = []
+
+        private static func iconCacheKey(for item: FileItem, size: CGFloat) -> NSString {
+            "\(item.url.path)|\(Int(size))|\(item.modified?.timeIntervalSinceReferenceDate ?? 0)" as NSString
+        }
+
+        /// 类型级占位：按扩展名取 UTType 通用图标（系统缓存，不解码 ICNS），真图标到位后原位替换。
+        private static func placeholderIcon(for item: FileItem) -> NSImage {
+            let ext = item.url.pathExtension
+            if !ext.isEmpty, let type = UTType(filenameExtension: ext) {
+                return NSWorkspace.shared.icon(for: type)
+            }
+            return NSWorkspace.shared.icon(for: item.isDirectory ? .folder : .data)
+        }
+
+        private func scheduleIconFetch(path: String, size: CGFloat, cacheKey: NSString) {
+            let key = cacheKey as String
+            guard !iconFetchesInFlight.contains(key) else { return }
+            iconFetchesInFlight.insert(key)
+            Task.detached(priority: .userInitiated) { [weak self] in
+                let rasterized = Self.rasterizedFileIcon(path: path, pointSize: size)
+                await MainActor.run { [weak self] in
+                    guard let self else { return }
+                    Self.fileIconCache.setObject(rasterized, forKey: cacheKey)
+                    self.iconFetchesInFlight.remove(key)
+                    self.applyFetchedIcon(rasterized, path: path)
+                }
+            }
+        }
+
+        /// 后台线程：取真图标并按目标尺寸栅格化成独立位图（2x，Retina 不糊）。
+        /// NSGraphicsContext.current 是线程局部的，后台绘制安全；产物不与他处共享表示，主线程画它零解码。
+        private nonisolated static func rasterizedFileIcon(path: String, pointSize: CGFloat) -> NSImage {
+            let icon = NSWorkspace.shared.icon(forFile: path)
+            let pixels = Int(pointSize * 2)
+            guard pixels > 0,
+                  let rep = NSBitmapImageRep(
+                      bitmapDataPlanes: nil,
+                      pixelsWide: pixels,
+                      pixelsHigh: pixels,
+                      bitsPerSample: 8,
+                      samplesPerPixel: 4,
+                      hasAlpha: true,
+                      isPlanar: false,
+                      colorSpaceName: .deviceRGB,
+                      bytesPerRow: 0,
+                      bitsPerPixel: 0
+                  ) else { return icon }
+            rep.size = NSSize(width: pointSize, height: pointSize)
+            NSGraphicsContext.saveGraphicsState()
+            NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+            icon.draw(
+                in: NSRect(x: 0, y: 0, width: pointSize, height: pointSize),
+                from: .zero,
+                operation: .copy,
+                fraction: 1
+            )
+            NSGraphicsContext.restoreGraphicsState()
+            let result = NSImage(size: NSSize(width: pointSize, height: pointSize))
+            result.addRepresentation(rep)
+            return result
+        }
+
+        /// 真图标到位：只原位更新**可见行**里仍显示该文件的 name 列 cell；
+        /// 不 reloadData（会拆重命名输入框 / 抖选区），滚出可视区的行下次构建直接命中缓存。
+        private func applyFetchedIcon(_ icon: NSImage, path: String) {
+            guard let outlineView else { return }
+            let nameColumn = outlineView.column(withIdentifier: NSUserInterfaceItemIdentifier(FileColumn.name.identifier))
+            guard nameColumn >= 0 else { return }
+            let visible = outlineView.rows(in: outlineView.visibleRect)
+            for row in visible.location..<(visible.location + visible.length) {
+                guard let node = outlineView.item(atRow: row) as? FileOutlineNode,
+                      node.fileItem?.url.path == path,
+                      let cell = outlineView.view(atColumn: nameColumn, row: row, makeIfNecessary: false) as? NSTableCellView else { continue }
+                cell.imageView?.image = icon
+            }
         }
     }
 }
