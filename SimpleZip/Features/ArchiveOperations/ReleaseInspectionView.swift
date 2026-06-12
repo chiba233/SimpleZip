@@ -153,31 +153,9 @@ struct ReleaseInspectionView: View {
             Divider()
 
             PinnedBottomBar {
-                // F2:统一导出(摘要 / GitHub Issue / Markdown / JSON,带环境元数据)。
-                ReportExportControl(report: report)
-                // #5:发布说明草稿(下载/校验/验签样板,粘进 GitHub Release 即用)。bundle-only 不适用。
-                if !report.isBundleOnly {
-                    Button {
-                        NSPasteboard.general.clearContents()
-                        NSPasteboard.general.setString(releaseNotesDraft, forType: .string)
-                    } label: {
-                        Label(L10n.text("inspect.copyReleaseNotes"), systemImage: "doc.richtext")
-                    }
-                }
-                Button {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(plainTextSummary, forType: .string)
-                } label: {
-                    Label(L10n.text("button.copyAll"), systemImage: "doc.on.doc")
-                }
-                // .app 目录的 bundle-only 报告没有归档/哈希步骤,「导出 SHA256SUMS」不适用。
-                if let onExportChecksums, !report.isBundleOnly {
-                    Button {
-                        onExportChecksums()
-                    } label: {
-                        Label(L10n.text("checksum.export.button"), systemImage: "square.and.arrow.up")
-                    }
-                }
+                // 用户点名:底栏一排文字按钮被截断 → 全部并进「导出报告」一个弹窗里选
+                // (F2 四项 + 发布说明 / 全部复制 / SHA256SUMS)。
+                ReportExportControl(report: report, extraActions: exportExtraActions)
                 Spacer()
                 Button {
                     onClose()
@@ -188,7 +166,28 @@ struct ReleaseInspectionView: View {
                 .keyboardShortcut(.defaultAction)
             }
         }
-        .frame(width: 540)
+        .frame(width: 640)
+    }
+
+    /// 导出弹窗里的报告特有项:发布说明(#5)/ 全部复制 / 导出 SHA256SUMS(#11 前身)。
+    private var exportExtraActions: [ReportExportControl.ExtraAction] {
+        var actions: [ReportExportControl.ExtraAction] = []
+        if !report.isBundleOnly {
+            actions.append(.init(L10n.text("inspect.copyReleaseNotes")) {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(releaseNotesDraft, forType: .string)
+            })
+        }
+        actions.append(.init(L10n.text("button.copyAll")) {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(plainTextSummary, forType: .string)
+        })
+        if let onExportChecksums, !report.isBundleOnly {
+            actions.append(.init(L10n.text("checksum.export.button")) {
+                onExportChecksums()
+            })
+        }
+        return actions
     }
 
     @ViewBuilder

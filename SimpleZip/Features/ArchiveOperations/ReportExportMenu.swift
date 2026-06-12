@@ -13,8 +13,22 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 /// 统一导出按钮。`report` 是任何接了 ReportExportable 的报告值。
+/// `extraActions`:宿主报告特有的导出/复制项(发布说明、SHA256SUMS 等)挂进同一个弹窗 ——
+/// 底栏只占一个按钮,不再排一排截断的文字按钮(用户点名)。
 struct ReportExportControl: View {
+    struct ExtraAction: Identifiable {
+        let id = UUID()
+        let title: String
+        let action: () -> Void
+
+        init(_ title: String, action: @escaping () -> Void) {
+            self.title = title
+            self.action = action
+        }
+    }
+
     let report: any ReportExportable
+    var extraActions: [ExtraAction] = []
 
     @State private var showsFormatDialog = false
 
@@ -29,6 +43,9 @@ struct ReportExportControl: View {
             Button(L10n.text("report.copyAsIssue")) { copyAsIssue() }
             Button(L10n.text("report.export.markdown")) { export(.markdown) }
             Button(L10n.text("report.export.json")) { export(.json) }
+            ForEach(extraActions) { extra in
+                Button(extra.title, action: extra.action)
+            }
         }
     }
 
