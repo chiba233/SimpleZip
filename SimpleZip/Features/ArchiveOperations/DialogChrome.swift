@@ -9,6 +9,48 @@
 
 import SwiftUI
 
+/// 彩色图标瓦片(design system:IconTile)—— 圆角矩形底 + 居中白色 SF Symbol。
+/// shape+overlay 结构保证宽字形也精确居中(设计准则);底色二选一:纯色(行级 22pt)或
+/// 渐变(窗口层 44pt hero / 抽屉头)。降饱和版本属于设置/活动中心的侧栏窗口内容区,不在这里。
+struct IconTile: View {
+    enum Fill {
+        case solid(Color)
+        case gradient([Color])
+        /// 单色系统渐变(`Color.gradient`,抽屉头在用)。
+        case systemGradient(Color)
+    }
+
+    let systemImage: String
+    let fill: Fill
+    var size: CGFloat = 22
+    /// 默认按行级瓦片(22pt → r6 / 图标 12);hero 等其他档位显式传,保持既有精确尺寸不漂移。
+    var cornerRadius: CGFloat?
+    var iconSize: CGFloat?
+
+    var body: some View {
+        shape
+            .overlay(
+                Image(systemName: systemImage)
+                    .font(.system(size: iconSize ?? 12, weight: .semibold))
+                    .foregroundStyle(.white)
+            )
+            .frame(width: size, height: size)
+    }
+
+    @ViewBuilder
+    private var shape: some View {
+        let rect = RoundedRectangle(cornerRadius: cornerRadius ?? 6, style: .continuous)
+        switch fill {
+        case .solid(let color):
+            rect.fill(color)
+        case .gradient(let colors):
+            rect.fill(LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing))
+        case .systemGradient(let color):
+            rect.fill(color.gradient)
+        }
+    }
+}
+
 /// 弹窗顶部 hero：渐变图标瓦片 + 标题 + 可选副标题。
 /// 设计准则：hero 在窗口外层（不在卡片内），外层允许渐变；降饱和只属于带侧栏的窗口内容区。
 struct DialogHero: View {
@@ -19,14 +61,7 @@ struct DialogHero: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing))
-                .overlay(
-                    Image(systemName: systemImage)
-                        .font(.system(size: 21, weight: .semibold))
-                        .foregroundStyle(.white)
-                )
-                .frame(width: 44, height: 44)
+            IconTile(systemImage: systemImage, fill: .gradient(colors), size: 44, cornerRadius: 10, iconSize: 21)
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.title3.weight(.semibold))
@@ -105,14 +140,7 @@ struct DialogRowLabel: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(tint)
-                .overlay(
-                    Image(systemName: systemImage)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.white)
-                )
-                .frame(width: 22, height: 22)
+            IconTile(systemImage: systemImage, fill: .solid(tint))
             if let subtitle {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
@@ -195,14 +223,7 @@ struct DialogDrawer<Content: View>: View {
                 }
             } label: {
                 HStack(spacing: 9) {
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(color.gradient)
-                        .overlay(
-                            Image(systemName: systemImage)
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(.white)
-                        )
-                        .frame(width: 22, height: 22)
+                    IconTile(systemImage: systemImage, fill: .systemGradient(color))
                     Text(title)
                         .font(.body.weight(.medium))
                     Spacer(minLength: 0)
