@@ -1126,6 +1126,7 @@
 "releaseAssistant.subtitle" = "Pack a build folder, inspect it, and write checksums — in one pass";
 "releaseAssistant.section.source" = "What to Ship";
 "releaseAssistant.section.steps" = "Steps";
+"releaseAssistant.section.outputs" = "Outputs & Signing";
 "releaseAssistant.sourceFolder" = "Build Folder";
 "releaseAssistant.chooseSource" = "Choose the folder to pack";
 "releaseAssistant.chooseDestination" = "Choose where the archive lands";

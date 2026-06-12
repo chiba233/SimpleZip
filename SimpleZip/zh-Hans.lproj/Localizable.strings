@@ -1124,6 +1124,7 @@
 "releaseAssistant.subtitle" = "打包产物目录、运行检查、写校验文件——一条流完成";
 "releaseAssistant.section.source" = "要发布什么";
 "releaseAssistant.section.steps" = "步骤";
+"releaseAssistant.section.outputs" = "产出与签名";
 "releaseAssistant.sourceFolder" = "产物目录";
 "releaseAssistant.chooseSource" = "选择要打包的文件夹";
 "releaseAssistant.chooseDestination" = "选择归档输出位置";

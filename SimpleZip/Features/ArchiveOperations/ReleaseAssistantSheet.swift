@@ -207,23 +207,31 @@ struct ReleaseAssistantSheet: View {
                     pinsToTrailing: true,
                     isOn: $request.runInspection
                 )
-                DialogToggleRow(
-                    title: L10n.text("releaseAssistant.checksums"),
-                    subtitle: L10n.text("releaseAssistant.checksums.subtitle"),
-                    systemImage: "number.square.fill", tint: .orange,
-                    pinsToTrailing: true,
-                    isOn: $request.writeChecksums
-                )
+            }
+
+            // #18 一级密度治理:伴生产物(SHA256SUMS / .szs 签名)收进普通抽屉,子行单色;
+            // 打包行为三开关(排垃圾/可复现/发布检查)是本对话框的灵魂,留一级。
+            DialogDrawer(L10n.text("releaseAssistant.section.outputs"), systemImage: "square.and.arrow.down", color: .orange) {
+                drawerToggle("releaseAssistant.checksums", subtitleKey: "releaseAssistant.checksums.subtitle", systemImage: "number.square", isOn: $request.writeChecksums)
                 if showsGPGRow {
-                    DialogToggleRow(
-                        title: L10n.text("releaseAssistant.sign"),
-                        subtitle: L10n.text("releaseAssistant.sign.subtitle"),
-                        systemImage: "signature", tint: .green,
-                        pinsToTrailing: true,
-                        isOn: $request.createSignedManifest
-                    )
+                    drawerToggle("releaseAssistant.sign", subtitleKey: "releaseAssistant.sign.subtitle", systemImage: "signature", isOn: $request.createSignedManifest)
                 }
             }
+        }
+    }
+
+    /// #18 抽屉子行:单色 Label + 紧贴开关 + caption 说明(解压/转换对话框同款)。
+    private func drawerToggle(_ titleKey: String, subtitleKey: String, systemImage: String, isOn: Binding<Bool>) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                Label(L10n.text(titleKey), systemImage: systemImage)
+                Toggle("", isOn: isOn)
+                    .labelsHidden()
+            }
+            Text(L10n.text(subtitleKey))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
