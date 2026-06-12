@@ -33,7 +33,7 @@ import Foundation
 /// - 解析 clearsigned `.szs` → 验签结果 + Manifest；
 /// - 校验每条 file entry 的实际 SHA256 → 汇总 `SZSVerifyReport`。
 enum SZSArchive {
-    static let extensionName = "szs"
+    nonisolated static let extensionName = "szs"
     static let schemaIdentifier = "SimpleZip.szs"
     /// 当前 schema 版本 —— **v2** 新加 `instructions` 字段（#110 收件人说明模板，整份 manifest 由 clearsign 背书 → 防篡改）。
     /// 跟 `.siz` 同一惯例：新增字段就 bump version + 在 `acceptedSchemaVersions` 加一项；创建端总是写最新 v2。
@@ -637,5 +637,70 @@ enum SZSArchive {
             }
         }
         return entries
+    }
+}
+
+// MARK: - 随包验证材料(发包端闭环)
+
+extension SZSArchive {
+    /// `VERIFY.md` 的内容 —— 跟公钥 `.asc` 一起放在 `.szs` 旁,收件人**不装 SimpleZip** 也能验证:
+    /// `.szs` 本体是 clearsigned 文本清单,`gpg --verify` 直接吃。固定英文(分发对象任意,
+    /// 内容是终端命令说明)。纯字符串构造,SwiftPM 可测。
+    nonisolated static func verifyInstructions(
+        containerName: String,
+        publicKeyFileName: String,
+        fingerprint: String
+    ) -> String {
+        """
+        # Verifying \(containerName)
+
+        This folder ships `\(containerName)` — a signed manifest covering the release \
+        files — together with the signer's public key (`\(publicKeyFileName)`).
+
+        ## 1. Import the public key
+
+            gpg --import \(quotedIfNeeded(publicKeyFileName))
+
+        Signer key fingerprint — compare it with what you received through another \
+        channel (project page, prior correspondence):
+
+            \(groupedFingerprint(fingerprint))
+
+        ## 2. Verify the manifest signature
+
+            gpg --verify \(quotedIfNeeded(containerName))
+
+        The `.szs` file is a clearsigned text manifest, so gpg verifies it directly. \
+        Expect "Good signature" from the key above.
+
+        ## 3. Check the file hashes
+
+        The manifest lists each covered file with its SHA-256. With SimpleZip, \
+        double-click the `.szs` to verify everything in one step; manually:
+
+            shasum -a 256 <file>
+
+        If a `SHA256SUMS` file is present, all files verify in one command:
+
+            shasum -a 256 -c SHA256SUMS
+        """
+    }
+
+    /// 指纹按 4 字符分组(gpg 展示惯例),便于人眼比对。
+    nonisolated static func groupedFingerprint(_ raw: String) -> String {
+        let cleaned = raw.replacingOccurrences(of: " ", with: "").uppercased()
+        var groups: [String] = []
+        var index = cleaned.startIndex
+        while index < cleaned.endIndex {
+            let end = cleaned.index(index, offsetBy: 4, limitedBy: cleaned.endIndex) ?? cleaned.endIndex
+            groups.append(String(cleaned[index..<end]))
+            index = end
+        }
+        return groups.joined(separator: " ")
+    }
+
+    /// 文件名带空格时给命令示例加引号 —— 否则照原样(常见情形可直接复制运行)。
+    private nonisolated static func quotedIfNeeded(_ name: String) -> String {
+        name.contains(" ") ? "\"\(name)\"" : name
     }
 }

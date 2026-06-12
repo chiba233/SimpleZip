@@ -227,13 +227,7 @@ struct GeneralPane: View {
                     systemImage: "terminal", iconTint: .indigo
                 ) {
                     HStack(spacing: 8) {
-                        if cliStatus == .installed {
-                            Button {
-                                uninstallCLITool()
-                            } label: {
-                                Label(L10n.text("settings.cli.uninstall"), systemImage: "xmark.circle")
-                            }
-                        } else {
+                        if cliStatus != .installed {
                             Button {
                                 installCLITool()
                             } label: {
@@ -241,6 +235,14 @@ struct GeneralPane: View {
                             }
                             // 转译位置(隔离未清的 DMG 直跑)装出来的链接指向一次性挂载路径,禁装。
                             .disabled(CommandLineToolInstaller.isRunningTranslocated)
+                        }
+                        // 链接存在就给卸载(指向当前 app 或指向别处都算)—— 有装必有卸。
+                        if cliStatus != .missing {
+                            Button {
+                                uninstallCLITool()
+                            } label: {
+                                Label(L10n.text("settings.cli.uninstall"), systemImage: "xmark.circle")
+                            }
                         }
                     }
                 }
@@ -437,7 +439,10 @@ struct GeneralPane: View {
             try CommandLineToolInstaller.install()
             cliManualCommand = nil
             cliMessage = nil
+        } catch CommandLineToolInstaller.InstallError.cancelled {
+            // 用户在系统授权弹窗点了取消 —— 不是失败,什么都不弹。
         } catch {
+            // 授权路径也失败(罕见)→ 给可复制的手动命令兜底。
             cliManualCommand = CommandLineToolInstaller.manualInstallCommand
             cliMessage = nil
         }
@@ -449,6 +454,8 @@ struct GeneralPane: View {
             try CommandLineToolInstaller.uninstall()
             cliManualCommand = nil
             cliMessage = nil
+        } catch CommandLineToolInstaller.InstallError.cancelled {
+            // 取消授权 —— 静默。
         } catch {
             cliManualCommand = CommandLineToolInstaller.manualUninstallCommand
             cliMessage = nil

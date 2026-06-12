@@ -375,6 +375,10 @@
 "szs.create.creating" = "Creating…";
 "szs.create.cancelButton" = "Cancel";
 "szs.create.succeeded" = "Signed manifest generated: %@";
+"szs.create.exportKit.toggle" = "Export Public Key & VERIFY.md";
+"szs.create.exportKit.subtitle" = "Writes PUBLIC_KEY.asc and VERIFY.md next to the manifest — recipients verify without SimpleZip";
+"szs.create.exportKit.needsKey" = "Pick a specific signing key to enable";
+"szs.create.exportKit.partial" = "Manifest created, but exporting the verification kit failed: %@";
 "szs.create.failed" = "Creation failed: %@";
 "szs.silentBrowse.menuItem" = "Browse as Virtual Folder";
 "szs.silentBrowse.warning.title" = "Signed manifest has issues";
@@ -878,6 +882,8 @@
 "inspect.symlinks.some" = "%1$@ symbolic links";
 "inspect.comment.present" = "Has an archive comment";
 "inspect.comment.none" = "No archive comment";
+"inspect.publicKey.present" = "Public key (.asc) ships beside the signed manifest";
+"inspect.publicKey.missing" = "A signed manifest sits in this folder, but no public key (.asc) — recipients can't verify independently";
 /* 0.4.2 built-in archive templates */
 "archive.template.menu" = "Apply Template";
 "template.githubRelease" = "GitHub Release ZIP";
@@ -1074,7 +1080,7 @@
 "settings.cli.status.installed" = "Installed: %@";
 "settings.cli.status.missing" = "Not installed. Run \"simplezip help\" after installing.";
 "settings.cli.status.foreign" = "The path is taken by something else: %@ — installing will repoint it.";
-"settings.cli.manualHint" = "No permission to write /usr/local/bin — run this in Terminal instead:";
+"settings.cli.manualHint" = "Automatic install failed — run this in Terminal instead:";
 "settings.cli.copyCommand" = "Copy Command";
 "settings.cli.translocated" = "SimpleZip is running from a temporary location (unverified download). Move it to Applications and relaunch before installing.";
 "status.selectionCount" = "%d selected";

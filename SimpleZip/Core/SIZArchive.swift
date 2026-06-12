@@ -33,7 +33,7 @@ import Foundation
 /// 和 metadata.json 的序列化。
 enum SIZArchive {
     /// 文件名约定：内层 archive 固定叫 `archive.<ext>`，让 unwrap 一眼就识别。
-    static let extensionName = "siz"
+    nonisolated static let extensionName = "siz"
     static let metadataFileName = "metadata.json"
     static let signatureFileName = "signature.asc"
 

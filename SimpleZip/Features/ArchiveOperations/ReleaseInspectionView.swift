@@ -51,6 +51,12 @@ struct ReleaseInspectionView: View {
                             countRow(count: stats.executableCount, key: "inspect.executables", informational: true)
                             countRow(count: stats.symlinkCount, key: "inspect.symlinks", informational: true)
                             row(ok: true, text: L10n.text(report.hasComment ? "inspect.comment.present" : "inspect.comment.none"), neutral: true)
+                            // 公钥同捆提醒(发包端闭环):目录里有签名容器(.szs/.siz)才显示这一行。
+                            if let hasPublicKey = report.publicKeyBesideSignature {
+                                row(ok: hasPublicKey,
+                                    text: L10n.text(hasPublicKey ? "inspect.publicKey.present" : "inspect.publicKey.missing"),
+                                    neutral: hasPublicKey)
+                            }
                         }
                     }
 
@@ -177,6 +183,9 @@ struct ReleaseInspectionView: View {
         }
         if let sha256 = report.sha256 {
             lines.append("SHA-256: \(sha256)")
+        }
+        if let hasPublicKey = report.publicKeyBesideSignature {
+            lines.append((hasPublicKey ? "✓ " : "✗ ") + L10n.text(hasPublicKey ? "inspect.publicKey.present" : "inspect.publicKey.missing"))
         }
         return lines.joined(separator: "\n")
     }

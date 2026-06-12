@@ -461,22 +461,64 @@ enum CommandLineToolInstaller {
         return destination == executablePath ? .installed : .foreign(destination)
     }
 
-    /// 直接装(覆盖旧链接)。/usr/local/bin 不可写(Apple Silicon 默认 root 属主)时抛错,
-    /// UI 转而展示 `manualInstallCommand` 让用户自己在终端 sudo —— 本 app 不做提权。
-    static func install() throws {
-        let fileManager = FileManager.default
-        if (try? fileManager.destinationOfSymbolicLink(atPath: linkPath)) != nil {
-            try fileManager.removeItem(atPath: linkPath)
-        }
-        try fileManager.createSymbolicLink(atPath: linkPath, withDestinationPath: executablePath)
+    enum InstallError: Error {
+        /// 用户在系统授权弹窗里点了取消 —— 不算失败,UI 不弹手动命令。
+        case cancelled
+        case failed(String)
     }
 
+    /// 安装(覆盖旧链接):先试直接写;/usr/local/bin 不可写(Apple Silicon 默认 root 属主)时
+    /// 弹**系统管理员授权对话框**(`do shell script … with administrator privileges`,标准 macOS
+    /// 凭据弹窗 —— 用户点名要这个)。授权被取消抛 `.cancelled`;脚本失败抛 `.failed`,
+    /// UI 再给可复制的手动命令兜底。
+    static func install() throws {
+        let fileManager = FileManager.default
+        do {
+            if (try? fileManager.destinationOfSymbolicLink(atPath: linkPath)) != nil {
+                try fileManager.removeItem(atPath: linkPath)
+            }
+            try fileManager.createSymbolicLink(atPath: linkPath, withDestinationPath: executablePath)
+        } catch {
+            try runPrivileged("mkdir -p /usr/local/bin && ln -sf \(shellQuoted(executablePath)) \(linkPath)")
+        }
+    }
+
+    /// 卸载:同样先直接删,不行再走管理员授权。
     static func uninstall() throws {
-        try FileManager.default.removeItem(atPath: linkPath)
+        do {
+            try FileManager.default.removeItem(atPath: linkPath)
+        } catch {
+            try runPrivileged("rm -f \(linkPath)")
+        }
+    }
+
+    /// AppleScript `with administrator privileges` = 系统标准管理员凭据弹窗(由 Security 框架托管,
+    /// 密码不经过本 app)。同步阻塞主线程直到用户响应 —— 点击动作里可接受。
+    private static func runPrivileged(_ command: String) throws {
+        let escaped = command
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+        guard let script = NSAppleScript(source: "do shell script \"\(escaped)\" with administrator privileges") else {
+            throw InstallError.failed("cannot build privileged script")
+        }
+        var errorInfo: NSDictionary?
+        script.executeAndReturnError(&errorInfo)
+        if let errorInfo {
+            // -128 = AppleScript 的「用户取消」。
+            if (errorInfo[NSAppleScript.errorNumber] as? Int) == -128 {
+                throw InstallError.cancelled
+            }
+            let message = (errorInfo[NSAppleScript.errorMessage] as? String) ?? "authorization failed"
+            throw InstallError.failed(message)
+        }
+    }
+
+    private static func shellQuoted(_ value: String) -> String {
+        "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 
     static var manualInstallCommand: String {
-        "sudo mkdir -p /usr/local/bin && sudo ln -sf '\(executablePath)' \(linkPath)"
+        "sudo mkdir -p /usr/local/bin && sudo ln -sf \(shellQuoted(executablePath)) \(linkPath)"
     }
 
     static var manualUninstallCommand: String {

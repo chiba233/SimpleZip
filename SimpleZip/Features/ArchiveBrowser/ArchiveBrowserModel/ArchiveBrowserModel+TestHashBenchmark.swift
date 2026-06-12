@@ -393,6 +393,18 @@ extension ArchiveBrowserModel {
         var testFailureMessage: String?
         var sha256: String?
         var hasComment = false
+        /// 公钥分发检查:归档同目录有签名容器(.szs/.siz)时,旁边有没有可分发的公钥(.asc)。
+        /// nil = 目录里没有签名容器,报告不显示该行;false = 有容器没公钥(收件人无法独立验证,提醒)。
+        var publicKeyBesideSignature: Bool?
+    }
+
+    /// 同目录的「签名容器 ↔ 公钥」同捆检查(发包端闭环):有 .szs/.siz 而没有任何 .asc → 提醒。
+    nonisolated static func publicKeyPresenceBesideSignature(at directory: URL) -> Bool? {
+        guard let names = try? FileManager.default.contentsOfDirectory(atPath: directory.path) else { return nil }
+        let lowered = names.map { $0.lowercased() }
+        let hasContainer = lowered.contains { $0.hasSuffix(".\(SZSArchive.extensionName)") || $0.hasSuffix(".\(SIZArchive.extensionName)") }
+        guard hasContainer else { return nil }
+        return lowered.contains { $0.hasSuffix(".asc") }
     }
 
     /// 右键「发布包检查…」：对选中的单个归档跑一套发布前检查（能否解压 / 危险路径 / 垃圾 /
@@ -456,6 +468,8 @@ extension ArchiveBrowserModel {
             report.sha256 = try? await Task.detached(priority: .userInitiated) {
                 try HashService.sha256(for: url)
             }.value
+            // ④ 公钥同捆检查:同目录有签名容器而没有 .asc 公钥 → 报告里提醒(发包端闭环)。
+            report.publicKeyBesideSignature = Self.publicKeyPresenceBesideSignature(at: url.deletingLastPathComponent())
             progress(ArchiveProgressState(fraction: 1.0, statusText: nil))
         }
     }

@@ -55,7 +55,11 @@ struct ReleaseAssistantSheet: View {
             HeightCappedScrollView(maxHeight: 480) {
                 VStack(alignment: .leading, spacing: 18) {
                     DialogSection(L10n.text("releaseAssistant.section.source")) {
-                        LabeledContent {
+                        // 值一侧全部顶到右缘(用户点名):label + Spacer + 值,与解压家族同款。
+                        // LabeledContent 在普通 VStack 里只按自然宽度排,右缘会参差。
+                        HStack(alignment: .center, spacing: 12) {
+                            DialogRowLabel(L10n.text("releaseAssistant.sourceFolder"), systemImage: "hammer.fill", tint: .orange)
+                            Spacer(minLength: 12)
                             folderPicker(
                                 selection: $request.sourceFolder,
                                 prompt: L10n.text("releaseAssistant.chooseSource")
@@ -68,35 +72,32 @@ struct ReleaseAssistantSheet: View {
                                     request.destinationFolder = chosen.deletingLastPathComponent()
                                 }
                             }
-                        } label: {
-                            DialogRowLabel(L10n.text("releaseAssistant.sourceFolder"), systemImage: "folder.fill", tint: .blue)
                         }
 
-                        LabeledContent {
-                            HStack(spacing: 8) {
-                                TextField("", text: $request.fileName)
-                                    .textFieldStyle(.roundedBorder)
-                                    .dialogFieldEmphasis()
-                                    .frame(maxWidth: 200)
-                                Picker("", selection: $request.format) {
-                                    ForEach([ArchiveCreateFormat.zip, .sevenZip]) { format in
-                                        Text(format.title).tag(format)
-                                    }
-                                }
-                                .labelsHidden()
-                                .fixedSize()
-                            }
-                        } label: {
+                        HStack(alignment: .center, spacing: 12) {
                             DialogRowLabel(L10n.text("archive.fileName"), systemImage: "shippingbox.fill", tint: .brown)
+                            Spacer(minLength: 12)
+                            TextField("", text: $request.fileName)
+                                .textFieldStyle(.roundedBorder)
+                                .dialogFieldEmphasis()
+                                .frame(maxWidth: 200)
+                            Picker("", selection: $request.format) {
+                                ForEach([ArchiveCreateFormat.zip, .sevenZip]) { format in
+                                    Text(format.title).tag(format)
+                                }
+                            }
+                            .labelsHidden()
+                            .fixedSize()
                         }
 
-                        LabeledContent {
+                        HStack(alignment: .center, spacing: 12) {
+                            // 与创建对话框「保存到」同键同图标同色(同类同色)。
+                            DialogRowLabel(L10n.text("archive.destination"), systemImage: "folder.fill", tint: .blue)
+                            Spacer(minLength: 12)
                             folderPicker(
                                 selection: $request.destinationFolder,
                                 prompt: L10n.text("releaseAssistant.chooseDestination")
                             ) { _ in }
-                        } label: {
-                            DialogRowLabel(L10n.text("archive.saveTo"), systemImage: "tray.and.arrow.down.fill", tint: .indigo)
                         }
                     }
 
@@ -105,24 +106,28 @@ struct ReleaseAssistantSheet: View {
                             title: L10n.text("releaseAssistant.excludeJunk"),
                             subtitle: L10n.text("releaseAssistant.excludeJunk.subtitle"),
                             systemImage: "paintbrush.fill", tint: .pink,
+                            pinsToTrailing: true,
                             isOn: $request.excludeJunk
                         )
                         DialogToggleRow(
                             title: L10n.text("releaseAssistant.reproducible"),
                             subtitle: L10n.text("releaseAssistant.reproducible.subtitle"),
                             systemImage: "arrow.triangle.2.circlepath.circle.fill", tint: .purple,
+                            pinsToTrailing: true,
                             isOn: $request.reproducible
                         )
                         DialogToggleRow(
                             title: L10n.text("releaseAssistant.inspect"),
                             subtitle: L10n.text("releaseAssistant.inspect.subtitle"),
                             systemImage: "checklist", tint: .teal,
+                            pinsToTrailing: true,
                             isOn: $request.runInspection
                         )
                         DialogToggleRow(
                             title: L10n.text("releaseAssistant.checksums"),
                             subtitle: L10n.text("releaseAssistant.checksums.subtitle"),
                             systemImage: "number.square.fill", tint: .orange,
+                            pinsToTrailing: true,
                             isOn: $request.writeChecksums
                         )
                         if showsGPGRow {
@@ -130,6 +135,7 @@ struct ReleaseAssistantSheet: View {
                                 title: L10n.text("releaseAssistant.sign"),
                                 subtitle: L10n.text("releaseAssistant.sign.subtitle"),
                                 systemImage: "signature", tint: .green,
+                                pinsToTrailing: true,
                                 isOn: $request.createSignedManifest
                             )
                         }

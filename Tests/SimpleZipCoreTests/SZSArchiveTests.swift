@@ -242,6 +242,26 @@ struct SZSArchiveTests {
         #expect(report.entries.first?.relativePath == "sub/nested.txt")
     }
 
+    // MARK: - 随包验证材料
+
+    @Test func verifyInstructionsMentionAllArtifactsAndGroupedFingerprint() {
+        let text = SZSArchive.verifyInstructions(
+            containerName: "MyApp 1.0.szs",
+            publicKeyFileName: "PUBLIC_KEY.asc",
+            fingerprint: "89aebb4ed1657cbcd9b8e207ff62c430f8e3"
+        )
+        #expect(text.contains("gpg --import PUBLIC_KEY.asc"))
+        // 名字带空格的容器在命令示例里要带引号。
+        #expect(text.contains("gpg --verify \"MyApp 1.0.szs\""))
+        #expect(text.contains("89AE BB4E D165 7CBC D9B8 E207 FF62 C430 F8E3"))
+        #expect(text.contains("SHA256SUMS"))
+    }
+
+    @Test func groupedFingerprintHandlesOddLengthsAndSpaces() {
+        #expect(SZSArchive.groupedFingerprint("abcd ef01 23") == "ABCD EF01 23")
+        #expect(SZSArchive.groupedFingerprint("") == "")
+    }
+
     private func makeTemporaryDirectory() throws -> URL {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("SimpleZip-SZSTests-\(UUID().uuidString)", isDirectory: true)

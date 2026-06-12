@@ -375,6 +375,10 @@
 "szs.create.creating" = "正在创建…";
 "szs.create.cancelButton" = "取消";
 "szs.create.succeeded" = "签名清单已生成：%@";
+"szs.create.exportKit.toggle" = "随包导出公钥与验证说明";
+"szs.create.exportKit.subtitle" = "在清单旁写出 PUBLIC_KEY.asc 与 VERIFY.md——收件人不装 SimpleZip 也能验证";
+"szs.create.exportKit.needsKey" = "选择具体签名密钥后可用";
+"szs.create.exportKit.partial" = "签名清单已创建，但验证材料导出失败：%@";
 "szs.create.failed" = "生成失败：%@";
 "szs.silentBrowse.menuItem" = "以虚拟目录浏览";
 "szs.silentBrowse.warning.title" = "签名清单存在问题";
@@ -876,6 +880,8 @@
 "inspect.symlinks.some" = "%1$@ 个符号链接";
 "inspect.comment.present" = "带归档注释";
 "inspect.comment.none" = "无归档注释";
+"inspect.publicKey.present" = "公钥（.asc）已随签名清单同捆";
+"inspect.publicKey.missing" = "目录里有签名清单，但没有公钥（.asc）——收件人无法独立验证";
 /* 0.4.2 内置归档模板 */
 "archive.template.menu" = "套用模板";
 "template.githubRelease" = "发 GitHub Release 的 ZIP";
@@ -1072,7 +1078,7 @@
 "settings.cli.status.installed" = "已安装：%@";
 "settings.cli.status.missing" = "未安装。安装后可运行「simplezip help」。";
 "settings.cli.status.foreign" = "路径已被其他内容占用：%@——安装会将其重新指向本应用。";
-"settings.cli.manualHint" = "没有写入 /usr/local/bin 的权限——请在终端执行：";
+"settings.cli.manualHint" = "自动安装失败——请在终端执行：";
 "settings.cli.copyCommand" = "复制命令";
 "settings.cli.translocated" = "SimpleZip 正在临时位置运行（未验证的下载）。请先将其移入「应用程序」并重新启动，再安装。";
 "status.selectionCount" = "已选 %d 项";

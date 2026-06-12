@@ -38,6 +38,10 @@ struct CreateSZSSheet: View {
     @State private var isCreating = false
     @State private var statusMessage: String?
     @State private var statusIsError = false
+    /// 发包端闭环:随 `.szs` 在旁边导出签名公钥(`PUBLIC_KEY.asc`)+ 验证说明(`VERIFY.md`),
+    /// 收件人不装 SimpleZip 也能 `gpg --import` + `--verify`。默认开 —— 签名分发的意义就在能验。
+    /// 需要**具体**签名密钥(「自动」时不知道 gpg 会用哪把,该开关禁用而不是静默跳过)。
+    @State private var exportVerificationKit = true
 
     /// 标签列定宽(en 最长 "Description (optional)" + 22pt 瓦片也放得下)；hint 行用它对齐值列。
     private let labelColumnWidth: CGFloat = 190
@@ -62,6 +66,7 @@ struct CreateSZSSheet: View {
                     }
                     DialogSection(L10n.text("szs.create.section.signing")) {
                         signingKeyRow
+                        exportVerificationKitRow
                         encryptFilesRows
                         outputRow
                     }
@@ -227,6 +232,24 @@ struct CreateSZSSheet: View {
     }
 
     // MARK: - 把文件加密成 .gpg（可选）
+
+    /// 「随包导出公钥与验证说明」开关。签名密钥为「自动」时禁用(导出需要知道具体哪把),
+    /// 副标题随状态切换说明原因 —— 不静默跳过。
+    @ViewBuilder
+    private var exportVerificationKitRow: some View {
+        DialogToggleRow(
+            title: L10n.text("szs.create.exportKit.toggle"),
+            subtitle: signingKeyFingerprint.isEmpty
+                ? L10n.text("szs.create.exportKit.needsKey")
+                : L10n.text("szs.create.exportKit.subtitle"),
+            systemImage: "person.badge.key.fill",
+            tint: .teal,
+            pinsToTrailing: true,
+            isOn: $exportVerificationKit
+        )
+        .disabled(signingKeyFingerprint.isEmpty)
+        .opacity(signingKeyFingerprint.isEmpty ? 0.55 : 1)
+    }
 
     @ViewBuilder
     private var encryptFilesRows: some View {
@@ -443,15 +466,54 @@ struct CreateSZSSheet: View {
                     encryptionUsesSimpleZipKeyring: encryptFiles && selectedRecipientSources == [.simpleZipKeyring],
                     outputURL: outputURL
                 )
+                // 随包验证材料(公钥 .asc + VERIFY.md):开关开且选了具体密钥才做。
+                // 导出失败不影响已成功的 `.szs`,但绝不静默 —— 状态行写明 + 任务日志留痕。
+                var kitLog: [TransferLogEntry] = []
+                var kitFailureMessage: String?
+                if exportVerificationKit, !signingKeyFingerprint.isEmpty {
+                    do {
+                        let source = availableSecretKeys.first(where: { $0.fingerprint == signingKeyFingerprint })?.source ?? .userKeyring
+                        let armored = try await GPGBackend.exportPublicKey(fingerprint: signingKeyFingerprint, source: source)
+                        let directory = outputURL.deletingLastPathComponent()
+                        let keyURL = UniqueFileName.suffixed(for: directory.appendingPathComponent("PUBLIC_KEY.asc"), suffix: "") {
+                            FileManager.default.fileExists(atPath: $0.path)
+                        }
+                        try armored.write(to: keyURL, atomically: true, encoding: .utf8)
+                        let verifyURL = UniqueFileName.suffixed(for: directory.appendingPathComponent("VERIFY.md"), suffix: "") {
+                            FileManager.default.fileExists(atPath: $0.path)
+                        }
+                        try SZSArchive.verifyInstructions(
+                            containerName: outputName,
+                            publicKeyFileName: keyURL.lastPathComponent,
+                            fingerprint: signingKeyFingerprint
+                        ).write(to: verifyURL, atomically: true, encoding: .utf8)
+                        kitLog = [keyURL, verifyURL].map {
+                            TransferLogEntry(name: $0.lastPathComponent, action: .added, isDirectory: false)
+                        }
+                    } catch {
+                        kitFailureMessage = error.localizedDescription
+                    }
+                }
+                let exportFailure = kitFailureMessage
+                let exportLog = kitLog
                 await MainActor.run {
                     var log = manifest.files.map {
                         TransferLogEntry(name: $0.relativePath, action: .added, isDirectory: false)
                     }
                     log.append(TransferLogEntry(name: outputName, action: .added, isDirectory: false))
+                    log.append(contentsOf: exportLog)
                     task.transferLog = log
                     detailsSession.finishedAt = Date()
                     TaskCenter.shared.finish(task, outcome: .succeeded(outputURL))
                     SystemSound.operationComplete?.play()
+                    if let exportFailure {
+                        detailsSession.append(exportFailure)
+                        statusMessage = L10n.format("szs.create.exportKit.partial", exportFailure)
+                        statusIsError = true
+                        isCreating = false
+                        // 部分失败:不自动关 sheet,让用户读完提示自己关。
+                        return
+                    }
                     statusMessage = L10n.format("szs.create.succeeded", outputName)
                     statusIsError = false
                     isCreating = false
