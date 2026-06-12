@@ -175,9 +175,16 @@ final class ChangelogFeed: ObservableObject {
         var id: String { version }
 
         /// Markdown 渲染（保留换行；解析失败退回纯文本，绝不丢内容）。
+        /// 渲染前把 `~` 和 `_` 转义成字面量:inlineOnly 模式下整个正文是**一个段落**,
+        /// 跨行的两个 `~`(如 `~/.Trash` 与 `~/文稿`)会被 GFM 配成删除线区间,把中间几条
+        /// 更新整段画上横线(用户截图实锤);`__MACOSX` 这类双下划线同理有配对风险。
+        /// CHANGELOG 约定从不写删除线/下划线强调,转义零损失;粗体/链接/反引号照常。
         var attributedBody: AttributedString {
-            (try? AttributedString(
-                markdown: body,
+            let literal = body
+                .replacingOccurrences(of: "~", with: "\\~")
+                .replacingOccurrences(of: "_", with: "\\_")
+            return (try? AttributedString(
+                markdown: literal,
                 options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
             )) ?? AttributedString(body)
         }
