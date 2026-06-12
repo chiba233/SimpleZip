@@ -34,11 +34,16 @@ struct ActivityTaskRow: View {
                         isShowingDetails.toggle()
                     }
                 } label: {
-                    Image(systemName: iconName)
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(iconColor)
-                        .frame(width: 24, height: 24)
-                        .background(iconColor.opacity(0.12), in: Circle())
+                    // #17 跟进(用户拍板):图标从「淡色圆底」换成圆角矩形彩色瓦片(白符号+状态色渐变),
+                    // 与侧栏/设置区的瓦片同一家族。
+                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .fill(iconColor.gradient)
+                        .overlay(
+                            Image(systemName: iconName)
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(.white)
+                        )
+                        .frame(width: 26, height: 26)
                 }
                 .buttonStyle(.plain)
                 .help(hasDetails ? L10n.text("button.details") : "")
@@ -202,22 +207,22 @@ struct ActivityTaskRow: View {
             LazyVStack(alignment: .leading, spacing: 10) {
                     // 失败项排最前 —— 用户最关心「哪些没成」。
                     if !failed.isEmpty {
-                        TransferLogGroup(title: L10n.text("transfer.section.failed"), entries: failed, icon: "exclamationmark.circle.fill", tint: .red, hashByName: hashByName)
+                        TransferLogGroup(title: L10n.text("transfer.section.failed"), entries: failed, icon: "exclamationmark.triangle.fill", tint: .red, hashByName: hashByName)
                     }
                     if !passed.isEmpty {
-                        TransferLogGroup(title: L10n.text("transfer.section.passed"), entries: passed, icon: "checkmark.seal.fill", tint: .green, hashByName: hashByName)
+                        TransferLogGroup(title: L10n.text("transfer.section.passed"), entries: passed, icon: "checkmark", tint: .green, hashByName: hashByName)
                     }
                     if !added.isEmpty {
-                        TransferLogGroup(title: L10n.text("transfer.section.added"), entries: added, icon: "plus.circle.fill", tint: .green, hashByName: hashByName)
+                        TransferLogGroup(title: L10n.text("transfer.section.added"), entries: added, icon: "plus", tint: .green, hashByName: hashByName)
                     }
                     if !overwritten.isEmpty {
-                        TransferLogGroup(title: L10n.text("transfer.section.overwritten"), entries: overwritten, icon: "arrow.triangle.2.circlepath.circle.fill", tint: .orange, hashByName: hashByName)
+                        TransferLogGroup(title: L10n.text("transfer.section.overwritten"), entries: overwritten, icon: "arrow.triangle.2.circlepath", tint: .orange, hashByName: hashByName)
                     }
                     if !changed.isEmpty {
                         TransferLogGroup(title: L10n.text("transfer.section.changed"), entries: changed, icon: "lock.shield.fill", tint: .green, hashByName: hashByName)
                     }
                     if !skipped.isEmpty {
-                        TransferLogGroup(title: L10n.text("transfer.section.skipped"), entries: skipped, icon: "minus.circle.fill", tint: .secondary, hashByName: hashByName)
+                        TransferLogGroup(title: L10n.text("transfer.section.skipped"), entries: skipped, icon: "minus", tint: .secondary, hashByName: hashByName)
                     }
                     if !deleted.isEmpty {
                         TransferLogGroup(title: L10n.text("transfer.section.deleted"), entries: deleted, icon: "trash.fill", tint: .red, hashByName: hashByName)
@@ -530,8 +535,15 @@ private struct TransferLogGroup: View {
                     } else {
                         VStack(alignment: .leading, spacing: 1) {
                             HStack(spacing: 6) {
-                                Image(systemName: icon)
-                                    .foregroundStyle(tint)
+                                // 用户拍板:详情(折叠抽屉)内的图标同样换圆角矩形彩色小瓦片。
+                                RoundedRectangle(cornerRadius: 4.5, style: .continuous)
+                                    .fill(tint.gradient)
+                                    .overlay(
+                                        Image(systemName: icon)
+                                            .font(.system(size: 9, weight: .semibold))
+                                            .foregroundStyle(.white)
+                                    )
+                                    .frame(width: 16, height: 16)
                                 Text(entry.isDirectory ? L10n.format("transfer.folderName", entry.name) : entry.name)
                                     .lineLimit(1)
                                     .truncationMode(.middle)
@@ -544,7 +556,7 @@ private struct TransferLogGroup: View {
                                     .font(.caption2)
                                     .foregroundStyle(.secondary)
                                     .lineLimit(2)
-                                    .padding(.leading, 20)
+                                    .padding(.leading, 22)
                             }
                         }
                         .padding(.leading, 12)
