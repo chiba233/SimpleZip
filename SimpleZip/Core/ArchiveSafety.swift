@@ -495,3 +495,67 @@ enum ArchiveStructuralFingerprint {
         return path
     }
 }
+
+// MARK: - 智能去单层目录(队列 #13)
+
+/// 「单层包装壳」检测与上提:`project-1.0/` 把所有内容包了一层(GitHub 源码包的常态)。
+/// 解压对话框检测到后给开关,选中则在 **staging** 上把壳内内容上提一层再合并 ——
+/// 与 skipJunk / skipSymlinks 同点位,目标目录零接触。
+enum ArchiveSingleRootFolder {
+
+    /// 全部条目都在同一个顶层目录下时返回该目录名;顶层有任何文件 / 多个顶层目录 → nil。
+    /// 垃圾条目(.DS_Store / __MACOSX / AppleDouble…)不参与判定。
+    nonisolated static func detect(in items: [ArchiveItem]) -> String? {
+        var root: String?
+        for item in items where !ArchiveJunkFiles.isJunkPath(item.name) {
+            var path = item.name.replacingOccurrences(of: "\\", with: "/")
+            if path.hasPrefix("./") { path.removeFirst(2) }
+            while path.hasPrefix("/") { path.removeFirst() }
+            while path.hasSuffix("/") { path.removeLast() }
+            guard !path.isEmpty else { continue }
+            let top = path.split(separator: "/", maxSplits: 1, omittingEmptySubsequences: true).first.map(String.init) ?? path
+            if path == top, !item.isDirectory {
+                // 顶层直接有文件 → 没有统一的壳。
+                return nil
+            }
+            if let existing = root {
+                if existing != top { return nil }
+            } else {
+                root = top
+            }
+        }
+        return root
+    }
+
+    /// staging 顶层恰好一个**真目录**(其余至多垃圾文件)时,把其内容上提一层、删掉空壳。
+    /// 壳是符号链接时拒绝处理(不跟随,防越界)。`project/project` 同名嵌套安全:先把壳挪到
+    /// 唯一临时名再上提,绝无覆盖。失败尽力回滚,staging 内容保持完整可合并。
+    @discardableResult
+    nonisolated static func lift(in stagingURL: URL) -> Bool {
+        let fileManager = FileManager.default
+        guard let entries = try? fileManager.contentsOfDirectory(
+            at: stagingURL,
+            includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey]
+        ) else { return false }
+        let visible = entries.filter { !ArchiveJunkFiles.isJunkPath($0.lastPathComponent) }
+        guard visible.count == 1, let wrapper = visible.first,
+              let values = try? wrapper.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey]),
+              values.isDirectory == true, values.isSymbolicLink != true else { return false }
+
+        let shell = stagingURL.appendingPathComponent(".simplezip-lift-\(UUID().uuidString)")
+        do {
+            try fileManager.moveItem(at: wrapper, to: shell)
+            for child in try fileManager.contentsOfDirectory(at: shell, includingPropertiesForKeys: nil) {
+                try fileManager.moveItem(at: child, to: stagingURL.appendingPathComponent(child.lastPathComponent))
+            }
+            try fileManager.removeItem(at: shell)
+            return true
+        } catch {
+            // 回滚尽力:壳还在临时名下就挪回原名(部分上提时保持现状 —— 内容一个不少,仍可合并)。
+            if fileManager.fileExists(atPath: shell.path), !fileManager.fileExists(atPath: wrapper.path) {
+                try? fileManager.moveItem(at: shell, to: wrapper)
+            }
+            return false
+        }
+    }
+}

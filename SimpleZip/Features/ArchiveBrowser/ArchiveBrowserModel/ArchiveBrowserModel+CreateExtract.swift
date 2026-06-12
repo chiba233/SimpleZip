@@ -1100,6 +1100,11 @@ extension ArchiveBrowserModel {
             if request.skipSymlinks {
                 ArchiveJunkFiles.removeSymlinks(in: stagingURL)
             }
+            // #13:「去单层目录」—— staging 顶层只有那个壳时把内容上提一层(壳为符号链接 /
+            // 结构对不上时安静放弃,按原结构合并 —— lift 自带防越界与同名嵌套保护)。
+            if request.stripSingleRootFolder {
+                ArchiveSingleRootFolder.lift(in: stagingURL)
+            }
             try await self.extractionCoordinator.mergeExtractedItems(
                 from: stagingURL,
                 to: request.destinationURL,

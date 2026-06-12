@@ -375,6 +375,11 @@ struct ExtractArchiveRequest: Identifiable {
     var skipJunk = false
     /// 0.4.3 #15：不解压符号链接 —— 在 staging 上删光再合并（符号链接安全策略自然无须再问）。
     var skipSymlinks = false
+    /// #13 智能去单层目录:预检检测到「全部内容都包在一个顶层目录里」时填它(目录名),
+    /// 对话框据此显示开关 + 最终路径预览;nil = 没有统一壳 / 预检没跑成,开关不显示。
+    var detectedSingleRootFolder: String? = nil
+    /// #13:勾选后在 staging 上把壳内内容上提一层再合并(默认关,不改变既有行为)。
+    var stripSingleRootFolder = false
     /// `.siz` 走解压 / 浏览路径时附带的签名摘要 —— 解压对话框里多出「签名 / 签名时间」两行展示。
     /// nil = 不是 .siz / 用户关了 GPG 集成。
     /// 跟签名 sheet 共用同一份 model，UI 状态全部从 `verify`（GPG 原始枚举）派生。

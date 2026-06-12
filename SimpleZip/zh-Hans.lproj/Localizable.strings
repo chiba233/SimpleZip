@@ -728,6 +728,9 @@
 "archive.reproducible" = "可复现压缩";
 "archive.reproducible.hint" = "不存修改时间——同一输入每次打包都得到字节级一致的归档（同一个 SHA-256）。适合 GitHub Release 和可验证构建。解压时条目时间显示为 1980-01-01。仅 ZIP 与 7z。";
 "extract.skipSymlinks" = "不解压符号链接";
+"extract.stripSingleRoot" = "去掉「%@」这层包装目录";
+"extract.stripSingleRoot.on" = "内容直接落在 %1$@/ 下——%2$@ 这一层将被去掉";
+"extract.stripSingleRoot.off" = "解出后位于 %1$@/%2$@/（保留包装层）";
 "extract.skipSymlinks.detail" = "合并前在 staging 上删掉所有符号链接——来自其他系统的包,链接常指向本机不存在的路径。上方预检概要里有链接数量可对照。";
 /* 0.4.3 校验文件 */
 "checksum.generate.menu" = "生成 SHA256SUMS";

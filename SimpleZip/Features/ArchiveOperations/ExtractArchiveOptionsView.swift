@@ -45,6 +45,10 @@ struct ExtractArchiveOptionsView: View {
             skipJunkToggle
             // 0.4.3 #15：不解压符号链接（同样 staging 上处理;预检概要里有链接计数行可对照）。
             skipSymlinksToggle
+            // #13 智能去单层目录:仅当预检发现统一壳时出现,副标题写清两种选择的**最终路径**。
+            if request.detectedSingleRootFolder != nil {
+                stripSingleRootToggle
+            }
             // `.siz` 直接解压时多三行：签名状态 / 签名时间 / 签名指纹。普通归档时为 nil，extraControls 为空。
             if let signature = request.sizSignature {
                 SIZSignatureRows(signature: signature)
@@ -89,6 +93,23 @@ struct ExtractArchiveOptionsView: View {
             tint: .teal,
             pinsToTrailing: true,
             isOn: $request.skipJunk
+        )
+    }
+
+    /// #13:去单层目录开关。副标题随勾选实时切换,明确写出最终落点(用户硬要求:UI 必须写清最终路径)。
+    @ViewBuilder
+    private var stripSingleRootToggle: some View {
+        let root = request.detectedSingleRootFolder ?? ""
+        let destination = request.destinationURL.lastPathComponent
+        DialogToggleRow(
+            title: L10n.format("extract.stripSingleRoot", root),
+            subtitle: request.stripSingleRootFolder
+                ? L10n.format("extract.stripSingleRoot.on", destination, root)
+                : L10n.format("extract.stripSingleRoot.off", destination, root),
+            systemImage: "square.3.layers.3d.down.left",
+            tint: .indigo,
+            pinsToTrailing: true,
+            isOn: $request.stripSingleRootFolder
         )
     }
 
@@ -175,6 +196,8 @@ struct ExtractArchiveOptionsView: View {
                 let items = try await ArchiveService.list(url, password: password)
                 preflight = ArchiveExtractPreflight.analyze(items)
                 preflightTopLevelNames = ArchiveExtractPreflight.topLevelNames(of: items)
+                // #13:检测「单层包装壳」,有则显示去壳开关(默认关)。
+                request.detectedSingleRootFolder = ArchiveSingleRootFolder.detect(in: items)
                 recomputeOverwriteCount()
             } catch {
                 // 读不到（header 加密没密码 / 损坏）→ 收起概要即可，对话框本职（选目录、给密码）不受影响。
