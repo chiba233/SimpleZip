@@ -56,7 +56,21 @@ enum NativeZipBackend {
     // MARK: - test
 
     /// `unzip -t` —— 退出码非零会被 BackendProcessRunner 转成抛错。
+    ///
+    /// 加密 zip 例外:unzip 对 AES 条目只会「skipping … need PK compat. v5.1」、对 ZipCrypto 等
+    /// stdin 口令 —— 两种输出都不含「需要口令」的诊断词,`errorSuggestsPasswordRequirement`
+    /// 永远不命中,GUI / CLI 都不会弹口令重试(CLI check 实测漏)。检出加密(含 mixed)且 7zz
+    /// 可用时整体交给 7zz t:它报 "Cannot open encrypted archive…",统一密码中心的判定词接得上。
     static func test(_ archive: URL, operationID: UUID? = nil, outputObserver: (@Sendable (String) -> Void)? = nil) async throws {
+        switch ArchiveService.detectZipEncryption(in: archive) {
+        case .zipCrypto, .aes128, .aes192, .aes256, .mixed:
+            if SevenZipBackend.isAvailable() {
+                try await SevenZipBackend.test(archive, operationID: operationID, outputObserver: outputObserver)
+                return
+            }
+        case .none, .unknown:
+            break
+        }
         _ = try await BackendProcessRunner.runAndCapture(
             "/usr/bin/unzip",
             arguments: ["-t", archive.path],
