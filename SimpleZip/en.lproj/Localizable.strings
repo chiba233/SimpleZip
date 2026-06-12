@@ -1084,6 +1084,8 @@
 "settings.cli.manualHint" = "Automatic install failed — run this in Terminal instead:";
 "settings.cli.copyCommand" = "Copy Command";
 "settings.cli.translocated" = "SimpleZip is running from a temporary location (unverified download). Move it to Applications and relaunch before installing.";
+"tasks.sleepWhenDone" = "Sleep When Done";
+"tasks.sleepWhenDone.help" = "Put the Mac to sleep once the last running task finishes (this session only).";
 "status.selectionCount" = "%d selected";
 "status.selectionSummary" = "%1$d selected · %2$@";
 "status.archiveSummary" = "Unpacks to %1$@ · archive %2$@";

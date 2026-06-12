@@ -20,6 +20,10 @@ final class TaskCenter: ObservableObject {
     /// 0.4.3 #5:「完成后退出」已被用户选择(applicationShouldTerminate 返回 terminateLater 中)。
     private(set) var quitAfterTasksFinish = false
 
+    /// 队列管理①:「全部完成后睡眠」—— 会话内开关(与「完成后退出」同性质,不持久化)。
+    /// 活动中心在有任务运行时给开关;最后一个任务收尾时整机睡眠,开关自动复位。
+    @Published var sleepWhenAllTasksFinish = false
+
     private var historyLimit: Int {
         AppPreferences.activityHistoryLimit
     }
@@ -210,6 +214,21 @@ final class TaskCenter: ObservableObject {
         // 0.4.3 #5:断言随任务清零释放;「完成后退出」在最后一个任务收尾时兑现。
         updateActivityAssertion()
         completeQuitIfIdle()
+        completeSleepIfIdle()
+    }
+
+    /// 「全部完成后睡眠」兑现:走 System Events 的标准睡眠事件 —— 普通权限可用
+    /// (首次触发 macOS 弹一次自动化授权);不用 `pmset sleepnow`(部分系统要 root,失败还无声)。
+    /// 开关用后即复位,绝不让下一批任务意外把机器睡过去。
+    private func completeSleepIfIdle() {
+        guard sleepWhenAllTasksFinish, active.isEmpty else { return }
+        sleepWhenAllTasksFinish = false
+        var errorInfo: NSDictionary?
+        NSAppleScript(source: "tell application \"System Events\" to sleep")?
+            .executeAndReturnError(&errorInfo)
+        if let errorInfo {
+            NSLog("SimpleZip: sleep-when-done failed: %@", errorInfo)
+        }
     }
 
     func cancelAll() {

@@ -75,6 +75,12 @@ struct ActivityView: View {
                         Spacer()
                         filterMenu(for: category)
                         if taskCenter.runningCount > 0 {
+                            // 队列管理①:「完成后睡眠」—— 仅任务运行期间可见;最后一个任务收尾时整机睡眠。
+                            Toggle(isOn: $taskCenter.sleepWhenAllTasksFinish) {
+                                Label(L10n.text("tasks.sleepWhenDone"), systemImage: "moon.zzz")
+                            }
+                            .toggleStyle(.button)
+                            .help(L10n.text("tasks.sleepWhenDone.help"))
                             Button {
                                 taskCenter.cancelAll()
                             } label: {
