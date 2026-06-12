@@ -117,11 +117,13 @@ struct ActivityTaskRow: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            // 0.4.2 用户报「二级滚动条瞬间接管」：详情不再内嵌滚动 —— 内容直接铺开，
-            // 只剩外层一条滚动条（长内容 = 卡片变高，由外层滚）。
-            LazyVStack(alignment: .leading, spacing: 8) {
-                ForEach(report.results) { result in
-                    HashResultCard(report: report, result: result)
+            // 0.4.4 用户报「几百个文件的哈希结果把卡片撑到天上」:详情封顶 320pt,
+            // 贴内容生长、超过才内滚(HeightCappedScrollView —— 短内容仍无二级滚动条)。
+            HeightCappedScrollView(maxHeight: 320) {
+                LazyVStack(alignment: .leading, spacing: 8) {
+                    ForEach(report.results) { result in
+                        HashResultCard(report: report, result: result)
+                    }
                 }
             }
             .padding(.vertical, 2)
@@ -153,9 +155,11 @@ struct ActivityTaskRow: View {
             }
             ArchiveDiffSummaryLine(report: report)
             if report.result.hasDifferences {
-                // 同上：不内嵌滚动，铺开随外层滚。
-                ArchiveDiffSections(report: report)
-                    .padding(.vertical, 2)
+                // 0.4.4:同哈希详情 —— 封顶 320pt,超过内滚。
+                HeightCappedScrollView(maxHeight: 320) {
+                    ArchiveDiffSections(report: report)
+                }
+                .padding(.vertical, 2)
             } else {
                 Text(L10n.format("diff.identical", report.result.unchanged.count))
                     .font(.caption)
@@ -170,10 +174,12 @@ struct ActivityTaskRow: View {
         VStack(alignment: .leading, spacing: 7) {
             Text(detailsHeaderTitle)
                 .font(.caption.weight(.semibold))
-            // 同上：不内嵌滚动，铺开随外层滚。
-            LazyVStack(alignment: .leading, spacing: 8) {
-                ForEach(Array(comparisons.enumerated()), id: \.offset) { _, result in
-                    HashComparisonCard(result: result)
+            // 0.4.4:封顶 320pt,超过内滚(短内容不出现二级滚动条)。
+            HeightCappedScrollView(maxHeight: 320) {
+                LazyVStack(alignment: .leading, spacing: 8) {
+                    ForEach(Array(comparisons.enumerated()), id: \.offset) { _, result in
+                        HashComparisonCard(result: result)
+                    }
                 }
             }
             .padding(.vertical, 2)
@@ -203,7 +209,34 @@ struct ActivityTaskRow: View {
                 transferLogSummary(added: added.count + passed.count, overwritten: overwritten.count + changed.count,
                                    skipped: skipped.count, failed: failed.count)
             }
-            // 0.4.2：不内嵌滚动（二级滚动条接管恶心），铺开随外层滚。
+            // 0.4.4:封顶 320pt(贴内容生长,超过才内滚)—— 大批量文件不再把卡片撑到天上。
+            HeightCappedScrollView(maxHeight: 320) {
+                transferLogGroupsList(
+                    failed: failed, passed: passed, added: added, overwritten: overwritten,
+                    changed: changed, skipped: skipped, deleted: deleted, hashByName: hashByName
+                )
+            }
+            .padding(.vertical, 2)
+
+            // 重试失败项 —— 仅当有失败项且任务挂了重试动作（运行时态，历史任务不可重试）。
+            if !failed.isEmpty, let retry = task.retryFailed {
+                Button {
+                    retry()
+                } label: {
+                    Label(L10n.format("transfer.retryFailed", "\(failed.count)"), systemImage: "arrow.clockwise")
+                }
+                .controlSize(.small)
+            }
+        }
+    }
+
+    /// 传输日志分组列表本体(transferLogDetails 拆出,套进高度封顶滚动)。
+    @ViewBuilder
+    private func transferLogGroupsList(
+        failed: [TransferLogEntry], passed: [TransferLogEntry], added: [TransferLogEntry],
+        overwritten: [TransferLogEntry], changed: [TransferLogEntry], skipped: [TransferLogEntry],
+        deleted: [TransferLogEntry], hashByName: [String: HashOverwriteResult]
+    ) -> some View {
             LazyVStack(alignment: .leading, spacing: 10) {
                     // 失败项排最前 —— 用户最关心「哪些没成」。
                     if !failed.isEmpty {
@@ -228,18 +261,6 @@ struct ActivityTaskRow: View {
                         TransferLogGroup(title: L10n.text("transfer.section.deleted"), entries: deleted, icon: "trash.fill", tint: .red, hashByName: hashByName)
                     }
             }
-            .padding(.vertical, 2)
-
-            // 重试失败项 —— 仅当有失败项且任务挂了重试动作（运行时态，历史任务不可重试）。
-            if !failed.isEmpty, let retry = task.retryFailed {
-                Button {
-                    retry()
-                } label: {
-                    Label(L10n.format("transfer.retryFailed", "\(failed.count)"), systemImage: "arrow.clockwise")
-                }
-                .controlSize(.small)
-            }
-        }
     }
 
     /// 详情顶部的「✓N · ⤼K · ✗M」计数摘要 —— 一眼看清批量结果分布。
