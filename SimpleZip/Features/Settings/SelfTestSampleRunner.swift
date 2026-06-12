@@ -287,17 +287,21 @@ enum SelfTestSampleRunner {
     }
 
     private static func duplicatePathSample(in temp: URL) async -> SampleResult {
-        // 注:安全报告**有意**不报纯重复(既有测试明确断言);本样本验证列表层不静默去重 ——
-        // 两份同名条目都必须可见,用户在浏览/比较里能察觉。是否升级为安全报告新类别待用户拍板。
-        let name = "重复路径:同名条目两次在列表中都可见"
+        // 两层断言:①列表层不静默去重(两份同名条目都可见);②安全报告命中 duplicateEntryPath
+        // (解压时后者静默覆盖前者,用户拍板升级为报告类别)。
+        let name = "重复路径:列表可见 + 安全报告命中"
         do {
             let zip = temp.appendingPathComponent("dup.zip")
             try RawZipWriter.write(entries: [("payload.txt", "first"), ("payload.txt", "second"), ("clean.txt", "c")], to: zip)
             let items = try await ArchiveService.list(zip)
             let duplicates = items.filter { $0.name.hasSuffix("payload.txt") }
-            return duplicates.count == 2
-                ? SampleResult(name: name, passed: true, detail: "2/2 重复条目可见,未被静默去重")
-                : SampleResult(name: name, passed: false, detail: "列表只剩 \(duplicates.count) 份(静默去重?)")
+            guard duplicates.count == 2 else {
+                return SampleResult(name: name, passed: false, detail: "列表只剩 \(duplicates.count) 份(静默去重?)")
+            }
+            let findings = ArchiveSecurityReport.analyze(items)
+            return findings.contains(where: { $0.kind == .duplicateEntryPath })
+                ? SampleResult(name: name, passed: true, detail: "2/2 条目可见 + duplicateEntryPath 命中")
+                : SampleResult(name: name, passed: false, detail: "条目可见但安全报告没报 duplicateEntryPath")
         } catch {
             return SampleResult(name: name, passed: false, detail: error.localizedDescription)
         }

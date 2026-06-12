@@ -776,6 +776,8 @@
 "security.kind.externalSymlink.desc" = "Symbolic links targeting absolute paths or .. can reach files outside the archive.";
 "security.kind.caseCollision" = "Case collisions";
 "security.kind.caseCollision.desc" = "Names differing only in letter case overwrite each other on case-insensitive volumes (the macOS default).";
+"security.kind.duplicateEntryPath" = "Duplicate entry paths";
+"security.kind.duplicateEntryPath.desc" = "The exact same file path appears more than once. On extraction the later copy silently overwrites the earlier one, so what lands on disk may not match what the list shows.";
 "security.kind.normalizationCollision" = "Unicode normalization collisions";
 "security.kind.normalizationCollision.desc" = "Entries whose names look identical but use different Unicode byte forms (NFC vs NFD — common when a ZIP mixes macOS and Windows/Linux origins). Extracting on another platform can yield two \"same-named\" files or silently overwrite one with the other.";
 "security.kind.windowsReservedName" = "Windows reserved names";

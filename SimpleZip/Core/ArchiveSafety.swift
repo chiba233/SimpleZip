@@ -108,6 +108,7 @@ enum ArchiveSecurityFindingKind: String, CaseIterable {
     case setuidExecutable    // setuid / setgid 权限位
     case externalSymlink     // 符号链接指向归档外（绝对路径 / `..`）
     case caseCollision       // 大小写不同的重名 —— 大小写不敏感卷上互相覆盖
+    case duplicateEntryPath  // 字节级完全相同的路径出现多次 —— 解压时后者静默覆盖前者
     // 0.4.3 #14:跨平台文件名风险(Windows/Linux 来的 zip 在 macOS 上的经典雷区,反之亦然)。
     case normalizationCollision // NFC/NFD 字节不同但显示相同 —— 跨平台解出两个「同名」文件或互覆
     case windowsReservedName    // CON / NUL / PRN / COM1… —— Windows 上无法创建,解压直接失败
@@ -178,6 +179,10 @@ enum ArchiveSecurityReport {
                     // 0.4.3 #14:Swift 字符串比较是**规范等价**的 —— first == normalized 但字节不同,
                     // 就是 NFC/NFD 混用(显示完全一样)。跨平台解压会变成两个文件或静默互覆。
                     record(.normalizationCollision, "\(normalized) (NFC ↔ NFD)")
+                } else if !item.isDirectory {
+                    // 字节级同路径再现 = 真重复条目。目录重现是 tar/zip 常态(多次打包同一目录),
+                    // 文件重现才是「解压时后者静默覆盖前者」的风险,值得点名。
+                    record(.duplicateEntryPath, normalized)
                 }
             } else {
                 firstSpellingByLowercased[key] = normalized

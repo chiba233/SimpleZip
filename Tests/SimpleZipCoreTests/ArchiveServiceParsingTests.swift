@@ -429,13 +429,16 @@ struct ArchiveSecurityReportTests {
         #expect(findings.first?.entryPaths.count == 2)
     }
 
-    @Test func detectsCaseCollisionsButNotPlainDuplicates() {
+    @Test func detectsCaseCollisionsAndPlainDuplicates() {
+        // #19 升级(用户拍板):字节级同路径再现从「只在列表可见」升级为安全报告类别 ——
+        // 解压时后者静默覆盖前者,落盘与列表不符,值得点名。
         let findings = ArchiveSecurityReport.analyze([
             entry("README.md"), entry("readme.md"),   // 大小写冲突
-            entry("same.txt"), entry("same.txt")      // 纯重复——不是大小写问题,不报
+            entry("same.txt"), entry("same.txt")      // 字节级纯重复 —— duplicateEntryPath
         ])
-        #expect(findings.map(\.kind) == [.caseCollision])
+        #expect(findings.map(\.kind) == [.caseCollision, .duplicateEntryPath])
         #expect(findings.first?.entryPaths == ["README.md ↔ readme.md"])
+        #expect(findings.last?.entryPaths == ["same.txt"])
     }
 
     // MARK: - 0.4.3 #14 跨平台文件名风险
@@ -447,8 +450,8 @@ struct ArchiveSecurityReportTests {
         let nfd = "a\u{0308}.txt"
         let findings = ArchiveSecurityReport.analyze([entry(nfc), entry(nfd)])
         #expect(findings.map(\.kind) == [.normalizationCollision])
-        // 同字节的重复不报。
-        #expect(ArchiveSecurityReport.analyze([entry(nfc), entry(nfc)]).isEmpty)
+        // 同字节的重复不是规范化问题 —— 走 duplicateEntryPath 类别。
+        #expect(ArchiveSecurityReport.analyze([entry(nfc), entry(nfc)]).map(\.kind) == [.duplicateEntryPath])
     }
 
     @Test func detectsWindowsReservedNames() {
