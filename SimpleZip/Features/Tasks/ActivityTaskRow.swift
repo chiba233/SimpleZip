@@ -34,10 +34,10 @@ struct ActivityTaskRow: View {
                         isShowingDetails.toggle()
                     }
                 } label: {
-                    // #17 跟进(用户拍板):图标从「淡色圆底」换成圆角矩形彩色瓦片(白符号+状态色渐变),
-                    // 与侧栏/设置区的瓦片同一家族。
+                    // #17 跟进(用户拍板,两轮):圆角矩形彩色瓦片;活动中心内容区瓦片**纯色不渐变**,
+                    // 且再浅 30%(0.7 透明度)。侧栏瓦片(渐变实底)用户点名保留,不在此列。
                     RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        .fill(iconColor.gradient)
+                        .fill(iconColor.opacity(0.7))
                         .overlay(
                             Image(systemName: iconName)
                                 .font(.system(size: 13, weight: .semibold))
@@ -535,9 +535,9 @@ private struct TransferLogGroup: View {
                     } else {
                         VStack(alignment: .leading, spacing: 1) {
                             HStack(spacing: 6) {
-                                // 用户拍板:详情(折叠抽屉)内的图标同样换圆角矩形彩色小瓦片。
+                                // 用户拍板:详情(折叠抽屉)内的图标同样换圆角矩形彩色小瓦片(纯色,浅 30%)。
                                 RoundedRectangle(cornerRadius: 4.5, style: .continuous)
-                                    .fill(tint.gradient)
+                                    .fill(tint.opacity(0.7))
                                     .overlay(
                                         Image(systemName: icon)
                                             .font(.system(size: 9, weight: .semibold))

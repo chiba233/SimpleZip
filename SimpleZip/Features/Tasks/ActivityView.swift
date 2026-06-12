@@ -138,21 +138,17 @@ struct ActivityView: View {
     /// #17:pane 顶部的小 hero 头 —— 渐变发光图标瓦片 + 标题 + 副标题(纯静态,无 hover)。
     private func paneHero(_ pane: ActivityPane) -> some View {
         HStack(spacing: 12) {
-            // 用户拍板:hero 发光瓦片至少浅 30%(0.95/0.65 → 0.65/0.45,辉光 0.45 → 0.30);侧栏瓦片不动。
+            // 用户拍板(多轮调浅):hero 瓦片**纯色不渐变**,在上轮(0.65/0.45)基础上再浅 30% ≈ 0.40;
+            // 辉光 0.30 → 0.20。侧栏瓦片不动。
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [pane.iconColor.opacity(0.65), pane.iconColor.opacity(0.45)],
-                        startPoint: .topLeading, endPoint: .bottomTrailing
-                    )
-                )
+                .fill(pane.iconColor.opacity(0.40))
                 .overlay(
                     Image(systemName: pane.systemImage)
                         .font(.system(size: 17, weight: .semibold))
                         .foregroundStyle(.white)
                 )
                 .frame(width: 38, height: 38)
-                .shadow(color: pane.iconColor.opacity(0.30), radius: 7, y: 3)
+                .shadow(color: pane.iconColor.opacity(0.20), radius: 7, y: 3)
             VStack(alignment: .leading, spacing: 1) {
                 Text(pane.title)
                     .font(.title2.weight(.semibold))
@@ -175,19 +171,14 @@ struct ActivityView: View {
             let tint = ActivityPane.pane(for: category).iconColor
             VStack(spacing: 14) {
                 RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [tint.opacity(0.62), tint.opacity(0.38)],
-                            startPoint: .topLeading, endPoint: .bottomTrailing
-                        )
-                    )
+                    .fill(tint.opacity(0.35))
                     .overlay(
                         Image(systemName: "tray")
                             .font(.system(size: 32, weight: .semibold))
                             .foregroundStyle(.white)
                     )
                     .frame(width: 76, height: 76)
-                    .shadow(color: tint.opacity(0.27), radius: 14, y: 6)
+                    .shadow(color: tint.opacity(0.18), radius: 14, y: 6)
                 Text(L10n.text("tasks.empty"))
                     .font(.title3.weight(.medium))
                     .foregroundStyle(.secondary)
@@ -252,7 +243,7 @@ struct ActivityView: View {
         HeroChromeCard(color: tint, cornerRadius: 10) {
             HStack(spacing: 8) {
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(tint.gradient)
+                    .fill(tint.opacity(0.7))
                     .overlay(
                         Image(systemName: systemImage)
                             .font(.system(size: 11, weight: .semibold))
