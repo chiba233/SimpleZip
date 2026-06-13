@@ -331,6 +331,7 @@
 "backup.restore.confirm.message" = "これによりSimpleZipのすべての環境設定が消去され、プリセットパスワード（ある場合）がキーチェーンから削除されます。macOSのファイル関連付けは維持されます。";
 "backup.restore.confirm.button" = "既定値に戻す";
 "backup.restore.done" = "すべての環境設定を既定値に戻しました。";
+"backup.restore.keychainFailed" = "環境設定をリセットしましたが、プリセットパスワードをキーチェーンから削除できませんでした。キーチェーンアクセスで手動で削除してください。";
 "health.description" = "SimpleZipのバックエンド、ファイル関連付け、保存された秘密情報の状態をすばやく確認します。各行のボタンで対応する設定へ移動できます。";
 "health.checking" = "チェック中…";
 "health.recheck" = "再チェック";

@@ -80,8 +80,12 @@ struct BackupPane: View {
         ) {
             // role: .destructive → 标红 + 不是默认按钮，防止用户回车键直接触发。
             Button(L10n.text("backup.restore.confirm.button"), role: .destructive) {
-                AppPreferences.restoreAllDefaultsToFactory()
-                lastActionMessage = L10n.text("backup.restore.done")
+                // Keychain 清除可能失败（钥匙串锁定 / 权限）—— 失败时不能谎报「已恢复」,
+                // 否则用户以为预设密码删了、其实还在钥匙串里。按实际结果给文案。
+                let keychainCleared = AppPreferences.restoreAllDefaultsToFactory()
+                lastActionMessage = keychainCleared
+                    ? L10n.text("backup.restore.done")
+                    : L10n.text("backup.restore.keychainFailed")
             }
             Button(L10n.text("button.cancel"), role: .cancel) {}
         } message: {

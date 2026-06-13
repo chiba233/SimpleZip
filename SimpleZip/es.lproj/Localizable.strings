@@ -331,6 +331,7 @@
 "backup.restore.confirm.message" = "Esto borra todas las preferencias de SimpleZip y elimina la contraseña predefinida (si existe) del llavero. Las asociaciones de archivos de macOS se conservan.";
 "backup.restore.confirm.button" = "Restaurar valores predeterminados";
 "backup.restore.done" = "Todas las preferencias se restauraron a sus valores predeterminados.";
+"backup.restore.keychainFailed" = "Preferencias restablecidas, pero no se pudo eliminar la contraseña de preajuste del Llavero. Bórrala manualmente en Acceso a Llaveros.";
 "health.description" = "Un vistazo rápido al estado de los backends, asociaciones de archivos y secretos guardados de SimpleZip. Usa los botones de cada fila para ir a los ajustes correspondientes.";
 "health.checking" = "Ejecutando comprobaciones…";
 "health.recheck" = "Volver a comprobar";

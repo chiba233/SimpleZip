@@ -1803,6 +1803,7 @@
 "backup.restore.confirm.message" = "This wipes every SimpleZip preference and removes the preset password (if any) from the Keychain. macOS file association choices are kept as-is.";
 "backup.restore.confirm.button" = "Restore Defaults";
 "backup.restore.done" = "All preferences restored to defaults.";
+"backup.restore.keychainFailed" = "Preferences reset, but the preset password couldn't be removed from the Keychain — delete it manually in Keychain Access.";
 "health.description" = "A quick at-a-glance status of SimpleZip's backends, file associations, and stored secrets. Use the per-row buttons to jump to the corresponding settings.";
 "health.checking" = "Running checks…";
 "health.recheck" = "Re-check";

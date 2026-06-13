@@ -331,6 +331,7 @@
 "backup.restore.confirm.message" = "모든 SimpleZip 환경설정을 지우고 사전 설정 암호가 있으면 키체인에서 제거합니다. macOS 파일 연결 선택은 유지됩니다.";
 "backup.restore.confirm.button" = "기본값 복원";
 "backup.restore.done" = "모든 환경설정이 기본값으로 복원되었습니다.";
+"backup.restore.keychainFailed" = "환경설정을 초기화했지만 프리셋 암호를 키체인에서 제거하지 못했습니다. 키체인 접근에서 직접 삭제하세요.";
 "health.description" = "SimpleZip의 백엔드, 파일 연결 및 저장된 비밀 정보 상태를 한눈에 보여줍니다. 각 행의 버튼을 사용해 해당 설정으로 이동하세요.";
 "health.checking" = "검사 실행 중…";
 "health.recheck" = "다시 확인";

@@ -1206,7 +1206,10 @@ enum AppPreferences {
 
     /// 把所有可导出 key + 按文件夹记忆全部抹掉 + 顺手把 Keychain 里的预设密码也清掉。
     /// 「全部恢复默认」按钮调；用户应该被警告这是不可逆操作。
-    nonisolated static func restoreAllDefaultsToFactory() {
+    /// 返回 **Keychain 预设密码是否真的清掉了** —— 调用方据此决定提示「已恢复」还是「偏好已清但钥匙串里
+    /// 的密码没删掉」(否则会误报成功、把密码留在钥匙串)。UserDefaults 侧的清除不会失败,不参与该返回值。
+    @discardableResult
+    nonisolated static func restoreAllDefaultsToFactory() -> Bool {
         for key in exportableUserDefaultsKeys + perFolderMemoryKeys {
             defaults.removeObject(forKey: key)
         }
@@ -1214,7 +1217,9 @@ enum AppPreferences {
         defaults.removeObject(forKey: Key.compressionFormatPresets)
         defaults.removeObject(forKey: Key.releaseWorkspacePresets)
         defaults.removeObject(forKey: Key.releaseLedger)
-        PresetPasswordStore.clear()
+        // `errSecItemNotFound` = 本来就没存过预设密码 → 也算「已清干净」。其它非 0 状态才是真失败。
+        let status = PresetPasswordStore.clear()
+        return status == errSecSuccess || status == errSecItemNotFound
     }
 
     nonisolated static func resetStartupLocationToDefault() {

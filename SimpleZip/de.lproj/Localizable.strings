@@ -331,6 +331,7 @@
 "backup.restore.confirm.message" = "Dies löscht alle SimpleZip-Einstellungen und entfernt das voreingestellte Passwort (falls vorhanden) aus dem Schlüsselbund. macOS-Dateizuordnungen bleiben unverändert.";
 "backup.restore.confirm.button" = "Standardwerte wiederherstellen";
 "backup.restore.done" = "Alle Einstellungen auf Standardwerte zurückgesetzt.";
+"backup.restore.keychainFailed" = "Einstellungen zurückgesetzt, aber das Voreinstellungspasswort konnte nicht aus dem Schlüsselbund entfernt werden – bitte manuell in der Schlüsselbundverwaltung löschen.";
 "health.description" = "Kurzer Überblick über SimpleZip-Backends, Dateizuordnungen und gespeicherte Geheimnisse. Mit den Schaltflächen pro Zeile springst du zu den passenden Einstellungen.";
 "health.checking" = "Prüfungen laufen…";
 "health.recheck" = "Erneut prüfen";

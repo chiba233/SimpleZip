@@ -331,6 +331,7 @@
 "backup.restore.confirm.message" = "Cela efface toutes les préférences SimpleZip et supprime le mot de passe prédéfini (le cas échéant) du trousseau. Les associations de fichiers macOS sont conservées.";
 "backup.restore.confirm.button" = "Restaurer les valeurs par défaut";
 "backup.restore.done" = "Toutes les préférences ont été restaurées par défaut.";
+"backup.restore.keychainFailed" = "Préférences réinitialisées, mais le mot de passe de préréglage n’a pas pu être supprimé du trousseau — supprimez-le manuellement dans Trousseaux d’accès.";
 "health.description" = "Un aperçu rapide de l’état des backends, associations de fichiers et secrets stockés de SimpleZip. Utilisez les boutons de chaque ligne pour accéder aux réglages correspondants.";
 "health.checking" = "Vérifications en cours…";
 "health.recheck" = "Revérifier";

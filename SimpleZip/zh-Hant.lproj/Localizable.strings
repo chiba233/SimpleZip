@@ -331,6 +331,7 @@
 "backup.restore.confirm.message" = "这会清掉所有 SimpleZip 偏好 + 清掉钥匙串里的预设密码。macOS 文件关联保持不变。";
 "backup.restore.confirm.button" = "恢复默认";
 "backup.restore.done" = "已把所有偏好还原为默认。";
+"backup.restore.keychainFailed" = "偏好已還原為預設，但鑰匙圈裡的預設密碼未能刪除——請在「鑰匙圈存取」中手動刪除。";
 "health.description" = "一眼总览 SimpleZip 后端、文件关联、本机凭据等关键组件的当前状态。每一行右侧的修复按钮会直接跳到对应设置。";
 "health.checking" = "正在检查…";
 "health.recheck" = "重新检查";
