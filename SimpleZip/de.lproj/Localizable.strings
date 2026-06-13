@@ -2072,6 +2072,13 @@
 "Workspace Preset" = "Arbeitsbereich-Vorlage";
 "Name" = "Name";
 "Inspect Archive" = "Archiv prüfen";
+"Last Opened" = "Zuletzt geöffnet";
+"Open Archive in SimpleZip" = "Archiv in SimpleZip öffnen";
+"Find Archive Containing File" = "Archiv mit Datei finden";
+"File Name" = "Dateiname";
+"Open Task in Activity Center" = "Aufgabe im Aktivitätszentrum öffnen";
+"Task" = "Aufgabe";
+"Show Release Package in Finder" = "Release-Paket im Finder anzeigen";
 "Query" = "Suchanfrage";
 "Archive" = "Archiv";
 "intent.error.badName" = "\"%@\" ist kein gültiger Archivname - verwenden Sie einen einfachen Dateinamen ohne Pfadtrenner.";

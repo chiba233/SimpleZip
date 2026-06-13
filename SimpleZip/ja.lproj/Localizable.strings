@@ -2073,6 +2073,13 @@
 "Workspace Preset" = "ワークスペースプリセット";
 "Name" = "名前";
 "Inspect Archive" = "アーカイブを検査";
+"Last Opened" = "最終アクセス";
+"Open Archive in SimpleZip" = "SimpleZip でアーカイブを開く";
+"Find Archive Containing File" = "ファイルを含むアーカイブを探す";
+"File Name" = "ファイル名";
+"Open Task in Activity Center" = "アクティビティセンターでタスクを開く";
+"Task" = "タスク";
+"Show Release Package in Finder" = "Finder でリリースパッケージを表示";
 "Query" = "クエリ";
 "Archive" = "アーカイブ";
 "intent.error.badName" = "「%@」は有効なアーカイブ名ではありません。パス区切り文字を含まない単純なファイル名を使用してください。";

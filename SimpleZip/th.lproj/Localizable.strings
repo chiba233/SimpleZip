@@ -2071,6 +2071,13 @@
 "Workspace Preset" = "พรีเซ็ตพื้นที่ทำงาน";
 "Name" = "ชื่อ";
 "Inspect Archive" = "ตรวจสอบไฟล์เก็บถาวร";
+"Last Opened" = "เปิดล่าสุด";
+"Open Archive in SimpleZip" = "เปิดไฟล์บีบอัดใน SimpleZip";
+"Find Archive Containing File" = "ค้นหาไฟล์บีบอัดที่มีไฟล์";
+"File Name" = "ชื่อไฟล์";
+"Open Task in Activity Center" = "เปิดงานในศูนย์กิจกรรม";
+"Task" = "งาน";
+"Show Release Package in Finder" = "แสดงแพ็กเกจรุ่นใน Finder";
 "Query" = "คำค้นหา";
 "Archive" = "ไฟล์เก็บถาวร";
 "intent.error.badName" = "\"%@\" ไม่ใช่ชื่อไฟล์เก็บถาวรที่ถูกต้อง โปรดใช้ชื่อไฟล์ธรรมดาที่ไม่มีตัวคั่นเส้นทาง";

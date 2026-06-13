@@ -698,6 +698,8 @@ private nonisolated enum PersistedStatus: Codable {
 nonisolated struct ArchiveTaskSnapshot: Identifiable, Sendable {
     enum Outcome: String, Sendable { case succeeded, skipped, failed, cancelled }
     let id: UUID
+    /// #49:任务所属分类(归档 / 文件操作 / 撤销重做)—— Spotlight 点结果跳活动中心时据此选对分类页再定位。
+    let category: OperationTask.Category
     let kind: OperationTask.Kind
     let source: OperationTask.Source
     let title: String
@@ -708,11 +710,12 @@ nonisolated struct ArchiveTaskSnapshot: Identifiable, Sendable {
     let failureMessage: String?
 
     nonisolated init(
-        id: UUID, kind: OperationTask.Kind, source: OperationTask.Source,
+        id: UUID, category: OperationTask.Category, kind: OperationTask.Kind, source: OperationTask.Source,
         title: String, detail: String?, startedAt: Date, finishedAt: Date?,
         outcome: Outcome, failureMessage: String?
     ) {
         self.id = id
+        self.category = category
         self.kind = kind
         self.source = source
         self.title = title
@@ -737,7 +740,7 @@ nonisolated struct ArchiveTaskSnapshot: Identifiable, Sendable {
         case .running: return nil
         }
         self.init(
-            id: task.id, kind: task.kind, source: task.source,
+            id: task.id, category: task.category, kind: task.kind, source: task.source,
             title: task.title, detail: task.detail, startedAt: task.startedAt,
             finishedAt: task.finishedAt, outcome: outcome, failureMessage: failure
         )
@@ -775,6 +778,7 @@ nonisolated enum ActivityHistoryStore {
         }
         return ArchiveTaskSnapshot(
             id: task.id,
+            category: task.category,
             kind: task.kind,
             source: task.source ?? .app,
             title: task.title,

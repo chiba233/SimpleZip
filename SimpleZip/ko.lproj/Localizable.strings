@@ -2072,6 +2072,13 @@
 "Workspace Preset" = "작업 공간 프리셋";
 "Name" = "이름";
 "Inspect Archive" = "아카이브 검사";
+"Last Opened" = "마지막 연 날짜";
+"Open Archive in SimpleZip" = "SimpleZip에서 아카이브 열기";
+"Find Archive Containing File" = "파일이 든 아카이브 찾기";
+"File Name" = "파일 이름";
+"Open Task in Activity Center" = "작업 센터에서 작업 열기";
+"Task" = "작업";
+"Show Release Package in Finder" = "Finder에서 릴리스 패키지 표시";
 "Query" = "검색어";
 "Archive" = "아카이브";
 "intent.error.badName" = "「%@」은(는) 올바른 아카이브 이름이 아닙니다. 경로 구분자가 없는 단순한 파일 이름을 사용하세요.";

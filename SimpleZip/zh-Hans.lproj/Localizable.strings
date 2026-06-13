@@ -2457,5 +2457,12 @@
 "Workspace Preset" = "工作区预设";
 "Name" = "名称";
 "Inspect Archive" = "检查归档";
+"Last Opened" = "上次打开";
+"Open Archive in SimpleZip" = "在 SimpleZip 中打开归档";
+"Find Archive Containing File" = "查找含某文件的归档";
+"File Name" = "文件名";
+"Open Task in Activity Center" = "在活动中心打开任务";
+"Task" = "任务";
+"Show Release Package in Finder" = "在 Finder 中显示发布包";
 "Query" = "查询";
 "Archive" = "归档";

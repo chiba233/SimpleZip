@@ -34,6 +34,8 @@ struct ArchiveTaskEntity: AppEntity {
     /// 任务标题(创建时已本地化,如「快捷指令:解压 X」)—— 作 displayRepresentation 标题。
     let taskTitle: String
     let outcome: ArchiveTaskSnapshot.Outcome
+    /// #49:任务分类 —— 点 Spotlight 结果跳活动中心时选对分类页。不作 @Property 暴露(用户无需看到)。
+    let category: OperationTask.Category
 
     var displayRepresentation: DisplayRepresentation {
         DisplayRepresentation(
@@ -48,6 +50,7 @@ struct ArchiveTaskEntity: AppEntity {
         id = snapshot.id
         taskTitle = snapshot.title
         outcome = snapshot.outcome
+        category = snapshot.category
         source = L10n.text("tasks.source.\(snapshot.source.rawValue)")
         status = L10n.text("tasks.status.\(snapshot.outcome.rawValue)")
         started = snapshot.startedAt
@@ -83,6 +86,23 @@ struct ArchiveTaskQuery: EntityQuery {
     func suggestedEntities() async throws -> [ArchiveTaskEntity] {
         // 只建议最近 20 条,避免选择器过长。
         ActivityHistoryStore.snapshot().prefix(20).map(ArchiveTaskEntity.init(snapshot:))
+    }
+}
+
+// MARK: - 打开任务(OpenIntent:#49 点 Spotlight 结果 → 开活动中心并滚动定位高亮)
+
+/// 点 Spotlight 里搜到的活动中心任务 → 打开活动中心、切到它所在分类页、滚到这条并闪一圈。
+/// 只读历史,不重跑任何任务、不做安全判定。
+struct OpenArchiveTaskIntent: OpenIntent {
+    static let title: LocalizedStringResource = "Open Task in Activity Center"
+
+    @Parameter(title: "Task")
+    var target: ArchiveTaskEntity
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        ActivityWindowController.shared.show(category: target.category, locateTaskID: target.id)
+        return .result()
     }
 }
 

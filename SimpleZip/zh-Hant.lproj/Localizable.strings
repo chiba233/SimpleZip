@@ -2073,6 +2073,13 @@
 "Workspace Preset" = "工作區預設";
 "Name" = "名稱";
 "Inspect Archive" = "檢查歸檔";
+"Last Opened" = "上次開啟";
+"Open Archive in SimpleZip" = "在 SimpleZip 中開啟封存檔";
+"Find Archive Containing File" = "尋找含某檔案的封存檔";
+"File Name" = "檔案名稱";
+"Open Task in Activity Center" = "在活動中心開啟任務";
+"Task" = "任務";
+"Show Release Package in Finder" = "在 Finder 中顯示發佈包";
 "Query" = "查詢";
 "Archive" = "歸檔";
 "intent.error.badName" = "「%@」不是有效的歸檔名稱，請使用不含路徑分隔符的純檔名。";

@@ -11,6 +11,7 @@
 //  IndexedEntity(Spotlight,macOS 15)放后续单独门控的 extension,不在本文件。
 //
 
+import AppKit
 import AppIntents
 import CoreSpotlight
 import Foundation
@@ -105,6 +106,29 @@ struct ReleasePackageQuery: EntityQuery {
     func suggestedEntities() async throws -> [ReleasePackageEntity] {
         // 账本已是新→旧;只建议最近 20 条,避免 Shortcuts 选择器过长。
         ReleaseLedgerStore().loadAll().prefix(20).map(ReleasePackageEntity.init(entry:))
+    }
+}
+
+// MARK: - 打开发布包(OpenIntent:#49 点 Spotlight 结果 → 在 Finder 里显示产物)
+
+/// 点 Spotlight 里搜到的发布包 → 在 Finder 里选中它的产物文件(产物已不在则只把 app 带到前台)。
+/// 只定位文件,不打开 / 不校验 / 不改任何东西。
+struct OpenReleasePackageIntent: OpenIntent {
+    static let title: LocalizedStringResource = "Show Release Package in Finder"
+
+    @Parameter(title: "Release Package")
+    var target: ReleasePackageEntity
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        let url = URL(fileURLWithPath: target.artifactPath)
+        if FileManager.default.fileExists(atPath: url.path) {
+            NSWorkspace.shared.activateFileViewerSelecting([url])
+        } else {
+            // 产物已被移走 / 删除 → 不报错,只把 app 带到前台(OpenIntent 已会前台化)。
+            NSApp.activate(ignoringOtherApps: true)
+        }
+        return .result()
     }
 }
 

@@ -2071,6 +2071,13 @@
 "Workspace Preset" = "Preajuste de espacio de trabajo";
 "Name" = "Nombre";
 "Inspect Archive" = "Inspeccionar archivo";
+"Last Opened" = "Última apertura";
+"Open Archive in SimpleZip" = "Abrir archivo comprimido en SimpleZip";
+"Find Archive Containing File" = "Buscar archivo comprimido que contenga un archivo";
+"File Name" = "Nombre de archivo";
+"Open Task in Activity Center" = "Abrir tarea en el Centro de actividad";
+"Task" = "Tarea";
+"Show Release Package in Finder" = "Mostrar paquete de versión en el Finder";
 "Query" = "Consulta";
 "Archive" = "Archivo";
 "intent.error.badName" = "\"%@\" no es un nombre de archivo válido; usa un nombre de archivo simple sin separadores de ruta.";

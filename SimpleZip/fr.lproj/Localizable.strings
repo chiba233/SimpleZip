@@ -2071,6 +2071,13 @@
 "Workspace Preset" = "Préréglage d’espace de travail";
 "Name" = "Nom";
 "Inspect Archive" = "Inspecter l’archive";
+"Last Opened" = "Dernière ouverture";
+"Open Archive in SimpleZip" = "Ouvrir l’archive dans SimpleZip";
+"Find Archive Containing File" = "Trouver l’archive contenant un fichier";
+"File Name" = "Nom du fichier";
+"Open Task in Activity Center" = "Ouvrir la tâche dans le centre d’activité";
+"Task" = "Tâche";
+"Show Release Package in Finder" = "Afficher le paquet de version dans le Finder";
 "Query" = "Requête";
 "Archive" = "Archive";
 "intent.error.badName" = "« %@ » n’est pas un nom d’archive valide ; utilisez un simple nom de fichier sans séparateur de chemin.";

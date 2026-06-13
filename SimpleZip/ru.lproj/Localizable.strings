@@ -2071,6 +2071,13 @@
 "Workspace Preset" = "Шаблон рабочей области";
 "Name" = "Имя";
 "Inspect Archive" = "Проверить архив";
+"Last Opened" = "Последнее открытие";
+"Open Archive in SimpleZip" = "Открыть архив в SimpleZip";
+"Find Archive Containing File" = "Найти архив с файлом";
+"File Name" = "Имя файла";
+"Open Task in Activity Center" = "Открыть задачу в Центре активности";
+"Task" = "Задача";
+"Show Release Package in Finder" = "Показать пакет выпуска в Finder";
 "Query" = "Запрос";
 "Archive" = "Архив";
 "intent.error.badName" = "«%@» не является допустимым именем архива — используйте простое имя файла без разделителей пути.";

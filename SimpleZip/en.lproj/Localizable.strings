@@ -2457,5 +2457,12 @@
 "Workspace Preset" = "Workspace Preset";
 "Name" = "Name";
 "Inspect Archive" = "Inspect Archive";
+"Last Opened" = "Last Opened";
+"Open Archive in SimpleZip" = "Open Archive in SimpleZip";
+"Find Archive Containing File" = "Find Archive Containing File";
+"File Name" = "File Name";
+"Open Task in Activity Center" = "Open Task in Activity Center";
+"Task" = "Task";
+"Show Release Package in Finder" = "Show Release Package in Finder";
 "Query" = "Query";
 "Archive" = "Archive";
