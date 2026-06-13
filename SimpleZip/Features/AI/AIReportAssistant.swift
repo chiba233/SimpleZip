@@ -58,14 +58,27 @@ struct AIAssistError: LocalizedError {
 // MARK: - Prompt 构造(纯字符串组装,只读输入)
 
 extension AIReportAssistant {
-    /// A:发布检查报告 → 风险总结。**只给计数 / 布尔等聚合事实,不放具体条目路径**(够总结、也更稳)。
+    /// 喂给模型时,每类发现取这么多条**真实条目路径**做样本 —— 让 AI 说得出具体的「哪个文件」而不是
+    /// 空泛的「可能有些问题,请检查」(用户原话:数据太薄 AI 就是废话文学)。隐私:这些是**未加密**清单
+    /// 里的条目路径(头加密的归档根本列不出名字,自然不会进来),非加密路径登录用户本就可见,不必脱敏;
+    /// 但 prompt 永不含加密内容 / GPG 密文 / 口令 / 解密明文。见 [[feedback_privacy_only_encrypted]]。
+    static func sampleEntries(_ paths: [String], perKind: Int = 5) -> String {
+        let samples = paths.prefix(perKind)
+        let more = paths.count - samples.count
+        let joined = samples.joined(separator: ", ")
+        return more > 0 ? "\(joined), +\(more) more" : joined
+    }
+
+    /// A:发布检查报告 → 风险总结。给计数 + 关键信号 + **真实样本条目路径**(数据太薄 AI 只会输出空泛
+    /// 套话;喂具体条目它才能说出「哪个文件值得注意」)。隐私按 `sampleEntries`(只非加密清单路径)。
     static func riskSummaryPrompt(for report: ReleaseInspectionReport) -> (instructions: String, prompt: String) {
         let instructions = """
         You are a release-engineering assistant for the SimpleZip archive manager. Given an inspection \
         report for an archive that is about to be published, write a short, plain-language risk summary \
         for the person publishing it: first say whether it looks publishable, then a few concise bullet \
-        points on anything noteworthy. Use only the facts provided — never invent issues. Do not give \
-        instructions to delete files or change anything. Reply in the user's language.
+        points on anything noteworthy. Be specific and concrete — when an example entry illustrates a \
+        point, name it; avoid vague filler. Use only the facts provided — never invent issues. Do not \
+        give instructions to delete files or change anything. Reply in the user's language.
         """
         var lines: [String] = ["Archive: \(report.archiveURL.lastPathComponent)"]
         if let stats = report.stats {
@@ -90,15 +103,16 @@ extension AIReportAssistant {
         let instructions = """
         You are a helpful assistant for the SimpleZip archive manager. A background task failed. \
         Explain, in plain language for a non-expert, the most likely reason it failed and what the user \
-        could try next. Be concise. Base your answer only on the provided error and log; if the cause is \
+        could try next. Point at the specific error lines from the log when they explain the failure — be \
+        concrete, not generic. Base your answer only on the provided error and log; if the cause is \
         unclear, say so. Never tell the user to delete files or run destructive commands. Reply in the \
         user's language.
         """
         var lines: [String] = ["Task: \(taskTitle)", "Error: \(failureMessage)"]
         if let output, !output.isEmpty {
-            // 只取尾部 ~2000 字符,够定位、又不撑爆 prompt。
-            let tail = output.count > 2000 ? String(output.suffix(2000)) : output
-            lines.append("Command output (tail):\n\(tail)")
+            // 尾部 ~6000 字符:UI 把命令输出折叠,这里给模型更全的日志才能指向具体出错行(口令本就不进后端输出,安全)。
+            let tail = output.count > 6000 ? "…(earlier output truncated)\n" + String(output.suffix(6000)) : output
+            lines.append("Command output:\n\(tail)")
         }
         return (instructions, lines.joined(separator: "\n"))
     }
@@ -132,10 +146,21 @@ extension AIReportAssistant {
             case .needsPassword: parts.append("needs a password")
             case .notListable: parts.append("not listable")
             }
+            // 规模 + 真实样本条目(UI 只展示计数;喂给 AI 这些细节,标签才具体不空泛)。
+            if row.fileCount > 0 { parts.append("files: \(row.fileCount)") }
+            if row.totalBytes > 0 {
+                parts.append("size: \(ByteCountFormatter.string(fromByteCount: row.totalBytes, countStyle: .file))")
+            }
             if let facts = row.facts {
                 parts.append("suspicious paths: \(facts.suspiciousPathCount)")
                 parts.append("macOS junk entries: \(facts.junkCount)")
                 parts.append("encrypted entries: \(facts.encryptedCount)")
+            }
+            if !row.suspiciousSamplePaths.isEmpty {
+                parts.append("suspicious e.g. \(row.suspiciousSamplePaths.prefix(4).joined(separator: ", "))")
+            }
+            if !row.junkSampleNames.isEmpty {
+                parts.append("junk e.g. \(row.junkSampleNames.prefix(4).joined(separator: ", "))")
             }
             if row.missingVolumeCount > 0 { parts.append("missing volumes: \(row.missingVolumeCount)") }
             if row.readOnlyFormat { parts.append("read-only format") }
@@ -173,9 +198,10 @@ extension AIReportAssistant {
         if findings.isEmpty {
             lines.append("Suspicious-path findings: none.")
         } else {
-            lines.append("Suspicious-path findings by type (kind: flagged-entry count):")
+            // 给 AI 真实样本条目(非加密清单路径),它才能具体指出「哪个文件为什么危险」,而非泛泛而谈。
+            lines.append("Suspicious-path findings by type, with example entries (non-encrypted listing paths):")
             for finding in findings {
-                lines.append("- \(finding.kind.rawValue): \(finding.entryPaths.count)")
+                lines.append("- \(finding.kind.rawValue) (\(finding.entryPaths.count)): \(sampleEntries(finding.entryPaths))")
             }
         }
         return (instructions, lines.joined(separator: "\n"))

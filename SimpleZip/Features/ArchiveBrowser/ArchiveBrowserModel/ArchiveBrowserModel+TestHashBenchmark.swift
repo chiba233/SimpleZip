@@ -912,14 +912,21 @@ extension ArchiveBrowserModel {
                 } catch {
                     outcome = .failed(ArchiveService.classifyTestFailure(error.localizedDescription))
                 }
+                // #51+ AI 富数据:真实样本条目(非加密清单路径)+ 规模 —— UI 只展示计数,这些喂给 AI 让标签具体。
+                let files = items.filter { !$0.isDirectory }
+                let suspiciousSamples = Array(ArchiveSecurityReport.analyze(items).flatMap(\.entryPaths).prefix(8))
+                let junkSamples = Array(items.filter { ArchiveJunkFiles.isJunkPath($0.name) }.prefix(8).map(\.name))
                 rows.append(ArchiveCheckupRow(
                     fileName: url.lastPathComponent,
                     testOutcome: outcome,
                     facts: facts,
                     missingVolumeCount: missingVolumes,
-                    readOnlyFormat: readOnly
+                    readOnlyFormat: readOnly,
+                    fileCount: files.count,
+                    totalBytes: files.reduce(Int64(0)) { $0 + ($1.size ?? 0) },
+                    suspiciousSamplePaths: suspiciousSamples,
+                    junkSampleNames: junkSamples
                 ))
-                let files = items.filter { !$0.isDirectory }
                 duplicateSources.append(ArchiveDuplicateScan.Source(
                     url: url,
                     fingerprint: ArchiveStructuralFingerprint.compute(for: items),

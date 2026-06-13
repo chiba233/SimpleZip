@@ -27,6 +27,12 @@ struct ArchiveCheckupRow: Identifiable, Equatable {
     let readOnlyFormat: Bool
     /// 疑似同包(结构指纹相同)的同批其他归档名;空 = 没有。
     var duplicatePeers: [String] = []
+    // #51+ AI 富数据:喂给 AI 的真实样本(非加密清单路径)+ 规模 —— UI 只展示计数,AI 拿到这些才能
+    // 给出具体而非空泛的标签(用户:数据太薄 AI 就是废话文学)。默认值保证 nil-facts 的构造点不受影响。
+    var fileCount: Int = 0
+    var totalBytes: Int64 = 0
+    var suspiciousSamplePaths: [String] = []
+    var junkSampleNames: [String] = []
 }
 
 struct ArchiveCheckupReport: Identifiable {
