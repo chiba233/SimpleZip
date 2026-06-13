@@ -1124,6 +1124,8 @@ struct FileNSOutlineView: NSViewRepresentable {
                 toolsMenu.addItem(menuItem(L10n.text("dirAudit.menu"), systemImage: "folder.badge.questionmark", action: #selector(auditReleaseDirectory)))
                 // 0.4.4 #7:体检文件夹顶层的全部归档。
                 toolsMenu.addItem(menuItem(L10n.text("checkup.folder.menu"), systemImage: "stethoscope", action: #selector(checkupArchives)))
+                // 0.4.4 #43:对文件夹双打包验可复现性。
+                toolsMenu.addItem(menuItem(L10n.text("repro.menu"), systemImage: "arrow.triangle.2.circlepath", action: #selector(checkReproducibility)))
             }
             // #112 转换格式：选中项全是支持的归档时出现，弹格式选择 sheet 批量转换。
             if model.canConvertSelectedArchives {
@@ -1429,6 +1431,10 @@ struct FileNSOutlineView: NSViewRepresentable {
 
         @objc private func quickVerifyReleaseGroup() {
             model.quickVerifyReleaseGroup()
+        }
+
+        @objc private func checkReproducibility() {
+            model.runReproducibilityCheck()
         }
 
         @objc private func auditReleaseDirectory() {

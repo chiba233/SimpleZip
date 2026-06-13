@@ -61,6 +61,8 @@ final class ArchiveBrowserModel: ObservableObject {
     @Published var releaseInspectionReport: ReleaseInspectionReport?
     /// 0.4.4 #11:发布目录检查报告(用户主动触发,非 reload 路径 —— A17 不适用)。
     @Published var releaseDirectoryAuditReport: ReleaseDirectoryAuditReport?
+    /// 0.4.4 #43:可复现构建深度报告 sheet(右键文件夹触发,双打包比对完赋值)。
+    @Published var reproducibilityReport: ReproducibilityReport?
     /// 0.4.4 #13:归档元数据报告(同上,用户主动触发)。
     @Published var archiveMetadataReport: ArchiveMetadataReport?
     /// 0.4.4 #7:归档体检批处理报告(同上)。

@@ -1339,6 +1339,12 @@ private struct ArchiveExtrasSheets: ViewModifier {
                     model.archiveMetadataReport = nil
                 }
             }
+            .sheet(item: $model.reproducibilityReport) { report in
+                // 0.4.4 #43:可复现构建深度报告。
+                ReproducibilityReportView(report: report) {
+                    model.reproducibilityReport = nil
+                }
+            }
             .sheet(item: $model.archiveCheckupReport) { report in
                 // 0.4.4 #7:归档体检批处理报告。
                 ArchiveCheckupView(report: report) {

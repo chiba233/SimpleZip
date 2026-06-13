@@ -1264,6 +1264,59 @@ extension ArchiveBrowserModel {
             }
     }
 
+    // MARK: - #43 可复现构建深度报告
+
+    /// 右键文件夹「可复现性报告」:对该文件夹用可复现 zip **打两次**,比 SHA-256 是否逐字节相同 +
+    /// 如实列出影响可复现的因素。只读源、只写临时(用后即删),不动用户文件。
+    func runReproducibilityCheck() {
+        guard let folder = selectedFileItems.first(where: { $0.isDirectory && !$0.isPackage })?.url else {
+            errorMessage = L10n.text("error.openOrSelectArchive")
+            return
+        }
+        runReproducibilityCheck(for: folder)
+    }
+
+    private func runReproducibilityCheck(for folder: URL) {
+        var report: ReproducibilityReport?
+        startManagedArchiveTask(
+            title: L10n.format("repro.taskTitle", folder.lastPathComponent),
+            kind: .test,
+            showsDetails: false,
+            successStatus: nil,
+            onSucceeded: { [weak self] task in
+                task.openReport = { if let report { self?.reproducibilityReport = report } }
+            },
+            rerunAction: { [weak self] in self?.runReproducibilityCheck(for: folder) }
+        ) { [weak self] operationID, progress, _ in
+            let fileManager = FileManager.default
+            let staging = fileManager.temporaryDirectory
+                .appendingPathComponent("SimpleZip-Repro-\(UUID().uuidString)", isDirectory: true)
+            try fileManager.createDirectory(at: staging, withIntermediateDirectories: true)
+            defer { try? fileManager.removeItem(at: staging) }
+
+            var options = ArchiveCreationOptions()
+            options.format = .zip
+            options.reproducibleArchive = true
+            let first = staging.appendingPathComponent("pack1.zip")
+            let second = staging.appendingPathComponent("pack2.zip")
+
+            progress(ArchiveProgressState(fraction: 0.1, statusText: L10n.text("repro.packing")))
+            try await ArchiveService.createArchive(from: [folder], destination: first, options: options, operationID: operationID)
+            progress(ArchiveProgressState(fraction: 0.55, statusText: L10n.text("repro.packing")))
+            try await ArchiveService.createArchive(from: [folder], destination: second, options: options, operationID: operationID)
+
+            let firstHash = try HashService.sha256(for: first)
+            let secondHash = try HashService.sha256(for: second)
+            var built = ReproducibilityReport.analyze(format: .zip, reproducibleEnabled: true)
+            built.firstSHA256 = firstHash
+            built.secondSHA256 = secondHash
+            report = built
+            await MainActor.run { [weak self] in
+                self?.reproducibilityReport = built
+            }
+        }
+    }
+
     private func runReleaseInspection(_ url: URL) {
         let force = isForced(url)
         var report = ReleaseInspectionReport(archiveURL: url)

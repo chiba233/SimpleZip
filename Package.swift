@@ -61,6 +61,7 @@ let package = Package(
                 "Core/BackendProcessRunner.swift",
                 "Core/PerfSignpost.swift",
                 "Core/PathHealthCheck.swift",
+                "Core/ReproducibilityReport.swift",
                 "Core/BrowserGrouping.swift",
                 "Core/BundleReleaseCheck.swift",
                 "Core/CompressionPreset.swift",
