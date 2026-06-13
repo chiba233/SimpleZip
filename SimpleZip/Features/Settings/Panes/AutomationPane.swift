@@ -147,7 +147,7 @@ struct AutomationPane: View {
                     ArchiveFileSpotlightIndexer.reindex()
                     // #30:设置项索引也归这把总开关管(开 → 重建、关 → 清空)。
                     SettingsSpotlightIndexer.reindex()
-                    spotlightStats = SpotlightReindex.stats()
+                    refreshSpotlightStats()
                 }
 
                 // #73:索引不全 / 不稳定时,「强制重新索引」清空 app 全部捐献再全量重建。
@@ -176,7 +176,7 @@ struct AutomationPane: View {
                 }
             }
             .settingsAnchor("automation.spotlight")
-            .onAppear { spotlightStats = SpotlightReindex.stats() }
+            .onAppear(perform: refreshSpotlightStats)
 
             // ②.55 #36 归档内容缓存:记住打开过的归档里有哪些文件,供「文件 X 在哪个包」搜索。
             // 开关 / 归档数上限 / 过期天数 / 立即清空;关掉即清空已缓存内容。
@@ -374,6 +374,14 @@ struct AutomationPane: View {
     }
 
     // MARK: - #36 归档内容缓存
+
+    /// #73:后台算 Spotlight 索引统计(读缓存 JSON 可能不小,别卡主线程),回主 actor 设 @State。
+    private func refreshSpotlightStats() {
+        Task {
+            let stats = await Task.detached(priority: .utility) { SpotlightReindex.stats() }.value
+            spotlightStats = stats
+        }
+    }
 
     /// 刷新缓存占用展示(顺手清过期项)。轻量,onAppear 与每次开关 / 步进 / 清空后调。
     private func refreshArchiveCacheStats() {
