@@ -1777,7 +1777,10 @@
 "settings.browser.group.hidden" = "ไฟล์ที่ซ่อน";
 "settings.browser.group.expansion" = "การขยายและการจำ";
 "settings.browser.group.display" = "การแสดงผลและโครงสร้าง";
-"settings.association.group.archives" = "ไฟล์เก็บถาวรและดิสก์อิมเมจ";
+"settings.association.group.archives" = "ไฟล์เก็บถาวร";
+"settings.association.group.diskImages" = "ดิสก์อิมเมจและตัวติดตั้ง";
+"settings.association.setGroupDefault" = "ตั้งทั้งหมดเป็นค่าเริ่มต้น";
+"settings.association.setGroupDefaultDone" = "ตั้งค่า %1$@ ชนิดไฟล์ให้เปิดด้วย SimpleZip แล้ว";
 "settings.association.group.simplezip" = "ฟอร์แมต SimpleZip";
 "settings.association.group.volumes" = "โวลุ่มแยกส่วน";
 "settings.grouping.groupBy" = "จัดกลุ่มรายการตาม";

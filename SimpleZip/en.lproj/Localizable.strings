@@ -425,7 +425,10 @@
 "settings.browser.group.display" = "Display & Structure";
 /* 0.4.4 #20 view-pane regrouping */
 "settings.view.group.displayName" = "Display Names";
-"settings.association.group.archives" = "Archives & Disk Images";
+"settings.association.group.archives" = "Archives";
+"settings.association.group.diskImages" = "Disk Images & Installers";
+"settings.association.setGroupDefault" = "Set All Default";
+"settings.association.setGroupDefaultDone" = "Set %1$@ file types to open with SimpleZip.";
 "settings.association.group.simplezip" = "SimpleZip Formats";
 "settings.association.group.volumes" = "Split Volumes";
 "settings.grouping.groupBy" = "Group items by";

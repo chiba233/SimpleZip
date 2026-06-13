@@ -66,6 +66,11 @@
 				<string>com.apple.disk-image-udif</string>
 				<string>com.apple.xip-archive</string>
 				<string>org.zstandard.zst</string>
+				<string>public.iso-image</string>
+				<string>com.microsoft.cab</string>
+				<string>public.cpio-archive</string>
+				<string>com.apple.xar-archive</string>
+				<string>com.apple.installer-package-archive</string>
 				<string>com.simplezip.siz-archive</string>
 				<string>com.simplezip.szs-manifest</string>
 				<string>public.archive</string>

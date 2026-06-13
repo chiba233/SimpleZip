@@ -1778,7 +1778,10 @@
 "settings.browser.group.hidden" = "숨김 파일";
 "settings.browser.group.expansion" = "확장 및 기억";
 "settings.browser.group.display" = "표시 및 구조";
-"settings.association.group.archives" = "아카이브 및 디스크 이미지";
+"settings.association.group.archives" = "아카이브";
+"settings.association.group.diskImages" = "디스크 이미지 및 설치 관리자";
+"settings.association.setGroupDefault" = "모두 기본값으로";
+"settings.association.setGroupDefaultDone" = "%1$@개 형식을 SimpleZip으로 열도록 설정했습니다.";
 "settings.association.group.simplezip" = "SimpleZip 형식";
 "settings.association.group.volumes" = "분할 볼륨";
 "settings.grouping.groupBy" = "항목 그룹 기준";

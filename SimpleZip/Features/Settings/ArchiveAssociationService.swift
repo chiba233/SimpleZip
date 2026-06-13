@@ -18,15 +18,17 @@ struct ArchiveAssociation: Identifiable, Hashable {
 
     var id: String { fileExtension }
 
-    /// 类别(0.4.3 用户拍板:文件关联按类分组、同类同色)。
+    /// 类别(0.4.3 用户拍板:文件关联按类分组、同类同色;0.4.4 把镜像/安装包从压缩包拆出)。
     enum Category {
-        case archive    // 常规压缩包 / 镜像
+        case archive    // 压缩包(zip/7z/tar/rar/cab/cpio/xar/zst/xip… —— 都是「解压取内容」的归档)
+        case diskImage  // 磁盘镜像与安装包(dmg/iso 挂载 + pkg 安装,非压缩、非解压)
         case simpleZip  // SimpleZip 专属格式
         case volume     // 分卷
 
         var tint: Color {
             switch self {
             case .archive: return .blue
+            case .diskImage: return .purple
             case .simpleZip: return .green
             case .volume: return .orange
             }
@@ -37,6 +39,9 @@ struct ArchiveAssociation: Identifiable, Hashable {
         switch fileExtension {
         case "siz", "szs": return .simpleZip
         case "001", "z01", "r00": return .volume
+        // 磁盘镜像(dmg/iso 挂载)与安装包(pkg 安装)—— 非压缩、非解压,单列。
+        // xip 是 Apple 签名「归档」(解压取内容),归到压缩包,不在此列。
+        case "dmg", "iso", "pkg": return .diskImage
         default: return .archive
         }
     }
@@ -62,6 +67,13 @@ enum ArchiveAssociationService {
             title: "Zstandard Archive",
             contentTypes: contentTypes(for: ["zst", "tzst"], fallback: ["org.zstandard.zst"])
         ),
+        // 0.4.4 只读镜像 / 容器家族(内置 7zz 可列 / 解 / 测,均不可写)。UTI 全是系统已声明类型。
+        // .iso 同时覆盖 UDF 格式的镜像(UDF 是镜像内的文件系统,没有独立扩展名)。
+        ArchiveAssociation(fileExtension: "iso", title: "ISO / UDF Disk Image", contentTypes: contentTypes(for: "iso", fallback: ["public.iso-image"])),
+        ArchiveAssociation(fileExtension: "cab", title: "Cabinet Archive", contentTypes: contentTypes(for: "cab", fallback: ["com.microsoft.cab"])),
+        ArchiveAssociation(fileExtension: "cpio", title: "CPIO Archive", contentTypes: contentTypes(for: "cpio", fallback: ["public.cpio-archive"])),
+        ArchiveAssociation(fileExtension: "xar", title: "XAR Archive", contentTypes: contentTypes(for: "xar", fallback: ["com.apple.xar-archive"])),
+        ArchiveAssociation(fileExtension: "pkg", title: "Installer Package", contentTypes: contentTypes(for: "pkg", fallback: ["com.apple.installer-package-archive"])),
         // SimpleZip 自有的「带签名 tar 容器」格式 —— UTI 在 Info.plist 的 UTExportedTypeDeclarations 里声明。
         ArchiveAssociation(fileExtension: "siz", title: "SimpleZip Signed Container", contentTypes: contentTypes(for: "siz", fallback: ["com.simplezip.siz-archive"])),
         // SimpleZip 自有的签名清单格式（v0.1.9 起）。

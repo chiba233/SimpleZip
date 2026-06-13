@@ -17,6 +17,10 @@ struct FileAssociationsPane: View {
     /// 上次「设为默认」成功针对的扩展名 id —— 用来在该类型不再是 SimpleZip 默认时撤掉那条
     /// 「已设为默认」提示，避免用户在别处取消关联后这里仍挂着「关联成功」。
     @State private var lastSucceededID: String?
+    /// 上次「全部设为默认」尝试过的一组扩展名 id —— `.dmg/.pkg` 这类受保护类型 `setAsDefault`
+    /// 会异步弹系统确认框,用户拒绝则默认不变。底部提示必须按**实际生效数**算(在 refresh 里复核),
+    /// 否则会误报「已设 N 个」。空 = 没有待复核的分组操作。
+    @State private var pendingGroupIDs: [String] = []
 
     var body: some View {
         Form {
@@ -25,12 +29,19 @@ struct FileAssociationsPane: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                // 0.4.3 用户拍板:按类别分组排布,同类同色(压缩包蓝 / SimpleZip 专属绿 / 分卷橙)。
+                // 0.4.3 用户拍板:按类别分组排布,同类同色(压缩包蓝 / 磁盘镜像紫 / SimpleZip 专属绿 / 分卷橙)。
                 associationGroup(
                     titleKey: "settings.association.group.archives",
                     systemImage: "doc.zipper",
                     tint: .blue,
                     category: .archive
+                )
+                // 0.4.4:磁盘镜像与安装包从压缩包拆出(dmg/iso 是镜像、xip/pkg 是 Apple 安装包,均非压缩)。
+                associationGroup(
+                    titleKey: "settings.association.group.diskImages",
+                    systemImage: "opticaldiscdrive",
+                    tint: .purple,
+                    category: .diskImage
                 )
                 associationGroup(
                     titleKey: "settings.association.group.simplezip",
@@ -59,6 +70,7 @@ struct FileAssociationsPane: View {
             // 重新打开面板（或在别处改过默认 App 后回来）不该再挂着「关联成功」。
             defaultAppMessage = nil
             lastSucceededID = nil
+            pendingGroupIDs = []
             refresh()
         }
     }
@@ -72,10 +84,23 @@ struct FileAssociationsPane: View {
         category: ArchiveAssociation.Category
     ) -> some View {
         let items = ArchiveAssociationService.supportedAssociations.filter { $0.category == category }
+        // 该组是否还有没设为默认的 —— 全设了就不显示「全部设为默认」按钮(无事可做)。
+        let hasUnset = items.contains { !ArchiveAssociationService.isSimpleZipDefault(for: $0) }
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 12) {
                 SettingsRowIcon(systemImage: systemImage, tint: tint)
                 Text(L10n.text(titleKey)).font(.headline)
+                Spacer(minLength: 12)
+                // 0.4.4 用户点名:每组一个「全部设为默认」—— 一键把本组所有格式关联到 SimpleZip。
+                if hasUnset {
+                    Button {
+                        setGroupDefault(for: items)
+                    } label: {
+                        Label(L10n.text("settings.association.setGroupDefault"), systemImage: "checkmark.circle")
+                    }
+                    .controlSize(.small)
+                    .fixedSize()
+                }
             }
             .padding(.vertical, 6)
 
@@ -91,6 +116,36 @@ struct FileAssociationsPane: View {
                     Divider().padding(.leading, 48)
                 }
             }
+        }
+    }
+
+    /// 0.4.4:把一个分组里的所有格式一键关联到 SimpleZip。
+    /// **不**按「调了几次 setAsDefault」报成功 —— `.dmg/.pkg` 等受保护类型会异步弹系统确认框,
+    /// 用户拒绝则默认不变。这里只发起请求,底部提示由 `refresh()` 按**实际生效数**复核给出
+    /// (用户在系统弹窗拒绝的不计入,全没生效则不显示提示)。同单个设默认的自纠正机制。
+    private func setGroupDefault(for items: [ArchiveAssociation]) {
+        let targets = items.filter { !ArchiveAssociationService.isSimpleZipDefault(for: $0) }
+        var failure: String?
+        for association in targets {
+            do {
+                try ArchiveAssociationService.setAsDefault(for: association)
+            } catch {
+                failure = error.localizedDescription
+            }
+        }
+        lastSucceededID = nil
+        if let failure {
+            defaultAppMessage = failure
+            pendingGroupIDs = []
+            return
+        }
+        // 待复核的这组 —— refresh 会数实际生效的;先清空提示,有结果再显示。
+        pendingGroupIDs = targets.map(\.id)
+        defaultAppMessage = nil
+        refresh()
+        // LaunchServices 写入同步返回但读缓存有延迟、系统确认框异步,多点 retry 让实际状态 settle 后再复核。
+        for delay in [0.3, 0.8, 1.5] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { refresh() }
         }
     }
 
@@ -126,6 +181,17 @@ struct FileAssociationsPane: View {
            !ArchiveAssociationService.isSimpleZipDefault(for: association) {
             defaultAppMessage = nil
             lastSucceededID = nil
+        }
+        // 「全部设为默认」的实际生效复核:只数这组里**现在真的是** SimpleZip 默认的(用户在系统
+        // 确认框拒绝的 .dmg/.pkg 不算)。生效 >0 才显示数量提示,全没生效则不显示 —— 不再误报。
+        if !pendingGroupIDs.isEmpty {
+            let nowDefaultCount = pendingGroupIDs.filter { id in
+                guard let association = ArchiveAssociationService.supportedAssociations.first(where: { $0.id == id }) else { return false }
+                return ArchiveAssociationService.isSimpleZipDefault(for: association)
+            }.count
+            defaultAppMessage = nowDefaultCount > 0
+                ? L10n.format("settings.association.setGroupDefaultDone", "\(nowDefaultCount)")
+                : nil
         }
     }
 }

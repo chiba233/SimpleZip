@@ -1779,7 +1779,10 @@
 "settings.browser.group.hidden" = "隱藏檔案";
 "settings.browser.group.expansion" = "展開與記憶";
 "settings.browser.group.display" = "顯示與結構";
-"settings.association.group.archives" = "壓縮包與磁碟映像";
+"settings.association.group.archives" = "壓縮包";
+"settings.association.group.diskImages" = "磁碟映像與安裝包";
+"settings.association.setGroupDefault" = "全部設為預設";
+"settings.association.setGroupDefaultDone" = "已把 %1$@ 個格式設為用 SimpleZip 開啟。";
 "settings.association.group.simplezip" = "SimpleZip 專屬格式";
 "settings.association.group.volumes" = "分卷";
 "settings.grouping.groupBy" = "分組方式";

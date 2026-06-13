@@ -1779,7 +1779,10 @@
 "settings.browser.group.hidden" = "隠しファイル";
 "settings.browser.group.expansion" = "展開と記憶";
 "settings.browser.group.display" = "表示と構造";
-"settings.association.group.archives" = "アーカイブとディスクイメージ";
+"settings.association.group.archives" = "アーカイブ";
+"settings.association.group.diskImages" = "ディスクイメージとインストーラ";
+"settings.association.setGroupDefault" = "すべて既定に";
+"settings.association.setGroupDefaultDone" = "%1$@ 個の形式を SimpleZip で開くように設定しました。";
 "settings.association.group.simplezip" = "SimpleZip 形式";
 "settings.association.group.volumes" = "分割ボリューム";
 "settings.grouping.groupBy" = "項目のグループ化";

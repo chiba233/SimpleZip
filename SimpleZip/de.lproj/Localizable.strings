@@ -1778,7 +1778,10 @@
 "settings.browser.group.hidden" = "Versteckte Dateien";
 "settings.browser.group.expansion" = "Aufklappen & Merken";
 "settings.browser.group.display" = "Anzeige & Struktur";
-"settings.association.group.archives" = "Archive & Disk-Images";
+"settings.association.group.archives" = "Archive";
+"settings.association.group.diskImages" = "Disk-Images & Installer";
+"settings.association.setGroupDefault" = "Alle als Standard";
+"settings.association.setGroupDefaultDone" = "%1$@ Dateitypen für SimpleZip festgelegt.";
 "settings.association.group.simplezip" = "SimpleZip-Formate";
 "settings.association.group.volumes" = "Geteilte Volumes";
 "settings.grouping.groupBy" = "Objekte gruppieren nach";

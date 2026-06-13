@@ -777,6 +777,8 @@ private struct WelcomeFileAssociationsStep: View {
                 // 与 设置 → 文件关联 同制度:按类分组、同类同色(类别色在 ArchiveAssociation.category 上)。
                 VStack(alignment: .leading, spacing: 0) {
                     associationGroup(titleKey: "settings.association.group.archives", systemImage: "doc.zipper", tint: .blue, category: .archive)
+                    // 0.4.4:磁盘镜像与安装包从压缩包拆出(与设置 → 文件关联同组别)。
+                    associationGroup(titleKey: "settings.association.group.diskImages", systemImage: "opticaldiscdrive", tint: .purple, category: .diskImage)
                     associationGroup(titleKey: "settings.association.group.simplezip", systemImage: "checkmark.seal", tint: .green, category: .simpleZip)
                     associationGroup(titleKey: "settings.association.group.volumes", systemImage: "square.stack.3d.down.right", tint: .orange, category: .volume)
                 }

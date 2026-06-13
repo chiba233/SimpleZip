@@ -425,7 +425,10 @@
 "settings.browser.group.display" = "显示与结构";
 /* 0.4.4 #20 视图 pane 重新归类 */
 "settings.view.group.displayName" = "显示名";
-"settings.association.group.archives" = "压缩包与磁盘镜像";
+"settings.association.group.archives" = "压缩包";
+"settings.association.group.diskImages" = "磁盘镜像与安装包";
+"settings.association.setGroupDefault" = "全部设为默认";
+"settings.association.setGroupDefaultDone" = "已把 %1$@ 个格式设为用 SimpleZip 打开。";
 "settings.association.group.simplezip" = "SimpleZip 专属格式";
 "settings.association.group.volumes" = "分卷";
 "settings.grouping.groupBy" = "分组方式";

@@ -1777,7 +1777,10 @@
 "settings.browser.group.hidden" = "Fichiers masqués";
 "settings.browser.group.expansion" = "Déploiement et mémoire";
 "settings.browser.group.display" = "Affichage et structure";
-"settings.association.group.archives" = "Archives et images disque";
+"settings.association.group.archives" = "Archives";
+"settings.association.group.diskImages" = "Images disque et installateurs";
+"settings.association.setGroupDefault" = "Tout par défaut";
+"settings.association.setGroupDefaultDone" = "%1$@ types de fichiers définis pour s’ouvrir avec SimpleZip.";
 "settings.association.group.simplezip" = "Formats SimpleZip";
 "settings.association.group.volumes" = "Volumes fractionnés";
 "settings.grouping.groupBy" = "Grouper les éléments par";
