@@ -15,6 +15,8 @@ struct ReleaseInspectionView: View {
     let report: ArchiveBrowserModel.ReleaseInspectionReport
     /// 0.4.3 #11:「导出 SHA256SUMS」—— 在归档旁写 GNU 兼容校验文件(非 SimpleZip 用户可验)。nil = 不显示。
     var onExportChecksums: (() -> Void)?
+    /// 0.4.4 E:报告间跳转 —— 对同一归档打开空间分析(数据同源,按 URL 重列)。nil = 不显示。
+    var onOpenSpaceAnalysis: (() -> Void)?
     let onClose: () -> Void
 
     var body: some View {
@@ -156,6 +158,15 @@ struct ReleaseInspectionView: View {
                 // 用户点名:底栏一排文字按钮被截断 → 全部并进「导出报告」一个弹窗里选
                 // (F2 四项 + 发布说明 / 全部复制 / SHA256SUMS)。
                 ReportExportControl(report: report, extraActions: exportExtraActions)
+                // E:跳转到同一归档的空间分析(bundle-only 检查没有归档侧数据,不显示)。
+                if let onOpenSpaceAnalysis, !report.isBundleOnly {
+                    Button {
+                        onOpenSpaceAnalysis()
+                        onClose()
+                    } label: {
+                        Label(L10n.text("space.menu"), systemImage: "chart.pie")
+                    }
+                }
                 Spacer()
                 Button {
                     onClose()

@@ -1138,6 +1138,12 @@ extension ArchiveBrowserModel {
                 errorMessage = L10n.text("error.openOrSelectArchive")
                 return
             }
+            runSpaceAnalysisTask(for: archiveURL)
+        }
+    }
+
+    /// E:按 URL 跑空间分析(发布检查报告「打开空间分析」跳转也走这里 —— 数据同源,不依赖选区)。
+    func runSpaceAnalysisTask(for archiveURL: URL) {
             let force = isForced(archiveURL)
             var computedAnalysis: ArchiveSpaceAnalysis?
             startManagedArchiveTask(
@@ -1155,7 +1161,7 @@ extension ArchiveBrowserModel {
                         )
                     }
                 },
-                rerunAction: { [weak self] in self?.analyzeSelectedArchiveSpace() }
+                rerunAction: { [weak self] in self?.runSpaceAnalysisTask(for: archiveURL) }
             ) { [weak self] operationID, _, _ in
                 var items: [ArchiveItem] = []
                 for password in [""] + SessionPasswordCache.shared.candidates(for: archiveURL) {
@@ -1176,7 +1182,6 @@ extension ArchiveBrowserModel {
                     )
                 }
             }
-        }
     }
 
     private func runReleaseInspection(_ url: URL) {

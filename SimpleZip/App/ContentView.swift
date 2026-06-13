@@ -1293,7 +1293,8 @@ private struct ArchiveExtrasSheets: ViewModifier {
             .sheet(item: $model.releaseInspectionReport) { report in
                 ReleaseInspectionView(
                     report: report,
-                    onExportChecksums: { model.exportSHA256SUMS(forArchiveAt: report.archiveURL) }
+                    onExportChecksums: { model.exportSHA256SUMS(forArchiveAt: report.archiveURL) },
+                    onOpenSpaceAnalysis: { model.runSpaceAnalysisTask(for: report.archiveURL) }
                 ) {
                     model.releaseInspectionReport = nil
                 }

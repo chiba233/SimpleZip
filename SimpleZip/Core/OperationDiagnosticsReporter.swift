@@ -227,19 +227,17 @@ extension OperationDiagnosticsReporter {
     /// 环境表 + 「发生了什么 / 复现步骤」占位 + 脱敏错误与日志尾部 + 文件系统现场。
     /// 复用 makeReport 的同一套脱敏与截尾;纯函数,SwiftPM 可测。
     public static func makeGitHubIssueMarkdown(from inputs: OperationDiagnosticsInputs) -> String {
-        var lines: [String] = []
-        lines.append("### Environment")
-        lines.append("")
-        lines.append("| | |")
-        lines.append("|---|---|")
-        lines.append("| SimpleZip | \(inputs.appVersion) (build \(inputs.appBuild)) |")
-        lines.append("| macOS | \(inputs.macOSVersion) |")
-        lines.append("| 7-Zip backend | \(inputs.sevenZipDescription) — \(inputs.sevenZipVersion) |")
-        lines.append("| RAR backend | \(inputs.rarDescription) — \(inputs.rarVersion) |")
+        // E 合流:环境表布局收敛到 ReportExport.environmentTableLines(单一实现,两处共用)。
+        var environmentRows: [(label: String, value: String)] = [
+            ("SimpleZip", "\(inputs.appVersion) (build \(inputs.appBuild))"),
+            ("macOS", inputs.macOSVersion),
+            ("7-Zip backend", "\(inputs.sevenZipDescription) — \(inputs.sevenZipVersion)"),
+            ("RAR backend", "\(inputs.rarDescription) — \(inputs.rarVersion)")
+        ]
         if let gpg = inputs.gpgSection {
-            lines.append("| GPG | \(gpg.backendDescription) — \(gpg.version) |")
+            environmentRows.append(("GPG", "\(gpg.backendDescription) — \(gpg.version)"))
         }
-        lines.append("")
+        var lines = ReportExport.environmentTableLines(rows: environmentRows)
         lines.append("### What happened")
         lines.append("")
         lines.append("<!-- Describe what you expected and what actually happened. -->")

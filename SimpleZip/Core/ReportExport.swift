@@ -58,23 +58,26 @@ public enum ReportExport {
         return lines.joined(separator: "\n")
     }
 
+    /// GitHub Issue 的「### Environment」表(E 合流:诊断包与报告导出共用同一布局,单一实现)。
+    public static func environmentTableLines(rows: [(label: String, value: String)]) -> [String] {
+        var lines = ["### Environment", "", "| | |", "|---|---|"]
+        lines.append(contentsOf: rows.map { "| \($0.label) | \($0.value) |" })
+        lines.append("")
+        return lines
+    }
+
     /// 可直接粘贴 GitHub Issue 的正文:环境表(与诊断包同一布局)+ 摘要 + 折叠的完整报告。
-    /// 与 OperationDiagnosticsReporter.makeGitHubIssueMarkdown 的环境表保持同款表头格式。
     public static func gitHubIssueBody(
         title: String,
         summaryLine: String,
         reportMarkdown: String,
         metadata: ReportMetadata
     ) -> String {
-        var lines: [String] = []
-        lines.append("### Environment")
-        lines.append("")
-        lines.append("| | |")
-        lines.append("|---|---|")
-        lines.append("| SimpleZip | \(metadata.appVersion) |")
-        lines.append("| macOS | \(metadata.macOSVersion) |")
-        lines.append("| 7-Zip backend | \(metadata.backendVersion) |")
-        lines.append("")
+        var lines = environmentTableLines(rows: [
+            ("SimpleZip", metadata.appVersion),
+            ("macOS", metadata.macOSVersion),
+            ("7-Zip backend", metadata.backendVersion)
+        ])
         lines.append("### \(title)")
         lines.append("")
         lines.append(summaryLine)

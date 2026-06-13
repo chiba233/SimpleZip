@@ -4,6 +4,7 @@
 
 ## 0.4.4 (unreleased)
 
+- **Reports link to each other.** The release-inspection report gains an Open Space Analysis button that runs the analysis for the same archive; the GitHub-issue environment table now has a single shared implementation behind both the diagnostics bundle and every report export.
 - **DevTools: format compatibility lab.** Pick a small folder and the lab round-trips it through zip, 7z, tar and tar.gz against the real backends — measuring what actually survives: structure, executable bits, extended attributes, symlinks, timestamps, comment round-trip (zip) and reproducibility (zip/7z). Probes are added to a temp copy; the original folder is never touched. Hidden in the developer tools by design.
 - **New: open-performance report.** Right-click inside an open archive → Copy Open-Performance Report: a small Markdown table with the backend listing time, UI tree-build time, entry count and format — and an honest flag when the timing includes a password-prompt wait. Clipboard-only by design; nothing about this is rendered during browsing.
 - **New: Temporary Workspace pane in the Activity Center.** Shows whether the encrypted scratch volume is mounted (and where), explains its throwaway-key/destroyed-on-quit lifecycle, lists SimpleZip's entries in the system temp folder with their total size, and offers Clean Up Now — which only removes stale items from previous sessions, never the staging folders the current session is using.
