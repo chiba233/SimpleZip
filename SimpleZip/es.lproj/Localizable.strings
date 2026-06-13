@@ -2057,6 +2057,9 @@
 "intent.task.search" = "Atajo: buscar %@";
 "intent.task.inspect" = "Atajo: inspeccionar %@";
 "intent.search.emptyQuery" = "Introduce algo que buscar.";
+"intent.findArchive.none" = "Ninguno de los archivos comprimidos que has abierto contiene «%@».";
+"intent.findArchive.results" = "%1$@ archivo(s) comprimido(s) que has abierto contienen «%2$@».";
+"spotlight.cachedArchive.description" = "Contiene %@ archivos · abrir en SimpleZip";
 "intent.search.none" = "Ninguna entrada de %1$@ coincide con «%2$@».";
 "intent.search.results" = "%1$@ entradas de %2$@ coinciden con «%3$@».";
 "intent.inspect.clean" = "%1$@ no tiene rutas sospechosas: %2$@ archivo(s), %3$@, %4$@ elemento(s) basura de macOS.";
@@ -2232,7 +2235,7 @@
 "settings.automation.ai.title" = "Asistente de informes con IA";
 "settings.automation.ai.description" = "Resúmenes y explicaciones en el dispositivo: resumir el riesgo de una versión, explicar una tarea fallida, sugerir etiquetas de revisión, pulir una incidencia de GitHub. Solo lectura: nunca cambia archivos ni ajustes. Requiere macOS 26 con Apple Intelligence.";
 "settings.automation.spotlight.title" = "Indexar en Spotlight";
-"settings.automation.spotlight.description" = "Permite buscar los paquetes de versión y las tareas recientes en Spotlight. Desactívalo para mayor privacidad; también borra lo ya indexado. Requiere macOS 15 o posterior.";
+"settings.automation.spotlight.description" = "Haz que los paquetes de versión, las tareas recientes y los nombres de los archivos dentro de los archivos comprimidos que has abierto se puedan buscar en Spotlight. Desactívalo para más privacidad: también borra lo que ya está indexado. Necesita macOS 15 o posterior.";
 "settings.automation.cache.section" = "Caché del contenido de los archivos comprimidos";
 "settings.automation.cache.enabled.title" = "Recordar el contenido de los archivos comprimidos";
 "settings.automation.cache.enabled.description" = "Recuerda los nombres de los archivos dentro de los archivos comprimidos que abres, para poder buscar qué archivo comprimido contiene un archivo. Los archivos comprimidos cifrados nunca se recuerdan.";

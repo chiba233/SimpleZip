@@ -741,5 +741,14 @@ struct SimpleZipAppShortcuts: AppShortcutsProvider {
             shortTitle: "Create Release Package",
             systemImageName: "shippingbox"
         )
+        AppShortcut(
+            intent: FindArchiveContainingFileIntent(),
+            phrases: [
+                "Find which archive contains a file with \(.applicationName)",
+                "Find an archive containing a file with \(.applicationName)"
+            ],
+            shortTitle: "Find Archive Containing File",
+            systemImageName: "rectangle.and.text.magnifyingglass"
+        )
     }
 }

@@ -40,6 +40,20 @@ nonisolated struct ArchiveListingCacheEntry: Codable, Identifiable, Equatable {
         let isDirectory: Bool
         let size: Int64?
     }
+
+    /// 去重的非加密**文件名**(仅 basename,跳过目录条目),封顶 `limit` 条。供 #35 Spotlight 关键词等使用 ——
+    /// 让用户搜一个文件名就能命中含它的归档。纯逻辑,可单测。
+    func fileBaseNames(limit: Int = 1000) -> [String] {
+        var seen = Set<String>()
+        var result: [String] = []
+        for cached in entries where !cached.isDirectory {
+            let base = (cached.name as NSString).lastPathComponent
+            guard !base.isEmpty, seen.insert(base).inserted else { continue }
+            result.append(base)
+            if result.count >= limit { break }
+        }
+        return result
+    }
 }
 
 /// 跨缓存归档搜索条目名的命中。
@@ -99,7 +113,7 @@ nonisolated final class ArchiveListingCacheStore {
         // 全加密(条目名同属敏感面)/ 空包:没有可搜的非加密名,不占缓存槽,也不留痕。
         guard !nonEncrypted.isEmpty else { return false }
 
-        let path = canonicalPath(for: archiveURL)
+        let path = Self.canonicalPath(for: archiveURL)
         let truncated = nonEncrypted.count > Self.maxEntriesPerArchive
         let cached = nonEncrypted.prefix(Self.maxEntriesPerArchive).map {
             ArchiveListingCacheEntry.CachedEntry(name: $0.name, isDirectory: $0.isDirectory, size: $0.size)
@@ -154,7 +168,7 @@ nonisolated final class ArchiveListingCacheStore {
 
     /// 移除某个归档的缓存(例:文件已不在 / 用户在设置里单独清)。
     func remove(archivePath: String) {
-        let target = canonicalPath(for: URL(fileURLWithPath: archivePath))
+        let target = Self.canonicalPath(for: URL(fileURLWithPath: archivePath))
         persist(loadAll().filter { $0.archivePath != target })
     }
 
@@ -194,7 +208,8 @@ nonisolated final class ArchiveListingCacheStore {
         return all.filter { $0.recordedAt >= cutoff }
     }
 
-    private func canonicalPath(for url: URL) -> String {
+    /// 规范化磁盘路径(去符号链接 + standardized)—— 去重主键。indexer / 模型增量索引也要用同一口径定位条目。
+    static func canonicalPath(for url: URL) -> String {
         url.resolvingSymlinksInPath().standardizedFileURL.path
     }
 

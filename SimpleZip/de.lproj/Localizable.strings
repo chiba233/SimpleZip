@@ -2058,6 +2058,9 @@
 "intent.task.search" = "Kurzbefehl: %@ durchsuchen";
 "intent.task.inspect" = "Kurzbefehl: %@ prüfen";
 "intent.search.emptyQuery" = "Bitte einen Suchbegriff eingeben.";
+"intent.findArchive.none" = "Keines der von dir geöffneten Archive enthält „%@“.";
+"intent.findArchive.results" = "%1$@ von dir geöffnete(s) Archiv(e) enthält/enthalten „%2$@“.";
+"spotlight.cachedArchive.description" = "Enthält %@ Dateien · in SimpleZip öffnen";
 "intent.search.none" = "Keine Einträge in %1$@ entsprechen „%2$@“.";
 "intent.search.results" = "%1$@ Einträge in %2$@ entsprechen „%3$@“.";
 "intent.inspect.clean" = "%1$@ hat keine verdächtigen Pfade – %2$@ Datei(en), %3$@, %4$@ macOS-Müllobjekt(e).";
@@ -2233,7 +2236,7 @@
 "settings.automation.ai.title" = "KI-Berichtsassistent";
 "settings.automation.ai.description" = "Geräteinterne Zusammenfassungen und Erklärungen: Veröffentlichungsrisiko zusammenfassen, fehlgeschlagene Aufgabe erklären, Prüf-Labels vorschlagen, GitHub-Issue aufpolieren. Schreibgeschützt — ändert nie Dateien oder Einstellungen. Erfordert macOS 26 mit Apple Intelligence.";
 "settings.automation.spotlight.title" = "In Spotlight indizieren";
-"settings.automation.spotlight.description" = "Macht Veröffentlichungspakete und letzte Aufgaben in Spotlight durchsuchbar. Zum Schutz der Privatsphäre ausschalten – das löscht auch bereits Indiziertes. Erfordert macOS 15 oder neuer.";
+"settings.automation.spotlight.description" = "Macht Release-Pakete, letzte Aufgaben und die Dateinamen in von dir geöffneten Archiven in Spotlight durchsuchbar. Zum Schutz der Privatsphäre ausschalten — das löscht auch das bereits Indizierte. Benötigt macOS 15 oder neuer.";
 "settings.automation.cache.section" = "Archivinhalt-Cache";
 "settings.automation.cache.enabled.title" = "Archivinhalt merken";
 "settings.automation.cache.enabled.description" = "Merkt sich die Dateinamen in den Archiven, die du öffnest, damit du suchen kannst, welches Archiv eine Datei enthält. Verschlüsselte Archive werden nie gemerkt.";

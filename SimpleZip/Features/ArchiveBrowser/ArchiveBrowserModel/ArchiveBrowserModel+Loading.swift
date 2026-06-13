@@ -487,7 +487,9 @@ extension ArchiveBrowserModel {
         let tempPath = FileManager.default.temporaryDirectory.resolvingSymlinksInPath().path
         guard !url.resolvingSymlinksInPath().path.hasPrefix(tempPath) else { return }
         Task.detached(priority: .utility) {
-            ArchiveListingCacheStore().record(archiveURL: url, items: items)
+            let recorded = ArchiveListingCacheStore().record(archiveURL: url, items: items)
+            // #35:记进缓存后,把这一个归档增量同步进 Spotlight(双门控在 indexer 里,关了任一开关即不捐献)。
+            if recorded { CachedArchiveSpotlightIndexer.indexArchive(at: url) }
         }
     }
 

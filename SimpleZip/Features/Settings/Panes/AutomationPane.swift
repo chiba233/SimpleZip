@@ -139,6 +139,8 @@ struct AutomationPane: View {
                     // indexer 内部按 `spotlightIndexingEnabled` 分支:开→重建、关→清空已捐献的索引。
                     ReleasePackageSpotlightIndexer.reindex()
                     ArchiveTaskSpotlightIndexer.reindex()
+                    // #35:归档内容 Spotlight 捐献是双门控,这把总开关也管它。
+                    CachedArchiveSpotlightIndexer.reindex()
                 }
             }
 
@@ -154,6 +156,8 @@ struct AutomationPane: View {
                 .onChange(of: archiveCacheEnabled) { isOn in
                     // 关掉 = 停止缓存并清空已记内容(隐私优先)。
                     if !isOn { ArchiveListingCacheStore().clear() }
+                    // #35:缓存开关也是归档内容 Spotlight 捐献的门控 —— 关→清空已捐献项,开→按缓存重建。
+                    CachedArchiveSpotlightIndexer.reindex()
                     refreshArchiveCacheStats()
                 }
 
@@ -173,6 +177,7 @@ struct AutomationPane: View {
                         .onChange(of: archiveCacheMax) { newValue in
                             AppPreferences.archiveListingCacheMaxArchives = newValue
                             ArchiveListingCacheStore().applyCurrentLimits()
+                            CachedArchiveSpotlightIndexer.reindex()
                             refreshArchiveCacheStats()
                         }
                     }
@@ -194,6 +199,7 @@ struct AutomationPane: View {
                         .onChange(of: archiveCacheTTL) { newValue in
                             AppPreferences.archiveListingCacheTTLDays = newValue
                             ArchiveListingCacheStore().applyCurrentLimits()
+                            CachedArchiveSpotlightIndexer.reindex()
                             refreshArchiveCacheStats()
                         }
                     }
@@ -207,6 +213,7 @@ struct AutomationPane: View {
                         isDisabled: archiveCacheCount == 0,
                         action: {
                             ArchiveListingCacheStore().clear()
+                            CachedArchiveSpotlightIndexer.reindex()
                             refreshArchiveCacheStats()
                         }
                     )

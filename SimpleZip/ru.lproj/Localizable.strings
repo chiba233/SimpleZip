@@ -2057,6 +2057,9 @@
 "intent.task.search" = "Быстрая команда: поиск %@";
 "intent.task.inspect" = "Быстрая команда: проверка %@";
 "intent.search.emptyQuery" = "Введите текст для поиска.";
+"intent.findArchive.none" = "Ни один из открытых вами архивов не содержит «%@».";
+"intent.findArchive.results" = "Открытых вами архивов с «%2$@»: %1$@.";
+"spotlight.cachedArchive.description" = "Файлов внутри: %@ · открыть в SimpleZip";
 "intent.search.none" = "В %1$@ нет записей, соответствующих «%2$@».";
 "intent.search.results" = "%1$@ записей в %2$@ соответствуют «%3$@».";
 "intent.inspect.clean" = "В %1$@ нет подозрительных путей — файлов: %2$@, %3$@, мусорных объектов macOS: %4$@.";
@@ -2232,7 +2235,7 @@
 "settings.automation.ai.title" = "ИИ-ассистент отчётов";
 "settings.automation.ai.description" = "Локальные сводки и объяснения: сводка рисков релиза, объяснение неудачной задачи, предложение меток проверки, доработка задачи на GitHub. Только чтение — никогда не меняет файлы или настройки. Требуется macOS 26 с Apple Intelligence.";
 "settings.automation.spotlight.title" = "Индексировать в Spotlight";
-"settings.automation.spotlight.description" = "Позволяет искать релизные пакеты и недавние задачи в Spotlight. Отключите для большей приватности — это также очистит уже проиндексированное. Требуется macOS 15 или новее.";
+"settings.automation.spotlight.description" = "Делает пакеты выпусков, недавние задачи и имена файлов внутри открытых вами архивов доступными для поиска в Spotlight. Отключите для большей приватности — это также очистит уже проиндексированное. Требуется macOS 15 или новее.";
 "settings.automation.cache.section" = "Кэш содержимого архивов";
 "settings.automation.cache.enabled.title" = "Запоминать содержимое архивов";
 "settings.automation.cache.enabled.description" = "Запоминает имена файлов внутри открываемых архивов, чтобы можно было искать, в каком архиве находится файл. Зашифрованные архивы никогда не запоминаются.";

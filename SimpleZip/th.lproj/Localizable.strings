@@ -2057,6 +2057,9 @@
 "intent.task.search" = "ทางลัด: ค้นหา %@";
 "intent.task.inspect" = "ทางลัด: ตรวจสอบ %@";
 "intent.search.emptyQuery" = "ป้อนสิ่งที่ต้องการค้นหา";
+"intent.findArchive.none" = "ไม่มีไฟล์บีบอัดที่คุณเปิดที่มี \"%@\"";
+"intent.findArchive.results" = "ไฟล์บีบอัดที่คุณเปิด %1$@ ไฟล์มี \"%2$@\"";
+"spotlight.cachedArchive.description" = "มี %@ ไฟล์ · เปิดใน SimpleZip";
 "intent.search.none" = "ไม่มีรายการใน %1$@ ที่ตรงกับ \"%2$@\"";
 "intent.search.results" = "%1$@ รายการใน %2$@ ตรงกับ \"%3$@\"";
 "intent.inspect.clean" = "%1$@ ไม่มีเส้นทางที่น่าสงสัย — %2$@ ไฟล์, %3$@, รายการขยะ macOS %4$@ รายการ";
@@ -2232,7 +2235,7 @@
 "settings.automation.ai.title" = "ผู้ช่วยรายงาน AI";
 "settings.automation.ai.description" = "สรุปและอธิบายในเครื่อง: สรุปความเสี่ยงของรีลีส อธิบายงานที่ล้มเหลว แนะนำป้ายตรวจสอบ ขัดเกลา GitHub issue อ่านอย่างเดียว — ไม่เปลี่ยนแปลงไฟล์หรือการตั้งค่า ต้องใช้ macOS 26 พร้อม Apple Intelligence";
 "settings.automation.spotlight.title" = "จัดทำดัชนีใน Spotlight";
-"settings.automation.spotlight.description" = "ทำให้ค้นหาแพ็กเกจรีลีสและงานล่าสุดใน Spotlight ได้ ปิดเพื่อความเป็นส่วนตัวมากขึ้น — การปิดจะล้างสิ่งที่จัดทำดัชนีไว้แล้วด้วย ต้องใช้ macOS 15 ขึ้นไป";
+"settings.automation.spotlight.description" = "ทำให้แพ็กเกจรุ่น งานล่าสุด และชื่อไฟล์ภายในไฟล์บีบอัดที่คุณเปิด ค้นหาได้ใน Spotlight ปิดเพื่อความเป็นส่วนตัวมากขึ้น — การปิดจะล้างสิ่งที่จัดทำดัชนีไว้แล้วด้วย ต้องใช้ macOS 15 ขึ้นไป";
 "settings.automation.cache.section" = "แคชเนื้อหาไฟล์บีบอัด";
 "settings.automation.cache.enabled.title" = "จดจำเนื้อหาไฟล์บีบอัด";
 "settings.automation.cache.enabled.description" = "จดจำชื่อไฟล์ภายในไฟล์บีบอัดที่คุณเปิด เพื่อให้ค้นหาได้ว่าไฟล์อยู่ในไฟล์บีบอัดใด ไฟล์บีบอัดที่เข้ารหัสจะไม่ถูกจดจำ";

@@ -2058,6 +2058,9 @@
 "intent.task.search" = "단축어: %@ 검색";
 "intent.task.inspect" = "단축어: %@ 검사";
 "intent.search.emptyQuery" = "검색할 내용을 입력하세요.";
+"intent.findArchive.none" = "연 아카이브 중에 \"%@\"을(를) 포함한 것이 없습니다.";
+"intent.findArchive.results" = "연 아카이브 %1$@개에 \"%2$@\"이(가) 들어 있습니다.";
+"spotlight.cachedArchive.description" = "파일 %@개 포함 · SimpleZip에서 열기";
 "intent.search.none" = "%1$@에 \"%2$@\"과(와) 일치하는 항목이 없습니다.";
 "intent.search.results" = "%2$@의 %1$@개 항목이 \"%3$@\"과(와) 일치합니다.";
 "intent.inspect.clean" = "%1$@에 의심스러운 경로가 없습니다 — 파일 %2$@개, %3$@, macOS 불필요 항목 %4$@개.";
@@ -2233,7 +2236,7 @@
 "settings.automation.ai.title" = "AI 보고서 어시스턴트";
 "settings.automation.ai.description" = "온디바이스 요약 및 설명: 릴리스 위험 요약, 실패한 작업 설명, 점검 라벨 제안, GitHub 이슈 다듬기. 읽기 전용 — 파일이나 설정을 절대 변경하지 않습니다. macOS 26과 Apple Intelligence가 필요합니다.";
 "settings.automation.spotlight.title" = "Spotlight에 색인";
-"settings.automation.spotlight.description" = "릴리스 패키지와 최근 작업을 Spotlight에서 검색할 수 있게 합니다. 개인정보 보호를 위해 끄세요 — 이미 색인된 항목도 지워집니다. macOS 15 이상이 필요합니다.";
+"settings.automation.spotlight.description" = "릴리스 패키지, 최근 작업, 그리고 연 아카이브 안의 파일 이름을 Spotlight에서 검색할 수 있게 합니다. 더 비공개로 하려면 끄세요 — 끄면 이미 색인된 내용도 지워집니다. macOS 15 이상이 필요합니다.";
 "settings.automation.cache.section" = "아카이브 내용 캐시";
 "settings.automation.cache.enabled.title" = "아카이브 내용 기억";
 "settings.automation.cache.enabled.description" = "연 아카이브 안의 파일 이름을 기억하여 어느 아카이브에 특정 파일이 있는지 검색할 수 있게 합니다. 암호화된 아카이브는 기억하지 않습니다.";

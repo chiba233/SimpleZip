@@ -2057,6 +2057,9 @@
 "intent.task.search" = "Raccourci : rechercher %@";
 "intent.task.inspect" = "Raccourci : inspecter %@";
 "intent.search.emptyQuery" = "Saisissez un terme à rechercher.";
+"intent.findArchive.none" = "Aucune des archives que vous avez ouvertes ne contient « %@ ».";
+"intent.findArchive.results" = "%1$@ archive(s) que vous avez ouverte(s) contiennent « %2$@ ».";
+"spotlight.cachedArchive.description" = "Contient %@ fichiers · ouvrir dans SimpleZip";
 "intent.search.none" = "Aucune entrée de %1$@ ne correspond à « %2$@ ».";
 "intent.search.results" = "%1$@ entrées de %2$@ correspondent à « %3$@ ».";
 "intent.inspect.clean" = "%1$@ n’a aucun chemin suspect — %2$@ fichier(s), %3$@, %4$@ élément(s) indésirable(s) macOS.";
@@ -2232,7 +2235,7 @@
 "settings.automation.ai.title" = "Assistant de rapport par l’IA";
 "settings.automation.ai.description" = "Résumés et explications sur l’appareil : résumer le risque d’une version, expliquer une tâche échouée, suggérer des étiquettes de vérification, peaufiner un ticket GitHub. En lecture seule — ne modifie jamais les fichiers ni les réglages. Nécessite macOS 26 avec Apple Intelligence.";
 "settings.automation.spotlight.title" = "Indexer dans Spotlight";
-"settings.automation.spotlight.description" = "Rend les paquets de version et les tâches récentes accessibles via Spotlight. Désactivez pour plus de confidentialité — cela efface aussi ce qui est déjà indexé. Nécessite macOS 15 ou ultérieur.";
+"settings.automation.spotlight.description" = "Rendez les paquets de version, les tâches récentes et les noms des fichiers contenus dans les archives que vous avez ouvertes consultables dans Spotlight. Désactivez pour plus de confidentialité — cela efface aussi ce qui est déjà indexé. Nécessite macOS 15 ou ultérieur.";
 "settings.automation.cache.section" = "Cache du contenu des archives";
 "settings.automation.cache.enabled.title" = "Mémoriser le contenu des archives";
 "settings.automation.cache.enabled.description" = "Mémorise les noms des fichiers contenus dans les archives que vous ouvrez, afin de rechercher quelle archive contient un fichier. Les archives chiffrées ne sont jamais mémorisées.";

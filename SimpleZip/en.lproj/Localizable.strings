@@ -1315,7 +1315,7 @@
 "settings.automation.ai.title" = "AI Report Assistant";
 "settings.automation.ai.description" = "On-device summaries and explanations: summarize a release's risk, explain a failed task, suggest checkup labels, polish a GitHub issue. Read-only — it never changes files or settings. Needs macOS 26 with Apple Intelligence.";
 "settings.automation.spotlight.title" = "Index in Spotlight";
-"settings.automation.spotlight.description" = "Make release packages and recent tasks searchable in Spotlight. Turn this off for more privacy — it also clears what's already indexed. Needs macOS 15 or later.";
+"settings.automation.spotlight.description" = "Make release packages, recent tasks, and the file names inside archives you\'ve opened searchable in Spotlight. Turn this off for more privacy — it also clears what\'s already indexed. Needs macOS 15 or later.";
 "settings.automation.cache.section" = "Archive Content Cache";
 "settings.automation.cache.enabled.title" = "Remember archive contents";
 "settings.automation.cache.enabled.description" = "Remember the file names inside the archives you open, so you can search for which archive contains a file. Encrypted archives are never remembered.";
@@ -2443,6 +2443,9 @@
 "intent.task.search" = "Shortcut: search %@";
 "intent.task.inspect" = "Shortcut: inspect %@";
 "intent.search.emptyQuery" = "Enter something to search for.";
+"intent.findArchive.none" = "None of the archives you\'ve opened contain \"%@\".";
+"intent.findArchive.results" = "%1$@ archive(s) you\'ve opened contain \"%2$@\".";
+"spotlight.cachedArchive.description" = "Contains %@ files · open in SimpleZip";
 "intent.search.none" = "No entries in %1$@ match \"%2$@\".";
 "intent.search.results" = "%1$@ entries in %2$@ match \"%3$@\".";
 "intent.inspect.clean" = "%1$@ has no suspicious paths — %2$@ file(s), %3$@, %4$@ macOS junk item(s).";

@@ -149,6 +149,28 @@ import Testing
         #expect(tight.search("alpha", now: t0.addingTimeInterval(30)).isEmpty)
     }
 
+    @Test func fileBaseNamesDedupesAndSkipsDirectories() {
+        let store = makeStore()
+        store.record(archiveURL: url("k.zip"), items: [
+            item("Resources/zh-Hans.lproj/Localizable.strings"),
+            item("Resources/en.lproj/Localizable.strings"), // 同 basename Localizable.strings → 去重
+            item("src", isDirectory: true),                 // 目录跳过
+            item("README.md")
+        ], now: t0)
+        guard let entry = store.loadAll().first else { #expect(Bool(false)); return }
+        let names = entry.fileBaseNames()
+        // basename 去重(两个 Localizable.strings 只留一个)+ 跳过目录条目 "src"。
+        #expect(names == ["Localizable.strings", "README.md"])
+    }
+
+    @Test func fileBaseNamesRespectsLimit() {
+        let store = makeStore()
+        store.record(archiveURL: url("big.zip"),
+                     items: (0..<10).map { item("f\($0).txt") }, now: t0)
+        guard let entry = store.loadAll().first else { #expect(Bool(false)); return }
+        #expect(entry.fileBaseNames(limit: 3).count == 3)
+    }
+
     @Test func removeAndClear() {
         let store = makeStore()
         store.record(archiveURL: url("one.zip"), items: [item("one.txt")], now: t0)

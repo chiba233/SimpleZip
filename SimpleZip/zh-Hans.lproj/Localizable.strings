@@ -1313,7 +1313,7 @@
 "settings.automation.ai.title" = "AI 报告助手";
 "settings.automation.ai.description" = "本地（Apple Intelligence）总结与解释：总结发布风险、解释失败任务、建议体检标签、润色 GitHub Issue。只读——绝不改动文件或设置。需要 macOS 26 + Apple Intelligence。";
 "settings.automation.spotlight.title" = "在 Spotlight 中索引";
-"settings.automation.spotlight.description" = "让发布包和最近的任务能在 Spotlight 里搜到。想更私密就关掉——关闭会同时清空已索引的内容。需要 macOS 15 或更新版本。";
+"settings.automation.spotlight.description" = "让发布包、最近的任务，以及你打开过的归档里的文件名都能在 Spotlight 里搜到。想更私密就关掉——关闭会同时清空已索引的内容。需要 macOS 15 或更新版本。";
 "settings.automation.cache.section" = "归档内容缓存";
 "settings.automation.cache.enabled.title" = "记住归档内容";
 "settings.automation.cache.enabled.description" = "记住你打开过的归档里有哪些文件，方便搜索某个文件在哪个压缩包里。加密归档永不记录。";
@@ -2443,6 +2443,9 @@
 "intent.task.search" = "快捷指令：搜索 %@";
 "intent.task.inspect" = "快捷指令：检查 %@";
 "intent.search.emptyQuery" = "请输入要搜索的内容。";
+"intent.findArchive.none" = "你打开过的归档里没有包含「%@」的。";
+"intent.findArchive.results" = "你打开过的 %1$@ 个归档包含「%2$@」。";
+"spotlight.cachedArchive.description" = "包含 %@ 个文件 · 在 SimpleZip 中打开";
 "intent.search.none" = "%1$@ 中没有条目匹配「%2$@」。";
 "intent.search.results" = "%2$@ 中有 %1$@ 个条目匹配「%3$@」。";
 "intent.inspect.clean" = "%1$@ 没有可疑路径——%2$@ 个文件，%3$@，%4$@ 个 macOS 垃圾项。";

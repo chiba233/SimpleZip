@@ -2059,6 +2059,9 @@
 "intent.task.search" = "ショートカット：%@ を検索";
 "intent.task.inspect" = "ショートカット：%@ を検査";
 "intent.search.emptyQuery" = "検索する内容を入力してください。";
+"intent.findArchive.none" = "開いたアーカイブの中に「%@」を含むものはありません。";
+"intent.findArchive.results" = "開いた %1$@ 個のアーカイブに「%2$@」が含まれています。";
+"spotlight.cachedArchive.description" = "%@ 個のファイルを含む · SimpleZip で開く";
 "intent.search.none" = "%1$@ に「%2$@」に一致する項目はありません。";
 "intent.search.results" = "%2$@ の %1$@ 件の項目が「%3$@」に一致します。";
 "intent.inspect.clean" = "%1$@ に疑わしいパスはありません — %2$@ 個のファイル、%3$@、macOS の不要項目 %4$@ 個。";
@@ -2234,7 +2237,7 @@
 "settings.automation.ai.title" = "AI レポートアシスタント";
 "settings.automation.ai.description" = "オンデバイスの要約と説明：リリースのリスク要約、失敗タスクの説明、点検ラベルの提案、GitHub Issue の推敲。読み取り専用——ファイルや設定は一切変更しません。macOS 26 と Apple Intelligence が必要です。";
 "settings.automation.spotlight.title" = "Spotlight でインデックス";
-"settings.automation.spotlight.description" = "リリースパッケージと最近のタスクを Spotlight で検索できるようにします。プライバシーを優先する場合はオフにしてください。オフにすると索引済みの内容も消去されます。macOS 15 以降が必要です。";
+"settings.automation.spotlight.description" = "リリースパッケージ、最近のタスク、そして開いたアーカイブ内のファイル名を Spotlight で検索できるようにします。よりプライベートにするにはオフにします——オフにすると索引済みの内容も消去されます。macOS 15 以降が必要です。";
 "settings.automation.cache.section" = "アーカイブ内容キャッシュ";
 "settings.automation.cache.enabled.title" = "アーカイブの内容を記憶";
 "settings.automation.cache.enabled.description" = "開いたアーカイブ内のファイル名を記憶し、どのアーカイブにそのファイルが含まれるかを検索できるようにします。暗号化されたアーカイブは記憶しません。";

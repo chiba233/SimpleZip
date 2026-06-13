@@ -106,6 +106,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // no-op、后台执行)。全量重建,覆盖上次会话期间新增 / 裁旧 / 删除导致的索引漂移。
         ReleasePackageSpotlightIndexer.reindex()
         ArchiveTaskSpotlightIndexer.reindex()
+        // #35:把缓存的归档(按内含文件名)同步进 Spotlight。双门控(Spotlight 总开关 + 缓存开关),
+        // 任一关 → 清空已捐献的归档项。
+        CachedArchiveSpotlightIndexer.reindex()
     }
 
     /// 去掉列顺序偏好里的重复 identifier（修复历史污染，幂等）。
@@ -263,6 +266,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         DispatchQueue.main.async { [weak self] in
             self?.ensureWindowForPendingExternalOpens()
         }
+    }
+
+    /// 供 App Intents(#35 打开缓存归档:点 Spotlight 命中 / Shortcuts 接收实体)复用:按外部打开语义
+    /// 在 SimpleZip 里打开一个归档,并确保有窗口处理。与 Finder / Open With / `simplezip://open` 同一条路径
+    /// (尊重「自动解压」等偏好),但不弹 URL scheme 的确认框 —— 点本 app 自己索引的 Spotlight 结果是用户
+    /// 主动、可信的操作。
+    @MainActor
+    static func openExternalArchive(_ url: URL) {
+        NSApp.activate(ignoringOtherApps: true)
+        ExternalFileOpenQueue.shared.enqueue(url)
+        (NSApp.delegate as? AppDelegate)?.scheduleEnsureWindowForPendingExternalOpens()
     }
 
     func application(_ sender: NSApplication, openFile filename: String) -> Bool {
