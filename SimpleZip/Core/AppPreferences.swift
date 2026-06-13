@@ -347,6 +347,14 @@ enum AppPreferences {
         nonisolated static let compressionUsageStats = "compressionUsageStats"
         /// 0.4.4:是否记录压缩选项使用频率(供「按我最常用的来」)。默认 true;关 = 停止记录。
         nonisolated static let compressionUsageTrackingEnabled = "compressionUsageTrackingEnabled"
+        /// 0.4.4 #34:归档清单缓存(ArchiveListingCacheStore 的 JSON Data;派生数据,不进偏好备份,恢复出厂时清掉)。
+        nonisolated static let archiveListingCache = "SimpleZip.ArchiveListingCache.v1"
+        /// 0.4.4 #34:是否缓存打开过的归档的非加密条目名(供「文件 X 在哪个包」搜索)。默认 true;关 → 停止缓存并清空。
+        nonisolated static let archiveListingCacheEnabled = "archiveListingCacheEnabled"
+        /// 0.4.4 #34:最多缓存多少个归档的清单(默认 50,范围 1…500)。
+        nonisolated static let archiveListingCacheMaxArchives = "archiveListingCacheMaxArchives"
+        /// 0.4.4 #34:缓存条目多少天后过期(默认 30,范围 0…365;0 = 永不过期)。
+        nonisolated static let archiveListingCacheTTLDays = "archiveListingCacheTTLDays"
         nonisolated static let tasksPlaySoundOnFinish = "tasksPlaySoundOnFinish"
         /// 0.4.4 #10:长任务完成后发系统通知(默认关;开 → 首次时请求通知授权)。只在 app 不在前台、任务够长时发。
         nonisolated static let tasksNotifyOnFinish = "tasksNotifyOnFinish"
@@ -405,6 +413,29 @@ enum AppPreferences {
     /// 0.4.4:是否记录压缩选项使用频率(供「按我最常用的来」)。默认 true。
     nonisolated static var compressionUsageTrackingEnabled: Bool {
         defaultTrueBool(forKey: Key.compressionUsageTrackingEnabled)
+    }
+
+    /// 0.4.4 #34:是否缓存打开过的归档的非加密条目名(供「文件 X 在哪个包」搜索)。默认 true。
+    nonisolated static var archiveListingCacheEnabled: Bool {
+        defaultTrueBool(forKey: Key.archiveListingCacheEnabled)
+    }
+
+    /// 0.4.4 #34:归档清单缓存最多保留多少个归档(默认 50,范围 1…500)。
+    nonisolated static var archiveListingCacheMaxArchives: Int {
+        get {
+            guard defaults.object(forKey: Key.archiveListingCacheMaxArchives) != nil else { return 50 }
+            return min(max(defaults.integer(forKey: Key.archiveListingCacheMaxArchives), 1), 500)
+        }
+        set { defaults.set(min(max(newValue, 1), 500), forKey: Key.archiveListingCacheMaxArchives) }
+    }
+
+    /// 0.4.4 #34:归档清单缓存的过期天数(默认 30,范围 0…365;0 = 永不过期)。
+    nonisolated static var archiveListingCacheTTLDays: Int {
+        get {
+            guard defaults.object(forKey: Key.archiveListingCacheTTLDays) != nil else { return 30 }
+            return min(max(defaults.integer(forKey: Key.archiveListingCacheTTLDays), 0), 365)
+        }
+        set { defaults.set(min(max(newValue, 0), 365), forKey: Key.archiveListingCacheTTLDays) }
     }
 
     nonisolated static var tasksOpenOnFailure: Bool {
@@ -963,6 +994,9 @@ enum AppPreferences {
         Key.spotlightIndexingEnabled,
         Key.aiAssistantEnabled,
         Key.compressionUsageTrackingEnabled,
+        Key.archiveListingCacheEnabled,
+        Key.archiveListingCacheMaxArchives,
+        Key.archiveListingCacheTTLDays,
         Key.collapseVolumeSets,
         Key.verifyAfterArchiveRewrite,
         Key.verifyAfterArchiveCreate,
@@ -1071,6 +1105,9 @@ enum AppPreferences {
         v[Key.spotlightIndexingEnabled] = spotlightIndexingEnabled
         v[Key.aiAssistantEnabled] = aiAssistantEnabled
         v[Key.compressionUsageTrackingEnabled] = compressionUsageTrackingEnabled
+        v[Key.archiveListingCacheEnabled] = archiveListingCacheEnabled
+        v[Key.archiveListingCacheMaxArchives] = archiveListingCacheMaxArchives
+        v[Key.archiveListingCacheTTLDays] = archiveListingCacheTTLDays
         v[Key.tasksPlaySoundOnFinish] = tasksPlaySoundOnFinish
         v[Key.tasksNotifyOnFinish] = tasksNotifyOnFinish
         v[Key.collapseVolumeSets] = collapseVolumeSets
@@ -1247,6 +1284,8 @@ enum AppPreferences {
         defaults.removeObject(forKey: Key.compressionFormatPresets)
         defaults.removeObject(forKey: Key.releaseWorkspacePresets)
         defaults.removeObject(forKey: Key.releaseLedger)
+        // #34 归档清单缓存是派生数据(不在白名单),恢复出厂时一并清掉。
+        defaults.removeObject(forKey: Key.archiveListingCache)
         // `errSecItemNotFound` = 本来就没存过预设密码 → 也算「已清干净」。其它非 0 状态才是真失败。
         let status = PresetPasswordStore.clear()
         return status == errSecSuccess || status == errSecItemNotFound

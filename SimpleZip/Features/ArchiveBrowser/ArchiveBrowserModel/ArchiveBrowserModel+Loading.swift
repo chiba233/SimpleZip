@@ -407,6 +407,8 @@ extension ArchiveBrowserModel {
             updateArchiveSecurityFindings(for: items, url: url, generation: generation)
             // #41:同一批后台增强里顺手预热空间分析(用户点「空间分析」时瞬开、不卡主线程)。
             prewarmSpaceAnalysis(for: items, url: url, generation: generation)
+            // #34:把非加密条目名 / 元数据写进归档清单缓存(供「文件 X 在哪个包」搜索)。
+            updateArchiveListingCache(for: items, url: url)
             // 压缩 tar 壳(tar.gz/tgz/tar.zst/tzst/tar.bz2/tar.xz)默认**直接打开内层 tar**(用户拍板):
             // 唯一 .tar 条目时自动走双击下钻 —— 地址栏显示 …/foo.tar.zst/foo.tar 虚拟链;
             // 壳层不进返回栈(「上一级」直接回真实文件夹,不在壳层弹跳),全程不露 /tmp。
@@ -474,6 +476,18 @@ extension ArchiveBrowserModel {
                 guard let self, self.isCurrentLoad(generation, mode: .archive(url)) else { return }
                 self.prewarmedSpaceAnalysis = (generation: generation, analysis: analysis)
             }
+        }
+    }
+
+    /// #34:把这次打开的归档清单(只非加密条目名 + 元数据)写进缓存,供「文件 X 在哪个包」搜索(#35)。
+    /// 关掉开关时 store.record 会自己早退;这里只过滤掉临时解压出来的嵌套 / 壳层归档(路径在系统临时目录、
+    /// 瞬时且无搜索价值)。JSON 编码 + UserDefaults 写丢后台跑,不占主线程(A18);[ArchiveItem] 是值类型可安全捕获。
+    private func updateArchiveListingCache(for items: [ArchiveItem], url: URL) {
+        guard AppPreferences.archiveListingCacheEnabled else { return }
+        let tempPath = FileManager.default.temporaryDirectory.resolvingSymlinksInPath().path
+        guard !url.resolvingSymlinksInPath().path.hasPrefix(tempPath) else { return }
+        Task.detached(priority: .utility) {
+            ArchiveListingCacheStore().record(archiveURL: url, items: items)
         }
     }
 

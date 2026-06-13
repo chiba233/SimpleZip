@@ -38,6 +38,7 @@ let package = Package(
                 "Core/ArchiveOperationFeedback.swift",
                 "Core/ArchiveCreationService.swift",
                 "Core/ArchiveDiff.swift",
+                "Core/ArchiveListingCache.swift",
                 "Core/ArchiveModels.swift",
                 "Core/ArchiveEntryUpdate.swift",
                 "Core/ArchiveWriteGate.swift",
