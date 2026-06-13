@@ -2226,6 +2226,16 @@
 "settings.automation.security.section" = "安全";
 "settings.automation.allowPresetPassword" = "允許自動化使用預設密碼";
 "settings.automation.allowPresetPassword.description" = "關閉後，無人值守執行（捷徑、CLI）只嘗試空密碼，絕不動用你的預設密碼。";
+"settings.automation.pathHealth.section" = "發佈路徑健康";
+"settings.automation.pathHealth.title" = "已儲存的發佈路徑";
+"settings.automation.pathHealth.description" = "工作區預設的資料夾、發佈歷史裡的產物，檔案被移動或刪除後可能就找不到了。檢查這些已儲存的路徑是否還在。";
+"settings.automation.pathHealth.check" = "立即檢查";
+"settings.automation.pathHealth.allOK" = "全部 %@ 條已儲存路徑都可存取。";
+"settings.automation.pathHealth.status.missing" = "已遺失";
+"settings.automation.pathHealth.status.unreadable" = "無存取權限";
+"settings.automation.pathHealth.source.presetSource" = "預設「%@」· 來源資料夾";
+"settings.automation.pathHealth.source.presetOutput" = "預設「%@」· 輸出資料夾";
+"settings.automation.pathHealth.source.ledgerArtifact" = "發佈「%@」· 產物";
 "tasks.source.app" = "應用內";
 "tasks.source.cli" = "命令列";
 "tasks.source.intent" = "捷徑 / Siri";

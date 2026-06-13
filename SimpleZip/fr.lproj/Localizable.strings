@@ -2224,6 +2224,16 @@
 "settings.automation.security.section" = "Sécurité";
 "settings.automation.allowPresetPassword" = "Autoriser l’automatisation à utiliser le mot de passe prédéfini";
 "settings.automation.allowPresetPassword.description" = "Si désactivé, les exécutions sans surveillance (Raccourcis, CLI) essaient seulement un mot de passe vide et n’utilisent jamais votre mot de passe prédéfini.";
+"settings.automation.pathHealth.section" = "État des chemins de version";
+"settings.automation.pathHealth.title" = "Chemins de version enregistrés";
+"settings.automation.pathHealth.description" = "Les dossiers des préréglages d’espace de travail et les artefacts de l’historique des versions peuvent disparaître après le déplacement ou la suppression de fichiers. Vérifiez si les chemins enregistrés existent toujours.";
+"settings.automation.pathHealth.check" = "Vérifier maintenant";
+"settings.automation.pathHealth.allOK" = "Les %@ chemins enregistrés sont accessibles.";
+"settings.automation.pathHealth.status.missing" = "Manquant";
+"settings.automation.pathHealth.status.unreadable" = "Pas d’accès";
+"settings.automation.pathHealth.source.presetSource" = "Préréglage « %@ » · dossier source";
+"settings.automation.pathHealth.source.presetOutput" = "Préréglage « %@ » · dossier de sortie";
+"settings.automation.pathHealth.source.ledgerArtifact" = "Version « %@ » · artefact";
 "tasks.source.app" = "Dans l’app";
 "tasks.source.cli" = "Ligne de commande";
 "tasks.source.intent" = "Raccourcis / Siri";

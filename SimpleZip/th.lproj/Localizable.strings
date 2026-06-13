@@ -2224,6 +2224,16 @@
 "settings.automation.security.section" = "ความปลอดภัย";
 "settings.automation.allowPresetPassword" = "อนุญาตให้อัตโนมัติใช้รหัสผ่านพรีเซ็ต";
 "settings.automation.allowPresetPassword.description" = "เมื่อปิด การทำงานแบบไม่มีผู้ดูแล (คำสั่งลัด, CLI) จะลองเฉพาะรหัสผ่านว่างและไม่แตะรหัสผ่านพรีเซ็ต";
+"settings.automation.pathHealth.section" = "สถานะพาธรีลีส";
+"settings.automation.pathHealth.title" = "พาธรีลีสที่บันทึกไว้";
+"settings.automation.pathHealth.description" = "โฟลเดอร์ของพรีเซตพื้นที่ทำงานและไฟล์ผลลัพธ์ในประวัติรีลีสอาจหายไปหลังจากย้ายหรือลบไฟล์ ตรวจสอบว่าพาธที่บันทึกไว้ยังอยู่หรือไม่";
+"settings.automation.pathHealth.check" = "ตรวจสอบเดี๋ยวนี้";
+"settings.automation.pathHealth.allOK" = "พาธที่บันทึกไว้ทั้ง %@ รายการเข้าถึงได้";
+"settings.automation.pathHealth.status.missing" = "ไม่พบ";
+"settings.automation.pathHealth.status.unreadable" = "เข้าถึงไม่ได้";
+"settings.automation.pathHealth.source.presetSource" = "พรีเซต “%@” · โฟลเดอร์ต้นทาง";
+"settings.automation.pathHealth.source.presetOutput" = "พรีเซต “%@” · โฟลเดอร์ผลลัพธ์";
+"settings.automation.pathHealth.source.ledgerArtifact" = "รีลีส “%@” · ไฟล์ผลลัพธ์";
 "tasks.source.app" = "ในแอป";
 "tasks.source.cli" = "บรรทัดคำสั่ง";
 "tasks.source.intent" = "คำสั่งลัด / Siri";

@@ -1311,6 +1311,16 @@
 "settings.automation.security.section" = "Security";
 "settings.automation.allowPresetPassword" = "Allow automation to use the preset password";
 "settings.automation.allowPresetPassword.description" = "When off, unattended runs (Shortcuts, CLI) only try an empty password and never touch your preset password.";
+"settings.automation.pathHealth.section" = "Release Path Health";
+"settings.automation.pathHealth.title" = "Saved release paths";
+"settings.automation.pathHealth.description" = "Workspace preset folders and release-history artifacts can go missing after files are moved or deleted. Check whether the saved paths are still there.";
+"settings.automation.pathHealth.check" = "Check Now";
+"settings.automation.pathHealth.allOK" = "All %@ saved paths are accessible.";
+"settings.automation.pathHealth.status.missing" = "Missing";
+"settings.automation.pathHealth.status.unreadable" = "No access";
+"settings.automation.pathHealth.source.presetSource" = "Preset “%@” · source folder";
+"settings.automation.pathHealth.source.presetOutput" = "Preset “%@” · output folder";
+"settings.automation.pathHealth.source.ledgerArtifact" = "Release “%@” · artifact";
 "tasks.source.app" = "In-app";
 "tasks.source.cli" = "Command line";
 "tasks.source.intent" = "Shortcuts / Siri";

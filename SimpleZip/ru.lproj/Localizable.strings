@@ -2224,6 +2224,16 @@
 "settings.automation.security.section" = "Безопасность";
 "settings.automation.allowPresetPassword" = "Разрешить автоматизации использовать сохранённый пароль";
 "settings.automation.allowPresetPassword.description" = "Если выключено, автоматические запуски (Команды, CLI) пробуют только пустой пароль и никогда не используют сохранённый пароль.";
+"settings.automation.pathHealth.section" = "Состояние путей выпуска";
+"settings.automation.pathHealth.title" = "Сохранённые пути выпуска";
+"settings.automation.pathHealth.description" = "Папки пресетов рабочего пространства и артефакты из истории выпусков могут пропасть после перемещения или удаления файлов. Проверьте, на месте ли сохранённые пути.";
+"settings.automation.pathHealth.check" = "Проверить";
+"settings.automation.pathHealth.allOK" = "Все %@ сохранённых путей доступны.";
+"settings.automation.pathHealth.status.missing" = "Отсутствует";
+"settings.automation.pathHealth.status.unreadable" = "Нет доступа";
+"settings.automation.pathHealth.source.presetSource" = "Пресет «%@» · папка источника";
+"settings.automation.pathHealth.source.presetOutput" = "Пресет «%@» · папка вывода";
+"settings.automation.pathHealth.source.ledgerArtifact" = "Выпуск «%@» · артефакт";
 "tasks.source.app" = "В приложении";
 "tasks.source.cli" = "Командная строка";
 "tasks.source.intent" = "Команды / Siri";

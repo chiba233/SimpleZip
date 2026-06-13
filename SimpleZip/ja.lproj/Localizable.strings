@@ -2226,6 +2226,16 @@
 "settings.automation.security.section" = "セキュリティ";
 "settings.automation.allowPresetPassword" = "自動化でプリセットパスワードの使用を許可";
 "settings.automation.allowPresetPassword.description" = "オフの場合、無人実行（ショートカット、CLI）は空のパスワードだけを試し、プリセットパスワードには一切触れません。";
+"settings.automation.pathHealth.section" = "リリースパスの健全性";
+"settings.automation.pathHealth.title" = "保存されたリリースパス";
+"settings.automation.pathHealth.description" = "ワークスペースプリセットのフォルダやリリース履歴の成果物は、ファイルを移動・削除すると見つからなくなることがあります。保存されたパスがまだ存在するか確認します。";
+"settings.automation.pathHealth.check" = "今すぐ確認";
+"settings.automation.pathHealth.allOK" = "保存された %@ 件のパスはすべてアクセス可能です。";
+"settings.automation.pathHealth.status.missing" = "見つかりません";
+"settings.automation.pathHealth.status.unreadable" = "アクセス不可";
+"settings.automation.pathHealth.source.presetSource" = "プリセット「%@」· ソースフォルダ";
+"settings.automation.pathHealth.source.presetOutput" = "プリセット「%@」· 出力フォルダ";
+"settings.automation.pathHealth.source.ledgerArtifact" = "リリース「%@」· 成果物";
 "tasks.source.app" = "アプリ内";
 "tasks.source.cli" = "コマンドライン";
 "tasks.source.intent" = "ショートカット / Siri";

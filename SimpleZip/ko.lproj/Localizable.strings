@@ -2225,6 +2225,16 @@
 "settings.automation.security.section" = "보안";
 "settings.automation.allowPresetPassword" = "자동화가 프리셋 암호를 사용하도록 허용";
 "settings.automation.allowPresetPassword.description" = "꺼져 있으면 무인 실행(단축어, CLI)은 빈 암호만 시도하고 프리셋 암호를 절대 사용하지 않습니다.";
+"settings.automation.pathHealth.section" = "릴리스 경로 상태";
+"settings.automation.pathHealth.title" = "저장된 릴리스 경로";
+"settings.automation.pathHealth.description" = "작업 공간 프리셋 폴더와 릴리스 기록의 결과물은 파일을 옮기거나 삭제하면 사라질 수 있습니다. 저장된 경로가 아직 있는지 확인합니다.";
+"settings.automation.pathHealth.check" = "지금 확인";
+"settings.automation.pathHealth.allOK" = "저장된 %@개 경로가 모두 접근 가능합니다.";
+"settings.automation.pathHealth.status.missing" = "없음";
+"settings.automation.pathHealth.status.unreadable" = "접근 불가";
+"settings.automation.pathHealth.source.presetSource" = "프리셋 “%@” · 소스 폴더";
+"settings.automation.pathHealth.source.presetOutput" = "프리셋 “%@” · 출력 폴더";
+"settings.automation.pathHealth.source.ledgerArtifact" = "릴리스 “%@” · 결과물";
 "tasks.source.app" = "앱 내";
 "tasks.source.cli" = "명령줄";
 "tasks.source.intent" = "단축어 / Siri";

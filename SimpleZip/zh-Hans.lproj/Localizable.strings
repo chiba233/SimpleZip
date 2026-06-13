@@ -1309,6 +1309,16 @@
 "settings.automation.security.section" = "安全";
 "settings.automation.allowPresetPassword" = "允许自动化使用预设密码";
 "settings.automation.allowPresetPassword.description" = "关闭后,无人值守的运行(快捷指令、命令行)只尝试空密码,绝不动用你的预设密码。";
+"settings.automation.pathHealth.section" = "发布路径健康";
+"settings.automation.pathHealth.title" = "已保存的发布路径";
+"settings.automation.pathHealth.description" = "工作区预设的文件夹、发布历史里的产物，文件被移动或删除后可能就找不到了。检查这些保存的路径是否还在。";
+"settings.automation.pathHealth.check" = "立即检查";
+"settings.automation.pathHealth.allOK" = "全部 %@ 条保存路径都可访问。";
+"settings.automation.pathHealth.status.missing" = "已丢失";
+"settings.automation.pathHealth.status.unreadable" = "无访问权限";
+"settings.automation.pathHealth.source.presetSource" = "预设「%@」· 源文件夹";
+"settings.automation.pathHealth.source.presetOutput" = "预设「%@」· 输出文件夹";
+"settings.automation.pathHealth.source.ledgerArtifact" = "发布「%@」· 产物";
 "tasks.source.app" = "应用内";
 "tasks.source.cli" = "命令行";
 "tasks.source.intent" = "快捷指令 / Siri";

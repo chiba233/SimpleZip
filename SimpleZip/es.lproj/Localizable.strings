@@ -2224,6 +2224,16 @@
 "settings.automation.security.section" = "Seguridad";
 "settings.automation.allowPresetPassword" = "Permitir que la automatización use la contraseña predefinida";
 "settings.automation.allowPresetPassword.description" = "Si está desactivado, las ejecuciones desatendidas (Atajos, CLI) solo prueban una contraseña vacía y nunca tocan tu contraseña predefinida.";
+"settings.automation.pathHealth.section" = "Estado de las rutas de versión";
+"settings.automation.pathHealth.title" = "Rutas de versión guardadas";
+"settings.automation.pathHealth.description" = "Las carpetas de los preajustes del espacio de trabajo y los artefactos del historial de versiones pueden desaparecer al mover o eliminar archivos. Comprueba si las rutas guardadas siguen ahí.";
+"settings.automation.pathHealth.check" = "Comprobar ahora";
+"settings.automation.pathHealth.allOK" = "Las %@ rutas guardadas son accesibles.";
+"settings.automation.pathHealth.status.missing" = "Falta";
+"settings.automation.pathHealth.status.unreadable" = "Sin acceso";
+"settings.automation.pathHealth.source.presetSource" = "Preajuste “%@” · carpeta de origen";
+"settings.automation.pathHealth.source.presetOutput" = "Preajuste “%@” · carpeta de salida";
+"settings.automation.pathHealth.source.ledgerArtifact" = "Versión “%@” · artefacto";
 "tasks.source.app" = "En la app";
 "tasks.source.cli" = "Línea de comandos";
 "tasks.source.intent" = "Atajos / Siri";

@@ -24,6 +24,10 @@ struct AutomationPane: View {
 
     @ObservedObject private var taskCenter = TaskCenter.shared
 
+    /// #42:发布路径健康检查结果(工作区预设目录 + 账本产物路径)。按需点「检查」才跑,不自动扫。
+    @State private var pathHealthEntries: [PathHealthCheck.Entry] = []
+    @State private var pathHealthChecked = false
+
     var body: some View {
         Form {
             // ① CLI(安装区自「通用」整体搬来)。
@@ -200,9 +204,95 @@ struct AutomationPane: View {
                     isOn: $allowPresetPassword
                 )
             }
+
+            // ⑦ #42:发布路径健康 —— 工作区预设的源/输出目录、账本里的产物路径,跨重启后还在不在。
+            Section(L10n.text("settings.automation.pathHealth.section")) {
+                SettingsActionRow(
+                    title: L10n.text("settings.automation.pathHealth.title"),
+                    description: L10n.text("settings.automation.pathHealth.description"),
+                    systemImage: "externaldrive.badge.questionmark", iconTint: .teal,
+                    buttonTitle: L10n.text("settings.automation.pathHealth.check"),
+                    action: checkPathHealth
+                )
+                if pathHealthChecked {
+                    let problems = pathHealthEntries.filter { $0.status != .accessible }
+                    if problems.isEmpty {
+                        Label(
+                            L10n.format("settings.automation.pathHealth.allOK", "\(pathHealthEntries.count)"),
+                            systemImage: "checkmark.circle.fill"
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.green)
+                    } else {
+                        ForEach(problems) { entry in
+                            pathHealthRow(entry)
+                        }
+                    }
+                }
+            }
         }
         .formStyle(.grouped)
         .controlSize(.small)
+    }
+
+    // MARK: - #42 路径健康
+
+    private func pathHealthRow(_ entry: PathHealthCheck.Entry) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: entry.status == .missing ? "xmark.circle.fill" : "lock.circle.fill")
+                .foregroundStyle(entry.status == .missing ? .red : .orange)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(entry.source).font(.callout)
+                Text(entry.path)
+                    .font(.caption.monospaced())
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .help(entry.path)
+            }
+            Spacer(minLength: 8)
+            Text(L10n.text("settings.automation.pathHealth.status.\(entry.status.rawValue)"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            // 存在但不可读 → 能在 Finder 里定位;不存在的没法 reveal(文件没了)。
+            if entry.status == .unreadable {
+                Button(L10n.text("button.revealInFinder")) {
+                    NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: entry.path)])
+                }
+                .controlSize(.small)
+            }
+        }
+        .padding(.vertical, 2)
+    }
+
+    private func checkPathHealth() {
+        let items = Self.gatherReleasePaths()
+        Task {
+            // classify 触磁盘 → 放后台;回主 actor 设 @State。
+            let entries = await Task.detached(priority: .utility) { PathHealthCheck.report(items) }.value
+            pathHealthEntries = entries
+            pathHealthChecked = true
+        }
+    }
+
+    /// 汇总所有持久化的发布相关路径:每个工作区预设的源 / 输出目录 + 账本每条产物路径。
+    private static func gatherReleasePaths() -> [(source: String, path: String)] {
+        var items: [(source: String, path: String)] = []
+        for preset in ReleaseWorkspacePresetStore().loadAll() {
+            if let source = preset.sourceFolderPath, !source.isEmpty {
+                items.append((L10n.format("settings.automation.pathHealth.source.presetSource", preset.name), source))
+            }
+            if let destination = preset.destinationFolderPath, !destination.isEmpty {
+                items.append((L10n.format("settings.automation.pathHealth.source.presetOutput", preset.name), destination))
+            }
+        }
+        for entry in ReleaseLedgerStore().loadAll() {
+            let label = entry.versionLabel.isEmpty
+                ? URL(fileURLWithPath: entry.artifactPath).lastPathComponent
+                : entry.versionLabel
+            items.append((L10n.format("settings.automation.pathHealth.source.ledgerArtifact", label), entry.artifactPath))
+        }
+        return items
     }
 
     // MARK: - 来源统计

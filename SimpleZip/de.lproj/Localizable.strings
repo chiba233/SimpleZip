@@ -2225,6 +2225,16 @@
 "settings.automation.security.section" = "Sicherheit";
 "settings.automation.allowPresetPassword" = "Automatisierung darf das voreingestellte Passwort verwenden";
 "settings.automation.allowPresetPassword.description" = "Wenn deaktiviert, versuchen unbeaufsichtigte Läufe (Kurzbefehle, CLI) nur ein leeres Passwort und greifen nie auf Ihr voreingestelltes Passwort zu.";
+"settings.automation.pathHealth.section" = "Zustand der Release-Pfade";
+"settings.automation.pathHealth.title" = "Gespeicherte Release-Pfade";
+"settings.automation.pathHealth.description" = "Ordner von Arbeitsbereich-Presets und Artefakte aus dem Release-Verlauf können nach dem Verschieben oder Löschen von Dateien fehlen. Prüfen, ob die gespeicherten Pfade noch vorhanden sind.";
+"settings.automation.pathHealth.check" = "Jetzt prüfen";
+"settings.automation.pathHealth.allOK" = "Alle %@ gespeicherten Pfade sind zugänglich.";
+"settings.automation.pathHealth.status.missing" = "Fehlt";
+"settings.automation.pathHealth.status.unreadable" = "Kein Zugriff";
+"settings.automation.pathHealth.source.presetSource" = "Preset „%@“ · Quellordner";
+"settings.automation.pathHealth.source.presetOutput" = "Preset „%@“ · Ausgabeordner";
+"settings.automation.pathHealth.source.ledgerArtifact" = "Release „%@“ · Artefakt";
 "tasks.source.app" = "In der App";
 "tasks.source.cli" = "Befehlszeile";
 "tasks.source.intent" = "Kurzbefehle / Siri";
