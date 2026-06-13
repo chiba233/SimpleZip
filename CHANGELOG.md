@@ -82,6 +82,7 @@
 - **The release pipeline became a reusable engine with resume.** Packaging, inspection and checksum-writing are tracked as named, timed steps that persist with history; the engine is shared by the Shortcuts "Create Release Package" action and the GUI, and a run that failed after packaging can re-inspect the existing artifact without re-packing (re-packing always produces a new uniquely-named file, never overwrites).
 - **The GitHub-issue environment table has one shared implementation.** Behind both the diagnostics bundle and every report export.
 - **The Activity Center chrome lives in one shared component.** No longer three hand-copies across the Help, Welcome and About pages.
+- **Pure value types moved into the testable Core.** Side-effect-free Codable models that lived nested in Features — starting with the release-inspection report — now live in the SwiftPM-tested Core target, with Codable round-trip tests pinning their persistence contract. No behavior change.
 
 ### misc
 

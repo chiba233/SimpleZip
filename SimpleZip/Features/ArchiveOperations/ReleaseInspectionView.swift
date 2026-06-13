@@ -12,7 +12,7 @@ import AppKit
 import SwiftUI
 
 struct ReleaseInspectionView: View {
-    let report: ArchiveBrowserModel.ReleaseInspectionReport
+    let report: ReleaseInspectionReport
     /// 0.4.3 #11:「导出 SHA256SUMS」—— 在归档旁写 GNU 兼容校验文件(非 SimpleZip 用户可验)。nil = 不显示。
     var onExportChecksums: (() -> Void)?
     /// 0.4.4 E:报告间跳转 —— 对同一归档打开空间分析(数据同源,按 URL 重列)。nil = 不显示。
@@ -381,7 +381,7 @@ struct ReleaseInspectionView: View {
 // MARK: - 统一导出（0.4.4 F2）
 
 /// 发布检查报告接统一导出底座:Markdown 跟 UI 语言;JSON 字段名固定英文(交换格式契约)。
-extension ArchiveBrowserModel.ReleaseInspectionReport: ReportExportable {
+extension ReleaseInspectionReport: ReportExportable {
     var reportTitle: String { "\(L10n.text("inspect.title")) — \(archiveURL.lastPathComponent)" }
     var reportTargetPath: String? { archiveURL.path }
 

@@ -189,6 +189,6 @@ final class OperationTask: ObservableObject, Identifiable {
 /// 0.4.4:可随任务历史持久化的报告附件(报告 sheet 的数据都是纯值类型,落盘后重启原样可看)。
 /// 只收录有界报告;比较结果体积可能失控,走 OperationTask.diffReport 自己的体积闸。
 nonisolated enum TaskReportAttachment: Codable {
-    case releaseInspection(ArchiveBrowserModel.ReleaseInspectionReport)
+    case releaseInspection(ReleaseInspectionReport)
     case metadata(ArchiveMetadataReport)
 }

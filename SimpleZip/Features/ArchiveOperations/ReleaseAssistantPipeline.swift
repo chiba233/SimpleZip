@@ -24,8 +24,8 @@ enum ReleaseAssistantPipeline {
         operationID: UUID?,
         progress: @escaping @Sendable (ArchiveProgressState) -> Void,
         outputObserver: (@Sendable (String) -> Void)?
-    ) async throws -> ArchiveBrowserModel.ReleaseInspectionReport {
-        var report = ArchiveBrowserModel.ReleaseInspectionReport(archiveURL: outputURL)
+    ) async throws -> ReleaseInspectionReport {
+        var report = ReleaseInspectionReport(archiveURL: outputURL)
 
         // ① 打包。创建占 0~0.6 —— createArchive 自己的 fraction 压缩到这个区间。
         // 续跑(skipCreate):产物还在,跳过重打包 —— UniqueFileName 语义下重打包=新文件名,不是续跑。
