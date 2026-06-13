@@ -143,10 +143,14 @@ struct ActivityFilterSpec: Sendable {
     var status: String
     @Guide(description: "Which task origin to keep: one of any, app, cli, intent, urlScheme, finder.")
     var source: String
+    @Guide(description: "Which kind of operation to keep: one of any, extract, compress, create, test, convert, compare, benchmark, hash, split, combine, search, inspect, paste, move, copy, duplicate, delete, rename, permissions, undo, redo. any if the request does not single out an operation kind.")
+    var kind: String
+    @Guide(description: "An archive format or file extension the request refers to, matched against the task name (e.g. zip, 7z, tar, gz, rar, dmg, siz). Empty if the request does not mention a format.")
+    var format: String
     @Guide(description: "A word or file name from the request to match within a task's name; empty if the request does not mention a specific name.")
     var keyword: String
-    @Guide(description: "The amount in any time limit the request expresses, as a plain number, NOT converted to any unit. 0 if the request expresses no time limit.")
-    var timeValue: Int
+    @Guide(description: "The amount in any time limit the request expresses, as a plain number that may be fractional (e.g. 0.2 or 1.5), NOT converted to any unit. 0 if the request expresses no time limit.")
+    var timeValue: Double
     @Guide(description: "The unit the time amount is expressed in: one of none, seconds, minutes, hours, days, weeks. none if the request expresses no time limit.")
     var timeUnit: String
     @Guide(description: "Whether the time limit selects tasks more recent than it (within) or older than it (before): one of within, before.")
@@ -194,8 +198,10 @@ extension AIReportAssistant {
     static func activityFilterSpec(for query: String) async throws -> ActivityFilterSpec {
         let instructions = """
         You read the user's request and express it as a task filter. Understand the request whatever \
-        language it is written in, and capture every condition it expresses — a name to look for, how \
-        recent (or how old) the task is, its state, and where it came from. For a time limit, report the \
+        language it is written in, and capture EVERY condition it expresses — these can stack: a name to \
+        look for, how recent (or how old) the task is, its state, where it came from, what kind of \
+        operation it is, and what archive format. A single request often sets several of these at once, so \
+        fill all that apply and leave the rest at their empty/any default. For a time limit, report the \
         amount and its unit as the user expressed them, without converting; the app does the arithmetic and \
         the exact matching. Be faithful to what the user asked: don't translate or paraphrase the name, and \
         don't invent conditions the request doesn't express. Fill each field per its description.

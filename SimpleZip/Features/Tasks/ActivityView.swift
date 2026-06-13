@@ -44,14 +44,21 @@ struct ActivityView: View {
     @State private var aiTimeBefore = false
     @State private var aiStatus = ActivityTaskFilter.all
     @State private var aiSource: OperationTask.Source?
+    /// 任务类型范围(nil = 不限)。
+    @State private var aiKind: OperationTask.Kind?
+    /// 格式 / 扩展名范围(空 = 不限),匹配任务名里的「.<格式>」。
+    @State private var aiFormat = ""
     /// 当前 AI 筛选的原话(高亮按钮 tooltip 显示)。
     @State private var aiFilterQuery = ""
     /// 抽取**抛错** / 没抽到任何条件时的提示(气泡内);失败**绝不点亮按钮**(用户点名)。
     @State private var aiFilterError: String?
+    /// 临时诊断:每次跑后显示模型实际返回的原始字段(用户点名「别猜了打 log」)。定位后删。
+    @State private var aiDebugSpec: String?
 
-    /// 有任一非默认条件 = 生效(高亮 + 点按清空)。
+    /// 有任一非默认条件 = 生效(高亮 + 点按清空)。任意维度可同时叠加。
     private var aiFilterActive: Bool {
         !aiKeyword.isEmpty || aiWithinSeconds > 0 || aiStatus != .all || aiSource != nil
+            || aiKind != nil || !aiFormat.isEmpty
     }
     @AppStorage(AppPreferences.Key.activityHistoryLimit) private var historyLimit = AppPreferences.activityHistoryLimit
     @AppStorage(AppPreferences.Key.heavyTaskConcurrencyLimit) private var concurrencyLimit = AppPreferences.heavyTaskConcurrencyLimit
@@ -469,9 +476,12 @@ struct ActivityView: View {
             let keyword = aiKeyword
             let cutoff = aiWithinSeconds > 0 ? Date().addingTimeInterval(-aiWithinSeconds) : nil
             let before = aiTimeBefore
+            let formatNeedle = aiFormat.isEmpty ? nil : "." + aiFormat.lowercased()
             return all.filter { task in
                 guard aiStatus.includes(task) else { return false }
                 if let aiSource, task.source != aiSource { return false }
+                if let aiKind, task.kind != aiKind { return false }
+                if let formatNeedle, !task.title.lowercased().contains(formatNeedle) { return false }
                 if !keyword.isEmpty {
                     let inTitle = task.title.localizedCaseInsensitiveContains(keyword)
                     let inDetail = task.detail?.localizedCaseInsensitiveContains(keyword) ?? false
@@ -534,6 +544,15 @@ struct ActivityView: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(width: 280, alignment: .leading)
                 }
+                // 临时诊断:模型实际返回的原始字段(定位「AI 垃圾 vs 代码错」用,定位后删)。
+                if let aiDebugSpec {
+                    Text("🔎 \(aiDebugSpec)")
+                        .font(.system(.caption2, design: .monospaced))
+                        .foregroundStyle(.tertiary)
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(width: 280, alignment: .leading)
+                }
                 HStack(spacing: 8) {
                     if aiFilterRunning { ProgressView().controlSize(.small) }
                     Spacer()
@@ -565,6 +584,8 @@ struct ActivityView: View {
         defer { aiFilterRunning = false }
         do {
             let spec = try await AIReportAssistant.activityFilterSpec(for: query)
+            // 临时诊断:原样显示模型返回的每个字段(定位「AI 垃圾 vs 代码处理错」用)。
+            aiDebugSpec = "status=\(spec.status) src=\(spec.source) kind=\(spec.kind) fmt=\(spec.format) kw=\(spec.keyword) val=\(spec.timeValue) unit=\(spec.timeUnit) dir=\(spec.timeDirection)"
             let status: ActivityTaskFilter
             switch spec.status.lowercased() {
             case "running": status = .running
@@ -583,6 +604,10 @@ struct ActivityView: View {
             default: source = nil
             }
             let keyword = spec.keyword.trimmingCharacters(in: .whitespacesAndNewlines)
+            // 任务类型:容错 rawValue 映射(any / 界外 → nil)。
+            let kind = OperationTask.Kind(rawValue: spec.kind.lowercased())
+            // 格式 / 扩展名:去掉前导点和空白(匹配时统一补「.」)。
+            let format = spec.format.trimmingCharacters(in: CharacterSet(charactersIn: ". ")).lowercased()
             // 单位换算在代码里做(模型只给「数值 + 单位」,不让它算 —— 避免「3600 秒」被当成分钟)。
             let unitSeconds: TimeInterval
             switch spec.timeUnit.lowercased() {
@@ -596,7 +621,8 @@ struct ActivityView: View {
             let seconds = max(0, Double(spec.timeValue)) * unitSeconds
             let before = spec.timeDirection.lowercased() == "before"
             // 一个条件都没抽到 → 不点亮,提示重述。
-            guard !keyword.isEmpty || seconds > 0 || status != .all || source != nil else {
+            guard !keyword.isEmpty || seconds > 0 || status != .all || source != nil
+                    || kind != nil || !format.isEmpty else {
                 aiFilterError = L10n.text("tasks.aiFilter.failed")
                 return
             }
@@ -605,11 +631,13 @@ struct ActivityView: View {
             aiTimeBefore = before
             aiStatus = status
             aiSource = source
+            aiKind = kind
+            aiFormat = format
             aiFilterQuery = query
-            showsAIFilter = false
-            aiFilterText = ""
+            // 诊断期间不自动关气泡 / 不清输入,让 🔎 调试行可见(定位后改回 showsAIFilter=false + 清空)。
         } catch {
             aiFilterError = L10n.text("tasks.aiFilter.failed")
+            aiDebugSpec = "model threw: \(error.localizedDescription)"
         }
     }
 
@@ -620,6 +648,8 @@ struct ActivityView: View {
         aiTimeBefore = false
         aiStatus = .all
         aiSource = nil
+        aiKind = nil
+        aiFormat = ""
         aiFilterQuery = ""
         aiFilterError = nil
     }
