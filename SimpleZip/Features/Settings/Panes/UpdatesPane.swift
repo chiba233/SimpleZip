@@ -180,8 +180,23 @@ final class ChangelogFeed: ObservableObject {
         /// 更新整段画上横线(用户截图实锤);`__MACOSX` 这类双下划线同理有配对风险。
         /// 转义只做在反引号代码段**之外** —— 代码段内不解析反斜杠转义,会把 `\~` 原样
         /// 漏显出来(实测 129 处)。CHANGELOG 约定从不写删除线/下划线强调,转义零损失。
+        ///
+        /// `### 分类标题`(0.4.4 起 CHANGELOG 按 feat/UX/bugfix… 分类):inlineOnly 模式不渲染
+        /// 块级 ATX 标题,会把 `### feat` 原样露出井号。渲染前把这种行就地转成粗体行(`**feat**`)——
+        /// CHANGELOG 文件保持标准 `###`(GitHub / Sparkle HTML 仍是正常标题),只在这个 inline 渲染器
+        /// 里降级成粗体,井号不外漏。`## 版本号` 由 parseReleases 切走,这里的 body 里不会再有。
         var attributedBody: AttributedString {
-            let segments = body.components(separatedBy: "`")
+            let headerNormalized = body
+                .split(separator: "\n", omittingEmptySubsequences: false)
+                .map { rawLine -> String in
+                    let line = String(rawLine)
+                    let trimmed = line.drop(while: { $0 == " " })
+                    guard trimmed.hasPrefix("### ") else { return line }
+                    let title = trimmed.dropFirst(4).trimmingCharacters(in: .whitespaces)
+                    return title.isEmpty ? line : "**\(title)**"
+                }
+                .joined(separator: "\n")
+            let segments = headerNormalized.components(separatedBy: "`")
             let escaped = segments.enumerated().map { index, segment in
                 index.isMultiple(of: 2)
                     ? segment
