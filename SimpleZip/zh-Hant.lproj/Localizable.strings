@@ -1231,6 +1231,8 @@
 "settings.defaults.useMostUsed.noData" = "先用這個格式建立幾個歸檔，這裡就會填上你最常用的設定。";
 "settings.defaults.usageTracking" = "學習我最常用的壓縮選項";
 "settings.defaults.usageTracking.description" = "記錄你實際選的壓縮選項（本地，絕不記錄任何加密內容），讓編輯器能提供一鍵「套用我最常用的」。關閉則停止記錄。";
+"settings.defaults.extractionUsageTracking" = "學習我常用的解壓縮設定";
+"settings.defaults.extractionUsageTracking.description" = "記錄你實際選擇的解壓縮行為開關（僅本機，絕不記錄密碼或目標位置），好讓解壓縮對話框提供一鍵「用你常用的設定」按鈕。關閉即停止記錄。";
 "settings.defaults.editorHint" = "只勾選你想讓這個格式預設的選項；未勾選的保持建立時的預設值，每次仍可更改。";
 "settings.defaults.editorTitle" = "%@ 預設值";
 "settings.defaults.noOptions" = "未啟用任何選項";
@@ -1966,6 +1968,8 @@
 "contentSearch.noCandidates" = "這個壓縮包裡沒有可搜尋的文字項目（只搜尋文字類檔案且不超過大小上限）。";
 "contentSearch.line" = "第 %@ 行";
 "extract.preset.menu" = "套用預設";
+"extract.usageRecommendation.apply" = "用你常用的";
+"extract.usageRecommendation.help" = "填入你最常用的解壓縮開關。";
 "convert.section.output" = "輸出與批次選項";
 "convert.outputDirectory" = "輸出目錄";
 "convert.outputDirectory.sameAsSource" = "與各來源同目錄";

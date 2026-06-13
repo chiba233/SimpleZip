@@ -323,6 +323,7 @@ struct ContentView: View {
         .sheet(item: $model.extractArchiveRequest) { request in
             ExtractArchiveOptionsView(request: request) { confirmedRequest in
                 model.extractArchiveRequest = nil
+                model.recordExtractionUsage(confirmedRequest)   // #71:只在对话框确认路径学习习惯。
                 model.performExtractArchive(confirmedRequest)
             } cancel: {
                 model.extractArchiveRequest = nil

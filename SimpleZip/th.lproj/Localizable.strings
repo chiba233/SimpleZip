@@ -1349,6 +1349,8 @@
 "settings.defaults.useMostUsed.noData" = "สร้างไฟล์เก็บถาวรในรูปแบบนี้สักสองสามไฟล์ก่อน แล้วการตั้งค่าที่คุณใช้บ่อยที่สุดจะถูกเติมที่นี่";
 "settings.defaults.usageTracking" = "เรียนรู้ตัวเลือกการบีบอัดที่ฉันใช้บ่อย";
 "settings.defaults.usageTracking.description" = "บันทึกตัวเลือกการบีบอัดที่คุณเลือกจริง (ในเครื่อง ไม่บันทึกสิ่งที่เข้ารหัสใดๆ) เพื่อให้ตัวแก้ไขเสนอปุ่ม «ใช้ที่ฉันใช้บ่อยที่สุด» คลิกเดียว ปิดเพื่อหยุดบันทึก";
+"settings.defaults.extractionUsageTracking" = "เรียนรู้การตั้งค่าการแตกไฟล์ที่ฉันใช้ประจำ";
+"settings.defaults.extractionUsageTracking.description" = "บันทึกสวิตช์พฤติกรรมการแตกไฟล์ที่คุณเลือกจริง (เฉพาะในเครื่อง ไม่เคยบันทึกรหัสผ่านหรือปลายทาง) เพื่อให้กล่องโต้ตอบการแตกไฟล์เสนอปุ่ม \"ใช้การตั้งค่าที่คุณใช้ประจำ\" ในคลิกเดียว ปิดเพื่อหยุดบันทึก";
 "settings.defaults.add" = "เพิ่มรูปแบบ…";
 "settings.defaults.noOptions" = "ไม่ได้เปิดใช้ตัวเลือกใด";
 "settings.defaults.optionCount" = "เปิดใช้ %@ ตัวเลือก";
@@ -1964,6 +1966,8 @@
 "contentSearch.noCandidates" = "ไฟล์เก็บถาวรนี้ไม่มีรายการข้อความที่ค้นหาได้ (เฉพาะไฟล์ข้อความไม่เกินขนาดที่กำหนด)";
 "contentSearch.line" = "บรรทัด %@";
 "extract.preset.menu" = "ใช้ preset";
+"extract.usageRecommendation.apply" = "ใช้ที่ใช้ประจำ";
+"extract.usageRecommendation.help" = "กรอกสวิตช์การแตกไฟล์ที่คุณใช้บ่อยที่สุด";
 "convert.section.output" = "ตัวเลือกผลลัพธ์และงานชุด";
 "convert.outputDirectory" = "โฟลเดอร์ผลลัพธ์";
 "convert.outputDirectory.sameAsSource" = "โฟลเดอร์เดียวกับแต่ละต้นทาง";

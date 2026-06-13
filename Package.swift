@@ -71,6 +71,7 @@ let package = Package(
                 "Core/BundleReleaseCheck.swift",
                 "Core/CompressionPreset.swift",
                 "Core/CompressionUsageStore.swift",
+                "Core/ExtractionUsageStore.swift",
                 "Core/Backends/ArchiveBackend.swift",
                 "Core/Backends/DiskImageBackend.swift",
                 "Core/Backends/GPGBackend.swift",

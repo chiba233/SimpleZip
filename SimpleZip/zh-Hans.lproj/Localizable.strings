@@ -1647,6 +1647,8 @@
 "contentSearch.noCandidates" = "这个压缩包里没有可搜索的文本条目（只搜文本类文件且不超过大小上限）。";
 "contentSearch.line" = "第 %@ 行";
 "extract.preset.menu" = "套用预设";
+"extract.usageRecommendation.apply" = "用你常用的";
+"extract.usageRecommendation.help" = "填入你最常用的解压开关。";
 "convert.section.output" = "输出与批量选项";
 "convert.section.behavior" = "转换行为";
 "missingVolumes.menu" = "搜索缺失分卷…";
@@ -2011,6 +2013,8 @@
 "settings.defaults.useMostUsed.noData" = "先用这个格式创建几个归档，这里就会填上你最常用的设置。";
 "settings.defaults.usageTracking" = "学习我最常用的压缩选项";
 "settings.defaults.usageTracking.description" = "记录你实际选的压缩选项（本地，绝不记录任何加密内容），让编辑器能给出一键「按我最常用的来」。关掉则停止记录。";
+"settings.defaults.extractionUsageTracking" = "学习我常用的解压设置";
+"settings.defaults.extractionUsageTracking.description" = "记录你实际选择的解压行为开关（仅本地，绝不记录密码或目标位置），好让解压对话框给出一键「用你常用的设置」按钮。关闭即停止记录。";
 "settings.defaults.add" = "添加格式…";
 "settings.defaults.noOptions" = "未启用任何选项";
 "settings.defaults.optionCount" = "已启用 %@ 项";

@@ -25,6 +25,8 @@ struct ExtractArchiveOptionsView: View {
     @State private var lowSpaceWarning: (needed: String, available: String)?
     @State private var overwriteCount = 0
     @State private var missingVolumeCount = 0
+    /// #71:本地学到的「你常用的解压行为」(众数)。仅当开了记录开关、有数据、且与当前所选不同才露出一键应用。
+    @State private var usageRecommendation: ExtractionUsageRecommendation?
 
     var body: some View {
         ExtractOptionsForm(
@@ -89,6 +91,7 @@ struct ExtractArchiveOptionsView: View {
             }
             loadPreflight()
             computeMissingVolumes()
+            reloadUsageRecommendation()
         }
         // 用户换目标目录 → 覆盖风险行实时重算。
         .onChange(of: request.destinationURL) { _ in
@@ -100,7 +103,7 @@ struct ExtractArchiveOptionsView: View {
     /// 只动开关组合;目的地 / 密码 / 解密方式保留用户当前所填。
     @ViewBuilder
     private var presetMenuRow: some View {
-        HStack {
+        HStack(spacing: 12) {
             Menu {
                 ForEach(ExtractionPreset.builtInPresets()) { preset in
                     Button(L10n.text(preset.nameKey)) { apply(preset) }
@@ -109,8 +112,27 @@ struct ExtractArchiveOptionsView: View {
                 Label(L10n.text("extract.preset.menu"), systemImage: "wand.and.stars")
             }
             .fixedSize()
+            // #71:学到了你常用的开关组合且与当前不同 → 一键应用(应用后自动消失,因为不再有差异)。
+            if let recommendation = usageRecommendation, recommendation.wouldChange(request) {
+                Button {
+                    recommendation.apply(to: &request)
+                } label: {
+                    Label(L10n.text("extract.usageRecommendation.apply"), systemImage: "sparkles")
+                }
+                .fixedSize()
+                .help(L10n.text("extract.usageRecommendation.help"))
+            }
             Spacer()
         }
+    }
+
+    /// #71:载入「你常用的解压行为」推荐。开关关 / 没数据时为 nil(按钮不出现)。
+    private func reloadUsageRecommendation() {
+        guard AppPreferences.extractionUsageTrackingEnabled else {
+            usageRecommendation = nil
+            return
+        }
+        usageRecommendation = ExtractionUsageStore().mostUsed()
     }
 
     private func apply(_ preset: ExtractionPreset) {

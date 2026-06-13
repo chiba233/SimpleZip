@@ -29,6 +29,7 @@ struct GeneralPane: View {
     @AppStorage(AppPreferences.Key.confirmBeforeDeletingFiles) private var confirmBeforeDeletingFiles = true
     @AppStorage(AppPreferences.Key.finderOpenAutoExtract) private var finderOpenAutoExtract = false
     @AppStorage(AppPreferences.Key.openExternalInNewTab) private var openExternalInNewTab = true
+    @AppStorage(AppPreferences.Key.extractionUsageTrackingEnabled) private var extractionUsageTracking = true
     @AppStorage(AppPreferences.Key.presetPasswordEnabled) private var presetPasswordEnabled = false
 
     @State private var languageMessage: String?
@@ -180,6 +181,15 @@ struct GeneralPane: View {
                     isOn: $openExternalInNewTab
                 )
                 .settingsAnchor("general.newTab")
+
+                // #71:记录解压习惯,供解压对话框「用你常用的设置」一键填。魔棒/紫呼应压缩侧「按我最常用的来」。
+                SettingsToggleRow(
+                    title: L10n.text("settings.defaults.extractionUsageTracking"),
+                    description: L10n.text("settings.defaults.extractionUsageTracking.description"),
+                    systemImage: "wand.and.stars", iconTint: .purple,
+                    isOn: $extractionUsageTracking
+                )
+                .settingsAnchor("general.extractionUsageTracking")
             }
 
             Section(L10n.text("settings.finderExtension")) {

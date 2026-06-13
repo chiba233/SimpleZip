@@ -347,6 +347,10 @@ enum AppPreferences {
         nonisolated static let compressionUsageStats = "compressionUsageStats"
         /// 0.4.4:是否记录压缩选项使用频率(供「按我最常用的来」)。默认 true;关 = 停止记录。
         nonisolated static let compressionUsageTrackingEnabled = "compressionUsageTrackingEnabled"
+        /// 0.4.4 #71:解压习惯统计数据(ExtractionUsageStore 的 JSON;派生数据,不进偏好备份)。
+        nonisolated static let extractionUsageStats = "extractionUsageStats"
+        /// 0.4.4 #71:是否记录解压习惯(供解压对话框「用你常用的设置」)。默认 true;关 = 停止记录。
+        nonisolated static let extractionUsageTrackingEnabled = "extractionUsageTrackingEnabled"
         /// 0.4.4 #34:归档清单缓存(ArchiveListingCacheStore 的 JSON Data;派生数据,不进偏好备份,恢复出厂时清掉)。
         nonisolated static let archiveListingCache = "SimpleZip.ArchiveListingCache.v1"
         /// 0.4.4 #34:是否缓存打开过的归档的非加密条目名(供「文件 X 在哪个包」搜索)。默认 true;关 → 停止缓存并清空。
@@ -413,6 +417,11 @@ enum AppPreferences {
     /// 0.4.4:是否记录压缩选项使用频率(供「按我最常用的来」)。默认 true。
     nonisolated static var compressionUsageTrackingEnabled: Bool {
         defaultTrueBool(forKey: Key.compressionUsageTrackingEnabled)
+    }
+
+    /// 0.4.4 #71:是否记录解压习惯(供解压对话框「用你常用的设置」)。默认 true。
+    nonisolated static var extractionUsageTrackingEnabled: Bool {
+        defaultTrueBool(forKey: Key.extractionUsageTrackingEnabled)
     }
 
     /// 0.4.4 #34:是否缓存打开过的归档的非加密条目名(供「文件 X 在哪个包」搜索)。默认 true。
@@ -994,6 +1003,7 @@ enum AppPreferences {
         Key.spotlightIndexingEnabled,
         Key.aiAssistantEnabled,
         Key.compressionUsageTrackingEnabled,
+        Key.extractionUsageTrackingEnabled,
         Key.archiveListingCacheEnabled,
         Key.archiveListingCacheMaxArchives,
         Key.archiveListingCacheTTLDays,
@@ -1105,6 +1115,7 @@ enum AppPreferences {
         v[Key.spotlightIndexingEnabled] = spotlightIndexingEnabled
         v[Key.aiAssistantEnabled] = aiAssistantEnabled
         v[Key.compressionUsageTrackingEnabled] = compressionUsageTrackingEnabled
+        v[Key.extractionUsageTrackingEnabled] = extractionUsageTrackingEnabled
         v[Key.archiveListingCacheEnabled] = archiveListingCacheEnabled
         v[Key.archiveListingCacheMaxArchives] = archiveListingCacheMaxArchives
         v[Key.archiveListingCacheTTLDays] = archiveListingCacheTTLDays

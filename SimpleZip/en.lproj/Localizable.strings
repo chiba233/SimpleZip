@@ -1649,6 +1649,8 @@
 "contentSearch.noCandidates" = "This archive has no searchable text entries (text-like files up to the size limit only).";
 "contentSearch.line" = "line %@";
 "extract.preset.menu" = "Apply Preset";
+"extract.usageRecommendation.apply" = "Use Your Usual";
+"extract.usageRecommendation.help" = "Fills in the extraction switches you use most often.";
 "convert.section.output" = "Output & Batch Options";
 "convert.section.behavior" = "Conversion Behavior";
 "missingVolumes.menu" = "Search for Missing Volumes…";
@@ -2024,6 +2026,8 @@
 "settings.defaults.useMostUsed.noData" = "Create a few archives in this format first — then this will fill in your most-used settings.";
 "settings.defaults.usageTracking" = "Learn my most-used compression options";
 "settings.defaults.usageTracking.description" = "Records the compression options you actually pick (locally, never anything encrypted) so the editor can offer a one-click \"use my most-used\" button. Turn off to stop recording.";
+"settings.defaults.extractionUsageTracking" = "Learn my usual extraction settings";
+"settings.defaults.extractionUsageTracking.description" = "Records the extraction behavior switches you actually pick (locally, never a password or destination) so the extract dialog can offer a one-click \"use your usual settings\" button. Turn off to stop recording.";
 "settings.defaults.add" = "Add Format…";
 "settings.defaults.noOptions" = "No options enabled";
 "settings.defaults.optionCount" = "%@ option(s) enabled";

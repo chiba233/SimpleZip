@@ -1231,6 +1231,8 @@
 "settings.defaults.useMostUsed.noData" = "まずこの形式でアーカイブをいくつか作成すると、よく使う設定がここに入ります。";
 "settings.defaults.usageTracking" = "よく使う圧縮オプションを学習";
 "settings.defaults.usageTracking.description" = "実際に選んだ圧縮オプションを記録し（ローカル、暗号化されたものは一切記録しません）、エディタが「よく使う設定を適用」ワンクリックボタンを提供できるようにします。オフにすると記録を停止します。";
+"settings.defaults.extractionUsageTracking" = "よく使う展開設定を学習";
+"settings.defaults.extractionUsageTracking.description" = "実際に選んだ展開動作のスイッチを記録し（ローカルのみ。パスワードや展開先は決して記録しません）、展開ダイアログでワンタップの「よく使う設定を使用」ボタンを提供します。オフにすると記録を停止します。";
 "settings.defaults.editorHint" = "このフォーマットでデフォルトにしたいオプションだけにチェックを入れてください。チェックしていないオプションは作成時のデフォルトのまま、毎回変更できます。";
 "settings.defaults.editorTitle" = "%@ のデフォルト";
 "settings.defaults.noOptions" = "有効なオプションなし";
@@ -1966,6 +1968,8 @@
 "contentSearch.noCandidates" = "このアーカイブには検索可能なテキスト項目がありません（サイズ上限以下のテキスト系ファイルのみ）。";
 "contentSearch.line" = "%@ 行目";
 "extract.preset.menu" = "プリセットを適用";
+"extract.usageRecommendation.apply" = "いつもの設定";
+"extract.usageRecommendation.help" = "よく使う展開スイッチを入力します。";
 "convert.section.output" = "出力とバッチオプション";
 "convert.outputDirectory" = "出力フォルダ";
 "convert.outputDirectory.sameAsSource" = "各ソースと同じフォルダ";

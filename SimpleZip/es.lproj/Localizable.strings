@@ -1349,6 +1349,8 @@
 "settings.defaults.useMostUsed.noData" = "Crea primero algunos archivos en este formato y aquí se rellenarán tus ajustes más usados.";
 "settings.defaults.usageTracking" = "Aprender mis opciones de compresión más usadas";
 "settings.defaults.usageTracking.description" = "Registra las opciones de compresión que eliges (localmente, nunca nada cifrado) para que el editor pueda ofrecer un botón de un clic «usar mis más frecuentes». Desactívalo para dejar de registrar.";
+"settings.defaults.extractionUsageTracking" = "Aprender mis ajustes de extracción habituales";
+"settings.defaults.extractionUsageTracking.description" = "Registra los interruptores de comportamiento de extracción que eliges (localmente, nunca una contraseña ni un destino) para que el diálogo de extracción pueda ofrecer un botón «usar tus ajustes habituales» con un clic. Desactívalo para dejar de registrar.";
 "settings.defaults.add" = "Añadir formato…";
 "settings.defaults.noOptions" = "No hay opciones activadas";
 "settings.defaults.optionCount" = "%@ opción(es) activadas";
@@ -1964,6 +1966,8 @@
 "contentSearch.noCandidates" = "Este archivo no tiene entradas de texto buscables (solo archivos de texto hasta el límite de tamaño).";
 "contentSearch.line" = "línea %@";
 "extract.preset.menu" = "Aplicar preset";
+"extract.usageRecommendation.apply" = "Usar los habituales";
+"extract.usageRecommendation.help" = "Rellena los interruptores de extracción que usas con más frecuencia.";
 "convert.section.output" = "Opciones de salida y lote";
 "convert.outputDirectory" = "Carpeta de salida";
 "convert.outputDirectory.sameAsSource" = "Misma carpeta que cada origen";

@@ -1230,6 +1230,8 @@
 "settings.defaults.useMostUsed.noData" = "Erstelle zuerst ein paar Archive in diesem Format – dann werden hier deine meistgenutzten Einstellungen eingetragen.";
 "settings.defaults.usageTracking" = "Meine häufigsten Komprimierungsoptionen lernen";
 "settings.defaults.usageTracking.description" = "Zeichnet die tatsächlich gewählten Komprimierungsoptionen auf (lokal, nie etwas Verschlüsseltes), damit der Editor eine Ein-Klick-Schaltfläche „Meine häufigsten verwenden“ anbieten kann. Zum Stoppen ausschalten.";
+"settings.defaults.extractionUsageTracking" = "Meine üblichen Entpack-Einstellungen lernen";
+"settings.defaults.extractionUsageTracking.description" = "Zeichnet die Entpack-Schalter auf, die du tatsächlich wählst (lokal, niemals ein Passwort oder Ziel), damit der Entpack-Dialog eine Schaltfläche „Übliche Einstellungen verwenden“ mit einem Klick anbieten kann. Zum Beenden der Aufzeichnung ausschalten.";
 "settings.defaults.editorHint" = "Hake nur die Optionen an, die dieses Format standardmäßig nutzen soll; nicht angehakte behalten den Standard beim Erstellen und können jedes Mal geändert werden.";
 "settings.defaults.editorTitle" = "%@-Standards";
 "settings.defaults.noOptions" = "Keine Optionen aktiviert";
@@ -1965,6 +1967,8 @@
 "contentSearch.noCandidates" = "Dieses Archiv hat keine durchsuchbaren Texteinträge (nur textähnliche Dateien bis zum Größenlimit).";
 "contentSearch.line" = "Zeile %@";
 "extract.preset.menu" = "Preset anwenden";
+"extract.usageRecommendation.apply" = "Übliche verwenden";
+"extract.usageRecommendation.help" = "Füllt die am häufigsten genutzten Entpack-Schalter aus.";
 "convert.section.output" = "Ausgabe- & Stapeloptionen";
 "convert.outputDirectory" = "Ausgabeordner";
 "convert.outputDirectory.sameAsSource" = "Derselbe Ordner wie jede Quelle";

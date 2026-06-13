@@ -78,6 +78,12 @@ nonisolated enum SettingsCatalog {
             titleKey: "settings.openExternalInNewTab",
             keywords: ["new tab", "open", "window"], isToggleable: true
         ),
+        // #71:记录解压习惯(非敏感行为开关,可经设置搜索/语音切;停录即停学)。
+        SettingsCatalogItem(
+            id: "general.extractionUsageTracking", pane: .general,
+            titleKey: "settings.defaults.extractionUsageTracking",
+            keywords: ["extract", "usage", "learn", "habits", "most used"], isToggleable: true
+        ),
         // 归档
         SettingsCatalogItem(
             id: "archive.verifyAfterRewrite", pane: .archive,
@@ -424,6 +430,9 @@ enum SettingToggleRegistry {
         case "archive.compressionUsageTracking":
             return Accessor(get: { AppPreferences.compressionUsageTrackingEnabled },
                             set: { setBool($0, AppPreferences.Key.compressionUsageTrackingEnabled) })
+        case "general.extractionUsageTracking":
+            return Accessor(get: { AppPreferences.extractionUsageTrackingEnabled },
+                            set: { setBool($0, AppPreferences.Key.extractionUsageTrackingEnabled) })
         case "browser.showHidden":
             return Accessor(get: { AppPreferences.showHiddenFiles },
                             set: { setBool($0, AppPreferences.Key.showHiddenFiles); notifyBrowser() })

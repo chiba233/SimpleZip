@@ -990,6 +990,12 @@ extension ArchiveBrowserModel {
         return archiveURL.deletingLastPathComponent()
     }
 
+    /// #71:记录用户在解压对话框里**实际确认**的行为开关(供下次「用你常用的设置」)。只在对话框确认路径调,
+    /// 自动解压等默认选项路径绝不记 —— 否则会把推荐带偏向默认值。受「记录解压习惯」开关 gate(store 内再查一次)。
+    func recordExtractionUsage(_ request: ExtractArchiveRequest) {
+        ExtractionUsageStore().record(request)
+    }
+
     func performExtractArchive(_ request: ExtractArchiveRequest) {
         let title = L10n.format("status.extracting", request.archiveURL.lastPathComponent)
         let force = isForced(request.archiveURL)
