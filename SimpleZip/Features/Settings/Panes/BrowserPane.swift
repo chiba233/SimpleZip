@@ -28,6 +28,7 @@ struct BrowserPane: View {
                     systemImage: "eye.slash", iconTint: .gray,
                     isOn: $showHiddenFiles
                 )
+                .settingsAnchor("browser.showHidden")
                 // 「什么算隐藏文件」判定方式:仅 dotfile(Unix)vs 再算上 macOS UF_HIDDEN 标志。
                 SettingsControlRow(
                     title: L10n.text("settings.hiddenDetection"),
@@ -44,6 +45,7 @@ struct BrowserPane: View {
                     .frame(minWidth: 200, alignment: .trailing)
                 }
                 .disabled(!showHiddenFiles)
+                .settingsAnchor("browser.hiddenDetection")
             }
 
             // 显示与结构:符号链接 + Finder 结构跟随。
@@ -54,16 +56,19 @@ struct BrowserPane: View {
                     systemImage: "link", iconTint: .orange,
                     isOn: $showSymbolicLinks
                 )
+                .settingsAnchor("browser.showSymlinks")
                 SettingsToggleRow(
                     title: L10n.text("settings.followFinderStructure"),
                     description: L10n.text("settings.followFinderStructure.description"),
                     systemImage: "sidebar.leading", iconTint: .cyan,
                     isOn: $followFinderStructure
                 )
+                .settingsAnchor("browser.followFinder")
             }
         }
         .formStyle(.grouped)
         .controlSize(.small)
+        .settingsScrollAnchors()
         .onChange(of: showHiddenFiles) { _ in notifyBrowserRefresh() }
         .onChange(of: hiddenDetectionModeRaw) { _ in notifyBrowserRefresh() }
         .onChange(of: showSymbolicLinks) { _ in notifyBrowserRefresh() }

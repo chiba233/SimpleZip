@@ -78,6 +78,7 @@ struct GeneralPane: View {
                         applyLanguage(newValue)
                     }
                 }
+                .settingsAnchor("general.language")
 
                 if let languageMessage {
                     Text(languageMessage)
@@ -120,6 +121,7 @@ struct GeneralPane: View {
                     .fixedSize()
                     .frame(minWidth: 200, alignment: .trailing)
                 }
+                .settingsAnchor("general.startupLocation")
 
                 if let startupLocationErrorMessage {
                     Text(startupLocationErrorMessage)
@@ -153,6 +155,7 @@ struct GeneralPane: View {
                     .fixedSize()
                     .frame(minWidth: 200, alignment: .trailing)
                 }
+                .settingsAnchor("general.overwriteBehavior")
 
                 SettingsToggleRow(
                     title: L10n.text("settings.confirmBeforeDeletingFiles"),
@@ -252,6 +255,7 @@ struct GeneralPane: View {
                         }
                     }
                 }
+                .settingsAnchor("general.presetPassword")
 
                 presetPasswordEditor
                     .opacity(presetPasswordEnabled ? 1 : 0.55)

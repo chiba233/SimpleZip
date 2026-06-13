@@ -54,6 +54,7 @@ struct ArchivePane: View {
                 systemImage: "exclamationmark.triangle", iconTint: .orange,
                 selection: $suspiciousPathPolicy
             )
+            .settingsAnchor("archive.suspiciousPaths")
 
             securityPickerRow(
                 title: L10n.text("settings.security.symbolicLinks"),
@@ -61,6 +62,7 @@ struct ArchivePane: View {
                 systemImage: "link", iconTint: .purple,
                 selection: $symbolicLinkPolicy
             )
+            .settingsAnchor("archive.symbolicLinks")
 
             securityPickerRow(
                 title: L10n.text("settings.security.activeContent"),
@@ -68,6 +70,7 @@ struct ArchivePane: View {
                 systemImage: "checkmark.shield", iconTint: .green,
                 selection: $activeContentOpenPolicy
             )
+            .settingsAnchor("archive.activeContent")
 
             SettingsToggleRow(
                 title: L10n.text("settings.verifyAfterRewrite"),

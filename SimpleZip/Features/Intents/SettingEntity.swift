@@ -85,7 +85,68 @@ nonisolated enum SettingsCatalog {
             id: "archive.verifyAfterCreate", pane: .archive,
             titleKey: "settings.verifyAfterCreate",
             keywords: ["verify", "create", "test", "integrity"], isToggleable: true
-        )
+        ),
+        // 通用(其余)
+        SettingsCatalogItem(id: "general.language", pane: .general, titleKey: "settings.language",
+                            keywords: ["language", "locale", "interface"], isToggleable: false),
+        SettingsCatalogItem(id: "general.startupLocation", pane: .general, titleKey: "settings.startupLocation",
+                            keywords: ["startup", "open at launch", "default folder"], isToggleable: false),
+        SettingsCatalogItem(id: "general.overwriteBehavior", pane: .general, titleKey: "settings.overwriteBehavior",
+                            keywords: ["overwrite", "conflict", "replace", "skip"], isToggleable: false),
+        // 安全确认 / 预设密码:可搜可跳,但不允许 Siri/Spotlight 直接开关(红线)。
+        SettingsCatalogItem(id: "general.confirmDelete", pane: .general, titleKey: "settings.confirmBeforeDeletingFiles",
+                            keywords: ["delete", "confirm", "trash"], isToggleable: false),
+        SettingsCatalogItem(id: "general.presetPassword", pane: .general, titleKey: "settings.presetPasswordEnabled",
+                            keywords: ["preset password", "keychain", "default password"], isToggleable: false),
+        // 归档(其余):安全策略(picker,不可直接切)+ 压缩使用统计(可切)。
+        SettingsCatalogItem(id: "archive.suspiciousPaths", pane: .archive, titleKey: "settings.security.suspiciousPaths",
+                            keywords: ["suspicious paths", "path traversal", "security"], isToggleable: false),
+        SettingsCatalogItem(id: "archive.symbolicLinks", pane: .archive, titleKey: "settings.security.symbolicLinks",
+                            keywords: ["symbolic links", "symlink", "security"], isToggleable: false),
+        SettingsCatalogItem(id: "archive.activeContent", pane: .archive, titleKey: "settings.security.activeContent",
+                            keywords: ["active content", "executable", "app bundle", "security"], isToggleable: false),
+        SettingsCatalogItem(id: "archive.compressionUsageTracking", pane: .archive, titleKey: "settings.defaults.usageTracking",
+                            keywords: ["compression", "usage", "learn", "most used"], isToggleable: true),
+        // 浏览器
+        SettingsCatalogItem(id: "browser.showHidden", pane: .browser, titleKey: "settings.showHiddenFiles",
+                            keywords: ["hidden files", "dotfiles", "show hidden"], isToggleable: true),
+        SettingsCatalogItem(id: "browser.hiddenDetection", pane: .browser, titleKey: "settings.hiddenDetection",
+                            keywords: ["hidden detection", "dotfile", "uf_hidden"], isToggleable: false),
+        SettingsCatalogItem(id: "browser.showSymlinks", pane: .browser, titleKey: "settings.showSymbolicLinks",
+                            keywords: ["symbolic links", "symlink", "show"], isToggleable: true),
+        SettingsCatalogItem(id: "browser.followFinder", pane: .browser, titleKey: "settings.followFinderStructure",
+                            keywords: ["finder", "structure", "follow"], isToggleable: true),
+        // 视图(列 / 密度 / 分组 / 展开)
+        SettingsCatalogItem(id: "view.rowDensity", pane: .view, titleKey: "settings.rowDensity",
+                            keywords: ["row density", "compact", "spacing"], isToggleable: false),
+        SettingsCatalogItem(id: "view.hiddenGroupCollapse", pane: .view, titleKey: "settings.hiddenGroupCollapse",
+                            keywords: ["hidden group", "collapse"], isToggleable: false),
+        SettingsCatalogItem(id: "view.hiddenWithGrouping", pane: .view, titleKey: "settings.hiddenWithGrouping",
+                            keywords: ["hidden", "grouping", "separate", "inline"], isToggleable: false),
+        SettingsCatalogItem(id: "view.folderInlineExpansion", pane: .view, titleKey: "settings.folderInlineExpansion",
+                            keywords: ["folder", "inline", "expand"], isToggleable: true),
+        SettingsCatalogItem(id: "view.rememberFolderExpansion", pane: .view, titleKey: "settings.rememberFolderExpansion",
+                            keywords: ["remember", "folder", "expansion"], isToggleable: true),
+        SettingsCatalogItem(id: "view.rememberVolumeSetExpansion", pane: .view, titleKey: "settings.rememberVolumeSetExpansion",
+                            keywords: ["remember", "volume set", "expansion", "split"], isToggleable: true),
+        // 两块列开关折叠组(关键词带上各列名,搜「size column」「crc 列」能命中并跳到该组)。
+        SettingsCatalogItem(id: "view.fileColumns", pane: .view, titleKey: "settings.columns.fileBrowser",
+                            keywords: ["columns", "size", "kind", "application", "date added", "modified",
+                                       "created", "permissions", "owner", "last opened"], isToggleable: false),
+        SettingsCatalogItem(id: "view.archiveColumns", pane: .view, titleKey: "settings.columns.archiveBrowser",
+                            keywords: ["columns", "size", "kind", "path", "packed size", "method", "crc",
+                                       "attributes", "encrypted", "host os", "comment", "characteristics"], isToggleable: false),
+        // GPG 主开关(可搜可跳,但不允许 Siri 直接切 —— 启用加密子系统,红线)。
+        SettingsCatalogItem(id: "gpg.enabled", pane: .gpg, titleKey: "settings.gpg.enabledTitle",
+                            keywords: ["gpg", "pgp", "signing", "encryption"], isToggleable: false),
+        // 软件更新
+        SettingsCatalogItem(id: "updates.checkOnLaunch", pane: .updates, titleKey: "settings.checkForUpdatesOnLaunch",
+                            keywords: ["updates", "check", "launch"], isToggleable: true),
+        SettingsCatalogItem(id: "updates.autoDownload", pane: .updates, titleKey: "updates.autoDownload",
+                            keywords: ["updates", "auto download", "automatic"], isToggleable: true),
+        // 备份
+        SettingsCatalogItem(id: "backup.includePerFolderMemory", pane: .backup, titleKey: "backup.includePerFolderMemory",
+                            keywords: ["backup", "per folder", "memory", "export"], isToggleable: true)
     ]
 
     static func item(id: String) -> SettingsCatalogItem? {

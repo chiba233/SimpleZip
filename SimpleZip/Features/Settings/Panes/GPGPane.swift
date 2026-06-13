@@ -96,6 +96,7 @@ struct GPGPane: View {
         .controlSize(.small)
         // 「高级 — 后端详情 / 智能卡」折叠组整行可点展开(用户点名,像活动中心)。
         .disclosureGroupStyle(.wholeRow)
+        .settingsScrollAnchors()
         // 拖 .asc/.gpg 公钥文件到面板任意位置 = 导入(GPG Keychain 同款交互)。落点钥匙串弹对话框让用户选。
         .dropDestination(for: URL.self) { urls, _ in
             receiveDroppedKeyFiles(urls)
@@ -246,6 +247,7 @@ struct GPGPane: View {
                 iconTint: .green,
                 isOn: $gpgEnabled
             )
+            .settingsAnchor("gpg.enabled")
         }
     }
 

@@ -45,6 +45,7 @@ struct BackupPane: View {
                     systemImage: "clock", iconTint: .purple,
                     isOn: $includePerFolderMemoryInBackup
                 )
+                .settingsAnchor("backup.includePerFolderMemory")
 
                 SettingsActionRow(
                     title: L10n.text("backup.import.title"),
@@ -73,6 +74,7 @@ struct BackupPane: View {
         }
         .formStyle(.grouped)
         .controlSize(.small)
+        .settingsScrollAnchors()
         .confirmationDialog(
             L10n.text("backup.restore.confirm.title"),
             isPresented: $showsRestoreConfirmation,

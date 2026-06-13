@@ -77,6 +77,7 @@ struct ColumnsPane: View {
                     }
                     .labelsHidden().fixedSize().frame(minWidth: 200, alignment: .trailing)
                 }
+                .settingsAnchor("view.rowDensity")
                 // #20 搬来:隐藏文件组折叠策略 —— 呈现行为,归视图。只在显示隐藏文件时有意义,
                 // 关掉时置灰但可见(跨 pane 读同一 showHiddenFiles key)。
                 SettingsControlRow(
@@ -94,6 +95,7 @@ struct ColumnsPane: View {
                     .frame(minWidth: 200, alignment: .trailing)
                 }
                 .disabled(!showHiddenFiles)
+                .settingsAnchor("view.hiddenGroupCollapse")
             }
 
             // 0.4.3 用户拍板重写:分组也折叠化,逻辑说人话 ——
@@ -170,6 +172,7 @@ struct ColumnsPane: View {
                     .frame(minWidth: 200, alignment: .trailing)
                 }
                 .disabled(!showHiddenFiles)
+                .settingsAnchor("view.hiddenWithGrouping")
             }
 
             // #20 搬来:展开与记忆整组(原位展开 + 两个展开记忆)—— 呈现行为,归视图。
@@ -180,6 +183,7 @@ struct ColumnsPane: View {
                     systemImage: "chevron.down.square", iconTint: .indigo,
                     isOn: $folderInlineExpansion
                 )
+                .settingsAnchor("view.folderInlineExpansion")
                 // 展开记忆：刷新（FSEvents / 手动 / 排序分组）后恢复展开状态。文件夹记忆依赖原位展开,关掉时变灰。
                 SettingsToggleRow(
                     title: L10n.text("settings.rememberFolderExpansion"),
@@ -188,12 +192,14 @@ struct ColumnsPane: View {
                     isOn: $rememberFolderExpansion
                 )
                 .disabled(!folderInlineExpansion)
+                .settingsAnchor("view.rememberFolderExpansion")
                 SettingsToggleRow(
                     title: L10n.text("settings.rememberVolumeSetExpansion"),
                     description: L10n.text("settings.rememberVolumeSetExpansion.description"),
                     systemImage: "square.stack.3d.down.right", iconTint: .brown,
                     isOn: $rememberVolumeSetExpansion
                 )
+                .settingsAnchor("view.rememberVolumeSetExpansion")
             }
 
             // #20 搬来:隐藏后缀名(只改显示名,不改列出什么)—— 归视图,独立「显示名」区。
@@ -242,6 +248,7 @@ struct ColumnsPane: View {
                         Text(L10n.text("settings.columns.fileBrowser")).font(.headline)
                     }
                 }
+                .settingsAnchor("view.fileColumns")
 
                 DisclosureGroup {
                     Grid(alignment: .leading, horizontalSpacing: 20, verticalSpacing: 6) {
@@ -285,6 +292,7 @@ struct ColumnsPane: View {
                         Text(L10n.text("settings.columns.archiveBrowser")).font(.headline)
                     }
                 }
+                .settingsAnchor("view.archiveColumns")
             }
 
             // 预览紧跟在列开关后面（用户反馈：列设置和预览分开导致没法一屏边调边看）;
@@ -305,6 +313,7 @@ struct ColumnsPane: View {
         }
         .formStyle(.grouped)
         .controlSize(.small)
+        .settingsScrollAnchors()
         .onAppear {
             // 进入面板时把真源拉一次，避免之前在别处改过造成不一致。
             hiddenRecommendedSuffixes = AppPreferences.hiddenRecommendedSuffixes

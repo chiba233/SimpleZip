@@ -35,6 +35,7 @@ struct CompressionDefaultsSection: View {
                 iconTint: .purple,
                 isOn: $usageTracking
             )
+            .settingsAnchor("archive.compressionUsageTracking")
 
             // 只列出**用户已添加**的格式模板；每条一个启用开关。没添加的不显示。
             // 注意：不要在行间插 Divider() —— 在 Form/Section 里它会单独占一整行(显示成空灰行)，

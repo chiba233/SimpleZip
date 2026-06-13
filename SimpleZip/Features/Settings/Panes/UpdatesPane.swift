@@ -59,6 +59,7 @@ struct UpdatesPane: View {
                     systemImage: "power", iconTint: .orange,
                     isOn: $checkForUpdatesOnLaunch
                 )
+                .settingsAnchor("updates.checkOnLaunch")
 
                 SettingsToggleRow(
                     title: L10n.text("updates.autoDownload"),
@@ -69,6 +70,7 @@ struct UpdatesPane: View {
                 .onChange(of: automaticallyDownloads) { newValue in
                     SparkleUpdater.shared.updater.automaticallyDownloadsUpdates = newValue
                 }
+                .settingsAnchor("updates.autoDownload")
             }
 
             Section(L10n.text("updates.section.changelog")) {
@@ -105,6 +107,7 @@ struct UpdatesPane: View {
         .formStyle(.grouped)
         // 更新日志的每个版本折叠行整行可点展开(用户点名,与设置其它折叠组、活动中心同款)。
         .disclosureGroupStyle(.wholeRow)
+        .settingsScrollAnchors()
         .onAppear {
             automaticallyDownloads = SparkleUpdater.shared.updater.automaticallyDownloadsUpdates
             changelog.loadIfNeeded()
