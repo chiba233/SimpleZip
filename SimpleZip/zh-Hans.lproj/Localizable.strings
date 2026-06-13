@@ -2449,6 +2449,7 @@
 "intent.findArchive.none" = "你打开过的归档里没有包含「%@」的。";
 "intent.findArchive.results" = "你打开过的 %1$@ 个归档包含「%2$@」。";
 "spotlight.cachedArchive.description" = "包含 %@ 个文件 · 在 SimpleZip 中打开";
+"spotlight.setting.in" = "在「%@」设置里";
 "intent.search.none" = "%1$@ 中没有条目匹配「%2$@」。";
 "intent.search.results" = "%2$@ 中有 %1$@ 个条目匹配「%3$@」。";
 "intent.inspect.clean" = "%1$@ 没有可疑路径——%2$@ 个文件，%3$@，%4$@ 个 macOS 垃圾项。";
@@ -2462,6 +2463,8 @@
 "Find Archive Containing File" = "查找含某文件的归档";
 "File Name" = "文件名";
 "Open Task in Activity Center" = "在活动中心打开任务";
+"Setting" = "设置";
+"Open Setting in SimpleZip" = "在 SimpleZip 中打开设置";
 "Task" = "任务";
 "Show Release Package in Finder" = "在 Finder 中显示发布包";
 "Query" = "查询";

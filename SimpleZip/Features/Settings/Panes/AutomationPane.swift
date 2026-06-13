@@ -141,6 +141,8 @@ struct AutomationPane: View {
                     ArchiveTaskSpotlightIndexer.reindex()
                     // #35:归档内容 Spotlight 捐献是双门控,这把总开关也管它。
                     CachedArchiveSpotlightIndexer.reindex()
+                    // #30:设置项索引也归这把总开关管(开 → 重建、关 → 清空)。
+                    SettingsSpotlightIndexer.reindex()
                 }
             }
             .settingsAnchor("automation.spotlight")

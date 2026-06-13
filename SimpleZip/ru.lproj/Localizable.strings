@@ -2063,6 +2063,7 @@
 "intent.findArchive.none" = "Ни один из открытых вами архивов не содержит «%@».";
 "intent.findArchive.results" = "Открытых вами архивов с «%2$@»: %1$@.";
 "spotlight.cachedArchive.description" = "Файлов внутри: %@ · открыть в SimpleZip";
+"spotlight.setting.in" = "В разделе «%@»";
 "intent.search.none" = "В %1$@ нет записей, соответствующих «%2$@».";
 "intent.search.results" = "%1$@ записей в %2$@ соответствуют «%3$@».";
 "intent.inspect.clean" = "В %1$@ нет подозрительных путей — файлов: %2$@, %3$@, мусорных объектов macOS: %4$@.";
@@ -2076,6 +2077,8 @@
 "Find Archive Containing File" = "Найти архив с файлом";
 "File Name" = "Имя файла";
 "Open Task in Activity Center" = "Открыть задачу в Центре активности";
+"Setting" = "Настройка";
+"Open Setting in SimpleZip" = "Открыть настройку в SimpleZip";
 "Task" = "Задача";
 "Show Release Package in Finder" = "Показать пакет выпуска в Finder";
 "Query" = "Запрос";

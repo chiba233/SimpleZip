@@ -2063,6 +2063,7 @@
 "intent.findArchive.none" = "Aucune des archives que vous avez ouvertes ne contient « %@ ».";
 "intent.findArchive.results" = "%1$@ archive(s) que vous avez ouverte(s) contiennent « %2$@ ».";
 "spotlight.cachedArchive.description" = "Contient %@ fichiers · ouvrir dans SimpleZip";
+"spotlight.setting.in" = "Dans %@";
 "intent.search.none" = "Aucune entrée de %1$@ ne correspond à « %2$@ ».";
 "intent.search.results" = "%1$@ entrées de %2$@ correspondent à « %3$@ ».";
 "intent.inspect.clean" = "%1$@ n’a aucun chemin suspect — %2$@ fichier(s), %3$@, %4$@ élément(s) indésirable(s) macOS.";
@@ -2076,6 +2077,8 @@
 "Find Archive Containing File" = "Trouver l’archive contenant un fichier";
 "File Name" = "Nom du fichier";
 "Open Task in Activity Center" = "Ouvrir la tâche dans le centre d’activité";
+"Setting" = "Réglage";
+"Open Setting in SimpleZip" = "Ouvrir le réglage dans SimpleZip";
 "Task" = "Tâche";
 "Show Release Package in Finder" = "Afficher le paquet de version dans le Finder";
 "Query" = "Requête";

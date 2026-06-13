@@ -2063,6 +2063,7 @@
 "intent.findArchive.none" = "ไม่มีไฟล์บีบอัดที่คุณเปิดที่มี \"%@\"";
 "intent.findArchive.results" = "ไฟล์บีบอัดที่คุณเปิด %1$@ ไฟล์มี \"%2$@\"";
 "spotlight.cachedArchive.description" = "มี %@ ไฟล์ · เปิดใน SimpleZip";
+"spotlight.setting.in" = "ในการตั้งค่า %@";
 "intent.search.none" = "ไม่มีรายการใน %1$@ ที่ตรงกับ \"%2$@\"";
 "intent.search.results" = "%1$@ รายการใน %2$@ ตรงกับ \"%3$@\"";
 "intent.inspect.clean" = "%1$@ ไม่มีเส้นทางที่น่าสงสัย — %2$@ ไฟล์, %3$@, รายการขยะ macOS %4$@ รายการ";
@@ -2076,6 +2077,8 @@
 "Find Archive Containing File" = "ค้นหาไฟล์บีบอัดที่มีไฟล์";
 "File Name" = "ชื่อไฟล์";
 "Open Task in Activity Center" = "เปิดงานในศูนย์กิจกรรม";
+"Setting" = "การตั้งค่า";
+"Open Setting in SimpleZip" = "เปิดการตั้งค่าใน SimpleZip";
 "Task" = "งาน";
 "Show Release Package in Finder" = "แสดงแพ็กเกจรุ่นใน Finder";
 "Query" = "คำค้นหา";

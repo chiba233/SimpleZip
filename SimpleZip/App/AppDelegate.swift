@@ -109,6 +109,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // #35:把缓存的归档(按内含文件名)同步进 Spotlight。双门控(Spotlight 总开关 + 缓存开关),
         // 任一关 → 清空已捐献的归档项。
         CachedArchiveSpotlightIndexer.reindex()
+        // #30:把具体设置项索引进 Spotlight(搜设置名直接跳过去)。静态目录,启动重建一次。
+        SettingsSpotlightIndexer.reindex()
     }
 
     /// 去掉列顺序偏好里的重复 identifier（修复历史污染，幂等）。
