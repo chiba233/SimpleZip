@@ -2030,6 +2030,10 @@
 "File Count" = "ファイル数";
 "Reproducible" = "再現可能";
 "Checksums Written" = "チェックサム書き込み済み";
+"Archive Task" = "アーカイブタスク";
+"Source" = "ソース";
+"Status" = "ステータス";
+"Started" = "開始";
 "intent.error.badName" = "「%@」は有効なアーカイブ名ではありません。パス区切り文字を含まない単純なファイル名を使用してください。";
 
 /* Release automation, workspace, reports, metadata */
@@ -2161,6 +2165,10 @@
 "tasks.source.intent" = "ショートカット / Siri";
 "tasks.source.urlScheme" = "URL スキーム";
 "tasks.source.finder" = "Finder サービス";
+"tasks.status.succeeded" = "成功";
+"tasks.status.skipped" = "スキップ";
+"tasks.status.failed" = "失敗";
+"tasks.status.cancelled" = "キャンセル";
 "tasks.filter.allSources" = "すべてのソース";
 "tasks.settings.clearSucceeded.button" = "成功分だけ消去";
 "button.rerunWithChanges" = "別の設定で再実行…";

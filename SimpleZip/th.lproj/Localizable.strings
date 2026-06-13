@@ -2028,6 +2028,10 @@
 "File Count" = "จำนวนไฟล์";
 "Reproducible" = "ทำซ้ำได้";
 "Checksums Written" = "เขียนเช็กซัมแล้ว";
+"Archive Task" = "งานไฟล์เก็บถาวร";
+"Source" = "แหล่งที่มา";
+"Status" = "สถานะ";
+"Started" = "เริ่มเมื่อ";
 "intent.error.badName" = "\"%@\" ไม่ใช่ชื่อไฟล์เก็บถาวรที่ถูกต้อง โปรดใช้ชื่อไฟล์ธรรมดาที่ไม่มีตัวคั่นเส้นทาง";
 
 /* Release automation, workspace, reports, metadata */
@@ -2159,6 +2163,10 @@
 "tasks.source.intent" = "คำสั่งลัด / Siri";
 "tasks.source.urlScheme" = "URL Scheme";
 "tasks.source.finder" = "บริการ Finder";
+"tasks.status.succeeded" = "สำเร็จ";
+"tasks.status.skipped" = "ข้าม";
+"tasks.status.failed" = "ล้มเหลว";
+"tasks.status.cancelled" = "ยกเลิก";
 "tasks.filter.allSources" = "ทุกแหล่งที่มา";
 "tasks.settings.clearSucceeded.button" = "ล้างเฉพาะรายการสำเร็จ";
 "button.rerunWithChanges" = "เรียกใหม่ด้วยการตั้งค่าอื่น…";

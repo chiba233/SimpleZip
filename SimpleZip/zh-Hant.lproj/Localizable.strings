@@ -2030,6 +2030,10 @@
 "File Count" = "檔案數";
 "Reproducible" = "可重現";
 "Checksums Written" = "已寫入校驗檔";
+"Archive Task" = "歸檔任務";
+"Source" = "來源";
+"Status" = "狀態";
+"Started" = "開始時間";
 "intent.error.badName" = "「%@」不是有效的歸檔名稱，請使用不含路徑分隔符的純檔名。";
 
 /* Release automation, workspace, reports, metadata */
@@ -2161,6 +2165,10 @@
 "tasks.source.intent" = "捷徑 / Siri";
 "tasks.source.urlScheme" = "URL 配置";
 "tasks.source.finder" = "Finder 服務";
+"tasks.status.succeeded" = "成功";
+"tasks.status.skipped" = "略過";
+"tasks.status.failed" = "失敗";
+"tasks.status.cancelled" = "已取消";
 "tasks.filter.allSources" = "全部来源";
 "tasks.settings.clearSucceeded.button" = "僅清除成功記錄";
 "button.rerunWithChanges" = "以不同設定重新執行…";

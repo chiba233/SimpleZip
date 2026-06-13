@@ -2028,6 +2028,10 @@
 "File Count" = "Número de archivos";
 "Reproducible" = "Reproducible";
 "Checksums Written" = "Sumas de verificación escritas";
+"Archive Task" = "Tarea de archivo";
+"Source" = "Origen";
+"Status" = "Estado";
+"Started" = "Iniciado";
 "intent.error.badName" = "\"%@\" no es un nombre de archivo válido; usa un nombre de archivo simple sin separadores de ruta.";
 
 /* Release automation, workspace, reports, metadata */
@@ -2159,6 +2163,10 @@
 "tasks.source.intent" = "Atajos / Siri";
 "tasks.source.urlScheme" = "Esquema URL";
 "tasks.source.finder" = "Servicios de Finder";
+"tasks.status.succeeded" = "Correcto";
+"tasks.status.skipped" = "Omitido";
+"tasks.status.failed" = "Fallido";
+"tasks.status.cancelled" = "Cancelado";
 "tasks.filter.allSources" = "Todos los orígenes";
 "tasks.settings.clearSucceeded.button" = "Borrar solo las correctas";
 "button.rerunWithChanges" = "Reejecutar con otros ajustes…";

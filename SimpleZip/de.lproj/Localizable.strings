@@ -2029,6 +2029,10 @@
 "File Count" = "Dateianzahl";
 "Reproducible" = "Reproduzierbar";
 "Checksums Written" = "Prüfsummen geschrieben";
+"Archive Task" = "Archivaufgabe";
+"Source" = "Quelle";
+"Status" = "Status";
+"Started" = "Gestartet";
 "intent.error.badName" = "\"%@\" ist kein gültiger Archivname - verwenden Sie einen einfachen Dateinamen ohne Pfadtrenner.";
 
 /* Release automation, workspace, reports, metadata */
@@ -2160,6 +2164,10 @@
 "tasks.source.intent" = "Kurzbefehle / Siri";
 "tasks.source.urlScheme" = "URL-Schema";
 "tasks.source.finder" = "Finder-Dienste";
+"tasks.status.succeeded" = "Erfolgreich";
+"tasks.status.skipped" = "Übersprungen";
+"tasks.status.failed" = "Fehlgeschlagen";
+"tasks.status.cancelled" = "Abgebrochen";
 "tasks.filter.allSources" = "Alle Quellen";
 "tasks.settings.clearSucceeded.button" = "Nur erfolgreiche löschen";
 "button.rerunWithChanges" = "Mit anderen Einstellungen erneut ausführen …";

@@ -676,3 +676,81 @@ private nonisolated enum PersistedStatus: Codable {
         }
     }
 }
+
+// MARK: - 只读历史查询面(App Intents)
+
+/// 一条历史任务的**只读快照**,只含 App Intents 实体需要的轻量元数据。
+/// 不是 `PersistedTask` 的镜像 DTO:`PersistedTask` 文件私有、@MainActor 构造、且驮着
+/// 哈希 / diff / 报告等重负载,不适合做跨上下文查询面;本快照只暴露查询所需字段。
+/// `.running` 在落盘时已被 `PersistedStatus(status:)` 归并为 `.cancelled`,故 outcome 只有 4 态。
+nonisolated struct ArchiveTaskSnapshot: Identifiable {
+    enum Outcome: String { case succeeded, skipped, failed, cancelled }
+    let id: UUID
+    let kind: OperationTask.Kind
+    let source: OperationTask.Source
+    let title: String
+    let detail: String?
+    let startedAt: Date
+    let finishedAt: Date?
+    let outcome: Outcome
+    let failureMessage: String?
+
+    nonisolated init(
+        id: UUID, kind: OperationTask.Kind, source: OperationTask.Source,
+        title: String, detail: String?, startedAt: Date, finishedAt: Date?,
+        outcome: Outcome, failureMessage: String?
+    ) {
+        self.id = id
+        self.kind = kind
+        self.source = source
+        self.title = title
+        self.detail = detail
+        self.startedAt = startedAt
+        self.finishedAt = finishedAt
+        self.outcome = outcome
+        self.failureMessage = failureMessage
+    }
+}
+
+/// 活动历史的 **nonisolated 只读查询入口** —— 直接读 `activityHistory` 的 UserDefaults JSON,
+/// 不触碰 @MainActor 的 `TaskCenter` 运行态。App Intents 的 `ArchiveTaskEntity` 据此查询。
+nonisolated enum ActivityHistoryStore {
+    /// 逐条 lossy 解码(与 `TaskCenter.loadPersistedHistory` 同口径:坏的丢、好的留)。
+    private struct LossyTask: Decodable {
+        let value: PersistedTask?
+        init(from decoder: Decoder) throws { value = try? PersistedTask(from: decoder) }
+    }
+
+    static func snapshot() -> [ArchiveTaskSnapshot] {
+        guard let data = UserDefaults.standard.data(forKey: AppPreferences.Key.activityHistory),
+              let lossy = try? JSONDecoder().decode([LossyTask].self, from: data) else { return [] }
+        return lossy.compactMap(\.value).map(makeSnapshot(_:))
+    }
+
+    static func lookup(id: UUID) -> ArchiveTaskSnapshot? {
+        snapshot().first { $0.id == id }
+    }
+
+    /// 入参用了文件私有的 `PersistedTask`,映射只在本文件内发生。
+    private static func makeSnapshot(_ task: PersistedTask) -> ArchiveTaskSnapshot {
+        let outcome: ArchiveTaskSnapshot.Outcome
+        var failure: String?
+        switch task.status {
+        case .succeeded: outcome = .succeeded
+        case .skipped: outcome = .skipped
+        case .failed(let message): outcome = .failed; failure = message
+        case .cancelled: outcome = .cancelled
+        }
+        return ArchiveTaskSnapshot(
+            id: task.id,
+            kind: task.kind,
+            source: task.source ?? .app,
+            title: task.title,
+            detail: task.detail,
+            startedAt: task.startedAt,
+            finishedAt: task.finishedAt,
+            outcome: outcome,
+            failureMessage: failure
+        )
+    }
+}

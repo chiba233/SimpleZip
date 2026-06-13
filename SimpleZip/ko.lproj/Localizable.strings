@@ -2029,6 +2029,10 @@
 "File Count" = "파일 수";
 "Reproducible" = "재현 가능";
 "Checksums Written" = "체크섬 작성됨";
+"Archive Task" = "아카이브 작업";
+"Source" = "소스";
+"Status" = "상태";
+"Started" = "시작됨";
 "intent.error.badName" = "「%@」은(는) 올바른 아카이브 이름이 아닙니다. 경로 구분자가 없는 단순한 파일 이름을 사용하세요.";
 
 /* Release automation, workspace, reports, metadata */
@@ -2160,6 +2164,10 @@
 "tasks.source.intent" = "단축어 / Siri";
 "tasks.source.urlScheme" = "URL 스킴";
 "tasks.source.finder" = "Finder 서비스";
+"tasks.status.succeeded" = "성공";
+"tasks.status.skipped" = "건너뜀";
+"tasks.status.failed" = "실패";
+"tasks.status.cancelled" = "취소됨";
 "tasks.filter.allSources" = "모든 출처";
 "tasks.settings.clearSucceeded.button" = "성공 항목만 지우기";
 "button.rerunWithChanges" = "다른 설정으로 다시 실행…";

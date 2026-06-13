@@ -1271,6 +1271,10 @@
 "tasks.source.intent" = "Shortcuts / Siri";
 "tasks.source.urlScheme" = "URL scheme";
 "tasks.source.finder" = "Finder services";
+"tasks.status.succeeded" = "Succeeded";
+"tasks.status.skipped" = "Skipped";
+"tasks.status.failed" = "Failed";
+"tasks.status.cancelled" = "Cancelled";
 /* 0.4.4 D activity center enhancements */
 "tasks.filter.allSources" = "All Sources";
 "tasks.settings.clearSucceeded.button" = "Clear Succeeded Only";
@@ -2327,3 +2331,7 @@
 "File Count" = "File Count";
 "Reproducible" = "Reproducible";
 "Checksums Written" = "Checksums Written";
+"Archive Task" = "Archive Task";
+"Source" = "Source";
+"Status" = "Status";
+"Started" = "Started";

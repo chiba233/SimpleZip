@@ -1269,6 +1269,10 @@
 "tasks.source.intent" = "快捷指令 / Siri";
 "tasks.source.urlScheme" = "URL scheme";
 "tasks.source.finder" = "Finder 服务";
+"tasks.status.succeeded" = "成功";
+"tasks.status.skipped" = "跳过";
+"tasks.status.failed" = "失败";
+"tasks.status.cancelled" = "已取消";
 /* 0.4.4 D 活动中心增强 */
 "tasks.filter.allSources" = "全部来源";
 "tasks.settings.clearSucceeded.button" = "仅清除成功记录";
@@ -2327,3 +2331,7 @@
 "File Count" = "文件数";
 "Reproducible" = "可复现";
 "Checksums Written" = "已写校验文件";
+"Archive Task" = "归档任务";
+"Source" = "来源";
+"Status" = "状态";
+"Started" = "开始时间";

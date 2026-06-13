@@ -2028,6 +2028,10 @@
 "File Count" = "Nombre de fichiers";
 "Reproducible" = "Reproductible";
 "Checksums Written" = "Sommes de contrôle écrites";
+"Archive Task" = "Tâche d’archive";
+"Source" = "Source";
+"Status" = "État";
+"Started" = "Démarré";
 "intent.error.badName" = "« %@ » n’est pas un nom d’archive valide ; utilisez un simple nom de fichier sans séparateur de chemin.";
 
 /* Release automation, workspace, reports, metadata */
@@ -2159,6 +2163,10 @@
 "tasks.source.intent" = "Raccourcis / Siri";
 "tasks.source.urlScheme" = "Schéma d’URL";
 "tasks.source.finder" = "Services Finder";
+"tasks.status.succeeded" = "Réussi";
+"tasks.status.skipped" = "Ignoré";
+"tasks.status.failed" = "Échec";
+"tasks.status.cancelled" = "Annulé";
 "tasks.filter.allSources" = "Toutes les sources";
 "tasks.settings.clearSucceeded.button" = "Effacer seulement les réussites";
 "button.rerunWithChanges" = "Relancer avec d’autres réglages…";

@@ -2028,6 +2028,10 @@
 "File Count" = "Количество файлов";
 "Reproducible" = "Воспроизводимо";
 "Checksums Written" = "Контрольные суммы записаны";
+"Archive Task" = "Задача архива";
+"Source" = "Источник";
+"Status" = "Статус";
+"Started" = "Начато";
 "intent.error.badName" = "«%@» не является допустимым именем архива — используйте простое имя файла без разделителей пути.";
 
 /* Release automation, workspace, reports, metadata */
@@ -2159,6 +2163,10 @@
 "tasks.source.intent" = "Команды / Siri";
 "tasks.source.urlScheme" = "URL-схема";
 "tasks.source.finder" = "Службы Finder";
+"tasks.status.succeeded" = "Успешно";
+"tasks.status.skipped" = "Пропущено";
+"tasks.status.failed" = "Ошибка";
+"tasks.status.cancelled" = "Отменено";
 "tasks.filter.allSources" = "Все источники";
 "tasks.settings.clearSucceeded.button" = "Очистить только успешные";
 "button.rerunWithChanges" = "Запустить снова с другими настройками…";
