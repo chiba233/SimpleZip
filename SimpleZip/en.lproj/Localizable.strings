@@ -1231,6 +1231,8 @@
 "dirAudit.taskTitle" = "Checking release directory %@";
 "dirAudit.summary" = "%1$@ failures, %2$@ warnings";
 "dirAudit.noChecksums" = "No SHA256SUMS in this directory — downloaders cannot verify the artifacts.";
+"dirAudit.dmg.ok" = "Disk image %1$@ mounts and contains %2$@ items";
+"dirAudit.dmg.empty" = "Disk image %@ is empty or could not be mounted";
 "dirAudit.checksumUnreadable" = "%@ could not be read.";
 "dirAudit.checksumCoverage.ok" = "%@ covers every artifact in the directory.";
 "dirAudit.checksumCoverage.uncovered" = "%@ artifacts are not listed in the checksum file:";

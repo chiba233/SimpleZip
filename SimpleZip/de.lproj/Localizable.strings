@@ -2153,6 +2153,8 @@
 "dirAudit.taskTitle" = "Release-Ordner %@ wird geprüft";
 "dirAudit.summary" = "%1$@ Fehler, %2$@ Warnungen";
 "dirAudit.noChecksums" = "Kein SHA256SUMS in diesem Ordner - Downloader können die Artefakte nicht verifizieren.";
+"dirAudit.dmg.ok" = "Disk-Image %1$@ lässt sich einhängen und enthält %2$@ Einträge";
+"dirAudit.dmg.empty" = "Disk-Image %@ ist leer oder ließ sich nicht einhängen";
 "dirAudit.checksumUnreadable" = "%@ konnte nicht gelesen werden.";
 "dirAudit.checksumCoverage.ok" = "%@ deckt jedes Artefakt im Ordner ab.";
 "dirAudit.checksumCoverage.uncovered" = "%@ Artefakte stehen nicht in der Prüfsummendatei:";

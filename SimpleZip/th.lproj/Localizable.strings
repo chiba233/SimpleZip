@@ -2152,6 +2152,8 @@
 "dirAudit.taskTitle" = "กำลังตรวจสอบโฟลเดอร์รีลีส %@";
 "dirAudit.summary" = "ล้มเหลว %1$@ รายการ คำเตือน %2$@ รายการ";
 "dirAudit.noChecksums" = "ไม่มี SHA256SUMS ในโฟลเดอร์นี้ ผู้ดาวน์โหลดจึงตรวจสอบอาร์ติแฟกต์ไม่ได้";
+"dirAudit.dmg.ok" = "ดิสก์อิมเมจ %1$@ เมานต์ได้และมี %2$@ รายการ";
+"dirAudit.dmg.empty" = "ดิสก์อิมเมจ %@ ว่างเปล่าหรือเมานต์ไม่ได้";
 "dirAudit.checksumUnreadable" = "อ่าน %@ ไม่ได้";
 "dirAudit.checksumCoverage.ok" = "%@ ครอบคลุมอาร์ติแฟกต์ทุกชิ้นในโฟลเดอร์";
 "dirAudit.checksumCoverage.uncovered" = "อาร์ติแฟกต์ %@ ชิ้นไม่อยู่ในไฟล์เช็กซัม:";

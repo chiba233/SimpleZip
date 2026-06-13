@@ -2154,6 +2154,8 @@
 "dirAudit.taskTitle" = "リリースディレクトリ %@ を確認中";
 "dirAudit.summary" = "%1$@ 件の失敗、%2$@ 件の警告";
 "dirAudit.noChecksums" = "このディレクトリに SHA256SUMS がありません。ダウンロード側で成果物を検証できません。";
+"dirAudit.dmg.ok" = "ディスクイメージ %1$@ はマウントでき、%2$@ 個の項目を含みます";
+"dirAudit.dmg.empty" = "ディスクイメージ %@ は空かマウントできませんでした";
 "dirAudit.checksumUnreadable" = "%@ を読み取れませんでした。";
 "dirAudit.checksumCoverage.ok" = "%@ はディレクトリ内のすべての成果物を含んでいます。";
 "dirAudit.checksumCoverage.uncovered" = "%@ 個の成果物がチェックサムファイルに載っていません:";

@@ -2152,6 +2152,8 @@
 "dirAudit.taskTitle" = "Comprobando directorio de versión %@";
 "dirAudit.summary" = "%1$@ errores, %2$@ advertencias";
 "dirAudit.noChecksums" = "No hay SHA256SUMS en este directorio: quienes descarguen no podrán verificar los artefactos.";
+"dirAudit.dmg.ok" = "La imagen de disco %1$@ se monta y contiene %2$@ elementos";
+"dirAudit.dmg.empty" = "La imagen de disco %@ está vacía o no se pudo montar";
 "dirAudit.checksumUnreadable" = "No se pudo leer %@.";
 "dirAudit.checksumCoverage.ok" = "%@ cubre todos los artefactos del directorio.";
 "dirAudit.checksumCoverage.uncovered" = "%@ artefactos no figuran en el archivo de sumas:";

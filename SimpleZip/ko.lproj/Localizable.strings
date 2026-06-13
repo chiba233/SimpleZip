@@ -2153,6 +2153,8 @@
 "dirAudit.taskTitle" = "릴리스 디렉터리 %@ 검사 중";
 "dirAudit.summary" = "실패 %1$@개, 경고 %2$@개";
 "dirAudit.noChecksums" = "이 디렉터리에 SHA256SUMS가 없어 다운로드 사용자가 아티팩트를 검증할 수 없습니다.";
+"dirAudit.dmg.ok" = "디스크 이미지 %1$@ 마운트 가능, 항목 %2$@개 포함";
+"dirAudit.dmg.empty" = "디스크 이미지 %@ 비어 있거나 마운트할 수 없음";
 "dirAudit.checksumUnreadable" = "%@을(를) 읽을 수 없습니다.";
 "dirAudit.checksumCoverage.ok" = "%@이(가) 디렉터리의 모든 아티팩트를 포함합니다.";
 "dirAudit.checksumCoverage.uncovered" = "아티팩트 %@개가 체크섬 파일에 없습니다:";

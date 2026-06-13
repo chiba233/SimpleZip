@@ -2154,6 +2154,8 @@
 "dirAudit.taskTitle" = "正在檢查發佈目錄 %@";
 "dirAudit.summary" = "%1$@ 項失敗、%2$@ 項警告";
 "dirAudit.noChecksums" = "此目錄沒有 SHA256SUMS，下載者無法驗證產物。";
+"dirAudit.dmg.ok" = "映像 %1$@ 可掛載，含 %2$@ 個項目";
+"dirAudit.dmg.empty" = "映像 %@ 為空或掛載失敗";
 "dirAudit.checksumUnreadable" = "無法讀取 %@。";
 "dirAudit.checksumCoverage.ok" = "%@ 覆蓋目錄中的全部產物。";
 "dirAudit.checksumCoverage.uncovered" = "%@ 個產物未列入校驗檔案：";

@@ -1066,6 +1066,26 @@ extension ArchiveBrowserModel {
                 }
             }
 
+            // ①.5 #13:发布里的 .dmg 挂载看内容 —— 确认镜像能挂上且里面有东西(空 / 挂不上 = 可疑发布物)。
+            // 复用 ArchiveService.list(底层经 DiskImageBackend 用 hdiutil 只读挂载→列举→卸载);不重写成 Disk
+            // Arbitration:既有 hdiutil 挂载路径已稳,换框架对用户零收益、只增风险(A14)。
+            for artifact in inventory.artifacts where artifact.lowercased().hasSuffix(".dmg") {
+                let dmgURL = directory.appendingPathComponent(artifact)
+                progress(ArchiveProgressState(fraction: 0, currentFile: artifact))
+                if let items = try? await ArchiveService.list(dmgURL, operationID: operationID), !items.isEmpty {
+                    findings.append(ReleaseDirectoryAuditFinding(
+                        severity: .pass,
+                        message: L10n.format("dirAudit.dmg.ok", artifact, "\(items.count)"),
+                        detailItems: Array(items.prefix(8).map(\.name))
+                    ))
+                } else {
+                    findings.append(ReleaseDirectoryAuditFinding(
+                        severity: .warning,
+                        message: L10n.format("dirAudit.dmg.empty", artifact)
+                    ))
+                }
+            }
+
             // ② .szs 清单的文件级核对(SHA;签名真伪在④)。.siz 是单文件容器,不在目录核对范围。
             let szsNames = inventory.containers.filter { $0.lowercased().hasSuffix(".szs") }
             for containerName in szsNames {

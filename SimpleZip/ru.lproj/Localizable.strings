@@ -2152,6 +2152,8 @@
 "dirAudit.taskTitle" = "Проверка каталога выпуска %@";
 "dirAudit.summary" = "%1$@ ошибок, %2$@ предупреждений";
 "dirAudit.noChecksums" = "В этом каталоге нет SHA256SUMS — скачивающие не смогут проверить артефакты.";
+"dirAudit.dmg.ok" = "Образ диска %1$@ монтируется и содержит элементов: %2$@";
+"dirAudit.dmg.empty" = "Образ диска %@ пуст или не смонтировался";
 "dirAudit.checksumUnreadable" = "Не удалось прочитать %@.";
 "dirAudit.checksumCoverage.ok" = "%@ покрывает все артефакты в каталоге.";
 "dirAudit.checksumCoverage.uncovered" = "%@ артефактов не перечислены в файле контрольных сумм:";

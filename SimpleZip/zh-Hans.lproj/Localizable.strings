@@ -1229,6 +1229,8 @@
 "dirAudit.taskTitle" = "正在检查发布目录 %@";
 "dirAudit.summary" = "%1$@ 项失败、%2$@ 项警告";
 "dirAudit.noChecksums" = "目录里没有 SHA256SUMS——下载者无法校验产物。";
+"dirAudit.dmg.ok" = "镜像 %1$@ 能挂载，含 %2$@ 个条目";
+"dirAudit.dmg.empty" = "镜像 %@ 为空或挂载失败";
 "dirAudit.checksumUnreadable" = "%@ 读不出来。";
 "dirAudit.checksumCoverage.ok" = "%@ 覆盖了目录里的全部产物。";
 "dirAudit.checksumCoverage.uncovered" = "%@ 个产物没有列进校验文件:";

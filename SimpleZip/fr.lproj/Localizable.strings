@@ -2152,6 +2152,8 @@
 "dirAudit.taskTitle" = "Vérification du dossier de version %@";
 "dirAudit.summary" = "%1$@ échecs, %2$@ avertissements";
 "dirAudit.noChecksums" = "Aucun SHA256SUMS dans ce dossier : les téléchargements ne peuvent pas vérifier les artefacts.";
+"dirAudit.dmg.ok" = "L’image disque %1$@ se monte et contient %2$@ éléments";
+"dirAudit.dmg.empty" = "L’image disque %@ est vide ou n’a pas pu être montée";
 "dirAudit.checksumUnreadable" = "%@ n’a pas pu être lu.";
 "dirAudit.checksumCoverage.ok" = "%@ couvre tous les artefacts du dossier.";
 "dirAudit.checksumCoverage.uncovered" = "%@ artefacts ne sont pas listés dans le fichier de sommes :";
