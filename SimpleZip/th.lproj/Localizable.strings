@@ -2400,3 +2400,20 @@
 "diff.fieldName.encryption" = "เข้ารหัส";
 "diff.fieldName.comment" = "ความคิดเห็น";
 "convert.section.behavior" = "พฤติกรรมการแปลง";
+
+/* App Intents · #31 + #51 (0.4.4 backfill, aligned with en/zh-Hans) */
+"Change a Setting" = "เปลี่ยนการตั้งค่า";
+"Setting State" = "สถานะการตั้งค่า";
+"State" = "สถานะ";
+"Turn On" = "เปิด";
+"Turn Off" = "ปิด";
+"Toggle" = "สลับ";
+"intent.setting.result" = "ตอนนี้ “%1$@” %2$@แล้ว";
+"intent.setting.on" = "เปิดอยู่";
+"intent.setting.off" = "ปิดอยู่";
+"intent.setting.notToggleable" = "“%@” เปลี่ยนด้วยวิธีนี้ไม่ได้ — เปิดการตั้งค่าของ SimpleZip เพื่อเปลี่ยน";
+"spotlight.activity.in" = "ในศูนย์กิจกรรม";
+"Setting Switch" = "สวิตช์การตั้งค่า";
+"Flip Setting" = "พลิกการตั้งค่า";
+"ai.explainSecurity" = "อธิบายระดับ";
+"ai.explainSecurity.title" = "อธิบายระดับความปลอดภัยแบบเข้าใจง่าย";

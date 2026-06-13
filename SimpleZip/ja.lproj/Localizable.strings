@@ -2402,3 +2402,20 @@
 "diff.fieldName.encryption" = "暗号化";
 "diff.fieldName.comment" = "コメント";
 "convert.section.behavior" = "変換動作";
+
+/* App Intents · #31 + #51 (0.4.4 backfill, aligned with en/zh-Hans) */
+"Change a Setting" = "設定を変更";
+"Setting State" = "設定の状態";
+"State" = "状態";
+"Turn On" = "オン";
+"Turn Off" = "オフ";
+"Toggle" = "切り替え";
+"intent.setting.result" = "「%1$@」は%2$@になりました。";
+"intent.setting.on" = "オン";
+"intent.setting.off" = "オフ";
+"intent.setting.notToggleable" = "「%@」はこの方法では変更できません。SimpleZip の設定から変更してください。";
+"spotlight.activity.in" = "アクティビティセンター内";
+"Setting Switch" = "設定スイッチ";
+"Flip Setting" = "設定を反転";
+"ai.explainSecurity" = "等級を説明";
+"ai.explainSecurity.title" = "安全等級をわかりやすく説明";

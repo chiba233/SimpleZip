@@ -2400,3 +2400,20 @@
 "diff.fieldName.encryption" = "Зашифровано";
 "diff.fieldName.comment" = "Комментарий";
 "convert.section.behavior" = "Поведение конвертации";
+
+/* App Intents · #31 + #51 (0.4.4 backfill, aligned with en/zh-Hans) */
+"Change a Setting" = "Изменить настройку";
+"Setting State" = "Состояние настройки";
+"State" = "Состояние";
+"Turn On" = "Включить";
+"Turn Off" = "Выключить";
+"Toggle" = "Переключить";
+"intent.setting.result" = "Настройка «%1$@» теперь %2$@.";
+"intent.setting.on" = "включена";
+"intent.setting.off" = "выключена";
+"intent.setting.notToggleable" = "«%@» нельзя изменить таким образом — измените это в настройках SimpleZip.";
+"spotlight.activity.in" = "В Центре активности";
+"Setting Switch" = "Переключатель настройки";
+"Flip Setting" = "Переключить настройку";
+"ai.explainSecurity" = "Объяснить оценку";
+"ai.explainSecurity.title" = "Объяснение оценки безопасности";

@@ -2401,3 +2401,19 @@
 "diff.fieldName.encryption" = "Verschlüsselt";
 "diff.fieldName.comment" = "Kommentar";
 "convert.section.behavior" = "Konvertierungsverhalten";
+/* App Intents · #31 + #51 (0.4.4 backfill, aligned with en/zh-Hans) */
+"Change a Setting" = "Einstellung ändern";
+"Setting State" = "Einstellungszustand";
+"State" = "Zustand";
+"Turn On" = "Einschalten";
+"Turn Off" = "Ausschalten";
+"Toggle" = "Umschalten";
+"intent.setting.result" = "„%1$@“ ist jetzt %2$@.";
+"intent.setting.on" = "ein";
+"intent.setting.off" = "aus";
+"intent.setting.notToggleable" = "„%@“ kann auf diese Weise nicht geändert werden — öffne die Einstellungen von SimpleZip, um es zu ändern.";
+"spotlight.activity.in" = "Im Aktivitätscenter";
+"Setting Switch" = "Einstellungsschalter";
+"Flip Setting" = "Einstellung umschalten";
+"ai.explainSecurity" = "Bewertung erklären";
+"ai.explainSecurity.title" = "Sicherheitsstufe erklärt";

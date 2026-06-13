@@ -2401,3 +2401,20 @@
 "diff.fieldName.encryption" = "암호화됨";
 "diff.fieldName.comment" = "주석";
 "convert.section.behavior" = "변환 동작";
+
+/* App Intents · #31 + #51 (0.4.4 backfill, aligned with en/zh-Hans) */
+"Change a Setting" = "설정 변경";
+"Setting State" = "설정 상태";
+"State" = "상태";
+"Turn On" = "켜기";
+"Turn Off" = "끄기";
+"Toggle" = "전환";
+"intent.setting.result" = "이제 「%1$@」이(가) %2$@ 상태입니다.";
+"intent.setting.on" = "켜짐";
+"intent.setting.off" = "꺼짐";
+"intent.setting.notToggleable" = "「%@」은(는) 이 방법으로 변경할 수 없습니다 — SimpleZip 설정에서 변경하세요.";
+"spotlight.activity.in" = "활동 센터에서";
+"Setting Switch" = "설정 스위치";
+"Flip Setting" = "설정 뒤집기";
+"ai.explainSecurity" = "등급 설명";
+"ai.explainSecurity.title" = "보안 등급 쉽게 설명";

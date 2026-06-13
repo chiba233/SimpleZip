@@ -2402,3 +2402,20 @@
 "diff.fieldName.encryption" = "加密";
 "diff.fieldName.comment" = "註解";
 "convert.section.behavior" = "轉換行為";
+
+/* App Intents · #31 + #51 (0.4.4 backfill, aligned with en/zh-Hans) */
+"Change a Setting" = "更改設定";
+"Setting State" = "設定狀態";
+"State" = "狀態";
+"Turn On" = "開啟";
+"Turn Off" = "關閉";
+"Toggle" = "切換";
+"intent.setting.result" = "「%1$@」現已%2$@。";
+"intent.setting.on" = "開啟";
+"intent.setting.off" = "關閉";
+"intent.setting.notToggleable" = "「%@」無法以這種方式更改 —— 請在 SimpleZip 的設定中更改。";
+"spotlight.activity.in" = "在活動中心裡";
+"Setting Switch" = "設定開關";
+"Flip Setting" = "翻轉設定";
+"ai.explainSecurity" = "解釋等級";
+"ai.explainSecurity.title" = "白話解釋安全等級";
