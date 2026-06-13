@@ -1312,6 +1312,7 @@
 "settings.defaults.description" = "Set reusable defaults per format. The Finder \\\"Compress\\\" quick actions use the matching format's defaults, and the create dialog can apply them. Passwords and GPG keys are never stored here.";
 "settings.defaults.useMostUsed" = "Utiliser mes plus fréquents";
 "settings.defaults.useMostUsed.help" = "Remplit ces réglages par défaut avec les options que vous choisissez le plus souvent pour ce format.";
+"settings.defaults.useMostUsed.noData" = "Créez d'abord quelques archives dans ce format, puis vos réglages les plus utilisés s'afficheront ici.";
 "settings.defaults.usageTracking" = "Apprendre mes options de compression les plus utilisées";
 "settings.defaults.usageTracking.description" = "Enregistre les options de compression que vous choisissez (localement, jamais rien de chiffré) pour que l’éditeur puisse proposer un bouton « utiliser mes plus fréquents ». Désactivez pour arrêter l’enregistrement.";
 "settings.defaults.add" = "Ajouter un format…";

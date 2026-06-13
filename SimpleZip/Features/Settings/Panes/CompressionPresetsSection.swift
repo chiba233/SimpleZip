@@ -27,11 +27,14 @@ struct CompressionDefaultsSection: View {
                 .foregroundStyle(.secondary)
 
             // #32:记录创建时实际选的压缩选项,供编辑器里「按我最常用的来」一键填默认。只记非加密离散旋钮、全本地。
-            Toggle(L10n.text("settings.defaults.usageTracking"), isOn: $usageTracking)
-            Text(L10n.text("settings.defaults.usageTracking.description"))
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
+            // 用 SettingsToggleRow 跟同区其他设置行一样带彩色瓦片图标(魔棒/紫,呼应编辑器里的「按我最常用的来」)。
+            SettingsToggleRow(
+                title: L10n.text("settings.defaults.usageTracking"),
+                description: L10n.text("settings.defaults.usageTracking.description"),
+                systemImage: "wand.and.stars",
+                iconTint: .purple,
+                isOn: $usageTracking
+            )
 
             // 只列出**用户已添加**的格式模板；每条一个启用开关。没添加的不显示。
             // 注意：不要在行间插 Divider() —— 在 Form/Section 里它会单独占一整行(显示成空灰行)，
@@ -254,16 +257,20 @@ struct FormatPresetEditorSheet: View {
 
             Divider()
             PinnedBottomBar {
-                // #37:「按我最常用的来」—— 仅当有该格式的使用统计时出现。把众数值勾上并填进各行,用户仍可改后保存。
-                if let usageSuggestion {
-                    Button {
+                // #37:「按我最常用的来」—— 始终显示;没有该格式的使用统计时置灰(灰着也比藏起来强,用户点名)。
+                // 有数据时把众数值勾上并填进各行,用户仍可改后保存。
+                Button {
+                    if let usageSuggestion {
                         included.formUnion(usageSuggestion.includedFields)
                         usageSuggestion.apply(to: &options)
-                    } label: {
-                        Label(L10n.text("settings.defaults.useMostUsed"), systemImage: "wand.and.stars")
                     }
-                    .help(L10n.text("settings.defaults.useMostUsed.help"))
+                } label: {
+                    Label(L10n.text("settings.defaults.useMostUsed"), systemImage: "wand.and.stars")
                 }
+                .disabled(usageSuggestion == nil)
+                .help(usageSuggestion == nil
+                    ? L10n.text("settings.defaults.useMostUsed.noData")
+                    : L10n.text("settings.defaults.useMostUsed.help"))
                 Spacer()
                 Button(L10n.text("button.cancel"), role: .cancel) { onCancel() }
                     .keyboardShortcut(.cancelAction)

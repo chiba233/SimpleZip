@@ -1872,6 +1872,7 @@
 "settings.defaults.description" = "为每个格式配一份可复用的默认值。Finder「压缩」一键服务会用对应格式的默认值,创建对话框也能套用。密码和 GPG 私钥永不存在这里。";
 "settings.defaults.useMostUsed" = "按我最常用的来";
 "settings.defaults.useMostUsed.help" = "用你为这个格式最常选的选项填进这些默认值。";
+"settings.defaults.useMostUsed.noData" = "先用这个格式创建几个归档，这里就会填上你最常用的设置。";
 "settings.defaults.usageTracking" = "学习我最常用的压缩选项";
 "settings.defaults.usageTracking.description" = "记录你实际选的压缩选项（本地，绝不记录任何加密内容），让编辑器能给出一键「按我最常用的来」。关掉则停止记录。";
 "settings.defaults.add" = "添加格式…";

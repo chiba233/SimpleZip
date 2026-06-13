@@ -1191,6 +1191,7 @@
 "settings.defaults.description" = "フォーマットごとにデフォルトを設定できます。Finder の「圧縮」クイックアクションは対応するフォーマットのデフォルトを使用し、作成ダイアログにも適用できます。パスワードと GPG 鍵はここには保存されません。";
 "settings.defaults.useMostUsed" = "よく使う設定を適用";
 "settings.defaults.useMostUsed.help" = "この形式でよく選ぶオプションをこれらのデフォルト値に入れます。";
+"settings.defaults.useMostUsed.noData" = "まずこの形式でアーカイブをいくつか作成すると、よく使う設定がここに入ります。";
 "settings.defaults.usageTracking" = "よく使う圧縮オプションを学習";
 "settings.defaults.usageTracking.description" = "実際に選んだ圧縮オプションを記録し（ローカル、暗号化されたものは一切記録しません）、エディタが「よく使う設定を適用」ワンクリックボタンを提供できるようにします。オフにすると記録を停止します。";
 "settings.defaults.editorHint" = "このフォーマットでデフォルトにしたいオプションだけにチェックを入れてください。チェックしていないオプションは作成時のデフォルトのまま、毎回変更できます。";
