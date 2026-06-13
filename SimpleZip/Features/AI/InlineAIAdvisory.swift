@@ -23,10 +23,13 @@ struct InlineAIAdvisory: View {
     // 初始就 true:打开窗口即显示菊花(用户要的「正在生成」反馈),且保证 `.task` 挂在一个**非空**视图上
     // 一定触发(挂在空 ViewBuilder 上 `.task` 不会跑 —— 这是「完全不显示」的根因)。
     @State private var isLoading = true
+    // 手动刷新计数:用户点刷新按钮 +1 → 并进 `.task(id:)` → 重跑(切格式时若内容没变 token 不变,
+    // 这给用户一个显式重算入口;用户点名要)。
+    @State private var reloadNonce = 0
 
     var body: some View {
         if AIReportAssistant.isReady {
-            content.task(id: token) { await run() }
+            content.task(id: "\(token)#\(reloadNonce)") { await run() }
         }
     }
 
@@ -47,6 +50,14 @@ struct InlineAIAdvisory: View {
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                 }
+                Spacer(minLength: 8)
+                // 手动重算:切了格式 / 级别想重新让 AI 看一眼,点这个。
+                Button { reloadNonce += 1 } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.caption)
+                }
+                .buttonStyle(.borderless)
+                .help(L10n.text("ai.regenerate"))
             }
             .padding(.top, 3)
         } else if isLoading {

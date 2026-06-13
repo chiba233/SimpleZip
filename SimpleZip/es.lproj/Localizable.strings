@@ -2247,6 +2247,16 @@
 "ai.categorizeIssue.title" = "Clasificación de incidencias con IA";
 "ai.compareSummary" = "Resumir";
 "ai.compareSummary.title" = "Comparación de versiones con IA";
+"tasks.aiFilter" = "Filtro con IA";
+"tasks.aiFilter.title" = "Filtrar por descripción";
+"tasks.aiFilter.hint" = "Describe lo que quieres: un nombre de archivo como «minecraft.zip», un momento como «fallidas hoy» o un estado. La IA crea un filtro temporal.";
+"tasks.aiFilter.prompt" = "p. ej., minecraft.zip o fallidas hoy";
+"tasks.aiFilter.apply" = "Aplicar";
+"tasks.aiFilter.activeHelp" = "Filtro con IA: %@ — toca para borrar";
+"tasks.aiFilter.time.today" = "hoy";
+"tasks.aiFilter.time.yesterday" = "ayer";
+"tasks.aiFilter.time.last7days" = "últimos 7 días";
+"tasks.aiFilter.time.last30days" = "últimos 30 días";
 "ai.suggestLabels" = "Sugerir etiquetas";
 "ai.suggestLabels.title" = "Etiquetas sugeridas por IA";
 "ai.summarizeRisk.title" = "Resumen de riesgo con IA";

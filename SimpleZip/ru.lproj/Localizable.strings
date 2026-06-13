@@ -2247,6 +2247,16 @@
 "ai.categorizeIssue.title" = "ИИ-сортировка обращений";
 "ai.compareSummary" = "Сводка";
 "ai.compareSummary.title" = "ИИ-сравнение релизов";
+"tasks.aiFilter" = "ИИ-фильтр";
+"tasks.aiFilter.title" = "Фильтр по описанию";
+"tasks.aiFilter.hint" = "Опишите, что хотите: имя файла вроде «minecraft.zip», время вроде «неудачные сегодня» или статус. ИИ создаёт временный фильтр.";
+"tasks.aiFilter.prompt" = "напр., minecraft.zip или неудачные сегодня";
+"tasks.aiFilter.apply" = "Применить";
+"tasks.aiFilter.activeHelp" = "ИИ-фильтр: %@ — нажмите, чтобы очистить";
+"tasks.aiFilter.time.today" = "сегодня";
+"tasks.aiFilter.time.yesterday" = "вчера";
+"tasks.aiFilter.time.last7days" = "за 7 дней";
+"tasks.aiFilter.time.last30days" = "за 30 дней";
 "ai.suggestLabels" = "Предложить метки";
 "ai.suggestLabels.title" = "Метки, предложенные ИИ";
 "ai.summarizeRisk.title" = "Сводка рисков ИИ";

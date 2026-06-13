@@ -44,10 +44,18 @@ enum AIReportAssistant {
     /// 生成文本。仅 macOS 26+ 调用(调用点已用 `isReady` 守卫)。失败抛出,UI 显示错误文案、不崩。
     /// 自动把「用当前界面语言回复」硬加进 instructions —— 本机模型没语言信号时会默认英文(用户实测中文界面
     /// 出英文),显式指定才稳。所有 AI 功能共用这条,prompt 里不必再各写一遍。
+    ///
+    /// **串行(修崩溃)**:本机 FoundationModels 是共享单例资源。创建/解压速览会随 token(格式/级别/异步估算)
+    /// 动态重跑,SwiftUI `.task(id:)` 把上一个 respond() 中途拆毁、同时起下一个 —— 重叠 + 中途拆毁让框架在
+    /// 迭代 transcript 时越界 trap(用户实测崩溃栈)。所有模型调用统一过 `AIGenerationSerializer`:一次只跑
+    /// 一个,且一旦开始就跑到底(不随调用方取消)。见 [[feedback_no_published_on_reload_path]] 同类「动态重跑」教训。
     @available(macOS 26.0, *)
     static func generate(instructions: String, prompt: String) async throws -> String {
-        let session = LanguageModelSession(instructions: instructions + "\n\n" + replyLanguageInstruction)
-        return try await session.respond(to: prompt).content
+        let combined = instructions + "\n\n" + replyLanguageInstruction
+        return try await AIGenerationSerializer.shared.run {
+            let session = LanguageModelSession(instructions: combined)
+            return try await session.respond(to: prompt).content
+        }
     }
 
     /// 「整段回复用 <当前界面语言>」—— 按 app 语言覆盖优先,否则取实际加载的本地化。
@@ -89,6 +97,124 @@ enum AIReportAssistant {
 struct AIAssistError: LocalizedError {
     let message: String
     var errorDescription: String? { message }
+}
+
+/// 模型调用的**全局串行闸**(修 FoundationModels transcript 越界崩溃)。
+///
+/// 本机 on-device 模型是共享资源,**重叠的 `respond()` 会让框架在迭代 session transcript 时越界 trap**
+/// (实测:创建/解压内联速览随格式/级别/异步估算动态重跑,`.task(id:)` 把上一个生成中途拆毁、同时起下一个)。
+/// 这里把所有生成排成一条链:`operation` 一个接一个跑,**绝不重叠**;承载它的是 unstructured `Task`,
+/// **不随调用方 Task 取消而中途拆毁**(中途拆毁正是崩因)—— 调用方取消只是不再等结果,生成自身跑到底后被丢弃。
+@available(macOS 26.0, *)
+actor AIGenerationSerializer {
+    static let shared = AIGenerationSerializer()
+
+    /// 链尾:下一个生成要等它结束才开始(只关心「结束」,不关心结果类型,故抹成 Void)。
+    private var tail: Task<Void, Never>?
+
+    func run<T: Sendable>(_ operation: @Sendable @escaping () async throws -> T) async throws -> T {
+        let prior = tail
+        // unstructured Task:不继承调用方的取消 —— 保证 respond() 跑到底,框架不被中途拆毁。
+        let work = Task { () -> Result<T, Error> in
+            _ = await prior?.value          // 等上一个生成彻底结束,杜绝重叠
+            do { return .success(try await operation()) }
+            catch { return .failure(error) }
+        }
+        tail = Task { _ = await work.value }  // 新链尾(Void 化)
+        return try await work.value.get()
+    }
+}
+
+// MARK: - 自然语言查询(NL → 结构化「过滤 / 定位」规格,App 端确定性应用,AI 绝不执行)
+
+// 这些 `@Generable` 规格是 AI 的**唯一**输出形态:它把用户的一句话映射成一组**受约束的字段**,
+// 由调用点的 Swift 代码确定性地翻成现有的过滤 / 跳转动作(只读展示 / 导航,从不写入、不放行)。
+// 字段一律用 String + `@Guide` 列出允许值,Swift 端做容错映射(模型给了界外值就退回安全默认),
+// 避免依赖「@Generable 枚举」的细节、也更耐模型抖动。
+
+/// #60:活动中心自然语言筛选 —— 一句话 → {状态, 来源, 关键词(单个归档/任务名), 时间窗}。
+/// 关键词 + 时间窗才是「临时分类」的灵魂(不止在现有状态/来源里挑) —— 用户点名只筛现成分类「毫无价值」。
+@available(macOS 26.0, *)
+@Generable
+struct ActivityFilterSpec: Sendable {
+    @Guide(description: "Task status to show. Exactly one of: all, running, succeeded, failed, cancelled.")
+    var status: String
+    @Guide(description: "Where the task came from. Exactly one of: any, app, cli, intent, urlScheme, finder.")
+    var source: String
+    @Guide(description: "A keyword to match against the task name / archive file name the user mentioned (for example \"minecraft\" should match a task named \"minecraft.zip\"). Empty string if the request names no specific file or archive.")
+    var keyword: String
+    @Guide(description: "Time window for when the task ran. Exactly one of: any, today, yesterday, last7days, last30days.")
+    var timeRange: String
+}
+
+/// #63:归档清单缓存自然语言查询 —— 一句话 → 一个用来在已缓存归档里搜的**文件名关键词**。
+@available(macOS 26.0, *)
+@Generable
+struct ArchiveFileQuerySpec: Sendable {
+    @Guide(description: "The single most useful file-name keyword to search archives for, extracted from the user's request. A bare word or short phrase, no punctuation, no path. Empty if the request names no file.")
+    var keyword: String
+}
+
+/// #64:设置自然语言搜索 —— 一句话 → 命中的设置标识 + 想要的动作(只导航 / 建议切换)。
+@available(macOS 26.0, *)
+@Generable
+struct SettingsQuerySpec: Sendable {
+    @Guide(description: "The id of the single best-matching setting from the provided catalog, copied verbatim. Empty if nothing matches.")
+    var settingID: String
+    @Guide(description: "What the user wants. Exactly one of: navigate (just take me there), enable (turn it on), disable (turn it off).")
+    var intent: String
+}
+
+@available(macOS 26.0, *)
+extension AIReportAssistant {
+    /// 结构化生成的薄封装:不注入回复语言(输出是受约束的 token / 关键词,不是给人读的散文)。
+    /// 同样过全局串行闸,和散文生成共用同一条链 —— 杜绝任何两个 `respond()` 重叠(见 `AIGenerationSerializer`)。
+    static func generateStructured<T: Generable & Sendable>(instructions: String, prompt: String, as type: T.Type) async throws -> T {
+        try await AIGenerationSerializer.shared.run {
+            let session = LanguageModelSession(instructions: instructions)
+            return try await session.respond(to: prompt, generating: type).content
+        }
+    }
+
+    /// #60:把用户的一句话翻成活动中心过滤规格(状态 + 来源 + 关键词 + 时间窗)。
+    static func activityFilterSpec(for query: String) async throws -> ActivityFilterSpec {
+        let instructions = """
+        Map the user's request to a task filter for an archive app's Activity Center. Set four fields:
+        - status: all / running / succeeded / failed / cancelled (use all if unspecified).
+        - source: any / app (used in the app) / cli (command line) / intent (Shortcuts or Siri) / \
+        urlScheme (a simplezip:// link) / finder (Finder services). Use any if unspecified.
+        - keyword: if the user names a specific file or archive (like "minecraft" or "report.zip"), put \
+        that word here so it can match the task name; otherwise an empty string.
+        - timeRange: any / today / yesterday / last7days / last30days, based on any time hint in the request.
+        Output only those four fields. The keyword and time window are what let the user carve out a \
+        specific slice, so use them whenever the request implies one.
+        """
+        return try await generateStructured(instructions: instructions, prompt: query, as: ActivityFilterSpec.self)
+    }
+
+    /// #63:从用户的一句话里抽出最有用的文件名关键词(用来跑现有的「哪个归档含某文件」缓存查询)。
+    static func archiveFileKeyword(for query: String) async throws -> String {
+        let instructions = """
+        The user is looking for a file they remember is inside some archive. Extract the single most useful \
+        file-name keyword to search for. Prefer a concrete noun or the likely file name; drop filler words. \
+        Return just the keyword, no punctuation or path.
+        """
+        return try await generateStructured(instructions: instructions, prompt: query, as: ArchiveFileQuerySpec.self).keyword
+    }
+
+    /// #64:把用户的一句话映射到一个设置(从传入目录里选)+ 想要的动作。catalog 是「id\\t标题\\t说明」多行。
+    static func settingsQuerySpec(for query: String, catalog: String) async throws -> SettingsQuerySpec {
+        let instructions = """
+        The user describes a setting they want to find or change in an archive app. From the catalog below \
+        (one per line as "id<TAB>title<TAB>summary"), pick the single best-matching setting and copy its id \
+        verbatim, and decide the intent: navigate (just find it), enable (turn it on) or disable (turn it \
+        off). If nothing matches, return an empty id. Output only the two fields.
+
+        Catalog:
+        \(catalog)
+        """
+        return try await generateStructured(instructions: instructions, prompt: query, as: SettingsQuerySpec.self)
+    }
 }
 
 // MARK: - Prompt 构造(纯字符串组装,只读输入)

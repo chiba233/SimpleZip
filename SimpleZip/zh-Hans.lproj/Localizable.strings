@@ -1319,6 +1319,16 @@
 "ai.categorizeIssue.title" = "AI 问题归类";
 "ai.compareSummary" = "白话总结";
 "ai.compareSummary.title" = "AI 发布对比总结";
+"tasks.aiFilter" = "AI 筛选";
+"tasks.aiFilter.title" = "用一句话筛选";
+"tasks.aiFilter.hint" = "用一句话描述你想看的——文件名(如「minecraft.zip」)、时间(如「今天失败的」)或状态,AI 会据此切出一个临时分类。";
+"tasks.aiFilter.prompt" = "例如:minecraft.zip、今天失败的";
+"tasks.aiFilter.apply" = "应用";
+"tasks.aiFilter.activeHelp" = "AI 分类:%@ — 点按清空";
+"tasks.aiFilter.time.today" = "今天";
+"tasks.aiFilter.time.yesterday" = "昨天";
+"tasks.aiFilter.time.last7days" = "近 7 天";
+"tasks.aiFilter.time.last30days" = "近 30 天";
 "ai.suggestLabels" = "建议标签";
 "ai.suggestLabels.title" = "AI 建议标签";
 "ai.summarizeRisk.title" = "AI 风险总结";

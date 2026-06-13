@@ -29,6 +29,17 @@ struct ActivityView: View {
     @State private var archiveFilter = ActivityTaskFilter.all
     @State private var fileFilter = ActivityTaskFilter.all
     @State private var undoRedoFilter = ActivityTaskFilter.all
+    // #60(macOS 26 AI):自然语言筛选 —— 输入一句话 → AI 映射成 {状态, 来源, 关键词, 时间窗} → 确定性地应用。
+    // AI 只产规格、不执行;筛选纯属只读展示。仅 AIReportAssistant.isReady 时露出按钮。
+    // 关键词(匹配任务名/归档名)+ 时间窗是「临时分类」的灵魂 —— 不止在现成状态/来源里挑。
+    @State private var showsAIFilter = false
+    @State private var aiFilterText = ""
+    @State private var aiFilterRunning = false
+    /// AI 临时分类的两个**独有**轴(状态/来源有各自的 Picker;这俩没有别的入口)。
+    @State private var aiKeyword = ""
+    @State private var aiTimeRange = ActivityTimeRange.any
+    /// 是否有 AI 临时分类在生效 —— 生效时 AI 按钮高亮、点按即清空(用户点名的交互)。
+    @State private var aiFilterActive = false
     @AppStorage(AppPreferences.Key.activityHistoryLimit) private var historyLimit = AppPreferences.activityHistoryLimit
     @AppStorage(AppPreferences.Key.heavyTaskConcurrencyLimit) private var concurrencyLimit = AppPreferences.heavyTaskConcurrencyLimit
 
@@ -138,6 +149,9 @@ struct ActivityView: View {
                         Spacer()
                         filterMenu(for: category)
                         sourceFilterMenu
+                        if AIReportAssistant.isReady {
+                            aiFilterButton
+                        }
                         // F4:队列级暂停/恢复 —— 暂停态下即使任务跑完也保持可见(不然没法恢复闸门)。
                         // 运行态的三颗控制钮都用纯图标(.help 出全文)—— 带文字时把 hero 挤成竖排(用户截图)。
                         if taskCenter.runningCount > 0 || taskCenter.isQueuePaused {
@@ -437,8 +451,17 @@ struct ActivityView: View {
 
     private func filteredTasks(in category: OperationTask.Category) -> [OperationTask] {
         let filter = filter(for: category)
+        let keyword = aiKeyword.trimmingCharacters(in: .whitespacesAndNewlines)
+        let now = Date()
         return tasks(in: category).filter { task in
-            filter.includes(task) && (sourceFilter == nil || task.source == sourceFilter)
+            guard filter.includes(task), sourceFilter == nil || task.source == sourceFilter else { return false }
+            // #60 AI 临时分类:关键词匹配任务名/详情(归档名),时间窗匹配起始时间。
+            if !keyword.isEmpty {
+                let inTitle = task.title.localizedCaseInsensitiveContains(keyword)
+                let inDetail = task.detail?.localizedCaseInsensitiveContains(keyword) ?? false
+                if !inTitle && !inDetail { return false }
+            }
+            return aiTimeRange.includes(task.startedAt, now: now)
         }
     }
 
@@ -452,6 +475,117 @@ struct ActivityView: View {
         }
         .labelsHidden()
         .fixedSize()
+    }
+
+    /// #60:自然语言筛选按钮(仅 isReady 时渲染)。
+    /// 无 AI 分类时:普通 bordered 态,点开小气泡输入一句话 → AI 映射成 {状态/来源/关键词/时间窗} 临时分类。
+    /// 有 AI 分类生效时:**填充高亮(紫)**,点按即**清空**分类(用户点名的交互)。
+    @ViewBuilder
+    private var aiFilterButton: some View {
+        let core = Button {
+            if aiFilterActive { clearAIFilter() } else { showsAIFilter = true }
+        } label: {
+            Label(L10n.text("tasks.aiFilter"), systemImage: aiFilterActive ? "sparkles.rectangle.stack.fill" : "sparkles")
+                .labelStyle(.iconOnly)
+        }
+        .help(aiFilterActive ? L10n.format("tasks.aiFilter.activeHelp", activeFilterSummary) : L10n.text("tasks.aiFilter"))
+        .popover(isPresented: $showsAIFilter, arrowEdge: .bottom) {
+            VStack(alignment: .leading, spacing: 10) {
+                Label(L10n.text("tasks.aiFilter.title"), systemImage: "sparkles")
+                    .font(.headline)
+                    .foregroundStyle(.purple)
+                Text(L10n.text("tasks.aiFilter.hint"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(width: 280, alignment: .leading)
+                TextField(L10n.text("tasks.aiFilter.prompt"), text: $aiFilterText)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 280)
+                    .onSubmit { Task { await runAIFilter() } }
+                HStack(spacing: 8) {
+                    if aiFilterRunning { ProgressView().controlSize(.small) }
+                    Spacer()
+                    Button(L10n.text("button.cancel")) { showsAIFilter = false }
+                    Button(L10n.text("tasks.aiFilter.apply")) { Task { await runAIFilter() } }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(aiFilterText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || aiFilterRunning)
+                }
+                .frame(width: 280)
+            }
+            .padding(14)
+        }
+        // 生效时填充紫高亮,否则普通描边(条件 buttonStyle 类型不同,必须 if/else 分支)。
+        if aiFilterActive {
+            core.buttonStyle(.borderedProminent).tint(.purple)
+        } else {
+            core.buttonStyle(.bordered)
+        }
+    }
+
+    /// AI 产规格 → App 端确定性应用(只动筛选 @State,纯只读展示;失败静默不改)。
+    @MainActor
+    private func runAIFilter() async {
+        let query = aiFilterText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty, !aiFilterRunning else { return }
+        guard #available(macOS 26.0, *) else { return }
+        aiFilterRunning = true
+        defer { aiFilterRunning = false }
+        do {
+            let spec = try await AIReportAssistant.activityFilterSpec(for: query)
+            applyActivityFilterSpec(spec)
+            showsAIFilter = false
+            aiFilterText = ""
+        } catch {
+            // 失败静默:保留现有筛选不动。
+        }
+    }
+
+    /// 把 AI 规格容错映射到筛选(状态/来源 + 关键词 + 时间窗;界外值退回安全默认)。
+    @available(macOS 26.0, *)
+    private func applyActivityFilterSpec(_ spec: ActivityFilterSpec) {
+        let status: ActivityTaskFilter
+        switch spec.status.lowercased() {
+        case "running": status = .running
+        case "succeeded": status = .succeeded
+        case "failed": status = .failed
+        case "cancelled", "canceled": status = .cancelled
+        default: status = .all
+        }
+        archiveFilter = status
+        fileFilter = status
+        undoRedoFilter = status
+        switch spec.source.lowercased() {
+        case "app": sourceFilter = .app
+        case "cli": sourceFilter = .cli
+        case "intent": sourceFilter = .intent
+        case "urlscheme": sourceFilter = .urlScheme
+        case "finder": sourceFilter = .finder
+        default: sourceFilter = nil
+        }
+        aiKeyword = spec.keyword.trimmingCharacters(in: .whitespacesAndNewlines)
+        aiTimeRange = ActivityTimeRange.parse(spec.timeRange)
+        // 「分类是否生效」= 这次 AI 产出的任何轴非默认(关键词 / 时间窗 / 状态 / 来源)。
+        aiFilterActive = !aiKeyword.isEmpty || aiTimeRange != .any || status != .all || sourceFilter != nil
+    }
+
+    /// 清空 AI 临时分类 —— 关键词 / 时间窗 / 状态 / 来源全复位(用户点高亮的 AI 按钮触发)。
+    private func clearAIFilter() {
+        aiKeyword = ""
+        aiTimeRange = .any
+        archiveFilter = .all
+        fileFilter = .all
+        undoRedoFilter = .all
+        sourceFilter = nil
+        aiFilterActive = false
+    }
+
+    /// 高亮按钮的 tooltip:把当前 AI 分类用一行人话概括(关键词 + 时间窗)。
+    private var activeFilterSummary: String {
+        var parts: [String] = []
+        if !aiKeyword.isEmpty { parts.append("“\(aiKeyword)”") }
+        if aiTimeRange != .any { parts.append(L10n.text("tasks.aiFilter.time.\(aiTimeRange.rawValue)")) }
+        return parts.isEmpty ? L10n.text("tasks.aiFilter") : parts.joined(separator: " · ")
     }
 
     private func filter(for category: OperationTask.Category) -> ActivityTaskFilter {
@@ -996,6 +1130,33 @@ private struct ActivityTaskCard: View {
 
 // ActivityPaneSidebarButton（自绘侧栏按钮）已删 —— 活动中心改用原生
 // NavigationSplitView + List(selection:) + .badge，跟设置窗口同一套做法。
+
+/// #60:AI 临时分类的时间窗(只读筛选,匹配 `task.startedAt`)。
+private enum ActivityTimeRange: String, CaseIterable, Hashable {
+    case any, today, yesterday, last7days, last30days
+
+    /// 容错映射 AI 给的字符串(界外值退回 `.any`)。
+    static func parse(_ raw: String) -> ActivityTimeRange {
+        ActivityTimeRange(rawValue: raw.lowercased()) ?? .any
+    }
+
+    func includes(_ date: Date, now: Date = Date(), calendar: Calendar = .current) -> Bool {
+        switch self {
+        case .any:
+            return true
+        case .today:
+            return calendar.isDateInToday(date)
+        case .yesterday:
+            return calendar.isDateInYesterday(date)
+        case .last7days:
+            guard let cutoff = calendar.date(byAdding: .day, value: -7, to: now) else { return true }
+            return date >= cutoff
+        case .last30days:
+            guard let cutoff = calendar.date(byAdding: .day, value: -30, to: now) else { return true }
+            return date >= cutoff
+        }
+    }
+}
 
 private enum ActivityTaskFilter: CaseIterable, Identifiable, Hashable {
     case all

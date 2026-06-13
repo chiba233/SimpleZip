@@ -215,6 +215,10 @@ struct ExtractArchiveOptionsView: View {
                 if preflight.symlinkCount > 0 {
                     preflightCaption("extract.preflight.symlinks", "\(preflight.symlinkCount)", icon: "link", tint: .secondary)
                 }
+                // 统计区 ↔ AI 区之间一道很薄的分割线(与创建对话框一致);仅 AI 可用时画,避免悬空线。
+                if AIReportAssistant.isReady {
+                    Divider().opacity(0.5).padding(.vertical, 1)
+                }
                 // 打开窗口即静默跑的内联 AI 速览(大小/耗时 + 解压前值得注意的)。仅 isReady 时出现,失败静默。
                 InlineAIAdvisory(
                     token: "\(preflight.fileCount)|\(preflight.totalBytes)|\(preflight.suspiciousEntryCount)|\(overwriteCount)|\(missingVolumeCount)|\(request.destinationURL.path)"

@@ -1321,6 +1321,16 @@
 "ai.categorizeIssue.title" = "AI Issue Triage";
 "ai.compareSummary" = "Summarize";
 "ai.compareSummary.title" = "AI Release Comparison";
+"tasks.aiFilter" = "AI Filter";
+"tasks.aiFilter.title" = "Filter by Description";
+"tasks.aiFilter.hint" = "Describe what you want — a file name like “minecraft.zip”, a time like “failed today”, or a status. AI carves out a temporary filter.";
+"tasks.aiFilter.prompt" = "e.g. minecraft.zip, or failed today";
+"tasks.aiFilter.apply" = "Apply";
+"tasks.aiFilter.activeHelp" = "AI filter: %@ — tap to clear";
+"tasks.aiFilter.time.today" = "today";
+"tasks.aiFilter.time.yesterday" = "yesterday";
+"tasks.aiFilter.time.last7days" = "last 7 days";
+"tasks.aiFilter.time.last30days" = "last 30 days";
 "ai.suggestLabels" = "Suggest Labels";
 "ai.suggestLabels.title" = "AI Suggested Labels";
 "ai.summarizeRisk.title" = "AI Risk Summary";

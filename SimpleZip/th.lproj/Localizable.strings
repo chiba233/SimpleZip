@@ -2247,6 +2247,16 @@
 "ai.categorizeIssue.title" = "การคัดแยก Issue ด้วย AI";
 "ai.compareSummary" = "สรุป";
 "ai.compareSummary.title" = "การเปรียบเทียบรีลีสด้วย AI";
+"tasks.aiFilter" = "ตัวกรอง AI";
+"tasks.aiFilter.title" = "กรองตามคำอธิบาย";
+"tasks.aiFilter.hint" = "อธิบายสิ่งที่ต้องการ เช่น ชื่อไฟล์อย่าง “minecraft.zip” ช่วงเวลาอย่าง “ล้มเหลววันนี้” หรือสถานะ แล้ว AI จะสร้างตัวกรองชั่วคราวให้";
+"tasks.aiFilter.prompt" = "เช่น minecraft.zip หรือ ล้มเหลววันนี้";
+"tasks.aiFilter.apply" = "ใช้";
+"tasks.aiFilter.activeHelp" = "ตัวกรอง AI: %@ — แตะเพื่อล้าง";
+"tasks.aiFilter.time.today" = "วันนี้";
+"tasks.aiFilter.time.yesterday" = "เมื่อวาน";
+"tasks.aiFilter.time.last7days" = "7 วันที่ผ่านมา";
+"tasks.aiFilter.time.last30days" = "30 วันที่ผ่านมา";
 "ai.suggestLabels" = "แนะนำป้ายกำกับ";
 "ai.suggestLabels.title" = "ป้ายกำกับที่ AI แนะนำ";
 "ai.summarizeRisk.title" = "สรุปความเสี่ยงด้วย AI";

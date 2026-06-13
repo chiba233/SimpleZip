@@ -2249,6 +2249,16 @@
 "ai.categorizeIssue.title" = "AI による Issue トリアージ";
 "ai.compareSummary" = "要約";
 "ai.compareSummary.title" = "AI によるリリース比較";
+"tasks.aiFilter" = "AI フィルタ";
+"tasks.aiFilter.title" = "説明で絞り込む";
+"tasks.aiFilter.hint" = "見たいものを説明:「minecraft.zip」のようなファイル名、「今日失敗」のような時期、または状態。AI が一時的なフィルタを作ります。";
+"tasks.aiFilter.prompt" = "例:minecraft.zip、今日失敗";
+"tasks.aiFilter.apply" = "適用";
+"tasks.aiFilter.activeHelp" = "AI フィルタ:%@ — タップでクリア";
+"tasks.aiFilter.time.today" = "今日";
+"tasks.aiFilter.time.yesterday" = "昨日";
+"tasks.aiFilter.time.last7days" = "過去7日";
+"tasks.aiFilter.time.last30days" = "過去30日";
 "ai.suggestLabels" = "ラベルを提案";
 "ai.suggestLabels.title" = "AI 提案ラベル";
 "ai.summarizeRisk.title" = "AI リスク要約";
