@@ -201,7 +201,7 @@
 "settings.rememberLastFolder.description" = "Открывать последнюю использованную папку вместо постоянного запуска из начального расположения.";
 "settings.confirmBeforeDeletingFiles.description" = "Показывать подтверждение перед перемещением выбранных файлов в Корзину macOS.";
 "settings.finderOpenAutoExtract" = "Автоматически извлекать при открытии из Finder";
-"settings.finderOpenAutoExtract.description" = "При открытии архива из Finder, Служб или другого приложения он извлекается в папку архива вместо открытия браузера SimpleZip. Предупреждения безопасности всё равно применяются.";
+"settings.finderOpenAutoExtract.description" = "Когда вы открываете архив из Finder, Служб или другого приложения, он распаковывается в папку архива вместо открытия браузера SimpleZip. Файл, найденный внутри архива в Spotlight, также извлекается отдельно — только этот файл — вместо открытия архива. Предупреждения безопасности по-прежнему действуют.";
 "settings.openExternalInNewTab" = "Открывать в новой вкладке";
 "settings.openExternalInNewTab.description" = "Если SimpleZip уже запущен, архивы и папки, открытые из Finder, будут открываться в новой вкладке. Отключите, чтобы использовать текущее окно.";
 "settings.finderExtension" = "Интеграция с контекстным меню Finder";
@@ -2059,11 +2059,14 @@
 /* App Intents · 搜索/检查归档 intent(运行时消息 + 字段标题) */
 "intent.task.search" = "Быстрая команда: поиск %@";
 "intent.task.inspect" = "Быстрая команда: проверка %@";
+"intent.task.extractFile" = "Извлечь %@ из архива";
 "intent.search.emptyQuery" = "Введите текст для поиска.";
 "intent.findArchive.none" = "Ни один из открытых вами архивов не содержит «%@».";
 "intent.findArchive.results" = "Открытых вами архивов с «%2$@»: %1$@.";
 "spotlight.cachedArchive.description" = "Файлов внутри: %@ · открыть в SimpleZip";
 "spotlight.cachedArchive.descriptionWithNames" = "Файлов: %1$@ · %2$@";
+"spotlight.archivedFile.in" = "В архиве «%@»";
+"spotlight.archivedFile.inPath" = "В архиве «%1$@» · %2$@";
 "spotlight.setting.in" = "В разделе «%@»";
 "intent.search.none" = "В %1$@ нет записей, соответствующих «%2$@».";
 "intent.search.results" = "%1$@ записей в %2$@ соответствуют «%3$@».";
@@ -2078,6 +2081,9 @@
 "Find Archive Containing File" = "Найти архив с файлом";
 "File Name" = "Имя файла";
 "Open Task in Activity Center" = "Открыть задачу в Центре активности";
+"Archived File" = "Файл в архиве";
+"File" = "Файл";
+"Open File in SimpleZip" = "Открыть файл в SimpleZip";
 "Setting" = "Настройка";
 "Open Setting in SimpleZip" = "Открыть настройку в SimpleZip";
 "Task" = "Задача";

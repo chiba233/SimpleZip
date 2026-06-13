@@ -207,6 +207,30 @@ extension ArchiveBrowserModel {
         openArchive(url, recordsHistory: true)
     }
 
+    /// #72:打开归档并在加载完成后跳到 `revealEntryPath` 所在目录、选中并滚动到它(Spotlight 单文件结果点击)。
+    /// 走侧信道 `PendingArchiveReveal`:openArchive 异步加载,loadArchive 收尾时按 url 取出待定路径执行 reveal。
+    func openArchive(_ url: URL, revealEntryPath: String) {
+        archiveDisplayOverride = nil
+        PendingArchiveReveal.set(entryPath: revealEntryPath, for: url)
+        openArchive(url, recordsHistory: true)
+    }
+
+    /// #72:跳到 archive 内某条目所在目录、选中并请求滚动到它。仅在 archive 模式下有效。
+    func revealArchiveEntry(_ entryPath: String) {
+        guard case .archive = mode else { return }
+        let normalizedTarget = ArchiveSession.normalizedEntryName(entryPath, isDirectory: false)
+        guard !normalizedTarget.isEmpty else { return }
+        let parent = session.parentPath(of: entryPath)
+        session.setArchivePath(session.lastExistingPath(for: parent))
+        refreshArchiveItems()
+        guard let target = archiveItems.first(where: {
+            ArchiveSession.normalizedEntryName($0.name, isDirectory: $0.isDirectory) == normalizedTarget
+        }) else { return }
+        selectedArchiveRows = [target.id]
+        // 表格 coordinator 下一拍(refreshArchiveItems 已驱动)消费这个 id 滚动到行。
+        pendingRevealArchiveItemID = target.id
+    }
+
     /// 打开「内层 archive」但对外用 `displayedAs` 的路径展示 —— 给 `.siz` 用。
     /// inner URL 真的在 /tmp，但用户看到的「源文件」是桌面 / 下载里的原始 `.siz`。
     func openArchive(_ url: URL, displayedAs displayURL: URL) {
@@ -699,5 +723,27 @@ extension ArchiveBrowserModel {
 
     func refreshVisibleFolder(containing url: URL) {
         refreshVisibleFolder(url.deletingLastPathComponent())
+    }
+}
+
+/// #72:跨「外部打开(Spotlight 单文件 intent)」→「归档异步加载完成」的侧信道 —— 记下某归档加载完要 reveal
+/// 的条目路径。`AppDelegate.openExternalArchive(_:revealEntryPath:)` 设值,`loadArchive` 收尾按 url 取出执行。
+/// 按规范化磁盘路径配对(与缓存同口径),只服务真实在盘的归档(Spotlight 单文件结果都指向缓存里的真实包)。
+@MainActor
+enum PendingArchiveReveal {
+    private static var entryPathByArchivePath: [String: String] = [:]
+
+    static func set(entryPath: String, for url: URL) {
+        entryPathByArchivePath[key(for: url)] = entryPath
+    }
+
+    static func consume(for url: URL) -> String? {
+        let k = key(for: url)
+        defer { entryPathByArchivePath[k] = nil }
+        return entryPathByArchivePath[k]
+    }
+
+    private static func key(for url: URL) -> String {
+        url.resolvingSymlinksInPath().standardizedFileURL.path
     }
 }

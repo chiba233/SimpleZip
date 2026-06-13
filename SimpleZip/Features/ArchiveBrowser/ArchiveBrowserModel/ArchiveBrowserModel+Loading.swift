@@ -391,6 +391,11 @@ extension ArchiveBrowserModel {
             }
             let refreshStart = Date()
             refreshArchiveItems()
+            // #72:Spotlight 单文件结果点击打开 → 跳到该文件所在目录、选中并滚动到它。
+            // 放在初始 refresh 之后、tar 壳自动下钻之前(壳层无匹配条目时 reveal 自然 no-op)。
+            if let revealPath = PendingArchiveReveal.consume(for: url) {
+                revealArchiveEntry(revealPath)
+            }
             // #14:记录本次打开的性能(列目录含可能的密码等待 —— promptedForPassword 标出来,
             // 不让等待时间冒充后端耗时)。
             lastOpenMetrics = ArchiveOpenMetrics(
@@ -488,8 +493,11 @@ extension ArchiveBrowserModel {
         guard !url.resolvingSymlinksInPath().path.hasPrefix(tempPath) else { return }
         Task.detached(priority: .utility) {
             let recorded = ArchiveListingCacheStore().record(archiveURL: url, items: items)
-            // #35:记进缓存后,把这一个归档增量同步进 Spotlight(双门控在 indexer 里,关了任一开关即不捐献)。
-            if recorded { CachedArchiveSpotlightIndexer.indexArchive(at: url) }
+            // #35/#72:记进缓存后,把这个归档(归档级 + 逐文件级)增量同步进 Spotlight(双门控在 indexer 里)。
+            if recorded {
+                CachedArchiveSpotlightIndexer.indexArchive(at: url)
+                ArchiveFileSpotlightIndexer.indexArchive(at: url)
+            }
         }
     }
 

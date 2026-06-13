@@ -161,6 +161,7 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
         }
         context.coordinator.syncContent()
         context.coordinator.applySelection()
+        context.coordinator.applyPendingReveal()
     }
 
     private func configureColumns(for outlineView: NSOutlineView) {
@@ -788,6 +789,20 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
                     guard let self, let outlineView = self.outlineView, outlineView.selectedRowIndexes != indexes else { return }
                     self.applySelection(indexes)
                 }
+            }
+        }
+
+        /// #72:消费 `model.pendingRevealArchiveItemID`,把目标行滚到可见(Spotlight 单文件结果点击 → 跳到该文件)。
+        /// 选区已由 reveal 设好、applySelection 同步;这里只补滚动。pendingRevealArchiveItemID 是普通 var
+        /// (非 @Published),清空不再触发发布,不会和 reload 路径打架(A17)。
+        func applyPendingReveal() {
+            guard let id = model.pendingRevealArchiveItemID, let outlineView else { return }
+            guard let node = allItemNodes().first(where: { $0.archiveItem?.id == id }) else { return }
+            let row = outlineView.row(forItem: node)
+            guard row >= 0 else { return }
+            model.pendingRevealArchiveItemID = nil
+            DispatchQueue.main.async { [weak self] in
+                self?.outlineView?.scrollRowToVisible(row)
             }
         }
 

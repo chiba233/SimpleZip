@@ -201,7 +201,7 @@
 "settings.rememberLastFolder.description" = "Rouvrir le dernier dossier utilisé au lieu de toujours partir de l’emplacement de démarrage.";
 "settings.confirmBeforeDeletingFiles.description" = "Afficher une confirmation avant de déplacer les fichiers sélectionnés dans la corbeille de macOS.";
 "settings.finderOpenAutoExtract" = "Extraire automatiquement à l’ouverture depuis le Finder";
-"settings.finderOpenAutoExtract.description" = "Lorsque vous ouvrez une archive depuis le Finder, Services ou une autre app, elle est extraite dans le dossier de l’archive au lieu d’ouvrir le navigateur SimpleZip. Les avertissements de sécurité s’appliquent toujours.";
+"settings.finderOpenAutoExtract.description" = "Quand vous ouvrez une archive depuis le Finder, les Services ou une autre app, elle est extraite dans le dossier de l’archive au lieu d’ouvrir le navigateur de SimpleZip. Un fichier trouvé dans une archive via Spotlight s’extrait aussi tout seul — uniquement ce fichier — au lieu d’ouvrir l’archive. Les alertes de sécurité s’appliquent toujours.";
 "settings.openExternalInNewTab" = "Ouvrir dans un nouvel onglet";
 "settings.openExternalInNewTab.description" = "Lorsque vous ouvrez une archive ou un dossier depuis le Finder alors que SimpleZip est déjà lancé, l’élément s’ouvre dans un nouvel onglet. Désactivez cette option pour réutiliser la fenêtre actuelle.";
 "settings.finderExtension" = "Intégration du clic droit Finder";
@@ -2059,11 +2059,14 @@
 /* App Intents · 搜索/检查归档 intent(运行时消息 + 字段标题) */
 "intent.task.search" = "Raccourci : rechercher %@";
 "intent.task.inspect" = "Raccourci : inspecter %@";
+"intent.task.extractFile" = "Extraire %@ de l’archive";
 "intent.search.emptyQuery" = "Saisissez un terme à rechercher.";
 "intent.findArchive.none" = "Aucune des archives que vous avez ouvertes ne contient « %@ ».";
 "intent.findArchive.results" = "%1$@ archive(s) que vous avez ouverte(s) contiennent « %2$@ ».";
 "spotlight.cachedArchive.description" = "Contient %@ fichiers · ouvrir dans SimpleZip";
 "spotlight.cachedArchive.descriptionWithNames" = "%1$@ fichiers · %2$@";
+"spotlight.archivedFile.in" = "Dans %@";
+"spotlight.archivedFile.inPath" = "Dans %1$@ · %2$@";
 "spotlight.setting.in" = "Dans %@";
 "intent.search.none" = "Aucune entrée de %1$@ ne correspond à « %2$@ ».";
 "intent.search.results" = "%1$@ entrées de %2$@ correspondent à « %3$@ ».";
@@ -2078,6 +2081,9 @@
 "Find Archive Containing File" = "Trouver l’archive contenant un fichier";
 "File Name" = "Nom du fichier";
 "Open Task in Activity Center" = "Ouvrir la tâche dans le centre d’activité";
+"Archived File" = "Fichier d’archive";
+"File" = "Fichier";
+"Open File in SimpleZip" = "Ouvrir le fichier dans SimpleZip";
 "Setting" = "Réglage";
 "Open Setting in SimpleZip" = "Ouvrir le réglage dans SimpleZip";
 "Task" = "Tâche";

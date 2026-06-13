@@ -201,7 +201,7 @@
 "settings.rememberLastFolder.description" = "항상 시작 위치에서 시작하지 않고 마지막으로 사용한 폴더를 다시 엽니다.";
 "settings.confirmBeforeDeletingFiles.description" = "선택한 파일을 macOS 휴지통으로 이동하기 전에 확인 메시지를 표시합니다.";
 "settings.finderOpenAutoExtract" = "Finder에서 열 때 자동 압축 해제";
-"settings.finderOpenAutoExtract.description" = "Finder, 서비스 또는 다른 앱에서 아카이브를 열면 SimpleZip 브라우저를 여는 대신 아카이브의 폴더에 압축을 풉니다. 보안 확인은 계속 적용됩니다.";
+"settings.finderOpenAutoExtract.description" = "Finder, 서비스 또는 다른 앱에서 아카이브를 열 때 SimpleZip 브라우저를 열지 않고 아카이브 폴더에 풉니다. Spotlight에서 찾은 아카이브 내 파일을 열 때도 전체 아카이브가 아니라 그 파일 하나만 추출합니다. 안전 확인은 계속 적용됩니다.";
 "settings.openExternalInNewTab" = "새 탭에서 열기";
 "settings.openExternalInNewTab.description" = "SimpleZip이 이미 실행 중일 때 Finder에서 아카이브나 폴더를 열면 새 탭에서 엽니다. 끄면 현재 창을 재사용합니다.";
 "settings.finderExtension" = "Finder 오른쪽 클릭 통합";
@@ -2060,11 +2060,14 @@
 /* App Intents · 搜索/检查归档 intent(运行时消息 + 字段标题) */
 "intent.task.search" = "단축어: %@ 검색";
 "intent.task.inspect" = "단축어: %@ 검사";
+"intent.task.extractFile" = "아카이브에서 %@ 추출";
 "intent.search.emptyQuery" = "검색할 내용을 입력하세요.";
 "intent.findArchive.none" = "연 아카이브 중에 \"%@\"을(를) 포함한 것이 없습니다.";
 "intent.findArchive.results" = "연 아카이브 %1$@개에 \"%2$@\"이(가) 들어 있습니다.";
 "spotlight.cachedArchive.description" = "파일 %@개 포함 · SimpleZip에서 열기";
 "spotlight.cachedArchive.descriptionWithNames" = "파일 %1$@개 · %2$@";
+"spotlight.archivedFile.in" = "%@ 안";
+"spotlight.archivedFile.inPath" = "%1$@ 안 · %2$@";
 "spotlight.setting.in" = "%@ 설정에 있음";
 "intent.search.none" = "%1$@에 \"%2$@\"과(와) 일치하는 항목이 없습니다.";
 "intent.search.results" = "%2$@의 %1$@개 항목이 \"%3$@\"과(와) 일치합니다.";
@@ -2079,6 +2082,9 @@
 "Find Archive Containing File" = "파일이 든 아카이브 찾기";
 "File Name" = "파일 이름";
 "Open Task in Activity Center" = "작업 센터에서 작업 열기";
+"Archived File" = "아카이브 내 파일";
+"File" = "파일";
+"Open File in SimpleZip" = "SimpleZip에서 파일 열기";
 "Setting" = "설정";
 "Open Setting in SimpleZip" = "SimpleZip에서 설정 열기";
 "Task" = "작업";

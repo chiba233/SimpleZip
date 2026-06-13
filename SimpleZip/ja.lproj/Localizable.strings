@@ -201,7 +201,7 @@
 "settings.rememberLastFolder.description" = "常に起動場所から始める代わりに、最後に使ったフォルダを開き直します。";
 "settings.confirmBeforeDeletingFiles.description" = "選択したファイルをmacOSのゴミ箱へ移動する前に確認を表示します。";
 "settings.finderOpenAutoExtract" = "Finderから開いたとき自動展開";
-"settings.finderOpenAutoExtract.description" = "Finder、サービス、または他のアプリからアーカイブを開くと、SimpleZipブラウザを開かずにアーカイブのフォルダへ展開します。安全確認は引き続き適用されます。";
+"settings.finderOpenAutoExtract.description" = "Finder、サービス、他の App からアーカイブを開いたとき、SimpleZip のブラウザを開かずにアーカイブのフォルダへ展開します。Spotlight で見つけたアーカイブ内のファイルを開いたときも、アーカイブ全体ではなくそのファイル 1 つだけを取り出します。安全確認は引き続き行われます。";
 "settings.openExternalInNewTab" = "新規タブで開く";
 "settings.openExternalInNewTab.description" = "SimpleZip がすでに実行中のときに Finder からアーカイブまたはフォルダを開くと、新しいタブで開きます。オフにすると現在のウインドウを再利用します。";
 "settings.finderExtension" = "Finder 右クリック連携";
@@ -2061,11 +2061,14 @@
 /* App Intents · 搜索/检查归档 intent(运行时消息 + 字段标题) */
 "intent.task.search" = "ショートカット：%@ を検索";
 "intent.task.inspect" = "ショートカット：%@ を検査";
+"intent.task.extractFile" = "アーカイブから %@ を取り出す";
 "intent.search.emptyQuery" = "検索する内容を入力してください。";
 "intent.findArchive.none" = "開いたアーカイブの中に「%@」を含むものはありません。";
 "intent.findArchive.results" = "開いた %1$@ 個のアーカイブに「%2$@」が含まれています。";
 "spotlight.cachedArchive.description" = "%@ 個のファイルを含む · SimpleZip で開く";
 "spotlight.cachedArchive.descriptionWithNames" = "%1$@ 個のファイル · %2$@";
+"spotlight.archivedFile.in" = "「%@」内";
+"spotlight.archivedFile.inPath" = "「%1$@」内 · %2$@";
 "spotlight.setting.in" = "「%@」設定内";
 "intent.search.none" = "%1$@ に「%2$@」に一致する項目はありません。";
 "intent.search.results" = "%2$@ の %1$@ 件の項目が「%3$@」に一致します。";
@@ -2080,6 +2083,9 @@
 "Find Archive Containing File" = "ファイルを含むアーカイブを探す";
 "File Name" = "ファイル名";
 "Open Task in Activity Center" = "アクティビティセンターでタスクを開く";
+"Archived File" = "アーカイブ内ファイル";
+"File" = "ファイル";
+"Open File in SimpleZip" = "SimpleZip でファイルを開く";
 "Setting" = "設定";
 "Open Setting in SimpleZip" = "SimpleZip で設定を開く";
 "Task" = "タスク";

@@ -225,6 +225,10 @@ final class ArchiveBrowserModel: ObservableObject {
     }
     @Published var selection = Set<UUID>()
     @Published var selectedArchiveRows = Set<UUID>()
+    /// #72:打开归档后要滚动定位到的条目 id(Spotlight 单文件结果点击 → 跳到该文件)。表格 coordinator 在下次
+    /// updateNSView 里消费(scrollRowToVisible)后清空。**故意不加 @Published**:它由 refreshArchiveItems 的
+    /// @Published archiveItems 变化顺带驱动一次 updateNSView,在同一拍读取即可,自身不需要也不应再触发发布。
+    var pendingRevealArchiveItemID: UUID?
     /// 0.4.1 文件夹原位展开：已展开文件夹的子级清单（key = 文件夹标准化路径）。
     /// **模型必须知道展开的子级** —— 选区解析（selectedFileItems）/ 右键 / 各操作都从这里取。
     /// 上一版把子级只存在 NSOutlineView 节点树里（模型不知道 → 选中子行解析成空选区、右键全失灵），

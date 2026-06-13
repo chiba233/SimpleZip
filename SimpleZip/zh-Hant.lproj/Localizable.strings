@@ -201,7 +201,7 @@
 "settings.rememberLastFolder.description" = "下次打开时回到上次使用的文件夹，而不是总是回到启动位置。";
 "settings.confirmBeforeDeletingFiles.description" = "开启后，选中文件移到 macOS 废纸篓前会先弹出确认提示。";
 "settings.finderOpenAutoExtract" = "从 Finder 打开时自动解压";
-"settings.finderOpenAutoExtract.description" = "通过 Finder、Services 或其它 App 打开压缩包时，直接解压到压缩包所在目录，不再打开 SimpleZip 主窗口浏览。安全策略提示仍会触发。";
+"settings.finderOpenAutoExtract.description" = "透過 Finder、Services 或其它 App 開啟壓縮檔時，直接解壓到壓縮檔所在目錄，不再開啟 SimpleZip 主視窗瀏覽。在 Spotlight 裡搜到的壓縮檔內檔案點開時，也只解壓那一個檔案、而不是開啟整個壓縮檔。安全策略提示仍會觸發。";
 "settings.openExternalInNewTab" = "在新分頁開啟";
 "settings.openExternalInNewTab.description" = "當 SimpleZip 已在執行時，從 Finder 開啟封存檔或檔案夾會在新分頁開啟。關閉後則改用目前視窗。";
 "settings.finderExtension" = "Finder 右鍵整合";
@@ -2061,11 +2061,14 @@
 /* App Intents · 搜索/检查归档 intent(运行时消息 + 字段标题) */
 "intent.task.search" = "快捷指令：搜尋 %@";
 "intent.task.inspect" = "快捷指令：檢查 %@";
+"intent.task.extractFile" = "從封存檔解壓 %@";
 "intent.search.emptyQuery" = "請輸入要搜尋的內容。";
 "intent.findArchive.none" = "你開啟過的封存檔裡沒有包含「%@」的。";
 "intent.findArchive.results" = "你開啟過的 %1$@ 個封存檔包含「%2$@」。";
 "spotlight.cachedArchive.description" = "包含 %@ 個檔案 · 在 SimpleZip 中開啟";
 "spotlight.cachedArchive.descriptionWithNames" = "%1$@ 個檔案 · %2$@";
+"spotlight.archivedFile.in" = "在「%@」壓縮檔內";
+"spotlight.archivedFile.inPath" = "在「%1$@」壓縮檔內 · %2$@";
 "spotlight.setting.in" = "在「%@」設定裡";
 "intent.search.none" = "%1$@ 中沒有項目符合「%2$@」。";
 "intent.search.results" = "%2$@ 中有 %1$@ 個項目符合「%3$@」。";
@@ -2080,6 +2083,9 @@
 "Find Archive Containing File" = "尋找含某檔案的封存檔";
 "File Name" = "檔案名稱";
 "Open Task in Activity Center" = "在活動中心開啟任務";
+"Archived File" = "封存檔內檔案";
+"File" = "檔案";
+"Open File in SimpleZip" = "在 SimpleZip 中開啟檔案";
 "Setting" = "設定";
 "Open Setting in SimpleZip" = "在 SimpleZip 中開啟設定";
 "Task" = "任務";

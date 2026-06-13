@@ -1733,7 +1733,7 @@
 "settings.checkForUpdatesOnLaunch.description" = "Quietly check for a new version each time SimpleZip starts, and only prompt when an update is available.";
 "settings.confirmBeforeDeletingFiles.description" = "Show a confirmation prompt before selected files are moved to the macOS Trash.";
 "settings.finderOpenAutoExtract" = "Auto-extract when opened from Finder";
-"settings.finderOpenAutoExtract.description" = "When you open an archive from Finder, Services, or another app, extract it to the archive's folder instead of opening the SimpleZip browser. Safety prompts still apply.";
+"settings.finderOpenAutoExtract.description" = "When you open an archive from Finder, Services, or another app, extract it to the archive's folder instead of opening the SimpleZip browser. A file you find inside an archive in Spotlight also extracts on its own — just that one file — instead of opening the archive. Safety prompts still apply.";
 "settings.openExternalInNewTab" = "Open in a New Tab";
 "settings.openExternalInNewTab.description" = "When you open an archive or folder from Finder while SimpleZip is already running, open it in a new tab. Turn off to reuse the current window instead.";
 "settings.finderExtension" = "Finder Right-Click Integration";
@@ -2445,11 +2445,14 @@
 /* App Intents · 搜索/检查归档 intent(运行时消息 + 字段标题) */
 "intent.task.search" = "Shortcut: search %@";
 "intent.task.inspect" = "Shortcut: inspect %@";
+"intent.task.extractFile" = "Extract %@ from archive";
 "intent.search.emptyQuery" = "Enter something to search for.";
 "intent.findArchive.none" = "None of the archives you\'ve opened contain \"%@\".";
 "intent.findArchive.results" = "%1$@ archive(s) you\'ve opened contain \"%2$@\".";
 "spotlight.cachedArchive.description" = "Contains %@ files · open in SimpleZip";
 "spotlight.cachedArchive.descriptionWithNames" = "%1$@ files · %2$@";
+"spotlight.archivedFile.in" = "In %@";
+"spotlight.archivedFile.inPath" = "In %1$@ · %2$@";
 "spotlight.setting.in" = "In %@";
 "intent.search.none" = "No entries in %1$@ match \"%2$@\".";
 "intent.search.results" = "%1$@ entries in %2$@ match \"%3$@\".";
@@ -2464,6 +2467,9 @@
 "Find Archive Containing File" = "Find Archive Containing File";
 "File Name" = "File Name";
 "Open Task in Activity Center" = "Open Task in Activity Center";
+"Archived File" = "Archived File";
+"File" = "File";
+"Open File in SimpleZip" = "Open File in SimpleZip";
 "Setting" = "Setting";
 "Open Setting in SimpleZip" = "Open Setting in SimpleZip";
 "Task" = "Task";

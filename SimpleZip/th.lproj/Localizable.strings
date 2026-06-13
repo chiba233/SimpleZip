@@ -201,7 +201,7 @@
 "settings.rememberLastFolder.description" = "เปิดโฟลเดอร์ล่าสุดที่ใช้ แทนการเริ่มจากตำแหน่งเริ่มต้นทุกครั้ง";
 "settings.confirmBeforeDeletingFiles.description" = "แสดงการยืนยันก่อนย้ายไฟล์ที่เลือกไปยังถังขยะของ macOS";
 "settings.finderOpenAutoExtract" = "แตกไฟล์อัตโนมัติเมื่อเปิดจาก Finder";
-"settings.finderOpenAutoExtract.description" = "เมื่อเปิดไฟล์เก็บถาวรจาก Finder, Services หรือแอปอื่น ให้แตกไปยังโฟลเดอร์ของไฟล์เก็บถาวรแทนการเปิดเบราว์เซอร์ SimpleZip โดยยังคงมีคำเตือนความปลอดภัย";
+"settings.finderOpenAutoExtract.description" = "เมื่อคุณเปิดไฟล์บีบอัดจาก Finder, บริการ หรือแอปอื่น จะแตกไฟล์ไปยังโฟลเดอร์ของไฟล์บีบอัดแทนการเปิดเบราว์เซอร์ SimpleZip ไฟล์ที่คุณพบในไฟล์บีบอัดผ่าน Spotlight ก็จะแตกเฉพาะไฟล์นั้นไฟล์เดียวแทนการเปิดไฟล์บีบอัดทั้งหมด คำเตือนความปลอดภัยยังคงมีผล";
 "settings.openExternalInNewTab" = "เปิดในแท็บใหม่";
 "settings.openExternalInNewTab.description" = "เมื่อคุณเปิดไฟล์เก็บถาวรหรือโฟลเดอร์จาก Finder ขณะที่ SimpleZip ทำงานอยู่แล้ว ให้เปิดในแท็บใหม่ ปิดตัวเลือกนี้เพื่อใช้หน้าต่างปัจจุบันแทน";
 "settings.finderExtension" = "การผสานการคลิกขวาใน Finder";
@@ -2059,11 +2059,14 @@
 /* App Intents · 搜索/检查归档 intent(运行时消息 + 字段标题) */
 "intent.task.search" = "ทางลัด: ค้นหา %@";
 "intent.task.inspect" = "ทางลัด: ตรวจสอบ %@";
+"intent.task.extractFile" = "แตก %@ จากไฟล์บีบอัด";
 "intent.search.emptyQuery" = "ป้อนสิ่งที่ต้องการค้นหา";
 "intent.findArchive.none" = "ไม่มีไฟล์บีบอัดที่คุณเปิดที่มี \"%@\"";
 "intent.findArchive.results" = "ไฟล์บีบอัดที่คุณเปิด %1$@ ไฟล์มี \"%2$@\"";
 "spotlight.cachedArchive.description" = "มี %@ ไฟล์ · เปิดใน SimpleZip";
 "spotlight.cachedArchive.descriptionWithNames" = "%1$@ ไฟล์ · %2$@";
+"spotlight.archivedFile.in" = "ใน %@";
+"spotlight.archivedFile.inPath" = "ใน %1$@ · %2$@";
 "spotlight.setting.in" = "ในการตั้งค่า %@";
 "intent.search.none" = "ไม่มีรายการใน %1$@ ที่ตรงกับ \"%2$@\"";
 "intent.search.results" = "%1$@ รายการใน %2$@ ตรงกับ \"%3$@\"";
@@ -2078,6 +2081,9 @@
 "Find Archive Containing File" = "ค้นหาไฟล์บีบอัดที่มีไฟล์";
 "File Name" = "ชื่อไฟล์";
 "Open Task in Activity Center" = "เปิดงานในศูนย์กิจกรรม";
+"Archived File" = "ไฟล์ในไฟล์บีบอัด";
+"File" = "ไฟล์";
+"Open File in SimpleZip" = "เปิดไฟล์ใน SimpleZip";
 "Setting" = "การตั้งค่า";
 "Open Setting in SimpleZip" = "เปิดการตั้งค่าใน SimpleZip";
 "Task" = "งาน";

@@ -109,6 +109,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // #35:把缓存的归档(按内含文件名)同步进 Spotlight。双门控(Spotlight 总开关 + 缓存开关),
         // 任一关 → 清空已捐献的归档项。
         CachedArchiveSpotlightIndexer.reindex()
+        // #72:把缓存归档里的**每个文件**索引进 Spotlight(搜文档名直达),每归档封顶,双门控同上。
+        ArchiveFileSpotlightIndexer.reindex()
         // #30:把具体设置项索引进 Spotlight(搜设置名直接跳过去)。静态目录,启动重建一次。
         SettingsSpotlightIndexer.reindex()
     }
@@ -279,6 +281,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
         ExternalFileOpenQueue.shared.enqueue(url)
         (NSApp.delegate as? AppDelegate)?.scheduleEnsureWindowForPendingExternalOpens()
+    }
+
+    /// #72:打开归档并在加载完成后跳到 `revealEntryPath`(Spotlight 单文件结果点击,自动解压关闭时走浏览跳转)。
+    /// 走 `PendingArchiveReveal` 侧信道:loadArchive 收尾按 url 取出执行;开窗 / 路由复用上面的外部打开路径。
+    @MainActor
+    static func openExternalArchive(_ url: URL, revealEntryPath: String) {
+        PendingArchiveReveal.set(entryPath: revealEntryPath, for: url)
+        openExternalArchive(url)
     }
 
     func application(_ sender: NSApplication, openFile filename: String) -> Bool {
