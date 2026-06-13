@@ -247,10 +247,11 @@ extension ArchiveBrowserModel {
     func beginWatchingOpenArchive(_ url: URL) {
         openArchivePresenter?.stop()
         if openArchiveExternalChange != nil { openArchiveExternalChange = nil }
-        openArchivePresenter = OpenArchiveFilePresenter(url: url) { event in
-            // 回调来自后台 operationQueue → 回主 actor 处理。weak 捕获放在 Task 上,
-            // 避免「@Sendable 闭包里引用捕获的 self var」(Swift 6 会报错)。
-            Task { @MainActor [weak self] in self?.handleOpenArchiveFileEvent(event) }
+        openArchivePresenter = OpenArchiveFilePresenter(url: url) { [weak self] event in
+            // 回调来自后台 operationQueue。外层弱捕获(避免 presenter↔model 强引用环),先弱解出 self
+            // 再回主 actor 处理 —— 用不可变 `let self` 进 Task,既不报「并发闭包引用 self var」也不报弱/强不一致。
+            guard let self else { return }
+            Task { @MainActor in self.handleOpenArchiveFileEvent(event) }
         }
     }
 
