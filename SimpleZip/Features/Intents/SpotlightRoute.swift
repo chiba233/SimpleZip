@@ -24,6 +24,9 @@ nonisolated enum SpotlightRoute {
     case release(artifactPath: String)
     case archive(archivePath: String)
     case archiveFile(archivePath: String, entryPath: String)
+    /// #31:活动中心(独立窗口,非设置窗口)里的「设置 / 临时工作区」选项。`paneRouteKey` 决定跳哪页,
+    /// `itemID` 仅保证同页多项的 uniqueIdentifier 各不相同(否则 Spotlight 会把同 id 的多条去重成一条)。
+    case activity(paneRouteKey: String, itemID: String)
 
     /// 字段分隔符:SOH(U+0001),正常路径 / id 里不会出现。
     private static let sep = "\u{1}"
@@ -34,7 +37,8 @@ nonisolated enum SpotlightRoute {
         static let release = "com.simplezip.spotlight.release"
         static let archive = "com.simplezip.spotlight.archive"
         static let file = "com.simplezip.spotlight.file"
-        static let all = [setting, task, release, archive, file]
+        static let activity = "com.simplezip.spotlight.activity"
+        static let all = [setting, task, release, archive, file, activity]
     }
 
     var domain: String {
@@ -44,6 +48,7 @@ nonisolated enum SpotlightRoute {
         case .release: return Domain.release
         case .archive: return Domain.archive
         case .archiveFile: return Domain.file
+        case .activity: return Domain.activity
         }
     }
 
@@ -55,6 +60,7 @@ nonisolated enum SpotlightRoute {
         case .release(let path): return "release\(s)\(path)"
         case .archive(let path): return "archive\(s)\(path)"
         case .archiveFile(let archivePath, let entryPath): return "file\(s)\(archivePath)\(s)\(entryPath)"
+        case .activity(let paneRouteKey, let itemID): return "activity\(s)\(paneRouteKey)\(s)\(itemID)"
         }
     }
 
@@ -73,6 +79,8 @@ nonisolated enum SpotlightRoute {
             return .archive(archivePath: parts[1])
         case "file" where parts.count == 3:
             return .archiveFile(archivePath: parts[1], entryPath: parts[2])
+        case "activity" where parts.count == 3:
+            return .activity(paneRouteKey: parts[1], itemID: parts[2])
         default:
             return nil
         }
@@ -106,6 +114,10 @@ nonisolated enum SpotlightRoute {
             } else {
                 AppDelegate.openExternalArchive(url, revealEntryPath: entryPath)
             }
+        case .activity(let paneRouteKey, _):
+            // 打开活动中心(独立窗口)并切到对应分页 —— settings / workspace 都短,展示在该页即可见。
+            guard let pane = ActivityPane.pane(spotlightRouteKey: paneRouteKey) else { return }
+            ActivityWindowController.shared.show(pane: pane)
         }
     }
 }
@@ -129,6 +141,7 @@ enum SpotlightReindex {
         CachedArchiveSpotlightIndexer.reindex()
         ArchiveFileSpotlightIndexer.reindex()
         SettingsSpotlightIndexer.reindex()
+        ActivitySpotlightIndexer.reindex()
     }
 
     /// 强制:先把本 app 在 Spotlight 的**全部**捐献清掉(新旧两种、所有类型一次清干净),再全量重建。
@@ -150,7 +163,8 @@ enum SpotlightReindex {
             tasks: ActivityHistoryStore.snapshot().count,
             archives: cache.count,
             archiveFiles: files,
-            settings: SettingsCatalog.items.count
+            // 设置项 + 活动中心(设置 / 临时工作区)条目 —— 都归「设置」这一档展示。
+            settings: SettingsCatalog.items.count + ActivitySpotlightCatalog.items.count
         )
     }
 }
@@ -184,5 +198,96 @@ enum SpotlightTapDispatcher {
         NSApp.activate(ignoringOtherApps: true)
         // 冷启动:窗口 / SettingsOpenerBridge 可能还没就绪 —— 延一拍再跳。
         DispatchQueue.main.async { route.perform() }
+    }
+}
+
+// MARK: - #31:活动中心(独立窗口)的「设置 / 临时工作区」选项进 Spotlight
+
+/// 活动中心是独立窗口、不在设置窗口里,所以它的设置 / 临时工作区选项之前完全没进 Spotlight。
+/// 这里把它们也捐出去:搜得到、点了跳进活动中心对应分页(走 `ActivityWindowController`,非 `SettingsDeepLink`)。
+nonisolated struct ActivitySpotlightItem: Sendable {
+    /// 跳哪页:"settings" / "workspace"(对应 `ActivityPane`)。
+    let paneRouteKey: String
+    /// 稳定后缀,拼进 uniqueIdentifier 保证同页多项各不相同。
+    let itemID: String
+    /// 显示名的 L10n key(复用活动中心里那一行的标题)。
+    let titleKey: String
+    let keywords: [String]
+}
+
+nonisolated enum ActivitySpotlightCatalog {
+    static let items: [ActivitySpotlightItem] = [
+        // 活动中心 → 设置
+        ActivitySpotlightItem(paneRouteKey: "settings", itemID: "activity.concurrency",
+                              titleKey: "settings.tasks.concurrencyLimit",
+                              keywords: ["activity center", "concurrency", "parallel tasks", "queue limit", "simultaneous tasks"]),
+        ActivitySpotlightItem(paneRouteKey: "settings", itemID: "activity.notify",
+                              titleKey: "tasks.settings.notify",
+                              keywords: ["activity center", "notification", "notify", "long tasks", "task finished"]),
+        ActivitySpotlightItem(paneRouteKey: "settings", itemID: "activity.playSound",
+                              titleKey: "tasks.settings.playSound",
+                              keywords: ["activity center", "sound", "chime", "finished sound"]),
+        ActivitySpotlightItem(paneRouteKey: "settings", itemID: "activity.openOnFailure",
+                              titleKey: "tasks.settings.openOnFailure",
+                              keywords: ["activity center", "open on failure", "failed task", "pop up"]),
+        // 活动中心 → 临时工作区
+        ActivitySpotlightItem(paneRouteKey: "workspace", itemID: "activity.workspace",
+                              titleKey: "tasks.workspaceSection",
+                              keywords: ["temporary workspace", "scratch", "temp files", "clean up"]),
+        ActivitySpotlightItem(paneRouteKey: "workspace", itemID: "activity.workspace.volume",
+                              titleKey: "workspace.volume.title",
+                              keywords: ["encrypted scratch volume", "secure temp", "scratch volume", "mounted"]),
+        ActivitySpotlightItem(paneRouteKey: "workspace", itemID: "activity.workspace.artifacts",
+                              titleKey: "workspace.artifacts.title",
+                              keywords: ["temporary artifacts", "temp files", "clean up", "disk usage"])
+    ]
+}
+
+/// 把活动中心的设置 / 临时工作区选项捐进 Spotlight。受同一把 `spotlightIndexingEnabled` 总开关管;
+/// 旧系统 no-op;失败静默。目录静态 —— 启动 / 开关切换时重建即可。
+@MainActor
+enum ActivitySpotlightIndexer {
+    static func reindex() {
+        guard #available(macOS 15.0, *) else { return }
+        let allowed = AppPreferences.spotlightIndexingEnabled
+        Task.detached(priority: .utility) {
+            if allowed {
+                await performReindex()
+            } else {
+                await clearIndex()
+            }
+        }
+    }
+
+    @available(macOS 15.0, *)
+    private static func performReindex() async {
+        let items = ActivitySpotlightCatalog.items.map { item -> CSSearchableItem in
+            let set = CSSearchableItemAttributeSet(contentType: .content)
+            let name = L10n.text(item.titleKey)
+            set.title = name
+            set.displayName = name
+            set.contentDescription = L10n.text("spotlight.activity.in")
+            set.keywords = ["SimpleZip", "Activity Center"] + item.keywords
+            return makeSpotlightItem(route: .activity(paneRouteKey: item.paneRouteKey, itemID: item.itemID),
+                                     attributeSet: set)
+        }
+        let index = CSSearchableIndex.default()
+        do {
+            try await index.deleteSearchableItems(withDomainIdentifiers: [SpotlightRoute.Domain.activity])
+            if !items.isEmpty {
+                try await index.indexSearchableItems(items)
+            }
+        } catch {
+            // 索引失败不影响 app。
+        }
+    }
+
+    @available(macOS 15.0, *)
+    private static func clearIndex() async {
+        do {
+            try await CSSearchableIndex.default().deleteSearchableItems(withDomainIdentifiers: [SpotlightRoute.Domain.activity])
+        } catch {
+            // 清索引失败不影响 app。
+        }
     }
 }

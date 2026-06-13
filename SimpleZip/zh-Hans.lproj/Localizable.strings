@@ -2459,6 +2459,7 @@
 "spotlight.archivedFile.in" = "在「%@」压缩包内";
 "spotlight.archivedFile.inPath" = "在「%1$@」压缩包内 · %2$@";
 "spotlight.setting.in" = "在「%@」设置里";
+"spotlight.activity.in" = "在活动中心里";
 "intent.search.none" = "%1$@ 中没有条目匹配「%2$@」。";
 "intent.search.results" = "%2$@ 中有 %1$@ 个条目匹配「%3$@」。";
 "intent.inspect.clean" = "%1$@ 没有可疑路径——%2$@ 个文件，%3$@，%4$@ 个 macOS 垃圾项。";

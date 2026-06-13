@@ -149,6 +149,8 @@ struct AutomationPane: View {
                     ArchiveFileSpotlightIndexer.reindex()
                     // #30:设置项索引也归这把总开关管(开 → 重建、关 → 清空)。
                     SettingsSpotlightIndexer.reindex()
+                    // #31:活动中心(设置 / 临时工作区)选项索引同归这把总开关管。
+                    ActivitySpotlightIndexer.reindex()
                     refreshSpotlightStats()
                 }
 

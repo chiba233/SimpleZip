@@ -2459,6 +2459,7 @@
 "spotlight.archivedFile.in" = "In %@";
 "spotlight.archivedFile.inPath" = "In %1$@ · %2$@";
 "spotlight.setting.in" = "In %@";
+"spotlight.activity.in" = "In Activity Center";
 "intent.search.none" = "No entries in %1$@ match \"%2$@\".";
 "intent.search.results" = "%1$@ entries in %2$@ match \"%3$@\".";
 "intent.inspect.clean" = "%1$@ has no suspicious paths — %2$@ file(s), %3$@, %4$@ macOS junk item(s).";

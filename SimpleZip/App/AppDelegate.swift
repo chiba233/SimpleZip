@@ -114,6 +114,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ArchiveFileSpotlightIndexer.reindex()
         // #30:把具体设置项索引进 Spotlight(搜设置名直接跳过去)。静态目录,启动重建一次。
         SettingsSpotlightIndexer.reindex()
+        // #31:活动中心(独立窗口)的设置 / 临时工作区选项也进 Spotlight。
+        ActivitySpotlightIndexer.reindex()
     }
 
     /// 去掉列顺序偏好里的重复 identifier（修复历史污染，幂等）。

@@ -13,7 +13,11 @@ final class ActivityWindowController {
     private var window: NSWindow?
     private let windowState = ActivityWindowState()
 
-    func show(category: OperationTask.Category? = nil, locateTaskID: UUID? = nil) {
+    func show(category: OperationTask.Category? = nil, locateTaskID: UUID? = nil, pane: ActivityPane? = nil) {
+        // #31:Spotlight 直接指定分页(settings / workspace)—— 没带 category 时按 pane 切。
+        if let pane {
+            windowState.selectedPane = pane
+        }
         if let category {
             windowState.select(category: category)
         }

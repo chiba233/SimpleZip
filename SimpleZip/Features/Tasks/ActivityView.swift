@@ -779,6 +779,15 @@ enum ActivityPane: CaseIterable, Identifiable, Hashable {
         }
     }
 
+    /// #31:Spotlight 路由用的稳定字符串 → 分页。只有可被索引的 settings / workspace 两页需要。
+    static func pane(spotlightRouteKey key: String) -> ActivityPane? {
+        switch key {
+        case "settings": return .settings
+        case "workspace": return .workspace
+        default: return nil
+        }
+    }
+
     var category: OperationTask.Category? {
         switch self {
         case .archive:
