@@ -28,7 +28,7 @@ struct ReleaseInspectionView: View {
                 subtitle: report.archiveURL.lastPathComponent
             )
 
-            HeightCappedScrollView(maxHeight: 680) {
+            HeightCappedScrollView(maxHeight: 580) {
                 VStack(alignment: .leading, spacing: 12) {
                     // #10:质量门触发的规则置顶(警告档;阻断档的运行根本到不了报告 sheet)。
                     if !report.gateViolations.isEmpty {
