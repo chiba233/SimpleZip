@@ -6,6 +6,7 @@
 //
 
 import AppKit
+import CoreSpotlight
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -494,6 +495,10 @@ struct ContentView: View {
         // → 现有 ContentView 用 drain() 自处理 → 当前窗口里弹 sheet。冷启动场景由 onAppear 里另一处 drain 兜住。
         .onReceive(NotificationCenter.default.publisher(for: .openExternalFile)) { _ in
             handleRunningExternalOpen()
+        }
+        // #73:Spotlight 结果点击 —— SwiftUI 场景这一路(AppDelegate continue: 另一路,Dispatcher 去重不会跳两次)。
+        .onContinueUserActivity(CSSearchableItemActionType) { activity in
+            SpotlightTapDispatcher.handle(activity)
         }
         .onChange(of: model.pendingSIZOpen) { request in
             // model 在 SimpleZip 内点 .siz 时设的待处理请求 —— 跟 Finder 外部双击 .siz 同一处理流程。

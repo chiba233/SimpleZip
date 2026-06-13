@@ -184,12 +184,16 @@ nonisolated enum SettingsSpotlightIndexer {
 
     @available(macOS 15.0, *)
     private static func performReindex() async {
-        let entities = SettingsCatalog.items.map(SettingEntity.init(item:))
+        // #73:手动 CSSearchableItem(uniqueIdentifier 编码 pane+锚点),点击 → 深链到设置那一项并高亮。
+        let items = SettingsCatalog.items.map { item -> CSSearchableItem in
+            makeSpotlightItem(route: .setting(anchorID: item.id, paneRaw: item.pane.rawValue),
+                              attributeSet: SettingEntity(item: item).attributeSet)
+        }
         let index = CSSearchableIndex.default()
         do {
-            try await index.deleteAppEntities(ofType: SettingEntity.self)
-            if !entities.isEmpty {
-                try await index.indexAppEntities(entities)
+            try await index.deleteSearchableItems(withDomainIdentifiers: [SpotlightRoute.Domain.setting])
+            if !items.isEmpty {
+                try await index.indexSearchableItems(items)
             }
         } catch {
             // 索引失败不影响 app。
@@ -199,7 +203,7 @@ nonisolated enum SettingsSpotlightIndexer {
     @available(macOS 15.0, *)
     private static func clearIndex() async {
         do {
-            try await CSSearchableIndex.default().deleteAppEntities(ofType: SettingEntity.self)
+            try await CSSearchableIndex.default().deleteSearchableItems(withDomainIdentifiers: [SpotlightRoute.Domain.setting])
         } catch {
             // 清索引失败不影响 app。
         }

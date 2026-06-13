@@ -206,30 +206,34 @@ nonisolated enum ArchiveFileSpotlightIndexer {
         let path = ArchiveListingCacheStore.canonicalPath(for: url)
         Task.detached(priority: .utility) {
             guard let archive = ArchiveListingCacheStore().loadAll().first(where: { $0.archivePath == path }) else { return }
-            let entities = makeEntities(for: archive)
-            if !entities.isEmpty {
-                try? await CSSearchableIndex.default().indexAppEntities(entities)
+            let items = makeItems(for: archive)
+            if !items.isEmpty {
+                try? await CSSearchableIndex.default().indexSearchableItems(items)
             }
         }
     }
 
-    private static func makeEntities(for archive: ArchiveListingCacheEntry) -> [ArchiveFileEntity] {
-        archive.filePaths(limit: perArchiveLimit).map {
-            ArchiveFileEntity(archivePath: archive.archivePath, archiveName: archive.archiveName, entryPath: $0)
+    /// #73:每文件一条手动 CSSearchableItem(uniqueIdentifier 编码 archivePath+entryPath),点击 → 跳到该文件 / 单文件解压。
+    @available(macOS 15.0, *)
+    private static func makeItems(for archive: ArchiveListingCacheEntry) -> [CSSearchableItem] {
+        archive.filePaths(limit: perArchiveLimit).map { path in
+            let entity = ArchiveFileEntity(archivePath: archive.archivePath, archiveName: archive.archiveName, entryPath: path)
+            return makeSpotlightItem(route: .archiveFile(archivePath: archive.archivePath, entryPath: path),
+                                     attributeSet: entity.attributeSet)
         }
     }
 
     @available(macOS 15.0, *)
     private static func performReindex() async {
-        var entities: [ArchiveFileEntity] = []
+        var items: [CSSearchableItem] = []
         for archive in ArchiveListingCacheStore().loadAll() {
-            entities.append(contentsOf: makeEntities(for: archive))
+            items.append(contentsOf: makeItems(for: archive))
         }
         let index = CSSearchableIndex.default()
         do {
-            try await index.deleteAppEntities(ofType: ArchiveFileEntity.self)
-            if !entities.isEmpty {
-                try await index.indexAppEntities(entities)
+            try await index.deleteSearchableItems(withDomainIdentifiers: [SpotlightRoute.Domain.file])
+            if !items.isEmpty {
+                try await index.indexSearchableItems(items)
             }
         } catch {
             // 索引失败不影响 app。
@@ -239,7 +243,7 @@ nonisolated enum ArchiveFileSpotlightIndexer {
     @available(macOS 15.0, *)
     private static func clearIndex() async {
         do {
-            try await CSSearchableIndex.default().deleteAppEntities(ofType: ArchiveFileEntity.self)
+            try await CSSearchableIndex.default().deleteSearchableItems(withDomainIdentifiers: [SpotlightRoute.Domain.file])
         } catch {
             // 清索引失败不影响 app。
         }

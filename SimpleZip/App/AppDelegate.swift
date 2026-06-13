@@ -6,6 +6,7 @@
 //
 
 import AppKit
+import CoreSpotlight
 import Foundation
 import SwiftUI
 
@@ -303,6 +304,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .forEach { ExternalFileOpenQueue.shared.enqueue($0) }
         scheduleEnsureWindowForPendingExternalOpens()
         sender.reply(toOpenOrPrint: .success)
+    }
+
+    /// #73:Spotlight 结果**点击**走这里 —— 系统把点击当作 `CSSearchableItemActionType` 续期活动派发。
+    /// 从 uniqueIdentifier 解出 SpotlightRoute 并执行跳转(设置项深链 / 活动中心定位 / 发布包 reveal /
+    /// 打开归档 / 跳到归档内文件)。`indexAppEntities` 的 OpenIntent 自动触发在 macOS 上不可靠,故自己处理。
+    func application(_ application: NSApplication, continue userActivity: NSUserActivity,
+                     restorationHandler: @escaping ([any NSUserActivityRestoring]) -> Void) -> Bool {
+        guard userActivity.activityType == CSSearchableItemActionType else { return false }
+        SpotlightTapDispatcher.handle(userActivity)
+        return true
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {

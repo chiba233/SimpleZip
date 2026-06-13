@@ -173,13 +173,16 @@ enum ReleasePackageSpotlightIndexer {
 
     @available(macOS 15.0, *)
     private static func performReindex() async {
-        let entities = ReleaseLedgerStore().loadAll().map(ReleasePackageEntity.init(entry:))
+        // #73:手动 CSSearchableItem(uniqueIdentifier 由 SpotlightRoute 编码),点击能解回来跳转(在 Finder 显示产物)。
+        let items = ReleaseLedgerStore().loadAll().map { entry -> CSSearchableItem in
+            makeSpotlightItem(route: .release(artifactPath: entry.artifactPath),
+                              attributeSet: ReleasePackageEntity(entry: entry).attributeSet)
+        }
         let index = CSSearchableIndex.default()
         do {
-            // 全量重建:先清掉本类型旧项(覆盖账本裁旧 / 删除导致的残留),再按当前账本重新索引。
-            try await index.deleteAppEntities(ofType: ReleasePackageEntity.self)
-            if !entities.isEmpty {
-                try await index.indexAppEntities(entities)
+            try await index.deleteSearchableItems(withDomainIdentifiers: [SpotlightRoute.Domain.release])
+            if !items.isEmpty {
+                try await index.indexSearchableItems(items)
             }
         } catch {
             // 索引失败不影响 app。
@@ -189,7 +192,7 @@ enum ReleasePackageSpotlightIndexer {
     @available(macOS 15.0, *)
     private static func clearIndex() async {
         do {
-            try await CSSearchableIndex.default().deleteAppEntities(ofType: ReleasePackageEntity.self)
+            try await CSSearchableIndex.default().deleteSearchableItems(withDomainIdentifiers: [SpotlightRoute.Domain.release])
         } catch {
             // 清索引失败不影响 app。
         }

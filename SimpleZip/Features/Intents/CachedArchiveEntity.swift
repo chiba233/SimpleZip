@@ -200,18 +200,24 @@ nonisolated enum CachedArchiveSpotlightIndexer {
         let path = ArchiveListingCacheStore.canonicalPath(for: url)
         Task.detached(priority: .utility) {
             guard let entry = ArchiveListingCacheStore().loadAll().first(where: { $0.archivePath == path }) else { return }
-            try? await CSSearchableIndex.default().indexAppEntities([CachedArchiveEntity(entry: entry)])
+            let item = makeSpotlightItem(route: .archive(archivePath: entry.archivePath),
+                                         attributeSet: CachedArchiveEntity(entry: entry).attributeSet)
+            try? await CSSearchableIndex.default().indexSearchableItems([item])
         }
     }
 
     @available(macOS 15.0, *)
     private static func performReindex() async {
-        let entities = ArchiveListingCacheStore().loadAll().map(CachedArchiveEntity.init(entry:))
+        // #73:手动 CSSearchableItem,点击 → 在浏览器里打开归档(根目录)。
+        let items = ArchiveListingCacheStore().loadAll().map { entry -> CSSearchableItem in
+            makeSpotlightItem(route: .archive(archivePath: entry.archivePath),
+                              attributeSet: CachedArchiveEntity(entry: entry).attributeSet)
+        }
         let index = CSSearchableIndex.default()
         do {
-            try await index.deleteAppEntities(ofType: CachedArchiveEntity.self)
-            if !entities.isEmpty {
-                try await index.indexAppEntities(entities)
+            try await index.deleteSearchableItems(withDomainIdentifiers: [SpotlightRoute.Domain.archive])
+            if !items.isEmpty {
+                try await index.indexSearchableItems(items)
             }
         } catch {
             // 索引失败不影响 app。
@@ -221,7 +227,7 @@ nonisolated enum CachedArchiveSpotlightIndexer {
     @available(macOS 15.0, *)
     private static func clearIndex() async {
         do {
-            try await CSSearchableIndex.default().deleteAppEntities(ofType: CachedArchiveEntity.self)
+            try await CSSearchableIndex.default().deleteSearchableItems(withDomainIdentifiers: [SpotlightRoute.Domain.archive])
         } catch {
             // 清索引失败不影响 app。
         }

@@ -145,18 +145,26 @@ enum ArchiveTaskSpotlightIndexer {
         guard #available(macOS 15.0, *), AppPreferences.spotlightIndexingEnabled else { return }
         guard let snapshot = ArchiveTaskSnapshot(task: task) else { return }
         Task.detached(priority: .utility) {
-            try? await CSSearchableIndex.default().indexAppEntities([ArchiveTaskEntity(snapshot: snapshot)])
+            let item = makeSpotlightItem(
+                route: .task(id: snapshot.id, categoryRaw: snapshot.category.rawValue),
+                attributeSet: ArchiveTaskEntity(snapshot: snapshot).attributeSet
+            )
+            try? await CSSearchableIndex.default().indexSearchableItems([item])
         }
     }
 
     @available(macOS 15.0, *)
     private static func performReindex() async {
-        let entities = ActivityHistoryStore.snapshot().map(ArchiveTaskEntity.init(snapshot:))
+        // #73:手动 CSSearchableItem,点击 → 开活动中心定位到该任务。
+        let items = ActivityHistoryStore.snapshot().map { snapshot -> CSSearchableItem in
+            makeSpotlightItem(route: .task(id: snapshot.id, categoryRaw: snapshot.category.rawValue),
+                              attributeSet: ArchiveTaskEntity(snapshot: snapshot).attributeSet)
+        }
         let index = CSSearchableIndex.default()
         do {
-            try await index.deleteAppEntities(ofType: ArchiveTaskEntity.self)
-            if !entities.isEmpty {
-                try await index.indexAppEntities(entities)
+            try await index.deleteSearchableItems(withDomainIdentifiers: [SpotlightRoute.Domain.task])
+            if !items.isEmpty {
+                try await index.indexSearchableItems(items)
             }
         } catch {
             // 索引失败不影响 app。
@@ -166,7 +174,7 @@ enum ArchiveTaskSpotlightIndexer {
     @available(macOS 15.0, *)
     private static func clearIndex() async {
         do {
-            try await CSSearchableIndex.default().deleteAppEntities(ofType: ArchiveTaskEntity.self)
+            try await CSSearchableIndex.default().deleteSearchableItems(withDomainIdentifiers: [SpotlightRoute.Domain.task])
         } catch {
             // 清索引失败不影响 app。
         }
