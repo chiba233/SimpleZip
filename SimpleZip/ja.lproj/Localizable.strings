@@ -1676,6 +1676,10 @@
 "file.deleteVolumeFamily.whole" = "セット全体を削除";
 "file.deleteVolumeFamily.selectionOnly" = "選択分のみ";
 "security.report.clean" = "疑わしい項目は見つかりませんでした";
+"security.score.level.low" = "低リスク";
+"security.score.level.medium" = "中リスク";
+"security.score.level.high" = "高リスク";
+"security.score.note" = "見つかった最も深刻な問題で評価——ルールベース、AI 不使用。";
 "security.report.clean.desc" = "一覧の各パスについて、絶対パス、「..」による移動、ドライブ文字、UNC とバックスラッシュのパス、制御文字または双方向上書き文字、長すぎるパス、setuid ビット、外部を指すシンボリックリンク、大文字小文字の衝突を確認しました — 何も検出されませんでした。";
 "settings.rememberFolderExpansion" = "展開したフォルダを記憶";
 "settings.rememberFolderExpansion.description" = "一覧の更新後（ファイル変更、手動更新、並べ替え）に、開いていたフォルダを再展開します。オフにすると毎回すべて折りたたまれた状態から始まります。";

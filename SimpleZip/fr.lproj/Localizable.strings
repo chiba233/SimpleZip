@@ -1674,6 +1674,10 @@
 "file.deleteVolumeFamily.whole" = "Supprimer tout le jeu";
 "file.deleteVolumeFamily.selectionOnly" = "Sélection seulement";
 "security.report.clean" = "Aucune entrée suspecte trouvée";
+"security.score.level.low" = "Risque faible";
+"security.score.level.medium" = "Risque moyen";
+"security.score.level.high" = "Risque élevé";
+"security.score.note" = "Noté selon le problème le plus grave trouvé — basé sur des règles, sans IA.";
 "security.report.clean.desc" = "Chaque chemin listé a été vérifié : chemins absolus, traversée « .. », lettres de lecteur, chemins UNC et antislash, caractères de contrôle ou de surcharge bidirectionnelle, chemins trop longs, bits setuid, liens symboliques pointant vers l’extérieur et collisions de casse — rien n’a été signalé.";
 "settings.rememberFolderExpansion" = "Mémoriser les dossiers développés";
 "settings.rememberFolderExpansion.description" = "Redéveloppe les dossiers ouverts après l’actualisation de la liste (changements de fichiers, rafraîchissement manuel, tri). Désactivez pour que chaque actualisation commence entièrement repliée.";

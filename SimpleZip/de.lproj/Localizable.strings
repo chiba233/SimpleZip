@@ -1675,6 +1675,10 @@
 "file.deleteVolumeFamily.whole" = "Ganzes Set löschen";
 "file.deleteVolumeFamily.selectionOnly" = "Nur Auswahl";
 "security.report.clean" = "Keine verdächtigen Einträge gefunden";
+"security.score.level.low" = "Geringes Risiko";
+"security.score.level.medium" = "Mittleres Risiko";
+"security.score.level.high" = "Hohes Risiko";
+"security.score.note" = "Bewertet nach dem schwerwiegendsten gefundenen Problem — regelbasiert, keine KI.";
 "security.report.clean.desc" = "Jeder aufgelistete Pfad wurde auf absolute Pfade, „..“-Traversal, Laufwerksbuchstaben, UNC- und Backslash-Pfade, Steuer- oder bidirektionale Override-Zeichen, überlange Pfade, setuid-Bits, nach außen zeigende Symlinks und Kollisionen durch Groß-/Kleinschreibung geprüft — nichts wurde markiert.";
 "settings.rememberFolderExpansion" = "Aufgeklappte Ordner merken";
 "settings.rememberFolderExpansion.description" = "Ordner, die geöffnet waren, nach Listenaktualisierungen erneut aufklappen (Dateiänderungen, manuelle Aktualisierung, Sortierung). Ausschalten, damit jede Aktualisierung vollständig eingeklappt startet.";

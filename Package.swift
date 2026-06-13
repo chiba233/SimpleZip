@@ -49,6 +49,7 @@ let package = Package(
                 "Core/ArchiveSalvage.swift",
                 "Core/ArchiveSearch.swift",
                 "Core/ArchiveCheckup.swift",
+                "Core/ArchiveRiskScore.swift",
                 "Core/ArchiveProperties.swift",
                 "Core/ArchiveSpaceAnalysis.swift",
                 "Core/ArchiveTransferModels.swift",

@@ -1674,6 +1674,10 @@
 "file.deleteVolumeFamily.whole" = "Удалить весь набор";
 "file.deleteVolumeFamily.selectionOnly" = "Только выбранное";
 "security.report.clean" = "Подозрительных записей не найдено";
+"security.score.level.low" = "Низкий риск";
+"security.score.level.medium" = "Средний риск";
+"security.score.level.high" = "Высокий риск";
+"security.score.note" = "Оценка по самой серьёзной найденной проблеме — по правилам, без ИИ.";
 "security.report.clean.desc" = "Каждый указанный путь проверен на абсолютные пути, переходы «..», буквы дисков, UNC- и backslash-пути, управляющие или двунаправленные override-символы, слишком длинные пути, биты setuid, символические ссылки наружу и конфликты регистра — ничего не отмечено.";
 "settings.rememberFolderExpansion" = "Запоминать раскрытые папки";
 "settings.rememberFolderExpansion.description" = "Повторно раскрывать папки, которые были открыты, после обновления списка (изменения файлов, ручное обновление, сортировка). Отключите, чтобы каждое обновление начиналось полностью свернутым.";

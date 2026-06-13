@@ -1674,6 +1674,10 @@
 "file.deleteVolumeFamily.whole" = "ลบทั้งชุด";
 "file.deleteVolumeFamily.selectionOnly" = "เฉพาะที่เลือก";
 "security.report.clean" = "ไม่พบรายการน่าสงสัย";
+"security.score.level.low" = "ความเสี่ยงต่ำ";
+"security.score.level.medium" = "ความเสี่ยงปานกลาง";
+"security.score.level.high" = "ความเสี่ยงสูง";
+"security.score.note" = "ให้เกรดตามปัญหาที่ร้ายแรงที่สุดที่พบ — อิงกฎ ไม่ใช้ AI";
 "security.report.clean.desc" = "ตรวจทุกพาธที่แสดงแล้ว: พาธสัมบูรณ์, การไต่ “..”, ตัวอักษรไดรฟ์, พาธ UNC และแบ็กสแลช, อักขระควบคุมหรืออักขระบังคับทิศทางข้อความ, พาธยาวเกินไป, บิต setuid, ลิงก์สัญลักษณ์ที่ชี้ออกนอกไฟล์ และชื่อชนกันเพราะตัวพิมพ์ — ไม่พบรายการใดถูกทำเครื่องหมาย";
 "settings.rememberFolderExpansion" = "จำโฟลเดอร์ที่ขยายไว้";
 "settings.rememberFolderExpansion.description" = "ขยายโฟลเดอร์ที่คุณเปิดไว้กลับมาอีกครั้งหลังรายการรีเฟรช (ไฟล์เปลี่ยน, รีเฟรชเอง, เรียงลำดับ) ปิดเพื่อให้ทุกการรีเฟรชเริ่มแบบพับทั้งหมด";

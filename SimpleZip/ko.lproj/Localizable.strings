@@ -1675,6 +1675,10 @@
 "file.deleteVolumeFamily.whole" = "전체 세트 삭제";
 "file.deleteVolumeFamily.selectionOnly" = "선택 항목만";
 "security.report.clean" = "의심스러운 항목을 찾지 못했습니다";
+"security.score.level.low" = "낮은 위험";
+"security.score.level.medium" = "중간 위험";
+"security.score.level.high" = "높은 위험";
+"security.score.note" = "발견된 가장 심각한 문제로 등급 판정 — 규칙 기반, AI 미사용.";
 "security.report.clean.desc" = "나열된 모든 경로에서 절대 경로, “..” 이동, 드라이브 문자, UNC 및 역슬래시 경로, 제어 또는 양방향 재정의 문자, 너무 긴 경로, setuid 비트, 외부를 가리키는 심볼릭 링크, 대소문자 충돌을 검사했으며 표시된 항목은 없습니다.";
 "settings.rememberFolderExpansion" = "펼친 폴더 기억";
 "settings.rememberFolderExpansion.description" = "목록 새로고침(파일 변경, 수동 새로고침, 정렬) 후 열어 두었던 폴더를 다시 펼칩니다. 끄면 새로고침할 때마다 모두 접힌 상태로 시작합니다.";

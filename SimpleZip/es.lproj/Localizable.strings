@@ -1674,6 +1674,10 @@
 "file.deleteVolumeFamily.whole" = "Eliminar conjunto completo";
 "file.deleteVolumeFamily.selectionOnly" = "Solo seleccionados";
 "security.report.clean" = "No se encontraron entradas sospechosas";
+"security.score.level.low" = "Riesgo bajo";
+"security.score.level.medium" = "Riesgo medio";
+"security.score.level.high" = "Riesgo alto";
+"security.score.note" = "Calificado por el problema más grave encontrado: basado en reglas, sin IA.";
 "security.report.clean.desc" = "Se comprobó cada ruta listada: rutas absolutas, recorrido “..”, letras de unidad, rutas UNC y con barra invertida, caracteres de control o de anulación bidireccional, rutas demasiado largas, bits setuid, enlaces simbólicos hacia fuera y colisiones por mayúsculas/minúsculas; no se marcó nada.";
 "settings.rememberFolderExpansion" = "Recordar carpetas expandidas";
 "settings.rememberFolderExpansion.description" = "Vuelve a expandir las carpetas que tenías abiertas después de actualizar la lista (cambios de archivos, actualización manual, ordenación). Desactívalo para que cada actualización empiece totalmente contraída.";
