@@ -585,7 +585,7 @@ struct ActivityView: View {
         do {
             let spec = try await AIReportAssistant.activityFilterSpec(for: query)
             // 临时诊断:原样显示模型返回的每个字段(定位「AI 垃圾 vs 代码处理错」用)。
-            aiDebugSpec = "status=\(spec.status) src=\(spec.source) kind=\(spec.kind) fmt=\(spec.format) kw=\(spec.keyword) val=\(spec.timeValue) unit=\(spec.timeUnit) dir=\(spec.timeDirection)"
+            aiDebugSpec = "status=\(spec.status) src=\(spec.source) kind=\(spec.kind) fmt=\(spec.format) name=\(spec.fileName) val=\(spec.timeValue) unit=\(spec.timeUnit) dir=\(spec.timeDirection)"
             let status: ActivityTaskFilter
             switch spec.status.lowercased() {
             case "running": status = .running
@@ -603,21 +603,23 @@ struct ActivityView: View {
             case "finder": source = .finder
             default: source = nil
             }
-            let keyword = spec.keyword.trimmingCharacters(in: .whitespacesAndNewlines)
+            let keyword = spec.fileName.trimmingCharacters(in: .whitespacesAndNewlines)
             // 任务类型:容错 rawValue 映射(any / 界外 → nil)。
             let kind = OperationTask.Kind(rawValue: spec.kind.lowercased())
             // 格式 / 扩展名:去掉前导点和空白(匹配时统一补「.」)。
             let format = spec.format.trimmingCharacters(in: CharacterSet(charactersIn: ". ")).lowercased()
             // 单位换算在代码里做(模型只给「数值 + 单位」,不让它算 —— 避免「3600 秒」被当成分钟)。
+            // 容错前缀匹配:模型可能给 second/seconds/sec、minute/min 等变体。
             let unitSeconds: TimeInterval
-            switch spec.timeUnit.lowercased() {
-            case "seconds": unitSeconds = 1
-            case "minutes": unitSeconds = 60
-            case "hours": unitSeconds = 3600
-            case "days": unitSeconds = 86_400
-            case "weeks": unitSeconds = 604_800
-            default: unitSeconds = 0
-            }
+            let unit = spec.timeUnit.lowercased()
+            if unit.hasPrefix("sec") { unitSeconds = 1 }
+            else if unit.hasPrefix("min") { unitSeconds = 60 }
+            else if unit.hasPrefix("hour") || unit.hasPrefix("hr") { unitSeconds = 3600 }
+            else if unit.hasPrefix("day") { unitSeconds = 86_400 }
+            else if unit.hasPrefix("week") { unitSeconds = 604_800 }
+            else if unit.hasPrefix("month") { unitSeconds = 2_592_000 }      // ~30 天
+            else if unit.hasPrefix("year") { unitSeconds = 31_536_000 }      // ~365 天
+            else { unitSeconds = 0 }
             let seconds = max(0, Double(spec.timeValue)) * unitSeconds
             let before = spec.timeDirection.lowercased() == "before"
             // 一个条件都没抽到 → 不点亮,提示重述。

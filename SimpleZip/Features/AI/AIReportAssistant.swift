@@ -143,15 +143,15 @@ struct ActivityFilterSpec: Sendable {
     var status: String
     @Guide(description: "Which task origin to keep: one of any, app, cli, intent, urlScheme, finder.")
     var source: String
-    @Guide(description: "Which kind of operation to keep: one of any, extract, compress, create, test, convert, compare, benchmark, hash, split, combine, search, inspect, paste, move, copy, duplicate, delete, rename, permissions, undo, redo. any if the request does not single out an operation kind.")
+    @Guide(description: "The kind of OPERATION the user explicitly names as an action — one of any, extract, compress, create, test, convert, compare, benchmark, hash, split, combine, search, inspect, paste, move, copy, duplicate, delete, rename, permissions, undo, redo. A file format or extension is NOT an operation: never infer a kind from a format. Use any unless the user names an action.")
     var kind: String
-    @Guide(description: "An archive format or file extension the request refers to, matched against the task name (e.g. zip, 7z, tar, gz, rar, dmg, siz). Empty if the request does not mention a format.")
+    @Guide(description: "An archive format or file extension named in the request, matched against the task name. Empty if the request does not mention a format.")
     var format: String
-    @Guide(description: "A word or file name from the request to match within a task's name; empty if the request does not mention a specific name.")
-    var keyword: String
+    @Guide(description: "The NAME of a specific file or archive the user is looking for. Use an EMPTY string when the user does not name a particular file — for example when the request only restricts time, status, format, or operation. A time amount, a duration, a date, a number, a status word, an operation, or a format is NEVER a file name and must NEVER be placed here.")
+    var fileName: String
     @Guide(description: "The amount in any time limit the request expresses, as a plain number that may be fractional (e.g. 0.2 or 1.5), NOT converted to any unit. 0 if the request expresses no time limit.")
     var timeValue: Double
-    @Guide(description: "The unit the time amount is expressed in: one of none, seconds, minutes, hours, days, weeks. none if the request expresses no time limit.")
+    @Guide(description: "The unit the time amount is expressed in: one of none, seconds, minutes, hours, days, weeks, months, years. none if the request expresses no time limit.")
     var timeUnit: String
     @Guide(description: "Whether the time limit selects tasks more recent than it (within) or older than it (before): one of within, before.")
     var timeDirection: String
@@ -201,10 +201,13 @@ extension AIReportAssistant {
         language it is written in, and capture EVERY condition it expresses — these can stack: a name to \
         look for, how recent (or how old) the task is, its state, where it came from, what kind of \
         operation it is, and what archive format. A single request often sets several of these at once, so \
-        fill all that apply and leave the rest at their empty/any default. For a time limit, report the \
-        amount and its unit as the user expressed them, without converting; the app does the arithmetic and \
-        the exact matching. Be faithful to what the user asked: don't translate or paraphrase the name, and \
-        don't invent conditions the request doesn't express. Fill each field per its description.
+        fill all that apply and leave the rest at their empty/any default. Each part of the request belongs \
+        to exactly ONE field — a time amount goes only to timeValue/timeUnit, a status only to status, a \
+        format only to format, an operation only to kind — and the file-name field stays EMPTY unless the \
+        user actually names a specific file. Never copy a time, status, format, or operation into the \
+        file-name field. For a time limit, report the amount and its unit as the user expressed them, \
+        without converting; the app does the arithmetic and the exact matching. Be faithful to what the user \
+        asked: don't translate or paraphrase the name, and don't invent conditions the request doesn't express.
         """
         return try await generateStructured(instructions: instructions, prompt: query, as: ActivityFilterSpec.self)
     }
