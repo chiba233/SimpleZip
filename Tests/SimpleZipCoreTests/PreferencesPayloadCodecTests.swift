@@ -119,4 +119,15 @@ struct PreferencesPayloadCodecTests {
         let missing = required.subtracting(snapshotKeys)
         #expect(missing.isEmpty, "exportableSnapshot 缺这些可导出 key：\(missing.sorted())")
     }
+
+    /// 反向（Q2）：导出快照里的每个 key 也必须在 `exportableUserDefaultsKeys` 里 —— 否则它会被导出，但
+    /// 导入循环（`for key in exportableUserDefaultsKeys`）压根不还原它，备份导入时静默丢失（A21 footgun）。
+    /// 原测试只查「keys ⊆ snapshot」单向，漏了这条反向。两表当前同步，纯回归加固。
+    @Test
+    func everySnapshotKeyIsImportedBack() {
+        let snapshotKeys = Set(AppPreferences.exportableSnapshot().keys)
+        let importedKeys = Set(AppPreferences.exportableUserDefaultsKeys)
+        let orphaned = snapshotKeys.subtracting(importedKeys)
+        #expect(orphaned.isEmpty, "exportableSnapshot 含不会被导入还原的 key：\(orphaned.sorted())")
+    }
 }
