@@ -2154,7 +2154,10 @@
 "settings.section.automation" = "Automatisation";
 "settings.automation.shortcuts.section" = "Raccourcis et Siri";
 "settings.automation.shortcuts.title" = "Actions Raccourcis";
-"settings.automation.shortcuts.description" = "Six actions sont disponibles dans l’app Raccourcis : extraire une archive, créer une archive, tester l’intégrité, vérifier les sommes, comparer des archives et créer un paquet de version.";
+"settings.automation.shortcuts.description" = "Huit actions sont disponibles dans l’app Raccourcis : Extraire l’archive, Créer une archive, Tester l’intégrité de l’archive, Vérifier les sommes de contrôle, Comparer les archives, Rechercher dans l’archive, Inspecter l’archive et Créer un paquet de version.";
+"settings.automation.spotlight.section" = "Spotlight";
+"settings.automation.spotlight.title" = "Indexer dans Spotlight";
+"settings.automation.spotlight.description" = "Rend les paquets de version et les tâches récentes accessibles via Spotlight. Désactivez pour plus de confidentialité — cela efface aussi ce qui est déjà indexé. Nécessite macOS 15 ou ultérieur.";
 "settings.automation.shortcuts.open" = "Ouvrir Raccourcis";
 "settings.automation.shortcuts.actions" = "Chaque exécution Raccourcis apparaît en direct dans le centre d’activité, avec sa source. Les archives chiffrées ne demandent jamais de mot de passe dans Raccourcis.";
 "settings.automation.urlScheme.section" = "Schéma d’URL";

@@ -17,6 +17,8 @@ struct AutomationPane: View {
     /// #1 唯一新偏好:自动化通道(CLI / Shortcuts)允许用预设密码。默认 true 保持现行为;
     /// 关掉后无人值守流程只试空密码,绝不静默动用预设。
     @AppStorage(AppPreferences.Key.automationAllowPresetPassword) private var allowPresetPassword = true
+    /// 0.4.4 macOS 26 AI:是否把发布包 / 任务捐献进 Spotlight。默认 true = 便利;关 = 更私密(并清空已索引)。
+    @AppStorage(AppPreferences.Key.spotlightIndexingEnabled) private var spotlightIndexing = true
 
     @ObservedObject private var taskCenter = TaskCenter.shared
 
@@ -110,6 +112,20 @@ struct AutomationPane: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 lastRunRow(for: .intent)
+            }
+
+            // ②.5 Spotlight 索引(发布包 / 任务可搜;安全↔便利)。开关切换即时重建或清空索引。
+            Section(L10n.text("settings.automation.spotlight.section")) {
+                SettingsToggleRow(
+                    title: L10n.text("settings.automation.spotlight.title"),
+                    description: L10n.text("settings.automation.spotlight.description"),
+                    systemImage: "magnifyingglass", iconTint: .blue,
+                    isOn: $spotlightIndexing
+                )
+                .onChange(of: spotlightIndexing) { _ in
+                    // indexer 内部按 `spotlightIndexingEnabled` 分支:开→重建、关→清空已捐献的索引。
+                    ReleasePackageSpotlightIndexer.reindex()
+                }
             }
 
             // ③ URL Scheme(展示型:现状即「每次都要 app 内确认」,不提供关闭项)。

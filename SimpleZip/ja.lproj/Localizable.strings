@@ -2156,7 +2156,10 @@
 "settings.section.automation" = "自動化";
 "settings.automation.shortcuts.section" = "ショートカットと Siri";
 "settings.automation.shortcuts.title" = "ショートカットアクション";
-"settings.automation.shortcuts.description" = "ショートカットアプリでは、アーカイブを展開、アーカイブを作成、アーカイブ整合性をテスト、チェックサムを検証、アーカイブを比較、リリースパッケージを作成の 6 つのアクションを利用できます。";
+"settings.automation.shortcuts.description" = "ショートカット App では 8 つのアクションを利用できます：アーカイブを展開、アーカイブを作成、アーカイブの整合性をテスト、チェックサムを検証、アーカイブを比較、アーカイブ内を検索、アーカイブを検査、リリースパッケージを作成。";
+"settings.automation.spotlight.section" = "Spotlight";
+"settings.automation.spotlight.title" = "Spotlight でインデックス";
+"settings.automation.spotlight.description" = "リリースパッケージと最近のタスクを Spotlight で検索できるようにします。プライバシーを優先する場合はオフにしてください。オフにすると索引済みの内容も消去されます。macOS 15 以降が必要です。";
 "settings.automation.shortcuts.open" = "ショートカットを開く";
 "settings.automation.shortcuts.actions" = "ショートカットの実行はすべて、出所タグ付きでアクティビティセンターにリアルタイム表示されます。暗号化アーカイブはショートカット内で確認ダイアログを出しません。";
 "settings.automation.urlScheme.section" = "URL スキーム";

@@ -1247,7 +1247,10 @@
 "settings.section.automation" = "Automation";
 "settings.automation.shortcuts.section" = "Shortcuts & Siri";
 "settings.automation.shortcuts.title" = "Shortcuts Actions";
-"settings.automation.shortcuts.description" = "Six actions are available in the Shortcuts app: Extract Archive, Create Archive, Test Archive Integrity, Verify Checksums, Compare Archives and Create Release Package.";
+"settings.automation.shortcuts.description" = "Eight actions are available in the Shortcuts app: Extract Archive, Create Archive, Test Archive Integrity, Verify Checksums, Compare Archives, Search Archive Contents, Inspect Archive and Create Release Package.";
+"settings.automation.spotlight.section" = "Spotlight";
+"settings.automation.spotlight.title" = "Index in Spotlight";
+"settings.automation.spotlight.description" = "Make release packages and recent tasks searchable in Spotlight. Turn this off for more privacy — it also clears what's already indexed. Needs macOS 15 or later.";
 "settings.automation.shortcuts.open" = "Open Shortcuts";
 "settings.automation.shortcuts.actions" = "Every Shortcuts run shows up live in the Activity Center, tagged with its source. Encrypted archives never prompt in shortcuts.";
 "settings.automation.urlScheme.section" = "URL Scheme";

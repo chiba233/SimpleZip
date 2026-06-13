@@ -134,9 +134,17 @@ extension ReleasePackageEntity: IndexedEntity {
 /// (Spotlight 是增益功能,绝不影响发布流程,也不弹错 / 不崩)。
 /// 触发点:app 启动(全量重建)、每次成功记入账本之后。
 enum ReleasePackageSpotlightIndexer {
+    /// 索引开关开 → 全量重建;关 → 清空已捐献的索引。两条路径都按 `AppPreferences.spotlightIndexingEnabled`
+    /// 分支,所以启动、记入账本、设置里切换开关都调它即可即时生效。
     static func reindex() {
         guard #available(macOS 15.0, *) else { return }
-        Task.detached(priority: .utility) { await performReindex() }
+        Task.detached(priority: .utility) {
+            if AppPreferences.spotlightIndexingEnabled {
+                await performReindex()
+            } else {
+                await clearIndex()
+            }
+        }
     }
 
     @available(macOS 15.0, *)
@@ -151,6 +159,15 @@ enum ReleasePackageSpotlightIndexer {
             }
         } catch {
             // 索引失败不影响 app。
+        }
+    }
+
+    @available(macOS 15.0, *)
+    private static func clearIndex() async {
+        do {
+            try await CSSearchableIndex.default().deleteAppEntities(ofType: ReleasePackageEntity.self)
+        } catch {
+            // 清索引失败不影响 app。
         }
     }
 }

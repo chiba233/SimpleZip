@@ -2154,7 +2154,10 @@
 "settings.section.automation" = "Автоматизация";
 "settings.automation.shortcuts.section" = "Команды и Siri";
 "settings.automation.shortcuts.title" = "Действия Команд";
-"settings.automation.shortcuts.description" = "В приложении «Команды» доступны шесть действий: извлечь архив, создать архив, проверить целостность архива, проверить контрольные суммы, сравнить архивы и создать пакет выпуска.";
+"settings.automation.shortcuts.description" = "В приложении «Быстрые команды» доступно восемь действий: извлечь архив, создать архив, проверить целостность архива, проверить контрольные суммы, сравнить архивы, поиск в архиве, проверить архив и создать релизный пакет.";
+"settings.automation.spotlight.section" = "Spotlight";
+"settings.automation.spotlight.title" = "Индексировать в Spotlight";
+"settings.automation.spotlight.description" = "Позволяет искать релизные пакеты и недавние задачи в Spotlight. Отключите для большей приватности — это также очистит уже проиндексированное. Требуется macOS 15 или новее.";
 "settings.automation.shortcuts.open" = "Открыть Команды";
 "settings.automation.shortcuts.actions" = "Каждый запуск Команд сразу появляется в центре активности с отметкой источника. Зашифрованные архивы в Командах никогда не показывают запросы.";
 "settings.automation.urlScheme.section" = "URL-схема";

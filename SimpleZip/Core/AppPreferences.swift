@@ -338,6 +338,8 @@ enum AppPreferences {
         nonisolated static let tasksOpenOnFailure = "tasksOpenOnFailure"
         /// 0.4.4 #1:自动化通道(CLI / Shortcuts)允许使用预设密码(默认 true 保持现行为)。
         nonisolated static let automationAllowPresetPassword = "automationAllowPresetPassword"
+        /// 0.4.4 macOS 26 AI:把发布包 / 活动中心任务捐献进 Spotlight 语义索引(默认 true = 便利;关 = 更私密)。
+        nonisolated static let spotlightIndexingEnabled = "spotlightIndexingEnabled"
         nonisolated static let tasksPlaySoundOnFinish = "tasksPlaySoundOnFinish"
         nonisolated static let collapseVolumeSets = "collapseVolumeSets"
         // 0.4.3 #7:写入后自动验证(改写族默认开 / 创建与转换默认关)。
@@ -378,6 +380,12 @@ enum AppPreferences {
     /// 0.4.4 #1:自动化通道是否允许用预设密码(关 = 无人值守只试空密码,绝不静默用预设)。
     nonisolated static var automationAllowPresetPassword: Bool {
         defaultTrueBool(forKey: Key.automationAllowPresetPassword)
+    }
+
+    /// 0.4.4 macOS 26 AI:是否把发布包 / 活动中心任务捐献进 Spotlight 语义索引。
+    /// 默认 true = 便利(可在 Spotlight 里搜到);关 = 更私密(且调用方负责清空已捐献索引)。仅 macOS 15+ 有实际效果。
+    nonisolated static var spotlightIndexingEnabled: Bool {
+        defaultTrueBool(forKey: Key.spotlightIndexingEnabled)
     }
 
     nonisolated static var tasksOpenOnFailure: Bool {
@@ -927,6 +935,7 @@ enum AppPreferences {
         Key.tasksOpenOnFailure,
         Key.tasksPlaySoundOnFinish,
         Key.automationAllowPresetPassword,
+        Key.spotlightIndexingEnabled,
         Key.collapseVolumeSets,
         Key.verifyAfterArchiveRewrite,
         Key.verifyAfterArchiveCreate,
@@ -1032,6 +1041,7 @@ enum AppPreferences {
         v[Key.heavyTaskConcurrencyLimit] = heavyTaskConcurrencyLimit
         v[Key.tasksOpenOnFailure] = tasksOpenOnFailure
         v[Key.automationAllowPresetPassword] = automationAllowPresetPassword
+        v[Key.spotlightIndexingEnabled] = spotlightIndexingEnabled
         v[Key.tasksPlaySoundOnFinish] = tasksPlaySoundOnFinish
         v[Key.collapseVolumeSets] = collapseVolumeSets
         v[Key.verifyAfterArchiveRewrite] = verifyAfterArchiveRewrite

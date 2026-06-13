@@ -1245,7 +1245,10 @@
 "settings.section.automation" = "自动化";
 "settings.automation.shortcuts.section" = "快捷指令与 Siri";
 "settings.automation.shortcuts.title" = "快捷指令动作";
-"settings.automation.shortcuts.description" = "快捷指令 app 里有六个动作:解压归档、创建归档、测试归档完整性、验证校验文件、比较归档、创建发布包。";
+"settings.automation.shortcuts.description" = "快捷指令 App 里有八个动作：解压归档、创建归档、测试归档完整性、验证校验文件、比较归档、搜索归档内容、检查归档、创建发布包。";
+"settings.automation.spotlight.section" = "Spotlight";
+"settings.automation.spotlight.title" = "在 Spotlight 中索引";
+"settings.automation.spotlight.description" = "让发布包和最近的任务能在 Spotlight 里搜到。想更私密就关掉——关闭会同时清空已索引的内容。需要 macOS 15 或更新版本。";
 "settings.automation.shortcuts.open" = "打开快捷指令";
 "settings.automation.shortcuts.actions" = "每次快捷指令运行都实时进活动中心并标记来源。加密归档在快捷指令里绝不弹窗。";
 "settings.automation.urlScheme.section" = "URL Scheme";

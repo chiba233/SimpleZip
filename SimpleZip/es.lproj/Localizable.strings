@@ -2154,7 +2154,10 @@
 "settings.section.automation" = "Automatización";
 "settings.automation.shortcuts.section" = "Atajos y Siri";
 "settings.automation.shortcuts.title" = "Acciones de Atajos";
-"settings.automation.shortcuts.description" = "Hay seis acciones disponibles en la app Atajos: Extraer archivo, Crear archivo, Probar integridad del archivo, Verificar sumas, Comparar archivos y Crear paquete de versión.";
+"settings.automation.shortcuts.description" = "Hay ocho acciones disponibles en la app Atajos: Extraer archivo, Crear archivo, Probar integridad del archivo, Verificar sumas de comprobación, Comparar archivos, Buscar en el contenido del archivo, Inspeccionar archivo y Crear paquete de versión.";
+"settings.automation.spotlight.section" = "Spotlight";
+"settings.automation.spotlight.title" = "Indexar en Spotlight";
+"settings.automation.spotlight.description" = "Permite buscar los paquetes de versión y las tareas recientes en Spotlight. Desactívalo para mayor privacidad; también borra lo ya indexado. Requiere macOS 15 o posterior.";
 "settings.automation.shortcuts.open" = "Abrir Atajos";
 "settings.automation.shortcuts.actions" = "Cada ejecución de Atajos aparece en vivo en el Centro de actividad, etiquetada con su origen. Los archivos cifrados nunca muestran avisos en Atajos.";
 "settings.automation.urlScheme.section" = "Esquema URL";

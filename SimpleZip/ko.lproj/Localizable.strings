@@ -2155,7 +2155,10 @@
 "settings.section.automation" = "자동화";
 "settings.automation.shortcuts.section" = "단축어 및 Siri";
 "settings.automation.shortcuts.title" = "단축어 동작";
-"settings.automation.shortcuts.description" = "단축어 앱에서 6가지 동작을 사용할 수 있습니다: 아카이브 추출, 아카이브 생성, 아카이브 무결성 테스트, 체크섬 검증, 아카이브 비교, 릴리스 패키지 생성.";
+"settings.automation.shortcuts.description" = "단축어 앱에서 여덟 가지 동작을 사용할 수 있습니다: 아카이브 추출, 아카이브 생성, 아카이브 무결성 테스트, 체크섬 확인, 아카이브 비교, 아카이브 내용 검색, 아카이브 검사, 릴리스 패키지 생성.";
+"settings.automation.spotlight.section" = "Spotlight";
+"settings.automation.spotlight.title" = "Spotlight에 색인";
+"settings.automation.spotlight.description" = "릴리스 패키지와 최근 작업을 Spotlight에서 검색할 수 있게 합니다. 개인정보 보호를 위해 끄세요 — 이미 색인된 항목도 지워집니다. macOS 15 이상이 필요합니다.";
 "settings.automation.shortcuts.open" = "단축어 열기";
 "settings.automation.shortcuts.actions" = "모든 단축어 실행은 출처 태그와 함께 활동 센터에 실시간으로 표시됩니다. 암호화된 아카이브는 단축어에서 절대 묻지 않습니다.";
 "settings.automation.urlScheme.section" = "URL 스킴";

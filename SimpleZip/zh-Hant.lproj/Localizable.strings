@@ -2156,7 +2156,10 @@
 "settings.section.automation" = "自動化";
 "settings.automation.shortcuts.section" = "捷徑與 Siri";
 "settings.automation.shortcuts.title" = "捷徑動作";
-"settings.automation.shortcuts.description" = "捷徑 app 中有六個動作：解壓縮封存檔、建立封存檔、測試封存檔完整性、驗證校驗檔案、比較封存檔、建立發佈包。";
+"settings.automation.shortcuts.description" = "「快捷指令」App 裡有八個動作：解壓歸檔、建立歸檔、測試歸檔完整性、驗證校驗檔、比較歸檔、搜尋歸檔內容、檢查歸檔、建立發佈套件。";
+"settings.automation.spotlight.section" = "Spotlight";
+"settings.automation.spotlight.title" = "在 Spotlight 中建立索引";
+"settings.automation.spotlight.description" = "讓發佈套件與最近的任務能在 Spotlight 中搜尋。想更私密就關閉——關閉會一併清除已索引的內容。需要 macOS 15 或更新版本。";
 "settings.automation.shortcuts.open" = "打開捷徑";
 "settings.automation.shortcuts.actions" = "每次捷徑執行都會即時顯示在活動中心，並標記來源。加密封存檔在捷徑中絕不彈窗詢問。";
 "settings.automation.urlScheme.section" = "URL 配置";
