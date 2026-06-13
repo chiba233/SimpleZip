@@ -46,6 +46,9 @@ struct ReportExportControl: View {
             ForEach(extraActions) { extra in
                 Button(extra.title, action: extra.action)
             }
+            // macOS 的 confirmationDialog 不会自动补取消按钮(不像 iOS)——必须显式给 .cancel,
+            // 否则用户点开导出菜单后没有任何反悔出口(用户报告)。
+            Button(L10n.text("button.cancel"), role: .cancel) { }
         }
     }
 
