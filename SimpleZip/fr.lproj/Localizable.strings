@@ -2245,6 +2245,8 @@
 "ai.draftReleaseBody.title" = "Brouillon de texte de version par l’IA";
 "ai.categorizeIssue" = "Classer";
 "ai.categorizeIssue.title" = "Tri des tickets par l’IA";
+"ai.compareSummary" = "Résumer";
+"ai.compareSummary.title" = "Comparaison de versions par l’IA";
 "ai.suggestLabels" = "Suggérer des étiquettes";
 "ai.suggestLabels.title" = "Étiquettes suggérées par l’IA";
 "ai.summarizeRisk.title" = "Résumé des risques par l’IA";

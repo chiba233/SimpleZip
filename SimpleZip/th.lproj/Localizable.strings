@@ -2245,6 +2245,8 @@
 "ai.draftReleaseBody.title" = "ร่างเนื้อหารีลีสด้วย AI";
 "ai.categorizeIssue" = "จัดหมวดหมู่";
 "ai.categorizeIssue.title" = "การคัดแยก Issue ด้วย AI";
+"ai.compareSummary" = "สรุป";
+"ai.compareSummary.title" = "การเปรียบเทียบรีลีสด้วย AI";
 "ai.suggestLabels" = "แนะนำป้ายกำกับ";
 "ai.suggestLabels.title" = "ป้ายกำกับที่ AI แนะนำ";
 "ai.summarizeRisk.title" = "สรุปความเสี่ยงด้วย AI";

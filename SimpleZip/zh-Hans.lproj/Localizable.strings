@@ -1317,6 +1317,8 @@
 "ai.draftReleaseBody.title" = "AI 起草的发布正文";
 "ai.categorizeIssue" = "智能归类";
 "ai.categorizeIssue.title" = "AI 问题归类";
+"ai.compareSummary" = "白话总结";
+"ai.compareSummary.title" = "AI 发布对比总结";
 "ai.suggestLabels" = "建议标签";
 "ai.suggestLabels.title" = "AI 建议标签";
 "ai.summarizeRisk.title" = "AI 风险总结";

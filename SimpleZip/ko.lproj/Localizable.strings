@@ -2246,6 +2246,8 @@
 "ai.draftReleaseBody.title" = "AI 릴리스 본문 초안";
 "ai.categorizeIssue" = "분류";
 "ai.categorizeIssue.title" = "AI 이슈 분류";
+"ai.compareSummary" = "요약";
+"ai.compareSummary.title" = "AI 릴리스 비교";
 "ai.suggestLabels" = "라벨 제안";
 "ai.suggestLabels.title" = "AI 제안 라벨";
 "ai.summarizeRisk.title" = "AI 위험 요약";

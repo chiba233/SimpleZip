@@ -2246,6 +2246,8 @@
 "ai.draftReleaseBody.title" = "KI-Entwurf für Release-Text";
 "ai.categorizeIssue" = "Kategorisieren";
 "ai.categorizeIssue.title" = "KI-Issue-Triage";
+"ai.compareSummary" = "Zusammenfassen";
+"ai.compareSummary.title" = "KI-Release-Vergleich";
 "ai.suggestLabels" = "Labels vorschlagen";
 "ai.suggestLabels.title" = "KI-Label-Vorschläge";
 "ai.summarizeRisk.title" = "KI-Risikozusammenfassung";

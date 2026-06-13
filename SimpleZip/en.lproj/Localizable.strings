@@ -1319,6 +1319,8 @@
 "ai.draftReleaseBody.title" = "AI Release Body Draft";
 "ai.categorizeIssue" = "Categorize";
 "ai.categorizeIssue.title" = "AI Issue Triage";
+"ai.compareSummary" = "Summarize";
+"ai.compareSummary.title" = "AI Release Comparison";
 "ai.suggestLabels" = "Suggest Labels";
 "ai.suggestLabels.title" = "AI Suggested Labels";
 "ai.summarizeRisk.title" = "AI Risk Summary";

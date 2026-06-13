@@ -2247,6 +2247,8 @@
 "ai.draftReleaseBody.title" = "AI によるリリース本文の下書き";
 "ai.categorizeIssue" = "分類";
 "ai.categorizeIssue.title" = "AI による Issue トリアージ";
+"ai.compareSummary" = "要約";
+"ai.compareSummary.title" = "AI によるリリース比較";
 "ai.suggestLabels" = "ラベルを提案";
 "ai.suggestLabels.title" = "AI 提案ラベル";
 "ai.summarizeRisk.title" = "AI リスク要約";

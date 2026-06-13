@@ -514,6 +514,17 @@ struct LedgerComparisonView: View {
                     .disabled(!bothArtifactsExist)
                     .help(bothArtifactsExist ? "" : L10n.text("releaseCompare.fileLevel.missing"))
                 }
+                // #65(macOS 26 AI):把账面对比变一段白话总结 + 点出倒退(junk 回潮 / 指纹意外变 / 校验签名丢失)。只描述不放行。
+                AIAssistButton(
+                    label: L10n.text("ai.compareSummary"),
+                    systemImage: "sparkles",
+                    sheetTitle: L10n.text("ai.compareSummary.title"),
+                    sheetSubtitle: "\(old.versionLabel) → \(new.versionLabel)"
+                ) {
+                    guard #available(macOS 26.0, *) else { throw AIAssistError(message: L10n.text("ai.unavailable.osTooOld")) }
+                    let built = AIReportAssistant.releaseCompareSummaryPrompt(old: old, new: new, comparison: comparison)
+                    return try await AIReportAssistant.generate(instructions: built.instructions, prompt: built.prompt)
+                }
                 Spacer()
                 Button(action: onClose) {
                     Label(L10n.text("button.ok"), systemImage: "checkmark")

@@ -541,6 +541,48 @@ extension AIReportAssistant {
         return (instructions, rawIssue)
     }
 
+    /// #65:发布产物「本次 vs 上次」账面对比 → 白话总结(体积 / 文件数 / 指纹 / junk 回潮 / 卫生倒退)。
+    /// 只描述账面差异、点出值得留意的倒退(junk 回潮、指纹意外变化、签名 / 校验文件丢失),不替用户判断该不该发。
+    static func releaseCompareSummaryPrompt(
+        old: ReleaseLedgerEntry,
+        new: ReleaseLedgerEntry,
+        comparison: ReleaseLedgerComparison
+    ) -> (instructions: String, prompt: String) {
+        let instructions = """
+        You explain how a new release compares to the previous one, in plain language for the person \
+        publishing it. Summarize the meaningful differences (size, file count, whether the structural \
+        fingerprint changed, hygiene), and clearly flag any regression worth a second look — junk files \
+        reappearing, the fingerprint changing unexpectedly, or checksums/signing that were done last time \
+        but not this time. Base everything ONLY on the facts given; this is a description, not a go/no-go \
+        verdict — never tell the user to publish or not. Write the summary directly — do not restate this \
+        instruction or ask questions. Reply in the user's language.
+        """
+        var lines: [String] = [
+            "Previous release: \(old.versionLabel) (\(old.date.formatted(date: .abbreviated, time: .shortened)))",
+            "New release: \(new.versionLabel) (\(new.date.formatted(date: .abbreviated, time: .shortened)))",
+            "Format: \(old.formatRawValue) → \(new.formatRawValue)"
+        ]
+        if let oldBytes = old.totalBytes, let newBytes = new.totalBytes, let delta = comparison.totalBytesDelta {
+            lines.append("Size: \(oldBytes) → \(newBytes) bytes (delta \(delta >= 0 ? "+" : "")\(delta)).")
+        }
+        if let oldCount = old.fileCount, let newCount = new.fileCount, let delta = comparison.fileCountDelta {
+            lines.append("File count: \(oldCount) → \(newCount) (delta \(delta >= 0 ? "+" : "")\(delta)).")
+        }
+        if let changed = comparison.fingerprintChanged {
+            lines.append("Structural fingerprint changed: \(changed) (false = same packed content, repackaged or not).")
+        } else {
+            lines.append("Structural fingerprint: not comparable (one side has none).")
+        }
+        if comparison.junkRegression {
+            lines.append("JUNK REGRESSION: previous release had no macOS junk, this one has \(new.junkCount ?? 0).")
+        }
+        lines.append("Hygiene — reproducible: \(old.reproducible) → \(new.reproducible); SHA256SUMS written: \(old.wroteChecksums) → \(new.wroteChecksums); signed as .szs requested: \(old.signRequested) → \(new.signRequested).")
+        if let oldSus = old.suspiciousPathCount, let newSus = new.suspiciousPathCount {
+            lines.append("Suspicious entry paths: \(oldSus) → \(newSus).")
+        }
+        return (instructions, lines.joined(separator: "\n"))
+    }
+
     // MARK: - 内联自动速览(创建 / 解压窗口打开即静默跑,动态)
 
     /// 创建对话框 → 速览:预估耗时(定性)+ 一条实用建议(格式 / 级别 / 没问题)+ 冲突提醒。只建议不替用户改。

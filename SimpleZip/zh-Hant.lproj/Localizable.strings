@@ -2247,6 +2247,8 @@
 "ai.draftReleaseBody.title" = "AI 起草的發佈正文";
 "ai.categorizeIssue" = "智慧歸類";
 "ai.categorizeIssue.title" = "AI 問題歸類";
+"ai.compareSummary" = "白話總結";
+"ai.compareSummary.title" = "AI 發佈對比總結";
 "ai.suggestLabels" = "建議標籤";
 "ai.suggestLabels.title" = "AI 建議標籤";
 "ai.summarizeRisk.title" = "AI 風險總結";

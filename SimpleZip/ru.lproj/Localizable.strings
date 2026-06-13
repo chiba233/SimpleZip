@@ -2245,6 +2245,8 @@
 "ai.draftReleaseBody.title" = "ИИ-черновик описания релиза";
 "ai.categorizeIssue" = "Классифицировать";
 "ai.categorizeIssue.title" = "ИИ-сортировка обращений";
+"ai.compareSummary" = "Сводка";
+"ai.compareSummary.title" = "ИИ-сравнение релизов";
 "ai.suggestLabels" = "Предложить метки";
 "ai.suggestLabels.title" = "Метки, предложенные ИИ";
 "ai.summarizeRisk.title" = "Сводка рисков ИИ";

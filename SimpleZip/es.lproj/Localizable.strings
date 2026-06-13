@@ -2245,6 +2245,8 @@
 "ai.draftReleaseBody.title" = "Borrador de notas de versión con IA";
 "ai.categorizeIssue" = "Clasificar";
 "ai.categorizeIssue.title" = "Clasificación de incidencias con IA";
+"ai.compareSummary" = "Resumir";
+"ai.compareSummary.title" = "Comparación de versiones con IA";
 "ai.suggestLabels" = "Sugerir etiquetas";
 "ai.suggestLabels.title" = "Etiquetas sugeridas por IA";
 "ai.summarizeRisk.title" = "Resumen de riesgo con IA";
