@@ -2158,6 +2158,23 @@
 "settings.automation.shortcuts.title" = "단축어 동작";
 "settings.automation.shortcuts.description" = "단축어 앱에서 여덟 가지 동작을 사용할 수 있습니다: 아카이브 추출, 아카이브 생성, 아카이브 무결성 테스트, 체크섬 확인, 아카이브 비교, 아카이브 내용 검색, 아카이브 검사, 릴리스 패키지 생성.";
 "settings.automation.spotlight.section" = "Spotlight";
+
+/* macOS 26 AI 报告助手 */
+"button.copy" = "복사";
+"ai.summarizeRisk" = "위험 요약";
+"ai.summarizeRisk.title" = "AI 위험 요약";
+"ai.explainFailure" = "실패 설명";
+"ai.explainFailure.title" = "AI 실패 설명";
+"ai.regenerate" = "다시 생성";
+"ai.generating" = "생성 중…";
+"ai.disclaimer" = "AI가 생성한 내용으로 부정확할 수 있습니다. 보고서 자체를 기준으로 삼으세요.";
+"ai.unavailable.osTooOld" = "AI 기능에는 macOS 26 이상이 필요합니다.";
+"ai.unavailable.deviceNotEligible" = "이 Mac은 Apple Intelligence를 지원하지 않습니다.";
+"ai.unavailable.notEnabled" = "AI 기능을 사용하려면 시스템 설정에서 Apple Intelligence를 켜세요.";
+"ai.unavailable.modelNotReady" = "온디바이스 모델이 아직 준비되지 않았습니다(다운로드 중일 수 있음).";
+"settings.automation.ai.section" = "AI";
+"settings.automation.ai.title" = "AI 보고서 어시스턴트";
+"settings.automation.ai.description" = "온디바이스 요약 및 설명: 릴리스 위험 요약, 실패한 작업 설명, 점검 라벨 제안, GitHub 이슈 다듬기. 읽기 전용 — 파일이나 설정을 절대 변경하지 않습니다. macOS 26과 Apple Intelligence가 필요합니다.";
 "settings.automation.spotlight.title" = "Spotlight에 색인";
 "settings.automation.spotlight.description" = "릴리스 패키지와 최근 작업을 Spotlight에서 검색할 수 있게 합니다. 개인정보 보호를 위해 끄세요 — 이미 색인된 항목도 지워집니다. macOS 15 이상이 필요합니다.";
 "settings.automation.shortcuts.open" = "단축어 열기";

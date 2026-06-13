@@ -2157,6 +2157,23 @@
 "settings.automation.shortcuts.title" = "Actions Raccourcis";
 "settings.automation.shortcuts.description" = "Huit actions sont disponibles dans l’app Raccourcis : Extraire l’archive, Créer une archive, Tester l’intégrité de l’archive, Vérifier les sommes de contrôle, Comparer les archives, Rechercher dans l’archive, Inspecter l’archive et Créer un paquet de version.";
 "settings.automation.spotlight.section" = "Spotlight";
+
+/* macOS 26 AI 报告助手 */
+"button.copy" = "Copier";
+"ai.summarizeRisk" = "Résumer le risque";
+"ai.summarizeRisk.title" = "Résumé des risques par l’IA";
+"ai.explainFailure" = "Expliquer l’échec";
+"ai.explainFailure.title" = "Explication de l’échec par l’IA";
+"ai.regenerate" = "Regénérer";
+"ai.generating" = "Génération…";
+"ai.disclaimer" = "Généré par l’IA — peut être inexact. Le rapport lui-même fait foi.";
+"ai.unavailable.osTooOld" = "Les fonctions d’IA nécessitent macOS 26 ou ultérieur.";
+"ai.unavailable.deviceNotEligible" = "Ce Mac ne prend pas en charge Apple Intelligence.";
+"ai.unavailable.notEnabled" = "Activez Apple Intelligence dans Réglages Système pour utiliser les fonctions d’IA.";
+"ai.unavailable.modelNotReady" = "Le modèle sur l’appareil n’est pas encore prêt — il est peut-être en cours de téléchargement.";
+"settings.automation.ai.section" = "IA";
+"settings.automation.ai.title" = "Assistant de rapport par l’IA";
+"settings.automation.ai.description" = "Résumés et explications sur l’appareil : résumer le risque d’une version, expliquer une tâche échouée, suggérer des étiquettes de vérification, peaufiner un ticket GitHub. En lecture seule — ne modifie jamais les fichiers ni les réglages. Nécessite macOS 26 avec Apple Intelligence.";
 "settings.automation.spotlight.title" = "Indexer dans Spotlight";
 "settings.automation.spotlight.description" = "Rend les paquets de version et les tâches récentes accessibles via Spotlight. Désactivez pour plus de confidentialité — cela efface aussi ce qui est déjà indexé. Nécessite macOS 15 ou ultérieur.";
 "settings.automation.shortcuts.open" = "Ouvrir Raccourcis";

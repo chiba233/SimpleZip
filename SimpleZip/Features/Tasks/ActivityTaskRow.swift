@@ -22,6 +22,8 @@ struct ActivityTaskRow: View {
     @State private var copiedConfirmationText: String?
     /// 0.4.4(用户反馈):命令输出框按内容真实高度收缩、封顶 300pt(不再固定 300)。0 = 还没测到。
     @State private var commandLogHeight: CGFloat = 0
+    /// 0.4.4 D(macOS 26 AI):「解释失败」sheet 的展示状态。
+    @State private var showsAIExplainFailure = false
     /// 命令输出框高度上限 —— 超过就在框内滚动。
     private static let commandLogMaxHeight: CGFloat = 300
 
@@ -399,6 +401,32 @@ struct ActivityTaskRow: View {
                 }
                 .buttonStyle(.plain)
                 .help(L10n.text("button.resumeFromFailure"))
+            }
+            // 0.4.4 D(macOS 26 AI):「解释失败」—— 仅 isReady 且任务失败时出现。读失败消息 + 命令输出,
+            // 出可编辑的大白话解释 + 建议;只读、不改任何任务状态、不进安全写入路径。
+            if case .failed(let failureMessage) = task.status, AIReportAssistant.isReady {
+                Button {
+                    showsAIExplainFailure = true
+                } label: {
+                    Self.controlIcon("sparkles", tint: .purple)
+                }
+                .buttonStyle(.plain)
+                .help(L10n.text("ai.explainFailure"))
+                .sheet(isPresented: $showsAIExplainFailure) {
+                    AIAssistSheet(
+                        title: L10n.text("ai.explainFailure.title"),
+                        subtitle: task.title,
+                        systemImage: "sparkles"
+                    ) {
+                        guard #available(macOS 26.0, *) else { throw AIAssistError(message: L10n.text("ai.unavailable.osTooOld")) }
+                        let built = AIReportAssistant.failureExplanationPrompt(
+                            taskTitle: task.title,
+                            failureMessage: failureMessage,
+                            output: task.detailsSession?.rawOutput
+                        )
+                        return try await AIReportAssistant.generate(instructions: built.instructions, prompt: built.prompt)
+                    }
+                }
             }
             // 0.4.4 D:「以新参数重跑…」—— 创建类任务重开对话框预填(运行时态)。
             if !task.status.isRunning, task.rerunWithChanges != nil {

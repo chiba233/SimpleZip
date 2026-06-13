@@ -1247,6 +1247,23 @@
 "settings.automation.shortcuts.title" = "快捷指令动作";
 "settings.automation.shortcuts.description" = "快捷指令 App 里有八个动作：解压归档、创建归档、测试归档完整性、验证校验文件、比较归档、搜索归档内容、检查归档、创建发布包。";
 "settings.automation.spotlight.section" = "Spotlight";
+
+/* macOS 26 AI 报告助手 */
+"button.copy" = "复制";
+"ai.summarizeRisk" = "总结风险";
+"ai.summarizeRisk.title" = "AI 风险总结";
+"ai.explainFailure" = "解释失败";
+"ai.explainFailure.title" = "AI 失败解释";
+"ai.regenerate" = "重新生成";
+"ai.generating" = "正在生成…";
+"ai.disclaimer" = "AI 生成，可能有误。以报告本身为准。";
+"ai.unavailable.osTooOld" = "AI 功能需要 macOS 26 或更新版本。";
+"ai.unavailable.deviceNotEligible" = "这台 Mac 不支持 Apple Intelligence。";
+"ai.unavailable.notEnabled" = "请在系统设置里打开 Apple Intelligence 才能用 AI 功能。";
+"ai.unavailable.modelNotReady" = "本地模型还没准备好——可能还在下载。";
+"settings.automation.ai.section" = "AI";
+"settings.automation.ai.title" = "AI 报告助手";
+"settings.automation.ai.description" = "本地（Apple Intelligence）总结与解释：总结发布风险、解释失败任务、建议体检标签、润色 GitHub Issue。只读——绝不改动文件或设置。需要 macOS 26 + Apple Intelligence。";
 "settings.automation.spotlight.title" = "在 Spotlight 中索引";
 "settings.automation.spotlight.description" = "让发布包和最近的任务能在 Spotlight 里搜到。想更私密就关掉——关闭会同时清空已索引的内容。需要 macOS 15 或更新版本。";
 "settings.automation.shortcuts.open" = "打开快捷指令";

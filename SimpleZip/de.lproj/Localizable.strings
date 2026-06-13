@@ -2158,6 +2158,23 @@
 "settings.automation.shortcuts.title" = "Kurzbefehl-Aktionen";
 "settings.automation.shortcuts.description" = "In der Kurzbefehle-App stehen acht Aktionen bereit: Archiv entpacken, Archiv erstellen, Archivintegrität testen, Prüfsummen verifizieren, Archive vergleichen, Archivinhalt durchsuchen, Archiv prüfen und Veröffentlichungspaket erstellen.";
 "settings.automation.spotlight.section" = "Spotlight";
+
+/* macOS 26 AI 报告助手 */
+"button.copy" = "Kopieren";
+"ai.summarizeRisk" = "Risiko zusammenfassen";
+"ai.summarizeRisk.title" = "KI-Risikozusammenfassung";
+"ai.explainFailure" = "Fehler erklären";
+"ai.explainFailure.title" = "KI-Fehlererklärung";
+"ai.regenerate" = "Neu generieren";
+"ai.generating" = "Wird generiert …";
+"ai.disclaimer" = "KI-generiert — kann ungenau sein. Maßgeblich ist der Bericht selbst.";
+"ai.unavailable.osTooOld" = "KI-Funktionen erfordern macOS 26 oder neuer.";
+"ai.unavailable.deviceNotEligible" = "Dieser Mac unterstützt Apple Intelligence nicht.";
+"ai.unavailable.notEnabled" = "Aktiviere Apple Intelligence in den Systemeinstellungen, um KI-Funktionen zu nutzen.";
+"ai.unavailable.modelNotReady" = "Das geräteinterne Modell ist noch nicht bereit — es wird möglicherweise noch geladen.";
+"settings.automation.ai.section" = "KI";
+"settings.automation.ai.title" = "KI-Berichtsassistent";
+"settings.automation.ai.description" = "Geräteinterne Zusammenfassungen und Erklärungen: Veröffentlichungsrisiko zusammenfassen, fehlgeschlagene Aufgabe erklären, Prüf-Labels vorschlagen, GitHub-Issue aufpolieren. Schreibgeschützt — ändert nie Dateien oder Einstellungen. Erfordert macOS 26 mit Apple Intelligence.";
 "settings.automation.spotlight.title" = "In Spotlight indizieren";
 "settings.automation.spotlight.description" = "Macht Veröffentlichungspakete und letzte Aufgaben in Spotlight durchsuchbar. Zum Schutz der Privatsphäre ausschalten – das löscht auch bereits Indiziertes. Erfordert macOS 15 oder neuer.";
 "settings.automation.shortcuts.open" = "Kurzbefehle öffnen";

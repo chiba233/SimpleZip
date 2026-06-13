@@ -2159,6 +2159,23 @@
 "settings.automation.shortcuts.title" = "ショートカットアクション";
 "settings.automation.shortcuts.description" = "ショートカット App では 8 つのアクションを利用できます：アーカイブを展開、アーカイブを作成、アーカイブの整合性をテスト、チェックサムを検証、アーカイブを比較、アーカイブ内を検索、アーカイブを検査、リリースパッケージを作成。";
 "settings.automation.spotlight.section" = "Spotlight";
+
+/* macOS 26 AI 报告助手 */
+"button.copy" = "コピー";
+"ai.summarizeRisk" = "リスクを要約";
+"ai.summarizeRisk.title" = "AI リスク要約";
+"ai.explainFailure" = "失敗を説明";
+"ai.explainFailure.title" = "AI 失敗の説明";
+"ai.regenerate" = "再生成";
+"ai.generating" = "生成中…";
+"ai.disclaimer" = "AI 生成のため不正確な場合があります。レポート本体を正としてください。";
+"ai.unavailable.osTooOld" = "AI 機能には macOS 26 以降が必要です。";
+"ai.unavailable.deviceNotEligible" = "この Mac は Apple Intelligence に対応していません。";
+"ai.unavailable.notEnabled" = "AI 機能を使うにはシステム設定で Apple Intelligence をオンにしてください。";
+"ai.unavailable.modelNotReady" = "オンデバイスモデルの準備ができていません（ダウンロード中の可能性があります）。";
+"settings.automation.ai.section" = "AI";
+"settings.automation.ai.title" = "AI レポートアシスタント";
+"settings.automation.ai.description" = "オンデバイスの要約と説明：リリースのリスク要約、失敗タスクの説明、点検ラベルの提案、GitHub Issue の推敲。読み取り専用——ファイルや設定は一切変更しません。macOS 26 と Apple Intelligence が必要です。";
 "settings.automation.spotlight.title" = "Spotlight でインデックス";
 "settings.automation.spotlight.description" = "リリースパッケージと最近のタスクを Spotlight で検索できるようにします。プライバシーを優先する場合はオフにしてください。オフにすると索引済みの内容も消去されます。macOS 15 以降が必要です。";
 "settings.automation.shortcuts.open" = "ショートカットを開く";

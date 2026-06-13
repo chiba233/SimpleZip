@@ -2159,6 +2159,23 @@
 "settings.automation.shortcuts.title" = "捷徑動作";
 "settings.automation.shortcuts.description" = "「快捷指令」App 裡有八個動作：解壓歸檔、建立歸檔、測試歸檔完整性、驗證校驗檔、比較歸檔、搜尋歸檔內容、檢查歸檔、建立發佈套件。";
 "settings.automation.spotlight.section" = "Spotlight";
+
+/* macOS 26 AI 报告助手 */
+"button.copy" = "拷貝";
+"ai.summarizeRisk" = "總結風險";
+"ai.summarizeRisk.title" = "AI 風險總結";
+"ai.explainFailure" = "解釋失敗";
+"ai.explainFailure.title" = "AI 失敗解釋";
+"ai.regenerate" = "重新生成";
+"ai.generating" = "正在生成…";
+"ai.disclaimer" = "AI 生成，可能有誤。以報告本身為準。";
+"ai.unavailable.osTooOld" = "AI 功能需要 macOS 26 或更新版本。";
+"ai.unavailable.deviceNotEligible" = "這台 Mac 不支援 Apple Intelligence。";
+"ai.unavailable.notEnabled" = "請在系統設定裡開啟 Apple Intelligence 才能使用 AI 功能。";
+"ai.unavailable.modelNotReady" = "本地模型還沒準備好——可能還在下載。";
+"settings.automation.ai.section" = "AI";
+"settings.automation.ai.title" = "AI 報告助手";
+"settings.automation.ai.description" = "本地（Apple Intelligence）總結與解釋：總結發佈風險、解釋失敗任務、建議體檢標籤、潤色 GitHub Issue。唯讀——絕不改動檔案或設定。需要 macOS 26 + Apple Intelligence。";
 "settings.automation.spotlight.title" = "在 Spotlight 中建立索引";
 "settings.automation.spotlight.description" = "讓發佈套件與最近的任務能在 Spotlight 中搜尋。想更私密就關閉——關閉會一併清除已索引的內容。需要 macOS 15 或更新版本。";
 "settings.automation.shortcuts.open" = "打開捷徑";

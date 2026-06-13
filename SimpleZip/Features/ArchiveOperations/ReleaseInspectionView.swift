@@ -158,6 +158,17 @@ struct ReleaseInspectionView: View {
                 // 用户点名:底栏一排文字按钮被截断 → 全部并进「导出报告」一个弹窗里选
                 // (F2 四项 + 发布说明 / 全部复制 / SHA256SUMS)。
                 ReportExportControl(report: report, extraActions: exportExtraActions)
+                // A(macOS 26 AI):AI 总结风险。仅 isReady 时出现;只读报告 → 生成可编辑摘要,绝不改任何东西。
+                AIAssistButton(
+                    label: L10n.text("ai.summarizeRisk"),
+                    systemImage: "sparkles",
+                    sheetTitle: L10n.text("ai.summarizeRisk.title"),
+                    sheetSubtitle: report.archiveURL.lastPathComponent
+                ) {
+                    guard #available(macOS 26.0, *) else { throw AIAssistError(message: L10n.text("ai.unavailable.osTooOld")) }
+                    let built = AIReportAssistant.riskSummaryPrompt(for: report)
+                    return try await AIReportAssistant.generate(instructions: built.instructions, prompt: built.prompt)
+                }
                 // E:跳转到同一归档的空间分析(bundle-only 检查没有归档侧数据,不显示)。
                 if let onOpenSpaceAnalysis, !report.isBundleOnly {
                     Button {

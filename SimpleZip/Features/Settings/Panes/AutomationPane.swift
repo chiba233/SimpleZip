@@ -19,6 +19,8 @@ struct AutomationPane: View {
     @AppStorage(AppPreferences.Key.automationAllowPresetPassword) private var allowPresetPassword = true
     /// 0.4.4 macOS 26 AI:是否把发布包 / 任务捐献进 Spotlight。默认 true = 便利;关 = 更私密(并清空已索引)。
     @AppStorage(AppPreferences.Key.spotlightIndexingEnabled) private var spotlightIndexing = true
+    /// 0.4.4 macOS 26 AI:AI 报告助手主开关。关 → 所有 AI 入口隐藏。
+    @AppStorage(AppPreferences.Key.aiAssistantEnabled) private var aiAssistant = true
 
     @ObservedObject private var taskCenter = TaskCenter.shared
 
@@ -126,6 +128,23 @@ struct AutomationPane: View {
                     // indexer 内部按 `spotlightIndexingEnabled` 分支:开→重建、关→清空已捐献的索引。
                     ReleasePackageSpotlightIndexer.reindex()
                     ArchiveTaskSpotlightIndexer.reindex()
+                }
+            }
+
+            // ②.6 AI 报告助手(macOS 26 本地模型):总结风险 / 解释失败 / 建议标签 / Issue 草稿。
+            // 主开关关 → 所有 AI 入口隐藏;开但模型不可用(旧系统 / 没开 Apple Intelligence / 没下完)→ 说明文案。
+            Section(L10n.text("settings.automation.ai.section")) {
+                SettingsToggleRow(
+                    title: L10n.text("settings.automation.ai.title"),
+                    description: L10n.text("settings.automation.ai.description"),
+                    systemImage: "sparkles", iconTint: .purple,
+                    isOn: $aiAssistant
+                )
+                if aiAssistant, !AIReportAssistant.isReady {
+                    Text(AIReportAssistant.unavailableReason)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
 

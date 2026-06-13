@@ -340,6 +340,9 @@ enum AppPreferences {
         nonisolated static let automationAllowPresetPassword = "automationAllowPresetPassword"
         /// 0.4.4 macOS 26 AI:把发布包 / 活动中心任务捐献进 Spotlight 语义索引(默认 true = 便利;关 = 更私密)。
         nonisolated static let spotlightIndexingEnabled = "spotlightIndexingEnabled"
+        /// 0.4.4 macOS 26 AI:AI 报告助手主开关(总结风险 / 解释失败 / 建议标签 / Issue 草稿)。默认 true;
+        /// 实际入口还要 macOS 26+ 且系统模型 available 才出现 —— 关掉则所有 AI 入口隐藏。
+        nonisolated static let aiAssistantEnabled = "aiAssistantEnabled"
         nonisolated static let tasksPlaySoundOnFinish = "tasksPlaySoundOnFinish"
         nonisolated static let collapseVolumeSets = "collapseVolumeSets"
         // 0.4.3 #7:写入后自动验证(改写族默认开 / 创建与转换默认关)。
@@ -386,6 +389,11 @@ enum AppPreferences {
     /// 默认 true = 便利(可在 Spotlight 里搜到);关 = 更私密(且调用方负责清空已捐献索引)。仅 macOS 15+ 有实际效果。
     nonisolated static var spotlightIndexingEnabled: Bool {
         defaultTrueBool(forKey: Key.spotlightIndexingEnabled)
+    }
+
+    /// 0.4.4 macOS 26 AI:AI 报告助手主开关。默认 true;入口另需 macOS 26 + 模型 available。
+    nonisolated static var aiAssistantEnabled: Bool {
+        defaultTrueBool(forKey: Key.aiAssistantEnabled)
     }
 
     nonisolated static var tasksOpenOnFailure: Bool {
@@ -936,6 +944,7 @@ enum AppPreferences {
         Key.tasksPlaySoundOnFinish,
         Key.automationAllowPresetPassword,
         Key.spotlightIndexingEnabled,
+        Key.aiAssistantEnabled,
         Key.collapseVolumeSets,
         Key.verifyAfterArchiveRewrite,
         Key.verifyAfterArchiveCreate,
@@ -1042,6 +1051,7 @@ enum AppPreferences {
         v[Key.tasksOpenOnFailure] = tasksOpenOnFailure
         v[Key.automationAllowPresetPassword] = automationAllowPresetPassword
         v[Key.spotlightIndexingEnabled] = spotlightIndexingEnabled
+        v[Key.aiAssistantEnabled] = aiAssistantEnabled
         v[Key.tasksPlaySoundOnFinish] = tasksPlaySoundOnFinish
         v[Key.collapseVolumeSets] = collapseVolumeSets
         v[Key.verifyAfterArchiveRewrite] = verifyAfterArchiveRewrite

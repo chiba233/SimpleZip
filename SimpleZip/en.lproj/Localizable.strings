@@ -1249,6 +1249,23 @@
 "settings.automation.shortcuts.title" = "Shortcuts Actions";
 "settings.automation.shortcuts.description" = "Eight actions are available in the Shortcuts app: Extract Archive, Create Archive, Test Archive Integrity, Verify Checksums, Compare Archives, Search Archive Contents, Inspect Archive and Create Release Package.";
 "settings.automation.spotlight.section" = "Spotlight";
+
+/* macOS 26 AI 报告助手 */
+"button.copy" = "Copy";
+"ai.summarizeRisk" = "Summarize Risk";
+"ai.summarizeRisk.title" = "AI Risk Summary";
+"ai.explainFailure" = "Explain Failure";
+"ai.explainFailure.title" = "AI Failure Explanation";
+"ai.regenerate" = "Regenerate";
+"ai.generating" = "Generating…";
+"ai.disclaimer" = "AI-generated — may be inaccurate. Treat the report itself as the source of truth.";
+"ai.unavailable.osTooOld" = "AI features need macOS 26 or later.";
+"ai.unavailable.deviceNotEligible" = "This Mac doesn't support Apple Intelligence.";
+"ai.unavailable.notEnabled" = "Turn on Apple Intelligence in System Settings to use AI features.";
+"ai.unavailable.modelNotReady" = "The on-device model isn't ready yet — it may still be downloading.";
+"settings.automation.ai.section" = "AI";
+"settings.automation.ai.title" = "AI Report Assistant";
+"settings.automation.ai.description" = "On-device summaries and explanations: summarize a release's risk, explain a failed task, suggest checkup labels, polish a GitHub issue. Read-only — it never changes files or settings. Needs macOS 26 with Apple Intelligence.";
 "settings.automation.spotlight.title" = "Index in Spotlight";
 "settings.automation.spotlight.description" = "Make release packages and recent tasks searchable in Spotlight. Turn this off for more privacy — it also clears what's already indexed. Needs macOS 15 or later.";
 "settings.automation.shortcuts.open" = "Open Shortcuts";

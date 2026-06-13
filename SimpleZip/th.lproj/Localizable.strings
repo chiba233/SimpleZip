@@ -2157,6 +2157,23 @@
 "settings.automation.shortcuts.title" = "การทำงานของคำสั่งลัด";
 "settings.automation.shortcuts.description" = "มีแปดการกระทำในแอป Shortcuts: แตกไฟล์เก็บถาวร, สร้างไฟล์เก็บถาวร, ทดสอบความสมบูรณ์ของไฟล์เก็บถาวร, ตรวจสอบเช็กซัม, เปรียบเทียบไฟล์เก็บถาวร, ค้นหาเนื้อหาไฟล์เก็บถาวร, ตรวจสอบไฟล์เก็บถาวร และสร้างแพ็กเกจรีลีส";
 "settings.automation.spotlight.section" = "Spotlight";
+
+/* macOS 26 AI 报告助手 */
+"button.copy" = "คัดลอก";
+"ai.summarizeRisk" = "สรุปความเสี่ยง";
+"ai.summarizeRisk.title" = "สรุปความเสี่ยงด้วย AI";
+"ai.explainFailure" = "อธิบายความล้มเหลว";
+"ai.explainFailure.title" = "คำอธิบายความล้มเหลวด้วย AI";
+"ai.regenerate" = "สร้างใหม่";
+"ai.generating" = "กำลังสร้าง…";
+"ai.disclaimer" = "สร้างโดย AI อาจไม่ถูกต้อง ให้ยึดรายงานเป็นหลัก";
+"ai.unavailable.osTooOld" = "ฟีเจอร์ AI ต้องใช้ macOS 26 ขึ้นไป";
+"ai.unavailable.deviceNotEligible" = "Mac เครื่องนี้ไม่รองรับ Apple Intelligence";
+"ai.unavailable.notEnabled" = "เปิด Apple Intelligence ในการตั้งค่าระบบเพื่อใช้ฟีเจอร์ AI";
+"ai.unavailable.modelNotReady" = "โมเดลในเครื่องยังไม่พร้อม — อาจกำลังดาวน์โหลด";
+"settings.automation.ai.section" = "AI";
+"settings.automation.ai.title" = "ผู้ช่วยรายงาน AI";
+"settings.automation.ai.description" = "สรุปและอธิบายในเครื่อง: สรุปความเสี่ยงของรีลีส อธิบายงานที่ล้มเหลว แนะนำป้ายตรวจสอบ ขัดเกลา GitHub issue อ่านอย่างเดียว — ไม่เปลี่ยนแปลงไฟล์หรือการตั้งค่า ต้องใช้ macOS 26 พร้อม Apple Intelligence";
 "settings.automation.spotlight.title" = "จัดทำดัชนีใน Spotlight";
 "settings.automation.spotlight.description" = "ทำให้ค้นหาแพ็กเกจรีลีสและงานล่าสุดใน Spotlight ได้ ปิดเพื่อความเป็นส่วนตัวมากขึ้น — การปิดจะล้างสิ่งที่จัดทำดัชนีไว้แล้วด้วย ต้องใช้ macOS 15 ขึ้นไป";
 "settings.automation.shortcuts.open" = "เปิดคำสั่งลัด";

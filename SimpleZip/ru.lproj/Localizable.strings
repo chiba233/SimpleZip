@@ -2157,6 +2157,23 @@
 "settings.automation.shortcuts.title" = "Действия Команд";
 "settings.automation.shortcuts.description" = "В приложении «Быстрые команды» доступно восемь действий: извлечь архив, создать архив, проверить целостность архива, проверить контрольные суммы, сравнить архивы, поиск в архиве, проверить архив и создать релизный пакет.";
 "settings.automation.spotlight.section" = "Spotlight";
+
+/* macOS 26 AI 报告助手 */
+"button.copy" = "Скопировать";
+"ai.summarizeRisk" = "Сводка рисков";
+"ai.summarizeRisk.title" = "Сводка рисков ИИ";
+"ai.explainFailure" = "Объяснить ошибку";
+"ai.explainFailure.title" = "Объяснение ошибки от ИИ";
+"ai.regenerate" = "Сгенерировать заново";
+"ai.generating" = "Генерация…";
+"ai.disclaimer" = "Сгенерировано ИИ — возможны неточности. Источник истины — сам отчёт.";
+"ai.unavailable.osTooOld" = "Для функций ИИ требуется macOS 26 или новее.";
+"ai.unavailable.deviceNotEligible" = "Этот Mac не поддерживает Apple Intelligence.";
+"ai.unavailable.notEnabled" = "Включите Apple Intelligence в Системных настройках, чтобы использовать функции ИИ.";
+"ai.unavailable.modelNotReady" = "Локальная модель ещё не готова — возможно, она загружается.";
+"settings.automation.ai.section" = "ИИ";
+"settings.automation.ai.title" = "ИИ-ассистент отчётов";
+"settings.automation.ai.description" = "Локальные сводки и объяснения: сводка рисков релиза, объяснение неудачной задачи, предложение меток проверки, доработка задачи на GitHub. Только чтение — никогда не меняет файлы или настройки. Требуется macOS 26 с Apple Intelligence.";
 "settings.automation.spotlight.title" = "Индексировать в Spotlight";
 "settings.automation.spotlight.description" = "Позволяет искать релизные пакеты и недавние задачи в Spotlight. Отключите для большей приватности — это также очистит уже проиндексированное. Требуется macOS 15 или новее.";
 "settings.automation.shortcuts.open" = "Открыть Команды";
