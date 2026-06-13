@@ -693,6 +693,123 @@ extension ArchiveBrowserModel {
         }
     }
 
+    // MARK: - 归档体检批处理(0.4.4 #7)
+
+    /// 右键「批量体检」:多选归档 → 体检选中的;单选文件夹 → 体检该文件夹顶层全部归档。
+    /// 串行逐包(单包失败不中断);密码**只走会话缓存静默试,绝不弹窗** —— 解不开如实标「需要密码」。
+    func checkupSelectedArchives() {
+        var urls = selectedFileItems.filter { !$0.isDirectory && ArchiveService.isSupportedArchive($0.url) }.map(\.url)
+        var scopeName = L10n.format("checkup.scope.selection", "\(urls.count)")
+        if urls.isEmpty,
+           selectedFileItems.count == 1,
+           let folder = selectedFileItems.first, folder.isDirectory, !folder.isPackage {
+            let names = (try? fileManager.contentsOfDirectory(atPath: folder.url.path)) ?? []
+            urls = names
+                .map { folder.url.appendingPathComponent($0) }
+                .filter { ArchiveService.isSupportedArchive($0) }
+                .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+            scopeName = folder.url.lastPathComponent
+        }
+        guard !urls.isEmpty else {
+            errorMessage = L10n.text("error.openOrSelectArchive")
+            return
+        }
+        runArchiveCheckup(urls, scopeName: scopeName)
+    }
+
+    private func runArchiveCheckup(_ urls: [URL], scopeName: String) {
+        var rows: [ArchiveCheckupRow] = []
+        startManagedArchiveTask(
+            title: L10n.format("checkup.taskTitle", "\(urls.count)"),
+            kind: .test,
+            showsDetails: true,
+            successStatus: nil,
+            refreshOnSuccess: { [weak self] in
+                self?.archiveCheckupReport = ArchiveCheckupReport(scopeName: scopeName, rows: rows)
+            },
+            onSucceeded: { [weak self] task in
+                task.transferLog = rows.map { row in
+                    let passed: Bool = { if case .passed = row.testOutcome { return true } else { return false } }()
+                    return TransferLogEntry(name: row.fileName, action: passed ? .passed : .failed, isDirectory: false)
+                }
+                task.openReport = { self?.archiveCheckupReport = ArchiveCheckupReport(scopeName: scopeName, rows: rows) }
+            },
+            rerunAction: { [weak self] in self?.runArchiveCheckup(urls, scopeName: scopeName) }
+        ) { operationID, progress, outputObserver in
+            var duplicateSources: [ArchiveDuplicateScan.Source] = []
+            for (index, url) in urls.enumerated() {
+                progress(ArchiveProgressState(
+                    fraction: Double(index) / Double(urls.count),
+                    currentFile: url.lastPathComponent
+                ))
+                outputObserver?("\n== \(url.lastPathComponent)\n")
+                // ① 列目录:空口令 + 会话缓存逐个静默试(不弹窗)。
+                var items: [ArchiveItem]?
+                var usablePassword = ""
+                var lastError: Error?
+                for password in [""] + SessionPasswordCache.shared.candidates(for: url) {
+                    do {
+                        items = try await ArchiveService.list(url, password: password, operationID: operationID)
+                        usablePassword = password
+                        break
+                    } catch is CancellationError {
+                        throw CancellationError()
+                    } catch {
+                        lastError = error
+                    }
+                }
+                // ② 缺分卷 / 只读格式(不依赖能否打开)。
+                let siblings = (try? FileManager.default.contentsOfDirectory(atPath: url.deletingLastPathComponent().path)) ?? []
+                let missingVolumes = FileSplitCombine.volumeSet(forMemberNamed: url.lastPathComponent, among: siblings)?.missingIndices.count ?? 0
+                let readOnly = ArchiveService.entryUpdateRestriction(forExtension: url.pathExtension) != nil
+                guard let items else {
+                    let needsPassword = lastError.map { ArchiveService.errorSuggestsPasswordRequirement($0) } ?? false
+                    rows.append(ArchiveCheckupRow(
+                        fileName: url.lastPathComponent,
+                        testOutcome: needsPassword ? .needsPassword : .notListable,
+                        facts: nil,
+                        missingVolumeCount: missingVolumes,
+                        readOnlyFormat: readOnly
+                    ))
+                    continue
+                }
+                // ③ 条目侧事实(可疑路径 / 垃圾 / 加密)。
+                let facts = ArchiveCheckup.entryFacts(items: items)
+                // ④ 完整性测试(用列目录成功的同一口令;失败归类,不中断整批)。
+                var outcome = ArchiveCheckupRow.TestOutcome.passed
+                do {
+                    try await ArchiveService.test(url, password: usablePassword, operationID: operationID, outputObserver: outputObserver)
+                } catch is CancellationError {
+                    throw CancellationError()
+                } catch {
+                    outcome = .failed(ArchiveService.classifyTestFailure(error.localizedDescription))
+                }
+                rows.append(ArchiveCheckupRow(
+                    fileName: url.lastPathComponent,
+                    testOutcome: outcome,
+                    facts: facts,
+                    missingVolumeCount: missingVolumes,
+                    readOnlyFormat: readOnly
+                ))
+                let files = items.filter { !$0.isDirectory }
+                duplicateSources.append(ArchiveDuplicateScan.Source(
+                    url: url,
+                    fingerprint: ArchiveStructuralFingerprint.compute(for: items),
+                    entryCount: files.count,
+                    totalBytes: files.reduce(0) { $0 + ($1.size ?? 0) }
+                ))
+            }
+            // ⑤ 疑似同包(结构指纹相同):跑完整批后标注互为伙伴。
+            for group in ArchiveDuplicateScan.groups(from: duplicateSources) {
+                let names = group.urls.map(\.lastPathComponent)
+                for index in rows.indices where names.contains(rows[index].fileName) {
+                    rows[index].duplicatePeers = names.filter { $0 != rows[index].fileName }
+                }
+            }
+            progress(ArchiveProgressState(fraction: 1.0, statusText: nil))
+        }
+    }
+
     // MARK: - 发布目录完整性检查(0.4.4 #11)
 
     /// 右键文件夹「检查发布目录…」:SHA256SUMS 覆盖与实测 / .szs 清单文件级核对 / VERIFY.md 引用 /

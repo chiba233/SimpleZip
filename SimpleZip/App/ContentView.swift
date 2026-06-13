@@ -1310,6 +1310,12 @@ private struct ArchiveExtrasSheets: ViewModifier {
                     model.archiveMetadataReport = nil
                 }
             }
+            .sheet(item: $model.archiveCheckupReport) { report in
+                // 0.4.4 #7:归档体检批处理报告。
+                ArchiveCheckupView(report: report) {
+                    model.archiveCheckupReport = nil
+                }
+            }
             .sheet(item: $model.batchRenameRequest) { request in
                 BatchRenameSheet(request: request) { changes in
                     model.batchRenameRequest = nil

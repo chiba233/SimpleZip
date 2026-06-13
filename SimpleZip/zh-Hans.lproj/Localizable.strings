@@ -1196,6 +1196,22 @@
 "dirAudit.isolatedVerify.skipped" = "公钥验签已跳过(GPG 关闭,或多把公钥/多份清单无法确定配对)。";
 "dirAudit.orphans" = "%@ 个文件不属于任何已知发布角色(产物、校验、签名、文档):";
 "dirAudit.nothingToCheck" = "这里看起来没有发布材料——没有产物、校验文件或签名清单。";
+/* 0.4.4 #7 归档体检 */
+"checkup.menu" = "批量体检";
+"checkup.folder.menu" = "体检文件夹内归档";
+"checkup.title" = "归档体检";
+"checkup.subtitle" = "%1$@——%2$@ 个归档";
+"checkup.scope.selection" = "选中的 %@ 个归档";
+"checkup.taskTitle" = "正在体检 %@ 个归档";
+"checkup.summary" = "%1$@ 个归档,%2$@ 个有发现";
+"checkup.test.passed" = "测试通过";
+"checkup.test.needsPassword" = "需要密码(缓存口令都不对——体检绝不弹窗)";
+"checkup.badge.suspicious" = "可疑路径";
+"checkup.badge.junk" = "macOS 垃圾条目";
+"checkup.badge.encrypted" = "加密条目";
+"checkup.badge.missingVolumes" = "缺失分卷";
+"checkup.badge.readOnly" = "只读格式(不能编辑条目)";
+"checkup.badge.duplicates" = "与这些包结构相同:%@";
 /* 0.4.4 #13 归档元数据报告 */
 "metadata.menu" = "元数据报告";
 "metadata.title" = "归档元数据";

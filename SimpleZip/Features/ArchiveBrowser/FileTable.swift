@@ -1095,6 +1095,10 @@ struct FileNSOutlineView: NSViewRepresentable {
             } else {
                 toolsMenu.addItem(menuItem(L10n.text("button.test"), systemImage: "checkmark.seal", action: #selector(testSelectedArchive)))
             }
+            // 0.4.4 #7:批量体检 —— 选中 ≥1 个归档(单包也能体检)。
+            if selectedArchiveCount >= 1 {
+                toolsMenu.addItem(menuItem(L10n.text("checkup.menu"), systemImage: "stethoscope", action: #selector(checkupArchives)))
+            }
             // #111 比较：恰好选中 2 个可比对项（归档或文件夹，0.4.2 #25）→ 直接比；
             // 单选 1 个归档 / 文件夹 → 再挑一个比（面板可选文件夹）。
             let comparableCount = model.selectedFileItems.filter { $0.isDirectory || ArchiveService.isSupportedArchive($0.url) }.count
@@ -1116,6 +1120,8 @@ struct FileNSOutlineView: NSViewRepresentable {
                       only.isDirectory, !only.isPackage {
                 // 0.4.4 #11:单选普通文件夹 → 发布目录完整性检查(SHA256SUMS/.szs/公钥/孤儿)。
                 toolsMenu.addItem(menuItem(L10n.text("dirAudit.menu"), systemImage: "folder.badge.questionmark", action: #selector(auditReleaseDirectory)))
+                // 0.4.4 #7:体检文件夹顶层的全部归档。
+                toolsMenu.addItem(menuItem(L10n.text("checkup.folder.menu"), systemImage: "stethoscope", action: #selector(checkupArchives)))
             }
             // #112 转换格式：选中项全是支持的归档时出现，弹格式选择 sheet 批量转换。
             if model.canConvertSelectedArchives {
@@ -1421,6 +1427,10 @@ struct FileNSOutlineView: NSViewRepresentable {
 
         @objc private func auditReleaseDirectory() {
             model.auditSelectedReleaseDirectory()
+        }
+
+        @objc private func checkupArchives() {
+            model.checkupSelectedArchives()
         }
 
         @objc private func findDuplicateArchives() {

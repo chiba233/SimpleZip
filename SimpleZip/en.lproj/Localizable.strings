@@ -1198,6 +1198,22 @@
 "dirAudit.isolatedVerify.skipped" = "Public-key verification skipped (GPG disabled, or multiple keys/manifests make it ambiguous).";
 "dirAudit.orphans" = "%@ files don't belong to any known release role (artifacts, checksums, signatures, docs):";
 "dirAudit.nothingToCheck" = "Nothing here looks like release material — no artifacts, checksums or signed manifests found.";
+/* 0.4.4 #7 archive checkup */
+"checkup.menu" = "Batch Checkup";
+"checkup.folder.menu" = "Checkup Archives in Folder";
+"checkup.title" = "Archive Checkup";
+"checkup.subtitle" = "%1$@ — %2$@ archives";
+"checkup.scope.selection" = "%@ selected archives";
+"checkup.taskTitle" = "Checking up %@ archives";
+"checkup.summary" = "%1$@ archives, %2$@ with findings";
+"checkup.test.passed" = "Test passed";
+"checkup.test.needsPassword" = "Needs a password (cached passwords didn't fit — checkup never prompts)";
+"checkup.badge.suspicious" = "Suspicious paths";
+"checkup.badge.junk" = "macOS junk entries";
+"checkup.badge.encrypted" = "Encrypted entries";
+"checkup.badge.missingVolumes" = "Missing volumes";
+"checkup.badge.readOnly" = "Read-only format (cannot edit entries)";
+"checkup.badge.duplicates" = "Same structure as: %@";
 /* 0.4.4 #13 archive metadata report */
 "metadata.menu" = "Metadata Report";
 "metadata.title" = "Archive Metadata";
