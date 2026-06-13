@@ -107,6 +107,7 @@ struct AutomationPane: View {
                 lastRunRow(for: .cli)
             }
             .onAppear(perform: reloadCLIStatus)
+            .settingsAnchor("automation.cli")
 
             // ② Shortcuts / Siri。
             Section(L10n.text("settings.automation.shortcuts.section")) {
@@ -123,6 +124,7 @@ struct AutomationPane: View {
                         Label(L10n.text("settings.automation.shortcuts.open"), systemImage: "arrow.up.forward.app")
                     }
                 }
+                .settingsAnchor("automation.shortcuts")
                 Text(L10n.text("settings.automation.shortcuts.actions"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -350,6 +352,7 @@ struct AutomationPane: View {
                     buttonTitle: L10n.text("settings.automation.pathHealth.check"),
                     action: checkPathHealth
                 )
+                .settingsAnchor("automation.pathHealth")
                 if pathHealthChecked {
                     let problems = pathHealthEntries.filter { $0.status != .accessible }
                     if problems.isEmpty {

@@ -146,7 +146,41 @@ nonisolated enum SettingsCatalog {
                             keywords: ["updates", "auto download", "automatic"], isToggleable: true),
         // 备份
         SettingsCatalogItem(id: "backup.includePerFolderMemory", pane: .backup, titleKey: "backup.includePerFolderMemory",
-                            keywords: ["backup", "per folder", "memory", "export"], isToggleable: true)
+                            keywords: ["backup", "per folder", "memory", "export"], isToggleable: true),
+        // 0.4.4 #31 扩充:补齐此前漏掉的设置项,让「几乎全部选项」都能在 Spotlight 搜到 + 跳转定位
+        // (避免「中途半端」让用户不信任)。视图:分组 / 隐藏后缀。
+        SettingsCatalogItem(id: "view.grouping", pane: .view, titleKey: "settings.grouping.groupBy",
+                            keywords: ["grouping", "group by", "sort into groups", "per folder"], isToggleable: false),
+        SettingsCatalogItem(id: "view.hiddenSuffixes", pane: .view, titleKey: "settings.hiddenSuffixesEnabled",
+                            keywords: ["hidden suffixes", "hide extension", "hidden extensions", "suffix"], isToggleable: true),
+        // 归档:压缩默认值 + 后端引擎(picker,只跳转)。
+        SettingsCatalogItem(id: "archive.compressionDefaults", pane: .archive, titleKey: "settings.defaults.title",
+                            keywords: ["compression defaults", "format defaults", "default level", "presets"], isToggleable: false),
+        SettingsCatalogItem(id: "archive.sevenZipBackend", pane: .archive, titleKey: "settings.7zip.backend",
+                            keywords: ["7-zip backend", "7zip", "p7zip", "engine", "backend"], isToggleable: false),
+        SettingsCatalogItem(id: "archive.rarBackend", pane: .archive, titleKey: "settings.rar.backend",
+                            keywords: ["rar backend", "unrar", "rar engine", "backend"], isToggleable: false),
+        // GPG:签名策略 + 智能卡(安全子系统,只跳转不直接切)。
+        SettingsCatalogItem(id: "gpg.signing", pane: .gpg, titleKey: "settings.gpg.defaults.signingStrategy.label",
+                            keywords: ["signing key", "signing strategy", "default signing", "sign"], isToggleable: false),
+        SettingsCatalogItem(id: "gpg.smartcard", pane: .gpg, titleKey: "settings.gpg.smartcard.enableTitle",
+                            keywords: ["smartcard", "smart card", "yubikey", "openpgp card", "hardware key", "token"], isToggleable: false),
+        // 自动化:命令行工具 / 快捷指令 / 发布路径健康。
+        SettingsCatalogItem(id: "automation.cli", pane: .automation, titleKey: "settings.cli.title",
+                            keywords: ["command line", "cli", "terminal", "simplezip command", "install command line tool"], isToggleable: false),
+        SettingsCatalogItem(id: "automation.shortcuts", pane: .automation, titleKey: "settings.automation.shortcuts.title",
+                            keywords: ["shortcuts", "siri", "automation actions", "shortcut"], isToggleable: false),
+        SettingsCatalogItem(id: "automation.pathHealth", pane: .automation, titleKey: "settings.automation.pathHealth.title",
+                            keywords: ["path health", "release paths", "missing folders", "saved paths"], isToggleable: false),
+        // 文件关联 / 健康 / 备份(动作区:可搜可跳,非开关)。
+        SettingsCatalogItem(id: "fileAssociations", pane: .fileAssociations, titleKey: "settings.section.fileAssociations",
+                            keywords: ["file associations", "default app", "open with", "set default", "default application"], isToggleable: false),
+        SettingsCatalogItem(id: "health", pane: .health, titleKey: "settings.section.health",
+                            keywords: ["health check", "diagnostics", "environment", "backend status", "temp files"], isToggleable: false),
+        SettingsCatalogItem(id: "backup.export", pane: .backup, titleKey: "backup.export.title",
+                            keywords: ["export settings", "backup settings", "import settings", "transfer settings"], isToggleable: false),
+        SettingsCatalogItem(id: "backup.factoryReset", pane: .backup, titleKey: "backup.restore.title",
+                            keywords: ["factory reset", "restore defaults", "reset settings", "erase settings"], isToggleable: false)
     ]
 
     static func item(id: String) -> SettingsCatalogItem? {
@@ -405,6 +439,9 @@ enum SettingToggleRegistry {
         case "view.rememberVolumeSetExpansion":
             return Accessor(get: { AppPreferences.rememberVolumeSetExpansion },
                             set: { setBool($0, AppPreferences.Key.rememberVolumeSetExpansion); notifyBrowser() })
+        case "view.hiddenSuffixes":
+            return Accessor(get: { AppPreferences.hiddenSuffixesEnabled },
+                            set: { setBool($0, AppPreferences.Key.hiddenSuffixesEnabled); notifyBrowser() })
         case "updates.checkOnLaunch":
             return Accessor(get: { AppPreferences.checkForUpdatesOnLaunch },
                             set: { setBool($0, AppPreferences.Key.checkForUpdatesOnLaunch) })

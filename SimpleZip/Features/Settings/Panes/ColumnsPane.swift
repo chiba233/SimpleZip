@@ -133,6 +133,7 @@ struct ColumnsPane: View {
                         Text(L10n.text("settings.columns.fileBrowser")).font(.headline)
                     }
                 }
+                .settingsAnchor("view.grouping")
 
                 // 压缩包浏览(无「按文件夹」—— 档案内路径不持久,只有一个全局分组方式)。
                 DisclosureGroup {
@@ -375,6 +376,7 @@ struct ColumnsPane: View {
                 .labelsHidden()
         }
         .padding(.vertical, 3)
+        .settingsAnchor("view.hiddenSuffixes")
     }
 
     private var hiddenSuffixDrawer: some View {

@@ -36,6 +36,7 @@ struct FileAssociationsPane: View {
                     tint: .blue,
                     category: .archive
                 )
+                .settingsAnchor("fileAssociations")
                 // 0.4.4:磁盘镜像与安装包从压缩包拆出(dmg/iso 是镜像、xip/pkg 是 Apple 安装包,均非压缩)。
                 associationGroup(
                     titleKey: "settings.association.group.diskImages",

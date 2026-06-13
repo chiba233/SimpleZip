@@ -866,6 +866,7 @@ struct GPGPane: View {
                 .controlSize(.small)
                 .fixedSize()
             }
+            .settingsAnchor("gpg.signing")
         }
     }
 
@@ -882,6 +883,7 @@ struct GPGPane: View {
                         systemImage: "creditcard",
                         isOn: $gpgSmartcardEnabled
                     )
+                    .settingsAnchor("gpg.smartcard")
 
                     if gpgAvailable {
                         Divider()

@@ -38,6 +38,7 @@ struct BackupPane: View {
                     buttonTitle: L10n.text("backup.export.button"),
                     action: exportPreferences
                 )
+                .settingsAnchor("backup.export")
 
                 SettingsToggleRow(
                     title: L10n.text("backup.includePerFolderMemory"),
@@ -64,6 +65,7 @@ struct BackupPane: View {
                 ) {
                     showsRestoreConfirmation = true
                 }
+                .settingsAnchor("backup.factoryReset")
 
                 if let lastActionMessage {
                     Text(lastActionMessage)

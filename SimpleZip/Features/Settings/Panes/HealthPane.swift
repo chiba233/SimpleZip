@@ -37,6 +37,7 @@ struct HealthPane: View {
                 Text(L10n.text("health.description"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .settingsAnchor("health")
 
                 if isChecking && items.isEmpty {
                     HStack {
