@@ -342,11 +342,13 @@ SimpleZip 主流程**永远不**碰用户的私钥 passphrase。所有 `gpg --si
 SimpleZip 在「设置 → GPG」里检测不到时会显示提醒。
 
 **例外**：「新建密钥」和「修改 passphrase」走的是 loopback 模式 —— 用户在
-SimpleZip 的 SecureField 里输入 passphrase，立刻通过 `--passphrase-fd 0`
-喂给 gpg，不存任何地方。这是因为 pinentry-mac 在 GUI App 进程环境下偶尔
-不弹窗（卡死「正在生成密钥」），是「可靠 UX 」与「不让 SimpleZip 进程接触
-passphrase 」之间的取舍。这两个场景受影响的密钥是 SimpleZip 自己刚生成 /
-直接修改的，本来就最敏感地受 SimpleZip 控制，所以这个例外不放大攻击面。
+SimpleZip 的 SecureField 里输入 passphrase，立刻通过 stdin 喂给 gpg（新建密钥
+走 `--passphrase-fd 0`；修改 passphrase 走 `--command-fd 0` 的 `--passwd`，依次
+喂当前口令 / 新口令 / 新口令确认）。**新旧口令都不进命令行参数**，所以 `ps` /
+活动监视器里看不到任何口令，passphrase 也不存任何地方。这是因为 pinentry-mac 在
+GUI App 进程环境下偶尔不弹窗（卡死「正在生成密钥」），是「可靠 UX 」与「不让
+SimpleZip 进程接触 passphrase 」之间的取舍。这两个场景受影响的密钥是 SimpleZip
+自己刚生成 / 直接修改的，本来就最敏感地受 SimpleZip 控制，所以这个例外不放大攻击面。
 
 ### 解包前的容器加固
 

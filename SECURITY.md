@@ -424,6 +424,19 @@ in the SimpleZip process, including buffers, view state, or Keychain. Users
 must install `pinentry-mac` (Homebrew's `gnupg` formula does this automatically);
 SimpleZip surfaces a warning in Settings → GPG if it's missing.
 
+**Exception:** *Generate Key* and *Change Passphrase* run in loopback mode — the
+user types the passphrase into a SimpleZip `SecureField` and it is fed to `gpg`
+over stdin immediately (generate-key via `--passphrase-fd 0`; change-passphrase
+via `--command-fd 0` with `--passwd`, supplying current / new / new-confirm in
+turn). **Neither the old nor the new passphrase is ever a command-line
+argument**, so nothing appears in `ps` / Activity Monitor and the passphrase is
+never stored anywhere. This loopback exception exists because `pinentry-mac`
+occasionally fails to present a dialog inside a GUI-app process (hanging on
+"generating key…") — a trade-off between reliable UX and keeping the passphrase
+out of the SimpleZip process. The keys affected are ones SimpleZip just generated
+or is directly modifying, already the most tightly under SimpleZip's control, so
+the exception doesn't widen the attack surface.
+
 ### Container hardening before unwrap
 
 Before extracting anything to disk, `SIZArchive.unwrap(at:to:)` lists the tar

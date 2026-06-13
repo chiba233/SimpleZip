@@ -263,12 +263,11 @@ extension GPGBackend {
 
     /// 修改密钥的 passphrase（私钥加密口令）。
     ///
-    /// gpg `--edit-key <fp>` 走 `passwd` 子菜单：先验旧 passphrase，再输入新 passphrase 两遍确认。
-    /// 流程：`gpg --batch --pinentry-mode loopback --passphrase <old> --command-fd 0 --edit-key <fp>`，
-    /// stdin 喂 `passwd\n<new>\n<new>\nsave\n`。
-    /// 旧 passphrase 走 `--passphrase`（不出现在 cmdline，BackendProcessRunner 内部用 stdin 模式时可见 ps 输出，
-    /// 但这里 `--passphrase` 是 arg 形式 → `ps` **会**看到 —— 跟新 passphrase 通过 stdin 不一样。
-    /// 折中：单次操作几秒就完，比 pinentry-mac 弹不出来更可靠。
+    /// `gpg --batch --pinentry-mode loopback --command-fd 0 --passwd <fp>`：loopback 下 `--passwd`
+    /// 依次索要 **当前口令 / 新口令 / 新口令确认**，全部从 command-fd 0（stdin）读。
+    /// **新旧口令都走 stdin、都不进 argv** —— `ps` / 活动监视器看不到任何口令，修掉了「旧口令曾走
+    /// `--passphrase` arg、被 `ps` 看见」的纰漏，与全 app「密钥只走 stdin」惯例一致。
+    /// 已对 GnuPG 2.5.x 实测 loopback `--passwd`：旧口令失效、新口令生效、exit 0。
     static func changePassphrase(
         fingerprint: String,
         oldPassphrase: String,
@@ -280,14 +279,13 @@ extension GPGBackend {
         if source == .simpleZipKeyring {
             args.insert(contentsOf: simpleZipKeyringArguments(), at: 0)
         }
-        // 旧 passphrase 走 --passphrase（命令行 arg），新 passphrase 走 stdin command-fd menu。
-        // 新走 stdin 是关键：gpg 看到 `passwd` menu 会要求新 passphrase 两遍，从 command-fd 读。
-        args.append(contentsOf: ["--passphrase", oldPassphrase, "--command-fd", "0", "--edit-key", fingerprint])
-        let commands = "passwd\n\(newPassphrase)\n\(newPassphrase)\nsave\n"
+        args.append(contentsOf: ["--command-fd", "0", "--passwd", fingerprint])
+        // loopback `--passwd` 的三段输入：当前口令 → 新口令 → 新口令确认。
+        let responses = "\(oldPassphrase)\n\(newPassphrase)\n\(newPassphrase)\n"
         _ = try await BackendProcessRunner.runAndCapture(
             tool,
             arguments: args,
-            inputStrategy: .staticInput(commands)
+            inputStrategy: .staticInput(responses)
         )
     }
 
