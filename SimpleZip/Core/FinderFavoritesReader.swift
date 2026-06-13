@@ -47,16 +47,24 @@ enum FinderFavoritesReader {
         guard let cachedPaths = UserDefaults.standard.array(forKey: cacheKey) as? [String], !cachedPaths.isEmpty else {
             return []
         }
-        return cachedPaths.compactMap { rebuildItem(forPath: $0) }
+        return existingDeduplicatedDirectories(from: cachedPaths)
     }
 
-    /// 把缓存里的路径再走一遍 sfl4 解码后的同样过滤 + 显示信息抽取。
-    private nonisolated static func rebuildItem(forPath path: String) -> Item? {
-        let url = URL(fileURLWithPath: path)
-        var isDirectory: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory),
-              isDirectory.boolValue else { return nil }
-        return Item(url: url, displayName: displayName(for: url))
+    /// 纯逻辑（Q4 可测）：把一串候选路径过滤成「真实存在的目录」，并按规范化路径去重（保留首个出现）。
+    /// 缓存路径重建走这套统一口径 —— 与 read() 对 bookmark 解出 URL 的「存在即目录 + 去重」过滤一致。
+    nonisolated static func existingDeduplicatedDirectories(from paths: [String]) -> [Item] {
+        var seenPaths: Set<String> = []
+        var results: [Item] = []
+        for path in paths {
+            let url = URL(fileURLWithPath: path)
+            var isDirectory: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory),
+                  isDirectory.boolValue else { continue }
+            let canonicalPath = url.standardizedFileURL.path
+            guard seenPaths.insert(canonicalPath).inserted else { continue }
+            results.append(Item(url: url, displayName: displayName(for: url)))
+        }
+        return results
     }
 
     /// 读出当前所有 Finder 收藏目录。读不到或一条都没解析出来 → 返回空数组，让调用方走回退。
