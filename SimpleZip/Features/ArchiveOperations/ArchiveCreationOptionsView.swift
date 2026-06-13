@@ -18,6 +18,8 @@ struct ArchiveCreationOptionsView: View {
     @State private var isRunningDryRun = false
     /// 0.4.4 #12:压缩率**预估**(取样 + Compression 框架外推;dryRun / 格式 / 级别变了重算)。nil = 未算 / 无法估。
     @State private var estimatedCompressedBytes: Int64?
+    /// 代际守卫:快速连改级别/格式时,旧的异步估算后到不许覆盖当前值(否则显示过期估值)。
+    @State private var estimateGeneration = 0
     @State private var isCountingExcludedFiles = false
     /// 「使用预设密码」复选框的当前勾选状态。仅在用户在通用设置里启用了预设密码时显示。
     /// 默认勾选 —— 与「设置里开了 = 默认走预设」的用户预期一致。
@@ -1108,6 +1110,8 @@ struct ArchiveCreationOptionsView: View {
     /// #12:取样 + Compression 框架外推压缩率预估。依赖 dryRun.totalBytes;取样 I/O 放后台。
     private func recomputeCompressionEstimate() {
         guard let total = dryRun?.totalBytes, total > 0 else { estimatedCompressedBytes = nil; return }
+        estimateGeneration += 1
+        let generation = estimateGeneration
         let sourceURLs = request.sourceURLs
         let format = request.options.format
         let level = request.options.compressionLevel.rawValue
@@ -1117,6 +1121,8 @@ struct ArchiveCreationOptionsView: View {
                 guard let compressed = CompressionEstimator.compressedSampleSize(of: sample, format: format, level: level) else { return nil }
                 return CompressionEstimator.estimatedTotal(totalBytes: total, sampleBytes: sample.count, compressedSample: compressed)
             }.value
+            // 代际守卫:这期间又改了级别/格式(generation 变了)→ 旧结果作废,不覆盖当前估值。
+            guard generation == estimateGeneration else { return }
             estimatedCompressedBytes = estimate
         }
     }
