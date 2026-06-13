@@ -1667,6 +1667,10 @@
 "tasks.settings.openOnFailure.description" = "Traer esta ventana al frente automáticamente cuando falle una tarea.";
 "tasks.settings.playSound" = "Reproducir sonido al terminar tareas";
 "tasks.settings.playSound.description" = "Glass al tener éxito, Basso al fallar.";
+"tasks.settings.notify" = "Avisar cuando terminen tareas largas";
+"tasks.settings.notify.description" = "Cuando SimpleZip no está al frente, envía una notificación del sistema al terminar una tarea que tardó un rato. Pide permiso la primera vez que lo activas.";
+"notify.task.succeeded" = "Terminado";
+"notify.task.failed" = "Falló";
 "file.batchTest.button" = "Prueba por lotes";
 "archive.delete.menu" = "Eliminar entradas seleccionadas";
 "menu.actions" = "Acciones";

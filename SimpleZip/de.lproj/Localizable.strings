@@ -1668,6 +1668,10 @@
 "tasks.settings.openOnFailure.description" = "Dieses Fenster automatisch nach vorne bringen, wenn eine Aufgabe fehlschlägt.";
 "tasks.settings.playSound" = "Ton abspielen, wenn Aufgaben fertig sind";
 "tasks.settings.playSound.description" = "Glass bei Erfolg, Basso bei Fehler.";
+"tasks.settings.notify" = "Bei langen Aufgaben benachrichtigen";
+"tasks.settings.notify.description" = "Wenn SimpleZip nicht im Vordergrund ist, nach Abschluss einer länger laufenden Aufgabe eine Systembenachrichtigung senden. Fragt beim ersten Aktivieren nach Erlaubnis.";
+"notify.task.succeeded" = "Fertig";
+"notify.task.failed" = "Fehlgeschlagen";
 "file.batchTest.button" = "Stapeltest";
 "archive.delete.menu" = "Ausgewählte Einträge löschen";
 "menu.actions" = "Aktionen";

@@ -527,6 +527,21 @@ struct ActivityView: View {
                         .toggleStyle(.switch)
                 }
 
+                // 0.4.4 #10:长任务完成后发系统通知(默认关;打开时请求授权,把系统提示绑在 opt-in 上)。
+                SettingsControlRow(
+                    title: L10n.text("tasks.settings.notify"),
+                    description: L10n.text("tasks.settings.notify.description"),
+                    systemImage: "bell.badge",
+                    iconTint: .orange
+                ) {
+                    Toggle("", isOn: $notifyOnFinish)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .onChange(of: notifyOnFinish) { isOn in
+                            if isOn { TaskCompletionNotifier.requestAuthorization() }
+                        }
+                }
+
                 SettingsControlRow(
                     title: L10n.text("tasks.settings.clearHistory"),
                     description: L10n.text("tasks.settings.clearHistory.description"),
@@ -708,6 +723,8 @@ struct ActivityView: View {
     // 会读到陈旧快照,用户报「重开窗口开关复位」;@AppStorage 响应式且与 UserDefaults 双向同步)。
     @AppStorage(AppPreferences.Key.tasksOpenOnFailure) private var openOnFailure = false
     @AppStorage(AppPreferences.Key.tasksPlaySoundOnFinish) private var playSound = false
+    /// 0.4.4 #10:长任务完成后发系统通知(默认关)。
+    @AppStorage(AppPreferences.Key.tasksNotifyOnFinish) private var notifyOnFinish = false
     /// 0.4.3 #8:恢复区文件数(进设置页时刷新;清理后归零驱动按钮禁用)。
     @State private var recoveryCount = 0
 }

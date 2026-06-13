@@ -1667,6 +1667,10 @@
 "tasks.settings.openOnFailure.description" = "Автоматически выводить это окно вперед при сбое любой задачи.";
 "tasks.settings.playSound" = "Проигрывать звук при завершении задач";
 "tasks.settings.playSound.description" = "Glass при успехе, Basso при сбое.";
+"tasks.settings.notify" = "Уведомлять о завершении долгих задач";
+"tasks.settings.notify.description" = "Когда SimpleZip не на переднем плане, отправлять системное уведомление после завершения долго выполнявшейся задачи. При первом включении запрашивает разрешение.";
+"notify.task.succeeded" = "Готово";
+"notify.task.failed" = "Сбой";
 "file.batchTest.button" = "Пакетная проверка";
 "archive.delete.menu" = "Удалить выбранные записи";
 "menu.actions" = "Действия";

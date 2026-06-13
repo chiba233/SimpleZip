@@ -2329,6 +2329,10 @@
 "tasks.settings.openOnFailure.description" = "Bring this window forward automatically whenever a task fails.";
 "tasks.settings.playSound" = "Play sound when tasks finish";
 "tasks.settings.playSound.description" = "Glass on success, Basso on failure.";
+"tasks.settings.notify" = "Notify when long tasks finish";
+"tasks.settings.notify.description" = "When SimpleZip isn't in front, post a system notification after a task that ran a while finishes. Asks for permission the first time you turn it on.";
+"notify.task.succeeded" = "Finished";
+"notify.task.failed" = "Failed";
 "file.batchTest.button" = "Batch Test";
 "archive.delete.menu" = "Delete Selected Entries";
 "menu.actions" = "Actions";

@@ -242,6 +242,8 @@ final class TaskCenter: ObservableObject {
             default: break
             }
         }
+        // 0.4.4 #10:长任务完成且 app 不在前台 → 发系统通知(开关默认关;短任务 / 前台不打扰)。
+        TaskCompletionNotifier.notifyIfNeeded(finishedTask)
         // 0.4.3 #5:断言随任务清零释放;「完成后退出」在最后一个任务收尾时兑现。
         updateActivityAssertion()
         completeQuitIfIdle()

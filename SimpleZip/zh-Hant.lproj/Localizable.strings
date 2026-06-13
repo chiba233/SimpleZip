@@ -1669,6 +1669,10 @@
 "tasks.settings.openOnFailure.description" = "任何任務失敗都自動把本視窗帶到前台。";
 "tasks.settings.playSound" = "任務結束播放提示音";
 "tasks.settings.playSound.description" = "成功播 Glass，失敗播 Basso。";
+"tasks.settings.notify" = "長任務完成時發通知";
+"tasks.settings.notify.description" = "SimpleZip 不在前台時，跑了一會兒的任務完成後發系統通知。第一次打開會請求通知權限。";
+"notify.task.succeeded" = "已完成";
+"notify.task.failed" = "失敗";
 "file.batchTest.button" = "批次測試";
 "archive.delete.menu" = "刪除選取項目";
 "menu.actions" = "操作";

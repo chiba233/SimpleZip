@@ -348,6 +348,8 @@ enum AppPreferences {
         /// 0.4.4:是否记录压缩选项使用频率(供「按我最常用的来」)。默认 true;关 = 停止记录。
         nonisolated static let compressionUsageTrackingEnabled = "compressionUsageTrackingEnabled"
         nonisolated static let tasksPlaySoundOnFinish = "tasksPlaySoundOnFinish"
+        /// 0.4.4 #10:长任务完成后发系统通知(默认关;开 → 首次时请求通知授权)。只在 app 不在前台、任务够长时发。
+        nonisolated static let tasksNotifyOnFinish = "tasksNotifyOnFinish"
         nonisolated static let collapseVolumeSets = "collapseVolumeSets"
         // 0.4.3 #7:写入后自动验证(改写族默认开 / 创建与转换默认关)。
         nonisolated static let verifyAfterArchiveRewrite = "verifyAfterArchiveRewrite"
@@ -412,6 +414,11 @@ enum AppPreferences {
     /// 0.4.2:任务结束播放提示音（成功 Glass / 失败 Basso,默认关）。
     nonisolated static var tasksPlaySoundOnFinish: Bool {
         defaults.bool(forKey: Key.tasksPlaySoundOnFinish)
+    }
+
+    /// 0.4.4 #10:长任务完成后发系统通知(默认关)。
+    nonisolated static var tasksNotifyOnFinish: Bool {
+        defaults.bool(forKey: Key.tasksNotifyOnFinish)
     }
 
     /// 0.4.2 #4:文件浏览里把分卷家族(.001/.002…)折叠成首卷一行(默认开,View 菜单可关)。
@@ -951,6 +958,7 @@ enum AppPreferences {
         Key.heavyTaskConcurrencyLimit,
         Key.tasksOpenOnFailure,
         Key.tasksPlaySoundOnFinish,
+        Key.tasksNotifyOnFinish,
         Key.automationAllowPresetPassword,
         Key.spotlightIndexingEnabled,
         Key.aiAssistantEnabled,
@@ -1064,6 +1072,7 @@ enum AppPreferences {
         v[Key.aiAssistantEnabled] = aiAssistantEnabled
         v[Key.compressionUsageTrackingEnabled] = compressionUsageTrackingEnabled
         v[Key.tasksPlaySoundOnFinish] = tasksPlaySoundOnFinish
+        v[Key.tasksNotifyOnFinish] = tasksNotifyOnFinish
         v[Key.collapseVolumeSets] = collapseVolumeSets
         v[Key.verifyAfterArchiveRewrite] = verifyAfterArchiveRewrite
         v[Key.verifyAfterArchiveCreate] = verifyAfterArchiveCreate

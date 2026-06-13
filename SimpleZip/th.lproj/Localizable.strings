@@ -1667,6 +1667,10 @@
 "tasks.settings.openOnFailure.description" = "นำหน้าต่างนี้ขึ้นหน้าอัตโนมัติเมื่อมีงานล้มเหลว";
 "tasks.settings.playSound" = "เล่นเสียงเมื่องานเสร็จ";
 "tasks.settings.playSound.description" = "สำเร็จเล่น Glass, ล้มเหลวเล่น Basso";
+"tasks.settings.notify" = "แจ้งเตือนเมื่องานยาวเสร็จ";
+"tasks.settings.notify.description" = "เมื่อ SimpleZip ไม่ได้อยู่ด้านหน้า จะส่งการแจ้งเตือนของระบบหลังจากงานที่ทำงานสักพักเสร็จสิ้น จะขออนุญาตในครั้งแรกที่เปิด";
+"notify.task.succeeded" = "เสร็จแล้ว";
+"notify.task.failed" = "ล้มเหลว";
 "file.batchTest.button" = "ทดสอบเป็นชุด";
 "archive.delete.menu" = "ลบรายการที่เลือก";
 "menu.actions" = "การกระทำ";

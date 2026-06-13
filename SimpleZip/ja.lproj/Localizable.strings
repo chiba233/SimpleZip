@@ -1669,6 +1669,10 @@
 "tasks.settings.openOnFailure.description" = "タスクが失敗したとき、このウィンドウを自動的に前面へ出します。";
 "tasks.settings.playSound" = "タスク完了時にサウンドを再生";
 "tasks.settings.playSound.description" = "成功時は Glass、失敗時は Basso。";
+"tasks.settings.notify" = "長いタスクの完了を通知";
+"tasks.settings.notify.description" = "SimpleZip が前面にないとき、しばらく実行したタスクの完了後にシステム通知を送ります。初めてオンにするときに許可を求めます。";
+"notify.task.succeeded" = "完了";
+"notify.task.failed" = "失敗";
 "file.batchTest.button" = "一括テスト";
 "archive.delete.menu" = "選択した項目を削除";
 "menu.actions" = "アクション";

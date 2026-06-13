@@ -1667,6 +1667,10 @@
 "tasks.settings.openOnFailure.description" = "Ramener automatiquement cette fenêtre au premier plan lorsqu’une tâche échoue.";
 "tasks.settings.playSound" = "Jouer un son à la fin des tâches";
 "tasks.settings.playSound.description" = "Glass en cas de succès, Basso en cas d’échec.";
+"tasks.settings.notify" = "Notifier la fin des tâches longues";
+"tasks.settings.notify.description" = "Quand SimpleZip n’est pas au premier plan, envoie une notification système à la fin d’une tâche ayant duré un moment. Demande l’autorisation au premier activation.";
+"notify.task.succeeded" = "Terminé";
+"notify.task.failed" = "Échec";
 "file.batchTest.button" = "Test par lot";
 "archive.delete.menu" = "Supprimer les entrées sélectionnées";
 "menu.actions" = "Actions";

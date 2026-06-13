@@ -1668,6 +1668,10 @@
 "tasks.settings.openOnFailure.description" = "작업이 실패할 때마다 이 창을 자동으로 앞으로 가져옵니다.";
 "tasks.settings.playSound" = "작업 완료 시 소리 재생";
 "tasks.settings.playSound.description" = "성공 시 Glass, 실패 시 Basso.";
+"tasks.settings.notify" = "긴 작업 완료 시 알림";
+"tasks.settings.notify.description" = "SimpleZip이 앞에 없을 때, 한동안 실행된 작업이 끝나면 시스템 알림을 보냅니다. 처음 켤 때 권한을 요청합니다.";
+"notify.task.succeeded" = "완료";
+"notify.task.failed" = "실패";
 "file.batchTest.button" = "일괄 테스트";
 "archive.delete.menu" = "선택한 항목 삭제";
 "menu.actions" = "작업";
