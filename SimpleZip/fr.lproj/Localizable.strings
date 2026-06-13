@@ -1322,6 +1322,9 @@
 "settings.defaults.editorHint" = "Cochez seulement les options à utiliser par défaut pour ce format ; les options non cochées gardent la valeur de création et peuvent être changées à chaque fois.";
 "archive.useFormatDefaults" = "Utiliser les valeurs %@ enregistrées par défaut";
 "archive.useFormatDefaults.help" = "Applique les options enregistrées pour ce format dans Réglages → Compression → Paramètres de compression par défaut. Décochez pour régler chaque option vous-même.";
+"archive.usageRecommendation.title" = "Utiliser vos réglages habituels";
+"archive.usageRecommendation.apply" = "Appliquer";
+"archive.usageRecommendation.help" = "Remplit les options de compression que vous choisissez le plus souvent pour ce format.";
 "settings.presets.edit" = "Modifier";
 "settings.formatMatrix.title" = "Capacités des formats";
 "settings.formatMatrix.description" = "Ce que chaque format conteneur prend en charge dans SimpleZip.";

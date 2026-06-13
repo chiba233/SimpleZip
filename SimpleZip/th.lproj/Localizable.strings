@@ -1322,6 +1322,9 @@
 "settings.defaults.editorHint" = "ติ๊กเฉพาะตัวเลือกที่ต้องการให้เป็นค่าเริ่มต้นของรูปแบบนี้ ตัวเลือกที่ไม่ติ๊กจะใช้ค่าเริ่มต้นตอนสร้างและยังเปลี่ยนได้ทุกครั้ง";
 "archive.useFormatDefaults" = "ใช้ค่าเริ่มต้น %@ ที่บันทึกไว้";
 "archive.useFormatDefaults.help" = "ใช้ตัวเลือกที่คุณบันทึกไว้สำหรับรูปแบบนี้ใน การตั้งค่า → การบีบอัด → ค่าบีบอัดเริ่มต้น ยกเลิกเลือกเพื่อปรับทุกตัวเลือกเอง";
+"archive.usageRecommendation.title" = "ใช้การตั้งค่าที่คุณใช้ประจำ";
+"archive.usageRecommendation.apply" = "ใช้";
+"archive.usageRecommendation.help" = "เติมตัวเลือกการบีบอัดที่คุณเลือกบ่อยที่สุดสำหรับรูปแบบนี้";
 "settings.presets.edit" = "แก้ไข";
 "settings.formatMatrix.title" = "ความสามารถของรูปแบบ";
 "settings.formatMatrix.description" = "ความสามารถที่แต่ละรูปแบบคอนเทนเนอร์รองรับใน SimpleZip";

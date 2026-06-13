@@ -1134,6 +1134,9 @@
 "archive.renameEntry.taskTitle" = "“%1$@” → “%2$@” 이름 변경 중";
 "archive.useFormatDefaults" = "저장된 %@ 기본값 사용";
 "archive.useFormatDefaults.help" = "설정 → 압축 → 기본 압축 설정에서 이 포맷에 저장한 옵션을 적용합니다. 체크를 해제하면 모든 옵션을 직접 조정할 수 있습니다.";
+"archive.usageRecommendation.title" = "자주 쓰는 설정 사용";
+"archive.usageRecommendation.apply" = "적용";
+"archive.usageRecommendation.help" = "이 형식에서 자주 선택하는 압축 옵션을 한 번에 채웁니다.";
 "archive.writeBack.confirmButton" = "다시 저장";
 "archive.writeBack.message" = "변경 사항을 “%@”에 다시 저장하겠습니까? 저장에 실패해도 원본 압축 파일은 영향을 받지 않습니다.";
 "archive.writeBack.taskTitle" = "“%@”을(를) 압축 파일에 다시 저장하는 중";

@@ -1963,6 +1963,9 @@
 "settings.defaults.editorHint" = "Tick only the options you want this format to default; unticked options keep the create-time default and can be changed each time.";
 "archive.useFormatDefaults" = "Use the saved %@ defaults";
 "archive.useFormatDefaults.help" = "Applies the options you saved for this format under Settings → Compression → Default Compression Settings. Uncheck to adjust every option yourself.";
+"archive.usageRecommendation.title" = "Use your usual settings";
+"archive.usageRecommendation.apply" = "Apply";
+"archive.usageRecommendation.help" = "Fills in the compression options you choose most often for this format.";
 "settings.presets.edit" = "Edit";
 // Format capability matrix (Settings → Archive)
 "settings.formatMatrix.title" = "Format Capabilities";

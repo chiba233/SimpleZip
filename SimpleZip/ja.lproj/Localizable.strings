@@ -1135,6 +1135,9 @@
 "archive.renameEntry.taskTitle" = "「%1$@」→「%2$@」に名称変更中";
 "archive.useFormatDefaults" = "保存済みの %@ デフォルトを使用";
 "archive.useFormatDefaults.help" = "「設定 → 圧縮 → デフォルト圧縮設定」でこのフォーマット用に保存したオプションを適用します。チェックを外すとすべてのオプションを自分で調整できます。";
+"archive.usageRecommendation.title" = "いつもの設定を使う";
+"archive.usageRecommendation.apply" = "適用";
+"archive.usageRecommendation.help" = "この形式でよく選ぶ圧縮オプションをまとめて入力します。";
 "archive.writeBack.confirmButton" = "書き戻す";
 "archive.writeBack.message" = "変更を「%@」に保存し直しますか？保存に失敗しても元のアーカイブは影響を受けません。";
 "archive.writeBack.taskTitle" = "「%@」をアーカイブに書き戻し中";

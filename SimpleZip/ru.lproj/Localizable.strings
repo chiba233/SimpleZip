@@ -1322,6 +1322,9 @@
 "settings.defaults.editorHint" = "Отметьте только параметры, которые должны быть значениями по умолчанию для этого формата; неотмеченные сохраняют исходное значение и могут меняться каждый раз.";
 "archive.useFormatDefaults" = "Использовать сохраненные настройки %@ по умолчанию";
 "archive.useFormatDefaults.help" = "Применяет параметры, сохраненные для этого формата в Настройки → Сжатие → Параметры сжатия по умолчанию. Снимите флажок, чтобы настроить все параметры вручную.";
+"archive.usageRecommendation.title" = "Применить ваши обычные настройки";
+"archive.usageRecommendation.apply" = "Применить";
+"archive.usageRecommendation.help" = "Заполняет параметры сжатия, которые вы чаще всего выбираете для этого формата.";
 "settings.presets.edit" = "Изменить";
 "settings.formatMatrix.title" = "Возможности форматов";
 "settings.formatMatrix.description" = "Что поддерживает каждый формат контейнера в SimpleZip.";

@@ -1950,6 +1950,9 @@
 "settings.defaults.editorHint" = "只勾选你想让这个格式默认设定的选项;没勾的保持创建时的默认值、每次仍可改。";
 "archive.useFormatDefaults" = "使用已保存的 %@ 默认值";
 "archive.useFormatDefaults.help" = "套用你在「设置 → 压缩 → 默认压缩设置」里为该格式保存的选项。取消勾选可自行调整全部选项。";
+"archive.usageRecommendation.title" = "套用你常用的设置";
+"archive.usageRecommendation.apply" = "应用";
+"archive.usageRecommendation.help" = "一键填入你为这种格式最常选的压缩选项。";
 "settings.presets.edit" = "编辑";
 // 格式能力矩阵（设置 → 压缩）
 "settings.formatMatrix.title" = "格式能力";

@@ -1134,6 +1134,9 @@
 "archive.renameEntry.taskTitle" = "„%1$@“ → „%2$@“ wird umbenannt";
 "archive.useFormatDefaults" = "Gespeicherte %@-Standards verwenden";
 "archive.useFormatDefaults.help" = "Wendet die Optionen an, die du unter Einstellungen → Komprimierung → Standard-Komprimierungseinstellungen für dieses Format gespeichert hast. Deaktivieren, um alle Optionen selbst anzupassen.";
+"archive.usageRecommendation.title" = "Deine üblichen Einstellungen verwenden";
+"archive.usageRecommendation.apply" = "Anwenden";
+"archive.usageRecommendation.help" = "Füllt die Komprimierungsoptionen aus, die du für dieses Format am häufigsten wählst.";
 "archive.writeBack.confirmButton" = "Zurückschreiben";
 "archive.writeBack.message" = "Die Änderungen zurück in „%@“ speichern? Schlägt das Speichern fehl, bleibt das Originalarchiv unangetastet.";
 "archive.writeBack.taskTitle" = "„%@“ wird ins Archiv zurückgeschrieben";

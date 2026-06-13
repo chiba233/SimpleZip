@@ -1135,6 +1135,9 @@
 "archive.renameEntry.taskTitle" = "正在重新命名「%1$@」→「%2$@」";
 "archive.useFormatDefaults" = "使用已儲存的 %@ 預設值";
 "archive.useFormatDefaults.help" = "套用你在「設定 → 壓縮 → 預設壓縮設定」裡為該格式儲存的選項。取消勾選可自行調整全部選項。";
+"archive.usageRecommendation.title" = "套用你常用的設定";
+"archive.usageRecommendation.apply" = "套用";
+"archive.usageRecommendation.help" = "一鍵填入你為這種格式最常選的壓縮選項。";
 "archive.writeBack.confirmButton" = "寫回";
 "archive.writeBack.message" = "要把更動儲存回「%@」嗎？即使儲存失敗，原壓縮檔也不會受影響。";
 "archive.writeBack.taskTitle" = "正在把「%@」寫回壓縮檔";

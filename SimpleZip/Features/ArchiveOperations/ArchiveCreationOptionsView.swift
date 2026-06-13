@@ -43,6 +43,9 @@ struct ArchiveCreationOptionsView: View {
     @State private var useFormatDefaults = false
     /// 0.4.2 #17：套模板改格式时跳过一次「按格式默认值」重套 —— 模板优先于格式默认值。
     @State private var suppressFormatDefaultsOnce = false
+    /// 0.4.4 #33:本格式「你最常用的设置」推荐(由本地使用频率得出)。只在没有保存默认值模板时出现,
+    /// 一键把习惯选项填进来 —— 与「使用默认值」互斥(有保存默认值时由那条接管)。
+    @State private var usageRecommendation: CompressionFormatPreset?
     /// 0.4.2 #30：智能卡在位状态。nil = 还没检测（或检测中）。
     @State private var smartcardPresent: Bool?
     @State private var isCheckingSmartcard = false
@@ -114,6 +117,24 @@ struct ArchiveCreationOptionsView: View {
             formatDefaultsPreset = nil
             useFormatDefaults = false
         }
+        reloadUsageRecommendation()
+    }
+
+    /// #33:刷新「你最常用的设置」推荐 —— 仅在记录开关开、且本格式没有保存默认值(那条更优先)时取众数预设。
+    private func reloadUsageRecommendation() {
+        guard AppPreferences.compressionUsageTrackingEnabled, formatDefaultsPreset == nil else {
+            usageRecommendation = nil
+            return
+        }
+        usageRecommendation = CompressionUsageStore().mostUsedPreset(for: request.options.format)
+    }
+
+    /// 应用推荐会不会真的改动当前选项(不会改 = 不展示推荐行,避免无意义入口)。
+    private var usageRecommendationWouldChange: Bool {
+        guard let preset = usageRecommendation else { return false }
+        var probe = request.options
+        preset.apply(to: &probe)
+        return probe != request.options
     }
 
     var body: some View {
@@ -225,6 +246,7 @@ struct ArchiveCreationOptionsView: View {
                 suppressFormatDefaultsOnce = false
                 formatDefaultsPreset = compressionDefaultsStore.preset(for: request.options.format)
                 useFormatDefaults = false
+                reloadUsageRecommendation()
             } else {
                 reloadFormatDefaults()
             }
@@ -326,6 +348,21 @@ struct ArchiveCreationOptionsView: View {
                 .onChange(of: useFormatDefaults) { on in
                     if on, let preset = formatDefaultsPreset { preset.apply(to: &request.options) }
                 }
+            }
+
+            // #33:没有保存默认值时,给「你最常用的设置」一键应用入口(应用后这条自动消失,因为不再有变化)。
+            if formatDefaultsPreset == nil, usageRecommendation != nil, usageRecommendationWouldChange {
+                LabeledContent {
+                    Button(L10n.text("archive.usageRecommendation.apply")) {
+                        if let preset = usageRecommendation {
+                            preset.apply(to: &request.options)
+                            recomputeCompressionEstimate()
+                        }
+                    }
+                } label: {
+                    DialogRowLabel(L10n.text("archive.usageRecommendation.title"), systemImage: "wand.and.stars", tint: .purple)
+                }
+                .help(L10n.text("archive.usageRecommendation.help"))
             }
 
             if request.options.format == .rar, !ArchiveService.canCreateRAR() {
