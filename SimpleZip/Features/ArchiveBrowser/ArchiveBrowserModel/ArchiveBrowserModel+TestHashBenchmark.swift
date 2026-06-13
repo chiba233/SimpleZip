@@ -571,7 +571,7 @@ extension ArchiveBrowserModel {
                     self.pendingCreateSZS = CreateSZSPrefill(payloadRoot: destination, files: [outputURL])
                 }
             },
-            onSucceeded: { task in
+            onSucceeded: { [weak self] task in
                 // 活动中心详情里列出产物(路径 + SHA-256)+ F3 各步骤耗时(现成持久化通道)。
                 var rows = [TransferLogEntry(name: outputURL.path, action: .passed, isDirectory: false,
                                              detail: report.sha256 ?? "")]
@@ -591,7 +591,7 @@ extension ArchiveBrowserModel {
                 if request.runInspection {
                     var reopened = report
                     reopened.steps = recorder.steps
-                    task.openReport = { [weak self] in
+                    task.openReport = {
                         self?.releaseInspectionReport = reopened
                     }
                     // 0.4.4:报告本体随历史落盘 —— 重启后仍可打开(闭包只活一个会话)。
