@@ -13,6 +13,11 @@ struct ActivityView: View {
     @State private var expandedTaskIDs: Set<UUID> = []
     /// 0.4.4 D:来源筛选(nil = 全部)。独立 Picker,与状态筛选正交组合,跨三个分类共用。
     @State private var sourceFilter: OperationTask.Source?
+    /// 0.4.4 #15:临时工作区状态(进 pane 时后台刷一次)。
+    @State private var workspaceArtifacts: [URL] = []
+    @State private var workspaceBytes: Int64 = 0
+    @State private var workspaceMountPoint: URL?
+    @State private var showsClearTempConfirm = false
     @State private var archiveFilter = ActivityTaskFilter.all
     @State private var fileFilter = ActivityTaskFilter.all
     @State private var undoRedoFilter = ActivityTaskFilter.all
@@ -71,6 +76,18 @@ struct ActivityView: View {
             if selectedPane == .help {
                 // 0.4.2：活动中心的「帮助」与「设置 → 帮助」同一个视图（A1：不重画）。
                 HelpPane()
+            } else if selectedPane == .workspace {
+                // 0.4.4 #15:临时工作区(hero 头 + grouped Form,与设置 pane 同款骨架)。
+                VStack(spacing: 0) {
+                    HStack {
+                        paneHero(selectedPane)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 22)
+                    .padding(.top, 16)
+                    .padding(.bottom, 4)
+                    workspaceView
+                }
             } else if selectedPane == .settings {
                 // 设置页用系统设置同款 grouped Form —— 自带滚动与顶部安全区处理，
                 // 修掉「点设置后内容往上错位」（之前是裸 VStack，不像 List/Form 那样吃标题栏 inset）。
@@ -540,6 +557,110 @@ struct ActivityView: View {
         .onAppear { recoveryCount = ArchiveRecoveryArea.contents().count }
     }
 
+    /// 0.4.4 #15:临时工作区 —— 加密临时卷状态 + SimpleZip 临时产物清单与清理。
+    private var workspaceView: some View {
+        Form {
+            Section(L10n.text("workspace.volume.section")) {
+                SettingsControlRow(
+                    title: L10n.text("workspace.volume.title"),
+                    description: L10n.text("workspace.volume.description"),
+                    systemImage: "lock.shield", iconTint: .teal
+                ) {
+                    Text(workspaceMountPoint == nil
+                         ? L10n.text("workspace.volume.notMounted")
+                         : L10n.text("workspace.volume.mounted"))
+                        .font(.callout)
+                        .foregroundStyle(workspaceMountPoint == nil ? Color.secondary : Color.green)
+                }
+                if let mountPoint = workspaceMountPoint {
+                    Text(mountPoint.path)
+                        .font(.caption.monospaced())
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .textSelection(.enabled)
+                }
+                Text(L10n.text("workspace.volume.note"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Section(L10n.text("workspace.artifacts.section")) {
+                SettingsControlRow(
+                    title: L10n.text("workspace.artifacts.title"),
+                    description: L10n.text("workspace.artifacts.description"),
+                    systemImage: "internaldrive", iconTint: .orange
+                ) {
+                    HStack(spacing: 8) {
+                        Text(L10n.format(
+                            "workspace.artifacts.value",
+                            "\(workspaceArtifacts.count)",
+                            ByteCountFormatter.string(fromByteCount: workspaceBytes, countStyle: .file)
+                        ))
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        Button {
+                            NSWorkspace.shared.activateFileViewerSelecting([FileManager.default.temporaryDirectory])
+                        } label: {
+                            Label(L10n.text("button.revealInFinder"), systemImage: "arrow.up.forward.app")
+                        }
+                        Button {
+                            showsClearTempConfirm = true
+                        } label: {
+                            Label(L10n.text("workspace.artifacts.clear"), systemImage: "trash")
+                        }
+                        .disabled(workspaceArtifacts.isEmpty)
+                        .confirmationDialog(L10n.text("workspace.artifacts.clear.confirm"), isPresented: $showsClearTempConfirm) {
+                            Button(L10n.text("workspace.artifacts.clear"), role: .destructive) {
+                                clearStaleWorkspaceArtifacts()
+                            }
+                        }
+                    }
+                }
+                ForEach(workspaceArtifacts.prefix(20), id: \.self) { url in
+                    Text(url.lastPathComponent)
+                        .font(.caption.monospaced())
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+                if workspaceArtifacts.count > 20 {
+                    Text(L10n.format("security.report.more", "\(workspaceArtifacts.count - 20)"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Text(L10n.text("workspace.artifacts.timing"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .formStyle(.grouped)
+        .onAppear(perform: reloadWorkspaceState)
+    }
+
+    /// 进 pane 时后台刷一次(枚举 + 递归体积,不在主线程做)。
+    private func reloadWorkspaceState() {
+        workspaceMountPoint = SecureScratchVolume.shared.currentMountPoint
+        Task.detached(priority: .utility) {
+            let artifacts = TemporaryResourceManager.temporaryArtifactURLs()
+            let bytes = TemporaryResourceManager.temporaryArtifactsByteSize(olderThan: Date())
+            await MainActor.run {
+                workspaceArtifacts = artifacts
+                workspaceBytes = bytes
+            }
+        }
+    }
+
+    /// 「立即清理」只删**陈旧**条目(mtime 早于本次会话开始)—— 本次会话在用的 staging 绝不碰。
+    private func clearStaleWorkspaceArtifacts() {
+        Task.detached(priority: .utility) {
+            TemporaryResourceManager.clearTemporaryArtifacts(olderThan: TemporaryResourceManager.sessionStart)
+            await MainActor.run { reloadWorkspaceState() }
+        }
+    }
+
     private var selectedPane: ActivityPane {
         windowState.selectedPane
     }
@@ -556,6 +677,8 @@ enum ActivityPane: CaseIterable, Identifiable, Hashable {
     case archive
     case fileOperation
     case undoRedo
+    /// 0.4.4 #15:临时工作区(加密临时卷 + 临时产物)。
+    case workspace
     case help
     case settings
 
@@ -580,7 +703,7 @@ enum ActivityPane: CaseIterable, Identifiable, Hashable {
             return .fileOperation
         case .undoRedo:
             return .undoRedo
-        case .help, .settings:
+        case .workspace, .help, .settings:
             return nil
         }
     }
@@ -593,6 +716,8 @@ enum ActivityPane: CaseIterable, Identifiable, Hashable {
             return L10n.text("tasks.fileSection")
         case .undoRedo:
             return L10n.text("tasks.undoRedoSection")
+        case .workspace:
+            return L10n.text("tasks.workspaceSection")
         case .help:
             return L10n.text("settings.section.help")
         case .settings:
@@ -608,6 +733,8 @@ enum ActivityPane: CaseIterable, Identifiable, Hashable {
             return "folder"
         case .undoRedo:
             return "arrow.uturn.backward"
+        case .workspace:
+            return "externaldrive.badge.timemachine"
         case .help:
             return "lifepreserver"
         case .settings:
@@ -624,6 +751,8 @@ enum ActivityPane: CaseIterable, Identifiable, Hashable {
             return L10n.text("tasks.pane.fileOperation.subtitle")
         case .undoRedo:
             return L10n.text("tasks.pane.undoRedo.subtitle")
+        case .workspace:
+            return L10n.text("tasks.pane.workspace.subtitle")
         case .settings:
             return L10n.text("tasks.pane.settings.subtitle")
         case .help:
@@ -640,6 +769,8 @@ enum ActivityPane: CaseIterable, Identifiable, Hashable {
             return .orange
         case .undoRedo:
             return .purple
+        case .workspace:
+            return .teal
         case .help:
             return .cyan
         case .settings:

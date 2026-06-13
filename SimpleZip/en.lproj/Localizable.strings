@@ -1267,6 +1267,22 @@
 "tasks.filter.allSources" = "All Sources";
 "tasks.settings.clearSucceeded.button" = "Clear Succeeded Only";
 "button.rerunWithChanges" = "Re-run with different settings…";
+/* 0.4.4 #15 temp workspace pane */
+"tasks.workspaceSection" = "Temporary Workspace";
+"tasks.pane.workspace.subtitle" = "Encrypted scratch volume and temporary artifacts";
+"workspace.volume.section" = "Encrypted Scratch Volume";
+"workspace.volume.title" = "Encrypted temporary volume";
+"workspace.volume.description" = "Encrypted sources are unpacked onto an encrypted disk image so plaintext never lands on the regular disk.";
+"workspace.volume.mounted" = "mounted";
+"workspace.volume.notMounted" = "not mounted (mounts on demand)";
+"workspace.volume.note" = "The volume is created with a random throwaway key and destroyed automatically when SimpleZip quits.";
+"workspace.artifacts.section" = "Temporary Artifacts";
+"workspace.artifacts.title" = "SimpleZip entries in the system temp folder";
+"workspace.artifacts.description" = "Staging folders and temporary copies created by archive operations.";
+"workspace.artifacts.value" = "%1$@ items · %2$@";
+"workspace.artifacts.clear" = "Clean Up Now";
+"workspace.artifacts.clear.confirm" = "Remove stale temporary items? Items created by the current session stay untouched.";
+"workspace.artifacts.timing" = "Stale items are also cleaned automatically at launch; everything is removed when the app quits normally.";
 /* 0.4.4 #13 archive metadata report */
 "metadata.menu" = "Metadata Report";
 "metadata.title" = "Archive Metadata";

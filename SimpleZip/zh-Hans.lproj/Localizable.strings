@@ -1265,6 +1265,22 @@
 "tasks.filter.allSources" = "全部来源";
 "tasks.settings.clearSucceeded.button" = "仅清除成功记录";
 "button.rerunWithChanges" = "以新参数重跑…";
+/* 0.4.4 #15 临时工作区 */
+"tasks.workspaceSection" = "临时工作区";
+"tasks.pane.workspace.subtitle" = "加密临时卷与临时产物";
+"workspace.volume.section" = "加密临时卷";
+"workspace.volume.title" = "加密临时卷";
+"workspace.volume.description" = "加密来源解到加密磁盘镜像上,明文绝不落在普通磁盘。";
+"workspace.volume.mounted" = "已挂载";
+"workspace.volume.notMounted" = "未挂载(按需挂载)";
+"workspace.volume.note" = "卷使用随机一次性密钥创建,SimpleZip 退出时自动销毁。";
+"workspace.artifacts.section" = "临时产物";
+"workspace.artifacts.title" = "系统临时目录里的 SimpleZip 条目";
+"workspace.artifacts.description" = "归档操作产生的 staging 目录与临时副本。";
+"workspace.artifacts.value" = "%1$@ 项 · %2$@";
+"workspace.artifacts.clear" = "立即清理";
+"workspace.artifacts.clear.confirm" = "删除陈旧的临时条目?本次会话正在使用的不会被碰。";
+"workspace.artifacts.timing" = "陈旧条目在每次启动时也会自动清理;正常退出时全部移除。";
 /* 0.4.4 #13 归档元数据报告 */
 "metadata.menu" = "元数据报告";
 "metadata.title" = "归档元数据";
