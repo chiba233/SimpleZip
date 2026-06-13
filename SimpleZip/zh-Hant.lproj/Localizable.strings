@@ -1679,7 +1679,7 @@
 "security.score.level.low" = "低風險";
 "security.score.level.medium" = "中風險";
 "security.score.level.high" = "高風險";
-"security.score.note" = "按發現的最嚴重問題評級——純規則,不用 AI。";
+"security.score.note" = "按發現的最嚴重問題評級。";
 "security.report.clean.desc" = "已檢查全部項目路徑：絕對路徑、「..」逃逸、磁碟機代號、UNC 與反斜線路徑、控制及雙向覆蓋字元、超長路徑、setuid 位、外指符號連結、大小寫衝突——均未命中。";
 "settings.rememberFolderExpansion" = "記住資料夾展開狀態";
 "settings.rememberFolderExpansion.description" = "列表重新整理（檔案變動、手動重新整理、排序）後自動恢復你展開過的資料夾。關閉後每次重新整理都從全部摺疊開始。";

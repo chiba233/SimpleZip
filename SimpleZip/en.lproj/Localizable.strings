@@ -768,7 +768,7 @@
 "security.score.level.low" = "Low risk";
 "security.score.level.medium" = "Medium risk";
 "security.score.level.high" = "High risk";
-"security.score.note" = "Graded by the most serious issue found — rule-based, no AI.";
+"security.score.note" = "Graded by the most serious issue found.";
 "security.report.clean.desc" = "Every listed path was checked for absolute paths, “..” traversal, drive letters, UNC and backslash paths, control or bidirectional-override characters, overlong paths, setuid bits, outward-pointing symlinks, and case collisions — nothing was flagged.";
 "security.kind.absolutePath" = "Absolute paths";
 "security.kind.absolutePath.desc" = "Entries starting with / or ~ could extract outside the chosen folder.";
