@@ -54,6 +54,24 @@ nonisolated struct ArchiveListingCacheEntry: Codable, Identifiable, Equatable {
         }
         return result
     }
+
+    /// 非加密文件条目的**完整相对路径**(保留目录结构、**不去重**,跳过目录条目),封顶 `limit` 条。
+    /// 给 Spotlight 结果描述用 —— 直接列出包里有哪些文件、各在什么路径,比去重 basename 的颗粒度更细。
+    func filePaths(limit: Int = 24) -> [String] {
+        var result: [String] = []
+        for cached in entries where !cached.isDirectory {
+            let path = cached.name.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            guard !path.isEmpty else { continue }
+            result.append(path)
+            if result.count >= limit { break }
+        }
+        return result
+    }
+
+    /// 非加密文件条目总数(跳过目录)—— 描述里判断是否还有更多没列出。
+    var fileEntryCount: Int {
+        entries.reduce(0) { $0 + ($1.isDirectory ? 0 : 1) }
+    }
 }
 
 /// 跨缓存归档搜索条目名的命中。

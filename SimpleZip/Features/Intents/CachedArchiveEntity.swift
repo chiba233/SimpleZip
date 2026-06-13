@@ -39,6 +39,10 @@ struct CachedArchiveEntity: AppEntity {
     /// 归档内条目的**文件名**(去重、仅 basename、有上限)——给 Spotlight 当关键词,让搜某个文件名能命中本归档。
     /// 不作为 @Property 暴露(Shortcuts 里不需要看到一长串文件名),只在 Spotlight attributeSet 里用。
     let keywordNames: [String]
+    /// 展示用的**完整相对路径**(不去重,保留结构),给 Spotlight 结果描述列出包里到底有哪些文件。
+    let displayPaths: [String]
+    /// 非加密文件总数(判断描述是否还有更多没列出)。
+    let fileEntryCount: Int
 
     var displayRepresentation: DisplayRepresentation {
         DisplayRepresentation(
@@ -54,6 +58,8 @@ struct CachedArchiveEntity: AppEntity {
         id = entry.archivePath
         // 关键词抽取(去重 basename + 跳目录 + 封顶)是 Core 里的纯逻辑,带单测。
         keywordNames = entry.fileBaseNames()
+        displayPaths = entry.filePaths(limit: 24)
+        fileEntryCount = entry.fileEntryCount
         name = entry.archiveName
         entryCount = entry.entries.count
         lastOpened = entry.recordedAt
@@ -156,7 +162,13 @@ extension CachedArchiveEntity: IndexedEntity {
         set.contentCreationDate = lastOpened
         // 关键词 = 归档内文件名,让搜文件名命中本归档。SimpleZip 标识便于按 app 过滤。
         set.keywords = ["SimpleZip"] + keywordNames
-        set.contentDescription = L10n.format("spotlight.cachedArchive.description", "\(entryCount)")
+        // 描述里**列出实际文件的完整相对路径**(前若干个,超出加 …),让 Spotlight 结果一眼看到包里到底有
+        // 哪些文件、各在什么路径(比去重 basename 颗粒度细)。都是非加密条目(加密条目从不入缓存),展示合规。
+        var preview = displayPaths.joined(separator: ", ")
+        if fileEntryCount > displayPaths.count { preview += " …" }
+        set.contentDescription = preview.isEmpty
+            ? L10n.format("spotlight.cachedArchive.description", "\(fileEntryCount)")
+            : L10n.format("spotlight.cachedArchive.descriptionWithNames", "\(fileEntryCount)", preview)
         return set
     }
 }

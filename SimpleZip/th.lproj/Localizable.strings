@@ -2063,6 +2063,7 @@
 "intent.findArchive.none" = "ไม่มีไฟล์บีบอัดที่คุณเปิดที่มี \"%@\"";
 "intent.findArchive.results" = "ไฟล์บีบอัดที่คุณเปิด %1$@ ไฟล์มี \"%2$@\"";
 "spotlight.cachedArchive.description" = "มี %@ ไฟล์ · เปิดใน SimpleZip";
+"spotlight.cachedArchive.descriptionWithNames" = "%1$@ ไฟล์ · %2$@";
 "spotlight.setting.in" = "ในการตั้งค่า %@";
 "intent.search.none" = "ไม่มีรายการใน %1$@ ที่ตรงกับ \"%2$@\"";
 "intent.search.results" = "%1$@ รายการใน %2$@ ตรงกับ \"%3$@\"";

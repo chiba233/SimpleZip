@@ -2065,6 +2065,7 @@
 "intent.findArchive.none" = "開いたアーカイブの中に「%@」を含むものはありません。";
 "intent.findArchive.results" = "開いた %1$@ 個のアーカイブに「%2$@」が含まれています。";
 "spotlight.cachedArchive.description" = "%@ 個のファイルを含む · SimpleZip で開く";
+"spotlight.cachedArchive.descriptionWithNames" = "%1$@ 個のファイル · %2$@";
 "spotlight.setting.in" = "「%@」設定内";
 "intent.search.none" = "%1$@ に「%2$@」に一致する項目はありません。";
 "intent.search.results" = "%2$@ の %1$@ 件の項目が「%3$@」に一致します。";

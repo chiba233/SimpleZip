@@ -2449,6 +2449,7 @@
 "intent.findArchive.none" = "你打开过的归档里没有包含「%@」的。";
 "intent.findArchive.results" = "你打开过的 %1$@ 个归档包含「%2$@」。";
 "spotlight.cachedArchive.description" = "包含 %@ 个文件 · 在 SimpleZip 中打开";
+"spotlight.cachedArchive.descriptionWithNames" = "%1$@ 个文件 · %2$@";
 "spotlight.setting.in" = "在「%@」设置里";
 "intent.search.none" = "%1$@ 中没有条目匹配「%2$@」。";
 "intent.search.results" = "%2$@ 中有 %1$@ 个条目匹配「%3$@」。";

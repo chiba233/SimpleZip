@@ -2063,6 +2063,7 @@
 "intent.findArchive.none" = "Ninguno de los archivos comprimidos que has abierto contiene «%@».";
 "intent.findArchive.results" = "%1$@ archivo(s) comprimido(s) que has abierto contienen «%2$@».";
 "spotlight.cachedArchive.description" = "Contiene %@ archivos · abrir en SimpleZip";
+"spotlight.cachedArchive.descriptionWithNames" = "%1$@ archivos · %2$@";
 "spotlight.setting.in" = "En %@";
 "intent.search.none" = "Ninguna entrada de %1$@ coincide con «%2$@».";
 "intent.search.results" = "%1$@ entradas de %2$@ coinciden con «%3$@».";

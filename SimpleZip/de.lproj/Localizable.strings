@@ -2064,6 +2064,7 @@
 "intent.findArchive.none" = "Keines der von dir geöffneten Archive enthält „%@“.";
 "intent.findArchive.results" = "%1$@ von dir geöffnete(s) Archiv(e) enthält/enthalten „%2$@“.";
 "spotlight.cachedArchive.description" = "Enthält %@ Dateien · in SimpleZip öffnen";
+"spotlight.cachedArchive.descriptionWithNames" = "%1$@ Dateien · %2$@";
 "spotlight.setting.in" = "In %@";
 "intent.search.none" = "Keine Einträge in %1$@ entsprechen „%2$@“.";
 "intent.search.results" = "%1$@ Einträge in %2$@ entsprechen „%3$@“.";

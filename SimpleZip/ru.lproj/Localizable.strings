@@ -2063,6 +2063,7 @@
 "intent.findArchive.none" = "Ни один из открытых вами архивов не содержит «%@».";
 "intent.findArchive.results" = "Открытых вами архивов с «%2$@»: %1$@.";
 "spotlight.cachedArchive.description" = "Файлов внутри: %@ · открыть в SimpleZip";
+"spotlight.cachedArchive.descriptionWithNames" = "Файлов: %1$@ · %2$@";
 "spotlight.setting.in" = "В разделе «%@»";
 "intent.search.none" = "В %1$@ нет записей, соответствующих «%2$@».";
 "intent.search.results" = "%1$@ записей в %2$@ соответствуют «%3$@».";

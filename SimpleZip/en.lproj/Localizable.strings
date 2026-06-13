@@ -2449,6 +2449,7 @@
 "intent.findArchive.none" = "None of the archives you\'ve opened contain \"%@\".";
 "intent.findArchive.results" = "%1$@ archive(s) you\'ve opened contain \"%2$@\".";
 "spotlight.cachedArchive.description" = "Contains %@ files · open in SimpleZip";
+"spotlight.cachedArchive.descriptionWithNames" = "%1$@ files · %2$@";
 "spotlight.setting.in" = "In %@";
 "intent.search.none" = "No entries in %1$@ match \"%2$@\".";
 "intent.search.results" = "%1$@ entries in %2$@ match \"%3$@\".";

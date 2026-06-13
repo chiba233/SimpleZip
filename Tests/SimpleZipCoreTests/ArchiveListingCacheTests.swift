@@ -163,6 +163,26 @@ import Testing
         #expect(names == ["Localizable.strings", "README.md"])
     }
 
+    @Test func filePathsKeepFullPathsNoDedup() {
+        let store = makeStore()
+        store.record(archiveURL: url("paths.zip"), items: [
+            item("Resources/zh-Hans.lproj/Localizable.strings"),
+            item("Resources/en.lproj/Localizable.strings"), // 同 basename 但**不**去重(路径不同)
+            item("docs", isDirectory: true),                 // 目录跳过
+            item("README.md")
+        ], now: t0)
+        guard let entry = store.loadAll().first else { #expect(Bool(false)); return }
+        let paths = entry.filePaths()
+        // 保留完整路径、不去重、跳目录 —— 颗粒度比去重 basename 细。
+        #expect(paths == [
+            "Resources/zh-Hans.lproj/Localizable.strings",
+            "Resources/en.lproj/Localizable.strings",
+            "README.md"
+        ])
+        #expect(entry.fileEntryCount == 3)
+        #expect(entry.filePaths(limit: 2).count == 2)
+    }
+
     @Test func fileBaseNamesRespectsLimit() {
         let store = makeStore()
         store.record(archiveURL: url("big.zip"),
