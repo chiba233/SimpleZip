@@ -1425,6 +1425,10 @@
 "search.recent.section" = "Letzte Suchen";
 "security.banner" = "Dieses Archiv enthält %1$@ verdächtige Einträge";
 "security.banner.review" = "Bericht anzeigen";
+"externalChange.banner.modified" = "Dieses Archiv wurde außerhalb von SimpleZip geändert.";
+"externalChange.banner.removed" = "Dieses Archiv wurde außerhalb von SimpleZip verschoben oder gelöscht.";
+"externalChange.banner.reload" = "Neu laden";
+"externalChange.banner.dismiss" = "Schließen";
 "security.report.title" = "Pfadsicherheitsbericht";
 "security.report.note" = "Diese Ergebnisse dienen zur Information — die üblichen Sicherheitsabfragen gelten beim Extrahieren oder Öffnen weiterhin. Bisher wurde nichts blockiert.";
 "security.report.more" = "und %1$@ weitere…";

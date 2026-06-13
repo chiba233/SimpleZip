@@ -1426,6 +1426,10 @@
 "search.recent.section" = "最近搜尋";
 "security.banner" = "此壓縮檔包含 %1$@ 個可疑項目";
 "security.banner.review" = "查看報告";
+"externalChange.banner.modified" = "這個歸檔已被 SimpleZip 之外改動。";
+"externalChange.banner.removed" = "這個歸檔已被 SimpleZip 之外移動或刪除。";
+"externalChange.banner.reload" = "重新載入";
+"externalChange.banner.dismiss" = "忽略";
 "security.report.title" = "路徑安全報告";
 "security.report.note" = "以下發現僅供知情——解壓 / 打開時的常規安全確認仍會照常生效，目前沒有任何內容被攔截。";
 "security.report.more" = "還有 %1$@ 項…";

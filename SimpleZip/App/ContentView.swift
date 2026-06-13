@@ -74,6 +74,7 @@ struct ContentView: View {
                     // 0.4.1 #114 注释横幅 + 0.4.2 #7 安全报告横幅（抽成子视图：body 内联会让类型检查超时）。
                     archiveCommentBanner
                     archiveSecurityBanner
+                    archiveExternalChangeBanner
                     ArchiveTable(model: model)
                         // 落在**文件列表区**的拖入 = 加进归档（#109）；落在上面 TopBar 地址栏的拖入归外层 onDrop → 导航。
                         // 这条内层 onDrop 比 ContentView 整片的 onDrop 更靠内，命中列表区时优先它处理。
@@ -721,6 +722,33 @@ struct ContentView: View {
                     model.showsArchiveSecurityReport = true
                 }
                 .controlSize(.small)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(Color.orange.opacity(0.10))
+            Divider()
+        }
+    }
+
+    /// 0.4.4 #11:已打开归档被外部移动 / 删除 / 改写时的横幅。改写 → 给「重新载入」(走 reload 重列);
+    /// 移动 / 删除 → 只告知(原文件没了,没法原地刷新)。两种都给「忽略」收起。
+    @ViewBuilder
+    private var archiveExternalChangeBanner: some View {
+        if let change = model.openArchiveExternalChange {
+            HStack(spacing: 8) {
+                Image(systemName: change == .removed ? "exclamationmark.triangle.fill" : "arrow.triangle.2.circlepath")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.orange)
+                Text(L10n.text(change == .removed ? "externalChange.banner.removed" : "externalChange.banner.modified"))
+                    .font(.callout)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+                if change == .modified {
+                    Button(L10n.text("externalChange.banner.reload")) { model.reload() }
+                        .controlSize(.small)
+                }
+                Button(L10n.text("externalChange.banner.dismiss")) { model.openArchiveExternalChange = nil }
+                    .controlSize(.small)
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 6)

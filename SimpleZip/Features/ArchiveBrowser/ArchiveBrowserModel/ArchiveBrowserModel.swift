@@ -44,6 +44,13 @@ final class ArchiveBrowserModel: ObservableObject {
     /// 写回前传给写引擎核对 —— 打开后被 Finder / 其他 App 改过的包,写入会被拦下而不是覆盖外部改动。
     /// 非 @Published：纯写回守门数据,不驱动 UI。
     var archiveListingStamp: FileStateStamp?
+    /// 0.4.4 #11:已打开归档被外部(Finder / 其他 App)改写 / 移动 / 删除时的横幅状态。
+    /// **事件驱动**(NSFilePresenter 回调里跟 `archiveListingStamp` 比对、相等不发布),
+    /// 绝不在 reload / applyLoadedFolder 路径上变动 —— 不触 A17 的 @Published 风暴。nil = 无外部改动。
+    @Published var openArchiveExternalChange: OpenArchiveExternalChange?
+    /// 盯当前打开归档文件的 presenter(普通 var)。开档时挂、离档 / 换档时停。
+    /// 非 private:begin/stop 方法在 +Loading.swift 扩展里(跨文件同类型需 internal)。
+    var openArchivePresenter: OpenArchiveFilePresenter?
     /// 0.4.2 #11：批量重命名 sheet（非 nil = 显示）。右键多选文件条目触发。
     @Published var batchRenameRequest: BatchRenameRequest?
     /// 0.4.2 #15：发布包检查报告 sheet（非 nil = 显示）。右键单个归档触发，检查跑完赋值。
@@ -417,6 +424,8 @@ final class ArchiveBrowserModel: ObservableObject {
         // 显式停 watcher：FSEvent stream 用 passRetained 持有 folderWatcher 一个强引用，
         // 不在这里 stop（→ release stream → 放掉那个 +1），folderWatcher 永远不会被释放。
         folderWatcher?.stop()
+        // #11:NSFileCoordinator 会强持有 presenter,窗口关闭时必须显式移除,否则泄漏 + 幽灵回调。
+        openArchivePresenter?.stop()
         let openedArchiveItemDirectories = openedArchiveItemDirectories
         Task.detached {
             for directory in openedArchiveItemDirectories {

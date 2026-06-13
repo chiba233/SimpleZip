@@ -143,6 +143,8 @@ extension ArchiveBrowserModel {
     }
 
     func loadFolder(_ url: URL) {
+        // #11:进文件夹 = 不再盯任何已打开的归档文件(idempotent;无 presenter 时纯空操作,FSEvents 反复触发安全)。
+        stopWatchingOpenArchive()
         // 文件夹原位展开的注册表跟着「当前浏览的文件夹」走：导航到别处 → 整表清空（展开状态不跨目录）；
         // 同文件夹 reload → 留着,listing 更新后由 refreshExpandedFolderChildren 逐项核对。
         let ownerPath = url.standardizedFileURL.path
@@ -236,6 +238,48 @@ extension ArchiveBrowserModel {
                 self.status = L10n.text("status.couldNotOpenFolder")
                 self.loadTask = nil
             }
+        }
+    }
+
+    // MARK: - #11 外部文件变更感知(已打开归档)
+
+    /// 挂 presenter 盯 `url`(换档时先停旧的);清掉上一档遗留的横幅。开档路径每次只跑一次,非 120ms reload 循环。
+    func beginWatchingOpenArchive(_ url: URL) {
+        openArchivePresenter?.stop()
+        if openArchiveExternalChange != nil { openArchiveExternalChange = nil }
+        openArchivePresenter = OpenArchiveFilePresenter(url: url) { event in
+            // 回调来自后台 operationQueue → 回主 actor 处理。weak 捕获放在 Task 上,
+            // 避免「@Sendable 闭包里引用捕获的 self var」(Swift 6 会报错)。
+            Task { @MainActor [weak self] in self?.handleOpenArchiveFileEvent(event) }
+        }
+    }
+
+    /// 停止监视(离档 / 换档 / 退出)。idempotent —— 无 presenter 时纯空操作。
+    func stopWatchingOpenArchive() {
+        openArchivePresenter?.stop()
+        openArchivePresenter = nil
+        if openArchiveExternalChange != nil { openArchiveExternalChange = nil }
+    }
+
+    /// presenter 回调收口(主 actor)。跟列表时的戳比对,**真变了才发布**(A17:相等不刷 objectWillChange);
+    /// presentedItemDidChange 可能一次写入触发多回,比对挡住重复。
+    private func handleOpenArchiveFileEvent(_ event: OpenArchiveFilePresenter.Event) {
+        guard case .archive(let url) = mode else { return }
+        let newValue: OpenArchiveExternalChange?
+        switch event {
+        case .movedOrDeleted:
+            newValue = .removed
+        case .changed:
+            if (try? FileStateStamp.capture(url)) == nil {
+                newValue = .removed                                   // 原路径已拿不到 = 没了
+            } else if let stamp = archiveListingStamp, (try? FileStateStamp.capture(url)) != stamp {
+                newValue = .modified                                  // 大小/mtime 跟列表时不一致 = 被改写
+            } else {
+                newValue = openArchiveExternalChange                 // 没真变,保持现状(挡重复回调)
+            }
+        }
+        if openArchiveExternalChange != newValue {
+            openArchiveExternalChange = newValue
         }
     }
 
@@ -336,6 +380,8 @@ extension ArchiveBrowserModel {
             session.setItems(items)
             // 0.4.3 #3:列表成功的瞬间记下包的磁盘状态戳 —— 这就是「用户所见版本」,写回前据此检测外部改动。
             archiveListingStamp = try? FileStateStamp.capture(url)
+            // #11:开始盯这个归档文件的外部改动(换档时先停旧的;清掉上一档残留的横幅)。
+            beginWatchingOpenArchive(url)
             fileItems = []
             // 0.4.1 #114：list 解析时旁路缓存了归档级注释（zip/rar 头部 Comment）——取出来给横幅展示。
             let comment = ArchiveService.headerComment(for: url)

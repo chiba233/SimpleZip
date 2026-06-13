@@ -1426,6 +1426,10 @@
 "search.recent.section" = "最近の検索";
 "security.banner" = "このアーカイブには %1$@ 個の疑わしい項目があります";
 "security.banner.review" = "レポートを表示";
+"externalChange.banner.modified" = "このアーカイブは SimpleZip の外部で変更されました。";
+"externalChange.banner.removed" = "このアーカイブは SimpleZip の外部で移動または削除されました。";
+"externalChange.banner.reload" = "再読み込み";
+"externalChange.banner.dismiss" = "閉じる";
 "security.report.title" = "パス安全性レポート";
 "security.report.note" = "これらの検出は情報提供のみです — 展開または開くときの通常の安全確認は引き続き適用されます。まだ何もブロックされていません。";
 "security.report.more" = "ほか %1$@ 件…";

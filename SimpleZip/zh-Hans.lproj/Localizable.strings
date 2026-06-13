@@ -704,6 +704,10 @@
 /* 0.4.2 归档路径安全报告 */
 "security.banner" = "此压缩包包含 %1$@ 个可疑条目";
 "security.banner.review" = "查看报告";
+"externalChange.banner.modified" = "这个归档已被 SimpleZip 之外改动。";
+"externalChange.banner.removed" = "这个归档已被 SimpleZip 之外移动或删除。";
+"externalChange.banner.reload" = "重新载入";
+"externalChange.banner.dismiss" = "忽略";
 "security.report.title" = "路径安全报告";
 "security.report.note" = "以下发现仅供知情——解压 / 打开时的常规安全确认仍会照常生效，目前没有任何内容被拦截。";
 "security.report.more" = "还有 %1$@ 项…";

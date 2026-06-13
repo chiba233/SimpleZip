@@ -1424,6 +1424,10 @@
 "search.recent.section" = "Recherches récentes";
 "security.banner" = "Cette archive contient %1$@ entrées suspectes";
 "security.banner.review" = "Voir le rapport";
+"externalChange.banner.modified" = "Cette archive a été modifiée en dehors de SimpleZip.";
+"externalChange.banner.removed" = "Cette archive a été déplacée ou supprimée en dehors de SimpleZip.";
+"externalChange.banner.reload" = "Recharger";
+"externalChange.banner.dismiss" = "Ignorer";
 "security.report.title" = "Rapport de sécurité des chemins";
 "security.report.note" = "Ces résultats sont informatifs — les alertes de sécurité habituelles s’appliquent toujours lors de l’extraction ou de l’ouverture. Rien n’a encore été bloqué.";
 "security.report.more" = "et %1$@ de plus…";

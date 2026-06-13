@@ -1424,6 +1424,10 @@
 "search.recent.section" = "การค้นหาล่าสุด";
 "security.banner" = "ไฟล์บีบอัดนี้มีรายการน่าสงสัย %1$@ รายการ";
 "security.banner.review" = "ดูรายงาน";
+"externalChange.banner.modified" = "ไฟล์เก็บถาวรนี้ถูกเปลี่ยนแปลงนอก SimpleZip";
+"externalChange.banner.removed" = "ไฟล์เก็บถาวรนี้ถูกย้ายหรือลบนอก SimpleZip";
+"externalChange.banner.reload" = "โหลดใหม่";
+"externalChange.banner.dismiss" = "ปิด";
 "security.report.title" = "รายงานความปลอดภัยของพาธ";
 "security.report.note" = "ผลการตรวจพบเหล่านี้เป็นข้อมูลประกอบ — คำเตือนความปลอดภัยตามปกติยังคงใช้เมื่อแตกไฟล์หรือเปิด ยังไม่มีสิ่งใดถูกบล็อก";
 "security.report.more" = "และอีก %1$@ รายการ…";

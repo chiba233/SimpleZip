@@ -1424,6 +1424,10 @@
 "search.recent.section" = "Недавние поиски";
 "security.banner" = "Этот архив содержит подозрительные записи: %1$@";
 "security.banner.review" = "Показать отчет";
+"externalChange.banner.modified" = "Этот архив был изменён вне SimpleZip.";
+"externalChange.banner.removed" = "Этот архив был перемещён или удалён вне SimpleZip.";
+"externalChange.banner.reload" = "Перезагрузить";
+"externalChange.banner.dismiss" = "Закрыть";
 "security.report.title" = "Отчет о безопасности путей";
 "security.report.note" = "Эти находки носят информационный характер — обычные предупреждения безопасности при распаковке или открытии все равно действуют. Пока ничего не заблокировано.";
 "security.report.more" = "и еще %1$@…";

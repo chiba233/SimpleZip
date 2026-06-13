@@ -706,6 +706,10 @@
 /* 0.4.2 archive path security report */
 "security.banner" = "This archive contains %1$@ suspicious entries";
 "security.banner.review" = "View Report";
+"externalChange.banner.modified" = "This archive was changed outside SimpleZip.";
+"externalChange.banner.removed" = "This archive was moved or removed outside SimpleZip.";
+"externalChange.banner.reload" = "Reload";
+"externalChange.banner.dismiss" = "Dismiss";
 "security.report.title" = "Path Security Report";
 "security.report.note" = "These findings are informational — the usual safety prompts still apply when extracting or opening. Nothing has been blocked yet.";
 "security.report.more" = "and %1$@ more…";

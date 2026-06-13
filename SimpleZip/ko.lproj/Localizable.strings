@@ -1425,6 +1425,10 @@
 "search.recent.section" = "최근 검색";
 "security.banner" = "이 아카이브에 의심스러운 항목 %1$@개가 있습니다";
 "security.banner.review" = "보고서 보기";
+"externalChange.banner.modified" = "이 압축 파일이 SimpleZip 외부에서 변경되었습니다.";
+"externalChange.banner.removed" = "이 압축 파일이 SimpleZip 외부에서 이동되거나 삭제되었습니다.";
+"externalChange.banner.reload" = "다시 불러오기";
+"externalChange.banner.dismiss" = "닫기";
 "security.report.title" = "경로 보안 보고서";
 "security.report.note" = "이 결과는 참고용입니다 — 추출하거나 열 때 일반 안전 확인은 계속 적용됩니다. 아직 차단된 항목은 없습니다.";
 "security.report.more" = "외 %1$@개…";
