@@ -424,4 +424,69 @@ extension AIReportAssistant {
         }
         return (instructions, lines.joined(separator: "\n"))
     }
+
+    // MARK: - 内联自动速览(创建 / 解压窗口打开即静默跑,动态)
+
+    /// 创建对话框 → 速览:预估耗时(定性)+ 一条实用建议(格式 / 级别 / 没问题)+ 冲突提醒。只建议不替用户改。
+    static func createAdvisoryPrompt(
+        dryRun: ArchiveService.ArchiveCreationDryRun,
+        estimatedCompressedBytes: Int64?,
+        format: String,
+        compressionLevel: String,
+        outputExists: Bool
+    ) -> (instructions: String, prompt: String) {
+        let instructions = """
+        You give a brief (2–3 sentence) pre-flight note before the user creates an archive. Cover a rough, \
+        QUALITATIVE sense of how long it will take based on the data size (instant for small, longer for \
+        large — never invent exact seconds), and at most one practical suggestion if it's warranted (e.g. a \
+        format or compression level better suited to this content, or simply that the current settings look \
+        fine). If an output file with the same name already exists, mention it will ask how to handle the \
+        conflict. Base everything on the facts; suggest, don't lecture, and never change settings yourself. \
+        Reply in the user's language.
+        """
+        var lines: [String] = [
+            "Packing \(dryRun.inputFileCount) file(s), \(ByteCountFormatter.string(fromByteCount: dryRun.totalBytes, countStyle: .file)) uncompressed.",
+            "Chosen format: \(format); compression level: \(compressionLevel)."
+        ]
+        if let estimate = estimatedCompressedBytes, dryRun.totalBytes > 0 {
+            let pct = Int((Double(estimate) / Double(dryRun.totalBytes) * 100).rounded())
+            lines.append("Estimated compressed size: \(ByteCountFormatter.string(fromByteCount: estimate, countStyle: .file)) (~\(pct)% of original).")
+        }
+        if dryRun.excludedCount > 0 { lines.append("Excluded by rules: \(dryRun.excludedCount).") }
+        if dryRun.symlinkCount > 0 { lines.append("Symlinks: \(dryRun.symlinkCount).") }
+        if dryRun.packageCount > 0 { lines.append("macOS packages/bundles: \(dryRun.packageCount).") }
+        if let volumes = dryRun.estimatedVolumeCount { lines.append("Will split into about \(volumes) volumes.") }
+        if outputExists { lines.append("An output file with this name already exists.") }
+        return (instructions, lines.joined(separator: "\n"))
+    }
+
+    /// 解压对话框 → 速览:定性大小/耗时 + 解压前值得知道的事(可疑路径 / 覆盖 / 缺卷 / 空间不足)。绝不让跳过安全询问。
+    static func extractAdvisoryPrompt(
+        preflight: ArchiveExtractPreflight,
+        overwriteCount: Int,
+        missingVolumeCount: Int,
+        lowSpaceNeeded: String?,
+        lowSpaceAvailable: String?,
+        destinationName: String
+    ) -> (instructions: String, prompt: String) {
+        let instructions = """
+        You give a brief (2–3 sentence) pre-flight note before the user extracts an archive. Cover a rough, \
+        QUALITATIVE sense of size/time (never invent exact seconds), and flag anything worth knowing before \
+        extracting: suspicious paths that could write outside the destination folder, files that would \
+        overwrite existing ones, missing split volumes, or low disk space. If nothing stands out, say it \
+        looks straightforward. Never tell the user to skip a safety prompt. Reply in the user's language.
+        """
+        var lines: [String] = [
+            "Will extract \(preflight.fileCount) file(s), \(preflight.folderCount) folder(s), \(ByteCountFormatter.string(fromByteCount: preflight.totalBytes, countStyle: .file)) into \"\(destinationName)\"."
+        ]
+        if preflight.encryptedEntryCount > 0 { lines.append("Encrypted entries: \(preflight.encryptedEntryCount).") }
+        if preflight.suspiciousEntryCount > 0 { lines.append("Suspicious paths (could escape the destination folder): \(preflight.suspiciousEntryCount).") }
+        if preflight.symlinkCount > 0 { lines.append("Symlinks: \(preflight.symlinkCount).") }
+        if overwriteCount > 0 { lines.append("Would overwrite \(overwriteCount) existing file(s).") }
+        if missingVolumeCount > 0 { lines.append("Missing split volumes: \(missingVolumeCount).") }
+        if let needed = lowSpaceNeeded, let available = lowSpaceAvailable {
+            lines.append("Low disk space: needs \(needed), only \(available) available.")
+        }
+        return (instructions, lines.joined(separator: "\n"))
+    }
 }

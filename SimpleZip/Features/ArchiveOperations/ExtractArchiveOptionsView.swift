@@ -215,6 +215,21 @@ struct ExtractArchiveOptionsView: View {
                 if preflight.symlinkCount > 0 {
                     preflightCaption("extract.preflight.symlinks", "\(preflight.symlinkCount)", icon: "link", tint: .secondary)
                 }
+                // 打开窗口即静默跑的内联 AI 速览(大小/耗时 + 解压前值得注意的)。仅 isReady 时出现,失败静默。
+                InlineAIAdvisory(
+                    token: "\(preflight.fileCount)|\(preflight.totalBytes)|\(preflight.suspiciousEntryCount)|\(overwriteCount)|\(missingVolumeCount)|\(request.destinationURL.path)"
+                ) {
+                    guard #available(macOS 26.0, *) else { return "" }
+                    let built = AIReportAssistant.extractAdvisoryPrompt(
+                        preflight: preflight,
+                        overwriteCount: overwriteCount,
+                        missingVolumeCount: missingVolumeCount,
+                        lowSpaceNeeded: lowSpaceWarning?.needed,
+                        lowSpaceAvailable: lowSpaceWarning?.available,
+                        destinationName: request.destinationURL.lastPathComponent
+                    )
+                    return try await AIReportAssistant.generate(instructions: built.instructions, prompt: built.prompt)
+                }
             } else if preflightUnavailable {
                 Label(L10n.text("extract.preflight.unavailable"), systemImage: "list.bullet.rectangle")
                     .font(.callout)

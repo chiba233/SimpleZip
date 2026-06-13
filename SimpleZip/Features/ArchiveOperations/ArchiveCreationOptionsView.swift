@@ -811,6 +811,22 @@ struct ArchiveCreationOptionsView: View {
                     .font(.callout)
                     .foregroundStyle(.orange)
             }
+            // 打开窗口即静默跑的内联 AI 速览(预估耗时 + 格式/级别建议 + 冲突提醒)。动态:数据/格式/级别变了重跑。仅 isReady 时出现。
+            if let dryRun {
+                InlineAIAdvisory(
+                    token: "\(dryRun.inputFileCount)|\(dryRun.totalBytes)|\(estimatedCompressedBytes ?? -1)|\(request.options.format)|\(request.options.compressionLevel)|\(FileManager.default.fileExists(atPath: request.destinationURL.path))"
+                ) {
+                    guard #available(macOS 26.0, *) else { return "" }
+                    let built = AIReportAssistant.createAdvisoryPrompt(
+                        dryRun: dryRun,
+                        estimatedCompressedBytes: estimatedCompressedBytes,
+                        format: "\(request.options.format)",
+                        compressionLevel: "\(request.options.compressionLevel)",
+                        outputExists: FileManager.default.fileExists(atPath: request.destinationURL.path)
+                    )
+                    return try await AIReportAssistant.generate(instructions: built.instructions, prompt: built.prompt)
+                }
+            }
         }
         .onAppear { runDryRun() }
         .onChange(of: request.options.skipDSStore) { _ in runDryRun() }
