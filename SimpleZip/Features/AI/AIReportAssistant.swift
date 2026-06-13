@@ -286,14 +286,20 @@ extension AIReportAssistant {
         let instructions = """
         You explain a .siz signed-container's signature to a non-expert who is about to open it: whether \
         the signature is cryptographically valid AND the signer's key is trusted, who signed it, and \
-        whether the inner content is unmodified. NEVER advise opening a container whose signature is bad \
-        or whose signer isn't trusted — say plainly it shouldn't be opened. Reply in the user's language.
+        whether the inner content is unmodified. The ONLY reason to advise against opening is a BAD \
+        signature or an UNTRUSTED signer — in that case say plainly it shouldn't be opened. A valid \
+        signature from a trusted signer is safe to open. Encryption is a SEPARATE concern about \
+        confidentiality (who could read the contents in transit) — whether or not the container is \
+        encrypted is NOT a reason to open or avoid opening it, so never frame "not encrypted" as unsafe. \
+        Reply in the user's language.
         """
         var lines: [String] = [signatureFacts(signature.verify), "Signer (shown): \(signature.signerDisplay)"]
         if !signature.signedAt.isEmpty { lines.append("Signed at: \(signature.signedAt)") }
         lines.append("Format: .\(SIZArchive.extensionName) v\(signature.schemaVersion)")
         if let encryption = signature.encryption {
-            lines.append("Container is encrypted (recipients: \(encryption.recipients.count), symmetric passphrase: \(encryption.hasSymmetricPassphrase)).")
+            lines.append("Container is encrypted for confidentiality (recipients: \(encryption.recipients.count), symmetric passphrase: \(encryption.hasSymmetricPassphrase)). (Encryption affects who can read it, not whether it's safe to open.)")
+        } else {
+            lines.append("Container is not separately encrypted — its contents are readable by anyone who has the file. This is normal and is NOT a safety problem for opening it.")
         }
         if let note = signature.deliveryInstructions, !note.isEmpty { lines.append("Recipient note: \(note)") }
         return (instructions, lines.joined(separator: "\n"))
