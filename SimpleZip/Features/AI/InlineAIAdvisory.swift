@@ -20,7 +20,9 @@ struct InlineAIAdvisory: View {
     let produce: () async throws -> String
 
     @State private var text: String?
-    @State private var isLoading = false
+    // 初始就 true:打开窗口即显示菊花(用户要的「正在生成」反馈),且保证 `.task` 挂在一个**非空**视图上
+    // 一定触发(挂在空 ViewBuilder 上 `.task` 不会跑 —— 这是「完全不显示」的根因)。
+    @State private var isLoading = true
 
     var body: some View {
         if AIReportAssistant.isReady {
