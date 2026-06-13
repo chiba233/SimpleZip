@@ -2021,6 +2021,15 @@
 "Format" = "格式";
 "Archive Name" = "歸檔名稱";
 "Archive Format" = "歸檔格式";
+
+/* App Intents · ReleasePackageEntity */
+"Release Package" = "發佈套件";
+"Version" = "版本";
+"Date" = "日期";
+"SHA-256" = "SHA-256";
+"File Count" = "檔案數";
+"Reproducible" = "可重現";
+"Checksums Written" = "已寫入校驗檔";
 "intent.error.badName" = "「%@」不是有效的歸檔名稱，請使用不含路徑分隔符的純檔名。";
 
 /* Release automation, workspace, reports, metadata */

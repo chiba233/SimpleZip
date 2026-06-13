@@ -2019,6 +2019,15 @@
 "Format" = "Формат";
 "Archive Name" = "Имя архива";
 "Archive Format" = "Формат архива";
+
+/* App Intents · ReleasePackageEntity */
+"Release Package" = "Релизный пакет";
+"Version" = "Версия";
+"Date" = "Дата";
+"SHA-256" = "SHA-256";
+"File Count" = "Количество файлов";
+"Reproducible" = "Воспроизводимо";
+"Checksums Written" = "Контрольные суммы записаны";
 "intent.error.badName" = "«%@» не является допустимым именем архива — используйте простое имя файла без разделителей пути.";
 
 /* Release automation, workspace, reports, metadata */

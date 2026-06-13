@@ -2019,6 +2019,15 @@
 "Format" = "รูปแบบ";
 "Archive Name" = "ชื่อไฟล์เก็บถาวร";
 "Archive Format" = "รูปแบบไฟล์เก็บถาวร";
+
+/* App Intents · ReleasePackageEntity */
+"Release Package" = "แพ็กเกจรีลีส";
+"Version" = "เวอร์ชัน";
+"Date" = "วันที่";
+"SHA-256" = "SHA-256";
+"File Count" = "จำนวนไฟล์";
+"Reproducible" = "ทำซ้ำได้";
+"Checksums Written" = "เขียนเช็กซัมแล้ว";
 "intent.error.badName" = "\"%@\" ไม่ใช่ชื่อไฟล์เก็บถาวรที่ถูกต้อง โปรดใช้ชื่อไฟล์ธรรมดาที่ไม่มีตัวคั่นเส้นทาง";
 
 /* Release automation, workspace, reports, metadata */

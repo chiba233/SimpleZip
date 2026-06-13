@@ -2318,3 +2318,12 @@
 "Format" = "格式";
 "Archive Name" = "归档名称";
 "Archive Format" = "归档格式";
+
+/* App Intents · ReleasePackageEntity（发布包实体的字段标题） */
+"Release Package" = "发布包";
+"Version" = "版本";
+"Date" = "日期";
+"SHA-256" = "SHA-256";
+"File Count" = "文件数";
+"Reproducible" = "可复现";
+"Checksums Written" = "已写校验文件";

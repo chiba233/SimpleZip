@@ -2019,6 +2019,15 @@
 "Format" = "Formato";
 "Archive Name" = "Nombre del archivo";
 "Archive Format" = "Formato del archivo";
+
+/* App Intents · ReleasePackageEntity */
+"Release Package" = "Paquete de versión";
+"Version" = "Versión";
+"Date" = "Fecha";
+"SHA-256" = "SHA-256";
+"File Count" = "Número de archivos";
+"Reproducible" = "Reproducible";
+"Checksums Written" = "Sumas de verificación escritas";
 "intent.error.badName" = "\"%@\" no es un nombre de archivo válido; usa un nombre de archivo simple sin separadores de ruta.";
 
 /* Release automation, workspace, reports, metadata */

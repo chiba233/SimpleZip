@@ -2019,6 +2019,15 @@
 "Format" = "Format";
 "Archive Name" = "Nom de l’archive";
 "Archive Format" = "Format de l’archive";
+
+/* App Intents · ReleasePackageEntity */
+"Release Package" = "Paquet de version";
+"Version" = "Version";
+"Date" = "Date";
+"SHA-256" = "SHA-256";
+"File Count" = "Nombre de fichiers";
+"Reproducible" = "Reproductible";
+"Checksums Written" = "Sommes de contrôle écrites";
 "intent.error.badName" = "« %@ » n’est pas un nom d’archive valide ; utilisez un simple nom de fichier sans séparateur de chemin.";
 
 /* Release automation, workspace, reports, metadata */

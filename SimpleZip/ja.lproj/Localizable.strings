@@ -2021,6 +2021,15 @@
 "Format" = "形式";
 "Archive Name" = "アーカイブ名";
 "Archive Format" = "アーカイブ形式";
+
+/* App Intents · ReleasePackageEntity */
+"Release Package" = "リリースパッケージ";
+"Version" = "バージョン";
+"Date" = "日付";
+"SHA-256" = "SHA-256";
+"File Count" = "ファイル数";
+"Reproducible" = "再現可能";
+"Checksums Written" = "チェックサム書き込み済み";
 "intent.error.badName" = "「%@」は有効なアーカイブ名ではありません。パス区切り文字を含まない単純なファイル名を使用してください。";
 
 /* Release automation, workspace, reports, metadata */
