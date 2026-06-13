@@ -1317,6 +1317,7 @@
 "metadata.blocks" = "块数";
 "metadata.volumes" = "分卷数";
 "metadata.comment" = "注释";
+"metadata.entries" = "%1$@ 个文件、%2$@ 个文件夹";
 "metadata.entryCount" = "文件 / 文件夹";
 "metadata.encrypted" = "加密条目";
 "metadata.appleDouble" = "AppleDouble / __MACOSX 痕迹";

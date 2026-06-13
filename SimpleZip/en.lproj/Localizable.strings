@@ -1319,6 +1319,7 @@
 "metadata.blocks" = "Blocks";
 "metadata.volumes" = "Volumes";
 "metadata.comment" = "Comment";
+"metadata.entries" = "%1$@ files, %2$@ folders";
 "metadata.entryCount" = "Files / folders";
 "metadata.encrypted" = "Encrypted entries";
 "metadata.appleDouble" = "AppleDouble / __MACOSX traces";

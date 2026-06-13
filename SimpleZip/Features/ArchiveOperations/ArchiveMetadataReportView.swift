@@ -70,7 +70,7 @@ struct ArchiveMetadataReportView: View {
 
                     DialogSection(L10n.text("metadata.section.entries")) {
                         infoRow(L10n.text("metadata.entryCount"),
-                                value: L10n.format("inspect.entries", "\(report.aggregate.fileCount)", "\(report.aggregate.folderCount)", ""),
+                                value: L10n.format("metadata.entries", "\(report.aggregate.fileCount)", "\(report.aggregate.folderCount)"),
                                 systemImage: "number.square.fill", tint: .teal)
                         if report.aggregate.encryptedCount > 0 {
                             infoRow(L10n.text("metadata.encrypted"), value: "\(report.aggregate.encryptedCount)", systemImage: "lock.fill", tint: .orange)
@@ -160,7 +160,7 @@ extension ArchiveMetadataReport: ReportExportable {
     var reportSummaryLine: String {
         var parts = [archiveName]
         if let type = properties?.type { parts.append(type) }
-        parts.append(L10n.format("inspect.entries", "\(aggregate.fileCount)", "\(aggregate.folderCount)", ""))
+        parts.append(L10n.format("metadata.entries", "\(aggregate.fileCount)", "\(aggregate.folderCount)"))
         if aggregate.encryptedCount > 0 {
             parts.append(L10n.format("space.count.value", "\(aggregate.encryptedCount)", L10n.text("metadata.encrypted")))
         }
