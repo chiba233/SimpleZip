@@ -102,6 +102,8 @@ struct SettingsView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+        // 定宽:否则 TextField 随输入变宽,把 `fixedSize` 的侧栏无限撑长(用户实测)。
+        .frame(width: 180)
         .padding(.horizontal, 4)
         .padding(.bottom, 4)
     }

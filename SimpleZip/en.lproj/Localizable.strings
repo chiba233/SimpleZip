@@ -1742,6 +1742,15 @@
 "settings.aiSearch.prompt" = "Find a setting…";
 "settings.aiSearch.notFound" = "No matching setting — try rephrasing.";
 "settings.aiSearch.failed" = "Couldn't search — try again.";
+"menu.findArchive" = "Find Archive Containing File…";
+"finder.title" = "Find Archive Containing File";
+"finder.subtitle" = "Searches the archives you've opened";
+"finder.prompt" = "e.g. where's my resume";
+"finder.search" = "Search";
+"finder.hint" = "Describe the file you're looking for; SimpleZip checks the archives you've opened (only non-encrypted names are remembered).";
+"finder.noResults" = "No opened archive contains “%@”.";
+"finder.resultsHeader" = "“%@” found in %@ archive(s):";
+"finder.failed" = "Couldn't search — try again.";
 "settings.section.defaults" = "Defaults";
 "settings.section.browser" = "Browser";
 "settings.startupLocation" = "Startup location";

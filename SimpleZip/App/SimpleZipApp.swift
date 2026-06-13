@@ -200,6 +200,12 @@ struct ArchiveFileCommands: Commands {
             Button(L10n.text("dupArchives.menu")) { model?.findDuplicateArchivesInFolder() }
                 .disabled(!isFolderMode)
 
+            // #63(macOS 26 AI):用一句话找「文件X在哪个包」—— 仅 AI 可用时出现(A4)。
+            if AIReportAssistant.isReady {
+                Button(L10n.text("menu.findArchive")) { model?.presentArchiveFinder() }
+                    .disabled(model == nil)
+            }
+
             Divider()
 
             // 包内工具(打开压缩包后可用)。

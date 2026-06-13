@@ -188,6 +188,15 @@
 "settings.aiSearch.prompt" = "Найти настройку…";
 "settings.aiSearch.notFound" = "Подходящая настройка не найдена — переформулируйте.";
 "settings.aiSearch.failed" = "Не удалось выполнить поиск — повторите попытку.";
+"menu.findArchive" = "Найти архив с файлом…";
+"finder.title" = "Найти архив с файлом";
+"finder.subtitle" = "Ищет среди открытых вами архивов";
+"finder.prompt" = "напр., где моё резюме";
+"finder.search" = "Найти";
+"finder.hint" = "Опишите искомый файл; SimpleZip проверит открытые вами архивы (запоминаются только незашифрованные имена).";
+"finder.noResults" = "Ни один открытый архив не содержит «%@».";
+"finder.resultsHeader" = "«%@» найдено в %@ архив(ах):";
+"finder.failed" = "Не удалось выполнить поиск — повторите попытку.";
 "settings.section.defaults" = "По умолчанию";
 "settings.section.browser" = "Обзор";
 "settings.startupLocation" = "Стартовое место";

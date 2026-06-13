@@ -188,6 +188,15 @@
 "settings.aiSearch.prompt" = "找設定…";
 "settings.aiSearch.notFound" = "沒有相符的設定 —— 換個說法。";
 "settings.aiSearch.failed" = "搜尋失敗 —— 再試一次。";
+"menu.findArchive" = "尋找包含檔案的封存檔…";
+"finder.title" = "尋找包含檔案的封存檔";
+"finder.subtitle" = "在你開啟過的封存檔裡搜尋";
+"finder.prompt" = "例如:我的履歷在哪";
+"finder.search" = "搜尋";
+"finder.hint" = "描述你要找的檔案;SimpleZip 會查你開啟過的封存檔(只記非加密的名字)。";
+"finder.noResults" = "開啟過的封存檔裡沒有「%@」。";
+"finder.resultsHeader" = "「%@」在 %@ 個封存檔裡找到:";
+"finder.failed" = "搜尋失敗 —— 再試一次。";
 "settings.section.defaults" = "預設項目";
 "settings.section.browser" = "瀏覽器";
 "settings.startupLocation" = "啟動位置";

@@ -188,6 +188,15 @@
 "settings.aiSearch.prompt" = "설정 찾기…";
 "settings.aiSearch.notFound" = "일치하는 설정이 없어요 — 다르게 표현해 보세요.";
 "settings.aiSearch.failed" = "검색하지 못했어요 — 다시 시도해 주세요.";
+"menu.findArchive" = "파일이 든 압축 파일 찾기…";
+"finder.title" = "파일이 든 압축 파일 찾기";
+"finder.subtitle" = "열어 본 압축 파일을 검색합니다";
+"finder.prompt" = "예: 이력서 어디 있지";
+"finder.search" = "검색";
+"finder.hint" = "찾는 파일을 설명하세요. SimpleZip이 열어 본 압축 파일을 확인합니다(암호화되지 않은 이름만 기억).";
+"finder.noResults" = "열어 본 압축 파일에 “%@”이(가) 없습니다.";
+"finder.resultsHeader" = "“%@”을(를) %@개의 압축 파일에서 찾았습니다:";
+"finder.failed" = "검색하지 못했어요 — 다시 시도해 주세요.";
 "settings.section.defaults" = "기본값";
 "settings.section.browser" = "브라우저";
 "settings.startupLocation" = "시작 위치";

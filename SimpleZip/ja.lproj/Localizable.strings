@@ -188,6 +188,15 @@
 "settings.aiSearch.prompt" = "設定を探す…";
 "settings.aiSearch.notFound" = "一致する設定がありません。言い換えてみてください。";
 "settings.aiSearch.failed" = "検索できませんでした。もう一度お試しください。";
+"menu.findArchive" = "ファイルを含む書庫を探す…";
+"finder.title" = "ファイルを含む書庫を探す";
+"finder.subtitle" = "開いたことのある書庫を検索します";
+"finder.prompt" = "例:履歴書はどこ";
+"finder.search" = "検索";
+"finder.hint" = "探しているファイルを説明してください。SimpleZip は開いたことのある書庫を調べます(暗号化されていない名前のみ記憶)。";
+"finder.noResults" = "開いた書庫に「%@」を含むものはありません。";
+"finder.resultsHeader" = "「%@」は %@ 個の書庫で見つかりました:";
+"finder.failed" = "検索できませんでした。もう一度お試しください。";
 "settings.section.defaults" = "デフォルト";
 "settings.section.browser" = "ブラウザ";
 "settings.startupLocation" = "起動時の場所";

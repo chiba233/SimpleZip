@@ -508,7 +508,7 @@ extension AIReportAssistant {
         if !signature.signedAt.isEmpty { lines.append("Signed at: \(signature.signedAt)") }
         lines.append("Format: .\(SIZArchive.extensionName) v\(signature.schemaVersion)")
         if let encryption = signature.encryption {
-            lines.append("Container is encrypted for confidentiality (recipients: \(encryption.recipients.count), symmetric passphrase: \(encryption.hasSymmetricPassphrase)). (Encryption affects who can read it, not whether it's safe to open.)")
+            lines.append("Container is encrypted for confidentiality (recipients: \(encryption.recipients.count), symmetric passphrase: \(encryption.hasSymmetricPassphrase ?? false)). (Encryption affects who can read it, not whether it's safe to open.)")
         } else {
             lines.append("Container is not separately encrypted — its contents are readable by anyone who has the file. This is normal and is NOT a safety problem for opening it.")
         }

@@ -188,6 +188,15 @@
 "settings.aiSearch.prompt" = "Trouver un réglage…";
 "settings.aiSearch.notFound" = "Aucun réglage correspondant — reformulez.";
 "settings.aiSearch.failed" = "Recherche impossible — réessayez.";
+"menu.findArchive" = "Trouver l’archive contenant…";
+"finder.title" = "Trouver l’archive contenant un fichier";
+"finder.subtitle" = "Cherche dans les archives que vous avez ouvertes";
+"finder.prompt" = "p. ex. où est mon CV";
+"finder.search" = "Rechercher";
+"finder.hint" = "Décrivez le fichier recherché ; SimpleZip vérifie les archives que vous avez ouvertes (seuls les noms non chiffrés sont mémorisés).";
+"finder.noResults" = "Aucune archive ouverte ne contient « %@ ».";
+"finder.resultsHeader" = "« %@ » trouvé dans %@ archive(s) :";
+"finder.failed" = "Recherche impossible — réessayez.";
 "settings.section.defaults" = "Valeurs par défaut";
 "settings.section.browser" = "Navigateur";
 "settings.startupLocation" = "Emplacement de démarrage";

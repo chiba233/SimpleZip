@@ -364,6 +364,12 @@ struct ContentView: View {
                 model.spaceAnalysisReport = nil
             }
         }
+        // #63:「文件X在哪个包」AI 查询 sheet。
+        .sheet(item: $model.archiveFinderRequest) { _ in
+            ArchiveFinderSheet {
+                model.archiveFinderRequest = nil
+            }
+        }
         .sheet(item: $model.releaseAssistantRequest, onDismiss: {
             if let confirmed = pendingReleaseAssistantRun {
                 pendingReleaseAssistantRun = nil

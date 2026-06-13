@@ -188,6 +188,15 @@
 "settings.aiSearch.prompt" = "ค้นหาการตั้งค่า…";
 "settings.aiSearch.notFound" = "ไม่พบการตั้งค่าที่ตรงกัน — ลองพิมพ์ใหม่";
 "settings.aiSearch.failed" = "ค้นหาไม่สำเร็จ — ลองอีกครั้ง";
+"menu.findArchive" = "ค้นหาไฟล์บีบอัดที่มีไฟล์…";
+"finder.title" = "ค้นหาไฟล์บีบอัดที่มีไฟล์";
+"finder.subtitle" = "ค้นหาในไฟล์บีบอัดที่คุณเคยเปิด";
+"finder.prompt" = "เช่น เรซูเม่ของฉันอยู่ไหน";
+"finder.search" = "ค้นหา";
+"finder.hint" = "อธิบายไฟล์ที่กำลังหา SimpleZip จะตรวจไฟล์บีบอัดที่คุณเคยเปิด (จำเฉพาะชื่อที่ไม่ได้เข้ารหัส)";
+"finder.noResults" = "ไม่มีไฟล์บีบอัดที่เปิดไว้มี “%@”";
+"finder.resultsHeader" = "พบ “%@” ใน %@ ไฟล์บีบอัด:";
+"finder.failed" = "ค้นหาไม่สำเร็จ — ลองอีกครั้ง";
 "settings.section.defaults" = "ค่าเริ่มต้น";
 "settings.section.browser" = "เบราว์เซอร์";
 "settings.startupLocation" = "ตำแหน่งเมื่อเปิดแอป";

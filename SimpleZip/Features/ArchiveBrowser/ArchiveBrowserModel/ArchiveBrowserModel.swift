@@ -69,6 +69,8 @@ final class ArchiveBrowserModel: ObservableObject {
     @Published var archiveCheckupReport: ArchiveCheckupReport?
     /// 0.4.4 #8:数据救援结果报告(同上)。
     @Published var archiveSalvageReport: ArchiveSalvageReport?
+    /// 0.4.4 #63:「文件X在哪个包」AI 查询 sheet(菜单触发;非 nil = 显示)。只读 marker,数据在 sheet 里查缓存。
+    @Published var archiveFinderRequest: ArchiveFinderRequest?
     /// 0.4.4 #14:最近一次归档打开的性能快照。**普通 var,绝不 @Published**(A17:
     /// loadArchive 每次打开都写它;只有「复制打开性能报告」按需读,不参与渲染)。
     var lastOpenMetrics: ArchiveOpenMetrics?

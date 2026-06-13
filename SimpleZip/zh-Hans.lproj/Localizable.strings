@@ -1740,6 +1740,15 @@
 "settings.aiSearch.prompt" = "找设置…";
 "settings.aiSearch.notFound" = "没有匹配的设置 —— 换个说法。";
 "settings.aiSearch.failed" = "搜索失败 —— 再试一次。";
+"menu.findArchive" = "查找包含文件的归档…";
+"finder.title" = "查找包含文件的归档";
+"finder.subtitle" = "在你打开过的归档里搜索";
+"finder.prompt" = "例如:我的简历在哪";
+"finder.search" = "搜索";
+"finder.hint" = "描述你要找的文件;SimpleZip 会查你打开过的归档(只记非加密的名字)。";
+"finder.noResults" = "打开过的归档里没有「%@」。";
+"finder.resultsHeader" = "「%@」在 %@ 个归档里找到:";
+"finder.failed" = "搜索失败 —— 再试一次。";
 "settings.section.defaults" = "默认项";
 "settings.section.browser" = "浏览器";
 "settings.startupLocation" = "启动位置";
