@@ -2335,3 +2335,16 @@
 "Source" = "Source";
 "Status" = "Status";
 "Started" = "Started";
+
+/* App Intents · 搜索/检查归档 intent(运行时消息 + 字段标题) */
+"intent.task.search" = "Shortcut: search %@";
+"intent.task.inspect" = "Shortcut: inspect %@";
+"intent.search.emptyQuery" = "Enter something to search for.";
+"intent.search.none" = "No entries in %1$@ match \"%2$@\".";
+"intent.search.results" = "%1$@ entries in %2$@ match \"%3$@\".";
+"intent.inspect.clean" = "%1$@ has no suspicious paths — %2$@ file(s), %3$@, %4$@ macOS junk item(s).";
+"intent.inspect.flagged" = "%1$@ has %2$@ flagged path(s) across %3$@ finding type(s) — %4$@ file(s), %5$@. Review before publishing.";
+"Search Archive Contents" = "Search Archive Contents";
+"Inspect Archive" = "Inspect Archive";
+"Query" = "Query";
+"Archive" = "Archive";

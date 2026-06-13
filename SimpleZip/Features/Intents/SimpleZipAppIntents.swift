@@ -403,6 +403,113 @@ struct CompareArchivesIntent: AppIntent {
     }
 }
 
+// MARK: - 归档内容搜索(0.4.4 macOS 26 AI)
+
+struct SearchArchiveContentsIntent: AppIntent {
+    static let title: LocalizedStringResource = "Search Archive Contents"
+    static let description = IntentDescription(
+        "Lists an archive and returns the entries whose path contains the search text (case-insensitive). Encrypted archives whose entry names need a password aren't listed."
+    )
+
+    @Parameter(title: "Archive")
+    var archive: IntentFile
+
+    @Parameter(title: "Query")
+    var query: String
+
+    static var parameterSummary: some ParameterSummary {
+        Summary("Search \(\.$archive) for \(\.$query)")
+    }
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ReturnsValue<[String]> & ProvidesDialog {
+        let url = try intentFileURL(archive)
+        let trimmed = query.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else {
+            throw SimpleZipIntentError(message: L10n.text("intent.search.emptyQuery"))
+        }
+        let operationID = UUID()
+        let task = TaskCenter.shared.begin(
+            category: .archive,
+            kind: .search,
+            source: .intent,
+            title: L10n.format("intent.task.search", url.lastPathComponent),
+            cancellable: false,
+            operationID: operationID
+        )
+        do {
+            // 仅按完整路径做大小写不敏感子串匹配。加密名归档本就 list 不出名字 → 自然不暴露(隐私红线)。
+            let items = try await ArchiveService.list(url, operationID: operationID)
+            let matches = ArchiveSearch.filter(items, with: ArchiveSearchQuery(text: trimmed, scope: .fullPath)).map(\.name)
+            TaskCenter.shared.finish(task, outcome: .succeeded(nil))
+            if matches.isEmpty {
+                return .result(
+                    value: [],
+                    dialog: IntentDialog("\(L10n.format("intent.search.none", url.lastPathComponent, trimmed))")
+                )
+            }
+            return .result(
+                value: matches,
+                dialog: IntentDialog("\(L10n.format("intent.search.results", "\(matches.count)", url.lastPathComponent, trimmed))")
+            )
+        } catch {
+            TaskCenter.shared.finish(task, outcome: .failed(error.localizedDescription))
+            throw SimpleZipIntentError(message: error.localizedDescription)
+        }
+    }
+}
+
+// MARK: - 归档检查(0.4.4 macOS 26 AI)
+
+struct InspectArchiveIntent: AppIntent {
+    static let title: LocalizedStringResource = "Inspect Archive"
+    static let description = IntentDescription(
+        "Inspects an archive the way the Release Assistant does — file count, total size, macOS junk, empty directories and suspicious entry paths — without extracting. Returns true when nothing suspicious is found."
+    )
+
+    @Parameter(title: "Archive")
+    var archive: IntentFile
+
+    static var parameterSummary: some ParameterSummary {
+        Summary("Inspect \(\.$archive)")
+    }
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ReturnsValue<Bool> & ProvidesDialog {
+        let url = try intentFileURL(archive)
+        let operationID = UUID()
+        let task = TaskCenter.shared.begin(
+            category: .archive,
+            kind: .inspect,
+            source: .intent,
+            title: L10n.format("intent.task.inspect", url.lastPathComponent),
+            cancellable: false,
+            operationID: operationID
+        )
+        do {
+            let items = try await ArchiveService.list(url, operationID: operationID)
+            let stats = ReleaseInspection.stats(for: items)
+            let findings = ArchiveSecurityReport.analyze(items)
+            let flaggedPaths = findings.reduce(0) { $0 + $1.entryPaths.count }
+            TaskCenter.shared.finish(task, outcome: .succeeded(nil))
+            let sizeText = ByteCountFormatter.string(fromByteCount: stats.totalBytes, countStyle: .file)
+            if findings.isEmpty {
+                return .result(
+                    value: true,
+                    dialog: IntentDialog("\(L10n.format("intent.inspect.clean", url.lastPathComponent, "\(stats.fileCount)", sizeText, "\(stats.junkCount)"))")
+                )
+            }
+            return .result(
+                value: false,
+                dialog: IntentDialog("\(L10n.format("intent.inspect.flagged", url.lastPathComponent, "\(flaggedPaths)", "\(findings.count)", "\(stats.fileCount)", sizeText))")
+            )
+        } catch {
+            TaskCenter.shared.finish(task, outcome: .failed(error.localizedDescription))
+            throw SimpleZipIntentError(message: error.localizedDescription)
+        }
+    }
+}
+
 // MARK: - 发布打包(0.4.4 B)
 
 struct CreateReleasePackageIntent: AppIntent {
@@ -601,6 +708,18 @@ struct SimpleZipAppShortcuts: AppShortcutsProvider {
             phrases: ["Compare archives with \(.applicationName)", "Compare two archives with \(.applicationName)"],
             shortTitle: "Compare Archives",
             systemImageName: "arrow.left.arrow.right.circle"
+        )
+        AppShortcut(
+            intent: SearchArchiveContentsIntent(),
+            phrases: ["Search an archive with \(.applicationName)", "Search archive contents with \(.applicationName)"],
+            shortTitle: "Search Archive Contents",
+            systemImageName: "text.magnifyingglass"
+        )
+        AppShortcut(
+            intent: InspectArchiveIntent(),
+            phrases: ["Inspect an archive with \(.applicationName)", "Inspect an archive for release with \(.applicationName)"],
+            shortTitle: "Inspect Archive",
+            systemImageName: "checkmark.shield"
         )
         AppShortcut(
             intent: CreateReleasePackageIntent(),

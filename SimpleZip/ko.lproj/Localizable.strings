@@ -2033,6 +2033,19 @@
 "Source" = "소스";
 "Status" = "상태";
 "Started" = "시작됨";
+
+/* App Intents · 搜索/检查归档 intent(运行时消息 + 字段标题) */
+"intent.task.search" = "단축어: %@ 검색";
+"intent.task.inspect" = "단축어: %@ 검사";
+"intent.search.emptyQuery" = "검색할 내용을 입력하세요.";
+"intent.search.none" = "%1$@에 \"%2$@\"과(와) 일치하는 항목이 없습니다.";
+"intent.search.results" = "%2$@의 %1$@개 항목이 \"%3$@\"과(와) 일치합니다.";
+"intent.inspect.clean" = "%1$@에 의심스러운 경로가 없습니다 — 파일 %2$@개, %3$@, macOS 불필요 항목 %4$@개.";
+"intent.inspect.flagged" = "%1$@에 %3$@개 유형에 걸쳐 %2$@개의 표시된 경로가 있습니다 — 파일 %4$@개, %5$@. 게시 전에 검토하세요.";
+"Search Archive Contents" = "아카이브 내용 검색";
+"Inspect Archive" = "아카이브 검사";
+"Query" = "검색어";
+"Archive" = "아카이브";
 "intent.error.badName" = "「%@」은(는) 올바른 아카이브 이름이 아닙니다. 경로 구분자가 없는 단순한 파일 이름을 사용하세요.";
 
 /* Release automation, workspace, reports, metadata */

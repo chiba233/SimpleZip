@@ -42,6 +42,9 @@ final class OperationTask: ObservableObject, Identifiable {
         case convert
         case undo
         case redo
+        /// 0.4.4 macOS 26 AI:Shortcuts「搜索归档内容」「检查归档」两个只读查询 intent 的任务类型。
+        case search
+        case inspect
 
         /// 解码容错：新版本的新 kind 被旧版本读到时降级 `.extract`，不废掉整条历史。
         init(from decoder: Decoder) throws {

@@ -2335,3 +2335,16 @@
 "Source" = "来源";
 "Status" = "状态";
 "Started" = "开始时间";
+
+/* App Intents · 搜索/检查归档 intent(运行时消息 + 字段标题) */
+"intent.task.search" = "快捷指令：搜索 %@";
+"intent.task.inspect" = "快捷指令：检查 %@";
+"intent.search.emptyQuery" = "请输入要搜索的内容。";
+"intent.search.none" = "%1$@ 中没有条目匹配「%2$@」。";
+"intent.search.results" = "%2$@ 中有 %1$@ 个条目匹配「%3$@」。";
+"intent.inspect.clean" = "%1$@ 没有可疑路径——%2$@ 个文件，%3$@，%4$@ 个 macOS 垃圾项。";
+"intent.inspect.flagged" = "%1$@ 有 %2$@ 个被标记的路径（%3$@ 类问题）——%4$@ 个文件，%5$@。发布前请复核。";
+"Search Archive Contents" = "搜索归档内容";
+"Inspect Archive" = "检查归档";
+"Query" = "查询";
+"Archive" = "归档";

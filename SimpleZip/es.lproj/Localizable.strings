@@ -2032,6 +2032,19 @@
 "Source" = "Origen";
 "Status" = "Estado";
 "Started" = "Iniciado";
+
+/* App Intents · 搜索/检查归档 intent(运行时消息 + 字段标题) */
+"intent.task.search" = "Atajo: buscar %@";
+"intent.task.inspect" = "Atajo: inspeccionar %@";
+"intent.search.emptyQuery" = "Introduce algo que buscar.";
+"intent.search.none" = "Ninguna entrada de %1$@ coincide con «%2$@».";
+"intent.search.results" = "%1$@ entradas de %2$@ coinciden con «%3$@».";
+"intent.inspect.clean" = "%1$@ no tiene rutas sospechosas: %2$@ archivo(s), %3$@, %4$@ elemento(s) basura de macOS.";
+"intent.inspect.flagged" = "%1$@ tiene %2$@ ruta(s) marcada(s) en %3$@ tipo(s) de hallazgo: %4$@ archivo(s), %5$@. Revisa antes de publicar.";
+"Search Archive Contents" = "Buscar en el contenido del archivo";
+"Inspect Archive" = "Inspeccionar archivo";
+"Query" = "Consulta";
+"Archive" = "Archivo";
 "intent.error.badName" = "\"%@\" no es un nombre de archivo válido; usa un nombre de archivo simple sin separadores de ruta.";
 
 /* Release automation, workspace, reports, metadata */

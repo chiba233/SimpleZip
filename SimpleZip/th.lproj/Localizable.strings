@@ -2032,6 +2032,19 @@
 "Source" = "แหล่งที่มา";
 "Status" = "สถานะ";
 "Started" = "เริ่มเมื่อ";
+
+/* App Intents · 搜索/检查归档 intent(运行时消息 + 字段标题) */
+"intent.task.search" = "ทางลัด: ค้นหา %@";
+"intent.task.inspect" = "ทางลัด: ตรวจสอบ %@";
+"intent.search.emptyQuery" = "ป้อนสิ่งที่ต้องการค้นหา";
+"intent.search.none" = "ไม่มีรายการใน %1$@ ที่ตรงกับ \"%2$@\"";
+"intent.search.results" = "%1$@ รายการใน %2$@ ตรงกับ \"%3$@\"";
+"intent.inspect.clean" = "%1$@ ไม่มีเส้นทางที่น่าสงสัย — %2$@ ไฟล์, %3$@, รายการขยะ macOS %4$@ รายการ";
+"intent.inspect.flagged" = "%1$@ มีเส้นทางที่ถูกทำเครื่องหมาย %2$@ รายการใน %3$@ ประเภท — %4$@ ไฟล์, %5$@ ตรวจสอบก่อนเผยแพร่";
+"Search Archive Contents" = "ค้นหาเนื้อหาไฟล์เก็บถาวร";
+"Inspect Archive" = "ตรวจสอบไฟล์เก็บถาวร";
+"Query" = "คำค้นหา";
+"Archive" = "ไฟล์เก็บถาวร";
 "intent.error.badName" = "\"%@\" ไม่ใช่ชื่อไฟล์เก็บถาวรที่ถูกต้อง โปรดใช้ชื่อไฟล์ธรรมดาที่ไม่มีตัวคั่นเส้นทาง";
 
 /* Release automation, workspace, reports, metadata */

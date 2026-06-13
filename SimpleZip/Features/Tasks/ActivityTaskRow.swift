@@ -499,6 +499,10 @@ struct ActivityTaskRow: View {
             return "arrow.uturn.backward"
         case .redo:
             return "arrow.uturn.forward"
+        case .search:
+            return "text.magnifyingglass"
+        case .inspect:
+            return "checkmark.shield"
         }
     }
 

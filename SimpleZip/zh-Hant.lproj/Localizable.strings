@@ -2034,6 +2034,19 @@
 "Source" = "來源";
 "Status" = "狀態";
 "Started" = "開始時間";
+
+/* App Intents · 搜索/检查归档 intent(运行时消息 + 字段标题) */
+"intent.task.search" = "快捷指令：搜尋 %@";
+"intent.task.inspect" = "快捷指令：檢查 %@";
+"intent.search.emptyQuery" = "請輸入要搜尋的內容。";
+"intent.search.none" = "%1$@ 中沒有項目符合「%2$@」。";
+"intent.search.results" = "%2$@ 中有 %1$@ 個項目符合「%3$@」。";
+"intent.inspect.clean" = "%1$@ 沒有可疑路徑——%2$@ 個檔案，%3$@，%4$@ 個 macOS 垃圾項。";
+"intent.inspect.flagged" = "%1$@ 有 %2$@ 個被標記的路徑（%3$@ 類問題）——%4$@ 個檔案，%5$@。發佈前請複查。";
+"Search Archive Contents" = "搜尋歸檔內容";
+"Inspect Archive" = "檢查歸檔";
+"Query" = "查詢";
+"Archive" = "歸檔";
 "intent.error.badName" = "「%@」不是有效的歸檔名稱，請使用不含路徑分隔符的純檔名。";
 
 /* Release automation, workspace, reports, metadata */

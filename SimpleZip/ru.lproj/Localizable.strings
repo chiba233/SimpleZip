@@ -2032,6 +2032,19 @@
 "Source" = "Источник";
 "Status" = "Статус";
 "Started" = "Начато";
+
+/* App Intents · 搜索/检查归档 intent(运行时消息 + 字段标题) */
+"intent.task.search" = "Быстрая команда: поиск %@";
+"intent.task.inspect" = "Быстрая команда: проверка %@";
+"intent.search.emptyQuery" = "Введите текст для поиска.";
+"intent.search.none" = "В %1$@ нет записей, соответствующих «%2$@».";
+"intent.search.results" = "%1$@ записей в %2$@ соответствуют «%3$@».";
+"intent.inspect.clean" = "В %1$@ нет подозрительных путей — файлов: %2$@, %3$@, мусорных объектов macOS: %4$@.";
+"intent.inspect.flagged" = "В %1$@ отмечено путей: %2$@ по %3$@ типам — файлов: %4$@, %5$@. Проверьте перед публикацией.";
+"Search Archive Contents" = "Поиск в архиве";
+"Inspect Archive" = "Проверить архив";
+"Query" = "Запрос";
+"Archive" = "Архив";
 "intent.error.badName" = "«%@» не является допустимым именем архива — используйте простое имя файла без разделителей пути.";
 
 /* Release automation, workspace, reports, metadata */

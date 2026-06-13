@@ -2034,6 +2034,19 @@
 "Source" = "ソース";
 "Status" = "ステータス";
 "Started" = "開始";
+
+/* App Intents · 搜索/检查归档 intent(运行时消息 + 字段标题) */
+"intent.task.search" = "ショートカット：%@ を検索";
+"intent.task.inspect" = "ショートカット：%@ を検査";
+"intent.search.emptyQuery" = "検索する内容を入力してください。";
+"intent.search.none" = "%1$@ に「%2$@」に一致する項目はありません。";
+"intent.search.results" = "%2$@ の %1$@ 件の項目が「%3$@」に一致します。";
+"intent.inspect.clean" = "%1$@ に疑わしいパスはありません — %2$@ 個のファイル、%3$@、macOS の不要項目 %4$@ 個。";
+"intent.inspect.flagged" = "%1$@ には %3$@ 種類の問題で %2$@ 個のパスが指摘されています — %4$@ 個のファイル、%5$@。公開前に確認してください。";
+"Search Archive Contents" = "アーカイブ内を検索";
+"Inspect Archive" = "アーカイブを検査";
+"Query" = "クエリ";
+"Archive" = "アーカイブ";
 "intent.error.badName" = "「%@」は有効なアーカイブ名ではありません。パス区切り文字を含まない単純なファイル名を使用してください。";
 
 /* Release automation, workspace, reports, metadata */
