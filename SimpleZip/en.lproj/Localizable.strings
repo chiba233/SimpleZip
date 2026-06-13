@@ -1226,6 +1226,15 @@
 "salvage.entryFailed" = "CRC / data error";
 "salvage.nothingRescued" = "Nothing could be rescued from this archive.";
 "salvage.disclaimer" = "Best-effort rescue: recovered files may be incomplete or corrupted, and the archive itself is NOT repaired. Verify everything you rescued before relying on it.";
+/* 0.4.4 B new intents */
+"intent.task.verify" = "Verifying %@";
+"intent.verify.fileFailures" = "%@ entries failed";
+"intent.verify.allPassed" = "All %@ checksum entries verified.";
+"intent.verify.failures" = "%1$@ entries failed: %2$@";
+"intent.compare.identical" = "Archives are identical (%@ entries).";
+"intent.compare.different" = "Archives differ: %1$@ added, %2$@ removed, %3$@ changed.";
+"intent.release.unknownPreset" = "No workspace preset named “%@”. Save one in the Release Assistant first.";
+"intent.release.done" = "Release package %@ is ready (inspected, checksums written).";
 /* 0.4.4 #13 archive metadata report */
 "metadata.menu" = "Metadata Report";
 "metadata.title" = "Archive Metadata";

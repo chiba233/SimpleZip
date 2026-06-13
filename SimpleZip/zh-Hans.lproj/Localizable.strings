@@ -1224,6 +1224,15 @@
 "salvage.entryFailed" = "CRC / 数据错误";
 "salvage.nothingRescued" = "这个归档里没有救得出来的内容。";
 "salvage.disclaimer" = "尽力而为的救援:救出的文件可能不完整或已损坏,归档本身不会被修复。使用前请逐一核验救出的内容。";
+/* 0.4.4 B 新 intents */
+"intent.task.verify" = "正在验证 %@";
+"intent.verify.fileFailures" = "%@ 条目失败";
+"intent.verify.allPassed" = "全部 %@ 条校验条目通过。";
+"intent.verify.failures" = "%1$@ 条失败:%2$@";
+"intent.compare.identical" = "两个归档完全一致(%@ 个条目)。";
+"intent.compare.different" = "归档有差异:新增 %1$@、删除 %2$@、修改 %3$@。";
+"intent.release.unknownPreset" = "没有名为「%@」的工作区预设。请先在发布助手里保存一个。";
+"intent.release.done" = "发布包 %@ 已就绪(已检查、已写校验文件)。";
 /* 0.4.4 #13 归档元数据报告 */
 "metadata.menu" = "元数据报告";
 "metadata.title" = "归档元数据";

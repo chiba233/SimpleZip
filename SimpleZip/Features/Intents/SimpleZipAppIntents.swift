@@ -276,6 +276,290 @@ struct TestArchiveIntent: AppIntent {
     }
 }
 
+// MARK: - 校验文件验证(0.4.4 B)
+
+struct VerifyChecksumsIntent: AppIntent {
+    static let title: LocalizedStringResource = "Verify Checksums"
+    static let description = IntentDescription(
+        "Verifies the files listed in checksum files (SHA256SUMS, .sha256, .md5, .sfv). Paths resolve relative to each checksum file; unsafe entries are rejected. Returns true when everything matches."
+    )
+
+    @Parameter(title: "Checksum Files")
+    var checksumFiles: [IntentFile]
+
+    static var parameterSummary: some ParameterSummary {
+        Summary("Verify \(\.$checksumFiles)")
+    }
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ReturnsValue<Bool> & ProvidesDialog {
+        guard !checksumFiles.isEmpty else {
+            throw SimpleZipIntentError(message: L10n.text("intent.error.noInput"))
+        }
+        var totalPassed = 0
+        var failures: [String] = []
+        for file in checksumFiles {
+            let checksumURL = try intentFileURL(file)
+            let task = TaskCenter.shared.begin(
+                category: .fileOperation,
+                kind: .hash,
+                source: .intent,
+                title: L10n.format("intent.task.verify", checksumURL.lastPathComponent),
+                cancellable: false
+            )
+            guard let text = try? String(contentsOf: checksumURL, encoding: .utf8) else {
+                TaskCenter.shared.finish(task, outcome: .failed(L10n.format("intent.error.missingFile", checksumURL.path)))
+                failures.append(checksumURL.lastPathComponent)
+                continue
+            }
+            let entries = ChecksumFile.parse(text, fileName: checksumURL.lastPathComponent)
+            let baseDir = checksumURL.deletingLastPathComponent()
+            var fileFailures = 0
+            for entry in entries {
+                // 校验文件是不可信输入(与 app / CLI 同一规则):`..` / 绝对路径 / 反斜杠逃逸不碰文件系统。
+                let normalized = entry.name.replacingOccurrences(of: "\\", with: "/")
+                if entry.name.hasPrefix("/") || normalized.split(separator: "/").contains("..") {
+                    fileFailures += 1
+                    continue
+                }
+                let target = baseDir.appendingPathComponent(entry.name)
+                guard FileManager.default.fileExists(atPath: target.path),
+                      let algorithm = HashAlgorithm(rawValue: entry.algorithm.rawValue),
+                      let report = try? await HashService.calculate(for: [target], includeHiddenFiles: true, algorithms: [algorithm]),
+                      report.results.first?.hashes[algorithm]?.lowercased() == entry.digestHex.lowercased() else {
+                    fileFailures += 1
+                    failures.append(entry.name)
+                    continue
+                }
+                totalPassed += 1
+            }
+            if entries.isEmpty { fileFailures += 1; failures.append(checksumURL.lastPathComponent) }
+            TaskCenter.shared.finish(task, outcome: fileFailures == 0
+                ? .succeeded(nil)
+                : .failed(L10n.format("intent.verify.fileFailures", "\(fileFailures)")))
+        }
+        if failures.isEmpty {
+            return .result(value: true, dialog: IntentDialog("\(L10n.format("intent.verify.allPassed", "\(totalPassed)"))"))
+        }
+        return .result(
+            value: false,
+            dialog: IntentDialog("\(L10n.format("intent.verify.failures", "\(failures.count)", failures.prefix(8).joined(separator: ", ")))")
+        )
+    }
+}
+
+// MARK: - 归档比较(0.4.4 B)
+
+struct CompareArchivesIntent: AppIntent {
+    static let title: LocalizedStringResource = "Compare Archives"
+    static let description = IntentDescription(
+        "Compares the entry lists of two archives (path, size, CRC, modified, encryption). Returns true when they are identical."
+    )
+
+    @Parameter(title: "First Archive")
+    var left: IntentFile
+
+    @Parameter(title: "Second Archive")
+    var right: IntentFile
+
+    static var parameterSummary: some ParameterSummary {
+        Summary("Compare \(\.$left) with \(\.$right)")
+    }
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ReturnsValue<Bool> & ProvidesDialog {
+        let leftURL = try intentFileURL(left)
+        let rightURL = try intentFileURL(right)
+        let operationID = UUID()
+        let task = TaskCenter.shared.begin(
+            category: .archive,
+            kind: .compare,
+            source: .intent,
+            title: L10n.format("status.comparing", leftURL.lastPathComponent, rightURL.lastPathComponent),
+            cancellable: false,
+            operationID: operationID
+        )
+        do {
+            let leftItems = try await ArchiveService.list(leftURL, operationID: operationID)
+            let rightItems = try await ArchiveService.list(rightURL, operationID: operationID)
+            let result = ArchiveDiff.compare(left: leftItems, right: rightItems)
+            TaskCenter.shared.finish(task, outcome: .succeeded(nil))
+            if result.hasDifferences {
+                return .result(
+                    value: false,
+                    dialog: IntentDialog("\(L10n.format("intent.compare.different", "\(result.added.count)", "\(result.removed.count)", "\(result.changed.count)"))")
+                )
+            }
+            return .result(
+                value: true,
+                dialog: IntentDialog("\(L10n.format("intent.compare.identical", "\(result.unchanged.count)"))")
+            )
+        } catch {
+            TaskCenter.shared.finish(task, outcome: .failed(error.localizedDescription))
+            throw SimpleZipIntentError(message: error.localizedDescription)
+        }
+    }
+}
+
+// MARK: - 发布打包(0.4.4 B)
+
+struct CreateReleasePackageIntent: AppIntent {
+    static let title: LocalizedStringResource = "Create Release Package"
+    static let description = IntentDescription(
+        "Runs SimpleZip's Release Assistant headlessly: pack a build folder (junk excluded, reproducible), inspect the archive and write SHA256SUMS — using a saved workspace preset when one is named. Signing as .szs is interactive-only and never runs unattended."
+    )
+
+    @Parameter(title: "Build Folder")
+    var sourceFolder: IntentFile
+
+    @Parameter(title: "Workspace Preset Name")
+    var presetName: String?
+
+    @Parameter(title: "Archive Name")
+    var archiveName: String?
+
+    static var parameterSummary: some ParameterSummary {
+        Summary("Create a release package from \(\.$sourceFolder)") {
+            \.$presetName
+            \.$archiveName
+        }
+    }
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ReturnsValue<IntentFile> & ProvidesDialog {
+        let source = try intentFileURL(sourceFolder)
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: source.path, isDirectory: &isDirectory), isDirectory.boolValue else {
+            throw SimpleZipIntentError(message: L10n.format("intent.error.missingFile", source.path))
+        }
+
+        // 组装请求:命名预设(找不到名字 = 明确报错,不静默回落)→ 否则全默认(排垃圾 + 可复现 + 检查 + 校验)。
+        var request = ReleaseAssistantRequest()
+        request.sourceFolder = source
+        request.destinationFolder = source.deletingLastPathComponent()
+        request.fileName = source.lastPathComponent
+        if let presetName, !presetName.trimmingCharacters(in: .whitespaces).isEmpty {
+            guard let preset = ReleaseWorkspacePresetStore().loadAll()
+                .first(where: { $0.name.localizedCaseInsensitiveCompare(presetName) == .orderedSame }) else {
+                throw SimpleZipIntentError(message: L10n.format("intent.release.unknownPreset", presetName))
+            }
+            request.fileName = preset.fileName.isEmpty ? source.lastPathComponent : preset.fileName
+            request.versionLabel = preset.versionLabel ?? ""
+            if let format = ArchiveCreateFormat(rawValue: preset.formatRawValue), format == .zip || format == .sevenZip {
+                request.format = format
+            }
+            request.excludeJunk = preset.excludeJunk
+            request.reproducible = preset.reproducible
+            request.runInspection = preset.runInspection
+            request.writeChecksums = preset.writeChecksums
+            request.writeManifest = preset.writeManifest ?? false
+            request.gateRules = preset.gateRules ?? ReleaseGateRules()
+        }
+        if let archiveName, !archiveName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            request.fileName = archiveName.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        // 无人值守红线:绝不进入交互式 .szs 签名(预设里勾了也压掉)。
+        request.createSignedManifest = false
+        // P1 同款:输出名必须是单段纯文件名(Shortcuts 是无人值守入口)。
+        guard !ArchiveSafety.isUnsafeOutputBaseName(request.fileName) else {
+            throw SimpleZipIntentError(message: L10n.format("intent.error.badName", request.fileName))
+        }
+
+        let destination = request.destinationFolder ?? source.deletingLastPathComponent()
+        let preferred = destination
+            .appendingPathComponent(request.fileName)
+            .appendingPathExtension(request.format.pathExtension)
+        let outputURL = UniqueFileName.suffixed(for: preferred, suffix: "") {
+            FileManager.default.fileExists(atPath: $0.path)
+        }
+        var options = ArchiveCreationOptions()
+        options.format = request.format
+        options.skipDSStore = request.excludeJunk
+        if request.excludeJunk {
+            options.customExcludes = "._*, Thumbs.db, desktop.ini"
+        }
+        if request.reproducible {
+            options.reproducibleArchive = true
+        }
+
+        let operationID = UUID()
+        let recorder = ReleaseStepRecorder()
+        let task = TaskCenter.shared.begin(
+            category: .archive,
+            kind: .create,
+            source: .intent,
+            title: L10n.format("releaseAssistant.taskTitle", outputURL.lastPathComponent),
+            detail: outputURL.path,
+            cancellable: false,
+            operationID: operationID
+        )
+        let progressCoalescer = ProgressCoalescer { [weak task] state in
+            task?.progress = state
+        }
+        do {
+            // F3 抽出的同一条流水线 —— 不造平行引擎。
+            let report = try await ReleaseAssistantPipeline.run(
+                request: request,
+                source: source,
+                destination: destination,
+                outputURL: outputURL,
+                options: options,
+                skipCreate: false,
+                recorder: recorder,
+                operationID: operationID,
+                progress: { state in progressCoalescer.submit(state) },
+                outputObserver: nil
+            )
+            task.transferLog = recorder.steps.map { step in
+                TransferLogEntry(
+                    name: L10n.text("releaseAssistant.step.\(step.id.rawValue)"),
+                    action: step.status == .skipped ? .skipped : .passed,
+                    isDirectory: false,
+                    detail: step.status == .skipped ? "" : step.formattedDuration
+                )
+            }
+            TaskCenter.shared.finish(task, outcome: .succeeded(outputURL))
+            // 与 GUI 同口径:成功跑进发布账本。
+            let steps = recorder.steps
+            let trimmedLabel = request.versionLabel.trimmingCharacters(in: .whitespaces)
+            let fileName = request.fileName
+            Task { @MainActor in
+                let metadata = await ReportMetadataBuilder.make(targetPath: nil)
+                ReleaseLedgerStore().append(ReleaseLedgerEntry(
+                    date: Date(),
+                    artifactPath: outputURL.path,
+                    versionLabel: trimmedLabel.isEmpty ? fileName : trimmedLabel,
+                    formatRawValue: request.format.rawValue,
+                    sha256: report.sha256,
+                    structuralFingerprint: report.structuralFingerprint,
+                    reproducible: request.reproducible,
+                    excludeJunk: request.excludeJunk,
+                    inspectionRan: request.runInspection,
+                    testPassed: report.testPassed,
+                    suspiciousPathCount: request.runInspection
+                        ? report.securityFindings.reduce(0) { $0 + $1.entryPaths.count } : nil,
+                    junkCount: report.stats?.junkCount,
+                    emptyDirectoryCount: report.stats?.emptyDirectoryCount,
+                    fileCount: report.stats?.fileCount,
+                    totalBytes: report.stats?.totalBytes,
+                    wroteChecksums: request.writeChecksums,
+                    signRequested: false,
+                    appVersion: metadata.appVersion,
+                    backendVersion: metadata.backendVersion,
+                    steps: steps
+                ))
+            }
+            return .result(
+                value: IntentFile(fileURL: outputURL),
+                dialog: IntentDialog("\(L10n.format("intent.release.done", outputURL.lastPathComponent))")
+            )
+        } catch {
+            TaskCenter.shared.finish(task, outcome: .failed(error.localizedDescription))
+            throw SimpleZipIntentError(message: error.localizedDescription)
+        }
+    }
+}
+
 // MARK: - Siri / Spotlight 建议
 
 /// App Shortcuts:让三个 intent 不用用户手动建快捷指令就出现在 Shortcuts app /
@@ -298,9 +582,27 @@ struct SimpleZipAppShortcuts: AppShortcutsProvider {
         )
         AppShortcut(
             intent: TestArchiveIntent(),
-            phrases: ["Test an archive with \(.applicationName)"],
+            phrases: ["Test an archive with \(.applicationName)", "Check an archive with \(.applicationName)"],
             shortTitle: "Test Archive Integrity",
             systemImageName: "checkmark.seal"
+        )
+        AppShortcut(
+            intent: VerifyChecksumsIntent(),
+            phrases: ["Verify checksums with \(.applicationName)", "Verify a SHA256SUMS file with \(.applicationName)"],
+            shortTitle: "Verify Checksums",
+            systemImageName: "number.square"
+        )
+        AppShortcut(
+            intent: CompareArchivesIntent(),
+            phrases: ["Compare archives with \(.applicationName)", "Compare two archives with \(.applicationName)"],
+            shortTitle: "Compare Archives",
+            systemImageName: "arrow.left.arrow.right.circle"
+        )
+        AppShortcut(
+            intent: CreateReleasePackageIntent(),
+            phrases: ["Create a release package with \(.applicationName)", "Package a release with \(.applicationName)"],
+            shortTitle: "Create Release Package",
+            systemImageName: "shippingbox"
         )
     }
 }
