@@ -20,6 +20,10 @@ struct ActivityTaskRow: View {
     var onOpenAttachment: ((TaskReportAttachment) -> Void)?
     /// 复制反馈文案（nil = 不显示）。0.4.2 用户报「复制命令也显示诊断信息已复制」—— 按按钮分流。
     @State private var copiedConfirmationText: String?
+    /// 0.4.4(用户反馈):命令输出框按内容真实高度收缩、封顶 300pt(不再固定 300)。0 = 还没测到。
+    @State private var commandLogHeight: CGFloat = 0
+    /// 命令输出框高度上限 —— 超过就在框内滚动。
+    private static let commandLogMaxHeight: CGFloat = 300
 
     private func flashCopied(_ key: String) {
         withAnimation { copiedConfirmationText = L10n.text(key) }
@@ -350,8 +354,16 @@ struct ActivityTaskRow: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            CommandOutputLogView(text: session.rawOutput.isEmpty ? L10n.text("details.waiting") : session.rawOutput)
-                .frame(height: 300)
+            CommandOutputLogView(
+                text: session.rawOutput.isEmpty ? L10n.text("details.waiting") : session.rawOutput,
+                onMeasuredHeight: { measured in
+                    let capped = min(measured, Self.commandLogMaxHeight)
+                    // 抖动门槛:亚像素差不重设(避免测高→重渲染→再测高的来回)。
+                    if abs(capped - commandLogHeight) > 0.5 { commandLogHeight = capped }
+                }
+            )
+                // 测到后收缩到 min(内容高, 上限);未测到前给小初值(短 log 不闪高、长 log 才一次性长到上限)。
+                .frame(height: commandLogHeight > 0 ? min(commandLogHeight, Self.commandLogMaxHeight) : 44)
                 .clipShape(RoundedRectangle(cornerRadius: 6))
                 .overlay(
                     RoundedRectangle(cornerRadius: 6)

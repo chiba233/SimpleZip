@@ -291,6 +291,9 @@ final class EdgePassthroughScrollView: NSScrollView {
 
 struct CommandOutputLogView: NSViewRepresentable {
     let text: String
+    /// 0.4.4(用户反馈「log 很少也固定高」):回报内容在当前宽度下排版后的真实高度,
+    /// 调用方据此 `min(内容高, 上限)` 设 frame —— 内容少就矮、超过上限才内滚。nil = 不测高(沿用外部固定 frame)。
+    var onMeasuredHeight: ((CGFloat) -> Void)?
 
     func makeNSView(context: Context) -> NSScrollView {
         // 手搭（不用 NSTextView.scrollableTextView()）—— 为了换成边缘穿透的 scroll view 子类。
@@ -319,11 +322,26 @@ struct CommandOutputLogView: NSViewRepresentable {
     }
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
-        guard let textView = scrollView.documentView as? NSTextView, textView.string != text else { return }
-        textView.string = text
-        // 始终跟到最新一行 —— 用户看流式 log 首要关心的是最新输出，不是旧的。
-        // 用 scrollRangeToVisible(末尾) 而不是 scrollToEndOfDocument：前者会强制把目标 range 布局出来，
-        // 刚换完 string 时还没排版完，后者可能滚不到真正的结尾。
-        textView.scrollRangeToVisible(NSRange(location: (text as NSString).length, length: 0))
+        if let textView = scrollView.documentView as? NSTextView, textView.string != text {
+            textView.string = text
+            // 始终跟到最新一行 —— 用户看流式 log 首要关心的是最新输出，不是旧的。
+            // 用 scrollRangeToVisible(末尾) 而不是 scrollToEndOfDocument：前者会强制把目标 range 布局出来，
+            // 刚换完 string 时还没排版完，后者可能滚不到真正的结尾。
+            textView.scrollRangeToVisible(NSRange(location: (text as NSString).length, length: 0))
+        }
+        // 测高在 string 已是最新、且 scrollView 已有真实宽度(updateNSView 在 SwiftUI 定尺后调)时做。
+        reportHeight(of: scrollView)
+    }
+
+    /// 当前宽度下排版后的内容高度 = usedRect 高 + 上下内边距。异步回报避免「在视图更新中改 state」。
+    private func reportHeight(of scrollView: NSScrollView) {
+        guard let onMeasuredHeight,
+              let textView = scrollView.documentView as? NSTextView,
+              let layoutManager = textView.layoutManager,
+              let container = textView.textContainer else { return }
+        layoutManager.ensureLayout(for: container)
+        let used = layoutManager.usedRect(for: container).height
+        let height = used + textView.textContainerInset.height * 2
+        DispatchQueue.main.async { onMeasuredHeight(height) }
     }
 }
