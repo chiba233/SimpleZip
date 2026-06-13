@@ -1151,10 +1151,10 @@
 "releaseAssistant.section.steps" = "Steps";
 "releaseAssistant.section.outputs" = "Outputs & Signing";
 /* 0.4.4 F3 release pipeline steps */
-"releaseAssistant.step.createArchive" = "Step: package";
-"releaseAssistant.step.inspect" = "Step: release inspection";
-"releaseAssistant.step.checksums" = "Step: checksums";
-"releaseAssistant.step.manifest" = "Step: release manifest";
+"releaseAssistant.step.createArchive" = "Package";
+"releaseAssistant.step.inspect" = "Release inspection";
+"releaseAssistant.step.checksums" = "Checksums";
+"releaseAssistant.step.manifest" = "Release manifest";
 /* 0.4.4 #4 release manifest */
 "releaseAssistant.manifest" = "Write release-manifest.json";
 "releaseAssistant.manifest.subtitle" = "A machine-readable manifest next to the archive: name, version, SHA-256, size and structural fingerprint — for CI and download scripts.";
