@@ -125,6 +125,7 @@ struct AutomationPane: View {
                 .onChange(of: spotlightIndexing) { _ in
                     // indexer 内部按 `spotlightIndexingEnabled` 分支:开→重建、关→清空已捐献的索引。
                     ReleasePackageSpotlightIndexer.reindex()
+                    ArchiveTaskSpotlightIndexer.reindex()
                 }
             }
 

@@ -12,7 +12,9 @@
 //
 
 import AppIntents
+import CoreSpotlight
 import Foundation
+import UniformTypeIdentifiers
 
 struct ArchiveTaskEntity: AppEntity {
     static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Archive Task")
@@ -81,5 +83,72 @@ struct ArchiveTaskQuery: EntityQuery {
     func suggestedEntities() async throws -> [ArchiveTaskEntity] {
         // 只建议最近 20 条,避免选择器过长。
         ActivityHistoryStore.snapshot().prefix(20).map(ArchiveTaskEntity.init(snapshot:))
+    }
+}
+
+// MARK: - Spotlight 语义索引(macOS 15+,活动中心任务可搜)
+
+/// 让活动中心历史任务进 Spotlight。隐私口径(用户 2026-06-13 放宽):任务标题 / 操作 / 状态 / 日期
+/// 都是非加密、登录用户本就可见的元数据,可索引;**不放 detail**(可能含完整路径,虽非敏感但索引无谓),
+/// 更不会有加密归档的条目名 / 内容(任务元数据本就不含)。
+@available(macOS 15.0, *)
+extension ArchiveTaskEntity: IndexedEntity {
+    var attributeSet: CSSearchableItemAttributeSet {
+        let set = CSSearchableItemAttributeSet(contentType: .content)
+        set.title = taskTitle
+        set.displayName = taskTitle
+        set.contentCreationDate = started
+        set.contentDescription = "\(source) · \(status)"
+        set.keywords = ["SimpleZip", source, status]
+        return set
+    }
+}
+
+/// 把活动中心历史任务同步进 Spotlight。受 `AppPreferences.spotlightIndexingEnabled` gate;旧系统 no-op;
+/// 失败静默。触发:app 启动(全量重建)、每个任务收尾后(单条增量,不全量重建以免高频 finish 抖动)。
+enum ArchiveTaskSpotlightIndexer {
+    /// 开关开 → 全量重建;关 → 清空。启动与设置里切换开关都调它。
+    static func reindex() {
+        guard #available(macOS 15.0, *) else { return }
+        Task.detached(priority: .utility) {
+            if AppPreferences.spotlightIndexingEnabled {
+                await performReindex()
+            } else {
+                await clearIndex()
+            }
+        }
+    }
+
+    /// 单条增量:任务收尾时调(@MainActor —— 从 @MainActor 的 OperationTask 取快照)。
+    @MainActor
+    static func index(_ task: OperationTask) {
+        guard #available(macOS 15.0, *), AppPreferences.spotlightIndexingEnabled else { return }
+        guard let snapshot = ArchiveTaskSnapshot(task: task) else { return }
+        Task.detached(priority: .utility) {
+            try? await CSSearchableIndex.default().indexAppEntities([ArchiveTaskEntity(snapshot: snapshot)])
+        }
+    }
+
+    @available(macOS 15.0, *)
+    private static func performReindex() async {
+        let entities = ActivityHistoryStore.snapshot().map(ArchiveTaskEntity.init(snapshot:))
+        let index = CSSearchableIndex.default()
+        do {
+            try await index.deleteAppEntities(ofType: ArchiveTaskEntity.self)
+            if !entities.isEmpty {
+                try await index.indexAppEntities(entities)
+            }
+        } catch {
+            // 索引失败不影响 app。
+        }
+    }
+
+    @available(macOS 15.0, *)
+    private static func clearIndex() async {
+        do {
+            try await CSSearchableIndex.default().deleteAppEntities(ofType: ArchiveTaskEntity.self)
+        } catch {
+            // 清索引失败不影响 app。
+        }
     }
 }

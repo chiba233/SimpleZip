@@ -229,6 +229,8 @@ final class TaskCenter: ObservableObject {
         history.insert(finishedTask, at: 0)
         trimHistoryToLimit()
         persistHistory()
+        // 0.4.4 macOS 26 AI:收尾任务单条增量进 Spotlight(macOS 15+ / 开关开才生效;后台、失败静默)。
+        ArchiveTaskSpotlightIndexer.index(finishedTask)
         // 0.4.2 活动中心设置:失败自动弹出 / 完成提示音(都默认关,纯可选行为)。
         if case .failed = outcome, AppPreferences.tasksOpenOnFailure {
             ActivityWindowController.shared.show()
@@ -683,8 +685,8 @@ private nonisolated enum PersistedStatus: Codable {
 /// 不是 `PersistedTask` 的镜像 DTO:`PersistedTask` 文件私有、@MainActor 构造、且驮着
 /// 哈希 / diff / 报告等重负载,不适合做跨上下文查询面;本快照只暴露查询所需字段。
 /// `.running` 在落盘时已被 `PersistedStatus(status:)` 归并为 `.cancelled`,故 outcome 只有 4 态。
-nonisolated struct ArchiveTaskSnapshot: Identifiable {
-    enum Outcome: String { case succeeded, skipped, failed, cancelled }
+nonisolated struct ArchiveTaskSnapshot: Identifiable, Sendable {
+    enum Outcome: String, Sendable { case succeeded, skipped, failed, cancelled }
     let id: UUID
     let kind: OperationTask.Kind
     let source: OperationTask.Source
@@ -709,6 +711,26 @@ nonisolated struct ArchiveTaskSnapshot: Identifiable {
         self.finishedAt = finishedAt
         self.outcome = outcome
         self.failureMessage = failureMessage
+    }
+
+    /// 从一条**已收尾**的 `OperationTask` 直建快照(完成时增量索引 Spotlight 用)。
+    /// 仍在运行(`.running`)→ 返回 nil(只索引终态)。读 @MainActor 的 OperationTask,故标 @MainActor。
+    @MainActor
+    init?(task: OperationTask) {
+        let outcome: Outcome
+        var failure: String?
+        switch task.status {
+        case .succeeded: outcome = .succeeded
+        case .skipped: outcome = .skipped
+        case .failed(let message): outcome = .failed; failure = message
+        case .cancelled: outcome = .cancelled
+        case .running: return nil
+        }
+        self.init(
+            id: task.id, kind: task.kind, source: task.source,
+            title: task.title, detail: task.detail, startedAt: task.startedAt,
+            finishedAt: task.finishedAt, outcome: outcome, failureMessage: failure
+        )
     }
 }
 
