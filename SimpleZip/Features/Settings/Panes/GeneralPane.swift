@@ -37,10 +37,7 @@ struct GeneralPane: View {
     @State private var finderServicesMessage: String?
 
     /// CLI companion 安装状态镜像(onAppear / 每次操作后刷新)。
-    @State private var cliStatus: CommandLineToolInstaller.Status = .missing
     /// 直装失败(无 /usr/local/bin 写权限)后展示的手动命令;nil = 不展示。
-    @State private var cliManualCommand: String?
-    @State private var cliMessage: String?
 
     /// 各 Finder 服务的激活状态镜像（真值在 pbs 偏好域，onAppear 拉取、开关写穿）。
     @State private var finderServiceStates: [String: Bool] = [:]
@@ -220,72 +217,6 @@ struct GeneralPane: View {
             }
             .onAppear(perform: reloadFinderServiceStates)
 
-            Section(L10n.text("settings.cli.section")) {
-                SettingsControlRow(
-                    title: L10n.text("settings.cli.title"),
-                    description: L10n.text("settings.cli.description"),
-                    systemImage: "terminal", iconTint: .indigo
-                ) {
-                    HStack(spacing: 8) {
-                        if cliStatus != .installed {
-                            Button {
-                                installCLITool()
-                            } label: {
-                                Label(L10n.text("settings.cli.install"), systemImage: "link")
-                            }
-                            // 转译位置(隔离未清的 DMG 直跑)装出来的链接指向一次性挂载路径,禁装。
-                            .disabled(CommandLineToolInstaller.isRunningTranslocated)
-                        }
-                        // 链接存在就给卸载(指向当前 app 或指向别处都算)—— 有装必有卸。
-                        if cliStatus != .missing {
-                            Button {
-                                uninstallCLITool()
-                            } label: {
-                                Label(L10n.text("settings.cli.uninstall"), systemImage: "xmark.circle")
-                            }
-                        }
-                    }
-                }
-                Text(cliStatusText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                if CommandLineToolInstaller.isRunningTranslocated {
-                    Text(L10n.text("settings.cli.translocated"))
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                if let cliManualCommand {
-                    // 没有 /usr/local/bin 写权限时不提权 —— 给出可复制的终端命令,用户自己 sudo。
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(L10n.text("settings.cli.manualHint"))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        HStack(spacing: 8) {
-                            Text(cliManualCommand)
-                                .font(.caption.monospaced())
-                                .textSelection(.enabled)
-                                .lineLimit(2)
-                                .truncationMode(.middle)
-                            Button {
-                                NSPasteboard.general.clearContents()
-                                NSPasteboard.general.setString(cliManualCommand, forType: .string)
-                                cliMessage = L10n.text("diagnostics.copied")
-                            } label: {
-                                Label(L10n.text("settings.cli.copyCommand"), systemImage: "doc.on.doc")
-                            }
-                        }
-                    }
-                }
-                if let cliMessage {
-                    Text(cliMessage)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .onAppear(perform: reloadCLIStatus)
-
             Section(L10n.text("settings.presetPasswordEnabled")) {
                 SettingsToggleRow(
                     title: L10n.text("settings.presetPasswordEnabled"),
@@ -415,52 +346,6 @@ struct GeneralPane: View {
                 }
             }
         }
-    }
-
-    // MARK: - CLI companion
-
-    private var cliStatusText: String {
-        switch cliStatus {
-        case .installed:
-            return L10n.format("settings.cli.status.installed", CommandLineToolInstaller.linkPath)
-        case .missing:
-            return L10n.text("settings.cli.status.missing")
-        case .foreign(let destination):
-            return L10n.format("settings.cli.status.foreign", destination)
-        }
-    }
-
-    private func reloadCLIStatus() {
-        cliStatus = CommandLineToolInstaller.status()
-    }
-
-    private func installCLITool() {
-        do {
-            try CommandLineToolInstaller.install()
-            cliManualCommand = nil
-            cliMessage = nil
-        } catch CommandLineToolInstaller.InstallError.cancelled {
-            // 用户在系统授权弹窗点了取消 —— 不是失败,什么都不弹。
-        } catch {
-            // 授权路径也失败(罕见)→ 给可复制的手动命令兜底。
-            cliManualCommand = CommandLineToolInstaller.manualInstallCommand
-            cliMessage = nil
-        }
-        reloadCLIStatus()
-    }
-
-    private func uninstallCLITool() {
-        do {
-            try CommandLineToolInstaller.uninstall()
-            cliManualCommand = nil
-            cliMessage = nil
-        } catch CommandLineToolInstaller.InstallError.cancelled {
-            // 取消授权 —— 静默。
-        } catch {
-            cliManualCommand = CommandLineToolInstaller.manualUninstallCommand
-            cliMessage = nil
-        }
-        reloadCLIStatus()
     }
 
     /// 把 pbs 里的激活状态拉进本地镜像（进入面板时一次；外部在键盘设置里改过也会被刷进来）。

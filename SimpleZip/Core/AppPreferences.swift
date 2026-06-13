@@ -336,6 +336,8 @@ enum AppPreferences {
         nonisolated static let activityHistoryLimit = "activityHistoryLimit"
         nonisolated static let heavyTaskConcurrencyLimit = "heavyTaskConcurrencyLimit"
         nonisolated static let tasksOpenOnFailure = "tasksOpenOnFailure"
+        /// 0.4.4 #1:自动化通道(CLI / Shortcuts)允许使用预设密码(默认 true 保持现行为)。
+        nonisolated static let automationAllowPresetPassword = "automationAllowPresetPassword"
         nonisolated static let tasksPlaySoundOnFinish = "tasksPlaySoundOnFinish"
         nonisolated static let collapseVolumeSets = "collapseVolumeSets"
         // 0.4.3 #7:写入后自动验证(改写族默认开 / 创建与转换默认关)。
@@ -373,6 +375,11 @@ enum AppPreferences {
     }
 
     /// 0.4.2:任务失败时自动弹出活动中心（默认关）。
+    /// 0.4.4 #1:自动化通道是否允许用预设密码(关 = 无人值守只试空密码,绝不静默用预设)。
+    nonisolated static var automationAllowPresetPassword: Bool {
+        defaultTrueBool(forKey: Key.automationAllowPresetPassword)
+    }
+
     nonisolated static var tasksOpenOnFailure: Bool {
         defaults.bool(forKey: Key.tasksOpenOnFailure)
     }
@@ -919,6 +926,7 @@ enum AppPreferences {
         Key.heavyTaskConcurrencyLimit,
         Key.tasksOpenOnFailure,
         Key.tasksPlaySoundOnFinish,
+        Key.automationAllowPresetPassword,
         Key.collapseVolumeSets,
         Key.verifyAfterArchiveRewrite,
         Key.verifyAfterArchiveCreate,
@@ -1023,6 +1031,7 @@ enum AppPreferences {
         v[Key.activityHistoryLimit] = activityHistoryLimit
         v[Key.heavyTaskConcurrencyLimit] = heavyTaskConcurrencyLimit
         v[Key.tasksOpenOnFailure] = tasksOpenOnFailure
+        v[Key.automationAllowPresetPassword] = automationAllowPresetPassword
         v[Key.tasksPlaySoundOnFinish] = tasksPlaySoundOnFinish
         v[Key.collapseVolumeSets] = collapseVolumeSets
         v[Key.verifyAfterArchiveRewrite] = verifyAfterArchiveRewrite

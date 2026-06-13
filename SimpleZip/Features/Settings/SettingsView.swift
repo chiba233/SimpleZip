@@ -99,6 +99,8 @@ struct SettingsView: View {
             HealthPane(selectedPane: selectedPaneBinding)
         case .backup:
             BackupPane()
+        case .automation:
+            AutomationPane()
         case .help:
             HelpPane()
         case .about:

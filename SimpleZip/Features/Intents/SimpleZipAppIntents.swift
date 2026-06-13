@@ -270,7 +270,9 @@ struct TestArchiveIntent: AppIntent {
             try await ArchiveService.test(url, operationID: operationID)
         } catch {
             guard ArchiveService.errorSuggestsPasswordRequirement(error),
-                  AppPreferences.hasUsablePresetPassword else { throw error }
+                  AppPreferences.hasUsablePresetPassword,
+                  // #1:自动化中心可关掉「自动化通道用预设密码」—— 关了就只试空密码。
+                  AppPreferences.automationAllowPresetPassword else { throw error }
             try await ArchiveService.test(url, password: AppPreferences.presetPassword, operationID: operationID)
         }
     }

@@ -1235,6 +1235,34 @@
 "intent.compare.different" = "Archives differ: %1$@ added, %2$@ removed, %3$@ changed.";
 "intent.release.unknownPreset" = "No workspace preset named “%@”. Save one in the Release Assistant first.";
 "intent.release.done" = "Release package %@ is ready (inspected, checksums written).";
+/* 0.4.4 #1 automation pane + F1 source labels */
+"settings.section.automation" = "Automation";
+"settings.automation.shortcuts.section" = "Shortcuts & Siri";
+"settings.automation.shortcuts.title" = "Shortcuts Actions";
+"settings.automation.shortcuts.description" = "Six actions are available in the Shortcuts app: Extract Archive, Create Archive, Test Archive Integrity, Verify Checksums, Compare Archives and Create Release Package.";
+"settings.automation.shortcuts.open" = "Open Shortcuts";
+"settings.automation.shortcuts.actions" = "Every Shortcuts run shows up live in the Activity Center, tagged with its source. Encrypted archives never prompt in shortcuts.";
+"settings.automation.urlScheme.section" = "URL Scheme";
+"settings.automation.urlScheme.title" = "simplezip:// commands";
+"settings.automation.urlScheme.description" = "Other apps and scripts can ask SimpleZip to test, compare or open archives. Only absolute paths are accepted.";
+"settings.automation.urlScheme.confirmAlways" = "Always confirmed in-app before running.";
+"settings.automation.finder.section" = "Finder Services";
+"settings.automation.finder.title" = "Right-click actions in Finder";
+"settings.automation.finder.description" = "Compress, extract and hash actions in Finder's context menu. Enable or disable individual actions in the General pane.";
+"settings.automation.finder.manage" = "Manage in General";
+"settings.automation.stats.section" = "Usage by Source";
+"settings.automation.stats.row.description" = "Runs recorded in the Activity Center history.";
+"settings.automation.stats.value" = "%1$@ runs · %2$@ failed";
+"settings.automation.stats.never" = "never used";
+"settings.automation.lastRun" = "Last run: %@";
+"settings.automation.security.section" = "Security";
+"settings.automation.allowPresetPassword" = "Allow automation to use the preset password";
+"settings.automation.allowPresetPassword.description" = "When off, unattended runs (Shortcuts, CLI) only try an empty password and never touch your preset password.";
+"tasks.source.app" = "In-app";
+"tasks.source.cli" = "Command line";
+"tasks.source.intent" = "Shortcuts / Siri";
+"tasks.source.urlScheme" = "URL scheme";
+"tasks.source.finder" = "Finder services";
 /* 0.4.4 #13 archive metadata report */
 "metadata.menu" = "Metadata Report";
 "metadata.title" = "Archive Metadata";

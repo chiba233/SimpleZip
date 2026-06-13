@@ -1233,6 +1233,34 @@
 "intent.compare.different" = "归档有差异:新增 %1$@、删除 %2$@、修改 %3$@。";
 "intent.release.unknownPreset" = "没有名为「%@」的工作区预设。请先在发布助手里保存一个。";
 "intent.release.done" = "发布包 %@ 已就绪(已检查、已写校验文件)。";
+/* 0.4.4 #1 自动化中心 + F1 来源标签 */
+"settings.section.automation" = "自动化";
+"settings.automation.shortcuts.section" = "快捷指令与 Siri";
+"settings.automation.shortcuts.title" = "快捷指令动作";
+"settings.automation.shortcuts.description" = "快捷指令 app 里有六个动作:解压归档、创建归档、测试归档完整性、验证校验文件、比较归档、创建发布包。";
+"settings.automation.shortcuts.open" = "打开快捷指令";
+"settings.automation.shortcuts.actions" = "每次快捷指令运行都实时进活动中心并标记来源。加密归档在快捷指令里绝不弹窗。";
+"settings.automation.urlScheme.section" = "URL Scheme";
+"settings.automation.urlScheme.title" = "simplezip:// 命令";
+"settings.automation.urlScheme.description" = "其他 app 和脚本可以让 SimpleZip 测试、比较或打开归档。只接受绝对路径。";
+"settings.automation.urlScheme.confirmAlways" = "执行前一律在 app 内确认。";
+"settings.automation.finder.section" = "Finder 服务";
+"settings.automation.finder.title" = "Finder 右键动作";
+"settings.automation.finder.description" = "Finder 右键菜单里的压缩、解压与哈希动作。逐项开关在「通用」页管理。";
+"settings.automation.finder.manage" = "在通用页管理";
+"settings.automation.stats.section" = "按来源统计";
+"settings.automation.stats.row.description" = "活动中心历史里记录的运行。";
+"settings.automation.stats.value" = "%1$@ 次 · 失败 %2$@";
+"settings.automation.stats.never" = "从未使用";
+"settings.automation.lastRun" = "最近一次:%@";
+"settings.automation.security.section" = "安全";
+"settings.automation.allowPresetPassword" = "允许自动化使用预设密码";
+"settings.automation.allowPresetPassword.description" = "关闭后,无人值守的运行(快捷指令、命令行)只尝试空密码,绝不动用你的预设密码。";
+"tasks.source.app" = "应用内";
+"tasks.source.cli" = "命令行";
+"tasks.source.intent" = "快捷指令 / Siri";
+"tasks.source.urlScheme" = "URL scheme";
+"tasks.source.finder" = "Finder 服务";
 /* 0.4.4 #13 归档元数据报告 */
 "metadata.menu" = "元数据报告";
 "metadata.title" = "归档元数据";
