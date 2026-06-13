@@ -1238,6 +1238,17 @@
 "releaseAssistant.workspace.renamePrompt.title" = "重命名工作区预设";
 "releaseAssistant.workspace.renamePrompt.message" = "「%@」的新名字:";
 "button.openReport" = "查看报告";
+/* 0.4.4 #9 diff 审阅模式 */
+"diff.review.toggle" = "标记为已审阅(本次会话)";
+"diff.review.fields" = "显示逐字段变化";
+"diff.review.progress" = "已审阅 %1$@ / %2$@";
+"diff.review.copy.help" = "复制审阅报告(每条差异带已审/未审标记)";
+"diff.fieldName.type" = "类型";
+"diff.fieldName.size" = "大小";
+"diff.fieldName.crc" = "CRC";
+"diff.fieldName.modified" = "修改时间";
+"diff.fieldName.encryption" = "加密";
+"diff.fieldName.comment" = "注释";
 "releaseAssistant.sourceFolder" = "产物目录";
 "releaseAssistant.chooseSource" = "选择要打包的文件夹";
 "releaseAssistant.chooseDestination" = "选择归档输出位置";

@@ -1240,6 +1240,17 @@
 "releaseAssistant.workspace.renamePrompt.title" = "Rename Workspace Preset";
 "releaseAssistant.workspace.renamePrompt.message" = "New name for “%@”:";
 "button.openReport" = "Open Report";
+/* 0.4.4 #9 diff review mode */
+"diff.review.toggle" = "Mark as reviewed (this session)";
+"diff.review.fields" = "Show field-by-field changes";
+"diff.review.progress" = "Reviewed %1$@ / %2$@";
+"diff.review.copy.help" = "Copy the review report (every difference marked reviewed/unreviewed)";
+"diff.fieldName.type" = "Type";
+"diff.fieldName.size" = "Size";
+"diff.fieldName.crc" = "CRC";
+"diff.fieldName.modified" = "Modified";
+"diff.fieldName.encryption" = "Encrypted";
+"diff.fieldName.comment" = "Comment";
 "releaseAssistant.sourceFolder" = "Build Folder";
 "releaseAssistant.chooseSource" = "Choose the folder to pack";
 "releaseAssistant.chooseDestination" = "Choose where the archive lands";

@@ -109,6 +109,8 @@ struct ArchiveDiffView: View {
 
     /// 0.4.2 #16：忽略 macOS 元数据垃圾（.DS_Store / __MACOSX / ._* …）—— 复制 / 导出同样遵守。
     @State private var hideJunk = false
+    /// #9 审阅模式:已审阅的差异路径(会话级,不持久化 —— 审阅是「这一轮看过没」)。
+    @State private var reviewedPaths: Set<String> = []
 
     private var displayedReport: ArchiveDiffReport {
         hideJunk
@@ -134,7 +136,7 @@ struct ArchiveDiffView: View {
             if displayedReport.result.hasDifferences {
                 // 0.4.2 用户报空白:高度贴内容、到 560 才滚 —— 差异少时窗口跟着矮。
                 HeightCappedScrollView(maxHeight: 560) {
-                    ArchiveDiffSections(report: displayedReport)
+                    ArchiveDiffSections(report: displayedReport, reviewedPaths: $reviewedPaths)
                         .padding(.horizontal, 20)
                         .padding(.bottom, 16)
                 }
@@ -178,6 +180,20 @@ struct ArchiveDiffView: View {
                     NSPasteboard.general.setString(displayedReport.plainTextSummary, forType: .string)
                 } label: {
                     Label(L10n.text("button.copyAll"), systemImage: "doc.on.doc")
+                }
+
+                // #9:审阅进度 + 审阅报告复制(差异为空时不显示)。
+                if totalDiffCount > 0 {
+                    Button {
+                        NSPasteboard.general.clearContents()
+                        NSPasteboard.general.setString(reviewMarkdown(), forType: .string)
+                    } label: {
+                        Label(
+                            L10n.format("diff.review.progress", "\(reviewedCount)", "\(totalDiffCount)"),
+                            systemImage: reviewedCount == totalDiffCount ? "checkmark.circle" : "circle.dashed"
+                        )
+                    }
+                    .help(L10n.text("diff.review.copy.help"))
                 }
 
                 Spacer()
@@ -225,6 +241,64 @@ struct ArchiveDiffView: View {
         alert.informativeText = error.localizedDescription
         alert.runModal()
     }
+
+    // MARK: - #9 审阅模式
+
+    /// 当前显示口径下的全部差异路径(与树节点 id 同一归一化)。
+    private var displayedDiffPaths: [String] {
+        let result = displayedReport.result
+        return result.removed.map { ArchiveDiff.normalizedPath($0.name) }
+            + result.added.map { ArchiveDiff.normalizedPath($0.name) }
+            + result.changed.map { ArchiveDiff.normalizedPath($0.path) }
+    }
+
+    private var totalDiffCount: Int { displayedDiffPaths.count }
+
+    private var reviewedCount: Int {
+        let displayed = Set(displayedDiffPaths)
+        return reviewedPaths.intersection(displayed).count
+    }
+
+    /// 审阅报告:Markdown 报告 + 每条差异带 ☑/☐ 标记 + 进度行。
+    private func reviewMarkdown() -> String {
+        func mark(_ path: String) -> String {
+            reviewedPaths.contains(path) ? "☑" : "☐"
+        }
+        let result = displayedReport.result
+        var lines: [String] = []
+        lines.append("# \(L10n.text("diff.title")) — \(L10n.format("diff.review.progress", "\(reviewedCount)", "\(totalDiffCount)"))")
+        lines.append("")
+        lines.append("**\(report.leftName) ↔ \(report.rightName)**")
+        if !result.removed.isEmpty {
+            lines.append("")
+            lines.append("## \(L10n.format("diff.onlyIn", report.leftName)) (\(result.removed.count))")
+            lines.append("")
+            lines.append(contentsOf: result.removed.map { item in
+                let path = ArchiveDiff.normalizedPath(item.name)
+                return "- \(mark(path)) `\(path)`"
+            })
+        }
+        if !result.added.isEmpty {
+            lines.append("")
+            lines.append("## \(L10n.format("diff.onlyIn", report.rightName)) (\(result.added.count))")
+            lines.append("")
+            lines.append(contentsOf: result.added.map { item in
+                let path = ArchiveDiff.normalizedPath(item.name)
+                return "- \(mark(path)) `\(path)`"
+            })
+        }
+        if !result.changed.isEmpty {
+            lines.append("")
+            lines.append("## \(L10n.text("diff.changed")) (\(result.changed.count))")
+            lines.append("")
+            lines.append(contentsOf: result.changed.map { change in
+                let path = ArchiveDiff.normalizedPath(change.path)
+                return "- \(mark(path)) `\(path)` — \(ArchiveDiffSections.changeDescription(change))"
+            })
+        }
+        lines.append("")
+        return lines.joined(separator: "\n")
+    }
 }
 
 /// 比对计数摘要行（弹窗 + 活动中心共用）。
@@ -253,6 +327,9 @@ struct ArchiveDiffSummaryLine: View {
 /// `internal` 以便活动中心任务详情直接复用同一套展示（不要重画）。
 struct ArchiveDiffSections: View {
     let report: ArchiveDiffReport
+    /// #9 审阅模式:非 nil 时差异叶子行尾出现「已审阅」勾(会话级,不持久化);
+    /// 活动中心详情复用本视图时不传 → 零变化。
+    var reviewedPaths: Binding<Set<String>>? = nil
 
     var body: some View {
         LazyVStack(alignment: .leading, spacing: 12) {
@@ -293,7 +370,7 @@ struct ArchiveDiffSections: View {
                 // 不用 OutlineGroup：它在 List 之外不给子级缩进（只换折叠三角，内容跟父级同一 x），
                 // 层级完全看不出来 —— 用户反馈。改成递归 DisclosureGroup，每层子级显式缩进。
                 ForEach(nodes) { node in
-                    ArchiveDiffNodeView(node: node)
+                    ArchiveDiffNodeView(node: node, reviewedPaths: reviewedPaths)
                 }
             }
             // 卡片外观对齐 DialogSection（12pt 圆角 + control 背景 + 弱描边）—— 0.4.2 体例统一。
@@ -342,13 +419,16 @@ struct ArchiveDiffSections: View {
 /// 叶子 = 普通行，补一段与折叠三角等宽的前导留白，跟同级目录行的图标对齐。
 private struct ArchiveDiffNodeView: View {
     let node: ArchiveDiffTreeNode
+    var reviewedPaths: Binding<Set<String>>? = nil
+    /// #9:逐字段 before/after 详情展开(仅「有差异」区的叶子;会话级行内状态)。
+    @State private var showsFieldDetails = false
 
     var body: some View {
         if let children = node.children {
             DisclosureGroup {
                 VStack(alignment: .leading, spacing: 4) {
                     ForEach(children) { child in
-                        ArchiveDiffNodeView(node: child)
+                        ArchiveDiffNodeView(node: child, reviewedPaths: reviewedPaths)
                     }
                 }
                 .padding(.leading, 16)   // 每层级缩进一档，层级肉眼可分 —— 用户反馈修复
@@ -359,6 +439,10 @@ private struct ArchiveDiffNodeView: View {
             nodeRow
                 .padding(.leading, 16)   // 对齐同级 DisclosureGroup 的折叠三角宽度
         }
+    }
+
+    private var isReviewed: Bool {
+        reviewedPaths?.wrappedValue.contains(node.id) ?? false
     }
 
     private var nodeRow: some View {
@@ -375,6 +459,34 @@ private struct ArchiveDiffNodeView: View {
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
                 }
+                // #9:逐字段详情开关(仅修改条目)。
+                if node.change != nil {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.15)) { showsFieldDetails.toggle() }
+                    } label: {
+                        Image(systemName: "chevron.right")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .rotationEffect(.degrees(showsFieldDetails ? 90 : 0))
+                    }
+                    .buttonStyle(.plain)
+                    .help(L10n.text("diff.review.fields"))
+                }
+                // #9:已审阅勾(叶子差异条目;会话级)。
+                if let reviewedPaths, node.children == nil, node.isRealEntry {
+                    Button {
+                        if isReviewed {
+                            reviewedPaths.wrappedValue.remove(node.id)
+                        } else {
+                            reviewedPaths.wrappedValue.insert(node.id)
+                        }
+                    } label: {
+                        Image(systemName: isReviewed ? "checkmark.circle.fill" : "circle")
+                            .foregroundStyle(isReviewed ? Color.green : Color.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help(L10n.text("diff.review.toggle"))
+                }
             }
             if !node.changeText.isEmpty {
                 Text(node.changeText)
@@ -382,8 +494,65 @@ private struct ArchiveDiffNodeView: View {
                     .foregroundStyle(.secondary)
                     .padding(.leading, 22)
             }
+            if showsFieldDetails, let change = node.change {
+                fieldDetails(change)
+                    .padding(.leading, 22)
+                    .padding(.top, 2)
+            }
         }
         .font(.callout)
+    }
+
+    /// #9:逐字段 before → after 网格。
+    private func fieldDetails(_ change: ArchiveEntryChange) -> some View {
+        Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 4) {
+            if change.fields.contains(.type) {
+                fieldRow(L10n.text("diff.fieldName.type"), before: change.before.typeDescription, after: change.after.typeDescription)
+            }
+            if change.fields.contains(.size) {
+                fieldRow(L10n.text("diff.fieldName.size"), before: change.before.sizeText, after: change.after.sizeText)
+            }
+            if change.fields.contains(.crc) {
+                fieldRow(L10n.text("diff.fieldName.crc"), before: change.before.crc, after: change.after.crc)
+            }
+            if change.fields.contains(.modified) {
+                fieldRow(L10n.text("diff.fieldName.modified"), before: change.before.modifiedText, after: change.after.modifiedText)
+            }
+            if change.fields.contains(.encryption) {
+                fieldRow(L10n.text("diff.fieldName.encryption"),
+                         before: L10n.text(change.before.isEncrypted ? "metadata.yes" : "metadata.no"),
+                         after: L10n.text(change.after.isEncrypted ? "metadata.yes" : "metadata.no"))
+            }
+            if change.fields.contains(.comment) {
+                fieldRow(L10n.text("diff.fieldName.comment"), before: change.before.comment, after: change.after.comment)
+            }
+        }
+        .font(.caption)
+        .padding(8)
+        .background(Color(nsColor: .textBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(Color(nsColor: .separatorColor))
+        )
+    }
+
+    private func fieldRow(_ label: String, before: String, after: String) -> some View {
+        GridRow {
+            Text(label)
+                .foregroundStyle(.secondary)
+            Text(before.isEmpty ? "—" : before)
+                .font(.caption.monospaced())
+                .foregroundStyle(.red)
+                .textSelection(.enabled)
+            Image(systemName: "arrow.right")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Text(after.isEmpty ? "—" : after)
+                .font(.caption.monospaced())
+                .foregroundStyle(.green)
+                .textSelection(.enabled)
+        }
     }
 }
 
@@ -395,6 +564,8 @@ struct ArchiveDiffTreeNode: Identifiable {
     let isFolder: Bool
     let sizeText: String    // 文件条目的大小（目录 / 前缀节点为空）
     let changeText: String  // 「有差异」区的逐字段摘要（其他区为空）
+    /// #9 审阅模式:「有差异」区的叶子带完整修改记录(逐字段 before/after 展开用);其他区为 nil。
+    let change: ArchiveEntryChange?
     var children: [ArchiveDiffTreeNode]?
 
     /// 「仅在 …」区：把 ArchiveItem 列表按路径组成树。
@@ -404,7 +575,8 @@ struct ArchiveDiffTreeNode: Identifiable {
                 path: ArchiveDiff.normalizedPath(item.name),
                 isDirectory: item.isDirectory,
                 sizeText: item.isDirectory ? "" : item.sizeText,
-                changeText: ""
+                changeText: "",
+                change: nil
             )
         })
     }
@@ -416,7 +588,8 @@ struct ArchiveDiffTreeNode: Identifiable {
                 path: ArchiveDiff.normalizedPath(change.path),
                 isDirectory: change.after.isDirectory,
                 sizeText: change.after.isDirectory ? "" : change.after.sizeText,
-                changeText: ArchiveDiffSections.changeDescription(change)
+                changeText: ArchiveDiffSections.changeDescription(change),
+                change: change
             )
         })
     }
@@ -435,19 +608,21 @@ struct ArchiveDiffTreeNode: Identifiable {
         let isDirectory: Bool
         let sizeText: String
         let changeText: String
+        let change: ArchiveEntryChange?
     }
 
     /// 仅路径前缀、本身不是差异条目的目录节点不计数。
-    private var isRealEntry: Bool { !sizeText.isEmpty || !changeText.isEmpty || isEntryFolder }
+    var isRealEntry: Bool { !sizeText.isEmpty || !changeText.isEmpty || isEntryFolder }
     private let isEntryFolder: Bool
 
-    private init(id: String, name: String, isFolder: Bool, isEntryFolder: Bool, sizeText: String, changeText: String, children: [ArchiveDiffTreeNode]?) {
+    private init(id: String, name: String, isFolder: Bool, isEntryFolder: Bool, sizeText: String, changeText: String, change: ArchiveEntryChange?, children: [ArchiveDiffTreeNode]?) {
         self.id = id
         self.name = name
         self.isFolder = isFolder
         self.isEntryFolder = isEntryFolder
         self.sizeText = sizeText
         self.changeText = changeText
+        self.change = change
         self.children = children
     }
 
@@ -491,6 +666,7 @@ struct ArchiveDiffTreeNode: Identifiable {
                     isEntryFolder: isEntryFolder,
                     sizeText: child.entry?.sizeText ?? "",
                     changeText: child.entry?.changeText ?? "",
+                    change: child.entry?.change,
                     children: childNodes.isEmpty ? nil : childNodes
                 )
             }
