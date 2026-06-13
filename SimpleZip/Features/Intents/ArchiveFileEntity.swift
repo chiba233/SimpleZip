@@ -231,6 +231,7 @@ nonisolated enum ArchiveFileSpotlightIndexer {
         }
         let index = CSSearchableIndex.default()
         do {
+            try? await index.deleteAppEntities(ofType: ArchiveFileEntity.self)  // #73 迁移:清旧 indexAppEntities 残留
             try await index.deleteSearchableItems(withDomainIdentifiers: [SpotlightRoute.Domain.file])
             if !items.isEmpty {
                 try await index.indexSearchableItems(items)

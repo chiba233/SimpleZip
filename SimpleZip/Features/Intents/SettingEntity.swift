@@ -252,6 +252,7 @@ nonisolated enum SettingsSpotlightIndexer {
         }
         let index = CSSearchableIndex.default()
         do {
+            try? await index.deleteAppEntities(ofType: SettingEntity.self)  // #73 迁移:清旧 indexAppEntities 残留
             try await index.deleteSearchableItems(withDomainIdentifiers: [SpotlightRoute.Domain.setting])
             if !items.isEmpty {
                 try await index.indexSearchableItems(items)

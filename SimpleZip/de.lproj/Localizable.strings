@@ -17,7 +17,7 @@
 "welcome.presetPassword.title" = "Voreingestelltes Passwort (optional)";
 "welcome.presetPassword.body" = "Wenn aktiviert, versucht SimpleZip automatisch das Passwort, das du im macOS-Schlüsselbund gespeichert hast. Füge das Passwort später unter Einstellungen → Allgemein hinzu; dort kann Touch ID den Klartext anzeigen.";
 "welcome.finderAutoExtract.title" = "Automatisch aus Finder entpacken (optional)";
-"welcome.finderAutoExtract.body" = "Wenn aktiviert, entpackt ein Doppelklick auf ein Archiv im Finder direkt in den übergeordneten Ordner, statt das Browserfenster zu öffnen. DMGs und andere Formate, die gemountet werden müssen, nutzen weiterhin den Durchsuchen-Ablauf.";
+"welcome.finderAutoExtract.body" = "Wenn aktiviert, entpackt ein Doppelklick auf ein Archiv im Finder es direkt in dessen Ordner, statt den Browser zu öffnen — und eine in Spotlight gefundene Datei in einem Archiv entpackt nur diese eine Datei. DMGs und andere Formate, die gemountet werden müssen, durchlaufen weiterhin den Browse-Ablauf.";
 "welcome.safety.title" = "Sicherheitsrichtlinie";
 "welcome.safety.body" = "Archivinhalt ist nicht vertrauenswürdig. Standardmäßig fragt SimpleZip vor den drei unten genannten Aktionen nach. Du kannst jede Regel später unter Einstellungen → Sicherheit anpassen.";
 "welcome.safety.suspiciousPath" = "Verdächtige Pfade (Traversal / absolut / Windows-Laufwerk / UNC)";
@@ -2257,6 +2257,11 @@
 "settings.automation.ai.description" = "Geräteinterne Zusammenfassungen und Erklärungen: Veröffentlichungsrisiko zusammenfassen, fehlgeschlagene Aufgabe erklären, Prüf-Labels vorschlagen, GitHub-Issue aufpolieren. Schreibgeschützt — ändert nie Dateien oder Einstellungen. Erfordert macOS 26 mit Apple Intelligence.";
 "settings.automation.spotlight.title" = "In Spotlight indizieren";
 "settings.automation.spotlight.description" = "Macht Release-Pakete, letzte Aufgaben und die Dateinamen in von dir geöffneten Archiven in Spotlight durchsuchbar. Zum Schutz der Privatsphäre ausschalten — das löscht auch das bereits Indizierte. Benötigt macOS 15 oder neuer.";
+"settings.automation.spotlight.reindex.title" = "Spotlight-Index neu aufbauen";
+"settings.automation.spotlight.reindex.description" = "Wenn die Suchergebnisse unvollständig oder veraltet wirken, alles von SimpleZip in Spotlight Eingetragene löschen und neu aufbauen.";
+"settings.automation.spotlight.reindex.button" = "Neu aufbauen";
+"settings.automation.spotlight.reindex.started" = "Wird im Hintergrund neu aufgebaut…";
+"settings.automation.spotlight.stats" = "Indiziert: %1$@ Archive · %2$@ Dateien · %3$@ Einstellungen (≈%4$@ Einträge)";
 "settings.automation.cache.section" = "Archivinhalt-Cache";
 "settings.automation.cache.enabled.title" = "Archivinhalt merken";
 "settings.automation.cache.enabled.description" = "Merkt sich die Dateinamen in den Archiven, die du öffnest, damit du suchen kannst, welches Archiv eine Datei enthält. Verschlüsselte Archive werden nie gemerkt.";

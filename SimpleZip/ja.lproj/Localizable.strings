@@ -17,7 +17,7 @@
 "welcome.presetPassword.title" = "プリセットパスワード（任意）";
 "welcome.presetPassword.body" = "有効にすると、SimpleZipはmacOSキーチェーンに保存したパスワードを自動で試します。パスワードは後で設定 → 一般から追加できます。そこではTouch IDで平文を表示できます。";
 "welcome.finderAutoExtract.title" = "Finderから自動展開（任意）";
-"welcome.finderAutoExtract.body" = "有効にすると、Finderでアーカイブをダブルクリックしたときにブラウザウィンドウを開かず、親フォルダへ直接展開します。DMGなどマウントが必要な形式は引き続き参照フローを使います。";
+"welcome.finderAutoExtract.body" = "オンにすると、Finder でアーカイブをダブルクリックするとブラウザを開かずにそのフォルダへ直接展開します。Spotlight で見つけたアーカイブ内のファイルもそのファイル 1 つだけを取り出します。DMG などマウントが必要な形式は従来どおりブラウズします。";
 "welcome.safety.title" = "安全ポリシー";
 "welcome.safety.body" = "アーカイブの内容は信頼できない入力です。既定では、SimpleZipは以下の3項目について実行前に確認します。各ルールは後で設定 → セキュリティから変更できます。";
 "welcome.safety.suspiciousPath" = "疑わしいパス（トラバーサル / 絶対パス / Windowsドライブ / UNC）";
@@ -2258,6 +2258,11 @@
 "settings.automation.ai.description" = "オンデバイスの要約と説明：リリースのリスク要約、失敗タスクの説明、点検ラベルの提案、GitHub Issue の推敲。読み取り専用——ファイルや設定は一切変更しません。macOS 26 と Apple Intelligence が必要です。";
 "settings.automation.spotlight.title" = "Spotlight でインデックス";
 "settings.automation.spotlight.description" = "リリースパッケージ、最近のタスク、そして開いたアーカイブ内のファイル名を Spotlight で検索できるようにします。よりプライベートにするにはオフにします——オフにすると索引済みの内容も消去されます。macOS 15 以降が必要です。";
+"settings.automation.spotlight.reindex.title" = "Spotlight 索引を再構築";
+"settings.automation.spotlight.reindex.description" = "検索結果が不完全 / 古い場合、SimpleZip が Spotlight に登録した内容をすべて消去して再構築します。";
+"settings.automation.spotlight.reindex.button" = "再構築";
+"settings.automation.spotlight.reindex.started" = "バックグラウンドで再構築中…";
+"settings.automation.spotlight.stats" = "索引済み:アーカイブ %1$@ · ファイル %2$@ · 設定 %3$@(約 %4$@ 件)";
 "settings.automation.cache.section" = "アーカイブ内容キャッシュ";
 "settings.automation.cache.enabled.title" = "アーカイブの内容を記憶";
 "settings.automation.cache.enabled.description" = "開いたアーカイブ内のファイル名を記憶し、どのアーカイブにそのファイルが含まれるかを検索できるようにします。暗号化されたアーカイブは記憶しません。";

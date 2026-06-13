@@ -110,6 +110,51 @@ nonisolated enum SpotlightRoute {
     }
 }
 
+/// 统一触发全部 5 类 Spotlight 索引(启动 / 设置「强制重新索引」用)+ 统计。
+@MainActor
+enum SpotlightReindex {
+    struct Stats: Sendable {
+        let releases: Int
+        let tasks: Int
+        let archives: Int
+        let archiveFiles: Int
+        let settings: Int
+        var total: Int { releases + tasks + archives + archiveFiles + settings }
+    }
+
+    /// 各类各自重建(内部按门控分支:开→建、关→清)。启动、设置开关变动调它。
+    static func all() {
+        ReleasePackageSpotlightIndexer.reindex()
+        ArchiveTaskSpotlightIndexer.reindex()
+        CachedArchiveSpotlightIndexer.reindex()
+        ArchiveFileSpotlightIndexer.reindex()
+        SettingsSpotlightIndexer.reindex()
+    }
+
+    /// 强制:先把本 app 在 Spotlight 的**全部**捐献清掉(新旧两种、所有类型一次清干净),再全量重建。
+    /// 给「索引不全 / 不稳定」时用户手动兜底。
+    static func force() {
+        guard #available(macOS 15.0, *) else { return }
+        Task.detached(priority: .utility) {
+            try? await CSSearchableIndex.default().deleteAllSearchableItems()
+            await MainActor.run { all() }
+        }
+    }
+
+    /// 当前**会被索引**的条目数(展示用 —— 实际进系统索引是异步的,这是上界估计)。
+    nonisolated static func stats() -> Stats {
+        let cache = ArchiveListingCacheStore().loadAll()
+        let files = cache.reduce(0) { $0 + min($1.fileEntryCount, ArchiveFileSpotlightIndexer.perArchiveLimit) }
+        return Stats(
+            releases: ReleaseLedgerStore().loadAll().count,
+            tasks: ActivityHistoryStore.snapshot().count,
+            archives: cache.count,
+            archiveFiles: files,
+            settings: SettingsCatalog.items.count
+        )
+    }
+}
+
 /// 把一个路由 + 属性集打成手动 CSSearchableItem(uniqueIdentifier 我说了算,点击能解回来)。
 /// CSSearchableItem 本身是老 API,不需门控;`attributeSet` 由调用方(macOS 15 索引上下文)构造。
 nonisolated func makeSpotlightItem(route: SpotlightRoute, attributeSet: CSSearchableItemAttributeSet) -> CSSearchableItem {

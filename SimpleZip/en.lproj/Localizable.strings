@@ -17,7 +17,7 @@
 "welcome.presetPassword.title" = "Preset password (optional)";
 "welcome.presetPassword.body" = "When enabled, SimpleZip silently tries the password you've stored in the macOS Keychain. Add the password later in Settings → General, where Touch ID reveals the plaintext.";
 "welcome.finderAutoExtract.title" = "Auto-extract from Finder (optional)";
-"welcome.finderAutoExtract.body" = "When enabled, double-clicking an archive in Finder extracts it directly into its parent folder instead of opening the browser window. DMGs and other mount-required formats still go through the browse flow.";
+"welcome.finderAutoExtract.body" = "When enabled, double-clicking an archive in Finder extracts it directly into its parent folder instead of opening the browser window — and a file you find inside an archive in Spotlight extracts just that one file. DMGs and other mount-required formats still go through the browse flow.";
 "welcome.fileAssociations.title" = "Open archives with SimpleZip";
 "welcome.fileAssociations.body" = "Make SimpleZip the default app for common archive types so double-clicking them in Finder opens SimpleZip. Set them all at once, or pick individual formats below.";
 "welcome.fileAssociations.setAll" = "Use SimpleZip for all of these";
@@ -1316,6 +1316,11 @@
 "settings.automation.ai.description" = "On-device summaries and explanations: summarize a release's risk, explain a failed task, suggest checkup labels, polish a GitHub issue. Read-only — it never changes files or settings. Needs macOS 26 with Apple Intelligence.";
 "settings.automation.spotlight.title" = "Index in Spotlight";
 "settings.automation.spotlight.description" = "Make release packages, recent tasks, and the file names inside archives you\'ve opened searchable in Spotlight. Turn this off for more privacy — it also clears what\'s already indexed. Needs macOS 15 or later.";
+"settings.automation.spotlight.reindex.title" = "Rebuild the Spotlight index";
+"settings.automation.spotlight.reindex.description" = "If search results look incomplete or out of date, clear and rebuild everything SimpleZip has put into Spotlight.";
+"settings.automation.spotlight.reindex.button" = "Rebuild";
+"settings.automation.spotlight.reindex.started" = "Rebuilding in the background…";
+"settings.automation.spotlight.stats" = "Indexed: %1$@ archives · %2$@ files · %3$@ settings (≈%4$@ items)";
 "settings.automation.cache.section" = "Archive Content Cache";
 "settings.automation.cache.enabled.title" = "Remember archive contents";
 "settings.automation.cache.enabled.description" = "Remember the file names inside the archives you open, so you can search for which archive contains a file. Encrypted archives are never remembered.";

@@ -17,7 +17,7 @@
 "welcome.presetPassword.title" = "รหัสผ่านที่ตั้งไว้ล่วงหน้า (ไม่บังคับ)";
 "welcome.presetPassword.body" = "เมื่อเปิดใช้ SimpleZip จะลองใช้รหัสผ่านที่คุณเก็บไว้ในพวงกุญแจ macOS โดยอัตโนมัติ เพิ่มรหัสผ่านภายหลังได้ที่ การตั้งค่า → ทั่วไป ซึ่ง Touch ID สามารถแสดงข้อความธรรมดาได้";
 "welcome.finderAutoExtract.title" = "แตกไฟล์อัตโนมัติจาก Finder (ไม่บังคับ)";
-"welcome.finderAutoExtract.body" = "เมื่อเปิดใช้ การดับเบิลคลิกไฟล์เก็บถาวรใน Finder จะแตกไฟล์ไปยังโฟลเดอร์แม่โดยตรงแทนการเปิดหน้าต่างเบราว์เซอร์ ส่วน DMG และรูปแบบที่ต้องเมานต์ยังใช้ขั้นตอนการเรียกดูตามเดิม";
+"welcome.finderAutoExtract.body" = "เมื่อเปิด การดับเบิลคลิกไฟล์บีบอัดใน Finder จะแตกไฟล์ลงในโฟลเดอร์ของมันโดยตรงแทนการเปิดหน้าต่างเบราว์เซอร์ และไฟล์ที่คุณพบในไฟล์บีบอัดผ่าน Spotlight ก็จะแตกเฉพาะไฟล์นั้นไฟล์เดียว DMG และรูปแบบที่ต้องเมาท์ยังคงใช้การเรียกดูแบบเดิม";
 "welcome.safety.title" = "นโยบายความปลอดภัย";
 "welcome.safety.body" = "เนื้อหาในไฟล์บีบอัดเป็นข้อมูลนำเข้าที่ไม่น่าเชื่อถือ ตามค่าเริ่มต้น SimpleZip จะถามคุณก่อนทำสามสิ่งด้านล่าง คุณสามารถปรับกฎแต่ละข้อภายหลังได้ที่ การตั้งค่า → ความปลอดภัย";
 "welcome.safety.suspiciousPath" = "พาธที่น่าสงสัย (traversal / absolute / ไดรฟ์ Windows / UNC)";
@@ -2256,6 +2256,11 @@
 "settings.automation.ai.description" = "สรุปและอธิบายในเครื่อง: สรุปความเสี่ยงของรีลีส อธิบายงานที่ล้มเหลว แนะนำป้ายตรวจสอบ ขัดเกลา GitHub issue อ่านอย่างเดียว — ไม่เปลี่ยนแปลงไฟล์หรือการตั้งค่า ต้องใช้ macOS 26 พร้อม Apple Intelligence";
 "settings.automation.spotlight.title" = "จัดทำดัชนีใน Spotlight";
 "settings.automation.spotlight.description" = "ทำให้แพ็กเกจรุ่น งานล่าสุด และชื่อไฟล์ภายในไฟล์บีบอัดที่คุณเปิด ค้นหาได้ใน Spotlight ปิดเพื่อความเป็นส่วนตัวมากขึ้น — การปิดจะล้างสิ่งที่จัดทำดัชนีไว้แล้วด้วย ต้องใช้ macOS 15 ขึ้นไป";
+"settings.automation.spotlight.reindex.title" = "สร้างดัชนี Spotlight ใหม่";
+"settings.automation.spotlight.reindex.description" = "หากผลการค้นหาไม่ครบหรือล้าสมัย ให้ล้างและสร้างทุกอย่างที่ SimpleZip ใส่ไว้ใน Spotlight ใหม่";
+"settings.automation.spotlight.reindex.button" = "สร้างใหม่";
+"settings.automation.spotlight.reindex.started" = "กำลังสร้างใหม่ในพื้นหลัง…";
+"settings.automation.spotlight.stats" = "จัดทำดัชนีแล้ว: %1$@ ไฟล์บีบอัด · %2$@ ไฟล์ · %3$@ การตั้งค่า (≈%4$@ รายการ)";
 "settings.automation.cache.section" = "แคชเนื้อหาไฟล์บีบอัด";
 "settings.automation.cache.enabled.title" = "จดจำเนื้อหาไฟล์บีบอัด";
 "settings.automation.cache.enabled.description" = "จดจำชื่อไฟล์ภายในไฟล์บีบอัดที่คุณเปิด เพื่อให้ค้นหาได้ว่าไฟล์อยู่ในไฟล์บีบอัดใด ไฟล์บีบอัดที่เข้ารหัสจะไม่ถูกจดจำ";

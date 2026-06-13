@@ -180,6 +180,9 @@ enum ReleasePackageSpotlightIndexer {
         }
         let index = CSSearchableIndex.default()
         do {
+            // #73 迁移:清掉旧 `indexAppEntities` 残留项(它们没有 domain,deleteSearchableItems 删不到 → 否则
+            // 旧无描述项会一直留在 Spotlight 里)。idempotent,没有旧项时是 no-op。
+            try? await index.deleteAppEntities(ofType: ReleasePackageEntity.self)
             try await index.deleteSearchableItems(withDomainIdentifiers: [SpotlightRoute.Domain.release])
             if !items.isEmpty {
                 try await index.indexSearchableItems(items)

@@ -17,7 +17,7 @@
 "welcome.presetPassword.title" = "预设密码（可选）";
 "welcome.presetPassword.body" = "启用后，SimpleZip 会用你保存在 Mac 钥匙串里的密码自动尝试解压。可以稍后在「偏好设置 → 通用」里填入密码或用 Touch ID 显示明文。";
 "welcome.finderAutoExtract.title" = "Finder 双击自动解压（可选）";
-"welcome.finderAutoExtract.body" = "开启后，从 Finder 双击压缩包会直接解压到所在目录，不再打开浏览窗口。DMG 等需要挂载的格式仍走原浏览路径。";
+"welcome.finderAutoExtract.body" = "开启后，从 Finder 双击压缩包会直接解压到所在目录，不再打开浏览窗口；在 Spotlight 里搜到的压缩包内文件也只解压那一个文件。DMG 等需要挂载的格式仍走原浏览路径。";
 "welcome.fileAssociations.title" = "用 SimpleZip 打开压缩包";
 "welcome.fileAssociations.body" = "把常见压缩格式的默认应用设为 SimpleZip，从 Finder 双击它们就用 SimpleZip 打开。可以一键全设，也可以在下面挑单个格式。";
 "welcome.fileAssociations.setAll" = "全部用 SimpleZip 打开";
@@ -1314,6 +1314,11 @@
 "settings.automation.ai.description" = "本地（Apple Intelligence）总结与解释：总结发布风险、解释失败任务、建议体检标签、润色 GitHub Issue。只读——绝不改动文件或设置。需要 macOS 26 + Apple Intelligence。";
 "settings.automation.spotlight.title" = "在 Spotlight 中索引";
 "settings.automation.spotlight.description" = "让发布包、最近的任务，以及你打开过的归档里的文件名都能在 Spotlight 里搜到。想更私密就关掉——关闭会同时清空已索引的内容。需要 macOS 15 或更新版本。";
+"settings.automation.spotlight.reindex.title" = "重建 Spotlight 索引";
+"settings.automation.spotlight.reindex.description" = "如果搜索结果不全或过时，清空并重建 SimpleZip 放进 Spotlight 的全部内容。";
+"settings.automation.spotlight.reindex.button" = "重建";
+"settings.automation.spotlight.reindex.started" = "正在后台重建…";
+"settings.automation.spotlight.stats" = "已索引:%1$@ 个归档 · %2$@ 个文件 · %3$@ 项设置(约 %4$@ 条)";
 "settings.automation.cache.section" = "归档内容缓存";
 "settings.automation.cache.enabled.title" = "记住归档内容";
 "settings.automation.cache.enabled.description" = "记住你打开过的归档里有哪些文件，方便搜索某个文件在哪个压缩包里。加密归档永不记录。";

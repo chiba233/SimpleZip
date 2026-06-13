@@ -28,6 +28,9 @@ struct AutomationPane: View {
     /// 当前缓存占用(条数 + 字节)—— 仅展示,onAppear 与每次改动后刷新。
     @State private var archiveCacheCount = 0
     @State private var archiveCacheBytes = 0
+    /// #73:Spotlight 索引数据(发布包 / 任务 / 归档 / 文件 / 设置各多少会被索引)+ 「强制重新索引」反馈。
+    @State private var spotlightStats: SpotlightReindex.Stats?
+    @State private var spotlightReindexMessage: String?
 
     @ObservedObject private var taskCenter = TaskCenter.shared
 
@@ -144,9 +147,36 @@ struct AutomationPane: View {
                     ArchiveFileSpotlightIndexer.reindex()
                     // #30:设置项索引也归这把总开关管(开 → 重建、关 → 清空)。
                     SettingsSpotlightIndexer.reindex()
+                    spotlightStats = SpotlightReindex.stats()
+                }
+
+                // #73:索引不全 / 不稳定时,「强制重新索引」清空 app 全部捐献再全量重建。
+                SettingsActionRow(
+                    title: L10n.text("settings.automation.spotlight.reindex.title"),
+                    description: L10n.text("settings.automation.spotlight.reindex.description"),
+                    systemImage: "arrow.clockwise", iconTint: .blue,
+                    buttonTitle: L10n.text("settings.automation.spotlight.reindex.button"),
+                    action: {
+                        SpotlightReindex.force()
+                        spotlightReindexMessage = L10n.text("settings.automation.spotlight.reindex.started")
+                    }
+                )
+                if let spotlightStats {
+                    Text(L10n.format("settings.automation.spotlight.stats",
+                                     "\(spotlightStats.archives)", "\(spotlightStats.archiveFiles)",
+                                     "\(spotlightStats.settings)", "\(spotlightStats.total)"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if let spotlightReindexMessage {
+                    Text(spotlightReindexMessage)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
             .settingsAnchor("automation.spotlight")
+            .onAppear { spotlightStats = SpotlightReindex.stats() }
 
             // ②.55 #36 归档内容缓存:记住打开过的归档里有哪些文件,供「文件 X 在哪个包」搜索。
             // 开关 / 归档数上限 / 过期天数 / 立即清空;关掉即清空已缓存内容。
