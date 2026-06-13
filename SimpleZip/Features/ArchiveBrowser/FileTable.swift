@@ -35,6 +35,10 @@ struct FileTable: View {
     @AppStorage(AppPreferences.Key.collapseVolumeSets) private var collapseVolumeSets = true
 
     var body: some View {
+        // A17：分组 / 密度的实际值由下面的 coordinator 直接读 `AppPreferences`（所以把它们传给 representable
+        // 是死参，已删）。但**必须在 body 里读到这几个 @AppStorage**，否则在 Settings 改它们时不再触发本视图
+        // 重渲染 → updateNSView 不跑 → 表格不重新分组 / 不调行高。这行丢弃读纯粹维持那条重绘依赖，别删。
+        let _ = (fileGroupingScope, fileGroupBy, hiddenWithGrouping, rowDensity)
         FileNSOutlineView(
             model: model,
             showSizeColumn: showSizeColumn,
@@ -46,11 +50,7 @@ struct FileTable: View {
             showCreatedColumn: showCreatedColumn,
             showSymlinkColumn: showSymlinkColumn,
             showPermissionsColumn: showPermissionsColumn,
-            showOwnerColumn: showOwnerColumn,
-            groupingScope: fileGroupingScope,
-            groupBy: fileGroupBy,
-            hiddenWithGrouping: hiddenWithGrouping,
-            rowDensity: rowDensity
+            showOwnerColumn: showOwnerColumn
         )
         // 权限 / 属主列是惰性填充的（默认不 stat,避免对 Desktop/Downloads 触发 TCC）。
         // 用户刚启用某列时,当前已加载的 FileItem 还没有这份数据 —— 触发一次重载补齐。
@@ -126,12 +126,7 @@ struct FileNSOutlineView: NSViewRepresentable {
     let showSymlinkColumn: Bool
     let showPermissionsColumn: Bool
     let showOwnerColumn: Bool
-    // 仅作为「变化触发器」：值变 → SwiftUI 重建本 representable → updateNSView → syncContent 重新分组。
-    // 真值仍由 coordinator 直接读 AppPreferences（@AppStorage 与 UserDefaults 始终一致）。
-    let groupingScope: String
-    let groupBy: String
-    let hiddenWithGrouping: String
-    let rowDensity: String
+    // 分组 / 密度不再作为参数传入（coordinator 始终直读 AppPreferences；重绘依赖由 FileTable.body 的丢弃读维持）。
 
     func makeCoordinator() -> Coordinator {
         Coordinator(model: model)

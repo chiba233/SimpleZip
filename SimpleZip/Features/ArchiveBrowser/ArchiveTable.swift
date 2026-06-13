@@ -33,6 +33,10 @@ struct ArchiveTable: View {
     @AppStorage(AppPreferences.Key.rowDensity) private var rowDensity = FileBrowserOutline.RowDensity.standard.rawValue
 
     var body: some View {
+        // A17：分组 / 密度的实际值由 coordinator 直接读 `AppPreferences`（传给 representable 是死参，已删）。
+        // 但**必须在 body 里读到这两个 @AppStorage**，否则 Settings 改它们时不再触发重渲染 → 表格不重新分组 /
+        // 不调行高。这行丢弃读纯粹维持那条重绘依赖，别删。
+        let _ = (archiveGroupBy, rowDensity)
         ZStack {
             ArchiveNSOutlineView(
                 model: model,
@@ -50,9 +54,7 @@ struct ArchiveTable: View {
                 showHostOSColumn: showHostOSColumn,
                 showCharacteristicsColumn: showCharacteristicsColumn,
                 showSymlinkColumn: showSymlinkColumn,
-                showCommentColumn: showCommentColumn,
-                groupBy: archiveGroupBy,
-                rowDensity: rowDensity
+                showCommentColumn: showCommentColumn
             )
 
             if model.archiveItems.isEmpty && model.isWorking {
@@ -119,9 +121,7 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
     let showCharacteristicsColumn: Bool
     let showSymlinkColumn: Bool
     let showCommentColumn: Bool
-    // 仅作变化触发器：值变 → 重建 representable → updateNSView → 重新分组。真值由 coordinator 读 AppPreferences。
-    let groupBy: String
-    let rowDensity: String
+    // 分组 / 密度不再作为参数传入（coordinator 始终直读 AppPreferences；重绘依赖由 ArchiveTable.body 的丢弃读维持）。
 
     func makeCoordinator() -> Coordinator {
         Coordinator(model: model)
