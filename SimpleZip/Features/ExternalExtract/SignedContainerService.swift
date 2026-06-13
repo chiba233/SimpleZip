@@ -17,6 +17,33 @@ import Foundation
 
 /// `.siz` 容器打开/解压前的共享编排。纯静态、可跨 actor 调用（返回值均为 Sendable 值类型）。
 enum SignedContainerService {
+    /// 该 URL 是不是 `.siz` 容器（按扩展名 —— 与打开路由同口径）。
+    nonisolated static func isSIZContainer(_ url: URL) -> Bool {
+        url.pathExtension.lowercased() == SIZArchive.extensionName
+    }
+
+    /// 0.4.4:归档工具(测试/体检/比较/发布检查/空间分析/救援)把 `.siz` 一并算作可用归档。
+    /// A5:工具实际跑在内层 archive 上,unwrap 由 `withToolAdaptedArchive` 统一做。
+    static func isToolableArchive(_ url: URL) -> Bool {
+        ArchiveService.isSupportedArchive(url) || isSIZContainer(url)
+    }
+
+    /// 0.4.4:归档工具的 `.siz` 适配咽喉。非 `.siz` 原样把 URL 交给 `body`;
+    /// `.siz` 先 unwrap(走与打开同一咽喉:加密临时卷 fail-closed、版本过新弹确认),
+    /// 把**内层 archive** 交给 `body`,结束后清掉 unwrap 暂存 —— 工具只读,产物都是值类型,
+    /// 不留临时文件。验签结果在这里不拦路(工具是只读分析,签名状态由打开/测试流程负责呈现)。
+    static func withToolAdaptedArchive<T>(
+        _ url: URL,
+        perform body: (URL) async throws -> T
+    ) async throws -> T {
+        guard isSIZContainer(url) else {
+            return try await body(url)
+        }
+        let (innerArchiveURL, tempRoot, _) = try await unwrapAndVerifySIZ(at: url)
+        defer { try? FileManager.default.removeItem(at: tempRoot) }
+        return try await body(innerArchiveURL)
+    }
+
     /// unwrap `.siz` 到 /tmp 临时目录；若 `gpgEnabled` 开则跑 `SIZArchive.verify`（gpg 验签 + SHA 校验）。
     ///
     /// - Returns: `innerArchiveURL` 内层 archive；`tempRoot` unwrap 暂存根（调用方负责清理）；

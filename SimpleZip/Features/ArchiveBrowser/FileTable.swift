@@ -1087,7 +1087,8 @@ struct FileNSOutlineView: NSViewRepresentable {
             // 「归档工具 ▸」—— 测试 / 比较 / 发布检查 / 空间分析 / 转换 / 拆分合并，各项显示条件不变。
             let toolsMenu = NSMenu()
             // 0.4.2 批量测试：选中 ≥2 个受支持归档时，「测试」变成整批测试 + 活动中心逐包汇总。
-            let selectedArchiveCount = model.selectedFileItems.filter { !$0.isDirectory && ArchiveService.isSupportedArchive($0.url) }.count
+            // 0.4.4:`.siz` 也算归档(工具跑在内层 archive 上,A5)。
+            let selectedArchiveCount = model.selectedFileItems.filter { !$0.isDirectory && SignedContainerService.isToolableArchive($0.url) }.count
             if selectedArchiveCount >= 2 {
                 toolsMenu.addItem(menuItem(L10n.format("file.batchTest", "\(selectedArchiveCount)"), systemImage: "checkmark.seal", action: #selector(batchTestArchives)))
                 // #10:选中 ≥2 个归档 → 按结构指纹/条目数/大小找疑似同包。
@@ -1105,7 +1106,7 @@ struct FileNSOutlineView: NSViewRepresentable {
             }
             // #111 比较：恰好选中 2 个可比对项（归档或文件夹，0.4.2 #25）→ 直接比；
             // 单选 1 个归档 / 文件夹 → 再挑一个比（面板可选文件夹）。
-            let comparableCount = model.selectedFileItems.filter { $0.isDirectory || ArchiveService.isSupportedArchive($0.url) }.count
+            let comparableCount = model.selectedFileItems.filter { $0.isDirectory || SignedContainerService.isToolableArchive($0.url) }.count
             if comparableCount == 2, model.selectedFileItems.count == 2 {
                 toolsMenu.addItem(menuItem(L10n.text("file.compareArchives"), systemImage: "arrow.left.arrow.right.circle", action: #selector(compareArchivesSelected)))
             } else if comparableCount == 1, model.selectedFileItems.count == 1 {

@@ -573,7 +573,8 @@ struct ArchiveFileCommands: Commands {
         case .archive:
             return true
         case .folder, .tag:
-            return model.selectedFileItems.contains { ArchiveService.isSupportedArchive($0.url) }
+            // 0.4.4:`.siz` 也算(解压走既有 unwrap 流程,测试 = 签名验证 sheet,A5)。
+            return model.selectedFileItems.contains { SignedContainerService.isToolableArchive($0.url) }
         }
     }
 

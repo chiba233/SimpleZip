@@ -152,7 +152,7 @@ extension ArchiveBrowserModel {
     /// 单个失败不打断整批 —— 跟批量 GPG 加密同一套语义。
     func batchTestSelectedArchives() {
         let urls = selectedFileItems
-            .filter { !$0.isDirectory && ArchiveService.isSupportedArchive($0.url) }
+            .filter { !$0.isDirectory && SignedContainerService.isToolableArchive($0.url) }
             .map(\.url)
         guard urls.count >= 2 else {
             testArchive()   // 防御：菜单只在 ≥2 时出现，直接调用时退回单包流程。
@@ -246,7 +246,10 @@ extension ArchiveBrowserModel {
                 do {
                     // 0.4.3 #6:批量测试走密码智能 —— 加密包先静默试会话缓存/预设,要弹框也只弹一次,
                     // 验证过的口令进缓存,同口令的后续包全部静默通过。
-                    let result = try await self.passwordAwareArchiveTest(url, operationID: operationID, force: forced.contains(url), outputObserver: outputObserver)
+                    // 0.4.4:`.siz` 测的是内层 archive(A5;unwrap 失败 = 该包失败,不中断整批)。
+                    let result = try await SignedContainerService.withToolAdaptedArchive(url) { target in
+                        try await self.passwordAwareArchiveTest(target, operationID: operationID, force: forced.contains(url), outputObserver: outputObserver)
+                    }
                     collected.append(BatchTestOutcome(url: url, result: result))
                 } catch is CancellationError {
                     throw CancellationError()
@@ -400,13 +403,13 @@ extension ArchiveBrowserModel {
     /// 「查找疑似重复归档」:选中 ≥2 个归档只扫选中,否则扫当前文件夹里全部受支持归档。
     /// 逐包列条目算结构指纹(加密包试会话口令,仍读不了的跳过并在报告里点名),纯只读。
     func findDuplicateArchivesInFolder() {
-        let selectedArchives = selectedFileItems.filter { !$0.isDirectory && ArchiveService.isSupportedArchive($0.url) }
+        let selectedArchives = selectedFileItems.filter { !$0.isDirectory && SignedContainerService.isToolableArchive($0.url) }
         let candidates: [URL]
         if selectedArchives.count >= 2 {
             candidates = selectedArchives.map(\.url)
         } else {
             candidates = fileItems
-                .filter { !$0.isDirectory && ArchiveService.isSupportedArchive($0.url) }
+                .filter { !$0.isDirectory && SignedContainerService.isToolableArchive($0.url) }
                 .map(\.url)
         }
         guard candidates.count >= 2, case .folder(let folderURL) = mode else {
@@ -437,12 +440,17 @@ extension ArchiveBrowserModel {
                     currentFile: url.lastPathComponent,
                     completedUnitCount: index, totalUnitCount: candidates.count
                 ))
+                // 0.4.4:`.siz` 按内层 archive 的条目算指纹(A5;解不开 = 跳过,与列不动同款)。
                 var listed: [ArchiveItem]?
-                for password in [""] + SessionPasswordCache.shared.candidates(for: url) {
-                    if let items = try? await ArchiveService.list(url, password: password, operationID: operationID) {
-                        listed = items
-                        break
+                if let items = try? await SignedContainerService.withToolAdaptedArchive(url, perform: { target -> [ArchiveItem]? in
+                    for password in [""] + SessionPasswordCache.shared.candidates(for: url) {
+                        if let items = try? await ArchiveService.list(target, password: password, operationID: operationID) {
+                            return items
+                        }
                     }
+                    return nil
+                }) {
+                    listed = items
                 }
                 guard let items = listed else {
                     skipped.append(url.lastPathComponent)
@@ -701,9 +709,15 @@ extension ArchiveBrowserModel {
         let archiveURL: URL?
         switch mode {
         case .archive(let url):
-            archiveURL = url
+            // `.siz` 打开态:救援对象是磁盘上的 .siz 本体(tar 容器,7zz 兜底可解),
+            // 救援目录落在它旁边 —— 不能用 /tmp 的内层临时档案(救出的东西会跟着临时区消失)。
+            if let display = archiveDisplayOverride, SignedContainerService.isSIZContainer(display) {
+                archiveURL = display
+            } else {
+                archiveURL = url
+            }
         case .folder, .tag:
-            archiveURL = selectedFileItems.first(where: { !$0.isDirectory && ArchiveService.isSupportedArchive($0.url) })?.url
+            archiveURL = selectedFileItems.first(where: { !$0.isDirectory && SignedContainerService.isToolableArchive($0.url) })?.url
         }
         guard let archiveURL else {
             errorMessage = L10n.text("error.openOrSelectArchive")
@@ -748,10 +762,13 @@ extension ArchiveBrowserModel {
             rerunAction: { [weak self] in self?.runArchiveSalvage(url) }
         ) { operationID, progress, outputObserver in
             // 列目录:静默试口令。列不动照样救(7zz local header 兜底);列得动先过路径安全检查。
+            // `.siz` 不解包、按 tar 容器整体救(force 跳过扩展名路由)——容器坏时 unwrap 本身就不可靠,
+            // 救出内层 archive + metadata 让用户接着处理才是「尽力而为」的诚实形态。
+            let force = SignedContainerService.isSIZContainer(url)
             var items: [ArchiveItem]?
             var usablePassword = ""
             for password in [""] + SessionPasswordCache.shared.candidates(for: url) {
-                if let listed = try? await ArchiveService.list(url, password: password, operationID: operationID) {
+                if let listed = try? await ArchiveService.list(url, password: password, operationID: operationID, force: force) {
                     items = listed
                     usablePassword = password
                     break
@@ -781,7 +798,7 @@ extension ArchiveBrowserModel {
     /// 右键「批量体检」:多选归档 → 体检选中的;单选文件夹 → 体检该文件夹顶层全部归档。
     /// 串行逐包(单包失败不中断);密码**只走会话缓存静默试,绝不弹窗** —— 解不开如实标「需要密码」。
     func checkupSelectedArchives() {
-        var urls = selectedFileItems.filter { !$0.isDirectory && ArchiveService.isSupportedArchive($0.url) }.map(\.url)
+        var urls = selectedFileItems.filter { !$0.isDirectory && SignedContainerService.isToolableArchive($0.url) }.map(\.url)
         var scopeName = L10n.format("checkup.scope.selection", "\(urls.count)")
         if urls.isEmpty,
            selectedFileItems.count == 1,
@@ -789,7 +806,7 @@ extension ArchiveBrowserModel {
             let names = (try? fileManager.contentsOfDirectory(atPath: folder.url.path)) ?? []
             urls = names
                 .map { folder.url.appendingPathComponent($0) }
-                .filter { ArchiveService.isSupportedArchive($0) }
+                .filter { SignedContainerService.isToolableArchive($0) }
                 .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
             scopeName = folder.url.lastPathComponent
         }
@@ -826,13 +843,35 @@ extension ArchiveBrowserModel {
                     currentFile: url.lastPathComponent
                 ))
                 outputObserver?("\n== \(url.lastPathComponent)\n")
+                // `.siz`:体检跑在 unwrap 出的内层 archive 上(A5);解不开容器 = 如实标「无法列出」。
+                var effectiveURL = url
+                var sizTempRoot: URL?
+                defer { if let sizTempRoot { try? FileManager.default.removeItem(at: sizTempRoot) } }
+                if SignedContainerService.isSIZContainer(url) {
+                    do {
+                        let unwrapped = try await SignedContainerService.unwrapAndVerifySIZ(at: url)
+                        effectiveURL = unwrapped.innerArchiveURL
+                        sizTempRoot = unwrapped.tempRoot
+                    } catch is CancellationError {
+                        throw CancellationError()
+                    } catch {
+                        rows.append(ArchiveCheckupRow(
+                            fileName: url.lastPathComponent,
+                            testOutcome: .notListable,
+                            facts: nil,
+                            missingVolumeCount: 0,
+                            readOnlyFormat: false
+                        ))
+                        continue
+                    }
+                }
                 // ① 列目录:空口令 + 会话缓存逐个静默试(不弹窗)。
                 var items: [ArchiveItem]?
                 var usablePassword = ""
                 var lastError: Error?
                 for password in [""] + SessionPasswordCache.shared.candidates(for: url) {
                     do {
-                        items = try await ArchiveService.list(url, password: password, operationID: operationID)
+                        items = try await ArchiveService.list(effectiveURL, password: password, operationID: operationID)
                         usablePassword = password
                         break
                     } catch is CancellationError {
@@ -861,7 +900,7 @@ extension ArchiveBrowserModel {
                 // ④ 完整性测试(用列目录成功的同一口令;失败归类,不中断整批)。
                 var outcome = ArchiveCheckupRow.TestOutcome.passed
                 do {
-                    try await ArchiveService.test(url, password: usablePassword, operationID: operationID, outputObserver: outputObserver)
+                    try await ArchiveService.test(effectiveURL, password: usablePassword, operationID: operationID, outputObserver: outputObserver)
                 } catch is CancellationError {
                     throw CancellationError()
                 } catch {
@@ -1083,7 +1122,12 @@ extension ArchiveBrowserModel {
         let archiveURL: URL?
         switch mode {
         case .archive(let url):
-            archiveURL = url
+            // `.siz` 打开态:检查对象是真正的发布物(.siz 本体,SHA/公钥同捆都对它),不是 /tmp 内层。
+            if let display = archiveDisplayOverride, SignedContainerService.isSIZContainer(display) {
+                archiveURL = display
+            } else {
+                archiveURL = url
+            }
         case .folder, .tag:
             // #6:单选 .app 目录 → 纯 bundle 检查(Info.plist/codesign/Gatekeeper),不走归档管线。
             if selectedFileItems.count == 1, let item = selectedFileItems.first,
@@ -1091,7 +1135,7 @@ extension ArchiveBrowserModel {
                 runAppBundleInspection(item.url)
                 return
             }
-            archiveURL = selectedFileItems.first(where: { ArchiveService.isSupportedArchive($0.url) })?.url
+            archiveURL = selectedFileItems.first(where: { SignedContainerService.isToolableArchive($0.url) })?.url
         }
         guard let archiveURL else {
             errorMessage = L10n.text("error.openOrSelectArchive")
@@ -1134,7 +1178,7 @@ extension ArchiveBrowserModel {
                 analysis: ArchiveSpaceAnalysis.analyze(session.allItems)
             )
         case .folder, .tag:
-            guard let archiveURL = selectedFileItems.first(where: { ArchiveService.isSupportedArchive($0.url) })?.url else {
+            guard let archiveURL = selectedFileItems.first(where: { SignedContainerService.isToolableArchive($0.url) })?.url else {
                 errorMessage = L10n.text("error.openOrSelectArchive")
                 return
             }
@@ -1163,11 +1207,14 @@ extension ArchiveBrowserModel {
                 },
                 rerunAction: { [weak self] in self?.runSpaceAnalysisTask(for: archiveURL) }
             ) { [weak self] operationID, _, _ in
+                // `.siz`:分析对象是内层 archive 的条目(A5)。
                 var items: [ArchiveItem] = []
-                for password in [""] + SessionPasswordCache.shared.candidates(for: archiveURL) {
-                    if let listed = try? await ArchiveService.list(archiveURL, password: password, operationID: operationID, force: force) {
-                        items = listed
-                        break
+                try await SignedContainerService.withToolAdaptedArchive(archiveURL) { target in
+                    for password in [""] + SessionPasswordCache.shared.candidates(for: archiveURL) {
+                        if let listed = try? await ArchiveService.list(target, password: password, operationID: operationID, force: force) {
+                            items = listed
+                            break
+                        }
                     }
                 }
                 guard !items.isEmpty else {
@@ -1201,32 +1248,36 @@ extension ArchiveBrowserModel {
             },
             rerunAction: { [weak self] in self?.runReleaseInspection(url) }
         ) { operationID, progress, outputObserver in
-            // ① 列目录：空口令 + 会话缓存里的口令逐个静默试；全失败 = 读不了条目（报告里如实标注）。
-            progress(ArchiveProgressState(fraction: 0.1, statusText: nil))
+            // `.siz`:条目侧检查(列目录/测试/指纹/注释)跑在 unwrap 出的内层 archive 上(A5);
+            // ③ 起的 SHA-256 / 公钥同捆 / 专项检查仍对外层 .siz —— 它才是用户实际分发的产物。
             var items: [ArchiveItem] = []
-            for password in [""] + SessionPasswordCache.shared.candidates(for: url) {
-                if let listed = try? await ArchiveService.list(url, password: password, force: force) {
-                    items = listed
-                    report.listable = true
-                    break
+            try await SignedContainerService.withToolAdaptedArchive(url) { target in
+                // ① 列目录：空口令 + 会话缓存里的口令逐个静默试；全失败 = 读不了条目（报告里如实标注）。
+                progress(ArchiveProgressState(fraction: 0.1, statusText: nil))
+                for password in [""] + SessionPasswordCache.shared.candidates(for: url) {
+                    if let listed = try? await ArchiveService.list(target, password: password, force: force) {
+                        items = listed
+                        report.listable = true
+                        break
+                    }
                 }
-            }
-            if report.listable {
-                report.stats = ReleaseInspection.stats(for: items)
-                report.securityFindings = ArchiveSecurityReport.analyze(items)
-                report.hasComment = !ArchiveService.headerComment(for: url).isEmpty
-                report.structuralFingerprint = ArchiveStructuralFingerprint.compute(for: items)
-            }
-            // ② 完整性测试（失败不让任务失败 —— 失败本身就是报告内容）。
-            progress(ArchiveProgressState(fraction: 0.4, statusText: nil))
-            do {
-                try await ArchiveService.test(url, operationID: operationID, force: force, outputObserver: outputObserver)
-                report.testPassed = true
-            } catch is CancellationError {
-                throw CancellationError()
-            } catch {
-                report.testPassed = false
-                report.testFailureMessage = error.localizedDescription
+                if report.listable {
+                    report.stats = ReleaseInspection.stats(for: items)
+                    report.securityFindings = ArchiveSecurityReport.analyze(items)
+                    report.hasComment = !ArchiveService.headerComment(for: target).isEmpty
+                    report.structuralFingerprint = ArchiveStructuralFingerprint.compute(for: items)
+                }
+                // ② 完整性测试（失败不让任务失败 —— 失败本身就是报告内容）。
+                progress(ArchiveProgressState(fraction: 0.4, statusText: nil))
+                do {
+                    try await ArchiveService.test(target, operationID: operationID, force: force, outputObserver: outputObserver)
+                    report.testPassed = true
+                } catch is CancellationError {
+                    throw CancellationError()
+                } catch {
+                    report.testPassed = false
+                    report.testFailureMessage = error.localizedDescription
+                }
             }
             // ③ SHA-256（发布说明 / 校验文件用）。
             progress(ArchiveProgressState(fraction: 0.8, statusText: nil))
@@ -1260,9 +1311,9 @@ extension ArchiveBrowserModel {
     /// 右键「比较归档」入口：选中 2 个归档直接比；选中 1 个时用 NSOpenPanel 挑第二个。
     /// 菜单项只在这两种选区下出现，这里的兜底报错只防御直接调用。
     func compareSelectedArchives() {
-        // 0.4.2 #25:可比对的「侧」= 受支持归档 或 文件夹。归档 vs 归档 / 文件夹 vs 归档 / 文件夹 vs 文件夹都行。
+        // 0.4.2 #25:可比对的「侧」= 受支持归档 或 文件夹(0.4.4:含 .siz,比内层条目)。
         let comparableURLs = selectedFileItems
-            .filter { $0.isDirectory || ArchiveService.isSupportedArchive($0.url) }
+            .filter { $0.isDirectory || SignedContainerService.isToolableArchive($0.url) }
             .map(\.url)
 
         if comparableURLs.count >= 2 {
@@ -1286,7 +1337,7 @@ extension ArchiveBrowserModel {
         if panel.runModal() == .OK, let other = panel.url {
             var isDirectory: ObjCBool = false
             let exists = FileManager.default.fileExists(atPath: other.path, isDirectory: &isDirectory)
-            guard exists, isDirectory.boolValue || ArchiveService.isSupportedArchive(other) else {
+            guard exists, isDirectory.boolValue || SignedContainerService.isToolableArchive(other) else {
                 errorMessage = L10n.text("error.openOrSelectArchive")
                 return
             }
@@ -1317,8 +1368,13 @@ extension ArchiveBrowserModel {
             }
         ) { [weak self] operationID, _, _ in
             // 0.4.2 #25:任一侧是文件夹 → 文件系统快照;是归档 → 照常列出。归档 vs 文件夹随便混。
-            let leftItems = try await Self.comparisonItems(for: left, isFolder: leftIsFolder, operationID: operationID, force: forceLeft)
-            let rightItems = try await Self.comparisonItems(for: right, isFolder: rightIsFolder, operationID: operationID, force: forceRight)
+            // 0.4.4:`.siz` 侧比的是内层 archive 的条目(A5)。
+            let leftItems = try await SignedContainerService.withToolAdaptedArchive(left) {
+                try await Self.comparisonItems(for: $0, isFolder: leftIsFolder, operationID: operationID, force: forceLeft)
+            }
+            let rightItems = try await SignedContainerService.withToolAdaptedArchive(right) {
+                try await Self.comparisonItems(for: $0, isFolder: rightIsFolder, operationID: operationID, force: forceRight)
+            }
             let result = ArchiveDiff.compare(left: leftItems, right: rightItems)
             await MainActor.run {
                 self?.archiveDiffReport = ArchiveDiffReport(
