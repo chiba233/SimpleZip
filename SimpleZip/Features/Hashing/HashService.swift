@@ -137,28 +137,70 @@ enum HashService {
 }
 
 /// CRC32 的增量计算实现，对齐 7-Zip 常见的 CRC 列。
+///
+/// 用 slice-by-8：每轮吃 8 字节、查 8 张表，互相独立的查表能被 CPU 流水并行，
+/// 配合按字读取，比逐字节 slice-by-1 快 ~2-4×（CRC32 在默认算法集里，多 GB 文件受益）。
+/// 纯可移植 Swift，不依赖任何架构 intrinsic —— arm64 与 x86_64 通用二进制走同一份代码。
+/// 已用标准向量 `"123456789"→0xCBF43926`、随机模糊与任意块边界的流式对拍验证与原 slice-by-1 字节级一致。
 private struct CRC32 {
-    private nonisolated static let table: [UInt32] = (0..<256).map { value in
-        var crc = UInt32(value)
-        for _ in 0..<8 {
-            if crc & 1 == 1 {
-                crc = (crc >> 1) ^ 0xEDB88320
-            } else {
-                crc >>= 1
+    /// slice-by-8 的 8 张表。`tables[0]` 是标准 CRC32 表（`0xEDB88320` 反射多项式），
+    /// `tables[k][i] = (tables[k-1][i] >> 8) ^ tables[0][tables[k-1][i] & 0xFF]`，一次性构建。
+    private nonisolated static let tables: [[UInt32]] = {
+        var t0 = [UInt32](repeating: 0, count: 256)
+        for value in 0..<256 {
+            var crc = UInt32(value)
+            for _ in 0..<8 {
+                crc = (crc & 1 == 1) ? (crc >> 1) ^ 0xEDB88320 : crc >> 1
             }
+            t0[value] = crc
         }
-        return crc
-    }
+        var all: [[UInt32]] = [t0]
+        for k in 1..<8 {
+            let prev = all[k - 1]
+            var next = [UInt32](repeating: 0, count: 256)
+            for i in 0..<256 {
+                next[i] = (prev[i] >> 8) ^ t0[Int(prev[i] & 0xFF)]
+            }
+            all.append(next)
+        }
+        return all
+    }()
 
     private var value: UInt32 = 0xFFFFFFFF
 
     nonisolated init() {}
 
     nonisolated mutating func update(_ data: Data) {
-        for byte in data {
-            let index = Int((value ^ UInt32(byte)) & 0xFF)
-            value = (value >> 8) ^ Self.table[index]
+        guard !data.isEmpty else { return }
+        let tables = Self.tables
+        let t0 = tables[0], t1 = tables[1], t2 = tables[2], t3 = tables[3]
+        let t4 = tables[4], t5 = tables[5], t6 = tables[6], t7 = tables[7]
+        var crc = value
+        data.withUnsafeBytes { raw in
+            let n = raw.count
+            var i = 0
+            // 主循环：每轮 8 字节。macOS 仅小端（arm64/x86_64 皆是），`loadUnaligned` 按主机字节序读、
+            // `UInt32(littleEndian:)` 在小端上是恒等（零成本）、对大端仍正确，故跨架构安全。
+            while n - i >= 8 {
+                let one = UInt32(littleEndian: raw.loadUnaligned(fromByteOffset: i, as: UInt32.self)) ^ crc
+                let two = UInt32(littleEndian: raw.loadUnaligned(fromByteOffset: i + 4, as: UInt32.self))
+                crc = t7[Int(one & 0xFF)]
+                    ^ t6[Int((one >> 8) & 0xFF)]
+                    ^ t5[Int((one >> 16) & 0xFF)]
+                    ^ t4[Int((one >> 24) & 0xFF)]
+                    ^ t3[Int(two & 0xFF)]
+                    ^ t2[Int((two >> 8) & 0xFF)]
+                    ^ t1[Int((two >> 16) & 0xFF)]
+                    ^ t0[Int((two >> 24) & 0xFF)]
+                i += 8
+            }
+            // 尾部不足 8 字节：退回 slice-by-1（`tables[0]` 即标准表）。
+            while i < n {
+                crc = (crc >> 8) ^ t0[Int((crc ^ UInt32(raw[i])) & 0xFF)]
+                i += 1
+            }
         }
+        value = crc
     }
 
     nonisolated func finalize() -> String {
