@@ -205,7 +205,10 @@ struct ActivityView: View {
             let rest = tasks.filter { !($0.status.isRunning && $0.isAwaitingSlot) }
             ScrollViewReader { proxy in
                 ScrollView {
-                    LazyVStack(spacing: 16) {
+                    // 0.4.4 bug 修复:LazyVStack 在卡片高度不一时边滚边重估行高 —— 滚动条抽搐、
+                    // 底部卡片滚不进来(用户截图报告)。任务卡数量受历史上限(≤500)约束,普通 VStack
+                    // 一次性布局完即稳;展开态已外置(expandedTaskIDs),不再依赖懒加载的视图复用。
+                    VStack(spacing: 16) {
                         // 队列管理③:写锁可视化 —— 有归档被写锁占用时,在归档分类顶部点名
                         // 谁占着锁、谁在排队。锁释放即消失,平时零占位。
                         if category == .archive, !taskCenter.writeLockSnapshot.entries.isEmpty {
