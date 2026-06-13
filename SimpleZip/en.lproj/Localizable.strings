@@ -855,6 +855,11 @@
 "settings.formatMatrix.detail.dmg" = "Apple disk image. Browsing mounts it read-only (untrusted images mount with ownership disabled). SimpleZip doesn't create encrypted DMGs, volumes, or comments.";
 "settings.formatMatrix.backend.xip" = "Backend: Apple's system xip tool (extraction) + 7zz (browsing the xar container)";
 "settings.formatMatrix.detail.xip" = "Apple-signed archive (Xcode distribution). Extraction goes through Apple's own tool, which verifies the signature. Creating XIPs requires an Apple signing certificate, so it isn't offered.";
+"settings.formatMatrix.detail.zst" = "Zstandard is read-only here. The bundled 7-Zip lists, extracts, and tests both .zst and .tar.zst (a two-layer pipe like .tar.gz), but it ships no zstd encoder and macOS bsdtar has none either — so SimpleZip opens these but can't create them.";
+"settings.formatMatrix.detail.iso" = "ISO and UDF disk images are read-only. The bundled 7-Zip lists, extracts, and tests them; there is no writing, encryption, or comment — they are container images, not archives you edit.";
+"settings.formatMatrix.detail.cab" = "Microsoft Cabinet (.cab) is read-only. The bundled 7-Zip extracts and tests it; SimpleZip doesn't create or edit cabinets.";
+"settings.formatMatrix.detail.cpio" = "The cpio archive format is read-only here. The bundled 7-Zip extracts and tests it; SimpleZip doesn't create or edit cpio archives.";
+"settings.formatMatrix.detail.xar" = "XAR and its .pkg installer flavor are read-only. The bundled 7-Zip lists, extracts, and tests the xar container; SimpleZip doesn't build or sign installers.";
 "settings.formatMatrix.backend.gpg" = "Backend: GnuPG (user-installed)";
 "settings.formatMatrix.backend.zst" = "Backend: bundled 7-Zip engine (7zz) — decode only, zstd has no encoder in 7zz";
 "settings.formatMatrix.backend.iso" = "Backend: bundled 7-Zip engine (7zz) — read-only";

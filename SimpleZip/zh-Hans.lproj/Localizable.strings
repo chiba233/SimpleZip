@@ -853,6 +853,11 @@
 "settings.formatMatrix.detail.dmg" = "Apple 磁盘镜像。浏览时只读挂载（不可信镜像关闭属主语义）。SimpleZip 不创建加密 DMG，也不支持分卷和注释。";
 "settings.formatMatrix.backend.xip" = "后端：Apple 系统 xip 工具（解压）+ 7zz（浏览 xar 容器）";
 "settings.formatMatrix.detail.xip" = "Apple 签名归档（Xcode 分发用）。解压由 Apple 自己的工具执行并校验签名。创建 XIP 需要 Apple 签名证书，所以不提供。";
+"settings.formatMatrix.detail.zst" = "Zstandard 在这里只读。内置 7-Zip 能列出、解压、测试 .zst 与 .tar.zst（跟 .tar.gz 一样的双层管道），但它不带 zstd 编码器、macOS 的 bsdtar 也没有——所以 SimpleZip 能打开但不能创建。";
+"settings.formatMatrix.detail.iso" = "ISO 与 UDF 磁盘镜像只读。内置 7-Zip 能列出、解压、测试；不能写入、加密或加注释——它们是容器镜像，不是可编辑的归档。";
+"settings.formatMatrix.detail.cab" = "微软 Cabinet（.cab）只读。内置 7-Zip 能解压、测试；SimpleZip 不创建也不编辑 cabinet。";
+"settings.formatMatrix.detail.cpio" = "cpio 归档格式在这里只读。内置 7-Zip 能解压、测试；SimpleZip 不创建也不编辑 cpio 归档。";
+"settings.formatMatrix.detail.xar" = "XAR 及其 .pkg 安装包形态只读。内置 7-Zip 能列出、解压、测试 xar 容器；SimpleZip 不构建也不签名安装包。";
 "settings.formatMatrix.backend.gpg" = "后端：GnuPG（用户自装）";
 "settings.formatMatrix.backend.zst" = "后端：自带 7-Zip 引擎（7zz）——仅解码，7zz 没有 zstd 编码器";
 "settings.formatMatrix.backend.iso" = "后端：自带 7-Zip 引擎（7zz）——只读";
