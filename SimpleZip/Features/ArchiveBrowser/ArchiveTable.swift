@@ -436,6 +436,12 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
                     menu.addItem(menuItem(L10n.text("duplicates.menu"), systemImage: "doc.on.doc", action: #selector(findDuplicateFiles)))
                     menu.addItem(menuItem(L10n.text("contentSearch.menu"), systemImage: "text.magnifyingglass", action: #selector(searchArchiveContents)))
                     menu.addItem(menuItem(L10n.text("security.report.title"), systemImage: "shield.lefthalf.filled", action: #selector(showSecurityReport)))
+                    // 0.4.4:元数据报告 / 打开性能报告是只读分析 —— 只读格式(tar/rar/zst/.siz 内层…)同样可用,
+                    // 不跟编辑类入口一起消失(用户报「打开后右键成孤儿」)。
+                    menu.addItem(menuItem(L10n.text("metadata.menu"), systemImage: "info.square", action: #selector(showMetadataReport)))
+                    if model.lastOpenMetrics != nil {
+                        menu.addItem(menuItem(L10n.text("openMetrics.menu"), systemImage: "speedometer", action: #selector(copyOpenMetrics)))
+                    }
                     menu.addItem(menuItem(L10n.text("help.refresh"), systemImage: "arrow.clockwise", action: #selector(refreshArchive)))
                     menu.addItem(menuItem(L10n.text("button.revealInFinder"), systemImage: "arrow.up.forward.app", action: #selector(revealArchive)))
                 }
