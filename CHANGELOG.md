@@ -750,7 +750,7 @@ _Internal architecture refactor — no user-visible behavior change. Large "god 
       - Local secret key (`hasSecretKey && !isSecretKeyStub`): emphasizes "private key cannot be recovered; files previously signed cannot be re-signed; content encrypted to you can never be decrypted. Generate a revocation certificate first if you just want to retire the key".
       - Smart-card stub (`isSecretKeyOnSmartcard`): clarifies "only the local stub is removed; the private key on the card is unaffected; re-insert the card + Import Public Key from Smart Card to restore".
   - When the deleted key happens to be the current default signing key, `gpgDefaultSigningKeyFingerprint` is auto-cleared so the UI doesn't dangle a reference to a deleted key.
-  - **Passphrase** is requested via gpg-agent + pinentry-mac throughout; SimpleZip never touches the passphrase ([[feedback-gpg-release-emphasis]]).
+  - **Passphrase** is requested via gpg-agent + pinentry-mac throughout; SimpleZip never touches the passphrase.
   - Backend:
     - `GPGBackend.deleteKey(fingerprint:deleteSecret:source:)` — `--batch --yes --delete-secret-and-public-key` or `--delete-keys`; prefixes `--no-default-keyring --keyring <SZ>` for the SimpleZip ring.
     - `GPGBackend.setKeyExpiration(fingerprint:expiration:source:)` — `gpg --command-fd 0 --edit-key <fpr>` fed `expire\n<duration>\nsave\n`.
@@ -770,7 +770,7 @@ _Internal architecture refactor — no user-visible behavior change. Large "god 
     - "Save to SimpleZip-private keyring (public key isolated)": adds `--no-default-keyring --keyring <SZ>/pubring.kbx` so the public key only goes into SimpleZip's private ring, not the CLI's pubring.
   - **Honest disclosure of the private-key location**: when the user picks the SimpleZip-private option, the sheet plainly states "⚠ The private key still ends up in ~/.gnupg/private-keys-v1.d/" — gpg's secring is global and cannot be redirected via `--keyring`. Full private-key isolation requires `--homedir`, which is a separate workflow. Users should not be misled into thinking they got complete isolation.
   - Form fields: Name / Email / Algorithm picker (Ed25519 recommended / RSA 4096 / 3072 / 2048) / Expiration picker (Never / 1y / 2y / 5y). Basic validation: non-empty name + email contains `@`.
-  - **Passphrase** is handled entirely by gpg-agent + pinentry-mac via the system dialog — SimpleZip never touches the passphrase ([[feedback-gpg-release-emphasis]]). The sheet bottom notes: "If no dialog appears, check that pinentry-mac is installed locally."
+  - **Passphrase** is handled entirely by gpg-agent + pinentry-mac via the system dialog — SimpleZip never touches the passphrase. The sheet bottom notes: "If no dialog appears, check that pinentry-mac is installed locally."
   - Backend `GPGBackend.createKey(name:email:algorithm:expiration:into:) async throws -> String` runs `gpg --status-fd 1 --quick-generate-key "Name <email>" <algo> default <expire>`, then parses the new key's fingerprint from the `[GNUPG:] KEY_CREATED B <fingerprint>` status line. As a fallback, it scans the rest of the output for any 40-char hex string.
   - On success the keyring auto-refreshes and a confirmation message reads "Created new key: …<short fp>".
 
@@ -825,7 +825,7 @@ _Internal architecture refactor — no user-visible behavior change. Large "god 
     - New enum `GPGTrustLevel` (unknown / never / marginal / full / ultimate / expired / revoked) — one type shared between Core and UI; `userAssignableCases` exposes the picker options (excluding expired / revoked).
     - `BackendProcessRunner` gains `ProcessInputStrategy.staticInput(String)` — the infrastructure that lets `gpg --edit-key` / `--card-edit`-style interactive menus get a fixed command sequence on stdin and then EOF, reusing the existing pipe / cancellation machinery. PIN management and on-card key generation will use the same path later.
     - `AppPreferences.gpgSmartcardEnabled` new key (defaults to false) and added to the preferences-export whitelist.
-  - Consistent with [[feedback-gpg-release-emphasis]]: error messages name the responsible party ("Check that the card is inserted and scdaemon can see it") rather than letting users blame SimpleZip.
+  - Error messages name the responsible party ("Check that the card is inserted and scdaemon can see it") rather than letting users blame SimpleZip.
 
 - **New feature: GPG section added to the Health diagnostics panel and the "Copy diagnostics" report**
   - Settings → Health (`HealthPane`) now includes one GPG backend row — only when GPG integration is enabled (`gpgEnabled == true`), keeping with AGENTS A4 ("when the master toggle is off, no GPG UI appears outside Settings"). The Health pane and the diagnostics export are the documented exceptions where GPG status is allowed to surface even when the toggle is off, because they live inside Settings rather than on the main browsing surface.
@@ -833,7 +833,7 @@ _Internal architecture refactor — no user-visible behavior change. Large "god 
   - The "Copy diagnostics" report now includes a `GPG:` section (only when `gpgEnabled == true`): backend path, version, pinentry-mac availability, gpg-agent liveness, `$GNUPGHOME` envvar, keyring totals.
   - **Privacy invariant**: the diagnostics report carries no fingerprints, no user IDs, no email addresses, no public-key material; it never reads any file inside `~/.gnupg/`. Users pasting the report into an issue tracker will not leak key identity information. SECURITY.md will gain a section documenting this invariant alongside the existing `.siz` privacy notes in a follow-up release.
   - `GPGBackend` gains two lightweight probes: `gnupgHome()` reading `$GNUPGHOME` (a user-customized keyring location is the most common root cause of "SimpleZip doesn't see my keys" reports); `gpgAgentAlive() async` running `gpg-connect-agent /bye` to verify the agent is reachable.
-  - Error messages follow the `feedback-gpg-release-emphasis` discipline: they tell the user to check local gpg / pinentry / key configuration first, rather than implying SimpleZip is malfunctioning.
+  - Error messages tell the user to check local gpg / pinentry / key configuration first, rather than implying SimpleZip is malfunctioning.
   - `OperationDiagnosticsInputs` gains an optional `gpgSection: GPGDiagnosticsSection?` field (default `nil`, so the existing reporter test fixtures remain unchanged); the new `GPGDiagnosticsSection` struct lives in Core with a matching `public init`.
 
 - **New feature: Welcome Assistant gains a "GPG (PGP signing) — optional" step**

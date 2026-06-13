@@ -749,7 +749,7 @@ _内部架构重构 —— 无任何用户可见行为变更。把几个臃肿�
       - 含本机私钥（`hasSecretKey && !isSecretKeyStub`）：强调「私钥一旦删除**无法恢复**，签过的文件未来无法再签 / 解密给你的内容永远解不了。建议先生成撤销证书再删」。
       - 智能卡 stub（`isSecretKeyOnSmartcard`）：说明「仅删本机 stub，卡上私钥不受影响，重新插卡 + 从智能卡导入公钥即可恢复」。
   - 删除恰好是当前默认签名密钥时，自动清空 `gpgDefaultSigningKeyFingerprint` 偏好 —— 不让 UI 指向一把已不存在的密钥。
-  - **Passphrase** 全程交给 gpg-agent + pinentry-mac 弹原生密码框；SimpleZip 不接触 passphrase（[[feedback-gpg-release-emphasis]]）。
+  - **Passphrase** 全程交给 gpg-agent + pinentry-mac 弹原生密码框；SimpleZip 不接触 passphrase。
   - 后端：
     - `GPGBackend.deleteKey(fingerprint:deleteSecret:source:)` —— `--batch --yes --delete-secret-and-public-key` 或 `--delete-keys`，按 source 加 `--no-default-keyring --keyring <SZ>`。
     - `GPGBackend.setKeyExpiration(fingerprint:expiration:source:)` —— `gpg --command-fd 0 --edit-key <fpr>` 喂 `expire\n<duration>\nsave\n`。
@@ -769,7 +769,7 @@ _内部架构重构 —— 无任何用户可见行为变更。把几个臃肿�
     - 「保存到 SimpleZip 私有钥匙串（公钥隔离）」：加 `--no-default-keyring --keyring <SZ>/pubring.kbx`，公钥仅进 SimpleZip ring，不污染 CLI keyring。
   - **诚实告知私钥位置 caveat**：选择 SimpleZip 私有时 sheet 上明确说「⚠ 私钥仍保存到 ~/.gnupg/private-keys-v1.d/」—— gpg 的 secring 是全局的，无法通过 `--keyring` 改变。要全私钥隔离需用 `--homedir`，那是另一种工作流。不让用户误以为完全隔离。
   - 表单字段：姓名 / 邮箱 / 算法 picker（Ed25519 推荐 / RSA 4096 / 3072 / 2048）/ 过期时间 picker（永不 / 1y / 2y / 5y）。表单基础校验：姓名非空 + 邮箱含 `@`。
-  - **Passphrase** 全程由 gpg-agent + pinentry-mac 弹原生密码框收 —— SimpleZip 进程不接触 passphrase（[[feedback-gpg-release-emphasis]]）。sheet 底部明确提示「如果对话框没弹出，请检查本机有没有装 pinentry-mac」。
+  - **Passphrase** 全程由 gpg-agent + pinentry-mac 弹原生密码框收 —— SimpleZip 进程不接触 passphrase。sheet 底部明确提示「如果对话框没弹出，请检查本机有没有装 pinentry-mac」。
   - 后端 `GPGBackend.createKey(name:email:algorithm:expiration:into:) async throws -> String`：跑 `gpg --status-fd 1 --quick-generate-key "Name <email>" <algo> default <expire>`，从 `[GNUPG:] KEY_CREATED B <fingerprint>` 状态行解析新密钥 fingerprint 返回；gpg 漏报时 fallback 扫整段输出找 40 字符 hex。
   - 创建成功后自动 refresh 钥匙串显示，下方状态行显示「已创建新密钥：…<short fp>」。
 
@@ -824,7 +824,7 @@ _内部架构重构 —— 无任何用户可见行为变更。把几个臃肿�
     - 新 enum `GPGTrustLevel`（unknown / never / marginal / full / ultimate / expired / revoked）—— 唯一表达信任级别，UI / 后端共享；`userAssignableCases` 暴露 picker 可选项（不含 expired / revoked）。
     - `BackendProcessRunner` 加 `ProcessInputStrategy.staticInput(String)` —— GPG `--edit-key` / `--card-edit` 这种 interactive menu 喂 stdin 后立刻关流的基础设施，复用现有 pipe / 取消机制。后续 PIN 管理 / 卡上生成密钥也走这条路。
     - `AppPreferences.gpgSmartcardEnabled` 新 key（默认 false）+ 偏好导出白名单。
-  - 跟 [[feedback-gpg-release-emphasis]] 一致：错误文案点名责任方（「请检查卡是否插好 / scdaemon 是否能识别」）而不是让用户怀疑 SimpleZip。
+  - 错误文案点名责任方（「请检查卡是否插好 / scdaemon 是否能识别」）而不是让用户怀疑 SimpleZip。
 
 - **新功能：运行状态诊断面板 + 复制诊断报告里加入 GPG 模块**
   - 「设置 → 运行状态」`HealthPane` 加一行 GPG 后端状态 —— 仅当用户启用了 GPG 集成（`gpgEnabled == true`）时出现，按 AGENTS A4「主开关关 = 主界面不再露 GPG 字样」例外只在设置 / 诊断面里露。
@@ -832,7 +832,7 @@ _内部架构重构 —— 无任何用户可见行为变更。把几个臃肿�
   - 「复制诊断」按钮的报告里新增 `GPG:` 段（仅 `gpgEnabled == true` 时出现）：路径 / 版本 / pinentry-mac / gpg-agent / `$GNUPGHOME` envvar / 公钥总数 / 含私钥数量。
   - **隐私约束**：诊断报告**不**携带 fingerprint / userID / email / 公钥本体；**不**读 `~/.gnupg/` 任何文件。用户复制贴 Issue 时不会泄露密钥身份信息。SECURITY.md 计划在 #29 后续更新里把这条原则补进 .siz 节里。
   - `GPGBackend` 加两个轻量探测：`gnupgHome()` 读 `$GNUPGHOME` envvar（用户自定义私钥目录是「为什么 SimpleZip 看不到我的密钥」的高频根因）；`gpgAgentAlive() async` 跑 `gpg-connect-agent /bye` 判活。
-  - 文案沿用 `feedback-gpg-release-emphasis` 风格：报错信息明确告诉用户「请检查本机 gpg / pinentry / 密钥配置」，不让用户误以为是 SimpleZip 出 bug。
+  - 报错信息明确告诉用户「请检查本机 gpg / pinentry / 密钥配置」，不让用户误以为是 SimpleZip 出 bug。
   - `OperationDiagnosticsInputs` 加可选 `gpgSection: GPGDiagnosticsSection?` 字段（默认 nil 让现有单测无需改）；新结构 `GPGDiagnosticsSection` 在 Core 里，跟 Inputs 同款 public init 风格。
 
 - **新功能：欢迎助手加入「GPG（PGP 签名）— 可选」步骤**

@@ -10,7 +10,7 @@ import SwiftUI
 /// 修改密钥过期时间的 sheet。
 ///
 /// 走 `gpg --edit-key <fpr> expire <duration> save`。`gpg-agent + pinentry-mac` 会弹密码框收私钥 passphrase，
-/// SimpleZip 不接触 passphrase（[[feedback-gpg-release-emphasis]]）。智能卡 stub 密钥会要求插卡 + 输入卡 PIN。
+/// SimpleZip 不接触 passphrase。智能卡 stub 密钥会要求插卡 + 输入卡 PIN。
 struct EditExpirationSheet: View {
     let key: GPGBackend.GPGKey
     @Binding var isPresented: Bool

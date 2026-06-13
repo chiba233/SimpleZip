@@ -260,7 +260,7 @@ enum SIZArchive {
         lines.append("  = \(metadata.innerArchiveSHA256)")
         lines.append("")
 
-        // SimpleZip 从不经手私钥 passphrase 的提醒(发布说明一贯强调,见 feedback_gpg_release_emphasis)。
+        // SimpleZip 从不经手私钥 passphrase 的提醒(发布说明一贯强调这一点)。
         lines.append(L10n.text("siz.instructions.passphraseNote"))
         return lines.joined(separator: "\n")
     }
