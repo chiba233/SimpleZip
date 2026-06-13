@@ -120,7 +120,20 @@ enum DiagnosticsCopier {
 
     private static func makeGeneralInputs() async -> OperationDiagnosticsInputs {
         let now = Date()
+        // #47 诊断包 2.0:最近任务(含来源)+ 按来源聚合 + 已脱敏设置快照,拼成一份富 rawOutput(reporter 会统一脱敏)。
         let recent = await recentTasksSummary()
+        let bySource = await tasksBySourceSummary()
+        let settings = settingsSnapshotSummary()
+        let rawOutput = """
+        Recent tasks (newest first):
+        \(recent)
+
+        Tasks by source:
+        \(bySource)
+
+        Settings (desensitized — backup whitelist, no passwords/keys):
+        \(settings)
+        """
         return await OperationDiagnosticsInputs(
             appVersion: appVersionString(),
             appBuild: appBuildString(),
@@ -132,7 +145,7 @@ enum DiagnosticsCopier {
             title: L10n.text("diagnostics.general.title"),
             startedAt: now,
             finishedAt: now,
-            rawOutput: recent,
+            rawOutput: rawOutput,
             errorMessage: nil,
             gpgSection: collectGPGSection(),
             fileSystemSummary: fileSystemSummaryText()
@@ -158,14 +171,32 @@ enum DiagnosticsCopier {
                 case .failed(let message): return ("FAILED", message)
                 }
             }
-            let (kind, title) = await MainActor.run { (task.kind.rawValue, task.title) }
-            var line = "[\(label)] \(kind): \(title)"
+            let (kind, title, source) = await MainActor.run { (task.kind.rawValue, task.title, task.source.rawValue) }
+            var line = "[\(label)] \(kind) via \(source): \(title)"
             if let reason, !reason.isEmpty {
                 line += " — \(reason.replacingOccurrences(of: "\n", with: " "))"
             }
             lines.append(line)
         }
         return lines.joined(separator: "\n")
+    }
+
+    /// #47:任务按来源聚合(F1)—— 维护者看「问题多发在哪个入口(应用内 / CLI / 快捷指令 / URL / Finder)」。
+    private static func tasksBySourceSummary() async -> String {
+        await MainActor.run {
+            let all = TaskCenter.shared.active + TaskCenter.shared.history
+            guard !all.isEmpty else { return "(none)" }
+            let grouped = Dictionary(grouping: all, by: { $0.source.rawValue }).mapValues(\.count)
+            return grouped.sorted { $0.key < $1.key }.map { "\($0.key): \($0.value)" }.joined(separator: ", ")
+        }
+    }
+
+    /// #47:已脱敏的设置快照(= 设置备份白名单,本就不含口令 / 私钥)—— 维护者复现用户配置用。
+    /// 走 reporter 的统一 sanitize 再兜一道底。
+    private static func settingsSnapshotSummary() -> String {
+        let snapshot = AppPreferences.exportableSnapshot()
+        guard !snapshot.isEmpty else { return "(none)" }
+        return snapshot.keys.sorted().map { "\($0) = \(String(describing: snapshot[$0] ?? ""))" }.joined(separator: "\n")
     }
 
     private static func appVersionString() -> String {
