@@ -51,7 +51,10 @@ nonisolated enum SettingsCatalog {
         SettingsCatalogItem(
             id: "automation.allowPresetPassword", pane: .automation,
             titleKey: "settings.automation.allowPresetPassword",
-            keywords: ["password", "preset", "automation", "unattended"], isToggleable: true
+            // 安全相关:控制「无人值守自动化可用预设密码」—— 一句话 / 语音 / Shortcuts 翻转它 = 两步提权
+            // (先开它 → 再跑解压 intent 用预设密码解加密包)。与删除确认 / 可疑路径 / GPG 一致,**只 UI 手动改**,
+            // 绝不进可经 NL/自动化翻转的白名单(`isToggleable:false` → 三个翻转面都拿不到 accessor)。
+            keywords: ["password", "preset", "automation", "unattended"], isToggleable: false
         ),
         // 通用
         SettingsCatalogItem(
@@ -400,9 +403,9 @@ enum SettingToggleRegistry {
         case "automation.ai":
             return Accessor(get: { AppPreferences.aiAssistantEnabled },
                             set: { setBool($0, AppPreferences.Key.aiAssistantEnabled) })
-        case "automation.allowPresetPassword":
-            return Accessor(get: { AppPreferences.automationAllowPresetPassword },
-                            set: { setBool($0, AppPreferences.Key.automationAllowPresetPassword) })
+        // automation.allowPresetPassword 故意**没有** accessor:它是安全相关开关(无人值守用预设密码),
+        // 只在设置 UI 手动改,绝不让 NL/语音/Shortcuts 翻转(见 SettingsCatalog 那条的注释)。`isToggleable:false`
+        // 已让上面的 guard 拦住,这里不再列 case,双保险。
         case "general.rememberLastFolder":
             return Accessor(get: { AppPreferences.rememberLastFolder },
                             set: { setBool($0, AppPreferences.Key.rememberLastFolder) })
