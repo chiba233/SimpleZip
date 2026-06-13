@@ -132,29 +132,47 @@ actor AIGenerationSerializer {
 // 字段一律用 String + `@Guide` 列出允许值,Swift 端做容错映射(模型给了界外值就退回安全默认),
 // 避免依赖「@Generable 枚举」的细节、也更耐模型抖动。
 
-/// #60:活动中心自然语言筛选 —— AI 只把一句话**抽成精确条件**(状态/来源/关键词/分钟),
-/// **由 App 在代码里确定性地精确匹配**(端上小模型擅长「理解短语」、不擅长「扫 80 行做精确比对」——
-/// 让它选行就出垃圾 / 漏选;抽条件它可靠)。这样「zip」必中所有含 zip 的任务名、「30 分钟内」必留所有
-/// ≤30 分钟的任务,每次都准。
+/// #60:活动中心自然语言筛选 —— AI 只把一句话**抽成精确条件**,由 App 在代码里确定性匹配。
+/// 分类字段用 **`@Generable` 枚举**而非 String:模型被**硬约束**只能吐合法英文 token —— 实测中文输入时
+/// String 字段会被模型按原文回填(status=未完成 / unit=天 / fmt=压缩包),代码对不上就静默失效;枚举从根上杜绝。
+@available(macOS 26.0, *)
+@Generable
+enum FilterStatus: String, Equatable { case all, running, succeeded, failed, cancelled }
+@available(macOS 26.0, *)
+@Generable
+enum FilterSource: String, Equatable { case any, app, cli, intent, urlScheme, finder }
+@available(macOS 26.0, *)
+@Generable
+enum FilterKind: String, Equatable {
+    case any, extract, compress, create, test, convert, compare, benchmark, hash, split, combine
+    case search, inspect, paste, move, copy, duplicate, delete, rename, permissions, undo, redo
+}
+@available(macOS 26.0, *)
+@Generable
+enum FilterTimeUnit: String, Equatable { case none, seconds, minutes, hours, days, weeks, months, years }
+@available(macOS 26.0, *)
+@Generable
+enum FilterTimeDirection: String, Equatable { case within, before }
+
 @available(macOS 26.0, *)
 @Generable
 struct ActivityFilterSpec: Sendable {
-    @Guide(description: "Which task states to keep: one of all, running, succeeded, failed, cancelled.")
-    var status: String
-    @Guide(description: "Which task origin to keep: one of any, app, cli, intent, urlScheme, finder.")
-    var source: String
-    @Guide(description: "The kind of OPERATION the user explicitly names as an action — one of any, extract, compress, create, test, convert, compare, benchmark, hash, split, combine, search, inspect, paste, move, copy, duplicate, delete, rename, permissions, undo, redo. A file format or extension is NOT an operation: never infer a kind from a format. Use any unless the user names an action.")
-    var kind: String
-    @Guide(description: "An archive format or file extension named in the request, matched against the task name. Empty if the request does not mention a format.")
+    @Guide(description: "Which task states to keep.")
+    var status: FilterStatus
+    @Guide(description: "Which task origin to keep.")
+    var source: FilterSource
+    @Guide(description: "The kind of OPERATION the user explicitly names as an action. A file format or extension is NOT an operation: never infer this from a format or from a generic word for 'archive'. any unless the user names an action.")
+    var kind: FilterKind
+    @Guide(description: "A specific archive format or file extension named in the request (like a short suffix), matched against the task name. EMPTY string if no specific format is named — do not put a generic word for 'archive' or 'compressed file' here.")
     var format: String
-    @Guide(description: "The NAME of a specific file or archive the user is looking for. Use an EMPTY string when the user does not name a particular file — for example when the request only restricts time, status, format, or operation. A time amount, a duration, a date, a number, a status word, an operation, or a format is NEVER a file name and must NEVER be placed here.")
+    @Guide(description: "The NAME of a specific file the user is looking for. EMPTY string unless the user names a particular file. A time amount, duration, date, number, status word, operation, or format is NEVER a file name and must NEVER be placed here.")
     var fileName: String
     @Guide(description: "The amount in any time limit the request expresses, as a plain number that may be fractional (e.g. 0.2 or 1.5), NOT converted to any unit. 0 if the request expresses no time limit.")
     var timeValue: Double
-    @Guide(description: "The unit the time amount is expressed in: one of none, seconds, minutes, hours, days, weeks, months, years. none if the request expresses no time limit.")
-    var timeUnit: String
-    @Guide(description: "Whether the time limit selects tasks more recent than it (within) or older than it (before): one of within, before.")
-    var timeDirection: String
+    @Guide(description: "The unit the time amount is expressed in. none if the request expresses no time limit.")
+    var timeUnit: FilterTimeUnit
+    @Guide(description: "Whether the time limit selects tasks more recent than it (within) or older than it (before).")
+    var timeDirection: FilterTimeDirection
 }
 
 /// #63:归档清单缓存自然语言查询 —— 一句话 → 一个用来在已缓存归档里搜的**文件名关键词**。

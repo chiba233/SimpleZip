@@ -585,43 +585,47 @@ struct ActivityView: View {
         do {
             let spec = try await AIReportAssistant.activityFilterSpec(for: query)
             // 临时诊断:原样显示模型返回的每个字段(定位「AI 垃圾 vs 代码处理错」用)。
-            aiDebugSpec = "status=\(spec.status) src=\(spec.source) kind=\(spec.kind) fmt=\(spec.format) name=\(spec.fileName) val=\(spec.timeValue) unit=\(spec.timeUnit) dir=\(spec.timeDirection)"
+            aiDebugSpec = "status=\(spec.status.rawValue) src=\(spec.source.rawValue) kind=\(spec.kind.rawValue) fmt=\(spec.format) name=\(spec.fileName) val=\(spec.timeValue) unit=\(spec.timeUnit.rawValue) dir=\(spec.timeDirection.rawValue)"
+            // 分类字段现在是 @Generable 枚举,模型被硬约束只能吐合法 token —— 直接 switch,无需容错字符串解析。
             let status: ActivityTaskFilter
-            switch spec.status.lowercased() {
-            case "running": status = .running
-            case "succeeded": status = .succeeded
-            case "failed": status = .failed
-            case "cancelled", "canceled": status = .cancelled
-            default: status = .all
+            switch spec.status {
+            case .all: status = .all
+            case .running: status = .running
+            case .succeeded: status = .succeeded
+            case .failed: status = .failed
+            case .cancelled: status = .cancelled
             }
             let source: OperationTask.Source?
-            switch spec.source.lowercased() {
-            case "app": source = .app
-            case "cli": source = .cli
-            case "intent": source = .intent
-            case "urlscheme": source = .urlScheme
-            case "finder": source = .finder
-            default: source = nil
+            switch spec.source {
+            case .any: source = nil
+            case .app: source = .app
+            case .cli: source = .cli
+            case .intent: source = .intent
+            case .urlScheme: source = .urlScheme
+            case .finder: source = .finder
             }
+            let kind: OperationTask.Kind? = spec.kind == .any ? nil : OperationTask.Kind(rawValue: spec.kind.rawValue)
             let keyword = spec.fileName.trimmingCharacters(in: .whitespacesAndNewlines)
-            // 任务类型:容错 rawValue 映射(any / 界外 → nil)。
-            let kind = OperationTask.Kind(rawValue: spec.kind.lowercased())
-            // 格式 / 扩展名:去掉前导点和空白(匹配时统一补「.」)。
-            let format = spec.format.trimmingCharacters(in: CharacterSet(charactersIn: ". ")).lowercased()
-            // 单位换算在代码里做(模型只给「数值 + 单位」,不让它算 —— 避免「3600 秒」被当成分钟)。
-            // 容错前缀匹配:模型可能给 second/seconds/sec、minute/min 等变体。
+            // 格式容错:模型可能给「any」(意为不限)或通用词 / 非拉丁(如「压缩包」)—— 都不当成扩展名。
+            // 只认拉丁字母数字(允许内部「.」如 tar.gz)的短后缀。
+            let rawFormat = spec.format.trimmingCharacters(in: CharacterSet(charactersIn: ". ")).lowercased()
+            let isExtension = !rawFormat.isEmpty && rawFormat != "any" && rawFormat != "none"
+                && rawFormat.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == ".") }
+            let format = isExtension ? rawFormat : ""
+            // 单位换算在代码里做(模型只给「数值 + 单位」枚举,不让它算)。
             let unitSeconds: TimeInterval
-            let unit = spec.timeUnit.lowercased()
-            if unit.hasPrefix("sec") { unitSeconds = 1 }
-            else if unit.hasPrefix("min") { unitSeconds = 60 }
-            else if unit.hasPrefix("hour") || unit.hasPrefix("hr") { unitSeconds = 3600 }
-            else if unit.hasPrefix("day") { unitSeconds = 86_400 }
-            else if unit.hasPrefix("week") { unitSeconds = 604_800 }
-            else if unit.hasPrefix("month") { unitSeconds = 2_592_000 }      // ~30 天
-            else if unit.hasPrefix("year") { unitSeconds = 31_536_000 }      // ~365 天
-            else { unitSeconds = 0 }
-            let seconds = max(0, Double(spec.timeValue)) * unitSeconds
-            let before = spec.timeDirection.lowercased() == "before"
+            switch spec.timeUnit {
+            case .none: unitSeconds = 0
+            case .seconds: unitSeconds = 1
+            case .minutes: unitSeconds = 60
+            case .hours: unitSeconds = 3600
+            case .days: unitSeconds = 86_400
+            case .weeks: unitSeconds = 604_800
+            case .months: unitSeconds = 2_592_000      // ~30 天
+            case .years: unitSeconds = 31_536_000      // ~365 天
+            }
+            let seconds = max(0, spec.timeValue) * unitSeconds
+            let before = spec.timeDirection == .before
             // 一个条件都没抽到 → 不点亮,提示重述。
             guard !keyword.isEmpty || seconds > 0 || status != .all || source != nil
                     || kind != nil || !format.isEmpty else {
