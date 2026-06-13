@@ -139,14 +139,18 @@ actor AIGenerationSerializer {
 @available(macOS 26.0, *)
 @Generable
 struct ActivityFilterSpec: Sendable {
-    @Guide(description: "Status filter: exactly one of all, running, succeeded, failed, cancelled.")
+    @Guide(description: "Which task states to keep: one of all, running, succeeded, failed, cancelled.")
     var status: String
-    @Guide(description: "Source filter: exactly one of any, app, cli, intent, urlScheme, finder.")
+    @Guide(description: "Which task origin to keep: one of any, app, cli, intent, urlScheme, finder.")
     var source: String
-    @Guide(description: "A literal word or substring to look for in the task name, e.g. \"zip\", \"minecraft\", \"发布助手\", \"report\". Empty string if the request is purely about time or status.")
+    @Guide(description: "A word or file name from the request to match within a task's name; empty if the request does not mention a specific name.")
     var keyword: String
-    @Guide(description: "Time limit as minutes back from now (the app keeps only tasks newer than this). Convert any time phrase to minutes: \"within 30 minutes\"/\"30分钟内\" → 30, \"last hour\"/\"1小时内\" → 60, \"today\"/\"今天\" → 1440, \"yesterday\"/\"一天前\" → 2880, \"this week\"/\"本周\"/\"上周\" → 10080. Use 0 when there is no time phrase.")
-    var withinMinutes: Int
+    @Guide(description: "The amount in any time limit the request expresses, as a plain number, NOT converted to any unit. 0 if the request expresses no time limit.")
+    var timeValue: Int
+    @Guide(description: "The unit the time amount is expressed in: one of none, seconds, minutes, hours, days, weeks. none if the request expresses no time limit.")
+    var timeUnit: String
+    @Guide(description: "Whether the time limit selects tasks more recent than it (within) or older than it (before): one of within, before.")
+    var timeDirection: String
 }
 
 /// #63:归档清单缓存自然语言查询 —— 一句话 → 一个用来在已缓存归档里搜的**文件名关键词**。
@@ -189,16 +193,12 @@ extension AIReportAssistant {
     /// 确定性精确匹配 —— 模型只做「理解短语」这件它擅长的事,不让它做不可靠的「扫列表选行」。
     static func activityFilterSpec(for query: String) async throws -> ActivityFilterSpec {
         let instructions = """
-        Turn the user's request (it may be in any language) into a precise task filter. Extract exactly \
-        these four fields and nothing else:
-        - status: "all" unless the request clearly asks for running / succeeded / failed / cancelled tasks.
-        - source: "any" unless it clearly says the app, command line (cli), Shortcuts or Siri (intent), a \
-        simplezip:// link (urlScheme), or Finder services (finder).
-        - keyword: the literal word or file name to look for in the task name — e.g. "zip", "minecraft", \
-        "发布助手", "report". Empty string if the request is only about time or status.
-        - withinMinutes: convert any time phrase to minutes (30分钟内 → 30, 1小时内 → 60, 今天 → 1440, \
-        一天前 → 2880, 本周/上周 → 10080); 0 if there is no time phrase.
-        The app matches exactly from these fields, so be accurate and literal — do not paraphrase the keyword.
+        You read the user's request and express it as a task filter. Understand the request whatever \
+        language it is written in, and capture every condition it expresses — a name to look for, how \
+        recent (or how old) the task is, its state, and where it came from. For a time limit, report the \
+        amount and its unit as the user expressed them, without converting; the app does the arithmetic and \
+        the exact matching. Be faithful to what the user asked: don't translate or paraphrase the name, and \
+        don't invent conditions the request doesn't express. Fill each field per its description.
         """
         return try await generateStructured(instructions: instructions, prompt: query, as: ActivityFilterSpec.self)
     }

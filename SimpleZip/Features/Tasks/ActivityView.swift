@@ -38,7 +38,10 @@ struct ActivityView: View {
     /// AI 抽出的精确过滤条件 —— App 在代码里**确定性匹配**(模型只负责把短语抽成这四个字段,
     /// 不让它扫列表选行,那不可靠)。
     @State private var aiKeyword = ""
-    @State private var aiWithinMinutes = 0
+    /// 时间窗换算成**秒**(0 = 不限)—— AI 只给「数值 + 单位」,换算在 App 里做(避免模型算错单位,
+    /// 如「3600 秒」被当成分钟)。`aiTimeBefore` = 早于(外)还是晚于(内)该时刻。
+    @State private var aiWithinSeconds: TimeInterval = 0
+    @State private var aiTimeBefore = false
     @State private var aiStatus = ActivityTaskFilter.all
     @State private var aiSource: OperationTask.Source?
     /// 当前 AI 筛选的原话(高亮按钮 tooltip 显示)。
@@ -48,7 +51,7 @@ struct ActivityView: View {
 
     /// 有任一非默认条件 = 生效(高亮 + 点按清空)。
     private var aiFilterActive: Bool {
-        !aiKeyword.isEmpty || aiWithinMinutes > 0 || aiStatus != .all || aiSource != nil
+        !aiKeyword.isEmpty || aiWithinSeconds > 0 || aiStatus != .all || aiSource != nil
     }
     @AppStorage(AppPreferences.Key.activityHistoryLimit) private var historyLimit = AppPreferences.activityHistoryLimit
     @AppStorage(AppPreferences.Key.heavyTaskConcurrencyLimit) private var concurrencyLimit = AppPreferences.heavyTaskConcurrencyLimit
@@ -464,7 +467,8 @@ struct ActivityView: View {
         // #60:AI 筛选生效时,用 AI 抽出的条件**在代码里精确匹配**(手动状态/来源筛选此时让位;清空即恢复)。
         if aiFilterActive {
             let keyword = aiKeyword
-            let cutoff = aiWithinMinutes > 0 ? Date().addingTimeInterval(-Double(aiWithinMinutes) * 60) : nil
+            let cutoff = aiWithinSeconds > 0 ? Date().addingTimeInterval(-aiWithinSeconds) : nil
+            let before = aiTimeBefore
             return all.filter { task in
                 guard aiStatus.includes(task) else { return false }
                 if let aiSource, task.source != aiSource { return false }
@@ -473,7 +477,10 @@ struct ActivityView: View {
                     let inDetail = task.detail?.localizedCaseInsensitiveContains(keyword) ?? false
                     if !inTitle && !inDetail { return false }
                 }
-                if let cutoff, task.startedAt < cutoff { return false }
+                if let cutoff {
+                    // within = 晚于 cutoff(更近);before = 早于 cutoff(更老)。
+                    if before ? (task.startedAt >= cutoff) : (task.startedAt < cutoff) { return false }
+                }
                 return true
             }
         }
@@ -576,14 +583,26 @@ struct ActivityView: View {
             default: source = nil
             }
             let keyword = spec.keyword.trimmingCharacters(in: .whitespacesAndNewlines)
-            let minutes = max(0, spec.withinMinutes)
+            // 单位换算在代码里做(模型只给「数值 + 单位」,不让它算 —— 避免「3600 秒」被当成分钟)。
+            let unitSeconds: TimeInterval
+            switch spec.timeUnit.lowercased() {
+            case "seconds": unitSeconds = 1
+            case "minutes": unitSeconds = 60
+            case "hours": unitSeconds = 3600
+            case "days": unitSeconds = 86_400
+            case "weeks": unitSeconds = 604_800
+            default: unitSeconds = 0
+            }
+            let seconds = max(0, Double(spec.timeValue)) * unitSeconds
+            let before = spec.timeDirection.lowercased() == "before"
             // 一个条件都没抽到 → 不点亮,提示重述。
-            guard !keyword.isEmpty || minutes > 0 || status != .all || source != nil else {
+            guard !keyword.isEmpty || seconds > 0 || status != .all || source != nil else {
                 aiFilterError = L10n.text("tasks.aiFilter.failed")
                 return
             }
             aiKeyword = keyword
-            aiWithinMinutes = minutes
+            aiWithinSeconds = seconds
+            aiTimeBefore = before
             aiStatus = status
             aiSource = source
             aiFilterQuery = query
@@ -597,7 +616,8 @@ struct ActivityView: View {
     /// 清空 AI 临时分类 —— 条件全复位即恢复手动筛选视图(用户点高亮的 AI 按钮触发)。
     private func clearAIFilter() {
         aiKeyword = ""
-        aiWithinMinutes = 0
+        aiWithinSeconds = 0
+        aiTimeBefore = false
         aiStatus = .all
         aiSource = nil
         aiFilterQuery = ""
