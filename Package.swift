@@ -93,6 +93,7 @@ let package = Package(
                 "Core/ReleaseLedgerComparison.swift",
                 "Core/ReleaseManifest.swift",
                 "Core/ReleaseNotesDraft.swift",
+                "Core/ReleaseWorkspacePreset.swift",
                 "Core/ReleaseRunRecord.swift",
                 "Core/ReportExport.swift",
                 "Core/SecureScratchVolume.swift",
