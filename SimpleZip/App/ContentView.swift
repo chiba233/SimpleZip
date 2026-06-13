@@ -376,6 +376,12 @@ struct ContentView: View {
                 model.sensitiveFileReport = nil
             }
         }
+        // #69:近似重复文件报告 sheet。
+        .sheet(item: $model.nearDuplicateReport) { report in
+            NearDuplicateReportView(report: report) {
+                model.nearDuplicateReport = nil
+            }
+        }
         .sheet(item: $model.releaseAssistantRequest, onDismiss: {
             if let confirmed = pendingReleaseAssistantRun {
                 pendingReleaseAssistantRun = nil

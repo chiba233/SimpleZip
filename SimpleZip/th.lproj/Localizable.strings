@@ -208,6 +208,15 @@
 "sensitive.disclaimer" = "จับคู่จากชื่อไฟล์เท่านั้น — ไม่ตรวจเนื้อหา";
 "ai.explainSensitive" = "อธิบาย";
 "ai.explainSensitive.title" = "คำอธิบายไฟล์ลับ";
+"menu.nearDuplicates" = "ค้นหาไฟล์ที่คล้ายกัน";
+"nearDup.title" = "ไฟล์ที่คล้ายกัน";
+"nearDup.empty" = "ไม่พบไฟล์ที่คล้ายกันจากชื่อ";
+"nearDup.scanned" = "ตรวจ %@ ไฟล์";
+"nearDup.group.identical" = "สำเนาเหมือนกันทุกไบต์";
+"nearDup.group.versions" = "เวอร์ชันที่คล้ายกัน";
+"nearDup.disclaimer" = "จัดกลุ่มตามชื่อไฟล์ (และเช็กซัมที่ตรงกัน) — ไม่เปรียบเทียบเนื้อหา";
+"ai.explainNearDup" = "อธิบาย";
+"ai.explainNearDup.title" = "คำอธิบายไฟล์ที่คล้ายกัน";
 "settings.section.defaults" = "ค่าเริ่มต้น";
 "settings.section.browser" = "เบราว์เซอร์";
 "settings.startupLocation" = "ตำแหน่งเมื่อเปิดแอป";

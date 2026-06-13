@@ -641,6 +641,28 @@ extension AIReportAssistant {
         return (instructions, lines.joined(separator: "\n"))
     }
 
+    /// #69:近似重复文件分组 → 白话解释(哪些是同一份的不同版本 vs 纯改名同源,值不值得清理)。
+    /// 只在确定性分组结果上解释(分组靠归一化文件名,非内容比对),说「看起来是」而非断言,绝不让删。
+    static func nearDuplicateExplanationPrompt(for report: NearDuplicateReport) -> (instructions: String, prompt: String) {
+        let instructions = """
+        You explain near-duplicate file groups in an archive to a non-expert: which look like different \
+        versions or copies of the same item, and which are byte-identical renames. Note this is based on \
+        FILE NAMES (and whether their checksums match), not on comparing contents, so say "looks like". \
+        Point out groups worth a closer look (e.g. several near-identical copies). Never tell the user to \
+        delete anything. Reply in the user's language.
+        """
+        var lines: [String] = ["Archive: \(report.archiveName)", "Files scanned: \(report.result.scannedFileCount)"]
+        if report.result.isEmpty {
+            lines.append("No near-duplicate groups found by name.")
+        } else {
+            for group in report.result.groups.prefix(20) {
+                let kind = group.hasByteIdentical ? "includes byte-identical copies" : "similar versions"
+                lines.append("\"\(group.displayName)\" (\(group.entries.count), \(kind)): \(sampleEntries(group.entries.map { $0.path }, perKind: 5))")
+            }
+        }
+        return (instructions, lines.joined(separator: "\n"))
+    }
+
     /// 发布目录完整性检查 → 白话解释(哪些项过 / 警告 / 失败 + 具体受影响文件)。
     static func directoryAuditExplanationPrompt(for report: ReleaseDirectoryAuditReport) -> (instructions: String, prompt: String) {
         let instructions = """

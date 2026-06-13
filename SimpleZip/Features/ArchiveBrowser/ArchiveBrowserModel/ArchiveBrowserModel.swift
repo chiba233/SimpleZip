@@ -73,6 +73,8 @@ final class ArchiveBrowserModel: ObservableObject {
     @Published var archiveFinderRequest: ArchiveFinderRequest?
     /// 0.4.4 #68:敏感/配置/脚本/许可证文件报告(菜单触发;确定性扫描,AI 仅在报告里解释)。
     @Published var sensitiveFileReport: SensitiveFileReport?
+    /// 0.4.4 #69:近似重复文件报告(菜单触发;确定性扫描,AI 仅在报告里解释)。
+    @Published var nearDuplicateReport: NearDuplicateReport?
     /// 0.4.4 #14:最近一次归档打开的性能快照。**普通 var,绝不 @Published**(A17:
     /// loadArchive 每次打开都写它;只有「复制打开性能报告」按需读,不参与渲染)。
     var lastOpenMetrics: ArchiveOpenMetrics?

@@ -208,6 +208,15 @@
 "sensitive.disclaimer" = "Coincidencia solo por nombre de archivo: nunca se inspecciona el contenido.";
 "ai.explainSensitive" = "Explicar";
 "ai.explainSensitive.title" = "Archivos sensibles explicados";
+"menu.nearDuplicates" = "Buscar archivos casi duplicados";
+"nearDup.title" = "Archivos casi duplicados";
+"nearDup.empty" = "No se encontraron casi duplicados por nombre.";
+"nearDup.scanned" = "%@ archivos analizados.";
+"nearDup.group.identical" = "copias idénticas";
+"nearDup.group.versions" = "versiones similares";
+"nearDup.disclaimer" = "Agrupados por nombre de archivo (y sumas de verificación coincidentes): nunca se compara el contenido.";
+"ai.explainNearDup" = "Explicar";
+"ai.explainNearDup.title" = "Casi duplicados explicados";
 "settings.section.defaults" = "Predeterminados";
 "settings.section.browser" = "Navegador";
 "settings.startupLocation" = "Ubicación de inicio";

@@ -55,6 +55,7 @@ let package = Package(
                 "Core/ArchiveProperties.swift",
                 "Core/ArchiveSpaceAnalysis.swift",
                 "Core/SensitiveFileScan.swift",
+                "Core/ArchiveNearDuplicates.swift",
                 "Core/ArchiveTransferModels.swift",
                 "Core/ArchiveConversion.swift",
                 "Core/FormatCapabilityMatrix.swift",

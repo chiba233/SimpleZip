@@ -208,6 +208,15 @@
 "sensitive.disclaimer" = "Détecté d’après le nom de fichier uniquement — le contenu n’est jamais inspecté.";
 "ai.explainSensitive" = "Expliquer";
 "ai.explainSensitive.title" = "Fichiers sensibles expliqués";
+"menu.nearDuplicates" = "Trouver les fichiers quasi-doublons";
+"nearDup.title" = "Fichiers quasi-doublons";
+"nearDup.empty" = "Aucun quasi-doublon trouvé d’après les noms.";
+"nearDup.scanned" = "%@ fichiers analysés.";
+"nearDup.group.identical" = "copies identiques";
+"nearDup.group.versions" = "versions similaires";
+"nearDup.disclaimer" = "Regroupés par nom de fichier (et sommes de contrôle identiques) — le contenu n’est jamais comparé.";
+"ai.explainNearDup" = "Expliquer";
+"ai.explainNearDup.title" = "Quasi-doublons expliqués";
 "settings.section.defaults" = "Valeurs par défaut";
 "settings.section.browser" = "Navigateur";
 "settings.startupLocation" = "Emplacement de démarrage";

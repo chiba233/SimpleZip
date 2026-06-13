@@ -208,6 +208,15 @@
 "sensitive.disclaimer" = "ファイル名のみで判定——内容は一切調べません。";
 "ai.explainSensitive" = "解説";
 "ai.explainSensitive.title" = "機密ファイルの解説";
+"menu.nearDuplicates" = "類似重複ファイルを探す";
+"nearDup.title" = "類似重複ファイル";
+"nearDup.empty" = "名前による類似重複は見つかりませんでした。";
+"nearDup.scanned" = "%@ 個のファイルを確認。";
+"nearDup.group.identical" = "完全一致のコピー";
+"nearDup.group.versions" = "類似バージョン";
+"nearDup.disclaimer" = "ファイル名(と一致するチェックサム)でグループ化——内容は比較しません。";
+"ai.explainNearDup" = "解説";
+"ai.explainNearDup.title" = "類似重複の解説";
 "settings.section.defaults" = "デフォルト";
 "settings.section.browser" = "ブラウザ";
 "settings.startupLocation" = "起動時の場所";

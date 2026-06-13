@@ -208,6 +208,15 @@
 "sensitive.disclaimer" = "Nur nach Dateinamen erkannt – Inhalte werden nie geprüft.";
 "ai.explainSensitive" = "Erklären";
 "ai.explainSensitive.title" = "Sensible Dateien erklärt";
+"menu.nearDuplicates" = "Fast-Duplikate finden";
+"nearDup.title" = "Fast-Duplikate";
+"nearDup.empty" = "Keine Fast-Duplikate anhand der Namen gefunden.";
+"nearDup.scanned" = "%@ Dateien geprüft.";
+"nearDup.group.identical" = "bytegleiche Kopien";
+"nearDup.group.versions" = "ähnliche Versionen";
+"nearDup.disclaimer" = "Nach Dateiname (und übereinstimmenden Prüfsummen) gruppiert – Inhalte werden nie verglichen.";
+"ai.explainNearDup" = "Erklären";
+"ai.explainNearDup.title" = "Fast-Duplikate erklärt";
 "settings.section.defaults" = "Standardwerte";
 "settings.section.browser" = "Dateibrowser";
 "settings.startupLocation" = "Startort";

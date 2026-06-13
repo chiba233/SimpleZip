@@ -1760,6 +1760,15 @@
 "sensitive.disclaimer" = "仅按文件名匹配,从不检查内容。";
 "ai.explainSensitive" = "解释";
 "ai.explainSensitive.title" = "敏感文件解释";
+"menu.nearDuplicates" = "查找近似重复文件";
+"nearDup.title" = "近似重复文件";
+"nearDup.empty" = "按名字没找到近似重复文件。";
+"nearDup.scanned" = "已扫描 %@ 个文件。";
+"nearDup.group.identical" = "字节相同的副本";
+"nearDup.group.versions" = "相似的版本";
+"nearDup.disclaimer" = "按文件名(及相同校验和)分组,从不比较内容。";
+"ai.explainNearDup" = "解释";
+"ai.explainNearDup.title" = "近似重复解释";
 "settings.section.defaults" = "默认项";
 "settings.section.browser" = "浏览器";
 "settings.startupLocation" = "启动位置";

@@ -1762,6 +1762,15 @@
 "sensitive.disclaimer" = "Matched by file name only — contents are never inspected.";
 "ai.explainSensitive" = "Explain";
 "ai.explainSensitive.title" = "Sensitive files explained";
+"menu.nearDuplicates" = "Find Near-Duplicate Files";
+"nearDup.title" = "Near-Duplicate Files";
+"nearDup.empty" = "No near-duplicate files found by name.";
+"nearDup.scanned" = "Scanned %@ files.";
+"nearDup.group.identical" = "byte-identical copies";
+"nearDup.group.versions" = "similar versions";
+"nearDup.disclaimer" = "Grouped by file name (and matching checksums) — contents are never compared.";
+"ai.explainNearDup" = "Explain";
+"ai.explainNearDup.title" = "Near-duplicates explained";
 "settings.section.defaults" = "Defaults";
 "settings.section.browser" = "Browser";
 "settings.startupLocation" = "Startup location";

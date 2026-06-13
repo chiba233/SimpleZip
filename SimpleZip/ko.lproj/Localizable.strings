@@ -208,6 +208,15 @@
 "sensitive.disclaimer" = "파일 이름만으로 판별 — 내용은 검사하지 않습니다.";
 "ai.explainSensitive" = "설명";
 "ai.explainSensitive.title" = "민감 파일 설명";
+"menu.nearDuplicates" = "유사 중복 파일 찾기";
+"nearDup.title" = "유사 중복 파일";
+"nearDup.empty" = "이름 기준 유사 중복이 없습니다.";
+"nearDup.scanned" = "파일 %@개 검사됨.";
+"nearDup.group.identical" = "바이트 동일 사본";
+"nearDup.group.versions" = "유사 버전";
+"nearDup.disclaimer" = "파일 이름(과 일치하는 체크섬)으로 묶음 — 내용은 비교하지 않습니다.";
+"ai.explainNearDup" = "설명";
+"ai.explainNearDup.title" = "유사 중복 설명";
 "settings.section.defaults" = "기본값";
 "settings.section.browser" = "브라우저";
 "settings.startupLocation" = "시작 위치";

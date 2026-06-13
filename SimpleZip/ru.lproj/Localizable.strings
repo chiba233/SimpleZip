@@ -208,6 +208,15 @@
 "sensitive.disclaimer" = "Определяется только по имени файла — содержимое не проверяется.";
 "ai.explainSensitive" = "Пояснить";
 "ai.explainSensitive.title" = "Пояснение по файлам";
+"menu.nearDuplicates" = "Найти почти-дубликаты";
+"nearDup.title" = "Почти-дубликаты";
+"nearDup.empty" = "Почти-дубликаты по именам не найдены.";
+"nearDup.scanned" = "Проверено файлов: %@.";
+"nearDup.group.identical" = "идентичные копии";
+"nearDup.group.versions" = "похожие версии";
+"nearDup.disclaimer" = "Сгруппировано по имени файла (и совпадающим контрольным суммам) — содержимое не сравнивается.";
+"ai.explainNearDup" = "Пояснить";
+"ai.explainNearDup.title" = "Пояснение по дубликатам";
 "settings.section.defaults" = "По умолчанию";
 "settings.section.browser" = "Обзор";
 "settings.startupLocation" = "Стартовое место";
