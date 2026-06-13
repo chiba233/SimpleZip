@@ -361,6 +361,16 @@ struct ActivityTaskRow: View {
     @ViewBuilder
     private var trailingControls: some View {
         HStack(spacing: 6) {
+            // 0.4.4:报告类任务 → 「查看报告」重开报告 sheet(用户点名:不该为看报告重跑一遍)。
+            if !task.status.isRunning, task.openReport != nil {
+                Button {
+                    task.openReport?()
+                } label: {
+                    Self.controlIcon("doc.text.magnifyingglass", tint: .indigo)
+                }
+                .buttonStyle(.plain)
+                .help(L10n.text("button.openReport"))
+            }
             // 0.4.4 C:发布助手失败但产物还在 → 「从失败步继续」(跳过重新打包,对既有产物续跑)。
             if case .failed = task.status, task.resumeFromFailure != nil {
                 Button {

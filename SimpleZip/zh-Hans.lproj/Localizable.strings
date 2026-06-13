@@ -1237,12 +1237,7 @@
 "releaseAssistant.workspace.rename" = "重命名预设";
 "releaseAssistant.workspace.renamePrompt.title" = "重命名工作区预设";
 "releaseAssistant.workspace.renamePrompt.message" = "「%@」的新名字:";
-/* 0.4.4 C 发布助手交互 */
-"button.resumeFromFailure" = "从失败步继续(保留已打出的归档)";
-"inspect.section.steps" = "步骤";
-"releaseAssistant.workspace.rename" = "重命名预设";
-"releaseAssistant.workspace.renamePrompt.title" = "重命名工作区预设";
-"releaseAssistant.workspace.renamePrompt.message" = "「%@」的新名字:";
+"button.openReport" = "查看报告";
 "releaseAssistant.sourceFolder" = "产物目录";
 "releaseAssistant.chooseSource" = "选择要打包的文件夹";
 "releaseAssistant.chooseDestination" = "选择归档输出位置";

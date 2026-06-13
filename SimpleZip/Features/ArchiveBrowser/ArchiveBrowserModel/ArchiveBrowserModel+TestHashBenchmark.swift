@@ -579,6 +579,14 @@ extension ArchiveBrowserModel {
                     ))
                 }
                 task.transferLog = rows
+                // 用户点名:检查报告可从活动中心重开(只在本次开了发布检查时给)。
+                if request.runInspection {
+                    task.openReport = { [weak self] in
+                        var reopened = report
+                        reopened.steps = recorder.steps
+                        self?.releaseInspectionReport = reopened
+                    }
+                }
                 // #2:成功跑进发布账本(失败留在活动历史不进账)。后端版本要起进程,异步补记。
                 let steps = recorder.steps
                 let inspection = report
@@ -660,6 +668,18 @@ extension ArchiveBrowserModel {
                     securityFindingCount: securityFindingCount
                 )
             },
+            onSucceeded: { [weak self] task in
+                task.openReport = {
+                    self?.archiveMetadataReport = ArchiveMetadataReport(
+                        archiveName: displayName,
+                        archivePath: url.path,
+                        properties: properties,
+                        aggregate: aggregate,
+                        headerComment: ArchiveService.headerComment(for: url),
+                        securityFindingCount: securityFindingCount
+                    )
+                }
+            },
             rerunAction: { [weak self] in self?.showArchiveMetadataReport() }
         ) { operationID, progress, _ in
             // 头部块读不出(加密 header 没密码 / 非 7zz 格式)→ properties 留 nil,聚合照常出报告。
@@ -694,6 +714,9 @@ extension ArchiveBrowserModel {
             successStatus: nil,
             refreshOnSuccess: { [weak self] in
                 self?.releaseDirectoryAuditReport = ReleaseDirectoryAuditReport(directoryURL: directory, findings: findings)
+            },
+            onSucceeded: { [weak self] task in
+                task.openReport = { self?.releaseDirectoryAuditReport = ReleaseDirectoryAuditReport(directoryURL: directory, findings: findings) }
             },
             rerunAction: { [weak self] in self?.runReleaseDirectoryAudit(directory) }
         ) { operationID, progress, _ in
@@ -889,6 +912,9 @@ extension ArchiveBrowserModel {
             refreshOnSuccess: { [weak self] in
                 self?.releaseInspectionReport = report
             },
+            onSucceeded: { [weak self] task in
+                task.openReport = { self?.releaseInspectionReport = report }
+            },
             rerunAction: { [weak self] in self?.runAppBundleInspection(url) }
         ) { operationID, progress, outputObserver in
             progress(ArchiveProgressState(fraction: 0.2, statusText: nil))
@@ -913,11 +939,22 @@ extension ArchiveBrowserModel {
                 return
             }
             let force = isForced(archiveURL)
+            var computedAnalysis: ArchiveSpaceAnalysis?
             startManagedArchiveTask(
                 title: L10n.format("space.taskTitle", archiveURL.lastPathComponent),
                 kind: .test,
                 showsDetails: false,
                 successStatus: nil,
+                onSucceeded: { [weak self] task in
+                    // 报告可从活动中心重开(与发布检查同款;运行时态)。
+                    task.openReport = {
+                        guard let analysis = computedAnalysis else { return }
+                        self?.spaceAnalysisReport = ArchiveSpaceAnalysisReport(
+                            archiveName: archiveURL.lastPathComponent,
+                            analysis: analysis
+                        )
+                    }
+                },
                 rerunAction: { [weak self] in self?.analyzeSelectedArchiveSpace() }
             ) { [weak self] operationID, _, _ in
                 var items: [ArchiveItem] = []
@@ -931,6 +968,7 @@ extension ArchiveBrowserModel {
                     throw ArchiveError.commandFailed(L10n.text("inspect.notListable"))
                 }
                 let analysis = ArchiveSpaceAnalysis.analyze(items)
+                computedAnalysis = analysis
                 await MainActor.run {
                     self?.spaceAnalysisReport = ArchiveSpaceAnalysisReport(
                         archiveName: archiveURL.lastPathComponent,
@@ -951,6 +989,10 @@ extension ArchiveBrowserModel {
             successStatus: nil,
             refreshOnSuccess: { [weak self] in
                 self?.releaseInspectionReport = report
+            },
+            onSucceeded: { [weak self] task in
+                // 用户点名:报告可从活动中心重开,不必重跑(运行时态,重启后历史任务需重跑)。
+                task.openReport = { self?.releaseInspectionReport = report }
             },
             rerunAction: { [weak self] in self?.runReleaseInspection(url) }
         ) { operationID, progress, outputObserver in
