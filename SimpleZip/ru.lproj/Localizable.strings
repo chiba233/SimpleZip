@@ -185,6 +185,9 @@
 "menu.projectPage" = "Страница проекта SimpleZip";
 "menu.license" = "Лицензия MIT";
 "settings.title" = "Настройки";
+"settings.aiSearch.prompt" = "Найти настройку…";
+"settings.aiSearch.notFound" = "Подходящая настройка не найдена — переформулируйте.";
+"settings.aiSearch.failed" = "Не удалось выполнить поиск — повторите попытку.";
 "settings.section.defaults" = "По умолчанию";
 "settings.section.browser" = "Обзор";
 "settings.startupLocation" = "Стартовое место";

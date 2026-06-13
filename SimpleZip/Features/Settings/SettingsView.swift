@@ -17,6 +17,11 @@ import SwiftUI
 /// 这里只关心：当前选中哪个 pane、以及外部跳转（健康面板的修复按钮直接切 pane）。
 struct SettingsView: View {
     @State private var selectedPane: SettingsPane? = .general
+    // #64(macOS 26 AI):用一句话找设置 —— AI 从设置目录里抽出命中项 + 意图,App 确定性地深链过去
+    // (+ 安全开关项可顺手切;第三道闸在 SettingToggleRegistry.accessor)。仅 isReady 时露出。
+    @State private var aiSettingsQuery = ""
+    @State private var aiSettingsRunning = false
+    @State private var aiSettingsError: String?
 
     var body: some View {
         // 弃用 NavigationSplitView：macOS 上它的把手照样能把侧栏拖塌（constant(.all) 拦不住）、
@@ -25,6 +30,9 @@ struct SettingsView: View {
         HStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 6) {
                 Spacer(minLength: 12)
+                if AIReportAssistant.isReady {
+                    aiSettingsSearchField
+                }
                 ForEach(SettingsPane.allCases) { pane in
                     CenteredSidebarRow(
                         title: pane.title,
@@ -66,6 +74,65 @@ struct SettingsView: View {
             if let pane = note.object as? SettingsPane {
                 selectedPane = pane
             }
+        }
+    }
+
+    /// #64:侧栏顶部的「一句话找设置」AI 搜索框。
+    @ViewBuilder
+    private var aiSettingsSearchField: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 5) {
+                Image(systemName: "sparkles")
+                    .font(.caption)
+                    .foregroundStyle(.purple)
+                TextField(L10n.text("settings.aiSearch.prompt"), text: $aiSettingsQuery)
+                    .textFieldStyle(.plain)
+                    .onSubmit { Task { await runAISettingsSearch() } }
+                    .onChange(of: aiSettingsQuery) { _ in aiSettingsError = nil }
+                if aiSettingsRunning { ProgressView().controlSize(.mini) }
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(Color(nsColor: .textBackgroundColor).opacity(0.6)))
+            .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).strokeBorder(Color.primary.opacity(0.12)))
+            if let aiSettingsError {
+                Text(aiSettingsError)
+                    .font(.caption2)
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(.horizontal, 4)
+        .padding(.bottom, 4)
+    }
+
+    /// AI 从设置目录抽出命中项 + 意图 → 确定性深链(+ 安全开关项顺手切)。失败 / 没命中给气泡提示,不乱跳。
+    @MainActor
+    private func runAISettingsSearch() async {
+        let query = aiSettingsQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty, !aiSettingsRunning else { return }
+        guard #available(macOS 26.0, *) else { return }
+        aiSettingsRunning = true
+        aiSettingsError = nil
+        defer { aiSettingsRunning = false }
+        let catalog = SettingsCatalog.items
+            .map { "\($0.id)\t\(L10n.text($0.titleKey))\t\($0.keywords.joined(separator: ", "))" }
+            .joined(separator: "\n")
+        do {
+            let spec = try await AIReportAssistant.settingsQuerySpec(for: query, catalog: catalog)
+            let id = spec.settingID.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !id.isEmpty, let item = SettingsCatalog.item(id: id) else {
+                aiSettingsError = L10n.text("settings.aiSearch.notFound")
+                return
+            }
+            // 安全开关:仅 isToggleable 项可经 AI 直接开关(accessor 内部第三道闸再挡一次);否则只导航过去。
+            if spec.intent != .navigate, let accessor = SettingToggleRegistry.accessor(for: id) {
+                accessor.set(spec.intent == .enable)
+            }
+            SettingsDeepLink.open(item.pane, anchor: item.id)
+            aiSettingsQuery = ""
+        } catch {
+            aiSettingsError = L10n.text("settings.aiSearch.failed")
         }
     }
 

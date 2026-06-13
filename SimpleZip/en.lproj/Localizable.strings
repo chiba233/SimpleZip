@@ -1739,6 +1739,9 @@
 "menu.reportBug" = "Report a Bug…";
 "menu.license" = "MIT License";
 "settings.title" = "Settings";
+"settings.aiSearch.prompt" = "Find a setting…";
+"settings.aiSearch.notFound" = "No matching setting — try rephrasing.";
+"settings.aiSearch.failed" = "Couldn't search — try again.";
 "settings.section.defaults" = "Defaults";
 "settings.section.browser" = "Browser";
 "settings.startupLocation" = "Startup location";

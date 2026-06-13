@@ -185,6 +185,9 @@
 "menu.projectPage" = "SimpleZip-Projektseite";
 "menu.license" = "MIT-Lizenz";
 "settings.title" = "Einstellungen";
+"settings.aiSearch.prompt" = "Einstellung finden …";
+"settings.aiSearch.notFound" = "Keine passende Einstellung – anders formulieren.";
+"settings.aiSearch.failed" = "Suche fehlgeschlagen – versuche es erneut.";
 "settings.section.defaults" = "Standardwerte";
 "settings.section.browser" = "Dateibrowser";
 "settings.startupLocation" = "Startort";

@@ -185,6 +185,9 @@
 "menu.projectPage" = "SimpleZip プロジェクトページ";
 "menu.license" = "MITライセンス";
 "settings.title" = "設定";
+"settings.aiSearch.prompt" = "設定を探す…";
+"settings.aiSearch.notFound" = "一致する設定がありません。言い換えてみてください。";
+"settings.aiSearch.failed" = "検索できませんでした。もう一度お試しください。";
 "settings.section.defaults" = "デフォルト";
 "settings.section.browser" = "ブラウザ";
 "settings.startupLocation" = "起動時の場所";

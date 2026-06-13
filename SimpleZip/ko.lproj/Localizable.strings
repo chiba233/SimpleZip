@@ -185,6 +185,9 @@
 "menu.projectPage" = "SimpleZip 프로젝트 페이지";
 "menu.license" = "MIT 라이선스";
 "settings.title" = "설정";
+"settings.aiSearch.prompt" = "설정 찾기…";
+"settings.aiSearch.notFound" = "일치하는 설정이 없어요 — 다르게 표현해 보세요.";
+"settings.aiSearch.failed" = "검색하지 못했어요 — 다시 시도해 주세요.";
 "settings.section.defaults" = "기본값";
 "settings.section.browser" = "브라우저";
 "settings.startupLocation" = "시작 위치";

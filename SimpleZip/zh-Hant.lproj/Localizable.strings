@@ -185,6 +185,9 @@
 "menu.projectPage" = "SimpleZip 專案首頁";
 "menu.license" = "MIT 许可证";
 "settings.title" = "設定";
+"settings.aiSearch.prompt" = "找設定…";
+"settings.aiSearch.notFound" = "沒有相符的設定 —— 換個說法。";
+"settings.aiSearch.failed" = "搜尋失敗 —— 再試一次。";
 "settings.section.defaults" = "預設項目";
 "settings.section.browser" = "瀏覽器";
 "settings.startupLocation" = "啟動位置";

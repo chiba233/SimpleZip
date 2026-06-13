@@ -185,6 +185,9 @@
 "menu.projectPage" = "หน้าโปรเจกต์ SimpleZip";
 "menu.license" = "สัญญาอนุญาต MIT";
 "settings.title" = "การตั้งค่า";
+"settings.aiSearch.prompt" = "ค้นหาการตั้งค่า…";
+"settings.aiSearch.notFound" = "ไม่พบการตั้งค่าที่ตรงกัน — ลองพิมพ์ใหม่";
+"settings.aiSearch.failed" = "ค้นหาไม่สำเร็จ — ลองอีกครั้ง";
 "settings.section.defaults" = "ค่าเริ่มต้น";
 "settings.section.browser" = "เบราว์เซอร์";
 "settings.startupLocation" = "ตำแหน่งเมื่อเปิดแอป";

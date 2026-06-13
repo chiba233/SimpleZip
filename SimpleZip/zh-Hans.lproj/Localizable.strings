@@ -1737,6 +1737,9 @@
 "menu.reportBug" = "提交 Bug…";
 "menu.license" = "MIT 许可证";
 "settings.title" = "设置";
+"settings.aiSearch.prompt" = "找设置…";
+"settings.aiSearch.notFound" = "没有匹配的设置 —— 换个说法。";
+"settings.aiSearch.failed" = "搜索失败 —— 再试一次。";
 "settings.section.defaults" = "默认项";
 "settings.section.browser" = "浏览器";
 "settings.startupLocation" = "启动位置";

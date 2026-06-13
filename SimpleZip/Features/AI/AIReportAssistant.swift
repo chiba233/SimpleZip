@@ -186,11 +186,15 @@ struct ArchiveFileQuerySpec: Sendable {
 /// #64:设置自然语言搜索 —— 一句话 → 命中的设置标识 + 想要的动作(只导航 / 建议切换)。
 @available(macOS 26.0, *)
 @Generable
+enum SettingIntent: String, Equatable { case navigate, enable, disable }
+
+@available(macOS 26.0, *)
+@Generable
 struct SettingsQuerySpec: Sendable {
-    @Guide(description: "The id of the single best-matching setting from the provided catalog, copied verbatim. Empty if nothing matches.")
+    @Guide(description: "The id of the single best-matching setting from the provided catalog, copied verbatim. Empty string if nothing in the catalog matches the request.")
     var settingID: String
-    @Guide(description: "What the user wants. Exactly one of: navigate (just take me there), enable (turn it on), disable (turn it off).")
-    var intent: String
+    @Guide(description: "What the user wants done with that setting: navigate to find it, enable it, or disable it. Use navigate unless the user clearly asks to turn it on or off.")
+    var intent: SettingIntent
 }
 
 @available(macOS 26.0, *)
