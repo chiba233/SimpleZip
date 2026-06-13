@@ -963,6 +963,8 @@
 "archive.dryRun.section" = "创建前预检";
 "archive.dryRun.run" = "运行预检";
 "archive.dryRun.input" = "将打包 %1$@ 个文件（未压缩 %2$@）";
+"archive.dryRun.estimate" = "压缩后 ≈ %1$@（%2$@）";
+"archive.dryRun.estimate.help" = "根据文件样本的粗略估算——实际大小取决于你的文件和所选格式 / 级别。";
 "archive.dryRun.excluded" = "%1$@ 个文件被排除规则跳过";
 "archive.dryRun.symlinks" = "%1$@ 个符号链接";
 "archive.dryRun.packages" = "%1$@ 个包目录（.app 等）";

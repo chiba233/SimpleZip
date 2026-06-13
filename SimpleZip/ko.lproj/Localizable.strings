@@ -1558,6 +1558,8 @@
 "archive.dryRun.section" = "사전 점검";
 "archive.dryRun.run" = "사전 점검 실행";
 "archive.dryRun.input" = "파일 %1$@개를 묶습니다(비압축 %2$@)";
+"archive.dryRun.estimate" = "압축 후 ≈ %1$@(%2$@)";
+"archive.dryRun.estimate.help" = "파일 샘플에서 추정한 대략값입니다. 실제 크기는 파일과 선택한 형식·레벨에 따라 달라집니다.";
 "archive.dryRun.excluded" = "규칙에 의해 제외된 파일 %1$@개";
 "archive.dryRun.symlinks" = "심볼릭 링크 %1$@개";
 "archive.dryRun.packages" = "패키지 번들 %1$@개(.app 등)";

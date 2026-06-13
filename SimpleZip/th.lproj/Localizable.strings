@@ -1557,6 +1557,8 @@
 "archive.dryRun.section" = "ตรวจล่วงหน้า";
 "archive.dryRun.run" = "เรียกใช้การตรวจล่วงหน้า";
 "archive.dryRun.input" = "จะแพ็ก %1$@ ไฟล์ (ยังไม่บีบอัด %2$@)";
+"archive.dryRun.estimate" = "≈ %1$@ หลังบีบอัด (%2$@)";
+"archive.dryRun.estimate.help" = "ประมาณคร่าว ๆ จากตัวอย่างไฟล์ — ขนาดจริงขึ้นกับไฟล์และรูปแบบ/ระดับที่เลือก";
 "archive.dryRun.excluded" = "ไฟล์ %1$@ ไฟล์ถูกยกเว้นตามกฎ";
 "archive.dryRun.symlinks" = "ลิงก์สัญลักษณ์ %1$@ รายการ";
 "archive.dryRun.packages" = "แพ็กเกจบันเดิล %1$@ รายการ (.app ฯลฯ)";

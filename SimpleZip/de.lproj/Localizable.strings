@@ -1558,6 +1558,8 @@
 "archive.dryRun.section" = "Vorprüfung";
 "archive.dryRun.run" = "Vorprüfung ausführen";
 "archive.dryRun.input" = "Es werden %1$@ Dateien gepackt (%2$@ unkomprimiert)";
+"archive.dryRun.estimate" = "≈ %1$@ komprimiert (%2$@)";
+"archive.dryRun.estimate.help" = "Grobe Schätzung anhand einer Stichprobe — die echte Größe hängt von den Dateien und dem gewählten Format/Level ab.";
 "archive.dryRun.excluded" = "%1$@ Dateien durch Regeln ausgeschlossen";
 "archive.dryRun.symlinks" = "%1$@ symbolische Links";
 "archive.dryRun.packages" = "%1$@ Paket-Bundles (.app usw.)";

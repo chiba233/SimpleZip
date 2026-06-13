@@ -1557,6 +1557,8 @@
 "archive.dryRun.section" = "Comprobación previa";
 "archive.dryRun.run" = "Ejecutar comprobación previa";
 "archive.dryRun.input" = "Se empaquetarán %1$@ archivos (%2$@ sin comprimir)";
+"archive.dryRun.estimate" = "≈ %1$@ comprimido (%2$@)";
+"archive.dryRun.estimate.help" = "Estimación aproximada a partir de una muestra: el tamaño real depende de los archivos y del formato/nivel elegidos.";
 "archive.dryRun.excluded" = "%1$@ archivos excluidos por las reglas";
 "archive.dryRun.symlinks" = "%1$@ enlaces simbólicos";
 "archive.dryRun.packages" = "%1$@ paquetes bundle (.app, etc.)";

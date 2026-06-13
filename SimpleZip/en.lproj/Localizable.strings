@@ -965,6 +965,8 @@
 "archive.dryRun.section" = "Preflight";
 "archive.dryRun.run" = "Run Preflight";
 "archive.dryRun.input" = "Will pack %1$@ files (%2$@ uncompressed)";
+"archive.dryRun.estimate" = "≈ %1$@ compressed (%2$@)";
+"archive.dryRun.estimate.help" = "Rough estimate from a sample of your files — the real size depends on the files and the format/level you pick.";
 "archive.dryRun.excluded" = "%1$@ files excluded by the rules";
 "archive.dryRun.symlinks" = "%1$@ symbolic links";
 "archive.dryRun.packages" = "%1$@ package bundles (.app etc.)";

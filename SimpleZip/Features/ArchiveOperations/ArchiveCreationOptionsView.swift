@@ -16,6 +16,8 @@ struct ArchiveCreationOptionsView: View {
     /// 0.4.2 #19：压缩前预检结果。nil = 还没跑。
     @State private var dryRun: ArchiveService.ArchiveCreationDryRun?
     @State private var isRunningDryRun = false
+    /// 0.4.4 #12:压缩率**预估**(取样 + Compression 框架外推;dryRun / 格式 / 级别变了重算)。nil = 未算 / 无法估。
+    @State private var estimatedCompressedBytes: Int64?
     @State private var isCountingExcludedFiles = false
     /// 「使用预设密码」复选框的当前勾选状态。仅在用户在通用设置里启用了预设密码时显示。
     /// 默认勾选 —— 与「设置里开了 = 默认走预设」的用户预期一致。
@@ -305,6 +307,8 @@ struct ArchiveCreationOptionsView: View {
                     }
                     .labelsHidden()
                     .fixedSize()
+                    // #12:级别影响预估(仅存储 vs 压缩),变了重算。
+                    .onChange(of: request.options.compressionLevel) { _ in recomputeCompressionEstimate() }
                 } label: {
                     DialogRowLabel(L10n.text("archive.compressionLevel"), systemImage: "gauge.with.dots.needle.67percent", tint: .green)
                 }
@@ -714,6 +718,19 @@ struct ArchiveCreationOptionsView: View {
                             systemImage: "doc.on.doc"
                         )
                         .lineLimit(1).fixedSize()
+                        // #12:压缩率预估(取样外推;标「≈」表明是估算)。
+                        if let estimate = estimatedCompressedBytes, dryRun.totalBytes > 0 {
+                            Label(
+                                L10n.format(
+                                    "archive.dryRun.estimate",
+                                    ByteCountFormatter.string(fromByteCount: estimate, countStyle: .file),
+                                    "\(Int((Double(estimate) / Double(dryRun.totalBytes) * 100).rounded()))%"
+                                ),
+                                systemImage: "arrow.down.right.and.arrow.up.left"
+                            )
+                            .lineLimit(1).fixedSize()
+                            .help(L10n.text("archive.dryRun.estimate.help"))
+                        }
                         if dryRun.excludedCount > 0 {
                             Label(L10n.format("archive.dryRun.excluded", "\(dryRun.excludedCount)"), systemImage: "eye.slash")
                                 .lineLimit(1).fixedSize()
@@ -1011,7 +1028,59 @@ struct ArchiveCreationOptionsView: View {
             }.value
             dryRun = summary
             isRunningDryRun = false
+            recomputeCompressionEstimate()
         }
+    }
+
+    /// #12:取样 + Compression 框架外推压缩率预估。依赖 dryRun.totalBytes;取样 I/O 放后台。
+    private func recomputeCompressionEstimate() {
+        guard let total = dryRun?.totalBytes, total > 0 else { estimatedCompressedBytes = nil; return }
+        let sourceURLs = request.sourceURLs
+        let format = request.options.format
+        let level = request.options.compressionLevel.rawValue
+        Task { @MainActor in
+            let estimate = await Task.detached(priority: .utility) { () -> Int64? in
+                let sample = Self.gatherCompressionSample(from: sourceURLs)
+                guard let compressed = CompressionEstimator.compressedSampleSize(of: sample, format: format, level: level) else { return nil }
+                return CompressionEstimator.estimatedTotal(totalBytes: total, sampleBytes: sample.count, compressedSample: compressed)
+            }.value
+            estimatedCompressedBytes = estimate
+        }
+    }
+
+    /// 跨选区抽样:最多 64 个文件、各取头部一段,总量封顶 4MB —— 够代表性又不读爆大目录。
+    /// `nonisolated`:纯 FS 读,从 Task.detached(非主 actor)调,不碰主 actor 状态。
+    private nonisolated static func gatherCompressionSample(from urls: [URL], budget: Int = 4_000_000) -> Data {
+        let fileManager = FileManager.default
+        var files: [URL] = []
+        outer: for url in urls {
+            var isDirectory: ObjCBool = false
+            guard fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory) else { continue }
+            if isDirectory.boolValue {
+                guard let enumerator = fileManager.enumerator(
+                    at: url, includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles]
+                ) else { continue }
+                for case let candidate as URL in enumerator {
+                    if (try? candidate.resourceValues(forKeys: [.isRegularFileKey]))?.isRegularFile == true {
+                        files.append(candidate)
+                        if files.count >= 64 { break outer }
+                    }
+                }
+            } else {
+                files.append(url)
+                if files.count >= 64 { break }
+            }
+        }
+        guard !files.isEmpty else { return Data() }
+        let perFile = max(64_000, budget / files.count)
+        var sample = Data()
+        for file in files {
+            guard sample.count < budget else { break }
+            guard let handle = try? FileHandle(forReadingFrom: file) else { continue }
+            defer { try? handle.close() }
+            if let chunk = try? handle.read(upToCount: perFile) { sample.append(chunk) }
+        }
+        return sample
     }
 
     private var hasExcludeRulesEnabled: Bool {

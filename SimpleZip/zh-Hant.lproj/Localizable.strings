@@ -1559,6 +1559,8 @@
 "archive.dryRun.section" = "建立前預檢";
 "archive.dryRun.run" = "執行預檢";
 "archive.dryRun.input" = "將打包 %1$@ 個檔案（未壓縮 %2$@）";
+"archive.dryRun.estimate" = "壓縮後 ≈ %1$@（%2$@）";
+"archive.dryRun.estimate.help" = "根據檔案樣本的粗略估算——實際大小取決於你的檔案和所選格式 / 級別。";
 "archive.dryRun.excluded" = "%1$@ 個檔案被排除規則跳過";
 "archive.dryRun.symlinks" = "%1$@ 個符號連結";
 "archive.dryRun.packages" = "%1$@ 個套件目錄（.app 等）";

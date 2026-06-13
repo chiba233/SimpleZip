@@ -1557,6 +1557,8 @@
 "archive.dryRun.section" = "Prévol";
 "archive.dryRun.run" = "Lancer le prévol";
 "archive.dryRun.input" = "Emballage prévu de %1$@ fichiers (%2$@ non compressés)";
+"archive.dryRun.estimate" = "≈ %1$@ compressé (%2$@)";
+"archive.dryRun.estimate.help" = "Estimation approximative à partir d’un échantillon — la taille réelle dépend des fichiers et du format/niveau choisis.";
 "archive.dryRun.excluded" = "%1$@ fichiers exclus par les règles";
 "archive.dryRun.symlinks" = "%1$@ liens symboliques";
 "archive.dryRun.packages" = "%1$@ bundles de paquet (.app, etc.)";

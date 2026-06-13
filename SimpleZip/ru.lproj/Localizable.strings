@@ -1557,6 +1557,8 @@
 "archive.dryRun.section" = "Предварительная проверка";
 "archive.dryRun.run" = "Запустить предварительную проверку";
 "archive.dryRun.input" = "Будет упаковано файлов: %1$@ (без сжатия %2$@)";
+"archive.dryRun.estimate" = "≈ %1$@ после сжатия (%2$@)";
+"archive.dryRun.estimate.help" = "Грубая оценка по выборке файлов — реальный размер зависит от файлов и выбранного формата/уровня.";
 "archive.dryRun.excluded" = "Файлов исключено правилами: %1$@";
 "archive.dryRun.symlinks" = "Символических ссылок: %1$@";
 "archive.dryRun.packages" = "Пакетных бандлов: %1$@ (.app и т. п.)";

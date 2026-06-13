@@ -1559,6 +1559,8 @@
 "archive.dryRun.section" = "事前チェック";
 "archive.dryRun.run" = "事前チェックを実行";
 "archive.dryRun.input" = "%1$@ 個のファイルをパックします（未圧縮 %2$@）";
+"archive.dryRun.estimate" = "圧縮後 ≈ %1$@（%2$@）";
+"archive.dryRun.estimate.help" = "ファイルのサンプルからの大まかな見積もりです。実際のサイズはファイルと選んだ形式・レベルによります。";
 "archive.dryRun.excluded" = "%1$@ 個のファイルがルールにより除外されます";
 "archive.dryRun.symlinks" = "%1$@ 個のシンボリックリンク";
 "archive.dryRun.packages" = "%1$@ 個のパッケージバンドル（.app など）";
