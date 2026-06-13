@@ -11,8 +11,12 @@ import AppKit
 import SwiftUI
 
 /// 一次元数据报告的展示载体(挂 model 驱动 sheet)。
-struct ArchiveMetadataReport: Identifiable {
+struct ArchiveMetadataReport: Identifiable, Codable {
     let id = UUID()
+    /// Codable 排除 `id`(带初值的 let 不能解码)—— 0.4.4 报告随任务历史持久化用。
+    private enum CodingKeys: String, CodingKey {
+        case archiveName, archivePath, properties, aggregate, headerComment, securityFindingCount
+    }
     let archiveName: String
     let archivePath: String
     /// 头部块属性(7zz 没报 / 列不动时为 nil —— 聚合部分照常显示)。

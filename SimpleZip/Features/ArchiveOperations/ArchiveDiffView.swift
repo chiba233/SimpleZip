@@ -16,11 +16,20 @@ import UniformTypeIdentifiers
 
 /// 一次归档比较的展示模型。`leftName` / `rightName` 用文件名标注方向 —— 比较任意两个包
 /// 没有天然的「旧 / 新」，所以 UI 全部用「仅在 xxx 中」这种中性措辞，不说「新增 / 删除」。
-struct ArchiveDiffReport: Identifiable {
+struct ArchiveDiffReport: Identifiable, Codable {
     let id = UUID()
+    /// Codable 排除 `id`(带初值的 let 不能解码)—— 0.4.4 比较详情随任务历史持久化用。
+    private enum CodingKeys: String, CodingKey {
+        case leftName, rightName, result
+    }
     let leftName: String
     let rightName: String
     let result: ArchiveDiffResult
+
+    /// 持久化体积闸:超大比较(条目数过万)不落盘 —— UserDefaults 历史不该被一次 diff 撑爆。
+    var totalEntryCount: Int {
+        result.added.count + result.removed.count + result.changed.count + result.unchanged.count
+    }
 
     /// 整份报告的纯文本（「复制」按钮 + 活动中心复制用）。文本形态保留平铺完整路径 —— 便于粘进 diff/邮件。
     var plainTextSummary: String {

@@ -300,6 +300,21 @@ final class TaskCenter: ObservableObject {
         objectWillChange.send()
     }
 
+    /// 0.4.4(用户反馈「红点常驻气死强迫症」):用户打开活动中心某分类 = 该分类现有失败「已看过」,
+    /// 侧栏红点灭且重启不复亮(failureSeen 随历史持久化);之后新产生的失败照常点亮。
+    func markFailuresSeen(in category: OperationTask.Category) {
+        var changed = false
+        for task in active + history where task.category == category {
+            if case .failed = task.status, !task.failureSeen {
+                task.failureSeen = true
+                changed = true
+            }
+        }
+        guard changed else { return }
+        objectWillChange.send()
+        persistHistory()
+    }
+
     func clearHistory() {
         history.removeAll()
         persistHistory()
@@ -488,6 +503,12 @@ private nonisolated struct PersistedTask: Codable {
     let hashReport: HashReport?
     let hashComparisons: [HashOverwriteResult]?
     let transferLog: [TransferLogEntry]?
+    /// 0.4.4(用户报「重启后比较详情丢了」):归档比较的结构化结果一并落盘。Optional 容错同上。
+    let diffReport: ArchiveDiffReport?
+    /// 0.4.4:报告类任务(发布检查/元数据)的报告本体 —— 重启后「打开报告」仍可用。
+    let reportAttachment: TaskReportAttachment?
+    /// 0.4.4:失败红点「看过即灭」标记。
+    let failureSeen: Bool?
 
     @MainActor
     init(task: OperationTask) {
@@ -509,6 +530,11 @@ private nonisolated struct PersistedTask: Codable {
         hashReport = task.hashReport
         hashComparisons = task.hashComparisons.isEmpty ? nil : task.hashComparisons
         transferLog = task.transferLog.isEmpty ? nil : task.transferLog
+        // 体积闸:条目过万的比较不落盘(UserDefaults 历史不该被一次 diff 撑爆)——
+        // 这类任务跟以前一样只在本次会话可看详情。
+        diffReport = (task.diffReport?.totalEntryCount ?? 0) <= 10_000 ? task.diffReport : nil
+        reportAttachment = task.reportAttachment
+        failureSeen = task.failureSeen ? true : nil
     }
 
     /// CLI companion 的直构 init —— CLI 进程里没有(也不能有)@MainActor 的 OperationTask,
@@ -527,7 +553,10 @@ private nonisolated struct PersistedTask: Codable {
         details: PersistedDetails?,
         hashReport: HashReport?,
         hashComparisons: [HashOverwriteResult]?,
-        transferLog: [TransferLogEntry]?
+        transferLog: [TransferLogEntry]?,
+        diffReport: ArchiveDiffReport? = nil,
+        reportAttachment: TaskReportAttachment? = nil,
+        failureSeen: Bool? = nil
     ) {
         self.id = id
         self.category = category
@@ -543,6 +572,9 @@ private nonisolated struct PersistedTask: Codable {
         self.hashReport = hashReport
         self.hashComparisons = hashComparisons
         self.transferLog = transferLog
+        self.diffReport = diffReport
+        self.reportAttachment = reportAttachment
+        self.failureSeen = failureSeen
     }
 
     @MainActor
@@ -564,6 +596,9 @@ private nonisolated struct PersistedTask: Codable {
         restored.hashReport = hashReport
         restored.hashComparisons = hashComparisons ?? []
         restored.transferLog = transferLog ?? []
+        restored.diffReport = diffReport
+        restored.reportAttachment = reportAttachment
+        restored.failureSeen = failureSeen ?? false
         return restored
     }
 }

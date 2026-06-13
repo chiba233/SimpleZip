@@ -11,6 +11,9 @@ struct ActivityView: View {
     @ObservedObject var windowState: ActivityWindowState
     /// 详情展开的任务 id 集合 —— 行内 @State 会被 LazyVStack 回收丢失(滚远自动收起 bug),外置到这里。
     @State private var expandedTaskIDs: Set<UUID> = []
+    /// 0.4.4:重启后从历史落盘数据重开的报告(运行时任务走 openReport 闭包弹在浏览器窗口;
+    /// 闭包没了才走这里 —— 报告 sheet 直接挂在活动中心窗口上)。
+    @State private var restoredReport: TaskReportAttachment?
     /// 0.4.4 D:来源筛选(nil = 全部)。独立 Picker,与状态筛选正交组合,跨三个分类共用。
     @State private var sourceFilter: OperationTask.Source?
     /// 0.4.4 #15:临时工作区状态(进 pane 时后台刷一次)。
@@ -65,6 +68,24 @@ struct ActivityView: View {
             minHeight: 560, idealHeight: 700, maxHeight: .infinity
         )
         .navigationTitle(L10n.text("tasks.window.title"))
+        // 0.4.4:重启后从落盘数据重开报告(运行时走 openReport 闭包,弹在浏览器窗口)。
+        .sheet(isPresented: Binding(
+            get: { restoredReport != nil },
+            set: { if !$0 { restoredReport = nil } }
+        )) {
+            switch restoredReport {
+            case .releaseInspection(let report):
+                ReleaseInspectionView(report: report) {
+                    restoredReport = nil
+                }
+            case .metadata(let report):
+                ArchiveMetadataReportView(report: report) {
+                    restoredReport = nil
+                }
+            case nil:
+                EmptyView()
+            }
+        }
     }
 
     private func tasks(in category: OperationTask.Category) -> [OperationTask] {
@@ -105,11 +126,15 @@ struct ActivityView: View {
             } else if let category = selectedPane.category {
                 VStack(spacing: 0) {
                     HStack {
+                        // hero 不许被右侧控件挤压换行(标题竖排过,用户截图打回)。
                         paneHero(selectedPane)
+                            .fixedSize()
+                            .layoutPriority(1)
                         Spacer()
                         filterMenu(for: category)
                         sourceFilterMenu
                         // F4:队列级暂停/恢复 —— 暂停态下即使任务跑完也保持可见(不然没法恢复闸门)。
+                        // 运行态的三颗控制钮都用纯图标(.help 出全文)—— 带文字时把 hero 挤成竖排(用户截图)。
                         if taskCenter.runningCount > 0 || taskCenter.isQueuePaused {
                             Button {
                                 taskCenter.setQueuePaused(!taskCenter.isQueuePaused)
@@ -118,14 +143,16 @@ struct ActivityView: View {
                                     L10n.text(taskCenter.isQueuePaused ? "tasks.queueResume" : "tasks.queuePause"),
                                     systemImage: taskCenter.isQueuePaused ? "play.circle" : "pause.circle"
                                 )
+                                .labelStyle(.iconOnly)
                             }
                             .buttonStyle(.bordered)
-                            .help(L10n.text("tasks.queuePause.help"))
+                            .help(L10n.text(taskCenter.isQueuePaused ? "tasks.queueResume" : "tasks.queuePause"))
                         }
                         if taskCenter.runningCount > 0 {
                             // 队列管理①:「完成后睡眠」—— 仅任务运行期间可见;最后一个任务收尾时整机睡眠。
                             Toggle(isOn: $taskCenter.sleepWhenAllTasksFinish) {
                                 Label(L10n.text("tasks.sleepWhenDone"), systemImage: "moon.zzz")
+                                    .labelStyle(.iconOnly)
                             }
                             .toggleStyle(.button)
                             .help(L10n.text("tasks.sleepWhenDone.help"))
@@ -133,8 +160,10 @@ struct ActivityView: View {
                                 taskCenter.cancelAll()
                             } label: {
                                 Label(L10n.text("tasks.cancelAll"), systemImage: "xmark.circle")
+                                    .labelStyle(.iconOnly)
                             }
                             .buttonStyle(.bordered)
+                            .help(L10n.text("tasks.cancelAll"))
                         }
                     }
                     .padding(.horizontal, 22)
@@ -153,6 +182,12 @@ struct ActivityView: View {
                     }
 
                     taskList(in: category)
+                }
+                // 0.4.4(用户反馈两轮):红点 =「没看过的失败」;该分类列表**正在显示**期间,
+                // 任何未看失败即刻标已看(不用切页、不用展开详情),重启不复亮。
+                .onAppear { taskCenter.markFailuresSeen(in: category) }
+                .onChange(of: unseenFailureIDs(in: category)) { ids in
+                    if !ids.isEmpty { taskCenter.markFailuresSeen(in: category) }
                 }
             }
         }
@@ -247,7 +282,7 @@ struct ActivityView: View {
                                 tint: .gray
                             )
                             ForEach(waiting) { task in
-                                ActivityTaskCard(task: task, expandedTaskIDs: $expandedTaskIDs)
+                                ActivityTaskCard(task: task, expandedTaskIDs: $expandedTaskIDs, onOpenAttachment: { restoredReport = $0 })
                                     .id(task.id)
                             }
                             if !rest.isEmpty {
@@ -256,7 +291,7 @@ struct ActivityView: View {
                             }
                         }
                         ForEach(rest) { task in
-                            ActivityTaskCard(task: task, expandedTaskIDs: $expandedTaskIDs)
+                            ActivityTaskCard(task: task, expandedTaskIDs: $expandedTaskIDs, onOpenAttachment: { restoredReport = $0 })
                                 .id(task.id)
                         }
                     }
@@ -344,8 +379,17 @@ struct ActivityView: View {
     }
 
     /// D:侧栏失败计数(普通计算属性,读历史聚合)。
+    /// 0.4.4(用户反馈「红点常驻」):只数**没看过**的失败 —— 查看该分类即标记已看、红点灭,重启不复亮。
     private func failureCount(in category: OperationTask.Category) -> Int {
-        tasks(in: category).filter { if case .failed = $0.status { return true } else { return false } }.count
+        unseenFailureIDs(in: category).count
+    }
+
+    /// 没看过的失败任务 id 集(Equatable,onChange 监听「查看期间新失败」用)。
+    private func unseenFailureIDs(in category: OperationTask.Category) -> Set<UUID> {
+        Set(tasks(in: category).compactMap { task in
+            if case .failed = task.status, !task.failureSeen { return task.id }
+            return nil
+        })
     }
 
     private func filteredTasks(in category: OperationTask.Category) -> [OperationTask] {
@@ -390,39 +434,17 @@ struct ActivityView: View {
     }
 
     private func filterMenu(for category: OperationTask.Category) -> some View {
-        // Menu 不当按钮用（设计准则）→ 原生 Picker 弹出菜单，选中态由系统打勾。
-        HStack(spacing: 6) {
-            // 用户反馈:这个筛选小图标长得像按钮 —— 让它真的能点:弹出与右侧下拉同一份
-            // 过滤选项(同一绑定,带勾选),不再是纯装饰。
-            Menu {
-                Picker("", selection: Binding(
-                    get: { filter(for: category) },
-                    set: { setFilter($0, for: category) }
-                )) {
-                    ForEach(ActivityTaskFilter.allCases) { filter in
-                        Text(filter.title).tag(filter)
-                    }
-                }
-                .pickerStyle(.inline)
-                .labelsHidden()
-            } label: {
-                Image(systemName: "line.3.horizontal.decrease.circle")
-                    .foregroundStyle(.secondary)
+        // 用户拍板:筛选小图标删掉(太丑)—— 只留下拉本体。
+        Picker("", selection: Binding(
+            get: { filter(for: category) },
+            set: { setFilter($0, for: category) }
+        )) {
+            ForEach(ActivityTaskFilter.allCases) { filter in
+                Text(filter.title).tag(filter)
             }
-            .buttonStyle(.plain)
-            .menuIndicator(.hidden)
-            .fixedSize()
-            Picker("", selection: Binding(
-                get: { filter(for: category) },
-                set: { setFilter($0, for: category) }
-            )) {
-                ForEach(ActivityTaskFilter.allCases) { filter in
-                    Text(filter.title).tag(filter)
-                }
-            }
-            .labelsHidden()
-            .fixedSize()
         }
+        .labelsHidden()
+        .fixedSize()
     }
 
     private var activitySettingsView: some View {
@@ -797,6 +819,8 @@ private struct ActivityTaskCard: View {
     @ObservedObject var task: OperationTask
     /// 详情展开真值(按任务 id 存在列表层,行被 LazyVStack 回收也不丢)。
     @Binding var expandedTaskIDs: Set<UUID>
+    /// 0.4.4:重启后报告从落盘附件重开(openReport 闭包只活一个会话)。
+    var onOpenAttachment: ((TaskReportAttachment) -> Void)?
     @State private var borderAngle = 0.0
 
     private var tint: Color {
@@ -818,7 +842,7 @@ private struct ActivityTaskCard: View {
                         expandedTaskIDs.remove(task.id)
                     }
                 }
-            ))
+            ), onOpenAttachment: onOpenAttachment)
                 .padding(.horizontal, 20)
                 .padding(.vertical, 12)
                 .frame(maxWidth: .infinity, alignment: .leading)

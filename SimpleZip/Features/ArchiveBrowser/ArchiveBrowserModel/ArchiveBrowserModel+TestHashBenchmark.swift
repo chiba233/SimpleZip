@@ -589,11 +589,13 @@ extension ArchiveBrowserModel {
                 task.transferLog = rows
                 // 用户点名:检查报告可从活动中心重开(只在本次开了发布检查时给)。
                 if request.runInspection {
+                    var reopened = report
+                    reopened.steps = recorder.steps
                     task.openReport = { [weak self] in
-                        var reopened = report
-                        reopened.steps = recorder.steps
                         self?.releaseInspectionReport = reopened
                     }
+                    // 0.4.4:报告本体随历史落盘 —— 重启后仍可打开(闭包只活一个会话)。
+                    task.reportAttachment = .releaseInspection(reopened)
                 }
                 // #2:成功跑进发布账本(失败留在活动历史不进账)。后端版本要起进程,异步补记。
                 let steps = recorder.steps
@@ -677,16 +679,17 @@ extension ArchiveBrowserModel {
                 )
             },
             onSucceeded: { [weak self] task in
-                task.openReport = {
-                    self?.archiveMetadataReport = ArchiveMetadataReport(
-                        archiveName: displayName,
-                        archivePath: url.path,
-                        properties: properties,
-                        aggregate: aggregate,
-                        headerComment: ArchiveService.headerComment(for: url),
-                        securityFindingCount: securityFindingCount
-                    )
-                }
+                let report = ArchiveMetadataReport(
+                    archiveName: displayName,
+                    archivePath: url.path,
+                    properties: properties,
+                    aggregate: aggregate,
+                    headerComment: ArchiveService.headerComment(for: url),
+                    securityFindingCount: securityFindingCount
+                )
+                task.openReport = { self?.archiveMetadataReport = report }
+                // 0.4.4:报告本体随历史落盘 —— 重启后仍可打开。
+                task.reportAttachment = .metadata(report)
             },
             rerunAction: { [weak self] in self?.showArchiveMetadataReport() }
         ) { operationID, progress, _ in
@@ -1080,8 +1083,14 @@ extension ArchiveBrowserModel {
     // MARK: - 发布包检查（0.4.2 #15）
 
     /// 一次发布包检查的结果。条目侧统计在 Core（ReleaseInspection），这里聚合 测试 / SHA-256 / 注释。
-    struct ReleaseInspectionReport: Identifiable {
+    struct ReleaseInspectionReport: Identifiable, Codable {
         let id = UUID()
+        /// Codable 排除 `id`(带初值的 let 不能解码)—— 0.4.4 报告随任务历史持久化用。
+        private enum CodingKeys: String, CodingKey {
+            case archiveURL, listable, stats, securityFindings, testPassed, testFailureMessage
+            case sha256, hasComment, publicKeyBesideSignature, structuralFingerprint
+            case bundleFindings, isBundleOnly, gateViolations, steps
+        }
         let archiveURL: URL
         var listable = false
         var stats: ReleaseInspectionStats?
@@ -1158,6 +1167,7 @@ extension ArchiveBrowserModel {
             },
             onSucceeded: { [weak self] task in
                 task.openReport = { self?.releaseInspectionReport = report }
+                task.reportAttachment = .releaseInspection(report)
             },
             rerunAction: { [weak self] in self?.runAppBundleInspection(url) }
         ) { operationID, progress, outputObserver in
@@ -1243,8 +1253,9 @@ extension ArchiveBrowserModel {
                 self?.releaseInspectionReport = report
             },
             onSucceeded: { [weak self] task in
-                // 用户点名:报告可从活动中心重开,不必重跑(运行时态,重启后历史任务需重跑)。
+                // 用户点名:报告可从活动中心重开,不必重跑;0.4.4 报告本体随历史落盘,重启后照旧。
                 task.openReport = { self?.releaseInspectionReport = report }
+                task.reportAttachment = .releaseInspection(report)
             },
             rerunAction: { [weak self] in self?.runReleaseInspection(url) }
         ) { operationID, progress, outputObserver in

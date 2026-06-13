@@ -94,7 +94,12 @@ final class OperationTask: ObservableObject, Identifiable {
     /// 仅哈希任务设置。随任务历史持久化（见 TaskCenter.PersistedTask），重启后历史里仍可查看。
     var hashReport: HashReport?
     /// 归档比较任务的结构化结果 —— 活动中心详情用它渲染和比较弹窗同款的分区树（不是命令输出）。
+    /// 0.4.4 起随历史持久化(条目过万的超大比较除外,见 PersistedTask)。
     var diffReport: ArchiveDiffReport?
+    /// 0.4.4(用户报「重启后查不了详情」):报告类任务的报告本体,随历史持久化 ——
+    /// 重启后「打开报告」直接渲染落盘数据,不必重跑。运行时 openReport 闭包仍然优先
+    /// (它弹在浏览器窗口、与本次会话状态一致);闭包没了(重启)才用这份。
+    var reportAttachment: TaskReportAttachment?
     /// 粘贴 / 移动覆盖前的「源 vs 目标」哈希比对 —— 活动中心详情里同样用格式化卡片渲染，而非文本。
     /// 仅发生比对时才有。随任务历史持久化，重启后仍可查看。
     var hashComparisons: [HashOverwriteResult] = []
@@ -123,6 +128,11 @@ final class OperationTask: ObservableObject, Identifiable {
     /// 运行时态不持久化;普通 var —— 翻转的两个时刻都伴随 progress 赋值 + notifyTaskChanged,
     /// 不需要自己再发布。
     var isAwaitingSlot = false
+
+    /// 0.4.4(用户反馈):失败任务是否已被用户「看过」(在活动中心打开过所属分类)。
+    /// 侧栏失败红点只数没看过的 —— 看过即灭、重启不复亮(随历史持久化)。
+    /// 普通 var:翻转由 TaskCenter.markFailuresSeen 统一做并发布。
+    var failureSeen = false
 
     /// 队列管理③:暂停 / 继续。闭包由 startManagedArchiveTask 注入(SIGSTOP/SIGCONT 后端子进程),
     /// 运行时态不持久化;只有「后端驱动」的任务种类才会被注入(纯进程内任务无可暂停的东西)。
@@ -171,4 +181,11 @@ final class OperationTask: ObservableObject, Identifiable {
             self.cancel = nil
         }
     }
+}
+
+/// 0.4.4:可随任务历史持久化的报告附件(报告 sheet 的数据都是纯值类型,落盘后重启原样可看)。
+/// 只收录有界报告;比较结果体积可能失控,走 OperationTask.diffReport 自己的体积闸。
+nonisolated enum TaskReportAttachment: Codable {
+    case releaseInspection(ArchiveBrowserModel.ReleaseInspectionReport)
+    case metadata(ArchiveMetadataReport)
 }

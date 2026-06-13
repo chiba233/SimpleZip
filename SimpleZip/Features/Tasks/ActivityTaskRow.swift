@@ -16,6 +16,8 @@ struct ActivityTaskRow: View {
     /// 行内 @State 一并丢失 → 展开的卡片滚回来自动收起。真值挂在 ActivityView 的
     /// expandedTaskIDs(按任务 id),回收/重建都不丢。
     @Binding var isShowingDetails: Bool
+    /// 0.4.4:重启后报告从落盘附件重开(openReport 闭包只活一个会话,nil 时回退到这里)。
+    var onOpenAttachment: ((TaskReportAttachment) -> Void)?
     /// 复制反馈文案（nil = 不显示）。0.4.2 用户报「复制命令也显示诊断信息已复制」—— 按按钮分流。
     @State private var copiedConfirmationText: String?
 
@@ -362,9 +364,14 @@ struct ActivityTaskRow: View {
     private var trailingControls: some View {
         HStack(spacing: 6) {
             // 0.4.4:报告类任务 → 「查看报告」重开报告 sheet(用户点名:不该为看报告重跑一遍)。
-            if !task.status.isRunning, task.openReport != nil {
+            // 重启后闭包没了 → 用随历史落盘的报告附件重开(用户报「重启后查不了详情」)。
+            if !task.status.isRunning, task.openReport != nil || task.reportAttachment != nil {
                 Button {
-                    task.openReport?()
+                    if let openReport = task.openReport {
+                        openReport()
+                    } else if let attachment = task.reportAttachment {
+                        onOpenAttachment?(attachment)
+                    }
                 } label: {
                     Self.controlIcon("doc.text.magnifyingglass", tint: .indigo)
                 }
