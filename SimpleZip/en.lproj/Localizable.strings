@@ -1291,6 +1291,18 @@
 "openMetrics.entries" = "Entries";
 "openMetrics.format" = "Format";
 "openMetrics.prompted" = "Included a password prompt wait";
+/* 0.4.4 #6 format lab (DevTools) */
+"devtools.section.formatLab" = "Format Compatibility Lab";
+"devtools.formatLab.run" = "Pick a Small Folder & Run";
+"devtools.formatLab.pickFolder" = "Pick a small folder to round-trip through every format";
+"devtools.formatLab.hint" = "Copies the folder into a temp area, adds xattr/symlink/executable probes, then create → extract per format and measures what survives. The original folder is never touched.";
+"devtools.formatLab.dim.structure" = "structure";
+"devtools.formatLab.dim.permissions" = "perms";
+"devtools.formatLab.dim.xattr" = "xattr";
+"devtools.formatLab.dim.symlink" = "symlink";
+"devtools.formatLab.dim.timestamps" = "mtime";
+"devtools.formatLab.dim.comment" = "comment";
+"devtools.formatLab.dim.reproducible" = "repro";
 /* 0.4.4 #13 archive metadata report */
 "metadata.menu" = "Metadata Report";
 "metadata.title" = "Archive Metadata";

@@ -1289,6 +1289,18 @@
 "openMetrics.entries" = "条目数";
 "openMetrics.format" = "格式";
 "openMetrics.prompted" = "含密码弹窗等待";
+/* 0.4.4 #6 格式实验室(DevTools) */
+"devtools.section.formatLab" = "格式兼容性实验室";
+"devtools.formatLab.run" = "选小文件夹并运行";
+"devtools.formatLab.pickFolder" = "选一个小文件夹,逐格式往返实测";
+"devtools.formatLab.hint" = "把文件夹复制进临时区、加上 xattr/符号链接/可执行位探针,然后逐格式 create → extract 实测什么留下来了。原文件夹绝不被改动。";
+"devtools.formatLab.dim.structure" = "结构";
+"devtools.formatLab.dim.permissions" = "权限";
+"devtools.formatLab.dim.xattr" = "xattr";
+"devtools.formatLab.dim.symlink" = "链接";
+"devtools.formatLab.dim.timestamps" = "时间戳";
+"devtools.formatLab.dim.comment" = "注释";
+"devtools.formatLab.dim.reproducible" = "可复现";
 /* 0.4.4 #13 归档元数据报告 */
 "metadata.menu" = "元数据报告";
 "metadata.title" = "归档元数据";

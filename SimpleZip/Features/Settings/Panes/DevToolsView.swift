@@ -22,6 +22,9 @@ struct DevToolsView: View {
     // 0.4.3 #12:自检样本结果(运行时现造恶意样本对真实后端断言)。
     @State private var sampleResults: [SelfTestSampleRunner.SampleResult] = []
     @State private var isRunningSamples = false
+    // 0.4.4 #6:格式兼容性实验室(用户选小文件夹,对真实后端逐格式实测保真度)。
+    @State private var formatLabResults: [FormatLabRunner.FormatResult] = []
+    @State private var isRunningFormatLab = false
 
     private var appVersionLine: String {
         let short = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
@@ -130,6 +133,29 @@ struct DevToolsView: View {
                                         .textSelection(.enabled)
                                 }
                             }
+                        }
+                    }
+
+                    // 0.4.4 #6:格式兼容性实验室 —— 选小文件夹,对 zip/7z/tar/tar.gz 实测
+                    // 结构/权限/xattr/symlink/时间戳/注释/可复现(样本复制进临时区加探针,原文件夹只读)。
+                    DialogSection(L10n.text("devtools.section.formatLab")) {
+                        HStack {
+                            Button {
+                                runFormatLab()
+                            } label: {
+                                Label(L10n.text("devtools.formatLab.run"), systemImage: "flask")
+                            }
+                            .disabled(isRunningFormatLab)
+                            if isRunningFormatLab {
+                                ProgressView().controlSize(.small)
+                            }
+                        }
+                        Text(L10n.text("devtools.formatLab.hint"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        if !formatLabResults.isEmpty {
+                            formatLabMatrix
                         }
                     }
 
@@ -268,6 +294,70 @@ struct DevToolsView: View {
     private var preferencesPlistURL: URL {
         FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Preferences/\(Bundle.main.bundleIdentifier ?? "SimpleZip").plist")
+    }
+
+    // MARK: - 0.4.4 #6 格式实验室
+
+    private func runFormatLab() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.message = L10n.text("devtools.formatLab.pickFolder")
+        guard panel.runModal() == .OK, let folder = panel.url else { return }
+        isRunningFormatLab = true
+        formatLabResults = []
+        Task { @MainActor in
+            formatLabResults = await FormatLabRunner.run(sampleFolder: folder)
+            isRunningFormatLab = false
+        }
+    }
+
+    /// 格式 × 维度矩阵:每格 ✓ / ✗(hover 看原因) / —(不适用)。
+    @ViewBuilder
+    private var formatLabMatrix: some View {
+        Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 4) {
+            GridRow {
+                Text("")
+                ForEach(FormatLabRunner.Dimension.allCases) { dimension in
+                    Text(L10n.text("devtools.formatLab.dim.\(dimension.rawValue)"))
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            ForEach(formatLabResults) { result in
+                GridRow {
+                    Text(result.format.title)
+                        .font(.caption.weight(.medium))
+                    if let failure = result.setupFailure {
+                        Text(failure)
+                            .font(.caption2)
+                            .foregroundStyle(.red)
+                            .gridCellColumns(FormatLabRunner.Dimension.allCases.count)
+                    } else {
+                        ForEach(FormatLabRunner.Dimension.allCases) { dimension in
+                            verdictCell(result.verdicts[dimension])
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func verdictCell(_ verdict: FormatLabRunner.Verdict?) -> some View {
+        switch verdict {
+        case .yes:
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundStyle(Color.green)
+        case .no(let reason):
+            Image(systemName: "xmark.circle.fill")
+                .foregroundStyle(Color.red)
+                .help(reason)
+        case .notApplicable, .none:
+            Text("—")
+                .foregroundStyle(.tertiary)
+        }
     }
 
     private func flash(_ text: String) {
