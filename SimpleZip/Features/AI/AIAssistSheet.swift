@@ -25,13 +25,14 @@ struct AIAssistSheet: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // DialogHero 自带 padding(top 20 / bottom 14 / h 20),别再外套一层(否则双倍 = 大额头)。
             DialogHero(systemImage: systemImage, colors: [.purple, .indigo], title: title, subtitle: subtitle)
-                .padding(20)
 
             Divider()
 
             content
-                .padding(20)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
 
             Divider()
 
