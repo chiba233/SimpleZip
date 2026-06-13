@@ -2161,6 +2161,10 @@
 /* macOS 26 AI 报告助手 */
 "button.copy" = "คัดลอก";
 "ai.summarizeRisk" = "สรุปความเสี่ยง";
+"ai.polishIssue" = "ขัดเกลา issue";
+"ai.polishIssue.title" = "ร่าง issue ด้วย AI";
+"ai.suggestLabels" = "แนะนำป้ายกำกับ";
+"ai.suggestLabels.title" = "ป้ายกำกับที่ AI แนะนำ";
 "ai.summarizeRisk.title" = "สรุปความเสี่ยงด้วย AI";
 "ai.explainFailure" = "อธิบายความล้มเหลว";
 "ai.explainFailure.title" = "คำอธิบายความล้มเหลวด้วย AI";

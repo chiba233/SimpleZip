@@ -77,6 +77,17 @@ struct ArchiveCheckupView: View {
 
             PinnedBottomBar {
                 ReportExportControl(report: report)
+                // C(macOS 26 AI):给每个包建议描述标签 —— 仅 isReady 时出现;只建议、不参与安全判定、不改状态。
+                AIAssistButton(
+                    label: L10n.text("ai.suggestLabels"),
+                    systemImage: "sparkles",
+                    sheetTitle: L10n.text("ai.suggestLabels.title"),
+                    sheetSubtitle: report.scopeName
+                ) {
+                    guard #available(macOS 26.0, *) else { throw AIAssistError(message: L10n.text("ai.unavailable.osTooOld")) }
+                    let built = AIReportAssistant.checkupLabelsPrompt(for: report)
+                    return try await AIReportAssistant.generate(instructions: built.instructions, prompt: built.prompt)
+                }
                 Spacer()
                 Button(action: onClose) {
                     Label(L10n.text("button.ok"), systemImage: "checkmark")

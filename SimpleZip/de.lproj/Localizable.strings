@@ -2162,6 +2162,10 @@
 /* macOS 26 AI 报告助手 */
 "button.copy" = "Kopieren";
 "ai.summarizeRisk" = "Risiko zusammenfassen";
+"ai.polishIssue" = "Issue aufpolieren";
+"ai.polishIssue.title" = "KI-Issue-Entwurf";
+"ai.suggestLabels" = "Labels vorschlagen";
+"ai.suggestLabels.title" = "KI-Label-Vorschläge";
 "ai.summarizeRisk.title" = "KI-Risikozusammenfassung";
 "ai.explainFailure" = "Fehler erklären";
 "ai.explainFailure.title" = "KI-Fehlererklärung";

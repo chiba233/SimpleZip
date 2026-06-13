@@ -2162,6 +2162,10 @@
 /* macOS 26 AI 报告助手 */
 "button.copy" = "복사";
 "ai.summarizeRisk" = "위험 요약";
+"ai.polishIssue" = "이슈 다듬기";
+"ai.polishIssue.title" = "AI 이슈 초안";
+"ai.suggestLabels" = "라벨 제안";
+"ai.suggestLabels.title" = "AI 제안 라벨";
 "ai.summarizeRisk.title" = "AI 위험 요약";
 "ai.explainFailure" = "실패 설명";
 "ai.explainFailure.title" = "AI 실패 설명";

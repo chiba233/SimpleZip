@@ -2161,6 +2161,10 @@
 /* macOS 26 AI 报告助手 */
 "button.copy" = "Copier";
 "ai.summarizeRisk" = "Résumer le risque";
+"ai.polishIssue" = "Peaufiner le ticket";
+"ai.polishIssue.title" = "Brouillon de ticket par l’IA";
+"ai.suggestLabels" = "Suggérer des étiquettes";
+"ai.suggestLabels.title" = "Étiquettes suggérées par l’IA";
 "ai.summarizeRisk.title" = "Résumé des risques par l’IA";
 "ai.explainFailure" = "Expliquer l’échec";
 "ai.explainFailure.title" = "Explication de l’échec par l’IA";

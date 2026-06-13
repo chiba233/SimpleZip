@@ -102,4 +102,46 @@ extension AIReportAssistant {
         }
         return (instructions, lines.joined(separator: "\n"))
     }
+
+    /// B:把已生成的 GitHub Issue Markdown 润色得更易读(已脱敏,直接喂)。
+    static func issuePolishPrompt(rawIssue: String) -> (instructions: String, prompt: String) {
+        let instructions = """
+        You are a developer assistant. Rewrite the following auto-generated GitHub issue so it reads \
+        clearly for maintainers: keep every technical fact (versions, environment table, error, logs) \
+        and keep all "[REDACTED]" markers untouched, but improve the structure and add a one-line \
+        summary at the top. Do not invent details. Reply in the user's language.
+        """
+        return (instructions, rawIssue)
+    }
+
+    /// C:批量体检结果 → 给每个包建议描述标签(只建议、不参与任何安全判定 / 不改状态)。
+    static func checkupLabelsPrompt(for report: ArchiveCheckupReport) -> (instructions: String, prompt: String) {
+        let instructions = """
+        You are an archive-triage assistant for the SimpleZip archive manager. For each archive in this \
+        batch checkup, suggest a few short, descriptive labels (e.g. release-artifact, source-archive, \
+        backup, installer, corrupted, encrypted, contains-macOS-junk, possible-duplicate, missing-volumes, \
+        read-only). Base labels ONLY on the facts given — these are suggestions, not a verdict. Output one \
+        line per archive in the form "filename: label, label". Reply in the user's language.
+        """
+        var lines: [String] = ["Checkup scope: \(report.scopeName)"]
+        for row in report.rows {
+            var parts: [String] = []
+            switch row.testOutcome {
+            case .passed: parts.append("integrity test passed")
+            case .failed: parts.append("integrity test failed")
+            case .needsPassword: parts.append("needs a password")
+            case .notListable: parts.append("not listable")
+            }
+            if let facts = row.facts {
+                parts.append("suspicious paths: \(facts.suspiciousPathCount)")
+                parts.append("macOS junk entries: \(facts.junkCount)")
+                parts.append("encrypted entries: \(facts.encryptedCount)")
+            }
+            if row.missingVolumeCount > 0 { parts.append("missing volumes: \(row.missingVolumeCount)") }
+            if row.readOnlyFormat { parts.append("read-only format") }
+            if !row.duplicatePeers.isEmpty { parts.append("structurally identical to \(row.duplicatePeers.count) other(s)") }
+            lines.append("\(row.fileName): \(parts.joined(separator: ", "))")
+        }
+        return (instructions, lines.joined(separator: "\n"))
+    }
 }

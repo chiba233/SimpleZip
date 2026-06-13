@@ -243,6 +243,18 @@ struct ArchiveOperationDetailsView: View {
                 } label: {
                     Label(L10n.text("button.copyAsIssue"), systemImage: "ladybug")
                 }
+                // B(macOS 26 AI):把同一份(已脱敏的)Issue Markdown 润色得更易读 —— 仅 isReady 时出现。
+                AIAssistButton(
+                    label: L10n.text("ai.polishIssue"),
+                    systemImage: "sparkles",
+                    sheetTitle: L10n.text("ai.polishIssue.title"),
+                    sheetSubtitle: session.title
+                ) {
+                    guard #available(macOS 26.0, *) else { throw AIAssistError(message: L10n.text("ai.unavailable.osTooOld")) }
+                    let raw = await DiagnosticsCopier.gitHubIssueMarkdown(session: session, errorMessage: nil)
+                    let built = AIReportAssistant.issuePolishPrompt(rawIssue: raw)
+                    return try await AIReportAssistant.generate(instructions: built.instructions, prompt: built.prompt)
+                }
                 Button {
                     close()
                 } label: {

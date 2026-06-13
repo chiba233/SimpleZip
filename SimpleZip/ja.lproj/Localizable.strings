@@ -2163,6 +2163,10 @@
 /* macOS 26 AI 报告助手 */
 "button.copy" = "コピー";
 "ai.summarizeRisk" = "リスクを要約";
+"ai.polishIssue" = "Issue を推敲";
+"ai.polishIssue.title" = "AI Issue 草案";
+"ai.suggestLabels" = "ラベルを提案";
+"ai.suggestLabels.title" = "AI 提案ラベル";
 "ai.summarizeRisk.title" = "AI リスク要約";
 "ai.explainFailure" = "失敗を説明";
 "ai.explainFailure.title" = "AI 失敗の説明";

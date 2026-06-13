@@ -2161,6 +2161,10 @@
 /* macOS 26 AI 报告助手 */
 "button.copy" = "Скопировать";
 "ai.summarizeRisk" = "Сводка рисков";
+"ai.polishIssue" = "Доработать issue";
+"ai.polishIssue.title" = "Черновик issue от ИИ";
+"ai.suggestLabels" = "Предложить метки";
+"ai.suggestLabels.title" = "Метки, предложенные ИИ";
 "ai.summarizeRisk.title" = "Сводка рисков ИИ";
 "ai.explainFailure" = "Объяснить ошибку";
 "ai.explainFailure.title" = "Объяснение ошибки от ИИ";

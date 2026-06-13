@@ -34,12 +34,18 @@ enum DiagnosticsCopier {
     /// #17:把同一份诊断按 GitHub Issue 模板排成 Markdown 复制 —— 环境表 + 复现占位 + 脱敏日志,
     /// 一键贴进 issue 表单。
     static func copyGitHubIssue(session: ArchiveOperationDetailsSession, errorMessage: String?) async {
-        let inputs = await makeInputs(session: session, errorMessage: errorMessage)
-        let markdown = OperationDiagnosticsReporter.makeGitHubIssueMarkdown(from: inputs)
+        let markdown = await gitHubIssueMarkdown(session: session, errorMessage: errorMessage)
         await MainActor.run {
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(markdown, forType: .string)
         }
+    }
+
+    /// 0.4.4 B(AI):返回 GitHub Issue 的 Markdown(同 `copyGitHubIssue` 内容)。
+    /// AI 润色入口复用它拿原始 issue 文本去喂模型;脱敏由 `makeGitHubIssueMarkdown` 一并保证。
+    static func gitHubIssueMarkdown(session: ArchiveOperationDetailsSession, errorMessage: String?) async -> String {
+        let inputs = await makeInputs(session: session, errorMessage: errorMessage)
+        return OperationDiagnosticsReporter.makeGitHubIssueMarkdown(from: inputs)
     }
 
     /// 0.4.2 #22：导出**单个任务**的诊断包为 `.txt` —— 等价命令行已在输出里、密码已脱敏，

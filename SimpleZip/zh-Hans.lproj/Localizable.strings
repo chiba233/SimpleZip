@@ -1251,6 +1251,10 @@
 /* macOS 26 AI 报告助手 */
 "button.copy" = "复制";
 "ai.summarizeRisk" = "总结风险";
+"ai.polishIssue" = "润色 Issue";
+"ai.polishIssue.title" = "AI Issue 草稿";
+"ai.suggestLabels" = "建议标签";
+"ai.suggestLabels.title" = "AI 建议标签";
 "ai.summarizeRisk.title" = "AI 风险总结";
 "ai.explainFailure" = "解释失败";
 "ai.explainFailure.title" = "AI 失败解释";
