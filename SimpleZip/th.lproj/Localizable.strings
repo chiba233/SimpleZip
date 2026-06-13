@@ -2158,6 +2158,7 @@
 "intent.compare.different" = "ไฟล์เก็บถาวรต่างกัน: เพิ่ม %1$@ ลบ %2$@ เปลี่ยน %3$@";
 "intent.release.unknownPreset" = "ไม่มีพรีเซ็ตพื้นที่ทำงานชื่อ “%@” โปรดบันทึกในผู้ช่วยรีลีสก่อน";
 "intent.release.done" = "แพ็กเกจรีลีส %@ พร้อมแล้ว (ตรวจสอบแล้ว เขียนเช็กซัมแล้ว)";
+"intent.release.doneNoChecksums" = "แพ็กเกจรีลีส %@ พร้อมแล้ว (ตรวจสอบแล้ว; ไม่ได้เขียนไฟล์เช็กซัม)";
 "settings.section.automation" = "การทำงานอัตโนมัติ";
 "settings.automation.shortcuts.section" = "คำสั่งลัดและ Siri";
 "settings.automation.shortcuts.title" = "การทำงานของคำสั่งลัด";

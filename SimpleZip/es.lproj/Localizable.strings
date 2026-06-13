@@ -2158,6 +2158,7 @@
 "intent.compare.different" = "Los archivos difieren: %1$@ añadidos, %2$@ eliminados, %3$@ cambiados.";
 "intent.release.unknownPreset" = "No hay ningún preset de espacio de trabajo llamado “%@”. Guarda uno primero en el Asistente de versión.";
 "intent.release.done" = "El paquete de versión %@ está listo (inspeccionado, sumas escritas).";
+"intent.release.doneNoChecksums" = "El paquete de versión %@ está listo (inspeccionado; sin archivo de sumas escrito).";
 "settings.section.automation" = "Automatización";
 "settings.automation.shortcuts.section" = "Atajos y Siri";
 "settings.automation.shortcuts.title" = "Acciones de Atajos";

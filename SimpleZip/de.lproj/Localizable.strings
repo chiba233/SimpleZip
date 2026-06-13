@@ -2159,6 +2159,7 @@
 "intent.compare.different" = "Archive unterscheiden sich: %1$@ hinzugefügt, %2$@ entfernt, %3$@ geändert.";
 "intent.release.unknownPreset" = "Keine Arbeitsbereich-Vorlage namens „%@“. Speichern Sie zuerst eine im Release-Assistenten.";
 "intent.release.done" = "Release-Paket %@ ist bereit (geprüft, Prüfsummen geschrieben).";
+"intent.release.doneNoChecksums" = "Release-Paket %@ ist bereit (geprüft; keine Prüfsummendatei geschrieben).";
 "settings.section.automation" = "Automatisierung";
 "settings.automation.shortcuts.section" = "Kurzbefehle & Siri";
 "settings.automation.shortcuts.title" = "Kurzbefehl-Aktionen";

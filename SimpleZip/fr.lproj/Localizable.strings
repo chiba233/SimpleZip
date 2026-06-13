@@ -2158,6 +2158,7 @@
 "intent.compare.different" = "Les archives diffèrent : %1$@ ajoutées, %2$@ supprimées, %3$@ modifiées.";
 "intent.release.unknownPreset" = "Aucun préréglage d’espace de travail nommé « %@ ». Enregistrez-en un d’abord dans l’assistant de version.";
 "intent.release.done" = "Le paquet de version %@ est prêt (inspecté, sommes écrites).";
+"intent.release.doneNoChecksums" = "Le paquet de version %@ est prêt (inspecté ; aucun fichier de sommes écrit).";
 "settings.section.automation" = "Automatisation";
 "settings.automation.shortcuts.section" = "Raccourcis et Siri";
 "settings.automation.shortcuts.title" = "Actions Raccourcis";

@@ -1242,6 +1242,7 @@
 "intent.compare.different" = "归档有差异:新增 %1$@、删除 %2$@、修改 %3$@。";
 "intent.release.unknownPreset" = "没有名为「%@」的工作区预设。请先在发布助手里保存一个。";
 "intent.release.done" = "发布包 %@ 已就绪(已检查、已写校验文件)。";
+"intent.release.doneNoChecksums" = "发布包 %@ 已就绪(已检查;未写校验文件)。";
 /* 0.4.4 #1 自动化中心 + F1 来源标签 */
 "settings.section.automation" = "自动化";
 "settings.automation.shortcuts.section" = "快捷指令与 Siri";

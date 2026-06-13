@@ -2160,6 +2160,7 @@
 "intent.compare.different" = "封存檔有差異：新增 %1$@、移除 %2$@、變更 %3$@。";
 "intent.release.unknownPreset" = "沒有名為「%@」的工作區預設。請先在發佈助理中儲存一個。";
 "intent.release.done" = "發佈包 %@ 已就緒（已檢查、已寫入校驗檔案）。";
+"intent.release.doneNoChecksums" = "發佈包 %@ 已就緒（已檢查；未寫入校驗檔案）。";
 "settings.section.automation" = "自動化";
 "settings.automation.shortcuts.section" = "捷徑與 Siri";
 "settings.automation.shortcuts.title" = "捷徑動作";

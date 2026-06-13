@@ -1244,6 +1244,7 @@
 "intent.compare.different" = "Archives differ: %1$@ added, %2$@ removed, %3$@ changed.";
 "intent.release.unknownPreset" = "No workspace preset named “%@”. Save one in the Release Assistant first.";
 "intent.release.done" = "Release package %@ is ready (inspected, checksums written).";
+"intent.release.doneNoChecksums" = "Release package %@ is ready (inspected; no checksums file written).";
 /* 0.4.4 #1 automation pane + F1 source labels */
 "settings.section.automation" = "Automation";
 "settings.automation.shortcuts.section" = "Shortcuts & Siri";

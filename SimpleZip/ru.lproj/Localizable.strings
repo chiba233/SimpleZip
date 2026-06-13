@@ -2158,6 +2158,7 @@
 "intent.compare.different" = "Архивы различаются: добавлено %1$@, удалено %2$@, изменено %3$@.";
 "intent.release.unknownPreset" = "Нет пресета рабочей области с именем «%@». Сначала сохраните его в помощнике выпуска.";
 "intent.release.done" = "Пакет выпуска %@ готов (проверен, контрольные суммы записаны).";
+"intent.release.doneNoChecksums" = "Пакет выпуска %@ готов (проверен; файл контрольных сумм не записан).";
 "settings.section.automation" = "Автоматизация";
 "settings.automation.shortcuts.section" = "Команды и Siri";
 "settings.automation.shortcuts.title" = "Действия Команд";

@@ -293,6 +293,8 @@ struct VerifyChecksumsIntent: AppIntent {
         Summary("Verify \(\.$checksumFiles)")
     }
 
+    // 稳定返回契约(发版后不得改类型/语义,否则弄坏用户已搭的快捷指令):
+    // ReturnsValue<Bool> = 全部条目匹配通过;失败的文件名在 dialog(前 8 条 + 计数)。
     @MainActor
     func perform() async throws -> some IntentResult & ReturnsValue<Bool> & ProvidesDialog {
         guard !checksumFiles.isEmpty else {
@@ -368,6 +370,8 @@ struct CompareArchivesIntent: AppIntent {
         Summary("Compare \(\.$left) with \(\.$right)")
     }
 
+    // 稳定返回契约(发版后不得改类型/语义):ReturnsValue<Bool> = 两包条目完全一致;
+    // 新增 / 删除 / 改动计数在 dialog。
     @MainActor
     func perform() async throws -> some IntentResult & ReturnsValue<Bool> & ProvidesDialog {
         let leftURL = try intentFileURL(left)
@@ -421,6 +425,8 @@ struct SearchArchiveContentsIntent: AppIntent {
         Summary("Search \(\.$archive) for \(\.$query)")
     }
 
+    // 稳定返回契约(发版后不得改类型/语义):ReturnsValue<[String]> = 路径含查询词的条目名列表
+    // (无匹配 = 空数组)。加密名归档本就 list 不出名字 → 不会出现在结果里(隐私红线)。
     @MainActor
     func perform() async throws -> some IntentResult & ReturnsValue<[String]> & ProvidesDialog {
         let url = try intentFileURL(archive)
@@ -474,6 +480,8 @@ struct InspectArchiveIntent: AppIntent {
         Summary("Inspect \(\.$archive)")
     }
 
+    // 稳定返回契约(发版后不得改类型/语义):ReturnsValue<Bool> = 未发现可疑项;
+    // 文件数 / 总大小 / macOS 垃圾数 / 标记条目数 + 命中类别数(风险摘要)在 dialog。
     @MainActor
     func perform() async throws -> some IntentResult & ReturnsValue<Bool> & ProvidesDialog {
         let url = try intentFileURL(archive)
@@ -534,6 +542,8 @@ struct CreateReleasePackageIntent: AppIntent {
         }
     }
 
+    // 稳定返回契约(发版后不得改类型/语义):ReturnsValue<IntentFile> = 产物归档文件(可直接被下游
+    // 动作消费);产物文件名 + 是否真写了 SHA256SUMS(按本次实际结果,不假定)在 dialog。无人值守绝不签 .szs。
     @MainActor
     func perform() async throws -> some IntentResult & ReturnsValue<IntentFile> & ProvidesDialog {
         let source = try intentFileURL(sourceFolder)
@@ -661,9 +671,12 @@ struct CreateReleasePackageIntent: AppIntent {
                 // 0.4.4 macOS 26 AI:Shortcuts 跑出的发布包也同步进 Spotlight 索引(macOS 15+,后台、失败静默)。
                 ReleasePackageSpotlightIndexer.reindex()
             }
+            // 是否写了 SHA256SUMS 按**真实结果**报(report.wroteChecksums),不写死「已写」——
+            // 校验步可能被预设关掉或失败,谎报会误导用户(P3b 同口径)。
+            let doneKey = report.wroteChecksums ? "intent.release.done" : "intent.release.doneNoChecksums"
             return .result(
                 value: IntentFile(fileURL: outputURL),
-                dialog: IntentDialog("\(L10n.format("intent.release.done", outputURL.lastPathComponent))")
+                dialog: IntentDialog("\(L10n.format(doneKey, outputURL.lastPathComponent))")
             )
         } catch {
             TaskCenter.shared.finish(task, outcome: .failed(error.localizedDescription))

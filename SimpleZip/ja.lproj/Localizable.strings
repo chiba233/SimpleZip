@@ -2160,6 +2160,7 @@
 "intent.compare.different" = "アーカイブは異なります: 追加 %1$@、削除 %2$@、変更 %3$@。";
 "intent.release.unknownPreset" = "「%@」というワークスペースプリセットはありません。先にリリースアシスタントで保存してください。";
 "intent.release.done" = "リリースパッケージ %@ の準備ができました（検査済み、チェックサム書き込み済み）。";
+"intent.release.doneNoChecksums" = "リリースパッケージ %@ の準備ができました（検査済み、チェックサムは未書き込み）。";
 "settings.section.automation" = "自動化";
 "settings.automation.shortcuts.section" = "ショートカットと Siri";
 "settings.automation.shortcuts.title" = "ショートカットアクション";
