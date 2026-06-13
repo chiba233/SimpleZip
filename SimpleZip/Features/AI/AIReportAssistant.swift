@@ -42,10 +42,46 @@ enum AIReportAssistant {
     }
 
     /// 生成文本。仅 macOS 26+ 调用(调用点已用 `isReady` 守卫)。失败抛出,UI 显示错误文案、不崩。
+    /// 自动把「用当前界面语言回复」硬加进 instructions —— 本机模型没语言信号时会默认英文(用户实测中文界面
+    /// 出英文),显式指定才稳。所有 AI 功能共用这条,prompt 里不必再各写一遍。
     @available(macOS 26.0, *)
     static func generate(instructions: String, prompt: String) async throws -> String {
-        let session = LanguageModelSession(instructions: instructions)
+        let session = LanguageModelSession(instructions: instructions + "\n\n" + replyLanguageInstruction)
         return try await session.respond(to: prompt).content
+    }
+
+    /// 「整段回复用 <当前界面语言>」—— 按 app 语言覆盖优先,否则取实际加载的本地化。
+    nonisolated static var replyLanguageInstruction: String {
+        let code: String
+        let raw = UserDefaults.standard.string(forKey: "appLanguage") ?? AppLanguage.system.rawValue
+        if let language = AppLanguage(rawValue: raw), let explicit = language.localizationCode {
+            code = explicit
+        } else {
+            code = Bundle.main.preferredLocalizations.first ?? "en"
+        }
+        let name: String
+        if code.hasPrefix("zh-Hant") || code.hasPrefix("zh-HK") || code.hasPrefix("zh-TW") {
+            name = "Traditional Chinese"
+        } else if code.hasPrefix("zh") {
+            name = "Simplified Chinese"
+        } else if code.hasPrefix("ja") {
+            name = "Japanese"
+        } else if code.hasPrefix("ko") {
+            name = "Korean"
+        } else if code.hasPrefix("de") {
+            name = "German"
+        } else if code.hasPrefix("es") {
+            name = "Spanish"
+        } else if code.hasPrefix("fr") {
+            name = "French"
+        } else if code.hasPrefix("ru") {
+            name = "Russian"
+        } else if code.hasPrefix("th") {
+            name = "Thai"
+        } else {
+            name = "English"
+        }
+        return "Write your entire reply in \(name). Do not restate these instructions; reply only with the note itself."
     }
 }
 
@@ -436,13 +472,12 @@ extension AIReportAssistant {
         outputExists: Bool
     ) -> (instructions: String, prompt: String) {
         let instructions = """
-        You give a brief (2–3 sentence) pre-flight note before the user creates an archive. Cover a rough, \
-        QUALITATIVE sense of how long it will take based on the data size (instant for small, longer for \
-        large — never invent exact seconds), and at most one practical suggestion if it's warranted (e.g. a \
-        format or compression level better suited to this content, or simply that the current settings look \
-        fine). If an output file with the same name already exists, mention it will ask how to handle the \
-        conflict. Base everything on the facts; suggest, don't lecture, and never change settings yourself. \
-        Reply in the user's language.
+        Write a 1–2 sentence plain-language note about creating this archive. Give a rough sense of how long \
+        it should take from the data size (quick / a while — never invent exact seconds), and add ONE concrete \
+        useful remark if warranted: that the chosen format and level suit this content, or a brief better \
+        alternative, or that a same-named file already exists so a conflict prompt will appear; otherwise just \
+        say the settings look fine. Write the note itself directly — do not restate this instruction, do not \
+        ask the user questions, do not list what you checked. Suggest, never change settings yourself.
         """
         var lines: [String] = [
             "Packing \(dryRun.inputFileCount) file(s), \(ByteCountFormatter.string(fromByteCount: dryRun.totalBytes, countStyle: .file)) uncompressed.",
@@ -470,11 +505,12 @@ extension AIReportAssistant {
         destinationName: String
     ) -> (instructions: String, prompt: String) {
         let instructions = """
-        You give a brief (2–3 sentence) pre-flight note before the user extracts an archive. Cover a rough, \
-        QUALITATIVE sense of size/time (never invent exact seconds), and flag anything worth knowing before \
-        extracting: suspicious paths that could write outside the destination folder, files that would \
-        overwrite existing ones, missing split volumes, or low disk space. If nothing stands out, say it \
-        looks straightforward. Never tell the user to skip a safety prompt. Reply in the user's language.
+        Write a 1–2 sentence plain-language note about extracting this archive. State its rough size and \
+        whether it should be quick. If the facts below show suspicious paths that could write outside the \
+        destination, files that would be overwritten, missing volumes, or low disk space, point out that \
+        specific concern. If none of those appear, simply say it looks straightforward to extract. Write the \
+        note itself directly — do not restate this instruction, do not ask the user questions, do not list \
+        what you checked. Never tell the user to skip a safety prompt.
         """
         var lines: [String] = [
             "Will extract \(preflight.fileCount) file(s), \(preflight.folderCount) folder(s), \(ByteCountFormatter.string(fromByteCount: preflight.totalBytes, countStyle: .file)) into \"\(destinationName)\"."
