@@ -1261,6 +1261,10 @@
 "tasks.source.intent" = "快捷指令 / Siri";
 "tasks.source.urlScheme" = "URL scheme";
 "tasks.source.finder" = "Finder 服务";
+/* 0.4.4 D 活动中心增强 */
+"tasks.filter.allSources" = "全部来源";
+"tasks.settings.clearSucceeded.button" = "仅清除成功记录";
+"button.rerunWithChanges" = "以新参数重跑…";
 /* 0.4.4 #13 归档元数据报告 */
 "metadata.menu" = "元数据报告";
 "metadata.title" = "归档元数据";

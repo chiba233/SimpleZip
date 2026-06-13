@@ -305,6 +305,17 @@ final class TaskCenter: ObservableObject {
         persistHistory()
     }
 
+    /// 0.4.4 D:只清成功(含「相同已跳过」)的历史 —— 失败 / 取消留着排查。
+    func clearSucceededHistory() {
+        history.removeAll { task in
+            switch task.status {
+            case .succeeded, .skipped: return true
+            default: return false
+            }
+        }
+        persistHistory()
+    }
+
     func applyHistoryLimitChange() {
         trimHistoryToLimit()
         persistHistory()

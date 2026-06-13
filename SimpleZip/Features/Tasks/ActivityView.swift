@@ -11,6 +11,8 @@ struct ActivityView: View {
     @ObservedObject var windowState: ActivityWindowState
     /// 详情展开的任务 id 集合 —— 行内 @State 会被 LazyVStack 回收丢失(滚远自动收起 bug),外置到这里。
     @State private var expandedTaskIDs: Set<UUID> = []
+    /// 0.4.4 D:来源筛选(nil = 全部)。独立 Picker,与状态筛选正交组合,跨三个分类共用。
+    @State private var sourceFilter: OperationTask.Source?
     @State private var archiveFilter = ActivityTaskFilter.all
     @State private var fileFilter = ActivityTaskFilter.all
     @State private var undoRedoFilter = ActivityTaskFilter.all
@@ -30,6 +32,7 @@ struct ActivityView: View {
                         systemImage: pane.systemImage,
                         color: pane.iconColor,
                         badge: pane.category.map(taskCount(in:)) ?? 0,
+                        failureBadge: pane.category.map(failureCount(in:)) ?? 0,
                         isSelected: windowState.selectedPane == pane,
                         chromeSelection: true
                     ) {
@@ -88,6 +91,7 @@ struct ActivityView: View {
                         paneHero(selectedPane)
                         Spacer()
                         filterMenu(for: category)
+                        sourceFilterMenu
                         // F4:队列级暂停/恢复 —— 暂停态下即使任务跑完也保持可见(不然没法恢复闸门)。
                         if taskCenter.runningCount > 0 || taskCenter.isQueuePaused {
                             Button {
@@ -322,9 +326,28 @@ struct ActivityView: View {
         tasks(in: category).count
     }
 
+    /// D:侧栏失败计数(普通计算属性,读历史聚合)。
+    private func failureCount(in category: OperationTask.Category) -> Int {
+        tasks(in: category).filter { if case .failed = $0.status { return true } else { return false } }.count
+    }
+
     private func filteredTasks(in category: OperationTask.Category) -> [OperationTask] {
         let filter = filter(for: category)
-        return tasks(in: category).filter(filter.includes)
+        return tasks(in: category).filter { task in
+            filter.includes(task) && (sourceFilter == nil || task.source == sourceFilter)
+        }
+    }
+
+    /// D:来源筛选 Picker(原生菜单,选中态系统打勾;nil = 全部)。
+    private var sourceFilterMenu: some View {
+        Picker("", selection: $sourceFilter) {
+            Text(L10n.text("tasks.filter.allSources")).tag(OperationTask.Source?.none)
+            ForEach(OperationTask.Source.allCases, id: \.self) { source in
+                Text(L10n.text("tasks.source.\(source.rawValue)")).tag(Optional(source))
+            }
+        }
+        .labelsHidden()
+        .fixedSize()
     }
 
     private func filter(for category: OperationTask.Category) -> ActivityTaskFilter {
@@ -456,14 +479,25 @@ struct ActivityView: View {
                     systemImage: "trash",
                     iconTint: .red
                 ) {
-                    Button(role: .destructive) {
-                        taskCenter.clearHistory()
-                    } label: {
-                        Label(L10n.text("tasks.settings.clearHistory.button"), systemImage: "trash")
-                            .labelStyle(.titleAndIcon)
+                    HStack(spacing: 8) {
+                        // D:只清成功(含已跳过),失败/取消留着排查。
+                        Button {
+                            taskCenter.clearSucceededHistory()
+                        } label: {
+                            Label(L10n.text("tasks.settings.clearSucceeded.button"), systemImage: "checkmark.circle.badge.xmark")
+                                .labelStyle(.titleAndIcon)
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(taskCenter.history.isEmpty)
+                        Button(role: .destructive) {
+                            taskCenter.clearHistory()
+                        } label: {
+                            Label(L10n.text("tasks.settings.clearHistory.button"), systemImage: "trash")
+                                .labelStyle(.titleAndIcon)
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(taskCenter.history.isEmpty)
                     }
-                    .buttonStyle(.bordered)
-                    .disabled(taskCenter.history.isEmpty)
                 }
             }
 

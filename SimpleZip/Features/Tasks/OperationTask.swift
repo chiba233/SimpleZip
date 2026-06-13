@@ -115,6 +115,9 @@ final class OperationTask: ObservableObject, Identifiable {
     /// 0.4.4(用户点名):报告类任务(发布检查 / 目录检查 / 元数据 / 空间分析)结束后从活动中心
     /// **重新打开报告**,不必重跑。运行时态(不持久化,重启后历史任务需重跑获取)。
     var openReport: (() -> Void)?
+    /// 0.4.4 D:「以新参数重跑…」—— 仅创建类任务:重开创建对话框并预填同样的请求,改完再跑。
+    /// 运行时态(不持久化)。
+    var rerunWithChanges: (() -> Void)?
 
     /// 队列管理②跟进:任务正在等并发槽(还没真正开跑)。活动中心据此把它分进「等待中」组。
     /// 运行时态不持久化;普通 var —— 翻转的两个时刻都伴随 progress 赋值 + notifyTaskChanged,

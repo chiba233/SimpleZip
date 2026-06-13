@@ -381,6 +381,16 @@ struct ActivityTaskRow: View {
                 .buttonStyle(.plain)
                 .help(L10n.text("button.resumeFromFailure"))
             }
+            // 0.4.4 D:「以新参数重跑…」—— 创建类任务重开对话框预填(运行时态)。
+            if !task.status.isRunning, task.rerunWithChanges != nil {
+                Button {
+                    task.rerunWithChanges?()
+                } label: {
+                    Self.controlIcon("slider.horizontal.3", tint: .teal)
+                }
+                .buttonStyle(.plain)
+                .help(L10n.text("button.rerunWithChanges"))
+            }
             // 0.4.2 #21：任务结束后可整单重跑（运行时态——重启后的历史任务没有重跑闭包，按钮自然不出现）。
             if !task.status.isRunning, task.rerun != nil {
                 Button {

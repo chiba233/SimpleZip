@@ -1263,6 +1263,10 @@
 "tasks.source.intent" = "Shortcuts / Siri";
 "tasks.source.urlScheme" = "URL scheme";
 "tasks.source.finder" = "Finder services";
+/* 0.4.4 D activity center enhancements */
+"tasks.filter.allSources" = "All Sources";
+"tasks.settings.clearSucceeded.button" = "Clear Succeeded Only";
+"button.rerunWithChanges" = "Re-run with different settings…";
 /* 0.4.4 #13 archive metadata report */
 "metadata.menu" = "Metadata Report";
 "metadata.title" = "Archive Metadata";

@@ -209,6 +209,8 @@ extension ArchiveBrowserModel {
         onSucceeded: ((OperationTask) -> Void)? = nil,
         // 0.4.2 #21:「重新运行」动作 —— 用同样的输入把整个操作再跑一遍。nil = 该任务不可重跑。
         rerunAction: (() -> Void)? = nil,
+        // 0.4.4 D:「以新参数重跑…」—— 创建类任务重开对话框预填。nil = 不提供。
+        rerunWithChangesAction: (() -> Void)? = nil,
         // 0.4.4 C:失败钩子 —— 在任务标失败之前调用,调用方可往任务上挂「从失败步继续」等动作。
         onFailed: ((OperationTask, String) -> Void)? = nil,
         operation: @escaping (UUID?, @escaping @Sendable (ArchiveProgressState) -> Void, (@Sendable (String) -> Void)?) async throws -> Void
@@ -232,6 +234,7 @@ extension ArchiveBrowserModel {
         )
         operationTask.progress = ArchiveProgressState(fraction: 0, currentFile: nil)
         operationTask.rerun = rerunAction
+        operationTask.rerunWithChanges = rerunWithChangesAction
         if showsDetails {
             ActivityWindowController.shared.show(category: .archive)
         }

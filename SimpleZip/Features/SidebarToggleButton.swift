@@ -35,6 +35,8 @@ struct CenteredSidebarRow: View {
     let systemImage: String
     let color: Color
     var badge: Int = 0
+    /// 0.4.4 D:失败计数小红字(活动中心侧栏;0 = 不显示,设置窗等默认不受影响)。
+    var failureBadge: Int = 0
     let isSelected: Bool
     /// 0.4.4 #17:选中态用「行色层叠渐变 chrome」(渐变底 + 同色渐变描边)替代 accent 平涂。
     /// opt-in —— 活动中心开;设置窗维持原 accent 样式不受影响。
@@ -60,6 +62,15 @@ struct CenteredSidebarRow: View {
                     // 标题优先吃宽度：就算列宽被异常压缩，截断也先发生在留白而不是文字上。
                     .layoutPriority(1)
                 Spacer(minLength: 0)
+                if failureBadge > 0 {
+                    Text("\(failureBadge)")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .monospacedDigit()
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 1)
+                        .background(Capsule().fill(Color.red.opacity(0.85)))
+                }
                 if badge > 0 {
                     Text("\(badge)")
                         .font(.callout.weight(.medium))

@@ -382,6 +382,10 @@ extension ArchiveBrowserModel {
                 case .replaceIfDifferent(let existing):
                     self.finishReplaceIfDifferent(produced: finalDestination, existing: existing)
                 }
+            },
+            // D:「以新参数重跑…」—— 重开创建对话框,预填同一份请求(对象在闭包里现成)。
+            rerunWithChangesAction: { [weak self, request] in
+                self?.archiveCreationRequest = request
             }
         ) { [request] operationID, progress, outputObserver in
             try await ArchiveCreationService.run(request, operationID: operationID, progress: progress, outputObserver: outputObserver)
