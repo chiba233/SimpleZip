@@ -289,6 +289,7 @@ security-related, see [SECURITY.md](./SECURITY.md) first.
 - [中文指南 (Chinese Guide)](./GUIDE.zh-CN.md)
 - [What's new (Changelog)](./CHANGELOG.md) · [中文更新日志](./CHANGELOG.zh-CN.md)
 - [Security & signing details](./SECURITY.md) · [中文安全策略](./SECURITY.zh-CN.md)
+- Automation — [Command-line tool](./docs/CLI.md) · [URL scheme](./docs/URL-SCHEME.md) · [Shortcuts & Siri](./docs/SHORTCUTS.md)
 
 ## License
 

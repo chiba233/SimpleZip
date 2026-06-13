@@ -233,6 +233,7 @@ bug 报告和功能请求都有现成模板。App 内 **帮助 → 报告问题�
 - [English README](./README.md)
 - [更新日志](./CHANGELOG.zh-CN.md) · [What's new (English)](./CHANGELOG.md)
 - [中文安全策略](./SECURITY.zh-CN.md) · [Security details (English)](./SECURITY.md)
+- 自动化 —— [命令行工具](./docs/CLI.zh-CN.md) · [URL scheme](./docs/URL-SCHEME.zh-CN.md) · [快捷指令与 Siri](./docs/SHORTCUTS.zh-CN.md)
 
 ## 许可证
 
