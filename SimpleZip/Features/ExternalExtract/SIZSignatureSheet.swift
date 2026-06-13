@@ -154,6 +154,18 @@ struct SIZSignatureSheet: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+                // #52:AI 白话解释这份 .siz 签名(是否可信 + 内层是否被改动)。仅 isReady 时出现;绝不放行坏签名。
+                AIAssistButton(
+                    label: L10n.text("ai.explainVerify"),
+                    systemImage: "sparkles",
+                    sheetTitle: L10n.text("ai.explainVerify.title"),
+                    sheetSubtitle: signature.sourceURL.lastPathComponent
+                ) {
+                    guard #available(macOS 26.0, *) else { throw AIAssistError(message: L10n.text("ai.unavailable.osTooOld")) }
+                    let built = AIReportAssistant.sizSignatureExplanationPrompt(signature: signature)
+                    return try await AIReportAssistant.generate(instructions: built.instructions, prompt: built.prompt)
+                }
+                .disabled(isOpening)
                 Spacer()
                 Button(action: onCancel) {
                     Label(L10n.text("button.cancel"), systemImage: "xmark")

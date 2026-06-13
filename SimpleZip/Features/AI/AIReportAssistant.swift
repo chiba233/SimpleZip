@@ -280,6 +280,25 @@ extension AIReportAssistant {
         return (instructions, lines.joined(separator: "\n"))
     }
 
+    /// #52:.siz 打开前的签名信息 sheet → 白话解释(签名是否有效·可信·谁签的·内层是否被改动)。
+    /// **绝不建议打开坏 / 不可信签名的容器。**
+    static func sizSignatureExplanationPrompt(signature: SIZSignatureSummary) -> (instructions: String, prompt: String) {
+        let instructions = """
+        You explain a .siz signed-container's signature to a non-expert who is about to open it: whether \
+        the signature is cryptographically valid AND the signer's key is trusted, who signed it, and \
+        whether the inner content is unmodified. NEVER advise opening a container whose signature is bad \
+        or whose signer isn't trusted — say plainly it shouldn't be opened. Reply in the user's language.
+        """
+        var lines: [String] = [signatureFacts(signature.verify), "Signer (shown): \(signature.signerDisplay)"]
+        if !signature.signedAt.isEmpty { lines.append("Signed at: \(signature.signedAt)") }
+        lines.append("Format: .\(SIZArchive.extensionName) v\(signature.schemaVersion)")
+        if let encryption = signature.encryption {
+            lines.append("Container is encrypted (recipients: \(encryption.recipients.count), symmetric passphrase: \(encryption.hasSymmetricPassphrase)).")
+        }
+        if let note = signature.deliveryInstructions, !note.isEmpty { lines.append("Recipient note: \(note)") }
+        return (instructions, lines.joined(separator: "\n"))
+    }
+
     /// #53:可复现构建报告 → 白话解释(两次打包是否字节一致 + 哪些因素可能破坏可复现)。
     static func reproducibilityExplanationPrompt(for report: ReproducibilityReport) -> (instructions: String, prompt: String) {
         let instructions = """
