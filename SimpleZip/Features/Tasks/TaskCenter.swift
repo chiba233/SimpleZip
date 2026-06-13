@@ -313,7 +313,7 @@ final class TaskCenter: ObservableObject {
 
     func clearHistory() {
         history.removeAll()
-        persistHistory()
+        persistHistory(thenReindexSpotlight: true)
     }
 
     /// 0.4.4 D:只清成功(含「相同已跳过」)的历史 —— 失败 / 取消留着排查。
@@ -324,12 +324,12 @@ final class TaskCenter: ObservableObject {
             default: return false
             }
         }
-        persistHistory()
+        persistHistory(thenReindexSpotlight: true)
     }
 
     func applyHistoryLimitChange() {
         trimHistoryToLimit()
-        persistHistory()
+        persistHistory(thenReindexSpotlight: true)
     }
 
     private func trimHistoryToLimit() {
@@ -354,13 +354,21 @@ final class TaskCenter: ObservableObject {
     /// （含大量哈希值 / 路径）卡 UI。串行保证多次快速完成时的写入顺序，不会用旧快照覆盖新快照。
     private static let persistQueue = DispatchQueue(label: "com.simplezip.taskcenter.persist", qos: .utility)
 
-    private func persistHistory() {
+    /// `thenReindexSpotlight`:历史发生**删减**(清空 / 只清成功 / 上限收紧)时传 true,写盘**之后**把
+    /// Spotlight 任务索引重建成当前历史 —— 删掉的任务不会残留在 Spotlight(旧索引必须删得掉)。
+    /// 必须排在异步写之后(reindex 读同一 UserDefaults key);所以放进 persistQueue 块尾、写完再 reindex。
+    private func persistHistory(thenReindexSpotlight: Bool = false) {
         // 快照在主 actor 上取（读 OperationTask 的隔离状态），编码/写盘丢到后台串行队列。
         let snapshots = history.map(PersistedTask.init(task:))
         let key = AppPreferences.Key.activityHistory
         Self.persistQueue.async {
-            guard let data = try? JSONEncoder().encode(snapshots) else { return }
-            UserDefaults.standard.set(data, forKey: key)
+            if let data = try? JSONEncoder().encode(snapshots) {
+                UserDefaults.standard.set(data, forKey: key)
+            }
+            if thenReindexSpotlight {
+                // indexer 默认 MainActor 隔离 → 回主 actor 调;它内部再 detach 做索引 I/O,不占主线程。
+                Task { @MainActor in ArchiveTaskSpotlightIndexer.reindex() }
+            }
         }
     }
 

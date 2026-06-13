@@ -62,6 +62,9 @@ nonisolated final class ReleaseLedgerStore {
         return entries
     }
 
+    // 重要:每次 append/delete 改动账本后,调用方必须调 `ReleasePackageSpotlightIndexer.reindex()`
+    // 把 Spotlight 发布包索引同步成当前账本(超上限裁旧 / 删除条目都要让旧索引项消失)。Core 不便直接
+    // 引用 app 层 indexer,故由调用点负责(现有 append 两个调用点已照做;将来加「删除发布记录」UI 时勿忘)。
     func append(_ entry: ReleaseLedgerEntry) {
         var all = loadAll()
         all.insert(entry, at: 0)
@@ -71,6 +74,7 @@ nonisolated final class ReleaseLedgerStore {
         persist(all)
     }
 
+    /// 删除一条发布记录。调用方随后必须 `ReleasePackageSpotlightIndexer.reindex()`(见 `append` 上方说明)。
     func delete(id: UUID) {
         persist(loadAll().filter { $0.id != id })
     }
