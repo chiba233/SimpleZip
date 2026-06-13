@@ -364,7 +364,7 @@ extension AIReportAssistant {
             var parts: [String] = []
             switch row.testOutcome {
             case .passed: parts.append("integrity test passed")
-            case .failed: parts.append("integrity test failed")
+            case .failed(let kind): parts.append("integrity test failed (\(kind.rawValue))")
             case .needsPassword: parts.append("needs a password")
             case .notListable: parts.append("not listable")
             }
