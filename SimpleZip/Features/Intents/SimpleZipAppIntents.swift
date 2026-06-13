@@ -685,6 +685,53 @@ struct CreateReleasePackageIntent: AppIntent {
     }
 }
 
+// MARK: - 直接开关设置(0.4.4 #31)
+
+/// 经 Siri / Spotlight **不打开 app** 直接开 / 关一个安全布尔设置。
+///
+/// 红线:参数类型是 `ToggleableSettingEntity`(只含 `isToggleable == true` 的目录项)——Siri / Shortcuts
+/// 的参数选择面根本列不出安全 / 破坏类设置。perform 里再用 `SettingToggleRegistry.accessor` 复核一次;
+/// 拿不到访问器(非白名单)就明确拒绝、绝不改任何值。口令 / 删除确认 / GPG 启用 / 路径策略永远改不到。
+struct ChangeSettingIntent: AppIntent {
+    static let title: LocalizedStringResource = "Change a Setting"
+    static let description = IntentDescription(
+        "Turns a SimpleZip setting on or off without opening the app. Only safe, convenience toggles can be changed this way — settings that affect deleting files, encryption or archive path safety are never voice-controllable."
+    )
+
+    @Parameter(title: "Setting")
+    var setting: ToggleableSettingEntity
+
+    @Parameter(title: "State", default: .toggle)
+    var state: SettingToggleState
+
+    static var parameterSummary: some ParameterSummary {
+        Summary("\(\.$state) \(\.$setting)")
+    }
+
+    // 稳定返回契约(发版后不得改类型/语义):ReturnsValue<Bool> = 切换后的新状态;
+    // dialog 用大白话确认「X 现在已开 / 关」。
+    @MainActor
+    func perform() async throws -> some IntentResult & ReturnsValue<Bool> & ProvidesDialog {
+        // 复核闸:目录项存在且 isToggleable,且 registry 有访问器 —— 任一不满足就拒绝,绝不写任何值。
+        guard let item = SettingsCatalog.item(id: setting.id), item.isToggleable,
+              let accessor = SettingToggleRegistry.accessor(for: setting.id) else {
+            throw SimpleZipIntentError(message: L10n.format("intent.setting.notToggleable", setting.name))
+        }
+        let newValue: Bool
+        switch state {
+        case .on: newValue = true
+        case .off: newValue = false
+        case .toggle: newValue = !accessor.get()
+        }
+        accessor.set(newValue)
+        let stateWord = L10n.text(newValue ? "intent.setting.on" : "intent.setting.off")
+        return .result(
+            value: newValue,
+            dialog: IntentDialog("\(L10n.format("intent.setting.result", setting.name, stateWord))")
+        )
+    }
+}
+
 // MARK: - Siri / Spotlight 建议
 
 /// App Shortcuts:让三个 intent 不用用户手动建快捷指令就出现在 Shortcuts app /
@@ -749,6 +796,17 @@ struct SimpleZipAppShortcuts: AppShortcutsProvider {
             ],
             shortTitle: "Find Archive Containing File",
             systemImageName: "rectangle.and.text.magnifyingglass"
+        )
+        AppShortcut(
+            intent: ChangeSettingIntent(),
+            phrases: [
+                "Change a \(.applicationName) setting",
+                "Turn on a \(.applicationName) setting",
+                "Turn off a \(.applicationName) setting",
+                "Toggle a \(.applicationName) setting"
+            ],
+            shortTitle: "Change a Setting",
+            systemImageName: "switch.2"
         )
     }
 }

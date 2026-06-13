@@ -271,3 +271,161 @@ nonisolated enum SettingsSpotlightIndexer {
         }
     }
 }
+
+// MARK: - #31:经 Siri/Spotlight 无 UI 直接开关安全布尔设置
+
+/// 切换动作:开 / 关 / 翻转。`.toggle` 是默认值 —— 用户只说设置名时翻转当前值。
+enum SettingToggleState: String, AppEnum {
+    case on
+    case off
+    case toggle
+
+    static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Setting State")
+    static let caseDisplayRepresentations: [SettingToggleState: DisplayRepresentation] = [
+        .on: "Turn On",
+        .off: "Turn Off",
+        .toggle: "Toggle"
+    ]
+}
+
+/// **只暴露可安全直接开关**的设置项实体(`SettingsCatalog` 里 `isToggleable == true` 的子集)。
+/// 与索引用的 `SettingEntity`(全量、用于「搜+跳转」)刻意分开:`ChangeSettingIntent` 的参数只认这个类型,
+/// 所以 Siri / Shortcuts 的参数选择面**根本不会**列出安全 / 破坏类设置(确认删除 / GPG 启用 / 预设密码 /
+/// 路径策略),从源头杜绝语音改到危险开关(红线)。`init?` 对非 toggleable 项直接返回 nil,是第二道闸。
+struct ToggleableSettingEntity: AppEntity {
+    static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Setting")
+    static let defaultQuery = ToggleableSettingQuery()
+
+    let id: String
+
+    @Property(title: "Name")
+    var name: String
+
+    let paneRaw: String
+    let keywords: [String]
+
+    var displayRepresentation: DisplayRepresentation {
+        DisplayRepresentation(
+            title: "\(name)",
+            subtitle: "\(SettingsPane(rawValue: paneRaw)?.title ?? "")",
+            image: .init(systemName: "switch.2")
+        )
+    }
+
+    /// 非 toggleable 的目录项不构成实体 —— 把白名单约束焊死在类型里。
+    init?(item: SettingsCatalogItem) {
+        guard item.isToggleable else { return nil }
+        id = item.id
+        paneRaw = item.pane.rawValue
+        keywords = item.keywords
+        name = L10n.text(item.titleKey)
+    }
+}
+
+struct ToggleableSettingQuery: EntityQuery {
+    func entities(for identifiers: [String]) async throws -> [ToggleableSettingEntity] {
+        identifiers.compactMap { SettingsCatalog.item(id: $0).flatMap(ToggleableSettingEntity.init(item:)) }
+    }
+
+    func suggestedEntities() async throws -> [ToggleableSettingEntity] {
+        SettingsCatalog.items.compactMap(ToggleableSettingEntity.init(item:))
+    }
+}
+
+/// 把一个可开关设置项的 id 映射到它的**读 / 写访问器**,并附带该设置必要的副作用(与设置面板里的
+/// `.onChange` 同口径:Spotlight 捐献维护 / 浏览器刷新 / Sparkle)。
+///
+/// 安全护栏:`accessor(for:)` 先核对目录项确实 `isToggleable`,任何非白名单 id 一律返回 nil ——
+/// 加上 `ToggleableSettingEntity.init?` 与 `ChangeSettingIntent.perform` 里的复核,共三道闸。
+/// 这里**绝不**出现确认删除 / GPG 启用 / 预设密码 / 路径安全策略等设置(它们在目录里就是 `isToggleable: false`)。
+///
+/// 写入直接落 `UserDefaults.standard`(= `AppPreferences` 与 `@AppStorage` 共用的存储),所以正在打开的
+/// 设置页会经 `@AppStorage` 的 KVO 实时跟随;值本身则在下次被读到时生效。
+@MainActor
+enum SettingToggleRegistry {
+    struct Accessor {
+        let get: @MainActor () -> Bool
+        let set: @MainActor (Bool) -> Void
+    }
+
+    static func accessor(for id: String) -> Accessor? {
+        // 第三道闸(运行期):即便 id 不知怎么绕过了实体层,这里也只认目录里 isToggleable 的项。
+        guard SettingsCatalog.item(id: id)?.isToggleable == true else { return nil }
+        switch id {
+        case "automation.spotlight":
+            return Accessor(get: { AppPreferences.spotlightIndexingEnabled },
+                            set: { setBool($0, AppPreferences.Key.spotlightIndexingEnabled); SpotlightReindex.all() })
+        case "automation.cache":
+            return Accessor(get: { AppPreferences.archiveListingCacheEnabled },
+                            set: {
+                                setBool($0, AppPreferences.Key.archiveListingCacheEnabled)
+                                if !$0 { ArchiveListingCacheStore().clear() }   // 关 = 立即清缓存(隐私)
+                                CachedArchiveSpotlightIndexer.reindex()
+                                ArchiveFileSpotlightIndexer.reindex()
+                            })
+        case "automation.ai":
+            return Accessor(get: { AppPreferences.aiAssistantEnabled },
+                            set: { setBool($0, AppPreferences.Key.aiAssistantEnabled) })
+        case "automation.allowPresetPassword":
+            return Accessor(get: { AppPreferences.automationAllowPresetPassword },
+                            set: { setBool($0, AppPreferences.Key.automationAllowPresetPassword) })
+        case "general.rememberLastFolder":
+            return Accessor(get: { AppPreferences.rememberLastFolder },
+                            set: { setBool($0, AppPreferences.Key.rememberLastFolder) })
+        case "general.autoExtract":
+            return Accessor(get: { AppPreferences.finderOpenAutoExtract },
+                            set: { setBool($0, AppPreferences.Key.finderOpenAutoExtract) })
+        case "general.newTab":
+            return Accessor(get: { AppPreferences.openExternalInNewTab },
+                            set: { setBool($0, AppPreferences.Key.openExternalInNewTab) })
+        case "archive.verifyAfterRewrite":
+            return Accessor(get: { AppPreferences.verifyAfterArchiveRewrite },
+                            set: { setBool($0, AppPreferences.Key.verifyAfterArchiveRewrite) })
+        case "archive.verifyAfterCreate":
+            return Accessor(get: { AppPreferences.verifyAfterArchiveCreate },
+                            set: { setBool($0, AppPreferences.Key.verifyAfterArchiveCreate) })
+        case "archive.compressionUsageTracking":
+            return Accessor(get: { AppPreferences.compressionUsageTrackingEnabled },
+                            set: { setBool($0, AppPreferences.Key.compressionUsageTrackingEnabled) })
+        case "browser.showHidden":
+            return Accessor(get: { AppPreferences.showHiddenFiles },
+                            set: { setBool($0, AppPreferences.Key.showHiddenFiles); notifyBrowser() })
+        case "browser.showSymlinks":
+            return Accessor(get: { AppPreferences.showSymbolicLinks },
+                            set: { setBool($0, AppPreferences.Key.showSymbolicLinks); notifyBrowser() })
+        case "browser.followFinder":
+            return Accessor(get: { AppPreferences.followFinderStructure },
+                            set: { setBool($0, AppPreferences.Key.followFinderStructure); notifyBrowser() })
+        case "view.folderInlineExpansion":
+            return Accessor(get: { AppPreferences.folderInlineExpansion },
+                            set: { setBool($0, AppPreferences.Key.folderInlineExpansion); notifyBrowser() })
+        case "view.rememberFolderExpansion":
+            return Accessor(get: { AppPreferences.rememberFolderExpansion },
+                            set: { setBool($0, AppPreferences.Key.rememberFolderExpansion); notifyBrowser() })
+        case "view.rememberVolumeSetExpansion":
+            return Accessor(get: { AppPreferences.rememberVolumeSetExpansion },
+                            set: { setBool($0, AppPreferences.Key.rememberVolumeSetExpansion); notifyBrowser() })
+        case "updates.checkOnLaunch":
+            return Accessor(get: { AppPreferences.checkForUpdatesOnLaunch },
+                            set: { setBool($0, AppPreferences.Key.checkForUpdatesOnLaunch) })
+        case "updates.autoDownload":
+            // 真值在 Sparkle 里(它自行持久化)—— 走 SparkleUpdater 的薄壳,本层不碰 Sparkle 类型。
+            return Accessor(get: { SparkleUpdater.shared.automaticallyDownloadsUpdates },
+                            set: { SparkleUpdater.shared.automaticallyDownloadsUpdates = $0 })
+        case "backup.includePerFolderMemory":
+            return Accessor(get: { AppPreferences.includePerFolderMemoryInBackup },
+                            set: { setBool($0, AppPreferences.Key.includePerFolderMemoryInBackup) })
+        default:
+            return nil
+        }
+    }
+
+    private static func setBool(_ value: Bool, _ key: String) {
+        UserDefaults.standard.set(value, forKey: key)
+    }
+
+    /// 与设置面板 `notifyBrowserRefresh()` 同口径:让正在浏览的文件 / 归档列表按新偏好重新呈现。
+    private static func notifyBrowser() {
+        NotificationCenter.default.post(name: .browserPreferencesChanged, object: nil)
+    }
+}

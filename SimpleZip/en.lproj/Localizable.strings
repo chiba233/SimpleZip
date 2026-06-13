@@ -1291,7 +1291,7 @@
 "settings.section.automation" = "Automation";
 "settings.automation.shortcuts.section" = "Shortcuts & Siri";
 "settings.automation.shortcuts.title" = "Shortcuts Actions";
-"settings.automation.shortcuts.description" = "Eight actions are available in the Shortcuts app: Extract Archive, Create Archive, Test Archive Integrity, Verify Checksums, Compare Archives, Search Archive Contents, Inspect Archive and Create Release Package.";
+"settings.automation.shortcuts.description" = "Ten actions are available in the Shortcuts app: Extract Archive, Create Archive, Test Archive Integrity, Verify Checksums, Compare Archives, Search Archive Contents, Inspect Archive, Create Release Package, Find Archive Containing File and Change a Setting. Siri can also turn a safe setting on or off without opening the app.";
 "settings.automation.spotlight.section" = "Spotlight";
 
 /* macOS 26 AI 报告助手 */
@@ -2481,3 +2481,15 @@
 "Show Release Package in Finder" = "Show Release Package in Finder";
 "Query" = "Query";
 "Archive" = "Archive";
+
+/* App Intents · #31 直接开关设置(intent 元数据 + 运行时确认 / 状态词) */
+"Change a Setting" = "Change a Setting";
+"Setting State" = "Setting State";
+"State" = "State";
+"Turn On" = "Turn On";
+"Turn Off" = "Turn Off";
+"Toggle" = "Toggle";
+"intent.setting.result" = "%1$@ is now %2$@.";
+"intent.setting.on" = "on";
+"intent.setting.off" = "off";
+"intent.setting.notToggleable" = "“%@” can’t be changed this way — open SimpleZip’s settings to change it.";

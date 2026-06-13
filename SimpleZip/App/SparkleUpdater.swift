@@ -37,6 +37,13 @@ final class SparkleUpdater {
     /// 暴露 updater 给「静默检查」用 —— 助手里跑 `checkForUpdateInformation()` 不弹 Sparkle UI。
     var updater: SPUUpdater { controller.updater }
 
+    /// #31:给 Siri/Spotlight「直接开关」无 UI 切换「自动下载并安装更新」用的薄壳 —— 真值由 Sparkle
+    /// 自己持久化,这里只读 / 写它,不把 `SPUUpdater` 类型泄漏进 App Intents 层(那边无需 import Sparkle)。
+    var automaticallyDownloadsUpdates: Bool {
+        get { updater.automaticallyDownloadsUpdates }
+        set { updater.automaticallyDownloadsUpdates = newValue }
+    }
+
     private init() {
         // `startingUpdater: true` 让 Sparkle 在创建瞬间立刻自动开始周期检查（按 SUScheduledCheckInterval 走）。
         controller = SPUStandardUpdaterController(

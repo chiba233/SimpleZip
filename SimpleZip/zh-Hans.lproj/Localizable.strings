@@ -1289,7 +1289,7 @@
 "settings.section.automation" = "自动化";
 "settings.automation.shortcuts.section" = "快捷指令与 Siri";
 "settings.automation.shortcuts.title" = "快捷指令动作";
-"settings.automation.shortcuts.description" = "快捷指令 App 里有八个动作：解压归档、创建归档、测试归档完整性、验证校验文件、比较归档、搜索归档内容、检查归档、创建发布包。";
+"settings.automation.shortcuts.description" = "快捷指令 App 里有十个动作：解压归档、创建归档、测试归档完整性、验证校验文件、比较归档、搜索归档内容、检查归档、创建发布包、查找包含某文件的归档、更改设置。Siri 也能在不打开 App 的情况下开关一个安全设置。";
 "settings.automation.spotlight.section" = "Spotlight";
 
 /* macOS 26 AI 报告助手 */
@@ -2481,3 +2481,15 @@
 "Show Release Package in Finder" = "在 Finder 中显示发布包";
 "Query" = "查询";
 "Archive" = "归档";
+
+/* App Intents · #31 直接开关设置(intent 元数据 + 运行时确认 / 状态词) */
+"Change a Setting" = "更改设置";
+"Setting State" = "设置状态";
+"State" = "状态";
+"Turn On" = "开启";
+"Turn Off" = "关闭";
+"Toggle" = "切换";
+"intent.setting.result" = "「%1$@」现已%2$@。";
+"intent.setting.on" = "开启";
+"intent.setting.off" = "关闭";
+"intent.setting.notToggleable" = "「%@」无法通过这种方式更改 —— 请在 SimpleZip 的设置中更改。";
