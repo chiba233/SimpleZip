@@ -2419,3 +2419,17 @@
 "Flip Setting" = "翻轉設定";
 "ai.explainSecurity" = "解釋等級";
 "ai.explainSecurity.title" = "白話解釋安全等級";
+
+/* AI report assists · #52/#53/#66/#67 (0.4.4 backfill, aligned with en/zh-Hans) */
+"ai.explainVerify" = "解釋結果";
+"ai.explainVerify.title" = "白話解釋驗簽結果";
+"ai.explainRepro" = "解釋";
+"ai.explainRepro.title" = "白話解釋可重現性";
+"ai.explainMetadata" = "這是什麼？";
+"ai.explainMetadata.title" = "這是什麼樣的封存檔？";
+"ai.explainSpace" = "解釋";
+"ai.explainSpace.title" = "白話解釋空間占用";
+"ai.explainSalvage" = "解釋";
+"ai.explainSalvage.title" = "白話解釋救援結果";
+"ai.explainAudit" = "解釋";
+"ai.explainAudit.title" = "白話解釋目錄檢查";

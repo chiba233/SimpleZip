@@ -2417,3 +2417,17 @@
 "Flip Setting" = "Переключить настройку";
 "ai.explainSecurity" = "Объяснить оценку";
 "ai.explainSecurity.title" = "Объяснение оценки безопасности";
+
+/* AI report assists · #52/#53/#66/#67 (0.4.4 backfill, aligned with en/zh-Hans) */
+"ai.explainVerify" = "Объяснить результат";
+"ai.explainVerify.title" = "Простое объяснение проверки подписи";
+"ai.explainRepro" = "Объяснить";
+"ai.explainRepro.title" = "Простое объяснение воспроизводимости";
+"ai.explainMetadata" = "Что это?";
+"ai.explainMetadata.title" = "Что это за архив?";
+"ai.explainSpace" = "Объяснить";
+"ai.explainSpace.title" = "Простое объяснение использования места";
+"ai.explainSalvage" = "Объяснить";
+"ai.explainSalvage.title" = "Простое объяснение результата восстановления";
+"ai.explainAudit" = "Объяснить";
+"ai.explainAudit.title" = "Простое объяснение проверки каталога";

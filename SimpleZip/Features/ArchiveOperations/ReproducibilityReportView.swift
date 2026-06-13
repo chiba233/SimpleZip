@@ -68,6 +68,17 @@ struct ReproducibilityReportView: View {
             Divider()
 
             PinnedBottomBar {
+                // #53:AI 白话解释可复现报告(两次打包是否一致 + 哪些因素可能破坏可复现)。
+                AIAssistButton(
+                    label: L10n.text("ai.explainRepro"),
+                    systemImage: "sparkles",
+                    sheetTitle: L10n.text("ai.explainRepro.title"),
+                    sheetSubtitle: L10n.text(isReproducible ? "repro.identical" : "repro.notIdentical")
+                ) {
+                    guard #available(macOS 26.0, *) else { throw AIAssistError(message: L10n.text("ai.unavailable.osTooOld")) }
+                    let built = AIReportAssistant.reproducibilityExplanationPrompt(for: report)
+                    return try await AIReportAssistant.generate(instructions: built.instructions, prompt: built.prompt)
+                }
                 Spacer()
                 Button(action: onClose) {
                     Label(L10n.text("button.ok"), systemImage: "checkmark")

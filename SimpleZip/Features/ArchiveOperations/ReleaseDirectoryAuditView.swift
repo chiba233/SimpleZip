@@ -68,6 +68,17 @@ struct ReleaseDirectoryAuditView: View {
 
             PinnedBottomBar {
                 ReportExportControl(report: report)
+                // AI 白话解释发布目录检查(是否构成完整可验证发布 + 每个警告/失败影响哪些文件)。
+                AIAssistButton(
+                    label: L10n.text("ai.explainAudit"),
+                    systemImage: "sparkles",
+                    sheetTitle: L10n.text("ai.explainAudit.title"),
+                    sheetSubtitle: report.directoryURL.lastPathComponent
+                ) {
+                    guard #available(macOS 26.0, *) else { throw AIAssistError(message: L10n.text("ai.unavailable.osTooOld")) }
+                    let built = AIReportAssistant.directoryAuditExplanationPrompt(for: report)
+                    return try await AIReportAssistant.generate(instructions: built.instructions, prompt: built.prompt)
+                }
                 Spacer()
                 Button(action: onClose) {
                     Label(L10n.text("button.ok"), systemImage: "checkmark")

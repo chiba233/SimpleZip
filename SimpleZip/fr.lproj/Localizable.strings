@@ -2416,3 +2416,16 @@
 "Flip Setting" = "Inverser le réglage";
 "ai.explainSecurity" = "Expliquer la note";
 "ai.explainSecurity.title" = "La note de sécurité expliquée";
+/* AI report assists · #52/#53/#66/#67 (0.4.4 backfill, aligned with en/zh-Hans) */
+"ai.explainVerify" = "Expliquer le résultat";
+"ai.explainVerify.title" = "La vérification de signature expliquée";
+"ai.explainRepro" = "Expliquer";
+"ai.explainRepro.title" = "La reproductibilité expliquée";
+"ai.explainMetadata" = "Qu’est-ce que c’est ?";
+"ai.explainMetadata.title" = "Quel type d’archive est-ce ?";
+"ai.explainSpace" = "Expliquer";
+"ai.explainSpace.title" = "L’utilisation de l’espace expliquée";
+"ai.explainSalvage" = "Expliquer";
+"ai.explainSalvage.title" = "Le résultat du sauvetage expliqué";
+"ai.explainAudit" = "Expliquer";
+"ai.explainAudit.title" = "La vérification du répertoire expliquée";

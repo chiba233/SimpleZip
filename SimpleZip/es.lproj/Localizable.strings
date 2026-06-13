@@ -2417,3 +2417,17 @@
 "Flip Setting" = "Invertir ajuste";
 "ai.explainSecurity" = "Explicar calificación";
 "ai.explainSecurity.title" = "Calificación de seguridad explicada";
+
+/* AI report assists · #52/#53/#66/#67 (0.4.4 backfill, aligned with en/zh-Hans) */
+"ai.explainVerify" = "Explicar resultado";
+"ai.explainVerify.title" = "Verificación de firma explicada";
+"ai.explainRepro" = "Explicar";
+"ai.explainRepro.title" = "Reproducibilidad explicada";
+"ai.explainMetadata" = "¿Qué es esto?";
+"ai.explainMetadata.title" = "¿Qué tipo de archivo es este?";
+"ai.explainSpace" = "Explicar";
+"ai.explainSpace.title" = "Uso del espacio explicado";
+"ai.explainSalvage" = "Explicar";
+"ai.explainSalvage.title" = "Resultado del rescate explicado";
+"ai.explainAudit" = "Explicar";
+"ai.explainAudit.title" = "Comprobación del directorio explicada";

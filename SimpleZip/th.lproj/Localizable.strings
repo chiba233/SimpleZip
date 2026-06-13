@@ -2417,3 +2417,17 @@
 "Flip Setting" = "พลิกการตั้งค่า";
 "ai.explainSecurity" = "อธิบายระดับ";
 "ai.explainSecurity.title" = "อธิบายระดับความปลอดภัยแบบเข้าใจง่าย";
+
+/* AI report assists · #52/#53/#66/#67 (0.4.4 backfill, aligned with en/zh-Hans) */
+"ai.explainVerify" = "อธิบายผลลัพธ์";
+"ai.explainVerify.title" = "อธิบายผลการตรวจสอบลายเซ็นแบบเข้าใจง่าย";
+"ai.explainRepro" = "อธิบาย";
+"ai.explainRepro.title" = "อธิบายความสามารถในการสร้างซ้ำแบบเข้าใจง่าย";
+"ai.explainMetadata" = "นี่คืออะไร?";
+"ai.explainMetadata.title" = "นี่เป็นไฟล์บีบอัดแบบใด?";
+"ai.explainSpace" = "อธิบาย";
+"ai.explainSpace.title" = "อธิบายการใช้พื้นที่แบบเข้าใจง่าย";
+"ai.explainSalvage" = "อธิบาย";
+"ai.explainSalvage.title" = "อธิบายผลการกู้ข้อมูลแบบเข้าใจง่าย";
+"ai.explainAudit" = "อธิบาย";
+"ai.explainAudit.title" = "อธิบายผลการตรวจสอบไดเรกทอรีแบบเข้าใจง่าย";

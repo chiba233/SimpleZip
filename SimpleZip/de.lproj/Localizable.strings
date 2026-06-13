@@ -2417,3 +2417,17 @@
 "Flip Setting" = "Einstellung umschalten";
 "ai.explainSecurity" = "Bewertung erklären";
 "ai.explainSecurity.title" = "Sicherheitsstufe erklärt";
+
+/* AI report assists · #52/#53/#66/#67 (0.4.4 backfill, aligned with en/zh-Hans) */
+"ai.explainVerify" = "Ergebnis erklären";
+"ai.explainVerify.title" = "Signaturprüfung erklärt";
+"ai.explainRepro" = "Erklären";
+"ai.explainRepro.title" = "Reproduzierbarkeit erklärt";
+"ai.explainMetadata" = "Was ist das?";
+"ai.explainMetadata.title" = "Was für ein Archiv ist das?";
+"ai.explainSpace" = "Erklären";
+"ai.explainSpace.title" = "Speicherbelegung erklärt";
+"ai.explainSalvage" = "Erklären";
+"ai.explainSalvage.title" = "Rettungsergebnis erklärt";
+"ai.explainAudit" = "Erklären";
+"ai.explainAudit.title" = "Verzeichnisprüfung erklärt";

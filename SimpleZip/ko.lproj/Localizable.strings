@@ -2418,3 +2418,17 @@
 "Flip Setting" = "설정 뒤집기";
 "ai.explainSecurity" = "등급 설명";
 "ai.explainSecurity.title" = "보안 등급 쉽게 설명";
+
+/* AI report assists · #52/#53/#66/#67 (0.4.4 backfill, aligned with en/zh-Hans) */
+"ai.explainVerify" = "결과 설명";
+"ai.explainVerify.title" = "서명 검증 결과 쉽게 설명";
+"ai.explainRepro" = "설명";
+"ai.explainRepro.title" = "재현 가능성 쉽게 설명";
+"ai.explainMetadata" = "이게 뭐죠?";
+"ai.explainMetadata.title" = "어떤 종류의 아카이브인가요?";
+"ai.explainSpace" = "설명";
+"ai.explainSpace.title" = "공간 사용량 쉽게 설명";
+"ai.explainSalvage" = "설명";
+"ai.explainSalvage.title" = "복구 결과 쉽게 설명";
+"ai.explainAudit" = "설명";
+"ai.explainAudit.title" = "디렉터리 검사 쉽게 설명";

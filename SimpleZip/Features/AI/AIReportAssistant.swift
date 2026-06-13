@@ -87,14 +87,36 @@ extension AIReportAssistant {
         }
         if let passed = report.testPassed { lines.append("Integrity test passed: \(passed)") }
         if let failure = report.testFailureMessage { lines.append("Integrity test failure: \(failure)") }
-        let flaggedPaths = report.securityFindings.reduce(0) { $0 + $1.entryPaths.count }
-        lines.append("Suspicious-path finding categories: \(report.securityFindings.count), flagged entries: \(flaggedPaths)")
+        if report.hasComment { lines.append("Archive carries a header comment.") }
+        // 可疑路径:给真实样本条目,不只给计数(UI 列得出,prompt 之前却只发数字 = AI 空泛)。
+        if report.securityFindings.isEmpty {
+            lines.append("Suspicious-path findings: none.")
+        } else {
+            lines.append("Suspicious-path findings by type, with example entries (non-encrypted listing paths):")
+            for finding in report.securityFindings {
+                lines.append("- \(finding.kind.rawValue) (\(finding.entryPaths.count)): \(sampleEntries(finding.entryPaths, perKind: 4))")
+            }
+        }
         lines.append("SHA256SUMS actually written: \(report.wroteChecksums)")
         if let publicKey = report.publicKeyBesideSignature {
             lines.append("Public key sits beside the signature container: \(publicKey)")
         }
-        if !report.gateViolations.isEmpty { lines.append("Quality-gate violations: \(report.gateViolations.count)") }
-        if !report.bundleFindings.isEmpty { lines.append("App-bundle / disk-image findings: \(report.bundleFindings.count)") }
+        // App bundle / 磁盘镜像检查:给每条的严重度 + 标题 + detail 具体内容(签名 / 公证 / 镜像挂载等)。
+        if !report.bundleFindings.isEmpty {
+            lines.append("App-bundle / disk-image checks:")
+            for f in report.bundleFindings {
+                var part = "\(f.severity): \(L10n.text(f.titleKey))"
+                if let detail = f.detail, !detail.isEmpty { part += " — \(detail)" }
+                lines.append("- \(part)")
+            }
+        }
+        // 质量门违规:逐条列规则名 + 是否阻断,而非只给总数。
+        if !report.gateViolations.isEmpty {
+            lines.append("Quality-gate violations:")
+            for v in report.gateViolations {
+                lines.append("- \(v.rule.rawValue)\(v.isBlocking ? " (BLOCKING)" : " (warning)")\(v.count.map { " ×\($0)" } ?? "")")
+            }
+        }
         return (instructions, lines.joined(separator: "\n"))
     }
 
@@ -203,6 +225,177 @@ extension AIReportAssistant {
             for finding in findings {
                 lines.append("- \(finding.kind.rawValue) (\(finding.entryPaths.count)): \(sampleEntries(finding.entryPaths))")
             }
+        }
+        return (instructions, lines.joined(separator: "\n"))
+    }
+
+    // MARK: - 报告富化批:更多报告接 AI 解释(每条都喂比 UI 更全的具体数据)
+
+    /// GPG 验签结果 → 给模型的事实句(签名是否有效·可信·谁签的·有何隐患)。
+    private static func signatureFacts(_ sig: GPGBackend.GPGVerifyResult) -> String {
+        switch sig {
+        case .validSignature(let signer, let fingerprint, let trusted, let concerns):
+            var s = "Signature is cryptographically VALID. Signer: \(signer ?? "unknown"). Key fingerprint: \(fingerprint ?? "n/a"). Key trust in your keyring: \(trusted ? "trusted" : "NOT trusted")."
+            if !concerns.isEmpty { s += " Concerns: \(concerns.map(\.rawValue).sorted().joined(separator: ", "))." }
+            return s
+        case .unknownSigner(let keyID):
+            return "Signature matches, but the signer's public key is NOT in your keyring (key ID \(keyID ?? "unknown")) — the signer's identity is unverified."
+        case .badSignature(let signer, let fingerprint):
+            return "Signature is BAD — the content does not match the signature (tampered, corrupted, or wrong key). Claimed signer: \(signer ?? "unknown"), fingerprint \(fingerprint ?? "n/a")."
+        case .verificationError(let message):
+            return "Signature could not be checked (gpg error): \(message)"
+        }
+    }
+
+    /// #52:.szs / .siz 签名验证 → 白话解释。**绝不建议忽略坏 / 不可信签名。**
+    static func szsVerifyExplanationPrompt(
+        signature: GPGBackend.GPGVerifyResult,
+        manifest: SZSArchive.Manifest,
+        report: SZSArchive.VerifyReport
+    ) -> (instructions: String, prompt: String) {
+        let instructions = """
+        You explain a signed-container (.szs / .siz) verification result to a non-expert: whether the \
+        cryptographic signature is valid AND trusted, who signed it, and whether every file still matches \
+        the SHA-256 recorded in the signed manifest. Be specific — name the problem files. NEVER advise \
+        the user to ignore or override a bad or untrusted signature; if the signature is bad or the key \
+        isn't trusted, say plainly the container should not be trusted. Reply in the user's language.
+        """
+        var lines: [String] = [signatureFacts(signature), "Manifest says signed by: \(manifest.createdBy)"]
+        if let title = manifest.title, !title.isEmpty { lines.append("Title: \(title)") }
+        if let desc = manifest.description, !desc.isEmpty { lines.append("Description: \(desc)") }
+        let s = report.summary
+        lines.append("Files: \(s.total) total — \(s.matched) match the manifest, \(s.mismatched) mismatched, \(s.missing) missing, \(s.unreadable) unreadable. All files OK: \(s.allFilesOk).")
+        let problems = report.entries.compactMap { entry -> String? in
+            switch entry {
+            case .match: return nil
+            case .mismatch(let path, _, _): return "mismatch (hash differs): \(path)"
+            case .missing(let path): return "missing: \(path)"
+            case .unreadable(let path, let reason): return "unreadable: \(path) (\(reason))"
+            }
+        }
+        if !problems.isEmpty {
+            lines.append("Problem entries (examples):")
+            problems.prefix(8).forEach { lines.append("- \($0)") }
+        }
+        return (instructions, lines.joined(separator: "\n"))
+    }
+
+    /// #53:可复现构建报告 → 白话解释(两次打包是否字节一致 + 哪些因素可能破坏可复现)。
+    static func reproducibilityExplanationPrompt(for report: ReproducibilityReport) -> (instructions: String, prompt: String) {
+        let instructions = """
+        You explain a reproducible-build check to a non-expert: whether packing the same folder twice \
+        produced byte-for-byte identical archives, and which factors (timestamps, entry order, permissions, \
+        owner/group, extended attributes) are normalized vs. stored as-is and could make builds differ. Be \
+        concrete about which stored-as-is factors are the likely cause when the two builds differ. Reply in \
+        the user's language.
+        """
+        var lines: [String] = ["Format: \(report.formatRawValue)", "Reproducible mode enabled: \(report.reproducibleEnabled)"]
+        if let identical = report.identical { lines.append("Two builds byte-for-byte identical: \(identical)") }
+        if let first = report.firstSHA256, let second = report.secondSHA256 {
+            lines.append("First build SHA-256: \(first)")
+            lines.append("Second build SHA-256: \(second)")
+        }
+        lines.append("Factors:")
+        for factor in report.factors { lines.append("- \(factor.factor): \(factor.status)") }
+        if !report.nonReproducibleFactors.isEmpty {
+            lines.append("Factors stored as-is (may break reproducibility): \(report.nonReproducibleFactors.map { "\($0)" }.joined(separator: ", "))")
+        }
+        return (instructions, lines.joined(separator: "\n"))
+    }
+
+    /// #67:归档元数据 → 「这是什么包」白话判断。只描述、不放行。
+    static func metadataExplanationPrompt(for report: ArchiveMetadataReport) -> (instructions: String, prompt: String) {
+        let instructions = """
+        You are an archive-triage assistant. From the metadata below, explain in plain language what kind \
+        of archive this most likely is and what stands out (format, compression method, solid or split, \
+        encryption, macOS metadata traces, permission patterns). Base everything ONLY on the facts given; \
+        this is a description, not a security verdict. Reply in the user's language.
+        """
+        var lines: [String] = ["Archive: \(report.archiveName)"]
+        if let p = report.properties {
+            var props: [String] = []
+            if let type = p.type { props.append("type \(type)") }
+            if let method = p.method { props.append("method \(method)") }
+            if let solid = p.solid { props.append("solid \(solid)") }
+            if let volumes = p.volumes { props.append("volumes \(volumes)") }
+            if let phys = p.physicalSizeBytes { props.append("physical size \(phys) bytes") }
+            if !props.isEmpty { lines.append("Header: \(props.joined(separator: ", "))") }
+        }
+        let agg = report.aggregate
+        lines.append("Entries: \(agg.fileCount) files, \(agg.folderCount) folders. Encrypted entries: \(agg.encryptedCount). AppleDouble/__MACOSX traces: \(agg.appleDoubleCount).")
+        if !agg.methodDistribution.isEmpty {
+            lines.append("Compression methods: \(agg.methodDistribution.prefix(6).map { "\($0.method)×\($0.count)" }.joined(separator: ", "))")
+        }
+        if !agg.topAttributes.isEmpty {
+            lines.append("Top permission/attribute strings: \(agg.topAttributes.prefix(6).map { "\($0.method)×\($0.count)" }.joined(separator: ", "))")
+        }
+        if !report.headerComment.isEmpty { lines.append("Header comment: \(report.headerComment)") }
+        if report.securityFindingCount > 0 { lines.append("Suspicious-path findings: \(report.securityFindingCount)") }
+        return (instructions, lines.joined(separator: "\n"))
+    }
+
+    /// 空间分析 → 白话解释(什么占体积 / 压缩率 / 垃圾占比),给最大文件·目录·扩展名真实样本。
+    static func spaceAnalysisExplanationPrompt(for report: ArchiveSpaceAnalysisReport) -> (instructions: String, prompt: String) {
+        let instructions = """
+        You explain an archive's disk-usage breakdown to a non-expert: what is taking the most space, how \
+        well it compressed, and whether there's notable wasted space (macOS junk). Name the actual largest \
+        files / folders / extensions. Reply in the user's language.
+        """
+        let a = report.analysis
+        var lines: [String] = [
+            "Archive: \(report.archiveName)",
+            "Files: \(a.fileCount). Original total: \(a.totalBytes) bytes, packed: \(a.packedBytes) bytes."
+        ]
+        if let ratio = a.compressionRatio { lines.append("Compression ratio (packed/original): \(String(format: "%.2f", ratio))") }
+        if a.junkCount > 0 { lines.append("macOS junk: \(a.junkCount) entries, \(a.junkBytes) bytes.") }
+        if a.encryptedCount > 0 { lines.append("Encrypted entries: \(a.encryptedCount).") }
+        if !a.largestFiles.isEmpty {
+            lines.append("Largest files: \(a.largestFiles.prefix(6).map { "\($0.name) (\($0.bytes)B)" }.joined(separator: ", "))")
+        }
+        if !a.topLevelDirectories.isEmpty {
+            lines.append("Top-level folders by size: \(a.topLevelDirectories.prefix(6).map { "\($0.name.isEmpty ? "(root)" : $0.name) (\($0.bytes)B)" }.joined(separator: ", "))")
+        }
+        if !a.extensions.isEmpty {
+            lines.append("Biggest extensions: \(a.extensions.prefix(6).map { "\($0.name.isEmpty ? "(none)" : $0.name) (\($0.bytes)B)" }.joined(separator: ", "))")
+        }
+        return (instructions, lines.joined(separator: "\n"))
+    }
+
+    /// #66:数据救援结果 → 白话解释(救出多少 / 哪些读不出);**绝不暗示归档已修好**。
+    static func salvageExplanationPrompt(for report: ArchiveSalvageReport) -> (instructions: String, prompt: String) {
+        let instructions = """
+        You explain a best-effort data-rescue result for a damaged archive to a non-expert: how many files \
+        were recovered, which entries couldn't be read and why, and the important caveat that rescued files \
+        may be incomplete and the archive itself was NOT repaired. Name the failed entries. Never imply the \
+        archive is now fixed. Reply in the user's language.
+        """
+        let o = report.outcome
+        var lines: [String] = ["Archive: \(report.archiveName)"]
+        if let total = report.totalEntryCount {
+            lines.append("Recovered \(o.rescuedFileCount) of \(total) entries.")
+        } else {
+            lines.append("Recovered \(o.rescuedFileCount) files.")
+        }
+        if let errs = o.reportedErrorCount { lines.append("Backend reported \(errs) sub-item errors.") }
+        if !o.failedEntryPaths.isEmpty {
+            lines.append("Entries that could not be read (examples):")
+            o.failedEntryPaths.prefix(8).forEach { lines.append("- \($0)") }
+        }
+        return (instructions, lines.joined(separator: "\n"))
+    }
+
+    /// 发布目录完整性检查 → 白话解释(哪些项过 / 警告 / 失败 + 具体受影响文件)。
+    static func directoryAuditExplanationPrompt(for report: ReleaseDirectoryAuditReport) -> (instructions: String, prompt: String) {
+        let instructions = """
+        You explain a release-directory integrity check to a non-expert: whether the folder forms a \
+        complete, verifiable release, and what each warning or failure means and which files it affects. \
+        Be specific. Don't tell the user to publish anyway if checks failed. Reply in the user's language.
+        """
+        var lines: [String] = ["Directory: \(report.directoryURL.lastPathComponent)", "Worst severity: \(report.worstSeverity)"]
+        for finding in report.findings {
+            var part = "\(finding.severity): \(finding.message)"
+            if !finding.detailItems.isEmpty { part += " — \(finding.detailItems.prefix(5).joined(separator: ", "))" }
+            lines.append("- \(part)")
         }
         return (instructions, lines.joined(separator: "\n"))
     }

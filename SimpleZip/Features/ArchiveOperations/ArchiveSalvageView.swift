@@ -95,6 +95,17 @@ struct ArchiveSalvageView: View {
                 } label: {
                     Label(L10n.text("button.revealInFinder"), systemImage: "arrow.up.forward.app")
                 }
+                // #66:AI 白话解释救援结果(救出多少 / 哪些读不出)。绝不暗示归档已修好。
+                AIAssistButton(
+                    label: L10n.text("ai.explainSalvage"),
+                    systemImage: "sparkles",
+                    sheetTitle: L10n.text("ai.explainSalvage.title"),
+                    sheetSubtitle: report.archiveName
+                ) {
+                    guard #available(macOS 26.0, *) else { throw AIAssistError(message: L10n.text("ai.unavailable.osTooOld")) }
+                    let built = AIReportAssistant.salvageExplanationPrompt(for: report)
+                    return try await AIReportAssistant.generate(instructions: built.instructions, prompt: built.prompt)
+                }
                 Spacer()
                 Button(action: onClose) {
                     Label(L10n.text("button.ok"), systemImage: "checkmark")

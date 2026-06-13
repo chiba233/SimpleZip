@@ -2419,3 +2419,17 @@
 "Flip Setting" = "設定を反転";
 "ai.explainSecurity" = "等級を説明";
 "ai.explainSecurity.title" = "安全等級をわかりやすく説明";
+
+/* AI report assists · #52/#53/#66/#67 (0.4.4 backfill, aligned with en/zh-Hans) */
+"ai.explainVerify" = "結果を説明";
+"ai.explainVerify.title" = "署名検証の結果をわかりやすく説明";
+"ai.explainRepro" = "説明";
+"ai.explainRepro.title" = "再現性をわかりやすく説明";
+"ai.explainMetadata" = "これは何？";
+"ai.explainMetadata.title" = "これはどんなアーカイブ？";
+"ai.explainSpace" = "説明";
+"ai.explainSpace.title" = "容量の使い方をわかりやすく説明";
+"ai.explainSalvage" = "説明";
+"ai.explainSalvage.title" = "復旧結果をわかりやすく説明";
+"ai.explainAudit" = "説明";
+"ai.explainAudit.title" = "ディレクトリ検査をわかりやすく説明";

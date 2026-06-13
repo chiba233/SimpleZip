@@ -112,6 +112,17 @@ struct SZSVerificationSheet: View {
                         payloadRoot: payloadRoot,
                         report: report
                     ))
+                    // #52:AI 白话解释验签结果(签名是否可信 + 文件是否都匹配)。仅 isReady 时出现;绝不放行坏签名。
+                    AIAssistButton(
+                        label: L10n.text("ai.explainVerify"),
+                        systemImage: "sparkles",
+                        sheetTitle: L10n.text("ai.explainVerify.title"),
+                        sheetSubtitle: sourceURL.lastPathComponent
+                    ) {
+                        guard #available(macOS 26.0, *) else { throw AIAssistError(message: L10n.text("ai.unavailable.osTooOld")) }
+                        let built = AIReportAssistant.szsVerifyExplanationPrompt(signature: signature, manifest: manifest, report: report)
+                        return try await AIReportAssistant.generate(instructions: built.instructions, prompt: built.prompt)
+                    }
                 }
                 Spacer()
                 Button(action: onClose) {

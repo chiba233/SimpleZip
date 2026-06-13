@@ -176,6 +176,17 @@ struct ArchiveSpaceAnalysisView: View {
             PinnedBottomBar {
                 // F2:统一导出(摘要 / GitHub Issue / Markdown / JSON)。
                 ReportExportControl(report: report)
+                // AI 白话解释空间占用(什么占体积 / 压缩率 / 垃圾占比),给真实最大文件·目录·扩展名。
+                AIAssistButton(
+                    label: L10n.text("ai.explainSpace"),
+                    systemImage: "sparkles",
+                    sheetTitle: L10n.text("ai.explainSpace.title"),
+                    sheetSubtitle: report.archiveName
+                ) {
+                    guard #available(macOS 26.0, *) else { throw AIAssistError(message: L10n.text("ai.unavailable.osTooOld")) }
+                    let built = AIReportAssistant.spaceAnalysisExplanationPrompt(for: report)
+                    return try await AIReportAssistant.generate(instructions: built.instructions, prompt: built.prompt)
+                }
                 Spacer()
                 Button {
                     onClose()

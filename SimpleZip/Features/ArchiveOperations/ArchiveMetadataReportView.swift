@@ -125,6 +125,17 @@ struct ArchiveMetadataReportView: View {
 
             PinnedBottomBar {
                 ReportExportControl(report: report)
+                // #67:AI 白话判断「这是什么包」(格式 / 方法 / 加密 / macOS 痕迹 / 权限)。只描述不放行。
+                AIAssistButton(
+                    label: L10n.text("ai.explainMetadata"),
+                    systemImage: "sparkles",
+                    sheetTitle: L10n.text("ai.explainMetadata.title"),
+                    sheetSubtitle: report.archiveName
+                ) {
+                    guard #available(macOS 26.0, *) else { throw AIAssistError(message: L10n.text("ai.unavailable.osTooOld")) }
+                    let built = AIReportAssistant.metadataExplanationPrompt(for: report)
+                    return try await AIReportAssistant.generate(instructions: built.instructions, prompt: built.prompt)
+                }
                 Spacer()
                 Button(action: onClose) {
                     Label(L10n.text("button.ok"), systemImage: "checkmark")
