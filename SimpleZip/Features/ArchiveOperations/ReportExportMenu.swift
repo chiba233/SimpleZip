@@ -4,8 +4,9 @@
 //
 //  0.4.4 F2:统一报告导出控件 —— 放进各报告 sheet 的 PinnedBottomBar:
 //  复制摘要 / 复制为 GitHub Issue / 导出 Markdown… / 导出 JSON…。
-//  按设计准则用 Button + confirmationDialog(Menu 不当按钮用);保存走 NSSavePanel
-//  (照 ArchiveDiffView.exportReport 的既有体例)。
+//  用原生 Menu 下拉(用户拍板):confirmationDialog 在 macOS 上塞不下「4 选项 + 取消」——
+//  加取消会把「导出 JSON」挤掉。Menu 稳定显示全部项,点菜单外 / Esc 即取消(天然反悔出口),
+//  也是 macOS 选导出格式的标准控件。保存走 NSSavePanel(照 ArchiveDiffView.exportReport 体例)。
 //
 
 import AppKit
@@ -30,26 +31,25 @@ struct ReportExportControl: View {
     let report: any ReportExportable
     var extraActions: [ExtraAction] = []
 
-    @State private var showsFormatDialog = false
-
     var body: some View {
-        Button {
-            showsFormatDialog = true
+        // 与创建对话框「套用模板」同款下拉(用户点名):默认 Menu 样式 = 带 chevron 的 bordered 按钮,
+        // .fixedSize 不被拉伸。复制类 / 导出类 / 宿主特有项用 Divider 分组。
+        Menu {
+            Button(L10n.text("report.copySummary")) { copySummary() }
+            Button(L10n.text("report.copyAsIssue")) { copyAsIssue() }
+            Divider()
+            Button(L10n.text("report.export.markdown")) { export(.markdown) }
+            Button(L10n.text("report.export.json")) { export(.json) }
+            if !extraActions.isEmpty {
+                Divider()
+                ForEach(extraActions) { extra in
+                    Button(extra.title, action: extra.action)
+                }
+            }
         } label: {
             Label(L10n.text("report.export.menu"), systemImage: "square.and.arrow.up")
         }
-        .confirmationDialog(L10n.text("report.export.menu"), isPresented: $showsFormatDialog) {
-            Button(L10n.text("report.copySummary")) { copySummary() }
-            Button(L10n.text("report.copyAsIssue")) { copyAsIssue() }
-            Button(L10n.text("report.export.markdown")) { export(.markdown) }
-            Button(L10n.text("report.export.json")) { export(.json) }
-            ForEach(extraActions) { extra in
-                Button(extra.title, action: extra.action)
-            }
-            // macOS 的 confirmationDialog 不会自动补取消按钮(不像 iOS)——必须显式给 .cancel,
-            // 否则用户点开导出菜单后没有任何反悔出口(用户报告)。
-            Button(L10n.text("button.cancel"), role: .cancel) { }
-        }
+        .fixedSize()
     }
 
     private enum Format {
