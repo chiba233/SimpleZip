@@ -1188,6 +1188,10 @@
 "search.prompt" = "검색";
 "settings.defaults.add" = "포맷 추가…";
 "settings.defaults.description" = "포맷별로 재사용할 기본값을 설정합니다. Finder의 “압축” 빠른 동작은 해당 포맷의 기본값을 사용하며, 생성 대화상자에서도 적용할 수 있습니다. 암호와 GPG 키는 여기에 저장되지 않습니다.";
+"settings.defaults.useMostUsed" = "자주 쓰는 설정 적용";
+"settings.defaults.useMostUsed.help" = "이 형식에서 자주 선택하는 옵션으로 이 기본값을 채웁니다.";
+"settings.defaults.usageTracking" = "자주 쓰는 압축 옵션 학습";
+"settings.defaults.usageTracking.description" = "실제로 선택한 압축 옵션을 기록하여(로컬, 암호화된 것은 절대 기록 안 함) 편집기가 원클릭 ‘자주 쓰는 설정 적용’ 버튼을 제공할 수 있게 합니다. 끄면 기록을 중지합니다.";
 "settings.defaults.editorHint" = "이 포맷의 기본값으로 쓰고 싶은 옵션만 체크하세요. 체크하지 않은 옵션은 생성 시 기본값을 유지하며 매번 변경할 수 있습니다.";
 "settings.defaults.editorTitle" = "%@ 기본값";
 "settings.defaults.noOptions" = "활성화된 옵션 없음";

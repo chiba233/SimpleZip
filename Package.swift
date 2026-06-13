@@ -61,6 +61,7 @@ let package = Package(
                 "Core/BrowserGrouping.swift",
                 "Core/BundleReleaseCheck.swift",
                 "Core/CompressionPreset.swift",
+                "Core/CompressionUsageStore.swift",
                 "Core/Backends/ArchiveBackend.swift",
                 "Core/Backends/DiskImageBackend.swift",
                 "Core/Backends/GPGBackend.swift",

@@ -1188,6 +1188,10 @@
 "search.prompt" = "Suchen";
 "settings.defaults.add" = "Format hinzufügen …";
 "settings.defaults.description" = "Lege wiederverwendbare Standards pro Format fest. Die Finder-Schnellaktionen „Komprimieren“ nutzen die Standards des passenden Formats, und der Erstellen-Dialog kann sie anwenden. Passwörter und GPG-Schlüssel werden hier nie gespeichert.";
+"settings.defaults.useMostUsed" = "Meine häufigsten verwenden";
+"settings.defaults.useMostUsed.help" = "Füllt diese Standardwerte mit den Optionen, die du für dieses Format am häufigsten wählst.";
+"settings.defaults.usageTracking" = "Meine häufigsten Komprimierungsoptionen lernen";
+"settings.defaults.usageTracking.description" = "Zeichnet die tatsächlich gewählten Komprimierungsoptionen auf (lokal, nie etwas Verschlüsseltes), damit der Editor eine Ein-Klick-Schaltfläche „Meine häufigsten verwenden“ anbieten kann. Zum Stoppen ausschalten.";
 "settings.defaults.editorHint" = "Hake nur die Optionen an, die dieses Format standardmäßig nutzen soll; nicht angehakte behalten den Standard beim Erstellen und können jedes Mal geändert werden.";
 "settings.defaults.editorTitle" = "%@-Standards";
 "settings.defaults.noOptions" = "Keine Optionen aktiviert";

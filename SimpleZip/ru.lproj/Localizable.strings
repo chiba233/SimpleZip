@@ -1310,6 +1310,10 @@
 "health.scratchVolume.remount" = "Перемонтировать сейчас";
 "settings.defaults.title" = "Параметры сжатия по умолчанию";
 "settings.defaults.description" = "Set reusable defaults per format. The Finder \\\"Compress\\\" quick actions use the matching format's defaults, and the create dialog can apply them. Passwords and GPG keys are never stored here.";
+"settings.defaults.useMostUsed" = "Применить мои частые";
+"settings.defaults.useMostUsed.help" = "Заполняет эти значения по умолчанию параметрами, которые вы чаще всего выбираете для этого формата.";
+"settings.defaults.usageTracking" = "Запоминать мои частые параметры сжатия";
+"settings.defaults.usageTracking.description" = "Записывает выбранные вами параметры сжатия (локально, никогда ничего зашифрованного), чтобы редактор мог предложить кнопку «применить мои частые» в один клик. Отключите, чтобы остановить запись.";
 "settings.defaults.add" = "Добавить формат…";
 "settings.defaults.noOptions" = "Параметры не включены";
 "settings.defaults.optionCount" = "Включено параметров: %@";

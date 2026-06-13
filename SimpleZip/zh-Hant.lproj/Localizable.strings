@@ -1189,6 +1189,10 @@
 "search.prompt" = "搜尋";
 "settings.defaults.add" = "加入格式…";
 "settings.defaults.description" = "為每個格式配置一份可重複使用的預設值。Finder「壓縮」快速動作會使用對應格式的預設值，建立對話框也能套用。密碼和 GPG 金鑰永不儲存在這裡。";
+"settings.defaults.useMostUsed" = "套用我最常用的";
+"settings.defaults.useMostUsed.help" = "用你為這個格式最常選的選項填入這些預設值。";
+"settings.defaults.usageTracking" = "學習我最常用的壓縮選項";
+"settings.defaults.usageTracking.description" = "記錄你實際選的壓縮選項（本地，絕不記錄任何加密內容），讓編輯器能提供一鍵「套用我最常用的」。關閉則停止記錄。";
 "settings.defaults.editorHint" = "只勾選你想讓這個格式預設的選項；未勾選的保持建立時的預設值，每次仍可更改。";
 "settings.defaults.editorTitle" = "%@ 預設值";
 "settings.defaults.noOptions" = "未啟用任何選項";

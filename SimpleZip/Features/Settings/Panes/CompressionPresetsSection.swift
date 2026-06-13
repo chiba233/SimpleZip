@@ -14,6 +14,8 @@ struct CompressionDefaultsSection: View {
 
     @State private var presets: [CompressionFormatPreset] = []
     @State private var editorTarget: FormatPresetEditorTarget?
+    /// #32:是否记录压缩选项使用频率(供编辑器里「按我最常用的来」)。默认开;关 = 停止记录(已记的仍可用)。
+    @AppStorage(AppPreferences.Key.compressionUsageTrackingEnabled) private var usageTracking = true
 
     /// 可添加的格式（压缩相关；DMG 是挂载不在内）。
     private let allFormats: [ArchiveCreateFormat] = [.zip, .sevenZip, .rar, .tar, .tarGzip, .gzip, .bzip2, .xz]
@@ -23,6 +25,13 @@ struct CompressionDefaultsSection: View {
             Text(L10n.text("settings.defaults.description"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
+
+            // #32:记录创建时实际选的压缩选项,供编辑器里「按我最常用的来」一键填默认。只记非加密离散旋钮、全本地。
+            Toggle(L10n.text("settings.defaults.usageTracking"), isOn: $usageTracking)
+            Text(L10n.text("settings.defaults.usageTracking.description"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
 
             // 只列出**用户已添加**的格式模板；每条一个启用开关。没添加的不显示。
             // 注意：不要在行间插 Divider() —— 在 Form/Section 里它会单独占一整行(显示成空灰行)，
@@ -123,6 +132,8 @@ struct FormatPresetEditorSheet: View {
     private let format: ArchiveCreateFormat
     @State private var included: Set<CompressionOptionField>
     @State private var options: ArchiveCreationOptions
+    /// #37:基于使用频率算出的「最常用」建议(init 时算一次);nil = 没有该格式的统计数据,按钮不出现。
+    private let usageSuggestion: CompressionFormatPreset?
     let onSave: (CompressionFormatPreset) -> Void
     let onCancel: () -> Void
 
@@ -134,6 +145,7 @@ struct FormatPresetEditorSheet: View {
         self.format = preset.format
         _included = State(initialValue: preset.includedFields)
         _options = State(initialValue: preset.options)
+        usageSuggestion = CompressionUsageStore().mostUsedPreset(for: preset.format)
         self.onSave = onSave
         self.onCancel = onCancel
     }
@@ -242,6 +254,16 @@ struct FormatPresetEditorSheet: View {
 
             Divider()
             PinnedBottomBar {
+                // #37:「按我最常用的来」—— 仅当有该格式的使用统计时出现。把众数值勾上并填进各行,用户仍可改后保存。
+                if let usageSuggestion {
+                    Button {
+                        included.formUnion(usageSuggestion.includedFields)
+                        usageSuggestion.apply(to: &options)
+                    } label: {
+                        Label(L10n.text("settings.defaults.useMostUsed"), systemImage: "wand.and.stars")
+                    }
+                    .help(L10n.text("settings.defaults.useMostUsed.help"))
+                }
                 Spacer()
                 Button(L10n.text("button.cancel"), role: .cancel) { onCancel() }
                     .keyboardShortcut(.cancelAction)

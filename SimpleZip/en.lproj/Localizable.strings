@@ -1883,6 +1883,10 @@
 "settings.section.security" = "Security";
 "settings.defaults.title" = "Default Compression Settings";
 "settings.defaults.description" = "Set reusable defaults per format. The Finder \"Compress\" quick actions use the matching format's defaults, and the create dialog can apply them. Passwords and GPG keys are never stored here.";
+"settings.defaults.useMostUsed" = "Use My Most-Used";
+"settings.defaults.useMostUsed.help" = "Fill these defaults with the options you pick most often for this format.";
+"settings.defaults.usageTracking" = "Learn my most-used compression options";
+"settings.defaults.usageTracking.description" = "Records the compression options you actually pick (locally, never anything encrypted) so the editor can offer a one-click \"use my most-used\" button. Turn off to stop recording.";
 "settings.defaults.add" = "Add Format…";
 "settings.defaults.noOptions" = "No options enabled";
 "settings.defaults.optionCount" = "%@ option(s) enabled";

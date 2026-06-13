@@ -20,6 +20,10 @@ enum ArchiveCreationService {
         progress: @escaping @Sendable (ArchiveProgressState) -> Void,
         outputObserver: (@Sendable (String) -> Void)?
     ) async throws {
+        // 0.4.4:记录用户**实际选的**压缩选项使用频率(供「按我最常用的来」)。本方法是创建对话框的唯一收口
+        // (转换 / 自检 / 格式实验室都绕过它直调 createArchive,不污染统计)。只记离散非加密旋钮、受开关 gate。
+        CompressionUsageStore().record(request.options)
+
         // 不带 GPG 签名 → 跟原来一样直接 createArchive 写到用户指定的 destinationURL。
         guard request.options.gpgSign else {
             try await ArchiveService.createArchive(
