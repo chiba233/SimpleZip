@@ -4,6 +4,8 @@
 
 ## 0.4.4 (unreleased)
 
+- **Every Export Report dialog has a Cancel button again.** On macOS a confirmation dialog does not add Cancel for you, so the report export menu (and the temp-artifacts "Clean Up" confirmation) left no way to back out once opened — now both have an explicit Cancel.
+- **The failure dot clears as you scroll, one at a time.** Instead of wiping a whole category the moment you open it, each failed task card now clears its red badge the instant it actually scrolls into view — see one, clear one; scroll past them all and the dot is gone. Failures still below the fold stay counted, and seen-state persists across a restart.
 - **`.siz` works with the archive tools now.** Test, batch checkup, compare, duplicate scan, space analysis and release inspection all accept a `.siz` and run on its unwrapped inner archive; release inspection still hashes and key-checks the `.siz` itself, since that's the file you ship. Data rescue treats a damaged `.siz` as the tar container it is and salvages it whole. The right-click menu, the Archive menu and folder filters all count `.siz` as a real archive.
 - **Read-only archives keep their analysis menu.** Opening a read-only format (tar, rar, zst, a nested archive, a `.siz`'s inner archive) no longer drops Metadata Report and Copy Open-Performance Report from the blank-area right-click menu — they write nothing, so they belong there too.
 - **The Activity Center remembers report details across a restart.** Comparison results and the release-inspection / metadata reports now ride the task history to disk, so View Report still works after a relaunch instead of forcing a re-run (very large comparisons are skipped so the history can't balloon).

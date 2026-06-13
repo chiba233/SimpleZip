@@ -14,6 +14,9 @@ struct ActivityView: View {
     /// 0.4.4:重启后从历史落盘数据重开的报告(运行时任务走 openReport 闭包弹在浏览器窗口;
     /// 闭包没了才走这里 —— 报告 sheet 直接挂在活动中心窗口上)。
     @State private var restoredReport: TaskReportAttachment?
+    /// 0.4.4(用户反馈):失败红点「看到一个消一个」—— 任务列表滚动视口的当前高度,
+    /// 失败卡进入这个视口(任意一行可见)就标记已看。0 = 还没测到。
+    @State private var taskListViewportHeight: CGFloat = 0
     /// 0.4.4 D:来源筛选(nil = 全部)。独立 Picker,与状态筛选正交组合,跨三个分类共用。
     @State private var sourceFilter: OperationTask.Source?
     /// 0.4.4 #15:临时工作区状态(进 pane 时后台刷一次)。
@@ -183,12 +186,6 @@ struct ActivityView: View {
 
                     taskList(in: category)
                 }
-                // 0.4.4(用户反馈两轮):红点 =「没看过的失败」;该分类列表**正在显示**期间,
-                // 任何未看失败即刻标已看(不用切页、不用展开详情),重启不复亮。
-                .onAppear { taskCenter.markFailuresSeen(in: category) }
-                .onChange(of: unseenFailureIDs(in: category)) { ids in
-                    if !ids.isEmpty { taskCenter.markFailuresSeen(in: category) }
-                }
             }
         }
     }
@@ -282,7 +279,9 @@ struct ActivityView: View {
                                 tint: .gray
                             )
                             ForEach(waiting) { task in
-                                ActivityTaskCard(task: task, expandedTaskIDs: $expandedTaskIDs, onOpenAttachment: { restoredReport = $0 })
+                                ActivityTaskCard(task: task, expandedTaskIDs: $expandedTaskIDs, onOpenAttachment: { restoredReport = $0 },
+                                                 viewportHeight: taskListViewportHeight,
+                                                 onBecameVisible: { taskCenter.markFailureSeen(task) })
                                     .id(task.id)
                             }
                             if !rest.isEmpty {
@@ -291,7 +290,9 @@ struct ActivityView: View {
                             }
                         }
                         ForEach(rest) { task in
-                            ActivityTaskCard(task: task, expandedTaskIDs: $expandedTaskIDs, onOpenAttachment: { restoredReport = $0 })
+                            ActivityTaskCard(task: task, expandedTaskIDs: $expandedTaskIDs, onOpenAttachment: { restoredReport = $0 },
+                                                 viewportHeight: taskListViewportHeight,
+                                                 onBecameVisible: { taskCenter.markFailureSeen(task) })
                                 .id(task.id)
                         }
                     }
@@ -299,6 +300,17 @@ struct ActivityView: View {
                     .padding(.top, 6)
                     .padding(.bottom, 22)
                 }
+                // 失败卡可见性检测的坐标系锚在 ScrollView 视口(非内容)—— 卡片在此坐标系里
+                // minY∈[0,视口高] 即「现在屏幕上看得到」。
+                .coordinateSpace(name: Self.taskScrollSpace)
+                // 视口高度探针:background 落在 ScrollView 自身 bounds(视口),不随内容滚动。
+                .background(
+                    GeometryReader { geo in
+                        Color.clear
+                            .onAppear { taskListViewportHeight = geo.size.height }
+                            .onChange(of: geo.size.height) { taskListViewportHeight = $0 }
+                    }
+                )
                 // 新任务插在最前；列表顶部条目变化（= 有新任务）时自动滚到最上，用户不会错过。
                 .onChange(of: tasks.first?.id) { newTopID in
                     guard let newTopID else { return }
@@ -307,6 +319,9 @@ struct ActivityView: View {
             }
         }
     }
+
+    /// 失败卡可见性检测用的滚动坐标系名(ScrollView 视口坐标)。
+    static let taskScrollSpace = "activityTaskScroll"
 
     /// 任务卡片列表里的小组头(写锁区 / 等待组)。#17:换 chrome 小节卡 —— 彩色渐变小瓦片 +
     /// 标题,层叠渐变底;纯静态(无 hover / 无动画)。
@@ -637,6 +652,8 @@ struct ActivityView: View {
                             Button(L10n.text("workspace.artifacts.clear"), role: .destructive) {
                                 clearStaleWorkspaceArtifacts()
                             }
+                            // macOS 不自动补取消 —— 破坏性操作必须给反悔出口。
+                            Button(L10n.text("button.cancel"), role: .cancel) { }
                         }
                     }
                 }
@@ -821,6 +838,9 @@ private struct ActivityTaskCard: View {
     @Binding var expandedTaskIDs: Set<UUID>
     /// 0.4.4:重启后报告从落盘附件重开(openReport 闭包只活一个会话)。
     var onOpenAttachment: ((TaskReportAttachment) -> Void)?
+    /// 0.4.4(用户反馈):失败红点「看到一个消一个」用的视口高度 + 进入视口回调。
+    var viewportHeight: CGFloat = 0
+    var onBecameVisible: (() -> Void)?
     @State private var borderAngle = 0.0
 
     private var tint: Color {
@@ -829,6 +849,12 @@ private struct ActivityTaskCard: View {
         case .fileOperation: return .orange
         case .undoRedo: return .purple
         }
+    }
+
+    /// 这张卡是不是「还没被看过的失败」—— 只有它需要挂可见性探针。
+    private var isUnseenFailure: Bool {
+        if case .failed = task.status { return !task.failureSeen }
+        return false
     }
 
     var body: some View {
@@ -869,6 +895,28 @@ private struct ActivityTaskCard: View {
                         }
                     }
             }
+        }
+        // 失败红点「看到一个消一个」:只给未看过的失败卡挂可见性探针 —— 卡片任意一行进入
+        // ScrollView 视口(minY < 视口高 且 maxY > 0)即标记已看;标记后 isUnseenFailure 翻 false、
+        // 探针自动撤掉(自限制,不影响其余卡的滚动性能)。background 不参与布局。
+        .background {
+            if isUnseenFailure, viewportHeight > 0 {
+                GeometryReader { geo in
+                    Color.clear
+                        .onAppear { reportIfVisible(geo) }
+                        .onChange(of: geo.frame(in: .named(ActivityView.taskScrollSpace)).minY) { _ in
+                            reportIfVisible(geo)
+                        }
+                }
+            }
+        }
+    }
+
+    private func reportIfVisible(_ geo: GeometryProxy) {
+        let frame = geo.frame(in: .named(ActivityView.taskScrollSpace))
+        // 卡片与视口 [0, 视口高] 有交集 = 屏幕上至少露出一部分。
+        if frame.maxY > 0, frame.minY < viewportHeight {
+            onBecameVisible?()
         }
     }
 }

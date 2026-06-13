@@ -300,17 +300,11 @@ final class TaskCenter: ObservableObject {
         objectWillChange.send()
     }
 
-    /// 0.4.4(用户反馈「红点常驻气死强迫症」):用户打开活动中心某分类 = 该分类现有失败「已看过」,
-    /// 侧栏红点灭且重启不复亮(failureSeen 随历史持久化);之后新产生的失败照常点亮。
-    func markFailuresSeen(in category: OperationTask.Category) {
-        var changed = false
-        for task in active + history where task.category == category {
-            if case .failed = task.status, !task.failureSeen {
-                task.failureSeen = true
-                changed = true
-            }
-        }
-        guard changed else { return }
+    /// 0.4.4(用户反馈「看到一个消一个」):某张失败卡进入活动中心视口 = 这条失败「已看过」。
+    /// 只标这一条,侧栏红点随之减一;failureSeen 随历史持久化,重启不复亮。幂等(已看/非失败直接返回)。
+    func markFailureSeen(_ task: OperationTask) {
+        guard case .failed = task.status, !task.failureSeen else { return }
+        task.failureSeen = true
         objectWillChange.send()
         persistHistory()
     }
