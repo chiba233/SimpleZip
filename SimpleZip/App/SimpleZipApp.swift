@@ -199,6 +199,23 @@ struct ArchiveFileCommands: Commands {
                 .disabled(model == nil)
             Button(L10n.text("dupArchives.menu")) { model?.findDuplicateArchivesInFolder() }
                 .disabled(!isFolderMode)
+            // 0.4.4 #50 菜单一致性:这批发布 / 分析工具原先只在文件浏览右键里,补进菜单栏(每个方法
+            // 内部都校验选区、选错只是弹「请选/开一个归档」,与上面 inspect/space 同款宽松启用)。
+            // #7 批量体检(选中归档或文件夹顶层归档)。
+            Button(L10n.text("checkup.menu")) { model?.checkupSelectedArchives() }
+                .disabled(!isFolderMode)
+            // #8 数据救援(单选归档,或当前打开的归档)。
+            Button(L10n.text("salvage.menu")) { model?.salvageSelectedArchive() }
+                .disabled(model == nil)
+            // #44 快速核对发布组(单选普通文件夹,只看文件名)。
+            Button(L10n.text("quickVerify.menu")) { model?.quickVerifyReleaseGroup() }
+                .disabled(!isFolderMode)
+            // #11 发布目录完整性检查(单选普通文件夹,实测哈希/验签/孤儿)。
+            Button(L10n.text("dirAudit.menu")) { model?.auditSelectedReleaseDirectory() }
+                .disabled(!isFolderMode)
+            // #43 可复现性检查(单选普通文件夹,双打包比指纹)。
+            Button(L10n.text("repro.menu")) { model?.runReproducibilityCheck() }
+                .disabled(!isFolderMode)
             // #68:扫归档里的敏感/配置/脚本/许可证文件(确定性扫描;报告里再 AI 解释)。归档打开时可用。
             Button(L10n.text("menu.sensitiveFiles")) { model?.presentSensitiveFileReport() }
                 .disabled(!isArchiveOpen)
