@@ -2109,6 +2109,17 @@
 "releaseCompare.fileLevel" = "파일 수준 비교";
 "releaseCompare.fileLevel.missing" = "두 아카이브가 모두 디스크에 남아 있어야 합니다.";
 "dirAudit.menu" = "릴리스 디렉터리 검사…";
+"quickVerify.menu" = "릴리스 모음 빠른 확인";
+"quickVerify.verifiable" = "검증 가능한 릴리스 모음으로 보입니다.";
+"quickVerify.notVerifiable" = "아직 완전한 검증 가능한 릴리스 모음이 아닙니다.";
+"quickVerify.present" = "%@ — 있음";
+"quickVerify.absent" = "%@ — 없음";
+"quickVerify.component.artifact" = "다운로드 결과물(.dmg / .zip)";
+"quickVerify.component.checksums" = "SHA256SUMS 체크섬";
+"quickVerify.component.container" = "서명된 .szs 컨테이너";
+"quickVerify.component.publicKey" = "공개 키(PUBLIC_KEY.asc)";
+"quickVerify.component.verifyDoc" = "검증 안내(VERIFY.md)";
+"quickVerify.note" = "어떤 파일이 있는지 빠르게 확인합니다. 실제 해시와 서명을 검증하려면 '릴리스 디렉터리 검사'를 사용하세요.";
 "dirAudit.title" = "릴리스 디렉터리 검사";
 "dirAudit.taskTitle" = "릴리스 디렉터리 %@ 검사 중";
 "dirAudit.summary" = "실패 %1$@개, 경고 %2$@개";

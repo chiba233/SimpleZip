@@ -1191,6 +1191,17 @@
 "releaseCompare.fileLevel.missing" = "Both archives must still exist on disk.";
 /* 0.4.4 #11 release directory audit */
 "dirAudit.menu" = "Check Release Directory…";
+"quickVerify.menu" = "Quick Verify Release Group";
+"quickVerify.verifiable" = "Looks like a verifiable release group.";
+"quickVerify.notVerifiable" = "Not a complete verifiable release group yet.";
+"quickVerify.present" = "%@ — present";
+"quickVerify.absent" = "%@ — missing";
+"quickVerify.component.artifact" = "Downloadable artifact (.dmg / .zip)";
+"quickVerify.component.checksums" = "SHA256SUMS checksums";
+"quickVerify.component.container" = "Signed .szs container";
+"quickVerify.component.publicKey" = "Public key (PUBLIC_KEY.asc)";
+"quickVerify.component.verifyDoc" = "Verification instructions (VERIFY.md)";
+"quickVerify.note" = "A quick look at which files are present. Use Check Release Directory to verify the actual hashes and signature.";
 "dirAudit.title" = "Release Directory Check";
 "dirAudit.taskTitle" = "Checking release directory %@";
 "dirAudit.summary" = "%1$@ failures, %2$@ warnings";

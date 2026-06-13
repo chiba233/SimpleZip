@@ -2108,6 +2108,17 @@
 "releaseCompare.fileLevel" = "การเปรียบเทียบระดับไฟล์";
 "releaseCompare.fileLevel.missing" = "ไฟล์เก็บถาวรทั้งสองต้องยังอยู่บนดิสก์";
 "dirAudit.menu" = "ตรวจสอบโฟลเดอร์รีลีส…";
+"quickVerify.menu" = "ตรวจสอบชุดรีลีสอย่างรวดเร็ว";
+"quickVerify.verifiable" = "ดูเหมือนเป็นชุดรีลีสที่ตรวจสอบได้";
+"quickVerify.notVerifiable" = "ยังไม่ใช่ชุดรีลีสที่ตรวจสอบได้ครบถ้วน";
+"quickVerify.present" = "%@ — มี";
+"quickVerify.absent" = "%@ — ขาด";
+"quickVerify.component.artifact" = "ไฟล์ที่ดาวน์โหลดได้ (.dmg / .zip)";
+"quickVerify.component.checksums" = "เช็กซัม SHA256SUMS";
+"quickVerify.component.container" = "คอนเทนเนอร์ .szs ที่ลงนาม";
+"quickVerify.component.publicKey" = "กุญแจสาธารณะ (PUBLIC_KEY.asc)";
+"quickVerify.component.verifyDoc" = "คำแนะนำการตรวจสอบ (VERIFY.md)";
+"quickVerify.note" = "ดูอย่างรวดเร็วว่ามีไฟล์ใดบ้าง หากต้องการตรวจสอบแฮชและลายเซ็นจริง ให้ใช้ ตรวจสอบโฟลเดอร์รีลีส";
 "dirAudit.title" = "การตรวจสอบโฟลเดอร์รีลีส";
 "dirAudit.taskTitle" = "กำลังตรวจสอบโฟลเดอร์รีลีส %@";
 "dirAudit.summary" = "ล้มเหลว %1$@ รายการ คำเตือน %2$@ รายการ";

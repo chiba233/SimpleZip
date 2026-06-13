@@ -59,4 +59,47 @@ import Testing
         inventory.others = ["notes.txt"]
         #expect(ReleaseDirectoryAudit.orphans(in: inventory) == ["notes.txt"])
     }
+
+    // MARK: - Quick Verify(#44)
+
+    @Test func quickVerifyArtifactPlusChecksumsIsVerifiable() {
+        let inventory = ReleaseDirectoryAudit.classify(names: ["MyApp.zip", "SHA256SUMS"], isArchiveName: isArchive)
+        let summary = ReleaseDirectoryAudit.quickVerify(inventory)
+        #expect(summary.hasArtifact == true)
+        #expect(summary.hasChecksums == true)
+        #expect(summary.isVerifiable == true)
+        #expect(summary.hasPublicKey == false)
+    }
+
+    @Test func quickVerifyContainerPlusChecksumsIsVerifiable() {
+        // 只有 .szs 容器(无裸产物)+ SHA256SUMS 也算可校验。
+        let inventory = ReleaseDirectoryAudit.classify(names: ["MyApp.szs", "SHA256SUMS"], isArchiveName: isArchive)
+        let summary = ReleaseDirectoryAudit.quickVerify(inventory)
+        #expect(summary.hasArtifact == false)
+        #expect(summary.hasContainer == true)
+        #expect(summary.isVerifiable == true)
+    }
+
+    @Test func quickVerifyArtifactWithoutChecksumsIsNotVerifiable() {
+        let inventory = ReleaseDirectoryAudit.classify(names: ["MyApp.zip"], isArchiveName: isArchive)
+        let summary = ReleaseDirectoryAudit.quickVerify(inventory)
+        #expect(summary.hasArtifact == true)
+        #expect(summary.hasChecksums == false)
+        #expect(summary.isVerifiable == false)
+    }
+
+    @Test func quickVerifyEmptyDirectoryIsAllFalse() {
+        let summary = ReleaseDirectoryAudit.quickVerify(ReleaseDirectoryAudit.Inventory())
+        #expect(summary == ReleaseDirectoryAudit.QuickVerifySummary(
+            hasArtifact: false, hasContainer: false, hasChecksums: false, hasPublicKey: false, hasVerifyDoc: false))
+        #expect(summary.isVerifiable == false)
+    }
+
+    @Test func quickVerifyDetectsFullSignedDelivery() {
+        let inventory = ReleaseDirectoryAudit.classify(
+            names: ["MyApp.szs", "SHA256SUMS", "PUBLIC_KEY.asc", "VERIFY.md"], isArchiveName: isArchive)
+        let summary = ReleaseDirectoryAudit.quickVerify(inventory)
+        #expect(summary.hasContainer && summary.hasChecksums && summary.hasPublicKey && summary.hasVerifyDoc)
+        #expect(summary.isVerifiable == true)
+    }
 }

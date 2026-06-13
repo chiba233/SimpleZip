@@ -950,6 +950,53 @@ extension ArchiveBrowserModel {
         runReleaseDirectoryAudit(directory)
     }
 
+    /// 右键文件夹「快速核对发布组」(#44):**只看文件名**、瞬时判断 产物 / .szs / SHA256SUMS /
+    /// 公钥 / 验证文档 是否组成完整发布组。不实测哈希、不验签(那是 `auditSelectedReleaseDirectory`
+    /// 的重型版),只读目录列举。结果复用同一份 `ReleaseDirectoryAuditReport` / 视图,不另造 UI。
+    func quickVerifyReleaseGroup() {
+        guard let directory = selectedFileItems.first(where: { $0.isDirectory && !$0.isPackage })?.url else {
+            errorMessage = L10n.text("error.openOrSelectArchive")
+            return
+        }
+        Task { @MainActor in
+            // 目录列举(可能慢)放后台;classify / quickVerify 是纯字符串、回主 actor 即时算。
+            let names = await Task.detached(priority: .userInitiated) {
+                (try? FileManager.default.contentsOfDirectory(atPath: directory.path)) ?? []
+            }.value
+            let inventory = ReleaseDirectoryAudit.classify(names: names) { name in
+                ArchiveService.isSupportedArchive(directory.appendingPathComponent(name))
+            }
+            let summary = ReleaseDirectoryAudit.quickVerify(inventory)
+            releaseDirectoryAuditReport = ReleaseDirectoryAuditReport(
+                directoryURL: directory,
+                findings: Self.quickVerifyFindings(summary)
+            )
+        }
+    }
+
+    /// QuickVerifySummary → 复用 `ReleaseDirectoryAuditFinding`(同一报告视图渲染)。头条给「能否被校验」,
+    /// 再逐项列发布组成员在不在;末尾说明这是「只看在不在」的速查,要逐个核对哈希 / 验签走「检查发布目录…」。
+    private static func quickVerifyFindings(_ summary: ReleaseDirectoryAudit.QuickVerifySummary) -> [ReleaseDirectoryAuditFinding] {
+        func component(_ present: Bool, _ nameKey: String, absent: ReleaseDirectoryAuditFinding.Severity) -> ReleaseDirectoryAuditFinding {
+            ReleaseDirectoryAuditFinding(
+                severity: present ? .pass : absent,
+                message: L10n.format(present ? "quickVerify.present" : "quickVerify.absent", L10n.text(nameKey))
+            )
+        }
+        return [
+            ReleaseDirectoryAuditFinding(
+                severity: summary.isVerifiable ? .pass : .warning,
+                message: L10n.text(summary.isVerifiable ? "quickVerify.verifiable" : "quickVerify.notVerifiable")
+            ),
+            component(summary.hasArtifact || summary.hasContainer, "quickVerify.component.artifact", absent: .warning),
+            component(summary.hasChecksums, "quickVerify.component.checksums", absent: .warning),
+            component(summary.hasContainer, "quickVerify.component.container", absent: .info),
+            component(summary.hasPublicKey, "quickVerify.component.publicKey", absent: .info),
+            component(summary.hasVerifyDoc, "quickVerify.component.verifyDoc", absent: .info),
+            ReleaseDirectoryAuditFinding(severity: .info, message: L10n.text("quickVerify.note")),
+        ]
+    }
+
     private func runReleaseDirectoryAudit(_ directory: URL) {
         var findings: [ReleaseDirectoryAuditFinding] = []
         startManagedArchiveTask(

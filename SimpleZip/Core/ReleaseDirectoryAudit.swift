@@ -93,4 +93,29 @@ nonisolated enum ReleaseDirectoryAudit {
     static func orphans(in inventory: Inventory) -> [String] {
         inventory.others
     }
+
+    // MARK: - Quick Verify(#44:只看文件名的瞬时发布组核对)
+
+    /// 发布组「组成」速览 —— 纯靠清点(不读内容、不实测哈希、不验签)。
+    /// 是「检查发布目录…」重型版的轻量入口:只回答「该有的文件在不在」。
+    struct QuickVerifySummary: Equatable {
+        let hasArtifact: Bool       // .dmg / .zip 等可下载产物
+        let hasContainer: Bool      // .szs / .siz 签名容器
+        let hasChecksums: Bool      // SHA256SUMS
+        let hasPublicKey: Bool      // PUBLIC_KEY.asc(随包公钥)
+        let hasVerifyDoc: Bool      // VERIFY*.md
+
+        /// 下载者能否校验完整性:有产物或容器、且有 SHA256SUMS。
+        var isVerifiable: Bool { (hasArtifact || hasContainer) && hasChecksums }
+    }
+
+    static func quickVerify(_ inventory: Inventory) -> QuickVerifySummary {
+        QuickVerifySummary(
+            hasArtifact: !inventory.artifacts.isEmpty,
+            hasContainer: !inventory.containers.isEmpty,
+            hasChecksums: !inventory.checksumFiles.isEmpty,
+            hasPublicKey: !inventory.publicKeys.isEmpty,
+            hasVerifyDoc: !inventory.verifyDocs.isEmpty
+        )
+    }
 }

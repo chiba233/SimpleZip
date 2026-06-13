@@ -2110,6 +2110,17 @@
 "releaseCompare.fileLevel" = "檔案層級比較";
 "releaseCompare.fileLevel.missing" = "兩個封存檔都必須仍存在於磁碟上。";
 "dirAudit.menu" = "檢查發佈目錄…";
+"quickVerify.menu" = "快速核對發佈組";
+"quickVerify.verifiable" = "看起來是一個可驗證的發佈組。";
+"quickVerify.notVerifiable" = "還不是完整的可驗證發佈組。";
+"quickVerify.present" = "%@ —— 已包含";
+"quickVerify.absent" = "%@ —— 缺少";
+"quickVerify.component.artifact" = "可下載產物（.dmg / .zip）";
+"quickVerify.component.checksums" = "SHA256SUMS 校驗檔案";
+"quickVerify.component.container" = "簽署 .szs 容器";
+"quickVerify.component.publicKey" = "公鑰（PUBLIC_KEY.asc）";
+"quickVerify.component.verifyDoc" = "驗證說明（VERIFY.md）";
+"quickVerify.note" = "只快速看這些檔案在不在。要逐個核對雜湊與簽章，用「檢查發佈目錄…」。";
 "dirAudit.title" = "發佈目錄檢查";
 "dirAudit.taskTitle" = "正在檢查發佈目錄 %@";
 "dirAudit.summary" = "%1$@ 項失敗、%2$@ 項警告";

@@ -2110,6 +2110,17 @@
 "releaseCompare.fileLevel" = "ファイル単位の比較";
 "releaseCompare.fileLevel.missing" = "両方のアーカイブがディスク上に存在している必要があります。";
 "dirAudit.menu" = "リリースディレクトリを確認…";
+"quickVerify.menu" = "リリース一式をクイック確認";
+"quickVerify.verifiable" = "検証可能なリリース一式のようです。";
+"quickVerify.notVerifiable" = "まだ完全に検証可能なリリース一式ではありません。";
+"quickVerify.present" = "%@ — あり";
+"quickVerify.absent" = "%@ — なし";
+"quickVerify.component.artifact" = "ダウンロード成果物（.dmg / .zip）";
+"quickVerify.component.checksums" = "SHA256SUMS チェックサム";
+"quickVerify.component.container" = "署名済み .szs コンテナ";
+"quickVerify.component.publicKey" = "公開鍵（PUBLIC_KEY.asc）";
+"quickVerify.component.verifyDoc" = "検証手順（VERIFY.md）";
+"quickVerify.note" = "どのファイルがあるかをすばやく確認します。実際のハッシュと署名を検証するには「リリースディレクトリを確認」を使ってください。";
 "dirAudit.title" = "リリースディレクトリの確認";
 "dirAudit.taskTitle" = "リリースディレクトリ %@ を確認中";
 "dirAudit.summary" = "%1$@ 件の失敗、%2$@ 件の警告";

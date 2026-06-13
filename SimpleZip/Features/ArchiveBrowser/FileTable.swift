@@ -1118,6 +1118,8 @@ struct FileNSOutlineView: NSViewRepresentable {
                 toolsMenu.addItem(menuItem(L10n.text("inspect.menu"), systemImage: "checklist", action: #selector(inspectArchiveForRelease)))
             } else if model.selectedFileItems.count == 1, let only = model.selectedFileItems.first,
                       only.isDirectory, !only.isPackage {
+                // 0.4.4 #44:单选普通文件夹 → 快速核对发布组(只看文件名,瞬时;重型核对见下一项)。
+                toolsMenu.addItem(menuItem(L10n.text("quickVerify.menu"), systemImage: "checklist", action: #selector(quickVerifyReleaseGroup)))
                 // 0.4.4 #11:单选普通文件夹 → 发布目录完整性检查(SHA256SUMS/.szs/公钥/孤儿)。
                 toolsMenu.addItem(menuItem(L10n.text("dirAudit.menu"), systemImage: "folder.badge.questionmark", action: #selector(auditReleaseDirectory)))
                 // 0.4.4 #7:体检文件夹顶层的全部归档。
@@ -1423,6 +1425,10 @@ struct FileNSOutlineView: NSViewRepresentable {
 
         @objc private func analyzeArchiveSpace() {
             model.analyzeSelectedArchiveSpace()
+        }
+
+        @objc private func quickVerifyReleaseGroup() {
+            model.quickVerifyReleaseGroup()
         }
 
         @objc private func auditReleaseDirectory() {

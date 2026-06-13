@@ -2108,6 +2108,17 @@
 "releaseCompare.fileLevel" = "Comparaison au niveau des fichiers";
 "releaseCompare.fileLevel.missing" = "Les deux archives doivent encore exister sur le disque.";
 "dirAudit.menu" = "Vérifier le dossier de version…";
+"quickVerify.menu" = "Vérification rapide du groupe de version";
+"quickVerify.verifiable" = "Semble être un groupe de version vérifiable.";
+"quickVerify.notVerifiable" = "Pas encore un groupe de version vérifiable complet.";
+"quickVerify.present" = "%@ — présent";
+"quickVerify.absent" = "%@ — manquant";
+"quickVerify.component.artifact" = "Artefact téléchargeable (.dmg / .zip)";
+"quickVerify.component.checksums" = "Sommes de contrôle SHA256SUMS";
+"quickVerify.component.container" = "Conteneur .szs signé";
+"quickVerify.component.publicKey" = "Clé publique (PUBLIC_KEY.asc)";
+"quickVerify.component.verifyDoc" = "Instructions de vérification (VERIFY.md)";
+"quickVerify.note" = "Un aperçu rapide des fichiers présents. Utilisez Vérifier le dossier de version pour vérifier les empreintes et la signature réelles.";
 "dirAudit.title" = "Vérification du dossier de version";
 "dirAudit.taskTitle" = "Vérification du dossier de version %@";
 "dirAudit.summary" = "%1$@ échecs, %2$@ avertissements";

@@ -2109,6 +2109,17 @@
 "releaseCompare.fileLevel" = "Vergleich auf Dateiebene";
 "releaseCompare.fileLevel.missing" = "Beide Archive müssen noch auf der Festplatte vorhanden sein.";
 "dirAudit.menu" = "Release-Ordner prüfen …";
+"quickVerify.menu" = "Release-Gruppe schnell prüfen";
+"quickVerify.verifiable" = "Sieht nach einer überprüfbaren Release-Gruppe aus.";
+"quickVerify.notVerifiable" = "Noch keine vollständige, überprüfbare Release-Gruppe.";
+"quickVerify.present" = "%@ — vorhanden";
+"quickVerify.absent" = "%@ — fehlt";
+"quickVerify.component.artifact" = "Herunterladbares Artefakt (.dmg / .zip)";
+"quickVerify.component.checksums" = "SHA256SUMS-Prüfsummen";
+"quickVerify.component.container" = "Signierter .szs-Container";
+"quickVerify.component.publicKey" = "Öffentlicher Schlüssel (PUBLIC_KEY.asc)";
+"quickVerify.component.verifyDoc" = "Prüfanleitung (VERIFY.md)";
+"quickVerify.note" = "Ein schneller Blick, welche Dateien vorhanden sind. Für die tatsächlichen Hashes und die Signatur „Release-Ordner prüfen“ verwenden.";
 "dirAudit.title" = "Release-Ordnerprüfung";
 "dirAudit.taskTitle" = "Release-Ordner %@ wird geprüft";
 "dirAudit.summary" = "%1$@ Fehler, %2$@ Warnungen";

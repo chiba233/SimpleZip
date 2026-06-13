@@ -1189,6 +1189,17 @@
 "releaseCompare.fileLevel.missing" = "两个归档都还在磁盘上才能比。";
 /* 0.4.4 #11 发布目录检查 */
 "dirAudit.menu" = "检查发布目录…";
+"quickVerify.menu" = "快速核对发布组";
+"quickVerify.verifiable" = "看起来是一个可校验的发布组。";
+"quickVerify.notVerifiable" = "还不是完整的可校验发布组。";
+"quickVerify.present" = "%@ —— 已包含";
+"quickVerify.absent" = "%@ —— 缺失";
+"quickVerify.component.artifact" = "可下载产物（.dmg / .zip）";
+"quickVerify.component.checksums" = "SHA256SUMS 校验文件";
+"quickVerify.component.container" = "签名 .szs 容器";
+"quickVerify.component.publicKey" = "公钥（PUBLIC_KEY.asc）";
+"quickVerify.component.verifyDoc" = "验证说明（VERIFY.md）";
+"quickVerify.note" = "只快速看这些文件在不在。要逐个核对哈希与签名，用「检查发布目录…」。";
 "dirAudit.title" = "发布目录检查";
 "dirAudit.taskTitle" = "正在检查发布目录 %@";
 "dirAudit.summary" = "%1$@ 项失败、%2$@ 项警告";

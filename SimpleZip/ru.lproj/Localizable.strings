@@ -2108,6 +2108,17 @@
 "releaseCompare.fileLevel" = "Сравнение на уровне файлов";
 "releaseCompare.fileLevel.missing" = "Оба архива должны всё ещё существовать на диске.";
 "dirAudit.menu" = "Проверить каталог выпуска…";
+"quickVerify.menu" = "Быстрая проверка набора выпуска";
+"quickVerify.verifiable" = "Похоже на проверяемый набор выпуска.";
+"quickVerify.notVerifiable" = "Пока не полный проверяемый набор выпуска.";
+"quickVerify.present" = "%@ — есть";
+"quickVerify.absent" = "%@ — отсутствует";
+"quickVerify.component.artifact" = "Загружаемый артефакт (.dmg / .zip)";
+"quickVerify.component.checksums" = "Контрольные суммы SHA256SUMS";
+"quickVerify.component.container" = "Подписанный контейнер .szs";
+"quickVerify.component.publicKey" = "Открытый ключ (PUBLIC_KEY.asc)";
+"quickVerify.component.verifyDoc" = "Инструкции по проверке (VERIFY.md)";
+"quickVerify.note" = "Быстрый просмотр, какие файлы есть. Чтобы проверить сами хеши и подпись, используйте «Проверить каталог выпуска».";
 "dirAudit.title" = "Проверка каталога выпуска";
 "dirAudit.taskTitle" = "Проверка каталога выпуска %@";
 "dirAudit.summary" = "%1$@ ошибок, %2$@ предупреждений";
