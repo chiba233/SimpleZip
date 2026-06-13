@@ -35,7 +35,17 @@ struct InlineAIAdvisory: View {
 
     @ViewBuilder
     private var content: some View {
-        if let text, !text.isEmpty {
+        // isLoading 优先:手动刷新 / 动态重跑时菊花**重新出现**(用户报「点刷新没反应」—— 之前 text 分支
+        // 抢在前面,有旧结果就永远不显示菊花)。失败时 isLoading 归 false、text 不动 → 退回展示旧结果。
+        if isLoading {
+            HStack(spacing: 6) {
+                ProgressView().controlSize(.small)
+                Text(L10n.text("ai.generating"))
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.top, 3)
+        } else if let text, !text.isEmpty {
             HStack(alignment: .top, spacing: 7) {
                 Image(systemName: "sparkles")
                     .font(.caption)
@@ -51,21 +61,16 @@ struct InlineAIAdvisory: View {
                         .foregroundStyle(.tertiary)
                 }
                 Spacer(minLength: 8)
-                // 手动重算:切了格式 / 级别想重新让 AI 看一眼,点这个。
-                Button { reloadNonce += 1 } label: {
+                // 手动重算:切了格式 / 级别想重新让 AI 看一眼,点这个。立刻置 isLoading → 菊花马上出现。
+                // 字号不设(与上方预检刷新按钮一致 —— 用户报两个刷新按钮大小不一)。
+                Button {
+                    isLoading = true
+                    reloadNonce += 1
+                } label: {
                     Image(systemName: "arrow.clockwise")
-                        .font(.caption)
                 }
                 .buttonStyle(.borderless)
                 .help(L10n.text("ai.regenerate"))
-            }
-            .padding(.top, 3)
-        } else if isLoading {
-            HStack(spacing: 6) {
-                ProgressView().controlSize(.small)
-                Text(L10n.text("ai.generating"))
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
             }
             .padding(.top, 3)
         }
