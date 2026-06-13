@@ -26,12 +26,29 @@ enum HashService {
             }
 
             let selectedAlgorithms = algorithms.isEmpty ? HashAlgorithm.allCases : algorithms
-            var results: [FileHashResult] = []
-            results.reserveCapacity(fileURLs.count)
-            for url in fileURLs {
-                try Task.checkCancellation()
-                results.append(try calculateFileHash(for: url, algorithms: selectedAlgorithms))
+            // 多文件:跨核并行哈希(每个文件是纯 CPU、硬件 crypto 的独立工作,不 spawn 进程、无共享可变状态)。
+            // 并发上限 = 性能核数:既吃满多核,又把同时打开的文件句柄数限在核数级别,避免几百文件一次性
+            // 打开撞进程 FD 上限。结果按原始(已排序)下标回填,SHA256SUMS 等输出顺序与串行版一致。
+            let limit = max(1, ProcessInfo.processInfo.activeProcessorCount)
+            let indexed = try await withThrowingTaskGroup(of: (Int, FileHashResult).self) { group -> [(Int, FileHashResult)] in
+                var collected: [(Int, FileHashResult)] = []
+                collected.reserveCapacity(fileURLs.count)
+                var next = 0
+                func submit(_ idx: Int) {
+                    let url = fileURLs[idx]
+                    group.addTask {
+                        try Task.checkCancellation()
+                        return (idx, try calculateFileHash(for: url, algorithms: selectedAlgorithms))
+                    }
+                }
+                while next < min(limit, fileURLs.count) { submit(next); next += 1 }
+                while let finished = try await group.next() {
+                    collected.append(finished)
+                    if next < fileURLs.count { submit(next); next += 1 }
+                }
+                return collected
             }
+            let results = indexed.sorted { $0.0 < $1.0 }.map { $0.1 }
             return HashReport(algorithms: selectedAlgorithms, results: results)
         }
         return try await withTaskCancellationHandler {
