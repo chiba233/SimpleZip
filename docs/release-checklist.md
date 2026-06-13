@@ -1,3 +1,5 @@
+**English** | [中文](./release-checklist.zh-CN.md)
+
 # Release Checklist
 
 Use this before tagging a SimpleZip release. The goal: every item is either
@@ -15,7 +17,7 @@ References:
 
 - [ ] `pr.yml` is passing on the latest `main` commit.
 - [ ] `swift test --scratch-path /private/tmp/SimpleZipSwiftPM` passes locally.
-      Should be ≥84 cases — fewer means tests were silently dropped.
+      Should be ≥460 `@Test` cases (swift-testing) — fewer means tests were silently dropped.
 - [ ] `xcodebuild -project SimpleZip.xcodeproj -scheme SimpleZip -configuration Debug build`
       passes locally (catches Xcode-only target issues that SwiftPM misses).
 - [ ] Tests added or updated for any new business logic in this release.
@@ -100,8 +102,12 @@ References:
       using the public key from `Info.plist`. Anything other than `OK`
       means a Sparkle-installed user on 0.1.10+ would see the
       "could not verify authenticity" alert.
-- [ ] If the workflow fails on the tag run, delete the tag (`git push --delete
-      origin v<version>`), fix on `main`, and re-tag.
+- [ ] If the workflow fails on the tag run, **do not delete or move the tag** —
+      deleting a tag flips the already-created GitHub release to *draft*, 404s the
+      public DMG URL, and points the appcast at a dead link. Tags are append-only.
+      Instead: fix forward on `main`, push, and cut the next patch tag `v<version>.1`.
+      Make sure `main` is fast-forwarded/pushed and the tag points at the right
+      commit *before* pushing it, so it never has to move.
 
 ## 7. Post-release
 

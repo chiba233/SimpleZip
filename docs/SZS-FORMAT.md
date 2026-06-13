@@ -1,10 +1,14 @@
+**English** | [中文](./SZS-FORMAT.zh-CN.md)
+
 # `.szs` Format — Signed Manifest
 
-**Status**: Draft for 0.1.9 → 0.1.10 implementation. Cryptographic decisions
-are deliberately small and conservative; format-level decisions are framed so
-the wire format can stay stable while UI / verification report iterates.
-
-[English] · 本文档暂未提供中文翻译，待 v0.1.10 稳定后补译
+**Status**: Shipped and stable. The format landed in 0.1.10; the manifest is now
+at schema **version 2** (v1 still accepted — v2 added the optional `instructions`
+field for the Secure Bundle work, #110). Cryptographic decisions are deliberately
+small and conservative; the wire format stays stable while the UI / verification
+report iterates. This file is the authoritative wire-format spec — read it (and
+`SECURITY.md`'s container-format section) before touching any wrap / unwrap /
+verify logic.
 
 ---
 
@@ -172,7 +176,7 @@ under which the files referenced by `files[].relativePath` live.
 
 ```
 SZSArchive.verify(manifestURL:, payloadRoot:)
-  → SZSVerifyReport
+  → VerifyReport
 ```
 
 Steps:
@@ -192,7 +196,7 @@ Steps:
 5. **Aggregate into report.**
 
 ```swift
-struct SZSVerifyReport {
+struct VerifyReport {
     let signature: GPGBackend.GPGVerifyResult   // reuse existing type
     let manifest: Manifest                       // decoded
     let entries: [Entry]                         // one per files[]
@@ -211,7 +215,7 @@ struct SZSVerifyReport {
         let mismatched: Int
         let missing: Int
         let unreadable: Int
-        var allOk: Bool { mismatched == 0 && missing == 0 && unreadable == 0 }
+        var allFilesOk: Bool { mismatched == 0 && missing == 0 && unreadable == 0 }
     }
 }
 ```
@@ -252,10 +256,10 @@ encryption).
 SZSArchive.create(
     payloadRoot:,
     files: [URL],
-    signingKey: String,
+    signingKeyFingerprint: String?,
     title: String?,
     description: String?,
-    recipients: [String]?,    // nil = no encryption (clearsigned only)
+    encryptionRecipients: [String] = [],   // empty = no encryption (clearsigned only)
     outputURL: URL
 ) async throws
 ```
@@ -380,7 +384,7 @@ mismatched / missing entries are flagged immediately.
 | Signature target         | `metadata.json` (in tar)              | The manifest JSON itself (clearsigned)          |
 | Signature carrier        | `signature.asc` inside tar            | Inline with the manifest (clearsign block)      |
 | Encryption               | `archive.<ext>.gpg` (encrypt payload, v3) | Out of scope for v1 — use `.siz` v3 instead     |
-| Verification entry point | `SIZArchive.verify(unwrap:)`           | `SZSArchive.verify(manifest:, payloadRoot:)`    |
+| Verification entry point | `SIZArchive.verify(unwrap:)`           | `SZSArchive.verify(manifestURL:, payloadRoot:)` |
 | UI mode                  | Archive browser                       | New `signedManifest` browser mode               |
 | Strong fingerprint check | v2+, in metadata                      | Planned for v2                                  |
 
@@ -388,29 +392,31 @@ mismatched / missing entries are flagged immediately.
 
 ## Implementation phases
 
-Tracking against task IDs:
+All phases below shipped (the format went live in 0.1.10; the `instructions`
+field / Secure Bundle support arrived with #110). Recorded here as the as-built
+map — actual file names, not the design-time guesses:
 
-- **#24 part 1** (this document) — design doc, no code.
-- **#24 part 2** — `SZSArchive.swift` (Core target): `Manifest`, `create`,
-  `verify`, path validation. Pure functions; testable from SwiftPM.
-- **#24 part 3** — `GPGBackend.clearsign` + `GPGBackend.verifyClearsign` if
-  not already present; reuse `GPGBackend.encrypt` / `decrypt` from `.siz`
-  v3 work (#27).
-- **#24 part 4** — `Features/SignedManifest/SignedManifestView.swift`:
-  new browser mode. `Features/SignedManifest/SZSVerificationReportView.swift`:
-  the per-file table. L10n.
-- **#24 part 5** — Create flow: a new "Create Signed Manifest…" entry in
-  the File menu + sheet (select root + files + signing key + optional
-  recipients).
-- **#24 part 6** — File association registration for `.szs` UTI; Finder
-  Sync extension entry.
-
-Parts 2-3 are SwiftPM-testable and should land first. Parts 4-6 are app-target
-and should each be a small focused PR / commit.
+- **#24 part 1** (this document) — design doc.
+- **#24 part 2** — `Core/SZSArchive.swift`: `Manifest`, `create`, `verify`, path
+  validation. Pure functions, covered by `Tests/SimpleZipCoreTests` (SwiftPM).
+- **#24 part 3** — `GPGBackend.clearsign` / `verifyClearsign`, reusing the
+  `GPGBackend` encrypt / decrypt path from the `.siz` work.
+- **#24 part 4** — `Features/SignedManifest/SZSVerificationSheet.swift` (the
+  per-file verification report) + the `.signedManifest` browser mode. `.siz`
+  extract reuses `Features/ExternalExtract/SIZSignatureSheet.swift`. L10n in
+  en / zh-Hans.
+- **#24 part 5** — create flow: `Features/SignedManifest/CreateSZSSheet.swift` +
+  a "Create Signed Manifest…" entry in the File menu (select root + files +
+  signing key + optional recipients).
+- **#24 part 6** — `.szs` UTI / file-association registration and Finder
+  integration.
 
 ---
 
-## Open questions for review
+## Design questions (resolved as shipped)
+
+These were open at design time. The shipped format resolved them as the answers
+below describe; kept here for rationale.
 
 1. **Sidecar `.szs` or inline `.szs` per directory?** This doc assumes
    inline: `release.szs` sits in the directory whose files it covers. An
@@ -442,5 +448,6 @@ and should each be a small focused PR / commit.
    compared against the manifest's claim. Likely v2 — keep v1 minimal and
    uncontroversial.
 
-Reviewer: leave comments inline on this doc or open an issue tagged
-`format/szs`.
+The wire format is now stable; changes to it must keep v1 / v2 bytes decodable
+and go through `SECURITY.md`'s container-format section. File issues against new
+format ideas tagged `format/szs`.

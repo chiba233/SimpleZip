@@ -1,88 +1,109 @@
-# 超大文件拆分计划(0.3.3 整理)
+**English** | [中文](./REFACTORING.zh-CN.md)
 
-> 目的:把 900+ 行的文件拆成单一职责的小文件,让 review / 定位 / AI 协作都不再翻千行。
-> 本文是**计划**,不是已完成项 —— 动手前先读「执行纪律」。
+# Large-File Split Plan (0.3.3 cleanup)
 
-## 执行纪律(每一刀都遵守)
+> Goal: break the 900+ line files into single-responsibility smaller files, so review / navigation / AI collaboration
+> no longer have to scroll through a thousand lines.
+> This document is a **plan**, not a completed item — read "Execution Discipline" before you start.
 
-1. **纯移动优先**:第一刀永远是「把整块代码原样搬去新文件」,零行为变更;改进留给第二刀。
-2. **一次一个文件**:一个 commit 只拆一个文件,构建 + 250+ 测试全过才动下一个。
-3. **访问级别最小放宽**:跨文件后 `private` 才升 `internal`,并在声明处注释为什么。
-4. **新 Core 文件必须登记 `Package.swift` 的 `sources` 清单**(显式列表,漏了 SwiftPM 直接编译失败 —— xip 已踩过)。
-5. **别混功能**:拆分 commit 里不顺手修 bug、不顺手改 UI(A10/A14)。
-6. 历史先例可参考:GPGBackend(#82)、ArchiveExtractionCoordinator(#83)、ExternalExtractWindow(#84)、ArchiveBrowserModel(#86)、ActivityView → ActivityTaskRow(0.3.3,`f01814f`)。
+## Execution Discipline (follow on every cut)
 
-## 现状(2026-06-11,从大到小)
+1. **Pure move first**: the first cut is always "move the whole block of code into a new file as-is", with zero behavior
+   change; improvements are left for the second cut.
+2. **One file at a time**: a commit splits only one file, and the build + 250+ tests must all pass before touching the
+   next one.
+3. **Minimal access-level relaxation**: only promote `private` to `internal` after it crosses a file boundary, and
+   comment at the declaration why.
+4. **New Core files must be registered in the `sources` list of `Package.swift`** (an explicit list; missing one makes
+   SwiftPM fail to compile outright — xip already hit this).
+5. **Don't mix features**: don't sneak a bug fix or a UI change into a split commit (A10/A14).
+6. Historical precedents for reference: GPGBackend (#82), ArchiveExtractionCoordinator (#83), ExternalExtractWindow
+   (#84), ArchiveBrowserModel (#86), ActivityView → ActivityTaskRow (0.3.3, `f01814f`).
 
-| 文件 | 行数 | 状态 |
+## Current State (2026-06-13, largest to smallest)
+
+> ⚠️ This split plan is **not yet executed**. Since the last snapshot, most large files have continued to grow and a few
+> new oversized files have appeared (the table below is refreshed to the current line counts); `FileTable`'s inline
+> rename has already been extracted to `FileTableEditing.swift`, but the main file still exceeds 1800 lines. The split
+> recipes (P1–P4) remain valid; when resuming, work cut by cut following the "Suggested Cadence" below.
+
+| File | Lines | Status |
 |---|---:|---|
-| Features/ArchiveBrowser/FileTable.swift | 1349 | 🔴 待拆(P1) |
-| Core/AppPreferences.swift | 1203 | 🟡 待拆(P2) |
-| ArchiveBrowserModel+CreateExtract.swift | 1078 | 🟡 待拆(P3) |
-| Features/Welcome/WelcomeAssistantView.swift | 1051 | 🟡 待拆(P4) |
-| App/ContentView.swift | 1036 | 🟡 已有任务 #87/#92 |
-| Features/Settings/Panes/GPGPane.swift | 978 | 🟡 已有任务 #96 |
-| ArchiveBrowserModel+FileOps.swift | 970 | 🟡 已有任务 #101 |
-| Features/ArchiveBrowser/ArchiveTable.swift | 956 | 🟢 低优先 |
-| ArchiveCreationOptionsView.swift | 864 | 🟢 低优先 |
-| ArchiveExtractionCoordinator.swift | 814 | 🟢 0.3.0 已拆过一轮 |
+| Features/ArchiveBrowser/FileTable.swift | 1824 | 🔴 To split (P1); FileTableEditing already extracted |
+| ArchiveBrowserModel+TestHashBenchmark.swift | 1774 | 🟡 New large file (test / hashing / benchmark — three responsibilities) |
+| ArchiveBrowserModel+CreateExtract.swift | 1622 | 🟡 To split (P3) |
+| App/ContentView.swift | 1543 | 🟡 Already has tasks #87/#92 |
+| ArchiveBrowserModel+FileOps.swift | 1457 | 🟡 Already has task #101 |
+| Features/Welcome/WelcomeAssistantView.swift | 1423 | 🟡 To split (P4) |
+| Features/Settings/Panes/GPGPane.swift | 1383 | 🟡 Already has task #96 |
+| Core/AppPreferences.swift | 1334 | 🟡 To split (P2) |
+| ArchiveCreationOptionsView.swift | 1228 | 🟢 Low priority |
+| Features/ArchiveBrowser/ArchiveTable.swift | 875 | 🟢 Partially split (ArchiveColumn moved out) |
+| ArchiveExtractionCoordinator.swift | 847 | 🟢 Already split once in 0.3.0 |
 
-阈值参考:>900 行必拆;600–900 行看内聚度;<600 行不动。
+Threshold reference: >900 lines must be split; 600–900 lines depends on cohesion; <600 lines leave alone.
 
-## 各文件拆法
+## Per-File Split Recipes
 
-### P1 — FileTable.swift(1349 行)
+### P1 — FileTable.swift (1349 lines)
 
-一个文件里住着四种职责。拆成同目录四个文件,全部纯移动:
+Four responsibilities live in one file. Split into four files in the same directory, all pure moves:
 
-| 新文件 | 内容 | 预估行数 |
+| New file | Contents | Estimated lines |
 |---|---|---:|
-| `FileTable.swift`(保留) | SwiftUI View + representable + Coordinator 的数据源/选区/列管理 | ~450 |
-| `FileTableMenu.swift` | `menuNeedsUpdate` 起的整个右键菜单构建 + 全部 `@objc` action(`extension FileTable.Coordinator`) | ~420 |
-| `FileTableDragDrop.swift` | 拖出(file promise / sourceOperationMask)+ 拖入(validateDrop / acceptDrop / 缓存)(`extension`) | ~220 |
-| `FileTableEditing.swift` | 内联重命名(textField delegate / Esc 取消 / 提交) | ~180 |
+| `FileTable.swift` (kept) | SwiftUI View + representable + the Coordinator's data source / selection / column management | ~450 |
+| `FileTableMenu.swift` | The entire context-menu construction starting at `menuNeedsUpdate` + all `@objc` actions (`extension FileTable.Coordinator`) | ~420 |
+| `FileTableDragDrop.swift` | Drag-out (file promise / sourceOperationMask) + drag-in (validateDrop / acceptDrop / caching) (`extension`) | ~220 |
+| `FileTableEditing.swift` | Inline rename (textField delegate / Esc cancel / commit) | ~180 |
 
-风险:Coordinator 的 `private` 成员被 extension 引用 → 升 internal;菜单里引用的辅助计算属性要跟菜单一起走。
+Risk: the Coordinator's `private` members are referenced by the extension → promote to internal; the helper computed
+properties referenced by the menu must move together with the menu.
 
-### P2 — AppPreferences.swift(1203 行)
+### P2 — AppPreferences.swift (1203 lines)
 
-三段式,天然可拆:
+Three sections, naturally splittable:
 
-| 新文件 | 内容 |
+| New file | Contents |
 |---|---|
-| `AppPreferences.swift`(保留) | `Key` 常量表 + defaults 句柄 + 基础读写 |
-| `AppPreferences+Accessors.swift` | 各域 getter/setter(列开关 / 启动位置 / GPG / 活动中心 …) |
-| `AppPreferences+Backup.swift` | `exportableUserDefaultsKeys` / `exportableSnapshot` / `exportablePayload` / `importPayload` / 恢复默认 |
+| `AppPreferences.swift` (kept) | The `Key` constant table + defaults handle + basic read/write |
+| `AppPreferences+Accessors.swift` | Per-domain getters/setters (column toggles / launch location / GPG / Activity Center …) |
+| `AppPreferences+Backup.swift` | `exportableUserDefaultsKeys` / `exportableSnapshot` / `exportablePayload` / `importPayload` / restore defaults |
 
-⚠️ 三处都在 SwiftPM target,`Package.swift` sources 要同步加两行。
-⚠️ 备份相关测试(PreferencesPayloadCodecTests)是这块的回归网,拆完必跑。
+⚠️ All three are in the SwiftPM target; the `Package.swift` sources must be updated to add two lines.
+⚠️ The backup-related test (PreferencesPayloadCodecTests) is the regression net for this area — run it after splitting.
 
-### P3 — ArchiveBrowserModel+CreateExtract.swift(1078 行)
+### P3 — ArchiveBrowserModel+CreateExtract.swift (1078 lines)
 
-按动词分家:`+Create.swift`(创建对话框编排 / performCreateArchive / 添加文件进归档)与
-`+Extract.swift`(解压编排 / 安全检查前置 / siz·szs 特化路径)。两块共享的小工具
-(目标路径计算等)先复制判断:只有双方都用才放 `+CreateExtractShared.swift`,避免为两行代码开第三个文件。
+Split by verb: `+Create.swift` (create-dialog orchestration / performCreateArchive / adding files into an archive) and
+`+Extract.swift` (extraction orchestration / safety-check preamble / siz·szs specialized paths). For the small shared
+utilities (target-path computation, etc.), copy and judge first: only put them in `+CreateExtractShared.swift` if both
+sides actually use them, to avoid opening a third file for two lines of code.
 
-### P4 — WelcomeAssistantView.swift(1051 行)
+### P4 — WelcomeAssistantView.swift (1051 lines)
 
-容器(分页 / 进度 / footer / hero)留在主文件;11 个 `Welcome*Step` 子视图按页搬进
-`Welcome/Steps/` 目录(每页一个文件,2–3 个 step 同文件)。`WelcomeStepShell` 升 internal 共享。
+The container (paging / progress / footer / hero) stays in the main file; the 11 `Welcome*Step` subviews move by page
+into the `Welcome/Steps/` directory (one file per page, with 2–3 steps in the same file). `WelcomeStepShell` is promoted
+to internal for sharing.
 
-### 已挂任务编号的(执行时直接领任务)
+### Already Assigned Task Numbers (pick up the task directly when executing)
 
-- **#87/#92** ContentView:sheet 路由表外移成 `ContentSheetRouter`,外部打开(URL scheme / NSService)路由外移。
-- **#96** GPGPane:抽 `GPGPaneModel`(状态 + 动作编排),View 只剩渲染。
-- **#101** FileOps → `FileOperationController`(0.3.0 #86 的阶段 3,分操作族搬 + 手测)。
-- **#91** ArchiveTransferModels 挪 Tasks/ 或 Core/。
+- **#87/#92** ContentView: move the sheet routing table out into `ContentSheetRouter`, and move the external-open
+  (URL scheme / NSService) routing out.
+- **#96** GPGPane: extract `GPGPaneModel` (state + action orchestration), leaving the View with only rendering.
+- **#101** FileOps → `FileOperationController` (phase 3 of 0.3.0's #86, moving by operation family + manual testing).
+- **#91** ArchiveTransferModels move to Tasks/ or Core/.
 
-### 低优先(理由)
+### Low Priority (with reasons)
 
-- `ArchiveTable.swift` 956 行:其中 ~170 行是 `ArchiveColumn` enum(四个 switch),挪去
-  `ArchiveColumn.swift` 与 FileColumn 对称即可,其余 Coordinator 内聚度尚可。
-- `ArchiveCreationOptionsView.swift` 864 行:刚做完 #115 模板消费,等功能稳定再拆 7z 高级区。
-- `ArchiveExtractionCoordinator.swift` 814 行:0.3.0 拆过一轮,剩余是冲突 UI + 安全流程,内聚。
+- `ArchiveTable.swift` 956 lines: ~170 of those are the `ArchiveColumn` enum (four switches); just move them to
+  `ArchiveColumn.swift` symmetric with FileColumn — the rest of the Coordinator's cohesion is acceptable.
+- `ArchiveCreationOptionsView.swift` 864 lines: just finished #115 template consumption; wait for the feature to
+  stabilize before splitting the 7z advanced section.
+- `ArchiveExtractionCoordinator.swift` 814 lines: split once in 0.3.0; what remains is the conflict UI + safety flow,
+  which is cohesive.
 
-## 建议节奏
+## Suggested Cadence
 
-每个 0.3.x 里塞 1–2 刀(跟功能 commit 分开),P1 → P2 → P3 → P4 → 编号任务。
-全部做完后预期:仓库不再有 >900 行的 Swift 文件,Features 层单文件均值 < 400 行。
+Fit 1–2 cuts into each 0.3.x (separate from feature commits), in order P1 → P2 → P3 → P4 → the numbered tasks.
+After all are done, the expectation is: the repository no longer has any Swift file over 900 lines, and the per-file
+average in the Features layer is < 400 lines.

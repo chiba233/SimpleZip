@@ -1,3 +1,5 @@
+**English** | [中文](./ARCHITECTURE.zh-CN.md)
+
 # SimpleZip Architecture Notes
 
 SimpleZip is a native macOS app with a SwiftUI/AppKit UI shell and a command-line backend layer. The project has grown
@@ -10,16 +12,17 @@ beyond a small ZIP wrapper, so this document records the ownership boundaries be
 
 The boundaries below have been extracted — this section reflects the shipped layout, not a plan:
 
-- `ArchiveBrowserModel` is the UI-facing state model, split by domain into 10 files under
+- `ArchiveBrowserModel` is the UI-facing state model, split by domain into 12 files under
   `Features/ArchiveBrowser/ArchiveBrowserModel/` (a base plus `+Navigation`, `+Loading`, `+CreateExtract`, `+FileOps`,
-  `+OperationLifecycle`, `+Sort`, `+SafetyPassword`, `+SZSAndDiskImage`, `+TestHashBenchmark`).
+  `+OperationLifecycle`, `+Sort`, `+SafetyPassword`, `+SZSAndDiskImage`, `+GPG`, `+Undo`, `+TestHashBenchmark`).
 - `ArchiveSession`, `FileBrowserService`, and `ArchiveOperationRunner` have been extracted from the model and live in
   `Features/ArchiveBrowser/`. Do not push backend or filesystem ownership back into `ArchiveBrowserModel`.
 - `ArchiveService` is the backend facade/router (`ArchiveService.swift` + `+Arguments` + `+Parsing`). It dispatches to
   the per-format backends in `Core/Backends/`.
 - The backend split is done: `Core/Backends/` holds the `ArchiveBackend` protocol plus `SevenZipBackend`,
-  `NativeZipBackend`, `RarBackend`, `DiskImageBackend`, and `GPGBackend`. `BackendProcessRunner` wraps subprocess spawn,
-  output capture, and cancellation.
+  `NativeZipBackend`, `RarBackend`, `DiskImageBackend`, `XIPBackend`, and `GPGBackend` (itself split into per-concern
+  extension files: `+Discovery`, `+Keyring`, `+KeyManagement`, `+KeyLifecycle`, `+KeyCreation`, `+Keyserver`,
+  `+CryptoOperations`, `+Parsing`). `BackendProcessRunner` wraps subprocess spawn, output capture, and cancellation.
 - `ArchiveExtractionCoordinator` separates merge/conflict behavior from raw backend extraction.
 - `TemporaryResourceManager` owns temporary directories used for opening archive entries outside the app.
 - SwiftPM target `SimpleZipCore` exposes testable core logic (the files listed in `Package.swift`'s `sources:`). Xcode
@@ -87,6 +90,7 @@ Owns temporary resources with predictable cleanup:
 - `NativeZipBackend` (also covers tar via the system `tar`)
 - `RarBackend`
 - `DiskImageBackend`
+- `XIPBackend` (Apple-signed `.xip`, via Apple's own `xip` tool, which verifies the signature)
 - `GPGBackend`
 
 This split keeps backend preference, sandbox helpers, version-specific behavior, and compatibility testing out of one

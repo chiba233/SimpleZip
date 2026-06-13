@@ -1,35 +1,40 @@
-# SimpleZip 开发指南
+**English** | [中文](./DEVELOPMENT.zh-CN.md)
 
-> 这份文档是 SimpleZip 的「代码地图 + 上手手册」。项目已经从一个小 ZIP 壳长到 100+ 个 Swift 文件、十几个子系统，
-> 这份指南的目标是：**让任何人（包括三个月后的你自己）能在 10 分钟内找到「某个功能的代码在哪、改它要碰哪几层、改完怎么验证」。**
+# SimpleZip Development Guide
+
+> This document is SimpleZip's "code map + onboarding handbook". The project has grown from a small ZIP shell into
+> 250+ Swift files and a dozen-odd subsystems, and the goal of this guide is: **let anyone (including yourself three
+> months from now) find, within 10 minutes, "where the code for a given feature lives, which layers you have to touch to
+> change it, and how to verify the change".**
 >
-> 配套文档分工：
-> - **本文**：上手、构建、代码地图、分层、加功能的流程。
-> - [`docs/ARCHITECTURE.md`](ARCHITECTURE.md)：所有权边界（谁该持有什么状态）和重构原则。
-> - [`CONTRIBUTING.md`](../CONTRIBUTING.md)：对外贡献者的精简版上手。
-> - [`CLAUDE.md`](../CLAUDE.md) / `AGENTS.md` / `gemini.md`：**强约束规则**（A1–A12）。改代码前必须遵守，本文不重复抄，只指路。
-> - [`SECURITY.md`](../SECURITY.md) / [`docs/SZS-FORMAT.md`](SZS-FORMAT.md)：`.siz` / `.szs` 签名容器的密码学设计。改 wrap/unwrap/verify 前必读。
-> - [`docs/release-checklist.md`](release-checklist.md)：发版流程。
+> Companion docs, divided by role:
+> - **This doc**: onboarding, building, the code map, layering, and the workflow for adding a feature.
+> - [`docs/ARCHITECTURE.md`](./ARCHITECTURE.md): ownership boundaries (who should hold what state) and refactoring principles.
+> - [`CONTRIBUTING.md`](../CONTRIBUTING.md): the condensed onboarding for outside contributors.
+> - [`CLAUDE.md`](../CLAUDE.md) / `AGENTS.md` / `gemini.md`: the **hard rules** (A1–A22). They must be obeyed before changing code; this doc does not copy them, it only points to them.
+> - [`SECURITY.md`](../SECURITY.md) / [`docs/SZS-FORMAT.md`](./SZS-FORMAT.md): the cryptographic design of the `.siz` / `.szs` signed containers. Required reading before changing wrap/unwrap/verify.
+> - [`docs/release-checklist.md`](./release-checklist.md): the release process.
 
 ---
 
-## 1. 它是什么
+## 1. What it is
 
-SimpleZip 是一个原生 macOS 压缩档案管理器，Swift + SwiftUI/AppKit 写的。底层用命令行后端（`7zz` / 系统 `zip`/`tar`/`unzip` /
-`rar` / `hdiutil` / `gpg`）干活，上层是 SwiftUI 界面。
+SimpleZip is a native macOS archive manager, written in Swift + SwiftUI/AppKit. The heavy lifting is done by command-line
+backends (`7zz` / system `zip`/`tar`/`unzip` / `rar` / `hdiutil` / `gpg`), with a SwiftUI interface on top.
 
-部署目标 **macOS 13.0+**。不要用需要更高系统版本的 SwiftUI API。
+Deployment target **macOS 13.0+**. Do not use SwiftUI APIs that require a higher system version.
 
 ---
 
-## 2. 环境、构建、测试
+## 2. Environment, build, test
 
-需要 Xcode（`DEVELOPER_DIR` 指向 `/Applications/Xcode.app`）。可选 `brew install sevenzip` 提供系统 `7zz`，但仓库里
-`SimpleZip/Tools/7zz` 已经自带一份打包用的后端。
+You need Xcode (`DEVELOPER_DIR` pointing at `/Applications/Xcode.app`). Optionally `brew install sevenzip` provides a
+system `7zz`, but the repo already ships a bundled backend at `SimpleZip/Tools/7zz` for packaging.
 
-下面是**权威命令**，和 [`CLAUDE.md`](../CLAUDE.md) 的「Verification Requirements」一字不差，按这个跑：
+The following are the **authoritative commands**, identical word-for-word to the "Verification Requirements" in
+[`CLAUDE.md`](../CLAUDE.md); run them exactly like this:
 
-### SwiftPM 核心测试（改 `SimpleZip/Core` 必跑）
+### SwiftPM core tests (required when changing `SimpleZip/Core`)
 
 ```bash
 /usr/bin/env DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer /usr/bin/xcrun swift test \
@@ -37,7 +42,7 @@ SimpleZip 是一个原生 macOS 压缩档案管理器，Swift + SwiftUI/AppKit �
   -Xswiftc -module-cache-path -Xswiftc /private/tmp/SimpleZipSwiftPM/ModuleCache
 ```
 
-### Xcode Debug 构建（改 App / Features / 资源 / 本地化 / 工程设置 必跑）
+### Xcode Debug build (required when changing App / Features / assets / localization / project settings)
 
 ```bash
 /usr/bin/env DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer /usr/bin/xcodebuild \
@@ -45,293 +50,338 @@ SimpleZip 是一个原生 macOS 压缩档案管理器，Swift + SwiftUI/AppKit �
   -derivedDataPath /private/tmp/SimpleZipDerivedData build
 ```
 
-### 本地化 strings 语法自检
+### Localization strings syntax check
 
 ```bash
 plutil -lint SimpleZip/*.lproj/Localizable.strings Info.plist
 ```
 
-> 工程文件是仓库根目录的 `SimpleZip.xcodeproj`（不是 `SimpleZip/SimpleZip.xcodeproj`）。`Info.plist` 在仓库根目录。
-> 两个 scheme：`SimpleZip`（App）、`SimpleZipCoreTests`（在 Xcode 里跑同一套 SwiftPM 测试）。
+> The project file is `SimpleZip.xcodeproj` at the repo root (not `SimpleZip/SimpleZip.xcodeproj`). `Info.plist` is at the
+> repo root. Two schemes: `SimpleZip` (the App) and `SimpleZipCoreTests` (runs the same SwiftPM test suite inside Xcode).
 
-### 该跑哪个？（验证矩阵）
+### Which one do I run? (verification matrix)
 
-| 改了什么 | 跑什么 |
+| What you changed | What to run |
 |---|---|
-| 只动 `SimpleZip/Core` 纯逻辑 | SwiftPM 核心测试 |
-| App UI / Features / 菜单 / 资源 / 本地化 / Info.plist / entitlements / 工程或构建设置 | SwiftPM 测试 **+** Xcode Debug 构建 |
-| 只动文档（`*.md`） | 都不跑（除非文档内容依赖某条新命令的真实结果） |
+| Only `SimpleZip/Core` pure logic | SwiftPM core tests |
+| App UI / Features / menus / assets / localization / Info.plist / entitlements / project or build settings | SwiftPM tests **+** Xcode Debug build |
+| Only docs (`*.md`) | Neither (unless the doc content depends on the real result of some new command) |
 
-**Lint 工具：未配置。** 业务改动的最终回复里要照实写「lint 未配置」，不要编造 lint 结果。
+**Lint tool: not configured.** A business change's final response must state, truthfully, "lint not configured"; do not
+fabricate a lint result.
 
 ---
 
-## 3. 仓库地图（顶层）
+## 3. Repository map (top level)
 
 ```
-SimpleZip.xcodeproj/        Xcode 工程（App 单 target；Finder 右键集成走 macOS NSServices）
-Package.swift               SwiftPM：只编 SimpleZipCore 这一个库 target
-SimpleZip/                  App 全部源码 + 资源 + 本地化
-  Core/                     可被 SwiftPM 测试的纯逻辑（见 §4、§5）
-  App/                      App 生命周期、主窗口外壳
-  Features/                 各功能子系统的 UI + 协调逻辑
-  Tools/7zz                 打包用的 7-Zip 后端二进制
-  *.lproj/                  10 种语言的 Localizable.strings
+SimpleZip.xcodeproj/        Xcode project (single App target; Finder right-click integration goes through macOS NSServices)
+Package.swift               SwiftPM: builds only the one library target, SimpleZipCore
+SimpleZip/                  All App source + assets + localization
+  Core/                     Pure logic testable by SwiftPM (see §4, §5)
+  App/                      App lifecycle, main-window shell
+  Features/                 UI + coordination logic for each feature subsystem
+  Tools/7zz                 Bundled 7-Zip backend binary for packaging
+  *.lproj/                  Localizable.strings for 10 languages
   Assets.xcassets, AppIcon.icns
-Tests/SimpleZipCoreTests/   SwiftPM 测试 + Fixtures/ 预录二进制档案
-Tools/                      （根目录）后端工具
+Tests/SimpleZipCoreTests/   SwiftPM tests + Fixtures/ pre-recorded binary archives
+Tools/                      (root) backend tools
 scripts/                    build_unsigned_dmg.sh / install_rar_backend.sh / verify_appcast.sh
-docs/                       本文 + ARCHITECTURE / SZS-FORMAT / release-checklist / appcast.xml
-Info.plist                  App 的 Info.plist（根目录）
+docs/                       this doc + ARCHITECTURE / REFACTORING / SZS-FORMAT / release-checklist / appcast.xml
+Info.plist                  the App's Info.plist (root)
 ```
 
-根目录的 Markdown：`README.md`、`CHANGELOG.md` + `CHANGELOG.zh-CN.md`（**每次业务改动都要同时更新两份**）、
-`GUIDE.zh-CN.md`（用户向）、`SECURITY.md` + `SECURITY.zh-CN.md`、`CONTRIBUTING.md`、`CLAUDE.md`/`AGENTS.md`/`gemini.md`。
+Root-level Markdown: `README.md`, `CHANGELOG.md` + `CHANGELOG.zh-CN.md` (**both must be updated on every business
+change**), `GUIDE.zh-CN.md` (user-facing), `SECURITY.md` + `SECURITY.zh-CN.md`, `CONTRIBUTING.md`,
+`CLAUDE.md`/`AGENTS.md`/`gemini.md`.
 
 ---
 
-## 4. 分层架构
+## 4. Layered architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  SimpleZip/App         App 入口、主窗口外壳、外部打开队列、Sparkle   │
+│  SimpleZip/App         App entry, main-window shell, external-open queue, Sparkle   │
 ├─────────────────────────────────────────────────────────────┤
-│  SimpleZip/Features    各功能的 SwiftUI 视图 + 协调器（UI 层）       │
+│  SimpleZip/Features    Each feature's SwiftUI views + coordinators (UI layer)       │
 │    ArchiveBrowser  ArchiveOperations  Settings  SignedManifest │
 │    Welcome  Hashing  Benchmark  About  ExternalExtract         │
 ├─────────────────────────────────────────────────────────────┤
-│  SimpleZip/Core        纯逻辑：模型 / 选项 / 解析 / 安全 / 后端       │  ← SwiftPM 可测
+│  SimpleZip/Core        Pure logic: models / options / parsing / safety / backends   │  ← SwiftPM-testable
 │    Backends/  ArchiveService  AppPreferences  L10n  SIZ/SZS ... │
 ├─────────────────────────────────────────────────────────────┤
-│  命令行后端             7zz · zip/tar/unzip · rar · hdiutil · gpg  │
+│  Command-line backends 7zz · zip/tar/unzip · rar · hdiutil · gpg  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### SwiftPM vs Xcode 边界（很重要）
+### SwiftPM vs Xcode boundary (very important)
 
-`Package.swift` 的 `SimpleZipCore` target **只**编 `SimpleZip/Core/` 下显式列出的那 24 个文件（见 Package.swift 的 `sources:`）。
-App UI、`Features/`、`App/`、资源、本地化、`Tools/` 统统被 `exclude` 掉了。
+The `SimpleZipCore` target in `Package.swift` builds **only** the 66 files explicitly listed under `SimpleZip/Core/`
+(see the `sources:` in Package.swift). App UI, `Features/`, `App/`, assets, localization, and `Tools/` are all
+`exclude`-d.
 
-含义：
-- **能搬进 `Core` 的纯逻辑就搬进去**——这样它能被 SwiftPM 测试覆盖。命令参数构造、路径规范化、解析、安全判定、临时资源行为最该住在这里。
-- 在 `Core` 新增文件，**必须同步加到 `Package.swift` 的 `sources:` 列表**，否则 SwiftPM target 编不到它，测试也看不到。
-- UI 层（`Features`/`App`）改动用 Xcode 构建验证，SwiftPM 测不到。
-- Xcode 16 用的是 file-system synchronized groups，所以**新增/删除 `.swift` 文件一般不用改 `project.pbxproj`**（文件系统即真相）。
-
----
-
-## 5. 代码地图：按子系统找文件
-
-下面是「我要改 X，去哪个文件」的速查。路径都相对仓库根。
-
-### 5.1 档案后端（7z / zip / tar / rar / dmg）
-
-- `SimpleZip/Core/Backends/ArchiveBackend.swift` — 后端协议（`list()` / `test()`）。
-- `SimpleZip/Core/Backends/SevenZipBackend.swift` — `7zz`/`7z`，自带 + 系统二进制发现、版本解析。
-- `SimpleZip/Core/Backends/NativeZipBackend.swift` — 系统 `unzip`/`zip`/`tar`（不支持 AES 加密 zip，转交 7zz）。
-- `SimpleZip/Core/Backends/RarBackend.swift` — `rar`，用户安装 / 系统发现 + 安装脚本协调。
-- `SimpleZip/Core/Backends/DiskImageBackend.swift` — DMG 用 `hdiutil` 挂载/卸载。
-- `SimpleZip/Core/ArchiveService.swift` — **后端门面/路由**。按格式把 list/test/extract/create 分发给具体后端，处理密码安全检查和取消。改后端入口先看这里。
-- `SimpleZip/Core/ArchiveService+Arguments.swift` — 命令行参数构造（zip/7z/rar/tar 的 flag）。**改参数从这里改，且尽量加测试断言生成的确切参数。**
-- `SimpleZip/Core/ArchiveService+Parsing.swift` — list 输出解析、路径拆解、给 UI 用的合成目录树。
-- `SimpleZip/Core/BackendProcessRunner.swift` — 子进程封装（spawn / 抓输出 / 按 operationID 取消）。所有后端都走它。**禁止 shell 字符串拼接，参数走 `Process.arguments`。**
-
-### 5.2 主浏览器：`ArchiveBrowserModel` 及其拆分
-
-`ArchiveBrowserModel` 是 UI 面向的状态中枢，已经按域拆成一个目录下的 10 个文件
-（`SimpleZip/Features/ArchiveBrowser/ArchiveBrowserModel/`）：
-
-- `ArchiveBrowserModel.swift` — 基类 / 共享状态。
-- `+Navigation.swift` — 前进后退栈、面包屑、目录展开。
-- `+Loading.swift` — 从后端拉 item、填充 session、刷新 UI。
-- `+CreateExtract.swift` — 创建/解压编排、临时文件清理。
-- `+FileOps.swift` — 复制/移动/删除/重命名。
-- `+OperationLifecycle.swift` — task 生命周期、取消、进度。
-- `+Sort.swift` — 列排序。
-- `+SafetyPassword.swift` — 密码提示流、Keychain 查找、缓存密码。
-- `+SZSAndDiskImage.swift` — `.szs` 验签、DMG 挂载/卸载。
-- `+TestHashBenchmark.swift` — 完整性测试、哈希、7z benchmark。
-
-从 Model 抽出去的三个服务（**别再往 Model 塞后端/文件系统所有权**，见 ARCHITECTURE.md）：
-
-- `SimpleZip/Features/ArchiveBrowser/ArchiveSession.swift` — 一个已打开档案的状态（URL、当前路径、item 列表、合成目录）。
-- `SimpleZip/Features/ArchiveBrowser/FileBrowserService.swift` — 本地文件系统逻辑（列目录、Finder 标签、自动补全）。
-- `SimpleZip/Features/ArchiveBrowser/ArchiveOperationRunner.swift` — 长任务调度（同一时刻一个操作、新任务自动取消旧的、取消传到子进程）。
-
-主窗口 UI 同目录：`ContentView`（在 `App/`）、`TopBar.swift`、`Sidebar.swift`、`StatusBar.swift`、
-`FileTable.swift`、`ArchiveTable.swift`、`TableSupport.swift`、`BrowserNavigation.swift`。
-
-> 列可见性现在走顶层「视图」菜单（`SimpleZipApp.swift` 注册 commands）+ 表头右键 inline 开关
-> （`TableSupport.swift` 的 `makeColumnHeaderMenu`），不再在 Settings 里。这是 0.2.0「Group By / Sort By」的落点。
-
-### 5.3 创建 / 解压对话框
-
-`SimpleZip/Features/ArchiveOperations/`：
-
-- `ArchiveCreationOptionsView.swift` — 创建对话框（格式、压缩级别、加密、排除规则、分卷）。
-- `ExtractArchiveOptionsView.swift` / `ExtractSelectionOptionsView.swift` / `ExtractOptionsForm.swift` — 解压对话框 + 共享表单控件。
-- `ArchiveExtractionCoordinator.swift` — 解压编排（安全检查 → 密码提示 → 选后端 → 进度 → 合并/冲突处理）。
-
-选项模型在 Core：`ArchiveOperationOptions.swift`、`ArchiveModels.swift`。
-
-### 5.4 GPG（签名 / 加密 / 解密 / 密钥管理）
-
-- `SimpleZip/Core/Backends/GPGBackend.swift` — GnuPG CLI 集成：列密钥、导入、`--detach-sign`、`--status-fd` 验签 +
-  强 fingerprint 比对、`--encrypt -r` / 解密。**SimpleZip 不管理 GPG 私钥 passphrase，交给 `gpg-agent`**——错误文案/发布说明要持续强调这点（见 MEMORY）。
-- `SimpleZip/Features/Settings/Panes/GPGPane.swift` — 密钥管理 GUI，强分区「我的密钥 / 他人公钥」，生成/导入/改有效期/吊销/改 passphrase。
-- 相关 sheet：`AddUserIDSheet` / `NewGPGKeySheet` / `ChangePassphraseSheet` / `EditExpirationSheet` / `GenerateRevocationSheet`（都在 `Settings/Panes/`）。
-
-> **GPG 可见性是硬约束（A4）**：`AppPreferences.gpgEnabled == false` 时，主界面所有 GPG 入口必须**完全不渲染**（不是禁用），
-> 唯一例外是 Settings 面板本身和「从 Finder 打开 `.siz`」这一刚需路径。检查要 `gpgEnabled && GPGBackend.isAvailable()`，不能只看后端是否安装。
-
-### 5.5 `.siz` / `.szs` 签名容器
-
-- `SimpleZip/Core/SIZArchive.swift` — `.siz`：把 `archive.<ext> + metadata.json + signature.asc` 打成一个 tar。**它只是个 tar 壳，不是新后端（A5）**：
-  打开走 `unwrap → verify → model.openArchive(...)`，解压走 `unwrap → verify → 现有 ExtractArchiveOptionsView 多渲染一行签名`。别造平行的「SIZ 浏览/解压流程」。
-- `SimpleZip/Core/SZSArchive.swift` — `.szs`：GPG clearsigned JSON 清单，列多个文件的 SHA256，用于发布分发。
-- UI：`SimpleZip/Features/SignedManifest/CreateSZSSheet.swift`、`SZSVerificationSheet.swift`；`.siz` 解压签名行在
-  `SimpleZip/Features/ExternalExtract/SIZSignatureSheet.swift`。
-- **改 wrap/unwrap/verify 前必读 [`docs/SZS-FORMAT.md`](SZS-FORMAT.md) 和 `SECURITY.md` 的容器格式章节。**
-
-### 5.6 偏好（AppPreferences）+ 导入/导出
-
-- `SimpleZip/Core/AppPreferences.swift` — 所有用户偏好（语言、启动位置、覆盖行为、预设密码、安全策略、后端选择、GPG 开关…），敏感值进 Keychain。
-- `SimpleZip/Core/PresetPasswordStore.swift` — 预设密码 Keychain 存储。
-- `SimpleZip/Core/PreferencesPayloadCodec.swift` — 导入/导出 JSON 编解码 + schema 版本校验。
-  > 导入语义是「patch / 合并」，**不是「还原备份」**（见已修 bug #21）。Keychain 写失败不能被缓存伪装成成功（bug #22）。
-- UI：`SimpleZip/Features/Settings/Panes/BackupPane.swift`（含恢复默认）。
-
-### 5.7 Settings 面板
-
-`SimpleZip/Features/Settings/`：外壳 `SettingsView.swift` + `SettingsPane.swift` + `SettingsNavigation.swift` +
-共享控件 `SettingsRowComponents.swift`。各分页在 `Settings/Panes/`：`GeneralPane`、`ArchivePane`、`BrowserPane`、
-`FileAssociationsPane`、`GPGPane`、`BackupPane`、`HealthPane`，以及后端选择 section
-`SevenZipBackendSection` / `RarBackendSection`。
-
-> 加设置项是「现有 pane 里加一行 Form row」，不是新开 card / 新建平行 sheet（**A1 / A2**）。
-
-### 5.8 健康检查 / 诊断
-
-- `SimpleZip/Features/Settings/Panes/HealthPane.swift` + `HealthCheck.swift` — 首启动/设置里的健康面板（后端可用性、文件关联、7zz/RAR/GPG 状态）。
-- `SimpleZip/Core/OperationDiagnosticsReporter.swift` — 组装诊断报告（后端版本、系统信息），有测试覆盖。
-- `SimpleZip/Features/ArchiveBrowser/DiagnosticsCopier.swift` — 一键复制诊断到剪贴板。
-
-### 5.9 欢迎向导 / Sparkle 更新 / Finder 集成 / 其它
-
-- `SimpleZip/Features/Welcome/WelcomeAssistantView.swift` — 首启动多步向导（备份检查、版本检查、语言、启动位置、默认值、预设密码、Finder 自动解压、安全策略、后端检查）。
-- `SimpleZip/App/SparkleUpdater.swift` — Sparkle EdDSA 签名更新（feed = `docs/appcast.xml`）。签名步骤见 `release.yml` 和 `scripts/verify_appcast.sh`。
-- `SimpleZip/App/AppDelegate.swift` + `ExternalFileOpenQueue.swift` — 处理 Finder 自动解压 / 「用 SimpleZip 打开」的外部文件队列；Finder 右键集成的 `@objc` NSServices 处理方法（添加到压缩包 / 计算哈希 / 解压 / 创建 ZIP·7z·TAR.GZ）也在这里，声明见 `Info.plist` 的 `NSServices`、标题见各 `*.lproj/ServicesMenu.strings`。
-- `SimpleZip/Core/L10n.swift` — 本地化 helper（按语言选 bundle，回退到 en）。
-- `SimpleZip/Core/TemporaryResourceManager.swift` — 临时资源生命周期（启动清理残留、每次打开隔离目录）。
-- `SimpleZip/Features/Hashing/` — 哈希；`Benchmark/` — 7z benchmark；`About/AboutPanel.swift` — 关于面板。
+Implications:
+- **Move pure logic that can live in `Core` into `Core`** — that way it gets covered by SwiftPM tests. Command-argument
+  construction, path normalization, parsing, safety decisions, and temporary-resource behavior most belong here.
+- When adding a file in `Core`, **you must also add it to the `sources:` list in `Package.swift`**, otherwise the SwiftPM
+  target won't compile it and the tests won't see it.
+- UI-layer (`Features`/`App`) changes are verified with an Xcode build; SwiftPM can't test them.
+- Xcode 16 uses file-system synchronized groups, so **adding/removing a `.swift` file usually doesn't require editing
+  `project.pbxproj`** (the file system is the source of truth).
 
 ---
 
-## 6. 一次「打开档案 → 浏览 → 解压」走过哪几层
+## 5. Code map: finding files by subsystem
 
-帮你建立心智模型（找 bug 时按这条链往下追）：
+Below is the "I want to change X, which file do I go to" quick reference. All paths are relative to the repo root.
 
-1. 用户拖入/双击档案 → `ContentView` / `AppDelegate`（外部文件走 `ExternalFileOpenQueue`）。
-2. `ArchiveBrowserModel+Loading` 调 `ArchiveService.list(...)`。
-3. `ArchiveService` 按格式选 `Core/Backends/` 里的后端 → `BackendProcessRunner` spawn 子进程（如 `7zz l`）。
-4. `ArchiveService+Parsing` 解析输出成 `ArchiveItem` + 合成目录树 → 存进 `ArchiveSession`。
-5. `ArchiveTable` 渲染；`+Navigation` 处理进出目录。
-6. 解压：`+CreateExtract` → `ArchiveExtractionCoordinator`（`ArchiveSafety` 做路径穿越/符号链接等安全检查 →
-   按需 `+SafetyPassword` 弹密码 → 选后端 → `BackendProcessRunner` 跑 → 进度回 `ArchiveOperationRunner`）。
-7. 临时产物注册到 `TemporaryResourceManager`，退出/操作完成时清理。
+### 5.1 Archive backends (7z / zip / tar / rar / dmg)
+
+- `SimpleZip/Core/Backends/ArchiveBackend.swift` — the backend protocol (`list()` / `test()`).
+- `SimpleZip/Core/Backends/SevenZipBackend.swift` — `7zz`/`7z`, with bundled + system binary discovery and version parsing.
+- `SimpleZip/Core/Backends/NativeZipBackend.swift` — system `unzip`/`zip`/`tar` (no AES-encrypted-zip support, defers to 7zz).
+- `SimpleZip/Core/Backends/RarBackend.swift` — `rar`, with user-installed / system discovery + install-script coordination.
+- `SimpleZip/Core/Backends/DiskImageBackend.swift` — DMG mount/unmount via `hdiutil`.
+- `SimpleZip/Core/ArchiveService.swift` — the **backend facade/router**. Dispatches list/test/extract/create to the
+  concrete backend by format, handles password safety checks and cancellation. Start here when changing a backend entry point.
+- `SimpleZip/Core/ArchiveService+Arguments.swift` — command-line argument construction (zip/7z/rar/tar flags). **Change
+  arguments here, and try to add tests asserting the exact arguments generated.**
+- `SimpleZip/Core/ArchiveService+Parsing.swift` — list-output parsing, path splitting, the synthesized directory tree for the UI.
+- `SimpleZip/Core/BackendProcessRunner.swift` — subprocess wrapper (spawn / capture output / cancel by operationID). All
+  backends go through it. **No shell string concatenation; arguments go through `Process.arguments`.**
+
+### 5.2 The main browser: `ArchiveBrowserModel` and its splits
+
+`ArchiveBrowserModel` is the UI-facing state hub, already split by domain into 12 files in one directory
+(`SimpleZip/Features/ArchiveBrowser/ArchiveBrowserModel/`):
+
+- `ArchiveBrowserModel.swift` — base class / shared state.
+- `+Navigation.swift` — forward/back stack, breadcrumbs, directory expansion.
+- `+Loading.swift` — pull items from the backend, populate the session, refresh the UI.
+- `+CreateExtract.swift` — create/extract orchestration, temporary-file cleanup.
+- `+FileOps.swift` — copy/move/delete/rename.
+- `+OperationLifecycle.swift` — task lifecycle, cancellation, progress.
+- `+Sort.swift` — column sorting.
+- `+SafetyPassword.swift` — password-prompt flow, Keychain lookup, cached passwords.
+- `+SZSAndDiskImage.swift` — `.szs` verification, DMG mount/unmount.
+- `+GPG.swift` — orchestration of `.gpg` file decrypt/encrypt/sign operations (gated by `gpgEnabled`).
+- `+Undo.swift` — undo/redo snapshots and replay for file operations.
+- `+TestHashBenchmark.swift` — integrity test, hashing, 7z benchmark.
+
+The three services extracted out of the Model (**don't push more backend/filesystem ownership back into the Model**,
+see ARCHITECTURE.md):
+
+- `SimpleZip/Features/ArchiveBrowser/ArchiveSession.swift` — the state of one opened archive (URL, current path, item list, synthesized directory).
+- `SimpleZip/Features/ArchiveBrowser/FileBrowserService.swift` — local filesystem logic (list directories, Finder tags, autocomplete).
+- `SimpleZip/Features/ArchiveBrowser/ArchiveOperationRunner.swift` — long-task scheduling (one operation at a time, a new task auto-cancels the old, cancellation propagates to the subprocess).
+
+Main-window UI in the same directory: `ContentView` (in `App/`), `LocationBar.swift` (the address bar), `Sidebar.swift`,
+`StatusBar.swift`, `FileTable.swift` (+ `FileTableEditing.swift` inline rename), `ArchiveTable.swift`,
+`ArchiveColumn.swift` / `FileColumn.swift` (column definitions), `TableSupport.swift`, `BrowserNavigation.swift`,
+`FolderWatcher.swift` (FSEvents folder watching).
+
+> Column visibility now goes through the top-level "View" menu (`SimpleZipApp.swift` registers the commands) + the inline
+> header right-click toggles (`makeColumnHeaderMenu` in `TableSupport.swift`), no longer in Settings. This is where the
+> 0.2.0 "Group By / Sort By" work landed.
+
+### 5.3 Create / extract dialogs
+
+`SimpleZip/Features/ArchiveOperations/`:
+
+- `ArchiveCreationOptionsView.swift` — the create dialog (format, compression level, encryption, exclusion rules, split volumes).
+- `ExtractArchiveOptionsView.swift` / `ExtractSelectionOptionsView.swift` / `ExtractOptionsForm.swift` — the extract dialogs + shared form controls.
+- `ArchiveExtractionCoordinator.swift` — extract orchestration (safety check → password prompt → backend selection → progress → merge/conflict handling).
+
+The option models live in Core: `ArchiveOperationOptions.swift`, `ArchiveModels.swift`.
+
+### 5.4 GPG (sign / encrypt / decrypt / key management)
+
+- `SimpleZip/Core/Backends/GPGBackend.swift` and its 8 extension files (`+Discovery` / `+Keyring` / `+KeyManagement` /
+  `+KeyLifecycle` / `+KeyCreation` / `+Keyserver` / `+CryptoOperations` / `+Parsing`), `GPGModels.swift` — GnuPG CLI
+  integration: list keys, import, `--detach-sign`, `--status-fd` verification + strong fingerprint comparison, ownertrust
+  parsing, `--encrypt -r` / decrypt, keyserver search/publish. **SimpleZip does not manage GPG private-key passphrases;
+  that's left to `gpg-agent`** — error copy / release notes must keep emphasizing this.
+- `SimpleZip/Features/Settings/Panes/GPGPane.swift` — the key-management GUI, with a strong split between "My keys / Others' public keys", generate/import/change-expiration/revoke/change-passphrase.
+- Related sheets: `AddUserIDSheet` / `NewGPGKeySheet` / `ChangePassphraseSheet` / `EditExpirationSheet` / `GenerateRevocationSheet` (all in `Settings/Panes/`).
+
+> **GPG visibility is a hard constraint (A4)**: when `AppPreferences.gpgEnabled == false`, every GPG entry point on the
+> main interface must be **entirely unrendered** (not just disabled). The only exceptions are the Settings pane itself and
+> the essential "open `.siz` from Finder" path. The check must be `gpgEnabled && GPGBackend.isAvailable()`, not just
+> whether the backend is installed.
+
+### 5.5 `.siz` / `.szs` signed containers
+
+- `SimpleZip/Core/SIZArchive.swift` — `.siz`: packs `archive.<ext> + metadata.json + signature.asc` into a single tar.
+  **It's only a tar shell, not a new backend (A5)**: open goes `unwrap → verify → model.openArchive(...)`, extract goes
+  `unwrap → verify → the existing ExtractArchiveOptionsView renders one extra signature row`. Don't build a parallel "SIZ
+  browse/extract flow".
+- `SimpleZip/Core/SZSArchive.swift` — `.szs`: a GPG clearsigned JSON manifest listing the SHA256 of multiple files, for release distribution.
+- UI: `SimpleZip/Features/SignedManifest/CreateSZSSheet.swift`, `SZSVerificationSheet.swift`; the `.siz` extract signature row is in
+  `SimpleZip/Features/ExternalExtract/SIZSignatureSheet.swift`.
+- **Before changing wrap/unwrap/verify, read [`docs/SZS-FORMAT.md`](./SZS-FORMAT.md) and the container-format section of `SECURITY.md`.**
+
+### 5.6 Preferences (AppPreferences) + import/export
+
+- `SimpleZip/Core/AppPreferences.swift` — all user preferences (language, startup location, overwrite behavior, preset password, safety policy, backend selection, GPG toggle…); sensitive values go into the Keychain.
+- `SimpleZip/Core/PresetPasswordStore.swift` — Keychain storage for the preset password.
+- `SimpleZip/Core/PreferencesPayloadCodec.swift` — import/export JSON encode/decode + schema-version validation.
+  > Import semantics are "patch / merge", **not "restore backup"** (see fixed bug #21). A Keychain write failure must not
+  > be disguised as success by a cache (bug #22).
+- UI: `SimpleZip/Features/Settings/Panes/BackupPane.swift` (includes restore-to-defaults).
+
+### 5.7 Settings panes
+
+`SimpleZip/Features/Settings/`: the shell `SettingsView.swift` + `SettingsPane.swift` + `SettingsNavigation.swift` +
+shared control `SettingsRowComponents.swift`. The panes are in `Settings/Panes/`: `GeneralPane`, `ArchivePane`,
+`BrowserPane`, `FileAssociationsPane`, `GPGPane`, `BackupPane`, `HealthPane`, plus the backend-selection sections
+`SevenZipBackendSection` / `RarBackendSection`.
+
+> Adding a setting is "add one Form row in an existing pane", not opening a new card / building a parallel sheet (**A1 / A2**).
+
+### 5.8 Health check / diagnostics
+
+- `SimpleZip/Features/Settings/Panes/HealthPane.swift` + `HealthCheck.swift` — the health panel in first-launch / Settings (backend availability, file associations, 7zz/RAR/GPG status).
+- `SimpleZip/Core/OperationDiagnosticsReporter.swift` — assembles the diagnostic report (backend versions, system info), with test coverage.
+- `SimpleZip/Features/ArchiveBrowser/DiagnosticsCopier.swift` — one-click copy of diagnostics to the clipboard.
+
+### 5.9 Welcome wizard / Sparkle updates / Finder integration / misc
+
+- `SimpleZip/Features/Welcome/WelcomeAssistantView.swift` — the multi-step first-launch wizard (backup check, version check, language, startup location, defaults, preset password, Finder auto-extract, safety policy, backend check).
+- `SimpleZip/App/SparkleUpdater.swift` — Sparkle EdDSA-signed updates (feed = `docs/appcast.xml`). The signing step is in `release.yml` and `scripts/verify_appcast.sh`.
+- `SimpleZip/App/AppDelegate.swift` + `ExternalFileOpenQueue.swift` — handles the external-file queue for Finder auto-extract / "Open with SimpleZip"; the `@objc` NSServices handler methods for Finder right-click integration (Add to archive / Compute hash / Extract / Create ZIP·7z·TAR.GZ) are here too, declared in the `NSServices` of `Info.plist`, with titles in each `*.lproj/ServicesMenu.strings`.
+- `SimpleZip/Core/L10n.swift` — the localization helper (pick a bundle by language, fall back to en).
+- `SimpleZip/Core/TemporaryResourceManager.swift` — the temporary-resource lifecycle (clean up leftovers on launch, an isolated directory per open).
+- `SimpleZip/Features/Hashing/` — hashing; `Benchmark/` — the 7z benchmark; `About/AboutPanel.swift` — the About panel.
 
 ---
 
-## 7. 怎么加一个新功能（落地清单）
+## 6. Which layers an "open archive → browse → extract" passes through
 
-> 这一节是**流程**。具体禁令（不要重绘页面、不要 DTO 套 DTO、不要新建平行 sheet…）在 [`CLAUDE.md` 的 A1–A12](../CLAUDE.md)，
-> 那是硬规则，动手前先读，本文不重抄。
+To build your mental model (follow this chain down when chasing a bug):
 
-1. **先找现有 idiom。** grep 你要碰的文件，看相邻的 row/控件怎么写的，复用它。功能是现有架构里的一个 feature flag / 一行 `if let`，
-   不是平行子 App（A1）。能不能不新建文件？（A12：别为一行行为改动炸出 12 文件 diff。）
-2. **纯逻辑放 `Core`。** 命令参数构造、解析、安全判定、路径处理 → `SimpleZip/Core/`，并加进 `Package.swift` 的 `sources:`，
-   再写 SwiftPM 测试（命令参数要断言生成的确切 flag）。
-3. **UI 留在 `Features`**，只做展示和交互，后端/文件系统/解析下沉到 service。别在主线程跑后端进程/文件扫描/哈希。
-4. **状态变更在 main actor**，别从后台 task 改 SwiftUI 观察的状态。用户触发的 archive/文件/哈希操作要可取消。
-5. **本地化（A9 硬要求）：** 每条新用户可见字符串用 `L10n.text("some.key")`，并在 `en.lproj` **和** `zh-Hans.lproj`
-   两份手维护语言里加 key。其余 8 种语言（de/es/fr/ja/ko/ru/th/zh-Hant）自动回退到 en，发版前再补译。别硬编码英文串。
-6. **不要半挂引用（A8）：** 菜单/selector 引用的 model 方法必须同一改动里就存在（哪怕是抛 `notImplemented` 的 stub），别 check in 编不过的树。
-7. **可见性门禁是硬规则（A4）：** 主开关关掉时功能 UI 不渲染（不是禁用）。
-8. **更新两份 CHANGELOG**（`CHANGELOG.md` + `CHANGELOG.zh-CN.md`），每次业务改动当场写，不要事后攒批（见 MEMORY）。
-9. **按矩阵跑验证**（§2），最终回复照实报告：lint（未配置）/ 跑了哪个 test 或 build / 过没过 / 残留风险。
-
-### 不要碰的东西
-
-- **别手改版本号**（A6）：`project.pbxproj` 的 `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION`、`Info.plist` 的
-  `CFBundleShortVersionString` / `CFBundleVersion` 都由 CI 在构建时写。「版本号 bump」只改两份 CHANGELOG。
-- **临时目录用系统 `temporaryDirectory`**（A7）：`FileManager.default.temporaryDirectory.appendingPathComponent("SimpleZip-...-\(UUID())")`，
-  注册给 `TemporaryResourceManager` 清理。别写进项目目录或硬编码 `/tmp/foo`。
-- **别为了过测试改用户可见行为。** 测试默认不许改，详见 §8。
+1. User drags in / double-clicks an archive → `ContentView` / `AppDelegate` (external files go through `ExternalFileOpenQueue`).
+2. `ArchiveBrowserModel+Loading` calls `ArchiveService.list(...)`.
+3. `ArchiveService` picks the backend from `Core/Backends/` by format → `BackendProcessRunner` spawns the subprocess (e.g. `7zz l`).
+4. `ArchiveService+Parsing` parses the output into `ArchiveItem` + a synthesized directory tree → stores it in `ArchiveSession`.
+5. `ArchiveTable` renders; `+Navigation` handles entering/leaving directories.
+6. Extract: `+CreateExtract` → `ArchiveExtractionCoordinator` (`ArchiveSafety` does path-traversal / symlink / etc. safety
+   checks → prompt for a password via `+SafetyPassword` as needed → pick a backend → run via `BackendProcessRunner` →
+   progress flows back through `ArchiveOperationRunner`).
+7. Temporary products are registered with `TemporaryResourceManager`, cleaned up on exit / operation completion.
 
 ---
 
-## 8. 测试与 fixtures
+## 7. How to add a new feature (landing checklist)
 
-测试在 `Tests/SimpleZipCoreTests/`（SwiftPM）：
+> This section is the **workflow**. The specific prohibitions (don't redraw the page, don't stack DTOs on DTOs, don't
+> build a parallel sheet…) are in [`CLAUDE.md`'s A1–A22](../CLAUDE.md); those are the hard rules — read them before you
+> start, this doc doesn't copy them.
 
-| 文件 | 覆盖 |
+1. **Find the existing idiom first.** grep the file you're about to touch, see how neighboring rows/controls are written,
+   and reuse it. A feature is one feature flag / one `if let` line inside the existing architecture, not a parallel
+   sub-app (A1). Can you avoid creating a new file? (A12: don't blow a one-line behavior change into a 12-file diff.)
+2. **Pure logic goes in `Core`.** Command-argument construction, parsing, safety decisions, path handling →
+   `SimpleZip/Core/`, add it to `Package.swift`'s `sources:`, then write SwiftPM tests (command arguments should assert
+   the exact flags generated).
+3. **UI stays in `Features`**, doing presentation and interaction only; backend/filesystem/parsing sinks into a service.
+   Don't run a backend process / filesystem scan / hashing on the main thread.
+4. **State mutations on the main actor**; don't change SwiftUI-observed state from a background task. User-triggered
+   archive/file/hash operations must be cancelable.
+5. **Localization (A9, hard requirement):** every new user-visible string uses `L10n.text("some.key")`, and the key is
+   added to **both** the two hand-maintained languages `en.lproj` **and** `zh-Hans.lproj`. The other 8 languages
+   (de/es/fr/ja/ko/ru/th/zh-Hant) fall back to en automatically, translated before release. Don't hard-code English strings.
+6. **No half-wired references (A8):** a model method referenced by a menu/selector must exist in the same change (even a
+   stub that throws `notImplemented`); don't check in a tree that doesn't compile.
+7. **Visibility gating is a hard rule (A4):** when a master toggle is off, the feature UI doesn't render (not just disabled).
+8. **Update both CHANGELOGs** (`CHANGELOG.md` + `CHANGELOG.zh-CN.md`), written on the spot for each business change, not batched afterward.
+9. **Run verification by the matrix** (§2), and report truthfully in the final response: lint (not configured) / which test or build ran / pass or fail / residual risk.
+
+### Things not to touch
+
+- **Don't hand-edit version numbers** (A6): `project.pbxproj`'s `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` and
+  `Info.plist`'s `CFBundleShortVersionString` / `CFBundleVersion` are all written by CI at build time. A "version bump"
+  changes only the two CHANGELOGs.
+- **Use the system `temporaryDirectory` for temp dirs** (A7):
+  `FileManager.default.temporaryDirectory.appendingPathComponent("SimpleZip-...-\(UUID())")`, registered with
+  `TemporaryResourceManager` for cleanup. Don't write into the project directory or hard-code `/tmp/foo`.
+- **Don't change user-visible behavior just to pass a test.** Tests can't be changed by default, see §8.
+
+---
+
+## 8. Tests and fixtures
+
+Tests live in `Tests/SimpleZipCoreTests/` (SwiftPM, written with swift-testing, currently 50 test files and about 467
+`@Test` cases). The table below is a representative selection:
+
+| File | Coverage |
 |---|---|
-| `ArchiveServiceTests.swift` | 路由逻辑：排除模式、参数拆分、分卷大小校验、压缩级别/方法解析 |
-| `ArchiveServiceArgumentsTests.swift` | 各后端 CLI flag 生成（7z/zip/rar/tar、加密、分卷） |
-| `ArchiveServiceParsingTests.swift` | 输出解析（zip/7z list 格式、嵌套路径、目录合成） |
-| `ArchiveServiceFixtureTests.swift` | 回归：读 `Fixtures/` 里预录的真实档案 |
-| `PreferencesPayloadCodecTests.swift` | 导入/导出 JSON 编解码、schema 版本、roundtrip |
-| `OperationDiagnosticsReporterTests.swift` | 诊断报告组装 |
-| `SIZArchiveTests.swift` | `.siz` wrap/unwrap roundtrip、metadata 编码、完整性 |
-| `ArchiveOperationFeedbackTests.swift` | 子进程输出进度解析 |
+| `ArchiveServiceTests.swift` | Routing logic: exclusion patterns, argument splitting, split-volume size validation, compression level/method parsing |
+| `ArchiveServiceArgumentsTests.swift` | Per-backend CLI flag generation (7z/zip/rar/tar, encryption, split volumes) |
+| `ArchiveServiceParsingTests.swift` | Output parsing (zip/7z list formats, nested paths, directory synthesis) |
+| `ArchiveServiceFixtureTests.swift` | Regression: reading the pre-recorded real archives in `Fixtures/` |
+| `PreferencesPayloadCodecTests.swift` | Import/export JSON encode/decode, schema version, roundtrip |
+| `OperationDiagnosticsReporterTests.swift` | Diagnostic-report assembly |
+| `SIZArchiveTests.swift` | `.siz` wrap/unwrap roundtrip, metadata encoding, integrity |
+| `ArchiveOperationFeedbackTests.swift` | Progress parsing from subprocess output |
 
-`Fixtures/` 是预录的二进制档案，通过 `Bundle.module` 拿 URL（见 `Package.swift` 的 `resources: [.copy("Fixtures")]`），
-不依赖 `swift test` 的工作目录。
+`Fixtures/` are pre-recorded binary archives, accessed via `Bundle.module` for URLs (see `resources: [.copy("Fixtures")]`
+in `Package.swift`), so they don't depend on `swift test`'s working directory.
 
-**测试规则（来自 CLAUDE.md）：**
-- 默认不改单元测试。测试挂了先诊断并修**生产代码**。
-- 觉得某测试本身过时 → 先解释为什么、正确行为应该是什么，**请用户批准后**再改测试。
-- 不许为了让验证通过而弱化断言或删覆盖。
-- 优先给纯核心行为、命令参数生成、路径规范化、安全提示、冲突决策、解析、临时资源行为写测试。
+**Test rules (from CLAUDE.md):**
+- Don't change unit tests by default. When a test fails, diagnose and fix the **production code** first.
+- If you think a test itself is outdated → first explain why and what the correct behavior should be, then change the test **only after the user approves**.
+- Don't weaken assertions or remove coverage just to make verification pass.
+- Prefer writing tests for pure core behavior, command-argument generation, path normalization, safety prompts, conflict decisions, parsing, and temporary-resource behavior.
 
 ---
 
-## 9. 本地化工作流
+## 9. Localization workflow
 
-10 种语言，每种在 `SimpleZip/*.lproj/Localizable.strings`（Finder 右键服务标题另在 `SimpleZip/*.lproj/ServicesMenu.strings`）：
+10 languages, each at `SimpleZip/*.lproj/Localizable.strings` (Finder right-click service titles are separately in
+`SimpleZip/*.lproj/ServicesMenu.strings`):
 
 `en` `zh-Hans` `zh-Hant` `ja` `ko` `de` `es` `fr` `ru` `th`
 
-- **手维护两份：`en` 和 `zh-Hans`。** 新 key 当场加这两份。其余 8 种回退到 en，发版前补译。
-- 加完跑 `plutil -lint SimpleZip/*.lproj/Localizable.strings Info.plist` 验语法。
-- 改语言后 macOS 顶部菜单栏要跟随（曾是 bug #18，已修）。
+- **Two are hand-maintained: `en` and `zh-Hans`.** Add a new key to these two on the spot. The other 8 fall back to en, translated before release.
+- After adding, run `plutil -lint SimpleZip/*.lproj/Localizable.strings Info.plist` to check syntax.
+- After a language change, the macOS top menu bar must follow along (was bug #18, fixed).
 
 ---
 
-## 10. 发版
+## 10. Releasing
 
-完整流程见 [`docs/release-checklist.md`](release-checklist.md)。要点：
+See [`docs/release-checklist.md`](./release-checklist.md) for the full process. Key points:
 
-- 版本号由 CI 从 `RELEASE_VERSION` / `GITHUB_RUN_NUMBER` 写，**不手改**（A6）。
-- 「版本 bump」= 把两份 CHANGELOG 的 unreleased 条目挪到新的 `## X.Y.Z` 标题下，已发布的段落不动。
-- Sparkle 更新用 EdDSA 签名，feed 是 `docs/appcast.xml`；签名在 `release.yml` 里做，本地用 `scripts/verify_appcast.sh` 自检。
-- `.siz`/`.szs` 的密码学改动要过 `SECURITY.md` 的对应章节。
+- Version numbers are written by CI from `RELEASE_VERSION` / `GITHUB_RUN_NUMBER`, **not by hand** (A6).
+- A "version bump" = move the unreleased entries in both CHANGELOGs under a new `## X.Y.Z` heading; leave already-released sections untouched.
+- Sparkle updates are EdDSA-signed, the feed is `docs/appcast.xml`; signing is done in `release.yml`, with `scripts/verify_appcast.sh` for a local self-check.
+- Cryptographic changes to `.siz`/`.szs` must go through the corresponding section of `SECURITY.md`.
 
 ---
 
-## 11. 强约束速查（详见 CLAUDE.md A1–A12）
+## 11. Hard-rule quick reference (see CLAUDE.md A1–A22 for detail)
 
-| 编号 | 一句话 |
+| # | One line |
 |---|---|
-| A1 | 功能住进现有对话框/页面，不重绘、不开平行子 App |
-| A2 | 别堆镜像现有类型的 DTO + mapper，让现有类型直接流到消费方 |
-| A3 | 一发一收的路径别新加 `NotificationCenter` 名，用现有 `@Published` |
-| A4 | 主开关关 → 功能 UI 不渲染（不是禁用）；查 `gpgEnabled && isAvailable()` |
-| A5 | `.siz` 只是 tar 壳，别过度架构化 |
-| A6 | 不手改版本号 |
-| A7 | 用系统临时目录并清理 |
-| A8 | 不留半挂引用，提交的树必须能编译 |
-| A9 | 每条新用户可见串都要 `L10n` + en/zh-Hans 两份 key |
-| A10 | 改动对齐 scope：bug fix 改一个分支，别夹带重构 |
-| A11 | 用户指令是累积且有约束力的，违背前先问 |
-| A12 | 别炸大 diff / 别加用户没要的文件 |
+| A1 | A feature lives inside the existing dialog/page — no redraw, no parallel sub-app |
+| A2 | Don't stack DTOs that mirror existing types + a mapper; let the existing type flow straight to the consumer |
+| A3 | For a one-publisher/one-subscriber path don't add a new `NotificationCenter` name; use existing `@Published` |
+| A4 | Master toggle off → feature UI doesn't render (not disabled); check `gpgEnabled && isAvailable()` |
+| A5 | `.siz` is just a tar shell; don't over-architect it |
+| A6 | Don't hand-edit version numbers |
+| A7 | Use the system temp dir and clean up |
+| A8 | No half-wired references; the committed tree must compile |
+| A9 | Every new user-visible string needs `L10n` + keys in both en/zh-Hans |
+| A10 | Match scope: a bug fix changes one branch, don't sneak in a refactor |
+| A11 | User instructions are cumulative and binding; ask before contradicting them |
+| A12 | Don't blow up the diff / don't add files the user didn't ask for |
+| A13 | **Never rewrite git history**: no reset --hard / revert / amend / rebase / push --force / deleting or moving tags; to undo, commit forward |
+| A14 | Don't reflexively revert and rewrite; make the **smallest** change that satisfies the literal request |
+| A15 | Do only what was asked — don't guess, expand, or "improve"; if ambiguous, ask one precise question first |
+| A16 | For a "still broken" hard bug, add logs / measure first, don't ship another guess |
+| A17 | The folder-reload path is a `@Published` no-go zone (the FSEvents ~120ms storm floods the menu bar) |
+| A18 | Don't block the main thread waiting on async (App target is MainActor by default); use `RunLoop.main.run`, not `dispatchMain()` |
+| A19 | `Bundle.main` lies when invoked through a symlink (the CLI companion process must resolve the real bundle itself) |
+| A20 | Scripted bulk edits to Swift sources must anchor on long unique snippets, and build before committing |
+| A21 | A new `AppPreferences` key must be registered in both `exportableUserDefaultsKeys` and `exportableSnapshot()` |
+| A22 | CHANGELOG grouped by change type (feat/UX/bugfix/improvements/misc) then split user/developer-facing; merge into the same entry for an unreleased version |

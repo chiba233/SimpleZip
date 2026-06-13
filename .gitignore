@@ -16,7 +16,6 @@ dist-ssr
 coverage
 *.local
 .vite-ssg-temp
-AGENTS.md
 .build
 artifacts/
 
