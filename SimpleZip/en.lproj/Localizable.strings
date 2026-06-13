@@ -1176,6 +1176,28 @@
 "releaseCompare.section.hygiene" = "Release Hygiene (previous → this)";
 "releaseCompare.fileLevel" = "File-level Comparison";
 "releaseCompare.fileLevel.missing" = "Both archives must still exist on disk.";
+/* 0.4.4 #11 release directory audit */
+"dirAudit.menu" = "Check Release Directory…";
+"dirAudit.title" = "Release Directory Check";
+"dirAudit.taskTitle" = "Checking release directory %@";
+"dirAudit.summary" = "%1$@ failures, %2$@ warnings";
+"dirAudit.noChecksums" = "No SHA256SUMS in this directory — downloaders cannot verify the artifacts.";
+"dirAudit.checksumUnreadable" = "%@ could not be read.";
+"dirAudit.checksumCoverage.ok" = "%@ covers every artifact in the directory.";
+"dirAudit.checksumCoverage.uncovered" = "%@ artifacts are not listed in the checksum file:";
+"dirAudit.checksumCoverage.stale" = "%1$@ lists %2$@ files that are no longer here:";
+"dirAudit.hashes.ok" = "All %@ checksum entries verified against the actual files.";
+"dirAudit.hashes.mismatch" = "%@ files do NOT match their recorded SHA-256:";
+"dirAudit.manifest.ok" = "%1$@: all %2$@ manifest entries match the files on disk.";
+"dirAudit.manifest.problems" = "%1$@: %2$@ manifest entries mismatch, are missing or unreadable:";
+"dirAudit.manifest.unreadable" = "%@ could not be parsed.";
+"dirAudit.docRefs.ok" = "Every file mentioned in %@ is present.";
+"dirAudit.docRefs.missing" = "%1$@ mentions %2$@ files that are not in the directory:";
+"dirAudit.isolatedVerify.ok" = "%1$@ independently verifies %2$@ (clean-room keyring — a recipient can do the same).";
+"dirAudit.isolatedVerify.bad" = "%1$@ does NOT verify %2$@ — the shipped key doesn't match the signature.";
+"dirAudit.isolatedVerify.skipped" = "Public-key verification skipped (GPG disabled, or multiple keys/manifests make it ambiguous).";
+"dirAudit.orphans" = "%@ files don't belong to any known release role (artifacts, checksums, signatures, docs):";
+"dirAudit.nothingToCheck" = "Nothing here looks like release material — no artifacts, checksums or signed manifests found.";
 /* 0.4.4 #10 release gate */
 "releaseAssistant.section.gate" = "Quality Gate";
 "releaseGate.section" = "Quality Gate";

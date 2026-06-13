@@ -223,6 +223,43 @@ extension GPGBackend {
         }
     }
 
+    /// 0.4.4 #11:用**临时隔离 GNUPGHOME** 验签 —— 只导入给定的公钥文件,完全不读不写用户钥匙环。
+    /// 用途:发布目录检查站在「收件人」视角验证「随包公钥能否独立验证 .szs」。
+    /// 临时目录 0700 权限、用后即删;信任状态在隔离环里必然是 unknown —— 调用方只关心
+    /// 密码学有效性(GOODSIG),不评估 trust。
+    static func verifyClearsignWithIsolatedKey(
+        publicKeyURL: URL,
+        signedURL: URL,
+        operationID: UUID? = nil
+    ) async throws -> GPGVerifyResult {
+        let tool = try resolve()
+        let homedir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("SimpleZip-IsolatedVerify-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(
+            at: homedir,
+            withIntermediateDirectories: true,
+            attributes: [.posixPermissions: 0o700]
+        )
+        defer { try? FileManager.default.removeItem(at: homedir) }
+        let base = ["--homedir", homedir.path, "--batch", "--no-tty"]
+        // 导入失败(损坏的 .asc)直接抛 —— 「公钥文件坏了」本身就是检查结论。
+        _ = try await BackendProcessRunner.runAndCapture(
+            tool, arguments: base + ["--import", publicKeyURL.path], operationID: operationID
+        )
+        do {
+            let output = try await BackendProcessRunner.runAndCapture(
+                tool, arguments: base + ["--status-fd", "1", "--verify", signedURL.path], operationID: operationID
+            )
+            return parseStatusOutput(output, exitOk: true)
+        } catch {
+            let errorOutput = (error as? ArchiveError).flatMap { archiveError in
+                if case .commandFailed(let text) = archiveError { return text }
+                return nil
+            } ?? error.localizedDescription
+            return parseStatusOutput(errorOutput, exitOk: false)
+        }
+    }
+
     /// 从合并的 stdout/stderr 里抽明文：所有不以 `[GNUPG:] ` 开头的行就是明文。Caveat：人类可读 stderr 也会混进来，
     /// 但 stderr 的字符串都是 `gpg: …` 前缀（gpg 标准 stderr 输出格式），用 `gpg: ` 前缀也能滤掉。
     private static func extractClearsignPlaintext(from output: String) -> Data {

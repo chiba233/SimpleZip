@@ -1174,6 +1174,28 @@
 "releaseCompare.section.hygiene" = "发布卫生(上次 → 这次)";
 "releaseCompare.fileLevel" = "文件级对比";
 "releaseCompare.fileLevel.missing" = "两个归档都还在磁盘上才能比。";
+/* 0.4.4 #11 发布目录检查 */
+"dirAudit.menu" = "检查发布目录…";
+"dirAudit.title" = "发布目录检查";
+"dirAudit.taskTitle" = "正在检查发布目录 %@";
+"dirAudit.summary" = "%1$@ 项失败、%2$@ 项警告";
+"dirAudit.noChecksums" = "目录里没有 SHA256SUMS——下载者无法校验产物。";
+"dirAudit.checksumUnreadable" = "%@ 读不出来。";
+"dirAudit.checksumCoverage.ok" = "%@ 覆盖了目录里的全部产物。";
+"dirAudit.checksumCoverage.uncovered" = "%@ 个产物没有列进校验文件:";
+"dirAudit.checksumCoverage.stale" = "%1$@ 列了 %2$@ 个已经不在目录里的文件:";
+"dirAudit.hashes.ok" = "全部 %@ 条校验条目与实际文件一致。";
+"dirAudit.hashes.mismatch" = "%@ 个文件与记录的 SHA-256 不一致:";
+"dirAudit.manifest.ok" = "%1$@:全部 %2$@ 条清单条目与磁盘文件一致。";
+"dirAudit.manifest.problems" = "%1$@:%2$@ 条清单条目不一致、缺失或读不出:";
+"dirAudit.manifest.unreadable" = "%@ 解析不了。";
+"dirAudit.docRefs.ok" = "%@ 提到的文件全部在场。";
+"dirAudit.docRefs.missing" = "%1$@ 提到 %2$@ 个目录里不存在的文件:";
+"dirAudit.isolatedVerify.ok" = "%1$@ 能独立验证 %2$@(洁净钥匙环——收件人也能这么验)。";
+"dirAudit.isolatedVerify.bad" = "%1$@ 验证不了 %2$@——随包公钥与签名对不上。";
+"dirAudit.isolatedVerify.skipped" = "公钥验签已跳过(GPG 关闭,或多把公钥/多份清单无法确定配对)。";
+"dirAudit.orphans" = "%@ 个文件不属于任何已知发布角色(产物、校验、签名、文档):";
+"dirAudit.nothingToCheck" = "这里看起来没有发布材料——没有产物、校验文件或签名清单。";
 /* 0.4.4 #10 质量门 */
 "releaseAssistant.section.gate" = "质量门";
 "releaseGate.section" = "质量门";

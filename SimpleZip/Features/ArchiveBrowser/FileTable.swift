@@ -1112,6 +1112,10 @@ struct FileNSOutlineView: NSViewRepresentable {
                       only.isDirectory, only.url.pathExtension.lowercased() == "app" {
                 // #6:单选 .app 目录 → 专项发布检查(Info.plist/codesign/Gatekeeper)。
                 toolsMenu.addItem(menuItem(L10n.text("inspect.menu"), systemImage: "checklist", action: #selector(inspectArchiveForRelease)))
+            } else if model.selectedFileItems.count == 1, let only = model.selectedFileItems.first,
+                      only.isDirectory, !only.isPackage {
+                // 0.4.4 #11:单选普通文件夹 → 发布目录完整性检查(SHA256SUMS/.szs/公钥/孤儿)。
+                toolsMenu.addItem(menuItem(L10n.text("dirAudit.menu"), systemImage: "folder.badge.questionmark", action: #selector(auditReleaseDirectory)))
             }
             // #112 转换格式：选中项全是支持的归档时出现，弹格式选择 sheet 批量转换。
             if model.canConvertSelectedArchives {
@@ -1413,6 +1417,10 @@ struct FileNSOutlineView: NSViewRepresentable {
 
         @objc private func analyzeArchiveSpace() {
             model.analyzeSelectedArchiveSpace()
+        }
+
+        @objc private func auditReleaseDirectory() {
+            model.auditSelectedReleaseDirectory()
         }
 
         @objc private func findDuplicateArchives() {

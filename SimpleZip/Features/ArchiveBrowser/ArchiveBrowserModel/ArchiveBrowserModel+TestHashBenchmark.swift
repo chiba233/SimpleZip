@@ -634,6 +634,148 @@ extension ArchiveBrowserModel {
         }
     }
 
+    // MARK: - 发布目录完整性检查(0.4.4 #11)
+
+    /// 右键文件夹「检查发布目录…」:SHA256SUMS 覆盖与实测 / .szs 清单文件级核对 / VERIFY.md 引用 /
+    /// 随包公钥独立验签(临时 GNUPGHOME) / 孤儿文件。**只读** —— 不改目录里任何文件。
+    func auditSelectedReleaseDirectory() {
+        guard let directory = selectedFileItems.first(where: { $0.isDirectory && !$0.isPackage })?.url else {
+            errorMessage = L10n.text("error.openOrSelectArchive")
+            return
+        }
+        runReleaseDirectoryAudit(directory)
+    }
+
+    private func runReleaseDirectoryAudit(_ directory: URL) {
+        var findings: [ReleaseDirectoryAuditFinding] = []
+        startManagedArchiveTask(
+            title: L10n.format("dirAudit.taskTitle", directory.lastPathComponent),
+            kind: .test,
+            showsDetails: false,
+            successStatus: nil,
+            refreshOnSuccess: { [weak self] in
+                self?.releaseDirectoryAuditReport = ReleaseDirectoryAuditReport(directoryURL: directory, findings: findings)
+            },
+            rerunAction: { [weak self] in self?.runReleaseDirectoryAudit(directory) }
+        ) { operationID, progress, _ in
+            let names = try FileManager.default.contentsOfDirectory(atPath: directory.path)
+            let inventory = ReleaseDirectoryAudit.classify(names: names) { name in
+                ArchiveService.isSupportedArchive(directory.appendingPathComponent(name))
+            }
+
+            // ① SHA256SUMS:覆盖情况 + 在场条目逐个实测哈希。
+            if inventory.checksumFiles.isEmpty {
+                if !inventory.artifacts.isEmpty {
+                    findings.append(ReleaseDirectoryAuditFinding(severity: .warning, message: L10n.text("dirAudit.noChecksums")))
+                }
+            } else {
+                for sumsName in inventory.checksumFiles {
+                    let sumsURL = directory.appendingPathComponent(sumsName)
+                    guard let sumsText = try? String(contentsOf: sumsURL, encoding: .utf8) else {
+                        findings.append(ReleaseDirectoryAuditFinding(severity: .failure, message: L10n.format("dirAudit.checksumUnreadable", sumsName)))
+                        continue
+                    }
+                    let entries = ChecksumFile.parse(sumsText, fileName: sumsName)
+                    let coverage = ReleaseDirectoryAudit.checksumCoverage(entryNames: entries.map(\.name), artifacts: inventory.artifacts)
+                    if coverage.uncovered.isEmpty, coverage.stale.isEmpty, !entries.isEmpty {
+                        findings.append(ReleaseDirectoryAuditFinding(severity: .pass, message: L10n.format("dirAudit.checksumCoverage.ok", sumsName)))
+                    }
+                    if !coverage.uncovered.isEmpty {
+                        findings.append(ReleaseDirectoryAuditFinding(severity: .warning, message: L10n.format("dirAudit.checksumCoverage.uncovered", "\(coverage.uncovered.count)"), detailItems: coverage.uncovered))
+                    }
+                    if !coverage.stale.isEmpty {
+                        findings.append(ReleaseDirectoryAuditFinding(severity: .warning, message: L10n.format("dirAudit.checksumCoverage.stale", sumsName, "\(coverage.stale.count)"), detailItems: coverage.stale))
+                    }
+                    var mismatches: [String] = []
+                    var verified = 0
+                    let presentEntries = entries.filter { names.contains($0.name) }
+                    for (index, entry) in presentEntries.enumerated() {
+                        progress(ArchiveProgressState(
+                            fraction: Double(index) / Double(max(presentEntries.count, 1)),
+                            currentFile: entry.name
+                        ))
+                        let fileURL = directory.appendingPathComponent(entry.name)
+                        let digest = try? await Task.detached(priority: .userInitiated) {
+                            try HashService.sha256(for: fileURL)
+                        }.value
+                        if let digest, digest.lowercased() == entry.digestHex.lowercased() {
+                            verified += 1
+                        } else {
+                            mismatches.append(entry.name)
+                        }
+                    }
+                    if mismatches.isEmpty, verified > 0 {
+                        findings.append(ReleaseDirectoryAuditFinding(severity: .pass, message: L10n.format("dirAudit.hashes.ok", "\(verified)")))
+                    } else if !mismatches.isEmpty {
+                        findings.append(ReleaseDirectoryAuditFinding(severity: .failure, message: L10n.format("dirAudit.hashes.mismatch", "\(mismatches.count)"), detailItems: mismatches))
+                    }
+                }
+            }
+
+            // ② .szs 清单的文件级核对(SHA;签名真伪在④)。.siz 是单文件容器,不在目录核对范围。
+            let szsNames = inventory.containers.filter { $0.lowercased().hasSuffix(".szs") }
+            for containerName in szsNames {
+                let containerURL = directory.appendingPathComponent(containerName)
+                if let manifestReport = try? SZSArchive.verifyWithoutSignature(manifestURL: containerURL, payloadRoot: directory, allowNewerVersion: true) {
+                    let summary = manifestReport.summary
+                    if summary.mismatched == 0, summary.missing == 0, summary.unreadable == 0 {
+                        findings.append(ReleaseDirectoryAuditFinding(severity: .pass, message: L10n.format("dirAudit.manifest.ok", containerName, "\(summary.matched)")))
+                    } else {
+                        let problems = manifestReport.entries.compactMap { entry -> String? in
+                            if case .match = entry { return nil }
+                            return entry.relativePath
+                        }
+                        findings.append(ReleaseDirectoryAuditFinding(severity: .failure, message: L10n.format("dirAudit.manifest.problems", containerName, "\(summary.mismatched + summary.missing + summary.unreadable)"), detailItems: problems))
+                    }
+                } else {
+                    findings.append(ReleaseDirectoryAuditFinding(severity: .failure, message: L10n.format("dirAudit.manifest.unreadable", containerName)))
+                }
+            }
+
+            // ③ VERIFY.md 引用的文件名还在不在(改名/删除后文档忘更新)。
+            for docName in inventory.verifyDocs {
+                guard let docText = try? String(contentsOf: directory.appendingPathComponent(docName), encoding: .utf8) else { continue }
+                let missing = ReleaseDirectoryAudit.missingDocumentReferences(documentText: docText, directoryNames: names)
+                if missing.isEmpty {
+                    findings.append(ReleaseDirectoryAuditFinding(severity: .pass, message: L10n.format("dirAudit.docRefs.ok", docName)))
+                } else {
+                    findings.append(ReleaseDirectoryAuditFinding(severity: .warning, message: L10n.format("dirAudit.docRefs.missing", docName, "\(missing.count)"), detailItems: missing))
+                }
+            }
+
+            // ④ 随包公钥独立验签(收件人视角,临时 GNUPGHOME 只读,不碰用户钥匙环)。
+            //    A4:GPG 关 / 多义(多把公钥或多份 .szs)→ 如实报「已跳过」,不静默不瞎猜。
+            if !szsNames.isEmpty {
+                if inventory.publicKeys.isEmpty {
+                    findings.append(ReleaseDirectoryAuditFinding(severity: .warning, message: L10n.text("inspect.publicKey.missing")))
+                } else if AppPreferences.gpgEnabled, GPGBackend.isAvailable(), szsNames.count == 1, inventory.publicKeys.count == 1 {
+                    let result = try? await GPGBackend.verifyClearsignWithIsolatedKey(
+                        publicKeyURL: directory.appendingPathComponent(inventory.publicKeys[0]),
+                        signedURL: directory.appendingPathComponent(szsNames[0]),
+                        operationID: operationID
+                    )
+                    if let result, case .validSignature = result {
+                        findings.append(ReleaseDirectoryAuditFinding(severity: .pass, message: L10n.format("dirAudit.isolatedVerify.ok", inventory.publicKeys[0], szsNames[0])))
+                    } else {
+                        findings.append(ReleaseDirectoryAuditFinding(severity: .failure, message: L10n.format("dirAudit.isolatedVerify.bad", inventory.publicKeys[0], szsNames[0])))
+                    }
+                } else {
+                    findings.append(ReleaseDirectoryAuditFinding(severity: .info, message: L10n.text("dirAudit.isolatedVerify.skipped")))
+                }
+            }
+
+            // ⑤ 孤儿文件:既不是产物也不是已知发布角色 —— 不一定是问题,过目用。
+            let orphans = ReleaseDirectoryAudit.orphans(in: inventory)
+            if !orphans.isEmpty {
+                findings.append(ReleaseDirectoryAuditFinding(severity: .info, message: L10n.format("dirAudit.orphans", "\(orphans.count)"), detailItems: orphans))
+            }
+            if findings.isEmpty {
+                findings.append(ReleaseDirectoryAuditFinding(severity: .info, message: L10n.text("dirAudit.nothingToCheck")))
+            }
+            progress(ArchiveProgressState(fraction: 1.0, statusText: nil))
+        }
+    }
+
     // MARK: - 发布包检查（0.4.2 #15）
 
     /// 一次发布包检查的结果。条目侧统计在 Core（ReleaseInspection），这里聚合 测试 / SHA-256 / 注释。

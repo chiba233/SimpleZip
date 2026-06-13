@@ -1298,6 +1298,12 @@ private struct ArchiveExtrasSheets: ViewModifier {
                     model.releaseInspectionReport = nil
                 }
             }
+            .sheet(item: $model.releaseDirectoryAuditReport) { report in
+                // 0.4.4 #11:发布目录完整性检查报告。
+                ReleaseDirectoryAuditView(report: report) {
+                    model.releaseDirectoryAuditReport = nil
+                }
+            }
             .sheet(item: $model.batchRenameRequest) { request in
                 BatchRenameSheet(request: request) { changes in
                     model.batchRenameRequest = nil
