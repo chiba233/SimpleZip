@@ -110,6 +110,8 @@ enum ReleaseAssistantPipeline {
                     }
                     try ChecksumFile.generateSHA256SUMS([(name: outputURL.lastPathComponent, digestHex: digest)])
                         .write(to: sumsURL, atomically: true, encoding: .utf8)
+                    // P3b:文件真写成功才置 true(哈希失败 → digest nil → 走不到这,wroteChecksums 保持 false)。
+                    report.wroteChecksums = true
                 }
             }
         }

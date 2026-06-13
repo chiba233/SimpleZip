@@ -620,7 +620,8 @@ extension ArchiveBrowserModel {
                         emptyDirectoryCount: inspection.stats?.emptyDirectoryCount,
                         fileCount: inspection.stats?.fileCount,
                         totalBytes: inspection.stats?.totalBytes,
-                        wroteChecksums: request.writeChecksums,
+                        // P3b:记**真写成功**(inspection.wroteChecksums),不是「请求里勾了」的意图。
+                        wroteChecksums: inspection.wroteChecksums,
                         signRequested: request.createSignedManifest,
                         appVersion: metadata.appVersion,
                         backendVersion: metadata.backendVersion,

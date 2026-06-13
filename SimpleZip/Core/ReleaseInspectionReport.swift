@@ -43,4 +43,8 @@ nonisolated struct ReleaseInspectionReport: Identifiable, Codable {
     var gateViolations: [ReleaseGate.Violation] = []
     /// C:本次发布运行的步骤耗时(右键检查流程为空 —— 它没有步骤引擎)。
     var steps: [ReleaseRunStep] = []
+    /// P3b:SHA256SUMS 是否**真的写成功**(哈希静默失败 / 没勾写校验文件都为 false)—— 账本与发布说明读它,
+    /// 而非「请求里勾了写校验文件」的意图,避免哈希失败后仍把发布记成「已写校验文件」。
+    /// **刻意不进 CodingKeys**:这是本次会话内喂账本用的瞬时标记,落盘真相是 ReleaseLedgerEntry.wroteChecksums。
+    var wroteChecksums = false
 }

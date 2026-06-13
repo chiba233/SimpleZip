@@ -72,6 +72,10 @@
 - **Expanded task cards no longer collapse after scrolling away.** The task list recycles off-screen rows, which used to wipe the row-local expansion flag — details now track by task id at the list level and survive recycling.
 - **The metadata report's entry count no longer prints an empty `()`.** It reused a string with a "total size" placeholder the metadata aggregate doesn't carry.
 
+**Developer-facing**
+
+- **A failed SHA-256 no longer makes a release claim it wrote SHA256SUMS.** The hash step deliberately swallows errors so a run still produces its report — but the release ledger and the generated release notes recorded "checksums written" from the request's intent rather than what actually happened. The inspection report now carries the real outcome (true only after the SHA256SUMS file is written), and the ledger and notes read that.
+
 ### improvements
 
 **User-facing**

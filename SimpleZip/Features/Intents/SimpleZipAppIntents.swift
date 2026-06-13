@@ -651,7 +651,8 @@ struct CreateReleasePackageIntent: AppIntent {
                     emptyDirectoryCount: report.stats?.emptyDirectoryCount,
                     fileCount: report.stats?.fileCount,
                     totalBytes: report.stats?.totalBytes,
-                    wroteChecksums: request.writeChecksums,
+                    // P3b:记**真写成功**(report.wroteChecksums),不是「请求里勾了」的意图。
+                    wroteChecksums: report.wroteChecksums,
                     signRequested: false,
                     appVersion: metadata.appVersion,
                     backendVersion: metadata.backendVersion,
