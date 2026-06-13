@@ -144,4 +144,40 @@ extension AIReportAssistant {
         }
         return (instructions, lines.joined(separator: "\n"))
     }
+
+    /// #51:安全报告 A/B/C → 白话解释。**只解释规则评分,绝不自己判安全 / 不重新定级 / 不放行**
+    /// (评分由确定性规则系统给出,AI 只把字母等级和发现类型翻成人话 + 解压时该留意什么)。
+    /// 只喂等级 + 每类发现的计数(不放具体条目路径,够解释也更稳)。
+    static func securityExplanationPrompt(
+        archiveName: String,
+        assessment: ArchiveRiskScore.Assessment,
+        findings: [ArchiveSecurityFinding]
+    ) -> (instructions: String, prompt: String) {
+        let instructions = """
+        You are a safety assistant for the SimpleZip archive manager. The app already graded this \
+        archive's path safety with a deterministic rule system (A = low risk, B = medium, C = high). \
+        Explain to a non-expert, in plain language, what the grade means and what each finding type is — \
+        and for the risky ones, what to watch for when extracting. Use ONLY the facts given; never invent \
+        findings, never tell the user to delete files or override a safety prompt, and do not contradict \
+        or re-grade the rule-based score. Keep it short. Reply in the user's language.
+        """
+        var lines: [String] = [
+            "Archive: \(archiveName)",
+            "Rule-based grade: \(assessment.grade.rawValue.uppercased()) (\(assessment.level.rawValue) risk)"
+        ]
+        if let dominant = assessment.dominant {
+            lines.append("Most serious issue driving the grade: \(dominant.dimension.rawValue) (\(dominant.count) flagged entries)")
+        } else {
+            lines.append("No risk-affecting issues found.")
+        }
+        if findings.isEmpty {
+            lines.append("Suspicious-path findings: none.")
+        } else {
+            lines.append("Suspicious-path findings by type (kind: flagged-entry count):")
+            for finding in findings {
+                lines.append("- \(finding.kind.rawValue): \(finding.entryPaths.count)")
+            }
+        }
+        return (instructions, lines.joined(separator: "\n"))
+    }
 }

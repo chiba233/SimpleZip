@@ -86,6 +86,21 @@ struct ArchiveSecurityReportView: View {
                     findings: model.archiveSecurityFindings,
                     assessment: riskAssessment
                 ))
+                // #51:AI 白话解释 A/B/C 等级与每类发现(仅 isReady 时出现;只解释、不重新判安全)。
+                AIAssistButton(
+                    label: L10n.text("ai.explainSecurity"),
+                    systemImage: "sparkles",
+                    sheetTitle: L10n.text("ai.explainSecurity.title"),
+                    sheetSubtitle: archiveName
+                ) {
+                    guard #available(macOS 26.0, *) else { throw AIAssistError(message: L10n.text("ai.unavailable.osTooOld")) }
+                    let built = AIReportAssistant.securityExplanationPrompt(
+                        archiveName: archiveName,
+                        assessment: riskAssessment,
+                        findings: model.archiveSecurityFindings
+                    )
+                    return try await AIReportAssistant.generate(instructions: built.instructions, prompt: built.prompt)
+                }
                 Spacer()
                 Button {
                     model.showsArchiveSecurityReport = false

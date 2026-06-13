@@ -1295,6 +1295,8 @@
 /* macOS 26 AI 报告助手 */
 "button.copy" = "复制";
 "ai.summarizeRisk" = "总结风险";
+"ai.explainSecurity" = "解释等级";
+"ai.explainSecurity.title" = "白话解释安全等级";
 "ai.polishIssue" = "润色 Issue";
 "ai.polishIssue.title" = "AI Issue 草稿";
 "ai.suggestLabels" = "建议标签";
