@@ -13,9 +13,15 @@ final class ActivityWindowController {
     private var window: NSWindow?
     private let windowState = ActivityWindowState()
 
-    func show(category: OperationTask.Category? = nil) {
+    func show(category: OperationTask.Category? = nil, locateTaskID: UUID? = nil) {
         if let category {
             windowState.select(category: category)
+        }
+        // #29:深链 / Spotlight 跳转带的「定位到这条任务」—— 切到它所在分类并请求滚动高亮。
+        if let locateTaskID, let category {
+            windowState.locate(taskID: locateTaskID, category: category)
+        } else if let locateTaskID {
+            windowState.locateTaskID = locateTaskID
         }
 
         if let window {

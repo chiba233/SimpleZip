@@ -11,6 +11,8 @@ struct ActivityView: View {
     @ObservedObject var windowState: ActivityWindowState
     /// 详情展开的任务 id 集合 —— 行内 @State 会被 LazyVStack 回收丢失(滚远自动收起 bug),外置到这里。
     @State private var expandedTaskIDs: Set<UUID> = []
+    /// #29:当前被深链 / Spotlight 跳转高亮的任务 id(滚到它后闪一圈,2.5 秒后消)。
+    @State private var highlightedTaskID: UUID?
     /// 0.4.4:重启后从历史落盘数据重开的报告(运行时任务走 openReport 闭包弹在浏览器窗口;
     /// 闭包没了才走这里 —— 报告 sheet 直接挂在活动中心窗口上)。
     @State private var restoredReport: TaskReportAttachment?
@@ -281,7 +283,8 @@ struct ActivityView: View {
                             ForEach(waiting) { task in
                                 ActivityTaskCard(task: task, expandedTaskIDs: $expandedTaskIDs, onOpenAttachment: { restoredReport = $0 },
                                                  viewportHeight: taskListViewportHeight,
-                                                 onBecameVisible: { taskCenter.markFailureSeen(task) })
+                                                 onBecameVisible: { taskCenter.markFailureSeen(task) },
+                                                 isHighlighted: highlightedTaskID == task.id)
                                     .id(task.id)
                             }
                             if !rest.isEmpty {
@@ -292,7 +295,8 @@ struct ActivityView: View {
                         ForEach(rest) { task in
                             ActivityTaskCard(task: task, expandedTaskIDs: $expandedTaskIDs, onOpenAttachment: { restoredReport = $0 },
                                                  viewportHeight: taskListViewportHeight,
-                                                 onBecameVisible: { taskCenter.markFailureSeen(task) })
+                                                 onBecameVisible: { taskCenter.markFailureSeen(task) },
+                                                 isHighlighted: highlightedTaskID == task.id)
                                 .id(task.id)
                         }
                     }
@@ -315,6 +319,30 @@ struct ActivityView: View {
                 .onChange(of: tasks.first?.id) { newTopID in
                     guard let newTopID else { return }
                     withAnimation { proxy.scrollTo(newTopID, anchor: .top) }
+                }
+                // #29:深链 / Spotlight 跳转请求定位到某条任务 —— 切到本分类后由 onAppear 兜,
+                // 已在本分类时由 onChange 兜。两条都把请求消费掉再滚 + 高亮。
+                .onChange(of: windowState.locateTaskID) { id in
+                    locateTask(id, proxy: proxy)
+                }
+                .onAppear {
+                    locateTask(windowState.locateTaskID, proxy: proxy)
+                }
+            }
+        }
+    }
+
+    /// #29:消费 `windowState.locateTaskID`,把对应任务滚到中间并高亮一会儿。请求一来就清掉,避免重复触发;
+    /// 列表里没这条(被筛掉 / 别的分类)→ scrollTo no-op,只是不高亮。延一拍等(可能刚切过来的)列表布局完。
+    private func locateTask(_ id: UUID?, proxy: ScrollViewProxy) {
+        guard let id, windowState.locateTaskID == id else { return }
+        windowState.locateTaskID = nil
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
+            withAnimation(.easeInOut(duration: 0.3)) { proxy.scrollTo(id, anchor: .center) }
+            highlightedTaskID = id
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                if highlightedTaskID == id {
+                    withAnimation(.easeInOut(duration: 0.4)) { highlightedTaskID = nil }
                 }
             }
         }
@@ -838,9 +866,18 @@ enum ActivityPane: CaseIterable, Identifiable, Hashable {
 @MainActor
 final class ActivityWindowState: ObservableObject {
     @Published var selectedPane = ActivityPane.archive
+    /// #29:要滚到并高亮的任务 id(深链 / Spotlight 跳转设它;ActivityView 消费后清空)。只在显式定位时变,
+    /// 不在 reload 路径上动 —— 不会引发 A17 的菜单栏抖动。
+    @Published var locateTaskID: UUID?
 
     func select(category: OperationTask.Category) {
         selectedPane = ActivityPane.pane(for: category)
+    }
+
+    /// 切到任务所在分类并请求滚动定位 + 高亮。
+    func locate(taskID: UUID, category: OperationTask.Category) {
+        selectedPane = ActivityPane.pane(for: category)
+        locateTaskID = taskID
     }
 }
 
@@ -858,6 +895,8 @@ private struct ActivityTaskCard: View {
     /// 0.4.4(用户反馈):失败红点「看到一个消一个」用的视口高度 + 进入视口回调。
     var viewportHeight: CGFloat = 0
     var onBecameVisible: (() -> Void)?
+    /// #29:被深链 / Spotlight 跳转命中时闪一圈强调色边框。
+    var isHighlighted = false
     @State private var borderAngle = 0.0
 
     private var tint: Color {
@@ -911,6 +950,14 @@ private struct ActivityTaskCard: View {
                             borderAngle = 360
                         }
                     }
+            }
+        }
+        // #29:深链 / Spotlight 跳转定位到本卡 → 闪一圈强调色边框(纯静态描边,不挂动画,符合活动中心防抖规则)。
+        .overlay {
+            if isHighlighted {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(Color.accentColor, lineWidth: 2.5)
+                    .allowsHitTesting(false)
             }
         }
         // 失败红点「看到一个消一个」:只给未看过的失败卡挂可见性探针 —— 卡片任意一行进入

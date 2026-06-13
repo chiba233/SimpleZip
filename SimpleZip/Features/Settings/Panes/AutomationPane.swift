@@ -143,6 +143,7 @@ struct AutomationPane: View {
                     CachedArchiveSpotlightIndexer.reindex()
                 }
             }
+            .settingsAnchor("automation.spotlight")
 
             // ②.55 #36 归档内容缓存:记住打开过的归档里有哪些文件,供「文件 X 在哪个包」搜索。
             // 开关 / 归档数上限 / 过期天数 / 立即清空;关掉即清空已缓存内容。
@@ -229,6 +230,7 @@ struct AutomationPane: View {
                 }
             }
             .onAppear(perform: refreshArchiveCacheStats)
+            .settingsAnchor("automation.cache")
 
             // ②.6 AI 报告助手(macOS 26 本地模型):总结风险 / 解释失败 / 建议标签 / Issue 草稿。
             // 主开关关 → 所有 AI 入口隐藏;开但模型不可用(旧系统 / 没开 Apple Intelligence / 没下完)→ 说明文案。
@@ -246,6 +248,7 @@ struct AutomationPane: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
+            .settingsAnchor("automation.ai")
 
             // ③ URL Scheme(展示型:现状即「每次都要 app 内确认」,不提供关闭项)。
             Section(L10n.text("settings.automation.urlScheme.section")) {
@@ -299,6 +302,7 @@ struct AutomationPane: View {
                     isOn: $allowPresetPassword
                 )
             }
+            .settingsAnchor("automation.allowPresetPassword")
 
             // ⑦ #42:发布路径健康 —— 工作区预设的源/输出目录、账本里的产物路径,跨重启后还在不在。
             Section(L10n.text("settings.automation.pathHealth.section")) {
@@ -328,6 +332,8 @@ struct AutomationPane: View {
         }
         .formStyle(.grouped)
         .controlSize(.small)
+        // #29:让深链 / Spotlight 跳转能滚到本页某个设置项并高亮。
+        .settingsScrollAnchors()
     }
 
     // MARK: - #36 归档内容缓存
