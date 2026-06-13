@@ -750,25 +750,33 @@ extension AIReportAssistant {
     // MARK: - 内联自动速览(创建 / 解压窗口打开即静默跑,动态)
 
     /// 创建对话框 → 速览:预估耗时(定性)+ 一条实用建议(格式 / 级别 / 没问题)+ 冲突提醒。只建议不替用户改。
+    /// `inputItems` = 顶层被打包项的真实样本(名字 + 文件夹/大小),让 AI 能针对**具体内容**给建议
+    /// (如已压缩媒体压不动、文件夹进单文件格式会先打 tar)而非空泛套话。隐私:非加密文件名,可喂。
     static func createAdvisoryPrompt(
         dryRun: ArchiveService.ArchiveCreationDryRun,
         estimatedCompressedBytes: Int64?,
         format: String,
         compressionLevel: String,
-        outputExists: Bool
+        outputExists: Bool,
+        inputItems: [String]
     ) -> (instructions: String, prompt: String) {
         let instructions = """
-        Write a 1–2 sentence plain-language note about creating this archive. Give a rough sense of how long \
-        it should take from the data size (quick / a while — never invent exact seconds), and add ONE concrete \
-        useful remark if warranted: that the chosen format and level suit this content, or a brief better \
-        alternative, or that a same-named file already exists so a conflict prompt will appear; otherwise just \
-        say the settings look fine. Write the note itself directly — do not restate this instruction, do not \
-        ask the user questions, do not list what you checked. Suggest, never change settings yourself.
+        Write a short, plain note (one sentence, two at most) about creating this archive, based STRICTLY on \
+        the facts below. NEVER invent, estimate, or state a size, a duration, or any number — the dialog \
+        already shows the real figures; you only add a qualitative remark. You may say qualitatively whether \
+        it should be quick or take a while, but only as judged from the size already given, never a fabricated \
+        one. Add at most one useful remark when the facts clearly support it (for example a folder is going \
+        into a single-file format, or a same-named output already exists). Do NOT guess file types you can't \
+        see, and do NOT list file formats. If nothing stands out, say the settings look fine. Write the note \
+        directly — no preamble, no questions, no recap. Suggest, never change settings.
         """
         var lines: [String] = [
             "Packing \(dryRun.inputFileCount) file(s), \(ByteCountFormatter.string(fromByteCount: dryRun.totalBytes, countStyle: .file)) uncompressed.",
             "Chosen format: \(format); compression level: \(compressionLevel)."
         ]
+        if !inputItems.isEmpty {
+            lines.append("Top-level items being packed: \(sampleEntries(inputItems, perKind: 12)).")
+        }
         if let estimate = estimatedCompressedBytes, dryRun.totalBytes > 0 {
             let pct = Int((Double(estimate) / Double(dryRun.totalBytes) * 100).rounded())
             lines.append("Estimated compressed size: \(ByteCountFormatter.string(fromByteCount: estimate, countStyle: .file)) (~\(pct)% of original).")
@@ -782,27 +790,40 @@ extension AIReportAssistant {
     }
 
     /// 解压对话框 → 速览:定性大小/耗时 + 解压前值得知道的事(可疑路径 / 覆盖 / 缺卷 / 空间不足)。绝不让跳过安全询问。
+    /// `topLevelEntries` = 归档顶层条目真实名字样本,`suspiciousSamples` = 可疑路径真实样本 —— 让 AI 能说出
+    /// 「解出来会是什么 / 哪条路径可疑」而非只报数字。隐私:非加密清单条目名,可喂(头加密归档根本列不出名)。
     static func extractAdvisoryPrompt(
         preflight: ArchiveExtractPreflight,
         overwriteCount: Int,
         missingVolumeCount: Int,
         lowSpaceNeeded: String?,
         lowSpaceAvailable: String?,
-        destinationName: String
+        destinationName: String,
+        topLevelEntries: [String],
+        suspiciousSamples: [String]
     ) -> (instructions: String, prompt: String) {
         let instructions = """
-        Write a 1–2 sentence plain-language note about extracting this archive. State its rough size and \
-        whether it should be quick. If the facts below show suspicious paths that could write outside the \
-        destination, files that would be overwritten, missing volumes, or low disk space, point out that \
-        specific concern. If none of those appear, simply say it looks straightforward to extract. Write the \
-        note itself directly — do not restate this instruction, do not ask the user questions, do not list \
-        what you checked. Never tell the user to skip a safety prompt.
+        Write a short, plain note (one sentence, two at most) about extracting this archive, based STRICTLY \
+        on the facts below. NEVER invent, estimate, or state a size, a duration, or any number — the dialog \
+        already shows the real figures; you only add a qualitative remark. Grounded in the ACTUAL entries \
+        listed, you may say what it will unpack into (a single top folder, or loose items scattered into the \
+        destination). If the facts show suspicious paths that could write outside the destination, files that \
+        would be overwritten, missing volumes, or low disk space, point out that specific concern and name \
+        the suspicious entry when given. If none of those appear, say it looks straightforward. Write the \
+        note directly — no preamble, no questions, no recap. Never tell the user to skip a safety prompt.
         """
         var lines: [String] = [
             "Will extract \(preflight.fileCount) file(s), \(preflight.folderCount) folder(s), \(ByteCountFormatter.string(fromByteCount: preflight.totalBytes, countStyle: .file)) into \"\(destinationName)\"."
         ]
+        if !topLevelEntries.isEmpty {
+            lines.append("Top-level entries: \(sampleEntries(topLevelEntries, perKind: 12)).")
+        }
         if preflight.encryptedEntryCount > 0 { lines.append("Encrypted entries: \(preflight.encryptedEntryCount).") }
-        if preflight.suspiciousEntryCount > 0 { lines.append("Suspicious paths (could escape the destination folder): \(preflight.suspiciousEntryCount).") }
+        if preflight.suspiciousEntryCount > 0 {
+            var line = "Suspicious paths (could escape the destination folder): \(preflight.suspiciousEntryCount)."
+            if !suspiciousSamples.isEmpty { line += " Examples: \(sampleEntries(suspiciousSamples, perKind: 5))." }
+            lines.append(line)
+        }
         if preflight.symlinkCount > 0 { lines.append("Symlinks: \(preflight.symlinkCount).") }
         if overwriteCount > 0 { lines.append("Would overwrite \(overwriteCount) existing file(s).") }
         if missingVolumeCount > 0 { lines.append("Missing split volumes: \(missingVolumeCount).") }

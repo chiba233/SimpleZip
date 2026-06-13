@@ -826,7 +826,8 @@ struct ArchiveCreationOptionsView: View {
                         estimatedCompressedBytes: estimatedCompressedBytes,
                         format: "\(request.options.format)",
                         compressionLevel: "\(request.options.compressionLevel)",
-                        outputExists: FileManager.default.fileExists(atPath: request.destinationURL.path)
+                        outputExists: FileManager.default.fileExists(atPath: request.destinationURL.path),
+                        inputItems: topLevelInputSample()
                     )
                     return try await AIReportAssistant.generate(instructions: built.instructions, prompt: built.prompt)
                 }
@@ -1071,6 +1072,21 @@ struct ArchiveCreationOptionsView: View {
             excludedFileCount = preview.count
             excludedPreview = preview
             isCountingExcludedFiles = false
+        }
+    }
+
+    /// 顶层被打包项的真实样本(名字 + 文件夹/大小)—— 喂给创建速览 AI,使其能针对**具体内容**建议
+    /// (已压缩媒体压不动 / 文件夹进单文件格式会先打 tar 等)。非递归、廉价;非加密文件名,隐私上可喂。
+    private func topLevelInputSample(limit: Int = 20) -> [String] {
+        request.sourceURLs.prefix(limit).map { url in
+            let name = url.lastPathComponent
+            let values = try? url.resourceValues(forKeys: [.isDirectoryKey, .fileSizeKey])
+            if values?.isDirectory == true {
+                return "\(name) (folder)"
+            } else if let size = values?.fileSize {
+                return "\(name) (\(ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file)))"
+            }
+            return name
         }
     }
 

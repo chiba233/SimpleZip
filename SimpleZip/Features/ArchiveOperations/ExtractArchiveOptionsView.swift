@@ -230,7 +230,9 @@ struct ExtractArchiveOptionsView: View {
                         missingVolumeCount: missingVolumeCount,
                         lowSpaceNeeded: lowSpaceWarning?.needed,
                         lowSpaceAvailable: lowSpaceWarning?.available,
-                        destinationName: request.destinationURL.lastPathComponent
+                        destinationName: request.destinationURL.lastPathComponent,
+                        topLevelEntries: preflightTopLevelNames,
+                        suspiciousSamples: []
                     )
                     return try await AIReportAssistant.generate(instructions: built.instructions, prompt: built.prompt)
                 }
