@@ -2042,6 +2042,8 @@
 "intent.inspect.clean" = "%1$@ n’a aucun chemin suspect — %2$@ fichier(s), %3$@, %4$@ élément(s) indésirable(s) macOS.";
 "intent.inspect.flagged" = "%1$@ comporte %2$@ chemin(s) signalé(s) sur %3$@ type(s) de problème — %4$@ fichier(s), %5$@. Vérifiez avant publication.";
 "Search Archive Contents" = "Rechercher dans l’archive";
+"Workspace Preset" = "Préréglage d’espace de travail";
+"Name" = "Nom";
 "Inspect Archive" = "Inspecter l’archive";
 "Query" = "Requête";
 "Archive" = "Archive";

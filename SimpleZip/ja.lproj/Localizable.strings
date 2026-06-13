@@ -2044,6 +2044,8 @@
 "intent.inspect.clean" = "%1$@ に疑わしいパスはありません — %2$@ 個のファイル、%3$@、macOS の不要項目 %4$@ 個。";
 "intent.inspect.flagged" = "%1$@ には %3$@ 種類の問題で %2$@ 個のパスが指摘されています — %4$@ 個のファイル、%5$@。公開前に確認してください。";
 "Search Archive Contents" = "アーカイブ内を検索";
+"Workspace Preset" = "ワークスペースプリセット";
+"Name" = "名前";
 "Inspect Archive" = "アーカイブを検査";
 "Query" = "クエリ";
 "Archive" = "アーカイブ";

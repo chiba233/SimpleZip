@@ -2345,6 +2345,8 @@
 "intent.inspect.clean" = "%1$@ 没有可疑路径——%2$@ 个文件，%3$@，%4$@ 个 macOS 垃圾项。";
 "intent.inspect.flagged" = "%1$@ 有 %2$@ 个被标记的路径（%3$@ 类问题）——%4$@ 个文件，%5$@。发布前请复核。";
 "Search Archive Contents" = "搜索归档内容";
+"Workspace Preset" = "工作区预设";
+"Name" = "名称";
 "Inspect Archive" = "检查归档";
 "Query" = "查询";
 "Archive" = "归档";

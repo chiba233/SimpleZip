@@ -2043,6 +2043,8 @@
 "intent.inspect.clean" = "%1$@ hat keine verdächtigen Pfade – %2$@ Datei(en), %3$@, %4$@ macOS-Müllobjekt(e).";
 "intent.inspect.flagged" = "%1$@ hat %2$@ markierte Pfad(e) in %3$@ Befundtyp(en) – %4$@ Datei(en), %5$@. Vor der Veröffentlichung prüfen.";
 "Search Archive Contents" = "Archivinhalt durchsuchen";
+"Workspace Preset" = "Arbeitsbereich-Vorlage";
+"Name" = "Name";
 "Inspect Archive" = "Archiv prüfen";
 "Query" = "Suchanfrage";
 "Archive" = "Archiv";

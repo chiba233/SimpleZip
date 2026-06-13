@@ -2042,6 +2042,8 @@
 "intent.inspect.clean" = "%1$@ no tiene rutas sospechosas: %2$@ archivo(s), %3$@, %4$@ elemento(s) basura de macOS.";
 "intent.inspect.flagged" = "%1$@ tiene %2$@ ruta(s) marcada(s) en %3$@ tipo(s) de hallazgo: %4$@ archivo(s), %5$@. Revisa antes de publicar.";
 "Search Archive Contents" = "Buscar en el contenido del archivo";
+"Workspace Preset" = "Preajuste de espacio de trabajo";
+"Name" = "Nombre";
 "Inspect Archive" = "Inspeccionar archivo";
 "Query" = "Consulta";
 "Archive" = "Archivo";

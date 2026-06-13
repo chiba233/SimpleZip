@@ -515,21 +515,21 @@ struct InspectArchiveIntent: AppIntent {
 struct CreateReleasePackageIntent: AppIntent {
     static let title: LocalizedStringResource = "Create Release Package"
     static let description = IntentDescription(
-        "Runs SimpleZip's Release Assistant headlessly: pack a build folder (junk excluded, reproducible), inspect the archive and write SHA256SUMS — using a saved workspace preset when one is named. Signing as .szs is interactive-only and never runs unattended."
+        "Runs SimpleZip's Release Assistant headlessly: pack a build folder (junk excluded, reproducible), inspect the archive and write SHA256SUMS — using a saved workspace preset when one is chosen. Signing as .szs is interactive-only and never runs unattended."
     )
 
     @Parameter(title: "Build Folder")
     var sourceFolder: IntentFile
 
-    @Parameter(title: "Workspace Preset Name")
-    var presetName: String?
+    @Parameter(title: "Workspace Preset")
+    var preset: ReleaseWorkspacePresetEntity?
 
     @Parameter(title: "Archive Name")
     var archiveName: String?
 
     static var parameterSummary: some ParameterSummary {
         Summary("Create a release package from \(\.$sourceFolder)") {
-            \.$presetName
+            \.$preset
             \.$archiveName
         }
     }
@@ -542,27 +542,27 @@ struct CreateReleasePackageIntent: AppIntent {
             throw SimpleZipIntentError(message: L10n.format("intent.error.missingFile", source.path))
         }
 
-        // 组装请求:命名预设(找不到名字 = 明确报错,不静默回落)→ 否则全默认(排垃圾 + 可复现 + 检查 + 校验)。
+        // 组装请求:选了工作区预设(实体)就按 id 取出存储记录套用 —— 预设已被删 = 明确报错,不静默回落;
+        // 没选 = 全默认(排垃圾 + 可复现 + 检查 + 校验)。
         var request = ReleaseAssistantRequest()
         request.sourceFolder = source
         request.destinationFolder = source.deletingLastPathComponent()
         request.fileName = source.lastPathComponent
-        if let presetName, !presetName.trimmingCharacters(in: .whitespaces).isEmpty {
-            guard let preset = ReleaseWorkspacePresetStore().loadAll()
-                .first(where: { $0.name.localizedCaseInsensitiveCompare(presetName) == .orderedSame }) else {
-                throw SimpleZipIntentError(message: L10n.format("intent.release.unknownPreset", presetName))
+        if let preset {
+            guard let stored = ReleaseWorkspacePresetStore().loadAll().first(where: { $0.id == preset.id }) else {
+                throw SimpleZipIntentError(message: L10n.format("intent.release.unknownPreset", preset.name))
             }
-            request.fileName = preset.fileName.isEmpty ? source.lastPathComponent : preset.fileName
-            request.versionLabel = preset.versionLabel ?? ""
-            if let format = ArchiveCreateFormat(rawValue: preset.formatRawValue), format == .zip || format == .sevenZip {
+            request.fileName = stored.fileName.isEmpty ? source.lastPathComponent : stored.fileName
+            request.versionLabel = stored.versionLabel ?? ""
+            if let format = ArchiveCreateFormat(rawValue: stored.formatRawValue), format == .zip || format == .sevenZip {
                 request.format = format
             }
-            request.excludeJunk = preset.excludeJunk
-            request.reproducible = preset.reproducible
-            request.runInspection = preset.runInspection
-            request.writeChecksums = preset.writeChecksums
-            request.writeManifest = preset.writeManifest ?? false
-            request.gateRules = preset.gateRules ?? ReleaseGateRules()
+            request.excludeJunk = stored.excludeJunk
+            request.reproducible = stored.reproducible
+            request.runInspection = stored.runInspection
+            request.writeChecksums = stored.writeChecksums
+            request.writeManifest = stored.writeManifest ?? false
+            request.gateRules = stored.gateRules ?? ReleaseGateRules()
         }
         if let archiveName, !archiveName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             request.fileName = archiveName.trimmingCharacters(in: .whitespacesAndNewlines)

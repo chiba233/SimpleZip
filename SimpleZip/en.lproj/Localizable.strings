@@ -2345,6 +2345,8 @@
 "intent.inspect.clean" = "%1$@ has no suspicious paths — %2$@ file(s), %3$@, %4$@ macOS junk item(s).";
 "intent.inspect.flagged" = "%1$@ has %2$@ flagged path(s) across %3$@ finding type(s) — %4$@ file(s), %5$@. Review before publishing.";
 "Search Archive Contents" = "Search Archive Contents";
+"Workspace Preset" = "Workspace Preset";
+"Name" = "Name";
 "Inspect Archive" = "Inspect Archive";
 "Query" = "Query";
 "Archive" = "Archive";

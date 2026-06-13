@@ -2043,6 +2043,8 @@
 "intent.inspect.clean" = "%1$@에 의심스러운 경로가 없습니다 — 파일 %2$@개, %3$@, macOS 불필요 항목 %4$@개.";
 "intent.inspect.flagged" = "%1$@에 %3$@개 유형에 걸쳐 %2$@개의 표시된 경로가 있습니다 — 파일 %4$@개, %5$@. 게시 전에 검토하세요.";
 "Search Archive Contents" = "아카이브 내용 검색";
+"Workspace Preset" = "작업 공간 프리셋";
+"Name" = "이름";
 "Inspect Archive" = "아카이브 검사";
 "Query" = "검색어";
 "Archive" = "아카이브";
