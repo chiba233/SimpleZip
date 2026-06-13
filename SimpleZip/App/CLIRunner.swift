@@ -384,6 +384,8 @@ enum CLIRunner {
                 return 2
             }
             options.password = password
+            // 创建校验要求两次密码一致(GUI 是两个输入框);CLI 单一来源,确认字段同值。
+            options.passwordConfirmation = password
         }
 
         let startedAt = Date()
