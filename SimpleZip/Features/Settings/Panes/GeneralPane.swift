@@ -133,6 +133,7 @@ struct GeneralPane: View {
                     systemImage: "clock.arrow.circlepath", iconTint: .purple,
                     isOn: $rememberLastFolder
                 )
+                .settingsAnchor("general.rememberLastFolder")
 
                 // 「每次启动时检查更新」已搬到 设置 → 软件更新（0.4.1 新 pane）。
             }
@@ -159,6 +160,7 @@ struct GeneralPane: View {
                     systemImage: "trash", iconTint: .red,
                     isOn: $confirmBeforeDeletingFiles
                 )
+                .settingsAnchor("general.confirmDelete")
 
                 SettingsToggleRow(
                     title: L10n.text("settings.finderOpenAutoExtract"),
@@ -166,6 +168,7 @@ struct GeneralPane: View {
                     systemImage: "archivebox", iconTint: .blue,
                     isOn: $finderOpenAutoExtract
                 )
+                .settingsAnchor("general.autoExtract")
 
                 SettingsToggleRow(
                     title: L10n.text("settings.openExternalInNewTab"),
@@ -173,6 +176,7 @@ struct GeneralPane: View {
                     systemImage: "plus.rectangle.on.rectangle", iconTint: .cyan,
                     isOn: $openExternalInNewTab
                 )
+                .settingsAnchor("general.newTab")
             }
 
             Section(L10n.text("settings.finderExtension")) {
@@ -256,6 +260,8 @@ struct GeneralPane: View {
         }
         .formStyle(.grouped)
         .controlSize(.small)
+        // #30:深链 / Spotlight 跳转能滚到本页某设置项并高亮。
+        .settingsScrollAnchors()
         .onAppear {
             // 把 custom 历史从 UserDefaults 拉一份到 @State，下面所有 menu / cap 计算从它读。
             startupCustomLocationHistory = AppPreferences.startupCustomLocationHistory

@@ -38,6 +38,8 @@ struct ArchivePane: View {
         }
         .formStyle(.grouped)
         .controlSize(.small)
+        // #30:深链 / Spotlight 跳转能滚到本页某设置项并高亮。
+        .settingsScrollAnchors()
     }
 
     private var securitySection: some View {
@@ -73,6 +75,7 @@ struct ArchivePane: View {
                 systemImage: "checkmark.seal", iconTint: .blue,
                 isOn: $verifyAfterArchiveRewrite
             )
+            .settingsAnchor("archive.verifyAfterRewrite")
 
             SettingsToggleRow(
                 title: L10n.text("settings.verifyAfterCreate"),
@@ -80,6 +83,7 @@ struct ArchivePane: View {
                 systemImage: "checkmark.seal.fill", iconTint: .indigo,
                 isOn: $verifyAfterArchiveCreate
             )
+            .settingsAnchor("archive.verifyAfterCreate")
         }
     }
 

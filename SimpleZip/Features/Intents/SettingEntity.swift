@@ -52,6 +52,39 @@ nonisolated enum SettingsCatalog {
             id: "automation.allowPresetPassword", pane: .automation,
             titleKey: "settings.automation.allowPresetPassword",
             keywords: ["password", "preset", "automation", "unattended"], isToggleable: true
+        ),
+        // 通用
+        SettingsCatalogItem(
+            id: "general.rememberLastFolder", pane: .general,
+            titleKey: "settings.rememberLastFolder",
+            keywords: ["startup", "last folder", "remember"], isToggleable: true
+        ),
+        SettingsCatalogItem(
+            id: "general.confirmDelete", pane: .general,
+            titleKey: "settings.confirmBeforeDeletingFiles",
+            // 安全确认开关 —— 可搜索 / 可跳转,但**不**允许 Siri/Spotlight 直接关(关掉降低安全,红线)。
+            keywords: ["delete", "confirm", "trash"], isToggleable: false
+        ),
+        SettingsCatalogItem(
+            id: "general.autoExtract", pane: .general,
+            titleKey: "settings.finderOpenAutoExtract",
+            keywords: ["finder", "auto extract", "open", "unzip"], isToggleable: true
+        ),
+        SettingsCatalogItem(
+            id: "general.newTab", pane: .general,
+            titleKey: "settings.openExternalInNewTab",
+            keywords: ["new tab", "open", "window"], isToggleable: true
+        ),
+        // 归档
+        SettingsCatalogItem(
+            id: "archive.verifyAfterRewrite", pane: .archive,
+            titleKey: "settings.verifyAfterRewrite",
+            keywords: ["verify", "rewrite", "edit", "integrity"], isToggleable: true
+        ),
+        SettingsCatalogItem(
+            id: "archive.verifyAfterCreate", pane: .archive,
+            titleKey: "settings.verifyAfterCreate",
+            keywords: ["verify", "create", "test", "integrity"], isToggleable: true
         )
     ]
 
