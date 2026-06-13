@@ -312,6 +312,10 @@ extension ArchiveBrowserModel {
         defer { endAsyncLoad(generation: generation) }
 
         let force = isForced(url)
+        // #14:打开性能计时。普通 var 落在 lastOpenMetrics(A17:reload 路径禁 @Published;
+        // 只在用户点「复制打开性能报告」时读取,不驱动渲染)。
+        let listStart = Date()
+        var passwordPrompted = false
         do {
             let items: [ArchiveItem]
             do {
@@ -324,8 +328,10 @@ extension ArchiveBrowserModel {
                 //（之前只在「有可用预设密码」时重试,没预设就掉到外层 catch 报错 = 不弹密码直接死）。
                 // 成功的口令存进 `resolvedArchivePassword`,归档内编辑复用(见该属性注释)。
                 guard shouldPromptForArchivePassword(error) else { throw error }
+                passwordPrompted = true
                 items = try await listArchivePromptingForPassword(url, force: force)
             }
+            let listDuration = Date().timeIntervalSince(listStart)
             guard isCurrentLoad(generation, mode: .archive(url)) else { return }
             session.setItems(items)
             // 0.4.3 #3:列表成功的瞬间记下包的磁盘状态戳 —— 这就是「用户所见版本」,写回前据此检测外部改动。
@@ -336,7 +342,19 @@ extension ArchiveBrowserModel {
             if archiveHeaderComment != comment {
                 archiveHeaderComment = comment
             }
+            let refreshStart = Date()
             refreshArchiveItems()
+            // #14:记录本次打开的性能(列目录含可能的密码等待 —— promptedForPassword 标出来,
+            // 不让等待时间冒充后端耗时)。
+            lastOpenMetrics = ArchiveOpenMetrics(
+                archiveName: url.lastPathComponent,
+                fileExtension: url.pathExtension.lowercased(),
+                openedAt: Date(),
+                listDuration: listDuration,
+                refreshDuration: Date().timeIntervalSince(refreshStart),
+                entryCount: items.count,
+                promptedForPassword: passwordPrompted
+            )
             // 0.4.2 #7：路径安全分析（绝对路径 / `..` / 盘符 / 控制字符 / setuid / 外指 symlink / 大小写冲突）。
             // 纯 CPU 字符串检查，丢后台跑完再回主 actor；只告知，不改变解压时的既有拦截。
             updateArchiveSecurityFindings(for: items, url: url, generation: generation)
@@ -476,5 +494,41 @@ extension ArchiveBrowserModel {
     private func isCurrentLoad(_ generation: Int, mode expectedMode: BrowserMode) -> Bool {
         guard generation == activeLoadGeneration, !Task.isCancelled else { return false }
         return mode == expectedMode
+    }
+}
+
+// MARK: - #14 打开性能(0.4.4)
+
+/// 一次归档打开的性能快照。**挂普通 var**(A17:loadArchive 在 reload 路径上,@Published 会
+/// 跟 FSEvents 风暴共振);渲染不读它,只有「复制打开性能报告」按钮按需取。
+struct ArchiveOpenMetrics {
+    let archiveName: String
+    let fileExtension: String
+    let openedAt: Date
+    /// 列目录耗时(密码弹窗等待包含在内 —— promptedForPassword = true 时此值含人为等待)。
+    let listDuration: TimeInterval
+    /// 列表/分组树构建耗时(主线程侧)。
+    let refreshDuration: TimeInterval
+    let entryCount: Int
+    let promptedForPassword: Bool
+
+    /// 复制到剪贴板的 Markdown 小表。
+    var markdown: String {
+        func ms(_ value: TimeInterval) -> String { String(format: "%.0f ms", value * 1000) }
+        var lines: [String] = []
+        lines.append("# \(L10n.text("openMetrics.title")) — \(archiveName)")
+        lines.append("")
+        lines.append("| | |")
+        lines.append("|---|---|")
+        lines.append("| \(L10n.text("openMetrics.list")) | \(ms(listDuration)) |")
+        lines.append("| \(L10n.text("openMetrics.refresh")) | \(ms(refreshDuration)) |")
+        lines.append("| \(L10n.text("openMetrics.entries")) | \(entryCount) |")
+        lines.append("| \(L10n.text("openMetrics.format")) | .\(fileExtension) |")
+        if promptedForPassword {
+            lines.append("| \(L10n.text("openMetrics.prompted")) | ✓ |")
+        }
+        lines.append("")
+        lines.append("_\(ReportExport.isoString(openedAt))_")
+        return lines.joined(separator: "\n")
     }
 }

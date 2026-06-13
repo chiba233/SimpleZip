@@ -56,6 +56,9 @@ final class ArchiveBrowserModel: ObservableObject {
     @Published var archiveCheckupReport: ArchiveCheckupReport?
     /// 0.4.4 #8:数据救援结果报告(同上)。
     @Published var archiveSalvageReport: ArchiveSalvageReport?
+    /// 0.4.4 #14:最近一次归档打开的性能快照。**普通 var,绝不 @Published**(A17:
+    /// loadArchive 每次打开都写它;只有「复制打开性能报告」按需读,不参与渲染)。
+    var lastOpenMetrics: ArchiveOpenMetrics?
     /// 发布助手(工具菜单):打包→检查→校验文件→可选签名一条流的待确认配置。
     @Published var releaseAssistantRequest: ReleaseAssistantRequest?
     /// #8 空间分析报告(非 nil = 弹报告 sheet)。

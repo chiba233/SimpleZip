@@ -519,6 +519,10 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
             menu.addItem(menuItem(L10n.text("security.report.title"), systemImage: "shield.lefthalf.filled", action: #selector(showSecurityReport)))
             // 0.4.4 #13:归档元数据报告(头部块属性 + 条目聚合,只读)。
             menu.addItem(menuItem(L10n.text("metadata.menu"), systemImage: "info.square", action: #selector(showMetadataReport)))
+            // 0.4.4 #14:复制打开性能报告(列目录/建树耗时,纯剪贴板)。
+            if model.lastOpenMetrics != nil {
+                menu.addItem(menuItem(L10n.text("openMetrics.menu"), systemImage: "speedometer", action: #selector(copyOpenMetrics)))
+            }
             // 0.4.2 #16：清理 macOS 元数据 —— 有垃圾条目时显示（带数量），删掉走安全写回。
             let junkCount = model.archiveJunkEntryCount
             if junkCount > 0 {
@@ -723,6 +727,12 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
 
         @objc private func showMetadataReport() {
             model.showArchiveMetadataReport()
+        }
+
+        @objc private func copyOpenMetrics() {
+            guard let metrics = model.lastOpenMetrics else { return }
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(metrics.markdown, forType: .string)
         }
 
         @objc private func showSecurityReport() {

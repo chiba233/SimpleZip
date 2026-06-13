@@ -1281,6 +1281,14 @@
 "workspace.artifacts.clear" = "立即清理";
 "workspace.artifacts.clear.confirm" = "删除陈旧的临时条目?本次会话正在使用的不会被碰。";
 "workspace.artifacts.timing" = "陈旧条目在每次启动时也会自动清理;正常退出时全部移除。";
+/* 0.4.4 #14 打开性能报告 */
+"openMetrics.menu" = "复制打开性能报告";
+"openMetrics.title" = "归档打开性能";
+"openMetrics.list" = "列目录(后端)";
+"openMetrics.refresh" = "建树(界面)";
+"openMetrics.entries" = "条目数";
+"openMetrics.format" = "格式";
+"openMetrics.prompted" = "含密码弹窗等待";
 /* 0.4.4 #13 归档元数据报告 */
 "metadata.menu" = "元数据报告";
 "metadata.title" = "归档元数据";
