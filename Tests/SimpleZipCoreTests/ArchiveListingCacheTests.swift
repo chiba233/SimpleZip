@@ -127,6 +127,28 @@ import Testing
         #expect(store.count() == 0)
     }
 
+    @Test func applyCurrentLimitsTrimsToLoweredCap() {
+        // 共享一个 UserDefaults:先用宽松策略(上限 5)塞 3 个,再用收紧策略(上限 1)的 store
+        // 调 applyCurrentLimits —— 模拟用户在设置里把上限调小后立刻生效。
+        let suiteName = "ArchiveListingCacheTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let loose = ArchiveListingCacheStore(defaults: defaults,
+            policyProvider: { ArchiveListingCachePolicy(enabled: true, maxArchives: 5, ttlDays: 30) })
+        loose.record(archiveURL: url("a.zip"), items: [item("alpha.txt")], now: t0)
+        loose.record(archiveURL: url("b.zip"), items: [item("bravo.txt")], now: t0.addingTimeInterval(10))
+        loose.record(archiveURL: url("c.zip"), items: [item("charlie.txt")], now: t0.addingTimeInterval(20))
+        #expect(loose.count() == 3)
+
+        let tight = ArchiveListingCacheStore(defaults: defaults,
+            policyProvider: { ArchiveListingCachePolicy(enabled: true, maxArchives: 1, ttlDays: 30) })
+        tight.applyCurrentLimits(now: t0.addingTimeInterval(30))
+        // 只留最新的 c。
+        #expect(tight.count() == 1)
+        #expect(tight.search("charlie", now: t0.addingTimeInterval(30)).count == 1)
+        #expect(tight.search("alpha", now: t0.addingTimeInterval(30)).isEmpty)
+    }
+
     @Test func removeAndClear() {
         let store = makeStore()
         store.record(archiveURL: url("one.zip"), items: [item("one.txt")], now: t0)

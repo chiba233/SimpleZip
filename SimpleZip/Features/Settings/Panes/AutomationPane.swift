@@ -21,6 +21,13 @@ struct AutomationPane: View {
     @AppStorage(AppPreferences.Key.spotlightIndexingEnabled) private var spotlightIndexing = true
     /// 0.4.4 macOS 26 AI:AI 报告助手主开关。关 → 所有 AI 入口隐藏。
     @AppStorage(AppPreferences.Key.aiAssistantEnabled) private var aiAssistant = true
+    /// #34/#36:归档内容缓存控制(开关 / 归档数上限 / 过期天数)。关 → 停止缓存并清空。
+    @AppStorage(AppPreferences.Key.archiveListingCacheEnabled) private var archiveCacheEnabled = true
+    @AppStorage(AppPreferences.Key.archiveListingCacheMaxArchives) private var archiveCacheMax = AppPreferences.archiveListingCacheMaxArchives
+    @AppStorage(AppPreferences.Key.archiveListingCacheTTLDays) private var archiveCacheTTL = AppPreferences.archiveListingCacheTTLDays
+    /// 当前缓存占用(条数 + 字节)—— 仅展示,onAppear 与每次改动后刷新。
+    @State private var archiveCacheCount = 0
+    @State private var archiveCacheBytes = 0
 
     @ObservedObject private var taskCenter = TaskCenter.shared
 
@@ -135,6 +142,87 @@ struct AutomationPane: View {
                 }
             }
 
+            // ②.55 #36 归档内容缓存:记住打开过的归档里有哪些文件,供「文件 X 在哪个包」搜索。
+            // 开关 / 归档数上限 / 过期天数 / 立即清空;关掉即清空已缓存内容。
+            Section(L10n.text("settings.automation.cache.section")) {
+                SettingsToggleRow(
+                    title: L10n.text("settings.automation.cache.enabled.title"),
+                    description: L10n.text("settings.automation.cache.enabled.description"),
+                    systemImage: "archivebox", iconTint: .blue,
+                    isOn: $archiveCacheEnabled
+                )
+                .onChange(of: archiveCacheEnabled) { isOn in
+                    // 关掉 = 停止缓存并清空已记内容(隐私优先)。
+                    if !isOn { ArchiveListingCacheStore().clear() }
+                    refreshArchiveCacheStats()
+                }
+
+                if archiveCacheEnabled {
+                    SettingsControlRow(
+                        title: L10n.text("settings.automation.cache.maxArchives.title"),
+                        description: L10n.text("settings.automation.cache.maxArchives.description"),
+                        systemImage: "number", iconTint: .teal
+                    ) {
+                        HStack(spacing: 8) {
+                            Text(L10n.format("settings.automation.cache.maxArchives.value", archiveCacheMax))
+                                .foregroundStyle(.secondary)
+                                .frame(width: 96, alignment: .trailing)
+                            Stepper("", value: $archiveCacheMax, in: 1...500)
+                                .labelsHidden()
+                        }
+                        .onChange(of: archiveCacheMax) { newValue in
+                            AppPreferences.archiveListingCacheMaxArchives = newValue
+                            ArchiveListingCacheStore().applyCurrentLimits()
+                            refreshArchiveCacheStats()
+                        }
+                    }
+
+                    SettingsControlRow(
+                        title: L10n.text("settings.automation.cache.ttl.title"),
+                        description: L10n.text("settings.automation.cache.ttl.description"),
+                        systemImage: "clock.arrow.circlepath", iconTint: .indigo
+                    ) {
+                        HStack(spacing: 8) {
+                            Text(archiveCacheTTL == 0
+                                ? L10n.text("settings.automation.cache.ttl.never")
+                                : L10n.format("settings.automation.cache.ttl.value", archiveCacheTTL))
+                                .foregroundStyle(.secondary)
+                                .frame(width: 96, alignment: .trailing)
+                            Stepper("", value: $archiveCacheTTL, in: 0...365)
+                                .labelsHidden()
+                        }
+                        .onChange(of: archiveCacheTTL) { newValue in
+                            AppPreferences.archiveListingCacheTTLDays = newValue
+                            ArchiveListingCacheStore().applyCurrentLimits()
+                            refreshArchiveCacheStats()
+                        }
+                    }
+
+                    SettingsActionRow(
+                        title: L10n.text("settings.automation.cache.clear.title"),
+                        description: L10n.text("settings.automation.cache.clear.description"),
+                        systemImage: "trash", iconTint: .red,
+                        buttonTitle: L10n.text("settings.automation.cache.clear.button"),
+                        role: .destructive,
+                        isDisabled: archiveCacheCount == 0,
+                        action: {
+                            ArchiveListingCacheStore().clear()
+                            refreshArchiveCacheStats()
+                        }
+                    )
+
+                    Text(archiveCacheCount == 0
+                        ? L10n.text("settings.automation.cache.status.empty")
+                        : L10n.format("settings.automation.cache.status",
+                                      "\(archiveCacheCount)",
+                                      ByteCountFormatter.string(fromByteCount: Int64(archiveCacheBytes), countStyle: .file)))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .onAppear(perform: refreshArchiveCacheStats)
+
             // ②.6 AI 报告助手(macOS 26 本地模型):总结风险 / 解释失败 / 建议标签 / Issue 草稿。
             // 主开关关 → 所有 AI 入口隐藏;开但模型不可用(旧系统 / 没开 Apple Intelligence / 没下完)→ 说明文案。
             Section(L10n.text("settings.automation.ai.section")) {
@@ -233,6 +321,16 @@ struct AutomationPane: View {
         }
         .formStyle(.grouped)
         .controlSize(.small)
+    }
+
+    // MARK: - #36 归档内容缓存
+
+    /// 刷新缓存占用展示(顺手清过期项)。轻量,onAppear 与每次开关 / 步进 / 清空后调。
+    private func refreshArchiveCacheStats() {
+        let store = ArchiveListingCacheStore()
+        store.pruneExpiredInPlace()
+        archiveCacheCount = store.count()
+        archiveCacheBytes = store.storageByteSize()
     }
 
     // MARK: - #42 路径健康

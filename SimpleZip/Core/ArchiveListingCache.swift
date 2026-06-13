@@ -177,6 +177,15 @@ nonisolated final class ArchiveListingCacheStore {
         if kept.count != all.count { persist(kept) }
     }
 
+    /// 设置里调小了归档数上限 / TTL 后立刻生效:清过期 + 裁到当前归档数上限,而不是等下次打开才收缩。
+    func applyCurrentLimits(now: Date = Date()) {
+        let policy = policyProvider()
+        var all = pruneExpired(loadAll(), ttlDays: policy.ttlDays, now: now)
+        let cap = max(1, policy.maxArchives)
+        if all.count > cap { all.removeLast(all.count - cap) }
+        persist(all)
+    }
+
     // MARK: - Private
 
     private func pruneExpired(_ all: [ArchiveListingCacheEntry], ttlDays: Int, now: Date) -> [ArchiveListingCacheEntry] {
