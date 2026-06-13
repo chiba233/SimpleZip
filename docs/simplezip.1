@@ -1,0 +1,96 @@
+.TH SIMPLEZIP 1 "2026" "SimpleZip" "User Commands"
+.SH NAME
+simplezip \- SimpleZip command-line companion
+.SH SYNOPSIS
+.B simplezip
+.I command
+[\fIarguments\fR]
+[\fIoptions\fR]
+.SH DESCRIPTION
+.B simplezip
+drives the same archive engines as the SimpleZip app from your terminal, with
+real exit codes for scripts and CI. It is installed as a symlink at
+.I /usr/local/bin/simplezip
+from SimpleZip \(-> Settings \(-> General \(-> Command-Line Tool.
+.PP
+Every finished command is also recorded in the app's Activity Center.
+Passwords are never accepted as command-line arguments.
+.SH COMMANDS
+.TP
+.B open \fIfile\fR...
+Open files or archives in the SimpleZip app (equivalent to double-clicking).
+.TP
+.B check \fIarchive\fR...
+Test archive integrity with the bundled 7\-Zip engine. Exits 1 if any archive
+fails; a summary line is printed for the run.
+.TP
+.B compare \fIleft\fR \fIright\fR
+Compare the entry lists of two archives (path, size, CRC, modified, encryption).
+Exits 1 when they differ.
+.TP
+.B create \fIoutput\fR \fIinput\fR... [\fIoptions\fR]
+Create an archive; the format comes from the output extension (zip, 7z, tar,
+tar.gz, ...). Your saved per-format defaults apply. Never overwrites an existing
+file.
+.TP
+.B verify \fIchecksum-file\fR...
+Verify the files listed in a checksum file (sha256sum / BSD tag / bare digest /
+\&.sfv). Unsafe entries (absolute paths, ..) are rejected. Exits 1 on any failure.
+.TP
+.B doctor
+Check the CLI environment: the app bundle, the bundled 7\-Zip engine, the optional
+RAR and GPG backends, and the symlink.
+.TP
+.B completions \fIzsh\fR|\fIbash\fR|\fIfish\fR
+Print a shell completion script to stdout.
+.TP
+.B version
+Print the app version this CLI belongs to.
+.TP
+.B help \fR[\fIcommand\fR]
+Show help, or detailed help for one command.
+.SH "CREATE OPTIONS"
+.TP
+.B \-\-template, \-t \fIname\fR
+Apply a saved task template by stable slug.
+.TP
+.B \-\-level, \-l \fI0\-9\fR
+Compression level.
+.TP
+.B \-\-exclude\-junk
+Skip .DS_Store, AppleDouble, Thumbs.db and desktop.ini.
+.TP
+.B \-\-reproducible
+Deterministic output (zip/7z): same input, byte\-identical archive.
+.TP
+.B \-\-encrypt
+Encrypt the archive. The password is read from the
+.B SIMPLEZIP_PASSWORD
+environment variable, or prompted interactively (never echoed). It is never
+accepted as a command\-line argument.
+.SH "GLOBAL OPTIONS"
+.TP
+.B \-\-json
+Print one JSON result object per command on stdout.
+.TP
+.B \-\-quiet, \-q
+Only errors and the exit code.
+.TP
+.B \-\-verbose
+Stream the backend's raw output.
+.SH "EXIT STATUS"
+.TP
+.B 0
+Success.
+.TP
+.B 1
+Failures or differences found.
+.TP
+.B 2
+Usage or environment error.
+.SH ENVIRONMENT
+.TP
+.B SIMPLEZIP_PASSWORD
+Password used by \fBcreate \-\-encrypt\fR when set (otherwise prompted on the tty).
+.SH "SEE ALSO"
+SimpleZip.app, 7zz(1)

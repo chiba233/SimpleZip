@@ -138,6 +138,29 @@ struct CLIInvocationTests {
         }
     }
 
+    @Test func completionsParsePerShell() throws {
+        #expect(try CLIInvocation.parse(["completions", "zsh"]) == .completions(shell: .zsh))
+        #expect(try CLIInvocation.parse(["completions", "bash"]) == .completions(shell: .bash))
+        #expect(try CLIInvocation.parse(["completions", "fish"]) == .completions(shell: .fish))
+        #expect(throws: CLIInvocation.ParseError.invalidValue(option: "completions", value: "powershell")) {
+            try CLIInvocation.parse(["completions", "powershell"])
+        }
+        #expect(throws: CLIInvocation.ParseError.missingArguments(command: "completions")) {
+            try CLIInvocation.parse(["completions"])
+        }
+    }
+
+    @Test func completionsScriptsMentionEachShellTarget() {
+        // 每个 shell 脚本里都得有它自己的关键标记,确保没串台。
+        #expect(CLICompletions.script(for: .zsh).contains("#compdef simplezip"))
+        #expect(CLICompletions.script(for: .bash).contains("complete -F _simplezip simplezip"))
+        #expect(CLICompletions.script(for: .fish).contains("complete -c simplezip"))
+        // 所有已知子命令都该出现在补全里(防止加了命令忘了补全)。
+        for command in CLIInvocation.knownCommands {
+            #expect(CLICompletions.script(for: .zsh).contains(command), "zsh missing \(command)")
+        }
+    }
+
     @Test func nearestCommandSuggestsTypos() {
         #expect(CLIInvocation.nearestCommand(to: "chek") == "check")
         #expect(CLIInvocation.nearestCommand(to: "verfy") == "verify")

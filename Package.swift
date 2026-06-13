@@ -43,6 +43,7 @@ let package = Package(
                 "Core/ArchiveWriteGate.swift",
                 "Core/ChecksumFile.swift",
                 "Core/CLIInvocation.swift",
+                "Core/CLICompletions.swift",
                 "Core/ArchiveOperationOptions.swift",
                 "Core/ArchiveSafety.swift",
                 "Core/ArchiveContentSearch.swift",

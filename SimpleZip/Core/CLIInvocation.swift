@@ -47,6 +47,9 @@ enum CLIInvocation: Equatable {
     /// 0.4.4 A:verify 支持多个校验文件(逐个验,末尾汇总)。
     case verify(paths: [String])
 
+    /// 0.4.4 #48:打印指定 shell 的补全脚本到 stdout(zsh / bash / fish)。
+    case completions(shell: CLICompletions.Shell)
+
     enum ParseError: Error, Equatable {
         case unknownCommand(String)
         case missingArguments(command: String)
@@ -81,7 +84,7 @@ enum CLIInvocation: Equatable {
         return firstArgument == "--cli"
     }
 
-    nonisolated static let knownCommands = ["help", "version", "doctor", "open", "check", "compare", "create", "verify"]
+    nonisolated static let knownCommands = ["help", "version", "doctor", "open", "check", "compare", "create", "verify", "completions"]
 
     /// 0.4.4 A:剥离全局旗标(--json/--quiet/--verbose,任意位置)→ (剩余参数, 旗标)。
     nonisolated static func extractOutputOptions(from arguments: [String]) -> (rest: [String], options: CLIOutputOptions) {
@@ -167,6 +170,12 @@ enum CLIInvocation: Equatable {
             try rejectOptions(in: rest)
             guard !rest.isEmpty else { throw ParseError.missingArguments(command: command) }
             return .verify(paths: rest)
+        case "completions":
+            guard let shellArgument = rest.first else { throw ParseError.missingArguments(command: command) }
+            guard let shell = CLICompletions.Shell(rawValue: shellArgument) else {
+                throw ParseError.invalidValue(option: "completions", value: shellArgument)
+            }
+            return .completions(shell: shell)
         default:
             throw ParseError.unknownCommand(command)
         }
@@ -220,6 +229,7 @@ enum CLIInvocation: Equatable {
                                                  Create an archive; format from the output extension
       simplezip verify <checksum-file>...        Verify SHA256SUMS / checksums.txt / .sha256 / .md5 / .sfv
       simplezip doctor                           Check the CLI environment (app, backends, symlink)
+      simplezip completions <zsh|bash|fish>      Print a shell completion script to stdout
       simplezip version                          Print version
       simplezip help [command]                   Show this help, or detailed help for one command
 
@@ -301,6 +311,16 @@ enum CLIInvocation: Equatable {
             """
         case "version":
             return "simplezip version — prints the app version this CLI belongs to."
+        case "completions":
+            return """
+            simplezip completions <zsh|bash|fish>
+
+            Prints a shell completion script to stdout. Redirect it into your shell's
+            completion directory, e.g.:
+              simplezip completions zsh  > "${fpath[1]}/_simplezip"
+              simplezip completions bash > /usr/local/etc/bash_completion.d/simplezip
+              simplezip completions fish > ~/.config/fish/completions/simplezip.fish
+            """
         case "help":
             return "simplezip help [command] — this text, or detailed help for one command."
         default:

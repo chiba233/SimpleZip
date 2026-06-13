@@ -50,6 +50,10 @@ enum CLIRunner {
         case .helpCommand(let topic):
             print(CLIInvocation.usage(for: topic))
             return 0
+        case .completions(let shell):
+            // #48:纯打印补全脚本,不需要后端环境。
+            print(CLICompletions.script(for: shell))
+            return 0
         case .version, .doctor, .open, .check, .compare, .create, .verify:
             break
         }
@@ -61,8 +65,8 @@ enum CLIRunner {
         }
 
         switch invocation {
-        case .help, .helpCommand:
-            return 0
+        case .help, .helpCommand, .completions:
+            return 0   // 已在上面的 switch 处理并返回,这里仅为穷尽性。
         case .version:
             if output.json {
                 printJSON(["command": "version", "version": environment.versionText])
