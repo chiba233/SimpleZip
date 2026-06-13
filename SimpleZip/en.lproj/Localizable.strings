@@ -2494,3 +2494,5 @@
 "intent.setting.on" = "on";
 "intent.setting.off" = "off";
 "intent.setting.notToggleable" = "“%@” can’t be changed this way — open SimpleZip’s settings to change it.";
+"Setting Switch" = "Setting Switch";
+"Flip Setting" = "Flip Setting";

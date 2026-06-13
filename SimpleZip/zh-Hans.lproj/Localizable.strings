@@ -2494,3 +2494,5 @@
 "intent.setting.on" = "开启";
 "intent.setting.off" = "关闭";
 "intent.setting.notToggleable" = "「%@」无法通过这种方式更改 —— 请在 SimpleZip 的设置中更改。";
+"Setting Switch" = "设置开关";
+"Flip Setting" = "翻转设置";

@@ -808,5 +808,9 @@ struct SimpleZipAppShortcuts: AppShortcutsProvider {
             shortTitle: "Change a Setting",
             systemImageName: "switch.2"
         )
+        // #31 的 macOS 26 交互式 snippet(SettingSwitchSnippet)刻意不进这里:AppShortcutsBuilder 不支持
+        // `if #available` 分支(会产出 [AppShortcut] 而非变参),而整个 provider 是 macOS 14 下限。
+        // SnippetIntent 默认 isDiscoverable=true,系统会在 macOS 26 Spotlight / 快捷指令里自行收录它;
+        // Siri 语音「开关设置」的短语已由上面的 ChangeSettingIntent 覆盖,无需在此重复。
     }
 }
