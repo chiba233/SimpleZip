@@ -37,8 +37,8 @@ enum BundleReleaseCheck {
 
     /// 一行检查结论。标题存 L10n key(+ 至多一个参数),detail 是工具原始输出行(不本地化),
     /// 由报告视图统一渲染 —— Core 不直接产出本地化文案,SwiftPM 测试断言 key 不受语言影响。
-    struct Finding: Identifiable, Hashable {
-        enum Severity: Hashable {
+    struct Finding: Identifiable, Hashable, Codable {
+        enum Severity: String, Hashable, Codable {
             case pass
             case info
             case warning
@@ -50,6 +50,11 @@ enum BundleReleaseCheck {
         let titleKey: String
         var titleArgument: String?
         var detail: String?
+
+        /// Codable 排除 `id`(带初值的 let 不能解码)—— 0.4.4 报告随任务历史持久化用。
+        private enum CodingKeys: String, CodingKey {
+            case severity, titleKey, titleArgument, detail
+        }
 
         nonisolated init(_ severity: Severity, _ titleKey: String, argument: String? = nil, detail: String? = nil) {
             self.severity = severity

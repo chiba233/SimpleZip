@@ -90,8 +90,16 @@ struct LocationCompletion: Identifiable, Hashable {
 ///
 /// 0.1.10 起：除了基础 4 列（kind/size/modified/method）以外，再保留可选的 packedSize/CRC/created/attributes
 /// —— 这些字段只有 7zz `-slt` 长格式才有，zip 后备路径和 DMG 后端会用 nil / "" 填空，UI 自然显示空。
-struct ArchiveItem: Identifiable, Hashable {
+struct ArchiveItem: Identifiable, Hashable, Codable {
     let id = UUID()
+
+    /// Codable 排除 `id`(带初值的 let 不能解码;id 只是行标识,解码时新发一个即可)。
+    /// 0.4.4:为比较报告随任务历史持久化(重启后详情仍可看)而加。
+    private enum CodingKeys: String, CodingKey {
+        case name, isDirectory, size, modified, sizeText, modifiedText, method, isEncrypted
+        case packedSize, packedSizeText, crc, created, createdText, attributes
+        case accessed, accessedText, hostOS, characteristics, symlinkTarget, comment
+    }
     let name: String
     let isDirectory: Bool
     let size: Int64?

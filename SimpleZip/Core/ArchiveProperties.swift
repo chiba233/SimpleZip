@@ -12,7 +12,7 @@
 import Foundation
 
 /// `7zz l -slt` 头部块的归档级属性(字段缺失 = 该格式/后端没报)。
-nonisolated struct ArchiveProperties: Equatable {
+nonisolated struct ArchiveProperties: Equatable, Codable {
     var type: String?
     var physicalSizeBytes: Int64?
     var headersSizeBytes: Int64?
@@ -47,8 +47,8 @@ nonisolated struct ArchiveProperties: Equatable {
 }
 
 /// 条目侧聚合(对已打开归档的现成 items 做,零额外后端调用)。
-nonisolated struct ArchiveMetadataAggregate: Equatable {
-    struct MethodShare: Equatable {
+nonisolated struct ArchiveMetadataAggregate: Equatable, Codable {
+    struct MethodShare: Equatable, Codable {
         let method: String
         let count: Int
     }

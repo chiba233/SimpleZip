@@ -12,7 +12,7 @@
 import Foundation
 
 /// 某条目「改了什么」。一条修改可能同时命中多项（比如内容变了 → size + crc 都变）。
-enum ArchiveDiffField: String, CaseIterable, Hashable {
+enum ArchiveDiffField: String, CaseIterable, Hashable, Codable {
     case type        // 文件 ↔ 文件夹
     case size        // 原始大小
     case crc         // CRC（仅文件、两边都有 CRC 时才比）
@@ -22,7 +22,7 @@ enum ArchiveDiffField: String, CaseIterable, Hashable {
 }
 
 /// 同一路径在两个包里都存在、但有差异的一条修改。`before` / `after` 分别是左 / 右两侧条目。
-struct ArchiveEntryChange: Hashable {
+struct ArchiveEntryChange: Hashable, Codable {
     let path: String
     let before: ArchiveItem
     let after: ArchiveItem
@@ -30,7 +30,7 @@ struct ArchiveEntryChange: Hashable {
 }
 
 /// 两个压缩包的比对结果。各列表按归一化路径升序，保证确定性（方便测试 + 稳定展示）。
-struct ArchiveDiffResult: Hashable {
+struct ArchiveDiffResult: Hashable, Codable {
     /// 只在右（新）包里 —— 新增。
     let added: [ArchiveItem]
     /// 只在左（旧）包里 —— 删除。

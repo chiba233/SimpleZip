@@ -94,7 +94,7 @@ nonisolated enum ReleaseGate {
         }
     }
 
-    struct Violation: Equatable {
+    struct Violation: Equatable, Codable {
         let rule: Rule
         let mode: ReleaseGateMode
         /// 计数型规则带命中数(可疑路径 / 垃圾 / 空目录 / bundle 问题);开关型(校验/签名缺失)为 nil。

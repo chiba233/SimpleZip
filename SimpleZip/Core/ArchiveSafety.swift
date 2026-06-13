@@ -108,7 +108,7 @@ enum ArchiveSafety {
 
 /// 报告级安全发现的类别。比 `isUnsafeEntryName` 的硬拦截更宽：这里是**告知**，
 /// 不改变任何拦截行为 —— 解压 / 打开时的既有安全确认照旧。rawValue 拼 L10n key。
-enum ArchiveSecurityFindingKind: String, CaseIterable {
+enum ArchiveSecurityFindingKind: String, CaseIterable, Codable {
     case absolutePath        // `/` 或 `~` 开头 —— 解出来可能落到任意位置
     case parentTraversal     // `..` 上跳段
     case windowsDrivePath    // `C:\` 盘符
@@ -126,7 +126,7 @@ enum ArchiveSecurityFindingKind: String, CaseIterable {
     case trailingSpaceOrDot     // 段尾空格 / 点 —— Windows 会剥掉,造成改名或冲突
 }
 
-struct ArchiveSecurityFinding: Equatable, Identifiable {
+struct ArchiveSecurityFinding: Equatable, Identifiable, Codable {
     let kind: ArchiveSecurityFindingKind
     /// 命中的条目（externalSymlink 形如 `name → target`，caseCollision 形如 `a ↔ A`）。
     let entryPaths: [String]
@@ -400,7 +400,7 @@ enum ArchiveJunkFiles {
 // MARK: - 发布包检查（0.4.2 #15）
 
 /// 「发布前检查」的条目侧统计 —— 纯函数。测试结果 / SHA-256 / 签名归属由调用方异步补齐。
-struct ReleaseInspectionStats: Equatable {
+struct ReleaseInspectionStats: Equatable, Codable {
     let fileCount: Int
     let folderCount: Int
     let totalBytes: Int64
