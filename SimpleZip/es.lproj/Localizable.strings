@@ -197,6 +197,17 @@
 "finder.noResults" = "Ningún archivo abierto contiene «%@».";
 "finder.resultsHeader" = "«%@» encontrado en %@ archivo(s):";
 "finder.failed" = "No se pudo buscar: inténtalo de nuevo.";
+"menu.sensitiveFiles" = "Buscar archivos sensibles y de configuración";
+"sensitive.title" = "Archivos sensibles y de configuración";
+"sensitive.category.secretsKeys" = "Posibles claves, credenciales y secretos";
+"sensitive.category.license" = "Licencia y copyright";
+"sensitive.category.config" = "Configuración";
+"sensitive.category.scripts" = "Scripts";
+"sensitive.empty" = "No se encontraron archivos de licencia, configuración, script ni que parezcan secretos.";
+"sensitive.scanned" = "%@ archivos analizados.";
+"sensitive.disclaimer" = "Coincidencia solo por nombre de archivo: nunca se inspecciona el contenido.";
+"ai.explainSensitive" = "Explicar";
+"ai.explainSensitive.title" = "Archivos sensibles explicados";
 "settings.section.defaults" = "Predeterminados";
 "settings.section.browser" = "Navegador";
 "settings.startupLocation" = "Ubicación de inicio";

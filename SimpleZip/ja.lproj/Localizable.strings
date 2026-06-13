@@ -197,6 +197,17 @@
 "finder.noResults" = "開いた書庫に「%@」を含むものはありません。";
 "finder.resultsHeader" = "「%@」は %@ 個の書庫で見つかりました:";
 "finder.failed" = "検索できませんでした。もう一度お試しください。";
+"menu.sensitiveFiles" = "機密・設定ファイルを探す";
+"sensitive.title" = "機密・設定ファイル";
+"sensitive.category.secretsKeys" = "鍵・認証情報・機密の可能性";
+"sensitive.category.license" = "ライセンス・著作権";
+"sensitive.category.config" = "設定";
+"sensitive.category.scripts" = "スクリプト";
+"sensitive.empty" = "ライセンス・設定・スクリプト・機密らしきファイルは見つかりませんでした。";
+"sensitive.scanned" = "%@ 個のファイルを確認。";
+"sensitive.disclaimer" = "ファイル名のみで判定——内容は一切調べません。";
+"ai.explainSensitive" = "解説";
+"ai.explainSensitive.title" = "機密ファイルの解説";
 "settings.section.defaults" = "デフォルト";
 "settings.section.browser" = "ブラウザ";
 "settings.startupLocation" = "起動時の場所";

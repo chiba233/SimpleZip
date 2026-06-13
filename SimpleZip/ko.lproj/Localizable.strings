@@ -197,6 +197,17 @@
 "finder.noResults" = "열어 본 압축 파일에 “%@”이(가) 없습니다.";
 "finder.resultsHeader" = "“%@”을(를) %@개의 압축 파일에서 찾았습니다:";
 "finder.failed" = "검색하지 못했어요 — 다시 시도해 주세요.";
+"menu.sensitiveFiles" = "민감·설정 파일 찾기";
+"sensitive.title" = "민감·설정 파일";
+"sensitive.category.secretsKeys" = "키·자격 증명·비밀일 수 있음";
+"sensitive.category.license" = "라이선스·저작권";
+"sensitive.category.config" = "구성";
+"sensitive.category.scripts" = "스크립트";
+"sensitive.empty" = "라이선스·설정·스크립트·비밀로 보이는 파일이 없습니다.";
+"sensitive.scanned" = "파일 %@개 검사됨.";
+"sensitive.disclaimer" = "파일 이름만으로 판별 — 내용은 검사하지 않습니다.";
+"ai.explainSensitive" = "설명";
+"ai.explainSensitive.title" = "민감 파일 설명";
 "settings.section.defaults" = "기본값";
 "settings.section.browser" = "브라우저";
 "settings.startupLocation" = "시작 위치";

@@ -197,6 +197,17 @@
 "finder.noResults" = "Ни один открытый архив не содержит «%@».";
 "finder.resultsHeader" = "«%@» найдено в %@ архив(ах):";
 "finder.failed" = "Не удалось выполнить поиск — повторите попытку.";
+"menu.sensitiveFiles" = "Найти конфиденциальные и конфиг-файлы";
+"sensitive.title" = "Конфиденциальные и конфиг-файлы";
+"sensitive.category.secretsKeys" = "Возможные ключи, учётные данные и секреты";
+"sensitive.category.license" = "Лицензия и авторские права";
+"sensitive.category.config" = "Конфигурация";
+"sensitive.category.scripts" = "Скрипты";
+"sensitive.empty" = "Файлы лицензий, конфигурации, скриптов или похожие на секреты не найдены.";
+"sensitive.scanned" = "Проверено файлов: %@.";
+"sensitive.disclaimer" = "Определяется только по имени файла — содержимое не проверяется.";
+"ai.explainSensitive" = "Пояснить";
+"ai.explainSensitive.title" = "Пояснение по файлам";
 "settings.section.defaults" = "По умолчанию";
 "settings.section.browser" = "Обзор";
 "settings.startupLocation" = "Стартовое место";

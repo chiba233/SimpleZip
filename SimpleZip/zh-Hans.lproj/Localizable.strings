@@ -1749,6 +1749,17 @@
 "finder.noResults" = "打开过的归档里没有「%@」。";
 "finder.resultsHeader" = "「%@」在 %@ 个归档里找到:";
 "finder.failed" = "搜索失败 —— 再试一次。";
+"menu.sensitiveFiles" = "查找敏感与配置文件";
+"sensitive.title" = "敏感与配置文件";
+"sensitive.category.secretsKeys" = "疑似密钥、凭据与机密";
+"sensitive.category.license" = "许可证与版权";
+"sensitive.category.config" = "配置文件";
+"sensitive.category.scripts" = "脚本";
+"sensitive.empty" = "没找到许可证、配置、脚本或疑似机密类文件。";
+"sensitive.scanned" = "已扫描 %@ 个文件。";
+"sensitive.disclaimer" = "仅按文件名匹配,从不检查内容。";
+"ai.explainSensitive" = "解释";
+"ai.explainSensitive.title" = "敏感文件解释";
 "settings.section.defaults" = "默认项";
 "settings.section.browser" = "浏览器";
 "settings.startupLocation" = "启动位置";

@@ -199,6 +199,9 @@ struct ArchiveFileCommands: Commands {
                 .disabled(model == nil)
             Button(L10n.text("dupArchives.menu")) { model?.findDuplicateArchivesInFolder() }
                 .disabled(!isFolderMode)
+            // #68:扫归档里的敏感/配置/脚本/许可证文件(确定性扫描;报告里再 AI 解释)。归档打开时可用。
+            Button(L10n.text("menu.sensitiveFiles")) { model?.presentSensitiveFileReport() }
+                .disabled(!isArchiveOpen)
 
             // #63(macOS 26 AI):用一句话找「文件X在哪个包」—— 仅 AI 可用时出现(A4)。
             if AIReportAssistant.isReady {

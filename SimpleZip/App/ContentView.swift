@@ -370,6 +370,12 @@ struct ContentView: View {
                 model.archiveFinderRequest = nil
             }
         }
+        // #68:敏感/配置/脚本/许可证文件报告 sheet。
+        .sheet(item: $model.sensitiveFileReport) { report in
+            SensitiveFileReportView(report: report) {
+                model.sensitiveFileReport = nil
+            }
+        }
         .sheet(item: $model.releaseAssistantRequest, onDismiss: {
             if let confirmed = pendingReleaseAssistantRun {
                 pendingReleaseAssistantRun = nil

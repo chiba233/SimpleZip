@@ -197,6 +197,17 @@
 "finder.noResults" = "Kein geöffnetes Archiv enthält „%@“.";
 "finder.resultsHeader" = "„%@“ in %@ Archiv(en) gefunden:";
 "finder.failed" = "Suche fehlgeschlagen – versuche es erneut.";
+"menu.sensitiveFiles" = "Sensible & Konfigurationsdateien finden";
+"sensitive.title" = "Sensible & Konfigurationsdateien";
+"sensitive.category.secretsKeys" = "Mögliche Schlüssel, Anmeldedaten & Geheimnisse";
+"sensitive.category.license" = "Lizenz & Urheberrecht";
+"sensitive.category.config" = "Konfiguration";
+"sensitive.category.scripts" = "Skripte";
+"sensitive.empty" = "Keine Lizenz-, Konfig-, Skript- oder geheim wirkenden Dateien gefunden.";
+"sensitive.scanned" = "%@ Dateien geprüft.";
+"sensitive.disclaimer" = "Nur nach Dateinamen erkannt – Inhalte werden nie geprüft.";
+"ai.explainSensitive" = "Erklären";
+"ai.explainSensitive.title" = "Sensible Dateien erklärt";
 "settings.section.defaults" = "Standardwerte";
 "settings.section.browser" = "Dateibrowser";
 "settings.startupLocation" = "Startort";

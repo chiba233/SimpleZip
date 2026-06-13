@@ -1751,6 +1751,17 @@
 "finder.noResults" = "No opened archive contains “%@”.";
 "finder.resultsHeader" = "“%@” found in %@ archive(s):";
 "finder.failed" = "Couldn't search — try again.";
+"menu.sensitiveFiles" = "Find Sensitive & Config Files";
+"sensitive.title" = "Sensitive & Config Files";
+"sensitive.category.secretsKeys" = "Possible keys, credentials & secrets";
+"sensitive.category.license" = "License & copyright";
+"sensitive.category.config" = "Configuration";
+"sensitive.category.scripts" = "Scripts";
+"sensitive.empty" = "No license, config, script, or secret-looking files found.";
+"sensitive.scanned" = "Scanned %@ files.";
+"sensitive.disclaimer" = "Matched by file name only — contents are never inspected.";
+"ai.explainSensitive" = "Explain";
+"ai.explainSensitive.title" = "Sensitive files explained";
 "settings.section.defaults" = "Defaults";
 "settings.section.browser" = "Browser";
 "settings.startupLocation" = "Startup location";

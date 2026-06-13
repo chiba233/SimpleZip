@@ -197,6 +197,17 @@
 "finder.noResults" = "ไม่มีไฟล์บีบอัดที่เปิดไว้มี “%@”";
 "finder.resultsHeader" = "พบ “%@” ใน %@ ไฟล์บีบอัด:";
 "finder.failed" = "ค้นหาไม่สำเร็จ — ลองอีกครั้ง";
+"menu.sensitiveFiles" = "ค้นหาไฟล์ลับและไฟล์ตั้งค่า";
+"sensitive.title" = "ไฟล์ลับและไฟล์ตั้งค่า";
+"sensitive.category.secretsKeys" = "คีย์ ข้อมูลรับรอง และความลับที่เป็นไปได้";
+"sensitive.category.license" = "ใบอนุญาตและลิขสิทธิ์";
+"sensitive.category.config" = "การตั้งค่า";
+"sensitive.category.scripts" = "สคริปต์";
+"sensitive.empty" = "ไม่พบไฟล์ใบอนุญาต ไฟล์ตั้งค่า สคริปต์ หรือที่ดูเหมือนความลับ";
+"sensitive.scanned" = "ตรวจ %@ ไฟล์";
+"sensitive.disclaimer" = "จับคู่จากชื่อไฟล์เท่านั้น — ไม่ตรวจเนื้อหา";
+"ai.explainSensitive" = "อธิบาย";
+"ai.explainSensitive.title" = "คำอธิบายไฟล์ลับ";
 "settings.section.defaults" = "ค่าเริ่มต้น";
 "settings.section.browser" = "เบราว์เซอร์";
 "settings.startupLocation" = "ตำแหน่งเมื่อเปิดแอป";

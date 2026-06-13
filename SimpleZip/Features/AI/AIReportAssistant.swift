@@ -620,6 +620,27 @@ extension AIReportAssistant {
         return (instructions, lines.joined(separator: "\n"))
     }
 
+    /// #68:敏感/配置/脚本/许可证文件扫描结果 → 白话解释。**只在确定性结果上解释**(扫描是按文件名归类、
+    /// 非内容检查),所以说「看起来像」而非断言;机密类温和提醒别随意外传,绝不让删文件。
+    static func sensitiveFilesExplanationPrompt(for report: SensitiveFileReport) -> (instructions: String, prompt: String) {
+        let instructions = """
+        You explain to a non-expert what notable files an archive contains, grouped as: likely private keys / \
+        credentials / secrets, license & copyright files, configuration, and scripts. Say what each present \
+        category is, and for the secrets/keys group gently note those may be sensitive and shouldn't be shared \
+        casually. This is NAME-based pattern matching, not content inspection, so say "looks like" rather than \
+        asserting, and name real example files. Never tell the user to delete anything. Reply in the user's language.
+        """
+        var lines: [String] = ["Archive: \(report.archiveName)", "Files scanned: \(report.result.scannedFileCount)"]
+        if report.result.isEmpty {
+            lines.append("No license, configuration, script, or secret-looking files were matched by name.")
+        } else {
+            for group in report.result.groups {
+                lines.append("\(group.category.rawValue) (\(group.paths.count)): \(sampleEntries(group.paths, perKind: 6))")
+            }
+        }
+        return (instructions, lines.joined(separator: "\n"))
+    }
+
     /// 发布目录完整性检查 → 白话解释(哪些项过 / 警告 / 失败 + 具体受影响文件)。
     static func directoryAuditExplanationPrompt(for report: ReleaseDirectoryAuditReport) -> (instructions: String, prompt: String) {
         let instructions = """
