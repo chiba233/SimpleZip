@@ -125,6 +125,14 @@ enum CompressionLevel: Int, CaseIterable, Identifiable, Codable {
 
     var id: Int { rawValue }
 
+    /// 0.4.4 A:把任意 0-9 数值映射到最近的档位(CLI `--level` 用)。
+    nonisolated static func closest(toNumeric value: Int) -> CompressionLevel? {
+        guard (0...9).contains(value) else { return nil }
+        return CompressionLevel.allCases.min {
+            abs($0.rawValue - value) < abs($1.rawValue - value)
+        }
+    }
+
     var title: String {
         switch self {
         case .store:

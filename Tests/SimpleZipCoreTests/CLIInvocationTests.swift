@@ -62,7 +62,7 @@ struct CLIInvocationTests {
 
     @Test func createNeedsOutputAndInputs() throws {
         #expect(try CLIInvocation.parse(["create", "out.zip", "x.txt", "y.txt"])
-            == .create(output: "out.zip", inputs: ["x.txt", "y.txt"], template: nil))
+            == .create(output: "out.zip", inputs: ["x.txt", "y.txt"], options: CLICreateOptions()))
         #expect(throws: CLIInvocation.ParseError.missingArguments(command: "create")) {
             try CLIInvocation.parse(["create", "out.zip"])
         }
@@ -70,7 +70,7 @@ struct CLIInvocationTests {
 
     @Test func createParsesTemplateSlug() throws {
         #expect(try CLIInvocation.parse(["create", "out.zip", "x.txt", "--template", "github-release"])
-            == .create(output: "out.zip", inputs: ["x.txt"], template: "github-release"))
+            == .create(output: "out.zip", inputs: ["x.txt"], options: CLICreateOptions(template: "github-release")))
         // 模板 slug 与内置目录对得上(单一事实来源在 CompressionPreset)。
         #expect(CompressionPreset.builtInTemplate(slug: "GitHub-Release") != nil)
         #expect(CompressionPreset.builtInTemplate(slug: "nope") == nil)
@@ -80,8 +80,10 @@ struct CLIInvocationTests {
         }
     }
 
-    @Test func verifyNeedsExactlyOneFile() throws {
-        #expect(try CLIInvocation.parse(["verify", "SHA256SUMS"]) == .verify(path: "SHA256SUMS"))
+    @Test func verifyParsesOneOrMoreFiles() throws {
+        // 0.4.4 A:verify 收多个校验文件(批量摘要)。
+        #expect(try CLIInvocation.parse(["verify", "SHA256SUMS"]) == .verify(paths: ["SHA256SUMS"]))
+        #expect(try CLIInvocation.parse(["verify", "a.sha256", "b.md5"]) == .verify(paths: ["a.sha256", "b.md5"]))
         #expect(throws: CLIInvocation.ParseError.missingArguments(command: "verify")) {
             try CLIInvocation.parse(["verify"])
         }
@@ -94,5 +96,63 @@ struct CLIInvocationTests {
         #expect(throws: CLIInvocation.ParseError.unexpectedOption("--force")) {
             try CLIInvocation.parse(["check", "a.zip", "--force"])
         }
+    }
+
+    // MARK: - 0.4.4 A:全局旗标 / help 子题 / doctor / create 旗标 / 智能纠错
+
+    @Test func globalFlagsExtractAnywhere() {
+        let (rest, options) = CLIInvocation.extractOutputOptions(from: ["--json", "check", "a.zip", "--quiet", "--verbose"])
+        #expect(rest == ["check", "a.zip"])
+        #expect(options == CLIOutputOptions(json: true, quiet: true, verbose: true))
+        let (rest2, options2) = CLIInvocation.extractOutputOptions(from: ["create", "out.zip", "x"])
+        #expect(rest2 == ["create", "out.zip", "x"])
+        #expect(options2 == CLIOutputOptions())
+    }
+
+    @Test func helpWithTopicParses() throws {
+        #expect(try CLIInvocation.parse(["help", "create"]) == .helpCommand("create"))
+        #expect(throws: CLIInvocation.ParseError.unknownCommand("explode")) {
+            try CLIInvocation.parse(["help", "explode"])
+        }
+        // 每个已知命令都有详细用法(不回落到总 usage)。
+        for command in CLIInvocation.knownCommands where command != "open" {
+            #expect(CLIInvocation.usage(for: command) != CLIInvocation.usage)
+        }
+    }
+
+    @Test func doctorParses() throws {
+        #expect(try CLIInvocation.parse(["doctor"]) == .doctor)
+    }
+
+    @Test func createParsesNewFlags() throws {
+        var expected = CLICreateOptions()
+        expected.level = 9
+        expected.excludeJunk = true
+        expected.reproducible = true
+        expected.encrypt = true
+        #expect(try CLIInvocation.parse([
+            "create", "out.7z", "src", "--level", "9", "--exclude-junk", "--reproducible", "--encrypt"
+        ]) == .create(output: "out.7z", inputs: ["src"], options: expected))
+        #expect(throws: CLIInvocation.ParseError.invalidValue(option: "--level", value: "11")) {
+            try CLIInvocation.parse(["create", "out.zip", "x", "--level", "11"])
+        }
+    }
+
+    @Test func nearestCommandSuggestsTypos() {
+        #expect(CLIInvocation.nearestCommand(to: "chek") == "check")
+        #expect(CLIInvocation.nearestCommand(to: "verfy") == "verify")
+        #expect(CLIInvocation.nearestCommand(to: "doctr") == "doctor")
+        // 离谱输入不乱猜。
+        #expect(CLIInvocation.nearestCommand(to: "frobnicate") == nil)
+        // 建议进错误文案。
+        #expect(CLIInvocation.ParseError.unknownCommand("chek").message.contains("check"))
+    }
+
+    @Test func compressionLevelMapsToClosestTier() {
+        #expect(CompressionLevel.closest(toNumeric: 0) == .store)
+        #expect(CompressionLevel.closest(toNumeric: 2) == .fast)
+        #expect(CompressionLevel.closest(toNumeric: 6) == .normal)
+        #expect(CompressionLevel.closest(toNumeric: 9) == .maximum)
+        #expect(CompressionLevel.closest(toNumeric: 11) == nil)
     }
 }

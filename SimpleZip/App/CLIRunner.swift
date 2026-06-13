@@ -27,10 +27,12 @@ enum CLIRunner {
     static func run(arguments: [String]) async -> Int32 {
         var commandArguments = Array(arguments.dropFirst())
         if commandArguments.first == "--cli" { commandArguments.removeFirst() }
+        // 0.4.4 A:全局旗标(--json/--quiet/--verbose)先剥离,再解析子命令。
+        let (rest, output) = CLIInvocation.extractOutputOptions(from: commandArguments)
 
         let invocation: CLIInvocation
         do {
-            invocation = try CLIInvocation.parse(commandArguments)
+            invocation = try CLIInvocation.parse(rest)
         } catch let error as CLIInvocation.ParseError {
             printError("simplezip: \(error.message)")
             print(CLIInvocation.usage)
@@ -44,7 +46,10 @@ enum CLIRunner {
         case .help:
             print(CLIInvocation.usage)
             return 0
-        case .version, .open, .check, .compare, .create, .verify:
+        case .helpCommand(let topic):
+            print(CLIInvocation.usage(for: topic))
+            return 0
+        case .version, .doctor, .open, .check, .compare, .create, .verify:
             break
         }
 
@@ -55,21 +60,27 @@ enum CLIRunner {
         }
 
         switch invocation {
-        case .help:
+        case .help, .helpCommand:
             return 0
         case .version:
-            print("SimpleZip \(environment.versionText) — simplezip CLI")
+            if output.json {
+                printJSON(["command": "version", "version": environment.versionText])
+            } else if !output.quiet {
+                print("SimpleZip \(environment.versionText) — simplezip CLI")
+            }
             return 0
+        case .doctor:
+            return await runDoctor(environment: environment, output: output)
         case .open(let paths):
             return runOpen(paths: paths, environment: environment)
         case .check(let paths):
-            return await runCheck(paths: paths, environment: environment)
+            return await runCheck(paths: paths, environment: environment, output: output)
         case .compare(let left, let right):
-            return await runCompare(left: left, right: right, environment: environment)
-        case .create(let output, let inputs, let template):
-            return await runCreate(output: output, inputs: inputs, template: template, environment: environment)
-        case .verify(let path):
-            return await runVerify(path: path, environment: environment)
+            return await runCompare(left: left, right: right, environment: environment, output: output)
+        case .create(let outputPath, let inputs, let createOptions):
+            return await runCreate(output: outputPath, inputs: inputs, options: createOptions, environment: environment, outputOptions: output)
+        case .verify(let paths):
+            return await runVerify(paths: paths, environment: environment, output: output)
         }
     }
 
@@ -132,49 +143,77 @@ enum CLIRunner {
 
     // MARK: - check
 
-    private static func runCheck(paths: [String], environment: Environment) async -> Int32 {
+    private static func runCheck(paths: [String], environment: Environment, output options: CLIOutputOptions) async -> Int32 {
         var failures = 0
+        var results: [[String: Any]] = []
         for path in paths {
             let url = URL(fileURLWithPath: path)
             guard FileManager.default.fileExists(atPath: url.path) else {
                 printError("simplezip: no such file: \(url.path)")
                 failures += 1
+                results.append(["path": url.path, "ok": false, "error": "no such file"])
                 continue
             }
             let startedAt = Date()
             let output = OutputBuffer()
-            print("Testing \(url.lastPathComponent) ...", terminator: " ")
+            // --verbose:后端原始输出直通 stdout(排查 CRC 报错落在哪个条目)。
+            let observer: @Sendable (String) -> Void
+            if options.verbose {
+                observer = { chunk in
+                    output.append(chunk)
+                    FileHandle.standardOutput.write(Data(chunk.utf8))
+                }
+            } else {
+                observer = { output.append($0) }
+            }
+            if !options.quiet, !options.json {
+                print("Testing \(url.lastPathComponent) ...", terminator: options.verbose ? "\n" : " ")
+            }
             do {
-                try await testWithPasswordPrompts(url, output: output)
-                print("OK")
+                try await testWithPasswordPrompts(url, observer: observer)
+                if !options.quiet, !options.json { print("OK") }
+                results.append(["path": url.path, "ok": true])
                 recordTask(environment: environment, kind: .test,
                            title: "simplezip check \(url.lastPathComponent)", detail: url.path,
                            startedAt: startedAt, succeeded: true, failureMessage: nil, rawOutput: output.text)
             } catch is CancellationError {
                 failures += 1
-                print("SKIPPED (no password provided)")
+                if !options.quiet, !options.json { print("SKIPPED (no password provided)") }
+                results.append(["path": url.path, "ok": false, "error": "skipped — no password provided"])
                 recordTask(environment: environment, kind: .test,
                            title: "simplezip check \(url.lastPathComponent)", detail: url.path,
                            startedAt: startedAt, succeeded: false,
                            failureMessage: "skipped — no password provided", rawOutput: output.text)
             } catch {
                 failures += 1
-                print("FAILED")
+                if !options.quiet, !options.json { print("FAILED") }
                 printError(indent(describe(error)))
+                results.append(["path": url.path, "ok": false, "error": describe(error)])
                 recordTask(environment: environment, kind: .test,
                            title: "simplezip check \(url.lastPathComponent)", detail: url.path,
                            startedAt: startedAt, succeeded: false,
                            failureMessage: describe(error), rawOutput: output.text)
             }
         }
+        // 0.4.4 A:批量汇总行(≥2 个才有意义;脚本人读两便)。
+        if options.json {
+            printJSON([
+                "command": "check",
+                "results": results,
+                "passed": paths.count - failures,
+                "failed": failures
+            ])
+        } else if !options.quiet, paths.count >= 2 {
+            print("\(paths.count - failures) passed, \(failures) failed")
+        }
         return failures == 0 ? 0 : 1
     }
 
     /// 加密归档的口令流程(用户拍板:CLI 也弹小窗,不拉起主窗口、绝不走命令行参数/终端回显):
     /// 先空口令试,后端报「需要口令」→ 弹 NSAlert + SecureField,最多三次;取消 → CancellationError。
-    private static func testWithPasswordPrompts(_ url: URL, output: OutputBuffer) async throws {
+    private static func testWithPasswordPrompts(_ url: URL, observer: @escaping @Sendable (String) -> Void) async throws {
         do {
-            try await ArchiveService.test(url, outputObserver: { output.append($0) })
+            try await ArchiveService.test(url, outputObserver: observer)
             return
         } catch {
             guard ArchiveService.errorSuggestsPasswordRequirement(error) else { throw error }
@@ -184,7 +223,7 @@ enum CLIRunner {
                     throw CancellationError()
                 }
                 do {
-                    try await ArchiveService.test(url, password: password, outputObserver: { output.append($0) })
+                    try await ArchiveService.test(url, password: password, outputObserver: observer)
                     return
                 } catch {
                     lastError = error
@@ -216,7 +255,7 @@ enum CLIRunner {
 
     // MARK: - compare
 
-    private static func runCompare(left: String, right: String, environment: Environment) async -> Int32 {
+    private static func runCompare(left: String, right: String, environment: Environment, output options: CLIOutputOptions) async -> Int32 {
         let leftURL = URL(fileURLWithPath: left)
         let rightURL = URL(fileURLWithPath: right)
         for url in [leftURL, rightURL] where !FileManager.default.fileExists(atPath: url.path) {
@@ -236,10 +275,23 @@ enum CLIRunner {
                 let fields = ArchiveDiffField.allCases.filter { change.fields.contains($0) }.map(\.rawValue)
                 lines.append("~ \(change.path) (\(fields.joined(separator: ", ")))")
             }
-            lines.forEach { print($0) }
+            if options.json {
+                printJSON([
+                    "command": "compare",
+                    "identical": !result.hasDifferences,
+                    "added": result.added.count,
+                    "removed": result.removed.count,
+                    "changed": result.changed.count,
+                    "unchanged": result.unchanged.count
+                ])
+            } else if !options.quiet {
+                lines.forEach { print($0) }
+            }
             let summary = "added \(result.added.count) · removed \(result.removed.count) · " +
                 "changed \(result.changed.count) · unchanged \(result.unchanged.count)"
-            print(result.hasDifferences ? summary : "Archives are identical (\(result.unchanged.count) entries).")
+            if !options.json, !options.quiet {
+                print(result.hasDifferences ? summary : "Archives are identical (\(result.unchanged.count) entries).")
+            }
             recordTask(environment: environment, kind: .compare, title: title,
                        detail: "\(leftURL.path) ↔ \(rightURL.path)", startedAt: startedAt,
                        succeeded: true, failureMessage: nil,
@@ -256,7 +308,8 @@ enum CLIRunner {
 
     // MARK: - create
 
-    private static func runCreate(output: String, inputs: [String], template templateSlug: String?, environment: Environment) async -> Int32 {
+    private static func runCreate(output: String, inputs: [String], options createOptions: CLICreateOptions, environment: Environment, outputOptions: CLIOutputOptions) async -> Int32 {
+        let templateSlug = createOptions.template
         let outputURL = URL(fileURLWithPath: output)
         let inputURLs = inputs.map { URL(fileURLWithPath: $0) }
 
@@ -304,20 +357,68 @@ enum CLIRunner {
             }
         }
 
+        // 0.4.4 A:CLI 旗标在默认值/模板之上覆盖。
+        if let level = createOptions.level,
+           let compressionLevel = CompressionLevel.closest(toNumeric: level) {
+            options.compressionLevel = compressionLevel
+        }
+        if createOptions.excludeJunk {
+            options.skipDSStore = true
+            options.customExcludes = "._*, Thumbs.db, desktop.ini"
+        }
+        if createOptions.reproducible {
+            guard options.format == .zip || options.format == .sevenZip else {
+                printError("simplezip: --reproducible only applies to zip and 7z outputs.")
+                return 2
+            }
+            options.reproducibleArchive = true
+        }
+        if createOptions.encrypt {
+            guard options.format.supportsPassword else {
+                printError("simplezip: .\(options.format.pathExtension) does not support encryption.")
+                return 2
+            }
+            // 口令来源(用户拍板,绝不走 argv):① SIMPLEZIP_PASSWORD 环境变量;② tty 交互(无回显)。
+            guard let password = encryptionPassword() else {
+                printError("simplezip: --encrypt needs a password — set SIMPLEZIP_PASSWORD or run on an interactive terminal.")
+                return 2
+            }
+            options.password = password
+        }
+
         let startedAt = Date()
         let title = "simplezip create \(outputURL.lastPathComponent)"
         let progressPrinter = ProgressPrinter()
+        let observer: (@Sendable (String) -> Void)?
+        if outputOptions.verbose {
+            observer = { chunk in
+                FileHandle.standardOutput.write(Data(chunk.utf8))
+            }
+        } else {
+            observer = nil
+        }
         do {
             try await ArchiveService.createArchive(
                 from: inputURLs,
                 destination: outputURL,
                 options: options,
-                progress: { progressPrinter.update($0) }
+                progress: { state in
+                    if !outputOptions.quiet, !outputOptions.json, !outputOptions.verbose {
+                        progressPrinter.update(state)
+                    }
+                },
+                outputObserver: observer
             )
             progressPrinter.finishLine()
             let size = (try? outputURL.resourceValues(forKeys: [.fileSizeKey]).fileSize).map(Int64.init)
-            let sizeText = size.map { ByteCountFormatter.string(fromByteCount: $0, countStyle: .file) } ?? "?"
-            print("Created \(outputURL.path) (\(sizeText))")
+            if outputOptions.json {
+                var object: [String: Any] = ["command": "create", "ok": true, "output": outputURL.path]
+                if let size { object["sizeBytes"] = size }
+                printJSON(object)
+            } else if !outputOptions.quiet {
+                let sizeText = size.map { ByteCountFormatter.string(fromByteCount: $0, countStyle: .file) } ?? "?"
+                print("Created \(outputURL.path) (\(sizeText))")
+            }
             recordTask(environment: environment, kind: .create, title: title, detail: outputURL.path,
                        startedAt: startedAt, succeeded: true, failureMessage: nil, rawOutput: "")
             return 0
@@ -330,6 +431,19 @@ enum CLIRunner {
         }
     }
 
+    /// `--encrypt` 的口令来源:SIMPLEZIP_PASSWORD 环境变量优先;否则 tty 无回显交互(getpass)。
+    /// 非交互且无环境变量 → nil(调用方报错退出)。**永不**从 argv 读。
+    private nonisolated static func encryptionPassword() -> String? {
+        if let fromEnvironment = ProcessInfo.processInfo.environment["SIMPLEZIP_PASSWORD"],
+           !fromEnvironment.isEmpty {
+            return fromEnvironment
+        }
+        guard isatty(STDIN_FILENO) == 1 else { return nil }
+        guard let raw = getpass("Archive password (not echoed): ") else { return nil }
+        let password = String(cString: raw)
+        return password.isEmpty ? nil : password
+    }
+
     /// 输出文件名 → 创建格式。`.tar.gz` 先于裸 `gz` 判,其余按最后一个扩展名对 rawValue。
     private nonisolated static func createFormat(forOutputName name: String) -> ArchiveCreateFormat? {
         let lower = name.lowercased()
@@ -340,16 +454,41 @@ enum CLIRunner {
 
     // MARK: - verify
 
-    private static func runVerify(path: String, environment: Environment) async -> Int32 {
+    private static func runVerify(paths: [String], environment: Environment, output options: CLIOutputOptions) async -> Int32 {
+        var totalPassed = 0
+        var totalFailed = 0
+        var fileObjects: [[String: Any]] = []
+        for path in paths {
+            let (passed, failed) = await verifySingle(path: path, environment: environment, output: options)
+            totalPassed += passed
+            totalFailed += failed
+            fileObjects.append(["file": path, "passed": passed, "failed": failed])
+        }
+        if options.json {
+            printJSON([
+                "command": "verify",
+                "files": fileObjects,
+                "passed": totalPassed,
+                "failed": totalFailed,
+                "ok": totalFailed == 0
+            ])
+        } else if !options.quiet, paths.count >= 2 {
+            print("TOTAL: \(totalPassed) passed, \(totalFailed) failed")
+        }
+        return totalFailed == 0 ? 0 : 1
+    }
+
+    /// 单个校验文件:返回 (通过条目数, 失败条目数)。读不了 / 没条目按 1 个失败计(汇总口径)。
+    private static func verifySingle(path: String, environment: Environment, output options: CLIOutputOptions) async -> (Int, Int) {
         let checksumURL = URL(fileURLWithPath: path)
         guard let text = try? String(contentsOf: checksumURL, encoding: .utf8) else {
             printError("simplezip: cannot read checksum file: \(checksumURL.path)")
-            return 2
+            return (0, 1)
         }
         let entries = ChecksumFile.parse(text, fileName: checksumURL.lastPathComponent)
         guard !entries.isEmpty else {
             printError("simplezip: no checksum entries recognized in \(checksumURL.lastPathComponent).")
-            return 2
+            return (0, 1)
         }
         let baseDir = checksumURL.deletingLastPathComponent()
         let startedAt = Date()
@@ -384,17 +523,75 @@ enum CLIRunner {
                 failureCount += 1
             }
         }
-        lines.forEach { print($0) }
         let summary = failureCount == 0
             ? "All \(entries.count) entries passed."
             : "\(failureCount) of \(entries.count) entries failed."
-        print(summary)
+        if !options.quiet, !options.json {
+            lines.forEach { print($0) }
+            print(summary)
+        }
         recordTask(environment: environment, kind: .hash, category: .fileOperation,
                    title: "simplezip verify \(checksumURL.lastPathComponent)", detail: checksumURL.path,
                    startedAt: startedAt, succeeded: failureCount == 0,
                    failureMessage: failureCount == 0 ? nil : summary,
                    rawOutput: (lines + [summary]).joined(separator: "\n"))
-        return failureCount == 0 ? 0 : 1
+        return (entries.count - failureCount, failureCount)
+    }
+
+    // MARK: - doctor(0.4.4 A)
+
+    /// 环境体检:app bundle / 版本 / 7zz / RAR / GPG / 符号链接指向。只读,逐行报告。
+    private static func runDoctor(environment: Environment, output options: CLIOutputOptions) async -> Int32 {
+        let sevenZipPath = ProcessInfo.processInfo.environment["SIMPLEZIP_7ZZ_PATH"] ?? "(not found)"
+        let sevenZipVersion = await ArchiveService.sevenZipVersion()
+        let rarVersion = await ArchiveService.rarVersion()
+        let gpgAvailable = GPGBackend.isAvailable()
+
+        // 符号链接:CLI 进程不能用 Bundle.main,对照 environment 的 app bundle 路径判断指向。
+        let linkPath = "/usr/local/bin/simplezip"
+        let linkDestination = try? FileManager.default.destinationOfSymbolicLink(atPath: linkPath)
+        let expectedPrefix = environment.appBundleURL.path
+        let linkStatus: String
+        if let linkDestination {
+            linkStatus = linkDestination.hasPrefix(expectedPrefix)
+                ? "ok → \(linkDestination)"
+                : "points elsewhere → \(linkDestination)"
+        } else {
+            linkStatus = FileManager.default.fileExists(atPath: linkPath) ? "occupied by a non-symlink" : "not installed"
+        }
+
+        if options.json {
+            printJSON([
+                "command": "doctor",
+                "app": environment.appBundleURL.path,
+                "version": environment.versionText,
+                "sevenZip": ["path": sevenZipPath, "version": sevenZipVersion],
+                "rar": ["version": rarVersion],
+                "gpg": ["available": gpgAvailable],
+                "symlink": ["path": linkPath, "status": linkStatus]
+            ])
+        } else {
+            print("SimpleZip.app : \(environment.appBundleURL.path)")
+            print("Version       : \(environment.versionText)")
+            print("7-Zip engine  : \(sevenZipPath)")
+            print("                \(sevenZipVersion)")
+            print("RAR backend   : \(rarVersion)")
+            print("GPG backend   : \(gpgAvailable ? "available" : "not available")")
+            print("CLI symlink   : \(linkStatus)")
+        }
+        // 7zz 找不到 = 环境坏(exit 2);其余都是可选件,如实报告即可。
+        return sevenZipPath == "(not found)" ? 2 : 0
+    }
+
+    /// JSON 输出(sortedKeys,稳定可脚本解析)。
+    private nonisolated static func printJSON(_ object: [String: Any]) {
+        guard JSONSerialization.isValidJSONObject(object),
+              let data = try? JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys]) else {
+            printError("simplezip: internal error encoding JSON output")
+            return
+        }
+        FileHandle.standardOutput.write(data)
+        FileHandle.standardOutput.write(Data("\n".utf8))
     }
 
     // MARK: - 共用
