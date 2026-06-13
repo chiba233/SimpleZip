@@ -95,6 +95,7 @@
 - **The GitHub-issue environment table has one shared implementation.** Behind both the diagnostics bundle and every report export.
 - **The Activity Center chrome lives in one shared component.** No longer three hand-copies across the Help, Welcome and About pages.
 - **Pure value types moved into the testable Core.** Side-effect-free Codable models that lived in Features — the release-inspection report, the transfer/conflict models and the hashing models — now live in the SwiftPM-tested Core target, with tests pinning their contracts (Codable round-trips, unknown-enum decode fallbacks, stats merging, summary formatting). No behavior change.
+- **os_signpost instrumentation on the hot paths.** A shared PerfSignpost wraps the backend subprocess lifecycle (every 7zz/gpg/rar run), archive listing, the security/space/release-inspection scans, comparison and file-icon decoding as Points-of-Interest intervals — so the slow parts show up directly in Instruments. Zero behavior change and nothing user-visible; it's pure profiling plumbing.
 
 ### misc
 

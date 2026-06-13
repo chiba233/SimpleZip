@@ -137,6 +137,8 @@ struct ArchiveSecurityFinding: Equatable, Identifiable, Codable {
 enum ArchiveSecurityReport {
 
     nonisolated static func analyze(_ items: [ArchiveItem]) -> [ArchiveSecurityFinding] {
+        let signpost = PerfSignpost.begin("archive.securityScan")
+        defer { PerfSignpost.end("archive.securityScan", signpost) }
         var byKind: [ArchiveSecurityFindingKind: [String]] = [:]
         func record(_ kind: ArchiveSecurityFindingKind, _ path: String) {
             byKind[kind, default: []].append(path)
@@ -413,6 +415,8 @@ struct ReleaseInspectionStats: Equatable, Codable {
 enum ReleaseInspection {
 
     nonisolated static func stats(for items: [ArchiveItem]) -> ReleaseInspectionStats {
+        let signpost = PerfSignpost.begin("release.inspect")
+        defer { PerfSignpost.end("release.inspect", signpost) }
         var files = 0
         var folders = 0
         var bytes: Int64 = 0

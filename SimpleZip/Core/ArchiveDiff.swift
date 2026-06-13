@@ -52,6 +52,8 @@ enum ArchiveDiff {
     /// 配对键 = 归一化路径（去掉前导 `./`、去掉首尾 `/`），所以 `dir/` 与 `dir` 视为同一路径
     /// （类型差异由 `.type` 字段单独标出）。同一侧若出现重复路径（理论上不该发生），后者覆盖前者。
     nonisolated static func compare(left: [ArchiveItem], right: [ArchiveItem]) -> ArchiveDiffResult {
+        let signpost = PerfSignpost.begin("archive.compare")
+        defer { PerfSignpost.end("archive.compare", signpost) }
         let leftByPath = indexByPath(left)
         let rightByPath = indexByPath(right)
 

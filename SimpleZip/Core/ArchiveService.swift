@@ -434,6 +434,8 @@ enum ArchiveService {
     }
 
     static func list(_ archive: URL, password: String = "", operationID: UUID? = nil, force: Bool = false) async throws -> [ArchiveItem] {
+        let signpost = PerfSignpost.begin("archive.list")
+        defer { PerfSignpost.end("archive.list", signpost) }
         let resolved = try resolvedInput(for: archive, force: force)
         return try await backendType(for: resolved.backend)
             .list(resolved.url, password: password, operationID: operationID)

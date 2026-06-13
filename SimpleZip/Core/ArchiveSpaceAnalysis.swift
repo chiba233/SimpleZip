@@ -39,6 +39,8 @@ struct ArchiveSpaceAnalysis: Equatable {
     }
 
     nonisolated static func analyze(_ items: [ArchiveItem], topFileLimit: Int = 10) -> ArchiveSpaceAnalysis {
+        let signpost = PerfSignpost.begin("archive.spaceAnalysis")
+        defer { PerfSignpost.end("archive.spaceAnalysis", signpost) }
         var files: [(name: String, bytes: Int64)] = []
         var directoryBytes: [String: Int64] = [:]
         var extensionBytes: [String: Int64] = [:]

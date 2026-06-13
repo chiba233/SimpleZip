@@ -1777,6 +1777,8 @@ struct FileNSOutlineView: NSViewRepresentable {
         /// 后台线程：取真图标并按目标尺寸栅格化成独立位图（2x，Retina 不糊）。
         /// NSGraphicsContext.current 是线程局部的，后台绘制安全；产物不与他处共享表示，主线程画它零解码。
         private nonisolated static func rasterizedFileIcon(path: String, pointSize: CGFloat) -> NSImage {
+            let signpost = PerfSignpost.begin("ui.iconDecode")
+            defer { PerfSignpost.end("ui.iconDecode", signpost) }
             let icon = NSWorkspace.shared.icon(forFile: path)
             let pixels = Int(pointSize * 2)
             guard pixels > 0,

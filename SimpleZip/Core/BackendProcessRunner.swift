@@ -198,6 +198,9 @@ enum BackendProcessRunner {
 
         activeProcessRegistry.register(process, operationID: operationID)
         defer { activeProcessRegistry.clear(process) }
+        // #9:整个子进程生命周期(run→读输出→waitUntilExit)括成一个 Instruments 区间。
+        let signpost = PerfSignpost.begin("backend.subprocess")
+        defer { PerfSignpost.end("backend.subprocess", signpost) }
         try process.run()
         activeProcessRegistry.applyPauseIfNeeded(process)
         if let stdinPipe, let staticStdin {
@@ -257,6 +260,9 @@ enum BackendProcessRunner {
 
         activeProcessRegistry.register(process, operationID: operationID)
         defer { activeProcessRegistry.clear(process) }
+        // #9:子进程生命周期 Instruments 区间(PTY 路径)。
+        let signpost = PerfSignpost.begin("backend.subprocess")
+        defer { PerfSignpost.end("backend.subprocess", signpost) }
         try process.run()
         activeProcessRegistry.applyPauseIfNeeded(process)
         try? slaveHandle.close()
