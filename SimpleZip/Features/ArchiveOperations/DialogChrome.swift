@@ -460,3 +460,38 @@ private struct ContentHeightKey: PreferenceKey {
         value = max(value, nextValue())
     }
 }
+
+/// 整行可点的折叠组样式(用户点名:点 header 任意位置都展开,像活动中心)。
+/// 默认 DisclosureGroup 只有三角 / label 文字可点,右侧空白点不动 —— 这里把 label 包成
+/// **全宽 Button**,点 header 任意处都切换;左侧旋转 chevron 作指示(与格式矩阵 / 活动中心同款指示器)。
+/// 套在 pane 根视图上即可传播到其下所有 DisclosureGroup(环境式样式),不必逐个改结构。
+struct WholeRowDisclosureStyle: DisclosureGroupStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    configuration.isExpanded.toggle()
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.tertiary)
+                        .rotationEffect(.degrees(configuration.isExpanded ? 90 : 0))
+                    configuration.label
+                    Spacer(minLength: 0)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            if configuration.isExpanded {
+                configuration.content
+            }
+        }
+    }
+}
+
+extension DisclosureGroupStyle where Self == WholeRowDisclosureStyle {
+    /// 整行可点折叠组。用法:在 pane 根视图上 `.disclosureGroupStyle(.wholeRow)`。
+    static var wholeRow: WholeRowDisclosureStyle { WholeRowDisclosureStyle() }
+}

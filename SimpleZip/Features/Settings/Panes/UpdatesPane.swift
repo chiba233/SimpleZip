@@ -103,6 +103,8 @@ struct UpdatesPane: View {
             }
         }
         .formStyle(.grouped)
+        // 更新日志的每个版本折叠行整行可点展开(用户点名,与设置其它折叠组、活动中心同款)。
+        .disclosureGroupStyle(.wholeRow)
         .onAppear {
             automaticallyDownloads = SparkleUpdater.shared.updater.automaticallyDownloadsUpdates
             changelog.loadIfNeeded()

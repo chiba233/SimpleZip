@@ -329,6 +329,8 @@ struct ColumnsPane: View {
             hiddenCustomSuffixes = AppPreferences.hiddenCustomSuffixes
             notifyBrowserRefresh()
         }
+        // 视图 pane 的 4 个折叠组(文件浏览列 / 压缩包列 …)整行可点展开。
+        .disclosureGroupStyle(.wholeRow)
     }
 
     // MARK: - 隐藏后缀名(#20 自浏览器 pane 整体搬来)
