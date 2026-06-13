@@ -2072,6 +2072,7 @@
 "inspect.summary.issues" = "%@ problèmes d’hygiène";
 "inspect.summary.bundleIssues" = "%@ avertissements de bundle";
 "inspect.copyReleaseNotes" = "Copier les notes de version";
+"inspect.releaseNotes.title" = "Notes de version";
 "security.report.summary" = "%1$@ entrées signalées (%2$@)";
 "tasks.queuePaused.note" = "File suspendue : les nouvelles tâches attendent. Les tâches qui ne peuvent pas être gelées (hachage, division/fusion, opérations de fichiers) se terminent d’elles-mêmes.";
 "releaseAssistant.section.outputs" = "Sorties et signature";

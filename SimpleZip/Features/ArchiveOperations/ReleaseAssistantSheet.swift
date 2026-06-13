@@ -43,6 +43,9 @@ struct ReleaseAssistantSheet: View {
 
     /// #18:命名工作区预设(整套发布配置一把存取;store 在 Core,随设置备份)。
     @State private var workspacePresets: [ReleaseWorkspacePreset] = ReleaseWorkspacePresetStore().loadAll()
+    /// #8:保存 / 重命名预设的 NameInputSheet 展示状态(取代 NSAlert)。
+    @State private var showsSavePreset = false
+    @State private var renamingPreset: ReleaseWorkspacePreset?
     /// #2:发布账本(sheet 打开时读一次;本次跑完的记录下次打开可见)。
     @State private var ledgerEntries: [ReleaseLedgerEntry] = ReleaseLedgerStore().loadAll()
     /// #3:待展示的账面对比(新条目 vs 它的上一条)。
@@ -85,20 +88,9 @@ struct ReleaseAssistantSheet: View {
         request.createSignedManifest = preset.createSignedManifest && showsGPGRow
     }
 
-    /// 保存当前配置为命名预设(同名覆盖)。NSAlert + TextField,与「保存搜索过滤器」同一体例。
-    private func promptSaveWorkspacePreset() {
-        let alert = NSAlert()
-        alert.messageText = L10n.text("releaseAssistant.workspace.savePrompt.title")
-        alert.informativeText = L10n.text("releaseAssistant.workspace.savePrompt.message")
-        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
-        field.stringValue = request.sourceFolder?.lastPathComponent ?? request.fileName
-        alert.accessoryView = field
-        alert.addButton(withTitle: L10n.text("button.save"))
-        alert.addButton(withTitle: L10n.text("button.cancel"))
-        alert.window.initialFirstResponder = field
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
-        let name = field.stringValue.trimmingCharacters(in: .whitespaces)
-        guard !name.isEmpty else { return }
+    /// 保存当前配置为命名预设(同名覆盖)。#8:名字输入由 SwiftUI `NameInputSheet` 收(吃 Writing Tools),
+    /// 这里只做保存逻辑。
+    private func saveWorkspacePreset(named name: String) {
         let preset = ReleaseWorkspacePreset(
             name: name,
             sourceFolderPath: request.sourceFolder?.path,
@@ -118,21 +110,10 @@ struct ReleaseAssistantSheet: View {
         workspacePresets = ReleaseWorkspacePresetStore().loadAll()
     }
 
-    /// C:重命名预设(NSAlert + TextField,与保存同体例)。同名覆盖语义由 store.save 保证 ——
-    /// 这里改完名先删旧条目再存,避免旧名残留。
-    private func promptRenameWorkspacePreset(_ preset: ReleaseWorkspacePreset) {
-        let alert = NSAlert()
-        alert.messageText = L10n.text("releaseAssistant.workspace.renamePrompt.title")
-        alert.informativeText = L10n.format("releaseAssistant.workspace.renamePrompt.message", preset.name)
-        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
-        field.stringValue = preset.name
-        alert.accessoryView = field
-        alert.addButton(withTitle: L10n.text("button.save"))
-        alert.addButton(withTitle: L10n.text("button.cancel"))
-        alert.window.initialFirstResponder = field
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
-        let newName = field.stringValue.trimmingCharacters(in: .whitespaces)
-        guard !newName.isEmpty, newName != preset.name else { return }
+    /// C:重命名预设。#8:名字由 `NameInputSheet` 收。同名覆盖语义由 store.save 保证 ——
+    /// 改完名先删旧条目再存,避免旧名残留。
+    private func renameWorkspacePreset(_ preset: ReleaseWorkspacePreset, to newName: String) {
+        guard newName != preset.name else { return }
         let store = ReleaseWorkspacePresetStore()
         store.delete(id: preset.id)
         var renamed = preset
@@ -164,7 +145,7 @@ struct ReleaseAssistantSheet: View {
                         // C:预设可编辑 —— 重命名 / 删除(store 早有 save/delete,这里只补 UI 入口)。
                         Menu(L10n.text("releaseAssistant.workspace.rename")) {
                             ForEach(workspacePresets) { preset in
-                                Button(preset.name) { promptRenameWorkspacePreset(preset) }
+                                Button(preset.name) { renamingPreset = preset }
                             }
                         }
                         Menu(L10n.text("releaseAssistant.workspace.delete")) {
@@ -177,12 +158,29 @@ struct ReleaseAssistantSheet: View {
                         }
                     }
                     Divider()
-                    Button(L10n.text("releaseAssistant.workspace.save")) { promptSaveWorkspacePreset() }
+                    Button(L10n.text("releaseAssistant.workspace.save")) { showsSavePreset = true }
                 } label: {
                     Label(L10n.text("releaseAssistant.workspace.menu"), systemImage: "square.stack.3d.up")
                 }
                 .fixedSize()
                 Spacer()
+            }
+            // #8:保存 / 重命名预设用 SwiftUI NameInputSheet(吃 Writing Tools),取代 NSAlert+NSTextField。
+            .sheet(isPresented: $showsSavePreset) {
+                NameInputSheet(
+                    title: L10n.text("releaseAssistant.workspace.savePrompt.title"),
+                    message: L10n.text("releaseAssistant.workspace.savePrompt.message"),
+                    initialName: request.sourceFolder?.lastPathComponent ?? request.fileName,
+                    confirmTitle: L10n.text("button.save")
+                ) { saveWorkspacePreset(named: $0) }
+            }
+            .sheet(item: $renamingPreset) { preset in
+                NameInputSheet(
+                    title: L10n.text("releaseAssistant.workspace.renamePrompt.title"),
+                    message: L10n.format("releaseAssistant.workspace.renamePrompt.message", preset.name),
+                    initialName: preset.name,
+                    confirmTitle: L10n.text("button.save")
+                ) { renameWorkspacePreset(preset, to: $0) }
             }
 
             DialogSection(L10n.text("releaseAssistant.section.source")) {

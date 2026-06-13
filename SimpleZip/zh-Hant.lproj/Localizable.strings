@@ -2074,6 +2074,7 @@
 "inspect.summary.issues" = "%@ 項衛生問題";
 "inspect.summary.bundleIssues" = "%@ 項 bundle 警告";
 "inspect.copyReleaseNotes" = "複製發佈說明";
+"inspect.releaseNotes.title" = "發佈說明";
 "security.report.summary" = "%1$@ 條可疑項目（%2$@）";
 "tasks.queuePaused.note" = "佇列已暫停，新任務會排隊等待。無法凍結的任務（雜湊、拆分/合併、檔案操作）會自行完成。";
 "releaseAssistant.section.outputs" = "產出與簽名";

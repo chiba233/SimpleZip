@@ -2073,6 +2073,7 @@
 "inspect.summary.issues" = "%@ Hygiene-Funde";
 "inspect.summary.bundleIssues" = "%@ Bundle-Warnungen";
 "inspect.copyReleaseNotes" = "Release Notes kopieren";
+"inspect.releaseNotes.title" = "Versionshinweise";
 "security.report.summary" = "%1$@ markierte Einträge (%2$@)";
 "tasks.queuePaused.note" = "Warteschlange pausiert - neue Aufgaben warten. Aufgaben, die nicht eingefroren werden können (Hashing, Teilen/Zusammenfügen, Dateioperationen), laufen selbstständig zu Ende.";
 "releaseAssistant.section.outputs" = "Ausgaben & Signierung";

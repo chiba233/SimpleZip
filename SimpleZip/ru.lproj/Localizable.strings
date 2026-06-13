@@ -2072,6 +2072,7 @@
 "inspect.summary.issues" = "%@ замечаний по чистоте";
 "inspect.summary.bundleIssues" = "%@ предупреждений bundle";
 "inspect.copyReleaseNotes" = "Скопировать заметки к выпуску";
+"inspect.releaseNotes.title" = "Примечания к выпуску";
 "security.report.summary" = "%1$@ помеченных записей (%2$@)";
 "tasks.queuePaused.note" = "Очередь приостановлена — новые задачи ждут. Задачи, которые нельзя заморозить (хеширование, разделение/объединение, файловые операции), завершаются сами.";
 "releaseAssistant.section.outputs" = "Выходные файлы и подпись";

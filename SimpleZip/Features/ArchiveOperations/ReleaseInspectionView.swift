@@ -19,6 +19,9 @@ struct ReleaseInspectionView: View {
     var onOpenSpaceAnalysis: (() -> Void)?
     let onClose: () -> Void
 
+    /// #8 Writing Tools:发布说明改成可编辑 sheet(TextEditor 吃 Writing Tools),不再直接复制剪贴板。
+    @State private var showsReleaseNotes = false
+
     var body: some View {
         VStack(spacing: 0) {
             DialogHero(
@@ -189,6 +192,14 @@ struct ReleaseInspectionView: View {
             }
         }
         .frame(width: 640)
+        .sheet(isPresented: $showsReleaseNotes) {
+            EditableTextSheet(
+                title: L10n.text("inspect.releaseNotes.title"),
+                subtitle: report.archiveURL.lastPathComponent,
+                systemImage: "doc.text",
+                initialText: releaseNotesDraft
+            )
+        }
     }
 
     /// 导出弹窗里的报告特有项:发布说明(#5)/ 全部复制 / 导出 SHA256SUMS(#11 前身)。
@@ -196,8 +207,8 @@ struct ReleaseInspectionView: View {
         var actions: [ReportExportControl.ExtraAction] = []
         if !report.isBundleOnly {
             actions.append(.init(L10n.text("inspect.copyReleaseNotes")) {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(releaseNotesDraft, forType: .string)
+                // #8:打开可编辑 sheet(Writing Tools 可改写)而非直接复制;sheet 内有复制按钮。
+                showsReleaseNotes = true
             })
         }
         actions.append(.init(L10n.text("button.copyAll")) {

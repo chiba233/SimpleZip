@@ -2072,6 +2072,7 @@
 "inspect.summary.issues" = "พบปัญหาความสะอาด %@ รายการ";
 "inspect.summary.bundleIssues" = "คำเตือน bundle %@ รายการ";
 "inspect.copyReleaseNotes" = "คัดลอกบันทึกประจำรุ่น";
+"inspect.releaseNotes.title" = "บันทึกการเผยแพร่";
 "security.report.summary" = "รายการที่ถูกทำเครื่องหมาย %1$@ รายการ (%2$@)";
 "tasks.queuePaused.note" = "คิวถูกพักแล้ว งานใหม่จะรอตามลำดับ งานที่หยุดค้างไม่ได้ (แฮช แยก/รวม ไฟล์) จะทำต่อจนเสร็จเอง";
 "releaseAssistant.section.outputs" = "ผลลัพธ์และการลงนาม";

@@ -2074,6 +2074,7 @@
 "inspect.summary.issues" = "%@ 件の衛生チェック結果";
 "inspect.summary.bundleIssues" = "%@ 件のバンドル警告";
 "inspect.copyReleaseNotes" = "リリースノートをコピー";
+"inspect.releaseNotes.title" = "リリースノート";
 "security.report.summary" = "%1$@ 件のフラグ付き項目（%2$@）";
 "tasks.queuePaused.note" = "キューは一時停止中です。新しいタスクは順番待ちになります。凍結できないタスク（ハッシュ、分割/結合、ファイル操作）はそのまま完了します。";
 "releaseAssistant.section.outputs" = "出力と署名";

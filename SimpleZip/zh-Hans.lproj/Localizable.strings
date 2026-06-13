@@ -1115,6 +1115,7 @@
 "inspect.summary.issues" = "%@ 项卫生问题";
 "inspect.summary.bundleIssues" = "%@ 项 bundle 警告";
 "inspect.copyReleaseNotes" = "复制发布说明";
+"inspect.releaseNotes.title" = "发布说明";
 "security.report.summary" = "%1$@ 条可疑条目（%2$@）";
 "tasks.queuePaused.note" = "队列已暂停——新任务将排队等待。无法冻结的任务(哈希、拆分合并、文件操作)会自行跑完。";
 "tasks.archiveSection" = "归档操作";

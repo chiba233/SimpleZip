@@ -2072,6 +2072,7 @@
 "inspect.summary.issues" = "%@ hallazgos de higiene";
 "inspect.summary.bundleIssues" = "%@ advertencias de bundle";
 "inspect.copyReleaseNotes" = "Copiar notas de la versión";
+"inspect.releaseNotes.title" = "Notas de la versión";
 "security.report.summary" = "%1$@ entradas marcadas (%2$@)";
 "tasks.queuePaused.note" = "Cola pausada: las tareas nuevas esperan su turno. Las tareas que no se pueden congelar (hash, dividir/combinar, operaciones de archivos) terminan por sí solas.";
 "releaseAssistant.section.outputs" = "Salidas y firma";

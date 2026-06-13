@@ -1117,6 +1117,7 @@
 "inspect.summary.issues" = "%@ hygiene findings";
 "inspect.summary.bundleIssues" = "%@ bundle warnings";
 "inspect.copyReleaseNotes" = "Copy Release Notes";
+"inspect.releaseNotes.title" = "Release Notes";
 "security.report.summary" = "%1$@ flagged entries (%2$@)";
 "tasks.queuePaused.note" = "Queue paused — new tasks wait in line. Tasks that can't be frozen (hashing, split/combine, file operations) finish on their own.";
 "tasks.archiveSection" = "Archive Operations";

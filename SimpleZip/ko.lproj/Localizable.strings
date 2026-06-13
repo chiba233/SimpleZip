@@ -2073,6 +2073,7 @@
 "inspect.summary.issues" = "%@개 정리 문제";
 "inspect.summary.bundleIssues" = "%@개 번들 경고";
 "inspect.copyReleaseNotes" = "릴리스 노트 복사";
+"inspect.releaseNotes.title" = "릴리스 노트";
 "security.report.summary" = "표시된 항목 %1$@개(%2$@)";
 "tasks.queuePaused.note" = "대기열이 일시 정지되었습니다. 새 작업은 줄에서 기다립니다. 멈출 수 없는 작업(해시, 분할/결합, 파일 작업)은 스스로 완료됩니다.";
 "releaseAssistant.section.outputs" = "출력 및 서명";
