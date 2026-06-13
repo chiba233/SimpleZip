@@ -404,6 +404,8 @@ extension ArchiveBrowserModel {
             // 0.4.2 #7：路径安全分析（绝对路径 / `..` / 盘符 / 控制字符 / setuid / 外指 symlink / 大小写冲突）。
             // 纯 CPU 字符串检查，丢后台跑完再回主 actor；只告知，不改变解压时的既有拦截。
             updateArchiveSecurityFindings(for: items, url: url, generation: generation)
+            // #41:同一批后台增强里顺手预热空间分析(用户点「空间分析」时瞬开、不卡主线程)。
+            prewarmSpaceAnalysis(for: items, url: url, generation: generation)
             // 压缩 tar 壳(tar.gz/tgz/tar.zst/tzst/tar.bz2/tar.xz)默认**直接打开内层 tar**(用户拍板):
             // 唯一 .tar 条目时自动走双击下钻 —— 地址栏显示 …/foo.tar.zst/foo.tar 虚拟链;
             // 壳层不进返回栈(「上一级」直接回真实文件夹,不在壳层弹跳),全程不露 /tmp。
@@ -458,6 +460,18 @@ extension ArchiveBrowserModel {
                 if self.archiveSecurityFindings != findings {
                     self.archiveSecurityFindings = findings
                 }
+            }
+        }
+    }
+
+    /// 0.4.4 #41:列表出来后**后台预热**空间分析(纯内存、对已列出的条目;大包 O(n)+排序放后台,
+    /// 不占主线程)。回主 actor 存进 `prewarmedSpaceAnalysis`(同代守卫);用户点「空间分析」时直接用,瞬开。
+    private func prewarmSpaceAnalysis(for items: [ArchiveItem], url: URL, generation: Int) {
+        Task.detached(priority: .utility) { [weak self] in
+            let analysis = ArchiveSpaceAnalysis.analyze(items)
+            await MainActor.run { [weak self] in
+                guard let self, self.isCurrentLoad(generation, mode: .archive(url)) else { return }
+                self.prewarmedSpaceAnalysis = (generation: generation, analysis: analysis)
             }
         }
     }

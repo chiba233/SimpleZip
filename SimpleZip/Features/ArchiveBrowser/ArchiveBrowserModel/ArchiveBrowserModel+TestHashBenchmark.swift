@@ -1202,9 +1202,13 @@ extension ArchiveBrowserModel {
     func analyzeSelectedArchiveSpace() {
         switch mode {
         case .archive(let url):
+            // #41:命中且同代的后台预热结果 → 瞬开;否则现算(回退,与预热前同行为)。
+            let analysis = prewarmedSpaceAnalysis.flatMap {
+                $0.generation == activeLoadGeneration ? $0.analysis : nil
+            } ?? ArchiveSpaceAnalysis.analyze(session.allItems)
             spaceAnalysisReport = ArchiveSpaceAnalysisReport(
                 archiveName: (archiveDisplayOverride ?? url).lastPathComponent,
-                analysis: ArchiveSpaceAnalysis.analyze(session.allItems)
+                analysis: analysis
             )
         case .folder, .tag:
             guard let archiveURL = selectedFileItems.first(where: { SignedContainerService.isToolableArchive($0.url) })?.url else {

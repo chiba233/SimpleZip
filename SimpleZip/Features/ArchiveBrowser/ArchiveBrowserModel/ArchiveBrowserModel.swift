@@ -51,6 +51,10 @@ final class ArchiveBrowserModel: ObservableObject {
     /// 盯当前打开归档文件的 presenter(普通 var)。开档时挂、离档 / 换档时停。
     /// 非 private:begin/stop 方法在 +Loading.swift 扩展里(跨文件同类型需 internal)。
     var openArchivePresenter: OpenArchiveFilePresenter?
+    /// 0.4.4 #41:打开大归档时**后台预热**的空间分析,按 load generation 标记新鲜度。
+    /// 非 @Published(用户点「空间分析」时按需读,不驱动渲染 → A17 安全);命中且同代 = 报告瞬开、
+    /// 且不在主线程现算(大包 10 万条 analyze 不再卡点击那一下)。换档 generation 变 → 自动作废。
+    var prewarmedSpaceAnalysis: (generation: Int, analysis: ArchiveSpaceAnalysis)?
     /// 0.4.2 #11：批量重命名 sheet（非 nil = 显示）。右键多选文件条目触发。
     @Published var batchRenameRequest: BatchRenameRequest?
     /// 0.4.2 #15：发布包检查报告 sheet（非 nil = 显示）。右键单个归档触发，检查跑完赋值。
