@@ -417,6 +417,13 @@ extension AIReportAssistant {
         } else {
             lines.append("No risk-affecting issues found.")
         }
+        // 喂**全部**加权因素(不只 dominant)—— 让 AI 把每一项参与定级的维度都说清,而非只解释最重的那个。
+        if !assessment.contributions.isEmpty {
+            let all = assessment.contributions
+                .map { "\($0.dimension.rawValue) ×\($0.count) [\($0.severity.rawValue)]" }
+                .joined(separator: ", ")
+            lines.append("All weighted factors (severity-ordered): \(all)")
+        }
         if findings.isEmpty {
             lines.append("Suspicious-path findings: none.")
         } else {
@@ -573,9 +580,9 @@ extension AIReportAssistant {
         ]
         if let ratio = a.compressionRatio { lines.append("Compression ratio (packed/original): \(String(format: "%.2f", ratio))") }
         if a.junkCount > 0 { lines.append("macOS junk: \(a.junkCount) entries, \(a.junkBytes) bytes.") }
-        if a.encryptedCount > 0 { lines.append("Encrypted entries: \(a.encryptedCount).") }
+        if a.encryptedCount > 0 { lines.append("Encrypted entries: \(a.encryptedCount), \(a.encryptedBytes) bytes.") }
         if !a.largestFiles.isEmpty {
-            lines.append("Largest files: \(a.largestFiles.prefix(6).map { "\($0.name) (\($0.bytes)B)" }.joined(separator: ", "))")
+            lines.append("Largest files (of \(a.fileCount) total): \(a.largestFiles.prefix(10).map { "\($0.name) (\($0.bytes)B)" }.joined(separator: ", "))")
         }
         if !a.topLevelDirectories.isEmpty {
             lines.append("Top-level folders by size: \(a.topLevelDirectories.prefix(6).map { "\($0.name.isEmpty ? "(root)" : $0.name) (\($0.bytes)B)" }.joined(separator: ", "))")
@@ -678,7 +685,13 @@ extension AIReportAssistant {
             lines.append("Contents: \(stats.fileCount) files, \(stats.folderCount) folders, \(ByteCountFormatter.string(fromByteCount: stats.totalBytes, countStyle: .file)).")
         }
         if let passed = report.testPassed { lines.append("Integrity test passed: \(passed).") }
+        if let failure = report.testFailureMessage, !failure.isEmpty {
+            lines.append("Integrity test failure: \(failure).")
+        }
         if let sha256 = report.sha256 { lines.append("SHA-256: \(sha256)") }
+        if let fingerprint = report.structuralFingerprint {
+            lines.append("Structural fingerprint (entry-structure hash, stable across re-packs): \(fingerprint).")
+        }
         lines.append("SHA256SUMS checksum file written: \(wroteChecksums).")
         if let reproducible { lines.append("Reproducible build: \(reproducible).") }
         if let signedContainerName, let publicKeyFileName {
@@ -740,9 +753,18 @@ extension AIReportAssistant {
         if comparison.junkRegression {
             lines.append("JUNK REGRESSION: previous release had no macOS junk, this one has \(new.junkCount ?? 0).")
         }
-        lines.append("Hygiene — reproducible: \(old.reproducible) → \(new.reproducible); SHA256SUMS written: \(old.wroteChecksums) → \(new.wroteChecksums); signed as .szs requested: \(old.signRequested) → \(new.signRequested).")
+        lines.append("Hygiene — reproducible: \(old.reproducible) → \(new.reproducible); SHA256SUMS written: \(old.wroteChecksums) → \(new.wroteChecksums); signed as .szs requested: \(old.signRequested) → \(new.signRequested); exclude-junk on: \(old.excludeJunk) → \(new.excludeJunk).")
         if let oldSus = old.suspiciousPathCount, let newSus = new.suspiciousPathCount {
             lines.append("Suspicious entry paths: \(oldSus) → \(newSus).")
+        }
+        if let oldEmpty = old.emptyDirectoryCount, let newEmpty = new.emptyDirectoryCount {
+            lines.append("Empty directories: \(oldEmpty) → \(newEmpty).")
+        }
+        if let oldTest = old.testPassed, let newTest = new.testPassed {
+            lines.append("Integrity test passed: \(oldTest) → \(newTest).")
+        }
+        if old.appVersion != new.appVersion {
+            lines.append("Built by app version: \(old.appVersion) → \(new.appVersion).")
         }
         return (instructions, lines.joined(separator: "\n"))
     }
