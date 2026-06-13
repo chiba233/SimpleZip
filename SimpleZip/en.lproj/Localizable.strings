@@ -1198,6 +1198,28 @@
 "dirAudit.isolatedVerify.skipped" = "Public-key verification skipped (GPG disabled, or multiple keys/manifests make it ambiguous).";
 "dirAudit.orphans" = "%@ files don't belong to any known release role (artifacts, checksums, signatures, docs):";
 "dirAudit.nothingToCheck" = "Nothing here looks like release material — no artifacts, checksums or signed manifests found.";
+/* 0.4.4 #13 archive metadata report */
+"metadata.menu" = "Metadata Report";
+"metadata.title" = "Archive Metadata";
+"metadata.taskTitle" = "Reading metadata of %@";
+"metadata.section.archive" = "Archive";
+"metadata.section.entries" = "Entries";
+"metadata.section.methods" = "Compression Methods";
+"metadata.section.attributes" = "Attributes (top)";
+"metadata.type" = "Format";
+"metadata.physicalSize" = "Physical size";
+"metadata.headersSize" = "Headers size";
+"metadata.method" = "Header method";
+"metadata.solid" = "Solid";
+"metadata.blocks" = "Blocks";
+"metadata.volumes" = "Volumes";
+"metadata.comment" = "Comment";
+"metadata.entryCount" = "Files / folders";
+"metadata.encrypted" = "Encrypted entries";
+"metadata.appleDouble" = "AppleDouble / __MACOSX traces";
+"metadata.securityFindings" = "Security findings (see security report)";
+"metadata.yes" = "yes";
+"metadata.no" = "no";
 /* 0.4.4 #10 release gate */
 "releaseAssistant.section.gate" = "Quality Gate";
 "releaseGate.section" = "Quality Gate";

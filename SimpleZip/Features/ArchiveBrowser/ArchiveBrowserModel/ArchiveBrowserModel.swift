@@ -50,6 +50,8 @@ final class ArchiveBrowserModel: ObservableObject {
     @Published var releaseInspectionReport: ReleaseInspectionReport?
     /// 0.4.4 #11:发布目录检查报告(用户主动触发,非 reload 路径 —— A17 不适用)。
     @Published var releaseDirectoryAuditReport: ReleaseDirectoryAuditReport?
+    /// 0.4.4 #13:归档元数据报告(同上,用户主动触发)。
+    @Published var archiveMetadataReport: ArchiveMetadataReport?
     /// 发布助手(工具菜单):打包→检查→校验文件→可选签名一条流的待确认配置。
     @Published var releaseAssistantRequest: ReleaseAssistantRequest?
     /// #8 空间分析报告(非 nil = 弹报告 sheet)。

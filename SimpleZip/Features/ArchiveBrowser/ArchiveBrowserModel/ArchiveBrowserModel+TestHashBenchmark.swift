@@ -634,6 +634,45 @@ extension ArchiveBrowserModel {
         }
     }
 
+    // MARK: - 归档元数据报告(0.4.4 #13)
+
+    /// 归档打开状态右键「元数据报告」:头部块属性(单独跑一次 `l -slt`,密码静默走会话缓存)+
+    /// 已列条目的聚合(零额外后端调用)。只读。
+    func showArchiveMetadataReport() {
+        guard case .archive(let url) = mode else { return }
+        let displayName = (archiveDisplayOverride ?? url).lastPathComponent
+        let aggregate = ArchiveMetadataAggregate.aggregate(items: session.allItems)
+        let securityFindingCount = archiveSecurityFindings.reduce(0) { $0 + $1.entryPaths.count }
+        var properties: ArchiveProperties?
+        startManagedArchiveTask(
+            title: L10n.format("metadata.taskTitle", displayName),
+            kind: .test,
+            showsDetails: false,
+            successStatus: nil,
+            refreshOnSuccess: { [weak self] in
+                guard let self else { return }
+                self.archiveMetadataReport = ArchiveMetadataReport(
+                    archiveName: displayName,
+                    archivePath: url.path,
+                    properties: properties,
+                    aggregate: aggregate,
+                    headerComment: ArchiveService.headerComment(for: url),
+                    securityFindingCount: securityFindingCount
+                )
+            },
+            rerunAction: { [weak self] in self?.showArchiveMetadataReport() }
+        ) { operationID, progress, _ in
+            // 头部块读不出(加密 header 没密码 / 非 7zz 格式)→ properties 留 nil,聚合照常出报告。
+            for password in [""] + SessionPasswordCache.shared.candidates(for: url) {
+                if let parsed = try? await ArchiveService.archiveProperties(of: url, password: password, operationID: operationID) {
+                    properties = parsed
+                    break
+                }
+            }
+            progress(ArchiveProgressState(fraction: 1.0, statusText: nil))
+        }
+    }
+
     // MARK: - 发布目录完整性检查(0.4.4 #11)
 
     /// 右键文件夹「检查发布目录…」:SHA256SUMS 覆盖与实测 / .szs 清单文件级核对 / VERIFY.md 引用 /

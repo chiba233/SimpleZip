@@ -85,6 +85,17 @@ enum SevenZipBackend {
         password: String = "",
         operationID: UUID? = nil
     ) async throws -> [ArchiveItem] {
+        let output = try await rawListOutput(archive, password: password, operationID: operationID)
+        return ArchiveService.parseSevenZipList(output)
+    }
+
+    /// `7zz l -slt` 的**原始输出**(#13 归档元数据报告要解析头部块;list 共用本函数)。
+    /// 顺手抽归档级注释进旁路缓存(0.4.1 #114;zip / rar 头部 Comment,只读)。
+    static func rawListOutput(
+        _ archive: URL,
+        password: String = "",
+        operationID: UUID? = nil
+    ) async throws -> String {
         let tool = try toolPath()
         let inputStrategy: ProcessInputStrategy = password.isEmpty ? .none : .passwordPrompts([password])
         let output = try await BackendProcessRunner.runAndCapture(
@@ -93,9 +104,8 @@ enum SevenZipBackend {
             inputStrategy: inputStrategy,
             operationID: operationID
         )
-        // 0.4.1 #114：顺手抽归档级注释进旁路缓存（zip / rar 头部 Comment;只读 —— 7zz 无写注释参数）。
         ArchiveService.recordHeaderComment(ArchiveService.parseArchiveHeaderComment(output), for: archive)
-        return ArchiveService.parseSevenZipList(output)
+        return output
     }
 
     /// 用 `7zz x` 整包解压 / `7zz e` 拍平解压。

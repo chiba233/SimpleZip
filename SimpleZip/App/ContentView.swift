@@ -1304,6 +1304,12 @@ private struct ArchiveExtrasSheets: ViewModifier {
                     model.releaseDirectoryAuditReport = nil
                 }
             }
+            .sheet(item: $model.archiveMetadataReport) { report in
+                // 0.4.4 #13:归档元数据报告。
+                ArchiveMetadataReportView(report: report) {
+                    model.archiveMetadataReport = nil
+                }
+            }
             .sheet(item: $model.batchRenameRequest) { request in
                 BatchRenameSheet(request: request) { changes in
                     model.batchRenameRequest = nil

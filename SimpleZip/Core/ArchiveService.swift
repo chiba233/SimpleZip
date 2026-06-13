@@ -455,6 +455,13 @@ enum ArchiveService {
         }
     }
 
+    /// 0.4.4 #13:归档级属性(`l -slt` 头部块)。仅 7zz 可列的格式;失败抛给调用方
+    /// (报告对头部块缺失宽容 —— 聚合部分照常显示)。
+    static func archiveProperties(of archive: URL, password: String = "", operationID: UUID? = nil) async throws -> ArchiveProperties {
+        let output = try await SevenZipBackend.rawListOutput(archive, password: password, operationID: operationID)
+        return ArchiveProperties.parse(listOutput: output)
+    }
+
     static func headerComment(for url: URL) -> String {
         (headerCommentCache.object(forKey: url.path as NSString) as String?) ?? ""
     }

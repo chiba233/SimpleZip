@@ -517,6 +517,8 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
             menu.addItem(menuItem(L10n.text("contentSearch.menu"), systemImage: "text.magnifyingglass", action: #selector(searchArchiveContents)))
             // 0.4.2 #7 跟进：路径安全报告(只读分析,干净包显示绿色全清) —— 之前只在动态工具栏/操作菜单,右键孤儿。
             menu.addItem(menuItem(L10n.text("security.report.title"), systemImage: "shield.lefthalf.filled", action: #selector(showSecurityReport)))
+            // 0.4.4 #13:归档元数据报告(头部块属性 + 条目聚合,只读)。
+            menu.addItem(menuItem(L10n.text("metadata.menu"), systemImage: "info.square", action: #selector(showMetadataReport)))
             // 0.4.2 #16：清理 macOS 元数据 —— 有垃圾条目时显示（带数量），删掉走安全写回。
             let junkCount = model.archiveJunkEntryCount
             if junkCount > 0 {
@@ -717,6 +719,10 @@ private struct ArchiveNSOutlineView: NSViewRepresentable {
 
         @objc private func searchArchiveContents() {
             model.promptContentSearch()
+        }
+
+        @objc private func showMetadataReport() {
+            model.showArchiveMetadataReport()
         }
 
         @objc private func showSecurityReport() {

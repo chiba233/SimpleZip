@@ -1196,6 +1196,28 @@
 "dirAudit.isolatedVerify.skipped" = "公钥验签已跳过(GPG 关闭,或多把公钥/多份清单无法确定配对)。";
 "dirAudit.orphans" = "%@ 个文件不属于任何已知发布角色(产物、校验、签名、文档):";
 "dirAudit.nothingToCheck" = "这里看起来没有发布材料——没有产物、校验文件或签名清单。";
+/* 0.4.4 #13 归档元数据报告 */
+"metadata.menu" = "元数据报告";
+"metadata.title" = "归档元数据";
+"metadata.taskTitle" = "正在读取 %@ 的元数据";
+"metadata.section.archive" = "归档";
+"metadata.section.entries" = "条目";
+"metadata.section.methods" = "压缩方法";
+"metadata.section.attributes" = "属性(最多前 6 种)";
+"metadata.type" = "格式";
+"metadata.physicalSize" = "物理大小";
+"metadata.headersSize" = "头部大小";
+"metadata.method" = "头部方法";
+"metadata.solid" = "固实";
+"metadata.blocks" = "块数";
+"metadata.volumes" = "分卷数";
+"metadata.comment" = "注释";
+"metadata.entryCount" = "文件 / 文件夹";
+"metadata.encrypted" = "加密条目";
+"metadata.appleDouble" = "AppleDouble / __MACOSX 痕迹";
+"metadata.securityFindings" = "安全发现(详见安全报告)";
+"metadata.yes" = "是";
+"metadata.no" = "否";
 /* 0.4.4 #10 质量门 */
 "releaseAssistant.section.gate" = "质量门";
 "releaseGate.section" = "质量门";
