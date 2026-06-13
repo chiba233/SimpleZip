@@ -34,7 +34,7 @@ extension ArchiveCreationOptions {
     /// 抹掉**不该随「默认值 / 预设」持久化**的逐次操作字段：明文密码 / 密码确认 / 显示密码 / UI 展开态 /
     /// GPG 私钥指纹 / 收件人 / 对称密码 / 给收件人的留言。保留格式 / 等级 / 方法 / 7z 全套 / 排除规则 /
     /// 更新模式 / 加密方式等所有「可复用」设置 —— 这些就是「默认值」要绝对覆盖全的通用选项。
-    func sanitizedForStorage() -> ArchiveCreationOptions {
+    nonisolated func sanitizedForStorage() -> ArchiveCreationOptions {
         var clean = self
         clean.password = ""
         clean.passwordConfirmation = ""
@@ -60,7 +60,9 @@ enum CompressionOptionField: String, Codable, CaseIterable, Identifiable, Sendab
 }
 
 /// 某格式的「默认值预设」：一组**被启用**的字段 + 它们的值。每个格式最多一份（id = 格式）。
-struct CompressionFormatPreset: Codable, Identifiable, Equatable {
+/// `nonisolated`:纯值类型,nonisolated 的 `CompressionUsageStore`(Core)要在非主 actor 上下文构造它;
+/// 不标的话 app target 默认 MainActor 隔离会让其 init 变 MainActor,跨上下文构造报警告。
+nonisolated struct CompressionFormatPreset: Codable, Identifiable, Equatable {
     var format: ArchiveCreateFormat
     /// 这份模板是否启用。列表里的开关绑它：关掉 → 模板还在列表但不生效（Finder / 创建对话框不套用）。
     var enabled: Bool

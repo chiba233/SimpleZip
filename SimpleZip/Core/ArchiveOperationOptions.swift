@@ -309,7 +309,9 @@ enum ArchiveEncryptionMethod: String, CaseIterable, Identifiable, Codable {
 }
 
 /// 创建压缩包时收集的选项。
-struct ArchiveCreationOptions: Codable, Equatable {
+/// `nonisolated`:纯值类型,Core 的 nonisolated 工厂 / 统计 / 预设要在任意上下文构造、比较、净化它;
+/// app target 默认 MainActor 隔离会让其 init / Equatable / 方法变 MainActor,跨上下文使用就报警告。
+nonisolated struct ArchiveCreationOptions: Codable, Equatable {
     /// `nonisolated`：内置模板等 nonisolated 工厂需要在任意上下文起一份默认配置。
     nonisolated init() {}
 
