@@ -52,8 +52,6 @@ struct ActivityView: View {
     @State private var aiFilterQuery = ""
     /// 抽取**抛错** / 没抽到任何条件时的提示(气泡内);失败**绝不点亮按钮**(用户点名)。
     @State private var aiFilterError: String?
-    /// 临时诊断:每次跑后显示模型实际返回的原始字段(用户点名「别猜了打 log」)。定位后删。
-    @State private var aiDebugSpec: String?
 
     /// 有任一非默认条件 = 生效(高亮 + 点按清空)。任意维度可同时叠加。
     private var aiFilterActive: Bool {
@@ -544,15 +542,6 @@ struct ActivityView: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(width: 280, alignment: .leading)
                 }
-                // 临时诊断:模型实际返回的原始字段(定位「AI 垃圾 vs 代码错」用,定位后删)。
-                if let aiDebugSpec {
-                    Text("🔎 \(aiDebugSpec)")
-                        .font(.system(.caption2, design: .monospaced))
-                        .foregroundStyle(.tertiary)
-                        .textSelection(.enabled)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(width: 280, alignment: .leading)
-                }
                 HStack(spacing: 8) {
                     if aiFilterRunning { ProgressView().controlSize(.small) }
                     Spacer()
@@ -584,8 +573,6 @@ struct ActivityView: View {
         defer { aiFilterRunning = false }
         do {
             let spec = try await AIReportAssistant.activityFilterSpec(for: query)
-            // 临时诊断:原样显示模型返回的每个字段(定位「AI 垃圾 vs 代码处理错」用)。
-            aiDebugSpec = "status=\(spec.status.rawValue) src=\(spec.source.rawValue) kind=\(spec.kind.rawValue) fmt=\(spec.format) name=\(spec.fileName) val=\(spec.timeValue) unit=\(spec.timeUnit.rawValue) dir=\(spec.timeDirection.rawValue)"
             // 分类字段现在是 @Generable 枚举,模型被硬约束只能吐合法 token —— 直接 switch,无需容错字符串解析。
             let status: ActivityTaskFilter
             switch spec.status {
@@ -640,10 +627,10 @@ struct ActivityView: View {
             aiKind = kind
             aiFormat = format
             aiFilterQuery = query
-            // 诊断期间不自动关气泡 / 不清输入,让 🔎 调试行可见(定位后改回 showsAIFilter=false + 清空)。
+            showsAIFilter = false
+            aiFilterText = ""
         } catch {
             aiFilterError = L10n.text("tasks.aiFilter.failed")
-            aiDebugSpec = "model threw: \(error.localizedDescription)"
         }
     }
 
