@@ -122,7 +122,8 @@ extension ArchiveBrowserModel {
             errorMessage = L10n.text("error.openOrSelectArchive")
             return
         }
-        let result = SensitiveFileScan.scan(session.allItems.map { $0.name })
+        // 显式排除加密条目:其名字绝不进 AI prompt(红线),且已加密 = 已受保护,不必再标为「敏感」。
+        let result = SensitiveFileScan.scan(session.allItems.filter { !$0.isEncrypted }.map { $0.name })
         sensitiveFileReport = SensitiveFileReport(
             archiveName: (archiveDisplayOverride ?? url).lastPathComponent,
             result: result

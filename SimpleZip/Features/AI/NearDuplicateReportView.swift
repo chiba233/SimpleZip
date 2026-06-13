@@ -109,7 +109,8 @@ extension ArchiveBrowserModel {
             errorMessage = L10n.text("error.openOrSelectArchive")
             return
         }
-        let result = ArchiveNearDuplicates.find(session.allItems)
+        // 显式排除加密条目:其名字绝不进 AI prompt(红线)。
+        let result = ArchiveNearDuplicates.find(session.allItems.filter { !$0.isEncrypted })
         nearDuplicateReport = NearDuplicateReport(
             archiveName: (archiveDisplayOverride ?? url).lastPathComponent,
             result: result
