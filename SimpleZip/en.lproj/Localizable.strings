@@ -1771,6 +1771,8 @@
 "nearDup.disclaimer" = "Grouped by file name (and matching checksums) — contents are never compared.";
 "ai.explainNearDup" = "Explain";
 "ai.explainNearDup.title" = "Near-duplicates explained";
+"ai.suggestAutomation" = "Suggest an Automation";
+"ai.suggestAutomation.title" = "AI Automation Draft";
 "settings.section.defaults" = "Defaults";
 "settings.section.browser" = "Browser";
 "settings.startupLocation" = "Startup location";

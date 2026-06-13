@@ -1769,6 +1769,8 @@
 "nearDup.disclaimer" = "按文件名(及相同校验和)分组,从不比较内容。";
 "ai.explainNearDup" = "解释";
 "ai.explainNearDup.title" = "近似重复解释";
+"ai.suggestAutomation" = "建议一个自动化";
+"ai.suggestAutomation.title" = "AI 自动化草稿";
 "settings.section.defaults" = "默认项";
 "settings.section.browser" = "浏览器";
 "settings.startupLocation" = "启动位置";

@@ -217,6 +217,8 @@
 "nearDup.disclaimer" = "จัดกลุ่มตามชื่อไฟล์ (และเช็กซัมที่ตรงกัน) — ไม่เปรียบเทียบเนื้อหา";
 "ai.explainNearDup" = "อธิบาย";
 "ai.explainNearDup.title" = "คำอธิบายไฟล์ที่คล้ายกัน";
+"ai.suggestAutomation" = "แนะนำระบบอัตโนมัติ";
+"ai.suggestAutomation.title" = "ร่างระบบอัตโนมัติด้วย AI";
 "settings.section.defaults" = "ค่าเริ่มต้น";
 "settings.section.browser" = "เบราว์เซอร์";
 "settings.startupLocation" = "ตำแหน่งเมื่อเปิดแอป";

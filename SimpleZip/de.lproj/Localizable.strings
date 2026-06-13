@@ -217,6 +217,8 @@
 "nearDup.disclaimer" = "Nach Dateiname (und übereinstimmenden Prüfsummen) gruppiert – Inhalte werden nie verglichen.";
 "ai.explainNearDup" = "Erklären";
 "ai.explainNearDup.title" = "Fast-Duplikate erklärt";
+"ai.suggestAutomation" = "Automatisierung vorschlagen";
+"ai.suggestAutomation.title" = "KI-Automatisierungsentwurf";
 "settings.section.defaults" = "Standardwerte";
 "settings.section.browser" = "Dateibrowser";
 "settings.startupLocation" = "Startort";

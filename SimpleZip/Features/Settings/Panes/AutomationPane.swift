@@ -129,6 +129,19 @@ struct AutomationPane: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+                // #70(macOS 26 AI):据使用习惯起草一个 Shortcuts / 自动化点子(草稿,用户自建)。仅 isReady 时出现。
+                if AIReportAssistant.isReady {
+                    AIAssistButton(
+                        label: L10n.text("ai.suggestAutomation"),
+                        systemImage: "sparkles",
+                        sheetTitle: L10n.text("ai.suggestAutomation.title"),
+                        sheetSubtitle: L10n.text("settings.automation.shortcuts.title")
+                    ) {
+                        guard #available(macOS 26.0, *) else { throw AIAssistError(message: L10n.text("ai.unavailable.osTooOld")) }
+                        let built = AIReportAssistant.automationSuggestionPrompt(usageSummary: automationUsageSummary())
+                        return try await AIReportAssistant.generate(instructions: built.instructions, prompt: built.prompt)
+                    }
+                }
                 lastRunRow(for: .intent)
             }
 
@@ -470,6 +483,20 @@ struct AutomationPane: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
+    }
+
+    /// #70:把活动历史聚合成「按触发来源 / 按操作类型」的计数摘要喂给 AI(只聚合计数,无文件名/无内容)。
+    private func automationUsageSummary() -> String {
+        let history = taskCenter.history
+        guard !history.isEmpty else { return "No recorded operations yet." }
+        var lines: [String] = ["Total recorded operations: \(history.count)."]
+        let bySource = Dictionary(grouping: history, by: { $0.source.rawValue }).mapValues { $0.count }
+        lines.append("By trigger — " + bySource.sorted { $0.value > $1.value }
+            .map { "\($0.key): \($0.value)" }.joined(separator: ", ") + ".")
+        let byKind = Dictionary(grouping: history, by: { $0.kind.rawValue }).mapValues { $0.count }
+        lines.append("By operation — " + byKind.sorted { $0.value > $1.value }.prefix(8)
+            .map { "\($0.key): \($0.value)" }.joined(separator: ", ") + ".")
+        return lines.joined(separator: "\n")
     }
 
     private func statsRow(_ source: OperationTask.Source, systemImage: String, tint: Color) -> some View {

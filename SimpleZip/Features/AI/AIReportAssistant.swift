@@ -749,6 +749,21 @@ extension AIReportAssistant {
         return (instructions, lines.joined(separator: "\n"))
     }
 
+    /// #70:据用户实际使用习惯(操作 / 触发来源计数)→ 起草 1–2 个 Shortcuts / 自动化点子(草稿,用户自建)。
+    /// 只产草稿、不自动建不执行;喂的是非加密的聚合用法计数(无文件名 / 无内容)。
+    static func automationSuggestionPrompt(usageSummary: String) -> (instructions: String, prompt: String) {
+        let instructions = """
+        You suggest one or two Shortcuts / automation ideas for a macOS archive app, tailored to how the \
+        user actually uses it (their recent operation and trigger counts are below). For each idea give a \
+        short title and 3–5 plain setup steps a person could follow in the Shortcuts app, using the app's \
+        available actions (Create Archive, Extract, Verify Checksums, Compare Archives, Create Release \
+        Package, Search Archive Contents, Inspect Archive). Base the ideas on the actual usage; if usage is \
+        thin, suggest a generally useful starter automation. This is a DRAFT for the user to build \
+        themselves — never claim to create, install, or run anything. Reply in the user's language.
+        """
+        return (instructions, "Recent usage:\n\(usageSummary)")
+    }
+
     /// #59:GitHub Issue 智能归类 —— 在润色之外,额外建议 issue 类型标签 + 标题。喂已脱敏的 issue 原文。
     /// 只建议分类,不替用户提交、不改内容判定。
     static func issueCategorizePrompt(rawIssue: String) -> (instructions: String, prompt: String) {

@@ -217,6 +217,8 @@
 "nearDup.disclaimer" = "ファイル名(と一致するチェックサム)でグループ化——内容は比較しません。";
 "ai.explainNearDup" = "解説";
 "ai.explainNearDup.title" = "類似重複の解説";
+"ai.suggestAutomation" = "自動化を提案";
+"ai.suggestAutomation.title" = "AI 自動化の下書き";
 "settings.section.defaults" = "デフォルト";
 "settings.section.browser" = "ブラウザ";
 "settings.startupLocation" = "起動時の場所";

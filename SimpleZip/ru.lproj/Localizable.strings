@@ -217,6 +217,8 @@
 "nearDup.disclaimer" = "Сгруппировано по имени файла (и совпадающим контрольным суммам) — содержимое не сравнивается.";
 "ai.explainNearDup" = "Пояснить";
 "ai.explainNearDup.title" = "Пояснение по дубликатам";
+"ai.suggestAutomation" = "Предложить автоматизацию";
+"ai.suggestAutomation.title" = "ИИ-черновик автоматизации";
 "settings.section.defaults" = "По умолчанию";
 "settings.section.browser" = "Обзор";
 "settings.startupLocation" = "Стартовое место";

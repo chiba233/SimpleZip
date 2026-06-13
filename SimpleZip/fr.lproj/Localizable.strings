@@ -217,6 +217,8 @@
 "nearDup.disclaimer" = "Regroupés par nom de fichier (et sommes de contrôle identiques) — le contenu n’est jamais comparé.";
 "ai.explainNearDup" = "Expliquer";
 "ai.explainNearDup.title" = "Quasi-doublons expliqués";
+"ai.suggestAutomation" = "Proposer une automatisation";
+"ai.suggestAutomation.title" = "Brouillon d’automatisation par l’IA";
 "settings.section.defaults" = "Valeurs par défaut";
 "settings.section.browser" = "Navigateur";
 "settings.startupLocation" = "Emplacement de démarrage";

@@ -217,6 +217,8 @@
 "nearDup.disclaimer" = "Agrupados por nombre de archivo (y sumas de verificación coincidentes): nunca se compara el contenido.";
 "ai.explainNearDup" = "Explicar";
 "ai.explainNearDup.title" = "Casi duplicados explicados";
+"ai.suggestAutomation" = "Sugerir una automatización";
+"ai.suggestAutomation.title" = "Borrador de automatización con IA";
 "settings.section.defaults" = "Predeterminados";
 "settings.section.browser" = "Navegador";
 "settings.startupLocation" = "Ubicación de inicio";

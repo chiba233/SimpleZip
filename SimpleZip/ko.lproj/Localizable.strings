@@ -217,6 +217,8 @@
 "nearDup.disclaimer" = "파일 이름(과 일치하는 체크섬)으로 묶음 — 내용은 비교하지 않습니다.";
 "ai.explainNearDup" = "설명";
 "ai.explainNearDup.title" = "유사 중복 설명";
+"ai.suggestAutomation" = "자동화 제안";
+"ai.suggestAutomation.title" = "AI 자동화 초안";
 "settings.section.defaults" = "기본값";
 "settings.section.browser" = "브라우저";
 "settings.startupLocation" = "시작 위치";
