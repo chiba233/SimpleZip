@@ -2255,10 +2255,7 @@
 "tasks.aiFilter.prompt" = "例:minecraft.zip、今日失敗";
 "tasks.aiFilter.apply" = "適用";
 "tasks.aiFilter.activeHelp" = "AI フィルタ:%@ — タップでクリア";
-"tasks.aiFilter.time.today" = "今日";
-"tasks.aiFilter.time.yesterday" = "昨日";
-"tasks.aiFilter.time.last7days" = "過去7日";
-"tasks.aiFilter.time.last30days" = "過去30日";
+"tasks.aiFilter.failed" = "フィルタを作成できませんでした。言い換えてみてください。";
 "ai.suggestLabels" = "ラベルを提案";
 "ai.suggestLabels.title" = "AI 提案ラベル";
 "ai.summarizeRisk.title" = "AI リスク要約";

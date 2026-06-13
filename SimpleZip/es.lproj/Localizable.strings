@@ -2253,10 +2253,7 @@
 "tasks.aiFilter.prompt" = "p. ej., minecraft.zip o fallidas hoy";
 "tasks.aiFilter.apply" = "Aplicar";
 "tasks.aiFilter.activeHelp" = "Filtro con IA: %@ — toca para borrar";
-"tasks.aiFilter.time.today" = "hoy";
-"tasks.aiFilter.time.yesterday" = "ayer";
-"tasks.aiFilter.time.last7days" = "últimos 7 días";
-"tasks.aiFilter.time.last30days" = "últimos 30 días";
+"tasks.aiFilter.failed" = "No se pudo crear el filtro: prueba a reformular.";
 "ai.suggestLabels" = "Sugerir etiquetas";
 "ai.suggestLabels.title" = "Etiquetas sugeridas por IA";
 "ai.summarizeRisk.title" = "Resumen de riesgo con IA";

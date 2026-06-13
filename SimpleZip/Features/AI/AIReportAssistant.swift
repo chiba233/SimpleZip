@@ -132,19 +132,21 @@ actor AIGenerationSerializer {
 // 字段一律用 String + `@Guide` 列出允许值,Swift 端做容错映射(模型给了界外值就退回安全默认),
 // 避免依赖「@Generable 枚举」的细节、也更耐模型抖动。
 
-/// #60:活动中心自然语言筛选 —— 一句话 → {状态, 来源, 关键词(单个归档/任务名), 时间窗}。
-/// 关键词 + 时间窗才是「临时分类」的灵魂(不止在现有状态/来源里挑) —— 用户点名只筛现成分类「毫无价值」。
+/// #60:活动中心自然语言筛选 —— AI 只把一句话**抽成精确条件**(状态/来源/关键词/分钟),
+/// **由 App 在代码里确定性地精确匹配**(端上小模型擅长「理解短语」、不擅长「扫 80 行做精确比对」——
+/// 让它选行就出垃圾 / 漏选;抽条件它可靠)。这样「zip」必中所有含 zip 的任务名、「30 分钟内」必留所有
+/// ≤30 分钟的任务,每次都准。
 @available(macOS 26.0, *)
 @Generable
 struct ActivityFilterSpec: Sendable {
-    @Guide(description: "Task status to show. Exactly one of: all, running, succeeded, failed, cancelled.")
+    @Guide(description: "Status filter: exactly one of all, running, succeeded, failed, cancelled.")
     var status: String
-    @Guide(description: "Where the task came from. Exactly one of: any, app, cli, intent, urlScheme, finder.")
+    @Guide(description: "Source filter: exactly one of any, app, cli, intent, urlScheme, finder.")
     var source: String
-    @Guide(description: "A keyword to match against the task name / archive file name the user mentioned (for example \"minecraft\" should match a task named \"minecraft.zip\"). Empty string if the request names no specific file or archive.")
+    @Guide(description: "A literal word or substring to look for in the task name, e.g. \"zip\", \"minecraft\", \"发布助手\", \"report\". Empty string if the request is purely about time or status.")
     var keyword: String
-    @Guide(description: "Time window for when the task ran. Exactly one of: any, today, yesterday, last7days, last30days.")
-    var timeRange: String
+    @Guide(description: "Time limit as minutes back from now (the app keeps only tasks newer than this). Convert any time phrase to minutes: \"within 30 minutes\"/\"30分钟内\" → 30, \"last hour\"/\"1小时内\" → 60, \"today\"/\"今天\" → 1440, \"yesterday\"/\"一天前\" → 2880, \"this week\"/\"本周\"/\"上周\" → 10080. Use 0 when there is no time phrase.")
+    var withinMinutes: Int
 }
 
 /// #63:归档清单缓存自然语言查询 —— 一句话 → 一个用来在已缓存归档里搜的**文件名关键词**。
@@ -169,25 +171,34 @@ struct SettingsQuerySpec: Sendable {
 extension AIReportAssistant {
     /// 结构化生成的薄封装:不注入回复语言(输出是受约束的 token / 关键词,不是给人读的散文)。
     /// 同样过全局串行闸,和散文生成共用同一条链 —— 杜绝任何两个 `respond()` 重叠(见 `AIGenerationSerializer`)。
+    /// **重试一次**:本机 @Generable 结构化生成偶发不符 schema 抛错(用户报「一句话筛选经常性失败」),
+    /// 同一串行槽内换个新 session 再试一次,尽量成功;两次都败才抛给调用点(由调用点决定不点亮 + 提示)。
     static func generateStructured<T: Generable & Sendable>(instructions: String, prompt: String, as type: T.Type) async throws -> T {
         try await AIGenerationSerializer.shared.run {
-            let session = LanguageModelSession(instructions: instructions)
-            return try await session.respond(to: prompt, generating: type).content
+            do {
+                let session = LanguageModelSession(instructions: instructions)
+                return try await session.respond(to: prompt, generating: type).content
+            } catch {
+                let retry = LanguageModelSession(instructions: instructions)
+                return try await retry.respond(to: prompt, generating: type).content
+            }
         }
     }
 
-    /// #60:把用户的一句话翻成活动中心过滤规格(状态 + 来源 + 关键词 + 时间窗)。
+    /// #60:把用户一句话抽成精确过滤条件(状态 + 来源 + 关键词 + 分钟)。App 拿这四个字段在代码里
+    /// 确定性精确匹配 —— 模型只做「理解短语」这件它擅长的事,不让它做不可靠的「扫列表选行」。
     static func activityFilterSpec(for query: String) async throws -> ActivityFilterSpec {
         let instructions = """
-        Map the user's request to a task filter for an archive app's Activity Center. Set four fields:
-        - status: all / running / succeeded / failed / cancelled (use all if unspecified).
-        - source: any / app (used in the app) / cli (command line) / intent (Shortcuts or Siri) / \
-        urlScheme (a simplezip:// link) / finder (Finder services). Use any if unspecified.
-        - keyword: if the user names a specific file or archive (like "minecraft" or "report.zip"), put \
-        that word here so it can match the task name; otherwise an empty string.
-        - timeRange: any / today / yesterday / last7days / last30days, based on any time hint in the request.
-        Output only those four fields. The keyword and time window are what let the user carve out a \
-        specific slice, so use them whenever the request implies one.
+        Turn the user's request (it may be in any language) into a precise task filter. Extract exactly \
+        these four fields and nothing else:
+        - status: "all" unless the request clearly asks for running / succeeded / failed / cancelled tasks.
+        - source: "any" unless it clearly says the app, command line (cli), Shortcuts or Siri (intent), a \
+        simplezip:// link (urlScheme), or Finder services (finder).
+        - keyword: the literal word or file name to look for in the task name — e.g. "zip", "minecraft", \
+        "发布助手", "report". Empty string if the request is only about time or status.
+        - withinMinutes: convert any time phrase to minutes (30分钟内 → 30, 1小时内 → 60, 今天 → 1440, \
+        一天前 → 2880, 本周/上周 → 10080); 0 if there is no time phrase.
+        The app matches exactly from these fields, so be accurate and literal — do not paraphrase the keyword.
         """
         return try await generateStructured(instructions: instructions, prompt: query, as: ActivityFilterSpec.self)
     }

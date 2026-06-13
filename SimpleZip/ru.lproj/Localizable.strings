@@ -2253,10 +2253,7 @@
 "tasks.aiFilter.prompt" = "напр., minecraft.zip или неудачные сегодня";
 "tasks.aiFilter.apply" = "Применить";
 "tasks.aiFilter.activeHelp" = "ИИ-фильтр: %@ — нажмите, чтобы очистить";
-"tasks.aiFilter.time.today" = "сегодня";
-"tasks.aiFilter.time.yesterday" = "вчера";
-"tasks.aiFilter.time.last7days" = "за 7 дней";
-"tasks.aiFilter.time.last30days" = "за 30 дней";
+"tasks.aiFilter.failed" = "Не удалось создать фильтр — попробуйте переформулировать.";
 "ai.suggestLabels" = "Предложить метки";
 "ai.suggestLabels.title" = "Метки, предложенные ИИ";
 "ai.summarizeRisk.title" = "Сводка рисков ИИ";

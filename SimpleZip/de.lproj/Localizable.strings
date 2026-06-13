@@ -2254,10 +2254,7 @@
 "tasks.aiFilter.prompt" = "z. B. minecraft.zip oder heute fehlgeschlagen";
 "tasks.aiFilter.apply" = "Anwenden";
 "tasks.aiFilter.activeHelp" = "KI-Filter: %@ – zum Löschen tippen";
-"tasks.aiFilter.time.today" = "heute";
-"tasks.aiFilter.time.yesterday" = "gestern";
-"tasks.aiFilter.time.last7days" = "letzte 7 Tage";
-"tasks.aiFilter.time.last30days" = "letzte 30 Tage";
+"tasks.aiFilter.failed" = "Filter konnte nicht erstellt werden – versuche es anders.";
 "ai.suggestLabels" = "Labels vorschlagen";
 "ai.suggestLabels.title" = "KI-Label-Vorschläge";
 "ai.summarizeRisk.title" = "KI-Risikozusammenfassung";

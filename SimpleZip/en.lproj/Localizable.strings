@@ -1327,10 +1327,7 @@
 "tasks.aiFilter.prompt" = "e.g. minecraft.zip, or failed today";
 "tasks.aiFilter.apply" = "Apply";
 "tasks.aiFilter.activeHelp" = "AI filter: %@ — tap to clear";
-"tasks.aiFilter.time.today" = "today";
-"tasks.aiFilter.time.yesterday" = "yesterday";
-"tasks.aiFilter.time.last7days" = "last 7 days";
-"tasks.aiFilter.time.last30days" = "last 30 days";
+"tasks.aiFilter.failed" = "Couldn't build a filter — try rephrasing.";
 "ai.suggestLabels" = "Suggest Labels";
 "ai.suggestLabels.title" = "AI Suggested Labels";
 "ai.summarizeRisk.title" = "AI Risk Summary";

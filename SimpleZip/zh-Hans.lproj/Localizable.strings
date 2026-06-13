@@ -1325,10 +1325,7 @@
 "tasks.aiFilter.prompt" = "例如:minecraft.zip、今天失败的";
 "tasks.aiFilter.apply" = "应用";
 "tasks.aiFilter.activeHelp" = "AI 分类:%@ — 点按清空";
-"tasks.aiFilter.time.today" = "今天";
-"tasks.aiFilter.time.yesterday" = "昨天";
-"tasks.aiFilter.time.last7days" = "近 7 天";
-"tasks.aiFilter.time.last30days" = "近 30 天";
+"tasks.aiFilter.failed" = "没能生成筛选 —— 换个说法试试。";
 "ai.suggestLabels" = "建议标签";
 "ai.suggestLabels.title" = "AI 建议标签";
 "ai.summarizeRisk.title" = "AI 风险总结";

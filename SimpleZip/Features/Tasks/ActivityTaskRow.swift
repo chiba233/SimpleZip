@@ -66,11 +66,25 @@ struct ActivityTaskRow: View {
                         .font(.callout.weight(.semibold))
                         .lineLimit(1)
                         .truncationMode(.middle)
-                    Text(statusText)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                        .truncationMode(.middle)
+                    // 状态与相对时间戳同一排(用户点名):「完成 · 2 小时前」。状态可截断,时间固定不被挤掉。
+                    // 时间戳与 #60 时间窗筛选同源(task.startedAt);运行中任务就是「现在」,只显示状态、不显示时间。
+                    HStack(spacing: 5) {
+                        Text(statusText)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        if !task.status.isRunning {
+                            Text(verbatim: "·")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                            Text(task.startedAt, format: .relative(presentation: .named))
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                                .lineLimit(1)
+                                .fixedSize()
+                        }
+                    }
                 }
 
                 Spacer()

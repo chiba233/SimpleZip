@@ -2253,10 +2253,7 @@
 "tasks.aiFilter.prompt" = "เช่น minecraft.zip หรือ ล้มเหลววันนี้";
 "tasks.aiFilter.apply" = "ใช้";
 "tasks.aiFilter.activeHelp" = "ตัวกรอง AI: %@ — แตะเพื่อล้าง";
-"tasks.aiFilter.time.today" = "วันนี้";
-"tasks.aiFilter.time.yesterday" = "เมื่อวาน";
-"tasks.aiFilter.time.last7days" = "7 วันที่ผ่านมา";
-"tasks.aiFilter.time.last30days" = "30 วันที่ผ่านมา";
+"tasks.aiFilter.failed" = "สร้างตัวกรองไม่สำเร็จ — ลองพิมพ์ใหม่";
 "ai.suggestLabels" = "แนะนำป้ายกำกับ";
 "ai.suggestLabels.title" = "ป้ายกำกับที่ AI แนะนำ";
 "ai.summarizeRisk.title" = "สรุปความเสี่ยงด้วย AI";

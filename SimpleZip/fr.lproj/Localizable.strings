@@ -2253,10 +2253,7 @@
 "tasks.aiFilter.prompt" = "p. ex. minecraft.zip ou échecs aujourd’hui";
 "tasks.aiFilter.apply" = "Appliquer";
 "tasks.aiFilter.activeHelp" = "Filtre IA : %@ — touchez pour effacer";
-"tasks.aiFilter.time.today" = "aujourd’hui";
-"tasks.aiFilter.time.yesterday" = "hier";
-"tasks.aiFilter.time.last7days" = "7 derniers jours";
-"tasks.aiFilter.time.last30days" = "30 derniers jours";
+"tasks.aiFilter.failed" = "Impossible de créer le filtre — reformulez.";
 "ai.suggestLabels" = "Suggérer des étiquettes";
 "ai.suggestLabels.title" = "Étiquettes suggérées par l’IA";
 "ai.summarizeRisk.title" = "Résumé des risques par l’IA";
