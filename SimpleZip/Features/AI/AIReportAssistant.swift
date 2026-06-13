@@ -461,6 +461,86 @@ extension AIReportAssistant {
         return (instructions, lines.joined(separator: "\n"))
     }
 
+    // MARK: - 生成器批(AI 起草发布文档,产出落进可编辑 sheet 由用户审阅后自取)
+
+    /// #55:从发布目录检查结果 → 起草一份 `VERIFY.md`(告诉下载者怎么校验这次发布)+ 一节「缺失 / 建议」。
+    /// 只根据目录**实际有什么**起草(findings 已编码 SHA256SUMS 是否齐、公钥能否验签、孤儿文件等);
+    /// **绝不**让用户跳过校验或执行破坏性命令。产出是草稿,用户审阅后自行放进发布。
+    static func verifyDraftPrompt(for report: ReleaseDirectoryAuditReport) -> (instructions: String, prompt: String) {
+        let instructions = """
+        You are a release-engineering assistant for the SimpleZip archive manager. Draft the contents of a \
+        VERIFY.md file that tells someone who downloaded this release how to verify it, based ONLY on what \
+        the directory actually contains. Where checksums or a signature are present, include the concrete \
+        shell commands (e.g. `shasum -a 256 -c SHA256SUMS`, `gpg --import <key>.asc` then `gpg --verify`). \
+        Then add a short "Missing / recommended" section noting any verification material that is absent \
+        (no checksums file, no signature container, no public key) and suggest adding it. Use Markdown. \
+        Write the file content directly — do not restate this instruction, do not ask questions, do not \
+        invent files that aren't listed. Never instruct destructive actions or tell anyone to skip verification.
+        """
+        var lines: [String] = ["Release directory: \(report.directoryURL.lastPathComponent)"]
+        lines.append("Audit findings (severity: message — affected files):")
+        for finding in report.findings {
+            var part = "- \(finding.severity): \(finding.message)"
+            if !finding.detailItems.isEmpty {
+                part += " — \(finding.detailItems.prefix(8).joined(separator: ", "))"
+            }
+            lines.append(part)
+        }
+        return (instructions, lines.joined(separator: "\n"))
+    }
+
+    /// #56:发布检查报告 → 起草一段 GitHub Release 正文(下载文件名 / SHA-256 / 校验步骤 / 系统要求 /
+    /// 可复现 / 签名说明)。GPG 段仅在确实签了 + 公钥在场时出现(传入参数已三道闸过滤)。只起草,不放行。
+    static func releaseBodyPrompt(
+        for report: ReleaseInspectionReport,
+        versionLabel: String?,
+        signedContainerName: String?,
+        publicKeyFileName: String?,
+        reproducible: Bool?,
+        wroteChecksums: Bool
+    ) -> (instructions: String, prompt: String) {
+        let instructions = """
+        You are a release-engineering assistant. Draft the body of a GitHub Release announcement for this \
+        artifact in Markdown: a short intro line, a "Downloads" mention of the file, a "Verify" section with \
+        the SHA-256 and the concrete check command when a checksums file was written, GPG signature \
+        verification steps ONLY if a signature container and public key are provided below, and a one-line \
+        system-requirements note (macOS). Keep it concise and factual. Write the body directly — do not \
+        restate this instruction, do not ask questions, do not invent download URLs, version numbers, or \
+        changelog entries that aren't given. Never instruct destructive actions.
+        """
+        var lines: [String] = ["Artifact file: \(report.archiveURL.lastPathComponent)"]
+        if let versionLabel, !versionLabel.isEmpty { lines.append("Version label: \(versionLabel)") }
+        if let stats = report.stats {
+            lines.append("Contents: \(stats.fileCount) files, \(stats.folderCount) folders, \(ByteCountFormatter.string(fromByteCount: stats.totalBytes, countStyle: .file)).")
+        }
+        if let passed = report.testPassed { lines.append("Integrity test passed: \(passed).") }
+        if let sha256 = report.sha256 { lines.append("SHA-256: \(sha256)") }
+        lines.append("SHA256SUMS checksum file written: \(wroteChecksums).")
+        if let reproducible { lines.append("Reproducible build: \(reproducible).") }
+        if let signedContainerName, let publicKeyFileName {
+            lines.append("Signed container present: \(signedContainerName); public key file: \(publicKeyFileName).")
+        } else {
+            lines.append("No GPG signature container / public key alongside this artifact — omit the signature section.")
+        }
+        return (instructions, lines.joined(separator: "\n"))
+    }
+
+    /// #59:GitHub Issue 智能归类 —— 在润色之外,额外建议 issue 类型标签 + 标题。喂已脱敏的 issue 原文。
+    /// 只建议分类,不替用户提交、不改内容判定。
+    static func issueCategorizePrompt(rawIssue: String) -> (instructions: String, prompt: String) {
+        let instructions = """
+        You are a developer-triage assistant for the SimpleZip archive manager. Read the auto-generated \
+        GitHub issue below (already redacted) and produce, in this exact order: (1) a one-line suggested \
+        issue title; (2) a "Suggested labels:" line with a few short labels chosen from a typical set \
+        (bug, crash, regression, performance, ui, archive-format, gpg, extraction, compression, cli, \
+        shortcuts, enhancement, needs-info); (3) a one-paragraph plain-language summary of what seems to be \
+        going on. Base everything ONLY on the facts in the issue — never invent details, keep every \
+        "[REDACTED]" marker untouched, and these are suggestions, not a verdict. Write the result directly. \
+        Reply in the user's language.
+        """
+        return (instructions, rawIssue)
+    }
+
     // MARK: - 内联自动速览(创建 / 解压窗口打开即静默跑,动态)
 
     /// 创建对话框 → 速览:预估耗时(定性)+ 一条实用建议(格式 / 级别 / 没问题)+ 冲突提醒。只建议不替用户改。

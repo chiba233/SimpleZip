@@ -1313,6 +1313,12 @@
 "ai.explainAudit.title" = "Directory check explained";
 "ai.polishIssue" = "Polish Issue";
 "ai.polishIssue.title" = "AI Issue Draft";
+"ai.draftVerify" = "Draft VERIFY.md";
+"ai.draftVerify.title" = "AI VERIFY.md draft";
+"ai.draftReleaseBody" = "Draft Release Body";
+"ai.draftReleaseBody.title" = "AI Release Body Draft";
+"ai.categorizeIssue" = "Categorize";
+"ai.categorizeIssue.title" = "AI Issue Triage";
 "ai.suggestLabels" = "Suggest Labels";
 "ai.suggestLabels.title" = "AI Suggested Labels";
 "ai.summarizeRisk.title" = "AI Risk Summary";

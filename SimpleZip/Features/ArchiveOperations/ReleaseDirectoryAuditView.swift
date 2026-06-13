@@ -79,6 +79,17 @@ struct ReleaseDirectoryAuditView: View {
                     let built = AIReportAssistant.directoryAuditExplanationPrompt(for: report)
                     return try await AIReportAssistant.generate(instructions: built.instructions, prompt: built.prompt)
                 }
+                // #55:从目录实况起草 VERIFY.md + 缺失项建议(只起草,产出可编辑由用户审阅自取)。
+                AIAssistButton(
+                    label: L10n.text("ai.draftVerify"),
+                    systemImage: "doc.badge.gearshape",
+                    sheetTitle: L10n.text("ai.draftVerify.title"),
+                    sheetSubtitle: report.directoryURL.lastPathComponent
+                ) {
+                    guard #available(macOS 26.0, *) else { throw AIAssistError(message: L10n.text("ai.unavailable.osTooOld")) }
+                    let built = AIReportAssistant.verifyDraftPrompt(for: report)
+                    return try await AIReportAssistant.generate(instructions: built.instructions, prompt: built.prompt)
+                }
                 Spacer()
                 Button(action: onClose) {
                     Label(L10n.text("button.ok"), systemImage: "checkmark")

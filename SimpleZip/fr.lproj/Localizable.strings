@@ -2239,6 +2239,12 @@
 "ai.summarizeRisk" = "Résumer le risque";
 "ai.polishIssue" = "Peaufiner le ticket";
 "ai.polishIssue.title" = "Brouillon de ticket par l’IA";
+"ai.draftVerify" = "Rédiger VERIFY.md";
+"ai.draftVerify.title" = "Brouillon VERIFY.md par l’IA";
+"ai.draftReleaseBody" = "Rédiger le texte de version";
+"ai.draftReleaseBody.title" = "Brouillon de texte de version par l’IA";
+"ai.categorizeIssue" = "Classer";
+"ai.categorizeIssue.title" = "Tri des tickets par l’IA";
 "ai.suggestLabels" = "Suggérer des étiquettes";
 "ai.suggestLabels.title" = "Étiquettes suggérées par l’IA";
 "ai.summarizeRisk.title" = "Résumé des risques par l’IA";

@@ -2239,6 +2239,12 @@
 "ai.summarizeRisk" = "สรุปความเสี่ยง";
 "ai.polishIssue" = "ขัดเกลา issue";
 "ai.polishIssue.title" = "ร่าง issue ด้วย AI";
+"ai.draftVerify" = "ร่าง VERIFY.md";
+"ai.draftVerify.title" = "ร่าง VERIFY.md ด้วย AI";
+"ai.draftReleaseBody" = "ร่างเนื้อหารีลีส";
+"ai.draftReleaseBody.title" = "ร่างเนื้อหารีลีสด้วย AI";
+"ai.categorizeIssue" = "จัดหมวดหมู่";
+"ai.categorizeIssue.title" = "การคัดแยก Issue ด้วย AI";
 "ai.suggestLabels" = "แนะนำป้ายกำกับ";
 "ai.suggestLabels.title" = "ป้ายกำกับที่ AI แนะนำ";
 "ai.summarizeRisk.title" = "สรุปความเสี่ยงด้วย AI";

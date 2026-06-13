@@ -255,6 +255,18 @@ struct ArchiveOperationDetailsView: View {
                     let built = AIReportAssistant.issuePolishPrompt(rawIssue: raw)
                     return try await AIReportAssistant.generate(instructions: built.instructions, prompt: built.prompt)
                 }
+                // #59(macOS 26 AI):在润色之外,智能归类 —— 建议 issue 标题 + 标签 + 一段白话总结(只建议,不替提交)。
+                AIAssistButton(
+                    label: L10n.text("ai.categorizeIssue"),
+                    systemImage: "tag",
+                    sheetTitle: L10n.text("ai.categorizeIssue.title"),
+                    sheetSubtitle: session.title
+                ) {
+                    guard #available(macOS 26.0, *) else { throw AIAssistError(message: L10n.text("ai.unavailable.osTooOld")) }
+                    let raw = await DiagnosticsCopier.gitHubIssueMarkdown(session: session, errorMessage: nil)
+                    let built = AIReportAssistant.issueCategorizePrompt(rawIssue: raw)
+                    return try await AIReportAssistant.generate(instructions: built.instructions, prompt: built.prompt)
+                }
                 Button {
                     close()
                 } label: {

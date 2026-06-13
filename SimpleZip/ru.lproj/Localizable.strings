@@ -2239,6 +2239,12 @@
 "ai.summarizeRisk" = "Сводка рисков";
 "ai.polishIssue" = "Доработать issue";
 "ai.polishIssue.title" = "Черновик issue от ИИ";
+"ai.draftVerify" = "Черновик VERIFY.md";
+"ai.draftVerify.title" = "ИИ-черновик VERIFY.md";
+"ai.draftReleaseBody" = "Черновик описания релиза";
+"ai.draftReleaseBody.title" = "ИИ-черновик описания релиза";
+"ai.categorizeIssue" = "Классифицировать";
+"ai.categorizeIssue.title" = "ИИ-сортировка обращений";
 "ai.suggestLabels" = "Предложить метки";
 "ai.suggestLabels.title" = "Метки, предложенные ИИ";
 "ai.summarizeRisk.title" = "Сводка рисков ИИ";

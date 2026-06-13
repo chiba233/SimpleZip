@@ -172,6 +172,27 @@ struct ReleaseInspectionView: View {
                     let built = AIReportAssistant.riskSummaryPrompt(for: report)
                     return try await AIReportAssistant.generate(instructions: built.instructions, prompt: built.prompt)
                 }
+                // #56:起草 GitHub Release 正文(下载/校验/系统要求;签名段三道闸过滤后才出)。bundle-only 检查无产物侧数据,不显示。
+                if !report.isBundleOnly {
+                    AIAssistButton(
+                        label: L10n.text("ai.draftReleaseBody"),
+                        systemImage: "megaphone",
+                        sheetTitle: L10n.text("ai.draftReleaseBody.title"),
+                        sheetSubtitle: report.archiveURL.lastPathComponent
+                    ) {
+                        guard #available(macOS 26.0, *) else { throw AIAssistError(message: L10n.text("ai.unavailable.osTooOld")) }
+                        let ctx = releaseArtifactContext
+                        let built = AIReportAssistant.releaseBodyPrompt(
+                            for: report,
+                            versionLabel: ctx.versionLabel,
+                            signedContainerName: ctx.signedContainerName,
+                            publicKeyFileName: ctx.publicKeyFileName,
+                            reproducible: ctx.reproducible,
+                            wroteChecksums: ctx.wroteChecksums
+                        )
+                        return try await AIReportAssistant.generate(instructions: built.instructions, prompt: built.prompt)
+                    }
+                }
                 // E:跳转到同一归档的空间分析(bundle-only 检查没有归档侧数据,不显示)。
                 if let onOpenSpaceAnalysis, !report.isBundleOnly {
                     Button {
@@ -318,18 +339,22 @@ struct ReleaseInspectionView: View {
         .font(.callout)
     }
 
-    /// #5:发布说明草稿。版本 / 可复现 / SHA256SUMS 标记从发布账本认领(账面里有这次产物才有);
+    /// 发布产物的账本字段 + 签名闸结果。#5 发布说明草稿与 #56 GitHub Release 正文草稿共用,避免重复扫目录。
     /// GPG 段三道闸:gpgEnabled(A4)+ 产物旁恰好一个 .szs + 公钥 .asc 在场 + 默认签名密钥指纹可用 ——
-    /// 缺任何一件就整段不出,不猜。
-    private var releaseNotesDraft: String {
+    /// 缺任何一件 signedContainerName/publicKeyFileName/fingerprint 就保持 nil,不猜。
+    private struct ReleaseArtifactContext {
+        var versionLabel: String?
+        var reproducible: Bool?
+        var wroteChecksums: Bool
+        var signedContainerName: String?
+        var publicKeyFileName: String?
+        var fingerprint: String?
+    }
+
+    private var releaseArtifactContext: ReleaseArtifactContext {
         let ledgerEntry = ReleaseLedgerStore().loadAll().first { $0.artifactPath == report.archiveURL.path }
-        var inputs = ReleaseNotesDraft.Inputs(
-            artifactName: report.archiveURL.lastPathComponent,
+        var ctx = ReleaseArtifactContext(
             versionLabel: ledgerEntry?.versionLabel,
-            sha256: report.sha256,
-            fileCount: report.stats?.fileCount,
-            totalBytes: report.stats?.totalBytes,
-            testPassed: report.testPassed,
             reproducible: ledgerEntry?.reproducible,
             wroteChecksums: ledgerEntry?.wroteChecksums ?? false
         )
@@ -339,11 +364,30 @@ struct ReleaseInspectionView: View {
             let containers = names.filter { $0.lowercased().hasSuffix(".\(SZSArchive.extensionName)") }
             let publicKeys = names.filter { $0.lowercased().hasSuffix(".asc") }
             if containers.count == 1, publicKeys.count == 1 {
-                inputs.signedContainerName = containers[0]
-                inputs.publicKeyFileName = publicKeys[0]
-                inputs.fingerprint = defaultFingerprint
+                ctx.signedContainerName = containers[0]
+                ctx.publicKeyFileName = publicKeys[0]
+                ctx.fingerprint = defaultFingerprint
             }
         }
+        return ctx
+    }
+
+    /// #5:发布说明草稿(确定性,非 AI)。版本 / 可复现 / SHA256SUMS / 签名段都从共享 context 认领。
+    private var releaseNotesDraft: String {
+        let ctx = releaseArtifactContext
+        var inputs = ReleaseNotesDraft.Inputs(
+            artifactName: report.archiveURL.lastPathComponent,
+            versionLabel: ctx.versionLabel,
+            sha256: report.sha256,
+            fileCount: report.stats?.fileCount,
+            totalBytes: report.stats?.totalBytes,
+            testPassed: report.testPassed,
+            reproducible: ctx.reproducible,
+            wroteChecksums: ctx.wroteChecksums
+        )
+        inputs.signedContainerName = ctx.signedContainerName
+        inputs.publicKeyFileName = ctx.publicKeyFileName
+        inputs.fingerprint = ctx.fingerprint
         return ReleaseNotesDraft.make(inputs)
     }
 

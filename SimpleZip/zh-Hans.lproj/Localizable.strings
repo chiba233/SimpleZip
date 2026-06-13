@@ -1311,6 +1311,12 @@
 "ai.explainAudit.title" = "白话解释目录检查";
 "ai.polishIssue" = "润色 Issue";
 "ai.polishIssue.title" = "AI Issue 草稿";
+"ai.draftVerify" = "起草 VERIFY.md";
+"ai.draftVerify.title" = "AI 起草的 VERIFY.md";
+"ai.draftReleaseBody" = "起草发布正文";
+"ai.draftReleaseBody.title" = "AI 起草的发布正文";
+"ai.categorizeIssue" = "智能归类";
+"ai.categorizeIssue.title" = "AI 问题归类";
 "ai.suggestLabels" = "建议标签";
 "ai.suggestLabels.title" = "AI 建议标签";
 "ai.summarizeRisk.title" = "AI 风险总结";

@@ -2240,6 +2240,12 @@
 "ai.summarizeRisk" = "Risiko zusammenfassen";
 "ai.polishIssue" = "Issue aufpolieren";
 "ai.polishIssue.title" = "KI-Issue-Entwurf";
+"ai.draftVerify" = "VERIFY.md entwerfen";
+"ai.draftVerify.title" = "KI-Entwurf für VERIFY.md";
+"ai.draftReleaseBody" = "Release-Text entwerfen";
+"ai.draftReleaseBody.title" = "KI-Entwurf für Release-Text";
+"ai.categorizeIssue" = "Kategorisieren";
+"ai.categorizeIssue.title" = "KI-Issue-Triage";
 "ai.suggestLabels" = "Labels vorschlagen";
 "ai.suggestLabels.title" = "KI-Label-Vorschläge";
 "ai.summarizeRisk.title" = "KI-Risikozusammenfassung";
