@@ -23,7 +23,8 @@ enum CLIRunner {
 
     /// 退出码约定(与 usage 同步):0 成功;1 操作失败/有差异;2 用法或环境错误。
     /// async + 主 actor:ArchiveService 的入口在 app target 默认隔离下是 MainActor 函数,
-    /// 同步阻塞主线程等它必死锁(首版冒烟实测)。main.swift 用 Task + dispatchMain() 驱动。
+    /// 同步阻塞主线程等它必死锁(首版冒烟实测)。main.swift 用 `Task { @MainActor in … }` + `RunLoop.main.run()`
+    /// 驱动(**不是** `dispatchMain()` —— 它会停车真主线程,口令小窗弹不出;见 main.swift 注释,A18)。
     static func run(arguments: [String]) async -> Int32 {
         var commandArguments = Array(arguments.dropFirst())
         if commandArguments.first == "--cli" { commandArguments.removeFirst() }
