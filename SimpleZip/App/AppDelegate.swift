@@ -49,6 +49,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 启动时单次清理上次会话残留的「打开压缩包内文件」解压目录（stale-only，只删早于本次会话的）。
         // 之前放在 ArchiveBrowserModel.init 且无条件删整个根目录，多窗口时会误删在用解压目录。
         TemporaryResourceManager.cleanStaleOpenedArchiveItems(olderThan: sessionStart)
+        // P2b：扫一遍**所有** `SimpleZip*` 临时暂存（不止打开归档的目录，也含归档内编辑 / `.szs` 创建
+        // 的 staging —— 崩溃时它们只靠 defer 清理，会残留明文归档内容）。只删早于本次会话的陈旧项，
+        // 当前会话在用的 staging（晚于 sessionStart）不碰。递归 stat 必须离开主线程（A18），丢后台跑。
+        Task.detached(priority: .utility) {
+            TemporaryResourceManager.clearTemporaryArtifacts(olderThan: sessionStart)
+        }
         // 「每次启动时检查更新」（通用设置 opt-in）：发现新版才弹提示，已最新则静默。
         SparkleUpdater.shared.checkForUpdatesOnLaunchIfEnabled()
 
