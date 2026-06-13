@@ -165,6 +165,9 @@ extension ArchiveService {
         }
         arguments.append(contentsOf: rarExcludeArguments(from: options))
         arguments.append(contentsOf: splitCommandLineArguments(from: options.rawParameters))
+        // Q3：`--` 停止 switch 扫描,与 7zz 创建 / 解压参数同款纵深防御 —— 归档名或文件名以 `-` 开头时
+        // 不会被 rar 误当成开关(RARLAB rar 支持 `--`,与 7zz 一致)。
+        arguments.append("--")
         arguments.append(destination.path)
         arguments.append(contentsOf: relativeNames)
         return arguments

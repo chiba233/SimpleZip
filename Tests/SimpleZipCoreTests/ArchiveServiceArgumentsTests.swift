@@ -288,6 +288,26 @@ struct ArchiveServiceArgumentsTests {
         #expect(!arguments.contains("-ep1"))
     }
 
+    /// Q3：`--` 必须出现，且排在归档名 / 文件名之前 —— 否则以 `-` 开头的路径会被 rar 误当成开关。
+    @Test
+    func rarCreateArgumentsSeparateSwitchesWithDoubleDash() throws {
+        var options = ArchiveCreationOptions()
+        options.format = .rar
+        let arguments = try ArchiveService.rarCreateArguments(
+            destination: URL(fileURLWithPath: "/tmp/-weird.rar"),
+            relativeNames: ["-leading-dash"],
+            options: options
+        )
+        let dashIndex = arguments.firstIndex(of: "--")
+        let destIndex = arguments.firstIndex(of: "/tmp/-weird.rar")
+        let nameIndex = arguments.firstIndex(of: "-leading-dash")
+        #expect(dashIndex != nil)
+        #expect(destIndex != nil)
+        #expect(nameIndex != nil)
+        if let d = dashIndex, let p = destIndex { #expect(d < p) }
+        if let d = dashIndex, let n = nameIndex { #expect(d < n) }
+    }
+
     @Test
     func rarCreateArgumentsUseStoreCompressionWhenLevelIsStore() throws {
         var options = ArchiveCreationOptions()
