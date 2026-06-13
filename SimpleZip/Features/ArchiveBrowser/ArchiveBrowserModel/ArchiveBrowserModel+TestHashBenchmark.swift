@@ -693,6 +693,89 @@ extension ArchiveBrowserModel {
         }
     }
 
+    // MARK: - 数据救援(0.4.4 #8)
+
+    /// 右键损坏归档「尝试数据救援…」:7zz 兜底解坏包(CRC 错继续解 / 中央目录坏扫 local header)。
+    /// 只读救援 —— 原包永不被改动;安全检查不放松;救援目录唯一化绝不覆盖。
+    func salvageSelectedArchive() {
+        let archiveURL: URL?
+        switch mode {
+        case .archive(let url):
+            archiveURL = url
+        case .folder, .tag:
+            archiveURL = selectedFileItems.first(where: { !$0.isDirectory && ArchiveService.isSupportedArchive($0.url) })?.url
+        }
+        guard let archiveURL else {
+            errorMessage = L10n.text("error.openOrSelectArchive")
+            return
+        }
+        runArchiveSalvage(archiveURL)
+    }
+
+    private func runArchiveSalvage(_ url: URL) {
+        var outcome: ArchiveSalvage.Outcome?
+        var totalEntryCount: Int?
+        startManagedArchiveTask(
+            title: L10n.format("salvage.taskTitle", url.lastPathComponent),
+            kind: .extract,
+            showsDetails: true,
+            successStatus: nil,
+            refreshOnSuccess: { [weak self] in
+                guard let self, let outcome else { return }
+                self.status = L10n.format("salvage.done", "\(outcome.rescuedFileCount)")
+                self.archiveSalvageReport = ArchiveSalvageReport(
+                    archiveName: url.lastPathComponent,
+                    outcome: outcome,
+                    totalEntryCount: totalEntryCount
+                )
+            },
+            onSucceeded: { [weak self] task in
+                guard let outcome else { return }
+                var log = [TransferLogEntry(name: outcome.destination.path, action: .added, isDirectory: true)]
+                log.append(contentsOf: outcome.failedEntryPaths.map {
+                    TransferLogEntry(name: $0, action: .failed, isDirectory: false, detail: L10n.text("salvage.entryFailed"))
+                })
+                task.transferLog = log
+                let total = totalEntryCount
+                task.openReport = {
+                    self?.archiveSalvageReport = ArchiveSalvageReport(
+                        archiveName: url.lastPathComponent,
+                        outcome: outcome,
+                        totalEntryCount: total
+                    )
+                }
+            },
+            rerunAction: { [weak self] in self?.runArchiveSalvage(url) }
+        ) { operationID, progress, outputObserver in
+            // 列目录:静默试口令。列不动照样救(7zz local header 兜底);列得动先过路径安全检查。
+            var items: [ArchiveItem]?
+            var usablePassword = ""
+            for password in [""] + SessionPasswordCache.shared.candidates(for: url) {
+                if let listed = try? await ArchiveService.list(url, password: password, operationID: operationID) {
+                    items = listed
+                    usablePassword = password
+                    break
+                }
+            }
+            totalEntryCount = items?.filter { !$0.isDirectory }.count
+            progress(ArchiveProgressState(fraction: nil, currentFile: nil, statusText: L10n.text("salvage.running")))
+            let result = try await ArchiveSalvage.run(
+                archive: url,
+                listedItems: items,
+                password: usablePassword,
+                operationID: operationID,
+                outputObserver: outputObserver
+            )
+            outcome = result
+            if result.rescuedFileCount == 0 {
+                // 一个都没救出来:清掉空救援目录,任务如实失败。
+                try? FileManager.default.removeItem(at: result.destination)
+                throw ArchiveError.commandFailed(L10n.text("salvage.nothingRescued"))
+            }
+            progress(ArchiveProgressState(fraction: 1.0, statusText: nil))
+        }
+    }
+
     // MARK: - 归档体检批处理(0.4.4 #7)
 
     /// 右键「批量体检」:多选归档 → 体检选中的;单选文件夹 → 体检该文件夹顶层全部归档。

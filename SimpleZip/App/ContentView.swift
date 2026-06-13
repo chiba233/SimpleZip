@@ -1316,6 +1316,12 @@ private struct ArchiveExtrasSheets: ViewModifier {
                     model.archiveCheckupReport = nil
                 }
             }
+            .sheet(item: $model.archiveSalvageReport) { report in
+                // 0.4.4 #8:数据救援结果(含固定免责声明)。
+                ArchiveSalvageView(report: report) {
+                    model.archiveSalvageReport = nil
+                }
+            }
             .sheet(item: $model.batchRenameRequest) { request in
                 BatchRenameSheet(request: request) { changes in
                     model.batchRenameRequest = nil

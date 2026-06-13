@@ -1212,6 +1212,18 @@
 "checkup.badge.missingVolumes" = "缺失分卷";
 "checkup.badge.readOnly" = "只读格式(不能编辑条目)";
 "checkup.badge.duplicates" = "与这些包结构相同:%@";
+/* 0.4.4 #8 数据救援 */
+"salvage.menu" = "尝试数据救援…";
+"salvage.title" = "数据救援";
+"salvage.taskTitle" = "正在从 %@ 救援数据";
+"salvage.running" = "正在解出还能读的部分…";
+"salvage.done" = "救出 %@ 个文件";
+"salvage.rescued" = "救出文件";
+"salvage.destination" = "救援目录";
+"salvage.failedSection" = "读不出来的条目(%@)";
+"salvage.entryFailed" = "CRC / 数据错误";
+"salvage.nothingRescued" = "这个归档里没有救得出来的内容。";
+"salvage.disclaimer" = "尽力而为的救援:救出的文件可能不完整或已损坏,归档本身不会被修复。使用前请逐一核验救出的内容。";
 /* 0.4.4 #13 归档元数据报告 */
 "metadata.menu" = "元数据报告";
 "metadata.title" = "归档元数据";

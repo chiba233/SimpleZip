@@ -1214,6 +1214,18 @@
 "checkup.badge.missingVolumes" = "Missing volumes";
 "checkup.badge.readOnly" = "Read-only format (cannot edit entries)";
 "checkup.badge.duplicates" = "Same structure as: %@";
+/* 0.4.4 #8 salvage */
+"salvage.menu" = "Attempt Data Rescue…";
+"salvage.title" = "Data Rescue";
+"salvage.taskTitle" = "Rescuing data from %@";
+"salvage.running" = "Extracting whatever can be read…";
+"salvage.done" = "Rescued %@ files";
+"salvage.rescued" = "Files rescued";
+"salvage.destination" = "Rescue folder";
+"salvage.failedSection" = "Entries that could not be read (%@)";
+"salvage.entryFailed" = "CRC / data error";
+"salvage.nothingRescued" = "Nothing could be rescued from this archive.";
+"salvage.disclaimer" = "Best-effort rescue: recovered files may be incomplete or corrupted, and the archive itself is NOT repaired. Verify everything you rescued before relying on it.";
 /* 0.4.4 #13 archive metadata report */
 "metadata.menu" = "Metadata Report";
 "metadata.title" = "Archive Metadata";

@@ -1099,6 +1099,10 @@ struct FileNSOutlineView: NSViewRepresentable {
             if selectedArchiveCount >= 1 {
                 toolsMenu.addItem(menuItem(L10n.text("checkup.menu"), systemImage: "stethoscope", action: #selector(checkupArchives)))
             }
+            // 0.4.4 #8:数据救援 —— 单选归档(损坏包用;好包跑了也无害,只是多一份解压)。
+            if selectedArchiveCount == 1, model.selectedFileItems.count == 1 {
+                toolsMenu.addItem(menuItem(L10n.text("salvage.menu"), systemImage: "bandage", action: #selector(salvageArchive)))
+            }
             // #111 比较：恰好选中 2 个可比对项（归档或文件夹，0.4.2 #25）→ 直接比；
             // 单选 1 个归档 / 文件夹 → 再挑一个比（面板可选文件夹）。
             let comparableCount = model.selectedFileItems.filter { $0.isDirectory || ArchiveService.isSupportedArchive($0.url) }.count
@@ -1431,6 +1435,10 @@ struct FileNSOutlineView: NSViewRepresentable {
 
         @objc private func checkupArchives() {
             model.checkupSelectedArchives()
+        }
+
+        @objc private func salvageArchive() {
+            model.salvageSelectedArchive()
         }
 
         @objc private func findDuplicateArchives() {
