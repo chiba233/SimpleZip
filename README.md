@@ -77,6 +77,29 @@ on the official 7-Zip engine, which ships inside the app.
 - 🌍 **Speaks your language.** English, 简体中文, 繁體中文, 日本語, 한국어,
   Русский, Deutsch, Français, Español, ไทย.
 
+### 🧠 Find, ask & automate (macOS 26 + Spotlight)
+
+- **Find a file *inside* an archive — straight from Spotlight.** Open an archive
+  once and its (non-encrypted) entries are remembered locally, so later you type a
+  document's name into Spotlight and the **file itself** shows up, labelled with the
+  archive it lives in — open it and SimpleZip jumps right to it, scrolled into view.
+  Past releases and finished tasks are searchable too; tap a result to land on it.
+- **Describe a setting to find it.** Type "stop asking before delete" or "turn off
+  the GPG stuff" into the Settings search and SimpleZip jumps to the right switch —
+  in any language. Ask Siri (or run a Shortcut) to flip a safe toggle without
+  opening the app at all; security-sensitive settings are never reachable this way.
+- **An on-device AI assistant that only ever explains.** When Apple Intelligence is
+  available, a read-only "explain this" rides nearly every report — summarize an
+  archive's risk, explain a signature check, draft a `VERIFY.md` or release notes,
+  suggest issue labels, explain a failure. It runs **entirely on your Mac**, writes
+  into an editable box you review (Writing Tools work on it), and **never changes a
+  file, a setting or a task — and never sees the contents of an encrypted archive or
+  any passphrase.** Toggle it in Settings → Automation; hidden when unavailable.
+- **Live pre-flight hints.** The create and extract dialogs add a one-line AI
+  heads-up grounded in your *actual* files — packing a folder into a single-file
+  format, a name conflict, suspicious paths, low disk space — next to a
+  deterministic compression-size estimate.
+
 ### 🧰 Power tools, when you reach for them
 
 - **Convert formats** — re-pack a `.rar` as `.7z`, a `.zip` as an encrypted
@@ -102,11 +125,43 @@ on the official 7-Zip engine, which ships inside the app.
   (existing files untouched), reveal in Finder when done, and optionally move the
   archive to the Trash after a fully successful run.
 - **Release Assistant** — pack (reproducible, junk excluded) → inspect →
-  SHA256SUMS → optional signing, in one flow; **workspace presets** save the whole
-  setup under a name for the next time you ship that project.
+  SHA256SUMS → optional signing, in one resumable flow; **workspace presets** save
+  the whole setup under a name. It keeps a **release ledger** (every run recorded
+  with version, hash and structural fingerprint), lets you **compare a release
+  against the previous one**, can drop a machine-readable `release-manifest.json`,
+  and a configurable **quality gate** warns or blocks on suspicious paths, junk,
+  missing checksums or unsigned output before you ship.
 - **Reproducible archives** — a switch in the create dialog makes the same input
   produce a byte-identical ZIP/7z (same SHA-256) on every run. Made for GitHub
   releases and verifiable builds; pairs with **Export SHA256SUMS**.
+- **At-a-glance security grade (A / B / C)** — the path-safety report leads with a
+  plain-language risk grade, so you know at a glance whether an archive is safe to
+  open. Pure rule-based (no AI judges safety) — graded by the single most serious
+  issue found, so a pile of cosmetic notes never inflates to "high risk".
+- **Data rescue for damaged archives** — keep extracting past CRC errors and scan
+  local headers when a ZIP's central directory is gone. Everything readable lands
+  in a `name (rescued)` folder, the original is never touched, and the safety
+  checks still run (damaged archives are prime hostile input).
+- **Batch checkup** — open, integrity-test and scan a whole selection (or a
+  folder's top level) in one pass: suspicious paths, macOS junk, encrypted entries,
+  missing volumes, read-only formats and duplicates across the batch.
+- **Find sensitive & config files** — a fast, name-based scan that groups what
+  stands out inside an archive — private keys / credentials / secrets, license
+  files, configs and scripts. It reads file names only, never contents.
+- **Near-duplicate finder** — beyond byte-identical duplicates, group versions /
+  renames / copies (`report.docx`, `report (1).docx`, `report_v2.docx`,
+  `报告 副本.docx`) into one group, marked "identical copies" or "similar versions".
+- **Reproducibility deep report** — pack a folder twice and prove the two archives
+  are byte-for-byte identical, with an honest breakdown of which factors carry
+  across re-packs (timestamps stripped, entry order deterministic) and which don't.
+- **Release-directory check & Quick Verify** — confirm a release folder is complete
+  and verifiable: SHA256SUMS coverage and real hashing, the `.szs` manifest checked
+  file-by-file, an independent clean-room check that the shipped public key really
+  verifies the shipped signature (your own keyring untouched), DMG content, and
+  orphan files. Quick Verify does an instant name-only completeness pass.
+- **Stay in the loop** — a banner if another app moves or rewrites the archive
+  you're viewing, and an optional system notification when a long task finishes
+  while SimpleZip is in the background.
 - **Space analysis & duplicate hunting** — see an archive's largest files and
   folder/extension breakdown at a glance; scan a folder for **suspected duplicate
   archives** (fingerprint-grouped, even across formats); and **search file
@@ -115,10 +170,18 @@ on the official 7-Zip engine, which ships inside the app.
 - **Checksum files** — generate GNU-compatible `SHA256SUMS` for a selection, and
   verify `SHA256SUMS` / `.sha256` / `.md5` / `.sfv` files someone sent you, with
   per-file pass/fail in the Activity Center.
-- **A real CLI** — install `simplezip` from Settings → General and run
-  `check` / `compare` / `create` / `verify` / `open` in the terminal with real
-  exit codes, against the same bundled engines; finished commands land in the
-  Activity Center too.
+- **A real CLI** — install `simplezip` from Settings → Automation and run
+  `check` / `compare` / `create` / `verify` / `open` / `doctor` in the terminal
+  with real exit codes — plus `--json` machine output, `--quiet` / `--verbose`,
+  "did you mean" typo hints, shell completions and a man page. `create` learns
+  `--level` / `--exclude-junk` / `--reproducible` / `--encrypt` (password via the
+  `SIMPLEZIP_PASSWORD` env var or a no-echo prompt, never an argument). Same
+  bundled engines; finished commands land in the Activity Center too.
+- **Shortcuts & Siri** — drive SimpleZip from the Shortcuts app or Siri: extract,
+  create, verify checksums, compare archives, search inside an archive, inspect
+  without extracting, and run the Release Assistant headlessly. Every run is tagged
+  in the Activity Center; `.szs` signing stays interactive-only and never runs
+  unattended.
 - **URL actions** — other apps and scripts can ask SimpleZip to act via
   `simplezip://check?path=…` / `compare` / `open`; a confirmation dialog naming
   the action and full paths always comes first.
@@ -146,7 +209,10 @@ on the official 7-Zip engine, which ships inside the app.
 - **Benchmark** — measure the 7-Zip engine's compression / decompression speed on
   your Mac.
 - **Activity Center** — every operation, re-runnable, with copyable equivalent
-  commands and an exportable diagnostics bundle.
+  commands and an exportable diagnostics bundle. Pause and resume the whole queue
+  in one click, filter by source (in-app / CLI / Shortcuts / URL / Finder), reopen
+  any report (they survive a restart), and carve out a view of your tasks just by
+  describing it on macOS 26.
 - **Tabs & multiple windows** — open archives and folders in native window tabs.
 - **Quick Look, Get Info, Open With** — the Finder essentials, right in the list.
 
@@ -270,6 +336,10 @@ that. The full cryptographic design and threat model live in
 - **View** — list size (compact / standard / comfortable), which columns show,
   and optional grouping defaults.
 - **File Associations** — make SimpleZip the default opener for archive types.
+- **Automation** — one home for everything that drives SimpleZip from outside: the
+  command-line tool, the Shortcuts actions, Spotlight indexing, the `simplezip://`
+  URL commands, the archive-content cache, per-source usage stats, and the
+  "allow automation to use the preset password" security switch.
 - **Software Update** — check for new versions and read the release notes in-app.
 - **GPG** — turn signing on, manage keys, pick a default signing key.
 - **Health** — a quick "is everything working?" dashboard with one-click

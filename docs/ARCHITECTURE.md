@@ -27,6 +27,15 @@ The boundaries below have been extracted — this section reflects the shipped l
 - `TemporaryResourceManager` owns temporary directories used for opening archive entries outside the app.
 - SwiftPM target `SimpleZipCore` exposes testable core logic (the files listed in `Package.swift`'s `sources:`). Xcode
   has a `SimpleZipCoreTests` scheme that runs the same SwiftPM suite.
+- `Features/Intents/` holds the App Intents / Shortcuts / Siri surface and the `IndexedEntity` types that feed
+  CoreSpotlight (ledger, tasks, settings, cached archives, archive files). It is a read-side adapter over existing app
+  state and the `SettingToggleRegistry` whitelist — it never owns archive or filesystem logic, and the one write it can
+  perform (toggling a *safe* setting) goes through that whitelist.
+- `Features/AI/` holds the macOS-26 on-device assistant (FoundationModels). It is **strictly read-only and additive**:
+  it explains reports, grades risk (`Core/ArchiveRiskScore`), and scans for sensitive files / near-duplicates
+  (`Core/SensitiveFileScan`, `Core/ArchiveNearDuplicates`), but it sits entirely outside the extraction / create / delete
+  path and is never given encrypted-entry contents or passphrases. The deterministic scoring lives in `Core` (testable);
+  the AI only narrates it. Everything here is `@available(macOS 26, *)`-gated and degrades to nothing otherwise.
 
 ## Ownership Boundaries
 

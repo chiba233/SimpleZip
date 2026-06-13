@@ -116,9 +116,36 @@ SimpleZip 把归档操作暴露为 [App Intents](https://developer.apple.com/doc
 
 返回创建的发布包（作为文件），以及一句确认完成的对话提示。成功的运行会记入发布账本。
 
+### Find Archive Containing File
+
+在你最近打开过的归档（它们的缓存列表）里，找出条目匹配某个文件名的那一个——「我哪个归档里有 `config.yaml`？」——无需重新
+打开或解压任何东西。匹配只用可读的条目名，绝不伸进加密条目的内容。
+
+| 参数 | 类型 | 说明 |
+| --- | --- | --- |
+| **File Name** | 文本 | 要在缓存归档里查找的文件名（或片段）。 |
+
+返回匹配的缓存归档；点其中一个会在 SimpleZip 里打开它。
+
+### Change a Setting
+
+用语音或快捷指令翻动一个 SimpleZip 偏好——「Turn on reproducible archives with SimpleZip」——并返回一张展示新状态的
+**Setting Switch** 卡片。**安全敏感设置绝不可能这样改到：** 写入要过与 app 内「Setting Switch」相同的三重白名单
+（`SettingToggleRegistry`），所以只有安全的布尔开关能被改；任何牵涉口令、签名或解压安全的设置都会被拒绝。
+
+| 参数 | 类型 | 说明 |
+| --- | --- | --- |
+| **Setting** | Setting | 要改的设置（从列表挑选，或按名字匹配）。 |
+| **State** | 选项 | `On`、`Off` 或 `Toggle`。默认 `Toggle`。 |
+
+在一张 Setting Switch snippet 里返回该设置的新状态。
+
 ## 实体
 
-SimpleZip 向快捷指令与 Siri 暴露三个实体。它们是 app 数据的只读视图；绝不触发写入或安全判定，也绝不暴露归档内文件的名称或内容。
+SimpleZip 向快捷指令、Siri 与 Spotlight 暴露若干只读实体。它们是 app 数据的只读视图；绝不触发写入或安全判定，也绝不暴露
+归档内文件的内容。其中五个（**Archive Task**、**Release Package**、**Cached Archive**、**Archive File**、**Setting**）实现
+了 `IndexedEntity`，可在 macOS 15+ 上被推进 Spotlight，由「设置 → Spotlight」里各自的索引偏好控制。被索引的归档元数据**只有
+可读名字**——加密条目的内容与口令永不入索引。
 
 ### Archive Task
 
@@ -136,6 +163,24 @@ SimpleZip 向快捷指令与 Siri 暴露三个实体。它们是 app 数据的�
 代表一个已存的发布工作区预设（定义在 `SimpleZip/Features/Intents/ReleaseWorkspacePresetEntity.swift`）。属性：**Name**。它用作
 *Create Release Package* 的 **Workspace Preset** 参数选择器，既支持从列表中挑选，也支持按名字匹配（因此快捷指令变量可以提供该预设）。
 
+### Cached Archive
+
+代表你最近打开过的一个归档（定义在 `SimpleZip/Features/Intents/CachedArchiveEntity.swift`）。属性：**Name**、**Path**、
+**Entry Count**、**Last Opened**。支撑 *Find Archive Containing File* 动作；被索引后，Spotlight 能让你直接跳回最近的归档。
+只暴露归档自身的路径与可读条目名。
+
+### Archive File
+
+代表归档*内部*的单个文件（定义在 `SimpleZip/Features/Intents/ArchiveFileEntity.swift`）。属性：**Name**、**归档内路径**、
+**Size**、所属归档。由归档搜索与档案内查找器浮出；被索引后，点 Spotlight 结果会在该条目处打开归档。绝不读取加密条目的内容
+——只取列出的名字与大小。
+
+### Setting
+
+代表 SimpleZip 的一个偏好（定义在 `SimpleZip/Features/Intents/SettingEntity.swift`）。属性：**Name**、**Category**、
+**Current State**。支撑 *Change a Setting* 动作以及 Spotlight「打开这个设置」的跳转。只有安全的布尔设置可写（三重白名单）；
+安全敏感设置在这里是只读的。
+
 ## 示例语句
 
 下列是注册到 Siri 与快捷指令 app 的语句。每条语句里的 `SimpleZip` 代表应用名称。
@@ -150,6 +195,8 @@ SimpleZip 向快捷指令与 Siri 暴露三个实体。它们是 app 数据的�
 | Search Archive Contents | "Search an archive with SimpleZip" · "Search archive contents with SimpleZip" |
 | Inspect Archive | "Inspect an archive with SimpleZip" · "Inspect an archive for release with SimpleZip" |
 | Create Release Package | "Create a release package with SimpleZip" · "Package a release with SimpleZip" |
+| Find Archive Containing File | "Find which archive contains a file with SimpleZip" · "Find an archive containing a file with SimpleZip" |
+| Change a Setting | "Change a SimpleZip setting" · "Turn on a SimpleZip setting" · "Turn off a SimpleZip setting" · "Toggle a SimpleZip setting" |
 
 ## macOS 可用性
 
@@ -157,7 +204,11 @@ SimpleZip 向快捷指令与 Siri 暴露三个实体。它们是 app 数据的�
   及更高版本上都能用。
 - 把动作与示例语句预注册进快捷指令 app、Spotlight 与 Siri 建议的 `AppShortcutsProvider`（`SimpleZipAppShortcuts`）受限于
   **macOS 14 及更高版本**（`@available(macOS 14.0, *)`）。在 macOS 13 上这些 intent 仍可完整使用，只是不作为建议被预注册。
-- 发布包的 Spotlight 索引（Release Package 上的 `IndexedEntity` 一致性）需要 **macOS 15 及更高版本**；在更旧的系统上是空操作。
+- Spotlight 索引（Archive Task、Release Package、Cached Archive、Archive File、Setting 上的 `IndexedEntity` 一致性）需要
+  **macOS 15 及更高版本**；在更旧的系统上是空操作。每个面都由「设置 → Spotlight」里它自己的偏好门控，被索引的归档元数据只有
+  可读名字。
+- *Find Archive Containing File* 与 *Change a Setting* 是没有版本门控的普通 `AppIntent`，因此和其它动作一样，在 macOS 13
+  及更高版本上都能用。
 
 ## 安全说明
 
@@ -165,6 +216,8 @@ SimpleZip 向快捷指令与 Siri 暴露三个实体。它们是 app 数据的�
 - 加密归档无需弹窗处理。*Test Archive Integrity* 先不带密码尝试，仅在错误表明需要密码、配置了可用的预设密码、且允许使用预设密码的
   自动化偏好已启用时，才用预设密码重试一次。
 - *Search Archive Contents* 只列出归档暴露出的内容；条目名称需要密码的归档不会被列出，因此其内容绝不被泄露。
+- *Change a Setting* 只能翻动安全的布尔偏好。写入由与 app 内 Setting Switch 相同的三阶白名单（`SettingToggleRegistry`）门控；
+  牵涉口令、GPG 签名或解压安全的设置，无法被语音、快捷指令或 Spotlight 改动。
 - 关于归档处理的项目整体安全规则，见 [`../SECURITY.zh-CN.md`](../SECURITY.zh-CN.md)。
 
 ## 另见

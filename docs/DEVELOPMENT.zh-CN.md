@@ -2,7 +2,7 @@
 
 # SimpleZip 开发指南
 
-> 这份文档是 SimpleZip 的「代码地图 + 上手手册」。项目已经从一个小 ZIP 壳长到 250+ 个 Swift 文件、十几个子系统，
+> 这份文档是 SimpleZip 的「代码地图 + 上手手册」。项目已经从一个小 ZIP 壳长到 280+ 个 Swift 文件、十几个子系统，
 > 这份指南的目标是：**让任何人（包括三个月后的你自己）能在 10 分钟内找到「某个功能的代码在哪、改它要碰哪几层、改完怎么验证」。**
 >
 > 配套文档分工：
@@ -111,7 +111,7 @@ Info.plist                  App 的 Info.plist（根目录）
 
 ### SwiftPM vs Xcode 边界（很重要）
 
-`Package.swift` 的 `SimpleZipCore` target **只**编 `SimpleZip/Core/` 下显式列出的那 66 个文件（见 Package.swift 的 `sources:`）。
+`Package.swift` 的 `SimpleZipCore` target **只**编 `SimpleZip/Core/` 下显式列出的那 81 个文件（见 Package.swift 的 `sources:`）。
 App UI、`Features/`、`App/`、资源、本地化、`Tools/` 统统被 `exclude` 掉了。
 
 含义：
@@ -231,6 +231,38 @@ App UI、`Features/`、`App/`、资源、本地化、`Tools/` 统统被 `exclude
 - `SimpleZip/Core/L10n.swift` — 本地化 helper（按语言选 bundle，回退到 en）。
 - `SimpleZip/Core/TemporaryResourceManager.swift` — 临时资源生命周期（启动清理残留、每次打开隔离目录）。
 - `SimpleZip/Features/Hashing/` — 哈希；`Benchmark/` — 7z benchmark；`About/AboutPanel.swift` — 关于面板。
+
+### 5.10 端上 AI 助手（macOS 26，需主动开启，只读）
+
+Apple Intelligence / FoundationModels 的胶水层。**这里的一切都是只读、且 `@available(macOS 26, *)` 门控的**：助手只
+解释、归类、给建议；它不删文件、不改设置、不放行任何解压、也看不到加密条目的内容或任何口令（喂给它的只有数量、字节
+大小、可读名字和类别标签）。系统较旧或 Apple Intelligence 不可用时，它整体降级为「什么都不出现」。
+
+- `SimpleZip/Features/AI/AIReportAssistant.swift` — 把 `LanguageModelSession` 包成人话报告摘要。`AIGenerationSerializer`
+  （一个 `actor`）把所有生成串成单条闸门，防止并发请求把模型会话搞崩。
+- `SimpleZip/Features/AI/AIAssistSheet.swift` / `InlineAIAdvisory.swift` — 呈现摘要的 sheet 与内联提示条；纯展示。
+- `SimpleZip/Features/AI/SensitiveFileReportView.swift` + `Core/SensitiveFileScan.swift` —「这个档案里是不是带着凭据 /
+  密钥 / 配置」；纯扫描 + 评分逻辑在 `Core`。
+- `SimpleZip/Features/AI/NearDuplicateReportView.swift` + `Core/ArchiveNearDuplicates.swift` — 近似重复识别（大小 + 名字
+  + CRC 启发式），同样纯逻辑在 `Core`。
+- `SimpleZip/Features/AI/ArchiveFinderSheet.swift` —「在档案*内部*找文件」的 UI，背后是 `Core/ArchiveListingCache.swift`
+  的列表缓存。
+- 风险 / 评级模型：`Core/ArchiveRiskScore.swift` — A / B / C 安全评级（确定性、可测；AI 只负责把它讲成人话）。
+
+### 5.11 App Intents、快捷指令与 Spotlight（macOS 26）
+
+快捷指令 / Siri / Spotlight 这一面。实体都是 `IndexedEntity`，被推进 CoreSpotlight，于是**账本、任务、设置、以及（需主动
+开启的）档案内容**都能从系统层搜到——档案*内容*的索引遵循隐私口径（只索引可读名字；加密条目的内容与口令永不入索引）。
+详见 [SHORTCUTS.zh-CN.md](SHORTCUTS.zh-CN.md)。
+
+- `SimpleZip/Features/Intents/SimpleZipAppIntents.swift` — `AppShortcutsProvider` 与整套 intent（解压 / 创建 / 测试 /
+  验签 / 比对 / 搜索 / 检视 / 创建发布包 / 改设置）。
+- `*Entity.swift`（`ArchiveFileEntity`、`ArchiveTaskEntity`、`CachedArchiveEntity`、`ReleasePackageEntity`、
+  `ReleaseWorkspacePresetEntity`、`SettingEntity`）—`AppEntity` / `IndexedEntity` 类型及其 `EntityQuery`。
+- `SettingToggleSnippet.swift` —「设置开关」snippet UI，由「改设置」intent 返回；真正的写入要过 `SettingToggleRegistry`
+  的三重白名单闸门，所以安全敏感设置永远不可能被语音或快捷指令改到。
+- `SpotlightRoute.swift` — 把点中的 Spotlight 结果映射回 app 内正确的落点。
+- CLI 的 tab 补全在 `Core/CLICompletions.swift`。
 
 ---
 

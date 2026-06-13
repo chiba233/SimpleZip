@@ -26,6 +26,13 @@ SimpleZip 是一款原生 macOS 应用，由 SwiftUI/AppKit 的 UI 外壳和命�
 - `TemporaryResourceManager` 拥有用于在应用之外打开归档条目的临时目录。
 - SwiftPM target `SimpleZipCore` 暴露可测试的核心逻辑（即 `Package.swift` 的 `sources:` 中列出的文件）。Xcode
   有一个 `SimpleZipCoreTests` scheme，运行的是同一套 SwiftPM 测试。
+- `Features/Intents/` 承载 App Intents / 快捷指令 / Siri 这一面，以及喂给 CoreSpotlight 的 `IndexedEntity` 类型（账本、
+  任务、设置、缓存归档、归档内文件）。它是叠在现有 app 状态与 `SettingToggleRegistry` 白名单之上的「读侧适配器」——绝不
+  拥有归档或文件系统逻辑，而它唯一能做的写入（翻动一个*安全的*设置）也要过那道白名单。
+- `Features/AI/` 承载 macOS 26 的端上助手（FoundationModels）。它**严格只读、纯增量**：解释报告、给风险评级
+  （`Core/ArchiveRiskScore`）、扫描敏感文件 / 近似重复（`Core/SensitiveFileScan`、`Core/ArchiveNearDuplicates`），但完全
+  处在解压 / 创建 / 删除路径之外，也绝不被喂加密条目的内容或口令。确定性的评分逻辑在 `Core`（可测）；AI 只负责把它讲成
+  人话。这里的一切都受 `@available(macOS 26, *)` 门控，否则整体降级为「什么都没有」。
 
 ## 所有权边界
 

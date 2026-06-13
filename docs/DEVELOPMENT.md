@@ -3,7 +3,7 @@
 # SimpleZip Development Guide
 
 > This document is SimpleZip's "code map + onboarding handbook". The project has grown from a small ZIP shell into
-> 250+ Swift files and a dozen-odd subsystems, and the goal of this guide is: **let anyone (including yourself three
+> 280+ Swift files and a dozen-odd subsystems, and the goal of this guide is: **let anyone (including yourself three
 > months from now) find, within 10 minutes, "where the code for a given feature lives, which layers you have to touch to
 > change it, and how to verify the change".**
 >
@@ -116,7 +116,7 @@ change**), `GUIDE.zh-CN.md` (user-facing), `SECURITY.md` + `SECURITY.zh-CN.md`, 
 
 ### SwiftPM vs Xcode boundary (very important)
 
-The `SimpleZipCore` target in `Package.swift` builds **only** the 66 files explicitly listed under `SimpleZip/Core/`
+The `SimpleZipCore` target in `Package.swift` builds **only** the 81 files explicitly listed under `SimpleZip/Core/`
 (see the `sources:` in Package.swift). App UI, `Features/`, `App/`, assets, localization, and `Tools/` are all
 `exclude`-d.
 
@@ -252,6 +252,44 @@ shared control `SettingsRowComponents.swift`. The panes are in `Settings/Panes/`
 - `SimpleZip/Core/L10n.swift` — the localization helper (pick a bundle by language, fall back to en).
 - `SimpleZip/Core/TemporaryResourceManager.swift` — the temporary-resource lifecycle (clean up leftovers on launch, an isolated directory per open).
 - `SimpleZip/Features/Hashing/` — hashing; `Benchmark/` — the 7z benchmark; `About/AboutPanel.swift` — the About panel.
+
+### 5.10 On-device AI assistant (macOS 26, opt-in, read-only)
+
+Apple Intelligence / FoundationModels glue. **Everything here is read-only and `@available(macOS 26, *)`-gated**: the
+assistant explains, classifies, and suggests; it never deletes, never flips a setting, never approves an extraction, and
+never sees encrypted-entry contents or any passphrase (it is fed counts, byte sizes, readable names, and category labels
+only). It degrades to nothing on older systems and when Apple Intelligence is unavailable.
+
+- `SimpleZip/Features/AI/AIReportAssistant.swift` — wraps `LanguageModelSession` for the human-readable report
+  summaries. `AIGenerationSerializer` (an `actor`) funnels all generations through one serial gate so concurrent
+  requests can't crash the model session.
+- `SimpleZip/Features/AI/AIAssistSheet.swift` / `InlineAIAdvisory.swift` — the sheet and the inline advisory strip that
+  present a summary; presentation only.
+- `SimpleZip/Features/AI/SensitiveFileReportView.swift` + `Core/SensitiveFileScan.swift` — "does this archive carry
+  credentials / keys / configs"; the pure scan + scoring lives in `Core`.
+- `SimpleZip/Features/AI/NearDuplicateReportView.swift` + `Core/ArchiveNearDuplicates.swift` — near-duplicate detection
+  (size + name + CRC heuristics), again pure logic in `Core`.
+- `SimpleZip/Features/AI/ArchiveFinderSheet.swift` — "find a file *inside* an archive" UI, backed by the cached listings
+  in `Core/ArchiveListingCache.swift`.
+- Risk/grade model: `Core/ArchiveRiskScore.swift` — the A / B / C security grade (deterministic, testable; the AI only
+  narrates it).
+
+### 5.11 App Intents, Shortcuts & Spotlight (macOS 26)
+
+The Shortcuts / Siri / Spotlight surface. Entities are `IndexedEntity`s pushed into CoreSpotlight so the **ledger,
+tasks, settings, and (opt-in) archive contents** are searchable from the system — archive *file contents* are indexed
+per the privacy policy (readable names only; encrypted-entry contents and passphrases are never indexed). See
+[SHORTCUTS.md](SHORTCUTS.md).
+
+- `SimpleZip/Features/Intents/SimpleZipAppIntents.swift` — the `AppShortcutsProvider` and the intent set (extract /
+  create / test / verify / compare / search / inspect / create-release-package / change-setting).
+- `*Entity.swift` (`ArchiveFileEntity`, `ArchiveTaskEntity`, `CachedArchiveEntity`, `ReleasePackageEntity`,
+  `ReleaseWorkspacePresetEntity`, `SettingEntity`) — the `AppEntity` / `IndexedEntity` types and their `EntityQuery`s.
+- `SettingToggleSnippet.swift` — the "Setting Switch" snippet UI returned by the change-setting intent; the actual write
+  goes through the `SettingToggleRegistry` 3-gate whitelist, so security-sensitive settings are never reachable by voice
+  or Shortcut.
+- `SpotlightRoute.swift` — maps a tapped Spotlight result back to the right in-app destination.
+- Tab completion for the CLI lives in `Core/CLICompletions.swift`.
 
 ---
 

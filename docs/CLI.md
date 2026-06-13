@@ -55,6 +55,7 @@ USAGE:
                                              Create an archive; format from the output extension
   simplezip verify <checksum-file>...        Verify SHA256SUMS / checksums.txt / .sha256 / .md5 / .sfv
   simplezip doctor                           Check the CLI environment (app, backends, symlink)
+  simplezip completions <zsh|bash|fish>      Print a shell completion script to stdout
   simplezip version                          Print version
   simplezip help [command]                   Show this help, or detailed help for one command
 
@@ -246,6 +247,24 @@ backends are optional and are reported as-is. With `--json`, the output object i
 }
 ```
 
+### `completions`
+
+```
+simplezip completions <zsh|bash|fish>
+```
+
+Prints a shell completion script to stdout for the given shell — `zsh`, `bash`, or `fish`. It completes the subcommands,
+the global options, and `create`'s options. It writes nothing to disk; pipe or redirect it where your shell expects
+completions, for example:
+
+```
+simplezip completions zsh > "${fpath[1]}/_simplezip"          # zsh
+simplezip completions bash > /usr/local/etc/bash_completion.d/simplezip
+simplezip completions fish > ~/.config/fish/completions/simplezip.fish
+```
+
+An unrecognized shell name exits `2`.
+
 ### `version`
 
 ```
@@ -267,7 +286,8 @@ Prints the app version this CLI belongs to. With `--json`:
 simplezip help [command]
 ```
 
-Shows the top-level help, or detailed help for one command.
+Shows the top-level help, or detailed help for one command. An unknown command exits `2` and, when it's close to a real
+one, suggests it — `unknown command: verfy (did you mean "verify"?)`.
 
 ## Passwords
 

@@ -130,10 +130,39 @@ unattended.
 Returns the created release package as a file, plus a dialog confirming completion. Successful runs are added to the
 release ledger.
 
+### Find Archive Containing File
+
+Searches the archives you've recently opened (their cached listings) for one whose entries match a file name — "which of
+my archives has `config.yaml` in it?" — without re-opening or extracting anything. Matching uses readable entry names
+only; it never reaches into an encrypted entry's contents.
+
+| Parameter | Type | Notes |
+| --- | --- | --- |
+| **File Name** | text | The file name (or fragment) to look for inside cached archives. |
+
+Returns the matching cached archive(s); tapping one opens it in SimpleZip.
+
+### Change a Setting
+
+Flips a SimpleZip preference by voice or Shortcut — "Turn on reproducible archives with SimpleZip" — and returns a
+**Setting Switch** card showing the new state. **Security-sensitive settings are never reachable this way:** the write
+goes through the same three-gate whitelist (`SettingToggleRegistry`) used by the in-app "Setting Switch", so only safe
+boolean toggles can be changed; anything touching passwords, signing, or extraction safety is refused.
+
+| Parameter | Type | Notes |
+| --- | --- | --- |
+| **Setting** | Setting | The setting to change (picked from a list, or matched by name). |
+| **State** | choice | `On`, `Off`, or `Toggle`. Defaults to `Toggle`. |
+
+Returns the setting's new state in a Setting Switch snippet.
+
 ## Entities
 
-SimpleZip exposes three entities to Shortcuts and Siri. They are read-only views of app data; they never trigger a write
-or a security decision, and they never expose the names or contents of files inside an archive.
+SimpleZip exposes several read-only entities to Shortcuts, Siri and Spotlight. They are read-only views of app data; they
+never trigger a write or a security decision, and they never expose the contents of files inside an archive. Five of them
+(**Archive Task**, **Release Package**, **Cached Archive**, **Archive File**, **Setting**) conform to `IndexedEntity` and
+can be pushed into Spotlight on macOS 15+, governed by the per-surface indexing preferences in Settings → Spotlight.
+Indexed archive metadata is **readable names only** — encrypted-entry contents and passphrases are never indexed.
 
 ### Archive Task
 
@@ -156,6 +185,26 @@ Represents a saved release workspace preset (defined in
 for the **Workspace Preset** parameter of *Create Release Package*, and supports both picking from a list and matching by
 name (so a Shortcuts variable can supply the preset).
 
+### Cached Archive
+
+Represents an archive you've recently opened (defined in
+`SimpleZip/Features/Intents/CachedArchiveEntity.swift`). Properties: **Name**, **Path**, **Entry Count**, **Last
+Opened**. Backs the *Find Archive Containing File* action and, when indexed, lets Spotlight jump you straight back into a
+recent archive. Only the archive's own path and readable entry names are exposed.
+
+### Archive File
+
+Represents a single file *inside* an archive (defined in `SimpleZip/Features/Intents/ArchiveFileEntity.swift`).
+Properties: **Name**, **Path inside the archive**, **Size**, the containing archive. Surfaced by archive search and the
+in-archive finder; when indexed, a Spotlight hit opens the archive at that entry. Encrypted-entry contents are never
+read — only the listed name and size.
+
+### Setting
+
+Represents one SimpleZip preference (defined in `SimpleZip/Features/Intents/SettingEntity.swift`). Properties: **Name**,
+**Category**, **Current State**. Backs the *Change a Setting* action and Spotlight "open this setting" jumps. Only
+safe boolean settings are writable (the three-gate whitelist); security-sensitive settings are read-only here.
+
 ## Example phrases
 
 These are the phrases registered with Siri and the Shortcuts app. `SimpleZip` stands for the application name in each
@@ -171,6 +220,8 @@ phrase.
 | Search Archive Contents | "Search an archive with SimpleZip" · "Search archive contents with SimpleZip" |
 | Inspect Archive | "Inspect an archive with SimpleZip" · "Inspect an archive for release with SimpleZip" |
 | Create Release Package | "Create a release package with SimpleZip" · "Package a release with SimpleZip" |
+| Find Archive Containing File | "Find which archive contains a file with SimpleZip" · "Find an archive containing a file with SimpleZip" |
+| Change a Setting | "Change a SimpleZip setting" · "Turn on a SimpleZip setting" · "Turn off a SimpleZip setting" · "Toggle a SimpleZip setting" |
 
 ## macOS availability
 
@@ -179,8 +230,11 @@ phrase.
 - The `AppShortcutsProvider` (`SimpleZipAppShortcuts`) that pre-registers the actions and example phrases into the
   Shortcuts app, Spotlight, and Siri suggestions is gated to **macOS 14 and later** (`@available(macOS 14.0, *)`). On
   macOS 13 the intents are still fully usable; they are simply not pre-registered as suggestions.
-- Spotlight indexing of release packages (the `IndexedEntity` conformance on Release Package) requires **macOS 15 and
-  later**; on older systems it is a no-op.
+- Spotlight indexing (the `IndexedEntity` conformance on Archive Task, Release Package, Cached Archive, Archive File and
+  Setting) requires **macOS 15 and later**; on older systems it is a no-op. Each surface is gated by its own preference
+  under Settings → Spotlight, and indexed archive metadata is readable names only.
+- *Find Archive Containing File* and *Change a Setting* are plain `AppIntent`s with no version gate, so they work on
+  macOS 13 and later like the other actions.
 
 ## Notes on safety
 
@@ -191,6 +245,9 @@ phrase.
   configured, and the automation preference permitting preset-password use is enabled.
 - *Search Archive Contents* only lists what the archive exposes; archives whose entry names require a password are not
   listed, so their contents are never revealed.
+- *Change a Setting* can only flip safe boolean preferences. The write is gated by the same three-stage whitelist
+  (`SettingToggleRegistry`) the in-app Setting Switch uses; settings governing passwords, GPG signing, or extraction
+  safety are not toggleable by voice, Shortcut, or Spotlight.
 - For the broader project safety rules around archive handling, see [`../SECURITY.md`](../SECURITY.md).
 
 ## See also

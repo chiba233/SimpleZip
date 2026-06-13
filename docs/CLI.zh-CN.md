@@ -45,6 +45,7 @@ USAGE:
                                              Create an archive; format from the output extension
   simplezip verify <checksum-file>...        Verify SHA256SUMS / checksums.txt / .sha256 / .md5 / .sfv
   simplezip doctor                           Check the CLI environment (app, backends, symlink)
+  simplezip completions <zsh|bash|fish>      Print a shell completion script to stdout
   simplezip version                          Print version
   simplezip help [command]                   Show this help, or detailed help for one command
 
@@ -225,6 +226,23 @@ simplezip doctor [--json]
 }
 ```
 
+### `completions`
+
+```
+simplezip completions <zsh|bash|fish>
+```
+
+为指定 shell（`zsh`、`bash` 或 `fish`）把一段补全脚本打印到 stdout，可补全子命令、全局选项与 `create` 的选项。它不写任何
+磁盘文件；按你的 shell 约定把它管道 / 重定向到对应位置即可，例如：
+
+```
+simplezip completions zsh > "${fpath[1]}/_simplezip"          # zsh
+simplezip completions bash > /usr/local/etc/bash_completion.d/simplezip
+simplezip completions fish > ~/.config/fish/completions/simplezip.fish
+```
+
+无法识别的 shell 名以 `2` 退出。
+
 ### `version`
 
 ```
@@ -246,7 +264,8 @@ simplezip version
 simplezip help [command]
 ```
 
-显示顶层帮助,或某条命令的详细帮助。
+显示顶层帮助,或某条命令的详细帮助。未知命令以 `2` 退出;当它接近某条真实命令时还会给出建议——
+`unknown command: verfy (did you mean "verify"?)`。
 
 ## 口令
 
