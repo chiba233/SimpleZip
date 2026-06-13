@@ -12,7 +12,9 @@
 //
 
 import AppIntents
+import CoreSpotlight
 import Foundation
+import UniformTypeIdentifiers
 
 /// 一个已记入账本的发布包。id 复用 `ReleaseLedgerEntry.id`(稳定 UUID)。
 struct ReleasePackageEntity: AppEntity {
@@ -103,5 +105,52 @@ struct ReleasePackageQuery: EntityQuery {
     func suggestedEntities() async throws -> [ReleasePackageEntity] {
         // 账本已是新→旧;只建议最近 20 条,避免 Shortcuts 选择器过长。
         ReleaseLedgerStore().loadAll().prefix(20).map(ReleasePackageEntity.init(entry:))
+    }
+}
+
+// MARK: - Spotlight 语义索引(macOS 15+,克制)
+
+/// 让发布包进 Spotlight。**只**索引可公开的发布元数据(标题=版本/产物文件名、创建日期、
+/// 产物文件名、SHA-256 前 8 位、格式)—— 绝不含完整用户路径、结构指纹、归档内文件名/内容(隐私红线)。
+@available(macOS 15.0, *)
+extension ReleasePackageEntity: IndexedEntity {
+    var attributeSet: CSSearchableItemAttributeSet {
+        let set = CSSearchableItemAttributeSet(contentType: .content)
+        let fileName = URL(fileURLWithPath: artifactPath).lastPathComponent
+        let displayTitle = version.isEmpty ? fileName : version
+        set.title = displayTitle
+        set.displayName = displayTitle
+        set.contentCreationDate = date
+        var lines: [String] = []
+        if !fileName.isEmpty { lines.append(fileName) }
+        if let sha = sha256, sha.count >= 8 { lines.append("SHA-256 " + String(sha.prefix(8))) }
+        if !lines.isEmpty { set.contentDescription = lines.joined(separator: "\n") }
+        set.keywords = ["SimpleZip", format]
+        return set
+    }
+}
+
+/// 把发布账本同步进 Spotlight 语义索引。旧系统(< macOS 15)是 no-op;索引失败静默
+/// (Spotlight 是增益功能,绝不影响发布流程,也不弹错 / 不崩)。
+/// 触发点:app 启动(全量重建)、每次成功记入账本之后。
+enum ReleasePackageSpotlightIndexer {
+    static func reindex() {
+        guard #available(macOS 15.0, *) else { return }
+        Task.detached(priority: .utility) { await performReindex() }
+    }
+
+    @available(macOS 15.0, *)
+    private static func performReindex() async {
+        let entities = ReleaseLedgerStore().loadAll().map(ReleasePackageEntity.init(entry:))
+        let index = CSSearchableIndex.default()
+        do {
+            // 全量重建:先清掉本类型旧项(覆盖账本裁旧 / 删除导致的残留),再按当前账本重新索引。
+            try await index.deleteAppEntities(ofType: ReleasePackageEntity.self)
+            if !entities.isEmpty {
+                try await index.indexAppEntities(entities)
+            }
+        } catch {
+            // 索引失败不影响 app。
+        }
     }
 }

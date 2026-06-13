@@ -550,6 +550,8 @@ struct CreateReleasePackageIntent: AppIntent {
                     backendVersion: metadata.backendVersion,
                     steps: steps
                 ))
+                // 0.4.4 macOS 26 AI:Shortcuts 跑出的发布包也同步进 Spotlight 索引(macOS 15+,后台、失败静默)。
+                ReleasePackageSpotlightIndexer.reindex()
             }
             return .result(
                 value: IntentFile(fileURL: outputURL),

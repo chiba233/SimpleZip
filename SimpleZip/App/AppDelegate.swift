@@ -95,6 +95,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // （曾出现 [name, name, size, …]），表头就冒出 2~3 个重复「名称」列。读路径已去重，但**存储里的
         // 污染源没清掉**，仍会被「列移动」重新写回 / 在没走去重的旧路径下复发。启动时按 identifier 去重一次，根除。
         Self.sanitizeColumnOrderPreferences()
+
+        // 0.4.4 macOS 26 AI:把发布账本同步进 Spotlight 语义索引(macOS 15+,旧系统 no-op、后台执行)。
+        // 全量重建,覆盖上次会话期间由 Shortcuts / 发布助手新增、或账本裁旧 / 删除导致的索引漂移。
+        ReleasePackageSpotlightIndexer.reindex()
     }
 
     /// 去掉列顺序偏好里的重复 identifier（修复历史污染，幂等）。
