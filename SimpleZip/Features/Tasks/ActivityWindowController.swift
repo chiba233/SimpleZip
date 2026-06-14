@@ -39,7 +39,8 @@ final class ActivityWindowController {
         // fullSizeContentView + 透明标题栏 + 隐藏标题文本（标题保留给 Mission Control / 辅助功能），
         // 侧栏毛玻璃就能一直铺到窗口顶。
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 940, height: 680),
+            // 0.4.5:默认尺寸拉大(用户「现在太小了」)。无 frameAutosave,这就是每次新开的默认大小;用户拉伸在会话内保留。
+            contentRect: NSRect(x: 0, y: 0, width: 1120, height: 800),
             styleMask: [.titled, .closable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false

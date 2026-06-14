@@ -4,6 +4,12 @@
 
 ## 0.4.5
 
+### UX
+
+**User-facing**
+
+- **Settings resizes in height, not width; the Activity Center opens larger.** The Settings window now keeps a fixed width with a draggable bottom edge — make it taller to see more, and it never goes lopsided. The Activity Center also opens at a roomier default size instead of feeling cramped.
+
 ### bugfix
 
 **User-facing**
