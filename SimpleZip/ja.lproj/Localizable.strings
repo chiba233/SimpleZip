@@ -221,6 +221,7 @@
 "ai.suggestAutomation.title" = "AI 自動化の下書き";
 "settings.section.defaults" = "デフォルト";
 "settings.section.browser" = "ブラウザ";
+"settings.section.browser.subtitle" = "ファイルリストに表示する内容——隠しファイル、シンボリックリンク、Finder のフォルダ構造に従うかどうか。";
 "settings.startupLocation" = "起動時の場所";
 "settings.overwriteBehavior" = "同名ファイルがある場合";
 "settings.showHiddenFiles" = "隠しファイルを表示";
@@ -409,7 +410,9 @@
 "settings.columns.preview" = "プレビュー";
 "settings.columns.description" = "ファイルブラウザとアーカイブブラウザに表示する列を選択します。下のプレビューはすぐに更新されます。";
 "settings.section.general" = "一般";
+"settings.section.general.subtitle" = "言語、起動フォルダ、デフォルトの上書きと削除の確認、Finder サービス、プリセットパスワード。";
 "settings.section.archive" = "アーカイブ";
+"settings.section.archive.subtitle" = "展開の安全ポリシー、書き込み後の検証、フォーマットごとの圧縮デフォルト、7-Zip と RAR のバックエンド。";
 "settings.section.security" = "セキュリティ";
 "settings.language" = "言語";
 "settings.language.system" = "システム";
@@ -687,6 +690,7 @@
 "column.crc" = "CRC";
 "column.attributes" = "属性";
 "settings.section.view" = "表示";
+"settings.section.view.subtitle" = "行の高さ、グループ化、展開状態の記憶、隠し名のサフィックス、表示する列。";
 "szs.silentBrowse.menuItem" = "仮想フォルダとして表示";
 "szs.silentBrowse.warning.title" = "署名付きマニフェストに問題があります";
 "szs.silentBrowse.warning.message" = "%@ 検証済みの項目だけを表示するか、検証の詳細を確認するか、キャンセルできます。";
@@ -744,6 +748,7 @@
 "siz.signatureSheet.unknownSigner.summary" = "署名の形式は有効ですが、署名者の公開鍵が鍵束にないため、その身元を確認できません。";
 "siz.signatureSheet.bad.summary" = "GPG の詳細を確認し、送信元を信頼できる場合だけ続行してください。";
 "settings.section.gpg" = "GPG（PGP 署名）";
+"settings.section.gpg.subtitle" = "GPG の有効化、キーリングと信頼の管理、キーサーバーの検索、デフォルト署名鍵の設定。";
 "settings.gpg.enabledTitle" = "GPG 連携を有効化";
 "settings.gpg.enabledDescription" = "オンにすると、書庫作成シートに署名のチェックボックスが表示され、.siz コンテナを開くと署名者情報が表示され、設定で鍵を管理できます。オフにすると、すべての GPG の入口が非表示になり、GPG を使わないユーザーの邪魔になりません。";
 "settings.gpg.backend.title" = "GPG バックエンド";
@@ -1319,6 +1324,7 @@
 "container.versionTooNew.forceOpen" = "それでも開く";
 "siz.signatureSheet.section.decryption" = "復号";
 "settings.section.updates" = "ソフトウェアアップデート";
+"settings.section.updates.subtitle" = "手動または起動時の更新確認、自動ダウンロード、変更履歴の閲覧。";
 "updates.section.check" = "アップデート確認";
 "updates.currentVersion" = "現在のバージョン";
 "updates.currentVersion.description" = "実行中の SimpleZip のバージョンです。";
@@ -2269,6 +2275,7 @@
 "intent.release.done" = "リリースパッケージ %@ の準備ができました（検査済み、チェックサム書き込み済み）。";
 "intent.release.doneNoChecksums" = "リリースパッケージ %@ の準備ができました（検査済み、チェックサムは未書き込み）。";
 "settings.section.automation" = "自動化";
+"settings.section.automation.subtitle" = "コマンドラインツール、ショートカットと Siri、URL スキーム、Spotlight インデックス、アーカイブキャッシュ、AI アシスタント、ソース別の統計。";
 "settings.automation.shortcuts.section" = "ショートカットと Siri";
 "settings.automation.shortcuts.title" = "ショートカットアクション";
 "settings.automation.shortcuts.description" = "ショートカット App では 8 つのアクションを利用できます：アーカイブを展開、アーカイブを作成、アーカイブの整合性をテスト、チェックサムを検証、アーカイブを比較、アーカイブ内を検索、アーカイブを検査、リリースパッケージを作成。";

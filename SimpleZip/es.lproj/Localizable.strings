@@ -221,6 +221,7 @@
 "ai.suggestAutomation.title" = "Borrador de automatización con IA";
 "settings.section.defaults" = "Predeterminados";
 "settings.section.browser" = "Navegador";
+"settings.section.browser.subtitle" = "Lo que incluye la lista de archivos: archivos ocultos, enlaces simbólicos y si se sigue la estructura de carpetas del Finder.";
 "settings.startupLocation" = "Ubicación de inicio";
 "settings.overwriteBehavior" = "Cuando los archivos ya existen";
 "settings.showHiddenFiles" = "Mostrar archivos ocultos";
@@ -409,7 +410,9 @@
 "settings.columns.preview" = "Vista previa";
 "settings.columns.description" = "Elige qué columnas aparecen en el navegador de archivos y de archivos comprimidos. La vista previa inferior se actualiza al instante.";
 "settings.section.general" = "Opciones generales";
+"settings.section.general.subtitle" = "Idioma, carpeta de inicio, confirmaciones predeterminadas de sobrescritura y eliminación, servicios del Finder y la contraseña predefinida.";
 "settings.section.archive" = "Archivo";
+"settings.section.archive.subtitle" = "Políticas de seguridad de extracción, verificación posterior a la escritura, valores de compresión predeterminados por formato y los motores 7-Zip y RAR.";
 "settings.section.security" = "Seguridad";
 "settings.language" = "Idioma";
 "settings.language.system" = "Sistema";
@@ -687,6 +690,7 @@
 "column.crc" = "CRC";
 "column.attributes" = "Atributos";
 "settings.section.view" = "Visualización";
+"settings.section.view.subtitle" = "Densidad de filas, agrupación, memoria de expansión, sufijos de nombres ocultos y qué columnas mostrar.";
 "szs.silentBrowse.menuItem" = "Explorar como carpeta virtual";
 "szs.silentBrowse.warning.title" = "El manifiesto firmado tiene problemas";
 "szs.silentBrowse.warning.message" = "%@ Explora solo el subconjunto verificado, consulta los detalles de verificación o cancela.";
@@ -744,6 +748,7 @@
 "siz.signatureSheet.unknownSigner.summary" = "El formato de la firma es válido, pero la clave pública del firmante no está en tu llavero, así que no se puede verificar su identidad.";
 "siz.signatureSheet.bad.summary" = "Consulta los detalles de GPG y continúa solo si confías en el origen.";
 "settings.section.gpg" = "GPG (firma PGP)";
+"settings.section.gpg.subtitle" = "Activar GPG, gestionar tu llavero y confianza, buscar en servidores de claves y definir la clave de firma predeterminada.";
 "settings.gpg.enabledTitle" = "Activar integración con GPG";
 "settings.gpg.enabledDescription" = "Cuando está activado, la hoja Crear archivo ofrece una casilla de firma, abrir un contenedor .siz muestra la información del firmante y la gestión de claves está disponible en Ajustes. Cuando está desactivado, todos los puntos de acceso a GPG se ocultan para no molestar a quienes no usan GPG.";
 "settings.gpg.backend.title" = "Backend GPG";
@@ -1178,6 +1183,7 @@
 "siz.signatureSheet.section.decryption" = "Descifrado";
 "siz.signatureSheet.formatVersion" = "Formato";
 "settings.section.updates" = "Actualización de software";
+"settings.section.updates.subtitle" = "Buscar actualizaciones manualmente o al iniciar, descargar automáticamente y consultar el registro de cambios.";
 "updates.section.check" = "Comprobación de actualizaciones";
 "updates.currentVersion" = "Versión actual";
 "updates.currentVersion.description" = "La versión de SimpleZip que estás usando.";
@@ -2267,6 +2273,7 @@
 "intent.release.done" = "El paquete de versión %@ está listo (inspeccionado, sumas escritas).";
 "intent.release.doneNoChecksums" = "El paquete de versión %@ está listo (inspeccionado; sin archivo de sumas escrito).";
 "settings.section.automation" = "Automatización";
+"settings.section.automation.subtitle" = "Herramienta de línea de comandos, Atajos y Siri, esquema de URL, indexación de Spotlight, caché de archivos comprimidos, asistente de IA y estadísticas por origen.";
 "settings.automation.shortcuts.section" = "Atajos y Siri";
 "settings.automation.shortcuts.title" = "Acciones de Atajos";
 "settings.automation.shortcuts.description" = "Hay ocho acciones disponibles en la app Atajos: Extraer archivo, Crear archivo, Probar integridad del archivo, Verificar sumas de comprobación, Comparar archivos, Buscar en el contenido del archivo, Inspeccionar archivo y Crear paquete de versión.";

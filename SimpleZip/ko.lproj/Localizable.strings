@@ -221,6 +221,7 @@
 "ai.suggestAutomation.title" = "AI 자동화 초안";
 "settings.section.defaults" = "기본값";
 "settings.section.browser" = "브라우저";
+"settings.section.browser.subtitle" = "파일 목록에 표시할 항목——숨김 파일, 심볼릭 링크, Finder 폴더 구조 따르기 여부.";
 "settings.startupLocation" = "시작 위치";
 "settings.overwriteBehavior" = "파일이 이미 있을 때";
 "settings.showHiddenFiles" = "숨김 파일 표시";
@@ -409,7 +410,9 @@
 "settings.columns.preview" = "미리보기";
 "settings.columns.description" = "파일 브라우저와 아카이브 브라우저에 표시할 열을 선택합니다. 아래 미리보기가 즉시 업데이트됩니다.";
 "settings.section.general" = "일반";
+"settings.section.general.subtitle" = "언어, 시작 폴더, 기본 덮어쓰기 및 삭제 확인, Finder 서비스, 프리셋 암호.";
 "settings.section.archive" = "아카이브";
+"settings.section.archive.subtitle" = "압축 해제 안전 정책, 쓰기 후 검증, 형식별 압축 기본값, 7-Zip 및 RAR 백엔드.";
 "settings.section.security" = "보안";
 "settings.language" = "언어";
 "settings.language.system" = "시스템";
@@ -687,6 +690,7 @@
 "column.crc" = "CRC";
 "column.attributes" = "속성";
 "settings.section.view" = "보기";
+"settings.section.view.subtitle" = "행 간격, 그룹화, 펼침 상태 기억, 숨김 이름 접미사, 표시할 열.";
 "szs.silentBrowse.menuItem" = "가상 폴더로 탐색";
 "szs.silentBrowse.warning.title" = "서명된 매니페스트에 문제가 있습니다";
 "szs.silentBrowse.warning.message" = "%@ 확인된 항목만 탐색하거나, 검증 세부 정보를 보거나, 취소할 수 있습니다.";
@@ -744,6 +748,7 @@
 "siz.signatureSheet.unknownSigner.summary" = "서명 형식은 유효하지만, 서명자의 공개 키가 키링에 없어 신원을 확인할 수 없습니다.";
 "siz.signatureSheet.bad.summary" = "GPG 세부 정보를 확인하고 출처를 신뢰할 때만 계속하세요.";
 "settings.section.gpg" = "GPG(PGP 서명)";
+"settings.section.gpg.subtitle" = "GPG 사용, 키링과 신뢰 관리, 키서버 검색, 기본 서명 키 설정.";
 "settings.gpg.enabledTitle" = "GPG 통합 켜기";
 "settings.gpg.enabledDescription" = "켜면 압축 파일 만들기 시트에 서명 체크박스가 나타나고, .siz 컨테이너를 열 때 서명자 정보가 표시되며, 설정에서 키를 관리할 수 있습니다. 끄면 모든 GPG 진입점이 숨겨져 GPG를 쓰지 않는 사용자를 방해하지 않습니다.";
 "settings.gpg.backend.title" = "GPG 백엔드";
@@ -1318,6 +1323,7 @@
 "container.versionTooNew.forceOpen" = "그래도 열기";
 "siz.signatureSheet.section.decryption" = "복호화";
 "settings.section.updates" = "소프트웨어 업데이트";
+"settings.section.updates.subtitle" = "수동 또는 시작 시 업데이트 확인, 자동 다운로드, 변경 사항 보기.";
 "updates.section.check" = "업데이트 확인";
 "updates.currentVersion" = "현재 버전";
 "updates.currentVersion.description" = "실행 중인 SimpleZip 버전입니다.";
@@ -2268,6 +2274,7 @@
 "intent.release.done" = "릴리스 패키지 %@ 준비 완료(검사 및 체크섬 작성됨).";
 "intent.release.doneNoChecksums" = "릴리스 패키지 %@ 준비 완료(검사 완료, 체크섬 파일 미작성).";
 "settings.section.automation" = "자동화";
+"settings.section.automation.subtitle" = "명령줄 도구, 단축어와 Siri, URL 스킴, Spotlight 색인, 아카이브 캐시, AI 어시스턴트, 출처별 통계.";
 "settings.automation.shortcuts.section" = "단축어 및 Siri";
 "settings.automation.shortcuts.title" = "단축어 동작";
 "settings.automation.shortcuts.description" = "단축어 앱에서 여덟 가지 동작을 사용할 수 있습니다: 아카이브 추출, 아카이브 생성, 아카이브 무결성 테스트, 체크섬 확인, 아카이브 비교, 아카이브 내용 검색, 아카이브 검사, 릴리스 패키지 생성.";

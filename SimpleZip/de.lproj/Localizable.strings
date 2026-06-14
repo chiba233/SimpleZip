@@ -221,6 +221,7 @@
 "ai.suggestAutomation.title" = "KI-Automatisierungsentwurf";
 "settings.section.defaults" = "Standardwerte";
 "settings.section.browser" = "Dateibrowser";
+"settings.section.browser.subtitle" = "Was die Dateiliste anzeigt – versteckte Dateien, symbolische Verknüpfungen und ob der Ordnerstruktur des Finder gefolgt wird.";
 "settings.startupLocation" = "Startort";
 "settings.overwriteBehavior" = "Wenn Dateien bereits existieren";
 "settings.showHiddenFiles" = "Versteckte Dateien anzeigen";
@@ -409,7 +410,9 @@
 "settings.columns.preview" = "Vorschau";
 "settings.columns.description" = "Wähle, welche Spalten im Datei- und Archivbrowser angezeigt werden. Die Vorschau unten wird sofort aktualisiert.";
 "settings.section.general" = "Allgemein";
+"settings.section.general.subtitle" = "Sprache, Startordner, Standardabfragen für Überschreiben und Löschen, Finder-Dienste und das voreingestellte Passwort.";
 "settings.section.archive" = "Archiv";
+"settings.section.archive.subtitle" = "Sicherheitsrichtlinien fürs Entpacken, Überprüfung nach dem Schreiben, formatspezifische Komprimierungsvorgaben sowie die 7-Zip- und RAR-Backends.";
 "settings.section.security" = "Sicherheit";
 "settings.language" = "Sprache";
 "settings.language.system" = "Systemsprache";
@@ -687,6 +690,7 @@
 "column.crc" = "CRC";
 "column.attributes" = "Attribute";
 "settings.section.view" = "Darstellung";
+"settings.section.view.subtitle" = "Zeilendichte, Gruppierung, gemerkter Aufklappzustand, Suffixe für versteckte Namen und welche Spalten angezeigt werden.";
 "szs.silentBrowse.menuItem" = "Als virtuellen Ordner durchsuchen";
 "szs.silentBrowse.warning.title" = "Signiertes Manifest hat Probleme";
 "szs.silentBrowse.warning.message" = "%@ Nur die verifizierte Auswahl durchsuchen, Prüfdetails anzeigen oder abbrechen.";
@@ -744,6 +748,7 @@
 "siz.signatureSheet.unknownSigner.summary" = "Das Signaturformat ist gültig, aber der öffentliche Schlüssel des Unterzeichners ist nicht in deinem Schlüsselbund, daher kann seine Identität nicht überprüft werden.";
 "siz.signatureSheet.bad.summary" = "Prüfe die GPG-Details und fahre nur fort, wenn du der Quelle vertraust.";
 "settings.section.gpg" = "GPG (PGP-Signatur)";
+"settings.section.gpg.subtitle" = "GPG aktivieren, Schlüsselbund und Vertrauen verwalten, Schlüsselserver durchsuchen und den Standard-Signaturschlüssel festlegen.";
 "settings.gpg.enabledTitle" = "GPG-Integration aktivieren";
 "settings.gpg.enabledDescription" = "Wenn aktiviert, bietet das Blatt „Archiv erstellen“ ein Kontrollkästchen zum Signieren, das Öffnen eines .siz-Containers zeigt Informationen zum Unterzeichner, und die Schlüsselverwaltung steht in den Einstellungen bereit. Wenn deaktiviert, ist jeder GPG-Einstiegspunkt verborgen, damit Nutzer ohne GPG nicht gestört werden.";
 "settings.gpg.backend.title" = "GPG-Backend";
@@ -1318,6 +1323,7 @@
 "container.versionTooNew.forceOpen" = "Trotzdem öffnen";
 "siz.signatureSheet.section.decryption" = "Entschlüsselung";
 "settings.section.updates" = "Softwareaktualisierung";
+"settings.section.updates.subtitle" = "Manuell oder beim Start nach Updates suchen, automatisch herunterladen und das Änderungsprotokoll durchsehen.";
 "updates.section.check" = "Update-Prüfung";
 "updates.currentVersion" = "Aktuelle Version";
 "updates.currentVersion.description" = "Die Version von SimpleZip, die gerade läuft.";
@@ -2268,6 +2274,7 @@
 "intent.release.done" = "Release-Paket %@ ist bereit (geprüft, Prüfsummen geschrieben).";
 "intent.release.doneNoChecksums" = "Release-Paket %@ ist bereit (geprüft; keine Prüfsummendatei geschrieben).";
 "settings.section.automation" = "Automatisierung";
+"settings.section.automation.subtitle" = "Befehlszeilentool, Kurzbefehle und Siri, URL-Schema, Spotlight-Indizierung, Archiv-Cache, KI-Assistent und Statistiken nach Quelle.";
 "settings.automation.shortcuts.section" = "Kurzbefehle & Siri";
 "settings.automation.shortcuts.title" = "Kurzbefehl-Aktionen";
 "settings.automation.shortcuts.description" = "In der Kurzbefehle-App stehen acht Aktionen bereit: Archiv entpacken, Archiv erstellen, Archivintegrität testen, Prüfsummen verifizieren, Archive vergleichen, Archivinhalt durchsuchen, Archiv prüfen und Veröffentlichungspaket erstellen.";

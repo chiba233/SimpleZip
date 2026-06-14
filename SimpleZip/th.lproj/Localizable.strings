@@ -221,6 +221,7 @@
 "ai.suggestAutomation.title" = "ร่างระบบอัตโนมัติด้วย AI";
 "settings.section.defaults" = "ค่าเริ่มต้น";
 "settings.section.browser" = "เบราว์เซอร์";
+"settings.section.browser.subtitle" = "สิ่งที่รายการไฟล์แสดง — ไฟล์ที่ซ่อน ลิงก์สัญลักษณ์ และการทำตามโครงสร้างโฟลเดอร์ของ Finder";
 "settings.startupLocation" = "ตำแหน่งเมื่อเปิดแอป";
 "settings.overwriteBehavior" = "เมื่อมีไฟล์ชื่อซ้ำ";
 "settings.showHiddenFiles" = "แสดงไฟล์ที่ซ่อนอยู่";
@@ -409,7 +410,9 @@
 "settings.columns.preview" = "ตัวอย่าง";
 "settings.columns.description" = "เลือกคอลัมน์ที่จะแสดงในเบราว์เซอร์ไฟล์และเบราว์เซอร์ไฟล์เก็บถาวร ตัวอย่างด้านล่างจะอัปเดตทันที";
 "settings.section.general" = "ทั่วไป";
+"settings.section.general.subtitle" = "ภาษา โฟลเดอร์เริ่มต้น การถามยืนยันการเขียนทับและการลบโดยค่าเริ่มต้น บริการ Finder และรหัสผ่านที่ตั้งไว้ล่วงหน้า";
 "settings.section.archive" = "ไฟล์เก็บถาวร";
+"settings.section.archive.subtitle" = "นโยบายความปลอดภัยในการแตกไฟล์ การตรวจสอบหลังเขียน ค่าเริ่มต้นการบีบอัดตามแต่ละรูปแบบ และแบ็กเอนด์ 7-Zip กับ RAR";
 "settings.section.security" = "ความปลอดภัย";
 "settings.language" = "ภาษา";
 "settings.language.system" = "ระบบ";
@@ -687,6 +690,7 @@
 "column.crc" = "CRC";
 "column.attributes" = "แอตทริบิวต์";
 "settings.section.view" = "มุมมอง";
+"settings.section.view.subtitle" = "ความหนาแน่นของแถว การจัดกลุ่ม การจำสถานะการขยาย คำต่อท้ายชื่อที่ซ่อน และคอลัมน์ที่จะแสดง";
 "szs.silentBrowse.menuItem" = "เรียกดูเป็นโฟลเดอร์เสมือน";
 "szs.silentBrowse.warning.title" = "รายการกำกับที่ลงนามมีปัญหา";
 "szs.silentBrowse.warning.message" = "%@ เรียกดูเฉพาะชุดที่ตรวจสอบแล้ว ดูรายละเอียดการตรวจสอบ หรือยกเลิก";
@@ -744,6 +748,7 @@
 "siz.signatureSheet.unknownSigner.summary" = "รูปแบบลายเซ็นถูกต้อง แต่ไม่มีกุญแจสาธารณะของผู้ลงนามอยู่ในพวงกุญแจของคุณ จึงไม่สามารถยืนยันตัวตนของเขาได้";
 "siz.signatureSheet.bad.summary" = "ตรวจสอบรายละเอียด GPG และดำเนินการต่อเมื่อเชื่อถือแหล่งที่มาเท่านั้น";
 "settings.section.gpg" = "GPG (การลงนาม PGP)";
+"settings.section.gpg.subtitle" = "เปิดใช้ GPG จัดการพวงกุญแจและความเชื่อถือ ค้นหาเซิร์ฟเวอร์กุญแจ และตั้งกุญแจลงนามเริ่มต้น";
 "settings.gpg.enabledTitle" = "เปิดใช้การทำงานร่วมกับ GPG";
 "settings.gpg.enabledDescription" = "เมื่อเปิด: แผ่นสร้างไฟล์บีบอัดจะมีช่องทำเครื่องหมายสำหรับลงนาม การเปิดคอนเทนเนอร์ .siz จะแสดงข้อมูลผู้ลงนาม และจัดการกุญแจได้ในการตั้งค่า เมื่อปิด: ทุกจุดเข้าใช้งาน GPG จะถูกซ่อนไว้ เพื่อไม่รบกวนผู้ใช้ที่ไม่ได้ใช้ GPG";
 "settings.gpg.backend.title" = "แบ็กเอนด์ GPG";
@@ -1178,6 +1183,7 @@
 "siz.signatureSheet.section.decryption" = "การถอดรหัส";
 "siz.signatureSheet.formatVersion" = "รูปแบบ";
 "settings.section.updates" = "อัปเดตซอฟต์แวร์";
+"settings.section.updates.subtitle" = "ตรวจหาอัปเดตด้วยตนเองหรือเมื่อเปิดแอป ดาวน์โหลดอัตโนมัติ และดูบันทึกการเปลี่ยนแปลง";
 "updates.section.check" = "ตรวจการอัปเดต";
 "updates.currentVersion" = "เวอร์ชันปัจจุบัน";
 "updates.currentVersion.description" = "เวอร์ชันของ SimpleZip ที่กำลังใช้งาน";
@@ -2267,6 +2273,7 @@
 "intent.release.done" = "แพ็กเกจรีลีส %@ พร้อมแล้ว (ตรวจสอบแล้ว เขียนเช็กซัมแล้ว)";
 "intent.release.doneNoChecksums" = "แพ็กเกจรีลีส %@ พร้อมแล้ว (ตรวจสอบแล้ว; ไม่ได้เขียนไฟล์เช็กซัม)";
 "settings.section.automation" = "การทำงานอัตโนมัติ";
+"settings.section.automation.subtitle" = "เครื่องมือบรรทัดคำสั่ง คำสั่งลัดและ Siri, URL scheme, การทำดัชนี Spotlight, แคชไฟล์บีบอัด ผู้ช่วย AI และสถิติแยกตามแหล่งที่มา";
 "settings.automation.shortcuts.section" = "คำสั่งลัดและ Siri";
 "settings.automation.shortcuts.title" = "การทำงานของคำสั่งลัด";
 "settings.automation.shortcuts.description" = "มีแปดการกระทำในแอป Shortcuts: แตกไฟล์เก็บถาวร, สร้างไฟล์เก็บถาวร, ทดสอบความสมบูรณ์ของไฟล์เก็บถาวร, ตรวจสอบเช็กซัม, เปรียบเทียบไฟล์เก็บถาวร, ค้นหาเนื้อหาไฟล์เก็บถาวร, ตรวจสอบไฟล์เก็บถาวร และสร้างแพ็กเกจรีลีส";

@@ -120,13 +120,30 @@ enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
     /// (通用/压缩/浏览器/视图/GPG/软件更新/自动化)后续补,且**必须一次进全 10 语种**(见 [[feedback_l10n_all_10_locales]])。
     var subtitle: String {
         switch self {
+        // 复用各自已有描述(本就全 10 语种)。
         case .fileAssociations:
             return L10n.text("settings.association.description")
         case .health:
             return L10n.text("health.description")
         case .backup:
             return L10n.text("backup.description")
-        default:
+        // 独立副标题(7 个,已一次进全 10 语种)。
+        case .general:
+            return L10n.text("settings.section.general.subtitle")
+        case .archive:
+            return L10n.text("settings.section.archive.subtitle")
+        case .browser:
+            return L10n.text("settings.section.browser.subtitle")
+        case .view:
+            return L10n.text("settings.section.view.subtitle")
+        case .gpg:
+            return L10n.text("settings.section.gpg.subtitle")
+        case .updates:
+            return L10n.text("settings.section.updates.subtitle")
+        case .automation:
+            return L10n.text("settings.section.automation.subtitle")
+        // 帮助/关于自带头,不取副标题。
+        case .help, .about:
             return ""
         }
     }

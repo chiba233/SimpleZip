@@ -124,7 +124,9 @@
 "siz.signatureSheet.unknownSigner.summary" = "签名格式有效，但签名者公钥不在你的钥匙串里，身份无法核实。";
 "siz.signatureSheet.bad.summary" = "压缩包内容跟签名对不上，文件可能被改过 / 替换过。";
 "settings.section.gpg" = "GPG（PGP 签名）";
+"settings.section.gpg.subtitle" = "启用 GPG、管理密钥环与信任、搜索密钥服务器，并设置默认签名密钥。";
 "settings.section.updates" = "软件更新";
+"settings.section.updates.subtitle" = "手动或启动时检查更新、自动下载，并浏览更新日志。";
 "updates.section.check" = "更新检查";
 "updates.currentVersion" = "当前版本";
 "updates.currentVersion.description" = "正在运行的 SimpleZip 版本。";
@@ -1287,6 +1289,7 @@
 "intent.release.doneNoChecksums" = "发布包 %@ 已就绪(已检查;未写校验文件)。";
 /* 0.4.4 #1 自动化中心 + F1 来源标签 */
 "settings.section.automation" = "自动化";
+"settings.section.automation.subtitle" = "命令行工具、快捷指令与 Siri、URL scheme、Spotlight 索引、归档缓存、AI 助手，以及按来源统计。";
 "settings.automation.shortcuts.section" = "快捷指令与 Siri";
 "settings.automation.shortcuts.title" = "快捷指令动作";
 "settings.automation.shortcuts.description" = "快捷指令 App 里有十个动作：解压归档、创建归档、测试归档完整性、验证校验文件、比较归档、搜索归档内容、检查归档、创建发布包、查找包含某文件的归档、更改设置。Siri 也能在不打开 App 的情况下开关一个安全设置。";
@@ -1775,6 +1778,7 @@
 "ai.suggestAutomation.title" = "AI 自动化草稿";
 "settings.section.defaults" = "默认项";
 "settings.section.browser" = "浏览器";
+"settings.section.browser.subtitle" = "文件列表显示哪些内容——隐藏文件、符号链接，以及是否跟随访达的文件夹结构。";
 "settings.startupLocation" = "启动位置";
 "settings.overwriteBehavior" = "遇到同名文件时";
 "settings.showHiddenFiles" = "显示隐藏文件";
@@ -1907,6 +1911,7 @@
 "settings.association.simpleZipDefault" = "已默认";
 "settings.section.columns" = "列表列";
 "settings.section.view" = "视图";
+"settings.section.view.subtitle" = "行距密度、分组、展开状态记忆、隐藏名称后缀，以及显示哪些列。";
 "settings.section.health" = "运行状态";
 "settings.section.diagnostics" = "诊断报告";
 "diagnostics.general.description" = "遇到问题？一键抓取诊断快照 —— app 与 macOS 版本、后端版本、GPG 状态、以及最近任务摘要。密码已脱敏，不含任何密钥身份信息。";
@@ -2004,7 +2009,9 @@
 "settings.columns.preview" = "预览";
 "settings.columns.description" = "选择文件浏览和压缩包浏览要显示哪些列，下方预览会立即反映效果。";
 "settings.section.general" = "通用";
+"settings.section.general.subtitle" = "语言、启动文件夹、默认覆盖与删除提示、访达服务，以及预设密码。";
 "settings.section.archive" = "压缩";
+"settings.section.archive.subtitle" = "解压安全策略、写入后校验、各格式的压缩默认值，以及 7-Zip 和 RAR 后端。";
 "settings.section.security" = "安全性";
 "settings.defaults.title" = "默认压缩设置";
 "settings.defaults.description" = "为每个格式配一份可复用的默认值。Finder「压缩」一键服务会用对应格式的默认值,创建对话框也能套用。密码和 GPG 私钥永不存在这里。";

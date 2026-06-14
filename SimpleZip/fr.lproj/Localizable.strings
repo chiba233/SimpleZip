@@ -221,6 +221,7 @@
 "ai.suggestAutomation.title" = "Brouillon d’automatisation par l’IA";
 "settings.section.defaults" = "Valeurs par défaut";
 "settings.section.browser" = "Navigateur";
+"settings.section.browser.subtitle" = "Ce que la liste de fichiers inclut — fichiers cachés, liens symboliques et le suivi de la structure de dossiers du Finder.";
 "settings.startupLocation" = "Emplacement de démarrage";
 "settings.overwriteBehavior" = "Lorsque les fichiers existent déjà";
 "settings.showHiddenFiles" = "Afficher les fichiers cachés";
@@ -409,7 +410,9 @@
 "settings.columns.preview" = "Aperçu";
 "settings.columns.description" = "Choisissez les colonnes affichées dans le navigateur de fichiers et d’archives. L’aperçu ci-dessous se met à jour immédiatement.";
 "settings.section.general" = "Général";
+"settings.section.general.subtitle" = "Langue, dossier de démarrage, confirmations par défaut de remplacement et de suppression, services du Finder et le mot de passe prédéfini.";
 "settings.section.archive" = "Archives";
+"settings.section.archive.subtitle" = "Politiques de sécurité d’extraction, vérification après écriture, valeurs de compression par défaut selon le format, ainsi que les moteurs 7-Zip et RAR.";
 "settings.section.security" = "Sécurité";
 "settings.language" = "Langue";
 "settings.language.system" = "Système";
@@ -687,6 +690,7 @@
 "column.crc" = "CRC";
 "column.attributes" = "Attributs";
 "settings.section.view" = "Présentation";
+"settings.section.view.subtitle" = "Densité des lignes, regroupement, mémorisation du déploiement, suffixes de noms masqués et colonnes à afficher.";
 "szs.silentBrowse.menuItem" = "Parcourir comme dossier virtuel";
 "szs.silentBrowse.warning.title" = "Le manifeste signé présente des problèmes";
 "szs.silentBrowse.warning.message" = "%@ Parcourez uniquement le sous-ensemble vérifié, affichez les détails de vérification ou annulez.";
@@ -744,6 +748,7 @@
 "siz.signatureSheet.unknownSigner.summary" = "Le format de la signature est valide, mais la clé publique du signataire n'est pas dans votre trousseau, son identité ne peut donc pas être vérifiée.";
 "siz.signatureSheet.bad.summary" = "Consultez les détails GPG et continuez seulement si vous faites confiance à l’origine.";
 "settings.section.gpg" = "GPG (signature PGP)";
+"settings.section.gpg.subtitle" = "Activer GPG, gérer votre trousseau et la confiance, rechercher sur les serveurs de clés et définir la clé de signature par défaut.";
 "settings.gpg.enabledTitle" = "Activer l’intégration GPG";
 "settings.gpg.enabledDescription" = "Activé, la fenêtre Créer une archive propose une case de signature, l'ouverture d'un conteneur .siz affiche les informations du signataire, et la gestion des clés est disponible dans les Réglages. Désactivé, chaque point d'entrée GPG est masqué pour ne pas déranger les utilisateurs qui n'utilisent pas GPG.";
 "settings.gpg.backend.title" = "Backend GPG";
@@ -1178,6 +1183,7 @@
 "siz.signatureSheet.section.decryption" = "Déchiffrement";
 "siz.signatureSheet.formatVersion" = "Format";
 "settings.section.updates" = "Mise à jour logicielle";
+"settings.section.updates.subtitle" = "Rechercher les mises à jour manuellement ou au lancement, télécharger automatiquement et parcourir le journal des modifications.";
 "updates.section.check" = "Vérification des mises à jour";
 "updates.currentVersion" = "Version actuelle";
 "updates.currentVersion.description" = "La version de SimpleZip que vous utilisez.";
@@ -2267,6 +2273,7 @@
 "intent.release.done" = "Le paquet de version %@ est prêt (inspecté, sommes écrites).";
 "intent.release.doneNoChecksums" = "Le paquet de version %@ est prêt (inspecté ; aucun fichier de sommes écrit).";
 "settings.section.automation" = "Automatisation";
+"settings.section.automation.subtitle" = "Outil en ligne de commande, Raccourcis et Siri, schéma d’URL, indexation Spotlight, cache d’archives, assistant IA et statistiques par source.";
 "settings.automation.shortcuts.section" = "Raccourcis et Siri";
 "settings.automation.shortcuts.title" = "Actions Raccourcis";
 "settings.automation.shortcuts.description" = "Huit actions sont disponibles dans l’app Raccourcis : Extraire l’archive, Créer une archive, Tester l’intégrité de l’archive, Vérifier les sommes de contrôle, Comparer les archives, Rechercher dans l’archive, Inspecter l’archive et Créer un paquet de version.";

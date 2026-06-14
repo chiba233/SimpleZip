@@ -34,11 +34,15 @@ struct SettingsView: View {
                     aiSettingsSearchField
                 }
                 ForEach(SettingsPane.allCases) { pane in
+                    // #79:选中态用活动中心同款「行色层叠渐变 chrome」(渐变底 + 同色渐变描边),
+                    // 替代旧的 accent 平涂 —— 与活动中心侧栏视觉对齐。瓦片本就共用 color.gradient,
+                    // 选中态切到 chromeSelection 即同款;行为(点选切页)零变更。
                     CenteredSidebarRow(
                         title: pane.title,
                         systemImage: pane.systemImage,
                         color: pane.iconColor,
-                        isSelected: selectedPane == pane
+                        isSelected: selectedPane == pane,
+                        chromeSelection: true
                     ) {
                         selectedPane = pane
                     }
@@ -58,10 +62,13 @@ struct SettingsView: View {
             selectedPaneView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        // 有理想尺寸但可以拉，遵循 macOS 原生 Settings 风格（写死尺寸会被长翻译撑爆）。
+        // 0.4.5 #79:定宽不定高 —— 宽度钉死(minWidth==maxWidth),高度可拉。
+        // 设置内容是单列 Form,横向拉伸只会撑出留白;纵向给用户滚动空间。
+        // 940 介于旧 idealWidth 980 与 minWidth 880 之间,够放最长 pane 名 + Form 行(全 10 语种);
+        // 侧栏 fixedSize 自适应,不会成为瓶颈。
         .frame(
-            minWidth: 880, idealWidth: 980, maxWidth: .infinity,
-            minHeight: 660, idealHeight: 780, maxHeight: .infinity
+            minWidth: 940, idealWidth: 940, maxWidth: 940,
+            minHeight: 640, idealHeight: 780, maxHeight: .infinity
         )
         .navigationTitle(L10n.text("settings.title"))
         // 0.4.2 深链：菜单栏「关于 SimpleZip」等入口直接定位到指定 pane。
@@ -153,16 +160,22 @@ struct SettingsView: View {
         if pane.showsHero {
             // #81 0.4.5:裸 Form 分区顶部统一 hero 头(彩色渐变图标瓦片 + 标题 + 一句描述),对齐活动中心。
             // 帮助 / 关于自带头(showsHero=false)直接走原布局,绝不在自带头上再叠一层。
-            VStack(spacing: 0) {
-                HStack {
-                    paneHero(pane)
-                    Spacer(minLength: 0)
+            //
+            // 沉浸式(#79):hero 头作为 Form 的顶部安全区 inset 钉住 —— Form 本体仍占满整个沉浸区
+            // (内容滚动从 hero 下方穿过、毛玻璃铺到透明标题栏顶),不再被外层 VStack 的顶部安全区
+            // 下推(那会杀掉 bleed,把 hero 顶进标题栏下方的死带)。对齐活动中心 grouped Form 吃 inset 的行为。
+            paneContent(pane)
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    HStack {
+                        paneHero(pane)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal, 22)
+                    .padding(.top, 16)
+                    .padding(.bottom, 4)
+                    // 钉住的 hero 条压在滚动内容之上:用标题栏同款材质垫底,grouped Form 行滚到下面时仍清晰可读。
+                    .background(.bar)
                 }
-                .padding(.horizontal, 22)
-                .padding(.top, 16)
-                .padding(.bottom, 4)
-                paneContent(pane)
-            }
         } else {
             paneContent(pane)
         }

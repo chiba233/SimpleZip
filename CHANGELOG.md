@@ -9,6 +9,7 @@
 **User-facing**
 
 - **The Activity Center opens larger.** It now opens at a roomier default size instead of feeling cramped.
+- **Settings gets the unified hero look and stays immersive.** Each settings pane now opens with a colored hero header — an icon tile, the title and a one-line description of what's inside — and the sidebar uses the same gradient tiles as the Activity Center. The window is fixed-width but resizable in height, and it keeps the frosted, edge-to-edge immersive chrome throughout.
 
 ### bugfix
 

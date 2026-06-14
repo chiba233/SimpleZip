@@ -221,6 +221,7 @@
 "ai.suggestAutomation.title" = "AI 自動化草稿";
 "settings.section.defaults" = "預設項目";
 "settings.section.browser" = "瀏覽器";
+"settings.section.browser.subtitle" = "檔案列表顯示哪些內容——隱藏檔案、符號連結，以及是否跟隨 Finder 的資料夾結構。";
 "settings.startupLocation" = "啟動位置";
 "settings.overwriteBehavior" = "遇到同名檔案時";
 "settings.showHiddenFiles" = "顯示隱藏檔案";
@@ -409,7 +410,9 @@
 "settings.columns.preview" = "预览";
 "settings.columns.description" = "选择文件浏览和压缩包浏览要显示哪些列，下方预览会立即反映效果。";
 "settings.section.general" = "一般";
+"settings.section.general.subtitle" = "語言、啟動資料夾、預設覆寫與刪除提示、Finder 服務，以及預設密碼。";
 "settings.section.archive" = "壓縮";
+"settings.section.archive.subtitle" = "解壓縮安全策略、寫入後驗證、各格式的壓縮預設值，以及 7-Zip 和 RAR 後端。";
 "settings.section.security" = "安全性";
 "settings.language" = "語言";
 "settings.language.system" = "跟隨系統";
@@ -687,6 +690,7 @@
 "column.crc" = "CRC";
 "column.attributes" = "屬性";
 "settings.section.view" = "顯示";
+"settings.section.view.subtitle" = "列距密度、分組、展開狀態記憶、隱藏名稱後綴，以及顯示哪些欄。";
 "szs.silentBrowse.menuItem" = "以虛擬目錄瀏覽";
 "szs.silentBrowse.warning.title" = "簽章清單存在問題";
 "szs.silentBrowse.warning.message" = "%@ 你可以「只瀏覽通過校驗的檔案」、查看完整驗簽詳情，或取消。";
@@ -744,6 +748,7 @@
 "siz.signatureSheet.unknownSigner.summary" = "簽章格式有效，但簽章者公鑰不在你的鑰匙圈裡，身份無法核實。";
 "siz.signatureSheet.bad.summary" = "壓縮包內容跟簽章对不上，檔案可能被改過 / 替換過。";
 "settings.section.gpg" = "GPG（PGP 簽章）";
+"settings.section.gpg.subtitle" = "啟用 GPG、管理密鑰環與信任、搜尋金鑰伺服器，並設定預設簽署密鑰。";
 "settings.gpg.enabledTitle" = "啟用 GPG 集成";
 "settings.gpg.enabledDescription" = "開启後，建立壓縮包時可勾选簽章、開啟 .siz 時顯示簽章資訊、設定裡可以管理金鑰。關閉時所有 GPG 相關入口都隱藏，不打扰不使用的人。";
 "settings.gpg.backend.title" = "GPG 後端";
@@ -1319,6 +1324,7 @@
 "container.versionTooNew.forceOpen" = "仍要嘗試開啟";
 "siz.signatureSheet.section.decryption" = "解密";
 "settings.section.updates" = "軟體更新";
+"settings.section.updates.subtitle" = "手動或啟動時檢查更新、自動下載，並瀏覽更新日誌。";
 "updates.section.check" = "更新檢查";
 "updates.currentVersion" = "目前版本";
 "updates.currentVersion.description" = "正在執行的 SimpleZip 版本。";
@@ -2269,6 +2275,7 @@
 "intent.release.done" = "發佈包 %@ 已就緒（已檢查、已寫入校驗檔案）。";
 "intent.release.doneNoChecksums" = "發佈包 %@ 已就緒（已檢查；未寫入校驗檔案）。";
 "settings.section.automation" = "自動化";
+"settings.section.automation.subtitle" = "命令列工具、捷徑與 Siri、URL scheme、Spotlight 索引、封存快取、AI 助理，以及依來源統計。";
 "settings.automation.shortcuts.section" = "捷徑與 Siri";
 "settings.automation.shortcuts.title" = "捷徑動作";
 "settings.automation.shortcuts.description" = "「快捷指令」App 裡有八個動作：解壓歸檔、建立歸檔、測試歸檔完整性、驗證校驗檔、比較歸檔、搜尋歸檔內容、檢查歸檔、建立發佈套件。";

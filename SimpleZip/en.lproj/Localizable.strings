@@ -124,7 +124,9 @@
 "siz.signatureSheet.unknownSigner.summary" = "The signature format is valid, but the signer's public key isn't in your keyring, so their identity can't be verified.";
 "siz.signatureSheet.bad.summary" = "The contents don't match the signature — the file may have been modified or replaced.";
 "settings.section.gpg" = "GPG (PGP Signing)";
+"settings.section.gpg.subtitle" = "Enable GPG, manage your keyring and trust, search keyservers, and set the default signing key.";
 "settings.section.updates" = "Software Update";
+"settings.section.updates.subtitle" = "Check for updates manually or on launch, auto-download, and browse the changelog.";
 "updates.section.check" = "Update Check";
 "updates.currentVersion" = "Current version";
 "updates.currentVersion.description" = "The version of SimpleZip you are running.";
@@ -1289,6 +1291,7 @@
 "intent.release.doneNoChecksums" = "Release package %@ is ready (inspected; no checksums file written).";
 /* 0.4.4 #1 automation pane + F1 source labels */
 "settings.section.automation" = "Automation";
+"settings.section.automation.subtitle" = "Command-line tool, Shortcuts and Siri, URL scheme, Spotlight indexing, archive cache, AI assistant, and per-source stats.";
 "settings.automation.shortcuts.section" = "Shortcuts & Siri";
 "settings.automation.shortcuts.title" = "Shortcuts Actions";
 "settings.automation.shortcuts.description" = "Ten actions are available in the Shortcuts app: Extract Archive, Create Archive, Test Archive Integrity, Verify Checksums, Compare Archives, Search Archive Contents, Inspect Archive, Create Release Package, Find Archive Containing File and Change a Setting. Siri can also turn a safe setting on or off without opening the app.";
@@ -1777,6 +1780,7 @@
 "ai.suggestAutomation.title" = "AI Automation Draft";
 "settings.section.defaults" = "Defaults";
 "settings.section.browser" = "Browser";
+"settings.section.browser.subtitle" = "What the file list includes — hidden files, symlinks, and following Finder's folder structure.";
 "settings.startupLocation" = "Startup location";
 "settings.overwriteBehavior" = "When files already exist";
 "settings.showHiddenFiles" = "Show hidden files";
@@ -1920,6 +1924,7 @@
 "settings.association.simpleZipDefault" = "Default";
 "settings.section.columns" = "Columns";
 "settings.section.view" = "View";
+"settings.section.view.subtitle" = "Row density, grouping, expansion memory, hidden-name suffixes, and which columns to show.";
 "settings.section.health" = "Health";
 "settings.section.diagnostics" = "Diagnostics";
 "diagnostics.general.description" = "Hit a problem? Grab a diagnostic snapshot — app & macOS version, backend versions, GPG status, and a summary of recent tasks. Passwords are redacted; no key identities are included.";
@@ -2017,7 +2022,9 @@
 "settings.columns.preview" = "Preview";
 "settings.columns.description" = "Choose which columns appear in the file browser and archive browser. The preview below updates immediately.";
 "settings.section.general" = "General";
+"settings.section.general.subtitle" = "Language, startup folder, default overwrite and delete prompts, Finder services, and the preset password.";
 "settings.section.archive" = "Archive";
+"settings.section.archive.subtitle" = "Extraction safety policies, post-write verification, per-format compression defaults, and the 7-Zip and RAR backends.";
 "settings.section.security" = "Security";
 "settings.defaults.title" = "Default Compression Settings";
 "settings.defaults.description" = "Set reusable defaults per format. The Finder \"Compress\" quick actions use the matching format's defaults, and the create dialog can apply them. Passwords and GPG keys are never stored here.";
