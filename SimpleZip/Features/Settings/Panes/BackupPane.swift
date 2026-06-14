@@ -26,11 +26,8 @@ struct BackupPane: View {
 
     var body: some View {
         Form {
-            Section(L10n.text("settings.section.backup")) {
-                Text(L10n.text("backup.description"))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
+            // #81:描述已抬到 hero 副标题,这里删掉重复的小节头 + 描述(标题也由 hero 显示)。
+            Section {
                 SettingsActionRow(
                     title: L10n.text("backup.export.title"),
                     description: L10n.text("backup.export.description"),

@@ -33,12 +33,8 @@ struct HealthPane: View {
 
     var body: some View {
         Form {
-            Section(L10n.text("settings.section.health")) {
-                Text(L10n.text("health.description"))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .settingsAnchor("health")
-
+            // #81:描述已抬到 hero 副标题,删掉重复的小节头 + 描述。
+            Section {
                 if isChecking && items.isEmpty {
                     HStack {
                         ProgressView().controlSize(.small)

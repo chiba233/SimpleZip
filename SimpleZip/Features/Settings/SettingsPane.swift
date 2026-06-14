@@ -114,6 +114,33 @@ enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
             return .mint
         }
     }
+
+    /// #81 0.4.5:hero 头副标题。**可复用已有描述的分区**直接复用现成 key(那些 key 本就全 10 语种,不新增 key)——
+    /// 文件关联 / 运行状态 / 备份(用户用红箭头指出的三个)。其余暂空(hero 只显标题);需要**独立副标题**的分区
+    /// (通用/压缩/浏览器/视图/GPG/软件更新/自动化)后续补,且**必须一次进全 10 语种**(见 [[feedback_l10n_all_10_locales]])。
+    var subtitle: String {
+        switch self {
+        case .fileAssociations:
+            return L10n.text("settings.association.description")
+        case .health:
+            return L10n.text("health.description")
+        case .backup:
+            return L10n.text("backup.description")
+        default:
+            return ""
+        }
+    }
+
+    /// #81:是否给该分区套**通用 hero 头**。帮助(自带标题头)、关于(自带沉浸式 logo 布局)排除 ——
+    /// 它们已经有自己的头,再套通用 hero 会叠成两层(踩过这个坑)。其余裸 Form 分区补上同款 hero。
+    var showsHero: Bool {
+        switch self {
+        case .help, .about:
+            return false
+        default:
+            return true
+        }
+    }
 }
 
 // MARK: - 跨窗口深链（0.4.2）

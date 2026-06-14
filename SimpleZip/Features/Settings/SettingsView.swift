@@ -149,7 +149,58 @@ struct SettingsView: View {
 
     @ViewBuilder
     private var selectedPaneView: some View {
-        switch selectedPane ?? .general {
+        let pane = selectedPane ?? .general
+        if pane.showsHero {
+            // #81 0.4.5:裸 Form 分区顶部统一 hero 头(彩色渐变图标瓦片 + 标题 + 一句描述),对齐活动中心。
+            // 帮助 / 关于自带头(showsHero=false)直接走原布局,绝不在自带头上再叠一层。
+            VStack(spacing: 0) {
+                HStack {
+                    paneHero(pane)
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 22)
+                .padding(.top, 16)
+                .padding(.bottom, 4)
+                paneContent(pane)
+            }
+        } else {
+            paneContent(pane)
+        }
+    }
+
+    /// #81 hero 头:渐变发光图标瓦片 + 标题 + 副标题(与活动中心 `paneHero` 同款配色 0.65/0.45,辉光 0.30,纯静态)。
+    private func paneHero(_ pane: SettingsPane) -> some View {
+        HStack(spacing: 12) {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [pane.iconColor.opacity(0.65), pane.iconColor.opacity(0.45)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    )
+                )
+                .overlay(
+                    Image(systemName: pane.systemImage)
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(.white)
+                )
+                .frame(width: 38, height: 38)
+                .shadow(color: pane.iconColor.opacity(0.30), radius: 7, y: 3)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(pane.title)
+                    .font(.title2.weight(.semibold))
+                if !pane.subtitle.isEmpty {
+                    Text(pane.subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func paneContent(_ pane: SettingsPane) -> some View {
+        switch pane {
         case .general:
             GeneralPane()
         case .archive:

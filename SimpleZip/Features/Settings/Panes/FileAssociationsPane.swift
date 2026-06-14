@@ -24,11 +24,8 @@ struct FileAssociationsPane: View {
 
     var body: some View {
         Form {
-            Section(L10n.text("settings.section.fileAssociations")) {
-                Text(L10n.text("settings.association.description"))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
+            // #81:描述已抬到 hero 副标题,删掉重复的小节头 + 描述。
+            Section {
                 // 0.4.3 用户拍板:按类别分组排布,同类同色(压缩包蓝 / 磁盘镜像紫 / SimpleZip 专属绿 / 分卷橙)。
                 associationGroup(
                     titleKey: "settings.association.group.archives",
