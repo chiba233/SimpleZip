@@ -109,7 +109,10 @@ struct AutomationPane: View {
             .onAppear(perform: reloadCLIStatus)
             .settingsAnchor("automation.cli")
 
-            // ② Shortcuts / Siri。
+            // ② Shortcuts / Siri。0.4.5:仅在有苹果认证签名(teamId)时渲染 —— ad-hoc 构建里 App Intents 会被
+            // linkd 以 requiresValidatedBundle 拒、功能注定失败,整体隐藏避免用户 report。
+            // CLI / URL Scheme / Finder 服务 / Spotlight 等其余自动化通道不走这条链,照常可用,不受影响。
+            if AppSigningStatus.supportsShortcuts {
             Section(L10n.text("settings.automation.shortcuts.section")) {
                 SettingsControlRow(
                     title: L10n.text("settings.automation.shortcuts.title"),
@@ -143,6 +146,7 @@ struct AutomationPane: View {
                     }
                 }
                 lastRunRow(for: .intent)
+            }
             }
 
             // ②.5 Spotlight 索引(发布包 / 任务可搜;安全↔便利)。开关切换即时重建或清空索引。
