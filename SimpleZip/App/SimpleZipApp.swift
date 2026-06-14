@@ -77,12 +77,8 @@ struct SimpleZipApp: App {
         }
 
         Settings {
-            // 0.4.5:设置窗「可调高、不可调宽」(用户要求)。windowResizability(.contentSize) 让窗口按内容 frame 走 ——
-            // 宽固定 820 → 没有水平把手;高 560…∞ → 可纵向拉伸。
             SettingsView()
-                .frame(minWidth: 820, maxWidth: 820, minHeight: 560, maxHeight: .infinity)
         }
-        .windowResizability(.contentSize)
     }
 }
 
