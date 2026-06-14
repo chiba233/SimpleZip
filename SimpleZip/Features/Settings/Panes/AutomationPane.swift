@@ -346,7 +346,10 @@ struct AutomationPane: View {
             // ⑤ 统计:活动中心历史按来源聚合(F1 的字段在此兑现)。
             Section(L10n.text("settings.automation.stats.section")) {
                 statsRow(.cli, systemImage: "terminal", tint: .indigo)
-                statsRow(.intent, systemImage: "sparkles.rectangle.stack", tint: .purple)
+                // 快捷指令 / Siri 来源统计:跟上面的 Shortcuts 节一致,仅有合法签名时显示(ad-hoc 构建里这条链不可用)。
+                if AppSigningStatus.supportsShortcuts {
+                    statsRow(.intent, systemImage: "sparkles.rectangle.stack", tint: .purple)
+                }
                 statsRow(.urlScheme, systemImage: "link.circle", tint: .cyan)
                 statsRow(.finder, systemImage: "contextualmenu.and.cursorarrow", tint: .orange)
             }
