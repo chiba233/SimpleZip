@@ -30,6 +30,33 @@ import Testing
         #expect(AISensitiveRedactor.redact("gpg --passphrase topsecret file").contains("[REDACTED]"))
     }
 
+    @Test func redactsUnderscoreCompoundSecretKeys() {
+        // 审计 #2:下划线 / 连字符复合键(snake_case)。
+        #expect(!AISensitiveRedactor.redact("client_secret: abcdef123456").contains("abcdef123456"))
+        #expect(!AISensitiveRedactor.redact("secret_key=AKIA1234").contains("AKIA1234"))
+        #expect(!AISensitiveRedactor.redact("AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI").contains("wJalrXUtnFEMI"))
+        #expect(!AISensitiveRedactor.redactFileNameSecrets("secret_key=AKIA1234.pem").contains("AKIA1234"))
+    }
+
+    @Test func doesNotOverRedactNaturalLanguageDiagnostics() {
+        // 审计 #4:冒号前有空格 = 自然语言诊断,不该吃掉后面的词 / 非加密条目名。
+        #expect(AISensitiveRedactor.redact("ERROR: Wrong password : secret.txt").contains("secret.txt"))
+        #expect(AISensitiveRedactor.redact("password : data error").contains("data error"))
+    }
+
+    @Test func redactsSpaceSeparatedLongTokens() {
+        // 审计 #3:空格分隔的长 token / bearer。
+        #expect(!AISensitiveRedactor.redact("denied: token abc123def456ghi").contains("abc123def456ghi"))
+        #expect(!AISensitiveRedactor.redact("Authorization Bearer eyJhbGciOiJIUzI1NiJ9").contains("eyJhbGciOiJIUzI1NiJ9"))
+        // 普通词(短值)不被误伤。
+        #expect(AISensitiveRedactor.redact("uses a token bucket algorithm").contains("bucket"))
+    }
+
+    @Test func missingVolumeLineIsExtractedAsError() {
+        let lines = AISensitiveRedactor.errorLines(from: "Scanning...\nMissing volume : release.7z.002\nDone")
+        #expect(lines.contains { $0.contains("Missing volume") })
+    }
+
     @Test func redactsPemPrivateKeyBlock() {
         let pem = """
         -----BEGIN OPENSSH PRIVATE KEY-----

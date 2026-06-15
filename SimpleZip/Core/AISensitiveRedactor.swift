@@ -50,10 +50,11 @@ nonisolated enum AISensitiveRedactor {
         return result
     }
 
-    /// 取末尾不超过 `maxChars` 个字符的日志尾部,**先脱敏**;超长时前置截断标记。
-    /// 按 grapheme 截断(命令输出可能含中文)。
+    /// 取末尾不超过 `maxChars` 个字符的日志尾部。**先截尾再脱敏** —— 避免对几 MB 的完整日志跑正则
+    /// (审计:logTail 原来对整段日志跑 redact 再截,大日志会很慢)。多留一倍余量(脱敏可能改变长度)。
     static func logTail(of output: String, maxChars: Int = 800) -> String {
-        let redacted = redact(output)
+        let rawTail = output.count > maxChars * 2 ? String(output.suffix(maxChars * 2)) : output
+        let redacted = redact(rawTail)
         guard redacted.count > maxChars else { return redacted }
         return "…(earlier output truncated)\n" + String(redacted.suffix(maxChars))
     }
@@ -72,7 +73,9 @@ nonisolated enum AISensitiveRedactor {
     private static let errorMarkers: [String] = [
         "error", "denied", "cannot", "can not", "can't open", "failed", "failure",
         "unsupported", "is not supported", "corrupt", "data error", "crc failed",
-        "no space", "not enough space", "wrong password", "unavailable", "no such file"
+        "no space", "not enough space", "wrong password", "unavailable", "no such file",
+        // 缺卷行常不含上面任何词(审计 #7:否则 missing-volume 标签可能丢失)。
+        "missing volume", "cannot find volume", "no such volume"
     ]
 
     private struct RedactionRule {
@@ -91,10 +94,13 @@ nonisolated enum AISensitiveRedactor {
         }
     }
 
-    /// key=value 形态 secret 规则(password= / token= / secret= …)。文件名脱敏 `redactFileNameSecrets` 也复用它。
+    /// key=value 形态 secret 规则。文件名脱敏 `redactFileNameSecrets` 也复用它。整段命中 → `[REDACTED]`。
+    /// 审计加固:① 容忍下划线 / 连字符复合键(`client_secret=` / `secret_key=` / `AWS_SECRET_ACCESS_KEY=`)——
+    /// 关键词可被 `subtoken_` 前缀和 `_subtoken` 后缀包夹(#2);② `:` 形态要求**冒号前无空格**(真 config /
+    /// argv 是 `key:value`,自然语言诊断是 `password : data error`)—— 不再误吃诊断词 / 非加密条目名(#4)。
     private static let keyValueSecretRule = RedactionRule(
-        #"(?i)\b(password|passphrase|passwd|pwd|secret|token|api[_-]?key)\b\s*[:=]\s*\S+"#,
-        "$1=[REDACTED]")
+        #"(?i)(?<![a-z0-9])([a-z0-9]+[_-])*(password|passphrase|passwd|pwd|secret|token|api[_-]?key)([_-][a-z0-9]+)*(?:\s*=\s*|:)\s*\S+"#,
+        "[REDACTED]")
 
     /// argv 之外的 secret 形态。顺序应用;坏 pattern(理论上不会)被 compactMap 跳过,不致命。
     private static let extraRules: [RedactionRule] = {
@@ -114,6 +120,13 @@ nonisolated enum AISensitiveRedactor {
         // HTTP bearer。
         if let bearer = RedactionRule(#"(?i)(authorization:\s*bearer)\s+\S+"#, "$1 [REDACTED]") {
             rules.append(bearer)
+        }
+        // 关键词 + 空格 + **像 token 的长值**(`bearer xY9…` / `denied: token abc123def456` —— 审计 #3
+        // 空格分隔的 secret)。要求值 ≥12 个 token 字符,避免误伤 "token bucket" / "secret sauce" 这类普通词。
+        if let spacedToken = RedactionRule(
+            #"(?i)\b(password|passphrase|secret|token|api[_-]?key|bearer)\b\s+([A-Za-z0-9+/=._-]{12,})"#,
+            "$1 [REDACTED]") {
+            rules.append(spacedToken)
         }
         return rules
     }()
