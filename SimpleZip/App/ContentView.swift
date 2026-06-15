@@ -96,11 +96,10 @@ struct ContentView: View {
                                 }
                             }
                         }
-                } else if case .aiWorkspace(let id) = model.mode,
-                          let kind = AIWorkspaceStore.shared.systemKind(for: id) {
-                    // 0.4.5 #80 #89:AI 建议虚拟工作区(只读;白皮书建议四)。系统工作区用现有独立视图,
-                    // 不复用 FileTable。用户创建 / 推荐工作区的虚拟树视图(AIWorkspaceView)= Stage 4。
-                    AISuggestionFolderView(model: model, kind: kind)
+                } else if case .aiWorkspace(let id) = model.mode {
+                    // 0.4.5 #80 #89:AI 工作区**虚拟文件夹树**(只读;白皮书建议四)。不复用 FileTable、不伪造
+                    // FileItem;动作只打开 / 定位 / 解释。替换被打回的 AISuggestionFolderView(失败任务扁平列表)。
+                    AIWorkspaceView(model: model, workspaceID: id)
                 } else {
                     FileTable(model: model)
                 }

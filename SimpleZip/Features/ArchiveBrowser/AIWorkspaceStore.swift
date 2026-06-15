@@ -28,8 +28,13 @@ final class AIWorkspaceStore: ObservableObject {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        self.collection = AIWorkspaceStore.load(from: defaults)
-        seedSystemWorkspaces()
+        var loaded = AIWorkspaceStore.load(from: defaults)
+        // 0.4.5 #89:删除被打回的固定系统工作区(失败任务 / 校验 / 最近归档 = 活动中心换皮,不配叫 AI)。
+        // 之前的版本把它们持久化进了 UserDefaults,启动时清掉 .system 残留。真正的 AI 工作区 = 用户创建 +
+        // 后台按内容动态生成的推荐主题,不再有写死的系统工作区。
+        loaded.workspaces.removeAll { $0.origin == .system }
+        self.collection = loaded
+        persist()
     }
 
     /// 侧边栏渲染的可见工作区(确定性排序,排除 hidden / dismissed)。
@@ -37,11 +42,8 @@ final class AIWorkspaceStore: ObservableObject {
 
     func workspace(_ id: UUID) -> AIWorkspace? { collection.workspace(id) }
 
-    /// 把系统工作区的 UUID 解析回 `AISystemWorkspaceKind`(供内容区用现有 `AISuggestionFolderView` 渲染)。
-    func systemKind(for id: UUID) -> AISystemWorkspaceKind? {
-        guard collection.workspace(id)?.origin == .system else { return nil }
-        return AISystemWorkspaceKind.allCases.first { Self.systemID($0) == id }
-    }
+    /// 工作区的虚拟文件夹树(确定性 builder + 可选模型整理的缓存)。builder 未接入时 nil → 内容区显示空状态。
+    func virtualTree(for id: UUID) -> AIVirtualFolderTree? { nil }
 
     // MARK: - 变换(走 Core 纯逻辑 + 持久化 + 发布)
 
@@ -69,39 +71,6 @@ final class AIWorkspaceStore: ObservableObject {
         guard next != collection else { return }   // 不变则不刷新(避免无谓 publish)
         collection = next
         persist()
-    }
-
-    // MARK: - 系统工作区播种
-
-    private func seedSystemWorkspaces() {
-        var next = collection
-        for kind in AISystemWorkspaceKind.allCases {
-            let id = Self.systemID(kind)
-            if let existing = next.workspace(id) {
-                // 保留可见性 / 固定覆盖,刷新标题(语言可能变了)。
-                var refreshed = existing
-                refreshed.title = Self.systemTitle(kind)
-                next = next.upserting(refreshed)
-            } else {
-                next = next.upserting(AIWorkspace(
-                    id: id, origin: .system, title: Self.systemTitle(kind),
-                    queryPlan: AIWorkspaceQueryPlan(taskTags: []), iconSystemName: kind.systemImage,
-                    generatedAt: Date()))
-            }
-        }
-        if next != collection { collection = next; persist() }
-    }
-
-    static func systemID(_ kind: AISystemWorkspaceKind) -> UUID {
-        AIStableHash.deterministicUUID("system-workspace:" + kind.rawValue)
-    }
-
-    private static func systemTitle(_ kind: AISystemWorkspaceKind) -> String {
-        switch kind {
-        case .needsAttention: return L10n.text("aiFolder.needsAttention")
-        case .releaseAndVerify: return L10n.text("aiFolder.releaseAndVerify")
-        case .recentArchives: return L10n.text("aiFolder.recentArchives")
-        }
     }
 
     // MARK: - 持久化(UserDefaults JSON)
