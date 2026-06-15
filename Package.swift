@@ -40,6 +40,7 @@ let package = Package(
                 "Core/AI/AIEmptyStateReason.swift",
                 "Core/AI/AIFailurePlaybook.swift",
                 "Core/AI/AIFileMemory.swift",
+                "Core/AI/AIIndexMaintenance.swift",
                 "Core/AI/AIFeedback.swift",
                 "Core/AI/AILens.swift",
                 "Core/AI/AILocationContext.swift",
