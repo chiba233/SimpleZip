@@ -35,6 +35,7 @@ let package = Package(
             sources: [
                 "Core/AI/AIArchiveInternalMap.swift",
                 "Core/AI/AIBudget.swift",
+                "Core/AI/AICompactContextCodec.swift",
                 "Core/AI/AIContext.swift",
                 "Core/AI/AIDiagnostics.swift",
                 "Core/AI/AIEmptyStateReason.swift",
