@@ -33,6 +33,7 @@ let package = Package(
                 "zh-Hant.lproj"
             ],
             sources: [
+                "Core/AIContext.swift",
                 "Core/AppPreferences.swift",
                 "Core/ArchiveError.swift",
                 "Core/ArchiveOperationFeedback.swift",

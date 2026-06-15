@@ -18,6 +18,12 @@
 - **Shortcuts & Siri are clearly marked unavailable when the app isn't signed with an Apple Developer ID.** On macOS 26 the App Intents execution path requires a validated bundle (a code signature with a Team Identifier), so an ad-hoc / unsigned build can never run a SimpleZip action — the system rejects the connection and Shortcuts reports "couldn't communicate with the app." The actions still get registered with the system and keep showing up in the Shortcuts app (the app can't remove them from there), so instead of hiding the in-app section, Settings → Automation now shows it with a clear "unavailable" notice, and the Health pane flags Shortcuts & Siri with a yellow warning explaining why. Everything returns to normal automatically on a properly signed build. The CLI, URL scheme, Finder services and Spotlight channels are unaffected.
 - **Turning the AI assistant off now hides its buttons right away.** AI entry points — the inline advisories in the create/extract dialogs, the "explain this" buttons on reports and failed tasks, and the AI search fields — used to re-check the master switch only when their view happened to rebuild, so toggling it in Settings didn't make them appear or disappear until something else redrew. They now react to the switch the instant it changes.
 
+### improvements
+
+**Developer-facing**
+
+- **A unified on-device AI data layer (the foundation for richer, still-private AI).** SimpleZip is building a shared, fully-tested foundation for how it feeds Apple's on-device model — the positioning is *local fact index + small-model organizer*: the app gathers, filters, redacts and budgets local facts into structured envelopes that each carry an explicit privacy level and an "omissions" list (what was withheld and why), plus reusable evidence cards and validated source references; the model only explains, names, ranks, groups and drafts. Every path, task id and archive-entry id the model returns is validated against what the app actually provided, and any dangerous action always returns to the native confirmation flow. Passwords, key material, encrypted-archive entry names, ciphertext and decrypted plaintext never enter this layer — enforced by contract, with deterministic encoding so the exact facts sent can be unit-tested and exported for inspection.
+
 ## 0.4.4
 
 ### feat
