@@ -61,6 +61,7 @@ let package = Package(
                 "Core/ArchiveRiskScore.swift",
                 "Core/ArchiveProfile.swift",
                 "Core/ArchiveProperties.swift",
+                "Core/ArchiveRoleClassifier.swift",
                 "Core/ArchiveSpaceAnalysis.swift",
                 "Core/SensitiveFileScan.swift",
                 "Core/ArchiveNearDuplicates.swift",
