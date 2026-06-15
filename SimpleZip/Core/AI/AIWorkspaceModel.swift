@@ -147,6 +147,84 @@ nonisolated struct AIWorkspace: Identifiable, Codable, Equatable, Sendable {
     }
 }
 
+/// 用户创建 / 调教 AI 文件夹的「种子」(白皮书建议四扩写)。用户从右键「添加到 AI 文件夹」加入的不是静态
+/// 收藏夹,而是 seed —— AI 基于 seed + 合法候选池自动派生相关文件、旁路文件、归档内条目、补证据动作和虚拟分组。
+/// 持久化的是这份 seed,不是派生出来的树。
+nonisolated struct AIWorkspaceUserSeed: Codable, Equatable, Sendable {
+    let workspaceID: UUID
+    var userTitle: String?
+    /// 用户输入过的主题提示词(`addThemePromptToAIWorkspace` 累加;AI 刷新只能在 seed + 合法候选内派生)。
+    var themePrompts: [String]
+    /// 用户固定进工作区的引用。
+    var pinnedSourceRefs: [AIContextSourceRef]
+    /// 「从此工作区移除」加入的排除引用(只移除虚拟引用,不碰硬盘)。
+    var excludedSourceRefs: [AIContextSourceRef]
+    /// 工作区限定的默认打开 App(只影响该工作区动作,不改系统 LaunchServices 默认值)。
+    var preferredOpenAppBundleID: String?
+    let createdAt: Date
+    var updatedAt: Date
+
+    init(workspaceID: UUID, userTitle: String? = nil, themePrompts: [String] = [],
+         pinnedSourceRefs: [AIContextSourceRef] = [], excludedSourceRefs: [AIContextSourceRef] = [],
+         preferredOpenAppBundleID: String? = nil, createdAt: Date, updatedAt: Date) {
+        self.workspaceID = workspaceID
+        self.userTitle = userTitle
+        self.themePrompts = themePrompts
+        self.pinnedSourceRefs = pinnedSourceRefs
+        self.excludedSourceRefs = excludedSourceRefs
+        self.preferredOpenAppBundleID = preferredOpenAppBundleID
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
+
+    /// 追加一条主题提示词(去重),`updatedAt` 由 App 传入(Core 不取 wall-clock)。
+    func addingThemePrompt(_ prompt: String, updatedAt: Date) -> AIWorkspaceUserSeed {
+        var copy = self
+        let trimmed = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty, !copy.themePrompts.contains(trimmed) { copy.themePrompts.append(trimmed) }
+        copy.updatedAt = updatedAt
+        return copy
+    }
+
+    /// 把一组引用加入排除集(「从此工作区移除」,不碰硬盘),去重。
+    func excluding(_ refs: [AIContextSourceRef], updatedAt: Date) -> AIWorkspaceUserSeed {
+        var copy = self
+        for ref in refs where !copy.excludedSourceRefs.contains(ref) { copy.excludedSourceRefs.append(ref) }
+        // 排除即从固定集移除(语义一致)。
+        copy.pinnedSourceRefs.removeAll { refs.contains($0) }
+        copy.updatedAt = updatedAt
+        return copy
+    }
+
+    /// 一个引用当前是否被排除。
+    func isExcluded(_ ref: AIContextSourceRef) -> Bool { excludedSourceRefs.contains(ref) }
+}
+
+/// 工作区拆分的一组(白皮书建议四扩写:右键「按主题拆分」)。每组继承原工作区 source refs 的子集 +
+/// 可选主题提示词,落成一个新 `AIWorkspace`;不复制 / 不移动真实文件。
+nonisolated struct AIWorkspaceSplitGroup: Codable, Equatable, Sendable {
+    let title: String
+    let sourceRefs: [AIContextSourceRef]
+    let themePrompt: String?
+
+    init(title: String, sourceRefs: [AIContextSourceRef], themePrompt: String? = nil) {
+        self.title = title
+        self.sourceRefs = sourceRefs
+        self.themePrompt = themePrompt
+    }
+
+    /// 校验拆分组:每组只保留候选集内的 source ref;清洗后变空的组丢弃。**模型不能把任意路径塞进拆分组。**
+    /// 全部为空时返回 `[]` —— 调用点据此「不生成新工作区」(白皮书:拆分/校验失败不生成)。
+    static func sanitized(_ groups: [AIWorkspaceSplitGroup],
+                          allowed: Set<AIContextSourceRef>) -> [AIWorkspaceSplitGroup] {
+        groups.compactMap { group in
+            let valid = group.sourceRefs.filter { allowed.contains($0) }
+            guard !valid.isEmpty else { return nil }
+            return AIWorkspaceSplitGroup(title: group.title, sourceRefs: valid, themePrompt: group.themePrompt)
+        }
+    }
+}
+
 /// 虚拟树清洗:把模型产出 / 候选拼出的树过一遍安全闸 —— 安全 > 完整。
 nonisolated enum AIVirtualTreeSanitizer {
     /// 丢弃:① 安全标记不合 v1(destructive / touchesEncryptedContent)的节点;② 非 group 节点引用了候选集外
