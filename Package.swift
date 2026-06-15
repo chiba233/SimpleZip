@@ -41,6 +41,7 @@ let package = Package(
                 "Core/AI/AIDiagnostics.swift",
                 "Core/AI/AIEmptyStateReason.swift",
                 "Core/AI/AIEngine.swift",
+                "Core/AI/AIFailureDegradation.swift",
                 "Core/AI/AIFailurePlaybook.swift",
                 "Core/AI/AIFileMemory.swift",
                 "Core/AI/AIFilenameEncoding.swift",
