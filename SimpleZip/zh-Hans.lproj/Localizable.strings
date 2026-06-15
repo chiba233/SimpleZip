@@ -1368,6 +1368,7 @@
 "settings.automation.cache.status.empty" = "暂无记录";
 "settings.automation.shortcuts.open" = "打开快捷指令";
 "settings.automation.shortcuts.actions" = "每次快捷指令运行都实时进活动中心并标记来源。加密归档在快捷指令里绝不弹窗。";
+"settings.automation.shortcuts.unavailable" = "这个构建没有 Apple 开发者签名,这些动作和 Siri 无法运行——「快捷指令」App 里仍会列出它们,但会报「无法与 App 通信」。装上正确签名的构建后会自动恢复。";
 "settings.automation.urlScheme.section" = "URL Scheme";
 "settings.automation.urlScheme.title" = "simplezip:// 命令";
 "settings.automation.urlScheme.description" = "其他 app 和脚本可以让 SimpleZip 测试、比较或打开归档。只接受绝对路径。";
@@ -1973,6 +1974,10 @@
 "health.openAssociations" = "管理文件关联";
 "health.presetPassword.title" = "预设密码";
 "health.scratchVolume.title" = "加密临时卷";
+"health.shortcuts.title" = "快捷指令与 Siri";
+"health.shortcuts.unavailable" = "这个构建没有 Apple 开发者签名,快捷指令动作和 Siri 无法运行。它们仍出现在「快捷指令」App 里,但会报「无法与 App 通信」。";
+"health.shortcuts.ok" = "快捷指令动作和 Siri 可用。";
+"health.openAutomation" = "打开自动化";
 "health.scratchVolume.ok" = "已挂载 —— 解密 / 解压的临时文件落在 %@ 的 AES-256 加密卷上,退出即销毁。";
 "health.scratchVolume.notMounted" = "未挂载。临时文件会回落到普通临时目录,明文可能落盘。";
 "health.scratchVolume.remount" = "立即重新挂载";

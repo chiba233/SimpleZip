@@ -1370,6 +1370,7 @@
 "settings.automation.cache.status.empty" = "Nothing remembered yet";
 "settings.automation.shortcuts.open" = "Open Shortcuts";
 "settings.automation.shortcuts.actions" = "Every Shortcuts run shows up live in the Activity Center, tagged with its source. Encrypted archives never prompt in shortcuts.";
+"settings.automation.shortcuts.unavailable" = "This build isn't signed with an Apple Developer ID, so these actions and Siri can't run — the Shortcuts app still lists them, but they report a connection error. They'll work automatically once a properly signed build is installed.";
 "settings.automation.urlScheme.section" = "URL Scheme";
 "settings.automation.urlScheme.title" = "simplezip:// commands";
 "settings.automation.urlScheme.description" = "Other apps and scripts can ask SimpleZip to test, compare or open archives. Only absolute paths are accepted.";
@@ -1992,6 +1993,10 @@
 "health.gpg.openSettings" = "Open GPG Settings";
 "health.presetPassword.title" = "Preset password";
 "health.scratchVolume.title" = "Encrypted temporary volume";
+"health.shortcuts.title" = "Shortcuts & Siri";
+"health.shortcuts.unavailable" = "This build has no Apple Developer signature, so the Shortcuts actions and Siri can't run. They still appear in the Shortcuts app but report a connection error.";
+"health.shortcuts.ok" = "The Shortcuts actions and Siri are available.";
+"health.openAutomation" = "Open Automation";
 "health.scratchVolume.ok" = "Mounted — decrypted/extracted temporary files live on an AES-256 volume at %@ and are destroyed on quit.";
 "health.scratchVolume.notMounted" = "Not mounted. Temporary files fall back to the regular temp directory, where plaintext may touch disk.";
 "health.scratchVolume.remount" = "Remount Now";

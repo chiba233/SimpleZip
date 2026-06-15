@@ -109,10 +109,10 @@ struct AutomationPane: View {
             .onAppear(perform: reloadCLIStatus)
             .settingsAnchor("automation.cli")
 
-            // ② Shortcuts / Siri。0.4.5:仅在有苹果认证签名(teamId)时渲染 —— ad-hoc 构建里 App Intents 会被
-            // linkd 以 requiresValidatedBundle 拒、功能注定失败,整体隐藏避免用户 report。
+            // ② Shortcuts / Siri。0.4.5:不隐藏、改为**显式标不可用** —— ad-hoc 构建(无 Apple TeamIdentifier)下
+            // App Intents 被 linkd 以 requiresValidatedBundle 拒、动作注定失败,但系统层仍会在「快捷指令」app 里
+            // 列出这些动作(in-app 无法移除),所以照常显示该节、并在无签名时打橙色「不可用」标识;运行状态页也会标黄。
             // CLI / URL Scheme / Finder 服务 / Spotlight 等其余自动化通道不走这条链,照常可用,不受影响。
-            if AppSigningStatus.supportsShortcuts {
             Section(L10n.text("settings.automation.shortcuts.section")) {
                 SettingsControlRow(
                     title: L10n.text("settings.automation.shortcuts.title"),
@@ -128,6 +128,13 @@ struct AutomationPane: View {
                     }
                 }
                 .settingsAnchor("automation.shortcuts")
+                // 无 Apple 签名 → 动作跑不起来,显式标橙色不可用(系统层动作无法在 app 内移除,只能如实告知)。
+                if !AppSigningStatus.supportsShortcuts {
+                    Label(L10n.text("settings.automation.shortcuts.unavailable"), systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 Text(L10n.text("settings.automation.shortcuts.actions"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -146,7 +153,6 @@ struct AutomationPane: View {
                     }
                 }
                 lastRunRow(for: .intent)
-            }
             }
 
             // ②.5 Spotlight 索引(发布包 / 任务可搜;安全↔便利)。开关切换即时重建或清空索引。
@@ -346,7 +352,8 @@ struct AutomationPane: View {
             // ⑤ 统计:活动中心历史按来源聚合(F1 的字段在此兑现)。
             Section(L10n.text("settings.automation.stats.section")) {
                 statsRow(.cli, systemImage: "terminal", tint: .indigo)
-                // 快捷指令 / Siri 来源统计:跟上面的 Shortcuts 节一致,仅有合法签名时显示(ad-hoc 构建里这条链不可用)。
+                // 快捷指令 / Siri 来源统计:仅有合法签名时显示 —— 无签名时这条链注定跑不起来,
+                // 显示一行「0 次」的统计毫无意义(功能不可用已在上面的 Shortcuts 节明示)。
                 if AppSigningStatus.supportsShortcuts {
                     statsRow(.intent, systemImage: "sparkles.rectangle.stack", tint: .purple)
                 }

@@ -132,13 +132,33 @@ struct AIAssistButton: View {
     @State private var showsSheet = false
 
     var body: some View {
-        if AIReportAssistant.isReady {
+        // #76:走 AIGate 统一门控 —— AI 主开关一翻实时显隐(原先直接 `if isReady` 对开关变化不响应)。
+        AIGate {
             Button { showsSheet = true } label: {
                 Label(label, systemImage: systemImage)
             }
             .sheet(isPresented: $showsSheet) {
                 AIAssistSheet(title: sheetTitle, subtitle: sheetSubtitle, systemImage: systemImage, produce: produce)
             }
+        }
+    }
+}
+
+/// #76 AI 门控容器:仅当「AI 主开关开 + macOS 26 + 系统模型可用」时渲染 `content`,且**主开关一翻实时刷新**。
+///
+/// 关键在 `@AppStorage`:它把视图订阅到 `aiAssistantEnabled`(UserDefaults 键,全 App 范围生效 —— 设置窗里
+/// 翻开关,别的窗口里的 AI 门控视图也一并重算)。`AIReportAssistant.isReady` 是静态计算属性、对 SwiftUI 不可见,
+/// body 里直接 `if isReady {}` 不会因开关变化而重算 —— 这正是「关掉 AI 后入口不消失」的根因。所有 AI 入口
+/// 统一走这个容器:既集中就绪判断,又拿到响应式刷新。**新增 AI 入口请一律用它,别再裸写 `if AIReportAssistant.isReady`。**
+struct AIGate<Content: View>: View {
+    @AppStorage(AppPreferences.Key.aiAssistantEnabled) private var aiEnabled = true
+    @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        // aiEnabled 提供响应式依赖;isReady 仍做完整判断(macOS 版本 + 模型 availability + 再读一次主开关,
+        // 与 aiEnabled 同源、一致)。响应式刷新由 aiEnabled 这份订阅驱动。
+        if aiEnabled, AIReportAssistant.isReady {
+            content()
         }
     }
 }

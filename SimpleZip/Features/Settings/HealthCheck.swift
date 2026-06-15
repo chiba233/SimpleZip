@@ -75,6 +75,7 @@ enum HealthChecker {
         items.append(await checkRAR(onOpenSettings: { onOpenPane(.archive) }))
         items.append(checkFileAssociations(onOpenSettings: { onOpenPane(.fileAssociations) }))
         items.append(checkFinderServices(onOpenSettings: { onOpenPane(.general) }))
+        items.append(checkShortcuts(onOpenSettings: { onOpenPane(.automation) }))
         items.append(checkStartupLocation(onOpenSettings: { onOpenPane(.general) }))
         items.append(checkSecurityPolicies(onOpenSettings: { onOpenPane(.archive) }))
         items.append(checkSoftwareUpdates(onOpenSettings: { onOpenPane(.updates) }))
@@ -183,6 +184,29 @@ enum HealthChecker {
             detail: L10n.format("health.finderServices.ok", services.count),
             status: .ok,
             action: nil
+        )
+    }
+
+    /// 0.4.5:Shortcuts / Siri 按签名门控 —— ad-hoc 构建(无 Apple TeamIdentifier)下 App Intents 被 linkd 以
+    /// requiresValidatedBundle 拒,快捷指令 / Siri 注定跑不起来(「快捷指令」app 仍会列出动作,系统层无法在 app 内移除)。
+    /// 没签名 → warning(黄),明确告知用不了 + 直通自动化设置;有签名 → ok。
+    private static func checkShortcuts(onOpenSettings: @escaping () -> Void) -> HealthCheckItem {
+        if AppSigningStatus.supportsShortcuts {
+            return HealthCheckItem(
+                title: L10n.text("health.shortcuts.title"),
+                detail: L10n.text("health.shortcuts.ok"),
+                status: .ok,
+                action: nil
+            )
+        }
+        return HealthCheckItem(
+            title: L10n.text("health.shortcuts.title"),
+            detail: L10n.text("health.shortcuts.unavailable"),
+            status: .warning,
+            action: HealthCheckItem.FixAction(
+                title: L10n.text("health.openAutomation"),
+                perform: onOpenSettings
+            )
         )
     }
 

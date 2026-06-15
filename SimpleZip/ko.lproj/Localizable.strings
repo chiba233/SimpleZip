@@ -1397,6 +1397,10 @@
 "settings.folderInlineExpansion" = "폴더를 제자리에서 펼치기";
 "settings.folderInlineExpansion.description" = "폴더 행에 펼침 표시가 생겨 Finder처럼 목록 안에서 내용을 펼칠 수 있습니다. 평면 목록을 원하면 끄세요.";
 "health.scratchVolume.title" = "암호화된 임시 볼륨";
+"health.shortcuts.title" = "단축어 및 Siri";
+"health.shortcuts.unavailable" = "이 빌드에는 Apple Developer 서명이 없어 단축어 동작과 Siri를 실행할 수 없습니다. 단축어 앱에는 표시되지만 통신 오류가 발생합니다.";
+"health.shortcuts.ok" = "단축어 동작과 Siri를 사용할 수 있습니다.";
+"health.openAutomation" = "자동화 열기";
 "health.scratchVolume.ok" = "마운트됨 — 복호화/추출된 임시 파일은 %@의 AES-256 볼륨에 있으며 종료 시 파기됩니다.";
 "health.scratchVolume.notMounted" = "마운트되지 않았습니다. 임시 파일은 일반 임시 디렉터리로 돌아가며 평문이 디스크에 닿을 수 있습니다.";
 "health.scratchVolume.remount" = "지금 다시 마운트";
@@ -2339,6 +2343,7 @@
 "settings.automation.cache.status.empty" = "아직 기억한 항목이 없습니다";
 "settings.automation.shortcuts.open" = "단축어 열기";
 "settings.automation.shortcuts.actions" = "모든 단축어 실행은 출처 태그와 함께 활동 센터에 실시간으로 표시됩니다. 암호화된 아카이브는 단축어에서 절대 묻지 않습니다.";
+"settings.automation.shortcuts.unavailable" = "이 빌드에는 Apple Developer 서명이 없어 이 동작과 Siri를 실행할 수 없습니다. 단축어 앱에는 계속 표시되지만 앱과 통신할 수 없다는 오류가 납니다. 올바르게 서명된 빌드를 설치하면 자동으로 사용할 수 있습니다.";
 "settings.automation.urlScheme.section" = "URL 스킴";
 "settings.automation.urlScheme.title" = "simplezip:// 명령";
 "settings.automation.urlScheme.description" = "다른 앱과 스크립트가 SimpleZip에 아카이브 테스트, 비교 또는 열기를 요청할 수 있습니다. 절대 경로만 허용됩니다.";

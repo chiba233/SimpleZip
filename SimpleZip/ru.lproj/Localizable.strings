@@ -1345,6 +1345,10 @@
 "diagnostics.general.title" = "Диагностический снимок";
 "diagnostics.general.exported" = "Экспортировано в «%@».";
 "health.scratchVolume.title" = "Зашифрованный временный том";
+"health.shortcuts.title" = "Быстрые команды и Siri";
+"health.shortcuts.unavailable" = "Эта сборка не имеет подписи разработчика Apple, поэтому действия «Быстрых команд» и Siri не работают. Они по-прежнему отображаются в приложении «Быстрые команды», но выдают ошибку связи.";
+"health.shortcuts.ok" = "Действия «Быстрых команд» и Siri доступны.";
+"health.openAutomation" = "Открыть автоматизацию";
 "health.scratchVolume.ok" = "Смонтировано — расшифрованные/распакованные временные файлы находятся на томе AES-256 в %@ и уничтожаются при выходе.";
 "health.scratchVolume.notMounted" = "Не смонтировано. Временные файлы возвращаются в обычную временную папку, где открытый текст может попасть на диск.";
 "health.scratchVolume.remount" = "Перемонтировать сейчас";
@@ -2338,6 +2342,7 @@
 "settings.automation.cache.status.empty" = "Пока ничего не запомнено";
 "settings.automation.shortcuts.open" = "Открыть Команды";
 "settings.automation.shortcuts.actions" = "Каждый запуск Команд сразу появляется в центре активности с отметкой источника. Зашифрованные архивы в Командах никогда не показывают запросы.";
+"settings.automation.shortcuts.unavailable" = "Эта сборка не подписана идентификатором разработчика Apple, поэтому эти действия и Siri не работают — приложение «Быстрые команды» по-прежнему их показывает, но они выдают ошибку связи. Они заработают автоматически после установки правильно подписанной сборки.";
 "settings.automation.urlScheme.section" = "URL-схема";
 "settings.automation.urlScheme.title" = "Команды simplezip://";
 "settings.automation.urlScheme.description" = "Другие приложения и скрипты могут попросить SimpleZip проверить, сравнить или открыть архивы. Принимаются только абсолютные пути.";

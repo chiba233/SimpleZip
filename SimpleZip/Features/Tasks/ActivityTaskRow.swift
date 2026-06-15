@@ -24,6 +24,8 @@ struct ActivityTaskRow: View {
     @State private var commandLogHeight: CGFloat = 0
     /// 0.4.4 D(macOS 26 AI):「解释失败」sheet 的展示状态。
     @State private var showsAIExplainFailure = false
+    // #76:订阅 AI 主开关 → 失败解释钮随开关实时显隐(静态 isReady 对 SwiftUI 不可见,需 @AppStorage 提供依赖)。
+    @AppStorage(AppPreferences.Key.aiAssistantEnabled) private var aiAssistantEnabled = true
     /// 命令输出框高度上限 —— 超过就在框内滚动。
     private static let commandLogMaxHeight: CGFloat = 300
 
@@ -418,7 +420,7 @@ struct ActivityTaskRow: View {
             }
             // 0.4.4 D(macOS 26 AI):「解释失败」—— 仅 isReady 且任务失败时出现。读失败消息 + 命令输出,
             // 出可编辑的大白话解释 + 建议;只读、不改任何任务状态、不进安全写入路径。
-            if case .failed(let failureMessage) = task.status, AIReportAssistant.isReady {
+            if case .failed(let failureMessage) = task.status, aiAssistantEnabled, AIReportAssistant.isReady {
                 Button {
                     showsAIExplainFailure = true
                 } label: {

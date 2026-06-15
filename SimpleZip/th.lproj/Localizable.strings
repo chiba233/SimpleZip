@@ -1345,6 +1345,10 @@
 "diagnostics.general.title" = "สแนปชอตวินิจฉัย";
 "diagnostics.general.exported" = "ส่งออกไปยัง “%@” แล้ว";
 "health.scratchVolume.title" = "โวลุ่มชั่วคราวที่เข้ารหัส";
+"health.shortcuts.title" = "คำสั่งลัดและ Siri";
+"health.shortcuts.unavailable" = "บิลด์นี้ไม่มีลายเซ็น Apple Developer การดำเนินการคำสั่งลัดและ Siri จึงทำงานไม่ได้ ยังคงปรากฏในแอปคำสั่งลัดแต่จะรายงานข้อผิดพลาดในการสื่อสาร";
+"health.shortcuts.ok" = "การดำเนินการคำสั่งลัดและ Siri พร้อมใช้งาน";
+"health.openAutomation" = "เปิดระบบอัตโนมัติ";
 "health.scratchVolume.ok" = "เมานต์แล้ว — ไฟล์ชั่วคราวที่ถอดรหัส/แตกแล้วอยู่บนโวลุ่ม AES-256 ที่ %@ และจะถูกทำลายเมื่อออกจากแอป";
 "health.scratchVolume.notMounted" = "ไม่ได้เมานต์ ไฟล์ชั่วคราวจะกลับไปใช้ไดเรกทอรีชั่วคราวปกติ ซึ่งข้อความชัดอาจแตะดิสก์";
 "health.scratchVolume.remount" = "เมานต์ใหม่ตอนนี้";
@@ -2338,6 +2342,7 @@
 "settings.automation.cache.status.empty" = "ยังไม่มีการจดจำ";
 "settings.automation.shortcuts.open" = "เปิดคำสั่งลัด";
 "settings.automation.shortcuts.actions" = "ทุกครั้งที่คำสั่งลัดทำงานจะแสดงสดในศูนย์กิจกรรมพร้อมป้ายแหล่งที่มา ไฟล์เก็บถาวรที่เข้ารหัสจะไม่ถามในคำสั่งลัด";
+"settings.automation.shortcuts.unavailable" = "บิลด์นี้ไม่ได้เซ็นด้วย Apple Developer ID การดำเนินการเหล่านี้และ Siri จึงทำงานไม่ได้ — แอปคำสั่งลัดยังคงแสดงรายการไว้ แต่จะรายงานข้อผิดพลาดในการสื่อสาร เมื่อติดตั้งบิลด์ที่เซ็นอย่างถูกต้องแล้วจะใช้งานได้โดยอัตโนมัติ";
 "settings.automation.urlScheme.section" = "URL Scheme ของแอป";
 "settings.automation.urlScheme.title" = "คำสั่ง simplezip://";
 "settings.automation.urlScheme.description" = "แอปและสคริปต์อื่นสามารถขอให้ SimpleZip ทดสอบ เปรียบเทียบ หรือเปิดไฟล์เก็บถาวรได้ รับเฉพาะเส้นทางแบบสัมบูรณ์เท่านั้น";

@@ -816,7 +816,7 @@ struct ArchiveCreationOptionsView: View {
             // 打开窗口即静默跑的内联 AI 速览(预估耗时 + 格式/级别建议 + 冲突提醒)。动态:数据/格式/级别变了重跑。仅 isReady 时出现。
             if let dryRun {
                 // 统计区 ↔ AI 区之间一道很薄的分割线(用户点名);仅 AI 可用、确实会出速览时才画,避免悬空线。
-                if AIReportAssistant.isReady {
+                AIGate {
                     Divider().opacity(0.5).padding(.vertical, 1)
                 }
                 InlineAIAdvisory(

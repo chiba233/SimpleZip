@@ -79,6 +79,11 @@ struct SimpleZipApp: App {
         Settings {
             SettingsView()
         }
+        // 0.4.5 #79:让设置窗口宽高都可自由缩放(用户要求,对齐活动中心)。
+        // .contentMinSize = 以内容下限为最小尺寸、允许往大拉(默认开在内容 ideal 尺寸);
+        // 配合 SettingsView 的 frame 上限 .infinity。全屏由 SettingsView 内
+        // SettingsWindowConfigurator 给承载窗口补 .fullScreenPrimary 实现。
+        .windowResizability(.contentMinSize)
     }
 }
 

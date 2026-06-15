@@ -9,13 +9,14 @@
 **User-facing**
 
 - **The Activity Center opens larger.** It now opens at a roomier default size instead of feeling cramped.
-- **Settings gets the unified hero look and stays immersive.** Each settings pane now opens with a colored hero header — an icon tile, the title and a one-line description of what's inside — and the sidebar uses the same gradient tiles as the Activity Center. The window is fixed-width but resizable in height, and it keeps the frosted, edge-to-edge immersive chrome throughout.
+- **Settings gets the unified hero look and stays immersive.** Each settings pane now opens with a colored hero header — an icon tile, the title and a one-line description of what's inside — and the sidebar uses the same gradient tiles as the Activity Center. The window opens taller and is now freely resizable in both width and height (and can go fullscreen), just like the Activity Center, while keeping the frosted, edge-to-edge immersive chrome throughout.
 
 ### bugfix
 
 **User-facing**
 
-- **The Shortcuts & Siri panel only appears when the app is signed with an Apple Developer ID.** On macOS 26 the App Intents execution path requires a validated bundle (a code signature with a Team Identifier), so an ad-hoc / unsigned build can never run a SimpleZip action from the Shortcuts app — the system rejects the connection and Shortcuts reports "couldn't communicate with the app." Rather than advertise a feature that can't work, Settings → Automation now hides the whole Shortcuts & Siri section unless the running build carries a Team Identifier; it returns automatically on a properly signed build. The CLI, URL scheme, Finder services and Spotlight channels are unaffected.
+- **Shortcuts & Siri are clearly marked unavailable when the app isn't signed with an Apple Developer ID.** On macOS 26 the App Intents execution path requires a validated bundle (a code signature with a Team Identifier), so an ad-hoc / unsigned build can never run a SimpleZip action — the system rejects the connection and Shortcuts reports "couldn't communicate with the app." The actions still get registered with the system and keep showing up in the Shortcuts app (the app can't remove them from there), so instead of hiding the in-app section, Settings → Automation now shows it with a clear "unavailable" notice, and the Health pane flags Shortcuts & Siri with a yellow warning explaining why. Everything returns to normal automatically on a properly signed build. The CLI, URL scheme, Finder services and Spotlight channels are unaffected.
+- **Turning the AI assistant off now hides its buttons right away.** AI entry points — the inline advisories in the create/extract dialogs, the "explain this" buttons on reports and failed tasks, and the AI search fields — used to re-check the master switch only when their view happened to rebuild, so toggling it in Settings didn't make them appear or disappear until something else redrew. They now react to the switch the instant it changes.
 
 ## 0.4.4
 

@@ -28,7 +28,8 @@ struct InlineAIAdvisory: View {
     @State private var reloadNonce = 0
 
     var body: some View {
-        if AIReportAssistant.isReady {
+        // #76:统一走 AIGate —— 主开关一关即时消失(原先 `if isReady` 对开关不响应)。
+        AIGate {
             content.task(id: "\(token)#\(reloadNonce)") { await run() }
         }
     }

@@ -1345,6 +1345,10 @@
 "diagnostics.general.title" = "Instantánea de diagnóstico";
 "diagnostics.general.exported" = "Exportado a “%@”.";
 "health.scratchVolume.title" = "Volumen temporal cifrado";
+"health.shortcuts.title" = "Atajos y Siri";
+"health.shortcuts.unavailable" = "Esta compilación no tiene firma de desarrollador de Apple, por lo que las acciones de Atajos y Siri no pueden ejecutarse. Siguen apareciendo en la app Atajos, pero informan de un error de comunicación.";
+"health.shortcuts.ok" = "Las acciones de Atajos y Siri están disponibles.";
+"health.openAutomation" = "Abrir Automatización";
 "health.scratchVolume.ok" = "Montado — los archivos temporales descifrados/extraídos viven en un volumen AES-256 en %@ y se destruyen al salir.";
 "health.scratchVolume.notMounted" = "No montado. Los archivos temporales vuelven al directorio temporal normal, donde el texto claro puede tocar el disco.";
 "health.scratchVolume.remount" = "Volver a montar ahora";
@@ -2338,6 +2342,7 @@
 "settings.automation.cache.status.empty" = "Todavía no se ha recordado nada";
 "settings.automation.shortcuts.open" = "Abrir Atajos";
 "settings.automation.shortcuts.actions" = "Cada ejecución de Atajos aparece en vivo en el Centro de actividad, etiquetada con su origen. Los archivos cifrados nunca muestran avisos en Atajos.";
+"settings.automation.shortcuts.unavailable" = "Esta compilación no está firmada con un ID de desarrollador de Apple, por lo que estas acciones y Siri no pueden ejecutarse: la app Atajos las sigue mostrando, pero informan de un error de comunicación. Funcionarán automáticamente cuando se instale una compilación firmada correctamente.";
 "settings.automation.urlScheme.section" = "Esquema URL";
 "settings.automation.urlScheme.title" = "Comandos simplezip://";
 "settings.automation.urlScheme.description" = "Otras apps y scripts pueden pedir a SimpleZip que pruebe, compare o abra archivos. Solo se aceptan rutas absolutas.";

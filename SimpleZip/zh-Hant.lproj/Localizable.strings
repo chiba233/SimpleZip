@@ -1398,6 +1398,10 @@
 "settings.folderInlineExpansion" = "資料夾原位展開";
 "settings.folderInlineExpansion.description" = "目錄列帶展開箭頭，可像 Finder 一樣在列表內展開內容。關閉則回到純平鋪列表。";
 "health.scratchVolume.title" = "加密臨時卷";
+"health.shortcuts.title" = "捷徑與 Siri";
+"health.shortcuts.unavailable" = "這個建置沒有 Apple 開發者簽章,捷徑動作和 Siri 無法執行。它們仍出現在「捷徑」App 裡,但會回報「無法與 App 通訊」。";
+"health.shortcuts.ok" = "捷徑動作和 Siri 可用。";
+"health.openAutomation" = "打開自動化";
 "health.scratchVolume.ok" = "已掛載 —— 解密 / 解壓的臨時檔案落在 %@ 的 AES-256 加密卷上，退出即銷毀。";
 "health.scratchVolume.notMounted" = "未掛載。臨時檔案會回落到普通臨時目錄，明文可能落盤。";
 "health.scratchVolume.remount" = "立即重新掛載";
@@ -2340,6 +2344,7 @@
 "settings.automation.cache.status.empty" = "尚無記錄";
 "settings.automation.shortcuts.open" = "打開捷徑";
 "settings.automation.shortcuts.actions" = "每次捷徑執行都會即時顯示在活動中心，並標記來源。加密封存檔在捷徑中絕不彈窗詢問。";
+"settings.automation.shortcuts.unavailable" = "這個建置沒有 Apple 開發者簽章,這些動作和 Siri 無法執行——「捷徑」App 裡仍會列出它們,但會回報「無法與 App 通訊」。安裝正確簽章的建置後會自動恢復。";
 "settings.automation.urlScheme.section" = "URL 配置";
 "settings.automation.urlScheme.title" = "simplezip:// 命令";
 "settings.automation.urlScheme.description" = "其他 app 和腳本可要求 SimpleZip 測試、比較或開啟封存檔。只接受絕對路徑。";

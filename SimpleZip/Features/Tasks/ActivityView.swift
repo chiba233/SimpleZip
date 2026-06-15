@@ -133,6 +133,8 @@ struct ActivityView: View {
                 HelpPane()
             } else if selectedPane == .workspace {
                 // 0.4.4 #15:临时工作区(hero 头 + grouped Form,与设置 pane 同款骨架)。
+                // #79:hero 与 Form 同装进一条钉宽 720 的列、整列居中 —— 宽窗/全屏下 Form 不再自己跑去居中、
+                // 把 hero 甩在左上(用户报「活动中心工作区/设置也有同样错位」)。两者同宽同列,横向对齐。
                 VStack(spacing: 0) {
                     HStack {
                         paneHero(selectedPane)
@@ -143,10 +145,13 @@ struct ActivityView: View {
                     .padding(.bottom, 4)
                     workspaceView
                 }
+                .frame(maxWidth: 720, maxHeight: .infinity)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if selectedPane == .settings {
                 // 设置页用系统设置同款 grouped Form —— 自带滚动与顶部安全区处理，
                 // 修掉「点设置后内容往上错位」（之前是裸 VStack，不像 List/Form 那样吃标题栏 inset）。
                 // #17:顶部加同款 hero 头(Form 本体维持设置区已验收的原生样式)。
+                // #79:同工作区 —— hero + Form 装进钉宽 720 的居中列,宽窗/全屏下两者一起居中、横向对齐。
                 VStack(spacing: 0) {
                     HStack {
                         paneHero(selectedPane)
@@ -157,6 +162,8 @@ struct ActivityView: View {
                     .padding(.bottom, 4)
                     activitySettingsView
                 }
+                .frame(maxWidth: 720, maxHeight: .infinity)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let category = selectedPane.category {
                 VStack(spacing: 0) {
                     HStack {
@@ -167,7 +174,7 @@ struct ActivityView: View {
                         Spacer()
                         filterMenu(for: category)
                         sourceFilterMenu
-                        if AIReportAssistant.isReady {
+                        AIGate {
                             aiFilterButton
                         }
                         // F4:队列级暂停/恢复 —— 暂停态下即使任务跑完也保持可见(不然没法恢复闸门)。

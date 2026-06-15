@@ -1398,6 +1398,10 @@
 "settings.folderInlineExpansion" = "フォルダをその場で展開";
 "settings.folderInlineExpansion.description" = "フォルダ行に開閉用の山形が付き、Finder 風にリスト内で内容を展開できます。フラットな一覧にするにはオフにします。";
 "health.scratchVolume.title" = "暗号化一時ボリューム";
+"health.shortcuts.title" = "ショートカットと Siri";
+"health.shortcuts.unavailable" = "このビルドには Apple Developer 署名がないため、ショートカットの操作と Siri は実行できません。ショートカット App には表示されますが、通信エラーになります。";
+"health.shortcuts.ok" = "ショートカットの操作と Siri を利用できます。";
+"health.openAutomation" = "オートメーションを開く";
 "health.scratchVolume.ok" = "マウント済み — 復号/展開された一時ファイルは %@ の AES-256 ボリューム上に置かれ、終了時に破棄されます。";
 "health.scratchVolume.notMounted" = "マウントされていません。一時ファイルは通常の一時ディレクトリに戻り、平文がディスクに触れる可能性があります。";
 "health.scratchVolume.remount" = "今すぐ再マウント";
@@ -2340,6 +2344,7 @@
 "settings.automation.cache.status.empty" = "まだ記録はありません";
 "settings.automation.shortcuts.open" = "ショートカットを開く";
 "settings.automation.shortcuts.actions" = "ショートカットの実行はすべて、出所タグ付きでアクティビティセンターにリアルタイム表示されます。暗号化アーカイブはショートカット内で確認ダイアログを出しません。";
+"settings.automation.shortcuts.unavailable" = "このビルドには Apple Developer 署名がないため、これらの操作と Siri は実行できません。ショートカット App には表示されますが、「Appと通信できません」と表示されます。正しく署名されたビルドをインストールすると自動的に利用可能になります。";
 "settings.automation.urlScheme.section" = "URL スキーム";
 "settings.automation.urlScheme.title" = "simplezip:// コマンド";
 "settings.automation.urlScheme.description" = "他のアプリやスクリプトから、SimpleZip にアーカイブのテスト、比較、オープンを依頼できます。絶対パスのみ受け付けます。";

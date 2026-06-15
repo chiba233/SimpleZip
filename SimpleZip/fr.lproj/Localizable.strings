@@ -1345,6 +1345,10 @@
 "diagnostics.general.title" = "Instantané de diagnostic";
 "diagnostics.general.exported" = "Exporté vers « %@ ».";
 "health.scratchVolume.title" = "Volume temporaire chiffré";
+"health.shortcuts.title" = "Raccourcis et Siri";
+"health.shortcuts.unavailable" = "Cette version n'a pas de signature Apple Developer ; les actions Raccourcis et Siri ne peuvent donc pas s'exécuter. Elles apparaissent toujours dans l'app Raccourcis mais signalent une erreur de communication.";
+"health.shortcuts.ok" = "Les actions Raccourcis et Siri sont disponibles.";
+"health.openAutomation" = "Ouvrir Automatisation";
 "health.scratchVolume.ok" = "Monté — les fichiers temporaires déchiffrés/extraits vivent sur un volume AES-256 à %@ et sont détruits à la fermeture.";
 "health.scratchVolume.notMounted" = "Non monté. Les fichiers temporaires reviennent au dossier temporaire normal, où le texte clair peut toucher le disque.";
 "health.scratchVolume.remount" = "Remonter maintenant";
@@ -2338,6 +2342,7 @@
 "settings.automation.cache.status.empty" = "Rien de mémorisé pour l’instant";
 "settings.automation.shortcuts.open" = "Ouvrir Raccourcis";
 "settings.automation.shortcuts.actions" = "Chaque exécution Raccourcis apparaît en direct dans le centre d’activité, avec sa source. Les archives chiffrées ne demandent jamais de mot de passe dans Raccourcis.";
+"settings.automation.shortcuts.unavailable" = "Cette version n'est pas signée avec un identifiant Apple Developer ; ces actions et Siri ne peuvent donc pas s'exécuter — l'app Raccourcis les affiche toujours, mais elles signalent une erreur de communication. Elles fonctionneront automatiquement une fois une version correctement signée installée.";
 "settings.automation.urlScheme.section" = "Schéma d’URL";
 "settings.automation.urlScheme.title" = "Commandes simplezip://";
 "settings.automation.urlScheme.description" = "D’autres apps et scripts peuvent demander à SimpleZip de tester, comparer ou ouvrir des archives. Seuls les chemins absolus sont acceptés.";

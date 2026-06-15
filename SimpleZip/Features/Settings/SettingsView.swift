@@ -9,6 +9,7 @@
 //  系统材质（macOS 26 上自动玻璃化），少掉一整套自绘 chrome。
 //
 
+import AppKit
 import SwiftUI
 
 /// 设置窗口的主容器：原生侧栏 + 当前选中的 pane。
@@ -22,6 +23,9 @@ struct SettingsView: View {
     @State private var aiSettingsQuery = ""
     @State private var aiSettingsRunning = false
     @State private var aiSettingsError: String?
+    // 打开设置时别把键盘焦点自动塞给 AI 搜索框(用户报「一开设置光标永远在搜索框，不合理」)。
+    // 绑定 @FocusState、默认不聚焦 → SwiftUI 接管焦点、不再让它当窗口首响应者;用户点一下才进。
+    @FocusState private var aiSearchFieldFocused: Bool
 
     var body: some View {
         // 弃用 NavigationSplitView：macOS 上它的把手照样能把侧栏拖塌（constant(.all) 拦不住）、
@@ -30,7 +34,7 @@ struct SettingsView: View {
         HStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 6) {
                 Spacer(minLength: 12)
-                if AIReportAssistant.isReady {
+                AIGate {
                     aiSettingsSearchField
                 }
                 ForEach(SettingsPane.allCases) { pane in
@@ -62,14 +66,16 @@ struct SettingsView: View {
             selectedPaneView
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        // 0.4.5 #79:定宽不定高 —— 宽度钉死(minWidth==maxWidth),高度可拉。
-        // 设置内容是单列 Form,横向拉伸只会撑出留白;纵向给用户滚动空间。
-        // 940 介于旧 idealWidth 980 与 minWidth 880 之间,够放最长 pane 名 + Form 行(全 10 语种);
-        // 侧栏 fixedSize 自适应,不会成为瓶颈。
+        // 0.4.5 #79:宽高都可自由缩放 + 可全屏(用户要求,对齐活动中心)。窗口能缩放靠 Settings 场景的
+        // .windowResizability(.contentMinSize)(见 SimpleZipApp);这里把上限放开到 .infinity 让用户随意拉大。
+        // 默认高度抬高(用户反馈「现在有点矮,hero 还占了一截」):idealHeight 780→860(+80),最小高 640→700,
+        // 连最矮也不憋屈。最小宽 940 仍保证最长 pane 名 + Form 行在全 10 语种下不截断;默认宽不变(940),
+        // 侧栏 fixedSize 自适应、主区吸收多余宽度。全屏由 SettingsWindowConfigurator 补 .fullScreenPrimary。
         .frame(
-            minWidth: 940, idealWidth: 940, maxWidth: 940,
-            minHeight: 640, idealHeight: 780, maxHeight: .infinity
+            minWidth: 940, idealWidth: 940, maxWidth: .infinity,
+            minHeight: 700, idealHeight: 860, maxHeight: .infinity
         )
+        .background(SettingsWindowConfigurator())
         .navigationTitle(L10n.text("settings.title"))
         // 0.4.2 深链：菜单栏「关于 SimpleZip」等入口直接定位到指定 pane。
         .onAppear {
@@ -94,6 +100,7 @@ struct SettingsView: View {
                     .foregroundStyle(.purple)
                 TextField(L10n.text("settings.aiSearch.prompt"), text: $aiSettingsQuery)
                     .textFieldStyle(.plain)
+                    .focused($aiSearchFieldFocused)
                     .onSubmit { Task { await runAISettingsSearch() } }
                     .onChange(of: aiSettingsQuery) { _ in aiSettingsError = nil }
                 if aiSettingsRunning { ProgressView().controlSize(.mini) }
@@ -164,18 +171,21 @@ struct SettingsView: View {
             // 沉浸式(#79):hero 头作为 Form 的顶部安全区 inset 钉住 —— Form 本体仍占满整个沉浸区
             // (内容滚动从 hero 下方穿过、毛玻璃铺到透明标题栏顶),不再被外层 VStack 的顶部安全区
             // 下推(那会杀掉 bleed,把 hero 顶进标题栏下方的死带)。对齐活动中心 grouped Form 吃 inset 的行为。
-            paneContent(pane)
-                .safeAreaInset(edge: .top, spacing: 0) {
-                    HStack {
-                        paneHero(pane)
-                        Spacer(minLength: 0)
-                    }
-                    .padding(.horizontal, 22)
-                    .padding(.top, 16)
-                    .padding(.bottom, 4)
-                    // 钉住的 hero 条压在滚动内容之上:用标题栏同款材质垫底,grouped Form 行滚到下面时仍清晰可读。
-                    .background(.bar)
+            // #79:居中 + 沉浸 —— hero 与 Form 同为一条钉宽 720 的 VStack 的两个子节点,一起居中、对齐(safeAreaInset
+            // 那条路会让 hero 跟随外层整宽被甩到左,已排除)。沉浸由窗口 chrome 提供(SettingsWindowConfigurator:
+            // fullSizeContentView + 透明标题栏 + 去分隔线),内容铺到顶、消除标题栏色带 —— 去掉这套则到处露色带。
+            VStack(spacing: 0) {
+                HStack {
+                    paneHero(pane)
+                    Spacer(minLength: 0)
                 }
+                .padding(.horizontal, 22)
+                .padding(.top, 16)
+                .padding(.bottom, 4)
+                paneContent(pane)
+            }
+            .frame(maxWidth: 720, maxHeight: .infinity)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             paneContent(pane)
         }
@@ -239,5 +249,40 @@ struct SettingsView: View {
         case .about:
             AboutPane()
         }
+    }
+}
+
+/// 把承载「设置」内容的 NSWindow 配成可全屏(对齐活动中心)。
+///
+/// `Settings` 场景配上 `.windowResizability(.contentMinSize)`(见 SimpleZipApp)后已能自由缩放,但它的
+/// `collectionBehavior` 默认不含 `.fullScreenPrimary` —— 绿钮只给「缩放」不给「全屏」。这里在内容挂上窗口后
+/// 补 `.fullScreenPrimary`(并确保 `.resizable` 样式位),让绿钮提供全屏。只触达自身承载窗口(`view.window`),
+/// 从不枚举或改动其它窗口;OptionSet 重复插入幂等。
+private struct SettingsWindowConfigurator: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        DispatchQueue.main.async {
+            Self.configureChrome(view.window)
+            // 只在初次挂载清一次初始焦点(用户报:一开设置光标永远在 AI 搜索框)。@FocusState 压不住 AppKit
+            // 的自动首响应者选择 —— 再延一拍,等 AppKit 选完,把 first responder 清掉。**不**放进 updateNSView,
+            // 否则用户点了搜索框会被反复夺走焦点。
+            DispatchQueue.main.async { view.window?.makeFirstResponder(nil) }
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async { Self.configureChrome(nsView.window) }
+    }
+
+    private static func configureChrome(_ window: NSWindow?) {
+        guard let window else { return }
+        window.styleMask.insert(.resizable)
+        // 沉浸 chrome(对齐活动中心):内容铺满标题栏下方 + 透明标题栏 + 去掉标题栏分隔线 —— 缺这套,标准标题栏
+        // 会在各处露出一条不沉浸的色带(用户实测「去掉后任何情况都有标题栏」)。分隔线很可能正是那条「带」的主因。
+        window.styleMask.insert(.fullSizeContentView)
+        window.titlebarAppearsTransparent = true
+        window.titlebarSeparatorStyle = .none
+        window.collectionBehavior.insert(.fullScreenPrimary)
     }
 }
