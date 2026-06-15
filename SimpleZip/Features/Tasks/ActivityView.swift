@@ -1148,7 +1148,9 @@ final class ActivityWindowState: ObservableObject {
     }
 }
 
-private extension OperationTask {
+extension OperationTask {
+    /// 任务 → AI 任务记录(脱敏派生)。供活动中心 AI 工作台**和** #89 后台发现编排者(AIWorkspaceDiscoveryCoordinator)
+    /// 复用。内部辅助仍 file-private。
     var aiTaskRecord: AITaskRecord {
         AITaskRecord.make(
             id: id.uuidString,

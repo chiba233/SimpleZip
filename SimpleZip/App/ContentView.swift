@@ -789,6 +789,9 @@ struct ContentView: View {
     private func handleMainViewAppear() {
         ExternalFileOpenQueue.shared.drain().forEach(openExternalURL)
         FinderServiceActionQueue.shared.drain().forEach(handleFinderServiceAction)
+        // 0.4.5 #89:启动后台发现编排者(与当前文件夹无关 —— 从全局数据层生成跨位置推荐 AI 工作区)。
+        // 重复调用安全;订阅任务历史变化自动重跑(A17:不挂导航/reload 路径)。
+        AIWorkspaceDiscoveryCoordinator.shared.activate()
         // 独立浮窗「在主窗口打开」.szs：已验签报告直达，直接进虚拟目录浏览，不再重弹验签 sheet。
         if let request = openSZSVirtualFolderOnAppear {
             model.openSZSAsVirtualFolder(
