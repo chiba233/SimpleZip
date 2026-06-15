@@ -81,7 +81,7 @@ nonisolated enum AIWorkspaceThemeEngine {
         tokenOverlapThreshold: Double = 0.34
     ) -> [AIWorkspaceThemeCandidate] {
         guard pool.count >= minClusterSize else { return [] }
-        let items = pool.map { Indexed(candidate: $0, tokens: nameTokens($0.displayName)) }
+        let items = pool.map { Indexed(candidate: $0, tokens: linkTokens(for: $0)) }
 
         // 并查集:按语义边连通(与遍历序无关 → 划分确定性)。
         var uf = UnionFind(items.count)
@@ -205,6 +205,18 @@ nonisolated enum AIWorkspaceThemeEngine {
     }
 
     // MARK: - 工具
+
+    /// 一个候选用于连通的 token 集 = displayName 拆出的 token ∪ 候选自带的 `semanticTokens`(已脱敏的关联
+    /// 文件名 / 内容关键词 / marker;同样过停用词 / 长度过滤)。
+    private static func linkTokens(for candidate: AIVirtualNodeCandidate) -> Set<String> {
+        var tokens = nameTokens(candidate.displayName)
+        for raw in candidate.semanticTokens {
+            let t = raw.lowercased()
+            guard t.count >= 2, !stopwords.contains(t), t.contains(where: { !$0.isNumber }) else { continue }
+            tokens.insert(t)
+        }
+        return tokens
+    }
 
     /// 把展示名拆成低敏语义 token(去扩展名、小写、按非字母数字切、丢纯数字 / 停用词 / <2 字符;CJK 复合词整体保留)。
     private static func nameTokens(_ displayName: String) -> Set<String> {

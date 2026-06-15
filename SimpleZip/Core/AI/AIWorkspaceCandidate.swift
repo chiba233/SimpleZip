@@ -49,13 +49,17 @@ nonisolated struct AIVirtualNodeCandidate: Codable, Equatable, Sendable {
     let location: AILocationContext?
     let relatedTaskIDs: [String]
     let relatedArchiveIDs: [String]
+    /// 额外的低敏语义 token —— 用于跨位置聚类时**补充** displayName 拆出的 token(如任务的关联文件名 token、
+    /// 文件的内容关键词 / marker)。显示用 displayName,连通用 displayName token ∪ 这些。脱敏后传入,绝不含路径。
+    let semanticTokens: [String]
     let scoreSignals: [String]
     let evidence: [AIEvidenceFact]
 
     init(id: String, kind: AIVirtualNode.Kind, displayName: String,
          sourceRefs: [AIContextSourceRef] = [], roleTags: [String] = [],
          location: AILocationContext? = nil, relatedTaskIDs: [String] = [],
-         relatedArchiveIDs: [String] = [], scoreSignals: [String] = [], evidence: [AIEvidenceFact] = []) {
+         relatedArchiveIDs: [String] = [], semanticTokens: [String] = [],
+         scoreSignals: [String] = [], evidence: [AIEvidenceFact] = []) {
         self.id = id
         self.kind = kind
         self.displayName = displayName
@@ -64,6 +68,7 @@ nonisolated struct AIVirtualNodeCandidate: Codable, Equatable, Sendable {
         self.location = location
         self.relatedTaskIDs = relatedTaskIDs
         self.relatedArchiveIDs = relatedArchiveIDs
+        self.semanticTokens = semanticTokens
         self.scoreSignals = scoreSignals
         self.evidence = evidence
     }
