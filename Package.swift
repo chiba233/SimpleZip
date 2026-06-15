@@ -65,6 +65,7 @@ let package = Package(
                 "Core/ArchiveSalvage.swift",
                 "Core/ArchiveSearch.swift",
                 "Core/AIWorkspaceQueryPlan.swift",
+                "Core/AIWorkspaceCandidate.swift",
                 "Core/AIWorkspaceModel.swift",
                 "Core/ArchiveCheckup.swift",
                 "Core/ArchiveRiskScore.swift",

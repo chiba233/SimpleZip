@@ -272,4 +272,18 @@ nonisolated enum AIStableHash {
         }
         return String(format: "%08x", hash)
     }
+
+    /// 把一个稳定 id 字符串确定性映射成 UUID(同输入逐次一致)。用于把字符串候选 id 落成需要 `UUID` 的
+    /// 虚拟节点 id —— 这样虚拟树可在无 `Date`/`随机` 的前提下完全可复现、可单测。**非加密用途**:
+    /// 由 4 段不同盐的 FNV-1a 拼成 16 字节,非 RFC 4122 v4,只为稳定身份。
+    static func deterministicUUID(_ string: String) -> UUID {
+        let segments = (0..<4).map { fnv1a32Hex(string + "#\($0)") }
+        let hex = segments.joined()  // 32 个十六进制字符
+        let i = hex.startIndex
+        func slice(_ from: Int, _ to: Int) -> Substring {
+            hex[hex.index(i, offsetBy: from)..<hex.index(i, offsetBy: to)]
+        }
+        let formatted = "\(slice(0, 8))-\(slice(8, 12))-\(slice(12, 16))-\(slice(16, 20))-\(slice(20, 32))"
+        return UUID(uuidString: formatted) ?? UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
+    }
 }
