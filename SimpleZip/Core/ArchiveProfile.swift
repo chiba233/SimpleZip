@@ -75,7 +75,9 @@ nonisolated struct ArchiveProfile: Codable, Equatable, Sendable {
         } else {
             topLevelShape = "scattered_files"
         }
+        // 审计 #6:顶层名也过文件名 secret 脱敏(目录可能叫 `password=x` 之类)。
         let topLevelNames = Array(topDirs.union(looseFiles).sorted().prefix(budget.maxSamplesPerGroup))
+            .map(AISensitiveRedactor.redactFileNameSecrets)
 
         // 扩展名分布。
         var extCounts: [String: Int] = [:]

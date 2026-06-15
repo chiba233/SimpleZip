@@ -63,6 +63,28 @@ import Testing
         #expect(ActivityTaskAIIndex.jsonl(records).text == ActivityTaskAIIndex.jsonl(records).text)
     }
 
+    @Test func titleWithSecretFormIsRedacted() {
+        let r = AITaskRecord.make(id: "t", category: "archive", kind: "test", source: "app", status: "failed",
+                                  title: "Testing password=hunter2.7z", startedAt: nil, finishedAt: nil)
+        #expect(r.title.contains("hunter2") == false)
+    }
+
+    @Test func encryptedSourceTitleDropsEntryNames() {
+        let r = AITaskRecord.make(id: "t", category: "archive", kind: "rename", source: "app", status: "succeeded",
+                                  title: "Renaming “client-secrets.env” → “prod.env”",
+                                  startedAt: nil, finishedAt: nil, encryptedSource: true)
+        #expect(!r.title.contains("client-secrets.env"))
+        #expect(!r.title.contains("prod.env"))
+        #expect(r.title.contains("encrypted"))
+    }
+
+    @Test func durationNeverNegative() {
+        let r = AITaskRecord.make(id: "t", category: "x", kind: "x", source: "app", status: "x", title: "x",
+                                  startedAt: Date(timeIntervalSince1970: 100),
+                                  finishedAt: Date(timeIntervalSince1970: 50))
+        #expect(r.durationSeconds == 0)
+    }
+
     @Test func cleanTaskHasNoDiagnosticTags() {
         let r = sample(status: "succeeded", failure: nil, raw: "Everything is Ok")
         #expect(r.diagnostics.tags.isEmpty)

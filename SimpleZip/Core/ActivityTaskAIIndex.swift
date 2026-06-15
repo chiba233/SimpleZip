@@ -87,6 +87,7 @@ extension AITaskRecord {
         failureSeen: Bool = false,
         awaitedConcurrencySlot: Bool = false,
         waitedForWriteLock: Bool = false,
+        encryptedSource: Bool = false,
         budget: AIBudget = .activityFilter
     ) -> AITaskRecord {
         let errorLines = rawOutput
@@ -117,10 +118,18 @@ extension AITaskRecord {
 
         let duration: Int?
         if let started = startedAt, let finished = finishedAt {
-            duration = Int(finished.timeIntervalSince(started).rounded())
+            // 审计 #12:finishedAt 早于 startedAt(时钟回拨等)时夹到 0,不出负数。
+            duration = max(0, Int(finished.timeIntervalSince(started).rounded()))
         } else {
             duration = nil
         }
+
+        // 审计 #1(CRITICAL):标题之前裸传进 AI JSON —— 会泄漏加密归档条目名 / secret 形态文件名。
+        // 非加密源:过 redact(抓 key=value secret 形态)+ clamp;加密源:整体降级成不含名字的通用标签
+        // (redact 抓不到普通条目名,而加密归档条目名是硬红线;语义信息已在 category/kind/status 字段里)。
+        let safeTitle = encryptedSource
+            ? "\(kind) on encrypted archive"
+            : budget.clampText(AISensitiveRedactor.redact(title))
 
         return AITaskRecord(
             id: id,
@@ -128,7 +137,7 @@ extension AITaskRecord {
             kind: kind,
             source: source,
             status: status,
-            title: title,
+            title: safeTitle,
             startedAt: startedAt.map(Self.iso),
             finishedAt: finishedAt.map(Self.iso),
             durationSeconds: duration,

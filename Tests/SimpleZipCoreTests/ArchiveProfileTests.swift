@@ -97,6 +97,12 @@ import Testing
         #expect(ArchiveProfile.derive(from: []).structure.topLevelShape == "empty")
     }
 
+    @Test func topLevelNameSecretsAreRedacted() {
+        // 审计 #6:顶层目录名若是 secret 形态,画像也要脱敏。
+        let profile = ArchiveProfile.derive(from: [item("password=leak.txt/inner.txt")])
+        #expect(!profile.structure.topLevelNames.joined().contains("leak"))
+    }
+
     @Test func deterministicAcrossRuns() {
         let items = [item("App/Package.swift"), item("App/a.swift"), item("App/b.swift")]
         #expect(ArchiveProfile.derive(from: items) == ArchiveProfile.derive(from: items))
