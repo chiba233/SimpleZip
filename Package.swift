@@ -73,6 +73,7 @@ let package = Package(
                 "Core/AI/AISuggestionBus.swift",
                 "Core/AI/AISystemWorkspaceFacts.swift",
                 "Core/AI/AITaskPlan.swift",
+                "Core/AI/AITimeSemantics.swift",
                 "Core/AI/AIUserInterestEvent.swift",
                 "Core/AI/AIVersionRelation.swift",
                 "Core/AI/ActivityTaskAIIndex.swift",
