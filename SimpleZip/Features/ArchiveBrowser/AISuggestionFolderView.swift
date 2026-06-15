@@ -60,8 +60,8 @@ struct AISuggestionFolderView: View {
     private var resolvedRows: [Row] {
         let snapshot = AISystemWorkspaceFactsBuilder.snapshot(
             kind: kind,
-            tasks: (taskCenter.active + taskCenter.history).map(\.aiWorkspaceFact),
-            archives: cachedArchives.map(\.aiWorkspaceFact))
+            tasks: (taskCenter.active + taskCenter.history).map { $0.aiWorkspaceFact },
+            archives: cachedArchives.map { $0.aiWorkspaceFact })
         let tasksByID = Dictionary(
             (taskCenter.active + taskCenter.history).map { ($0.id.uuidString, $0) },
             uniquingKeysWith: { first, _ in first })

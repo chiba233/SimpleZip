@@ -418,10 +418,11 @@ struct DevToolsView: View {
     }
 
     private func aiWorkspaceFactsSnapshots() async -> [AISystemWorkspaceFactsSnapshot] {
-        let tasks = (TaskCenter.shared.active + TaskCenter.shared.history).map(\.aiWorkspaceFact)
-        let archives = await Task.detached(priority: .utility) {
-            ArchiveListingCacheStore().loadAll().map(\.aiWorkspaceFact)
+        let tasks = (TaskCenter.shared.active + TaskCenter.shared.history).map { $0.aiWorkspaceFact }
+        let cachedArchives = await Task.detached(priority: .utility) {
+            ArchiveListingCacheStore().loadAll()
         }.value
+        let archives = cachedArchives.map { $0.aiWorkspaceFact }
         return AISystemWorkspaceKind.allCases.map {
             AISystemWorkspaceFactsBuilder.snapshot(kind: $0, tasks: tasks, archives: archives)
         }
