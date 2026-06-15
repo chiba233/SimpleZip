@@ -54,6 +54,15 @@ struct SimpleZipApp: App {
                 }
             }
 
+            // 0.4.5:设置改由自建窗口(SettingsWindowController)打开,不再用 SwiftUI `Settings` 场景。
+            // 手动补回 App 菜单的「设置…」⌘,(放在「关于」组之后 = 系统设置项的标准落位)。
+            CommandGroup(after: .appInfo) {
+                Button(L10n.text("settings.title")) {
+                    SettingsWindowController.shared.show()
+                }
+                .keyboardShortcut(",", modifiers: .command)
+            }
+
             CommandGroup(replacing: .help) {
                 // 「检查更新…」放在帮助菜单顶部 —— Sparkle 推荐的位置，
                 // 也是 macOS 应用（VS Code / Sketch 等）常见落位。
@@ -76,14 +85,6 @@ struct SimpleZipApp: App {
             }
         }
 
-        Settings {
-            SettingsView()
-        }
-        // 0.4.5 #79:让设置窗口宽高都可自由缩放(用户要求,对齐活动中心)。
-        // .contentMinSize = 以内容下限为最小尺寸、允许往大拉(默认开在内容 ideal 尺寸);
-        // 配合 SettingsView 的 frame 上限 .infinity。全屏由 SettingsView 内
-        // SettingsWindowConfigurator 给承载窗口补 .fullScreenPrimary 实现。
-        .windowResizability(.contentMinSize)
     }
 }
 

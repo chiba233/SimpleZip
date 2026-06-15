@@ -166,8 +166,6 @@ extension Notification.Name {
     /// 「跳到设置的某个 pane」：菜单栏「关于 SimpleZip」、各处「打开设置」入口共用 —— 多发布者，
     /// 满足 A3 的通知使用条件。object = 目标 `SettingsPane`。
     static let openSettingsPane = Notification.Name("SimpleZip.openSettingsPane")
-    /// 「把设置窗口打开」—— 由主窗口的 SettingsOpenerBridge 用官方 openSettings 处理（macOS 14+）。
-    static let openSettingsWindowRequest = Notification.Name("SimpleZip.openSettingsWindowRequest")
     /// #29:在某个 pane 里把具体设置项滚到可见并短暂高亮。object = 锚点 id 字符串(`.settingsAnchor(_:)` 注册的同一串)。
     static let scrollToSettingsAnchor = Notification.Name("SimpleZip.scrollToSettingsAnchor")
 }
@@ -182,23 +180,11 @@ enum SettingsDeepLink {
 
     /// 打开设置窗口并定位到 `pane`(可选再滚到其中某个设置项 `anchor` 并高亮)。
     ///
-    /// **开窗主路径 = SettingsOpenerBridge**（主窗口挂的隐形桥，用官方 `@Environment(\.openSettings)`）——
-    /// 私有 selector `showSettingsWindow:` 在 macOS 26 上已失效（用户实测菜单栏「关于」点了没反应）。
-    /// 旧 selector 只作兜底（macOS 13 / 主窗口全关时桥不在）。三路都幂等：设置已开就只是提前+切页。
+    /// 0.4.5:统一走自建 `SettingsWindowController`(自己持有 NSWindow,沉浸 chrome 创建时设一次、永不被 SwiftUI
+    /// 重置)。它内部处理:首开时把 pending pane / anchor 交给 `SettingsView.onAppear` / `settingsScrollAnchors` 消费,
+    /// 已开着则发 `.openSettingsPane` 即时切页 + 延时滚锚点。
     static func open(_ pane: SettingsPane, anchor: String? = nil) {
-        pendingPane = pane
-        pendingAnchor = anchor
-        NotificationCenter.default.post(name: .openSettingsWindowRequest, object: nil)
-        if !NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil) {
-            _ = NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
-        }
-        NotificationCenter.default.post(name: .openSettingsPane, object: pane)
-        // 已开着同 pane 的即时定位:延一拍等 pane 切换 / 内容布局完再发滚动通知(没这个锚点的 pane 收到 = no-op)。
-        if let anchor {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                NotificationCenter.default.post(name: .scrollToSettingsAnchor, object: anchor)
-            }
-        }
+        SettingsWindowController.shared.show(pane: pane, anchor: anchor)
     }
 
     static func consumePending() -> SettingsPane? {
@@ -290,27 +276,5 @@ extension View {
 // NavigationSplitView + List(selection:)，选中态 / hover / 材质全部交给系统。
 
 
-/// 主窗口底下的隐形桥：收到 `.openSettingsWindowRequest` 就用官方 openSettings 开设置窗口。
-/// 必须挂在**普通窗口**的视图树里（environment action 只在视图上下文可用，Commands 里拿不到）。
-struct SettingsOpenerBridge: View {
-    var body: some View {
-        if #available(macOS 14.0, *) {
-            SettingsOpenerBridgeModern()
-        } else {
-            Color.clear.frame(width: 0, height: 0)
-        }
-    }
-}
-
-@available(macOS 14.0, *)
-private struct SettingsOpenerBridgeModern: View {
-    @Environment(\.openSettings) private var openSettings
-
-    var body: some View {
-        Color.clear
-            .frame(width: 0, height: 0)
-            .onReceive(NotificationCenter.default.publisher(for: .openSettingsWindowRequest)) { _ in
-                openSettings()
-            }
-    }
-}
+// 0.4.5:SettingsOpenerBridge / openSettings 已删 —— 设置改由 SettingsWindowController 自建窗口打开,
+// 不再依赖 SwiftUI `Settings` 场景(根治「重开 / 全屏 沉浸爆炸」与标题栏白条)。

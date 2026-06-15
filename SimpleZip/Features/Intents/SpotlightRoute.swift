@@ -196,7 +196,7 @@ enum SpotlightTapDispatcher {
         lastIdentifier = identifier
         lastTime = now
         NSApp.activate(ignoringOtherApps: true)
-        // 冷启动:窗口 / SettingsOpenerBridge 可能还没就绪 —— 延一拍再跳。
+        // 冷启动:窗口可能还没就绪 —— 延一拍再跳(SettingsWindowController.show 会按需建窗,深链照样落地)。
         DispatchQueue.main.async { route.perform() }
     }
 }

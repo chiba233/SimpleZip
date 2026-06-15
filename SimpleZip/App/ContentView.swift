@@ -1433,8 +1433,6 @@ private struct ArchiveExtrasSheets: ViewModifier {
                     model.virtualExportRequest = nil
                 }
             }
-            // 设置开窗桥（0.4.2）：菜单栏「关于」等深链入口靠它用官方 openSettings 开窗。
-            .background(SettingsOpenerBridge())
     }
 }
 

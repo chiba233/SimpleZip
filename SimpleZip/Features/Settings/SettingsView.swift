@@ -64,18 +64,16 @@ struct SettingsView: View {
                 .ignoresSafeArea()
 
             selectedPaneView
+                // 居中:About 等固定布局分区在窗口里垂直居中(用户要「关于要居中」)。之前「爆掉」是因为窗口能被拉到
+                // 比内容还矮、居中后上下裁切 —— 现已给内容定了最小宽高(见上方 body 的 .frame),窗口不会短于内容,
+                // 居中不再溢出。hero 分区的 Form 本就填满高度,居中对它无影响。
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        // 0.4.5 #79:宽高都可自由缩放 + 可全屏(用户要求,对齐活动中心)。窗口能缩放靠 Settings 场景的
-        // .windowResizability(.contentMinSize)(见 SimpleZipApp);这里把上限放开到 .infinity 让用户随意拉大。
-        // 默认高度抬高(用户反馈「现在有点矮,hero 还占了一截」):idealHeight 780→860(+80),最小高 640→700,
-        // 连最矮也不憋屈。最小宽 940 仍保证最长 pane 名 + Form 行在全 10 语种下不截断;默认宽不变(940),
-        // 侧栏 fixedSize 自适应、主区吸收多余宽度。全屏由 SettingsWindowConfigurator 补 .fullScreenPrimary。
-        .frame(
-            minWidth: 940, idealWidth: 940, maxWidth: .infinity,
-            minHeight: 700, idealHeight: 860, maxHeight: .infinity
-        )
-        .background(SettingsWindowConfigurator())
+        // 0.4.5:设置改由 SettingsWindowController 自建 NSWindow 托管(缩放/全屏/沉浸 chrome 在那边一次设定、永不被
+        // SwiftUI 重置)。这里必须给**内容**定出最小宽高 —— NSHostingController 据此驱动窗口最小尺寸,窗口才不会被拉到
+        // 比这更窄/矮(只设 window.minSize 不够:设 contentViewController 时会按内容约束重算,没内容下限就允许拉窄,
+        // 布局行为不一致)。最小宽 940 保证最长 pane 名 + Form 行在全 10 语种下不截断。
+        .frame(minWidth: 940, maxWidth: .infinity, minHeight: 700, maxHeight: .infinity)
         .navigationTitle(L10n.text("settings.title"))
         // 0.4.2 深链：菜单栏「关于 SimpleZip」等入口直接定位到指定 pane。
         .onAppear {
@@ -172,7 +170,7 @@ struct SettingsView: View {
             // (内容滚动从 hero 下方穿过、毛玻璃铺到透明标题栏顶),不再被外层 VStack 的顶部安全区
             // 下推(那会杀掉 bleed,把 hero 顶进标题栏下方的死带)。对齐活动中心 grouped Form 吃 inset 的行为。
             // #79:居中 + 沉浸 —— hero 与 Form 同为一条钉宽 720 的 VStack 的两个子节点,一起居中、对齐(safeAreaInset
-            // 那条路会让 hero 跟随外层整宽被甩到左,已排除)。沉浸由窗口 chrome 提供(SettingsWindowConfigurator:
+            // 那条路会让 hero 跟随外层整宽被甩到左,已排除)。沉浸由窗口 chrome 提供(SettingsWindowController 建窗时一次设定:
             // fullSizeContentView + 透明标题栏 + 去分隔线),内容铺到顶、消除标题栏色带 —— 去掉这套则到处露色带。
             VStack(spacing: 0) {
                 HStack {
@@ -252,37 +250,60 @@ struct SettingsView: View {
     }
 }
 
-/// 把承载「设置」内容的 NSWindow 配成可全屏(对齐活动中心)。
+/// 设置窗口控制器:自建 NSWindow 托管 `SettingsView`。
 ///
-/// `Settings` 场景配上 `.windowResizability(.contentMinSize)`(见 SimpleZipApp)后已能自由缩放,但它的
-/// `collectionBehavior` 默认不含 `.fullScreenPrimary` —— 绿钮只给「缩放」不给「全屏」。这里在内容挂上窗口后
-/// 补 `.fullScreenPrimary`(并确保 `.resizable` 样式位),让绿钮提供全屏。只触达自身承载窗口(`view.window`),
-/// 从不枚举或改动其它窗口;OptionSet 重复插入幂等。
-private struct SettingsWindowConfigurator: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView(frame: .zero)
-        DispatchQueue.main.async {
-            Self.configureChrome(view.window)
-            // 只在初次挂载清一次初始焦点(用户报:一开设置光标永远在 AI 搜索框)。@FocusState 压不住 AppKit
-            // 的自动首响应者选择 —— 再延一拍,等 AppKit 选完,把 first responder 清掉。**不**放进 updateNSView,
-            // 否则用户点了搜索框会被反复夺走焦点。
-            DispatchQueue.main.async { view.window?.makeFirstResponder(nil) }
+/// 为什么不用 SwiftUI `Settings` 场景:它给的是**不可缩放的偏好窗**,要做成「可缩放 + 全屏 + 沉浸」必须手动覆盖
+/// 标题栏 chrome,而 SwiftUI 会在**重开 / 进全屏**时用自己那套配置把覆盖冲掉 → 标题栏色带(白条)反复冒出
+/// (用户实测「第一次正常、第二次打开就爆」)。自己持有窗口 → chrome 创建时设一次、永不被冲(与活动中心同款,一直稳)。
+@MainActor
+final class SettingsWindowController {
+    static let shared = SettingsWindowController()
+    private var window: NSWindow?
+
+    private init() {}
+
+    /// 打开设置窗(可选定位到某 pane + 滚到某锚点)。已开着就切 pane / 滚锚点并前置;没开就建窗。
+    func show(pane: SettingsPane? = nil, anchor: String? = nil) {
+        // pane / anchor 复用现成深链机制:首次开窗时由 SettingsView.onAppear / settingsScrollAnchors 消费。
+        if let pane { SettingsDeepLink.pendingPane = pane }
+        if let anchor { SettingsDeepLink.pendingAnchor = anchor }
+
+        if let window {
+            // 已开着:发通知即时切 pane(SettingsView 在监听 .openSettingsPane);锚点延一拍等布局完再滚。
+            if let pane { NotificationCenter.default.post(name: .openSettingsPane, object: pane) }
+            if let anchor {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                    NotificationCenter.default.post(name: .scrollToSettingsAnchor, object: anchor)
+                }
+            }
+            NSApp.activate(ignoringOtherApps: true)
+            window.makeKeyAndOrderFront(nil)
+            return
         }
-        return view
-    }
 
-    func updateNSView(_ nsView: NSView, context: Context) {
-        DispatchQueue.main.async { Self.configureChrome(nsView.window) }
-    }
-
-    private static func configureChrome(_ window: NSWindow?) {
-        guard let window else { return }
-        window.styleMask.insert(.resizable)
-        // 沉浸 chrome(对齐活动中心):内容铺满标题栏下方 + 透明标题栏 + 去掉标题栏分隔线 —— 缺这套,标准标题栏
-        // 会在各处露出一条不沉浸的色带(用户实测「去掉后任何情况都有标题栏」)。分隔线很可能正是那条「带」的主因。
-        window.styleMask.insert(.fullSizeContentView)
+        // 沉浸 chrome 一次设定(对齐活动中心,创建后永不改):fullSizeContentView + 透明标题栏 + 去分隔线;
+        // 可缩放 + 可全屏;tabbingMode=.disallowed —— 偏好窗不该并窗口标签(否则任务期临时窗口会并进来冒白条)。
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 980, height: 860),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = L10n.text("settings.title")
+        window.titleVisibility = .visible
         window.titlebarAppearsTransparent = true
         window.titlebarSeparatorStyle = .none
+        window.tabbingMode = .disallowed
         window.collectionBehavior.insert(.fullScreenPrimary)
+        window.minSize = NSSize(width: 940, height: 700)
+        window.contentViewController = NSHostingController(rootView: SettingsView())
+        window.isReleasedWhenClosed = false
+        window.level = .normal
+        window.center()
+        window.makeKeyAndOrderFront(nil)
+        // 别让 AI 搜索框抢初始焦点(用户报:一开设置光标永远在搜索框)。延一拍等 hosting view 布局完再清。
+        DispatchQueue.main.async { window.makeFirstResponder(nil) }
+        self.window = window
+        NSApp.activate(ignoringOtherApps: true)
     }
 }
