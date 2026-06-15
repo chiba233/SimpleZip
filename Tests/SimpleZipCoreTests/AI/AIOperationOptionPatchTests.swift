@@ -17,7 +17,11 @@ import Testing
     @Test func createFieldPolicies() {
         #expect(AIOperationFieldCatalog.policy(scope: .create, fieldID: "compressionLevel") == .safeAutoApply)
         #expect(AIOperationFieldCatalog.policy(scope: .create, fieldID: "reproducibleArchive") == .safeAutoApply)
-        #expect(AIOperationFieldCatalog.policy(scope: .create, fieldID: "encryptionMethod") == .cautiousAutoApply)
+        #expect(AIOperationFieldCatalog.policy(scope: .create, fieldID: "destinationExtensionFix") == .cautiousAutoApply)
+        // 加密保护 / 分卷相关绝不自动改(只建议) —— 对抗审计 HIGH 回归。
+        #expect(AIOperationFieldCatalog.policy(scope: .create, fieldID: "encryptionMethod") == .suggestOnly)
+        #expect(AIOperationFieldCatalog.policy(scope: .create, fieldID: "sevenZipEncryptFileNames") == .suggestOnly)
+        #expect(AIOperationFieldCatalog.policy(scope: .create, fieldID: "sevenZipVolumeSize") == .suggestOnly)
         #expect(AIOperationFieldCatalog.policy(scope: .create, fieldID: "password") == .suggestOnly)
         #expect(AIOperationFieldCatalog.policy(scope: .create, fieldID: "gpgSymmetricPassphrase") == .suggestOnly)
         #expect(AIOperationFieldCatalog.policy(scope: .create, fieldID: "sevenZipDeleteSourceFiles") == .suggestOnly)
@@ -43,9 +47,26 @@ import Testing
         #expect(!AIOperationFieldCatalog.allowsAutoApply(scope: .create, fieldID: "compressionLevel", mode: .suggestOnly))
         #expect(AIOperationFieldCatalog.allowsAutoApply(scope: .create, fieldID: "compressionLevel", mode: .autoApplySafe))
         #expect(AIOperationFieldCatalog.allowsAutoApply(scope: .create, fieldID: "compressionLevel", mode: .autoApplyAggressive))
-        // cautiousAutoApply 字段:仅 aggressive 可自动。
-        #expect(!AIOperationFieldCatalog.allowsAutoApply(scope: .create, fieldID: "encryptionMethod", mode: .autoApplySafe))
-        #expect(AIOperationFieldCatalog.allowsAutoApply(scope: .create, fieldID: "encryptionMethod", mode: .autoApplyAggressive))
+        // cautiousAutoApply 字段:仅 aggressive 可自动(用无安全风险的 destinationExtensionFix 验证)。
+        #expect(!AIOperationFieldCatalog.allowsAutoApply(scope: .create, fieldID: "destinationExtensionFix", mode: .autoApplySafe))
+        #expect(AIOperationFieldCatalog.allowsAutoApply(scope: .create, fieldID: "destinationExtensionFix", mode: .autoApplyAggressive))
+    }
+
+    @Test func encryptionFieldsNeverAutoApplyEvenAggressive() {
+        // 对抗审计 HIGH 回归:即使密码已存在、fromValue 匹配、用户没 touch、模式 aggressive,
+        // encryptionMethod(AES-256→ZipCrypto 降级)与 sevenZipEncryptFileNames(关闭文件名加密)
+        // 也绝不能自动应用,只进 suggestOnly。
+        let patch = AIOperationOptionPatch(scope: .create, patchID: "p", title: "t", changes: [
+            change("encryptionMethod", from: "aes256", to: "zipcrypto"),
+            change("sevenZipEncryptFileNames", from: "true", to: "false"),
+        ])
+        let r = AIOperationAutoTuneEngine.resolve(
+            patch, mode: .autoApplyAggressive,
+            currentValues: ["password": "hunter2", "encryptionMethod": "aes256",
+                            "sevenZipEncryptFileNames": "true"],
+            userTouchedFields: [])
+        #expect(r.autoApply.isEmpty)
+        #expect(Set(r.suggestOnly.map { $0.fieldID }) == ["encryptionMethod", "sevenZipEncryptFileNames"])
     }
 
     @Test func suggestOnlyFieldsNeverAutoApplyInAnyMode() {
@@ -54,6 +75,7 @@ import Testing
             (.create, "password"), (.create, "gpgRecipientFingerprints"), (.create, "gpgSymmetricPassphrase"),
             (.create, "sevenZipDeleteSourceFiles"), (.create, "rawParameters"), (.create, "customExcludes"),
             (.create, "destinationURL"),
+            (.create, "encryptionMethod"), (.create, "sevenZipEncryptFileNames"), (.create, "sevenZipVolumeSize"),
             (.extract, "password"), (.extract, "gpgDecryptionPassphrase"),
             (.extract, "trashOriginalWhenDone"), (.extract, "destinationURL"),
         ]

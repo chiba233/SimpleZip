@@ -43,6 +43,14 @@ import Testing
         #expect(AIInterventionGate.level(for: input) == .inlineHint)
     }
 
+    @Test func autoExtractClampHoldsEvenWhenUserRequestedAI() {
+        // 对抗审计 MEDIUM 回归:userRequestedAI 也不能突破自动解压天花板。
+        let input = AIInterventionGateInput(
+            surface: .extractDialog, source: "finder", suspiciousEntryCount: 9,
+            finderAutoExtract: true, userRequestedAI: true)
+        #expect(AIInterventionGate.level(for: input) == .inlineHint)
+    }
+
     @Test func suspiciousPathInDialogEscalatesToCards() {
         let input = AIInterventionGateInput(
             surface: .extractDialog, source: "app", suspiciousEntryCount: 1)

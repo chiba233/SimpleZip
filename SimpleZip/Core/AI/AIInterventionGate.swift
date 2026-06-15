@@ -104,22 +104,25 @@ nonisolated enum AIInterventionGate {
 
     /// 判定本次该用哪一级介入强度。
     ///
-    /// 规则(优先级自上而下):
-    /// 1. 用户主动打开 AI 中心 / 工作区 / Lens → `adviceCards`(允许重型 UI)。
-    /// 2. 有真实风险信号或命中高价值角色:
-    ///    - 自动解压路径 → `inlineHint`(克制,不弹重型面板打断自动流);
-    ///    - 否则 → `adviceCards`。
-    /// 3. 自动解压且无风险 → `silent`(绝不打断)。
-    /// 4. Finder 来源无风险(双击小包浏览) → `statusOnly`。
-    /// 5. 其余(app 内打开对话框) → `inlineHint`(一行速览)。
+    /// **自动解压(`finderAutoExtract`)是绝对天花板**:无论何种路径(含用户主动要 AI),最多 `inlineHint`,
+    /// 绝不打断自动流 —— 这道钳制统一加在最外层,避免任何分支漏掉它(对抗审计发现过 `userRequestedAI`
+    /// 先于钳制返回 `adviceCards` 的绕过)。
     static func level(for input: AIInterventionGateInput) -> AIInterventionLevel {
+        let raw = unclampedLevel(for: input)
+        if input.finderAutoExtract { return min(raw, .inlineHint) }
+        return raw
+    }
+
+    /// 未经自动解压钳制的原始强度。
+    /// 1. 用户主动打开 AI 中心 / 工作区 / Lens → `adviceCards`。
+    /// 2. 有真实风险信号或命中高价值角色 → `adviceCards`。
+    /// 3. 自动解压且无风险 → `silent`。
+    /// 4. Finder 来源无风险(双击小包浏览) → `statusOnly`。
+    /// 5. 其余(app 内打开对话框) → `inlineHint`。
+    private static func unclampedLevel(for input: AIInterventionGateInput) -> AIInterventionLevel {
         if input.userRequestedAI { return .adviceCards }
-
         let elevatedRole = !Set(input.archiveRoleTags).isDisjoint(with: elevatedRoles)
-        if input.hasRiskSignal || elevatedRole {
-            return input.finderAutoExtract ? .inlineHint : .adviceCards
-        }
-
+        if input.hasRiskSignal || elevatedRole { return .adviceCards }
         if input.finderAutoExtract { return .silent }
         if input.source == "finder" { return .statusOnly }
         return .inlineHint

@@ -65,11 +65,15 @@ nonisolated enum AIOperationFieldCatalog {
         "sevenZipStoreHardLinks": .safeAutoApply,
         "sevenZipCompressSharedFiles": .safeAutoApply,
         "reproducibleArchive": .safeAutoApply,
-        // 谨慎自动改(仅 aggressive + 前置条件)。
-        "encryptionMethod": .cautiousAutoApply,        // 仅用户已启用密码时才按格式改算法
-        "sevenZipEncryptFileNames": .cautiousAutoApply, // 仅用户已启用密码
-        "sevenZipVolumeSize": .cautiousAutoApply,       // 可建议,谨慎写具体值
-        "destinationExtensionFix": .cautiousAutoApply,  // 只修输出文件扩展名,不改目录
+        // 谨慎自动改(仅 aggressive,无安全 / 工作流风险的字段)。
+        "destinationExtensionFix": .cautiousAutoApply,  // 只修输出文件扩展名匹配格式,不改目录
+        // 加密保护 / 分卷相关:**绝不自动改,只能建议**。对抗审计发现:若放进 cautious 档,aggressive 模式会
+        // 在无确认下把 encryptionMethod 从 AES-256 降级成已破解的 ZipCrypto、或把 sevenZipEncryptFileNames
+        // 开→关(泄露条目名)——尤其密码来自 preset / 上次会话、用户本会话没 touch 时最危险。这类「削弱加密
+        // 保护」的方向永远 suggestOnly;sevenZipVolumeSize 自动写具体分卷大小也会误伤工作流。
+        "encryptionMethod": .suggestOnly,
+        "sevenZipEncryptFileNames": .suggestOnly,
+        "sevenZipVolumeSize": .suggestOnly,
         // 只能建议、绝不自动改。
         "password": .suggestOnly,
         "passwordConfirmation": .suggestOnly,
