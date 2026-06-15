@@ -16,8 +16,12 @@
 
 import Foundation
 
-/// 受控动作枚举 —— AI 不能产任意 Swift 动作。全部是只读「打开 / 定位 / 搜索 / 解释」级别。
+/// 受控动作枚举 —— AI 不能产任意 Swift 动作,只能从这里选,且引用必经候选集校验。白皮书建议四扩写后,
+/// 它要覆盖 SimpleZip 原生工具入口(哈希 / 创建 / 测试 / 转换 / 发布检查 / 用某 App 打开)和 AI 文件夹的
+/// 虚拟管理(合并 / 拆分 / 移除引用 / 移动虚拟节点),**也包含真实硬盘的复制 / 删除** —— 但这些写盘 /
+/// 删除动作一律 `requiresConfirmation`,只能打开现有确认流程,绝不自动执行、绝不当 primary(见 `safety`)。
 nonisolated enum AISuggestionAction: Codable, Equatable, Sendable {
+    // 只读 / 导航 / 解释(直接安全)。
     case openTask(UUID)
     case openFolder(path: String)
     case revealFile(path: String)
@@ -26,11 +30,71 @@ nonisolated enum AISuggestionAction: Codable, Equatable, Sendable {
     case openReport(taskID: UUID)
     case explainFailure(taskID: UUID)
     case openActivityCenter
+    case applySelection(paths: [String])
+    case revealSourceRefsInFinder(sourceRefs: [AIContextSourceRef])
+    case openWithApplication(sourceRefs: [AIContextSourceRef], bundleIdentifier: String)
+
+    // AI 文件夹 / 推荐主题虚拟管理(不碰硬盘文件)。
     case pinRecommendedWorkspace(UUID)
     case dismissRecommendedWorkspace(UUID)
+    case setWorkspacePreferredOpenApp(workspaceID: UUID, bundleIdentifier: String?)
+    case mergeAIWorkspaces(sourceWorkspaceIDs: [UUID], title: String)
+    case splitAIWorkspace(workspaceID: UUID, groups: [AIWorkspaceSplitGroup])
+    case removeSourceRefsFromAIWorkspace(workspaceID: UUID, sourceRefs: [AIContextSourceRef])
+    case moveVirtualNodes(workspaceID: UUID, nodeIDs: [String], destinationVirtualFolderID: String)
+    case addSourceRefsToAIWorkspace(workspaceID: UUID, sourceRefs: [AIContextSourceRef])
+    case addThemePromptToAIWorkspace(workspaceID: UUID, prompt: String)
+    case deleteAIWorkspace(workspaceID: UUID)
 
-    /// 全部直接安全(只读 / 导航 / 搜索 / 解释)。没有任何写文件 / 改设置的 case —— 那些动作不进这个枚举。
-    var isDirectlySafe: Bool { true }
+    // 工具入口 / 只读增强(打开现有确认 / 表单 / 任务流程,不自动执行)。
+    case calculateHash(paths: [String], algorithms: [String])
+    case calculateHashForEvidence(sourceRefs: [AIContextSourceRef], algorithms: [String])
+    case createArchive(paths: [String])
+    case createArchiveFromSuggestion(paths: [String], suggestedFormat: String?, suggestedPresetID: String?)
+    case testArchive(path: String)
+    case testArchiveForEvidence(sourceRef: AIContextSourceRef)
+    case convertArchive(path: String)
+    case inspectRelease(path: String)
+    case refreshArchiveListingForEvidence(sourceRef: AIContextSourceRef)
+    case copySourceRefsToFolder(sourceRefs: [AIContextSourceRef], destination: String)
+
+    // 真实硬盘删除 —— 最高危。destructive + requiresConfirmation,绝不自动 / 绝不当 primary。
+    case deleteSourceRefsFromDisk(sourceRefs: [AIContextSourceRef])
+
+    /// 按 case 的安全姿态。写盘 / 启动后端任务的动作 `requiresConfirmation`;删盘动作额外 `destructive`。
+    var safety: AISuggestionSafety {
+        switch self {
+        // 只读 / 导航 / 虚拟管理 —— 直接安全。
+        case .openTask, .openFolder, .revealFile, .openArchive, .applyArchiveSearch, .openReport,
+             .explainFailure, .openActivityCenter, .applySelection, .revealSourceRefsInFinder,
+             .openWithApplication, .pinRecommendedWorkspace, .dismissRecommendedWorkspace,
+             .setWorkspacePreferredOpenApp, .mergeAIWorkspaces, .splitAIWorkspace,
+             .removeSourceRefsFromAIWorkspace, .moveVirtualNodes, .addSourceRefsToAIWorkspace,
+             .addThemePromptToAIWorkspace:
+            return .safe
+        // 启动后端任务 / 打开写盘表单 / 复制真实文件 / 删工作区 —— 需确认,只能打开现有流程。
+        case .calculateHash, .calculateHashForEvidence, .createArchive, .createArchiveFromSuggestion,
+             .testArchive, .testArchiveForEvidence, .convertArchive, .inspectRelease,
+             .refreshArchiveListingForEvidence, .copySourceRefsToFolder, .deleteAIWorkspace:
+            return AISuggestionSafety(requiresConfirmation: true,
+                                      reason: "opens an existing confirm/sheet/task flow")
+        // 真实硬盘删除 —— 破坏性 + 强确认。
+        case .deleteSourceRefsFromDisk:
+            return AISuggestionSafety(destructive: true, requiresConfirmation: true,
+                                      reason: "deletes real files; user must confirm explicitly")
+        }
+    }
+
+    /// 直接安全 = 不破坏、不碰加密内容、不需确认(只读 / 导航 / 虚拟管理)。
+    var isDirectlySafe: Bool {
+        !safety.destructive && !safety.touchesEncryptedContent && !safety.requiresConfirmation
+    }
+
+    /// 破坏性(删盘)—— 绝不能当 primaryAction,绝不自动执行。
+    var isDestructive: Bool { safety.destructive }
+
+    /// 需要用户确认(写盘 / 启动任务 / 删工作区 / 删盘)。
+    var requiresConfirmation: Bool { safety.requiresConfirmation }
 }
 
 /// 一条建议 / 节点的安全姿态。v1 要求 `destructive == false && touchesEncryptedContent == false`。
@@ -105,6 +169,12 @@ nonisolated struct AIVirtualNode: Identifiable, Codable, Equatable, Sendable {
         AIVirtualNode(id: id, kind: kind, title: title, subtitle: subtitle, reason: reason,
                       confidence: confidence, sourceRefs: sourceRefs, children: newChildren,
                       primaryAction: primaryAction, secondaryActions: secondaryActions, safety: safety)
+    }
+
+    func withPrimaryAction(_ action: AISuggestionAction?) -> AIVirtualNode {
+        AIVirtualNode(id: id, kind: kind, title: title, subtitle: subtitle, reason: reason,
+                      confidence: confidence, sourceRefs: sourceRefs, children: children,
+                      primaryAction: action, secondaryActions: secondaryActions, safety: safety)
     }
 }
 
@@ -280,6 +350,9 @@ nonisolated struct AIWorkspaceSplitGroup: Codable, Equatable, Sendable {
 nonisolated enum AIVirtualTreeSanitizer {
     /// 丢弃:① 安全标记不合 v1(destructive / touchesEncryptedContent)的节点;② 非 group 节点引用了候选集外
     /// source ref 的节点;③ 清洗后变空的 group(空组无意义)。递归处理子树。
+    /// **安全硬化(白皮书 1198)**:破坏性动作(删盘)绝不能当节点 primaryAction —— 若某节点 primaryAction
+    /// 是 destructive,剥离它(节点保留,仍可在右键菜单作为带强确认的次级动作出现),防止「模型自动建议成
+    /// primary 后被一键执行」。
     static func sanitize(_ nodes: [AIVirtualNode], allowed: Set<AIContextSourceRef>) -> [AIVirtualNode] {
         nodes.compactMap { node in
             guard node.safety.isAllowedInV1 else { return nil }
@@ -288,7 +361,8 @@ nonisolated enum AIVirtualTreeSanitizer {
             }
             let children = sanitize(node.children, allowed: allowed)
             if node.kind == .group, children.isEmpty, node.sourceRefs.isEmpty { return nil }
-            return node.replacingChildren(children)
+            let safePrimary = (node.primaryAction?.isDestructive == true) ? node.withPrimaryAction(nil) : node
+            return safePrimary.replacingChildren(children)
         }
     }
 }
