@@ -70,6 +70,7 @@ let package = Package(
                 "Core/ArchiveListingCache.swift",
                 "Core/ArchiveMemoryIndex.swift",
                 "Core/ArchiveModels.swift",
+                "Core/ArchivePasswordContextHint.swift",
                 "Core/ArchiveEntryUpdate.swift",
                 "Core/ArchiveWriteGate.swift",
                 "Core/ChecksumFile.swift",
