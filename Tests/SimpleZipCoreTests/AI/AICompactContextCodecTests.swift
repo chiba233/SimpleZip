@@ -99,4 +99,60 @@ import Testing
         #expect(Set(AICompactContextCodec.v1.keys.values).count == AICompactContextCodec.v1.keys.count)
         #expect(Set(AICompactContextCodec.v1.values.values).count == AICompactContextCodec.v1.values.count)
     }
+
+    // MARK: - 边界三:key 命名空间 / 碰撞 + field-aware value 展开(白皮书工程补充一)
+
+    @Test func compactionRefusesKeyCollision() throws {
+        // 同层同时有 "facts"(→"f")和字面量 "f" → 压缩会让 "f" 互相覆盖,必须退回未压缩。
+        let payload: [String: Any] = [
+            "facts": ["diagnosticTags": Array(repeating: "checksum-mismatch", count: 100)],
+            "f": "literal-collision",
+        ]
+        let json = String(decoding: try JSONSerialization.data(
+            withJSONObject: payload, options: [.sortedKeys]), as: UTF8.self)
+        #expect(json.utf8.count >= AICompactContextCodec.minBytesToCompress)
+        let result = AICompactContextCodec.compact(json)
+        #expect(result.compacted == false)   // 碰撞 → 不压缩
+        #expect(result.json == json)         // 原样返回,不产出被覆盖的错 JSON
+    }
+
+    @Test func expandDoesNotRewriteUserFilenameNamedMV() throws {
+        // 用户文件名 "mv" 在非枚举字段(displayName)下,绝不能被展开成 "missing-volume"。
+        let json = #"{"facts":{"displayName":"mv","dt":["mv"]}}"#
+        let expanded = AICompactContextCodec.expand(json)
+        let obj = try JSONSerialization.jsonObject(with: Data(expanded.utf8)) as! [String: Any]
+        let facts = obj["facts"] as! [String: Any]
+        #expect(facts["displayName"] as? String == "mv")                  // 用户文件名原样
+        #expect(facts["diagnosticTags"] as? [String] == ["missing-volume"]) // 枚举字段下才展开
+    }
+
+    @Test func expandOnlyRewritesKnownEnumFields() throws {
+        let json = #"{"facts":{"dt":["csm"],"displayName":"csm","archiveName":"npw"}}"#
+        let obj = try JSONSerialization.jsonObject(
+            with: Data(AICompactContextCodec.expand(json).utf8)) as! [String: Any]
+        let facts = obj["facts"] as! [String: Any]
+        #expect(facts["diagnosticTags"] as? [String] == ["checksum-mismatch"])  // 枚举字段:展开
+        #expect(facts["displayName"] as? String == "csm")                       // 用户文本:不动
+        #expect(facts["archiveName"] as? String == "npw")                       // 用户文本:不动
+    }
+
+    @Test func compactExpandRoundTripPreservesDisplayNameAndArchiveName() throws {
+        let payload: [String: Any] = [
+            "facts": [
+                "displayName": "mv",          // 文件名恰好等于枚举短 token
+                "archiveName": "csm",
+                "diagnosticTags": Array(repeating: "checksum-mismatch", count: 100),
+            ],
+        ]
+        let json = String(decoding: try JSONSerialization.data(
+            withJSONObject: payload, options: [.sortedKeys]), as: UTF8.self)
+        let compacted = AICompactContextCodec.compact(json)
+        #expect(compacted.compacted)
+        let obj = try JSONSerialization.jsonObject(
+            with: Data(AICompactContextCodec.expand(compacted.json).utf8)) as! [String: Any]
+        let facts = obj["facts"] as! [String: Any]
+        #expect(facts["displayName"] as? String == "mv")    // 往返不被改写
+        #expect(facts["archiveName"] as? String == "csm")
+        #expect((facts["diagnosticTags"] as? [String])?.first == "checksum-mismatch") // 枚举仍正确往返
+    }
 }
