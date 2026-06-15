@@ -59,6 +59,7 @@ let package = Package(
                 "Core/AI/AIReleaseChecklist.swift",
                 "Core/AI/AISchemaMigration.swift",
                 "Core/AI/AISearchRewrite.swift",
+                "Core/AI/AISecurityAttention.swift",
                 "Core/AI/AISemanticTag.swift",
                 "Core/AI/AIStartupSuggestion.swift",
                 "Core/AI/AISuggestionBus.swift",
