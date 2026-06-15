@@ -67,6 +67,7 @@ nonisolated struct AIVirtualNode: Identifiable, Codable, Equatable, Sendable {
         case task
         case report
         case action
+        case automation
         case note
     }
 
@@ -79,11 +80,14 @@ nonisolated struct AIVirtualNode: Identifiable, Codable, Equatable, Sendable {
     let sourceRefs: [AIContextSourceRef]
     let children: [AIVirtualNode]
     let primaryAction: AISuggestionAction?
+    /// 次级动作(白皮书建议四扩写:一个节点除主动作外可挂若干次级动作,如「在 Finder 显示 / 复制到… / 不感兴趣」)。
+    let secondaryActions: [AISuggestionAction]
     let safety: AISuggestionSafety
 
     init(id: UUID, kind: Kind, title: String, subtitle: String? = nil, reason: String? = nil,
          confidence: Double = 1.0, sourceRefs: [AIContextSourceRef] = [], children: [AIVirtualNode] = [],
-         primaryAction: AISuggestionAction? = nil, safety: AISuggestionSafety = .safe) {
+         primaryAction: AISuggestionAction? = nil, secondaryActions: [AISuggestionAction] = [],
+         safety: AISuggestionSafety = .safe) {
         self.id = id
         self.kind = kind
         self.title = title
@@ -93,14 +97,61 @@ nonisolated struct AIVirtualNode: Identifiable, Codable, Equatable, Sendable {
         self.sourceRefs = sourceRefs
         self.children = children
         self.primaryAction = primaryAction
+        self.secondaryActions = secondaryActions
         self.safety = safety
     }
 
     func replacingChildren(_ newChildren: [AIVirtualNode]) -> AIVirtualNode {
         AIVirtualNode(id: id, kind: kind, title: title, subtitle: subtitle, reason: reason,
                       confidence: confidence, sourceRefs: sourceRefs, children: newChildren,
-                      primaryAction: primaryAction, safety: safety)
+                      primaryAction: primaryAction, secondaryActions: secondaryActions, safety: safety)
     }
+}
+
+/// 一个工作区打开后加载 / 缓存的虚拟文件夹树(白皮书建议四:`AIVirtualFolderTree`)。内容区直接渲染
+/// 它的 `nodes`,不再用私有扁平 `Node`。是可持久化 / 可缓存的派生结果(工程补充三「虚拟树缓存」)——
+/// 只缓存 source refs 和展示文案,迁移失败可丢弃重建。
+nonisolated struct AIVirtualFolderTree: Identifiable, Codable, Equatable, Sendable {
+    let id: UUID
+    let workspaceID: UUID
+    let title: String
+    let prompt: String?
+    /// 生成时间(由 App 传入,Core 不取 wall-clock)。
+    let generatedAt: Date
+    let nodes: [AIVirtualNode]
+    /// 本树提供的全部可回查引用集合 —— 节点引用必须落在这里(经 `AIVirtualTreeSanitizer` 校验)。
+    let sourceRefs: [AIContextSourceRef]
+    let omissions: [AIContextOmission]
+
+    init(id: UUID, workspaceID: UUID, title: String, prompt: String? = nil, generatedAt: Date,
+         nodes: [AIVirtualNode] = [], sourceRefs: [AIContextSourceRef] = [],
+         omissions: [AIContextOmission] = []) {
+        self.id = id
+        self.workspaceID = workspaceID
+        self.title = title
+        self.prompt = prompt
+        self.generatedAt = generatedAt
+        self.nodes = nodes
+        self.sourceRefs = sourceRefs
+        self.omissions = omissions
+    }
+
+    /// 显示前清洗:用本树自带的 `sourceRefs` 作为候选集过 `AIVirtualTreeSanitizer`,丢弃发明引用 /
+    /// 不安全 / 空组节点。返回清洗后的新树(安全 > 完整)。
+    func sanitized() -> AIVirtualFolderTree {
+        let cleaned = AIVirtualTreeSanitizer.sanitize(nodes, allowed: Set(sourceRefs))
+        return AIVirtualFolderTree(id: id, workspaceID: workspaceID, title: title, prompt: prompt,
+                                   generatedAt: generatedAt, nodes: cleaned, sourceRefs: sourceRefs,
+                                   omissions: omissions)
+    }
+
+    /// 树里(含子树)节点总数 —— 首屏预算 / 「显示更多」判断用。
+    var totalNodeCount: Int {
+        func count(_ ns: [AIVirtualNode]) -> Int { ns.reduce(0) { $0 + 1 + count($1.children) } }
+        return count(nodes)
+    }
+
+    var isEmpty: Bool { nodes.isEmpty }
 }
 
 /// 一个工作区(系统 / 用户创建 / 推荐)。打开后加载一棵虚拟树。保存稳定的 query plan(Feat 6),
