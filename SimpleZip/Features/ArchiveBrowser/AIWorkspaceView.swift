@@ -12,6 +12,7 @@
 //  空状态。系统级「失败任务 / 最近归档」这类纯活动中心镜像已删除,不再作为 AI 工作区。
 //
 
+import AppKit
 import SwiftUI
 
 struct AIWorkspaceView: View {
@@ -39,13 +40,36 @@ struct AIWorkspaceView: View {
             if let tree, !tree.isEmpty {
                 List {
                     ForEach(tree.nodes) { node in
-                        AIVirtualNodeRow(model: model, node: node, depth: 0)
+                        AIVirtualNodeRow(node: node, depth: 0) { dispatch($0) }
                     }
                 }
                 .listStyle(.inset)
             } else {
                 emptyState
             }
+        }
+    }
+
+    /// 节点主动作 → 现有 App 流程(只读 / 导航)。当前虚拟树只产出这些安全动作;写盘 / 启动任务类动作
+    /// (接动作候选后)必须回原生确认流,不在此直接执行。
+    private func dispatch(_ action: AISuggestionAction) {
+        switch action {
+        case .openTask(let id), .openReport(taskID: let id), .explainFailure(taskID: let id):
+            ActivityWindowController.shared.show(locateTaskID: id)
+        case .openActivityCenter:
+            ActivityWindowController.shared.show()
+        case .openFolder(let path):
+            model.openFolder(URL(fileURLWithPath: path))
+        case .revealFile(let path):
+            NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
+        case .openArchive(let path, let revealEntry):
+            let url = URL(fileURLWithPath: path)
+            if let entry = revealEntry, !entry.isEmpty { model.openArchive(url, revealEntryPath: entry) }
+            else { model.openArchive(url) }
+        case .revealSourceRefsInFinder, .applySelection, .openWithApplication, .applyArchiveSearch:
+            break   // 需路径 / 选择上下文,后续接动作候选时补
+        default:
+            break   // 写盘 / 启动任务类:回原生确认流(接动作候选时扩),不在虚拟树里直接执行
         }
     }
 
@@ -98,32 +122,47 @@ struct AIWorkspaceView: View {
     }
 }
 
-/// 虚拟树单行(read-only)。指针类节点显示标题 + 理由 + 主动作图标按钮;group 递归展开。
-/// 安全:任何写文件动作只打开现有确认 / 任务流程,绝不在此直接执行(节点已过 `AIVirtualTreeSanitizer`)。
+/// 虚拟树单行(read-only)。指针类节点带主动作 → 点击执行(只打开 / 定位,绝不写盘);group 递归展开。
+/// 安全:写文件动作只回原生确认 / 任务流程,绝不在此直接执行(节点已过 `AIVirtualTreeSanitizer`)。
 private struct AIVirtualNodeRow: View {
-    @ObservedObject var model: ArchiveBrowserModel
     let node: AIVirtualNode
     let depth: Int
+    let onAction: (AISuggestionAction) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 8) {
-                Image(systemName: node.kind.symbolName)
-                    .foregroundStyle(.secondary)
-                    .frame(width: 16)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(node.title).lineLimit(1).truncationMode(.middle)
-                    if let subtitle = node.subtitle, !subtitle.isEmpty {
-                        Text(subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                    }
-                }
-                Spacer(minLength: 8)
+            if let action = node.primaryAction {
+                Button { onAction(action) } label: { rowContent }
+                    .buttonStyle(.plain)
+            } else {
+                rowContent
             }
-            .padding(.leading, CGFloat(depth) * 16)
             ForEach(node.children) { child in
-                AIVirtualNodeRow(model: model, node: child, depth: depth + 1)
+                AIVirtualNodeRow(node: child, depth: depth + 1, onAction: onAction)
             }
         }
+    }
+
+    private var rowContent: some View {
+        HStack(spacing: 8) {
+            Image(systemName: node.kind.symbolName)
+                .foregroundStyle(node.kind == .group ? .primary : Color.secondary)
+                .frame(width: 16)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(node.title)
+                    .font(node.kind == .group ? .callout.weight(.semibold) : .callout)
+                    .lineLimit(1).truncationMode(.middle)
+                if let reason = node.reason ?? node.subtitle, !reason.isEmpty {
+                    Text(reason).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                }
+            }
+            Spacer(minLength: 8)
+            if node.primaryAction != nil {
+                Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.tertiary)
+            }
+        }
+        .contentShape(Rectangle())
+        .padding(.leading, CGFloat(depth) * 16)
     }
 }
 
