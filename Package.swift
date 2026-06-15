@@ -38,6 +38,7 @@ let package = Package(
                 "Core/AI/AICompactContextCodec.swift",
                 "Core/AI/AIContext.swift",
                 "Core/AI/AIContextPipeline.swift",
+                "Core/AI/AIDataGap.swift",
                 "Core/AI/AIDataLifecycle.swift",
                 "Core/AI/AIDependencyEnvironment.swift",
                 "Core/AI/AIDiagnostics.swift",
