@@ -99,6 +99,35 @@ import Testing
         #expect(AIContextOmission.truncated(type: "tasks", omitted: 12).count == 12)
     }
 
+    @Test func sourceRefValidatorRejectsInventedRefs() {
+        let a = AIContextSourceRef(kind: .task, id: "t1")
+        let b = AIContextSourceRef(kind: .archive, id: "arch1")
+        let invented = AIContextSourceRef(kind: .task, id: "ghost")
+        let allowed: Set = [a, b]
+
+        #expect(AIContextSourceRefValidator.isValid(a, allowed: allowed))
+        #expect(!AIContextSourceRefValidator.isValid(invented, allowed: allowed))
+
+        let (valid, rejected) = AIContextSourceRefValidator.partition([a, invented, b], allowed: allowed)
+        #expect(valid == [a, b])
+        #expect(rejected == [invented])
+
+        #expect(AIContextSourceRefValidator.allRefsValid([a, b], allowed: allowed))
+        #expect(!AIContextSourceRefValidator.allRefsValid([a, invented], allowed: allowed))
+    }
+
+    private struct RefNode { let refs: [AIContextSourceRef] }
+
+    @Test func sourceRefValidatorDropsNodesWithInventedRefs() {
+        let a = AIContextSourceRef(kind: .task, id: "t1")
+        let b = AIContextSourceRef(kind: .archive, id: "arch1")
+        let invented = AIContextSourceRef(kind: .task, id: "ghost")
+        let allowed: Set = [a, b]
+        let nodes = [RefNode(refs: [a]), RefNode(refs: [a, invented]), RefNode(refs: [b])]
+        let kept = AIContextSourceRefValidator.keepingValid(nodes, allowed: allowed) { $0.refs }
+        #expect(kept.count == 2)
+    }
+
     @Test func evidenceCardKeepsFactsAndRefs() {
         let card = AIEvidenceCard(
             title: "Re-test release.7z",

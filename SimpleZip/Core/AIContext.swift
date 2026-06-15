@@ -228,3 +228,35 @@ nonisolated struct AIContextEnvelope<Facts: Codable & Equatable & Sendable>: Cod
         return String(decoding: try encoder.encode(self), as: UTF8.self)
     }
 }
+
+/// 校验模型输出里引用的 source ref 是否都在 App 本次提供的候选集内 —— **模型不能发明引用**:不在候选集的
+/// ref 整条丢弃。路线图工程补充一验收(「所有虚拟节点都有可回查 source ref」)+ 补充十明确要求的安全闸。
+nonisolated enum AIContextSourceRefValidator {
+    /// 单个 ref 是否在候选集内。
+    static func isValid(_ ref: AIContextSourceRef, allowed: Set<AIContextSourceRef>) -> Bool {
+        allowed.contains(ref)
+    }
+
+    /// 一组 ref 是否**全部**在候选集内(空集合视为 vacuously 有效 —— 是否接受空 ref 由调用点决定)。
+    static func allRefsValid(_ refs: [AIContextSourceRef], allowed: Set<AIContextSourceRef>) -> Bool {
+        refs.allSatisfy { allowed.contains($0) }
+    }
+
+    /// 把一批 ref 分成(在候选集内, 被拒)。保持输入顺序。
+    static func partition(_ refs: [AIContextSourceRef], allowed: Set<AIContextSourceRef>)
+        -> (valid: [AIContextSourceRef], rejected: [AIContextSourceRef]) {
+        var valid: [AIContextSourceRef] = []
+        var rejected: [AIContextSourceRef] = []
+        for ref in refs {
+            if allowed.contains(ref) { valid.append(ref) } else { rejected.append(ref) }
+        }
+        return (valid, rejected)
+    }
+
+    /// 过滤一组带 ref 的元素(虚拟节点 / 建议 / 动作):只保留「引用的 ref 全部有效」的元素。
+    /// 含发明 ref 的节点被整条丢弃 —— 安全 > 完整。
+    static func keepingValid<Element>(_ elements: [Element], allowed: Set<AIContextSourceRef>,
+                                      refs: (Element) -> [AIContextSourceRef]) -> [Element] {
+        elements.filter { allRefsValid(refs($0), allowed: allowed) }
+    }
+}
