@@ -15,8 +15,8 @@ import Testing
         let fileCount: Int
     }
 
-    private var sampleEnvelope: AIContextEnvelope<SampleFacts> {
-        AIContextEnvelope(
+    private func sampleEnvelope() throws -> AIContextEnvelope<SampleFacts> {
+        try AIContextEnvelope.make(
             purpose: .reportExplanation,
             privacyLevel: .localUserMetadata,
             facts: SampleFacts(archiveName: "a.zip", fileCount: 3),
@@ -25,17 +25,17 @@ import Testing
         )
     }
 
-    @Test func envelopeStampsSchemaVersion() {
-        #expect(sampleEnvelope.schema == "simplezip.ai.context.v1")
+    @Test func envelopeStampsSchemaVersion() throws {
+        #expect(try sampleEnvelope().schema == "simplezip.ai.context.v1")
         #expect(AIContextEnvelope<SampleFacts>.schemaVersion == "simplezip.ai.context.v1")
     }
 
     @Test func jsonIsDeterministic() throws {
-        #expect(try sampleEnvelope.jsonString() == sampleEnvelope.jsonString())
+        #expect(try sampleEnvelope().jsonString() == sampleEnvelope().jsonString())
     }
 
     @Test func jsonCarriesStableEnglishTokens() throws {
-        let json = try sampleEnvelope.jsonString()
+        let json = try sampleEnvelope().jsonString()
         #expect(json.contains("\"schema\":\"simplezip.ai.context.v1\""))
         #expect(json.contains("\"purpose\":\"reportExplanation\""))
         // 隐私描述块:执行位置 + 强度 + 级别。
@@ -52,14 +52,14 @@ import Testing
         #expect(json.contains("\"policy\":\"never_included\""))
     }
 
-    @Test func deepModeFlagsLocalTextSnippets() {
-        let standard = AIContextEnvelope(
+    @Test func deepModeFlagsLocalTextSnippets() throws {
+        let standard = try AIContextEnvelope.make(
             purpose: .archiveFinder, privacyLevel: .localUserMetadata,
             facts: SampleFacts(archiveName: "a.zip", fileCount: 1))
         #expect(standard.privacy.mode == .standardLocalContext)
         #expect(standard.privacy.localTextSnippetsIncluded == false)
 
-        let deep = AIContextEnvelope(
+        let deep = try AIContextEnvelope.make(
             purpose: .archiveFinder, privacyLevel: .localUserMetadata, mode: .deepLocalContext,
             facts: SampleFacts(archiveName: "a.zip", fileCount: 1))
         #expect(deep.privacy.mode == .deepLocalContext)
@@ -71,7 +71,7 @@ import Testing
     }
 
     @Test func slashesAreNotEscaped() throws {
-        let env = AIContextEnvelope(
+        let env = try AIContextEnvelope.make(
             purpose: .archiveFinder,
             privacyLevel: .localUserMetadata,
             facts: SampleFacts(archiveName: "a/b/c.zip", fileCount: 1)
@@ -80,9 +80,10 @@ import Testing
     }
 
     @Test func roundTripsThroughCodable() throws {
-        let data = Data(try sampleEnvelope.jsonString().utf8)
+        let env = try sampleEnvelope()
+        let data = Data(try env.jsonString().utf8)
         let decoded = try JSONDecoder().decode(AIContextEnvelope<SampleFacts>.self, from: data)
-        #expect(decoded == sampleEnvelope)
+        #expect(decoded == env)
     }
 
     @Test func blockedSensitiveIsNeverAssemblable() {
@@ -90,6 +91,31 @@ import Testing
         #expect(AIPrivacyLevel.localUserMetadata.isAssemblable)
         #expect(AIPrivacyLevel.publicAppCatalog.isAssemblable)
         #expect(AIPrivacyLevel.diagnostics.isAssemblable)
+    }
+
+    // MARK: - 边界一:信封只能经安全工厂进入模型(白皮书工程补充一)
+
+    @Test func blockedSensitiveEnvelopeCannotBeBuilt() {
+        #expect(throws: AIContextBuildError.blockedSensitivePayload(.failureExplanation)) {
+            try AIContextEnvelope.make(
+                purpose: .failureExplanation,
+                privacyLevel: .blockedSensitive,
+                facts: SampleFacts(archiveName: "secret.zip", fileCount: 1))
+        }
+    }
+
+    @Test func standardLocalContextEnvelopeCanBeBuilt() throws {
+        let env = try AIContextEnvelope.make(
+            purpose: .activityFilter,
+            privacyLevel: .localUserMetadata,
+            facts: SampleFacts(archiveName: "a.zip", fileCount: 1))
+        #expect(env.privacy.level == .localUserMetadata)
+        // diagnostics / publicAppCatalog 也可组装。
+        #expect(throws: Never.self) {
+            try AIContextEnvelope.make(
+                purpose: .failureExplanation, privacyLevel: .diagnostics,
+                facts: SampleFacts(archiveName: "a.zip", fileCount: 1))
+        }
     }
 
     @Test func omissionConvenienceConstructors() {

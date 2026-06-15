@@ -187,10 +187,21 @@ nonisolated struct AIEvidenceCard: Codable, Equatable, Sendable {
     }
 }
 
+/// 组装信封时的边界错误(白皮书工程补充一·边界一)。红线数据永远不能进入发往模型的信封 ——
+/// 这条边界由**类型系统**兜底,而不是靠每个调用方记得检查。
+nonisolated enum AIContextBuildError: Error, Equatable {
+    /// 试图用 `blockedSensitive` 级别(口令 / 密钥材料 / 加密条目名 / 密文 / 解密明文)组装信封。
+    case blockedSensitivePayload(AIContextPurpose)
+}
+
 /// AI 上下文信封:一个场景一次性发给模型的全部受控事实。
 ///
 /// `Facts` 是该场景的结构化事实负载(每个场景一个 Codable 类型);`omissions` 说明省略了什么;
 /// `sourceRefs` 是本次提供的可回查对象集合(AI 输出引用的 ref 必须落在这个集合里)。
+///
+/// **唯一组装入口是 `AIContextEnvelope.make(...) throws`** —— 它拒绝 `blockedSensitive` 负载。原始
+/// memberwise init 降为 `private`,任何 surface / pipeline 都不能绕过工厂直接 new 一个信封(只有同文件内的
+/// `make` 和 Codable 解码能构造)。
 ///
 /// `jsonString()` 产确定性紧凑 JSON,prompt 里直接嵌入。**不要**把对象 dump 成自然语言 ——
 /// JSON 字段稳定、便于测试、也更容易确认没有红线数据。
@@ -205,7 +216,9 @@ nonisolated struct AIContextEnvelope<Facts: Codable & Equatable & Sendable>: Cod
 
     static var schemaVersion: String { "simplezip.ai.context.v1" }
 
-    init(
+    /// **私有**原始构造器 —— 只给同文件的 `make` 工厂和 Codable 合成的 `init(from:)` 用。
+    /// 外部一律走 `make(...) throws`,确保 `blockedSensitive` 在边界被挡。
+    private init(
         purpose: AIContextPurpose,
         privacyLevel: AIPrivacyLevel,
         mode: AIContextMode = .standardLocalContext,
@@ -219,6 +232,25 @@ nonisolated struct AIContextEnvelope<Facts: Codable & Equatable & Sendable>: Cod
         self.facts = facts
         self.omissions = omissions
         self.sourceRefs = sourceRefs
+    }
+
+    /// 唯一安全组装入口。`privacyLevel == .blockedSensitive` 直接抛 `blockedSensitivePayload` ——
+    /// 红线数据不可能被组装进发往模型的信封。其余级别(publicAppCatalog / localUserMetadata /
+    /// diagnostics)正常构造。
+    static func make(
+        purpose: AIContextPurpose,
+        privacyLevel: AIPrivacyLevel,
+        mode: AIContextMode = .standardLocalContext,
+        facts: Facts,
+        omissions: [AIContextOmission] = [],
+        sourceRefs: [AIContextSourceRef] = []
+    ) throws -> AIContextEnvelope {
+        guard privacyLevel.isAssemblable else {
+            throw AIContextBuildError.blockedSensitivePayload(purpose)
+        }
+        return AIContextEnvelope(
+            purpose: purpose, privacyLevel: privacyLevel, mode: mode,
+            facts: facts, omissions: omissions, sourceRefs: sourceRefs)
     }
 
     /// 确定性紧凑 JSON(同一输入逐字节一致)。prompt 里直接放;`/` 不转义,保持路径可读。
