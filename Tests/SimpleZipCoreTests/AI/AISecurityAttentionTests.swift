@@ -88,6 +88,17 @@ import Testing
         #expect(clamped.attentionIDs == ["executable-content"])
     }
 
+    @Test func clampRestoresDroppedDeterministicAttention() {
+        // 红线:模型不能靠隐去确定性提醒(path-escape / encrypted)悄悄弱化警告。clamp 必须并回。
+        let f = AISecurityAttentionFacts(riskHints: ["path-traversal", "executable"], encryptedEntryCount: 2)
+        let evil = AISecurityAttentionPlan(level: .stop, primaryActionID: "openSecurityReport",
+                                           attentionIDs: ["executable-content"]) // 故意只留一条
+        let clamped = AISecurityAttentionRuleEngine.clamp(evil, against: f)
+        #expect(clamped.attentionIDs.contains("path-escape-samples"))
+        #expect(clamped.attentionIDs.contains("executable-content"))
+        #expect(clamped.attentionIDs.contains("encrypted-entries-present"))
+    }
+
     @Test func clampPreservesModelText() {
         let f = AISecurityAttentionFacts(riskHints: ["path-traversal"])
         let plan = AISecurityAttentionPlan(level: .stop, headline: "先别直接解压",

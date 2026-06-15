@@ -114,7 +114,8 @@ nonisolated enum AISecurityAttentionRuleEngine {
     ///   - 动作必须在 allowlist 内,否则置 nil;
     ///   - caution 及以上若无有效动作,补「查看安全报告」;
     ///   - stop 级强制主动作 = 「查看安全报告」(不允许在最高警示下引导用户直接解压);
-    ///   - attention id 只留 allowlist 内的。
+    ///   - attention 必须**并回**确定性提醒集合 —— 模型只能在 allowlist 内**补充**,绝不能**丢弃**任何确定性提醒
+    ///     (否则就能靠隐去 `path-escape-samples` 这类细节悄悄弱化警告)。
     static func clamp(_ plan: AISecurityAttentionPlan, against facts: AISecurityAttentionFacts) -> AISecurityAttentionPlan {
         let floor = floorLevel(for: facts)
         let level = max(plan.level, floor)
@@ -126,10 +127,12 @@ nonisolated enum AISecurityAttentionRuleEngine {
             action = "openSecurityReport"
         }
 
-        let attention = plan.attentionIDs.filter(allowedAttention.contains)
+        // 确定性提醒在前(承重、不可丢),模型补充的 allowlist 内提醒在后;dedup 保序去重。
+        let floorAttention = deterministicAttention(for: facts, level: level)
+        let modelAttention = plan.attentionIDs.filter(allowedAttention.contains)
         return AISecurityAttentionPlan(
             level: level, headline: plan.headline, summary: plan.summary,
-            primaryActionID: action, attentionIDs: dedup(attention))
+            primaryActionID: action, attentionIDs: dedup(floorAttention + modelAttention))
     }
 
     // MARK: - 确定性细节
