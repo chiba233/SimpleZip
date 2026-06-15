@@ -261,6 +261,14 @@ nonisolated struct AIContextEnvelope<Facts: Codable & Equatable & Sendable>: Cod
     }
 }
 
+/// 空引用策略(白皮书工程补充一·边界二)。一个虚拟节点 / 批量动作 / 建议卡若**完全没有** source ref,
+/// 默认应当被拒绝(`reject`)—— 指向不到任何真实对象的 AI 输出无法回查、无法安全执行。只有明确「与具体对象
+/// 无关」的 surface(如全局设置建议、纯注解节点)才显式放行(`allow`)。
+nonisolated enum AIEmptyRefPolicy: String, Codable, Sendable {
+    case allow
+    case reject
+}
+
 /// 校验模型输出里引用的 source ref 是否都在 App 本次提供的候选集内 —— **模型不能发明引用**:不在候选集的
 /// ref 整条丢弃。路线图工程补充一验收(「所有虚拟节点都有可回查 source ref」)+ 补充十明确要求的安全闸。
 nonisolated enum AIContextSourceRefValidator {
@@ -269,9 +277,12 @@ nonisolated enum AIContextSourceRefValidator {
         allowed.contains(ref)
     }
 
-    /// 一组 ref 是否**全部**在候选集内(空集合视为 vacuously 有效 —— 是否接受空 ref 由调用点决定)。
-    static func allRefsValid(_ refs: [AIContextSourceRef], allowed: Set<AIContextSourceRef>) -> Bool {
-        refs.allSatisfy { allowed.contains($0) }
+    /// 一组 ref 是否**全部**在候选集内。空集合按 `emptyPolicy` 处理 —— **默认 `.reject`**(边界二:默认拒绝
+    /// 空 ref)。需要放行空 ref 的 surface 显式传 `.allow`。
+    static func allRefsValid(_ refs: [AIContextSourceRef], allowed: Set<AIContextSourceRef>,
+                             emptyPolicy: AIEmptyRefPolicy = .reject) -> Bool {
+        if refs.isEmpty { return emptyPolicy == .allow }
+        return refs.allSatisfy { allowed.contains($0) }
     }
 
     /// 把一批 ref 分成(在候选集内, 被拒)。保持输入顺序。
@@ -286,15 +297,67 @@ nonisolated enum AIContextSourceRefValidator {
     }
 
     /// 过滤一组带 ref 的元素(虚拟节点 / 建议 / 动作):只保留「引用的 ref 全部有效」的元素。
-    /// 含发明 ref 的节点被整条丢弃 —— 安全 > 完整。
+    /// 含发明 ref 的节点被整条丢弃 —— 安全 > 完整。空 ref 元素按 `emptyPolicy`(默认 `.reject`)处理。
     static func keepingValid<Element>(_ elements: [Element], allowed: Set<AIContextSourceRef>,
+                                      emptyPolicy: AIEmptyRefPolicy = .reject,
                                       refs: (Element) -> [AIContextSourceRef]) -> [Element] {
-        elements.filter { allRefsValid(refs($0), allowed: allowed) }
+        elements.filter { allRefsValid(refs($0), allowed: allowed, emptyPolicy: emptyPolicy) }
     }
 }
 
-/// 确定性、低暴露的稳定哈希(FNV-1a 32-bit → 8 位十六进制)。**非加密用途** —— 只为「同一对象」识别,
-/// 不暴露原始路径 / 内容。位置哈希(`loc-`)、归档 id(`arch-`)等共用此实现,避免重复造轮子(A2)。
+/// 候选集内的 source ref 身份登记表(白皮书工程补充一·边界二)。把真实身份串(canonical path / bookmark /
+/// 对象 id)映射成稳定 ref id,并在**同一批候选**里检测碰撞:两个不同身份串落到同一 ref id 必须拒绝,否则
+/// 模型回传 ref 后 App 会错指对象。纯值类型 + 确定性,SwiftPM 可断言。
+///
+/// 用法:App 收集本次候选(当前目录文件 / 任务 / 报告…)时,每个对象 `ref(for:kind:)` 进表;`allowedSet`
+/// 给 `AIContextSourceRefValidator` 当候选集;模型回传的 id 用 `canonical(forID:)` 落回真实对象。
+nonisolated struct AIContextRefRegistry {
+    /// 碰撞 / 登记错误。
+    nonisolated enum RegistryError: Error, Equatable {
+        /// 两个不同身份串映射到同一 ref id。
+        case idCollision(id: String, existing: String, incoming: String)
+    }
+
+    private var canonicalByID: [String: String] = [:]
+    private var idByCanonical: [String: String] = [:]
+
+    init() {}
+
+    /// 为一个身份串登记并返回稳定 ref。同一身份串重复登记是幂等的;不同身份串撞同一 id 抛 `idCollision`。
+    /// id 用 64-bit 稳定哈希(`stableID64`)+ kind 前缀,远强于 32-bit。
+    @discardableResult
+    mutating func ref(for canonical: String, kind: AIContextSourceRef.Kind) throws -> AIContextSourceRef {
+        let id = kind.rawValue + "-" + AIStableHash.stableID64(canonical)
+        try register(id: id, canonical: canonical)
+        return AIContextSourceRef(kind: kind, id: id)
+    }
+
+    /// 底层登记:绑定 id ↔ canonical。已存在且 canonical 不同 → 抛碰撞。`ref(for:)` 与测试都走这里。
+    mutating func register(id: String, canonical: String) throws {
+        if let existing = canonicalByID[id], existing != canonical {
+            throw RegistryError.idCollision(id: id, existing: existing, incoming: canonical)
+        }
+        canonicalByID[id] = canonical
+        idByCanonical[canonical] = id
+    }
+
+    /// 模型回传 ref id → 真实身份串(不存在返回 nil)。
+    func canonical(forID id: String) -> String? { canonicalByID[id] }
+
+    /// 已登记的全部 ref id。
+    var allowedRefIDs: Set<String> { Set(canonicalByID.keys) }
+
+    /// 已登记 ref 数。
+    var count: Int { canonicalByID.count }
+}
+
+/// 确定性、低暴露的稳定哈希(FNV-1a)。**非加密用途** —— 只为「同一对象」识别,不暴露原始路径 / 内容。
+///
+/// **身份强度(白皮书工程补充一·边界二)**:`fnv1a32Hex`(32-bit / 8 hex)只保留给轻量排序、稳定 UI id、
+/// 短 alias —— 32-bit 空间对几百个候选项做唯一身份偏弱。**source ref / pathHash 这类需要「模型回传后 App
+/// 必须确信唯一指向本次候选」的身份,改用 `stableID64` / `stableID128`**,并由 `AIContextRefRegistry` 在候选集内
+/// 兜底检测碰撞。Core 不引 CryptoKit(保持纯值 / 确定性 / 无依赖),用 FNV-1a 64-bit;128-bit 由两段异盐 64-bit
+/// 拼成,把生日界从 2^16 / 2^32 推到 2^32 / 2^64 量级。
 nonisolated enum AIStableHash {
     static func fnv1a32Hex(_ string: String) -> String {
         var hash: UInt32 = 2166136261
@@ -303,6 +366,27 @@ nonisolated enum AIStableHash {
             hash = hash &* 16777619
         }
         return String(format: "%08x", hash)
+    }
+
+    /// FNV-1a 64-bit → 16 位十六进制。source ref 唯一身份 / pathHash 用,碰撞概率远低于 32-bit。
+    static func fnv1a64(_ string: String) -> UInt64 {
+        var hash: UInt64 = 14695981039346656037   // FNV offset basis (64-bit)
+        for byte in string.utf8 {
+            hash ^= UInt64(byte)
+            hash = hash &* 1099511628211           // FNV prime (64-bit)
+        }
+        return hash
+    }
+
+    /// 64-bit 稳定 id(16 hex)。用于 source ref id / pathHash —— 模型回传 ref 后 App 据此唯一回查。
+    static func stableID64(_ string: String) -> String {
+        String(format: "%016llx", fnv1a64(string))
+    }
+
+    /// 128-bit 稳定 id(32 hex)。两段异盐 64-bit 拼接 —— 把不同输入碰到同一 id 的概率推到 2^64 量级。
+    /// 高基数候选池(后台预索引上万文件)或需要更强唯一性的 registry key 用。
+    static func stableID128(_ string: String) -> String {
+        stableID64("0\u{1}" + string) + stableID64("1\u{1}" + string)
     }
 
     /// 把一个稳定 id 字符串确定性映射成 UUID(同输入逐次一致)。用于把字符串候选 id 落成需要 `UUID` 的

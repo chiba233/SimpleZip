@@ -133,6 +133,18 @@ nonisolated struct AIVirtualNode: Identifiable, Codable, Equatable, Sendable {
         case action
         case automation
         case note
+
+        /// 指针类节点(指向一个真实对象)必须带至少一个合法 source ref —— 空 ref 的指针节点指向不到任何东西,
+        /// 清洗时丢弃(白皮书工程补充一·边界二:默认拒绝空 ref)。容器(group)/ 注解(note)/ 动作
+        /// (action/automation,目标在动作负载里)可无 node 级 ref。
+        var requiresSourceRef: Bool {
+            switch self {
+            case .file, .folder, .archive, .archiveEntry, .task, .report:
+                return true
+            case .group, .action, .automation, .note:
+                return false
+            }
+        }
     }
 
     let id: UUID
@@ -357,7 +369,10 @@ nonisolated enum AIVirtualTreeSanitizer {
         nodes.compactMap { node in
             guard node.safety.isAllowedInV1 else { return nil }
             if node.kind != .group {
-                guard AIContextSourceRefValidator.allRefsValid(node.sourceRefs, allowed: allowed) else { return nil }
+                // 指针类节点强制带合法 ref(空 ref 拒绝);注解 / 动作类节点可无 node 级 ref。
+                let emptyPolicy: AIEmptyRefPolicy = node.kind.requiresSourceRef ? .reject : .allow
+                guard AIContextSourceRefValidator.allRefsValid(
+                    node.sourceRefs, allowed: allowed, emptyPolicy: emptyPolicy) else { return nil }
             }
             let children = sanitize(node.children, allowed: allowed)
             if node.kind == .group, children.isEmpty, node.sourceRefs.isEmpty { return nil }

@@ -154,6 +154,66 @@ import Testing
         #expect(kept.count == 2)
     }
 
+    // MARK: - 边界二:身份强度 + 空引用策略(白皮书工程补充一)
+
+    @Test func stableSourceRefIDsAreLongEnoughForPromptRoundTrip() {
+        // 64-bit → 16 hex;128-bit → 32 hex,远强于 fnv1a32 的 8 hex。
+        #expect(AIStableHash.stableID64("/Users/x/papers/thesis.pdf").count == 16)
+        #expect(AIStableHash.stableID128("/Users/x/papers/thesis.pdf").count == 32)
+        #expect(AIStableHash.fnv1a32Hex("/Users/x/papers/thesis.pdf").count == 8)
+        // 确定性 + 判别性。
+        #expect(AIStableHash.stableID64("a") == AIStableHash.stableID64("a"))
+        #expect(AIStableHash.stableID64("a") != AIStableHash.stableID64("b"))
+        #expect(AIStableHash.stableID128("a") != AIStableHash.stableID128("b"))
+    }
+
+    @Test func sourceRefRegistryRejectsCollisionWithinCandidateSet() throws {
+        var registry = AIContextRefRegistry()
+        let a = try registry.ref(for: "/Users/x/a.zip", kind: .archive)
+        let b = try registry.ref(for: "/Users/x/b.zip", kind: .archive)
+        #expect(a.id != b.id)
+        #expect(registry.count == 2)
+        // 同身份串幂等,不增计数。
+        #expect(try registry.ref(for: "/Users/x/a.zip", kind: .archive) == a)
+        #expect(registry.count == 2)
+        // 模型回传 id 落回真实身份。
+        #expect(registry.canonical(forID: a.id) == "/Users/x/a.zip")
+        #expect(registry.allowedRefIDs.contains(a.id))
+
+        // 强制碰撞:同 id 绑不同 canonical → 拒绝。
+        var collide = AIContextRefRegistry()
+        try collide.register(id: "archive-dup", canonical: "/p/one")
+        var threw = false
+        do {
+            try collide.register(id: "archive-dup", canonical: "/p/two")
+        } catch {
+            threw = true
+            #expect(error as? AIContextRefRegistry.RegistryError
+                    == .idCollision(id: "archive-dup", existing: "/p/one", incoming: "/p/two"))
+        }
+        #expect(threw)
+    }
+
+    @Test func workspaceNodeRejectsEmptySourceRefs() {
+        let a = AIContextSourceRef(kind: .file, id: "f1")
+        let allowed: Set = [a]
+        // allRefsValid 空集默认拒绝。
+        #expect(!AIContextSourceRefValidator.allRefsValid([], allowed: allowed))
+        // keepingValid 默认 .reject:空 ref 节点被丢弃,只剩有 ref 的。
+        let nodes = [RefNode(refs: [a]), RefNode(refs: [])]
+        #expect(AIContextSourceRefValidator.keepingValid(nodes, allowed: allowed) { $0.refs }.count == 1)
+    }
+
+    @Test func globalSettingsSuggestionMayAllowEmptySourceRefs() {
+        let a = AIContextSourceRef(kind: .setting, id: "s1")
+        let allowed: Set = [a]
+        // 显式 .allow:与具体对象无关的建议(全局设置)放行空 ref。
+        #expect(AIContextSourceRefValidator.allRefsValid([], allowed: allowed, emptyPolicy: .allow))
+        let nodes = [RefNode(refs: [])]
+        #expect(AIContextSourceRefValidator.keepingValid(
+            nodes, allowed: allowed, emptyPolicy: .allow) { $0.refs }.count == 1)
+    }
+
     @Test func evidenceCardKeepsFactsAndRefs() {
         let card = AIEvidenceCard(
             title: "Re-test release.7z",

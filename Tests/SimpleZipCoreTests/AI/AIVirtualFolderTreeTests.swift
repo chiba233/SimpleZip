@@ -74,6 +74,17 @@ import Testing
         #expect(tree.sanitized().nodes.isEmpty)               // 破坏性节点不进虚拟树
     }
 
+    @Test func sanitizedDropsEmptyRefPointerNodeButKeepsNote() {
+        // 指针类(.file)节点没有 ref → 指向不到真实对象,丢弃(边界二:默认拒绝空 ref)。
+        let refless = AIVirtualNode(id: AIStableHash.deterministicUUID("refless"), kind: .file, title: "空指针")
+        // 注解类(.note)节点本就无 node 级 ref,保留。
+        let note = AIVirtualNode(id: AIStableHash.deterministicUUID("note"), kind: .note, title: "说明")
+        let tree = sampleTree(nodes: [refless, note], refs: [validRef])
+        let clean = tree.sanitized()
+        #expect(clean.nodes.count == 1)
+        #expect(clean.nodes[0].kind == .note)
+    }
+
     @Test func treeCodableRoundTrips() throws {
         let leaf = AIVirtualNode(id: AIStableHash.deterministicUUID("leaf"), kind: .archive, title: "x.zip",
                                  sourceRefs: [validRef], primaryAction: .openArchive(path: "/x.zip", revealEntry: nil))
