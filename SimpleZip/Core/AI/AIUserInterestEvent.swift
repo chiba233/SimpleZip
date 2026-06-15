@@ -88,11 +88,32 @@ nonisolated struct AIInterestSummary: Codable, Equatable, Sendable {
         let locationKind: String
         let openCount: Int
     }
+    /// 「用户在哪个 surface 上对什么对象反复产生轻量兴趣」(白皮书工程补充八:由 `AIInteractionSignalEvent`
+    /// 折叠而来)。比停留时长更干净 —— 展开某类失败任务、点某 chip、打开某类报告都计入。
+    struct InteractionAffinity: Codable, Equatable, Sendable {
+        let surface: String
+        let interaction: String
+        let targetKind: String
+        let roleTag: String?
+        let diagnosticTag: String?
+        let count: Int
+        let lastAt: Date?
+    }
 
     let reactionPreferences: [ReactionPreference]
     let locationAffinities: [LocationAffinity]
+    let interactionAffinities: [InteractionAffinity]
 
-    var isEmpty: Bool { reactionPreferences.isEmpty && locationAffinities.isEmpty }
+    init(reactionPreferences: [ReactionPreference], locationAffinities: [LocationAffinity],
+         interactionAffinities: [InteractionAffinity] = []) {
+        self.reactionPreferences = reactionPreferences
+        self.locationAffinities = locationAffinities
+        self.interactionAffinities = interactionAffinities
+    }
+
+    var isEmpty: Bool {
+        reactionPreferences.isEmpty && locationAffinities.isEmpty && interactionAffinities.isEmpty
+    }
 }
 
 nonisolated enum AIInterestAggregator {
@@ -128,6 +149,17 @@ nonisolated enum AIInterestAggregator {
             .sorted { $0.openCount != $1.openCount ? $0.openCount > $1.openCount : $0.locationKind < $1.locationKind }
 
         return AIInterestSummary(reactionPreferences: preferences, locationAffinities: affinities)
+    }
+
+    /// 同上,但额外把逐 surface 的信号事件折叠进 `interactionAffinities`(白皮书工程补充八:兴趣摘要不只
+    /// reactionPreferences + locationAffinities,还要 interactionAffinities)。
+    static func summarize(_ events: [AIUserInterestEvent],
+                          signals: [AIInteractionSignalEvent]) -> AIInterestSummary {
+        let base = summarize(events)
+        return AIInterestSummary(
+            reactionPreferences: base.reactionPreferences,
+            locationAffinities: base.locationAffinities,
+            interactionAffinities: AIInteractionSignalAggregator.affinities(from: signals))
     }
 
     private struct PrefKey: Hashable {

@@ -51,6 +51,7 @@ let package = Package(
                 "Core/AI/AIFileSystemFact.swift",
                 "Core/AI/AIIndexMaintenance.swift",
                 "Core/AI/AIIntentRouter.swift",
+                "Core/AI/AIInteractionSignal.swift",
                 "Core/AI/AIInterventionGate.swift",
                 "Core/AI/ContextualToolbarActionProvider.swift",
                 "Core/AI/AIFeedback.swift",
