@@ -33,6 +33,10 @@ Before changing files:
 - Do not add half-wired selectors, menu actions, model calls, or references. If a symbol is named, the project must compile.
 - Do not modify tests by default. Diagnose and fix production code first; ask before changing tests that appear outdated.
 - Do not fabricate verification results. If a command did not run, say it did not run.
+- Do not stop, end the turn, or ask "should I continue?" while the requested task still has unfinished, unblocked work —
+  above all the AI whitepaper (`docs/AI-IMPROVEMENT-SUGGESTIONS.md`, task #80). Keep going commit-by-commit until the work
+  is genuinely complete or genuinely blocked on a decision only the user can make. A verified milestone, a long turn, or
+  "this is a clean checkpoint" is NOT a reason to stop. See A23.
 
 ## Project Map
 
@@ -397,6 +401,28 @@ but NOT block elements. `### type` headers are normalized to bold lines by `Chan
 (UpdatesPane.swift) so they don't leak literal hashes; keep that normalization working if you touch either side.
 `- ` bullet dashes stay literal in-app (expected). Never rely on tables, blockquotes or nested lists rendering
 in-app. `~` and `_` are escaped outside backtick code spans to avoid cross-line strikethrough/italic — don't defeat it.
+
+### A23. Do not stop while unblocked work remains. "Keep going until it's done" is a standing hard rule.
+
+- Maintainer note (added to memory many times, then to this file): 「白皮书没做完前不要停」, and repeatedly
+  「你怎么又停了？？？」. This is the single most repeated complaint — treat it as a top-priority rule, not a nicety.
+- The exact anti-pattern to never do: finish a coherent unit, then end the turn with a recap + "should I continue?" /
+  "要不要我接着做" / "要不要你拍个板". The maintainer reads that as stopping. Asking permission to keep doing the
+  work that was already requested is the failure.
+- None of these are stopping points, and none mean the task is done: a green/verified milestone; a long turn or large
+  context; "I already delivered a lot"; a tidy checkpoint; the next chunk being big or interdependent. The task is done
+  only when the whitepaper (#80) / the explicitly-requested scope is fully implemented **and wired into the App**
+  (acceptance: "只新增 Core 类型但 App view 没调用 = 不合格"), not when a convenient pause appears.
+- Keep working commit-by-commit. Each commit must still compile + verify (A8 / A20 — finish an atomic change before
+  committing, never check in a broken tree). But finishing one commit means **starting the next**, not handing back.
+  If a change is a large atomic ripple, complete the whole ripple and build before committing — do not stop midway.
+- The ONLY legitimate reasons to hand back mid-task: (a) a genuine decision only the user can make that cannot be
+  resolved from the request, the code, sensible defaults, or the whitepaper itself — and even then prefer the sensible
+  default and keep going; (b) a hard external blocker (missing tool / credentials / unavailable backend). Token or
+  context budget is the harness's concern, not a reason to self-terminate with a wrap-up.
+- Progress reporting is fine **inline, as one line before the next tool call**. It is NOT fine as a turn-ending
+  "here's everything I did — want me to keep going?". Report, then immediately do the next thing.
+- Applies with full force to #80 and to anything the maintainer frames as "不能停 / 一次性做完 / 做完才能停".
 
 ## Testing Rules
 
