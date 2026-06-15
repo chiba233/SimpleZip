@@ -81,7 +81,9 @@ nonisolated enum ArchiveMemoryIndex {
                 }
             }
             .prefix(budget.maxSamplesPerGroup)
-            .map { ArchiveMemoryRecord.FileSample(name: ($0.name as NSString).lastPathComponent, bytes: $0.size) }
+            .map { ArchiveMemoryRecord.FileSample(
+                name: AISensitiveRedactor.redactFileNameSecrets(($0.name as NSString).lastPathComponent),
+                bytes: $0.size) }
 
         var omissions: [AIContextOmission] = []
         if entry.encryptedEntryCount > 0 {
@@ -93,7 +95,7 @@ nonisolated enum ArchiveMemoryIndex {
 
         return ArchiveMemoryRecord(
             archiveID: archiveID(forPath: entry.archivePath),
-            archiveName: entry.archiveName,
+            archiveName: AISensitiveRedactor.redactFileNameSecrets(entry.archiveName),
             archiveExtension: (entry.archiveName as NSString).pathExtension.lowercased(),
             location: location,
             recordedAt: entry.recordedAt,
@@ -105,7 +107,7 @@ nonisolated enum ArchiveMemoryIndex {
                 truncated: entry.truncated
             ),
             profile: profile,
-            samplePaths: entry.filePaths(limit: budget.maxSamplesPerGroup),
+            samplePaths: entry.filePaths(limit: budget.maxSamplesPerGroup).map(AISensitiveRedactor.redactFileNameSecrets),
             largestFiles: Array(largest),
             omissions: omissions
         )

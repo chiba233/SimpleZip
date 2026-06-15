@@ -108,7 +108,9 @@ extension AITaskRecord {
                 + AILocationClassifier.folderNameTokens((path as NSString).deletingLastPathComponent)
         }).sorted().prefix(budget.maxSamplesPerGroup))
 
-        let archiveName = archivePath.map { ($0 as NSString).lastPathComponent }
+        let archiveName = archivePath
+            .map { ($0 as NSString).lastPathComponent }
+            .map(AISensitiveRedactor.redactFileNameSecrets)
         let archiveExtension = archivePath
             .map { ($0 as NSString).pathExtension.lowercased() }
             .flatMap { $0.isEmpty ? nil : $0 }
@@ -133,8 +135,8 @@ extension AITaskRecord {
             files: Files(
                 archiveName: archiveName,
                 archiveExtension: archiveExtension,
-                inputNames: inputPaths.map { ($0 as NSString).lastPathComponent },
-                outputNames: outputPaths.map { ($0 as NSString).lastPathComponent },
+                inputNames: inputPaths.map { AISensitiveRedactor.redactFileNameSecrets(($0 as NSString).lastPathComponent) },
+                outputNames: outputPaths.map { AISensitiveRedactor.redactFileNameSecrets(($0 as NSString).lastPathComponent) },
                 locationKinds: locationKinds,
                 pathTokens: pathTokens
             ),
