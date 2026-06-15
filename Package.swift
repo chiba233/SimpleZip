@@ -38,6 +38,7 @@ let package = Package(
                 "Core/AIDiagnostics.swift",
                 "Core/AIFeedback.swift",
                 "Core/AILocationContext.swift",
+                "Core/AIUserInterestEvent.swift",
                 "Core/ActivityTaskAIIndex.swift",
                 "Core/AISensitiveRedactor.swift",
                 "Core/AppPreferences.swift",
