@@ -75,6 +75,7 @@ let package = Package(
                 "Core/AI/AIStartupSuggestion.swift",
                 "Core/AI/AISuggestionBus.swift",
                 "Core/AI/AISystemWorkspaceFacts.swift",
+                "Core/AI/AIThemeSuppression.swift",
                 "Core/AI/AITaskPlan.swift",
                 "Core/AI/AITimeSemantics.swift",
                 "Core/AI/AIUserInterestEvent.swift",
