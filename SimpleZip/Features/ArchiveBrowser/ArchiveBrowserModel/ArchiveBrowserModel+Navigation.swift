@@ -55,6 +55,7 @@ extension ArchiveBrowserModel {
         cleanupMountedDiskImageIfNeeded(for: nil)
         session.clearArchive()
         mode = .aiWorkspace(id)
+        AIWorkspaceStore.shared.markOpened(id)   // 更新 lastOpenedAt → 侧栏「最近」排序生效
         reload()
     }
 
