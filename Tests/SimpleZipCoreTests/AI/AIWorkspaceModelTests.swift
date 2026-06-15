@@ -79,4 +79,74 @@ import Testing
         let decoded = try JSONDecoder().decode(AIWorkspace.self, from: data)
         #expect(decoded == ws)
     }
+
+    // MARK: - AIWorkspaceCollection(建议四:AIWorkspaceStore 纯值底座)
+
+    private func ws(_ key: String, _ origin: AIWorkspace.Origin, title: String = "W",
+                    visibility: AIWorkspace.Visibility = .visible, pinned: Bool = false,
+                    generatedAt: Double = 0, lastOpenedAt: Double? = nil) -> AIWorkspace {
+        AIWorkspace(id: AIStableHash.deterministicUUID(key), origin: origin, title: title,
+                    queryPlan: AIWorkspaceQueryPlan(taskTags: []), iconSystemName: "folder",
+                    visibility: visibility, pinned: pinned,
+                    generatedAt: Date(timeIntervalSince1970: generatedAt),
+                    lastOpenedAt: lastOpenedAt.map { Date(timeIntervalSince1970: $0) })
+    }
+
+    @Test func visibleWorkspacesExcludesHiddenAndDismissed() {
+        let c = AIWorkspaceCollection([
+            ws("a", .system),
+            ws("b", .system, visibility: .hidden),
+            ws("c", .recommended, visibility: .dismissed),
+        ])
+        #expect(c.visibleWorkspaces.map(\.id) == [AIStableHash.deterministicUUID("a")])
+    }
+
+    @Test func visibleWorkspacesSortsPinnedThenRecent() {
+        let c = AIWorkspaceCollection([
+            ws("old", .system, title: "old", generatedAt: 10),
+            ws("recent", .system, title: "recent", generatedAt: 5, lastOpenedAt: 100),
+            ws("pinned", .recommended, title: "pinned", pinned: true, generatedAt: 1),
+        ])
+        #expect(c.visibleWorkspaces.map(\.title) == ["pinned", "recent", "old"])
+    }
+
+    @Test func dismissOnlyAffectsRecommended() {
+        let rec = ws("r", .recommended)
+        let sys = ws("s", .system)
+        let c = AIWorkspaceCollection([rec, sys])
+        let afterRec = c.dismissing(rec.id)
+        #expect(afterRec.workspace(rec.id)?.visibility == .dismissed)
+        #expect(afterRec.workspace(rec.id)?.negativeFeedbackCount == 1)
+        // 系统工作区 dismiss 无效(应走 hide)。
+        #expect(c.dismissing(sys.id).workspace(sys.id)?.visibility == .visible)
+    }
+
+    @Test func removeOnlyUserWorkspaces() {
+        let user = ws("u", .userCreated)
+        let sys = ws("s", .system)
+        let c = AIWorkspaceCollection([user, sys])
+        #expect(c.removingUserWorkspace(user.id).workspace(user.id) == nil)
+        #expect(c.removingUserWorkspace(sys.id).workspace(sys.id) != nil)   // 系统不删
+    }
+
+    @Test func pinHideRenameMarkOpened() {
+        let w = ws("w", .userCreated, title: "Old")
+        var c = AIWorkspaceCollection([w])
+        c = c.pinning(w.id, true).hiding(w.id).renaming(w.id, to: "  New  ")
+            .markingOpened(w.id, at: Date(timeIntervalSince1970: 42))
+        let got = c.workspace(w.id)
+        #expect(got?.pinned == true)
+        #expect(got?.visibility == .hidden)
+        #expect(got?.title == "New")                                       // trim
+        #expect(got?.lastOpenedAt == Date(timeIntervalSince1970: 42))
+        // 空白重命名被忽略。
+        #expect(c.renaming(w.id, to: "   ").workspace(w.id)?.title == "New")
+    }
+
+    @Test func upsertReplacesByID() {
+        let w = ws("w", .userCreated, title: "A")
+        let c = AIWorkspaceCollection([w]).upserting(ws("w", .userCreated, title: "B"))
+        #expect(c.workspaces.count == 1)
+        #expect(c.workspace(w.id)?.title == "B")
+    }
 }

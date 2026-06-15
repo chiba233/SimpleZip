@@ -280,6 +280,75 @@ nonisolated struct AIWorkspace: Identifiable, Codable, Equatable, Sendable {
     }
 }
 
+/// AI 工作区集合(白皮书建议四「`AIWorkspaceStore.visibleWorkspaces`」的纯值底座)。App 的 `AIWorkspaceStore`
+/// 持有它 + 负责持久化 / `@Published`;这里只放**确定性**的可见性过滤与不可变变换,SwiftPM 可测。
+/// 侧边栏 AI section 渲染 `visibleWorkspaces`,而不是写死的 `AISystemWorkspaceKind.allCases`。
+nonisolated struct AIWorkspaceCollection: Codable, Equatable, Sendable {
+    var workspaces: [AIWorkspace]
+
+    init(_ workspaces: [AIWorkspace] = []) { self.workspaces = workspaces }
+
+    /// 可见工作区(排除 hidden / dismissed)。排序确定性:固定优先 → 最近打开 → 生成时间 → 标题。
+    var visibleWorkspaces: [AIWorkspace] {
+        workspaces
+            .filter { $0.visibility == .visible }
+            .sorted { a, b in
+                if a.pinned != b.pinned { return a.pinned }
+                let la = a.lastOpenedAt ?? Date(timeIntervalSince1970: 0)
+                let lb = b.lastOpenedAt ?? Date(timeIntervalSince1970: 0)
+                if la != lb { return la > lb }
+                if a.generatedAt != b.generatedAt { return a.generatedAt > b.generatedAt }
+                return a.title < b.title
+            }
+    }
+
+    func workspace(_ id: UUID) -> AIWorkspace? { workspaces.first { $0.id == id } }
+
+    /// 加入 / 替换(按 id 去重)。
+    func upserting(_ ws: AIWorkspace) -> AIWorkspaceCollection {
+        var copy = workspaces
+        if let i = copy.firstIndex(where: { $0.id == ws.id }) { copy[i] = ws } else { copy.append(ws) }
+        return AIWorkspaceCollection(copy)
+    }
+
+    /// 「不感兴趣」:**仅推荐工作区** → dismissed + 负反馈计数 +1。系统 / 用户工作区不可 dismiss(改 hide / delete)。
+    func dismissing(_ id: UUID) -> AIWorkspaceCollection {
+        mapping(id) { ws in
+            guard ws.origin == .recommended else { return ws }
+            var c = ws; c.visibility = .dismissed; c.negativeFeedbackCount += 1; return c
+        }
+    }
+
+    func pinning(_ id: UUID, _ pinned: Bool) -> AIWorkspaceCollection {
+        mapping(id) { var c = $0; c.pinned = pinned; return c }
+    }
+
+    /// 隐藏(系统工作区可隐藏不可删)。
+    func hiding(_ id: UUID) -> AIWorkspaceCollection {
+        mapping(id) { var c = $0; c.visibility = .hidden; return c }
+    }
+
+    /// 删除 —— **仅用户创建的工作区**;系统 / 推荐不删(用 hide / dismiss)。
+    func removingUserWorkspace(_ id: UUID) -> AIWorkspaceCollection {
+        AIWorkspaceCollection(workspaces.filter { !($0.id == id && $0.origin == .userCreated) })
+    }
+
+    func renaming(_ id: UUID, to title: String) -> AIWorkspaceCollection {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return self }
+        return mapping(id) { var c = $0; c.title = trimmed; return c }
+    }
+
+    /// 标记打开时间(影响排序 + 最近;`date` 由 App 传入)。
+    func markingOpened(_ id: UUID, at date: Date) -> AIWorkspaceCollection {
+        mapping(id) { var c = $0; c.lastOpenedAt = date; return c }
+    }
+
+    private func mapping(_ id: UUID, _ transform: (AIWorkspace) -> AIWorkspace) -> AIWorkspaceCollection {
+        AIWorkspaceCollection(workspaces.map { $0.id == id ? transform($0) : $0 })
+    }
+}
+
 /// 用户创建 / 调教 AI 文件夹的「种子」(白皮书建议四扩写)。用户从右键「添加到 AI 文件夹」加入的不是静态
 /// 收藏夹,而是 seed —— AI 基于 seed + 合法候选池自动派生相关文件、旁路文件、归档内条目、补证据动作和虚拟分组。
 /// 持久化的是这份 seed,不是派生出来的树。
