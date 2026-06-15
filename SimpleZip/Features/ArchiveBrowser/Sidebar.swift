@@ -73,10 +73,11 @@ struct Sidebar: View {
             if aiEnabled {
                 Section(L10n.text("sidebar.ai.section")) {
                     ForEach(workspaceStore.visibleWorkspaces) { ws in
-                        SidebarButton(title: ws.title, systemImage: ws.iconSystemName) {
-                            model.openAIWorkspace(ws.id)
-                        }
-                        .contextMenu { aiWorkspaceContextMenu(ws) }
+                        AIWorkspaceSidebarRow(
+                            workspace: ws,
+                            onOpen: { model.openAIWorkspace(ws.id) },
+                            onDismiss: { workspaceStore.dismissRecommended(ws.id) })
+                            .contextMenu { aiWorkspaceContextMenu(ws) }
                     }
                 }
             }
@@ -404,6 +405,32 @@ struct SidebarButton: View {
                 Spacer(minLength: 0)
             }
         }
+    }
+}
+
+/// 0.4.5 #89:AI 工作区侧栏行。点行打开;**推荐工作区** hover 时露出 `x`「不感兴趣」(写衰减抑制)。
+private struct AIWorkspaceSidebarRow: View {
+    let workspace: AIWorkspace
+    let onOpen: () -> Void
+    let onDismiss: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        SidebarButton(title: workspace.title, systemImage: workspace.iconSystemName, action: onOpen)
+            .overlay(alignment: .trailing) {
+                if workspace.origin == .recommended, hovering {
+                    Button(action: onDismiss) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                            .padding(.trailing, 2)
+                    }
+                    .buttonStyle(.plain)
+                    .help(L10n.text("sidebar.ai.dismissRecommended"))
+                    .transition(.opacity)
+                }
+            }
+            .onHover { hovering = $0 }
     }
 }
 
