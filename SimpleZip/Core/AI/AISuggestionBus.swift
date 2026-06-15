@@ -18,6 +18,8 @@ import Foundation
 /// 可以接 AI 建议的界面位置(稳定英文 token)。
 nonisolated enum AISuggestionSurfaceID: String, Codable, Equatable, CaseIterable, Sendable {
     case mainToolbar
+    /// 主窗口「AI 建议层」(白皮书建议五):当前窗口上下文上的临时建议,和 AI 文件夹分开,**完全依赖模型输出**。
+    case mainWindowSuggestion
     case sidebar
     case locationBar
     case folderTableEmptyState
@@ -35,6 +37,10 @@ nonisolated enum AISuggestionSurfaceID: String, Codable, Equatable, CaseIterable
     case archiveFinder
     case spotlightOpen
     case welcome
+
+    /// 是否允许在模型不可用时用确定性规则卡兜底。`mainWindowSuggestion` 例外(白皮书建议五):它必须完全依赖
+    /// AI 输出 —— 没有模型输出就不显示 AI 建议卡,绝不用规则卡冒充「AI 建议」。其余 surface 都可确定性兜底。
+    var allowsDeterministicFallback: Bool { self != .mainWindowSuggestion }
 }
 
 /// 一个 surface 发起的建议请求:提供上下文,不直连模型。
