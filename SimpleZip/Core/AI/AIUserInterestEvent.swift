@@ -135,3 +135,90 @@ nonisolated enum AIInterestAggregator {
         let roleTag: String
     }
 }
+
+/// 工具类交互的终局结果(白皮书工程补充八)。压缩 / 解压这类工具软件里,`closedQuickly` / 短 dwell **不能**
+/// 当负反馈 —— 用户打开解压窗口、选项已正确、立刻解压并关闭是成功流程。所以在兴趣事件之外再加一个 outcome
+/// 聚合,按「是否接受 patch / 是否手改回去 / 是否撤销取消失败」判定正负,而不是看停留时长。
+nonisolated struct AIToolInteractionOutcome: Codable, Equatable, Sendable {
+    nonisolated enum TerminalResult: String, Codable, Equatable, Sendable {
+        case completed
+        case cancelled
+        case failed
+        case undone
+        case dismissedSuggestion
+        case acceptedSuggestion
+        case manuallyOverrodeSuggestion
+    }
+
+    nonisolated enum Polarity: String, Codable, Equatable, Sendable {
+        case positive, negative, neutral
+    }
+
+    let sourceRef: AIContextSourceRef
+    let operationKind: String
+    let firstReaction: AIUserInterestEvent.FirstReaction
+    let terminalResult: TerminalResult
+    let optionChangesCount: Int
+    let acceptedPatchIDs: [String]
+    let revertedPatchIDs: [String]
+    let manualOverrideFields: [String]
+
+    init(sourceRef: AIContextSourceRef, operationKind: String,
+         firstReaction: AIUserInterestEvent.FirstReaction, terminalResult: TerminalResult,
+         optionChangesCount: Int = 0, acceptedPatchIDs: [String] = [],
+         revertedPatchIDs: [String] = [], manualOverrideFields: [String] = []) {
+        self.sourceRef = sourceRef
+        self.operationKind = operationKind
+        self.firstReaction = firstReaction
+        self.terminalResult = terminalResult
+        self.optionChangesCount = optionChangesCount
+        self.acceptedPatchIDs = acceptedPatchIDs
+        self.revertedPatchIDs = revertedPatchIDs
+        self.manualOverrideFields = manualOverrideFields
+    }
+
+    /// 反馈极性(确定性,编码白皮书「工具类正向反馈标准」):
+    /// - 撤销 patch / 手改字段回去 / cancelled / failed / undone / 主动忽略建议 → 负;
+    /// - 接受建议、或接受 patch 后完成、或没改任何选项就成功完成 → 正;
+    /// - 其余(如成功但有少量手改)→ 中性。**短 dwell 不参与判定。**
+    var polarity: Polarity {
+        if !revertedPatchIDs.isEmpty || !manualOverrideFields.isEmpty { return .negative }
+        switch terminalResult {
+        case .cancelled, .failed, .undone, .dismissedSuggestion, .manuallyOverrodeSuggestion:
+            return .negative
+        case .acceptedSuggestion:
+            return .positive
+        case .completed:
+            if !acceptedPatchIDs.isEmpty { return .positive }     // 接受 AI patch 后完成 = 强正
+            if optionChangesCount == 0 { return .positive }       // 默认/自动预填正确,直接成功 = 正
+            return .neutral
+        }
+    }
+}
+
+/// 一次归档打开会话(白皮书工程补充八)。在 `updateArchiveListingCache` 入口写入,补足「用户怎么接触这个归档」
+/// 的兴趣信号:打开后第一反应(搜索 / 测试 / 解压 / 看报告 / 立刻关闭)是很强的角色与偏好证据。
+/// **红线**:`encryptedEntriesOmitted` 只存计数;不存加密条目名;`profileTags` 来自非加密画像。
+nonisolated struct AIArchiveOpenSession: Codable, Equatable, Sendable {
+    let archiveID: String
+    let openedAt: Date
+    let source: AIUserInterestEvent.Source
+    let profileTags: [String]
+    let entryCount: Int
+    let encryptedEntriesOmitted: Int
+    let firstReaction: AIUserInterestEvent.FirstReaction?
+    let dwellSeconds: Int?
+
+    init(archiveID: String, openedAt: Date, source: AIUserInterestEvent.Source,
+         profileTags: [String] = [], entryCount: Int = 0, encryptedEntriesOmitted: Int = 0,
+         firstReaction: AIUserInterestEvent.FirstReaction? = nil, dwellSeconds: Int? = nil) {
+        self.archiveID = archiveID
+        self.openedAt = openedAt
+        self.source = source
+        self.profileTags = profileTags
+        self.entryCount = entryCount
+        self.encryptedEntriesOmitted = encryptedEntriesOmitted
+        self.firstReaction = firstReaction
+        self.dwellSeconds = dwellSeconds
+    }
+}
