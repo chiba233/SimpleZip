@@ -2419,6 +2419,11 @@
 "devtools.feedback.crashArmed" = "已布防——重启即可触发恢复提示";
 "devtools.feedback.reportCopied" = "报告已复制";
 "devtools.section.defaults" = "UserDefaults 快照（备份白名单口径）";
+"devtools.section.aiData" = "AI 可用数据（只读）";
+"devtools.aiData.assistant" = "AI 助手";
+"devtools.aiData.assistant.ready" = "就绪";
+"devtools.aiData.archiveMemory" = "归档记忆缓存";
+"devtools.aiData.spotlight" = "Spotlight 捐献";
 "devtools.defaults.copyAll" = "全部复制";
 "devtools.feedback.defaultsCopied" = "快照已复制";
 

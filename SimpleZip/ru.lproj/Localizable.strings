@@ -1708,6 +1708,11 @@
 "devtools.feedback.crashArmed" = "Флаг установлен — перезапустите, чтобы вызвать уведомление о восстановлении";
 "devtools.feedback.reportCopied" = "Отчет скопирован";
 "devtools.section.defaults" = "Снимок UserDefaults (белый список резервного копирования)";
+"devtools.section.aiData" = "Данные, доступные ИИ (только для чтения)";
+"devtools.aiData.assistant" = "Помощник ИИ";
+"devtools.aiData.assistant.ready" = "Готов";
+"devtools.aiData.archiveMemory" = "Кэш памяти архивов";
+"devtools.aiData.spotlight" = "Передачи в Spotlight";
 "devtools.defaults.copyAll" = "Копировать все";
 "devtools.feedback.defaultsCopied" = "Снимок скопирован";
 "welcome.safety.confirmDelete" = "Подтверждать перед удалением файлов";

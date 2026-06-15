@@ -2419,6 +2419,11 @@
 "devtools.feedback.crashArmed" = "Armed — relaunch to trigger the recovery notice";
 "devtools.feedback.reportCopied" = "Report copied";
 "devtools.section.defaults" = "UserDefaults snapshot (backup whitelist)";
+"devtools.section.aiData" = "AI-available data (read-only)";
+"devtools.aiData.assistant" = "AI assistant";
+"devtools.aiData.assistant.ready" = "Ready";
+"devtools.aiData.archiveMemory" = "Archive memory cache";
+"devtools.aiData.spotlight" = "Spotlight donations";
 "devtools.defaults.copyAll" = "Copy All";
 "devtools.feedback.defaultsCopied" = "Snapshot copied";
 

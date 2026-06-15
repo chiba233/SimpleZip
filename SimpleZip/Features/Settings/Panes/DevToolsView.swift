@@ -25,6 +25,10 @@ struct DevToolsView: View {
     // 0.4.4 #6:格式兼容性实验室(用户选小文件夹,对真实后端逐格式实测保真度)。
     @State private var formatLabResults: [FormatLabRunner.FormatResult] = []
     @State private var isRunningFormatLab = false
+    // 0.4.5 #80:AI 可用数据快照(只读)—— AI 助手是否就绪、归档记忆缓存规模、Spotlight 捐献量。
+    @State private var aiAssistantStatus = "…"
+    @State private var aiArchiveMemoryStatus = "…"
+    @State private var aiSpotlightStatus = "…"
 
     private var appVersionLine: String {
         let short = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
@@ -159,6 +163,13 @@ struct DevToolsView: View {
                         }
                     }
 
+                    // 0.4.5 #80:AI 可用数据(只读)—— 让「喂给 AI 的本机数据」可查。涉密内容不在此列(也从不进 AI)。
+                    DialogSection(L10n.text("devtools.section.aiData")) {
+                        infoRow("sparkles", L10n.text("devtools.aiData.assistant"), aiAssistantStatus)
+                        infoRow("archivebox", L10n.text("devtools.aiData.archiveMemory"), aiArchiveMemoryStatus)
+                        infoRow("magnifyingglass", L10n.text("devtools.aiData.spotlight"), aiSpotlightStatus)
+                    }
+
                     if let actionFeedback {
                         Label(actionFeedback, systemImage: "checkmark.circle.fill")
                             .font(.caption)
@@ -194,6 +205,7 @@ struct DevToolsView: View {
                 sevenZipVersion = await ArchiveService.sevenZipVersion()
                 rarVersion = await ArchiveService.rarVersion()
             }
+            loadAIDataSnapshot()
         }
     }
 
@@ -357,6 +369,26 @@ struct DevToolsView: View {
         case .notApplicable, .none:
             Text("—")
                 .foregroundStyle(.tertiary)
+        }
+    }
+
+    // MARK: - 0.4.5 #80 AI 可用数据快照(只读)
+
+    /// 读取 AI 助手就绪状态 + AI 能召回的本机派生数据规模(归档记忆缓存、Spotlight 捐献)。
+    /// 缓存 / Spotlight 统计走后台线程(可能读不小的 JSON),回主 actor 设 @State。只读、不涉密。
+    private func loadAIDataSnapshot() {
+        aiAssistantStatus = AIReportAssistant.isReady
+            ? L10n.text("devtools.aiData.assistant.ready")
+            : AIReportAssistant.unavailableReason
+        Task { @MainActor in
+            let cache = await Task.detached(priority: .utility) { () -> (Int, Int) in
+                let store = ArchiveListingCacheStore()
+                return (store.count(), store.storageByteSize())
+            }.value
+            aiArchiveMemoryStatus = "\(cache.0) · "
+                + ByteCountFormatter.string(fromByteCount: Int64(cache.1), countStyle: .file)
+            let stats = await Task.detached(priority: .utility) { SpotlightReindex.stats() }.value
+            aiSpotlightStatus = "\(stats.total)"
         }
     }
 

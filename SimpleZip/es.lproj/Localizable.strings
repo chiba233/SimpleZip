@@ -1708,6 +1708,11 @@
 "devtools.feedback.crashArmed" = "Activado — reinicia para disparar el aviso de recuperación";
 "devtools.feedback.reportCopied" = "Informe copiado";
 "devtools.section.defaults" = "Instantánea de UserDefaults (lista blanca de copia de seguridad)";
+"devtools.section.aiData" = "Datos disponibles para la IA (solo lectura)";
+"devtools.aiData.assistant" = "Asistente de IA";
+"devtools.aiData.assistant.ready" = "Listo";
+"devtools.aiData.archiveMemory" = "Caché de memoria de archivos";
+"devtools.aiData.spotlight" = "Aportaciones a Spotlight";
 "devtools.defaults.copyAll" = "Copiar todo";
 "devtools.feedback.defaultsCopied" = "Instantánea copiada";
 "welcome.safety.confirmDelete" = "Confirmar antes de eliminar archivos";

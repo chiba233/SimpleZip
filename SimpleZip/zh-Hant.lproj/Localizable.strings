@@ -1710,6 +1710,11 @@
 "devtools.feedback.crashArmed" = "已布防——重啟即可觸發恢復提示";
 "devtools.feedback.reportCopied" = "報告已複製";
 "devtools.section.defaults" = "UserDefaults 快照（備份白名單口徑）";
+"devtools.section.aiData" = "AI 可用資料（唯讀）";
+"devtools.aiData.assistant" = "AI 助理";
+"devtools.aiData.assistant.ready" = "就緒";
+"devtools.aiData.archiveMemory" = "封存記憶快取";
+"devtools.aiData.spotlight" = "Spotlight 捐贈";
 "devtools.defaults.copyAll" = "全部複製";
 "devtools.feedback.defaultsCopied" = "快照已複製";
 "welcome.safety.confirmDelete" = "刪除檔案前需要確認";

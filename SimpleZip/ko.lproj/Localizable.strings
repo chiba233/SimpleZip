@@ -1709,6 +1709,11 @@
 "devtools.feedback.crashArmed" = "설정됨 — 다시 실행하면 복구 알림이 트리거됩니다";
 "devtools.feedback.reportCopied" = "보고서 복사됨";
 "devtools.section.defaults" = "UserDefaults 스냅샷(백업 허용 목록)";
+"devtools.section.aiData" = "AI 사용 가능 데이터(읽기 전용)";
+"devtools.aiData.assistant" = "AI 어시스턴트";
+"devtools.aiData.assistant.ready" = "준비됨";
+"devtools.aiData.archiveMemory" = "아카이브 메모리 캐시";
+"devtools.aiData.spotlight" = "Spotlight 제공";
 "devtools.defaults.copyAll" = "모두 복사";
 "devtools.feedback.defaultsCopied" = "스냅샷 복사됨";
 "welcome.safety.confirmDelete" = "파일 삭제 전 확인";

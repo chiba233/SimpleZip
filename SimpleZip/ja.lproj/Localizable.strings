@@ -1710,6 +1710,11 @@
 "devtools.feedback.crashArmed" = "セットしました — 再起動すると復旧通知が表示されます";
 "devtools.feedback.reportCopied" = "レポートをコピーしました";
 "devtools.section.defaults" = "UserDefaults スナップショット（バックアップ許可リスト）";
+"devtools.section.aiData" = "AI が利用できるデータ（読み取り専用）";
+"devtools.aiData.assistant" = "AI アシスタント";
+"devtools.aiData.assistant.ready" = "準備完了";
+"devtools.aiData.archiveMemory" = "アーカイブメモリキャッシュ";
+"devtools.aiData.spotlight" = "Spotlight への登録";
 "devtools.defaults.copyAll" = "すべてコピー";
 "devtools.feedback.defaultsCopied" = "スナップショットをコピーしました";
 "welcome.safety.confirmDelete" = "ファイル削除前に確認";

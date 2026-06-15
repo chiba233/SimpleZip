@@ -1709,6 +1709,11 @@
 "devtools.feedback.crashArmed" = "Gesetzt — neu starten, um den Wiederherstellungshinweis auszulösen";
 "devtools.feedback.reportCopied" = "Bericht kopiert";
 "devtools.section.defaults" = "UserDefaults-Snapshot (Backup-Whitelist)";
+"devtools.section.aiData" = "Für KI verfügbare Daten (schreibgeschützt)";
+"devtools.aiData.assistant" = "KI-Assistent";
+"devtools.aiData.assistant.ready" = "Bereit";
+"devtools.aiData.archiveMemory" = "Archiv-Speicher-Cache";
+"devtools.aiData.spotlight" = "Spotlight-Beiträge";
 "devtools.defaults.copyAll" = "Alles kopieren";
 "devtools.feedback.defaultsCopied" = "Snapshot kopiert";
 "welcome.safety.confirmDelete" = "Vor dem Löschen von Dateien bestätigen";

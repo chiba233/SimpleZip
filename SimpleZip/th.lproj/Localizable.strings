@@ -1708,6 +1708,11 @@
 "devtools.feedback.crashArmed" = "ตั้งแล้ว — เปิดใหม่เพื่อทริกเกอร์การแจ้งกู้คืน";
 "devtools.feedback.reportCopied" = "คัดลอกรายงานแล้ว";
 "devtools.section.defaults" = "สแนปชอต UserDefaults (รายการอนุญาตสำหรับสำรองข้อมูล)";
+"devtools.section.aiData" = "ข้อมูลที่ AI เข้าถึงได้ (อ่านอย่างเดียว)";
+"devtools.aiData.assistant" = "ผู้ช่วย AI";
+"devtools.aiData.assistant.ready" = "พร้อมใช้งาน";
+"devtools.aiData.archiveMemory" = "แคชหน่วยความจำของไฟล์เก็บถาวร";
+"devtools.aiData.spotlight" = "การส่งข้อมูลให้ Spotlight";
 "devtools.defaults.copyAll" = "คัดลอกทั้งหมด";
 "devtools.feedback.defaultsCopied" = "คัดลอกสแนปชอตแล้ว";
 "welcome.safety.confirmDelete" = "ยืนยันก่อนลบไฟล์";
