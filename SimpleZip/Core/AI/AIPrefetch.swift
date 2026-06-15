@@ -212,3 +212,195 @@ nonisolated enum AIBackgroundSchedulingRules {
         return .deepContext
     }
 }
+
+// MARK: - 后台计划(工程补充五:aggressive = 本地智能维护员)
+
+/// 后台调度的**输入**(工程补充五)。把「现在能跑到哪档 + 用户最近在哪些 surface 关注什么 + 工作区缺哪些证据 +
+/// 哪些工作区/建议过期 + 索引健康 + 可预读范围」一次性喂给规划器。纯数据,App 收集后传入。
+nonisolated struct AIBackgroundPlanningInput: Codable, Equatable, Sendable {
+    let runtime: AIBackgroundRuntimeContext
+    let interactionSummary: AIInteractionCounterSummary
+    let recentInterestSummary: AIInterestSummary
+    let workspaceEvidenceGaps: [AIWorkspaceEvidenceGap]
+    let staleWorkspaceIDs: [UUID]
+    let staleSuggestionSurfaces: [AISuggestionSurfaceID]
+    /// 索引健康(白皮书写 `AIIndexMaintenanceSnapshot`,Core 里既有类型是 `AIIndexMaintenanceFacts`)。
+    let indexHealth: AIIndexMaintenanceFacts
+    let prefetchScopes: [AIArchivePrefetchScope]
+
+    init(runtime: AIBackgroundRuntimeContext, interactionSummary: AIInteractionCounterSummary,
+         recentInterestSummary: AIInterestSummary, workspaceEvidenceGaps: [AIWorkspaceEvidenceGap] = [],
+         staleWorkspaceIDs: [UUID] = [], staleSuggestionSurfaces: [AISuggestionSurfaceID] = [],
+         indexHealth: AIIndexMaintenanceFacts, prefetchScopes: [AIArchivePrefetchScope] = []) {
+        self.runtime = runtime
+        self.interactionSummary = interactionSummary
+        self.recentInterestSummary = recentInterestSummary
+        self.workspaceEvidenceGaps = workspaceEvidenceGaps
+        self.staleWorkspaceIDs = staleWorkspaceIDs
+        self.staleSuggestionSurfaces = staleSuggestionSurfaces
+        self.indexHealth = indexHealth
+        self.prefetchScopes = prefetchScopes
+    }
+}
+
+/// 后台调度的**输出**(工程补充五):一组可取消、可解释的后台 job。不是「马上跑模型」,而是「该补什么数据 /
+/// 该预热哪个 surface」。每个 job 带 requiredTier —— 由规划器按当前档位天花板过滤,绝不越界。
+nonisolated struct AIBackgroundPlan: Codable, Equatable, Sendable {
+    nonisolated enum JobKind: String, Codable, CaseIterable, Sendable {
+        case refreshInteractionSummary
+        case preindexFolderFacts
+        case prefetchArchiveListing
+        case calculateCheapHashes
+        case testSmallArchives
+        case refreshDefaultOpenApps
+        case deriveArchiveProfiles
+        case generateWorkspaceThemes
+        case refreshVirtualTrees
+        case prewarmMainWindowSuggestions
+        case prewarmActivityWorkbench
+        case prewarmSettingsDoctor
+        case precomputeOperationAutoTune
+        case refreshStartupSuggestions
+
+        /// 该 job 至少需要的工作档位。纯确定性维护(索引/哈希/测试/清单/facts/autoTune/startup)= 索引档;
+        /// 依赖端上模型的(主题/虚拟树/各 surface 预热/画像 AI 标签)= 模型档。v1 不产深度档 job(最保守)。
+        var requiredTier: AIBackgroundWorkTier {
+            switch self {
+            case .refreshInteractionSummary, .preindexFolderFacts, .prefetchArchiveListing,
+                 .calculateCheapHashes, .testSmallArchives, .refreshDefaultOpenApps,
+                 .precomputeOperationAutoTune, .refreshStartupSuggestions:
+                return .deterministicIndex
+            case .deriveArchiveProfiles, .generateWorkspaceThemes, .refreshVirtualTrees,
+                 .prewarmMainWindowSuggestions, .prewarmActivityWorkbench, .prewarmSettingsDoctor:
+                return .modelPrewarm
+            }
+        }
+
+        /// 预算桶 key —— App 按桶限流(同桶 job 共享预算)。
+        var budgetKey: String {
+            switch self {
+            case .calculateCheapHashes: return "hash"
+            case .testSmallArchives: return "test"
+            case .prefetchArchiveListing: return "listing"
+            case .preindexFolderFacts, .refreshDefaultOpenApps: return "facts"
+            case .deriveArchiveProfiles: return "profile"
+            case .generateWorkspaceThemes, .refreshVirtualTrees: return "workspace"
+            case .prewarmMainWindowSuggestions, .prewarmActivityWorkbench, .prewarmSettingsDoctor:
+                return "prewarm"
+            case .refreshInteractionSummary, .precomputeOperationAutoTune, .refreshStartupSuggestions:
+                return "maintenance"
+            }
+        }
+    }
+
+    nonisolated struct Job: Codable, Equatable, Sendable {
+        let kind: JobKind
+        let priority: Int
+        let reasonTokens: [String]
+        let sourceRefs: [AIContextSourceRef]
+        let requiredTier: AIBackgroundWorkTier
+        let budgetKey: String
+
+        init(kind: JobKind, priority: Int, reasonTokens: [String] = [],
+             sourceRefs: [AIContextSourceRef] = []) {
+            self.kind = kind
+            self.priority = priority
+            self.reasonTokens = reasonTokens
+            self.sourceRefs = sourceRefs
+            self.requiredTier = kind.requiredTier
+            self.budgetKey = kind.budgetKey
+        }
+    }
+
+    let allowedTier: AIBackgroundWorkTier
+    let jobs: [Job]
+
+    var isEmpty: Bool { jobs.isEmpty }
+}
+
+/// 确定性后台规划器(工程补充五)。把规划输入折叠成一组 tier-gated job:证据缺口 → 补证据动作;陈旧工作区 →
+/// 重生成主题 / 虚拟树;陈旧建议 surface → 预热;用户常关注失败诊断 → 提高哈希 / 测试 job 优先级。
+/// **绝不越档**:超过当前天花板的 job 一律剔除;天花板为 `.none` 时产空计划。
+nonisolated enum AIBackgroundPlanner {
+    /// 用户对失败诊断的关注达到此阈值时,提高相关补证据 job 优先级。
+    static let failureEngagementBoostThreshold = 3
+
+    static func plan(_ input: AIBackgroundPlanningInput) -> AIBackgroundPlan {
+        let ceiling = AIBackgroundSchedulingRules.deepestAllowedTier(input.runtime)
+        guard ceiling > .none else { return AIBackgroundPlan(allowedTier: ceiling, jobs: []) }
+
+        var jobs: [AIBackgroundPlan.Job] = []
+        let failureBoost = input.interactionSummary.counters
+            .contains { $0.diagnosticTag != nil && $0.count >= failureEngagementBoostThreshold } ? 5 : 0
+
+        // 1) 证据缺口 → 对应补证据 job(带缺口的 sourceRefs)。
+        for gap in input.workspaceEvidenceGaps {
+            let base: Int
+            switch gap.urgency {
+            case .high: base = 30
+            case .normal: base = 20
+            case .low: base = 10
+            }
+            let (kind, boostable): (AIBackgroundPlan.JobKind, Bool)
+            switch gap.kind {
+            case .missingHash: (kind, boostable) = (.calculateCheapHashes, true)
+            case .missingArchiveListing: (kind, boostable) = (.prefetchArchiveListing, false)
+            case .missingArchiveHealth: (kind, boostable) = (.testSmallArchives, true)
+            case .missingDefaultOpenApp: (kind, boostable) = (.refreshDefaultOpenApps, false)
+            case .missingPermissionFacts: (kind, boostable) = (.preindexFolderFacts, false)
+            case .missingRecentOpenSignal: (kind, boostable) = (.refreshInteractionSummary, false)
+            }
+            jobs.append(.init(kind: kind, priority: base + (boostable ? failureBoost : 0),
+                              reasonTokens: ["evidence-gap", gap.kind.rawValue, "urgency=\(gap.urgency.rawValue)"],
+                              sourceRefs: gap.affectedSourceRefs))
+        }
+
+        // 2) 陈旧工作区 → 重生成主题 + 虚拟树(模型档)。
+        if !input.staleWorkspaceIDs.isEmpty {
+            jobs.append(.init(kind: .generateWorkspaceThemes, priority: 14,
+                              reasonTokens: ["stale-workspaces", "count=\(input.staleWorkspaceIDs.count)"]))
+            jobs.append(.init(kind: .refreshVirtualTrees, priority: 12,
+                              reasonTokens: ["stale-workspaces", "count=\(input.staleWorkspaceIDs.count)"]))
+        }
+
+        // 3) 陈旧建议 surface → 预热对应 surface。
+        for surface in input.staleSuggestionSurfaces {
+            guard let kind = prewarmKind(for: surface) else { continue }
+            jobs.append(.init(kind: kind, priority: 15, reasonTokens: ["stale-surface", surface.rawValue]))
+        }
+
+        // 4) 有交互信号 → 折叠 interaction summary(最便宜的维护)+ 预计算 auto-tune / 启动建议。
+        if !input.interactionSummary.isEmpty {
+            jobs.append(.init(kind: .refreshInteractionSummary, priority: 8, reasonTokens: ["interaction-signals"]))
+            jobs.append(.init(kind: .precomputeOperationAutoTune, priority: 7 + failureBoost,
+                              reasonTokens: ["interaction-signals"]))
+        }
+        if !input.recentInterestSummary.locationAffinities.isEmpty {
+            jobs.append(.init(kind: .refreshStartupSuggestions, priority: 6,
+                              reasonTokens: ["location-affinity"]))
+        }
+
+        // 天花板过滤 + 确定性排序(优先级降序,再按 kind 名 + budgetKey 升序)。
+        let allowed = jobs
+            .filter { $0.requiredTier <= ceiling }
+            .sorted { a, b in
+                if a.priority != b.priority { return a.priority > b.priority }
+                if a.kind.rawValue != b.kind.rawValue { return a.kind.rawValue < b.kind.rawValue }
+                return a.budgetKey < b.budgetKey
+            }
+        return AIBackgroundPlan(allowedTier: ceiling, jobs: allowed)
+    }
+
+    private static func prewarmKind(for surface: AISuggestionSurfaceID) -> AIBackgroundPlan.JobKind? {
+        switch surface {
+        case .mainWindowSuggestion, .mainToolbar, .folderSelection, .archiveSelection:
+            return .prewarmMainWindowSuggestions
+        case .activityCenter, .activityTaskRow:
+            return .prewarmActivityWorkbench
+        case .settingsPane:
+            return .prewarmSettingsDoctor
+        default:
+            return nil
+        }
+    }
+}

@@ -91,4 +91,78 @@ import Testing
         let decoded = try JSONDecoder().decode(AIBackgroundRuntimeContext.self, from: JSONEncoder().encode(c))
         #expect(decoded == c)
     }
+
+    // MARK: - 后台规划器(工程补充五:aggressive = 本地智能维护员)
+
+    private let ws = AIStableHash.deterministicUUID("ws-plan")
+    private let fileRef = AIContextSourceRef(kind: .file, id: "fs-1")
+    private let epoch = Date(timeIntervalSince1970: 0)
+
+    private func planningInput(
+        runtime: AIBackgroundRuntimeContext, gaps: [AIWorkspaceEvidenceGap] = [],
+        staleWorkspaces: [UUID] = [], staleSurfaces: [AISuggestionSurfaceID] = [],
+        interaction: AIInteractionCounterSummary? = nil,
+        interest: AIInterestSummary = AIInterestSummary(reactionPreferences: [], locationAffinities: [])
+    ) -> AIBackgroundPlanningInput {
+        AIBackgroundPlanningInput(
+            runtime: runtime,
+            interactionSummary: interaction ?? AIInteractionCounterSummary(window: "30d", generatedAt: epoch, counters: []),
+            recentInterestSummary: interest, workspaceEvidenceGaps: gaps,
+            staleWorkspaceIDs: staleWorkspaces, staleSuggestionSurfaces: staleSurfaces,
+            indexHealth: AIIndexMaintenanceFacts())
+    }
+
+    @Test func plannerNoneTierYieldsEmptyPlan() {
+        let plan = AIBackgroundPlanner.plan(planningInput(runtime: ctx(sinceLaunch: 30)))  // 启动静默期
+        #expect(plan.allowedTier == .none)
+        #expect(plan.isEmpty)
+    }
+
+    @Test func plannerDeterministicTierFiltersModelJobs() {
+        // model 不可用 → 天花板 deterministicIndex;模型档 job(主题/虚拟树/预热)被剔除。
+        let plan = AIBackgroundPlanner.plan(planningInput(
+            runtime: ctx(model: false),
+            gaps: [.missingHash(id: "g1", workspaceID: ws, refs: [fileRef], reason: "no hash")],
+            staleWorkspaces: [ws], staleSurfaces: [.mainWindowSuggestion]))
+        #expect(plan.allowedTier == .deterministicIndex)
+        #expect(plan.jobs.allSatisfy { $0.requiredTier <= .deterministicIndex })
+        #expect(plan.jobs.contains { $0.kind == .calculateCheapHashes })          // 确定性补哈希保留
+        #expect(!plan.jobs.contains { $0.kind == .generateWorkspaceThemes })       // 模型档剔除
+        #expect(!plan.jobs.contains { $0.kind == .prewarmMainWindowSuggestions })
+    }
+
+    @Test func plannerEvidenceGapBecomesBoostedHashJob() {
+        let counter = AIInteractionCounterSummary.Counter(
+            surface: "activityTaskRow", interaction: "expanded", targetKind: "task", targetToken: nil,
+            roleTag: "release-package", diagnosticTag: "checksum-mismatch", locationKind: nil,
+            count: 5, lastAt: nil, positiveOutcomeCount: 0, negativeOutcomeCount: 0)
+        let plan = AIBackgroundPlanner.plan(planningInput(
+            runtime: ctx(model: false),
+            gaps: [.missingHash(id: "g1", workspaceID: ws, refs: [fileRef], reason: "no hash")],
+            interaction: AIInteractionCounterSummary(window: "30d", generatedAt: epoch, counters: [counter])))
+        let hashJob = plan.jobs.first { $0.kind == .calculateCheapHashes }
+        #expect(hashJob?.sourceRefs == [fileRef])
+        #expect(hashJob?.priority == 25)        // normal urgency 20 + 失败关注 boost 5
+        #expect(hashJob?.budgetKey == "hash")
+    }
+
+    @Test func plannerStaleSurfacesBecomePrewarmJobs() {
+        let plan = AIBackgroundPlanner.plan(planningInput(
+            runtime: ctx(charging: false),       // modelPrewarm 档
+            staleSurfaces: [.mainWindowSuggestion, .activityCenter, .settingsPane]))
+        #expect(plan.allowedTier == .modelPrewarm)
+        #expect(plan.jobs.contains { $0.kind == .prewarmMainWindowSuggestions })
+        #expect(plan.jobs.contains { $0.kind == .prewarmActivityWorkbench })
+        #expect(plan.jobs.contains { $0.kind == .prewarmSettingsDoctor })
+    }
+
+    @Test func plannerIsDeterministicAndSortedByPriority() {
+        let input = planningInput(
+            runtime: ctx(charging: false),
+            gaps: [.missingHash(id: "g1", workspaceID: ws, refs: [fileRef], reason: "x", urgency: .high)],
+            staleSurfaces: [.settingsPane])
+        #expect(AIBackgroundPlanner.plan(input) == AIBackgroundPlanner.plan(input))   // 确定性
+        let priorities = AIBackgroundPlanner.plan(input).jobs.map(\.priority)
+        #expect(priorities == priorities.sorted(by: >))                              // 优先级降序
+    }
 }
