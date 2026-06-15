@@ -38,13 +38,36 @@ import Testing
         let json = try sampleEnvelope.jsonString()
         #expect(json.contains("\"schema\":\"simplezip.ai.context.v1\""))
         #expect(json.contains("\"purpose\":\"reportExplanation\""))
-        #expect(json.contains("\"privacyLevel\":\"localUserMetadata\""))
+        // 隐私描述块:执行位置 + 强度 + 级别。
+        #expect(json.contains("\"execution\":\"on_device_apple_foundation_models\""))
+        #expect(json.contains("\"mode\":\"standard_local_context\""))
+        #expect(json.contains("\"level\":\"localUserMetadata\""))
+        #expect(json.contains("\"passwordsIncluded\":false"))
+        #expect(json.contains("\"encryptedEntryNamesIncluded\":false"))
         // facts 内联 + 路径斜杠不转义。
         #expect(json.contains("\"archiveName\":\"a.zip\""))
         #expect(json.contains("\"fileCount\":3"))
         // 省略说明在场:加密条目名永不进 AI。
         #expect(json.contains("\"type\":\"encrypted_entry_names\""))
         #expect(json.contains("\"policy\":\"never_included\""))
+    }
+
+    @Test func deepModeFlagsLocalTextSnippets() {
+        let standard = AIContextEnvelope(
+            purpose: .archiveFinder, privacyLevel: .localUserMetadata,
+            facts: SampleFacts(archiveName: "a.zip", fileCount: 1))
+        #expect(standard.privacy.mode == .standardLocalContext)
+        #expect(standard.privacy.localTextSnippetsIncluded == false)
+
+        let deep = AIContextEnvelope(
+            purpose: .archiveFinder, privacyLevel: .localUserMetadata, mode: .deepLocalContext,
+            facts: SampleFacts(archiveName: "a.zip", fileCount: 1))
+        #expect(deep.privacy.mode == .deepLocalContext)
+        #expect(deep.privacy.localTextSnippetsIncluded == true)
+        // 深度模式仍不含红线类别。
+        #expect(deep.privacy.passwordsIncluded == false)
+        #expect(deep.privacy.encryptedEntryNamesIncluded == false)
+        #expect(deep.privacy.decryptedContentIncluded == false)
     }
 
     @Test func slashesAreNotEscaped() throws {

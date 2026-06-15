@@ -52,6 +52,42 @@ nonisolated enum AIPrivacyLevel: String, Codable, Equatable, Sendable {
     var isAssemblable: Bool { self != .blockedSensitive }
 }
 
+/// 本地上下文强度(路线图建议二「深度本地上下文模式」/ 工程补充二)。两种默认可理解的数据模式:
+/// - `standardLocalContext`:默认。给足本机元数据(完整当前路径、非加密文件名 / 条目名、任务 facts、
+///   设置当前值、报告 facts、错误行、短日志尾)。
+/// - `deepLocalContext`:用户可选开启。额外允许非加密文本 marker 短摘要、固定路径别名、更多结构样本、
+///   更长历史窗口、更完整报告 finding。**深度模式不突破红线** —— 口令 / 密钥 / 加密条目名 / 密文 /
+///   解密明文 / 用户明确排除的路径仍然禁止。
+nonisolated enum AIContextMode: String, Codable, Equatable, Sendable {
+    case standardLocalContext = "standard_local_context"
+    case deepLocalContext = "deep_local_context"
+}
+
+/// 信封的隐私描述块:明确「在哪执行 + 什么强度 + 哪些红线类别确认未包含」,可写进 prompt / debug 导出,
+/// 让模型与审计都看得到本次上下文的隐私姿态。
+nonisolated struct AIPrivacyDescriptor: Codable, Equatable, Sendable {
+    /// 执行位置 —— 端上 Apple FoundationModels(全本地、不外发)。
+    let execution: String
+    let level: AIPrivacyLevel
+    let mode: AIContextMode
+    // 红线类别确认:无论何种模式,这三项恒 false。
+    let passwordsIncluded: Bool
+    let encryptedEntryNamesIncluded: Bool
+    let decryptedContentIncluded: Bool
+    /// 仅深度模式 true:允许非加密文本 marker 的短摘要进入上下文。
+    let localTextSnippetsIncluded: Bool
+
+    init(level: AIPrivacyLevel, mode: AIContextMode = .standardLocalContext) {
+        self.execution = "on_device_apple_foundation_models"
+        self.level = level
+        self.mode = mode
+        self.passwordsIncluded = false
+        self.encryptedEntryNamesIncluded = false
+        self.decryptedContentIncluded = false
+        self.localTextSnippetsIncluded = (mode == .deepLocalContext)
+    }
+}
+
 /// 指向一个可回查的本地对象。**AI 输出里引用的 ref 必须能在 App 侧校验存在,否则整条丢弃** ——
 /// 模型不能凭空发明路径 / 任务 id / 条目 id。
 nonisolated struct AIContextSourceRef: Codable, Equatable, Hashable, Sendable {
@@ -162,7 +198,7 @@ nonisolated struct AIContextEnvelope<Facts: Codable & Equatable & Sendable>: Cod
     /// schema 版本标识 —— 将来字段演进 / 模型回归测试锚点。
     let schema: String
     let purpose: AIContextPurpose
-    let privacyLevel: AIPrivacyLevel
+    let privacy: AIPrivacyDescriptor
     let facts: Facts
     let omissions: [AIContextOmission]
     let sourceRefs: [AIContextSourceRef]
@@ -172,13 +208,14 @@ nonisolated struct AIContextEnvelope<Facts: Codable & Equatable & Sendable>: Cod
     init(
         purpose: AIContextPurpose,
         privacyLevel: AIPrivacyLevel,
+        mode: AIContextMode = .standardLocalContext,
         facts: Facts,
         omissions: [AIContextOmission] = [],
         sourceRefs: [AIContextSourceRef] = []
     ) {
         self.schema = Self.schemaVersion
         self.purpose = purpose
-        self.privacyLevel = privacyLevel
+        self.privacy = AIPrivacyDescriptor(level: privacyLevel, mode: mode)
         self.facts = facts
         self.omissions = omissions
         self.sourceRefs = sourceRefs
