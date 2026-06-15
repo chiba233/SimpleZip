@@ -43,12 +43,18 @@ extension ArchiveBrowserModel {
     /// 0.4.5 #80:进入 AI 建议虚拟工作区(白皮书工程补充一)。与 `openTag` 同款收尾:清归档 / 停镜像 / 记历史,
     /// 然后切 `mode`。**不加载文件列表、不监视文件夹**(reload 的 `.aiWorkspace` 分支只停 watcher);候选由
     /// `AISuggestionFolderView` 从现有索引确定性派生,只读。
+    /// 系统工作区入口(侧栏现有调用):映射到其确定性 UUID 后走统一 UUID 路径。
     func openAIWorkspace(_ kind: AISystemWorkspaceKind) {
+        openAIWorkspace(AIWorkspaceStore.systemID(kind))
+    }
+
+    /// 统一 UUID 路径(建议四:`BrowserMode.aiWorkspace(UUID)`)。系统 / 用户创建 / 推荐工作区共用。
+    func openAIWorkspace(_ id: UUID) {
         archiveDisplayOverride = nil
         recordCurrentLocationForNavigation()
         cleanupMountedDiskImageIfNeeded(for: nil)
         session.clearArchive()
-        mode = .aiWorkspace(kind)
+        mode = .aiWorkspace(id)
         reload()
     }
 

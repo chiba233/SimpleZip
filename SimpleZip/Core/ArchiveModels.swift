@@ -216,7 +216,8 @@ enum BrowserMode: Equatable {
     case folder(URL)
     case archive(URL)
     case tag(String)
-    /// 0.4.5 #80:AI 建议虚拟工作区(只读;白皮书建议四 / 工程补充一)。内容区渲染 `AISuggestionFolderView`,
+    /// 0.4.5 #80 #89:AI 建议虚拟工作区(只读;白皮书建议四)。关联值是工作区 `UUID`(动态工作区,App 侧
+    /// `AIWorkspaceStore` 回查;系统工作区的 UUID 由 `AIWorkspaceStore.systemID(kind)` 确定性派生)。
     /// **不复用 FileTable、不伪造 FileItem**;动作只允许打开 / 定位 / 解释,绝不改文件。
-    case aiWorkspace(AISystemWorkspaceKind)
+    case aiWorkspace(UUID)
 }

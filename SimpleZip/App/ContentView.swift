@@ -96,8 +96,10 @@ struct ContentView: View {
                                 }
                             }
                         }
-                } else if case .aiWorkspace(let kind) = model.mode {
-                    // 0.4.5 #80:AI 建议虚拟工作区(只读;白皮书工程补充一)。独立视图,不复用 FileTable。
+                } else if case .aiWorkspace(let id) = model.mode,
+                          let kind = AIWorkspaceStore.shared.systemKind(for: id) {
+                    // 0.4.5 #80 #89:AI 建议虚拟工作区(只读;白皮书建议四)。系统工作区用现有独立视图,
+                    // 不复用 FileTable。用户创建 / 推荐工作区的虚拟树视图(AIWorkspaceView)= Stage 4。
                     AISuggestionFolderView(model: model, kind: kind)
                 } else {
                     FileTable(model: model)
