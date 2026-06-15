@@ -8,9 +8,11 @@
 //    - 发布与校验:最近的检查 / 测试 / 哈希 / 对比类任务;
 //    - 最近的归档:最近打开、已建非加密内容索引的归档。
 //
+//  分工:候选的「筛选 / 排序 / 封顶 / omissions」全在确定性 Core `AISystemWorkspaceFactsBuilder`(可单测、可导出);
+//  本视图只把它产出的节点**解析回真实对象**来执行只读动作(任务→活动中心定位,归档→打开浏览),并渲染。
+//
 //  硬边界(白皮书验收标准):① 关 AI 模型也能显示(候选纯确定性,不依赖模型);② 不复用 FileTable、不伪造
-//  `FileItem`;③ 动作只允许「打开 / 定位」(任务→活动中心定位,归档→打开浏览),**绝不删 / 移 / 覆盖 / 解压 /
-//  改权限**;④ AI 主开关关闭时整体不展示。用普通 SwiftUI `List` 表达,不碰归档浏览管线。
+//  `FileItem`;③ 动作只允许「打开 / 定位」,**绝不删 / 移 / 覆盖 / 解压 / 改权限**;④ AI 主开关关闭时整体不展示。
 //
 
 import SwiftUI
@@ -24,8 +26,8 @@ struct AISuggestionFolderView: View {
     /// `recentArchives` 的候选源(读 UserDefaults JSON,放后台,onAppear 取一次)。任务类候选走 `taskCenter` 响应式。
     @State private var cachedArchives: [ArchiveListingCacheEntry] = []
 
-    /// 一个只读节点的视图模型。`action` 只做打开 / 定位,绝不写。
-    private struct Node: Identifiable {
+    /// 一个可渲染的行 —— 由确定性 facts 快照的节点解析而来。`action` 只做打开 / 定位,绝不写。
+    private struct Row: Identifiable {
         let id: String
         let title: String
         let subtitle: String?
@@ -35,74 +37,69 @@ struct AISuggestionFolderView: View {
         let action: () -> Void
     }
 
-    private var nodes: [Node] {
-        let tasks = allRecentTasks
-        let tasksByID = Dictionary(tasks.map { ($0.id.uuidString, $0) }, uniquingKeysWith: { first, _ in first })
-        let archivesByPath = Dictionary(cachedArchives.map { ($0.archivePath, $0) }, uniquingKeysWith: { first, _ in first })
-        return factsSnapshot.nodes.compactMap { fact in
-            switch fact.kind {
-            case .task:
-                guard let task = tasksByID[fact.sourceRef.id] else { return nil }
-                return Node(id: fact.id, title: fact.title,
-                            subtitle: task.startedAt.formatted(date: .abbreviated, time: .shortened),
-                            systemImage: taskSystemImage, tint: taskTint,
-                            actionLabel: L10n.text("aiFolder.openInActivity"),
-                            action: { ActivityWindowController.shared.show(category: task.category, locateTaskID: task.id) })
-            case .archive:
-                guard let entry = archivesByPath[fact.sourceRef.id] else { return nil }
-                let url = URL(fileURLWithPath: entry.archivePath)
-                return Node(id: fact.id, title: fact.title,
-                            subtitle: L10n.format("aiFolder.archiveEntryCount", entry.totalEntryCount),
-                            systemImage: "doc.zipper", tint: .blue,
-                            actionLabel: L10n.text("aiFolder.openArchive"),
-                            action: { if FileManager.default.fileExists(atPath: url.path) { model.openArchive(url) } })
-            }
-        }
-    }
-
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        let rows = resolvedRows
+        return VStack(alignment: .leading, spacing: 0) {
             header
             Divider()
-            if !aiEnabled || nodes.isEmpty {
+            if !aiEnabled || rows.isEmpty {
                 emptyState
             } else {
-                List(nodes) { node in
-                    row(node)
-                }
-                .listStyle(.inset)
+                List(rows) { row($0) }
+                    .listStyle(.inset)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .onAppear(perform: loadCachedArchivesIfNeeded)
     }
 
-    // MARK: - 候选派生(确定性,只读)
+    // MARK: - 候选派生(确定性 builder → 解析回真实对象,只读)
 
-    private var factsSnapshot: AISystemWorkspaceFactsSnapshot {
-        AISystemWorkspaceFactsBuilder.snapshot(
+    /// 把确定性快照的节点解析成可渲染行:任务回查 `taskCenter` 拿分类(定位更准),归档直接用 sourceRef 里的路径。
+    /// 解析不到对应真实对象的节点直接丢弃(绝不打开一个已不存在的引用)。
+    private var resolvedRows: [Row] {
+        let snapshot = AISystemWorkspaceFactsBuilder.snapshot(
             kind: kind,
-            tasks: allRecentTasks.map(\.aiWorkspaceFact),
+            tasks: (taskCenter.active + taskCenter.history).map(\.aiWorkspaceFact),
             archives: cachedArchives.map(\.aiWorkspaceFact))
+        let tasksByID = Dictionary(
+            (taskCenter.active + taskCenter.history).map { ($0.id.uuidString, $0) },
+            uniquingKeysWith: { first, _ in first })
+        let entriesByPath = Dictionary(
+            cachedArchives.map { ($0.archivePath, $0) },
+            uniquingKeysWith: { first, _ in first })
+
+        return snapshot.nodes.compactMap { node in
+            switch node.suggestedAction {
+            case .openActivityTask:
+                guard let task = tasksByID[node.sourceRef.id] else { return nil }
+                return Row(
+                    id: node.id, title: node.title,
+                    subtitle: node.occurredAt.formatted(date: .abbreviated, time: .shortened),
+                    systemImage: taskSymbol, tint: taskTint,
+                    actionLabel: L10n.text("aiFolder.openInActivity"),
+                    action: { ActivityWindowController.shared.show(category: task.category, locateTaskID: task.id) })
+            case .openArchive:
+                let url = URL(fileURLWithPath: node.sourceRef.id)
+                let count = entriesByPath[node.sourceRef.id]?.totalEntryCount
+                return Row(
+                    id: node.id, title: node.title,
+                    subtitle: count.map { L10n.format("aiFolder.archiveEntryCount", $0) },
+                    systemImage: "doc.zipper", tint: .blue,
+                    actionLabel: L10n.text("aiFolder.openArchive"),
+                    action: { if FileManager.default.fileExists(atPath: url.path) { model.openArchive(url) } })
+            }
+        }
     }
 
-    private var allRecentTasks: [OperationTask] {
-        taskCenter.active + taskCenter.history
-    }
-
-    private var taskSystemImage: String {
-        kind == .needsAttention ? "exclamationmark.triangle.fill" : "checkmark.seal.fill"
-    }
-
-    private var taskTint: Color {
-        kind == .needsAttention ? .orange : .green
-    }
+    /// 任务行图标 / 配色按工作区区分(失败=橙色警示,校验=绿色印章)。
+    private var taskSymbol: String { kind == .needsAttention ? "exclamationmark.triangle.fill" : "checkmark.seal.fill" }
+    private var taskTint: Color { kind == .needsAttention ? .orange : .green }
 
     private func loadCachedArchivesIfNeeded() {
         guard kind == .recentArchives else { return }
         Task { @MainActor in
-            let entries = await Task.detached(priority: .utility) { ArchiveListingCacheStore().loadAll() }.value
-            cachedArchives = entries
+            cachedArchives = await Task.detached(priority: .utility) { ArchiveListingCacheStore().loadAll() }.value
         }
     }
 
@@ -148,17 +145,17 @@ struct AISuggestionFolderView: View {
 
     // MARK: - 行(只读)
 
-    private func row(_ node: Node) -> some View {
+    private func row(_ row: Row) -> some View {
         HStack(spacing: 10) {
-            Image(systemName: node.systemImage).foregroundStyle(node.tint)
+            Image(systemName: row.systemImage).foregroundStyle(row.tint)
             VStack(alignment: .leading, spacing: 1) {
-                Text(node.title).font(.callout).lineLimit(1).truncationMode(.middle)
-                if let subtitle = node.subtitle {
+                Text(row.title).font(.callout).lineLimit(1).truncationMode(.middle)
+                if let subtitle = row.subtitle {
                     Text(subtitle).font(.caption).foregroundStyle(.secondary)
                 }
             }
             Spacer(minLength: 8)
-            Button(node.actionLabel, action: node.action)
+            Button(row.actionLabel, action: row.action)
                 .controlSize(.small)
         }
         .padding(.vertical, 2)
@@ -175,47 +172,5 @@ struct AISuggestionFolderView: View {
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
-extension OperationTask {
-    var aiWorkspaceFact: AISystemWorkspaceTaskFact {
-        AISystemWorkspaceTaskFact(
-            id: id.uuidString,
-            category: category.rawValue,
-            kind: kind.rawValue,
-            source: source.rawValue,
-            title: title,
-            status: aiWorkspaceStatus,
-            startedAt: startedAt,
-            finishedAt: finishedAt)
-    }
-
-    var aiWorkspaceStatus: AISystemWorkspaceTaskFact.Status {
-        switch status {
-        case .running:
-            return .running
-        case .succeeded:
-            return .succeeded
-        case .skipped:
-            return .skipped
-        case .failed:
-            return .failed
-        case .cancelled:
-            return .cancelled
-        }
-    }
-}
-
-extension ArchiveListingCacheEntry {
-    nonisolated var aiWorkspaceFact: AISystemWorkspaceArchiveFact {
-        AISystemWorkspaceArchiveFact(
-            archivePath: archivePath,
-            archiveName: archiveName,
-            recordedAt: recordedAt,
-            totalEntryCount: totalEntryCount,
-            fileEntryCount: fileEntryCount,
-            encryptedEntryCount: encryptedEntryCount,
-            truncated: truncated)
     }
 }
