@@ -33,6 +33,7 @@ let package = Package(
                 "zh-Hant.lproj"
             ],
             sources: [
+                "Core/AI/AIArchiveInternalMap.swift",
                 "Core/AI/AIBudget.swift",
                 "Core/AI/AIContext.swift",
                 "Core/AI/AIDiagnostics.swift",
