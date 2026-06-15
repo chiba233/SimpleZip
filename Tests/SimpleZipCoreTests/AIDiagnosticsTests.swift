@@ -76,6 +76,12 @@ import Testing
         #expect(tags.contains(.permissionDenied))
     }
 
+    @Test func uninterruptedDoesNotTagInterrupted() {
+        // 审计 #13:整词匹配,"uninterrupted" 不该命中 interrupted。
+        #expect(!AIDiagnosticsClassifier.classify(message: "ran uninterrupted to completion").contains(.interruptedPreviousSession))
+        #expect(AIDiagnosticsClassifier.classify(message: "operation was interrupted").contains(.interruptedPreviousSession))
+    }
+
     @Test func tagsAreDeduped() {
         let tags = AIDiagnosticsClassifier.classify(
             message: "Permission denied",

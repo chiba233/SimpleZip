@@ -55,6 +55,14 @@ import Testing
         #expect(tokens.contains("测试文件"))
     }
 
+    @Test func emptyPathDoesNotLeakCurrentDirectory() {
+        // 审计 #8:空路径不能被解析成进程 CWD。
+        let ctx = AILocationClassifier.classify(directoryPath: "", home: home)
+        #expect(ctx.kind == .other)
+        #expect(ctx.folderNameTokens.isEmpty)
+        #expect(ctx.pathHash == AILocationClassifier.pathHash("   "))
+    }
+
     @Test func classifyProducesFullContext() {
         let ctx = AILocationClassifier.classify(directoryPath: "\(home)/Downloads/siz test", home: home)
         #expect(ctx.kind == .downloads)

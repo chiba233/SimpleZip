@@ -75,14 +75,9 @@ nonisolated enum AILocationClassifier {
         return lowered.contains(where: markers.contains) ? .projectFolder : .other
     }
 
-    /// 稳定、确定性、低暴露的路径标识(FNV-1a 32-bit → 8 位十六进制)。非加密用途,只为「同一文件夹」识别。
+    /// 稳定、确定性、低暴露的路径标识。非加密用途,只为「同一文件夹」识别(复用 AIStableHash,A2)。
     static func pathHash(_ path: String) -> String {
-        var hash: UInt32 = 2166136261
-        for byte in canonicalize(path).utf8 {
-            hash ^= UInt32(byte)
-            hash = hash &* 16777619
-        }
-        return "loc-" + String(format: "%08x", hash)
+        "loc-" + AIStableHash.fnv1a32Hex(canonicalize(path))
     }
 
     /// 目录名拆 token:小写、按非字母数字切分、丢 <2 字符、去重、封顶 6 个。CJK 作为字母保留。
@@ -109,7 +104,11 @@ nonisolated enum AILocationClassifier {
     // MARK: - Private
 
     private static func canonicalize(_ path: String) -> String {
-        let expanded = (path as NSString).expandingTildeInPath
+        // 审计 #8:空 / 纯空白路径短路返回 "" —— 否则 URL(fileURLWithPath: "") 会解析成进程当前工作目录,
+        // 让空输入被误分类成 CWD 所在位置。
+        let trimmed = path.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return "" }
+        let expanded = (trimmed as NSString).expandingTildeInPath
         return URL(fileURLWithPath: expanded).standardizedFileURL.path
     }
 

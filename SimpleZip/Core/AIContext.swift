@@ -260,3 +260,16 @@ nonisolated enum AIContextSourceRefValidator {
         elements.filter { allRefsValid(refs($0), allowed: allowed) }
     }
 }
+
+/// 确定性、低暴露的稳定哈希(FNV-1a 32-bit → 8 位十六进制)。**非加密用途** —— 只为「同一对象」识别,
+/// 不暴露原始路径 / 内容。位置哈希(`loc-`)、归档 id(`arch-`)等共用此实现,避免重复造轮子(A2)。
+nonisolated enum AIStableHash {
+    static func fnv1a32Hex(_ string: String) -> String {
+        var hash: UInt32 = 2166136261
+        for byte in string.utf8 {
+            hash ^= UInt32(byte)
+            hash = hash &* 16777619
+        }
+        return String(format: "%08x", hash)
+    }
+}

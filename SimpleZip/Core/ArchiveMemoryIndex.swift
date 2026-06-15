@@ -60,6 +60,9 @@ nonisolated enum ArchiveMemoryIndex {
                        home: String = NSHomeDirectory(),
                        budget: AIBudget = .archiveMemory) -> ArchiveMemoryRecord {
         // 缓存条目 → ArchiveItem(全部非加密),交给画像器。
+        // 注(审计 #14):缓存只存 name/isDirectory/size,没有 attributes / symlinkTarget,所以画像的
+        // contains-symlink / contains-executable 风险 hint 对缓存派生记录天然不会触发(只有 .app 路径痕迹
+        // 驱动的 contains-app-bundle 仍有效)—— 这是缓存粒度的固有限制,非缺陷。
         let items = entry.entries.map {
             ArchiveItem(name: $0.name, isDirectory: $0.isDirectory, size: $0.size, modified: nil,
                         sizeText: "", modifiedText: "", method: "", isEncrypted: false)
@@ -90,7 +93,8 @@ nonisolated enum ArchiveMemoryIndex {
             omissions.append(.encryptedEntryNames(count: entry.encryptedEntryCount))
         }
         if entry.truncated {
-            omissions.append(.truncated(type: "archive_entries", omitted: 0, reason: "per_archive_cap"))
+            // 审计 #15:缓存只知道「被截断」、不知道省了多少 → count 用 nil,不谎报 omitted:0。
+            omissions.append(AIContextOmission(type: "archive_entries", count: nil, policy: "per_archive_cap"))
         }
 
         return ArchiveMemoryRecord(
@@ -113,13 +117,8 @@ nonisolated enum ArchiveMemoryIndex {
         )
     }
 
-    /// archivePath(已规范化)→ 稳定 id。FNV-1a,确定性、不暴露路径。
+    /// archivePath(已规范化)→ 稳定 id。确定性、不暴露路径(复用 AIStableHash,A2)。
     static func archiveID(forPath path: String) -> String {
-        var hash: UInt32 = 2166136261
-        for byte in path.utf8 {
-            hash ^= UInt32(byte)
-            hash = hash &* 16777619
-        }
-        return "arch-" + String(format: "%08x", hash)
+        "arch-" + AIStableHash.fnv1a32Hex(path)
     }
 }

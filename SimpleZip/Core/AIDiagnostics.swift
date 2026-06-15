@@ -102,18 +102,25 @@ nonisolated enum AIDiagnosticsClassifier {
             add(.checksumMismatch)
         }
 
-        // 用户取消(用 -ed 形式,避免误命中 "cancellation token" 之类)。
-        if haystack.contains("cancelled") || haystack.contains("canceled") {
+        // 用户取消。整词匹配(审计 #13:避免误命中 "cancellation" / 其它子串)。
+        if containsWord("cancelled", in: haystack) || containsWord("canceled", in: haystack) {
             add(.cancelledByUser)
         }
 
-        // 上次会话中断的残留。
-        if haystack.contains("interrupted")
+        // 上次会话中断的残留。"interrupted" 整词匹配(审计 #13:避免误命中 "uninterrupted")。
+        if containsWord("interrupted", in: haystack)
             || haystack.contains("incomplete from a previous")
             || (haystack.contains("previous session") && haystack.contains("leftover")) {
             add(.interruptedPreviousSession)
         }
 
         return tags
+    }
+
+    /// 整词匹配(`\bword\b`)。正则构造失败(理论上不会)时退回子串包含。
+    private static func containsWord(_ word: String, in haystack: String) -> Bool {
+        let pattern = "\\b" + NSRegularExpression.escapedPattern(for: word) + "\\b"
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return haystack.contains(word) }
+        return regex.firstMatch(in: haystack, range: NSRange(haystack.startIndex..., in: haystack)) != nil
     }
 }

@@ -154,7 +154,9 @@ nonisolated struct ArchiveProfile: Codable, Equatable, Sendable {
         var hints: [String] = []
         if containsAppBundle { hints.append("contains-app-bundle") }
         if visible.contains(where: { !$0.symlinkTarget.isEmpty }) { hints.append("contains-symlink") }
-        if visible.contains(where: { Self.hasExecutableBit($0.attributes) }) { hints.append("contains-executable") }
+        // 审计 #5:复用 Core 唯一实现 ReleaseInspection.isExecutableMode(认 x/s/t 且正则锚定模式串),
+        // 不再自造较弱的 hasExecutableBit。
+        if visible.contains(where: { ReleaseInspection.isExecutableMode($0.attributes) }) { hints.append("contains-executable") }
         if containsPackage && !hints.contains("contains-app-bundle") { hints.append("contains-package") }
 
         var omissions: [AIContextOmission] = []
@@ -189,11 +191,4 @@ nonisolated struct ArchiveProfile: Codable, Equatable, Sendable {
         "swift", "py", "js", "ts", "go", "rs", "c", "cpp", "h", "hpp",
         "java", "kt", "rb", "cs", "m", "mm", "php", "scala"
     ]
-
-    /// Unix 权限串(如 `-rwxr-xr-x`)是否带可执行位。
-    private static func hasExecutableBit(_ attributes: String) -> Bool {
-        guard attributes.count >= 10 else { return false }
-        // 跳过首字符(文件类型),看后 9 位权限里有没有 x。
-        return attributes.dropFirst().prefix(9).contains("x")
-    }
 }
