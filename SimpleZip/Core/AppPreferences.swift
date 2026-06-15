@@ -343,6 +343,9 @@ enum AppPreferences {
         /// 0.4.4 macOS 26 AI:AI 报告助手主开关(总结风险 / 解释失败 / 建议标签 / Issue 草稿)。默认 true;
         /// 实际入口还要 macOS 26+ 且系统模型 available 才出现 —— 关掉则所有 AI 入口隐藏。
         nonisolated static let aiAssistantEnabled = "aiAssistantEnabled"
+        /// 0.4.5 #89:侧边栏是否显示后台发现的推荐 AI 工作区(白皮书 4513「允许侧边栏显示推荐工作区」)。
+        /// 关闭后只显示用户创建的 AI 工作区。默认 true。
+        nonisolated static let aiSidebarShowRecommended = "aiSidebarShowRecommended"
         /// 0.4.4:压缩使用频率统计数据(CompressionUsageStore 的 JSON;派生数据,不进偏好备份)。
         nonisolated static let compressionUsageStats = "compressionUsageStats"
         /// 0.4.4:是否记录压缩选项使用频率(供「按我最常用的来」)。默认 true;关 = 停止记录。
@@ -412,6 +415,11 @@ enum AppPreferences {
     /// 0.4.4 macOS 26 AI:AI 报告助手主开关。默认 true;入口另需 macOS 26 + 模型 available。
     nonisolated static var aiAssistantEnabled: Bool {
         defaultTrueBool(forKey: Key.aiAssistantEnabled)
+    }
+
+    /// 0.4.5 #89:侧边栏显示后台发现的推荐 AI 工作区(白皮书 4513)。默认 true。
+    nonisolated static var aiSidebarShowRecommended: Bool {
+        defaultTrueBool(forKey: Key.aiSidebarShowRecommended)
     }
 
     /// 0.4.4:是否记录压缩选项使用频率(供「按我最常用的来」)。默认 true。
@@ -1002,6 +1010,7 @@ enum AppPreferences {
         Key.automationAllowPresetPassword,
         Key.spotlightIndexingEnabled,
         Key.aiAssistantEnabled,
+        Key.aiSidebarShowRecommended,
         Key.compressionUsageTrackingEnabled,
         Key.extractionUsageTrackingEnabled,
         Key.archiveListingCacheEnabled,
@@ -1114,6 +1123,7 @@ enum AppPreferences {
         v[Key.automationAllowPresetPassword] = automationAllowPresetPassword
         v[Key.spotlightIndexingEnabled] = spotlightIndexingEnabled
         v[Key.aiAssistantEnabled] = aiAssistantEnabled
+        v[Key.aiSidebarShowRecommended] = aiSidebarShowRecommended
         v[Key.compressionUsageTrackingEnabled] = compressionUsageTrackingEnabled
         v[Key.extractionUsageTrackingEnabled] = extractionUsageTrackingEnabled
         v[Key.archiveListingCacheEnabled] = archiveListingCacheEnabled

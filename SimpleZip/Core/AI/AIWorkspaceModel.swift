@@ -285,10 +285,13 @@ nonisolated struct AIWorkspace: Identifiable, Codable, Equatable, Sendable {
     let generatedAt: Date
     var lastOpenedAt: Date?
     var negativeFeedbackCount: Int
+    /// 推荐工作区的主题指纹(`.recommended` 才有)—— 用户「不感兴趣」时据此写衰减抑制账本,随工作区一起持久化。
+    var fingerprint: AIWorkspaceThemeFingerprint?
 
     init(id: UUID, origin: Origin, title: String, prompt: String? = nil,
          queryPlan: AIWorkspaceQueryPlan, iconSystemName: String, visibility: Visibility = .visible,
-         pinned: Bool = false, generatedAt: Date, lastOpenedAt: Date? = nil, negativeFeedbackCount: Int = 0) {
+         pinned: Bool = false, generatedAt: Date, lastOpenedAt: Date? = nil, negativeFeedbackCount: Int = 0,
+         fingerprint: AIWorkspaceThemeFingerprint? = nil) {
         self.id = id
         self.origin = origin
         self.title = title
@@ -300,6 +303,7 @@ nonisolated struct AIWorkspace: Identifiable, Codable, Equatable, Sendable {
         self.generatedAt = generatedAt
         self.lastOpenedAt = lastOpenedAt
         self.negativeFeedbackCount = negativeFeedbackCount
+        self.fingerprint = fingerprint
     }
 }
 

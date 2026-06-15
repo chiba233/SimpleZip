@@ -294,6 +294,7 @@ extension AIWorkspaceThemeCandidate {
             title: titleSeed,
             queryPlan: AIWorkspaceQueryPlan(taskTags: [], keywords: themeTokens),
             iconSystemName: iconSystemName,
-            generatedAt: generatedAt)
+            generatedAt: generatedAt,
+            fingerprint: fingerprint)
     }
 }
