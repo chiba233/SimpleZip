@@ -4,6 +4,12 @@
 
 ## 0.4.5
 
+### feat
+
+**User-facing**
+
+- **A new AI sidebar with a "Needs Attention" folder.** The main window's sidebar gains an AI section: open "Needs Attention" to see a read-only, fully on-device list of recently failed tasks that may deserve another look — each row opens straight into the Activity Center. It works even when the AI model is unavailable (the list is built from your own task history, not the model), it never touches your files (open / locate only, never delete, move or extract), and the whole section disappears when you turn the AI assistant off.
+
 ### UX
 
 **User-facing**

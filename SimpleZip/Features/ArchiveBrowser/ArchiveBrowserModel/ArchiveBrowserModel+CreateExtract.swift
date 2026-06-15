@@ -916,7 +916,7 @@ extension ArchiveBrowserModel {
         switch mode {
         case .archive(let url):
             archiveURL = url
-        case .folder, .tag:
+        case .folder, .tag, .aiWorkspace:
             archiveURL = selectedFileItems.first(where: { ArchiveService.isSupportedArchive($0.url) })?.url
         }
 
@@ -1278,6 +1278,8 @@ extension ArchiveBrowserModel {
             requestBatchRename()
         case .folder, .tag:
             requestBatchRenameFiles()
+        case .aiWorkspace:
+            break // AI 工作区只读,无批量重命名。
         }
     }
 

@@ -40,6 +40,18 @@ extension ArchiveBrowserModel {
         reload()
     }
 
+    /// 0.4.5 #80:进入 AI 建议虚拟工作区(白皮书工程补充一)。与 `openTag` 同款收尾:清归档 / 停镜像 / 记历史,
+    /// 然后切 `mode`。**不加载文件列表、不监视文件夹**(reload 的 `.aiWorkspace` 分支只停 watcher);候选由
+    /// `AISuggestionFolderView` 从现有索引确定性派生,只读。
+    func openAIWorkspace(_ kind: AISystemWorkspaceKind) {
+        archiveDisplayOverride = nil
+        recordCurrentLocationForNavigation()
+        cleanupMountedDiskImageIfNeeded(for: nil)
+        session.clearArchive()
+        mode = .aiWorkspace(kind)
+        reload()
+    }
+
     func pinCurrentFolderToSidebar() {
         guard case .folder(let url) = mode else { return }
         AppPreferences.pinSidebarURL(url)
@@ -53,7 +65,7 @@ extension ArchiveBrowserModel {
         switch mode {
         case .archive(let archiveURL):
             openArchiveLocationText(trimmed, archiveURL: archiveURL)
-        case .folder, .tag:
+        case .folder, .tag, .aiWorkspace:
             openFolder(lastExistingFolder(for: URL(fileURLWithPath: NSString(string: trimmed).expandingTildeInPath)))
         }
     }
@@ -417,6 +429,8 @@ extension ArchiveBrowserModel {
             if let item = selectedArchiveItems.first {
                 open(item)
             }
+        case .aiWorkspace:
+            break // AI 工作区的节点动作由 AISuggestionFolderView 自己处理(只读打开 / 定位),不走这里。
         }
     }
 
@@ -464,7 +478,7 @@ extension ArchiveBrowserModel {
                 return
             }
             openFolder(url.deletingLastPathComponent())
-        case .tag:
+        case .tag, .aiWorkspace:
             openHome()
         case .archive(let url):
             if session.archivePath.isEmpty {
@@ -539,6 +553,11 @@ extension ArchiveBrowserModel {
             loadTask = Task { [weak self] in
                 await self?.loadArchive(url, generation: loadGeneration)
             }
+        case .aiWorkspace:
+            // AI 工作区不监视文件夹、不加载文件列表;候选由 AISuggestionFolderView 自己从现有索引确定性派生。
+            // 这里只停掉文件夹监视(避免残留 FSEvents),**绝不在此触发 @Published 风暴**(A17)。
+            folderWatcher?.stop()
+            clearExpandedFolderRegistry()
         }
     }
 
@@ -612,6 +631,8 @@ extension ArchiveBrowserModel {
             NSWorkspace.shared.activateFileViewerSelecting(selectedFileItems.map(\.url))
         case .archive(let url):
             NSWorkspace.shared.activateFileViewerSelecting([url])
+        case .aiWorkspace:
+            break // AI 工作区是虚拟视图,没有可在 Finder 中定位的真实位置。
         }
     }
 
@@ -635,8 +656,8 @@ extension ArchiveBrowserModel {
         switch mode {
         case .folder(let url):
             NSWorkspace.shared.activateFileViewerSelecting([url])
-        case .tag:
-            // tag 没有实体路径可定位，回落到 home 目录。
+        case .tag, .aiWorkspace:
+            // tag / AI 工作区没有实体路径可定位，回落到 home 目录。
             NSWorkspace.shared.activateFileViewerSelecting([FileManager.default.homeDirectoryForCurrentUser])
         case .archive(let url):
             NSWorkspace.shared.activateFileViewerSelecting([url])

@@ -12,6 +12,8 @@ import UniformTypeIdentifiers
 /// 左侧导航栏：放常用位置和打开入口。
 struct Sidebar: View {
     @ObservedObject var model: ArchiveBrowserModel
+    /// 0.4.5 #80:AI 主开关。关闭 → AI 工作区入口整体不渲染(A4 门控:主开关关,主界面 AI 入口全隐藏)。
+    @AppStorage(AppPreferences.Key.aiAssistantEnabled) private var aiEnabled = true
     @State private var recentURLs: [URL] = []
     @State private var pinnedURLs: [URL] = []
     @State private var isPinnedDropTargeted = false
@@ -64,6 +66,15 @@ struct Sidebar: View {
 
     var body: some View {
         List {
+            // 0.4.5 #80:AI 工作区(白皮书工程补充一 MVP)。只读虚拟工作区,确定性候选;AI 主开关关 → 整段隐藏。
+            if aiEnabled {
+                Section(L10n.text("sidebar.ai.section")) {
+                    SidebarButton(title: L10n.text("aiFolder.needsAttention"), systemImage: "sparkles") {
+                        model.openAIWorkspace(.needsAttention)
+                    }
+                }
+            }
+
             Section(L10n.text("section.favorites")) {
                 ForEach(favoriteRows) { row in
                     SidebarRowButton(action: { model.openFolder(row.openURL) }) {

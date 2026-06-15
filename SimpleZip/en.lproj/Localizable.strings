@@ -1572,6 +1572,13 @@
 "file.openInNewWindow" = "Open in New Window";
 "diagnostics.copied" = "Diagnostics copied to clipboard.";
 "section.favorites" = "Favorites";
+"sidebar.ai.section" = "AI";
+"browser.aiSuggestions.title" = "AI Suggestions";
+"location.aiSuggestions" = "AI Suggestions";
+"aiFolder.needsAttention" = "Needs Attention";
+"aiFolder.needsAttention.subtitle" = "Recently failed tasks that may need another look.";
+"aiFolder.noSuggestions" = "Nothing needs your attention";
+"aiFolder.openInActivity" = "Open in Activity Center";
 "section.recents" = "Frequently Used";
 "section.pinned" = "Pinned";
 "section.tags" = "Tags";

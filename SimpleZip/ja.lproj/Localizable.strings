@@ -142,6 +142,13 @@
 "file.openInNewWindow" = "新規ウインドウで開く";
 "diagnostics.copied" = "診断情報をクリップボードにコピーしました。";
 "section.favorites" = "よく使う項目";
+"sidebar.ai.section" = "AI";
+"browser.aiSuggestions.title" = "AI の提案";
+"location.aiSuggestions" = "AI の提案";
+"aiFolder.needsAttention" = "要確認";
+"aiFolder.needsAttention.subtitle" = "最近失敗したタスクで、再確認が必要な可能性があります。";
+"aiFolder.noSuggestions" = "確認が必要な項目はありません";
+"aiFolder.openInActivity" = "アクティビティセンターで開く";
 "section.recents" = "最近使った場所";
 "section.pinned" = "ピン留め";
 "section.tags" = "タグ";

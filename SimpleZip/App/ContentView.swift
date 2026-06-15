@@ -96,6 +96,9 @@ struct ContentView: View {
                                 }
                             }
                         }
+                } else if case .aiWorkspace(let kind) = model.mode {
+                    // 0.4.5 #80:AI 建议虚拟工作区(只读;白皮书工程补充一)。独立视图,不复用 FileTable。
+                    AISuggestionFolderView(model: model, kind: kind)
                 } else {
                     FileTable(model: model)
                 }
@@ -1450,6 +1453,8 @@ private struct ContextualToolbarButtons: View {
             archiveSuggestions
         case .folder, .tag:
             folderSuggestions
+        case .aiWorkspace:
+            EmptyView() // AI 工作区是只读虚拟视图,工具栏不放针对文件/归档的上下文建议按钮。
         }
     }
 

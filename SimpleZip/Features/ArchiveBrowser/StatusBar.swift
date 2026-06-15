@@ -123,6 +123,8 @@ struct StatusBar: View {
             let selected = model.fileItems.filter { model.selection.contains($0.id) }
             guard !selected.isEmpty else { return nil }
             return Self.selectionSummary(count: selected.count, bytes: selected.compactMap(\.size).reduce(0, +))
+        case .aiWorkspace:
+            return nil // AI 工作区状态栏不显示文件大小汇总(虚拟视图,无真实条目)。
         }
     }
 

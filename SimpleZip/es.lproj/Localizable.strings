@@ -142,6 +142,13 @@
 "file.openInNewWindow" = "Abrir en una ventana nueva";
 "diagnostics.copied" = "Diagnóstico copiado al portapapeles.";
 "section.favorites" = "Favoritos";
+"sidebar.ai.section" = "IA";
+"browser.aiSuggestions.title" = "Sugerencias de IA";
+"location.aiSuggestions" = "Sugerencias de IA";
+"aiFolder.needsAttention" = "Requiere atención";
+"aiFolder.needsAttention.subtitle" = "Tareas que fallaron recientemente y que podrían necesitar otra revisión.";
+"aiFolder.noSuggestions" = "Nada requiere tu atención";
+"aiFolder.openInActivity" = "Abrir en el Centro de actividad";
 "section.recents" = "Uso frecuente";
 "section.pinned" = "Fijados";
 "section.tags" = "Etiquetas";

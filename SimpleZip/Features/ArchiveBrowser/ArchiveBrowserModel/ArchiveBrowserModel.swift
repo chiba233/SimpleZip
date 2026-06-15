@@ -472,6 +472,8 @@ final class ArchiveBrowserModel: ObservableObject {
             return (archiveDisplayOverride ?? url).lastPathComponent
         case .tag(let tag):
             return tag
+        case .aiWorkspace:
+            return L10n.text("browser.aiSuggestions.title")
         }
     }
 
@@ -498,6 +500,8 @@ final class ArchiveBrowserModel: ObservableObject {
             return path.isEmpty ? baseLocation : "\(baseLocation) / \(path.trimmingCharacters(in: CharacterSet(charactersIn: "/")))"
         case .tag(let tag):
             return L10n.format("location.tag", tag)
+        case .aiWorkspace:
+            return L10n.text("location.aiSuggestions")
         }
     }
 
@@ -515,6 +519,8 @@ final class ArchiveBrowserModel: ObservableObject {
             return path.isEmpty ? base : base + "/" + path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         case .tag(let tag):
             return L10n.format("location.tag", tag)
+        case .aiWorkspace:
+            return L10n.text("location.aiSuggestions")
         }
     }
 
@@ -601,6 +607,8 @@ final class ArchiveBrowserModel: ObservableObject {
             return .archive(url.standardizedFileURL, session.archivePath)
         case .tag(let tag):
             return .tag(tag)
+        case .aiWorkspace:
+            return nil
         }
     }
 

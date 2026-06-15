@@ -142,6 +142,13 @@
 "file.openInNewWindow" = "Открыть в новом окне";
 "diagnostics.copied" = "Диагностика скопирована в буфер обмена.";
 "section.favorites" = "Избранное";
+"sidebar.ai.section" = "ИИ";
+"browser.aiSuggestions.title" = "Подсказки ИИ";
+"location.aiSuggestions" = "Подсказки ИИ";
+"aiFolder.needsAttention" = "Требует внимания";
+"aiFolder.needsAttention.subtitle" = "Недавно завершившиеся сбоем задачи, которые стоит просмотреть ещё раз.";
+"aiFolder.noSuggestions" = "Ничего не требует вашего внимания";
+"aiFolder.openInActivity" = "Открыть в Центре активности";
 "section.recents" = "Часто используемые";
 "section.pinned" = "Закреплённые";
 "section.tags" = "Теги";

@@ -257,6 +257,7 @@ struct FileNSOutlineView: NSViewRepresentable {
             case .folder(let url): return url.standardizedFileURL.path
             case .tag(let tag): return "tag:\(tag)"
             case .archive(let url): return "archive:\(url.standardizedFileURL.path)"
+            case .aiWorkspace(let kind): return "aiWorkspace:\(kind.rawValue)" // FileTable 不渲染本模式,仅为穷尽性。
             }
         }
 

@@ -142,6 +142,13 @@
 "file.openInNewWindow" = "เปิดในหน้าต่างใหม่";
 "diagnostics.copied" = "คัดลอกข้อมูลวินิจฉัยไปยังคลิปบอร์ดแล้ว";
 "section.favorites" = "รายการโปรด";
+"sidebar.ai.section" = "AI";
+"browser.aiSuggestions.title" = "คำแนะนำจาก AI";
+"location.aiSuggestions" = "คำแนะนำจาก AI";
+"aiFolder.needsAttention" = "ต้องการการตรวจสอบ";
+"aiFolder.needsAttention.subtitle" = "งานที่ล้มเหลวล่าสุดซึ่งอาจต้องตรวจสอบอีกครั้ง";
+"aiFolder.noSuggestions" = "ไม่มีสิ่งที่ต้องตรวจสอบ";
+"aiFolder.openInActivity" = "เปิดในศูนย์กิจกรรม";
 "section.recents" = "ใช้บ่อย";
 "section.pinned" = "ตำแหน่งที่ปักหมุด";
 "section.tags" = "แท็ก";

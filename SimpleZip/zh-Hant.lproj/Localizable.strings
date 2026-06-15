@@ -142,6 +142,13 @@
 "file.openInNewWindow" = "在新視窗開啟";
 "diagnostics.copied" = "诊断信息已复制到剪贴板。";
 "section.favorites" = "個人收藏";
+"sidebar.ai.section" = "AI";
+"browser.aiSuggestions.title" = "AI 建議";
+"location.aiSuggestions" = "AI 建議";
+"aiFolder.needsAttention" = "需要處理";
+"aiFolder.needsAttention.subtitle" = "最近失敗、可能需要再看一眼的任務。";
+"aiFolder.noSuggestions" = "暫時沒有需要處理的";
+"aiFolder.openInActivity" = "在活動中心開啟";
 "section.recents" = "經常使用";
 "section.pinned" = "固定路徑";
 "section.tags" = "標籤";

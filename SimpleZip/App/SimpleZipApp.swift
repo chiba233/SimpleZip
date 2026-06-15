@@ -594,6 +594,8 @@ struct ArchiveFileCommands: Commands {
             return !model.selectedFileItems.isEmpty
         case .archive:
             return model.selectedArchiveItems.contains { $0.isDirectory }
+        case .aiWorkspace:
+            return false // AI 工作区只读,菜单栏的「打开选中」不适用。
         }
     }
 
@@ -610,6 +612,8 @@ struct ArchiveFileCommands: Commands {
         case .folder, .tag:
             // 0.4.4:`.siz` 也算(解压走既有 unwrap 流程,测试 = 签名验证 sheet,A5)。
             return model.selectedFileItems.contains { SignedContainerService.isToolableArchive($0.url) }
+        case .aiWorkspace:
+            return false
         }
     }
 
@@ -629,6 +633,8 @@ struct ArchiveFileCommands: Commands {
             return true
         case .folder, .tag:
             return !model.selectedFileItems.isEmpty
+        case .aiWorkspace:
+            return false
         }
     }
 
@@ -660,7 +666,7 @@ struct ArchiveFileCommands: Commands {
         switch model.mode {
         case .folder, .tag:
             return canSplitFileItemSelection(model)
-        case .archive:
+        case .archive, .aiWorkspace:
             return false
         }
     }
@@ -672,7 +678,7 @@ struct ArchiveFileCommands: Commands {
             guard model.selectedFileItems.count == 1,
                   let item = model.selectedFileItems.first else { return false }
             return FileSplitCombine.isFirstVolume(item.url)
-        case .archive:
+        case .archive, .aiWorkspace:
             return false
         }
     }

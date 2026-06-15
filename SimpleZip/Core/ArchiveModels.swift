@@ -193,8 +193,18 @@ struct ArchiveItem: Identifiable, Hashable, Codable {
 }
 
 /// 主列表当前展示的是普通文件夹，还是某个压缩包的内容。
+/// 0.4.5 #80:AI 系统工作区类别(白皮书工程补充一 MVP —— 第一版只做确定性系统工作区,不做用户 prompt 创建)。
+/// 纯枚举;每类的候选由 `AISuggestionFolderView` 从现有索引(失败任务等)确定性派生,只读。
+enum AISystemWorkspaceKind: String, Equatable, CaseIterable {
+    /// 「需要处理」—— 最近失败的任务等需要用户关注的项。
+    case needsAttention
+}
+
 enum BrowserMode: Equatable {
     case folder(URL)
     case archive(URL)
     case tag(String)
+    /// 0.4.5 #80:AI 建议虚拟工作区(只读;白皮书建议四 / 工程补充一)。内容区渲染 `AISuggestionFolderView`,
+    /// **不复用 FileTable、不伪造 FileItem**;动作只允许打开 / 定位 / 解释,绝不改文件。
+    case aiWorkspace(AISystemWorkspaceKind)
 }

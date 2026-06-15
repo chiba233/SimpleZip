@@ -142,6 +142,13 @@
 "file.openInNewWindow" = "In neuem Fenster öffnen";
 "diagnostics.copied" = "Diagnose in die Zwischenablage kopiert.";
 "section.favorites" = "Favoriten";
+"sidebar.ai.section" = "KI";
+"browser.aiSuggestions.title" = "KI-Vorschläge";
+"location.aiSuggestions" = "KI-Vorschläge";
+"aiFolder.needsAttention" = "Benötigt Aufmerksamkeit";
+"aiFolder.needsAttention.subtitle" = "Kürzlich fehlgeschlagene Aufgaben, die möglicherweise noch einmal überprüft werden sollten.";
+"aiFolder.noSuggestions" = "Nichts erfordert Ihre Aufmerksamkeit";
+"aiFolder.openInActivity" = "Im Aktivitätscenter öffnen";
 "section.recents" = "Häufig verwendet";
 "section.pinned" = "Angeheftet";
 "section.tags" = "Schlagwörter";

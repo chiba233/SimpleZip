@@ -1006,8 +1006,8 @@ extension ArchiveBrowserModel {
         switch mode {
         case .folder, .tag:
             break
-        case .archive:
-            return
+        case .archive, .aiWorkspace:
+            return // 归档模式 / AI 工作区(只读)不在此处删除真实文件。
         }
         guard !selectedFileItems.isEmpty else { return }
         // 0.4.2 #4：选中项属于分卷家族且家族还有未选中成员 → 问「删除整组还是仅所选」。

@@ -31,7 +31,7 @@ extension ArchiveBrowserModel {
         switch mode {
         case .archive(let url):
             archiveURL = url
-        case .folder, .tag:
+        case .folder, .tag, .aiWorkspace:
             archiveURL = selectedFileItems.first(where: { ArchiveService.isSupportedArchive($0.url) })?.url
         }
 
@@ -722,7 +722,7 @@ extension ArchiveBrowserModel {
             } else {
                 archiveURL = url
             }
-        case .folder, .tag:
+        case .folder, .tag, .aiWorkspace:
             archiveURL = selectedFileItems.first(where: { !$0.isDirectory && SignedContainerService.isToolableArchive($0.url) })?.url
         }
         guard let archiveURL else {
@@ -1183,7 +1183,7 @@ extension ArchiveBrowserModel {
             } else {
                 archiveURL = url
             }
-        case .folder, .tag:
+        case .folder, .tag, .aiWorkspace:
             // #6:单选 .app 目录 → 纯 bundle 检查(Info.plist/codesign/Gatekeeper),不走归档管线。
             if selectedFileItems.count == 1, let item = selectedFileItems.first,
                BundleReleaseCheck.Target.detect(at: item.url) == .appBundle {
@@ -1237,7 +1237,7 @@ extension ArchiveBrowserModel {
                 archiveName: (archiveDisplayOverride ?? url).lastPathComponent,
                 analysis: analysis
             )
-        case .folder, .tag:
+        case .folder, .tag, .aiWorkspace:
             guard let archiveURL = selectedFileItems.first(where: { SignedContainerService.isToolableArchive($0.url) })?.url else {
                 errorMessage = L10n.text("error.openOrSelectArchive")
                 return
@@ -1656,7 +1656,7 @@ extension ArchiveBrowserModel {
     func calculateHash(algorithms: [HashAlgorithm]) {
         let urls: [URL]
         switch mode {
-        case .folder, .tag:
+        case .folder, .tag, .aiWorkspace:
             urls = selectedFileItems.map(\.url)
         case .archive(let url):
             urls = [url]
