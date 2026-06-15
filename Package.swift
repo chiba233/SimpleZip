@@ -37,6 +37,7 @@ let package = Package(
                 "Core/AIContext.swift",
                 "Core/AIDiagnostics.swift",
                 "Core/AIFeedback.swift",
+                "Core/AILens.swift",
                 "Core/AILocationContext.swift",
                 "Core/AIUserInterestEvent.swift",
                 "Core/ActivityTaskAIIndex.swift",
