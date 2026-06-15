@@ -20,6 +20,7 @@ enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
     case gpg
     case updates
     case automation
+    case ai
     case health
     case backup
     case help
@@ -45,6 +46,8 @@ enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
             return L10n.text("settings.section.updates")
         case .automation:
             return L10n.text("settings.section.automation")
+        case .ai:
+            return L10n.text("settings.section.ai")
         case .health:
             return L10n.text("settings.section.health")
         case .backup:
@@ -74,6 +77,8 @@ enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
             return "arrow.triangle.2.circlepath"
         case .automation:
             return "bolt.horizontal"
+        case .ai:
+            return "sparkles"
         case .health:
             return "heart.text.square"
         case .backup:
@@ -104,6 +109,8 @@ enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
             return .red
         case .automation:
             return .yellow
+        case .ai:
+            return .purple
         case .health:
             return .pink
         case .backup:
@@ -142,6 +149,8 @@ enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
             return L10n.text("settings.section.updates.subtitle")
         case .automation:
             return L10n.text("settings.section.automation.subtitle")
+        case .ai:
+            return L10n.text("settings.section.ai.subtitle")
         // 帮助/关于自带头,不取副标题。
         case .help, .about:
             return ""

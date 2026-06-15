@@ -10,6 +10,7 @@
 
 - **The Activity Center opens larger.** It now opens at a roomier default size instead of feeling cramped.
 - **Settings gets the unified hero look and stays immersive.** Each settings pane now opens with a colored hero header — an icon tile, the title and a one-line description of what's inside — and the sidebar uses the same gradient tiles as the Activity Center. The window opens taller and is now freely resizable in both width and height (and can go fullscreen), just like the Activity Center, while keeping the frosted, edge-to-edge immersive chrome throughout.
+- **AI settings get their own page.** The AI assistant switch moves out of the Automation page into a dedicated **AI & Smart Suggestions** settings page — its own home, with a short privacy note reminding you that the assistant runs entirely on your Mac and never receives passwords, encrypted contents or keys.
 
 ### bugfix
 

@@ -2279,7 +2279,11 @@
 "intent.release.done" = "發佈包 %@ 已就緒（已檢查、已寫入校驗檔案）。";
 "intent.release.doneNoChecksums" = "發佈包 %@ 已就緒（已檢查；未寫入校驗檔案）。";
 "settings.section.automation" = "自動化";
-"settings.section.automation.subtitle" = "命令列工具、捷徑與 Siri、URL scheme、Spotlight 索引、封存快取、AI 助理，以及依來源統計。";
+"settings.section.automation.subtitle" = "命令列工具、捷徑與 Siri、URL scheme、Spotlight 索引、封存快取，以及依來源統計。";
+"settings.section.ai" = "AI 與智慧建議";
+"settings.section.ai.subtitle" = "開啟或關閉本機 AI 助理。所有處理都在你的 Mac 本機進行。";
+"settings.ai.privacy.section" = "隱私";
+"settings.ai.privacy.note" = "AI 助理完全在你的 Mac 本機執行。密碼、加密內容和金鑰絕不會傳送給它。";
 "settings.automation.shortcuts.section" = "捷徑與 Siri";
 "settings.automation.shortcuts.title" = "捷徑動作";
 "settings.automation.shortcuts.description" = "「快捷指令」App 裡有八個動作：解壓歸檔、建立歸檔、測試歸檔完整性、驗證校驗檔、比較歸檔、搜尋歸檔內容、檢查歸檔、建立發佈套件。";

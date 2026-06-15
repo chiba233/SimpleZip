@@ -19,8 +19,6 @@ struct AutomationPane: View {
     @AppStorage(AppPreferences.Key.automationAllowPresetPassword) private var allowPresetPassword = true
     /// 0.4.4 macOS 26 AI:是否把发布包 / 任务捐献进 Spotlight。默认 true = 便利;关 = 更私密(并清空已索引)。
     @AppStorage(AppPreferences.Key.spotlightIndexingEnabled) private var spotlightIndexing = true
-    /// 0.4.4 macOS 26 AI:AI 报告助手主开关。关 → 所有 AI 入口隐藏。
-    @AppStorage(AppPreferences.Key.aiAssistantEnabled) private var aiAssistant = true
     /// #34/#36:归档内容缓存控制(开关 / 归档数上限 / 过期天数)。关 → 停止缓存并清空。
     @AppStorage(AppPreferences.Key.archiveListingCacheEnabled) private var archiveCacheEnabled = true
     @AppStorage(AppPreferences.Key.archiveListingCacheMaxArchives) private var archiveCacheMax = AppPreferences.archiveListingCacheMaxArchives
@@ -296,23 +294,7 @@ struct AutomationPane: View {
             .onAppear(perform: refreshArchiveCacheStats)
             .settingsAnchor("automation.cache")
 
-            // ②.6 AI 报告助手(macOS 26 本地模型):总结风险 / 解释失败 / 建议标签 / Issue 草稿。
-            // 主开关关 → 所有 AI 入口隐藏;开但模型不可用(旧系统 / 没开 Apple Intelligence / 没下完)→ 说明文案。
-            Section(L10n.text("settings.automation.ai.section")) {
-                SettingsToggleRow(
-                    title: L10n.text("settings.automation.ai.title"),
-                    description: L10n.text("settings.automation.ai.description"),
-                    systemImage: "sparkles", iconTint: .purple,
-                    isOn: $aiAssistant
-                )
-                if aiAssistant, !AIReportAssistant.isReady {
-                    Text(AIReportAssistant.unavailableReason)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-            .settingsAnchor("automation.ai")
+            // AI 助手主开关 + 能力状态已搬到独立「AI 与智能建议」设置页(单一归属,见 AISettingsPane)。
 
             // ③ URL Scheme(展示型:现状即「每次都要 app 内确认」,不提供关闭项)。
             Section(L10n.text("settings.automation.urlScheme.section")) {

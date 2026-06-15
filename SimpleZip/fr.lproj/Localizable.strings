@@ -2277,7 +2277,11 @@
 "intent.release.done" = "Le paquet de version %@ est prêt (inspecté, sommes écrites).";
 "intent.release.doneNoChecksums" = "Le paquet de version %@ est prêt (inspecté ; aucun fichier de sommes écrit).";
 "settings.section.automation" = "Automatisation";
-"settings.section.automation.subtitle" = "Outil en ligne de commande, Raccourcis et Siri, schéma d’URL, indexation Spotlight, cache d’archives, assistant IA et statistiques par source.";
+"settings.section.automation.subtitle" = "Outil en ligne de commande, Raccourcis et Siri, schéma d’URL, indexation Spotlight, cache d’archives et statistiques par source.";
+"settings.section.ai" = "IA et suggestions intelligentes";
+"settings.section.ai.subtitle" = "Activez ou désactivez l’assistant IA sur l’appareil. Tout fonctionne localement sur votre Mac.";
+"settings.ai.privacy.section" = "Confidentialité";
+"settings.ai.privacy.note" = "L’assistant IA fonctionne entièrement sur votre Mac. Les mots de passe, les contenus chiffrés et les clés ne lui sont jamais transmis.";
 "settings.automation.shortcuts.section" = "Raccourcis et Siri";
 "settings.automation.shortcuts.title" = "Actions Raccourcis";
 "settings.automation.shortcuts.description" = "Huit actions sont disponibles dans l’app Raccourcis : Extraire l’archive, Créer une archive, Tester l’intégrité de l’archive, Vérifier les sommes de contrôle, Comparer les archives, Rechercher dans l’archive, Inspecter l’archive et Créer un paquet de version.";

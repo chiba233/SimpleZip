@@ -1291,7 +1291,11 @@
 "intent.release.doneNoChecksums" = "Release package %@ is ready (inspected; no checksums file written).";
 /* 0.4.4 #1 automation pane + F1 source labels */
 "settings.section.automation" = "Automation";
-"settings.section.automation.subtitle" = "Command-line tool, Shortcuts and Siri, URL scheme, Spotlight indexing, archive cache, AI assistant, and per-source stats.";
+"settings.section.automation.subtitle" = "Command-line tool, Shortcuts and Siri, URL scheme, Spotlight indexing, archive cache, and per-source stats.";
+"settings.section.ai" = "AI & Smart Suggestions";
+"settings.section.ai.subtitle" = "Turn the on-device AI assistant on or off. Everything runs locally on your Mac.";
+"settings.ai.privacy.section" = "Privacy";
+"settings.ai.privacy.note" = "The AI assistant runs entirely on your Mac. Passwords, encrypted contents and keys are never sent to it.";
 "settings.automation.shortcuts.section" = "Shortcuts & Siri";
 "settings.automation.shortcuts.title" = "Shortcuts Actions";
 "settings.automation.shortcuts.description" = "Ten actions are available in the Shortcuts app: Extract Archive, Create Archive, Test Archive Integrity, Verify Checksums, Compare Archives, Search Archive Contents, Inspect Archive, Create Release Package, Find Archive Containing File and Change a Setting. Siri can also turn a safe setting on or off without opening the app.";

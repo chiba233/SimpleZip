@@ -1289,7 +1289,11 @@
 "intent.release.doneNoChecksums" = "发布包 %@ 已就绪(已检查;未写校验文件)。";
 /* 0.4.4 #1 自动化中心 + F1 来源标签 */
 "settings.section.automation" = "自动化";
-"settings.section.automation.subtitle" = "命令行工具、快捷指令与 Siri、URL scheme、Spotlight 索引、归档缓存、AI 助手，以及按来源统计。";
+"settings.section.automation.subtitle" = "命令行工具、快捷指令与 Siri、URL scheme、Spotlight 索引、归档缓存，以及按来源统计。";
+"settings.section.ai" = "AI 与智能建议";
+"settings.section.ai.subtitle" = "开启或关闭本机 AI 助手。所有处理都在你的 Mac 本机进行。";
+"settings.ai.privacy.section" = "隐私";
+"settings.ai.privacy.note" = "AI 助手完全在你的 Mac 本机运行。密码、加密内容和密钥绝不会发给它。";
 "settings.automation.shortcuts.section" = "快捷指令与 Siri";
 "settings.automation.shortcuts.title" = "快捷指令动作";
 "settings.automation.shortcuts.description" = "快捷指令 App 里有十个动作：解压归档、创建归档、测试归档完整性、验证校验文件、比较归档、搜索归档内容、检查归档、创建发布包、查找包含某文件的归档、更改设置。Siri 也能在不打开 App 的情况下开关一个安全设置。";

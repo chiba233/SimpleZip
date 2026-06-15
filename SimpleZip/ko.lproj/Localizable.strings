@@ -2278,7 +2278,11 @@
 "intent.release.done" = "릴리스 패키지 %@ 준비 완료(검사 및 체크섬 작성됨).";
 "intent.release.doneNoChecksums" = "릴리스 패키지 %@ 준비 완료(검사 완료, 체크섬 파일 미작성).";
 "settings.section.automation" = "자동화";
-"settings.section.automation.subtitle" = "명령줄 도구, 단축어와 Siri, URL 스킴, Spotlight 색인, 아카이브 캐시, AI 어시스턴트, 출처별 통계.";
+"settings.section.automation.subtitle" = "명령줄 도구, 단축어와 Siri, URL 스킴, Spotlight 색인, 아카이브 캐시, 출처별 통계.";
+"settings.section.ai" = "AI 및 스마트 제안";
+"settings.section.ai.subtitle" = "온디바이스 AI 어시스턴트를 켜거나 끕니다. 모든 작업은 사용자의 Mac에서 로컬로 실행됩니다.";
+"settings.ai.privacy.section" = "개인정보 보호";
+"settings.ai.privacy.note" = "AI 어시스턴트는 전적으로 사용자의 Mac에서 실행됩니다. 비밀번호, 암호화된 내용 및 키는 절대 전송되지 않습니다.";
 "settings.automation.shortcuts.section" = "단축어 및 Siri";
 "settings.automation.shortcuts.title" = "단축어 동작";
 "settings.automation.shortcuts.description" = "단축어 앱에서 여덟 가지 동작을 사용할 수 있습니다: 아카이브 추출, 아카이브 생성, 아카이브 무결성 테스트, 체크섬 확인, 아카이브 비교, 아카이브 내용 검색, 아카이브 검사, 릴리스 패키지 생성.";

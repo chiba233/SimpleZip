@@ -2277,7 +2277,11 @@
 "intent.release.done" = "El paquete de versión %@ está listo (inspeccionado, sumas escritas).";
 "intent.release.doneNoChecksums" = "El paquete de versión %@ está listo (inspeccionado; sin archivo de sumas escrito).";
 "settings.section.automation" = "Automatización";
-"settings.section.automation.subtitle" = "Herramienta de línea de comandos, Atajos y Siri, esquema de URL, indexación de Spotlight, caché de archivos comprimidos, asistente de IA y estadísticas por origen.";
+"settings.section.automation.subtitle" = "Herramienta de línea de comandos, Atajos y Siri, esquema de URL, indexación de Spotlight, caché de archivos comprimidos y estadísticas por origen.";
+"settings.section.ai" = "IA y sugerencias inteligentes";
+"settings.section.ai.subtitle" = "Activa o desactiva el asistente de IA en el dispositivo. Todo se ejecuta localmente en tu Mac.";
+"settings.ai.privacy.section" = "Privacidad";
+"settings.ai.privacy.note" = "El asistente de IA se ejecuta por completo en tu Mac. Las contraseñas, los contenidos cifrados y las claves nunca se le envían.";
 "settings.automation.shortcuts.section" = "Atajos y Siri";
 "settings.automation.shortcuts.title" = "Acciones de Atajos";
 "settings.automation.shortcuts.description" = "Hay ocho acciones disponibles en la app Atajos: Extraer archivo, Crear archivo, Probar integridad del archivo, Verificar sumas de comprobación, Comparar archivos, Buscar en el contenido del archivo, Inspeccionar archivo y Crear paquete de versión.";

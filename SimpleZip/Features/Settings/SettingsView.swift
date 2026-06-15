@@ -242,6 +242,8 @@ struct SettingsView: View {
             BackupPane()
         case .automation:
             AutomationPane()
+        case .ai:
+            AISettingsPane()
         case .help:
             HelpPane()
         case .about:

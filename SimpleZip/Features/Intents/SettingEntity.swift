@@ -44,7 +44,7 @@ nonisolated enum SettingsCatalog {
             keywords: ["cache", "archive contents", "remember", "search"], isToggleable: true
         ),
         SettingsCatalogItem(
-            id: "automation.ai", pane: .automation,
+            id: "automation.ai", pane: .ai,
             titleKey: "settings.automation.ai.title",
             keywords: ["ai", "assistant", "apple intelligence", "report"], isToggleable: true
         ),

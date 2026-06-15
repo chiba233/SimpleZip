@@ -2277,7 +2277,11 @@
 "intent.release.done" = "แพ็กเกจรีลีส %@ พร้อมแล้ว (ตรวจสอบแล้ว เขียนเช็กซัมแล้ว)";
 "intent.release.doneNoChecksums" = "แพ็กเกจรีลีส %@ พร้อมแล้ว (ตรวจสอบแล้ว; ไม่ได้เขียนไฟล์เช็กซัม)";
 "settings.section.automation" = "การทำงานอัตโนมัติ";
-"settings.section.automation.subtitle" = "เครื่องมือบรรทัดคำสั่ง คำสั่งลัดและ Siri, URL scheme, การทำดัชนี Spotlight, แคชไฟล์บีบอัด ผู้ช่วย AI และสถิติแยกตามแหล่งที่มา";
+"settings.section.automation.subtitle" = "เครื่องมือบรรทัดคำสั่ง คำสั่งลัดและ Siri, URL scheme, การทำดัชนี Spotlight, แคชไฟล์บีบอัด และสถิติแยกตามแหล่งที่มา";
+"settings.section.ai" = "AI และคำแนะนำอัจฉริยะ";
+"settings.section.ai.subtitle" = "เปิดหรือปิดผู้ช่วย AI บนเครื่อง ทุกอย่างทำงานภายในเครื่อง Mac ของคุณ";
+"settings.ai.privacy.section" = "ความเป็นส่วนตัว";
+"settings.ai.privacy.note" = "ผู้ช่วย AI ทำงานภายในเครื่อง Mac ของคุณทั้งหมด รหัสผ่าน เนื้อหาที่เข้ารหัส และกุญแจจะไม่ถูกส่งไปยังผู้ช่วย AI";
 "settings.automation.shortcuts.section" = "คำสั่งลัดและ Siri";
 "settings.automation.shortcuts.title" = "การทำงานของคำสั่งลัด";
 "settings.automation.shortcuts.description" = "มีแปดการกระทำในแอป Shortcuts: แตกไฟล์เก็บถาวร, สร้างไฟล์เก็บถาวร, ทดสอบความสมบูรณ์ของไฟล์เก็บถาวร, ตรวจสอบเช็กซัม, เปรียบเทียบไฟล์เก็บถาวร, ค้นหาเนื้อหาไฟล์เก็บถาวร, ตรวจสอบไฟล์เก็บถาวร และสร้างแพ็กเกจรีลีส";

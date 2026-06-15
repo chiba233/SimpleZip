@@ -2279,7 +2279,11 @@
 "intent.release.done" = "リリースパッケージ %@ の準備ができました（検査済み、チェックサム書き込み済み）。";
 "intent.release.doneNoChecksums" = "リリースパッケージ %@ の準備ができました（検査済み、チェックサムは未書き込み）。";
 "settings.section.automation" = "自動化";
-"settings.section.automation.subtitle" = "コマンドラインツール、ショートカットと Siri、URL スキーム、Spotlight インデックス、アーカイブキャッシュ、AI アシスタント、ソース別の統計。";
+"settings.section.automation.subtitle" = "コマンドラインツール、ショートカットと Siri、URL スキーム、Spotlight インデックス、アーカイブキャッシュ、ソース別の統計。";
+"settings.section.ai" = "AI とスマート提案";
+"settings.section.ai.subtitle" = "オンデバイスの AI アシスタントのオン・オフを切り替えます。すべての処理は Mac 上でローカルに実行されます。";
+"settings.ai.privacy.section" = "プライバシー";
+"settings.ai.privacy.note" = "AI アシスタントはすべて Mac 上で実行されます。パスワード、暗号化された内容、鍵が送信されることは一切ありません。";
 "settings.automation.shortcuts.section" = "ショートカットと Siri";
 "settings.automation.shortcuts.title" = "ショートカットアクション";
 "settings.automation.shortcuts.description" = "ショートカット App では 8 つのアクションを利用できます：アーカイブを展開、アーカイブを作成、アーカイブの整合性をテスト、チェックサムを検証、アーカイブを比較、アーカイブ内を検索、アーカイブを検査、リリースパッケージを作成。";
