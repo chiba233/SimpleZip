@@ -149,6 +149,12 @@
 "aiFolder.needsAttention.subtitle" = "다시 확인해야 할 수 있는 최근 실패한 작업입니다.";
 "aiFolder.noSuggestions" = "확인이 필요한 항목이 없습니다";
 "aiFolder.openInActivity" = "활동 센터에서 열기";
+"aiFolder.openArchive" = "열기";
+"aiFolder.archiveEntryCount" = "항목 %d개";
+"aiFolder.releaseAndVerify" = "릴리스 및 검증";
+"aiFolder.releaseAndVerify.subtitle" = "최근의 검사, 테스트, 해시 및 비교 실행입니다.";
+"aiFolder.recentArchives" = "최근 압축 파일";
+"aiFolder.recentArchives.subtitle" = "온디바이스 콘텐츠 색인과 함께 최근에 연 압축 파일입니다.";
 "section.recents" = "자주 사용";
 "section.pinned" = "고정됨";
 "section.tags" = "태그";

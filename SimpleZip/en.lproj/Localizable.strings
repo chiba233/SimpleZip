@@ -1579,6 +1579,12 @@
 "aiFolder.needsAttention.subtitle" = "Recently failed tasks that may need another look.";
 "aiFolder.noSuggestions" = "Nothing needs your attention";
 "aiFolder.openInActivity" = "Open in Activity Center";
+"aiFolder.openArchive" = "Open";
+"aiFolder.archiveEntryCount" = "%d items";
+"aiFolder.releaseAndVerify" = "Release & Verify";
+"aiFolder.releaseAndVerify.subtitle" = "Recent inspect, test, hash and compare runs.";
+"aiFolder.recentArchives" = "Recent Archives";
+"aiFolder.recentArchives.subtitle" = "Archives you opened recently, with an on-device content index.";
 "section.recents" = "Frequently Used";
 "section.pinned" = "Pinned";
 "section.tags" = "Tags";

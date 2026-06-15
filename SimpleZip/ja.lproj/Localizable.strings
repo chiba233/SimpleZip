@@ -149,6 +149,12 @@
 "aiFolder.needsAttention.subtitle" = "最近失敗したタスクで、再確認が必要な可能性があります。";
 "aiFolder.noSuggestions" = "確認が必要な項目はありません";
 "aiFolder.openInActivity" = "アクティビティセンターで開く";
+"aiFolder.openArchive" = "開く";
+"aiFolder.archiveEntryCount" = "%d 項目";
+"aiFolder.releaseAndVerify" = "リリースと検証";
+"aiFolder.releaseAndVerify.subtitle" = "最近の検査・テスト・ハッシュ・比較の実行結果。";
+"aiFolder.recentArchives" = "最近のアーカイブ";
+"aiFolder.recentArchives.subtitle" = "最近開いたアーカイブと、デバイス上のコンテンツインデックス。";
 "section.recents" = "最近使った場所";
 "section.pinned" = "ピン留め";
 "section.tags" = "タグ";

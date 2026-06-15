@@ -69,8 +69,17 @@ struct Sidebar: View {
             // 0.4.5 #80:AI 工作区(白皮书工程补充一 MVP)。只读虚拟工作区,确定性候选;AI 主开关关 → 整段隐藏。
             if aiEnabled {
                 Section(L10n.text("sidebar.ai.section")) {
-                    SidebarButton(title: L10n.text("aiFolder.needsAttention"), systemImage: "sparkles") {
+                    SidebarButton(title: L10n.text("aiFolder.needsAttention"),
+                                  systemImage: AISystemWorkspaceKind.needsAttention.systemImage) {
                         model.openAIWorkspace(.needsAttention)
+                    }
+                    SidebarButton(title: L10n.text("aiFolder.releaseAndVerify"),
+                                  systemImage: AISystemWorkspaceKind.releaseAndVerify.systemImage) {
+                        model.openAIWorkspace(.releaseAndVerify)
+                    }
+                    SidebarButton(title: L10n.text("aiFolder.recentArchives"),
+                                  systemImage: AISystemWorkspaceKind.recentArchives.systemImage) {
+                        model.openAIWorkspace(.recentArchives)
                     }
                 }
             }

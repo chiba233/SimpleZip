@@ -149,6 +149,12 @@
 "aiFolder.needsAttention.subtitle" = "งานที่ล้มเหลวล่าสุดซึ่งอาจต้องตรวจสอบอีกครั้ง";
 "aiFolder.noSuggestions" = "ไม่มีสิ่งที่ต้องตรวจสอบ";
 "aiFolder.openInActivity" = "เปิดในศูนย์กิจกรรม";
+"aiFolder.openArchive" = "เปิด";
+"aiFolder.archiveEntryCount" = "%d รายการ";
+"aiFolder.releaseAndVerify" = "เผยแพร่และตรวจสอบ";
+"aiFolder.releaseAndVerify.subtitle" = "การตรวจสอบ ทดสอบ แฮช และเปรียบเทียบที่ทำล่าสุด";
+"aiFolder.recentArchives" = "ไฟล์เก็บถาวรล่าสุด";
+"aiFolder.recentArchives.subtitle" = "ไฟล์เก็บถาวรที่คุณเปิดเมื่อเร็วๆ นี้ พร้อมดัชนีเนื้อหาบนอุปกรณ์";
 "section.recents" = "ใช้บ่อย";
 "section.pinned" = "ตำแหน่งที่ปักหมุด";
 "section.tags" = "แท็ก";

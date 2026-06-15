@@ -198,6 +198,18 @@ struct ArchiveItem: Identifiable, Hashable, Codable {
 enum AISystemWorkspaceKind: String, Equatable, CaseIterable {
     /// 「需要处理」—— 最近失败的任务等需要用户关注的项。
     case needsAttention
+    /// 「发布与校验」—— 最近的检查 / 测试 / 哈希 / 对比类任务(发布前的验证动作)。
+    case releaseAndVerify
+    /// 「最近的归档」—— 最近打开过、已建立非加密内容索引的归档。
+    case recentArchives
+
+    var systemImage: String {
+        switch self {
+        case .needsAttention: return "exclamationmark.circle"
+        case .releaseAndVerify: return "checkmark.seal"
+        case .recentArchives: return "clock.arrow.circlepath"
+        }
+    }
 }
 
 enum BrowserMode: Equatable {

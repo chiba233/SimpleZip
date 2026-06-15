@@ -149,6 +149,12 @@
 "aiFolder.needsAttention.subtitle" = "Tâches récemment échouées qui méritent peut-être un second coup d’œil.";
 "aiFolder.noSuggestions" = "Rien ne requiert votre attention";
 "aiFolder.openInActivity" = "Ouvrir dans le Centre d’activité";
+"aiFolder.openArchive" = "Ouvrir";
+"aiFolder.archiveEntryCount" = "%d éléments";
+"aiFolder.releaseAndVerify" = "Publication et vérification";
+"aiFolder.releaseAndVerify.subtitle" = "Inspections, tests, empreintes et comparaisons récents.";
+"aiFolder.recentArchives" = "Archives récentes";
+"aiFolder.recentArchives.subtitle" = "Archives ouvertes récemment, avec un index de contenu sur l’appareil.";
 "section.recents" = "Utilisés fréquemment";
 "section.pinned" = "Épinglés";
 "section.tags" = "Étiquettes";

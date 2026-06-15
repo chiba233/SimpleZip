@@ -1577,6 +1577,12 @@
 "aiFolder.needsAttention.subtitle" = "最近失败、可能需要再看一眼的任务。";
 "aiFolder.noSuggestions" = "暂时没有需要处理的";
 "aiFolder.openInActivity" = "在活动中心打开";
+"aiFolder.openArchive" = "打开";
+"aiFolder.archiveEntryCount" = "%d 个条目";
+"aiFolder.releaseAndVerify" = "发布与校验";
+"aiFolder.releaseAndVerify.subtitle" = "最近的检查、测试、哈希与对比。";
+"aiFolder.recentArchives" = "最近的归档";
+"aiFolder.recentArchives.subtitle" = "你最近打开过、已建立本机内容索引的归档。";
 "section.recents" = "经常使用";
 "section.pinned" = "固定路径";
 "section.tags" = "标签";

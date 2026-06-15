@@ -149,6 +149,12 @@
 "aiFolder.needsAttention.subtitle" = "Kürzlich fehlgeschlagene Aufgaben, die möglicherweise noch einmal überprüft werden sollten.";
 "aiFolder.noSuggestions" = "Nichts erfordert Ihre Aufmerksamkeit";
 "aiFolder.openInActivity" = "Im Aktivitätscenter öffnen";
+"aiFolder.openArchive" = "Öffnen";
+"aiFolder.archiveEntryCount" = "%d Objekte";
+"aiFolder.releaseAndVerify" = "Freigeben & Überprüfen";
+"aiFolder.releaseAndVerify.subtitle" = "Kürzliche Durchläufe zum Prüfen, Testen, Hashen und Vergleichen.";
+"aiFolder.recentArchives" = "Zuletzt verwendete Archive";
+"aiFolder.recentArchives.subtitle" = "Archive, die Sie kürzlich geöffnet haben, mit einem geräteinternen Inhaltsindex.";
 "section.recents" = "Häufig verwendet";
 "section.pinned" = "Angeheftet";
 "section.tags" = "Schlagwörter";

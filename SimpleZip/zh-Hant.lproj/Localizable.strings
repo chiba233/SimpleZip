@@ -149,6 +149,12 @@
 "aiFolder.needsAttention.subtitle" = "最近失敗、可能需要再看一眼的任務。";
 "aiFolder.noSuggestions" = "暫時沒有需要處理的";
 "aiFolder.openInActivity" = "在活動中心開啟";
+"aiFolder.openArchive" = "開啟";
+"aiFolder.archiveEntryCount" = "%d 個項目";
+"aiFolder.releaseAndVerify" = "發布與校驗";
+"aiFolder.releaseAndVerify.subtitle" = "最近的檢查、測試、雜湊與比對。";
+"aiFolder.recentArchives" = "最近的壓縮檔";
+"aiFolder.recentArchives.subtitle" = "你最近開啟過、已建立本機內容索引的壓縮檔。";
 "section.recents" = "經常使用";
 "section.pinned" = "固定路徑";
 "section.tags" = "標籤";
