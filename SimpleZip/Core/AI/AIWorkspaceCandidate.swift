@@ -76,6 +76,121 @@ nonisolated struct AIVirtualNodeCandidate: Codable, Equatable, Sendable {
     }
 }
 
+/// 「补充证据」缺口(白皮书建议四扩写):候选池发现某节点/主题缺哈希、缺归档清单、缺默认打开方式等
+/// 可补的事实时产出。每个缺口可携带一个**只读增强动作**(C2),用户点了 App 才执行,结果回派生索引。
+nonisolated struct AIWorkspaceEvidenceGap: Codable, Equatable, Sendable {
+    nonisolated enum Kind: String, Codable, Equatable, Sendable {
+        case missingHash
+        case missingArchiveListing
+        case missingArchiveHealth
+        case missingDefaultOpenApp
+        case missingRecentOpenSignal
+        case missingPermissionFacts
+    }
+
+    nonisolated enum Urgency: String, Codable, Equatable, Sendable {
+        case low, normal, high
+    }
+
+    let id: String
+    let workspaceID: UUID
+    let kind: Kind
+    let affectedSourceRefs: [AIContextSourceRef]
+    let reason: String
+    /// 可选的只读增强动作(哈希/测试/刷新清单…);App 回查 sourceRefs 后执行。
+    let suggestedEnrichmentAction: AIReadOnlyEnrichmentAction?
+    let urgency: Urgency
+
+    init(id: String, workspaceID: UUID, kind: Kind, affectedSourceRefs: [AIContextSourceRef],
+         reason: String, suggestedEnrichmentAction: AIReadOnlyEnrichmentAction? = nil,
+         urgency: Urgency = .normal) {
+        self.id = id
+        self.workspaceID = workspaceID
+        self.kind = kind
+        self.affectedSourceRefs = affectedSourceRefs
+        self.reason = reason
+        self.suggestedEnrichmentAction = suggestedEnrichmentAction
+        self.urgency = urgency
+    }
+
+    /// 缺哈希缺口 —— 自动带上「算 SHA256」增强动作(把缺口和补救绑在一起,避免各处手拼)。
+    static func missingHash(id: String, workspaceID: UUID, refs: [AIContextSourceRef],
+                            reason: String, urgency: Urgency = .normal) -> AIWorkspaceEvidenceGap {
+        AIWorkspaceEvidenceGap(
+            id: id, workspaceID: workspaceID, kind: .missingHash, affectedSourceRefs: refs,
+            reason: reason,
+            suggestedEnrichmentAction: .calculateHashes(sourceRefs: refs, algorithms: [.sha256]),
+            urgency: urgency)
+    }
+
+    /// 缺归档清单缺口 —— 自动带上「刷新归档清单」增强动作。
+    static func missingArchiveListing(id: String, workspaceID: UUID, refs: [AIContextSourceRef],
+                                      reason: String, urgency: Urgency = .normal) -> AIWorkspaceEvidenceGap {
+        AIWorkspaceEvidenceGap(
+            id: id, workspaceID: workspaceID, kind: .missingArchiveListing, affectedSourceRefs: refs,
+            reason: reason,
+            suggestedEnrichmentAction: .refreshArchiveListing(sourceRefs: refs),
+            urgency: urgency)
+    }
+}
+
+/// 「为什么没有推荐」—— 不能交给模型瞎编,必须由确定性 suppressor 生成。让空状态 / 低收益建议有据可查。
+nonisolated struct AIRecommendationSuppressionReason: Codable, Equatable, Sendable {
+    /// 被抑制的目标类别(storageSavingSuggestion / workspace / action …,跨多 surface,开放 token)。
+    let targetKind: String
+    let targetID: String?
+    /// 抑制原因码(稳定 token,下面常用的有静态构造)。
+    let reasonCode: String
+    let facts: [String]
+    let userVisibleSummary: String
+
+    init(targetKind: String, targetID: String? = nil, reasonCode: String,
+         facts: [String] = [], userVisibleSummary: String) {
+        self.targetKind = targetKind
+        self.targetID = targetID
+        self.reasonCode = reasonCode
+        self.facts = facts
+        self.userVisibleSummary = userVisibleSummary
+    }
+
+    // 常用原因码(避免各处手写飘移,稳定可断言)。
+    static let estimatedSavingTooLow = "estimatedSavingTooLow"
+    static let permissionUnreadable = "permissionUnreadable"
+    static let alreadyArchived = "alreadyArchived"
+    static let dismissedByUser = "dismissedByUser"
+    static let budgetExhausted = "budgetExhausted"
+    static let modelUnavailable = "modelUnavailable"
+    static let noCandidates = "noCandidates"
+}
+
+/// 主题合并候选 —— 由 source ref 重叠和路径关系**先确定性计算**,模型只负责给合并后的主题命名。
+/// 合并只影响虚拟工作区列表和反馈聚合,绝不移动 / 重命名 / 删除任何真实文件。
+nonisolated struct AIWorkspaceMergeCandidate: Codable, Equatable, Sendable {
+    let sourceWorkspaceIDs: [UUID]
+    /// 重叠度(Jaccard:交集 / 并集,[0,1])。
+    let sharedSourceRefRatio: Double
+    let sharedPathRoots: [String]
+    let evidence: [String]
+    /// 给模型起合并后主题名的输入(复用主题候选,不另造类型)。
+    let suggestedTitleInput: AIWorkspaceThemeCandidate
+
+    init(sourceWorkspaceIDs: [UUID], sharedSourceRefRatio: Double, sharedPathRoots: [String] = [],
+         evidence: [String] = [], suggestedTitleInput: AIWorkspaceThemeCandidate) {
+        self.sourceWorkspaceIDs = sourceWorkspaceIDs
+        self.sharedSourceRefRatio = sharedSourceRefRatio
+        self.sharedPathRoots = sharedPathRoots
+        self.evidence = evidence
+        self.suggestedTitleInput = suggestedTitleInput
+    }
+
+    /// 两组 source ref 的 Jaccard 重叠度(交集 / 并集)。两空集视为 0(无可合并依据)。
+    static func overlapRatio(_ a: Set<AIContextSourceRef>, _ b: Set<AIContextSourceRef>) -> Double {
+        let union = a.union(b)
+        guard !union.isEmpty else { return 0 }
+        return Double(a.intersection(b).count) / Double(union.count)
+    }
+}
+
 nonisolated enum AIWorkspaceCandidateRanker {
     /// 主题候选确定性排序:命中信号越多越强,同分按 id 稳定升序。
     static func rankThemes(_ candidates: [AIWorkspaceThemeCandidate]) -> [AIWorkspaceThemeCandidate] {
