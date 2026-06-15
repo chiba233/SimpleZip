@@ -3,6 +3,7 @@
 //  SimpleZip
 //
 
+import AppKit
 import Combine
 import SwiftUI
 
@@ -32,7 +33,6 @@ struct ActivityView: View {
     // #60(macOS 26 AI):自然语言筛选 —— 输入一句话 → AI 映射成 {状态, 来源, 关键词, 时间窗} → 确定性地应用。
     // AI 只产规格、不执行;筛选纯属只读展示。仅 AIReportAssistant.isReady 时露出按钮。
     // 关键词(匹配任务名/归档名)+ 时间窗是「临时分类」的灵魂 —— 不止在现成状态/来源里挑。
-    @State private var showsAIFilter = false
     @State private var aiFilterText = ""
     @State private var aiFilterRunning = false
     /// AI 抽出的精确过滤条件 —— App 在代码里**确定性匹配**(模型只负责把短语抽成这四个字段,
@@ -45,9 +45,11 @@ struct ActivityView: View {
     @State private var aiStatus = ActivityTaskFilter.all
     @State private var aiSource: OperationTask.Source?
     /// 任务类型范围(nil = 不限)。
-    @State private var aiKind: OperationTask.Kind?
+    @State private var aiKinds: Set<OperationTask.Kind> = []
     /// 格式 / 扩展名范围(空 = 不限),匹配任务名里的「.<格式>」。
     @State private var aiFormat = ""
+    /// 诊断标签范围(空 = 不限),来自 `ActivityTaskAIIndex` 的确定性失败分类。
+    @State private var aiDiagnosticTags: Set<String> = []
     /// 当前 AI 筛选的原话(高亮按钮 tooltip 显示)。
     @State private var aiFilterQuery = ""
     /// 抽取**抛错** / 没抽到任何条件时的提示(气泡内);失败**绝不点亮按钮**(用户点名)。
@@ -56,10 +58,17 @@ struct ActivityView: View {
     /// 有任一非默认条件 = 生效(高亮 + 点按清空)。任意维度可同时叠加。
     private var aiFilterActive: Bool {
         !aiKeyword.isEmpty || aiWithinSeconds > 0 || aiStatus != .all || aiSource != nil
-            || aiKind != nil || !aiFormat.isEmpty
+            || !aiKinds.isEmpty || !aiFormat.isEmpty || !aiDiagnosticTags.isEmpty
     }
     @AppStorage(AppPreferences.Key.activityHistoryLimit) private var historyLimit = AppPreferences.activityHistoryLimit
     @AppStorage(AppPreferences.Key.heavyTaskConcurrencyLimit) private var concurrencyLimit = AppPreferences.heavyTaskConcurrencyLimit
+    @AppStorage(AppPreferences.Key.aiAssistantEnabled) private var aiAssistantEnabled = true
+    @State private var showsActivityAIWorkbench = true
+    /// AI 工作台侧栏宽度(可拖拽调整,@AppStorage 跨会话记住)。范围 `aiWorkbenchWidthRange`。
+    @AppStorage("SimpleZip.activity.aiWorkbenchWidth") private var aiWorkbenchWidth: Double = 280
+    /// 拖拽起始宽度(松手清空)—— 避免用累计 translation 时反复叠加。
+    @State private var aiWorkbenchDragStartWidth: Double?
+    private let aiWorkbenchWidthRange: ClosedRange<Double> = 240...560
 
     // 弃用 NavigationSplitView（详见 SettingsView 同款注释）：普通 HStack + 绝对定宽侧栏，
     // 物理上没有把手、没有折叠、没有持久化；毛玻璃用 SidebarBackdrop 补回。
@@ -174,8 +183,17 @@ struct ActivityView: View {
                         Spacer()
                         filterMenu(for: category)
                         sourceFilterMenu
-                        AIGate {
-                            aiFilterButton
+                        // AI 入口统一收进右侧「AI 工作台」侧栏(NL 搜索 + 建议筛选都在那)。工具栏只留一个
+                        // 「打开工作台」开关(关着时才出现);旧的工具栏 AI 搜索按钮已删,改挪进侧栏。
+                        if aiAssistantEnabled && !showsActivityAIWorkbench {
+                            Button {
+                                showsActivityAIWorkbench = true
+                            } label: {
+                                Label(L10n.text("tasks.aiWorkbench.title"), systemImage: "sparkles")
+                                    .labelStyle(.iconOnly)
+                            }
+                            .buttonStyle(.bordered)
+                            .help(L10n.text("tasks.aiWorkbench.title"))
                         }
                         // F4:队列级暂停/恢复 —— 暂停态下即使任务跑完也保持可见(不然没法恢复闸门)。
                         // 运行态的三颗控制钮都用纯图标(.help 出全文)—— 带文字时把 hero 挤成竖排(用户截图)。
@@ -225,10 +243,52 @@ struct ActivityView: View {
                             .padding(.bottom, 10)
                     }
 
-                    taskList(in: category)
+                    HStack(spacing: 0) {
+                        taskList(in: category)
+                        if aiAssistantEnabled && showsActivityAIWorkbench {
+                            workbenchResizeHandle
+                            ActivityAIWorkbenchView(
+                                snapshot: activityAIWorkbenchSnapshot(for: category),
+                                searchText: $aiFilterText,
+                                isRunningQuery: aiFilterRunning,
+                                queryError: aiFilterError,
+                                activeFilterSummary: aiFilterActive ? activeFilterSummary : nil,
+                                onRunQuery: { Task { await runAIFilter() } },
+                                onClearFilter: clearAIFilter,
+                                onApplyFilter: applyAIWorkbenchFilter,
+                                onOpenTask: openWorkbenchTask,
+                                onClose: { showsActivityAIWorkbench = false }
+                            )
+                            .frame(width: CGFloat(aiWorkbenchWidth))
+                        }
+                    }
                 }
             }
         }
+    }
+
+    /// AI 工作台侧栏的可拖拽调宽手柄:细分隔线 + 8pt 命中区。手柄在侧栏左缘,向左拖 = 加宽(改 `aiWorkbenchWidth`)。
+    private var workbenchResizeHandle: some View {
+        Divider()
+            .overlay(
+                Color.clear
+                    .frame(width: 8)
+                    .contentShape(Rectangle())
+                    .onHover { inside in
+                        if inside { NSCursor.resizeLeftRight.push() } else { NSCursor.pop() }
+                    }
+                    .gesture(
+                        DragGesture()
+                            .onChanged { value in
+                                let start = aiWorkbenchDragStartWidth ?? aiWorkbenchWidth
+                                if aiWorkbenchDragStartWidth == nil { aiWorkbenchDragStartWidth = start }
+                                aiWorkbenchWidth = min(
+                                    max(start - Double(value.translation.width), aiWorkbenchWidthRange.lowerBound),
+                                    aiWorkbenchWidthRange.upperBound)
+                            }
+                            .onEnded { _ in aiWorkbenchDragStartWidth = nil }
+                    )
+            )
     }
 
     /// #17:pane 顶部的小 hero 头 —— 渐变发光图标瓦片 + 标题 + 副标题(纯静态,无 hover)。
@@ -485,8 +545,12 @@ struct ActivityView: View {
             return all.filter { task in
                 guard aiStatus.includes(task) else { return false }
                 if let aiSource, task.source != aiSource { return false }
-                if let aiKind, task.kind != aiKind { return false }
+                if !aiKinds.isEmpty, !aiKinds.contains(task.kind) { return false }
                 if let formatNeedle, !task.title.lowercased().contains(formatNeedle) { return false }
+                if !aiDiagnosticTags.isEmpty {
+                    let tags = Set(task.aiTaskRecord.diagnostics.tags)
+                    if tags.isDisjoint(with: aiDiagnosticTags) { return false }
+                }
                 if !keyword.isEmpty {
                     let inTitle = task.title.localizedCaseInsensitiveContains(keyword)
                     let inDetail = task.detail?.localizedCaseInsensitiveContains(keyword) ?? false
@@ -515,59 +579,8 @@ struct ActivityView: View {
         .fixedSize()
     }
 
-    /// #60:自然语言筛选按钮(仅 isReady 时渲染)。
-    /// 无 AI 分类时:普通 bordered 态,点开小气泡输入一句话 → AI 映射成 {状态/来源/关键词/时间窗} 临时分类。
-    /// 有 AI 分类生效时:**填充高亮(紫)**,点按即**清空**分类(用户点名的交互)。
-    @ViewBuilder
-    private var aiFilterButton: some View {
-        let core = Button {
-            if aiFilterActive { clearAIFilter() } else { showsAIFilter = true }
-        } label: {
-            Label(L10n.text("tasks.aiFilter"), systemImage: aiFilterActive ? "sparkles.rectangle.stack.fill" : "sparkles")
-                .labelStyle(.iconOnly)
-        }
-        .help(aiFilterActive ? L10n.format("tasks.aiFilter.activeHelp", activeFilterSummary) : L10n.text("tasks.aiFilter"))
-        .popover(isPresented: $showsAIFilter, arrowEdge: .bottom) {
-            VStack(alignment: .leading, spacing: 10) {
-                Label(L10n.text("tasks.aiFilter.title"), systemImage: "sparkles")
-                    .font(.headline)
-                    .foregroundStyle(.purple)
-                Text(L10n.text("tasks.aiFilter.hint"))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(width: 280, alignment: .leading)
-                TextField(L10n.text("tasks.aiFilter.prompt"), text: $aiFilterText)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 280)
-                    .onSubmit { Task { await runAIFilter() } }
-                    .onChange(of: aiFilterText) { _ in aiFilterError = nil }
-                if let aiFilterError {
-                    Label(aiFilterError, systemImage: "exclamationmark.triangle.fill")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(width: 280, alignment: .leading)
-                }
-                HStack(spacing: 8) {
-                    if aiFilterRunning { ProgressView().controlSize(.small) }
-                    Spacer()
-                    Button(L10n.text("button.cancel")) { showsAIFilter = false }
-                    Button(L10n.text("tasks.aiFilter.apply")) { Task { await runAIFilter() } }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(aiFilterText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || aiFilterRunning)
-                }
-                .frame(width: 280)
-            }
-            .padding(14)
-        }
-        // 生效时填充紫高亮,否则普通描边(条件 buttonStyle 类型不同,必须 if/else 分支)。
-        if aiFilterActive {
-            core.buttonStyle(.borderedProminent).tint(.purple)
-        } else {
-            core.buttonStyle(.bordered)
-        }
-    }
+    // #60 的工具栏 AI 筛选按钮已删:NL 搜索 + 生效筛选 + 清除都挪进右侧「AI 工作台」侧栏
+    // (见 ActivityAIWorkbenchView 的 search 区);`runAIFilter` / `clearAIFilter` / 筛选状态保留,由侧栏驱动。
 
     /// AI 把短语抽成精确条件 → App 确定性应用。抽不到任何条件 / 抛错 → 不点亮 + 气泡提示(用户点名)。
     @MainActor
@@ -631,10 +644,10 @@ struct ActivityView: View {
             aiTimeBefore = before
             aiStatus = status
             aiSource = source
-            aiKind = kind
+            aiKinds = kind.map { [$0] } ?? []
             aiFormat = format
+            aiDiagnosticTags = []
             aiFilterQuery = query
-            showsAIFilter = false
             aiFilterText = ""
         } catch {
             aiFilterError = L10n.text("tasks.aiFilter.failed")
@@ -648,8 +661,9 @@ struct ActivityView: View {
         aiTimeBefore = false
         aiStatus = .all
         aiSource = nil
-        aiKind = nil
+        aiKinds = []
         aiFormat = ""
+        aiDiagnosticTags = []
         aiFilterQuery = ""
         aiFilterError = nil
     }
@@ -657,6 +671,45 @@ struct ActivityView: View {
     /// 高亮按钮的 tooltip:当前 AI 筛选的原话。
     private var activeFilterSummary: String {
         "“\(aiFilterQuery)”"
+    }
+
+    private func activityAIWorkbenchSnapshot(for category: OperationTask.Category) -> ActivityAIWorkbenchSnapshot {
+        ActivityAIWorkbenchBuilder.snapshot(records: filteredTasksForWorkbench(in: category).map(\.aiTaskRecord))
+    }
+
+    private func filteredTasksForWorkbench(in category: OperationTask.Category) -> [OperationTask] {
+        let all = tasks(in: category)
+        let filter = filter(for: category)
+        return all.filter { filter.includes($0) && (sourceFilter == nil || $0.source == sourceFilter) }
+    }
+
+    private func applyAIWorkbenchFilter(_ chip: ActivityAIWorkbenchFilterChip) {
+        aiKeyword = ""
+        aiWithinSeconds = 0
+        aiTimeBefore = false
+        aiStatus = activityFilter(from: chip.filter.status)
+        aiSource = chip.filter.source.flatMap(OperationTask.Source.init(rawValue:))
+        aiKinds = Set(chip.filter.kindTokens.compactMap(OperationTask.Kind.init(rawValue:)))
+        aiFormat = ""
+        aiDiagnosticTags = Set(chip.filter.diagnosticTags)
+        aiFilterQuery = L10n.text("tasks.aiWorkbench.chip.\(chip.id)")
+        aiFilterError = nil
+    }
+
+    private func activityFilter(from rawStatus: String?) -> ActivityTaskFilter {
+        switch rawStatus {
+        case "running": return .running
+        case "succeeded", "skipped": return .succeeded
+        case "failed": return .failed
+        case "cancelled": return .cancelled
+        default: return .all
+        }
+    }
+
+    private func openWorkbenchTask(_ id: String) {
+        guard let uuid = UUID(uuidString: id),
+              let task = (taskCenter.active + taskCenter.history).first(where: { $0.id == uuid }) else { return }
+        windowState.locate(taskID: uuid, category: task.category)
     }
 
     private func filter(for category: OperationTask.Category) -> ActivityTaskFilter {
@@ -1092,6 +1145,59 @@ final class ActivityWindowState: ObservableObject {
     func locate(taskID: UUID, category: OperationTask.Category) {
         selectedPane = ActivityPane.pane(for: category)
         locateTaskID = taskID
+    }
+}
+
+private extension OperationTask {
+    var aiTaskRecord: AITaskRecord {
+        AITaskRecord.make(
+            id: id.uuidString,
+            category: category.rawValue,
+            kind: kind.rawValue,
+            source: source.rawValue,
+            status: aiStatusToken,
+            title: title,
+            startedAt: startedAt,
+            finishedAt: finishedAt,
+            outputPaths: aiOutputPaths,
+            failureMessage: aiFailureMessage,
+            rawOutput: detailsSession?.rawOutput,
+            canRerun: rerun != nil,
+            canRerunWithChanges: rerunWithChanges != nil,
+            canResumeFromFailure: resumeFromFailure != nil,
+            skippedReason: aiSkippedReason,
+            failureSeen: failureSeen,
+            awaitedConcurrencySlot: isAwaitingSlot)
+    }
+
+    private var aiStatusToken: String {
+        switch status {
+        case .running:
+            return "running"
+        case .succeeded:
+            return "succeeded"
+        case .skipped:
+            return "skipped"
+        case .failed:
+            return "failed"
+        case .cancelled:
+            return "cancelled"
+        }
+    }
+
+    private var aiFailureMessage: String? {
+        if case .failed(let message) = status { return message }
+        return nil
+    }
+
+    private var aiSkippedReason: String? {
+        if case .skipped(let reason) = status { return reason }
+        return nil
+    }
+
+    private var aiOutputPaths: [String] {
+        if case .succeeded(let url) = status, let url { return [url.path] }
+        return []
     }
 }
 
