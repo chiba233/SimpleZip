@@ -34,6 +34,7 @@ let package = Package(
             ],
             sources: [
                 "Core/AIContext.swift",
+                "Core/AISensitiveRedactor.swift",
                 "Core/AppPreferences.swift",
                 "Core/ArchiveError.swift",
                 "Core/ArchiveOperationFeedback.swift",
