@@ -120,3 +120,95 @@ nonisolated enum AIPrefetchExclusions {
         ".ssh", ".gnupg", ".aws", ".kube", ".config"
     ]
 }
+
+// MARK: - 低负载静默调度(工程补充五)
+
+/// 后台调度时的运行时上下文(纯标量;App 填充,经过的秒数由 App 算 —— Core 不读墙钟)。
+nonisolated struct AIBackgroundRuntimeContext: Codable, Equatable, Sendable {
+    let appIsActive: Bool
+    let runningTaskCount: Int
+    let heavyArchiveTaskRunning: Bool
+    /// App 启动至今秒数。
+    let secondsSinceLaunch: Int
+    /// 距用户上次交互的秒数。
+    let secondsSinceLastInteraction: Int
+    let powerSaverMode: Bool
+    let lowBattery: Bool
+    let isCharging: Bool?
+    let modelAvailable: Bool
+    let activityLevel: AIBackgroundActivityLevel
+
+    init(appIsActive: Bool, runningTaskCount: Int = 0, heavyArchiveTaskRunning: Bool = false,
+         secondsSinceLaunch: Int, secondsSinceLastInteraction: Int,
+         powerSaverMode: Bool = false, lowBattery: Bool = false, isCharging: Bool? = nil,
+         modelAvailable: Bool, activityLevel: AIBackgroundActivityLevel) {
+        self.appIsActive = appIsActive
+        self.runningTaskCount = runningTaskCount
+        self.heavyArchiveTaskRunning = heavyArchiveTaskRunning
+        self.secondsSinceLaunch = secondsSinceLaunch
+        self.secondsSinceLastInteraction = secondsSinceLastInteraction
+        self.powerSaverMode = powerSaverMode
+        self.lowBattery = lowBattery
+        self.isCharging = isCharging
+        self.modelAvailable = modelAvailable
+        self.activityLevel = activityLevel
+    }
+}
+
+/// 当前允许的后台工作档位(由轻到重,有序)。深档位蕴含浅档位都可跑。
+nonisolated enum AIBackgroundWorkTier: String, Codable, CaseIterable, Comparable, Sendable {
+    case none
+    case deterministicIndex = "deterministic-index"   // 只读建立索引(最轻,低电也可)
+    case modelPrewarm = "model-prewarm"               // 跑端上模型轻任务(当前目录 Lens / 失败动作卡)
+    case deepContext = "deep-context"                 // 深度本地上下文(最重,需充电 + 空闲)
+
+    private var order: Int {
+        switch self {
+        case .none: return 0
+        case .deterministicIndex: return 1
+        case .modelPrewarm: return 2
+        case .deepContext: return 3
+        }
+    }
+
+    static func < (lhs: AIBackgroundWorkTier, rhs: AIBackgroundWorkTier) -> Bool { lhs.order < rhs.order }
+}
+
+/// 后台静默调度的**确定性条件**(工程补充五)。真正的 actor 调度 / IO 在 App 层;这里只判定「现在能跑到哪档」。
+nonisolated enum AIBackgroundSchedulingRules {
+    /// App 启动后多少秒内不跑后台 AI。
+    static let minSecondsSinceLaunch = 60
+    /// 用户无输入多少秒后才跑轻任务。
+    static let minIdleSecondsForLightWork = 20
+
+    /// 确定性索引可跑:过了启动静默期、无重任务、活跃度非关闭。低电 / 省电也可(只读索引不耗模型)。
+    static func canRunDeterministicIndexing(_ c: AIBackgroundRuntimeContext) -> Bool {
+        c.secondsSinceLaunch >= minSecondsSinceLaunch
+            && !c.heavyArchiveTaskRunning
+            && c.activityLevel != .off
+    }
+
+    /// 端上模型轻任务可跑:在确定性索引基础上,模型可用、用户已空闲、且非低电 / 非省电(低电只跑确定性索引)。
+    static func canRunModelWork(_ c: AIBackgroundRuntimeContext) -> Bool {
+        canRunDeterministicIndexing(c)
+            && c.modelAvailable
+            && c.secondsSinceLastInteraction >= minIdleSecondsForLightWork
+            && !c.lowBattery
+            && !c.powerSaverMode
+    }
+
+    /// 深度本地上下文可跑:在模型轻任务基础上,充电中且活跃度为平衡 / 积极。
+    static func canRunDeepContext(_ c: AIBackgroundRuntimeContext) -> Bool {
+        canRunModelWork(c)
+            && (c.isCharging ?? false)
+            && (c.activityLevel == .balanced || c.activityLevel == .aggressive)
+    }
+
+    /// 当前可跑的**最深**后台工作档位(深档蕴含浅档)。`.none` = 现在什么都不该跑。
+    static func deepestAllowedTier(_ c: AIBackgroundRuntimeContext) -> AIBackgroundWorkTier {
+        guard canRunDeterministicIndexing(c) else { return .none }
+        guard canRunModelWork(c) else { return .deterministicIndex }
+        guard canRunDeepContext(c) else { return .modelPrewarm }
+        return .deepContext
+    }
+}
