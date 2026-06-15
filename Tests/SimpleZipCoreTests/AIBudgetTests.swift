@@ -56,4 +56,33 @@ import Testing
         #expect(AIBudget.workspaceTheme.maxItems == 30)
         #expect(AIBudget.workspaceTree.maxItems == 80)
     }
+
+    @Test func capTextArrayCapsCountAndClampsEach() {
+        let budget = AIBudget(maxItems: 2, maxTextChars: 3, maxSamplesPerGroup: 8)
+        let (kept, omission) = budget.capTextArray(["hello", "world", "extra"], type: "lines")
+        #expect(kept == ["hel…", "wor…"])
+        #expect(omission?.count == 1)
+    }
+
+    @Test func clampTotalCapsWholePrompt() {
+        let budget = AIBudget(maxItems: 1, maxTextChars: 100, maxSamplesPerGroup: 1, maxTotalChars: 5)
+        #expect(budget.clampTotal("hello") == "hello")
+        #expect(budget.clampTotal("hello world") == "hello…")
+    }
+
+    @Test func consumptionReportsUsage() {
+        let budget = AIBudget(maxItems: 1, maxTextChars: 1, maxSamplesPerGroup: 1, maxTotalChars: 10)
+        let c = budget.consumption(of: "12345")
+        #expect(c.used == 5 && c.limit == 10 && c.withinBudget)
+        #expect(!budget.consumption(of: String(repeating: "x", count: 20)).withinBudget)
+    }
+
+    @Test func deepPresetsAreLarger() {
+        #expect(AIBudget.archiveProfileDeep.maxTotalChars > AIBudget.archiveProfile.maxTotalChars)
+        #expect(AIBudget.workspaceTreeDeep.maxItems > AIBudget.workspaceTree.maxItems)
+    }
+
+    @Test func defaultTotalCharBudget() {
+        #expect(AIBudget(maxItems: 1, maxTextChars: 1, maxSamplesPerGroup: 1).maxTotalChars == 20_000)
+    }
 }
