@@ -63,6 +63,7 @@ let package = Package(
                 "Core/AI/AIOperationOptionPatch.swift",
                 "Core/AI/AIPrefetch.swift",
                 "Core/AI/AIPresetRecommendation.swift",
+                "Core/AI/AIRanking.swift",
                 "Core/AI/AIReleaseChecklist.swift",
                 "Core/AI/AISchemaMigration.swift",
                 "Core/AI/AISearchRewrite.swift",
