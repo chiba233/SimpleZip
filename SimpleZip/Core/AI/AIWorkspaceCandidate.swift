@@ -23,15 +23,19 @@ nonisolated struct AIWorkspaceThemeCandidate: Codable, Equatable, Sendable {
     /// 命中的评分信号(folderRole=release / marker=SHA256SUMS / archiveRole=release-package …)。
     let scoreSignals: [String]
     let evidence: [AIEvidenceFact]
+    /// 主题指纹(白皮书建议四:用户「不感兴趣」后下一轮生成须避开同款主题)。可空(旧候选 / 不需去重时)。
+    let fingerprint: AIWorkspaceThemeFingerprint?
 
     init(id: String, titleSeed: String, themeTokens: [String] = [], sourceRefs: [AIContextSourceRef] = [],
-         scoreSignals: [String] = [], evidence: [AIEvidenceFact] = []) {
+         scoreSignals: [String] = [], evidence: [AIEvidenceFact] = [],
+         fingerprint: AIWorkspaceThemeFingerprint? = nil) {
         self.id = id
         self.titleSeed = titleSeed
         self.themeTokens = themeTokens
         self.sourceRefs = sourceRefs
         self.scoreSignals = scoreSignals
         self.evidence = evidence
+        self.fingerprint = fingerprint
     }
 }
 
