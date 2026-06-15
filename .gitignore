@@ -46,3 +46,6 @@ SimpleZip/Tools/rar-*.txt
 # Private key MUST NEVER be committed — keep it in macOS Keychain + GitHub Secret only.
 # This whole folder stays local; see secrets/README.md for the upload-to-GitHub-Secret procedure.
 secrets/
+
+# Private AI roadmap design draft — stays local, not a repo doc.
+docs/AI-IMPROVEMENT-SUGGESTIONS.md
