@@ -346,6 +346,17 @@ enum AppPreferences {
         /// 0.4.5 #89:侧边栏是否显示后台发现的推荐 AI 工作区(白皮书 4513「允许侧边栏显示推荐工作区」)。
         /// 关闭后只显示用户创建的 AI 工作区。默认 true。
         nonisolated static let aiSidebarShowRecommended = "aiSidebarShowRecommended"
+        /// 0.4.5 #89:后台本地 AI 活跃度(白皮书 4508)。off / power-saver / balanced / aggressive。
+        /// **默认 off —— 后台预读/预索引完全 opt-in,不开则不扫任何目录。**
+        nonisolated static let aiBackgroundActivityLevel = "aiBackgroundActivityLevel"
+        /// 0.4.5 #89:允许后台 AI 预读归档(白皮书 4510)。只在白名单目录只读列归档清单。默认 false(opt-in)。
+        nonisolated static let aiAllowArchivePrefetch = "aiAllowArchivePrefetch"
+        /// 0.4.5 #89:允许后台 AI 预索引文件夹(白皮书 4511)。只在白名单目录只读建文件/文件夹元数据索引。默认 false。
+        nonisolated static let aiAllowFolderPreindex = "aiAllowFolderPreindex"
+        /// 0.4.5 #89:后台 AI 预读目录白名单(`[AIArchivePrefetchScope]` 的 JSON;用户配置,AIBackgroundIndexStore 持有)。
+        nonisolated static let aiBackgroundIndexScopes = "SimpleZip.ai.backgroundIndex.scopes.v1"
+        /// 0.4.5 #89:后台文件预索引(`AIFileMemoryIndex` 的 JSON;派生数据,不进偏好备份,恢复出厂 / 清空时清掉)。
+        nonisolated static let aiFileMemoryIndexData = "SimpleZip.ai.fileMemoryIndex.v1"
         /// 0.4.4:压缩使用频率统计数据(CompressionUsageStore 的 JSON;派生数据,不进偏好备份)。
         nonisolated static let compressionUsageStats = "compressionUsageStats"
         /// 0.4.4:是否记录压缩选项使用频率(供「按我最常用的来」)。默认 true;关 = 停止记录。
@@ -420,6 +431,24 @@ enum AppPreferences {
     /// 0.4.5 #89:侧边栏显示后台发现的推荐 AI 工作区(白皮书 4513)。默认 true。
     nonisolated static var aiSidebarShowRecommended: Bool {
         defaultTrueBool(forKey: Key.aiSidebarShowRecommended)
+    }
+
+    /// 0.4.5 #89:后台本地 AI 活跃度(白皮书 4508)。**默认 off —— opt-in,不开则后台完全不扫。**
+    nonisolated static var aiBackgroundActivityLevel: AIBackgroundActivityLevel {
+        get { AIBackgroundActivityLevel(rawValue: defaults.string(forKey: Key.aiBackgroundActivityLevel) ?? "") ?? .off }
+        set { defaults.set(newValue.rawValue, forKey: Key.aiBackgroundActivityLevel) }
+    }
+
+    /// 0.4.5 #89:允许后台 AI 预读归档(白皮书 4510)。默认 false(opt-in)。
+    nonisolated static var aiAllowArchivePrefetch: Bool {
+        get { defaults.bool(forKey: Key.aiAllowArchivePrefetch) }
+        set { defaults.set(newValue, forKey: Key.aiAllowArchivePrefetch) }
+    }
+
+    /// 0.4.5 #89:允许后台 AI 预索引文件夹(白皮书 4511)。默认 false(opt-in)。
+    nonisolated static var aiAllowFolderPreindex: Bool {
+        get { defaults.bool(forKey: Key.aiAllowFolderPreindex) }
+        set { defaults.set(newValue, forKey: Key.aiAllowFolderPreindex) }
     }
 
     /// 0.4.4:是否记录压缩选项使用频率(供「按我最常用的来」)。默认 true。
@@ -1011,6 +1040,9 @@ enum AppPreferences {
         Key.spotlightIndexingEnabled,
         Key.aiAssistantEnabled,
         Key.aiSidebarShowRecommended,
+        Key.aiBackgroundActivityLevel,
+        Key.aiAllowArchivePrefetch,
+        Key.aiAllowFolderPreindex,
         Key.compressionUsageTrackingEnabled,
         Key.extractionUsageTrackingEnabled,
         Key.archiveListingCacheEnabled,
@@ -1124,6 +1156,9 @@ enum AppPreferences {
         v[Key.spotlightIndexingEnabled] = spotlightIndexingEnabled
         v[Key.aiAssistantEnabled] = aiAssistantEnabled
         v[Key.aiSidebarShowRecommended] = aiSidebarShowRecommended
+        v[Key.aiBackgroundActivityLevel] = aiBackgroundActivityLevel.rawValue
+        v[Key.aiAllowArchivePrefetch] = aiAllowArchivePrefetch
+        v[Key.aiAllowFolderPreindex] = aiAllowFolderPreindex
         v[Key.compressionUsageTrackingEnabled] = compressionUsageTrackingEnabled
         v[Key.extractionUsageTrackingEnabled] = extractionUsageTrackingEnabled
         v[Key.archiveListingCacheEnabled] = archiveListingCacheEnabled
