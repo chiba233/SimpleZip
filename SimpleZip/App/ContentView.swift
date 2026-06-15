@@ -1448,149 +1448,92 @@ private struct ContextualToolbarButtons: View {
     @ObservedObject var model: ArchiveBrowserModel
 
     var body: some View {
+        ForEach(ContextualToolbarActionProvider.actions(for: snapshot)) { action in
+            toolbarButton(action.titleKey, systemImage: action.systemImage) {
+                perform(action)
+            }
+            .disabled(!action.isEnabled)
+        }
+    }
+
+    private var snapshot: ContextualToolbarSnapshot {
+        ContextualToolbarSnapshot(
+            mode: snapshotMode,
+            selectedArchiveItemCount: model.selectedArchiveItems.count,
+            canEditArchiveComment: model.canEditArchiveComment,
+            canDropIntoOpenArchive: model.canDropIntoOpenArchive,
+            selectedFiles: model.selectedFileItems.map { item in
+                ContextualToolbarSnapshot.SelectedFile(
+                    name: item.url.lastPathComponent,
+                    pathExtension: item.url.pathExtension.lowercased(),
+                    isDirectory: item.isDirectory,
+                    isSupportedArchive: !item.isDirectory && ArchiveService.isSupportedArchive(item.url))
+            },
+            clipboardHasFiles: model.fileClipboard?.urls.isEmpty == false,
+            gpgUIAvailable: gpgUIAvailable)
+    }
+
+    private var snapshotMode: ContextualToolbarSnapshot.Mode {
         switch model.mode {
         case .archive:
-            archiveSuggestions
-        case .folder, .tag:
-            folderSuggestions
+            return .archive
+        case .folder:
+            return .folder
+        case .tag:
+            return .tag
         case .aiWorkspace:
-            EmptyView() // AI 工作区是只读虚拟视图,工具栏不放针对文件/归档的上下文建议按钮。
+            return .aiWorkspace
         }
-    }
-
-    // MARK: - 归档模式
-
-    @ViewBuilder
-    private var archiveSuggestions: some View {
-        let selection = model.selectedArchiveItems
-        if selection.isEmpty {
-            toolbarButton("duplicates.menu", systemImage: "doc.on.doc") {
-                model.findDuplicateFilesInArchive()
-            }
-            if model.canEditArchiveComment {
-                toolbarButton("archive.comment.menu", systemImage: "text.bubble") {
-                    model.showsArchiveCommentEditor = true
-                }
-            } else {
-                toolbarButton("security.banner.review", systemImage: "shield.lefthalf.filled") {
-                    model.showsArchiveSecurityReport = true
-                }
-            }
-        } else if selection.count >= 2 {
-            toolbarButton("archive.batchRename.menu", systemImage: "pencil.line") {
-                model.requestBatchRename()
-            }
-            if model.canDropIntoOpenArchive {
-                toolbarButton("archive.delete.menu", systemImage: "trash") {
-                    model.deleteSelectedArchiveEntries()
-                }
-            } else {
-                toolbarButton("duplicates.menu", systemImage: "doc.on.doc") {
-                    model.findDuplicateFilesInArchive()
-                }
-            }
-        } else {
-            toolbarButton("archive.saveCopyAs", systemImage: "square.and.arrow.down") {
-                model.saveSelectedArchiveItemCopy()
-            }
-            if model.canDropIntoOpenArchive {
-                toolbarButton("archive.delete.menu", systemImage: "trash") {
-                    model.deleteSelectedArchiveEntries()
-                }
-            } else {
-                toolbarButton("duplicates.menu", systemImage: "doc.on.doc") {
-                    model.findDuplicateFilesInArchive()
-                }
-            }
-        }
-    }
-
-    // MARK: - 文件夹模式（按选中内容细分）
-
-    private var selectedArchives: [FileItem] {
-        model.selectedFileItems.filter { !$0.isDirectory && ArchiveService.isSupportedArchive($0.url) }
     }
 
     private var gpgUIAvailable: Bool {
         AppPreferences.gpgEnabled && GPGBackend.isAvailable()
     }
 
-    @ViewBuilder
-    private var folderSuggestions: some View {
-        let selection = model.selectedFileItems
-        if selection.isEmpty {
-            toolbarButton("file.newFolder", systemImage: "folder.badge.plus") {
-                model.createNewFolderAndBeginRename()
+    private func perform(_ action: ContextualToolbarAction) {
+        switch action.id {
+        case .archiveFindDuplicates:
+            model.findDuplicateFilesInArchive()
+        case .archiveEditComment:
+            model.showsArchiveCommentEditor = true
+        case .archiveSecurityReport:
+            model.showsArchiveSecurityReport = true
+        case .archiveBatchRename:
+            model.requestBatchRename()
+        case .archiveDeleteEntries:
+            model.deleteSelectedArchiveEntries()
+        case .archiveSaveCopyAs:
+            model.saveSelectedArchiveItemCopy()
+        case .fileNewFolder:
+            model.createNewFolderAndBeginRename()
+        case .filePaste:
+            model.pasteFiles()
+        case .combineVolumes:
+            model.combineSelectedVolumes()
+        case .compareArchives:
+            model.compareSelectedArchives()
+        case .batchTestArchives:
+            model.batchTestSelectedArchives()
+        case .convertArchives:
+            model.requestConvertSelectedArchives()
+        case .inspectRelease:
+            model.inspectSelectedArchiveForRelease()
+        case .compareSZSWithFolder:
+            model.compareSelectedSZSWithFolder()
+        case .browseSZS:
+            if let url = model.selectedFileItems.first?.url {
+                model.pendingSZSSilentVirtualBrowse = url
             }
-            // 「粘贴」只在剪贴板里真有东西时出现（用户报：还没复制就推粘贴,太奇怪）。
-            if model.fileClipboard?.urls.isEmpty == false {
-                toolbarButton("file.paste", systemImage: "doc.on.clipboard") {
-                    model.pasteFiles()
-                }
-            }
-        } else if selection.contains(where: { $0.url.pathExtension.lowercased() == "001" || $0.url.lastPathComponent.lowercased().contains(".part") }) {
-            // 分卷成员 → 合并 + 比较（合并预检对话框自带缺卷警告）。
-            toolbarButton("file.combine.menuItem", systemImage: "square.stack.3d.down.right") {
-                model.combineSelectedVolumes()
-            }
-            toolbarButton("file.compareArchives", systemImage: "arrow.left.arrow.right.circle") {
-                model.compareSelectedArchives()
-            }
-        } else if selectedArchives.count >= 2 {
-            // 多归档 → 批量测试 + 比较 / 批量转换。
-            toolbarButton("file.batchTest.button", systemImage: "checkmark.seal") {
-                model.batchTestSelectedArchives()
-            }
-            if selectedArchives.count == 2 {
-                toolbarButton("file.compareArchives", systemImage: "arrow.left.arrow.right.circle") {
-                    model.compareSelectedArchives()
-                }
-            } else {
-                toolbarButton("file.convert.menuItem", systemImage: "arrow.triangle.2.circlepath") {
-                    model.requestConvertSelectedArchives()
-                }
-            }
-        } else if selectedArchives.count == 1, selection.count == 1 {
-            // 单归档 → 转换格式 + 发布包检查。
-            toolbarButton("file.convert.menuItem", systemImage: "arrow.triangle.2.circlepath") {
-                model.requestConvertSelectedArchives()
-            }
-            toolbarButton("inspect.menu", systemImage: "checklist") {
-                model.inspectSelectedArchiveForRelease()
-            }
-        } else if selection.count == 1, selection[0].url.pathExtension.lowercased() == SZSArchive.extensionName {
-            // .szs → 快照比较 + 虚拟浏览。
-            toolbarButton("szs.compareWithFolder.menuItem", systemImage: "arrow.left.arrow.right.circle") {
-                model.compareSelectedSZSWithFolder()
-            }
-            toolbarButton("szs.silentBrowse.menuItem", systemImage: "folder.badge.questionmark") {
-                if let url = model.selectedFileItems.first?.url {
-                    model.pendingSZSSilentVirtualBrowse = url
-                }
-            }
-        } else if gpgUIAvailable {
-            // 普通文件 + GPG 开 → 加密投递两件套。
-            toolbarButton("file.encrypt.gpg", systemImage: "lock.doc") {
-                model.encryptSelectionToGPG()
-            }
-            toolbarButton("szs.create.menuItem", systemImage: "signature") {
-                model.createSignedManifest()
-            }
-        } else if selection.count >= 2 {
-            toolbarButton("archive.batchRename.menu", systemImage: "pencil.line") {
-                model.requestBatchRenameFiles()
-            }
-            toolbarButton("file.duplicate", systemImage: "plus.square.on.square") {
-                model.duplicateSelectedFiles()
-            }
-        } else {
-            toolbarButton("file.duplicate", systemImage: "plus.square.on.square") {
-                model.duplicateSelectedFiles()
-            }
-            toolbarButton("file.split.menuItem", systemImage: "scissors") {
-                model.splitSelectedFile()
-            }
-            .disabled(selection[0].isDirectory)
+        case .encryptGPG:
+            model.encryptSelectionToGPG()
+        case .createSignedManifest:
+            model.createSignedManifest()
+        case .fileBatchRename:
+            model.requestBatchRenameFiles()
+        case .duplicateFiles:
+            model.duplicateSelectedFiles()
+        case .splitFile:
+            model.splitSelectedFile()
         }
     }
 
