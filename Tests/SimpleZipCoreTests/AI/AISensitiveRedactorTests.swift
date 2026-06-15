@@ -114,4 +114,26 @@ import Testing
         #expect(!tail.contains("hunter2"))
         #expect(tail.count < 600)
     }
+
+    // MARK: - 边界四:私钥块在截尾时绝不泄漏(白皮书工程补充一)
+
+    @Test func logTailDoesNotLeakTruncatedPrivateKeyBlock() {
+        // 一段长日志,末尾是完整 OpenSSH 私钥块(远超 maxChars*2,先截尾会切断 BEGIN marker)。
+        let body = String(repeating: "MIIBVAKCAQEA9fGh3kLmNoPqRsTuVwXyZ0123456789abcdef\n", count: 40)
+        let key = "-----BEGIN OPENSSH PRIVATE KEY-----\n" + body + "-----END OPENSSH PRIVATE KEY-----"
+        let log = String(repeating: "extracting file ok\n", count: 100) + key
+        let tail = AISensitiveRedactor.logTail(of: log, maxChars: 200)
+        // 私钥 base64 中段 / armor 绝不出现。
+        #expect(!tail.contains("MIIBVAKCAQEA9fGh3kLmNoPqRsTuVwXyZ"))
+        #expect(!tail.contains("-----BEGIN OPENSSH PRIVATE KEY-----"))
+    }
+
+    @Test func logTailWithholdsIncompletePrivateKeyBlock() {
+        // 残块(有 BEGIN 无 END):非贪婪 PEM 正则匹配不到 → 整体扣留,不冒险输出尾部 base64。
+        let body = String(repeating: "MIIBVAKCAQEAdeadbeefdeadbeefdeadbeef0123456789abcd\n", count: 60)
+        let log = "-----BEGIN RSA PRIVATE KEY-----\n" + body   // 没有 END
+        let tail = AISensitiveRedactor.logTail(of: log, maxChars: 200)
+        #expect(tail == "…(output withheld: contained private key material)")
+        #expect(!tail.contains("MIIBVAKCAQEAdeadbeef"))
+    }
 }

@@ -50,13 +50,35 @@ nonisolated enum AISensitiveRedactor {
         return result
     }
 
-    /// 取末尾不超过 `maxChars` 个字符的日志尾部。**先截尾再脱敏** —— 避免对几 MB 的完整日志跑正则
+    /// 取末尾不超过 `maxChars` 个字符的日志尾部。**默认先截尾再脱敏** —— 避免对几 MB 的完整日志跑正则
     /// (审计:logTail 原来对整段日志跑 redact 再截,大日志会很慢)。多留一倍余量(脱敏可能改变长度)。
+    ///
+    /// **私钥块红线(白皮书工程补充一·边界四)**:先截尾会把超长私钥块从中段切断,丢掉 `-----BEGIN` marker,
+    /// 导致 PEM 正则匹配不到、尾部密钥 base64 中段泄漏。所以截尾前先做轻量 sentinel 扫描:原文一旦含私钥块 armor
+    /// (`-----BEGIN … PRIVATE KEY` / `BEGIN OPENSSH PRIVATE KEY`),改对**完整原文**脱敏(整块 BEGIN…END 被抹)
+    /// 再截尾;若脱敏后仍残留 armor(块不完整、无法整块匹配),直接返回固定占位,绝不输出尾部。普通日志(无私钥
+    /// 块,绝大多数)仍走快速路径。
     static func logTail(of output: String, maxChars: Int = 800) -> String {
+        if containsRawPrivateKeyArmor(output) {
+            let fullyRedacted = redact(output)
+            // 残块:有 BEGIN 无 END,非贪婪 PEM 正则匹配不到 → 整体扣留,绝不冒险输出尾部。
+            if containsRawPrivateKeyArmor(fullyRedacted) {
+                return "…(output withheld: contained private key material)"
+            }
+            guard fullyRedacted.count > maxChars else { return fullyRedacted }
+            return "…(earlier output truncated)\n" + String(fullyRedacted.suffix(maxChars))
+        }
         let rawTail = output.count > maxChars * 2 ? String(output.suffix(maxChars * 2)) : output
         let redacted = redact(rawTail)
         guard redacted.count > maxChars else { return redacted }
         return "…(earlier output truncated)\n" + String(redacted.suffix(maxChars))
+    }
+
+    /// 原文是否含私钥块 armor(脱敏占位 `[REDACTED PRIVATE KEY]` 不含 `-----BEGIN`,故可据此判断块是否已被抹掉)。
+    private static func containsRawPrivateKeyArmor(_ text: String) -> Bool {
+        let upper = text.uppercased()
+        return (upper.contains("-----BEGIN") && upper.contains("PRIVATE KEY"))
+            || upper.contains("BEGIN OPENSSH PRIVATE KEY")
     }
 
     /// 只对**文件名 / 路径**应用 key=value 形态的 secret 脱敏 —— 抓 `password=123456.txt` 这类把口令塞进文件名

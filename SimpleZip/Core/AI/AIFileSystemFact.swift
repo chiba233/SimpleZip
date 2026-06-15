@@ -44,19 +44,31 @@ nonisolated enum AIFileReadabilityPolicy {
         return nil
     }
 
-    /// 路径落在密钥 / 凭据 / 密码库目录:`.ssh`、`.gnupg`、`.aws`、`.kube`、Keychain、password-store 等。
+    /// 路径落在密钥 / 凭据 / 密码库目录:`.ssh`、`.gnupg`、`.aws`、`.kube`、Keychains、password-store 等。
+    ///
+    /// **按 path component 判定(白皮书工程补充一·边界四)**,不再用 `/.ssh/` 这类子串 —— 子串挡不住目录本体
+    /// (`/Users/x/.ssh` 无尾随 `/`),也可能误伤 `sshtool` 这类名字。`.config` 只挡其下凭据子目录(如 gh CLI 的
+    /// token),不挡整个 `.config`。
     static func isSensitiveDirectory(_ path: String) -> Bool {
-        let lower = path.lowercased()
-        return sensitiveDirectoryFragments.contains { lower.contains($0) }
+        let comps = (path as NSString).pathComponents.map { $0.lowercased() }
+        if comps.contains(where: { sensitiveDirectoryComponents.contains($0) }) { return true }
+        // `.config` 下只有特定凭据子目录敏感(gh CLI token 等),不是整个 .config。
+        for (i, c) in comps.enumerated() where c == ".config" {
+            let next = i + 1 < comps.count ? comps[i + 1] : ""
+            if sensitiveConfigSubdirs.contains(next) { return true }
+        }
+        return false
     }
 
-    /// 系统临时目录 / 解密暂存目录 —— 内容绝不进入 AI(解密明文可能落在这里)。
+    /// SimpleZip 临时 / 解密暂存目录 —— 内容绝不进入 AI(解密明文可能落在这里)。
+    ///
+    /// **只在系统 temp roots 下、且某 path component 以 `SimpleZip-` 开头时生效(白皮书工程补充一·边界四)**。
+    /// 原来 `contains("/SimpleZip-")` 会把 `/Users/x/Projects/SimpleZip-fork/notes.txt` 这类普通项目目录误判成
+    /// 临时目录;我们的 scratch 一律是 `<系统 temp>/SimpleZip-…-UUID`(见 A7),故按「系统 temp root + SimpleZip-
+    /// component」精确识别。
     static func isDecryptOrTempPath(_ path: String) -> Bool {
-        path.contains("/SimpleZip-")
-            || path.hasPrefix("/private/var/folders/")
-            || path.hasPrefix("/var/folders/")
-            || path.hasPrefix("/private/tmp/")
-            || path.hasPrefix("/tmp/")
+        guard systemTempRoots.contains(where: { path.hasPrefix($0) }) else { return false }
+        return (path as NSString).pathComponents.contains { $0.hasPrefix("SimpleZip-") }
     }
 
     /// 文件名疑似密钥 / 证书私钥 / token / 密码库 / 密文(扩展名或名字 token 命中)。
@@ -91,9 +103,16 @@ nonisolated enum AIFileReadabilityPolicy {
         "id_rsa", "id_ed25519", "id_dsa", "id_ecdsa", ".env", "apikey", "api_key", "vault"
     ]
 
-    private static let sensitiveDirectoryFragments: [String] = [
-        "/.ssh/", "/.gnupg/", "/.aws/", "/.kube/", "/.docker/", "/.password-store/",
-        "/library/keychains/", "/.config/gh/", "/.netrc"
+    /// 敏感目录 / 凭据文件的 path component(小写比较)。命中即挡内容读取。`.netrc` 是凭据文件名也算。
+    private static let sensitiveDirectoryComponents: Set<String> = [
+        ".ssh", ".gnupg", ".aws", ".kube", ".docker", ".password-store", "keychains", ".netrc"
+    ]
+    /// `.config` 下敏感的凭据子目录(只挡这些,不挡整个 `.config`)。
+    private static let sensitiveConfigSubdirs: Set<String> = ["gh"]
+
+    /// SimpleZip 临时 / 解密 scratch 所在的系统 temp roots。
+    private static let systemTempRoots: [String] = [
+        "/private/tmp/", "/tmp/", "/private/var/folders/", "/var/folders/"
     ]
 }
 

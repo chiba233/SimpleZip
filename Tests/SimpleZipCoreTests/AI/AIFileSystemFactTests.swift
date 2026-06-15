@@ -162,4 +162,35 @@ import Testing
             currentUserCanRead: false, isExcludedByUser: false)
         #expect(r == .noReadPermission)
     }
+
+    // MARK: - 边界四:敏感目录走 path component / 临时目录只在系统 temp roots(白皮书工程补充一)
+
+    @Test func sensitiveDirectoryRootItselfBlocksContent() {
+        // 目录本体(无尾随 /)也要挡 —— 旧的 `/.ssh/` 子串挡不住。
+        #expect(AIFileReadabilityPolicy.isSensitiveDirectory("/Users/yumeka/.ssh"))
+        #expect(AIFileReadabilityPolicy.isSensitiveDirectory("/Users/yumeka/.ssh/config"))
+        #expect(AIFileReadabilityPolicy.isSensitiveDirectory("/Users/yumeka/.gnupg"))
+        #expect(AIFileReadabilityPolicy.isSensitiveDirectory("/Users/yumeka/Library/Keychains/login.keychain-db"))
+        #expect(AIFileReadabilityPolicy.isSensitiveDirectory("/Users/yumeka/.netrc"))
+        // `.config` 只挡凭据子目录,不挡整个 .config。
+        #expect(AIFileReadabilityPolicy.isSensitiveDirectory("/Users/yumeka/.config/gh/hosts.yml"))
+        #expect(!AIFileReadabilityPolicy.isSensitiveDirectory("/Users/yumeka/.config/nvim/init.lua"))
+        // 名字含 ssh 但不是 .ssh component → 不误伤。
+        #expect(!AIFileReadabilityPolicy.isSensitiveDirectory("/Users/yumeka/Projects/sshtool/readme.md"))
+    }
+
+    @Test func simpleZipNamedProjectDirectoryIsNotTreatedAsTemp() {
+        // 项目目录恰好叫 SimpleZip-fork,但不在系统 temp root 下 → 不是临时目录(修旧 contains 误判)。
+        #expect(!AIFileReadabilityPolicy.isDecryptOrTempPath("/Users/yumeka/Projects/SimpleZip-fork/notes.txt"))
+        #expect(!AIFileReadabilityPolicy.isDecryptOrTempPath("/Users/yumeka/Documents/SimpleZip-archive/a.zip"))
+    }
+
+    @Test func simpleZipStagingDirectoryUnderSystemTempBlocksContent() {
+        // 系统 temp root 下、component 以 SimpleZip- 开头 → 是解密 / 临时暂存,挡内容。
+        #expect(AIFileReadabilityPolicy.isDecryptOrTempPath(
+            "/private/var/folders/ab/cd/T/SimpleZip-decrypt-1234/plain.txt"))
+        #expect(AIFileReadabilityPolicy.isDecryptOrTempPath("/private/tmp/SimpleZip-stage-9/x.txt"))
+        // 系统 temp root 下但不是我们的 scratch → 不归此策略(由敏感文件名 / 权限等其它闸管)。
+        #expect(!AIFileReadabilityPolicy.isDecryptOrTempPath("/private/tmp/other-app/x.txt"))
+    }
 }
