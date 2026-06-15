@@ -16,8 +16,46 @@
 
 import Foundation
 
+/// 推荐质量 + 数量策略(白皮书 / 用户:**完整、有质量的工作区才能自动推荐,数量必须有限制**)。
+/// 「完整」= 足够成员 + 跨源 / 跨位置 / 上规模(不是随手 2-3 个同目录文件那种你本来就能浏览的);数量封顶。
+nonisolated struct AIRecommendationPolicy: Equatable, Sendable {
+    /// 进聚类的最小簇大小(传给引擎)。
+    let minClusterSize: Int
+    /// 成为推荐的最小成员数。
+    let minMembers: Int
+    /// 成员数达到此值即视为「上规模」,直接算有质量(无需跨源信号)。
+    let richMemberCount: Int
+    /// 侧边栏推荐工作区数量上限。
+    let maxThemes: Int
+    /// 是否启用质量门控(关掉只看成员数 —— 测机制用)。
+    let gateQuality: Bool
+
+    init(minClusterSize: Int = 3, minMembers: Int = 3, richMemberCount: Int = 5,
+         maxThemes: Int = 6, gateQuality: Bool = true) {
+        self.minClusterSize = max(2, minClusterSize)
+        self.minMembers = max(2, minMembers)
+        self.richMemberCount = max(self.minMembers, richMemberCount)
+        self.maxThemes = max(1, maxThemes)
+        self.gateQuality = gateQuality
+    }
+
+    static let `default` = AIRecommendationPolicy()
+    /// 测机制用:不卡质量、允许 2 成员。
+    static let permissive = AIRecommendationPolicy(minClusterSize: 2, minMembers: 2, gateQuality: false)
+
+    /// 「完整 / 有质量」判定:足够成员,且(上规模 OR 跨位置 OR 混了任务 / 归档 / 报告)。
+    func isQuality(_ t: AIWorkspaceThemeCandidate) -> Bool {
+        guard t.sourceRefs.count >= minMembers else { return false }
+        guard gateQuality else { return true }
+        if t.sourceRefs.count >= richMemberCount { return true }
+        if t.scoreSignals.contains(where: { $0.hasPrefix("cross-location") }) { return true }
+        let richKinds: Set<String> = ["has-task", "has-archive", "has-report"]
+        return t.scoreSignals.contains(where: { richKinds.contains($0) })
+    }
+}
+
 nonisolated enum AIWorkspaceDiscovery {
-    /// 发现结果:放行的主题(已排序)+ 被衰减抑制压住的(主题 + 当前抑制权重,供「为什么没推荐」)。
+    /// 发现结果:放行的主题(已排序 + 质量门控 + 数量封顶)+ 被衰减抑制压住的(主题 + 当前抑制权重,供「为什么没推荐」)。
     nonisolated struct Output: Equatable, Sendable {
         let themes: [AIWorkspaceThemeCandidate]
         let suppressed: [SuppressedTheme]
@@ -28,20 +66,23 @@ nonisolated enum AIWorkspaceDiscovery {
         let weight: Double
     }
 
-    /// 端到端:组装候选池 → 跨位置聚类 → 套衰减抑制 → 输出。`attention` 只影响排序,`suppression` 过滤已不感兴趣。
+    /// 端到端:组装候选池 → 跨位置聚类 → **质量门控** → 套衰减抑制 → **数量封顶** → 输出。
+    /// `attention` 只影响排序,`suppression` 过滤已不感兴趣,`policy` 决定「完整才推荐 + 数量上限」。
     static func discover(
         files: [AIFileMemoryRecord] = [],
         tasks: [AITaskRecord] = [],
         attention: AIAttentionContext = AIAttentionContext(),
         suppression: AIThemeSuppressionLedger = AIThemeSuppressionLedger(),
         now: Date,
-        minClusterSize: Int = 2
+        policy: AIRecommendationPolicy = .default
     ) -> Output {
         let pool = assemblePool(files: files, tasks: tasks)
         let all = AIWorkspaceThemeEngine.discoverThemes(
-            from: pool, attention: attention, now: now, minClusterSize: minClusterSize)
-        let part = suppression.partition(all, now: now)
-        return Output(themes: part.kept,
+            from: pool, attention: attention, now: now, minClusterSize: policy.minClusterSize)
+        let quality = all.filter(policy.isQuality)            // 完整才推荐
+        let part = suppression.partition(quality, now: now)
+        let capped = Array(part.kept.prefix(policy.maxThemes))  // 数量有限
+        return Output(themes: capped,
                       suppressed: part.suppressed.map { SuppressedTheme(theme: $0.candidate, weight: $0.weight) })
     }
 
