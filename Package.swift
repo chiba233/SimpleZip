@@ -79,6 +79,7 @@ let package = Package(
                 "Core/AI/AITimeSemantics.swift",
                 "Core/AI/AIUserInterestEvent.swift",
                 "Core/AI/AIVersionRelation.swift",
+                "Core/AI/AIVirtualFolderPlan.swift",
                 "Core/AI/ActivityTaskAIIndex.swift",
                 "Core/AI/AISensitiveRedactor.swift",
                 "Core/AppPreferences.swift",

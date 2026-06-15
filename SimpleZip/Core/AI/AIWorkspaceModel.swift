@@ -200,12 +200,16 @@ nonisolated struct AIVirtualFolderTree: Identifiable, Codable, Equatable, Sendab
     let prompt: String?
     /// 生成时间(由 App 传入,Core 不取 wall-clock)。
     let generatedAt: Date
+    /// 生成方式 —— `deterministic`(确定性整理,UI 须如实标注)/ `modelAssisted`(模型命名分组)。
+    /// 旧缓存解码默认 `deterministic`(白皮书建议四:不能把 fallback 伪装成 AI 生成)。
+    let generationMode: AIVirtualTreeGenerationMode
     let nodes: [AIVirtualNode]
     /// 本树提供的全部可回查引用集合 —— 节点引用必须落在这里(经 `AIVirtualTreeSanitizer` 校验)。
     let sourceRefs: [AIContextSourceRef]
     let omissions: [AIContextOmission]
 
     init(id: UUID, workspaceID: UUID, title: String, prompt: String? = nil, generatedAt: Date,
+         generationMode: AIVirtualTreeGenerationMode = .deterministic,
          nodes: [AIVirtualNode] = [], sourceRefs: [AIContextSourceRef] = [],
          omissions: [AIContextOmission] = []) {
         self.id = id
@@ -213,9 +217,28 @@ nonisolated struct AIVirtualFolderTree: Identifiable, Codable, Equatable, Sendab
         self.title = title
         self.prompt = prompt
         self.generatedAt = generatedAt
+        self.generationMode = generationMode
         self.nodes = nodes
         self.sourceRefs = sourceRefs
         self.omissions = omissions
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, workspaceID, title, prompt, generatedAt, generationMode, nodes, sourceRefs, omissions
+    }
+
+    /// 旧缓存(无 `generationMode` 字段)解码兼容 —— 缺字段默认 `deterministic`。
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try c.decode(UUID.self, forKey: .id)
+        self.workspaceID = try c.decode(UUID.self, forKey: .workspaceID)
+        self.title = try c.decode(String.self, forKey: .title)
+        self.prompt = try c.decodeIfPresent(String.self, forKey: .prompt)
+        self.generatedAt = try c.decode(Date.self, forKey: .generatedAt)
+        self.generationMode = try c.decodeIfPresent(AIVirtualTreeGenerationMode.self, forKey: .generationMode) ?? .deterministic
+        self.nodes = try c.decodeIfPresent([AIVirtualNode].self, forKey: .nodes) ?? []
+        self.sourceRefs = try c.decodeIfPresent([AIContextSourceRef].self, forKey: .sourceRefs) ?? []
+        self.omissions = try c.decodeIfPresent([AIContextOmission].self, forKey: .omissions) ?? []
     }
 
     /// 显示前清洗:用本树自带的 `sourceRefs` 作为候选集过 `AIVirtualTreeSanitizer`,丢弃发明引用 /
@@ -223,8 +246,8 @@ nonisolated struct AIVirtualFolderTree: Identifiable, Codable, Equatable, Sendab
     func sanitized() -> AIVirtualFolderTree {
         let cleaned = AIVirtualTreeSanitizer.sanitize(nodes, allowed: Set(sourceRefs))
         return AIVirtualFolderTree(id: id, workspaceID: workspaceID, title: title, prompt: prompt,
-                                   generatedAt: generatedAt, nodes: cleaned, sourceRefs: sourceRefs,
-                                   omissions: omissions)
+                                   generatedAt: generatedAt, generationMode: generationMode,
+                                   nodes: cleaned, sourceRefs: sourceRefs, omissions: omissions)
     }
 
     /// 树里(含子树)节点总数 —— 首屏预算 / 「显示更多」判断用。
