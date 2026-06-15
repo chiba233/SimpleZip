@@ -24,6 +24,10 @@ nonisolated struct AIFeedbackEvent: Codable, Equatable, Sendable {
         case settingSuggestion
         case operationPreview
         case lens
+        // 白皮书加固 5 补全的 target:
+        case fileGroup            // 一组文件(空间节省 / 去重建议指向的组)
+        case storageSaving        // 空间节省建议本身
+        case mainWindowSuggestion // 主窗口 AI 建议卡
     }
 
     nonisolated enum Kind: String, Codable, Equatable, Sendable {
@@ -39,6 +43,9 @@ nonisolated struct AIFeedbackEvent: Codable, Equatable, Sendable {
 
     let targetKind: TargetKind
     let targetID: String
+    /// 反馈发生在哪个 surface(白皮书加固 5)。区分 target 与 surface,让「x = 不感兴趣」在不同位置正确降权,
+    /// 而不是全局误伤 —— 同一个工作区在侧栏被忽略,不等于它在 AI 中心也该降权。nil = 未指定位置(全局)。
+    let surface: AISuggestionSurfaceID?
     let kind: Kind
     /// 标签纠错的原标签(kind == .wrongTag 时)。
     let fromTag: String?
@@ -48,10 +55,11 @@ nonisolated struct AIFeedbackEvent: Codable, Equatable, Sendable {
     let evidenceTokens: [String]
     let createdAt: Date
 
-    init(targetKind: TargetKind, targetID: String, kind: Kind,
+    init(targetKind: TargetKind, targetID: String, kind: Kind, surface: AISuggestionSurfaceID? = nil,
          fromTag: String? = nil, toTag: String? = nil, evidenceTokens: [String] = [], createdAt: Date) {
         self.targetKind = targetKind
         self.targetID = targetID
+        self.surface = surface
         self.kind = kind
         self.fromTag = fromTag
         self.toTag = toTag
@@ -71,7 +79,16 @@ nonisolated struct AIFeedbackSummary: Codable, Equatable, Sendable {
     struct Pattern: Codable, Equatable, Sendable {
         let tokens: [String]
         let targetKind: String
+        /// 发生位置(nil = 全局未指定)—— 让 per-surface 降权可分别统计。
+        let surface: String?
         let count: Int
+
+        init(tokens: [String], targetKind: String, surface: String? = nil, count: Int) {
+            self.tokens = tokens
+            self.targetKind = targetKind
+            self.surface = surface
+            self.count = count
+        }
     }
     struct TagCorrection: Codable, Equatable, Sendable {
         let from: String
@@ -94,9 +111,10 @@ nonisolated enum AIFeedbackAggregator {
         var corrections: [CorrectionKey: Int] = [:]
 
         for event in events {
-            // token 排序去重 → 稳定归组键。
+            // token 排序去重 → 稳定归组键。surface 进键 → per-surface 分别降权,不全局误伤(加固 5)。
             let tokens = Array(Set(event.evidenceTokens.map { $0.lowercased() })).sorted()
-            let key = PatternKey(tokens: tokens, targetKind: event.targetKind.rawValue)
+            let key = PatternKey(tokens: tokens, targetKind: event.targetKind.rawValue,
+                                 surface: event.surface?.rawValue)
             if event.isPositive { positive[key, default: 0] += 1 }
             if event.isNegative { negative[key, default: 0] += 1 }
             if event.kind == .wrongTag, let from = event.fromTag, let to = event.toTag {
@@ -116,6 +134,7 @@ nonisolated enum AIFeedbackAggregator {
     private struct PatternKey: Hashable {
         let tokens: [String]
         let targetKind: String
+        let surface: String?
     }
     private struct CorrectionKey: Hashable {
         let from: String
@@ -124,10 +143,12 @@ nonisolated enum AIFeedbackAggregator {
 
     private static func patterns(from counts: [PatternKey: Int]) -> [AIFeedbackSummary.Pattern] {
         counts
-            .map { AIFeedbackSummary.Pattern(tokens: $0.key.tokens, targetKind: $0.key.targetKind, count: $0.value) }
+            .map { AIFeedbackSummary.Pattern(tokens: $0.key.tokens, targetKind: $0.key.targetKind,
+                                             surface: $0.key.surface, count: $0.value) }
             .sorted {
                 if $0.count != $1.count { return $0.count > $1.count }
                 if $0.targetKind != $1.targetKind { return $0.targetKind < $1.targetKind }
+                if ($0.surface ?? "") != ($1.surface ?? "") { return ($0.surface ?? "") < ($1.surface ?? "") }
                 return $0.tokens.joined() < $1.tokens.joined()
             }
     }

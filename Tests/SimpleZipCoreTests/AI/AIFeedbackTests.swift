@@ -11,9 +11,10 @@ import Testing
 
 @Suite struct AIFeedbackTests {
     private func event(_ kind: AIFeedbackEvent.Kind, target: AIFeedbackEvent.TargetKind = .workspace,
-                       id: String = "x", from: String? = nil, to: String? = nil,
+                       id: String = "x", surface: AISuggestionSurfaceID? = nil,
+                       from: String? = nil, to: String? = nil,
                        tokens: [String] = []) -> AIFeedbackEvent {
-        AIFeedbackEvent(targetKind: target, targetID: id, kind: kind,
+        AIFeedbackEvent(targetKind: target, targetID: id, kind: kind, surface: surface,
                         fromTag: from, toTag: to, evidenceTokens: tokens,
                         createdAt: Date(timeIntervalSince1970: 0))
     }
@@ -72,5 +73,36 @@ import Testing
         ])
         #expect(summary.positivePatterns.first?.tokens == ["common"])
         #expect(summary.positivePatterns.first?.count == 2)
+    }
+
+    // MARK: - 加固 5:per-surface 降权不全局误伤 + 补全 target
+
+    @Test func perSurfaceFeedbackSeparated() {
+        // 同 target / 同 tokens,但侧栏 vs 活动中心 → 分别归组,不全局合并。
+        let summary = AIFeedbackAggregator.summarize([
+            event(.dismissed, surface: .sidebar, tokens: ["downloads-cleanup"]),
+            event(.dismissed, surface: .sidebar, tokens: ["downloads-cleanup"]),
+            event(.dismissed, surface: .activityCenter, tokens: ["downloads-cleanup"]),
+        ])
+        let sidebar = summary.negativePatterns.first { $0.surface == "sidebar" }
+        let activity = summary.negativePatterns.first { $0.surface == "activityCenter" }
+        #expect(sidebar?.count == 2)
+        #expect(activity?.count == 1)
+        #expect(summary.negativePatterns.count == 2)   // 两个 surface 各一组
+    }
+
+    @Test func nilSurfaceStaysGlobal() {
+        // 未指定 surface 的反馈仍按原全局方式归组(向后兼容)。
+        let summary = AIFeedbackAggregator.summarize([
+            event(.useful, tokens: ["a"]), event(.useful, tokens: ["a"]),
+        ])
+        #expect(summary.positivePatterns.first?.surface == nil)
+        #expect(summary.positivePatterns.first?.count == 2)
+    }
+
+    @Test func newTargetKindsAvailable() {
+        #expect(event(.dismissed, target: .storageSaving).isNegative)
+        #expect(event(.useful, target: .fileGroup).isPositive)
+        #expect(event(.dismissed, target: .mainWindowSuggestion).isNegative)
     }
 }
