@@ -287,11 +287,15 @@ nonisolated struct AIWorkspace: Identifiable, Codable, Equatable, Sendable {
     var negativeFeedbackCount: Int
     /// 推荐工作区的主题指纹(`.recommended` 才有)—— 用户「不感兴趣」时据此写衰减抑制账本,随工作区一起持久化。
     var fingerprint: AIWorkspaceThemeFingerprint?
+    /// 打开次数(频率信号)—— AI 加权排序用,打开一次只 +1 不直接置顶(见 `AIWorkspaceRanking`)。
+    var openCount: Int
+    /// 主题强度 [0,1](发现时的 cluster 信号丰富度)—— 强主题即使没打开也排得高,避免「点一下就僵硬置顶」。
+    var relevanceScore: Double
 
     init(id: UUID, origin: Origin, title: String, prompt: String? = nil,
          queryPlan: AIWorkspaceQueryPlan, iconSystemName: String, visibility: Visibility = .visible,
          pinned: Bool = false, generatedAt: Date, lastOpenedAt: Date? = nil, negativeFeedbackCount: Int = 0,
-         fingerprint: AIWorkspaceThemeFingerprint? = nil) {
+         fingerprint: AIWorkspaceThemeFingerprint? = nil, openCount: Int = 0, relevanceScore: Double = 0) {
         self.id = id
         self.origin = origin
         self.title = title
@@ -304,6 +308,70 @@ nonisolated struct AIWorkspace: Identifiable, Codable, Equatable, Sendable {
         self.lastOpenedAt = lastOpenedAt
         self.negativeFeedbackCount = negativeFeedbackCount
         self.fingerprint = fingerprint
+        self.openCount = openCount
+        self.relevanceScore = relevanceScore
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, origin, title, prompt, queryPlan, iconSystemName, visibility, pinned, generatedAt
+        case lastOpenedAt, negativeFeedbackCount, fingerprint, openCount, relevanceScore
+    }
+
+    /// 旧持久化(无 openCount / relevanceScore / fingerprint)解码兼容 —— 缺字段给默认,**不丢用户工作区**。
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try c.decode(UUID.self, forKey: .id)
+        self.origin = try c.decode(Origin.self, forKey: .origin)
+        self.title = try c.decode(String.self, forKey: .title)
+        self.prompt = try c.decodeIfPresent(String.self, forKey: .prompt)
+        self.queryPlan = try c.decode(AIWorkspaceQueryPlan.self, forKey: .queryPlan)
+        self.iconSystemName = try c.decode(String.self, forKey: .iconSystemName)
+        self.visibility = try c.decodeIfPresent(Visibility.self, forKey: .visibility) ?? .visible
+        self.pinned = try c.decodeIfPresent(Bool.self, forKey: .pinned) ?? false
+        self.generatedAt = try c.decode(Date.self, forKey: .generatedAt)
+        self.lastOpenedAt = try c.decodeIfPresent(Date.self, forKey: .lastOpenedAt)
+        self.negativeFeedbackCount = try c.decodeIfPresent(Int.self, forKey: .negativeFeedbackCount) ?? 0
+        self.fingerprint = try c.decodeIfPresent(AIWorkspaceThemeFingerprint.self, forKey: .fingerprint)
+        self.openCount = try c.decodeIfPresent(Int.self, forKey: .openCount) ?? 0
+        self.relevanceScore = try c.decodeIfPresent(Double.self, forKey: .relevanceScore) ?? 0
+    }
+}
+
+/// AI 加权工作区排序(白皮书:不是「点一下就僵硬置顶」,而是软加权 —— 主题强度 + 打开频率 + 最近打开(衰减)
+/// 综合;随时间连续重排,不是重启才变)。`now` 由 App 传入(最近度衰减),确定性可测。
+nonisolated enum AIWorkspaceRanking {
+    static let recencyHalfLifeDays = 7.0
+    static let wRecency = 2.5
+    static let wFrequency = 1.5
+    static let wRelevance = 5.0
+    static let userBaseline = 2.5
+    static let feedbackPenalty = 3.0
+
+    /// 一个工作区的加权分。固定置顶用大常量;否则 = 主题强度×5 + 打开频率(log)×1.5 + 最近打开衰减×2.5
+    /// (+ 用户工作区基线) − 负反馈惩罚。**单次打开只给会衰减的最近度 + 频率小步,不盖过强主题。**
+    static func score(_ ws: AIWorkspace, now: Date) -> Double {
+        if ws.pinned { return 1_000 }
+        var s = wRelevance * max(0, min(1, ws.relevanceScore))
+        s += wFrequency * log2(Double(max(0, ws.openCount)) + 1)
+        if let last = ws.lastOpenedAt {
+            let days = max(0, now.timeIntervalSince(last)) / 86_400
+            s += wRecency * pow(0.5, days / recencyHalfLifeDays)
+        }
+        if ws.origin == .userCreated { s += userBaseline }
+        s -= feedbackPenalty * Double(max(0, ws.negativeFeedbackCount))
+        return s
+    }
+
+    /// 过滤可见 + 按加权分降序(同分按生成时间新→旧、标题)。
+    static func rank(_ workspaces: [AIWorkspace], now: Date) -> [AIWorkspace] {
+        workspaces
+            .filter { $0.visibility == .visible }
+            .sorted { a, b in
+                let sa = score(a, now: now), sb = score(b, now: now)
+                if sa != sb { return sa > sb }
+                if a.generatedAt != b.generatedAt { return a.generatedAt > b.generatedAt }
+                return a.title < b.title
+            }
     }
 }
 
@@ -315,19 +383,20 @@ nonisolated struct AIWorkspaceCollection: Codable, Equatable, Sendable {
 
     init(_ workspaces: [AIWorkspace] = []) { self.workspaces = workspaces }
 
-    /// 可见工作区(排除 hidden / dismissed)。排序确定性:固定优先 → 最近打开 → 生成时间 → 标题。
+    /// 可见工作区(确定性过滤,排除 hidden / dismissed)。**排序交给 `ranked(now:)` 的 AI 加权** —— 这里只给
+    /// 一个不依赖时间的稳定兜底序(固定优先 → 生成时间 → 标题),供不需要加权的场景 / 测试。
     var visibleWorkspaces: [AIWorkspace] {
         workspaces
             .filter { $0.visibility == .visible }
             .sorted { a, b in
                 if a.pinned != b.pinned { return a.pinned }
-                let la = a.lastOpenedAt ?? Date(timeIntervalSince1970: 0)
-                let lb = b.lastOpenedAt ?? Date(timeIntervalSince1970: 0)
-                if la != lb { return la > lb }
                 if a.generatedAt != b.generatedAt { return a.generatedAt > b.generatedAt }
                 return a.title < b.title
             }
     }
+
+    /// AI 加权排序(白皮书:不是「点一下就僵硬置顶」,而是主题强度 + 频率 + 最近度衰减综合)。`now` 由 App 传入。
+    func ranked(now: Date) -> [AIWorkspace] { AIWorkspaceRanking.rank(workspaces, now: now) }
 
     func workspace(_ id: UUID) -> AIWorkspace? { workspaces.first { $0.id == id } }
 
@@ -366,9 +435,10 @@ nonisolated struct AIWorkspaceCollection: Codable, Equatable, Sendable {
         return mapping(id) { var c = $0; c.title = trimmed; return c }
     }
 
-    /// 标记打开时间(影响排序 + 最近;`date` 由 App 传入)。
+    /// 标记打开(最近度 + 频率信号;`date` 由 App 传入)。打开一次只 +1 频率 + 刷新最近度 —— **不直接置顶**,
+    /// 排序由 AI 加权综合(见 `AIWorkspaceRanking`)。
     func markingOpened(_ id: UUID, at date: Date) -> AIWorkspaceCollection {
-        mapping(id) { var c = $0; c.lastOpenedAt = date; return c }
+        mapping(id) { var c = $0; c.lastOpenedAt = date; c.openCount += 1; return c }
     }
 
     private func mapping(_ id: UUID, _ transform: (AIWorkspace) -> AIWorkspace) -> AIWorkspaceCollection {

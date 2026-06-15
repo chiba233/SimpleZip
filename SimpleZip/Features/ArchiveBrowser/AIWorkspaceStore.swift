@@ -46,8 +46,9 @@ final class AIWorkspaceStore: ObservableObject {
         persist()
     }
 
-    /// 侧边栏渲染的可见工作区(确定性排序,排除 hidden / dismissed)。
-    var visibleWorkspaces: [AIWorkspace] { collection.visibleWorkspaces }
+    /// 侧边栏渲染的可见工作区。**AI 加权排序**(主题强度 + 打开频率 + 最近度衰减)—— 点一下只是软加权,
+    /// 不僵硬置顶;随时间连续重排。
+    var visibleWorkspaces: [AIWorkspace] { collection.ranked(now: Date()) }
 
     func workspace(_ id: UUID) -> AIWorkspace? { collection.workspace(id) }
 

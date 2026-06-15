@@ -295,6 +295,10 @@ extension AIWorkspaceThemeCandidate {
             queryPlan: AIWorkspaceQueryPlan(taskTags: [], keywords: themeTokens),
             iconSystemName: iconSystemName,
             generatedAt: generatedAt,
-            fingerprint: fingerprint)
+            fingerprint: fingerprint,
+            relevanceScore: themeStrength)
     }
+
+    /// 主题强度 [0,1] —— cluster 信号丰富度(命中信号数封顶归一)。强主题排序加权高,即使没被打开。
+    var themeStrength: Double { min(1.0, Double(scoreSignals.count) / 6.0) }
 }

@@ -101,13 +101,40 @@ import Testing
         #expect(c.visibleWorkspaces.map(\.id) == [AIStableHash.deterministicUUID("a")])
     }
 
-    @Test func visibleWorkspacesSortsPinnedThenRecent() {
+    @Test func visibleWorkspacesStableFallbackOrder() {
+        // visibleWorkspaces 现在只给不依赖时间的稳定兜底序(固定优先 → 生成时间新→旧 → 标题)。
         let c = AIWorkspaceCollection([
             ws("old", .system, title: "old", generatedAt: 10),
             ws("recent", .system, title: "recent", generatedAt: 5, lastOpenedAt: 100),
             ws("pinned", .recommended, title: "pinned", pinned: true, generatedAt: 1),
         ])
-        #expect(c.visibleWorkspaces.map(\.title) == ["pinned", "recent", "old"])
+        #expect(c.visibleWorkspaces.map(\.title) == ["pinned", "old", "recent"])
+    }
+
+    @Test func rankedFavorsStrongThemeOverSingleClick() {
+        // 用户痛点修复:点一下弱主题**不应**盖过没打开的强主题(软 AI 加权,非僵硬置顶)。
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        let strong = AIWorkspace(id: id1, origin: .recommended, title: "strong",
+                                 queryPlan: AIWorkspaceQueryPlan(taskTags: []), iconSystemName: "x",
+                                 generatedAt: now, relevanceScore: 1.0)
+        let weakClicked = AIWorkspace(id: id2, origin: .recommended, title: "weak",
+                                      queryPlan: AIWorkspaceQueryPlan(taskTags: []), iconSystemName: "x",
+                                      generatedAt: now, lastOpenedAt: now, openCount: 1, relevanceScore: 0.0)
+        let ranked = AIWorkspaceCollection([weakClicked, strong]).ranked(now: now)
+        #expect(ranked.map(\.title) == ["strong", "weak"])
+    }
+
+    @Test func rankedRewardsFrequentUse() {
+        // 但频繁使用的弱主题最终能升上来(频率信号)。
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        let strong = AIWorkspace(id: id1, origin: .recommended, title: "strong",
+                                 queryPlan: AIWorkspaceQueryPlan(taskTags: []), iconSystemName: "x",
+                                 generatedAt: now, relevanceScore: 1.0)
+        let weakFrequent = AIWorkspace(id: id2, origin: .recommended, title: "weak",
+                                       queryPlan: AIWorkspaceQueryPlan(taskTags: []), iconSystemName: "x",
+                                       generatedAt: now, lastOpenedAt: now, openCount: 20, relevanceScore: 0.0)
+        let ranked = AIWorkspaceCollection([strong, weakFrequent]).ranked(now: now)
+        #expect(ranked.first?.title == "weak")
     }
 
     @Test func dismissOnlyAffectsRecommended() {
