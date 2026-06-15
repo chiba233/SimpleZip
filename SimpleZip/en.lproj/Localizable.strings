@@ -1591,6 +1591,10 @@
 "diagnostics.copied" = "Diagnostics copied to clipboard.";
 "section.favorites" = "Favorites";
 "sidebar.ai.section" = "AI";
+"sidebar.ai.refreshWorkspace" = "Refresh";
+"sidebar.ai.hideWorkspace" = "Hide";
+"sidebar.ai.dismissRecommended" = "Not Interested";
+"sidebar.ai.deleteWorkspace" = "Delete";
 "browser.aiSuggestions.title" = "AI Suggestions";
 "location.aiSuggestions" = "AI Suggestions";
 "aiFolder.needsAttention" = "Needs Attention";

@@ -143,6 +143,10 @@
 "diagnostics.copied" = "คัดลอกข้อมูลวินิจฉัยไปยังคลิปบอร์ดแล้ว";
 "section.favorites" = "รายการโปรด";
 "sidebar.ai.section" = "AI";
+"sidebar.ai.refreshWorkspace" = "รีเฟรช";
+"sidebar.ai.hideWorkspace" = "ซ่อน";
+"sidebar.ai.dismissRecommended" = "ไม่สนใจ";
+"sidebar.ai.deleteWorkspace" = "ลบ";
 "browser.aiSuggestions.title" = "คำแนะนำจาก AI";
 "location.aiSuggestions" = "คำแนะนำจาก AI";
 "aiFolder.needsAttention" = "ต้องการการตรวจสอบ";

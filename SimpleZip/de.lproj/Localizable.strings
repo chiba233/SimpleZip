@@ -143,6 +143,10 @@
 "diagnostics.copied" = "Diagnose in die Zwischenablage kopiert.";
 "section.favorites" = "Favoriten";
 "sidebar.ai.section" = "KI";
+"sidebar.ai.refreshWorkspace" = "Aktualisieren";
+"sidebar.ai.hideWorkspace" = "Ausblenden";
+"sidebar.ai.dismissRecommended" = "Nicht interessiert";
+"sidebar.ai.deleteWorkspace" = "Löschen";
 "browser.aiSuggestions.title" = "KI-Vorschläge";
 "location.aiSuggestions" = "KI-Vorschläge";
 "aiFolder.needsAttention" = "Benötigt Aufmerksamkeit";

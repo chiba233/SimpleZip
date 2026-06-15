@@ -143,6 +143,10 @@
 "diagnostics.copied" = "診断情報をクリップボードにコピーしました。";
 "section.favorites" = "よく使う項目";
 "sidebar.ai.section" = "AI";
+"sidebar.ai.refreshWorkspace" = "更新";
+"sidebar.ai.hideWorkspace" = "非表示";
+"sidebar.ai.dismissRecommended" = "興味なし";
+"sidebar.ai.deleteWorkspace" = "削除";
 "browser.aiSuggestions.title" = "AI の提案";
 "location.aiSuggestions" = "AI の提案";
 "aiFolder.needsAttention" = "要確認";

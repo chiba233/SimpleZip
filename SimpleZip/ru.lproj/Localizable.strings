@@ -143,6 +143,10 @@
 "diagnostics.copied" = "Диагностика скопирована в буфер обмена.";
 "section.favorites" = "Избранное";
 "sidebar.ai.section" = "ИИ";
+"sidebar.ai.refreshWorkspace" = "Обновить";
+"sidebar.ai.hideWorkspace" = "Скрыть";
+"sidebar.ai.dismissRecommended" = "Не интересно";
+"sidebar.ai.deleteWorkspace" = "Удалить";
 "browser.aiSuggestions.title" = "Подсказки ИИ";
 "location.aiSuggestions" = "Подсказки ИИ";
 "aiFolder.needsAttention" = "Требует внимания";

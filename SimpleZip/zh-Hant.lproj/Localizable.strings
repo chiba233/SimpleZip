@@ -143,6 +143,10 @@
 "diagnostics.copied" = "诊断信息已复制到剪贴板。";
 "section.favorites" = "個人收藏";
 "sidebar.ai.section" = "AI";
+"sidebar.ai.refreshWorkspace" = "重新整理";
+"sidebar.ai.hideWorkspace" = "隱藏";
+"sidebar.ai.dismissRecommended" = "沒興趣";
+"sidebar.ai.deleteWorkspace" = "刪除";
 "browser.aiSuggestions.title" = "AI 建議";
 "location.aiSuggestions" = "AI 建議";
 "aiFolder.needsAttention" = "需要處理";

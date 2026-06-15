@@ -12,6 +12,8 @@ import UniformTypeIdentifiers
 /// 左侧导航栏：放常用位置和打开入口。
 struct Sidebar: View {
     @ObservedObject var model: ArchiveBrowserModel
+    /// 0.4.5 #80 #89:动态 AI 工作区 store(建议四:侧栏渲染 `visibleWorkspaces`,非写死三项)。
+    @ObservedObject private var workspaceStore = AIWorkspaceStore.shared
     /// 0.4.5 #80:AI 主开关。关闭 → AI 工作区入口整体不渲染(A4 门控:主开关关,主界面 AI 入口全隐藏)。
     @AppStorage(AppPreferences.Key.aiAssistantEnabled) private var aiEnabled = true
     @State private var recentURLs: [URL] = []
@@ -66,20 +68,15 @@ struct Sidebar: View {
 
     var body: some View {
         List {
-            // 0.4.5 #80:AI 工作区(白皮书工程补充一 MVP)。只读虚拟工作区,确定性候选;AI 主开关关 → 整段隐藏。
+            // 0.4.5 #80 #89:AI 工作区(白皮书建议四)。**动态**读 `AIWorkspaceStore.visibleWorkspaces`
+            // (系统 / 用户创建 / 推荐三类),不再写死三项;AI 主开关关 → 整段隐藏(A4 门控)。
             if aiEnabled {
                 Section(L10n.text("sidebar.ai.section")) {
-                    SidebarButton(title: L10n.text("aiFolder.needsAttention"),
-                                  systemImage: AISystemWorkspaceKind.needsAttention.systemImage) {
-                        model.openAIWorkspace(.needsAttention)
-                    }
-                    SidebarButton(title: L10n.text("aiFolder.releaseAndVerify"),
-                                  systemImage: AISystemWorkspaceKind.releaseAndVerify.systemImage) {
-                        model.openAIWorkspace(.releaseAndVerify)
-                    }
-                    SidebarButton(title: L10n.text("aiFolder.recentArchives"),
-                                  systemImage: AISystemWorkspaceKind.recentArchives.systemImage) {
-                        model.openAIWorkspace(.recentArchives)
+                    ForEach(workspaceStore.visibleWorkspaces) { ws in
+                        SidebarButton(title: ws.title, systemImage: ws.iconSystemName) {
+                            model.openAIWorkspace(ws.id)
+                        }
+                        .contextMenu { aiWorkspaceContextMenu(ws) }
                     }
                 }
             }
@@ -181,6 +178,23 @@ struct Sidebar: View {
             Self.iconCache.removeAllObjects()
             iconGeneration += 1
             refreshSidebarURLs()
+        }
+    }
+
+    /// AI 工作区行右键菜单(白皮书建议四:按来源给不同动作)。系统=隐藏;推荐=不感兴趣;用户创建=删除;
+    /// 全部=刷新(重新打开,虚拟树确定性重生成)。这些只改虚拟工作区元数据,绝不碰真实文件。
+    @ViewBuilder
+    private func aiWorkspaceContextMenu(_ ws: AIWorkspace) -> some View {
+        Button(L10n.text("sidebar.ai.refreshWorkspace")) { model.openAIWorkspace(ws.id) }
+        switch ws.origin {
+        case .system:
+            Button(L10n.text("sidebar.ai.hideWorkspace")) { workspaceStore.hide(ws.id) }
+        case .recommended:
+            Button(L10n.text("sidebar.ai.dismissRecommended")) { workspaceStore.dismissRecommended(ws.id) }
+        case .userCreated:
+            Button(L10n.text("sidebar.ai.deleteWorkspace"), role: .destructive) {
+                workspaceStore.removeUserWorkspace(ws.id)
+            }
         }
     }
 

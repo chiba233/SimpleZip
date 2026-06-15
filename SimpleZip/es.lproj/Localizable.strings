@@ -143,6 +143,10 @@
 "diagnostics.copied" = "Diagnóstico copiado al portapapeles.";
 "section.favorites" = "Favoritos";
 "sidebar.ai.section" = "IA";
+"sidebar.ai.refreshWorkspace" = "Actualizar";
+"sidebar.ai.hideWorkspace" = "Ocultar";
+"sidebar.ai.dismissRecommended" = "No me interesa";
+"sidebar.ai.deleteWorkspace" = "Eliminar";
 "browser.aiSuggestions.title" = "Sugerencias de IA";
 "location.aiSuggestions" = "Sugerencias de IA";
 "aiFolder.needsAttention" = "Requiere atención";
