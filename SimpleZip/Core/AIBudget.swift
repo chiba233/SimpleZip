@@ -11,7 +11,7 @@
 
 import Foundation
 
-nonisolated struct AIBudget: Equatable, Sendable {
+nonisolated struct AIBudget: Codable, Equatable, Sendable {
     /// 候选条数上限(任务 / 归档 / 节点 …)。
     let maxItems: Int
     /// 单条文本字符上限(错误行 / 日志尾部 / 单条样本说明)。

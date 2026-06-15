@@ -5367,17 +5367,403 @@ App 只显示建议，用户点了才应用到现有创建 sheet。
 
 后续 deterministic ranker 和 prompt hints 都读这个反馈。这样模型不变，体验也会变聪明。
 
+### Feat 12：AI 归档收件箱
+
+SimpleZip 很适合做一个“归档收件箱”：用户进入 Downloads、Desktop、项目 release 目录时，AI 不直接操作文件，而是把新出现、最近打开、未处理、可能失败的归档整理成几个队列。
+
+为什么适合端侧模型：
+
+- 输入短：当前目录摘要 + 最近任务 + 归档画像。
+- 输出简单：分组标题、排序理由、下一步动作。
+- 不需要世界知识，不需要长推理。
+
+示例输出：
+
+```json
+{
+  "schema": "simplezip.ai.archiveInbox.v1",
+  "groups": [
+    {
+      "title": "刚下载，还没测试",
+      "sourceRefs": [{"type":"archive","id":"arch-1"}],
+      "recommendedAction": "testArchive",
+      "reason": "最近 10 分钟出现，尚无测试任务。"
+    },
+    {
+      "title": "发布相关",
+      "sourceRefs": [{"type":"archive","id":"arch-2"}, {"type":"file","id":"file-sha"}],
+      "recommendedAction": "runReleaseInspection",
+      "reason": "同目录有 SHA256SUMS 和签名文件。"
+    }
+  ]
+}
+```
+
+施工落点：
+
+- 读取 `AIFolderProfile`、`ArchiveMemoryIndex`、`ActivityTaskAIIndex`。
+- 在侧边栏 AI 工作区里显示 `归档收件箱`。
+- 不移动、不删除、不自动解压，只提供 action cards。
+
+### Feat 13：AI 归档内部地图
+
+打开一个大归档时，用户最缺的是“一眼知道里面是什么”。端侧模型可以基于非加密条目样本和 `ArchiveProfile` 生成一张内部地图。
+
+输入：
+
+```json
+{
+  "schema": "simplezip.ai.archiveMap.input.v1",
+  "profile": {
+    "entryCount": 1840,
+    "topLevelShape": "single-root-folder",
+    "dominantExtensions": ["swift", "md", "strings", "json"],
+    "markerFiles": ["Package.swift", "README.md", "LICENSE"],
+    "encryptedEntriesOmitted": 0
+  },
+  "samplePaths": [
+    "Sources/App/Main.swift",
+    "Resources/zh-Hans.lproj/Localizable.strings",
+    "Tests/CoreTests.swift"
+  ]
+}
+```
+
+输出：
+
+```json
+{
+  "title": "Swift 源码包",
+  "sections": [
+    {"name":"源码", "evidence":["Sources/", "Package.swift"]},
+    {"name":"本地化", "evidence":["zh-Hans.lproj", "Localizable.strings"]},
+    {"name":"测试", "evidence":["Tests/"]}
+  ],
+  "suggestedLens": "source"
+}
+```
+
+这可以作为归档浏览器顶部的 AI Lens 摘要，也可以写入 `ArchiveMemoryRecord`，以后不用重新跑。
+
+### Feat 14：AI 自然语言选择器
+
+用户经常不是想搜索文件名，而是想“选中这批东西”。例如：
+
+```text
+选中所有像发布产物但还没测试过的包
+```
+
+模型不应该直接返回文件路径，而应该返回 selection query：
+
+```json
+{
+  "schema": "simplezip.ai.selectionQuery.v1",
+  "filters": {
+    "semanticTags": ["release-artifact"],
+    "taskState": "no-successful-test",
+    "extensions": ["zip", "7z", "dmg", "siz", "szs"]
+  },
+  "actionAfterSelection": "showOnly"
+}
+```
+
+App 用本地索引执行 query，然后高亮结果或进入虚拟文件夹。这个功能非常适合端侧模型，因为它只是把自然语言改写成结构化 filter。
+
+### Feat 15：AI 操作排练
+
+在真正执行创建、解压、转换、发布检查前，AI 可以生成“操作排练说明”。这不是让 AI 决定是否执行，而是让它解释已有 dry-run/preflight 数据。
+
+示例：
+
+```json
+{
+  "schema": "simplezip.ai.operationRehearsal.v1",
+  "operation": "extract",
+  "facts": {
+    "archiveRole": "release-package",
+    "destinationExists": true,
+    "conflicts": 3,
+    "suspiciousEntries": ["absolute-path", "executable"],
+    "requiredPassword": false
+  },
+  "allowedActions": ["continueToConfirm", "changeDestination", "openSecurityReport"]
+}
+```
+
+输出：
+
+```json
+{
+  "summary": "这次解压会覆盖目标目录中的 3 个同名文件，并包含可执行内容。",
+  "attention": ["建议先打开安全报告。", "目标目录已有同名文件。"],
+  "primaryAction": "openSecurityReport"
+}
+```
+
+施工落点：
+
+- 复用现有创建/解压 options view 的 preflight facts。
+- 输出只能进入确认页文案和 action cards。
+- 不能跳过已有安全确认。
+
+### Feat 16：AI 版本关系解释
+
+SimpleZip 已经有近似重复、hash、diff、release comparison 这类确定性能力。端侧模型适合给这些结果起一个人能读懂的关系标签：
+
+- `same-content-different-name`
+- `same-release-new-build`
+- `source-vs-binary-release`
+- `partial-volume-set`
+- `old-backup-vs-current`
+- `localized-variant`
+
+输入：
+
+```json
+{
+  "schema": "simplezip.ai.versionRelation.input.v1",
+  "items": [
+    {"id":"a", "nameTokens":["SimpleZip","0.4.5"], "role":"release-package", "hashGroup":"h1"},
+    {"id":"b", "nameTokens":["SimpleZip","0.4.5","copy"], "role":"release-package", "hashGroup":"h1"}
+  ],
+  "deterministicSignals": ["same-size", "same-hash", "name-copy-token"]
+}
+```
+
+输出：
+
+```json
+{
+  "relation": "same-content-different-name",
+  "title": "同内容副本",
+  "reason": "大小和 hash 相同，文件名像副本。"
+}
+```
+
+这能让清理视角更有用：用户看到的不是“重复”，而是“同内容副本 / 旧构建 / 源码和二进制发布”。
+
+### Feat 17：AI 安全关注点摘要
+
+SimpleZip 的安全扫描已经很适合端侧 AI：规则判断由 App 做，AI 负责把结果变成短摘要和下一步。
+
+输入：
+
+```json
+{
+  "schema": "simplezip.ai.securityAttention.input.v1",
+  "riskHints": ["path-traversal", "executable", "symlink"],
+  "archiveRole": "unknown",
+  "entrySamples": ["bin/install.sh", "../escape.txt", "README.md"],
+  "allowedActions": ["openSecurityReport", "extractWithReview", "cancel"]
+}
+```
+
+输出：
+
+```json
+{
+  "headline": "先别直接解压",
+  "summary": "这个包包含路径逃逸样本和可执行脚本，建议先看安全报告。",
+  "primaryAction": "openSecurityReport"
+}
+```
+
+红线：
+
+- AI 不判断“安全/不安全”的最终结论。
+- `riskHints` 必须来自确定性扫描。
+- AI 不能因为摘要语气温和就降低现有安全提示级别。
+
+### Feat 18：AI 智能命名和标题生成
+
+端侧弱模型很适合命名。SimpleZip 里很多地方需要短标题：
+
+- AI 工作区标题；
+- 归档角色标题；
+- 活动筛选保存名称；
+- 报告摘要标题；
+- 批处理分组名称；
+- 自动化建议名称；
+- 归档内部地图 section 名称。
+
+示例：
+
+```json
+{
+  "schema": "simplezip.ai.title.input.v1",
+  "style": "sidebar-workspace-title",
+  "facts": ["role=release-package", "markers=SHA256SUMS,signature.asc", "task=test failed"],
+  "maxChars": 18
+}
+```
+
+输出：
+
+```json
+{
+  "title": "发布校验",
+  "subtitle": "签名、哈希和失败测试"
+}
+```
+
+这类功能能让 AI 感知很强，而且失败成本低。即使模型不可用，App 也可以用模板 fallback。
+
+### Feat 19：AI 设置医生
+
+设置里现在已经有设置搜索和 health check。可以升级成“设置医生”：把现有设置状态、健康检查结果、用户意图合并，给出配置建议。
+
+适合端侧模型的原因：
+
+- 设置项有限；
+- 每个建议都可由 allowlist action 表达；
+- 不需要扫文件内容；
+- 适合短文本问答。
+
+示例：
+
+```json
+{
+  "schema": "simplezip.ai.settingsDoctor.v1",
+  "userIntent": "我想让软件更懂我，但不要太耗电",
+  "state": {
+    "aiEnabled": true,
+    "backgroundActivity": "off",
+    "archivePreRead": false,
+    "folderPreIndex": false,
+    "spotlightIndexing": true
+  },
+  "allowedActions": ["openAISettings", "setBackgroundBalanced", "openPrivacyData"]
+}
+```
+
+输出：
+
+```json
+{
+  "answer": "可以把后台本地 AI 调到“平衡”，先开启归档预读，不开启积极文件内容预索引。",
+  "actions": ["setBackgroundBalanced", "openPrivacyData"]
+}
+```
+
+执行仍由用户确认，所有设置修改走现有 `SettingEntity` / Settings pane 入口。
+
+### Feat 20：AI 发布前 Checklist
+
+SimpleZip 对 release 包、SIZ/SZS、签名、hash、报告已经有很多上下文。可以做一个 AI 生成的发布前 checklist，但 checklist 项必须来自模板和确定性 facts。
+
+示例输出：
+
+```json
+{
+  "schema": "simplezip.ai.releaseChecklist.v1",
+  "title": "发布前检查",
+  "items": [
+    {"id":"test-archive", "label":"测试归档可读取", "state":"missing"},
+    {"id":"verify-hash", "label":"核对 SHA256SUMS", "state":"available"},
+    {"id":"check-signature", "label":"检查签名文件", "state":"available"},
+    {"id":"inspect-report", "label":"打开发布检查报告", "state":"missing"}
+  ],
+  "primaryAction": "runReleaseInspection"
+}
+```
+
+模型只负责把 checklist 组织得自然，真正的项目和状态由 App 算。
+
+### Feat 21：AI 缓存和索引维护员
+
+当后台 AI、Spotlight、归档缓存、文件夹预索引都变强后，用户需要知道“现在索引健康吗”。端侧模型可以把健康检查转成维护建议。
+
+输入：
+
+```json
+{
+  "schema": "simplezip.ai.indexMaintenance.input.v1",
+  "stats": {
+    "archiveCacheCount": 120,
+    "staleArchiveCacheCount": 18,
+    "spotlightArchiveCount": 100,
+    "folderProfileCount": 32,
+    "lastBackgroundRun": "2026-06-15T12:00:00Z"
+  },
+  "allowedActions": ["reindexSpotlight", "pruneStaleCache", "openAIDataSettings"]
+}
+```
+
+输出：
+
+```json
+{
+  "summary": "索引整体可用，但有 18 个归档缓存可能过期。",
+  "suggestedActions": ["pruneStaleCache", "reindexSpotlight"]
+}
+```
+
+这可以放在 AI 中心的数据页和状态栏里，给用户一种“软件在自己维护记忆”的感觉。
+
+### Feat 22：AI 命令排练 / 任务规划
+
+用户可以在 AI 中心输入：
+
+```text
+把这个目录里像发布包的东西都检查一下
+```
+
+端侧模型输出的不是执行命令，而是任务计划：
+
+```json
+{
+  "schema": "simplezip.ai.taskPlan.v1",
+  "steps": [
+    {"actionID":"selectByRole", "query":{"semanticTags":["release-artifact"]}},
+    {"actionID":"runTest", "target":"selection"},
+    {"actionID":"runReleaseInspection", "target":"selection"}
+  ],
+  "requiresUserReview": true
+}
+```
+
+App 展示计划，用户确认后逐步执行现有动作。模型不能输出 shell，也不能绕过确认。这个功能适合端侧模型，因为它只在有限 action catalog 内排序和解释。
+
+### Feat 23：AI “今天继续哪里”
+
+这是智能启动目录的轻量版本，不自动打开目录，只在侧边栏 AI section 或 AI 中心顶部显示：
+
+```json
+{
+  "schema": "simplezip.ai.resumeWhere.v1",
+  "cards": [
+    {
+      "title": "继续 SIZ/SZS 测试",
+      "sourceRef": {"type":"workspace","id":"workspace-siz"},
+      "reason": "昨晚最后打开，且还有一个失败测试未查看。",
+      "action": "openWorkspace"
+    },
+    {
+      "title": "整理下载的归档",
+      "sourceRef": {"type":"folder","id":"folder-downloads"},
+      "reason": "Downloads 新增 3 个归档，还没有测试记录。",
+      "action": "openFolder"
+    }
+  ]
+}
+```
+
+它能让 AI 常驻但不烦人，也比“启动时直接改目录”更保守。用户点关闭就写 `AIFeedbackEvent` 降权。
+
 ### 白皮书优先级
 
-如果只选 5 个最能榨干本地弱模型的 feat：
+如果只选 8 个最能榨干本地弱模型的 feat：
 
 1. AI 智能标签系统。
 2. 自然语言智能文件夹生成器，也就是 prompt → query plan。
 3. AI Lens 视图。
 4. 下一步动作卡。
 5. AI 纠错学习按钮。
+6. AI 归档收件箱。
+7. AI 归档内部地图。
+8. AI “今天继续哪里”。
 
-这五个组合起来，模型每次只做一个小任务，但整个 App 会表现得像有一个贯穿全局的智能层。
+这八个组合起来，模型每次只做一个小任务，但整个 App 会表现得像有一个贯穿全局的智能层。
 
 ## 分阶段落地建议
 

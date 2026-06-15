@@ -45,6 +45,7 @@ let package = Package(
                 "Core/AIPrefetch.swift",
                 "Core/AISearchRewrite.swift",
                 "Core/AIStartupSuggestion.swift",
+                "Core/AISuggestionBus.swift",
                 "Core/AIUserInterestEvent.swift",
                 "Core/ActivityTaskAIIndex.swift",
                 "Core/AISensitiveRedactor.swift",
