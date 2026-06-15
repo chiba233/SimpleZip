@@ -193,4 +193,49 @@ import Testing
         // 系统 temp root 下但不是我们的 scratch → 不归此策略(由敏感文件名 / 权限等其它闸管)。
         #expect(!AIFileReadabilityPolicy.isDecryptOrTempPath("/private/tmp/other-app/x.txt"))
     }
+
+    // MARK: - 边界五:prompt-safe 投影(白皮书工程补充一)
+
+    private func sampleFact() -> AIFileSystemFact {
+        AIFileSystemFact.make(
+            absolutePath: "/Users/yumeka/Projects/thesis/main.tex", location: desktop,
+            byteSize: 4096, utTypeIdentifier: "public.text",
+            posixMode: "rw-r--r--", currentUserCanRead: true, currentUserCanWrite: true,
+            currentUserCanExecute: false, isDirectory: false,
+            defaultOpenAppBundleID: "com.microsoft.VSCode")
+    }
+
+    @Test func promptProjectionOmitsAbsolutePathByDefault() {
+        let p = sampleFact().promptProjection()
+        #expect(p.absolutePath == nil)
+        // pathHash / parentPathHash 仍在(可判同目录,不暴露原路径)。
+        #expect(p.pathHash.hasPrefix("fp-"))
+        #expect(!p.parentPathHash.isEmpty)
+    }
+
+    @Test func promptProjectionIncludesPathOnlyWhenExplicitlyAllowed() {
+        #expect(sampleFact().promptProjection(includeFullPath: true).absolutePath
+                == "/Users/yumeka/Projects/thesis/main.tex")
+    }
+
+    @Test func promptProjectionPreservesPermissionAndDefaultOpenAppFacts() {
+        let p = sampleFact().promptProjection()
+        #expect(p.posixMode == "rw-r--r--")
+        #expect(p.currentUserCanRead)
+        #expect(p.currentUserCanWrite)
+        #expect(!p.currentUserCanExecute)
+        #expect(p.defaultOpenAppBundleID == "com.microsoft.VSCode")
+        #expect(p.utTypeIdentifier == "public.text")
+    }
+
+    @Test func promptEnvelopeNeverEncodesRawAIFileSystemFact() throws {
+        // 用投影(默认不含路径)组装信封 → JSON 里绝不出现完整路径,但脱敏显示名仍在。
+        struct FilesFacts: Codable, Equatable, Sendable { let files: [AIFilePromptFact] }
+        let env = try AIContextEnvelope.make(
+            purpose: .aiWorkspaceTree, privacyLevel: .localUserMetadata,
+            facts: FilesFacts(files: [sampleFact().promptProjection()]))
+        let json = try env.jsonString()
+        #expect(!json.contains("/Users/yumeka/Projects/thesis/main.tex"))
+        #expect(json.contains("main.tex"))   // displayName 保留
+    }
 }

@@ -223,11 +223,12 @@ nonisolated struct AIFileSystemFact: Codable, Equatable, Sendable {
         }
 
         return AIFileSystemFact(
+            // source ref / pathHash 是模型回传后要唯一回查的身份 → 用 64-bit stableID(边界二),不用 32-bit。
             sourceRef: AIContextSourceRef(kind: isDirectory ? .folder : .file,
-                                          id: "fs-" + AIStableHash.fnv1a32Hex(canonical)),
+                                          id: "fs-" + AIStableHash.stableID64(canonical)),
             absolutePath: canonical,
-            pathHash: "fp-" + AIStableHash.fnv1a32Hex(canonical),
-            parentPathHash: "fp-" + AIStableHash.fnv1a32Hex(parentDir),
+            pathHash: "fp-" + AIStableHash.stableID64(canonical),
+            parentPathHash: "fp-" + AIStableHash.stableID64(parentDir),
             location: location,
             displayName: safeName,
             fileExtension: ext,
@@ -261,6 +262,37 @@ nonisolated struct AIFileSystemFact: Codable, Equatable, Sendable {
             omissions: omissions)
     }
 
+    /// **唯一的 prompt-safe 投影(白皮书工程补充一·边界五)**。各 facts builder 进 prompt 必须调用它,
+    /// **不能直接 encode raw `AIFileSystemFact`** —— raw fact 含 `absolutePath`,直接塞 prompt 会绕过「哪些
+    /// surface 可以暴露完整路径」的策略。
+    ///
+    /// 默认 `includeFullPath == false`:只给 sourceRef、pathHash、parentPathHash、location、displayName、
+    /// UTType、权限、默认 App、role、时间、size、omissions,**不含 absolutePath**。只有当前 surface 明确允许
+    /// (当前窗口 AI 文件夹 / 当前选择解释)才传 `includeFullPath: true`,并应在信封 `AIPrivacyDescriptor` /
+    /// metadata 里记录路径策略。
+    func promptProjection(includeFullPath: Bool = false) -> AIFilePromptFact {
+        AIFilePromptFact(
+            sourceRef: sourceRef,
+            absolutePath: includeFullPath ? absolutePath : nil,
+            pathHash: pathHash,
+            parentPathHash: parentPathHash,
+            location: location,
+            displayName: displayName,
+            fileExtension: fileExtension,
+            utTypeIdentifier: utTypeIdentifier,
+            byteSize: byteSize,
+            modifiedAt: modifiedAt,
+            lastOpenedAt: lastOpenedAt,
+            posixMode: posixMode,
+            currentUserCanRead: currentUserCanRead,
+            currentUserCanWrite: currentUserCanWrite,
+            currentUserCanExecute: currentUserCanExecute,
+            isDirectory: isDirectory,
+            defaultOpenAppBundleID: defaultOpenAppBundleID,
+            roleTags: roleTags,
+            omissions: omissions)
+    }
+
     /// 标准化路径(展开 ~,去尾随 /)。空 / 纯空白短路返回 ""(避免 URL 解析成 CWD,沿用 AILocationClassifier 口径)。
     private static func standardize(_ path: String) -> String {
         let trimmed = path.trimmingCharacters(in: .whitespaces)
@@ -268,4 +300,32 @@ nonisolated struct AIFileSystemFact: Codable, Equatable, Sendable {
         let expanded = (trimmed as NSString).expandingTildeInPath
         return URL(fileURLWithPath: expanded).standardizedFileURL.path
     }
+}
+
+/// `AIFileSystemFact` 的 **prompt-safe 投影**(白皮书工程补充一·边界五)。这是 raw fact 进入模型 prompt 的
+/// 唯一形态:只携带受控子集,`absolutePath` 默认为 `nil`(仅在 surface 明确允许完整路径时由
+/// `promptProjection(includeFullPath: true)` 填入)。权限三元、UTType、默认打开 App、role、时间、size 这些
+/// 本地文件管理事实保留(非红线);raw-only / 重字段(owner/group 名、候选 App 全列表、kind 描述、同目录失败组、
+/// 项目根提示、可读性内部标记、索引时间)不进投影 —— 它们留给 App 回查 / DevTools。
+nonisolated struct AIFilePromptFact: Codable, Equatable, Sendable {
+    let sourceRef: AIContextSourceRef
+    /// 完整路径 —— 默认 `nil`;只有当前上下文 surface 明确允许时才有值。
+    let absolutePath: String?
+    let pathHash: String
+    let parentPathHash: String
+    let location: AILocationContext
+    let displayName: String
+    let fileExtension: String
+    let utTypeIdentifier: String?
+    let byteSize: Int64?
+    let modifiedAt: Date?
+    let lastOpenedAt: Date?
+    let posixMode: String
+    let currentUserCanRead: Bool
+    let currentUserCanWrite: Bool
+    let currentUserCanExecute: Bool
+    let isDirectory: Bool
+    let defaultOpenAppBundleID: String?
+    let roleTags: [String]
+    let omissions: [AIContextOmission]
 }
