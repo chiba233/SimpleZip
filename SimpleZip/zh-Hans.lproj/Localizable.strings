@@ -2428,9 +2428,13 @@
 "devtools.action.simulateCrash.detail" = "下次启动会按「上次会话崩溃」处理（恢复提示 + 中断任务标记）。";
 "devtools.action.copyReport" = "复制环境报告";
 "devtools.action.copyReport.detail" = "与 设置 → 健康检查 同一份脱敏报告，直接进剪贴板。";
+"devtools.action.copyAIWorkspaceFacts" = "复制 AI 工作区 facts";
+"devtools.action.copyAIWorkspaceFacts.detail" = "导出 AI 文件夹使用的同一份确定性 facts 与 omissions。";
 "devtools.feedback.welcomeReset" = "已重置——重启后可见欢迎助手";
 "devtools.feedback.crashArmed" = "已布防——重启即可触发恢复提示";
 "devtools.feedback.reportCopied" = "报告已复制";
+"devtools.feedback.aiWorkspaceFactsCopied" = "AI 工作区 facts 已复制";
+"devtools.feedback.aiWorkspaceFactsFailed" = "无法复制 AI 工作区 facts：%@";
 "devtools.section.defaults" = "UserDefaults 快照（备份白名单口径）";
 "devtools.section.aiData" = "AI 可用数据（只读）";
 "devtools.aiData.assistant" = "AI 助手";

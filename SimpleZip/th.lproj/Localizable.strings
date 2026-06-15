@@ -1717,9 +1717,13 @@
 "devtools.action.simulateCrash.detail" = "การเปิดครั้งถัดไปจะทำเหมือนเซสชันก่อนหน้าล่ม (แจ้งกู้คืน + งานถูกขัดจังหวะ)";
 "devtools.action.copyReport" = "คัดลอกรายงานสภาพแวดล้อม";
 "devtools.action.copyReport.detail" = "รายงานที่ปกปิดข้อมูลเหมือน การตั้งค่า → สุขภาพ ส่งตรงไปยังคลิปบอร์ด";
+"devtools.action.copyAIWorkspaceFacts" = "คัดลอก facts พื้นที่ทำงาน AI";
+"devtools.action.copyAIWorkspaceFacts.detail" = "ส่งออก facts และ omissions แบบกำหนดแน่นอนชุดเดียวกับที่โฟลเดอร์ AI ใช้";
 "devtools.feedback.welcomeReset" = "รีเซ็ตผู้ช่วยต้อนรับแล้ว — เปิดใหม่เพื่อดู";
 "devtools.feedback.crashArmed" = "ตั้งแล้ว — เปิดใหม่เพื่อทริกเกอร์การแจ้งกู้คืน";
 "devtools.feedback.reportCopied" = "คัดลอกรายงานแล้ว";
+"devtools.feedback.aiWorkspaceFactsCopied" = "คัดลอก facts พื้นที่ทำงาน AI แล้ว";
+"devtools.feedback.aiWorkspaceFactsFailed" = "คัดลอก facts พื้นที่ทำงาน AI ไม่ได้: %@";
 "devtools.section.defaults" = "สแนปชอต UserDefaults (รายการอนุญาตสำหรับสำรองข้อมูล)";
 "devtools.section.aiData" = "ข้อมูลที่ AI เข้าถึงได้ (อ่านอย่างเดียว)";
 "devtools.aiData.assistant" = "ผู้ช่วย AI";

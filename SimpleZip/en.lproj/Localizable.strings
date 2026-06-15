@@ -2428,9 +2428,13 @@
 "devtools.action.simulateCrash.detail" = "The next launch behaves as if the previous session crashed (recovery notice + interrupted tasks).";
 "devtools.action.copyReport" = "Copy environment report";
 "devtools.action.copyReport.detail" = "Same redacted report as Settings → Health, straight to the clipboard.";
+"devtools.action.copyAIWorkspaceFacts" = "Copy AI workspace facts";
+"devtools.action.copyAIWorkspaceFacts.detail" = "Exports the same deterministic facts and omissions used by the AI folders.";
 "devtools.feedback.welcomeReset" = "Welcome assistant reset — relaunch to see it";
 "devtools.feedback.crashArmed" = "Armed — relaunch to trigger the recovery notice";
 "devtools.feedback.reportCopied" = "Report copied";
+"devtools.feedback.aiWorkspaceFactsCopied" = "AI workspace facts copied";
+"devtools.feedback.aiWorkspaceFactsFailed" = "Could not copy AI workspace facts: %@";
 "devtools.section.defaults" = "UserDefaults snapshot (backup whitelist)";
 "devtools.section.aiData" = "AI-available data (read-only)";
 "devtools.aiData.assistant" = "AI assistant";

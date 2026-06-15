@@ -168,6 +168,13 @@ struct DevToolsView: View {
                         infoRow("sparkles", L10n.text("devtools.aiData.assistant"), aiAssistantStatus)
                         infoRow("archivebox", L10n.text("devtools.aiData.archiveMemory"), aiArchiveMemoryStatus)
                         infoRow("magnifyingglass", L10n.text("devtools.aiData.spotlight"), aiSpotlightStatus)
+                        actionRow(
+                            "doc.on.clipboard",
+                            L10n.text("devtools.action.copyAIWorkspaceFacts"),
+                            L10n.text("devtools.action.copyAIWorkspaceFacts.detail")
+                        ) {
+                            copyAIWorkspaceFacts()
+                        }
                     }
 
                     if let actionFeedback {
@@ -389,6 +396,34 @@ struct DevToolsView: View {
                 + ByteCountFormatter.string(fromByteCount: Int64(cache.1), countStyle: .file)
             let stats = await Task.detached(priority: .utility) { SpotlightReindex.stats() }.value
             aiSpotlightStatus = "\(stats.total)"
+        }
+    }
+
+    private func copyAIWorkspaceFacts() {
+        Task { @MainActor in
+            do {
+                let snapshots = await aiWorkspaceFactsSnapshots()
+                let data = try AISystemWorkspaceFactsBuilder.encodedJSON(for: snapshots)
+                guard let text = String(data: data, encoding: .utf8) else {
+                    flash(L10n.format("devtools.feedback.aiWorkspaceFactsFailed", "UTF-8"))
+                    return
+                }
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(text, forType: .string)
+                flash(L10n.text("devtools.feedback.aiWorkspaceFactsCopied"))
+            } catch {
+                flash(L10n.format("devtools.feedback.aiWorkspaceFactsFailed", error.localizedDescription))
+            }
+        }
+    }
+
+    private func aiWorkspaceFactsSnapshots() async -> [AISystemWorkspaceFactsSnapshot] {
+        let tasks = (TaskCenter.shared.active + TaskCenter.shared.history).map(\.aiWorkspaceFact)
+        let archives = await Task.detached(priority: .utility) {
+            ArchiveListingCacheStore().loadAll().map(\.aiWorkspaceFact)
+        }.value
+        return AISystemWorkspaceKind.allCases.map {
+            AISystemWorkspaceFactsBuilder.snapshot(kind: $0, tasks: tasks, archives: archives)
         }
     }
 

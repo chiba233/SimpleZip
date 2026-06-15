@@ -195,7 +195,7 @@ struct ArchiveItem: Identifiable, Hashable, Codable {
 /// 主列表当前展示的是普通文件夹，还是某个压缩包的内容。
 /// 0.4.5 #80:AI 系统工作区类别(白皮书工程补充一 MVP —— 第一版只做确定性系统工作区,不做用户 prompt 创建)。
 /// 纯枚举;每类的候选由 `AISuggestionFolderView` 从现有索引(失败任务等)确定性派生,只读。
-enum AISystemWorkspaceKind: String, Equatable, CaseIterable {
+enum AISystemWorkspaceKind: String, Codable, Equatable, CaseIterable, Sendable {
     /// 「需要处理」—— 最近失败的任务等需要用户关注的项。
     case needsAttention
     /// 「发布与校验」—— 最近的检查 / 测试 / 哈希 / 对比类任务(发布前的验证动作)。

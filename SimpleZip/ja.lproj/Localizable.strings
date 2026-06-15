@@ -1719,9 +1719,13 @@
 "devtools.action.simulateCrash.detail" = "次回起動時、前回のセッションがクラッシュしたものとして動作します（復旧通知 + 中断タスク）。";
 "devtools.action.copyReport" = "環境レポートをコピー";
 "devtools.action.copyReport.detail" = "設定 → 健全性 と同じ秘匿済みレポートを直接クリップボードへコピーします。";
+"devtools.action.copyAIWorkspaceFacts" = "AI ワークスペース facts をコピー";
+"devtools.action.copyAIWorkspaceFacts.detail" = "AI フォルダが使う同じ決定的な facts と omissions を書き出します。";
 "devtools.feedback.welcomeReset" = "ようこそアシスタントをリセットしました — 再起動すると表示されます";
 "devtools.feedback.crashArmed" = "セットしました — 再起動すると復旧通知が表示されます";
 "devtools.feedback.reportCopied" = "レポートをコピーしました";
+"devtools.feedback.aiWorkspaceFactsCopied" = "AI ワークスペース facts をコピーしました";
+"devtools.feedback.aiWorkspaceFactsFailed" = "AI ワークスペース facts をコピーできませんでした: %@";
 "devtools.section.defaults" = "UserDefaults スナップショット（バックアップ許可リスト）";
 "devtools.section.aiData" = "AI が利用できるデータ（読み取り専用）";
 "devtools.aiData.assistant" = "AI アシスタント";

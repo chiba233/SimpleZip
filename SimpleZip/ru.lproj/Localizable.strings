@@ -1717,9 +1717,13 @@
 "devtools.action.simulateCrash.detail" = "Следующий запуск будет вести себя так, будто предыдущий сеанс завершился сбоем (уведомление о восстановлении + прерванные задачи).";
 "devtools.action.copyReport" = "Копировать отчет окружения";
 "devtools.action.copyReport.detail" = "Тот же отредактированный отчет, что и Настройки → Состояние, сразу в буфер обмена.";
+"devtools.action.copyAIWorkspaceFacts" = "Копировать facts ИИ-области";
+"devtools.action.copyAIWorkspaceFacts.detail" = "Экспортирует те же детерминированные facts и omissions, что используют папки ИИ.";
 "devtools.feedback.welcomeReset" = "Приветственный помощник сброшен — перезапустите, чтобы увидеть его";
 "devtools.feedback.crashArmed" = "Флаг установлен — перезапустите, чтобы вызвать уведомление о восстановлении";
 "devtools.feedback.reportCopied" = "Отчет скопирован";
+"devtools.feedback.aiWorkspaceFactsCopied" = "Facts ИИ-области скопированы";
+"devtools.feedback.aiWorkspaceFactsFailed" = "Не удалось скопировать facts ИИ-области: %@";
 "devtools.section.defaults" = "Снимок UserDefaults (белый список резервного копирования)";
 "devtools.section.aiData" = "Данные, доступные ИИ (только для чтения)";
 "devtools.aiData.assistant" = "Помощник ИИ";

@@ -36,13 +36,27 @@ struct AISuggestionFolderView: View {
     }
 
     private var nodes: [Node] {
-        switch kind {
-        case .needsAttention:
-            return failedTaskNodes
-        case .releaseAndVerify:
-            return verifyTaskNodes
-        case .recentArchives:
-            return recentArchiveNodes
+        let tasks = allRecentTasks
+        let tasksByID = Dictionary(tasks.map { ($0.id.uuidString, $0) }, uniquingKeysWith: { first, _ in first })
+        let archivesByPath = Dictionary(cachedArchives.map { ($0.archivePath, $0) }, uniquingKeysWith: { first, _ in first })
+        return factsSnapshot.nodes.compactMap { fact in
+            switch fact.kind {
+            case .task:
+                guard let task = tasksByID[fact.sourceRef.id] else { return nil }
+                return Node(id: fact.id, title: fact.title,
+                            subtitle: task.startedAt.formatted(date: .abbreviated, time: .shortened),
+                            systemImage: taskSystemImage, tint: taskTint,
+                            actionLabel: L10n.text("aiFolder.openInActivity"),
+                            action: { ActivityWindowController.shared.show(category: task.category, locateTaskID: task.id) })
+            case .archive:
+                guard let entry = archivesByPath[fact.sourceRef.id] else { return nil }
+                let url = URL(fileURLWithPath: entry.archivePath)
+                return Node(id: fact.id, title: fact.title,
+                            subtitle: L10n.format("aiFolder.archiveEntryCount", entry.totalEntryCount),
+                            systemImage: "doc.zipper", tint: .blue,
+                            actionLabel: L10n.text("aiFolder.openArchive"),
+                            action: { if FileManager.default.fileExists(atPath: url.path) { model.openArchive(url) } })
+            }
         }
     }
 
@@ -65,50 +79,23 @@ struct AISuggestionFolderView: View {
 
     // MARK: - 候选派生(确定性,只读)
 
-    private var failedTaskNodes: [Node] {
-        recentTasks(matching: { if case .failed = $0.status { return true } else { return false } })
-            .map { task in
-                Node(id: task.id.uuidString, title: task.title,
-                     subtitle: task.startedAt.formatted(date: .abbreviated, time: .shortened),
-                     systemImage: "exclamationmark.triangle.fill", tint: .orange,
-                     actionLabel: L10n.text("aiFolder.openInActivity"),
-                     action: { ActivityWindowController.shared.show(category: task.category, locateTaskID: task.id) })
-            }
+    private var factsSnapshot: AISystemWorkspaceFactsSnapshot {
+        AISystemWorkspaceFactsBuilder.snapshot(
+            kind: kind,
+            tasks: allRecentTasks.map(\.aiWorkspaceFact),
+            archives: cachedArchives.map(\.aiWorkspaceFact))
     }
 
-    private var verifyTaskNodes: [Node] {
-        let verifyKinds: Set<OperationTask.Kind> = [.inspect, .test, .hash, .compare]
-        return recentTasks(matching: { verifyKinds.contains($0.kind) })
-            .map { task in
-                Node(id: task.id.uuidString, title: task.title,
-                     subtitle: task.startedAt.formatted(date: .abbreviated, time: .shortened),
-                     systemImage: "checkmark.seal.fill", tint: .green,
-                     actionLabel: L10n.text("aiFolder.openInActivity"),
-                     action: { ActivityWindowController.shared.show(category: task.category, locateTaskID: task.id) })
-            }
+    private var allRecentTasks: [OperationTask] {
+        taskCenter.active + taskCenter.history
     }
 
-    private var recentArchiveNodes: [Node] {
-        cachedArchives
-            .sorted { $0.recordedAt > $1.recordedAt }
-            .prefix(50)
-            .map { entry in
-                let url = URL(fileURLWithPath: entry.archivePath)
-                return Node(id: entry.archivePath, title: entry.archiveName,
-                            subtitle: L10n.format("aiFolder.archiveEntryCount", entry.totalEntryCount),
-                            systemImage: "doc.zipper", tint: .blue,
-                            actionLabel: L10n.text("aiFolder.openArchive"),
-                            action: { if FileManager.default.fileExists(atPath: url.path) { model.openArchive(url) } })
-            }
+    private var taskSystemImage: String {
+        kind == .needsAttention ? "exclamationmark.triangle.fill" : "checkmark.seal.fill"
     }
 
-    /// 最近的、匹配条件的任务(active + history,新→旧,上限 50)。
-    private func recentTasks(matching predicate: (OperationTask) -> Bool) -> [OperationTask] {
-        (taskCenter.active + taskCenter.history)
-            .filter(predicate)
-            .sorted { ($0.finishedAt ?? $0.startedAt) > ($1.finishedAt ?? $1.startedAt) }
-            .prefix(50)
-            .map { $0 }
+    private var taskTint: Color {
+        kind == .needsAttention ? .orange : .green
     }
 
     private func loadCachedArchivesIfNeeded() {
@@ -188,5 +175,47 @@ struct AISuggestionFolderView: View {
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+extension OperationTask {
+    var aiWorkspaceFact: AISystemWorkspaceTaskFact {
+        AISystemWorkspaceTaskFact(
+            id: id.uuidString,
+            category: category.rawValue,
+            kind: kind.rawValue,
+            source: source.rawValue,
+            title: title,
+            status: aiWorkspaceStatus,
+            startedAt: startedAt,
+            finishedAt: finishedAt)
+    }
+
+    var aiWorkspaceStatus: AISystemWorkspaceTaskFact.Status {
+        switch status {
+        case .running:
+            return .running
+        case .succeeded:
+            return .succeeded
+        case .skipped:
+            return .skipped
+        case .failed:
+            return .failed
+        case .cancelled:
+            return .cancelled
+        }
+    }
+}
+
+extension ArchiveListingCacheEntry {
+    nonisolated var aiWorkspaceFact: AISystemWorkspaceArchiveFact {
+        AISystemWorkspaceArchiveFact(
+            archivePath: archivePath,
+            archiveName: archiveName,
+            recordedAt: recordedAt,
+            totalEntryCount: totalEntryCount,
+            fileEntryCount: fileEntryCount,
+            encryptedEntryCount: encryptedEntryCount,
+            truncated: truncated)
     }
 }

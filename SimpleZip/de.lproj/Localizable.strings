@@ -1718,9 +1718,13 @@
 "devtools.action.simulateCrash.detail" = "Der nächste Start verhält sich so, als wäre die vorherige Sitzung abgestürzt (Wiederherstellungshinweis + unterbrochene Aufgaben).";
 "devtools.action.copyReport" = "Umgebungsbericht kopieren";
 "devtools.action.copyReport.detail" = "Derselbe bereinigte Bericht wie Einstellungen → Zustand, direkt in die Zwischenablage.";
+"devtools.action.copyAIWorkspaceFacts" = "KI-Arbeitsbereich-Fakten kopieren";
+"devtools.action.copyAIWorkspaceFacts.detail" = "Exportiert dieselben deterministischen Fakten und Auslassungen wie die KI-Ordner.";
 "devtools.feedback.welcomeReset" = "Willkommensassistent zurückgesetzt — neu starten, um ihn zu sehen";
 "devtools.feedback.crashArmed" = "Gesetzt — neu starten, um den Wiederherstellungshinweis auszulösen";
 "devtools.feedback.reportCopied" = "Bericht kopiert";
+"devtools.feedback.aiWorkspaceFactsCopied" = "KI-Arbeitsbereich-Fakten kopiert";
+"devtools.feedback.aiWorkspaceFactsFailed" = "KI-Arbeitsbereich-Fakten konnten nicht kopiert werden: %@";
 "devtools.section.defaults" = "UserDefaults-Snapshot (Backup-Whitelist)";
 "devtools.section.aiData" = "Für KI verfügbare Daten (schreibgeschützt)";
 "devtools.aiData.assistant" = "KI-Assistent";

@@ -1719,9 +1719,13 @@
 "devtools.action.simulateCrash.detail" = "下次啟動會按「上次會話崩潰」處理（恢復提示 + 中斷任務標記）。";
 "devtools.action.copyReport" = "複製環境報告";
 "devtools.action.copyReport.detail" = "與 設定 → 健康檢查 同一份脫敏報告，直接進剪貼簿。";
+"devtools.action.copyAIWorkspaceFacts" = "複製 AI 工作區 facts";
+"devtools.action.copyAIWorkspaceFacts.detail" = "匯出 AI 資料夾使用的同一份確定性 facts 與 omissions。";
 "devtools.feedback.welcomeReset" = "已重置——重啟後可見歡迎助手";
 "devtools.feedback.crashArmed" = "已布防——重啟即可觸發恢復提示";
 "devtools.feedback.reportCopied" = "報告已複製";
+"devtools.feedback.aiWorkspaceFactsCopied" = "AI 工作區 facts 已複製";
+"devtools.feedback.aiWorkspaceFactsFailed" = "無法複製 AI 工作區 facts：%@";
 "devtools.section.defaults" = "UserDefaults 快照（備份白名單口徑）";
 "devtools.section.aiData" = "AI 可用資料（唯讀）";
 "devtools.aiData.assistant" = "AI 助理";

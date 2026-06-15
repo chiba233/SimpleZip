@@ -68,6 +68,7 @@ let package = Package(
                 "Core/AI/AISettingsDoctor.swift",
                 "Core/AI/AIStartupSuggestion.swift",
                 "Core/AI/AISuggestionBus.swift",
+                "Core/AI/AISystemWorkspaceFacts.swift",
                 "Core/AI/AITaskPlan.swift",
                 "Core/AI/AIUserInterestEvent.swift",
                 "Core/AI/AIVersionRelation.swift",

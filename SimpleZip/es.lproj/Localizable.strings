@@ -1717,9 +1717,13 @@
 "devtools.action.simulateCrash.detail" = "El próximo inicio se comportará como si la sesión anterior hubiera fallado (aviso de recuperación + tareas interrumpidas).";
 "devtools.action.copyReport" = "Copiar informe de entorno";
 "devtools.action.copyReport.detail" = "El mismo informe redactado que Ajustes → Salud, directo al portapapeles.";
+"devtools.action.copyAIWorkspaceFacts" = "Copiar facts del espacio IA";
+"devtools.action.copyAIWorkspaceFacts.detail" = "Exporta los mismos facts y omisiones deterministas que usan las carpetas de IA.";
 "devtools.feedback.welcomeReset" = "Asistente de bienvenida restablecido — reinicia para verlo";
 "devtools.feedback.crashArmed" = "Activado — reinicia para disparar el aviso de recuperación";
 "devtools.feedback.reportCopied" = "Informe copiado";
+"devtools.feedback.aiWorkspaceFactsCopied" = "Facts del espacio IA copiados";
+"devtools.feedback.aiWorkspaceFactsFailed" = "No se pudieron copiar los facts del espacio IA: %@";
 "devtools.section.defaults" = "Instantánea de UserDefaults (lista blanca de copia de seguridad)";
 "devtools.section.aiData" = "Datos disponibles para la IA (solo lectura)";
 "devtools.aiData.assistant" = "Asistente de IA";
