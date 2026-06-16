@@ -2582,7 +2582,7 @@
 "aiWorkspace.group.more" = "Plus";
 "aiWorkspace.node.openArchive" = "Ouvrir l’archive";
 "aiWorkspace.node.openFolder" = "Ouvrir le dossier";
-"aiWorkspace.node.reveal" = "Afficher dans le Finder";
+"aiWorkspace.node.reveal" = "Afficher dans SimpleZip";
 "aiWorkspace.node.hash" = "Calculer SHA-256";
 "aiWorkspace.node.test" = "Tester l’archive";
 "aiWorkspace.node.expand" = "Développer";

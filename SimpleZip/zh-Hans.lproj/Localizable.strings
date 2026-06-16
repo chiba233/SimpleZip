@@ -2663,7 +2663,7 @@
 "aiWorkspace.group.more" = "更多";
 "aiWorkspace.node.openArchive" = "打开归档";
 "aiWorkspace.node.openFolder" = "打开文件夹";
-"aiWorkspace.node.reveal" = "在 Finder 中显示";
+"aiWorkspace.node.reveal" = "在 SimpleZip 中显示";
 "aiWorkspace.node.hash" = "计算 SHA256";
 "aiWorkspace.node.test" = "测试归档";
 "aiWorkspace.node.expand" = "展开";

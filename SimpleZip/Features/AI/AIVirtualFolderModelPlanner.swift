@@ -51,22 +51,32 @@ struct AIFolderReview: Sendable {
 
 @available(macOS 26.0, *)
 enum AIVirtualFolderModelPlanner {
+    /// 命名 + 语言规则(两个 prompt 共用)。修用户报的「文件夹名总出现 AI / AI项目 之类」——禁止把 AI / 文件夹 /
+    /// 集合 等元词塞进名字,要按真实主题起名;给人看的字段按界面语言写,candidateID 照抄不翻译。
+    static var namingRule: String {
+        """
+        Write the workspaceTitle, every group title and every reason in \(AIReportAssistant.uiLanguageName) (these \
+        are shown to the user). Name everything by its REAL subject — the actual topic, project, or what the items \
+        are — exactly as a person would name it. NEVER put meta words like "AI", "assistant", "folder", "collection", \
+        "group", "files", "directory", "workspace" or "smart" into any title unless that word is literally part of \
+        the real subject. The candidateID values are opaque identifiers — copy them exactly, never translate them.
+        """
+    }
+
     /// 从 prompt-safe 输入让本地模型生成虚拟目录 plan。返回的 plan 的 candidateID 仍可能含界外值 ——
     /// 交给 `AIVirtualFolderTreeBuilder.build` 统一校验丢弃(防御性)。失败抛出,调用点退回确定性树。
     static func plan(for input: AIVirtualFolderPlanInput) async throws -> AIVirtualFolderPlan {
         let instructions = """
-        You curate and organize an archive app's "AI folder" around a theme. Each item below is one line: \
-        "candidateID<TAB>kind<TAB>name<TAB>roleTags". Using the folder theme and hints, decide which items \
-        genuinely BELONG in this themed folder and SELECT only those — leave out items that don't fit the theme \
-        (you are choosing membership, not forced to place everything). Then group the selected items by what they \
-        ARE or their shared topic, give each group a short natural folder name, and propose a clear name for the \
-        whole folder. Prefer a few clear groups over many tiny ones, and base everything ONLY on the names, kinds \
-        and roleTags given. Copy candidateID values VERBATIM — never invent, alter, or output a file path; simply \
-        omit any item that doesn't belong rather than forcing it into a group.
+        You curate and organize a set of related items around a theme. Each item below is one line: \
+        "candidateID<TAB>kind<TAB>name<TAB>roleTags". Using the theme and hints, decide which items genuinely \
+        BELONG together and SELECT only those — leave out items that don't fit (you are choosing membership, not \
+        forced to place everything). Then group the selected items by what they ARE or their shared topic, give \
+        each group a short natural name, and propose a clear name for the whole collection. Prefer a few clear \
+        groups over many tiny ones, and base everything ONLY on the names, kinds and roleTags given. Copy \
+        candidateID values VERBATIM — never invent, alter, or output a file path; simply omit any item that \
+        doesn't belong rather than forcing it into a group.
 
-        Write the workspaceTitle, every group title and every reason in \(AIReportAssistant.uiLanguageName) \
-        (these are shown to the user). The candidateID values are opaque identifiers — copy them exactly, never \
-        translate them. Reply only with the structured plan.
+        \(Self.namingRule)
         """
         var lines: [String] = []
         let ws = input.workspace
@@ -95,9 +105,10 @@ enum AIVirtualFolderModelPlanner {
         that truly belong (omit the rest), group them by meaning with short natural folder names, and propose a clear \
         name for the whole folder.
 
-        Write the workspaceTitle, every group title and every reason in \(AIReportAssistant.uiLanguageName) (shown to \
-        the user). Copy candidateID values VERBATIM — never invent, alter, translate, or output a file path. Reply \
-        only with the structured plan, including worthSurfacing.
+        Copy candidateID values VERBATIM — never invent, alter, translate, or output a file path. Reply only with \
+        the structured plan, including worthSurfacing.
+
+        \(Self.namingRule)
         """
         var lines: [String] = []
         let ws = input.workspace

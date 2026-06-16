@@ -2584,7 +2584,7 @@
 "aiWorkspace.group.more" = "Ещё";
 "aiWorkspace.node.openArchive" = "Открыть архив";
 "aiWorkspace.node.openFolder" = "Открыть папку";
-"aiWorkspace.node.reveal" = "Показать в Finder";
+"aiWorkspace.node.reveal" = "Показать в SimpleZip";
 "aiWorkspace.node.hash" = "Вычислить SHA-256";
 "aiWorkspace.node.test" = "Проверить архив";
 "aiWorkspace.node.expand" = "Развернуть";

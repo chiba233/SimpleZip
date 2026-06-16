@@ -139,6 +139,14 @@ extension ArchiveBrowserModel {
         }
     }
 
+    /// 在 SimpleZip 自己的浏览器里定位一个文件:打开它的父目录 + 选中它 —— **不跳 Finder**(SimpleZip 有完整
+    /// 文件浏览,AI 文件夹双击文件就该在当前页打开,而不是弹去 Finder)。
+    func revealFileInBrowser(_ url: URL) {
+        let std = url.standardizedFileURL
+        openFolder(std.deletingLastPathComponent())
+        pendingSelectionURL = std   // openFolder 的异步 reload 完成时据此选中该文件
+    }
+
     func openFolder(_ url: URL) {
         // 切换到文件夹模式 → 一般情况清掉 `.siz` 残留的「显示路径覆盖」，避免老覆盖泄漏到下次 archive 打开。
         // **例外**：`.szs` 虚拟目录模式正在生效时（manifestVirtualMode != nil）保留 archiveDisplayOverride，

@@ -156,7 +156,7 @@ struct AIWorkspaceView: View {
         case .openFolder(let path):
             model.openFolder(URL(fileURLWithPath: path))
         case .revealFile(let path):
-            NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
+            model.revealFileInBrowser(URL(fileURLWithPath: path))   // 在 SimpleZip 浏览器里定位,不跳 Finder
         case .openArchive(let path, let revealEntry):
             let url = URL(fileURLWithPath: path)
             if let entry = revealEntry, !entry.isEmpty { model.openArchive(url, revealEntryPath: entry) }

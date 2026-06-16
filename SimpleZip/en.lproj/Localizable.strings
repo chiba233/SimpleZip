@@ -2663,7 +2663,7 @@
 "aiWorkspace.group.more" = "More";
 "aiWorkspace.node.openArchive" = "Open Archive";
 "aiWorkspace.node.openFolder" = "Open Folder";
-"aiWorkspace.node.reveal" = "Show in Finder";
+"aiWorkspace.node.reveal" = "Reveal in SimpleZip";
 "aiWorkspace.node.hash" = "Compute SHA-256";
 "aiWorkspace.node.test" = "Test Archive";
 "aiWorkspace.node.expand" = "Expand";

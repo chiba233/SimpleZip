@@ -99,7 +99,7 @@ final class AIBackgroundIndexer {
                     records.append(AIFileMemoryRecord.make(
                         fileName: entry.lastPathComponent, isDirectory: false,
                         byteSize: vals.fileSize.map(Int64.init), modifiedAt: vals.contentModificationDate,
-                        location: loc))
+                        location: loc, path: entry.path))   // 存全路径(非加密路径不是风险,AI 有权知道)
                 }
             }
         }

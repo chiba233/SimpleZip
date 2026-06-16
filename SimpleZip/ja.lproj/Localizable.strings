@@ -2586,7 +2586,7 @@
 "aiWorkspace.group.more" = "その他";
 "aiWorkspace.node.openArchive" = "アーカイブを開く";
 "aiWorkspace.node.openFolder" = "フォルダを開く";
-"aiWorkspace.node.reveal" = "Finderで表示";
+"aiWorkspace.node.reveal" = "SimpleZipで表示";
 "aiWorkspace.node.hash" = "SHA-256を計算";
 "aiWorkspace.node.test" = "アーカイブをテスト";
 "aiWorkspace.node.expand" = "展開";

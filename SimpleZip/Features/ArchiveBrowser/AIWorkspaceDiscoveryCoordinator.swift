@@ -47,7 +47,9 @@ final class AIWorkspaceDiscoveryCoordinator {
     func refresh() {
         let tasks = TaskCenter.shared.history.prefix(Self.startupTaskCandidateLimit).map(\.aiTaskRecord)
         let files = AIBackgroundIndexStore.shared.recentFileRecords(limit: Self.startupFileCandidateLimit)
-        AIWorkspaceStore.shared.refreshRecommendations(files: files, tasks: Array(tasks))
+        // 本会话扫到的 记录 id → 真实路径(给节点「显示来源目录 / 在 Finder 显示 / 哈希」用;路径不落盘)。
+        let paths = AIBackgroundIndexStore.shared.pathsBySourceRef()
+        AIWorkspaceStore.shared.refreshRecommendations(files: files, tasks: Array(tasks), pathsBySourceRef: paths)
     }
 
     /// 首轮发现不能抢主窗口首帧。发现本身会做语义聚类(O(n²) pair 比较),所以把启动/历史变化压成一次

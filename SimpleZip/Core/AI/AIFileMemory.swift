@@ -123,6 +123,9 @@ nonisolated struct AIFileContentSummary: Codable, Equatable, Sendable {
 nonisolated struct AIFileMemoryRecord: Codable, Identifiable, Equatable, Sendable {
     let id: String
     let fileName: String
+    /// 文件的完整路径(**非加密路径不是安全风险**——AI 本就能读非加密内容,知道路径没问题;给「显示来源目录 +
+    /// 在 Finder 显示 / 哈希 / 测试」用)。可选:旧记录 / 无路径来源解码为 nil。
+    let path: String?
     let fileExtension: String?
     let type: AIFileType
     let byteSize: Int64?
@@ -137,7 +140,7 @@ nonisolated struct AIFileMemoryRecord: Codable, Identifiable, Equatable, Sendabl
     /// 从文件名 + 元数据确定性派生一条记录。`location` 是文件所在目录的低敏上下文。
     static func make(fileName: String, isDirectory: Bool, byteSize: Int64?, modifiedAt: Date?,
                      location: AILocationContext, relatedSourceRefs: [AIContextSourceRef] = [],
-                     contentSummary: AIFileContentSummary? = nil) -> AIFileMemoryRecord {
+                     contentSummary: AIFileContentSummary? = nil, path: String? = nil) -> AIFileMemoryRecord {
         let safeName = AISensitiveRedactor.redactFileNameSecrets((fileName as NSString).lastPathComponent)
         let type = AIFileType.classify(fileName: fileName, isDirectory: isDirectory)
         let ext = isDirectory ? nil : {
@@ -148,6 +151,7 @@ nonisolated struct AIFileMemoryRecord: Codable, Identifiable, Equatable, Sendabl
         return AIFileMemoryRecord(
             id: "file-" + AIStableHash.fnv1a32Hex(location.pathHash + "/" + safeName),
             fileName: safeName,
+            path: path,
             fileExtension: ext,
             type: type,
             byteSize: byteSize,
@@ -158,6 +162,12 @@ nonisolated struct AIFileMemoryRecord: Codable, Identifiable, Equatable, Sendabl
             relatedSourceRefs: relatedSourceRefs,
             contentSummary: contentSummary,
             omissions: [])
+    }
+
+    /// 这条记录对应的 source ref(候选 / 路径回查共用同一份,保证 key 一致)。
+    var contextSourceRef: AIContextSourceRef {
+        let kind: AIContextSourceRef.Kind = type == .folder ? .folder : (type == .archive ? .archive : .file)
+        return AIContextSourceRef(kind: kind, id: id)
     }
 }
 

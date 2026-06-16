@@ -108,6 +108,16 @@ final class AIBackgroundIndexStore: ObservableObject {
         fileIndex.recentRecords(limit: limit)
     }
 
+    /// source ref → 真实路径(给 AI 文件夹节点动作 + 显示来源目录用)。直接读持久记录的 `path`(非加密路径不是
+    /// 风险,可落盘)→ 启动即可用,不必等重扫。ref 由记录的 `contextSourceRef` 派生 → 与候选 ref 一致。
+    func pathsBySourceRef(limit: Int = 4_000) -> [AIContextSourceRef: String] {
+        var map: [AIContextSourceRef: String] = [:]
+        for record in fileIndex.recentRecords(limit: limit) {
+            if let path = record.path { map[record.contextSourceRef] = path }
+        }
+        return map
+    }
+
     // MARK: - 清空(白皮书 4533)
 
     /// 清空后台文件预索引(文件夹画像 / 文件元数据 / 摘要),不删任何真实文件。

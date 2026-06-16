@@ -2584,7 +2584,7 @@
 "aiWorkspace.group.more" = "เพิ่มเติม";
 "aiWorkspace.node.openArchive" = "เปิดอาร์ไคฟ์";
 "aiWorkspace.node.openFolder" = "เปิดโฟลเดอร์";
-"aiWorkspace.node.reveal" = "แสดงใน Finder";
+"aiWorkspace.node.reveal" = "แสดงใน SimpleZip";
 "aiWorkspace.node.hash" = "คำนวณ SHA-256";
 "aiWorkspace.node.test" = "ทดสอบอาร์ไคฟ์";
 "aiWorkspace.node.expand" = "ขยาย";
