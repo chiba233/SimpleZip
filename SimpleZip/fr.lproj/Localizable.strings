@@ -2563,6 +2563,8 @@
 "settings.ai.background.level.aggressive" = "Actif";
 "settings.ai.background.folderPreindex" = "Pré-indexer les dossiers autorisés";
 "settings.ai.background.folderPreindex.desc" = "Crée un index de métadonnées en lecture seule (noms, tailles, dates) des fichiers des dossiers que vous autorisez, afin que les Dossiers IA relient des éléments associés de différents emplacements. Ne lit jamais le contenu des fichiers.";
+"settings.ai.background.contentPreread" = "Pré-lire le contenu des fichiers et archives";
+"settings.ai.background.contentPreread.desc" = "Niveau de confidentialité plus élevé. Au-delà de l'index de métadonnées, lit le début des documents texte (READMEs, manifestes, configurations) sous forme de courts résumés de structure expurgés et liste les entrées contenues dans les archives, afin que les Dossiers IA établissent des liens par le contenu et que le contenu des archives devienne consultable dans Spotlight. Ne lit jamais le contenu chiffré, les clés ni les mots de passe. Ne s'applique qu'aux dossiers que vous autorisez ci-dessus.";
 "settings.ai.background.whitelist" = "Dossiers autorisés";
 "settings.ai.background.addFolder" = "Ajouter un dossier…";
 "settings.ai.background.suggested" = "Suggérés :";

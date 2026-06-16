@@ -37,14 +37,21 @@ final class AIBackgroundIndexStore: ObservableObject {
     var backgroundEnabled: Bool {
         AppPreferences.aiAssistantEnabled && AppPreferences.aiBackgroundActivityLevel != .off
     }
-    /// 是否允许后台预索引文件夹(主开关 + 活跃度 + 该子开关 + 有白名单目录)。
+    /// 是否允许后台预索引文件夹**元数据**(主开关 + 活跃度 + 该子开关 + 有白名单目录)。只元数据,绝不读内容。
     var folderPreindexEnabled: Bool {
         backgroundEnabled && AppPreferences.aiAllowFolderPreindex && !scopes.isEmpty
     }
-    /// 是否允许后台预读归档清单。
-    var archivePrefetchEnabled: Bool {
-        backgroundEnabled && AppPreferences.aiAllowArchivePrefetch && !scopes.isEmpty
+    /// 是否允许后台**预读内容**(文档内容摘要 + 压缩包内条目清单)。比元数据预索引**更高隐私等级**,独立 opt-in。
+    var contentPrereadEnabled: Bool {
+        backgroundEnabled && AppPreferences.aiAllowContentPreread && !scopes.isEmpty
     }
+    /// 后台扫描总闸:开了元数据预索引**或**内容预读任一就扫白名单(内容预读需要先扫到文件才能读其内容)。
+    var indexingEnabled: Bool {
+        backgroundEnabled && !scopes.isEmpty
+            && (AppPreferences.aiAllowFolderPreindex || AppPreferences.aiAllowContentPreread)
+    }
+    /// 是否允许后台预读归档清单 —— 归并进「预读内容」这一更高隐私等级开关(文件内容 + 压缩包内容同一档)。
+    var archivePrefetchEnabled: Bool { contentPrereadEnabled }
     /// 当前活跃度对应的预算(off → nil)。
     var budget: AIArchivePrefetchBudget? {
         AIArchivePrefetchBudget.forLevel(AppPreferences.aiBackgroundActivityLevel)

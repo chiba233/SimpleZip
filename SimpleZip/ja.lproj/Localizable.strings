@@ -2567,6 +2567,8 @@
 "settings.ai.background.level.aggressive" = "積極的";
 "settings.ai.background.folderPreindex" = "許可フォルダを事前インデックス";
 "settings.ai.background.folderPreindex.desc" = "許可したフォルダ内のファイルの読み取り専用メタデータ（名前・サイズ・日付）をインデックス化し、AI フォルダが場所をまたいで関連項目をつなげられるようにします。ファイルの内容は一切読みません。";
+"settings.ai.background.contentPreread" = "ファイルとアーカイブの内容を事前読み取り";
+"settings.ai.background.contentPreread.desc" = "より高いプライバシーレベル。メタデータインデックスに加え、README・マニフェスト・設定などのテキスト文書の冒頭を読み取って秘匿処理済みの構造要約を作成し、アーカイブ内の項目を一覧化します。これにより AI フォルダが内容で関連付けでき、アーカイブの内容も Spotlight で検索できるようになります。暗号化された内容・鍵・パスワードは一切読みません。上で許可したフォルダにのみ適用されます。";
 "settings.ai.background.whitelist" = "許可フォルダ";
 "settings.ai.background.addFolder" = "フォルダを追加…";
 "settings.ai.background.suggested" = "おすすめ:";

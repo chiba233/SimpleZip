@@ -2644,6 +2644,8 @@
 "settings.ai.background.level.aggressive" = "Aggressive";
 "settings.ai.background.folderPreindex" = "Pre-index authorized folders";
 "settings.ai.background.folderPreindex.desc" = "Read-only metadata index (names, sizes, dates) of files in folders you authorize, so AI Folders can connect related items across locations. Never reads file contents.";
+"settings.ai.background.contentPreread" = "Preread file & archive contents";
+"settings.ai.background.contentPreread.desc" = "Higher privacy level. Beyond the metadata index, reads the beginning of plain-text documents (READMEs, manifests, configs) into short redacted structure summaries and lists the entries inside archives, so AI Folders can match by content and archive contents become searchable in Spotlight. Encrypted contents, keys and passwords are never read. Applies only to the folders you authorize above.";
 "settings.ai.background.whitelist" = "Authorized folders";
 "settings.ai.background.addFolder" = "Add Folder…";
 "settings.ai.background.suggested" = "Suggested:";

@@ -2644,6 +2644,8 @@
 "settings.ai.background.level.aggressive" = "积极";
 "settings.ai.background.folderPreindex" = "预索引授权目录";
 "settings.ai.background.folderPreindex.desc" = "在你授权的目录里建立只读的文件元数据索引(名称、大小、日期),让 AI 文件夹能把分散各处的相关文件联系起来。绝不读取文件内容。";
+"settings.ai.background.contentPreread" = "预读文件与压缩包内容";
+"settings.ai.background.contentPreread.desc" = "更高隐私等级。在元数据索引之外,读取 README、清单、配置等纯文本文档的开头生成经脱敏的结构摘要,并列出压缩包内的条目,让 AI 文件夹能按内容关联、压缩包内容也能在 Spotlight 搜索到。加密内容、密钥与口令绝不读取。仅作用于你上方授权的目录。";
 "settings.ai.background.whitelist" = "授权目录";
 "settings.ai.background.addFolder" = "添加目录…";
 "settings.ai.background.suggested" = "推荐:";

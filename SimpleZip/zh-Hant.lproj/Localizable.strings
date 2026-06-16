@@ -2567,6 +2567,8 @@
 "settings.ai.background.level.aggressive" = "積極";
 "settings.ai.background.folderPreindex" = "預索引授權目錄";
 "settings.ai.background.folderPreindex.desc" = "在你授權的目錄裡建立唯讀的檔案中繼資料索引(名稱、大小、日期),讓 AI 檔案夾能把分散各處的相關檔案連結起來。絕不讀取檔案內容。";
+"settings.ai.background.contentPreread" = "預讀檔案與壓縮檔內容";
+"settings.ai.background.contentPreread.desc" = "更高的隱私等級。在中繼資料索引之外,讀取 README、清單、設定等純文字文件的開頭產生經去敏的結構摘要,並列出壓縮檔內的項目,讓 AI 檔案夾能按內容關聯、壓縮檔內容也能在 Spotlight 搜尋到。加密內容、金鑰與密碼絕不讀取。僅作用於你上方授權的目錄。";
 "settings.ai.background.whitelist" = "授權目錄";
 "settings.ai.background.addFolder" = "加入目錄…";
 "settings.ai.background.suggested" = "建議:";

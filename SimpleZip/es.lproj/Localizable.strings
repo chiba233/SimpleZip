@@ -2565,6 +2565,8 @@
 "settings.ai.background.level.aggressive" = "Activo";
 "settings.ai.background.folderPreindex" = "Preindexar carpetas autorizadas";
 "settings.ai.background.folderPreindex.desc" = "Crea un índice de metadatos de solo lectura (nombres, tamaños, fechas) de los archivos en las carpetas que autorices, para que las Carpetas IA conecten elementos relacionados de distintas ubicaciones. Nunca lee el contenido de los archivos.";
+"settings.ai.background.contentPreread" = "Preleer contenido de archivos y comprimidos";
+"settings.ai.background.contentPreread.desc" = "Nivel de privacidad más alto. Además del índice de metadatos, lee el principio de documentos de texto (READMEs, manifiestos, configuraciones) en breves resúmenes de estructura censurados y enumera las entradas dentro de los comprimidos, para que las Carpetas IA conecten por contenido y el contenido de los comprimidos se pueda buscar en Spotlight. Nunca lee contenido cifrado, claves ni contraseñas. Solo se aplica a las carpetas que autorices arriba.";
 "settings.ai.background.whitelist" = "Carpetas autorizadas";
 "settings.ai.background.addFolder" = "Añadir carpeta…";
 "settings.ai.background.suggested" = "Sugeridas:";

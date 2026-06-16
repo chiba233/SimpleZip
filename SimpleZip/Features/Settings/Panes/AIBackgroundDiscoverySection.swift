@@ -16,6 +16,7 @@ import SwiftUI
 struct AIBackgroundDiscoverySection: View {
     @ObservedObject private var store = AIBackgroundIndexStore.shared
     @AppStorage(AppPreferences.Key.aiAllowFolderPreindex) private var folderPreindex = false
+    @AppStorage(AppPreferences.Key.aiAllowContentPreread) private var contentPreread = false
     @AppStorage(AppPreferences.Key.aiSidebarShowRecommended) private var showRecommended = true
     @State private var activityLevel = AppPreferences.aiBackgroundActivityLevel
     @State private var maxRecommended = AppPreferences.aiMaxRecommendedWorkspaces
@@ -53,7 +54,20 @@ struct AIBackgroundDiscoverySection: View {
                     isOn: $folderPreindex
                 )
                 .onChange(of: folderPreindex) { on in
-                    if on { AIBackgroundIndexer.shared.runIfEnabled() } else { AIBackgroundIndexer.shared.cancel() }
+                    if on { AIBackgroundIndexer.shared.runIfEnabled() }
+                    else if !contentPreread { AIBackgroundIndexer.shared.cancel() }
+                }
+
+                // 更高隐私等级:预读文件与压缩包**内容**(独立 opt-in,与上面只元数据的预索引分开)。
+                SettingsToggleRow(
+                    title: L10n.text("settings.ai.background.contentPreread"),
+                    description: L10n.text("settings.ai.background.contentPreread.desc"),
+                    systemImage: "doc.text.magnifyingglass", iconTint: .purple,
+                    isOn: $contentPreread
+                )
+                .onChange(of: contentPreread) { on in
+                    if on { AIBackgroundIndexer.shared.runIfEnabled() }
+                    else if !folderPreindex { AIBackgroundIndexer.shared.cancel() }
                 }
 
                 SettingsToggleRow(

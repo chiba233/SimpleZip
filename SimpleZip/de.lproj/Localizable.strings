@@ -2565,6 +2565,8 @@
 "settings.ai.background.level.aggressive" = "Aktiv";
 "settings.ai.background.folderPreindex" = "Freigegebene Ordner vorindizieren";
 "settings.ai.background.folderPreindex.desc" = "Erstellt einen schreibgeschützten Metadaten-Index (Namen, Größen, Daten) der Dateien in von dir freigegebenen Ordnern, damit KI-Ordner zusammengehörige Objekte über Orte hinweg verbinden können. Dateiinhalte werden nie gelesen.";
+"settings.ai.background.contentPreread" = "Datei- und Archivinhalte vorab lesen";
+"settings.ai.background.contentPreread.desc" = "Höhere Datenschutzstufe. Über den Metadaten-Index hinaus liest sie den Anfang von Textdokumenten (READMEs, Manifeste, Konfigurationen) in kurze, bereinigte Strukturzusammenfassungen ein und listet die Einträge in Archiven auf, damit KI-Ordner anhand des Inhalts zuordnen können und Archivinhalte in Spotlight durchsuchbar werden. Verschlüsselte Inhalte, Schlüssel und Passwörter werden nie gelesen. Gilt nur für die oben freigegebenen Ordner.";
 "settings.ai.background.whitelist" = "Freigegebene Ordner";
 "settings.ai.background.addFolder" = "Ordner hinzufügen…";
 "settings.ai.background.suggested" = "Vorschläge:";

@@ -355,6 +355,9 @@ enum AppPreferences {
         nonisolated static let aiAllowArchivePrefetch = "aiAllowArchivePrefetch"
         /// 0.4.5 #89:允许后台 AI 预索引文件夹(白皮书 4511)。只在白名单目录只读建文件/文件夹元数据索引。默认 false。
         nonisolated static let aiAllowFolderPreindex = "aiAllowFolderPreindex"
+        /// 0.4.5 #89:允许后台 AI **预读内容**(文档内容摘要 + 压缩包内条目清单)。比元数据预索引**更高的隐私等级**,
+        /// 独立 opt-in,默认 false。开启后:对「定主题」文档读头部产脱敏结构摘要、对归档只读列内部条目(进 Spotlight)。
+        nonisolated static let aiAllowContentPreread = "aiAllowContentPreread"
         /// 0.4.5 #89:后台 AI 预读目录白名单(`[AIArchivePrefetchScope]` 的 JSON;用户配置,AIBackgroundIndexStore 持有)。
         nonisolated static let aiBackgroundIndexScopes = "SimpleZip.ai.backgroundIndex.scopes.v1"
         /// 0.4.5 #89:后台文件预索引(`AIFileMemoryIndex` 的 JSON;派生数据,不进偏好备份,恢复出厂 / 清空时清掉)。
@@ -460,6 +463,12 @@ enum AppPreferences {
     nonisolated static var aiAllowFolderPreindex: Bool {
         get { defaults.bool(forKey: Key.aiAllowFolderPreindex) }
         set { defaults.set(newValue, forKey: Key.aiAllowFolderPreindex) }
+    }
+
+    /// 0.4.5 #89:允许后台 AI 预读内容(文档摘要 + 压缩包条目清单)。比元数据预索引**更高隐私等级**,独立 opt-in,默认 false。
+    nonisolated static var aiAllowContentPreread: Bool {
+        get { defaults.bool(forKey: Key.aiAllowContentPreread) }
+        set { defaults.set(newValue, forKey: Key.aiAllowContentPreread) }
     }
 
     /// 0.4.4:是否记录压缩选项使用频率(供「按我最常用的来」)。默认 true。
@@ -1054,6 +1063,7 @@ enum AppPreferences {
         Key.aiMaxRecommendedWorkspaces,
         Key.aiBackgroundActivityLevel,
         Key.aiAllowArchivePrefetch,
+        Key.aiAllowContentPreread,
         Key.aiAllowFolderPreindex,
         Key.compressionUsageTrackingEnabled,
         Key.extractionUsageTrackingEnabled,
@@ -1171,6 +1181,7 @@ enum AppPreferences {
         v[Key.aiMaxRecommendedWorkspaces] = aiMaxRecommendedWorkspaces
         v[Key.aiBackgroundActivityLevel] = aiBackgroundActivityLevel.rawValue
         v[Key.aiAllowArchivePrefetch] = aiAllowArchivePrefetch
+        v[Key.aiAllowContentPreread] = aiAllowContentPreread
         v[Key.aiAllowFolderPreindex] = aiAllowFolderPreindex
         v[Key.compressionUsageTrackingEnabled] = compressionUsageTrackingEnabled
         v[Key.extractionUsageTrackingEnabled] = extractionUsageTrackingEnabled

@@ -2566,6 +2566,8 @@
 "settings.ai.background.level.aggressive" = "적극적";
 "settings.ai.background.folderPreindex" = "허용된 폴더 사전 색인";
 "settings.ai.background.folderPreindex.desc" = "허용한 폴더 내 파일의 읽기 전용 메타데이터(이름, 크기, 날짜)를 색인하여 AI 폴더가 여러 위치의 관련 항목을 연결할 수 있게 합니다. 파일 내용은 절대 읽지 않습니다.";
+"settings.ai.background.contentPreread" = "파일 및 아카이브 내용 미리 읽기";
+"settings.ai.background.contentPreread.desc" = "더 높은 개인정보 보호 수준. 메타데이터 색인에 더해 README, 매니페스트, 설정 등 텍스트 문서의 앞부분을 읽어 민감 정보가 제거된 구조 요약을 만들고 아카이브 내 항목을 나열합니다. 이를 통해 AI 폴더가 내용으로 연결하고 아카이브 내용도 Spotlight에서 검색할 수 있습니다. 암호화된 내용, 키, 비밀번호는 절대 읽지 않습니다. 위에서 허용한 폴더에만 적용됩니다.";
 "settings.ai.background.whitelist" = "허용된 폴더";
 "settings.ai.background.addFolder" = "폴더 추가…";
 "settings.ai.background.suggested" = "추천:";
