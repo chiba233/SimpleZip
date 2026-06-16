@@ -414,6 +414,9 @@ struct DevToolsView: View {
                 "\(snapshot.backgroundIndex.indexedFileCount)",
                 "\(snapshot.backgroundIndex.folderProfileCount)"
             )
+            // 预读诊断(临时探针,和「复核诊断」同款):内容摘要条数 + 内容预读是否开。稳定后删。
+            + " · 内容摘要 \(snapshot.backgroundIndex.contentSummaryCount)"
+            + "(预读\(snapshot.backgroundIndex.contentPrereadEnabled ? "开" : "关"))"
             aiWorkspaceStatus = L10n.format(
                 "devtools.aiData.workspaces.value",
                 "\(snapshot.workspaces.visible)",
@@ -489,6 +492,8 @@ struct DevToolsView: View {
                 backgroundEnabled: backgroundStore.backgroundEnabled,
                 folderPreindexEnabled: backgroundStore.folderPreindexEnabled,
                 archivePrefetchEnabled: backgroundStore.archivePrefetchEnabled,
+                contentPrereadEnabled: backgroundStore.contentPrereadEnabled,
+                contentSummaryCount: index.records.reduce(0) { $0 + ($1.contentSummary != nil ? 1 : 0) },
                 activityLevel: AppPreferences.aiBackgroundActivityLevel.rawValue,
                 scopeCount: backgroundStore.scopes.count,
                 indexedFileCount: index.fileCount,
@@ -625,6 +630,8 @@ private nonisolated struct DevToolsAIDataSnapshot: Encodable {
         let backgroundEnabled: Bool
         let folderPreindexEnabled: Bool
         let archivePrefetchEnabled: Bool
+        let contentPrereadEnabled: Bool
+        let contentSummaryCount: Int
         let activityLevel: String
         let scopeCount: Int
         let indexedFileCount: Int
