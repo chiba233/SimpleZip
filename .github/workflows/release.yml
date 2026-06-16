@@ -110,18 +110,118 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "build_number=$GITHUB_RUN_NUMBER" >> "$GITHUB_OUTPUT"
 
-      - name: Build unsigned DMG
+      # 把 Developer ID Application 证书导入临时钥匙串，供 build 步骤的 codesign 使用。
+      # 仅在发布路径执行：手动「不发布」构建仍走 ad-hoc unsigned，无需任何证书 secret。
+      # 缺任一 secret 直接 fail —— 跟 Sparkle 私钥同款「漏配置就不发」策略，
+      # 绝不留下「公开但没正确签名」的 release。
+      - name: Import Developer ID signing certificate
+        id: import_cert
+        if: steps.release.outputs.publish == 'true'
+        env:
+          MACOS_CERT_P12_BASE64: ${{ secrets.MACOS_CERT_P12_BASE64 }}
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+        run: |
+          set -euo pipefail
+          for v in MACOS_CERT_P12_BASE64 MACOS_CERT_PASSWORD MACOS_SIGN_IDENTITY; do
+            if [[ -z "${!v:-}" ]]; then
+              echo "ERROR: required secret $v is not set on this repository." >&2
+              echo "       See secrets/README.md (Developer ID signing) for how to set it." >&2
+              exit 1
+            fi
+          done
+
+          KEYCHAIN_PATH="$RUNNER_TEMP/simplezip-signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+          CERT_P12="$RUNNER_TEMP/developer_id.p12"
+
+          # secret 全程不进命令行 / 日志：base64 经 env 传入(GitHub 已 mask)，解码进 chmod 600
+          # 临时文件，导入后立即删除。
+          printf '%s' "$MACOS_CERT_P12_BASE64" | base64 --decode > "$CERT_P12"
+          chmod 600 "$CERT_P12"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_P12" -P "$MACOS_CERT_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          rm -f "$CERT_P12"
+          # 允许 codesign 非交互访问私钥。
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" >/dev/null
+          # 把临时钥匙串放进搜索列表，codesign 才能按身份名找到它。
+          security list-keychains -d user -s "$KEYCHAIN_PATH" \
+            $(security list-keychains -d user | sed 's/"//g')
+
+          # 校验证书确实导入 + 身份名跟 secret 完全一致（不一致就别浪费后面公证的时间）。
+          if ! security find-identity -v -p codesigning "$KEYCHAIN_PATH" \
+                | grep -qF "$MACOS_SIGN_IDENTITY"; then
+            echo "ERROR: identity '$MACOS_SIGN_IDENTITY' not found in imported keychain." >&2
+            echo "       Locally run: security find-identity -v -p codesigning" >&2
+            echo "       and copy the exact 'Developer ID Application: …' name into the secret." >&2
+            exit 1
+          fi
+
+          echo "identity=$MACOS_SIGN_IDENTITY" >> "$GITHUB_OUTPUT"
+
+      # publish=true 时 SIGN_IDENTITY 非空 → build 脚本做 Developer ID 签名 + hardened runtime；
+      # 非发布构建该值为空 → 脚本走 ad-hoc unsigned（沿用历史行为）。
+      - name: Build DMG
         env:
           RELEASE_VERSION: ${{ steps.release.outputs.version }}
           BUILD_NUMBER: ${{ steps.release.outputs.build_number }}
           # bundled RAR 必须存在，否则用户装上没法 SimpleZip 解压 RAR。
           REQUIRE_BUNDLED_RAR: "1"
+          SIGN_IDENTITY: ${{ steps.import_cert.outputs.identity }}
         run: ./scripts/build_unsigned_dmg.sh
+
+      # 公证 + 装订：把签好名的 DMG 提交给 Apple 公证服务，通过后把票「钉」进 DMG，
+      # 这样离线的 Gatekeeper 也认、用户双击直接打开无警告。
+      # **必须在 Sparkle sign_update 之前**：staple 改写 DMG 字节 → 改变 length 与 EdDSA 签名；
+      # 顺序反了会让 appcast 里的签名跟最终上传的 DMG 对不上。
+      # 缺任一 secret 直接 fail，绝不发出「签了名但没公证」的版本。
+      - name: Notarize and staple DMG
+        if: steps.release.outputs.publish == 'true'
+        env:
+          AC_API_KEY_ID: ${{ secrets.AC_API_KEY_ID }}
+          AC_API_ISSUER_ID: ${{ secrets.AC_API_ISSUER_ID }}
+          AC_API_KEY_P8_BASE64: ${{ secrets.AC_API_KEY_P8_BASE64 }}
+        run: |
+          set -euo pipefail
+          for v in AC_API_KEY_ID AC_API_ISSUER_ID AC_API_KEY_P8_BASE64; do
+            if [[ -z "${!v:-}" ]]; then
+              echo "ERROR: required secret $v is not set on this repository." >&2
+              echo "       See secrets/README.md (Notarization) for how to set it." >&2
+              exit 1
+            fi
+          done
+
+          DMG_PATH="$(ls artifacts/*.dmg | head -n1)"
+          KEY_P8="$RUNNER_TEMP/ac_api_key.p8"
+          printf '%s' "$AC_API_KEY_P8_BASE64" | base64 --decode > "$KEY_P8"
+          chmod 600 "$KEY_P8"
+
+          # --wait 阻塞到 Apple 出结论；失败时 notarytool 会打印 submission id，
+          # 可用 `notarytool log <id>` 拉详细原因。
+          if ! xcrun notarytool submit "$DMG_PATH" \
+                --key "$KEY_P8" --key-id "$AC_API_KEY_ID" --issuer "$AC_API_ISSUER_ID" \
+                --wait --timeout 30m; then
+            echo "Notarization failed; inspect the notarytool output above." >&2
+            rm -f "$KEY_P8"
+            exit 1
+          fi
+          rm -f "$KEY_P8"
+
+          # 把公证票钉进 DMG 并校验。stapler validate 是权威检查。
+          xcrun stapler staple "$DMG_PATH"
+          xcrun stapler validate "$DMG_PATH"
+          # 附加：Gatekeeper 实际放行评估（DMG 上偶尔挑剔，仅作信息，不作硬失败）。
+          spctl --assess --type open --context context:primary-signature -vv "$DMG_PATH" || true
 
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SimpleZip-unsigned-dmg
+          name: SimpleZip-dmg
           path: artifacts/*.dmg
           if-no-files-found: error
 
@@ -138,7 +238,7 @@ jobs:
       # `.build/xcode-dmg/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update`，
       # 而**不是** `~/Library/Developer/Xcode/DerivedData`（CI runner 上为空）。
       # 注意 Package.swift 没有 Sparkle 依赖，swift package resolve 救不了；
-      # 必须依赖上一步 "Build unsigned DMG" 已经跑完触发 Xcode SPM resolve。
+      # 必须依赖前面的 "Build DMG" 步骤已经跑完触发 Xcode SPM resolve。
       - name: Sign DMG with Sparkle sign_update
         id: sign_update
         if: steps.release.outputs.publish == 'true'
@@ -165,7 +265,7 @@ jobs:
               SIGN_UPDATE="$FOUND"
             else
               echo "ERROR: sign_update binary not found under $DERIVED_DATA_PATH." >&2
-              echo "       This step depends on the previous 'Build unsigned DMG' step having" >&2
+              echo "       This step depends on the previous 'Build DMG' step having" >&2
               echo "       resolved the Sparkle SPM dependency via Xcode. Package.swift has no" >&2
               echo "       Sparkle dependency, so swift package resolve cannot recover this." >&2
               exit 1
@@ -265,7 +365,7 @@ jobs:
           #    `--draft=false` **强制重新发布**,否则会一直卡在草稿、公开下载 URL 404。
           #  - 不存在 → 直接新建(默认即已发布)。
           # 无论哪条路径,最终都是「已发布、带最新 DMG」的 release。
-          NOTES="Unsigned ad-hoc signed macOS DMG. macOS Gatekeeper may warn because this build is not Developer ID signed or notarized."
+          NOTES="Developer ID signed and notarized macOS DMG. Double-click to open — no Gatekeeper warning."
           if gh release view "v$RELEASE_VERSION" >/dev/null 2>&1; then
             gh release upload "v$RELEASE_VERSION" artifacts/*.dmg --clobber
             gh release edit "v$RELEASE_VERSION" --draft=false

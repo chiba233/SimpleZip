@@ -19,10 +19,18 @@ if [[ -n "$RELEASE_VERSION" && ! "$RELEASE_VERSION" =~ ^[0-9]+(\.[0-9]+){1,2}$ ]
   exit 1
 fi
 
-if [[ -n "$RELEASE_VERSION" ]]; then
-  DMG_PATH="$ARTIFACTS_DIR/$APP_NAME-$RELEASE_VERSION-unsigned.dmg"
+# Developer ID 签名时去掉 "-unsigned" 后缀（SIGN_IDENTITY 非空 = 走真签名 + 公证）。
+# appcast 的 enclosure url 取 DMG basename，这里改名后 appcast 自动跟随，保持一致。
+if [[ -n "${SIGN_IDENTITY:-}" ]]; then
+  DMG_SUFFIX=""
 else
-  DMG_PATH="$ARTIFACTS_DIR/$APP_NAME-$CONFIGURATION-unsigned.dmg"
+  DMG_SUFFIX="-unsigned"
+fi
+
+if [[ -n "$RELEASE_VERSION" ]]; then
+  DMG_PATH="$ARTIFACTS_DIR/$APP_NAME-$RELEASE_VERSION$DMG_SUFFIX.dmg"
+else
+  DMG_PATH="$ARTIFACTS_DIR/$APP_NAME-$CONFIGURATION$DMG_SUFFIX.dmg"
 fi
 
 if [[ -z "${DEVELOPER_DIR:-}" && -d /Applications/Xcode.app/Contents/Developer ]]; then
@@ -94,8 +102,36 @@ else
   fi
 fi
 
-codesign --force --deep --sign - "$APP_PATH"
-codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+if [[ -n "${SIGN_IDENTITY:-}" ]]; then
+  # —— Developer ID 签名（公证前置条件）——
+  # notarization 硬性要求：链上每个可执行文件都启用 hardened runtime(--options runtime)
+  # + 安全时间戳(--timestamp) + 有效 Developer ID 签名，且不带 get-task-allow。
+  #
+  # 关键坑：`codesign --deep` 只签「标准位置的嵌套代码」(Frameworks/、XPCServices/…)，
+  # **不会**签放在 Contents/Resources 里的 7zz / rar。这俩不签 → notary 直接拒
+  # （"not signed with a valid Developer ID" / "not hardened"）。所以先逐个签 Resources
+  # 下的 Mach-O 可执行文件，再 --deep 签整个 app（app 签名会把已签的工具一并封进去）。
+  echo "Signing with Developer ID: $SIGN_IDENTITY"
+  while IFS= read -r -d '' bin; do
+    if file "$bin" | grep -q "Mach-O"; then
+      echo "  signing bundled binary: ${bin#"$APP_PATH"/}"
+      codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$bin"
+    fi
+  done < <(find "$APP_PATH/Contents/Resources" -type f -perm -u+x -print0)
+
+  # --deep 处理 Sparkle.framework 及其内部 XPC / Autoupdate / Updater.app 等嵌套代码。
+  codesign --force --options runtime --timestamp --deep --sign "$SIGN_IDENTITY" "$APP_PATH"
+  codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+  # 明确确认 hardened runtime 已生效（notary 的硬性要求；缺了要到公证失败才暴露，提前在这截断）。
+  if ! codesign --display --verbose=4 "$APP_PATH" 2>&1 | grep -Eq 'flags=.*runtime'; then
+    echo "ERROR: hardened runtime flag missing after signing $APP_PATH" >&2
+    exit 1
+  fi
+else
+  # 本地 / PR 构建：ad-hoc 签名，产物为 unsigned DMG（沿用历史行为）。
+  codesign --force --deep --sign - "$APP_PATH"
+  codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+fi
 
 mkdir -p "$STAGING_DIR"
 ditto "$APP_PATH" "$STAGING_DIR/$APP_NAME.app"
