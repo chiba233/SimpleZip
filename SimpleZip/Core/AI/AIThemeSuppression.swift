@@ -41,8 +41,8 @@ nonisolated enum AIThemeSuppressionPolicy {
     static let firstDismissBaseWeight = 0.6
     static let perExtraDismissWeight = 0.2
     static let maxBaseWeight = 1.0
-    /// 单次不感兴趣的半衰期(秒);随次数线性变长(记得更久)。默认 7 天 × 次数。
-    static let baseHalfLifeSeconds: TimeInterval = 7 * 24 * 3600
+    /// 单次不感兴趣的半衰期(秒);随次数线性变长(记得更久)。默认 10 天 × 次数。
+    static let baseHalfLifeSeconds: TimeInterval = 10 * 24 * 3600
     /// 低于此抑制权重视作「已充分衰减」,主题可自由重新浮现。
     static let resurfaceFloor = 0.05
 

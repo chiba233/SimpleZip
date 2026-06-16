@@ -19,8 +19,8 @@ nonisolated struct AIWorkspaceLearningStore: Codable, Equatable, Sendable {
     static let cap = 5.0
     /// 「强负」阈值:候选的泛化亲和分 ≤ 此值 → 同类已被明显排斥,召回时软剔除(非固定成员才剔)。
     static let strongNegative = -2.5  // sweep: -2.5 提高强排斥门槛(原 -3.0 易被单次强踩触发)
-    /// 时间衰减半衰期(天):30 天后反馈权重降至一半;旧偏好不再长期压制候选。
-    static let feedbackHalfLifeDays = 30.0
+    /// 时间衰减半衰期(天):45 天后反馈权重降至一半;旧偏好不再长期压制候选,但更贴合用户的偏好记忆周期。
+    static let feedbackHalfLifeDays = 45.0
 
     /// workspace id → 信号 token → 累积权重(正=喜欢同类,负=不喜欢同类)。
     private var weights: [UUID: [String: Double]]

@@ -49,9 +49,18 @@ import Testing
             AISemanticTagCandidate(tag: .sourceArchive, deterministicScore: 0.8),
             AISemanticTagCandidate(tag: .releaseArtifact, deterministicScore: 0.7),
         ]
-        // sourceArchive 被点 3 次「不对」→ 0.8 - 0.45 = 0.35 < 0.7,排到 releaseArtifact 后面。
+        // sourceArchive 被点 3 次「不对」→ 0.8 - 0.15 = 0.65 < 0.7,排到 releaseArtifact 后面。
         let ranked = AISemanticTagRanker.rank(cands, negativeFeedback: ["source-archive": 3])
         #expect(ranked.map { $0.tag } == [.releaseArtifact, .sourceArchive])
+    }
+
+    @Test func negativeFeedbackRequiresFourHitsForBenchmarkGap() {
+        let cands = [
+            AISemanticTagCandidate(tag: .releaseArtifact, deterministicScore: 0.88),
+            AISemanticTagCandidate(tag: .sourceArchive, deterministicScore: 0.72),
+        ]
+        #expect(AISemanticTagRanker.rank(cands, negativeFeedback: ["release-artifact": 3]).first?.tag == .releaseArtifact)
+        #expect(AISemanticTagRanker.rank(cands, negativeFeedback: ["release-artifact": 4]).first?.tag == .sourceArchive)
     }
 
     @Test func negativeFeedbackIsCapped() {
@@ -59,9 +68,9 @@ import Testing
             AISemanticTagCandidate(tag: .sourceArchive, deterministicScore: 0.8),
             AISemanticTagCandidate(tag: .releaseArtifact, deterministicScore: 0.5),
         ]
-        // 即使点 100 次,最多衰减 3*0.15=0.45 → 0.35 < 0.5,仍排后但不会无限掉。
+        // 即使点 100 次,最多衰减 5*0.05=0.25 → 0.55 > 0.5,不会无限掉到底。
         let ranked = AISemanticTagRanker.rank(cands, negativeFeedback: ["source-archive": 100])
-        #expect(ranked.first?.tag == .releaseArtifact)
+        #expect(ranked.first?.tag == .sourceArchive)
         let effectiveSource = ranked.first { $0.tag == .sourceArchive }
         #expect(effectiveSource != nil)
     }
@@ -111,12 +120,12 @@ import Testing
             AISemanticTagCandidate(tag: .sourceArchive, deterministicScore: 0.8),
             AISemanticTagCandidate(tag: .releaseArtifact, deterministicScore: 0.5),
         ]
-        // sourceArchive 被踩 5 次(-0.75) 又被确认 3 次(+0.30) → 0.8 - 0.75 + 0.30 = 0.35 < 0.5
+        // sourceArchive 被踩 5 次(-0.25) 又被确认 3 次(+0.30) → 0.8 - 0.25 + 0.30 = 0.85 > 0.5
         let ranked = AISemanticTagRanker.rank(
             cands,
             negativeFeedback: ["source-archive": 5],
             positiveFeedback: ["source-archive": 3])
-        #expect(ranked.first?.tag == .releaseArtifact)
+        #expect(ranked.first?.tag == .sourceArchive)
     }
 
     @Test func candidateCodableRoundTrip() throws {

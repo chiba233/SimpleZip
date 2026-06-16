@@ -61,9 +61,9 @@ import Testing
         let s = AIWorkspaceLearningStore().recording(ws, signals: ["image"], by: -4, at: epoch)
         // No decay at t=0
         #expect(s.weightedAffinity(ws, signals: ["image"], now: epoch) == -4)
-        // After 30 days → half (half-life = 30 days)
-        let thirtyDays = epoch.addingTimeInterval(30 * 86_400)
-        let decayed = s.weightedAffinity(ws, signals: ["image"], now: thirtyDays)
+        // After 45 days → half (half-life = 45 days)
+        let halfLifeDays = epoch.addingTimeInterval(45 * 86_400)
+        let decayed = s.weightedAffinity(ws, signals: ["image"], now: halfLifeDays)
         #expect(abs(decayed - (-2)) < 0.01)
     }
 
@@ -77,10 +77,10 @@ import Testing
 
     @Test func isStronglyDislikedDecaysWithTime() {
         let epoch = Date(timeIntervalSinceReferenceDate: 0)
-        // -4 > strongNegative(-3) → disliked at t=0
+        // -4 ≤ strongNegative(-2.5) → disliked at t=0
         let s = AIWorkspaceLearningStore().recording(ws, signals: ["img"], by: -4, at: epoch)
         #expect(s.isStronglyDisliked(ws, signals: ["img"], now: epoch))
-        // After ~120 days: -4 × 0.5^4 = -0.25 → not strongly disliked
+        // After ~120 days (halfLife 45d): -4 × 0.5^(120/45) ≈ -0.63 > -2.5 → not strongly disliked
         let farFuture = epoch.addingTimeInterval(120 * 86_400)
         #expect(!s.isStronglyDisliked(ws, signals: ["img"], now: farFuture))
     }

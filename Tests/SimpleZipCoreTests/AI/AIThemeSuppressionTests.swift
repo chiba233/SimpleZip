@@ -29,12 +29,12 @@ import Testing
         let ledger = AIThemeSuppressionLedger().recordingDismissal(paperFP(), at: now)
         // 刚点:≈ 基础权重 0.6。
         #expect(abs(ledger.suppressionWeight(for: paperFP(), now: now) - 0.6) < 0.0001)
-        // 一个半衰期(7 天)后:≈ 0.3。
-        let w7 = ledger.suppressionWeight(for: paperFP(), now: now.addingTimeInterval(7 * day))
-        #expect(abs(w7 - 0.3) < 0.0001)
-        // 远期(30 天)后衰减到地板以下 → 可重新浮现。
-        let w30 = ledger.suppressionWeight(for: paperFP(), now: now.addingTimeInterval(30 * day))
-        #expect(w30 < AIThemeSuppressionPolicy.resurfaceFloor)
+        // 一个半衰期(10 天)后:≈ 0.3。
+        let wHalfLife = ledger.suppressionWeight(for: paperFP(), now: now.addingTimeInterval(10 * day))
+        #expect(abs(wHalfLife - 0.3) < 0.0001)
+        // 远期(40 天)后衰减到地板以下 → 可重新浮现。
+        let wFar = ledger.suppressionWeight(for: paperFP(), now: now.addingTimeInterval(40 * day))
+        #expect(wFar < AIThemeSuppressionPolicy.resurfaceFloor)
     }
 
     @Test func repeatedDismissalsRememberLongerAndStronger() {

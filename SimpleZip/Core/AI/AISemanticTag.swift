@@ -73,7 +73,7 @@ nonisolated struct AISemanticTagCandidate: Codable, Equatable, Sendable {
 /// 标签排序 + 模型输出校验。纯函数 —— 同一输入逐次一致。
 nonisolated enum AISemanticTagRanker {
     /// 每次负反馈对有效分数的固定衰减;cap 防一个标签被反复踩死。
-    static let decayPerNegative = 0.15
+    static let decayPerNegative = 0.05
     static let negativeFeedbackCap = 5
     /// 每次正反馈(用户确认「就是这个标签」)对有效分数的提升;比负衰减略小,防刷分。
     static let boostPerPositive = 0.10

@@ -1026,14 +1026,14 @@ private func sep() { print("  " + String(repeating: "-", count: 50)) }
             let label: String; let decPerNeg, boostPerPos: Double; let negCap, posCap: Int
         }
         let tparams: [TPParam] = [
-            TPParam(label: "当前 decNeg=0.15 boostPos=0.10 negCap=5 posCap=5",
-                    decPerNeg: 0.15, boostPerPos: 0.10, negCap: 5, posCap: 5),
+            TPParam(label: "当前 decNeg=0.05 boostPos=0.10 negCap=5 posCap=5",
+                    decPerNeg: 0.05, boostPerPos: 0.10, negCap: 5, posCap: 5),
             TPParam(label: "decNeg=0.20 boostPos=0.10(加强负衰减)",
                     decPerNeg: 0.20, boostPerPos: 0.10, negCap: 5, posCap: 5),
             TPParam(label: "decNeg=0.15 boostPos=0.15(正负对称)",
                     decPerNeg: 0.15, boostPerPos: 0.15, negCap: 5, posCap: 5),
-            TPParam(label: "negCap=3 posCap=3(收紧)",
-                    decPerNeg: 0.15, boostPerPos: 0.10, negCap: 3, posCap: 3),
+            TPParam(label: "negCap=3 posCap=3(仅收紧cap)",
+                    decPerNeg: 0.05, boostPerPos: 0.10, negCap: 3, posCap: 3),
         ]
 
         header("⑤ SemanticTag — releaseArtifact(0.88) 负反馈降权曲线")
