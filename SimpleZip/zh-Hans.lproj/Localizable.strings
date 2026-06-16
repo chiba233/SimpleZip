@@ -2680,6 +2680,10 @@
 "aiWorkspace.node.aiSuggested" = "AI 加入的 —— 右键可保留或移除";
 "aiWorkspace.node.like" = "我很喜欢";
 "aiWorkspace.node.dislike" = "我不喜欢";
+"aiWorkspace.removed.group" = "AI 已移除";
+"aiWorkspace.removed.badge" = "已移除";
+"aiWorkspace.removed.reason" = "AI 已将这个项目从文件夹中移除。如果它属于这里，可以复原。";
+"aiWorkspace.removed.restore" = "复原到此文件夹";
 "aiWorkspace.mode.deterministic" = "自动整理";
 "aiWorkspace.regenerating" = "AI 正在重新整理…";
 "aiWorkspace.description.placeholder" = "添加描述…";

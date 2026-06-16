@@ -389,8 +389,6 @@ final class AIWorkspaceStore: ObservableObject {
             guard !refs.isEmpty else { return }
             self.autoExcluded[id, default: []].formUnion(refs)
             self.saveAutoExcluded()
-            self.treeCache[id] = nil
-            self.treeSnapshots[id] = nil   // 重建去掉不扣题成员的树(sig 不变 → 仍用缓存 plan,只是 visible 层少了它们)
             self.objectWillChange.send()
         }
     }
@@ -432,8 +430,6 @@ final class AIWorkspaceStore: ObservableObject {
         let remaining = excluded.subtracting(reinstated)
         autoExcluded[ws.id] = remaining.isEmpty ? nil : remaining
         saveAutoExcluded()
-        treeCache[ws.id] = nil
-        treeSnapshots[ws.id] = nil   // 重建带回放回成员的树(sig 不变 → 仍用缓存 plan,visible 层多回它们)
         objectWillChange.send()
     }
 
@@ -527,19 +523,40 @@ final class AIWorkspaceStore: ObservableObject {
                                c.ruleRefs))
             }
         }
-        // **竞争**:按竞争分降序取前 N(=展示上限)。撑得起主题(成员多)+ 用得多/最近用的胜出,
-        // 不思进取(单薄 / 从没打开过 / 负反馈多)的被挤出。
-        let capped = Array(scored.sorted { $0.score > $1.score }.prefix(AppPreferences.aiMaxRecommendedWorkspaces))
+        // **竞争**:按竞争分降序取前 N(=展示上限),但已上榜推荐带滞后阈值 —— 新挑战者必须明显更强才顶掉它,
+        // 避免「刚通过但没用 / 轻微低分」马上下榜导致侧栏抖动。
+        let currentRecommendedIDs = Set(collection.workspaces.compactMap {
+            $0.origin == .recommended && $0.visibility == .visible ? $0.id : nil
+        })
+        let selectedIDs = AIWorkspaceDisplayCompetition.select(
+            scored.map { AIWorkspaceDisplayCandidate(id: $0.ws.id, score: $0.score) },
+            currentVisibleIDs: currentRecommendedIDs,
+            limit: AppPreferences.aiMaxRecommendedWorkspaces)
+        let byID = Dictionary(scored.map { ($0.ws.id, $0) }, uniquingKeysWith: { a, b in
+            a.score >= b.score ? a : b
+        })
+        let capped = selectedIDs.compactMap { byID[$0] }
         let workspaces = capped.map(\.ws)
-        var memberRefs: [UUID: Set<AIContextSourceRef>] = [:]
+        // 用户/长期工作区不受显示上限淘汰,但同主题的已通过候选仍可刷新它的**自动成员**。
+        // 旧动态成员先保留;本轮同 ID 复核通过再覆盖。用户手动 pin 的成员走 seed,不在这里保护。
+        var memberRefs = memberRefsByWorkspace.filter { collection.workspace($0.key)?.origin == .userCreated }
         for item in capped { memberRefs[item.ws.id] = item.refs }
+        var protectedIDs = Set<UUID>()
+        for (id, c) in pendingCandidates {
+            guard let existing = collection.workspace(c.ws.id), existing.origin == .userCreated else { continue }
+            protectedIDs.insert(existing.id)
+            guard let v = themeVerdicts[id], v.approved, !v.members.isEmpty else { continue }
+            memberRefs[existing.id] = v.memberRefs
+            toCachePlan.append((existing.id, v))
+        }
         let keptIDs = Set(capped.map(\.ws.id))
         let next = collection.replacingRecommended(workspaces)
         memberRefsByWorkspace = memberRefs
         if next != collection { collection = next }
         // 缓存复核产出的 plan → 打开不再重跑模型。**有持久快照的工作区不在此重排**:冻结上次 AI 目录,
         // 只有点「刷新」才重排(用户:每次重启 / 后台复核都重排太蠢)。新工作区(无快照)才缓存 plan + 建树存快照。
-        for (wsID, v) in toCachePlan where keptIDs.contains(wsID) && treeSnapshots[wsID] == nil {
+        let cacheableIDs = keptIDs.union(protectedIDs)
+        for (wsID, v) in toCachePlan where cacheableIDs.contains(wsID) && treeSnapshots[wsID] == nil {
             let sig = v.members.map(\.id).sorted().joined(separator: ",")
             modelPlanSignatures[wsID] = sig
             modelPlans[wsID] = (sig, v.plan)
@@ -572,8 +589,8 @@ final class AIWorkspaceStore: ObservableObject {
     /// 工作区的虚拟文件夹树。从内存候选池召回该工作区成员 → 确定性 plan → sanitized 树 → 缓存。
     /// 候选池尚未由 `refreshRecommendations` 填充(刚启动)时返回 nil → 内容区显示空状态。
     func virtualTree(for id: UUID) -> AIVirtualFolderTree? {
-        if let cached = treeCache[id] { return cached }   // 命中:模型树或确定性树
         guard let ws = collection.workspace(id) else { return nil }
+        if let cached = treeCache[id] { return treeWithRemovalNotice(cached, ws: ws) }   // 命中:模型树或确定性树
         let members = memberCandidates(for: ws)
         guard !members.isEmpty else { return nil }
         let sig = members.map(\.id).sorted().joined(separator: ",")
@@ -591,7 +608,7 @@ final class AIWorkspaceStore: ObservableObject {
             maybeScheduleModelPlan(id: id, ws: ws, members: members, sig: sig)
         }
         cacheModelTree(id, tree)   // modelAssisted → 落持久快照(重启直接展示)
-        return tree
+        return treeWithRemovalNotice(tree, ws: ws)
     }
 
     /// 一个工作区当前被排除的成员 ref(我不喜欢 + 种子排除)。
@@ -643,6 +660,59 @@ final class AIWorkspaceStore: ObservableObject {
         // 用户结构编辑(分组改名 + 成员移动)永远盖在最后 —— 无论树是确定性还是模型生成的,用户整理不丢。
         return base.applyingStructureEdits(
             groupTitles: structureEdits.groupTitles(ws.id), assignments: structureEdits.assignments(ws.id))
+    }
+
+    /// AI 自动剔除的成员不再凭空消失:快照目录结构作为基底保留,自动剔除只是显示层:
+    /// 从正常位置隐藏,同时在「被 AI 移除」提示组里展示,右键可复原。
+    /// 用户手动 pin / 加入的成员不会进入自动剔除;若旧数据里残留,这里也不展示为可删项。
+    private func treeWithRemovalNotice(_ tree: AIVirtualFolderTree, ws: AIWorkspace) -> AIVirtualFolderTree {
+        let removedRefs = autoExcluded[ws.id] ?? []
+        guard !removedRefs.isEmpty else { return tree }
+        let pinned = Set(seeds[ws.id]?.pinnedSourceRefs ?? [])
+        let effectiveRemoved = removedRefs.subtracting(pinned)
+        guard !effectiveRemoved.isEmpty else { return tree }
+
+        func filterNode(_ node: AIVirtualNode) -> AIVirtualNode? {
+            let children = node.children.compactMap(filterNode)
+            if node.sourceRefs.contains(where: { effectiveRemoved.contains($0) }) {
+                return children.isEmpty ? nil : node.replacingChildren(children)
+            }
+            if node.kind == .group, node.sourceRefs.isEmpty, children.isEmpty, !node.children.isEmpty { return nil }
+            return node.replacingChildren(children)
+        }
+
+        let baseNodes = tree.nodes.compactMap(filterNode)
+        let removedNodes = pool.compactMap { cand -> AIVirtualNode? in
+            guard cand.sourceRefs.contains(where: { effectiveRemoved.contains($0) }),
+                  !cand.sourceRefs.contains(where: { pinned.contains($0) }) else { return nil }
+            return AIVirtualNode(
+                id: AIStableHash.deterministicUUID("removed:\(ws.id.uuidString):\(cand.id)"),
+                kind: cand.kind,
+                title: cand.displayName,
+                reason: L10n.text("aiWorkspace.removed.reason"),
+                sourceRefs: cand.sourceRefs)
+        }
+        guard !removedNodes.isEmpty else { return tree }
+        let group = AIVirtualNode(
+            id: AIStableHash.deterministicUUID("removed-group:\(ws.id.uuidString)"),
+            kind: .group,
+            title: L10n.text("aiWorkspace.removed.group"),
+            reason: L10n.text("aiWorkspace.removed.reason"),
+            confidence: 0.2,
+            children: removedNodes)
+        var refs = tree.sourceRefs
+        var seen = Set(refs)
+        for node in removedNodes {
+            for ref in node.sourceRefs where !seen.contains(ref) {
+                seen.insert(ref)
+                refs.append(ref)
+            }
+        }
+        return AIVirtualFolderTree(id: tree.id, workspaceID: tree.workspaceID, title: tree.title,
+                                   prompt: tree.prompt, generatedAt: tree.generatedAt,
+                                   generationMode: tree.generationMode,
+                                   nodes: baseNodes + [group], sourceRefs: refs,
+                                   omissions: tree.omissions)
     }
 
     /// AI 建议 token → 本地化标题(喂给 builder 给 `.action` 节点用;token 与 `allowedSuggestionDescriptors` 同源)。
@@ -842,7 +912,7 @@ final class AIWorkspaceStore: ObservableObject {
     /// 最后剔除被「我不喜欢 / 从工作区移除」排除的成员(节点反馈 + 种子排除集)。
     private func memberCandidates(for ws: AIWorkspace) -> [AIVirtualNodeCandidate] {
         var result: [AIVirtualNodeCandidate] = []
-        if ws.origin == .recommended, let refs = memberRefsByWorkspace[ws.id] {
+        if let refs = memberRefsByWorkspace[ws.id] {
             result = pool.filter { !$0.sourceRefs.isEmpty && $0.sourceRefs.allSatisfy { refs.contains($0) } }
         }
         if let seed = seeds[ws.id] {
@@ -881,6 +951,26 @@ final class AIWorkspaceStore: ObservableObject {
     /// 节点是否仍是「待确认的 AI 建议」(没被 like)—— UI 据此打 AI 角标。
     func nodeIsAISuggested(workspaceID: UUID, refs: [AIContextSourceRef]) -> Bool {
         !refs.isEmpty && !feedback.nodeIsLiked(workspaceID, refs: refs)
+    }
+
+    func nodeIsAutoRemoved(workspaceID: UUID, refs: [AIContextSourceRef]) -> Bool {
+        guard !refs.isEmpty, let removed = autoExcluded[workspaceID] else { return false }
+        return refs.contains { removed.contains($0) }
+    }
+
+    /// 复原 AI 自动移除的成员:移出 autoExcluded,并按「我很喜欢」写入固定 / 学习信号。
+    /// 这告诉后续模型和规则:用户确认它合乎主题,不要再自动删。
+    func restoreAutoRemovedNode(workspaceID: UUID, refs: [AIContextSourceRef]) {
+        guard !refs.isEmpty else { return }
+        if var removed = autoExcluded[workspaceID] {
+            removed.subtract(refs)
+            autoExcluded[workspaceID] = removed.isEmpty ? nil : removed
+            saveAutoExcluded()
+        }
+        likeNode(workspaceID: workspaceID, refs: refs)
+        if let snapshot = treeSnapshots[workspaceID] {
+            treeCache[workspaceID] = snapshot
+        }
     }
 
     /// 「我很喜欢」:确认保留(去角标)+ **固定进种子** + **泛化正反馈**(同角色 / 类型 / 位置的更优先)。
@@ -966,11 +1056,19 @@ final class AIWorkspaceStore: ObservableObject {
         apply { $0.dismissing(id) }
     }
 
-    /// 「标记为长期 AI 文件夹」:推荐 → 用户工作区。**把本会话发现的成员固定进种子** —— 否则升成用户工作区后
-    /// 重启就只剩壳(用户工作区不靠后台发现的 memberRefs 召回,靠种子)。
+    /// 「标记为长期 AI 文件夹」:推荐 → 用户工作区。长期只保护工作区本身不被显示池淘汰;**不把自动成员全 pin**。
+    /// 只有用户手动喜欢 / 拖入 / 移动过的文件才固定。这里仅把标题 / 关键词写入主题种子,让重启后仍可召回。
     func promoteToUser(_ id: UUID) {
-        if let refs = memberRefsByWorkspace[id], !refs.isEmpty {
-            mutateSeed(id) { $0.pinning(Array(refs), updatedAt: Date()) }
+        if let ws = collection.workspace(id) {
+            let prompts = ([ws.userDescription, ws.title] + ws.queryPlan.keywords.map(Optional.some))
+                .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+            if !prompts.isEmpty {
+                let now = Date()
+                mutateSeed(id) { seed in
+                    prompts.reduce(seed) { $0.addingThemePrompt($1, updatedAt: now) }
+                }
+            }
         }
         apply { $0.promotingToUser(id) }
     }

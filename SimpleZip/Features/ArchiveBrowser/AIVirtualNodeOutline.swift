@@ -196,19 +196,28 @@ struct AIVirtualNodeOutline: NSViewRepresentable {
             guard let node = item.node else { return nil }
             let suggested = !node.sourceRefs.isEmpty
                 && store.nodeIsAISuggested(workspaceID: workspaceID, refs: node.sourceRefs)
+            let removed = !node.sourceRefs.isEmpty
+                && store.nodeIsAutoRemoved(workspaceID: workspaceID, refs: node.sourceRefs)
             let cell = makeTableCell(in: outlineView, owner: self, identifier: "ai.node",
                                      text: node.title, isPrimaryColumn: true,
                                      icon: Self.symbol(Self.symbolName(node.kind), tint: Self.tint(node.kind)),
                                      iconSize: 17)
             // 名字 + **来源目录**(很多文件同名如 README.md,必须显示在哪个目录才分得清)+ AI 角标。tooltip 给全路径。
             let parent = Self.parentDisplay(node)
-            cell.toolTip = Self.resolvedPath(node) ?? (suggested ? L10n.text("aiWorkspace.node.aiSuggested") : node.reason)
+            cell.toolTip = removed ? L10n.text("aiWorkspace.removed.reason")
+                : (Self.resolvedPath(node) ?? (suggested ? L10n.text("aiWorkspace.node.aiSuggested") : node.reason))
             if let textField = cell.textField {
                 textField.lineBreakMode = .byTruncatingMiddle
-                let s = NSMutableAttributedString(string: node.title, attributes: [.foregroundColor: NSColor.labelColor])
+                let baseColor: NSColor = removed ? .secondaryLabelColor : .labelColor
+                let s = NSMutableAttributedString(string: node.title, attributes: [.foregroundColor: baseColor])
                 if let parent {
                     s.append(NSAttributedString(string: "   " + parent,
                         attributes: [.foregroundColor: NSColor.secondaryLabelColor,
+                                     .font: NSFont.systemFont(ofSize: 11)]))
+                }
+                if removed {
+                    s.append(NSAttributedString(string: "   " + L10n.text("aiWorkspace.removed.badge"),
+                        attributes: [.foregroundColor: NSColor.systemOrange,
                                      .font: NSFont.systemFont(ofSize: 11)]))
                 }
                 if suggested {
@@ -340,6 +349,12 @@ struct AIVirtualNodeOutline: NSViewRepresentable {
             }
             guard !node.sourceRefs.isEmpty else { return }
             menu.addItem(.separator())
+            if store.nodeIsAutoRemoved(workspaceID: workspaceID, refs: node.sourceRefs) {
+                add(menu, "aiWorkspace.removed.restore") { [weak self] in
+                    self?.store.restoreAutoRemovedNode(workspaceID: self?.workspaceID ?? UUID(), refs: node.sourceRefs)
+                }
+                return
+            }
             if store.nodeIsAISuggested(workspaceID: workspaceID, refs: node.sourceRefs) {
                 add(menu, "aiWorkspace.node.like") { [weak self] in
                     self?.store.likeNode(workspaceID: self?.workspaceID ?? UUID(), refs: node.sourceRefs)

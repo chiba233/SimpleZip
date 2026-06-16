@@ -225,6 +225,32 @@ import Testing
         #expect(same.first?.title == "v1")
     }
 
+    @Test func displayCompetitionKeepsIncumbentUntilChallengerWinsClearly() {
+        let incumbent = AIWorkspaceDisplayCandidate(id: id1, score: 9.0)
+        let challenger = AIWorkspaceDisplayCandidate(id: id2, score: 9.4)
+
+        let selected = AIWorkspaceDisplayCompetition.select(
+            [challenger, incumbent],
+            currentVisibleIDs: [id1],
+            limit: 1,
+            demotionMargin: 1.0)
+
+        #expect(selected == [id1])
+    }
+
+    @Test func displayCompetitionDemotesIncumbentAfterLargeScoreDrop() {
+        let incumbent = AIWorkspaceDisplayCandidate(id: id1, score: 8.0)
+        let challenger = AIWorkspaceDisplayCandidate(id: id2, score: 9.4)
+
+        let selected = AIWorkspaceDisplayCompetition.select(
+            [challenger, incumbent],
+            currentVisibleIDs: [id1],
+            limit: 1,
+            demotionMargin: 1.0)
+
+        #expect(selected == [id2])
+    }
+
     @Test func upsertReplacesByID() {
         let w = ws("w", .userCreated, title: "A")
         let c = AIWorkspaceCollection([w]).upserting(ws("w", .userCreated, title: "B"))

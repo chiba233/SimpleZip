@@ -386,6 +386,54 @@ nonisolated enum AIWorkspaceRanking {
     }
 }
 
+/// 侧栏显示池的竞争滞后策略。候选按分数竞争,但已上榜项不会因为轻微落后就立刻下榜:
+/// 新挑战者必须比旧上榜项高出 `demotionMargin` 才能替换它,避免显示池频繁抖动。
+nonisolated struct AIWorkspaceDisplayCandidate: Codable, Equatable, Sendable {
+    let id: UUID
+    let score: Double
+
+    init(id: UUID, score: Double) {
+        self.id = id
+        self.score = score
+    }
+}
+
+nonisolated enum AIWorkspaceDisplayCompetition {
+    static let defaultDemotionMargin = 1.0
+
+    static func select(_ candidates: [AIWorkspaceDisplayCandidate],
+                       currentVisibleIDs: Set<UUID>,
+                       limit: Int,
+                       demotionMargin: Double = defaultDemotionMargin) -> [UUID] {
+        guard limit > 0 else { return [] }
+        let sorted = candidates.sorted {
+            if $0.score != $1.score { return $0.score > $1.score }
+            return $0.id.uuidString < $1.id.uuidString
+        }
+        var selected = Array(sorted.prefix(limit))
+        var selectedIDs = Set(selected.map(\.id))
+
+        for incumbent in sorted where currentVisibleIDs.contains(incumbent.id) && !selectedIDs.contains(incumbent.id) {
+            guard let replacementIndex = selected.enumerated()
+                .filter({ !currentVisibleIDs.contains($0.element.id) })
+                .min(by: { a, b in
+                    if a.element.score != b.element.score { return a.element.score < b.element.score }
+                    return a.element.id.uuidString > b.element.id.uuidString
+                })?.offset else { continue }
+            let challenger = selected[replacementIndex]
+            guard challenger.score - incumbent.score < demotionMargin else { continue }
+            selectedIDs.remove(challenger.id)
+            selected[replacementIndex] = incumbent
+            selectedIDs.insert(incumbent.id)
+        }
+
+        return selected.sorted {
+            if $0.score != $1.score { return $0.score > $1.score }
+            return $0.id.uuidString < $1.id.uuidString
+        }.map(\.id)
+    }
+}
+
 /// AI 工作区集合(白皮书建议四「`AIWorkspaceStore.visibleWorkspaces`」的纯值底座)。App 的 `AIWorkspaceStore`
 /// 持有它 + 负责持久化 / `@Published`;这里只放**确定性**的可见性过滤与不可变变换,SwiftPM 可测。
 /// 侧边栏 AI section 渲染 `visibleWorkspaces`,而不是写死的 `AISystemWorkspaceKind.allCases`。
