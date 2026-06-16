@@ -31,6 +31,7 @@ struct DevToolsView: View {
     @State private var aiSpotlightStatus = "…"
     @State private var aiBackgroundIndexStatus = "…"
     @State private var aiWorkspaceStatus = "…"
+    @State private var aiWorkspaceReviewStatus = "…"
     @State private var aiActivityTasksStatus = "…"
 
     private var appVersionLine: String {
@@ -173,6 +174,7 @@ struct DevToolsView: View {
                         infoRow("magnifyingglass", L10n.text("devtools.aiData.spotlight"), aiSpotlightStatus)
                         infoRow("folder.badge.gearshape", L10n.text("devtools.aiData.backgroundIndex"), aiBackgroundIndexStatus)
                         infoRow("rectangle.3.group.bubble", L10n.text("devtools.aiData.workspaces"), aiWorkspaceStatus)
+                        infoRow("checklist.checked", "复核诊断", aiWorkspaceReviewStatus)
                         infoRow("clock.badge.checkmark", L10n.text("devtools.aiData.activityTasks"), aiActivityTasksStatus)
                         actionRow(
                             "doc.on.clipboard",
@@ -422,6 +424,12 @@ struct DevToolsView: View {
                 "\(snapshot.workspaces.approvedReviews)",
                 "\(snapshot.workspaces.reviewsInFlight)"
             )
+            // 临时诊断探针(查「为什么 0 通过」):发起 vs 报错/判否/kept少/通过;发起−四者=仍在飞(卡住)。
+            let w = snapshot.workspaces
+            aiWorkspaceReviewStatus = "复核 发\(w.reviewDispatched)"
+                + " 报错\(w.reviewThrew) 过期\(w.reviewExpired) 判否\(w.reviewUnworthy)"
+                + " kept少\(w.reviewThin) 通过\(w.reviewApproved)"
+                + " · 上次 组\(w.reviewLastGroups)/留\(w.reviewLastKept)"
             aiActivityTasksStatus = L10n.format(
                 "devtools.aiData.activityTasks.value",
                 "\(snapshot.activityTasks.active)",
@@ -637,6 +645,14 @@ private nonisolated struct DevToolsAIDataSnapshot: Encodable {
         let dismissed: Int
         let pinned: Int
         let described: Int
+        let reviewDispatched: Int
+        let reviewThrew: Int
+        let reviewExpired: Int
+        let reviewUnworthy: Int
+        let reviewThin: Int
+        let reviewApproved: Int
+        let reviewLastGroups: Int
+        let reviewLastKept: Int
 
         init(_ counts: AIWorkspaceStore.DebugCounts) {
             self.visible = counts.visible
@@ -650,6 +666,14 @@ private nonisolated struct DevToolsAIDataSnapshot: Encodable {
             self.dismissed = counts.dismissed
             self.pinned = counts.pinned
             self.described = counts.described
+            self.reviewDispatched = counts.reviewDispatched
+            self.reviewThrew = counts.reviewThrew
+            self.reviewExpired = counts.reviewExpired
+            self.reviewUnworthy = counts.reviewUnworthy
+            self.reviewThin = counts.reviewThin
+            self.reviewApproved = counts.reviewApproved
+            self.reviewLastGroups = counts.reviewLastGroups
+            self.reviewLastKept = counts.reviewLastKept
         }
     }
 

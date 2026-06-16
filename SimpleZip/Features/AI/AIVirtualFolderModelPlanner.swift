@@ -139,7 +139,7 @@ enum AIVirtualFolderModelPlanner {
 
         \(Self.namingRule)
         """
-        let cands = Array(input.candidates.prefix(120))
+        let cands = Array(input.candidates.prefix(70))   // 短 prompt 更稳(实测大生成 ~70% 报错)
         var lines: [String] = []
         let ws = input.workspace
         if let prompt = ws.prompt, !prompt.isEmpty { lines.append("Folder theme: \(prompt)") }
@@ -183,7 +183,7 @@ enum AIVirtualFolderModelPlanner {
 
         \(Self.namingRule)
         """
-        let cands = Array(input.candidates.prefix(120))
+        let cands = Array(input.candidates.prefix(70))   // 短 prompt 更稳(实测大生成 ~70% 报错)
         var lines: [String] = []
         let ws = input.workspace
         if let prompt = ws.prompt, !prompt.isEmpty { lines.append("Folder theme: \(prompt)") }

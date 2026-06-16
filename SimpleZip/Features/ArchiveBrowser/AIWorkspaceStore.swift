@@ -66,6 +66,16 @@ final class AIWorkspaceStore: ObservableObject {
     private var reviewAttemptsByTheme: [String: Int] = [:]
     private var reviewPumpTask: Task<Void, Never>?
 
+    // 只读调试计数(诊断「为什么 0 通过」):发起的复核数 vs 各结局。发起 − (报错+判否+kept少+通过) = 仍在飞/卡住。
+    private var reviewDispatched = 0
+    private var reviewThrew = 0       // review() 返回 nil(模型生成失败 / 超时)
+    private var reviewExpired = 0     // 复核成功,但本主题已被新一轮 discovery 刷掉(池 churn,白跑)
+    private var reviewUnworthy = 0    // 模型判 worthSurfacing == false
+    private var reviewThin = 0        // worthSurfacing 但选中成员 < 2
+    private var reviewApproved = 0
+    private var reviewLastGroups = 0  // 上次复核模型给的分组数
+    private var reviewLastKept = 0    // 上次复核翻译回真实 id 后的成员数
+
     private struct ReviewVerdict {
         let approved: Bool
         let title: String?
@@ -119,6 +129,15 @@ final class AIWorkspaceStore: ObservableObject {
         let dismissed: Int
         let pinned: Int
         let described: Int
+        // 复核结果分布(诊断 0 通过)。
+        let reviewDispatched: Int
+        let reviewThrew: Int
+        let reviewExpired: Int
+        let reviewUnworthy: Int
+        let reviewThin: Int
+        let reviewApproved: Int
+        let reviewLastGroups: Int
+        let reviewLastKept: Int
     }
 
     var debugCounts: DebugCounts {
@@ -134,7 +153,15 @@ final class AIWorkspaceStore: ObservableObject {
             hidden: workspaces.filter { $0.visibility == .hidden }.count,
             dismissed: workspaces.filter { $0.visibility == .dismissed }.count,
             pinned: workspaces.filter(\.pinned).count,
-            described: workspaces.filter { $0.userDescription != nil }.count
+            described: workspaces.filter { $0.userDescription != nil }.count,
+            reviewDispatched: reviewDispatched,
+            reviewThrew: reviewThrew,
+            reviewExpired: reviewExpired,
+            reviewUnworthy: reviewUnworthy,
+            reviewThin: reviewThin,
+            reviewApproved: reviewApproved,
+            reviewLastGroups: reviewLastGroups,
+            reviewLastKept: reviewLastKept
         )
     }
 
@@ -236,6 +263,14 @@ final class AIWorkspaceStore: ObservableObject {
             pending[theme.id] = (ws, members + themeRelevantExtra(ws: ws, members: members, cap: 80),
                                  Set(members.flatMap(\.sourceRefs)))
         }
+        // **跨发现轮次保留**正在复核中 / 已复核通过的旧主题:本轮 discovery 没再聚出它,不代表它没用 —— 否则在飞的
+        // 慢复核回来算「过期」白跑,已通过的可见文件夹也会被刷掉,永远攒不起可见数(用户实测 0 可见挂很久)。
+        for themeID in reviewInFlight where pending[themeID] == nil {
+            if let old = pendingCandidates[themeID] { pending[themeID] = old }
+        }
+        for (themeID, verdict) in themeVerdicts where verdict.approved && pending[themeID] == nil {
+            if let old = pendingCandidates[themeID] { pending[themeID] = old }
+        }
         pendingCandidates = pending
         themeVerdicts = themeVerdicts.filter { pending[$0.key] != nil }   // 不在本轮的旧结论清掉
         reviewAttemptsByTheme = reviewAttemptsByTheme.filter { pending[$0.key] != nil }
@@ -296,36 +331,49 @@ final class AIWorkspaceStore: ObservableObject {
         guard #available(macOS 26.0, *) else { return }
         reviewInFlight.insert(themeID)
         reviewAttemptsByTheme[themeID] = attempt
+        reviewDispatched += 1
         let input = makeModelPlanInput(ws: ws, candidates: fed)
         Task { @MainActor in
             let review = try? await AIVirtualFolderModelPlanner.review(
                 for: input, attempt: attempt, approvedTarget: approvedTarget)
             self.reviewInFlight.remove(themeID)
-            guard let review, self.pendingCandidates[themeID] != nil else {
-                let approved = self.themeVerdicts.values.filter(\.approved).count
-                let policy = AIWorkspaceReviewPumpPolicy(
-                    displayLimit: AppPreferences.aiMaxRecommendedWorkspaces,
-                    hiddenCandidateCount: self.pendingCandidates.count,
-                    activityLevel: AppPreferences.aiBackgroundActivityLevel)
-                self.scheduleReviewPump(after: max(1.5, policy.reviewDelaySeconds(approvedCount: approved)))
+            guard let review else {
+                self.reviewThrew += 1   // 模型生成失败 / 超时
+                self.rescheduleReviewPump(minDelay: 1.5)
+                return
+            }
+            guard self.pendingCandidates[themeID] != nil else {
+                self.reviewExpired += 1   // 复核回来发现本主题已被新一轮 discovery 刷掉(池 churn,白跑)
+                self.rescheduleReviewPump(minDelay: 1.5)
                 return
             }
             var referenced = Set<String>()
             func collect(_ gs: [AIVirtualFolderGroupPlan]) { for g in gs { referenced.formUnion(g.candidateIDs); collect(g.children) } }
             collect(review.plan.groups)
             let kept = fed.filter { referenced.contains($0.id) }
+            let approvedThis = review.worthSurfacing && kept.count >= 2
+            self.reviewLastGroups = review.plan.groups.count
+            self.reviewLastKept = kept.count
+            if approvedThis { self.reviewApproved += 1 }
+            else if !review.worthSurfacing { self.reviewUnworthy += 1 }
+            else { self.reviewThin += 1 }   // 模型说值得,但翻译回的成员 < 2(序号没对上 / 选太少)
             self.themeVerdicts[themeID] = ReviewVerdict(
-                approved: review.worthSurfacing && kept.count >= 2,
+                approved: approvedThis,
                 title: review.plan.workspaceTitle?.trimmingCharacters(in: .whitespacesAndNewlines),
                 plan: review.plan, memberRefs: Set(kept.flatMap(\.sourceRefs)), members: kept)
             self.republishReviewedThemes()
-            let approved = self.themeVerdicts.values.filter(\.approved).count
-            let policy = AIWorkspaceReviewPumpPolicy(
-                displayLimit: AppPreferences.aiMaxRecommendedWorkspaces,
-                hiddenCandidateCount: self.pendingCandidates.count,
-                activityLevel: AppPreferences.aiBackgroundActivityLevel)
-            self.scheduleReviewPump(after: policy.reviewDelaySeconds(approvedCount: approved))
+            self.rescheduleReviewPump()
         }
+    }
+
+    /// 复核结束后排下一轮泵:延时按当前已通过数 / 活跃度退避;`minDelay` 给失败 / 过期路径一个最小间隔。
+    private func rescheduleReviewPump(minDelay: TimeInterval = 0) {
+        let approved = themeVerdicts.values.filter(\.approved).count
+        let policy = AIWorkspaceReviewPumpPolicy(
+            displayLimit: AppPreferences.aiMaxRecommendedWorkspaces,
+            hiddenCandidateCount: pendingCandidates.count,
+            activityLevel: AppPreferences.aiBackgroundActivityLevel)
+        scheduleReviewPump(after: max(minDelay, policy.reviewDelaySeconds(approvedCount: approved)))
     }
 
     private func scheduleReviewPump(after seconds: TimeInterval) {
