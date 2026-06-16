@@ -162,6 +162,31 @@ nonisolated struct AIFileContentSummary: Codable, Equatable, Sendable {
     }
 }
 
+/// 后台文件索引的每目录角色采样策略。防止 document/reference 这类高频角色占满候选池,同时给 installer/source 等
+/// 角色保留稳定曝光空间。调用方为每个被列举目录维护一份 `counts`。
+nonisolated enum AIFileRoleSamplingPolicy {
+    static let perDirectoryCaps: [String: Int] = [
+        "document": 10,
+        "reference-data": 30,
+        "release-notes": 5,
+        "integrity-data": 5,
+        "project-doc": 5,
+        "installer": 20,
+        "source": 50,
+    ]
+
+    static func reserve(_ roleTags: [String], counts: inout [String: Int]) -> Bool {
+        guard let cappedRole = roleTags.first(where: { perDirectoryCaps[$0] != nil }),
+              let cap = perDirectoryCaps[cappedRole] else {
+            return true
+        }
+        let current = counts[cappedRole, default: 0]
+        guard current < cap else { return false }
+        counts[cappedRole] = current + 1
+        return true
+    }
+}
+
 /// 单个文件 / 子目录的 AI 记忆记录。**不含完整路径** —— 用稳定 id + 文件名 + 低敏位置上下文。
 nonisolated struct AIFileMemoryRecord: Codable, Identifiable, Equatable, Sendable {
     let id: String

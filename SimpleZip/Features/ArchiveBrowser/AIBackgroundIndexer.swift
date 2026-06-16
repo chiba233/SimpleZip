@@ -147,6 +147,7 @@ final class AIBackgroundIndexer {
 
             let loc = AILocationClassifier.classify(directoryPath: dir.path, home: home)
             var dirHasFile = false   // 这个目录是否「有内容」(直接含文件)→ 决定要不要把它本身记成 folder 候选
+            var roleCounts: [String: Int] = [:]
             for entry in entries {
                 if records.count >= fileBudget { break }
                 // M5:取不到属性 = 类型未知 → 整条跳过(不再 fail-open 当普通文件 / 漏判符号链接)。
@@ -160,6 +161,8 @@ final class AIBackgroundIndexer {
                     // C1:疑似密钥 / 凭据文件名(id_rsa / *.pem / .env / *.p12 / *.gpg …)→ 整条不索引。
                     if AIFileReadabilityPolicy.looksLikeSecret(fileName: entry.lastPathComponent) { continue }
                     dirHasFile = true
+                    let roleTags = AIFileType.roleTags(fileName: entry.lastPathComponent, isDirectory: false)
+                    guard AIFileRoleSamplingPolicy.reserve(roleTags, counts: &roleCounts) else { continue }
                     // **预读文件内容(独立高隐私开关「预读内容」)**:对「定主题」的文档(README / LICENSE / 配置 /
                     // 校验 / markdown)读头部 → 安全摘要(标题 / 字段名,已脱敏),挂到 `contentSummary`。候选映射器把摘要
                     // 标题 / 字段名折进语义 token → 跨位置聚类更准。`allowContent` 关(只元数据档)时一律不读;预算化 +

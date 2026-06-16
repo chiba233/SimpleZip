@@ -61,6 +61,17 @@ import Testing
         #expect(readerSpec.roleTags == ["reference-data"])
     }
 
+    @Test func roleSamplingCapsHighVolumeRolesPerDirectory() {
+        var counts: [String: Int] = [:]
+        let projectDocs = (0..<7).map { _ in
+            AIFileRoleSamplingPolicy.reserve(["project-doc"], counts: &counts)
+        }
+
+        #expect(projectDocs.prefix(5).allSatisfy { $0 })
+        #expect(projectDocs.suffix(2).allSatisfy { !$0 })
+        #expect(AIFileRoleSamplingPolicy.reserve(["unknown-role"], counts: &counts))
+    }
+
     @Test func folderProfileDetectsReleaseRole() {
         let files = [
             AIFileMemoryRecord.make(fileName: "SimpleZip.dmg", isDirectory: false, byteSize: 1, modifiedAt: nil, location: loc),
