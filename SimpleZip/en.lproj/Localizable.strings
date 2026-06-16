@@ -2659,6 +2659,7 @@
 "settings.ai.background.maxRecommended.desc" = "How many AI Folders background discovery may create automatically. Folders you pin or create yourself don’t count.";
 "sidebar.ai.markPermanent" = "Make Permanent";
 "aiWorkspace.node.open" = "Open";
+"aiWorkspace.node.rename" = "Rename";
 "aiWorkspace.node.openArchive" = "Open Archive";
 "aiWorkspace.node.openFolder" = "Open Folder";
 "aiWorkspace.node.reveal" = "Show in Finder";

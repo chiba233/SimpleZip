@@ -27,6 +27,8 @@ final class AIWorkspaceStore: ObservableObject {
     private var suppression: AIThemeSuppressionLedger
     /// 持久:节点级「我很喜欢 / 我不喜欢」反馈(工作区 × 成员 ref)。不喜欢的成员从树里剔除。
     private var feedback: AINodeFeedbackLedger
+    /// 持久:虚拟结构编辑(分组改名 + 成员移动)。派生树之上套用。
+    private var structureEdits: AIWorkspaceStructureEdits
 
     // 内存(每会话由 refreshRecommendations 重建,不落盘 —— 隐私):
     private var pool: [AIVirtualNodeCandidate] = []
@@ -40,6 +42,7 @@ final class AIWorkspaceStore: ObservableObject {
     private static let storageKey = "SimpleZip.ai.workspaces.v1"
     private static let suppressionKey = "SimpleZip.ai.themeSuppression.v1"
     private static let feedbackKey = "SimpleZip.ai.nodeFeedback.v1"
+    private static let structureKey = "SimpleZip.ai.structureEdits.v1"
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -50,6 +53,8 @@ final class AIWorkspaceStore: ObservableObject {
         self.suppression = AIWorkspaceStore.loadSuppression(from: defaults)
         self.feedback = AIWorkspaceStore.decode(AINodeFeedbackLedger.self, key: Self.feedbackKey, from: defaults)
             ?? AINodeFeedbackLedger()
+        self.structureEdits = AIWorkspaceStore.decode(AIWorkspaceStructureEdits.self, key: Self.structureKey, from: defaults)
+            ?? AIWorkspaceStructureEdits()
         persist()
     }
 
@@ -129,10 +134,26 @@ final class AIWorkspaceStore: ObservableObject {
         guard let ws = collection.workspace(id) else { return nil }
         let members = memberCandidates(for: ws)
         guard !members.isEmpty else { return nil }
-        let tree = AIVirtualFolderTreeBuilder.buildDeterministic(
+        let derived = AIVirtualFolderTreeBuilder.buildDeterministic(
             workspace: ws, candidates: members, pathsBySourceRef: pathsBySourceRef, generatedAt: Date())
+        // 套用用户结构编辑(分组改名 + 成员移动)在确定性派生之上 —— 用户的虚拟整理不丢。
+        let tree = derived.applyingStructureEdits(
+            groupTitles: structureEdits.groupTitles(id), assignments: structureEdits.assignments(id))
         treeCache[id] = tree
         return tree
+    }
+
+    /// 虚拟分组改名(用户编辑覆盖层;空 → 清回派生标题)。
+    func renameGroup(workspaceID: UUID, groupID: UUID, to title: String?) {
+        structureEdits = structureEdits.renamingGroup(workspaceID, groupID, to: title)
+        saveStructureEdits(); treeCache[workspaceID] = nil; objectWillChange.send()
+    }
+
+    /// 把成员(source ref)移进目标虚拟分组(用户编辑覆盖层)。
+    func moveNodes(workspaceID: UUID, refs: [AIContextSourceRef], toGroup groupID: UUID) {
+        guard !refs.isEmpty else { return }
+        structureEdits = structureEdits.assigning(workspaceID, refs, toGroup: groupID)
+        saveStructureEdits(); treeCache[workspaceID] = nil; objectWillChange.send()
     }
 
     /// 召回某工作区的成员候选。推荐工作区按发现时记下的成员 ref(候选的 source refs ⊆ 主题成员集)。
@@ -196,6 +217,7 @@ final class AIWorkspaceStore: ObservableObject {
         }
         treeCache[id] = nil
         feedback = feedback.clearingWorkspace(id); saveFeedback()   // 工作区没了 → 清它的节点反馈
+        structureEdits = structureEdits.clearingWorkspace(id); saveStructureEdits()
         apply { $0.dismissing(id) }
     }
 
@@ -206,6 +228,7 @@ final class AIWorkspaceStore: ObservableObject {
     func removeUserWorkspace(_ id: UUID) {
         treeCache[id] = nil
         feedback = feedback.clearingWorkspace(id); saveFeedback()
+        structureEdits = structureEdits.clearingWorkspace(id); saveStructureEdits()
         apply { $0.removingUserWorkspace(id) }
     }
     func rename(_ id: UUID, to title: String) { apply { $0.renaming(id, to: title) } }
@@ -230,6 +253,10 @@ final class AIWorkspaceStore: ObservableObject {
 
     private func saveFeedback() {
         if let data = try? JSONEncoder().encode(feedback) { defaults.set(data, forKey: Self.feedbackKey) }
+    }
+
+    private func saveStructureEdits() {
+        if let data = try? JSONEncoder().encode(structureEdits) { defaults.set(data, forKey: Self.structureKey) }
     }
 
     private static func decode<T: Decodable>(_ type: T.Type, key: String, from defaults: UserDefaults) -> T? {

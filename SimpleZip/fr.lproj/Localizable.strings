@@ -2578,6 +2578,7 @@
 "settings.ai.background.maxRecommended.desc" = "Combien de Dossiers IA la découverte en arrière-plan peut créer automatiquement. Ceux que vous épinglez ou créez ne comptent pas.";
 "sidebar.ai.markPermanent" = "Rendre permanent";
 "aiWorkspace.node.open" = "Ouvrir";
+"aiWorkspace.node.rename" = "Renommer";
 "aiWorkspace.node.openArchive" = "Ouvrir l’archive";
 "aiWorkspace.node.openFolder" = "Ouvrir le dossier";
 "aiWorkspace.node.reveal" = "Afficher dans le Finder";

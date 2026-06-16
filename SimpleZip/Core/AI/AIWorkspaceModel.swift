@@ -188,6 +188,12 @@ nonisolated struct AIVirtualNode: Identifiable, Codable, Equatable, Sendable {
                       confidence: confidence, sourceRefs: sourceRefs, children: children,
                       primaryAction: action, secondaryActions: secondaryActions, safety: safety)
     }
+
+    func withTitle(_ newTitle: String) -> AIVirtualNode {
+        AIVirtualNode(id: id, kind: kind, title: newTitle, subtitle: subtitle, reason: reason,
+                      confidence: confidence, sourceRefs: sourceRefs, children: children,
+                      primaryAction: primaryAction, secondaryActions: secondaryActions, safety: safety)
+    }
 }
 
 /// 一个工作区打开后加载 / 缓存的虚拟文件夹树(白皮书建议四:`AIVirtualFolderTree`)。内容区直接渲染

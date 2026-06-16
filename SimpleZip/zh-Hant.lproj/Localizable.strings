@@ -2582,6 +2582,7 @@
 "settings.ai.background.maxRecommended.desc" = "後台發現最多自動生成幾個 AI 檔案夾。你固定或自己建立的不計入。";
 "sidebar.ai.markPermanent" = "標記為長期 AI 檔案夾";
 "aiWorkspace.node.open" = "打開";
+"aiWorkspace.node.rename" = "重新命名";
 "aiWorkspace.node.openArchive" = "打開歸檔";
 "aiWorkspace.node.openFolder" = "打開檔案夾";
 "aiWorkspace.node.reveal" = "在 Finder 中顯示";

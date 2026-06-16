@@ -2,15 +2,11 @@
 //  AIWorkspaceView.swift
 //  SimpleZip
 //
-//  0.4.5 #80 #89:AI 工作区主内容区(白皮书建议四)。**可折叠的多层虚拟文件夹树** —— read-only 虚拟结果集,
-//  不复用 FileTable、不伪造 FileItem。
+//  0.4.5 #80 #89:AI 工作区主内容区(白皮书建议四)。
 //
-//  组成(用户点名):
-//   ① 顶部**主题头**:渐变图标 + 主题名 + **可编辑的文件夹描述**(后台空闲时端上模型可进一步润色,模型只写描述)。
-//   ② 内容是原生 `List`(选中有焦点高亮、键盘上下可选、展开有动画)—— 找回「灵魂」。
-//   ③ 文件夹动态加入 AI 觉得可能需要的成员,**打 AI 角标**;右键可「我很喜欢 / 我不喜欢」(不喜欢即移出 + 不再加入)。
-//   ④ 分组可折叠(▸/▾)/ 双击进入更深视图(走模型导航:返回/前进/上一级 + 地址栏面包屑)。
-//   ⑤ 文件可展开调出 AI 建议(AI 文件夹 × AI Suggestion 联动)。动作只回现有流程,写盘 / 启动任务回原生确认流。
+//  顶部是**主题头**(渐变图标 + 主题名 + 可编辑的文件夹描述,后台空闲时端上模型可进一步润色,模型只写描述);
+//  下面是内容 —— 直接复用主文件浏览的 NSOutlineView(`AIVirtualNodeOutline`),所以多选 / 框选 / 方向键 /
+//  空格展开 / 回车改名 / 点空白取消选中 / 拖拽移动 全部与主视图一致。渲染 `AIVirtualNode`,不伪造 FileItem。
 //
 
 import AppKit
@@ -60,22 +56,9 @@ struct AIWorkspaceView: View {
     let workspaceID: UUID
     @ObservedObject private var store = AIWorkspaceStore.shared
 
-    /// List 选中行(键盘上下 + 焦点高亮 = 原生 List 提供)。
-    @State private var selection: String?
     /// 可编辑描述的草稿(聚焦失焦 / 回车提交回 store)。
     @State private var descriptionDraft: String = ""
     @FocusState private var descriptionFocused: Bool
-
-    // MARK: - 显示节点(给原生 List 的**层级**数据:折叠/展开/键盘/全行选中全部交给 List)
-    //  把整棵子树一次性喂给 `List(children:)` —— 展开由 List 内部接管,不触发本 view 重算 → 展开**零延迟**;
-    //  也没有自绘 chevron 抢点击 → 单击高亮命中整行(不再只有边缘)。
-    //  base 节点:分组 → 子节点;文件/归档/文件夹 → AI 建议子行;叶子 → children=nil(无 disclosure 三角)。
-    private struct DisplayNode: Identifiable {
-        let id: String
-        let node: AIVirtualNode?                  // nil = 合成的「AI 建议」行
-        let suggestion: AIWorkspaceNodeAction?
-        let children: [DisplayNode]?
-    }
 
     var body: some View {
         Group {
@@ -87,7 +70,8 @@ struct AIWorkspaceView: View {
                     if levelNodes.isEmpty {
                         emptyState(L10n.text("aiFolder.noSuggestions"))
                     } else {
-                        outline(for: levelNodes)
+                        AIVirtualNodeOutline(model: model, store: store, workspaceID: workspaceID,
+                                             nodes: levelNodes, onDispatch: dispatch)
                     }
                 }
             } else {
@@ -96,9 +80,7 @@ struct AIWorkspaceView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear { loadDescriptionDraft() }
-        .onChange(of: workspaceID) { _ in
-            selection = nil; loadDescriptionDraft()
-        }
+        .onChange(of: workspaceID) { _ in loadDescriptionDraft() }
     }
 
     // MARK: - 主题头(图标 + 主题名 + 可编辑描述)
@@ -114,7 +96,6 @@ struct AIWorkspaceView: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Text(ws.title).font(.title3.weight(.semibold)).lineLimit(1)
-                    // 整理方式如实标注(确定性整理 ≠ 模型生成,白皮书硬要求)。
                     if generationMode == .deterministic {
                         Text(L10n.text("aiWorkspace.mode.deterministic"))
                             .font(.caption2).foregroundStyle(.secondary)
@@ -154,115 +135,6 @@ struct AIWorkspaceView: View {
     private func loadDescriptionDraft() { descriptionDraft = store.workspace(workspaceID)?.userDescription ?? "" }
     private func commitDescription() { store.setDescription(workspaceID, descriptionDraft) }
 
-    // MARK: - 内容 List(原生层级:disclosure / 焦点 / 键盘 / 全行选中全部由 List 接管)
-
-    private func outline(for nodes: [AIVirtualNode]) -> some View {
-        // 整棵子树一次性给 List → 展开折叠在 List 内部完成、不重算 body(零延迟);List 自绘 disclosure 三角,
-        // 行内不再放 chevron 按钮 → 不抢点击,单击高亮命中整行。
-        List(displayNodes(nodes), children: \.children, selection: $selection) { dn in
-            row(dn)
-        }
-        .listStyle(.sidebar)
-        .scrollContentBackground(.hidden)
-    }
-
-    @ViewBuilder
-    private func row(_ dn: DisplayNode) -> some View {
-        if let s = dn.suggestion {
-            // 合成的 AI 建议行:单击即执行(plain 按钮,不参与选中)。
-            Button { dispatch(s.action) } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: s.systemImage).font(.caption)
-                        .foregroundStyle(Color.accentColor).frame(width: 16)
-                    Text(L10n.text(s.titleKey)).font(.caption)
-                    Spacer(minLength: 0)
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-        } else if let node = dn.node {
-            nodeLabel(node)
-        }
-    }
-
-    private func nodeLabel(_ node: AIVirtualNode) -> some View {
-        let suggestions = AIWorkspaceNodeActions.suggestions(for: node)
-        let isSuggested = !node.sourceRefs.isEmpty
-            && store.nodeIsAISuggested(workspaceID: workspaceID, refs: node.sourceRefs)
-        return HStack(spacing: 8) {
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(node.kind.tint.gradient)
-                .overlay(Image(systemName: node.kind.symbolName)
-                    .font(.system(size: 11, weight: .semibold)).foregroundStyle(.white))
-                .frame(width: 22, height: 22)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(node.title).font(.callout).lineLimit(1).truncationMode(.middle)
-                if let reason = node.reason ?? node.subtitle, !reason.isEmpty {
-                    Text(reason).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
-                }
-            }
-            Spacer(minLength: 8)
-            if isSuggested {
-                Image(systemName: "sparkles").font(.caption2).foregroundStyle(Color.accentColor)
-                    .help(L10n.text("aiWorkspace.node.aiSuggested"))
-            }
-            if node.kind == .group {
-                Image(systemName: "arrow.forward.circle").font(.caption).foregroundStyle(.tertiary)
-                    .help(L10n.text("aiWorkspace.node.open"))
-            }
-        }
-        .contentShape(Rectangle())
-        // 双击 = 打开 / 下钻;用 simultaneousGesture 不吞单击 → List 的单击全行选中照常生效。
-        .simultaneousGesture(TapGesture(count: 2).onEnded { activate(node) })
-        .contextMenu { nodeMenu(node, suggestions: suggestions, isSuggested: isSuggested) }
-    }
-
-    /// AIVirtualNode 子树 → List 的层级显示节点。整棵递归构建,List 才能内部接管 disclosure。
-    private func displayNodes(_ nodes: [AIVirtualNode]) -> [DisplayNode] {
-        nodes.map { node in
-            let kids: [DisplayNode]?
-            if node.kind == .group {
-                kids = node.children.isEmpty ? nil : displayNodes(node.children)
-            } else {
-                let s = AIWorkspaceNodeActions.suggestions(for: node)
-                kids = s.isEmpty ? nil : s.map {
-                    DisplayNode(id: "s-\(node.id)-\($0.id)", node: nil, suggestion: $0, children: nil)
-                }
-            }
-            return DisplayNode(id: "n-\(node.id)", node: node, suggestion: nil, children: kids)
-        }
-    }
-
-    @ViewBuilder
-    private func nodeMenu(_ node: AIVirtualNode, suggestions: [AIWorkspaceNodeAction], isSuggested: Bool) -> some View {
-        if node.kind == .group {
-            // 内联展开/折叠交给 List 的 disclosure 三角;右键只给「打开(进入更深视图)」。
-            Button(L10n.text("aiWorkspace.node.open")) { model.drillIntoAIWorkspaceGroup(node) }
-        } else {
-            if let primary = node.primaryAction {
-                Button(L10n.text("aiWorkspace.node.open")) { dispatch(primary) }
-            }
-            ForEach(suggestions) { s in Button(L10n.text(s.titleKey)) { dispatch(s.action) } }
-            // 节点级训练:我很喜欢(确认保留)/ 我不喜欢(移出 + 不再加入)。只对带 ref 的成员开放。
-            if !node.sourceRefs.isEmpty {
-                Divider()
-                if isSuggested {
-                    Button(L10n.text("aiWorkspace.node.like")) {
-                        store.likeNode(workspaceID: workspaceID, refs: node.sourceRefs)
-                    }
-                }
-                Button(L10n.text("aiWorkspace.node.dislike"), role: .destructive) {
-                    store.dislikeNode(workspaceID: workspaceID, refs: node.sourceRefs)
-                }
-            }
-        }
-    }
-
-    private func activate(_ node: AIVirtualNode) {
-        if node.kind == .group { model.drillIntoAIWorkspaceGroup(node) }
-        else if let primary = node.primaryAction { dispatch(primary) }
-    }
-
     private func emptyState(_ text: String) -> some View {
         VStack(spacing: 10) {
             Spacer()
@@ -297,38 +169,6 @@ struct AIWorkspaceView: View {
             model.createArchive(fromFinderURLs: paths.map { URL(fileURLWithPath: $0) })
         default:
             break   // 其余(转换 / 发布检查 / evidence-ref 类)后续接 —— 写盘动作回原生确认流
-        }
-    }
-}
-
-private extension AIVirtualNode.Kind {
-    var symbolName: String {
-        switch self {
-        case .group: return "folder"
-        case .file: return "doc"
-        case .folder: return "folder"
-        case .archive: return "doc.zipper"
-        case .archiveEntry: return "doc.text"
-        case .task: return "checklist"
-        case .report: return "doc.richtext"
-        case .action: return "bolt"
-        case .automation: return "wand.and.stars"
-        case .note: return "text.bubble"
-        }
-    }
-
-    var tint: Color {
-        switch self {
-        case .group: return .accentColor
-        case .file: return .gray
-        case .folder: return .blue
-        case .archive: return .indigo
-        case .archiveEntry: return .teal
-        case .task: return .orange
-        case .report: return .purple
-        case .action: return .green
-        case .automation: return .mint
-        case .note: return .gray
         }
     }
 }

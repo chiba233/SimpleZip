@@ -2580,6 +2580,7 @@
 "settings.ai.background.maxRecommended.desc" = "Cuántas Carpetas IA puede crear automáticamente el descubrimiento en segundo plano. Las que fijas o creas tú no cuentan.";
 "sidebar.ai.markPermanent" = "Hacer permanente";
 "aiWorkspace.node.open" = "Abrir";
+"aiWorkspace.node.rename" = "Cambiar nombre";
 "aiWorkspace.node.openArchive" = "Abrir archivo";
 "aiWorkspace.node.openFolder" = "Abrir carpeta";
 "aiWorkspace.node.reveal" = "Mostrar en Finder";
