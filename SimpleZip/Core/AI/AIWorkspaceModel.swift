@@ -422,8 +422,10 @@ nonisolated struct AIWorkspaceCollection: Codable, Equatable, Sendable {
     /// 保留:非推荐(用户创建 / 系统)+ 用户**固定**的推荐(即使本轮没再出现,固定 = 用户要留着);新推荐里同 id
     /// 的合并旧的 pin / 最近打开 / 频率。被替换掉的非固定旧推荐直接消失(它们本就是动态候选)。
     func replacingRecommended(_ newRecommended: [AIWorkspace]) -> AIWorkspaceCollection {
-        let newIDs = Set(newRecommended.map(\.id))
-        let merged = newRecommended.map { ws -> AIWorkspace in
+        let permanentIDs = Set(workspaces.filter { $0.origin != .recommended }.map(\.id))
+        let incoming = newRecommended.filter { !permanentIDs.contains($0.id) }
+        let newIDs = Set(incoming.map(\.id))
+        let merged = incoming.map { ws -> AIWorkspace in
             guard let old = workspace(ws.id) else { return ws }
             var m = ws
             m.pinned = old.pinned
@@ -460,15 +462,27 @@ nonisolated struct AIWorkspaceCollection: Codable, Equatable, Sendable {
     /// 把一个**推荐**工作区「标记为长期 / 转成用户工作区」(白皮书 2043:推荐可转成用户工作区)——之后后台发现
     /// 不再自动刷掉它(`replacingRecommended` 只动 `.recommended`)。保留其全部状态,只改 origin。
     func promotingToUser(_ id: UUID) -> AIWorkspaceCollection {
-        AIWorkspaceCollection(workspaces.map { ws in
-            guard ws.id == id, ws.origin == .recommended else { return ws }
-            return AIWorkspace(id: ws.id, origin: .userCreated, title: ws.title, prompt: ws.prompt,
-                               queryPlan: ws.queryPlan, iconSystemName: ws.iconSystemName,
-                               visibility: .visible, pinned: ws.pinned, generatedAt: ws.generatedAt,
-                               lastOpenedAt: ws.lastOpenedAt, negativeFeedbackCount: ws.negativeFeedbackCount,
-                               fingerprint: ws.fingerprint, openCount: ws.openCount,
-                               relevanceScore: ws.relevanceScore)
-        })
+        var copy: [AIWorkspace] = []
+        var keptTarget = false
+        for ws in workspaces {
+            guard ws.id == id else {
+                copy.append(ws)
+                continue
+            }
+            guard !keptTarget else { continue }
+            keptTarget = true
+            guard ws.origin == .recommended else {
+                copy.append(ws)
+                continue
+            }
+            copy.append(AIWorkspace(id: ws.id, origin: .userCreated, title: ws.title, prompt: ws.prompt,
+                                    queryPlan: ws.queryPlan, iconSystemName: ws.iconSystemName,
+                                    visibility: .visible, pinned: ws.pinned, generatedAt: ws.generatedAt,
+                                    lastOpenedAt: ws.lastOpenedAt, negativeFeedbackCount: ws.negativeFeedbackCount,
+                                    fingerprint: ws.fingerprint, openCount: ws.openCount,
+                                    relevanceScore: ws.relevanceScore))
+        }
+        return AIWorkspaceCollection(copy)
     }
 
     func renaming(_ id: UUID, to title: String) -> AIWorkspaceCollection {

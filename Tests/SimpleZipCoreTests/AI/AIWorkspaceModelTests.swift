@@ -198,6 +198,33 @@ import Testing
         #expect(got?.title == "new")                 // 用新标题
     }
 
+    @Test func replacingRecommendedDoesNotDuplicatePromotedUserWorkspace() {
+        let rec = ws("same-theme", .recommended, title: "dynamic")
+        let permanent = AIWorkspaceCollection([rec]).promotingToUser(rec.id)
+        let freshSameID = ws("same-theme", .recommended, title: "dynamic v2")
+        let freshOther = ws("other-theme", .recommended, title: "other")
+
+        let next = permanent.replacingRecommended([freshSameID, freshOther])
+        let same = next.workspaces.filter { $0.id == rec.id }
+
+        #expect(same.count == 1)
+        #expect(same.first?.origin == .userCreated)
+        #expect(same.first?.title == "dynamic")
+        #expect(next.workspace(freshOther.id)?.origin == .recommended)
+    }
+
+    @Test func promotingToUserCollapsesDuplicateRecommendedVersions() {
+        let first = ws("same-theme", .recommended, title: "v1", generatedAt: 1)
+        let second = ws("same-theme", .recommended, title: "v2", generatedAt: 2)
+
+        let promoted = AIWorkspaceCollection([first, second]).promotingToUser(first.id)
+        let same = promoted.workspaces.filter { $0.id == first.id }
+
+        #expect(same.count == 1)
+        #expect(same.first?.origin == .userCreated)
+        #expect(same.first?.title == "v1")
+    }
+
     @Test func upsertReplacesByID() {
         let w = ws("w", .userCreated, title: "A")
         let c = AIWorkspaceCollection([w]).upserting(ws("w", .userCreated, title: "B"))
