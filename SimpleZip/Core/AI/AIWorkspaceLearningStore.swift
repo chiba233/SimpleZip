@@ -19,24 +19,43 @@ nonisolated struct AIWorkspaceLearningStore: Codable, Equatable, Sendable {
     static let cap = 5.0
     /// 「强负」阈值:候选的泛化亲和分 ≤ 此值 → 同类已被明显排斥,召回时软剔除(非固定成员才剔)。
     static let strongNegative = -3.0
+    /// 时间衰减半衰期(天):30 天后反馈权重降至一半;旧偏好不再长期压制候选。
+    static let feedbackHalfLifeDays = 30.0
 
     /// workspace id → 信号 token → 累积权重(正=喜欢同类,负=不喜欢同类)。
     private var weights: [UUID: [String: Double]]
+    /// workspace id → 最后一次强化时间(用于衰减计算;旧数据无时间戳时 nil → 不衰减)。
+    private var reinforcedAt: [UUID: Date]
 
-    init(weights: [UUID: [String: Double]] = [:]) { self.weights = weights }
+    init(weights: [UUID: [String: Double]] = [:], reinforcedAt: [UUID: Date] = [:]) {
+        self.weights = weights
+        self.reinforcedAt = reinforcedAt
+    }
 
     // MARK: - 变换
 
     /// 用一个候选的信号强化(喜欢 delta>0 / 不喜欢 delta<0)。每个信号各加 delta,钳到 [-cap, cap]。
+    /// 向后兼容:无时间戳版本不记录时间(衰减时退回 raw 亲和分)。
     func reinforcing(_ workspace: UUID, signals: [String], by delta: Double) -> AIWorkspaceLearningStore {
+        recording(workspace, signals: signals, by: delta, at: nil)
+    }
+
+    /// 带时间戳的强化版本(推荐调用;`at` 由 App 传入,不取 wall-clock)。
+    func recording(_ workspace: UUID, signals: [String], by delta: Double,
+                   at date: Date?) -> AIWorkspaceLearningStore {
         guard !signals.isEmpty, delta != 0 else { return self }
         var copy = self
         for s in signals where !s.isEmpty {
             let next = (copy.weights[workspace]?[s] ?? 0) + delta
             copy.weights[workspace, default: [:]][s] = max(-Self.cap, min(Self.cap, next))
         }
-        // 全 0 的工作区收掉,保持紧凑。
-        if copy.weights[workspace]?.allSatisfy({ $0.value == 0 }) == true { copy.weights[workspace] = nil }
+        if let date {
+            copy.reinforcedAt[workspace] = Swift.max(copy.reinforcedAt[workspace] ?? .distantPast, date)
+        }
+        if copy.weights[workspace]?.allSatisfy({ $0.value == 0 }) == true {
+            copy.weights[workspace] = nil
+            copy.reinforcedAt[workspace] = nil
+        }
         return copy
     }
 
@@ -44,6 +63,7 @@ nonisolated struct AIWorkspaceLearningStore: Codable, Equatable, Sendable {
         guard weights[workspace] != nil else { return self }
         var copy = self
         copy.weights[workspace] = nil
+        copy.reinforcedAt[workspace] = nil
         return copy
     }
 
@@ -55,9 +75,23 @@ nonisolated struct AIWorkspaceLearningStore: Codable, Equatable, Sendable {
         return signals.reduce(0) { $0 + (w[$1] ?? 0) }
     }
 
+    /// 时间衰减亲和分:raw 亲和分 × 0.5^(天数 / halfLife)。
+    /// 无时间戳(旧数据 / 未用 recording())时退回 raw,不作衰减。`now` 由 App 传入。
+    func weightedAffinity(_ workspace: UUID, signals: [String], now: Date) -> Double {
+        let raw = affinity(workspace, signals: signals)
+        guard raw != 0, let ts = reinforcedAt[workspace] else { return raw }
+        let days = Swift.max(0, now.timeIntervalSince(ts)) / 86_400
+        return raw * pow(0.5, days / Self.feedbackHalfLifeDays)
+    }
+
     /// 该候选是否因「同类被明显排斥」应在召回时软剔除(强负且非固定;固定由调用点保证不剔)。
     func isStronglyDisliked(_ workspace: UUID, signals: [String]) -> Bool {
         affinity(workspace, signals: signals) <= Self.strongNegative
+    }
+
+    /// 时间衰减版强排斥判断(使用 weightedAffinity)。
+    func isStronglyDisliked(_ workspace: UUID, signals: [String], now: Date) -> Bool {
+        weightedAffinity(workspace, signals: signals, now: now) <= Self.strongNegative
     }
 
     var isEmpty: Bool { weights.isEmpty }

@@ -55,4 +55,52 @@ import Testing
         let data = try JSONEncoder().encode(s)
         #expect(try JSONDecoder().decode(AIWorkspaceLearningStore.self, from: data) == s)
     }
+
+    @Test func recordingWithTimestampDecaysOverTime() {
+        let epoch = Date(timeIntervalSinceReferenceDate: 0)
+        let s = AIWorkspaceLearningStore().recording(ws, signals: ["image"], by: -4, at: epoch)
+        // No decay at t=0
+        #expect(s.weightedAffinity(ws, signals: ["image"], now: epoch) == -4)
+        // After 30 days → half (half-life = 30 days)
+        let thirtyDays = epoch.addingTimeInterval(30 * 86_400)
+        let decayed = s.weightedAffinity(ws, signals: ["image"], now: thirtyDays)
+        #expect(abs(decayed - (-2)) < 0.01)
+    }
+
+    @Test func weightedAffinityWithoutTimestampReturnsRaw() {
+        // reinforcing() passes nil timestamp → no decay regardless of now
+        let epoch = Date(timeIntervalSinceReferenceDate: 0)
+        let s = AIWorkspaceLearningStore().reinforcing(ws, signals: ["doc"], by: 3)
+        let farFuture = epoch.addingTimeInterval(365 * 86_400)
+        #expect(s.weightedAffinity(ws, signals: ["doc"], now: farFuture) == 3)
+    }
+
+    @Test func isStronglyDislikedDecaysWithTime() {
+        let epoch = Date(timeIntervalSinceReferenceDate: 0)
+        // -4 > strongNegative(-3) → disliked at t=0
+        let s = AIWorkspaceLearningStore().recording(ws, signals: ["img"], by: -4, at: epoch)
+        #expect(s.isStronglyDisliked(ws, signals: ["img"], now: epoch))
+        // After ~120 days: -4 × 0.5^4 = -0.25 → not strongly disliked
+        let farFuture = epoch.addingTimeInterval(120 * 86_400)
+        #expect(!s.isStronglyDisliked(ws, signals: ["img"], now: farFuture))
+    }
+
+    @Test func recordingKeepsLatestTimestamp() {
+        let t1 = Date(timeIntervalSinceReferenceDate: 100)
+        let t2 = Date(timeIntervalSinceReferenceDate: 1000)
+        var s = AIWorkspaceLearningStore().recording(ws, signals: ["x"], by: -1, at: t2)
+        s = s.recording(ws, signals: ["x"], by: -1, at: t1) // older timestamp ignored
+        // Both recordings sum to -2; decay anchored to t2 (later)
+        let atT2 = s.weightedAffinity(ws, signals: ["x"], now: t2)
+        #expect(atT2 == -2)
+    }
+
+    @Test func clearingWorkspaceWipesTimestamp() {
+        let epoch = Date(timeIntervalSinceReferenceDate: 0)
+        var s = AIWorkspaceLearningStore().recording(ws, signals: ["x"], by: -3, at: epoch)
+        s = s.clearingWorkspace(ws)
+        #expect(s.isEmpty)
+        // After clear, weightedAffinity must be 0 (not crash)
+        #expect(s.weightedAffinity(ws, signals: ["x"], now: epoch) == 0)
+    }
 }
