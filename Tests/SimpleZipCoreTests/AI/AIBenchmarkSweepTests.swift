@@ -23,6 +23,10 @@ private func ref(_ kind: AIContextSourceRef.Kind, _ id: String) -> AIContextSour
     .init(kind: kind, id: id)
 }
 
+private func loc(_ kind: AILocationKind) -> AILocationContext {
+    AILocationContext(kind: kind, pathHash: "bench-" + kind.rawValue, folderNameTokens: [kind.rawValue])
+}
+
 private func nc(_ id: String,
                 _ kind: AIVirtualNode.Kind,
                 _ name: String,
@@ -31,15 +35,38 @@ private func nc(_ id: String,
                 signals: [String] = [],
                 tasks: [String] = [],
                 archives: [String] = [],
+                locKind: AILocationKind? = nil,
                 tokens: [String] = []) -> AIVirtualNodeCandidate {
-    let r = refs.isEmpty ? [AIContextSourceRef(kind: kind == .task ? .task : (kind == .report ? .report : .archive), id: id)] : refs
+    let r: [AIContextSourceRef]
+    if refs.isEmpty {
+        switch kind {
+        case .file, .note:
+            r = [AIContextSourceRef(kind: .file, id: id)]
+        case .folder:
+            r = [AIContextSourceRef(kind: .folder, id: id)]
+        case .archive:
+            r = [AIContextSourceRef(kind: .archive, id: id)]
+        case .archiveEntry:
+            r = [AIContextSourceRef(kind: .archiveEntry, id: id)]
+        case .task:
+            r = [AIContextSourceRef(kind: .task, id: id)]
+        case .report:
+            r = [AIContextSourceRef(kind: .report, id: id)]
+        case .action, .automation:
+            r = [AIContextSourceRef(kind: .action, id: id)]
+        case .group:
+            r = []
+        }
+    } else {
+        r = refs
+    }
     return AIVirtualNodeCandidate(id: id, kind: kind, displayName: name,
-                                  sourceRefs: r, roleTags: roles,
+                                  sourceRefs: r, roleTags: roles, location: locKind.map(loc),
                                   relatedTaskIDs: tasks, relatedArchiveIDs: archives,
                                   semanticTokens: tokens, scoreSignals: signals)
 }
 
-// MARK: - 合成候选池 33 个（SimpleZip 0.4.5 发布工作流）
+// MARK: - 合成候选池 50 个（SimpleZip 0.4.5 发布工作流 + 覆盖 CJK / 版本序列 / 跨位置 / 多 kind）
 
 private let releasePool: [AIVirtualNodeCandidate] = [
     // ── 归档 (8) ──
@@ -204,6 +231,102 @@ private let releasePool: [AIVirtualNodeCandidate] = [
     nc("file-noise",      .file, "random-download.pkg",
        refs: [ref(.file, "file-noise")],
        tokens: ["package"]),
+
+    // ── CJK / 版本序列 / 多位置 / 多 kind 扩充 (18) ──
+    nc("cjk-report-q1", .archive, "报告_2026Q1.zip",
+       roles: ["release-artifact"],
+       signals: ["project-token", "source-ref-match"],
+       locKind: .documents,
+       tokens: ["报告", "2026q1", "release"]),
+    nc("cjk-project-v3", .folder, "项目文件_v3",
+       roles: ["source-archive"],
+       signals: ["project-token", "loc-documents"],
+       locKind: .documents,
+       tokens: ["项目", "source", "v3"]),
+    nc("cjk-backup-year", .archive, "备份_2025年终.tar.gz",
+       roles: ["backup-package"],
+       signals: ["same-parent", "loc-downloads"],
+       locKind: .downloads,
+       tokens: ["备份", "backup", "2025"]),
+    nc("cjk-manual", .file, "使用说明.pdf",
+       roles: ["project-doc"],
+       signals: ["loc-desktop"],
+       locKind: .desktop,
+       tokens: ["使用说明", "guide"]),
+    nc("arch-v1-dmg", .archive, "SimpleZip-1.0.0.dmg",
+       roles: ["release-artifact", "installer-package"],
+       signals: ["project-token", "source-ref-match"],
+       locKind: .downloads,
+       tokens: ["simplezip", "release", "version", "dmg"]),
+    nc("arch-v1-1-dmg", .archive, "SimpleZip-1.1.0.dmg",
+       roles: ["release-artifact", "installer-package"],
+       signals: ["project-token", "source-ref-match"],
+       locKind: .downloads,
+       tokens: ["simplezip", "release", "version", "dmg"]),
+    nc("arch-v2-dmg", .archive, "SimpleZip-2.0.0.dmg",
+       roles: ["release-artifact", "installer-package"],
+       signals: ["project-token", "source-ref-match", "recent"],
+       locKind: .downloads,
+       tokens: ["simplezip", "release", "version", "dmg"]),
+    nc("rpt-release-044", .report, "release-report-0.4.4.pdf",
+       roles: ["release-artifact"],
+       signals: ["source-ref-match", "recent"],
+       locKind: .documents,
+       tokens: ["release", "report", "simplezip"]),
+    nc("rpt-security", .report, "security-scan.pdf",
+       roles: ["security-report"],
+       signals: ["failed", "source-ref-match"],
+       locKind: .documents,
+       tokens: ["security", "scan", "risk"]),
+    nc("rpt-notary", .report, "notarization-log.txt",
+       roles: ["release-artifact"],
+       signals: ["running", "project-token"],
+       locKind: .downloads,
+       tokens: ["notarize", "release", "log"]),
+    nc("act-notarize", .action, "notarize.sh",
+       roles: ["release-artifact"],
+       signals: ["running", "project-token"],
+       locKind: .documents,
+       tokens: ["notarize", "release", "script"]),
+    nc("act-upload", .action, "upload-release.sh",
+       roles: ["release-artifact"],
+       signals: ["failed", "recent-interaction"],
+       locKind: .documents,
+       tokens: ["upload", "release", "script"]),
+    nc("note-release-plan", .note, "Release notes draft",
+       roles: ["release-notes"],
+       signals: ["project-token"],
+       locKind: .documents,
+       tokens: ["release", "notes", "draft"]),
+    nc("note-security-triage", .note, "Security triage note",
+       roles: ["project-doc"],
+       signals: ["failed"],
+       locKind: .desktop,
+       tokens: ["security", "triage", "note"]),
+    nc("entry-root-changelog", .archiveEntry, "CHANGELOG.md",
+       roles: ["release-notes"],
+       signals: ["release", "same-parent"],
+       archives: ["arch-source-tar"],
+       locKind: .documents,
+       tokens: ["changelog", "release", "version"]),
+    nc("entry-appicon", .archiveEntry, "SimpleZip/AppIcon.icns",
+       roles: ["release-artifact"],
+       signals: ["project-token", "source-ref-match"],
+       archives: ["arch-source-tar"],
+       locKind: .documents,
+       tokens: ["simplezip", "appicon", "release"]),
+    nc("entry-info-plist", .archiveEntry, "SimpleZip/Info.plist",
+       roles: ["config"],
+       signals: ["project-token"],
+       archives: ["arch-source-tar"],
+       locKind: .documents,
+       tokens: ["simplezip", "plist", "config"]),
+    nc("entry-license", .archiveEntry, "LICENSE",
+       roles: ["project-doc"],
+       signals: ["same-parent"],
+       archives: ["arch-source-tar"],
+       locKind: .documents,
+       tokens: ["license", "project", "doc"]),
 ]
 
 private let releaseStrongTokens = ["simplezip", "release", "0.4.5", "sign", "integrity"]
@@ -1053,7 +1176,7 @@ private func sep() { print("  " + String(repeating: "-", count: 50)) }
     // MARK: ⑧ ThemeEngine — 聚类质量
 
     @Test func benchmarkThemeEngine() {
-        header("⑧ AIWorkspaceThemeEngine — 聚类质量（发布工作流池 33候选）")
+        header("⑧ AIWorkspaceThemeEngine — 聚类质量（发布工作流池 50候选）")
 
         let themes = AIWorkspaceThemeEngine.discoverThemes(
             from: releasePool, attention: AIAttentionContext(), now: T0)
@@ -1316,8 +1439,6 @@ private func sep() { print("  " + String(repeating: "-", count: 50)) }
         // 1 次负反馈是否把 A（rel=0.92）压到 C（rel=0.78,neg=0）以下？不应该。
         let wsA1neg = ws("A1neg", "测试-1负反馈", relevance: 0.92, opens: 14,
                          dwellSec: 4200, lastOpenDays: 0.5, negFeedback: 1)
-        let wsC     = syntheticWorkspaces[2]   // C: rel=0.78, neg=2 but already penalized
-        let wsD     = syntheticWorkspaces[3]   // D: rel=0.65, neg=0
         let sA1neg  = AIWorkspaceRanking.score(wsA1neg, now: now)
         let sD      = scores[3]
         // neg1_over_D: 1负反馈后 A 是否仍高于 D（rel=0.65）; 1=是(好) 0=否(说明单次踩过重)
@@ -1419,7 +1540,7 @@ private func sep() { print("  " + String(repeating: "-", count: 50)) }
         print("METRIC:learn_cap_neutral_days:\(lsCapNeutralDays)")
 
         // ─── F. ThemeEngine 主题检测数 ────────────────────────────────────────
-        // releasePool 33 件：已知有 release+sign 簇、source 簇，及散件
+        // releasePool 50 件：覆盖 release/sign、source、CJK、版本序列、report/action/note/archiveEntry 及散件
         let themes = AIWorkspaceThemeEngine.discoverThemes(from: releasePool, now: now)
         print("METRIC:theme_count:\(themes.count)")
 
