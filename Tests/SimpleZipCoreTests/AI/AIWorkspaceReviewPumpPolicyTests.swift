@@ -41,6 +41,24 @@ import Testing
                                             activityLevel: .aggressive).candidateLimit == 12)
     }
 
+    @Test func discoveryBudgetsScaleWithDisplayLimitAndActivityLevel() {
+        let off = AIWorkspaceReviewPumpPolicy(displayLimit: 4, hiddenCandidateCount: 0, activityLevel: .off)
+        #expect(!off.allowsAutomaticIteration)
+        #expect(off.discoveryFileRecordLimit == 0)
+        #expect(off.discoveryTaskRecordLimit == 0)
+
+        let normal = AIWorkspaceReviewPumpPolicy(displayLimit: 4, hiddenCandidateCount: 0,
+                                                 activityLevel: .balanced)
+        #expect(normal.allowsAutomaticIteration)
+        #expect(normal.discoveryFileRecordLimit == 2_000)
+        #expect(normal.discoveryTaskRecordLimit == 400)
+
+        let max = AIWorkspaceReviewPumpPolicy(displayLimit: 8, hiddenCandidateCount: 0,
+                                              activityLevel: .aggressive)
+        #expect(max.discoveryFileRecordLimit == 6_000)
+        #expect(max.discoveryTaskRecordLimit == 900)
+    }
+
     @Test func reviewPumpGetsLazyAfterConfiguredWatermark() {
         let normal = AIWorkspaceReviewPumpPolicy(displayLimit: 8, hiddenCandidateCount: 18,
                                                  activityLevel: .balanced)
@@ -56,6 +74,17 @@ import Testing
         #expect(!max.isLazy(approvedCount: 3))
         #expect(max.isLazy(approvedCount: 4))
         #expect(max.reviewDelaySeconds(approvedCount: 4) == 6)
+    }
+
+    @Test func idleCompetitionCadenceComesFromActivityLevel() {
+        #expect(AIWorkspaceReviewPumpPolicy(displayLimit: 4, hiddenCandidateCount: 18,
+                                            activityLevel: .off).idleCompetitionDelaySeconds.isInfinite)
+        #expect(AIWorkspaceReviewPumpPolicy(displayLimit: 4, hiddenCandidateCount: 18,
+                                            activityLevel: .powerSaver).idleCompetitionDelaySeconds == 120)
+        #expect(AIWorkspaceReviewPumpPolicy(displayLimit: 4, hiddenCandidateCount: 18,
+                                            activityLevel: .balanced).idleCompetitionDelaySeconds == 45)
+        #expect(AIWorkspaceReviewPumpPolicy(displayLimit: 4, hiddenCandidateCount: 18,
+                                            activityLevel: .aggressive).idleCompetitionDelaySeconds == 25)
     }
 
     @Test func noHiddenCandidatesNeedNoReviews() {

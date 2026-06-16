@@ -20,11 +20,6 @@ final class AIWorkspaceDiscoveryCoordinator {
     private var cancellable: AnyCancellable?
     private var refreshTask: Task<Void, Never>?
     private var activated = false
-    // 候选池上限(安全阀,非性能止血):聚类已改倒排索引 + 挪出 MainActor(`AIWorkspaceThemeEngine` /
-    // `AIWorkspaceStore.refreshRecommendations`),故可放宽到覆盖更多文件以保留推荐质量。
-    private static let startupFileCandidateLimit = 2000
-    private static let startupTaskCandidateLimit = 400
-
     /// 启动后台发现。订阅活动任务历史**数量变化**(去重 → 避开进度刷新风暴)→ 排队重跑发现;`@Published` 在订阅时
     /// 即推送当前值,故首轮发现会被排队触发。重复调用安全(已激活则只补排一轮)。顺带 kick 一轮 opt-in 文件预索引
     /// (门控未过则什么都不做)—— 索引完成后它会回调 `refresh()` 把新文件记录纳入。
@@ -45,10 +40,15 @@ final class AIWorkspaceDiscoveryCoordinator {
     /// 任务来源 = 活动任务历史(封顶最近 120 条)。store 内部 gated(AI 主开关 + 显示推荐),主题无变化时不刷新
     /// UI(值相等守卫,A17 安全)。**与当前文件夹无关。**
     func refresh() {
-        let tasks = TaskCenter.shared.history.prefix(Self.startupTaskCandidateLimit).map(\.aiTaskRecord)
-        let files = AIBackgroundIndexStore.shared.recentFileRecords(limit: Self.startupFileCandidateLimit)
+        let policy = AIWorkspaceReviewPumpPolicy(
+            displayLimit: AppPreferences.aiMaxRecommendedWorkspaces,
+            hiddenCandidateCount: 0,
+            activityLevel: AppPreferences.aiBackgroundActivityLevel)
+        guard policy.allowsAutomaticIteration else { return }
+        let tasks = TaskCenter.shared.history.prefix(policy.discoveryTaskRecordLimit).map(\.aiTaskRecord)
+        let files = AIBackgroundIndexStore.shared.recentFileRecords(limit: policy.discoveryFileRecordLimit)
         // 本会话扫到的 记录 id → 真实路径(给节点「显示来源目录 / 在 Finder 显示 / 哈希」用;路径不落盘)。
-        let paths = AIBackgroundIndexStore.shared.pathsBySourceRef()
+        let paths = AIBackgroundIndexStore.shared.pathsBySourceRef(limit: max(policy.discoveryFileRecordLimit, 1))
         AIWorkspaceStore.shared.refreshRecommendations(files: files, tasks: Array(tasks), pathsBySourceRef: paths)
     }
 

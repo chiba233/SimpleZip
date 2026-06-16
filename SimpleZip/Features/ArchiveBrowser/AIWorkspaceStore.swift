@@ -308,6 +308,10 @@ final class AIWorkspaceStore: ObservableObject {
             displayLimit: AppPreferences.aiMaxRecommendedWorkspaces,
             hiddenCandidateCount: pendingCandidates.count,
             activityLevel: AppPreferences.aiBackgroundActivityLevel)
+        guard policy.allowsAutomaticIteration else {
+            reviewPumpTask?.cancel()
+            return
+        }
         let approved = themeVerdicts.values.filter(\.approved).count
         guard reviewInFlight.isEmpty else { return }
         guard let next = nextThemeReviewCandidate(now: Date(), policy: policy, approvedCount: approved) else {
@@ -316,7 +320,7 @@ final class AIWorkspaceStore: ObservableObject {
             // 持续角逐。新文件 / 新候选进来会重新出现可复核项,自然回到全速复核。
             republishReviewedThemes()
             verifyOneVisibleFolder()   // **动态核查**:轮转核查一个可见文件夹,剔除不扣题成员
-            scheduleReviewPump(after: 25)
+            scheduleReviewPump(after: policy.idleCompetitionDelaySeconds)
             return
         }
         let attempt = reviewAttemptsByTheme[next.id, default: 0] + 1
@@ -429,10 +433,19 @@ final class AIWorkspaceStore: ObservableObject {
         }
     }
 
-    /// 复核结束后排下一轮泵:**全速**把所有候选过完(单次复核的质量靠 12 代重试,不靠拉长泵间隔 —— 用户嫌等太久)。
-    /// 全部复核完后由 `pumpThemeReviews` 自己转成 25s 慢竞争 tick。`minDelay` 给失败 / 过期路径一个最小间隔。
+    /// 复核结束后排下一轮泵:节奏走「本地 AI 活跃度」设置。normal / aggressive 到各自显示水位后变懒,
+    /// power saver 更慢,off 不排下一轮。`minDelay` 给失败 / 过期路径一个最小间隔。
     private func rescheduleReviewPump(minDelay: TimeInterval = 0) {
-        scheduleReviewPump(after: max(minDelay, 1.0))
+        let policy = AIWorkspaceReviewPumpPolicy(
+            displayLimit: AppPreferences.aiMaxRecommendedWorkspaces,
+            hiddenCandidateCount: pendingCandidates.count,
+            activityLevel: AppPreferences.aiBackgroundActivityLevel)
+        guard policy.allowsAutomaticIteration else {
+            reviewPumpTask?.cancel()
+            return
+        }
+        let approved = themeVerdicts.values.filter(\.approved).count
+        scheduleReviewPump(after: max(minDelay, policy.reviewDelaySeconds(approvedCount: approved)))
     }
 
     private func scheduleReviewPump(after seconds: TimeInterval) {

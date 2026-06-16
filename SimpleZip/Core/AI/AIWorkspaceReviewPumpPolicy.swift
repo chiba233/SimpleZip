@@ -31,6 +31,36 @@ nonisolated struct AIWorkspaceReviewPumpPolicy: Codable, Equatable, Sendable {
         }
     }
 
+    var allowsAutomaticIteration: Bool {
+        activityLevel != .off
+    }
+
+    var discoveryFileRecordLimit: Int {
+        switch activityLevel {
+        case .off:
+            return 0
+        case .powerSaver:
+            return min(1_000, displayLimit * 200)
+        case .balanced:
+            return min(2_500, displayLimit * 500)
+        case .aggressive:
+            return min(6_000, displayLimit * 750)
+        }
+    }
+
+    var discoveryTaskRecordLimit: Int {
+        switch activityLevel {
+        case .off:
+            return 0
+        case .powerSaver:
+            return min(80, displayLimit * 20)
+        case .balanced:
+            return min(400, displayLimit * 100)
+        case .aggressive:
+            return min(900, displayLimit * 150)
+        }
+    }
+
     var minimumVisibleTarget: Int {
         min(2, min(displayLimit, hiddenCandidateCount))
     }
@@ -69,16 +99,29 @@ nonisolated struct AIWorkspaceReviewPumpPolicy: Codable, Equatable, Sendable {
     }
 
     func reviewDelaySeconds(approvedCount: Int) -> Double {
+        guard allowsAutomaticIteration else { return .infinity }
         guard isLazy(approvedCount: approvedCount) else { return 0.35 }
         switch activityLevel {
-        case .off:
-            return .infinity
+        case .off: return .infinity
         case .powerSaver:
             return 60
         case .balanced:
             return 12
         case .aggressive:
             return 6
+        }
+    }
+
+    var idleCompetitionDelaySeconds: Double {
+        switch activityLevel {
+        case .off:
+            return .infinity
+        case .powerSaver:
+            return 120
+        case .balanced:
+            return 45
+        case .aggressive:
+            return 25
         }
     }
 
