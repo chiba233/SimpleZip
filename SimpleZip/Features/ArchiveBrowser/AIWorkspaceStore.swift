@@ -66,6 +66,8 @@ final class AIWorkspaceStore: ObservableObject {
     /// 动态核查:上次核查时间(轮转,每轮挑最久没核查的可见文件夹)+ 是否有核查在飞(串行)。
     private var lastVerifiedAt: [UUID: Date] = [:]
     private var verificationInFlight = false
+    /// 被剔成员**复议**(非黑名单):上次复议时间(轮转)。预读 enriched 内容后,被剔成员可能重新强扣题 → 放回。
+    private var lastReconsideredAt: [UUID: Date] = [:]
 
     // 模型门控的后台发现(用户:建文件夹是后台行为,模型复核「真能撑起一个主题」才出现,质量优先不保数量):
     private typealias PendingThemeCandidate = (
@@ -319,7 +321,8 @@ final class AIWorkspaceStore: ObservableObject {
             // 按**当前**竞争分(含 recency 衰减)重排可见 → 久不用 / 弱的可见被强候选顶下去,再排一个慢周期 tick
             // 持续角逐。新文件 / 新候选进来会重新出现可复核项,自然回到全速复核。
             republishReviewedThemes()
-            verifyOneVisibleFolder()   // **动态核查**:轮转核查一个可见文件夹,剔除不扣题成员
+            verifyOneVisibleFolder()      // **动态核查**:轮转核查一个可见文件夹,剔除不扣题成员
+            reconsiderExcludedMembers()   // **复议**:预读 enriched 内容后,被剔成员重新强扣题 → 放回(非黑名单)
             scheduleReviewPump(after: policy.idleCompetitionDelaySeconds)
             return
         }
@@ -390,6 +393,48 @@ final class AIWorkspaceStore: ObservableObject {
             self.treeSnapshots[id] = nil   // 重建去掉不扣题成员的树(sig 不变 → 仍用缓存 plan,只是 visible 层少了它们)
             self.objectWillChange.send()
         }
+    }
+
+    /// **被剔成员复议**(用户:剔除不是黑名单;靠预读 enriched 的内容重新判「很贴题」就放回,可能进别的文件夹)。
+    /// 轮转挑一个有 autoExcluded 成员的可见文件夹,对每个被剔成员用**内容派生** token(contentSummary 标题 / 字段名、
+    /// 归档内部地图 token —— 都进了候选 `semanticTokens`,**不含 displayName 本身的 token**)重新比对主题:强命中
+    /// (≥2 个精确 token)→ 从 autoExcluded 移除。只认内容/marker 派生信号 → 必须是**预读后新增的证据**才放回,避免
+    /// 和动态核查剔除来回拉锯(被剔时只有名字,放回要新内容)。确定性、无额外模型调用、虚拟(不碰磁盘)。
+    private func reconsiderExcludedMembers() {
+        let candidates = collection.workspaces.filter {
+            $0.visibility == .visible && !(autoExcluded[$0.id]?.isEmpty ?? true)
+        }
+        guard let ws = candidates.min(by: {
+            (lastReconsideredAt[$0.id] ?? .distantPast) < (lastReconsideredAt[$1.id] ?? .distantPast)
+        }) else { return }
+        lastReconsideredAt[ws.id] = Date()
+        let excluded = autoExcluded[ws.id] ?? []
+        guard !excluded.isEmpty else { return }
+        // 主题 token = 关键词 + 种子提示词 + 当前(未被剔)成员名字 token。
+        var themeTokens = Set<String>()
+        for t in ws.queryPlan.keywords + (seeds[ws.id]?.themePrompts ?? []) { themeTokens.formUnion(simpleTokens(t)) }
+        if let fed = modelFed[ws.id] {
+            for m in fed where !m.sourceRefs.contains(where: { excluded.contains($0) }) {
+                themeTokens.formUnion(simpleTokens(m.displayName))
+            }
+        }
+        guard !themeTokens.isEmpty else { return }
+        // 被剔候选:只用**内容/marker 派生** token(语义 token 减去名字 token)→ 强命中才放回。
+        var reinstated = Set<AIContextSourceRef>()
+        for cand in pool where cand.sourceRefs.contains(where: { excluded.contains($0) }) {
+            let nameToks = simpleTokens(cand.displayName)
+            let contentToks = Set(cand.semanticTokens.map { $0.lowercased() }).subtracting(nameToks)
+            if contentToks.intersection(themeTokens).count >= 2 {
+                reinstated.formUnion(cand.sourceRefs.filter { excluded.contains($0) })
+            }
+        }
+        guard !reinstated.isEmpty else { return }
+        let remaining = excluded.subtracting(reinstated)
+        autoExcluded[ws.id] = remaining.isEmpty ? nil : remaining
+        saveAutoExcluded()
+        treeCache[ws.id] = nil
+        treeSnapshots[ws.id] = nil   // 重建带回放回成员的树(sig 不变 → 仍用缓存 plan,visible 层多回它们)
+        objectWillChange.send()
     }
 
     /// 后台复核一个候选主题(模型判断值不值得出现 + 产出 plan)。串行闸保证不与其它生成重叠。
