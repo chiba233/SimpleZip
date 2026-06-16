@@ -201,8 +201,12 @@ struct AIWorkspaceView: View {
             model.testArchives(at: [URL(fileURLWithPath: path)])
         case .createArchive(let paths), .createArchiveFromSuggestion(let paths, _, _):
             model.createArchive(fromFinderURLs: paths.map { URL(fileURLWithPath: $0) })
+        case .inspectRelease(let path):
+            model.inspectArchiveForRelease(at: URL(fileURLWithPath: path))
+        case .convertArchive(let path):
+            model.requestConvertArchives(at: [URL(fileURLWithPath: path)])
         default:
-            break   // 其余(转换 / 发布检查 / evidence-ref 类)后续接 —— 写盘动作回原生确认流
+            break   // evidence-ref / 写盘 / 虚拟管理类:后续接(需 source-ref 回查)—— 写盘动作回原生确认流
         }
     }
 }

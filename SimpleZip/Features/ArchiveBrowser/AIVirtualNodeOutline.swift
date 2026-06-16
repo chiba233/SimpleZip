@@ -128,19 +128,9 @@ struct AIVirtualNodeOutline: NSViewRepresentable {
         }
 
         private func buildItem(_ node: AIVirtualNode) -> Item {
-            let children: [Item]
-            if node.kind == .group {
-                // 分组:子节点 + **组级 AI 建议(压缩这些)** 作为额外行(展开时可见)。
-                var kids = node.children.map { buildItem($0) }
-                kids += AIWorkspaceNodeActions.suggestions(for: node).map {
-                    Item(id: "gs-\(node.id)-\($0.id)", node: nil, suggestion: $0, children: [])
-                }
-                children = kids
-            } else {
-                children = AIWorkspaceNodeActions.suggestions(for: node).map {
-                    Item(id: "s-\(node.id)-\($0.id)", node: nil, suggestion: $0, children: [])
-                }
-            }
+            // 子节点全部来自 `node.children`:分组的成员叶子 + builder 给叶子挂的**模型生成 `.action` 建议节点**。
+            // **不再硬编码常驻建议** —— 节点有 AI 建议(.action 子)才可展开、才有箭头;没有就不展开。手动动作走右键。
+            let children = node.children.map { buildItem($0) }
             return Item(id: "n-\(node.id)", node: node, suggestion: nil, children: children)
         }
 

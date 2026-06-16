@@ -562,6 +562,14 @@ extension ArchiveBrowserModel {
         convertArchiveRequest = request
     }
 
+    /// 路径化转换入口(AI 文件夹建议 / 非选区调用用):对给定归档弹转换面板,不依赖当前选区。
+    func requestConvertArchives(at urls: [URL]) {
+        guard !urls.isEmpty else { return }
+        var request = ConvertArchiveRequest(sourceURLs: urls)
+        request.verifyAfterConvert = AppPreferences.verifyAfterArchiveCreate
+        convertArchiveRequest = request
+    }
+
     /// #14:多源的公共祖先目录(标准化路径逐级求交)。单源 = 其父目录。
     private nonisolated static func commonAncestorDirectory(of urls: [URL]) -> URL? {
         let parents = urls.map { $0.deletingLastPathComponent().standardizedFileURL.pathComponents }

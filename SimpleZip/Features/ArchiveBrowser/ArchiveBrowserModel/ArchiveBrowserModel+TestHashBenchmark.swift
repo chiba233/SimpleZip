@@ -1173,6 +1173,11 @@ extension ArchiveBrowserModel {
 
     /// 右键「发布包检查…」：对选中的单个归档跑一套发布前检查（能否解压 / 危险路径 / 垃圾 /
     /// 空目录 / 大小写冲突 / symlink / 可执行权限 / SHA-256），出报告 sheet。
+    /// 路径化发布检查入口(AI 文件夹建议 / 其它非选区调用用):直接对一个归档跑发布检查,不依赖当前选区。
+    func inspectArchiveForRelease(at url: URL) {
+        runReleaseInspection(url)
+    }
+
     func inspectSelectedArchiveForRelease() {
         let archiveURL: URL?
         switch mode {
