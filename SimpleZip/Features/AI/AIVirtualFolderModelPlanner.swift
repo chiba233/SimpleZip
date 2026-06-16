@@ -19,32 +19,20 @@ import Foundation
 import FoundationModels
 
 /// 模型产出的单个虚拟目录组(扁平一层,可靠性优先 —— 递归 @Generable 易抖)。
+/// **最简字段**:小模型对这套门控生成单次失败率极高(实测 ~90%),去掉 reason 自由文本等一切非必需输出。
 @available(macOS 26.0, *)
 @Generable
 struct GeneratedAIFolderGroup: Sendable {
     @Guide(description: "A short human folder name for this group, by what the items ARE or their shared topic (e.g. a couple of words like 'source code', 'figures', 'drafts'). No path, no slashes, 1-3 words.")
     var title: String
-    @Guide(description: "One short phrase on why these belong together. May be empty.")
-    var reason: String
     @Guide(description: "The item NUMBERS (the leftmost column of the items list, e.g. \"3\", \"7\") that belong in this group. Use only numbers that actually appear in the list; never invent one.")
     var candidateIDs: [String]
     @Guide(description: "True ONLY for the one (at most two) group the user should see expanded first — the most important / most worth their attention right now. Leave the rest false (collapsed). Most groups should be false; never mark everything true.")
     var expandFirst: Bool
 }
 
-/// 模型给单个条目挑的一条 AI 建议(纯模型生成,非硬编码常驻 —— 用户:「ai suggestion 必须 ai 给明确信号才弹」)。
-@available(macOS 26.0, *)
-@Generable
-struct GeneratedAINodeSuggestion: Sendable {
-    @Guide(description: "The item NUMBER (the leftmost column of the items list) this suggestion is for.")
-    var targetID: String
-    @Guide(description: "ONE action token from the allowed-actions list given in the instructions (e.g. hash, compress, test, inspect, convert). Use a token whose 'applies to' kinds include this item's kind; otherwise pick none.")
-    var action: String
-    @Guide(description: "One short, concrete reason the user would want this action on THIS item. May be empty.")
-    var reason: String
-}
-
-/// 模型产出的整份虚拟目录 plan。
+/// 模型产出的整份虚拟目录 plan。**门控只产「值不值得 + 命名 + 分组」三件**;AI 建议改成通过后单独生成
+/// (嵌套 suggestions 数组会显著拉高单次生成失败率,而门控可靠性是 AI 文件夹的命脉)。
 @available(macOS 26.0, *)
 @Generable
 struct GeneratedAIFolderPlan: Sendable {
@@ -54,8 +42,6 @@ struct GeneratedAIFolderPlan: Sendable {
     var workspaceTitle: String
     @Guide(description: "Between 2 and 6 groups organizing the items that truly belong by meaning. Put each kept item in exactly one group; prefer a small number of clear, well-named groups over many tiny ones.")
     var groups: [GeneratedAIFolderGroup]
-    @Guide(description: "Optional per-item action suggestions — ONLY where there is a clear, specific reason for THAT item (e.g. an untested release archive → test; a big stray folder → compress). MOST items get NONE. Never suggest an action just because it is possible. Leave empty if nothing genuinely stands out.")
-    var suggestions: [GeneratedAINodeSuggestion]
 }
 
 /// 一次模型复核的结果:是否值得作为文件夹出现 + 它的 plan(命名 / 选成员 / 分组)。
@@ -67,28 +53,17 @@ struct AIFolderReview: Sendable {
 
 @available(macOS 26.0, *)
 enum AIVirtualFolderModelPlanner {
-    /// 命名 + 语言规则(两个 prompt 共用)。修用户报的「文件夹名总出现 AI / AI项目 之类」——禁止把 AI / 文件夹 /
-    /// 集合 等元词塞进名字,要按真实主题起名;给人看的字段按界面语言写,candidateID 照抄不翻译。
+    /// 命名 + 语言规则(两个 prompt 共用)。**语言放最前 + 强制**(修用户报的「文件夹名经常语言不一致」):给人看的
+    /// workspaceTitle / 分组名必须用界面语言;禁止 AI / 文件夹 / 集合 等元词塞进名字,要按真实主题起名。
     static var namingRule: String {
-        """
-        Write the workspaceTitle, every group title and every reason in \(AIReportAssistant.uiLanguageName) (these \
-        are shown to the user). Name everything by its REAL subject — the actual topic, project, or what the items \
-        are — exactly as a person would name it. NEVER put meta words like "AI", "assistant", "folder", "collection", \
-        "group", "files", "directory", "workspace" or "smart" into any title unless that word is literally part of \
-        the real subject. The candidateID values are opaque identifiers — copy them exactly, never translate them.
-        """
-    }
-
-    /// 可建议动作词表(喂模型,让它从中给条目挑建议;**绝不让它拼路径**)。和 `allowedSuggestionDescriptors` 同源。
-    static var actionVocabularyRule: String {
-        let lines = AIVirtualNodeActionDeriver.allowedSuggestionDescriptors.map {
-            "  - \($0.id) (applies to: \($0.appliesToKinds.joined(separator: " / "))): \($0.userVisibleLabel)"
-        }
+        let lang = AIReportAssistant.uiLanguageName
         return """
-        You may optionally attach a few per-item action suggestions, but ONLY when there is a clear, specific reason \
-        for that one item — most items get NONE, never suggest an action just because it is possible. Pick the action \
-        token VERBATIM from this list and target the item by its NUMBER:
-        \(lines.joined(separator: "\n"))
+        LANGUAGE — MANDATORY: write the workspaceTitle and EVERY group title in \(lang). Never use any other \
+        language for them, not even partially. Name everything by its REAL subject — the actual topic, project, or \
+        what the items are — exactly as a person would name it in \(lang). NEVER put meta words like "AI", \
+        "assistant", "folder", "collection", "group", "files", "directory", "workspace" or "smart" into any title \
+        unless that word is literally part of the real subject. The item numbers are plain integers — use them \
+        exactly as given, never translate or alter them.
         """
     }
 
@@ -135,11 +110,9 @@ enum AIVirtualFolderModelPlanner {
         treat these as strong guidance learned from this user: favor items like the ones they keep, leave out items \
         like the ones they removed, and reuse the group names/themes they picked.
 
-        \(Self.actionVocabularyRule)
-
         \(Self.namingRule)
         """
-        let cands = Array(input.candidates.prefix(70))   // 短 prompt 更稳(实测大生成 ~70% 报错)
+        let cands = Array(input.candidates.prefix(40))   // 短 prompt 更稳(单次生成失败率随长度飙升)
         var lines: [String] = []
         let ws = input.workspace
         if let prompt = ws.prompt, !prompt.isEmpty { lines.append("Folder theme: \(prompt)") }
@@ -152,7 +125,7 @@ enum AIVirtualFolderModelPlanner {
         }
         let generated = try await AIReportAssistant.generateStructured(
             instructions: instructions, prompt: lines.joined(separator: "\n"), as: GeneratedAIFolderPlan.self,
-            maxAttempts: 5)   // 重 schema:连试 5 代把「报错」压到near-zero(用户要求多迭代提准确度)
+            maxAttempts: 8)   // 小模型单次失败率极高:连试 8 代 + 极简 schema + 短 prompt 一起压报错
 
         return Self.assemble(generated, candidates: cands).plan
     }
@@ -182,11 +155,9 @@ enum AIVirtualFolderModelPlanner {
         treat these as strong guidance: a theme the user has actively curated is more worth surfacing, and you \
         should honor what they keep, leave out, and how they name groups.
 
-        \(Self.actionVocabularyRule)
-
         \(Self.namingRule)
         """
-        let cands = Array(input.candidates.prefix(70))   // 短 prompt 更稳(实测大生成 ~70% 报错)
+        let cands = Array(input.candidates.prefix(40))   // 短 prompt 更稳(单次生成失败率随长度飙升)
         var lines: [String] = []
         let ws = input.workspace
         if let prompt = ws.prompt, !prompt.isEmpty { lines.append("Folder theme: \(prompt)") }
@@ -199,7 +170,7 @@ enum AIVirtualFolderModelPlanner {
         }
         let generated = try await AIReportAssistant.generateStructured(
             instructions: instructions, prompt: lines.joined(separator: "\n"), as: GeneratedAIFolderPlan.self,
-            maxAttempts: 5)   // 重 schema:连试 5 代把「报错」压到near-zero(用户要求多迭代提准确度)
+            maxAttempts: 8)   // 小模型单次失败率极高:连试 8 代 + 极简 schema + 短 prompt 一起压报错
         return Self.assemble(generated, candidates: cands)
     }
 
@@ -212,23 +183,11 @@ enum AIVirtualFolderModelPlanner {
             AIVirtualFolderGroupPlan(
                 id: "model-\(index)",
                 title: g.title,
-                reason: g.reason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : g.reason,
                 candidateIDs: g.candidateIDs.compactMap { realID($0, in: candidates) },
                 prominent: g.expandFirst)   // AI 注意力:这组该不该默认展开
         }
-        // 模型挑的 AI 建议 → plan.suggestions(token 必须在词表内,否则丢;targetID 翻译回真实 id,kind/路径由 builder 再校验)。
-        let suggestions = generated.suggestions.compactMap { s -> AINodeSuggestionPlan? in
-            let token = s.action.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            guard !token.isEmpty,
-                  AIVirtualNodeActionDeriver.allowedSuggestionDescriptors.contains(where: { $0.id == token }),
-                  let target = realID(s.targetID, in: candidates)
-            else { return nil }
-            let reason = s.reason.trimmingCharacters(in: .whitespacesAndNewlines)
-            return AINodeSuggestionPlan(targetCandidateID: target, actionToken: token,
-                                        reason: reason.isEmpty ? nil : reason)
-        }
-        let plan = AIVirtualFolderPlan(workspaceTitle: title.isEmpty ? nil : title,
-                                       groups: groups, suggestions: suggestions)
+        // 门控不再产 AI 建议(suggestions 留空 → 通过后单独生成);最简 schema 提可靠性。
+        let plan = AIVirtualFolderPlan(workspaceTitle: title.isEmpty ? nil : title, groups: groups)
         return AIFolderReview(worthSurfacing: generated.worthSurfacing, plan: plan)
     }
 
