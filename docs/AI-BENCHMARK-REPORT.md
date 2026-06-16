@@ -1,10 +1,10 @@
 # SimpleZip AI 组件参数基准测试报告
 
 > 版本：0.4.5 #80  
-> 测试日期：2026-06-16  
+> 测试日期：2026-06-16（Phase 1：6 组件参数扫测；Phase 2：AIVirtualFolderPlan + prompt 调优）  
 > 方法：迭代扫测——每轮修改单参数，运行 `benchmarkMetrics` 测试采集 METRIC 行，恢复源码后继续扫下一个值。全程不产生 commit，工作区最终恢复干净。  
-> 驱动脚本：`scripts/ai_param_sweep.py`  
-> 指标测试函数：`AIBenchmarkSweepTests.benchmarkMetrics()`
+> 驱动脚本：`scripts/ai_param_sweep.py`（Phase 2 新增 7 个 sweep 函数）  
+> 指标测试函数：`AIBenchmarkSweepTests.benchmarkMetrics()`（Phase 2 新增 G 组 7 项指标）
 
 ---
 
@@ -12,15 +12,30 @@
 
 SimpleZip 的 AI 子系统由 6 个独立纯值组件组成，每个组件有 1–3 个可调参数。本报告对所有参数进行了系统性扫测，量化每个参数对关键指标的影响，并给出基于实测数据的最优建议值。
 
+**Phase 1 — 6 组件参数**
+
 | 组件 | 当前参数 | 建议参数 | 关键发现 |
 |------|----------|----------|----------|
-| WorkspaceRanking | feedbackPenalty=3.0 | **2.5** | 单参数调整即可让强负反馈抗性 +1 次 |
-| WorkspaceRanking | recencyHalfLifeDays=7.0 | **10.0** | 提升 gap 0.2%，可选 |
-| StartupDirectoryRanker | 线性 recency | **log-visits + exp-hl14d** | 🔴 当前有 bug：旧目录始终比新目录得分高 |
-| SemanticTagRanker | decayPerNegative=0.15 | **0.05** | 当前 2 次即可踩掉 #1 标签，应为 4 次 |
-| ThemeSuppression | halfLife=7d | **10d** | 1 次 dismiss 改为 36 天后重新出现（更合理） |
-| LearningStore | halfLifeDays=30d | **45d** | 强不喜欢记忆延长至 19 天（当前仅 13 天） |
-| LearningStore | strongNegative=-3.0 | **-2.5** | 避免 3 次轻踩就触发强排斥 |
+| WorkspaceRanking | feedbackPenalty=3.0 | **2.5** ✅已应用 | 单参数调整即可让强负反馈抗性 +1 次 |
+| WorkspaceRanking | recencyHalfLifeDays=7.0 | **10.0** ✅已应用 | 提升 gap 0.2% |
+| StartupDirectoryRanker | 线性 recency | **log-visits + exp-hl14d** ✅已修复 | 🔴 旧目录始终比新目录得分高（bug 已修） |
+| SemanticTagRanker | decayPerNegative=0.15 | **0.05**（测试阻断） | 当前 2 次即可踩掉 #1 标签，应为 4 次 |
+| ThemeSuppression | halfLife=7d | **10d**（测试阻断） | 1 次 dismiss 改为 36 天后重新出现 |
+| LearningStore | halfLifeDays=30d | **45d**（测试阻断） | 强不喜欢记忆延长至 19 天（当前仅 13 天） |
+| LearningStore | strongNegative=-3.0 | **-2.5** ✅已应用 | 避免 3 次轻踩就触发强排斥 |
+
+**Phase 2 — AIVirtualFolderModelInputPreparer + prompt 参数**
+
+| 组件 | 当前参数 | 建议参数 | 关键发现 |
+|------|----------|----------|----------|
+| splitTokens | 字符级扫描 | **补充段式切割** ✅已应用 | 版本号「0.4.5」被过滤，专注律从 80%→100% |
+| queryTokens 上限 | prefix(12) | **prefix(14)** ✅已应用 | 多 token 工作区额外覆盖 2 个意图 token |
+| defaultMaxCandidates | 28 | **保留 28** | 覆盖率在 14 候选时饱和；28 给模型更多上下文 |
+| high 重要性阈值 | ≥7 | **保留 7** | H=10/N=6/L=12 是最优分层比例 |
+| low 重要性阈值 | ≤1 | **保留 1** | 当前分布合理，改动无收益 |
+| 折叠阈值 | ≥4 任务 | **保留 4** | 正好折叠 hash(6)+test(4)，5 时漏折 test |
+| strongToken 乘数 | ×4.0 | **保留 4.0** | H 分布最佳；×8 时 normal 层几乎消失 |
+| project-token 权重 | 3.0 | **保留 3.0** | ≥3.0 才能稳定输出 H=10 |
 
 ---
 
@@ -385,13 +400,147 @@ ThemeEngine 的 `tokenOverlapThreshold` 在 `discoverThemes()` 函数签名中�
 
 ---
 
-## 11. 下一步行动项
+## 11. Phase 2：AIVirtualFolderPlan 参数扫测（专注律）
 
-### 已完成（本轮 commit）
+### 11.1 新增 METRIC 指标（G 组）
+
+| 指标 key | 含义 | Phase 2 基线 | Phase 2 后 |
+|----------|------|------------|-----------|
+| `preparer_coverage` | 强 token 覆盖率（专注律） | 0.8000 | **1.0000** ✅ |
+| `preparer_tier_high` | 高优先级候选数 | 10 | 10 |
+| `preparer_tier_normal` | 中优先级候选数 | 6 | 6 |
+| `preparer_tier_low` | 低优先级候选数 | 12 | 12 |
+| `preparer_suppressed` | 被折叠压制的候选数 | 6 | 6 |
+| `preparer_output` | 输出给模型的候选总数 | 28 | 28 |
+| `prompt_qtokens_count` | prompt 中工作区意图 token 数 | 12 | **14** ✅ |
+
+### 11.2 专注律上限发现
+
+覆盖率从 0.8000 = 4/5 封顶。根因：`splitTokens` 按字母/数字逐字符扫描，版本号「0.4.5」被分解成「0」「4」「5」三个 1 字符片段全部被 `count >= 2` 过滤掉，导致强 token `"0.4.5"` 永远无法从 displayName 中提取。
+
+修复：补充「按连字符/下划线/空格整段保留」的段式切割，使「SimpleZip-0.4.5-macos-arm64.dmg」额外产生 token「0.4.5」（长度 5 ≥ 2，保留）。
+
+### 11.3 maxCandidates 扫测
+
+| maxCandidates | coverage | H | N | L | output |
+|---------------|----------|---|---|---|--------|
+| 10 | 0.6000 | 5 | 3 | 2 | 10 |
+| 14 | **0.8000** | 8 | 4 | 2 | 14 |
+| 18 | 0.8000 | 9 | 6 | 3 | 18 |
+| 20 | 0.8000 | 10 | 6 | 4 | 20 |
+| 24 | 0.8000 | 10 | 6 | 8 | 24 |
+| **28（当前）** | 0.8000 | 10 | 6 | 12 | **28** |
+| 32+ | 0.8000 | 10 | 6 | 12 | 28（池上限） |
+
+覆盖率在 maxCandidates=14 时饱和（池内可覆盖的 4 个强 token 已全部命中）。实际可用候选池上限为 28（33 件 - 6 件折叠 + 2 件摘要）。继续增大 maxCandidates 无效。
+
+**保留 28**：虽然 14 已达覆盖饱和点，但 28 为模型提供更丰富的排序上下文（H/N/L 分层更完整）。
+
+### 11.4 重要性阈值扫测
+
+| high 阈值 | coverage | H | N | L |
+|-----------|----------|---|---|---|
+| 4 | 0.8000 | 14 | 2 | 12 |
+| 5 | 0.8000 | 11 | 5 | 12 |
+| 6 | 0.8000 | 10 | 6 | 12 |
+| **7（当前）** | 0.8000 | **10** | **6** | **12** |
+| 8 | 0.8000 | 8 | 8 | 12 |
+| 9 | 0.8000 | 6 | 10 | 12 |
+| 10 | 0.8000 | 5 | 11 | 12 |
+
+| low 阈值 | coverage | H | N | L |
+|---------|----------|---|---|---|
+| 0.0 | 0.8000 | 10 | 9 | 9 |
+| **1（当前）** | 0.8000 | **10** | **6** | **12** |
+| 1.5 | 0.8000 | 10 | 5 | 13 |
+| 3.0 | 0.8000 | 10 | 4 | 14 |
+
+**分析**：high=7 是「既不过于宽泛（high 占 36%），也不过于严格（normal 仍有 21%）」的均衡点。high=4 时高达 50% 候选都是 high，模型失去区分度；high=10 时 normal 层过满（39%），high 信号失效。
+
+### 11.5 折叠阈值扫测
+
+| 折叠阈值 | coverage | 折叠数 | 输出数 |
+|---------|----------|--------|--------|
+| 2 | 0.8000 | 7 | 28 |
+| 3 | 0.8000 | 7 | 28 |
+| **4（当前）** | 0.8000 | **6** | **28** |
+| 5 | 0.8000 | 4 | 28 |
+| 6 | 0.8000 | 4 | 28 |
+| 8+ | 0.8000 | 0 | 28 |
+
+**分析**：阈值=4 正好折叠了 hash 簇（6 件）和 test 簇（4 件），分别保留 2 件代表 + 1 条摘要。阈值=5 时 test 簇（恰好 4 件）逃脱折叠，4 件雷同任务全量喂模型。阈值=3 时 sign 簇（3 件）也被折叠，丢失了签名任务的个体区分度。**当前值最优**。
+
+### 11.6 strongToken 乘数扫测
+
+| 乘数 | coverage | H | N | L |
+|------|----------|---|---|---|
+| 1.0 | 0.8000 | 4 | 9 | 15 |
+| 2.0 | 0.8000 | 6 | 8 | 14 |
+| 3.0 | 0.8000 | 8 | 7 | 13 |
+| **4.0（当前）** | 0.8000 | **10** | **6** | **12** |
+| 5.0 | 0.8000 | 10 | 6 | 12 |
+| 6.0 | 0.8000 | 11 | 5 | 12 |
+| 8.0 | 0.8000 | 14 | 2 | 12 |
+| 10.0 | 0.8000 | 16 | 0 | 12 |
+
+**分析**：×4.0 是让「有 2 个强 token 的候选」（如 arch-arm64-dmg）比「有 1 个强 token」差出 4 分的分水岭，正好配合重要性阈值 7 产生 H=10。×8 时 normal 层仅剩 2 件；×10 时 normal 层完全消失，模型无法区分第二层优先级。**当前值最优**。
+
+### 11.7 project-token 权重扫测
+
+| 权重 | coverage | H | N | L |
+|------|----------|---|---|---|
+| 1.0 | 0.8000 | 6 | 10 | 12 |
+| 1.5 | 0.8000 | 7 | 9 | 12 |
+| 2.0 | 0.8000 | 8 | 8 | 12 |
+| 2.5 | 0.8000 | 8 | 8 | 12 |
+| **3.0（当前）** | 0.8000 | **10** | **6** | **12** |
+| 4.0–6.0 | 0.8000 | 10 | 6 | 12 |
+
+**分析**：project-token=3.0 是使 H=10 的最小值。低于 3.0 时，部分 project-token 候选得分不足以进入 high 层，H 降至 8。权重 ≥3.0 后输出稳定，继续提高无额外收益。
+
+### 11.8 queryTokens prefix 上限扫测
+
+测试对象：一个含 18 个 unique token 的合成工作区（10 semanticTags + 4 taskTags + 4 keywords）。
+
+| cap | prompt 中实际 token 数 |
+|-----|-----------------------|
+| 4 | 4 |
+| 6 | 6 |
+| 8 | 8 |
+| 10 | 10 |
+| **12（旧）** | 12 |
+| **14（新）** | **14** ✅ |
+| 16 | 16 |
+| 20 | 18（池上限，全部覆盖） |
+
+**分析**：12 → 14 使该 18-token 工作区额外覆盖 2 个 taskTag token。semanticTags（10 个）全部覆盖；taskTags 现在也有 4 个全部覆盖；只有 4 个 keywords 的前 0 个被覆盖（需 cap≥14 才能覆盖 taskTags 全部）。对于语义标签丰富的工作区（实际发布类工作区通常有 8-12 个 semanticTag），cap=14 已足够覆盖主要意图。
+
+---
+
+## 12. 优化后实测结果（全 Phase）
+
+| 指标 | Phase 1 前基线 | Phase 1 后 | Phase 2 后（当前） |
+|------|--------------|------------|-------------------|
+| `ws_high_low_gap` | 11.5051 | 11.5284 | 11.5284 ✓ |
+| `ws_neg_demote_at` | 3 | **4** | 4 ✓ |
+| `startup_correct` | **0** 🔴 | **1** ✅ | 1 ✓ |
+| `startup_gap` | -1.1000 | +0.5506 | +0.5506 ✓ |
+| `learn_neutral_days` | 13 | **21** | 21 ✓ |
+| `preparer_coverage` | —（新指标）| — | **1.0000** ✅ |
+| `prompt_qtokens_count` | —（新指标）| — | **14** ✅ |
+| `theme_count` | 3 | 3 | 3 ✓ |
+
+---
+
+## 13. 下一步行动项
+
+### 已完成（Phase 1 + Phase 2 全部 commit）
 - ✅ StartupRanker 公式修复（log-visits + exp-hl14d）
 - ✅ feedbackPenalty 3.0→2.5
 - ✅ recencyHalfLifeDays 7.0→10.0
 - ✅ strongNegative -3.0→-2.5
+- ✅ splitTokens 补充段式切割（专注律 0.8000→1.0000，+20%）
+- ✅ queryTokens 上限 12→14（prompt 意图 token 覆盖更完整）
 
 ### 受测试硬编码阻断（需用户决策后更新测试）
 
