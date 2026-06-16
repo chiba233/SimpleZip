@@ -32,6 +32,9 @@ final class AIWorkspaceStore: ObservableObject {
     /// 持久:每工作区的**用户种子**(标题 / 主题提示词 / 固定 / 排除 / 默认 App)。这是闭环的核心 —— 用户的修改
     /// (喜欢→pin、不喜欢→exclude、描述/改名→themePrompts、手动加入→pin)都落进种子,**下次召回 / 发现据此更懂你**。
     private var seeds: [UUID: AIWorkspaceUserSeed]
+    /// 持久:泛化反馈学习层。like/dislike 摊到候选信号(角色 / token / 位置)上累积权重 → 召回 / 喂模型前软调:
+    /// 强负同类少进来(非全局硬删),正权重更优先。
+    private var learning: AIWorkspaceLearningStore
 
     // 内存(每会话由 refreshRecommendations 重建,不落盘 —— 隐私):
     private var pool: [AIVirtualNodeCandidate] = []
@@ -55,6 +58,7 @@ final class AIWorkspaceStore: ObservableObject {
     private static let feedbackKey = "SimpleZip.ai.nodeFeedback.v1"
     private static let structureKey = "SimpleZip.ai.structureEdits.v1"
     private static let seedsKey = "SimpleZip.ai.workspaceSeeds.v1"
+    private static let learningKey = "SimpleZip.ai.learning.v1"
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -68,6 +72,8 @@ final class AIWorkspaceStore: ObservableObject {
         self.structureEdits = AIWorkspaceStore.decode(AIWorkspaceStructureEdits.self, key: Self.structureKey, from: defaults)
             ?? AIWorkspaceStructureEdits()
         self.seeds = AIWorkspaceStore.decode([UUID: AIWorkspaceUserSeed].self, key: Self.seedsKey, from: defaults) ?? [:]
+        self.learning = AIWorkspaceStore.decode(AIWorkspaceLearningStore.self, key: Self.learningKey, from: defaults)
+            ?? AIWorkspaceLearningStore()
         persist()
     }
 
@@ -247,11 +253,14 @@ final class AIWorkspaceStore: ObservableObject {
         guard !themeTokens.isEmpty else { return [] }
         let memberIDs = Set(members.map(\.id))
         let excluded = excludedRefs(for: ws)
-        let scored: [(AIVirtualNodeCandidate, Int)] = pool.compactMap { cand in
+        let scored: [(AIVirtualNodeCandidate, Double)] = pool.compactMap { cand in
             guard !memberIDs.contains(cand.id),
                   !cand.sourceRefs.contains(where: { excluded.contains($0) }) else { return nil }
-            let overlap = simpleTokens(cand.displayName).intersection(themeTokens).count
-            return overlap > 0 ? (cand, overlap) : nil
+            let signals = learningSignals(for: cand)
+            if learning.isStronglyDisliked(ws.id, signals: signals) { return nil }   // 同类被排斥 → 不喂模型
+            let overlap = Double(simpleTokens(cand.displayName).intersection(themeTokens).count)
+            guard overlap > 0 else { return nil }
+            return (cand, overlap + learning.affinity(ws.id, signals: signals) * 0.5)   // 学习权重微调排序
         }
         return scored.sorted { $0.1 != $1.1 ? $0.1 > $1.1 : $0.0.id < $1.0.id }.prefix(cap).map(\.0)
     }
@@ -324,9 +333,14 @@ final class AIWorkspaceStore: ObservableObject {
             let existing = Set(result.map(\.id))
             result.append(contentsOf: recalled.filter { !existing.contains($0.id) })
         }
-        let excluded = feedback.dislikedRefs(ws.id).union(seeds[ws.id]?.excludedSourceRefs ?? [])
-        guard !excluded.isEmpty else { return result }
-        return result.filter { cand in !cand.sourceRefs.contains(where: { excluded.contains($0) }) }
+        let excluded = excludedRefs(for: ws)
+        let pinned = Set(seeds[ws.id]?.pinnedSourceRefs ?? [])
+        return result.filter { cand in
+            if cand.sourceRefs.contains(where: { excluded.contains($0) }) { return false }   // 硬排除(本工作区)
+            if cand.sourceRefs.contains(where: { pinned.contains($0) }) { return true }       // 固定永远留
+            // 泛化负反馈:同类(角色 / 类型 / 位置)被明显排斥 → 软剔除(非全局硬删,只在这个工作区)。
+            return !learning.isStronglyDisliked(ws.id, signals: learningSignals(for: cand))
+        }
     }
 
     // MARK: - 用户种子(闭环:每个修改都喂回种子)
@@ -352,22 +366,43 @@ final class AIWorkspaceStore: ObservableObject {
         !refs.isEmpty && !feedback.nodeIsLiked(workspaceID, refs: refs)
     }
 
-    /// 「我很喜欢」:确认保留(去角标)+ **固定进种子**(正反馈,下次召回更可能留它 / 拉相似的进来)。
+    /// 「我很喜欢」:确认保留(去角标)+ **固定进种子** + **泛化正反馈**(同角色 / 类型 / 位置的更优先)。
     func likeNode(workspaceID: UUID, refs: [AIContextSourceRef]) {
         guard !refs.isEmpty else { return }
         feedback = feedback.liking(workspaceID, refs)
         saveFeedback()
         mutateSeed(workspaceID) { $0.pinning(refs, updatedAt: Date()) }
+        reinforceLearning(workspaceID, refs: refs, by: 1)
         objectWillChange.send()
     }
 
-    /// 「我不喜欢」:移出文件夹 + **写进种子排除集**(负反馈,下次发现不再自动加入)。
+    /// 「我不喜欢」:移出文件夹 + **写进种子排除集** + **泛化负反馈**(同类的下次少进来,按权重降而非全局硬删)。
     func dislikeNode(workspaceID: UUID, refs: [AIContextSourceRef]) {
         guard !refs.isEmpty else { return }
         feedback = feedback.disliking(workspaceID, refs)
         saveFeedback()
         mutateSeed(workspaceID) { $0.excluding(refs, updatedAt: Date()) }
+        reinforceLearning(workspaceID, refs: refs, by: -1)
         objectWillChange.send()
+    }
+
+    /// 把一组 ref 对应候选的信号(角色 / 低敏 token / 位置)摊进学习层(喜欢 +、不喜欢 −)。
+    private func reinforceLearning(_ workspace: UUID, refs: [AIContextSourceRef], by delta: Double) {
+        let refSet = Set(refs)
+        let signals = pool
+            .filter { !$0.sourceRefs.isEmpty && $0.sourceRefs.contains(where: { refSet.contains($0) }) }
+            .flatMap { learningSignals(for: $0) }
+        guard !signals.isEmpty else { return }
+        learning = learning.reinforcing(workspace, signals: Array(Set(signals)), by: delta)
+        saveLearning()
+    }
+
+    /// 一个候选的泛化学习信号:角色标签 + 少量低敏语义 token + 位置类别(绝不含路径)。
+    private func learningSignals(for candidate: AIVirtualNodeCandidate) -> [String] {
+        var signals = candidate.roleTags
+        signals += candidate.semanticTokens.prefix(4)
+        if let loc = candidate.location?.kind.rawValue { signals.append("loc:" + loc) }
+        return signals.filter { !$0.isEmpty }
     }
 
     /// 设置用户可编辑的文件夹描述:存展示用 + **拆成主题提示词喂进种子**(「论文实验数据图」→ 召回 token,
@@ -409,7 +444,7 @@ final class AIWorkspaceStore: ObservableObject {
         treeCache[id] = nil; modelPlans[id] = nil; modelFed[id] = nil; modelPlanSignatures[id] = nil
         feedback = feedback.clearingWorkspace(id); saveFeedback()   // 工作区没了 → 清它的节点反馈
         structureEdits = structureEdits.clearingWorkspace(id); saveStructureEdits()
-        seeds[id] = nil; saveSeeds()
+        seeds[id] = nil; saveSeeds(); learning = learning.clearingWorkspace(id); saveLearning()
         apply { $0.dismissing(id) }
     }
 
@@ -427,7 +462,7 @@ final class AIWorkspaceStore: ObservableObject {
         treeCache[id] = nil; modelPlans[id] = nil; modelFed[id] = nil; modelPlanSignatures[id] = nil
         feedback = feedback.clearingWorkspace(id); saveFeedback()
         structureEdits = structureEdits.clearingWorkspace(id); saveStructureEdits()
-        seeds[id] = nil; saveSeeds()
+        seeds[id] = nil; saveSeeds(); learning = learning.clearingWorkspace(id); saveLearning()
         apply { $0.removingUserWorkspace(id) }
     }
     func rename(_ id: UUID, to title: String) {
@@ -463,6 +498,10 @@ final class AIWorkspaceStore: ObservableObject {
 
     private func saveSeeds() {
         if let data = try? JSONEncoder().encode(seeds) { defaults.set(data, forKey: Self.seedsKey) }
+    }
+
+    private func saveLearning() {
+        if let data = try? JSONEncoder().encode(learning) { defaults.set(data, forKey: Self.learningKey) }
     }
 
     private static func decode<T: Decodable>(_ type: T.Type, key: String, from defaults: UserDefaults) -> T? {

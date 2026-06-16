@@ -1,0 +1,64 @@
+//
+//  AIWorkspaceLearningStore.swift
+//  SimpleZip
+//
+//  0.4.5 #80 #89:AI 文件夹的**泛化反馈学习层**(白皮书建议四 + 用户点名的闭环核心)。
+//
+//  「我不喜欢」不该只是把那一个 ref 从工作区硬删 —— 还要**泛化**:用户不喜欢这个文件,通常也意味着不太喜欢
+//  同角色 / 同类型 / 同来源位置的东西进这个主题。所以把每次 like / dislike 摊到候选的**信号**(roleTags +
+//  低敏语义 token + 位置类别)上累积权重(喜欢 +、不喜欢 −,钳到 [-cap, cap] 防失控)。召回 / 喂模型前用这套
+//  权重**软调**:强负权重的同类候选少进来(而非全局硬删),正权重的更优先。
+//
+//  纯值 + 确定性,SwiftPM 可断言。只存已脱敏信号(角色 / token / 位置类别),绝不含路径 / 内容。
+//
+
+import Foundation
+
+nonisolated struct AIWorkspaceLearningStore: Codable, Equatable, Sendable {
+    /// 单个信号权重的钳制上限(防一类信号被反复强化到压过一切)。
+    static let cap = 5.0
+    /// 「强负」阈值:候选的泛化亲和分 ≤ 此值 → 同类已被明显排斥,召回时软剔除(非固定成员才剔)。
+    static let strongNegative = -3.0
+
+    /// workspace id → 信号 token → 累积权重(正=喜欢同类,负=不喜欢同类)。
+    private var weights: [UUID: [String: Double]]
+
+    init(weights: [UUID: [String: Double]] = [:]) { self.weights = weights }
+
+    // MARK: - 变换
+
+    /// 用一个候选的信号强化(喜欢 delta>0 / 不喜欢 delta<0)。每个信号各加 delta,钳到 [-cap, cap]。
+    func reinforcing(_ workspace: UUID, signals: [String], by delta: Double) -> AIWorkspaceLearningStore {
+        guard !signals.isEmpty, delta != 0 else { return self }
+        var copy = self
+        for s in signals where !s.isEmpty {
+            let next = (copy.weights[workspace]?[s] ?? 0) + delta
+            copy.weights[workspace, default: [:]][s] = max(-Self.cap, min(Self.cap, next))
+        }
+        // 全 0 的工作区收掉,保持紧凑。
+        if copy.weights[workspace]?.allSatisfy({ $0.value == 0 }) == true { copy.weights[workspace] = nil }
+        return copy
+    }
+
+    func clearingWorkspace(_ workspace: UUID) -> AIWorkspaceLearningStore {
+        guard weights[workspace] != nil else { return self }
+        var copy = self
+        copy.weights[workspace] = nil
+        return copy
+    }
+
+    // MARK: - 查询
+
+    /// 一组信号的泛化亲和分 = 各信号权重之和(无学习记录则 0,不影响排序)。
+    func affinity(_ workspace: UUID, signals: [String]) -> Double {
+        guard let w = weights[workspace], !w.isEmpty else { return 0 }
+        return signals.reduce(0) { $0 + (w[$1] ?? 0) }
+    }
+
+    /// 该候选是否因「同类被明显排斥」应在召回时软剔除(强负且非固定;固定由调用点保证不剔)。
+    func isStronglyDisliked(_ workspace: UUID, signals: [String]) -> Bool {
+        affinity(workspace, signals: signals) <= Self.strongNegative
+    }
+
+    var isEmpty: Bool { weights.isEmpty }
+}

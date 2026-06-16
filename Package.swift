@@ -108,6 +108,7 @@ let package = Package(
                 "Core/AI/AINodeFeedback.swift",
                 "Core/AI/AIWorkspaceStructureEdits.swift",
                 "Core/AI/AIWorkspaceSeedRecall.swift",
+                "Core/AI/AIWorkspaceLearningStore.swift",
                 "Core/AI/AIWorkspaceDiscovery.swift",
                 "Core/AI/AIWorkspaceModel.swift",
                 "Core/AI/AIWorkspaceThemeEngine.swift",
