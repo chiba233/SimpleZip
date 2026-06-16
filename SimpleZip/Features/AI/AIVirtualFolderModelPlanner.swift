@@ -26,7 +26,7 @@ struct GeneratedAIFolderGroup: Sendable {
     var title: String
     @Guide(description: "One short phrase on why these belong together. May be empty.")
     var reason: String
-    @Guide(description: "The candidateID strings, copied VERBATIM from the provided items list, that belong in this group. Use ONLY ids that appear in the list; never invent or alter an id.")
+    @Guide(description: "The item NUMBERS (the leftmost column of the items list, e.g. \"3\", \"7\") that belong in this group. Use only numbers that actually appear in the list; never invent one.")
     var candidateIDs: [String]
     @Guide(description: "True ONLY for the one (at most two) group the user should see expanded first — the most important / most worth their attention right now. Leave the rest false (collapsed). Most groups should be false; never mark everything true.")
     var expandFirst: Bool
@@ -36,7 +36,7 @@ struct GeneratedAIFolderGroup: Sendable {
 @available(macOS 26.0, *)
 @Generable
 struct GeneratedAINodeSuggestion: Sendable {
-    @Guide(description: "The candidateID (copied VERBATIM from the items list) this suggestion is for.")
+    @Guide(description: "The item NUMBER (the leftmost column of the items list) this suggestion is for.")
     var targetID: String
     @Guide(description: "ONE action token from the allowed-actions list given in the instructions (e.g. hash, compress, test, inspect, convert). Use a token whose 'applies to' kinds include this item's kind; otherwise pick none.")
     var action: String
@@ -87,7 +87,7 @@ enum AIVirtualFolderModelPlanner {
         return """
         You may optionally attach a few per-item action suggestions, but ONLY when there is a clear, specific reason \
         for that one item — most items get NONE, never suggest an action just because it is possible. Pick the action \
-        token VERBATIM from this list and target the item by its candidateID:
+        token VERBATIM from this list and target the item by its NUMBER:
         \(lines.joined(separator: "\n"))
         """
     }
@@ -123,13 +123,13 @@ enum AIVirtualFolderModelPlanner {
     static func plan(for input: AIVirtualFolderPlanInput) async throws -> AIVirtualFolderPlan {
         let instructions = """
         You curate and organize a set of related items around a theme. Each item below is one line: \
-        "candidateID<TAB>kind<TAB>name<TAB>roleTags". Using the theme and hints, decide which items genuinely \
-        BELONG together and SELECT only those — leave out items that don't fit (you are choosing membership, not \
-        forced to place everything). Then group the selected items by what they ARE or their shared topic, give \
-        each group a short natural name, and propose a clear name for the whole collection. Prefer a few clear \
-        groups over many tiny ones, and base everything ONLY on the names, kinds and roleTags given. Copy \
-        candidateID values VERBATIM — never invent, alter, or output a file path; simply omit any item that \
-        doesn't belong rather than forcing it into a group.
+        "number<TAB>kind<TAB>name<TAB>roleTags", where number is a small integer in the leftmost column. Using the \
+        theme and hints, decide which items genuinely BELONG together and SELECT only those — leave out items that \
+        don't fit (you are choosing membership, not forced to place everything). Then group the selected items by \
+        what they ARE or their shared topic, give each group a short natural name, and propose a clear name for the \
+        whole collection. Prefer a few clear groups over many tiny ones, and base everything ONLY on the names, kinds \
+        and roleTags given. Refer to each item by its NUMBER (the leftmost column) — never output a file path; simply \
+        omit any item that doesn't belong rather than forcing it into a group.
 
         If the input states items the user KEEPS or REMOVED, kinds they like/dislike, or group names they chose, \
         treat these as strong guidance learned from this user: favor items like the ones they keep, leave out items \
@@ -139,95 +139,85 @@ enum AIVirtualFolderModelPlanner {
 
         \(Self.namingRule)
         """
+        let cands = Array(input.candidates.prefix(120))
         var lines: [String] = []
         let ws = input.workspace
         if let prompt = ws.prompt, !prompt.isEmpty { lines.append("Folder theme: \(prompt)") }
         if !ws.queryTokens.isEmpty { lines.append("Theme hints: \(ws.queryTokens.joined(separator: ", "))") }
         lines.append("Current title: \(ws.title)")
         lines.append(contentsOf: Self.hintLines(input.learningHints))
-        lines.append("Items (candidateID<TAB>kind<TAB>name<TAB>roleTags):")
-        for c in input.candidates.prefix(120) {
-            lines.append([c.candidateID, c.kind, c.displayName, c.roleTags.joined(separator: " ")].joined(separator: "\t"))
+        lines.append("Items (number<TAB>kind<TAB>name<TAB>roleTags) — refer to items by their number:")
+        for (i, c) in cands.enumerated() {
+            lines.append(["\(i + 1)", c.kind, c.displayName, c.roleTags.joined(separator: " ")].joined(separator: "\t"))
         }
         let generated = try await AIReportAssistant.generateStructured(
             instructions: instructions, prompt: lines.joined(separator: "\n"), as: GeneratedAIFolderPlan.self)
 
-        return Self.assemble(generated).plan
+        return Self.assemble(generated, candidates: cands).plan
     }
 
     /// **后台复核**:模型既判断这个候选主题**值不值得作为文件夹出现**(质量优先,不保数量),又顺带产出它的 plan
     /// (命名 / 选成员 / 分组)。`worthSurfacing == false` → 调用点不把它升成可见工作区。
     static func review(for input: AIVirtualFolderPlanInput, attempt: Int = 1,
                        approvedTarget: Int = 0) async throws -> AIFolderReview {
-        let pressureRule: String
-        if attempt > 1 || approvedTarget > 0 {
-            pressureRule = """
-
-            This candidate already passed deterministic quality gates and is competing in a hidden review pool. The \
-            app still needs reviewed winners before showing AI folders, so do NOT give up merely because the first \
-            obvious grouping is imperfect. If there is a coherent useful subset of at least two items, build the \
-            strongest folder from that subset and use any extra related candidates supplied below to strengthen it. \
-            If this theme still feels weak, prefer a tighter or adjacent topic from the provided items rather than \
-            forcing unrelated material. Reject only when no coherent useful subset of at least two provided items \
-            exists.
-            """
-        } else {
-            pressureRule = ""
-        }
         let instructions = """
-        You are the quality gate for an archive app's background "AI folders". Each item below is one line: \
-        "candidateID<TAB>kind<TAB>name<TAB>roleTags". First judge whether these items genuinely form ONE coherent, \
-        useful theme that a person would recognize as deserving its own folder (a shared project, topic or purpose) — \
-        not just items that share a generic word, an unrelated grab-bag, or too thin to matter. Be strict: it is far \
-        better to surface nothing than a weak folder. If it IS worth surfacing, also curate it: select only the items \
-        that truly belong (omit the rest), group them by meaning with short natural folder names, and propose a clear \
-        name for the whole folder.
+        You decide whether a set of related items is worth showing as a background "AI folder", and if so you \
+        organize it. Each item below is one line: "number<TAB>kind<TAB>name<TAB>roleTags", where number is a small \
+        integer in the leftmost column. These items already passed deterministic checks and share name tokens or a \
+        common task/archive — so most of the time they ARE worth a folder. Set worthSurfacing = true whenever you can \
+        form at least ONE coherent group of two or more items that genuinely belong together (a shared project, topic, \
+        type or purpose). Then curate it: pick the items that fit (omit the clearly-unrelated ones), group them by \
+        meaning with short natural folder names, and propose a clear name for the whole folder. Set \
+        worthSurfacing = false ONLY when the items are a genuinely unrelated grab-bag with no usable subset of two. \
+        When unsure, APPROVE and build the best folder from the items that fit — do not reject just because the set \
+        isn't perfect.
 
-        Copy candidateID values VERBATIM — never invent, alter, translate, or output a file path. Reply only with \
-        the structured plan, including worthSurfacing.
+        Refer to items by their NUMBER (the leftmost column) — never invent a number, output a file path, or \
+        translate names. Reply only with the structured plan, including worthSurfacing.
 
         If the input states items the user KEEPS or REMOVED, kinds they like/dislike, or group names they chose, \
         treat these as strong guidance: a theme the user has actively curated is more worth surfacing, and you \
         should honor what they keep, leave out, and how they name groups.
-        \(pressureRule)
 
         \(Self.actionVocabularyRule)
 
         \(Self.namingRule)
         """
+        let cands = Array(input.candidates.prefix(120))
         var lines: [String] = []
         let ws = input.workspace
         if let prompt = ws.prompt, !prompt.isEmpty { lines.append("Folder theme: \(prompt)") }
         if !ws.queryTokens.isEmpty { lines.append("Theme hints: \(ws.queryTokens.joined(separator: ", "))") }
         lines.append("Candidate title: \(ws.title)")
-        lines.append("Review attempt: \(max(1, attempt))")
-        if approvedTarget > 0 { lines.append("Hidden-pool approved target: \(approvedTarget)") }
         lines.append(contentsOf: Self.hintLines(input.learningHints))
-        lines.append("Items (candidateID<TAB>kind<TAB>name<TAB>roleTags):")
-        for c in input.candidates.prefix(120) {
-            lines.append([c.candidateID, c.kind, c.displayName, c.roleTags.joined(separator: " ")].joined(separator: "\t"))
+        lines.append("Items (number<TAB>kind<TAB>name<TAB>roleTags) — refer to items by their number:")
+        for (i, c) in cands.enumerated() {
+            lines.append(["\(i + 1)", c.kind, c.displayName, c.roleTags.joined(separator: " ")].joined(separator: "\t"))
         }
         let generated = try await AIReportAssistant.generateStructured(
             instructions: instructions, prompt: lines.joined(separator: "\n"), as: GeneratedAIFolderPlan.self)
-        return Self.assemble(generated)
+        return Self.assemble(generated, candidates: cands)
     }
 
-    private static func assemble(_ generated: GeneratedAIFolderPlan) -> AIFolderReview {
+    /// 模型输出按**序号**引用条目(小模型照抄长 opaque candidateID 极易出错 → 一个都对不上 → 永远判否)。
+    /// 这里把序号翻译回真实 candidateID;`candidates` 必须与喂 prompt 时同一份(同 `prefix(120)`、同序)。
+    private static func assemble(_ generated: GeneratedAIFolderPlan,
+                                 candidates: [AIVirtualNodePromptCandidate]) -> AIFolderReview {
         let title = generated.workspaceTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         let groups = generated.groups.enumerated().map { index, g in
             AIVirtualFolderGroupPlan(
                 id: "model-\(index)",
                 title: g.title,
                 reason: g.reason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : g.reason,
-                candidateIDs: g.candidateIDs,
+                candidateIDs: g.candidateIDs.compactMap { realID($0, in: candidates) },
                 prominent: g.expandFirst)   // AI 注意力:这组该不该默认展开
         }
-        // 模型挑的 AI 建议 → plan.suggestions(token 必须在词表内,否则丢;targetID / kind / 路径由 builder 再校验)。
+        // 模型挑的 AI 建议 → plan.suggestions(token 必须在词表内,否则丢;targetID 翻译回真实 id,kind/路径由 builder 再校验)。
         let suggestions = generated.suggestions.compactMap { s -> AINodeSuggestionPlan? in
             let token = s.action.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            let target = s.targetID.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !token.isEmpty, !target.isEmpty,
-                  AIVirtualNodeActionDeriver.allowedSuggestionDescriptors.contains(where: { $0.id == token })
+            guard !token.isEmpty,
+                  AIVirtualNodeActionDeriver.allowedSuggestionDescriptors.contains(where: { $0.id == token }),
+                  let target = realID(s.targetID, in: candidates)
             else { return nil }
             let reason = s.reason.trimmingCharacters(in: .whitespacesAndNewlines)
             return AINodeSuggestionPlan(targetCandidateID: target, actionToken: token,
@@ -236,5 +226,20 @@ enum AIVirtualFolderModelPlanner {
         let plan = AIVirtualFolderPlan(workspaceTitle: title.isEmpty ? nil : title,
                                        groups: groups, suggestions: suggestions)
         return AIFolderReview(worthSurfacing: generated.worthSurfacing, plan: plan)
+    }
+
+    /// 把模型返回的「序号 token」翻译回真实 candidateID。容忍 "3" / "#3" / "item 3" / "3." 等 —— 抽第一个整数;
+    /// 越界 / 非数字 → nil(丢弃,builder 再做白名单校验)。
+    private static func realID(_ token: String, in candidates: [AIVirtualNodePromptCandidate]) -> String? {
+        guard let n = firstInt(in: token), n >= 1, n <= candidates.count else { return nil }
+        return candidates[n - 1].candidateID
+    }
+
+    private static func firstInt(in s: String) -> Int? {
+        var digits = ""
+        for ch in s {
+            if ch.isNumber { digits.append(ch) } else if !digits.isEmpty { break }
+        }
+        return Int(digits)
     }
 }
