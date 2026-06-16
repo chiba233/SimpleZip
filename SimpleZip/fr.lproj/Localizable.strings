@@ -2574,8 +2574,8 @@
 "settings.ai.background.clearIndex.desc" = "Efface l'index de fichiers en arrière-plan. Supprime uniquement les métadonnées dérivées ; vos fichiers réels ne sont pas touchés.";
 "settings.ai.background.clearIndex.button" = "Effacer l'index";
 "settings.ai.background.browse" = "Parcourir…";
-"settings.ai.background.maxRecommended" = "Maximum de dossiers créés automatiquement";
-"settings.ai.background.maxRecommended.desc" = "Combien de Dossiers IA la découverte en arrière-plan peut créer automatiquement. Ceux que vous épinglez ou créez ne comptent pas.";
+"settings.ai.background.maxRecommended" = "Nombre max. de dossiers IA affichés";
+"settings.ai.background.maxRecommended.desc" = "Le nombre maximal de dossiers IA affichés à la fois. Quand le modèle sur l’appareil est disponible, il explore en arrière-plan davantage de thèmes candidats, les met en concurrence et n’affiche que les plus solides. Les dossiers que vous épinglez ou créez ne comptent pas.";
 "sidebar.ai.markPermanent" = "Rendre permanent";
 "aiWorkspace.node.open" = "Ouvrir";
 "aiWorkspace.node.rename" = "Renommer";

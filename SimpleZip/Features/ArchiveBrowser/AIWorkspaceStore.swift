@@ -129,7 +129,11 @@ final class AIWorkspaceStore: ObservableObject {
             return
         }
 
-        let policy = AIRecommendationPolicy(maxThemes: AppPreferences.aiMaxRecommendedWorkspaces)
+        // 设置里的上限 = **可展示**数量;模型可用时后台多生成约 2×(至少 8)候选主题,让它们竞争,只有竞争胜出
+        // 的前 N(=展示上限)才进展示名录(用户:不保数量保质量,后台撕杀加权)。模型不可用时就按展示上限发现。
+        let displayLimit = AppPreferences.aiMaxRecommendedWorkspaces
+        let candidateLimit = AIReportAssistant.isReady ? max(displayLimit * 2, 8) : displayLimit
+        let policy = AIRecommendationPolicy(maxThemes: candidateLimit)
         let suppression = self.suppression
         // **重活(跨位置语义聚类)挪出 MainActor** —— 开窗首帧不被 AI 发现拖住(用户实测卡;倒排索引已降复杂度,
         // 但聚类仍不该占主线程)。纯 Core(Sendable)→ Task.detached,回主线程原子安装。
@@ -170,7 +174,7 @@ final class AIWorkspaceStore: ObservableObject {
             let refSet = Set(theme.sourceRefs)
             let members = pool.filter { !$0.sourceRefs.isEmpty && $0.sourceRefs.allSatisfy { refSet.contains($0) } }
             guard members.count >= 2 else { continue }
-            pending[theme.id] = (ws, members + themeRelevantExtra(ws: ws, members: members, cap: 30),
+            pending[theme.id] = (ws, members + themeRelevantExtra(ws: ws, members: members, cap: 80),
                                  Set(members.flatMap(\.sourceRefs)))
         }
         pendingCandidates = pending
@@ -206,29 +210,31 @@ final class AIWorkspaceStore: ObservableObject {
     /// 暂留(规则成员,显示「自动整理」)→ 避免启动 / 重扫时已有文件夹先消失再冒出来的闪烁;复核判否的移除。
     /// 数量上限走设置。
     private func republishReviewedThemes() {
-        var workspaces: [AIWorkspace] = []
-        var memberRefs: [UUID: Set<AIContextSourceRef>] = [:]
+        let now = Date()
+        var scored: [(ws: AIWorkspace, score: Double, refs: Set<AIContextSourceRef>)] = []
         var toCachePlan: [(UUID, ReviewVerdict)] = []
         for (id, c) in pendingCandidates {
             if let v = themeVerdicts[id] {
                 guard v.approved, !v.members.isEmpty else { continue }   // 复核判否 → 不发布
                 var ws = c.ws
                 if let title = v.title, !title.isEmpty { ws.title = title }
-                workspaces.append(ws)
-                memberRefs[ws.id] = v.memberRefs
+                scored.append((ws, competitionScore(ws, memberCount: v.members.count, now: now), v.memberRefs))
                 toCachePlan.append((ws.id, v))
             } else if let existing = collection.workspace(c.ws.id) {
                 // 还没复核但本来就在侧栏 → 暂留**已有的工作区**(保上次的模型标题,不 revert 成 titleSeed),
                 // 用规则成员 + 确定性树,复核回来再升级;不闪。
-                workspaces.append(existing)
-                memberRefs[existing.id] = c.ruleRefs
+                scored.append((existing, competitionScore(existing, memberCount: c.ruleRefs.count, now: now), c.ruleRefs))
             }
         }
-        let capped = Array(workspaces.sorted { $0.relevanceScore > $1.relevanceScore }
-            .prefix(AppPreferences.aiMaxRecommendedWorkspaces))
-        let keptIDs = Set(capped.map(\.id))
-        let next = collection.replacingRecommended(capped)
-        memberRefsByWorkspace = memberRefs.filter { keptIDs.contains($0.key) }
+        // **竞争**:按竞争分降序取前 N(=展示上限)。撑得起主题(成员多)+ 用得多/最近用的胜出,
+        // 不思进取(单薄 / 从没打开过 / 负反馈多)的被挤出。
+        let capped = Array(scored.sorted { $0.score > $1.score }.prefix(AppPreferences.aiMaxRecommendedWorkspaces))
+        let workspaces = capped.map(\.ws)
+        var memberRefs: [UUID: Set<AIContextSourceRef>] = [:]
+        for item in capped { memberRefs[item.ws.id] = item.refs }
+        let keptIDs = Set(capped.map(\.ws.id))
+        let next = collection.replacingRecommended(workspaces)
+        memberRefsByWorkspace = memberRefs
         if next != collection { collection = next }
         for (wsID, v) in toCachePlan where keptIDs.contains(wsID) {   // 缓存复核产出的 plan → 打开不再重跑模型
             let sig = v.members.map(\.id).sorted().joined(separator: ",")
@@ -238,6 +244,18 @@ final class AIWorkspaceStore: ObservableObject {
             treeCache[wsID] = nil
         }
         persist()
+    }
+
+    /// 竞争分:撑得起主题(成员多)+ 用得多 / 最近用过的胜出;从没打开过 / 单薄 / 负反馈多的「不思进取」被降权。
+    private func competitionScore(_ ws: AIWorkspace, memberCount: Int, now: Date) -> Double {
+        var s = ws.relevanceScore * 5.0                          // 主题强度(复核 / 发现给的)
+        s += min(Double(memberCount), 12) * 0.5                  // 实质:成员越多越撑得起(封顶防灌水)
+        s += log2(Double(max(0, ws.openCount)) + 1) * 1.0        // 用得多
+        if let last = ws.lastOpenedAt {                          // 最近用过(7 天半衰);从没打开 = 不加分
+            s += pow(0.5, max(0, now.timeIntervalSince(last)) / 86_400 / 7.0) * 1.5
+        }
+        s -= Double(ws.negativeFeedbackCount) * 2.0              // 负反馈降权
+        return s
     }
 
     // MARK: - 虚拟树(plan/builder,不再 nil)
@@ -306,7 +324,7 @@ final class AIWorkspaceStore: ObservableObject {
         guard modelPlanSignatures[id] != sig else { return }
         modelPlanSignatures[id] = sig   // 占位:失败不重试本批(免刷模型);成员变了 sig 变才重排
         // 喂模型 = 当前成员 + 主题相关的额外候选 → 模型**选**哪些最合适进主题(不只是重排已选)+ 分组 + 命名。
-        let fed = members + themeRelevantExtra(ws: ws, members: members, cap: 30)
+        let fed = members + themeRelevantExtra(ws: ws, members: members, cap: 80)
         let coreIDs = Set(members.map(\.id))
         let input = makeModelPlanInput(ws: ws, candidates: fed)
         Task { @MainActor in
@@ -360,12 +378,22 @@ final class AIWorkspaceStore: ObservableObject {
         guard !themeTokens.isEmpty else { return [] }
         let memberIDs = Set(members.map(\.id))
         let excluded = excludedRefs(for: ws)
+        let roleHints = Set(members.flatMap(\.roleTags))   // 成员的角色 → 同角色候选也算弱命中(灵敏度)
         let scored: [(AIVirtualNodeCandidate, Double)] = pool.compactMap { cand in
             guard !memberIDs.contains(cand.id),
                   !cand.sourceRefs.contains(where: { excluded.contains($0) }) else { return nil }
             let signals = learningSignals(for: cand)
             if learning.isStronglyDisliked(ws.id, signals: signals) { return nil }   // 同类被排斥 → 不喂模型
-            let overlap = Double(simpleTokens(cand.displayName).intersection(themeTokens).count)
+            // 灵敏度:精确 token 命中 + **子串 / CJK 命中**(主题 token 是候选某 token 子串或反之)+ 同角色命中
+            // → 让 AI 真有东西可从索引里捞进主题(用户:动态加文件灵敏度太低,撑不起主题)。
+            let candTokens = simpleTokens(cand.displayName)
+            var overlap = Double(candTokens.intersection(themeTokens).count)
+            if overlap == 0 {
+                for t in themeTokens where t.count >= 2 {
+                    if candTokens.contains(where: { $0.contains(t) || t.contains($0) }) { overlap = 0.5; break }
+                }
+            }
+            if overlap == 0, !cand.roleTags.isEmpty, !Set(cand.roleTags).isDisjoint(with: roleHints) { overlap = 0.3 }
             guard overlap > 0 else { return nil }
             return (cand, overlap + learning.affinity(ws.id, signals: signals) * 0.5)   // 学习权重微调排序
         }

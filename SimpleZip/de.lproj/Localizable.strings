@@ -2576,8 +2576,8 @@
 "settings.ai.background.clearIndex.desc" = "Löscht den Hintergrund-Dateiindex. Entfernt nur abgeleitete Metadaten – deine echten Dateien bleiben unberührt.";
 "settings.ai.background.clearIndex.button" = "Index löschen";
 "settings.ai.background.browse" = "Durchsuchen…";
-"settings.ai.background.maxRecommended" = "Maximal automatisch erstellte Ordner";
-"settings.ai.background.maxRecommended.desc" = "Wie viele KI-Ordner die Hintergrunderkennung automatisch erstellen darf. Angeheftete oder selbst erstellte Ordner zählen nicht.";
+"settings.ai.background.maxRecommended" = "Max. angezeigte KI-Ordner";
+"settings.ai.background.maxRecommended.desc" = "Die maximale Anzahl gleichzeitig angezeigter KI-Ordner. Wenn das geräteinterne Modell verfügbar ist, erkundet es im Hintergrund mehr Kandidatenthemen, lässt sie konkurrieren und zeigt nur die stärksten. Angepinnte oder selbst erstellte Ordner zählen nicht.";
 "sidebar.ai.markPermanent" = "Dauerhaft machen";
 "aiWorkspace.node.open" = "Öffnen";
 "aiWorkspace.node.rename" = "Umbenennen";

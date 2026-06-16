@@ -2576,8 +2576,8 @@
 "settings.ai.background.clearIndex.desc" = "Borra el índice de archivos en segundo plano. Solo elimina metadatos derivados; tus archivos reales no se tocan.";
 "settings.ai.background.clearIndex.button" = "Borrar índice";
 "settings.ai.background.browse" = "Examinar…";
-"settings.ai.background.maxRecommended" = "Máximo de carpetas creadas automáticamente";
-"settings.ai.background.maxRecommended.desc" = "Cuántas Carpetas IA puede crear automáticamente el descubrimiento en segundo plano. Las que fijas o creas tú no cuentan.";
+"settings.ai.background.maxRecommended" = "Máx. de carpetas de IA mostradas";
+"settings.ai.background.maxRecommended.desc" = "El máximo de carpetas de IA mostradas a la vez. Cuando el modelo en el dispositivo está disponible, explora en segundo plano más temas candidatos, los hace competir y solo muestra los más fuertes. Las carpetas que fijas o creas tú no cuentan.";
 "sidebar.ai.markPermanent" = "Hacer permanente";
 "aiWorkspace.node.open" = "Abrir";
 "aiWorkspace.node.rename" = "Cambiar nombre";

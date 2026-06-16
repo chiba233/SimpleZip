@@ -2655,8 +2655,8 @@
 "settings.ai.background.clearIndex.desc" = "清空后台文件索引。只清除派生的元数据 —— 你的真实文件不受影响。";
 "settings.ai.background.clearIndex.button" = "清空索引";
 "settings.ai.background.browse" = "浏览…";
-"settings.ai.background.maxRecommended" = "自动生成的文件夹上限";
-"settings.ai.background.maxRecommended.desc" = "后台发现最多自动生成几个 AI 文件夹。你固定或自己创建的不计入。";
+"settings.ai.background.maxRecommended" = "可展示的 AI 文件夹上限";
+"settings.ai.background.maxRecommended.desc" = "侧栏最多同时展示几个 AI 文件夹。端上模型可用时,后台会多探索一些候选主题、让它们竞争,只浮现最强的那几个。你固定或自己创建的不计入。";
 "sidebar.ai.markPermanent" = "标记为长期 AI 文件夹";
 "aiWorkspace.node.open" = "打开";
 "aiWorkspace.node.rename" = "重命名";

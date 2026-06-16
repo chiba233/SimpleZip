@@ -2655,8 +2655,8 @@
 "settings.ai.background.clearIndex.desc" = "Clear the background file index. Removes derived metadata only — your real files are untouched.";
 "settings.ai.background.clearIndex.button" = "Clear Index";
 "settings.ai.background.browse" = "Browse…";
-"settings.ai.background.maxRecommended" = "Maximum auto-created folders";
-"settings.ai.background.maxRecommended.desc" = "How many AI Folders background discovery may create automatically. Folders you pin or create yourself don’t count.";
+"settings.ai.background.maxRecommended" = "Maximum AI Folders shown";
+"settings.ai.background.maxRecommended.desc" = "The most AI Folders shown at once. When the on-device model is available it explores more candidate themes than this in the background, lets them compete, and surfaces only the strongest. Folders you pin or create yourself don’t count.";
 "sidebar.ai.markPermanent" = "Make Permanent";
 "aiWorkspace.node.open" = "Open";
 "aiWorkspace.node.rename" = "Rename";

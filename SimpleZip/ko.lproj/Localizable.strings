@@ -2577,8 +2577,8 @@
 "settings.ai.background.clearIndex.desc" = "백그라운드 파일 색인을 지웁니다. 파생된 메타데이터만 제거되며 실제 파일은 그대로 유지됩니다.";
 "settings.ai.background.clearIndex.button" = "색인 지우기";
 "settings.ai.background.browse" = "찾아보기…";
-"settings.ai.background.maxRecommended" = "자동 생성 폴더 최대 개수";
-"settings.ai.background.maxRecommended.desc" = "백그라운드 발견이 자동으로 만들 수 있는 AI 폴더 수입니다. 고정하거나 직접 만든 폴더는 포함되지 않습니다.";
+"settings.ai.background.maxRecommended" = "표시할 AI 폴더 최대 개수";
+"settings.ai.background.maxRecommended.desc" = "한 번에 표시되는 AI 폴더의 최대 개수입니다. 온디바이스 모델을 사용할 수 있으면 백그라운드에서 이보다 많은 후보 주제를 탐색해 경쟁시키고 가장 강한 것만 표시합니다. 직접 고정하거나 만든 폴더는 제외됩니다.";
 "sidebar.ai.markPermanent" = "장기 보관으로 표시";
 "aiWorkspace.node.open" = "열기";
 "aiWorkspace.node.rename" = "이름 변경";

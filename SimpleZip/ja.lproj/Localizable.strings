@@ -2578,8 +2578,8 @@
 "settings.ai.background.clearIndex.desc" = "バックグラウンドのファイルインデックスを消去します。派生メタデータのみを削除し、実際のファイルには触れません。";
 "settings.ai.background.clearIndex.button" = "インデックスを消去";
 "settings.ai.background.browse" = "参照…";
-"settings.ai.background.maxRecommended" = "自動生成フォルダの上限";
-"settings.ai.background.maxRecommended.desc" = "バックグラウンド発見が自動で作成できる AI フォルダの数。固定したものや自分で作成したものは含みません。";
+"settings.ai.background.maxRecommended" = "表示する AI フォルダの上限";
+"settings.ai.background.maxRecommended.desc" = "一度に表示する AI フォルダの最大数。端末上のモデルが使えるときは、背景でこれより多くの候補テーマを探って競わせ、最も強いものだけを表示します。固定したものや自分で作ったものは含まれません。";
 "sidebar.ai.markPermanent" = "常設にする";
 "aiWorkspace.node.open" = "開く";
 "aiWorkspace.node.rename" = "名前を変更";

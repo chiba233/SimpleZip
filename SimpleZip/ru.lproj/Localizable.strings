@@ -2576,8 +2576,8 @@
 "settings.ai.background.clearIndex.desc" = "Очистить фоновый индекс файлов. Удаляются только производные метаданные; ваши настоящие файлы не затрагиваются.";
 "settings.ai.background.clearIndex.button" = "Очистить индекс";
 "settings.ai.background.browse" = "Обзор…";
-"settings.ai.background.maxRecommended" = "Максимум авто-созданных папок";
-"settings.ai.background.maxRecommended.desc" = "Сколько Папок ИИ фоновое обнаружение может создавать автоматически. Закреплённые или созданные вами не считаются.";
+"settings.ai.background.maxRecommended" = "Максимум показываемых ИИ-папок";
+"settings.ai.background.maxRecommended.desc" = "Максимум ИИ-папок, показываемых одновременно. Когда доступна модель на устройстве, она в фоне исследует больше тем-кандидатов, заставляет их конкурировать и показывает только сильнейшие. Закреплённые или созданные вами папки не учитываются.";
 "sidebar.ai.markPermanent" = "Сделать постоянной";
 "aiWorkspace.node.open" = "Открыть";
 "aiWorkspace.node.rename" = "Переименовать";

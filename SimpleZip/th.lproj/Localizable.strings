@@ -2576,8 +2576,8 @@
 "settings.ai.background.clearIndex.desc" = "ล้างดัชนีไฟล์เบื้องหลัง ลบเฉพาะเมตาดาทาที่ได้มา ไฟล์จริงของคุณไม่ถูกแตะต้อง";
 "settings.ai.background.clearIndex.button" = "ล้างดัชนี";
 "settings.ai.background.browse" = "เรียกดู…";
-"settings.ai.background.maxRecommended" = "จำนวนโฟลเดอร์ที่สร้างอัตโนมัติสูงสุด";
-"settings.ai.background.maxRecommended.desc" = "การค้นพบเบื้องหลังสร้างโฟลเดอร์ AI อัตโนมัติได้สูงสุดกี่โฟลเดอร์ โฟลเดอร์ที่คุณปักหมุดหรือสร้างเองไม่นับรวม";
+"settings.ai.background.maxRecommended" = "จำนวนโฟลเดอร์ AI ที่แสดงสูงสุด";
+"settings.ai.background.maxRecommended.desc" = "จำนวนโฟลเดอร์ AI สูงสุดที่แสดงพร้อมกัน เมื่อใช้โมเดลบนเครื่องได้ ระบบจะสำรวจธีมที่เป็นไปได้มากกว่านี้ในเบื้องหลัง ให้แข่งกัน แล้วแสดงเฉพาะที่ดีที่สุด โฟลเดอร์ที่คุณปักหมุดหรือสร้างเองไม่นับรวม";
 "sidebar.ai.markPermanent" = "ทำให้ถาวร";
 "aiWorkspace.node.open" = "เปิด";
 "aiWorkspace.node.rename" = "เปลี่ยนชื่อ";
