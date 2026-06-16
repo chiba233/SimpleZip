@@ -68,6 +68,14 @@ struct GeneratedSuggestionSet: Sendable {
     var suggestions: [GeneratedNodeSuggestion]
 }
 
+/// 动态核查产出:**明显不扣题**、该从文件夹移除的条目序号(保守 —— 拿不准就不列)。扁平单字段,可靠。
+@available(macOS 26.0, *)
+@Generable
+struct GeneratedVerification: Sendable {
+    @Guide(description: "The item NUMBERS that CLEARLY do not belong to this folder's theme and should be removed. Only include items you are confident don't fit; when in doubt, leave it OUT of this list (keep it). Empty is fine — most items usually fit.")
+    var removeNumbers: [String]
+}
+
 @available(macOS 26.0, *)
 enum AIVirtualFolderModelPlanner {
     /// 命名 + 语言规则(两个 prompt 共用)。**语言放最前 + 强制**(修用户报的「文件夹名经常语言不一致」):给人看的
@@ -122,6 +130,27 @@ enum AIVirtualFolderModelPlanner {
             else { return nil }
             return AINodeSuggestionPlan(targetCandidateID: target, actionToken: token)
         }
+    }
+
+    /// **动态核查**:对一个已成型文件夹的成员,让模型挑出**明显不扣题**的(保守 —— 拿不准就留)。返回要移除的
+    /// 真实 candidateID 集合(App 据此从虚拟文件夹剔除,**不碰磁盘**)。失败 / 全扣题 → 返回空。
+    static func verifyMisfits(theme: String, items: [AIVirtualNodePromptCandidate]) async throws -> Set<String> {
+        guard !items.isEmpty else { return [] }
+        let cands = Array(items.prefix(40))
+        let instructions = """
+        A folder collects items around ONE theme. Below is its theme and its current items (one per line: \
+        "number<TAB>kind<TAB>name<TAB>roleTags"). List the NUMBERS of items that CLEARLY do not belong to this theme \
+        and should be removed. Be conservative: only remove an item when it obviously doesn't fit; when in doubt, \
+        KEEP it (do not list it). Most items usually fit — an empty list is fine. Use item numbers only, never paths.
+        """
+        var lines = ["Theme: \(theme)", "Items (number<TAB>kind<TAB>name<TAB>roleTags):"]
+        for (i, c) in cands.enumerated() {
+            lines.append(["\(i + 1)", c.kind, c.displayName, c.roleTags.joined(separator: " ")].joined(separator: "\t"))
+        }
+        let generated = try await AIReportAssistant.generateStructured(
+            instructions: instructions, prompt: lines.joined(separator: "\n"),
+            as: GeneratedVerification.self, maxAttempts: 8)
+        return Set(generated.removeNumbers.compactMap { realID($0, in: cands) })
     }
 
     /// 把用户对这个工作区的累积调教(固定 / 排除 / 喜欢 / 不喜欢 / 分组命名)展开成几行 prompt 提示(架构债 #4:

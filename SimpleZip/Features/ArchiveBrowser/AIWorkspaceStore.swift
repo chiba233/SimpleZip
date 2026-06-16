@@ -42,6 +42,9 @@ final class AIWorkspaceStore: ObservableObject {
     /// (用户:每次重启变自动整理太蠢)。只存 modelAssisted 树;含非加密的名字 / 路径(路径不是隐私风险,见隐私口径);
     /// 加密内容绝不入树故不落盘。只有点「刷新」才重排序;新文件下一轮追加进已有目录,不自动重排。
     private var treeSnapshots: [UUID: AIVirtualFolderTree]
+    /// 持久:**动态核查自动剔除**的成员 ref(模型判定不扣题 → 从虚拟文件夹移除,**不碰磁盘**)。在树构建的 `visible`
+    /// 过滤层生效(**不进 memberCandidates → 不改 sig → 不触发重排**,只隐藏)。刷新时清空(重新核查)。
+    private var autoExcluded: [UUID: Set<AIContextSourceRef>]
 
     // 内存(每会话由 refreshRecommendations 重建,不落盘 —— 隐私):
     private var pool: [AIVirtualNodeCandidate] = []
@@ -60,6 +63,9 @@ final class AIWorkspaceStore: ObservableObject {
     private var modelFed: [UUID: [AIVirtualNodeCandidate]] = [:]
     /// 正在单独生成 AI 建议的工作区(去重,一次只跑一个/工作区)。
     private var suggestionsInFlight: Set<UUID> = []
+    /// 动态核查:上次核查时间(轮转,每轮挑最久没核查的可见文件夹)+ 是否有核查在飞(串行)。
+    private var lastVerifiedAt: [UUID: Date] = [:]
+    private var verificationInFlight = false
 
     // 模型门控的后台发现(用户:建文件夹是后台行为,模型复核「真能撑起一个主题」才出现,质量优先不保数量):
     private typealias PendingThemeCandidate = (
@@ -101,6 +107,7 @@ final class AIWorkspaceStore: ObservableObject {
     private static let seedsKey = "SimpleZip.ai.workspaceSeeds.v1"
     private static let learningKey = "SimpleZip.ai.learning.v1"
     private static let treeSnapshotKey = "SimpleZip.ai.treeSnapshots.v1"
+    private static let autoExcludedKey = "SimpleZip.ai.autoExcluded.v1"
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -117,6 +124,7 @@ final class AIWorkspaceStore: ObservableObject {
         self.learning = AIWorkspaceStore.decode(AIWorkspaceLearningStore.self, key: Self.learningKey, from: defaults)
             ?? AIWorkspaceLearningStore()
         self.treeSnapshots = AIWorkspaceStore.decode([UUID: AIVirtualFolderTree].self, key: Self.treeSnapshotKey, from: defaults) ?? [:]
+        self.autoExcluded = AIWorkspaceStore.decode([UUID: Set<AIContextSourceRef>].self, key: Self.autoExcludedKey, from: defaults) ?? [:]
         // 启动直接用上次的 AI 目录快照(重启不退回「自动整理」);refreshRecommendations 在后台静默续期。
         self.treeCache = self.treeSnapshots
         persist()
@@ -307,6 +315,7 @@ final class AIWorkspaceStore: ObservableObject {
             // 按**当前**竞争分(含 recency 衰减)重排可见 → 久不用 / 弱的可见被强候选顶下去,再排一个慢周期 tick
             // 持续角逐。新文件 / 新候选进来会重新出现可复核项,自然回到全速复核。
             republishReviewedThemes()
+            verifyOneVisibleFolder()   // **动态核查**:轮转核查一个可见文件夹,剔除不扣题成员
             scheduleReviewPump(after: 25)
             return
         }
@@ -342,6 +351,37 @@ final class AIWorkspaceStore: ObservableObject {
         guard !members.isEmpty else { return candidate.fed }
         let cap = min(220, 80 + max(0, attempt - 1) * 60)
         return members + themeRelevantExtra(ws: candidate.ws, members: members, cap: cap)
+    }
+
+    /// **动态核查**(用户:可见 / 通过的成员也得持续核查是否真扣题,不扣题就从 AI 文件夹移除 —— 虚拟,不碰磁盘)。
+    /// 轮转挑一个最久没核查的可见文件夹,让模型剔除明显不扣题的成员 → 进 `autoExcluded`(visible 层隐藏,不改 sig
+    /// 不重排)→ 重建去掉它们的树 + 重存快照。串行(verificationInFlight),保守(模型拿不准就留)。
+    private func verifyOneVisibleFolder() {
+        guard #available(macOS 26.0, *), AIReportAssistant.isReady, !verificationInFlight else { return }
+        let candidates = collection.workspaces.filter { $0.visibility == .visible && modelFed[$0.id]?.isEmpty == false }
+        guard let ws = candidates.min(by: {
+            (lastVerifiedAt[$0.id] ?? .distantPast) < (lastVerifiedAt[$1.id] ?? .distantPast)
+        }), let fed = modelFed[ws.id] else { return }
+        let already = autoExcluded[ws.id] ?? []
+        let current = fed.filter { cand in !cand.sourceRefs.contains(where: { already.contains($0) }) }
+        guard current.count >= 2 else { return }   // 太少不核查(避免把文件夹核查空)
+        verificationInFlight = true
+        lastVerifiedAt[ws.id] = Date()
+        let id = ws.id
+        let items = current.map { AIVirtualNodePromptCandidate(candidate: $0) }
+        let theme = ([ws.title] + ws.queryPlan.keywords).filter { !$0.isEmpty }.prefix(8).joined(separator: " · ")
+        Task { @MainActor in
+            defer { self.verificationInFlight = false }
+            guard let misfits = try? await AIVirtualFolderModelPlanner.verifyMisfits(theme: theme, items: items),
+                  !misfits.isEmpty else { return }
+            let refs = current.filter { misfits.contains($0.id) }.flatMap(\.sourceRefs)
+            guard !refs.isEmpty else { return }
+            self.autoExcluded[id, default: []].formUnion(refs)
+            self.saveAutoExcluded()
+            self.treeCache[id] = nil
+            self.treeSnapshots[id] = nil   // 重建去掉不扣题成员的树(sig 不变 → 仍用缓存 plan,只是 visible 层少了它们)
+            self.objectWillChange.send()
+        }
     }
 
     /// 后台复核一个候选主题(模型判断值不值得出现 + 产出 plan)。串行闸保证不与其它生成重叠。
@@ -468,8 +508,8 @@ final class AIWorkspaceStore: ObservableObject {
         let tree: AIVirtualFolderTree
         if let cachedPlan = modelPlans[id], cachedPlan.sig == sig, let fed = modelFed[id] {
             // 已有本批成员的模型 plan → 用模型选定的候选集(成员 + 模型加进来的额外文件)建树,在其上套用户覆盖层。
-            // 仍按排除集过滤(对额外文件的「我不喜欢」也生效)。不重刷模型。
-            let excluded = excludedRefs(for: ws)
+            // 按排除集过滤(「我不喜欢」+ **动态核查自动剔除的不扣题成员**)—— 在此 `visible` 层过滤**不改 sig、不重排**。
+            let excluded = excludedRefs(for: ws).union(autoExcluded[id] ?? [])
             let visible = excluded.isEmpty ? fed
                 : fed.filter { cand in !cand.sourceRefs.contains(where: { excluded.contains($0) }) }
             tree = buildTree(ws: ws, members: visible, plan: cachedPlan.plan, mode: .modelAssisted)
@@ -495,6 +535,8 @@ final class AIWorkspaceStore: ObservableObject {
         modelFed[id] = nil
         treeCache[id] = nil
         treeSnapshots[id] = nil; saveTreeSnapshots()   // 点刷新 = 丢弃旧快照,重排序(用户:只有刷新才重排)
+        autoExcluded[id] = nil; saveAutoExcluded()     // 刷新 = 重新核查(清掉上次动态剔除)
+        lastVerifiedAt[id] = nil
         if AIReportAssistant.isReady {
             regenerating.insert(id)                    // 标记「正在重新生成」→ UI 显示华丽动效,不显示「自动整理」
             scheduleRegeneratingTimeout(id)            // 兜底:模型迟迟不出也别一直转(收起动效,显示当前结果)
@@ -911,6 +953,10 @@ final class AIWorkspaceStore: ObservableObject {
 
     private func saveTreeSnapshots() {
         if let data = try? JSONEncoder().encode(treeSnapshots) { defaults.set(data, forKey: Self.treeSnapshotKey) }
+    }
+
+    private func saveAutoExcluded() {
+        if let data = try? JSONEncoder().encode(autoExcluded) { defaults.set(data, forKey: Self.autoExcludedKey) }
     }
 
     /// 缓存一棵树;若是**模型整理好的**(modelAssisted 且非空)就额外存为持久快照(重启直接展示,不退回自动整理)。
