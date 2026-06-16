@@ -14,16 +14,18 @@ final class ActivityWindowController {
     private let windowState = ActivityWindowState()
 
     func show(category: OperationTask.Category? = nil, locateTaskID: UUID? = nil, pane: ActivityPane? = nil) {
+        let resolvedCategory = category ?? locateTaskID.flatMap { TaskCenter.shared.category(forTaskID: $0) }
+
         // #31:Spotlight 直接指定分页(settings / workspace)—— 没带 category 时按 pane 切。
         if let pane {
             windowState.selectedPane = pane
         }
-        if let category {
-            windowState.select(category: category)
+        if let resolvedCategory {
+            windowState.select(category: resolvedCategory)
         }
         // #29:深链 / Spotlight 跳转带的「定位到这条任务」—— 切到它所在分类并请求滚动高亮。
-        if let locateTaskID, let category {
-            windowState.locate(taskID: locateTaskID, category: category)
+        if let locateTaskID, let resolvedCategory {
+            windowState.locate(taskID: locateTaskID, category: resolvedCategory)
         } else if let locateTaskID {
             windowState.locateTaskID = locateTaskID
         }

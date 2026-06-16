@@ -146,6 +146,10 @@ final class TaskCenter: ObservableObject {
         active.first?.category
     }
 
+    func category(forTaskID id: UUID) -> OperationTask.Category? {
+        (active + history).first { $0.id == id }?.category
+    }
+
     var aggregateFraction: Double? {
         let fractions = active.compactMap(\.progress.fraction)
         guard !fractions.isEmpty else { return nil }
