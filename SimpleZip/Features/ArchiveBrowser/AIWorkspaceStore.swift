@@ -129,6 +129,8 @@ final class AIWorkspaceStore: ObservableObject {
         apply { $0.dismissing(id) }
     }
 
+    /// 「标记为长期 AI 文件夹」:推荐 → 用户工作区(后台发现不再自动刷掉);成员引用沿用本会话快照。
+    func promoteToUser(_ id: UUID) { apply { $0.promotingToUser(id) } }
     func setPinned(_ id: UUID, _ pinned: Bool) { apply { $0.pinning(id, pinned) } }
     func hide(_ id: UUID) { apply { $0.hiding(id) } }
     func removeUserWorkspace(_ id: UUID) { treeCache[id] = nil; apply { $0.removingUserWorkspace(id) } }

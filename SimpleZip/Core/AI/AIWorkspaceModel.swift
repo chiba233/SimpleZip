@@ -446,6 +446,20 @@ nonisolated struct AIWorkspaceCollection: Codable, Equatable, Sendable {
         AIWorkspaceCollection(workspaces.filter { !($0.id == id && $0.origin == .userCreated) })
     }
 
+    /// 把一个**推荐**工作区「标记为长期 / 转成用户工作区」(白皮书 2043:推荐可转成用户工作区)——之后后台发现
+    /// 不再自动刷掉它(`replacingRecommended` 只动 `.recommended`)。保留其全部状态,只改 origin。
+    func promotingToUser(_ id: UUID) -> AIWorkspaceCollection {
+        AIWorkspaceCollection(workspaces.map { ws in
+            guard ws.id == id, ws.origin == .recommended else { return ws }
+            return AIWorkspace(id: ws.id, origin: .userCreated, title: ws.title, prompt: ws.prompt,
+                               queryPlan: ws.queryPlan, iconSystemName: ws.iconSystemName,
+                               visibility: .visible, pinned: ws.pinned, generatedAt: ws.generatedAt,
+                               lastOpenedAt: ws.lastOpenedAt, negativeFeedbackCount: ws.negativeFeedbackCount,
+                               fingerprint: ws.fingerprint, openCount: ws.openCount,
+                               relevanceScore: ws.relevanceScore)
+        })
+    }
+
     func renaming(_ id: UUID, to title: String) -> AIWorkspaceCollection {
         let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return self }

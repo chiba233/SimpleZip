@@ -2570,3 +2570,4 @@
 "settings.ai.background.browse" = "瀏覽…";
 "settings.ai.background.maxRecommended" = "自動生成的檔案夾上限";
 "settings.ai.background.maxRecommended.desc" = "後台發現最多自動生成幾個 AI 檔案夾。你固定或自己建立的不計入。";
+"sidebar.ai.markPermanent" = "標記為長期 AI 檔案夾";

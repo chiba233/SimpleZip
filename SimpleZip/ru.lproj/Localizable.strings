@@ -2568,3 +2568,4 @@
 "settings.ai.background.browse" = "Обзор…";
 "settings.ai.background.maxRecommended" = "Максимум авто-созданных папок";
 "settings.ai.background.maxRecommended.desc" = "Сколько Папок ИИ фоновое обнаружение может создавать автоматически. Закреплённые или созданные вами не считаются.";
+"sidebar.ai.markPermanent" = "Сделать постоянной";

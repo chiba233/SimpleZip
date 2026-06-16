@@ -2568,3 +2568,4 @@
 "settings.ai.background.browse" = "เรียกดู…";
 "settings.ai.background.maxRecommended" = "จำนวนโฟลเดอร์ที่สร้างอัตโนมัติสูงสุด";
 "settings.ai.background.maxRecommended.desc" = "การค้นพบเบื้องหลังสร้างโฟลเดอร์ AI อัตโนมัติได้สูงสุดกี่โฟลเดอร์ โฟลเดอร์ที่คุณปักหมุดหรือสร้างเองไม่นับรวม";
+"sidebar.ai.markPermanent" = "ทำให้ถาวร";

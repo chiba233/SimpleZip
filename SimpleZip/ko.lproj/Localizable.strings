@@ -2569,3 +2569,4 @@
 "settings.ai.background.browse" = "찾아보기…";
 "settings.ai.background.maxRecommended" = "자동 생성 폴더 최대 개수";
 "settings.ai.background.maxRecommended.desc" = "백그라운드 발견이 자동으로 만들 수 있는 AI 폴더 수입니다. 고정하거나 직접 만든 폴더는 포함되지 않습니다.";
+"sidebar.ai.markPermanent" = "장기 보관으로 표시";

@@ -191,6 +191,7 @@ struct Sidebar: View {
         case .system:
             Button(L10n.text("sidebar.ai.hideWorkspace")) { workspaceStore.hide(ws.id) }
         case .recommended:
+            Button(L10n.text("sidebar.ai.markPermanent")) { workspaceStore.promoteToUser(ws.id) }
             Button(L10n.text("sidebar.ai.dismissRecommended")) { workspaceStore.dismissRecommended(ws.id) }
         case .userCreated:
             Button(L10n.text("sidebar.ai.deleteWorkspace"), role: .destructive) {

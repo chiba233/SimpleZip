@@ -2570,3 +2570,4 @@
 "settings.ai.background.browse" = "参照…";
 "settings.ai.background.maxRecommended" = "自動生成フォルダの上限";
 "settings.ai.background.maxRecommended.desc" = "バックグラウンド発見が自動で作成できる AI フォルダの数。固定したものや自分で作成したものは含みません。";
+"sidebar.ai.markPermanent" = "常設にする";

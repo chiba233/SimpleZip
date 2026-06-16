@@ -2568,3 +2568,4 @@
 "settings.ai.background.browse" = "Durchsuchen…";
 "settings.ai.background.maxRecommended" = "Maximal automatisch erstellte Ordner";
 "settings.ai.background.maxRecommended.desc" = "Wie viele KI-Ordner die Hintergrunderkennung automatisch erstellen darf. Angeheftete oder selbst erstellte Ordner zählen nicht.";
+"sidebar.ai.markPermanent" = "Dauerhaft machen";

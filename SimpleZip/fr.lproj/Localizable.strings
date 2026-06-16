@@ -2566,3 +2566,4 @@
 "settings.ai.background.browse" = "Parcourir…";
 "settings.ai.background.maxRecommended" = "Maximum de dossiers créés automatiquement";
 "settings.ai.background.maxRecommended.desc" = "Combien de Dossiers IA la découverte en arrière-plan peut créer automatiquement. Ceux que vous épinglez ou créez ne comptent pas.";
+"sidebar.ai.markPermanent" = "Rendre permanent";

@@ -2647,3 +2647,4 @@
 "settings.ai.background.browse" = "Browse…";
 "settings.ai.background.maxRecommended" = "Maximum auto-created folders";
 "settings.ai.background.maxRecommended.desc" = "How many AI Folders background discovery may create automatically. Folders you pin or create yourself don’t count.";
+"sidebar.ai.markPermanent" = "Make Permanent";

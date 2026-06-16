@@ -2568,3 +2568,4 @@
 "settings.ai.background.browse" = "Examinar…";
 "settings.ai.background.maxRecommended" = "Máximo de carpetas creadas automáticamente";
 "settings.ai.background.maxRecommended.desc" = "Cuántas Carpetas IA puede crear automáticamente el descubrimiento en segundo plano. Las que fijas o creas tú no cuentan.";
+"sidebar.ai.markPermanent" = "Hacer permanente";
