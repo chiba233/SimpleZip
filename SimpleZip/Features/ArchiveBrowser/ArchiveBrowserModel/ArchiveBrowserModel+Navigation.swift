@@ -556,10 +556,13 @@ extension ArchiveBrowserModel {
                 await self?.loadArchive(url, generation: loadGeneration)
             }
         case .aiWorkspace:
-            // AI 工作区不监视文件夹、不加载文件列表;候选由 AISuggestionFolderView 自己从现有索引确定性派生。
-            // 这里只停掉文件夹监视(避免残留 FSEvents),**绝不在此触发 @Published 风暴**(A17)。
+            // AI 工作区不监视文件夹、不加载文件列表;虚拟树由 AIWorkspaceView 渲染。
             folderWatcher?.stop()
             clearExpandedFolderRegistry()
+            // **bug 修复**:进 AI 工作区**清掉残留的文件列表**。否则 fileItems 还是进来前那个文件夹的内容,
+            // 用 ← / → 回到**同一个**物理目录时,applyLoadedFolder 的「same listing」优化判定内容没变 → 不重新
+            // 赋值 → 刚挂载的空 FileTable 永远填不上(换个路径才正常)。导航单次触发,不是 reload 循环,A17 安全。
+            if !fileItems.isEmpty { fileItems = [] }
         }
     }
 
