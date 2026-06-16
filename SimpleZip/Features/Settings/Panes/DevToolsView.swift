@@ -25,10 +25,13 @@ struct DevToolsView: View {
     // 0.4.4 #6:格式兼容性实验室(用户选小文件夹,对真实后端逐格式实测保真度)。
     @State private var formatLabResults: [FormatLabRunner.FormatResult] = []
     @State private var isRunningFormatLab = false
-    // 0.4.5 #80:AI 可用数据快照(只读)—— AI 助手是否就绪、归档记忆缓存规模、Spotlight 捐献量。
+    // 0.4.5 #80/#89:AI 可用数据快照(只读)—— 助手、归档记忆、Spotlight、后台预索引、动态工作区、活动任务源。
     @State private var aiAssistantStatus = "…"
     @State private var aiArchiveMemoryStatus = "…"
     @State private var aiSpotlightStatus = "…"
+    @State private var aiBackgroundIndexStatus = "…"
+    @State private var aiWorkspaceStatus = "…"
+    @State private var aiActivityTasksStatus = "…"
 
     private var appVersionLine: String {
         let short = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
@@ -168,6 +171,9 @@ struct DevToolsView: View {
                         infoRow("sparkles", L10n.text("devtools.aiData.assistant"), aiAssistantStatus)
                         infoRow("archivebox", L10n.text("devtools.aiData.archiveMemory"), aiArchiveMemoryStatus)
                         infoRow("magnifyingglass", L10n.text("devtools.aiData.spotlight"), aiSpotlightStatus)
+                        infoRow("folder.badge.gearshape", L10n.text("devtools.aiData.backgroundIndex"), aiBackgroundIndexStatus)
+                        infoRow("rectangle.3.group.bubble", L10n.text("devtools.aiData.workspaces"), aiWorkspaceStatus)
+                        infoRow("clock.badge.checkmark", L10n.text("devtools.aiData.activityTasks"), aiActivityTasksStatus)
                         actionRow(
                             "doc.on.clipboard",
                             L10n.text("devtools.action.copyAIWorkspaceFacts"),
@@ -381,29 +387,121 @@ struct DevToolsView: View {
 
     // MARK: - 0.4.5 #80 AI 可用数据快照(只读)
 
-    /// 读取 AI 助手就绪状态 + AI 能召回的本机派生数据规模(归档记忆缓存、Spotlight 捐献)。
-    /// 缓存 / Spotlight 统计走后台线程(可能读不小的 JSON),回主 actor 设 @State。只读、不涉密。
+    /// 读取 AI 助手就绪状态 + AI 能召回的本机派生数据规模。缓存 / Spotlight 统计走后台线程
+    /// (可能读不小的 JSON),回主 actor 设 @State。只读、不涉密。
     private func loadAIDataSnapshot() {
-        aiAssistantStatus = AIReportAssistant.isReady
-            ? L10n.text("devtools.aiData.assistant.ready")
-            : AIReportAssistant.unavailableReason
         Task { @MainActor in
-            let cache = await Task.detached(priority: .utility) { () -> (Int, Int) in
-                let store = ArchiveListingCacheStore()
-                return (store.count(), store.storageByteSize())
-            }.value
-            aiArchiveMemoryStatus = "\(cache.0) · "
-                + ByteCountFormatter.string(fromByteCount: Int64(cache.1), countStyle: .file)
-            let stats = await Task.detached(priority: .utility) { SpotlightReindex.stats() }.value
-            aiSpotlightStatus = "\(stats.total)"
+            let snapshot = await makeAIDataSnapshot()
+            aiAssistantStatus = snapshot.assistant.ready
+                ? L10n.text("devtools.aiData.assistant.ready")
+                : snapshot.assistant.unavailableReason
+            aiArchiveMemoryStatus = "\(snapshot.archiveMemory.archiveCount) · "
+                + ByteCountFormatter.string(fromByteCount: Int64(snapshot.archiveMemory.storageByteSize), countStyle: .file)
+            aiSpotlightStatus = "\(snapshot.spotlight.total)"
+            aiBackgroundIndexStatus = L10n.format(
+                "devtools.aiData.backgroundIndex.value",
+                snapshot.backgroundIndex.activityLevel,
+                "\(snapshot.backgroundIndex.scopeCount)",
+                "\(snapshot.backgroundIndex.indexedFileCount)",
+                "\(snapshot.backgroundIndex.folderProfileCount)"
+            )
+            aiWorkspaceStatus = L10n.format(
+                "devtools.aiData.workspaces.value",
+                "\(snapshot.workspaces.visible)",
+                "\(snapshot.workspaces.total)",
+                "\(snapshot.workspaces.recommended)",
+                "\(snapshot.workspaces.userCreated)"
+            )
+            aiActivityTasksStatus = L10n.format(
+                "devtools.aiData.activityTasks.value",
+                "\(snapshot.activityTasks.active)",
+                "\(snapshot.activityTasks.history)",
+                "\(snapshot.activityTasks.failed)"
+            )
         }
+    }
+
+    private func makeAIDataSnapshot() async -> DevToolsAIDataSnapshot {
+        let archiveProbe = await Task.detached(priority: .utility) { () -> DevToolsArchiveCacheProbe in
+            let store = ArchiveListingCacheStore()
+            let entries = store.loadAll()
+            return DevToolsArchiveCacheProbe(
+                entries: entries,
+                memory: DevToolsAIDataSnapshot.ArchiveMemory(
+                    archiveCount: entries.count,
+                    storageByteSize: store.storageByteSize(),
+                    nonEncryptedFileEntries: entries.reduce(0) { $0 + $1.fileEntryCount },
+                    truncatedArchives: entries.filter(\.truncated).count
+                )
+            )
+        }.value
+        let spotlight = await Task.detached(priority: .utility) { () -> DevToolsAIDataSnapshot.Spotlight in
+            let stats = SpotlightReindex.stats()
+            let total = stats.releases + stats.tasks + stats.archives + stats.archiveFiles + stats.settings
+            return DevToolsAIDataSnapshot.Spotlight(
+                releases: stats.releases,
+                tasks: stats.tasks,
+                archives: stats.archives,
+                archiveFiles: stats.archiveFiles,
+                settings: stats.settings,
+                total: total
+            )
+        }.value
+        let backgroundStore = AIBackgroundIndexStore.shared
+        let budget = backgroundStore.budget
+        let index = backgroundStore.fileIndex
+        let workspaces = AIWorkspaceStore.shared.collection.workspaces
+        let allTasks = TaskCenter.shared.active + TaskCenter.shared.history
+        let taskRecords = allTasks.map(\.aiTaskRecord)
+        let workbench = ActivityAIWorkbenchBuilder.snapshot(records: taskRecords)
+        let systemWorkspaceFacts = aiWorkspaceFactsSnapshots(tasks: allTasks, cachedArchives: archiveProbe.entries)
+
+        return DevToolsAIDataSnapshot(
+            generatedAt: Date(),
+            assistant: DevToolsAIDataSnapshot.Assistant(
+                enabled: AppPreferences.aiAssistantEnabled,
+                ready: AIReportAssistant.isReady,
+                unavailableReason: AIReportAssistant.isReady
+                    ? L10n.text("devtools.aiData.assistant.ready")
+                    : AIReportAssistant.unavailableReason
+            ),
+            archiveMemory: archiveProbe.memory,
+            spotlight: spotlight,
+            backgroundIndex: DevToolsAIDataSnapshot.BackgroundIndex(
+                backgroundEnabled: backgroundStore.backgroundEnabled,
+                folderPreindexEnabled: backgroundStore.folderPreindexEnabled,
+                archivePrefetchEnabled: backgroundStore.archivePrefetchEnabled,
+                activityLevel: AppPreferences.aiBackgroundActivityLevel.rawValue,
+                scopeCount: backgroundStore.scopes.count,
+                indexedFileCount: index.fileCount,
+                folderProfileCount: index.folderCount,
+                maxIndexedFiles: index.maxFiles,
+                budget: budget.map {
+                    DevToolsAIDataSnapshot.BackgroundIndex.Budget(
+                        maxDirectoriesPerRound: $0.maxDirectoriesPerRound,
+                        maxArchivesPerRound: $0.maxArchivesPerRound,
+                        maxEntriesPerArchive: $0.maxEntriesPerArchive
+                    )
+                }
+            ),
+            workspaces: DevToolsAIDataSnapshot.Workspaces(workspaces),
+            activityTasks: DevToolsAIDataSnapshot.ActivityTasks(
+                active: TaskCenter.shared.active.count,
+                history: TaskCenter.shared.history.count,
+                workbench: workbench
+            ),
+            systemWorkspaceFacts: systemWorkspaceFacts
+        )
     }
 
     private func copyAIWorkspaceFacts() {
         Task { @MainActor in
             do {
-                let snapshots = await aiWorkspaceFactsSnapshots()
-                let data = try AISystemWorkspaceFactsBuilder.encodedJSON(for: snapshots)
+                let snapshot = await makeAIDataSnapshot()
+                let encoder = JSONEncoder()
+                encoder.dateEncodingStrategy = .iso8601
+                encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+                let data = try encoder.encode(snapshot)
                 guard let text = String(data: data, encoding: .utf8) else {
                     flash(L10n.format("devtools.feedback.aiWorkspaceFactsFailed", "UTF-8"))
                     return
@@ -417,11 +515,11 @@ struct DevToolsView: View {
         }
     }
 
-    private func aiWorkspaceFactsSnapshots() async -> [AISystemWorkspaceFactsSnapshot] {
-        let tasks = (TaskCenter.shared.active + TaskCenter.shared.history).map { $0.aiWorkspaceFact }
-        let cachedArchives = await Task.detached(priority: .utility) {
-            ArchiveListingCacheStore().loadAll()
-        }.value
+    private func aiWorkspaceFactsSnapshots(
+        tasks: [OperationTask],
+        cachedArchives: [ArchiveListingCacheEntry]
+    ) -> [AISystemWorkspaceFactsSnapshot] {
+        let tasks = tasks.map { $0.aiWorkspaceFact }
         let archives = cachedArchives.map { $0.aiWorkspaceFact }
         return AISystemWorkspaceKind.allCases.map {
             AISystemWorkspaceFactsBuilder.snapshot(kind: $0, tasks: tasks, archives: archives)
@@ -435,4 +533,105 @@ struct DevToolsView: View {
             withAnimation { actionFeedback = nil }
         }
     }
+}
+
+private struct DevToolsArchiveCacheProbe {
+    let entries: [ArchiveListingCacheEntry]
+    let memory: DevToolsAIDataSnapshot.ArchiveMemory
+}
+
+private struct DevToolsAIDataSnapshot: Encodable {
+    struct Assistant: Encodable {
+        let enabled: Bool
+        let ready: Bool
+        let unavailableReason: String
+    }
+
+    struct ArchiveMemory: Encodable {
+        let archiveCount: Int
+        let storageByteSize: Int
+        let nonEncryptedFileEntries: Int
+        let truncatedArchives: Int
+    }
+
+    struct Spotlight: Encodable {
+        let releases: Int
+        let tasks: Int
+        let archives: Int
+        let archiveFiles: Int
+        let settings: Int
+        let total: Int
+    }
+
+    struct BackgroundIndex: Encodable {
+        struct Budget: Encodable {
+            let maxDirectoriesPerRound: Int
+            let maxArchivesPerRound: Int
+            let maxEntriesPerArchive: Int
+        }
+
+        let backgroundEnabled: Bool
+        let folderPreindexEnabled: Bool
+        let archivePrefetchEnabled: Bool
+        let activityLevel: String
+        let scopeCount: Int
+        let indexedFileCount: Int
+        let folderProfileCount: Int
+        let maxIndexedFiles: Int
+        let budget: Budget?
+    }
+
+    struct Workspaces: Encodable {
+        let visible: Int
+        let total: Int
+        let recommended: Int
+        let userCreated: Int
+        let hidden: Int
+        let dismissed: Int
+        let pinned: Int
+        let described: Int
+
+        init(_ workspaces: [AIWorkspace]) {
+            self.visible = workspaces.filter { $0.visibility == .visible }.count
+            self.total = workspaces.count
+            self.recommended = workspaces.filter { $0.origin == .recommended }.count
+            self.userCreated = workspaces.filter { $0.origin == .userCreated }.count
+            self.hidden = workspaces.filter { $0.visibility == .hidden }.count
+            self.dismissed = workspaces.filter { $0.visibility == .dismissed }.count
+            self.pinned = workspaces.filter(\.pinned).count
+            self.described = workspaces.filter { $0.userDescription != nil }.count
+        }
+    }
+
+    struct ActivityTasks: Encodable {
+        let active: Int
+        let history: Int
+        let failed: Int
+        let running: Int
+        let succeeded: Int
+        let skipped: Int
+        let cancelled: Int
+        let workbench: ActivityAIWorkbenchSnapshot
+
+        init(active: Int, history: Int, workbench: ActivityAIWorkbenchSnapshot) {
+            self.active = active
+            self.history = history
+            self.failed = workbench.summary.failedSeen + workbench.summary.failedUnseen
+            self.running = workbench.summary.running
+            self.succeeded = workbench.summary.succeeded
+            self.skipped = workbench.summary.skipped
+            self.cancelled = workbench.summary.cancelled
+            self.workbench = workbench
+        }
+    }
+
+    let schema = "simplezip.devtools.aiData.v1"
+    let generatedAt: Date
+    let assistant: Assistant
+    let archiveMemory: ArchiveMemory
+    let spotlight: Spotlight
+    let backgroundIndex: BackgroundIndex
+    let workspaces: Workspaces
+    let activityTasks: ActivityTasks
+    let systemWorkspaceFacts: [AISystemWorkspaceFactsSnapshot]
 }
