@@ -2584,6 +2584,8 @@
 "aiWorkspace.group.more" = "เพิ่มเติม";
 "aiWorkspace.node.openArchive" = "เปิดอาร์ไคฟ์";
 "aiWorkspace.node.openFolder" = "เปิดโฟลเดอร์";
+"aiWorkspace.node.compress" = "บีบอัด";
+"aiWorkspace.node.compressGroup" = "บีบอัดเหล่านี้ · ประหยัดพื้นที่";
 "aiWorkspace.node.reveal" = "แสดงใน SimpleZip";
 "aiWorkspace.node.hash" = "คำนวณ SHA-256";
 "aiWorkspace.node.test" = "ทดสอบอาร์ไคฟ์";

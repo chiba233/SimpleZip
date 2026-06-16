@@ -108,10 +108,12 @@ struct AIVirtualNodeOutline: NSViewRepresentable {
             roots = nodes.map { buildItem($0) }
             outlineView?.reloadData()
 
-            // 还原展开:首次默认展开顶层分组,之后沿用用户的展开状态。
+            // 还原展开:首次只展开 **AI 标为重要(prominent → confidence≥0.7)** 的分组(AI 注意力:它希望你先看到的
+            // 才提前展开,**绝不全部展开**);之后沿用用户手动的展开状态。
             guard let outlineView else { return }
             applyExpansion { item in
-                expandTopLevel ? true : expandedIDs.contains(item.id)
+                if expandTopLevel { return item.node?.kind == .group && (item.node?.confidence ?? 0) >= 0.7 }
+                return expandedIDs.contains(item.id)
             }
             // 还原选中。
             if !selectedIDs.isEmpty {
@@ -128,7 +130,12 @@ struct AIVirtualNodeOutline: NSViewRepresentable {
         private func buildItem(_ node: AIVirtualNode) -> Item {
             let children: [Item]
             if node.kind == .group {
-                children = node.children.map { buildItem($0) }
+                // 分组:子节点 + **组级 AI 建议(压缩这些)** 作为额外行(展开时可见)。
+                var kids = node.children.map { buildItem($0) }
+                kids += AIWorkspaceNodeActions.suggestions(for: node).map {
+                    Item(id: "gs-\(node.id)-\($0.id)", node: nil, suggestion: $0, children: [])
+                }
+                children = kids
             } else {
                 children = AIWorkspaceNodeActions.suggestions(for: node).map {
                     Item(id: "s-\(node.id)-\($0.id)", node: nil, suggestion: $0, children: [])

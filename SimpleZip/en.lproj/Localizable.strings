@@ -2663,6 +2663,8 @@
 "aiWorkspace.group.more" = "More";
 "aiWorkspace.node.openArchive" = "Open Archive";
 "aiWorkspace.node.openFolder" = "Open Folder";
+"aiWorkspace.node.compress" = "Compress";
+"aiWorkspace.node.compressGroup" = "Compress these · save space";
 "aiWorkspace.node.reveal" = "Reveal in SimpleZip";
 "aiWorkspace.node.hash" = "Compute SHA-256";
 "aiWorkspace.node.test" = "Test Archive";

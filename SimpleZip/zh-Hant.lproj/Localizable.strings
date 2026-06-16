@@ -2586,6 +2586,8 @@
 "aiWorkspace.group.more" = "更多";
 "aiWorkspace.node.openArchive" = "打開歸檔";
 "aiWorkspace.node.openFolder" = "打開檔案夾";
+"aiWorkspace.node.compress" = "壓縮";
+"aiWorkspace.node.compressGroup" = "壓縮這些 · 省空間";
 "aiWorkspace.node.reveal" = "在 SimpleZip 中顯示";
 "aiWorkspace.node.hash" = "計算 SHA256";
 "aiWorkspace.node.test" = "測試歸檔";

@@ -2584,6 +2584,8 @@
 "aiWorkspace.group.more" = "Más";
 "aiWorkspace.node.openArchive" = "Abrir archivo";
 "aiWorkspace.node.openFolder" = "Abrir carpeta";
+"aiWorkspace.node.compress" = "Comprimir";
+"aiWorkspace.node.compressGroup" = "Comprimir estos · ahorrar espacio";
 "aiWorkspace.node.reveal" = "Mostrar en SimpleZip";
 "aiWorkspace.node.hash" = "Calcular SHA-256";
 "aiWorkspace.node.test" = "Probar archivo";

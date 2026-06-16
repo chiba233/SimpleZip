@@ -207,14 +207,30 @@ nonisolated struct AIVirtualFolderGroupPlan: Codable, Equatable, Sendable {
     let reason: String?
     let candidateIDs: [String]
     let children: [AIVirtualFolderGroupPlan]
+    /// AI 注意力:是否「该让用户先看到」→ 默认展开这一组(其余收起)。**不是全部展开**(白皮书:折叠接入 AI 注意力)。
+    let prominent: Bool
 
     init(id: String, title: String, reason: String? = nil,
-         candidateIDs: [String] = [], children: [AIVirtualFolderGroupPlan] = []) {
+         candidateIDs: [String] = [], children: [AIVirtualFolderGroupPlan] = [], prominent: Bool = false) {
         self.id = id
         self.title = title
         self.reason = reason
         self.candidateIDs = candidateIDs
         self.children = children
+        self.prominent = prominent
+    }
+
+    private enum CodingKeys: String, CodingKey { case id, title, reason, candidateIDs, children, prominent }
+
+    /// 旧缓存(无 `prominent`)解码兼容 → 缺字段默认 false。
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try c.decode(String.self, forKey: .id)
+        self.title = try c.decode(String.self, forKey: .title)
+        self.reason = try c.decodeIfPresent(String.self, forKey: .reason)
+        self.candidateIDs = try c.decodeIfPresent([String].self, forKey: .candidateIDs) ?? []
+        self.children = try c.decodeIfPresent([AIVirtualFolderGroupPlan].self, forKey: .children) ?? []
+        self.prominent = try c.decodeIfPresent(Bool.self, forKey: .prominent) ?? false
     }
 }
 
@@ -261,7 +277,8 @@ nonisolated enum AIVirtualFolderPlanner {
             let ranked = AIWorkspaceCandidateRanker.rankNodes(buckets[bucket] ?? [])
             groups.append(AIVirtualFolderGroupPlan(
                 id: "det-" + bucket, title: bucket, reason: nil,
-                candidateIDs: ranked.map(\.id)))
+                candidateIDs: ranked.map(\.id),
+                prominent: groups.isEmpty))   // 无模型时:默认只展开排第一(最相关)的那组,不全展开
         }
         if sortedBuckets.count > limit {
             let rest = sortedBuckets.dropFirst(limit - 1).flatMap { buckets[$0] ?? [] }
@@ -455,7 +472,9 @@ nonisolated enum AIVirtualFolderTreeBuilder {
         let title = clampTitle(group.title, max: constraints.maxTitleCharacters)
         return AIVirtualNode(
             id: AIStableHash.deterministicUUID("group:" + group.id),
-            kind: .group, title: title, reason: group.reason, children: children)
+            kind: .group, title: title, reason: group.reason,
+            confidence: group.prominent ? 1.0 : 0.3,   // AI 注意力 → 默认是否展开(view 据 confidence 判定)
+            children: children)
     }
 
     private static func leafNode(

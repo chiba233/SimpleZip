@@ -28,6 +28,8 @@ struct GeneratedAIFolderGroup: Sendable {
     var reason: String
     @Guide(description: "The candidateID strings, copied VERBATIM from the provided items list, that belong in this group. Use ONLY ids that appear in the list; never invent or alter an id.")
     var candidateIDs: [String]
+    @Guide(description: "True ONLY for the one (at most two) group the user should see expanded first — the most important / most worth their attention right now. Leave the rest false (collapsed). Most groups should be false; never mark everything true.")
+    var expandFirst: Bool
 }
 
 /// 模型产出的整份虚拟目录 plan。
@@ -131,7 +133,8 @@ enum AIVirtualFolderModelPlanner {
                 id: "model-\(index)",
                 title: g.title,
                 reason: g.reason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : g.reason,
-                candidateIDs: g.candidateIDs)
+                candidateIDs: g.candidateIDs,
+                prominent: g.expandFirst)   // AI 注意力:这组该不该默认展开
         }
         let plan = AIVirtualFolderPlan(workspaceTitle: title.isEmpty ? nil : title, groups: groups)
         return AIFolderReview(worthSurfacing: generated.worthSurfacing, plan: plan)

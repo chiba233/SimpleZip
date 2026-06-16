@@ -21,25 +21,38 @@ struct AIWorkspaceNodeAction: Identifiable {
 }
 
 enum AIWorkspaceNodeActions {
+    /// 节点的 AI 建议(**多种、按上下文变化,不是固定哈希**):文件→在 SimpleZip 显示 / 哈希;归档→打开 / 测试;
+    /// 文件夹→打开 / 压缩;**分组→把这一组成员一起压缩(可省空间)** —— 多文件成组复用「一组折一行」的语义。
     static func suggestions(for node: AIVirtualNode) -> [AIWorkspaceNodeAction] {
-        guard let path = resolvedPath(node) else { return [] }
         switch node.kind {
         case .file:
-            return [AIWorkspaceNodeAction(titleKey: "aiWorkspace.node.reveal", systemImage: "magnifyingglass",
-                                          action: .revealFile(path: path)),
-                    AIWorkspaceNodeAction(titleKey: "aiWorkspace.node.hash", systemImage: "number",
-                                          action: .calculateHash(paths: [path], algorithms: ["sha256"]))]
+            guard let path = resolvedPath(node) else { return [] }
+            return [reveal(path), hash([path])]
         case .archive:
-            return [AIWorkspaceNodeAction(titleKey: "aiWorkspace.node.openArchive", systemImage: "doc.zipper",
-                                          action: .openArchive(path: path, revealEntry: nil)),
-                    AIWorkspaceNodeAction(titleKey: "aiWorkspace.node.test", systemImage: "checkmark.seal",
-                                          action: .testArchive(path: path))]
+            guard let path = resolvedPath(node) else { return [] }
+            return [openArchive(path), test(path)]
         case .folder:
-            return [AIWorkspaceNodeAction(titleKey: "aiWorkspace.node.openFolder", systemImage: "folder",
-                                          action: .openFolder(path: path))]
+            guard let path = resolvedPath(node) else { return [] }
+            return [openFolder(path), compress([path], "aiWorkspace.node.compress")]
+        case .group:
+            let paths = descendantFilePaths(node)
+            guard paths.count >= 2 else { return [] }
+            return [compress(paths, "aiWorkspace.node.compressGroup")]
         default:
             return []
         }
+    }
+
+    /// 一个分组里所有(可定位路径的)叶子成员的真实路径 —— 给「把这组一起压缩」用。
+    static func descendantFilePaths(_ node: AIVirtualNode) -> [String] {
+        var paths: [String] = []
+        func walk(_ n: AIVirtualNode) {
+            if n.kind != .group, let p = resolvedPath(n) { paths.append(p) }
+            n.children.forEach(walk)
+        }
+        node.children.forEach(walk)
+        var seen = Set<String>()
+        return paths.filter { seen.insert($0).inserted }
     }
 
     static func resolvedPath(_ node: AIVirtualNode) -> String? {
@@ -48,6 +61,27 @@ enum AIWorkspaceNodeActions {
         case .openArchive(let p, _): return p
         default: return nil
         }
+    }
+
+    private static func reveal(_ p: String) -> AIWorkspaceNodeAction {
+        .init(titleKey: "aiWorkspace.node.reveal", systemImage: "magnifyingglass", action: .revealFile(path: p))
+    }
+    private static func hash(_ p: [String]) -> AIWorkspaceNodeAction {
+        .init(titleKey: "aiWorkspace.node.hash", systemImage: "number",
+              action: .calculateHash(paths: p, algorithms: ["sha256"]))
+    }
+    private static func openArchive(_ p: String) -> AIWorkspaceNodeAction {
+        .init(titleKey: "aiWorkspace.node.openArchive", systemImage: "doc.zipper",
+              action: .openArchive(path: p, revealEntry: nil))
+    }
+    private static func test(_ p: String) -> AIWorkspaceNodeAction {
+        .init(titleKey: "aiWorkspace.node.test", systemImage: "checkmark.seal", action: .testArchive(path: p))
+    }
+    private static func openFolder(_ p: String) -> AIWorkspaceNodeAction {
+        .init(titleKey: "aiWorkspace.node.openFolder", systemImage: "folder", action: .openFolder(path: p))
+    }
+    private static func compress(_ paths: [String], _ titleKey: String) -> AIWorkspaceNodeAction {
+        .init(titleKey: titleKey, systemImage: "archivebox", action: .createArchive(paths: paths))
     }
 }
 
