@@ -57,103 +57,33 @@ struct AIWorkspaceView: View {
     let workspaceID: UUID
     @ObservedObject private var store = AIWorkspaceStore.shared
 
-    /// 「双击进入」的下钻链(面包屑);空 = 根。
-    @State private var drillStack: [AIVirtualNode] = []
-    /// 内联展开的节点(分组展开子级 / 文件展开 AI 建议)。
+    /// 内联展开的节点(分组展开子级 / 文件展开 AI 建议)。下钻进分组走模型导航(返回/前进/上一级/地址栏),
+    /// 不在 view 里维护假面包屑。
     @State private var expanded: Set<UUID> = []
 
     var body: some View {
         Group {
-            if let workspace = store.workspace(workspaceID) {
-                content(for: workspace)
+            if let tree = store.virtualTree(for: workspaceID), !tree.isEmpty {
+                let nodes = model.aiWorkspacePath.last?.children ?? tree.nodes
+                if nodes.isEmpty {
+                    emptyState(L10n.text("aiFolder.noSuggestions"))
+                } else {
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 2) {
+                            ForEach(nodes) { node in
+                                AIVirtualNodeRowView(node: node, depth: 0, expanded: $expanded,
+                                                     onDrill: { model.drillIntoAIWorkspaceGroup($0) },
+                                                     onDispatch: dispatch)
+                            }
+                        }
+                        .padding(14)
+                    }
+                }
             } else {
                 emptyState(L10n.text("aiFolder.noSuggestions"))
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onChange(of: workspaceID) { _ in drillStack = []; expanded = [] }
-    }
-
-    @ViewBuilder
-    private func content(for workspace: AIWorkspace) -> some View {
-        let tree = store.virtualTree(for: workspaceID)
-        VStack(alignment: .leading, spacing: 0) {
-            hero(workspace)
-            Divider()
-            if let tree, !tree.isEmpty {
-                if !drillStack.isEmpty { breadcrumb(workspace); Divider() }
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 2) {
-                        ForEach(displayedNodes(of: tree)) { node in
-                            AIVirtualNodeRowView(node: node, depth: 0, expanded: $expanded,
-                                                 onDrill: drillInto, onDispatch: dispatch)
-                        }
-                    }
-                    .padding(14)
-                }
-            } else {
-                emptyState(L10n.text("aiFolder.noSuggestions"))
-            }
-        }
-    }
-
-    private func displayedNodes(of tree: AIVirtualFolderTree) -> [AIVirtualNode] {
-        drillStack.last?.children ?? tree.nodes
-    }
-
-    // MARK: - Hero 头 + 面包屑
-
-    private func hero(_ workspace: AIWorkspace) -> some View {
-        HStack(spacing: 12) {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.accentColor.gradient)
-                .overlay(Image(systemName: workspace.iconSystemName)
-                    .font(.system(size: 18, weight: .semibold)).foregroundStyle(.white))
-                .frame(width: 40, height: 40)
-                .shadow(color: Color.accentColor.opacity(0.35), radius: 4, y: 2)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(workspace.title).font(.title3.weight(.semibold)).lineLimit(1)
-                if let subtitle = subtitle(for: workspace) {
-                    Text(subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                }
-            }
-            Spacer(minLength: 8)
-            Button { model.openAIWorkspace(workspaceID) } label: { Image(systemName: "arrow.clockwise") }
-                .buttonStyle(.borderless).help(L10n.text("sidebar.ai.refreshWorkspace"))
-            if workspace.origin == .recommended {
-                Button { store.dismissRecommended(workspaceID) } label: { Image(systemName: "xmark.circle") }
-                    .buttonStyle(.borderless).help(L10n.text("sidebar.ai.dismissRecommended"))
-            }
-        }
-        .padding(.horizontal, 16).padding(.vertical, 14)
-        .background(LinearGradient(colors: [Color.accentColor.opacity(0.12), Color.accentColor.opacity(0.02)],
-                                   startPoint: .top, endPoint: .bottom))
-    }
-
-    private func breadcrumb(_ workspace: AIWorkspace) -> some View {
-        HStack(spacing: 4) {
-            crumb(workspace.title) { drillStack = [] }
-            ForEach(Array(drillStack.enumerated()), id: \.element.id) { idx, node in
-                Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.tertiary)
-                crumb(node.title) { drillStack = Array(drillStack.prefix(idx + 1)) }
-            }
-        }
-        .padding(.horizontal, 16).padding(.vertical, 6)
-    }
-
-    private func crumb(_ title: String, _ action: @escaping () -> Void) -> some View {
-        Button(action: action) { Text(title).font(.caption).lineLimit(1) }
-            .buttonStyle(.plain).foregroundStyle(.secondary)
-    }
-
-    private func drillInto(_ node: AIVirtualNode) {
-        if node.kind == .group, !node.children.isEmpty { drillStack.append(node) }
-    }
-
-    private func subtitle(for workspace: AIWorkspace) -> String? {
-        if let prompt = workspace.prompt, !prompt.isEmpty { return prompt }
-        let tokens = workspace.queryPlan.keywords.filter { !$0.isEmpty }
-        return tokens.isEmpty ? nil : tokens.prefix(5).joined(separator: " · ")
     }
 
     private func emptyState(_ text: String) -> some View {

@@ -67,8 +67,9 @@ struct ContentView: View {
                 .navigationSplitViewColumnWidth(min: 180, ideal: 230, max: 320)
         } detail: {
             VStack(spacing: 0) {
+                // 地址栏对所有模式都显示 —— AI 工作区也复用它,显示虚拟面包屑(工作区 / 分组 / 子分组),
+                // 配合 返回/前进/上一级 一起导航。
                 LocationBar(model: model)
-
                 Divider()
 
                 if case .archive = model.mode {

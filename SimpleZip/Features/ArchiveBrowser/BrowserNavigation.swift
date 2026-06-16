@@ -16,6 +16,9 @@ enum NavigationLocation: Equatable {
     case folder(URL)
     case archive(URL, String)
     case tag(String)
+    /// 0.4.5 #89:AI 工作区 + 虚拟子目录路径(group 节点 id 链)。让 AI 文件夹的「进入虚拟分组」也进
+    /// 后退 / 前进 / 上一级历史,与文件夹导航同一套链。
+    case aiWorkspace(UUID, [UUID])
 }
 
 /// 一条后退 / 前进历史记录:位置 + **嵌套档案的地址显示上下文**。

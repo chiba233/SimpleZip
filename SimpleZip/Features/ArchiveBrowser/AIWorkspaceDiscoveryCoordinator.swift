@@ -18,10 +18,13 @@ final class AIWorkspaceDiscoveryCoordinator {
     static let shared = AIWorkspaceDiscoveryCoordinator()
 
     private var cancellable: AnyCancellable?
+    private var refreshTask: Task<Void, Never>?
     private var activated = false
+    private static let startupFileCandidateLimit = 400
+    private static let startupTaskCandidateLimit = 120
 
-    /// 启动后台发现。订阅活动任务历史**数量变化**(去重 → 避开进度刷新风暴)→ 重跑发现;`@Published` 在订阅时
-    /// 即推送当前值,故首轮发现自动触发。重复调用安全(已激活则只补跑一轮)。顺带 kick 一轮 opt-in 文件预索引
+    /// 启动后台发现。订阅活动任务历史**数量变化**(去重 → 避开进度刷新风暴)→ 排队重跑发现;`@Published` 在订阅时
+    /// 即推送当前值,故首轮发现会被排队触发。重复调用安全(已激活则只补排一轮)。顺带 kick 一轮 opt-in 文件预索引
     /// (门控未过则什么都不做)—— 索引完成后它会回调 `refresh()` 把新文件记录纳入。
     func activate() {
         if !activated {
@@ -29,19 +32,30 @@ final class AIWorkspaceDiscoveryCoordinator {
             cancellable = TaskCenter.shared.$history
                 .map(\.count)
                 .removeDuplicates()
-                .sink { [weak self] _ in self?.refresh() }
+                .sink { [weak self] _ in self?.scheduleRefresh() }
         } else {
-            refresh()
+            scheduleRefresh()
         }
         AIBackgroundIndexer.shared.runIfEnabled()
     }
 
     /// 汇总当前可用的全局数据层派生记录 → 跑一轮发现。文件来源 = opt-in 白名单预索引(`AIFileMemoryIndex`),
-    /// 任务来源 = 活动任务历史(封顶最近 300 条)。store 内部 gated(AI 主开关 + 显示推荐),主题无变化时不刷新
+    /// 任务来源 = 活动任务历史(封顶最近 120 条)。store 内部 gated(AI 主开关 + 显示推荐),主题无变化时不刷新
     /// UI(值相等守卫,A17 安全)。**与当前文件夹无关。**
     func refresh() {
-        let tasks = TaskCenter.shared.history.prefix(300).map(\.aiTaskRecord)
-        let files = AIBackgroundIndexStore.shared.recentFileRecords(limit: 2_000)
+        let tasks = TaskCenter.shared.history.prefix(Self.startupTaskCandidateLimit).map(\.aiTaskRecord)
+        let files = AIBackgroundIndexStore.shared.recentFileRecords(limit: Self.startupFileCandidateLimit)
         AIWorkspaceStore.shared.refreshRecommendations(files: files, tasks: Array(tasks))
+    }
+
+    /// 首轮发现不能抢主窗口首帧。发现本身会做语义聚类(O(n²) pair 比较),所以把启动/历史变化压成一次
+    /// 短延迟刷新;多次窗口 onAppear 或历史批量落盘只保留最后一次。
+    private func scheduleRefresh() {
+        refreshTask?.cancel()
+        refreshTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            guard !Task.isCancelled else { return }
+            refresh()
+        }
     }
 }

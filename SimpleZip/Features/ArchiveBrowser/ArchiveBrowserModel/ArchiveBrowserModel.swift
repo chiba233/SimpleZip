@@ -359,6 +359,11 @@ final class ArchiveBrowserModel: ObservableObject {
     /// 用户通过 `archiveDisplayOverride` 看到的 title / 地址栏是 `.szs` 文件路径（如 `/Users/yumeka/Desktop/xxx.szs`）。
     @Published var manifestVirtualMode: ManifestVirtualMode?
 
+    /// 0.4.5 #89:AI 工作区里「进入虚拟分组」的下钻链(group 节点)。空 = 工作区根。复用文件夹的返回 / 前进 /
+    /// 上一级 / 地址栏(见 `currentNavigationLocation` 的 `.aiWorkspace` + `goUp` + `title`/`locationText`)。
+    /// AIWorkspaceView 读它决定当前层显示哪些节点;双击分组 → `drillIntoAIWorkspaceGroup` 记一条历史并下钻。
+    @Published var aiWorkspacePath: [AIVirtualNode] = []
+
     struct ManifestVirtualMode: Equatable {
         /// 原 `.szs` 文件 URL —— 显示用、不参与文件系统操作。
         let manifestURL: URL
@@ -472,9 +477,20 @@ final class ArchiveBrowserModel: ObservableObject {
             return (archiveDisplayOverride ?? url).lastPathComponent
         case .tag(let tag):
             return tag
-        case .aiWorkspace:
-            return L10n.text("browser.aiSuggestions.title")
+        case .aiWorkspace(let id):
+            // 标题 = 当前层(下钻后的子目录名,否则工作区名)。
+            return aiWorkspacePath.last?.title ?? aiWorkspaceDisplayTitle(id)
         }
+    }
+
+    /// AI 工作区名(工作区已不存在时退回通用「AI 建议」)。
+    private func aiWorkspaceDisplayTitle(_ id: UUID) -> String {
+        AIWorkspaceStore.shared.workspace(id)?.title ?? L10n.text("browser.aiSuggestions.title")
+    }
+
+    /// AI 工作区地址栏面包屑:工作区名 / 子目录 / 更深子目录…(复用地址栏,跟着虚拟路径走)。
+    private func aiWorkspaceBreadcrumb(_ id: UUID) -> String {
+        ([aiWorkspaceDisplayTitle(id)] + aiWorkspacePath.map(\.title)).joined(separator: " / ")
     }
 
     /// archive 模式地址栏的「基础路径」：嵌套档案用虚拟堆叠串，否则用真实档案路径（`.siz`/`.gpg` 的 override 或真 URL）。
@@ -500,8 +516,8 @@ final class ArchiveBrowserModel: ObservableObject {
             return path.isEmpty ? baseLocation : "\(baseLocation) / \(path.trimmingCharacters(in: CharacterSet(charactersIn: "/")))"
         case .tag(let tag):
             return L10n.format("location.tag", tag)
-        case .aiWorkspace:
-            return L10n.text("location.aiSuggestions")
+        case .aiWorkspace(let id):
+            return aiWorkspaceBreadcrumb(id)
         }
     }
 
@@ -519,8 +535,8 @@ final class ArchiveBrowserModel: ObservableObject {
             return path.isEmpty ? base : base + "/" + path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         case .tag(let tag):
             return L10n.format("location.tag", tag)
-        case .aiWorkspace:
-            return L10n.text("location.aiSuggestions")
+        case .aiWorkspace(let id):
+            return aiWorkspaceBreadcrumb(id)
         }
     }
 
@@ -607,8 +623,8 @@ final class ArchiveBrowserModel: ObservableObject {
             return .archive(url.standardizedFileURL, session.archivePath)
         case .tag(let tag):
             return .tag(tag)
-        case .aiWorkspace:
-            return nil
+        case .aiWorkspace(let id):
+            return .aiWorkspace(id, aiWorkspacePath.map(\.id))
         }
     }
 

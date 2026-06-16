@@ -49,9 +49,18 @@ extension ArchiveBrowserModel {
         recordCurrentLocationForNavigation()
         cleanupMountedDiskImageIfNeeded(for: nil)
         session.clearArchive()
+        aiWorkspacePath = []            // 进工作区 = 回到根层
         mode = .aiWorkspace(id)
         AIWorkspaceStore.shared.markOpened(id)   // 更新 lastOpenedAt → 侧栏「最近」排序生效
         reload()
+    }
+
+    /// 双击 AI 工作区里的虚拟分组 → 进入更深一层(复用导航历史:记一条当前位置,再下钻)。
+    func drillIntoAIWorkspaceGroup(_ node: AIVirtualNode) {
+        guard case .aiWorkspace = mode, node.kind == .group, !node.children.isEmpty else { return }
+        recordCurrentLocationForNavigation()
+        aiWorkspacePath.append(node)
+        selection.removeAll()
     }
 
     func pinCurrentFolderToSidebar() {
@@ -480,8 +489,16 @@ extension ArchiveBrowserModel {
                 return
             }
             openFolder(url.deletingLastPathComponent())
-        case .tag, .aiWorkspace:
+        case .tag:
             openHome()
+        case .aiWorkspace:
+            // 上一级:虚拟分组里 → 退一层;已在工作区根 → 退出工作区回主目录(复用文件夹「上一级」语义)。
+            if !aiWorkspacePath.isEmpty {
+                recordCurrentLocationForNavigation()
+                aiWorkspacePath.removeLast()
+            } else {
+                openHome()
+            }
         case .archive(let url):
             if session.archivePath.isEmpty {
                 if let parentLocation = nestedArchiveReturnStack.popLast() {
@@ -728,7 +745,28 @@ extension ArchiveBrowserModel {
             session.clearArchive()
             mode = .tag(tag)
             reload()
+        case .aiWorkspace(let id, let groupIDs):
+            archiveDisplayOverride = nil
+            cleanupMountedDiskImageIfNeeded(for: nil)
+            session.clearArchive()
+            // 从 group id 链重建节点路径(树可能已刷新;解析不到的层就停在那)。
+            aiWorkspacePath = resolveAIWorkspacePath(workspaceID: id, groupIDs: groupIDs)
+            mode = .aiWorkspace(id)
+            reload()
         }
+    }
+
+    /// 从持久化的 group id 链重建当前 AI 工作区的节点路径(沿虚拟树逐层按 id 匹配 group)。
+    private func resolveAIWorkspacePath(workspaceID: UUID, groupIDs: [UUID]) -> [AIVirtualNode] {
+        guard let tree = AIWorkspaceStore.shared.virtualTree(for: workspaceID) else { return [] }
+        var path: [AIVirtualNode] = []
+        var level = tree.nodes
+        for gid in groupIDs {
+            guard let node = level.first(where: { $0.id == gid && $0.kind == .group }) else { break }
+            path.append(node)
+            level = node.children
+        }
+        return path
     }
 
     /// 从历史快照恢复:先按真实位置打开,再把**嵌套档案的地址显示上下文**复原
