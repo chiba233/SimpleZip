@@ -236,7 +236,9 @@ import Testing
             maxCandidates: 8)
 
         #expect(prepared.filter { $0.roleTags.contains("repeated-hash-tasks") }.count == 1)
-        #expect(prepared.filter { $0.candidateID.hasPrefix("hash-") }.count == 1)
+        // 2 代表保留原 id(hash-0, hash-1);摘要用 pattern-hash- 前缀,不再匹配 "hash-"。
+        #expect(prepared.filter { $0.candidateID.hasPrefix("hash-") }.count == 2)
+        #expect(prepared.filter { $0.candidateID.hasPrefix("pattern-hash-") }.count == 1)
         #expect(prepared.first?.candidateID == "src")
         #expect(prepared.contains { $0.scoreSignals.contains("importance=low") })
     }
@@ -271,6 +273,99 @@ import Testing
 
         #expect(prepared.map(\.candidateID) == ["pcsc", "spec"])
         #expect(!prepared.contains { $0.displayName == "AGENTS.md" })
+    }
+
+    @Test func modelInputKeepsExplorationSlotsForLowWeightEvidence() {
+        let strong = (0..<8).map { i in
+            AIVirtualNodeCandidate(
+                id: "strong-\(i)", kind: .file, displayName: "scardcontrol-\(i).c",
+                sourceRefs: [AIContextSourceRef(kind: .file, id: "strong-\(i)")],
+                roleTags: ["source"], semanticTokens: ["scardcontrol", "ccid"], scoreSignals: ["project-token"])
+        }
+        let weak = (0..<4).map { i in
+            AIVirtualNodeCandidate(
+                id: "weak-\(i)", kind: .file, displayName: "AGENTS.md",
+                sourceRefs: [AIContextSourceRef(kind: .file, id: "weak-\(i)")],
+                roleTags: ["document"], location: AILocationContext(kind: .downloads, pathHash: "loc-\(i)",
+                                                                    folderNameTokens: ["downloads"]),
+                semanticTokens: ["agents", "downloads"], scoreSignals: ["recent"])
+        }
+
+        let prepared = AIVirtualFolderModelInputPreparer.prepare(
+            candidates: strong + weak,
+            strongTokens: ["scardcontrol", "ccid"],
+            maxCandidates: 6)
+
+        #expect(prepared.count == 6)
+        #expect(prepared.contains { $0.candidateID.hasPrefix("weak-") })
+        #expect(prepared.first?.candidateID.hasPrefix("strong-") == true)
+    }
+
+    // MARK: - 泛化折叠(非 hash 模式)
+
+    @Test func modelInputCollapsesRepeatedCompressTasksGeneralized() {
+        let source = AIVirtualNodeCandidate(
+            id: "main", kind: .file, displayName: "main.swift",
+            sourceRefs: [AIContextSourceRef(kind: .file, id: "main")],
+            roleTags: ["source"], semanticTokens: ["swift", "main"], scoreSignals: ["project-token"])
+        let tasks = (0..<6).map { i in
+            AIVirtualNodeCandidate(
+                id: "cmp-\(i)", kind: .task, displayName: "Compress release-\(i).zip",
+                sourceRefs: [AIContextSourceRef(kind: .task, id: "task-cmp-\(i)")],
+                roleTags: ["compress"], semanticTokens: ["compress", "zip", "release"],
+                scoreSignals: ["succeeded"])
+        }
+        let prepared = AIVirtualFolderModelInputPreparer.prepare(
+            candidates: [source] + tasks, strongTokens: ["swift", "main"], maxCandidates: 6)
+
+        #expect(prepared.filter { $0.roleTags.contains("repeated-compress-tasks") }.count == 1)
+        #expect(prepared.filter { $0.candidateID.hasPrefix("pattern-compress-") }.count == 1)
+        // 2 个 compress 代表保留。
+        #expect(prepared.filter { $0.candidateID.hasPrefix("cmp-") }.count == 2)
+    }
+
+    // MARK: - 量化指标
+
+    @Test func prepareMetricsQuantifiesSuppressionAndCoverage() {
+        let ref = AIContextSourceRef(kind: .file, id: "reader")
+        let source = AIVirtualNodeCandidate(
+            id: "src", kind: .file, displayName: "scardcontrol.c", sourceRefs: [ref],
+            roleTags: ["source"], semanticTokens: ["scardcontrol", "ccid"], scoreSignals: ["project-token"])
+        let tasks = (0..<10).map { i in
+            AIVirtualNodeCandidate(
+                id: "t-\(i)", kind: .task, displayName: "Hash device \(i)",
+                sourceRefs: [AIContextSourceRef(kind: .task, id: "task-\(i)")],
+                roleTags: ["checksum"], semanticTokens: ["hash", "device"], scoreSignals: ["succeeded"])
+        }
+        let (_, metrics) = AIVirtualFolderModelInputPreparer.prepareWithMetrics(
+            candidates: [source] + tasks, strongTokens: ["scardcontrol", "ccid"], maxCandidates: 6)
+
+        #expect(metrics.inputCount == 11)
+        // 10 tasks → 8 suppressed(保留 2 代表 + 1 摘要);去重后可输出 4 条。
+        #expect(metrics.suppressedCount == 8)
+        #expect(metrics.outputCount == 4)   // src + t-0 + t-1 + pattern-hash-summary
+        // scardcontrol + ccid 两个 strongToken 都在 src 里 → coverage = 1.0。
+        #expect(metrics.strongTokenCoverage == 1.0)
+        // src 是 high 层;task 代表和摘要是 low 层。
+        #expect((metrics.tierCounts["high"] ?? 0) >= 1)
+        #expect((metrics.tierCounts["low"] ?? 0) >= 1)
+    }
+
+    @Test func prepareMetricsTierCountsSumToOutputCount() {
+        let candidates = (0..<12).map { i in
+            AIVirtualNodeCandidate(
+                id: "f-\(i)", kind: .file, displayName: "file-\(i).txt",
+                sourceRefs: [AIContextSourceRef(kind: .file, id: "f-\(i)")],
+                roleTags: ["document"], semanticTokens: ["report", "doc"], scoreSignals: ["same-name", "recent"])
+        }
+        let (_, metrics) = AIVirtualFolderModelInputPreparer.prepareWithMetrics(
+            candidates: candidates, strongTokens: ["report"], maxCandidates: 8)
+
+        let tierTotal = metrics.tierCounts.values.reduce(0, +)
+        #expect(tierTotal == metrics.outputCount)
+        let kindTotal = metrics.kindCounts.values.reduce(0, +)
+        #expect(kindTotal == metrics.outputCount)
+        #expect(metrics.outputCount <= 8)
     }
 
     private func allLeaves(_ nodes: [AIVirtualNode]) -> [AIVirtualNode] {

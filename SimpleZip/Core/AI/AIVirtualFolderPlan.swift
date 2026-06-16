@@ -90,32 +90,85 @@ nonisolated struct AIVirtualNodePromptCandidate: Codable, Equatable, Sendable {
     }
 }
 
+/// 候选准备指标:量化本轮喂给模型的输入质量(压制了多少噪声、强信号覆盖率、kind 多样性)。
+nonisolated struct AIVirtualFolderPrepareMetrics: Equatable, Sendable {
+    /// 传入的原始候选总数。
+    let inputCount: Int
+    /// 被模式折叠压制的候选数(同语义任务群中只保留代表)。
+    let suppressedCount: Int
+    /// 最终输出给模型的候选数。
+    let outputCount: Int
+    /// 各重要级别分布:key = "high" / "normal" / "low"。
+    let tierCounts: [String: Int]
+    /// 各 kind 分布:key = kind.rawValue。
+    let kindCounts: [String: Int]
+    /// strongTokens 在输出候选中的覆盖率(0.0–1.0);strongTokens 为空时为 0.0。
+    let strongTokenCoverage: Double
+
+    static func zero(inputCount: Int) -> Self {
+        AIVirtualFolderPrepareMetrics(inputCount: inputCount, suppressedCount: 0, outputCount: 0,
+                                      tierCounts: [:], kindCounts: [:], strongTokenCoverage: 0.0)
+    }
+}
+
 /// 给小模型看的候选输入预处理器。3B 适合最后一厘米的命名 / 分组,不适合从 raw 候选里自己判断权重;
-/// 因此 App 先在 Core 里确定性去噪:重复任务折叠、泛化 token 降权、强项目信号提权、再限制 top-N。
+/// 因此 App 先在 Core 里确定性分层:重复任务泛化折叠、加权信号评分、强项目信号提权、探索槽保底。
 nonisolated enum AIVirtualFolderModelInputPreparer {
     static let defaultMaxCandidates = 28
 
+    /// 准备 prompt 候选并返回量化指标。
+    static func prepareWithMetrics(
+        candidates: [AIVirtualNodeCandidate],
+        strongTokens: [String],
+        maxCandidates: Int = defaultMaxCandidates
+    ) -> (candidates: [AIVirtualNodePromptCandidate], metrics: AIVirtualFolderPrepareMetrics) {
+        guard maxCandidates > 0 else {
+            return ([], .zero(inputCount: candidates.count))
+        }
+        let strong = Set(strongTokens.map(normalizeToken).filter { !$0.isEmpty && !genericTokens.contains($0) })
+        let deduped = dedupe(candidates)
+        let (collapsed, suppressedIDs) = collapsedPatternSummaries(from: deduped)
+        let originalByID = Dictionary(deduped.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+
+        var tierByID: [String: String] = [:]
+        var scored: [(AIVirtualNodePromptCandidate, Double)] = deduped.compactMap { candidate in
+            guard !suppressedIDs.contains(candidate.id) else { return nil }
+            let score = importanceScore(candidate, strongTokens: strong)
+            let label = importanceLabel(score)
+            tierByID[candidate.id] = label
+            return (promptCandidate(from: candidate, importance: label), score)
+        }
+        for c in collapsed {
+            tierByID[c.candidateID] = "low"
+            scored.append((c, 0.6))
+        }
+
+        let selected = layeredSelection(scored, maxCandidates: maxCandidates)
+
+        // 指标计算。
+        let tierCounts = selected.reduce(into: [String: Int]()) {
+            $0[tierByID[$1.0.candidateID] ?? "normal", default: 0] += 1
+        }
+        let kindCounts = selected.reduce(into: [String: Int]()) { $0[$1.0.kind, default: 0] += 1 }
+        let selectedOriginals = selected.compactMap { originalByID[$0.0.candidateID] }
+        let allSelectedTokens = selectedOriginals.reduce(into: Set<String>()) { $0.formUnion(candidateTokens($1)) }
+        let coverage = strong.isEmpty ? 0.0
+            : Double(strong.intersection(allSelectedTokens).count) / Double(strong.count)
+
+        let metrics = AIVirtualFolderPrepareMetrics(
+            inputCount: candidates.count, suppressedCount: suppressedIDs.count,
+            outputCount: selected.count, tierCounts: tierCounts, kindCounts: kindCounts,
+            strongTokenCoverage: coverage)
+
+        return (selected.map(\.0), metrics)
+    }
+
+    /// 仅返回候选列表(向后兼容)。
     static func prepare(candidates: [AIVirtualNodeCandidate],
                         strongTokens: [String],
                         maxCandidates: Int = defaultMaxCandidates) -> [AIVirtualNodePromptCandidate] {
-        guard maxCandidates > 0 else { return [] }
-        let strong = Set(strongTokens.map(normalizeToken).filter { !$0.isEmpty && !genericTokens.contains($0) })
-        let deduped = dedupe(candidates)
-        let (collapsed, suppressedIDs) = collapsedTaskSummaries(from: deduped)
-        let scored = deduped.compactMap { candidate -> (AIVirtualNodePromptCandidate, Double)? in
-            guard !suppressedIDs.contains(candidate.id) else { return nil }
-            let score = importanceScore(candidate, strongTokens: strong)
-            return (promptCandidate(from: candidate, importance: importanceLabel(score)), score)
-        }
-        let collapsedScored = collapsed.map { ($0, 0.2) }
-        return (scored + collapsedScored)
-            .sorted {
-                if $0.1 != $1.1 { return $0.1 > $1.1 }
-                if $0.0.displayName != $1.0.displayName { return $0.0.displayName < $1.0.displayName }
-                return $0.0.candidateID < $1.0.candidateID
-            }
-            .prefix(maxCandidates)
-            .map(\.0)
+        prepareWithMetrics(candidates: candidates, strongTokens: strongTokens,
+                           maxCandidates: maxCandidates).candidates
     }
 
     private static let genericTokens: Set<String> = [
@@ -136,36 +189,86 @@ nonisolated enum AIVirtualFolderModelInputPreparer {
         return result
     }
 
-    private static func collapsedTaskSummaries(from candidates: [AIVirtualNodeCandidate])
-        -> ([AIVirtualNodePromptCandidate], Set<String>) {
-        let hashTasks = candidates.filter { $0.kind == .task && isHashTask($0) }
-        guard hashTasks.count >= 4 else { return ([], []) }
-        let ranked = hashTasks.sorted {
-            if $0.scoreSignals.contains("failed") != $1.scoreSignals.contains("failed") {
-                return $0.scoreSignals.contains("failed")
-            }
-            return $0.id < $1.id
+    // MARK: - 泛化任务模式折叠
+
+    /// 已知重复任务语义模式(按匹配优先级排序,第一个命中即为正则名)。
+    private static let taskPatternPriority: [(tokens: Set<String>, canonical: String)] = [
+        (["hash", "checksum", "sha", "sha256", "sha512", "md5", "crc", "digest"], "hash"),
+        (["compress", "zip", "pack", "tar", "gz"], "compress"),
+        (["test", "integrity", "validate", "verify"], "integrity"),
+        (["sign", "gpg", "signature", "clearsign", "pgp"], "sign"),
+        (["extract", "unzip", "unpack", "decompress", "expand"], "extract"),
+        (["convert", "transform", "transcode", "migrate"], "convert"),
+    ]
+
+    private static func dominantTaskPattern(_ candidate: AIVirtualNodeCandidate) -> String? {
+        let tokens = candidateTokens(candidate)
+        for (patternTokens, canonical) in taskPatternPriority {
+            if !tokens.isDisjoint(with: patternTokens) { return canonical }
         }
-        let representative = ranked[0]
-        let suppressed = Set(ranked.map(\.id))
-        let topName = representative.displayName
-        let prompt = AIVirtualNodePromptCandidate(
-            candidateID: representative.id,
-            kind: representative.kind.rawValue,
-            displayName: "Hash tasks · \(hashTasks.count) items · latest: \(topName)",
-            sourceRefs: representative.sourceRefs,
-            roleTags: ["task-summary", "repeated-hash-tasks", "importance-low"],
-            scoreSignals: ["collapsed:\(hashTasks.count)", "collapsedReason=repeated_hash_tasks", "importance=low"],
-            relatedTaskIDs: Array(hashTasks.flatMap(\.relatedTaskIDs).prefix(12)),
-            relatedArchiveIDs: Array(hashTasks.flatMap(\.relatedArchiveIDs).prefix(8)),
-            evidence: Array(hashTasks.flatMap(\.evidence).prefix(6)))
-        return ([prompt], suppressed)
+        return nil
     }
 
-    private static func isHashTask(_ candidate: AIVirtualNodeCandidate) -> Bool {
-        let tokens = candidateTokens(candidate)
-        return !tokens.isDisjoint(with: ["hash", "checksum", "sha", "sha256", "digest"])
-            || candidate.roleTags.contains { normalizeToken($0).contains("checksum") }
+    /// 泛化折叠:同一语义模式 ≥4 个任务 → 保留最多 2 个代表 + 1 条摘要。
+    private static func collapsedPatternSummaries(from candidates: [AIVirtualNodeCandidate])
+        -> ([AIVirtualNodePromptCandidate], Set<String>) {
+        let tasks = candidates.filter { $0.kind == .task }
+        guard tasks.count >= 4 else { return ([], []) }
+
+        var clusters: [String: [AIVirtualNodeCandidate]] = [:]
+        for task in tasks {
+            if let pattern = dominantTaskPattern(task) {
+                clusters[pattern, default: []].append(task)
+            }
+        }
+
+        var summaries: [AIVirtualNodePromptCandidate] = []
+        var suppressed = Set<String>()
+        for (pattern, cluster) in clusters where cluster.count >= 4 {
+            let ranked = cluster.sorted {
+                let aFailed = $0.scoreSignals.contains("failed")
+                let bFailed = $1.scoreSignals.contains("failed")
+                if aFailed != bFailed { return aFailed }
+                return $0.id < $1.id
+            }
+            let keepCount = min(2, ranked.count)
+            suppressed.formUnion(ranked.dropFirst(keepCount).map(\.id))
+            let representative = ranked[0]
+            let stableHash = AIStableHash.fnv1a32Hex(ranked.map(\.id).joined(separator: "|"))
+            summaries.append(AIVirtualNodePromptCandidate(
+                candidateID: "pattern-\(pattern)-\(stableHash)",
+                kind: representative.kind.rawValue,
+                displayName: "\(pattern.capitalized) tasks · \(cluster.count) items · latest: \(representative.displayName)",
+                sourceRefs: representative.sourceRefs,
+                roleTags: ["task-summary", "repeated-\(pattern)-tasks", "importance-low"],
+                scoreSignals: ["collapsed:\(cluster.count)", "collapsedReason=repeated_\(pattern)_tasks", "importance=low"],
+                relatedTaskIDs: Array(cluster.flatMap(\.relatedTaskIDs).prefix(12)),
+                relatedArchiveIDs: Array(cluster.flatMap(\.relatedArchiveIDs).prefix(8)),
+                evidence: Array(cluster.flatMap(\.evidence).prefix(6))))
+        }
+        return (summaries, suppressed)
+    }
+
+    // MARK: - 加权信号评分
+
+    /// 信号权重表。结构化信号(含 ":")视为 0,未知平文本信号视为弱正(0.2)。
+    private static let signalWeights: [String: Double] = [
+        "project-token": 3.0,
+        "source-ref-match": 2.0,
+        "failed": 3.0,
+        "running": 2.0,
+        "recent-interaction": 1.5,
+        "same-parent": 1.0,
+        "document": 0.5,
+        "source": 0.5,
+        "same-name": 0.3,
+        "recent": 0.3,
+        "succeeded": -0.5,
+        "repeated": -1.0,
+    ]
+
+    private static func signalScore(_ signals: [String]) -> Double {
+        signals.reduce(0.0) { $0 + (signalWeights[$1] ?? ($1.contains(":") ? 0.0 : 0.2)) }
     }
 
     private static func promptCandidate(from candidate: AIVirtualNodeCandidate,
@@ -190,20 +293,60 @@ nonisolated enum AIVirtualFolderModelInputPreparer {
         return "normal"
     }
 
+    /// 分层选取:每层有硬性 budget 上限,避免低权重条目填满剩余槽。
+    private static func layeredSelection(_ scored: [(AIVirtualNodePromptCandidate, Double)],
+                                         maxCandidates: Int) -> [(AIVirtualNodePromptCandidate, Double)] {
+        let sorted = scored.sorted(by: sortScored)
+        guard sorted.count > maxCandidates else { return sorted }
+
+        let high   = sorted.filter { $0.1 >= 7 }
+        let normal = sorted.filter { $0.1 >= 1 && $0.1 < 7 }
+        let low    = sorted.filter { $0.1 < 1 }
+
+        // explorationBudget = low 层的硬上限(不是 floor);maxCandidates<4 时不保留探索槽。
+        let explorationBudget = low.isEmpty || maxCandidates < 4
+            ? 0 : max(1, min(low.count, maxCandidates / 5))
+        // normalBudget = 约 2/5 的剩余槽,按实际数量封顶。
+        let normalBudget = normal.isEmpty ? 0
+            : min(normal.count, max(1, (maxCandidates - explorationBudget) * 2 / 5))
+        let highBudget = maxCandidates - normalBudget - explorationBudget
+
+        var result: [(AIVirtualNodePromptCandidate, Double)] = []
+        var used = Set<String>()
+
+        func take(_ items: [(AIVirtualNodePromptCandidate, Double)], budget: Int) {
+            guard budget > 0 else { return }
+            var taken = 0
+            for item in items where taken < budget && used.insert(item.0.candidateID).inserted {
+                result.append(item)
+                taken += 1
+            }
+        }
+
+        take(high,   budget: highBudget)
+        take(normal, budget: normalBudget)
+        take(low,    budget: explorationBudget)
+        // 填剩余槽(任一层条目不足时补位)。
+        take(sorted, budget: maxCandidates - result.count)
+
+        return result.sorted(by: sortScored)
+    }
+
+    private static func sortScored(_ a: (AIVirtualNodePromptCandidate, Double),
+                                   _ b: (AIVirtualNodePromptCandidate, Double)) -> Bool {
+        if a.1 != b.1 { return a.1 > b.1 }
+        if a.0.displayName != b.0.displayName { return a.0.displayName < b.0.displayName }
+        return a.0.candidateID < b.0.candidateID
+    }
+
     private static func importanceScore(_ candidate: AIVirtualNodeCandidate, strongTokens: Set<String>) -> Double {
         let tokens = candidateTokens(candidate)
-        var score = 0.0
-        score += Double(candidate.scoreSignals.count)
+        var score = signalScore(candidate.scoreSignals)
         score += Double(tokens.intersection(strongTokens).count) * 4.0
         score += roleWeight(candidate.roleTags)
         score += locationWeight(candidate.location?.kind)
         score += kindWeight(candidate.kind)
         score -= Double(tokens.intersection(genericTokens).count) * 0.8
-        if candidate.kind == .task {
-            if candidate.scoreSignals.contains("failed") { score += 2.0 }
-            if candidate.scoreSignals.contains("running") { score += 1.0 }
-            if candidate.scoreSignals.contains("succeeded") { score -= 1.5 }
-        }
         return score
     }
 
