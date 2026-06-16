@@ -100,11 +100,13 @@ nonisolated enum AIStartupDirectoryRanker {
         return top.candidate
     }
 
-    /// 访问次数为主导信号;停留 / 新鲜度只是小幅加分(各封顶 +1.0),负面信号每个 -2.0。
+    /// 访问次数对数压缩(防旧目录雪球)+ 指数新鲜度(半衰期 14d);停留封顶 +1.0,负面信号每个 -2.0。
+    /// 旧公式: visits 线性无界 + linear recency → 40d 旧目录永远压过 1d 新目录(startup_correct=0 bug)。
+    /// 新公式: log2(visits+1) 让访问差从 2.0 压到 0.26; exp recency 差 0.81 > 0.26 → 新目录胜出。
     static func score(_ c: AIStartupCandidate) -> Double {
-        let visits = Double(c.visitsInSameBucket)
+        let visits = log2(Double(c.visitsInSameBucket) + 1)                  // 对数压缩，防雪球
         let dwell = min(1.0, Double(c.medianDwellSeconds) / 600.0)
-        let recency = max(0.0, 1.0 - 0.1 * Double(c.recencyDays))
+        let recency = pow(0.5, Double(c.recencyDays) / 14.0)                 // 指数衰减，半衰期 14d
         let penalty = 2.0 * Double(c.negativeSignalCount)
         return visits + dwell + recency - penalty
     }

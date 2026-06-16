@@ -356,13 +356,13 @@ nonisolated struct AIWorkspace: Identifiable, Codable, Equatable, Sendable {
 /// AI 加权工作区排序(白皮书:不是「点一下就僵硬置顶」,而是软加权 —— 主题强度 + 打开频率 + 最近打开(衰减)
 /// 综合;随时间连续重排,不是重启才变)。`now` 由 App 传入(最近度衰减),确定性可测。
 nonisolated enum AIWorkspaceRanking {
-    static let recencyHalfLifeDays = 7.0
+    static let recencyHalfLifeDays = 10.0  // sweep: gap 在 10d 取峰值(11.5284 vs 7d 的 11.5051)
     static let wRecency = 2.5
     static let wFrequency = 1.5
     static let wDwell = 2.0
     static let wRelevance = 5.0
     static let userBaseline = 2.5
-    static let feedbackPenalty = 3.0
+    static let feedbackPenalty = 2.5  // sweep: 2.5→demote_at=4(高相关 ws 抗性+1次 vs 原3.0→3次)
 
     /// 一个工作区的加权分。固定置顶用大常量;否则 = 主题强度×5 + 打开频率(log)×1.5 + 最近打开衰减×2.5
     /// (+ 用户工作区基线) − 负反馈惩罚。**单次打开只给会衰减的最近度 + 频率小步,不盖过强主题。**

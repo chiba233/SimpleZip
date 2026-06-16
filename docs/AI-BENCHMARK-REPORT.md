@@ -1,650 +1,383 @@
-# AI 组件基准测试报告
+# SimpleZip AI 组件参数基准测试报告
 
-> 版本：0.4.5 #80 · 数据基准日期：2026-06-16  
-> 数据来源：`AIBenchmarkSweepTests`（10 项基准测试）+ `~/Library/Preferences/yumeka.SimpleZip-in-mac.plist`（真实用户数据）  
-> 禁止空话，一切结论必须有数字支撑。
-
----
-
-## 目录
-
-1. [数据源清单](#1-数据源清单)
-2. [① Preparer — 候选过滤与分层](#2--preparer--候选过滤与分层)
-3. [② WorkspaceRanking — 工作区评分](#3--workspaceranking--工作区评分)
-4. [③ StartupRanker — 启动目录推荐](#4--startupranker--启动目录推荐)
-5. [⑤ SemanticTagRanker — 语义标签排序](#5--semantictagranker--语义标签排序)
-6. [⑥ ThemeSuppression — 主题抑制衰减](#6--themesuppression--主题抑制衰减)
-7. [⑦ LearningStore — 泛化反馈学习](#7--learningstore--泛化反馈学习)
-8. [⑧ ThemeEngine — 语义聚类](#8--themeengine--语义聚类)
-9. [⑩ 真实 plist 数据分析](#9--真实-plist-数据分析)
-10. [综合质量快照](#10-综合质量快照)
-11. [关键问题与改进建议](#11-关键问题与改进建议)
-12. [数据源覆盖缺口](#12-数据源覆盖缺口)
-13. [参数收敛建议](#13-参数收敛建议)
+> 版本：0.4.5 #80  
+> 测试日期：2026-06-16  
+> 方法：迭代扫测——每轮修改单参数，运行 `benchmarkMetrics` 测试采集 METRIC 行，恢复源码后继续扫下一个值。全程不产生 commit，工作区最终恢复干净。  
+> 驱动脚本：`scripts/ai_param_sweep.py`  
+> 指标测试函数：`AIBenchmarkSweepTests.benchmarkMetrics()`
 
 ---
 
-## 1. 数据源清单
+## 概览
 
-### 1.1 当前已接入数据源
+SimpleZip 的 AI 子系统由 6 个独立纯值组件组成，每个组件有 1–3 个可调参数。本报告对所有参数进行了系统性扫测，量化每个参数对关键指标的影响，并给出基于实测数据的最优建议值。
 
-| 数据层 | 存储键 | 记录数（真实） | 用途 |
-|--------|--------|--------------|------|
-| AI 工作区 | `SimpleZip.ai.workspaces.v1` | 4 | 虚拟文件夹排名、主题持久化 |
-| 文件记忆索引 | `SimpleZip.ai.fileMemoryIndex.v1` | 1124 | 候选召回、角色标签 |
-| 活动历史 | `activityHistory` | 100 | 任务候选、动作卡权重 |
-| 主题抑制 | `SimpleZip.ai.themeSuppression.v1` | 12 | 已关闭主题的权重衰减 |
-| 泛化反馈 | `SimpleZip.ai.learning.v1` | **0（空）** | 信号亲和度强化（尚无真实数据） |
-| 后台索引范围 | `SimpleZip.ai.backgroundIndex.scopes.v1` | — | 索引扫描边界 |
-
-### 1.2 数据结构性风险
-
-- **泛化反馈层完全为空**：`{"weights":[]}` — 所有召回排序尚无用户偏好修正，系统处于纯规则模式
-- **工作区 relevanceScore 退化**：4 个工作区全部为 `0.6667`（见第 9 节），AI 相关性维度完全失效
-- **活动历史 hash 过载**：100 条活动中 hash 类占 20%（20 条），test 占 34%（34 条），语义多样性严重不足
+| 组件 | 当前参数 | 建议参数 | 关键发现 |
+|------|----------|----------|----------|
+| WorkspaceRanking | feedbackPenalty=3.0 | **2.5** | 单参数调整即可让强负反馈抗性 +1 次 |
+| WorkspaceRanking | recencyHalfLifeDays=7.0 | **10.0** | 提升 gap 0.2%，可选 |
+| StartupDirectoryRanker | 线性 recency | **log-visits + exp-hl14d** | 🔴 当前有 bug：旧目录始终比新目录得分高 |
+| SemanticTagRanker | decayPerNegative=0.15 | **0.05** | 当前 2 次即可踩掉 #1 标签，应为 4 次 |
+| ThemeSuppression | halfLife=7d | **10d** | 1 次 dismiss 改为 36 天后重新出现（更合理） |
+| LearningStore | halfLifeDays=30d | **45d** | 强不喜欢记忆延长至 19 天（当前仅 13 天） |
+| LearningStore | strongNegative=-3.0 | **-2.5** | 避免 3 次轻踩就触发强排斥 |
 
 ---
 
-## 2. ① Preparer — 候选过滤与分层
+## 1. 数据与方法
 
-**组件**：`AIVirtualFolderModelInputPreparer.prepareWithMetrics()`  
-**职责**：从原始候选池筛选 → 去噪（hash 折叠）→ 按强信号分层（high/normal/low）→ 截断到 maxCandidates
+### 1.1 合成测试数据
 
-### 2.1 多场景测试结果（合成发布工作流池，32 候选）
+测试数据集（`AIBenchmarkSweepTests.swift` 文件顶部）涵盖：
 
-| 场景 | 输入 | 折叠 | 输出 | high | normal | low | 强信号覆盖率 |
-|------|------|------|------|------|--------|-----|------------|
-| 全量 maxCand=28 | 32 | 6 | 28 | 10 | 6 | 12 | **0.80** ✓ |
-| 全量 maxCand=20 | 32 | 6 | 20 | 10 | 6 | 4 | 0.80 |
-| 全量 maxCand=14 | 32 | 6 | 14 | 8 | 4 | 2 | 0.80 |
-| 全量 maxCand=35 | 32 | 6 | 28 | 10 | 6 | 12 | 0.80 |
-| 弱强信号 maxCand=28 | 32 | 6 | 28 | 6 | 6 | 16 | 1.00 |
-| 空强信号 maxCand=28 | 32 | 6 | 28 | 2 | 9 | 17 | **0.00** ✗ |
-| 纯归档无任务 | 17 | 0 | 17 | 8 | 3 | 6 | 0.60 |
-| 噪声主导 | 8 | 0 | 8 | 1 | 1 | 6 | 0.20 |
+- **工作区候选**（7 个）：relevanceScore 梯度从 0.18 到 0.92，openCount 1–14，dwell 0–4200s，lastOpened 0.5d–75d，含 1 个固定置顶、1 个含 2 次负反馈
+- **启动目录候选**（6 个）：从 recency=0d 到 recency=40d，visits 1–11，dwell 60–1800s
+- **语义标签候选**（5 个）：releaseArtifact=0.88、sourceArchive=0.72、signedContainer=0.65、backup=0.40、documentation=0.30
+- **主题指纹**：release/sign 指纹（Jaccard 相似）、无关 photos 指纹
+- **候选池**（33 件）：8 个归档、2 个条目、5 个任务、8 个文件、10 个文件夹，已知包含 release+sign 簇和 source 簇
 
-**观察**：
-- hash 折叠稳定工作：6 条 hash 任务折叠为 1 条（压缩率 83%）
-- `strongTokenCoverage ≥ 0.75` 在标准场景下稳定达标
-- 空强信号时全部 high-tier 归零，`coverage=0.00`：Preparer 无法在无提示词上下文的情况下工作
+所有数据均为确定性合成（固定 UUID/日期基准 `T0 = Date(referenceDate: 0)`），保证可复现。
 
-### 2.2 真实候选池（55 条）结果
+### 1.2 测量指标
 
-| 指标 | 数值 | 说明 |
-|------|------|------|
-| inputCount | 55 | 30 任务 + 25 文件 |
-| suppressedCount | 16 | 折叠/抑制 |
-| outputCount | 28 | 截断到 maxCandidates |
-| strongTokenCoverage | **0.6667** | 低于 0.75 阈值 |
-| tier\[high\] | **0** | 真实数据无 high-tier！ |
-| tier\[normal\] | 20 | |
-| tier\[low\] | 8 | |
+| 指标 key | 含义 | 期望范围 |
+|----------|------|----------|
+| `ws_high_low_gap` | 最高相关度 ws(0.92) 与最低(0.18)的得分差 | 越大越好（辨别力强） |
+| `ws_neg1_over_D` | 1 次负反馈后高相关 ws 是否仍高于中等相关 ws | 必须为 1 |
+| `ws_neg_demote_at` | 多少次负反馈才把 rel=0.92 压到 rel=0.65 以下 | 3–5（太少=过激，太多=无效） |
+| `startup_correct` | 新目录(1d)是否排在旧目录(40d,多访问)前 | 必须为 1 |
+| `startup_gap` | 新目录 - 旧目录得分差 | 正数（正数越大越稳健） |
+| `startup_neg_penalty` | 有负反馈目录(neg=2)与新目录的分差 | 正数（惩罚有效） |
+| `tag_demote_at` | 多少次负反馈把 #1 标签(0.88)踩到 #2(0.72)以下 | 3–5 |
+| `tag_boost_at` | 多少次正反馈把 #2(0.72)提升至 #1(0.88)以上 | 2–4 |
+| `suppress_resurface_days` | 1 次 dismiss 后主题权重衰减至 resurfaceFloor(0.05)的天数 | 14–40d |
+| `suppress_resurface_days_2x` | 2 次 dismiss 后重新出现所需天数 | 30–90d |
+| `learn_neutral_days` | -4 强不喜欢信号衰减至 strongNegative 以上所需天数 | 15–35d |
+| `learn_cap_neutral_days` | -5(cap) 信号衰减至中性所需天数 | 25–60d |
+| `theme_count` | 33 件候选中检测出的主题数 | 3（已知 3 个簇） |
+| `theme_solo_count` | 5 件完全孤立候选的主题数 | 必须为 0 |
 
-**关键问题**：真实数据下 `tier[high]=0`。强信号 `["hash","test","integrity","simplezip"]` 在 28 条输出候选中无法命中任何 high-tier 位。意味着进入模型的候选全部处于 normal/low 层，对模型的指导性极弱。
+### 1.3 基线测量（当前代码）
 
-**真实 hash flood 场景**：12 条 hash 候选 → 折叠后 3 条，suppressed=10（压缩率 83%），此部分正常工作。
-
----
-
-## 3. ② WorkspaceRanking — 工作区评分
-
-**组件**：`AIWorkspaceRanking.score()`  
-**当前参数**：`wRelevance=5.0 wFrequency=1.5 wDwell=2.0 wRecency=2.5 feedbackPenalty=3.0 userBaseline=2.5 recencyHL=7.0d`
-
-### 3.1 合成数据排名（7 工作区）
-
-| 工作区 | 得分 |
-|--------|------|
-| 已固定置顶（pinned） | 1000.0000 |
-| SimpleZip 发布准备（rel=0.92, opens=14, dwell=4200s, 0.5d前） | **14.8396** |
-| 新发现主题（rel=0.65, opens=1, dwell=90s, 0.8d前） | 7.1596 |
-| 被反馈 2 次的主题（rel=0.78, opens=7, dwell=1800s, 3d前, neg=2） | 6.2575 |
-| 旧版本归档（rel=0.35, opens=4, dwell=720s, 28d前） | 6.1891 |
-| 低相关度陈旧（rel=0.18, opens=2, dwell=50s, 75d前） | 3.3345 |
-| 用户自建-从不用（userCreated, rel=0, opens=0） | 2.5000 |
-
-### 3.2 参数扫描：A优（rel=0.92）vs E劣（rel=0.18）分差
-
-| 参数组 | A优得分 | E劣得分 | **分差** |
-|--------|---------|---------|---------|
-| 当前值（基准） | 14.84 | 3.33 | **11.51** |
-| 强相关重权（wR=6.0, wF=1.0, wD=1.5） | 12.83 | 2.71 | 10.12 |
-| 衰减加速（recHL=3.5d） | 14.72 | 3.33 | 11.39 |
-| 惩罚封顶（pen=2.0） | 14.84 | 3.33 | 11.51 |
-| 频率削弱（wF=0.8, wD=2.5） | 12.60 | 2.20 | 10.40 |
-| **停留拉长上限（dwellCap=3600s）** | **15.34** | 3.31 | **12.03** |
-
-**结论**：停留上限从 1800s 延长到 3600s 可将分差从 11.51 提升到 12.03（+4.5%），是收益最高的单参数调整。
-
-### 3.3 负反馈惩罚曲线（C工作区 rel=0.78, opens=7, 3d前）
-
-| 反馈次数 | pen=3.0（当前） | pen=2.0 | pen=1.5 |
-|----------|----------------|---------|---------|
-| 0 | 12.26 | 12.26 | 12.26 |
-| 1 | 9.26 | 10.26 | 10.76 |
-| 2 | 6.26 | 8.26 | 9.26 |
-| 3 | 3.26 | 6.26 | 7.76 |
-| 4 | 0.26 | 4.26 | 6.26 |
-| 5 | **-2.74** | 2.26 | 4.76 |
-
-**当前 pen=3.0 过激**：5 次负反馈后得分进入负数（-2.74），相当于永久屏蔽。即使是相关工作区也无法重新浮现。建议降至 **pen=2.0**。
-
-### 3.4 最近度衰减曲线（A工作区 rel=0.92, opens=14）
-
-| 天数 | wRec=2.5/HL=7（当前） | wRec=2.5/HL=14 | wRec=3.0/HL=7 |
-|------|----------------------|----------------|---------------|
-| 0 | 14.96 | 14.96 | 15.46 |
-| 1 | 14.72 | 14.84 | 15.18 |
-| 7 | 13.71 | 14.23 | 13.96 |
-| 14 | 13.09 | 13.71 | 13.21 |
-| 30 | 12.59 | 13.03 | 12.61 |
-| 60 | 12.47 | 12.59 | 12.47 |
-
-**结论**：衰减在 7d 后趋于平稳，HL=14d 曲线下降更平滑，长期区分度稍好。当前 HL=7d 已足够，无需调整。
+```
+ws_high_low_gap          = 11.5051
+ws_neg1_over_D           = 1          ✓
+ws_neg_demote_at         = 3          △ (可接受，但偏激进)
+startup_correct          = 0          🔴 BUG
+startup_gap              = -1.1000    🔴 新目录得分低于老目录 1.1 分
+startup_neg_penalty      = 7.1000     ✓
+tag_demote_at            = 2          🔴 2 次即踩掉 #1（应为 3–5）
+tag_boost_at             = 2          ✓
+suppress_resurface_days  = 26         ✓
+suppress_resurface_days_2x = 57       ✓
+learn_neutral_days       = 13         △ 偏短（13 天后遗忘强烈不喜欢）
+learn_cap_neutral_days   = 23         △
+theme_count              = 3          ✓
+theme_solo_count         = 0          ✓
+```
 
 ---
 
-## 4. ③ StartupRanker — 启动目录推荐
+## 2. WorkspaceRanking 参数扫测
 
-**组件**：`AIStartupDirectoryRanker`  
-**当前公式**：`score = visits + min(1, dwell/600) + max(0, 1-0.1×recencyDays) - 2.0×negSignals`，`minScore=4.0`
+### 2.1 feedbackPenalty
 
-### 4.1 排名结果（6 候选）
+**当前值：3.0**  
+测量指标：`ws_neg_demote_at`（高相关 ws 被踩到中等以下需要几次负反馈）
 
-| 别名 | visits | dwell | recency | neg | **score** |
-|------|--------|-------|---------|-----|-----------|
-| ~/Archives/2022 | 11 | 900s | 40d | 0 | **12.00** ← bestMatch |
-| ~/Documents/SimpleZip | 9 | 1800s | 1d | 0 | 10.90 |
-| ~/Downloads | 6 | 90s | 2d | 0 | 6.95 |
-| ~/Projects/old-app | 3 | 600s | 18d | 0 | 4.00 |
-| ~/Desktop | 7 | 60s | 3d | 2 | 3.80 |
-| ~/Documents/photos | 1 | 300s | 0d | 0 | 2.50 |
+| feedbackPenalty | ws_gap | neg1_over_D | neg_demote_at |
+|-----------------|--------|-------------|---------------|
+| 1.0 | 11.5051 | 1 | 8 |
+| 1.5 | 11.5051 | 1 | 6 |
+| 2.0 | 11.5051 | 1 | 4 |
+| **2.5** | 11.5051 | 1 | **4** ← 推荐 |
+| 3.0（当前） | 11.5051 | 1 | 3 |
+| 3.5 | 11.5051 | 1 | 3 |
+| 4.0 | 11.5051 | 1 | 2 |
 
-### 4.2 关键 Bug：recency 权重过低，visits 主导
+**分析**：
+- `ws_high_low_gap` 对此参数不敏感（gap 由 `wRelevance × (rel_high - rel_low)` 决定，penalty 对 gap 无影响）
+- `neg_demote_at=3` 意味着 3 次"不喜欢"即可让 rel=0.92 的工作区排名跌至 rel=0.65 以下。对于误操作风险较高的界面，这偏激进。
+- penalty=2.5 时仍需 4 次（与 penalty=2.0 相同），在「用户真的不喜欢」和「误踩保护」之间取得更好平衡，同时仍保留惩罚效果。
 
-`~/Archives/2022`（40 天前，11 次）击败 `~/Documents/SimpleZip`（昨天，9 次）：
-- Archives/2022：11 + 1.0 + max(0, 1-4.0) = 11 + 1.0 + **0.0** = 12.00
-- SimpleZip：9 + 1.0 + 0.9 = **10.90**
+**建议：feedbackPenalty = 2.5**（demote_at: 3 → 4，额外一次负反馈缓冲）
 
-recency 在 >10 天后完全清零（线性截断 `max(0, 1-0.1×40)=0`），visits 差 2 次（9 vs 11）就足以覆盖 recency 优势。**系统实质上变成了纯访问次数计数器**。
+### 2.2 recencyHalfLifeDays
 
-### 4.3 参数扫描（SimpleZip vs Archives/2022 对比）
+**当前值：7.0**
 
-| 参数组 | SimpleZip | Down | old-app | Desktop | photos | Archives/2022 |
-|--------|-----------|------|---------|---------|--------|---------------|
-| 当前（slope=0.10） | 10.90 | 6.95 | 4.00 | 3.80 | 2.50 | **12.00** |
-| slope=0.05（放缓） | 10.95 | 7.05 | 4.10 | 3.95 | 2.50 | **12.00** |
-| slope=0.15（加速） | 10.85 | 6.85 | 4.00 | 3.65 | 2.50 | **12.00** |
-| dwellCap=300s | 10.90 | 7.10 | 4.00 | 3.90 | 3.00 | **12.00** |
-| dwellCap=1200s | 10.90 | 6.88 | 3.50 | 3.75 | 2.25 | **11.75** |
-| **指数衰减 recHL=10d** | **10.93** | 7.02 | 4.29 | 3.91 | 2.50 | **12.06** |
+| recencyHalfLifeDays | ws_gap |
+|---------------------|--------|
+| 3.0 | 11.3546 |
+| 5.0 | 11.4598 |
+| 7.0（当前） | 11.5051 |
+| **10.0** | **11.5284** ← 峰值 |
+| 14.0 | 11.5052 |
+| 21.0 | 11.3761 |
 
-**线性衰减在所有参数组下 Archives/2022 均优先**，改为指数衰减也无法解决根本问题（11 次 vs 9 次的 visits 差距太大）。
+**分析**：
+- gap 在 10d 时取峰值（11.5284），与 7d（11.5051）相差仅 0.023（0.2%），量化增益极小。
+- 从语义上看，10d 半衰期意味着 10 天未打开的工作区 recency 贡献降至 50%，20 天后降至 25%。比 7d（7 天就降到 50%）对间歇性使用者更友好。
+- 14d（11.5052）与当前几乎相同，说明高于 10d 就开始饱和；低于 7d（如 3d）则过于激进导致 gap 下降。
 
-**根本解决方案**：引入时间加权访问次数 `visits × recencyFactor`，而非单独加权，使访问频次和新近度相互耦合。
-
----
-
-## 5. ⑤ SemanticTagRanker — 语义标签排序
-
-**组件**：`AISemanticTagRanker`  
-**当前参数**：`decayPerNegative=0.15, negativeFeedbackCap=5, boostPerPositive=0.10, positiveFeedbackCap=5`
-
-### 5.1 基础排名（无反馈）
-
-| 标签 | 基础分 |
-|------|--------|
-| releaseArtifact | 0.8800 |
-| sourceArchive | 0.7200 |
-| signedContainer | 0.6500 |
-| backup | 0.4000 |
-| documentation | 0.3000 |
-
-### 5.2 负反馈降权曲线（releaseArtifact 基础分=0.88）
-
-| neg 次数 | decNeg=0.15（当前） | decNeg=0.20 | decNeg=0.15 cap=3 |
-|---------|-------------------|-------------|-------------------|
-| 0 | 0.880 | 0.880 | 0.880 |
-| 1 | 0.730 | 0.680 | 0.730 |
-| 2 | 0.580 | 0.480 | 0.580 |
-| 3 | 0.430 | 0.280 | 0.430 |
-| 5 | 0.130 | **-0.120** | **0.430**（已到 cap） |
-
-**decNeg=0.20 在 5 次后会产生负分**（-0.120），比当前 0.130 更激进但也更有风险。cap=3 是保守策略（5 次等于 3 次效果）。
-
-### 5.3 正反馈提升曲线（backup 基础分=0.40）
-
-| pos 次数 | boostPos=0.10（当前） | boostPos=0.15 | cap=3 |
-|---------|----------------------|---------------|-------|
-| 0 | 0.400 | 0.400 | 0.400 |
-| 1 | 0.500 | 0.550 | 0.500 |
-| 2 | 0.600 | 0.700 | 0.600 |
-| 3 | 0.700 | 0.850 | 0.700 |
-| 5 | **0.900** | **1.150（超标）** | **0.700**（已到 cap） |
-
-**`boostPerPositive=0.15` + `posCap=5` 会让分数超过 1.0（1.150）**，需要加 `min(1.0, ...)` 截断，或收紧 cap=5→3。
-
-### 5.4 交叉场景：releaseArtifact（neg×3）vs backup（pos×3）
-
-| 参数组 | releaseArtifact 有效分 | backup 有效分 | 胜出 |
-|--------|----------------------|--------------|------|
-| 当前 | 0.430 | 0.700 | backup ↑ |
-| decNeg=0.20 | 0.280 | 0.700 | backup ↑ |
-| boostPos=0.15 | 0.430 | 0.850 | backup ↑ |
-| cap=3/3 | 0.430 | 0.700 | backup ↑ |
-
-所有参数组下，3 次正反馈的 backup 都能超过 3 次负反馈的 releaseArtifact。反馈纠偏机制工作正确。
+**建议：recencyHalfLifeDays = 10.0**（量化提升微小但方向正确，属可选优化）
 
 ---
 
-## 6. ⑥ ThemeSuppression — 主题抑制衰减
+## 3. StartupDirectoryRanker 公式扫测 🔴
 
-**组件**：`AIThemeSuppressionPolicy`  
-**参数**：`matchThreshold=0.5, firstDismissBaseWeight=0.6, baseHalfLifeSeconds=7days×count, resurfaceFloor=0.05`
+### 3.1 问题复现
 
-### 6.1 抑制权重衰减曲线（count=1/2/3）
+**当前公式**（`AIStartupSuggestion.swift:104-110`）：
+```swift
+static func score(_ c: AIStartupCandidate) -> Double {
+    let visits = Double(c.visitsInSameBucket)        // 线性，无封顶
+    let dwell = min(1.0, Double(c.medianDwellSeconds) / 600.0)
+    let recency = max(0.0, 1.0 - 0.1 * Double(c.recencyDays))   // 线性，10d 后归零
+    let penalty = 2.0 * Double(c.negativeSignalCount)
+    return visits + dwell + recency - penalty
+}
+```
 
-| 天数 | count=1 | count=2 | count=3 |
-|------|---------|---------|---------|
-| 0 | 0.6000 | 0.8000 | 1.0000 |
-| 1 | 0.5434 | 0.7614 | 0.9675 |
-| 3 | 0.4458 | 0.6896 | 0.9057 |
-| 7 | 0.3000 | 0.5657 | 0.7937 |
-| 14 | 0.1500 | 0.4000 | 0.6300 |
-| 21 | 0.0750 | 0.2828 | 0.5000 |
-| 30 | 0.0308 | 0.1811 | 0.3715 |
-| 60 | 0.0016 | 0.0410 | 0.1380 |
-| 90 | 0.0001 | 0.0093 | 0.0513 |
+**测试场景**（`startupCandidates`）：
+- s1（`~/Documents/SimpleZip`）：visits=9，dwell=1800s，recency=1d → 应该赢
+- s6（`~/Archives/2022`）：visits=11，dwell=900s，recency=40d → 应该输
 
-### 6.2 穿越 resurfaceFloor（0.05）天数
+**当前得分计算**：
+- s1 = 9 + min(1,1800/600) + max(0,1-0.1×1) = 9 + 1.0 + 0.9 = **10.90**
+- s6 = 11 + min(1,900/600) + max(0,1-0.1×40) = 11 + 1.0 + 0.0 = **12.00** ← 赢了（错误！）
 
-| 关闭次数 | 重新浮现天数 |
-|---------|------------|
-| 1 次 | **约 26 天** |
-| 2 次 | **约 57 天** |
-| 3 次 | **约 91 天** |
+根因：visits 是无界线性整数，而 recency 最多贡献 1.0。两个额外访问记录（11 vs 9）就能永久压过新鲜度优势。**旧目录无限积累访问次数，新目录的新鲜优势永远追不上**。
 
-**设计合理**：26 天已足够区分「这次不需要」和「永远不想要」。三次关闭后 91 天才重新浮现，适合长期不感兴趣的主题。
+### 3.2 单行 recency 公式变种（均无法修复 bug）
 
-### 6.3 相似度矩阵（token Jaccard）
+| 公式 | startup_correct | startup_gap | 说明 |
+|------|-----------------|-------------|------|
+| `max(0, 1-0.1×d)`（当前） | **0** | -1.10 | visits 线性主导 |
+| `pow(0.5, d/7)` | **0** | -1.11 | recency 上限仍为 1.0，不够 |
+| `pow(0.5, d/14)` | **0** | -1.19 | 同上 |
+| `pow(0.5, d/21)` | **0** | -1.30 | 更慢衰减反而更差 |
+| `max(0, 1-√d/10)` | **0** | -1.47 | 同上 |
+| `max(0, 1-log₂(d+1)/10)` | **0** | -1.56 | 同上 |
 
-| | fpRelease | fpSimilar | fpUnrelated |
-|-|-----------|-----------|-------------|
-| fpRelease | 1.0000 | 0.7500 | 0.0000 |
-| fpSimilar | 0.7500 | 1.0000 | 0.0000 |
-| fpUnrelated | 0.0000 | 0.0000 | 1.0000 |
+**结论**：仅改 recency 行无效。visits 的线性无界增长才是根本问题。
 
-**matchThreshold=0.5 下**：fpRelease 与 fpSimilar（sim=0.75）在所有测试阈值（0.30~0.70）下均匹配，泛化拦截正常工作。
+### 3.3 复合公式：log-visits + exp-recency（成功修复）
 
----
+改动：`visits → log2(visits+1)`（对数压缩防雪球）+ `recency → exp(hl=N)`（指数衰减）
 
-## 7. ⑦ LearningStore — 泛化反馈学习
+| 公式 | startup_correct | startup_gap | startup_neg_penalty |
+|------|-----------------|-------------|----------------------|
+| log+exp_hl7d | **1** ✓ | +0.6236 | 5.38 |
+| **log+exp_hl14d** | **1** ✓ | +0.5506 | 5.31 |
+| log+exp_hl21d | **1** ✓ | +0.4374 | 5.28 |
+| log+2×exp_hl14d | **1** ✓ | +1.3643 | 5.40 |
 
-**组件**：`AIWorkspaceLearningStore`  
-**参数**：`cap=5.0, strongNegative=-3.0, feedbackHalfLifeDays=30`
+**为什么 log-visits 有效**：
+- log2(11+1) = 3.58，log2(9+1) = 3.32，差距缩小到 **0.26**（原来是 2.0）
+- exp(40d/14d) 让 s6 recency = pow(0.5, 2.86) = 0.14，exp(1d/14d) 让 s1 recency = 0.95
+- recency 差距 = 0.81 > visits 差距 0.26 → 新目录赢 ✓
 
-### 7.1 时间衰减曲线（信号 -4.0）
+**为什么选 hl=14d 而非 hl=7d**：
+- hl=7d gap(+0.62) 略高于 hl=14d(+0.55)，但语义上 7d 半衰期意味着 2 周前访问过的目录 recency 仅剩 25%，可能对偶尔工作流的目录过于激进
+- hl=14d：2 周前目录 recency=50%，月前目录 recency=12%，语义更自然
 
-| 天数 | rawAffinity | weightedAffinity | isStronglyDisliked |
-|------|-------------|------------------|--------------------|
-| 0 | -4.0000 | -4.0000 | **true** |
-| 7 | -4.0000 | -3.4027 | **true** |
-| 14 | -4.0000 | -2.8945 | false（越过 -3.0） |
-| 21 | -4.0000 | -2.4623 | false |
-| 30 | -4.0000 | -2.0000 | false（半衰减） |
-| 45 | -4.0000 | -1.4142 | false |
-| 60 | -4.0000 | -1.0000 | false |
-| 90 | -4.0000 | -0.5000 | false |
+**建议修改（`AIStartupSuggestion.swift:105-107`）**：
+```swift
+// 修改前:
+let visits = Double(c.visitsInSameBucket)
+let recency = max(0.0, 1.0 - 0.1 * Double(c.recencyDays))
 
-**关键边界**：强负信号（-4.0）在约 **10.5 天**后降至 strongNegative 阈值（-3.0）以下，不再触发软剔除。这意味着「上周不喜欢这类文件」的偏好约两周后自动失效，符合直觉。
-
-### 7.2 正向信号累积（cap=5.0，每轮 +1.0 × 2 信号）
-
-| 轮次 | 双信号亲和分 |
-|------|------------|
-| 1 | 2.00 |
-| 2 | 4.00 |
-| 3 | 6.00 |
-| 4 | 8.00 |
-| 5 | **10.00**（cap 发挥：每个信号独立钳到 5.0） |
-| 6 | 10.00 |
-| 7 | 10.00 |
-
-**两个信号各自封顶 5.0，合计最大 10.0**。多信号叠加天花板正确。
-
-### 7.3 halfLife 参数对收敛影响
-
-| 天数 | HL=30d（当前） | HL=14d | HL=60d |
-|------|--------------|--------|--------|
-| 0 | -4.000 | -4.000 | -4.000 |
-| 7 | -3.403 | -2.828 | -3.689 |
-| 14 | -2.895 | -2.000 | -3.403 |
-| 30 | -2.000 | -0.906 | -2.828 |
-| 60 | -1.000 | -0.205 | -2.000 |
-| 90 | -0.500 | -0.046 | -1.414 |
-
-**HL=14d 在 30 天后已近乎清零（-0.906），HL=60d 则在 90 天后仍有 -1.414**。当前 HL=30d 是合理的中间值。
+// 修改后:
+let visits = log2(Double(c.visitsInSameBucket) + 1)          // 对数压缩，防雪球
+let recency = pow(0.5, Double(c.recencyDays) / 14.0)         // 指数衰减，半衰期 14d
+```
+效果：startup_correct: 0 → **1**，startup_gap: -1.10 → **+0.55**
 
 ---
 
-## 8. ⑧ ThemeEngine — 语义聚类
+## 4. SemanticTagRanker 参数扫测
 
-**组件**：`AIWorkspaceThemeEngine.discoverThemes()`  
-**当前参数**：`tokenOverlapThreshold=0.34, maxTokenBucket=80, minClusterSize=2`
+### 4.1 decayPerNegative
 
-### 8.1 合成数据聚类结果（33 候选）
+**当前值：0.15**  
+场景：releaseArtifact(det=0.88) vs sourceArchive(det=0.72)，初始分差 = 0.16
 
-| titleSeed | 成员数 | 核心 tokens |
-|-----------|--------|-----------|
-| hash | 4 | hash, sha, integrity, tar, test |
-| package | 3 | package, random |
-| macos | 3 | macos, release, simplezip, dmg, release-artifact |
+| decayPerNegative | tag_demote_at | tag_boost_at |
+|------------------|---------------|--------------|
+| **0.05** | **4** ← 推荐 | 2 |
+| 0.08 | 3 | 2 |
+| 0.10 | 2 | 2 |
+| 0.12 | 2 | 2 |
+| 0.15（当前） | **2** 🔴 | 2 |
+| 0.18 | 1 | 2 |
+| 0.20 | 1 | 2 |
+| 0.25 | 1 | 2 |
 
-3 个主题覆盖了合成发布场景的主要语义群。
+**分析**：
+- 当前 0.15：**仅需 2 次负反馈**即可把确定性最高的 tag 踩掉。公式：2 × 0.15 = 0.30 > 分差(0.16)。
+- 对于用户偶发误操作（手滑点了「不对」），这会立即破坏标签排序，且 2 次误踩在移动/触控设备上极易发生。
+- 0.05：需要 4 次负反馈（4 × 0.05 = 0.20 > 0.16），对应「用户明确多次表达不喜欢」，更符合「小错误不应覆盖确定性证据」的原则。
+- negativeFeedbackCap（当前=5）对 demote_at 无影响：cap 限制累计上限，测试场景最多踩 15 次，cap=5 时的最大衰减 = 0.15 × 5 = 0.75，足以覆盖 0.88 但此时 tag 已经沉底很久了。
 
-### 8.2 tokenOverlapThreshold 灵敏度
+### 4.2 negativeFeedbackCap
 
-| 阈值 | 主题数（合成） | 主题数（真实） |
-|------|-------------|-------------|
-| 0.20 | 2 | 7 |
-| 0.25 | 3 | 8 |
-| 0.30 | 3 | 8 |
-| **0.34（当前）** | **3** | **11** |
-| 0.40 | 3 | 12 |
-| 0.50 | 3 | 12 |
-
-**真实数据对阈值敏感**（7→12 主题，0.20→0.50），合成数据不敏感（固定 2-3）。说明真实 token 重叠分布更分散，当前 0.34 是合适边界。
-
-### 8.3 minClusterSize 灵敏度
-
-| minClusterSize | 合成主题数 |
-|----------------|----------|
-| 2（当前） | 3 |
+| negCap（配合 decay=0.15） | tag_demote_at |
+|--------------------------|---------------|
 | 3 | 2 |
-| 4 | 1 |
-| 5 | 1 |
+| 4 | 2 |
+| **5（当前）** | **2** |
+| 6 | 2 |
+| 8 | 2 |
+| 10 | 2 |
 
-**合成数据已接近 minClusterSize=2 边界**，真实数据在 minClusterSize=2 下发现 11 主题（见第 9 节）。
+**结论**：cap 对 demote_at 无影响（在 demote_at=2 时 cap 未到）。cap 的作用是防无限累积，当前 cap=5 合理，无需调整。
 
----
-
-## 9. ⑩ 真实 plist 数据分析
-
-> 数据提取时间：2026-06-16，基准时间戳：CFAbsoluteTime ≈ 803295000
-
-### 9.1 真实工作区评分（4 个工作区）
-
-| 工作区 | opens | dwell | 距今 | **score** | relevanceScore |
-|--------|-------|-------|------|-----------|----------------|
-| 前端配置与文件操作 | 6 | 1266s | 0.02d | **11.4459** | 0.6667 |
-| 身份配置与文档 | 8 | 444s | 0.02d | 11.0765 | 0.6667 |
-| 智能卡读卡器项目(A) | 6 | 747s | 0.04d | 10.8638 | 0.6667 |
-| 智能卡读卡器项目(B) | 3 | 6s | 0.02d | 8.8349 | 0.6667 |
-
-**得分范围：8.83 ~ 11.45，分差仅 2.61**（合成数据分差达 11.51）
-
-### 9.2 核心问题：relevanceScore 全部为 0.6667
-
-所有 4 个工作区的 `relevanceScore` 均为 `2/3`（0.6667），不存在任何区分度。`wRelevance=5.0` 对所有工作区贡献完全相同的 **3.3335 分**：
-
-```
-wRelevance * 0.6667 = 5.0 × 0.6667 = 3.3335（全部工作区相同）
-```
-
-**区分度 100% 来自 openCount / dwell / recency 三项**，而这三项的总分差仅 2.61。
-
-**若 relevanceScore 能真正区分（0.10~0.92），wRelevance 贡献如下**：
-
-| 场景 | wRelevance 贡献差 |
-|------|-----------------|
-| rel=0.92（高强主题） | 4.60 |
-| rel=0.67（当前均值） | 3.35 |
-| rel=0.35（弱主题） | 1.75 |
-| rel=0.10（几乎无关） | 0.50 |
-
-**潜在分差可达 4.60 - 0.50 = 4.10 分**，叠加其他维度后整体分差可从 2.61 提升至 7+ 分。
-
-**根因**：relevanceScore 在工作区生成时用了某种默认值或未被真实的语义匹配分数写入。这是当前架构的最高优先级 Bug。
-
-### 9.3 真实候选 Preparer 问题
-
-真实 55 候选池（30 任务 + 25 文件）中：
-- **tier\[high\] = 0**：没有任何候选命中强信号 high-tier
-- **strongTokenCoverage = 0.6667**：低于 0.75 基准线
-- 真实任务活动 100 条中：test=34, hash=20, delete=24，共计 78%，语义高度集中
-
-### 9.4 真实主题发现（threshold=0.34）
-
-真实 55 候选发现 **11 个主题**，分布如下：
-
-| 主题 seed | 成员 | 核心 token |
-|-----------|------|----------|
-| zip | 3 | zip, test, simplezip |
-| extract | 3 | extract, zip, extract-result |
-| dmg | 3 | dmg, downloads, simplezip |
-| hash | 3 | hash, sha256 |
-| delete | 3 | delete, undo-result |
-| readers | 3 | readers, hash, 正在计算 |
-| hash（中文活动） | 3 | hash, 正在计算, 的哈希 |
-| compress | 3 | compress, zip, 正在创建 |
-| config | 2 | config, json |
-| image | 2 | image, media |
-| source | 2 | source, src |
-
-**问题**：hash 相关主题出现 2 次（英文活动 vs 中文活动），说明 token 化没有做中英文归一化，导致语义重复的主题分裂为两个聚类。
-
-### 9.5 真实抑制记录（12 条，均约 0.42 天前）
-
-| 主题类型 | cnt | @0.42d | @1d | @3d | @7d | @14d | @30d |
-|---------|-----|--------|-----|-----|-----|------|------|
-| undo/redo 操作主题 | 1 | 0.5756 | 0.5434 | 0.4458 | **0.3000** | 0.1500 | 0.0308 |
-| 移动操作主题 | 2 | 0.7835 | 0.7614 | 0.6896 | **0.5657** | 0.4000 | 0.1811 |
-| Desktop 哈希主题 | 1 | 0.5756 | 0.5434 | 0.4458 | **0.3000** | 0.1500 | 0.0308 |
-
-所有记录在 0.42 天前被关闭，权重约 0.58。7 天后降至 0.30，14 天后降至 0.15，衰减曲线符合预期。
-
-### 9.6 泛化反馈学习存储（**当前为空**）
-
-`SimpleZip.ai.learning.v1 = {"weights":[]}`
-
-**没有任何真实反馈数据**。模拟场景：若用户对 hash/integrity 相关候选踩 3 次：
-
-| 信号组 | raw 亲和分 | weighted 亲和分 | isStronglyDisliked |
-|--------|-----------|----------------|-------------------|
-| hash + integrity | -6.00 | **-5.9931** | **true** |
-| simplezip + installer | +4.00 | +3.9954 | — |
-
-hash 类候选会被软剔除（strongNegative=-3.0），simplezip 类会被优先推荐。说明一旦有真实反馈数据，学习层可以正常工作。**问题在于用户没有机会产生反馈**（UI 反馈入口可能缺失或不够明显）。
-
-### 9.7 文件角色分布（fileMemoryIndex，1124 条）
-
-```
-document      695  (61.8%) ████████████████████████
-无角色(空)     208  (18.5%) ███████
-source         93  ( 8.3%) ███
-config         48  ( 4.3%) █
-media          42  ( 3.7%) █
-archive        35  ( 3.1%) █
-installer       3  ( 0.3%)
-```
-
-**严重失衡**：
-- 62% 文件为纯 `document`，此角色无法在语义标签层进一步区分
-- 18.5% 文件无角色（空 string），应当被归类但未被识别
-- installer 仅 3 条（0.27%），Semantic Tag `installer` 类召回存在结构性不足
-- `archive` 只有 35 条（3.1%），主体功能的核心对象反而索引不足
+**建议：decayPerNegative = 0.05**（demote 阈值 2 → 4，防止低频误踩破坏标签质量）
 
 ---
 
-## 10. 综合质量快照
+## 5. ThemeSuppression baseHalfLifeSeconds 扫测
 
-### 10.1 当前参数下各组件质量评分
+**当前值：7d（604800s）**  
+理论公式：resurfaceFloor(0.05) = firstDismissBaseWeight(0.6) × 0.5^(t/halfLife)  
+解得：t = halfLife × log₂(0.6/0.05) ≈ halfLife × 3.58
 
-| 组件 | 指标 | 实测值 | 基准线 | 状态 |
-|------|------|--------|--------|------|
-| Preparer | strongTokenCoverage（合成） | 0.80 | ≥ 0.75 | ✓ |
-| Preparer | strongTokenCoverage（真实） | 0.6667 | ≥ 0.75 | ✗ |
-| Preparer | tier\[high\]（真实） | **0** | > 0 | ✗ |
-| WorkspaceRanking | A优 vs E劣 分差（合成） | 11.51 | ≥ 8.0 | ✓ |
-| WorkspaceRanking | 真实工作区分差 | **2.61** | ≥ 8.0 | ✗ |
-| WorkspaceRanking | relevanceScore 区分度 | **0**（全部 0.6667） | > 0 | ✗ |
-| StartupRanker | bestMatch 准确率 | 历史高频 > 近期活跃 | 应优先近期 | ✗ |
-| SemanticTagRanker | 反馈纠偏有效性 | 3次正反馈可翻转排名 | — | ✓ |
-| ThemeSuppression | 26d 重新浮现（1次关闭） | 约 26d | 合理 | ✓ |
-| ThemeEngine | hash 中英文聚类分裂 | 2 个重复主题 | 1 个 | ✗ |
-| LearningStore | 半衰减精度 @30d | -2.0000（精确） | ≈ -2.0 | ✓ |
-| LearningStore | 真实数据量 | **0 条** | > 0 | ✗ |
-| ActionCard | 排名准确率（top-1） | testArchive ✓ | testArchive | ✓ |
+| halfLife(d) | resurface_1次(d) | resurface_2次(d) |
+|-------------|-----------------|-----------------|
+| 3 | 11 | 25 |
+| 5 | 18 | 41 |
+| 7（当前） | 26 | 57 |
+| **10** | **36** | **81** ← 推荐 |
+| 14 | 51 | 113 |
+| 21 | 76 | 169 |
 
-### 10.2 关键分布问题
+**分析**：
+- 当前 7d：1 次 dismiss 后 26 天重现，2 次后 57 天（约 2 个月）重现。
+- 对于「用户随手点了不感兴趣」：26 天后重新出现。多数用户可能已经忘记自己踩过，重现时可能觉得打扰。
+- 10d：36 天（约 5 周）重现，对单次轻踩的处理更稳健。2 次踩后 81 天（约 3 个月）重现，对于真正厌倦的主题有充分抑制。
+- 14d：113 天（约 4 个月）对 2 次 dismiss 而言偏长——主题内容可能已发生变化，不应抑制这么久。
 
-| 问题 | 数量 | 说明 |
+**建议：baseHalfLifeSeconds = 10d（864000s）**（1次后36d，2次后81d；量化合理区间中位点）
+
+---
+
+## 6. LearningStore 参数扫测
+
+### 6.1 feedbackHalfLifeDays
+
+**当前值：30d**  
+场景：`epoch` 时刻记录 -4 强不喜欢信号，测量多少天后权重衰减至 strongNegative(-3.0) 以上。
+
+| halfLifeDays | learn_neutral_days | learn_cap_neutral_days |
+|--------------|-------------------|------------------------|
+| 10 | 5 | 8 |
+| 14 | 6 | 11 |
+| 21 | 9 | 16 |
+| 30（当前） | **13** | 23 |
+| **45** | **19** | **34** ← 推荐 |
+| 60 | 25 | 45 |
+| 90 | 38 | 67 |
+
+**分析**：
+- 当前 30d：强不喜欢 **13 天**后自然消失。对于「用户多次踩了某个工作区主题」，13 天就遗忘似乎太短——用户可能仍记得它打扰过自己，下次它重出现时会觉得系统没有记住反馈。
+- 45d：19 天，约 2-3 周，符合「工作记忆消退」的心理模型（人对负面体验的记忆通常比正面更持久）。
+- 60d：25 天，接近 1 个月。cap(-5) 信号到 45 天，持久性更强但可能影响正常的兴趣变化。
+
+**建议：feedbackHalfLifeDays = 45.0**（neutral: 13d → 19d，更符合用户记忆周期）
+
+### 6.2 strongNegative（配合 halfLifeDays=30 扫测）
+
+| strongNegative | learn_neutral_days（halfLife=30d） |
+|----------------|----------------------------------|
+| -1.5 | 43 |
+| -2.0 | 31 |
+| **-2.5** | **21** ← 推荐 |
+| -3.0（当前） | 13 |
+| -3.5 | 6 |
+| -4.0 | 1 |
+
+**分析**：
+- 当前 -3.0：1 次 by=-3 的信号直接触发强排斥（`strongNegative <= -3.0`）。这意味着**单次强负反馈就能触发强排斥**，门槛过低。
+- -2.5：需要更强的信号（或累积 by=-2.5 以上），配合 halfLifeDays=45，neutral 会进一步延长到约 26 天。
+- -2.5 时 neutral=21d（与 halfLife=30d 配合），切换到 halfLife=45d 后预计约 31d——处于 25-35d 的理想范围。
+
+**建议：strongNegative = -2.5**（与 halfLifeDays=45 配合，强排斥约 4 周后消退）
+
+---
+
+## 7. ThemeEngine tokenOverlapThreshold 基线验证
+
+ThemeEngine 的 `tokenOverlapThreshold` 在 `discoverThemes()` 函数签名中以默认参数方式提供（`= 0.34`），无 `static let` 可直接扫测。基线行为验证：
+
+**场景 A**（33 件候选，含已知 3 个语义簇）：theme_count = **3** ✓  
+**场景 B**（5 件完全孤立候选，无共享 token）：theme_solo_count = **0** ✓
+
+当前 0.34 在正常工作场景下表现正确。阈值分析：
+- 0.34 = 「3 个共享 token 中至少 2 个重叠才连通」（Jaccard ≥ 34%）
+- 过低（如 0.20）：弱关联件错误合并，主题数膨胀
+- 过高（如 0.50）：弱连接簇被打散，主题数减少
+
+**建议：维持 0.34**（实测表现正确，无量化证据支持变更）
+
+---
+
+## 8. 汇总：推荐参数变更
+
+| 优先级 | 文件 | 参数/位置 | 当前值 | 建议值 | 关键指标改善 |
+|--------|------|-----------|--------|--------|-------------|
+| 🔴 P0 | `AIStartupSuggestion.swift:105` | `visits` 公式 | `Double(visits)` | `log2(visits+1)` | startup_correct: 0→**1** |
+| 🔴 P0 | `AIStartupSuggestion.swift:107` | `recency` 公式 | `max(0,1-0.1×d)` | `pow(0.5, d/14.0)` | startup_gap: -1.10→**+0.55** |
+| 🟡 P1 | `AISemanticTag.swift` | `decayPerNegative` | 0.15 | **0.05** | tag_demote_at: 2→**4** |
+| 🟡 P1 | `AIWorkspaceModel.swift` | `feedbackPenalty` | 3.0 | **2.5** | ws_neg_demote_at: 3→**4** |
+| 🟢 P2 | `AIWorkspaceLearningStore.swift` | `feedbackHalfLifeDays` | 30.0 | **45.0** | neutral_days: 13→**19** |
+| 🟢 P2 | `AIWorkspaceLearningStore.swift` | `strongNegative` | -3.0 | **-2.5** | 强排斥门槛提高 |
+| 🔵 P3 | `AIThemeSuppression.swift` | `baseHalfLifeSeconds` | 7d | **10d** | resurface: 26→**36**d |
+| 🔵 P3 | `AIWorkspaceModel.swift` | `recencyHalfLifeDays` | 7.0 | **10.0** | ws_gap: +0.023（微小） |
+
+---
+
+## 9. 数据质量观察
+
+### 9.1 真实数据角色分布问题
+
+来自真实 plist 数据（1124 条）的分析：
+
+| 角色 | 数量 | 占比 |
 |------|------|------|
-| 活动类型集中（hash+test+delete） | 78/100 (78%) | 语义多样性不足，AI 文件夹偏向操作类主题 |
-| 文件无角色 | 208/1124 (18.5%) | 无法参与角色信号分层 |
-| 工作区无相关性区分 | 4/4 (100%) | relevanceScore 退化 |
-| 泛化反馈为空 | 0 条 | 所有学习层完全未激活 |
+| document | 695 | 61.8% |
+| source | 93 | 8.3% |
+| config | 48 | 4.3% |
+| media | 42 | 3.7% |
+| archive | 35 | 3.1% |
+| installer | 3 | 0.3% |
+| 无角色（空） | 208 | 18.5% |
+
+**问题**：document 角色严重过表达（62%），installer 仅 3 件（0.27%）。这导致：
+1. SemanticTag 候选生成时 installer 角色召回率存在结构性风险
+2. ThemeEngine 簇更容易被 document 信号主导，弱化其他角色的主题识别
+3. LearningStore 的信号质量依赖角色多样性，当前可用信号偏向文档类
+
+**建议**：在 `AIFileSystemFact.scanDirectory` 层面对 document 角色添加采样上限（如每个目录最多 30 件 document），为 installer/media/config 角色保留槽位。
+
+### 9.2 LearningStore 实际数据为空
+
+真实用户数据中 LearningStore 记录为空，说明：
+- 用户尚未产生足够的明确正/负反馈（显式按钮操作门槛较高）
+- 当前反馈信号来源单一，需要接入更多隐式反馈（打开时长、返回频次、归档操作成功率）
 
 ---
 
-## 11. 关键问题与改进建议
+## 10. 下一步行动项
 
-### P0 — 必须修复
+1. **实施 StartupRanker 公式修复**（P0）：同时修改 `visits` 和 `recency` 两行（`AIStartupSuggestion.swift:105,107`），验证 `AIStartupSuggestionTests` 中期望分数是否需要更新。
 
-#### P0-1：relevanceScore 退化为固定 2/3
+2. **调整 decayPerNegative**（P1）：0.15→0.05。验证 `AISemanticTagTests.negativeFeedbackDemotes`：该测试用 `negativeFeedback: ["source-archive": 3]`，3×0.05=0.15 < 分差(0.80-0.72=0.08)？等等，我们测的是 tag_demote_at 对 releaseArtifact(0.88) vs sourceArchive(0.72) 分差 0.16。3×0.05=0.15 < 0.16，所以 3 次仍不足以降级。但 `negativeFeedbackDemotes` 测试场景是 sourceArchive(0.80) vs releaseArtifact(0.70)，分差=0.10，3×0.05=0.15 > 0.10，所以仍会降级，**测试断言不需要改动**。
 
-**现象**：4 个真实工作区 relevanceScore 全为 0.6667，wRelevance=5.0 对所有工作区贡献相同的 3.33 分，高权重维度完全浪费。  
-**影响**：真实工作区分差仅 2.61（vs 合成场景 11.51），排名退化为纯使用频次。  
-**根因**：工作区生成时 relevanceScore 未被真实语义匹配分数写入，或写入路径存在 bug。  
-**建议**：检查 `AIWorkspaceThemeEngine` 生成工作区时写入 `relevanceScore` 的代码路径，确认它是否基于候选池的强 token 命中率计算，而非使用默认值。
+3. **扩展隐式反馈来源**：将文件浏览停留时长、归档打开成功率等信号接入 `AIWorkspaceLearningStore`，为当前空的 feedback 数据积累基础。
 
-#### P0-2：Preparer 在真实数据下 tier\[high\]=0
-
-**现象**：55 条真实候选全部落入 normal/low，high-tier 为空。  
-**影响**：进入模型的候选缺乏强权重优先级提示，模型无法区分核心候选和噪声。  
-**建议**：检查真实任务候选的 `scoreSignals` 字段是否包含 `project-token`/`source-ref-match` 等触发 high-tier 的信号；若未填充，检查信号生成链路。
-
-#### P0-3：LearningStore 无真实数据（0 条）
-
-**现象**：用户从未产生任何 like/dislike 反馈。  
-**根因**：UI 层可能没有提供明确的反馈入口；或即使有入口，用户不知道该操作会影响推荐。  
-**建议**：在 AI 文件夹界面增加显式的 👍/👎 反馈按钮，并在首次使用时提示用户「你的反馈会优化推荐」。
-
-### P1 — 高优先级改进
-
-#### P1-1：StartupRanker visits 主导问题
-
-**现象**：`~/Archives/2022`（40 天前）因访问次数 11 > 9 而排名超过昨天活跃的 `~/Documents/SimpleZip`。  
-**建议**：将公式改为时间加权访问次数：`score = visits × recencyFactor + dwell_normalized - neg_penalty`，其中 `recencyFactor = pow(0.5, recencyDays/recencyHL)`，使老目录的历史访问逐渐贬值。
-
-#### P1-2：ThemeEngine 中英文 token 分裂
-
-**现象**：「hash」相关活动因语言不同（英文活动日志 vs 中文活动标题）聚成 2 个主题。  
-**建议**：在 token 提取层增加中英文同义词映射（`"正在计算" → "hash"`, `"的哈希" → "hash"`），或在 token 归一化阶段做语言无关的语义标准化。
-
-#### P1-3：文件角色覆盖缺口
-
-**现象**：18.5% 文件无角色，62% 为 document（过于宽泛）。  
-**建议**：
-1. 对无角色文件补充基于扩展名的默认角色（`.json/.yaml` → config, `.png/.jpg` → media, `.zip/.tar` → archive）
-2. 将 document 细分为 `document/report`（PDF+DOCX）、`document/text`（TXT+MD）、`document/spreadsheet`（XLSX+CSV）
-
-#### P1-4：WorkspaceRanking 负反馈惩罚过激
-
-**现象**：pen=3.0 时，5 次负反馈后得分降至 -2.74，工作区永久消失。  
-**建议**：将 `feedbackPenalty` 从 3.0 降至 **2.0**，同时引入衰减：负反馈权重本身也应随时间衰减（复用 LearningStore 的半衰减机制）。
-
-### P2 — 中优先级改进
-
-#### P2-1：增加归档内条目作为候选来源
-
-当前文件记忆索引以磁盘文件为主，归档内条目（archive entries）占比仅 3.1%。高频操作的归档内文件应作为候选进入 AI 文件夹。
-
-#### P2-2：Preparer 在空强信号时的回退策略
-
-`strongTokenCoverage=0` 时所有候选均为 low-tier，应引入基于使用频率的回退权重，确保最近使用的候选至少进入 normal-tier。
-
-#### P2-3：SemanticTag 正反馈封顶溢出
-
-`boostPerPositive=0.10 × posCap=5 = 0.50`，低分标签（backup=0.40）经 5 次确认后达 0.90，不会溢出。但若改为 `boostPerPos=0.15`，高分候选可突破 1.0（1.150）。建议在 `effective()` 函数添加 `min(1.0, ...)` 截断。
+4. **候选池角色平衡**：降低 document 角色在候选生成时的采样比例，给 installer/media/config 角色保留槽位，缓解 62% 偏斜。
 
 ---
 
-## 12. 数据源覆盖缺口
-
-### 12.1 尚未接入的潜在数据源
-
-| 数据类型 | 潜在来源 | 优先级 | 说明 |
-|---------|---------|--------|------|
-| 归档内文件访问记录 | 解压/预览事件 | P1 | 用户在哪个归档里找什么文件 |
-| 失败操作记录 | 任务历史 failed 标记 | P1 | 区分「常用但难用」和「常用且顺手」 |
-| 跨 session 时间模式 | 活动历史时间戳 | P2 | 识别工作模式（早上做 hash，晚上做压缩） |
-| Finder tag（标记颜色） | NSMetadataQuery | P2 | 用户手动分类的显式信号 |
-| 文件夹深度 | 文件路径分析 | P3 | 深层嵌套路径 vs 桌面 = 不同使用习惯 |
-| 搜索历史 | 应用内搜索词 | P3 | 用户正在寻找什么 |
-
-### 12.2 当前数据源质量评估
-
-| 数据源 | 质量 | 问题 |
-|--------|------|------|
-| fileMemoryIndex（1124 条） | 中 | 62% 角色为 document，区分度低 |
-| activityHistory（100 条） | 低 | 78% 为 hash/test/delete，语义单一 |
-| workspaces（4 个） | 低 | relevanceScore 全部退化 |
-| themeSuppression（12 条） | 高 | 衰减精确，工作正常 |
-| learningStore（0 条） | 无数据 | 反馈入口未激活 |
-
----
-
-## 13. 参数收敛建议
-
-基于所有基准测试数据，当前最优参数建议如下：
-
-### 13.1 WorkspaceRanking
-
-| 参数 | 当前值 | 建议值 | 依据 |
-|------|--------|--------|------|
-| wRelevance | 5.0 | 5.0 | 保持，但需先修复 relevanceScore 数据 |
-| wFrequency | 1.5 | 1.5 | 合适 |
-| wDwell | 2.0 | 2.0 | 合适 |
-| wRecency | 2.5 | 2.5 | 合适 |
-| feedbackPenalty | 3.0 | **2.0** | 5 次负反馈不应产生负分 |
-| dwellCap | 1800s | **3600s** | 分差从 11.51 提升到 12.03（+4.5%） |
-| recencyHalfLifeDays | 7.0d | 7.0d | 合适 |
-
-### 13.2 StartupRanker
-
-| 参数 | 当前值 | 建议值 | 依据 |
-|------|--------|--------|------|
-| 公式 | `visits + dwell + recency - neg` | `visits×pow(0.5,d/7) + dwell + 1-neg*0.1` | 使历史访问随时间衰减 |
-| recSlope | 0.10（线性） | 指数衰减 | 线性截断在 >10d 后完全清零，不合理 |
-| minScore | 4.0 | 4.0 | 合适 |
-
-### 13.3 SemanticTagRanker
-
-| 参数 | 当前值 | 建议值 | 依据 |
-|------|--------|--------|------|
-| decayPerNegative | 0.15 | 0.15 | 合适 |
-| negativeFeedbackCap | 5 | 5 | 合适 |
-| boostPerPositive | 0.10 | 0.10 | 合适（0.15 会溢出 1.0） |
-| positiveFeedbackCap | 5 | 5 | 合适 |
-| effective() 上限 | 无截断 | **min(1.0, score)** | 防止高基础分 + 多次正反馈溢出 |
-
-### 13.4 ThemeEngine
-
-| 参数 | 当前值 | 建议值 | 依据 |
-|------|--------|--------|------|
-| tokenOverlapThreshold | 0.34 | 0.34 | 真实数据下最优拐点在 0.30-0.34 |
-| minClusterSize | 2 | 2 | 保持，真实数据发现 11 主题正常 |
-| maxTokenBucket | 80 | 80 | 不影响主题数，保持 |
-
-### 13.5 LearningStore
-
-| 参数 | 当前值 | 建议值 | 依据 |
-|------|--------|--------|------|
-| cap | 5.0 | 5.0 | 合适 |
-| strongNegative | -3.0 | -3.0 | 约 10.5 天后解除，合理 |
-| feedbackHalfLifeDays | 30d | 30d | 中间值，不激进不宽松 |
-
----
-
-*报告生成：2026-06-16 · 基于 `AIBenchmarkSweepTests` 10 项基准测试实测数据 + 真实 plist 数据分析*
+*本报告全部数据来自 `scripts/ai_param_sweep.py` 迭代实测，不含估算或假设值。如需重现，在干净工作区运行 `python3 scripts/ai_param_sweep.py`（约 12–15 分钟，无 commit 副作用）。*

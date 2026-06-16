@@ -18,7 +18,7 @@ nonisolated struct AIWorkspaceLearningStore: Codable, Equatable, Sendable {
     /// 单个信号权重的钳制上限(防一类信号被反复强化到压过一切)。
     static let cap = 5.0
     /// 「强负」阈值:候选的泛化亲和分 ≤ 此值 → 同类已被明显排斥,召回时软剔除(非固定成员才剔)。
-    static let strongNegative = -3.0
+    static let strongNegative = -2.5  // sweep: -2.5 提高强排斥门槛(原 -3.0 易被单次强踩触发)
     /// 时间衰减半衰期(天):30 天后反馈权重降至一半;旧偏好不再长期压制候选。
     static let feedbackHalfLifeDays = 30.0
 

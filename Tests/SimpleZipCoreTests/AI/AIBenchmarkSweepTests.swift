@@ -1290,4 +1290,144 @@ private func sep() { print("  " + String(repeating: "-", count: 50)) }
         print("\n  【关键发现】62% 文件为纯 'document' 角色，信号区分度极低")
         print("  只有 3 个 installer 文件（占 0.27%），semantic tag 对 installer 召回率存在结构性风险")
     }
+
+    // MARK: ⓪ benchmarkMetrics — 可解析指标输出（供 Python sweep 驱动读取）
+    //
+    //  输出格式：METRIC:key:value
+    //  运行方式：swift test --filter AIBenchmarkSweepTests/benchmarkMetrics 2>&1 | grep METRIC
+    //
+    //  6 组件 × N 参数，每参数输出独立 METRIC 行；Python 驱动改参数→跑→grep→还原。
+    @Test func benchmarkMetrics() {
+        let now = T0  // 确定性时基
+
+        // ─── A. WorkspaceRanking 辨别力 ──────────────────────────────────────
+        // syntheticWorkspaces: A(rel=0.92,opens=14,dwell=4200,last=0.5d)
+        //                      E(rel=0.18,opens=2 ,dwell=50  ,last=75d )
+        let scores = syntheticWorkspaces.map { AIWorkspaceRanking.score($0, now: now) }
+        // A=index 0, E=index 4（见 syntheticWorkspaces 顺序）
+        let sA = scores[0]; let sE = scores[4]
+        let wsHighLowGap = sA - sE          // 大→辨别力强
+        print("METRIC:ws_high_low_gap:\(String(format: "%.4f", wsHighLowGap))")
+
+        // 1 次负反馈是否把 A（rel=0.92）压到 C（rel=0.78,neg=0）以下？不应该。
+        let wsA1neg = ws("A1neg", "测试-1负反馈", relevance: 0.92, opens: 14,
+                         dwellSec: 4200, lastOpenDays: 0.5, negFeedback: 1)
+        let wsC     = syntheticWorkspaces[2]   // C: rel=0.78, neg=2 but already penalized
+        let wsD     = syntheticWorkspaces[3]   // D: rel=0.65, neg=0
+        let sA1neg  = AIWorkspaceRanking.score(wsA1neg, now: now)
+        let sD      = scores[3]
+        // neg1_over_D: 1负反馈后 A 是否仍高于 D（rel=0.65）; 1=是(好) 0=否(说明单次踩过重)
+        let neg1OverD = sA1neg > sD ? 1 : 0
+        print("METRIC:ws_neg1_over_D:\(neg1OverD)")
+
+        // feedbackPenalty 让 A 跌到 D 以下需要几次负反馈？
+        var negToDemote = -1
+        for n in 1...10 {
+            let wAN = ws("AN", "测试", relevance: 0.92, opens: 14, dwellSec: 4200,
+                         lastOpenDays: 0.5, negFeedback: n)
+            if AIWorkspaceRanking.score(wAN, now: now) < sD { negToDemote = n; break }
+        }
+        print("METRIC:ws_neg_demote_at:\(negToDemote)")
+
+        // ─── B. StartupRanker 新目录 vs 老目录 ───────────────────────────────
+        // s1: ~/Documents/SimpleZip  visits=9  dwell=1800 recency=1d
+        // s6: ~/Archives/2022        visits=11 dwell=900  recency=40d
+        let sS1 = AIStartupDirectoryRanker.score(startupCandidates[0])
+        let sS6 = AIStartupDirectoryRanker.score(startupCandidates[5])
+        let startupCorrect = sS1 > sS6 ? 1 : 0   // 1=新目录赢(期望) 0=老目录赢(bug)
+        let startupGap     = sS1 - sS6
+        print("METRIC:startup_correct:\(startupCorrect)")
+        print("METRIC:startup_gap:\(String(format: "%.4f", startupGap))")
+
+        // 负分惩罚 s4(~/Desktop, neg=2) vs s1 比较
+        let sS4 = AIStartupDirectoryRanker.score(startupCandidates[3])
+        let negPenaltyEffect = sS1 - sS4   // 正=惩罚有效
+        print("METRIC:startup_neg_penalty:\(String(format: "%.4f", negPenaltyEffect))")
+
+        // ─── C. SemanticTagRanker 负反馈衰减 ──────────────────────────────────
+        // tagCandidates: releaseArtifact=0.88, sourceArchive=0.72, signedContainer=0.65…
+        let topTag = tagCandidates[0]   // releaseArtifact 0.88
+        let secTag = tagCandidates[1]   // sourceArchive   0.72
+        var tagDemoteAt = -1
+        for n in 1...15 {
+            let ranked = AISemanticTagRanker.rank(tagCandidates,
+                                                  negativeFeedback: ["release-artifact": n])
+            if ranked.first?.tag != .releaseArtifact { tagDemoteAt = n; break }
+        }
+        print("METRIC:tag_demote_at:\(tagDemoteAt)")
+
+        // 正反馈把 sourceArchive(0.72) 提升到 releaseArtifact(0.88) 以上需要几次？
+        var tagBoostAt = -1
+        for n in 1...20 {
+            let ranked = AISemanticTagRanker.rank(tagCandidates,
+                                                  positiveFeedback: ["source-archive": n])
+            if ranked.first?.tag == .sourceArchive { tagBoostAt = n; break }
+        }
+        print("METRIC:tag_boost_at:\(tagBoostAt)")
+        _ = topTag; _ = secTag   // suppress unused warning
+
+        // ─── D. ThemeSuppression 衰减天数 ────────────────────────────────────
+        let epoch = Date(timeIntervalSinceReferenceDate: 0)
+        let supRecord = AIThemeDismissalRecord(
+            fingerprint: fpRelease,
+            firstDismissedAt: epoch, lastDismissedAt: epoch, dismissCount: 1)
+        var suppressDays = 999
+        for d in 1...500 {
+            let t = epoch.addingTimeInterval(Double(d) * 86_400)
+            let w = AIThemeSuppressionPolicy.weight(of: supRecord, now: t)
+            if w < AIThemeSuppressionPolicy.resurfaceFloor { suppressDays = d; break }
+        }
+        print("METRIC:suppress_resurface_days:\(suppressDays)")
+
+        // 2 次 dismiss 衰减时间（halfLife×count 线性扩展）
+        let supRecord2 = AIThemeDismissalRecord(
+            fingerprint: fpRelease,
+            firstDismissedAt: epoch, lastDismissedAt: epoch, dismissCount: 2)
+        var suppressDays2 = 999
+        for d in 1...1000 {
+            let t = epoch.addingTimeInterval(Double(d) * 86_400)
+            let w = AIThemeSuppressionPolicy.weight(of: supRecord2, now: t)
+            if w < AIThemeSuppressionPolicy.resurfaceFloor { suppressDays2 = d; break }
+        }
+        print("METRIC:suppress_resurface_days_2x:\(suppressDays2)")
+
+        // ─── E. LearningStore 衰减至中性天数 ─────────────────────────────────
+        let wsID = UUID()
+        var ls = AIWorkspaceLearningStore()
+        ls = ls.recording(wsID, signals: ["hash", "test"], by: -4, at: epoch)
+        var lsNeutralDays = 999
+        for d in 1...730 {
+            let t = epoch.addingTimeInterval(Double(d) * 86_400)
+            let w = ls.weightedAffinity(wsID, signals: ["hash"], now: t)
+            if w > AIWorkspaceLearningStore.strongNegative { lsNeutralDays = d; break }
+        }
+        print("METRIC:learn_neutral_days:\(lsNeutralDays)")
+
+        // cap 层: -5（cap 值）的信号衰减到中性需要多久（测试 cap 有效性）
+        var lsCap = AIWorkspaceLearningStore()
+        lsCap = lsCap.recording(wsID, signals: ["archive"], by: -5, at: epoch)  // at cap
+        var lsCapNeutralDays = 999
+        for d in 1...730 {
+            let t = epoch.addingTimeInterval(Double(d) * 86_400)
+            let w = lsCap.weightedAffinity(wsID, signals: ["archive"], now: t)
+            if w > AIWorkspaceLearningStore.strongNegative { lsCapNeutralDays = d; break }
+        }
+        print("METRIC:learn_cap_neutral_days:\(lsCapNeutralDays)")
+
+        // ─── F. ThemeEngine 主题检测数 ────────────────────────────────────────
+        // releasePool 33 件：已知有 release+sign 簇、source 簇，及散件
+        let themes = AIWorkspaceThemeEngine.discoverThemes(from: releasePool, now: now)
+        print("METRIC:theme_count:\(themes.count)")
+
+        // 孤立件应不成主题：只放 5 个互无共享 token 的独立件
+        let soloPool: [AIVirtualNodeCandidate] = [
+            nc("solo1", .file, "readme.txt",    tokens: ["text", "readme"]),
+            nc("solo2", .file, "icon.png",      tokens: ["image", "icon"]),
+            nc("solo3", .file, "config.json",   tokens: ["config", "json"]),
+            nc("solo4", .file, "log.txt",       tokens: ["log", "debug"]),
+            nc("solo5", .file, "temp.dat",      tokens: ["temp", "cache"]),
+        ]
+        let soloThemes = AIWorkspaceThemeEngine.discoverThemes(from: soloPool, now: now)
+        print("METRIC:theme_solo_count:\(soloThemes.count)")   // 期望 0
+    }
 }
