@@ -60,24 +60,21 @@ struct AIWorkspaceView: View {
     let workspaceID: UUID
     @ObservedObject private var store = AIWorkspaceStore.shared
 
-    /// 内联展开的节点(分组展开子级 / 文件展开 AI 建议)。下钻进分组走模型导航(返回/前进/上一级/地址栏)。
-    @State private var expanded: Set<UUID> = []
     /// List 选中行(键盘上下 + 焦点高亮 = 原生 List 提供)。
     @State private var selection: String?
     /// 可编辑描述的草稿(聚焦失焦 / 回车提交回 store)。
     @State private var descriptionDraft: String = ""
     @FocusState private var descriptionFocused: Bool
 
-    // MARK: - 扁平行模型(让原生 List 接管焦点 / 键盘 / 选中)
-
-    private enum RowKind {
-        case node(AIVirtualNode)
-        case suggestion(parent: AIVirtualNode, action: AIWorkspaceNodeAction)
-    }
-    private struct FlatRow: Identifiable {
+    // MARK: - 显示节点(给原生 List 的**层级**数据:折叠/展开/键盘/全行选中全部交给 List)
+    //  把整棵子树一次性喂给 `List(children:)` —— 展开由 List 内部接管,不触发本 view 重算 → 展开**零延迟**;
+    //  也没有自绘 chevron 抢点击 → 单击高亮命中整行(不再只有边缘)。
+    //  base 节点:分组 → 子节点;文件/归档/文件夹 → AI 建议子行;叶子 → children=nil(无 disclosure 三角)。
+    private struct DisplayNode: Identifiable {
         let id: String
-        let depth: Int
-        let kind: RowKind
+        let node: AIVirtualNode?                  // nil = 合成的「AI 建议」行
+        let suggestion: AIWorkspaceNodeAction?
+        let children: [DisplayNode]?
     }
 
     var body: some View {
@@ -90,7 +87,7 @@ struct AIWorkspaceView: View {
                     if levelNodes.isEmpty {
                         emptyState(L10n.text("aiFolder.noSuggestions"))
                     } else {
-                        outline(rows: flatten(levelNodes))
+                        outline(for: levelNodes)
                     }
                 }
             } else {
@@ -100,7 +97,7 @@ struct AIWorkspaceView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear { loadDescriptionDraft() }
         .onChange(of: workspaceID) { _ in
-            expanded = []; selection = nil; loadDescriptionDraft()
+            selection = nil; loadDescriptionDraft()
         }
     }
 
@@ -157,44 +154,42 @@ struct AIWorkspaceView: View {
     private func loadDescriptionDraft() { descriptionDraft = store.workspace(workspaceID)?.userDescription ?? "" }
     private func commitDescription() { store.setDescription(workspaceID, descriptionDraft) }
 
-    // MARK: - 内容 List(焦点 / 键盘 / 选中 = 原生)
+    // MARK: - 内容 List(原生层级:disclosure / 焦点 / 键盘 / 全行选中全部由 List 接管)
 
-    private func outline(rows: [FlatRow]) -> some View {
-        List(selection: $selection) {
-            ForEach(rows) { row in
-                rowView(row).tag(row.id)
-                    .listRowSeparator(.hidden)
-                    .listRowInsets(EdgeInsets(top: 2, leading: 8, bottom: 2, trailing: 8))
-            }
+    private func outline(for nodes: [AIVirtualNode]) -> some View {
+        // 整棵子树一次性给 List → 展开折叠在 List 内部完成、不重算 body(零延迟);List 自绘 disclosure 三角,
+        // 行内不再放 chevron 按钮 → 不抢点击,单击高亮命中整行。
+        List(displayNodes(nodes), children: \.children, selection: $selection) { dn in
+            row(dn)
         }
-        .listStyle(.inset)
+        .listStyle(.sidebar)
         .scrollContentBackground(.hidden)
     }
 
     @ViewBuilder
-    private func rowView(_ row: FlatRow) -> some View {
-        switch row.kind {
-        case .node(let node): nodeRow(node, depth: row.depth)
-        case .suggestion(let parent, let action): suggestionRow(parent: parent, action: action, depth: row.depth)
+    private func row(_ dn: DisplayNode) -> some View {
+        if let s = dn.suggestion {
+            // 合成的 AI 建议行:单击即执行(plain 按钮,不参与选中)。
+            Button { dispatch(s.action) } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: s.systemImage).font(.caption)
+                        .foregroundStyle(Color.accentColor).frame(width: 16)
+                    Text(L10n.text(s.titleKey)).font(.caption)
+                    Spacer(minLength: 0)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        } else if let node = dn.node {
+            nodeLabel(node)
         }
     }
 
-    private func nodeRow(_ node: AIVirtualNode, depth: Int) -> some View {
+    private func nodeLabel(_ node: AIVirtualNode) -> some View {
         let suggestions = AIWorkspaceNodeActions.suggestions(for: node)
-        let isExpandable = node.kind == .group ? !node.children.isEmpty : !suggestions.isEmpty
-        let isOpen = expanded.contains(node.id)
         let isSuggested = !node.sourceRefs.isEmpty
             && store.nodeIsAISuggested(workspaceID: workspaceID, refs: node.sourceRefs)
         return HStack(spacing: 8) {
-            if isExpandable {
-                Button { toggle(node.id) } label: {
-                    Image(systemName: isOpen ? "chevron.down" : "chevron.right")
-                        .font(.caption2).foregroundStyle(.secondary).frame(width: 14)
-                }
-                .buttonStyle(.plain)
-            } else {
-                Color.clear.frame(width: 14, height: 1)
-            }
             RoundedRectangle(cornerRadius: 6, style: .continuous)
                 .fill(node.kind.tint.gradient)
                 .overlay(Image(systemName: node.kind.symbolName)
@@ -212,37 +207,37 @@ struct AIWorkspaceView: View {
                     .help(L10n.text("aiWorkspace.node.aiSuggested"))
             }
             if node.kind == .group {
-                Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.tertiary)
+                Image(systemName: "arrow.forward.circle").font(.caption).foregroundStyle(.tertiary)
+                    .help(L10n.text("aiWorkspace.node.open"))
             }
         }
-        .padding(.leading, CGFloat(depth) * 16)
-        .padding(.vertical, 3)
         .contentShape(Rectangle())
-        .onTapGesture(count: 2) { activate(node) }
+        // 双击 = 打开 / 下钻;用 simultaneousGesture 不吞单击 → List 的单击全行选中照常生效。
+        .simultaneousGesture(TapGesture(count: 2).onEnded { activate(node) })
         .contextMenu { nodeMenu(node, suggestions: suggestions, isSuggested: isSuggested) }
     }
 
-    private func suggestionRow(parent: AIVirtualNode, action s: AIWorkspaceNodeAction, depth: Int) -> some View {
-        Button { dispatch(s.action) } label: {
-            HStack(spacing: 8) {
-                Image(systemName: s.systemImage).font(.caption).foregroundStyle(Color.accentColor).frame(width: 16)
-                Text(L10n.text(s.titleKey)).font(.caption)
-                Spacer(minLength: 8)
+    /// AIVirtualNode 子树 → List 的层级显示节点。整棵递归构建,List 才能内部接管 disclosure。
+    private func displayNodes(_ nodes: [AIVirtualNode]) -> [DisplayNode] {
+        nodes.map { node in
+            let kids: [DisplayNode]?
+            if node.kind == .group {
+                kids = node.children.isEmpty ? nil : displayNodes(node.children)
+            } else {
+                let s = AIWorkspaceNodeActions.suggestions(for: node)
+                kids = s.isEmpty ? nil : s.map {
+                    DisplayNode(id: "s-\(node.id)-\($0.id)", node: nil, suggestion: $0, children: nil)
+                }
             }
-            .padding(.leading, CGFloat(depth) * 16 + 22)
-            .padding(.vertical, 1)
-            .contentShape(Rectangle())
+            return DisplayNode(id: "n-\(node.id)", node: node, suggestion: nil, children: kids)
         }
-        .buttonStyle(.plain)
     }
 
     @ViewBuilder
     private func nodeMenu(_ node: AIVirtualNode, suggestions: [AIWorkspaceNodeAction], isSuggested: Bool) -> some View {
         if node.kind == .group {
+            // 内联展开/折叠交给 List 的 disclosure 三角;右键只给「打开(进入更深视图)」。
             Button(L10n.text("aiWorkspace.node.open")) { model.drillIntoAIWorkspaceGroup(node) }
-            Button(L10n.text(expanded.contains(node.id) ? "aiWorkspace.node.collapse" : "aiWorkspace.node.expand")) {
-                toggle(node.id)
-            }
         } else {
             if let primary = node.primaryAction {
                 Button(L10n.text("aiWorkspace.node.open")) { dispatch(primary) }
@@ -260,34 +255,6 @@ struct AIWorkspaceView: View {
                     store.dislikeNode(workspaceID: workspaceID, refs: node.sourceRefs)
                 }
             }
-        }
-    }
-
-    // MARK: - 扁平化(尊重 expanded;文件展开 → AI 建议行)
-
-    private func flatten(_ nodes: [AIVirtualNode]) -> [FlatRow] {
-        var rows: [FlatRow] = []
-        func walk(_ ns: [AIVirtualNode], depth: Int) {
-            for node in ns {
-                rows.append(FlatRow(id: "n-\(node.id)", depth: depth, kind: .node(node)))
-                guard expanded.contains(node.id) else { continue }
-                if node.kind == .group {
-                    walk(node.children, depth: depth + 1)
-                } else {
-                    for s in AIWorkspaceNodeActions.suggestions(for: node) {
-                        rows.append(FlatRow(id: "s-\(node.id)-\(s.id)", depth: depth + 1,
-                                            kind: .suggestion(parent: node, action: s)))
-                    }
-                }
-            }
-        }
-        walk(nodes, depth: 0)
-        return rows
-    }
-
-    private func toggle(_ id: UUID) {
-        withAnimation(.easeInOut(duration: 0.18)) {
-            if expanded.contains(id) { expanded.remove(id) } else { expanded.insert(id) }
         }
     }
 
