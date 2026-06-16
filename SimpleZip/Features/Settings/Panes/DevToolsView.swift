@@ -181,6 +181,13 @@ struct DevToolsView: View {
                         ) {
                             copyAIWorkspaceFacts()
                         }
+                        actionRow(
+                            "doc.on.clipboard",
+                            L10n.text("devtools.action.copyAIIndexData"),
+                            L10n.text("devtools.action.copyAIIndexData.detail")
+                        ) {
+                            copyAIIndexData()
+                        }
                     }
 
                     if let actionFeedback {
@@ -515,6 +522,40 @@ struct DevToolsView: View {
         }
     }
 
+    private func copyAIIndexData() {
+        Task { @MainActor in
+            do {
+                let snapshot = makeAIIndexDataSnapshot()
+                let encoder = JSONEncoder()
+                encoder.dateEncodingStrategy = .iso8601
+                encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+                let data = try encoder.encode(snapshot)
+                guard let text = String(data: data, encoding: .utf8) else {
+                    flash(L10n.format("devtools.feedback.aiIndexDataFailed", "UTF-8"))
+                    return
+                }
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(text, forType: .string)
+                flash(L10n.text("devtools.feedback.aiIndexDataCopied"))
+            } catch {
+                flash(L10n.format("devtools.feedback.aiIndexDataFailed", error.localizedDescription))
+            }
+        }
+    }
+
+    private func makeAIIndexDataSnapshot() -> DevToolsAIIndexDataSnapshot {
+        let store = AIBackgroundIndexStore.shared
+        return DevToolsAIIndexDataSnapshot(
+            generatedAt: Date(),
+            backgroundEnabled: store.backgroundEnabled,
+            folderPreindexEnabled: store.folderPreindexEnabled,
+            archivePrefetchEnabled: store.archivePrefetchEnabled,
+            activityLevel: AppPreferences.aiBackgroundActivityLevel.rawValue,
+            scopes: store.scopes.map(DevToolsAIIndexDataSnapshot.Scope.init),
+            fileIndex: store.fileIndex
+        )
+    }
+
     private func aiWorkspaceFactsSnapshots(
         tasks: [OperationTask],
         cachedArchives: [ArchiveListingCacheEntry]
@@ -535,26 +576,26 @@ struct DevToolsView: View {
     }
 }
 
-private struct DevToolsArchiveCacheProbe {
+private nonisolated struct DevToolsArchiveCacheProbe {
     let entries: [ArchiveListingCacheEntry]
     let memory: DevToolsAIDataSnapshot.ArchiveMemory
 }
 
-private struct DevToolsAIDataSnapshot: Encodable {
-    struct Assistant: Encodable {
+private nonisolated struct DevToolsAIDataSnapshot: Encodable {
+    nonisolated struct Assistant: Encodable {
         let enabled: Bool
         let ready: Bool
         let unavailableReason: String
     }
 
-    struct ArchiveMemory: Encodable {
+    nonisolated struct ArchiveMemory: Encodable {
         let archiveCount: Int
         let storageByteSize: Int
         let nonEncryptedFileEntries: Int
         let truncatedArchives: Int
     }
 
-    struct Spotlight: Encodable {
+    nonisolated struct Spotlight: Encodable {
         let releases: Int
         let tasks: Int
         let archives: Int
@@ -563,8 +604,8 @@ private struct DevToolsAIDataSnapshot: Encodable {
         let total: Int
     }
 
-    struct BackgroundIndex: Encodable {
-        struct Budget: Encodable {
+    nonisolated struct BackgroundIndex: Encodable {
+        nonisolated struct Budget: Encodable {
             let maxDirectoriesPerRound: Int
             let maxArchivesPerRound: Int
             let maxEntriesPerArchive: Int
@@ -581,7 +622,7 @@ private struct DevToolsAIDataSnapshot: Encodable {
         let budget: Budget?
     }
 
-    struct Workspaces: Encodable {
+    nonisolated struct Workspaces: Encodable {
         let visible: Int
         let total: Int
         let recommended: Int
@@ -603,7 +644,7 @@ private struct DevToolsAIDataSnapshot: Encodable {
         }
     }
 
-    struct ActivityTasks: Encodable {
+    nonisolated struct ActivityTasks: Encodable {
         let active: Int
         let history: Int
         let failed: Int
@@ -634,4 +675,41 @@ private struct DevToolsAIDataSnapshot: Encodable {
     let workspaces: Workspaces
     let activityTasks: ActivityTasks
     let systemWorkspaceFacts: [AISystemWorkspaceFactsSnapshot]
+}
+
+private nonisolated struct DevToolsAIIndexDataSnapshot: Encodable {
+    nonisolated struct Scope: Encodable {
+        let id: UUID
+        let directoryName: String
+        let directoryPathHash: String
+        let origin: String
+        let recursive: Bool
+        let maxDepth: Int
+        let includeExternalVolumes: Bool
+        let includeNetworkVolumes: Bool
+        let createdAt: Date
+        let lastScannedAt: Date?
+
+        init(_ scope: AIArchivePrefetchScope) {
+            self.id = scope.id
+            self.directoryName = (scope.directoryPath as NSString).lastPathComponent
+            self.directoryPathHash = AIStableHash.fnv1a32Hex(scope.directoryPath)
+            self.origin = scope.origin.rawValue
+            self.recursive = scope.recursive
+            self.maxDepth = scope.maxDepth
+            self.includeExternalVolumes = scope.includeExternalVolumes
+            self.includeNetworkVolumes = scope.includeNetworkVolumes
+            self.createdAt = scope.createdAt
+            self.lastScannedAt = scope.lastScannedAt
+        }
+    }
+
+    let schema = "simplezip.devtools.aiIndexData.v1"
+    let generatedAt: Date
+    let backgroundEnabled: Bool
+    let folderPreindexEnabled: Bool
+    let archivePrefetchEnabled: Bool
+    let activityLevel: String
+    let scopes: [Scope]
+    let fileIndex: AIFileMemoryIndex
 }

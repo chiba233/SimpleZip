@@ -1725,11 +1725,15 @@
 "devtools.action.copyReport.detail" = "與 設定 → 健康檢查 同一份脫敏報告，直接進剪貼簿。";
 "devtools.action.copyAIWorkspaceFacts" = "複製 AI 資料快照";
 "devtools.action.copyAIWorkspaceFacts.detail" = "匯出目前 AI 資料來源計數、工作區 facts 與 omissions。";
+"devtools.action.copyAIIndexData" = "複製 AI 索引資料";
+"devtools.action.copyAIIndexData.detail" = "匯出已持久化的背景檔案索引記錄與脫敏白名單中繼資料。";
 "devtools.feedback.welcomeReset" = "已重置——重啟後可見歡迎助手";
 "devtools.feedback.crashArmed" = "已布防——重啟即可觸發恢復提示";
 "devtools.feedback.reportCopied" = "報告已複製";
 "devtools.feedback.aiWorkspaceFactsCopied" = "AI 資料快照已複製";
 "devtools.feedback.aiWorkspaceFactsFailed" = "無法複製 AI 資料快照：%@";
+"devtools.feedback.aiIndexDataCopied" = "AI 索引資料已複製";
+"devtools.feedback.aiIndexDataFailed" = "無法複製 AI 索引資料：%@";
 "devtools.section.defaults" = "UserDefaults 快照（備份白名單口徑）";
 "devtools.section.aiData" = "AI 可用資料（唯讀）";
 "devtools.aiData.assistant" = "AI 助理";

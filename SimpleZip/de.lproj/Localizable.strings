@@ -1724,11 +1724,15 @@
 "devtools.action.copyReport.detail" = "Derselbe bereinigte Bericht wie Einstellungen → Zustand, direkt in die Zwischenablage.";
 "devtools.action.copyAIWorkspaceFacts" = "KI-Datensnapshot kopieren";
 "devtools.action.copyAIWorkspaceFacts.detail" = "Exportiert aktuelle KI-Datenquellen-Zähler, Arbeitsbereich-Fakten und Auslassungen.";
+"devtools.action.copyAIIndexData" = "KI-Indexdaten kopieren";
+"devtools.action.copyAIIndexData.detail" = "Exportiert gespeicherte Hintergrund-Dateiindexeinträge und redigierte Bereichsmetadaten.";
 "devtools.feedback.welcomeReset" = "Willkommensassistent zurückgesetzt — neu starten, um ihn zu sehen";
 "devtools.feedback.crashArmed" = "Gesetzt — neu starten, um den Wiederherstellungshinweis auszulösen";
 "devtools.feedback.reportCopied" = "Bericht kopiert";
 "devtools.feedback.aiWorkspaceFactsCopied" = "KI-Datensnapshot kopiert";
 "devtools.feedback.aiWorkspaceFactsFailed" = "KI-Datensnapshot konnte nicht kopiert werden: %@";
+"devtools.feedback.aiIndexDataCopied" = "KI-Indexdaten kopiert";
+"devtools.feedback.aiIndexDataFailed" = "KI-Indexdaten konnten nicht kopiert werden: %@";
 "devtools.section.defaults" = "UserDefaults-Snapshot (Backup-Whitelist)";
 "devtools.section.aiData" = "Für KI verfügbare Daten (schreibgeschützt)";
 "devtools.aiData.assistant" = "KI-Assistent";

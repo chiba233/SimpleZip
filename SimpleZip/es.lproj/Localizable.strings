@@ -1723,11 +1723,15 @@
 "devtools.action.copyReport.detail" = "El mismo informe redactado que Ajustes → Salud, directo al portapapeles.";
 "devtools.action.copyAIWorkspaceFacts" = "Copiar instantánea de datos de IA";
 "devtools.action.copyAIWorkspaceFacts.detail" = "Exporta recuentos actuales de fuentes de datos de IA, facts del espacio y omisiones.";
+"devtools.action.copyAIIndexData" = "Copiar datos del índice de IA";
+"devtools.action.copyAIIndexData.detail" = "Exporta registros persistidos del índice de archivos en segundo plano y metadatos de ámbito redactados.";
 "devtools.feedback.welcomeReset" = "Asistente de bienvenida restablecido — reinicia para verlo";
 "devtools.feedback.crashArmed" = "Activado — reinicia para disparar el aviso de recuperación";
 "devtools.feedback.reportCopied" = "Informe copiado";
 "devtools.feedback.aiWorkspaceFactsCopied" = "Instantánea de datos de IA copiada";
 "devtools.feedback.aiWorkspaceFactsFailed" = "No se pudo copiar la instantánea de datos de IA: %@";
+"devtools.feedback.aiIndexDataCopied" = "Datos del índice de IA copiados";
+"devtools.feedback.aiIndexDataFailed" = "No se pudieron copiar los datos del índice de IA: %@";
 "devtools.section.defaults" = "Instantánea de UserDefaults (lista blanca de copia de seguridad)";
 "devtools.section.aiData" = "Datos disponibles para la IA (solo lectura)";
 "devtools.aiData.assistant" = "Asistente de IA";

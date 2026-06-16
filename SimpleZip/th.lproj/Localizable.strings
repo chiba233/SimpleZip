@@ -1723,11 +1723,15 @@
 "devtools.action.copyReport.detail" = "รายงานที่ปกปิดข้อมูลเหมือน การตั้งค่า → สุขภาพ ส่งตรงไปยังคลิปบอร์ด";
 "devtools.action.copyAIWorkspaceFacts" = "คัดลอกสแนปช็อตข้อมูล AI";
 "devtools.action.copyAIWorkspaceFacts.detail" = "ส่งออกจำนวนแหล่งข้อมูล AI ปัจจุบัน facts ของพื้นที่ทำงาน และ omissions";
+"devtools.action.copyAIIndexData" = "คัดลอกข้อมูลดัชนี AI";
+"devtools.action.copyAIIndexData.detail" = "ส่งออกเรคคอร์ดดัชนีไฟล์เบื้องหลังที่บันทึกไว้และเมทาดาทาขอบเขตแบบปกปิด";
 "devtools.feedback.welcomeReset" = "รีเซ็ตผู้ช่วยต้อนรับแล้ว — เปิดใหม่เพื่อดู";
 "devtools.feedback.crashArmed" = "ตั้งแล้ว — เปิดใหม่เพื่อทริกเกอร์การแจ้งกู้คืน";
 "devtools.feedback.reportCopied" = "คัดลอกรายงานแล้ว";
 "devtools.feedback.aiWorkspaceFactsCopied" = "คัดลอกสแนปช็อตข้อมูล AI แล้ว";
 "devtools.feedback.aiWorkspaceFactsFailed" = "คัดลอกสแนปช็อตข้อมูล AI ไม่ได้: %@";
+"devtools.feedback.aiIndexDataCopied" = "คัดลอกข้อมูลดัชนี AI แล้ว";
+"devtools.feedback.aiIndexDataFailed" = "คัดลอกข้อมูลดัชนี AI ไม่ได้: %@";
 "devtools.section.defaults" = "สแนปชอต UserDefaults (รายการอนุญาตสำหรับสำรองข้อมูล)";
 "devtools.section.aiData" = "ข้อมูลที่ AI เข้าถึงได้ (อ่านอย่างเดียว)";
 "devtools.aiData.assistant" = "ผู้ช่วย AI";

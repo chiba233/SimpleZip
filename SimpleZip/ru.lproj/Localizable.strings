@@ -1723,11 +1723,15 @@
 "devtools.action.copyReport.detail" = "Тот же отредактированный отчет, что и Настройки → Состояние, сразу в буфер обмена.";
 "devtools.action.copyAIWorkspaceFacts" = "Копировать снимок данных ИИ";
 "devtools.action.copyAIWorkspaceFacts.detail" = "Экспортирует текущие счётчики источников ИИ, facts рабочей области и omissions.";
+"devtools.action.copyAIIndexData" = "Копировать данные индекса ИИ";
+"devtools.action.copyAIIndexData.detail" = "Экспортирует сохранённые записи фонового индекса файлов и отредактированные метаданные областей.";
 "devtools.feedback.welcomeReset" = "Приветственный помощник сброшен — перезапустите, чтобы увидеть его";
 "devtools.feedback.crashArmed" = "Флаг установлен — перезапустите, чтобы вызвать уведомление о восстановлении";
 "devtools.feedback.reportCopied" = "Отчет скопирован";
 "devtools.feedback.aiWorkspaceFactsCopied" = "Снимок данных ИИ скопирован";
 "devtools.feedback.aiWorkspaceFactsFailed" = "Не удалось скопировать снимок данных ИИ: %@";
+"devtools.feedback.aiIndexDataCopied" = "Данные индекса ИИ скопированы";
+"devtools.feedback.aiIndexDataFailed" = "Не удалось скопировать данные индекса ИИ: %@";
 "devtools.section.defaults" = "Снимок UserDefaults (белый список резервного копирования)";
 "devtools.section.aiData" = "Данные, доступные ИИ (только для чтения)";
 "devtools.aiData.assistant" = "Помощник ИИ";

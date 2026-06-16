@@ -2452,11 +2452,15 @@
 "devtools.action.copyReport.detail" = "与 设置 → 健康检查 同一份脱敏报告，直接进剪贴板。";
 "devtools.action.copyAIWorkspaceFacts" = "复制 AI 数据快照";
 "devtools.action.copyAIWorkspaceFacts.detail" = "导出当前 AI 数据源计数、工作区 facts 与 omissions。";
+"devtools.action.copyAIIndexData" = "复制 AI 索引数据";
+"devtools.action.copyAIIndexData.detail" = "导出已持久化的后台文件索引记录与脱敏白名单元数据。";
 "devtools.feedback.welcomeReset" = "已重置——重启后可见欢迎助手";
 "devtools.feedback.crashArmed" = "已布防——重启即可触发恢复提示";
 "devtools.feedback.reportCopied" = "报告已复制";
 "devtools.feedback.aiWorkspaceFactsCopied" = "AI 数据快照已复制";
 "devtools.feedback.aiWorkspaceFactsFailed" = "无法复制 AI 数据快照：%@";
+"devtools.feedback.aiIndexDataCopied" = "AI 索引数据已复制";
+"devtools.feedback.aiIndexDataFailed" = "无法复制 AI 索引数据：%@";
 "devtools.section.defaults" = "UserDefaults 快照（备份白名单口径）";
 "devtools.section.aiData" = "AI 可用数据（只读）";
 "devtools.aiData.assistant" = "AI 助手";

@@ -1723,11 +1723,15 @@
 "devtools.action.copyReport.detail" = "Le même rapport expurgé que Réglages → Santé, directement dans le presse-papiers.";
 "devtools.action.copyAIWorkspaceFacts" = "Copier l’instantané de données IA";
 "devtools.action.copyAIWorkspaceFacts.detail" = "Exporte les compteurs de sources IA actuels, les facts d’espace et les omissions.";
+"devtools.action.copyAIIndexData" = "Copier les données d’index IA";
+"devtools.action.copyAIIndexData.detail" = "Exporte les enregistrements persistés de l’index de fichiers en arrière-plan et les métadonnées de portée expurgées.";
 "devtools.feedback.welcomeReset" = "Assistant d’accueil réinitialisé — relancez pour le voir";
 "devtools.feedback.crashArmed" = "Armé — relancez pour déclencher l’avis de récupération";
 "devtools.feedback.reportCopied" = "Rapport copié";
 "devtools.feedback.aiWorkspaceFactsCopied" = "Instantané de données IA copié";
 "devtools.feedback.aiWorkspaceFactsFailed" = "Impossible de copier l’instantané de données IA : %@";
+"devtools.feedback.aiIndexDataCopied" = "Données d’index IA copiées";
+"devtools.feedback.aiIndexDataFailed" = "Impossible de copier les données d’index IA : %@";
 "devtools.section.defaults" = "Instantané UserDefaults (liste blanche de sauvegarde)";
 "devtools.section.aiData" = "Données disponibles pour l’IA (lecture seule)";
 "devtools.aiData.assistant" = "Assistant IA";

@@ -1725,11 +1725,15 @@
 "devtools.action.copyReport.detail" = "設定 → 健全性 と同じ秘匿済みレポートを直接クリップボードへコピーします。";
 "devtools.action.copyAIWorkspaceFacts" = "AI データスナップショットをコピー";
 "devtools.action.copyAIWorkspaceFacts.detail" = "現在の AI データソース数、ワークスペース facts、omissions を書き出します。";
+"devtools.action.copyAIIndexData" = "AI 索引データをコピー";
+"devtools.action.copyAIIndexData.detail" = "永続化されたバックグラウンドファイル索引レコードと秘匿化したスコープメタデータを書き出します。";
 "devtools.feedback.welcomeReset" = "ようこそアシスタントをリセットしました — 再起動すると表示されます";
 "devtools.feedback.crashArmed" = "セットしました — 再起動すると復旧通知が表示されます";
 "devtools.feedback.reportCopied" = "レポートをコピーしました";
 "devtools.feedback.aiWorkspaceFactsCopied" = "AI データスナップショットをコピーしました";
 "devtools.feedback.aiWorkspaceFactsFailed" = "AI データスナップショットをコピーできませんでした: %@";
+"devtools.feedback.aiIndexDataCopied" = "AI 索引データをコピーしました";
+"devtools.feedback.aiIndexDataFailed" = "AI 索引データをコピーできませんでした: %@";
 "devtools.section.defaults" = "UserDefaults スナップショット（バックアップ許可リスト）";
 "devtools.section.aiData" = "AI が利用できるデータ（読み取り専用）";
 "devtools.aiData.assistant" = "AI アシスタント";

@@ -1724,11 +1724,15 @@
 "devtools.action.copyReport.detail" = "설정 → 상태와 같은 편집된 보고서를 바로 클립보드로 복사합니다.";
 "devtools.action.copyAIWorkspaceFacts" = "AI 데이터 스냅샷 복사";
 "devtools.action.copyAIWorkspaceFacts.detail" = "현재 AI 데이터 소스 수, 작업공간 facts, omissions를 내보냅니다.";
+"devtools.action.copyAIIndexData" = "AI 인덱스 데이터 복사";
+"devtools.action.copyAIIndexData.detail" = "저장된 백그라운드 파일 인덱스 레코드와 비식별 범위 메타데이터를 내보냅니다.";
 "devtools.feedback.welcomeReset" = "환영 도우미 재설정됨 — 다시 실행하면 표시됩니다";
 "devtools.feedback.crashArmed" = "설정됨 — 다시 실행하면 복구 알림이 트리거됩니다";
 "devtools.feedback.reportCopied" = "보고서 복사됨";
 "devtools.feedback.aiWorkspaceFactsCopied" = "AI 데이터 스냅샷이 복사됨";
 "devtools.feedback.aiWorkspaceFactsFailed" = "AI 데이터 스냅샷을 복사할 수 없음: %@";
+"devtools.feedback.aiIndexDataCopied" = "AI 인덱스 데이터가 복사됨";
+"devtools.feedback.aiIndexDataFailed" = "AI 인덱스 데이터를 복사할 수 없음: %@";
 "devtools.section.defaults" = "UserDefaults 스냅샷(백업 허용 목록)";
 "devtools.section.aiData" = "AI 사용 가능 데이터(읽기 전용)";
 "devtools.aiData.assistant" = "AI 어시스턴트";
