@@ -114,7 +114,7 @@ nonisolated struct AIVirtualFolderPrepareMetrics: Equatable, Sendable {
 /// 给小模型看的候选输入预处理器。3B 适合最后一厘米的命名 / 分组,不适合从 raw 候选里自己判断权重;
 /// 因此 App 先在 Core 里确定性分层:重复任务泛化折叠、加权信号评分、强项目信号提权、探索槽保底。
 nonisolated enum AIVirtualFolderModelInputPreparer {
-    static let defaultMaxCandidates = 28
+    static let defaultMaxCandidates = 50
 
     /// 准备 prompt 候选并返回量化指标。
     static func prepareWithMetrics(

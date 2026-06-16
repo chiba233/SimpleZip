@@ -368,6 +368,23 @@ import Testing
         #expect(metrics.outputCount <= 8)
     }
 
+    @Test func prepareMetricsDefaultCandidateLimitKeepsFiftyCandidates() {
+        let candidates = (0..<60).map { i in
+            AIVirtualNodeCandidate(
+                id: "strong-\(i)", kind: .file, displayName: String(format: "release-%02d.swift", i),
+                sourceRefs: [AIContextSourceRef(kind: .file, id: "strong-\(i)")],
+                roleTags: ["source"],
+                semanticTokens: ["simplezip", "release", "integrity", "sign"],
+                scoreSignals: ["project-token", "source-ref-match", "failed"])
+        }
+
+        let (prepared, metrics) = AIVirtualFolderModelInputPreparer.prepareWithMetrics(
+            candidates: candidates, strongTokens: ["simplezip", "release", "integrity", "sign"])
+
+        #expect(prepared.count == 50)
+        #expect(metrics.outputCount == 50)
+    }
+
     private func allLeaves(_ nodes: [AIVirtualNode]) -> [AIVirtualNode] {
         nodes.flatMap { $0.kind == .group ? allLeaves($0.children) : [$0] }
     }
