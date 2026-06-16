@@ -299,7 +299,9 @@ final class AIWorkspaceStore: ObservableObject {
             hiddenCandidateCount: pendingCandidates.count,
             activityLevel: AppPreferences.aiBackgroundActivityLevel)
         let approved = themeVerdicts.values.filter(\.approved).count
-        guard approved < policy.approvedTarget else { return }
+        // **竞争不停**(用户:小模型质量差,竞争状态不能停):达到 approvedTarget 后不早停,继续把剩下的主题都复核完
+        // (为竞争持续找更好的候选),只靠 `nextThemeReviewCandidate` 返回 nil(全复核完 / 耗尽 attempts)自然收敛;
+        // backoff 延时已随已通过数拉长,慢跑不抢资源。
         guard reviewInFlight.isEmpty else { return }
         guard let next = nextThemeReviewCandidate(now: Date(), policy: policy, approvedCount: approved) else { return }
         let attempt = reviewAttemptsByTheme[next.id, default: 0] + 1
