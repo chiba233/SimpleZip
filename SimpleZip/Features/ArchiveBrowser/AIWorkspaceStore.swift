@@ -333,7 +333,8 @@ final class AIWorkspaceStore: ObservableObject {
             let attempts = reviewAttemptsByTheme[id, default: 0]
             guard attempts < policy.maxAttemptsPerTheme else { return nil }
             let rejectedPenalty = themeVerdicts[id] == nil ? 0.0 : 3.0
-            let score = competitionScore(candidate.ws, memberCount: candidate.ruleRefs.count, now: now)
+            let score = competitionScore(candidate.ws, memberCount: candidate.ruleRefs.count,
+                                         prunedCount: autoExcluded[candidate.ws.id]?.count ?? 0, now: now)
                 - Double(attempts) * policy.attemptPenalty(approvedCount: approvedCount)
                 - rejectedPenalty
             return (id, candidate, score)
@@ -363,7 +364,10 @@ final class AIWorkspaceStore: ObservableObject {
             (lastVerifiedAt[$0.id] ?? .distantPast) < (lastVerifiedAt[$1.id] ?? .distantPast)
         }), let fed = modelFed[ws.id] else { return }
         let already = autoExcluded[ws.id] ?? []
-        let current = fed.filter { cand in !cand.sourceRefs.contains(where: { already.contains($0) }) }
+        let pinned = Set(seeds[ws.id]?.pinnedSourceRefs ?? [])   // 用户手动添加 / 喜欢的成员:**绝不动态核查剔除**
+        let current = fed.filter { cand in
+            !cand.sourceRefs.contains(where: { already.contains($0) || pinned.contains($0) })
+        }
         guard current.count >= 2 else { return }   // 太少不核查(避免把文件夹核查空)
         verificationInFlight = true
         lastVerifiedAt[ws.id] = Date()
@@ -453,12 +457,16 @@ final class AIWorkspaceStore: ObservableObject {
                 guard v.approved, !v.members.isEmpty else { continue }   // 复核判否 → 不发布
                 var ws = c.ws
                 if let title = v.title, !title.isEmpty { ws.title = title }
-                scored.append((ws, competitionScore(ws, memberCount: v.members.count, now: now), v.memberRefs))
+                scored.append((ws, competitionScore(ws, memberCount: v.members.count,
+                                                     prunedCount: autoExcluded[ws.id]?.count ?? 0, now: now),
+                               v.memberRefs))
                 toCachePlan.append((ws.id, v))
             } else if let existing = collection.workspace(c.ws.id), existing.visibility == .visible {
                 // 新候选未复核不上屏;但旧的可见推荐已经是上轮发布物,重启 / 重扫时 verdict 缓存为空也不能先消失。
                 // 先用本轮规则成员保持它可打开,新复核回来后再按竞争分升级或淘汰。
-                scored.append((existing, competitionScore(existing, memberCount: c.ruleRefs.count, now: now), c.ruleRefs))
+                scored.append((existing, competitionScore(existing, memberCount: c.ruleRefs.count,
+                                                           prunedCount: autoExcluded[existing.id]?.count ?? 0, now: now),
+                               c.ruleRefs))
             }
         }
         // **竞争**:按竞争分降序取前 N(=展示上限)。撑得起主题(成员多)+ 用得多/最近用的胜出,
@@ -483,15 +491,21 @@ final class AIWorkspaceStore: ObservableObject {
         persist()
     }
 
-    /// 竞争分:撑得起主题(成员多)+ 用得多 / 最近用过的胜出;从没打开过 / 单薄 / 负反馈多的「不思进取」被降权。
-    private func competitionScore(_ ws: AIWorkspace, memberCount: Int, now: Date) -> Double {
-        var s = ws.relevanceScore * 5.0                          // 主题强度(复核 / 发现给的)
-        s += min(Double(memberCount), 12) * 0.5                  // 实质:成员越多越撑得起(封顶防灌水)
-        s += log2(Double(max(0, ws.openCount)) + 1) * 1.0        // 用得多
-        if let last = ws.lastOpenedAt {                          // 最近用过(7 天半衰);从没打开 = 不加分
+    /// 竞争分 = **明确的加分 − 扣分**(用户要求机制明确)。分高的可见,低的降隐藏:
+    ///   ➕ 主题强度(relevanceScore)×5 ・成员撑得起(数量封顶 12)×0.5 ・用得多(打开频率 log)×1 ・最近用过(7 天半衰)×1.5
+    ///   ➖ 负反馈(不感兴趣 / 不喜欢)×2 ・**动态核查剔除的不扣题成员数 ×1.5**(剔得多 = 不纯 → 扣分多 → 被顶下去降隐藏)
+    private func competitionScore(_ ws: AIWorkspace, memberCount: Int, prunedCount: Int = 0, now: Date) -> Double {
+        var s = 0.0
+        // ➕ 加分
+        s += ws.relevanceScore * 5.0
+        s += min(Double(max(0, memberCount)), 12) * 0.5
+        s += log2(Double(max(0, ws.openCount)) + 1) * 1.0
+        if let last = ws.lastOpenedAt {
             s += pow(0.5, max(0, now.timeIntervalSince(last)) / 86_400 / 7.0) * 1.5
         }
-        s -= Double(ws.negativeFeedbackCount) * 2.0              // 负反馈降权
+        // ➖ 扣分
+        s -= Double(max(0, ws.negativeFeedbackCount)) * 2.0
+        s -= Double(max(0, prunedCount)) * 1.5                   // 核查剔除惩罚:扣分多了降到隐藏
         return s
     }
 

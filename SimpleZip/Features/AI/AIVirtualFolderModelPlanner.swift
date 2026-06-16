@@ -221,18 +221,19 @@ enum AIVirtualFolderModelPlanner {
     static func review(for input: AIVirtualFolderPlanInput, attempt: Int = 1,
                        approvedTarget: Int = 0) async throws -> AIFolderReview {
         let instructions = """
-        You are the quality judge for a background "AI folder". Each item below is one line: \
+        You are a STRICT quality judge for a background "AI folder". Each item below is one line: \
         "number<TAB>kind<TAB>name<TAB>roleTags", where number is a small integer in the leftmost column. These items \
-        were grouped only because they share a name token or a common task/archive — but a shared token is often \
+        were grouped only because they share a name token or a common task/archive — but a shared token is USUALLY \
         COINCIDENTAL (many unrelated files just happen to contain a common word like "report", "final", "image", \
-        "v2" or a date). Your job is to judge whether they form a theme a PERSON would actually keep as ONE folder: \
-        a real shared project, topic, dataset, deliverable or purpose. Set worthSurfacing = true when there is a \
-        clear, recognizable theme with at least two items that genuinely belong together; then curate it — keep the \
-        items that fit, drop the ones that only coincidentally matched, group them by meaning with short natural \
-        folder names, and propose a clear name. Set worthSurfacing = false when the items only share a generic word \
-        with no real connection, when barely one or two actually relate, or when it is a loose mix you would not \
-        bother making a folder for. Be a real judge: a confident yes for solid themes, a clear no for generic or \
-        thin ones — do not rubber-stamp, but do not demand perfection either.
+        "v2", "data" or a date). Most such groups are NOT worth a folder. Set worthSurfacing = true ONLY when the \
+        items form a genuinely useful, recognizable theme that a person would deliberately keep as one folder — a \
+        real shared project, topic, dataset or deliverable — with at least THREE items that CLEARLY belong together \
+        for a real reason beyond a shared word. Set worthSurfacing = false when they merely share a generic/common \
+        word, when fewer than three items truly relate, when it is a loose grab-bag, or when the theme is vague or \
+        weak. Be strict and skeptical: it is better to REJECT a borderline or weak theme than to approve it — approve \
+        only when you are confident a person would genuinely want this exact folder. If you DO approve, curate it: \
+        keep the items that fit, drop the ones that only coincidentally matched, group them by meaning with short \
+        natural folder names, and propose a clear name.
 
         Refer to items by their NUMBER (the leftmost column) — never invent a number, output a file path, or \
         translate names. Reply only with the structured plan, including worthSurfacing.
