@@ -19,6 +19,7 @@ struct AIBackgroundDiscoverySection: View {
     @AppStorage(AppPreferences.Key.aiSidebarShowRecommended) private var showRecommended = true
     @State private var activityLevel = AppPreferences.aiBackgroundActivityLevel
     @State private var maxRecommended = AppPreferences.aiMaxRecommendedWorkspaces
+    @State private var maxRecommendedRefreshTask: Task<Void, Never>?
     @State private var showingAddOptions = false
 
     var body: some View {
@@ -62,19 +63,29 @@ struct AIBackgroundDiscoverySection: View {
                     isOn: $showRecommended
                 )
 
-                // 系统自动生成的推荐数量上限(用户:别一次冒一堆)。
+                // 系统自动生成的推荐数量上限(用户:别一次冒一堆)。值用独立 Text 右对齐 + Stepper("",…)
+                // labelsHidden(对齐 AutomationPane 缓存上限那行;数字进 Stepper label 会跑左边 + 触发重复递增)。
                 SettingsControlRow(
                     title: L10n.text("settings.ai.background.maxRecommended"),
                     description: L10n.text("settings.ai.background.maxRecommended.desc"),
                     systemImage: "number.square", iconTint: .purple
                 ) {
-                    Stepper(value: $maxRecommended, in: 1...8) {
-                        Text("\(maxRecommended)").monospacedDigit()
+                    HStack(spacing: 8) {
+                        Text("\(maxRecommended)").monospacedDigit().foregroundStyle(.secondary)
+                            .frame(width: 40, alignment: .trailing)
+                        Stepper("", value: $maxRecommended, in: 1...8)
+                            .labelsHidden()
                     }
-                    .fixedSize()
                     .onChange(of: maxRecommended) { v in
                         AppPreferences.aiMaxRecommendedWorkspaces = v
-                        AIWorkspaceDiscoveryCoordinator.shared.refresh()   // 立即按新上限重算
+                        // 不在按钮按下期间同步跑重型 discovery(会让行重建、手势反复触发);
+                        // 等 Stepper 手势安静下来后只重算最后一次。
+                        maxRecommendedRefreshTask?.cancel()
+                        maxRecommendedRefreshTask = Task { @MainActor in
+                            try? await Task.sleep(nanoseconds: 350_000_000)
+                            guard !Task.isCancelled else { return }
+                            AIWorkspaceDiscoveryCoordinator.shared.refresh()
+                        }
                     }
                 }
             }
@@ -121,6 +132,10 @@ struct AIBackgroundDiscoverySection: View {
                     isDisabled: store.fileIndex.isEmpty,
                     action: { store.clearFileIndex() })
             }
+        }
+        .onDisappear {
+            maxRecommendedRefreshTask?.cancel()
+            maxRecommendedRefreshTask = nil
         }
     }
 
