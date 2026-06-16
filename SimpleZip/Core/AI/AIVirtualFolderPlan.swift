@@ -48,7 +48,7 @@ nonisolated struct AIWorkspacePromptFact: Codable, Equatable, Sendable {
         for t in plan.semanticTags + plan.taskTags + plan.keywords + plan.markerFiles
         where !t.isEmpty && !tokens.contains(t) { tokens.append(t) }
         self.init(id: workspace.id, title: workspace.title, origin: workspace.origin.rawValue,
-                  prompt: workspace.prompt, queryTokens: Array(tokens.prefix(12)))
+                  prompt: workspace.prompt, queryTokens: Array(tokens.prefix(14)))
     }
 }
 
@@ -388,6 +388,7 @@ nonisolated enum AIVirtualFolderModelInputPreparer {
 
     private static func splitTokens(_ s: String) -> Set<String> {
         var result = Set<String>()
+        // 标准扫:按字母/数字逐字符分组,过滤 <2 char 片段。
         var current = ""
         func flush() {
             let token = normalizeToken(current)
@@ -398,6 +399,12 @@ nonisolated enum AIVirtualFolderModelInputPreparer {
             if ch.isLetter || ch.isNumber { current.append(ch) } else { flush() }
         }
         flush()
+        // 补充段式切割:按连字符/下划线/空格整段保留 —— 版本号「0.4.5」等以整体 token 入集,
+        // 否则只剩「0」「4」「5」三个单字符被过滤掉,强 token 永远无法命中。
+        for seg in s.components(separatedBy: CharacterSet(charactersIn: " -_")) {
+            let token = normalizeToken(seg)
+            if token.count >= 2 { result.insert(token) }
+        }
         return result
     }
 

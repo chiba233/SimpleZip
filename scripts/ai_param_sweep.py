@@ -24,6 +24,7 @@ F_STARTUP    = os.path.join(REPO, "SimpleZip/Core/AI/AIStartupSuggestion.swift")
 F_TAG        = os.path.join(REPO, "SimpleZip/Core/AI/AISemanticTag.swift")
 F_SUPPRESS   = os.path.join(REPO, "SimpleZip/Core/AI/AIThemeSuppression.swift")
 F_LEARNING   = os.path.join(REPO, "SimpleZip/Core/AI/AIWorkspaceLearningStore.swift")
+F_PLAN       = os.path.join(REPO, "SimpleZip/Core/AI/AIVirtualFolderPlan.swift")
 
 def read(path):
     with open(path, encoding="utf-8") as f:
@@ -280,6 +281,213 @@ def sweep_strong_negative():
     return results
 
 # ═══════════════════════════════════════════════════════════════
+#  9. AIVirtualFolderModelInputPreparer.defaultMaxCandidates
+#     主指标: preparer_coverage (专注律), 次指标: tier 分布 + 输出数
+# ═══════════════════════════════════════════════════════════════
+def sweep_max_candidates():
+    print("\n" + "="*60)
+    print("  AIVirtualFolderModelInputPreparer.defaultMaxCandidates 扫测")
+    print("  主指标: preparer_coverage (专注律); 期望越大越好 (≥0.80)")
+    print("="*60)
+    print(f"  {'maxCand':>8}  {'coverage':>10}  {'H':>4}  {'N':>4}  {'L':>4}  {'out':>4}  {'sup':>4}")
+    print(f"  {'-'*8}  {'-'*10}  {'-'*4}  {'-'*4}  {'-'*4}  {'-'*4}  {'-'*4}")
+
+    original = read(F_PLAN)
+    ANCHOR = "    static let defaultMaxCandidates = 28"
+    results = []
+    for mc in [10, 14, 18, 20, 24, 28, 32, 40]:
+        modified = replace_first(original, ANCHOR,
+                                 f"    static let defaultMaxCandidates = {mc}")
+        write(F_PLAN, modified)
+        m, t = run_metrics()
+        cov = float(m.get("preparer_coverage", "nan"))
+        h   = m.get("preparer_tier_high",   "?")
+        n   = m.get("preparer_tier_normal",  "?")
+        l   = m.get("preparer_tier_low",     "?")
+        out = m.get("preparer_output",       "?")
+        sup = m.get("preparer_suppressed",   "?")
+        print(f"  {mc:>8}  {cov:>10.4f}  {h:>4}  {n:>4}  {l:>4}  {out:>4}  {sup:>4}   ({t:.0f}s)")
+        results.append((mc, cov, h, n, l, out, sup))
+    git_restore(F_PLAN)
+    return results
+
+# ═══════════════════════════════════════════════════════════════
+#  10. importanceLabel 阈值: high threshold (≥N)
+#      影响 tier 分布和高优先级候选数量
+# ═══════════════════════════════════════════════════════════════
+def sweep_importance_high_threshold():
+    print("\n" + "="*60)
+    print("  importanceLabel high threshold 扫测 (score >= N → high)")
+    print("  主指标: preparer_coverage; 次指标: tier[high] 数量")
+    print("="*60)
+    print(f"  {'highThresh':>10}  {'coverage':>10}  {'H':>4}  {'N':>4}  {'L':>4}")
+    print(f"  {'-'*10}  {'-'*10}  {'-'*4}  {'-'*4}  {'-'*4}")
+
+    original = read(F_PLAN)
+    ANCHOR = "        if score >= 7 { return \"high\" }"
+    results = []
+    for thr in [4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0]:
+        new_line = f"        if score >= {thr} {{ return \"high\" }}"
+        modified = replace_first(original, ANCHOR, new_line)
+        write(F_PLAN, modified)
+        m, t = run_metrics()
+        cov = float(m.get("preparer_coverage", "nan"))
+        h   = m.get("preparer_tier_high",  "?")
+        n   = m.get("preparer_tier_normal", "?")
+        l   = m.get("preparer_tier_low",   "?")
+        print(f"  {thr:>10.1f}  {cov:>10.4f}  {h:>4}  {n:>4}  {l:>4}   ({t:.0f}s)")
+        results.append((thr, cov, h, n, l))
+    git_restore(F_PLAN)
+    return results
+
+# ═══════════════════════════════════════════════════════════════
+#  11. importanceLabel 阈值: low threshold (≤N)
+#      低阈值 → 更多候选是 low,高阈值 → low 减少 normal 增加
+# ═══════════════════════════════════════════════════════════════
+def sweep_importance_low_threshold():
+    print("\n" + "="*60)
+    print("  importanceLabel low threshold 扫测 (score <= N → low)")
+    print("  主指标: preparer_coverage; 次指标: tier[low] 数量")
+    print("="*60)
+    print(f"  {'lowThresh':>10}  {'coverage':>10}  {'H':>4}  {'N':>4}  {'L':>4}")
+    print(f"  {'-'*10}  {'-'*10}  {'-'*4}  {'-'*4}  {'-'*4}")
+
+    original = read(F_PLAN)
+    ANCHOR = "        if score <= 1 { return \"low\" }"
+    results = []
+    for thr in [0.0, 0.5, 1.0, 1.5, 2.0, 3.0]:
+        new_line = f"        if score <= {thr} {{ return \"low\" }}"
+        modified = replace_first(original, ANCHOR, new_line)
+        write(F_PLAN, modified)
+        m, t = run_metrics()
+        cov = float(m.get("preparer_coverage", "nan"))
+        h   = m.get("preparer_tier_high",  "?")
+        n   = m.get("preparer_tier_normal", "?")
+        l   = m.get("preparer_tier_low",   "?")
+        print(f"  {thr:>10.1f}  {cov:>10.4f}  {h:>4}  {n:>4}  {l:>4}   ({t:.0f}s)")
+        results.append((thr, cov, h, n, l))
+    git_restore(F_PLAN)
+    return results
+
+# ═══════════════════════════════════════════════════════════════
+#  12. AIWorkspacePromptFact.queryTokens prefix cap (N)
+#      影响: prompt 里喂给模型的 token 数量(专注 vs 覆盖)
+# ═══════════════════════════════════════════════════════════════
+def sweep_query_tokens_cap():
+    print("\n" + "="*60)
+    print("  AIWorkspacePromptFact.queryTokens prefix cap 扫测")
+    print("  指标: prompt_qtokens_count (18 token 工作区截后剩几个)")
+    print("  理想: 足够覆盖主题意图 (≥8),不要超过 16 (噪声)")
+    print("="*60)
+    print(f"  {'cap':>6}  {'qtokens':>10}")
+    print(f"  {'-'*6}  {'-'*10}")
+
+    original = read(F_PLAN)
+    ANCHOR = "                  prompt: workspace.prompt, queryTokens: Array(tokens.prefix(12)))"
+    results = []
+    for cap in [6, 8, 10, 12, 14, 16, 20]:
+        new_line = f"                  prompt: workspace.prompt, queryTokens: Array(tokens.prefix({cap})))"
+        modified = replace_first(original, ANCHOR, new_line)
+        write(F_PLAN, modified)
+        m, t = run_metrics()
+        qtok = m.get("prompt_qtokens_count", "?")
+        print(f"  {cap:>6}  {qtok:>10}   ({t:.0f}s)")
+        results.append((cap, qtok))
+    git_restore(F_PLAN)
+    return results
+
+# ═══════════════════════════════════════════════════════════════
+#  13. 泛化折叠阈值: cluster.count >= N (同时改两处)
+#      低阈值 → 折叠更激进(压制更多),高阈值 → 折叠更保守
+# ═══════════════════════════════════════════════════════════════
+def sweep_pattern_collapse_threshold():
+    print("\n" + "="*60)
+    print("  collapsedPatternSummaries 折叠阈值扫测 (>= N 触发折叠)")
+    print("  指标: preparer_suppressed (被折叠的任务数), preparer_coverage")
+    print("  期望: suppressed ≥ 4 (有效折叠哈希噪声), coverage 不降")
+    print("="*60)
+    print(f"  {'threshold':>10}  {'suppressed':>11}  {'coverage':>10}  {'output':>7}")
+    print(f"  {'-'*10}  {'-'*11}  {'-'*10}  {'-'*7}")
+
+    original = read(F_PLAN)
+    # 两处同时改: guard tasks.count >= 4 和 cluster.count >= 4
+    ANCHOR1 = "        guard tasks.count >= 4 else { return ([], []) }"
+    ANCHOR2 = "        for (pattern, cluster) in clusters where cluster.count >= 4 {"
+    results = []
+    for thr in [2, 3, 4, 5, 6, 8]:
+        mod = original
+        mod = replace_first(mod, ANCHOR1,
+            f"        guard tasks.count >= {thr} else {{ return ([], []) }}")
+        mod = replace_first(mod, ANCHOR2,
+            f"        for (pattern, cluster) in clusters where cluster.count >= {thr} {{")
+        write(F_PLAN, mod)
+        m, t = run_metrics()
+        sup  = m.get("preparer_suppressed",  "?")
+        cov  = float(m.get("preparer_coverage", "nan"))
+        out  = m.get("preparer_output",      "?")
+        print(f"  {thr:>10}  {sup:>11}  {cov:>10.4f}  {out:>7}   ({t:.0f}s)")
+        results.append((thr, sup, cov, out))
+    git_restore(F_PLAN)
+    return results
+
+# ═══════════════════════════════════════════════════════════════
+#  14. strongToken 分数乘数 (× N)
+#      越大 → 命中强 token 的候选分越高 → 强 token 候选优先进
+# ═══════════════════════════════════════════════════════════════
+def sweep_strong_token_multiplier():
+    print("\n" + "="*60)
+    print("  importanceScore strongToken 乘数扫测 (* N)")
+    print("  主指标: preparer_coverage; 次指标: tier[high]")
+    print("="*60)
+    print(f"  {'mult':>8}  {'coverage':>10}  {'H':>4}  {'N':>4}  {'L':>4}")
+    print(f"  {'-'*8}  {'-'*10}  {'-'*4}  {'-'*4}  {'-'*4}")
+
+    original = read(F_PLAN)
+    ANCHOR = "        score += Double(tokens.intersection(strongTokens).count) * 4.0"
+    results = []
+    for mult in [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0]:
+        modified = replace_first(original, ANCHOR,
+            f"        score += Double(tokens.intersection(strongTokens).count) * {mult}")
+        write(F_PLAN, modified)
+        m, t = run_metrics()
+        cov = float(m.get("preparer_coverage", "nan"))
+        h   = m.get("preparer_tier_high",  "?")
+        n   = m.get("preparer_tier_normal", "?")
+        l   = m.get("preparer_tier_low",   "?")
+        print(f"  {mult:>8.1f}  {cov:>10.4f}  {h:>4}  {n:>4}  {l:>4}   ({t:.0f}s)")
+        results.append((mult, cov, h, n, l))
+    git_restore(F_PLAN)
+    return results
+
+# ═══════════════════════════════════════════════════════════════
+#  15. signalWeights["project-token"] 权重
+#      影响: 含 "project-token" 信号的候选排名
+# ═══════════════════════════════════════════════════════════════
+def sweep_project_token_weight():
+    print("\n" + "="*60)
+    print("  signalWeights[\"project-token\"] 扫测")
+    print("  主指标: preparer_coverage + tier[high]")
+    print("="*60)
+    print(f"  {'ptWeight':>10}  {'coverage':>10}  {'H':>4}  {'N':>4}  {'L':>4}")
+    print(f"  {'-'*10}  {'-'*10}  {'-'*4}  {'-'*4}  {'-'*4}")
+
+    original = read(F_PLAN)
+    ANCHOR = '        "project-token": 3.0,'
+    results = []
+    for w in [1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0]:
+        modified = replace_first(original, ANCHOR, f'        "project-token": {w},')
+        write(F_PLAN, modified)
+        m, t = run_metrics()
+        cov = float(m.get("preparer_coverage", "nan"))
+        h   = m.get("preparer_tier_high",  "?")
+        n   = m.get("preparer_tier_normal", "?")
+        l   = m.get("preparer_tier_low",   "?")
+        print(f"  {w:>10.1f}  {cov:>10.4f}  {h:>4}  {n:>4}  {l:>4}   ({t:.0f}s)")
+        results.append((w, cov, h, n, l))
+    git_restore(F_PLAN)
+    return results
+
+# ═══════════════════════════════════════════════════════════════
 #  MAIN
 # ═══════════════════════════════════════════════════════════════
 def main():
@@ -293,14 +501,22 @@ def main():
         print(f"    {k:40s} = {v}")
 
     all_results = {}
-    all_results["feedback_penalty"]    = sweep_feedback_penalty()
-    all_results["recency_half_life"]   = sweep_recency_half_life()
-    all_results["startup_recency"]     = sweep_startup_recency()
-    all_results["tag_decay"]           = sweep_tag_decay()
-    all_results["tag_neg_cap"]         = sweep_tag_neg_cap()
-    all_results["suppress_halflife"]   = sweep_suppress_halflife()
-    all_results["learning_halflife"]   = sweep_learning_halflife()
-    all_results["strong_negative"]     = sweep_strong_negative()
+    all_results["feedback_penalty"]        = sweep_feedback_penalty()
+    all_results["recency_half_life"]       = sweep_recency_half_life()
+    all_results["startup_recency"]         = sweep_startup_recency()
+    all_results["tag_decay"]               = sweep_tag_decay()
+    all_results["tag_neg_cap"]             = sweep_tag_neg_cap()
+    all_results["suppress_halflife"]       = sweep_suppress_halflife()
+    all_results["learning_halflife"]       = sweep_learning_halflife()
+    all_results["strong_negative"]         = sweep_strong_negative()
+    # ── 新维度: AIVirtualFolderPlan 参数 + prompt 调优 ──────────────────────
+    all_results["max_candidates"]          = sweep_max_candidates()
+    all_results["importance_high_thresh"]  = sweep_importance_high_threshold()
+    all_results["importance_low_thresh"]   = sweep_importance_low_threshold()
+    all_results["query_tokens_cap"]        = sweep_query_tokens_cap()
+    all_results["pattern_collapse_thresh"] = sweep_pattern_collapse_threshold()
+    all_results["strong_token_mult"]       = sweep_strong_token_multiplier()
+    all_results["project_token_weight"]    = sweep_project_token_weight()
 
     # ── 最终工作区验证 ──
     print("\n" + "="*60)

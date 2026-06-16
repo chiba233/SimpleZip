@@ -1429,5 +1429,31 @@ private func sep() { print("  " + String(repeating: "-", count: 50)) }
         ]
         let soloThemes = AIWorkspaceThemeEngine.discoverThemes(from: soloPool, now: now)
         print("METRIC:theme_solo_count:\(soloThemes.count)")   // 期望 0
+
+        // ─── G. AIVirtualFolderModelInputPreparer 专注律 ────────────────────
+        // 主指标 preparer_coverage = strongTokenCoverage:候选输出里覆盖了多少「关键强 token」。
+        // releaseStrongTokens = ["simplezip","release","0.4.5","sign","integrity"]
+        // 不传 maxCandidates,让测试随 defaultMaxCandidates 静态变量走,sweep 时只改那个值。
+        let (_, pm) = AIVirtualFolderModelInputPreparer.prepareWithMetrics(
+            candidates: releasePool, strongTokens: releaseStrongTokens)
+        print("METRIC:preparer_coverage:\(String(format: "%.4f", pm.strongTokenCoverage))")
+        print("METRIC:preparer_tier_high:\(pm.tierCounts["high"] ?? 0)")
+        print("METRIC:preparer_tier_normal:\(pm.tierCounts["normal"] ?? 0)")
+        print("METRIC:preparer_tier_low:\(pm.tierCounts["low"] ?? 0)")
+        print("METRIC:preparer_suppressed:\(pm.suppressedCount)")
+        print("METRIC:preparer_output:\(pm.outputCount)")
+
+        // prefix 上限测:构造 18 token 工作区,看截到 prefix(N) 后还剩几个。
+        let manyPlan = AIWorkspaceQueryPlan(
+            semanticTags: ["simplezip", "release", "arm64", "x86", "sign", "integrity",
+                           "dmg", "changelog", "security", "backup"],
+            taskTags: ["hash", "test", "compress", "validate"],
+            keywords: ["0.4.5", "gpg", "sha256", "build"])
+        let manyWS = AIWorkspace(
+            id: UUID(uuidString: "00000000-0000-0000-FFFF-000000000001")!,
+            origin: .recommended, title: "18-token-ws",
+            queryPlan: manyPlan, iconSystemName: "sparkles", generatedAt: T0)
+        let promptFact = AIWorkspacePromptFact(workspace: manyWS)
+        print("METRIC:prompt_qtokens_count:\(promptFact.queryTokens.count)")
     }
 }
