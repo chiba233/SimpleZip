@@ -301,11 +301,15 @@ final class AIWorkspaceStore: ObservableObject {
             hiddenCandidateCount: pendingCandidates.count,
             activityLevel: AppPreferences.aiBackgroundActivityLevel)
         let approved = themeVerdicts.values.filter(\.approved).count
-        // **竞争不停**(用户:小模型质量差,竞争状态不能停):达到 approvedTarget 后不早停,继续把剩下的主题都复核完
-        // (为竞争持续找更好的候选),只靠 `nextThemeReviewCandidate` 返回 nil(全复核完 / 耗尽 attempts)自然收敛;
-        // backoff 延时已随已通过数拉长,慢跑不抢资源。
         guard reviewInFlight.isEmpty else { return }
-        guard let next = nextThemeReviewCandidate(now: Date(), policy: policy, approvedCount: approved) else { return }
+        guard let next = nextThemeReviewCandidate(now: Date(), policy: policy, approvedCount: approved) else {
+            // **竞争永不停**(用户:可见的不能上了就混吃等死,要被隐藏池靠实力顶下去):全部复核完后不停摆,
+            // 按**当前**竞争分(含 recency 衰减)重排可见 → 久不用 / 弱的可见被强候选顶下去,再排一个慢周期 tick
+            // 持续角逐。新文件 / 新候选进来会重新出现可复核项,自然回到全速复核。
+            republishReviewedThemes()
+            scheduleReviewPump(after: 25)
+            return
+        }
         let attempt = reviewAttemptsByTheme[next.id, default: 0] + 1
         let fed = reviewFed(for: next.candidate, attempt: attempt)
         scheduleThemeReview(themeID: next.id, ws: next.candidate.ws, fed: fed,
@@ -381,14 +385,10 @@ final class AIWorkspaceStore: ObservableObject {
         }
     }
 
-    /// 复核结束后排下一轮泵:延时按当前已通过数 / 活跃度退避;`minDelay` 给失败 / 过期路径一个最小间隔。
+    /// 复核结束后排下一轮泵:**全速**把所有候选过完(单次复核的质量靠 12 代重试,不靠拉长泵间隔 —— 用户嫌等太久)。
+    /// 全部复核完后由 `pumpThemeReviews` 自己转成 25s 慢竞争 tick。`minDelay` 给失败 / 过期路径一个最小间隔。
     private func rescheduleReviewPump(minDelay: TimeInterval = 0) {
-        let approved = themeVerdicts.values.filter(\.approved).count
-        let policy = AIWorkspaceReviewPumpPolicy(
-            displayLimit: AppPreferences.aiMaxRecommendedWorkspaces,
-            hiddenCandidateCount: pendingCandidates.count,
-            activityLevel: AppPreferences.aiBackgroundActivityLevel)
-        scheduleReviewPump(after: max(minDelay, policy.reviewDelaySeconds(approvedCount: approved)))
+        scheduleReviewPump(after: max(minDelay, 1.0))
     }
 
     private func scheduleReviewPump(after seconds: TimeInterval) {
