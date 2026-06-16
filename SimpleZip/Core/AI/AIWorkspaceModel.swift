@@ -298,13 +298,16 @@ nonisolated struct AIWorkspace: Identifiable, Codable, Equatable, Sendable {
     var fingerprint: AIWorkspaceThemeFingerprint?
     /// 打开次数(频率信号)—— AI 加权排序用,打开一次只 +1 不直接置顶(见 `AIWorkspaceRanking`)。
     var openCount: Int
+    /// 累计浏览秒数(会话停留信号)—— 用户反复看很久的工作区应更难被轻易刷下榜。
+    var totalDwellSeconds: Int
     /// 主题强度 [0,1](发现时的 cluster 信号丰富度)—— 强主题即使没打开也排得高,避免「点一下就僵硬置顶」。
     var relevanceScore: Double
 
     init(id: UUID, origin: Origin, title: String, prompt: String? = nil, userDescription: String? = nil,
          queryPlan: AIWorkspaceQueryPlan, iconSystemName: String, visibility: Visibility = .visible,
          pinned: Bool = false, generatedAt: Date, lastOpenedAt: Date? = nil, negativeFeedbackCount: Int = 0,
-         fingerprint: AIWorkspaceThemeFingerprint? = nil, openCount: Int = 0, relevanceScore: Double = 0) {
+         fingerprint: AIWorkspaceThemeFingerprint? = nil, openCount: Int = 0, relevanceScore: Double = 0,
+         totalDwellSeconds: Int = 0) {
         self.id = id
         self.origin = origin
         self.title = title
@@ -319,15 +322,16 @@ nonisolated struct AIWorkspace: Identifiable, Codable, Equatable, Sendable {
         self.negativeFeedbackCount = negativeFeedbackCount
         self.fingerprint = fingerprint
         self.openCount = openCount
+        self.totalDwellSeconds = max(0, totalDwellSeconds)
         self.relevanceScore = relevanceScore
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, origin, title, prompt, userDescription, queryPlan, iconSystemName, visibility, pinned, generatedAt
-        case lastOpenedAt, negativeFeedbackCount, fingerprint, openCount, relevanceScore
+        case lastOpenedAt, negativeFeedbackCount, fingerprint, openCount, totalDwellSeconds, relevanceScore
     }
 
-    /// 旧持久化(无 openCount / relevanceScore / fingerprint)解码兼容 —— 缺字段给默认,**不丢用户工作区**。
+    /// 旧持久化(无 openCount / dwell / relevanceScore / fingerprint)解码兼容 —— 缺字段给默认,**不丢用户工作区**。
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         self.id = try c.decode(UUID.self, forKey: .id)
@@ -344,6 +348,7 @@ nonisolated struct AIWorkspace: Identifiable, Codable, Equatable, Sendable {
         self.negativeFeedbackCount = try c.decodeIfPresent(Int.self, forKey: .negativeFeedbackCount) ?? 0
         self.fingerprint = try c.decodeIfPresent(AIWorkspaceThemeFingerprint.self, forKey: .fingerprint)
         self.openCount = try c.decodeIfPresent(Int.self, forKey: .openCount) ?? 0
+        self.totalDwellSeconds = try c.decodeIfPresent(Int.self, forKey: .totalDwellSeconds) ?? 0
         self.relevanceScore = try c.decodeIfPresent(Double.self, forKey: .relevanceScore) ?? 0
     }
 }
@@ -354,6 +359,7 @@ nonisolated enum AIWorkspaceRanking {
     static let recencyHalfLifeDays = 7.0
     static let wRecency = 2.5
     static let wFrequency = 1.5
+    static let wDwell = 2.0
     static let wRelevance = 5.0
     static let userBaseline = 2.5
     static let feedbackPenalty = 3.0
@@ -364,6 +370,7 @@ nonisolated enum AIWorkspaceRanking {
         if ws.pinned { return 1_000 }
         var s = wRelevance * max(0, min(1, ws.relevanceScore))
         s += wFrequency * log2(Double(max(0, ws.openCount)) + 1)
+        s += wDwell * min(1.0, Double(max(0, ws.totalDwellSeconds)) / 1_800.0)
         if let last = ws.lastOpenedAt {
             let days = max(0, now.timeIntervalSince(last)) / 86_400
             s += wRecency * pow(0.5, days / recencyHalfLifeDays)
@@ -403,6 +410,7 @@ nonisolated enum AIWorkspaceDisplayCompetition {
 
     static func select(_ candidates: [AIWorkspaceDisplayCandidate],
                        currentVisibleIDs: Set<UUID>,
+                       protectedIDs: Set<UUID> = [],
                        limit: Int,
                        demotionMargin: Double = defaultDemotionMargin) -> [UUID] {
         guard limit > 0 else { return [] }
@@ -410,12 +418,14 @@ nonisolated enum AIWorkspaceDisplayCompetition {
             if $0.score != $1.score { return $0.score > $1.score }
             return $0.id.uuidString < $1.id.uuidString
         }
-        var selected = Array(sorted.prefix(limit))
+        let protected = Set(sorted.filter { protectedIDs.contains($0.id) }.prefix(limit).map(\.id))
+        var selected = sorted.filter { protected.contains($0.id) }
+        selected.append(contentsOf: sorted.filter { !protected.contains($0.id) }.prefix(limit - selected.count))
         var selectedIDs = Set(selected.map(\.id))
 
         for incumbent in sorted where currentVisibleIDs.contains(incumbent.id) && !selectedIDs.contains(incumbent.id) {
             guard let replacementIndex = selected.enumerated()
-                .filter({ !currentVisibleIDs.contains($0.element.id) })
+                .filter({ !currentVisibleIDs.contains($0.element.id) && !protected.contains($0.element.id) })
                 .min(by: { a, b in
                     if a.element.score != b.element.score { return a.element.score < b.element.score }
                     return a.element.id.uuidString > b.element.id.uuidString
@@ -479,6 +489,7 @@ nonisolated struct AIWorkspaceCollection: Codable, Equatable, Sendable {
             m.pinned = old.pinned
             m.lastOpenedAt = old.lastOpenedAt
             m.openCount = old.openCount
+            m.totalDwellSeconds = old.totalDwellSeconds
             return m
         }
         let kept = workspaces.filter { $0.origin != .recommended || ($0.pinned && !newIDs.contains($0.id)) }
@@ -528,7 +539,8 @@ nonisolated struct AIWorkspaceCollection: Codable, Equatable, Sendable {
                                     visibility: .visible, pinned: ws.pinned, generatedAt: ws.generatedAt,
                                     lastOpenedAt: ws.lastOpenedAt, negativeFeedbackCount: ws.negativeFeedbackCount,
                                     fingerprint: ws.fingerprint, openCount: ws.openCount,
-                                    relevanceScore: ws.relevanceScore))
+                                    relevanceScore: ws.relevanceScore,
+                                    totalDwellSeconds: ws.totalDwellSeconds))
         }
         return AIWorkspaceCollection(copy)
     }
@@ -549,6 +561,12 @@ nonisolated struct AIWorkspaceCollection: Codable, Equatable, Sendable {
     /// 排序由 AI 加权综合(见 `AIWorkspaceRanking`)。
     func markingOpened(_ id: UUID, at date: Date) -> AIWorkspaceCollection {
         mapping(id) { var c = $0; c.lastOpenedAt = date; c.openCount += 1; return c }
+    }
+
+    /// 记录一次真实查看会话的停留时间。秒数钳到非负,避免时钟回拨把分数扣坏。
+    func recordingDwell(_ id: UUID, seconds: Int) -> AIWorkspaceCollection {
+        guard seconds > 0 else { return self }
+        return mapping(id) { var c = $0; c.totalDwellSeconds += seconds; return c }
     }
 
     private func mapping(_ id: UUID, _ transform: (AIWorkspace) -> AIWorkspace) -> AIWorkspaceCollection {

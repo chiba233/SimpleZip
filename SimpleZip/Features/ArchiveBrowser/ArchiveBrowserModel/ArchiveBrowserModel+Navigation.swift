@@ -11,6 +11,20 @@ import AppKit
 import Foundation
 
 extension ArchiveBrowserModel {
+    func recordAIWorkspaceViewingTransition(from oldMode: BrowserMode, to newMode: BrowserMode) {
+        let oldID: UUID? = {
+            if case .aiWorkspace(let id) = oldMode { return id }
+            return nil
+        }()
+        let newID: UUID? = {
+            if case .aiWorkspace(let id) = newMode { return id }
+            return nil
+        }()
+        guard oldID != newID else { return }
+        if oldID != nil { AIWorkspaceStore.shared.finishViewingWorkspace() }
+        if let newID { AIWorkspaceStore.shared.startViewingWorkspace(newID) }
+    }
+
     func openHome() {
         openFolder(fileManager.homeDirectoryForCurrentUser)
     }
@@ -51,7 +65,6 @@ extension ArchiveBrowserModel {
         session.clearArchive()
         aiWorkspacePath = []            // 进工作区 = 回到根层
         mode = .aiWorkspace(id)
-        AIWorkspaceStore.shared.markOpened(id)   // 更新 lastOpenedAt → 侧栏「最近」排序生效
         reload()
     }
 

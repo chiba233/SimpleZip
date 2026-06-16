@@ -18,7 +18,9 @@ import UniformTypeIdentifiers
 /// 主界面的状态模型：负责文件浏览、压缩/解压动作和状态提示。
 @MainActor
 final class ArchiveBrowserModel: ObservableObject {
-    @Published var mode: BrowserMode
+    @Published var mode: BrowserMode {
+        didSet { recordAIWorkspaceViewingTransition(from: oldValue, to: mode) }
+    }
     /// 异步文件夹列举进行中(0.4.3):mode 已发布、新 items 未到 —— FileTable 见此标志跳过
     /// 中间帧重建(否则「新 folderKey + 旧 items」闪一帧未分组视图,用户报的分组闪烁)。
     /// **故意不是 @Published**:FSEvents 在桌面/下载这类目录上每 ~120ms 静默 reload 一次,

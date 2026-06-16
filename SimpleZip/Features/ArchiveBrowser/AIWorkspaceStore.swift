@@ -68,6 +68,9 @@ final class AIWorkspaceStore: ObservableObject {
     private var verificationInFlight = false
     /// 被剔成员**复议**(非黑名单):上次复议时间(轮转)。预读 enriched 内容后,被剔成员可能重新强扣题 → 放回。
     private var lastReconsideredAt: [UUID: Date] = [:]
+    /// 当前窗口正在看的 AI 工作区。后台竞争重排时临时保护它,避免用户看一半侧栏/内容目标被隐藏。
+    private var activeWorkspaceID: UUID?
+    private var activeWorkspaceOpenedAt: Date?
 
     // 模型门控的后台发现(用户:建文件夹是后台行为,模型复核「真能撑起一个主题」才出现,质量优先不保数量):
     private typealias PendingThemeCandidate = (
@@ -528,9 +531,21 @@ final class AIWorkspaceStore: ObservableObject {
         let currentRecommendedIDs = Set(collection.workspaces.compactMap {
             $0.origin == .recommended && $0.visibility == .visible ? $0.id : nil
         })
+        if let activeID = activeWorkspaceID,
+           scored.allSatisfy({ $0.ws.id != activeID }),
+           let active = collection.workspace(activeID),
+           active.origin == .recommended,
+           active.visibility == .visible {
+            let refs = memberRefsByWorkspace[activeID] ?? []
+            scored.append((active, competitionScore(active, memberCount: refs.count,
+                                                    prunedCount: autoExcluded[activeID]?.count ?? 0, now: now),
+                           refs))
+        }
+        let protectedIDs = activeWorkspaceID.map { Set([$0]) } ?? []
         let selectedIDs = AIWorkspaceDisplayCompetition.select(
             scored.map { AIWorkspaceDisplayCandidate(id: $0.ws.id, score: $0.score) },
             currentVisibleIDs: currentRecommendedIDs,
+            protectedIDs: protectedIDs,
             limit: AppPreferences.aiMaxRecommendedWorkspaces)
         let byID = Dictionary(scored.map { ($0.ws.id, $0) }, uniquingKeysWith: { a, b in
             a.score >= b.score ? a : b
@@ -541,10 +556,10 @@ final class AIWorkspaceStore: ObservableObject {
         // 旧动态成员先保留;本轮同 ID 复核通过再覆盖。用户手动 pin 的成员走 seed,不在这里保护。
         var memberRefs = memberRefsByWorkspace.filter { collection.workspace($0.key)?.origin == .userCreated }
         for item in capped { memberRefs[item.ws.id] = item.refs }
-        var protectedIDs = Set<UUID>()
+        var protectedUserWorkspaceIDs = Set<UUID>()
         for (id, c) in pendingCandidates {
             guard let existing = collection.workspace(c.ws.id), existing.origin == .userCreated else { continue }
-            protectedIDs.insert(existing.id)
+            protectedUserWorkspaceIDs.insert(existing.id)
             guard let v = themeVerdicts[id], v.approved, !v.members.isEmpty else { continue }
             memberRefs[existing.id] = v.memberRefs
             toCachePlan.append((existing.id, v))
@@ -555,7 +570,7 @@ final class AIWorkspaceStore: ObservableObject {
         if next != collection { collection = next }
         // 缓存复核产出的 plan → 打开不再重跑模型。**有持久快照的工作区不在此重排**:冻结上次 AI 目录,
         // 只有点「刷新」才重排(用户:每次重启 / 后台复核都重排太蠢)。新工作区(无快照)才缓存 plan + 建树存快照。
-        let cacheableIDs = keptIDs.union(protectedIDs)
+        let cacheableIDs = keptIDs.union(protectedUserWorkspaceIDs)
         for (wsID, v) in toCachePlan where cacheableIDs.contains(wsID) && treeSnapshots[wsID] == nil {
             let sig = v.members.map(\.id).sorted().joined(separator: ",")
             modelPlanSignatures[wsID] = sig
@@ -567,14 +582,16 @@ final class AIWorkspaceStore: ObservableObject {
     }
 
     /// 竞争分 = **明确的加分 − 扣分**(用户要求机制明确)。分高的可见,低的降隐藏:
-    ///   ➕ 主题强度(relevanceScore)×5 ・成员撑得起(数量封顶 12)×0.5 ・用得多(打开频率 log)×1 ・最近用过(7 天半衰)×1.5
+    ///   ➕ 主题强度(relevanceScore)×5 ・成员撑得起(数量封顶 12)×0.5 ・用得多(打开频率 log)×1.8 ・看得久(30min 封顶)×2
+    ///      ・最近用过(7 天半衰)×1.5
     ///   ➖ 负反馈(不感兴趣 / 不喜欢)×2 ・**动态核查剔除的不扣题成员数 ×1.5**(剔得多 = 不纯 → 扣分多 → 被顶下去降隐藏)
     private func competitionScore(_ ws: AIWorkspace, memberCount: Int, prunedCount: Int = 0, now: Date) -> Double {
         var s = 0.0
         // ➕ 加分
         s += ws.relevanceScore * 5.0
         s += min(Double(max(0, memberCount)), 12) * 0.5
-        s += log2(Double(max(0, ws.openCount)) + 1) * 1.0
+        s += log2(Double(max(0, ws.openCount)) + 1) * 1.8
+        s += min(1.0, Double(max(0, ws.totalDwellSeconds)) / 1_800.0) * 2.0
         if let last = ws.lastOpenedAt {
             s += pow(0.5, max(0, now.timeIntervalSince(last)) / 86_400 / 7.0) * 1.5
         }
@@ -1086,7 +1103,27 @@ final class AIWorkspaceStore: ObservableObject {
         apply { $0.renaming(id, to: title) }
         mutateSeed(id) { $0.settingTitle(title, updatedAt: Date()) }   // 标题也进种子(模型再生成时沿用)
     }
-    func markOpened(_ id: UUID) { apply { $0.markingOpened(id, at: Date()) } }
+    func startViewingWorkspace(_ id: UUID, now: Date = Date()) {
+        if activeWorkspaceID == id {
+            activeWorkspaceOpenedAt = activeWorkspaceOpenedAt ?? now
+            return
+        }
+        finishViewingWorkspace(now: now)
+        activeWorkspaceID = id
+        activeWorkspaceOpenedAt = now
+        apply { $0.markingOpened(id, at: now) }
+    }
+
+    func finishViewingWorkspace(now: Date = Date()) {
+        guard let id = activeWorkspaceID else { return }
+        let openedAt = activeWorkspaceOpenedAt ?? now
+        activeWorkspaceID = nil
+        activeWorkspaceOpenedAt = nil
+        let seconds = Int(max(0, now.timeIntervalSince(openedAt)).rounded())
+        apply { $0.recordingDwell(id, seconds: seconds) }
+    }
+
+    func markOpened(_ id: UUID) { startViewingWorkspace(id) }
 
     private func apply(_ transform: (AIWorkspaceCollection) -> AIWorkspaceCollection) {
         let next = transform(collection)

@@ -251,6 +251,36 @@ import Testing
         #expect(selected == [id2])
     }
 
+    @Test func displayCompetitionKeepsProtectedWorkspaceEvenWhenScoreDrops() {
+        let active = AIWorkspaceDisplayCandidate(id: id1, score: 2.0)
+        let challengerA = AIWorkspaceDisplayCandidate(id: id2, score: 9.0)
+        let challengerB = AIWorkspaceDisplayCandidate(id: id3, score: 8.0)
+
+        let selected = AIWorkspaceDisplayCompetition.select(
+            [challengerA, challengerB, active],
+            currentVisibleIDs: [id1],
+            protectedIDs: [id1],
+            limit: 2,
+            demotionMargin: 1.0)
+
+        #expect(selected.contains(id1))
+        #expect(selected.count == 2)
+    }
+
+    @Test func rankedRewardsSustainedWorkspaceDwell() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        let strong = AIWorkspace(id: id1, origin: .recommended, title: "strong",
+                                 queryPlan: AIWorkspaceQueryPlan(taskTags: []), iconSystemName: "x",
+                                 generatedAt: now, relevanceScore: 1.0)
+        let used = AIWorkspace(id: id2, origin: .recommended, title: "used",
+                               queryPlan: AIWorkspaceQueryPlan(taskTags: []), iconSystemName: "x",
+                               generatedAt: now, lastOpenedAt: now, openCount: 8,
+                               relevanceScore: 0.1, totalDwellSeconds: 1_800)
+
+        let ranked = AIWorkspaceCollection([strong, used]).ranked(now: now)
+        #expect(ranked.first?.title == "used")
+    }
+
     @Test func upsertReplacesByID() {
         let w = ws("w", .userCreated, title: "A")
         let c = AIWorkspaceCollection([w]).upserting(ws("w", .userCreated, title: "B"))
