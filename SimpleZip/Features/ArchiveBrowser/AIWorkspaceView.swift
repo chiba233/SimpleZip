@@ -113,7 +113,7 @@ struct AIWorkspaceView: View {
                     .onChange(of: descriptionFocused) { focused in if !focused { commitDescription() } }
             }
             Spacer(minLength: 8)
-            Button { model.openAIWorkspace(workspaceID) } label: { Image(systemName: "arrow.clockwise") }
+            Button { store.refreshWorkspaceTree(workspaceID) } label: { Image(systemName: "arrow.clockwise") }
                 .buttonStyle(.borderless).help(L10n.text("sidebar.ai.refreshWorkspace"))
             if ws.origin == .recommended {
                 Button { store.dismissRecommended(workspaceID) } label: { Image(systemName: "xmark.circle") }

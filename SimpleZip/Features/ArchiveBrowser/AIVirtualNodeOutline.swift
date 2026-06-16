@@ -203,15 +203,21 @@ struct AIVirtualNodeOutline: NSViewRepresentable {
                                      text: node.title, isPrimaryColumn: true,
                                      icon: Self.symbol(Self.symbolName(node.kind), tint: Self.tint(node.kind)),
                                      iconSize: 17)
-            cell.toolTip = suggested ? L10n.text("aiWorkspace.node.aiSuggested") : (node.reason ?? node.subtitle)
-            // AI 建议角标:给 textField 末尾挂一个轻量 ✦(纯视觉,不进数据)。
+            // 名字 + **来源目录**(很多文件同名如 README.md,必须显示在哪个目录才分得清)+ AI 角标。tooltip 给全路径。
+            let parent = Self.parentDisplay(node)
+            cell.toolTip = Self.resolvedPath(node) ?? (suggested ? L10n.text("aiWorkspace.node.aiSuggested") : node.reason)
             if let textField = cell.textField {
-                textField.lineBreakMode = .byTruncatingTail
-                if suggested {
-                    let s = NSMutableAttributedString(string: node.title + "  ")
-                    s.append(NSAttributedString(string: "✦", attributes: [.foregroundColor: NSColor.controlAccentColor]))
-                    textField.attributedStringValue = s
+                textField.lineBreakMode = .byTruncatingMiddle
+                let s = NSMutableAttributedString(string: node.title, attributes: [.foregroundColor: NSColor.labelColor])
+                if let parent {
+                    s.append(NSAttributedString(string: "   " + parent,
+                        attributes: [.foregroundColor: NSColor.secondaryLabelColor,
+                                     .font: NSFont.systemFont(ofSize: 11)]))
                 }
+                if suggested {
+                    s.append(NSAttributedString(string: "  ✦", attributes: [.foregroundColor: NSColor.controlAccentColor]))
+                }
+                textField.attributedStringValue = s
             }
             return cell
         }
@@ -357,6 +363,21 @@ struct AIVirtualNodeOutline: NSViewRepresentable {
         @objc private func runBlock(_ sender: NSMenuItem) { (sender.representedObject as? BlockBox)?.run() }
 
         private final class BlockBox { let run: () -> Void; init(_ run: @escaping () -> Void) { self.run = run } }
+
+        // MARK: - 来源路径(同名文件靠目录区分)
+
+        static func resolvedPath(_ node: AIVirtualNode) -> String? { AIWorkspaceNodeActions.resolvedPath(node) }
+
+        /// 节点的来源目录(home 缩成 ~)。取不到路径(如任务 / 报告节点)→ nil。
+        static func parentDisplay(_ node: AIVirtualNode) -> String? {
+            guard let path = resolvedPath(node) else { return nil }
+            let parent = (path as NSString).deletingLastPathComponent
+            guard !parent.isEmpty, parent != "/" else { return nil }
+            let home = NSHomeDirectory()
+            if parent == home { return "~" }
+            if parent.hasPrefix(home + "/") { return "~" + parent.dropFirst(home.count) }
+            return parent
+        }
 
         // MARK: - 图标
 

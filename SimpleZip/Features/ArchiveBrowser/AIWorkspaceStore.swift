@@ -176,6 +176,17 @@ final class AIWorkspaceStore: ObservableObject {
         feedback.dislikedRefs(ws.id).union(seeds[ws.id]?.excludedSourceRefs ?? [])
     }
 
+    /// 用户点「刷新」:**强制重跑模型**(清掉本工作区的模型 plan / 签名 / 树缓存 → 下次 `virtualTree` 重新让模型
+    /// 选成员 + 分组 + 命名),并顺带 kick 一轮后台预索引(新文件 / 新活动有机会进来)。
+    func refreshWorkspaceTree(_ id: UUID) {
+        modelPlanSignatures[id] = nil
+        modelPlans[id] = nil
+        modelFed[id] = nil
+        treeCache[id] = nil
+        objectWillChange.send()
+        AIBackgroundIndexer.shared.runIfEnabled()   // 重扫白名单(门控未过则什么都不做)→ 完成后回调发现刷新
+    }
+
     /// plan(nil = 确定性)+ 成员 → 套用户结构编辑后的最终树。
     private func buildTree(ws: AIWorkspace, members: [AIVirtualNodeCandidate],
                            plan: AIVirtualFolderPlan?, mode: AIVirtualTreeGenerationMode) -> AIVirtualFolderTree {
