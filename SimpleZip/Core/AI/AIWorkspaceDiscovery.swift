@@ -30,7 +30,7 @@ nonisolated struct AIRecommendationPolicy: Equatable, Sendable {
     /// 是否启用质量门控(关掉只看成员数 —— 测机制用)。
     let gateQuality: Bool
 
-    init(minClusterSize: Int = 3, minMembers: Int = 3, richMemberCount: Int = 5,
+    init(minClusterSize: Int = 2, minMembers: Int = 3, richMemberCount: Int = 5,
          maxThemes: Int = 6, gateQuality: Bool = true) {
         self.minClusterSize = max(2, minClusterSize)
         self.minMembers = max(2, minMembers)

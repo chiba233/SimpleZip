@@ -75,6 +75,18 @@ import Testing
         #expect(!AIWorkspaceDiscovery.discover(files: files, now: now, policy: .permissive).themes.isEmpty)
     }
 
+    @Test func policyDefaultClusterSizeMatchesThemeEngineMinimum() throws {
+        let files = [fileRec("paper-draft.docx", at: .downloads),
+                     fileRec("paper-figures.zip", at: .desktop)]
+        let policy = AIRecommendationPolicy(minMembers: 2, gateQuality: false)
+
+        let out = AIWorkspaceDiscovery.discover(files: files, now: now, policy: policy)
+        let theme = try #require(out.themes.first)
+
+        #expect(out.themes.count == 1)
+        #expect(theme.sourceRefs.count == 2)
+    }
+
     @Test func isQualityPredicate() {
         let thin = AIWorkspaceThemeCandidate(id: "t", titleSeed: "x",
             sourceRefs: [AIContextSourceRef(kind: .file, id: "a"), AIContextSourceRef(kind: .file, id: "b")],
