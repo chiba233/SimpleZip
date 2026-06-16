@@ -2600,5 +2600,6 @@
 "aiWorkspace.node.like" = "ฉันชอบสิ่งนี้";
 "aiWorkspace.node.dislike" = "ฉันไม่ชอบสิ่งนี้";
 "aiWorkspace.mode.deterministic" = "จัดระเบียบอัตโนมัติ";
+"aiWorkspace.regenerating" = "กำลังจัดระเบียบใหม่ด้วย AI…";
 "aiWorkspace.description.placeholder" = "เพิ่มคำอธิบาย…";
 "aiWorkspace.description.seed" = "น่าจะเกี่ยวกับ: ";

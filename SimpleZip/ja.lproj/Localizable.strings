@@ -2602,5 +2602,6 @@
 "aiWorkspace.node.like" = "気に入った";
 "aiWorkspace.node.dislike" = "気に入らない";
 "aiWorkspace.mode.deterministic" = "自動整理";
+"aiWorkspace.regenerating" = "AI が再整理中…";
 "aiWorkspace.description.placeholder" = "説明を追加…";
 "aiWorkspace.description.seed" = "おそらく: ";

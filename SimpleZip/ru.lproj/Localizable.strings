@@ -2600,5 +2600,6 @@
 "aiWorkspace.node.like" = "Нравится";
 "aiWorkspace.node.dislike" = "Не нравится";
 "aiWorkspace.mode.deterministic" = "Автоматическая сортировка";
+"aiWorkspace.regenerating" = "ИИ переупорядочивает…";
 "aiWorkspace.description.placeholder" = "Добавить описание…";
 "aiWorkspace.description.seed" = "Вероятно, о: ";

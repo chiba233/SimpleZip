@@ -22,6 +22,9 @@ final class AIWorkspaceStore: ObservableObject {
     static let shared = AIWorkspaceStore()
 
     @Published private(set) var collection: AIWorkspaceCollection
+    /// 正在**模型重新生成**目录的工作区(点刷新触发)。UI 据此显示华丽的「AI 正在重新整理…」动效,而非干显示「自动整理」。
+    /// 只在刷新点击 + 模型完成时变,不在 FSEvents reload 路径上,故 @Published 安全。
+    @Published private(set) var regenerating: Set<UUID> = []
 
     /// 持久:不感兴趣的衰减抑制账本(工作区级)。
     private var suppression: AIThemeSuppressionLedger
@@ -488,8 +491,22 @@ final class AIWorkspaceStore: ObservableObject {
         modelFed[id] = nil
         treeCache[id] = nil
         treeSnapshots[id] = nil; saveTreeSnapshots()   // 点刷新 = 丢弃旧快照,重排序(用户:只有刷新才重排)
+        if AIReportAssistant.isReady {
+            regenerating.insert(id)                    // 标记「正在重新生成」→ UI 显示华丽动效,不显示「自动整理」
+            scheduleRegeneratingTimeout(id)            // 兜底:模型迟迟不出也别一直转(收起动效,显示当前结果)
+        }
         objectWillChange.send()
         AIBackgroundIndexer.shared.runIfEnabled()   // 重扫白名单(门控未过则什么都不做)→ 完成后回调发现刷新
+    }
+
+    func isRegenerating(_ id: UUID) -> Bool { regenerating.contains(id) }
+
+    /// 兜底超时:模型生成很慢(12 代),但若 90s 还没出树就收起动效(避免无限转);真出树时由 cacheModelTree 提前收起。
+    private func scheduleRegeneratingTimeout(_ id: UUID) {
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 90 * 1_000_000_000)
+            if self.regenerating.contains(id) { self.regenerating.remove(id) }
+        }
     }
 
     /// plan(nil = 确定性)+ 成员 → 套用户结构编辑后的最终树。模型 plan 的 AI 建议 → `.action` 子节点(带本地化标题)。
@@ -899,6 +916,7 @@ final class AIWorkspaceStore: ObservableObject {
         if tree.generationMode == .modelAssisted, !tree.isEmpty {
             treeSnapshots[id] = tree
             saveTreeSnapshots()
+            if regenerating.contains(id) { regenerating.remove(id) }   // 模型整理完成 → 收起「正在重新生成」动效
         }
     }
 

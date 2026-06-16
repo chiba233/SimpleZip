@@ -130,7 +130,9 @@ struct AIWorkspaceView: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Text(ws.title).font(.title3.weight(.semibold)).lineLimit(1)
-                    if generationMode == .deterministic {
+                    if store.isRegenerating(workspaceID) {
+                        RegeneratingBadge(text: L10n.text("aiWorkspace.regenerating"))   // 华丽:正在 AI 重新整理
+                    } else if generationMode == .deterministic {
                         Text(L10n.text("aiWorkspace.mode.deterministic"))
                             .font(.caption2).foregroundStyle(.secondary)
                             .padding(.horizontal, 5).padding(.vertical, 1)
@@ -147,8 +149,13 @@ struct AIWorkspaceView: View {
                     .onChange(of: descriptionFocused) { focused in if !focused { commitDescription() } }
             }
             Spacer(minLength: 8)
-            Button { store.refreshWorkspaceTree(workspaceID) } label: { Image(systemName: "arrow.clockwise") }
-                .buttonStyle(.borderless).help(L10n.text("sidebar.ai.refreshWorkspace"))
+            if store.isRegenerating(workspaceID) {
+                ProgressView().controlSize(.small).frame(width: 18, height: 18)
+                    .help(L10n.text("aiWorkspace.regenerating"))
+            } else {
+                Button { store.refreshWorkspaceTree(workspaceID) } label: { Image(systemName: "arrow.clockwise") }
+                    .buttonStyle(.borderless).help(L10n.text("sidebar.ai.refreshWorkspace"))
+            }
             if ws.origin == .recommended {
                 Button { store.dismissRecommended(workspaceID) } label: { Image(systemName: "xmark.circle") }
                     .buttonStyle(.borderless).help(L10n.text("sidebar.ai.dismissRecommended"))
@@ -208,5 +215,34 @@ struct AIWorkspaceView: View {
         default:
             break   // evidence-ref / 写盘 / 虚拟管理类:后续接(需 source-ref 回查)—— 写盘动作回原生确认流
         }
+    }
+}
+
+/// 「AI 正在重新整理…」华丽徽章:渐变胶囊 + 流动光泽 + 旋转魔杖 + 发光。点刷新时显示,明确告诉用户**模型真的在重排**
+/// (不是干显示「自动整理」)。用 `TimelineView(.animation)` 驱动,平滑且**不用 repeatForever**(避坑)。
+private struct RegeneratingBadge: View {
+    let text: String
+
+    var body: some View {
+        TimelineView(.animation) { timeline in
+            let t = timeline.date.timeIntervalSinceReferenceDate
+            let sweep = (t.truncatingRemainder(dividingBy: 1.8)) / 1.8   // 0..1 光泽扫动
+            HStack(spacing: 5) {
+                Image(systemName: "wand.and.rays")
+                    .font(.caption2.weight(.bold))
+                    .rotationEffect(.degrees(t.truncatingRemainder(dividingBy: 4) * 90))
+                Text(text).font(.caption2.weight(.semibold)).lineLimit(1)
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 9).padding(.vertical, 3)
+            .background(
+                Capsule().fill(LinearGradient(
+                    colors: [Color.accentColor, Color.purple, Color.accentColor],
+                    startPoint: UnitPoint(x: sweep - 0.5, y: 0.5),
+                    endPoint: UnitPoint(x: sweep + 0.5, y: 0.5)))
+            )
+            .shadow(color: Color.accentColor.opacity(0.5), radius: 5, y: 1)
+        }
+        .fixedSize()
     }
 }

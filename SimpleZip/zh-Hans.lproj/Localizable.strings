@@ -2679,5 +2679,6 @@
 "aiWorkspace.node.like" = "我很喜欢";
 "aiWorkspace.node.dislike" = "我不喜欢";
 "aiWorkspace.mode.deterministic" = "自动整理";
+"aiWorkspace.regenerating" = "AI 正在重新整理…";
 "aiWorkspace.description.placeholder" = "添加描述…";
 "aiWorkspace.description.seed" = "大概关于：";

@@ -2598,5 +2598,6 @@
 "aiWorkspace.node.like" = "J'aime";
 "aiWorkspace.node.dislike" = "Je n'aime pas";
 "aiWorkspace.mode.deterministic" = "Organisé automatiquement";
+"aiWorkspace.regenerating" = "Réorganisation par IA…";
 "aiWorkspace.description.placeholder" = "Ajouter une description…";
 "aiWorkspace.description.seed" = "Probablement à propos de : ";

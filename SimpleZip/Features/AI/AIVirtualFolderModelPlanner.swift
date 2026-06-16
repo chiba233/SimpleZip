@@ -125,7 +125,7 @@ enum AIVirtualFolderModelPlanner {
         }
         let generated = try await AIReportAssistant.generateStructured(
             instructions: instructions, prompt: lines.joined(separator: "\n"), as: GeneratedAIFolderPlan.self,
-            maxAttempts: 8)   // 小模型单次失败率极高:连试 8 代 + 极简 schema + 短 prompt 一起压报错
+            maxAttempts: 12)   // 「模型不行时间来凑」:连试 12 代 + 极简 schema + 短 prompt 一起压报错
 
         return Self.assemble(generated, candidates: cands).plan
     }
@@ -170,7 +170,7 @@ enum AIVirtualFolderModelPlanner {
         }
         let generated = try await AIReportAssistant.generateStructured(
             instructions: instructions, prompt: lines.joined(separator: "\n"), as: GeneratedAIFolderPlan.self,
-            maxAttempts: 8)   // 小模型单次失败率极高:连试 8 代 + 极简 schema + 短 prompt 一起压报错
+            maxAttempts: 12)   // 「模型不行时间来凑」:连试 12 代 + 极简 schema + 短 prompt 一起压报错
         return Self.assemble(generated, candidates: cands)
     }
 
