@@ -53,8 +53,8 @@ final class AIWorkspaceStore: ObservableObject {
     private var modelFed: [UUID: [AIVirtualNodeCandidate]] = [:]
 
     // 模型门控的后台发现(用户:建文件夹是后台行为,模型复核「真能撑起一个主题」才出现,质量优先不保数量):
-    /// 本轮规则候选主题(theme.id → 工作区壳 + 喂模型的候选集);未复核的逐个排队后台复核。
-    private var pendingCandidates: [String: (ws: AIWorkspace, fed: [AIVirtualNodeCandidate])] = [:]
+    /// 本轮规则候选主题(theme.id → 工作区壳 + 喂模型的候选集 + 规则簇成员 ref);未复核的逐个排队后台复核。
+    private var pendingCandidates: [String: (ws: AIWorkspace, fed: [AIVirtualNodeCandidate], ruleRefs: Set<AIContextSourceRef>)] = [:]
     /// 复核结论(theme.id → 是否值得出现 + 模型标题 + plan + 选定成员)。本会话缓存,不重复复核同一主题。
     private var themeVerdicts: [String: ReviewVerdict] = [:]
     private var reviewInFlight: Set<String> = []
@@ -164,13 +164,14 @@ final class AIWorkspaceStore: ObservableObject {
 
         // 模型就绪:**建文件夹是后台行为** —— 规则候选先不发布,逐个让模型复核「真能撑起一个主题」才出现(质量优先、
         // 不保数量)。复核同时产出名字 / 选成员 / 分组 → 缓存,打开秒开。
-        var pending: [String: (ws: AIWorkspace, fed: [AIVirtualNodeCandidate])] = [:]
+        var pending: [String: (ws: AIWorkspace, fed: [AIVirtualNodeCandidate], ruleRefs: Set<AIContextSourceRef>)] = [:]
         for theme in output.themes {
             let ws = theme.toRecommendedWorkspace(generatedAt: now)
             let refSet = Set(theme.sourceRefs)
             let members = pool.filter { !$0.sourceRefs.isEmpty && $0.sourceRefs.allSatisfy { refSet.contains($0) } }
             guard members.count >= 2 else { continue }
-            pending[theme.id] = (ws, members + themeRelevantExtra(ws: ws, members: members, cap: 30))
+            pending[theme.id] = (ws, members + themeRelevantExtra(ws: ws, members: members, cap: 30),
+                                 Set(members.flatMap(\.sourceRefs)))
         }
         pendingCandidates = pending
         themeVerdicts = themeVerdicts.filter { pending[$0.key] != nil }   // 不在本轮的旧结论清掉
@@ -201,26 +202,40 @@ final class AIWorkspaceStore: ObservableObject {
         }
     }
 
-    /// 把已复核通过的候选发布成可见推荐工作区(模型标题 + 成员),数量上限走设置;复核时算好的 plan 一并缓存 → 秒开。
+    /// 把候选发布成可见推荐工作区。已复核通过的用模型标题 + 成员 + 缓存 plan(秒开);**还没复核但本来就可见的**
+    /// 暂留(规则成员,显示「自动整理」)→ 避免启动 / 重扫时已有文件夹先消失再冒出来的闪烁;复核判否的移除。
+    /// 数量上限走设置。
     private func republishReviewedThemes() {
-        var approved: [(ws: AIWorkspace, verdict: ReviewVerdict)] = []
+        var workspaces: [AIWorkspace] = []
+        var memberRefs: [UUID: Set<AIContextSourceRef>] = [:]
+        var toCachePlan: [(UUID, ReviewVerdict)] = []
         for (id, c) in pendingCandidates {
-            guard let v = themeVerdicts[id], v.approved, !v.members.isEmpty else { continue }
-            var ws = c.ws
-            if let title = v.title, !title.isEmpty { ws.title = title }
-            approved.append((ws, v))
+            if let v = themeVerdicts[id] {
+                guard v.approved, !v.members.isEmpty else { continue }   // 复核判否 → 不发布
+                var ws = c.ws
+                if let title = v.title, !title.isEmpty { ws.title = title }
+                workspaces.append(ws)
+                memberRefs[ws.id] = v.memberRefs
+                toCachePlan.append((ws.id, v))
+            } else if let existing = collection.workspace(c.ws.id) {
+                // 还没复核但本来就在侧栏 → 暂留**已有的工作区**(保上次的模型标题,不 revert 成 titleSeed),
+                // 用规则成员 + 确定性树,复核回来再升级;不闪。
+                workspaces.append(existing)
+                memberRefs[existing.id] = c.ruleRefs
+            }
         }
-        let capped = Array(approved.sorted { $0.ws.relevanceScore > $1.ws.relevanceScore }
+        let capped = Array(workspaces.sorted { $0.relevanceScore > $1.relevanceScore }
             .prefix(AppPreferences.aiMaxRecommendedWorkspaces))
-        let next = collection.replacingRecommended(capped.map(\.ws))
-        memberRefsByWorkspace = Dictionary(uniqueKeysWithValues: capped.map { ($0.ws.id, $0.verdict.memberRefs) })
+        let keptIDs = Set(capped.map(\.id))
+        let next = collection.replacingRecommended(capped)
+        memberRefsByWorkspace = memberRefs.filter { keptIDs.contains($0.key) }
         if next != collection { collection = next }
-        for item in capped {   // 缓存复核产出的 plan + fed → 打开不再重跑模型
-            let sig = item.verdict.members.map(\.id).sorted().joined(separator: ",")
-            modelPlanSignatures[item.ws.id] = sig
-            modelPlans[item.ws.id] = (sig, item.verdict.plan)
-            modelFed[item.ws.id] = item.verdict.members
-            treeCache[item.ws.id] = nil
+        for (wsID, v) in toCachePlan where keptIDs.contains(wsID) {   // 缓存复核产出的 plan → 打开不再重跑模型
+            let sig = v.members.map(\.id).sorted().joined(separator: ",")
+            modelPlanSignatures[wsID] = sig
+            modelPlans[wsID] = (sig, v.plan)
+            modelFed[wsID] = v.members
+            treeCache[wsID] = nil
         }
         persist()
     }
