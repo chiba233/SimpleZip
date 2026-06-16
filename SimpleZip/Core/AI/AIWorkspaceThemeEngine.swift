@@ -78,23 +78,48 @@ nonisolated enum AIWorkspaceThemeEngine {
         attention: AIAttentionContext = AIAttentionContext(),
         now: Date,
         minClusterSize: Int = 2,
-        tokenOverlapThreshold: Double = 0.34
+        tokenOverlapThreshold: Double = 0.34,
+        maxTokenBucket: Int = 80
     ) -> [AIWorkspaceThemeCandidate] {
         guard pool.count >= minClusterSize else { return [] }
         let items = pool.map { Indexed(candidate: $0, tokens: linkTokens(for: $0)) }
+        let n = items.count
 
-        // 并查集:按语义边连通(与遍历序无关 → 划分确定性)。
-        var uf = UnionFind(items.count)
-        for i in 0..<items.count {
-            for j in (i + 1)..<items.count where linked(items[i], items[j], threshold: tokenOverlapThreshold) {
-                uf.union(i, j)
+        // 并查集 + **倒排索引**(取代全量 O(n²) pair 比较 —— n=2000 时旧实现约 200 万次比较,开窗必卡)。
+        // 划分由「union 边集合」决定,与遍历序无关 → 仍然确定性。
+        var uf = UnionFind(n)
+
+        // ②/③ 强关系(共享 relatedTaskID / relatedArchiveID):不需要 Jaccard,同 key 桶星型直接 union(O(成员数))。
+        unionByKey(&uf, items: items) { Set($0.candidate.relatedTaskIDs.filter { !$0.isEmpty }) }
+        unionByKey(&uf, items: items) { Set($0.candidate.relatedArchiveIDs.filter { !$0.isEmpty }) }
+
+        // ① 名字 token / CJK 2-gram 倒排桶 → 只在**共享 token / gram** 的候选间产生 pair,每对算一次 Jaccard / 子串。
+        //    高频桶(> maxTokenBucket,如 release/backup/test 出现在几百个文件)只作排序信号、**不作连通边**,
+        //    避免制造巨量 pair(用户点名的复杂度根因)。CJK 子串("论文"⊂"论文修订")改 2-gram 召回,不再两两扫。
+        var buckets: [String: [Int]] = [:]
+        for (i, item) in items.enumerated() {
+            for t in item.tokens { buckets[t, default: []].append(i) }
+            for g in cjkBigrams(item.tokens) { buckets[cjkGramPrefix + g, default: []].append(i) }
+        }
+        var evaluated = Set<Int>()   // pair key = lo*n + hi(lo<hi);跨桶去重,失败 pair 不重复算 Jaccard
+        // 桶按 key 排序遍历 → pair 评估顺序确定(便于推理;最终划分本就与序无关)。
+        for key in buckets.keys.sorted() {
+            guard let bucket = buckets[key], bucket.count <= maxTokenBucket else { continue }
+            for a in 0..<bucket.count {
+                for b in (a + 1)..<bucket.count {
+                    let lo = min(bucket[a], bucket[b]), hi = max(bucket[a], bucket[b])
+                    let pairKey = lo * n + hi
+                    guard evaluated.insert(pairKey).inserted else { continue }
+                    guard uf.find(lo) != uf.find(hi) else { continue }   // 已连通,免算
+                    if linked(items[lo], items[hi], threshold: tokenOverlapThreshold) { uf.union(lo, hi) }
+                }
             }
         }
 
         // 收集连通分量(成员保持原序 → 确定性)。
         var clusters: [Int: [Indexed]] = [:]
         var order: [Int] = []
-        for i in 0..<items.count {
+        for i in 0..<n {
             let root = uf.find(i)
             if clusters[root] == nil { order.append(root) }
             clusters[root, default: []].append(items[i])
@@ -107,6 +132,30 @@ nonisolated enum AIWorkspaceThemeEngine {
         }
         return AIWorkspaceCandidateRanker.rankThemes(themes)
     }
+
+    /// 强关系倒排:把所有共享同一 key 的候选星型 union(每 key 与桶内首个 union)。O(总成员数),非 O(n²)。
+    private static func unionByKey(_ uf: inout UnionFind, items: [Indexed], key: (Indexed) -> Set<String>) {
+        var first: [String: Int] = [:]
+        for (i, item) in items.enumerated() {
+            for k in key(item) {
+                if let f = first[k] { uf.union(f, i) } else { first[k] = i }
+            }
+        }
+    }
+
+    /// CJK token(len≥2)的相邻 2-gram(「论文修订」→「论文」「文修」「修订」)。共享 gram 才进 pair → 召回子串关系
+    /// 而不必两两全扫。
+    private static func cjkBigrams(_ tokens: Set<String>) -> [String] {
+        var grams: [String] = []
+        for t in tokens where t.count >= 2 && containsCJK(t) {
+            let chars = Array(t)
+            for k in 0..<(chars.count - 1) { grams.append(String(chars[k...(k + 1)])) }
+        }
+        return grams
+    }
+
+    /// CJK gram 桶前缀(与普通 token 桶隔离,避免 2-gram 撞上同名整 token)。
+    private static let cjkGramPrefix = "\u{1}g:"
 
     // MARK: - 聚类边
 

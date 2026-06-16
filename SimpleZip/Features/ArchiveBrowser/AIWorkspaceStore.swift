@@ -31,6 +31,8 @@ final class AIWorkspaceStore: ObservableObject {
     private var memberRefsByWorkspace: [UUID: Set<AIContextSourceRef>] = [:]
     private var pathsBySourceRef: [AIContextSourceRef: String] = [:]
     private var treeCache: [UUID: AIVirtualFolderTree] = [:]
+    /// 每轮发现自增;off-main 聚类回来时只认最新一轮(丢弃过期结果)。
+    private var refreshGeneration = 0
 
     private let defaults: UserDefaults
     private static let storageKey = "SimpleZip.ai.workspaces.v1"
@@ -64,19 +66,48 @@ final class AIWorkspaceStore: ObservableObject {
         pathsBySourceRef: [AIContextSourceRef: String] = [:],
         now: Date = Date()
     ) {
-        self.pool = AIWorkspaceDiscovery.assemblePool(files: files, tasks: tasks)
-        self.pathsBySourceRef = pathsBySourceRef
-        self.treeCache = [:]   // 候选池变 → 树缓存失效
+        refreshGeneration += 1
+        let generation = refreshGeneration
+        // 候选池在主线程组装(O(n) 廉价);随结果一起原子安装,保证 pool / memberRefs / themes 三者一致。
+        let pool = AIWorkspaceDiscovery.assemblePool(files: files, tasks: tasks)
 
         guard AppPreferences.aiAssistantEnabled, AppPreferences.aiSidebarShowRecommended else {
-            persist(); return
+            // 关推荐:就地清掉 recommended + 缓存,留住用户工作区(不必跑发现)。
+            self.pool = pool
+            self.pathsBySourceRef = pathsBySourceRef
+            self.treeCache = [:]
+            let next = collection.replacingRecommended([])
+            if next != collection { collection = next }
+            self.memberRefsByWorkspace = memberRefsByWorkspace.filter {
+                collection.workspace($0.key)?.origin == .userCreated
+            }
+            persist()
+            return
         }
 
-        // 数量上限走设置(用户:系统自动生成别一次冒一堆,默认 4)。
         let policy = AIRecommendationPolicy(maxThemes: AppPreferences.aiMaxRecommendedWorkspaces)
-        let out = AIWorkspaceDiscovery.discover(
-            files: files, tasks: tasks, attention: attention, suppression: suppression, now: now, policy: policy)
-        let recs = out.themes.map { (ws: $0.toRecommendedWorkspace(generatedAt: now), refs: Set($0.sourceRefs)) }
+        let suppression = self.suppression
+        // **重活(跨位置语义聚类)挪出 MainActor** —— 开窗首帧不被 AI 发现拖住(用户实测卡;倒排索引已降复杂度,
+        // 但聚类仍不该占主线程)。纯 Core(Sendable)→ Task.detached,回主线程原子安装。
+        Task.detached(priority: .utility) { [files, tasks, attention, suppression, policy, pool, pathsBySourceRef, now] in
+            let out = AIWorkspaceDiscovery.discover(
+                files: files, tasks: tasks, attention: attention, suppression: suppression, now: now, policy: policy)
+            await MainActor.run {
+                self.applyDiscovery(generation: generation, pool: pool,
+                                    paths: pathsBySourceRef, output: out, now: now)
+            }
+        }
+    }
+
+    /// off-main 聚类回主线程:只认最新一轮(过期结果丢弃),原子安装 pool + 成员引用 + 推荐工作区。
+    private func applyDiscovery(generation: Int, pool: [AIVirtualNodeCandidate],
+                               paths: [AIContextSourceRef: String],
+                               output: AIWorkspaceDiscovery.Output, now: Date) {
+        guard generation == refreshGeneration else { return }   // 期间又发起了新一轮 → 丢弃这次
+        self.pool = pool
+        self.pathsBySourceRef = paths
+        self.treeCache = [:]   // 候选池变 → 树缓存失效
+        let recs = output.themes.map { (ws: $0.toRecommendedWorkspace(generatedAt: now), refs: Set($0.sourceRefs)) }
         // **整体替换**旧推荐(非累积)→ 消除幽灵空工作区;memberRefs 只留本轮的。
         let next = collection.replacingRecommended(recs.map(\.ws))
         self.memberRefsByWorkspace = Dictionary(uniqueKeysWithValues: recs.map { ($0.ws.id, $0.refs) })

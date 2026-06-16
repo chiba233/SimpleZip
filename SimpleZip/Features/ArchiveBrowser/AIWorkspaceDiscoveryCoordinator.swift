@@ -20,8 +20,10 @@ final class AIWorkspaceDiscoveryCoordinator {
     private var cancellable: AnyCancellable?
     private var refreshTask: Task<Void, Never>?
     private var activated = false
-    private static let startupFileCandidateLimit = 400
-    private static let startupTaskCandidateLimit = 120
+    // 候选池上限(安全阀,非性能止血):聚类已改倒排索引 + 挪出 MainActor(`AIWorkspaceThemeEngine` /
+    // `AIWorkspaceStore.refreshRecommendations`),故可放宽到覆盖更多文件以保留推荐质量。
+    private static let startupFileCandidateLimit = 2000
+    private static let startupTaskCandidateLimit = 400
 
     /// 启动后台发现。订阅活动任务历史**数量变化**(去重 → 避开进度刷新风暴)→ 排队重跑发现;`@Published` 在订阅时
     /// 即推送当前值,故首轮发现会被排队触发。重复调用安全(已激活则只补排一轮)。顺带 kick 一轮 opt-in 文件预索引

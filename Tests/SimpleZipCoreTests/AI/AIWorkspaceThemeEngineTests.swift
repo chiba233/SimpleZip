@@ -150,4 +150,47 @@ import Testing
         #expect(AIWorkspaceThemeEngine.discoverThemes(from: [], now: now).isEmpty)
         #expect(AIWorkspaceThemeEngine.discoverThemes(from: [cand("a", name: "x.txt")], now: now).isEmpty)
     }
+
+    // MARK: - 倒排索引(性能修法):行为不变 + 高频桶封顶
+
+    @Test func highFrequencyTokenDoesNotConnectEverything() {
+        // 200 个文件都含同一高频 token「backup」,但彼此再无其它关联。高频桶(>80)被降为排序信号、**不连边**,
+        // 不会被错误聚成一个 200 件的巨型主题(用户点名 release/backup/test 这类会制造巨量 pair)。
+        let pool = (0..<200).map { i in cand("hf\(i)", name: "backup-\(unique(i)).bin", role: "binary") }
+        let themes = AIWorkspaceThemeEngine.discoverThemes(from: pool, now: now)
+        #expect(themes.allSatisfy { $0.sourceRefs.count < 80 })   // 不存在巨簇
+    }
+
+    @Test func invertedIndexResultIsOrderIndependent() {
+        // 同一批候选,无论投喂顺序,划分必须一致(倒排索引 + 并查集仍确定性)。
+        // 名字让共享 token 占主导(Jaccard ≥ 0.34;一边收敛到仅共享 token → J=1/2)。
+        let base = [
+            cand("a", name: "thesis.docx", at: .desktop),
+            cand("b", name: "thesis-method.pdf", at: .downloads),
+            cand("c", name: "budget.xlsx", at: .documents, role: "spreadsheet"),
+            cand("d", name: "budget-summary.xlsx", at: .desktop, role: "spreadsheet"),
+            cand("e", name: "vacation.jpg", role: "image"),
+            cand("f", name: "论文初稿.docx", at: .desktop),
+            cand("g", name: "论文初稿修订.pdf", at: .downloads)
+        ]
+        func signature(_ pool: [AIVirtualNodeCandidate]) -> [[String]] {
+            AIWorkspaceThemeEngine.discoverThemes(from: pool, now: now)
+                .map { $0.sourceRefs.map(\.id).sorted() }.sorted { ($0.first ?? "") < ($1.first ?? "") }
+        }
+        let sig = signature(base)
+        #expect(sig == signature(base.reversed()))
+        // thesis / budget / 论文 各自成簇;vacation 落单不成主题。
+        #expect(sig.contains(["ref-a", "ref-b"]))
+        #expect(sig.contains(["ref-c", "ref-d"]))
+        #expect(sig.contains(["ref-f", "ref-g"]))
+        #expect(!sig.contains { $0.contains("ref-e") })
+    }
+
+    /// 互不重叠的字母后缀(避免共享 token);只用来制造唯一名字。
+    private func unique(_ i: Int) -> String {
+        let letters = Array("qzxwkjvbnm")
+        var n = i, s = ""
+        repeat { s.append(letters[n % letters.count]); n /= letters.count } while n > 0
+        return s
+    }
 }
