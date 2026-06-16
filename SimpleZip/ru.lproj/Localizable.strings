@@ -151,7 +151,7 @@
 "location.aiSuggestions" = "Подсказки ИИ";
 "aiFolder.needsAttention" = "Требует внимания";
 "aiFolder.needsAttention.subtitle" = "Недавно завершившиеся сбоем задачи, которые стоит просмотреть ещё раз.";
-"aiFolder.noSuggestions" = "Ничего не требует вашего внимания";
+"aiFolder.noSuggestions" = "Здесь пока нечего показать";
 "aiFolder.openInActivity" = "Открыть в Центре активности";
 "aiFolder.openArchive" = "Открыть";
 "aiFolder.archiveEntryCount" = "%d элементов";
@@ -2566,3 +2566,5 @@
 "settings.ai.background.clearIndex.desc" = "Очистить фоновый индекс файлов. Удаляются только производные метаданные; ваши настоящие файлы не затрагиваются.";
 "settings.ai.background.clearIndex.button" = "Очистить индекс";
 "settings.ai.background.browse" = "Обзор…";
+"settings.ai.background.maxRecommended" = "Максимум авто-созданных папок";
+"settings.ai.background.maxRecommended.desc" = "Сколько Папок ИИ фоновое обнаружение может создавать автоматически. Закреплённые или созданные вами не считаются.";

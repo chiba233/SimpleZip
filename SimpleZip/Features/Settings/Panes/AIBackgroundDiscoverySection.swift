@@ -18,6 +18,7 @@ struct AIBackgroundDiscoverySection: View {
     @AppStorage(AppPreferences.Key.aiAllowFolderPreindex) private var folderPreindex = false
     @AppStorage(AppPreferences.Key.aiSidebarShowRecommended) private var showRecommended = true
     @State private var activityLevel = AppPreferences.aiBackgroundActivityLevel
+    @State private var maxRecommended = AppPreferences.aiMaxRecommendedWorkspaces
     @State private var showingAddOptions = false
 
     var body: some View {
@@ -60,6 +61,22 @@ struct AIBackgroundDiscoverySection: View {
                     systemImage: "sparkles.rectangle.stack", iconTint: .purple,
                     isOn: $showRecommended
                 )
+
+                // 系统自动生成的推荐数量上限(用户:别一次冒一堆)。
+                SettingsControlRow(
+                    title: L10n.text("settings.ai.background.maxRecommended"),
+                    description: L10n.text("settings.ai.background.maxRecommended.desc"),
+                    systemImage: "number.square", iconTint: .purple
+                ) {
+                    Stepper(value: $maxRecommended, in: 1...8) {
+                        Text("\(maxRecommended)").monospacedDigit()
+                    }
+                    .fixedSize()
+                    .onChange(of: maxRecommended) { v in
+                        AppPreferences.aiMaxRecommendedWorkspaces = v
+                        AIWorkspaceDiscoveryCoordinator.shared.refresh()   // 立即按新上限重算
+                    }
+                }
             }
             .settingsAnchor("ai.background")
 

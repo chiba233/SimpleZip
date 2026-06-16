@@ -151,7 +151,7 @@
 "location.aiSuggestions" = "AI の提案";
 "aiFolder.needsAttention" = "要確認";
 "aiFolder.needsAttention.subtitle" = "最近失敗したタスクで、再確認が必要な可能性があります。";
-"aiFolder.noSuggestions" = "確認が必要な項目はありません";
+"aiFolder.noSuggestions" = "ここにはまだ何もありません";
 "aiFolder.openInActivity" = "アクティビティセンターで開く";
 "aiFolder.openArchive" = "開く";
 "aiFolder.archiveEntryCount" = "%d 項目";
@@ -2568,3 +2568,5 @@
 "settings.ai.background.clearIndex.desc" = "バックグラウンドのファイルインデックスを消去します。派生メタデータのみを削除し、実際のファイルには触れません。";
 "settings.ai.background.clearIndex.button" = "インデックスを消去";
 "settings.ai.background.browse" = "参照…";
+"settings.ai.background.maxRecommended" = "自動生成フォルダの上限";
+"settings.ai.background.maxRecommended.desc" = "バックグラウンド発見が自動で作成できる AI フォルダの数。固定したものや自分で作成したものは含みません。";

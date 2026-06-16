@@ -1597,7 +1597,7 @@
 "location.aiSuggestions" = "AI 建议";
 "aiFolder.needsAttention" = "需要处理";
 "aiFolder.needsAttention.subtitle" = "最近失败、可能需要再看一眼的任务。";
-"aiFolder.noSuggestions" = "暂时没有需要处理的";
+"aiFolder.noSuggestions" = "这里暂时没有内容";
 "aiFolder.openInActivity" = "在活动中心打开";
 "aiFolder.openArchive" = "打开";
 "aiFolder.archiveEntryCount" = "%d 个条目";
@@ -2645,3 +2645,5 @@
 "settings.ai.background.clearIndex.desc" = "清空后台文件索引。只清除派生的元数据 —— 你的真实文件不受影响。";
 "settings.ai.background.clearIndex.button" = "清空索引";
 "settings.ai.background.browse" = "浏览…";
+"settings.ai.background.maxRecommended" = "自动生成的文件夹上限";
+"settings.ai.background.maxRecommended.desc" = "后台发现最多自动生成几个 AI 文件夹。你固定或自己创建的不计入。";

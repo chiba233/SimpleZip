@@ -346,6 +346,8 @@ enum AppPreferences {
         /// 0.4.5 #89:侧边栏是否显示后台发现的推荐 AI 工作区(白皮书 4513「允许侧边栏显示推荐工作区」)。
         /// 关闭后只显示用户创建的 AI 工作区。默认 true。
         nonisolated static let aiSidebarShowRecommended = "aiSidebarShowRecommended"
+        /// 0.4.5 #89:侧边栏**系统自动生成**的推荐 AI 工作区数量上限(用户:别一次冒一堆)。默认 4,范围 1–8。
+        nonisolated static let aiMaxRecommendedWorkspaces = "aiMaxRecommendedWorkspaces"
         /// 0.4.5 #89:后台本地 AI 活跃度(白皮书 4508)。off / power-saver / balanced / aggressive。
         /// **默认 off —— 后台预读/预索引完全 opt-in,不开则不扫任何目录。**
         nonisolated static let aiBackgroundActivityLevel = "aiBackgroundActivityLevel"
@@ -431,6 +433,15 @@ enum AppPreferences {
     /// 0.4.5 #89:侧边栏显示后台发现的推荐 AI 工作区(白皮书 4513)。默认 true。
     nonisolated static var aiSidebarShowRecommended: Bool {
         defaultTrueBool(forKey: Key.aiSidebarShowRecommended)
+    }
+
+    /// 0.4.5 #89:系统自动生成的推荐 AI 工作区数量上限。默认 4,范围 1–8。
+    nonisolated static var aiMaxRecommendedWorkspaces: Int {
+        get {
+            guard defaults.object(forKey: Key.aiMaxRecommendedWorkspaces) != nil else { return 4 }
+            return min(max(defaults.integer(forKey: Key.aiMaxRecommendedWorkspaces), 1), 8)
+        }
+        set { defaults.set(min(max(newValue, 1), 8), forKey: Key.aiMaxRecommendedWorkspaces) }
     }
 
     /// 0.4.5 #89:后台本地 AI 活跃度(白皮书 4508)。**默认 off —— opt-in,不开则后台完全不扫。**
@@ -1040,6 +1051,7 @@ enum AppPreferences {
         Key.spotlightIndexingEnabled,
         Key.aiAssistantEnabled,
         Key.aiSidebarShowRecommended,
+        Key.aiMaxRecommendedWorkspaces,
         Key.aiBackgroundActivityLevel,
         Key.aiAllowArchivePrefetch,
         Key.aiAllowFolderPreindex,
@@ -1156,6 +1168,7 @@ enum AppPreferences {
         v[Key.spotlightIndexingEnabled] = spotlightIndexingEnabled
         v[Key.aiAssistantEnabled] = aiAssistantEnabled
         v[Key.aiSidebarShowRecommended] = aiSidebarShowRecommended
+        v[Key.aiMaxRecommendedWorkspaces] = aiMaxRecommendedWorkspaces
         v[Key.aiBackgroundActivityLevel] = aiBackgroundActivityLevel.rawValue
         v[Key.aiAllowArchivePrefetch] = aiAllowArchivePrefetch
         v[Key.aiAllowFolderPreindex] = aiAllowFolderPreindex

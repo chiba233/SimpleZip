@@ -1599,7 +1599,7 @@
 "location.aiSuggestions" = "AI Suggestions";
 "aiFolder.needsAttention" = "Needs Attention";
 "aiFolder.needsAttention.subtitle" = "Recently failed tasks that may need another look.";
-"aiFolder.noSuggestions" = "Nothing needs your attention";
+"aiFolder.noSuggestions" = "Nothing to show here yet";
 "aiFolder.openInActivity" = "Open in Activity Center";
 "aiFolder.openArchive" = "Open";
 "aiFolder.archiveEntryCount" = "%d items";
@@ -2645,3 +2645,5 @@
 "settings.ai.background.clearIndex.desc" = "Clear the background file index. Removes derived metadata only — your real files are untouched.";
 "settings.ai.background.clearIndex.button" = "Clear Index";
 "settings.ai.background.browse" = "Browse…";
+"settings.ai.background.maxRecommended" = "Maximum auto-created folders";
+"settings.ai.background.maxRecommended.desc" = "How many AI Folders background discovery may create automatically. Folders you pin or create yourself don’t count.";

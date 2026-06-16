@@ -170,6 +170,34 @@ import Testing
         #expect(c.renaming(w.id, to: "   ").workspace(w.id)?.title == "New")
     }
 
+    @Test func replacingRecommendedDropsStaleNonPinned() {
+        // 用户痛点修复:刷新整体替换推荐 → 陈旧非固定推荐不再累积成「一堆幽灵」。
+        let user = ws("u", .userCreated)
+        let pinnedRec = ws("p", .recommended, pinned: true)
+        let staleRec = ws("s", .recommended)        // 非固定、本轮不再出现 → 应丢
+        let fresh = ws("f", .recommended)            // 本轮新推荐
+        let next = AIWorkspaceCollection([user, pinnedRec, staleRec]).replacingRecommended([fresh])
+        let ids = Set(next.workspaces.map(\.id))
+        #expect(ids.contains(user.id))               // 用户工作区保留
+        #expect(ids.contains(pinnedRec.id))          // 固定推荐保留(即使本轮没出现)
+        #expect(!ids.contains(staleRec.id))          // 陈旧非固定 → 丢
+        #expect(ids.contains(fresh.id))              // 新推荐加入
+    }
+
+    @Test func replacingRecommendedMergesPinAndOpenCount() {
+        let existing = AIWorkspace(id: id1, origin: .recommended, title: "old",
+                                   queryPlan: AIWorkspaceQueryPlan(taskTags: []), iconSystemName: "x",
+                                   pinned: true, generatedAt: Date(timeIntervalSince1970: 0),
+                                   lastOpenedAt: Date(timeIntervalSince1970: 5), openCount: 7)
+        let fresh = AIWorkspace(id: id1, origin: .recommended, title: "new",
+                                queryPlan: AIWorkspaceQueryPlan(taskTags: []), iconSystemName: "x",
+                                generatedAt: Date(timeIntervalSince1970: 10))
+        let got = AIWorkspaceCollection([existing]).replacingRecommended([fresh]).workspace(id1)
+        #expect(got?.pinned == true)                 // 合并旧 pin
+        #expect(got?.openCount == 7)                 // 合并旧频率
+        #expect(got?.title == "new")                 // 用新标题
+    }
+
     @Test func upsertReplacesByID() {
         let w = ws("w", .userCreated, title: "A")
         let c = AIWorkspaceCollection([w]).upserting(ws("w", .userCreated, title: "B"))

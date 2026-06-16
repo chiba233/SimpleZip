@@ -151,7 +151,7 @@
 "location.aiSuggestions" = "KI-Vorschläge";
 "aiFolder.needsAttention" = "Benötigt Aufmerksamkeit";
 "aiFolder.needsAttention.subtitle" = "Kürzlich fehlgeschlagene Aufgaben, die möglicherweise noch einmal überprüft werden sollten.";
-"aiFolder.noSuggestions" = "Nichts erfordert Ihre Aufmerksamkeit";
+"aiFolder.noSuggestions" = "Hier ist noch nichts zu sehen";
 "aiFolder.openInActivity" = "Im Aktivitätscenter öffnen";
 "aiFolder.openArchive" = "Öffnen";
 "aiFolder.archiveEntryCount" = "%d Objekte";
@@ -2566,3 +2566,5 @@
 "settings.ai.background.clearIndex.desc" = "Löscht den Hintergrund-Dateiindex. Entfernt nur abgeleitete Metadaten – deine echten Dateien bleiben unberührt.";
 "settings.ai.background.clearIndex.button" = "Index löschen";
 "settings.ai.background.browse" = "Durchsuchen…";
+"settings.ai.background.maxRecommended" = "Maximal automatisch erstellte Ordner";
+"settings.ai.background.maxRecommended.desc" = "Wie viele KI-Ordner die Hintergrunderkennung automatisch erstellen darf. Angeheftete oder selbst erstellte Ordner zählen nicht.";

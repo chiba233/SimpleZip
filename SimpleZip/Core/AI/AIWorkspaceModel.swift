@@ -407,6 +407,23 @@ nonisolated struct AIWorkspaceCollection: Codable, Equatable, Sendable {
         return AIWorkspaceCollection(copy)
     }
 
+    /// 用新一轮发现的推荐工作区**整体替换**旧推荐(非累积)——消除「刷新只加不减 → 一堆幽灵空工作区」。
+    /// 保留:非推荐(用户创建 / 系统)+ 用户**固定**的推荐(即使本轮没再出现,固定 = 用户要留着);新推荐里同 id
+    /// 的合并旧的 pin / 最近打开 / 频率。被替换掉的非固定旧推荐直接消失(它们本就是动态候选)。
+    func replacingRecommended(_ newRecommended: [AIWorkspace]) -> AIWorkspaceCollection {
+        let newIDs = Set(newRecommended.map(\.id))
+        let merged = newRecommended.map { ws -> AIWorkspace in
+            guard let old = workspace(ws.id) else { return ws }
+            var m = ws
+            m.pinned = old.pinned
+            m.lastOpenedAt = old.lastOpenedAt
+            m.openCount = old.openCount
+            return m
+        }
+        let kept = workspaces.filter { $0.origin != .recommended || ($0.pinned && !newIDs.contains($0.id)) }
+        return AIWorkspaceCollection(kept + merged)
+    }
+
     /// 「不感兴趣」:**仅推荐工作区** → dismissed + 负反馈计数 +1。系统 / 用户工作区不可 dismiss(改 hide / delete)。
     func dismissing(_ id: UUID) -> AIWorkspaceCollection {
         mapping(id) { ws in

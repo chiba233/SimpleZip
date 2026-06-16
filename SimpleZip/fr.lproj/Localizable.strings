@@ -151,7 +151,7 @@
 "location.aiSuggestions" = "Suggestions IA";
 "aiFolder.needsAttention" = "À examiner";
 "aiFolder.needsAttention.subtitle" = "Tâches récemment échouées qui méritent peut-être un second coup d’œil.";
-"aiFolder.noSuggestions" = "Rien ne requiert votre attention";
+"aiFolder.noSuggestions" = "Rien à afficher ici pour l’instant";
 "aiFolder.openInActivity" = "Ouvrir dans le Centre d’activité";
 "aiFolder.openArchive" = "Ouvrir";
 "aiFolder.archiveEntryCount" = "%d éléments";
@@ -2564,3 +2564,5 @@
 "settings.ai.background.clearIndex.desc" = "Efface l'index de fichiers en arrière-plan. Supprime uniquement les métadonnées dérivées ; vos fichiers réels ne sont pas touchés.";
 "settings.ai.background.clearIndex.button" = "Effacer l'index";
 "settings.ai.background.browse" = "Parcourir…";
+"settings.ai.background.maxRecommended" = "Maximum de dossiers créés automatiquement";
+"settings.ai.background.maxRecommended.desc" = "Combien de Dossiers IA la découverte en arrière-plan peut créer automatiquement. Ceux que vous épinglez ou créez ne comptent pas.";

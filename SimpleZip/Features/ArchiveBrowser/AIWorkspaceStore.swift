@@ -72,22 +72,14 @@ final class AIWorkspaceStore: ObservableObject {
             persist(); return
         }
 
+        // 数量上限走设置(用户:系统自动生成别一次冒一堆,默认 4)。
+        let policy = AIRecommendationPolicy(maxThemes: AppPreferences.aiMaxRecommendedWorkspaces)
         let out = AIWorkspaceDiscovery.discover(
-            files: files, tasks: tasks, attention: attention, suppression: suppression, now: now)
-        var next = collection
-        var memberRefs: [UUID: Set<AIContextSourceRef>] = [:]
-        for theme in out.themes {
-            let fresh = theme.toRecommendedWorkspace(generatedAt: now)
-            var merged = fresh
-            // 保留用户对该推荐的覆盖(固定 / 最近打开);visibility 回 .visible(衰减后重新浮现 = 正确)。
-            if let existing = next.workspace(fresh.id) {
-                merged.pinned = existing.pinned
-                merged.lastOpenedAt = existing.lastOpenedAt
-            }
-            next = next.upserting(merged)
-            memberRefs[fresh.id] = Set(theme.sourceRefs)
-        }
-        self.memberRefsByWorkspace = memberRefs
+            files: files, tasks: tasks, attention: attention, suppression: suppression, now: now, policy: policy)
+        let recs = out.themes.map { (ws: $0.toRecommendedWorkspace(generatedAt: now), refs: Set($0.sourceRefs)) }
+        // **整体替换**旧推荐(非累积)→ 消除幽灵空工作区;memberRefs 只留本轮的。
+        let next = collection.replacingRecommended(recs.map(\.ws))
+        self.memberRefsByWorkspace = Dictionary(uniqueKeysWithValues: recs.map { ($0.ws.id, $0.refs) })
         if next != collection { collection = next }
         persist()
     }

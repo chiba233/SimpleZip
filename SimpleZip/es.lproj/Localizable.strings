@@ -151,7 +151,7 @@
 "location.aiSuggestions" = "Sugerencias de IA";
 "aiFolder.needsAttention" = "Requiere atención";
 "aiFolder.needsAttention.subtitle" = "Tareas que fallaron recientemente y que podrían necesitar otra revisión.";
-"aiFolder.noSuggestions" = "Nada requiere tu atención";
+"aiFolder.noSuggestions" = "Aún no hay nada que mostrar aquí";
 "aiFolder.openInActivity" = "Abrir en el Centro de actividad";
 "aiFolder.openArchive" = "Abrir";
 "aiFolder.archiveEntryCount" = "%d elementos";
@@ -2566,3 +2566,5 @@
 "settings.ai.background.clearIndex.desc" = "Borra el índice de archivos en segundo plano. Solo elimina metadatos derivados; tus archivos reales no se tocan.";
 "settings.ai.background.clearIndex.button" = "Borrar índice";
 "settings.ai.background.browse" = "Examinar…";
+"settings.ai.background.maxRecommended" = "Máximo de carpetas creadas automáticamente";
+"settings.ai.background.maxRecommended.desc" = "Cuántas Carpetas IA puede crear automáticamente el descubrimiento en segundo plano. Las que fijas o creas tú no cuentan.";
