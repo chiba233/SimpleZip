@@ -137,6 +137,30 @@ import Testing
         #expect(ranked.first?.title == "weak")
     }
 
+    @Test func frequentStrongThemeNeedsFiveNegativeSignalsToDemote() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        func workspace(_ id: UUID, title: String, relevance: Double, opens: Int,
+                       dwell: Int, lastOpenedDaysAgo: Double, negatives: Int) -> AIWorkspace {
+            AIWorkspace(id: id, origin: .recommended, title: title,
+                        queryPlan: AIWorkspaceQueryPlan(taskTags: []), iconSystemName: "x",
+                        generatedAt: now,
+                        lastOpenedAt: now.addingTimeInterval(-lastOpenedDaysAgo * 86_400),
+                        negativeFeedbackCount: negatives,
+                        openCount: opens,
+                        relevanceScore: relevance,
+                        totalDwellSeconds: dwell)
+        }
+        let challenger = workspace(id3, title: "new discovery", relevance: 0.65, opens: 1,
+                                   dwell: 90, lastOpenedDaysAgo: 0.8, negatives: 0)
+        let fourNegatives = workspace(id1, title: "frequent strong", relevance: 0.92, opens: 14,
+                                      dwell: 4_200, lastOpenedDaysAgo: 0.5, negatives: 4)
+        let fiveNegatives = workspace(id2, title: "frequent strong", relevance: 0.92, opens: 14,
+                                      dwell: 4_200, lastOpenedDaysAgo: 0.5, negatives: 5)
+
+        #expect(AIWorkspaceRanking.score(fourNegatives, now: now) > AIWorkspaceRanking.score(challenger, now: now))
+        #expect(AIWorkspaceRanking.score(fiveNegatives, now: now) < AIWorkspaceRanking.score(challenger, now: now))
+    }
+
     @Test func dismissOnlyAffectsRecommended() {
         let rec = ws("r", .recommended)
         let sys = ws("s", .system)
