@@ -29,6 +29,9 @@ final class AIWorkspaceStore: ObservableObject {
     private var feedback: AINodeFeedbackLedger
     /// 持久:虚拟结构编辑(分组改名 + 成员移动)。派生树之上套用。
     private var structureEdits: AIWorkspaceStructureEdits
+    /// 持久:每工作区的**用户种子**(标题 / 主题提示词 / 固定 / 排除 / 默认 App)。这是闭环的核心 —— 用户的修改
+    /// (喜欢→pin、不喜欢→exclude、描述/改名→themePrompts、手动加入→pin)都落进种子,**下次召回 / 发现据此更懂你**。
+    private var seeds: [UUID: AIWorkspaceUserSeed]
 
     // 内存(每会话由 refreshRecommendations 重建,不落盘 —— 隐私):
     private var pool: [AIVirtualNodeCandidate] = []
@@ -43,6 +46,7 @@ final class AIWorkspaceStore: ObservableObject {
     private static let suppressionKey = "SimpleZip.ai.themeSuppression.v1"
     private static let feedbackKey = "SimpleZip.ai.nodeFeedback.v1"
     private static let structureKey = "SimpleZip.ai.structureEdits.v1"
+    private static let seedsKey = "SimpleZip.ai.workspaceSeeds.v1"
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -55,6 +59,7 @@ final class AIWorkspaceStore: ObservableObject {
             ?? AINodeFeedbackLedger()
         self.structureEdits = AIWorkspaceStore.decode(AIWorkspaceStructureEdits.self, key: Self.structureKey, from: defaults)
             ?? AIWorkspaceStructureEdits()
+        self.seeds = AIWorkspaceStore.decode([UUID: AIWorkspaceUserSeed].self, key: Self.seedsKey, from: defaults) ?? [:]
         persist()
     }
 
@@ -143,29 +148,68 @@ final class AIWorkspaceStore: ObservableObject {
         return tree
     }
 
-    /// 虚拟分组改名(用户编辑覆盖层;空 → 清回派生标题)。
+    /// 虚拟分组改名(用户编辑覆盖层)+ **把新分组名拆成主题提示词喂进种子**(用户把某组叫「源代码」=
+    /// 这个工作区关心「源代码」,下次召回 / 模型分组据此更懂)。
     func renameGroup(workspaceID: UUID, groupID: UUID, to title: String?) {
         structureEdits = structureEdits.renamingGroup(workspaceID, groupID, to: title)
-        saveStructureEdits(); treeCache[workspaceID] = nil; objectWillChange.send()
+        saveStructureEdits()
+        if let title, !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            mutateSeed(workspaceID) { $0.addingThemePrompt(title, updatedAt: Date()) }
+        }
+        treeCache[workspaceID] = nil; objectWillChange.send()
     }
 
-    /// 把成员(source ref)移进目标虚拟分组(用户编辑覆盖层)。
+    /// 把成员移进目标虚拟分组(用户编辑覆盖层)+ **固定进种子**(用户明确说「这个文件属于这个语义组」=
+    /// 强偏好,比自动聚类权重高 —— pin 住,下次发现不会把它刷掉)。
     func moveNodes(workspaceID: UUID, refs: [AIContextSourceRef], toGroup groupID: UUID) {
         guard !refs.isEmpty else { return }
         structureEdits = structureEdits.assigning(workspaceID, refs, toGroup: groupID)
-        saveStructureEdits(); treeCache[workspaceID] = nil; objectWillChange.send()
+        saveStructureEdits()
+        mutateSeed(workspaceID) { $0.pinning(refs, updatedAt: Date()) }
+        treeCache[workspaceID] = nil; objectWillChange.send()
     }
 
-    /// 召回某工作区的成员候选。推荐工作区按发现时记下的成员 ref(候选的 source refs ⊆ 主题成员集)。
-    /// **剔除被「我不喜欢」移出的成员**(节点级反馈训练边界)。
+    /// 手动把一组成员加入某 AI 工作区(右键文件 / 拖入 → 写种子固定集,不只是临时视图变化)。
+    func addMembers(workspaceID: UUID, refs: [AIContextSourceRef]) {
+        guard !refs.isEmpty else { return }
+        mutateSeed(workspaceID) { $0.pinning(refs, updatedAt: Date()) }
+        objectWillChange.send()
+    }
+
+    /// 召回某工作区的成员候选。**两条来源并集**(闭环关键):
+    ///  ① 推荐工作区:后台发现时记下的成员 ref(候选 refs ⊆ 主题成员集);
+    ///  ② 种子召回:用户固定(喜欢 / 手动加入 / 移动)+ 主题提示词(描述 / 改名)语义命中 —— 让用户工作区不再是空壳、
+    ///     让用户的修改真的改变下次召回到的成员(`AIWorkspaceSeedRecall`)。
+    /// 最后剔除被「我不喜欢 / 从工作区移除」排除的成员(节点反馈 + 种子排除集)。
     private func memberCandidates(for ws: AIWorkspace) -> [AIVirtualNodeCandidate] {
-        guard let refs = memberRefsByWorkspace[ws.id] else { return [] }
-        let disliked = feedback.dislikedRefs(ws.id)
-        return pool.filter {
-            !$0.sourceRefs.isEmpty
-                && $0.sourceRefs.allSatisfy { refs.contains($0) }
-                && (disliked.isEmpty || $0.sourceRefs.allSatisfy { !disliked.contains($0) })
+        var result: [AIVirtualNodeCandidate] = []
+        if ws.origin == .recommended, let refs = memberRefsByWorkspace[ws.id] {
+            result = pool.filter { !$0.sourceRefs.isEmpty && $0.sourceRefs.allSatisfy { refs.contains($0) } }
         }
+        if let seed = seeds[ws.id] {
+            let recalled = AIWorkspaceSeedRecall.members(in: pool, seed: seed)
+            let existing = Set(result.map(\.id))
+            result.append(contentsOf: recalled.filter { !existing.contains($0.id) })
+        }
+        let excluded = feedback.dislikedRefs(ws.id).union(seeds[ws.id]?.excludedSourceRefs ?? [])
+        guard !excluded.isEmpty else { return result }
+        return result.filter { cand in !cand.sourceRefs.contains(where: { excluded.contains($0) }) }
+    }
+
+    // MARK: - 用户种子(闭环:每个修改都喂回种子)
+
+    /// 取或建工作区种子。
+    private func seed(for id: UUID) -> AIWorkspaceUserSeed {
+        seeds[id] ?? AIWorkspaceUserSeed(workspaceID: id, createdAt: Date(), updatedAt: Date())
+    }
+
+    /// 变换种子并持久化 + 失效树缓存(下次召回用新种子)。
+    private func mutateSeed(_ id: UUID, _ transform: (AIWorkspaceUserSeed) -> AIWorkspaceUserSeed) {
+        let next = transform(seed(for: id))
+        guard next != seeds[id] else { return }
+        seeds[id] = next
+        saveSeeds()
+        treeCache[id] = nil
     }
 
     // MARK: - 节点级反馈(我很喜欢 / 我不喜欢)+ 可编辑描述
@@ -175,25 +219,33 @@ final class AIWorkspaceStore: ObservableObject {
         !refs.isEmpty && !feedback.nodeIsLiked(workspaceID, refs: refs)
     }
 
-    /// 「我很喜欢」:确认保留(去角标),正反馈。
+    /// 「我很喜欢」:确认保留(去角标)+ **固定进种子**(正反馈,下次召回更可能留它 / 拉相似的进来)。
     func likeNode(workspaceID: UUID, refs: [AIContextSourceRef]) {
         guard !refs.isEmpty else { return }
         feedback = feedback.liking(workspaceID, refs)
         saveFeedback()
-        objectWillChange.send()   // 角标刷新(feedback 非 @Published)
+        mutateSeed(workspaceID) { $0.pinning(refs, updatedAt: Date()) }
+        objectWillChange.send()
     }
 
-    /// 「我不喜欢」:移出文件夹 + 不再自动加入(负反馈)。失效该树缓存 → 下次重建时剔除。
+    /// 「我不喜欢」:移出文件夹 + **写进种子排除集**(负反馈,下次发现不再自动加入)。
     func dislikeNode(workspaceID: UUID, refs: [AIContextSourceRef]) {
         guard !refs.isEmpty else { return }
         feedback = feedback.disliking(workspaceID, refs)
         saveFeedback()
-        treeCache[workspaceID] = nil
+        mutateSeed(workspaceID) { $0.excluding(refs, updatedAt: Date()) }
         objectWillChange.send()
     }
 
-    /// 设置用户可编辑的文件夹描述(空 → 清回 nil)。
-    func setDescription(_ id: UUID, _ text: String?) { apply { $0.settingDescription(id, text) } }
+    /// 设置用户可编辑的文件夹描述:存展示用 + **拆成主题提示词喂进种子**(「论文实验数据图」→ 召回 token,
+    /// 让描述真的改变这个工作区召回到什么)。
+    func setDescription(_ id: UUID, _ text: String?) {
+        apply { $0.settingDescription(id, text) }
+        if let text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            mutateSeed(id) { $0.addingThemePrompt(text, updatedAt: Date()) }
+            objectWillChange.send()
+        }
+    }
 
     // MARK: - 变换(走 Core 纯逻辑 + 持久化 + 发布)
 
@@ -206,6 +258,12 @@ final class AIWorkspaceStore: ObservableObject {
                              queryPlan: AIWorkspaceQueryPlan(taskTags: []),
                              iconSystemName: "folder.badge.gearshape", generatedAt: Date())
         apply { $0.upserting(ws) }
+        // prompt → 种子主题提示词,这样新工作区一打开就能召回相关成员(不是空壳)。
+        if !trimmed.isEmpty {
+            let now = Date()
+            seeds[id] = AIWorkspaceUserSeed(workspaceID: id, themePrompts: [trimmed], createdAt: now, updatedAt: now)
+            saveSeeds()
+        }
         return id
     }
 
@@ -218,20 +276,31 @@ final class AIWorkspaceStore: ObservableObject {
         treeCache[id] = nil
         feedback = feedback.clearingWorkspace(id); saveFeedback()   // 工作区没了 → 清它的节点反馈
         structureEdits = structureEdits.clearingWorkspace(id); saveStructureEdits()
+        seeds[id] = nil; saveSeeds()
         apply { $0.dismissing(id) }
     }
 
-    /// 「标记为长期 AI 文件夹」:推荐 → 用户工作区(后台发现不再自动刷掉);成员引用沿用本会话快照。
-    func promoteToUser(_ id: UUID) { apply { $0.promotingToUser(id) } }
+    /// 「标记为长期 AI 文件夹」:推荐 → 用户工作区。**把本会话发现的成员固定进种子** —— 否则升成用户工作区后
+    /// 重启就只剩壳(用户工作区不靠后台发现的 memberRefs 召回,靠种子)。
+    func promoteToUser(_ id: UUID) {
+        if let refs = memberRefsByWorkspace[id], !refs.isEmpty {
+            mutateSeed(id) { $0.pinning(Array(refs), updatedAt: Date()) }
+        }
+        apply { $0.promotingToUser(id) }
+    }
     func setPinned(_ id: UUID, _ pinned: Bool) { apply { $0.pinning(id, pinned) } }
     func hide(_ id: UUID) { apply { $0.hiding(id) } }
     func removeUserWorkspace(_ id: UUID) {
         treeCache[id] = nil
         feedback = feedback.clearingWorkspace(id); saveFeedback()
         structureEdits = structureEdits.clearingWorkspace(id); saveStructureEdits()
+        seeds[id] = nil; saveSeeds()
         apply { $0.removingUserWorkspace(id) }
     }
-    func rename(_ id: UUID, to title: String) { apply { $0.renaming(id, to: title) } }
+    func rename(_ id: UUID, to title: String) {
+        apply { $0.renaming(id, to: title) }
+        mutateSeed(id) { $0.settingTitle(title, updatedAt: Date()) }   // 标题也进种子(模型再生成时沿用)
+    }
     func markOpened(_ id: UUID) { apply { $0.markingOpened(id, at: Date()) } }
 
     private func apply(_ transform: (AIWorkspaceCollection) -> AIWorkspaceCollection) {
@@ -257,6 +326,10 @@ final class AIWorkspaceStore: ObservableObject {
 
     private func saveStructureEdits() {
         if let data = try? JSONEncoder().encode(structureEdits) { defaults.set(data, forKey: Self.structureKey) }
+    }
+
+    private func saveSeeds() {
+        if let data = try? JSONEncoder().encode(seeds) { defaults.set(data, forKey: Self.seedsKey) }
     }
 
     private static func decode<T: Decodable>(_ type: T.Type, key: String, from defaults: UserDefaults) -> T? {

@@ -543,8 +543,29 @@ nonisolated struct AIWorkspaceUserSeed: Codable, Equatable, Sendable {
         return copy
     }
 
+    /// 把一组引用加入固定集(「我很喜欢 / 手动加入」—— 用户明确要它在这个工作区),去重;并从排除集移除(互斥)。
+    func pinning(_ refs: [AIContextSourceRef], updatedAt: Date) -> AIWorkspaceUserSeed {
+        var copy = self
+        for ref in refs where !copy.pinnedSourceRefs.contains(ref) { copy.pinnedSourceRefs.append(ref) }
+        copy.excludedSourceRefs.removeAll { refs.contains($0) }
+        copy.updatedAt = updatedAt
+        return copy
+    }
+
+    /// 设置用户标题(空 → 清回 nil)。
+    func settingTitle(_ title: String?, updatedAt: Date) -> AIWorkspaceUserSeed {
+        var copy = self
+        let trimmed = title?.trimmingCharacters(in: .whitespacesAndNewlines)
+        copy.userTitle = (trimmed?.isEmpty == false) ? trimmed : nil
+        copy.updatedAt = updatedAt
+        return copy
+    }
+
     /// 一个引用当前是否被排除。
     func isExcluded(_ ref: AIContextSourceRef) -> Bool { excludedSourceRefs.contains(ref) }
+
+    /// 一个引用当前是否被固定。
+    func isPinned(_ ref: AIContextSourceRef) -> Bool { pinnedSourceRefs.contains(ref) }
 }
 
 /// 工作区拆分的一组(白皮书建议四扩写:右键「按主题拆分」)。每组继承原工作区 source refs 的子集 +
