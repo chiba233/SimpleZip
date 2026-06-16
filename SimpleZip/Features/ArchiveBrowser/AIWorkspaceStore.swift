@@ -52,6 +52,21 @@ final class AIWorkspaceStore: ObservableObject {
     /// (plan 的 candidateID 可能引用额外候选),不是只用规则簇成员。
     private var modelFed: [UUID: [AIVirtualNodeCandidate]] = [:]
 
+    // 模型门控的后台发现(用户:建文件夹是后台行为,模型复核「真能撑起一个主题」才出现,质量优先不保数量):
+    /// 本轮规则候选主题(theme.id → 工作区壳 + 喂模型的候选集);未复核的逐个排队后台复核。
+    private var pendingCandidates: [String: (ws: AIWorkspace, fed: [AIVirtualNodeCandidate])] = [:]
+    /// 复核结论(theme.id → 是否值得出现 + 模型标题 + plan + 选定成员)。本会话缓存,不重复复核同一主题。
+    private var themeVerdicts: [String: ReviewVerdict] = [:]
+    private var reviewInFlight: Set<String> = []
+
+    private struct ReviewVerdict {
+        let approved: Bool
+        let title: String?
+        let plan: AIVirtualFolderPlan
+        let memberRefs: Set<AIContextSourceRef>
+        let members: [AIVirtualNodeCandidate]
+    }
+
     private let defaults: UserDefaults
     private static let storageKey = "SimpleZip.ai.workspaces.v1"
     private static let suppressionKey = "SimpleZip.ai.themeSuppression.v1"
@@ -136,11 +151,77 @@ final class AIWorkspaceStore: ObservableObject {
         self.pool = pool
         self.pathsBySourceRef = paths
         self.treeCache = [:]   // 候选池变 → 树缓存失效
-        let recs = output.themes.map { (ws: $0.toRecommendedWorkspace(generatedAt: now), refs: Set($0.sourceRefs)) }
-        // **整体替换**旧推荐(非累积)→ 消除幽灵空工作区;memberRefs 只留本轮的。
-        let next = collection.replacingRecommended(recs.map(\.ws))
-        self.memberRefsByWorkspace = Dictionary(uniqueKeysWithValues: recs.map { ($0.ws.id, $0.refs) })
+
+        guard AIReportAssistant.isReady else {
+            // 模型不可用:规则门控 + 全发布(确定性树,UI 标「自动整理」)—— 没有模型就退回这条稳妥路径。
+            let recs = output.themes.map { (ws: $0.toRecommendedWorkspace(generatedAt: now), refs: Set($0.sourceRefs)) }
+            let next = collection.replacingRecommended(recs.map(\.ws))
+            self.memberRefsByWorkspace = Dictionary(uniqueKeysWithValues: recs.map { ($0.ws.id, $0.refs) })
+            if next != collection { collection = next }
+            persist()
+            return
+        }
+
+        // 模型就绪:**建文件夹是后台行为** —— 规则候选先不发布,逐个让模型复核「真能撑起一个主题」才出现(质量优先、
+        // 不保数量)。复核同时产出名字 / 选成员 / 分组 → 缓存,打开秒开。
+        var pending: [String: (ws: AIWorkspace, fed: [AIVirtualNodeCandidate])] = [:]
+        for theme in output.themes {
+            let ws = theme.toRecommendedWorkspace(generatedAt: now)
+            let refSet = Set(theme.sourceRefs)
+            let members = pool.filter { !$0.sourceRefs.isEmpty && $0.sourceRefs.allSatisfy { refSet.contains($0) } }
+            guard members.count >= 2 else { continue }
+            pending[theme.id] = (ws, members + themeRelevantExtra(ws: ws, members: members, cap: 30))
+        }
+        pendingCandidates = pending
+        themeVerdicts = themeVerdicts.filter { pending[$0.key] != nil }   // 不在本轮的旧结论清掉
+        for (id, c) in pending where themeVerdicts[id] == nil && !reviewInFlight.contains(id) {
+            scheduleThemeReview(themeID: id, ws: c.ws, fed: c.fed)
+        }
+        republishReviewedThemes()
+    }
+
+    /// 后台复核一个候选主题(模型判断值不值得出现 + 产出 plan)。串行闸保证不与其它生成重叠;失败不缓存、下轮重试。
+    private func scheduleThemeReview(themeID: String, ws: AIWorkspace, fed: [AIVirtualNodeCandidate]) {
+        guard #available(macOS 26.0, *), AIReportAssistant.isReady else { return }
+        reviewInFlight.insert(themeID)
+        let input = makeModelPlanInput(ws: ws, candidates: fed)
+        Task { @MainActor in
+            let review = try? await AIVirtualFolderModelPlanner.review(for: input)
+            self.reviewInFlight.remove(themeID)
+            guard let review, self.pendingCandidates[themeID] != nil else { return }   // 失败 / 已过期 → 不缓存
+            var referenced = Set<String>()
+            func collect(_ gs: [AIVirtualFolderGroupPlan]) { for g in gs { referenced.formUnion(g.candidateIDs); collect(g.children) } }
+            collect(review.plan.groups)
+            let kept = fed.filter { referenced.contains($0.id) }
+            self.themeVerdicts[themeID] = ReviewVerdict(
+                approved: review.worthSurfacing && kept.count >= 2,
+                title: review.plan.workspaceTitle?.trimmingCharacters(in: .whitespacesAndNewlines),
+                plan: review.plan, memberRefs: Set(kept.flatMap(\.sourceRefs)), members: kept)
+            self.republishReviewedThemes()
+        }
+    }
+
+    /// 把已复核通过的候选发布成可见推荐工作区(模型标题 + 成员),数量上限走设置;复核时算好的 plan 一并缓存 → 秒开。
+    private func republishReviewedThemes() {
+        var approved: [(ws: AIWorkspace, verdict: ReviewVerdict)] = []
+        for (id, c) in pendingCandidates {
+            guard let v = themeVerdicts[id], v.approved, !v.members.isEmpty else { continue }
+            var ws = c.ws
+            if let title = v.title, !title.isEmpty { ws.title = title }
+            approved.append((ws, v))
+        }
+        let capped = Array(approved.sorted { $0.ws.relevanceScore > $1.ws.relevanceScore }
+            .prefix(AppPreferences.aiMaxRecommendedWorkspaces))
+        let next = collection.replacingRecommended(capped.map(\.ws))
+        memberRefsByWorkspace = Dictionary(uniqueKeysWithValues: capped.map { ($0.ws.id, $0.verdict.memberRefs) })
         if next != collection { collection = next }
+        for item in capped {   // 缓存复核产出的 plan + fed → 打开不再重跑模型
+            let sig = item.verdict.members.map(\.id).sorted().joined(separator: ",")
+            modelPlanSignatures[item.ws.id] = sig
+            modelPlans[item.ws.id] = (sig, item.verdict.plan)
+            modelFed[item.ws.id] = item.verdict.members
+            treeCache[item.ws.id] = nil
+        }
         persist()
     }
 

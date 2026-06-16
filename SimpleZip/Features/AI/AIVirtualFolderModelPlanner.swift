@@ -34,10 +34,19 @@ struct GeneratedAIFolderGroup: Sendable {
 @available(macOS 26.0, *)
 @Generable
 struct GeneratedAIFolderPlan: Sendable {
+    @Guide(description: "True only if these items genuinely form ONE coherent, useful theme that deserves its own folder — a clear shared purpose, project or topic a person would recognize. False if they merely share a generic word, are an unrelated grab-bag, or are too thin to be worth surfacing. Be strict: quality over quantity.")
+    var worthSurfacing: Bool
     @Guide(description: "An optional clearer name for the whole folder/workspace. Empty to keep the current title.")
     var workspaceTitle: String
-    @Guide(description: "Between 2 and 6 groups organizing the items by meaning. Put every item in exactly one group; prefer a small number of clear, well-named groups over many tiny ones.")
+    @Guide(description: "Between 2 and 6 groups organizing the items that truly belong by meaning. Put each kept item in exactly one group; prefer a small number of clear, well-named groups over many tiny ones.")
     var groups: [GeneratedAIFolderGroup]
+}
+
+/// 一次模型复核的结果:是否值得作为文件夹出现 + 它的 plan(命名 / 选成员 / 分组)。
+@available(macOS 26.0, *)
+struct AIFolderReview: Sendable {
+    let worthSurfacing: Bool
+    let plan: AIVirtualFolderPlan
 }
 
 @available(macOS 26.0, *)
@@ -71,6 +80,40 @@ enum AIVirtualFolderModelPlanner {
         let generated = try await AIReportAssistant.generateStructured(
             instructions: instructions, prompt: lines.joined(separator: "\n"), as: GeneratedAIFolderPlan.self)
 
+        return Self.assemble(generated).plan
+    }
+
+    /// **后台复核**:模型既判断这个候选主题**值不值得作为文件夹出现**(质量优先,不保数量),又顺带产出它的 plan
+    /// (命名 / 选成员 / 分组)。`worthSurfacing == false` → 调用点不把它升成可见工作区。
+    static func review(for input: AIVirtualFolderPlanInput) async throws -> AIFolderReview {
+        let instructions = """
+        You are the quality gate for an archive app's background "AI folders". Each item below is one line: \
+        "candidateID<TAB>kind<TAB>name<TAB>roleTags". First judge whether these items genuinely form ONE coherent, \
+        useful theme that a person would recognize as deserving its own folder (a shared project, topic or purpose) — \
+        not just items that share a generic word, an unrelated grab-bag, or too thin to matter. Be strict: it is far \
+        better to surface nothing than a weak folder. If it IS worth surfacing, also curate it: select only the items \
+        that truly belong (omit the rest), group them by meaning with short natural folder names, and propose a clear \
+        name for the whole folder.
+
+        Write the workspaceTitle, every group title and every reason in \(AIReportAssistant.uiLanguageName) (shown to \
+        the user). Copy candidateID values VERBATIM — never invent, alter, translate, or output a file path. Reply \
+        only with the structured plan, including worthSurfacing.
+        """
+        var lines: [String] = []
+        let ws = input.workspace
+        if let prompt = ws.prompt, !prompt.isEmpty { lines.append("Folder theme: \(prompt)") }
+        if !ws.queryTokens.isEmpty { lines.append("Theme hints: \(ws.queryTokens.joined(separator: ", "))") }
+        lines.append("Candidate title: \(ws.title)")
+        lines.append("Items (candidateID<TAB>kind<TAB>name<TAB>roleTags):")
+        for c in input.candidates.prefix(120) {
+            lines.append([c.candidateID, c.kind, c.displayName, c.roleTags.joined(separator: " ")].joined(separator: "\t"))
+        }
+        let generated = try await AIReportAssistant.generateStructured(
+            instructions: instructions, prompt: lines.joined(separator: "\n"), as: GeneratedAIFolderPlan.self)
+        return Self.assemble(generated)
+    }
+
+    private static func assemble(_ generated: GeneratedAIFolderPlan) -> AIFolderReview {
         let title = generated.workspaceTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         let groups = generated.groups.enumerated().map { index, g in
             AIVirtualFolderGroupPlan(
@@ -79,6 +122,7 @@ enum AIVirtualFolderModelPlanner {
                 reason: g.reason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : g.reason,
                 candidateIDs: g.candidateIDs)
         }
-        return AIVirtualFolderPlan(workspaceTitle: title.isEmpty ? nil : title, groups: groups)
+        let plan = AIVirtualFolderPlan(workspaceTitle: title.isEmpty ? nil : title, groups: groups)
+        return AIFolderReview(worthSurfacing: generated.worthSurfacing, plan: plan)
     }
 }
