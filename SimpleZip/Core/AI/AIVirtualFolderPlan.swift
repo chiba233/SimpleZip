@@ -90,6 +90,179 @@ nonisolated struct AIVirtualNodePromptCandidate: Codable, Equatable, Sendable {
     }
 }
 
+/// 给小模型看的候选输入预处理器。3B 适合最后一厘米的命名 / 分组,不适合从 raw 候选里自己判断权重;
+/// 因此 App 先在 Core 里确定性去噪:重复任务折叠、泛化 token 降权、强项目信号提权、再限制 top-N。
+nonisolated enum AIVirtualFolderModelInputPreparer {
+    static let defaultMaxCandidates = 28
+
+    static func prepare(candidates: [AIVirtualNodeCandidate],
+                        strongTokens: [String],
+                        maxCandidates: Int = defaultMaxCandidates) -> [AIVirtualNodePromptCandidate] {
+        guard maxCandidates > 0 else { return [] }
+        let strong = Set(strongTokens.map(normalizeToken).filter { !$0.isEmpty && !genericTokens.contains($0) })
+        let deduped = dedupe(candidates)
+        let (collapsed, suppressedIDs) = collapsedTaskSummaries(from: deduped)
+        let scored = deduped.compactMap { candidate -> (AIVirtualNodePromptCandidate, Double)? in
+            guard !suppressedIDs.contains(candidate.id) else { return nil }
+            let score = importanceScore(candidate, strongTokens: strong)
+            return (promptCandidate(from: candidate, importance: importanceLabel(score)), score)
+        }
+        let collapsedScored = collapsed.map { ($0, 0.2) }
+        return (scored + collapsedScored)
+            .sorted {
+                if $0.1 != $1.1 { return $0.1 > $1.1 }
+                if $0.0.displayName != $1.0.displayName { return $0.0.displayName < $1.0.displayName }
+                return $0.0.candidateID < $1.0.candidateID
+            }
+            .prefix(maxCandidates)
+            .map(\.0)
+    }
+
+    private static let genericTokens: Set<String> = [
+        "agent", "agents", "hash", "checksum", "sha", "sha256", "task", "tasks", "succeeded", "success",
+        "desktop", "downloads", "documents", "download", "file", "files", "folder", "folders", "archive",
+        "archives", "recent", "today", "tmp", "temp", "data", "final", "report", "readme", "md"
+    ]
+
+    private static func dedupe(_ candidates: [AIVirtualNodeCandidate]) -> [AIVirtualNodeCandidate] {
+        var seen = Set<String>()
+        var result: [AIVirtualNodeCandidate] = []
+        for candidate in candidates {
+            let key = candidate.sourceRefs.map { "\($0.kind.rawValue):\($0.id)" }.sorted().joined(separator: "|")
+            let stableKey = key.isEmpty ? candidate.id : key
+            guard seen.insert(stableKey).inserted else { continue }
+            result.append(candidate)
+        }
+        return result
+    }
+
+    private static func collapsedTaskSummaries(from candidates: [AIVirtualNodeCandidate])
+        -> ([AIVirtualNodePromptCandidate], Set<String>) {
+        let hashTasks = candidates.filter { $0.kind == .task && isHashTask($0) }
+        guard hashTasks.count >= 4 else { return ([], []) }
+        let ranked = hashTasks.sorted {
+            if $0.scoreSignals.contains("failed") != $1.scoreSignals.contains("failed") {
+                return $0.scoreSignals.contains("failed")
+            }
+            return $0.id < $1.id
+        }
+        let representative = ranked[0]
+        let suppressed = Set(ranked.map(\.id))
+        let topName = representative.displayName
+        let prompt = AIVirtualNodePromptCandidate(
+            candidateID: representative.id,
+            kind: representative.kind.rawValue,
+            displayName: "Hash tasks · \(hashTasks.count) items · latest: \(topName)",
+            sourceRefs: representative.sourceRefs,
+            roleTags: ["task-summary", "repeated-hash-tasks", "importance-low"],
+            scoreSignals: ["collapsed:\(hashTasks.count)", "collapsedReason=repeated_hash_tasks", "importance=low"],
+            relatedTaskIDs: Array(hashTasks.flatMap(\.relatedTaskIDs).prefix(12)),
+            relatedArchiveIDs: Array(hashTasks.flatMap(\.relatedArchiveIDs).prefix(8)),
+            evidence: Array(hashTasks.flatMap(\.evidence).prefix(6)))
+        return ([prompt], suppressed)
+    }
+
+    private static func isHashTask(_ candidate: AIVirtualNodeCandidate) -> Bool {
+        let tokens = candidateTokens(candidate)
+        return !tokens.isDisjoint(with: ["hash", "checksum", "sha", "sha256", "digest"])
+            || candidate.roleTags.contains { normalizeToken($0).contains("checksum") }
+    }
+
+    private static func promptCandidate(from candidate: AIVirtualNodeCandidate,
+                                        importance: String) -> AIVirtualNodePromptCandidate {
+        var roles = candidate.roleTags
+        let marker = "importance-\(importance)"
+        if !roles.contains(marker) { roles.append(marker) }
+        var signals = candidate.scoreSignals
+        let signal = "importance=\(importance)"
+        if !signals.contains(signal) { signals.append(signal) }
+        return AIVirtualNodePromptCandidate(
+            candidateID: candidate.id, kind: candidate.kind.rawValue,
+            displayName: candidate.displayName, sourceRefs: candidate.sourceRefs,
+            roleTags: roles, scoreSignals: signals,
+            relatedTaskIDs: candidate.relatedTaskIDs, relatedArchiveIDs: candidate.relatedArchiveIDs,
+            evidence: candidate.evidence)
+    }
+
+    private static func importanceLabel(_ score: Double) -> String {
+        if score >= 7 { return "high" }
+        if score <= 1 { return "low" }
+        return "normal"
+    }
+
+    private static func importanceScore(_ candidate: AIVirtualNodeCandidate, strongTokens: Set<String>) -> Double {
+        let tokens = candidateTokens(candidate)
+        var score = 0.0
+        score += Double(candidate.scoreSignals.count)
+        score += Double(tokens.intersection(strongTokens).count) * 4.0
+        score += roleWeight(candidate.roleTags)
+        score += locationWeight(candidate.location?.kind)
+        score += kindWeight(candidate.kind)
+        score -= Double(tokens.intersection(genericTokens).count) * 0.8
+        if candidate.kind == .task {
+            if candidate.scoreSignals.contains("failed") { score += 2.0 }
+            if candidate.scoreSignals.contains("running") { score += 1.0 }
+            if candidate.scoreSignals.contains("succeeded") { score -= 1.5 }
+        }
+        return score
+    }
+
+    private static func roleWeight(_ roles: [String]) -> Double {
+        let normalized = Set(roles.map(normalizeToken))
+        var score = 0.0
+        if !normalized.isDisjoint(with: ["source", "code", "docs", "document", "spec", "reader"]) { score += 2.0 }
+        if !normalized.isDisjoint(with: ["junk", "temporary"]) { score -= 2.0 }
+        if !normalized.isDisjoint(with: ["checksum"]) { score -= 0.8 }
+        return score
+    }
+
+    private static func locationWeight(_ kind: AILocationKind?) -> Double {
+        switch kind {
+        case .projectFolder: return 2.0
+        case .documents: return 0.8
+        case .desktop, .downloads: return -0.6
+        case .temporaryWorkspace: return -1.0
+        case .externalDrive, .sameDirectory, .other, nil: return 0
+        }
+    }
+
+    private static func kindWeight(_ kind: AIVirtualNode.Kind) -> Double {
+        switch kind {
+        case .file, .folder, .archive, .archiveEntry: return 0.5
+        case .task: return -1.0
+        case .report: return 0.2
+        case .group, .action, .automation, .note: return 0
+        }
+    }
+
+    private static func candidateTokens(_ candidate: AIVirtualNodeCandidate) -> Set<String> {
+        var tokens = Set(candidate.semanticTokens.map(normalizeToken).filter { !$0.isEmpty })
+        tokens.formUnion(splitTokens(candidate.displayName))
+        tokens.formUnion(candidate.roleTags.map(normalizeToken).filter { !$0.isEmpty })
+        tokens.formUnion(candidate.location?.folderNameTokens.map(normalizeToken).filter { !$0.isEmpty } ?? [])
+        return tokens
+    }
+
+    private static func splitTokens(_ s: String) -> Set<String> {
+        var result = Set<String>()
+        var current = ""
+        func flush() {
+            let token = normalizeToken(current)
+            if token.count >= 2 { result.insert(token) }
+            current = ""
+        }
+        for ch in s {
+            if ch.isLetter || ch.isNumber { current.append(ch) } else { flush() }
+        }
+        flush()
+        return result
+    }
+
+    private static func normalizeToken(_ token: String) -> String {
+        token.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+}
+
 /// 一个允许动作的 **prompt 描述符**(白皮书 `allowedActions`)。让模型知道有哪些动作可用,但**不让模型拼动作负载**
 /// —— 动作负载(路径 / id)由 App 按候选集回查。
 nonisolated struct AISuggestionActionDescriptor: Codable, Equatable, Sendable {

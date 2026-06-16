@@ -845,13 +845,16 @@ final class AIWorkspaceStore: ObservableObject {
         for t in ws.queryPlan.keywords + (seed?.themePrompts ?? []) where !t.isEmpty && !tokens.contains(t) {
             tokens.append(t)
         }
+        let promptCandidates = AIVirtualFolderModelInputPreparer.prepare(
+            candidates: candidates,
+            strongTokens: tokens + ws.queryPlan.semanticTags + ws.queryPlan.markerFiles)
         let fact = AIWorkspacePromptFact(
             id: ws.id, title: ws.title, origin: ws.origin.rawValue,
             prompt: ws.userDescription ?? seed?.themePrompts.first ?? ws.prompt,
             queryTokens: Array(tokens.prefix(12)))
         return AIVirtualFolderPlanInput(
             workspace: fact,
-            candidates: candidates.map { AIVirtualNodePromptCandidate(candidate: $0) },
+            candidates: promptCandidates,
             learningHints: learningHints(for: ws, seed: seed))
     }
 

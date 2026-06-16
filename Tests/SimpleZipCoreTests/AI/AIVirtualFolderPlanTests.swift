@@ -217,6 +217,62 @@ import Testing
         #expect(decoded.learningHints == nil)
     }
 
+    @Test func modelInputCollapsesRepeatedHashTasksBeforePrompting() {
+        let ref = AIContextSourceRef(kind: .file, id: "reader")
+        let source = AIVirtualNodeCandidate(
+            id: "src", kind: .file, displayName: "scardcontrol.c", sourceRefs: [ref],
+            roleTags: ["source"], semanticTokens: ["scardcontrol", "ccid"], scoreSignals: ["project-token"])
+        let tasks = (0..<15).map { i in
+            AIVirtualNodeCandidate(
+                id: "hash-\(i)", kind: .task, displayName: "Hash HID_Global_veriCLASS_Reader \(i)",
+                sourceRefs: [AIContextSourceRef(kind: .task, id: "task-\(i)")],
+                roleTags: ["checksum"], semanticTokens: ["hash", "hid", "reader"],
+                scoreSignals: ["succeeded"])
+        }
+
+        let prepared = AIVirtualFolderModelInputPreparer.prepare(
+            candidates: [source] + tasks,
+            strongTokens: ["scardcontrol", "ccid"],
+            maxCandidates: 8)
+
+        #expect(prepared.filter { $0.roleTags.contains("repeated-hash-tasks") }.count == 1)
+        #expect(prepared.filter { $0.candidateID.hasPrefix("hash-") }.count == 1)
+        #expect(prepared.first?.candidateID == "src")
+        #expect(prepared.contains { $0.scoreSignals.contains("importance=low") })
+    }
+
+    @Test func modelInputFavorsSpecificProjectSignalsOverGenericNoise() {
+        let project = AIVirtualNodeCandidate(
+            id: "pcsc", kind: .file, displayName: "PCSCv2part10.c",
+            sourceRefs: [AIContextSourceRef(kind: .file, id: "pcsc")],
+            roleTags: ["source"], location: AILocationContext(kind: .projectFolder, pathHash: "loc-project",
+                                                              folderNameTokens: ["ccid"]),
+            semanticTokens: ["pcscv2part10", "scardcontrol", "ccid"], scoreSignals: ["source"])
+        let spec = AIVirtualNodeCandidate(
+            id: "spec", kind: .file, displayName: "SCARDCONTROL.md",
+            sourceRefs: [AIContextSourceRef(kind: .file, id: "spec")],
+            roleTags: ["document"], location: AILocationContext(kind: .documents, pathHash: "loc-docs",
+                                                                folderNameTokens: ["ccid"]),
+            semanticTokens: ["scardcontrol"], scoreSignals: ["document"])
+        let generic = (0..<6).map { i in
+            AIVirtualNodeCandidate(
+                id: "agents-\(i)", kind: .file, displayName: "AGENTS.md",
+                sourceRefs: [AIContextSourceRef(kind: .file, id: "agents-\(i)")],
+                roleTags: ["document"], location: AILocationContext(kind: i.isMultiple(of: 2) ? .desktop : .downloads,
+                                                                    pathHash: "loc-\(i)",
+                                                                    folderNameTokens: ["desktop", "downloads"]),
+                semanticTokens: ["agents", "desktop", "downloads"], scoreSignals: ["same-name", "recent"])
+        }
+
+        let prepared = AIVirtualFolderModelInputPreparer.prepare(
+            candidates: generic + [spec, project],
+            strongTokens: ["scardcontrol", "pcscv2part10", "ccid"],
+            maxCandidates: 2)
+
+        #expect(prepared.map(\.candidateID) == ["pcsc", "spec"])
+        #expect(!prepared.contains { $0.displayName == "AGENTS.md" })
+    }
+
     private func allLeaves(_ nodes: [AIVirtualNode]) -> [AIVirtualNode] {
         nodes.flatMap { $0.kind == .group ? allLeaves($0.children) : [$0] }
     }
