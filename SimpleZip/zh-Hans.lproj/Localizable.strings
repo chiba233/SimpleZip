@@ -2648,3 +2648,11 @@
 "settings.ai.background.maxRecommended" = "自动生成的文件夹上限";
 "settings.ai.background.maxRecommended.desc" = "后台发现最多自动生成几个 AI 文件夹。你固定或自己创建的不计入。";
 "sidebar.ai.markPermanent" = "标记为长期 AI 文件夹";
+"aiWorkspace.node.open" = "打开";
+"aiWorkspace.node.openArchive" = "打开归档";
+"aiWorkspace.node.openFolder" = "打开文件夹";
+"aiWorkspace.node.reveal" = "在 Finder 中显示";
+"aiWorkspace.node.hash" = "计算 SHA256";
+"aiWorkspace.node.test" = "测试归档";
+"aiWorkspace.node.expand" = "展开";
+"aiWorkspace.node.collapse" = "折叠";

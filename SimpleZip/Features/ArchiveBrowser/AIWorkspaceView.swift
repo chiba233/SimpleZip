@@ -2,22 +2,65 @@
 //  AIWorkspaceView.swift
 //  SimpleZip
 //
-//  0.4.5 #80 #89:AI 工作区主内容区(白皮书建议四「不伪造成真实 FileItem」)。
+//  0.4.5 #80 #89:AI 工作区主内容区(白皮书建议四)。**可折叠的多层虚拟文件夹树** —— read-only 虚拟结果集,
+//  不复用 FileTable、不伪造 FileItem。
 //
-//  渲染一个工作区的**虚拟文件夹树**(`AIVirtualNode`)—— read-only 虚拟结果集,**不复用 FileTable、不伪造
-//  FileItem**;行动作只打开 / 定位 / 解释,绝不改文件(节点已过 `AIVirtualTreeSanitizer`)。虚拟树由
-//  `AIWorkspaceStore` 经 plan/builder 从后台发现的候选池建出;还没有树时显示空状态。
-//
-//  视觉:渐变 hero 头(图标瓦片 + 标题 + 主题副标题 + 刷新 / 不感兴趣)+ 分组卡片(角色配色瓦片)。
+//  交互(用户点名):① 分组可折叠(▸/▾)② 双击虚拟文件夹**进入更深视图**(面包屑导航)③ 每个节点可**右键**
+//  ④ 文件可**展开调出 AI 建议**(AI 文件夹 × AI Suggestion 联动:文件视角 + 动作视角)。动作只回现有流程,
+//  写盘 / 启动任务回原生确认流。
 //
 
 import AppKit
 import SwiftUI
 
+/// 一个文件 / 归档 / 文件夹节点的派生 AI 建议(确定性;模型增强后续接)。
+struct AIWorkspaceNodeAction: Identifiable {
+    let titleKey: String
+    let systemImage: String
+    let action: AISuggestionAction
+    var id: String { titleKey }
+}
+
+enum AIWorkspaceNodeActions {
+    static func suggestions(for node: AIVirtualNode) -> [AIWorkspaceNodeAction] {
+        guard let path = resolvedPath(node) else { return [] }
+        switch node.kind {
+        case .file:
+            return [AIWorkspaceNodeAction(titleKey: "aiWorkspace.node.reveal", systemImage: "magnifyingglass",
+                                          action: .revealFile(path: path)),
+                    AIWorkspaceNodeAction(titleKey: "aiWorkspace.node.hash", systemImage: "number",
+                                          action: .calculateHash(paths: [path], algorithms: ["sha256"]))]
+        case .archive:
+            return [AIWorkspaceNodeAction(titleKey: "aiWorkspace.node.openArchive", systemImage: "doc.zipper",
+                                          action: .openArchive(path: path, revealEntry: nil)),
+                    AIWorkspaceNodeAction(titleKey: "aiWorkspace.node.test", systemImage: "checkmark.seal",
+                                          action: .testArchive(path: path))]
+        case .folder:
+            return [AIWorkspaceNodeAction(titleKey: "aiWorkspace.node.openFolder", systemImage: "folder",
+                                          action: .openFolder(path: path))]
+        default:
+            return []
+        }
+    }
+
+    static func resolvedPath(_ node: AIVirtualNode) -> String? {
+        switch node.primaryAction {
+        case .revealFile(let p), .openFolder(let p): return p
+        case .openArchive(let p, _): return p
+        default: return nil
+        }
+    }
+}
+
 struct AIWorkspaceView: View {
     @ObservedObject var model: ArchiveBrowserModel
     let workspaceID: UUID
     @ObservedObject private var store = AIWorkspaceStore.shared
+
+    /// 「双击进入」的下钻链(面包屑);空 = 根。
+    @State private var drillStack: [AIVirtualNode] = []
+    /// 内联展开的节点(分组展开子级 / 文件展开 AI 建议)。
+    @State private var expanded: Set<UUID> = []
 
     var body: some View {
         Group {
@@ -28,6 +71,7 @@ struct AIWorkspaceView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onChange(of: workspaceID) { _ in drillStack = []; expanded = [] }
     }
 
     @ViewBuilder
@@ -37,13 +81,15 @@ struct AIWorkspaceView: View {
             hero(workspace)
             Divider()
             if let tree, !tree.isEmpty {
+                if !drillStack.isEmpty { breadcrumb(workspace); Divider() }
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 12) {
-                        ForEach(tree.nodes) { node in
-                            AIVirtualNodeCard(node: node, depth: 0, onAction: dispatch)
+                    LazyVStack(alignment: .leading, spacing: 2) {
+                        ForEach(displayedNodes(of: tree)) { node in
+                            AIVirtualNodeRowView(node: node, depth: 0, expanded: $expanded,
+                                                 onDrill: drillInto, onDispatch: dispatch)
                         }
                     }
-                    .padding(16)
+                    .padding(14)
                 }
             } else {
                 emptyState(L10n.text("aiFolder.noSuggestions"))
@@ -51,16 +97,18 @@ struct AIWorkspaceView: View {
         }
     }
 
-    // MARK: - Hero 头
+    private func displayedNodes(of tree: AIVirtualFolderTree) -> [AIVirtualNode] {
+        drillStack.last?.children ?? tree.nodes
+    }
+
+    // MARK: - Hero 头 + 面包屑
 
     private func hero(_ workspace: AIWorkspace) -> some View {
         HStack(spacing: 12) {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(Color.accentColor.gradient)
-                .overlay(
-                    Image(systemName: workspace.iconSystemName)
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(.white))
+                .overlay(Image(systemName: workspace.iconSystemName)
+                    .font(.system(size: 18, weight: .semibold)).foregroundStyle(.white))
                 .frame(width: 40, height: 40)
                 .shadow(color: Color.accentColor.opacity(0.35), radius: 4, y: 2)
             VStack(alignment: .leading, spacing: 2) {
@@ -70,31 +118,38 @@ struct AIWorkspaceView: View {
                 }
             }
             Spacer(minLength: 8)
-            Button {
-                model.openAIWorkspace(workspaceID)   // 刷新 = 重开(虚拟树重生成)
-            } label: {
-                Image(systemName: "arrow.clockwise")
-            }
-            .buttonStyle(.borderless)
-            .help(L10n.text("sidebar.ai.refreshWorkspace"))
+            Button { model.openAIWorkspace(workspaceID) } label: { Image(systemName: "arrow.clockwise") }
+                .buttonStyle(.borderless).help(L10n.text("sidebar.ai.refreshWorkspace"))
             if workspace.origin == .recommended {
-                Button {
-                    store.dismissRecommended(workspaceID)
-                } label: {
-                    Image(systemName: "xmark.circle")
-                }
-                .buttonStyle(.borderless)
-                .help(L10n.text("sidebar.ai.dismissRecommended"))
+                Button { store.dismissRecommended(workspaceID) } label: { Image(systemName: "xmark.circle") }
+                    .buttonStyle(.borderless).help(L10n.text("sidebar.ai.dismissRecommended"))
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .background(
-            LinearGradient(colors: [Color.accentColor.opacity(0.12), Color.accentColor.opacity(0.02)],
-                           startPoint: .top, endPoint: .bottom))
+        .padding(.horizontal, 16).padding(.vertical, 14)
+        .background(LinearGradient(colors: [Color.accentColor.opacity(0.12), Color.accentColor.opacity(0.02)],
+                                   startPoint: .top, endPoint: .bottom))
     }
 
-    /// 副标题:用户 prompt 优先,否则主题 token。
+    private func breadcrumb(_ workspace: AIWorkspace) -> some View {
+        HStack(spacing: 4) {
+            crumb(workspace.title) { drillStack = [] }
+            ForEach(Array(drillStack.enumerated()), id: \.element.id) { idx, node in
+                Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.tertiary)
+                crumb(node.title) { drillStack = Array(drillStack.prefix(idx + 1)) }
+            }
+        }
+        .padding(.horizontal, 16).padding(.vertical, 6)
+    }
+
+    private func crumb(_ title: String, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) { Text(title).font(.caption).lineLimit(1) }
+            .buttonStyle(.plain).foregroundStyle(.secondary)
+    }
+
+    private func drillInto(_ node: AIVirtualNode) {
+        if node.kind == .group, !node.children.isEmpty { drillStack.append(node) }
+    }
+
     private func subtitle(for workspace: AIWorkspace) -> String? {
         if let prompt = workspace.prompt, !prompt.isEmpty { return prompt }
         let tokens = workspace.queryPlan.keywords.filter { !$0.isEmpty }
@@ -104,16 +159,14 @@ struct AIWorkspaceView: View {
     private func emptyState(_ text: String) -> some View {
         VStack(spacing: 10) {
             Spacer()
-            Image(systemName: "sparkles")
-                .font(.system(size: 34, weight: .regular))
-                .foregroundStyle(Color.accentColor.opacity(0.6))
+            Image(systemName: "sparkles").font(.system(size: 34)).foregroundStyle(Color.accentColor.opacity(0.6))
             Text(text).font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    // MARK: - 节点动作 → 现有 App 流程(只读 / 导航)
+    // MARK: - 节点动作 → 现有 App 流程(只读 / 导航 / 启动现有任务流程)
 
     private func dispatch(_ action: AISuggestionAction) {
         switch action {
@@ -129,51 +182,61 @@ struct AIWorkspaceView: View {
             let url = URL(fileURLWithPath: path)
             if let entry = revealEntry, !entry.isEmpty { model.openArchive(url, revealEntryPath: entry) }
             else { model.openArchive(url) }
-        case .revealSourceRefsInFinder, .applySelection, .openWithApplication, .applyArchiveSearch:
-            break
+        case .calculateHash(let paths, _):
+            model.calculateHash(forFinderURLs: paths.map { URL(fileURLWithPath: $0) })
+        case .testArchive(let path):
+            model.testArchives(at: [URL(fileURLWithPath: path)])
+        case .createArchive(let paths), .createArchiveFromSuggestion(let paths, _, _):
+            model.createArchive(fromFinderURLs: paths.map { URL(fileURLWithPath: $0) })
         default:
-            break   // 写盘 / 启动任务类:回原生确认流(接动作候选时扩),不在虚拟树里直接执行
+            break   // 其余(转换 / 发布检查 / evidence-ref 类)后续接 —— 写盘动作回原生确认流
         }
     }
 }
 
-/// 一个虚拟节点的卡片渲染。group → 分组卡(标题 + 递归子节点);指针节点 → 可点行(角色配色瓦片 + 主动作)。
-private struct AIVirtualNodeCard: View {
+/// 递归虚拟节点行(独立 struct,避免「opaque 返回类型自引用」)。group 可折叠 / 双击进入;file/archive 可
+/// 展开调出 AI 建议;每个节点可右键。
+private struct AIVirtualNodeRowView: View {
     let node: AIVirtualNode
     let depth: Int
-    let onAction: (AISuggestionAction) -> Void
+    @Binding var expanded: Set<UUID>
+    let onDrill: (AIVirtualNode) -> Void
+    let onDispatch: (AISuggestionAction) -> Void
 
     var body: some View {
-        if node.kind == .group {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(node.title).font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
-                VStack(alignment: .leading, spacing: 2) {
+        let suggestions = AIWorkspaceNodeActions.suggestions(for: node)
+        let isExpandable = node.kind == .group ? !node.children.isEmpty : !suggestions.isEmpty
+        let isOpen = expanded.contains(node.id)
+        VStack(alignment: .leading, spacing: 2) {
+            rowContent(isExpandable: isExpandable, isOpen: isOpen, suggestions: suggestions)
+            if isOpen {
+                if node.kind == .group {
                     ForEach(node.children) { child in
-                        AIVirtualNodeCard(node: child, depth: depth + 1, onAction: onAction)
+                        AIVirtualNodeRowView(node: child, depth: depth + 1, expanded: $expanded,
+                                             onDrill: onDrill, onDispatch: onDispatch)
                     }
+                } else {
+                    ForEach(suggestions) { s in suggestionRow(s) }
                 }
-                .padding(8)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color(nsColor: .controlBackgroundColor)))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .strokeBorder(Color.secondary.opacity(0.12)))
             }
-        } else {
-            leafRow
         }
     }
 
-    private var leafRow: some View {
-        let row = HStack(spacing: 9) {
+    private func rowContent(isExpandable: Bool, isOpen: Bool, suggestions: [AIWorkspaceNodeAction]) -> some View {
+        HStack(spacing: 8) {
+            if isExpandable {
+                Button { toggle() } label: {
+                    Image(systemName: isOpen ? "chevron.down" : "chevron.right")
+                        .font(.caption2).foregroundStyle(.secondary).frame(width: 14)
+                }
+                .buttonStyle(.plain)
+            } else {
+                Color.clear.frame(width: 14, height: 1)
+            }
             RoundedRectangle(cornerRadius: 6, style: .continuous)
                 .fill(node.kind.tint.gradient)
-                .overlay(
-                    Image(systemName: node.kind.symbolName)
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.white))
+                .overlay(Image(systemName: node.kind.symbolName)
+                    .font(.system(size: 11, weight: .semibold)).foregroundStyle(.white))
                 .frame(width: 22, height: 22)
             VStack(alignment: .leading, spacing: 1) {
                 Text(node.title).font(.callout).lineLimit(1).truncationMode(.middle)
@@ -182,25 +245,54 @@ private struct AIVirtualNodeCard: View {
                 }
             }
             Spacer(minLength: 8)
-            if node.primaryAction != nil {
-                Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.tertiary)
-            }
+            if node.kind == .group { Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.tertiary) }
         }
+        .padding(.leading, CGFloat(depth) * 16)
         .padding(.vertical, 3)
         .contentShape(Rectangle())
+        .onTapGesture(count: 2) { activate() }
+        .contextMenu { contextMenu(suggestions: suggestions) }
+    }
 
-        return Group {
-            if let action = node.primaryAction {
-                Button { onAction(action) } label: { row }.buttonStyle(.plain)
-            } else {
-                row
+    private func suggestionRow(_ s: AIWorkspaceNodeAction) -> some View {
+        Button { onDispatch(s.action) } label: {
+            HStack(spacing: 8) {
+                Image(systemName: s.systemImage).font(.caption).foregroundStyle(Color.accentColor).frame(width: 16)
+                Text(L10n.text(s.titleKey)).font(.caption)
+                Spacer(minLength: 8)
+            }
+            .padding(.leading, CGFloat(depth + 1) * 16 + 22)
+            .padding(.vertical, 2)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func contextMenu(suggestions: [AIWorkspaceNodeAction]) -> some View {
+        if node.kind == .group {
+            Button(L10n.text("aiWorkspace.node.open")) { onDrill(node) }
+            Button(L10n.text(expanded.contains(node.id) ? "aiWorkspace.node.collapse" : "aiWorkspace.node.expand")) {
+                toggle()
+            }
+        } else {
+            if let primary = node.primaryAction {
+                Button(L10n.text("aiWorkspace.node.open")) { onDispatch(primary) }
+            }
+            ForEach(suggestions) { s in
+                Button(L10n.text(s.titleKey)) { onDispatch(s.action) }
             }
         }
+    }
+
+    private func toggle() { if expanded.contains(node.id) { expanded.remove(node.id) } else { expanded.insert(node.id) } }
+    private func activate() {
+        if node.kind == .group { onDrill(node) }
+        else if let primary = node.primaryAction { onDispatch(primary) }
     }
 }
 
 private extension AIVirtualNode.Kind {
-    /// 节点类型的 SF Symbol。
     var symbolName: String {
         switch self {
         case .group: return "folder"
@@ -216,7 +308,6 @@ private extension AIVirtualNode.Kind {
         }
     }
 
-    /// 角色配色(瓦片底)。同类同色,呼应设计准则。
     var tint: Color {
         switch self {
         case .group: return .accentColor

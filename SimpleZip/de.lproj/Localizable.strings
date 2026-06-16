@@ -2569,3 +2569,11 @@
 "settings.ai.background.maxRecommended" = "Maximal automatisch erstellte Ordner";
 "settings.ai.background.maxRecommended.desc" = "Wie viele KI-Ordner die Hintergrunderkennung automatisch erstellen darf. Angeheftete oder selbst erstellte Ordner zählen nicht.";
 "sidebar.ai.markPermanent" = "Dauerhaft machen";
+"aiWorkspace.node.open" = "Öffnen";
+"aiWorkspace.node.openArchive" = "Archiv öffnen";
+"aiWorkspace.node.openFolder" = "Ordner öffnen";
+"aiWorkspace.node.reveal" = "Im Finder zeigen";
+"aiWorkspace.node.hash" = "SHA-256 berechnen";
+"aiWorkspace.node.test" = "Archiv testen";
+"aiWorkspace.node.expand" = "Einblenden";
+"aiWorkspace.node.collapse" = "Ausblenden";

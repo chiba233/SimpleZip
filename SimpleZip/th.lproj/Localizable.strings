@@ -2569,3 +2569,11 @@
 "settings.ai.background.maxRecommended" = "จำนวนโฟลเดอร์ที่สร้างอัตโนมัติสูงสุด";
 "settings.ai.background.maxRecommended.desc" = "การค้นพบเบื้องหลังสร้างโฟลเดอร์ AI อัตโนมัติได้สูงสุดกี่โฟลเดอร์ โฟลเดอร์ที่คุณปักหมุดหรือสร้างเองไม่นับรวม";
 "sidebar.ai.markPermanent" = "ทำให้ถาวร";
+"aiWorkspace.node.open" = "เปิด";
+"aiWorkspace.node.openArchive" = "เปิดอาร์ไคฟ์";
+"aiWorkspace.node.openFolder" = "เปิดโฟลเดอร์";
+"aiWorkspace.node.reveal" = "แสดงใน Finder";
+"aiWorkspace.node.hash" = "คำนวณ SHA-256";
+"aiWorkspace.node.test" = "ทดสอบอาร์ไคฟ์";
+"aiWorkspace.node.expand" = "ขยาย";
+"aiWorkspace.node.collapse" = "ยุบ";

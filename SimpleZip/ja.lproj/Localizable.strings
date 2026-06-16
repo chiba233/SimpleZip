@@ -2571,3 +2571,11 @@
 "settings.ai.background.maxRecommended" = "自動生成フォルダの上限";
 "settings.ai.background.maxRecommended.desc" = "バックグラウンド発見が自動で作成できる AI フォルダの数。固定したものや自分で作成したものは含みません。";
 "sidebar.ai.markPermanent" = "常設にする";
+"aiWorkspace.node.open" = "開く";
+"aiWorkspace.node.openArchive" = "アーカイブを開く";
+"aiWorkspace.node.openFolder" = "フォルダを開く";
+"aiWorkspace.node.reveal" = "Finderで表示";
+"aiWorkspace.node.hash" = "SHA-256を計算";
+"aiWorkspace.node.test" = "アーカイブをテスト";
+"aiWorkspace.node.expand" = "展開";
+"aiWorkspace.node.collapse" = "折りたたむ";

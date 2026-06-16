@@ -2648,3 +2648,11 @@
 "settings.ai.background.maxRecommended" = "Maximum auto-created folders";
 "settings.ai.background.maxRecommended.desc" = "How many AI Folders background discovery may create automatically. Folders you pin or create yourself don’t count.";
 "sidebar.ai.markPermanent" = "Make Permanent";
+"aiWorkspace.node.open" = "Open";
+"aiWorkspace.node.openArchive" = "Open Archive";
+"aiWorkspace.node.openFolder" = "Open Folder";
+"aiWorkspace.node.reveal" = "Show in Finder";
+"aiWorkspace.node.hash" = "Compute SHA-256";
+"aiWorkspace.node.test" = "Test Archive";
+"aiWorkspace.node.expand" = "Expand";
+"aiWorkspace.node.collapse" = "Collapse";

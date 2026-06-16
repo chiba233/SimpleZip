@@ -2569,3 +2569,11 @@
 "settings.ai.background.maxRecommended" = "Máximo de carpetas creadas automáticamente";
 "settings.ai.background.maxRecommended.desc" = "Cuántas Carpetas IA puede crear automáticamente el descubrimiento en segundo plano. Las que fijas o creas tú no cuentan.";
 "sidebar.ai.markPermanent" = "Hacer permanente";
+"aiWorkspace.node.open" = "Abrir";
+"aiWorkspace.node.openArchive" = "Abrir archivo";
+"aiWorkspace.node.openFolder" = "Abrir carpeta";
+"aiWorkspace.node.reveal" = "Mostrar en Finder";
+"aiWorkspace.node.hash" = "Calcular SHA-256";
+"aiWorkspace.node.test" = "Probar archivo";
+"aiWorkspace.node.expand" = "Expandir";
+"aiWorkspace.node.collapse" = "Contraer";
