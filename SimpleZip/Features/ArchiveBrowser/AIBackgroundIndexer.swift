@@ -84,6 +84,7 @@ final class AIBackgroundIndexer {
             visitedDirs += 1
 
             let loc = AILocationClassifier.classify(directoryPath: dir.path, home: home)
+            var dirHasFile = false   // 这个目录是否「有内容」(直接含文件)→ 决定要不要把它本身记成 folder 候选
             for entry in entries {
                 if records.count >= fileBudget { break }
                 // M5:取不到属性 = 类型未知 → 整条跳过(不再 fail-open 当普通文件 / 漏判符号链接)。
@@ -96,11 +97,23 @@ final class AIBackgroundIndexer {
                 } else {
                     // C1:疑似密钥 / 凭据文件名(id_rsa / *.pem / .env / *.p12 / *.gpg …)→ 整条不索引。
                     if AIFileReadabilityPolicy.looksLikeSecret(fileName: entry.lastPathComponent) { continue }
+                    dirHasFile = true
                     records.append(AIFileMemoryRecord.make(
                         fileName: entry.lastPathComponent, isDirectory: false,
                         byteSize: vals.fileSize.map(Int64.init), modifiedAt: vals.contentModificationDate,
                         location: loc, path: entry.path))   // 存全路径(非加密路径不是风险,AI 有权知道)
                 }
+            }
+            // **把任何有内容(直接含文件)的目录本身也记成 folder 候选** —— AI 文件夹可把一个文件夹整体收纳
+            // (项目目录 / 数据目录…),不必把里面的文件拆散塞(用户:任何有内容的文件夹都该能整体收进来)。
+            // depth>0:不收白名单 seed 根本身(那是授权的扫描范围,不是「一个文件夹」)。
+            if dirHasFile, depth > 0, records.count < fileBudget {
+                let parentLoc = AILocationClassifier.classify(
+                    directoryPath: dir.deletingLastPathComponent().path, home: home)
+                let dirMtime = (try? dir.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+                records.append(AIFileMemoryRecord.make(
+                    fileName: dir.lastPathComponent, isDirectory: true,
+                    byteSize: nil, modifiedAt: dirMtime, location: parentLoc, path: dir.path))
             }
         }
         return records
