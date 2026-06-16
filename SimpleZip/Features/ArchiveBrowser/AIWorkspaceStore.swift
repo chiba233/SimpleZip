@@ -35,6 +35,10 @@ final class AIWorkspaceStore: ObservableObject {
     /// 持久:泛化反馈学习层。like/dislike 摊到候选信号(角色 / token / 位置)上累积权重 → 召回 / 喂模型前软调:
     /// 强负同类少进来(非全局硬删),正权重更优先。
     private var learning: AIWorkspaceLearningStore
+    /// 持久:**模型整理好的虚拟树快照**(按 workspace UUID)。重启直接展示上次的 AI 目录,**不退回「自动整理」**
+    /// (用户:每次重启变自动整理太蠢)。只存 modelAssisted 树;含非加密的名字 / 路径(路径不是隐私风险,见隐私口径);
+    /// 加密内容绝不入树故不落盘。只有点「刷新」才重排序;新文件下一轮追加进已有目录,不自动重排。
+    private var treeSnapshots: [UUID: AIVirtualFolderTree]
 
     // 内存(每会话由 refreshRecommendations 重建,不落盘 —— 隐私):
     private var pool: [AIVirtualNodeCandidate] = []
@@ -91,6 +95,7 @@ final class AIWorkspaceStore: ObservableObject {
     private static let structureKey = "SimpleZip.ai.structureEdits.v1"
     private static let seedsKey = "SimpleZip.ai.workspaceSeeds.v1"
     private static let learningKey = "SimpleZip.ai.learning.v1"
+    private static let treeSnapshotKey = "SimpleZip.ai.treeSnapshots.v1"
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -106,6 +111,9 @@ final class AIWorkspaceStore: ObservableObject {
         self.seeds = AIWorkspaceStore.decode([UUID: AIWorkspaceUserSeed].self, key: Self.seedsKey, from: defaults) ?? [:]
         self.learning = AIWorkspaceStore.decode(AIWorkspaceLearningStore.self, key: Self.learningKey, from: defaults)
             ?? AIWorkspaceLearningStore()
+        self.treeSnapshots = AIWorkspaceStore.decode([UUID: AIVirtualFolderTree].self, key: Self.treeSnapshotKey, from: defaults) ?? [:]
+        // 启动直接用上次的 AI 目录快照(重启不退回「自动整理」);refreshRecommendations 在后台静默续期。
+        self.treeCache = self.treeSnapshots
         persist()
     }
 
@@ -186,7 +194,7 @@ final class AIWorkspaceStore: ObservableObject {
             // 关推荐:就地清掉 recommended + 缓存,留住用户工作区(不必跑发现)。
             self.pool = pool
             self.pathsBySourceRef = pathsBySourceRef
-            self.treeCache = [:]
+            self.treeCache = self.treeSnapshots   // 保留 AI 整理快照(用户工作区重启仍显示上次目录)
             pendingCandidates = [:]
             themeVerdicts = [:]
             reviewAttemptsByTheme = [:]
@@ -231,7 +239,7 @@ final class AIWorkspaceStore: ObservableObject {
         guard generation == refreshGeneration else { return }   // 期间又发起了新一轮 → 丢弃这次
         self.pool = pool
         self.pathsBySourceRef = paths
-        self.treeCache = [:]   // 候选池变 → 树缓存失效
+        self.treeCache = self.treeSnapshots   // 候选池变 → 失效非快照(确定性)树;保留 AI 整理快照(不退回自动整理)
 
         guard sourceHadRecords else {
             // 启动早期 / 历史或索引尚未加载时,不要把“暂无输入”误当作“没有推荐”而清掉上次已发布的 AI 文件夹。
@@ -416,7 +424,9 @@ final class AIWorkspaceStore: ObservableObject {
         let next = collection.replacingRecommended(workspaces)
         memberRefsByWorkspace = memberRefs
         if next != collection { collection = next }
-        for (wsID, v) in toCachePlan where keptIDs.contains(wsID) {   // 缓存复核产出的 plan → 打开不再重跑模型
+        // 缓存复核产出的 plan → 打开不再重跑模型。**有持久快照的工作区不在此重排**:冻结上次 AI 目录,
+        // 只有点「刷新」才重排(用户:每次重启 / 后台复核都重排太蠢)。新工作区(无快照)才缓存 plan + 建树存快照。
+        for (wsID, v) in toCachePlan where keptIDs.contains(wsID) && treeSnapshots[wsID] == nil {
             let sig = v.members.map(\.id).sorted().joined(separator: ",")
             modelPlanSignatures[wsID] = sig
             modelPlans[wsID] = (sig, v.plan)
@@ -461,7 +471,7 @@ final class AIWorkspaceStore: ObservableObject {
             tree = buildTree(ws: ws, members: members, plan: nil, mode: .deterministic)
             maybeScheduleModelPlan(id: id, ws: ws, members: members, sig: sig)
         }
-        treeCache[id] = tree
+        cacheModelTree(id, tree)   // modelAssisted → 落持久快照(重启直接展示)
         return tree
     }
 
@@ -477,6 +487,7 @@ final class AIWorkspaceStore: ObservableObject {
         modelPlans[id] = nil
         modelFed[id] = nil
         treeCache[id] = nil
+        treeSnapshots[id] = nil; saveTreeSnapshots()   // 点刷新 = 丢弃旧快照,重排序(用户:只有刷新才重排)
         objectWillChange.send()
         AIBackgroundIndexer.shared.runIfEnabled()   // 重扫白名单(门控未过则什么都不做)→ 完成后回调发现刷新
     }
@@ -554,7 +565,7 @@ final class AIWorkspaceStore: ObservableObject {
         guard !modelTree.isEmpty else { return }
         modelFed[id] = keptFed
         modelPlans[id] = (sig, finalPlan)
-        treeCache[id] = modelTree
+        cacheModelTree(id, modelTree)   // 模型整理完成 → 落持久快照
         // 侧栏主题名:模型生成的(白皮书:主题名该是 AI 生成的;用户改过名则不覆盖)。
         if let aiTitle = finalPlan.workspaceTitle?.trimmingCharacters(in: .whitespacesAndNewlines), !aiTitle.isEmpty,
            seeds[id]?.userTitle == nil, collection.workspace(id)?.title != aiTitle {
@@ -813,6 +824,7 @@ final class AIWorkspaceStore: ObservableObject {
             saveSuppression()
         }
         treeCache[id] = nil; modelPlans[id] = nil; modelFed[id] = nil; modelPlanSignatures[id] = nil
+        treeSnapshots[id] = nil; saveTreeSnapshots()
         feedback = feedback.clearingWorkspace(id); saveFeedback()   // 工作区没了 → 清它的节点反馈
         structureEdits = structureEdits.clearingWorkspace(id); saveStructureEdits()
         seeds[id] = nil; saveSeeds(); learning = learning.clearingWorkspace(id); saveLearning()
@@ -831,6 +843,7 @@ final class AIWorkspaceStore: ObservableObject {
     func hide(_ id: UUID) { apply { $0.hiding(id) } }
     func removeUserWorkspace(_ id: UUID) {
         treeCache[id] = nil; modelPlans[id] = nil; modelFed[id] = nil; modelPlanSignatures[id] = nil
+        treeSnapshots[id] = nil; saveTreeSnapshots()
         feedback = feedback.clearingWorkspace(id); saveFeedback()
         structureEdits = structureEdits.clearingWorkspace(id); saveStructureEdits()
         seeds[id] = nil; saveSeeds(); learning = learning.clearingWorkspace(id); saveLearning()
@@ -873,6 +886,20 @@ final class AIWorkspaceStore: ObservableObject {
 
     private func saveLearning() {
         if let data = try? JSONEncoder().encode(learning) { defaults.set(data, forKey: Self.learningKey) }
+    }
+
+    private func saveTreeSnapshots() {
+        if let data = try? JSONEncoder().encode(treeSnapshots) { defaults.set(data, forKey: Self.treeSnapshotKey) }
+    }
+
+    /// 缓存一棵树;若是**模型整理好的**(modelAssisted 且非空)就额外存为持久快照(重启直接展示,不退回自动整理)。
+    /// 确定性占位树只进内存缓存,不落快照(免「锁死」自动整理态)。
+    private func cacheModelTree(_ id: UUID, _ tree: AIVirtualFolderTree) {
+        treeCache[id] = tree
+        if tree.generationMode == .modelAssisted, !tree.isEmpty {
+            treeSnapshots[id] = tree
+            saveTreeSnapshots()
+        }
     }
 
     private static func decode<T: Decodable>(_ type: T.Type, key: String, from defaults: UserDefaults) -> T? {
