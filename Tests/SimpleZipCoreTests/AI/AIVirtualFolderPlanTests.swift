@@ -275,6 +275,29 @@ import Testing
         #expect(!prepared.contains { $0.displayName == "AGENTS.md" })
     }
 
+    @Test func modelInputTreatsSplitDocumentRolesAsUsefulEvidence() {
+        let candidates = [
+            AIVirtualNodeCandidate(
+                id: "readme", kind: .file, displayName: "README.md",
+                sourceRefs: [AIContextSourceRef(kind: .file, id: "readme")],
+                roleTags: ["project-doc"], semanticTokens: ["readme"]),
+            AIVirtualNodeCandidate(
+                id: "changelog", kind: .file, displayName: "CHANGELOG.md",
+                sourceRefs: [AIContextSourceRef(kind: .file, id: "changelog")],
+                roleTags: ["release-notes"], semanticTokens: ["changelog"]),
+            AIVirtualNodeCandidate(
+                id: "reader", kind: .file, displayName: "HID_Global_veriCLASS_Reader.txt",
+                sourceRefs: [AIContextSourceRef(kind: .file, id: "reader")],
+                roleTags: ["reference-data"], semanticTokens: ["reader", "smartcard"])
+        ]
+
+        let (_, metrics) = AIVirtualFolderModelInputPreparer.prepareWithMetrics(
+            candidates: candidates, strongTokens: [])
+
+        #expect(metrics.tierCounts["normal"] == 3)
+        #expect(metrics.tierCounts["low"] == nil)
+    }
+
     @Test func modelInputKeepsExplorationSlotsForLowWeightEvidence() {
         let strong = (0..<8).map { i in
             AIVirtualNodeCandidate(

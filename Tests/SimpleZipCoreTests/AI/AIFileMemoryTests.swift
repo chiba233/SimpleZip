@@ -44,6 +44,23 @@ import Testing
         #expect(rec.markerTags == ["package.swift"])
     }
 
+    @Test func recordSplitsBroadDocumentRoleByFilenameSemantics() {
+        let readme = AIFileMemoryRecord.make(fileName: "README.md", isDirectory: false,
+                                             byteSize: 1, modifiedAt: nil, location: loc)
+        let changelog = AIFileMemoryRecord.make(fileName: "CHANGELOG.md", isDirectory: false,
+                                                byteSize: 1, modifiedAt: nil, location: loc)
+        let checksums = AIFileMemoryRecord.make(fileName: "SHA256SUMS", isDirectory: false,
+                                                byteSize: 1, modifiedAt: nil, location: loc)
+        let readerSpec = AIFileMemoryRecord.make(fileName: "HID_Global_veriCLASS_Reader.txt",
+                                                 isDirectory: false, byteSize: 1,
+                                                 modifiedAt: nil, location: loc)
+
+        #expect(readme.roleTags == ["project-doc"])
+        #expect(changelog.roleTags == ["release-notes"])
+        #expect(checksums.roleTags.contains("integrity-data"))
+        #expect(readerSpec.roleTags == ["reference-data"])
+    }
+
     @Test func folderProfileDetectsReleaseRole() {
         let files = [
             AIFileMemoryRecord.make(fileName: "SimpleZip.dmg", isDirectory: false, byteSize: 1, modifiedAt: nil, location: loc),

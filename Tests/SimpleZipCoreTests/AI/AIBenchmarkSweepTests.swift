@@ -80,10 +80,10 @@ private let releasePool: [AIVirtualNodeCandidate] = [
        tokens: ["simplezip", "swift", "ai"]),
     nc("entry-changelog",  .archiveEntry, "SimpleZip/CHANGELOG.md",
        refs: [ref(.archiveEntry, "entry-changelog")],
-       roles: ["documentation"],
-       signals: ["document", "same-parent"],
+       roles: ["release-notes"],
+       signals: ["release", "same-parent"],
        archives: ["arch-source-tar"],
-       tokens: ["changelog", "documentation"]),
+       tokens: ["changelog", "release", "version"]),
 
     // ── 哈希任务 (6) → 应被折叠 ──
     nc("task-hash-arm64", .task, "SHA-256: arm64.dmg",
@@ -183,20 +183,24 @@ private let releasePool: [AIVirtualNodeCandidate] = [
     // ── 文件 (5) ──
     nc("file-sha256sums", .file, "SHA256SUMS",
        refs: [ref(.file, "file-sha256sums")],
-       signals: ["document", "project-token", "source-ref-match"],
+       roles: ["integrity-data"],
+       signals: ["project-token", "source-ref-match", "integrity"],
        tokens: ["sha256", "checksum", "release"]),
     nc("file-changelog",  .file, "CHANGELOG.md",
        refs: [ref(.file, "file-changelog")],
-       signals: ["document", "project-token"],
-       tokens: ["changelog", "release"]),
+       roles: ["release-notes"],
+       signals: ["project-token", "release"],
+       tokens: ["changelog", "release", "version"]),
     nc("file-security",   .file, "SECURITY.md",
        refs: [ref(.file, "file-security")],
-       signals: ["document"],
-       tokens: ["security"]),
+       roles: ["project-doc"],
+       signals: ["project-token"],
+       tokens: ["security", "policy"]),
     nc("file-readme",     .file, "README.md",
        refs: [ref(.file, "file-readme")],
-       signals: ["document"],
-       tokens: ["readme"]),
+       roles: ["project-doc"],
+       signals: ["project-token"],
+       tokens: ["readme", "guide"]),
     nc("file-noise",      .file, "random-download.pkg",
        refs: [ref(.file, "file-noise")],
        tokens: ["package"]),
@@ -349,7 +353,7 @@ private let realTaskPool: [AIVirtualNodeCandidate] = [
 ]
 
 // MARK: - 真实文件候选（fileMemoryIndex 1124条 按角色采样 25条）
-// 角色分布: document=695(62%), source=93(8%), config=48(4%), media=42(4%), archive=35(3%), installer=3(<1%)
+// 拆分目标:旧 document 主体进入 reference-data,release-notes/project-doc/integrity-data 为高价值低频角色。
 
 private let realFilePool: [AIVirtualNodeCandidate] = [
     // archive role (3条)
@@ -408,31 +412,31 @@ private let realFilePool: [AIVirtualNodeCandidate] = [
     nc("file-r017", .file, "124509589_p0.png",
        refs: [ref(.file, "file-r017")], roles: ["media"],
        signals: ["loc-documents"], tokens: ["media", "png", "image"]),
-    // document (8条 — 真实占比 62%)
+    // split document roles (8条 — 拆出项目文档 / 发布说明 / 参考数据)
     nc("file-r018", .file, "README.md",
-       refs: [ref(.file, "file-r018")], roles: ["document"],
-       signals: ["loc-documents"], tokens: ["document", "readme", "markdown"]),
+       refs: [ref(.file, "file-r018")], roles: ["project-doc"],
+       signals: ["loc-documents", "project-token"], tokens: ["readme", "guide", "markdown"]),
     nc("file-r019", .file, "CHANGELOG.md",
-       refs: [ref(.file, "file-r019")], roles: ["document"],
-       signals: ["loc-documents"], tokens: ["document", "changelog", "simplezip"]),
+       refs: [ref(.file, "file-r019")], roles: ["release-notes"],
+       signals: ["loc-documents", "release"], tokens: ["changelog", "version", "markdown"]),
     nc("file-r020", .file, "Regula_RFID_Reader.txt",
-       refs: [ref(.file, "file-r020")], roles: ["document"],
-       signals: ["loc-documents"], tokens: ["document", "readers", "rfid"]),
+       refs: [ref(.file, "file-r020")], roles: ["reference-data"],
+       signals: ["loc-documents", "hardware-spec"], tokens: ["readers", "rfid", "smartcard"]),
     nc("file-r021", .file, "Cherry_KC_1000_SC_Z.txt",
-       refs: [ref(.file, "file-r021")], roles: ["document"],
-       signals: ["loc-documents"], tokens: ["document", "readers", "cherry"]),
+       refs: [ref(.file, "file-r021")], roles: ["reference-data"],
+       signals: ["loc-documents", "hardware-spec"], tokens: ["readers", "cherry", "smartcard"]),
     nc("file-r022", .file, "GemPCTwin.txt",
-       refs: [ref(.file, "file-r022")], roles: ["document"],
-       signals: ["loc-documents"], tokens: ["document", "readers"]),
+       refs: [ref(.file, "file-r022")], roles: ["reference-data"],
+       signals: ["loc-documents", "hardware-spec"], tokens: ["readers", "gemplus", "smartcard"]),
     nc("file-r023", .file, "Fujitsu_Smartcard_Reader_D323.txt",
-       refs: [ref(.file, "file-r023")], roles: ["document"],
-       signals: ["loc-documents"], tokens: ["document", "readers", "smartcard"]),
+       refs: [ref(.file, "file-r023")], roles: ["reference-data"],
+       signals: ["loc-documents", "hardware-spec"], tokens: ["readers", "fujitsu", "smartcard"]),
     nc("file-r024", .file, "HID_Global_veriCLASS_Reader.txt",
-       refs: [ref(.file, "file-r024")], roles: ["document"],
-       signals: ["loc-documents"], tokens: ["document", "readers", "hid"]),
+       refs: [ref(.file, "file-r024")], roles: ["reference-data"],
+       signals: ["loc-documents", "hardware-spec"], tokens: ["readers", "hid", "smartcard"]),
     nc("file-r025", .file, "Identiv_uTrust_3701_F_CL_Reader.txt",
-       refs: [ref(.file, "file-r025")], roles: ["document"],
-       signals: ["loc-documents"], tokens: ["document", "readers", "identiv"]),
+       refs: [ref(.file, "file-r025")], roles: ["reference-data"],
+       signals: ["loc-documents", "hardware-spec"], tokens: ["readers", "identiv", "smartcard"]),
 ]
 
 // 合并真实候选池

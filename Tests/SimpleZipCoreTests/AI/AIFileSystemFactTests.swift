@@ -64,6 +64,21 @@ import Testing
         #expect(fact.preferredWorkspaceOpenAppBundleID == "com.microsoft.VSCode")
     }
 
+    @Test func currentFactsUseSemanticDocumentRoles() {
+        let changelog = AIFileSystemFact.make(
+            absolutePath: "/Users/yumeka/Desktop/CHANGELOG.md", location: desktop,
+            posixMode: "rw-r--r--", currentUserCanRead: true, currentUserCanWrite: true,
+            currentUserCanExecute: false, isDirectory: false)
+        let readerSpec = AIFileSystemFact.make(
+            absolutePath: "/Users/yumeka/Desktop/HID_Global_veriCLASS_Reader.txt", location: desktop,
+            posixMode: "rw-r--r--", currentUserCanRead: true, currentUserCanWrite: true,
+            currentUserCanExecute: false, isDirectory: false)
+
+        #expect(changelog.roleTags == ["release-notes"])
+        #expect(readerSpec.roleTags == ["reference-data"])
+        #expect(changelog.promptProjection().roleTags == ["release-notes"])
+    }
+
     // MARK: - 确定性
 
     @Test func deterministicSameInputsEqual() {

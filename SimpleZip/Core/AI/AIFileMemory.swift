@@ -64,7 +64,50 @@ nonisolated enum AIFileType: String, Codable, Equatable, CaseIterable, Sendable 
         return .unknown
     }
 
-    /// 类型 → 角色标签(doc:source / document / checksum / signature / installer / archive / media / config / script）。
+    /// 文件名 + 类型 → 角色标签。类型保持粗粒度兼容;roleTags 承载更适合主题聚类的语义。
+    static func roleTags(fileName: String, isDirectory: Bool) -> [String] {
+        roleTags(fileName: fileName, isDirectory: isDirectory,
+                 type: classify(fileName: fileName, isDirectory: isDirectory))
+    }
+
+    static func roleTags(fileName: String, isDirectory: Bool, type: AIFileType) -> [String] {
+        guard !isDirectory else { return type.roleTag.map { [$0] } ?? [] }
+
+        let lower = ((fileName as NSString).lastPathComponent).lowercased()
+        let ext = (lower as NSString).pathExtension
+        let nameWithoutExtension = (lower as NSString).deletingPathExtension
+        let tokens = Set(nameWithoutExtension
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty })
+
+        if checksumNames.contains(lower) || checksumExtensions.contains(ext)
+            || tokens.contains("checksum") || tokens.contains("checksums") || tokens.contains("sha256")
+            || tokens.contains("sha1") || tokens.contains("md5") {
+            return ["integrity-data", "checksum"]
+        }
+        if signatureExtensions.contains(ext) || tokens.contains("signature") || tokens.contains("verify") {
+            return ["integrity-data", "signature"]
+        }
+        if lower.hasPrefix("changelog") || lower.hasPrefix("release_notes") || lower.hasPrefix("release-notes")
+            || lower.hasPrefix("news") || lower.hasPrefix("changes")
+            || (tokens.contains("changelog") && tokens.contains { $0.range(of: #"v?\d+(\.\d+)+"#,
+                                                                            options: .regularExpression) != nil }) {
+            return ["release-notes"]
+        }
+        if lower.hasPrefix("readme") || lower.hasPrefix("security") || lower.hasPrefix("contributing")
+            || lower.hasPrefix("code_of_conduct") || lower.hasPrefix("code-of-conduct") || lower.hasPrefix("agents")
+            || (["md", "markdown", "rst", "txt"].contains(ext)
+                && !tokens.isDisjoint(with: ["readme", "guide", "policy", "security"])) {
+            return ["project-doc"]
+        }
+        if ["txt", "text", "csv", "tsv", "dat", "log"].contains(ext) {
+            return ["reference-data"]
+        }
+
+        return type.roleTag.map { [$0] } ?? []
+    }
+
+    /// 类型 → 兜底角色标签(source / document / checksum / signature / installer / archive / media / config)。
     var roleTag: String? {
         switch self {
         case .sourceCode: return "source"
@@ -157,7 +200,7 @@ nonisolated struct AIFileMemoryRecord: Codable, Identifiable, Equatable, Sendabl
             byteSize: byteSize,
             modifiedAt: modifiedAt,
             location: location,
-            roleTags: type.roleTag.map { [$0] } ?? [],
+            roleTags: AIFileType.roleTags(fileName: fileName, isDirectory: isDirectory, type: type),
             markerTags: markers,
             relatedSourceRefs: relatedSourceRefs,
             contentSummary: contentSummary,

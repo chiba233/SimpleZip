@@ -353,7 +353,13 @@ nonisolated enum AIVirtualFolderModelInputPreparer {
     private static func roleWeight(_ roles: [String]) -> Double {
         let normalized = Set(roles.map(normalizeToken))
         var score = 0.0
-        if !normalized.isDisjoint(with: ["source", "code", "docs", "document", "spec", "reader"]) { score += 2.0 }
+        if !normalized.isDisjoint(with: [
+            "source", "code", "docs", "document", "project-doc", "release-notes",
+            "reference-data", "integrity-data", "spec", "reader"
+        ]) { score += 2.0 }
+        if !normalized.isDisjoint(with: ["project-doc", "release-notes", "reference-data", "integrity-data"]) {
+            score += 1.0
+        }
         if !normalized.isDisjoint(with: ["junk", "temporary"]) { score -= 2.0 }
         if !normalized.isDisjoint(with: ["checksum"]) { score -= 0.8 }
         return score

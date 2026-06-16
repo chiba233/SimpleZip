@@ -254,7 +254,7 @@ nonisolated struct AIFileSystemFact: Codable, Equatable, Sendable {
             defaultOpenAppName: defaultOpenAppName,
             availableOpenAppBundleIDs: availableOpenAppBundleIDs,
             preferredWorkspaceOpenAppBundleID: preferredWorkspaceOpenAppBundleID,
-            roleTags: type.roleTag.map { [$0] } ?? [],
+            roleTags: AIFileType.roleTags(fileName: rawName, isDirectory: isDirectory, type: type),
             sameDirectoryFailureGroupID: sameDirectoryFailureGroupID,
             projectRootHint: projectRootHint,
             contentReadableByAI: readable,
