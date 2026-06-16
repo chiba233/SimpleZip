@@ -1741,7 +1741,7 @@
 "devtools.aiData.backgroundIndex" = "Índice de archivos en segundo plano";
 "devtools.aiData.backgroundIndex.value" = "%@ · %@ ámbitos · %@ archivos · %@ perfiles de carpeta";
 "devtools.aiData.workspaces" = "Carpetas de IA dinámicas";
-"devtools.aiData.workspaces.value" = "%@ visibles · %@ total · %@ recomendadas · %@ usuario";
+"devtools.aiData.workspaces.value" = "%@ visibles · %@ total · %@ recomendadas · %@ usuario · %@ candidatas ocultas · %@ aprobadas · %@ revisando";
 "devtools.aiData.activityTasks" = "Tareas de actividad";
 "devtools.aiData.activityTasks.value" = "%@ activas · %@ historial · %@ fallidas";
 "devtools.defaults.copyAll" = "Copiar todo";
@@ -2582,6 +2582,11 @@
 "aiWorkspace.node.open" = "Abrir";
 "aiWorkspace.node.rename" = "Cambiar nombre";
 "aiWorkspace.group.more" = "Más";
+"aiWorkspace.suggest.hash" = "Calcular suma de verificación";
+"aiWorkspace.suggest.compress" = "Comprimir";
+"aiWorkspace.suggest.test" = "Probar archivo";
+"aiWorkspace.suggest.inspect" = "Inspeccionar lanzamiento";
+"aiWorkspace.suggest.convert" = "Convertir archivo";
 "aiWorkspace.node.openArchive" = "Abrir archivo";
 "aiWorkspace.node.openFolder" = "Abrir carpeta";
 "aiWorkspace.node.compress" = "Comprimir";

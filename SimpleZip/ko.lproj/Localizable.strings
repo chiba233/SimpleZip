@@ -1742,7 +1742,7 @@
 "devtools.aiData.backgroundIndex" = "백그라운드 파일 인덱스";
 "devtools.aiData.backgroundIndex.value" = "%@ · %@ 범위 · %@ 파일 · %@ 폴더 프로필";
 "devtools.aiData.workspaces" = "동적 AI 폴더";
-"devtools.aiData.workspaces.value" = "%@ 표시 · %@ 전체 · %@ 추천 · %@ 사용자";
+"devtools.aiData.workspaces.value" = "%@ 표시 · %@ 전체 · %@ 추천 · %@ 사용자 · %@ 숨김 후보 · %@ 승인됨 · %@ 검토 중";
 "devtools.aiData.activityTasks" = "활동 작업";
 "devtools.aiData.activityTasks.value" = "%@ 활성 · %@ 기록 · %@ 실패";
 "devtools.defaults.copyAll" = "모두 복사";
@@ -2583,6 +2583,11 @@
 "aiWorkspace.node.open" = "열기";
 "aiWorkspace.node.rename" = "이름 변경";
 "aiWorkspace.group.more" = "기타";
+"aiWorkspace.suggest.hash" = "체크섬 계산";
+"aiWorkspace.suggest.compress" = "압축";
+"aiWorkspace.suggest.test" = "아카이브 테스트";
+"aiWorkspace.suggest.inspect" = "릴리스 검사";
+"aiWorkspace.suggest.convert" = "아카이브 변환";
 "aiWorkspace.node.openArchive" = "아카이브 열기";
 "aiWorkspace.node.openFolder" = "폴더 열기";
 "aiWorkspace.node.compress" = "압축";

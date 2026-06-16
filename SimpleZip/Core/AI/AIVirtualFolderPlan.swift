@@ -233,11 +233,27 @@ nonisolated struct AIVirtualFolderPlan: Codable, Equatable, Sendable {
     let schema: String
     let workspaceTitle: String?
     let groups: [AIVirtualFolderGroupPlan]
+    /// 模型给具体节点的 AI 建议(纯模型生成,非硬编码常驻)。builder 据此给目标叶子挂 `.action` 子节点 →
+    /// 有建议才可展开。空 = 这棵树没有 AI 建议(节点都不展开,只能右键)。
+    let suggestions: [AINodeSuggestionPlan]
 
-    init(workspaceTitle: String? = nil, groups: [AIVirtualFolderGroupPlan]) {
+    init(workspaceTitle: String? = nil, groups: [AIVirtualFolderGroupPlan],
+         suggestions: [AINodeSuggestionPlan] = []) {
         self.schema = Self.schemaID
         self.workspaceTitle = workspaceTitle
         self.groups = groups
+        self.suggestions = suggestions
+    }
+
+    private enum CodingKeys: String, CodingKey { case schema, workspaceTitle, groups, suggestions }
+
+    /// 旧 plan(无 `suggestions`)解码兼容 → 缺字段默认 []。
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.schema = try c.decodeIfPresent(String.self, forKey: .schema) ?? Self.schemaID
+        self.workspaceTitle = try c.decodeIfPresent(String.self, forKey: .workspaceTitle)
+        self.groups = try c.decodeIfPresent([AIVirtualFolderGroupPlan].self, forKey: .groups) ?? []
+        self.suggestions = try c.decodeIfPresent([AINodeSuggestionPlan].self, forKey: .suggestions) ?? []
     }
 }
 
@@ -273,6 +289,25 @@ nonisolated struct AIVirtualFolderGroupPlan: Codable, Equatable, Sendable {
         self.candidateIDs = try c.decodeIfPresent([String].self, forKey: .candidateIDs) ?? []
         self.children = try c.decodeIfPresent([AIVirtualFolderGroupPlan].self, forKey: .children) ?? []
         self.prominent = try c.decodeIfPresent(Bool.self, forKey: .prominent) ?? false
+    }
+}
+
+/// 模型给**单个节点**的一条 AI 建议(白皮书建议四 + 用户点名:「ai suggestion 必须 ai 给明确信号才弹,不然只能
+/// 右键;每个文件不该全都有展开;把全部功能给 ai 让它自己选」)。模型从 `allowedSuggestionDescriptors` 词表里给某个
+/// 候选挑一个动作 token + 一句理由 —— **不拼路径 / 不拼负载**,负载由 App 按 token + 候选回查的路径安全合成。
+/// 一个节点**有建议才可展开**(无建议没展开箭头);常驻压缩 / 哈希被这套取代。
+nonisolated struct AINodeSuggestionPlan: Codable, Equatable, Sendable {
+    /// 目标候选 id(回查 `input.candidates.candidateID`;界外 / 查不到则丢弃)。
+    let targetCandidateID: String
+    /// 动作 token(`allowedSuggestionDescriptors.id`:hash / compress / test / inspect / convert …)。
+    let actionToken: String
+    /// 一句给用户看的理由(可空)。
+    let reason: String?
+
+    init(targetCandidateID: String, actionToken: String, reason: String? = nil) {
+        self.targetCandidateID = targetCandidateID
+        self.actionToken = actionToken
+        self.reason = reason
     }
 }
 
@@ -414,6 +449,46 @@ nonisolated enum AIVirtualNodeActionDeriver {
         else { return nil }
         return UUID(uuidString: ref.id)
     }
+
+    // MARK: - AI 建议动作(模型挑 token,App 据 token + 候选路径安全合成 —— 模型不拼负载)
+
+    /// 模型能给节点挑的 AI 建议词表(白皮书 `allowedActions`)。喂模型让它知道有哪些动作可建议,但**不让它拼路径**。
+    /// 全部 `requiresConfirmation`(打开现有任务 / 表单流,绝不自动执行);**绝不含删除等破坏性动作**(节点建议永远
+    /// 只读 / 只打开现有流程)。`userVisibleLabel` 是 prompt 里的英文释义,UI 标题由 App 本地化覆盖。
+    static let allowedSuggestionDescriptors: [AISuggestionActionDescriptor] = [
+        AISuggestionActionDescriptor(id: "hash", appliesToKinds: ["file", "archive"],
+                                     requiresConfirmation: true, userVisibleLabel: "Calculate checksum"),
+        AISuggestionActionDescriptor(id: "compress", appliesToKinds: ["file", "folder"],
+                                     requiresConfirmation: true, userVisibleLabel: "Compress to an archive"),
+        AISuggestionActionDescriptor(id: "test", appliesToKinds: ["archive"],
+                                     requiresConfirmation: true, userVisibleLabel: "Test archive integrity"),
+        AISuggestionActionDescriptor(id: "inspect", appliesToKinds: ["archive"],
+                                     requiresConfirmation: true, userVisibleLabel: "Inspect as a release package"),
+        AISuggestionActionDescriptor(id: "convert", appliesToKinds: ["archive"],
+                                     requiresConfirmation: true, userVisibleLabel: "Convert to another format"),
+    ]
+
+    /// 一个动作 token 是否能用于某节点 kind(给 prompt 词表 + 防御性过滤)。
+    static func suggestionApplies(token: String, to kind: AIVirtualNode.Kind) -> Bool {
+        guard let d = allowedSuggestionDescriptors.first(where: { $0.id == token }) else { return false }
+        return d.appliesToKinds.contains(kind.rawValue)
+    }
+
+    /// 把模型挑的动作 token + 目标候选,据回查到的路径**安全合成**成 `AISuggestionAction`。模型从不输出路径 ——
+    /// 路径一律由 App 从 facts 回查。token 不适用该 kind / 取不到路径 → nil(该建议丢弃)。
+    static func suggestionAction(token: String, candidate: AIVirtualNodeCandidate,
+                                 pathsBySourceRef: [AIContextSourceRef: String]) -> AISuggestionAction? {
+        guard suggestionApplies(token: token, to: candidate.kind),
+              let path = candidate.sourceRefs.first.flatMap({ pathsBySourceRef[$0] }) else { return nil }
+        switch token {
+        case "hash":    return .calculateHash(paths: [path], algorithms: ["sha256"])
+        case "compress": return .createArchive(paths: [path])
+        case "test":    return .testArchive(path: path)
+        case "inspect": return .inspectRelease(path: path)
+        case "convert": return .convertArchive(path: path)
+        default:        return nil
+        }
+    }
 }
 
 // MARK: - Builder:plan → sanitized 虚拟树
@@ -437,13 +512,15 @@ nonisolated enum AIVirtualFolderTreeBuilder {
                      mode: .deterministic, constraints: constraints, generatedAt: generatedAt)
     }
 
-    /// 用一份 plan(模型或确定性)+ 候选建树。
+    /// 用一份 plan(模型或确定性)+ 候选建树。`suggestionLabels` 给 `.action` 建议节点的本地化标题(App 注入,
+    /// token → 标题);确定性树不带建议(plan.suggestions 空)。
     static func build(
         workspace: AIWorkspace,
         plan: AIVirtualFolderPlan,
         candidates: [AIVirtualNodeCandidate],
         pathsBySourceRef: [AIContextSourceRef: String] = [:],
         actionsByCandidateID: [String: AISuggestionAction] = [:],
+        suggestionLabels: [String: String] = [:],
         mode: AIVirtualTreeGenerationMode,
         constraints: AIVirtualFolderPlanConstraints = .default,
         generatedAt: Date
@@ -453,9 +530,15 @@ nonisolated enum AIVirtualFolderTreeBuilder {
             $0.isEmpty ? nil : $0
         } ?? workspace.title
 
+        // 模型给各候选挑的 AI 建议(按目标候选分组;界外 candidateID 自然没有叶子会用到)。
+        var suggestionsByCandidate: [String: [AINodeSuggestionPlan]] = [:]
+        for s in plan.suggestions { suggestionsByCandidate[s.targetCandidateID, default: []].append(s) }
+
         let nodes = plan.groups.compactMap {
             groupNode($0, depth: 0, byID: byID, pathsBySourceRef: pathsBySourceRef,
-                      actionsByCandidateID: actionsByCandidateID, constraints: constraints)
+                      actionsByCandidateID: actionsByCandidateID,
+                      suggestionsByCandidate: suggestionsByCandidate, suggestionLabels: suggestionLabels,
+                      constraints: constraints)
         }
         // 收集树里实际用到的全部 source ref —— sanitizer 的候选白名单。
         var refs: [AIContextSourceRef] = []
@@ -481,6 +564,8 @@ nonisolated enum AIVirtualFolderTreeBuilder {
         byID: [String: AIVirtualNodeCandidate],
         pathsBySourceRef: [AIContextSourceRef: String],
         actionsByCandidateID: [String: AISuggestionAction],
+        suggestionsByCandidate: [String: [AINodeSuggestionPlan]],
+        suggestionLabels: [String: String],
         constraints: AIVirtualFolderPlanConstraints
     ) -> AIVirtualNode? {
         var children: [AIVirtualNode] = []
@@ -488,7 +573,9 @@ nonisolated enum AIVirtualFolderTreeBuilder {
         for cid in group.candidateIDs {
             guard let candidate = byID[cid] else { continue }
             children.append(leafNode(candidate, pathsBySourceRef: pathsBySourceRef,
-                                     actionsByCandidateID: actionsByCandidateID))
+                                     actionsByCandidateID: actionsByCandidateID,
+                                     suggestionsByCandidate: suggestionsByCandidate,
+                                     suggestionLabels: suggestionLabels))
         }
         // 子组:未到深度上限则递归成子 group;到上限则拍平子组的叶子进本组。
         if depth + 1 < constraints.maxDepth {
@@ -496,6 +583,8 @@ nonisolated enum AIVirtualFolderTreeBuilder {
                 if let childNode = groupNode(child, depth: depth + 1, byID: byID,
                                              pathsBySourceRef: pathsBySourceRef,
                                              actionsByCandidateID: actionsByCandidateID,
+                                             suggestionsByCandidate: suggestionsByCandidate,
+                                             suggestionLabels: suggestionLabels,
                                              constraints: constraints) {
                     children.append(childNode)
                 }
@@ -506,7 +595,9 @@ nonisolated enum AIVirtualFolderTreeBuilder {
                 for cid in flattenedCandidateIDs(child) {
                     guard let candidate = byID[cid] else { continue }
                     children.append(leafNode(candidate, pathsBySourceRef: pathsBySourceRef,
-                                             actionsByCandidateID: actionsByCandidateID))
+                                             actionsByCandidateID: actionsByCandidateID,
+                                             suggestionsByCandidate: suggestionsByCandidate,
+                                             suggestionLabels: suggestionLabels))
                 }
             }
         }
@@ -522,12 +613,31 @@ nonisolated enum AIVirtualFolderTreeBuilder {
     private static func leafNode(
         _ candidate: AIVirtualNodeCandidate,
         pathsBySourceRef: [AIContextSourceRef: String],
-        actionsByCandidateID: [String: AISuggestionAction]
+        actionsByCandidateID: [String: AISuggestionAction],
+        suggestionsByCandidate: [String: [AINodeSuggestionPlan]],
+        suggestionLabels: [String: String]
     ) -> AIVirtualNode {
         let action = AIVirtualNodeActionDeriver.primaryAction(
             for: candidate, pathsBySourceRef: pathsBySourceRef,
             actionsByCandidateID: actionsByCandidateID)
-        return candidate.toNode().withPrimaryAction(action)
+        let base = candidate.toNode().withPrimaryAction(action)
+        // 模型给这个节点挑的 AI 建议 → `.action` 子节点(去重 token;**有建议才可展开**,无则没子节点没箭头)。
+        // 路径回查不到 / token 不适用该 kind 的建议丢弃。建议是只读 / 打开现有流程,绝不破坏性。
+        let suggestions = suggestionsByCandidate[candidate.id] ?? []
+        guard !suggestions.isEmpty else { return base }
+        var seenTokens = Set<String>()
+        let actionChildren: [AIVirtualNode] = suggestions.compactMap { suggestion in
+            guard seenTokens.insert(suggestion.actionToken).inserted,
+                  let act = AIVirtualNodeActionDeriver.suggestionAction(
+                    token: suggestion.actionToken, candidate: candidate, pathsBySourceRef: pathsBySourceRef)
+            else { return nil }
+            return AIVirtualNode(
+                id: AIStableHash.deterministicUUID("sug:\(candidate.id):\(suggestion.actionToken)"),
+                kind: .action,
+                title: suggestionLabels[suggestion.actionToken] ?? suggestion.actionToken,
+                reason: suggestion.reason, primaryAction: act, safety: act.safety)
+        }
+        return base.replacingChildren(actionChildren)
     }
 
     /// 收集一个组(含所有更深子组)里的全部 candidateID —— 到 maxDepth 后拍平用。

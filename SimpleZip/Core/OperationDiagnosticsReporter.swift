@@ -172,7 +172,7 @@ public enum OperationDiagnosticsReporter {
     ///   所以「正常」运行里不会出现这种串；但如果用户在自定义 raw 参数里手填了密码、
     ///   或第三方 CLI 把密码 echo 回了 stdout，就会被捕到。
     /// 抹掉规则：把值替换成 `[REDACTED]`，保留参数前缀方便排错。
-    public static func sanitize(_ text: String) -> String {
+    public nonisolated static func sanitize(_ text: String) -> String {
         let pattern = #"(?<![A-Za-z0-9])(-h?p)([^\s]+)"#
         guard let regex = try? NSRegularExpression(pattern: pattern) else {
             return text

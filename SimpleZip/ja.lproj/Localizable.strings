@@ -1743,7 +1743,7 @@
 "devtools.aiData.backgroundIndex" = "バックグラウンドファイル索引";
 "devtools.aiData.backgroundIndex.value" = "%@ · %@ スコープ · %@ ファイル · %@ フォルダプロファイル";
 "devtools.aiData.workspaces" = "動的 AI フォルダ";
-"devtools.aiData.workspaces.value" = "%@ 表示 · %@ 合計 · %@ 推奨 · %@ ユーザー";
+"devtools.aiData.workspaces.value" = "%@ 表示 · %@ 合計 · %@ 推奨 · %@ ユーザー · %@ 非表示候補 · %@ 承認済み · %@ レビュー中";
 "devtools.aiData.activityTasks" = "アクティビティタスク";
 "devtools.aiData.activityTasks.value" = "%@ 実行中 · %@ 履歴 · %@ 失敗";
 "devtools.defaults.copyAll" = "すべてコピー";
@@ -2584,6 +2584,11 @@
 "aiWorkspace.node.open" = "開く";
 "aiWorkspace.node.rename" = "名前を変更";
 "aiWorkspace.group.more" = "その他";
+"aiWorkspace.suggest.hash" = "チェックサムを計算";
+"aiWorkspace.suggest.compress" = "圧縮";
+"aiWorkspace.suggest.test" = "アーカイブをテスト";
+"aiWorkspace.suggest.inspect" = "リリースを検査";
+"aiWorkspace.suggest.convert" = "アーカイブを変換";
 "aiWorkspace.node.openArchive" = "アーカイブを開く";
 "aiWorkspace.node.openFolder" = "フォルダを開く";
 "aiWorkspace.node.compress" = "圧縮";

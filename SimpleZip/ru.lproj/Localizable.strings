@@ -1741,7 +1741,7 @@
 "devtools.aiData.backgroundIndex" = "Фоновый индекс файлов";
 "devtools.aiData.backgroundIndex.value" = "%@ · %@ областей · %@ файлов · %@ профилей папок";
 "devtools.aiData.workspaces" = "Динамические ИИ-папки";
-"devtools.aiData.workspaces.value" = "%@ видимых · %@ всего · %@ рекомендованных · %@ пользовательских";
+"devtools.aiData.workspaces.value" = "%@ видимых · %@ всего · %@ рекомендованных · %@ пользовательских · %@ скрытых кандидатов · %@ одобрено · %@ проверяется";
 "devtools.aiData.activityTasks" = "Задачи активности";
 "devtools.aiData.activityTasks.value" = "%@ активных · %@ история · %@ сбоев";
 "devtools.defaults.copyAll" = "Копировать все";
@@ -2582,6 +2582,11 @@
 "aiWorkspace.node.open" = "Открыть";
 "aiWorkspace.node.rename" = "Переименовать";
 "aiWorkspace.group.more" = "Ещё";
+"aiWorkspace.suggest.hash" = "Вычислить контрольную сумму";
+"aiWorkspace.suggest.compress" = "Сжать";
+"aiWorkspace.suggest.test" = "Проверить архив";
+"aiWorkspace.suggest.inspect" = "Проверить релиз";
+"aiWorkspace.suggest.convert" = "Конвертировать архив";
 "aiWorkspace.node.openArchive" = "Открыть архив";
 "aiWorkspace.node.openFolder" = "Открыть папку";
 "aiWorkspace.node.compress" = "Сжать";

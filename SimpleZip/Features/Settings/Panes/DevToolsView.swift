@@ -417,7 +417,10 @@ struct DevToolsView: View {
                 "\(snapshot.workspaces.visible)",
                 "\(snapshot.workspaces.total)",
                 "\(snapshot.workspaces.recommended)",
-                "\(snapshot.workspaces.userCreated)"
+                "\(snapshot.workspaces.userCreated)",
+                "\(snapshot.workspaces.hiddenCandidates)",
+                "\(snapshot.workspaces.approvedReviews)",
+                "\(snapshot.workspaces.reviewsInFlight)"
             )
             aiActivityTasksStatus = L10n.format(
                 "devtools.aiData.activityTasks.value",
@@ -457,7 +460,7 @@ struct DevToolsView: View {
         let backgroundStore = AIBackgroundIndexStore.shared
         let budget = backgroundStore.budget
         let index = backgroundStore.fileIndex
-        let workspaces = AIWorkspaceStore.shared.collection.workspaces
+        let workspaceCounts = AIWorkspaceStore.shared.debugCounts
         let allTasks = TaskCenter.shared.active + TaskCenter.shared.history
         let taskRecords = allTasks.map(\.aiTaskRecord)
         let workbench = ActivityAIWorkbenchBuilder.snapshot(records: taskRecords)
@@ -491,7 +494,7 @@ struct DevToolsView: View {
                     )
                 }
             ),
-            workspaces: DevToolsAIDataSnapshot.Workspaces(workspaces),
+            workspaces: DevToolsAIDataSnapshot.Workspaces(workspaceCounts),
             activityTasks: DevToolsAIDataSnapshot.ActivityTasks(
                 active: TaskCenter.shared.active.count,
                 history: TaskCenter.shared.history.count,
@@ -627,20 +630,26 @@ private nonisolated struct DevToolsAIDataSnapshot: Encodable {
         let total: Int
         let recommended: Int
         let userCreated: Int
+        let hiddenCandidates: Int
+        let approvedReviews: Int
+        let reviewsInFlight: Int
         let hidden: Int
         let dismissed: Int
         let pinned: Int
         let described: Int
 
-        init(_ workspaces: [AIWorkspace]) {
-            self.visible = workspaces.filter { $0.visibility == .visible }.count
-            self.total = workspaces.count
-            self.recommended = workspaces.filter { $0.origin == .recommended }.count
-            self.userCreated = workspaces.filter { $0.origin == .userCreated }.count
-            self.hidden = workspaces.filter { $0.visibility == .hidden }.count
-            self.dismissed = workspaces.filter { $0.visibility == .dismissed }.count
-            self.pinned = workspaces.filter(\.pinned).count
-            self.described = workspaces.filter { $0.userDescription != nil }.count
+        init(_ counts: AIWorkspaceStore.DebugCounts) {
+            self.visible = counts.visible
+            self.total = counts.total
+            self.recommended = counts.recommended
+            self.userCreated = counts.userCreated
+            self.hiddenCandidates = counts.hiddenCandidates
+            self.approvedReviews = counts.approvedReviews
+            self.reviewsInFlight = counts.reviewsInFlight
+            self.hidden = counts.hidden
+            self.dismissed = counts.dismissed
+            self.pinned = counts.pinned
+            self.described = counts.described
         }
     }
 

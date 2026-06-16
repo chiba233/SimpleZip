@@ -98,6 +98,39 @@ final class AIWorkspaceStore: ObservableObject {
 
     func workspace(_ id: UUID) -> AIWorkspace? { collection.workspace(id) }
 
+    /// DevTools 只读调试计数:持久可见集合 + 本会话隐藏竞争池。隐藏候选不进 `collection`,否则会误当成
+    /// 可见 AI 文件夹;但调试页需要看见它们是否正在生成 / 复核。
+    nonisolated struct DebugCounts: Encodable, Equatable {
+        let visible: Int
+        let total: Int
+        let recommended: Int
+        let userCreated: Int
+        let hiddenCandidates: Int
+        let approvedReviews: Int
+        let reviewsInFlight: Int
+        let hidden: Int
+        let dismissed: Int
+        let pinned: Int
+        let described: Int
+    }
+
+    var debugCounts: DebugCounts {
+        let workspaces = collection.workspaces
+        return DebugCounts(
+            visible: workspaces.filter { $0.visibility == .visible }.count,
+            total: workspaces.count,
+            recommended: workspaces.filter { $0.origin == .recommended }.count,
+            userCreated: workspaces.filter { $0.origin == .userCreated }.count,
+            hiddenCandidates: pendingCandidates.count,
+            approvedReviews: themeVerdicts.values.filter(\.approved).count,
+            reviewsInFlight: reviewInFlight.count,
+            hidden: workspaces.filter { $0.visibility == .hidden }.count,
+            dismissed: workspaces.filter { $0.visibility == .dismissed }.count,
+            pinned: workspaces.filter(\.pinned).count,
+            described: workspaces.filter { $0.userDescription != nil }.count
+        )
+    }
+
     // MARK: - 后台发现 → 推荐工作区(与当前文件夹无关)
 
     /// 用全局数据层的派生记录跑一轮发现,把跨位置主题 upsert 成 `.recommended` 工作区。records 由后台编排者从
@@ -129,20 +162,22 @@ final class AIWorkspaceStore: ObservableObject {
             return
         }
 
-        // 设置里的上限 = **可展示**数量;模型可用时后台多生成约 2×(至少 8)候选主题,让它们竞争,只有竞争胜出
-        // 的前 N(=展示上限)才进展示名录(用户:不保数量保质量,后台撕杀加权)。模型不可用时就按展示上限发现。
+        // 设置里的上限 = **可展示**数量;模型可用时后台多生成一批候选主题,让通过规则质量门控的候选先留在
+        // 隐藏参赛池里竞争 / 复核。只有模型复核通过的胜者才进入可见区,避免半成品工作区先露出来。
         let displayLimit = AppPreferences.aiMaxRecommendedWorkspaces
-        let candidateLimit = AIReportAssistant.isReady ? max(displayLimit * 2, 8) : displayLimit
+        let candidateLimit = AIReportAssistant.isReady ? max(displayLimit * 3, displayLimit + 8) : displayLimit
         let policy = AIRecommendationPolicy(maxThemes: candidateLimit)
         let suppression = self.suppression
         // **重活(跨位置语义聚类)挪出 MainActor** —— 开窗首帧不被 AI 发现拖住(用户实测卡;倒排索引已降复杂度,
         // 但聚类仍不该占主线程)。纯 Core(Sendable)→ Task.detached,回主线程原子安装。
-        Task.detached(priority: .utility) { [files, tasks, attention, suppression, policy, pool, pathsBySourceRef, now] in
+        let sourceHadRecords = !files.isEmpty || !tasks.isEmpty
+        Task.detached(priority: .utility) { [files, tasks, attention, suppression, policy, pool, pathsBySourceRef, sourceHadRecords, now] in
             let out = AIWorkspaceDiscovery.discover(
                 files: files, tasks: tasks, attention: attention, suppression: suppression, now: now, policy: policy)
             await MainActor.run {
                 self.applyDiscovery(generation: generation, pool: pool,
-                                    paths: pathsBySourceRef, output: out, now: now)
+                                    paths: pathsBySourceRef, sourceHadRecords: sourceHadRecords,
+                                    output: out, now: now)
             }
         }
     }
@@ -150,11 +185,19 @@ final class AIWorkspaceStore: ObservableObject {
     /// off-main 聚类回主线程:只认最新一轮(过期结果丢弃),原子安装 pool + 成员引用 + 推荐工作区。
     private func applyDiscovery(generation: Int, pool: [AIVirtualNodeCandidate],
                                paths: [AIContextSourceRef: String],
+                               sourceHadRecords: Bool,
                                output: AIWorkspaceDiscovery.Output, now: Date) {
         guard generation == refreshGeneration else { return }   // 期间又发起了新一轮 → 丢弃这次
         self.pool = pool
         self.pathsBySourceRef = paths
         self.treeCache = [:]   // 候选池变 → 树缓存失效
+
+        guard sourceHadRecords else {
+            // 启动早期 / 历史或索引尚未加载时,不要把“暂无输入”误当作“没有推荐”而清掉上次已发布的 AI 文件夹。
+            // 真正关掉推荐走上面的偏好门控;有输入但无合格主题时才允许下面的替换逻辑收敛可见列表。
+            pendingCandidates = [:]
+            return
+        }
 
         guard AIReportAssistant.isReady else {
             // 模型不可用:规则门控 + 全发布(确定性树,UI 标「自动整理」)—— 没有模型就退回这条稳妥路径。
@@ -166,8 +209,8 @@ final class AIWorkspaceStore: ObservableObject {
             return
         }
 
-        // 模型就绪:**建文件夹是后台行为** —— 规则候选先不发布,逐个让模型复核「真能撑起一个主题」才出现(质量优先、
-        // 不保数量)。复核同时产出名字 / 选成员 / 分组 → 缓存,打开秒开。
+        // 模型就绪:**建文件夹是后台行为** —— 规则候选已过质量门控,但仍只进入隐藏参赛池;逐个让模型复核
+        // 「真能撑起一个主题」。复核通过才发布名字 / 选成员 / 分组并缓存,复核判否则在隐藏池淘汰。
         var pending: [String: (ws: AIWorkspace, fed: [AIVirtualNodeCandidate], ruleRefs: Set<AIContextSourceRef>)] = [:]
         for theme in output.themes {
             let ws = theme.toRecommendedWorkspace(generatedAt: now)
@@ -206,9 +249,8 @@ final class AIWorkspaceStore: ObservableObject {
         }
     }
 
-    /// 把候选发布成可见推荐工作区。已复核通过的用模型标题 + 成员 + 缓存 plan(秒开);**还没复核但本来就可见的**
-    /// 暂留(规则成员,显示「自动整理」)→ 避免启动 / 重扫时已有文件夹先消失再冒出来的闪烁;复核判否的移除。
-    /// 数量上限走设置。
+    /// 把隐藏参赛池里**已复核通过**的候选发布成可见推荐工作区。未复核候选只在隐藏池里竞争 / 等待复核,
+    /// 不能进入侧栏可见区;复核判否的移除。数量上限走设置。
     private func republishReviewedThemes() {
         let now = Date()
         var scored: [(ws: AIWorkspace, score: Double, refs: Set<AIContextSourceRef>)] = []
@@ -220,9 +262,9 @@ final class AIWorkspaceStore: ObservableObject {
                 if let title = v.title, !title.isEmpty { ws.title = title }
                 scored.append((ws, competitionScore(ws, memberCount: v.members.count, now: now), v.memberRefs))
                 toCachePlan.append((ws.id, v))
-            } else if let existing = collection.workspace(c.ws.id) {
-                // 还没复核但本来就在侧栏 → 暂留**已有的工作区**(保上次的模型标题,不 revert 成 titleSeed),
-                // 用规则成员 + 确定性树,复核回来再升级;不闪。
+            } else if let existing = collection.workspace(c.ws.id), existing.visibility == .visible {
+                // 新候选未复核不上屏;但旧的可见推荐已经是上轮发布物,重启 / 重扫时 verdict 缓存为空也不能先消失。
+                // 先用本轮规则成员保持它可打开,新复核回来后再按竞争分升级或淘汰。
                 scored.append((existing, competitionScore(existing, memberCount: c.ruleRefs.count, now: now), c.ruleRefs))
             }
         }
@@ -301,13 +343,15 @@ final class AIWorkspaceStore: ObservableObject {
         AIBackgroundIndexer.shared.runIfEnabled()   // 重扫白名单(门控未过则什么都不做)→ 完成后回调发现刷新
     }
 
-    /// plan(nil = 确定性)+ 成员 → 套用户结构编辑后的最终树。
+    /// plan(nil = 确定性)+ 成员 → 套用户结构编辑后的最终树。模型 plan 的 AI 建议 → `.action` 子节点(带本地化标题)。
     private func buildTree(ws: AIWorkspace, members: [AIVirtualNodeCandidate],
                            plan: AIVirtualFolderPlan?, mode: AIVirtualTreeGenerationMode) -> AIVirtualFolderTree {
         let base: AIVirtualFolderTree
         if let plan {
             base = AIVirtualFolderTreeBuilder.build(workspace: ws, plan: plan, candidates: members,
-                                                    pathsBySourceRef: pathsBySourceRef, mode: mode, generatedAt: Date())
+                                                    pathsBySourceRef: pathsBySourceRef,
+                                                    suggestionLabels: Self.suggestionLabels,
+                                                    mode: mode, generatedAt: Date())
         } else {
             base = AIVirtualFolderTreeBuilder.buildDeterministic(
                 workspace: ws, candidates: members, pathsBySourceRef: pathsBySourceRef, generatedAt: Date())
@@ -315,6 +359,18 @@ final class AIWorkspaceStore: ObservableObject {
         // 用户结构编辑(分组改名 + 成员移动)永远盖在最后 —— 无论树是确定性还是模型生成的,用户整理不丢。
         return base.applyingStructureEdits(
             groupTitles: structureEdits.groupTitles(ws.id), assignments: structureEdits.assignments(ws.id))
+    }
+
+    /// AI 建议 token → 本地化标题(喂给 builder 给 `.action` 节点用;token 与 `allowedSuggestionDescriptors` 同源)。
+    /// 每次读取按当前界面语言取(语言可中途切)。
+    static var suggestionLabels: [String: String] {
+        [
+            "hash": L10n.text("aiWorkspace.suggest.hash"),
+            "compress": L10n.text("aiWorkspace.suggest.compress"),
+            "test": L10n.text("aiWorkspace.suggest.test"),
+            "inspect": L10n.text("aiWorkspace.suggest.inspect"),
+            "convert": L10n.text("aiWorkspace.suggest.convert"),
+        ]
     }
 
     /// 模型就绪 + 本批成员还没让模型排过 → 异步让**本地模型生成虚拟目录树**(白皮书:AI 文件夹的树必须过模型,
@@ -354,7 +410,8 @@ final class AIWorkspaceStore: ObservableObject {
             groups.append(AIVirtualFolderGroupPlan(id: "more", title: L10n.text("aiWorkspace.group.more"),
                                                    candidateIDs: unplaced))
         }
-        let finalPlan = AIVirtualFolderPlan(workspaceTitle: plan.workspaceTitle, groups: groups)
+        let finalPlan = AIVirtualFolderPlan(workspaceTitle: plan.workspaceTitle, groups: groups,
+                                            suggestions: plan.suggestions)
         let modelTree = buildTree(ws: ws, members: keptFed, plan: finalPlan, mode: .modelAssisted)
         guard !modelTree.isEmpty else { return }
         modelFed[id] = keptFed

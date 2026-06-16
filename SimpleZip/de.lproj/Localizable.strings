@@ -1742,7 +1742,7 @@
 "devtools.aiData.backgroundIndex" = "Hintergrund-Dateiindex";
 "devtools.aiData.backgroundIndex.value" = "%@ · %@ Bereiche · %@ Dateien · %@ Ordnerprofile";
 "devtools.aiData.workspaces" = "Dynamische KI-Ordner";
-"devtools.aiData.workspaces.value" = "%@ sichtbar · %@ gesamt · %@ empfohlen · %@ Benutzer";
+"devtools.aiData.workspaces.value" = "%@ sichtbar · %@ gesamt · %@ empfohlen · %@ Benutzer · %@ versteckte Kandidaten · %@ genehmigt · %@ in Prüfung";
 "devtools.aiData.activityTasks" = "Aktivitätsaufgaben";
 "devtools.aiData.activityTasks.value" = "%@ aktiv · %@ Verlauf · %@ fehlgeschlagen";
 "devtools.defaults.copyAll" = "Alles kopieren";
@@ -2582,6 +2582,11 @@
 "aiWorkspace.node.open" = "Öffnen";
 "aiWorkspace.node.rename" = "Umbenennen";
 "aiWorkspace.group.more" = "Mehr";
+"aiWorkspace.suggest.hash" = "Prüfsumme berechnen";
+"aiWorkspace.suggest.compress" = "Komprimieren";
+"aiWorkspace.suggest.test" = "Archiv testen";
+"aiWorkspace.suggest.inspect" = "Release prüfen";
+"aiWorkspace.suggest.convert" = "Archiv konvertieren";
 "aiWorkspace.node.openArchive" = "Archiv öffnen";
 "aiWorkspace.node.openFolder" = "Ordner öffnen";
 "aiWorkspace.node.compress" = "Komprimieren";

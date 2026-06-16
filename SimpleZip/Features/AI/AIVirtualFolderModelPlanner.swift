@@ -32,6 +32,18 @@ struct GeneratedAIFolderGroup: Sendable {
     var expandFirst: Bool
 }
 
+/// 模型给单个条目挑的一条 AI 建议(纯模型生成,非硬编码常驻 —— 用户:「ai suggestion 必须 ai 给明确信号才弹」)。
+@available(macOS 26.0, *)
+@Generable
+struct GeneratedAINodeSuggestion: Sendable {
+    @Guide(description: "The candidateID (copied VERBATIM from the items list) this suggestion is for.")
+    var targetID: String
+    @Guide(description: "ONE action token from the allowed-actions list given in the instructions (e.g. hash, compress, test, inspect, convert). Use a token whose 'applies to' kinds include this item's kind; otherwise pick none.")
+    var action: String
+    @Guide(description: "One short, concrete reason the user would want this action on THIS item. May be empty.")
+    var reason: String
+}
+
 /// 模型产出的整份虚拟目录 plan。
 @available(macOS 26.0, *)
 @Generable
@@ -42,6 +54,8 @@ struct GeneratedAIFolderPlan: Sendable {
     var workspaceTitle: String
     @Guide(description: "Between 2 and 6 groups organizing the items that truly belong by meaning. Put each kept item in exactly one group; prefer a small number of clear, well-named groups over many tiny ones.")
     var groups: [GeneratedAIFolderGroup]
+    @Guide(description: "Optional per-item action suggestions — ONLY where there is a clear, specific reason for THAT item (e.g. an untested release archive → test; a big stray folder → compress). MOST items get NONE. Never suggest an action just because it is possible. Leave empty if nothing genuinely stands out.")
+    var suggestions: [GeneratedAINodeSuggestion]
 }
 
 /// 一次模型复核的结果:是否值得作为文件夹出现 + 它的 plan(命名 / 选成员 / 分组)。
@@ -62,6 +76,19 @@ enum AIVirtualFolderModelPlanner {
         are — exactly as a person would name it. NEVER put meta words like "AI", "assistant", "folder", "collection", \
         "group", "files", "directory", "workspace" or "smart" into any title unless that word is literally part of \
         the real subject. The candidateID values are opaque identifiers — copy them exactly, never translate them.
+        """
+    }
+
+    /// 可建议动作词表(喂模型,让它从中给条目挑建议;**绝不让它拼路径**)。和 `allowedSuggestionDescriptors` 同源。
+    static var actionVocabularyRule: String {
+        let lines = AIVirtualNodeActionDeriver.allowedSuggestionDescriptors.map {
+            "  - \($0.id) (applies to: \($0.appliesToKinds.joined(separator: " / "))): \($0.userVisibleLabel)"
+        }
+        return """
+        You may optionally attach a few per-item action suggestions, but ONLY when there is a clear, specific reason \
+        for that one item — most items get NONE, never suggest an action just because it is possible. Pick the action \
+        token VERBATIM from this list and target the item by its candidateID:
+        \(lines.joined(separator: "\n"))
         """
     }
 
@@ -108,6 +135,8 @@ enum AIVirtualFolderModelPlanner {
         treat these as strong guidance learned from this user: favor items like the ones they keep, leave out items \
         like the ones they removed, and reuse the group names/themes they picked.
 
+        \(Self.actionVocabularyRule)
+
         \(Self.namingRule)
         """
         var lines: [String] = []
@@ -145,6 +174,8 @@ enum AIVirtualFolderModelPlanner {
         treat these as strong guidance: a theme the user has actively curated is more worth surfacing, and you \
         should honor what they keep, leave out, and how they name groups.
 
+        \(Self.actionVocabularyRule)
+
         \(Self.namingRule)
         """
         var lines: [String] = []
@@ -172,7 +203,19 @@ enum AIVirtualFolderModelPlanner {
                 candidateIDs: g.candidateIDs,
                 prominent: g.expandFirst)   // AI 注意力:这组该不该默认展开
         }
-        let plan = AIVirtualFolderPlan(workspaceTitle: title.isEmpty ? nil : title, groups: groups)
+        // 模型挑的 AI 建议 → plan.suggestions(token 必须在词表内,否则丢;targetID / kind / 路径由 builder 再校验)。
+        let suggestions = generated.suggestions.compactMap { s -> AINodeSuggestionPlan? in
+            let token = s.action.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let target = s.targetID.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !token.isEmpty, !target.isEmpty,
+                  AIVirtualNodeActionDeriver.allowedSuggestionDescriptors.contains(where: { $0.id == token })
+            else { return nil }
+            let reason = s.reason.trimmingCharacters(in: .whitespacesAndNewlines)
+            return AINodeSuggestionPlan(targetCandidateID: target, actionToken: token,
+                                        reason: reason.isEmpty ? nil : reason)
+        }
+        let plan = AIVirtualFolderPlan(workspaceTitle: title.isEmpty ? nil : title,
+                                       groups: groups, suggestions: suggestions)
         return AIFolderReview(worthSurfacing: generated.worthSurfacing, plan: plan)
     }
 }

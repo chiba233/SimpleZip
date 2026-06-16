@@ -1743,7 +1743,7 @@
 "devtools.aiData.backgroundIndex" = "背景檔案索引";
 "devtools.aiData.backgroundIndex.value" = "%@ · %@ 個白名單 · %@ 個檔案 · %@ 個資料夾画像";
 "devtools.aiData.workspaces" = "動態 AI 資料夾";
-"devtools.aiData.workspaces.value" = "%@ 可見 · %@ 總數 · %@ 推薦 · %@ 使用者";
+"devtools.aiData.workspaces.value" = "%@ 可見 · %@ 總數 · %@ 推薦 · %@ 使用者 · %@ 隱藏候選 · %@ 已通過 · %@ 複核中";
 "devtools.aiData.activityTasks" = "活動任務來源";
 "devtools.aiData.activityTasks.value" = "%@ 執行中 · %@ 歷史 · %@ 失敗";
 "devtools.defaults.copyAll" = "全部複製";
@@ -2584,6 +2584,11 @@
 "aiWorkspace.node.open" = "打開";
 "aiWorkspace.node.rename" = "重新命名";
 "aiWorkspace.group.more" = "更多";
+"aiWorkspace.suggest.hash" = "計算校驗和";
+"aiWorkspace.suggest.compress" = "壓縮";
+"aiWorkspace.suggest.test" = "測試歸檔";
+"aiWorkspace.suggest.inspect" = "檢查發布包";
+"aiWorkspace.suggest.convert" = "轉換歸檔";
 "aiWorkspace.node.openArchive" = "打開歸檔";
 "aiWorkspace.node.openFolder" = "打開檔案夾";
 "aiWorkspace.node.compress" = "壓縮";

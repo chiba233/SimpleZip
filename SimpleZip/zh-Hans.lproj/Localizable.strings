@@ -2470,7 +2470,7 @@
 "devtools.aiData.backgroundIndex" = "后台文件索引";
 "devtools.aiData.backgroundIndex.value" = "%@ · %@ 个白名单 · %@ 个文件 · %@ 个文件夹画像";
 "devtools.aiData.workspaces" = "动态 AI 文件夹";
-"devtools.aiData.workspaces.value" = "%@ 可见 · %@ 总数 · %@ 推荐 · %@ 用户";
+"devtools.aiData.workspaces.value" = "%@ 可见 · %@ 总数 · %@ 推荐 · %@ 用户 · %@ 隐藏候选 · %@ 已通过 · %@ 复核中";
 "devtools.aiData.activityTasks" = "活动任务源";
 "devtools.aiData.activityTasks.value" = "%@ 运行中 · %@ 历史 · %@ 失败";
 "devtools.defaults.copyAll" = "全部复制";
@@ -2661,6 +2661,11 @@
 "aiWorkspace.node.open" = "打开";
 "aiWorkspace.node.rename" = "重命名";
 "aiWorkspace.group.more" = "更多";
+"aiWorkspace.suggest.hash" = "计算校验和";
+"aiWorkspace.suggest.compress" = "压缩";
+"aiWorkspace.suggest.test" = "测试归档";
+"aiWorkspace.suggest.inspect" = "检查发布包";
+"aiWorkspace.suggest.convert" = "转换归档";
 "aiWorkspace.node.openArchive" = "打开归档";
 "aiWorkspace.node.openFolder" = "打开文件夹";
 "aiWorkspace.node.compress" = "压缩";

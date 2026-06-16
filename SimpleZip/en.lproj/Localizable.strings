@@ -2470,7 +2470,7 @@
 "devtools.aiData.backgroundIndex" = "Background file index";
 "devtools.aiData.backgroundIndex.value" = "%@ · %@ scopes · %@ files · %@ folder profiles";
 "devtools.aiData.workspaces" = "Dynamic AI folders";
-"devtools.aiData.workspaces.value" = "%@ visible · %@ total · %@ recommended · %@ user";
+"devtools.aiData.workspaces.value" = "%@ visible · %@ total · %@ recommended · %@ user · %@ hidden candidates · %@ approved · %@ reviewing";
 "devtools.aiData.activityTasks" = "Activity tasks";
 "devtools.aiData.activityTasks.value" = "%@ active · %@ history · %@ failed";
 "devtools.defaults.copyAll" = "Copy All";
@@ -2661,6 +2661,11 @@
 "aiWorkspace.node.open" = "Open";
 "aiWorkspace.node.rename" = "Rename";
 "aiWorkspace.group.more" = "More";
+"aiWorkspace.suggest.hash" = "Calculate Checksum";
+"aiWorkspace.suggest.compress" = "Compress";
+"aiWorkspace.suggest.test" = "Test Archive";
+"aiWorkspace.suggest.inspect" = "Inspect Release";
+"aiWorkspace.suggest.convert" = "Convert Archive";
 "aiWorkspace.node.openArchive" = "Open Archive";
 "aiWorkspace.node.openFolder" = "Open Folder";
 "aiWorkspace.node.compress" = "Compress";

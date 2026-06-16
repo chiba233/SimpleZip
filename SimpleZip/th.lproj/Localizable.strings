@@ -1741,7 +1741,7 @@
 "devtools.aiData.backgroundIndex" = "ดัชนีไฟล์เบื้องหลัง";
 "devtools.aiData.backgroundIndex.value" = "%@ · %@ ขอบเขต · %@ ไฟล์ · %@ โปรไฟล์โฟลเดอร์";
 "devtools.aiData.workspaces" = "โฟลเดอร์ AI แบบไดนามิก";
-"devtools.aiData.workspaces.value" = "%@ มองเห็น · %@ ทั้งหมด · %@ แนะนำ · %@ ผู้ใช้";
+"devtools.aiData.workspaces.value" = "%@ มองเห็น · %@ ทั้งหมด · %@ แนะนำ · %@ ผู้ใช้ · %@ ตัวเลือกที่ซ่อน · %@ อนุมัติแล้ว · %@ กำลังตรวจ";
 "devtools.aiData.activityTasks" = "งานกิจกรรม";
 "devtools.aiData.activityTasks.value" = "%@ ทำงาน · %@ ประวัติ · %@ ล้มเหลว";
 "devtools.defaults.copyAll" = "คัดลอกทั้งหมด";
@@ -2582,6 +2582,11 @@
 "aiWorkspace.node.open" = "เปิด";
 "aiWorkspace.node.rename" = "เปลี่ยนชื่อ";
 "aiWorkspace.group.more" = "เพิ่มเติม";
+"aiWorkspace.suggest.hash" = "คำนวณเช็กซัม";
+"aiWorkspace.suggest.compress" = "บีบอัด";
+"aiWorkspace.suggest.test" = "ทดสอบอาร์ไคฟ์";
+"aiWorkspace.suggest.inspect" = "ตรวจสอบรีลีส";
+"aiWorkspace.suggest.convert" = "แปลงอาร์ไคฟ์";
 "aiWorkspace.node.openArchive" = "เปิดอาร์ไคฟ์";
 "aiWorkspace.node.openFolder" = "เปิดโฟลเดอร์";
 "aiWorkspace.node.compress" = "บีบอัด";
