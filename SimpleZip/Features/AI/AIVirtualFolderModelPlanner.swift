@@ -151,7 +151,8 @@ enum AIVirtualFolderModelPlanner {
             lines.append(["\(i + 1)", c.kind, c.displayName, c.roleTags.joined(separator: " ")].joined(separator: "\t"))
         }
         let generated = try await AIReportAssistant.generateStructured(
-            instructions: instructions, prompt: lines.joined(separator: "\n"), as: GeneratedAIFolderPlan.self)
+            instructions: instructions, prompt: lines.joined(separator: "\n"), as: GeneratedAIFolderPlan.self,
+            maxAttempts: 5)   // 重 schema:连试 5 代把「报错」压到near-zero(用户要求多迭代提准确度)
 
         return Self.assemble(generated, candidates: cands).plan
     }
@@ -197,7 +198,8 @@ enum AIVirtualFolderModelPlanner {
             lines.append(["\(i + 1)", c.kind, c.displayName, c.roleTags.joined(separator: " ")].joined(separator: "\t"))
         }
         let generated = try await AIReportAssistant.generateStructured(
-            instructions: instructions, prompt: lines.joined(separator: "\n"), as: GeneratedAIFolderPlan.self)
+            instructions: instructions, prompt: lines.joined(separator: "\n"), as: GeneratedAIFolderPlan.self,
+            maxAttempts: 5)   // 重 schema:连试 5 代把「报错」压到near-zero(用户要求多迭代提准确度)
         return Self.assemble(generated, candidates: cands)
     }
 

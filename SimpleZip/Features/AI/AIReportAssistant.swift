@@ -205,17 +205,23 @@ struct SettingsQuerySpec: Sendable {
 extension AIReportAssistant {
     /// 结构化生成的薄封装:不注入回复语言(输出是受约束的 token / 关键词,不是给人读的散文)。
     /// 同样过全局串行闸,和散文生成共用同一条链 —— 杜绝任何两个 `respond()` 重叠(见 `AIGenerationSerializer`)。
-    /// **重试一次**:本机 @Generable 结构化生成偶发不符 schema 抛错(用户报「一句话筛选经常性失败」),
-    /// 同一串行槽内换个新 session 再试一次,尽量成功;两次都败才抛给调用点(由调用点决定不点亮 + 提示)。
-    static func generateStructured<T: Generable & Sendable>(instructions: String, prompt: String, as type: T.Type) async throws -> T {
+    /// **同一串行槽内连试 `maxAttempts` 代**:本机 @Generable 结构化生成偶发不符 schema 抛错(越复杂 / 越长越易),
+    /// 每代换个新 session 再试,尽量成功;全部败才抛给调用点。默认 2(轻量查询够用);重 schema(如 AI 文件夹复核)
+    /// 传更高的代数把报错压到near-zero。所有尝试都在同一槽内,不与其它生成重叠。
+    static func generateStructured<T: Generable & Sendable>(
+        instructions: String, prompt: String, as type: T.Type, maxAttempts: Int = 2
+    ) async throws -> T {
         try await AIGenerationSerializer.shared.run {
-            do {
-                let session = LanguageModelSession(instructions: instructions)
-                return try await session.respond(to: prompt, generating: type).content
-            } catch {
-                let retry = LanguageModelSession(instructions: instructions)
-                return try await retry.respond(to: prompt, generating: type).content
+            var lastError: Error?
+            for _ in 0..<max(1, maxAttempts) {
+                do {
+                    let session = LanguageModelSession(instructions: instructions)
+                    return try await session.respond(to: prompt, generating: type).content
+                } catch {
+                    lastError = error
+                }
             }
+            throw lastError ?? AIAssistError(message: "structured generation failed after retries")
         }
     }
 
