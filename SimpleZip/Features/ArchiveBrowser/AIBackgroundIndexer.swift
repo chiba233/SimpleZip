@@ -40,11 +40,12 @@ final class AIBackgroundIndexer {
                 let records = AIBackgroundIndexer.scanScope(scope, home: home, fileBudget: fileBudget)
                 results.append((scope.id, records))
             }
+            let scanned = results   // 不可变快照后再跨 actor 边界(Swift 6:别捕获可变 var)
             await MainActor.run {
                 // M7:回主线程后再核一遍门控 —— 扫描期间用户可能关了开关 / 清了白名单,关了就不落盘。
                 if store.folderPreindexEnabled {
                     let now = Date()
-                    for (id, records) in results {
+                    for (id, records) in scanned {
                         store.ingest(records: records, folders: [], scopeID: id, at: now)
                         store.markScanned(id, at: now)
                     }
@@ -60,7 +61,7 @@ final class AIBackgroundIndexer {
     // MARK: - 只读元数据扫描(off-main;纯静态,不碰 UI 状态)
 
     /// 每 scope 最多访问的目录数(防超大递归目录把一轮拖垮 —— 白皮书禁「超出预算的大型递归目录」)。
-    private static let maxDirectoriesPerScope = 600
+    private nonisolated static let maxDirectoriesPerScope = 600
 
     /// 走一个白名单 scope,深度受限、层层排除、只取元数据、不跟符号链接。返回文件记录(疑似密钥文件整条不索引)。
     nonisolated static func scanScope(_ scope: AIArchivePrefetchScope, home: String,
@@ -123,7 +124,7 @@ final class AIBackgroundIndexer {
     }
 
     /// 明显的凭据目录名(纵深防御;不含太常见 / 歧义的 `keys`)。
-    private static let credentialDirNames: Set<String> = [
+    private nonisolated static let credentialDirNames: Set<String> = [
         "secrets", "credentials", "password-store", "passwords", "vault", ".vault"
     ]
 }
