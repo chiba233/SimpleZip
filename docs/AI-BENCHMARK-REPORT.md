@@ -368,15 +368,53 @@ ThemeEngine 的 `tokenOverlapThreshold` 在 `discoverThemes()` 函数签名中�
 
 ---
 
-## 10. 下一步行动项
+## 10. 优化后实测结果（commit 5b070e2）
 
-1. **实施 StartupRanker 公式修复**（P0）：同时修改 `visits` 和 `recency` 两行（`AIStartupSuggestion.swift:105,107`），验证 `AIStartupSuggestionTests` 中期望分数是否需要更新。
+以下为应用本报告推荐的 3 项生产变更后重新采集的指标（1248 项测试全绿）：
 
-2. **调整 decayPerNegative**（P1）：0.15→0.05。验证 `AISemanticTagTests.negativeFeedbackDemotes`：该测试用 `negativeFeedback: ["source-archive": 3]`，3×0.05=0.15 < 分差(0.80-0.72=0.08)？等等，我们测的是 tag_demote_at 对 releaseArtifact(0.88) vs sourceArchive(0.72) 分差 0.16。3×0.05=0.15 < 0.16，所以 3 次仍不足以降级。但 `negativeFeedbackDemotes` 测试场景是 sourceArchive(0.80) vs releaseArtifact(0.70)，分差=0.10，3×0.05=0.15 > 0.10，所以仍会降级，**测试断言不需要改动**。
+| 指标 | 扫测前基线 | 扫测后（当前） | 改善 |
+|------|-----------|--------------|------|
+| `ws_high_low_gap` | 11.5051 | **11.5284** | +0.023 ✓ |
+| `ws_neg_demote_at` | 3 | **4** | +1 次抗性 ✓ |
+| `startup_correct` | **0** 🔴 | **1** ✅ | 核心 bug 修复 |
+| `startup_gap` | -1.1000 | **+0.5506** | 由负转正 ✓ |
+| `tag_demote_at` | 2 | 2 | 未改（受测试阻断） |
+| `learn_neutral_days` | 13 | **21** | +8 天 ✓ |
+| `learn_cap_neutral_days` | 23 | **31** | +8 天 ✓ |
+| `theme_count` | 3 | 3 | 不变（正确）✓ |
 
-3. **扩展隐式反馈来源**：将文件浏览停留时长、归档打开成功率等信号接入 `AIWorkspaceLearningStore`，为当前空的 feedback 数据积累基础。
+---
 
-4. **候选池角色平衡**：降低 document 角色在候选生成时的采样比例，给 installer/media/config 角色保留槽位，缓解 62% 偏斜。
+## 11. 下一步行动项
+
+### 已完成（本轮 commit）
+- ✅ StartupRanker 公式修复（log-visits + exp-hl14d）
+- ✅ feedbackPenalty 3.0→2.5
+- ✅ recencyHalfLifeDays 7.0→10.0
+- ✅ strongNegative -3.0→-2.5
+
+### 受测试硬编码阻断（需用户决策后更新测试）
+
+以下 3 项改进有量化证据支持，但需同步更新对应测试中的硬编码期望值：
+
+**1. decayPerNegative 0.15→0.05（tag_demote_at 2→4）**  
+阻断测试：`AISemanticTagTests.posNegFeedbackCombined`  
+原因：该测试依赖 `5×0.15=0.75` 使 sourceArchive(0.80) 降至 0.35 < releaseArtifact(0.50)。改为 0.05 后 5×0.05=0.25，降至 0.55 > 0.50，测试期望结果翻转。  
+需将测试改为使用 `negativeFeedback: ["source-archive": 10]`（10×0.05=0.50，与原 5×0.15 效果等价）。
+
+**2. feedbackHalfLifeDays 30→45（learn_neutral_days 13→19）**  
+阻断测试：`AIWorkspaceLearningStoreTests.recordingWithTimestampDecaysOverTime`  
+原因：该测试断言"30 天后 = 半衰期 = decay factor 0.5"。改为 45d 时 30 天后因子为 0.63，不满足 `abs(decayed - (-2)) < 0.01`。  
+需将测试改为"45 天后 ≈ half"（`epoch.addingTimeInterval(45 * 86_400)`，期望 -2.0）。
+
+**3. baseHalfLifeSeconds 7d→10d（suppress_resurface_days 26→36）**  
+阻断测试：`AIThemeSuppressionTests.freshDismissalHasHighWeightThenDecays`  
+原因：该测试断言"7 天后权重 ≈ 0.3"（即 halfLife=7d 时 0.5^(7/7)=0.5 → 0.6×0.5=0.3）。改为 10d 时 7 天后权重 = 0.6×0.616=0.37 ≠ 0.3，且 30 天后权重=0.075 > resurfaceFloor(0.05)，与断言冲突。  
+需更新测试为"10 天后 ≈ 0.3"和"40 天后 < resurfaceFloor"。
+
+### 架构层面待做
+- **扩展隐式反馈来源**：将文件浏览停留时长、归档打开成功率等信号接入 `AIWorkspaceLearningStore`，为当前空的 feedback 数据积累基础。
+- **候选池角色平衡**：在 `AIFileSystemFact.scanDirectory` 对 document 角色添加采样上限（建议每目录 ≤ 30 件），给 installer/media/config 角色保留槽位，缓解 62% 偏斜。
 
 ---
 
