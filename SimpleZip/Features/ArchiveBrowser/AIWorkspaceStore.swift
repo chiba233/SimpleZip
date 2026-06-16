@@ -40,6 +40,11 @@ final class AIWorkspaceStore: ObservableObject {
     private var treeCache: [UUID: AIVirtualFolderTree] = [:]
     /// 每轮发现自增;off-main 聚类回来时只认最新一轮(丢弃过期结果)。
     private var refreshGeneration = 0
+    /// 每工作区上次让模型排过的成员签名 —— 同一批成员不重复刷模型;成员变了才重排(失败也不重试本批)。
+    private var modelPlanSignatures: [UUID: String] = [:]
+    /// 缓存模型生成的 plan(按成员签名)。结构编辑(改名 / 移动)只清树缓存、留 plan → 在模型 plan 上重套覆盖层,
+    /// **不重刷模型**;成员变了 sig 不匹配才重排。
+    private var modelPlans: [UUID: (sig: String, plan: AIVirtualFolderPlan)] = [:]
 
     private let defaults: UserDefaults
     private static let storageKey = "SimpleZip.ai.workspaces.v1"
@@ -135,17 +140,71 @@ final class AIWorkspaceStore: ObservableObject {
     /// 工作区的虚拟文件夹树。从内存候选池召回该工作区成员 → 确定性 plan → sanitized 树 → 缓存。
     /// 候选池尚未由 `refreshRecommendations` 填充(刚启动)时返回 nil → 内容区显示空状态。
     func virtualTree(for id: UUID) -> AIVirtualFolderTree? {
-        if let cached = treeCache[id] { return cached }
+        if let cached = treeCache[id] { return cached }   // 命中:模型树或确定性树
         guard let ws = collection.workspace(id) else { return nil }
         let members = memberCandidates(for: ws)
         guard !members.isEmpty else { return nil }
-        let derived = AIVirtualFolderTreeBuilder.buildDeterministic(
-            workspace: ws, candidates: members, pathsBySourceRef: pathsBySourceRef, generatedAt: Date())
-        // 套用用户结构编辑(分组改名 + 成员移动)在确定性派生之上 —— 用户的虚拟整理不丢。
-        let tree = derived.applyingStructureEdits(
-            groupTitles: structureEdits.groupTitles(id), assignments: structureEdits.assignments(id))
+        let sig = members.map(\.id).sorted().joined(separator: ",")
+        let tree: AIVirtualFolderTree
+        if let cachedPlan = modelPlans[id], cachedPlan.sig == sig {
+            // 已有本批成员的模型 plan → 直接用它建树(在其上套用户覆盖层),不重刷模型。
+            tree = buildTree(ws: ws, members: members, plan: cachedPlan.plan, mode: .modelAssisted)
+        } else {
+            // 先出**确定性树**占位(UI 标「自动整理」),不阻塞;模型就绪则异步重排成 modelAssisted 后替换。
+            tree = buildTree(ws: ws, members: members, plan: nil, mode: .deterministic)
+            maybeScheduleModelPlan(id: id, ws: ws, members: members, sig: sig)
+        }
         treeCache[id] = tree
         return tree
+    }
+
+    /// plan(nil = 确定性)+ 成员 → 套用户结构编辑后的最终树。
+    private func buildTree(ws: AIWorkspace, members: [AIVirtualNodeCandidate],
+                           plan: AIVirtualFolderPlan?, mode: AIVirtualTreeGenerationMode) -> AIVirtualFolderTree {
+        let base: AIVirtualFolderTree
+        if let plan {
+            base = AIVirtualFolderTreeBuilder.build(workspace: ws, plan: plan, candidates: members,
+                                                    pathsBySourceRef: pathsBySourceRef, mode: mode, generatedAt: Date())
+        } else {
+            base = AIVirtualFolderTreeBuilder.buildDeterministic(
+                workspace: ws, candidates: members, pathsBySourceRef: pathsBySourceRef, generatedAt: Date())
+        }
+        // 用户结构编辑(分组改名 + 成员移动)永远盖在最后 —— 无论树是确定性还是模型生成的,用户整理不丢。
+        return base.applyingStructureEdits(
+            groupTitles: structureEdits.groupTitles(ws.id), assignments: structureEdits.assignments(ws.id))
+    }
+
+    /// 模型就绪 + 本批成员还没让模型排过 → 异步让**本地模型生成虚拟目录树**(白皮书:AI 文件夹的树必须过模型,
+    /// 不能只是确定性 bucket)。先确定性占位、模型回来再替换;失败 / 不可用就一直用确定性(不崩、UI 如实标注)。
+    private func maybeScheduleModelPlan(id: UUID, ws: AIWorkspace, members: [AIVirtualNodeCandidate], sig: String) {
+        guard #available(macOS 26.0, *), AIReportAssistant.isReady, members.count >= 2 else { return }
+        guard modelPlanSignatures[id] != sig else { return }
+        modelPlanSignatures[id] = sig   // 占位:失败不重试本批(免刷模型);成员变了 sig 变才重排
+        let input = makeModelPlanInput(ws: ws, members: members)
+        Task { @MainActor in
+            guard let plan = try? await AIVirtualFolderModelPlanner.plan(for: input),
+                  self.modelPlanSignatures[id] == sig else { return }   // 期间成员又变 → 丢弃
+            let modelTree = self.buildTree(ws: ws, members: members, plan: plan, mode: .modelAssisted)
+            guard !modelTree.isEmpty else { return }
+            self.modelPlans[id] = (sig, plan)          // 缓存 plan → 后续结构编辑在它上面套覆盖层,不重刷模型
+            self.treeCache[id] = modelTree
+            self.objectWillChange.send()   // 视图换上模型生成的树(generationMode = modelAssisted → 去掉「自动整理」标)
+        }
+    }
+
+    /// 组装喂给模型的 prompt-safe 输入(候选投影 + 用户描述 / 种子主题提示词当主题意图;绝不含路径)。
+    private func makeModelPlanInput(ws: AIWorkspace, members: [AIVirtualNodeCandidate]) -> AIVirtualFolderPlanInput {
+        let seed = seeds[ws.id]
+        var tokens: [String] = []
+        for t in ws.queryPlan.keywords + (seed?.themePrompts ?? []) where !t.isEmpty && !tokens.contains(t) {
+            tokens.append(t)
+        }
+        let fact = AIWorkspacePromptFact(
+            id: ws.id, title: ws.title, origin: ws.origin.rawValue,
+            prompt: ws.userDescription ?? seed?.themePrompts.first ?? ws.prompt,
+            queryTokens: Array(tokens.prefix(12)))
+        return AIVirtualFolderPlanInput(workspace: fact,
+                                        candidates: members.map { AIVirtualNodePromptCandidate(candidate: $0) })
     }
 
     /// 虚拟分组改名(用户编辑覆盖层)+ **把新分组名拆成主题提示词喂进种子**(用户把某组叫「源代码」=
@@ -273,7 +332,7 @@ final class AIWorkspaceStore: ObservableObject {
             suppression = suppression.recordingDismissal(fp, at: now)
             saveSuppression()
         }
-        treeCache[id] = nil
+        treeCache[id] = nil; modelPlans[id] = nil; modelPlanSignatures[id] = nil
         feedback = feedback.clearingWorkspace(id); saveFeedback()   // 工作区没了 → 清它的节点反馈
         structureEdits = structureEdits.clearingWorkspace(id); saveStructureEdits()
         seeds[id] = nil; saveSeeds()
@@ -291,7 +350,7 @@ final class AIWorkspaceStore: ObservableObject {
     func setPinned(_ id: UUID, _ pinned: Bool) { apply { $0.pinning(id, pinned) } }
     func hide(_ id: UUID) { apply { $0.hiding(id) } }
     func removeUserWorkspace(_ id: UUID) {
-        treeCache[id] = nil
+        treeCache[id] = nil; modelPlans[id] = nil; modelPlanSignatures[id] = nil
         feedback = feedback.clearingWorkspace(id); saveFeedback()
         structureEdits = structureEdits.clearingWorkspace(id); saveStructureEdits()
         seeds[id] = nil; saveSeeds()
