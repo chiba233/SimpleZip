@@ -254,7 +254,7 @@ nonisolated enum AIVirtualFolderModelInputPreparer {
     /// 信号权重表。结构化信号(含 ":")视为 0,未知平文本信号视为弱正(0.2)。
     private static let signalWeights: [String: Double] = [
         "project-token": 3.0,
-        "source-ref-match": 2.0,
+        "source-ref-match": 1.0,
         "failed": 3.0,
         "running": 2.0,
         "recent-interaction": 1.5,
