@@ -2544,3 +2544,25 @@
 "ai.explainSalvage.title" = "Rettungsergebnis erklärt";
 "ai.explainAudit" = "Erklären";
 "ai.explainAudit.title" = "Verzeichnisprüfung erklärt";
+
+/* 0.4.5 #89 KI-Hintergrunderkennung und Indizierung */
+"settings.ai.background.section" = "Hintergrunderkennung & Indizierung";
+"settings.ai.background.activityLevel" = "Aktivität der lokalen KI";
+"settings.ai.background.activityLevel.desc" = "Wie aktiv die lokale KI im Hintergrund arbeitet, wenn dein Mac inaktiv ist.";
+"settings.ai.background.level.off" = "Aus";
+"settings.ai.background.level.powerSaver" = "Energiesparen";
+"settings.ai.background.level.balanced" = "Ausgewogen";
+"settings.ai.background.level.aggressive" = "Aktiv";
+"settings.ai.background.folderPreindex" = "Freigegebene Ordner vorindizieren";
+"settings.ai.background.folderPreindex.desc" = "Erstellt einen schreibgeschützten Metadaten-Index (Namen, Größen, Daten) der Dateien in von dir freigegebenen Ordnern, damit KI-Ordner zusammengehörige Objekte über Orte hinweg verbinden können. Dateiinhalte werden nie gelesen.";
+"settings.ai.background.whitelist" = "Freigegebene Ordner";
+"settings.ai.background.addFolder" = "Ordner hinzufügen…";
+"settings.ai.background.suggested" = "Vorschläge:";
+"settings.ai.background.remove" = "Entfernen";
+"settings.ai.background.empty" = "Noch keine Ordner freigegeben. Die Indizierung bleibt aus, bis du einen hinzufügst.";
+"settings.ai.background.showRecommended" = "Empfohlene Arbeitsbereiche anzeigen";
+"settings.ai.background.showRecommended.desc" = "Zeigt von der Hintergrunderkennung vorgeschlagene KI-Ordner in der Seitenleiste. Wenn aus, erscheinen nur selbst erstellte.";
+"settings.ai.background.clearIndex" = "Datei-Index";
+"settings.ai.background.clearIndex.desc" = "Löscht den Hintergrund-Dateiindex. Entfernt nur abgeleitete Metadaten – deine echten Dateien bleiben unberührt.";
+"settings.ai.background.clearIndex.button" = "Index löschen";
+"settings.ai.background.browse" = "Durchsuchen…";

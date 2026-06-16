@@ -2623,3 +2623,25 @@
 "intent.setting.notToggleable" = "“%@” can’t be changed this way — open SimpleZip’s settings to change it.";
 "Setting Switch" = "Setting Switch";
 "Flip Setting" = "Flip Setting";
+
+/* 0.4.5 #89 AI background discovery & indexing */
+"settings.ai.background.section" = "Background discovery & indexing";
+"settings.ai.background.activityLevel" = "On-device AI activity";
+"settings.ai.background.activityLevel.desc" = "How actively on-device AI works in the background when your Mac is idle.";
+"settings.ai.background.level.off" = "Off";
+"settings.ai.background.level.powerSaver" = "Power saver";
+"settings.ai.background.level.balanced" = "Balanced";
+"settings.ai.background.level.aggressive" = "Aggressive";
+"settings.ai.background.folderPreindex" = "Pre-index authorized folders";
+"settings.ai.background.folderPreindex.desc" = "Read-only metadata index (names, sizes, dates) of files in folders you authorize, so AI Folders can connect related items across locations. Never reads file contents.";
+"settings.ai.background.whitelist" = "Authorized folders";
+"settings.ai.background.addFolder" = "Add Folder…";
+"settings.ai.background.suggested" = "Suggested:";
+"settings.ai.background.remove" = "Remove";
+"settings.ai.background.empty" = "No folders authorized yet. Indexing stays off until you add one.";
+"settings.ai.background.showRecommended" = "Show recommended workspaces";
+"settings.ai.background.showRecommended.desc" = "Show AI Folders that background discovery suggests in the sidebar. When off, only folders you create appear.";
+"settings.ai.background.clearIndex" = "File index";
+"settings.ai.background.clearIndex.desc" = "Clear the background file index. Removes derived metadata only — your real files are untouched.";
+"settings.ai.background.clearIndex.button" = "Clear Index";
+"settings.ai.background.browse" = "Browse…";

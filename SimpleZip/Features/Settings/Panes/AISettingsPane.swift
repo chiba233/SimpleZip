@@ -35,6 +35,11 @@ struct AISettingsPane: View {
             }
             .settingsAnchor("automation.ai")
 
+            // 0.4.5 #89:后台发现与 opt-in 白名单文件预索引(AI 主开关开启时才显示)。
+            if aiAssistant {
+                AIBackgroundDiscoverySection()
+            }
+
             // 隐私说明:AI 全部在本机运行,涉密内容绝不进入。文案复用现有键(本就全 10 语种)。
             Section(L10n.text("settings.ai.privacy.section")) {
                 Label(L10n.text("settings.ai.privacy.note"), systemImage: "lock.shield")

@@ -2545,3 +2545,25 @@
 "ai.explainSalvage.title" = "복구 결과 쉽게 설명";
 "ai.explainAudit" = "설명";
 "ai.explainAudit.title" = "디렉터리 검사 쉽게 설명";
+
+/* 0.4.5 #89 AI 백그라운드 발견 및 색인 */
+"settings.ai.background.section" = "백그라운드 발견 및 색인";
+"settings.ai.background.activityLevel" = "온디바이스 AI 활동량";
+"settings.ai.background.activityLevel.desc" = "Mac이 유휴 상태일 때 온디바이스 AI가 백그라운드에서 작동하는 적극성입니다.";
+"settings.ai.background.level.off" = "끔";
+"settings.ai.background.level.powerSaver" = "절전";
+"settings.ai.background.level.balanced" = "균형";
+"settings.ai.background.level.aggressive" = "적극적";
+"settings.ai.background.folderPreindex" = "허용된 폴더 사전 색인";
+"settings.ai.background.folderPreindex.desc" = "허용한 폴더 내 파일의 읽기 전용 메타데이터(이름, 크기, 날짜)를 색인하여 AI 폴더가 여러 위치의 관련 항목을 연결할 수 있게 합니다. 파일 내용은 절대 읽지 않습니다.";
+"settings.ai.background.whitelist" = "허용된 폴더";
+"settings.ai.background.addFolder" = "폴더 추가…";
+"settings.ai.background.suggested" = "추천:";
+"settings.ai.background.remove" = "제거";
+"settings.ai.background.empty" = "아직 허용된 폴더가 없습니다. 추가하기 전까지 색인은 꺼져 있습니다.";
+"settings.ai.background.showRecommended" = "추천 작업 공간 표시";
+"settings.ai.background.showRecommended.desc" = "백그라운드 발견이 제안하는 AI 폴더를 사이드바에 표시합니다. 끄면 직접 만든 것만 표시됩니다.";
+"settings.ai.background.clearIndex" = "파일 색인";
+"settings.ai.background.clearIndex.desc" = "백그라운드 파일 색인을 지웁니다. 파생된 메타데이터만 제거되며 실제 파일은 그대로 유지됩니다.";
+"settings.ai.background.clearIndex.button" = "색인 지우기";
+"settings.ai.background.browse" = "찾아보기…";

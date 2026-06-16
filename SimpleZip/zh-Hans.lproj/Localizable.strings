@@ -2623,3 +2623,25 @@
 "intent.setting.notToggleable" = "「%@」无法通过这种方式更改 —— 请在 SimpleZip 的设置中更改。";
 "Setting Switch" = "设置开关";
 "Flip Setting" = "翻转设置";
+
+/* 0.4.5 #89 AI 后台发现与索引 */
+"settings.ai.background.section" = "后台发现与索引";
+"settings.ai.background.activityLevel" = "本地 AI 活跃度";
+"settings.ai.background.activityLevel.desc" = "Mac 空闲时,本地 AI 在后台工作的积极程度。";
+"settings.ai.background.level.off" = "关闭";
+"settings.ai.background.level.powerSaver" = "省电";
+"settings.ai.background.level.balanced" = "平衡";
+"settings.ai.background.level.aggressive" = "积极";
+"settings.ai.background.folderPreindex" = "预索引授权目录";
+"settings.ai.background.folderPreindex.desc" = "在你授权的目录里建立只读的文件元数据索引(名称、大小、日期),让 AI 文件夹能把分散各处的相关文件联系起来。绝不读取文件内容。";
+"settings.ai.background.whitelist" = "授权目录";
+"settings.ai.background.addFolder" = "添加目录…";
+"settings.ai.background.suggested" = "推荐:";
+"settings.ai.background.remove" = "移除";
+"settings.ai.background.empty" = "尚未授权任何目录。在你添加之前,索引保持关闭。";
+"settings.ai.background.showRecommended" = "显示推荐工作区";
+"settings.ai.background.showRecommended.desc" = "在侧边栏显示后台发现推荐的 AI 文件夹。关闭后只显示你自己创建的。";
+"settings.ai.background.clearIndex" = "文件索引";
+"settings.ai.background.clearIndex.desc" = "清空后台文件索引。只清除派生的元数据 —— 你的真实文件不受影响。";
+"settings.ai.background.clearIndex.button" = "清空索引";
+"settings.ai.background.browse" = "浏览…";

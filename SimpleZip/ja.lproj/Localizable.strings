@@ -2546,3 +2546,25 @@
 "ai.explainSalvage.title" = "復旧結果をわかりやすく説明";
 "ai.explainAudit" = "説明";
 "ai.explainAudit.title" = "ディレクトリ検査をわかりやすく説明";
+
+/* 0.4.5 #89 AI バックグラウンド発見とインデックス */
+"settings.ai.background.section" = "バックグラウンド発見とインデックス";
+"settings.ai.background.activityLevel" = "オンデバイス AI の活動量";
+"settings.ai.background.activityLevel.desc" = "Mac がアイドル時に、オンデバイス AI がバックグラウンドで働く積極さ。";
+"settings.ai.background.level.off" = "オフ";
+"settings.ai.background.level.powerSaver" = "省電力";
+"settings.ai.background.level.balanced" = "バランス";
+"settings.ai.background.level.aggressive" = "積極的";
+"settings.ai.background.folderPreindex" = "許可フォルダを事前インデックス";
+"settings.ai.background.folderPreindex.desc" = "許可したフォルダ内のファイルの読み取り専用メタデータ（名前・サイズ・日付）をインデックス化し、AI フォルダが場所をまたいで関連項目をつなげられるようにします。ファイルの内容は一切読みません。";
+"settings.ai.background.whitelist" = "許可フォルダ";
+"settings.ai.background.addFolder" = "フォルダを追加…";
+"settings.ai.background.suggested" = "おすすめ:";
+"settings.ai.background.remove" = "削除";
+"settings.ai.background.empty" = "まだ許可されたフォルダはありません。追加するまでインデックスはオフのままです。";
+"settings.ai.background.showRecommended" = "おすすめワークスペースを表示";
+"settings.ai.background.showRecommended.desc" = "バックグラウンド発見が提案する AI フォルダをサイドバーに表示します。オフにすると自分で作成したものだけが表示されます。";
+"settings.ai.background.clearIndex" = "ファイルインデックス";
+"settings.ai.background.clearIndex.desc" = "バックグラウンドのファイルインデックスを消去します。派生メタデータのみを削除し、実際のファイルには触れません。";
+"settings.ai.background.clearIndex.button" = "インデックスを消去";
+"settings.ai.background.browse" = "参照…";

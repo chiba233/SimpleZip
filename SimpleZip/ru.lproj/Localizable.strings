@@ -2544,3 +2544,25 @@
 "ai.explainSalvage.title" = "Простое объяснение результата восстановления";
 "ai.explainAudit" = "Объяснить";
 "ai.explainAudit.title" = "Простое объяснение проверки каталога";
+
+/* 0.4.5 #89 ИИ фоновое обнаружение и индексирование */
+"settings.ai.background.section" = "Фоновое обнаружение и индексирование";
+"settings.ai.background.activityLevel" = "Активность локального ИИ";
+"settings.ai.background.activityLevel.desc" = "Насколько активно локальный ИИ работает в фоне, когда Mac простаивает.";
+"settings.ai.background.level.off" = "Выкл.";
+"settings.ai.background.level.powerSaver" = "Энергосбережение";
+"settings.ai.background.level.balanced" = "Сбалансированно";
+"settings.ai.background.level.aggressive" = "Активно";
+"settings.ai.background.folderPreindex" = "Предындексировать разрешённые папки";
+"settings.ai.background.folderPreindex.desc" = "Создаёт индекс метаданных только для чтения (имена, размеры, даты) файлов в разрешённых вами папках, чтобы Папки ИИ связывали похожие объекты из разных мест. Содержимое файлов никогда не читается.";
+"settings.ai.background.whitelist" = "Разрешённые папки";
+"settings.ai.background.addFolder" = "Добавить папку…";
+"settings.ai.background.suggested" = "Рекомендуемые:";
+"settings.ai.background.remove" = "Удалить";
+"settings.ai.background.empty" = "Папки пока не разрешены. Индексирование выключено, пока вы не добавите папку.";
+"settings.ai.background.showRecommended" = "Показывать рекомендованные пространства";
+"settings.ai.background.showRecommended.desc" = "Показывать в боковой панели Папки ИИ, предложенные фоновым обнаружением. Если выключено — только созданные вами.";
+"settings.ai.background.clearIndex" = "Индекс файлов";
+"settings.ai.background.clearIndex.desc" = "Очистить фоновый индекс файлов. Удаляются только производные метаданные; ваши настоящие файлы не затрагиваются.";
+"settings.ai.background.clearIndex.button" = "Очистить индекс";
+"settings.ai.background.browse" = "Обзор…";

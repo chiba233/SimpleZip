@@ -2546,3 +2546,25 @@
 "ai.explainSalvage.title" = "白話解釋救援結果";
 "ai.explainAudit" = "解釋";
 "ai.explainAudit.title" = "白話解釋目錄檢查";
+
+/* 0.4.5 #89 AI 後台發現與索引 */
+"settings.ai.background.section" = "後台發現與索引";
+"settings.ai.background.activityLevel" = "本機 AI 活躍度";
+"settings.ai.background.activityLevel.desc" = "Mac 閒置時,本機 AI 在後台工作的積極程度。";
+"settings.ai.background.level.off" = "關閉";
+"settings.ai.background.level.powerSaver" = "省電";
+"settings.ai.background.level.balanced" = "平衡";
+"settings.ai.background.level.aggressive" = "積極";
+"settings.ai.background.folderPreindex" = "預索引授權目錄";
+"settings.ai.background.folderPreindex.desc" = "在你授權的目錄裡建立唯讀的檔案中繼資料索引(名稱、大小、日期),讓 AI 檔案夾能把分散各處的相關檔案連結起來。絕不讀取檔案內容。";
+"settings.ai.background.whitelist" = "授權目錄";
+"settings.ai.background.addFolder" = "加入目錄…";
+"settings.ai.background.suggested" = "建議:";
+"settings.ai.background.remove" = "移除";
+"settings.ai.background.empty" = "尚未授權任何目錄。在你加入之前,索引保持關閉。";
+"settings.ai.background.showRecommended" = "顯示推薦工作區";
+"settings.ai.background.showRecommended.desc" = "在側邊欄顯示後台發現推薦的 AI 檔案夾。關閉後只顯示你自己建立的。";
+"settings.ai.background.clearIndex" = "檔案索引";
+"settings.ai.background.clearIndex.desc" = "清空後台檔案索引。只清除派生的中繼資料 —— 你的真實檔案不受影響。";
+"settings.ai.background.clearIndex.button" = "清空索引";
+"settings.ai.background.browse" = "瀏覽…";

@@ -2542,3 +2542,25 @@
 "ai.explainSalvage.title" = "Le résultat du sauvetage expliqué";
 "ai.explainAudit" = "Expliquer";
 "ai.explainAudit.title" = "La vérification du répertoire expliquée";
+
+/* 0.4.5 #89 IA découverte et indexation en arrière-plan */
+"settings.ai.background.section" = "Découverte et indexation en arrière-plan";
+"settings.ai.background.activityLevel" = "Activité de l'IA locale";
+"settings.ai.background.activityLevel.desc" = "À quel point l'IA locale travaille en arrière-plan lorsque votre Mac est inactif.";
+"settings.ai.background.level.off" = "Désactivé";
+"settings.ai.background.level.powerSaver" = "Économie d'énergie";
+"settings.ai.background.level.balanced" = "Équilibré";
+"settings.ai.background.level.aggressive" = "Actif";
+"settings.ai.background.folderPreindex" = "Pré-indexer les dossiers autorisés";
+"settings.ai.background.folderPreindex.desc" = "Crée un index de métadonnées en lecture seule (noms, tailles, dates) des fichiers des dossiers que vous autorisez, afin que les Dossiers IA relient des éléments associés de différents emplacements. Ne lit jamais le contenu des fichiers.";
+"settings.ai.background.whitelist" = "Dossiers autorisés";
+"settings.ai.background.addFolder" = "Ajouter un dossier…";
+"settings.ai.background.suggested" = "Suggérés :";
+"settings.ai.background.remove" = "Retirer";
+"settings.ai.background.empty" = "Aucun dossier autorisé pour l'instant. L'indexation reste désactivée jusqu'à ce que vous en ajoutiez un.";
+"settings.ai.background.showRecommended" = "Afficher les espaces recommandés";
+"settings.ai.background.showRecommended.desc" = "Affiche dans la barre latérale les Dossiers IA suggérés par la découverte en arrière-plan. Désactivé, seuls ceux que vous créez apparaissent.";
+"settings.ai.background.clearIndex" = "Index des fichiers";
+"settings.ai.background.clearIndex.desc" = "Efface l'index de fichiers en arrière-plan. Supprime uniquement les métadonnées dérivées ; vos fichiers réels ne sont pas touchés.";
+"settings.ai.background.clearIndex.button" = "Effacer l'index";
+"settings.ai.background.browse" = "Parcourir…";
