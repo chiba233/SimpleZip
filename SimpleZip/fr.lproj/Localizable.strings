@@ -2599,6 +2599,10 @@
 "aiWorkspace.node.aiSuggested" = "Ajouté par l'IA — clic droit pour garder ou retirer";
 "aiWorkspace.node.like" = "J'aime";
 "aiWorkspace.node.dislike" = "Je n'aime pas";
+"aiWorkspace.removed.group" = "Retiré par l'IA";
+"aiWorkspace.removed.badge" = "Retiré";
+"aiWorkspace.removed.reason" = "L'IA a retiré cet élément du dossier. Restaurez-le s'il doit rester ici.";
+"aiWorkspace.removed.restore" = "Restaurer dans ce dossier";
 "aiWorkspace.mode.deterministic" = "Organisé automatiquement";
 "aiWorkspace.regenerating" = "Réorganisation par IA…";
 "aiWorkspace.description.placeholder" = "Ajouter une description…";

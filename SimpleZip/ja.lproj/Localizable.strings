@@ -2603,6 +2603,10 @@
 "aiWorkspace.node.aiSuggested" = "AIが追加 — 右クリックで保持/削除";
 "aiWorkspace.node.like" = "気に入った";
 "aiWorkspace.node.dislike" = "気に入らない";
+"aiWorkspace.removed.group" = "AIが削除";
+"aiWorkspace.removed.badge" = "削除済み";
+"aiWorkspace.removed.reason" = "AIがこの項目をフォルダから削除しました。ここに属する場合は復元してください。";
+"aiWorkspace.removed.restore" = "このフォルダに復元";
 "aiWorkspace.mode.deterministic" = "自動整理";
 "aiWorkspace.regenerating" = "AI が再整理中…";
 "aiWorkspace.description.placeholder" = "説明を追加…";

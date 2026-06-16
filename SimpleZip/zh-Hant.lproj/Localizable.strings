@@ -2603,6 +2603,10 @@
 "aiWorkspace.node.aiSuggested" = "AI 加入的 —— 右鍵可保留或移除";
 "aiWorkspace.node.like" = "我很喜歡";
 "aiWorkspace.node.dislike" = "我不喜歡";
+"aiWorkspace.removed.group" = "AI 已移除";
+"aiWorkspace.removed.badge" = "已移除";
+"aiWorkspace.removed.reason" = "AI 已將這個項目從資料夾中移除。如果它屬於這裡，可以復原。";
+"aiWorkspace.removed.restore" = "復原到此資料夾";
 "aiWorkspace.mode.deterministic" = "自動整理";
 "aiWorkspace.regenerating" = "AI 正在重新整理…";
 "aiWorkspace.description.placeholder" = "新增描述…";

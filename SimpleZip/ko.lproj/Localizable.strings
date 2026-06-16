@@ -2602,6 +2602,10 @@
 "aiWorkspace.node.aiSuggested" = "AI가 추가함 — 마우스 오른쪽 클릭으로 유지/제거";
 "aiWorkspace.node.like" = "마음에 들어요";
 "aiWorkspace.node.dislike" = "마음에 안 들어요";
+"aiWorkspace.removed.group" = "AI가 제거함";
+"aiWorkspace.removed.badge" = "제거됨";
+"aiWorkspace.removed.reason" = "AI가 이 항목을 폴더에서 제거했습니다. 여기에 속하는 항목이면 복원하세요.";
+"aiWorkspace.removed.restore" = "이 폴더로 복원";
 "aiWorkspace.mode.deterministic" = "자동 정리";
 "aiWorkspace.regenerating" = "AI가 다시 정리하는 중…";
 "aiWorkspace.description.placeholder" = "설명 추가…";

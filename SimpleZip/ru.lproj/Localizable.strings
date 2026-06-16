@@ -2601,6 +2601,10 @@
 "aiWorkspace.node.aiSuggested" = "Добавлено ИИ — правый клик, чтобы оставить или убрать";
 "aiWorkspace.node.like" = "Нравится";
 "aiWorkspace.node.dislike" = "Не нравится";
+"aiWorkspace.removed.group" = "Удалено ИИ";
+"aiWorkspace.removed.badge" = "Удалено";
+"aiWorkspace.removed.reason" = "ИИ удалил этот элемент из папки. Восстановите его, если он должен быть здесь.";
+"aiWorkspace.removed.restore" = "Восстановить в эту папку";
 "aiWorkspace.mode.deterministic" = "Автоматическая сортировка";
 "aiWorkspace.regenerating" = "ИИ переупорядочивает…";
 "aiWorkspace.description.placeholder" = "Добавить описание…";

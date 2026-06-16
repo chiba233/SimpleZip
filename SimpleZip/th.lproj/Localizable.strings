@@ -2601,6 +2601,10 @@
 "aiWorkspace.node.aiSuggested" = "AI เพิ่มให้ — คลิกขวาเพื่อเก็บหรือเอาออก";
 "aiWorkspace.node.like" = "ฉันชอบสิ่งนี้";
 "aiWorkspace.node.dislike" = "ฉันไม่ชอบสิ่งนี้";
+"aiWorkspace.removed.group" = "AI เอาออกแล้ว";
+"aiWorkspace.removed.badge" = "เอาออกแล้ว";
+"aiWorkspace.removed.reason" = "AI เอารายการนี้ออกจากโฟลเดอร์ หากรายการนี้ควรอยู่ที่นี่ ให้กู้คืนกลับมา";
+"aiWorkspace.removed.restore" = "กู้คืนไปยังโฟลเดอร์นี้";
 "aiWorkspace.mode.deterministic" = "จัดระเบียบอัตโนมัติ";
 "aiWorkspace.regenerating" = "กำลังจัดระเบียบใหม่ด้วย AI…";
 "aiWorkspace.description.placeholder" = "เพิ่มคำอธิบาย…";
