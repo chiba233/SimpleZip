@@ -157,7 +157,23 @@ enum AIVirtualFolderModelPlanner {
 
     /// **后台复核**:模型既判断这个候选主题**值不值得作为文件夹出现**(质量优先,不保数量),又顺带产出它的 plan
     /// (命名 / 选成员 / 分组)。`worthSurfacing == false` → 调用点不把它升成可见工作区。
-    static func review(for input: AIVirtualFolderPlanInput) async throws -> AIFolderReview {
+    static func review(for input: AIVirtualFolderPlanInput, attempt: Int = 1,
+                       approvedTarget: Int = 0) async throws -> AIFolderReview {
+        let pressureRule: String
+        if attempt > 1 || approvedTarget > 0 {
+            pressureRule = """
+
+            This candidate already passed deterministic quality gates and is competing in a hidden review pool. The \
+            app still needs reviewed winners before showing AI folders, so do NOT give up merely because the first \
+            obvious grouping is imperfect. If there is a coherent useful subset of at least two items, build the \
+            strongest folder from that subset and use any extra related candidates supplied below to strengthen it. \
+            If this theme still feels weak, prefer a tighter or adjacent topic from the provided items rather than \
+            forcing unrelated material. Reject only when no coherent useful subset of at least two provided items \
+            exists.
+            """
+        } else {
+            pressureRule = ""
+        }
         let instructions = """
         You are the quality gate for an archive app's background "AI folders". Each item below is one line: \
         "candidateID<TAB>kind<TAB>name<TAB>roleTags". First judge whether these items genuinely form ONE coherent, \
@@ -173,6 +189,7 @@ enum AIVirtualFolderModelPlanner {
         If the input states items the user KEEPS or REMOVED, kinds they like/dislike, or group names they chose, \
         treat these as strong guidance: a theme the user has actively curated is more worth surfacing, and you \
         should honor what they keep, leave out, and how they name groups.
+        \(pressureRule)
 
         \(Self.actionVocabularyRule)
 
@@ -183,6 +200,8 @@ enum AIVirtualFolderModelPlanner {
         if let prompt = ws.prompt, !prompt.isEmpty { lines.append("Folder theme: \(prompt)") }
         if !ws.queryTokens.isEmpty { lines.append("Theme hints: \(ws.queryTokens.joined(separator: ", "))") }
         lines.append("Candidate title: \(ws.title)")
+        lines.append("Review attempt: \(max(1, attempt))")
+        if approvedTarget > 0 { lines.append("Hidden-pool approved target: \(approvedTarget)") }
         lines.append(contentsOf: Self.hintLines(input.learningHints))
         lines.append("Items (candidateID<TAB>kind<TAB>name<TAB>roleTags):")
         for c in input.candidates.prefix(120) {

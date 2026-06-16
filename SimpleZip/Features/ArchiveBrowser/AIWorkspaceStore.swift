@@ -53,11 +53,18 @@ final class AIWorkspaceStore: ObservableObject {
     private var modelFed: [UUID: [AIVirtualNodeCandidate]] = [:]
 
     // 模型门控的后台发现(用户:建文件夹是后台行为,模型复核「真能撑起一个主题」才出现,质量优先不保数量):
+    private typealias PendingThemeCandidate = (
+        ws: AIWorkspace,
+        fed: [AIVirtualNodeCandidate],
+        ruleRefs: Set<AIContextSourceRef>
+    )
     /// 本轮规则候选主题(theme.id → 工作区壳 + 喂模型的候选集 + 规则簇成员 ref);未复核的逐个排队后台复核。
-    private var pendingCandidates: [String: (ws: AIWorkspace, fed: [AIVirtualNodeCandidate], ruleRefs: Set<AIContextSourceRef>)] = [:]
+    private var pendingCandidates: [String: PendingThemeCandidate] = [:]
     /// 复核结论(theme.id → 是否值得出现 + 模型标题 + plan + 选定成员)。本会话缓存,不重复复核同一主题。
     private var themeVerdicts: [String: ReviewVerdict] = [:]
     private var reviewInFlight: Set<String> = []
+    private var reviewAttemptsByTheme: [String: Int] = [:]
+    private var reviewPumpTask: Task<Void, Never>?
 
     private struct ReviewVerdict {
         let approved: Bool
@@ -153,6 +160,10 @@ final class AIWorkspaceStore: ObservableObject {
             self.pool = pool
             self.pathsBySourceRef = pathsBySourceRef
             self.treeCache = [:]
+            pendingCandidates = [:]
+            themeVerdicts = [:]
+            reviewAttemptsByTheme = [:]
+            reviewPumpTask?.cancel()
             let next = collection.replacingRecommended([])
             if next != collection { collection = next }
             self.memberRefsByWorkspace = memberRefsByWorkspace.filter {
@@ -165,7 +176,10 @@ final class AIWorkspaceStore: ObservableObject {
         // 设置里的上限 = **可展示**数量;模型可用时后台多生成一批候选主题,让通过规则质量门控的候选先留在
         // 隐藏参赛池里竞争 / 复核。只有模型复核通过的胜者才进入可见区,避免半成品工作区先露出来。
         let displayLimit = AppPreferences.aiMaxRecommendedWorkspaces
-        let candidateLimit = AIReportAssistant.isReady ? max(displayLimit * 3, displayLimit + 8) : displayLimit
+        let reviewPolicy = AIWorkspaceReviewPumpPolicy(
+            displayLimit: displayLimit, hiddenCandidateCount: 0,
+            activityLevel: AppPreferences.aiBackgroundActivityLevel)
+        let candidateLimit = AIReportAssistant.isReady ? reviewPolicy.candidateLimit : displayLimit
         let policy = AIRecommendationPolicy(maxThemes: candidateLimit)
         let suppression = self.suppression
         // **重活(跨位置语义聚类)挪出 MainActor** —— 开窗首帧不被 AI 发现拖住(用户实测卡;倒排索引已降复杂度,
@@ -196,6 +210,8 @@ final class AIWorkspaceStore: ObservableObject {
             // 启动早期 / 历史或索引尚未加载时,不要把“暂无输入”误当作“没有推荐”而清掉上次已发布的 AI 文件夹。
             // 真正关掉推荐走上面的偏好门控;有输入但无合格主题时才允许下面的替换逻辑收敛可见列表。
             pendingCandidates = [:]
+            reviewAttemptsByTheme = [:]
+            reviewPumpTask?.cancel()
             return
         }
 
@@ -211,7 +227,7 @@ final class AIWorkspaceStore: ObservableObject {
 
         // 模型就绪:**建文件夹是后台行为** —— 规则候选已过质量门控,但仍只进入隐藏参赛池;逐个让模型复核
         // 「真能撑起一个主题」。复核通过才发布名字 / 选成员 / 分组并缓存,复核判否则在隐藏池淘汰。
-        var pending: [String: (ws: AIWorkspace, fed: [AIVirtualNodeCandidate], ruleRefs: Set<AIContextSourceRef>)] = [:]
+        var pending: [String: PendingThemeCandidate] = [:]
         for theme in output.themes {
             let ws = theme.toRecommendedWorkspace(generatedAt: now)
             let refSet = Set(theme.sourceRefs)
@@ -222,21 +238,78 @@ final class AIWorkspaceStore: ObservableObject {
         }
         pendingCandidates = pending
         themeVerdicts = themeVerdicts.filter { pending[$0.key] != nil }   // 不在本轮的旧结论清掉
-        for (id, c) in pending where themeVerdicts[id] == nil && !reviewInFlight.contains(id) {
-            scheduleThemeReview(themeID: id, ws: c.ws, fed: c.fed)
-        }
+        reviewAttemptsByTheme = reviewAttemptsByTheme.filter { pending[$0.key] != nil }
+        pumpThemeReviews()
         republishReviewedThemes()
     }
 
-    /// 后台复核一个候选主题(模型判断值不值得出现 + 产出 plan)。串行闸保证不与其它生成重叠;失败不缓存、下轮重试。
-    private func scheduleThemeReview(themeID: String, ws: AIWorkspace, fed: [AIVirtualNodeCandidate]) {
+    /// 后台复核泵:未复核候选不能进可见区,但隐藏池要持续形成已通过的竞争者。一次只喂一个主题给模型;
+    /// 失败 / 暂时判否时,换更可能成功的主题或扩大上下文再试,直到达到目标或耗尽有限预算。
+    private func pumpThemeReviews() {
         guard #available(macOS 26.0, *), AIReportAssistant.isReady else { return }
+        guard !pendingCandidates.isEmpty else { return }
+        let policy = AIWorkspaceReviewPumpPolicy(
+            displayLimit: AppPreferences.aiMaxRecommendedWorkspaces,
+            hiddenCandidateCount: pendingCandidates.count,
+            activityLevel: AppPreferences.aiBackgroundActivityLevel)
+        let approved = themeVerdicts.values.filter(\.approved).count
+        guard approved < policy.approvedTarget else { return }
+        guard reviewInFlight.isEmpty else { return }
+        guard let next = nextThemeReviewCandidate(now: Date(), policy: policy, approvedCount: approved) else { return }
+        let attempt = reviewAttemptsByTheme[next.id, default: 0] + 1
+        let fed = reviewFed(for: next.candidate, attempt: attempt)
+        scheduleThemeReview(themeID: next.id, ws: next.candidate.ws, fed: fed,
+                            attempt: attempt, approvedTarget: policy.approvedTarget)
+    }
+
+    private func nextThemeReviewCandidate(now: Date, policy: AIWorkspaceReviewPumpPolicy, approvedCount: Int)
+        -> (id: String, candidate: PendingThemeCandidate)? {
+        let scored: [(id: String, candidate: PendingThemeCandidate, score: Double)] = pendingCandidates.compactMap {
+            id, candidate in
+            if themeVerdicts[id]?.approved == true || reviewInFlight.contains(id) { return nil }
+            let attempts = reviewAttemptsByTheme[id, default: 0]
+            guard attempts < policy.maxAttemptsPerTheme else { return nil }
+            let rejectedPenalty = themeVerdicts[id] == nil ? 0.0 : 3.0
+            let score = competitionScore(candidate.ws, memberCount: candidate.ruleRefs.count, now: now)
+                - Double(attempts) * policy.attemptPenalty(approvedCount: approvedCount)
+                - rejectedPenalty
+            return (id, candidate, score)
+        }
+        return scored.sorted {
+            if $0.score != $1.score { return $0.score > $1.score }
+            return $0.id < $1.id
+        }.first.map { ($0.id, $0.candidate) }
+    }
+
+    private func reviewFed(for candidate: PendingThemeCandidate, attempt: Int) -> [AIVirtualNodeCandidate] {
+        let members = pool.filter {
+            !$0.sourceRefs.isEmpty && $0.sourceRefs.allSatisfy { candidate.ruleRefs.contains($0) }
+        }
+        guard !members.isEmpty else { return candidate.fed }
+        let cap = min(220, 80 + max(0, attempt - 1) * 60)
+        return members + themeRelevantExtra(ws: candidate.ws, members: members, cap: cap)
+    }
+
+    /// 后台复核一个候选主题(模型判断值不值得出现 + 产出 plan)。串行闸保证不与其它生成重叠。
+    private func scheduleThemeReview(themeID: String, ws: AIWorkspace, fed: [AIVirtualNodeCandidate],
+                                     attempt: Int, approvedTarget: Int) {
+        guard #available(macOS 26.0, *) else { return }
         reviewInFlight.insert(themeID)
+        reviewAttemptsByTheme[themeID] = attempt
         let input = makeModelPlanInput(ws: ws, candidates: fed)
         Task { @MainActor in
-            let review = try? await AIVirtualFolderModelPlanner.review(for: input)
+            let review = try? await AIVirtualFolderModelPlanner.review(
+                for: input, attempt: attempt, approvedTarget: approvedTarget)
             self.reviewInFlight.remove(themeID)
-            guard let review, self.pendingCandidates[themeID] != nil else { return }   // 失败 / 已过期 → 不缓存
+            guard let review, self.pendingCandidates[themeID] != nil else {
+                let approved = self.themeVerdicts.values.filter(\.approved).count
+                let policy = AIWorkspaceReviewPumpPolicy(
+                    displayLimit: AppPreferences.aiMaxRecommendedWorkspaces,
+                    hiddenCandidateCount: self.pendingCandidates.count,
+                    activityLevel: AppPreferences.aiBackgroundActivityLevel)
+                self.scheduleReviewPump(after: max(1.5, policy.reviewDelaySeconds(approvedCount: approved)))
+                return
+            }
             var referenced = Set<String>()
             func collect(_ gs: [AIVirtualFolderGroupPlan]) { for g in gs { referenced.formUnion(g.candidateIDs); collect(g.children) } }
             collect(review.plan.groups)
@@ -246,6 +319,23 @@ final class AIWorkspaceStore: ObservableObject {
                 title: review.plan.workspaceTitle?.trimmingCharacters(in: .whitespacesAndNewlines),
                 plan: review.plan, memberRefs: Set(kept.flatMap(\.sourceRefs)), members: kept)
             self.republishReviewedThemes()
+            let approved = self.themeVerdicts.values.filter(\.approved).count
+            let policy = AIWorkspaceReviewPumpPolicy(
+                displayLimit: AppPreferences.aiMaxRecommendedWorkspaces,
+                hiddenCandidateCount: self.pendingCandidates.count,
+                activityLevel: AppPreferences.aiBackgroundActivityLevel)
+            self.scheduleReviewPump(after: policy.reviewDelaySeconds(approvedCount: approved))
+        }
+    }
+
+    private func scheduleReviewPump(after seconds: TimeInterval) {
+        guard seconds.isFinite else { return }
+        reviewPumpTask?.cancel()
+        reviewPumpTask = Task { @MainActor in
+            let nanoseconds = UInt64(max(0, seconds) * 1_000_000_000)
+            try? await Task.sleep(nanoseconds: nanoseconds)
+            guard !Task.isCancelled else { return }
+            self.pumpThemeReviews()
         }
     }
 
