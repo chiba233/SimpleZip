@@ -421,8 +421,49 @@ final class AIWorkspaceStore: ObservableObject {
             id: ws.id, title: ws.title, origin: ws.origin.rawValue,
             prompt: ws.userDescription ?? seed?.themePrompts.first ?? ws.prompt,
             queryTokens: Array(tokens.prefix(12)))
-        return AIVirtualFolderPlanInput(workspace: fact,
-                                        candidates: candidates.map { AIVirtualNodePromptCandidate(candidate: $0) })
+        return AIVirtualFolderPlanInput(
+            workspace: fact,
+            candidates: candidates.map { AIVirtualNodePromptCandidate(candidate: $0) },
+            learningHints: learningHints(for: ws, seed: seed))
+    }
+
+    /// 把用户对这个工作区的调教(种子固定 / 排除 + 分组命名)投影成 `AIWorkspaceLearningHints` 喂模型(架构债 #4:
+    /// 喂进 prompt,不只 Swift 侧软过滤)。固定 = 喜欢 / 手动加入 / 移动(`likeNode`/`addMembers`/`moveNodes` 都写种子
+    /// pin);排除 = 不喜欢 + 从工作区移除。带名字 + 来源目录 + 角色 —— **路径不是隐私红线**(SimpleZip 只护加密内容 /
+    /// 口令 / 明文,见隐私口径),来源目录能帮模型看出「用户把哪类东西、放哪儿的留了下来」;空则 nil。
+    private func learningHints(for ws: AIWorkspace, seed: AIWorkspaceUserSeed?) -> AIWorkspaceLearningHints? {
+        let kept = resolveItemHints(Set(seed?.pinnedSourceRefs ?? []))
+        let removed = resolveItemHints(excludedRefs(for: ws))
+        let groupTitles = Array(structureEdits.groupTitles(ws.id).values)
+        let hints = AIWorkspaceLearningHints(
+            keptItemNames: kept.items, removedItemNames: removed.items,
+            preferredRoleTags: kept.roles, rejectedRoleTags: removed.roles,
+            userGroupTitles: groupTitles)
+        return hints.isEmpty ? nil : hints
+    }
+
+    /// 把一组 source ref 用内存候选池回查成「展示名 — 来源目录」+ 角色标签,喂模型 hint 用。来源目录取自
+    /// `pathsBySourceRef`(只含权限允许的;**路径可以给模型**),取不到就只给名字;池里查不到的 ref 静默跳过。
+    private func resolveItemHints(_ refs: Set<AIContextSourceRef>) -> (items: [String], roles: [String]) {
+        guard !refs.isEmpty else { return ([], []) }
+        var items: [String] = []; var seen = Set<String>(); var roles = Set<String>()
+        for cand in pool where cand.sourceRefs.contains(where: { refs.contains($0) }) {
+            let dir = cand.sourceRefs.compactMap { pathsBySourceRef[$0] }.first
+                .map { ($0 as NSString).deletingLastPathComponent }
+                .flatMap { $0.isEmpty || $0 == "/" ? nil : Self.abbreviatingHome($0) }
+            let desc = dir.map { "\(cand.displayName) — \($0)" } ?? cand.displayName
+            if seen.insert(desc).inserted { items.append(desc) }
+            roles.formUnion(cand.roleTags)
+        }
+        return (items, roles.sorted())
+    }
+
+    /// home 目录缩成 ~(喂模型 hint 的来源目录展示用,纯字符串美化)。
+    private static func abbreviatingHome(_ path: String) -> String {
+        let home = NSHomeDirectory()
+        if path == home { return "~" }
+        if path.hasPrefix(home + "/") { return "~" + path.dropFirst(home.count) }
+        return path
     }
 
     /// 虚拟分组改名(用户编辑覆盖层)+ **把新分组名拆成主题提示词喂进种子**(用户把某组叫「源代码」=

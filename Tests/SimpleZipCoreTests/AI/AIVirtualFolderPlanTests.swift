@@ -185,6 +185,38 @@ import Testing
         #expect(tree.title == "旧树")
     }
 
+    // MARK: - 用户调教 hint(架构债 #4:把 seed / learning / structure edits 喂进模型输入)
+
+    @Test func learningHintsIsEmptyWhenAllBlank() {
+        #expect(AIWorkspaceLearningHints().isEmpty)
+        #expect(!AIWorkspaceLearningHints(keptItemNames: ["a"]).isEmpty)
+        #expect(!AIWorkspaceLearningHints(userGroupTitles: ["源代码"]).isEmpty)
+    }
+
+    @Test func planInputRoundTripsLearningHints() throws {
+        let hints = AIWorkspaceLearningHints(
+            keptItemNames: ["main.swift"], removedItemNames: ["random.tmp"],
+            preferredRoleTags: ["source"], rejectedRoleTags: ["junk"], userGroupTitles: ["源代码"])
+        let input = AIVirtualFolderPlanInput(
+            workspace: AIWorkspacePromptFact(workspace: workspace()),
+            candidates: [], learningHints: hints)
+        let data = try JSONEncoder().encode(input)
+        let decoded = try JSONDecoder().decode(AIVirtualFolderPlanInput.self, from: data)
+        #expect(decoded.learningHints == hints)
+        #expect(decoded.learningHints?.userGroupTitles == ["源代码"])
+    }
+
+    @Test func planInputWithoutHintsDecodesNil() throws {
+        // 无调教 → hints nil;合成 Codable 对 optional 走 encodeIfPresent/decodeIfPresent → 键省略,旧输入兼容。
+        let input = AIVirtualFolderPlanInput(
+            workspace: AIWorkspacePromptFact(workspace: workspace()), candidates: [])
+        let data = try JSONEncoder().encode(input)
+        let json = String(data: data, encoding: .utf8) ?? ""
+        #expect(!json.contains("learningHints"))   // nil optional 不落键(= 旧格式)
+        let decoded = try JSONDecoder().decode(AIVirtualFolderPlanInput.self, from: data)
+        #expect(decoded.learningHints == nil)
+    }
+
     private func allLeaves(_ nodes: [AIVirtualNode]) -> [AIVirtualNode] {
         nodes.flatMap { $0.kind == .group ? allLeaves($0.children) : [$0] }
     }

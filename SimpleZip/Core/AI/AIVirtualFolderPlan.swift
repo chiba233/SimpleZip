@@ -130,6 +130,43 @@ nonisolated struct AIVirtualFolderNamingPreference: Codable, Equatable, Sendable
     }
 }
 
+/// 用户对一个工作区的累积调教信号(架构债 #4 + 白皮书建议四:**自循环必须喂进模型 prompt**,不只 Swift 侧过滤)。
+/// 用户固定 / 排除 / 喜欢 / 不喜欢 / 给分组起的名字,都要让模型知道 —— 这样它**学会**该工作区的口味(用户把源码
+/// 拖进「源代码」组,以后同类也归源代码),而不是每轮从零分组。配合现有 `AIWorkspaceLearningStore` 的 Swift 侧软
+/// 过滤(强负同类不喂),双管齐下。
+///
+/// 携带展示名(可带来源目录)、角色 token、用户起的分组名。**路径不是隐私风险,可以、也应该让模型看到**
+/// (SimpleZip 只彻底保护额外加密的内容,见 [[feedback_privacy_only_encrypted]]);真正的红线只有加密条目名 / 内容、
+/// 口令、密文、解密明文、无 read 权限 —— 这些这里本就不会出现(只有用户调教过的非加密成员的名字 / 目录 / 角色)。
+nonisolated struct AIWorkspaceLearningHints: Codable, Equatable, Sendable {
+    /// 用户明确留在这个工作区的成员(「我很喜欢」/ 手动加入 / 移动进来 → 都落进种子 pin),展示名 + 可选来源目录。
+    /// 模型应优先保留同类。
+    let keptItemNames: [String]
+    /// 用户从这个工作区移除的成员(「我不喜欢」/ 从工作区移除),展示名 + 可选来源目录。模型应避免再把同类选进来。
+    let removedItemNames: [String]
+    /// 用户偏好的角色标签(来自被喜欢 / 固定的成员)—— 同角色候选更该进来。
+    let preferredRoleTags: [String]
+    /// 用户排斥的角色标签(来自被移除的成员)—— 同角色候选少进来。
+    let rejectedRoleTags: [String]
+    /// 用户给虚拟分组起过的名字(把某组叫「源代码」= 这个工作区关心「源代码」)—— 强主题信号,模型分组 / 命名应沿用。
+    let userGroupTitles: [String]
+
+    init(keptItemNames: [String] = [], removedItemNames: [String] = [],
+         preferredRoleTags: [String] = [], rejectedRoleTags: [String] = [],
+         userGroupTitles: [String] = []) {
+        self.keptItemNames = keptItemNames
+        self.removedItemNames = removedItemNames
+        self.preferredRoleTags = preferredRoleTags
+        self.rejectedRoleTags = rejectedRoleTags
+        self.userGroupTitles = userGroupTitles
+    }
+
+    var isEmpty: Bool {
+        keptItemNames.isEmpty && removedItemNames.isEmpty && preferredRoleTags.isEmpty
+            && rejectedRoleTags.isEmpty && userGroupTitles.isEmpty
+    }
+}
+
 /// plan 约束(白皮书 `constraints`)—— 防本地模型发散 + 防炸 UI。
 nonisolated struct AIVirtualFolderPlanConstraints: Codable, Equatable, Sendable {
     let maxTopLevelGroups: Int
@@ -161,6 +198,9 @@ nonisolated struct AIVirtualFolderPlanInput: Codable, Equatable, Sendable {
     let evidenceGaps: [AIWorkspaceEvidenceGap]
     let allowedActions: [AISuggestionActionDescriptor]
     let userNamingPreferences: [AIVirtualFolderNamingPreference]
+    /// 用户对该工作区的累积调教(固定 / 排除 / 喜欢 / 不喜欢 / 分组命名)—— 让模型据此学口味(架构债 #4)。
+    /// optional:旧输入 / 无调教时为 nil(合成 Codable 对 optional 走 decodeIfPresent → 向后兼容)。
+    let learningHints: AIWorkspaceLearningHints?
     let constraints: AIVirtualFolderPlanConstraints
 
     init(workspace: AIWorkspacePromptFact,
@@ -170,6 +210,7 @@ nonisolated struct AIVirtualFolderPlanInput: Codable, Equatable, Sendable {
          evidenceGaps: [AIWorkspaceEvidenceGap] = [],
          allowedActions: [AISuggestionActionDescriptor] = [],
          userNamingPreferences: [AIVirtualFolderNamingPreference] = [],
+         learningHints: AIWorkspaceLearningHints? = nil,
          constraints: AIVirtualFolderPlanConstraints = .default) {
         self.schema = Self.schemaID
         self.workspace = workspace
@@ -179,6 +220,7 @@ nonisolated struct AIVirtualFolderPlanInput: Codable, Equatable, Sendable {
         self.evidenceGaps = evidenceGaps
         self.allowedActions = allowedActions
         self.userNamingPreferences = userNamingPreferences
+        self.learningHints = learningHints
         self.constraints = constraints
     }
 }

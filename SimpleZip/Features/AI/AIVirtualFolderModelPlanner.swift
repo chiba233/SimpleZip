@@ -65,6 +65,32 @@ enum AIVirtualFolderModelPlanner {
         """
     }
 
+    /// 把用户对这个工作区的累积调教(固定 / 排除 / 喜欢 / 不喜欢 / 分组命名)展开成几行 prompt 提示(架构债 #4:
+    /// 自循环喂进模型)。携带名字 / 来源目录 / 角色 / 用户起的组名 —— **路径不是隐私红线**(见隐私口径);空则返回空。
+    static func hintLines(_ hints: AIWorkspaceLearningHints?) -> [String] {
+        guard let h = hints, !h.isEmpty else { return [] }
+        var lines: [String] = []
+        if !h.userGroupTitles.isEmpty {
+            lines.append("Group names the user has chosen here (reuse and honor these names/themes when grouping): "
+                + h.userGroupTitles.prefix(12).joined(separator: ", "))
+        }
+        if !h.keptItemNames.isEmpty {
+            lines.append("Items the user explicitly KEEPS here (name and location — favor selecting items like these): "
+                + h.keptItemNames.prefix(24).joined(separator: ", "))
+        }
+        if !h.removedItemNames.isEmpty {
+            lines.append("Items the user REMOVED from here (name and location — do NOT bring back items like these): "
+                + h.removedItemNames.prefix(24).joined(separator: ", "))
+        }
+        if !h.preferredRoleTags.isEmpty {
+            lines.append("Kinds of item the user likes here: " + h.preferredRoleTags.prefix(12).joined(separator: ", "))
+        }
+        if !h.rejectedRoleTags.isEmpty {
+            lines.append("Kinds of item the user dislikes here: " + h.rejectedRoleTags.prefix(12).joined(separator: ", "))
+        }
+        return lines
+    }
+
     /// 从 prompt-safe 输入让本地模型生成虚拟目录 plan。返回的 plan 的 candidateID 仍可能含界外值 ——
     /// 交给 `AIVirtualFolderTreeBuilder.build` 统一校验丢弃(防御性)。失败抛出,调用点退回确定性树。
     static func plan(for input: AIVirtualFolderPlanInput) async throws -> AIVirtualFolderPlan {
@@ -78,6 +104,10 @@ enum AIVirtualFolderModelPlanner {
         candidateID values VERBATIM — never invent, alter, or output a file path; simply omit any item that \
         doesn't belong rather than forcing it into a group.
 
+        If the input states items the user KEEPS or REMOVED, kinds they like/dislike, or group names they chose, \
+        treat these as strong guidance learned from this user: favor items like the ones they keep, leave out items \
+        like the ones they removed, and reuse the group names/themes they picked.
+
         \(Self.namingRule)
         """
         var lines: [String] = []
@@ -85,6 +115,7 @@ enum AIVirtualFolderModelPlanner {
         if let prompt = ws.prompt, !prompt.isEmpty { lines.append("Folder theme: \(prompt)") }
         if !ws.queryTokens.isEmpty { lines.append("Theme hints: \(ws.queryTokens.joined(separator: ", "))") }
         lines.append("Current title: \(ws.title)")
+        lines.append(contentsOf: Self.hintLines(input.learningHints))
         lines.append("Items (candidateID<TAB>kind<TAB>name<TAB>roleTags):")
         for c in input.candidates.prefix(120) {
             lines.append([c.candidateID, c.kind, c.displayName, c.roleTags.joined(separator: " ")].joined(separator: "\t"))
@@ -110,6 +141,10 @@ enum AIVirtualFolderModelPlanner {
         Copy candidateID values VERBATIM — never invent, alter, translate, or output a file path. Reply only with \
         the structured plan, including worthSurfacing.
 
+        If the input states items the user KEEPS or REMOVED, kinds they like/dislike, or group names they chose, \
+        treat these as strong guidance: a theme the user has actively curated is more worth surfacing, and you \
+        should honor what they keep, leave out, and how they name groups.
+
         \(Self.namingRule)
         """
         var lines: [String] = []
@@ -117,6 +152,7 @@ enum AIVirtualFolderModelPlanner {
         if let prompt = ws.prompt, !prompt.isEmpty { lines.append("Folder theme: \(prompt)") }
         if !ws.queryTokens.isEmpty { lines.append("Theme hints: \(ws.queryTokens.joined(separator: ", "))") }
         lines.append("Candidate title: \(ws.title)")
+        lines.append(contentsOf: Self.hintLines(input.learningHints))
         lines.append("Items (candidateID<TAB>kind<TAB>name<TAB>roleTags):")
         for c in input.candidates.prefix(120) {
             lines.append([c.candidateID, c.kind, c.displayName, c.roleTags.joined(separator: " ")].joined(separator: "\t"))
