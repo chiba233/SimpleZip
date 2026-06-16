@@ -107,10 +107,12 @@ enum AIVirtualFolderModelPlanner {
         guard !items.isEmpty else { return [] }
         let cands = Array(items.prefix(40))
         let instructions = """
-        The items below are already grouped into one folder. Optionally suggest a useful next action for a FEW of \
-        them — ONLY where there is a clear, specific reason for that item (e.g. an untested release archive → test; \
-        a big stray folder → compress). MOST items get NONE; never suggest an action just because it is possible. \
-        Refer to items by their NUMBER, never output a path.
+        The items below are already grouped into one folder. Suggest a useful next action for a FEW of them — ONLY \
+        where there is a clear, specific reason for THAT SPECIFIC ITEM (e.g. an untested release archive → "test"; \
+        a large stray folder → "compress"; an unverified signed container → "verify"). MOST items get NONE — empty \
+        is the correct default. Never suggest an action just because it is possible; suggest only when it is clearly \
+        the right next step for THIS item right now. Prioritize items that most obviously need attention. Refer to \
+        items by their NUMBER, never output a path.
 
         \(Self.actionVocabularyRule)
         """
@@ -139,9 +141,10 @@ enum AIVirtualFolderModelPlanner {
         let cands = Array(items.prefix(40))
         let instructions = """
         A folder collects items around ONE theme. Below is its theme and its current items (one per line: \
-        "number<TAB>kind<TAB>name<TAB>roleTags"). List the NUMBERS of items that CLEARLY do not belong to this theme \
-        and should be removed. Be conservative: only remove an item when it obviously doesn't fit; when in doubt, \
-        KEEP it (do not list it). Most items usually fit — an empty list is fine. Use item numbers only, never paths.
+        "number<TAB>kind<TAB>name<TAB>roleTags"). List ONLY the NUMBERS of items that CLEARLY AND OBVIOUSLY do not \
+        belong to this theme — items whose kind, name, AND roleTags all point away from the theme topic. Be \
+        conservative: when in doubt, KEEP the item (do not list it). An empty list is correct most of the time — \
+        most items usually fit. Never output a path; never remove an item just because its name is ambiguous.
         """
         var lines = ["Theme: \(theme)", "Items (number<TAB>kind<TAB>name<TAB>roleTags):"]
         for (i, c) in cands.enumerated() {
@@ -158,23 +161,23 @@ enum AIVirtualFolderModelPlanner {
     static func hintLines(_ hints: AIWorkspaceLearningHints?) -> [String] {
         guard let h = hints, !h.isEmpty else { return [] }
         var lines: [String] = []
-        if !h.userGroupTitles.isEmpty {
-            lines.append("Group names the user has chosen here (reuse and honor these names/themes when grouping): "
-                + h.userGroupTitles.prefix(12).joined(separator: ", "))
+        if !h.removedItemNames.isEmpty {
+            lines.append("Items the user REMOVED from here (name and location — do NOT bring back items like these): "
+                + h.removedItemNames.prefix(24).joined(separator: ", "))
         }
         if !h.keptItemNames.isEmpty {
             lines.append("Items the user explicitly KEEPS here (name and location — favor selecting items like these): "
                 + h.keptItemNames.prefix(24).joined(separator: ", "))
         }
-        if !h.removedItemNames.isEmpty {
-            lines.append("Items the user REMOVED from here (name and location — do NOT bring back items like these): "
-                + h.removedItemNames.prefix(24).joined(separator: ", "))
-        }
-        if !h.preferredRoleTags.isEmpty {
-            lines.append("Kinds of item the user likes here: " + h.preferredRoleTags.prefix(12).joined(separator: ", "))
+        if !h.userGroupTitles.isEmpty {
+            lines.append("Group names the user has chosen here (reuse and honor these names/themes when grouping): "
+                + h.userGroupTitles.prefix(12).joined(separator: ", "))
         }
         if !h.rejectedRoleTags.isEmpty {
             lines.append("Kinds of item the user dislikes here: " + h.rejectedRoleTags.prefix(12).joined(separator: ", "))
+        }
+        if !h.preferredRoleTags.isEmpty {
+            lines.append("Kinds of item the user likes here: " + h.preferredRoleTags.prefix(12).joined(separator: ", "))
         }
         return lines
     }
@@ -183,20 +186,22 @@ enum AIVirtualFolderModelPlanner {
     /// 交给 `AIVirtualFolderTreeBuilder.build` 统一校验丢弃(防御性)。失败抛出,调用点退回确定性树。
     static func plan(for input: AIVirtualFolderPlanInput) async throws -> AIVirtualFolderPlan {
         let instructions = """
+        \(Self.namingRule)
+
         You curate and organize a set of related items around a theme. Each item below is one line: \
         "number<TAB>kind<TAB>name<TAB>roleTags", where number is a small integer in the leftmost column. Using the \
         theme and hints, decide which items genuinely BELONG together and SELECT only those — leave out items that \
         don't fit (you are choosing membership, not forced to place everything). Then group the selected items by \
-        what they ARE or their shared topic, give each group a short natural name, and propose a clear name for the \
-        whole collection. Prefer a few clear groups over many tiny ones, and base everything ONLY on the names, kinds \
-        and roleTags given. Refer to each item by its NUMBER (the leftmost column) — never output a file path; simply \
-        omit any item that doesn't belong rather than forcing it into a group.
+        what they ARE or their shared topic, give each group a short name (1–3 words), and propose a clear name for \
+        the whole collection. Aim for 2–4 groups; prefer a small number of clear, well-named groups over many tiny \
+        ones. Base everything ONLY on the names, kinds and roleTags given. Refer to each item by its NUMBER (the \
+        leftmost column) — never output a file path; simply omit any item that doesn't belong rather than forcing it \
+        into a group.
 
         If the input states items the user KEEPS or REMOVED, kinds they like/dislike, or group names they chose, \
-        treat these as strong guidance learned from this user: favor items like the ones they keep, leave out items \
-        like the ones they removed, and reuse the group names/themes they picked.
-
-        \(Self.namingRule)
+        treat these as strong guidance: favor items like the ones they keep, leave out items like the ones they \
+        removed, and reuse the group names/themes they picked. The item numbers are plain integers — use them \
+        exactly as given, never translate them.
         """
         let cands = Array(input.candidates.prefix(40))   // 短 prompt 更稳(单次生成失败率随长度飙升)
         var lines: [String] = []
@@ -221,28 +226,34 @@ enum AIVirtualFolderModelPlanner {
     static func review(for input: AIVirtualFolderPlanInput, attempt: Int = 1,
                        approvedTarget: Int = 0) async throws -> AIFolderReview {
         let instructions = """
+        \(Self.namingRule)
+
         You are a STRICT quality judge for a background "AI folder". Each item below is one line: \
         "number<TAB>kind<TAB>name<TAB>roleTags", where number is a small integer in the leftmost column. These items \
         were grouped only because they share a name token or a common task/archive — but a shared token is USUALLY \
-        COINCIDENTAL (many unrelated files just happen to contain a common word like "report", "final", "image", \
-        "v2", "data" or a date). Most such groups are NOT worth a folder. Set worthSurfacing = true ONLY when the \
-        items form a genuinely useful, recognizable theme that a person would deliberately keep as one folder — a \
-        real shared project, topic, dataset or deliverable — with at least THREE items that CLEARLY belong together \
-        for a real reason beyond a shared word. Set worthSurfacing = false when they merely share a generic/common \
-        word, when fewer than three items truly relate, when it is a loose grab-bag, or when the theme is vague or \
-        weak. Be strict and skeptical: it is better to REJECT a borderline or weak theme than to approve it — approve \
-        only when you are confident a person would genuinely want this exact folder. If you DO approve, curate it: \
-        keep the items that fit, drop the ones that only coincidentally matched, group them by meaning with short \
-        natural folder names, and propose a clear name.
+        COINCIDENTAL (many unrelated files share a common word like "report", "final", "v2", "data" or a date). \
+        Most such groups are NOT worth a folder.
+
+        Set worthSurfacing = true ONLY when ALL of the following hold:
+          (a) At least THREE items CLEARLY belong together for a real reason beyond a shared word
+          (b) The theme is specific enough that a person would deliberately name and keep this folder
+          (c) The items form a recognizable project, topic, dataset, or deliverable — not a loose grab-bag
+
+        Set worthSurfacing = false when: fewer than three items truly relate; they merely share a generic/common \
+        word; the theme is vague or weak; or it is a coincidental match. Be strict and skeptical: rejecting a \
+        borderline theme is always safer than approving it.
+
+        If you DO approve (worthSurfacing = true): curate the items — keep those that fit, drop the ones that only \
+        coincidentally matched; group by meaning with short names (1–3 words); propose a clear name for the folder. \
+        If you REJECT (worthSurfacing = false): set groups to [] and workspaceTitle to "".
 
         Refer to items by their NUMBER (the leftmost column) — never invent a number, output a file path, or \
-        translate names. Reply only with the structured plan, including worthSurfacing.
+        translate names. The item numbers are plain integers — use them exactly as given. Reply only with the \
+        structured plan, including worthSurfacing.
 
         If the input states items the user KEEPS or REMOVED, kinds they like/dislike, or group names they chose, \
         treat these as strong guidance: a theme the user has actively curated is more worth surfacing, and you \
         should honor what they keep, leave out, and how they name groups.
-
-        \(Self.namingRule)
         """
         let cands = Array(input.candidates.prefix(40))   // 短 prompt 更稳(单次生成失败率随长度飙升)
         var lines: [String] = []
