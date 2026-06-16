@@ -2583,6 +2583,7 @@
 "sidebar.ai.markPermanent" = "常設にする";
 "aiWorkspace.node.open" = "開く";
 "aiWorkspace.node.rename" = "名前を変更";
+"aiWorkspace.group.more" = "その他";
 "aiWorkspace.node.openArchive" = "アーカイブを開く";
 "aiWorkspace.node.openFolder" = "フォルダを開く";
 "aiWorkspace.node.reveal" = "Finderで表示";

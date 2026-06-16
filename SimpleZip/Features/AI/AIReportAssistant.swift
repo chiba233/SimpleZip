@@ -60,6 +60,12 @@ enum AIReportAssistant {
 
     /// 「整段回复用 <当前界面语言>」—— 按 app 语言覆盖优先,否则取实际加载的本地化。
     nonisolated static var replyLanguageInstruction: String {
+        "Write your entire reply in \(uiLanguageName). Do not restate these instructions; reply only with the note itself."
+    }
+
+    /// 当前界面语言的英文名(给 prompt 指定输出语言用)。app 语言覆盖优先,否则取实际加载的本地化。
+    /// **结构化生成里给人看的字段(目录名 / 理由)也要按这个本地化**(用户报 AI 文件夹名固定英文)。
+    nonisolated static var uiLanguageName: String {
         let code: String
         let raw = UserDefaults.standard.string(forKey: "appLanguage") ?? AppLanguage.system.rawValue
         if let language = AppLanguage(rawValue: raw), let explicit = language.localizationCode {
@@ -67,29 +73,27 @@ enum AIReportAssistant {
         } else {
             code = Bundle.main.preferredLocalizations.first ?? "en"
         }
-        let name: String
         if code.hasPrefix("zh-Hant") || code.hasPrefix("zh-HK") || code.hasPrefix("zh-TW") {
-            name = "Traditional Chinese"
+            return "Traditional Chinese"
         } else if code.hasPrefix("zh") {
-            name = "Simplified Chinese"
+            return "Simplified Chinese"
         } else if code.hasPrefix("ja") {
-            name = "Japanese"
+            return "Japanese"
         } else if code.hasPrefix("ko") {
-            name = "Korean"
+            return "Korean"
         } else if code.hasPrefix("de") {
-            name = "German"
+            return "German"
         } else if code.hasPrefix("es") {
-            name = "Spanish"
+            return "Spanish"
         } else if code.hasPrefix("fr") {
-            name = "French"
+            return "French"
         } else if code.hasPrefix("ru") {
-            name = "Russian"
+            return "Russian"
         } else if code.hasPrefix("th") {
-            name = "Thai"
+            return "Thai"
         } else {
-            name = "English"
+            return "English"
         }
-        return "Write your entire reply in \(name). Do not restate these instructions; reply only with the note itself."
     }
 }
 

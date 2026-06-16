@@ -2581,6 +2581,7 @@
 "sidebar.ai.markPermanent" = "Dauerhaft machen";
 "aiWorkspace.node.open" = "Öffnen";
 "aiWorkspace.node.rename" = "Umbenennen";
+"aiWorkspace.group.more" = "Mehr";
 "aiWorkspace.node.openArchive" = "Archiv öffnen";
 "aiWorkspace.node.openFolder" = "Ordner öffnen";
 "aiWorkspace.node.reveal" = "Im Finder zeigen";

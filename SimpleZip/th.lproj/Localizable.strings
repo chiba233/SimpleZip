@@ -2581,6 +2581,7 @@
 "sidebar.ai.markPermanent" = "ทำให้ถาวร";
 "aiWorkspace.node.open" = "เปิด";
 "aiWorkspace.node.rename" = "เปลี่ยนชื่อ";
+"aiWorkspace.group.more" = "เพิ่มเติม";
 "aiWorkspace.node.openArchive" = "เปิดอาร์ไคฟ์";
 "aiWorkspace.node.openFolder" = "เปิดโฟลเดอร์";
 "aiWorkspace.node.reveal" = "แสดงใน Finder";

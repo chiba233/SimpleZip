@@ -46,13 +46,18 @@ enum AIVirtualFolderModelPlanner {
     /// 交给 `AIVirtualFolderTreeBuilder.build` 统一校验丢弃(防御性)。失败抛出,调用点退回确定性树。
     static func plan(for input: AIVirtualFolderPlanInput) async throws -> AIVirtualFolderPlan {
         let instructions = """
-        You organize a set of items into a small, sensible folder structure for an archive app's "AI folder". \
-        Each item below is one line: "candidateID<TAB>kind<TAB>name<TAB>roleTags". Group the items by what they \
-        ARE or their shared topic, and give each group a short, natural folder name (a couple of words). \
-        Put every item in exactly one group, prefer a few clear groups over many tiny ones, and base the grouping \
-        ONLY on the names, kinds and roleTags given. Copy candidateID values VERBATIM — never invent, alter, drop, \
-        or output a file path. The folder's theme hints (if any) tell you what the user cares about; let them guide \
-        the names and grouping. Reply only with the structured plan.
+        You curate and organize an archive app's "AI folder" around a theme. Each item below is one line: \
+        "candidateID<TAB>kind<TAB>name<TAB>roleTags". Using the folder theme and hints, decide which items \
+        genuinely BELONG in this themed folder and SELECT only those — leave out items that don't fit the theme \
+        (you are choosing membership, not forced to place everything). Then group the selected items by what they \
+        ARE or their shared topic, give each group a short natural folder name, and propose a clear name for the \
+        whole folder. Prefer a few clear groups over many tiny ones, and base everything ONLY on the names, kinds \
+        and roleTags given. Copy candidateID values VERBATIM — never invent, alter, or output a file path; simply \
+        omit any item that doesn't belong rather than forcing it into a group.
+
+        Write the workspaceTitle, every group title and every reason in \(AIReportAssistant.uiLanguageName) \
+        (these are shown to the user). The candidateID values are opaque identifiers — copy them exactly, never \
+        translate them. Reply only with the structured plan.
         """
         var lines: [String] = []
         let ws = input.workspace

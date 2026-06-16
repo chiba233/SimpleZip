@@ -2660,6 +2660,7 @@
 "sidebar.ai.markPermanent" = "Make Permanent";
 "aiWorkspace.node.open" = "Open";
 "aiWorkspace.node.rename" = "Rename";
+"aiWorkspace.group.more" = "More";
 "aiWorkspace.node.openArchive" = "Open Archive";
 "aiWorkspace.node.openFolder" = "Open Folder";
 "aiWorkspace.node.reveal" = "Show in Finder";

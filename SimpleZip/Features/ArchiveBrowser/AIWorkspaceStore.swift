@@ -45,6 +45,9 @@ final class AIWorkspaceStore: ObservableObject {
     /// 缓存模型生成的 plan(按成员签名)。结构编辑(改名 / 移动)只清树缓存、留 plan → 在模型 plan 上重套覆盖层,
     /// **不重刷模型**;成员变了 sig 不匹配才重排。
     private var modelPlans: [UUID: (sig: String, plan: AIVirtualFolderPlan)] = [:]
+    /// 喂给模型的候选集(= 当前成员 + 主题相关额外候选)—— 模型可把额外里最合适的「选进」主题。建模型树时用它
+    /// (plan 的 candidateID 可能引用额外候选),不是只用规则簇成员。
+    private var modelFed: [UUID: [AIVirtualNodeCandidate]] = [:]
 
     private let defaults: UserDefaults
     private static let storageKey = "SimpleZip.ai.workspaces.v1"
@@ -146,16 +149,25 @@ final class AIWorkspaceStore: ObservableObject {
         guard !members.isEmpty else { return nil }
         let sig = members.map(\.id).sorted().joined(separator: ",")
         let tree: AIVirtualFolderTree
-        if let cachedPlan = modelPlans[id], cachedPlan.sig == sig {
-            // 已有本批成员的模型 plan → 直接用它建树(在其上套用户覆盖层),不重刷模型。
-            tree = buildTree(ws: ws, members: members, plan: cachedPlan.plan, mode: .modelAssisted)
+        if let cachedPlan = modelPlans[id], cachedPlan.sig == sig, let fed = modelFed[id] {
+            // 已有本批成员的模型 plan → 用模型选定的候选集(成员 + 模型加进来的额外文件)建树,在其上套用户覆盖层。
+            // 仍按排除集过滤(对额外文件的「我不喜欢」也生效)。不重刷模型。
+            let excluded = excludedRefs(for: ws)
+            let visible = excluded.isEmpty ? fed
+                : fed.filter { cand in !cand.sourceRefs.contains(where: { excluded.contains($0) }) }
+            tree = buildTree(ws: ws, members: visible, plan: cachedPlan.plan, mode: .modelAssisted)
         } else {
-            // 先出**确定性树**占位(UI 标「自动整理」),不阻塞;模型就绪则异步重排成 modelAssisted 后替换。
+            // 先出**确定性树**占位(UI 标「自动整理」),不阻塞;模型就绪则异步**选主题成员 + 分组 + 命名**后替换。
             tree = buildTree(ws: ws, members: members, plan: nil, mode: .deterministic)
             maybeScheduleModelPlan(id: id, ws: ws, members: members, sig: sig)
         }
         treeCache[id] = tree
         return tree
+    }
+
+    /// 一个工作区当前被排除的成员 ref(我不喜欢 + 种子排除)。
+    private func excludedRefs(for ws: AIWorkspace) -> Set<AIContextSourceRef> {
+        feedback.dislikedRefs(ws.id).union(seeds[ws.id]?.excludedSourceRefs ?? [])
     }
 
     /// plan(nil = 确定性)+ 成员 → 套用户结构编辑后的最终树。
@@ -180,20 +192,82 @@ final class AIWorkspaceStore: ObservableObject {
         guard #available(macOS 26.0, *), AIReportAssistant.isReady, members.count >= 2 else { return }
         guard modelPlanSignatures[id] != sig else { return }
         modelPlanSignatures[id] = sig   // 占位:失败不重试本批(免刷模型);成员变了 sig 变才重排
-        let input = makeModelPlanInput(ws: ws, members: members)
+        // 喂模型 = 当前成员 + 主题相关的额外候选 → 模型**选**哪些最合适进主题(不只是重排已选)+ 分组 + 命名。
+        let fed = members + themeRelevantExtra(ws: ws, members: members, cap: 30)
+        let coreIDs = Set(members.map(\.id))
+        let input = makeModelPlanInput(ws: ws, candidates: fed)
         Task { @MainActor in
             guard let plan = try? await AIVirtualFolderModelPlanner.plan(for: input),
                   self.modelPlanSignatures[id] == sig else { return }   // 期间成员又变 → 丢弃
-            let modelTree = self.buildTree(ws: ws, members: members, plan: plan, mode: .modelAssisted)
-            guard !modelTree.isEmpty else { return }
-            self.modelPlans[id] = (sig, plan)          // 缓存 plan → 后续结构编辑在它上面套覆盖层,不重刷模型
-            self.treeCache[id] = modelTree
-            self.objectWillChange.send()   // 视图换上模型生成的树(generationMode = modelAssisted → 去掉「自动整理」标)
+            self.applyModelPlan(id: id, ws: ws, sig: sig, fed: fed, coreIDs: coreIDs, plan: plan)
         }
     }
 
+    /// 落地模型 plan:**核心成员(规则簇)永不被模型丢**(模型漏放的补进「更多」组);额外候选只留模型选进的;
+    /// 缓存 fed + plan(按本批成员 sig);**侧栏主题名换成模型生成的**(除非用户改过名)。
+    private func applyModelPlan(id: UUID, ws: AIWorkspace, sig: String, fed: [AIVirtualNodeCandidate],
+                               coreIDs: Set<String>, plan: AIVirtualFolderPlan) {
+        var referenced = Set<String>()
+        func collect(_ groups: [AIVirtualFolderGroupPlan]) {
+            for g in groups { referenced.formUnion(g.candidateIDs); collect(g.children) }
+        }
+        collect(plan.groups)
+        let fedIDs = Set(fed.map(\.id))
+        let keepIDs = coreIDs.union(referenced.filter { fedIDs.contains($0) })   // 核心 ∪ 模型选进的额外
+        let keptFed = fed.filter { keepIDs.contains($0.id) }
+        guard !keptFed.isEmpty else { return }
+        // 模型漏放的保留成员补进「更多」组(不丢)。
+        let unplaced = keptFed.map(\.id).filter { !referenced.contains($0) }
+        var groups = plan.groups
+        if !unplaced.isEmpty {
+            groups.append(AIVirtualFolderGroupPlan(id: "more", title: L10n.text("aiWorkspace.group.more"),
+                                                   candidateIDs: unplaced))
+        }
+        let finalPlan = AIVirtualFolderPlan(workspaceTitle: plan.workspaceTitle, groups: groups)
+        let modelTree = buildTree(ws: ws, members: keptFed, plan: finalPlan, mode: .modelAssisted)
+        guard !modelTree.isEmpty else { return }
+        modelFed[id] = keptFed
+        modelPlans[id] = (sig, finalPlan)
+        treeCache[id] = modelTree
+        // 侧栏主题名:模型生成的(白皮书:主题名该是 AI 生成的;用户改过名则不覆盖)。
+        if let aiTitle = finalPlan.workspaceTitle?.trimmingCharacters(in: .whitespacesAndNewlines), !aiTitle.isEmpty,
+           seeds[id]?.userTitle == nil, collection.workspace(id)?.title != aiTitle {
+            collection = collection.renaming(id, to: aiTitle); persist()
+        }
+        objectWillChange.send()   // 换上模型生成的树(modelAssisted → 去掉「自动整理」标)
+    }
+
+    /// 主题相关的额外候选:池里非成员、未排除、名字命中主题 token 的,按命中数取前 cap —— 让模型能把规则簇没召回到、
+    /// 但确实属于这个主题的文件**选进来**。主题 token = 工作区关键词 + 种子提示词 + 成员名字 token。
+    private func themeRelevantExtra(ws: AIWorkspace, members: [AIVirtualNodeCandidate], cap: Int)
+        -> [AIVirtualNodeCandidate] {
+        var themeTokens = Set<String>()
+        for t in ws.queryPlan.keywords + (seeds[ws.id]?.themePrompts ?? []) { themeTokens.formUnion(simpleTokens(t)) }
+        for m in members { themeTokens.formUnion(simpleTokens(m.displayName)) }
+        guard !themeTokens.isEmpty else { return [] }
+        let memberIDs = Set(members.map(\.id))
+        let excluded = excludedRefs(for: ws)
+        let scored: [(AIVirtualNodeCandidate, Int)] = pool.compactMap { cand in
+            guard !memberIDs.contains(cand.id),
+                  !cand.sourceRefs.contains(where: { excluded.contains($0) }) else { return nil }
+            let overlap = simpleTokens(cand.displayName).intersection(themeTokens).count
+            return overlap > 0 ? (cand, overlap) : nil
+        }
+        return scored.sorted { $0.1 != $1.1 ? $0.1 > $1.1 : $0.0.id < $1.0.id }.prefix(cap).map(\.0)
+    }
+
+    /// 简易分词(去扩展名 / 小写 / 按非字母数字切 / 丢 <2 字符);CJK 复合词整体保留。
+    private func simpleTokens(_ s: String) -> Set<String> {
+        var tokens = Set<String>(); var cur = ""
+        func flush() { defer { cur = "" }; if cur.count >= 2 { tokens.insert(cur) } }
+        for ch in ((s as NSString).lastPathComponent as NSString).deletingPathExtension.lowercased() {
+            if ch.isLetter || ch.isNumber { cur.append(ch) } else { flush() }
+        }
+        flush(); return tokens
+    }
+
     /// 组装喂给模型的 prompt-safe 输入(候选投影 + 用户描述 / 种子主题提示词当主题意图;绝不含路径)。
-    private func makeModelPlanInput(ws: AIWorkspace, members: [AIVirtualNodeCandidate]) -> AIVirtualFolderPlanInput {
+    private func makeModelPlanInput(ws: AIWorkspace, candidates: [AIVirtualNodeCandidate]) -> AIVirtualFolderPlanInput {
         let seed = seeds[ws.id]
         var tokens: [String] = []
         for t in ws.queryPlan.keywords + (seed?.themePrompts ?? []) where !t.isEmpty && !tokens.contains(t) {
@@ -204,7 +278,7 @@ final class AIWorkspaceStore: ObservableObject {
             prompt: ws.userDescription ?? seed?.themePrompts.first ?? ws.prompt,
             queryTokens: Array(tokens.prefix(12)))
         return AIVirtualFolderPlanInput(workspace: fact,
-                                        candidates: members.map { AIVirtualNodePromptCandidate(candidate: $0) })
+                                        candidates: candidates.map { AIVirtualNodePromptCandidate(candidate: $0) })
     }
 
     /// 虚拟分组改名(用户编辑覆盖层)+ **把新分组名拆成主题提示词喂进种子**(用户把某组叫「源代码」=
@@ -332,7 +406,7 @@ final class AIWorkspaceStore: ObservableObject {
             suppression = suppression.recordingDismissal(fp, at: now)
             saveSuppression()
         }
-        treeCache[id] = nil; modelPlans[id] = nil; modelPlanSignatures[id] = nil
+        treeCache[id] = nil; modelPlans[id] = nil; modelFed[id] = nil; modelPlanSignatures[id] = nil
         feedback = feedback.clearingWorkspace(id); saveFeedback()   // 工作区没了 → 清它的节点反馈
         structureEdits = structureEdits.clearingWorkspace(id); saveStructureEdits()
         seeds[id] = nil; saveSeeds()
@@ -350,7 +424,7 @@ final class AIWorkspaceStore: ObservableObject {
     func setPinned(_ id: UUID, _ pinned: Bool) { apply { $0.pinning(id, pinned) } }
     func hide(_ id: UUID) { apply { $0.hiding(id) } }
     func removeUserWorkspace(_ id: UUID) {
-        treeCache[id] = nil; modelPlans[id] = nil; modelPlanSignatures[id] = nil
+        treeCache[id] = nil; modelPlans[id] = nil; modelFed[id] = nil; modelPlanSignatures[id] = nil
         feedback = feedback.clearingWorkspace(id); saveFeedback()
         structureEdits = structureEdits.clearingWorkspace(id); saveStructureEdits()
         seeds[id] = nil; saveSeeds()

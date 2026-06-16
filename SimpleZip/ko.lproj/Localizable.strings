@@ -2582,6 +2582,7 @@
 "sidebar.ai.markPermanent" = "장기 보관으로 표시";
 "aiWorkspace.node.open" = "열기";
 "aiWorkspace.node.rename" = "이름 변경";
+"aiWorkspace.group.more" = "기타";
 "aiWorkspace.node.openArchive" = "아카이브 열기";
 "aiWorkspace.node.openFolder" = "폴더 열기";
 "aiWorkspace.node.reveal" = "Finder에서 보기";
