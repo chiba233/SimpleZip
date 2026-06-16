@@ -51,6 +51,23 @@ struct AIFolderReview: Sendable {
     let plan: AIVirtualFolderPlan
 }
 
+/// 模型给单个条目挑的一条 AI 建议(**通过后单独生成**,不进门控 schema —— 嵌套数组会拖垮门控可靠性)。扁平 2 字段。
+@available(macOS 26.0, *)
+@Generable
+struct GeneratedNodeSuggestion: Sendable {
+    @Guide(description: "The item NUMBER (the leftmost column of the items list) this suggestion is for.")
+    var targetID: String
+    @Guide(description: "ONE action token from the allowed-actions list (e.g. hash, compress, test, inspect, convert). Use a token whose 'applies to' kinds include this item's kind.")
+    var action: String
+}
+
+@available(macOS 26.0, *)
+@Generable
+struct GeneratedSuggestionSet: Sendable {
+    @Guide(description: "A FEW per-item action suggestions — only where there is a clear, specific reason for that item. Most items get NONE. Empty if nothing stands out.")
+    var suggestions: [GeneratedNodeSuggestion]
+}
+
 @available(macOS 26.0, *)
 enum AIVirtualFolderModelPlanner {
     /// 命名 + 语言规则(两个 prompt 共用)。**语言放最前 + 强制**(修用户报的「文件夹名经常语言不一致」):给人看的
@@ -65,6 +82,46 @@ enum AIVirtualFolderModelPlanner {
         unless that word is literally part of the real subject. The item numbers are plain integers — use them \
         exactly as given, never translate or alter them.
         """
+    }
+
+    /// 可建议动作词表(单独生成建议时喂模型)。和 `allowedSuggestionDescriptors` 同源;**绝不让模型拼路径**,
+    /// 路径由 App 按 token + 目标条目回查。
+    static var actionVocabularyRule: String {
+        let lines = AIVirtualNodeActionDeriver.allowedSuggestionDescriptors.map {
+            "  - \($0.id) (applies to: \($0.appliesToKinds.joined(separator: " / "))): \($0.userVisibleLabel)"
+        }
+        return "Allowed action tokens (use the token verbatim):\n" + lines.joined(separator: "\n")
+    }
+
+    /// **通过后单独生成** AI 建议:给一个已整理好的文件夹里的条目挑「值得的动作」(扁平简单 schema,可靠)。
+    /// 模型按序号引用条目、按 token 选动作;App 回译 + 校验词表。失败 / 空 → 返回 []。
+    static func suggestions(forItems items: [AIVirtualNodePromptCandidate]) async throws -> [AINodeSuggestionPlan] {
+        guard !items.isEmpty else { return [] }
+        let cands = Array(items.prefix(40))
+        let instructions = """
+        The items below are already grouped into one folder. Optionally suggest a useful next action for a FEW of \
+        them — ONLY where there is a clear, specific reason for that item (e.g. an untested release archive → test; \
+        a big stray folder → compress). MOST items get NONE; never suggest an action just because it is possible. \
+        Refer to items by their NUMBER, never output a path.
+
+        \(Self.actionVocabularyRule)
+        """
+        var lines = ["Items (number<TAB>kind<TAB>name) — refer to items by their number:"]
+        for (i, c) in cands.enumerated() {
+            lines.append(["\(i + 1)", c.kind, c.displayName].joined(separator: "\t"))
+        }
+        let generated = try await AIReportAssistant.generateStructured(
+            instructions: instructions, prompt: lines.joined(separator: "\n"),
+            as: GeneratedSuggestionSet.self, maxAttempts: 8)
+        var seen = Set<String>()
+        return generated.suggestions.compactMap { s -> AINodeSuggestionPlan? in
+            let token = s.action.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            guard AIVirtualNodeActionDeriver.allowedSuggestionDescriptors.contains(where: { $0.id == token }),
+                  let target = realID(s.targetID, in: cands),
+                  seen.insert(target + "|" + token).inserted   // 同目标同 token 去重
+            else { return nil }
+            return AINodeSuggestionPlan(targetCandidateID: target, actionToken: token)
+        }
     }
 
     /// 把用户对这个工作区的累积调教(固定 / 排除 / 喜欢 / 不喜欢 / 分组命名)展开成几行 prompt 提示(架构债 #4:

@@ -58,6 +58,8 @@ final class AIWorkspaceStore: ObservableObject {
     /// 喂给模型的候选集(= 当前成员 + 主题相关额外候选)—— 模型可把额外里最合适的「选进」主题。建模型树时用它
     /// (plan 的 candidateID 可能引用额外候选),不是只用规则簇成员。
     private var modelFed: [UUID: [AIVirtualNodeCandidate]] = [:]
+    /// 正在单独生成 AI 建议的工作区(去重,一次只跑一个/工作区)。
+    private var suggestionsInFlight: Set<UUID> = []
 
     // 模型门控的后台发现(用户:建文件夹是后台行为,模型复核「真能撑起一个主题」才出现,质量优先不保数量):
     private typealias PendingThemeCandidate = (
@@ -919,6 +921,32 @@ final class AIWorkspaceStore: ObservableObject {
             treeSnapshots[id] = tree
             saveTreeSnapshots()
             if regenerating.contains(id) { regenerating.remove(id) }   // 模型整理完成 → 收起「正在重新生成」动效
+            maybeScheduleSuggestions(id)   // 通过后**单独生成 AI 建议**(门控不背这个包袱)→ 回来挂 .action 子节点
+        }
+    }
+
+    /// 文件夹整理好后,单独让模型给条目挑 AI 建议(扁平简单 schema,可靠)。回来把 suggestions 并进 plan、重建带
+    /// `.action` 子节点的树、重存快照。只在 plan 还没有建议时跑一次(避免重建循环);失败 / 空则保持无建议。
+    private func maybeScheduleSuggestions(_ id: UUID) {
+        guard #available(macOS 26.0, *), AIReportAssistant.isReady else { return }
+        guard let cached = modelPlans[id], cached.plan.suggestions.isEmpty,
+              let fed = modelFed[id], !fed.isEmpty,
+              !suggestionsInFlight.contains(id) else { return }
+        suggestionsInFlight.insert(id)
+        let items = fed.map { AIVirtualNodePromptCandidate(candidate: $0) }
+        let sig = cached.sig
+        Task { @MainActor in
+            defer { self.suggestionsInFlight.remove(id) }
+            guard let suggestions = try? await AIVirtualFolderModelPlanner.suggestions(forItems: items),
+                  !suggestions.isEmpty,
+                  self.modelPlans[id]?.sig == sig,                 // 期间没被刷新 / 重排
+                  let ws = self.collection.workspace(id) else { return }
+            let newPlan = AIVirtualFolderPlan(workspaceTitle: cached.plan.workspaceTitle,
+                                              groups: cached.plan.groups, suggestions: suggestions)
+            self.modelPlans[id] = (sig, newPlan)
+            let tree = self.buildTree(ws: ws, members: fed, plan: newPlan, mode: .modelAssisted)
+            self.cacheModelTree(id, tree)   // 重建带 .action 建议的树(此时 plan.suggestions 非空 → 不再调度)
+            self.objectWillChange.send()
         }
     }
 
