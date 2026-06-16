@@ -72,20 +72,27 @@ nonisolated struct AISemanticTagCandidate: Codable, Equatable, Sendable {
 
 /// 标签排序 + 模型输出校验。纯函数 —— 同一输入逐次一致。
 nonisolated enum AISemanticTagRanker {
-    /// 每次负反馈对有效分数的固定衰减;`negativeFeedbackCap` 限制最多衰减几次(防一个标签被反复点死成负)。
+    /// 每次负反馈对有效分数的固定衰减;cap 防一个标签被反复踩死。
     static let decayPerNegative = 0.15
-    static let negativeFeedbackCap = 3
+    static let negativeFeedbackCap = 5
+    /// 每次正反馈(用户确认「就是这个标签」)对有效分数的提升;比负衰减略小,防刷分。
+    static let boostPerPositive = 0.10
+    static let positiveFeedbackCap = 5
 
-    /// 排序候选:按「确定性分数 − 纠错降权」降序,同分按 token 升序确定性。`negativeFeedback` 是
-    /// `标签 token → 负反馈次数`(Feat 11,用户「不是这个标签」)。`limit` 截断 top-N。
+    /// 排序候选:按「确定性分数 + 正反馈加成 − 负反馈衰减」降序,同分按 token 升序确定性。
+    /// `negativeFeedback` / `positiveFeedback` 均为 `标签 token → 次数`(Feat 11)。
     static func rank(
         _ candidates: [AISemanticTagCandidate],
         negativeFeedback: [String: Int] = [:],
+        positiveFeedback: [String: Int] = [:],
         limit: Int? = nil
     ) -> [AISemanticTagCandidate] {
         func effective(_ c: AISemanticTagCandidate) -> Double {
-            let hits = min(max(negativeFeedback[c.tag.rawValue] ?? 0, 0), negativeFeedbackCap)
-            return c.deterministicScore - decayPerNegative * Double(hits)
+            let negHits = min(max(negativeFeedback[c.tag.rawValue] ?? 0, 0), negativeFeedbackCap)
+            let posHits = min(max(positiveFeedback[c.tag.rawValue] ?? 0, 0), positiveFeedbackCap)
+            return c.deterministicScore
+                - decayPerNegative * Double(negHits)
+                + boostPerPositive * Double(posHits)
         }
         let sorted = candidates.sorted {
             let (l, r) = (effective($0), effective($1))

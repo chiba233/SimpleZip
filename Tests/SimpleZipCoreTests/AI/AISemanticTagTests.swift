@@ -86,6 +86,39 @@ import Testing
         #expect(chosen == [.releaseArtifact, .signedContainer]) // 保序、去重、丢候选外与发明
     }
 
+    @Test func positiveFeedbackPromotes() {
+        let cands = [
+            AISemanticTagCandidate(tag: .sourceArchive, deterministicScore: 0.5),
+            AISemanticTagCandidate(tag: .releaseArtifact, deterministicScore: 0.6),
+        ]
+        // sourceArchive 被确认 2 次 → 0.5 + 0.20 = 0.70 > 0.6,排到前面
+        let ranked = AISemanticTagRanker.rank(cands, positiveFeedback: ["source-archive": 2])
+        #expect(ranked.first?.tag == .sourceArchive)
+    }
+
+    @Test func positiveFeedbackIsCapped() {
+        let cands = [
+            AISemanticTagCandidate(tag: .sourceArchive, deterministicScore: 0.0),
+            AISemanticTagCandidate(tag: .releaseArtifact, deterministicScore: 0.9),
+        ]
+        // 即使确认 100 次,最多提升 5*0.10=0.50 → 0.50 < 0.9,仍排在 releaseArtifact 后面
+        let ranked = AISemanticTagRanker.rank(cands, positiveFeedback: ["source-archive": 100])
+        #expect(ranked.first?.tag == .releaseArtifact)
+    }
+
+    @Test func posNegFeedbackCombined() {
+        let cands = [
+            AISemanticTagCandidate(tag: .sourceArchive, deterministicScore: 0.8),
+            AISemanticTagCandidate(tag: .releaseArtifact, deterministicScore: 0.5),
+        ]
+        // sourceArchive 被踩 5 次(-0.75) 又被确认 3 次(+0.30) → 0.8 - 0.75 + 0.30 = 0.35 < 0.5
+        let ranked = AISemanticTagRanker.rank(
+            cands,
+            negativeFeedback: ["source-archive": 5],
+            positiveFeedback: ["source-archive": 3])
+        #expect(ranked.first?.tag == .releaseArtifact)
+    }
+
     @Test func candidateCodableRoundTrip() throws {
         let c = AISemanticTagCandidate(
             tag: .releasePackage, deterministicScore: 0.88,
