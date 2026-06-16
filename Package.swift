@@ -105,6 +105,7 @@ let package = Package(
                 "Core/ArchiveSearch.swift",
                 "Core/AI/AIWorkspaceQueryPlan.swift",
                 "Core/AI/AIWorkspaceCandidate.swift",
+                "Core/AI/AINodeFeedback.swift",
                 "Core/AI/AIWorkspaceDiscovery.swift",
                 "Core/AI/AIWorkspaceModel.swift",
                 "Core/AI/AIWorkspaceThemeEngine.swift",

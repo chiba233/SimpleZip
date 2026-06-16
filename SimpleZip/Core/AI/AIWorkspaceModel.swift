@@ -278,6 +278,9 @@ nonisolated struct AIWorkspace: Identifiable, Codable, Equatable, Sendable {
     let origin: Origin
     var title: String
     var prompt: String?
+    /// 用户可编辑的文件夹描述(主题头展示)。后台空闲时可由端上模型进一步润色填充(模型只改这一字段,
+    /// 绝不动成员资格 / 安全)。nil = 还没有描述,UI 用确定性种子提示。
+    var userDescription: String?
     var queryPlan: AIWorkspaceQueryPlan
     let iconSystemName: String
     var visibility: Visibility
@@ -292,7 +295,7 @@ nonisolated struct AIWorkspace: Identifiable, Codable, Equatable, Sendable {
     /// 主题强度 [0,1](发现时的 cluster 信号丰富度)—— 强主题即使没打开也排得高,避免「点一下就僵硬置顶」。
     var relevanceScore: Double
 
-    init(id: UUID, origin: Origin, title: String, prompt: String? = nil,
+    init(id: UUID, origin: Origin, title: String, prompt: String? = nil, userDescription: String? = nil,
          queryPlan: AIWorkspaceQueryPlan, iconSystemName: String, visibility: Visibility = .visible,
          pinned: Bool = false, generatedAt: Date, lastOpenedAt: Date? = nil, negativeFeedbackCount: Int = 0,
          fingerprint: AIWorkspaceThemeFingerprint? = nil, openCount: Int = 0, relevanceScore: Double = 0) {
@@ -300,6 +303,7 @@ nonisolated struct AIWorkspace: Identifiable, Codable, Equatable, Sendable {
         self.origin = origin
         self.title = title
         self.prompt = prompt
+        self.userDescription = userDescription
         self.queryPlan = queryPlan
         self.iconSystemName = iconSystemName
         self.visibility = visibility
@@ -313,7 +317,7 @@ nonisolated struct AIWorkspace: Identifiable, Codable, Equatable, Sendable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, origin, title, prompt, queryPlan, iconSystemName, visibility, pinned, generatedAt
+        case id, origin, title, prompt, userDescription, queryPlan, iconSystemName, visibility, pinned, generatedAt
         case lastOpenedAt, negativeFeedbackCount, fingerprint, openCount, relevanceScore
     }
 
@@ -324,6 +328,7 @@ nonisolated struct AIWorkspace: Identifiable, Codable, Equatable, Sendable {
         self.origin = try c.decode(Origin.self, forKey: .origin)
         self.title = try c.decode(String.self, forKey: .title)
         self.prompt = try c.decodeIfPresent(String.self, forKey: .prompt)
+        self.userDescription = try c.decodeIfPresent(String.self, forKey: .userDescription)
         self.queryPlan = try c.decode(AIWorkspaceQueryPlan.self, forKey: .queryPlan)
         self.iconSystemName = try c.decode(String.self, forKey: .iconSystemName)
         self.visibility = try c.decodeIfPresent(Visibility.self, forKey: .visibility) ?? .visible
@@ -464,6 +469,12 @@ nonisolated struct AIWorkspaceCollection: Codable, Equatable, Sendable {
         let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return self }
         return mapping(id) { var c = $0; c.title = trimmed; return c }
+    }
+
+    /// 设置用户可编辑的文件夹描述(空白 → 清回 nil,UI 退回确定性种子提示)。
+    func settingDescription(_ id: UUID, _ text: String?) -> AIWorkspaceCollection {
+        let trimmed = text?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return mapping(id) { var c = $0; c.userDescription = (trimmed?.isEmpty == false) ? trimmed : nil; return c }
     }
 
     /// 标记打开(最近度 + 频率信号;`date` 由 App 传入)。打开一次只 +1 频率 + 刷新最近度 —— **不直接置顶**,

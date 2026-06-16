@@ -23,8 +23,10 @@ final class AIWorkspaceStore: ObservableObject {
 
     @Published private(set) var collection: AIWorkspaceCollection
 
-    /// 持久:不感兴趣的衰减抑制账本。
+    /// 持久:不感兴趣的衰减抑制账本(工作区级)。
     private var suppression: AIThemeSuppressionLedger
+    /// 持久:节点级「我很喜欢 / 我不喜欢」反馈(工作区 × 成员 ref)。不喜欢的成员从树里剔除。
+    private var feedback: AINodeFeedbackLedger
 
     // 内存(每会话由 refreshRecommendations 重建,不落盘 —— 隐私):
     private var pool: [AIVirtualNodeCandidate] = []
@@ -37,6 +39,7 @@ final class AIWorkspaceStore: ObservableObject {
     private let defaults: UserDefaults
     private static let storageKey = "SimpleZip.ai.workspaces.v1"
     private static let suppressionKey = "SimpleZip.ai.themeSuppression.v1"
+    private static let feedbackKey = "SimpleZip.ai.nodeFeedback.v1"
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -45,6 +48,8 @@ final class AIWorkspaceStore: ObservableObject {
         loaded.workspaces.removeAll { $0.origin == .system }
         self.collection = loaded
         self.suppression = AIWorkspaceStore.loadSuppression(from: defaults)
+        self.feedback = AIWorkspaceStore.decode(AINodeFeedbackLedger.self, key: Self.feedbackKey, from: defaults)
+            ?? AINodeFeedbackLedger()
         persist()
     }
 
@@ -131,10 +136,43 @@ final class AIWorkspaceStore: ObservableObject {
     }
 
     /// 召回某工作区的成员候选。推荐工作区按发现时记下的成员 ref(候选的 source refs ⊆ 主题成员集)。
+    /// **剔除被「我不喜欢」移出的成员**(节点级反馈训练边界)。
     private func memberCandidates(for ws: AIWorkspace) -> [AIVirtualNodeCandidate] {
         guard let refs = memberRefsByWorkspace[ws.id] else { return [] }
-        return pool.filter { !$0.sourceRefs.isEmpty && $0.sourceRefs.allSatisfy { refs.contains($0) } }
+        let disliked = feedback.dislikedRefs(ws.id)
+        return pool.filter {
+            !$0.sourceRefs.isEmpty
+                && $0.sourceRefs.allSatisfy { refs.contains($0) }
+                && (disliked.isEmpty || $0.sourceRefs.allSatisfy { !disliked.contains($0) })
+        }
     }
+
+    // MARK: - 节点级反馈(我很喜欢 / 我不喜欢)+ 可编辑描述
+
+    /// 节点是否仍是「待确认的 AI 建议」(没被 like)—— UI 据此打 AI 角标。
+    func nodeIsAISuggested(workspaceID: UUID, refs: [AIContextSourceRef]) -> Bool {
+        !refs.isEmpty && !feedback.nodeIsLiked(workspaceID, refs: refs)
+    }
+
+    /// 「我很喜欢」:确认保留(去角标),正反馈。
+    func likeNode(workspaceID: UUID, refs: [AIContextSourceRef]) {
+        guard !refs.isEmpty else { return }
+        feedback = feedback.liking(workspaceID, refs)
+        saveFeedback()
+        objectWillChange.send()   // 角标刷新(feedback 非 @Published)
+    }
+
+    /// 「我不喜欢」:移出文件夹 + 不再自动加入(负反馈)。失效该树缓存 → 下次重建时剔除。
+    func dislikeNode(workspaceID: UUID, refs: [AIContextSourceRef]) {
+        guard !refs.isEmpty else { return }
+        feedback = feedback.disliking(workspaceID, refs)
+        saveFeedback()
+        treeCache[workspaceID] = nil
+        objectWillChange.send()
+    }
+
+    /// 设置用户可编辑的文件夹描述(空 → 清回 nil)。
+    func setDescription(_ id: UUID, _ text: String?) { apply { $0.settingDescription(id, text) } }
 
     // MARK: - 变换(走 Core 纯逻辑 + 持久化 + 发布)
 
@@ -157,6 +195,7 @@ final class AIWorkspaceStore: ObservableObject {
             saveSuppression()
         }
         treeCache[id] = nil
+        feedback = feedback.clearingWorkspace(id); saveFeedback()   // 工作区没了 → 清它的节点反馈
         apply { $0.dismissing(id) }
     }
 
@@ -164,7 +203,11 @@ final class AIWorkspaceStore: ObservableObject {
     func promoteToUser(_ id: UUID) { apply { $0.promotingToUser(id) } }
     func setPinned(_ id: UUID, _ pinned: Bool) { apply { $0.pinning(id, pinned) } }
     func hide(_ id: UUID) { apply { $0.hiding(id) } }
-    func removeUserWorkspace(_ id: UUID) { treeCache[id] = nil; apply { $0.removingUserWorkspace(id) } }
+    func removeUserWorkspace(_ id: UUID) {
+        treeCache[id] = nil
+        feedback = feedback.clearingWorkspace(id); saveFeedback()
+        apply { $0.removingUserWorkspace(id) }
+    }
     func rename(_ id: UUID, to title: String) { apply { $0.renaming(id, to: title) } }
     func markOpened(_ id: UUID) { apply { $0.markingOpened(id, at: Date()) } }
 
@@ -183,6 +226,15 @@ final class AIWorkspaceStore: ObservableObject {
 
     private func saveSuppression() {
         if let data = try? JSONEncoder().encode(suppression) { defaults.set(data, forKey: Self.suppressionKey) }
+    }
+
+    private func saveFeedback() {
+        if let data = try? JSONEncoder().encode(feedback) { defaults.set(data, forKey: Self.feedbackKey) }
+    }
+
+    private static func decode<T: Decodable>(_ type: T.Type, key: String, from defaults: UserDefaults) -> T? {
+        guard let data = defaults.data(forKey: key) else { return nil }
+        return try? JSONDecoder().decode(T.self, from: data)
     }
 
     private static func load(from defaults: UserDefaults) -> AIWorkspaceCollection {
