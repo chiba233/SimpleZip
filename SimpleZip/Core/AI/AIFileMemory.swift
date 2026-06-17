@@ -197,23 +197,59 @@ nonisolated enum AIFileType: String, Codable, Equatable, CaseIterable, Sendable 
 }
 
 /// 安全文本文件的短摘要(仅深度本地上下文)。内容由 App 侧先 redaction 再填这里。
+///
+/// 两个阶段填充:① 后台预读时确定性抽 `headings` / `fieldNames` / `languageHint`(结构信号,聚类用);
+/// ② **②b/②c 模型驱动建议** —— 只对「AI 建议评分近显示阈值」的文件,端上本地模型再产出 `shortSummary`
+/// (给人看的一句话)+ `suggestedActionTokens`(模型挑的建议动作)。没过阈值 / 模型没产出 = 两者皆空,
+/// 文件浏览器据此**空抽屉**(拒绝假AI:界面只显示模型说的,任何代码不凌驾于模型)。
 nonisolated struct AIFileContentSummary: Codable, Equatable, Sendable {
     /// `metadata-only` / `text-summary` / `blocked-due-to-sensitive-content`。
     let mode: String
     let languageHint: String?
     let headings: [String]
     let fieldNames: [String]
+    /// 端上模型产出的一句话摘要(②b)。仅近阈值文件由后台模型回填;nil = 还没产出 / 没过门控。
     let shortSummary: String?
+    /// 端上模型给这个文件挑的建议动作 token(②c,`allowedSuggestionDescriptors.id` 子集)。空 = 模型没建议动作。
+    let suggestedActionTokens: [String]
     let redactionCount: Int
 
     init(mode: String, languageHint: String? = nil, headings: [String] = [], fieldNames: [String] = [],
-         shortSummary: String? = nil, redactionCount: Int = 0) {
+         shortSummary: String? = nil, suggestedActionTokens: [String] = [], redactionCount: Int = 0) {
         self.mode = mode
         self.languageHint = languageHint
         self.headings = headings
         self.fieldNames = fieldNames
         self.shortSummary = shortSummary
+        self.suggestedActionTokens = suggestedActionTokens
         self.redactionCount = redactionCount
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case mode, languageHint, headings, fieldNames, shortSummary, suggestedActionTokens, redactionCount
+    }
+
+    /// 旧缓存(无 `suggestedActionTokens`)解码兼容 → 缺字段默认 []。
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.mode = try c.decode(String.self, forKey: .mode)
+        self.languageHint = try c.decodeIfPresent(String.self, forKey: .languageHint)
+        self.headings = try c.decodeIfPresent([String].self, forKey: .headings) ?? []
+        self.fieldNames = try c.decodeIfPresent([String].self, forKey: .fieldNames) ?? []
+        self.shortSummary = try c.decodeIfPresent(String.self, forKey: .shortSummary)
+        self.suggestedActionTokens = try c.decodeIfPresent([String].self, forKey: .suggestedActionTokens) ?? []
+        self.redactionCount = try c.decodeIfPresent(Int.self, forKey: .redactionCount) ?? 0
+    }
+
+    /// 回填模型短摘要 + 建议动作(②b/②c:近阈值文件由后台模型产出后写回,结构信号 / 元数据不变)。
+    func withModelSuggestion(summary: String?, actionTokens: [String]) -> AIFileContentSummary {
+        AIFileContentSummary(mode: mode, languageHint: languageHint, headings: headings, fieldNames: fieldNames,
+                             shortSummary: summary, suggestedActionTokens: actionTokens, redactionCount: redactionCount)
+    }
+
+    /// 是否已有模型产出(摘要或建议动作)→ 文件浏览器据此决定是否展示 AI 抽屉(都没有 = 空抽屉、不展开)。
+    var hasModelSuggestion: Bool {
+        (shortSummary?.isEmpty == false) || !suggestedActionTokens.isEmpty
     }
 }
 

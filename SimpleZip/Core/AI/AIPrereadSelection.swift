@@ -38,6 +38,46 @@ nonisolated enum AIPrereadSelection {
                            budget: budget, now: now, interest: interestRoleTags, halfLifeDays: recencyHalfLifeDays)
     }
 
+    /// **AI 建议显示阈值**(②c):一个文件的「AI 建议评分」要 ≥ 这个值,才值得花一次端上模型去产出一句话摘要 +
+    /// 建议动作。判据 = 同一套预读价值评分(角色 + 近期 + 兴趣)。门槛卡在「文档级文字」:project-doc / report /
+    /// document / release-notes / note 这类天然过线;config / reference-data 要靠近期或兴趣加权才过;checksum /
+    /// media 基本永不过线。用户原话:「至少这个文件评分要接近 ai 建议显示的阈值,一句话总结完才有价值,才触发 ai 建议」。
+    static let suggestionScoreThreshold: Double = 2.5
+
+    /// 一个文件的「AI 建议评分」(标量)。**与 `context(for:)` 同一套权重**(角色重要性 + 近期修改 + 用户兴趣),
+    /// 只是这里求和成单值用于阈值门控。改一处务必同步另一处。
+    static func suggestionScore(for record: AIFileMemoryRecord, now: Date,
+                               interestRoleTags: Set<String> = [], recencyHalfLifeDays: Double = 14) -> Double {
+        var score = roleWeight(record.roleTags)
+        if let mod = record.modifiedAt {
+            let days = max(0, now.timeIntervalSince(mod) / 86_400)
+            let recency = pow(0.5, days / max(0.5, recencyHalfLifeDays))
+            if recency > 0 { score += recency * 2.0 }
+        }
+        if !interestRoleTags.isEmpty, !interestRoleTags.isDisjoint(with: Set(record.roleTags)) { score += 1.5 }
+        return score
+    }
+
+    /// 从一批已预读(有结构摘要)的文件记录里挑「该让模型出一句话摘要 + 建议动作」的前 `budget` 个(②b/②c)。
+    /// 门控三连:① 文本可总结类(同预读 eligibility,排源码 / 二进制 / 媒体 / 归档);② **已有结构摘要但模型摘要
+    /// 还没产出**(`contentSummary != nil && shortSummary == nil`)—— 指纹变了时阶段一会把摘要清回 nil,于是自动
+    /// 重新进入候选(渐进覆盖,和预读同款);③ **AI 建议评分 ≥ 显示阈值**(拒绝给低价值文件白费模型)。
+    /// 再按评分排序取前 budget(高价值先做)。空预算 → 空。
+    static func selectForModelSuggestion(records: [AIFileMemoryRecord], budget: Int, now: Date,
+                                         interestRoleTags: Set<String> = [],
+                                         recencyHalfLifeDays: Double = 14) -> [AIFileMemoryRecord] {
+        guard budget > 0 else { return [] }
+        let eligible = records.filter { rec in
+            isPrereadSummarizable(rec.type)
+                && rec.contentSummary != nil
+                && (rec.contentSummary?.shortSummary?.isEmpty ?? true)
+                && suggestionScore(for: rec, now: now, interestRoleTags: interestRoleTags,
+                                   recencyHalfLifeDays: recencyHalfLifeDays) >= suggestionScoreThreshold
+        }
+        return rankAndTake(eligible, budget: budget, now: now,
+                           interest: interestRoleTags, halfLifeDays: recencyHalfLifeDays)
+    }
+
     /// 从一批记录里挑「最该**列清单**」的归档前 `budget` 个(归档内容预读用)。和 `selectForSummary` **同一套排序**
     /// (角色 / 近期 / 兴趣);归档角色统一(archive,同权重),故实际由近期 + 兴趣主导 —— 近期碰过 / 改过的包先列。
     /// 「指纹没变就跳过、变了重列」的渐进覆盖由调用方按归档清单缓存的 (大小+修改时间) 先筛掉再传进来。
