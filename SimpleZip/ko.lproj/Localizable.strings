@@ -2604,6 +2604,8 @@
 "aiWorkspace.suggest.inspect" = "릴리스 검사";
 "aiWorkspace.suggest.convert" = "아카이브 변환";
 "aiWorkspace.suggest.openWith" = "%@(으)로 열기";
+"aiWorkspace.suggest.install" = "%@ 설치";
+"aiWorkspace.suggest.installGeneric" = "앱 설치";
 "aiWorkspace.node.openArchive" = "아카이브 열기";
 "aiWorkspace.node.openFolder" = "폴더 열기";
 "aiWorkspace.node.compress" = "압축";

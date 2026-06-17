@@ -83,6 +83,14 @@ enum AIWorkspaceNodeActions {
                          displayTitle: L10n.format("aiWorkspace.suggest.openWith", appName),
                          systemImage: "arrow.up.forward.app",
                          action: .openWithApplication(sourceRefs: [sourceRef], bundleIdentifier: bundleID))
+        // 磁盘镜像装 App:label = 内含 App 名;点击 = 打开(挂载)这个 dmg,让用户把 App 拖进「应用程序」(绝不自动拷)。
+        case "dragToApplications":
+            let appName = stripAppSuffix(action.label)
+            return .init(titleKey: "aiWorkspace.suggest.install",
+                         displayTitle: appName.isEmpty ? L10n.text("aiWorkspace.suggest.installGeneric")
+                                                       : L10n.format("aiWorkspace.suggest.install", appName),
+                         systemImage: "arrow.down.app",
+                         action: .openArchive(path: path, revealEntry: nil))
         default:        return nil
         }
     }
@@ -90,6 +98,12 @@ enum AIWorkspaceNodeActions {
     private static func applies(_ token: String, _ kind: String) -> Bool {
         AIVirtualNodeActionDeriver.allowedSuggestionDescriptors
             .contains { $0.id == token && $0.appliesToKinds.contains(kind) }
+    }
+
+    /// 「DockDoor.app」→「DockDoor」给安装建议标题显示用(空 / nil → 空串)。
+    private static func stripAppSuffix(_ name: String?) -> String {
+        guard let name, !name.isEmpty else { return "" }
+        return name.hasSuffix(".app") ? String(name.dropLast(4)) : name
     }
 
     /// 一个分组里所有(可定位路径的)叶子成员的真实路径 —— 给「把这组一起压缩」用。

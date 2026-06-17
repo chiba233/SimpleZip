@@ -27,6 +27,8 @@ final class AIBackgroundIndexer {
     private var archiveTask: Task<Void, Never>?
     private var suggestionRunning = false
     private var suggestionTask: Task<Void, Never>?
+    private var diskImageRunning = false
+    private var diskImageTask: Task<Void, Never>?
 
     /// 跑一轮预索引(门控未过则直接返回 —— 默认 opt-in 关闭即什么都不做)。完成后通知发现编排者刷新。
     func runIfEnabled() {
@@ -64,6 +66,7 @@ final class AIBackgroundIndexer {
                     // (AI 文件夹自动发现已下线 → 不再 index 完回调 discovery.refresh();索引 / 预读照常给 AI suggestion 用。)
                     AIBackgroundIndexer.shared.prereadArchivesIfEnabled()   // 元数据落盘后预读归档内容(门控未过则空跑)
                     AIBackgroundIndexer.shared.generateFileSuggestionsIfEnabled()   // 预读摘要落盘后,对近阈值文件出模型建议(门控未过则空跑)
+                    AIBackgroundIndexer.shared.generateDiskImageSuggestionsIfEnabled()   // 对内含 App 的 dmg 出「安装到应用程序」建议(门控未过则空跑)
                 }
                 AIBackgroundIndexer.shared.running = false
             }
@@ -74,6 +77,7 @@ final class AIBackgroundIndexer {
         task?.cancel(); task = nil; running = false
         archiveTask?.cancel(); archiveTask = nil; archiveRunning = false
         suggestionTask?.cancel(); suggestionTask = nil; suggestionRunning = false
+        diskImageTask?.cancel(); diskImageTask = nil; diskImageRunning = false
     }
 
     // MARK: - 内容预读 · 归档半边(MainActor:ArchiveService 在 app target 下 MainActor 隔离,A18)
@@ -172,6 +176,65 @@ final class AIBackgroundIndexer {
                     recordID: rec.id, summary: result.summary, actions: result.actions)
             }
         }
+    }
+
+    // MARK: - 磁盘镜像安装建议(推荐打开方式 backlog 第2项;MainActor:7zz peek + 模型 async)
+
+    /// 对**还没评估、内含 App 的 .dmg**,后台出「安装到应用程序」建议:① 7zz **只读 peek**(纯文件读、不挂载,实测
+    /// ~17ms)列出 dmg 内的 `.app` 包;② 有 App → 端上模型出 {一句话定性 + 是否建议安装}(拒绝假AI:确定性只找到
+    /// 「有 .app」这个候选,冒不冒 + 措辞由模型定);③ 写回索引(`setDiskImageSuggestion`)。门控同单文件建议
+    /// (AI 建议开关 + 内容预读 + 模型就绪);预算 = AI 活跃度档位的 `maxModelSuggestionsPerRound`。可取消、串行不重叠。
+    /// **绝不挂载、绝不自动拷进 /Applications** —— 点击建议只打开(挂载)dmg 让用户自己拖。
+    func generateDiskImageSuggestionsIfEnabled() {
+        guard #available(macOS 26.0, *) else { return }
+        let store = AIBackgroundIndexStore.shared
+        guard !diskImageRunning, AppPreferences.aiSuggestionEnabled,
+              store.contentPrereadEnabled, AIReportAssistant.isReady,
+              let budget = store.budget else { return }
+        let candidates = AIPrereadSelection.selectDiskImagesForSuggestion(
+            records: store.recentFileRecords(limit: 2_000),
+            budget: budget.maxModelSuggestionsPerRound, now: Date())
+        guard !candidates.isEmpty else { return }
+        diskImageRunning = true
+        diskImageTask = Task { @MainActor in
+            defer { AIBackgroundIndexer.shared.diskImageRunning = false }
+            for rec in candidates {
+                if Task.isCancelled { break }
+                guard AIBackgroundIndexStore.shared.contentPrereadEnabled, AIReportAssistant.isReady else { break }
+                guard let path = rec.path, FileManager.default.fileExists(atPath: path) else { continue }
+                // 7zz 只读 peek(空口令;加密 / 不可读 dmg 抛错 → 当作无 App 标记已评估,绝不挂载、绝不弹密码)。
+                let appNames = (try? await SevenZipBackend.list(URL(fileURLWithPath: path)))
+                    .map { AIBackgroundIndexer.topAppBundleNames(in: $0) } ?? []
+                guard !appNames.isEmpty else {
+                    AIBackgroundIndexStore.shared.setDiskImageSuggestion(recordID: rec.id, summary: nil, appName: nil)
+                    continue   // 没 .app(或 peek 失败)→ 标记已评估,下轮不再选
+                }
+                // 模型决定冒不冒 + 措辞;模型失败 → 不标记(下轮重试,budget 兜底不会失控)。
+                guard let result = try? await AIVirtualFolderModelPlanner.diskImageInstallSuggestion(
+                    dmgName: rec.fileName, appNames: appNames) else { continue }
+                AIBackgroundIndexStore.shared.setDiskImageSuggestion(
+                    recordID: rec.id,
+                    summary: result.summary.isEmpty ? nil : result.summary,
+                    appName: result.suggest ? appNames.first : nil)
+            }
+        }
+    }
+
+    /// 从 7zz 对一个 dmg 的清单里抽出 `.app` 包名(去重、封顶 6)。条目 `name` 是完整条目路径,形如
+    /// `DockDoor Installer/DockDoor.app/Contents/...`;取每条路径里第一个以 `.app` 结尾的路径段即可;
+    /// `Applications` 软链等非 .app 段忽略。无 → 空数组。
+    nonisolated static func topAppBundleNames(in items: [ArchiveItem]) -> [String] {
+        var seen = Set<String>()
+        var out: [String] = []
+        for item in items {
+            for comp in item.name.split(separator: "/") where comp.hasSuffix(".app") {
+                let name = String(comp)
+                if seen.insert(name).inserted { out.append(name) }
+                break   // 这条路径的第一个 .app 段就够(再深的是包内文件)
+            }
+            if out.count >= 6 { break }
+        }
+        return out
     }
 
     /// 读一个文件头部 → 脱敏(给模型出一句话摘要的素材)。红线门控同 `summarizeContent`(敏感目录 / 临时解密 /

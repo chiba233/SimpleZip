@@ -152,6 +152,24 @@ final class AIBackgroundIndexStore: ObservableObject {
         objectWillChange.send()
     }
 
+    /// **磁盘镜像安装建议**回填(推荐打开方式 backlog 第2项)。dmg 从不内容预读 → 记录本无 `contentSummary`,这里
+    /// **新建一条** `disk-image` 摘要承载结果:`appName` 非空 → 加一条 `dragToApplications` 动作(payload/label = App 名);
+    /// 都为空 = 「评估过、没建议」(标记已评估,下轮 `selectDiskImagesForSuggestion` 不再选,指纹变了阶段一清回才重选)。
+    /// 落盘 + 通知。**不碰磁盘镜像本体**。
+    func setDiskImageSuggestion(recordID: String, summary: String?, appName: String?) {
+        let clean = summary?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let hasSummary = clean?.isEmpty == false
+        var actions: [AIFileSuggestedAction] = []
+        if let appName, !appName.isEmpty {
+            actions.append(AIFileSuggestedAction(token: "dragToApplications", payload: appName, label: appName))
+        }
+        let content = AIFileContentSummary(mode: "disk-image",
+                                           shortSummary: hasSummary ? clean : nil, suggestedActions: actions)
+        fileIndex = fileIndex.updatingRecord(id: recordID) { $0.withContentSummary(content) }
+        persistIndex()
+        objectWillChange.send()
+    }
+
     /// source ref → 真实路径(给 AI 文件夹节点动作 + 显示来源目录用)。直接读持久记录的 `path`(非加密路径不是
     /// 风险,可落盘)→ 启动即可用,不必等重扫。ref 由记录的 `contextSourceRef` 派生 → 与候选 ref 一致。
     func pathsBySourceRef(limit: Int = 4_000) -> [AIContextSourceRef: String] {

@@ -88,6 +88,19 @@ nonisolated enum AIPrereadSelection {
                            budget: budget, now: now, interest: interestRoleTags, halfLifeDays: 14)
     }
 
+    /// 从一批记录里挑「该评估 App 安装建议」的 `.dmg` 前 `budget` 个(磁盘镜像建议用 —— backlog 推荐打开方式之后)。
+    /// 门控:① 是磁盘镜像;② **还没评估过**(`contentSummary == nil` —— 评估后会写一条 `disk-image` 摘要标记已评估,
+    /// 指纹变了时阶段一把摘要清回 nil 即自动重新进入候选,渐进覆盖同款);③ 有真实路径(7zz 只读 peek 要用)。
+    /// 排序复用同一套(installer 角色权重低 → 实际由近期主导:近期下载 / 改过的 dmg 先评估)。空预算 → 空。
+    static func selectDiskImagesForSuggestion(records: [AIFileMemoryRecord], budget: Int, now: Date,
+                                              interestRoleTags: Set<String> = []) -> [AIFileMemoryRecord] {
+        guard budget > 0 else { return [] }
+        let eligible = records.filter {
+            $0.type == .diskImage && $0.contentSummary == nil && $0.path != nil
+        }
+        return rankAndTake(eligible, budget: budget, now: now, interest: interestRoleTags, halfLifeDays: 14)
+    }
+
     /// 排序 + 取前 N(共用:summary 和 archive 两个入口都走这,只是各自的 eligibility 过滤不同)。
     private static func rankAndTake(_ records: [AIFileMemoryRecord], budget: Int, now: Date,
                                     interest: Set<String>, halfLifeDays: Double) -> [AIFileMemoryRecord] {

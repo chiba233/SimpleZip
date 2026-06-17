@@ -2603,6 +2603,8 @@
 "aiWorkspace.suggest.inspect" = "Проверить релиз";
 "aiWorkspace.suggest.convert" = "Конвертировать архив";
 "aiWorkspace.suggest.openWith" = "Открыть в %@";
+"aiWorkspace.suggest.install" = "Установить %@";
+"aiWorkspace.suggest.installGeneric" = "Установить приложение";
 "aiWorkspace.node.openArchive" = "Открыть архив";
 "aiWorkspace.node.openFolder" = "Открыть папку";
 "aiWorkspace.node.compress" = "Сжать";

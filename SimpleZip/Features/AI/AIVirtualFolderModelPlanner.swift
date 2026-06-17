@@ -100,6 +100,18 @@ struct GeneratedFolderGroupSet: Sendable {
     var groups: [GeneratedFileGroupSuggestion]
 }
 
+/// **文件浏览器「磁盘镜像安装建议」**的模型产出(推荐打开方式 backlog 第2项)。给一个内含 App 的 `.dmg`,
+/// 模型出 {一句话定性 + 是否建议安装}。扁平 2 字段(可靠优先)。**拒绝假AI**:确定性只负责「这个 dmg 里有 .app」,
+/// 是否冒出建议 + 措辞由模型定。
+@available(macOS 26.0, *)
+@Generable
+struct GeneratedDiskImageSuggestion: Sendable {
+    @Guide(description: "ONE short, concrete sentence telling the owner what this disk image is, e.g. 'the installer for DockDoor — drag the app into Applications to install it'. Be specific to the app(s) named; do not be generic. In the required language.")
+    var summary: String
+    @Guide(description: "True if you should actively suggest the user install the app from this disk image (drag it into Applications). For a normal app-installer disk image this is usually true; false only if it clearly is not something to install.")
+    var suggestInstall: Bool
+}
+
 /// 动态核查产出:**明显不扣题**、该从文件夹移除的条目序号(保守 —— 拿不准就不列)。扁平单字段,可靠。
 @available(macOS 26.0, *)
 @Generable
@@ -268,6 +280,27 @@ enum AIVirtualFolderModelPlanner {
             actions.append(AIFileSuggestedAction(token: "openWith", payload: app.bundleID, label: app.name))
         }
         return (summary, actions)
+    }
+
+    /// **磁盘镜像安装建议**(推荐打开方式 backlog 第2项,拒绝假AI)。给一个内含 App 的 `.dmg`(名字 + 7zz 只读
+    /// peek 出来的内部 .app 名),让端上模型出**一句话定性 + 是否建议安装**。App 据此在抽屉显示「安装 X」,点击打开
+    /// (挂载)这个 dmg 让用户把 App 拖进「应用程序」(只读导航,绝不自动拷进 /Applications)。失败抛出由调用点吞掉。
+    static func diskImageInstallSuggestion(dmgName: String, appNames: [String])
+        async throws -> (summary: String, suggest: Bool) {
+        let lang = AIReportAssistant.uiLanguageName
+        let instructions = """
+        LANGUAGE — MANDATORY: write the summary in \(lang). Never use any other language for it, not even partially.
+
+        The user has a disk image (.dmg) that contains the macOS app(s) listed below. Write ONE concrete, specific \
+        sentence telling them what this is — the kind of reminder a person would give themselves (e.g. the installer \
+        for that app, to be dragged into Applications). Do not be generic. Then decide suggestInstall: true if \
+        actively suggesting they install the app (drag it into Applications) is a useful next step, false if not.
+        """
+        let prompt = "Disk image: \(dmgName)\nApp(s) inside: \(appNames.prefix(4).joined(separator: ", "))"
+        let generated = try await AIReportAssistant.generateStructured(
+            instructions: instructions, prompt: prompt,
+            as: GeneratedDiskImageSuggestion.self, maxAttempts: 8)
+        return (generated.summary.trimmingCharacters(in: .whitespacesAndNewlines), generated.suggestInstall)
     }
 
     /// **动态核查**:对一个已成型文件夹的成员,让模型挑出**明显不扣题**的(保守 —— 拿不准就留)。返回要移除的

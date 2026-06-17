@@ -168,4 +168,40 @@ import Testing
         #expect(d2.suggestedActions == [AIFileSuggestedAction(token: "hash"), AIFileSuggestedAction(token: "compress")])
         #expect(d2.hasModelSuggestion)
     }
+
+    // MARK: - 磁盘镜像安装建议选择(backlog 第2项:推荐打开方式之后)
+
+    /// 带真实路径的 dmg 记录;`summarized` = 已评估过(写过 disk-image 摘要)。
+    private func dmg(_ name: String, daysOld: Double = 0, summarized: Bool = false,
+                     hasPath: Bool = true) -> AIFileMemoryRecord {
+        let base = AIFileMemoryRecord.make(
+            fileName: name, isDirectory: false, byteSize: 100,
+            modifiedAt: now.addingTimeInterval(-daysOld * 86_400), location: loc,
+            path: hasPath ? "/tmp/\(name)" : nil)
+        return summarized ? base.withContentSummary(AIFileContentSummary(mode: "disk-image")) : base
+    }
+
+    @Test func selectsUnevaluatedDiskImagesWithPathByRecency() {
+        let records = [
+            dmg("Recent.dmg", daysOld: 0),
+            dmg("Old.dmg", daysOld: 40),
+            dmg("Done.dmg", summarized: true),       // 已评估(有 contentSummary)→ 排除
+            dmg("NoPath.dmg", hasPath: false),       // 无路径(7zz peek 没法跑)→ 排除
+            rec("notes.md"),                         // 非磁盘镜像 → 排除
+        ]
+        let picked = AIPrereadSelection.selectDiskImagesForSuggestion(records: records, budget: 5, now: now)
+        let names = picked.map(\.fileName)
+        #expect(names.contains("Recent.dmg"))
+        #expect(names.contains("Old.dmg"))
+        #expect(!names.contains("Done.dmg"))
+        #expect(!names.contains("NoPath.dmg"))
+        #expect(!names.contains("notes.md"))
+        #expect(picked.first?.fileName == "Recent.dmg")   // installer 角色权重低 → 近期主导,近的在前
+    }
+
+    @Test func diskImageSelectionRespectsBudget() {
+        let records = (0..<6).map { dmg("img\($0).dmg", daysOld: Double($0)) }
+        #expect(AIPrereadSelection.selectDiskImagesForSuggestion(records: records, budget: 2, now: now).count == 2)
+        #expect(AIPrereadSelection.selectDiskImagesForSuggestion(records: records, budget: 0, now: now).isEmpty)
+    }
 }

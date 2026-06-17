@@ -2603,6 +2603,8 @@
 "aiWorkspace.suggest.inspect" = "ตรวจสอบรีลีส";
 "aiWorkspace.suggest.convert" = "แปลงอาร์ไคฟ์";
 "aiWorkspace.suggest.openWith" = "เปิดด้วย %@";
+"aiWorkspace.suggest.install" = "ติดตั้ง %@";
+"aiWorkspace.suggest.installGeneric" = "ติดตั้งแอป";
 "aiWorkspace.node.openArchive" = "เปิดอาร์ไคฟ์";
 "aiWorkspace.node.openFolder" = "เปิดโฟลเดอร์";
 "aiWorkspace.node.compress" = "บีบอัด";
