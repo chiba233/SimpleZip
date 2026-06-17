@@ -153,9 +153,15 @@ final class AIBackgroundIndexer {
               store.contentPrereadEnabled, AIReportAssistant.isReady,
               let budget = store.budget else { return }
         let now = Date()
-        let candidates = AIPrereadSelection.selectForModelSuggestion(
-            records: store.recentFileRecords(limit: 2_000),
-            budget: budget.maxModelSuggestionsPerRound, now: now)
+        let records = store.recentFileRecords(limit: 2_000)
+        // 高价值(近阈值)优先吃预算;吃不满(高分都补完了)→ 用剩余预算给阈值下文件慢慢补摘要(backlog 第5项:
+        // 阈值当优先级而非硬闸,每文件一次,后台逐渐平静)。空闲门控由 backlog 第6项 SchedulingRules 统一加。
+        var candidates = AIPrereadSelection.selectForModelSuggestion(
+            records: records, budget: budget.maxModelSuggestionsPerRound, now: now)
+        if candidates.count < budget.maxModelSuggestionsPerRound {
+            candidates += AIPrereadSelection.selectForIdleSummary(
+                records: records, budget: budget.maxModelSuggestionsPerRound - candidates.count, now: now)
+        }
         guard !candidates.isEmpty else { return }
         suggestionRunning = true
         suggestionTask = Task { @MainActor in

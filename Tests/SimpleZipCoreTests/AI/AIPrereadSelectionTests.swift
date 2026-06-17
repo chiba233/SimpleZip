@@ -204,4 +204,35 @@ import Testing
         #expect(AIPrereadSelection.selectDiskImagesForSuggestion(records: records, budget: 2, now: now).count == 2)
         #expect(AIPrereadSelection.selectDiskImagesForSuggestion(records: records, budget: 0, now: now).isEmpty)
     }
+
+    // MARK: - 空闲补摘要(backlog 第5项:阈值当优先级而非硬闸)
+
+    @Test func idleSummaryPicksBelowThresholdSummarizedFilesOnly() {
+        // 阈值下(老 config 1.8 < 2.5)已预读、模型摘要还没出 → 选;阈值上(README)归 selectForModelSuggestion 不进 idle;
+        // 没预读(无 contentSummary)/ 已出摘要 → 都不选。
+        let below = summarized("app.yaml")                          // config 1.8 < 2.5
+        let above = summarized("README.md")                         // project-doc 5 ≥ 2.5 → 不归 idle
+        let notPreread = rec("misc.yaml", daysOld: 200)             // 无 contentSummary
+        let done = summarized("other.yaml", shortSummary: "已有")    // 已出摘要
+        let picked = AIPrereadSelection.selectForIdleSummary(
+            records: [below, above, notPreread, done], budget: 5, now: now).map(\.fileName)
+        #expect(picked.contains("app.yaml"))
+        #expect(!picked.contains("README.md"))
+        #expect(!picked.contains("misc.yaml"))
+        #expect(!picked.contains("other.yaml"))
+        #expect(AIPrereadSelection.selectForIdleSummary(records: [below], budget: 0, now: now).isEmpty)
+    }
+
+    @Test func idleSummaryAndThresholdSelectionAreDisjoint() {
+        // 同一批里:近阈值的进 selectForModelSuggestion、阈值下的进 selectForIdleSummary,互不重叠(高分优先、长尾补位)。
+        let above = summarized("README.md")
+        let below = summarized("app.yaml")
+        let primary = Set(AIPrereadSelection.selectForModelSuggestion(
+            records: [above, below], budget: 5, now: now).map(\.fileName))
+        let idle = Set(AIPrereadSelection.selectForIdleSummary(
+            records: [above, below], budget: 5, now: now).map(\.fileName))
+        #expect(primary == ["README.md"])
+        #expect(idle == ["app.yaml"])
+        #expect(primary.isDisjoint(with: idle))
+    }
 }

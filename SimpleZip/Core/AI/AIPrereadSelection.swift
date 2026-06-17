@@ -78,6 +78,25 @@ nonisolated enum AIPrereadSelection {
                            interest: interestRoleTags, halfLifeDays: recencyHalfLifeDays)
     }
 
+    /// 从一批已预读记录里挑「**阈值下、空闲时也慢慢补摘要**」的前 `budget` 个(backlog 第5项:阈值当优先级而非硬闸)。
+    /// 与 `selectForModelSuggestion` 互补 —— 同样要求文本可总结 + 已有结构摘要 + 模型摘要还没出,但**评分 < 显示阈值**
+    /// (高分的由 `selectForModelSuggestion` 先吃)。按评分排序取前 budget。**每文件一次**,做完后台逐渐平静。
+    /// 调用方只在高分队列吃不满预算(都补完了)时用它填剩余预算 → 高价值永远优先,空闲再轮到长尾。空预算 → 空。
+    static func selectForIdleSummary(records: [AIFileMemoryRecord], budget: Int, now: Date,
+                                     interestRoleTags: Set<String> = [],
+                                     recencyHalfLifeDays: Double = 14) -> [AIFileMemoryRecord] {
+        guard budget > 0 else { return [] }
+        let eligible = records.filter { rec in
+            isPrereadSummarizable(rec.type)
+                && rec.contentSummary != nil
+                && (rec.contentSummary?.shortSummary?.isEmpty ?? true)
+                && suggestionScore(for: rec, now: now, interestRoleTags: interestRoleTags,
+                                   recencyHalfLifeDays: recencyHalfLifeDays) < suggestionScoreThreshold
+        }
+        return rankAndTake(eligible, budget: budget, now: now,
+                           interest: interestRoleTags, halfLifeDays: recencyHalfLifeDays)
+    }
+
     /// 从一批记录里挑「最该**列清单**」的归档前 `budget` 个(归档内容预读用)。和 `selectForSummary` **同一套排序**
     /// (角色 / 近期 / 兴趣);归档角色统一(archive,同权重),故实际由近期 + 兴趣主导 —— 近期碰过 / 改过的包先列。
     /// 「指纹没变就跳过、变了重列」的渐进覆盖由调用方按归档清单缓存的 (大小+修改时间) 先筛掉再传进来。
