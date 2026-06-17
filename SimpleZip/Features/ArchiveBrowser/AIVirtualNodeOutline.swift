@@ -187,11 +187,10 @@ struct AIVirtualNodeOutline: NSViewRepresentable {
         func outlineView(_ outlineView: NSOutlineView, viewFor tableColumn: NSTableColumn?, item: Any) -> NSView? {
             guard let item = item as? Item else { return nil }
             if let suggestion = item.suggestion {
-                let cell = makeTableCell(in: outlineView, owner: self, identifier: "ai.suggestion",
-                                         text: L10n.text(suggestion.titleKey), isPrimaryColumn: false,
-                                         icon: Self.symbol(suggestion.systemImage, tint: .controlAccentColor),
-                                         iconSize: 14)
-                return cell
+                // 共享 `makeSuggestionCell`:图标 / 文字跟随选中反色(修复强调色烤进图标后选中看不清 + 文字对比度低)。
+                return makeSuggestionCell(in: outlineView, owner: self,
+                                          title: L10n.text(suggestion.titleKey),
+                                          iconName: suggestion.systemImage)
             }
             guard let node = item.node else { return nil }
             let suggested = !node.sourceRefs.isEmpty
@@ -387,11 +386,6 @@ struct AIVirtualNodeOutline: NSViewRepresentable {
         }
 
         // MARK: - 图标
-
-        private static func symbol(_ name: String, tint: NSColor) -> NSImage? {
-            let cfg = NSImage.SymbolConfiguration(paletteColors: [tint])
-            return NSImage(systemSymbolName: name, accessibilityDescription: nil)?.withSymbolConfiguration(cfg)
-        }
 
         private static func symbolName(_ kind: AIVirtualNode.Kind) -> String {
             switch kind {

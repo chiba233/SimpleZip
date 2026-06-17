@@ -43,6 +43,15 @@ enum AIWorkspaceNodeActions {
         }
     }
 
+    /// 文件浏览器里**单个文件行**的 AI 建议(把 AI 文件夹这套建议接进文件管理模式;复用同样的动作 + 渲染)。
+    /// **v1 阈值:只对归档文件**(打开 / 测试)—— 明显不是每个文件、是归档管理器最该说的话、且归档行本来不可展开,
+    /// 挂建议子行最干净。普通文档 / 源码 / 媒体 v1 不挂(要等后台摘要 / 打开方式推荐)。门控由调用方再叠加 AI 能力可用。
+    static func suggestions(for item: FileItem) -> [AIWorkspaceNodeAction] {
+        guard !item.isDirectory, ArchiveService.isSupportedArchive(item.url) else { return [] }
+        let path = item.url.path
+        return [openArchive(path), test(path)]
+    }
+
     /// 一个分组里所有(可定位路径的)叶子成员的真实路径 —— 给「把这组一起压缩」用。
     static func descendantFilePaths(_ node: AIVirtualNode) -> [String] {
         var paths: [String] = []
@@ -193,33 +202,9 @@ struct AIWorkspaceView: View {
 
     // MARK: - 节点动作 → 现有 App 流程(只读 / 导航 / 启动现有任务流程)
 
+    /// 派发统一搬到 `ArchiveBrowserModel.dispatchSuggestion` —— AI 文件夹建议子行和文件浏览器建议抽屉共用一处。
     private func dispatch(_ action: AISuggestionAction) {
-        switch action {
-        case .openTask(let id), .openReport(taskID: let id), .explainFailure(taskID: let id):
-            ActivityWindowController.shared.show(locateTaskID: id)
-        case .openActivityCenter:
-            ActivityWindowController.shared.show()
-        case .openFolder(let path):
-            model.openFolder(URL(fileURLWithPath: path))
-        case .revealFile(let path):
-            model.revealFileInBrowser(URL(fileURLWithPath: path))   // 在 SimpleZip 浏览器里定位,不跳 Finder
-        case .openArchive(let path, let revealEntry):
-            let url = URL(fileURLWithPath: path)
-            if let entry = revealEntry, !entry.isEmpty { model.openArchive(url, revealEntryPath: entry) }
-            else { model.openArchive(url) }
-        case .calculateHash(let paths, _):
-            model.calculateHash(forFinderURLs: paths.map { URL(fileURLWithPath: $0) })
-        case .testArchive(let path):
-            model.testArchives(at: [URL(fileURLWithPath: path)])
-        case .createArchive(let paths), .createArchiveFromSuggestion(let paths, _, _):
-            model.createArchive(fromFinderURLs: paths.map { URL(fileURLWithPath: $0) })
-        case .inspectRelease(let path):
-            model.inspectArchiveForRelease(at: URL(fileURLWithPath: path))
-        case .convertArchive(let path):
-            model.requestConvertArchives(at: [URL(fileURLWithPath: path)])
-        default:
-            break   // evidence-ref / 写盘 / 虚拟管理类:后续接(需 source-ref 回查)—— 写盘动作回原生确认流
-        }
+        model.dispatchSuggestion(action)
     }
 }
 

@@ -67,6 +67,8 @@ final class FileOutlineNode {
     enum Kind {
         case file(FileItem)
         case section
+        /// AI 建议子行(归档行展开后挂的「打开 / 测试」等)。复用 AI 文件夹的 `AIWorkspaceNodeAction`,不另起类型。
+        case suggestion(AIWorkspaceNodeAction)
     }
 
     let kind: Kind
@@ -86,6 +88,8 @@ final class FileOutlineNode {
     /// 子级 FileItem 的**真值在模型注册表**（expandedFolderChildrenByPath）—— 这里只是包成节点的视图缓存,
     /// reload 重建顶层节点后由 enforceExpansion 按记忆重新展开、重新从注册表构建。
     var folderChildren: [FileOutlineNode]?
+    /// 0.4.5 #80：归档行展开后的 AI 建议子行缓存(打开 / 测试…)。nil = 还没算过;`[]` = 算过但无建议(普通文件)。
+    var suggestionChildren: [FileOutlineNode]?
 
     private init(kind: Kind, sectionKey: String, title: String, isHiddenSection: Bool) {
         self.kind = kind
@@ -103,8 +107,18 @@ final class FileOutlineNode {
         FileOutlineNode(kind: .section, sectionKey: key, title: "", isHiddenSection: isHidden)
     }
 
+    static func suggestion(_ action: AIWorkspaceNodeAction) -> FileOutlineNode {
+        FileOutlineNode(kind: .suggestion(action), sectionKey: "", title: "", isHiddenSection: false)
+    }
+
     var fileItem: FileItem? {
         if case .file(let item) = kind { return item }
+        return nil
+    }
+
+    /// 这一行是不是 AI 建议子行;是则返回它的动作。建议行无 fileItem → 不可拖拽 / 不进选区 / 不进 QL。
+    var suggestionAction: AIWorkspaceNodeAction? {
+        if case .suggestion(let action) = kind { return action }
         return nil
     }
 
@@ -558,14 +572,18 @@ struct FileNSOutlineView: NSViewRepresentable {
             if node.isSection { return node.children.count }
             if let volumes = node.volumeChildren { return volumes.count }
             if isExpandableFolder(node) { return loadedFolderChildren(of: node).count }
-            return 0
+            return loadedSuggestionChildren(of: node).count   // 归档行的 AI 建议子行(普通文件 = 0)
         }
 
         func outlineView(_ outlineView: NSOutlineView, child index: Int, ofItem item: Any?) -> Any {
             guard let node = item as? FileOutlineNode else {
                 return index < topLevelNodes.count ? topLevelNodes[index] : topLevelNodes
             }
-            let children = node.isSection ? node.children : (node.volumeChildren ?? loadedFolderChildren(of: node))
+            let children: [FileOutlineNode]
+            if node.isSection { children = node.children }
+            else if let volumes = node.volumeChildren { children = volumes }
+            else if isExpandableFolder(node) { children = loadedFolderChildren(of: node) }
+            else { children = loadedSuggestionChildren(of: node) }
             guard index < children.count else { return node }
             return children[index]
         }
@@ -573,6 +591,7 @@ struct FileNSOutlineView: NSViewRepresentable {
         func outlineView(_ outlineView: NSOutlineView, isItemExpandable item: Any) -> Bool {
             guard let node = item as? FileOutlineNode else { return false }
             return node.isSection || node.volumeChildren != nil || isExpandableFolder(node)
+                || !loadedSuggestionChildren(of: node).isEmpty
         }
 
         // MARK: - 0.4.1 文件夹原位展开（子级真值在模型注册表,这里只做节点缓存 + 展开记忆）
@@ -633,6 +652,19 @@ struct FileNSOutlineView: NSViewRepresentable {
             return children
         }
 
+        /// 0.4.5 #80：归档行展开后的 AI 建议子行。门控 = AI 主开关开 + 是归档文件 + 非折叠首卷(避免和分卷子级打架)。
+        /// 复用 AI 文件夹的 `AIWorkspaceNodeActions.suggestions(for:)` + 动作派发,不另起逻辑。普通文件返回 `[]`(不展开)。
+        private func loadedSuggestionChildren(of node: FileOutlineNode) -> [FileOutlineNode] {
+            if let cached = node.suggestionChildren { return cached }
+            guard AppPreferences.aiAssistantEnabled, node.volumeChildren == nil, let item = node.fileItem else {
+                node.suggestionChildren = []
+                return []
+            }
+            let children = AIWorkspaceNodeActions.suggestions(for: item).map { FileOutlineNode.suggestion($0) }
+            node.suggestionChildren = children
+            return children
+        }
+
         // MARK: - NSOutlineViewDelegate
 
         func outlineView(_ outlineView: NSOutlineView, viewFor tableColumn: NSTableColumn?, item: Any) -> NSView? {
@@ -654,6 +686,15 @@ struct FileNSOutlineView: NSViewRepresentable {
                     iconSize: density.iconSize,
                     font: .systemFont(ofSize: density.textPointSize)
                 )
+            }
+
+            // AI 建议子行:只在 name 列画,其它列留空。共享 `makeSuggestionCell`(跟随选中反色,不再深底深色看不清)。
+            if let suggestion = node.suggestionAction {
+                guard column == .name else { return nil }
+                return makeSuggestionCell(in: outlineView, owner: self,
+                                          title: L10n.text(suggestion.titleKey),
+                                          iconName: suggestion.systemImage,
+                                          font: .systemFont(ofSize: density.textPointSize))
             }
 
             guard let fileItem = node.fileItem else { return nil }
@@ -1226,6 +1267,11 @@ struct FileNSOutlineView: NSViewRepresentable {
         @objc func doubleClick(_ sender: NSOutlineView) {
             let row = sender.clickedRow
             guard row >= 0, let node = sender.item(atRow: row) as? FileOutlineNode else { return }
+            if let suggestion = node.suggestionAction {
+                // AI 建议子行:双击 = 派发动作(打开 / 测试…),复用 AI 文件夹同一处派发。
+                model.dispatchSuggestion(suggestion.action)
+                return
+            }
             if node.isSection {
                 // 双击区块头 = 切换展开（同样触发 didExpand/didCollapse → 更新真值 + 持久化）。
                 if sender.isItemExpanded(node) {
@@ -1593,10 +1639,12 @@ struct FileNSOutlineView: NSViewRepresentable {
                     for row in alreadySelected { indexes.insert(row) }
                 }
             }
-            // 保留用户用上下方向键 / 点击导航到的「分组头」行 —— 分组头没有 fileItem、不进 model.selection，
-            // 若不保留，下面的 reapply 会把它清掉：方向键一碰到分组头选择就归零，光标卡在组里跨不过去（用户反馈）。
-            for row in outlineView.selectedRowIndexes where (outlineView.item(atRow: row) as? FileOutlineNode)?.isSection == true {
-                indexes.insert(row)
+            // 保留用户用上下方向键 / 点击导航到的「分组头」「AI 建议子行」 —— 它们没有 fileItem、不进 model.selection，
+            // 若不保留,下面的 reapply 会把它清掉:方向键一碰到就选择归零、光标卡住跨不过去(分组头是老 bug;AI 建议子行
+            // 是同款,必须一并保留,否则键盘上下选不到建议行)。
+            for row in outlineView.selectedRowIndexes {
+                let node = outlineView.item(atRow: row) as? FileOutlineNode
+                if node?.isSection == true || node?.suggestionAction != nil { indexes.insert(row) }
             }
             if outlineView.selectedRowIndexes != indexes {
                 DispatchQueue.main.async { [weak self] in

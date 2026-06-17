@@ -230,6 +230,69 @@ func makeTableCell(
     return cell
 }
 
+/// AI 建议子行的 cell：强调色图标 + 标题，**跟随选中高亮反色**。修复「把强调色烤进 NSImage
+/// （`paletteColors:`）后，选中行(强调背景也是强调色)时图标和背景同色看不见、文字对比度低」——
+/// 和 AI 文件夹节点行(`AINodeCellView`)同款 `backgroundStyle` 反色处理。AI 文件夹建议子行和文件浏览器
+/// 建议抽屉**共用这一个 cell**(都走 `makeSuggestionCell`)。
+final class AISuggestionCellView: NSTableCellView {
+    private let label = NSTextField(labelWithString: "")
+    private let symbolView = NSImageView()
+    private var iconName = "sparkles"
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        symbolView.translatesAutoresizingMaskIntoConstraints = false
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.lineBreakMode = .byTruncatingTail
+        addSubview(symbolView)
+        addSubview(label)
+        imageView = symbolView
+        textField = label
+        NSLayoutConstraint.activate([
+            symbolView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 4),
+            symbolView.centerYAnchor.constraint(equalTo: centerYAnchor),
+            symbolView.widthAnchor.constraint(equalToConstant: 14),
+            symbolView.heightAnchor.constraint(equalToConstant: 14),
+            label.leadingAnchor.constraint(equalTo: symbolView.trailingAnchor, constant: 6),
+            label.centerYAnchor.constraint(equalTo: centerYAnchor),
+            label.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -4)
+        ])
+    }
+
+    required init?(coder: NSCoder) { super.init(coder: coder) }
+
+    func configure(title: String, iconName: String, font: NSFont) {
+        self.iconName = iconName
+        label.stringValue = title
+        label.font = font
+        applyStyle()
+    }
+
+    override var backgroundStyle: NSView.BackgroundStyle {
+        didSet { applyStyle() }
+    }
+
+    private func applyStyle() {
+        let emphasized = backgroundStyle == .emphasized
+        // 图标：选中 → 选中前景色(白);否则强调色。文字：选中 → 白;否则全对比度 labelColor(不再用低对比 secondary)。
+        let iconTint: NSColor = emphasized ? .alternateSelectedControlTextColor : .controlAccentColor
+        label.textColor = emphasized ? .alternateSelectedControlTextColor : .labelColor
+        let cfg = NSImage.SymbolConfiguration(paletteColors: [iconTint])
+        symbolView.image = NSImage(systemSymbolName: iconName, accessibilityDescription: nil)?
+            .withSymbolConfiguration(cfg)
+    }
+}
+
+/// 建议子行 cell 工厂(复用池按 `ai.suggestion.cell` 复用)。图标 / 文字会跟随选中反色。
+func makeSuggestionCell(in tableView: NSTableView, owner: AnyObject, title: String,
+                        iconName: String, font: NSFont = .systemFont(ofSize: 13)) -> NSTableCellView {
+    let cellID = NSUserInterfaceItemIdentifier("ai.suggestion.cell")
+    let cell = (tableView.makeView(withIdentifier: cellID, owner: owner) as? AISuggestionCellView) ?? AISuggestionCellView()
+    cell.identifier = cellID
+    cell.configure(title: title, iconName: iconName, font: font)
+    return cell
+}
+
 func makeTableMenuItem(_ title: String, systemImage: String, action: Selector, target: AnyObject) -> NSMenuItem {
     let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
     item.target = target

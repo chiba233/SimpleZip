@@ -25,6 +25,37 @@ extension ArchiveBrowserModel {
         if let newID { AIWorkspaceStore.shared.startViewingWorkspace(newID) }
     }
 
+    /// 把一条 AI 建议动作(`AISuggestionAction`,App 只读枚举)派发到现有 App 流程(导航 / 只读 / 启动现有任务流)。
+    /// **AI 文件夹的建议子行和文件浏览器的建议抽屉共用这一处派发** —— 动作只读、模型不能发明,写盘类一律走原生确认流。
+    func dispatchSuggestion(_ action: AISuggestionAction) {
+        switch action {
+        case .openTask(let id), .openReport(taskID: let id), .explainFailure(taskID: let id):
+            ActivityWindowController.shared.show(locateTaskID: id)
+        case .openActivityCenter:
+            ActivityWindowController.shared.show()
+        case .openFolder(let path):
+            openFolder(URL(fileURLWithPath: path))
+        case .revealFile(let path):
+            revealFileInBrowser(URL(fileURLWithPath: path))   // 在 SimpleZip 浏览器里定位,不跳 Finder
+        case .openArchive(let path, let revealEntry):
+            let url = URL(fileURLWithPath: path)
+            if let entry = revealEntry, !entry.isEmpty { openArchive(url, revealEntryPath: entry) }
+            else { openArchive(url) }
+        case .calculateHash(let paths, _):
+            calculateHash(forFinderURLs: paths.map { URL(fileURLWithPath: $0) })
+        case .testArchive(let path):
+            testArchives(at: [URL(fileURLWithPath: path)])
+        case .createArchive(let paths), .createArchiveFromSuggestion(let paths, _, _):
+            createArchive(fromFinderURLs: paths.map { URL(fileURLWithPath: $0) })
+        case .inspectRelease(let path):
+            inspectArchiveForRelease(at: URL(fileURLWithPath: path))
+        case .convertArchive(let path):
+            requestConvertArchives(at: [URL(fileURLWithPath: path)])
+        default:
+            break   // evidence-ref / 写盘 / 虚拟管理类:后续接(需 source-ref 回查)—— 写盘动作回原生确认流
+        }
+    }
+
     func openHome() {
         openFolder(fileManager.homeDirectoryForCurrentUser)
     }
