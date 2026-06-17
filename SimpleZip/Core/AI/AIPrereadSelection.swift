@@ -34,10 +34,26 @@ nonisolated enum AIPrereadSelection {
         recencyHalfLifeDays: Double = 14
     ) -> [AIFileMemoryRecord] {
         guard budget > 0 else { return [] }
-        let summarizable = records.filter { isPrereadSummarizable($0.type) }
-        guard !summarizable.isEmpty else { return [] }
-        let ranked = AIRanker.rank(summarizable) { rec in
-            context(for: rec, now: now, interestRoleTags: interestRoleTags, halfLifeDays: recencyHalfLifeDays)
+        return rankAndTake(records.filter { isPrereadSummarizable($0.type) },
+                           budget: budget, now: now, interest: interestRoleTags, halfLifeDays: recencyHalfLifeDays)
+    }
+
+    /// 从一批记录里挑「最该**列清单**」的归档前 `budget` 个(归档内容预读用)。和 `selectForSummary` **同一套排序**
+    /// (角色 / 近期 / 兴趣);归档角色统一(archive,同权重),故实际由近期 + 兴趣主导 —— 近期碰过 / 改过的包先列。
+    /// 「指纹没变就跳过、变了重列」的渐进覆盖由调用方按归档清单缓存的 (大小+修改时间) 先筛掉再传进来。
+    static func selectArchivesForListing(records: [AIFileMemoryRecord], budget: Int, now: Date,
+                                         interestRoleTags: Set<String> = []) -> [AIFileMemoryRecord] {
+        guard budget > 0 else { return [] }
+        return rankAndTake(records.filter { $0.type == .archive },
+                           budget: budget, now: now, interest: interestRoleTags, halfLifeDays: 14)
+    }
+
+    /// 排序 + 取前 N(共用:summary 和 archive 两个入口都走这,只是各自的 eligibility 过滤不同)。
+    private static func rankAndTake(_ records: [AIFileMemoryRecord], budget: Int, now: Date,
+                                    interest: Set<String>, halfLifeDays: Double) -> [AIFileMemoryRecord] {
+        guard !records.isEmpty else { return [] }
+        let ranked = AIRanker.rank(records) { rec in
+            context(for: rec, now: now, interestRoleTags: interest, halfLifeDays: halfLifeDays)
         }
         return Array(ranked.prefix(budget).map(\.item))
     }

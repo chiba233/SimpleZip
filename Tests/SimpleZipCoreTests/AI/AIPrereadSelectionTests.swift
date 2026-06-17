@@ -66,6 +66,15 @@ import Testing
         #expect(picked.first?.fileName == "app.yaml")
     }
 
+    @Test func selectArchivesForListingPicksArchivesByRecency() {
+        // 只挑归档(文档/源码不进);同角色(archive)下近期改的先列。
+        let records = [rec("notes.md"), rec("old.zip", daysOld: 40), rec("fresh.7z", daysOld: 0), rec("a.swift")]
+        let picked = AIPrereadSelection.selectArchivesForListing(records: records, budget: 5, now: now)
+        let names = picked.map(\.fileName)
+        #expect(names == ["fresh.7z", "old.zip"])   // 只归档、近期在前
+        #expect(!names.contains("notes.md"))
+    }
+
     @Test func budgetCapsCount() {
         let records = (0..<10).map { rec("doc\($0).md", daysOld: Double($0)) }
         #expect(AIPrereadSelection.selectForSummary(records: records, budget: 3, now: now).count == 3)

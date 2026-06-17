@@ -80,20 +80,28 @@ final class AIBackgroundIndexer {
         let store = AIBackgroundIndexStore.shared
         guard !archiveRunning, store.contentPrereadEnabled, AppPreferences.archiveListingCacheEnabled,
               let budget = store.budget else { return }
-        // 已列过清单的归档不重复列(canonical path 去重)。
-        let cached = Set(ArchiveListingCacheStore().loadAll().map(\.archivePath))
+        // 缓存指纹:canonicalPath → (大小, 修改时间)。指纹没变 = 已列过且没变 → 跳过;变了(如重新下载)→ 重列。
+        // 这和文件预读同款渐进覆盖:预算只花在「没列过 / 变了」的包上,高权重列完慢慢轮到其余。
+        let cachedFingerprint = Dictionary(
+            ArchiveListingCacheStore().loadAll().map { ($0.archivePath, ($0.archiveByteSize, $0.archiveModified)) },
+            uniquingKeysWith: { first, _ in first })
         let tempPrefix = FileManager.default.temporaryDirectory.resolvingSymlinksInPath().path
-        let targets: [URL] = store.recentFileRecords(limit: 2_000)
-            .filter { $0.type == .archive }
-            .compactMap { $0.path }
-            .map { URL(fileURLWithPath: $0) }
-            .filter { url in
-                let p = url.resolvingSymlinksInPath().path
-                guard !p.hasPrefix(tempPrefix) else { return false }                 // 临时解压壳层不预读
-                guard FileManager.default.fileExists(atPath: url.path) else { return false }
-                return !cached.contains(ArchiveListingCacheStore.canonicalPath(for: url))
+        let staleRecords = store.recentFileRecords(limit: 2_000).filter { rec in
+            guard rec.type == .archive, let path = rec.path else { return false }
+            let url = URL(fileURLWithPath: path)
+            let p = url.resolvingSymlinksInPath().path
+            guard !p.hasPrefix(tempPrefix) else { return false }                    // 临时解压壳层不预读
+            guard FileManager.default.fileExists(atPath: path) else { return false }
+            let canonical = ArchiveListingCacheStore.canonicalPath(for: url)
+            if let fp = cachedFingerprint[canonical], fp.0 == rec.byteSize, fp.1 == rec.modifiedAt {
+                return false   // 指纹没变 → 已列过、跳过
             }
-        let pick = Array(dedupByPath(targets).prefix(min(budget.maxArchivesPerRound, 6)))
+            return true        // 新 / 变了 → 候选
+        }
+        // AI 排序挑前 N(近期碰过 / 改过的包先列)。
+        let pick = AIPrereadSelection
+            .selectArchivesForListing(records: staleRecords, budget: min(budget.maxArchivesPerRound, 6), now: Date())
+            .compactMap { $0.path.map { URL(fileURLWithPath: $0) } }
         guard !pick.isEmpty else { return }
         archiveRunning = true
         archiveTask = Task { @MainActor in
@@ -112,13 +120,6 @@ final class AIBackgroundIndexer {
             }
             // (AI 文件夹自动发现已下线 → 预读完不再回调 discovery.refresh();归档清单缓存照常给 AI suggestion / Spotlight 用。)
         }
-    }
-
-    /// 按解析后的路径去重(保序)。
-    private func dedupByPath(_ urls: [URL]) -> [URL] {
-        var seen = Set<String>(); var out: [URL] = []
-        for u in urls where seen.insert(u.resolvingSymlinksInPath().path).inserted { out.append(u) }
-        return out
     }
 
     // MARK: - 只读元数据扫描(off-main;纯静态,不碰 UI 状态)
