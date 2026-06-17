@@ -16,10 +16,69 @@
 
 import AppKit
 import Foundation
+import IOKit.ps   // 电源状态(低电 / 充电)给后台调度规则用
 
 @MainActor
 final class AIBackgroundIndexer {
     static let shared = AIBackgroundIndexer()
+
+    /// App 启动时刻(≈ shared 首次创建)—— 算「距启动秒数」给启动静默期(60s)用。
+    private let launchDate = Date()
+    /// 距用户上次交互 —— 本地事件监视器更新。**只在 app 活跃时捕获事件**:app 在后台 = 无本地事件 = 距上次交互
+    /// 持续增长 = 视为空闲,正合「用户没在用 SimpleZip 时才跑模型」。
+    private var lastInteractionDate = Date()
+    private var interactionMonitor: Any?
+
+    private init() {
+        interactionMonitor = NSEvent.addLocalMonitorForEvents(
+            matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown, .keyDown, .scrollWheel, .leftMouseDragged]
+        ) { [weak self] event in
+            self?.lastInteractionDate = Date()
+            return event
+        }
+    }
+
+    /// 组装当前运行时上下文给 `AIBackgroundSchedulingRules` 判定能跑到哪档(时间换算在这里做,Core 不读墙钟)。
+    func currentRuntimeContext() -> AIBackgroundRuntimeContext {
+        let now = Date()
+        let power = AIBackgroundIndexer.powerState()
+        return AIBackgroundRuntimeContext(
+            appIsActive: NSApplication.shared.isActive,
+            runningTaskCount: TaskCenter.shared.active.count,
+            heavyArchiveTaskRunning: TaskCenter.shared.active.contains {
+                OperationTask.pausableKinds.contains($0.kind) && $0.status.isRunning
+            },
+            secondsSinceLaunch: Int(now.timeIntervalSince(launchDate)),
+            secondsSinceLastInteraction: Int(now.timeIntervalSince(lastInteractionDate)),
+            powerSaverMode: ProcessInfo.processInfo.isLowPowerModeEnabled,
+            lowBattery: power.lowBattery,
+            isCharging: power.isCharging,
+            modelAvailable: AIReportAssistant.isReady,
+            activityLevel: AppPreferences.aiBackgroundActivityLevel)
+    }
+
+    /// 现在能不能跑端上模型轻任务(空闲 + 模型可用 + 非低电/省电 + 过启动静默)。各模型 pass 入口共用。
+    func canRunModelWorkNow() -> Bool {
+        AIBackgroundSchedulingRules.canRunModelWork(currentRuntimeContext())
+    }
+
+    /// 读电源状态(低电 < 20% / 是否充电)。无电池(台式机)→ 不低电、充电未知。off-main 安全(纯 IOKit 读)。
+    private nonisolated static func powerState() -> (lowBattery: Bool, isCharging: Bool?) {
+        guard let blob = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
+              let list = IOPSCopyPowerSourcesList(blob)?.takeRetainedValue() as? [CFTypeRef], !list.isEmpty else {
+            return (false, nil)
+        }
+        for source in list {
+            guard let desc = IOPSGetPowerSourceDescription(blob, source)?.takeUnretainedValue() as? [String: Any]
+            else { continue }
+            let capacity = desc[kIOPSCurrentCapacityKey as String] as? Int ?? 100
+            let maxCap = desc[kIOPSMaxCapacityKey as String] as? Int ?? 100
+            let pct = maxCap > 0 ? capacity * 100 / maxCap : 100
+            let charging = (desc[kIOPSPowerSourceStateKey as String] as? String) == (kIOPSACPowerValue as String)
+            return (pct < 20, charging)
+        }
+        return (false, nil)
+    }
 
     private var running = false
     private var task: Task<Void, Never>?
@@ -38,6 +97,8 @@ final class AIBackgroundIndexer {
     func runIfEnabled() {
         let store = AIBackgroundIndexStore.shared
         guard !running, store.indexingEnabled, let budget = store.budget else { return }
+        // AI 电源规范③:启动静默 60s + 无重归档任务 + 活跃度非关。低电 / 省电也可(只读索引不耗模型)。
+        guard AIBackgroundSchedulingRules.canRunDeterministicIndexing(currentRuntimeContext()) else { return }
         running = true
 
         let scopes = Array(store.scopes.prefix(max(1, budget.maxDirectoriesPerRound)))
@@ -68,11 +129,14 @@ final class AIBackgroundIndexer {
                         store.markScanned(id, at: now)
                     }
                     // (AI 文件夹自动发现已下线 → 不再 index 完回调 discovery.refresh();索引 / 预读照常给 AI suggestion 用。)
-                    AIBackgroundIndexer.shared.prereadArchivesIfEnabled()   // 元数据落盘后预读归档内容(门控未过则空跑)
-                    AIBackgroundIndexer.shared.generateFileSuggestionsIfEnabled()   // 预读摘要落盘后,对近阈值文件出模型建议(门控未过则空跑)
-                    AIBackgroundIndexer.shared.generateDiskImageSuggestionsIfEnabled()   // 对内含 App 的 dmg 出「安装到应用程序」建议(门控未过则空跑)
-                    AIBackgroundIndexer.shared.generateActivityLinkSuggestionsIfEnabled()   // 文件命中近期任务产物 → 出「查看活动」建议(门控未过则空跑)
-                    AIBackgroundIndexer.shared.generateArchiveEntrySuggestionsIfEnabled()   // 预读过的归档 → 模型挑「也许你要包里的 X」(门控未过则空跑)
+                    AIBackgroundIndexer.shared.prereadArchivesIfEnabled()   // 元数据落盘后预读归档内容(确定性档,门控未过则空跑)
+                    // AI 电源规范③:模型类 pass 只在「用户空闲 20s + 模型可用 + 非低电/省电」时跑(不打扰正在用 app 的用户)。
+                    if AIBackgroundIndexer.shared.canRunModelWorkNow() {
+                        AIBackgroundIndexer.shared.generateFileSuggestionsIfEnabled()   // 近阈值/空闲文件出模型建议
+                        AIBackgroundIndexer.shared.generateDiskImageSuggestionsIfEnabled()   // 内含 App 的 dmg「安装到应用程序」
+                        AIBackgroundIndexer.shared.generateActivityLinkSuggestionsIfEnabled()   // 命中近期任务产物「查看活动」
+                        AIBackgroundIndexer.shared.generateArchiveEntrySuggestionsIfEnabled()   // 归档「也许你要包里的 X」
+                    }
                 }
                 AIBackgroundIndexer.shared.running = false
             }
