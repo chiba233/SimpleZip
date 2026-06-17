@@ -2563,6 +2563,11 @@
 "settings.ai.background.section" = "Фоновое обнаружение и индексирование";
 "settings.ai.background.activityLevel" = "Активность локального ИИ";
 "settings.ai.background.activityLevel.desc" = "Насколько активно локальный ИИ работает в фоне, когда Mac простаивает.";
+"settings.ai.background.indexPower" = "Энергия индексации";
+"settings.ai.background.indexPower.desc" = "Насколько активно поддерживается актуальность поискового индекса. «Энергосбережение» проверяет изменения примерно раз в день почти без фоновой работы; «Высокая мощность» обновляет почти в реальном времени. Медленнее — это нормально: приоритет у низкого энергопотребления, а не у мгновенной актуальности.";
+"settings.ai.background.indexPower.saver" = "Энергосбережение";
+"settings.ai.background.indexPower.normal" = "Обычная";
+"settings.ai.background.indexPower.highPower" = "Высокая мощность";
 "settings.ai.background.level.off" = "Выкл.";
 "settings.ai.background.level.powerSaver" = "Энергосбережение";
 "settings.ai.background.level.balanced" = "Сбалансированно";

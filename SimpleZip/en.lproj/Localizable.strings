@@ -2642,6 +2642,11 @@
 "settings.ai.background.section" = "Background discovery & indexing";
 "settings.ai.background.activityLevel" = "On-device AI activity";
 "settings.ai.background.activityLevel.desc" = "How actively on-device AI works in the background when your Mac is idle.";
+"settings.ai.background.indexPower" = "Indexing Power";
+"settings.ai.background.indexPower.desc" = "How aggressively the search index is kept fresh. Power Saver checks about once a day with minimal background work; High Power updates nearly in real time. Slower is fine — it favors low power use over instant freshness.";
+"settings.ai.background.indexPower.saver" = "Power Saver";
+"settings.ai.background.indexPower.normal" = "Normal";
+"settings.ai.background.indexPower.highPower" = "High Power";
 "settings.ai.background.level.off" = "Off";
 "settings.ai.background.level.powerSaver" = "Power saver";
 "settings.ai.background.level.balanced" = "Balanced";

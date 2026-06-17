@@ -2564,6 +2564,11 @@
 "settings.ai.background.section" = "백그라운드 발견 및 색인";
 "settings.ai.background.activityLevel" = "온디바이스 AI 활동량";
 "settings.ai.background.activityLevel.desc" = "Mac이 유휴 상태일 때 온디바이스 AI가 백그라운드에서 작동하는 적극성입니다.";
+"settings.ai.background.indexPower" = "색인 전력";
+"settings.ai.background.indexPower.desc" = "검색 색인을 얼마나 적극적으로 최신 상태로 유지할지입니다. 절전은 약 하루에 한 번만 변경을 확인하며 백그라운드 작업이 거의 없고, 고성능은 변경 후 거의 실시간으로 갱신합니다. 느려도 괜찮으며 즉시성보다 저전력을 우선합니다.";
+"settings.ai.background.indexPower.saver" = "절전";
+"settings.ai.background.indexPower.normal" = "보통";
+"settings.ai.background.indexPower.highPower" = "고성능";
 "settings.ai.background.level.off" = "끔";
 "settings.ai.background.level.powerSaver" = "절전";
 "settings.ai.background.level.balanced" = "균형";

@@ -18,6 +18,7 @@ struct AIBackgroundDiscoverySection: View {
     @ObservedObject private var store = AIBackgroundIndexStore.shared
     @AppStorage(AppPreferences.Key.aiAllowFolderPreindex) private var folderPreindex = false
     @AppStorage(AppPreferences.Key.aiAllowContentPreread) private var contentPreread = false
+    @AppStorage(AppPreferences.Key.spotlightIndexingPower) private var indexPower = "normal"
     @State private var activityLevel = AppPreferences.aiBackgroundActivityLevel
     @State private var showingAddOptions = false
 
@@ -66,6 +67,23 @@ struct AIBackgroundDiscoverySection: View {
                 .onChange(of: contentPreread) { on in
                     if on { AIBackgroundIndexer.shared.runIfEnabled() }
                     else if !folderPreindex { AIBackgroundIndexer.shared.cancel() }
+                }
+
+                // 索引电源档:控制 Spotlight 搜索索引的更新频率与后台占用。省电=慢慢索引(一天才查一次更新、
+                // 后台几乎不动),高耗能=改动近实时更新。慢一点不影响使用,只求省电省资源。
+                SettingsControlRow(
+                    title: L10n.text("settings.ai.background.indexPower"),
+                    description: L10n.text("settings.ai.background.indexPower.desc"),
+                    systemImage: "speedometer", iconTint: .purple
+                ) {
+                    Picker("", selection: $indexPower) {
+                        Text(L10n.text("settings.ai.background.indexPower.saver")).tag("saver")
+                        Text(L10n.text("settings.ai.background.indexPower.normal")).tag("normal")
+                        Text(L10n.text("settings.ai.background.indexPower.highPower")).tag("highPower")
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .fixedSize()
                 }
                 // (AI 文件夹「显示推荐 / 推荐数量上限」设置已随侧栏 AI 文件夹下线一并移除;后台索引 / 预读仍供
                 //  AI suggestion 复用,故本区其余项保留。)

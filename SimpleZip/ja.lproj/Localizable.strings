@@ -2565,6 +2565,11 @@
 "settings.ai.background.section" = "バックグラウンド発見とインデックス";
 "settings.ai.background.activityLevel" = "オンデバイス AI の活動量";
 "settings.ai.background.activityLevel.desc" = "Mac がアイドル時に、オンデバイス AI がバックグラウンドで働く積極さ。";
+"settings.ai.background.indexPower" = "索引の電力";
+"settings.ai.background.indexPower.desc" = "検索索引をどれだけ積極的に最新に保つか。省電力は約1日に1度だけ更新を確認しバックグラウンド処理はほぼなし、高消費電力は変更後ほぼリアルタイムで更新します。遅くても問題なく、即時性より省電力を優先します。";
+"settings.ai.background.indexPower.saver" = "省電力";
+"settings.ai.background.indexPower.normal" = "標準";
+"settings.ai.background.indexPower.highPower" = "高消費電力";
 "settings.ai.background.level.off" = "オフ";
 "settings.ai.background.level.powerSaver" = "省電力";
 "settings.ai.background.level.balanced" = "バランス";

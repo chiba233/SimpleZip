@@ -2642,6 +2642,11 @@
 "settings.ai.background.section" = "后台发现与索引";
 "settings.ai.background.activityLevel" = "本地 AI 活跃度";
 "settings.ai.background.activityLevel.desc" = "Mac 空闲时,本地 AI 在后台工作的积极程度。";
+"settings.ai.background.indexPower" = "索引电源";
+"settings.ai.background.indexPower.desc" = "搜索索引保持最新的积极程度。省电:约一天才检查一次更新,后台几乎不动;高耗能:改动后近实时更新。慢一点没关系 —— 优先省电省资源,而非即时最新。";
+"settings.ai.background.indexPower.saver" = "省电";
+"settings.ai.background.indexPower.normal" = "普通";
+"settings.ai.background.indexPower.highPower" = "高耗能";
 "settings.ai.background.level.off" = "关闭";
 "settings.ai.background.level.powerSaver" = "省电";
 "settings.ai.background.level.balanced" = "平衡";

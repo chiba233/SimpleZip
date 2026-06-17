@@ -2563,6 +2563,11 @@
 "settings.ai.background.section" = "Hintergrunderkennung & Indizierung";
 "settings.ai.background.activityLevel" = "Aktivität der lokalen KI";
 "settings.ai.background.activityLevel.desc" = "Wie aktiv die lokale KI im Hintergrund arbeitet, wenn dein Mac inaktiv ist.";
+"settings.ai.background.indexPower" = "Indexierungsleistung";
+"settings.ai.background.indexPower.desc" = "Wie aktiv der Suchindex aktuell gehalten wird. Energiesparen prüft etwa einmal täglich auf Änderungen mit minimaler Hintergrundarbeit; Hohe Leistung aktualisiert nahezu in Echtzeit. Langsamer ist in Ordnung – geringer Energieverbrauch hat Vorrang vor sofortiger Aktualität.";
+"settings.ai.background.indexPower.saver" = "Energiesparen";
+"settings.ai.background.indexPower.normal" = "Normal";
+"settings.ai.background.indexPower.highPower" = "Hohe Leistung";
 "settings.ai.background.level.off" = "Aus";
 "settings.ai.background.level.powerSaver" = "Energiesparen";
 "settings.ai.background.level.balanced" = "Ausgewogen";

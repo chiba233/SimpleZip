@@ -2561,6 +2561,11 @@
 "settings.ai.background.section" = "Découverte et indexation en arrière-plan";
 "settings.ai.background.activityLevel" = "Activité de l'IA locale";
 "settings.ai.background.activityLevel.desc" = "À quel point l'IA locale travaille en arrière-plan lorsque votre Mac est inactif.";
+"settings.ai.background.indexPower" = "Énergie d'indexation";
+"settings.ai.background.indexPower.desc" = "À quel point l'index de recherche est tenu à jour. Économie d'énergie vérifie les changements environ une fois par jour avec un travail en arrière-plan minimal ; Hautes performances met à jour quasiment en temps réel. Plus lent convient : la faible consommation prime sur la fraîcheur immédiate.";
+"settings.ai.background.indexPower.saver" = "Économie d'énergie";
+"settings.ai.background.indexPower.normal" = "Normal";
+"settings.ai.background.indexPower.highPower" = "Hautes performances";
 "settings.ai.background.level.off" = "Désactivé";
 "settings.ai.background.level.powerSaver" = "Économie d'énergie";
 "settings.ai.background.level.balanced" = "Équilibré";
