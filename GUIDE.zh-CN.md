@@ -180,8 +180,8 @@ gz / bz2 / xz，并以只读方式打开 `tar.zst`、ISO、CAB、CPIO 和安装�
 
 1. 从 [Releases](https://github.com/chiba233/SimpleZip/releases) **下载**最新
    DMG，把 **SimpleZip** 拖进「应用程序」。
-2. **首次打开：** 右键 App → **打开**（SimpleZip 是 ad-hoc 签名，macOS 第一次
-   会要确认——见下面的*值得知道*）。
+2. **首次打开：** 双击 App 即可——已通过 Developer ID 签名和公证，Gatekeeper
+   直接放行。
 3. 一个简短的**欢迎助手**带你过几个偏好设置、确认压缩引擎就绪。全都可以跳过，
    以后再改。
 
@@ -257,8 +257,8 @@ SimpleZip 提供两个建立在标准 GPG/OpenPGP 之上的选项：
 
 ## 💡 值得知道
 
-- SimpleZip 是 **ad-hoc 签名**（单人维护项目，还没买 Developer ID 公证）。
-  首次启动需要右键 → **打开**；之后正常双击。Developer ID 签名在路线图上。
+- SimpleZip 已通过 **Developer ID 签名并公证** —— 首次启动无需右键打开，
+  Gatekeeper 直接放行。
 - 它**有意不开沙盒** —— 文件管理器要挂磁盘镜像、跑压缩引擎、接受全盘拖放。
 - 官方 7-Zip 引擎**内置** —— ZIP/7z/TAR 等开箱即用，什么都不用装。GPG 和
   RAR 创建是可选附加组件。

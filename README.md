@@ -221,8 +221,8 @@ on the official 7-Zip engine, which ships inside the app.
 1. **Download** the latest DMG from
    [Releases](https://github.com/chiba233/SimpleZip/releases) and drag
    **SimpleZip** into your Applications folder.
-2. **First open:** right-click the app → **Open** (SimpleZip is ad-hoc signed,
-   so macOS asks for confirmation the first time — see *Good to know* below).
+2. **First open:** double-click the app — it's Developer ID signed and notarized,
+   so Gatekeeper lets it through.
 3. A short **Welcome Assistant** walks you through a few preferences and checks
    that the archive engine is ready. You can skip anything and change it later.
 
@@ -318,9 +318,8 @@ that. The full cryptographic design and threat model live in
 
 ## 💡 Good to know
 
-- SimpleZip is **ad-hoc signed** (a single-maintainer project, not yet notarized
-  with a paid Developer ID). The first launch needs right-click → **Open**;
-  after that it opens normally. Developer ID signing is on the roadmap.
+- SimpleZip is **Developer ID signed and notarized** — Gatekeeper passes it
+  through on first launch, no right-click workaround needed.
 - It is **not sandboxed** on purpose — a file manager needs to mount disk
   images, run the archive engine, and accept drag-and-drop across your disk.
 - The official 7-Zip engine is **bundled** — ZIP/7z/TAR/etc. work out of the

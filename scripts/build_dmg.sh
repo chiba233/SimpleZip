@@ -14,8 +14,8 @@ APP_NAME="SimpleZip"
 APP_PATH="$DERIVED_DATA_PATH/Build/Products/$CONFIGURATION/$APP_NAME.app"
 STAGING_DIR="$DERIVED_DATA_PATH/dmg-staging"
 
-if [[ -n "$RELEASE_VERSION" && ! "$RELEASE_VERSION" =~ ^[0-9]+(\.[0-9]+){1,2}$ ]]; then
-  echo "RELEASE_VERSION must look like 0.1.0 or 1.2" >&2
+if [[ -n "$RELEASE_VERSION" && ! "$RELEASE_VERSION" =~ ^[0-9]+(\.[0-9]+){1,2}(-(beta|rc)\.[0-9]+)?$ ]]; then
+  echo "RELEASE_VERSION must look like 0.1.0, 1.2, or 0.1.0-beta.1" >&2
   exit 1
 fi
 
