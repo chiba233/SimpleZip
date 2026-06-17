@@ -30,8 +30,8 @@ struct DevToolsView: View {
     @State private var aiArchiveMemoryStatus = "…"
     @State private var aiSpotlightStatus = "…"
     @State private var aiBackgroundIndexStatus = "…"
-    @State private var aiWorkspaceStatus = "…"
-    @State private var aiWorkspaceReviewStatus = "…"
+    /// AI 建议各 pass 的产物计数(摘要 / 打开方式 / 装App / 活动 / 包内),让「pass 到底有没有生效」可查。
+    @State private var aiSuggestionStatus = "…"
     @State private var aiActivityTasksStatus = "…"
 
     private var appVersionLine: String {
@@ -173,16 +173,8 @@ struct DevToolsView: View {
                         infoRow("archivebox", L10n.text("devtools.aiData.archiveMemory"), aiArchiveMemoryStatus)
                         infoRow("magnifyingglass", L10n.text("devtools.aiData.spotlight"), aiSpotlightStatus)
                         infoRow("folder.badge.gearshape", L10n.text("devtools.aiData.backgroundIndex"), aiBackgroundIndexStatus)
-                        infoRow("rectangle.3.group.bubble", L10n.text("devtools.aiData.workspaces"), aiWorkspaceStatus)
-                        infoRow("checklist.checked", "复核诊断", aiWorkspaceReviewStatus)
+                        infoRow("text.bubble", "AI 建议产物", aiSuggestionStatus)
                         infoRow("clock.badge.checkmark", L10n.text("devtools.aiData.activityTasks"), aiActivityTasksStatus)
-                        actionRow(
-                            "doc.on.clipboard",
-                            L10n.text("devtools.action.copyAIWorkspaceFacts"),
-                            L10n.text("devtools.action.copyAIWorkspaceFacts.detail")
-                        ) {
-                            copyAIWorkspaceFacts()
-                        }
                         actionRow(
                             "doc.on.clipboard",
                             L10n.text("devtools.action.copyAIIndexData"),
@@ -414,25 +406,13 @@ struct DevToolsView: View {
                 "\(snapshot.backgroundIndex.indexedFileCount)",
                 "\(snapshot.backgroundIndex.folderProfileCount)"
             )
-            // 预读诊断(临时探针,和「复核诊断」同款):内容摘要条数 + 内容预读是否开。稳定后删。
+            // 内容摘要总数 + 内容预读是否开(预读没开则各 pass 都不会跑)。
             + " · 内容摘要 \(snapshot.backgroundIndex.contentSummaryCount)"
             + "(预读\(snapshot.backgroundIndex.contentPrereadEnabled ? "开" : "关"))"
-            aiWorkspaceStatus = L10n.format(
-                "devtools.aiData.workspaces.value",
-                "\(snapshot.workspaces.visible)",
-                "\(snapshot.workspaces.total)",
-                "\(snapshot.workspaces.recommended)",
-                "\(snapshot.workspaces.userCreated)",
-                "\(snapshot.workspaces.hiddenCandidates)",
-                "\(snapshot.workspaces.approvedReviews)",
-                "\(snapshot.workspaces.reviewsInFlight)"
-            )
-            // 临时诊断探针(查「为什么 0 通过」):发起 vs 报错/判否/kept少/通过;发起−四者=仍在飞(卡住)。
-            let w = snapshot.workspaces
-            aiWorkspaceReviewStatus = "复核 发\(w.reviewDispatched)"
-                + " 报错\(w.reviewThrew) 过期\(w.reviewExpired) 判否\(w.reviewUnworthy)"
-                + " kept少\(w.reviewThin) 通过\(w.reviewApproved)"
-                + " · 上次 组\(w.reviewLastGroups)/留\(w.reviewLastKept)"
+            // AI 建议各 pass 的实际产物计数 —— 一眼看出每个 pass 有没有生效(0 = 还没出 / 没候选 / 没开)。
+            let s = snapshot.backgroundIndex
+            aiSuggestionStatus = "摘要 \(s.summaryCount) · 打开方式 \(s.openWithCount) · 装App \(s.installCount)"
+                + " · 活动 \(s.activityCount) · 包内 \(s.archiveEntryCount)"
             aiActivityTasksStatus = L10n.format(
                 "devtools.aiData.activityTasks.value",
                 "\(snapshot.activityTasks.active)",
@@ -471,11 +451,15 @@ struct DevToolsView: View {
         let backgroundStore = AIBackgroundIndexStore.shared
         let budget = backgroundStore.budget
         let index = backgroundStore.fileIndex
-        let workspaceCounts = AIWorkspaceStore.shared.debugCounts
         let allTasks = TaskCenter.shared.active + TaskCenter.shared.history
         let taskRecords = allTasks.map(\.aiTaskRecord)
         let workbench = ActivityAIWorkbenchBuilder.snapshot(records: taskRecords)
-        let systemWorkspaceFacts = aiWorkspaceFactsSnapshots(tasks: allTasks, cachedArchives: archiveProbe.entries)
+        // AI 建议各 pass 的产物计数:看每个 pass 有没有生效。
+        let records = index.records
+        func countAction(_ token: String) -> Int {
+            records.reduce(0) { $0 + (($1.contentSummary?.suggestedActions.contains { $0.token == token } ?? false) ? 1 : 0) }
+        }
+        let summaryCount = records.reduce(0) { $0 + (($1.contentSummary?.shortSummary?.isEmpty == false) ? 1 : 0) }
 
         return DevToolsAIDataSnapshot(
             generatedAt: Date(),
@@ -493,7 +477,12 @@ struct DevToolsView: View {
                 folderPreindexEnabled: backgroundStore.folderPreindexEnabled,
                 archivePrefetchEnabled: backgroundStore.archivePrefetchEnabled,
                 contentPrereadEnabled: backgroundStore.contentPrereadEnabled,
-                contentSummaryCount: index.records.reduce(0) { $0 + ($1.contentSummary != nil ? 1 : 0) },
+                contentSummaryCount: records.reduce(0) { $0 + ($1.contentSummary != nil ? 1 : 0) },
+                summaryCount: summaryCount,
+                openWithCount: countAction("openWith"),
+                installCount: countAction("dragToApplications"),
+                activityCount: countAction("openTask"),
+                archiveEntryCount: countAction("revealArchiveEntry"),
                 activityLevel: AppPreferences.aiBackgroundActivityLevel.rawValue,
                 scopeCount: backgroundStore.scopes.count,
                 indexedFileCount: index.fileCount,
@@ -507,35 +496,12 @@ struct DevToolsView: View {
                     )
                 }
             ),
-            workspaces: DevToolsAIDataSnapshot.Workspaces(workspaceCounts),
             activityTasks: DevToolsAIDataSnapshot.ActivityTasks(
                 active: TaskCenter.shared.active.count,
                 history: TaskCenter.shared.history.count,
                 workbench: workbench
-            ),
-            systemWorkspaceFacts: systemWorkspaceFacts
+            )
         )
-    }
-
-    private func copyAIWorkspaceFacts() {
-        Task { @MainActor in
-            do {
-                let snapshot = await makeAIDataSnapshot()
-                let encoder = JSONEncoder()
-                encoder.dateEncodingStrategy = .iso8601
-                encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-                let data = try encoder.encode(snapshot)
-                guard let text = String(data: data, encoding: .utf8) else {
-                    flash(L10n.format("devtools.feedback.aiWorkspaceFactsFailed", "UTF-8"))
-                    return
-                }
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(text, forType: .string)
-                flash(L10n.text("devtools.feedback.aiWorkspaceFactsCopied"))
-            } catch {
-                flash(L10n.format("devtools.feedback.aiWorkspaceFactsFailed", error.localizedDescription))
-            }
-        }
     }
 
     private func copyAIIndexData() {
@@ -570,17 +536,6 @@ struct DevToolsView: View {
             scopes: store.scopes.map(DevToolsAIIndexDataSnapshot.Scope.init),
             fileIndex: store.fileIndex
         )
-    }
-
-    private func aiWorkspaceFactsSnapshots(
-        tasks: [OperationTask],
-        cachedArchives: [ArchiveListingCacheEntry]
-    ) -> [AISystemWorkspaceFactsSnapshot] {
-        let tasks = tasks.map { $0.aiWorkspaceFact }
-        let archives = cachedArchives.map { $0.aiWorkspaceFact }
-        return AISystemWorkspaceKind.allCases.map {
-            AISystemWorkspaceFactsBuilder.snapshot(kind: $0, tasks: tasks, archives: archives)
-        }
     }
 
     private func flash(_ text: String) {
@@ -632,56 +587,18 @@ private nonisolated struct DevToolsAIDataSnapshot: Encodable {
         let archivePrefetchEnabled: Bool
         let contentPrereadEnabled: Bool
         let contentSummaryCount: Int
+        // AI 建议各 pass 的产物计数(看每个 pass 有没有生效)。
+        let summaryCount: Int
+        let openWithCount: Int
+        let installCount: Int
+        let activityCount: Int
+        let archiveEntryCount: Int
         let activityLevel: String
         let scopeCount: Int
         let indexedFileCount: Int
         let folderProfileCount: Int
         let maxIndexedFiles: Int
         let budget: Budget?
-    }
-
-    nonisolated struct Workspaces: Encodable {
-        let visible: Int
-        let total: Int
-        let recommended: Int
-        let userCreated: Int
-        let hiddenCandidates: Int
-        let approvedReviews: Int
-        let reviewsInFlight: Int
-        let hidden: Int
-        let dismissed: Int
-        let pinned: Int
-        let described: Int
-        let reviewDispatched: Int
-        let reviewThrew: Int
-        let reviewExpired: Int
-        let reviewUnworthy: Int
-        let reviewThin: Int
-        let reviewApproved: Int
-        let reviewLastGroups: Int
-        let reviewLastKept: Int
-
-        init(_ counts: AIWorkspaceStore.DebugCounts) {
-            self.visible = counts.visible
-            self.total = counts.total
-            self.recommended = counts.recommended
-            self.userCreated = counts.userCreated
-            self.hiddenCandidates = counts.hiddenCandidates
-            self.approvedReviews = counts.approvedReviews
-            self.reviewsInFlight = counts.reviewsInFlight
-            self.hidden = counts.hidden
-            self.dismissed = counts.dismissed
-            self.pinned = counts.pinned
-            self.described = counts.described
-            self.reviewDispatched = counts.reviewDispatched
-            self.reviewThrew = counts.reviewThrew
-            self.reviewExpired = counts.reviewExpired
-            self.reviewUnworthy = counts.reviewUnworthy
-            self.reviewThin = counts.reviewThin
-            self.reviewApproved = counts.reviewApproved
-            self.reviewLastGroups = counts.reviewLastGroups
-            self.reviewLastKept = counts.reviewLastKept
-        }
     }
 
     nonisolated struct ActivityTasks: Encodable {
@@ -712,9 +629,7 @@ private nonisolated struct DevToolsAIDataSnapshot: Encodable {
     let archiveMemory: ArchiveMemory
     let spotlight: Spotlight
     let backgroundIndex: BackgroundIndex
-    let workspaces: Workspaces
     let activityTasks: ActivityTasks
-    let systemWorkspaceFacts: [AISystemWorkspaceFactsSnapshot]
 }
 
 private nonisolated struct DevToolsAIIndexDataSnapshot: Encodable {
