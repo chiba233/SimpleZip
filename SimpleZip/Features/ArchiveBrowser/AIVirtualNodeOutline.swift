@@ -198,33 +198,16 @@ struct AIVirtualNodeOutline: NSViewRepresentable {
                 && store.nodeIsAISuggested(workspaceID: workspaceID, refs: node.sourceRefs)
             let removed = !node.sourceRefs.isEmpty
                 && store.nodeIsAutoRemoved(workspaceID: workspaceID, refs: node.sourceRefs)
-            let cell = makeTableCell(in: outlineView, owner: self, identifier: "ai.node",
-                                     text: node.title, isPrimaryColumn: true,
-                                     icon: Self.symbol(Self.symbolName(node.kind), tint: Self.tint(node.kind)),
-                                     iconSize: 17)
             // 名字 + **来源目录**(很多文件同名如 README.md,必须显示在哪个目录才分得清)+ AI 角标。tooltip 给全路径。
-            let parent = Self.parentDisplay(node)
+            // 用 `AINodeCellView`:多段富文本要跟随选中高亮反色(选中行变深时文字/图标转白,不再深底深字看不清)。
+            let cellID = NSUserInterfaceItemIdentifier("ai.node.v2")
+            let cell = (outlineView.makeView(withIdentifier: cellID, owner: self) as? AINodeCellView) ?? AINodeCellView()
+            cell.identifier = cellID
             cell.toolTip = removed ? L10n.text("aiWorkspace.removed.reason")
                 : (Self.resolvedPath(node) ?? (suggested ? L10n.text("aiWorkspace.node.aiSuggested") : node.reason))
-            if let textField = cell.textField {
-                textField.lineBreakMode = .byTruncatingMiddle
-                let baseColor: NSColor = removed ? .secondaryLabelColor : .labelColor
-                let s = NSMutableAttributedString(string: node.title, attributes: [.foregroundColor: baseColor])
-                if let parent {
-                    s.append(NSAttributedString(string: "   " + parent,
-                        attributes: [.foregroundColor: NSColor.secondaryLabelColor,
-                                     .font: NSFont.systemFont(ofSize: 11)]))
-                }
-                if removed {
-                    s.append(NSAttributedString(string: "   " + L10n.text("aiWorkspace.removed.badge"),
-                        attributes: [.foregroundColor: NSColor.systemOrange,
-                                     .font: NSFont.systemFont(ofSize: 11)]))
-                }
-                if suggested {
-                    s.append(NSAttributedString(string: "  ✦", attributes: [.foregroundColor: NSColor.controlAccentColor]))
-                }
-                textField.attributedStringValue = s
-            }
+            cell.configure(title: node.title, parent: Self.parentDisplay(node),
+                           iconName: Self.symbolName(node.kind), kindTint: Self.tint(node.kind),
+                           removed: removed, suggested: suggested)
             return cell
         }
 
@@ -433,5 +416,85 @@ struct AIVirtualNodeOutline: NSViewRepresentable {
             case .automation: return .systemMint
             }
         }
+    }
+}
+
+/// AI 节点行的 cell:标题 + 来源目录 + 角标(✦ / 已移除)是多段富文本,**必须跟随选中高亮反色** ——
+/// 选中行背景变深时,文字和图标转成选中前景色(白),否则深底深字 + 深图标全看不清。
+/// FileTable 的 `makeTableCell` 走 `textField.textColor`,NSTableCellView 会自动反色;这里因为要多段着色
+/// 只能用 attributedString,得自己在 `backgroundStyle` 变化时重绘。
+private final class AINodeCellView: NSTableCellView {
+    private var titleText = ""
+    private var parentText: String?
+    private var iconName = "doc.fill"
+    private var kindTint: NSColor = .systemGray
+    private var removed = false
+    private var suggested = false
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        let image = NSImageView()
+        let label = NSTextField(labelWithString: "")
+        image.translatesAutoresizingMaskIntoConstraints = false
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.lineBreakMode = .byTruncatingMiddle
+        addSubview(image)
+        addSubview(label)
+        imageView = image
+        textField = label
+        NSLayoutConstraint.activate([
+            image.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 4),
+            image.centerYAnchor.constraint(equalTo: centerYAnchor),
+            image.widthAnchor.constraint(equalToConstant: 17),
+            image.heightAnchor.constraint(equalToConstant: 17),
+            label.leadingAnchor.constraint(equalTo: image.trailingAnchor, constant: 6),
+            label.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -4),
+            label.centerYAnchor.constraint(equalTo: centerYAnchor)
+        ])
+    }
+
+    required init?(coder: NSCoder) { super.init(coder: coder) }
+
+    func configure(title: String, parent: String?, iconName: String,
+                   kindTint: NSColor, removed: Bool, suggested: Bool) {
+        self.titleText = title
+        self.parentText = parent
+        self.iconName = iconName
+        self.kindTint = kindTint
+        self.removed = removed
+        self.suggested = suggested
+        applyStyle()
+    }
+
+    override var backgroundStyle: NSView.BackgroundStyle {
+        didSet { applyStyle() }
+    }
+
+    private func applyStyle() {
+        let emphasized = backgroundStyle == .emphasized
+        let selectedFG = NSColor.alternateSelectedControlTextColor
+        let base: NSColor = removed
+            ? (emphasized ? selectedFG.withAlphaComponent(0.7) : .secondaryLabelColor)
+            : (emphasized ? selectedFG : .labelColor)
+        let secondary: NSColor = emphasized ? selectedFG.withAlphaComponent(0.75) : .secondaryLabelColor
+        let s = NSMutableAttributedString(string: titleText, attributes: [.foregroundColor: base])
+        if let parentText {
+            s.append(NSAttributedString(string: "   " + parentText,
+                attributes: [.foregroundColor: secondary, .font: NSFont.systemFont(ofSize: 11)]))
+        }
+        if removed {
+            s.append(NSAttributedString(string: "   " + L10n.text("aiWorkspace.removed.badge"),
+                attributes: [.foregroundColor: emphasized ? selectedFG : NSColor.systemOrange,
+                             .font: NSFont.systemFont(ofSize: 11)]))
+        }
+        if suggested {
+            s.append(NSAttributedString(string: "  ✦",
+                attributes: [.foregroundColor: emphasized ? selectedFG : NSColor.controlAccentColor]))
+        }
+        textField?.attributedStringValue = s
+        let tint = emphasized ? selectedFG : kindTint
+        let cfg = NSImage.SymbolConfiguration(paletteColors: [tint])
+        imageView?.image = NSImage(systemSymbolName: iconName, accessibilityDescription: nil)?
+            .withSymbolConfiguration(cfg)
     }
 }
