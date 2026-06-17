@@ -157,8 +157,15 @@ struct AIWorkspaceView: View {
                     .buttonStyle(.borderless).help(L10n.text("sidebar.ai.refreshWorkspace"))
             }
             if ws.origin == .recommended {
+                // 关闭(X)= 不感兴趣:写衰减抑制账本,同类主题以后降权。
                 Button { store.dismissRecommended(workspaceID) } label: { Image(systemName: "xmark.circle") }
                     .buttonStyle(.borderless).help(L10n.text("sidebar.ai.dismissRecommended"))
+                // 中性移除:只是想把它从列表去掉、并非不喜欢 → 不写抑制账本,AI 之后仍可再次推荐。
+                Button { store.hide(workspaceID) } label: { Image(systemName: "minus.circle") }
+                    .buttonStyle(.borderless).help(L10n.text("sidebar.ai.hideWorkspace"))
+            } else if ws.origin == .userCreated {
+                Button(role: .destructive) { store.removeUserWorkspace(workspaceID) } label: { Image(systemName: "trash") }
+                    .buttonStyle(.borderless).help(L10n.text("sidebar.ai.deleteWorkspace"))
             }
         }
         .padding(.horizontal, 16).padding(.vertical, 12)
