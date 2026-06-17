@@ -275,6 +275,9 @@ struct FileNSOutlineView: NSViewRepresentable {
         // 上次真正 reloadData 时的「内容指纹」。选区变化不改它 → 跳过 reload，避免橡皮筋复选时闪烁 / 抽搐。
         private var lastContentSignature: Int?
         private var menuGroupFileItems: [FileItem] = []
+        /// 右键 AI 建议行时暂存的派发动作 + 「我不喜欢」抑制 key(菜单项点击时用)。
+        private var menuDrawerAction: AISuggestionAction?
+        private var menuDrawerDislikeKey: String?
 
         init(model: ArchiveBrowserModel) {
             self.model = model
@@ -1051,6 +1054,11 @@ struct FileNSOutlineView: NSViewRepresentable {
                 appendSectionMenu(to: menu, for: clickedNode)
                 return
             }
+            // AI 建议行(动作 / 摘要):**自己的**两项右键菜单「打开 / 我不喜欢」,不落到空白区菜单。
+            if let clickedNode = clickedItem as? FileOutlineNode, clickedNode.isDrawerRow {
+                appendAISuggestionMenu(to: menu, for: clickedNode)
+                return
+            }
             // `.gpg` / `.szs` 解密出的是**临时只读内容**（manifestVirtualMode）。像浏览压缩包内容一样受限：
             // 不提供任何会改动 / 删除临时内容的操作（新建 / 粘贴 / 重命名 / 副本 / 符号链接 / 剪切 / 移动 / 删除），
             // 也不提供「压缩 / 签名 / 加密」这类完整文件管理项 —— 只留查看、导出、校验。
@@ -1290,6 +1298,41 @@ struct FileNSOutlineView: NSViewRepresentable {
         private func fileItems(in node: FileOutlineNode) -> [FileItem] {
             if let item = node.fileItem { return [item] }
             return node.children.flatMap(fileItems(in:))
+        }
+
+        /// AI 建议行的两项右键菜单:动作行 =「打开 + 我不喜欢」;摘要行 =「我不喜欢」(摘要无动作)。
+        /// 「我不喜欢」**逐条**抑制(动作行用建议自带 key;摘要行用父文件的摘要 key),绝不全局封类。
+        private func appendAISuggestionMenu(to menu: NSMenu, for node: FileOutlineNode) {
+            menuDrawerAction = node.suggestionAction?.action
+            menuDrawerDislikeKey = node.suggestionAction?.dislikeKey ?? summaryDislikeKey(forDrawerNode: node)
+            if menuDrawerAction != nil {
+                menu.addItem(menuItem(L10n.text("button.open"), systemImage: "arrow.turn.up.right",
+                                      action: #selector(openAISuggestion)))
+            }
+            let dislike = menuItem(L10n.text("aiSuggestion.menu.dislike"), systemImage: "hand.thumbsdown",
+                                   action: #selector(dislikeAISuggestion))
+            dislike.isEnabled = menuDrawerDislikeKey != nil
+            menu.addItem(dislike)
+        }
+
+        /// 摘要行的抑制 key:从 outline 父项(该文件行)回查 recordID → 摘要 key。非摘要行 / 查不到 → nil。
+        private func summaryDislikeKey(forDrawerNode node: FileOutlineNode) -> String? {
+            guard node.summaryText != nil, let outlineView,
+                  let parent = outlineView.parent(forItem: node) as? FileOutlineNode,
+                  let path = parent.fileItem?.url.path,
+                  let record = AIBackgroundIndexStore.shared.record(forPath: path) else { return nil }
+            return AIBackgroundIndexStore.summaryDislikeKey(recordID: record.id)
+        }
+
+        @objc private func openAISuggestion() {
+            guard let action = menuDrawerAction else { return }
+            model.dispatchSuggestion(action)
+        }
+
+        @objc private func dislikeAISuggestion() {
+            guard let key = menuDrawerDislikeKey else { return }
+            AIBackgroundIndexStore.shared.dislikeSuggestion(key)
+            refreshBrowser()   // reload → fileBrowserDrawer 过滤掉这条(其余建议照常)
         }
 
         @objc func doubleClick(_ sender: NSOutlineView) {

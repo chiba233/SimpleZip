@@ -1074,6 +1074,7 @@
 
 /* 0.2.1 — 主窗口右键「打开方式」 */
 "file.openWith" = "このアプリケーションで開く";
+"aiSuggestion.menu.dislike" = "好みではない";
 "file.openWith.default" = "%@（デフォルト）";
 "file.openWith.other" = "その他…";
 

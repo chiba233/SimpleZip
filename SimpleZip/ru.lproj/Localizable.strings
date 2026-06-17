@@ -1074,6 +1074,7 @@
 
 /* 0.2.1 — 主窗口右键「打开方式」 */
 "file.openWith" = "Открыть в программе";
+"aiSuggestion.menu.dislike" = "Не нравится";
 "file.openWith.default" = "%@ (по умолчанию)";
 "file.openWith.other" = "Другая…";
 

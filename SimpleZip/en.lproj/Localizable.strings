@@ -2374,6 +2374,7 @@
 
 /* 0.2.1 — 主窗口右键「打开方式」 */
 "file.openWith" = "Open With";
+"aiSuggestion.menu.dislike" = "I don't like this";
 "file.openWith.default" = "%@ (default)";
 "file.openWith.other" = "Other…";
 

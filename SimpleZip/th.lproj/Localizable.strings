@@ -1074,6 +1074,7 @@
 
 /* 0.2.1 — 主窗口右键「打开方式」 */
 "file.openWith" = "เปิดด้วย";
+"aiSuggestion.menu.dislike" = "ไม่ชอบ";
 "file.openWith.default" = "%@ (ค่าเริ่มต้น)";
 "file.openWith.other" = "อื่น ๆ…";
 

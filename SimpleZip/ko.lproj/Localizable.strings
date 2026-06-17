@@ -1074,6 +1074,7 @@
 
 /* 0.2.1 — 主窗口右键「打开方式」 */
 "file.openWith" = "다음으로 열기";
+"aiSuggestion.menu.dislike" = "마음에 들지 않음";
 "file.openWith.default" = "%@ (기본)";
 "file.openWith.other" = "기타…";
 

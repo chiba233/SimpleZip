@@ -19,6 +19,8 @@ struct AIWorkspaceNodeAction: Identifiable {
     var displayTitle: String? = nil
     let systemImage: String
     let action: AISuggestionAction
+    /// 文件浏览器建议行右键「我不喜欢」抑制 key(`recordID│token│payload`)—— 逐条抑制,绝不全局封类。nil = AI 文件夹侧不支持。
+    var dislikeKey: String? = nil
     var id: String { displayTitle ?? titleKey }
 }
 
@@ -54,10 +56,17 @@ enum AIWorkspaceNodeActions {
               let content = record.contentSummary, content.hasModelSuggestion else { return nil }
         let path = item.url.path
         let kind = record.type == .archive ? "archive" : "file"
-        let actions = content.suggestedActions.compactMap {
-            fileAction($0, path: path, kind: kind, sourceRef: record.contextSourceRef)
+        let store = AIBackgroundIndexStore.shared
+        // 逐条过滤被「我不喜欢」嫌弃的建议(按 recordID│token│payload,只压这一条,其余照常)。
+        let actions = content.suggestedActions.compactMap { sugg -> AIWorkspaceNodeAction? in
+            let key = AIBackgroundIndexStore.dislikeKey(recordID: record.id, token: sugg.token, payload: sugg.payload)
+            guard !store.isSuggestionDisliked(key) else { return nil }
+            var node = fileAction(sugg, path: path, kind: kind, sourceRef: record.contextSourceRef)
+            node?.dislikeKey = key
+            return node
         }
-        let summary = (content.shortSummary?.isEmpty == false) ? content.shortSummary : nil
+        let summaryDisliked = store.isSuggestionDisliked(AIBackgroundIndexStore.summaryDislikeKey(recordID: record.id))
+        let summary = (!summaryDisliked && content.shortSummary?.isEmpty == false) ? content.shortSummary : nil
         guard summary != nil || !actions.isEmpty else { return nil }
         return (summary, actions)
     }

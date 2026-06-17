@@ -28,13 +28,37 @@ final class AIBackgroundIndexStore: ObservableObject {
     /// `path → 记录` 缓存(文件浏览器每行 O(1) 查模型建议用)。fileIndex 变更后由 `didSet` 自动重建。
     private var recordByPath: [String: AIFileMemoryRecord] = [:]
 
+    /// 用户对 AI 建议「我不喜欢」的抑制 key 集合(右键「我不喜欢」加入)。文件浏览器抽屉据此过滤掉被嫌弃的建议。
+    /// 持久(派生数据,不进偏好备份)。
+    @Published private(set) var dislikedSuggestionKeys: Set<String>
+
     private let defaults: UserDefaults
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         self.scopes = AIBackgroundIndexStore.loadScopes(from: defaults)
         self.fileIndex = AIBackgroundIndexStore.loadIndex(from: defaults)
+        self.dislikedSuggestionKeys = AIBackgroundIndexStore.loadDislikedKeys(from: defaults)
         rebuildPathIndex()   // init 里的 fileIndex 赋值不触发 didSet,手动建一次
+    }
+
+    // MARK: - AI 建议「我不喜欢」抑制(右键反馈)
+
+    /// 一条建议的抑制 key:`recordID \n token \n payload`(payload 区分同 token 多条,如归档多个 revealArchiveEntry)。
+    nonisolated static func dislikeKey(recordID: String, token: String, payload: String?) -> String {
+        "\(recordID)\n\(token)\n\(payload ?? "")"
+    }
+
+    /// 一句话摘要行的抑制 key(整条摘要,不分 token)。
+    nonisolated static func summaryDislikeKey(recordID: String) -> String { "\(recordID)\n__summary__" }
+
+    func isSuggestionDisliked(_ key: String) -> Bool { dislikedSuggestionKeys.contains(key) }
+
+    /// 记一条「我不喜欢」→ 加入抑制集 + 落盘 + 通知(文件浏览器下次 reload 过滤掉它)。
+    func dislikeSuggestion(_ key: String) {
+        guard dislikedSuggestionKeys.insert(key).inserted else { return }
+        persistDislikedKeys()
+        objectWillChange.send()
     }
 
     /// 从当前 fileIndex 重建 `path → 记录` 缓存(只收带路径的记录;同路径取最近索引那条)。
@@ -231,6 +255,19 @@ final class AIBackgroundIndexStore: ObservableObject {
         if let data = try? JSONEncoder().encode(fileIndex) {
             defaults.set(data, forKey: AppPreferences.Key.aiFileMemoryIndexData)
         }
+    }
+
+    private func persistDislikedKeys() {
+        if let data = try? JSONEncoder().encode(Array(dislikedSuggestionKeys)) {
+            defaults.set(data, forKey: AppPreferences.Key.aiSuggestionDislikedKeys)
+        }
+    }
+
+    private static func loadDislikedKeys(from defaults: UserDefaults) -> Set<String> {
+        guard let data = defaults.data(forKey: AppPreferences.Key.aiSuggestionDislikedKeys),
+              let decoded = try? JSONDecoder().decode([String].self, from: data)
+        else { return [] }
+        return Set(decoded)
     }
 
     private static func loadScopes(from defaults: UserDefaults) -> [AIArchivePrefetchScope] {
