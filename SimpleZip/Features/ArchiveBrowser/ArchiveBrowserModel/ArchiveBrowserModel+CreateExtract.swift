@@ -369,6 +369,13 @@ extension ArchiveBrowserModel {
             title: title,
             kind: .compress,
             showsDetails: request.options.showDetails,
+            // #3 产物:无冲突 = 写到的 finalDestination;有替换 = 用户看到的是被替换的 existing。
+            successOutputURL: {
+                switch postCreate {
+                case .none: return finalDestination
+                case .replace(let existing), .replaceIfDifferent(let existing): return existing
+                }
+            },
             refreshOnSuccess: { [weak self] in
                 guard let self else { return }
                 // 临时产物已生成 → 按收尾动作原子替换 / 比哈希替换;无冲突则直接刷新。
@@ -1014,6 +1021,8 @@ extension ArchiveBrowserModel {
         startManagedArchiveTask(
             title: title,
             showsDetails: request.showDetails,
+            // #3 产物:解压落点(同名子文件夹或所选目录)。
+            successOutputURL: { finalDestination },
             refreshOnSuccess: { [weak self] in
                 guard let self else { return }
                 self.refreshVisibleFolder(request.destinationURL)
@@ -1460,6 +1469,8 @@ extension ArchiveBrowserModel {
         startManagedArchiveTask(
             title: title,
             showsDetails: request.showDetails,
+            // #3 产物:所选条目解压落点。
+            successOutputURL: { request.destinationURL },
             refreshOnSuccess: { [weak self] in
                 self?.refreshVisibleFolder(request.destinationURL)
             },

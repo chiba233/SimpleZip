@@ -203,6 +203,12 @@ extension ArchiveBrowserModel {
         /// 任务副标题(活动中心标题下那行;发布助手用它显示产物路径)。默认 nil = 老行为。
         detail: String? = nil,
         successStatus: String? = nil,
+        // AI 建议「文件有活动」(#3)的命脉:任务成功收尾时**解析真实产物 URL**,写进 `.succeeded(URL)` →
+        // 随历史持久化进 `ArchiveTaskSnapshot.outputPath` → 后台 pass 按产物路径精确反查「这个文件是哪个任务
+        // 产出的」。是**闭包**而非静态 URL,因为有些产物名要等操作跑完才定(gpg 解密的唯一化目标 / 加密结果 /
+        // 救援目录),闭包在成功分支于主 actor 求值,那时这些 `var` 已被操作填好。默认 nil = 无产物(读 / 测 / 就地
+        // 改类任务),保持老行为。**只产物侧传**(创建 / 解压 / 加密 / 发布 / 救援),别全塞。
+        successOutputURL: (() -> URL?)? = nil,
         refreshOnSuccess: (() -> Void)? = nil,
         // 成功后、归档进历史前的钩子 —— 给调用方往任务上挂「逐文件结果」(transferLog) / detail，
         // 让活动中心展开后有「新增 N 项」那样的密度（加密 / 创建签名清单用）。默认 nil = 老行为不变。
@@ -315,7 +321,8 @@ extension ArchiveBrowserModel {
                 detailsOutput.flushNow()
                 detailsSession.finishedAt = Date()
                 onSucceeded?(operationTask)
-                taskCenter.finish(operationTask, outcome: .succeeded(nil))
+                // 产物 URL 此刻求值:操作已返回,产物名相关的 `var` 都已落定(#3「文件有活动」据此反查)。
+                taskCenter.finish(operationTask, outcome: .succeeded(successOutputURL?()))
                 if let successStatus {
                     status = successStatus
                 } else {

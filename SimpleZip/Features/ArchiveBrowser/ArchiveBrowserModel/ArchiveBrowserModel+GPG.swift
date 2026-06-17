@@ -122,6 +122,8 @@ extension ArchiveBrowserModel {
             kind: .extract,
             showsDetails: false,
             successStatus: nil,
+            // #3 产物:解密落盘后的明文文件(操作内唯一化定名,成功时 product 已填)。
+            successOutputURL: { product },
             refreshOnSuccess: { [weak self] in
                 guard let self, let product else { return }
                 self.status = L10n.format("status.gpgExtracted", product.lastPathComponent)
@@ -193,6 +195,8 @@ extension ArchiveBrowserModel {
             kind: .compress,
             showsDetails: false,
             successStatus: nil,
+            // #3 产物:首个加密产物 .gpg(批量时其余在 transferLog;命中精确反查用第一个即可)。
+            successOutputURL: { result?.produced.first },
             refreshOnSuccess: { [weak self] in
                 guard let self, let result, let first = result.produced.first else { return }
                 let produced = result.produced.count

@@ -558,6 +558,8 @@ extension ArchiveBrowserModel {
             // C:运行中活动中心直接可见产物完整路径。
             detail: outputURL.path,
             successStatus: L10n.format("releaseAssistant.done", outputURL.lastPathComponent),
+            // #3 产物:打出的发布归档(发布检查在它之上跑,outputURL 任务前已定)。
+            successOutputURL: { outputURL },
             refreshOnSuccess: { [weak self] in
                 guard let self else { return }
                 if request.runInspection {
@@ -740,6 +742,8 @@ extension ArchiveBrowserModel {
             kind: .extract,
             showsDetails: true,
             successStatus: nil,
+            // #3 产物:救援目录(操作内定名,成功时 outcome 已填)。
+            successOutputURL: { outcome?.destination },
             refreshOnSuccess: { [weak self] in
                 guard let self, let outcome else { return }
                 self.status = L10n.format("salvage.done", "\(outcome.rescuedFileCount)")

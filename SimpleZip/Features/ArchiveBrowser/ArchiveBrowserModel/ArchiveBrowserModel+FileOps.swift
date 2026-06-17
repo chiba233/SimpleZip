@@ -835,7 +835,8 @@ extension ArchiveBrowserModel {
                 // 撤销 = 把合并出来的文件移废纸篓；重做 = 移回。
                 self.registerCreateUndo([output], actionName: L10n.text("undo.action.combine"))
                 self.status = L10n.format("status.combined", output.lastPathComponent)
-                TaskCenter.shared.finish(operationTask, outcome: .succeeded(nil))
+                // #3 产物:合并出的单一文件(「文件有活动」据此反查)。
+                TaskCenter.shared.finish(operationTask, outcome: .succeeded(output))
                 SystemSound.operationComplete?.play()
                 self.reload()
             } catch is CancellationError {
