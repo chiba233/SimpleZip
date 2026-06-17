@@ -2604,6 +2604,7 @@
 "aiWorkspace.suggest.convert" = "Convertir l’archive";
 "aiWorkspace.suggest.openWith" = "Ouvrir avec %@";
 "aiWorkspace.suggest.install" = "Installer %@";
+"aiWorkspace.suggest.activity" = "Afficher dans le centre d’activité";
 "aiWorkspace.suggest.installGeneric" = "Installer l’app";
 "aiWorkspace.node.openArchive" = "Ouvrir l’archive";
 "aiWorkspace.node.openFolder" = "Ouvrir le dossier";

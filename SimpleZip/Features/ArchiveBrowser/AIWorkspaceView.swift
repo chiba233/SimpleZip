@@ -93,6 +93,11 @@ enum AIWorkspaceNodeActions {
                                                        : L10n.format("aiWorkspace.suggest.install", appName),
                          systemImage: "arrow.down.app",
                          action: .installAppFromDiskImage(diskImagePath: path, appName: rawAppName))
+        // 文件有活动:payload = 任务 UUID(模型措辞已作摘要行显示);点击走现成 .openTask 路由开活动中心定位(零新代码)。
+        case "openTask":
+            guard let payload = action.payload, let taskID = UUID(uuidString: payload) else { return nil }
+            return .init(titleKey: "aiWorkspace.suggest.activity", systemImage: "clock.arrow.circlepath",
+                         action: .openTask(taskID))
         default:        return nil
         }
     }

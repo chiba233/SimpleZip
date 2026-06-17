@@ -277,15 +277,38 @@ nonisolated struct AIFileContentSummary: Codable, Equatable, Sendable {
         try c.encode(redactionCount, forKey: .redactionCount)
     }
 
+    /// 单文件总结 pass 负责的动作 token(内容类 + openWith);别的 pass(活动 openTask、磁盘镜像 dragToApplications)
+    /// 写的动作不在此列,合并时要保留 —— 否则总结 pass 重写会把它们清掉。
+    static let summaryOwnedActionTokens: Set<String> = ["hash", "compress", "test", "inspect", "convert", "openWith"]
+
     /// 回填模型短摘要 + 结构化建议动作(②b/②c:近阈值文件由后台模型产出后写回,结构信号 / 元数据不变)。
+    /// **只替换本 pass 负责的动作**(`summaryOwnedActionTokens`),别的 pass 写的(openTask 活动 / dragToApplications)原样保留。
     func withModelSuggestion(summary: String?, actions: [AIFileSuggestedAction]) -> AIFileContentSummary {
-        AIFileContentSummary(mode: mode, languageHint: languageHint, headings: headings, fieldNames: fieldNames,
-                             shortSummary: summary, suggestedActions: actions, redactionCount: redactionCount)
+        let preserved = suggestedActions.filter { !AIFileContentSummary.summaryOwnedActionTokens.contains($0.token) }
+        return AIFileContentSummary(mode: mode, languageHint: languageHint, headings: headings, fieldNames: fieldNames,
+                                    shortSummary: summary, suggestedActions: preserved + actions,
+                                    redactionCount: redactionCount)
+    }
+
+    /// 合并一条带 payload 的单例动作(活动 openTask、磁盘镜像 dragToApplications…):按 token 去掉旧的、加上新的
+    /// (`action` 为 nil = 清掉),其它 pass 写的动作 + 摘要不动。给「活动链接」「磁盘镜像」等独立 pass 回填用。
+    func mergingSingletonAction(_ action: AIFileSuggestedAction?, replacingToken token: String,
+                                shortSummaryIfEmpty newSummary: String? = nil) -> AIFileContentSummary {
+        var actions = suggestedActions.filter { $0.token != token }
+        if let action { actions.append(action) }
+        let summary = (shortSummary?.isEmpty == false) ? shortSummary : newSummary
+        return AIFileContentSummary(mode: mode, languageHint: languageHint, headings: headings, fieldNames: fieldNames,
+                                    shortSummary: summary, suggestedActions: actions, redactionCount: redactionCount)
     }
 
     /// 是否已有模型产出(摘要或建议动作)→ 文件浏览器据此决定是否展示 AI 抽屉(都没有 = 空抽屉、不展开)。
     var hasModelSuggestion: Bool {
         (shortSummary?.isEmpty == false) || !suggestedActions.isEmpty
+    }
+
+    /// 取某 token 的建议动作(给「已有 openTask 指向同一任务就跳过」这类去重判断用)。
+    func action(forToken token: String) -> AIFileSuggestedAction? {
+        suggestedActions.first { $0.token == token }
     }
 }
 

@@ -712,11 +712,14 @@ nonisolated struct ArchiveTaskSnapshot: Identifiable, Sendable {
     let finishedAt: Date?
     let outcome: Outcome
     let failureMessage: String?
+    /// 成功任务的**产物路径**(`status.succeeded(URL)` 的 path,本就随历史持久化)。给 AI 建议「文件有活动」按
+    /// 产物路径精确反查「这个文件是哪个任务产出的」用 —— 复用喂 Spotlight 的同一份快照数据,不另存。nil = 无产物 / 非成功。
+    let outputPath: String?
 
     nonisolated init(
         id: UUID, category: OperationTask.Category, kind: OperationTask.Kind, source: OperationTask.Source,
         title: String, detail: String?, startedAt: Date, finishedAt: Date?,
-        outcome: Outcome, failureMessage: String?
+        outcome: Outcome, failureMessage: String?, outputPath: String? = nil
     ) {
         self.id = id
         self.category = category
@@ -728,6 +731,7 @@ nonisolated struct ArchiveTaskSnapshot: Identifiable, Sendable {
         self.finishedAt = finishedAt
         self.outcome = outcome
         self.failureMessage = failureMessage
+        self.outputPath = outputPath
     }
 
     /// 从一条**已收尾**的 `OperationTask` 直建快照(完成时增量索引 Spotlight 用)。
@@ -736,8 +740,9 @@ nonisolated struct ArchiveTaskSnapshot: Identifiable, Sendable {
     init?(task: OperationTask) {
         let outcome: Outcome
         var failure: String?
+        var output: String?
         switch task.status {
-        case .succeeded: outcome = .succeeded
+        case .succeeded(let url): outcome = .succeeded; output = url?.path
         case .skipped: outcome = .skipped
         case .failed(let message): outcome = .failed; failure = message
         case .cancelled: outcome = .cancelled
@@ -746,7 +751,7 @@ nonisolated struct ArchiveTaskSnapshot: Identifiable, Sendable {
         self.init(
             id: task.id, category: task.category, kind: task.kind, source: task.source,
             title: task.title, detail: task.detail, startedAt: task.startedAt,
-            finishedAt: task.finishedAt, outcome: outcome, failureMessage: failure
+            finishedAt: task.finishedAt, outcome: outcome, failureMessage: failure, outputPath: output
         )
     }
 }
@@ -774,8 +779,9 @@ nonisolated enum ActivityHistoryStore {
     private static func makeSnapshot(_ task: PersistedTask) -> ArchiveTaskSnapshot {
         let outcome: ArchiveTaskSnapshot.Outcome
         var failure: String?
+        var output: String?
         switch task.status {
-        case .succeeded: outcome = .succeeded
+        case .succeeded(let url): outcome = .succeeded; output = url?.path
         case .skipped: outcome = .skipped
         case .failed(let message): outcome = .failed; failure = message
         case .cancelled: outcome = .cancelled
@@ -790,7 +796,8 @@ nonisolated enum ActivityHistoryStore {
             startedAt: task.startedAt,
             finishedAt: task.finishedAt,
             outcome: outcome,
-            failureMessage: failure
+            failureMessage: failure,
+            outputPath: output
         )
     }
 }

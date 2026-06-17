@@ -112,6 +112,14 @@ struct GeneratedDiskImageSuggestion: Sendable {
     var suggestInstall: Bool
 }
 
+/// **「文件有活动」一句话提醒**的模型产出(backlog 第3项)。单字段,可靠。
+@available(macOS 26.0, *)
+@Generable
+struct GeneratedActivityReminder: Sendable {
+    @Guide(description: "ONE short, natural sentence reminding the owner of the recent action they took on this file and roughly when, so they know it has recent activity and can jump to it. Use ONLY the action and timeframe you were given; never invent extra detail. In the required language.")
+    var reminder: String
+}
+
 /// 动态核查产出:**明显不扣题**、该从文件夹移除的条目序号(保守 —— 拿不准就不列)。扁平单字段,可靠。
 @available(macOS 26.0, *)
 @Generable
@@ -301,6 +309,25 @@ enum AIVirtualFolderModelPlanner {
             instructions: instructions, prompt: prompt,
             as: GeneratedDiskImageSuggestion.self, maxAttempts: 8)
         return (generated.summary.trimmingCharacters(in: .whitespacesAndNewlines), generated.suggestInstall)
+    }
+
+    /// **「文件有活动」一句话提醒**(backlog 第3项,拒绝假AI)。一个文件被某任务产出(精确按产物路径匹配),让端上
+    /// 模型用一句自然话提醒用户「最近对它做过什么 + 大致何时」,好跳活动中心看。**动作描述 + 时间文本由 App 给**
+    /// (时间换算在代码做,模型不算时间);模型只把它们组织成界面语言的一句话。失败抛出由调用点吞掉。
+    static func activityReminder(fileName: String, actionText: String, whenText: String) async throws -> String {
+        let lang = AIReportAssistant.uiLanguageName
+        let instructions = """
+        LANGUAGE — MANDATORY: write the reminder in \(lang). Never use any other language for it, not even partially.
+
+        Inside a file manager, the owner recently ran an operation that produced ONE file. Write ONE short, natural \
+        sentence reminding them of that recent activity — what they did and roughly when — so they can jump to it in \
+        the activity history. Use ONLY the action and timeframe you are given; be concise and concrete; do not invent \
+        any extra detail and do not restate the file name verbatim.
+        """
+        let prompt = "File: \(fileName)\nRecent action: \(actionText)\nWhen: \(whenText)"
+        let generated = try await AIReportAssistant.generateStructured(
+            instructions: instructions, prompt: prompt, as: GeneratedActivityReminder.self, maxAttempts: 8)
+        return generated.reminder.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// **动态核查**:对一个已成型文件夹的成员,让模型挑出**明显不扣题**的(保守 —— 拿不准就留)。返回要移除的

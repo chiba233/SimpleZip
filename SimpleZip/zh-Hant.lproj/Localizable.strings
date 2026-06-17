@@ -2608,6 +2608,7 @@
 "aiWorkspace.suggest.convert" = "轉換歸檔";
 "aiWorkspace.suggest.openWith" = "用 %@ 打開";
 "aiWorkspace.suggest.install" = "安裝 %@";
+"aiWorkspace.suggest.activity" = "在活動中心查看";
 "aiWorkspace.suggest.installGeneric" = "安裝 App";
 "aiWorkspace.node.openArchive" = "打開歸檔";
 "aiWorkspace.node.openFolder" = "打開檔案夾";

@@ -2606,6 +2606,7 @@
 "aiWorkspace.suggest.convert" = "Конвертировать архив";
 "aiWorkspace.suggest.openWith" = "Открыть в %@";
 "aiWorkspace.suggest.install" = "Установить %@";
+"aiWorkspace.suggest.activity" = "Показать в Центре активности";
 "aiWorkspace.suggest.installGeneric" = "Установить приложение";
 "aiWorkspace.node.openArchive" = "Открыть архив";
 "aiWorkspace.node.openFolder" = "Открыть папку";

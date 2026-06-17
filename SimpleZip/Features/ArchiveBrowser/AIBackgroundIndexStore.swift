@@ -170,6 +170,26 @@ final class AIBackgroundIndexStore: ObservableObject {
         objectWillChange.send()
     }
 
+    /// **「文件有活动」建议**回填(backlog 第3项)。把「查看活动:〔模型措辞〕」动作(token `openTask`,
+    /// payload = 任务 UUID,label = 模型一句话措辞)**合并**进记录的 contentSummary —— 不动摘要 / 其它 pass 写的动作;
+    /// 记录没 contentSummary(归档等没预读)→ 建一条最小 `activity` 摘要承载。`taskID` 为 nil = 清掉活动动作。
+    /// 导航复用现成 `.openTask` 路由(Spotlight 同款),零新代码。落盘 + 通知。
+    func applyActivitySuggestion(recordID: String, taskID: UUID?, phrasing: String?) {
+        let clean = phrasing?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let hasPhrasing = clean?.isEmpty == false
+        let action: AIFileSuggestedAction? = taskID.map {
+            AIFileSuggestedAction(token: "openTask", payload: $0.uuidString, label: hasPhrasing ? clean : nil)
+        }
+        fileIndex = fileIndex.updatingRecord(id: recordID) { rec in
+            let base = rec.contentSummary ?? AIFileContentSummary(mode: "activity")
+            return rec.withContentSummary(
+                base.mergingSingletonAction(action, replacingToken: "openTask",
+                                            shortSummaryIfEmpty: hasPhrasing ? clean : nil))
+        }
+        persistIndex()
+        objectWillChange.send()
+    }
+
     /// source ref → 真实路径(给 AI 文件夹节点动作 + 显示来源目录用)。直接读持久记录的 `path`(非加密路径不是
     /// 风险,可落盘)→ 启动即可用,不必等重扫。ref 由记录的 `contextSourceRef` 派生 → 与候选 ref 一致。
     func pathsBySourceRef(limit: Int = 4_000) -> [AIContextSourceRef: String] {

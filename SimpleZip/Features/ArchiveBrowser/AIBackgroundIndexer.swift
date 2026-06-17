@@ -29,6 +29,8 @@ final class AIBackgroundIndexer {
     private var suggestionTask: Task<Void, Never>?
     private var diskImageRunning = false
     private var diskImageTask: Task<Void, Never>?
+    private var activityRunning = false
+    private var activityTask: Task<Void, Never>?
 
     /// 跑一轮预索引(门控未过则直接返回 —— 默认 opt-in 关闭即什么都不做)。完成后通知发现编排者刷新。
     func runIfEnabled() {
@@ -67,6 +69,7 @@ final class AIBackgroundIndexer {
                     AIBackgroundIndexer.shared.prereadArchivesIfEnabled()   // 元数据落盘后预读归档内容(门控未过则空跑)
                     AIBackgroundIndexer.shared.generateFileSuggestionsIfEnabled()   // 预读摘要落盘后,对近阈值文件出模型建议(门控未过则空跑)
                     AIBackgroundIndexer.shared.generateDiskImageSuggestionsIfEnabled()   // 对内含 App 的 dmg 出「安装到应用程序」建议(门控未过则空跑)
+                    AIBackgroundIndexer.shared.generateActivityLinkSuggestionsIfEnabled()   // 文件命中近期任务产物 → 出「查看活动」建议(门控未过则空跑)
                 }
                 AIBackgroundIndexer.shared.running = false
             }
@@ -78,6 +81,7 @@ final class AIBackgroundIndexer {
         archiveTask?.cancel(); archiveTask = nil; archiveRunning = false
         suggestionTask?.cancel(); suggestionTask = nil; suggestionRunning = false
         diskImageTask?.cancel(); diskImageTask = nil; diskImageRunning = false
+        activityTask?.cancel(); activityTask = nil; activityRunning = false
     }
 
     // MARK: - 内容预读 · 归档半边(MainActor:ArchiveService 在 app target 下 MainActor 隔离,A18)
@@ -235,6 +239,80 @@ final class AIBackgroundIndexer {
             if out.count >= 6 { break }
         }
         return out
+    }
+
+    // MARK: - 「文件有活动」建议(backlog 第3项;MainActor:读活动快照 + 模型 async)
+
+    /// 文件精确命中**近期成功任务的产物路径**(复用喂 Spotlight 的活动快照 `ArchiveTaskSnapshot.outputPath`)→ 端上
+    /// 模型用一句话提醒「最近对它做过什么」→ 写回 `openTask` 动作(导航复用现成 `.openTask` 路由,零新代码)。门控:
+    /// AI 建议开关 + 后台索引 + 模型就绪;预算挂活跃度档;**已指向同一任务的跳过**(任务变了才重做)。目录行无抽屉 → 跳过。
+    func generateActivityLinkSuggestionsIfEnabled() {
+        guard #available(macOS 26.0, *) else { return }
+        let store = AIBackgroundIndexStore.shared
+        guard !activityRunning, AppPreferences.aiSuggestionEnabled,
+              store.indexingEnabled, AIReportAssistant.isReady, let budget = store.budget else { return }
+        // 喂 Spotlight 的同一份任务快照:成功 + 有产物 + 近 30 天 → 产物路径 → 最近那条(快照新→旧,首遇即最新)。
+        let cutoff = Date().addingTimeInterval(-30 * 86_400)
+        var taskByPath: [String: ArchiveTaskSnapshot] = [:]
+        for snap in ActivityHistoryStore.snapshot() {
+            guard snap.outcome == .succeeded, let path = snap.outputPath,
+                  (snap.finishedAt ?? snap.startedAt) >= cutoff else { continue }
+            let std = URL(fileURLWithPath: path).standardizedFileURL.path
+            if taskByPath[std] == nil { taskByPath[std] = snap }   // 首遇 = 最新
+        }
+        guard !taskByPath.isEmpty else { return }
+        // 选:文件(非目录,目录行没抽屉)+ 路径命中任务 + 还没指向这条任务(指向同一任务 = 已做,跳过)。
+        var picks: [(rec: AIFileMemoryRecord, snap: ArchiveTaskSnapshot)] = []
+        for rec in store.recentFileRecords(limit: 2_000) {
+            guard rec.type != .folder, let path = rec.path else { continue }
+            let std = URL(fileURLWithPath: path).standardizedFileURL.path
+            guard let snap = taskByPath[std] else { continue }
+            if rec.contentSummary?.action(forToken: "openTask")?.payload == snap.id.uuidString { continue }
+            picks.append((rec, snap))
+            if picks.count >= budget.maxModelSuggestionsPerRound { break }
+        }
+        guard !picks.isEmpty else { return }
+        activityRunning = true
+        activityTask = Task { @MainActor in
+            defer { AIBackgroundIndexer.shared.activityRunning = false }
+            for (rec, snap) in picks {
+                if Task.isCancelled { break }
+                guard AIBackgroundIndexStore.shared.indexingEnabled, AIReportAssistant.isReady else { break }
+                guard let path = rec.path, FileManager.default.fileExists(atPath: path) else { continue }
+                let actionText = AIBackgroundIndexer.activityActionText(for: snap.kind)
+                let whenText = AIBackgroundIndexer.coarseWhenText(snap.finishedAt ?? snap.startedAt, now: Date())
+                guard let phrasing = try? await AIVirtualFolderModelPlanner.activityReminder(
+                    fileName: rec.fileName, actionText: actionText, whenText: whenText),
+                    !phrasing.isEmpty else { continue }
+                AIBackgroundIndexStore.shared.applyActivitySuggestion(recordID: rec.id, taskID: snap.id, phrasing: phrasing)
+            }
+        }
+    }
+
+    /// 任务类型 → 「产生这个文件时做了什么」的中性英文描述(模型转界面语言;**不含任何具体软件名**,见提示词规矩)。
+    nonisolated static func activityActionText(for kind: OperationTask.Kind) -> String {
+        switch kind {
+        case .compress, .create: return "created this archive by compressing files"
+        case .convert:           return "created this by converting another archive"
+        case .extract:           return "extracted files to produce this"
+        case .copy, .paste:      return "copied files here"
+        case .move:              return "moved files here"
+        case .split:             return "split an archive into volumes here"
+        case .combine:           return "combined split volumes into this file"
+        default:                 return "produced this file"
+        }
+    }
+
+    /// 粗粒度时间桶(中性英文,模型转界面语言;时间换算在代码做,模型不算时间 —— 见 AI 提示词规矩)。
+    nonisolated static func coarseWhenText(_ date: Date, now: Date) -> String {
+        switch now.timeIntervalSince(date) {
+        case ..<120:     return "just now"
+        case ..<3_600:   return "a few minutes ago"
+        case ..<86_400:  return "earlier today"
+        case ..<172_800: return "yesterday"
+        case ..<604_800: return "a few days ago"
+        default:         return "recently"
+        }
     }
 
     /// 读一个文件头部 → 脱敏(给模型出一句话摘要的素材)。红线门控同 `summarizeContent`(敏感目录 / 临时解密 /
