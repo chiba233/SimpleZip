@@ -2361,6 +2361,10 @@
 "tasks.aiWorkbench.chip.permissionDenied" = "Проблемы прав";
 "tasks.aiWorkbench.chip.missingVolume" = "Нет томов";
 "tasks.aiWorkbench.chip.checksumMismatch" = "Checksum не совпал";
+"tasks.aiWorkbench.chip.creationFailures" = "Ошибки создания";
+"tasks.aiWorkbench.chip.compressionFailures" = "Ошибки сжатия";
+"tasks.aiWorkbench.chip.conversionFailures" = "Ошибки преобразования";
+"tasks.aiWorkbench.chip.automationFailures" = "Ошибки автоматизации";
 "ai.suggestLabels" = "Предложить метки";
 "ai.suggestLabels.title" = "Метки, предложенные ИИ";
 "ai.summarizeRisk.title" = "Сводка рисков ИИ";

@@ -2361,6 +2361,10 @@
 "tasks.aiWorkbench.chip.permissionDenied" = "Problèmes de permissions";
 "tasks.aiWorkbench.chip.missingVolume" = "Volumes manquants";
 "tasks.aiWorkbench.chip.checksumMismatch" = "Checksum différent";
+"tasks.aiWorkbench.chip.creationFailures" = "Échecs de création";
+"tasks.aiWorkbench.chip.compressionFailures" = "Échecs de compression";
+"tasks.aiWorkbench.chip.conversionFailures" = "Échecs de conversion";
+"tasks.aiWorkbench.chip.automationFailures" = "Échecs d'automatisation";
 "ai.suggestLabels" = "Suggérer des étiquettes";
 "ai.suggestLabels.title" = "Étiquettes suggérées par l’IA";
 "ai.summarizeRisk.title" = "Résumé des risques par l’IA";

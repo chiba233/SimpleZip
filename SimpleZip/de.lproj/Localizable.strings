@@ -2362,6 +2362,10 @@
 "tasks.aiWorkbench.chip.permissionDenied" = "Berechtigungsprobleme";
 "tasks.aiWorkbench.chip.missingVolume" = "Fehlende Volumes";
 "tasks.aiWorkbench.chip.checksumMismatch" = "Prüfsumme stimmt nicht";
+"tasks.aiWorkbench.chip.creationFailures" = "Erstellungsfehler";
+"tasks.aiWorkbench.chip.compressionFailures" = "Komprimierungsfehler";
+"tasks.aiWorkbench.chip.conversionFailures" = "Konvertierungsfehler";
+"tasks.aiWorkbench.chip.automationFailures" = "Automatisierungsfehler";
 "ai.suggestLabels" = "Labels vorschlagen";
 "ai.suggestLabels.title" = "KI-Label-Vorschläge";
 "ai.summarizeRisk.title" = "KI-Risikozusammenfassung";

@@ -1353,6 +1353,10 @@
 "tasks.aiWorkbench.chip.permissionDenied" = "Permission issues";
 "tasks.aiWorkbench.chip.missingVolume" = "Missing volumes";
 "tasks.aiWorkbench.chip.checksumMismatch" = "Checksum mismatch";
+"tasks.aiWorkbench.chip.creationFailures" = "Creation failures";
+"tasks.aiWorkbench.chip.compressionFailures" = "Compression failures";
+"tasks.aiWorkbench.chip.conversionFailures" = "Conversion failures";
+"tasks.aiWorkbench.chip.automationFailures" = "Automation failures";
 "ai.suggestLabels" = "Suggest Labels";
 "ai.suggestLabels.title" = "AI Suggested Labels";
 "ai.summarizeRisk.title" = "AI Risk Summary";

@@ -2361,6 +2361,10 @@
 "tasks.aiWorkbench.chip.permissionDenied" = "ปัญหาสิทธิ์";
 "tasks.aiWorkbench.chip.missingVolume" = "พาร์ตหาย";
 "tasks.aiWorkbench.chip.checksumMismatch" = "Checksum ไม่ตรง";
+"tasks.aiWorkbench.chip.creationFailures" = "การสร้างล้มเหลว";
+"tasks.aiWorkbench.chip.compressionFailures" = "การบีบอัดล้มเหลว";
+"tasks.aiWorkbench.chip.conversionFailures" = "การแปลงล้มเหลว";
+"tasks.aiWorkbench.chip.automationFailures" = "ระบบอัตโนมัติล้มเหลว";
 "ai.suggestLabels" = "แนะนำป้ายกำกับ";
 "ai.suggestLabels.title" = "ป้ายกำกับที่ AI แนะนำ";
 "ai.summarizeRisk.title" = "สรุปความเสี่ยงด้วย AI";

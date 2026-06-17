@@ -2363,6 +2363,10 @@
 "tasks.aiWorkbench.chip.permissionDenied" = "権限の問題";
 "tasks.aiWorkbench.chip.missingVolume" = "不足分割";
 "tasks.aiWorkbench.chip.checksumMismatch" = "チェックサム不一致";
+"tasks.aiWorkbench.chip.creationFailures" = "作成の失敗";
+"tasks.aiWorkbench.chip.compressionFailures" = "圧縮の失敗";
+"tasks.aiWorkbench.chip.conversionFailures" = "変換の失敗";
+"tasks.aiWorkbench.chip.automationFailures" = "自動化の失敗";
 "ai.suggestLabels" = "ラベルを提案";
 "ai.suggestLabels.title" = "AI 提案ラベル";
 "ai.summarizeRisk.title" = "AI リスク要約";

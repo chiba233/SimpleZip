@@ -2362,6 +2362,10 @@
 "tasks.aiWorkbench.chip.permissionDenied" = "권한 문제";
 "tasks.aiWorkbench.chip.missingVolume" = "누락된 볼륨";
 "tasks.aiWorkbench.chip.checksumMismatch" = "체크섬 불일치";
+"tasks.aiWorkbench.chip.creationFailures" = "생성 실패";
+"tasks.aiWorkbench.chip.compressionFailures" = "압축 실패";
+"tasks.aiWorkbench.chip.conversionFailures" = "변환 실패";
+"tasks.aiWorkbench.chip.automationFailures" = "자동화 실패";
 "ai.suggestLabels" = "라벨 제안";
 "ai.suggestLabels.title" = "AI 제안 라벨";
 "ai.summarizeRisk.title" = "AI 위험 요약";

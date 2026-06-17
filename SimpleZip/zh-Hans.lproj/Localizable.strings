@@ -1351,6 +1351,10 @@
 "tasks.aiWorkbench.chip.permissionDenied" = "权限问题";
 "tasks.aiWorkbench.chip.missingVolume" = "缺少分卷";
 "tasks.aiWorkbench.chip.checksumMismatch" = "校验不一致";
+"tasks.aiWorkbench.chip.creationFailures" = "创建失败";
+"tasks.aiWorkbench.chip.compressionFailures" = "压缩失败";
+"tasks.aiWorkbench.chip.conversionFailures" = "转换失败";
+"tasks.aiWorkbench.chip.automationFailures" = "自动化失败";
 "ai.suggestLabels" = "建议标签";
 "ai.suggestLabels.title" = "AI 建议标签";
 "ai.summarizeRisk.title" = "AI 风险总结";

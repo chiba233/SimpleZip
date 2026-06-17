@@ -166,6 +166,24 @@ nonisolated enum ActivityAIWorkbenchBuilder {
                 records: cliVerify,
                 filter: .init(status: "failed", source: "cli", kindTokens: verificationKinds)))
         }
+        // 按操作类型补齐常见失败入口(不限来源)—— 覆盖 app / cli 的 创建 / 压缩 / 转换 失败:
+        // 之前只有 finder+extract 和 cli 校验类有专属 chip,app/cli 创建、cli 压缩、转换等无入口(BUG-W8)。
+        // 解压不另加通用 chip —— finderExtractionFailures 已覆盖最常见的 Finder 自动解压失败,通用 extract chip
+        // 会与之重复(同一条 finder 解压失败出现在两个 chip 里)。app/cli 纯解压失败暂仍走「全部失败」总入口。
+        for entry in [("creationFailures", "create"),
+                      ("compressionFailures", "compress"), ("conversionFailures", "convert")] {
+            let matched = failed.filter { $0.kind == entry.1 }
+            if !matched.isEmpty {
+                chips.append(chip(id: entry.0, records: matched,
+                                  filter: .init(status: "failed", kindTokens: [entry.1])))
+            }
+        }
+        // 自动化失败(Shortcuts / Siri = intent 来源)。
+        let automation = failed.filter { $0.source == "intent" }
+        if !automation.isEmpty {
+            chips.append(chip(id: "automationFailures", records: automation,
+                              filter: .init(status: "failed", source: "intent")))
+        }
         for tag in ["permission-denied", "missing-volume", "checksum-mismatch"] {
             let tagged = failed.filter { $0.diagnostics.tags.contains(tag) }
             if !tagged.isEmpty {
