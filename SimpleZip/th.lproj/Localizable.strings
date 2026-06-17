@@ -2605,6 +2605,7 @@
 "aiWorkspace.suggest.compress" = "บีบอัด";
 "aiWorkspace.suggest.test" = "ทดสอบอาร์ไคฟ์";
 "aiWorkspace.suggest.inspect" = "ตรวจสอบรีลีส";
+"aiWorkspace.suggest.security" = "รายงานความปลอดภัยของเส้นทาง";
 "aiWorkspace.suggest.convert" = "แปลงอาร์ไคฟ์";
 "aiWorkspace.suggest.openWith" = "เปิดด้วย %@";
 "aiWorkspace.suggest.install" = "ติดตั้ง %@";
@@ -2618,6 +2619,8 @@
 "aiWorkspace.node.reveal" = "ไปยังตำแหน่งไฟล์";
 "aiWorkspace.node.hash" = "คำนวณ SHA-256";
 "aiWorkspace.inlineHash.result" = "SHA-256 ของไฟล์ปัจจุบัน: %@";
+"aiWorkspace.inlineTest.passed" = "อาร์ไคฟ์นี้ผ่านการทดสอบอัตโนมัติแล้ว";
+"aiWorkspace.inlineTest.failed" = "การทดสอบพบปัญหา: %@";
 "aiWorkspace.node.test" = "ทดสอบอาร์ไคฟ์";
 "aiWorkspace.node.expand" = "ขยาย";
 "aiWorkspace.node.collapse" = "ยุบ";

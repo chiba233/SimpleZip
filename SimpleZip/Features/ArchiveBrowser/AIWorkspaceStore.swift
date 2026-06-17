@@ -742,6 +742,7 @@ final class AIWorkspaceStore: ObservableObject {
             "compress": L10n.text("aiWorkspace.suggest.compress"),
             "test": L10n.text("aiWorkspace.suggest.test"),
             "inspect": L10n.text("aiWorkspace.suggest.inspect"),
+            "security": L10n.text("aiWorkspace.suggest.security"),
             "convert": L10n.text("aiWorkspace.suggest.convert"),
         ]
     }

@@ -2684,6 +2684,7 @@
 "aiWorkspace.suggest.compress" = "Compress";
 "aiWorkspace.suggest.test" = "Test Archive";
 "aiWorkspace.suggest.inspect" = "Inspect Release";
+"aiWorkspace.suggest.security" = "Path Safety Report";
 "aiWorkspace.suggest.convert" = "Convert Archive";
 "aiWorkspace.suggest.openWith" = "Open with %@";
 "aiWorkspace.suggest.install" = "Install %@";
@@ -2697,6 +2698,8 @@
 "aiWorkspace.node.reveal" = "Go to File Location";
 "aiWorkspace.node.hash" = "Compute SHA-256";
 "aiWorkspace.inlineHash.result" = "Current file SHA-256: %@";
+"aiWorkspace.inlineTest.passed" = "This archive passed the automatic test";
+"aiWorkspace.inlineTest.failed" = "Test found a problem: %@";
 "aiWorkspace.node.test" = "Test Archive";
 "aiWorkspace.node.expand" = "Expand";
 "aiWorkspace.node.collapse" = "Collapse";

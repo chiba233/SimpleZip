@@ -2606,6 +2606,7 @@
 "aiWorkspace.suggest.compress" = "압축";
 "aiWorkspace.suggest.test" = "아카이브 테스트";
 "aiWorkspace.suggest.inspect" = "릴리스 검사";
+"aiWorkspace.suggest.security" = "경로 안전 보고서";
 "aiWorkspace.suggest.convert" = "아카이브 변환";
 "aiWorkspace.suggest.openWith" = "%@(으)로 열기";
 "aiWorkspace.suggest.install" = "%@ 설치";
@@ -2619,6 +2620,8 @@
 "aiWorkspace.node.reveal" = "파일 위치로 이동";
 "aiWorkspace.node.hash" = "SHA-256 계산";
 "aiWorkspace.inlineHash.result" = "현재 파일 SHA-256: %@";
+"aiWorkspace.inlineTest.passed" = "이 압축 파일은 자동 테스트를 통과했습니다";
+"aiWorkspace.inlineTest.failed" = "테스트에서 문제가 발견되었습니다: %@";
 "aiWorkspace.node.test" = "아카이브 테스트";
 "aiWorkspace.node.expand" = "펼치기";
 "aiWorkspace.node.collapse" = "접기";

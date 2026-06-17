@@ -2605,6 +2605,7 @@
 "aiWorkspace.suggest.compress" = "Komprimieren";
 "aiWorkspace.suggest.test" = "Archiv testen";
 "aiWorkspace.suggest.inspect" = "Release prüfen";
+"aiWorkspace.suggest.security" = "Pfadsicherheitsbericht";
 "aiWorkspace.suggest.convert" = "Archiv konvertieren";
 "aiWorkspace.suggest.openWith" = "Mit %@ öffnen";
 "aiWorkspace.suggest.install" = "%@ installieren";
@@ -2618,6 +2619,8 @@
 "aiWorkspace.node.reveal" = "Zum Dateipfad springen";
 "aiWorkspace.node.hash" = "SHA-256 berechnen";
 "aiWorkspace.inlineHash.result" = "SHA-256 der aktuellen Datei: %@";
+"aiWorkspace.inlineTest.passed" = "Dieses Archiv hat den automatischen Test bestanden";
+"aiWorkspace.inlineTest.failed" = "Der Test hat ein Problem gefunden: %@";
 "aiWorkspace.node.test" = "Archiv testen";
 "aiWorkspace.node.expand" = "Einblenden";
 "aiWorkspace.node.collapse" = "Ausblenden";

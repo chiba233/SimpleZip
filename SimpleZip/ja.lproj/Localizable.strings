@@ -2607,6 +2607,7 @@
 "aiWorkspace.suggest.compress" = "圧縮";
 "aiWorkspace.suggest.test" = "アーカイブをテスト";
 "aiWorkspace.suggest.inspect" = "リリースを検査";
+"aiWorkspace.suggest.security" = "パス安全性レポート";
 "aiWorkspace.suggest.convert" = "アーカイブを変換";
 "aiWorkspace.suggest.openWith" = "%@ で開く";
 "aiWorkspace.suggest.install" = "%@ をインストール";
@@ -2620,6 +2621,8 @@
 "aiWorkspace.node.reveal" = "ファイルの場所へ移動";
 "aiWorkspace.node.hash" = "SHA-256を計算";
 "aiWorkspace.inlineHash.result" = "現在のファイル SHA-256: %@";
+"aiWorkspace.inlineTest.passed" = "このアーカイブは自動テストに合格しました";
+"aiWorkspace.inlineTest.failed" = "テストで問題が見つかりました: %@";
 "aiWorkspace.node.test" = "アーカイブをテスト";
 "aiWorkspace.node.expand" = "展開";
 "aiWorkspace.node.collapse" = "折りたたむ";

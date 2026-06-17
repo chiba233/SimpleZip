@@ -2684,6 +2684,7 @@
 "aiWorkspace.suggest.compress" = "压缩";
 "aiWorkspace.suggest.test" = "测试归档";
 "aiWorkspace.suggest.inspect" = "检查发布包";
+"aiWorkspace.suggest.security" = "路径安全报告";
 "aiWorkspace.suggest.convert" = "转换归档";
 "aiWorkspace.suggest.openWith" = "用 %@ 打开";
 "aiWorkspace.suggest.install" = "安装 %@";
@@ -2697,6 +2698,8 @@
 "aiWorkspace.node.reveal" = "跳转到文件路径";
 "aiWorkspace.node.hash" = "计算 SHA256";
 "aiWorkspace.inlineHash.result" = "当前文件 SHA-256:%@";
+"aiWorkspace.inlineTest.passed" = "该压缩包已通过自动测试";
+"aiWorkspace.inlineTest.failed" = "测试发现问题:%@";
 "aiWorkspace.node.test" = "测试归档";
 "aiWorkspace.node.expand" = "展开";
 "aiWorkspace.node.collapse" = "折叠";

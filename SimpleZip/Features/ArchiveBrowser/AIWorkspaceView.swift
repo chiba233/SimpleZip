@@ -62,11 +62,8 @@ enum AIWorkspaceNodeActions {
             let key = AIBackgroundIndexStore.dislikeKey(recordID: record.id, token: sugg.token, payload: sugg.payload)
             guard !store.isSuggestionDisliked(key) else { return nil }
             var node: AIWorkspaceNodeAction?
-            if let result = content.inlineResults[sugg.token], sugg.token == "hash" {
-                node = .init(titleKey: "aiWorkspace.inlineHash.result",
-                             displayTitle: L10n.format("aiWorkspace.inlineHash.result", result),
-                             systemImage: "doc.on.doc",
-                             action: .copyInlineResult(text: result))
+            if let result = content.inlineResults[sugg.token], !result.isEmpty {
+                node = inlineResultAction(token: sugg.token, result: result)
             } else {
                 node = fileAction(sugg, path: path, kind: kind, sourceRef: record.contextSourceRef, recordID: record.id)
             }
@@ -89,9 +86,13 @@ enum AIWorkspaceNodeActions {
             return .init(titleKey: "aiWorkspace.node.hash", systemImage: "number",
                          action: .calculateInlineHash(recordID: recordID, path: path, token: token))
         case "compress" where applies(token, kind): return compress([path], "aiWorkspace.node.compress")
-        case "test" where applies(token, kind):    return test(path)
+        case "test" where applies(token, kind):
+            return .init(titleKey: "aiWorkspace.node.test", systemImage: "checkmark.seal",
+                         action: .calculateInlineArchiveTest(recordID: recordID, path: path, token: token))
         case "inspect" where applies(token, kind): return .init(titleKey: "aiWorkspace.suggest.inspect", systemImage: "shippingbox",
-                                                                action: .inspectRelease(path: path))
+                                                                action: .calculateInlineReleaseInspection(recordID: recordID, path: path, token: token))
+        case "security" where applies(token, kind): return .init(titleKey: "aiWorkspace.suggest.security", systemImage: "shield.lefthalf.filled",
+                                                                 action: .calculateInlinePathSafety(recordID: recordID, path: path, token: token))
         case "convert" where applies(token, kind): return .init(titleKey: "aiWorkspace.suggest.convert", systemImage: "arrow.triangle.2.circlepath",
                                                                 action: .convertArchive(path: path))
         // 推荐打开方式:payload = 模型挑的非默认 App bundleId、label = App 名;App 据 bundleId 用该 App 打开此文件。
@@ -130,6 +131,19 @@ enum AIWorkspaceNodeActions {
             return nil
         default:        return nil
         }
+    }
+
+    private static func inlineResultAction(token: String, result: String) -> AIWorkspaceNodeAction {
+        if token == "hash" {
+            return .init(titleKey: "aiWorkspace.inlineHash.result",
+                         displayTitle: L10n.format("aiWorkspace.inlineHash.result", result),
+                         systemImage: "doc.on.doc",
+                         action: .copyInlineResult(text: result))
+        }
+        return .init(titleKey: "aiWorkspace.inlineResult",
+                     displayTitle: result,
+                     systemImage: "doc.on.doc",
+                     action: .copyInlineResult(text: result))
     }
 
     private static func applies(_ token: String, _ kind: String) -> Bool {

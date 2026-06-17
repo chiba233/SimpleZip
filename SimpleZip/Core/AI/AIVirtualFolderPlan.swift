@@ -819,6 +819,8 @@ nonisolated enum AIVirtualNodeActionDeriver {
                                      requiresConfirmation: true, userVisibleLabel: "Test archive integrity"),
         AISuggestionActionDescriptor(id: "inspect", appliesToKinds: ["archive"],
                                      requiresConfirmation: true, userVisibleLabel: "Inspect as a release package"),
+        AISuggestionActionDescriptor(id: "security", appliesToKinds: ["archive"],
+                                     requiresConfirmation: true, userVisibleLabel: "Review path safety"),
         AISuggestionActionDescriptor(id: "convert", appliesToKinds: ["archive"],
                                      requiresConfirmation: true, userVisibleLabel: "Convert to another format"),
     ]

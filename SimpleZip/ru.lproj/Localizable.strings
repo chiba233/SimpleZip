@@ -2605,6 +2605,7 @@
 "aiWorkspace.suggest.compress" = "Сжать";
 "aiWorkspace.suggest.test" = "Проверить архив";
 "aiWorkspace.suggest.inspect" = "Проверить релиз";
+"aiWorkspace.suggest.security" = "Отчет о безопасности путей";
 "aiWorkspace.suggest.convert" = "Конвертировать архив";
 "aiWorkspace.suggest.openWith" = "Открыть в %@";
 "aiWorkspace.suggest.install" = "Установить %@";
@@ -2618,6 +2619,8 @@
 "aiWorkspace.node.reveal" = "Перейти к расположению файла";
 "aiWorkspace.node.hash" = "Вычислить SHA-256";
 "aiWorkspace.inlineHash.result" = "SHA-256 текущего файла: %@";
+"aiWorkspace.inlineTest.passed" = "Этот архив прошел автоматическую проверку";
+"aiWorkspace.inlineTest.failed" = "Проверка обнаружила проблему: %@";
 "aiWorkspace.node.test" = "Проверить архив";
 "aiWorkspace.node.expand" = "Развернуть";
 "aiWorkspace.node.collapse" = "Свернуть";

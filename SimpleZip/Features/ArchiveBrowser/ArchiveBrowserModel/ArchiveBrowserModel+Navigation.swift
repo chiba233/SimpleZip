@@ -53,6 +53,12 @@ extension ArchiveBrowserModel {
             calculateHash(forFinderURLs: paths.map { URL(fileURLWithPath: $0) })
         case .calculateInlineHash(let recordID, let path, let token):
             calculateInlineHash(recordID: recordID, path: path, token: token)
+        case .calculateInlineArchiveTest(let recordID, let path, let token):
+            calculateInlineArchiveTest(recordID: recordID, path: path, token: token)
+        case .calculateInlineReleaseInspection(let recordID, let path, let token):
+            calculateInlineReleaseInspection(recordID: recordID, path: path, token: token)
+        case .calculateInlinePathSafety(let recordID, let path, let token):
+            calculateInlinePathSafety(recordID: recordID, path: path, token: token)
         case .copyInlineResult(let text):
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(text, forType: .string)
@@ -98,6 +104,156 @@ extension ArchiveBrowserModel {
                 status = error.localizedDescription
             }
         }
+    }
+
+    private func calculateInlineArchiveTest(recordID: String, path: String, token: String) {
+        let url = URL(fileURLWithPath: path)
+        Task { @MainActor in
+            do {
+                let force = isForced(url)
+                let outcome = try await SignedContainerService.withToolAdaptedArchive(url) { target in
+                    try await self.passwordAwareArchiveTest(target, operationID: nil, force: force, outputObserver: nil)
+                }
+                let text: String
+                switch outcome {
+                case .passed:
+                    text = L10n.text("aiWorkspace.inlineTest.passed")
+                case .skippedNoPassword:
+                    text = L10n.format("aiWorkspace.inlineTest.failed", L10n.text("test.skipped.noPassword"))
+                case .failed(let message):
+                    text = L10n.format("aiWorkspace.inlineTest.failed", Self.inlineBrief(message))
+                }
+                AIBackgroundIndexStore.shared.applyInlineResult(recordID: recordID, token: token, text: text)
+                objectWillChange.send()
+            } catch is CancellationError {
+            } catch {
+                let text = L10n.format("aiWorkspace.inlineTest.failed", Self.inlineBrief(error.localizedDescription))
+                AIBackgroundIndexStore.shared.applyInlineResult(recordID: recordID, token: token, text: text)
+                objectWillChange.send()
+            }
+        }
+    }
+
+    private func calculateInlineReleaseInspection(recordID: String, path: String, token: String) {
+        guard AIReportAssistant.isReady else {
+            status = AIReportAssistant.unavailableReason
+            return
+        }
+        let url = URL(fileURLWithPath: path)
+        Task { @MainActor in
+            do {
+                let report = await buildInlineReleaseInspectionReport(for: url)
+                guard #available(macOS 26.0, *) else { return }
+                let prompt = AIReportAssistant.inlineReleaseInspectionPrompt(for: report)
+                let text = try await AIReportAssistant.generate(instructions: prompt.instructions, prompt: prompt.prompt)
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !text.isEmpty else { return }
+                AIBackgroundIndexStore.shared.applyInlineResult(recordID: recordID, token: token, text: text)
+                objectWillChange.send()
+            } catch is CancellationError {
+            } catch {
+                status = error.localizedDescription
+            }
+        }
+    }
+
+    private func calculateInlinePathSafety(recordID: String, path: String, token: String) {
+        guard AIReportAssistant.isReady else {
+            status = AIReportAssistant.unavailableReason
+            return
+        }
+        let url = URL(fileURLWithPath: path)
+        Task { @MainActor in
+            do {
+                let analysis = await buildInlinePathSafetyAnalysis(for: url)
+                guard #available(macOS 26.0, *) else { return }
+                let prompt = AIReportAssistant.inlinePathSafetyPrompt(
+                    assessment: analysis.assessment,
+                    findings: analysis.findings,
+                    listable: analysis.listable
+                )
+                let text = try await AIReportAssistant.generate(instructions: prompt.instructions, prompt: prompt.prompt)
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !text.isEmpty else { return }
+                AIBackgroundIndexStore.shared.applyInlineResult(recordID: recordID, token: token, text: text)
+                objectWillChange.send()
+            } catch is CancellationError {
+            } catch {
+                status = error.localizedDescription
+            }
+        }
+    }
+
+    private func buildInlineReleaseInspectionReport(for url: URL) async -> ReleaseInspectionReport {
+        let force = isForced(url)
+        var report = ReleaseInspectionReport(archiveURL: url)
+        do {
+            try await SignedContainerService.withToolAdaptedArchive(url) { target in
+                var listedItems: [ArchiveItem] = []
+                for password in [""] + SessionPasswordCache.shared.candidates(for: url) {
+                    if let listed = try? await ArchiveService.list(target, password: password, force: force) {
+                        listedItems = listed
+                        report.listable = true
+                        break
+                    }
+                }
+                if report.listable {
+                    report.stats = ReleaseInspection.stats(for: listedItems)
+                    report.securityFindings = ArchiveSecurityReport.analyze(listedItems)
+                    report.hasComment = !ArchiveService.headerComment(for: target).isEmpty
+                    report.structuralFingerprint = ArchiveStructuralFingerprint.compute(for: listedItems)
+                }
+                switch try await self.passwordAwareArchiveTest(target, operationID: nil, force: force, outputObserver: nil) {
+                case .passed:
+                    report.testPassed = true
+                case .skippedNoPassword:
+                    report.testPassed = false
+                    report.testFailureMessage = L10n.text("test.skipped.noPassword")
+                case .failed(let message):
+                    report.testPassed = false
+                    report.testFailureMessage = Self.inlineBrief(message)
+                }
+            }
+        } catch is CancellationError {
+        } catch {
+            report.testPassed = false
+            report.testFailureMessage = Self.inlineBrief(error.localizedDescription)
+        }
+        return report
+    }
+
+    private func buildInlinePathSafetyAnalysis(for url: URL) async -> (listable: Bool, findings: [ArchiveSecurityFinding], assessment: ArchiveRiskScore.Assessment) {
+        let force = isForced(url)
+        var items: [ArchiveItem] = []
+        var listable = false
+        do {
+            try await SignedContainerService.withToolAdaptedArchive(url) { target in
+                for password in [""] + SessionPasswordCache.shared.candidates(for: url) {
+                    if let listed = try? await ArchiveService.list(target, password: password, force: force) {
+                        items = listed
+                        listable = true
+                        break
+                    }
+                }
+            }
+        } catch is CancellationError {
+        } catch {
+        }
+        let findings = ArchiveSecurityReport.analyze(items)
+        let assessment = ArchiveRiskScore.assess(
+            findings: findings,
+            encryptedCount: items.filter(\.isEncrypted).count,
+            junkCount: ArchiveJunkFiles.junkEntries(in: items).count
+        )
+        return (listable, findings, assessment)
+    }
+
+    private static func inlineBrief(_ text: String) -> String {
+        let oneLine = text
+            .replacingOccurrences(of: "\n", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !oneLine.isEmpty else { return L10n.text("test.failure.other") }
+        return String(oneLine.prefix(160))
     }
 
     /// 0.4.5 #80 B:双击 AI 抽屉摘要行 → 弹「查看更长总结」(端上模型实时现算)。仅 AI 就绪时弹(否则该文件本就没摘要行)。
