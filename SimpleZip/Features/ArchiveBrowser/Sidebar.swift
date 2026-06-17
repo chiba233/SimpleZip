@@ -12,10 +12,6 @@ import UniformTypeIdentifiers
 /// 左侧导航栏：放常用位置和打开入口。
 struct Sidebar: View {
     @ObservedObject var model: ArchiveBrowserModel
-    /// 0.4.5 #80 #89:动态 AI 工作区 store(建议四:侧栏渲染 `visibleWorkspaces`,非写死三项)。
-    @ObservedObject private var workspaceStore = AIWorkspaceStore.shared
-    /// 0.4.5 #80:AI 主开关。关闭 → AI 工作区入口整体不渲染(A4 门控:主开关关,主界面 AI 入口全隐藏)。
-    @AppStorage(AppPreferences.Key.aiAssistantEnabled) private var aiEnabled = true
     @State private var recentURLs: [URL] = []
     @State private var pinnedURLs: [URL] = []
     @State private var isPinnedDropTargeted = false
@@ -68,20 +64,7 @@ struct Sidebar: View {
 
     var body: some View {
         List {
-            // 0.4.5 #80 #89:AI 工作区(白皮书建议四)。**动态**读 `AIWorkspaceStore.visibleWorkspaces`
-            // (系统 / 用户创建 / 推荐三类),不再写死三项;AI 主开关关 → 整段隐藏(A4 门控)。
-            if aiEnabled {
-                Section(L10n.text("sidebar.ai.section")) {
-                    ForEach(workspaceStore.visibleWorkspaces) { ws in
-                        AIWorkspaceSidebarRow(
-                            workspace: ws,
-                            onOpen: { model.openAIWorkspace(ws.id) },
-                            onDismiss: { workspaceStore.dismissRecommended(ws.id) })
-                            .contextMenu { aiWorkspaceContextMenu(ws) }
-                    }
-                }
-            }
-
+            // 侧栏「AI 文件夹」入口已下线(AI 文件夹概念废弃);引擎 / 建议组件保留供 AI suggestion 复用。
             Section(L10n.text("section.favorites")) {
                 ForEach(favoriteRows) { row in
                     SidebarRowButton(action: { model.openFolder(row.openURL) }) {
@@ -179,27 +162,6 @@ struct Sidebar: View {
             Self.iconCache.removeAllObjects()
             iconGeneration += 1
             refreshSidebarURLs()
-        }
-    }
-
-    /// AI 工作区行右键菜单(按来源给动作)。推荐=标记为长期 + 删除(dismiss 写抑制账本,**真删得掉**);
-    /// 用户创建=删除;全部=刷新(重新打开)。这些只改虚拟工作区元数据,绝不碰真实文件。
-    /// (已移除 hide:发现下一轮重新 upsert 又冒出来 = 等于没删,纯添乱。删除一律走能真删掉的路径。)
-    @ViewBuilder
-    private func aiWorkspaceContextMenu(_ ws: AIWorkspace) -> some View {
-        Button(L10n.text("sidebar.ai.refreshWorkspace")) { model.openAIWorkspace(ws.id) }
-        switch ws.origin {
-        case .recommended:
-            Button(L10n.text("sidebar.ai.markPermanent")) { workspaceStore.promoteToUser(ws.id) }
-            Button(L10n.text("sidebar.ai.deleteWorkspace"), role: .destructive) {
-                workspaceStore.dismissRecommended(ws.id)
-            }
-        case .userCreated:
-            Button(L10n.text("sidebar.ai.deleteWorkspace"), role: .destructive) {
-                workspaceStore.removeUserWorkspace(ws.id)
-            }
-        case .system:
-            EmptyView()
         }
     }
 
@@ -409,32 +371,6 @@ struct SidebarButton: View {
                 Spacer(minLength: 0)
             }
         }
-    }
-}
-
-/// 0.4.5 #89:AI 工作区侧栏行。点行打开;**推荐工作区** hover 时露出 `x`「不感兴趣」(写衰减抑制)。
-private struct AIWorkspaceSidebarRow: View {
-    let workspace: AIWorkspace
-    let onOpen: () -> Void
-    let onDismiss: () -> Void
-    @State private var hovering = false
-
-    var body: some View {
-        SidebarButton(title: workspace.title, systemImage: workspace.iconSystemName, action: onOpen)
-            .overlay(alignment: .trailing) {
-                if workspace.origin == .recommended, hovering {
-                    Button(action: onDismiss) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
-                            .padding(.trailing, 2)
-                    }
-                    .buttonStyle(.plain)
-                    .help(L10n.text("sidebar.ai.dismissRecommended"))
-                    .transition(.opacity)
-                }
-            }
-            .onHover { hovering = $0 }
     }
 }
 

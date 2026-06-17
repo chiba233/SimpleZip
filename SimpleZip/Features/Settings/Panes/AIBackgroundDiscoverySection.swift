@@ -2,8 +2,9 @@
 //  AIBackgroundDiscoverySection.swift
 //  SimpleZip
 //
-//  0.4.5 #80 #89:「后台发现与索引」设置区(白皮书工程补充六)。AI 文件夹的后台自动发现 + opt-in 白名单文件
-//  预索引的用户控制:活跃度、预索引开关、授权目录白名单(添加 / 推荐安全目录 / 移除)、清空索引、侧栏推荐显示。
+//  0.4.5 #80:「后台索引与预读」设置区(白皮书工程补充六)。后台 opt-in 白名单文件预索引 / 内容预读的用户控制:
+//  活跃度、预索引开关、内容预读开关、授权目录白名单(添加 / 推荐安全目录 / 移除)、清空索引。**这套索引 / 预读
+//  喂给 AI suggestion**(AI 文件夹概念已废弃,侧栏入口 + 推荐相关设置已下线;索引基座保留复用)。
 //
 //  全程 opt-in:活跃度默认 off、预索引默认 false —— 不开则后台完全不扫。只在 AI 主开关开启时显示。
 //  UI 全部用设计系统组件(SettingsControlRow / SettingsToggleRow / SettingsActionRow)+ 设置区列表惯例
@@ -17,10 +18,7 @@ struct AIBackgroundDiscoverySection: View {
     @ObservedObject private var store = AIBackgroundIndexStore.shared
     @AppStorage(AppPreferences.Key.aiAllowFolderPreindex) private var folderPreindex = false
     @AppStorage(AppPreferences.Key.aiAllowContentPreread) private var contentPreread = false
-    @AppStorage(AppPreferences.Key.aiSidebarShowRecommended) private var showRecommended = true
     @State private var activityLevel = AppPreferences.aiBackgroundActivityLevel
-    @State private var maxRecommended = AppPreferences.aiMaxRecommendedWorkspaces
-    @State private var maxRecommendedRefreshTask: Task<Void, Never>?
     @State private var showingAddOptions = false
 
     var body: some View {
@@ -69,39 +67,8 @@ struct AIBackgroundDiscoverySection: View {
                     if on { AIBackgroundIndexer.shared.runIfEnabled() }
                     else if !folderPreindex { AIBackgroundIndexer.shared.cancel() }
                 }
-
-                SettingsToggleRow(
-                    title: L10n.text("settings.ai.background.showRecommended"),
-                    description: L10n.text("settings.ai.background.showRecommended.desc"),
-                    systemImage: "sparkles.rectangle.stack", iconTint: .purple,
-                    isOn: $showRecommended
-                )
-
-                // 系统自动生成的推荐数量上限(用户:别一次冒一堆)。值用独立 Text 右对齐 + Stepper("",…)
-                // labelsHidden(对齐 AutomationPane 缓存上限那行;数字进 Stepper label 会跑左边 + 触发重复递增)。
-                SettingsControlRow(
-                    title: L10n.text("settings.ai.background.maxRecommended"),
-                    description: L10n.text("settings.ai.background.maxRecommended.desc"),
-                    systemImage: "number.square", iconTint: .purple
-                ) {
-                    HStack(spacing: 8) {
-                        Text("\(maxRecommended)").monospacedDigit().foregroundStyle(.secondary)
-                            .frame(width: 40, alignment: .trailing)
-                        Stepper("", value: $maxRecommended, in: 1...8)
-                            .labelsHidden()
-                    }
-                    .onChange(of: maxRecommended) { v in
-                        AppPreferences.aiMaxRecommendedWorkspaces = v
-                        // 不在按钮按下期间同步跑重型 discovery(会让行重建、手势反复触发);
-                        // 等 Stepper 手势安静下来后只重算最后一次。
-                        maxRecommendedRefreshTask?.cancel()
-                        maxRecommendedRefreshTask = Task { @MainActor in
-                            try? await Task.sleep(nanoseconds: 350_000_000)
-                            guard !Task.isCancelled else { return }
-                            AIWorkspaceDiscoveryCoordinator.shared.refresh()
-                        }
-                    }
-                }
+                // (AI 文件夹「显示推荐 / 推荐数量上限」设置已随侧栏 AI 文件夹下线一并移除;后台索引 / 预读仍供
+                //  AI suggestion 复用,故本区其余项保留。)
             }
             .settingsAnchor("ai.background")
 
@@ -146,10 +113,6 @@ struct AIBackgroundDiscoverySection: View {
                     isDisabled: store.fileIndex.isEmpty,
                     action: { store.clearFileIndex() })
             }
-        }
-        .onDisappear {
-            maxRecommendedRefreshTask?.cancel()
-            maxRecommendedRefreshTask = nil
         }
     }
 
