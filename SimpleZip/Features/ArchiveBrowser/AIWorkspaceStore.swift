@@ -608,22 +608,24 @@ final class AIWorkspaceStore: ObservableObject {
     func virtualTree(for id: UUID) -> AIVirtualFolderTree? {
         guard let ws = collection.workspace(id) else { return nil }
         if let cached = treeCache[id] { return treeWithRemovalNotice(cached, ws: ws) }   // 命中:模型树或确定性树
-        let members = memberCandidates(for: ws)
-        guard !members.isEmpty else { return nil }
-        let sig = members.map(\.id).sorted().joined(separator: ",")
-        let tree: AIVirtualFolderTree
-        if let cachedPlan = modelPlans[id], cachedPlan.sig == sig, let fed = modelFed[id] {
-            // 已有本批成员的模型 plan → 用模型选定的候选集(成员 + 模型加进来的额外文件)建树,在其上套用户覆盖层。
-            // 按排除集过滤(「我不喜欢」+ **动态核查自动剔除的不扣题成员**)—— 在此 `visible` 层过滤**不改 sig、不重排**。
+        // 模型已经为本工作区排过一版布局 → **粘住**:不重算成员、不比 sig、不重排,直到用户**显式刷新**
+        // (只有 refreshWorkspaceTree 清 modelPlans/Fed)。这样改名 / 编辑描述 / 移动成员 / 后台新发现的文件
+        // 都不再自动重排,只在最终显示层套用户结构编辑(改名 / 移动)+ 动态剔除。
+        // 用户原则:「AI 排过的布局,不点刷新就不重排;改一下也绝不进自动整理」。
+        if let cachedPlan = modelPlans[id], let fed = modelFed[id] {
             let excluded = excludedRefs(for: ws).union(autoExcluded[id] ?? [])
             let visible = excluded.isEmpty ? fed
                 : fed.filter { cand in !cand.sourceRefs.contains(where: { excluded.contains($0) }) }
-            tree = buildTree(ws: ws, members: visible, plan: cachedPlan.plan, mode: .modelAssisted)
-        } else {
-            // 先出**确定性树**占位(UI 标「自动整理」),不阻塞;模型就绪则异步**选主题成员 + 分组 + 命名**后替换。
-            tree = buildTree(ws: ws, members: members, plan: nil, mode: .deterministic)
-            maybeScheduleModelPlan(id: id, ws: ws, members: members, sig: sig)
+            let tree = buildTree(ws: ws, members: visible, plan: cachedPlan.plan, mode: .modelAssisted)
+            cacheModelTree(id, tree)
+            return treeWithRemovalNotice(tree, ws: ws)
         }
+        // 还没有模型布局 → 先出**确定性树**占位(UI 标「自动整理」)+ 异步排一次模型,出来后即粘住。
+        let members = memberCandidates(for: ws)
+        guard !members.isEmpty else { return nil }
+        let sig = members.map(\.id).sorted().joined(separator: ",")
+        let tree = buildTree(ws: ws, members: members, plan: nil, mode: .deterministic)
+        maybeScheduleModelPlan(id: id, ws: ws, members: members, sig: sig)
         cacheModelTree(id, tree)   // modelAssisted → 落持久快照(重启直接展示)
         return treeWithRemovalNotice(tree, ws: ws)
     }
