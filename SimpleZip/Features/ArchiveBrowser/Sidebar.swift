@@ -182,21 +182,24 @@ struct Sidebar: View {
         }
     }
 
-    /// AI 工作区行右键菜单(白皮书建议四:按来源给不同动作)。系统=隐藏;推荐=不感兴趣;用户创建=删除;
-    /// 全部=刷新(重新打开,虚拟树确定性重生成)。这些只改虚拟工作区元数据,绝不碰真实文件。
+    /// AI 工作区行右键菜单(按来源给动作)。推荐=标记为长期 + 删除(dismiss 写抑制账本,**真删得掉**);
+    /// 用户创建=删除;全部=刷新(重新打开)。这些只改虚拟工作区元数据,绝不碰真实文件。
+    /// (已移除 hide:发现下一轮重新 upsert 又冒出来 = 等于没删,纯添乱。删除一律走能真删掉的路径。)
     @ViewBuilder
     private func aiWorkspaceContextMenu(_ ws: AIWorkspace) -> some View {
         Button(L10n.text("sidebar.ai.refreshWorkspace")) { model.openAIWorkspace(ws.id) }
         switch ws.origin {
-        case .system:
-            Button(L10n.text("sidebar.ai.hideWorkspace")) { workspaceStore.hide(ws.id) }
         case .recommended:
             Button(L10n.text("sidebar.ai.markPermanent")) { workspaceStore.promoteToUser(ws.id) }
-            Button(L10n.text("sidebar.ai.dismissRecommended")) { workspaceStore.dismissRecommended(ws.id) }
+            Button(L10n.text("sidebar.ai.deleteWorkspace"), role: .destructive) {
+                workspaceStore.dismissRecommended(ws.id)
+            }
         case .userCreated:
             Button(L10n.text("sidebar.ai.deleteWorkspace"), role: .destructive) {
                 workspaceStore.removeUserWorkspace(ws.id)
             }
+        case .system:
+            EmptyView()
         }
     }
 

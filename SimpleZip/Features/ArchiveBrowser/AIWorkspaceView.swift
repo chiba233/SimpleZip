@@ -157,12 +157,10 @@ struct AIWorkspaceView: View {
                     .buttonStyle(.borderless).help(L10n.text("sidebar.ai.refreshWorkspace"))
             }
             if ws.origin == .recommended {
-                // 关闭(X)= 不感兴趣:写衰减抑制账本,同类主题以后降权。
+                // 删除推荐工作区 = dismissRecommended:写衰减抑制账本(按主题指纹避开),**真删得掉、不会下轮又冒出来**。
+                // (之前那个 hide 是错的:发现下一轮重新 upsert 又出现 = 等于没删,已移除。)
                 Button { store.dismissRecommended(workspaceID) } label: { Image(systemName: "xmark.circle") }
                     .buttonStyle(.borderless).help(L10n.text("sidebar.ai.dismissRecommended"))
-                // 中性移除:只是想把它从列表去掉、并非不喜欢 → 不写抑制账本,AI 之后仍可再次推荐。
-                Button { store.hide(workspaceID) } label: { Image(systemName: "minus.circle") }
-                    .buttonStyle(.borderless).help(L10n.text("sidebar.ai.hideWorkspace"))
             } else if ws.origin == .userCreated {
                 Button(role: .destructive) { store.removeUserWorkspace(workspaceID) } label: { Image(systemName: "trash") }
                     .buttonStyle(.borderless).help(L10n.text("sidebar.ai.deleteWorkspace"))
