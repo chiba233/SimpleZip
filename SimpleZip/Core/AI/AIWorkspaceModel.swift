@@ -33,6 +33,9 @@ nonisolated enum AISuggestionAction: Codable, Equatable, Sendable {
     case applySelection(paths: [String])
     case revealSourceRefsInFinder(sourceRefs: [AIContextSourceRef])
     case openWithApplication(sourceRefs: [AIContextSourceRef], bundleIdentifier: String)
+    /// 把 DMG 里的 App 装进 /Applications(走 app 内置复制逻辑:冲突弹窗 + 活动中心任务)。用户明确授权的写盘动作 ——
+    /// 由 App 据 DMG 行 + 7zz peek 出的 .app 名安全合成,**模型只决定「要不要建议装」(布尔),不构造路径**。
+    case installAppFromDiskImage(diskImagePath: String, appName: String)
 
     // AI 文件夹 / 推荐主题虚拟管理(不碰硬盘文件)。
     case pinRecommendedWorkspace(UUID)
@@ -72,10 +75,11 @@ nonisolated enum AISuggestionAction: Codable, Equatable, Sendable {
              .removeSourceRefsFromAIWorkspace, .moveVirtualNodes, .addSourceRefsToAIWorkspace,
              .addThemePromptToAIWorkspace:
             return .safe
-        // 启动后端任务 / 打开写盘表单 / 复制真实文件 / 删工作区 —— 需确认,只能打开现有流程。
+        // 启动后端任务 / 打开写盘表单 / 复制真实文件 / 装 App / 删工作区 —— 需确认,只能打开现有流程。
         case .calculateHash, .calculateHashForEvidence, .createArchive, .createArchiveFromSuggestion,
              .testArchive, .testArchiveForEvidence, .convertArchive, .inspectRelease,
-             .refreshArchiveListingForEvidence, .copySourceRefsToFolder, .deleteAIWorkspace:
+             .refreshArchiveListingForEvidence, .copySourceRefsToFolder, .installAppFromDiskImage,
+             .deleteAIWorkspace:
             return AISuggestionSafety(requiresConfirmation: true,
                                       reason: "opens an existing confirm/sheet/task flow")
         // 真实硬盘删除 —— 破坏性 + 强确认。

@@ -53,6 +53,8 @@ extension ArchiveBrowserModel {
             requestConvertArchives(at: [URL(fileURLWithPath: path)])
         case .openWithApplication(let sourceRefs, let bundleIdentifier):
             openSourceRefs(sourceRefs, withAppBundleID: bundleIdentifier)
+        case .installAppFromDiskImage(let diskImagePath, let appName):
+            installAppFromDiskImage(URL(fileURLWithPath: diskImagePath), appName: appName)
         default:
             break   // evidence-ref / 写盘 / 虚拟管理类:后续接(需 source-ref 回查)—— 写盘动作回原生确认流
         }

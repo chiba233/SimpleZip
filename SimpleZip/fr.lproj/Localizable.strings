@@ -100,6 +100,8 @@
 "tasks.empty" = "Aucune tâche";
 "tasks.renameItem" = "Renommer %@";
 "tasks.copyCount" = "Copier %d éléments";
+"tasks.installApp" = "Installer %@";
+"tasks.installApp.notFound" = "Aucune app trouvée dans l’image disque";
 "tasks.moveCount" = "Déplacer %d éléments";
 "tasks.pasteCount" = "Coller %d éléments";
 "tasks.deleteCount" = "Supprimer %d éléments";

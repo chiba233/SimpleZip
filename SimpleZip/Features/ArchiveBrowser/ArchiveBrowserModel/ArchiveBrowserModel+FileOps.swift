@@ -1237,8 +1237,11 @@ extension ArchiveBrowserModel {
         dropFileURLs(selectedFileItems.map(\.url), to: destinationFolder, shouldMove: true)
     }
 
-    func dropFileURLs(_ urls: [URL], to destinationFolder: URL, shouldMove: Bool) {
-        guard !urls.isEmpty else { return }
+    /// `completion` 在转移任务收尾后(成功 / 取消 / 失败任一)在主线程回调一次 —— 给「装 App:复制完卸载源 DMG」
+    /// 这类需要在复制结束后做收尾的调用方用。默认 nil,现有拖放调用点行为不变。
+    func dropFileURLs(_ urls: [URL], to destinationFolder: URL, shouldMove: Bool,
+                      completion: (() -> Void)? = nil) {
+        guard !urls.isEmpty else { completion?(); return }
         let operationTask = beginFileTask(
             kind: shouldMove ? .move : .copy,
             title: shouldMove ? L10n.format("tasks.moveCount", urls.count) : L10n.format("tasks.copyCount", urls.count),
@@ -1251,7 +1254,7 @@ extension ArchiveBrowserModel {
             swiftTask?.cancel()
         }
         swiftTask = Task { @MainActor [weak self, weak operationTask] in
-            guard let self, let operationTask else { return }
+            guard let self, let operationTask else { completion?(); return }
             errorMessage = nil
             status = shouldMove ? L10n.text("status.movingFiles") : L10n.text("status.copyingFiles")
             var undoPairs: [(URL, URL)] = []
@@ -1259,6 +1262,7 @@ extension ArchiveBrowserModel {
             var sameHashSkips = 0
             defer {
                 registerTransferUndo(undoPairs, shouldMove: shouldMove)
+                completion?()
             }
 
             do {
@@ -1325,6 +1329,46 @@ extension ArchiveBrowserModel {
                 TaskCenter.shared.finish(operationTask, outcome: .failed(error.localizedDescription))
             }
         }
+    }
+
+    /// AI 建议「安装 X」:把 DMG 里的 `.app` 装进 `/Applications`。**一定走 app 内置复制逻辑**(`dropFileURLs`)——
+    /// 复制 / 冲突覆盖弹窗 / 活动中心任务全在里头,**绝不自己造复制或冲突轮子**(用户硬约束)。只读挂载 DMG 拿到
+    /// `.app`,复制收尾(成功 / 取消 / 失败任一)后卸载源镜像。挂载 / 定位失败 → 记一条失败任务到活动中心。
+    func installAppFromDiskImage(_ diskImageURL: URL, appName: String) {
+        let trimmed = appName.hasSuffix(".app") ? String(appName.dropLast(4)) : appName
+        let failTitle = L10n.format("tasks.installApp", trimmed.isEmpty ? appName : trimmed)
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let mountPoint: URL
+            do {
+                mountPoint = try await DiskImageBackend.mount(diskImageURL)
+            } catch {
+                self.recordInstantFileTask(kind: .copy, title: failTitle,
+                                           outcome: .failed(error.localizedDescription))
+                return
+            }
+            guard let appURL = ArchiveBrowserModel.locateAppBundle(named: appName, under: mountPoint) else {
+                try? await DiskImageBackend.detach(at: mountPoint)
+                self.recordInstantFileTask(kind: .copy, title: failTitle,
+                                           outcome: .failed(L10n.text("tasks.installApp.notFound")))
+                return
+            }
+            // 走软件内置复制逻辑:冲突弹窗 + 活动中心任务都在 dropFileURLs 里;复制结束后卸载源 DMG。
+            self.dropFileURLs([appURL], to: URL(fileURLWithPath: "/Applications"), shouldMove: false) {
+                Task { try? await DiskImageBackend.detach(at: mountPoint) }
+            }
+        }
+    }
+
+    /// 在已挂载的 DMG 卷里定位要装的 `.app`:优先卷根的同名包,否则扫卷根第一层第一个 `.app`。无 → nil。
+    private nonisolated static func locateAppBundle(named appName: String, under mountPoint: URL) -> URL? {
+        let fm = FileManager.default
+        let direct = mountPoint.appendingPathComponent(appName)
+        if appName.hasSuffix(".app"), fm.fileExists(atPath: direct.path) { return direct }
+        let entries = (try? fm.contentsOfDirectory(at: mountPoint, includingPropertiesForKeys: nil,
+                                                   options: [.skipsHiddenFiles])) ?? []
+        if let exact = entries.first(where: { $0.lastPathComponent == appName }) { return exact }
+        return entries.first { $0.pathExtension.lowercased() == "app" }
     }
 
     private func beginFileTask(

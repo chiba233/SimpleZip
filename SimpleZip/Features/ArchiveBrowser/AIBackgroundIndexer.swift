@@ -184,7 +184,7 @@ final class AIBackgroundIndexer {
     /// ~17ms)列出 dmg 内的 `.app` 包;② 有 App → 端上模型出 {一句话定性 + 是否建议安装}(拒绝假AI:确定性只找到
     /// 「有 .app」这个候选,冒不冒 + 措辞由模型定);③ 写回索引(`setDiskImageSuggestion`)。门控同单文件建议
     /// (AI 建议开关 + 内容预读 + 模型就绪);预算 = AI 活跃度档位的 `maxModelSuggestionsPerRound`。可取消、串行不重叠。
-    /// **绝不挂载、绝不自动拷进 /Applications** —— 点击建议只打开(挂载)dmg 让用户自己拖。
+    /// **peek 阶段绝不挂载**(纯 7zz 文件读);点击「安装 X」才走 app 内置复制逻辑把 .app 拷进 /Applications(用户授权)。
     func generateDiskImageSuggestionsIfEnabled() {
         guard #available(macOS 26.0, *) else { return }
         let store = AIBackgroundIndexStore.shared

@@ -100,6 +100,8 @@
 "tasks.empty" = "Keine Aufgaben";
 "tasks.renameItem" = "%@ umbenennen";
 "tasks.copyCount" = "%d Objekte kopieren";
+"tasks.installApp" = "%@ installieren";
+"tasks.installApp.notFound" = "Im Image wurde keine App gefunden";
 "tasks.moveCount" = "%d Objekte bewegen";
 "tasks.pasteCount" = "%d Objekte einsetzen";
 "tasks.deleteCount" = "%d Objekte löschen";

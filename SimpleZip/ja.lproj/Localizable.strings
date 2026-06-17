@@ -100,6 +100,8 @@
 "tasks.empty" = "タスクはありません";
 "tasks.renameItem" = "%@ の名前を変更";
 "tasks.copyCount" = "%d 項目をコピー";
+"tasks.installApp" = "%@ をインストール";
+"tasks.installApp.notFound" = "ディスクイメージ内にアプリが見つかりません";
 "tasks.moveCount" = "%d 項目を移動";
 "tasks.pasteCount" = "%d 項目をペースト";
 "tasks.deleteCount" = "%d 項目を削除";

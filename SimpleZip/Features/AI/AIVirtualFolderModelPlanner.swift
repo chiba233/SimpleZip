@@ -106,7 +106,7 @@ struct GeneratedFolderGroupSet: Sendable {
 @available(macOS 26.0, *)
 @Generable
 struct GeneratedDiskImageSuggestion: Sendable {
-    @Guide(description: "ONE short, concrete sentence telling the owner what this disk image is, e.g. 'the installer for DockDoor — drag the app into Applications to install it'. Be specific to the app(s) named; do not be generic. In the required language.")
+    @Guide(description: "ONE short, concrete sentence telling the owner what this disk image is: that it is the installer for the app(s) given to you, to be dragged into Applications to install. Use the app name(s) you were given; never invent or assume an app name. In the required language.")
     var summary: String
     @Guide(description: "True if you should actively suggest the user install the app from this disk image (drag it into Applications). For a normal app-installer disk image this is usually true; false only if it clearly is not something to install.")
     var suggestInstall: Bool

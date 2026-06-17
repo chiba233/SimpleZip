@@ -100,6 +100,8 @@
 "tasks.empty" = "Нет задач";
 "tasks.renameItem" = "Переименовать %@";
 "tasks.copyCount" = "Копировать %d объектов";
+"tasks.installApp" = "Установить %@";
+"tasks.installApp.notFound" = "Приложение не найдено в образе диска";
 "tasks.moveCount" = "Переместить %d объектов";
 "tasks.pasteCount" = "Вставить %d объектов";
 "tasks.deleteCount" = "Удалить %d объектов";

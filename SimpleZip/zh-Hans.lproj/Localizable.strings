@@ -1137,6 +1137,8 @@
 "tasks.empty" = "无任务";
 "tasks.renameItem" = "重命名 %@";
 "tasks.copyCount" = "复制 %d 项";
+"tasks.installApp" = "安装 %@";
+"tasks.installApp.notFound" = "镜像里没找到 App";
 "tasks.moveCount" = "移动 %d 项";
 "tasks.pasteCount" = "粘贴 %d 项";
 "tasks.deleteCount" = "删除 %d 项";

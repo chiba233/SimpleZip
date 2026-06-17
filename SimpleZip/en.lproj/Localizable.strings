@@ -1139,6 +1139,8 @@
 "tasks.empty" = "No tasks";
 "tasks.renameItem" = "Rename %@";
 "tasks.copyCount" = "Copy %d items";
+"tasks.installApp" = "Install %@";
+"tasks.installApp.notFound" = "App not found in the disk image";
 "tasks.moveCount" = "Move %d items";
 "tasks.pasteCount" = "Paste %d items";
 "tasks.deleteCount" = "Delete %d items";

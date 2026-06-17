@@ -83,14 +83,16 @@ enum AIWorkspaceNodeActions {
                          displayTitle: L10n.format("aiWorkspace.suggest.openWith", appName),
                          systemImage: "arrow.up.forward.app",
                          action: .openWithApplication(sourceRefs: [sourceRef], bundleIdentifier: bundleID))
-        // 磁盘镜像装 App:label = 内含 App 名;点击 = 打开(挂载)这个 dmg,让用户把 App 拖进「应用程序」(绝不自动拷)。
+        // 磁盘镜像装 App:label = 内含 App 名;点击 = 走 app 内置复制逻辑把 .app 拷进 /Applications(冲突弹窗 +
+        // 活动中心任务都在复制逻辑里;复制完卸载源 DMG)。path = DMG 路径,appName 由 7zz peek 得到。
         case "dragToApplications":
-            let appName = stripAppSuffix(action.label)
+            guard let rawAppName = action.label, !rawAppName.isEmpty else { return nil }
+            let appName = stripAppSuffix(rawAppName)
             return .init(titleKey: "aiWorkspace.suggest.install",
                          displayTitle: appName.isEmpty ? L10n.text("aiWorkspace.suggest.installGeneric")
                                                        : L10n.format("aiWorkspace.suggest.install", appName),
                          systemImage: "arrow.down.app",
-                         action: .openArchive(path: path, revealEntry: nil))
+                         action: .installAppFromDiskImage(diskImagePath: path, appName: rawAppName))
         default:        return nil
         }
     }
