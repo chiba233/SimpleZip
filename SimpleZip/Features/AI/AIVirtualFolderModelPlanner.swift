@@ -364,6 +364,29 @@ enum AIVirtualFolderModelPlanner {
             .map { $0 }
     }
 
+    /// **文件「查看更长总结」**(backlog B,按需现算)。双击抽屉摘要行时弹窗实时生成 —— 比一句话短摘要更深:
+    /// 一两句定性 + 几行要点。复用自由文本 `generate`(非结构化,产物给人读 / 可编辑)。红线照旧:只读**已脱敏**头部。
+    static func longFileSummary(fileName: String, roleTags: [String], languageHint: String?,
+                               headings: [String], excerpt: String) async throws -> String {
+        let lang = AIReportAssistant.uiLanguageName
+        let instructions = """
+        LANGUAGE — MANDATORY: write the whole summary in \(lang). Never use any other language, not even partially.
+
+        You are summarizing ONE file for the person who owns it, in more depth than a single line. From the CONTENT, \
+        write a SHORT but substantive summary: one or two sentences on what this file really is, then a few concise \
+        lines on its key points or structure. Be concrete and specific to THIS file's actual content — do not be \
+        generic, do not restate the file name, do not mention that anything was redacted. If the excerpt is thin, \
+        say what you reasonably can from the name and role. Keep it well under 200 words.
+        """
+        var lines = ["File name: \(fileName)"]
+        if !roleTags.isEmpty { lines.append("Role: \(roleTags.joined(separator: ", "))") }
+        if let languageHint, !languageHint.isEmpty { lines.append("Format: \(languageHint)") }
+        if !headings.isEmpty { lines.append("Headings: \(headings.prefix(12).joined(separator: " | "))") }
+        let trimmed = String(excerpt.prefix(3_000)).trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty { lines.append("Content excerpt (redacted):\n\(trimmed)") }
+        return try await AIReportAssistant.generate(instructions: instructions, prompt: lines.joined(separator: "\n"))
+    }
+
     /// **动态核查**:对一个已成型文件夹的成员,让模型挑出**明显不扣题**的(保守 —— 拿不准就留)。返回要移除的
     /// 真实 candidateID 集合(App 据此从虚拟文件夹剔除,**不碰磁盘**)。失败 / 全扣题 → 返回空。
     static func verifyMisfits(theme: String, items: [AIVirtualNodePromptCandidate]) async throws -> Set<String> {

@@ -2377,6 +2377,7 @@
 "ai.explainFailure.title" = "คำอธิบายความล้มเหลวด้วย AI";
 "ai.regenerate" = "สร้างใหม่";
 "ai.generating" = "กำลังสร้าง…";
+"ai.longSummary.subtitle" = "สรุปไฟล์นี้แบบละเอียดขึ้น";
 "ai.disclaimer" = "สร้างโดย AI อาจไม่ถูกต้อง ให้ยึดรายงานเป็นหลัก";
 "ai.unavailable.osTooOld" = "ฟีเจอร์ AI ต้องใช้ macOS 26 ขึ้นไป";
 "ai.unavailable.deviceNotEligible" = "Mac เครื่องนี้ไม่รองรับ Apple Intelligence";

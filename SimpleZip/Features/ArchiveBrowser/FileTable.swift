@@ -1344,7 +1344,10 @@ struct FileNSOutlineView: NSViewRepresentable {
                 return
             }
             if node.summaryText != nil {
-                // AI 一句话摘要行:双击留给「查看详细总结」(二期);现在不做动作(不落到下面的文件打开)。
+                // AI 一句话摘要行:双击 = 弹「查看更长总结」(B,端上模型现算)。找父文件行 → 现算。
+                if let parent = sender.parent(forItem: node) as? FileOutlineNode, let item = parent.fileItem {
+                    model.requestLongSummary(for: item)
+                }
                 return
             }
             if node.isSection {

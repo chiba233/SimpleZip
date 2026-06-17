@@ -2377,6 +2377,7 @@
 "ai.explainFailure.title" = "Explication de l’échec par l’IA";
 "ai.regenerate" = "Regénérer";
 "ai.generating" = "Génération…";
+"ai.longSummary.subtitle" = "Un résumé plus détaillé de ce fichier";
 "ai.disclaimer" = "Généré par l’IA — peut être inexact. Le rapport lui-même fait foi.";
 "ai.unavailable.osTooOld" = "Les fonctions d’IA nécessitent macOS 26 ou ultérieur.";
 "ai.unavailable.deviceNotEligible" = "Ce Mac ne prend pas en charge Apple Intelligence.";

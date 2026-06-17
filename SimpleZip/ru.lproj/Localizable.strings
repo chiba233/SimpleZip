@@ -2377,6 +2377,7 @@
 "ai.explainFailure.title" = "Объяснение ошибки от ИИ";
 "ai.regenerate" = "Сгенерировать заново";
 "ai.generating" = "Генерация…";
+"ai.longSummary.subtitle" = "Более подробная сводка по этому файлу";
 "ai.disclaimer" = "Сгенерировано ИИ — возможны неточности. Источник истины — сам отчёт.";
 "ai.unavailable.osTooOld" = "Для функций ИИ требуется macOS 26 или новее.";
 "ai.unavailable.deviceNotEligible" = "Этот Mac не поддерживает Apple Intelligence.";

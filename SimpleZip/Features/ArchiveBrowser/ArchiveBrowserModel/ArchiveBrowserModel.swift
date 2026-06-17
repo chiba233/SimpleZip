@@ -95,6 +95,8 @@ final class ArchiveBrowserModel: ObservableObject {
     @Published var gpgExtractRequest: GPGExtractRequest?
     /// 0.4.2：虚拟浏览导出对话框（非 nil = 显示）。
     @Published var virtualExportRequest: VirtualExportRequest?
+    /// 0.4.5 #80 B:双击 AI 抽屉摘要行 →「查看更长总结」弹窗(非 nil = 显示;弹窗里端上模型实时现算)。
+    @Published var aiLongSummaryRequest: AILongSummaryRequest?
     /// #113 查找：当前搜索文本（空 = 不过滤）。绑定搜索栏；主列表（文件 / 归档）按它过滤展示。
     @Published var searchText = ""
     /// 搜索栏是否可见。⌘F / 右键「查找」/ 菜单栏「查找」置 true；Esc 或清空收起。

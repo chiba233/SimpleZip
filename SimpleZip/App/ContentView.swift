@@ -388,6 +388,15 @@ struct ContentView: View {
                 model.nearDuplicateReport = nil
             }
         }
+        // 0.4.5 #80 B:双击 AI 抽屉摘要行 →「查看更长总结」弹窗(端上模型实时现算,复用统一 AI 文本 sheet)。
+        .sheet(item: $model.aiLongSummaryRequest) { request in
+            AIAssistSheet(title: request.fileName,
+                          subtitle: L10n.text("ai.longSummary.subtitle"),
+                          systemImage: "text.alignleft") {
+                guard #available(macOS 26.0, *) else { throw CocoaError(.featureUnsupported) }
+                return try await AIBackgroundIndexer.generateLongSummary(url: request.url, fileName: request.fileName)
+            }
+        }
         .sheet(item: $model.releaseAssistantRequest, onDismiss: {
             if let confirmed = pendingReleaseAssistantRun {
                 pendingReleaseAssistantRun = nil

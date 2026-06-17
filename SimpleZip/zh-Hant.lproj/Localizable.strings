@@ -2379,6 +2379,7 @@
 "ai.explainFailure.title" = "AI 失敗解釋";
 "ai.regenerate" = "重新生成";
 "ai.generating" = "正在生成…";
+"ai.longSummary.subtitle" = "這個檔案的更詳細總結";
 "ai.disclaimer" = "AI 生成，可能有誤。以報告本身為準。";
 "ai.unavailable.osTooOld" = "AI 功能需要 macOS 26 或更新版本。";
 "ai.unavailable.deviceNotEligible" = "這台 Mac 不支援 Apple Intelligence。";

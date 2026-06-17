@@ -454,6 +454,23 @@ final class AIBackgroundIndexer {
         return trimmed.isEmpty ? nil : trimmed
     }
 
+    /// **「查看更长总结」按需现算**(backlog B)。双击抽屉摘要行 → 弹窗实时生成:后台线程重读 + 脱敏头部 → 端上模型
+    /// 出更长总结。红线照旧(敏感目录 / 疑似密钥不读)。调用点(sheet 的 produce 闭包)已在 AI 就绪门控内;读不到
+    /// 内容也让模型从名字 / 角色尽力。复用预索引记录的结构信号(标题 / 语言)当上下文。
+    @available(macOS 26.0, *)
+    static func generateLongSummary(url: URL, fileName: String) async throws -> String {
+        let excerptTask = Task.detached(priority: .userInitiated) {
+            AIBackgroundIndexer.redactedExcerpt(url: url, fileName: fileName) ?? ""
+        }
+        let excerpt = await excerptTask.value
+        let record = AIBackgroundIndexStore.shared.record(forPath: url.path)
+        let roleTags = record?.roleTags ?? AIFileType.roleTags(fileName: fileName, isDirectory: false)
+        return try await AIVirtualFolderModelPlanner.longFileSummary(
+            fileName: fileName, roleTags: roleTags,
+            languageHint: record?.contentSummary?.languageHint,
+            headings: record?.contentSummary?.headings ?? [], excerpt: excerpt)
+    }
+
     /// **推荐打开方式**:查一个文件的「**非默认**」候选打开 App(LaunchServices 元数据,**不读内容**)。默认双击就能
     /// 开 → 不进建议;只把非默认候选喂给模型挑(用户:非默认才进 suggestion,「不然脱裤子放屁」)。返回
     /// `(bundleID, 显示名)`,去掉默认 App、去重、封顶 8 个。文件不存在 / 无候选 → 空数组。off-main 安全。

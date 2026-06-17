@@ -1368,6 +1368,7 @@
 "ai.explainFailure.title" = "AI Failure Explanation";
 "ai.regenerate" = "Regenerate";
 "ai.generating" = "Generating…";
+"ai.longSummary.subtitle" = "A longer summary of this file";
 "ai.disclaimer" = "AI-generated — may be inaccurate. Treat the report itself as the source of truth.";
 "ai.unavailable.osTooOld" = "AI features need macOS 26 or later.";
 "ai.unavailable.deviceNotEligible" = "This Mac doesn't support Apple Intelligence.";

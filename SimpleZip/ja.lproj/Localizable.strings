@@ -2379,6 +2379,7 @@
 "ai.explainFailure.title" = "AI 失敗の説明";
 "ai.regenerate" = "再生成";
 "ai.generating" = "生成中…";
+"ai.longSummary.subtitle" = "このファイルのより詳しい要約";
 "ai.disclaimer" = "AI 生成のため不正確な場合があります。レポート本体を正としてください。";
 "ai.unavailable.osTooOld" = "AI 機能には macOS 26 以降が必要です。";
 "ai.unavailable.deviceNotEligible" = "この Mac は Apple Intelligence に対応していません。";

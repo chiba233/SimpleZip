@@ -2378,6 +2378,7 @@
 "ai.explainFailure.title" = "KI-Fehlererklärung";
 "ai.regenerate" = "Neu generieren";
 "ai.generating" = "Wird generiert …";
+"ai.longSummary.subtitle" = "Eine ausführlichere Zusammenfassung dieser Datei";
 "ai.disclaimer" = "KI-generiert — kann ungenau sein. Maßgeblich ist der Bericht selbst.";
 "ai.unavailable.osTooOld" = "KI-Funktionen erfordern macOS 26 oder neuer.";
 "ai.unavailable.deviceNotEligible" = "Dieser Mac unterstützt Apple Intelligence nicht.";

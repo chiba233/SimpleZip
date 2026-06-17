@@ -10,6 +10,13 @@
 import AppKit
 import Foundation
 
+/// 「查看更长总结」弹窗请求(backlog B):承载要按需现算总结的文件。
+struct AILongSummaryRequest: Identifiable {
+    let id = UUID()
+    let url: URL
+    let fileName: String
+}
+
 extension ArchiveBrowserModel {
     func recordAIWorkspaceViewingTransition(from oldMode: BrowserMode, to newMode: BrowserMode) {
         let oldID: UUID? = {
@@ -70,6 +77,12 @@ extension ArchiveBrowserModel {
               let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier) else { return }
         NSWorkspace.shared.open(urls, withApplicationAt: appURL,
                                 configuration: NSWorkspace.OpenConfiguration(), completionHandler: nil)
+    }
+
+    /// 0.4.5 #80 B:双击 AI 抽屉摘要行 → 弹「查看更长总结」(端上模型实时现算)。仅 AI 就绪时弹(否则该文件本就没摘要行)。
+    func requestLongSummary(for item: FileItem) {
+        guard !item.isDirectory, AIReportAssistant.isReady else { return }
+        aiLongSummaryRequest = AILongSummaryRequest(url: item.url, fileName: item.url.lastPathComponent)
     }
 
     func openHome() {
