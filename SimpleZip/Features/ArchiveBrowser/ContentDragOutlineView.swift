@@ -44,16 +44,21 @@ final class ContentDragOutlineView: NSOutlineView, QLPreviewPanelDataSource, QLP
     }
 
     override func keyDown(with event: NSEvent) {
+        // Return/Enter:先试改名(returnKeyAction)。可展开项也要让改名优先 —— 否则可展开的行(如 AI 工作区
+        // 的虚拟分组)按 Return 永远先展开、够不到改名。FileTable / 归档表的 returnKeyAction 对「非单个可改名项」
+        // 返回 false,会自然回退到下面的展开/折叠,行为不变。
+        if event.keyCode == 36 || event.keyCode == 76, let returnKeyAction, returnKeyAction() {
+            return
+        }
+        // Space + Return:展开/折叠可展开项。
         if event.keyCode == 49 || event.keyCode == 36 || event.keyCode == 76 {
             if selectedRow >= 0, let item = item(atRow: selectedRow), isExpandable(item) {
                 if isItemExpanded(item) { collapseItem(item) } else { expandItem(item) }
                 return
             }
         }
+        // Space:可展开项以外的行 → 快速查看。
         if event.keyCode == 49, presentQuickLook() {
-            return
-        }
-        if event.keyCode == 36 || event.keyCode == 76, let returnKeyAction, returnKeyAction() {
             return
         }
         super.keyDown(with: event)
