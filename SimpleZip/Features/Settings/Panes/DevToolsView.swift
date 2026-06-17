@@ -415,7 +415,7 @@ struct DevToolsView: View {
             // AI 建议各 pass 的实际产物计数 —— 一眼看出每个 pass 有没有生效(0 = 还没出 / 没候选 / 没开)。
             let s = snapshot.backgroundIndex
             aiSuggestionStatus = "摘要 \(s.summaryCount) · 打开方式 \(s.openWithCount) · 装App \(s.installCount)"
-                + " · 活动 \(s.activityCount) · 包内 \(s.archiveEntryCount)"
+                + " · 活动 \(s.activityCount) · 包内 \(s.archiveEntryCount) · 包定性 \(s.archiveKindCount)"
             // #8 跨表面反馈学习:事件计数(原始保留 30 天 / 每类上限 1000)。
             let fb = AIFeedbackStore.shared.counts
             aiFeedbackStatus = "我不喜欢 \(fb.feedback) · 兴趣信号 \(fb.signals)"
@@ -489,6 +489,7 @@ struct DevToolsView: View {
                 installCount: countAction("dragToApplications"),
                 activityCount: countAction("openTask"),
                 archiveEntryCount: countAction("revealArchiveEntry"),
+                archiveKindCount: countAction("archiveKind"),
                 activityLevel: AppPreferences.aiBackgroundActivityLevel.rawValue,
                 scopeCount: backgroundStore.scopes.count,
                 indexedFileCount: index.fileCount,
@@ -599,6 +600,7 @@ private nonisolated struct DevToolsAIDataSnapshot: Encodable {
         let installCount: Int
         let activityCount: Int
         let archiveEntryCount: Int
+        let archiveKindCount: Int
         let activityLevel: String
         let scopeCount: Int
         let indexedFileCount: Int

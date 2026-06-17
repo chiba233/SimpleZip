@@ -129,6 +129,14 @@ struct GeneratedArchiveEntryPicks: Sendable {
     var pickedNumbers: [String]
 }
 
+/// **归档行内「这是什么包」**的模型产出。单字段,可靠。
+@available(macOS 26.0, *)
+@Generable
+struct GeneratedArchiveKindGuess: Sendable {
+    @Guide(description: "ONE short, concrete sentence describing what kind of archive this appears to be, based only on the listed paths and folder structure. Use the required language. Do not name or copy a specific product unless it is explicitly present in the archive name or entries.")
+    var summary: String
+}
+
 /// 动态核查产出:**明显不扣题**、该从文件夹移除的条目序号(保守 —— 拿不准就不列)。扁平单字段,可靠。
 @available(macOS 26.0, *)
 @Generable
@@ -372,6 +380,31 @@ enum AIVirtualFolderModelPlanner {
             .filter { $0 >= 1 && $0 <= cands.count && seen.insert($0).inserted }
             .prefix(4)
             .map { $0 }
+    }
+
+    /// **归档行内「这是什么包」**(拒绝假AI)。给一个归档的**非加密条目清单缓存**(文件/目录名 + 结构,不解压),
+    /// 让端上模型据结构写一句定性。失败抛出由调用点吞掉;空摘要由调用点标记为已评估但不显示。
+    static func archiveKindGuess(archiveName: String, entryNames: [(name: String, isDirectory: Bool)])
+        async throws -> String {
+        guard !entryNames.isEmpty else { return "" }
+        let lang = AIReportAssistant.uiLanguageName
+        let instructions = """
+        LANGUAGE — MANDATORY: write the summary in \(lang). Never use any other language for it, not even partially.
+
+        You are looking at the file and folder names inside ONE archive. Based only on those names and their folder \
+        structure, write ONE short, concrete sentence describing what kind of archive this appears to be. Do not \
+        claim certainty; say it appears to be something. Do not invent contents that are not supported by the paths. \
+        Avoid naming a specific product or app unless that name is explicitly present in the archive name or entries.
+        """
+        var lines = ["Archive: \(archiveName)", "Entries (number<TAB>type<TAB>path):"]
+        for (i, entry) in entryNames.enumerated() {
+            let kind = entry.isDirectory ? "directory" : "file"
+            lines.append("\(i + 1)\t\(kind)\t\(entry.name)")
+        }
+        let generated = try await AIReportAssistant.generateStructured(
+            instructions: instructions, prompt: lines.joined(separator: "\n"),
+            as: GeneratedArchiveKindGuess.self, maxAttempts: 8)
+        return generated.summary.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// **文件「查看更长总结」**(backlog B,按需现算)。双击抽屉摘要行时弹窗实时生成 —— 比一句话短摘要更深:

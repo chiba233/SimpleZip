@@ -92,6 +92,8 @@ final class AIBackgroundIndexer {
     private var activityTask: Task<Void, Never>?
     private var archiveEntryRunning = false
     private var archiveEntryTask: Task<Void, Never>?
+    private var archiveKindRunning = false
+    private var archiveKindTask: Task<Void, Never>?
 
     /// 跑一轮预索引(门控未过则直接返回 —— 默认 opt-in 关闭即什么都不做)。完成后通知发现编排者刷新。
     func runIfEnabled() {
@@ -136,6 +138,7 @@ final class AIBackgroundIndexer {
                         AIBackgroundIndexer.shared.generateDiskImageSuggestionsIfEnabled()   // 内含 App 的 dmg「安装到应用程序」
                         AIBackgroundIndexer.shared.generateActivityLinkSuggestionsIfEnabled()   // 命中近期任务产物「查看活动」
                         AIBackgroundIndexer.shared.generateArchiveEntrySuggestionsIfEnabled()   // 归档「也许你要包里的 X」
+                        AIBackgroundIndexer.shared.generateArchiveKindGuessIfEnabled()   // 归档「这看起来是什么包」
                     }
                 }
                 AIBackgroundIndexer.shared.running = false
@@ -150,6 +153,7 @@ final class AIBackgroundIndexer {
         diskImageTask?.cancel(); diskImageTask = nil; diskImageRunning = false
         activityTask?.cancel(); activityTask = nil; activityRunning = false
         archiveEntryTask?.cancel(); archiveEntryTask = nil; archiveEntryRunning = false
+        archiveKindTask?.cancel(); archiveKindTask = nil; archiveKindRunning = false
     }
 
     // MARK: - 内容预读 · 归档半边(MainActor:ArchiveService 在 app target 下 MainActor 隔离,A18)
@@ -404,10 +408,10 @@ final class AIBackgroundIndexer {
             ArchiveListingCacheStore().loadAll().map { ($0.archivePath, $0) },
             uniquingKeysWith: { first, _ in first })
         guard !listingByPath.isEmpty else { return }
-        // 选:归档 + 还没评估(contentSummary == nil)+ 有缓存清单且含文件条目。预算封顶,近期在前。
+        // 选:归档 + 还没评估包内文件建议 + 有缓存清单且含文件条目。预算封顶,近期在前。
         var picks: [(rec: AIFileMemoryRecord, entry: ArchiveListingCacheEntry)] = []
         for rec in store.recentFileRecords(limit: 2_000) {
-            guard rec.type == .archive, rec.contentSummary == nil, let path = rec.path else { continue }
+            guard rec.type == .archive, rec.contentSummary?.mode != "archive-entries", let path = rec.path else { continue }
             let canonical = ArchiveListingCacheStore.canonicalPath(for: URL(fileURLWithPath: path))
             guard let entry = listingByPath[canonical], entry.fileEntryCount > 0 else { continue }
             picks.append((rec, entry))
@@ -434,6 +438,54 @@ final class AIBackgroundIndexer {
                                                  label: (entryPath as NSString).lastPathComponent)
                 }
                 AIBackgroundIndexStore.shared.applyArchiveEntrySuggestion(recordID: rec.id, actions: actions)
+            }
+        }
+    }
+
+    // MARK: - 压缩包「这是什么包」定性(MainActor:读清单缓存 + 模型 async)
+
+    /// 对**预读过(清单已缓存)、还没定性**的归档,让端上模型据完整非加密条目名 + 目录结构写一句「这看起来是什么包」。
+    /// 纯 AI:App 只提供清单事实,不规则兜底、不硬分类;模型失败则下轮重试,空摘要则只写 `archiveKind` marker 标记已评估。
+    func generateArchiveKindGuessIfEnabled() {
+        guard #available(macOS 26.0, *) else { return }
+        let store = AIBackgroundIndexStore.shared
+        guard !archiveKindRunning, AppPreferences.aiSuggestionEnabled,
+              store.indexingEnabled, AppPreferences.archiveListingCacheEnabled,
+              AIReportAssistant.isReady, canRunModelWorkNow(), let budget = store.budget else { return }
+        let listingByPath = Dictionary(
+            ArchiveListingCacheStore().loadAll().map { ($0.archivePath, $0) },
+            uniquingKeysWith: { first, _ in first })
+        guard !listingByPath.isEmpty else { return }
+
+        var picks: [(rec: AIFileMemoryRecord, entry: ArchiveListingCacheEntry)] = []
+        for rec in store.recentFileRecords(limit: 2_000) {
+            guard rec.type == .archive, rec.contentSummary?.action(forToken: "archiveKind") == nil,
+                  let path = rec.path else { continue }
+            let canonical = ArchiveListingCacheStore.canonicalPath(for: URL(fileURLWithPath: path))
+            guard let entry = listingByPath[canonical], !entry.entries.isEmpty else { continue }
+            picks.append((rec, entry))
+            if picks.count >= budget.maxModelSuggestionsPerRound { break }
+        }
+        guard !picks.isEmpty else { return }
+
+        archiveKindRunning = true
+        archiveKindTask = Task { @MainActor in
+            defer { AIBackgroundIndexer.shared.archiveKindRunning = false }
+            for (rec, entry) in picks {
+                if Task.isCancelled { break }
+                guard AIBackgroundIndexStore.shared.indexingEnabled, AIReportAssistant.isReady,
+                      AIBackgroundIndexer.shared.canRunModelWorkNow() else { break }
+                let entries = entry.entries.compactMap { cached -> (name: String, isDirectory: Bool)? in
+                    let name = cached.name.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+                    return name.isEmpty ? nil : (name, cached.isDirectory)
+                }
+                guard !entries.isEmpty else {
+                    AIBackgroundIndexStore.shared.applyArchiveKindGuess(recordID: rec.id, summary: nil)
+                    continue
+                }
+                guard let summary = try? await AIVirtualFolderModelPlanner.archiveKindGuess(
+                    archiveName: rec.fileName, entryNames: entries) else { continue }
+                AIBackgroundIndexStore.shared.applyArchiveKindGuess(recordID: rec.id, summary: summary)
             }
         }
     }

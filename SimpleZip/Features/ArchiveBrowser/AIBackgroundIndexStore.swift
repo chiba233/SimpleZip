@@ -218,8 +218,26 @@ final class AIBackgroundIndexStore: ObservableObject {
     /// `archive-entries` 摘要承载模型挑的 `revealArchiveEntry` 动作(payload = 包内条目相对路径,label = 文件名)。
     /// **总是建一条**(actions 可空)以标记「已评估」,下轮不再选(归档变了阶段一清回才重选)。落盘 + 通知。**不解压**。
     func applyArchiveEntrySuggestion(recordID: String, actions: [AIFileSuggestedAction]) {
-        let content = AIFileContentSummary(mode: "archive-entries", suggestedActions: actions)
-        fileIndex = fileIndex.updatingRecord(id: recordID) { $0.withContentSummary(content) }
+        fileIndex = fileIndex.updatingRecord(id: recordID) { rec in
+            let base = rec.contentSummary ?? AIFileContentSummary(mode: "archive-entries")
+            return rec.withContentSummary(base.mergingArchiveEntryActions(actions))
+        }
+        persistIndex()
+        objectWillChange.send()
+    }
+
+    /// **归档行内定性**回填:模型据归档清单给一句「这看起来是什么包」。`archiveKind` 是不可见 marker,
+    /// 用于 DevTools 计数 / 避免重复评估;UI 显示走 `shortSummary` 摘要行,没有额外按钮。
+    func applyArchiveKindGuess(recordID: String, summary: String?) {
+        let clean = summary?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let hasSummary = clean?.isEmpty == false
+        let marker = AIFileSuggestedAction(token: "archiveKind")
+        fileIndex = fileIndex.updatingRecord(id: recordID) { rec in
+            let base = rec.contentSummary ?? AIFileContentSummary(mode: "archive-kind")
+            return rec.withContentSummary(
+                base.mergingSingletonAction(marker, replacingToken: "archiveKind",
+                                            shortSummaryIfEmpty: hasSummary ? clean : nil))
+        }
         persistIndex()
         objectWillChange.send()
     }

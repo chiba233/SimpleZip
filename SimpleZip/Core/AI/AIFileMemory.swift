@@ -301,6 +301,15 @@ nonisolated struct AIFileContentSummary: Codable, Equatable, Sendable {
                                     shortSummary: summary, suggestedActions: actions, redactionCount: redactionCount)
     }
 
+    /// 归档清单类 pass 的合并:包内文件建议可产出多条 `revealArchiveEntry`;归档定性只产一条摘要 + `archiveKind`
+    /// marker。两者都来自归档清单缓存,但互不覆盖。
+    func mergingArchiveEntryActions(_ actions: [AIFileSuggestedAction]) -> AIFileContentSummary {
+        let preserved = suggestedActions.filter { $0.token != "revealArchiveEntry" }
+        return AIFileContentSummary(mode: "archive-entries", languageHint: languageHint, headings: headings,
+                                    fieldNames: fieldNames, shortSummary: shortSummary,
+                                    suggestedActions: preserved + actions, redactionCount: redactionCount)
+    }
+
     /// 是否已有模型产出(摘要或建议动作)→ 文件浏览器据此决定是否展示 AI 抽屉(都没有 = 空抽屉、不展开)。
     var hasModelSuggestion: Bool {
         (shortSummary?.isEmpty == false) || !suggestedActions.isEmpty

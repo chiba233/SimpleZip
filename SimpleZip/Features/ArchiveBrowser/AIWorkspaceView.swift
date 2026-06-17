@@ -115,6 +115,9 @@ enum AIWorkspaceNodeActions {
                          displayTitle: L10n.format("aiWorkspace.suggest.revealEntry", name),
                          systemImage: "doc.text.magnifyingglass",
                          action: .openArchive(path: path, revealEntry: entry))
+        // 归档「这是什么包」只作为 `shortSummary` 摘要行显示;这个 marker 用于计数 / 防重复,没有按钮。
+        case "archiveKind":
+            return nil
         default:        return nil
         }
     }
