@@ -10,29 +10,16 @@
 //  不挂导航 / reload 路径(A17 天然规避)。
 //
 
-import Combine
 import Foundation
 
 @MainActor
 final class AIWorkspaceDiscoveryCoordinator {
     static let shared = AIWorkspaceDiscoveryCoordinator()
 
-    private var cancellable: AnyCancellable?
-    private var refreshTask: Task<Void, Never>?
-    private var activated = false
-    /// 启动后台发现。订阅活动任务历史**数量变化**(去重 → 避开进度刷新风暴)→ 排队重跑发现;`@Published` 在订阅时
-    /// 即推送当前值,故首轮发现会被排队触发。重复调用安全(已激活则只补排一轮)。顺带 kick 一轮 opt-in 文件预索引
-    /// (门控未过则什么都不做)—— 索引完成后它会回调 `refresh()` 把新文件记录纳入。
+    /// 启动后台索引 / 预读(AI suggestion 的基座)。**AI 文件夹的后台自动发现已下线**(概念废弃):不再订阅活动
+    /// 历史、不再自动跑 `refreshRecommendations` —— 那是给已下线的推荐工作区 + 模型复核(DevTools「复核 发X/判否Y」)
+    /// 白干活。`refresh()` 保留为按需入口,留待后续侧栏「建议总览」调用。
     func activate() {
-        if !activated {
-            activated = true
-            cancellable = TaskCenter.shared.$history
-                .map(\.count)
-                .removeDuplicates()
-                .sink { [weak self] _ in self?.scheduleRefresh() }
-        } else {
-            scheduleRefresh()
-        }
         AIBackgroundIndexer.shared.runIfEnabled()
     }
 
@@ -50,16 +37,5 @@ final class AIWorkspaceDiscoveryCoordinator {
         // 本会话扫到的 记录 id → 真实路径(给节点「显示来源目录 / 在 Finder 显示 / 哈希」用;路径不落盘)。
         let paths = AIBackgroundIndexStore.shared.pathsBySourceRef(limit: max(policy.discoveryFileRecordLimit, 1))
         AIWorkspaceStore.shared.refreshRecommendations(files: files, tasks: Array(tasks), pathsBySourceRef: paths)
-    }
-
-    /// 首轮发现不能抢主窗口首帧。发现本身会做语义聚类(O(n²) pair 比较),所以把启动/历史变化压成一次
-    /// 短延迟刷新;多次窗口 onAppear 或历史批量落盘只保留最后一次。
-    private func scheduleRefresh() {
-        refreshTask?.cancel()
-        refreshTask = Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 500_000_000)
-            guard !Task.isCancelled else { return }
-            refresh()
-        }
     }
 }

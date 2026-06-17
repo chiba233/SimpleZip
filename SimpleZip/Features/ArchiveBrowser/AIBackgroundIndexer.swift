@@ -55,7 +55,7 @@ final class AIBackgroundIndexer {
                         store.ingest(records: records, folders: [], scopeID: id, at: now)
                         store.markScanned(id, at: now)
                     }
-                    AIWorkspaceDiscoveryCoordinator.shared.refresh()
+                    // (AI 文件夹自动发现已下线 → 不再 index 完回调 discovery.refresh();索引 / 预读照常给 AI suggestion 用。)
                     AIBackgroundIndexer.shared.prereadArchivesIfEnabled()   // 元数据落盘后预读归档内容(门控未过则空跑)
                 }
                 AIBackgroundIndexer.shared.running = false
@@ -107,7 +107,7 @@ final class AIBackgroundIndexer {
                     listedAny = true
                 }
             }
-            if listedAny { AIWorkspaceDiscoveryCoordinator.shared.refresh() }   // 新归档记忆 → 纳入候选池
+            // (AI 文件夹自动发现已下线 → 预读完不再回调 discovery.refresh();归档清单缓存照常给 AI suggestion / Spotlight 用。)
         }
     }
 
