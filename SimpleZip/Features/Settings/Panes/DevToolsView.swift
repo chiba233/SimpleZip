@@ -465,6 +465,9 @@ struct DevToolsView: View {
         func countAction(_ token: String) -> Int {
             records.reduce(0) { $0 + (($1.contentSummary?.suggestedActions.contains { $0.token == token } ?? false) ? 1 : 0) }
         }
+        func countInlineResult(_ token: String) -> Int {
+            records.reduce(0) { $0 + (($1.contentSummary?.inlineResults[token]?.isEmpty == false) ? 1 : 0) }
+        }
         let summaryCount = records.reduce(0) { $0 + (($1.contentSummary?.shortSummary?.isEmpty == false) ? 1 : 0) }
 
         return DevToolsAIDataSnapshot(
@@ -490,6 +493,7 @@ struct DevToolsView: View {
                 activityCount: countAction("openTask"),
                 archiveEntryCount: countAction("revealArchiveEntry"),
                 archiveKindCount: countAction("archiveKind"),
+                inlineHashResultCount: countInlineResult("hash"),
                 activityLevel: AppPreferences.aiBackgroundActivityLevel.rawValue,
                 scopeCount: backgroundStore.scopes.count,
                 indexedFileCount: index.fileCount,
@@ -601,6 +605,7 @@ private nonisolated struct DevToolsAIDataSnapshot: Encodable {
         let activityCount: Int
         let archiveEntryCount: Int
         let archiveKindCount: Int
+        let inlineHashResultCount: Int
         let activityLevel: String
         let scopeCount: Int
         let indexedFileCount: Int

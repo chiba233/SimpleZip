@@ -61,7 +61,15 @@ enum AIWorkspaceNodeActions {
         let actions = content.suggestedActions.compactMap { sugg -> AIWorkspaceNodeAction? in
             let key = AIBackgroundIndexStore.dislikeKey(recordID: record.id, token: sugg.token, payload: sugg.payload)
             guard !store.isSuggestionDisliked(key) else { return nil }
-            var node = fileAction(sugg, path: path, kind: kind, sourceRef: record.contextSourceRef)
+            var node: AIWorkspaceNodeAction?
+            if let result = content.inlineResults[sugg.token], sugg.token == "hash" {
+                node = .init(titleKey: "aiWorkspace.inlineHash.result",
+                             displayTitle: L10n.format("aiWorkspace.inlineHash.result", result),
+                             systemImage: "doc.on.doc",
+                             action: .copyInlineResult(text: result))
+            } else {
+                node = fileAction(sugg, path: path, kind: kind, sourceRef: record.contextSourceRef, recordID: record.id)
+            }
             node?.dislikeKey = key
             return node
         }
@@ -74,10 +82,12 @@ enum AIWorkspaceNodeActions {
     /// 把**模型挑的**结构化动作 + 文件路径安全合成一条建议行(模型不拼路径;token 必须在词表里且适用该 kind)。
     /// 带 payload 的动作(openWith→app bundleId、包内文件→entryPath…)由 App 据 payload 安全合成;模型只选不拼。
     private static func fileAction(_ action: AIFileSuggestedAction, path: String, kind: String,
-                                  sourceRef: AIContextSourceRef) -> AIWorkspaceNodeAction? {
+                                  sourceRef: AIContextSourceRef, recordID: String) -> AIWorkspaceNodeAction? {
         let token = action.token
         switch token {
-        case "hash" where applies(token, kind):    return hash([path])
+        case "hash" where applies(token, kind):
+            return .init(titleKey: "aiWorkspace.node.hash", systemImage: "number",
+                         action: .calculateInlineHash(recordID: recordID, path: path, token: token))
         case "compress" where applies(token, kind): return compress([path], "aiWorkspace.node.compress")
         case "test" where applies(token, kind):    return test(path)
         case "inspect" where applies(token, kind): return .init(titleKey: "aiWorkspace.suggest.inspect", systemImage: "shippingbox",

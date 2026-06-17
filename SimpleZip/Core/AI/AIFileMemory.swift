@@ -228,22 +228,28 @@ nonisolated struct AIFileContentSummary: Codable, Equatable, Sendable {
     let shortSummary: String?
     /// 端上模型给这个文件挑的**结构化建议动作**(②c)。空 = 模型没建议动作。
     let suggestedActions: [AIFileSuggestedAction]
+    /// 用户点击建议动作后的按需只读结果。key = 建议 token(`hash` / 以后复用的 `test` / `inspect`),
+    /// value = 抽屉内联显示文本。模型仍只决定是否出现原始 token;结果只是该 token 的本地执行回填。
+    let inlineResults: [String: String]
     let redactionCount: Int
 
     init(mode: String, languageHint: String? = nil, headings: [String] = [], fieldNames: [String] = [],
-         shortSummary: String? = nil, suggestedActions: [AIFileSuggestedAction] = [], redactionCount: Int = 0) {
+         shortSummary: String? = nil, suggestedActions: [AIFileSuggestedAction] = [],
+         inlineResults: [String: String] = [:], redactionCount: Int = 0) {
         self.mode = mode
         self.languageHint = languageHint
         self.headings = headings
         self.fieldNames = fieldNames
         self.shortSummary = shortSummary
         self.suggestedActions = suggestedActions
+        self.inlineResults = inlineResults
         self.redactionCount = redactionCount
     }
 
     private enum CodingKeys: String, CodingKey {
         case mode, languageHint, headings, fieldNames, shortSummary
         case suggestedActions, suggestedActionTokens   // 后者:旧缓存的 [String] token,迁移用
+        case inlineResults
         case redactionCount
     }
 
@@ -262,6 +268,7 @@ nonisolated struct AIFileContentSummary: Codable, Equatable, Sendable {
             let legacy = try c.decodeIfPresent([String].self, forKey: .suggestedActionTokens) ?? []
             self.suggestedActions = legacy.map { AIFileSuggestedAction(token: $0) }
         }
+        self.inlineResults = try c.decodeIfPresent([String: String].self, forKey: .inlineResults) ?? [:]
         self.redactionCount = try c.decodeIfPresent(Int.self, forKey: .redactionCount) ?? 0
     }
 
@@ -274,6 +281,7 @@ nonisolated struct AIFileContentSummary: Codable, Equatable, Sendable {
         try c.encode(fieldNames, forKey: .fieldNames)
         try c.encodeIfPresent(shortSummary, forKey: .shortSummary)
         try c.encode(suggestedActions, forKey: .suggestedActions)
+        try c.encode(inlineResults, forKey: .inlineResults)
         try c.encode(redactionCount, forKey: .redactionCount)
     }
 
@@ -287,7 +295,7 @@ nonisolated struct AIFileContentSummary: Codable, Equatable, Sendable {
         let preserved = suggestedActions.filter { !AIFileContentSummary.summaryOwnedActionTokens.contains($0.token) }
         return AIFileContentSummary(mode: mode, languageHint: languageHint, headings: headings, fieldNames: fieldNames,
                                     shortSummary: summary, suggestedActions: preserved + actions,
-                                    redactionCount: redactionCount)
+                                    inlineResults: inlineResults, redactionCount: redactionCount)
     }
 
     /// 合并一条带 payload 的单例动作(活动 openTask、磁盘镜像 dragToApplications…):按 token 去掉旧的、加上新的
@@ -298,7 +306,8 @@ nonisolated struct AIFileContentSummary: Codable, Equatable, Sendable {
         if let action { actions.append(action) }
         let summary = (shortSummary?.isEmpty == false) ? shortSummary : newSummary
         return AIFileContentSummary(mode: mode, languageHint: languageHint, headings: headings, fieldNames: fieldNames,
-                                    shortSummary: summary, suggestedActions: actions, redactionCount: redactionCount)
+                                    shortSummary: summary, suggestedActions: actions,
+                                    inlineResults: inlineResults, redactionCount: redactionCount)
     }
 
     /// 归档清单类 pass 的合并:包内文件建议可产出多条 `revealArchiveEntry`;归档定性只产一条摘要 + `archiveKind`
@@ -307,12 +316,23 @@ nonisolated struct AIFileContentSummary: Codable, Equatable, Sendable {
         let preserved = suggestedActions.filter { $0.token != "revealArchiveEntry" }
         return AIFileContentSummary(mode: "archive-entries", languageHint: languageHint, headings: headings,
                                     fieldNames: fieldNames, shortSummary: shortSummary,
-                                    suggestedActions: preserved + actions, redactionCount: redactionCount)
+                                    suggestedActions: preserved + actions,
+                                    inlineResults: inlineResults, redactionCount: redactionCount)
+    }
+
+    /// 回填某个建议 token 的按需执行结果(例如 `hash` → SHA-256 文本),不改动模型摘要或其它动作。
+    func withInlineResult(token: String, text: String) -> AIFileContentSummary {
+        var results = inlineResults
+        results[token] = text
+        return AIFileContentSummary(mode: mode, languageHint: languageHint, headings: headings,
+                                    fieldNames: fieldNames, shortSummary: shortSummary,
+                                    suggestedActions: suggestedActions, inlineResults: results,
+                                    redactionCount: redactionCount)
     }
 
     /// 是否已有模型产出(摘要或建议动作)→ 文件浏览器据此决定是否展示 AI 抽屉(都没有 = 空抽屉、不展开)。
     var hasModelSuggestion: Bool {
-        (shortSummary?.isEmpty == false) || !suggestedActions.isEmpty
+        (shortSummary?.isEmpty == false) || !suggestedActions.isEmpty || !inlineResults.isEmpty
     }
 
     /// 取某 token 的建议动作(给「已有 openTask 指向同一任务就跳过」这类去重判断用)。

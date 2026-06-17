@@ -60,6 +60,10 @@ nonisolated enum AISuggestionAction: Codable, Equatable, Sendable {
     case inspectRelease(path: String)
     case refreshArchiveListingForEvidence(sourceRef: AIContextSourceRef)
     case copySourceRefsToFolder(sourceRefs: [AIContextSourceRef], destination: String)
+    /// 文件浏览器 AI 抽屉的按需只读哈希:用户点模型建议的 `hash` token 后,App 计算本地文件 SHA-256 并回填抽屉。
+    case calculateInlineHash(recordID: String, path: String, token: String)
+    /// 抽屉内联结果行的复制动作。
+    case copyInlineResult(text: String)
 
     // 真实硬盘删除 —— 最高危。destructive + requiresConfirmation,绝不自动 / 绝不当 primary。
     case deleteSourceRefsFromDisk(sourceRefs: [AIContextSourceRef])
@@ -73,7 +77,7 @@ nonisolated enum AISuggestionAction: Codable, Equatable, Sendable {
              .openWithApplication, .pinRecommendedWorkspace, .dismissRecommendedWorkspace,
              .setWorkspacePreferredOpenApp, .mergeAIWorkspaces, .splitAIWorkspace,
              .removeSourceRefsFromAIWorkspace, .moveVirtualNodes, .addSourceRefsToAIWorkspace,
-             .addThemePromptToAIWorkspace:
+             .addThemePromptToAIWorkspace, .calculateInlineHash, .copyInlineResult:
             return .safe
         // 启动后端任务 / 打开写盘表单 / 复制真实文件 / 装 App / 删工作区 —— 需确认,只能打开现有流程。
         case .calculateHash, .calculateHashForEvidence, .createArchive, .createArchiveFromSuggestion,

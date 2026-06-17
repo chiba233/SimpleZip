@@ -388,6 +388,7 @@ struct FileNSOutlineView: NSViewRepresentable {
             // objectWillChange）时,靠它判定「内容变了」并 reload。故意不哈希注册表本身 —— 首次展开的懒登记
             // 会改注册表但行已画出,算进指纹会让展开后的下一次 updateNSView 误触发全表 reload（闪烁）。
             hasher.combine(model.expandedChildrenGeneration)
+            hasher.combine(AIBackgroundIndexStore.shared.fileIndexGeneration)
             let contentSignature = hasher.finalize()
             guard contentSignature != lastContentSignature else { return }
 
@@ -1308,8 +1309,13 @@ struct FileNSOutlineView: NSViewRepresentable {
             menuDrawerAction = node.suggestionAction?.action
             menuDrawerDislikeKey = node.suggestionAction?.dislikeKey ?? summaryDislikeKey(forDrawerNode: node)
             menuDrawerFeedback = drawerFeedbackContext(forDrawerNode: node)   // #8 跨表面反馈上下文
-            if menuDrawerAction != nil {
-                menu.addItem(menuItem(L10n.text("button.open"), systemImage: "arrow.turn.up.right",
+            if let action = menuDrawerAction {
+                let isCopy = {
+                    if case .copyInlineResult = action { return true }
+                    return false
+                }()
+                menu.addItem(menuItem(L10n.text(isCopy ? "button.copy" : "button.open"),
+                                      systemImage: isCopy ? "doc.on.doc" : "arrow.turn.up.right",
                                       action: #selector(openAISuggestion)))
             }
             let dislike = menuItem(L10n.text("aiSuggestion.menu.dislike"), systemImage: "hand.thumbsdown",

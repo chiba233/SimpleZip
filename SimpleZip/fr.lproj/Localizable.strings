@@ -2615,6 +2615,7 @@
 "aiWorkspace.node.compressGroup" = "Compresser ceux-ci · gagner de la place";
 "aiWorkspace.node.reveal" = "Aller à l'emplacement du fichier";
 "aiWorkspace.node.hash" = "Calculer SHA-256";
+"aiWorkspace.inlineHash.result" = "SHA-256 du fichier actuel : %@";
 "aiWorkspace.node.test" = "Tester l’archive";
 "aiWorkspace.node.expand" = "Développer";
 "aiWorkspace.node.collapse" = "Réduire";

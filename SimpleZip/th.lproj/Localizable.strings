@@ -2617,6 +2617,7 @@
 "aiWorkspace.node.compressGroup" = "บีบอัดเหล่านี้ · ประหยัดพื้นที่";
 "aiWorkspace.node.reveal" = "ไปยังตำแหน่งไฟล์";
 "aiWorkspace.node.hash" = "คำนวณ SHA-256";
+"aiWorkspace.inlineHash.result" = "SHA-256 ของไฟล์ปัจจุบัน: %@";
 "aiWorkspace.node.test" = "ทดสอบอาร์ไคฟ์";
 "aiWorkspace.node.expand" = "ขยาย";
 "aiWorkspace.node.collapse" = "ยุบ";

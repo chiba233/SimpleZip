@@ -22,8 +22,13 @@ final class AIBackgroundIndexStore: ObservableObject {
     @Published private(set) var scopes: [AIArchivePrefetchScope]
     /// 持久文件预索引(体量可能大,不 `@Published`;变更后手动发 `objectWillChange`)。
     private(set) var fileIndex: AIFileMemoryIndex {
-        didSet { rebuildPathIndex() }
+        didSet {
+            fileIndexGeneration += 1
+            rebuildPathIndex()
+        }
     }
+    /// 文件索引内容世代。文件表把它纳入内容指纹,让按需回填能重建已展开抽屉。
+    private(set) var fileIndexGeneration = 0
 
     /// `path → 记录` 缓存(文件浏览器每行 O(1) 查模型建议用)。fileIndex 变更后由 `didSet` 自动重建。
     private var recordByPath: [String: AIFileMemoryRecord] = [:]
@@ -237,6 +242,21 @@ final class AIBackgroundIndexStore: ObservableObject {
             return rec.withContentSummary(
                 base.mergingSingletonAction(marker, replacingToken: "archiveKind",
                                             shortSummaryIfEmpty: hasSummary ? clean : nil))
+        }
+        persistIndex()
+        objectWillChange.send()
+    }
+
+    /// 把用户触发的只读按需结果回填到记录里(`hash` / 后续 `test` / `inspect` 复用同一机制)。
+    func applyInlineResult(recordID: String, token: String, text: String) {
+        let cleanToken = token.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanToken.isEmpty, !cleanText.isEmpty else { return }
+        guard let record = fileIndex.records.first(where: { $0.id == recordID }) else { return }
+        let base = record.contentSummary ?? AIFileContentSummary(mode: "inline-result")
+        guard base.inlineResults[cleanToken] != cleanText else { return }
+        fileIndex = fileIndex.updatingRecord(id: recordID) { rec in
+            rec.withContentSummary(base.withInlineResult(token: cleanToken, text: cleanText))
         }
         persistIndex()
         objectWillChange.send()

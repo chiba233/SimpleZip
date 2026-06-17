@@ -2619,6 +2619,7 @@
 "aiWorkspace.node.compressGroup" = "壓縮這些 · 省空間";
 "aiWorkspace.node.reveal" = "跳轉到檔案路徑";
 "aiWorkspace.node.hash" = "計算 SHA256";
+"aiWorkspace.inlineHash.result" = "目前檔案 SHA-256:%@";
 "aiWorkspace.node.test" = "測試歸檔";
 "aiWorkspace.node.expand" = "展開";
 "aiWorkspace.node.collapse" = "收合";

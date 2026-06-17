@@ -8,6 +8,7 @@
 //
 
 import AppKit
+import Combine
 import Foundation
 
 /// 「查看更长总结」弹窗请求(backlog B):承载要按需现算总结的文件。
@@ -50,6 +51,11 @@ extension ArchiveBrowserModel {
             else { openArchive(url) }
         case .calculateHash(let paths, _):
             calculateHash(forFinderURLs: paths.map { URL(fileURLWithPath: $0) })
+        case .calculateInlineHash(let recordID, let path, let token):
+            calculateInlineHash(recordID: recordID, path: path, token: token)
+        case .copyInlineResult(let text):
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(text, forType: .string)
         case .testArchive(let path):
             testArchives(at: [URL(fileURLWithPath: path)])
         case .createArchive(let paths), .createArchiveFromSuggestion(let paths, _, _):
@@ -77,6 +83,21 @@ extension ArchiveBrowserModel {
               let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier) else { return }
         NSWorkspace.shared.open(urls, withApplicationAt: appURL,
                                 configuration: NSWorkspace.OpenConfiguration(), completionHandler: nil)
+    }
+
+    private func calculateInlineHash(recordID: String, path: String, token: String) {
+        let url = URL(fileURLWithPath: path)
+        Task { @MainActor in
+            do {
+                let digest = try await Task.detached(priority: .userInitiated) {
+                    try HashService.sha256(for: url)
+                }.value
+                AIBackgroundIndexStore.shared.applyInlineResult(recordID: recordID, token: token, text: digest)
+                objectWillChange.send()
+            } catch {
+                status = error.localizedDescription
+            }
+        }
     }
 
     /// 0.4.5 #80 B:双击 AI 抽屉摘要行 → 弹「查看更长总结」(端上模型实时现算)。仅 AI 就绪时弹(否则该文件本就没摘要行)。
