@@ -75,6 +75,15 @@ import Testing
         #expect(AIWorkspaceQueryExecutor.matchArchives(plan, in: [r]).isEmpty)
     }
 
+    /// BUG-W12:显式勾选「含报告 / 含动作」即便没有标签 / 关键词也不是空 plan,
+    /// 否则 App 侧的报告 / 动作召回被 isEmpty 提前掐掉。仅默认的 includeTasks 不算「意图」。
+    @Test func includeReportsOrActionsMakesPlanNonEmpty() {
+        #expect(!AIWorkspaceQueryPlan(includeReports: true).isEmpty)
+        #expect(!AIWorkspaceQueryPlan(includeActions: true).isEmpty)
+        #expect(AIWorkspaceQueryPlan().isEmpty)
+        #expect(AIWorkspaceQueryPlan(includeTasks: false).isEmpty)
+    }
+
     @Test func executorIsDeterministic() {
         let a = memoryRecord(path: "/x/a.zip", name: "a.zip", entries: ["SHA256SUMS"])
         let b = memoryRecord(path: "/x/b.zip", name: "b.zip", entries: ["SHA256SUMS", "App.dmg"])

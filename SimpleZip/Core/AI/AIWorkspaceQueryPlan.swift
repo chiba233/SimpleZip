@@ -55,9 +55,12 @@ nonisolated struct AIWorkspaceQueryPlan: Codable, Equatable, Sendable {
     }
 
     /// plan 是否什么都不匹配(全空)—— 调用点据此显示「为什么没有推荐」而非空转。
+    /// 显式 `includeReports` / `includeActions`(默认 false)也算「有意图」:勾选了「含报告 / 含动作」即便没有
+    /// 标签 / 关键词,也不是空 plan —— 否则 App 侧的报告 / 动作召回会被这层提前掐掉(BUG-W12)。
     var isEmpty: Bool {
         semanticTags.isEmpty && taskTags.isEmpty && markerFiles.isEmpty
             && keywords.isEmpty && locationKinds.isEmpty
+            && !includeReports && !includeActions
     }
 }
 
