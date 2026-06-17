@@ -100,9 +100,14 @@ nonisolated enum AIPrefetchExclusions {
         return components.contains { shouldExclude(directoryName: $0) }
     }
 
-    /// 单段目录名是否属于默认排除集(`.git` / `node_modules` / 缓存 / 密钥目录 …)。
+    /// 单段目录名是否属于默认排除集(`.git` / `node_modules` / 缓存 / 密钥目录 …),**或**命中包/工程目录后缀
+    /// (`Firefox.app` / `Foo.framework` / `Bar.xcodeproj` …)。后者按 NAME 精确匹配抓不到(包名千变万化),
+    /// 必须按后缀拦 —— 下探 `.app/Contents/MacOS` 只会灌一堆二进制垃圾进候选池(用户:「全都是垃圾数据」)。
     static func shouldExclude(directoryName: String) -> Bool {
-        excludedNames.contains(directoryName) || excludedNames.contains(directoryName.lowercased())
+        let lower = directoryName.lowercased()
+        if excludedNames.contains(directoryName) || excludedNames.contains(lower) { return true }
+        if excludedDirectorySuffixes.contains(where: { lower.hasSuffix($0) }) { return true }
+        return false
     }
 
     private static func absoluteExcludedPrefixes(home: String) -> [String] {
@@ -118,12 +123,31 @@ nonisolated enum AIPrefetchExclusions {
     /// 另由 `AIFileReadabilityPolicy` 拦截,两层保持一致)。纯收紧,绝不放宽。
     static let excludedNames: Set<String> = [
         ".git", ".svn", ".hg",
-        "node_modules", ".build", "deriveddata", "target", "dist", "build",
-        "caches", "containers",
+        // 构建产物 / 包管理依赖目录(纯噪声,无 AI 归类价值)
+        "node_modules", ".build", "deriveddata", "derivedsources", "intermediates",
+        "target", "dist", "build", "out", "obj", "bin",
+        "caches", "containers", ".cache", ".sass-cache", ".eslintcache",
+        "pods", "carthage", "vendor", "bower_components",
+        ".gradle", ".cargo", ".npm", ".yarn", ".pnpm-store", ".cocoapods", ".dart_tool",
+        "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache", ".tox",
+        "venv", ".venv", "site-packages", ".ipynb_checkpoints",
+        ".next", ".nuxt", ".svelte-kit", ".angular", ".expo", ".turbo", ".parcel-cache",
+        ".terraform", ".serverless", ".stack-work",
+        "coverage", ".nyc_output", ".idea", ".vscode", ".xcuserdata",
         // 密钥 / 凭据目录(与 AIFileReadabilityPolicy.sensitiveDirectoryComponents 对齐 + 常见凭据位置)
         ".ssh", ".gnupg", ".aws", ".kube", ".config", ".docker", ".azure", ".gcloud",
         ".password-store", "keychains", ".netrc", ".npmrc", ".pypirc", ".htpasswd",
         ".secrets", ".private", ".env", "credentials"
+    ]
+
+    /// 包 / 工程目录后缀(命中即不下探)。`.app` 等是目录型 bundle,名字随应用千变万化,按 NAME 精确匹配抓不到,
+    /// 必须按后缀拦。与 `AIFileType.packageBundleSuffixes` 同源(分类层标 `.package` / 排除层不下探,两边一致)。
+    /// 全小写(`shouldExclude(directoryName:)` 比较前已 lowercased)。
+    static let excludedDirectorySuffixes: [String] = [
+        ".app", ".bundle", ".framework", ".xcodeproj", ".xcworkspace", ".playground",
+        ".photoslibrary", ".musiclibrary", ".tvlibrary", ".imovielibrary", ".rtfd", ".scptd",
+        ".kext", ".plugin", ".prefpane", ".qlgenerator", ".appex", ".xpc", ".mdimporter",
+        ".docset", ".pkg", ".mpkg", ".dsym", ".swiftpm"
     ]
 }
 

@@ -69,6 +69,39 @@ import Testing
         #expect(!AIPrefetchExclusions.shouldExclude(directoryName: "Sources"))
     }
 
+    /// 包 / 工程目录(`.app` / `.framework` / `.xcodeproj` …)按后缀拦,名字随应用千变万化,精确匹配抓不到 ——
+    /// 不拦就会下探 `Firefox.app/Contents/MacOS` 灌一堆二进制垃圾进候选池。
+    @Test func excludesPackageBundlesBySuffix() {
+        let home = "/Users/tester"
+        for name in ["Firefox.app", "MyApp.app", "Sparkle.framework", "Some.bundle",
+                     "SimpleZip.xcodeproj", "Workspace.xcworkspace", "Photos.photoslibrary",
+                     "Debug.dSYM", "Plugin.appex"] {
+            #expect(AIPrefetchExclusions.shouldExclude(directoryName: name), "\(name) 应按后缀排除")
+        }
+        // 路径里任一段命中后缀即不下探(包内部不索引)
+        #expect(AIPrefetchExclusions.shouldExclude(
+            directoryPath: "\(home)/Applications/Firefox.app/Contents/MacOS", home: home))
+        #expect(AIPrefetchExclusions.shouldExclude(
+            directoryPath: "\(home)/Dev/SimpleZip.xcodeproj/project.xcworkspace", home: home))
+        // 普通文件夹名不被后缀误伤
+        #expect(!AIPrefetchExclusions.shouldExclude(directoryName: "myapp"))
+        #expect(!AIPrefetchExclusions.shouldExclude(directoryName: "framework-notes"))
+    }
+
+    /// 扩充的开发依赖 / 构建产物 / 缓存目录(`node_modules` 之外的长尾)也不下探。
+    @Test func excludesExpandedDevNoiseDirectories() {
+        let home = "/Users/tester"
+        for name in ["Pods", "Carthage", "vendor", "bower_components", ".gradle", ".cargo",
+                     "__pycache__", ".pytest_cache", ".venv", "site-packages", ".next",
+                     ".turbo", ".terraform", "coverage", ".idea", ".vscode", "out", "obj"] {
+            #expect(AIPrefetchExclusions.shouldExclude(directoryName: name), "\(name) 应被排除")
+            #expect(AIPrefetchExclusions.shouldExclude(directoryPath: "\(home)/proj/\(name)/x", home: home),
+                    "\(name) 路径段应被排除")
+        }
+        // 普通用户目录不被误伤
+        #expect(!AIPrefetchExclusions.shouldExclude(directoryPath: "\(home)/Documents/vendor-contracts", home: home))
+    }
+
     @Test func scopeRoundTripsThroughCodable() throws {
         let scope = AIArchivePrefetchScope(
             id: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
