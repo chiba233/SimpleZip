@@ -2591,7 +2591,7 @@
 "aiWorkspace.node.openFolder" = "Ouvrir le dossier";
 "aiWorkspace.node.compress" = "Compresser";
 "aiWorkspace.node.compressGroup" = "Compresser ceux-ci · gagner de la place";
-"aiWorkspace.node.reveal" = "Afficher dans SimpleZip";
+"aiWorkspace.node.reveal" = "Aller à l'emplacement du fichier";
 "aiWorkspace.node.hash" = "Calculer SHA-256";
 "aiWorkspace.node.test" = "Tester l’archive";
 "aiWorkspace.node.expand" = "Développer";

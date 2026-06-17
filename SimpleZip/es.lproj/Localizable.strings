@@ -2593,7 +2593,7 @@
 "aiWorkspace.node.openFolder" = "Abrir carpeta";
 "aiWorkspace.node.compress" = "Comprimir";
 "aiWorkspace.node.compressGroup" = "Comprimir estos · ahorrar espacio";
-"aiWorkspace.node.reveal" = "Mostrar en SimpleZip";
+"aiWorkspace.node.reveal" = "Ir a la ubicación del archivo";
 "aiWorkspace.node.hash" = "Calcular SHA-256";
 "aiWorkspace.node.test" = "Probar archivo";
 "aiWorkspace.node.expand" = "Expandir";

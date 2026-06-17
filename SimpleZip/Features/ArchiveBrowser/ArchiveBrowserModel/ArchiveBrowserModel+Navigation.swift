@@ -418,6 +418,17 @@ extension ArchiveBrowserModel {
         }
     }
 
+    /// AI 工作区里双击 / 右键「打开」一个**真实文件节点** —— 复用主文件浏览的同一套 `open(_:)` 派发
+    /// (普通文件→默认 App、文件夹/归档→跳去浏览真实位置),而不是用 `reveal` 定位冒充打开。
+    /// 用 `FileBrowserService` 工厂把 URL 解析成 `FileItem`(一次 stat),不复制开打逻辑;
+    /// 文件已不存在(陈旧节点)时退回系统默认打开。
+    func openPath(_ url: URL) {
+        let items = fileBrowser.makeFileItems(
+            from: [url], showSymbolicLinks: true, hiddenSuffixes: [],
+            includeMacOSHidden: true, folderFirst: false)
+        if let item = items.first { open(item) } else { NSWorkspace.shared.open(url) }
+    }
+
     func canShowPackageContents(_ item: FileItem) -> Bool {
         // 读列目录时存好的字段,零 IO —— 表格每行的可展开判定 / 拖拽 validateDrop 每次鼠标移动都会调,
         // 以前现场 resolvingSymlinksInPath + LaunchServices,大目录下把 UI 拖死。

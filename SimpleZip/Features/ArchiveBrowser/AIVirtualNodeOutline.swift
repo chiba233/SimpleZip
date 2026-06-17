@@ -243,8 +243,16 @@ struct AIVirtualNodeOutline: NSViewRepresentable {
         private func activate(_ item: Item) {
             if let suggestion = item.suggestion { dispatch(suggestion.action); return }
             guard let node = item.node else { return }
-            if node.kind == .group { model.drillIntoAIWorkspaceGroup(node) }
-            else if let primary = node.primaryAction { dispatch(primary) }
+            openNode(node)
+        }
+
+        /// 「打开」一个节点 —— 复用主文件浏览的同一套 `open` 派发,不再用 reveal 定位冒充打开:
+        /// 分组→下钻;真实文件/文件夹/归档(有路径)→`model.openPath`(默认 App / 进目录 / 开归档);
+        /// 纯虚拟节点(任务/报告/动作,无真实路径)→既有 `primaryAction`(打开任务 / 报告 / 跑动作)。
+        private func openNode(_ node: AIVirtualNode) {
+            if node.kind == .group { model.drillIntoAIWorkspaceGroup(node); return }
+            if let path = Self.resolvedPath(node) { model.openPath(URL(fileURLWithPath: path)); return }
+            if let primary = node.primaryAction { dispatch(primary) }
         }
 
         // MARK: - 改名(虚拟分组)
@@ -341,8 +349,8 @@ struct AIVirtualNodeOutline: NSViewRepresentable {
                 }
                 return
             }
-            if let primary = node.primaryAction {
-                add(menu, "aiWorkspace.node.open") { [weak self] in self?.dispatch(primary) }
+            if node.primaryAction != nil {
+                add(menu, "aiWorkspace.node.open") { [weak self] in self?.openNode(node) }
             }
             for s in AIWorkspaceNodeActions.suggestions(for: node) {
                 add(menu, s.titleKey) { [weak self] in self?.dispatch(s.action) }

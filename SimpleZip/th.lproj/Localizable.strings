@@ -2593,7 +2593,7 @@
 "aiWorkspace.node.openFolder" = "เปิดโฟลเดอร์";
 "aiWorkspace.node.compress" = "บีบอัด";
 "aiWorkspace.node.compressGroup" = "บีบอัดเหล่านี้ · ประหยัดพื้นที่";
-"aiWorkspace.node.reveal" = "แสดงใน SimpleZip";
+"aiWorkspace.node.reveal" = "ไปยังตำแหน่งไฟล์";
 "aiWorkspace.node.hash" = "คำนวณ SHA-256";
 "aiWorkspace.node.test" = "ทดสอบอาร์ไคฟ์";
 "aiWorkspace.node.expand" = "ขยาย";

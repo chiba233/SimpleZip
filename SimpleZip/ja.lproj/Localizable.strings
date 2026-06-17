@@ -2595,7 +2595,7 @@
 "aiWorkspace.node.openFolder" = "フォルダを開く";
 "aiWorkspace.node.compress" = "圧縮";
 "aiWorkspace.node.compressGroup" = "これらを圧縮 · 容量節約";
-"aiWorkspace.node.reveal" = "SimpleZipで表示";
+"aiWorkspace.node.reveal" = "ファイルの場所へ移動";
 "aiWorkspace.node.hash" = "SHA-256を計算";
 "aiWorkspace.node.test" = "アーカイブをテスト";
 "aiWorkspace.node.expand" = "展開";

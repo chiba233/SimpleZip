@@ -2593,7 +2593,7 @@
 "aiWorkspace.node.openFolder" = "Открыть папку";
 "aiWorkspace.node.compress" = "Сжать";
 "aiWorkspace.node.compressGroup" = "Сжать эти · экономия места";
-"aiWorkspace.node.reveal" = "Показать в SimpleZip";
+"aiWorkspace.node.reveal" = "Перейти к расположению файла";
 "aiWorkspace.node.hash" = "Вычислить SHA-256";
 "aiWorkspace.node.test" = "Проверить архив";
 "aiWorkspace.node.expand" = "Развернуть";
