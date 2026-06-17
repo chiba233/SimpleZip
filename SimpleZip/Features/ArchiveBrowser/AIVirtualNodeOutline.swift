@@ -38,6 +38,8 @@ struct AIVirtualNodeOutline: NSViewRepresentable {
             outlineView.registerForDraggedTypes([Self.nodeDragType])
             outlineView.setDraggingSourceOperationMask(.move, forLocal: true)
             (outlineView as? ContentDragOutlineView)?.primaryColumnIdentifier = "name"
+            // 单列满宽:只让图标发起拖拽(拖图标=移进虚拟分组),文字区留给点选/框选/拖选多行。
+            (outlineView as? ContentDragOutlineView)?.dragFromIconOnly = true
             // 选中分组按 Return 进入内联改名(虚拟文件夹可改名)。
             (outlineView as? ContentDragOutlineView)?.returnKeyAction = { [weak c = context.coordinator] in
                 c?.beginRenameSelected() ?? false

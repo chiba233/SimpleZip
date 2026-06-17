@@ -15,6 +15,10 @@ import Quartz
 final class ContentDragOutlineView: NSOutlineView, QLPreviewPanelDataSource, QLPreviewPanelDelegate {
     /// Primary column identifier. nil disables content-originated dragging.
     var primaryColumnIdentifier: String?
+    /// 仅图标可发起内容拖拽,文字区域留给选择 / 框选 / 拖选多行。**单列满宽的 AI 工作区列表设 true** ——
+    /// 否则整行文字都是拖拽源,没有「死区」给框选,拖选多行 / 框选被拖拽抢掉。多列的文件 / 归档表保持 false
+    /// (点名称列以外的列本就是 `.none`,有地方框选),文字也可拖。
+    var dragFromIconOnly = false
     /// Whether the last mouse down landed on draggable content.
     private(set) var dragAllowedFromMouseDown = false
     /// Return/Enter action. Return true to consume the key.
@@ -183,7 +187,7 @@ final class ContentDragOutlineView: NSOutlineView, QLPreviewPanelDataSource, QLP
         if let imageView = cell.imageView, imageView.frame.contains(pointInCell) {
             return .icon
         }
-        if let textField = cell.textField {
+        if !dragFromIconOnly, let textField = cell.textField {
             let font = textField.font ?? .systemFont(ofSize: NSFont.systemFontSize)
             let textWidth = (textField.stringValue as NSString).size(withAttributes: [.font: font]).width
             let glyphRect = NSRect(
