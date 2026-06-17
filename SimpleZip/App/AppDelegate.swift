@@ -62,7 +62,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 加密临时卷：先清上次会话崩溃残留（遗留挂载 + 镜像），再为本次会话挂一个**随机密钥**的 AES-256 卷。
         // 之后所有解密 / 解压临时产物落进这个卷；关 app 即 detach + 删镜像，明文不留盘（见 SecureScratchVolume）。
         // 懒挂载也行，但启动期预挂载能让随后的同步临时分配（打开档案内文件等）直接命中卷而非回落普通临时目录。
-        Task {
+        // 启动卡顿修复:用 `Task.detached` 而非 `Task {}` —— 后者在 main actor 上排队,而 `ensureMounted()`
+        // 内部 `hdiutil create` + `hdiutil attach`(建 AES-256 加密镜像并挂载)是内核级 I/O,会和窗口首帧
+        // 渲染抢主线程调度位。detach 到后台,首帧不被加密卷挂载拖住(SecureScratchVolume 内部 NSLock 自洽)。
+        Task.detached(priority: .utility) {
             await SecureScratchVolume.sweepStale()
             _ = try? await SecureScratchVolume.shared.ensureMounted()
         }
@@ -103,19 +106,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 污染源没清掉**，仍会被「列移动」重新写回 / 在没走去重的旧路径下复发。启动时按 identifier 去重一次，根除。
         Self.sanitizeColumnOrderPreferences()
 
-        // 0.4.4 macOS 26 AI:把发布账本 + 活动中心历史任务同步进 Spotlight 语义索引(macOS 15+,旧系统
-        // no-op、后台执行)。全量重建,覆盖上次会话期间新增 / 裁旧 / 删除导致的索引漂移。
-        ReleasePackageSpotlightIndexer.reindex()
-        ArchiveTaskSpotlightIndexer.reindex()
-        // #35:把缓存的归档(按内含文件名)同步进 Spotlight。双门控(Spotlight 总开关 + 缓存开关),
-        // 任一关 → 清空已捐献的归档项。
-        CachedArchiveSpotlightIndexer.reindex()
-        // #72:把缓存归档里的**每个文件**索引进 Spotlight(搜文档名直达),每归档封顶,双门控同上。
-        ArchiveFileSpotlightIndexer.reindex()
-        // #30:把具体设置项索引进 Spotlight(搜设置名直接跳过去)。静态目录,启动重建一次。
-        SettingsSpotlightIndexer.reindex()
-        // #31:活动中心(独立窗口)的设置 / 临时工作区选项也进 Spotlight。
-        ActivitySpotlightIndexer.reindex()
+        // 0.4.4 macOS 26 AI:把发布账本 / 历史任务 / 归档缓存 / 设置 / 活动选项同步进 Spotlight 语义索引
+        // (macOS 15+,旧系统 no-op)。**启动卡顿修复**:以前一口气起 6 个并发 `Task.detached` 全量删 + 全量
+        // 写(可达上千条)砸 corespotlightd;现在走**串行协调器**(单后台任务顺序 await)+ 每个索引器「**指纹
+        // 没变就跳过**」—— 数据没变的冷启动几乎零成本,变了才重建对应那一个。
+        SpotlightStartupCoordinator.reindexAllOnLaunch()
     }
 
     /// 去掉列顺序偏好里的重复 identifier（修复历史污染，幂等）。

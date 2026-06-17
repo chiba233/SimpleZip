@@ -161,18 +161,32 @@ enum ReleasePackageSpotlightIndexer {
     /// 索引开关开 → 全量重建;关 → 清空已捐献的索引。两条路径都按 `AppPreferences.spotlightIndexingEnabled`
     /// 分支,所以启动、记入账本、设置里切换开关都调它即可即时生效。
     static func reindex() {
-        guard #available(macOS 15.0, *) else { return }
         Task.detached(priority: .utility) {
-            if AppPreferences.spotlightIndexingEnabled {
-                await performReindex()
-            } else {
-                await clearIndex()
-            }
+            guard #available(macOS 15.0, *) else { return }
+            await reindexIfNeeded()
+        }
+    }
+
+    /// 串行协调器调用。**指纹(发布账本原始数据)没变就跳过**(启动卡顿修复)。门控关 → 清索引 + 复位指纹。
+    @available(macOS 15.0, *)
+    static func reindexIfNeeded() async {
+        let key = "release"
+        guard AppPreferences.spotlightIndexingEnabled else {
+            await clearIndex()
+            SpotlightReindexGuard.reset(key: key)
+            return
+        }
+        guard SpotlightReindexGuard.shouldCheckNow(key: key, interval: SpotlightIndexingPower.current.recheckInterval) else { return }
+        SpotlightReindexGuard.markChecked(key: key)
+        let fp = SpotlightReindexGuard.fingerprint(ofStandardKey: AppPreferences.Key.releaseLedger)
+        guard !SpotlightReindexGuard.isUpToDate(key: key, fingerprint: fp) else { return }
+        if await performReindex() {
+            SpotlightReindexGuard.markIndexed(key: key, fingerprint: fp)
         }
     }
 
     @available(macOS 15.0, *)
-    private static func performReindex() async {
+    private static func performReindex() async -> Bool {
         // #73:手动 CSSearchableItem(uniqueIdentifier 由 SpotlightRoute 编码),点击能解回来跳转(在 Finder 显示产物)。
         let items = ReleaseLedgerStore().loadAll().map { entry -> CSSearchableItem in
             makeSpotlightItem(route: .release(artifactPath: entry.artifactPath),
@@ -187,8 +201,9 @@ enum ReleasePackageSpotlightIndexer {
             if !items.isEmpty {
                 try await index.indexSearchableItems(items)
             }
+            return true
         } catch {
-            // 索引失败不影响 app。
+            return false   // 索引失败不影响 app;不记指纹,下轮重试。
         }
     }
 

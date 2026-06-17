@@ -193,16 +193,38 @@ nonisolated enum ArchiveFileSpotlightIndexer {
     }
 
     static func reindex() {
-        guard #available(macOS 15.0, *) else { return }
-        let allowed = donationAllowed
         Task.detached(priority: .utility) {
-            if allowed { await performReindex() } else { await clearIndex() }
+            guard #available(macOS 15.0, *) else { return }
+            await reindexIfNeeded()
+        }
+    }
+
+    /// 串行协调器调用(已在单一后台任务里顺序 await)。**指纹没变就整轮跳过**(启动卡顿修复:不再每次冷启动
+    /// 全量删 + 全量写上千条)。门控关 → 清索引 + 复位指纹(重新开启时一定会重建)。
+    @available(macOS 15.0, *)
+    static func reindexIfNeeded() async {
+        let key = "archiveFiles"
+        guard donationAllowed else {
+            await clearIndex()
+            SpotlightReindexGuard.reset(key: key)
+            return
+        }
+        // 电源档时间闸:间隔内不重查(省电一天一次)→ 后台占用低,慢点没事。
+        guard SpotlightReindexGuard.shouldCheckNow(key: key, interval: SpotlightIndexingPower.current.recheckInterval) else { return }
+        SpotlightReindexGuard.markChecked(key: key)
+        // 指纹 = 归档缓存原始数据 + 单包封顶(影响条目数);没变 → 跳过(不解码、不建项、不打 IPC)。
+        let fp = SpotlightReindexGuard.fingerprint(ofStandardKey: AppPreferences.Key.archiveListingCache)
+            + ":\(perArchiveLimit)"
+        guard !SpotlightReindexGuard.isUpToDate(key: key, fingerprint: fp) else { return }
+        if await performReindex() {
+            SpotlightReindexGuard.markIndexed(key: key, fingerprint: fp)
         }
     }
 
     /// 增量:某归档刚打开 / 缓存更新后,只索引它的文件。
     static func indexArchive(at url: URL) {
-        guard #available(macOS 15.0, *), donationAllowed else { return }
+        guard #available(macOS 15.0, *), donationAllowed,
+              SpotlightIndexingPower.current.allowsRealtimeIncremental else { return }   // 省电:不实时增量,靠周期重查兜底
         let path = ArchiveListingCacheStore.canonicalPath(for: url)
         Task.detached(priority: .utility) {
             guard let archive = ArchiveListingCacheStore().loadAll().first(where: { $0.archivePath == path }) else { return }
@@ -223,8 +245,9 @@ nonisolated enum ArchiveFileSpotlightIndexer {
         }
     }
 
+    /// 全量重建。返回是否成功(成功才记录指纹 → 失败的轮次下次冷启动会重试,不会被错误地跳过)。
     @available(macOS 15.0, *)
-    private static func performReindex() async {
+    private static func performReindex() async -> Bool {
         var items: [CSSearchableItem] = []
         for archive in ArchiveListingCacheStore().loadAll() {
             items.append(contentsOf: makeItems(for: archive))
@@ -236,8 +259,9 @@ nonisolated enum ArchiveFileSpotlightIndexer {
             if !items.isEmpty {
                 try await index.indexSearchableItems(items)
             }
+            return true
         } catch {
-            // 索引失败不影响 app。
+            return false   // 索引失败不影响 app;不记指纹,下轮重试。
         }
     }
 

@@ -275,19 +275,30 @@ extension SettingEntity: IndexedEntity {
 /// 目录是静态的 —— 启动重建一次即可;开关切换时也调(关 → 清空)。
 nonisolated enum SettingsSpotlightIndexer {
     static func reindex() {
-        guard #available(macOS 15.0, *) else { return }
-        let allowed = AppPreferences.spotlightIndexingEnabled
         Task.detached(priority: .utility) {
-            if allowed {
-                await performReindex()
-            } else {
-                await clearIndex()
-            }
+            guard #available(macOS 15.0, *) else { return }
+            await reindexIfNeeded()
+        }
+    }
+
+    /// 串行协调器调用。设置目录是**静态**的(代码生成)→ 指纹 = app 版本,**版本没变就跳过**(启动卡顿修复)。
+    @available(macOS 15.0, *)
+    static func reindexIfNeeded() async {
+        let key = "settings"
+        guard AppPreferences.spotlightIndexingEnabled else {
+            await clearIndex()
+            SpotlightReindexGuard.reset(key: key)
+            return
+        }
+        let fp = SpotlightReindexGuard.appVersionFingerprint
+        guard !SpotlightReindexGuard.isUpToDate(key: key, fingerprint: fp) else { return }
+        if await performReindex() {
+            SpotlightReindexGuard.markIndexed(key: key, fingerprint: fp)
         }
     }
 
     @available(macOS 15.0, *)
-    private static func performReindex() async {
+    private static func performReindex() async -> Bool {
         // #73:手动 CSSearchableItem(uniqueIdentifier 编码 pane+锚点),点击 → 深链到设置那一项并高亮。
         let items = SettingsCatalog.items.map { item -> CSSearchableItem in
             makeSpotlightItem(route: .setting(anchorID: item.id, paneRaw: item.pane.rawValue),
@@ -300,8 +311,9 @@ nonisolated enum SettingsSpotlightIndexer {
             if !items.isEmpty {
                 try await index.indexSearchableItems(items)
             }
+            return true
         } catch {
-            // 索引失败不影响 app。
+            return false   // 索引失败不影响 app;不记指纹,下轮重试。
         }
     }
 

@@ -340,6 +340,9 @@ enum AppPreferences {
         nonisolated static let automationAllowPresetPassword = "automationAllowPresetPassword"
         /// 0.4.4 macOS 26 AI:把发布包 / 活动中心任务捐献进 Spotlight 语义索引(默认 true = 便利;关 = 更私密)。
         nonisolated static let spotlightIndexingEnabled = "spotlightIndexingEnabled"
+        /// 0.4.5 启动卡顿修复:Spotlight 索引**电源档**(`saver` / `normal` / `highPower`)。控制重查间隔(有效期)+
+        /// 是否实时增量 —— 省电=一天才查一次、不实时,高耗能=近实时。**只求后台占用低,不保证不漏更新**。默认 `normal`。
+        nonisolated static let spotlightIndexingPower = "spotlightIndexingPower"
         /// 0.4.4 macOS 26 AI:AI 报告助手主开关(总结风险 / 解释失败 / 建议标签 / Issue 草稿)。默认 true;
         /// 实际入口还要 macOS 26+ 且系统模型 available 才出现 —— 关掉则所有 AI 入口隐藏。
         nonisolated static let aiAssistantEnabled = "aiAssistantEnabled"
@@ -426,6 +429,13 @@ enum AppPreferences {
     /// 默认 true = 便利(可在 Spotlight 里搜到);关 = 更私密(且调用方负责清空已捐献索引)。仅 macOS 15+ 有实际效果。
     nonisolated static var spotlightIndexingEnabled: Bool {
         defaultTrueBool(forKey: Key.spotlightIndexingEnabled)
+    }
+
+    /// 0.4.5 启动卡顿修复:Spotlight 索引电源档 raw(`saver` / `normal` / `highPower`)。默认 `normal`。
+    /// 枚举语义(重查间隔 / 实时增量)在 App 侧 `SpotlightIndexingPower` 解释。
+    nonisolated static var spotlightIndexingPowerRaw: String {
+        get { defaults.string(forKey: Key.spotlightIndexingPower) ?? "normal" }
+        set { defaults.set(newValue, forKey: Key.spotlightIndexingPower) }
     }
 
     /// 0.4.4 macOS 26 AI:AI 报告助手主开关。默认 true;入口另需 macOS 26 + 模型 available。
@@ -1058,6 +1068,7 @@ enum AppPreferences {
         Key.tasksNotifyOnFinish,
         Key.automationAllowPresetPassword,
         Key.spotlightIndexingEnabled,
+        Key.spotlightIndexingPower,
         Key.aiAssistantEnabled,
         Key.aiSidebarShowRecommended,
         Key.aiMaxRecommendedWorkspaces,
@@ -1176,6 +1187,7 @@ enum AppPreferences {
         v[Key.tasksOpenOnFailure] = tasksOpenOnFailure
         v[Key.automationAllowPresetPassword] = automationAllowPresetPassword
         v[Key.spotlightIndexingEnabled] = spotlightIndexingEnabled
+        v[Key.spotlightIndexingPower] = spotlightIndexingPowerRaw
         v[Key.aiAssistantEnabled] = aiAssistantEnabled
         v[Key.aiSidebarShowRecommended] = aiSidebarShowRecommended
         v[Key.aiMaxRecommendedWorkspaces] = aiMaxRecommendedWorkspaces

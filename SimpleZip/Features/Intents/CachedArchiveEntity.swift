@@ -183,20 +183,34 @@ nonisolated enum CachedArchiveSpotlightIndexer {
 
     /// 全量:开 → 按当前缓存重建;关 → 清空已捐献的归档项。
     static func reindex() {
-        guard #available(macOS 15.0, *) else { return }
-        let allowed = donationAllowed
         Task.detached(priority: .utility) {
-            if allowed {
-                await performReindex()
-            } else {
-                await clearIndex()
-            }
+            guard #available(macOS 15.0, *) else { return }
+            await reindexIfNeeded()
+        }
+    }
+
+    /// 串行协调器调用。**指纹(归档缓存原始数据)没变就跳过**(启动卡顿修复)。门控关 → 清索引 + 复位指纹。
+    @available(macOS 15.0, *)
+    static func reindexIfNeeded() async {
+        let key = "cachedArchives"
+        guard donationAllowed else {
+            await clearIndex()
+            SpotlightReindexGuard.reset(key: key)
+            return
+        }
+        guard SpotlightReindexGuard.shouldCheckNow(key: key, interval: SpotlightIndexingPower.current.recheckInterval) else { return }
+        SpotlightReindexGuard.markChecked(key: key)
+        let fp = SpotlightReindexGuard.fingerprint(ofStandardKey: AppPreferences.Key.archiveListingCache)
+        guard !SpotlightReindexGuard.isUpToDate(key: key, fingerprint: fp) else { return }
+        if await performReindex() {
+            SpotlightReindexGuard.markIndexed(key: key, fingerprint: fp)
         }
     }
 
     /// 增量:打开一个归档、缓存更新后只索引这一条(避免每次打开都全量重建)。门控同上。
     static func indexArchive(at url: URL) {
-        guard #available(macOS 15.0, *), donationAllowed else { return }
+        guard #available(macOS 15.0, *), donationAllowed,
+              SpotlightIndexingPower.current.allowsRealtimeIncremental else { return }   // 省电:不实时增量,靠周期重查兜底
         let path = ArchiveListingCacheStore.canonicalPath(for: url)
         Task.detached(priority: .utility) {
             guard let entry = ArchiveListingCacheStore().loadAll().first(where: { $0.archivePath == path }) else { return }
@@ -207,7 +221,7 @@ nonisolated enum CachedArchiveSpotlightIndexer {
     }
 
     @available(macOS 15.0, *)
-    private static func performReindex() async {
+    private static func performReindex() async -> Bool {
         // #73:手动 CSSearchableItem,点击 → 在浏览器里打开归档(根目录)。
         let items = ArchiveListingCacheStore().loadAll().map { entry -> CSSearchableItem in
             makeSpotlightItem(route: .archive(archivePath: entry.archivePath),
@@ -220,8 +234,9 @@ nonisolated enum CachedArchiveSpotlightIndexer {
             if !items.isEmpty {
                 try await index.indexSearchableItems(items)
             }
+            return true
         } catch {
-            // 索引失败不影响 app。
+            return false   // 索引失败不影响 app;不记指纹,下轮重试。
         }
     }
 

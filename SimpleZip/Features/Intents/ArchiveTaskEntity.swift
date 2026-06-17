@@ -129,20 +129,35 @@ extension ArchiveTaskEntity: IndexedEntity {
 enum ArchiveTaskSpotlightIndexer {
     /// 开关开 → 全量重建;关 → 清空。启动与设置里切换开关都调它。
     static func reindex() {
-        guard #available(macOS 15.0, *) else { return }
         Task.detached(priority: .utility) {
-            if AppPreferences.spotlightIndexingEnabled {
-                await performReindex()
-            } else {
-                await clearIndex()
-            }
+            guard #available(macOS 15.0, *) else { return }
+            await reindexIfNeeded()
+        }
+    }
+
+    /// 串行协调器调用。**指纹(活动历史原始数据)没变就跳过**(启动卡顿修复)。门控关 → 清索引 + 复位指纹。
+    @available(macOS 15.0, *)
+    static func reindexIfNeeded() async {
+        let key = "tasks"
+        guard AppPreferences.spotlightIndexingEnabled else {
+            await clearIndex()
+            SpotlightReindexGuard.reset(key: key)
+            return
+        }
+        guard SpotlightReindexGuard.shouldCheckNow(key: key, interval: SpotlightIndexingPower.current.recheckInterval) else { return }
+        SpotlightReindexGuard.markChecked(key: key)
+        let fp = SpotlightReindexGuard.fingerprint(ofStandardKey: AppPreferences.Key.activityHistory)
+        guard !SpotlightReindexGuard.isUpToDate(key: key, fingerprint: fp) else { return }
+        if await performReindex() {
+            SpotlightReindexGuard.markIndexed(key: key, fingerprint: fp)
         }
     }
 
     /// 单条增量:任务收尾时调(@MainActor —— 从 @MainActor 的 OperationTask 取快照)。
     @MainActor
     static func index(_ task: OperationTask) {
-        guard #available(macOS 15.0, *), AppPreferences.spotlightIndexingEnabled else { return }
+        guard #available(macOS 15.0, *), AppPreferences.spotlightIndexingEnabled,
+              SpotlightIndexingPower.current.allowsRealtimeIncremental else { return }   // 省电:不实时增量,靠周期重查兜底
         guard let snapshot = ArchiveTaskSnapshot(task: task) else { return }
         Task.detached(priority: .utility) {
             let item = makeSpotlightItem(
@@ -154,7 +169,7 @@ enum ArchiveTaskSpotlightIndexer {
     }
 
     @available(macOS 15.0, *)
-    private static func performReindex() async {
+    private static func performReindex() async -> Bool {
         // #73:手动 CSSearchableItem,点击 → 开活动中心定位到该任务。
         let items = ActivityHistoryStore.snapshot().map { snapshot -> CSSearchableItem in
             makeSpotlightItem(route: .task(id: snapshot.id, categoryRaw: snapshot.category.rawValue),
@@ -167,8 +182,9 @@ enum ArchiveTaskSpotlightIndexer {
             if !items.isEmpty {
                 try await index.indexSearchableItems(items)
             }
+            return true
         } catch {
-            // 索引失败不影响 app。
+            return false   // 索引失败不影响 app;不记指纹,下轮重试。
         }
     }
 
