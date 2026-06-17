@@ -239,10 +239,14 @@ enum AIVirtualFolderModelPlanner {
     /// `excerpt` 必须是**已脱敏**的头部文本(调用方在后台线程读 + `AISensitiveRedactor.redact` 后传入)。
     static func fileSuggestion(fileName: String, kind: String, roleTags: [String], languageHint: String?,
                                headings: [String], fieldNames: [String], excerpt: String,
-                               candidateOpenApps: [(bundleID: String, name: String)] = [])
+                               candidateOpenApps: [(bundleID: String, name: String)] = [],
+                               discouragedTokens: [String] = [])
         async throws -> (summary: String, actions: [AIFileSuggestedAction]) {
         let lang = AIReportAssistant.uiLanguageName
         let apps = Array(candidateOpenApps.prefix(8))
+        let discouraged = Array(Set(discouragedTokens.map {
+            $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        }.filter { !$0.isEmpty })).sorted().prefix(12)
         let openWithRule = apps.isEmpty ? "" : """
 
 
@@ -250,6 +254,12 @@ enum AIVirtualFolderModelPlanner {
         double-click app is intentionally NOT in the list. Set openWithAppNumber to the number of an app ONLY \
         when it is CLEARLY a better fit for THIS file than the default; otherwise set it to 0. Default to 0 — \
         most files should just use their default app, so recommending a different app must be clearly worth it.
+        """
+        let feedbackHint = discouraged.isEmpty ? "" : """
+
+
+        The user has repeatedly ignored these suggestion types here; only include them if clearly valuable: \
+        \(discouraged.joined(separator: ", ")).
         """
         let instructions = """
         LANGUAGE — MANDATORY: write the summary in \(lang). Never use any other language for it, not even partially.
@@ -262,7 +272,7 @@ enum AIVirtualFolderModelPlanner {
         role as best you can, still in one concrete sentence.
 
         Then suggest a FEW next actions, but ONLY where an action is clearly the right next step for THIS file. Most \
-        files need NONE — empty is the correct default. Never suggest an action just because it is possible.\(openWithRule)
+        files need NONE — empty is the correct default. Never suggest an action just because it is possible.\(openWithRule)\(feedbackHint)
 
         \(Self.actionVocabularyRule)
         """

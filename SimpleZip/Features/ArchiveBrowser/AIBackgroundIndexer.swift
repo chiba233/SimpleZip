@@ -187,7 +187,6 @@ final class AIBackgroundIndexer {
         archiveRunning = true
         archiveTask = Task { @MainActor in
             defer { AIBackgroundIndexer.shared.archiveRunning = false }
-            var listedAny = false
             for url in pick {
                 if Task.isCancelled { break }
                 guard AIBackgroundIndexStore.shared.contentPrereadEnabled else { break }   // 期间被关
@@ -196,7 +195,6 @@ final class AIBackgroundIndexer {
                 if ArchiveListingCacheStore().record(archiveURL: url, items: items) {
                     CachedArchiveSpotlightIndexer.indexArchive(at: url)   // 归档级 + 逐条进 Spotlight(双门控在 indexer 里)
                     ArchiveFileSpotlightIndexer.indexArchive(at: url)
-                    listedAny = true
                 }
             }
             // (AI 文件夹自动发现已下线 → 预读完不再回调 discovery.refresh();归档清单缓存照常给 AI suggestion / Spotlight 用。)
@@ -244,11 +242,13 @@ final class AIBackgroundIndexer {
                 let probed = await excerptTask.value
                 guard let excerpt = probed.excerpt else { continue }
                 let kind = rec.type == .archive ? "archive" : "file"
+                let folderToken = URL(fileURLWithPath: path).deletingLastPathComponent().lastPathComponent
+                let discouragedTokens = Array(AIFeedbackStore.shared.discouragedTokens(forFolderToken: folderToken)).sorted()
                 guard let result = try? await AIVirtualFolderModelPlanner.fileSuggestion(
                     fileName: rec.fileName, kind: kind, roleTags: rec.roleTags,
                     languageHint: summary.languageHint, headings: summary.headings,
                     fieldNames: summary.fieldNames, excerpt: excerpt,
-                    candidateOpenApps: probed.apps),
+                    candidateOpenApps: probed.apps, discouragedTokens: discouragedTokens),
                     !result.summary.isEmpty || !result.actions.isEmpty else { continue }
                 AIBackgroundIndexStore.shared.applyModelSuggestion(
                     recordID: rec.id, summary: result.summary, actions: result.actions)
