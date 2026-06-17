@@ -38,8 +38,6 @@ struct AIVirtualNodeOutline: NSViewRepresentable {
             outlineView.registerForDraggedTypes([Self.nodeDragType])
             outlineView.setDraggingSourceOperationMask(.move, forLocal: true)
             (outlineView as? ContentDragOutlineView)?.primaryColumnIdentifier = "name"
-            // 单列满宽:只让图标发起拖拽(拖图标=移进虚拟分组),文字区留给点选/框选/拖选多行。
-            (outlineView as? ContentDragOutlineView)?.dragFromIconOnly = true
             // 选中分组按 Return 进入内联改名(虚拟文件夹可改名)。
             (outlineView as? ContentDragOutlineView)?.returnKeyAction = { [weak c = context.coordinator] in
                 c?.beginRenameSelected() ?? false
@@ -426,6 +424,11 @@ struct AIVirtualNodeOutline: NSViewRepresentable {
 /// FileTable 的 `makeTableCell` 走 `textField.textColor`,NSTableCellView 会自动反色;这里因为要多段着色
 /// 只能用 attributedString,得自己在 `backgroundStyle` 变化时重绘。
 private final class AINodeCellView: NSTableCellView {
+    /// 文件名独占主 `textField`(= `ContentDragOutlineView.hitRegion` 的可拖拽命中区只覆盖文件名,
+    /// 和文件浏览的 name 列一致)。来源路径 / 角标放**另一个** label,**不**赋给 `textField` →
+    /// 不计入拖拽命中区 → 路径区域和右侧空白都能框选 / 拖选多行,不再「一拖就拖文件」。
+    private let nameLabel = NSTextField(labelWithString: "")
+    private let detailLabel = NSTextField(labelWithString: "")
     private var titleText = ""
     private var parentText: String?
     private var iconName = "doc.fill"
@@ -436,22 +439,30 @@ private final class AINodeCellView: NSTableCellView {
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         let image = NSImageView()
-        let label = NSTextField(labelWithString: "")
         image.translatesAutoresizingMaskIntoConstraints = false
-        label.translatesAutoresizingMaskIntoConstraints = false
-        label.lineBreakMode = .byTruncatingMiddle
+        nameLabel.translatesAutoresizingMaskIntoConstraints = false
+        detailLabel.translatesAutoresizingMaskIntoConstraints = false
+        nameLabel.lineBreakMode = .byTruncatingMiddle
+        detailLabel.lineBreakMode = .byTruncatingMiddle
+        nameLabel.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+        nameLabel.setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
+        detailLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        detailLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         addSubview(image)
-        addSubview(label)
+        addSubview(nameLabel)
+        addSubview(detailLabel)
         imageView = image
-        textField = label
+        textField = nameLabel    // 只有文件名是主 textField → 拖拽命中区只覆盖文件名
         NSLayoutConstraint.activate([
             image.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 4),
             image.centerYAnchor.constraint(equalTo: centerYAnchor),
             image.widthAnchor.constraint(equalToConstant: 17),
             image.heightAnchor.constraint(equalToConstant: 17),
-            label.leadingAnchor.constraint(equalTo: image.trailingAnchor, constant: 6),
-            label.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -4),
-            label.centerYAnchor.constraint(equalTo: centerYAnchor)
+            nameLabel.leadingAnchor.constraint(equalTo: image.trailingAnchor, constant: 6),
+            nameLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
+            detailLabel.leadingAnchor.constraint(equalTo: nameLabel.trailingAnchor, constant: 8),
+            detailLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -4),
+            detailLabel.centerYAnchor.constraint(equalTo: centerYAnchor)
         ])
     }
 
@@ -479,21 +490,27 @@ private final class AINodeCellView: NSTableCellView {
             ? (emphasized ? selectedFG.withAlphaComponent(0.7) : .secondaryLabelColor)
             : (emphasized ? selectedFG : .labelColor)
         let secondary: NSColor = emphasized ? selectedFG.withAlphaComponent(0.75) : .secondaryLabelColor
-        let s = NSMutableAttributedString(string: titleText, attributes: [.foregroundColor: base])
+        // 文件名:普通 stringValue + textColor(本身就短,撑不满行 → 后面留出框选 / 拖选的空间)。
+        nameLabel.stringValue = titleText
+        nameLabel.textColor = base
+        // 来源目录 + 已移除角标 + ✦:都在 detailLabel,**不**进拖拽命中区。
+        let s = NSMutableAttributedString()
         if let parentText {
-            s.append(NSAttributedString(string: "   " + parentText,
+            s.append(NSAttributedString(string: parentText,
                 attributes: [.foregroundColor: secondary, .font: NSFont.systemFont(ofSize: 11)]))
         }
         if removed {
-            s.append(NSAttributedString(string: "   " + L10n.text("aiWorkspace.removed.badge"),
+            if s.length > 0 { s.append(NSAttributedString(string: "   ")) }
+            s.append(NSAttributedString(string: L10n.text("aiWorkspace.removed.badge"),
                 attributes: [.foregroundColor: emphasized ? selectedFG : NSColor.systemOrange,
                              .font: NSFont.systemFont(ofSize: 11)]))
         }
         if suggested {
-            s.append(NSAttributedString(string: "  ✦",
+            if s.length > 0 { s.append(NSAttributedString(string: "  ")) }
+            s.append(NSAttributedString(string: "✦",
                 attributes: [.foregroundColor: emphasized ? selectedFG : NSColor.controlAccentColor]))
         }
-        textField?.attributedStringValue = s
+        detailLabel.attributedStringValue = s
         let tint = emphasized ? selectedFG : kindTint
         let cfg = NSImage.SymbolConfiguration(paletteColors: [tint])
         imageView?.image = NSImage(systemSymbolName: iconName, accessibilityDescription: nil)?
