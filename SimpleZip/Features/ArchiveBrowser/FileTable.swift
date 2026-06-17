@@ -67,8 +67,10 @@ final class FileOutlineNode {
     enum Kind {
         case file(FileItem)
         case section
-        /// AI 建议子行(归档行展开后挂的「打开 / 测试」等)。复用 AI 文件夹的 `AIWorkspaceNodeAction`,不另起类型。
+        /// AI 抽屉里的**模型建议动作行**(模型挑的:hash / compress / test…)。复用 `AIWorkspaceNodeAction`。
         case suggestion(AIWorkspaceNodeAction)
+        /// AI 抽屉里的**一句话摘要行**(②b:端上模型对这个文件的一句话定性,抽屉第一行)。非动作、不可点。
+        case summary(String)
     }
 
     let kind: Kind
@@ -111,16 +113,29 @@ final class FileOutlineNode {
         FileOutlineNode(kind: .suggestion(action), sectionKey: "", title: "", isHiddenSection: false)
     }
 
+    static func summary(_ text: String) -> FileOutlineNode {
+        FileOutlineNode(kind: .summary(text), sectionKey: "", title: "", isHiddenSection: false)
+    }
+
     var fileItem: FileItem? {
         if case .file(let item) = kind { return item }
         return nil
     }
 
-    /// 这一行是不是 AI 建议子行;是则返回它的动作。建议行无 fileItem → 不可拖拽 / 不进选区 / 不进 QL。
+    /// 这一行是不是 AI 建议动作行;是则返回它的动作。建议行无 fileItem → 不可拖拽 / 不进选区 / 不进 QL。
     var suggestionAction: AIWorkspaceNodeAction? {
         if case .suggestion(let action) = kind { return action }
         return nil
     }
+
+    /// 这一行是不是 AI 抽屉的一句话摘要行;是则返回摘要文本。同样无 fileItem → 不拖拽 / 不进选区 / 不进 QL。
+    var summaryText: String? {
+        if case .summary(let text) = kind { return text }
+        return nil
+    }
+
+    /// 是否是 AI 抽屉里的「非文件行」(摘要行 + 建议动作行)—— 键盘上下可选,但不进 model.selection / 不拖拽。
+    var isDrawerRow: Bool { suggestionAction != nil || summaryText != nil }
 
     var isSection: Bool {
         if case .section = kind { return true }
@@ -652,15 +667,19 @@ struct FileNSOutlineView: NSViewRepresentable {
             return children
         }
 
-        /// 0.4.5 #80：归档行展开后的 AI 建议子行。门控 = AI 主开关开 + 是归档文件 + 非折叠首卷(避免和分卷子级打架)。
-        /// 复用 AI 文件夹的 `AIWorkspaceNodeActions.suggestions(for:)` + 动作派发,不另起逻辑。普通文件返回 `[]`(不展开)。
+        /// 0.4.5 #80:文件行展开后的 **AI 抽屉**。**拒绝假AI**:只读后台**端上模型**产出的缓存(一句话摘要 + 模型挑的
+        /// 建议动作),**没有任何写死动作**(以前的「打开/测试」固定项是假 AI,已删)。模型没产出 → `[]`(不展开)。
+        /// 抽屉内容 = [一句话摘要行] + [模型建议动作行…]。门控 = AI 主开关 + 非折叠首卷(避免和分卷子级打架)。
         private func loadedSuggestionChildren(of node: FileOutlineNode) -> [FileOutlineNode] {
             if let cached = node.suggestionChildren { return cached }
-            guard AppPreferences.aiAssistantEnabled, node.volumeChildren == nil, let item = node.fileItem else {
+            guard AppPreferences.aiAssistantEnabled, node.volumeChildren == nil, let item = node.fileItem,
+                  let drawer = AIWorkspaceNodeActions.fileBrowserDrawer(for: item) else {
                 node.suggestionChildren = []
                 return []
             }
-            let children = AIWorkspaceNodeActions.suggestions(for: item).map { FileOutlineNode.suggestion($0) }
+            var children: [FileOutlineNode] = []
+            if let summary = drawer.summary { children.append(FileOutlineNode.summary(summary)) }
+            children.append(contentsOf: drawer.actions.map { FileOutlineNode.suggestion($0) })
             node.suggestionChildren = children
             return children
         }
@@ -688,7 +707,15 @@ struct FileNSOutlineView: NSViewRepresentable {
                 )
             }
 
-            // AI 建议子行:只在 name 列画,其它列留空。共享 `makeSuggestionCell`(跟随选中反色,不再深底深色看不清)。
+            // AI 抽屉一句话摘要行(②b):只在 name 列画,引号图标 + 模型一句话定性,跟随选中反色。
+            if let summary = node.summaryText {
+                guard column == .name else { return nil }
+                return makeSuggestionCell(in: outlineView, owner: self, title: summary,
+                                          iconName: "text.quote",
+                                          font: .systemFont(ofSize: density.textPointSize))
+            }
+
+            // AI 建议动作行:只在 name 列画,其它列留空。共享 `makeSuggestionCell`(跟随选中反色,不再深底深色看不清)。
             if let suggestion = node.suggestionAction {
                 guard column == .name else { return nil }
                 return makeSuggestionCell(in: outlineView, owner: self,
@@ -1268,8 +1295,12 @@ struct FileNSOutlineView: NSViewRepresentable {
             let row = sender.clickedRow
             guard row >= 0, let node = sender.item(atRow: row) as? FileOutlineNode else { return }
             if let suggestion = node.suggestionAction {
-                // AI 建议子行:双击 = 派发动作(打开 / 测试…),复用 AI 文件夹同一处派发。
+                // AI 建议动作行:双击 = 派发动作(模型挑的:哈希 / 测试…),复用同一处派发。
                 model.dispatchSuggestion(suggestion.action)
+                return
+            }
+            if node.summaryText != nil {
+                // AI 一句话摘要行:双击留给「查看详细总结」(二期);现在不做动作(不落到下面的文件打开)。
                 return
             }
             if node.isSection {
@@ -1639,12 +1670,12 @@ struct FileNSOutlineView: NSViewRepresentable {
                     for row in alreadySelected { indexes.insert(row) }
                 }
             }
-            // 保留用户用上下方向键 / 点击导航到的「分组头」「AI 建议子行」 —— 它们没有 fileItem、不进 model.selection，
-            // 若不保留,下面的 reapply 会把它清掉:方向键一碰到就选择归零、光标卡住跨不过去(分组头是老 bug;AI 建议子行
-            // 是同款,必须一并保留,否则键盘上下选不到建议行)。
+            // 保留用户用上下方向键 / 点击导航到的「分组头」「AI 抽屉行(摘要 + 建议动作)」 —— 它们没有 fileItem、
+            // 不进 model.selection,若不保留,下面的 reapply 会把它清掉:方向键一碰到就选择归零、光标卡住跨不过去
+            // (分组头是老 bug;AI 抽屉行是同款,必须一并保留,否则键盘上下选不到摘要 / 建议行)。
             for row in outlineView.selectedRowIndexes {
                 let node = outlineView.item(atRow: row) as? FileOutlineNode
-                if node?.isSection == true || node?.suggestionAction != nil { indexes.insert(row) }
+                if node?.isSection == true || node?.isDrawerRow == true { indexes.insert(row) }
             }
             if outlineView.selectedRowIndexes != indexes {
                 DispatchQueue.main.async { [weak self] in

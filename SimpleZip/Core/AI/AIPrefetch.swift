@@ -21,19 +21,43 @@ nonisolated enum AIBackgroundActivityLevel: String, Codable, Equatable, CaseIter
     case aggressive
 }
 
-/// 单轮预读预算(每轮目录 / 归档上限、单归档条目上限)。`off` 无预算。
+/// 单轮预读预算(每轮目录 / 归档上限、单归档条目上限、**单轮模型建议上限**)。`off` 无预算。
+/// 所有 AI 后台用量统一从这里取 → **一切都挂在「AI 活跃度」设置上,绝不再有脱离活跃度的孤儿常量**。
 nonisolated struct AIArchivePrefetchBudget: Codable, Equatable, Sendable {
     let maxDirectoriesPerRound: Int
     let maxArchivesPerRound: Int
     let maxEntriesPerArchive: Int
+    /// 单轮最多让端上模型给几个文件/组出建议(模型调用最贵 + 易重试,档位越高才舍得花更多)。
+    let maxModelSuggestionsPerRound: Int
 
-    /// 档位 → 预算(对齐工程补充六的预算表)。`off` 返回 nil(不跑预读)。
+    init(maxDirectoriesPerRound: Int, maxArchivesPerRound: Int, maxEntriesPerArchive: Int,
+         maxModelSuggestionsPerRound: Int = 3) {
+        self.maxDirectoriesPerRound = maxDirectoriesPerRound
+        self.maxArchivesPerRound = maxArchivesPerRound
+        self.maxEntriesPerArchive = maxEntriesPerArchive
+        self.maxModelSuggestionsPerRound = maxModelSuggestionsPerRound
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case maxDirectoriesPerRound, maxArchivesPerRound, maxEntriesPerArchive, maxModelSuggestionsPerRound
+    }
+
+    /// 旧持久值(无 `maxModelSuggestionsPerRound`)解码兼容 → 缺字段默认 3。
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.maxDirectoriesPerRound = try c.decode(Int.self, forKey: .maxDirectoriesPerRound)
+        self.maxArchivesPerRound = try c.decode(Int.self, forKey: .maxArchivesPerRound)
+        self.maxEntriesPerArchive = try c.decode(Int.self, forKey: .maxEntriesPerArchive)
+        self.maxModelSuggestionsPerRound = try c.decodeIfPresent(Int.self, forKey: .maxModelSuggestionsPerRound) ?? 3
+    }
+
+    /// 档位 → 预算(对齐工程补充六的预算表)。`off` 返回 nil(不跑预读)。模型建议数随档位放大:省电 1、均衡 3、激进 6。
     static func forLevel(_ level: AIBackgroundActivityLevel) -> AIArchivePrefetchBudget? {
         switch level {
         case .off: return nil
-        case .powerSaver: return AIArchivePrefetchBudget(maxDirectoriesPerRound: 1, maxArchivesPerRound: 10, maxEntriesPerArchive: 2_000)
-        case .balanced: return AIArchivePrefetchBudget(maxDirectoriesPerRound: 3, maxArchivesPerRound: 40, maxEntriesPerArchive: 10_000)
-        case .aggressive: return AIArchivePrefetchBudget(maxDirectoriesPerRound: 8, maxArchivesPerRound: 120, maxEntriesPerArchive: 20_000)
+        case .powerSaver: return AIArchivePrefetchBudget(maxDirectoriesPerRound: 1, maxArchivesPerRound: 10, maxEntriesPerArchive: 2_000, maxModelSuggestionsPerRound: 1)
+        case .balanced: return AIArchivePrefetchBudget(maxDirectoriesPerRound: 3, maxArchivesPerRound: 40, maxEntriesPerArchive: 10_000, maxModelSuggestionsPerRound: 3)
+        case .aggressive: return AIArchivePrefetchBudget(maxDirectoriesPerRound: 8, maxArchivesPerRound: 120, maxEntriesPerArchive: 20_000, maxModelSuggestionsPerRound: 6)
         }
     }
 }

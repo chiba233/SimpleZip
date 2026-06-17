@@ -43,13 +43,35 @@ enum AIWorkspaceNodeActions {
         }
     }
 
-    /// 文件浏览器里**单个文件行**的 AI 建议(把 AI 文件夹这套建议接进文件管理模式;复用同样的动作 + 渲染)。
-    /// **v1 阈值:只对归档文件**(打开 / 测试)—— 明显不是每个文件、是归档管理器最该说的话、且归档行本来不可展开,
-    /// 挂建议子行最干净。普通文档 / 源码 / 媒体 v1 不挂(要等后台摘要 / 打开方式推荐)。门控由调用方再叠加 AI 能力可用。
-    static func suggestions(for item: FileItem) -> [AIWorkspaceNodeAction] {
-        guard !item.isDirectory, ArchiveService.isSupportedArchive(item.url) else { return [] }
+    /// 文件浏览器里**单个文件行**的 AI 抽屉。**拒绝假AI**:只读后台**端上模型**产出的东西(一句话摘要 +
+    /// 模型挑的建议动作 token),没有就返回 nil(空抽屉、不展开)。**不再有任何写死动作**(打开/测试这种固定项是假 AI,
+    /// 已删)—— 动作必须是模型基于内容/事实决定的;模型没说就什么都不显示。
+    static func fileBrowserDrawer(for item: FileItem) -> (summary: String?, actions: [AIWorkspaceNodeAction])? {
+        guard !item.isDirectory,
+              let record = AIBackgroundIndexStore.shared.record(forPath: item.url.path),
+              let content = record.contentSummary, content.hasModelSuggestion else { return nil }
         let path = item.url.path
-        return [openArchive(path), test(path)]
+        let kind = record.type == .archive ? "archive" : "file"
+        let actions = content.suggestedActionTokens.compactMap { fileAction(token: $0, path: path, kind: kind) }
+        let summary = (content.shortSummary?.isEmpty == false) ? content.shortSummary : nil
+        guard summary != nil || !actions.isEmpty else { return nil }
+        return (summary, actions)
+    }
+
+    /// 把**模型挑的**动作 token + 文件路径安全合成一条建议行(模型不拼路径;token 必须在词表里且适用该 kind)。
+    private static func fileAction(token: String, path: String, kind: String) -> AIWorkspaceNodeAction? {
+        guard AIVirtualNodeActionDeriver.allowedSuggestionDescriptors
+            .contains(where: { $0.id == token && $0.appliesToKinds.contains(kind) }) else { return nil }
+        switch token {
+        case "hash":    return hash([path])
+        case "compress": return compress([path], "aiWorkspace.node.compress")
+        case "test":    return test(path)
+        case "inspect": return .init(titleKey: "aiWorkspace.suggest.inspect", systemImage: "shippingbox",
+                                     action: .inspectRelease(path: path))
+        case "convert": return .init(titleKey: "aiWorkspace.suggest.convert", systemImage: "arrow.triangle.2.circlepath",
+                                     action: .convertArchive(path: path))
+        default:        return nil
+        }
     }
 
     /// 一个分组里所有(可定位路径的)叶子成员的真实路径 —— 给「把这组一起压缩」用。

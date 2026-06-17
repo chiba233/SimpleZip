@@ -68,6 +68,17 @@ struct GeneratedSuggestionSet: Sendable {
     var suggestions: [GeneratedNodeSuggestion]
 }
 
+/// **文件浏览器单文件抽屉**的模型产出(②b/②c)。给一个具体文件出 {一句话摘要 + 几个建议动作 token}。
+/// 扁平 2 字段(可靠优先);摘要给人看、动作从词表里挑。**拒绝假AI**:没有这个产出文件浏览器就空抽屉。
+@available(macOS 26.0, *)
+@Generable
+struct GeneratedFileSuggestion: Sendable {
+    @Guide(description: "ONE short, concrete sentence saying what THIS specific file actually is or is about — its real subject or purpose, the way the owner would describe it. Be specific to the content; do NOT just restate the file name, and do NOT write a generic line like 'a text document'. In the required language.")
+    var summary: String
+    @Guide(description: "A FEW action tokens from the allowed-actions list, ONLY where an action is clearly the right next step for THIS file. MOST files get NONE — empty is the correct default. Use each token verbatim; never invent one.")
+    var actions: [String]
+}
+
 /// 动态核查产出:**明显不扣题**、该从文件夹移除的条目序号(保守 —— 拿不准就不列)。扁平单字段,可靠。
 @available(macOS 26.0, *)
 @Generable
@@ -132,6 +143,51 @@ enum AIVirtualFolderModelPlanner {
             else { return nil }
             return AINodeSuggestionPlan(targetCandidateID: target, actionToken: token)
         }
+    }
+
+    /// **文件浏览器单文件抽屉**的模型驱动建议(②b/②c,拒绝假AI)。给一个具体文件(名字 + 角色 + 脱敏内容摘录 +
+    /// 结构信号)让端上模型出**一句话摘要 + 几个建议动作 token**。摘要给人看(强制界面语言);动作只能从词表里挑、
+    /// 且必须适用该 kind,App 据 token + 路径安全合成动作(模型不拼路径)。失败抛出由调用点吞掉。
+    /// `excerpt` 必须是**已脱敏**的头部文本(调用方在后台线程读 + `AISensitiveRedactor.redact` 后传入)。
+    static func fileSuggestion(fileName: String, kind: String, roleTags: [String], languageHint: String?,
+                               headings: [String], fieldNames: [String], excerpt: String)
+        async throws -> (summary: String, actionTokens: [String]) {
+        let lang = AIReportAssistant.uiLanguageName
+        let instructions = """
+        LANGUAGE — MANDATORY: write the summary in \(lang). Never use any other language for it, not even partially.
+
+        You are describing ONE file to the person who owns it, inside a file manager. You are given the file's name, \
+        its role, a few structural signals, and a redacted excerpt of its actual content. From the CONTENT, write \
+        ONE concrete, specific sentence about what this file really is or is about — the kind of thing a person \
+        would say to remind themselves what it is. Do not restate the file name, do not be generic, do not mention \
+        that text was redacted. If the excerpt is too thin to say anything specific, summarize from the name and \
+        role as best you can, still in one concrete sentence.
+
+        Then suggest a FEW next actions, but ONLY where an action is clearly the right next step for THIS file. Most \
+        files need NONE — empty is the correct default. Never suggest an action just because it is possible.
+
+        \(Self.actionVocabularyRule)
+        """
+        var lines: [String] = ["File name: \(fileName)", "Kind: \(kind)"]
+        if !roleTags.isEmpty { lines.append("Role: \(roleTags.joined(separator: ", "))") }
+        if let languageHint, !languageHint.isEmpty { lines.append("Format: \(languageHint)") }
+        if !headings.isEmpty { lines.append("Headings: \(headings.prefix(8).joined(separator: " | "))") }
+        if !fieldNames.isEmpty { lines.append("Top-level fields: \(fieldNames.prefix(12).joined(separator: ", "))") }
+        let trimmedExcerpt = String(excerpt.prefix(1_400)).trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedExcerpt.isEmpty { lines.append("Content excerpt (redacted):\n\(trimmedExcerpt)") }
+        let generated = try await AIReportAssistant.generateStructured(
+            instructions: instructions, prompt: lines.joined(separator: "\n"),
+            as: GeneratedFileSuggestion.self, maxAttempts: 8)
+        let summary = generated.summary.trimmingCharacters(in: .whitespacesAndNewlines)
+        var seen = Set<String>()
+        let tokens = generated.actions.compactMap { raw -> String? in
+            let t = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            guard AIVirtualNodeActionDeriver.allowedSuggestionDescriptors
+                .contains(where: { $0.id == t && $0.appliesToKinds.contains(kind) }),
+                seen.insert(t).inserted else { return nil }
+            return t
+        }
+        return (summary, tokens)
     }
 
     /// **动态核查**:对一个已成型文件夹的成员,让模型挑出**明显不扣题**的(保守 —— 拿不准就留)。返回要移除的

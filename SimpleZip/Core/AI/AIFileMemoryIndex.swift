@@ -53,6 +53,16 @@ nonisolated struct AIFileMemoryIndex: Codable, Equatable, Sendable {
         return AIFileMemoryIndex(files: merged, folders: folders, maxFiles: maxFiles)
     }
 
+    /// 就地变换一条记录(②b/②c:模型短摘要 / 建议动作产出后回填 `contentSummary`,**scopeID / indexedAt 不变**
+    /// → 不影响渐进覆盖的指纹判断、不改 scope 归属)。查不到 id → 原样返回。
+    func updatingRecord(id: String, _ transform: (AIFileMemoryRecord) -> AIFileMemoryRecord) -> AIFileMemoryIndex {
+        guard let i = files.firstIndex(where: { $0.record.id == id }) else { return self }
+        var newFiles = files
+        let entry = newFiles[i]
+        newFiles[i] = FileEntry(record: transform(entry.record), scopeID: entry.scopeID, indexedAt: entry.indexedAt)
+        return AIFileMemoryIndex(files: newFiles, folders: folders, maxFiles: maxFiles)
+    }
+
     /// upsert 一批文件夹画像(按 `id` 去重)。
     func upsertingFolders(_ profiles: [AIFolderProfile]) -> AIFileMemoryIndex {
         var byID = Dictionary(folders.map { ($0.id, $0) }, uniquingKeysWith: { _, b in b })

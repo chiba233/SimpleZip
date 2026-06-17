@@ -24,6 +24,8 @@ final class AIBackgroundIndexer {
     private var task: Task<Void, Never>?
     private var archiveRunning = false
     private var archiveTask: Task<Void, Never>?
+    private var suggestionRunning = false
+    private var suggestionTask: Task<Void, Never>?
 
     /// 跑一轮预索引(门控未过则直接返回 —— 默认 opt-in 关闭即什么都不做)。完成后通知发现编排者刷新。
     func runIfEnabled() {
@@ -60,6 +62,7 @@ final class AIBackgroundIndexer {
                     }
                     // (AI 文件夹自动发现已下线 → 不再 index 完回调 discovery.refresh();索引 / 预读照常给 AI suggestion 用。)
                     AIBackgroundIndexer.shared.prereadArchivesIfEnabled()   // 元数据落盘后预读归档内容(门控未过则空跑)
+                    AIBackgroundIndexer.shared.generateFileSuggestionsIfEnabled()   // 预读摘要落盘后,对近阈值文件出模型建议(门控未过则空跑)
                 }
                 AIBackgroundIndexer.shared.running = false
             }
@@ -69,6 +72,7 @@ final class AIBackgroundIndexer {
     func cancel() {
         task?.cancel(); task = nil; running = false
         archiveTask?.cancel(); archiveTask = nil; archiveRunning = false
+        suggestionTask?.cancel(); suggestionTask = nil; suggestionRunning = false
     }
 
     // MARK: - 内容预读 · 归档半边(MainActor:ArchiveService 在 app target 下 MainActor 隔离,A18)
@@ -120,6 +124,64 @@ final class AIBackgroundIndexer {
             }
             // (AI 文件夹自动发现已下线 → 预读完不再回调 discovery.refresh();归档清单缓存照常给 AI suggestion / Spotlight 用。)
         }
+    }
+
+    // MARK: - ②b/②c 模型驱动建议(MainActor:模型调用 async + 串行闸;每轮少量近阈值文件)
+
+    /// 对**已预读、AI 建议评分近阈值、还没出模型建议**的少量文件,端上模型出 {一句话摘要 + 建议动作 token},
+    /// 写回预索引(`applyModelSuggestion`)。**拒绝假AI**:文件浏览器只读这个缓存,没有就空抽屉。门控:内容预读开关 +
+    /// 模型就绪。预算 = **AI 活跃度档位**对应的 `maxModelSuggestionsPerRound`(不再是脱离设置的孤儿常量)。
+    /// 重读头部 + 脱敏在后台线程(只重读这极少量近阈值文件,不影响阶段一扫描)。可取消、串行不重叠。
+    func generateFileSuggestionsIfEnabled() {
+        guard #available(macOS 26.0, *) else { return }
+        let store = AIBackgroundIndexStore.shared
+        guard !suggestionRunning, store.contentPrereadEnabled, AIReportAssistant.isReady,
+              let budget = store.budget else { return }
+        let now = Date()
+        let candidates = AIPrereadSelection.selectForModelSuggestion(
+            records: store.recentFileRecords(limit: 2_000),
+            budget: budget.maxModelSuggestionsPerRound, now: now)
+        guard !candidates.isEmpty else { return }
+        suggestionRunning = true
+        suggestionTask = Task { @MainActor in
+            defer { AIBackgroundIndexer.shared.suggestionRunning = false }
+            for rec in candidates {
+                if Task.isCancelled { break }
+                guard AIBackgroundIndexStore.shared.contentPrereadEnabled, AIReportAssistant.isReady else { break }
+                guard let path = rec.path, let summary = rec.contentSummary,
+                      FileManager.default.fileExists(atPath: path) else { continue }
+                let fileName = (path as NSString).lastPathComponent
+                // 重读头部 + 脱敏在后台线程(不阻塞主线程);拿不到内容(无权限 / 二进制 / 被红线拦)→ 跳过。
+                let excerptTask = Task.detached(priority: .background) {
+                    AIBackgroundIndexer.redactedExcerpt(url: URL(fileURLWithPath: path), fileName: fileName)
+                }
+                guard let excerpt = await excerptTask.value else { continue }
+                let kind = rec.type == .archive ? "archive" : "file"
+                guard let result = try? await AIVirtualFolderModelPlanner.fileSuggestion(
+                    fileName: rec.fileName, kind: kind, roleTags: rec.roleTags,
+                    languageHint: summary.languageHint, headings: summary.headings,
+                    fieldNames: summary.fieldNames, excerpt: excerpt),
+                    !result.summary.isEmpty || !result.actionTokens.isEmpty else { continue }
+                AIBackgroundIndexStore.shared.applyModelSuggestion(
+                    recordID: rec.id, summary: result.summary, actionTokens: result.actionTokens)
+            }
+        }
+    }
+
+    /// 读一个文件头部 → 脱敏(给模型出一句话摘要的素材)。红线门控同 `summarizeContent`(敏感目录 / 临时解密 /
+    /// 疑似密钥名一律不读);无读权限 / 空 / 非 UTF-8 → nil。**脱敏后**的文本才会进 prompt(白皮书隐私口径)。
+    nonisolated static func redactedExcerpt(url: URL, fileName: String) -> String? {
+        if AIFileReadabilityPolicy.blockReason(absolutePath: url.path, fileName: fileName,
+                                               currentUserCanRead: true, isExcludedByUser: false) != nil {
+            return nil
+        }
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
+        defer { try? handle.close() }
+        let data = (try? handle.read(upToCount: maxContentReadBytes)) ?? Data()
+        guard !data.isEmpty, let raw = String(data: data, encoding: .utf8) else { return nil }
+        let redacted = AISensitiveRedactor.redact(raw)
+        let trimmed = redacted.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     // MARK: - 只读元数据扫描(off-main;纯静态,不碰 UI 状态)

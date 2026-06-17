@@ -21,7 +21,12 @@ final class AIBackgroundIndexStore: ObservableObject {
     /// 白名单目录(用户确认后加入)。
     @Published private(set) var scopes: [AIArchivePrefetchScope]
     /// 持久文件预索引(体量可能大,不 `@Published`;变更后手动发 `objectWillChange`)。
-    private(set) var fileIndex: AIFileMemoryIndex
+    private(set) var fileIndex: AIFileMemoryIndex {
+        didSet { rebuildPathIndex() }
+    }
+
+    /// `path → 记录` 缓存(文件浏览器每行 O(1) 查模型建议用)。fileIndex 变更后由 `didSet` 自动重建。
+    private var recordByPath: [String: AIFileMemoryRecord] = [:]
 
     private let defaults: UserDefaults
 
@@ -29,7 +34,18 @@ final class AIBackgroundIndexStore: ObservableObject {
         self.defaults = defaults
         self.scopes = AIBackgroundIndexStore.loadScopes(from: defaults)
         self.fileIndex = AIBackgroundIndexStore.loadIndex(from: defaults)
+        rebuildPathIndex()   // init 里的 fileIndex 赋值不触发 didSet,手动建一次
     }
+
+    /// 从当前 fileIndex 重建 `path → 记录` 缓存(只收带路径的记录;同路径取最近索引那条)。
+    private func rebuildPathIndex() {
+        var map: [String: AIFileMemoryRecord] = [:]
+        for record in fileIndex.records { if let path = record.path { map[path] = record } }
+        recordByPath = map
+    }
+
+    /// 按真实路径查一条预索引记录(文件浏览器 AI 抽屉读模型建议用)。O(1)。
+    func record(forPath path: String) -> AIFileMemoryRecord? { recordByPath[path] }
 
     // MARK: - opt-in 门控(白皮书:不开则完全不跑)
 
@@ -120,6 +136,20 @@ final class AIBackgroundIndexStore: ObservableObject {
         var out: [String: AIFileMemoryRecord] = [:]
         for rec in fileIndex.records where rec.contentSummary != nil { out[rec.id] = rec }
         return out
+    }
+
+    /// ②b/②c:后台模型对一条已预读记录产出**一句话摘要 + 建议动作 token** 后回填进它的 `contentSummary`。
+    /// 仅当该记录已有结构摘要(预读过)才写;`摘要为空且无动作` 不写(避免把「模型啥也没说」当结果缓存)。
+    /// scopeID / indexedAt 不变(`updatingRecord`),不扰渐进覆盖指纹。落盘 + 通知(文件浏览器下次 reload 显示)。
+    func applyModelSuggestion(recordID: String, summary: String?, actionTokens: [String]) {
+        let cleanSummary = summary?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let hasSummary = cleanSummary?.isEmpty == false
+        guard hasSummary || !actionTokens.isEmpty else { return }
+        guard let existing = fileIndex.records.first(where: { $0.id == recordID })?.contentSummary else { return }
+        let updated = existing.withModelSuggestion(summary: hasSummary ? cleanSummary : nil, actionTokens: actionTokens)
+        fileIndex = fileIndex.updatingRecord(id: recordID) { $0.withContentSummary(updated) }
+        persistIndex()
+        objectWillChange.send()
     }
 
     /// source ref → 真实路径(给 AI 文件夹节点动作 + 显示来源目录用)。直接读持久记录的 `path`(非加密路径不是

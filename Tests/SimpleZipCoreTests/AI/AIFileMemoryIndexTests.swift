@@ -20,6 +20,24 @@ import Testing
                                                             folderNameTokens: []))
     }
 
+    @Test func updatingRecordTransformsInPlaceKeepingScope() {
+        let r = rec("notes.md")
+        var index = AIFileMemoryIndex().upserting([r], scopeID: scopeA, at: now)
+        // 回填模型短摘要(②b/②c):scope 归属不变,只换记录内容。
+        index = index.updatingRecord(id: r.id) {
+            $0.withContentSummary(AIFileContentSummary(mode: "text-summary", shortSummary: "一句话"))
+        }
+        #expect(index.records.first?.contentSummary?.shortSummary == "一句话")
+        // 仍只属于 scopeA(updatingRecord 不动 scopeID)→ clearingScope(scopeA) 后清空。
+        #expect(index.clearingScope(scopeA).fileCount == 0)
+    }
+
+    @Test func updatingRecordMissingIDIsNoOp() {
+        let index = AIFileMemoryIndex().upserting([rec("a.txt")], scopeID: scopeA, at: now)
+        let same = index.updatingRecord(id: "file-does-not-exist") { $0 }
+        #expect(same == index)
+    }
+
     @Test func upsertDedupsByRecordID() {
         let index = AIFileMemoryIndex()
             .upserting([rec("a.txt"), rec("b.txt")], scopeID: scopeA, at: now)
