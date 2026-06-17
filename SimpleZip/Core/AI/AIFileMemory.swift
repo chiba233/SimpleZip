@@ -196,11 +196,27 @@ nonisolated enum AIFileType: String, Codable, Equatable, CaseIterable, Sendable 
     ]
 }
 
+/// 端上模型给一个文件挑的一条**结构化建议动作**(②c)。`token` = 动作种类(`allowedSuggestionDescriptors.id` 子集
+/// + openWith / openActivity / revealArchiveEntry / dragToApplications…);`payload` = App 安全回查的负载
+/// (openWith→app bundleId、activity→taskId、包内文件→entryPath、dmg→.app 路径);`label` = 给人看的补充
+/// (openWith 的 app 名「Preview」)。**模型不拼路径** —— payload 由 App 按模型的选择安全合成。
+nonisolated struct AIFileSuggestedAction: Codable, Equatable, Sendable {
+    let token: String
+    let payload: String?
+    let label: String?
+
+    init(token: String, payload: String? = nil, label: String? = nil) {
+        self.token = token
+        self.payload = payload
+        self.label = label
+    }
+}
+
 /// 安全文本文件的短摘要(仅深度本地上下文)。内容由 App 侧先 redaction 再填这里。
 ///
 /// 两个阶段填充:① 后台预读时确定性抽 `headings` / `fieldNames` / `languageHint`(结构信号,聚类用);
 /// ② **②b/②c 模型驱动建议** —— 只对「AI 建议评分近显示阈值」的文件,端上本地模型再产出 `shortSummary`
-/// (给人看的一句话)+ `suggestedActionTokens`(模型挑的建议动作)。没过阈值 / 模型没产出 = 两者皆空,
+/// (给人看的一句话)+ `suggestedActions`(模型挑的结构化建议动作)。没过阈值 / 模型没产出 = 两者皆空,
 /// 文件浏览器据此**空抽屉**(拒绝假AI:界面只显示模型说的,任何代码不凌驾于模型)。
 nonisolated struct AIFileContentSummary: Codable, Equatable, Sendable {
     /// `metadata-only` / `text-summary` / `blocked-due-to-sensitive-content`。
@@ -210,26 +226,29 @@ nonisolated struct AIFileContentSummary: Codable, Equatable, Sendable {
     let fieldNames: [String]
     /// 端上模型产出的一句话摘要(②b)。仅近阈值文件由后台模型回填;nil = 还没产出 / 没过门控。
     let shortSummary: String?
-    /// 端上模型给这个文件挑的建议动作 token(②c,`allowedSuggestionDescriptors.id` 子集)。空 = 模型没建议动作。
-    let suggestedActionTokens: [String]
+    /// 端上模型给这个文件挑的**结构化建议动作**(②c)。空 = 模型没建议动作。
+    let suggestedActions: [AIFileSuggestedAction]
     let redactionCount: Int
 
     init(mode: String, languageHint: String? = nil, headings: [String] = [], fieldNames: [String] = [],
-         shortSummary: String? = nil, suggestedActionTokens: [String] = [], redactionCount: Int = 0) {
+         shortSummary: String? = nil, suggestedActions: [AIFileSuggestedAction] = [], redactionCount: Int = 0) {
         self.mode = mode
         self.languageHint = languageHint
         self.headings = headings
         self.fieldNames = fieldNames
         self.shortSummary = shortSummary
-        self.suggestedActionTokens = suggestedActionTokens
+        self.suggestedActions = suggestedActions
         self.redactionCount = redactionCount
     }
 
     private enum CodingKeys: String, CodingKey {
-        case mode, languageHint, headings, fieldNames, shortSummary, suggestedActionTokens, redactionCount
+        case mode, languageHint, headings, fieldNames, shortSummary
+        case suggestedActions, suggestedActionTokens   // 后者:旧缓存的 [String] token,迁移用
+        case redactionCount
     }
 
-    /// 旧缓存(无 `suggestedActionTokens`)解码兼容 → 缺字段默认 []。
+    /// 旧缓存兼容:有 `suggestedActions`(结构化)就用它;否则把旧 `suggestedActionTokens`([String])升级成
+    /// 无 payload 的结构化动作;都没有 → []。
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         self.mode = try c.decode(String.self, forKey: .mode)
@@ -237,19 +256,36 @@ nonisolated struct AIFileContentSummary: Codable, Equatable, Sendable {
         self.headings = try c.decodeIfPresent([String].self, forKey: .headings) ?? []
         self.fieldNames = try c.decodeIfPresent([String].self, forKey: .fieldNames) ?? []
         self.shortSummary = try c.decodeIfPresent(String.self, forKey: .shortSummary)
-        self.suggestedActionTokens = try c.decodeIfPresent([String].self, forKey: .suggestedActionTokens) ?? []
+        if let actions = try c.decodeIfPresent([AIFileSuggestedAction].self, forKey: .suggestedActions) {
+            self.suggestedActions = actions
+        } else {
+            let legacy = try c.decodeIfPresent([String].self, forKey: .suggestedActionTokens) ?? []
+            self.suggestedActions = legacy.map { AIFileSuggestedAction(token: $0) }
+        }
         self.redactionCount = try c.decodeIfPresent(Int.self, forKey: .redactionCount) ?? 0
     }
 
-    /// 回填模型短摘要 + 建议动作(②b/②c:近阈值文件由后台模型产出后写回,结构信号 / 元数据不变)。
-    func withModelSuggestion(summary: String?, actionTokens: [String]) -> AIFileContentSummary {
+    /// 只编码新字段(旧 `suggestedActionTokens` 不再写出,只在解码侧兼容)。
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(mode, forKey: .mode)
+        try c.encodeIfPresent(languageHint, forKey: .languageHint)
+        try c.encode(headings, forKey: .headings)
+        try c.encode(fieldNames, forKey: .fieldNames)
+        try c.encodeIfPresent(shortSummary, forKey: .shortSummary)
+        try c.encode(suggestedActions, forKey: .suggestedActions)
+        try c.encode(redactionCount, forKey: .redactionCount)
+    }
+
+    /// 回填模型短摘要 + 结构化建议动作(②b/②c:近阈值文件由后台模型产出后写回,结构信号 / 元数据不变)。
+    func withModelSuggestion(summary: String?, actions: [AIFileSuggestedAction]) -> AIFileContentSummary {
         AIFileContentSummary(mode: mode, languageHint: languageHint, headings: headings, fieldNames: fieldNames,
-                             shortSummary: summary, suggestedActionTokens: actionTokens, redactionCount: redactionCount)
+                             shortSummary: summary, suggestedActions: actions, redactionCount: redactionCount)
     }
 
     /// 是否已有模型产出(摘要或建议动作)→ 文件浏览器据此决定是否展示 AI 抽屉(都没有 = 空抽屉、不展开)。
     var hasModelSuggestion: Bool {
-        (shortSummary?.isEmpty == false) || !suggestedActionTokens.isEmpty
+        (shortSummary?.isEmpty == false) || !suggestedActions.isEmpty
     }
 }
 

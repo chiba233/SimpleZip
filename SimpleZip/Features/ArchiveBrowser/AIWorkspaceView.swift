@@ -52,26 +52,31 @@ enum AIWorkspaceNodeActions {
               let content = record.contentSummary, content.hasModelSuggestion else { return nil }
         let path = item.url.path
         let kind = record.type == .archive ? "archive" : "file"
-        let actions = content.suggestedActionTokens.compactMap { fileAction(token: $0, path: path, kind: kind) }
+        let actions = content.suggestedActions.compactMap { fileAction($0, path: path, kind: kind) }
         let summary = (content.shortSummary?.isEmpty == false) ? content.shortSummary : nil
         guard summary != nil || !actions.isEmpty else { return nil }
         return (summary, actions)
     }
 
-    /// 把**模型挑的**动作 token + 文件路径安全合成一条建议行(模型不拼路径;token 必须在词表里且适用该 kind)。
-    private static func fileAction(token: String, path: String, kind: String) -> AIWorkspaceNodeAction? {
-        guard AIVirtualNodeActionDeriver.allowedSuggestionDescriptors
-            .contains(where: { $0.id == token && $0.appliesToKinds.contains(kind) }) else { return nil }
+    /// 把**模型挑的**结构化动作 + 文件路径安全合成一条建议行(模型不拼路径;token 必须在词表里且适用该 kind)。
+    /// 带 payload 的动作(openWith→app bundleId、包内文件→entryPath…)由 App 据 payload 安全合成;模型只选不拼。
+    private static func fileAction(_ action: AIFileSuggestedAction, path: String, kind: String) -> AIWorkspaceNodeAction? {
+        let token = action.token
         switch token {
-        case "hash":    return hash([path])
-        case "compress": return compress([path], "aiWorkspace.node.compress")
-        case "test":    return test(path)
-        case "inspect": return .init(titleKey: "aiWorkspace.suggest.inspect", systemImage: "shippingbox",
-                                     action: .inspectRelease(path: path))
-        case "convert": return .init(titleKey: "aiWorkspace.suggest.convert", systemImage: "arrow.triangle.2.circlepath",
-                                     action: .convertArchive(path: path))
+        case "hash" where applies(token, kind):    return hash([path])
+        case "compress" where applies(token, kind): return compress([path], "aiWorkspace.node.compress")
+        case "test" where applies(token, kind):    return test(path)
+        case "inspect" where applies(token, kind): return .init(titleKey: "aiWorkspace.suggest.inspect", systemImage: "shippingbox",
+                                                                action: .inspectRelease(path: path))
+        case "convert" where applies(token, kind): return .init(titleKey: "aiWorkspace.suggest.convert", systemImage: "arrow.triangle.2.circlepath",
+                                                                action: .convertArchive(path: path))
         default:        return nil
         }
+    }
+
+    private static func applies(_ token: String, _ kind: String) -> Bool {
+        AIVirtualNodeActionDeriver.allowedSuggestionDescriptors
+            .contains { $0.id == token && $0.appliesToKinds.contains(kind) }
     }
 
     /// 一个分组里所有(可定位路径的)叶子成员的真实路径 —— 给「把这组一起压缩」用。

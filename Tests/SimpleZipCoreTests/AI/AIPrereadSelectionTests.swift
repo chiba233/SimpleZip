@@ -136,21 +136,36 @@ import Testing
     @Test func withModelSuggestionRoundTrip() {
         let base = AIFileContentSummary(mode: "text-summary", headings: ["H"], redactionCount: 1)
         #expect(!base.hasModelSuggestion)
-        let updated = base.withModelSuggestion(summary: "一句话", actionTokens: ["hash"])
+        let updated = base.withModelSuggestion(summary: "一句话",
+                                               actions: [AIFileSuggestedAction(token: "hash")])
         #expect(updated.shortSummary == "一句话")
-        #expect(updated.suggestedActionTokens == ["hash"])
+        #expect(updated.suggestedActions == [AIFileSuggestedAction(token: "hash")])
         #expect(updated.headings == ["H"])       // 结构信号不变
         #expect(updated.redactionCount == 1)
         #expect(updated.hasModelSuggestion)
     }
 
-    @Test func contentSummaryDecodesLegacyWithoutTokens() throws {
-        // 旧缓存没有 suggestedActionTokens 字段 → 解码默认 [](向后兼容,不丢整份索引)。
-        let legacy = #"{"mode":"text-summary","headings":["A"],"fieldNames":[],"redactionCount":0}"#.data(using: .utf8)!
-        let decoded = try JSONDecoder().decode(AIFileContentSummary.self, from: legacy)
-        #expect(decoded.suggestedActionTokens.isEmpty)
-        #expect(decoded.headings == ["A"])
-        #expect(decoded.shortSummary == nil)
-        #expect(!decoded.hasModelSuggestion)
+    @Test func suggestedActionRoundTripsPayload() throws {
+        // 带 payload 的动作(openWith→app bundleId + 名字)Codable 往返不丢。
+        let action = AIFileSuggestedAction(token: "openWith", payload: "com.apple.Preview", label: "Preview")
+        let summary = AIFileContentSummary(mode: "metadata-only", shortSummary: "一张图", suggestedActions: [action])
+        let round = try JSONDecoder().decode(AIFileContentSummary.self,
+                                             from: JSONEncoder().encode(summary))
+        #expect(round.suggestedActions == [action])
+        #expect(round.suggestedActions.first?.payload == "com.apple.Preview")
+    }
+
+    @Test func contentSummaryDecodesLegacy() throws {
+        // ① 旧缓存完全没有动作字段 → []。
+        let bare = #"{"mode":"text-summary","headings":["A"],"fieldNames":[],"redactionCount":0}"#.data(using: .utf8)!
+        let d1 = try JSONDecoder().decode(AIFileContentSummary.self, from: bare)
+        #expect(d1.suggestedActions.isEmpty)
+        #expect(d1.headings == ["A"])
+        #expect(!d1.hasModelSuggestion)
+        // ② 旧缓存的 [String] token 字段 → 升级成无 payload 的结构化动作(不丢)。
+        let legacyTokens = #"{"mode":"text-summary","suggestedActionTokens":["hash","compress"],"redactionCount":0}"#.data(using: .utf8)!
+        let d2 = try JSONDecoder().decode(AIFileContentSummary.self, from: legacyTokens)
+        #expect(d2.suggestedActions == [AIFileSuggestedAction(token: "hash"), AIFileSuggestedAction(token: "compress")])
+        #expect(d2.hasModelSuggestion)
     }
 }

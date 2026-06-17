@@ -163,9 +163,9 @@ final class AIBackgroundIndexer {
                     fileName: rec.fileName, kind: kind, roleTags: rec.roleTags,
                     languageHint: summary.languageHint, headings: summary.headings,
                     fieldNames: summary.fieldNames, excerpt: excerpt),
-                    !result.summary.isEmpty || !result.actionTokens.isEmpty else { continue }
+                    !result.summary.isEmpty || !result.actions.isEmpty else { continue }
                 AIBackgroundIndexStore.shared.applyModelSuggestion(
-                    recordID: rec.id, summary: result.summary, actionTokens: result.actionTokens)
+                    recordID: rec.id, summary: result.summary, actions: result.actions)
             }
         }
     }

@@ -79,6 +79,25 @@ struct GeneratedFileSuggestion: Sendable {
     var actions: [String]
 }
 
+/// **文件浏览器「文件折叠组建议」**的模型产出。模型把当前文件夹里的文件圈成几组「一组 + 一个批量动作」
+/// (比如几个归档 → 一起测试;一堆发布物 → 一起算哈希)。**不是真分组引擎**,就是 AI 建议的折叠呈现:
+/// 折叠行写「某文件 等 N 个 · 推荐X」,展开 = 那几个文件 + 末尾一条动作行。扁平 2 字段(可靠优先)。
+@available(macOS 26.0, *)
+@Generable
+struct GeneratedFileGroupSuggestion: Sendable {
+    @Guide(description: "The item NUMBERS (leftmost column) of the files that belong in THIS group — files the user would clearly want to apply the SAME batch action to together. At least 2 numbers.")
+    var fileNumbers: [String]
+    @Guide(description: "ONE action token from the allowed-actions list to apply to the whole group (e.g. compress, hash, test). Use a token whose 'applies to' kinds fit these files.")
+    var action: String
+}
+
+@available(macOS 26.0, *)
+@Generable
+struct GeneratedFolderGroupSet: Sendable {
+    @Guide(description: "A FEW groups of files in this folder that would CLEARLY benefit from the same batch action — ONLY where it is obviously useful. MOST folders need NONE; empty is the correct default. Never force unrelated files into a group.")
+    var groups: [GeneratedFileGroupSuggestion]
+}
+
 /// 动态核查产出:**明显不扣题**、该从文件夹移除的条目序号(保守 —— 拿不准就不列)。扁平单字段,可靠。
 @available(macOS 26.0, *)
 @Generable
@@ -145,13 +164,51 @@ enum AIVirtualFolderModelPlanner {
         }
     }
 
+    /// **文件浏览器「文件折叠组建议」**的模型驱动产出(拒绝假AI)。给当前文件夹里的文件,让端上模型圈出几组
+    /// 「一组文件 + 一个批量动作」(几个归档→一起测试、一堆发布物→一起算哈希…);大多数文件夹一组都没有。
+    /// 模型按序号引用文件、按 token 选动作;App 回译成 (成员 candidateID 列表, 动作 token)。失败 / 空 → []。
+    static func folderGroupSuggestions(items: [AIVirtualNodePromptCandidate])
+        async throws -> [(memberIDs: [String], actionToken: String)] {
+        guard items.count >= 2 else { return [] }
+        let cands = Array(items.prefix(60))
+        let instructions = """
+        The items below are the files in ONE folder the user is looking at. Propose a FEW GROUPS of files that the \
+        user would clearly want to apply the SAME batch action to together — e.g. several archives → "test"; many \
+        distributable / release files → "hash"; a pile of large stray files → "compress". ONLY propose a group when \
+        it is obviously useful; MOST folders need NONE — an empty list is the correct, common answer. Each group \
+        needs at least 2 files. Never invent a number, never output a path; refer to files by their NUMBER only.
+
+        \(Self.actionVocabularyRule)
+        """
+        var lines = ["Files (number<TAB>kind<TAB>name<TAB>roleTags) — refer to files by their number:"]
+        for (i, c) in cands.enumerated() {
+            lines.append(["\(i + 1)", c.kind, c.displayName, c.roleTags.joined(separator: " ")].joined(separator: "\t"))
+        }
+        let generated = try await AIReportAssistant.generateStructured(
+            instructions: instructions, prompt: lines.joined(separator: "\n"),
+            as: GeneratedFolderGroupSet.self, maxAttempts: 8)
+        var usedSignatures = Set<String>()
+        return generated.groups.compactMap { g -> (memberIDs: [String], actionToken: String)? in
+            let token = g.action.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            guard AIVirtualNodeActionDeriver.allowedSuggestionDescriptors.contains(where: { $0.id == token }) else { return nil }
+            // 序号 → 真实 candidateID,去重;至少 2 个成员才算一组。
+            var seen = Set<String>()
+            let ids = g.fileNumbers.compactMap { realID($0, in: cands) }.filter { seen.insert($0).inserted }
+            guard ids.count >= 2 else { return nil }
+            // 同一批成员 + 同动作只留一组(模型偶发重复)。
+            let signature = token + "|" + ids.sorted().joined(separator: ",")
+            guard usedSignatures.insert(signature).inserted else { return nil }
+            return (ids, token)
+        }
+    }
+
     /// **文件浏览器单文件抽屉**的模型驱动建议(②b/②c,拒绝假AI)。给一个具体文件(名字 + 角色 + 脱敏内容摘录 +
     /// 结构信号)让端上模型出**一句话摘要 + 几个建议动作 token**。摘要给人看(强制界面语言);动作只能从词表里挑、
     /// 且必须适用该 kind,App 据 token + 路径安全合成动作(模型不拼路径)。失败抛出由调用点吞掉。
     /// `excerpt` 必须是**已脱敏**的头部文本(调用方在后台线程读 + `AISensitiveRedactor.redact` 后传入)。
     static func fileSuggestion(fileName: String, kind: String, roleTags: [String], languageHint: String?,
                                headings: [String], fieldNames: [String], excerpt: String)
-        async throws -> (summary: String, actionTokens: [String]) {
+        async throws -> (summary: String, actions: [AIFileSuggestedAction]) {
         let lang = AIReportAssistant.uiLanguageName
         let instructions = """
         LANGUAGE — MANDATORY: write the summary in \(lang). Never use any other language for it, not even partially.
@@ -187,7 +244,8 @@ enum AIVirtualFolderModelPlanner {
                 seen.insert(t).inserted else { return nil }
             return t
         }
-        return (summary, tokens)
+        // 当前文本文件只用无 payload 的简单动作(hash/compress…);openWith / 包内文件等带 payload 的由各自专门 pass 产出。
+        return (summary, tokens.map { AIFileSuggestedAction(token: $0) })
     }
 
     /// **动态核查**:对一个已成型文件夹的成员,让模型挑出**明显不扣题**的(保守 —— 拿不准就留)。返回要移除的

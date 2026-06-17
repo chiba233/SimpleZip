@@ -141,12 +141,12 @@ final class AIBackgroundIndexStore: ObservableObject {
     /// ②b/②c:后台模型对一条已预读记录产出**一句话摘要 + 建议动作 token** 后回填进它的 `contentSummary`。
     /// 仅当该记录已有结构摘要(预读过)才写;`摘要为空且无动作` 不写(避免把「模型啥也没说」当结果缓存)。
     /// scopeID / indexedAt 不变(`updatingRecord`),不扰渐进覆盖指纹。落盘 + 通知(文件浏览器下次 reload 显示)。
-    func applyModelSuggestion(recordID: String, summary: String?, actionTokens: [String]) {
+    func applyModelSuggestion(recordID: String, summary: String?, actions: [AIFileSuggestedAction]) {
         let cleanSummary = summary?.trimmingCharacters(in: .whitespacesAndNewlines)
         let hasSummary = cleanSummary?.isEmpty == false
-        guard hasSummary || !actionTokens.isEmpty else { return }
+        guard hasSummary || !actions.isEmpty else { return }
         guard let existing = fileIndex.records.first(where: { $0.id == recordID })?.contentSummary else { return }
-        let updated = existing.withModelSuggestion(summary: hasSummary ? cleanSummary : nil, actionTokens: actionTokens)
+        let updated = existing.withModelSuggestion(summary: hasSummary ? cleanSummary : nil, actions: actions)
         fileIndex = fileIndex.updatingRecord(id: recordID) { $0.withContentSummary(updated) }
         persistIndex()
         objectWillChange.send()
