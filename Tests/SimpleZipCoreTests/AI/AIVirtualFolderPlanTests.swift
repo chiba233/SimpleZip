@@ -142,6 +142,23 @@ import Testing
         #expect(tree.nodes[0].children.count == 5)   // 5 个成员任务全部展开,无一丢失
     }
 
+    /// 同一文件不在一个 AI 文件夹里重复出现:模型把同一候选放进两个组,只在首组保留,次组去重后变空被丢。
+    @Test func builderDedupesSameFileAcrossGroups() {
+        let ref = AIContextSourceRef(kind: .file, id: "fs-dup")
+        let cands = [AIVirtualNodeCandidate(id: "dup", kind: .file, displayName: "report.md",
+                                            sourceRefs: [ref], roleTags: ["document"])]
+        let plan = AIVirtualFolderPlan(groups: [
+            AIVirtualFolderGroupPlan(id: "g1", title: "组一", candidateIDs: ["dup"]),
+            AIVirtualFolderGroupPlan(id: "g2", title: "组二", candidateIDs: ["dup"])
+        ])
+        let tree = AIVirtualFolderTreeBuilder.build(
+            workspace: workspace(), plan: plan, candidates: cands,
+            pathsBySourceRef: [ref: "/d/report.md"], mode: .modelAssisted, generatedAt: now)
+        let leafCount = tree.nodes.flatMap(\.children).filter { $0.kind == .file }.count
+        #expect(leafCount == 1)          // 同文件只出现一次
+        #expect(tree.nodes.count == 1)   // 次组去重后变空,被丢
+    }
+
     @Test func builderUsesPlanWorkspaceTitleWhenPresent() {
         let ref = AIContextSourceRef(kind: .file, id: "fs-x")
         let candidates = [AIVirtualNodeCandidate(id: "x", kind: .file, displayName: "x", sourceRefs: [ref])]

@@ -892,13 +892,33 @@ nonisolated enum AIVirtualFolderTreeBuilder {
         var suggestionsByCandidate: [String: [AINodeSuggestionPlan]] = [:]
         for s in plan.suggestions { suggestionsByCandidate[s.targetCandidateID, default: []].append(s) }
 
-        let nodes = plan.groups.compactMap {
+        let rawNodes = plan.groups.compactMap {
             groupNode($0, depth: 0, byID: byID, patternMembers: patternMembers,
                       pathsBySourceRef: pathsBySourceRef,
                       actionsByCandidateID: actionsByCandidateID,
                       suggestionsByCandidate: suggestionsByCandidate, suggestionLabels: suggestionLabels,
                       constraints: constraints)
         }
+        // 同一文件 / 归档条目在一个工作区里只出现一次(用户:相同目录下相同文件不该在同一 AI 文件夹里重复)。
+        // 按解析路径(归档条目按 path#entry 区分)/ 首个 source ref 去重,首次出现保留;去重后变空的组丢弃。
+        // 无身份的节点(note / 无 ref 的 action)不去重。
+        var seenLeafKeys = Set<String>()
+        func dedup(_ ns: [AIVirtualNode]) -> [AIVirtualNode] {
+            var out: [AIVirtualNode] = []
+            for n in ns {
+                let kids = dedup(n.children)
+                if n.kind == .group {
+                    if kids.isEmpty { continue }
+                    out.append(n.replacingChildren(kids))
+                } else if let key = leafDedupKey(n) {
+                    if seenLeafKeys.insert(key).inserted { out.append(n.replacingChildren(kids)) }
+                } else {
+                    out.append(n.replacingChildren(kids))
+                }
+            }
+            return out
+        }
+        let nodes = dedup(rawNodes)
         // 收集树里实际用到的全部 source ref —— sanitizer 的候选白名单。
         var refs: [AIContextSourceRef] = []
         var seen = Set<AIContextSourceRef>()
@@ -918,6 +938,16 @@ nonisolated enum AIVirtualFolderTreeBuilder {
     }
 
     /// 一个组 plan → `.group` 节点(递归)。子组超过 `maxDepth` 时把更深层的叶子拍平进当前组(不丢候选)。
+    /// 叶子去重键:文件 / 文件夹按解析路径,归档条目按 `path#entry`,其余按首个 source ref;
+    /// 无身份(note / 无 ref 的 action)→ nil(不参与去重)。
+    private static func leafDedupKey(_ node: AIVirtualNode) -> String? {
+        switch node.primaryAction {
+        case .revealFile(let p), .openFolder(let p): return "p:" + p
+        case .openArchive(let p, let entry): return "p:" + p + (entry.map { "#" + $0 } ?? "")
+        default: return node.sourceRefs.first.map { "r:\($0.kind.rawValue):\($0.id)" }
+        }
+    }
+
     private static func groupNode(
         _ group: AIVirtualFolderGroupPlan, depth: Int,
         byID: [String: AIVirtualNodeCandidate],
