@@ -1352,6 +1352,8 @@
 "updates.checkNow.button" = "지금 확인";
 "updates.autoDownload" = "업데이트 자동 다운로드";
 "updates.autoDownload.description" = "새 버전은 백그라운드에서 다운로드되고 종료 시 설치됩니다.";
+"updates.betaUpdates" = "베타 업데이트 참여";
+"updates.betaUpdates.description" = "정식 출시 전에 새로운 기능을 먼저 체험하세요. 베타 버전은 안정성이 부족할 수 있습니다.";
 "updates.section.changelog" = "릴리스 노트";
 "updates.changelog.loading" = "릴리스 노트 불러오는 중…";
 "updates.changelog.failed" = "릴리스 노트를 불러올 수 없습니다";

@@ -1212,6 +1212,8 @@
 "updates.checkNow.button" = "Проверить сейчас";
 "updates.autoDownload" = "Загружать обновления автоматически";
 "updates.autoDownload.description" = "Новые версии загружаются в фоне и устанавливаются при выходе.";
+"updates.betaUpdates" = "Участвовать в бета-обновлениях";
+"updates.betaUpdates.description" = "Получайте предварительные версии с новыми функциями до официального выпуска. Бета-версии могут быть менее стабильными.";
 "updates.section.changelog" = "Примечания к выпуску";
 "updates.changelog.loading" = "Загрузка примечаний к выпуску…";
 "updates.changelog.failed" = "Не удалось загрузить примечания к выпуску";

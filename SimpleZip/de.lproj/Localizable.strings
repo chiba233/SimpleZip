@@ -1352,6 +1352,8 @@
 "updates.checkNow.button" = "Jetzt suchen";
 "updates.autoDownload" = "Updates automatisch laden";
 "updates.autoDownload.description" = "Neue Versionen werden im Hintergrund geladen und beim Beenden installiert.";
+"updates.betaUpdates" = "An Beta-Updates teilnehmen";
+"updates.betaUpdates.description" = "Erhalte Vorabversionen mit neuen Funktionen vor der offiziellen Veröffentlichung. Beta-Versionen können weniger stabil sein.";
 "updates.section.changelog" = "Versionshinweise";
 "updates.changelog.loading" = "Versionshinweise werden geladen…";
 "updates.changelog.failed" = "Versionshinweise konnten nicht geladen werden";

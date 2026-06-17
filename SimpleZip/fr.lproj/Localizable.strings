@@ -1212,6 +1212,8 @@
 "updates.checkNow.button" = "Vérifier maintenant";
 "updates.autoDownload" = "Télécharger les mises à jour automatiquement";
 "updates.autoDownload.description" = "Les nouvelles versions sont téléchargées en arrière-plan et installées à la fermeture.";
+"updates.betaUpdates" = "Rejoindre les mises à jour bêta";
+"updates.betaUpdates.description" = "Recevez les versions préliminaires avec de nouvelles fonctionnalités avant leur sortie officielle. Les versions bêta peuvent être moins stables.";
 "updates.section.changelog" = "Notes de version";
 "updates.changelog.loading" = "Chargement des notes de version…";
 "updates.changelog.failed" = "Impossible de charger les notes de version";

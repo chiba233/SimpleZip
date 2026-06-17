@@ -21,6 +21,11 @@ on:
         description: Release version, for example 0.1.0 (required if publishing)
         type: string
         required: false
+      is_beta:
+        description: Mark this release as a beta (Sparkle beta channel + GitHub prerelease)
+        type: boolean
+        required: false
+        default: false
   push:
     tags:
       - 'v*'
@@ -70,18 +75,25 @@ jobs:
         env:
           PUBLISH_RELEASE: ${{ inputs.publish_release || false }}
           RELEASE_INPUT_VERSION: ${{ inputs.version }}
+          IS_BETA: ${{ inputs.is_beta || false }}
         run: |
           set -euo pipefail
 
           if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
             tag="$GITHUB_REF_NAME"
-            if [[ ! "$tag" =~ ^v[0-9]+(\.[0-9]+){1,2}$ ]]; then
-              echo "Tag '$tag' is not in the form v0.1.0 / v1.2; refusing to publish." >&2
+            # 支持 v0.4.5 (stable) 和 v0.4.5-beta.1 / v0.4.5-rc.1 (beta)
+            if [[ ! "$tag" =~ ^v[0-9]+(\.[0-9]+){1,2}(-(beta|rc)\.[0-9]+)?$ ]]; then
+              echo "Tag '$tag' is not in a recognized form; refusing to publish." >&2
               exit 1
             fi
             version="${tag#v}"
+            beta=false
+            if [[ "$version" =~ -(beta|rc)\. ]]; then
+              beta=true
+            fi
             echo "publish=true" >> "$GITHUB_OUTPUT"
             echo "version=$version" >> "$GITHUB_OUTPUT"
+            echo "beta=$beta" >> "$GITHUB_OUTPUT"
             echo "build_number=$GITHUB_RUN_NUMBER" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -92,6 +104,7 @@ jobs:
           if [[ "$publish_release" != "true" ]]; then
             echo "publish=false" >> "$GITHUB_OUTPUT"
             echo "version=" >> "$GITHUB_OUTPUT"
+            echo "beta=false" >> "$GITHUB_OUTPUT"
             echo "build_number=$GITHUB_RUN_NUMBER" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -101,13 +114,20 @@ jobs:
             exit 1
           fi
 
-          if [[ ! "$version" =~ ^[0-9]+(\.[0-9]+){1,2}$ ]]; then
-            echo "Version must look like 0.1.0 or 1.2." >&2
+          if [[ ! "$version" =~ ^[0-9]+(\.[0-9]+){1,2}(-(beta|rc)\.[0-9]+)?$ ]]; then
+            echo "Version must look like 0.1.0 or 0.1.0-beta.1." >&2
             exit 1
+          fi
+
+          beta="$IS_BETA"
+          # tag 名自带 -beta/-rc 时也自动识别
+          if [[ "$version" =~ -(beta|rc)\. ]]; then
+            beta=true
           fi
 
           echo "publish=true" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "beta=$beta" >> "$GITHUB_OUTPUT"
           echo "build_number=$GITHUB_RUN_NUMBER" >> "$GITHUB_OUTPUT"
 
       # 把 Developer ID Application 证书导入临时钥匙串，供 build 步骤的 codesign 使用。
@@ -294,16 +314,17 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
-      # 仅在确认发布的路径里生成 / 更新 Sparkle appcast.xml ——
-      # 「手动触发 + 不勾选 publish」时不会动 main 的 docs/appcast.xml，
-      # 这正是用户「只在发布时才生成更新文件」的诉求。
+      # 仅在确认发布的路径里更新 Sparkle appcast.xml ——
+      # 「手动触发 + 不勾选 publish」时不会动 main 的 docs/appcast.xml。
+      # 新 item 追加到现有 feed（保留历史版本），beta 发布带 sparkle:channel="beta"。
       # enclosure 上的 sparkle:edSignature + length 来自上一步 sign_update（v0.1.10 起）。
-      - name: Generate Sparkle appcast.xml
+      - name: Update Sparkle appcast.xml
         if: steps.release.outputs.publish == 'true'
         env:
           RELEASE_VERSION: ${{ steps.release.outputs.version }}
           BUILD_NUMBER: ${{ steps.release.outputs.build_number }}
           SIGN_ATTRS: ${{ steps.sign_update.outputs.attrs }}
+          IS_BETA: ${{ steps.release.outputs.beta }}
         run: |
           set -euo pipefail
           mkdir -p docs
@@ -312,42 +333,77 @@ jobs:
           PUB_DATE=$(LC_ALL=C date -u "+%a, %d %b %Y %H:%M:%S +0000")
           DOWNLOAD_URL="https://github.com/chiba233/SimpleZip/releases/download/v${RELEASE_VERSION}/${DMG_NAME}"
 
-          # sign_update 已经吐出 length="..." sparkle:edSignature="..."，直接复用 ——
-          # 比自己 stat 文件再拼字符串更稳（避免 length 跟签名时算的不一致）。
           if [[ -z "${SIGN_ATTRS:-}" ]]; then
             echo "ERROR: sign_update step output empty; refusing to publish unsigned appcast." >&2
             exit 1
           fi
 
-          # **sparkle:version 必须是 CFBundleVersion 同款单调递增整数（= BUILD_NUMBER）**，
-          # 不能用 marketing 字符串。否则 0.1.7 用户本地 CFBundleVersion="<小整数>" 跟 feed
-          # sparkle:version="0.1.8" 比较时 SUStandardVersionComparator 解析成
-          # [小整数] vs [0,1,8]，第一段 N>0 → 本地误判为「更新」→ 永远收不到升级提示。
-          # sparkle:shortVersionString 才是 UI 文案，用 marketing 字符串。
-          cat > docs/appcast.xml <<APPCAST_EOF
-          <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-          <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
-              <channel>
-                  <title>SimpleZip Updates</title>
-                  <link>https://github.com/chiba233/SimpleZip</link>
-                  <description>SimpleZip macOS release feed</description>
-                  <language>en</language>
-                  <item>
-                      <title>SimpleZip ${RELEASE_VERSION}</title>
-                      <link>https://github.com/chiba233/SimpleZip/releases/tag/v${RELEASE_VERSION}</link>
-                      <pubDate>${PUB_DATE}</pubDate>
-                      <enclosure
-                          url="${DOWNLOAD_URL}"
-                          sparkle:version="${BUILD_NUMBER}"
-                          sparkle:shortVersionString="${RELEASE_VERSION}"
-                          ${SIGN_ATTRS}
-                          type="application/octet-stream"/>
-                  </item>
-              </channel>
-          </rss>
-          APPCAST_EOF
+          # beta 发布在 item 上加 sparkle:channel="beta"，stable 不加。
+          # Sparkle 客户端只有 opt-in beta channel 的用户才会看到 beta item。
+          CHANNEL_ATTR=""
+          if [[ "$IS_BETA" == "true" ]]; then
+            CHANNEL_ATTR='sparkle:channel="beta"'
+          fi
 
-          echo "Generated docs/appcast.xml for v${RELEASE_VERSION}"
+          # 构造新 <item> 块。
+          # sparkle:version 必须是 CFBundleVersion 同款单调递增整数（= BUILD_NUMBER），
+          # sparkle:shortVersionString 才是 UI 文案，用 marketing 字符串。
+          NEW_ITEM=$(cat <<ITEM_EOF
+        <item>
+            <title>SimpleZip ${RELEASE_VERSION}</title>
+            <link>https://github.com/chiba233/SimpleZip/releases/tag/v${RELEASE_VERSION}</link>
+            <pubDate>${PUB_DATE}</pubDate>
+            <enclosure
+                url="${DOWNLOAD_URL}"
+                sparkle:version="${BUILD_NUMBER}"
+                sparkle:shortVersionString="${RELEASE_VERSION}"
+                ${SIGN_ATTRS}
+                ${CHANNEL_ATTR}
+                type="application/octet-stream"/>
+        </item>
+ITEM_EOF
+          )
+
+          # 从 origin/main 拿现有 appcast（tag push 时本地 checkout 的是 tag commit，
+          # 不一定有 main 上最新的 appcast）。
+          git fetch origin main 2>/dev/null || true
+          if git show origin/main:docs/appcast.xml > /tmp/existing_appcast.xml 2>/dev/null; then
+            EXISTING=/tmp/existing_appcast.xml
+          else
+            # 首次发布，无现有 appcast——用空壳。
+            cat > /tmp/existing_appcast.xml <<'EMPTY_EOF'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+    <channel>
+        <title>SimpleZip Updates</title>
+        <link>https://github.com/chiba233/SimpleZip</link>
+        <description>SimpleZip macOS release feed</description>
+        <language>en</language>
+    </channel>
+</rss>
+EMPTY_EOF
+            EXISTING=/tmp/existing_appcast.xml
+          fi
+
+          # 如果该版本已有 item，先删掉旧的（幂等：重发同版本不会重复）。
+          awk -v ver="$RELEASE_VERSION" '
+            /<item>/ { buf=$0; in_item=1; next }
+            in_item { buf=buf "\n" $0 }
+            in_item && /<\/item>/ {
+              in_item=0
+              if (buf !~ "sparkle:shortVersionString=\"" ver "\"") print buf
+              next
+            }
+            !in_item { print }
+          ' "$EXISTING" > /tmp/appcast_deduped.xml
+
+          # 在 </channel> 前插入新 item。
+          awk -v item="$NEW_ITEM" '
+            /<\/channel>/ { print item }
+            { print }
+          ' /tmp/appcast_deduped.xml > docs/appcast.xml
+
+          echo "Updated docs/appcast.xml for v${RELEASE_VERSION} (beta=$IS_BETA)"
           cat docs/appcast.xml
 
       # 走到这里说明 DMG 已签名、appcast 已生成 —— 现在才创建公开 release，上传 DMG。
@@ -357,23 +413,39 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_VERSION: ${{ steps.release.outputs.version }}
+          IS_BETA: ${{ steps.release.outputs.beta }}
         run: |
           set -euo pipefail
 
+          # 从 CHANGELOG.md 提取当前版本的段落作为 release notes。
+          NOTES=$(awk -v ver="$RELEASE_VERSION" '
+            $0 ~ "^## " ver { found=1; next }
+            found && /^## / { exit }
+            found { buf = buf $0 "\n" }
+            END { sub(/^\n+/, "", buf); sub(/\n+$/, "", buf); print buf }
+          ' CHANGELOG.md)
+
+          if [ -z "$NOTES" ]; then
+            NOTES="SimpleZip $RELEASE_VERSION"
+          fi
+
+          PRERELEASE_FLAG=""
+          if [[ "$IS_BETA" == "true" ]]; then
+            PRERELEASE_FLAG="--prerelease"
+          fi
+
           # 幂等 + 自愈:
-          #  - release 已存在(含**草稿**态:删 tag 会把已发布 release 打成 draft)→ 覆盖上传 DMG +
-          #    `--draft=false` **强制重新发布**,否则会一直卡在草稿、公开下载 URL 404。
-          #  - 不存在 → 直接新建(默认即已发布)。
-          # 无论哪条路径,最终都是「已发布、带最新 DMG」的 release。
-          NOTES="Developer ID signed and notarized macOS DMG. Double-click to open — no Gatekeeper warning."
+          #  - release 已存在(含草稿态)→ 覆盖上传 DMG + 强制重新发布。
+          #  - 不存在 → 直接新建。
           if gh release view "v$RELEASE_VERSION" >/dev/null 2>&1; then
             gh release upload "v$RELEASE_VERSION" artifacts/*.dmg --clobber
-            gh release edit "v$RELEASE_VERSION" --draft=false
+            gh release edit "v$RELEASE_VERSION" --draft=false --notes "$NOTES" $PRERELEASE_FLAG
           else
             gh release create "v$RELEASE_VERSION" \
               artifacts/*.dmg \
               --title "SimpleZip $RELEASE_VERSION" \
-              --notes "$NOTES"
+              --notes "$NOTES" \
+              $PRERELEASE_FLAG
           fi
 
       # 把 appcast.xml 推回 main，让 raw.githubusercontent.com/.../main/docs/appcast.xml 拿到新版。

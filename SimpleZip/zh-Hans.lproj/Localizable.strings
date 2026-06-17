@@ -138,6 +138,8 @@
 "updates.checkNow.button" = "立即检查";
 "updates.autoDownload" = "自动下载更新";
 "updates.autoDownload.description" = "新版本在后台下载,退出时自动安装。";
+"updates.betaUpdates" = "加入 Beta 更新";
+"updates.betaUpdates.description" = "在正式发布前抢先体验新功能。Beta 版本可能不够稳定。";
 "updates.section.changelog" = "更新日志";
 "updates.changelog.loading" = "正在加载更新日志…";
 "updates.changelog.failed" = "更新日志加载失败";

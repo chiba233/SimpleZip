@@ -138,6 +138,8 @@
 "updates.checkNow.button" = "Check Now";
 "updates.autoDownload" = "Download updates automatically";
 "updates.autoDownload.description" = "New versions download in the background and install on quit.";
+"updates.betaUpdates" = "Join beta updates";
+"updates.betaUpdates.description" = "Receive pre-release versions with new features before they are officially released. Beta builds may be less stable.";
 "updates.section.changelog" = "Release Notes";
 "updates.changelog.loading" = "Loading release notes…";
 "updates.changelog.failed" = "Couldn't load release notes";

@@ -280,6 +280,7 @@ enum AppPreferences {
         nonisolated static let rememberLastFolder = "rememberLastFolder"
         nonisolated static let lastFolderPath = "lastFolderPath"
         nonisolated static let checkForUpdatesOnLaunch = "checkForUpdatesOnLaunch"
+        nonisolated static let betaUpdatesEnabled = "betaUpdatesEnabled"
         nonisolated static let showFileSizeColumn = "showFileSizeColumn"
         nonisolated static let showFileTypeColumn = "showFileTypeColumn"
         nonisolated static let showFileApplicationColumn = "showFileApplicationColumn"
@@ -1100,6 +1101,7 @@ enum AppPreferences {
         Key.startupCustomLocationHistory,
         Key.rememberLastFolder,
         Key.checkForUpdatesOnLaunch,
+        Key.betaUpdatesEnabled,
         Key.overwriteBehavior,
         Key.confirmBeforeDeletingFiles,
         Key.finderOpenAutoExtract,
@@ -1225,6 +1227,7 @@ enum AppPreferences {
         v[Key.startupCustomLocationHistory] = stringArray(forKey: Key.startupCustomLocationHistory)
         v[Key.rememberLastFolder] = rememberLastFolder
         v[Key.checkForUpdatesOnLaunch] = checkForUpdatesOnLaunch
+        v[Key.betaUpdatesEnabled] = defaults.bool(forKey: Key.betaUpdatesEnabled)
         // 解压 / 安全策略
         v[Key.overwriteBehavior] = overwriteBehavior.rawValue
         v[Key.confirmBeforeDeletingFiles] = confirmBeforeDeletingFiles

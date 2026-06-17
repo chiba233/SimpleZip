@@ -13,6 +13,7 @@ import SwiftUI
 
 struct UpdatesPane: View {
     @AppStorage(AppPreferences.Key.checkForUpdatesOnLaunch) private var checkForUpdatesOnLaunch = false
+    @AppStorage(AppPreferences.Key.betaUpdatesEnabled) private var betaUpdatesEnabled = false
     /// Sparkle 的「自动下载并安装」开关 —— 真值在 SPUUpdater 里，@State 只是 UI 镜像（onAppear 同步）。
     @State private var automaticallyDownloads = false
     @StateObject private var changelog = ChangelogFeed()
@@ -71,6 +72,17 @@ struct UpdatesPane: View {
                     SparkleUpdater.shared.updater.automaticallyDownloadsUpdates = newValue
                 }
                 .settingsAnchor("updates.autoDownload")
+
+                SettingsToggleRow(
+                    title: L10n.text("updates.betaUpdates"),
+                    description: L10n.text("updates.betaUpdates.description"),
+                    systemImage: "flask.fill", iconTint: .indigo,
+                    isOn: $betaUpdatesEnabled
+                )
+                .onChange(of: betaUpdatesEnabled) { _ in
+                    SparkleUpdater.shared.syncBetaChannel()
+                }
+                .settingsAnchor("updates.betaUpdates")
             }
 
             Section(L10n.text("updates.section.changelog")) {

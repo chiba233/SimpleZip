@@ -1353,6 +1353,8 @@
 "updates.checkNow.button" = "立即檢查";
 "updates.autoDownload" = "自動下載更新";
 "updates.autoDownload.description" = "新版本在後台下載，退出時自動安裝。";
+"updates.betaUpdates" = "加入 Beta 更新";
+"updates.betaUpdates.description" = "在正式發佈前搶先體驗新功能。Beta 版本可能不夠穩定。";
 "updates.section.changelog" = "更新日誌";
 "updates.changelog.loading" = "正在加載更新日誌…";
 "updates.changelog.failed" = "更新日誌加載失敗";

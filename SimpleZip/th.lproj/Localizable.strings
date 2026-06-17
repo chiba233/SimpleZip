@@ -1212,6 +1212,8 @@
 "updates.checkNow.button" = "ตรวจตอนนี้";
 "updates.autoDownload" = "ดาวน์โหลดอัปเดตอัตโนมัติ";
 "updates.autoDownload.description" = "เวอร์ชันใหม่จะดาวน์โหลดเบื้องหลังและติดตั้งเมื่อออกจากแอป";
+"updates.betaUpdates" = "เข้าร่วมอัปเดตเบต้า";
+"updates.betaUpdates.description" = "รับเวอร์ชันทดสอบที่มีฟีเจอร์ใหม่ก่อนเปิดตัวอย่างเป็นทางการ เวอร์ชันเบต้าอาจไม่เสถียรเท่า";
 "updates.section.changelog" = "บันทึกประจำรุ่น";
 "updates.changelog.loading" = "กำลังโหลดบันทึกประจำรุ่น…";
 "updates.changelog.failed" = "โหลดบันทึกประจำรุ่นไม่ได้";
