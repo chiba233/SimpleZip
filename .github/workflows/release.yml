@@ -1,6 +1,6 @@
 name: Release DMG
 
-# 打 unsigned DMG 并（按需）发布 GitHub release。
+# 构建 DMG 并（按需）签名、公证、发布 GitHub release。
 # 慢任务（RAR 后端拉取 + Release 配置构建 + 公证准备 + 上传 artifact）只在这里跑，
 # 不像之前 build-dmg.yml 那样每个 PR 都执行 —— 那个工作流已被 pr.yml 接管。
 #
@@ -35,7 +35,7 @@ permissions:
 
 jobs:
   release:
-    name: Build unsigned macOS DMG
+    name: Build macOS DMG
     runs-on: macos-26
 
     steps:
@@ -131,7 +131,7 @@ jobs:
           echo "build_number=$GITHUB_RUN_NUMBER" >> "$GITHUB_OUTPUT"
 
       # 把 Developer ID Application 证书导入临时钥匙串，供 build 步骤的 codesign 使用。
-      # 仅在发布路径执行：手动「不发布」构建仍走 ad-hoc unsigned，无需任何证书 secret。
+      # 仅在发布路径执行：手动「不发布」构建不签名，无需任何证书 secret。
       # 缺任一 secret 直接 fail —— 跟 Sparkle 私钥同款「漏配置就不发」策略，
       # 绝不留下「公开但没正确签名」的 release。
       - name: Import Developer ID signing certificate
@@ -185,7 +185,7 @@ jobs:
           echo "identity=$MACOS_SIGN_IDENTITY" >> "$GITHUB_OUTPUT"
 
       # publish=true 时 SIGN_IDENTITY 非空 → build 脚本做 Developer ID 签名 + hardened runtime；
-      # 非发布构建该值为空 → 脚本走 ad-hoc unsigned（沿用历史行为）。
+      # 非发布构建该值为空 → 脚本走 ad-hoc 签名（仅本地测试用）。
       - name: Build DMG
         env:
           RELEASE_VERSION: ${{ steps.release.outputs.version }}
@@ -193,7 +193,7 @@ jobs:
           # bundled RAR 必须存在，否则用户装上没法 SimpleZip 解压 RAR。
           REQUIRE_BUNDLED_RAR: "1"
           SIGN_IDENTITY: ${{ steps.import_cert.outputs.identity }}
-        run: ./scripts/build_unsigned_dmg.sh
+        run: ./scripts/build_dmg.sh
 
       # 公证 + 装订：把签好名的 DMG 提交给 Apple 公证服务，通过后把票「钉」进 DMG，
       # 这样离线的 Gatekeeper 也认、用户双击直接打开无警告。
@@ -253,7 +253,7 @@ jobs:
       # 公钥写在源仓 Info.plist 的 SUPublicEDKey（v0.1.10 起接入）。
       # 缺 secret 时 sign_update 会拒绝继续 —— 这正是想要的「漏配置直接 fail，不发不签的版本」。
       #
-      # **sign_update binary 的位置**：build_unsigned_dmg.sh 用
+      # **sign_update binary 的位置**：build_dmg.sh 用
       # `-derivedDataPath "$ROOT_DIR/.build/xcode-dmg"`，所以 Sparkle SPM artifact 会落在
       # `.build/xcode-dmg/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update`，
       # 而**不是** `~/Library/Developer/Xcode/DerivedData`（CI runner 上为空）。
@@ -274,7 +274,7 @@ jobs:
 
           DMG_PATH=$(ls artifacts/*.dmg | head -n1)
 
-          # 跟 build_unsigned_dmg.sh 默认值保持一致。如果将来改那条 default，这里也要改。
+          # 跟 build_dmg.sh 默认值保持一致。如果将来改那条 default，这里也要改。
           DERIVED_DATA_PATH="${DERIVED_DATA_PATH:-$GITHUB_WORKSPACE/.build/xcode-dmg}"
           SIGN_UPDATE="$DERIVED_DATA_PATH/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update"
 
@@ -334,7 +334,7 @@ jobs:
           DOWNLOAD_URL="https://github.com/chiba233/SimpleZip/releases/download/v${RELEASE_VERSION}/${DMG_NAME}"
 
           if [[ -z "${SIGN_ATTRS:-}" ]]; then
-            echo "ERROR: sign_update step output empty; refusing to publish unsigned appcast." >&2
+            echo "ERROR: sign_update step output empty; refusing to publish appcast without EdDSA signature." >&2
             exit 1
           fi
 
