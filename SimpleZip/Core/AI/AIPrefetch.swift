@@ -113,11 +113,17 @@ nonisolated enum AIPrefetchExclusions {
     }
 
     /// 任意层级命中即排除的目录名(开发依赖 / VCS / 密钥 / 缓存)。
+    /// 凭据 / 密钥目录与 `AIFileReadabilityPolicy` 的敏感集对齐:目录扫描层(只采名字 / 大小 / 日期元数据)也
+    /// 一并跳过 —— 凭据目录无 AI 归类价值,且堵住「密钥被写进文件名」再被元数据索引的边角(文件**内容**读取
+    /// 另由 `AIFileReadabilityPolicy` 拦截,两层保持一致)。纯收紧,绝不放宽。
     static let excludedNames: Set<String> = [
         ".git", ".svn", ".hg",
         "node_modules", ".build", "deriveddata", "target", "dist", "build",
         "caches", "containers",
-        ".ssh", ".gnupg", ".aws", ".kube", ".config"
+        // 密钥 / 凭据目录(与 AIFileReadabilityPolicy.sensitiveDirectoryComponents 对齐 + 常见凭据位置)
+        ".ssh", ".gnupg", ".aws", ".kube", ".config", ".docker", ".azure", ".gcloud",
+        ".password-store", "keychains", ".netrc", ".npmrc", ".pypirc", ".htpasswd",
+        ".secrets", ".private", ".env", "credentials"
     ]
 }
 

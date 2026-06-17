@@ -38,6 +38,18 @@ import Testing
         #expect(AIPrefetchExclusions.shouldExclude(directoryPath: "/Users/tester/proj/node_modules/x", home: home))
     }
 
+    /// 安全:凭据 / 密钥目录(与 AIFileReadabilityPolicy 敏感集对齐)在目录扫描层也必须被排除 ——
+    /// 后台预读不得索引这些位置的文件名 / 元数据。
+    @Test func excludesCredentialDirectories() {
+        let home = "/Users/tester"
+        for dir in [".docker", ".azure", ".gcloud", ".password-store", "keychains",
+                    ".netrc", ".npmrc", ".pypirc", ".htpasswd", ".secrets", ".private",
+                    ".env", "credentials"] {
+            #expect(AIPrefetchExclusions.shouldExclude(directoryName: dir))
+            #expect(AIPrefetchExclusions.shouldExclude(directoryPath: "\(home)/work/\(dir)", home: home))
+        }
+    }
+
     @Test func excludesTemporaryAndDecryptDirectories() {
         #expect(AIPrefetchExclusions.shouldExclude(directoryPath: "/private/var/folders/ab/cd"))
         #expect(AIPrefetchExclusions.shouldExclude(directoryPath: "/tmp/SimpleZip-extract-XYZ"))
