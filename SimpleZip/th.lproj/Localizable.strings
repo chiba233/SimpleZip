@@ -2607,6 +2607,7 @@
 "aiWorkspace.suggest.openWith" = "เปิดด้วย %@";
 "aiWorkspace.suggest.install" = "ติดตั้ง %@";
 "aiWorkspace.suggest.activity" = "ดูในศูนย์กิจกรรม";
+"aiWorkspace.suggest.revealEntry" = "คุณอาจต้องการ %@";
 "aiWorkspace.suggest.installGeneric" = "ติดตั้งแอป";
 "aiWorkspace.node.openArchive" = "เปิดอาร์ไคฟ์";
 "aiWorkspace.node.openFolder" = "เปิดโฟลเดอร์";

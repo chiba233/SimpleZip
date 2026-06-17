@@ -98,6 +98,14 @@ enum AIWorkspaceNodeActions {
             guard let payload = action.payload, let taskID = UUID(uuidString: payload) else { return nil }
             return .init(titleKey: "aiWorkspace.suggest.activity", systemImage: "clock.arrow.circlepath",
                          action: .openTask(taskID))
+        // 压缩包「你可能需要的文件」:payload = 包内条目相对路径、label = 文件名;点击打开归档并定位到该条目(不解压)。
+        case "revealArchiveEntry":
+            guard let entry = action.payload, !entry.isEmpty else { return nil }
+            let name = (action.label?.isEmpty == false) ? action.label! : (entry as NSString).lastPathComponent
+            return .init(titleKey: "aiWorkspace.suggest.revealEntry",
+                         displayTitle: L10n.format("aiWorkspace.suggest.revealEntry", name),
+                         systemImage: "doc.text.magnifyingglass",
+                         action: .openArchive(path: path, revealEntry: entry))
         default:        return nil
         }
     }

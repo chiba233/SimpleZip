@@ -2608,6 +2608,7 @@
 "aiWorkspace.suggest.openWith" = "%@(으)로 열기";
 "aiWorkspace.suggest.install" = "%@ 설치";
 "aiWorkspace.suggest.activity" = "활동 센터에서 보기";
+"aiWorkspace.suggest.revealEntry" = "%@(이)가 필요할 수 있어요";
 "aiWorkspace.suggest.installGeneric" = "앱 설치";
 "aiWorkspace.node.openArchive" = "아카이브 열기";
 "aiWorkspace.node.openFolder" = "폴더 열기";

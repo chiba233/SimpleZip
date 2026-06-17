@@ -2686,6 +2686,7 @@
 "aiWorkspace.suggest.openWith" = "用 %@ 打开";
 "aiWorkspace.suggest.install" = "安装 %@";
 "aiWorkspace.suggest.activity" = "在活动中心查看";
+"aiWorkspace.suggest.revealEntry" = "也许你要 %@";
 "aiWorkspace.suggest.installGeneric" = "安装应用";
 "aiWorkspace.node.openArchive" = "打开归档";
 "aiWorkspace.node.openFolder" = "打开文件夹";

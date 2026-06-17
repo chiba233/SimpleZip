@@ -31,6 +31,8 @@ final class AIBackgroundIndexer {
     private var diskImageTask: Task<Void, Never>?
     private var activityRunning = false
     private var activityTask: Task<Void, Never>?
+    private var archiveEntryRunning = false
+    private var archiveEntryTask: Task<Void, Never>?
 
     /// 跑一轮预索引(门控未过则直接返回 —— 默认 opt-in 关闭即什么都不做)。完成后通知发现编排者刷新。
     func runIfEnabled() {
@@ -70,6 +72,7 @@ final class AIBackgroundIndexer {
                     AIBackgroundIndexer.shared.generateFileSuggestionsIfEnabled()   // 预读摘要落盘后,对近阈值文件出模型建议(门控未过则空跑)
                     AIBackgroundIndexer.shared.generateDiskImageSuggestionsIfEnabled()   // 对内含 App 的 dmg 出「安装到应用程序」建议(门控未过则空跑)
                     AIBackgroundIndexer.shared.generateActivityLinkSuggestionsIfEnabled()   // 文件命中近期任务产物 → 出「查看活动」建议(门控未过则空跑)
+                    AIBackgroundIndexer.shared.generateArchiveEntrySuggestionsIfEnabled()   // 预读过的归档 → 模型挑「也许你要包里的 X」(门控未过则空跑)
                 }
                 AIBackgroundIndexer.shared.running = false
             }
@@ -82,6 +85,7 @@ final class AIBackgroundIndexer {
         suggestionTask?.cancel(); suggestionTask = nil; suggestionRunning = false
         diskImageTask?.cancel(); diskImageTask = nil; diskImageRunning = false
         activityTask?.cancel(); activityTask = nil; activityRunning = false
+        archiveEntryTask?.cancel(); archiveEntryTask = nil; archiveEntryRunning = false
     }
 
     // MARK: - 内容预读 · 归档半边(MainActor:ArchiveService 在 app target 下 MainActor 隔离,A18)
@@ -312,6 +316,55 @@ final class AIBackgroundIndexer {
         case ..<172_800: return "yesterday"
         case ..<604_800: return "a few days ago"
         default:         return "recently"
+        }
+    }
+
+    // MARK: - 压缩包「你可能需要的文件」建议(backlog 第4项;MainActor:读清单缓存 + 模型 async)
+
+    /// 对**预读过(清单已缓存)、还没评估**的归档,让端上模型从包内文件清单里挑**少数几个**用户最可能想单独取出 /
+    /// 预览的 → 写回 `revealArchiveEntry` 动作(点击 = `.openArchive(revealEntry:)` 打开并定位,**不解压**)。门控:
+    /// AI 建议开关 + 内容预读 + 归档清单缓存开 + 模型就绪;预算挂活跃度档;已评估的跳过(归档变了阶段一清回才重选)。
+    func generateArchiveEntrySuggestionsIfEnabled() {
+        guard #available(macOS 26.0, *) else { return }
+        let store = AIBackgroundIndexStore.shared
+        guard !archiveEntryRunning, AppPreferences.aiSuggestionEnabled,
+              store.contentPrereadEnabled, AppPreferences.archiveListingCacheEnabled,
+              AIReportAssistant.isReady, let budget = store.budget else { return }
+        let listingByPath = Dictionary(
+            ArchiveListingCacheStore().loadAll().map { ($0.archivePath, $0) },
+            uniquingKeysWith: { first, _ in first })
+        guard !listingByPath.isEmpty else { return }
+        // 选:归档 + 还没评估(contentSummary == nil)+ 有缓存清单且含文件条目。预算封顶,近期在前。
+        var picks: [(rec: AIFileMemoryRecord, entry: ArchiveListingCacheEntry)] = []
+        for rec in store.recentFileRecords(limit: 2_000) {
+            guard rec.type == .archive, rec.contentSummary == nil, let path = rec.path else { continue }
+            let canonical = ArchiveListingCacheStore.canonicalPath(for: URL(fileURLWithPath: path))
+            guard let entry = listingByPath[canonical], entry.fileEntryCount > 0 else { continue }
+            picks.append((rec, entry))
+            if picks.count >= budget.maxModelSuggestionsPerRound { break }
+        }
+        guard !picks.isEmpty else { return }
+        archiveEntryRunning = true
+        archiveEntryTask = Task { @MainActor in
+            defer { AIBackgroundIndexer.shared.archiveEntryRunning = false }
+            for (rec, entry) in picks {
+                if Task.isCancelled { break }
+                guard AIBackgroundIndexStore.shared.contentPrereadEnabled, AIReportAssistant.isReady else { break }
+                let paths = entry.filePaths(limit: 50)
+                guard !paths.isEmpty else {
+                    AIBackgroundIndexStore.shared.applyArchiveEntrySuggestion(recordID: rec.id, actions: [])
+                    continue
+                }
+                // 模型挑序号(失败 → nil → 不标记、下轮重试;[] → 模型说没有 → 标记已评估)。
+                guard let chosen = try? await AIVirtualFolderModelPlanner.archiveEntryPicks(
+                    archiveName: rec.fileName, entryPaths: paths) else { continue }
+                let actions = chosen.map { idx -> AIFileSuggestedAction in
+                    let entryPath = paths[idx - 1]
+                    return AIFileSuggestedAction(token: "revealArchiveEntry", payload: entryPath,
+                                                 label: (entryPath as NSString).lastPathComponent)
+                }
+                AIBackgroundIndexStore.shared.applyArchiveEntrySuggestion(recordID: rec.id, actions: actions)
+            }
         }
     }
 

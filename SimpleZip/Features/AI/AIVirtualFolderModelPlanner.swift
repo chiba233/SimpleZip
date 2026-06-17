@@ -120,6 +120,15 @@ struct GeneratedActivityReminder: Sendable {
     var reminder: String
 }
 
+/// **压缩包「你可能需要的文件」**的模型产出(backlog 第4项)。模型从包内文件清单里挑**少数几个**用户最可能想
+/// 单独取出 / 预览的(按序号),大多数包一个都不挑。单字段,可靠。**拒绝假AI**:确定性只列出包里有什么,挑哪个由模型定。
+@available(macOS 26.0, *)
+@Generable
+struct GeneratedArchiveEntryPicks: Sendable {
+    @Guide(description: "The item NUMBERS of a FEW files inside this archive the user would most likely want to pull out or preview on their own — ONLY where a file CLEARLY stands out (e.g. a README, the main document, a config, an installer, the one obviously-important file). MOST archives need NONE; an empty list is the correct, common answer. Use only numbers that appear in the list; never invent one.")
+    var pickedNumbers: [String]
+}
+
 /// 动态核查产出:**明显不扣题**、该从文件夹移除的条目序号(保守 —— 拿不准就不列)。扁平单字段,可靠。
 @available(macOS 26.0, *)
 @Generable
@@ -328,6 +337,31 @@ enum AIVirtualFolderModelPlanner {
         let generated = try await AIReportAssistant.generateStructured(
             instructions: instructions, prompt: prompt, as: GeneratedActivityReminder.self, maxAttempts: 8)
         return generated.reminder.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// **压缩包「你可能需要的文件」**(backlog 第4项,拒绝假AI)。给一个归档的内部文件清单(只读清单缓存,不解压),
+    /// 让端上模型挑**少数几个**用户最可能想单独取出 / 预览的(按序号)。返回挑中的 **1 基序号**(去重、合法、封顶 4);
+    /// App 据序号回查真实条目路径(模型只挑不拼路径)。失败 / 空 → []。
+    static func archiveEntryPicks(archiveName: String, entryPaths: [String]) async throws -> [Int] {
+        guard !entryPaths.isEmpty else { return [] }
+        let cands = Array(entryPaths.prefix(60))
+        let instructions = """
+        Below are the files inside ONE archive the user has. Pick a FEW (by number) that the user would most likely \
+        want to pull out or preview on their own — ONLY where a file CLEARLY stands out (a README / the main document \
+        / a config / an installer / the one obviously-important file). MOST archives need NONE; an empty list is the \
+        correct, common answer. Never invent a number; refer to files only by their number.
+        """
+        var lines = ["Archive: \(archiveName)", "Files (number<TAB>path) — refer to files by their number:"]
+        for (i, p) in cands.enumerated() { lines.append("\(i + 1)\t\(p)") }
+        let generated = try await AIReportAssistant.generateStructured(
+            instructions: instructions, prompt: lines.joined(separator: "\n"),
+            as: GeneratedArchiveEntryPicks.self, maxAttempts: 8)
+        var seen = Set<Int>()
+        return generated.pickedNumbers
+            .compactMap { firstInt(in: $0) }
+            .filter { $0 >= 1 && $0 <= cands.count && seen.insert($0).inserted }
+            .prefix(4)
+            .map { $0 }
     }
 
     /// **动态核查**:对一个已成型文件夹的成员,让模型挑出**明显不扣题**的(保守 —— 拿不准就留)。返回要移除的
