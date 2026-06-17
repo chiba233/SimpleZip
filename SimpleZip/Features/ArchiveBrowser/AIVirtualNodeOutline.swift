@@ -280,6 +280,10 @@ struct AIVirtualNodeOutline: NSViewRepresentable {
         // MARK: - 拖拽:把成员移进虚拟分组(只动虚拟结构)
 
         func outlineView(_ outlineView: NSOutlineView, pasteboardWriterForItem item: Any) -> NSPasteboardWriting? {
+            // 和 FileTable 完全一致:只有鼠标按在内容(文件名 / 图标)上才允许拖。按在路径区 / 空白处 →
+            // hitRegion=.none → dragAllowedFromMouseDown=false → 这里返回 nil 不拖,把那次拖动留给框选 / 拖选多行。
+            // (之前漏了这道门控 = 抄一半:拖拽注册抄了、门控没抄 → 整行任意位置一拖就拖,框选全失效。)
+            if let dragView = outlineView as? ContentDragOutlineView, !dragView.dragAllowedFromMouseDown { return nil }
             // 只有「带 source ref 的成员」可拖动(分组容器本身不拖)。
             guard let item = item as? Item, let node = item.node, !node.sourceRefs.isEmpty, node.kind != .group,
                   let ref = node.sourceRefs.first else { return nil }
