@@ -115,6 +115,33 @@ import Testing
         #expect(tree.nodes[0].children[0].title == "keep.txt")
     }
 
+    /// BUG-P1:模型输入里 ≥4 个同模式任务被折叠成一个 `pattern-…` 摘要;模型把摘要 id 放进某组后,
+    /// builder 必须把它展开回**全部成员任务**,而不是因为 byID 查不到合成 id 就静默丢整组。
+    @Test func builderExpandsCollapsedPatternSummaryID() {
+        let tasks = (0..<5).map { i in
+            AIVirtualNodeCandidate(
+                id: "hash-\(i)", kind: .task, displayName: "Hash Reader \(i)",
+                sourceRefs: [AIContextSourceRef(kind: .task, id: "task-\(i)")],
+                roleTags: ["checksum"], semanticTokens: ["hash", "hid", "reader"],
+                scoreSignals: ["succeeded"])
+        }
+        let summaryMembers = AIVirtualFolderModelInputPreparer.patternSummaryMembers(from: tasks)
+        #expect(summaryMembers.count == 1)
+        guard let summaryID = summaryMembers.keys.first else {
+            Issue.record("折叠摘要未生成"); return
+        }
+        #expect(summaryID.hasPrefix("pattern-hash-"))
+
+        let plan = AIVirtualFolderPlan(groups: [
+            AIVirtualFolderGroupPlan(id: "g", title: "哈希任务", candidateIDs: [summaryID])
+        ])
+        let tree = AIVirtualFolderTreeBuilder.build(
+            workspace: workspace(), plan: plan, candidates: tasks,
+            pathsBySourceRef: [:], mode: .modelAssisted, generatedAt: now)
+        #expect(tree.nodes.count == 1)
+        #expect(tree.nodes[0].children.count == 5)   // 5 个成员任务全部展开,无一丢失
+    }
+
     @Test func builderUsesPlanWorkspaceTitleWhenPresent() {
         let ref = AIContextSourceRef(kind: .file, id: "fs-x")
         let candidates = [AIVirtualNodeCandidate(id: "x", kind: .file, displayName: "x", sourceRefs: [ref])]

@@ -210,41 +210,67 @@ nonisolated enum AIVirtualFolderModelInputPreparer {
     }
 
     /// 泛化折叠:同一语义模式 ≥4 个任务 → 保留最多 2 个代表 + 1 条摘要。
-    private static func collapsedPatternSummaries(from candidates: [AIVirtualNodeCandidate])
-        -> ([AIVirtualNodePromptCandidate], Set<String>) {
+    /// 任务候选按主导模式聚类(≥4 个同模式才成簇),每簇按「失败优先 + id」稳定排序。
+    /// `collapsedPatternSummaries`(模型输入)与 `patternSummaryMembers`(builder 回查)**共用**这一份聚类,
+    /// 保证两边算出同一批 `pattern-…` id —— 模型引用的折叠摘要 id,builder 一定查得到全部成员。
+    private static func patternClusters(from candidates: [AIVirtualNodeCandidate])
+        -> [(pattern: String, ranked: [AIVirtualNodeCandidate])] {
         let tasks = candidates.filter { $0.kind == .task }
-        guard tasks.count >= 4 else { return ([], []) }
-
+        guard tasks.count >= 4 else { return [] }
         var clusters: [String: [AIVirtualNodeCandidate]] = [:]
         for task in tasks {
             if let pattern = dominantTaskPattern(task) {
                 clusters[pattern, default: []].append(task)
             }
         }
-
-        var summaries: [AIVirtualNodePromptCandidate] = []
-        var suppressed = Set<String>()
-        for (pattern, cluster) in clusters where cluster.count >= 4 {
-            let ranked = cluster.sorted {
+        return clusters.compactMap { entry in
+            guard entry.value.count >= 4 else { return nil }
+            let ranked = entry.value.sorted {
                 let aFailed = $0.scoreSignals.contains("failed")
                 let bFailed = $1.scoreSignals.contains("failed")
                 if aFailed != bFailed { return aFailed }
                 return $0.id < $1.id
             }
+            return (entry.key, ranked)
+        }
+    }
+
+    /// 折叠摘要的稳定合成 id(模型看到的、builder 回查的都用这一份)。
+    static func patternSummaryID(pattern: String, ranked: [AIVirtualNodeCandidate]) -> String {
+        "pattern-\(pattern)-\(AIStableHash.fnv1a32Hex(ranked.map(\.id).joined(separator: "|")))"
+    }
+
+    /// builder 回查:模型引用的折叠摘要 `pattern-…` id → 被折叠的**全部成员候选**(含被 suppressed 的)。
+    /// 折叠只为压缩模型输入的 token 预算;虚拟树里这些任务照常展开,不能因为引用了摘要 id 就静默丢(BUG-P1)。
+    static func patternSummaryMembers(from candidates: [AIVirtualNodeCandidate])
+        -> [String: [AIVirtualNodeCandidate]] {
+        var map: [String: [AIVirtualNodeCandidate]] = [:]
+        for cluster in patternClusters(from: dedupe(candidates)) {
+            map[patternSummaryID(pattern: cluster.pattern, ranked: cluster.ranked)] = cluster.ranked
+        }
+        return map
+    }
+
+    private static func collapsedPatternSummaries(from candidates: [AIVirtualNodeCandidate])
+        -> ([AIVirtualNodePromptCandidate], Set<String>) {
+        let clusters = patternClusters(from: candidates)
+        guard !clusters.isEmpty else { return ([], []) }
+        var summaries: [AIVirtualNodePromptCandidate] = []
+        var suppressed = Set<String>()
+        for (pattern, ranked) in clusters {
             let keepCount = min(2, ranked.count)
             suppressed.formUnion(ranked.dropFirst(keepCount).map(\.id))
             let representative = ranked[0]
-            let stableHash = AIStableHash.fnv1a32Hex(ranked.map(\.id).joined(separator: "|"))
             summaries.append(AIVirtualNodePromptCandidate(
-                candidateID: "pattern-\(pattern)-\(stableHash)",
+                candidateID: patternSummaryID(pattern: pattern, ranked: ranked),
                 kind: representative.kind.rawValue,
-                displayName: "\(pattern.capitalized) tasks · \(cluster.count) items · latest: \(representative.displayName)",
+                displayName: "\(pattern.capitalized) tasks · \(ranked.count) items · latest: \(representative.displayName)",
                 sourceRefs: representative.sourceRefs,
                 roleTags: ["task-summary", "repeated-\(pattern)-tasks", "importance-low"],
-                scoreSignals: ["collapsed:\(cluster.count)", "collapsedReason=repeated_\(pattern)_tasks", "importance=low"],
-                relatedTaskIDs: Array(cluster.flatMap(\.relatedTaskIDs).prefix(12)),
-                relatedArchiveIDs: Array(cluster.flatMap(\.relatedArchiveIDs).prefix(8)),
-                evidence: Array(cluster.flatMap(\.evidence).prefix(6))))
+                scoreSignals: ["collapsed:\(ranked.count)", "collapsedReason=repeated_\(pattern)_tasks", "importance=low"],
+                relatedTaskIDs: Array(ranked.flatMap(\.relatedTaskIDs).prefix(12)),
+                relatedArchiveIDs: Array(ranked.flatMap(\.relatedArchiveIDs).prefix(8)),
+                evidence: Array(ranked.flatMap(\.evidence).prefix(6))))
         }
         return (summaries, suppressed)
     }
@@ -855,6 +881,9 @@ nonisolated enum AIVirtualFolderTreeBuilder {
         generatedAt: Date
     ) -> AIVirtualFolderTree {
         let byID = Dictionary(candidates.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        // 折叠摘要 `pattern-…` id → 成员候选:模型引用折叠摘要时(它输入里看到的是摘要),展开回真实成员任务,
+        // 不再因为 byID 查不到合成 id 就静默丢整组(BUG-P1)。与模型输入用同一聚类,id 一致。
+        let patternMembers = AIVirtualFolderModelInputPreparer.patternSummaryMembers(from: candidates)
         let title = (plan.workspaceTitle?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap {
             $0.isEmpty ? nil : $0
         } ?? workspace.title
@@ -864,7 +893,8 @@ nonisolated enum AIVirtualFolderTreeBuilder {
         for s in plan.suggestions { suggestionsByCandidate[s.targetCandidateID, default: []].append(s) }
 
         let nodes = plan.groups.compactMap {
-            groupNode($0, depth: 0, byID: byID, pathsBySourceRef: pathsBySourceRef,
+            groupNode($0, depth: 0, byID: byID, patternMembers: patternMembers,
+                      pathsBySourceRef: pathsBySourceRef,
                       actionsByCandidateID: actionsByCandidateID,
                       suggestionsByCandidate: suggestionsByCandidate, suggestionLabels: suggestionLabels,
                       constraints: constraints)
@@ -891,6 +921,7 @@ nonisolated enum AIVirtualFolderTreeBuilder {
     private static func groupNode(
         _ group: AIVirtualFolderGroupPlan, depth: Int,
         byID: [String: AIVirtualNodeCandidate],
+        patternMembers: [String: [AIVirtualNodeCandidate]],
         pathsBySourceRef: [AIContextSourceRef: String],
         actionsByCandidateID: [String: AISuggestionAction],
         suggestionsByCandidate: [String: [AINodeSuggestionPlan]],
@@ -898,18 +929,30 @@ nonisolated enum AIVirtualFolderTreeBuilder {
         constraints: AIVirtualFolderPlanConstraints
     ) -> AIVirtualNode? {
         var children: [AIVirtualNode] = []
-        // 本组直属候选 → 叶子节点(无效 id 丢弃)。
-        for cid in group.candidateIDs {
-            guard let candidate = byID[cid] else { continue }
-            children.append(leafNode(candidate, pathsBySourceRef: pathsBySourceRef,
-                                     actionsByCandidateID: actionsByCandidateID,
-                                     suggestionsByCandidate: suggestionsByCandidate,
-                                     suggestionLabels: suggestionLabels))
+        // 把一个 candidateID 解析成叶子:命中真实候选 → 一个叶子;命中折叠摘要 `pattern-…` → 展开回全部成员任务
+        // 叶子(折叠只为压模型输入,树里照常展示);都查不到则丢弃(界外 / 无效 id)。
+        func appendLeaves(for cid: String) {
+            if let candidate = byID[cid] {
+                children.append(leafNode(candidate, pathsBySourceRef: pathsBySourceRef,
+                                         actionsByCandidateID: actionsByCandidateID,
+                                         suggestionsByCandidate: suggestionsByCandidate,
+                                         suggestionLabels: suggestionLabels))
+            } else if let members = patternMembers[cid] {
+                for member in members {
+                    children.append(leafNode(member, pathsBySourceRef: pathsBySourceRef,
+                                             actionsByCandidateID: actionsByCandidateID,
+                                             suggestionsByCandidate: suggestionsByCandidate,
+                                             suggestionLabels: suggestionLabels))
+                }
+            }
         }
+        // 本组直属候选 → 叶子节点。
+        for cid in group.candidateIDs { appendLeaves(for: cid) }
         // 子组:未到深度上限则递归成子 group;到上限则拍平子组的叶子进本组。
         if depth + 1 < constraints.maxDepth {
             for child in group.children {
                 if let childNode = groupNode(child, depth: depth + 1, byID: byID,
+                                             patternMembers: patternMembers,
                                              pathsBySourceRef: pathsBySourceRef,
                                              actionsByCandidateID: actionsByCandidateID,
                                              suggestionsByCandidate: suggestionsByCandidate,
@@ -921,13 +964,7 @@ nonisolated enum AIVirtualFolderTreeBuilder {
         } else {
             // 到深度上限:把更深子组的候选拍平进本组(不丢候选)。
             for child in group.children {
-                for cid in flattenedCandidateIDs(child) {
-                    guard let candidate = byID[cid] else { continue }
-                    children.append(leafNode(candidate, pathsBySourceRef: pathsBySourceRef,
-                                             actionsByCandidateID: actionsByCandidateID,
-                                             suggestionsByCandidate: suggestionsByCandidate,
-                                             suggestionLabels: suggestionLabels))
-                }
+                for cid in flattenedCandidateIDs(child) { appendLeaves(for: cid) }
             }
         }
         guard !children.isEmpty else { return nil }   // 空组丢弃
