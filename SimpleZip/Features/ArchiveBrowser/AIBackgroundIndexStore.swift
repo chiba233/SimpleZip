@@ -237,9 +237,11 @@ final class AIBackgroundIndexStore: ObservableObject {
     // MARK: - 清空(白皮书 4533)
 
     /// 清空后台文件预索引(文件夹画像 / 文件元数据 / 摘要),不删任何真实文件。
+    /// #8:跨表面反馈 / 兴趣信号也是后台 AI 派生学习数据 → 一并抹掉(隐私:可清空)。
     func clearFileIndex() {
         fileIndex = fileIndex.cleared()
         persistIndex()
+        AIFeedbackStore.shared.clearAll()
         objectWillChange.send()
     }
 

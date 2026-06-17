@@ -20,6 +20,8 @@ nonisolated enum AISuggestionSurfaceID: String, Codable, Equatable, CaseIterable
     case mainToolbar
     /// 主窗口「AI 建议层」(白皮书建议五):当前窗口上下文上的临时建议,和 AI 文件夹分开,**完全依赖模型输出**。
     case mainWindowSuggestion
+    /// 0.4.5 #80:文件浏览器**行内抽屉**(每文件行下方滑出的 AI 建议)。和 mainWindowSuggestion 同样完全依赖模型输出。
+    case fileBrowserDrawer
     case sidebar
     case locationBar
     case folderTableEmptyState
@@ -38,9 +40,9 @@ nonisolated enum AISuggestionSurfaceID: String, Codable, Equatable, CaseIterable
     case spotlightOpen
     case welcome
 
-    /// 是否允许在模型不可用时用确定性规则卡兜底。`mainWindowSuggestion` 例外(白皮书建议五):它必须完全依赖
-    /// AI 输出 —— 没有模型输出就不显示 AI 建议卡,绝不用规则卡冒充「AI 建议」。其余 surface 都可确定性兜底。
-    var allowsDeterministicFallback: Bool { self != .mainWindowSuggestion }
+    /// 是否允许在模型不可用时用确定性规则卡兜底。`mainWindowSuggestion` / `fileBrowserDrawer` 例外(白皮书建议五 /
+    /// #80 行内抽屉):必须完全依赖 AI 输出 —— 没有模型输出就不显示,绝不用规则卡冒充「AI 建议」。其余 surface 可确定性兜底。
+    var allowsDeterministicFallback: Bool { self != .mainWindowSuggestion && self != .fileBrowserDrawer }
 }
 
 /// 一个 surface 发起的建议请求:提供上下文,不直连模型。

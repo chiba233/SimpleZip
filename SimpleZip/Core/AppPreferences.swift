@@ -371,6 +371,10 @@ enum AppPreferences {
         nonisolated static let aiFileMemoryIndexData = "SimpleZip.ai.fileMemoryIndex.v1"
         /// 0.4.5 #80:用户对 AI 建议「我不喜欢」的抑制 key 集合(`[String]` 的 JSON;派生数据,不进偏好备份)。
         nonisolated static let aiSuggestionDislikedKeys = "SimpleZip.ai.suggestion.dislikedKeys.v1"
+        /// 0.4.5 #80:跨表面 AI 反馈事件日志(`[AIFeedbackEvent]` 的 JSON;「我不喜欢」明确反馈;派生数据,不进偏好备份)。
+        nonisolated static let aiFeedbackEventsData = "SimpleZip.ai.feedback.events.v1"
+        /// 0.4.5 #80:跨表面 AI 交互信号日志(`[AIInteractionSignalEvent]` 的 JSON;点击 / 打开建议等兴趣信号;派生数据,不进偏好备份)。
+        nonisolated static let aiInteractionSignalsData = "SimpleZip.ai.interaction.signals.v1"
         /// 0.4.4:压缩使用频率统计数据(CompressionUsageStore 的 JSON;派生数据,不进偏好备份)。
         nonisolated static let compressionUsageStats = "compressionUsageStats"
         /// 0.4.4:是否记录压缩选项使用频率(供「按我最常用的来」)。默认 true;关 = 停止记录。

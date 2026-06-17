@@ -32,6 +32,8 @@ struct DevToolsView: View {
     @State private var aiBackgroundIndexStatus = "…"
     /// AI 建议各 pass 的产物计数(摘要 / 打开方式 / 装App / 活动 / 包内),让「pass 到底有没有生效」可查。
     @State private var aiSuggestionStatus = "…"
+    /// #8 跨表面反馈 / 兴趣信号事件计数(「我不喜欢」/ 点击学兴趣),让软降权学习数据可查。
+    @State private var aiFeedbackStatus = "…"
     @State private var aiActivityTasksStatus = "…"
 
     private var appVersionLine: String {
@@ -174,6 +176,7 @@ struct DevToolsView: View {
                         infoRow("magnifyingglass", L10n.text("devtools.aiData.spotlight"), aiSpotlightStatus)
                         infoRow("folder.badge.gearshape", L10n.text("devtools.aiData.backgroundIndex"), aiBackgroundIndexStatus)
                         infoRow("text.bubble", "AI 建议产物", aiSuggestionStatus)
+                        infoRow("hand.thumbsdown", "AI 反馈学习", aiFeedbackStatus)
                         infoRow("clock.badge.checkmark", L10n.text("devtools.aiData.activityTasks"), aiActivityTasksStatus)
                         actionRow(
                             "doc.on.clipboard",
@@ -413,6 +416,9 @@ struct DevToolsView: View {
             let s = snapshot.backgroundIndex
             aiSuggestionStatus = "摘要 \(s.summaryCount) · 打开方式 \(s.openWithCount) · 装App \(s.installCount)"
                 + " · 活动 \(s.activityCount) · 包内 \(s.archiveEntryCount)"
+            // #8 跨表面反馈学习:事件计数(原始保留 30 天 / 每类上限 1000)。
+            let fb = AIFeedbackStore.shared.counts
+            aiFeedbackStatus = "我不喜欢 \(fb.feedback) · 兴趣信号 \(fb.signals)"
             aiActivityTasksStatus = L10n.format(
                 "devtools.aiData.activityTasks.value",
                 "\(snapshot.activityTasks.active)",

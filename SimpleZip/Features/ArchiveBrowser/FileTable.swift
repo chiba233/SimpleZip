@@ -278,6 +278,8 @@ struct FileNSOutlineView: NSViewRepresentable {
         /// 右键 AI 建议行时暂存的派发动作 + 「我不喜欢」抑制 key(菜单项点击时用)。
         private var menuDrawerAction: AISuggestionAction?
         private var menuDrawerDislikeKey: String?
+        /// 右键 AI 建议行时暂存的跨表面反馈上下文(#8:建议类型 token + 文件所在目录名 + 角色),记反馈 / 兴趣信号用。
+        private var menuDrawerFeedback: (token: String, folderToken: String, roleTags: [String])?
 
         init(model: ArchiveBrowserModel) {
             self.model = model
@@ -1305,6 +1307,7 @@ struct FileNSOutlineView: NSViewRepresentable {
         private func appendAISuggestionMenu(to menu: NSMenu, for node: FileOutlineNode) {
             menuDrawerAction = node.suggestionAction?.action
             menuDrawerDislikeKey = node.suggestionAction?.dislikeKey ?? summaryDislikeKey(forDrawerNode: node)
+            menuDrawerFeedback = drawerFeedbackContext(forDrawerNode: node)   // #8 跨表面反馈上下文
             if menuDrawerAction != nil {
                 menu.addItem(menuItem(L10n.text("button.open"), systemImage: "arrow.turn.up.right",
                                       action: #selector(openAISuggestion)))
@@ -1324,14 +1327,41 @@ struct FileNSOutlineView: NSViewRepresentable {
             return AIBackgroundIndexStore.summaryDislikeKey(recordID: record.id)
         }
 
+        /// 抽屉行 → 跨表面反馈上下文(#8):建议类型 token(摘要行 = `summary`,动作行从 dislikeKey 取中段)+
+        /// 文件所在目录**名**(可泛化,**绝不存完整路径**)+ 角色。查不到父文件记录 → nil。
+        private func drawerFeedbackContext(forDrawerNode node: FileOutlineNode) -> (token: String, folderToken: String, roleTags: [String])? {
+            guard let outlineView,
+                  let parent = outlineView.parent(forItem: node) as? FileOutlineNode,
+                  let url = parent.fileItem?.url,
+                  let record = AIBackgroundIndexStore.shared.record(forPath: url.path) else { return nil }
+            let folderToken = url.deletingLastPathComponent().lastPathComponent
+            let token: String
+            if node.summaryText != nil {
+                token = "summary"
+            } else if let key = node.suggestionAction?.dislikeKey {
+                // dislikeKey = `recordID\ntoken\npayload` → 取 token 段。
+                let parts = key.components(separatedBy: "\n")
+                token = parts.count >= 2 ? parts[1] : "unknown"
+            } else {
+                return nil
+            }
+            return (token, folderToken, record.roleTags)
+        }
+
         @objc private func openAISuggestion() {
             guard let action = menuDrawerAction else { return }
+            if let fb = menuDrawerFeedback {   // #8「点击学兴趣」正向信号
+                AIFeedbackStore.shared.recordFileDrawerOpen(token: fb.token, folderToken: fb.folderToken, roleTags: fb.roleTags)
+            }
             model.dispatchSuggestion(action)
         }
 
         @objc private func dislikeAISuggestion() {
             guard let key = menuDrawerDislikeKey else { return }
             AIBackgroundIndexStore.shared.dislikeSuggestion(key)
+            if let fb = menuDrawerFeedback {   // #8 跨表面 dismissed 反馈(逐条硬抑制之外,喂同位置同类软降权)
+                AIFeedbackStore.shared.recordFileDrawerDislike(token: fb.token, folderToken: fb.folderToken, roleTags: fb.roleTags)
+            }
             refreshBrowser()   // reload → fileBrowserDrawer 过滤掉这条(其余建议照常)
         }
 
@@ -1340,6 +1370,9 @@ struct FileNSOutlineView: NSViewRepresentable {
             guard row >= 0, let node = sender.item(atRow: row) as? FileOutlineNode else { return }
             if let suggestion = node.suggestionAction {
                 // AI 建议动作行:双击 = 派发动作(模型挑的:哈希 / 测试…),复用同一处派发。
+                if let fb = drawerFeedbackContext(forDrawerNode: node) {   // #8「点击学兴趣」正向信号
+                    AIFeedbackStore.shared.recordFileDrawerOpen(token: fb.token, folderToken: fb.folderToken, roleTags: fb.roleTags)
+                }
                 model.dispatchSuggestion(suggestion.action)
                 return
             }
