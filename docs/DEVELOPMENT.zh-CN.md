@@ -82,7 +82,7 @@ SimpleZip/                  App 全部源码 + 资源 + 本地化
   Assets.xcassets, AppIcon.icns
 Tests/SimpleZipCoreTests/   SwiftPM 测试 + Fixtures/ 预录二进制档案
 Tools/                      （根目录）后端工具
-scripts/                    build_unsigned_dmg.sh / install_rar_backend.sh / verify_appcast.sh
+scripts/                    build_dmg.sh / install_rar_backend.sh / verify_appcast.sh
 docs/                       本文 + ARCHITECTURE / REFACTORING / SZS-FORMAT / release-checklist / appcast.xml
 Info.plist                  App 的 Info.plist（根目录）
 ```

@@ -13,8 +13,9 @@ and the architecture notes in [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
 
 ## Reporting a Vulnerability
 
-SimpleZip is a small, single-maintainer macOS utility distributed as an unsigned DMG.
-There is no dedicated security mailbox; please report security issues using one of:
+SimpleZip is a small, single-maintainer macOS utility distributed as a Developer ID
+signed and notarized DMG. There is no dedicated security mailbox; please report
+security issues using one of:
 
 - **GitHub Security Advisories** (preferred): open a private advisory at
   https://github.com/chiba233/SimpleZip/security/advisories/new
@@ -73,9 +74,9 @@ images, but that trust must be enforced inside the app's own code.
   it. The DMG is built by GitHub Actions from `main` and the published artifact
   is checksum-recorded; users who modify their installed `Tools/7zz` accept the
   risk.
-- **macOS Gatekeeper bypass.** SimpleZip is unsigned ad-hoc; the user explicitly
-  bypasses Gatekeeper on first launch. This is documented in `README.md`. A real
-  Developer ID build is on the Phase 11 roadmap.
+- **macOS Gatekeeper bypass.** SimpleZip is Developer ID signed and notarized;
+  Gatekeeper should pass it through cleanly. Unsigned local or PR builds still
+  require the user to right-click → Open.
 - **Network attacks.** SimpleZip does not make outbound network calls in the
   archive workflows. All network access is user-initiated and limited to:
   the Sparkle update check (EdDSA-signed appcast, see the update section),

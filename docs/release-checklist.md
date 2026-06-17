@@ -89,13 +89,13 @@ References:
 - [ ] `release.yml` triggers; verify the workflow run:
   - SwiftPM tests pass (last defence before packaging);
   - RAR backend install step succeeds;
-  - DMG artifact uploaded as `SimpleZip-unsigned-dmg`;
+  - DMG artifact uploaded as `SimpleZip-dmg`;
   - **Sparkle "Sign DMG with sign_update" step succeeds** — the step output
     in the GitHub Actions log shows `sparkle:edSignature="..." length="..."`;
     if it fails with "SPARKLE_ED_PRIVATE_KEY secret is not set", the
     GitHub Secret needs to be re-uploaded (see `secrets/README.md`);
-  - GitHub release auto-created with the DMG attached and the
-    "unsigned" warning notice.
+  - GitHub release auto-created with the DMG attached and the release notes
+    extracted from CHANGELOG.md.
 - [ ] **Verify Sparkle signature in the published appcast**: after the
       workflow finishes, run `./scripts/verify_appcast.sh` locally — it
       downloads the published DMG and re-verifies the `sparkle:edSignature`
@@ -113,8 +113,8 @@ References:
 
 - [ ] Smoke-test the published DMG by downloading it from the GitHub release
       and opening on a clean Mac:
-  - Gatekeeper warning appears (expected: unsigned build);
-  - app launches after right-click → Open;
+  - Gatekeeper passes the app through (expected: Developer ID signed + notarized);
+  - app launches normally;
   - bundled `Tools/7zz` is found by the binary inside the .app;
   - the version shown in About matches the tagged version.
 - [ ] Watch the issue tracker for the next 24h for first-launch reports.
@@ -126,7 +126,7 @@ References:
 These are tracked, but are not gating conditions today; flip them to required
 items when each lands:
 
-- Developer ID signing + notarization (Phase 11 candidate; orthogonal to
-  Sparkle EdDSA signing, which already shipped in 0.1.10).
+- ~~Developer ID signing + notarization~~ — shipped; release builds are now
+  Developer ID signed and notarized via CI.
 - Public security mailbox separate from GitHub Advisories.
 - Reproducible builds.

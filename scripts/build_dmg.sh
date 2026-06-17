@@ -19,7 +19,7 @@ if [[ -n "$RELEASE_VERSION" && ! "$RELEASE_VERSION" =~ ^[0-9]+(\.[0-9]+){1,2}$ ]
   exit 1
 fi
 
-# Developer ID 签名时去掉 "-unsigned" 后缀（SIGN_IDENTITY 非空 = 走真签名 + 公证）。
+# 发布构建（SIGN_IDENTITY 非空）不加后缀；非发布构建加 "-unsigned" 后缀以示区分。
 # appcast 的 enclosure url 取 DMG basename，这里改名后 appcast 自动跟随，保持一致。
 if [[ -n "${SIGN_IDENTITY:-}" ]]; then
   DMG_SUFFIX=""

@@ -89,13 +89,12 @@
 - [ ] `release.yml` 触发；验证该工作流运行：
   - SwiftPM 测试通过（打包前的最后一道防线）；
   - RAR 后端安装步骤成功；
-  - DMG 制品作为 `SimpleZip-unsigned-dmg` 上传；
+  - DMG 制品作为 `SimpleZip-dmg` 上传；
   - **Sparkle「Sign DMG with sign_update」步骤成功**——该步骤在
     GitHub Actions 日志中的输出会显示 `sparkle:edSignature="..." length="..."`；
     如果它以「SPARKLE_ED_PRIVATE_KEY secret is not set」失败，则需要
     重新上传该 GitHub Secret（见 `secrets/README.md`）；
-  - GitHub release 自动创建，附带 DMG 以及
-    「unsigned」警告提示。
+  - GitHub release 自动创建，附带 DMG 以及从 CHANGELOG.md 提取的发布说明。
 - [ ] **验证已发布 appcast 中的 Sparkle 签名**：工作流完成后，
       在本地运行 `./scripts/verify_appcast.sh`——它会
       下载已发布的 DMG，并使用 `Info.plist` 中的公钥
@@ -113,8 +112,8 @@
 
 - [ ] 从 GitHub release 下载已发布的 DMG，并在干净的 Mac 上打开，
       进行冒烟测试：
-  - 出现 Gatekeeper 警告（符合预期：未签名构建）；
-  - 右键点击 → 打开后应用启动；
+  - Gatekeeper 正常放行（符合预期：Developer ID 签名 + 公证）；
+  - 应用正常启动；
   - .app 内部的二进制能找到捆绑的 `Tools/7zz`；
   - 关于面板中显示的版本与所打的 tag 版本匹配。
 - [ ] 在接下来的 24 小时内关注 issue tracker 的首次启动报告。
@@ -126,7 +125,7 @@
 这些已被跟踪，但今天不是门槛条件；当每一项落地时再把它们翻转为必需
 项：
 
-- Developer ID 签名 + 公证（阶段 11 候选项；与 Sparkle EdDSA 签名
-  正交，后者已在 0.1.10 中发布）。
+- ~~Developer ID 签名 + 公证~~ — 已上线；发布构建现在通过 CI 进行
+  Developer ID 签名和公证。
 - 独立于 GitHub Advisories 的公开安全邮箱。
 - 可复现构建。

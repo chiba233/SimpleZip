@@ -86,7 +86,7 @@ SimpleZip/                  All App source + assets + localization
   Assets.xcassets, AppIcon.icns
 Tests/SimpleZipCoreTests/   SwiftPM tests + Fixtures/ pre-recorded binary archives
 Tools/                      (root) backend tools
-scripts/                    build_unsigned_dmg.sh / install_rar_backend.sh / verify_appcast.sh
+scripts/                    build_dmg.sh / install_rar_backend.sh / verify_appcast.sh
 docs/                       this doc + ARCHITECTURE / REFACTORING / SZS-FORMAT / release-checklist / appcast.xml
 Info.plist                  the App's Info.plist (root)
 ```

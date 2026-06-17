@@ -12,8 +12,8 @@
 
 ## 漏洞上报
 
-SimpleZip 是一个单人维护的 macOS 小工具，以未签名 DMG 形式分发，没有专用
-安全邮箱。请选择以下一种方式上报：
+SimpleZip 是一个单人维护的 macOS 小工具，以 Developer ID 签名并公证的 DMG
+形式分发，没有专用安全邮箱。请选择以下一种方式上报：
 
 - **GitHub Security Advisories**（推荐）：在
   https://github.com/chiba233/SimpleZip/security/advisories/new
@@ -66,9 +66,8 @@ SimpleZip 把每个压缩包都视为**不可信输入**。App 有意不进沙�
 - **被污染的内置后端**。如果用户下载之后到运行之间把 `Tools/` 里的内置
   `7zz` 换成了恶意版本，SimpleZip 会照跑。DMG 是 GitHub Actions 从 `main`
   分支构建的，发布物有 checksum；用户自己改装 `Tools/7zz` 承担风险。
-- **macOS Gatekeeper bypass**。SimpleZip 是 ad-hoc 未签名，用户首次运行时
-  显式绕过 Gatekeeper —— README 里已说明。Developer ID 签名是 Phase 11 路线
-  的事。
+- **macOS Gatekeeper bypass**。SimpleZip 已使用 Developer ID 签名并公证，
+  Gatekeeper 应正常放行。未签名的本地或 PR 构建仍需用户右键 → 打开。
 - **网络攻击**。压缩包工作流不发任何网络请求。全部网络访问都由用户主动触发,
   且仅限于:Sparkle 更新检查(EdDSA 签名的 appcast,见更新章节)、设置 → GPG 的
   密钥服务器搜索 / 接收 / 发布(网络请求由 GnuPG 自带的 `dirmngr` 对
