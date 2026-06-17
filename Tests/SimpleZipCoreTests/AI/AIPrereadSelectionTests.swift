@@ -19,29 +19,42 @@ import Testing
     }
 
     @Test func picksTextSummarizableOnlyAndSkipsBinaryMedia() {
-        let records = [rec("a.swift"), rec("logo.png"), rec("data.zip"), rec("tool.deb"), rec("notes.md")]
+        // 纳入:文档 / 配置 / 无后缀文本(LICENSE)/ 未识别文本(.log)。排除:源码(3B 读不懂)/ 媒体 / 归档 / 二进制。
+        let records = [rec("notes.md"), rec("app.yaml"), rec("LICENSE"), rec("server.log"),
+                       rec("a.swift"), rec("logo.png"), rec("data.zip"), rec("tool.deb")]
         let picked = AIPrereadSelection.selectForSummary(records: records, budget: 10, now: now)
         let names = Set(picked.map(\.fileName))
-        #expect(names.contains("a.swift"))
         #expect(names.contains("notes.md"))
-        #expect(!names.contains("logo.png"))   // 媒体不读
-        #expect(!names.contains("data.zip"))   // 归档不读
-        #expect(!names.contains("tool.deb"))   // 二进制不读
+        #expect(names.contains("app.yaml"))
+        #expect(names.contains("LICENSE"))      // 无后缀文本 → 纳入(unix 生态常见)
+        #expect(names.contains("server.log"))   // 未识别文本 → 纳入
+        #expect(!names.contains("a.swift"))     // 源码 → 排除(3B 读不懂代码)
+        #expect(!names.contains("logo.png"))    // 媒体不读
+        #expect(!names.contains("data.zip"))    // 归档不读
+        #expect(!names.contains("tool.deb"))    // 二进制不读
     }
 
-    @Test func rolePriorityPutsProjectDocBeforeSource() {
-        // README(project-doc, weight 3) 应排在普通源码(source, weight 1)之前。
+    @Test func excludesSourceCode() {
+        // 各类源码 / 脚本都不预读。
+        for name in ["main.swift", "app.ts", "util.py", "deploy.sh", "Component.vue"] {
+            #expect(AIPrereadSelection.selectForSummary(records: [rec(name)], budget: 5, now: now).isEmpty,
+                    "\(name) 是源码,不该预读")
+        }
+    }
+
+    @Test func rolePriorityPutsProjectDocFirst() {
+        // README(project-doc, weight 5) 应排在 config(weight 1.8)之前。
         let picked = AIPrereadSelection.selectForSummary(
-            records: [rec("util.swift"), rec("README.md")], budget: 1, now: now)
+            records: [rec("app.yaml"), rec("README.md")], budget: 1, now: now)
         #expect(picked.count == 1)
         #expect(picked.first?.fileName == "README.md")
     }
 
     @Test func recencyBreaksTieAmongSameRole() {
-        // 两个同角色源码,近期改的优先。
+        // 两个同角色文本(reference-data .txt),近期改的优先。
         let picked = AIPrereadSelection.selectForSummary(
-            records: [rec("old.swift", daysOld: 60), rec("fresh.swift", daysOld: 0)], budget: 1, now: now)
-        #expect(picked.first?.fileName == "fresh.swift")
+            records: [rec("old.txt", daysOld: 60), rec("fresh.txt", daysOld: 0)], budget: 1, now: now)
+        #expect(picked.first?.fileName == "fresh.txt")
     }
 
     @Test func interestRoleBoostsMatchingFiles() {

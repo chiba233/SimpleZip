@@ -292,6 +292,16 @@ nonisolated struct AIFileMemoryRecord: Codable, Identifiable, Equatable, Sendabl
         let kind: AIContextSourceRef.Kind = type == .folder ? .folder : (type == .archive ? .archive : .file)
         return AIContextSourceRef(kind: kind, id: id)
     }
+
+    /// 不可变拷贝,挂上内容摘要(后台「先全量轻索引、再对 AI 选中集补摘要」两阶段用 —— 元数据记录先建,
+    /// 选中后再回填 `contentSummary`,id / 其余字段不变)。
+    func withContentSummary(_ summary: AIFileContentSummary) -> AIFileMemoryRecord {
+        AIFileMemoryRecord(
+            id: id, fileName: fileName, path: path, fileExtension: fileExtension, type: type,
+            byteSize: byteSize, modifiedAt: modifiedAt, location: location, roleTags: roleTags,
+            markerTags: markerTags, relatedSourceRefs: relatedSourceRefs,
+            contentSummary: summary, omissions: omissions)
+    }
 }
 
 /// 一个目录的画像。从其(已索引的)子文件记录确定性派生角色 + 推荐视角。

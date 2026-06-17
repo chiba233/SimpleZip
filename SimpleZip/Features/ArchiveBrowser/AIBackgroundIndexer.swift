@@ -37,13 +37,16 @@ final class AIBackgroundIndexer {
         // 内容预读是**更高隐私等级的独立开关**:只元数据预索引时 allowContent=false(绝不读内容);开了「预读内容」
         // 才对「定主题」文档读头部产脱敏摘要(归档内容预读是另一条路,见 archivePrefetchEnabled)。
         let allowContent = store.contentPrereadEnabled
+        // 渐进覆盖:把上一轮已有摘要的记录带进去,指纹没变的直接沿用、不重读 → 预算轮到没读过/变了的文件。
+        let existingSummarized = allowContent ? store.summarizedRecordsByID() : [:]
 
         task = Task.detached(priority: .background) {
             var results: [(UUID, [AIFileMemoryRecord])] = []
             for scope in scopes {
                 if Task.isCancelled { break }
                 let records = AIBackgroundIndexer.scanScope(scope, home: home, fileBudget: fileBudget,
-                                                            allowContent: allowContent)
+                                                            allowContent: allowContent,
+                                                            existingSummarized: existingSummarized)
                 results.append((scope.id, records))
             }
             let scanned = results   // 不可变快照后再跨 actor 边界(Swift 6:别捕获可变 var)
@@ -124,15 +127,17 @@ final class AIBackgroundIndexer {
     private nonisolated static let maxDirectoriesPerScope = 600
 
     /// 走一个白名单 scope,深度受限、层层排除、只取元数据、不跟符号链接。返回文件记录(疑似密钥文件整条不索引)。
-    /// `allowContent`(= 用户开了「预读内容」更高隐私档)时,额外对「定主题」文档读头部产脱敏内容摘要。
+    /// `allowContent` 开时**两阶段**:① BFS 出元数据;② **AI 排序挑前 N 个补内容摘要**(渐进覆盖,见 AIPrereadSelection)。
+    /// `existingSummarized` = 上一轮已有摘要的记录(id → 记录),**指纹(大小+修改时间)没变就直接沿用旧摘要、不重读**
+    /// → 预算只花在「新文件 / 变了的文件」上,高权重读完慢慢轮到低权重,时间够长全覆盖。
     nonisolated static func scanScope(_ scope: AIArchivePrefetchScope, home: String,
-                                      fileBudget: Int, allowContent: Bool = false) -> [AIFileMemoryRecord] {
+                                      fileBudget: Int, allowContent: Bool = false,
+                                      existingSummarized: [String: AIFileMemoryRecord] = [:]) -> [AIFileMemoryRecord] {
         let fm = FileManager.default
         let keys: Set<URLResourceKey> = [.isDirectoryKey, .isSymbolicLinkKey, .fileSizeKey,
                                          .contentModificationDateKey, .volumeIsLocalKey]
         var records: [AIFileMemoryRecord] = []
         var visitedDirs = 0
-        var summariesProduced = 0   // 本轮已深读多少篇文档(预算化:只对少量「定主题」文档读内容,见 summarizeIfWorthwhile)
         // 游标 BFS(避免 Array.removeFirst 的 O(n²));seed 标准化(消 `..`,防被篡改的持久 scope 逃逸)。
         var queue: [(url: URL, depth: Int)] = [(URL(fileURLWithPath: scope.directoryPath).standardizedFileURL, 0)]
         var head = 0
@@ -163,18 +168,11 @@ final class AIBackgroundIndexer {
                     dirHasFile = true
                     let roleTags = AIFileType.roleTags(fileName: entry.lastPathComponent, isDirectory: false)
                     guard AIFileRoleSamplingPolicy.reserve(roleTags, counts: &roleCounts) else { continue }
-                    // **预读文件内容(独立高隐私开关「预读内容」)**:对「定主题」的文档(README / LICENSE / 配置 /
-                    // 校验 / markdown)读头部 → 安全摘要(标题 / 字段名,已脱敏),挂到 `contentSummary`。候选映射器把摘要
-                    // 标题 / 字段名折进语义 token → 跨位置聚类更准。`allowContent` 关(只元数据档)时一律不读;预算化 +
-                    // 红线门控在 summarizeIfWorthwhile 内,普通文件 / 不可读 / 无预算 → 返回 nil(只记元数据)。
-                    let summary = allowContent
-                        ? summarizeIfWorthwhile(url: entry, fileName: entry.lastPathComponent,
-                                                produced: &summariesProduced)
-                        : nil
+                    // 阶段一:只建**元数据**记录(不读内容)。内容摘要在 BFS 结束后由 AI 排序挑出前 N 个再补(见下)。
                     records.append(AIFileMemoryRecord.make(
                         fileName: entry.lastPathComponent, isDirectory: false,
                         byteSize: vals.fileSize.map(Int64.init), modifiedAt: vals.contentModificationDate,
-                        location: loc, contentSummary: summary,
+                        location: loc,
                         path: entry.path))   // 存全路径(非加密路径不是风险,AI 有权知道)
                 }
             }
@@ -190,7 +188,37 @@ final class AIBackgroundIndexer {
                     byteSize: nil, modifiedAt: dirMtime, location: parentLoc, path: dir.path))
             }
         }
-        return records
+
+        // 阶段二:**AI 驱动 + 渐进覆盖的预读**。`allowContent` 关(只元数据档)时整段跳过。
+        guard allowContent else { return records }
+        // 指纹(大小+修改时间)没变的已摘要文件 → 直接沿用旧摘要、不重读;其余(新/变了)才进候选。
+        // 这样预算只花在没读过/变了的文件上 → 高权重吃完慢慢轮到低权重 → 最终全覆盖(用户:别让低权重没机会)。
+        var carried: [String: AIFileContentSummary] = [:]
+        var staleCandidates: [AIFileMemoryRecord] = []
+        for rec in records {
+            if let old = existingSummarized[rec.id], let summary = old.contentSummary,
+               old.byteSize == rec.byteSize, old.modifiedAt == rec.modifiedAt {
+                carried[rec.id] = summary          // 没变 → 沿用,省一次读
+            } else {
+                staleCandidates.append(rec)         // 新 / 变了 → 候选(AIPrereadSelection 内部再筛文本可读类)
+            }
+        }
+        let selected = AIPrereadSelection.selectForSummary(
+            records: staleCandidates, budget: maxContentSummariesPerScope, now: Date())
+        var fresh: [String: AIFileContentSummary] = [:]
+        for rec in selected {
+            guard let path = rec.path else { continue }
+            if let summary = summarizeContent(url: URL(fileURLWithPath: path),
+                                              fileName: (path as NSString).lastPathComponent) {
+                fresh[rec.id] = summary
+            }
+        }
+        guard !carried.isEmpty || !fresh.isEmpty else { return records }
+        return records.map { rec in
+            if let summary = fresh[rec.id] { return rec.withContentSummary(summary) }       // 新算的
+            if let summary = carried[rec.id] { return rec.withContentSummary(summary) }      // 沿用旧的
+            return rec
+        }
     }
 
     /// 一个目录是否允许被列举(seed 和每个子目录都过这关)。任一命中即拒:
@@ -222,31 +250,18 @@ final class AIBackgroundIndexer {
     /// 单篇文档读取的头部上限(64KB:头部足够拿到标题 / 顶层字段定主题,避免对大文件全量读)。
     private nonisolated static let maxContentReadBytes = 64 * 1024
 
-    /// 值得深读 → 读头部产 `AIFileContentSummary`(标题 / 字段名 / 语言提示,已脱敏);否则 nil(只记元数据)。
-    /// 廉价重要性:只读 marker 文档(README/LICENSE/manifest)、配置、校验、markdown —— 普通无名 `.txt` 不读(省 IO)。
-    /// 红线:敏感目录 / 临时解密 / 疑似密钥名(`blockReason`)一律不读;读不到(无权限)静默跳过、不计预算。
-    private nonisolated static func summarizeIfWorthwhile(url: URL, fileName: String,
-                                                          produced: inout Int) -> AIFileContentSummary? {
-        guard produced < maxContentSummariesPerScope else { return nil }
-        let type = AIFileType.classify(fileName: fileName, isDirectory: false)
-        let hasMarker = !AIFolderProfile.markerTags(forFileName: fileName).isEmpty
-        let worth: Bool
-        switch type {
-        case .markdown, .config, .checksum: worth = true
-        case .text, .sourceCode: worth = hasMarker
-        default: worth = false   // 二进制 / 图片 / 归档 / 应用包:不读内容
-        }
-        guard worth else { return nil }
-        // 红线门控(内容可读性策略):敏感目录 / 临时解密 / 疑似密钥名 → 不读。currentUserCanRead 先乐观给 true,
-        // 真没权限时下面的 FileHandle 打不开 → 跳过。
+    /// 读一个文件头部 → 脱敏 → 内容摘要(标题 / 字段名 / 语言提示,已脱敏)。**挑哪些读、读多少由调用方
+    /// (AIPrereadSelection + 预算)决定**,这里不再自带「只 md 才读」死规则。红线门控仍在:敏感目录 / 临时解密 /
+    /// 疑似密钥名(`blockReason`)一律不读;无读权限静默跳过。端上模型短摘要(shortSummary)由 ②b 接(此刻仍 nil)。
+    private nonisolated static func summarizeContent(url: URL, fileName: String) -> AIFileContentSummary? {
         if AIFileReadabilityPolicy.blockReason(absolutePath: url.path, fileName: fileName,
                                                currentUserCanRead: true, isExcludedByUser: false) != nil {
             return nil
         }
-        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }   // 无读权限 → 跳过,不计预算
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }   // 无读权限 → 跳过
         defer { try? handle.close() }
         let data = (try? handle.read(upToCount: maxContentReadBytes)) ?? Data()
-        produced += 1
+        let type = AIFileType.classify(fileName: fileName, isDirectory: false)
         guard !data.isEmpty, let raw = String(data: data, encoding: .utf8) else {
             return AIFileContentSummary(mode: "metadata-only")   // 空 / 二进制 / 非 UTF-8 → 只记元数据
         }

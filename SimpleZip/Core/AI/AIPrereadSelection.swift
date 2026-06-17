@@ -34,15 +34,26 @@ nonisolated enum AIPrereadSelection {
         recencyHalfLifeDays: Double = 14
     ) -> [AIFileMemoryRecord] {
         guard budget > 0 else { return [] }
-        // 只挑文本可总结类(复用现有可读性判定;记录到这里已非密钥文件,故 contentReadable 视为 true)。
-        let summarizable = records.filter {
-            AIFileReadabilityPolicy.enrichable(type: $0.type, contentReadable: true)
-        }
+        let summarizable = records.filter { isPrereadSummarizable($0.type) }
         guard !summarizable.isEmpty else { return [] }
         let ranked = AIRanker.rank(summarizable) { rec in
             context(for: rec, now: now, interestRoleTags: interestRoleTags, halfLifeDays: recencyHalfLifeDays)
         }
         return Array(ranked.prefix(budget).map(\.item))
+    }
+
+    /// 预读「能不能总结」判据(和通用 `enrichable` 不同,专为预读)。
+    /// - **纳入所有可能是文本的类型**:md / text / config / checksum + `unknown` —— 覆盖**无后缀文本**和
+    ///   `.log` / `.csv` 这类未识别文本(unix 生态极常见);真二进制由读取时的 UTF-8 判定剔除(只浪费一次读)。
+    /// - **排除源码**:端上 3B 模型读不懂代码,预读纯浪费预算。
+    /// - 排除已知二进制 / 媒体 / 归档 / 应用包 / 签名 / 文件夹。
+    static func isPrereadSummarizable(_ type: AIFileType) -> Bool {
+        switch type {
+        case .markdown, .text, .config, .checksum, .unknown: return true
+        case .sourceCode: return false
+        case .folder, .archive, .signature, .image, .video, .audio,
+             .appBundle, .diskImage, .package, .binary: return false
+        }
     }
 
     /// 一条记录的排序上下文:角色重要性 + 近期修改 + 用户兴趣(全正向 boost,确定性)。

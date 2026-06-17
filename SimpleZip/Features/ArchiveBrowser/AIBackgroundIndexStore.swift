@@ -115,6 +115,13 @@ final class AIBackgroundIndexStore: ObservableObject {
         fileIndex.recentRecords(limit: limit)
     }
 
+    /// 已有内容摘要的记录(id → 记录),给渐进式预读做「指纹(大小+修改时间)没变就沿用旧摘要、不重读」判断。
+    func summarizedRecordsByID() -> [String: AIFileMemoryRecord] {
+        var out: [String: AIFileMemoryRecord] = [:]
+        for rec in fileIndex.records where rec.contentSummary != nil { out[rec.id] = rec }
+        return out
+    }
+
     /// source ref → 真实路径(给 AI 文件夹节点动作 + 显示来源目录用)。直接读持久记录的 `path`(非加密路径不是
     /// 风险,可落盘)→ 启动即可用,不必等重扫。ref 由记录的 `contextSourceRef` 派生 → 与候选 ref 一致。
     func pathsBySourceRef(limit: Int = 4_000) -> [AIContextSourceRef: String] {
