@@ -39,14 +39,12 @@ nonisolated enum AIFileType: String, Codable, Equatable, CaseIterable, Sendable 
         if isDirectory {
             let lowerDir = fileName.lowercased()
             if lowerDir.hasSuffix(".app") { return .appBundle }
-            if lowerDir.hasSuffix(".bundle") || lowerDir.hasSuffix(".framework") || lowerDir.hasSuffix(".pkg") {
-                return .package
-            }
+            if packageBundleSuffixes.contains(where: { lowerDir.hasSuffix($0) }) { return .package }
             return .folder
         }
         let lower = fileName.lowercased()
         let base = (lower as NSString).lastPathComponent
-        let ext = (lower as NSString).pathExtension
+        let ext = effectiveExtension(base: base)
 
         if checksumNames.contains(base) || checksumExtensions.contains(ext) { return .checksum }
         if signatureExtensions.contains(ext) { return .signature }
@@ -62,6 +60,17 @@ nonisolated enum AIFileType: String, Codable, Equatable, CaseIterable, Sendable 
         if ext == "txt" || ext == "text" || ext == "rtf" { return .text }
         if binaryExtensions.contains(ext) { return .binary }
         return .unknown
+    }
+
+    /// 有效扩展名(小写)。普通文件取 `pathExtension`;**纯 dotfile**(`.gitignore` / `.editorconfig` / `.env`)的
+    /// `pathExtension` 为空(前导点被当成隐藏标记而非扩展名),改取点后整段当伪扩展名 —— 这类配置文件才能被
+    /// `configExtensions` 命中。带二段扩展的 dotfile(`.eslintrc.json`)`pathExtension` 非空,走常规路径。
+    private static func effectiveExtension(base: String) -> String {
+        let ext = (base as NSString).pathExtension
+        if ext.isEmpty, base.hasPrefix("."), !base.dropFirst().contains(".") {
+            return String(base.dropFirst())
+        }
+        return ext
     }
 
     /// 文件名 + 类型 → 角色标签。类型保持粗粒度兼容;roleTags 承载更适合主题聚类的语义。
@@ -123,22 +132,68 @@ nonisolated enum AIFileType: String, Codable, Equatable, CaseIterable, Sendable 
     }
 
     static let archiveExtensions: Set<String> = [
-        "zip", "7z", "rar", "tar", "gz", "tgz", "bz2", "tbz", "xz", "txz", "zst", "tzst", "siz", "szs", "xip"
+        "zip", "7z", "rar", "tar", "gz", "tgz", "bz2", "tbz", "tbz2", "xz", "txz", "zst", "tzst",
+        "siz", "szs", "xip",
+        // 长尾压缩 / 容器(常见但之前漏 → 落 unknown,污染泛化桶)
+        "lz", "tlz", "lz4", "lzma", "lzo", "br", "z", "cpio", "ar", "cab", "arj", "lha", "lzh", "zipx"
     ]
     static let sourceExtensions: Set<String> = [
         "swift", "py", "js", "ts", "go", "rs", "c", "cpp", "h", "hpp",
-        "java", "kt", "rb", "cs", "m", "mm", "php", "scala", "sh"
+        "java", "kt", "rb", "cs", "m", "mm", "php", "scala", "sh",
+        // web / 现代前端
+        "jsx", "tsx", "mjs", "cjs", "vue", "svelte", "astro", "html", "htm", "css",
+        "sass", "scss", "less", "styl", "coffee",
+        // 现代 / 系统 / 函数式 / JVM / 脚本语言
+        "dart", "lua", "r", "jl", "ex", "exs", "erl", "hrl", "clj", "cljs", "cljc", "edn",
+        "hs", "lhs", "elm", "ml", "mli", "fs", "fsx", "fsi", "nim", "zig", "v", "d", "pas",
+        "f90", "f95", "asm", "s", "vala", "groovy", "gradle", "kts", "rake",
+        "pl", "pm", "tcl", "vb", "vbs", "applescript",
+        "bash", "zsh", "fish", "ps1", "psm1", "bat", "cmd",
+        // 数据 / 接口 / 模板语言
+        "sql", "proto", "graphql", "gql", "sol", "hx", "jsonnet", "ipynb", "tex",
+        "gemspec", "podspec"
     ]
     static let configExtensions: Set<String> = [
-        "yaml", "yml", "json", "toml", "ini", "conf", "cfg", "plist", "xml", "env", "properties"
+        "yaml", "yml", "json", "toml", "ini", "conf", "cfg", "plist", "xml", "env", "properties",
+        // 锁文件 / 包清单 / dotfile 配置 / 构建与基础设施配置
+        "lock", "sum", "mod", "editorconfig", "gitignore", "gitattributes", "dockerignore",
+        "npmrc", "nvmrc", "yarnrc", "babelrc", "eslintrc", "prettierrc", "stylelintrc", "browserslistrc",
+        "xcconfig", "entitlements", "pbxproj", "resolved",
+        "cmake", "mk", "ninja", "bazel", "bzl", "tf", "tfvars", "hcl", "nix",
+        "service", "desktop", "htaccess", "settings", "prefs"
     ]
-    static let imageExtensions: Set<String> = ["jpg", "jpeg", "png", "gif", "heic", "webp", "tiff", "bmp"]
-    static let videoExtensions: Set<String> = ["mov", "mp4", "m4v", "avi", "mkv", "webm"]
-    static let audioExtensions: Set<String> = ["mp3", "wav", "flac", "aac", "m4a"]
+    static let imageExtensions: Set<String> = [
+        "jpg", "jpeg", "png", "gif", "heic", "heif", "webp", "tiff", "tif", "bmp",
+        "svg", "ico", "icns", "psd", "ai", "eps", "raw", "cr2", "cr3", "nef", "arw", "dng",
+        "avif", "jfif", "jp2", "jpe", "tga", "exr", "hdr", "pict"
+    ]
+    static let videoExtensions: Set<String> = [
+        "mov", "mp4", "m4v", "avi", "mkv", "webm",
+        "mpg", "mpeg", "wmv", "flv", "3gp", "3g2", "mts", "m2ts", "ogv", "vob", "f4v",
+        "rm", "rmvb", "divx", "asf", "mxf"
+    ]
+    static let audioExtensions: Set<String> = [
+        "mp3", "wav", "flac", "aac", "m4a",
+        "ogg", "oga", "opus", "wma", "aiff", "aif", "alac", "mid", "midi", "ape",
+        "dsf", "dff", "ac3", "amr", "m4b", "caf", "wv"
+    ]
     static let signatureExtensions: Set<String> = ["asc", "sig"]
     static let checksumExtensions: Set<String> = ["sha256", "sha1", "md5", "sums"]
-    static let binaryExtensions: Set<String> = ["o", "a", "so", "dylib", "bin", "exe", "dll", "wasm"]
+    static let binaryExtensions: Set<String> = [
+        "o", "a", "so", "dylib", "bin", "exe", "dll", "wasm",
+        // 编译产物 / 字节码 / 调试符号
+        "class", "pyc", "pyo", "pyd", "lib", "obj", "node", "ko", "elf", "out",
+        "swiftmodule", "bc", "pdb", "rlib",
+        // 安装包 / 语言包(二进制制品,非用户日常浏览的归档)
+        "deb", "rpm", "msi", "appimage", "snap", "flatpak", "nupkg", "whl", "egg"
+    ]
     static let checksumNames: Set<String> = ["sha256sums", "sha256sums.txt", "sha1sums", "md5sums", "checksums.txt"]
+    /// 目录型 bundle 后缀(macOS 包/工程目录)。命中 → `.package`(不当普通文件夹聚类)。
+    static let packageBundleSuffixes: [String] = [
+        ".bundle", ".framework", ".pkg", ".xcodeproj", ".xcworkspace", ".playground",
+        ".docset", ".photoslibrary", ".rtfd", ".scptd", ".kext", ".plugin", ".prefpane",
+        ".qlgenerator", ".appex", ".xpc", ".mdimporter"
+    ]
 }
 
 /// 安全文本文件的短摘要(仅深度本地上下文)。内容由 App 侧先 redaction 再填这里。

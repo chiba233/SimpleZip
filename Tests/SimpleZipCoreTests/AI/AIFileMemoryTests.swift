@@ -30,6 +30,47 @@ import Testing
         for t in AIFileType.allCases { #expect(!t.rawValue.isEmpty) }
     }
 
+    /// 长尾常见扩展名必须落到具体类型(source/config/media/binary/archive),不再掉进 `.unknown` 泛化桶 ——
+    /// 这是「让 document/泛化信号进一步降低」的根:覆盖面越广,落进通用桶的文件越少,聚类结构越清晰。
+    @Test func classifyCoversCommonModernExtensions() {
+        // 现代 / web 源码 → source(不再 unknown,也绝不进 document)
+        for name in ["App.vue", "Widget.svelte", "page.astro", "main.dart", "util.lua",
+                     "schema.sql", "api.proto", "query.graphql", "index.html", "theme.scss",
+                     "build.gradle", "Analysis.ipynb", "contract.sol", "deploy.sh"] {
+            #expect(AIFileType.classify(fileName: name, isDirectory: false) == .sourceCode,
+                    "\(name) 应识别为 source")
+        }
+        // TypeScript 仍归 source(不被 MPEG-TS 抢成 video)
+        #expect(AIFileType.classify(fileName: "store.ts", isDirectory: false) == .sourceCode)
+        // 锁文件 / 包清单 / dotfile / 基础设施配置 → config
+        for name in ["Cargo.lock", "go.sum", "go.mod", ".editorconfig", "main.tf", "flake.nix",
+                     "Info.entitlements", "build.xcconfig"] {
+            #expect(AIFileType.classify(fileName: name, isDirectory: false) == .config,
+                    "\(name) 应识别为 config")
+        }
+        // 媒体长尾 → image / video / audio
+        #expect(AIFileType.classify(fileName: "logo.svg", isDirectory: false) == .image)
+        #expect(AIFileType.classify(fileName: "icon.icns", isDirectory: false) == .image)
+        #expect(AIFileType.classify(fileName: "clip.mpeg", isDirectory: false) == .video)
+        #expect(AIFileType.classify(fileName: "song.opus", isDirectory: false) == .audio)
+        // 二进制制品 / 安装包 → binary(正确类型,不当文本读)
+        for name in ["Main.class", "module.pyc", "tool.deb", "setup.msi", "lib.swiftmodule"] {
+            #expect(AIFileType.classify(fileName: name, isDirectory: false) == .binary,
+                    "\(name) 应识别为 binary")
+        }
+        // 长尾归档 → archive
+        #expect(AIFileType.classify(fileName: "data.lz4", isDirectory: false) == .archive)
+        #expect(AIFileType.classify(fileName: "old.cpio", isDirectory: false) == .archive)
+        // 目录型 bundle → package(不当普通文件夹)
+        #expect(AIFileType.classify(fileName: "SimpleZip.xcodeproj", isDirectory: true) == .package)
+        #expect(AIFileType.classify(fileName: "Photos.photoslibrary", isDirectory: true) == .package)
+        // 这些常见扩展不该再产生空角色(掉进泛化桶)
+        for name in ["App.vue", "logo.svg", "Cargo.lock", "clip.mpeg"] {
+            #expect(!AIFileType.roleTags(fileName: name, isDirectory: false).isEmpty,
+                    "\(name) 角色不应为空")
+        }
+    }
+
     @Test func recordRedactsSecretFileName() {
         let rec = AIFileMemoryRecord.make(fileName: "password=hunter2.txt", isDirectory: false,
                                           byteSize: 10, modifiedAt: nil, location: loc)
