@@ -61,14 +61,34 @@ nonisolated enum AIPrereadSelection {
         return AIRankingContext(base: 0, signals: signals)
     }
 
-    /// 角色 → 总结价值权重。项目文档 / 发布说明最值得读;参考数据 / 通用文档次之;源码 / 配置再次。
+    /// 角色 → **预读价值**权重。判据不是「文件类型重不重要」,而是「**LLM 读了这类文件能拿到多少独特、有效的
+    /// 上下文 token**」。所以 source/report/task-summary 浮顶,checksum/media/installer 沉底(纯二进制 / 无结构 →
+    /// 读它浪费预算)。覆盖系统里实际出现的全部 tag(类型兜底 / 名称覆盖 / 虚拟节点三套来源),不漏到 default。
     static func roleWeight(_ roleTags: [String]) -> Double {
         let set = Set(roleTags)
-        if set.contains("project-doc") || set.contains("release-notes") { return 3.0 }
-        if set.contains("document") || set.contains("reference-data") { return 2.0 }
-        if set.contains("integrity-data") || set.contains("checksum") || set.contains("signature") { return 1.5 }
-        if set.contains("source") { return 1.0 }
-        if set.contains("config") { return 0.8 }
-        return 0.5
+        // Tier 1:项目级文字知识 —— LLM 从这里得到最多独特上下文。
+        if set.contains("project-doc") { return 5.0 }
+        // Tier 2:高密度结构化文本。
+        if set.contains("report") { return 4.5 }
+        if set.contains("source") { return 4.0 }
+        // Tier 3:历史 / 任务上下文 —— 对 AI 建议直接有用。
+        if set.contains("task-summary") { return 3.5 }
+        if set.contains("release-notes") { return 3.5 }
+        if set.contains("task") { return 3.0 }
+        if set.contains("document") { return 3.0 }
+        if set.contains("note") { return 2.5 }
+        // Tier 4:辅助文本 —— 有内容但质量参差。
+        if set.contains("reference-data") { return 2.0 }
+        if set.contains("config") { return 1.8 }
+        if set.contains("action") { return 1.5 }
+        // Tier 5:有限价值。
+        if set.contains("archive") { return 0.8 }
+        if set.contains("importance-low") { return 0.3 }
+        if set.contains("installer") { return 0.3 }
+        // Tier 6:二进制 / 无结构 —— 预读浪费带宽。
+        if set.contains("checksum") || set.contains("signature") || set.contains("integrity-data") { return 0.2 }
+        if set.contains("media") { return 0.1 }
+        if set.contains("junk") || set.contains("temporary") { return 0.1 }
+        return 0.4
     }
 }

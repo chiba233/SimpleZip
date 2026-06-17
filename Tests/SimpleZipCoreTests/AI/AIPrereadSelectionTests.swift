@@ -45,10 +45,10 @@ import Testing
     }
 
     @Test func interestRoleBoostsMatchingFiles() {
-        // 用户近期常碰 config → 同分下 config 被抬。给一个 config 和一个 source(权重 source>config),
-        // 但 interest 命中 config 应把它抬过 source。
+        // 用户近期常碰 config → 兴趣加权把 config(1.8)抬过权重略高的 reference-data(notes.txt = 2.0):
+        // config 1.8 + 兴趣 1.5 = 3.3 > reference-data 2.0。
         let picked = AIPrereadSelection.selectForSummary(
-            records: [rec("main.swift"), rec("app.yaml")], budget: 1, now: now,
+            records: [rec("notes.txt"), rec("app.yaml")], budget: 1, now: now,
             interestRoleTags: ["config"])
         #expect(picked.first?.fileName == "app.yaml")
     }
