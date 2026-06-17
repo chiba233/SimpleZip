@@ -2602,6 +2602,7 @@
 "aiWorkspace.suggest.test" = "Probar archivo";
 "aiWorkspace.suggest.inspect" = "Inspeccionar lanzamiento";
 "aiWorkspace.suggest.convert" = "Convertir archivo";
+"aiWorkspace.suggest.openWith" = "Abrir con %@";
 "aiWorkspace.node.openArchive" = "Abrir archivo";
 "aiWorkspace.node.openFolder" = "Abrir carpeta";
 "aiWorkspace.node.compress" = "Comprimir";

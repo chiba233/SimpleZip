@@ -2681,6 +2681,7 @@
 "aiWorkspace.suggest.test" = "测试归档";
 "aiWorkspace.suggest.inspect" = "检查发布包";
 "aiWorkspace.suggest.convert" = "转换归档";
+"aiWorkspace.suggest.openWith" = "用 %@ 打开";
 "aiWorkspace.node.openArchive" = "打开归档";
 "aiWorkspace.node.openFolder" = "打开文件夹";
 "aiWorkspace.node.compress" = "压缩";

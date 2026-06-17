@@ -2602,6 +2602,7 @@
 "aiWorkspace.suggest.test" = "ทดสอบอาร์ไคฟ์";
 "aiWorkspace.suggest.inspect" = "ตรวจสอบรีลีส";
 "aiWorkspace.suggest.convert" = "แปลงอาร์ไคฟ์";
+"aiWorkspace.suggest.openWith" = "เปิดด้วย %@";
 "aiWorkspace.node.openArchive" = "เปิดอาร์ไคฟ์";
 "aiWorkspace.node.openFolder" = "เปิดโฟลเดอร์";
 "aiWorkspace.node.compress" = "บีบอัด";

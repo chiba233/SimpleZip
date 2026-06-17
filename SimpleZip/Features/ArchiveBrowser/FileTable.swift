@@ -720,7 +720,7 @@ struct FileNSOutlineView: NSViewRepresentable {
             if let suggestion = node.suggestionAction {
                 guard column == .name else { return nil }
                 return makeSuggestionCell(in: outlineView, owner: self,
-                                          title: L10n.text(suggestion.titleKey),
+                                          title: suggestion.displayTitle ?? L10n.text(suggestion.titleKey),
                                           iconName: suggestion.systemImage,
                                           font: .systemFont(ofSize: density.textPointSize))
             }

@@ -77,6 +77,8 @@ struct GeneratedFileSuggestion: Sendable {
     var summary: String
     @Guide(description: "A FEW action tokens from the allowed-actions list, ONLY where an action is clearly the right next step for THIS file. MOST files get NONE — empty is the correct default. Use each token verbatim; never invent one.")
     var actions: [String]
+    @Guide(description: "If a list of alternative apps is given, the NUMBER of the ONE app that is CLEARLY a better fit for THIS file than the system default (e.g. a code editor for source/config/logs, a spreadsheet app for CSV/TSV data, a dedicated viewer). Use 0 when no list is given, or when no listed app is clearly better — 0 is the correct default for most files.")
+    var openWithAppNumber: Int
 }
 
 /// **文件浏览器「文件折叠组建议」**的模型产出。模型把当前文件夹里的文件圈成几组「一组 + 一个批量动作」
@@ -207,9 +209,19 @@ enum AIVirtualFolderModelPlanner {
     /// 且必须适用该 kind,App 据 token + 路径安全合成动作(模型不拼路径)。失败抛出由调用点吞掉。
     /// `excerpt` 必须是**已脱敏**的头部文本(调用方在后台线程读 + `AISensitiveRedactor.redact` 后传入)。
     static func fileSuggestion(fileName: String, kind: String, roleTags: [String], languageHint: String?,
-                               headings: [String], fieldNames: [String], excerpt: String)
+                               headings: [String], fieldNames: [String], excerpt: String,
+                               candidateOpenApps: [(bundleID: String, name: String)] = [])
         async throws -> (summary: String, actions: [AIFileSuggestedAction]) {
         let lang = AIReportAssistant.uiLanguageName
+        let apps = Array(candidateOpenApps.prefix(8))
+        let openWithRule = apps.isEmpty ? "" : """
+
+
+        You are also given a list of OTHER apps installed that can open this file — the user's DEFAULT \
+        double-click app is intentionally NOT in the list. Set openWithAppNumber to the number of an app ONLY \
+        when it is CLEARLY a better fit for THIS file than the default; otherwise set it to 0. Default to 0 — \
+        most files should just use their default app, so recommending a different app must be clearly worth it.
+        """
         let instructions = """
         LANGUAGE — MANDATORY: write the summary in \(lang). Never use any other language for it, not even partially.
 
@@ -221,7 +233,7 @@ enum AIVirtualFolderModelPlanner {
         role as best you can, still in one concrete sentence.
 
         Then suggest a FEW next actions, but ONLY where an action is clearly the right next step for THIS file. Most \
-        files need NONE — empty is the correct default. Never suggest an action just because it is possible.
+        files need NONE — empty is the correct default. Never suggest an action just because it is possible.\(openWithRule)
 
         \(Self.actionVocabularyRule)
         """
@@ -232,6 +244,10 @@ enum AIVirtualFolderModelPlanner {
         if !fieldNames.isEmpty { lines.append("Top-level fields: \(fieldNames.prefix(12).joined(separator: ", "))") }
         let trimmedExcerpt = String(excerpt.prefix(1_400)).trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmedExcerpt.isEmpty { lines.append("Content excerpt (redacted):\n\(trimmedExcerpt)") }
+        if !apps.isEmpty {
+            lines.append("Other apps that can open this file (the default double-click app is NOT listed) — refer to an app by its number:")
+            for (i, a) in apps.enumerated() { lines.append("\(i + 1)\t\(a.name)") }
+        }
         let generated = try await AIReportAssistant.generateStructured(
             instructions: instructions, prompt: lines.joined(separator: "\n"),
             as: GeneratedFileSuggestion.self, maxAttempts: 8)
@@ -244,8 +260,14 @@ enum AIVirtualFolderModelPlanner {
                 seen.insert(t).inserted else { return nil }
             return t
         }
-        // 当前文本文件只用无 payload 的简单动作(hash/compress…);openWith / 包内文件等带 payload 的由各自专门 pass 产出。
-        return (summary, tokens.map { AIFileSuggestedAction(token: $0) })
+        var actions = tokens.map { AIFileSuggestedAction(token: $0) }
+        // 推荐打开方式(只推非默认 app):模型按序号挑一个明显更合适的非默认 App;App 据 bundleId 安全合成动作。
+        let n = generated.openWithAppNumber
+        if !apps.isEmpty, n >= 1, n <= apps.count {
+            let app = apps[n - 1]
+            actions.append(AIFileSuggestedAction(token: "openWith", payload: app.bundleID, label: app.name))
+        }
+        return (summary, actions)
     }
 
     /// **动态核查**:对一个已成型文件夹的成员,让模型挑出**明显不扣题**的(保守 —— 拿不准就留)。返回要移除的

@@ -2681,6 +2681,7 @@
 "aiWorkspace.suggest.test" = "Test Archive";
 "aiWorkspace.suggest.inspect" = "Inspect Release";
 "aiWorkspace.suggest.convert" = "Convert Archive";
+"aiWorkspace.suggest.openWith" = "Open with %@";
 "aiWorkspace.node.openArchive" = "Open Archive";
 "aiWorkspace.node.openFolder" = "Open Folder";
 "aiWorkspace.node.compress" = "Compress";

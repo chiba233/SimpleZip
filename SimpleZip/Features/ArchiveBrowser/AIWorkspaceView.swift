@@ -15,9 +15,11 @@ import SwiftUI
 /// 一个文件 / 归档 / 文件夹节点的派生 AI 建议(确定性;模型增强后续接)。
 struct AIWorkspaceNodeAction: Identifiable {
     let titleKey: String
+    /// 已本地化、含动态值的完整标题(如「用 Preview 打开」)。非空时直接显示,代替 `L10n.text(titleKey)`。
+    var displayTitle: String? = nil
     let systemImage: String
     let action: AISuggestionAction
-    var id: String { titleKey }
+    var id: String { displayTitle ?? titleKey }
 }
 
 enum AIWorkspaceNodeActions {
@@ -52,7 +54,9 @@ enum AIWorkspaceNodeActions {
               let content = record.contentSummary, content.hasModelSuggestion else { return nil }
         let path = item.url.path
         let kind = record.type == .archive ? "archive" : "file"
-        let actions = content.suggestedActions.compactMap { fileAction($0, path: path, kind: kind) }
+        let actions = content.suggestedActions.compactMap {
+            fileAction($0, path: path, kind: kind, sourceRef: record.contextSourceRef)
+        }
         let summary = (content.shortSummary?.isEmpty == false) ? content.shortSummary : nil
         guard summary != nil || !actions.isEmpty else { return nil }
         return (summary, actions)
@@ -60,7 +64,8 @@ enum AIWorkspaceNodeActions {
 
     /// 把**模型挑的**结构化动作 + 文件路径安全合成一条建议行(模型不拼路径;token 必须在词表里且适用该 kind)。
     /// 带 payload 的动作(openWith→app bundleId、包内文件→entryPath…)由 App 据 payload 安全合成;模型只选不拼。
-    private static func fileAction(_ action: AIFileSuggestedAction, path: String, kind: String) -> AIWorkspaceNodeAction? {
+    private static func fileAction(_ action: AIFileSuggestedAction, path: String, kind: String,
+                                  sourceRef: AIContextSourceRef) -> AIWorkspaceNodeAction? {
         let token = action.token
         switch token {
         case "hash" where applies(token, kind):    return hash([path])
@@ -70,6 +75,14 @@ enum AIWorkspaceNodeActions {
                                                                 action: .inspectRelease(path: path))
         case "convert" where applies(token, kind): return .init(titleKey: "aiWorkspace.suggest.convert", systemImage: "arrow.triangle.2.circlepath",
                                                                 action: .convertArchive(path: path))
+        // 推荐打开方式:payload = 模型挑的非默认 App bundleId、label = App 名;App 据 bundleId 用该 App 打开此文件。
+        case "openWith":
+            guard let bundleID = action.payload, !bundleID.isEmpty else { return nil }
+            let appName = (action.label?.isEmpty == false) ? action.label! : bundleID
+            return .init(titleKey: "aiWorkspace.suggest.openWith",
+                         displayTitle: L10n.format("aiWorkspace.suggest.openWith", appName),
+                         systemImage: "arrow.up.forward.app",
+                         action: .openWithApplication(sourceRefs: [sourceRef], bundleIdentifier: bundleID))
         default:        return nil
         }
     }

@@ -51,9 +51,23 @@ extension ArchiveBrowserModel {
             inspectArchiveForRelease(at: URL(fileURLWithPath: path))
         case .convertArchive(let path):
             requestConvertArchives(at: [URL(fileURLWithPath: path)])
+        case .openWithApplication(let sourceRefs, let bundleIdentifier):
+            openSourceRefs(sourceRefs, withAppBundleID: bundleIdentifier)
         default:
             break   // evidence-ref / 写盘 / 虚拟管理类:后续接(需 source-ref 回查)—— 写盘动作回原生确认流
         }
+    }
+
+    /// 推荐打开方式派发:source ref → 真实路径(经预索引回查,模型不拼路径)→ 用指定 bundleId 的 App 打开这些文件。
+    /// App 没装(bundleId 解析不到)/ 路径回查不到 → 静默不动。这是只读导航动作(`.openWithApplication` 标 `.safe`)。
+    private func openSourceRefs(_ sourceRefs: [AIContextSourceRef], withAppBundleID bundleIdentifier: String) {
+        let map = AIBackgroundIndexStore.shared.pathsBySourceRef()
+        let urls = sourceRefs.compactMap { map[$0].map { URL(fileURLWithPath: $0) } }
+            .filter { FileManager.default.fileExists(atPath: $0.path) }
+        guard !urls.isEmpty,
+              let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier) else { return }
+        NSWorkspace.shared.open(urls, withApplicationAt: appURL,
+                                configuration: NSWorkspace.OpenConfiguration(), completionHandler: nil)
     }
 
     func openHome() {

@@ -2603,6 +2603,7 @@
 "aiWorkspace.suggest.test" = "아카이브 테스트";
 "aiWorkspace.suggest.inspect" = "릴리스 검사";
 "aiWorkspace.suggest.convert" = "아카이브 변환";
+"aiWorkspace.suggest.openWith" = "%@(으)로 열기";
 "aiWorkspace.node.openArchive" = "아카이브 열기";
 "aiWorkspace.node.openFolder" = "폴더 열기";
 "aiWorkspace.node.compress" = "압축";

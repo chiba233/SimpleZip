@@ -2604,6 +2604,7 @@
 "aiWorkspace.suggest.test" = "アーカイブをテスト";
 "aiWorkspace.suggest.inspect" = "リリースを検査";
 "aiWorkspace.suggest.convert" = "アーカイブを変換";
+"aiWorkspace.suggest.openWith" = "%@ で開く";
 "aiWorkspace.node.openArchive" = "アーカイブを開く";
 "aiWorkspace.node.openFolder" = "フォルダを開く";
 "aiWorkspace.node.compress" = "圧縮";

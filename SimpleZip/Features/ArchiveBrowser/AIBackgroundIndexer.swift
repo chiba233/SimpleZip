@@ -14,6 +14,7 @@
 //  - 文件名经 `AIFileMemoryRecord.make` 脱敏(疑似密钥名抹除)。
 //
 
+import AppKit
 import Foundation
 
 @MainActor
@@ -155,14 +156,17 @@ final class AIBackgroundIndexer {
                 let fileName = (path as NSString).lastPathComponent
                 // 重读头部 + 脱敏在后台线程(不阻塞主线程);拿不到内容(无权限 / 二进制 / 被红线拦)→ 跳过。
                 let excerptTask = Task.detached(priority: .background) {
-                    AIBackgroundIndexer.redactedExcerpt(url: URL(fileURLWithPath: path), fileName: fileName)
+                    (excerpt: AIBackgroundIndexer.redactedExcerpt(url: URL(fileURLWithPath: path), fileName: fileName),
+                     apps: AIBackgroundIndexer.nonDefaultOpenApps(forPath: path))   // 推荐打开方式:非默认候选 App(纯元数据)
                 }
-                guard let excerpt = await excerptTask.value else { continue }
+                let probed = await excerptTask.value
+                guard let excerpt = probed.excerpt else { continue }
                 let kind = rec.type == .archive ? "archive" : "file"
                 guard let result = try? await AIVirtualFolderModelPlanner.fileSuggestion(
                     fileName: rec.fileName, kind: kind, roleTags: rec.roleTags,
                     languageHint: summary.languageHint, headings: summary.headings,
-                    fieldNames: summary.fieldNames, excerpt: excerpt),
+                    fieldNames: summary.fieldNames, excerpt: excerpt,
+                    candidateOpenApps: probed.apps),
                     !result.summary.isEmpty || !result.actions.isEmpty else { continue }
                 AIBackgroundIndexStore.shared.applyModelSuggestion(
                     recordID: rec.id, summary: result.summary, actions: result.actions)
@@ -184,6 +188,28 @@ final class AIBackgroundIndexer {
         let redacted = AISensitiveRedactor.redact(raw)
         let trimmed = redacted.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
+    }
+
+    /// **推荐打开方式**:查一个文件的「**非默认**」候选打开 App(LaunchServices 元数据,**不读内容**)。默认双击就能
+    /// 开 → 不进建议;只把非默认候选喂给模型挑(用户:非默认才进 suggestion,「不然脱裤子放屁」)。返回
+    /// `(bundleID, 显示名)`,去掉默认 App、去重、封顶 8 个。文件不存在 / 无候选 → 空数组。off-main 安全。
+    nonisolated static func nonDefaultOpenApps(forPath path: String) -> [(bundleID: String, name: String)] {
+        let url = URL(fileURLWithPath: path)
+        guard FileManager.default.fileExists(atPath: path) else { return [] }
+        let ws = NSWorkspace.shared
+        let defaultBundleID = ws.urlForApplication(toOpen: url).flatMap { Bundle(url: $0)?.bundleIdentifier }
+        var seen = Set<String>()
+        var out: [(bundleID: String, name: String)] = []
+        for appURL in ws.urlsForApplications(toOpen: url) {
+            guard let bundleID = Bundle(url: appURL)?.bundleIdentifier else { continue }
+            if let def = defaultBundleID, bundleID == def { continue }           // 去掉默认 App
+            guard seen.insert(bundleID).inserted else { continue }
+            let raw = FileManager.default.displayName(atPath: appURL.path)
+            let name = raw.hasSuffix(".app") ? String(raw.dropLast(4)) : raw
+            out.append((bundleID, name))
+            if out.count >= 8 { break }
+        }
+        return out
     }
 
     // MARK: - 只读元数据扫描(off-main;纯静态,不碰 UI 状态)
