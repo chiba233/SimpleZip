@@ -40,7 +40,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Select Xcode 26.5
         uses: maxim-lobanov/setup-xcode@v1
@@ -239,7 +239,7 @@ jobs:
           spctl --assess --type open --context context:primary-signature -vv "$DMG_PATH" || true
 
       - name: Upload DMG artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: SimpleZip-dmg
           path: artifacts/*.dmg
@@ -348,21 +348,20 @@ jobs:
           # 构造新 <item> 块。
           # sparkle:version 必须是 CFBundleVersion 同款单调递增整数（= BUILD_NUMBER），
           # sparkle:shortVersionString 才是 UI 文案，用 marketing 字符串。
-          NEW_ITEM=$(cat <<ITEM_EOF
-        <item>
-            <title>SimpleZip ${RELEASE_VERSION}</title>
-            <link>https://github.com/chiba233/SimpleZip/releases/tag/v${RELEASE_VERSION}</link>
-            <pubDate>${PUB_DATE}</pubDate>
-            <enclosure
-                url="${DOWNLOAD_URL}"
-                sparkle:version="${BUILD_NUMBER}"
-                sparkle:shortVersionString="${RELEASE_VERSION}"
-                ${SIGN_ATTRS}
-                ${CHANNEL_ATTR}
-                type="application/octet-stream"/>
-        </item>
-ITEM_EOF
-          )
+          NEW_ITEM="        <item>"
+          NEW_ITEM="${NEW_ITEM}"$'\n'"            <title>SimpleZip ${RELEASE_VERSION}</title>"
+          NEW_ITEM="${NEW_ITEM}"$'\n'"            <link>https://github.com/chiba233/SimpleZip/releases/tag/v${RELEASE_VERSION}</link>"
+          NEW_ITEM="${NEW_ITEM}"$'\n'"            <pubDate>${PUB_DATE}</pubDate>"
+          NEW_ITEM="${NEW_ITEM}"$'\n'"            <enclosure"
+          NEW_ITEM="${NEW_ITEM}"$'\n'"                url=\"${DOWNLOAD_URL}\""
+          NEW_ITEM="${NEW_ITEM}"$'\n'"                sparkle:version=\"${BUILD_NUMBER}\""
+          NEW_ITEM="${NEW_ITEM}"$'\n'"                sparkle:shortVersionString=\"${RELEASE_VERSION}\""
+          NEW_ITEM="${NEW_ITEM}"$'\n'"                ${SIGN_ATTRS}"
+          if [[ -n "$CHANNEL_ATTR" ]]; then
+            NEW_ITEM="${NEW_ITEM}"$'\n'"                ${CHANNEL_ATTR}"
+          fi
+          NEW_ITEM="${NEW_ITEM}"$'\n'"                type=\"application/octet-stream\"/>"
+          NEW_ITEM="${NEW_ITEM}"$'\n'"        </item>"
 
           # 从 origin/main 拿现有 appcast（tag push 时本地 checkout 的是 tag commit，
           # 不一定有 main 上最新的 appcast）。
@@ -371,17 +370,15 @@ ITEM_EOF
             EXISTING=/tmp/existing_appcast.xml
           else
             # 首次发布，无现有 appcast——用空壳。
-            cat > /tmp/existing_appcast.xml <<'EMPTY_EOF'
-<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
-    <channel>
-        <title>SimpleZip Updates</title>
-        <link>https://github.com/chiba233/SimpleZip</link>
-        <description>SimpleZip macOS release feed</description>
-        <language>en</language>
-    </channel>
-</rss>
-EMPTY_EOF
+            printf '%s\n' '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' \
+              '<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">' \
+              '    <channel>' \
+              '        <title>SimpleZip Updates</title>' \
+              '        <link>https://github.com/chiba233/SimpleZip</link>' \
+              '        <description>SimpleZip macOS release feed</description>' \
+              '        <language>en</language>' \
+              '    </channel>' \
+              '</rss>' > /tmp/existing_appcast.xml
             EXISTING=/tmp/existing_appcast.xml
           fi
 
