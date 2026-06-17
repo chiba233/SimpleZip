@@ -2647,6 +2647,8 @@
 "settings.ai.background.indexPower.saver" = "Power Saver";
 "settings.ai.background.indexPower.normal" = "Normal";
 "settings.ai.background.indexPower.highPower" = "High Power";
+"settings.ai.suggestion.title" = "Show AI Suggestions";
+"settings.ai.suggestion.desc" = "Show inline AI suggestions on files in the browser — a one-line summary and suggested actions. Turning this off also stops the background auto-summary.";
 "settings.ai.background.level.off" = "Off";
 "settings.ai.background.level.powerSaver" = "Power saver";
 "settings.ai.background.level.balanced" = "Balanced";

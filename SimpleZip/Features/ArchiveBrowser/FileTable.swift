@@ -669,10 +669,11 @@ struct FileNSOutlineView: NSViewRepresentable {
 
         /// 0.4.5 #80:文件行展开后的 **AI 抽屉**。**拒绝假AI**:只读后台**端上模型**产出的缓存(一句话摘要 + 模型挑的
         /// 建议动作),**没有任何写死动作**(以前的「打开/测试」固定项是假 AI,已删)。模型没产出 → `[]`(不展开)。
-        /// 抽屉内容 = [一句话摘要行] + [模型建议动作行…]。门控 = AI 主开关 + 非折叠首卷(避免和分卷子级打架)。
+        /// 抽屉内容 = [一句话摘要行] + [模型建议动作行…]。门控 = AI 主开关 + **AI 建议子开关** + 非折叠首卷。
         private func loadedSuggestionChildren(of node: FileOutlineNode) -> [FileOutlineNode] {
             if let cached = node.suggestionChildren { return cached }
-            guard AppPreferences.aiAssistantEnabled, node.volumeChildren == nil, let item = node.fileItem,
+            guard AppPreferences.aiAssistantEnabled, AppPreferences.aiSuggestionEnabled,
+                  node.volumeChildren == nil, let item = node.fileItem,
                   let drawer = AIWorkspaceNodeActions.fileBrowserDrawer(for: item) else {
                 node.suggestionChildren = []
                 return []

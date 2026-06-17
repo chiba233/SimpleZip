@@ -346,6 +346,9 @@ enum AppPreferences {
         /// 0.4.4 macOS 26 AI:AI 报告助手主开关(总结风险 / 解释失败 / 建议标签 / Issue 草稿)。默认 true;
         /// 实际入口还要 macOS 26+ 且系统模型 available 才出现 —— 关掉则所有 AI 入口隐藏。
         nonisolated static let aiAssistantEnabled = "aiAssistantEnabled"
+        /// 0.4.5:AI 建议子开关(文件浏览器抽屉里的一句话摘要 + 建议动作)。默认 true,**受 AI 主开关再门控**。
+        /// 关掉 → 抽屉不显示 **且** 后台自动总结模块(`generateFileSuggestionsIfEnabled`)停跑。
+        nonisolated static let aiSuggestionEnabled = "aiSuggestionEnabled"
         /// 0.4.5 #89:侧边栏是否显示后台发现的推荐 AI 工作区(白皮书 4513「允许侧边栏显示推荐工作区」)。
         /// 关闭后只显示用户创建的 AI 工作区。默认 true。
         nonisolated static let aiSidebarShowRecommended = "aiSidebarShowRecommended"
@@ -441,6 +444,12 @@ enum AppPreferences {
     /// 0.4.4 macOS 26 AI:AI 报告助手主开关。默认 true;入口另需 macOS 26 + 模型 available。
     nonisolated static var aiAssistantEnabled: Bool {
         defaultTrueBool(forKey: Key.aiAssistantEnabled)
+    }
+
+    /// 0.4.5:AI 建议子开关(默认 true)。**有效与否还要 AI 主开关开**(`aiAssistantEnabled && aiSuggestionEnabled`)。
+    /// 关掉 → 文件浏览器 AI 抽屉不显示 + 后台自动总结模块停跑。
+    nonisolated static var aiSuggestionEnabled: Bool {
+        defaultTrueBool(forKey: Key.aiSuggestionEnabled)
     }
 
     /// 0.4.5 #89:侧边栏显示后台发现的推荐 AI 工作区(白皮书 4513)。默认 true。
@@ -1070,6 +1079,7 @@ enum AppPreferences {
         Key.spotlightIndexingEnabled,
         Key.spotlightIndexingPower,
         Key.aiAssistantEnabled,
+        Key.aiSuggestionEnabled,
         Key.aiSidebarShowRecommended,
         Key.aiMaxRecommendedWorkspaces,
         Key.aiBackgroundActivityLevel,
@@ -1189,6 +1199,7 @@ enum AppPreferences {
         v[Key.spotlightIndexingEnabled] = spotlightIndexingEnabled
         v[Key.spotlightIndexingPower] = spotlightIndexingPowerRaw
         v[Key.aiAssistantEnabled] = aiAssistantEnabled
+        v[Key.aiSuggestionEnabled] = aiSuggestionEnabled
         v[Key.aiSidebarShowRecommended] = aiSidebarShowRecommended
         v[Key.aiMaxRecommendedWorkspaces] = aiMaxRecommendedWorkspaces
         v[Key.aiBackgroundActivityLevel] = aiBackgroundActivityLevel.rawValue

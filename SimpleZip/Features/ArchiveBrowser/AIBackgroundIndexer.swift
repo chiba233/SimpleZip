@@ -135,7 +135,9 @@ final class AIBackgroundIndexer {
     func generateFileSuggestionsIfEnabled() {
         guard #available(macOS 26.0, *) else { return }
         let store = AIBackgroundIndexStore.shared
-        guard !suggestionRunning, store.contentPrereadEnabled, AIReportAssistant.isReady,
+        // AI 建议子开关关 → 自动总结模块停跑(用户:关了 AI 建议把自动总结一起关)。
+        guard !suggestionRunning, AppPreferences.aiSuggestionEnabled,
+              store.contentPrereadEnabled, AIReportAssistant.isReady,
               let budget = store.budget else { return }
         let now = Date()
         let candidates = AIPrereadSelection.selectForModelSuggestion(

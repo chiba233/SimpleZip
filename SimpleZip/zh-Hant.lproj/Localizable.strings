@@ -2570,6 +2570,8 @@
 "settings.ai.background.indexPower.saver" = "省電";
 "settings.ai.background.indexPower.normal" = "普通";
 "settings.ai.background.indexPower.highPower" = "高耗能";
+"settings.ai.suggestion.title" = "顯示 AI 建議";
+"settings.ai.suggestion.desc" = "在檔案瀏覽器裡為檔案顯示行內 AI 建議:一句話摘要和建議動作。關掉也會停止後台自動摘要。";
 "settings.ai.background.level.off" = "關閉";
 "settings.ai.background.level.powerSaver" = "省電";
 "settings.ai.background.level.balanced" = "平衡";

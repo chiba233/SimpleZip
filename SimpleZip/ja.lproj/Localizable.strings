@@ -2570,6 +2570,8 @@
 "settings.ai.background.indexPower.saver" = "省電力";
 "settings.ai.background.indexPower.normal" = "標準";
 "settings.ai.background.indexPower.highPower" = "高消費電力";
+"settings.ai.suggestion.title" = "AI 提案を表示";
+"settings.ai.suggestion.desc" = "ファイルにインラインの AI 提案(一文の要約とおすすめ操作)を表示します。オフにするとバックグラウンドの自動要約も停止します。";
 "settings.ai.background.level.off" = "オフ";
 "settings.ai.background.level.powerSaver" = "省電力";
 "settings.ai.background.level.balanced" = "バランス";

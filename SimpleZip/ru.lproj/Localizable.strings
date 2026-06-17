@@ -2568,6 +2568,8 @@
 "settings.ai.background.indexPower.saver" = "Энергосбережение";
 "settings.ai.background.indexPower.normal" = "Обычная";
 "settings.ai.background.indexPower.highPower" = "Высокая мощность";
+"settings.ai.suggestion.title" = "Показывать предложения ИИ";
+"settings.ai.suggestion.desc" = "Показывает встроенные предложения ИИ для файлов — однострочную сводку и предлагаемые действия. При отключении также останавливается фоновое автосуммирование.";
 "settings.ai.background.level.off" = "Выкл.";
 "settings.ai.background.level.powerSaver" = "Энергосбережение";
 "settings.ai.background.level.balanced" = "Сбалансированно";

@@ -2569,6 +2569,8 @@
 "settings.ai.background.indexPower.saver" = "절전";
 "settings.ai.background.indexPower.normal" = "보통";
 "settings.ai.background.indexPower.highPower" = "고성능";
+"settings.ai.suggestion.title" = "AI 제안 표시";
+"settings.ai.suggestion.desc" = "파일에 인라인 AI 제안(한 줄 요약과 추천 동작)을 표시합니다. 끄면 백그라운드 자동 요약도 중지됩니다.";
 "settings.ai.background.level.off" = "끔";
 "settings.ai.background.level.powerSaver" = "절전";
 "settings.ai.background.level.balanced" = "균형";

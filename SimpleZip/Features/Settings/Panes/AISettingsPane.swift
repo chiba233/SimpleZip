@@ -15,6 +15,8 @@ import SwiftUI
 struct AISettingsPane: View {
     /// AI 报告助手主开关。关 → 主界面所有 AI 入口隐藏(各处读 `AppPreferences.aiAssistantEnabled` / `AIReportAssistant.isReady`)。
     @AppStorage(AppPreferences.Key.aiAssistantEnabled) private var aiAssistant = true
+    /// AI 建议子开关。关 → 文件浏览器 AI 抽屉不显示 + 后台自动总结模块停跑。
+    @AppStorage(AppPreferences.Key.aiSuggestionEnabled) private var aiSuggestion = true
 
     var body: some View {
         Form {
@@ -31,6 +33,15 @@ struct AISettingsPane: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
+                }
+                // AI 建议子开关(主开关开启时才显示)。关 → 文件浏览器抽屉不显示 + 后台自动总结停跑。
+                if aiAssistant {
+                    SettingsToggleRow(
+                        title: L10n.text("settings.ai.suggestion.title"),
+                        description: L10n.text("settings.ai.suggestion.desc"),
+                        systemImage: "text.line.first.and.arrowtriangle.forward", iconTint: .purple,
+                        isOn: $aiSuggestion
+                    )
                 }
             }
             .settingsAnchor("automation.ai")

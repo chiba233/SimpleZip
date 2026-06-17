@@ -2568,6 +2568,8 @@
 "settings.ai.background.indexPower.saver" = "ประหยัดพลังงาน";
 "settings.ai.background.indexPower.normal" = "ปกติ";
 "settings.ai.background.indexPower.highPower" = "ใช้พลังงานสูง";
+"settings.ai.suggestion.title" = "แสดงข้อเสนอแนะ AI";
+"settings.ai.suggestion.desc" = "แสดงข้อเสนอแนะ AI แบบอินไลน์บนไฟล์ — สรุปบรรทัดเดียวและการกระทำที่แนะนำ การปิดจะหยุดการสรุปอัตโนมัติเบื้องหลังด้วย";
 "settings.ai.background.level.off" = "ปิด";
 "settings.ai.background.level.powerSaver" = "ประหยัดพลังงาน";
 "settings.ai.background.level.balanced" = "สมดุล";

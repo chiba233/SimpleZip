@@ -2568,6 +2568,8 @@
 "settings.ai.background.indexPower.saver" = "Energiesparen";
 "settings.ai.background.indexPower.normal" = "Normal";
 "settings.ai.background.indexPower.highPower" = "Hohe Leistung";
+"settings.ai.suggestion.title" = "KI-Vorschläge anzeigen";
+"settings.ai.suggestion.desc" = "Zeigt Inline-KI-Vorschläge zu Dateien an – eine einzeilige Zusammenfassung und vorgeschlagene Aktionen. Beim Ausschalten stoppt auch die automatische Zusammenfassung im Hintergrund.";
 "settings.ai.background.level.off" = "Aus";
 "settings.ai.background.level.powerSaver" = "Energiesparen";
 "settings.ai.background.level.balanced" = "Ausgewogen";

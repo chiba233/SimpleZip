@@ -2566,6 +2566,8 @@
 "settings.ai.background.indexPower.saver" = "Économie d'énergie";
 "settings.ai.background.indexPower.normal" = "Normal";
 "settings.ai.background.indexPower.highPower" = "Hautes performances";
+"settings.ai.suggestion.title" = "Afficher les suggestions IA";
+"settings.ai.suggestion.desc" = "Affiche des suggestions IA en ligne sur les fichiers : un résumé d'une ligne et des actions suggérées. Le désactiver arrête aussi le résumé automatique en arrière-plan.";
 "settings.ai.background.level.off" = "Désactivé";
 "settings.ai.background.level.powerSaver" = "Économie d'énergie";
 "settings.ai.background.level.balanced" = "Équilibré";
