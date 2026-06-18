@@ -316,7 +316,8 @@ jobs:
 
       # 仅在确认发布的路径里更新 Sparkle appcast.xml ——
       # 「手动触发 + 不勾选 publish」时不会动 main 的 docs/appcast.xml。
-      # 新 item 追加到现有 feed（保留历史版本），beta 发布带 sparkle:channel="beta"。
+      # stable：追加历史 item；beta：滚动替换（只保留最新一个 beta item）。
+      # beta channel 用 <sparkle:channel>beta</sparkle:channel> item 子节点，不是 enclosure 属性。
       # enclosure 上的 sparkle:edSignature + length 来自上一步 sign_update（v0.1.10 起）。
       - name: Update Sparkle appcast.xml
         if: steps.release.outputs.publish == 'true'
@@ -338,18 +339,15 @@ jobs:
             exit 1
           fi
 
-          # beta 发布在 item 上加 sparkle:channel="beta"，stable 不加。
-          # Sparkle 客户端只有 opt-in beta channel 的用户才会看到 beta item。
-          CHANNEL_ATTR=""
-          if [[ "$IS_BETA" == "true" ]]; then
-            CHANNEL_ATTR='sparkle:channel="beta"'
-          fi
-
           # 构造新 <item> 块。
+          # beta channel 用 item 子节点 <sparkle:channel>beta</sparkle:channel>，不是 enclosure 属性。
           # sparkle:version 必须是 CFBundleVersion 同款单调递增整数（= BUILD_NUMBER），
           # sparkle:shortVersionString 才是 UI 文案，用 marketing 字符串。
           NEW_ITEM="        <item>"
           NEW_ITEM="${NEW_ITEM}"$'\n'"            <title>SimpleZip ${RELEASE_VERSION}</title>"
+          if [[ "$IS_BETA" == "true" ]]; then
+            NEW_ITEM="${NEW_ITEM}"$'\n'"            <sparkle:channel>beta</sparkle:channel>"
+          fi
           NEW_ITEM="${NEW_ITEM}"$'\n'"            <link>https://github.com/chiba233/SimpleZip/releases/tag/v${RELEASE_VERSION}</link>"
           NEW_ITEM="${NEW_ITEM}"$'\n'"            <pubDate>${PUB_DATE}</pubDate>"
           NEW_ITEM="${NEW_ITEM}"$'\n'"            <enclosure"
@@ -357,9 +355,6 @@ jobs:
           NEW_ITEM="${NEW_ITEM}"$'\n'"                sparkle:version=\"${BUILD_NUMBER}\""
           NEW_ITEM="${NEW_ITEM}"$'\n'"                sparkle:shortVersionString=\"${RELEASE_VERSION}\""
           NEW_ITEM="${NEW_ITEM}"$'\n'"                ${SIGN_ATTRS}"
-          if [[ -n "$CHANNEL_ATTR" ]]; then
-            NEW_ITEM="${NEW_ITEM}"$'\n'"                ${CHANNEL_ATTR}"
-          fi
           NEW_ITEM="${NEW_ITEM}"$'\n'"                type=\"application/octet-stream\"/>"
           NEW_ITEM="${NEW_ITEM}"$'\n'"        </item>"
 
@@ -382,13 +377,21 @@ jobs:
             EXISTING=/tmp/existing_appcast.xml
           fi
 
-          # 如果该版本已有 item，先删掉旧的（幂等：重发同版本不会重复）。
-          awk -v ver="$RELEASE_VERSION" '
+          # 删除 item 规则：
+          #   1. 同版本 item 先删（幂等：重发同版本不会重复）。
+          #   2. beta 发布时：删掉所有旧 beta item（滚动 feed，只保留最新一个 beta）。
+          #      兼容 enclosure 属性写法（历史污染清理）和 item 子节点两种形式。
+          awk -v ver="$RELEASE_VERSION" -v is_beta="$IS_BETA" '
             /<item>/ { buf=$0; in_item=1; next }
             in_item { buf=buf "\n" $0 }
             in_item && /<\/item>/ {
               in_item=0
-              if (buf !~ "sparkle:shortVersionString=\"" ver "\"") print buf
+              if (buf ~ "sparkle:shortVersionString=\"" ver "\"") { next }
+              if (is_beta == "true" && (
+                buf ~ "<sparkle:channel>beta</sparkle:channel>" ||
+                buf ~ "sparkle:channel=\"beta\""
+              )) { next }
+              print buf
               next
             }
             !in_item { print }
@@ -404,6 +407,12 @@ jobs:
             }
             { print }
           ' /tmp/appcast_deduped.xml > docs/appcast.xml
+
+          # 防呆：channel 必须是 item 子节点，不能是 enclosure 属性（历史写法，Sparkle 不识别）。
+          if grep -q 'sparkle:channel="' docs/appcast.xml; then
+            echo "ERROR: invalid Sparkle channel syntax detected: use <sparkle:channel>beta</sparkle:channel> under <item>, not an enclosure attribute." >&2
+            exit 1
+          fi
 
           echo "Updated docs/appcast.xml for v${RELEASE_VERSION} (beta=$IS_BETA)"
           cat docs/appcast.xml
