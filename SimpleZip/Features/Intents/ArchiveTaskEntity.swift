@@ -168,13 +168,19 @@ enum ArchiveTaskSpotlightIndexer {
         }
     }
 
+    /// DevTools 全量 dump 用:返回当前会捐献的全部任务条目(与 performReindex 同源)。
     @available(macOS 15.0, *)
-    private static func performReindex() async -> Bool {
-        // #73:手动 CSSearchableItem,点击 → 开活动中心定位到该任务。
-        let items = ActivityHistoryStore.snapshot().map { snapshot -> CSSearchableItem in
+    static func dumpItems() -> [CSSearchableItem] {
+        ActivityHistoryStore.snapshot().map { snapshot in
             makeSpotlightItem(route: .task(id: snapshot.id, categoryRaw: snapshot.category.rawValue),
                               attributeSet: ArchiveTaskEntity(snapshot: snapshot).attributeSet)
         }
+    }
+
+    @available(macOS 15.0, *)
+    private static func performReindex() async -> Bool {
+        // #73:手动 CSSearchableItem,点击 → 开活动中心定位到该任务。
+        let items = dumpItems()
         let index = CSSearchableIndex.default()
         do {
             try? await index.deleteAppEntities(ofType: ArchiveTaskEntity.self)  // #73 迁移:清旧 indexAppEntities 残留

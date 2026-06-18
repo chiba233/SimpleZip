@@ -185,13 +185,19 @@ enum ReleasePackageSpotlightIndexer {
         }
     }
 
+    /// DevTools 全量 dump 用:返回**当前会捐献的全部条目**(与 performReindex 同源,不漂移)。不门控开关 —— 调试要看真实集合。
     @available(macOS 15.0, *)
-    private static func performReindex() async -> Bool {
-        // #73:手动 CSSearchableItem(uniqueIdentifier 由 SpotlightRoute 编码),点击能解回来跳转(在 Finder 显示产物)。
-        let items = ReleaseLedgerStore().loadAll().map { entry -> CSSearchableItem in
+    static func dumpItems() -> [CSSearchableItem] {
+        ReleaseLedgerStore().loadAll().map { entry in
             makeSpotlightItem(route: .release(artifactPath: entry.artifactPath),
                               attributeSet: ReleasePackageEntity(entry: entry).attributeSet)
         }
+    }
+
+    @available(macOS 15.0, *)
+    private static func performReindex() async -> Bool {
+        // #73:手动 CSSearchableItem(uniqueIdentifier 由 SpotlightRoute 编码),点击能解回来跳转(在 Finder 显示产物)。
+        let items = dumpItems()
         let index = CSSearchableIndex.default()
         do {
             // #73 迁移:清掉旧 `indexAppEntities` 残留项(它们没有 domain,deleteSearchableItems 删不到 → 否则

@@ -297,13 +297,19 @@ nonisolated enum SettingsSpotlightIndexer {
         }
     }
 
+    /// DevTools 全量 dump 用:返回当前会捐献的全部设置条目(与 performReindex 同源)。
     @available(macOS 15.0, *)
-    private static func performReindex() async -> Bool {
-        // #73:手动 CSSearchableItem(uniqueIdentifier 编码 pane+锚点),点击 → 深链到设置那一项并高亮。
-        let items = SettingsCatalog.items.map { item -> CSSearchableItem in
+    static func dumpItems() -> [CSSearchableItem] {
+        SettingsCatalog.items.map { item in
             makeSpotlightItem(route: .setting(anchorID: item.id, paneRaw: item.pane.rawValue),
                               attributeSet: SettingEntity(item: item).attributeSet)
         }
+    }
+
+    @available(macOS 15.0, *)
+    private static func performReindex() async -> Bool {
+        // #73:手动 CSSearchableItem(uniqueIdentifier 编码 pane+锚点),点击 → 深链到设置那一项并高亮。
+        let items = dumpItems()
         let index = CSSearchableIndex.default()
         do {
             try? await index.deleteAppEntities(ofType: SettingEntity.self)  // #73 迁移:清旧 indexAppEntities 残留

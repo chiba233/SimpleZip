@@ -220,13 +220,19 @@ nonisolated enum CachedArchiveSpotlightIndexer {
         }
     }
 
+    /// DevTools 全量 dump 用:返回当前会捐献的全部归档条目(与 performReindex 同源)。
     @available(macOS 15.0, *)
-    private static func performReindex() async -> Bool {
-        // #73:手动 CSSearchableItem,点击 → 在浏览器里打开归档(根目录)。
-        let items = ArchiveListingCacheStore().loadAll().map { entry -> CSSearchableItem in
+    static func dumpItems() -> [CSSearchableItem] {
+        ArchiveListingCacheStore().loadAll().map { entry in
             makeSpotlightItem(route: .archive(archivePath: entry.archivePath),
                               attributeSet: CachedArchiveEntity(entry: entry).attributeSet)
         }
+    }
+
+    @available(macOS 15.0, *)
+    private static func performReindex() async -> Bool {
+        // #73:手动 CSSearchableItem,点击 → 在浏览器里打开归档(根目录)。
+        let items = dumpItems()
         let index = CSSearchableIndex.default()
         do {
             try? await index.deleteAppEntities(ofType: CachedArchiveEntity.self)  // #73 迁移:清旧 indexAppEntities 残留

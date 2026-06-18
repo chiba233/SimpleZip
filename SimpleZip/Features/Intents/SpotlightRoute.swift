@@ -167,6 +167,47 @@ enum SpotlightReindex {
             settings: SettingsCatalog.items.count + ActivitySpotlightCatalog.items.count
         )
     }
+
+    /// DevTools 全量 dump:**每一条**会捐献的 Spotlight item 的可读快照(各 indexer `dumpItems()` 汇总,不门控、与索引同源)。
+    /// 读 attributeSet 的关键字段 —— 给开发者看「到底进了什么」。隐藏调试区,含完整真实标识 / 标题 / 关键字。
+    @available(macOS 15.0, *)
+    static func dumpAllItems() -> [IndexedItemDump] {
+        let groups: [(String, [CSSearchableItem])] = [
+            ("release", ReleasePackageSpotlightIndexer.dumpItems()),
+            ("task", ArchiveTaskSpotlightIndexer.dumpItems()),
+            ("archive", CachedArchiveSpotlightIndexer.dumpItems()),
+            ("archiveFile", ArchiveFileSpotlightIndexer.dumpItems()),
+            ("setting", SettingsSpotlightIndexer.dumpItems()),
+            ("activity", ActivitySpotlightIndexer.dumpItems())
+        ]
+        return groups.flatMap { domainLabel, items in
+            items.map { item -> IndexedItemDump in
+                let a = item.attributeSet
+                return IndexedItemDump(
+                    domainLabel: domainLabel,
+                    domainIdentifier: item.domainIdentifier,
+                    uniqueIdentifier: item.uniqueIdentifier,
+                    title: a.title,
+                    displayName: a.displayName,
+                    contentDescription: a.contentDescription,
+                    keywords: a.keywords,
+                    path: a.path ?? a.contentURL?.path
+                )
+            }
+        }
+    }
+
+    /// dump 出来的单条 Spotlight item 可读快照(给 DevTools 复制 JSON)。
+    nonisolated struct IndexedItemDump: Encodable, Sendable {
+        let domainLabel: String
+        let domainIdentifier: String?
+        let uniqueIdentifier: String
+        let title: String?
+        let displayName: String?
+        let contentDescription: String?
+        let keywords: [String]?
+        let path: String?
+    }
 }
 
 /// 把一个路由 + 属性集打成手动 CSSearchableItem(uniqueIdentifier 我说了算,点击能解回来)。
@@ -270,9 +311,10 @@ enum ActivitySpotlightIndexer {
         }
     }
 
+    /// DevTools 全量 dump 用:返回当前会捐献的全部活动选项条目(与 performReindex 同源)。
     @available(macOS 15.0, *)
-    private static func performReindex() async -> Bool {
-        let items = ActivitySpotlightCatalog.items.map { item -> CSSearchableItem in
+    static func dumpItems() -> [CSSearchableItem] {
+        ActivitySpotlightCatalog.items.map { item in
             let set = CSSearchableItemAttributeSet(contentType: .content)
             let name = L10n.text(item.titleKey)
             set.title = name
@@ -282,6 +324,11 @@ enum ActivitySpotlightIndexer {
             return makeSpotlightItem(route: .activity(paneRouteKey: item.paneRouteKey, itemID: item.itemID),
                                      attributeSet: set)
         }
+    }
+
+    @available(macOS 15.0, *)
+    private static func performReindex() async -> Bool {
+        let items = dumpItems()
         let index = CSSearchableIndex.default()
         do {
             try await index.deleteSearchableItems(withDomainIdentifiers: [SpotlightRoute.Domain.activity])

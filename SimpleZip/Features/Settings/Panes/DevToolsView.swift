@@ -185,11 +185,11 @@ struct DevToolsView: View {
                         ) {
                             copyAIIndexData()
                         }
-                        // Spotlight 捐献快照(各域计数 + 注明 AI 建议不在 Spotlight)——隐藏调试区,中文硬编码。
+                        // Spotlight 全量捐献集复制(每条 item 的标识/标题/关键字)——隐藏调试区,中文硬编码。
                         actionRow(
                             "magnifyingglass.circle",
-                            "复制 Spotlight 索引数据",
-                            "各域计数(发布 / 任务 / 归档 / 归档内文件 / 设置)+ 说明,排查 Spotlight 是否进了索引。"
+                            "复制 Spotlight 数据集(完整)",
+                            "导出每一条会捐献给 Spotlight 的 item(标识 / 标题 / 描述 / 关键字),逐条排查索引内容。"
                         ) {
                             copySpotlightData()
                         }
@@ -554,17 +554,21 @@ struct DevToolsView: View {
     /// 注明 AI 建议 / AI 文件索引**不在 Spotlight**(私有派生数据,在「复制 AI 索引数据」里)—— 直接回答「有没有进索引」。
     private func copySpotlightData() {
         Task { @MainActor in
-            let generatedAt = Date()
-            let dump = await Task.detached(priority: .utility) { () -> DevToolsSpotlightDump in
-                let stats = SpotlightReindex.stats()
-                return DevToolsSpotlightDump(
-                    generatedAt: generatedAt,
-                    releases: stats.releases, tasks: stats.tasks, archives: stats.archives,
-                    archiveFiles: stats.archiveFiles, settings: stats.settings,
-                    total: stats.releases + stats.tasks + stats.archives + stats.archiveFiles + stats.settings,
-                    note: "上界估计(实际进系统索引为异步)。AI 建议 / AI 文件索引不进 Spotlight,属私有派生数据,见「复制 AI 索引数据」。"
-                )
-            }.value
+            guard #available(macOS 15.0, *) else {
+                flash("需要 macOS 15 才能导出 Spotlight 数据集")
+                return
+            }
+            // 全量 dump:每一条会捐献的 item(与索引同源,含完整真实标识 / 标题 / 关键字)。隐藏调试区,无需脱敏。
+            let items = SpotlightReindex.dumpAllItems()
+            let countsByDomain = Dictionary(grouping: items, by: { $0.domainLabel }).mapValues(\.count)
+            let dump = DevToolsSpotlightDump(
+                generatedAt: Date(),
+                total: items.count,
+                countsByDomain: countsByDomain,
+                note: "每条 = 一个会捐献给 Spotlight 的 CSSearchableItem(uniqueIdentifier 是 SpotlightRoute,点击可解回)。"
+                    + "AI 建议 / AI 文件索引不在此列,属私有派生数据,见「复制 AI 索引数据」。",
+                items: items
+            )
             let encoder = JSONEncoder()
             encoder.dateEncodingStrategy = .iso8601
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -574,7 +578,7 @@ struct DevToolsView: View {
             }
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(text, forType: .string)
-            flash("已复制 Spotlight 索引数据")
+            flash("已复制 Spotlight 数据集(\(items.count) 条)")
         }
     }
 
@@ -605,16 +609,13 @@ private nonisolated struct DevToolsArchiveCacheProbe {
     let memory: DevToolsAIDataSnapshot.ArchiveMemory
 }
 
-/// 「复制 Spotlight 索引数据」的导出体:各域计数 + 说明(隐藏调试区)。
+/// 「复制 Spotlight 索引数据」的导出体:总数 + 各域计数 + 说明 + **每条 item 的完整快照**(隐藏调试区)。
 private nonisolated struct DevToolsSpotlightDump: Encodable {
     let generatedAt: Date
-    let releases: Int
-    let tasks: Int
-    let archives: Int
-    let archiveFiles: Int
-    let settings: Int
     let total: Int
+    let countsByDomain: [String: Int]
     let note: String
+    let items: [SpotlightReindex.IndexedItemDump]
 }
 
 private nonisolated struct DevToolsAIDataSnapshot: Encodable {

@@ -246,12 +246,15 @@ nonisolated enum ArchiveFileSpotlightIndexer {
     }
 
     /// 全量重建。返回是否成功(成功才记录指纹 → 失败的轮次下次冷启动会重试,不会被错误地跳过)。
+    /// DevTools 全量 dump 用:返回当前会捐献的全部归档内文件条目(与 performReindex 同源,逐包封顶)。
+    @available(macOS 15.0, *)
+    static func dumpItems() -> [CSSearchableItem] {
+        ArchiveListingCacheStore().loadAll().flatMap { makeItems(for: $0) }
+    }
+
     @available(macOS 15.0, *)
     private static func performReindex() async -> Bool {
-        var items: [CSSearchableItem] = []
-        for archive in ArchiveListingCacheStore().loadAll() {
-            items.append(contentsOf: makeItems(for: archive))
-        }
+        let items = dumpItems()
         let index = CSSearchableIndex.default()
         do {
             try? await index.deleteAppEntities(ofType: ArchiveFileEntity.self)  // #73 迁移:清旧 indexAppEntities 残留
