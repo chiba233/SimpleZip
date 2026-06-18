@@ -56,6 +56,7 @@ nonisolated enum AISuggestionAction: Codable, Equatable, Sendable {
     case createArchive(paths: [String])
     case createArchiveFromSuggestion(paths: [String], suggestedFormat: String?, suggestedPresetID: String?)
     case testArchive(path: String)
+    case testArchives(paths: [String])
     case testArchiveForEvidence(sourceRef: AIContextSourceRef)
     case convertArchive(path: String)
     case inspectRelease(path: String)
@@ -89,7 +90,7 @@ nonisolated enum AISuggestionAction: Codable, Equatable, Sendable {
             return .safe
         // 启动后端任务 / 打开写盘表单 / 复制真实文件 / 装 App / 删工作区 —— 需确认,只能打开现有流程。
         case .calculateHash, .calculateHashForEvidence, .createArchive, .createArchiveFromSuggestion,
-             .testArchive, .testArchiveForEvidence, .convertArchive, .inspectRelease,
+             .testArchive, .testArchives, .testArchiveForEvidence, .convertArchive, .inspectRelease,
              .refreshArchiveListingForEvidence, .copySourceRefsToFolder, .installAppFromDiskImage,
              .deleteAIWorkspace:
             return AISuggestionSafety(requiresConfirmation: true,

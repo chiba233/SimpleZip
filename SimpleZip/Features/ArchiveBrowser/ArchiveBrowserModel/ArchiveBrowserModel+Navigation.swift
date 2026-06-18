@@ -64,6 +64,8 @@ extension ArchiveBrowserModel {
             NSPasteboard.general.setString(text, forType: .string)
         case .testArchive(let path):
             testArchives(at: [URL(fileURLWithPath: path)])
+        case .testArchives(let paths):
+            testArchives(at: paths.map { URL(fileURLWithPath: $0) })
         case .createArchive(let paths), .createArchiveFromSuggestion(let paths, _, _):
             createArchive(fromFinderURLs: paths.map { URL(fileURLWithPath: $0) })
         case .inspectRelease(let path):

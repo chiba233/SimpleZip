@@ -43,6 +43,7 @@ import Testing
             .createArchive(paths: ["/x"]),
             .createArchiveFromSuggestion(paths: ["/x"], suggestedFormat: "7z", suggestedPresetID: nil),
             .testArchive(path: "/x.7z"),
+            .testArchives(paths: ["/x.7z", "/y.zip"]),
             .testArchiveForEvidence(sourceRef: ref),
             .convertArchive(path: "/x.zip"),
             .inspectRelease(path: "/x"),
@@ -108,7 +109,8 @@ import Testing
         let actions: [AISuggestionAction] = [
             .splitAIWorkspace(workspaceID: ws, groups: [group]),
             .deleteSourceRefsFromDisk(sourceRefs: [ref]),
-            .calculateHash(paths: ["/x"], algorithms: ["sha256", "crc32"])
+            .calculateHash(paths: ["/x"], algorithms: ["sha256", "crc32"]),
+            .testArchives(paths: ["/x.7z", "/y.zip"])
         ]
         for a in actions {
             let data = try JSONEncoder().encode(a)

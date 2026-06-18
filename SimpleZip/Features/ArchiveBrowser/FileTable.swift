@@ -14,6 +14,7 @@ import UniformTypeIdentifiers
 /// 收进一个默认折叠的「隐藏文件」分组节点，点开才展开。保留 macOS 原生的拖动多选手感。
 struct FileTable: View {
     @ObservedObject var model: ArchiveBrowserModel
+    @ObservedObject private var backgroundStore = AIBackgroundIndexStore.shared
     @AppStorage(AppPreferences.Key.showFileSizeColumn) private var showSizeColumn = true
     @AppStorage(AppPreferences.Key.showFileTypeColumn) private var showTypeColumn = true
     @AppStorage(AppPreferences.Key.showFileApplicationColumn) private var showApplicationColumn = true
@@ -38,7 +39,7 @@ struct FileTable: View {
         // A17：分组 / 密度的实际值由下面的 coordinator 直接读 `AppPreferences`（所以把它们传给 representable
         // 是死参，已删）。但**必须在 body 里读到这几个 @AppStorage**，否则在 Settings 改它们时不再触发本视图
         // 重渲染 → updateNSView 不跑 → 表格不重新分组 / 不调行高。这行丢弃读纯粹维持那条重绘依赖，别删。
-        let _ = (fileGroupingScope, fileGroupBy, hiddenWithGrouping, rowDensity)
+        let _ = (fileGroupingScope, fileGroupBy, hiddenWithGrouping, rowDensity, backgroundStore.folderGroupsGeneration)
         FileNSOutlineView(
             model: model,
             showSizeColumn: showSizeColumn,
@@ -63,6 +64,13 @@ struct FileTable: View {
 /// 区块涵盖两种来源：Group By 的分类组（如「图片」）和 #49 的「隐藏文件」组。
 /// 用 class（引用类型）是因为 NSOutlineView 按对象身份跟踪展开状态 —— 区块实例按 sectionKey 跨 reload 复用。
 @MainActor
+struct AIGroupRow {
+    let title: String
+    let action: AIWorkspaceNodeAction
+    let memberPaths: [String]
+}
+
+@MainActor
 final class FileOutlineNode {
     enum Kind {
         case file(FileItem)
@@ -71,6 +79,8 @@ final class FileOutlineNode {
         case suggestion(AIWorkspaceNodeAction)
         /// AI 抽屉里的**一句话摘要行**(②b:端上模型对这个文件的一句话定性,抽屉第一行)。非动作、不可点。
         case summary(String)
+        /// 文件夹级 AI 批量组建议代表行。无 fileItem,真实成员文件仍留在顶层,展开后仅重复展示成员 + 动作行。
+        case aiGroup(AIGroupRow)
     }
 
     let kind: Kind
@@ -117,6 +127,11 @@ final class FileOutlineNode {
         FileOutlineNode(kind: .summary(text), sectionKey: "", title: "", isHiddenSection: false)
     }
 
+    static func aiGroup(title: String, action: AIWorkspaceNodeAction, memberPaths: [String]) -> FileOutlineNode {
+        FileOutlineNode(kind: .aiGroup(AIGroupRow(title: title, action: action, memberPaths: memberPaths)),
+                        sectionKey: "", title: title, isHiddenSection: false)
+    }
+
     var fileItem: FileItem? {
         if case .file(let item) = kind { return item }
         return nil
@@ -134,8 +149,14 @@ final class FileOutlineNode {
         return nil
     }
 
-    /// 是否是 AI 抽屉里的「非文件行」(摘要行 + 建议动作行)—— 键盘上下可选,但不进 model.selection / 不拖拽。
-    var isDrawerRow: Bool { suggestionAction != nil || summaryText != nil }
+    var aiGroupRow: AIGroupRow? {
+        if case .aiGroup(let row) = kind { return row }
+        return nil
+    }
+
+    /// 是否是 AI 抽屉里的「非文件行」(摘要行 + 建议动作行 + 文件夹组代表行)——
+    /// 键盘上下可选,但不进 model.selection / 不拖拽 / 右键走 AI 建议菜单。
+    var isDrawerRow: Bool { suggestionAction != nil || summaryText != nil || aiGroupRow != nil }
 
     var isSection: Bool {
         if case .section = kind { return true }
@@ -389,6 +410,8 @@ struct FileNSOutlineView: NSViewRepresentable {
             // 会改注册表但行已画出,算进指纹会让展开后的下一次 updateNSView 误触发全表 reload（闪烁）。
             hasher.combine(model.expandedChildrenGeneration)
             hasher.combine(AIBackgroundIndexStore.shared.fileIndexGeneration)
+            hasher.combine(AIBackgroundIndexStore.shared.folderGroupsGeneration)
+            for key in AIBackgroundIndexStore.shared.dislikedSuggestionKeys.sorted() { hasher.combine(key) }
             let contentSignature = hasher.finalize()
             guard contentSignature != lastContentSignature else { return }
 
@@ -494,7 +517,49 @@ struct FileNSOutlineView: NSViewRepresentable {
                 }
             }
 
+            appendAIGroupNodes(to: &topLevelNodes)
             sectionNodesByKey = reused
+        }
+
+        /// 把后台模型缓存的「同文件夹批量组」渲染成额外抽屉行。非破坏:真实成员文件仍留在顶层,
+        /// 这里仅追加一个可展开的 AI 建议代表行,展开后重复列出成员 + 尾部动作行。
+        private func appendAIGroupNodes(to nodes: inout [FileOutlineNode]) {
+            guard AppPreferences.aiAssistantEnabled, AppPreferences.aiSuggestionEnabled,
+                  case .folder(let folderURL) = model.mode else { return }
+            let folderPath = folderURL.standardizedFileURL.path
+            let store = AIBackgroundIndexStore.shared
+            let groups = store.folderGroups(forPath: folderPath)
+            guard !groups.isEmpty else { return }
+
+            let itemsByPath = Dictionary(
+                model.displayedFileItems.map { ($0.url.standardizedFileURL.path, $0) },
+                uniquingKeysWith: { first, _ in first }
+            )
+            for group in groups {
+                let memberItems = group.memberPaths.compactMap { itemsByPath[URL(fileURLWithPath: $0).standardizedFileURL.path] }
+                guard memberItems.count >= 2 else { continue }
+                let memberPaths = memberItems.map { $0.url.standardizedFileURL.path }
+                guard var action = AIWorkspaceNodeActions.folderGroupAction(
+                    actionToken: group.actionToken, memberPaths: memberPaths) else { continue }
+                let dislikeKey = AIBackgroundIndexStore.folderGroupDislikeKey(
+                    folderPath: folderPath, actionToken: group.actionToken, memberPaths: memberPaths)
+                guard !store.isSuggestionDisliked(dislikeKey) else { continue }
+                action.dislikeKey = dislikeKey
+
+                let rawTitle = group.title?.trimmingCharacters(in: .whitespacesAndNewlines)
+                let title: String
+                if let rawTitle, !rawTitle.isEmpty {
+                    title = rawTitle
+                } else {
+                    title = action.displayTitle ?? L10n.text(action.titleKey)
+                }
+                let node = FileOutlineNode.aiGroup(title: title, action: action, memberPaths: memberPaths)
+                var children = memberItems.map { FileOutlineNode.file($0) }
+                children.append(FileOutlineNode.suggestion(action))
+                node.volumeChildren = children
+                node.volumeBadgeCount = memberItems.count
+                nodes.append(node)
+            }
         }
 
         /// 某区块当前是否应展开。
@@ -719,6 +784,16 @@ struct FileNSOutlineView: NSViewRepresentable {
                 guard column == .name else { return nil }
                 return makeSuggestionCell(in: outlineView, owner: self, title: summary,
                                           iconName: "text.quote",
+                                          font: .systemFont(ofSize: density.textPointSize))
+            }
+
+            // 文件夹级 AI 分组代表行:只在 name 列画,用建议 cell 的淡色/反色逻辑,避免看起来像真实文件。
+            if let group = node.aiGroupRow {
+                guard column == .name else { return nil }
+                let itemCount = L10n.format("tasks.itemCount", node.volumeBadgeCount)
+                return makeSuggestionCell(in: outlineView, owner: self,
+                                          title: "\(group.title) · \(itemCount)",
+                                          iconName: group.action.systemImage,
                                           font: .systemFont(ofSize: density.textPointSize))
             }
 
@@ -1306,8 +1381,9 @@ struct FileNSOutlineView: NSViewRepresentable {
         /// AI 建议行的两项右键菜单:动作行 =「打开 + 我不喜欢」;摘要行 =「我不喜欢」(摘要无动作)。
         /// 「我不喜欢」**逐条**抑制(动作行用建议自带 key;摘要行用父文件的摘要 key),绝不全局封类。
         private func appendAISuggestionMenu(to menu: NSMenu, for node: FileOutlineNode) {
-            menuDrawerAction = node.suggestionAction?.action
-            menuDrawerDislikeKey = node.suggestionAction?.dislikeKey ?? summaryDislikeKey(forDrawerNode: node)
+            let drawerAction = node.suggestionAction ?? node.aiGroupRow?.action
+            menuDrawerAction = drawerAction?.action
+            menuDrawerDislikeKey = drawerAction?.dislikeKey ?? summaryDislikeKey(forDrawerNode: node)
             menuDrawerFeedback = drawerFeedbackContext(forDrawerNode: node)   // #8 跨表面反馈上下文
             if let action = menuDrawerAction {
                 let isCopy = {
@@ -1374,6 +1450,11 @@ struct FileNSOutlineView: NSViewRepresentable {
         @objc func doubleClick(_ sender: NSOutlineView) {
             let row = sender.clickedRow
             guard row >= 0, let node = sender.item(atRow: row) as? FileOutlineNode else { return }
+            if let group = node.aiGroupRow {
+                // 文件夹级 AI 分组代表行:双击 = 执行这组的批量建议动作。成员真实文件行仍照常可选 / 可拖。
+                model.dispatchSuggestion(group.action.action)
+                return
+            }
             if let suggestion = node.suggestionAction {
                 // AI 建议动作行:双击 = 派发动作(模型挑的:哈希 / 测试…),复用同一处派发。
                 if let fb = drawerFeedbackContext(forDrawerNode: node) {   // #8「点击学兴趣」正向信号

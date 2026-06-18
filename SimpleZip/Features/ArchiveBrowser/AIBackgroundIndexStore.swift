@@ -44,6 +44,8 @@ final class AIBackgroundIndexStore: ObservableObject {
     @Published private(set) var dislikedSuggestionKeys: Set<String>
     /// 文件夹批量分组建议缓存。key = 文件夹真实路径;空数组也表示「已评估,无建议」。
     private(set) var folderGroupsByPath: [String: [CachedFolderGroup]]
+    /// 文件夹分组缓存内容世代。FileTable 纳入内容指纹,让后台 pass 写缓存后追加组行,但不把字典设成 @Published。
+    private(set) var folderGroupsGeneration = 0
 
     private let defaults: UserDefaults
 
@@ -65,6 +67,16 @@ final class AIBackgroundIndexStore: ObservableObject {
 
     /// 一句话摘要行的抑制 key(整条摘要,不分 token)。
     nonisolated static func summaryDislikeKey(recordID: String) -> String { "\(recordID)\n__summary__" }
+
+    /// 文件夹级 AI 组建议的抑制 key:只压这一组(同一目录 + 同一动作 + 同一成员集合),不全局封掉动作 token。
+    nonisolated static func folderGroupDislikeKey(folderPath: String, actionToken: String, memberPaths: [String]) -> String {
+        let folder = normalizedFolderPath(folderPath)
+        let members = memberPaths
+            .map { URL(fileURLWithPath: $0).standardizedFileURL.path }
+            .sorted()
+            .joined(separator: "\n")
+        return "\(folder)\n__folderGroup__\n\(actionToken)\n\(members)"
+    }
 
     func isSuggestionDisliked(_ key: String) -> Bool { dislikedSuggestionKeys.contains(key) }
 
@@ -92,6 +104,7 @@ final class AIBackgroundIndexStore: ObservableObject {
     func setFolderGroups(_ groups: [CachedFolderGroup], forPath folderPath: String) {
         let key = Self.normalizedFolderPath(folderPath)
         folderGroupsByPath[key] = groups
+        folderGroupsGeneration += 1
         persistFolderGroups()
         objectWillChange.send()
     }
@@ -319,6 +332,7 @@ final class AIBackgroundIndexStore: ObservableObject {
     func clearFileIndex() {
         fileIndex = fileIndex.cleared()
         folderGroupsByPath = [:]
+        folderGroupsGeneration += 1
         persistIndex()
         persistFolderGroups()
         AIFeedbackStore.shared.clearAll()

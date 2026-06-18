@@ -76,6 +76,24 @@ enum AIWorkspaceNodeActions {
         return (summary, actions)
     }
 
+    /// 文件浏览器里后台缓存的「同文件夹批量组」动作。模型只给 token + memberIDs;路径由缓存回查后在这里安全合成。
+    static func folderGroupAction(actionToken: String, memberPaths: [String]) -> AIWorkspaceNodeAction? {
+        guard memberPaths.count >= 2 else { return nil }
+        switch actionToken {
+        case "hash":
+            return hash(memberPaths)
+        case "compress":
+            return compress(memberPaths, "aiWorkspace.node.compressGroup")
+        case "test":
+            let urls = memberPaths.map { URL(fileURLWithPath: $0) }
+            guard urls.allSatisfy({ ArchiveService.isSupportedArchive($0) }) else { return nil }
+            return .init(titleKey: "aiWorkspace.node.test", systemImage: "checkmark.seal",
+                         action: .testArchives(paths: memberPaths))
+        default:
+            return nil
+        }
+    }
+
     /// 把**模型挑的**结构化动作 + 文件路径安全合成一条建议行(模型不拼路径;token 必须在词表里且适用该 kind)。
     /// 带 payload 的动作(openWith→app bundleId、包内文件→entryPath…)由 App 据 payload 安全合成;模型只选不拼。
     private static func fileAction(_ action: AIFileSuggestedAction, path: String, kind: String,
