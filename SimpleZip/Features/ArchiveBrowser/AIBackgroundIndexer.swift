@@ -363,6 +363,12 @@ final class AIBackgroundIndexer {
                 guard let excerpt = await excerptTask.value else { continue }
                 let urls = AIURLCandidateExtractor.extract(from: excerpt, limit: 12)
                 guard !urls.isEmpty else { continue }
+                // 确定性高价值域名白名单 fast-path:命中(github/pypi/npm/Apple 文档…)直接写,跳过模型 —— 命中率高得多。
+                if let fastURL = urls.first(where: AIBackgroundIndexer.isHighValueURL) {
+                    AIBackgroundIndexStore.shared.applyURLOpenSuggestion(
+                        recordID: rec.id, url: fastURL, label: AIBackgroundIndexer.webPageLabel(for: fastURL))
+                    continue
+                }
                 guard let index = try? await AIVirtualFolderModelPlanner.urlOpenSuggestion(
                     fileName: rec.fileName, roleTags: rec.roleTags, urls: urls),
                     urls.indices.contains(index) else { continue }
@@ -371,6 +377,22 @@ final class AIBackgroundIndexer {
                     recordID: rec.id, url: url, label: AIBackgroundIndexer.webPageLabel(for: url))
             }
         }
+    }
+
+    /// 确定性高价值域名(官方代码托管 / 包仓库 / 官方文档)——这些 URL 出现在 README/依赖清单里几乎总值得给「打开网页」。
+    private static let highValueURLHosts: Set<String> = [
+        "github.com", "gitlab.com",
+        "pypi.org", "npmjs.com", "crates.io", "pkg.go.dev",
+        "developer.apple.com", "developer.android.com",
+        "docs.rs", "docs.python.org", "developer.mozilla.org",
+        "stackoverflow.com"
+    ]
+
+    /// 命中高价值域名(精确或子域,如 docs.github.com → github.com)→ 跳过模型直接出建议。仍是抽出的**真实** URL,不造网址。
+    nonisolated static func isHighValueURL(_ rawURL: String) -> Bool {
+        guard let host = URLComponents(string: rawURL)?.host?.lowercased(), !host.isEmpty else { return false }
+        let bare = host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
+        return highValueURLHosts.contains(bare) || highValueURLHosts.contains(where: { bare.hasSuffix("." + $0) })
     }
 
     nonisolated static func webPageLabel(for rawURL: String) -> String {
@@ -497,6 +519,8 @@ final class AIBackgroundIndexer {
         case .move:              return "moved files here"
         case .split:             return "split an archive into volumes here"
         case .combine:           return "combined split volumes into this file"
+        case .test:              return "recently tested this archive"
+        case .hash:              return "recently computed a checksum of this file"
         default:                 return "produced this file"
         }
     }

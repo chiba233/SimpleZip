@@ -50,6 +50,8 @@ extension ArchiveBrowserModel {
             kind: .test,
             showsDetails: false,
             successStatus: L10n.text("status.archiveTested"),
+            // #3 活动建议:被测归档本身就是「最近有人关注」的产物 → 活动 pass 能据此提醒「你测过这个包」。
+            successOutputURL: { archiveURL },
             rerunAction: { [weak self] in self?.runSingleArchiveTest(archiveURL) }
         ) { [weak self] operationID, _, outputObserver in
             guard let self else { return }

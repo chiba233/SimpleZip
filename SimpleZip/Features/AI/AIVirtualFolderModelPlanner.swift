@@ -135,7 +135,7 @@ struct GeneratedArchiveEntryPicks: Sendable {
 struct GeneratedArchiveKindGuess: Sendable {
     @Guide(description: "ONE short, concrete sentence describing what kind of archive this appears to be, based only on the listed paths and folder structure. Use the required language. Do not name or copy a specific product unless it is explicitly present in the archive name or entries.")
     var summary: String
-    @Guide(description: "A FEW action tokens worth PROACTIVELY suggesting for THIS archive, or empty. Allowed tokens only: 'inspect' (a release-readiness / publish inspection — choose this when the archive looks like a distributable or release package, e.g. an app, installer, or a bundle of release binaries), 'test' (verify the archive's integrity), 'hash' (compute a checksum — useful for a release / distributable archive someone might verify). MOST archives need NONE — empty is the correct default. Use each token verbatim; never invent one.")
+    @Guide(description: "A FEW action tokens worth PROACTIVELY suggesting for THIS archive, or empty. Allowed tokens only: 'inspect' (a release-readiness / publish inspection — choose this when the archive looks like a distributable or release package, e.g. an app, installer, or a bundle of release binaries), 'test' (verify the archive's integrity), 'hash' (compute a checksum — useful for a release / distributable archive someone might verify), 'convert' (suggest only when the format looks clearly suboptimal — e.g. a .tar.gz that would be better as .7z for further distribution, or an old .zip the user is likely to repack — never suggest just because conversion is possible), 'security' (suggest only when the listing shows suspicious path patterns such as many executable files, absolute paths, or entries that escape expected directories — do NOT suggest for ordinary archives). MOST archives need NONE — empty is the correct default. Use each token verbatim; never invent one.")
     var actions: [String]
 }
 
@@ -290,7 +290,10 @@ enum AIVirtualFolderModelPlanner {
         role as best you can, still in one concrete sentence.
 
         Then suggest a FEW next actions, but ONLY where an action is clearly the right next step for THIS file. Most \
-        files need NONE — empty is the correct default. Never suggest an action just because it is possible.\(openWithRule)\(feedbackHint)
+        files need NONE — empty is the correct default. Never suggest an action just because it is possible. \
+        ROLE HINTS (apply only when genuinely appropriate): if the role is 'release-notes' or 'report' and the file \
+        looks like a distributable or deliverable, 'hash' is worth suggesting. If the role is 'project-doc' or \
+        'report' and the file is a large deliverable someone would want to send, 'compress' may be worth suggesting.\(openWithRule)\(feedbackHint)
 
         \(Self.actionVocabularyRule)
         """
@@ -422,7 +425,7 @@ enum AIVirtualFolderModelPlanner {
             instructions: instructions, prompt: lines.joined(separator: "\n"),
             as: GeneratedArchiveKindGuess.self, maxAttempts: 8)
         // 只接受适用归档的工具 token(去重);其余忽略 —— 模型选,代码不拼。
-        let allowed: Set<String> = ["inspect", "test", "hash"]
+        let allowed: Set<String> = ["inspect", "test", "hash", "convert", "security"]
         var seen = Set<String>()
         let tokens = generated.actions
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }

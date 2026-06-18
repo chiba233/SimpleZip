@@ -273,9 +273,9 @@ final class AIBackgroundIndexStore: ObservableObject {
     func applyArchiveKindGuess(recordID: String, summary: String?, toolTokens: [String] = []) {
         let clean = summary?.trimmingCharacters(in: .whitespacesAndNewlines)
         let hasSummary = clean?.isEmpty == false
-        // 模型挑的归档主动工具(inspect / test / hash)—— 都是 summaryOwnedActionTokens,withModelSuggestion 会
-        // 整体替换它们、保留 revealArchiveEntry 等别的 pass 的动作;再确保 archiveKind marker 在(标记已评估)。
-        let allowed: Set<String> = ["inspect", "test", "hash"]
+        // 模型挑的归档主动工具(inspect / test / hash / convert / security)。withModelSuggestion 整体替换
+        // summaryOwned 的那几个、保留 revealArchiveEntry 等;再确保 archiveKind marker 在(标记已评估)。
+        let allowed: Set<String> = ["inspect", "test", "hash", "convert", "security"]
         var seen = Set<String>()
         let toolActions = toolTokens
             .filter { allowed.contains($0) && seen.insert($0).inserted }
