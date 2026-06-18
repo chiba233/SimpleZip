@@ -35,6 +35,10 @@ struct DevToolsView: View {
     /// #8 跨表面反馈 / 兴趣信号事件计数(「我不喜欢」/ 点击学兴趣),让软降权学习数据可查。
     @State private var aiFeedbackStatus = "…"
     @State private var aiActivityTasksStatus = "…"
+    /// 后台是否在跑 + 各档闸实时状态(回答「为啥都是 0」—— 哪一档被卡)。
+    @State private var aiGateStatus = "…"
+    /// 每个 pass 上次跑的候选数 / 跳过原因(区分「无候选」和「门控没过 / 没跑过」)。
+    @State private var aiPassDiagStatus = "…"
 
     private var appVersionLine: String {
         let short = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
@@ -175,7 +179,9 @@ struct DevToolsView: View {
                         infoRow("archivebox", L10n.text("devtools.aiData.archiveMemory"), aiArchiveMemoryStatus)
                         infoRow("magnifyingglass", L10n.text("devtools.aiData.spotlight"), aiSpotlightStatus)
                         infoRow("folder.badge.gearshape", L10n.text("devtools.aiData.backgroundIndex"), aiBackgroundIndexStatus)
-                        infoRow("text.bubble", "AI 建议产物", aiSuggestionStatus)
+                        infoRow("bolt.horizontal", "后台运行 / 门控", aiGateStatus)
+                        diagRow("list.bullet.rectangle", "各管线候选诊断", aiPassDiagStatus)
+                        diagRow("text.bubble", "AI 建议产物", aiSuggestionStatus)
                         infoRow("hand.thumbsdown", "AI 反馈学习", aiFeedbackStatus)
                         infoRow("clock.badge.checkmark", L10n.text("devtools.aiData.activityTasks"), aiActivityTasksStatus)
                         actionRow(
@@ -247,6 +253,21 @@ struct DevToolsView: View {
                 .foregroundStyle(.secondary)
                 .textSelection(.enabled)
                 .lineLimit(2)
+            Spacer(minLength: 0)
+        }
+    }
+
+    /// infoRow 的不截断版(诊断用 —— 长内容 / 多行全显,不被 lineLimit(2) 砍掉)。
+    private func diagRow(_ systemImage: String, _ label: String, _ value: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Label(label, systemImage: systemImage)
+                .font(.callout.weight(.medium))
+                .frame(width: 150, alignment: .leading)
+            Text(value)
+                .font(.caption.monospaced())
+                .foregroundStyle(.secondary)
+                .textSelection(.enabled)
+                .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
         }
     }
@@ -435,6 +456,26 @@ struct DevToolsView: View {
             let fb = AIFeedbackStore.shared.counts
             let pc = AIPendingCheckStore.shared.counts
             aiFeedbackStatus = "我不喜欢 \(fb.feedback) · 兴趣信号 \(fb.signals) · 自动检查 待\(pc.pending)/完\(pc.done)"
+
+            // 后台运行 + 各档闸实时状态(直接回答「为啥都是 0」:哪一档 ✗ 就卡在哪)。
+            let g = AIBackgroundIndexer.shared.gateDiag()
+            func yn(_ b: Bool) -> String { b ? "✓" : "✗" }
+            func rel(_ d: Date?) -> String {
+                guard let d else { return "从未" }
+                let s = Int(Date().timeIntervalSince(d))
+                return s < 60 ? "\(s)秒前" : (s < 3_600 ? "\(s / 60)分前" : "\(s / 3_600)时前")
+            }
+            let charge = g.isCharging.map { $0 ? "是" : "否" } ?? "无电池"
+            aiGateStatus = "在跑\(yn(AIBackgroundIndexer.shared.isIndexerRunning)) 上轮\(rel(AIBackgroundIndexer.shared.lastFullRunAt))"
+                + " | 确定性\(yn(g.canDeterministic)) 模型\(yn(g.canModelWork)) 深档\(yn(g.canDeepContext))"
+                + " | 活跃\(g.appIsActive ? "是" : "否") 距交互\(g.secondsSinceLastInteraction)s 充电\(charge)"
+                + " 低电\(g.lowBattery ? "是" : "否") 省电\(g.powerSaverMode ? "是" : "否") 档\(g.activityLevel) 模型\(g.modelAvailable ? "就绪" : "无")"
+            // 每个 pass 上次跑的候选数(区分「无候选」vs「门控没过 / 没跑过」)。
+            let diag = AIBackgroundIndexer.shared.passDiag
+            aiPassDiagStatus = ["摘要", "网页", "装App", "活动", "包内", "包定性", "文件组"].map { name in
+                guard let d = diag[name] else { return "\(name):本会话没跑(看上面门控)" }
+                return "\(name):候选\(d.candidates)\(d.skip.map { " " + $0 } ?? "") · \(rel(d.lastRunAt))"
+            }.joined(separator: "\n")
             aiActivityTasksStatus = L10n.format(
                 "devtools.aiData.activityTasks.value",
                 "\(snapshot.activityTasks.active)",

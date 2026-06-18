@@ -107,6 +107,56 @@ final class AIBackgroundIndexer {
     private var folderGroupRunning = false
     private var folderGroupTask: Task<Void, Never>?
 
+    // MARK: - DevTools 诊断(每个 pass 真跑没跑 / 有没有候选 / 产出多少 + 当前各档闸状态)
+
+    /// 一个 pass 上一次执行的画像。`candidates` = 门控过了之后真正选到的候选数;`produced` = 这轮写出的产物数;
+    /// `skip` = 选到候选但没产出 / 没跑的原因(如「无候选」「模型空返」「门控未过」)。
+    nonisolated struct PassDiag: Sendable {
+        var lastRunAt: Date?
+        var candidates: Int = 0
+        var produced: Int = 0
+        var skip: String?
+    }
+    private(set) var passDiag: [String: PassDiag] = [:]
+    /// 上一轮**完整索引轮**结束时间(判断后台到底有没有在跑)。
+    private(set) var lastFullRunAt: Date?
+    var isIndexerRunning: Bool { running }
+
+    /// 记一条 pass 画像(pass 在候选选定 / 收尾时调)。
+    func recordPass(_ name: String, candidates: Int = 0, produced: Int = 0, skip: String? = nil) {
+        passDiag[name] = PassDiag(lastRunAt: Date(), candidates: candidates, produced: produced, skip: skip)
+    }
+
+    /// DevTools 用:当前各档闸的实时状态 + 输入 —— 直接回答「为啥都是 0」(哪一档被卡)。
+    nonisolated struct GateDiag: Sendable {
+        let appIsActive: Bool
+        let secondsSinceLaunch: Int
+        let secondsSinceLastInteraction: Int
+        let isCharging: Bool?
+        let lowBattery: Bool
+        let powerSaverMode: Bool
+        let activityLevel: String
+        let modelAvailable: Bool
+        let canDeterministic: Bool
+        let canModelWork: Bool
+        let canDeepContext: Bool
+    }
+    func gateDiag() -> GateDiag {
+        let c = currentRuntimeContext()
+        return GateDiag(
+            appIsActive: c.appIsActive,
+            secondsSinceLaunch: c.secondsSinceLaunch,
+            secondsSinceLastInteraction: c.secondsSinceLastInteraction,
+            isCharging: c.isCharging,
+            lowBattery: c.lowBattery,
+            powerSaverMode: c.powerSaverMode,
+            activityLevel: c.activityLevel.rawValue,
+            modelAvailable: c.modelAvailable,
+            canDeterministic: AIBackgroundSchedulingRules.canRunDeterministicIndexing(c),
+            canModelWork: AIBackgroundSchedulingRules.canRunModelWork(c),
+            canDeepContext: AIBackgroundSchedulingRules.canRunDeepContext(c))
+    }
+
     /// 跑一轮预索引(门控未过则直接返回 —— 默认 opt-in 关闭即什么都不做)。完成后通知发现编排者刷新。
     func runIfEnabled() {
         let store = AIBackgroundIndexStore.shared
@@ -161,6 +211,7 @@ final class AIBackgroundIndexer {
                     // 阶段 C(插电执行):充电时按间隔逐个执行 pending 只读检查(自门控,电池 / 间隔未到则空跑)。
                     AIBackgroundIndexer.shared.executePendingChecksIfDue()
                 }
+                AIBackgroundIndexer.shared.lastFullRunAt = Date()
                 AIBackgroundIndexer.shared.running = false
             }
         }
@@ -251,6 +302,7 @@ final class AIBackgroundIndexer {
             candidates += AIPrereadSelection.selectForIdleSummary(
                 records: records, budget: budget.maxModelSuggestionsPerRound - candidates.count, now: now)
         }
+        recordPass("摘要", candidates: candidates.count, skip: candidates.isEmpty ? "无候选(近阈值文件 0)" : nil)
         guard !candidates.isEmpty else { return }
         suggestionRunning = true
         suggestionTask = Task { @MainActor in
@@ -295,6 +347,7 @@ final class AIBackgroundIndexer {
         let candidates = AIPrereadSelection.selectForURLSuggestion(
             records: store.recentFileRecords(limit: 2_000),
             budget: budget.maxModelSuggestionsPerRound, now: Date())
+        recordPass("网页", candidates: candidates.count, skip: candidates.isEmpty ? "无候选(含真实 URL 的文本 0)" : nil)
         guard !candidates.isEmpty else { return }
         urlSuggestionRunning = true
         urlSuggestionTask = Task { @MainActor in
@@ -341,6 +394,7 @@ final class AIBackgroundIndexer {
         let candidates = AIPrereadSelection.selectDiskImagesForSuggestion(
             records: store.recentFileRecords(limit: 2_000),
             budget: budget.maxModelSuggestionsPerRound, now: Date())
+        recordPass("装App", candidates: candidates.count, skip: candidates.isEmpty ? "无候选(含 .app 的 dmg 0)" : nil)
         guard !candidates.isEmpty else { return }
         diskImageRunning = true
         diskImageTask = Task { @MainActor in
@@ -414,6 +468,7 @@ final class AIBackgroundIndexer {
             picks.append((rec, snap))
             if picks.count >= budget.maxModelSuggestionsPerRound { break }
         }
+        recordPass("活动", candidates: picks.count, skip: picks.isEmpty ? "无候选(命中近期任务产物的文件 0)" : nil)
         guard !picks.isEmpty else { return }
         activityRunning = true
         activityTask = Task { @MainActor in
@@ -482,6 +537,7 @@ final class AIBackgroundIndexer {
             picks.append((rec, entry))
             if picks.count >= budget.maxModelSuggestionsPerRound { break }
         }
+        recordPass("包内", candidates: picks.count, skip: picks.isEmpty ? "无候选(有缓存清单的归档 0)" : nil)
         guard !picks.isEmpty else { return }
         archiveEntryRunning = true
         archiveEntryTask = Task { @MainActor in
@@ -531,6 +587,7 @@ final class AIBackgroundIndexer {
             picks.append((rec, entry))
             if picks.count >= budget.maxModelSuggestionsPerRound { break }
         }
+        recordPass("包定性", candidates: picks.count, skip: picks.isEmpty ? "无候选(未定性的归档 0)" : nil)
         guard !picks.isEmpty else { return }
 
         archiveKindRunning = true
@@ -579,6 +636,7 @@ final class AIBackgroundIndexer {
         let picks = folderOrder
             .filter { (recordsByFolder[$0]?.count ?? 0) >= 2 }
             .prefix(budget.maxModelSuggestionsPerRound)
+        recordPass("文件组", candidates: picks.count, skip: picks.isEmpty ? "无候选(可成组的文件夹 0)" : nil)
         guard !picks.isEmpty else { return }
 
         folderGroupRunning = true
