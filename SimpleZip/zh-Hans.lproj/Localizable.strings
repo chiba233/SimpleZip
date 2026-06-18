@@ -1298,6 +1298,14 @@
 "settings.section.ai.subtitle" = "开启或关闭本机 AI 助手。所有处理都在你的 Mac 本机进行。";
 "settings.ai.privacy.section" = "隐私";
 "settings.ai.privacy.note" = "AI 助手完全在你的 Mac 本机运行。密码、加密内容和密钥绝不会发给它。";
+"settings.ai.privacy.disclosure.title" = "AI 隐私须知";
+"settings.ai.privacy.point.data" = "获取的数据:仅当你主动开启相关开关、并把目录加入白名单后,后台才会读取这些目录里非加密文件的元数据(名称、大小、时间、类型)。若你额外开启内容预读,还会读取文档开头的文本与压缩包内部的条目清单,且一律先经过脱敏处理。你对建议的反馈(我不喜欢、点击)也只记录在本机。";
+"settings.ai.privacy.point.never" = "绝不获取:加密归档的内容、口令、密钥、解密后的明文,以及完整的敏感路径——这些永远不会被读取或存储。";
+"settings.ai.privacy.point.use" = "数据用途:仅用于在本机生成对文件的解释、分类、一句话总结、操作推荐与整理建议。不用于广告,不用于售卖,不构建跨应用画像。";
+"settings.ai.privacy.point.model" = "使用的模型:Apple 提供的端上模型(Apple Intelligence,需 macOS 26 及以上且设备支持),全部计算都在你的 Mac 本机完成。";
+"settings.ai.privacy.point.flow" = "数据流通:全程不离开你的 Mac——不上传到任何服务器,不发送给第三方,也不用于训练任何模型。";
+"settings.ai.privacy.point.promise" = "我们承诺:所有 AI 功能默认关闭,需你主动开启;派生数据只保存在本机、不进入偏好备份;你可以随时一键清空;原始反馈数据最多保留 30 天。";
+"settings.ai.privacy.point.guarantee" = "我们保证:AI 只做解释、分类与建议,绝不替你删除文件、放行操作或自动执行任何有风险的写入;一切移动、创建、写入都需要你亲自确认。";
 "settings.automation.shortcuts.section" = "快捷指令与 Siri";
 "settings.automation.shortcuts.title" = "快捷指令动作";
 "settings.automation.shortcuts.description" = "快捷指令 App 里有十个动作：解压归档、创建归档、测试归档完整性、验证校验文件、比较归档、搜索归档内容、检查归档、创建发布包、查找包含某文件的归档、更改设置。Siri 也能在不打开 App 的情况下开关一个安全设置。";

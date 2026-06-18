@@ -2325,6 +2325,14 @@
 "settings.section.ai.subtitle" = "開啟或關閉本機 AI 助理。所有處理都在你的 Mac 本機進行。";
 "settings.ai.privacy.section" = "隱私";
 "settings.ai.privacy.note" = "AI 助理完全在你的 Mac 本機執行。密碼、加密內容和金鑰絕不會傳送給它。";
+"settings.ai.privacy.disclosure.title" = "AI 隱私須知";
+"settings.ai.privacy.point.data" = "取得的資料:僅當你主動開啟相關開關、並把目錄加入白名單後,背景才會讀取這些目錄裡未加密檔案的中繼資料(名稱、大小、時間、類型)。若你額外開啟內容預讀,還會讀取文件開頭的文字與壓縮檔內部的項目清單,且一律先經過去敏處理。你對建議的回饋(我不喜歡、點擊)也只記錄在本機。";
+"settings.ai.privacy.point.never" = "絕不取得:加密封存檔的內容、密碼、金鑰、解密後的明文,以及完整的敏感路徑——這些永遠不會被讀取或儲存。";
+"settings.ai.privacy.point.use" = "資料用途:僅用於在本機產生對檔案的解釋、分類、一句話摘要、操作推薦與整理建議。不用於廣告,不用於販售,不建立跨應用程式的輪廓。";
+"settings.ai.privacy.point.model" = "使用的模型:Apple 提供的裝置端模型(Apple Intelligence,需 macOS 26 以上且裝置支援),全部運算都在你的 Mac 本機完成。";
+"settings.ai.privacy.point.flow" = "資料流通:全程不離開你的 Mac——不上傳到任何伺服器,不傳送給第三方,也不用於訓練任何模型。";
+"settings.ai.privacy.point.promise" = "我們承諾:所有 AI 功能預設關閉,需你主動開啟;衍生資料只儲存在本機、不進入偏好設定備份;你可以隨時一鍵清空;原始回饋資料最多保留 30 天。";
+"settings.ai.privacy.point.guarantee" = "我們保證:AI 只做解釋、分類與建議,絕不替你刪除檔案、放行操作或自動執行任何有風險的寫入;一切移動、建立、寫入都需要你親自確認。";
 "settings.automation.shortcuts.section" = "捷徑與 Siri";
 "settings.automation.shortcuts.title" = "捷徑動作";
 "settings.automation.shortcuts.description" = "「快捷指令」App 裡有八個動作：解壓歸檔、建立歸檔、測試歸檔完整性、驗證校驗檔、比較歸檔、搜尋歸檔內容、檢查歸檔、建立發佈套件。";

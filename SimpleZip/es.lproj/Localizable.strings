@@ -2323,6 +2323,14 @@
 "settings.section.ai.subtitle" = "Activa o desactiva el asistente de IA en el dispositivo. Todo se ejecuta localmente en tu Mac.";
 "settings.ai.privacy.section" = "Privacidad";
 "settings.ai.privacy.note" = "El asistente de IA se ejecuta por completo en tu Mac. Las contraseñas, los contenidos cifrados y las claves nunca se le envían.";
+"settings.ai.privacy.disclosure.title" = "Aviso de privacidad de la IA";
+"settings.ai.privacy.point.data" = "Datos que obtenemos: Solo después de que actives los interruptores correspondientes y añadas carpetas a la lista de permitidos, el proceso en segundo plano lee los metadatos (nombre, tamaño, fechas, tipo) de los archivos no cifrados de esas carpetas. Si además activas la lectura previa de contenido, también lee el texto inicial de los documentos y la lista de entradas dentro de los archivos comprimidos, siempre tras anonimizarlos. Tus reacciones a las sugerencias (No me interesa, toques) se registran solo en este dispositivo.";
+"settings.ai.privacy.point.never" = "Lo que nunca obtenemos: El contenido de los archivos cifrados, las contraseñas, las claves, el texto descifrado y las rutas sensibles completas nunca se leen ni se almacenan.";
+"settings.ai.privacy.point.use" = "Para qué se usa: Solo para generar en tu dispositivo explicaciones, clasificaciones, resúmenes de una línea, recomendaciones de acciones y sugerencias de organización de tus archivos. Nunca para anuncios, nunca se vende, sin perfiles entre apps.";
+"settings.ai.privacy.point.model" = "Modelo que usamos: El modelo en el dispositivo de Apple (Apple Intelligence, requiere macOS 26 o posterior en un dispositivo compatible). Todo el cálculo se ejecuta localmente en tu Mac.";
+"settings.ai.privacy.point.flow" = "Cómo fluyen los datos: Nunca salen de tu Mac. No se sube nada a ningún servidor, no se envía a terceros ni se usa para entrenar ningún modelo.";
+"settings.ai.privacy.point.promise" = "Nuestros compromisos: Todas las funciones de IA están desactivadas de forma predeterminada y requieren que las actives; los datos derivados se guardan solo en este Mac y se excluyen de la copia de seguridad de preferencias; puedes borrarlos en cualquier momento; las reacciones en bruto se conservan como máximo 30 días.";
+"settings.ai.privacy.point.guarantee" = "Nuestra garantía: La IA solo explica, clasifica y sugiere. Nunca elimina archivos, ni aprueba operaciones, ni realiza automáticamente ninguna escritura arriesgada por ti; cada movimiento, creación o escritura requiere tu confirmación explícita.";
 "settings.automation.shortcuts.section" = "Atajos y Siri";
 "settings.automation.shortcuts.title" = "Acciones de Atajos";
 "settings.automation.shortcuts.description" = "Hay ocho acciones disponibles en la app Atajos: Extraer archivo, Crear archivo, Probar integridad del archivo, Verificar sumas de comprobación, Comparar archivos, Buscar en el contenido del archivo, Inspeccionar archivo y Crear paquete de versión.";

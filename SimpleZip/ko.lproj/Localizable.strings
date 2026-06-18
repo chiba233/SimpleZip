@@ -2324,6 +2324,14 @@
 "settings.section.ai.subtitle" = "온디바이스 AI 어시스턴트를 켜거나 끕니다. 모든 작업은 사용자의 Mac에서 로컬로 실행됩니다.";
 "settings.ai.privacy.section" = "개인정보 보호";
 "settings.ai.privacy.note" = "AI 어시스턴트는 전적으로 사용자의 Mac에서 실행됩니다. 비밀번호, 암호화된 내용 및 키는 절대 전송되지 않습니다.";
+"settings.ai.privacy.disclosure.title" = "AI 개인정보 안내";
+"settings.ai.privacy.point.data" = "수집하는 데이터: 관련 스위치를 켜고 폴더를 허용 목록에 추가한 경우에만, 백그라운드가 해당 폴더의 암호화되지 않은 파일 메타데이터(이름, 크기, 날짜, 유형)를 읽습니다. 콘텐츠 미리 읽기도 켜면 문서의 앞부분 텍스트와 아카이브 내부 항목 목록도 읽지만 항상 먼저 비식별 처리합니다. 제안에 대한 피드백(관심 없음, 탭)도 이 기기에만 기록됩니다.";
+"settings.ai.privacy.point.never" = "절대 수집하지 않는 것: 암호화된 아카이브의 내용, 암호, 키, 복호화된 평문, 전체 민감 경로는 읽거나 저장하지 않습니다.";
+"settings.ai.privacy.point.use" = "사용 목적: 파일에 대한 설명, 분류, 한 줄 요약, 작업 추천, 정리 제안을 기기에서 생성하는 데에만 사용합니다. 광고에 사용하지 않고, 판매하지 않으며, 앱 간 프로파일링을 만들지 않습니다.";
+"settings.ai.privacy.point.model" = "사용하는 모델: Apple의 온디바이스 모델(Apple Intelligence, macOS 26 이상 및 지원 기기 필요). 모든 연산은 사용자의 Mac에서 로컬로 실행됩니다.";
+"settings.ai.privacy.point.flow" = "데이터 흐름: 데이터는 Mac을 벗어나지 않습니다. 어떤 서버에도 업로드되지 않고, 제3자에게 전송되지 않으며, 어떤 모델 학습에도 사용되지 않습니다.";
+"settings.ai.privacy.point.promise" = "약속: 모든 AI 기능은 기본적으로 꺼져 있으며 사용자가 직접 켜야 합니다. 파생 데이터는 이 Mac에만 저장되고 환경설정 백업에서 제외되며, 언제든지 지울 수 있고, 원본 피드백은 최대 30일간만 보관합니다.";
+"settings.ai.privacy.point.guarantee" = "보장: AI는 설명, 분류, 제안만 합니다. 파일을 삭제하거나 작업을 승인하거나 위험한 쓰기를 자동으로 수행하지 않습니다. 모든 이동, 생성, 쓰기는 사용자의 명시적 확인이 필요합니다.";
 "settings.automation.shortcuts.section" = "단축어 및 Siri";
 "settings.automation.shortcuts.title" = "단축어 동작";
 "settings.automation.shortcuts.description" = "단축어 앱에서 여덟 가지 동작을 사용할 수 있습니다: 아카이브 추출, 아카이브 생성, 아카이브 무결성 테스트, 체크섬 확인, 아카이브 비교, 아카이브 내용 검색, 아카이브 검사, 릴리스 패키지 생성.";

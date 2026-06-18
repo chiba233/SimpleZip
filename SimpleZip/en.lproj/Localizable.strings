@@ -1300,6 +1300,14 @@
 "settings.section.ai.subtitle" = "Turn the on-device AI assistant on or off. Everything runs locally on your Mac.";
 "settings.ai.privacy.section" = "Privacy";
 "settings.ai.privacy.note" = "The AI assistant runs entirely on your Mac. Passwords, encrypted contents and keys are never sent to it.";
+"settings.ai.privacy.disclosure.title" = "AI Privacy Notice";
+"settings.ai.privacy.point.data" = "Data we access: Only after you turn on the relevant switches and add folders to the allow-list does the background read metadata (name, size, dates, type) of non-encrypted files in those folders. If you also enable content pre-reading, it reads the opening text of documents and the entry list inside archives, always redacted first. Your feedback on suggestions (Not interested, taps) is recorded on this device only.";
+"settings.ai.privacy.point.never" = "What we never access: The contents of encrypted archives, passwords, keys, decrypted plaintext, and full sensitive paths are never read or stored.";
+"settings.ai.privacy.point.use" = "What it is used for: Only to generate explanations, classifications, one-line summaries, action recommendations and tidy-up suggestions for your files, on your device. Never for ads, never sold, no cross-app profiling.";
+"settings.ai.privacy.point.model" = "Model we use: Apple’s on-device model (Apple Intelligence, requires macOS 26 or later on a supported device). All computation runs locally on your Mac.";
+"settings.ai.privacy.point.flow" = "How data flows: It never leaves your Mac. Nothing is uploaded to any server, sent to third parties, or used to train any model.";
+"settings.ai.privacy.point.promise" = "Our commitments: Every AI feature is off by default and requires you to opt in; derived data is stored only on this Mac and excluded from preferences backup; you can clear it any time; raw feedback is kept for at most 30 days.";
+"settings.ai.privacy.point.guarantee" = "Our guarantee: The AI only explains, classifies and suggests. It never deletes files, approves operations, or automatically performs any risky write for you; every move, creation or write needs your explicit confirmation.";
 "settings.automation.shortcuts.section" = "Shortcuts & Siri";
 "settings.automation.shortcuts.title" = "Shortcuts Actions";
 "settings.automation.shortcuts.description" = "Ten actions are available in the Shortcuts app: Extract Archive, Create Archive, Test Archive Integrity, Verify Checksums, Compare Archives, Search Archive Contents, Inspect Archive, Create Release Package, Find Archive Containing File and Change a Setting. Siri can also turn a safe setting on or off without opening the app.";

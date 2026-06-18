@@ -2324,6 +2324,14 @@
 "settings.section.ai.subtitle" = "Schalten Sie den geräteinternen KI-Assistenten ein oder aus. Alles läuft lokal auf Ihrem Mac.";
 "settings.ai.privacy.section" = "Datenschutz";
 "settings.ai.privacy.note" = "Der KI-Assistent läuft vollständig auf Ihrem Mac. Passwörter, verschlüsselte Inhalte und Schlüssel werden nie an ihn gesendet.";
+"settings.ai.privacy.disclosure.title" = "AI-Datenschutzhinweis";
+"settings.ai.privacy.point.data" = "Erfasste Daten: Nur wenn du die entsprechenden Schalter aktivierst und Ordner zur Positivliste hinzufügst, liest der Hintergrund die Metadaten (Name, Größe, Daten, Typ) der nicht verschlüsselten Dateien in diesen Ordnern. Wenn du zusätzlich das Vorablesen von Inhalten aktivierst, werden auch der Anfangstext von Dokumenten und die Eintragsliste in Archiven gelesen – stets zuvor anonymisiert. Dein Feedback zu Vorschlägen (Kein Interesse, Tippen) wird nur auf diesem Gerät gespeichert.";
+"settings.ai.privacy.point.never" = "Was wir niemals erfassen: Die Inhalte verschlüsselter Archive, Passwörter, Schlüssel, entschlüsselter Klartext und vollständige sensible Pfade werden niemals gelesen oder gespeichert.";
+"settings.ai.privacy.point.use" = "Wofür es verwendet wird: Nur um auf deinem Gerät Erklärungen, Klassifizierungen, einzeilige Zusammenfassungen, Aktionsempfehlungen und Aufräumvorschläge für deine Dateien zu erzeugen. Niemals für Werbung, nie verkauft, kein app-übergreifendes Profiling.";
+"settings.ai.privacy.point.model" = "Verwendetes Modell: Apples On-Device-Modell (Apple Intelligence, erfordert macOS 26 oder neuer auf einem unterstützten Gerät). Alle Berechnungen laufen lokal auf deinem Mac.";
+"settings.ai.privacy.point.flow" = "Datenfluss: Die Daten verlassen deinen Mac nie. Nichts wird auf einen Server hochgeladen, an Dritte gesendet oder zum Training eines Modells verwendet.";
+"settings.ai.privacy.point.promise" = "Unsere Zusagen: Jede AI-Funktion ist standardmäßig aus und muss von dir aktiviert werden; abgeleitete Daten werden nur auf diesem Mac gespeichert und vom Einstellungs-Backup ausgenommen; du kannst sie jederzeit löschen; Rohfeedback wird höchstens 30 Tage aufbewahrt.";
+"settings.ai.privacy.point.guarantee" = "Unsere Garantie: Die AI erklärt, klassifiziert und schlägt nur vor. Sie löscht niemals Dateien, gibt keine Vorgänge frei und führt keinen riskanten Schreibvorgang automatisch für dich aus; jedes Verschieben, Erstellen oder Schreiben erfordert deine ausdrückliche Bestätigung.";
 "settings.automation.shortcuts.section" = "Kurzbefehle & Siri";
 "settings.automation.shortcuts.title" = "Kurzbefehl-Aktionen";
 "settings.automation.shortcuts.description" = "In der Kurzbefehle-App stehen acht Aktionen bereit: Archiv entpacken, Archiv erstellen, Archivintegrität testen, Prüfsummen verifizieren, Archive vergleichen, Archivinhalt durchsuchen, Archiv prüfen und Veröffentlichungspaket erstellen.";

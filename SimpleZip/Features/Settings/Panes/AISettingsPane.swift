@@ -51,16 +51,37 @@ struct AISettingsPane: View {
                 AIBackgroundDiscoverySection()
             }
 
-            // 隐私说明:AI 全部在本机运行,涉密内容绝不进入。文案复用现有键(本就全 10 语种)。
+            // 隐私说明:AI 全部在本机运行,涉密内容绝不进入。一行摘要常显,完整「AI 隐私须知」折叠展开。
             Section(L10n.text("settings.ai.privacy.section")) {
                 Label(L10n.text("settings.ai.privacy.note"), systemImage: "lock.shield")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+                DisclosureGroup(L10n.text("settings.ai.privacy.disclosure.title")) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        privacyPoint(L10n.text("settings.ai.privacy.point.data"))
+                        privacyPoint(L10n.text("settings.ai.privacy.point.never"))
+                        privacyPoint(L10n.text("settings.ai.privacy.point.use"))
+                        privacyPoint(L10n.text("settings.ai.privacy.point.model"))
+                        privacyPoint(L10n.text("settings.ai.privacy.point.flow"))
+                        privacyPoint(L10n.text("settings.ai.privacy.point.promise"))
+                        privacyPoint(L10n.text("settings.ai.privacy.point.guarantee"))
+                    }
+                    .padding(.top, 6)
+                }
             }
         }
         .formStyle(.grouped)
         .controlSize(.small)
         .settingsScrollAnchors()
+    }
+
+    /// AI 隐私须知里的一条说明:整段灰色小字,跨多行不截断,左对齐撑满。
+    private func privacyPoint(_ text: String) -> some View {
+        Text(text)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
