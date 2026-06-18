@@ -253,10 +253,11 @@ nonisolated enum AIBackgroundSchedulingRules {
             && !c.powerSaverMode
     }
 
-    /// 深度本地上下文可跑:在模型轻任务基础上,充电中且活跃度为平衡 / 积极。
+    /// 深度本地上下文可跑:在模型轻任务基础上,活跃度为平衡 / 积极。
+    /// **2026-06-18 去掉「充电中」硬要求**(实测它让 MacBook 电池供电时归档定性 / 文件组 / 归档主动建议**永远不跑**,
+    /// 高信号文件一个建议都冒不出来 = 形同虚设)。3B 端上推理短暂,电池供电也可接受;powerSaver 档仍排除在外。
     static func canRunDeepContext(_ c: AIBackgroundRuntimeContext) -> Bool {
         canRunModelWork(c)
-            && (c.isCharging ?? false)
             && (c.activityLevel == .balanced || c.activityLevel == .aggressive)
     }
 

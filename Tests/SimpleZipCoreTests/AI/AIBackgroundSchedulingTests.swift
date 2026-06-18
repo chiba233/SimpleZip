@@ -56,8 +56,10 @@ import Testing
         #expect(AIBackgroundSchedulingRules.deepestAllowedTier(ctx(sinceInteraction: 5)) == .deterministicIndex)
     }
 
-    @Test func modelPrewarmWhenIdleButNotCharging() {
-        #expect(AIBackgroundSchedulingRules.deepestAllowedTier(ctx(charging: false)) == .modelPrewarm)
+    @Test func deepContextWhenNotChargingButBalanced() {
+        // 2026-06-18:去掉「充电中」硬要求后,电池供电(balanced)也能进 deepContext —— 否则 MacBook 用户
+        // 归档定性 / 文件组 / 归档主动建议永远不跑。挡 deepContext 的只剩 powerSaver 档 / 低电 / 模型不可用。
+        #expect(AIBackgroundSchedulingRules.deepestAllowedTier(ctx(charging: false)) == .deepContext)
     }
 
     @Test func modelPrewarmWhenChargingButPowerSaverLevel() {
@@ -148,7 +150,7 @@ import Testing
 
     @Test func plannerStaleSurfacesBecomePrewarmJobs() {
         let plan = AIBackgroundPlanner.plan(planningInput(
-            runtime: ctx(charging: false),       // modelPrewarm 档
+            runtime: ctx(level: .powerSaver),    // modelPrewarm 档(充电不再决定深档,powerSaver 才挡在 deepContext 外)
             staleSurfaces: [.mainWindowSuggestion, .activityCenter, .settingsPane]))
         #expect(plan.allowedTier == .modelPrewarm)
         #expect(plan.jobs.contains { $0.kind == .prewarmMainWindowSuggestions })

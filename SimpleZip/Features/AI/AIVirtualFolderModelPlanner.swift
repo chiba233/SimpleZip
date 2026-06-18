@@ -135,6 +135,8 @@ struct GeneratedArchiveEntryPicks: Sendable {
 struct GeneratedArchiveKindGuess: Sendable {
     @Guide(description: "ONE short, concrete sentence describing what kind of archive this appears to be, based only on the listed paths and folder structure. Use the required language. Do not name or copy a specific product unless it is explicitly present in the archive name or entries.")
     var summary: String
+    @Guide(description: "A FEW action tokens worth PROACTIVELY suggesting for THIS archive, or empty. Allowed tokens only: 'inspect' (a release-readiness / publish inspection — choose this when the archive looks like a distributable or release package, e.g. an app, installer, or a bundle of release binaries), 'test' (verify the archive's integrity), 'hash' (compute a checksum — useful for a release / distributable archive someone might verify). MOST archives need NONE — empty is the correct default. Use each token verbatim; never invent one.")
+    var actions: [String]
 }
 
 /// **文本内真实 URL 打开建议**的模型产出。模型只能选 App 给的候选编号,不能输出 / 发明 URL。
@@ -393,8 +395,8 @@ enum AIVirtualFolderModelPlanner {
     /// **归档行内「这是什么包」**(拒绝假AI)。给一个归档的**非加密条目清单缓存**(文件/目录名 + 结构,不解压),
     /// 让端上模型据结构写一句定性。失败抛出由调用点吞掉;空摘要由调用点标记为已评估但不显示。
     static func archiveKindGuess(archiveName: String, entryNames: [(name: String, isDirectory: Bool)])
-        async throws -> String {
-        guard !entryNames.isEmpty else { return "" }
+        async throws -> (summary: String, toolTokens: [String]) {
+        guard !entryNames.isEmpty else { return ("", []) }
         let lang = AIReportAssistant.uiLanguageName
         let instructions = """
         LANGUAGE — MANDATORY: write the summary in \(lang). Never use any other language for it, not even partially.
@@ -403,6 +405,13 @@ enum AIVirtualFolderModelPlanner {
         structure, write ONE short, concrete sentence describing what kind of archive this appears to be. Do not \
         claim certainty; say it appears to be something. Do not invent contents that are not supported by the paths. \
         Avoid naming a specific product or app unless that name is explicitly present in the archive name or entries.
+
+        Then, ONLY where clearly warranted by what this archive looks like, suggest a FEW proactive action tokens \
+        for it (verbatim, from this exact list; most archives need NONE):
+        inspect — run a release-readiness / publish inspection; pick it when the archive looks like a distributable \
+        or release package (an app, an installer, or a bundle of release binaries someone would ship).
+        test — verify the archive's integrity.
+        hash — compute a checksum; useful for a release / distributable archive someone might verify.
         """
         var lines = ["Archive: \(archiveName)", "Entries (number<TAB>type<TAB>path):"]
         for (i, entry) in entryNames.enumerated() {
@@ -412,7 +421,13 @@ enum AIVirtualFolderModelPlanner {
         let generated = try await AIReportAssistant.generateStructured(
             instructions: instructions, prompt: lines.joined(separator: "\n"),
             as: GeneratedArchiveKindGuess.self, maxAttempts: 8)
-        return generated.summary.trimmingCharacters(in: .whitespacesAndNewlines)
+        // 只接受适用归档的工具 token(去重);其余忽略 —— 模型选,代码不拼。
+        let allowed: Set<String> = ["inspect", "test", "hash"]
+        var seen = Set<String>()
+        let tokens = generated.actions
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+            .filter { allowed.contains($0) && seen.insert($0).inserted }
+        return (generated.summary.trimmingCharacters(in: .whitespacesAndNewlines), tokens)
     }
 
     /// **文本里真实 URL 的打开建议**(拒绝假AI)。App 先从已脱敏预读文本里正则抽出真实 http(s) URL;模型只判断

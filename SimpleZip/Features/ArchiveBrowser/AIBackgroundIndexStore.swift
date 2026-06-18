@@ -270,15 +270,22 @@ final class AIBackgroundIndexStore: ObservableObject {
 
     /// **归档行内定性**回填:模型据归档清单给一句「这看起来是什么包」。`archiveKind` 是不可见 marker,
     /// 用于 DevTools 计数 / 避免重复评估;UI 显示走 `shortSummary` 摘要行,没有额外按钮。
-    func applyArchiveKindGuess(recordID: String, summary: String?) {
+    func applyArchiveKindGuess(recordID: String, summary: String?, toolTokens: [String] = []) {
         let clean = summary?.trimmingCharacters(in: .whitespacesAndNewlines)
         let hasSummary = clean?.isEmpty == false
+        // 模型挑的归档主动工具(inspect / test / hash)—— 都是 summaryOwnedActionTokens,withModelSuggestion 会
+        // 整体替换它们、保留 revealArchiveEntry 等别的 pass 的动作;再确保 archiveKind marker 在(标记已评估)。
+        let allowed: Set<String> = ["inspect", "test", "hash"]
+        var seen = Set<String>()
+        let toolActions = toolTokens
+            .filter { allowed.contains($0) && seen.insert($0).inserted }
+            .map { AIFileSuggestedAction(token: $0) }
         let marker = AIFileSuggestedAction(token: "archiveKind")
         fileIndex = fileIndex.updatingRecord(id: recordID) { rec in
             let base = rec.contentSummary ?? AIFileContentSummary(mode: "archive-kind")
+            let withTools = base.withModelSuggestion(summary: hasSummary ? clean : nil, actions: toolActions)
             return rec.withContentSummary(
-                base.mergingSingletonAction(marker, replacingToken: "archiveKind",
-                                            shortSummaryIfEmpty: hasSummary ? clean : nil))
+                withTools.mergingSingletonAction(marker, replacingToken: "archiveKind", shortSummaryIfEmpty: nil))
         }
         persistIndex()
         objectWillChange.send()

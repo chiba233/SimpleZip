@@ -539,9 +539,10 @@ final class AIBackgroundIndexer {
                     AIBackgroundIndexStore.shared.applyArchiveKindGuess(recordID: rec.id, summary: nil)
                     continue
                 }
-                guard let summary = try? await AIVirtualFolderModelPlanner.archiveKindGuess(
+                guard let guess = try? await AIVirtualFolderModelPlanner.archiveKindGuess(
                     archiveName: rec.fileName, entryNames: entries) else { continue }
-                AIBackgroundIndexStore.shared.applyArchiveKindGuess(recordID: rec.id, summary: summary)
+                AIBackgroundIndexStore.shared.applyArchiveKindGuess(
+                    recordID: rec.id, summary: guess.summary, toolTokens: guess.toolTokens)
             }
         }
     }
