@@ -144,4 +144,10 @@ hdiutil create \
   -format UDZO \
   "$DMG_PATH"
 
+if [[ -n "${SIGN_IDENTITY:-}" ]]; then
+  echo "Signing DMG with Developer ID: $SIGN_IDENTITY"
+  codesign --force --timestamp --sign "$SIGN_IDENTITY" "$DMG_PATH"
+  codesign --verify --strict --verbose=2 "$DMG_PATH"
+fi
+
 echo "Created $DMG_PATH"
