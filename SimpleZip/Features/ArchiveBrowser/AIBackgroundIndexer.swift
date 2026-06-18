@@ -107,6 +107,14 @@ final class AIBackgroundIndexer {
     private var folderGroupRunning = false
     private var folderGroupTask: Task<Void, Never>?
 
+    /// 后台索引**心跳定时器**(主运行循环)+ 当前间隔。P0 根因:`runIfEnabled` 原本只在启动 `activate()` 时被调
+    /// 一次,那次又卡在 launch-silence(<60s)直接空跑,之后再无任何定时器触发 → 后台索引 / 建议全程跑不起来
+    /// (全仓唯一 Timer 是 DevTools 刷新)。心跳定期重评门控,让所有 pass 真正轮得到。
+    private var heartbeat: Timer?
+    private var currentHeartbeatInterval: TimeInterval?
+    /// DevTools 用:心跳是否在跑(配合 `lastFullRunAt` 判断后台到底有没有自驱)。
+    var isHeartbeatRunning: Bool { heartbeat != nil }
+
     // MARK: - DevTools 诊断(每个 pass 真跑没跑 / 有没有候选 / 产出多少 + 当前各档闸状态)
 
     /// 一个 pass 上一次执行的画像。`candidates` = 门控过了之后真正选到的候选数;`produced` = 这轮写出的产物数;
@@ -160,12 +168,20 @@ final class AIBackgroundIndexer {
     /// 跑一轮预索引(门控未过则直接返回 —— 默认 opt-in 关闭即什么都不做)。完成后通知发现编排者刷新。
     func runIfEnabled() {
         let store = AIBackgroundIndexStore.shared
-        guard !running, store.indexingEnabled, let budget = store.budget else { return }
+        guard store.indexingEnabled, let budget = store.budget else { return }
+        // P0 修复:确保心跳在跑。`runIfEnabled` 原本只被启动 activate() 调一次、又卡在 launch-silence 空跑,之后再无
+        // 触发。心跳按活跃度档周期重评门控,门控未过则下面廉价返回,过了就跑一轮预算化渐进覆盖(多轮把全部覆盖到)。
+        ensureHeartbeat()
         // AI 电源规范③:启动静默 60s + 无重归档任务 + 活跃度非关。低电 / 省电也可(只读索引不耗模型)。
-        guard AIBackgroundSchedulingRules.canRunDeterministicIndexing(currentRuntimeContext()) else { return }
+        guard !running,
+              AIBackgroundSchedulingRules.canRunDeterministicIndexing(currentRuntimeContext()) else { return }
         running = true
 
-        let scopes = Array(store.scopes.prefix(max(1, budget.maxDirectoriesPerRound)))
+        // 渐进覆盖(用户:权重高的先跑、跑过的延后、最终全覆盖):按「最久没扫」取前 N —— 从没扫过的
+        // (lastScannedAt==nil)最优先,其余按上次扫描时间升序。这样即便每轮预算只够 N 个 scope(省电=1),多轮
+        // 心跳也能把所有白名单目录轮一遍,而不是永远只扫前 N 个。扫完即 markScanned → 下轮自然排到队尾。
+        let scopeBudget = max(1, budget.maxDirectoriesPerRound)
+        let scopes = Array(store.scopes.sorted(by: AIBackgroundIndexer.leastRecentlyScanned).prefix(scopeBudget))
         let home = NSHomeDirectory()
         let fileBudget = min(budget.maxEntriesPerArchive, 3_000)
         // 内容预读是**更高隐私等级的独立开关**:只元数据预索引时 allowContent=false(绝不读内容);开了「预读内容」
@@ -217,7 +233,54 @@ final class AIBackgroundIndexer {
         }
     }
 
+    /// 确保后台索引心跳在跑(主运行循环重复定时器)。幂等:已在跑且间隔匹配则不重建。活跃度=off → 停表。
+    /// 心跳本身不做判定,只「定期再问一次」`runIfEnabled` —— 真正的节流闸是里面的门控(空闲 / 充电 / 低电 / 静默)。
+    private func ensureHeartbeat() {
+        let level = AppPreferences.aiBackgroundActivityLevel
+        guard level != .off, let interval = AIBackgroundIndexer.heartbeatInterval(for: level) else {
+            heartbeat?.invalidate(); heartbeat = nil; currentHeartbeatInterval = nil; return
+        }
+        if heartbeat != nil, currentHeartbeatInterval == interval { return }   // 已在跑且间隔一致 → 不动
+        heartbeat?.invalidate()
+        currentHeartbeatInterval = interval
+        let timer = Timer(timeInterval: interval, repeats: true) { _ in
+            Task { @MainActor in AIBackgroundIndexer.shared.heartbeatTick() }
+        }
+        timer.tolerance = interval * 0.3   // 允许系统合并唤醒省电(后台索引不需要精确节拍)
+        RunLoop.main.add(timer, forMode: .common)
+        heartbeat = timer
+    }
+
+    /// 心跳一跳:活跃度运行期可能被改 → off 即停表;否则重评门控跑一轮(廉价,门控未过即返回)。
+    private func heartbeatTick() {
+        guard AppPreferences.aiBackgroundActivityLevel != .off else {
+            heartbeat?.invalidate(); heartbeat = nil; currentHeartbeatInterval = nil; return
+        }
+        runIfEnabled()
+    }
+
+    /// 心跳间隔(秒)按 AI 活跃度档:激进 60 / 均衡 120 / 省电 300;off → nil(不装表)。门控才是真节流,故频繁也廉价。
+    nonisolated static func heartbeatInterval(for level: AIBackgroundActivityLevel) -> TimeInterval? {
+        switch level {
+        case .off: return nil
+        case .powerSaver: return 300
+        case .balanced: return 120
+        case .aggressive: return 60
+        }
+    }
+
+    /// 「最久没扫」排序:从没扫过(lastScannedAt==nil)最优先,其余按上次扫描时间升序(scope 渐进轮转用)。
+    nonisolated static func leastRecentlyScanned(_ lhs: AIArchivePrefetchScope, _ rhs: AIArchivePrefetchScope) -> Bool {
+        switch (lhs.lastScannedAt, rhs.lastScannedAt) {
+        case (nil, nil): return false
+        case (nil, _):   return true
+        case (_, nil):   return false
+        case let (l?, r?): return l < r
+        }
+    }
+
     func cancel() {
+        heartbeat?.invalidate(); heartbeat = nil; currentHeartbeatInterval = nil
         task?.cancel(); task = nil; running = false
         archiveTask?.cancel(); archiveTask = nil; archiveRunning = false
         suggestionTask?.cancel(); suggestionTask = nil; suggestionRunning = false
