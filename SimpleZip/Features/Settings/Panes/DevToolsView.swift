@@ -11,6 +11,7 @@
 //
 
 import AppKit
+import Combine
 import SwiftUI
 
 struct DevToolsView: View {
@@ -39,6 +40,9 @@ struct DevToolsView: View {
     @State private var aiGateStatus = "…"
     /// 每个 pass 上次跑的候选数 / 跳过原因(区分「无候选」和「门控没过 / 没跑过」)。
     @State private var aiPassDiagStatus = "…"
+    @State private var aiDataSnapshotInFlight = false
+
+    private let aiDataRefreshTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     private var appVersionLine: String {
         let short = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
@@ -238,6 +242,9 @@ struct DevToolsView: View {
             }
             loadAIDataSnapshot()
         }
+        .onReceive(aiDataRefreshTimer) { _ in
+            loadAIDataSnapshot()
+        }
     }
 
     // MARK: - 行构件
@@ -423,7 +430,10 @@ struct DevToolsView: View {
     /// 读取 AI 助手就绪状态 + AI 能召回的本机派生数据规模。缓存 / Spotlight 统计走后台线程
     /// (可能读不小的 JSON),回主 actor 设 @State。只读、不涉密。
     private func loadAIDataSnapshot() {
+        guard !aiDataSnapshotInFlight else { return }
+        aiDataSnapshotInFlight = true
         Task { @MainActor in
+            defer { aiDataSnapshotInFlight = false }
             let snapshot = await makeAIDataSnapshot()
             aiAssistantStatus = snapshot.assistant.ready
                 ? L10n.text("devtools.aiData.assistant.ready")
