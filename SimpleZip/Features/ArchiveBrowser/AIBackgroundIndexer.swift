@@ -101,6 +101,9 @@ final class AIBackgroundIndexer {
     private var archiveEntryTask: Task<Void, Never>?
     private var archiveKindRunning = false
     private var archiveKindTask: Task<Void, Never>?
+    private var pendingExecRunning = false
+    private var pendingExecTask: Task<Void, Never>?
+    private var lastPendingExecAt: Date?
     private var folderGroupRunning = false
     private var folderGroupTask: Task<Void, Never>?
 
@@ -155,6 +158,8 @@ final class AIBackgroundIndexer {
                         // 阶段 B(电池决策):把模型已挑的只读检查 token 收进 pending 队列,真执行等插电(阶段 C)。
                         AIBackgroundIndexer.shared.generatePendingChecksIfEnabled()
                     }
+                    // 阶段 C(插电执行):充电时按间隔逐个执行 pending 只读检查(自门控,电池 / 间隔未到则空跑)。
+                    AIBackgroundIndexer.shared.executePendingChecksIfDue()
                 }
                 AIBackgroundIndexer.shared.running = false
             }
@@ -170,6 +175,7 @@ final class AIBackgroundIndexer {
         urlSuggestionTask?.cancel(); urlSuggestionTask = nil; urlSuggestionRunning = false
         archiveEntryTask?.cancel(); archiveEntryTask = nil; archiveEntryRunning = false
         archiveKindTask?.cancel(); archiveKindTask = nil; archiveKindRunning = false
+        pendingExecTask?.cancel(); pendingExecTask = nil; pendingExecRunning = false
         folderGroupTask?.cancel(); folderGroupTask = nil; folderGroupRunning = false
     }
 
@@ -630,6 +636,61 @@ final class AIBackgroundIndexer {
         guard !items.isEmpty else { return }
         AIPendingCheckStore.shared.enqueueBatch(items)
         AIPendingCheckStore.shared.prune()
+    }
+
+    // MARK: - 只读自动检查执行(阶段 C,插电执行;MainActor:间隔节流 + 真检查 + 写内联结果)
+
+    /// 插电时按活跃度间隔**逐个**执行 pending 只读检查,结果写回内联(复用 `applyInlineResult`,抽屉自动显示)。
+    /// 自门控:AI 开 + 索引开 + **充电中** + 距上次执行 ≥ 间隔(4/15/30 分)+ 没在执行。一次一条(间隔即天然串行)。
+    /// 目前后台安全执行 **hash / test**(纯只读、不依赖 UI 口令态);加密 / 损坏 / 需口令 → 记失败、不展示假结果。
+    /// security / inspect(要安全分析 / 端上模型润色)待后续。
+    func executePendingChecksIfDue() {
+        guard !pendingExecRunning, AppPreferences.aiSuggestionEnabled,
+              AIBackgroundIndexStore.shared.indexingEnabled else { return }
+        guard AIBackgroundIndexer.powerState().isCharging == true else { return }   // 只插电执行
+        let level = AppPreferences.aiBackgroundActivityLevel
+        guard level != .off else { return }
+        let interval = AIPendingCheckSchedule.interval(for: level)
+        if let last = lastPendingExecAt, Date().timeIntervalSince(last) < interval { return }   // 间隔节流
+        guard let check = AIPendingCheckStore.shared.nextPending(),
+              check.behavior == .hash || check.behavior == .test else { return }
+        guard let recordID = AIBackgroundIndexStore.shared.record(forPath: check.path)?.id else {
+            AIPendingCheckStore.shared.markFailed(id: check.id)
+            return
+        }
+        pendingExecRunning = true
+        lastPendingExecAt = Date()
+        let id = check.id
+        let path = check.path
+        let behavior = check.behavior
+        pendingExecTask = Task { @MainActor in
+            defer { AIBackgroundIndexer.shared.pendingExecRunning = false }
+            let url = URL(fileURLWithPath: path)
+            guard FileManager.default.fileExists(atPath: path) else {
+                AIPendingCheckStore.shared.markFailed(id: id)
+                return
+            }
+            do {
+                let text: String
+                switch behavior {
+                case .hash:
+                    text = try await Task.detached(priority: .utility) { try HashService.sha256(for: url) }.value
+                case .test:
+                    try await ArchiveService.test(url, password: "")
+                    text = L10n.text("aiWorkspace.inlineTest.passed")
+                default:
+                    AIPendingCheckStore.shared.markFailed(id: id)
+                    return
+                }
+                AIBackgroundIndexStore.shared.applyInlineResult(recordID: recordID, token: behavior.rawValue, text: text)
+                AIPendingCheckStore.shared.markDone(id: id)
+            } catch is CancellationError {
+                AIBackgroundIndexer.shared.lastPendingExecAt = nil   // 取消不算执行,下次可立即重试
+            } catch {
+                // 加密 / 损坏 / 需口令 → 不展示假结果,记失败(同指纹不再重排,文件改了才重试)。
+                AIPendingCheckStore.shared.markFailed(id: id)
+            }
+        }
     }
 
     /// 读一个文件头部 → 脱敏(给模型出一句话摘要的素材)。红线门控同 `summarizeContent`(敏感目录 / 临时解密 /
