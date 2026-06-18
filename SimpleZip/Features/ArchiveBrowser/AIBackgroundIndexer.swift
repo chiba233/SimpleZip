@@ -62,6 +62,11 @@ final class AIBackgroundIndexer {
         AIBackgroundSchedulingRules.canRunModelWork(currentRuntimeContext())
     }
 
+    /// 现在能不能跑深度上下文 pass(充电 + balanced/aggressive)。包定性需要读完整归档清单并跑模型,归入这一档。
+    func canRunDeepContextNow() -> Bool {
+        AIBackgroundSchedulingRules.canRunDeepContext(currentRuntimeContext())
+    }
+
     /// 读电源状态(低电 < 20% / 是否充电)。无电池(台式机)→ 不低电、充电未知。off-main 安全(纯 IOKit 读)。
     private nonisolated static func powerState() -> (lowBattery: Bool, isCharging: Bool?) {
         guard let blob = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
@@ -138,7 +143,9 @@ final class AIBackgroundIndexer {
                         AIBackgroundIndexer.shared.generateDiskImageSuggestionsIfEnabled()   // 内含 App 的 dmg「安装到应用程序」
                         AIBackgroundIndexer.shared.generateActivityLinkSuggestionsIfEnabled()   // 命中近期任务产物「查看活动」
                         AIBackgroundIndexer.shared.generateArchiveEntrySuggestionsIfEnabled()   // 归档「也许你要包里的 X」
-                        AIBackgroundIndexer.shared.generateArchiveKindGuessIfEnabled()   // 归档「这看起来是什么包」
+                        if AIBackgroundIndexer.shared.canRunDeepContextNow() {
+                            AIBackgroundIndexer.shared.generateArchiveKindGuessIfEnabled()   // 归档「这看起来是什么包」
+                        }
                     }
                 }
                 AIBackgroundIndexer.shared.running = false
@@ -160,7 +167,7 @@ final class AIBackgroundIndexer {
 
     /// 开了「预读内容」时,挑白名单里**还没列过清单**的少量归档,只读列出内部条目 → 写归档清单缓存(它顺带进
     /// Spotlight,和打开归档时同一条路 #35/#72)→ `ArchiveMemoryIndex` 据此派生候选进 AI 文件夹池。加密(空口令列
-    /// 不动)/ 损坏 / 临时包 → 跳过。预算化(每轮 ≤ maxArchivesPerRound,封 6)、可取消、串行不抢主线程重活。
+    /// 不动)/ 损坏 / 临时包 → 跳过。预算化(每轮 ≤ maxArchivesPerRound)、可取消、串行不抢主线程重活。
     func prereadArchivesIfEnabled() {
         let store = AIBackgroundIndexStore.shared
         guard !archiveRunning, store.contentPrereadEnabled, AppPreferences.archiveListingCacheEnabled,
@@ -185,7 +192,7 @@ final class AIBackgroundIndexer {
         }
         // AI 排序挑前 N(近期碰过 / 改过的包先列)。
         let pick = AIPrereadSelection
-            .selectArchivesForListing(records: staleRecords, budget: min(budget.maxArchivesPerRound, 6), now: Date())
+            .selectArchivesForListing(records: staleRecords, budget: budget.maxArchiveListingsPerRound, now: Date())
             .compactMap { $0.path.map { URL(fileURLWithPath: $0) } }
         guard !pick.isEmpty else { return }
         archiveRunning = true
@@ -451,7 +458,7 @@ final class AIBackgroundIndexer {
         let store = AIBackgroundIndexStore.shared
         guard !archiveKindRunning, AppPreferences.aiSuggestionEnabled,
               store.indexingEnabled, AppPreferences.archiveListingCacheEnabled,
-              AIReportAssistant.isReady, canRunModelWorkNow(), let budget = store.budget else { return }
+              AIReportAssistant.isReady, canRunDeepContextNow(), let budget = store.budget else { return }
         let listingByPath = Dictionary(
             ArchiveListingCacheStore().loadAll().map { ($0.archivePath, $0) },
             uniquingKeysWith: { first, _ in first })
@@ -473,8 +480,7 @@ final class AIBackgroundIndexer {
             defer { AIBackgroundIndexer.shared.archiveKindRunning = false }
             for (rec, entry) in picks {
                 if Task.isCancelled { break }
-                guard AIBackgroundIndexStore.shared.indexingEnabled, AIReportAssistant.isReady,
-                      AIBackgroundIndexer.shared.canRunModelWorkNow() else { break }
+                guard AIBackgroundIndexStore.shared.indexingEnabled, AIReportAssistant.isReady else { break }
                 let entries = entry.entries.compactMap { cached -> (name: String, isDirectory: Bool)? in
                     let name = cached.name.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
                     return name.isEmpty ? nil : (name, cached.isDirectory)

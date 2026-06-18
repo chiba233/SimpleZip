@@ -145,6 +145,25 @@ import Testing
         #expect(updated.hasModelSuggestion)
     }
 
+    @Test func modelSuggestionActionsPrecedePreservedActivityLinks() {
+        let activity = AIFileSuggestedAction(token: "openTask", payload: UUID().uuidString)
+        let base = AIFileContentSummary(mode: "activity", suggestedActions: [activity])
+        let updated = base.withModelSuggestion(summary: "一句话",
+                                               actions: [AIFileSuggestedAction(token: "hash"),
+                                                         AIFileSuggestedAction(token: "compress")])
+        #expect(updated.suggestedActions.map(\.token) == ["hash", "compress", "openTask"])
+    }
+
+    @Test func archiveKindMarkerAloneIsNotAVisibleModelSuggestion() {
+        let markerOnly = AIFileContentSummary(mode: "archive-kind",
+                                              suggestedActions: [AIFileSuggestedAction(token: "archiveKind")])
+        #expect(!markerOnly.hasModelSuggestion)
+
+        let withSummary = AIFileContentSummary(mode: "archive-kind", shortSummary: "Looks like a release package.",
+                                               suggestedActions: [AIFileSuggestedAction(token: "archiveKind")])
+        #expect(withSummary.hasModelSuggestion)
+    }
+
     @Test func suggestedActionRoundTripsPayload() throws {
         // 带 payload 的动作(openWith→app bundleId + 名字)Codable 往返不丢。
         let action = AIFileSuggestedAction(token: "openWith", payload: "com.apple.Preview", label: "Preview")

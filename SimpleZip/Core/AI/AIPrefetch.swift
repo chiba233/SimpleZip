@@ -29,6 +29,8 @@ nonisolated struct AIArchivePrefetchBudget: Codable, Equatable, Sendable {
     let maxEntriesPerArchive: Int
     /// 单轮最多让端上模型给几个文件/组出建议(模型调用最贵 + 易重试,档位越高才舍得花更多)。
     let maxModelSuggestionsPerRound: Int
+    /// 单轮最多预读多少个归档清单。保持为预算表中的 `maxArchivesPerRound`,避免调用方另行硬封顶导致档位失效。
+    var maxArchiveListingsPerRound: Int { maxArchivesPerRound }
 
     init(maxDirectoriesPerRound: Int, maxArchivesPerRound: Int, maxEntriesPerArchive: Int,
          maxModelSuggestionsPerRound: Int = 3) {

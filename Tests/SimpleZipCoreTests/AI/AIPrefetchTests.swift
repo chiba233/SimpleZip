@@ -23,6 +23,12 @@ import Testing
         #expect(balanced.maxEntriesPerArchive == 10_000)
     }
 
+    @Test func archiveListingRoundBudgetUsesActivityTierValue() {
+        #expect(AIArchivePrefetchBudget.forLevel(.powerSaver)?.maxArchiveListingsPerRound == 10)
+        #expect(AIArchivePrefetchBudget.forLevel(.balanced)?.maxArchiveListingsPerRound == 40)
+        #expect(AIArchivePrefetchBudget.forLevel(.aggressive)?.maxArchiveListingsPerRound == 120)
+    }
+
     @Test func everyActivityLevelHasStableToken() {
         for l in AIBackgroundActivityLevel.allCases { #expect(!l.rawValue.isEmpty) }
     }
