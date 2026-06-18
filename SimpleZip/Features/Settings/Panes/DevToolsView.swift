@@ -433,7 +433,8 @@ struct DevToolsView: View {
                 + " · 压缩 \(s.compressCount) · 转换 \(s.convertCount)"
             // #8 跨表面反馈学习:事件计数(原始保留 30 天 / 每类上限 1000)。
             let fb = AIFeedbackStore.shared.counts
-            aiFeedbackStatus = "我不喜欢 \(fb.feedback) · 兴趣信号 \(fb.signals)"
+            let pc = AIPendingCheckStore.shared.counts
+            aiFeedbackStatus = "我不喜欢 \(fb.feedback) · 兴趣信号 \(fb.signals) · 自动检查 待\(pc.pending)/完\(pc.done)"
             aiActivityTasksStatus = L10n.format(
                 "devtools.aiData.activityTasks.value",
                 "\(snapshot.activityTasks.active)",

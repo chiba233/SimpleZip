@@ -152,6 +152,8 @@ final class AIBackgroundIndexer {
                             AIBackgroundIndexer.shared.generateArchiveKindGuessIfEnabled()   // 归档「这看起来是什么包」
                             AIBackgroundIndexer.shared.generateFolderGroupSuggestionsIfEnabled()   // 文件夹「这些可成组处理」
                         }
+                        // 阶段 B(电池决策):把模型已挑的只读检查 token 收进 pending 队列,真执行等插电(阶段 C)。
+                        AIBackgroundIndexer.shared.generatePendingChecksIfEnabled()
                     }
                 }
                 AIBackgroundIndexer.shared.running = false
@@ -605,6 +607,29 @@ final class AIBackgroundIndexer {
                 AIBackgroundIndexStore.shared.setFolderGroups(groups, forPath: folder)
             }
         }
+    }
+
+    // MARK: - 只读自动检查 pending 队列(阶段 B,电池决策;MainActor:读索引缓存 + 入队,不调模型不执行)
+
+    /// 把模型**已挑**的只读检查 token(hash/test/inspect/security)从索引缓存收进 pending 队列(幂等)。
+    /// **不调模型、不执行检查** —— 只是「电池侧决定要做什么」;真执行等插电(阶段 C)。同文件同检查同指纹不重排。
+    func generatePendingChecksIfEnabled() {
+        guard AppPreferences.aiSuggestionEnabled, AIBackgroundIndexStore.shared.indexingEnabled else { return }
+        let tokenToBehavior: [String: AIPendingCheck.Behavior] = [
+            "hash": .hash, "test": .test, "inspect": .inspect, "security": .security
+        ]
+        var items: [(path: String, behavior: AIPendingCheck.Behavior, fingerprint: String)] = []
+        for rec in AIBackgroundIndexStore.shared.recentFileRecords(limit: 2_000) {
+            guard let path = rec.path, let summary = rec.contentSummary else { continue }
+            let fingerprint = AIPendingCheck.fingerprint(byteSize: rec.byteSize, modifiedAt: rec.modifiedAt)
+            for action in summary.suggestedActions {
+                guard let behavior = tokenToBehavior[action.token] else { continue }
+                items.append((path, behavior, fingerprint))
+            }
+        }
+        guard !items.isEmpty else { return }
+        AIPendingCheckStore.shared.enqueueBatch(items)
+        AIPendingCheckStore.shared.prune()
     }
 
     /// 读一个文件头部 → 脱敏(给模型出一句话摘要的素材)。红线门控同 `summarizeContent`(敏感目录 / 临时解密 /

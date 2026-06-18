@@ -343,6 +343,7 @@ final class AIBackgroundIndexStore: ObservableObject {
         persistIndex()
         persistFolderGroups()
         AIFeedbackStore.shared.clearAll()
+        AIPendingCheckStore.shared.clearAll()
         objectWillChange.send()
     }
 
