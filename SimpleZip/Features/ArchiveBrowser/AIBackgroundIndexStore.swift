@@ -14,6 +14,12 @@
 import Combine
 import Foundation
 
+nonisolated struct CachedFolderGroup: Codable, Equatable, Sendable {
+    let title: String?
+    let memberPaths: [String]
+    let actionToken: String
+}
+
 @MainActor
 final class AIBackgroundIndexStore: ObservableObject {
     static let shared = AIBackgroundIndexStore()
@@ -36,6 +42,8 @@ final class AIBackgroundIndexStore: ObservableObject {
     /// 用户对 AI 建议「我不喜欢」的抑制 key 集合(右键「我不喜欢」加入)。文件浏览器抽屉据此过滤掉被嫌弃的建议。
     /// 持久(派生数据,不进偏好备份)。
     @Published private(set) var dislikedSuggestionKeys: Set<String>
+    /// 文件夹批量分组建议缓存。key = 文件夹真实路径;空数组也表示「已评估,无建议」。
+    private(set) var folderGroupsByPath: [String: [CachedFolderGroup]]
 
     private let defaults: UserDefaults
 
@@ -44,6 +52,7 @@ final class AIBackgroundIndexStore: ObservableObject {
         self.scopes = AIBackgroundIndexStore.loadScopes(from: defaults)
         self.fileIndex = AIBackgroundIndexStore.loadIndex(from: defaults)
         self.dislikedSuggestionKeys = AIBackgroundIndexStore.loadDislikedKeys(from: defaults)
+        self.folderGroupsByPath = AIBackgroundIndexStore.loadFolderGroups(from: defaults)
         rebuildPathIndex()   // init 里的 fileIndex 赋值不触发 didSet,手动建一次
     }
 
@@ -75,6 +84,21 @@ final class AIBackgroundIndexStore: ObservableObject {
 
     /// 按真实路径查一条预索引记录(文件浏览器 AI 抽屉读模型建议用)。O(1)。
     func record(forPath path: String) -> AIFileMemoryRecord? { recordByPath[path] }
+
+    func folderGroups(forPath folderPath: String) -> [CachedFolderGroup] {
+        folderGroupsByPath[Self.normalizedFolderPath(folderPath)] ?? []
+    }
+
+    func setFolderGroups(_ groups: [CachedFolderGroup], forPath folderPath: String) {
+        let key = Self.normalizedFolderPath(folderPath)
+        folderGroupsByPath[key] = groups
+        persistFolderGroups()
+        objectWillChange.send()
+    }
+
+    private nonisolated static func normalizedFolderPath(_ path: String) -> String {
+        URL(fileURLWithPath: path).standardizedFileURL.path
+    }
 
     // MARK: - opt-in 门控(白皮书:不开则完全不跑)
 
@@ -294,7 +318,9 @@ final class AIBackgroundIndexStore: ObservableObject {
     /// #8:跨表面反馈 / 兴趣信号也是后台 AI 派生学习数据 → 一并抹掉(隐私:可清空)。
     func clearFileIndex() {
         fileIndex = fileIndex.cleared()
+        folderGroupsByPath = [:]
         persistIndex()
+        persistFolderGroups()
         AIFeedbackStore.shared.clearAll()
         objectWillChange.send()
     }
@@ -319,11 +345,24 @@ final class AIBackgroundIndexStore: ObservableObject {
         }
     }
 
+    private func persistFolderGroups() {
+        if let data = try? JSONEncoder().encode(folderGroupsByPath) {
+            defaults.set(data, forKey: AppPreferences.Key.aiFolderGroupsData)
+        }
+    }
+
     private static func loadDislikedKeys(from defaults: UserDefaults) -> Set<String> {
         guard let data = defaults.data(forKey: AppPreferences.Key.aiSuggestionDislikedKeys),
               let decoded = try? JSONDecoder().decode([String].self, from: data)
         else { return [] }
         return Set(decoded)
+    }
+
+    private static func loadFolderGroups(from defaults: UserDefaults) -> [String: [CachedFolderGroup]] {
+        guard let data = defaults.data(forKey: AppPreferences.Key.aiFolderGroupsData),
+              let decoded = try? JSONDecoder().decode([String: [CachedFolderGroup]].self, from: data)
+        else { return [:] }
+        return decoded
     }
 
     private static func loadScopes(from defaults: UserDefaults) -> [AIArchivePrefetchScope] {

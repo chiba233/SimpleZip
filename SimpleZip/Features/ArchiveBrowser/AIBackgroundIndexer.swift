@@ -101,6 +101,8 @@ final class AIBackgroundIndexer {
     private var archiveEntryTask: Task<Void, Never>?
     private var archiveKindRunning = false
     private var archiveKindTask: Task<Void, Never>?
+    private var folderGroupRunning = false
+    private var folderGroupTask: Task<Void, Never>?
 
     /// 跑一轮预索引(门控未过则直接返回 —— 默认 opt-in 关闭即什么都不做)。完成后通知发现编排者刷新。
     func runIfEnabled() {
@@ -148,6 +150,7 @@ final class AIBackgroundIndexer {
                         AIBackgroundIndexer.shared.generateArchiveEntrySuggestionsIfEnabled()   // 归档「也许你要包里的 X」
                         if AIBackgroundIndexer.shared.canRunDeepContextNow() {
                             AIBackgroundIndexer.shared.generateArchiveKindGuessIfEnabled()   // 归档「这看起来是什么包」
+                            AIBackgroundIndexer.shared.generateFolderGroupSuggestionsIfEnabled()   // 文件夹「这些可成组处理」
                         }
                     }
                 }
@@ -165,6 +168,7 @@ final class AIBackgroundIndexer {
         urlSuggestionTask?.cancel(); urlSuggestionTask = nil; urlSuggestionRunning = false
         archiveEntryTask?.cancel(); archiveEntryTask = nil; archiveEntryRunning = false
         archiveKindTask?.cancel(); archiveKindTask = nil; archiveKindRunning = false
+        folderGroupTask?.cancel(); folderGroupTask = nil; folderGroupRunning = false
     }
 
     // MARK: - 内容预读 · 归档半边(MainActor:ArchiveService 在 app target 下 MainActor 隔离,A18)
@@ -538,6 +542,66 @@ final class AIBackgroundIndexer {
                 guard let summary = try? await AIVirtualFolderModelPlanner.archiveKindGuess(
                     archiveName: rec.fileName, entryNames: entries) else { continue }
                 AIBackgroundIndexStore.shared.applyArchiveKindGuess(recordID: rec.id, summary: summary)
+            }
+        }
+    }
+
+    // MARK: - 文件夹批量分组建议(MainActor:索引记录 → 候选 → 模型 async → 按文件夹缓存)
+
+    /// 对**还没评估**的索引目录,让端上模型从同一文件夹里的文件中圈出少数「可一起批量处理」的组。
+    /// 只写派生缓存(`folderGroupsByPath`),不接任何 UI。门控完全沿用包定性:AI 建议开关 + 后台索引 + 模型就绪
+    /// + deep-context 空闲门控;预算封顶每轮目录数。
+    func generateFolderGroupSuggestionsIfEnabled() {
+        guard #available(macOS 26.0, *) else { return }
+        let store = AIBackgroundIndexStore.shared
+        guard !folderGroupRunning, AppPreferences.aiSuggestionEnabled,
+              store.indexingEnabled, AIReportAssistant.isReady, canRunDeepContextNow(),
+              let budget = store.budget else { return }
+
+        var folderOrder: [String] = []
+        var recordsByFolder: [String: [AIFileMemoryRecord]] = [:]
+        for rec in store.recentFileRecords(limit: 4_000) {
+            guard rec.type != .folder, let path = rec.path else { continue }
+            let folder = URL(fileURLWithPath: path).deletingLastPathComponent().standardizedFileURL.path
+            guard store.folderGroupsByPath[folder] == nil else { continue }
+            if recordsByFolder[folder] == nil { folderOrder.append(folder) }
+            recordsByFolder[folder, default: []].append(rec)
+        }
+        let picks = folderOrder
+            .filter { (recordsByFolder[$0]?.count ?? 0) >= 2 }
+            .prefix(budget.maxModelSuggestionsPerRound)
+        guard !picks.isEmpty else { return }
+
+        folderGroupRunning = true
+        folderGroupTask = Task { @MainActor in
+            defer { AIBackgroundIndexer.shared.folderGroupRunning = false }
+            for folder in picks {
+                if Task.isCancelled { break }
+                guard AIBackgroundIndexStore.shared.indexingEnabled,
+                      AIReportAssistant.isReady,
+                      AIBackgroundIndexer.shared.canRunDeepContextNow() else { break }
+                let records = recordsByFolder[folder] ?? []
+                var pathByCandidateID: [String: String] = [:]
+                let candidates = records.compactMap { rec -> AIVirtualNodePromptCandidate? in
+                    guard let path = rec.path else { return nil }
+                    let candidate = AIWorkspaceDiscovery.candidate(from: rec)
+                    pathByCandidateID[candidate.id] = path
+                    return AIVirtualNodePromptCandidate(candidate: candidate)
+                }
+                guard candidates.count >= 2 else {
+                    AIBackgroundIndexStore.shared.setFolderGroups([], forPath: folder)
+                    continue
+                }
+                guard let suggestions = try? await AIVirtualFolderModelPlanner.folderGroupSuggestions(items: candidates)
+                else { continue }
+                let groups = suggestions.compactMap { suggestion -> CachedFolderGroup? in
+                    var seen = Set<String>()
+                    let paths = suggestion.memberIDs.compactMap { pathByCandidateID[$0] }
+                        .filter { seen.insert($0).inserted }
+                    guard paths.count >= 2 else { return nil }
+                    return CachedFolderGroup(title: nil, memberPaths: paths, actionToken: suggestion.actionToken)
+                }
+                AIBackgroundIndexStore.shared.setFolderGroups(groups, forPath: folder)
             }
         }
     }
