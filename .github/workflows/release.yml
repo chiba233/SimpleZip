@@ -395,8 +395,13 @@ jobs:
           ' "$EXISTING" > /tmp/appcast_deduped.xml
 
           # 在 </channel> 前插入新 item。
-          awk -v item="$NEW_ITEM" '
-            /<\/channel>/ { print item }
+          # 注意：awk -v 不支持多行字符串，先把 item 写临时文件再用 getline 读入。
+          printf '%s\n' "$NEW_ITEM" > /tmp/new_item.xml
+          awk '
+            /<\/channel>/ {
+              while ((getline line < "/tmp/new_item.xml") > 0) print line
+              close("/tmp/new_item.xml")
+            }
             { print }
           ' /tmp/appcast_deduped.xml > docs/appcast.xml
 
