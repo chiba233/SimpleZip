@@ -2606,6 +2606,7 @@
 "aiWorkspace.suggest.security" = "Rapport de sécurité des chemins";
 "aiWorkspace.suggest.convert" = "Convertir l’archive";
 "aiWorkspace.suggest.openWith" = "Ouvrir avec %@";
+"aiWorkspace.suggest.openURL" = "Ouvrir la page %@";
 "aiWorkspace.suggest.install" = "Installer %@";
 "aiWorkspace.suggest.activity" = "Afficher dans le centre d’activité";
 "aiWorkspace.suggest.revealEntry" = "Vous voulez peut-être %@";

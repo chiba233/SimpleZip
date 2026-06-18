@@ -2608,6 +2608,7 @@
 "aiWorkspace.suggest.security" = "Отчет о безопасности путей";
 "aiWorkspace.suggest.convert" = "Конвертировать архив";
 "aiWorkspace.suggest.openWith" = "Открыть в %@";
+"aiWorkspace.suggest.openURL" = "Открыть страницу %@";
 "aiWorkspace.suggest.install" = "Установить %@";
 "aiWorkspace.suggest.activity" = "Показать в Центре активности";
 "aiWorkspace.suggest.revealEntry" = "Возможно, вам нужен %@";

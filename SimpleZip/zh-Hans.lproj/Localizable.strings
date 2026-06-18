@@ -2687,6 +2687,7 @@
 "aiWorkspace.suggest.security" = "路径安全报告";
 "aiWorkspace.suggest.convert" = "转换归档";
 "aiWorkspace.suggest.openWith" = "用 %@ 打开";
+"aiWorkspace.suggest.openURL" = "打开网页 %@";
 "aiWorkspace.suggest.install" = "安装 %@";
 "aiWorkspace.suggest.activity" = "在活动中心查看";
 "aiWorkspace.suggest.revealEntry" = "也许你要 %@";

@@ -137,6 +137,14 @@ struct GeneratedArchiveKindGuess: Sendable {
     var summary: String
 }
 
+/// **文本内真实 URL 打开建议**的模型产出。模型只能选 App 给的候选编号,不能输出 / 发明 URL。
+@available(macOS 26.0, *)
+@Generable
+struct GeneratedURLSuggestion: Sendable {
+    @Guide(description: "The NUMBER of the one URL that is genuinely worth showing as an 'open webpage' suggestion for this file. Use 0 when none is clearly useful. Choose only from the numbered URL list; never invent, rewrite, or output a URL.")
+    var urlNumber: Int
+}
+
 /// 动态核查产出:**明显不扣题**、该从文件夹移除的条目序号(保守 —— 拿不准就不列)。扁平单字段,可靠。
 @available(macOS 26.0, *)
 @Generable
@@ -405,6 +413,30 @@ enum AIVirtualFolderModelPlanner {
             instructions: instructions, prompt: lines.joined(separator: "\n"),
             as: GeneratedArchiveKindGuess.self, maxAttempts: 8)
         return generated.summary.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// **文本里真实 URL 的打开建议**(拒绝假AI)。App 先从已脱敏预读文本里正则抽出真实 http(s) URL;模型只判断
+    /// 其中哪一个值得展示,返回编号。失败 / 0 → 不写任何建议。模型不得输出或改写 URL。
+    static func urlOpenSuggestion(fileName: String, roleTags: [String], urls: [String]) async throws -> Int? {
+        guard !urls.isEmpty else { return nil }
+        let cands = Array(urls.prefix(12))
+        let instructions = """
+        You are deciding whether a file manager should show an "open webpage" suggestion for ONE text file. The App \
+        has already extracted REAL URLs from the file. Choose the ONE URL that is clearly useful for the owner to \
+        open from this file — for example an official project page, release page, documentation, issue, download, \
+        or other central reference. Use 0 if the URLs look incidental, tracking-like, too generic, or not worth \
+        surfacing. Be strict: most files need no URL suggestion. Choose only by NUMBER from the list. Never invent, \
+        rewrite, normalize, or output any URL. Do not mention or recommend any specific browser or app.
+        """
+        var lines = ["File: \(fileName)"]
+        if !roleTags.isEmpty { lines.append("Role: \(roleTags.joined(separator: ", "))") }
+        lines.append("Extracted URLs (number<TAB>url) — choose only by number:")
+        for (i, url) in cands.enumerated() { lines.append("\(i + 1)\t\(url)") }
+        let generated = try await AIReportAssistant.generateStructured(
+            instructions: instructions, prompt: lines.joined(separator: "\n"),
+            as: GeneratedURLSuggestion.self, maxAttempts: 8)
+        guard generated.urlNumber >= 1, generated.urlNumber <= cands.count else { return nil }
+        return generated.urlNumber - 1
     }
 
     /// **文件「查看更长总结」**(backlog B,按需现算)。双击抽屉摘要行时弹窗实时生成 —— 比一句话短摘要更深:

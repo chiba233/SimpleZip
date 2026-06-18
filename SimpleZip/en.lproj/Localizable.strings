@@ -2687,6 +2687,7 @@
 "aiWorkspace.suggest.security" = "Path Safety Report";
 "aiWorkspace.suggest.convert" = "Convert Archive";
 "aiWorkspace.suggest.openWith" = "Open with %@";
+"aiWorkspace.suggest.openURL" = "Open webpage %@";
 "aiWorkspace.suggest.install" = "Install %@";
 "aiWorkspace.suggest.activity" = "View in Activity Center";
 "aiWorkspace.suggest.revealEntry" = "Maybe you need %@";

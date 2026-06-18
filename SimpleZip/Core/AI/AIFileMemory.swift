@@ -197,9 +197,9 @@ nonisolated enum AIFileType: String, Codable, Equatable, CaseIterable, Sendable 
 }
 
 /// 端上模型给一个文件挑的一条**结构化建议动作**(②c)。`token` = 动作种类(`allowedSuggestionDescriptors.id` 子集
-/// + openWith / openActivity / revealArchiveEntry / dragToApplications…);`payload` = App 安全回查的负载
-/// (openWith→app bundleId、activity→taskId、包内文件→entryPath、dmg→.app 路径);`label` = 给人看的补充
-/// (openWith 的 app 名「Preview」)。**模型不拼路径** —— payload 由 App 按模型的选择安全合成。
+/// + openWith / openActivity / revealArchiveEntry / dragToApplications / urlOpen…);`payload` = App 安全回查的负载
+/// (openWith→app bundleId、activity→taskId、包内文件→entryPath、dmg→.app 路径、urlOpen→真实 http(s) URL);
+/// `label` = 给人看的补充(openWith 的 app 名「Preview」)。**模型不拼路径 / URL** —— payload 由 App 按模型的选择安全合成。
 nonisolated struct AIFileSuggestedAction: Codable, Equatable, Sendable {
     let token: String
     let payload: String?

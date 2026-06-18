@@ -120,6 +120,20 @@ nonisolated enum AIPrereadSelection {
         return rankAndTake(eligible, budget: budget, now: now, interest: interestRoleTags, halfLifeDays: 14)
     }
 
+    /// 从已预读文本记录里挑「可重读脱敏头部并抽 URL」的前 `budget` 个。真正的 URL 抽取和模型筛选在 App 层;
+    /// Core 只做 eligibility:文本可总结、有结构摘要、有真实路径、还没有 `urlOpen` 结果。
+    static func selectForURLSuggestion(records: [AIFileMemoryRecord], budget: Int, now: Date,
+                                       interestRoleTags: Set<String> = []) -> [AIFileMemoryRecord] {
+        guard budget > 0 else { return [] }
+        let eligible = records.filter {
+            isPrereadSummarizable($0.type)
+                && $0.contentSummary != nil
+                && $0.path != nil
+                && $0.contentSummary?.action(forToken: "urlOpen") == nil
+        }
+        return rankAndTake(eligible, budget: budget, now: now, interest: interestRoleTags, halfLifeDays: 14)
+    }
+
     /// 排序 + 取前 N(共用:summary 和 archive 两个入口都走这,只是各自的 eligibility 过滤不同)。
     private static func rankAndTake(_ records: [AIFileMemoryRecord], budget: Int, now: Date,
                                     interest: Set<String>, halfLifeDays: Double) -> [AIFileMemoryRecord] {

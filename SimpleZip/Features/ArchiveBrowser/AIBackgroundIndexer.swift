@@ -95,6 +95,8 @@ final class AIBackgroundIndexer {
     private var diskImageTask: Task<Void, Never>?
     private var activityRunning = false
     private var activityTask: Task<Void, Never>?
+    private var urlSuggestionRunning = false
+    private var urlSuggestionTask: Task<Void, Never>?
     private var archiveEntryRunning = false
     private var archiveEntryTask: Task<Void, Never>?
     private var archiveKindRunning = false
@@ -140,6 +142,7 @@ final class AIBackgroundIndexer {
                     // AI 电源规范③:模型类 pass 只在「用户空闲 20s + 模型可用 + 非低电/省电」时跑(不打扰正在用 app 的用户)。
                     if AIBackgroundIndexer.shared.canRunModelWorkNow() {
                         AIBackgroundIndexer.shared.generateFileSuggestionsIfEnabled()   // 近阈值/空闲文件出模型建议
+                        AIBackgroundIndexer.shared.generateURLOpenSuggestionsIfEnabled()   // 文本里真实 URL →「打开网页」
                         AIBackgroundIndexer.shared.generateDiskImageSuggestionsIfEnabled()   // 内含 App 的 dmg「安装到应用程序」
                         AIBackgroundIndexer.shared.generateActivityLinkSuggestionsIfEnabled()   // 命中近期任务产物「查看活动」
                         AIBackgroundIndexer.shared.generateArchiveEntrySuggestionsIfEnabled()   // 归档「也许你要包里的 X」
@@ -159,6 +162,7 @@ final class AIBackgroundIndexer {
         suggestionTask?.cancel(); suggestionTask = nil; suggestionRunning = false
         diskImageTask?.cancel(); diskImageTask = nil; diskImageRunning = false
         activityTask?.cancel(); activityTask = nil; activityRunning = false
+        urlSuggestionTask?.cancel(); urlSuggestionTask = nil; urlSuggestionRunning = false
         archiveEntryTask?.cancel(); archiveEntryTask = nil; archiveEntryRunning = false
         archiveKindTask?.cancel(); archiveKindTask = nil; archiveKindRunning = false
     }
@@ -265,6 +269,48 @@ final class AIBackgroundIndexer {
                     recordID: rec.id, summary: result.summary, actions: result.actions)
             }
         }
+    }
+
+    // MARK: - 文本内真实 URL「打开网页」建议(MainActor:只读重读脱敏头部 + 模型按编号筛)
+
+    /// 对**已预读过的文本记录**,App 只读重读脱敏头部并正则抽真实 http(s) URL,再让端上模型只从这些 URL 编号里
+    /// 选一个值得展示的网页。模型不能发明 / 改写 URL;没选中就不写建议(空抽屉)。点击走系统默认浏览器。
+    func generateURLOpenSuggestionsIfEnabled() {
+        guard #available(macOS 26.0, *) else { return }
+        let store = AIBackgroundIndexStore.shared
+        guard !urlSuggestionRunning, AppPreferences.aiSuggestionEnabled,
+              store.contentPrereadEnabled, AIReportAssistant.isReady, let budget = store.budget else { return }
+        let candidates = AIPrereadSelection.selectForURLSuggestion(
+            records: store.recentFileRecords(limit: 2_000),
+            budget: budget.maxModelSuggestionsPerRound, now: Date())
+        guard !candidates.isEmpty else { return }
+        urlSuggestionRunning = true
+        urlSuggestionTask = Task { @MainActor in
+            defer { AIBackgroundIndexer.shared.urlSuggestionRunning = false }
+            for rec in candidates {
+                if Task.isCancelled { break }
+                guard AIBackgroundIndexStore.shared.contentPrereadEnabled, AIReportAssistant.isReady else { break }
+                guard let path = rec.path, FileManager.default.fileExists(atPath: path) else { continue }
+                let fileName = (path as NSString).lastPathComponent
+                let excerptTask = Task.detached(priority: .background) {
+                    AIBackgroundIndexer.redactedExcerpt(url: URL(fileURLWithPath: path), fileName: fileName)
+                }
+                guard let excerpt = await excerptTask.value else { continue }
+                let urls = AIURLCandidateExtractor.extract(from: excerpt, limit: 12)
+                guard !urls.isEmpty else { continue }
+                guard let index = try? await AIVirtualFolderModelPlanner.urlOpenSuggestion(
+                    fileName: rec.fileName, roleTags: rec.roleTags, urls: urls),
+                    urls.indices.contains(index) else { continue }
+                let url = urls[index]
+                AIBackgroundIndexStore.shared.applyURLOpenSuggestion(
+                    recordID: rec.id, url: url, label: AIBackgroundIndexer.webPageLabel(for: url))
+            }
+        }
+    }
+
+    nonisolated static func webPageLabel(for rawURL: String) -> String {
+        guard let host = URLComponents(string: rawURL)?.host, !host.isEmpty else { return rawURL }
+        return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
     }
 
     // MARK: - 磁盘镜像安装建议(推荐打开方式 backlog 第2项;MainActor:7zz peek + 模型 async)

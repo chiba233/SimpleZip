@@ -103,6 +103,18 @@ enum AIWorkspaceNodeActions {
                          displayTitle: L10n.format("aiWorkspace.suggest.openWith", appName),
                          systemImage: "arrow.up.forward.app",
                          action: .openWithApplication(sourceRefs: [sourceRef], bundleIdentifier: bundleID))
+        // 文本里的真实 URL:payload = App 从已脱敏预读文本抽出的 http(s) URL;模型只选编号,不拼 URL。
+        case "urlOpen":
+            guard let rawURL = action.payload,
+                  let components = URLComponents(string: rawURL),
+                  let scheme = components.scheme?.lowercased(),
+                  (scheme == "http" || scheme == "https"),
+                  components.host?.isEmpty == false else { return nil }
+            let label = (action.label?.isEmpty == false) ? action.label! : rawURL
+            return .init(titleKey: "aiWorkspace.suggest.openURL",
+                         displayTitle: L10n.format("aiWorkspace.suggest.openURL", label),
+                         systemImage: "safari",
+                         action: .openURL(rawURL))
         // 磁盘镜像装 App:label = 内含 App 名;点击 = 走 app 内置复制逻辑把 .app 拷进 /Applications(冲突弹窗 +
         // 活动中心任务都在复制逻辑里;复制完卸载源 DMG)。path = DMG 路径,appName 由 7zz peek 得到。
         case "dragToApplications":

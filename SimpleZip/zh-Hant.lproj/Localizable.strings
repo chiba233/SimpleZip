@@ -2610,6 +2610,7 @@
 "aiWorkspace.suggest.security" = "路徑安全報告";
 "aiWorkspace.suggest.convert" = "轉換歸檔";
 "aiWorkspace.suggest.openWith" = "用 %@ 打開";
+"aiWorkspace.suggest.openURL" = "開啟網頁 %@";
 "aiWorkspace.suggest.install" = "安裝 %@";
 "aiWorkspace.suggest.activity" = "在活動中心查看";
 "aiWorkspace.suggest.revealEntry" = "也許你要 %@";

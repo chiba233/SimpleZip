@@ -18,6 +18,12 @@ import Testing
                                 modifiedAt: now.addingTimeInterval(-daysOld * 86_400), location: loc)
     }
 
+    private func pathRec(_ name: String, daysOld: Double = 0) -> AIFileMemoryRecord {
+        AIFileMemoryRecord.make(fileName: name, isDirectory: false, byteSize: 100,
+                                modifiedAt: now.addingTimeInterval(-daysOld * 86_400), location: loc,
+                                path: "/tmp/\(name)")
+    }
+
     @Test func picksTextSummarizableOnlyAndSkipsBinaryMedia() {
         // 纳入:文档 / 配置 / 无后缀文本(LICENSE)/ 未识别文本(.log)。排除:源码(3B 读不懂)/ 媒体 / 归档 / 二进制。
         let records = [rec("notes.md"), rec("app.yaml"), rec("LICENSE"), rec("server.log"),
@@ -172,6 +178,34 @@ import Testing
                                              from: JSONEncoder().encode(summary))
         #expect(round.suggestedActions == [action])
         #expect(round.suggestedActions.first?.payload == "com.apple.Preview")
+    }
+
+    @Test func urlCandidateExtractorFindsOnlyRealHTTPURLs() {
+        let text = """
+        Read https://example.com/docs.
+        Mirror: http://downloads.example.org/pkg.tar.gz)
+        Not a URL: www.example.com or ftp://example.com/file
+        Duplicate: HTTPS://EXAMPLE.COM/docs
+        """
+        #expect(AIURLCandidateExtractor.extract(from: text) == [
+            "https://example.com/docs",
+            "http://downloads.example.org/pkg.tar.gz"
+        ])
+    }
+
+    @Test func urlSuggestionSelectionRequiresPrereadPathAndNoExistingURLAction() {
+        let ready = pathRec("README.md", daysOld: 0)
+            .withContentSummary(AIFileContentSummary(mode: "text-summary"))
+        let done = pathRec("guide.md", daysOld: 1)
+            .withContentSummary(AIFileContentSummary(mode: "text-summary",
+                                                     suggestedActions: [AIFileSuggestedAction(token: "urlOpen",
+                                                                                              payload: "https://example.com")]))
+        let noSummary = pathRec("notes.md", daysOld: 0)
+        let source = pathRec("main.swift", daysOld: 0)
+            .withContentSummary(AIFileContentSummary(mode: "text-summary"))
+        let picked = AIPrereadSelection.selectForURLSuggestion(
+            records: [done, noSummary, source, ready], budget: 5, now: now).map(\.fileName)
+        #expect(picked == ["README.md"])
     }
 
     @Test func contentSummaryDecodesLegacy() throws {

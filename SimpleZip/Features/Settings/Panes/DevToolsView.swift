@@ -414,7 +414,7 @@ struct DevToolsView: View {
             + "(预读\(snapshot.backgroundIndex.contentPrereadEnabled ? "开" : "关"))"
             // AI 建议各 pass 的实际产物计数 —— 一眼看出每个 pass 有没有生效(0 = 还没出 / 没候选 / 没开)。
             let s = snapshot.backgroundIndex
-            aiSuggestionStatus = "摘要 \(s.summaryCount) · 打开方式 \(s.openWithCount) · 装App \(s.installCount)"
+            aiSuggestionStatus = "摘要 \(s.summaryCount) · 打开方式 \(s.openWithCount) · 网页 \(s.urlOpenCount) · 装App \(s.installCount)"
                 + " · 活动 \(s.activityCount) · 包内 \(s.archiveEntryCount) · 包定性 \(s.archiveKindCount)"
             // #8 跨表面反馈学习:事件计数(原始保留 30 天 / 每类上限 1000)。
             let fb = AIFeedbackStore.shared.counts
@@ -489,6 +489,7 @@ struct DevToolsView: View {
                 contentSummaryCount: records.reduce(0) { $0 + ($1.contentSummary != nil ? 1 : 0) },
                 summaryCount: summaryCount,
                 openWithCount: countAction("openWith"),
+                urlOpenCount: countAction("urlOpen"),
                 installCount: countAction("dragToApplications"),
                 activityCount: countAction("openTask"),
                 archiveEntryCount: countAction("revealArchiveEntry"),
@@ -601,6 +602,7 @@ private nonisolated struct DevToolsAIDataSnapshot: Encodable {
         // AI 建议各 pass 的产物计数(看每个 pass 有没有生效)。
         let summaryCount: Int
         let openWithCount: Int
+        let urlOpenCount: Int
         let installCount: Int
         let activityCount: Int
         let archiveEntryCount: Int

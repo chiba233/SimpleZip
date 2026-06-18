@@ -2609,6 +2609,7 @@
 "aiWorkspace.suggest.security" = "경로 안전 보고서";
 "aiWorkspace.suggest.convert" = "아카이브 변환";
 "aiWorkspace.suggest.openWith" = "%@(으)로 열기";
+"aiWorkspace.suggest.openURL" = "웹페이지 %@ 열기";
 "aiWorkspace.suggest.install" = "%@ 설치";
 "aiWorkspace.suggest.activity" = "활동 센터에서 보기";
 "aiWorkspace.suggest.revealEntry" = "%@(이)가 필요할 수 있어요";

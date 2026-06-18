@@ -2610,6 +2610,7 @@
 "aiWorkspace.suggest.security" = "パス安全性レポート";
 "aiWorkspace.suggest.convert" = "アーカイブを変換";
 "aiWorkspace.suggest.openWith" = "%@ で開く";
+"aiWorkspace.suggest.openURL" = "Webページ %@ を開く";
 "aiWorkspace.suggest.install" = "%@ をインストール";
 "aiWorkspace.suggest.activity" = "アクティビティセンターで表示";
 "aiWorkspace.suggest.revealEntry" = "%@ が必要かも";

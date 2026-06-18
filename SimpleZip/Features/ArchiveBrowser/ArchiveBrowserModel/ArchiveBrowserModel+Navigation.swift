@@ -72,11 +72,20 @@ extension ArchiveBrowserModel {
             requestConvertArchives(at: [URL(fileURLWithPath: path)])
         case .openWithApplication(let sourceRefs, let bundleIdentifier):
             openSourceRefs(sourceRefs, withAppBundleID: bundleIdentifier)
+        case .openURL(let rawURL):
+            openWebURL(rawURL)
         case .installAppFromDiskImage(let diskImagePath, let appName):
             installAppFromDiskImage(URL(fileURLWithPath: diskImagePath), appName: appName)
         default:
             break   // evidence-ref / 写盘 / 虚拟管理类:后续接(需 source-ref 回查)—— 写盘动作回原生确认流
         }
+    }
+
+    private func openWebURL(_ rawURL: String) {
+        guard let url = URL(string: rawURL),
+              let scheme = url.scheme?.lowercased(),
+              (scheme == "http" || scheme == "https") else { return }
+        NSWorkspace.shared.open(url)
     }
 
     /// 推荐打开方式派发:source ref → 真实路径(经预索引回查,模型不拼路径)→ 用指定 bundleId 的 App 打开这些文件。

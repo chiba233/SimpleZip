@@ -247,6 +247,22 @@ final class AIBackgroundIndexStore: ObservableObject {
         objectWillChange.send()
     }
 
+    /// **文本 URL 打开建议**回填:URL 来自 App 从已脱敏预读文本正则抽取的真实 http(s) URL;模型只选编号。
+    /// payload 保存真实 URL,label 保存展示名。没有模型选择就不调用本方法,保持空抽屉/无假建议。
+    func applyURLOpenSuggestion(recordID: String, url: String, label: String?) {
+        let cleanURL = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanURL.isEmpty else { return }
+        let cleanLabel = label?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let action = AIFileSuggestedAction(token: "urlOpen", payload: cleanURL,
+                                           label: cleanLabel?.isEmpty == false ? cleanLabel : nil)
+        fileIndex = fileIndex.updatingRecord(id: recordID) { rec in
+            let base = rec.contentSummary ?? AIFileContentSummary(mode: "url-open")
+            return rec.withContentSummary(base.mergingSingletonAction(action, replacingToken: "urlOpen"))
+        }
+        persistIndex()
+        objectWillChange.send()
+    }
+
     /// 把用户触发的只读按需结果回填到记录里(`hash` / 后续 `test` / `inspect` 复用同一机制)。
     func applyInlineResult(recordID: String, token: String, text: String) {
         let cleanToken = token.trimmingCharacters(in: .whitespacesAndNewlines)

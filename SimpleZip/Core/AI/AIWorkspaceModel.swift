@@ -33,6 +33,7 @@ nonisolated enum AISuggestionAction: Codable, Equatable, Sendable {
     case applySelection(paths: [String])
     case revealSourceRefsInFinder(sourceRefs: [AIContextSourceRef])
     case openWithApplication(sourceRefs: [AIContextSourceRef], bundleIdentifier: String)
+    case openURL(String)
     /// 把 DMG 里的 App 装进 /Applications(走 app 内置复制逻辑:冲突弹窗 + 活动中心任务)。用户明确授权的写盘动作 ——
     /// 由 App 据 DMG 行 + 7zz peek 出的 .app 名安全合成,**模型只决定「要不要建议装」(布尔),不构造路径**。
     case installAppFromDiskImage(diskImagePath: String, appName: String)
@@ -80,7 +81,7 @@ nonisolated enum AISuggestionAction: Codable, Equatable, Sendable {
         // 只读 / 导航 / 虚拟管理 —— 直接安全。
         case .openTask, .openFolder, .revealFile, .openArchive, .applyArchiveSearch, .openReport,
              .explainFailure, .openActivityCenter, .applySelection, .revealSourceRefsInFinder,
-             .openWithApplication, .pinRecommendedWorkspace, .dismissRecommendedWorkspace,
+             .openWithApplication, .openURL, .pinRecommendedWorkspace, .dismissRecommendedWorkspace,
              .setWorkspacePreferredOpenApp, .mergeAIWorkspaces, .splitAIWorkspace,
              .removeSourceRefsFromAIWorkspace, .moveVirtualNodes, .addSourceRefsToAIWorkspace,
              .addThemePromptToAIWorkspace, .calculateInlineHash, .calculateInlineArchiveTest,

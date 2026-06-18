@@ -2608,6 +2608,7 @@
 "aiWorkspace.suggest.security" = "Informe de seguridad de rutas";
 "aiWorkspace.suggest.convert" = "Convertir archivo";
 "aiWorkspace.suggest.openWith" = "Abrir con %@";
+"aiWorkspace.suggest.openURL" = "Abrir página %@";
 "aiWorkspace.suggest.install" = "Instalar %@";
 "aiWorkspace.suggest.activity" = "Ver en el Centro de actividad";
 "aiWorkspace.suggest.revealEntry" = "Quizás necesites %@";
