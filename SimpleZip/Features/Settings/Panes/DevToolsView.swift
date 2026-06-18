@@ -185,6 +185,14 @@ struct DevToolsView: View {
                         ) {
                             copyAIIndexData()
                         }
+                        // Spotlight 捐献快照(各域计数 + 注明 AI 建议不在 Spotlight)——隐藏调试区,中文硬编码。
+                        actionRow(
+                            "magnifyingglass.circle",
+                            "复制 Spotlight 索引数据",
+                            "各域计数(发布 / 任务 / 归档 / 归档内文件 / 设置)+ 说明,排查 Spotlight 是否进了索引。"
+                        ) {
+                            copySpotlightData()
+                        }
                     }
 
                     if let actionFeedback {
@@ -401,7 +409,10 @@ struct DevToolsView: View {
                 : snapshot.assistant.unavailableReason
             aiArchiveMemoryStatus = "\(snapshot.archiveMemory.archiveCount) · "
                 + ByteCountFormatter.string(fromByteCount: Int64(snapshot.archiveMemory.storageByteSize), countStyle: .file)
-            aiSpotlightStatus = "\(snapshot.spotlight.total)"
+            // Spotlight 各域分解(发布/任务/归档/归档内文件/设置),一眼看出哪个域没进索引。
+            let sp = snapshot.spotlight
+            aiSpotlightStatus = "发布 \(sp.releases) · 任务 \(sp.tasks) · 归档 \(sp.archives)"
+                + " · 归档内文件 \(sp.archiveFiles) · 设置 \(sp.settings) · 合计 \(sp.total)"
             aiBackgroundIndexStatus = L10n.format(
                 "devtools.aiData.backgroundIndex.value",
                 snapshot.backgroundIndex.activityLevel,
@@ -539,6 +550,34 @@ struct DevToolsView: View {
         }
     }
 
+    /// Spotlight 捐献快照复制(隐藏调试区)。各域计数走后台(读多个 store 的 JSON),回主 actor 设剪贴板。
+    /// 注明 AI 建议 / AI 文件索引**不在 Spotlight**(私有派生数据,在「复制 AI 索引数据」里)—— 直接回答「有没有进索引」。
+    private func copySpotlightData() {
+        Task { @MainActor in
+            let generatedAt = Date()
+            let dump = await Task.detached(priority: .utility) { () -> DevToolsSpotlightDump in
+                let stats = SpotlightReindex.stats()
+                return DevToolsSpotlightDump(
+                    generatedAt: generatedAt,
+                    releases: stats.releases, tasks: stats.tasks, archives: stats.archives,
+                    archiveFiles: stats.archiveFiles, settings: stats.settings,
+                    total: stats.releases + stats.tasks + stats.archives + stats.archiveFiles + stats.settings,
+                    note: "上界估计(实际进系统索引为异步)。AI 建议 / AI 文件索引不进 Spotlight,属私有派生数据,见「复制 AI 索引数据」。"
+                )
+            }.value
+            let encoder = JSONEncoder()
+            encoder.dateEncodingStrategy = .iso8601
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            guard let data = try? encoder.encode(dump), let text = String(data: data, encoding: .utf8) else {
+                flash("复制 Spotlight 索引失败")
+                return
+            }
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(text, forType: .string)
+            flash("已复制 Spotlight 索引数据")
+        }
+    }
+
     private func makeAIIndexDataSnapshot() -> DevToolsAIIndexDataSnapshot {
         let store = AIBackgroundIndexStore.shared
         return DevToolsAIIndexDataSnapshot(
@@ -564,6 +603,18 @@ struct DevToolsView: View {
 private nonisolated struct DevToolsArchiveCacheProbe {
     let entries: [ArchiveListingCacheEntry]
     let memory: DevToolsAIDataSnapshot.ArchiveMemory
+}
+
+/// 「复制 Spotlight 索引数据」的导出体:各域计数 + 说明(隐藏调试区)。
+private nonisolated struct DevToolsSpotlightDump: Encodable {
+    let generatedAt: Date
+    let releases: Int
+    let tasks: Int
+    let archives: Int
+    let archiveFiles: Int
+    let settings: Int
+    let total: Int
+    let note: String
 }
 
 private nonisolated struct DevToolsAIDataSnapshot: Encodable {
