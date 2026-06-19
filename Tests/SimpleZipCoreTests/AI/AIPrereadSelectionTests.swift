@@ -160,6 +160,14 @@ import Testing
         #expect(updated.suggestedActions.map(\.token) == ["hash", "compress", "openTask"])
     }
 
+    @Test func modelSuggestionReplacesPreviousSecurityAction() {
+        let base = AIFileContentSummary(mode: "archive-kind",
+                                        suggestedActions: [AIFileSuggestedAction(token: "security")])
+        let updated = base.withModelSuggestion(summary: "一句话",
+                                               actions: [AIFileSuggestedAction(token: "test")])
+        #expect(updated.suggestedActions.map(\.token) == ["test"])
+    }
+
     @Test func archiveKindMarkerAloneIsNotAVisibleModelSuggestion() {
         let markerOnly = AIFileContentSummary(mode: "archive-kind",
                                               suggestedActions: [AIFileSuggestedAction(token: "archiveKind")])

@@ -287,7 +287,7 @@ nonisolated struct AIFileContentSummary: Codable, Equatable, Sendable {
 
     /// 单文件总结 pass 负责的动作 token(内容类 + openWith);别的 pass(活动 openTask、磁盘镜像 dragToApplications)
     /// 写的动作不在此列,合并时要保留 —— 否则总结 pass 重写会把它们清掉。
-    static let summaryOwnedActionTokens: Set<String> = ["hash", "compress", "test", "inspect", "convert", "openWith"]
+    static let summaryOwnedActionTokens: Set<String> = ["hash", "compress", "test", "inspect", "security", "convert", "openWith"]
     /// 只用于内部去重 / 计数,不会渲染成抽屉动作的 marker。
     static let hiddenActionTokens: Set<String> = ["archiveKind"]
 

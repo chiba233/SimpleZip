@@ -97,6 +97,18 @@ import Testing
         #expect(taskLeaf?.primaryAction == .openTask(taskID))
     }
 
+    @Test func securitySuggestionActionBuildsPathSafetyAction() {
+        let archivePath = "/Users/me/Downloads/pkg.zip"
+        let archiveRef = AIContextSourceRef(kind: .archive, id: "arch-security")
+        let candidate = AIVirtualNodeCandidate(id: "z1", kind: .archive, displayName: "pkg.zip",
+                                               sourceRefs: [archiveRef], roleTags: ["archive"])
+        let action = AIVirtualNodeActionDeriver.suggestionAction(
+            token: "security",
+            candidate: candidate,
+            pathsBySourceRef: [archiveRef: archivePath])
+        #expect(action == .calculateInlinePathSafety(recordID: "arch-security", path: archivePath, token: "security"))
+    }
+
     @Test func builderDropsInvalidCandidateIDsAndEmptyGroups() {
         let ref = AIContextSourceRef(kind: .file, id: "fs-keep")
         let candidates = [AIVirtualNodeCandidate(id: "keep", kind: .file, displayName: "keep.txt",

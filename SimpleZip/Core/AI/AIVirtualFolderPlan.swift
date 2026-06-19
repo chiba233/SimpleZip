@@ -842,6 +842,7 @@ nonisolated enum AIVirtualNodeActionDeriver {
         case "compress": return .createArchive(paths: [path])
         case "test":    return .testArchive(path: path)
         case "inspect": return .inspectRelease(path: path)
+        case "security": return .calculateInlinePathSafety(recordID: candidate.sourceRefs[0].id, path: path, token: token)
         case "convert": return .convertArchive(path: path)
         default:        return nil
         }
