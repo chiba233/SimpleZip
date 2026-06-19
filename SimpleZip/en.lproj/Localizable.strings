@@ -1342,8 +1342,8 @@
 "ai.compareSummary.title" = "AI Release Comparison";
 "tasks.aiFilter" = "AI Filter";
 "tasks.aiFilter.title" = "Filter by Description";
-"tasks.aiFilter.hint" = "Describe what you want — a file name like “minecraft.zip”, a time like “failed today”, or a status. AI carves out a temporary filter.";
-"tasks.aiFilter.prompt" = "e.g. minecraft.zip, or failed today";
+"tasks.aiFilter.hint" = "Describe what you want — a file name, a time like “failed today”, or a status. AI carves out a temporary filter.";
+"tasks.aiFilter.prompt" = "e.g. failed today";
 "tasks.aiFilter.apply" = "Apply";
 "tasks.aiFilter.activeHelp" = "AI filter: %@ — tap to clear";
 "tasks.aiFilter.failed" = "Couldn't build a filter — try rephrasing.";

@@ -2352,8 +2352,8 @@
 "ai.compareSummary.title" = "Comparaison de versions par l’IA";
 "tasks.aiFilter" = "Filtre IA";
 "tasks.aiFilter.title" = "Filtrer par description";
-"tasks.aiFilter.hint" = "Décrivez ce que vous voulez : un nom de fichier comme « minecraft.zip », un moment comme « échecs aujourd’hui » ou un état. L’IA crée un filtre temporaire.";
-"tasks.aiFilter.prompt" = "p. ex. minecraft.zip ou échecs aujourd’hui";
+"tasks.aiFilter.hint" = "Décrivez ce que vous voulez : un nom de fichier, un moment comme « échecs aujourd’hui » ou un état. L’IA crée un filtre temporaire.";
+"tasks.aiFilter.prompt" = "p. ex. échecs aujourd’hui";
 "tasks.aiFilter.apply" = "Appliquer";
 "tasks.aiFilter.activeHelp" = "Filtre IA : %@ — touchez pour effacer";
 "tasks.aiFilter.failed" = "Impossible de créer le filtre — reformulez.";

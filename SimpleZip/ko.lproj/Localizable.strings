@@ -2353,8 +2353,8 @@
 "ai.compareSummary.title" = "AI 릴리스 비교";
 "tasks.aiFilter" = "AI 필터";
 "tasks.aiFilter.title" = "설명으로 필터링";
-"tasks.aiFilter.hint" = "원하는 것을 설명하세요: “minecraft.zip” 같은 파일 이름, “오늘 실패” 같은 시점, 또는 상태. AI가 임시 필터를 만듭니다.";
-"tasks.aiFilter.prompt" = "예: minecraft.zip 또는 오늘 실패";
+"tasks.aiFilter.hint" = "원하는 것을 설명하세요: 파일 이름, “오늘 실패” 같은 시점, 또는 상태. AI가 임시 필터를 만듭니다.";
+"tasks.aiFilter.prompt" = "예: 오늘 실패";
 "tasks.aiFilter.apply" = "적용";
 "tasks.aiFilter.activeHelp" = "AI 필터: %@ — 탭하여 지우기";
 "tasks.aiFilter.failed" = "필터를 만들지 못했어요 — 다르게 표현해 보세요.";

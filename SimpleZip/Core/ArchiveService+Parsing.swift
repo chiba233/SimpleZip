@@ -244,7 +244,7 @@ extension ArchiveService {
             let size = Int64(values["Size"] ?? "") ?? 0
             // 目录判定：7zz 自己建的归档用 `Folder = +`；但别的工具 / 某些归档把目录标成 `Attributes = D…`
             // 而 `Folder = -`（或缺失）。只看 Folder 会把这种目录当成 0 字节文件 → 跟合成出来的同名文件夹并存，
-            // 出现「幽灵文件」（一个文件夹 minecraft/ + 一个 0KB 文件 minecraft）。两个判据都认。
+            // 出现「幽灵文件」（一个文件夹 data/ + 一个 0KB 文件 data）。两个判据都认。
             let isDirectory = values["Folder"] == "+" || (values["Attributes"]?.hasPrefix("D") ?? false)
             let modifiedText = values["Modified"] ?? ""
             let packedSizeRaw = values["Packed Size"] ?? ""

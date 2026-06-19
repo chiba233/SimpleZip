@@ -2353,8 +2353,8 @@
 "ai.compareSummary.title" = "KI-Release-Vergleich";
 "tasks.aiFilter" = "KI-Filter";
 "tasks.aiFilter.title" = "Nach Beschreibung filtern";
-"tasks.aiFilter.hint" = "Beschreibe, was du willst – einen Dateinamen wie „minecraft.zip“, einen Zeitraum wie „heute fehlgeschlagen“ oder einen Status. Die KI erstellt einen temporären Filter.";
-"tasks.aiFilter.prompt" = "z. B. minecraft.zip oder heute fehlgeschlagen";
+"tasks.aiFilter.hint" = "Beschreibe, was du willst – einen Dateinamen, einen Zeitraum wie „heute fehlgeschlagen“ oder einen Status. Die KI erstellt einen temporären Filter.";
+"tasks.aiFilter.prompt" = "z. B. heute fehlgeschlagen";
 "tasks.aiFilter.apply" = "Anwenden";
 "tasks.aiFilter.activeHelp" = "KI-Filter: %@ – zum Löschen tippen";
 "tasks.aiFilter.failed" = "Filter konnte nicht erstellt werden – versuche es anders.";

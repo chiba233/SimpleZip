@@ -2354,8 +2354,8 @@
 "ai.compareSummary.title" = "AI によるリリース比較";
 "tasks.aiFilter" = "AI フィルタ";
 "tasks.aiFilter.title" = "説明で絞り込む";
-"tasks.aiFilter.hint" = "見たいものを説明:「minecraft.zip」のようなファイル名、「今日失敗」のような時期、または状態。AI が一時的なフィルタを作ります。";
-"tasks.aiFilter.prompt" = "例:minecraft.zip、今日失敗";
+"tasks.aiFilter.hint" = "見たいものを説明:ファイル名、「今日失敗」のような時期、または状態。AI が一時的なフィルタを作ります。";
+"tasks.aiFilter.prompt" = "例:今日失敗";
 "tasks.aiFilter.apply" = "適用";
 "tasks.aiFilter.activeHelp" = "AI フィルタ:%@ — タップでクリア";
 "tasks.aiFilter.failed" = "フィルタを作成できませんでした。言い換えてみてください。";

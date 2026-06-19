@@ -1340,8 +1340,8 @@
 "ai.compareSummary.title" = "AI 发布对比总结";
 "tasks.aiFilter" = "AI 筛选";
 "tasks.aiFilter.title" = "用一句话筛选";
-"tasks.aiFilter.hint" = "用一句话描述你想看的——文件名(如「minecraft.zip」)、时间(如「今天失败的」)或状态,AI 会据此切出一个临时分类。";
-"tasks.aiFilter.prompt" = "例如:minecraft.zip、今天失败的";
+"tasks.aiFilter.hint" = "用一句话描述你想看的——文件名、时间(如「今天失败的」)或状态,AI 会据此切出一个临时分类。";
+"tasks.aiFilter.prompt" = "例如:今天失败的";
 "tasks.aiFilter.apply" = "应用";
 "tasks.aiFilter.activeHelp" = "AI 分类:%@ — 点按清空";
 "tasks.aiFilter.failed" = "没能生成筛选 —— 换个说法试试。";

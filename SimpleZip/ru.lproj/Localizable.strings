@@ -2352,8 +2352,8 @@
 "ai.compareSummary.title" = "ИИ-сравнение релизов";
 "tasks.aiFilter" = "ИИ-фильтр";
 "tasks.aiFilter.title" = "Фильтр по описанию";
-"tasks.aiFilter.hint" = "Опишите, что хотите: имя файла вроде «minecraft.zip», время вроде «неудачные сегодня» или статус. ИИ создаёт временный фильтр.";
-"tasks.aiFilter.prompt" = "напр., minecraft.zip или неудачные сегодня";
+"tasks.aiFilter.hint" = "Опишите, что хотите: имя файла, время вроде «неудачные сегодня» или статус. ИИ создаёт временный фильтр.";
+"tasks.aiFilter.prompt" = "напр., неудачные сегодня";
 "tasks.aiFilter.apply" = "Применить";
 "tasks.aiFilter.activeHelp" = "ИИ-фильтр: %@ — нажмите, чтобы очистить";
 "tasks.aiFilter.failed" = "Не удалось создать фильтр — попробуйте переформулировать.";

@@ -2352,8 +2352,8 @@
 "ai.compareSummary.title" = "การเปรียบเทียบรีลีสด้วย AI";
 "tasks.aiFilter" = "ตัวกรอง AI";
 "tasks.aiFilter.title" = "กรองตามคำอธิบาย";
-"tasks.aiFilter.hint" = "อธิบายสิ่งที่ต้องการ เช่น ชื่อไฟล์อย่าง “minecraft.zip” ช่วงเวลาอย่าง “ล้มเหลววันนี้” หรือสถานะ แล้ว AI จะสร้างตัวกรองชั่วคราวให้";
-"tasks.aiFilter.prompt" = "เช่น minecraft.zip หรือ ล้มเหลววันนี้";
+"tasks.aiFilter.hint" = "อธิบายสิ่งที่ต้องการ เช่น ชื่อไฟล์ ช่วงเวลาอย่าง “ล้มเหลววันนี้” หรือสถานะ แล้ว AI จะสร้างตัวกรองชั่วคราวให้";
+"tasks.aiFilter.prompt" = "เช่น ล้มเหลววันนี้";
 "tasks.aiFilter.apply" = "ใช้";
 "tasks.aiFilter.activeHelp" = "ตัวกรอง AI: %@ — แตะเพื่อล้าง";
 "tasks.aiFilter.failed" = "สร้างตัวกรองไม่สำเร็จ — ลองพิมพ์ใหม่";

@@ -2354,8 +2354,8 @@
 "ai.compareSummary.title" = "AI 發佈對比總結";
 "tasks.aiFilter" = "AI 篩選";
 "tasks.aiFilter.title" = "用一句話篩選";
-"tasks.aiFilter.hint" = "用一句話描述你想看的——檔名(如「minecraft.zip」)、時間(如「今天失敗的」)或狀態,AI 會據此切出一個臨時分類。";
-"tasks.aiFilter.prompt" = "例如:minecraft.zip、今天失敗的";
+"tasks.aiFilter.hint" = "用一句話描述你想看的——檔名、時間(如「今天失敗的」)或狀態,AI 會據此切出一個臨時分類。";
+"tasks.aiFilter.prompt" = "例如:今天失敗的";
 "tasks.aiFilter.apply" = "套用";
 "tasks.aiFilter.activeHelp" = "AI 分類:%@ — 點按清空";
 "tasks.aiFilter.failed" = "沒能產生篩選 —— 換個說法試試。";

@@ -65,10 +65,10 @@ struct ActivityView: View {
     @AppStorage(AppPreferences.Key.aiAssistantEnabled) private var aiAssistantEnabled = true
     @State private var showsActivityAIWorkbench = true
     /// AI 工作台侧栏宽度(可拖拽调整,@AppStorage 跨会话记住)。范围 `aiWorkbenchWidthRange`。
-    @AppStorage("SimpleZip.activity.aiWorkbenchWidth") private var aiWorkbenchWidth: Double = 280
+    @AppStorage("SimpleZip.activity.aiWorkbenchWidth") private var aiWorkbenchWidth: Double = 240
     /// 拖拽起始宽度(松手清空)—— 避免用累计 translation 时反复叠加。
     @State private var aiWorkbenchDragStartWidth: Double?
-    private let aiWorkbenchWidthRange: ClosedRange<Double> = 240...560
+    private let aiWorkbenchWidthRange: ClosedRange<Double> = 200...560
 
     // 弃用 NavigationSplitView（详见 SettingsView 同款注释）：普通 HStack + 绝对定宽侧栏，
     // 物理上没有把手、没有折叠、没有持久化；毛玻璃用 SidebarBackdrop 补回。
