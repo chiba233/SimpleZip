@@ -387,10 +387,8 @@ jobs:
             in_item && /<\/item>/ {
               in_item=0
               if (buf ~ "sparkle:shortVersionString=\"" ver "\"") { next }
-              if (is_beta == "true" && (
-                buf ~ "<sparkle:channel>beta</sparkle:channel>" ||
-                buf ~ "sparkle:channel=\"beta\""
-              )) { next }
+              old_beta = (buf ~ "<sparkle:channel>beta</sparkle:channel>" || buf ~ "sparkle:channel=\"beta\"")
+              if (is_beta == "true" && old_beta) { next }
               print buf
               next
             }
