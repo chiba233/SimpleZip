@@ -218,6 +218,18 @@ struct DevToolsView: View {
                             loadAIDataSnapshot()
                             flash("已清空 AI 派生数据")
                         }
+                        // 独立 AI 进程改造 Step 0:验证「端上模型能否在非 App 的独立 agent 进程里跑」——
+                        // 注册 LaunchAgent + 连 Mach XPC + 在 agent 进程试跑一次模型,结果闪现在下方。
+                        actionRow(
+                            "bolt.horizontal.circle",
+                            "测试 AI agent 探针(独立进程跑模型)",
+                            "注册 LaunchAgent(SMAppService)+ 连 Mach XPC,在 agent 进程里试跑一次端上模型,结果显示在下方(也打到 agent stderr,Console 过滤 SimpleZipAIAgent 看完整)。验证独立 AI 进程的地基:模型能不能在非 App 进程跑。注册可能需 SimpleZip Dev 签名 + App 从 /Applications 跑。"
+                        ) {
+                            flash("正在注册 + 连 agent 跑探针…")
+                            AIAgentClient.runProbe { result in
+                                flash(result)
+                            }
+                        }
                         // AI 建议明细:每个计数类别(摘要/打开方式/网页/.../哈希/压缩/转换/内联结果)的**完整文件清单**
                         // + 门控 / 预算 / 各管线诊断 —— 一次性复制出来逐条 debug「这个类别到底有哪些文件、为啥是 0」。
                         actionRow(
