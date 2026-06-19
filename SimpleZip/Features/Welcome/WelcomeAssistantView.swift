@@ -24,7 +24,7 @@ extension Notification.Name {
 ///   总步数 / 设置步数以 `totalSteps`、`settingStepCount` 为准（加减步骤时改那里，别在注释里写死数字）。
 ///   每个设置步骤都直接绑 `@AppStorage` —— 用户改的瞬间就落盘，`Back / Skip / Finish` 都不会丢失改动。
 /// - 触发：`AppPreferences.welcomeAssistantCompleted` bool 控制是否首次启动自动弹；
-///   走完最后一步时置 true。SimpleZip 菜单的「重新运行欢迎助手」通过
+///   走完最后一步或用户确认取消时置 true。SimpleZip 菜单的「重新运行欢迎助手」通过
 ///   `Notification.Name.openWelcomeAssistant` 重新打开，不重置 completed bool
 ///   （重新打开仍然算「已经走过一遍」）。
 struct WelcomeAssistantView: View {
@@ -108,8 +108,8 @@ struct WelcomeAssistantView: View {
         .alert(L10n.text("welcome.cancelConfirm.title"), isPresented: $showsCancelConfirmation) {
             Button(L10n.text("welcome.cancelConfirm.cancel"), role: .cancel) {}
             Button(L10n.text("welcome.cancelConfirm.confirm"), role: .destructive) {
-                // 取消 = 不 mark completed。用户下次启动还会再次自动弹（除非他们之前已经走完过一次）。
-                // 这是预期的「取消 ≠ 完成」语义。
+                // 用户已经明确关闭首次向导：保留已写入的选择，但不要在下次启动继续自动弹。
+                AppPreferences.markWelcomeAssistantCompleted()
                 onComplete()
             }
         } message: {
