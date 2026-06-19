@@ -67,8 +67,9 @@ jobs:
             --scratch-path /private/tmp/SimpleZipSwiftPM \
             -Xswiftc -module-cache-path -Xswiftc /private/tmp/SimpleZipSwiftPM/ModuleCache
 
-      # 签名(独立 AI 进程改造引入):Debug 配置在 pbxproj 里把 app + SimpleZipAIAgent 的 CODE_SIGN_IDENTITY
-      # 钉成本地自签证书「SimpleZip Dev」(SMAppService 要 app 与 helper 同签名身份)。CI runner 没有这个证书,
+      # 签名(独立 AI 进程改造引入):Debug 配置在 pbxproj 里把 app + SimpleZipAIAgent + SimpleZipAIXPCService 的
+      # CODE_SIGN_IDENTITY 钉成本地自签证书「SimpleZip Dev」(SMAppService 要 app 与 helper 同签名身份;内嵌前台
+      # XPC Service 随 app 一起 build/embed/签名,extra_args 是全局 override 会一并覆盖它)。CI runner 没有这个证书,
       # 故先尝试从 secret 导入 .p12 到临时钥匙串,用工程里的 Manual 签名签上;**secret 不存在时(还没配 / fork PR
       # 拿不到 secret)自动回落 ad-hoc(-)签名**,保证 CI 不因缺证书而红。需在仓库
       # Settings → Secrets and variables → Actions 配两个 secret:

@@ -93,6 +93,20 @@ if [[ "$RELEASE_BUNDLE_ID" != "yumeka.SimpleZip-in-mac" ]]; then
   exit 1
 fi
 
+# 独立 AI 进程改造:内嵌前台 XPC Service 同样按构建配置隔离 dev/prod —— Release 只产正式 `.aixpc`
+# (`.dev.aixpc` 只存在于本地 Debug 构建,不进 Release 产物)。断言它的 bundle id 是正式的,兜底防 dev 的
+# .xpc 误入发布(对照上面对 app bundle id / dev LaunchAgent plist 的处理)。XPC Service 是构建产物,Release
+# 配置本就只产 .aixpc 一个,所以这里只需断言、无需像 dev plist 那样 rm。
+XPC_SERVICE_BUNDLE="$APP_PATH/Contents/XPCServices/SimpleZipAIXPCService.xpc"
+if [[ -d "$XPC_SERVICE_BUNDLE" ]]; then
+  XPC_BUNDLE_ID="$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$XPC_SERVICE_BUNDLE/Contents/Info.plist")"
+  if [[ "$XPC_BUNDLE_ID" != "yumeka.SimpleZip-in-mac.aixpc" ]]; then
+    echo "ERROR: embedded XPC service bundle id is '$XPC_BUNDLE_ID', expected 'yumeka.SimpleZip-in-mac.aixpc'." >&2
+    echo "       The dev-only '.dev.aixpc' service must never ship. Build with the Release configuration." >&2
+    exit 1
+  fi
+fi
+
 if [[ -n "$RELEASE_VERSION" ]]; then
   APP_VERSION="$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP_PATH/Contents/Info.plist")"
   if [[ "$APP_VERSION" != "$RELEASE_VERSION" ]]; then
@@ -143,13 +157,23 @@ if [[ -n "${SIGN_IDENTITY:-}" ]]; then
     codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$AGENT_BIN"
   fi
 
+  # 独立 AI 进程改造:前台 XPC Service 在 Contents/XPCServices(--deep 的标准嵌套位置),但同样**先显式逐个签**
+  # (--options runtime + --timestamp + 同 $SIGN_IDENTITY),不依赖 --deep 是否给嵌套 bundle 应用 hardened
+  # runtime;随后 147 行的 `--deep --options runtime` 会再覆盖一次,双保险。XPC Service 与 App 同 Developer ID
+  # 身份(App 按 serviceName 拉起内嵌 .xpc,签名身份需一致)。
+  if [[ -d "$XPC_SERVICE_BUNDLE" ]]; then
+    echo "  signing embedded AI XPC service: ${XPC_SERVICE_BUNDLE#"$APP_PATH"/}"
+    codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$XPC_SERVICE_BUNDLE"
+  fi
+
   # --deep 处理 Sparkle.framework 及其内部 XPC / Autoupdate / Updater.app 等嵌套代码。
   codesign --force --options runtime --timestamp --deep --sign "$SIGN_IDENTITY" "$APP_PATH"
   codesign --verify --deep --strict --verbose=2 "$APP_PATH"
   # 明确确认 hardened runtime 已生效（notary 的硬性要求；缺了要到公证失败才暴露，提前在这截断）。
-  # App 主体 + 内嵌 AI agent 都要查 —— agent 在 Contents/MacOS(非标准嵌套位置),`--deep` 不保证重签到它;
-  # **故意放在最终 --deep 之后复核**:断言的是真正装船的产物状态,而非签名中途的中间态。
-  for signed_bin in "$APP_PATH" "$AGENT_BIN"; do
+  # App 主体 + 内嵌 AI agent + 内嵌前台 XPC Service 都要查 —— agent 在 Contents/MacOS(非标准嵌套位置),
+  # `--deep` 不保证重签到它;XPC Service 在标准位置但一并复核。**故意放在最终 --deep 之后复核**:断言的是
+  # 真正装船的产物状态,而非签名中途的中间态(对 .xpc bundle,--display 查的是其主可执行的 flags)。
+  for signed_bin in "$APP_PATH" "$AGENT_BIN" "$XPC_SERVICE_BUNDLE"; do
     [[ -e "$signed_bin" ]] || continue
     if ! codesign --display --verbose=4 "$signed_bin" 2>&1 | grep -Eq 'flags=.*runtime'; then
       echo "ERROR: hardened runtime flag missing after signing $signed_bin" >&2
