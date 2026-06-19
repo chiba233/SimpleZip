@@ -83,7 +83,8 @@ final class FileOutlineNode {
         case aiGroup(AIGroupRow)
     }
 
-    let kind: Kind
+    /// 颗粒化更新时可刷新(同一节点实例换成模型最新的 FileItem —— FileItem.id 每次列举都换,不刷选区 / 操作对不上)。
+    var kind: Kind
     /// section 稳定身份键（"hidden" / "kind:图片"），跨 reload 复用实例 + 折叠记忆都靠它。
     let sectionKey: String
     /// section 显示标题（含计数），如「隐藏文件 (3)」「图片 (5)」。
@@ -391,81 +392,44 @@ struct FileNSOutlineView: NSViewRepresentable {
             return walk(topLevelNodes, ancestors: [])
         }
 
-        /// 重建节点 + reload + 强制同步展开状态。make / update 都走这里。
+        /// 三档刷新(从重到轻,只做最小的那档):① 布局变(分组/列/密度/展开层/文件夹组/不喜欢)→ 整表 reload;
+        /// ② 文件集合 / 单行元数据变 → 安全有界**颗粒化**(纯增 insertItems / 纯删 removeItems / 改 reloadItem),
+        ///    不安全(分组/分卷折叠/重排/增删混合/重命名中)→ 整表兜底;③ 仅 AI 建议变 → 定点 reloadItem 抽屉子树。
+        /// make / update 都走这里。**绝不为单文件变化整表刷**(用户:刷新分叉,整表只留给真正布局变化 + 工具栏刷新按钮)。
         func syncContent() {
-            // 异步列举的中间帧守卫(0.4.3):导航后 mode(=folderKey/配置)先变、items 还是旧的,
-            // 这一帧不重建 —— 保持上一帧画面,applyLoadedFolder 同一事务提交 items+清标志后一帧成型。
-            // 不更新 lastContentSignature,提交帧照常触发重建。旧同步版本天然没有中间帧(用户报闪烁的根因)。
+            // 异步列举的中间帧守卫(0.4.3):导航后 mode(=folderKey/配置)先变、items 还是旧的,这一帧不重建 ——
+            // 保持上一帧画面,applyLoadedFolder 同一事务提交 items+清标志后一帧成型。
             if model.folderListingInFlight { return }
-            // ── 结构指纹:决定要不要「整表 reload」。含一切影响**行集合 / 列 / 分组 / 展开层**的东西:
-            //    config（folder/折叠/分类/共存）+ 行密度 + 可见列 + 当前 fileItems 实例（按 id + 顺序)+ 展开层世代
-            //    + 文件夹组世代 + 不喜欢集。**不含 selection**(选区变化不刷,否则框选抽搐);**也不含单行 AI 建议内容**
-            //    —— 建议变化走下面的**定点抽屉 reload**,绝不整表 reload(用户:抽屉弹/收按钮不该全表刷;后台预烘焙
-            //    刷新与全量刷新分叉。整表 reload 只留给真正的结构变化:导航 / 排序 / 分组 / 密度 / 列开关 / 增删文件 /
-            //    工具栏刷新按钮)。
+
+            // ── ① 布局指纹:含一切影响**列 / 分组 / 展开层 / 折叠策略**的东西(config + 行密度 + 可见列 + 展开层世代
+            //    + 文件夹组世代 + 不喜欢集)。**不含逐行(文件集合 / 单行元数据 / AI 建议)** —— 那些走 ②③ 颗粒化。
             var hasher = Hasher()
             hasher.combine(configSignature)
             hasher.combine(AppPreferences.rowDensity.rawValue)
             hasher.combine(outlineView?.tableColumns.map { $0.identifier.rawValue }.joined(separator: ",") ?? "")
-            for item in model.displayedFileItems { hasher.combine(item.id) }
-            // 展开子级的内容世代：顶层没变、只有展开层内容变（refreshExpandedFolderChildren 换了新实例并
-            // objectWillChange）时,靠它判定「内容变了」并 reload。故意不哈希注册表本身 —— 首次展开的懒登记
-            // 会改注册表但行已画出,算进指纹会让展开后的下一次 updateNSView 误触发全表 reload（闪烁）。
+            // 展开子级的内容世代(refreshExpandedFolderChildren 换了新实例并 objectWillChange 时翻它)。
             hasher.combine(model.expandedChildrenGeneration)
             hasher.combine(AIBackgroundIndexStore.shared.folderGroupsGeneration)
             for key in AIBackgroundIndexStore.shared.dislikedSuggestionKeys.sorted() { hasher.combine(key) }
-            let structuralSignature = hasher.finalize()
+            let layoutSignature = hasher.finalize()
 
-            if structuralSignature != lastContentSignature {
-                // 正在内联重命名时推迟整表刷新：新建文件 / 文件夹刚弹出输入框，FSEvents 又把这次写入当成内容变化
-                // 触发 reload，reloadData + endActiveRename 会把输入框当场拆掉（偶发,取决于 watcher 时序）。
-                // 这里不更新 lastContentSignature、不 reload，编辑结束后再补刷（见 controlTextDidEndEditing）。
-                if renamingItem != nil {
-                    needsReloadAfterRename = true
-                    return
-                }
-                lastContentSignature = structuralSignature
-
-                rebuildTopLevel()
-
-                // 配置（folder / 策略 / 分类维度 / 共存）变化时重置展开状态：
-                // 分类区块回到默认全展开（清空 userCollapsed）；隐藏组按 #49 策略重新 seed。
-                // 这样设置一改、主窗口经 browserPreferencesChanged → reload 立即生效，不用手动刷新；
-                // 同一配置内的增量 reload（如选区变化）则保留用户当前的展开/折叠。
-                let signature = configSignature
-                if signature != lastConfigSignature {
-                    lastConfigSignature = signature
-                    userCollapsedSectionKeys = []
-                    // 展开记忆**跨导航保留**（用户报「切换个路径就不工作了」）：记的是绝对路径,全局唯一,
-                    // 离开文件夹后留着,回来时 enforceExpansion 自然回放;别的文件夹根本匹配不上,无副作用。
-                    // 记忆开关关掉时才清(开关在 configSignature 里,关掉必走这支) —— 关掉 = 用户要「刷新即折叠」。
-                    if !AppPreferences.rememberFolderExpansion {
-                        expandedFolderPaths = []
-                    }
-                    if !AppPreferences.rememberVolumeSetExpansion {
-                        expandedVolumeSetPaths = []
-                    }
-                    hiddenGroupExpanded = FileBrowserOutline.initialExpanded(
-                        mode: AppPreferences.hiddenGroupCollapseMode,
-                        folderKey: currentFolderKey,
-                        perFolderExpanded: AppPreferences.hiddenGroupExpandedFolders,
-                        globalExpanded: AppPreferences.hiddenGroupGlobalExpanded
-                    )
-                }
-
-                // 内容要重画前先收掉重命名输入框（切文件夹 / 自动刷新 / 排序分组变化）：
-                // 否则编辑中的字段编辑器会悬在被复用的 cell 上、留个空输入框（用户反馈「切文件夹还赖着」）。
-                endActiveRename()
-                outlineView?.reloadData()
-                enforceExpansion()
-                performPendingInlineRenameIfNeeded()
-                lastSuggestionHashByPath = currentSuggestionHashes()   // 整表刷后重置建议快照(下面定点比对据此)
+            if layoutSignature != lastContentSignature {
+                if renamingItem != nil { needsReloadAfterRename = true; return }   // 重命名中推迟整表刷,编辑结束补刷
+                performFullReload(layoutSignature: layoutSignature)
                 return
             }
 
-            // ── 结构没变:只有「当前可见行」的 AI 建议内容变了(后台预烘焙写回 shortSummary / 动作 / 内联结果)→
-            //    **只 reloadItem 那几行的抽屉子树**,不整表 reload(无闪烁 / 不动展开 / 不打断点击)。重命名进行中
-            //    跳过(别拆输入框;快照不更新 → 编辑结束后下一次 syncContent 自然补刷那一行抽屉)。
+            // ── ② 布局没变:对文件集合 / 单行元数据做安全有界颗粒化;不安全 → 整表兜底。
+            switch reconcileRows() {
+            case .needsFullReload:
+                if renamingItem != nil { needsReloadAfterRename = true; return }
+                performFullReload(layoutSignature: layoutSignature)
+                return
+            case .applied, .noChange:
+                break
+            }
+
+            // ── ③ 行集合稳定后:只有「当前可见行」的 AI 建议内容变了 → 只 reloadItem 那几行的抽屉子树(不整表刷)。
             guard renamingItem == nil, let outlineView else { return }
             let currentSuggestions = currentSuggestionHashes()
             guard currentSuggestions != lastSuggestionHashByPath else { return }
@@ -473,6 +437,33 @@ struct FileNSOutlineView: NSViewRepresentable {
             lastSuggestionHashByPath = currentSuggestions
             guard !changedPaths.isEmpty else { return }
             reloadSuggestionDrawers(forChangedPaths: changedPaths, in: outlineView)
+        }
+
+        /// 整表 reload(布局变化 / 颗粒化不安全时的兜底):重建节点 → reloadData → 回放展开 → 重置各快照。
+        private func performFullReload(layoutSignature: Int) {
+            lastContentSignature = layoutSignature
+            rebuildTopLevel()
+            // 配置（folder / 策略 / 分类维度 / 共存）变化时重置展开状态:分类区块回默认全展开(清空 userCollapsed);
+            // 隐藏组按 #49 策略重新 seed。展开记忆跨导航保留(记绝对路径,别的文件夹匹配不上);记忆开关关掉才清。
+            let signature = configSignature
+            if signature != lastConfigSignature {
+                lastConfigSignature = signature
+                userCollapsedSectionKeys = []
+                if !AppPreferences.rememberFolderExpansion { expandedFolderPaths = [] }
+                if !AppPreferences.rememberVolumeSetExpansion { expandedVolumeSetPaths = [] }
+                hiddenGroupExpanded = FileBrowserOutline.initialExpanded(
+                    mode: AppPreferences.hiddenGroupCollapseMode,
+                    folderKey: currentFolderKey,
+                    perFolderExpanded: AppPreferences.hiddenGroupExpandedFolders,
+                    globalExpanded: AppPreferences.hiddenGroupGlobalExpanded
+                )
+            }
+            // 内容重画前先收掉重命名输入框(切文件夹 / 自动刷新 / 排序分组变化),否则编辑器悬在复用 cell 上留空输入框。
+            endActiveRename()
+            outlineView?.reloadData()
+            enforceExpansion()
+            performPendingInlineRenameIfNeeded()
+            lastSuggestionHashByPath = currentSuggestionHashes()   // 整表刷后重置建议快照
         }
 
         /// 当前可见文件行(顶层 + 区块内,排除分卷折叠首卷 —— 它不显示 AI 抽屉)→ 它的 AI 建议内容哈希。
@@ -514,6 +505,111 @@ struct FileNSOutlineView: NSViewRepresentable {
                 }
             }
             walk(topLevelNodes)
+        }
+
+        private enum RowReconcileOutcome { case applied, noChange, needsFullReload }
+
+        /// ② 安全有界的逐行颗粒化(布局已确认没变时调)。**只在平铺(无分组区块)、无分卷折叠**的简单配置下,对顶层
+        /// 文件行做:纯删 → removeItems、纯增 → insertItems、单行元数据改 → reloadItem。分组 / 分卷折叠 / 重排 /
+        /// 增删混合 / 重命名中 → `needsFullReload`(让调用方整表兜底,避免 NSOutlineView 行数不一致崩溃)。
+        /// 复用旧节点实例(保 folderChildren / 展开 / 抽屉缓存);存活行的 FileItem 始终刷成模型最新实例
+        /// (FileItem.id 每次列举都换 → 不刷选区 / 操作对不上)。
+        private func reconcileRows() -> RowReconcileOutcome {
+            guard let outlineView, renamingItem == nil else { return .needsFullReload }
+            let newItems = model.displayedFileItems
+            // 简单配置门槛:**非空** + 顶层全是文件节点(无分组区块) + 无分卷折叠首卷。空 / 复杂配置无法确认 1:1 →
+            // 看文件集合是否变:变了整表兜底,没变交给 ③(AI 抽屉)。
+            guard !topLevelNodes.isEmpty,
+                  topLevelNodes.allSatisfy({ $0.fileItem != nil && $0.volumeChildren == nil }) else {
+                return sameFileURLSet(newItems) ? .noChange : .needsFullReload
+            }
+            let oldPaths = topLevelNodes.map { $0.fileItem!.url.path }
+            let newPaths = newItems.map { $0.url.path }
+            let oldSet = Set(oldPaths), newSet = Set(newPaths)
+            let removed = oldSet.subtracting(newSet)
+            let added = newSet.subtracting(oldSet)
+
+            if removed.isEmpty, added.isEmpty {
+                // 集合没变:顺序变了(重排)→ 整表兜底;否则可能是单行元数据改 → 逐行刷新 + reloadItem。
+                guard oldPaths == newPaths else { return .needsFullReload }
+                return refreshMetadata(newItems: newItems, in: outlineView) ? .applied : .noChange
+            }
+            // 增删混合(重命名 / 替换)→ 整表兜底(混合 batch 索引易错);分卷折叠开着时增删可能改变折叠族 → 也兜底。
+            guard removed.isEmpty || added.isEmpty, !AppPreferences.collapseVolumeSets else {
+                return .needsFullReload
+            }
+            // 公共行顺序必须保持(否则是重排夹带增删)→ 整表兜底。
+            let commonOld = oldPaths.filter { newSet.contains($0) }
+            let commonNew = newPaths.filter { oldSet.contains($0) }
+            guard commonOld == commonNew else { return .needsFullReload }
+
+            let oldByPath = Dictionary(uniqueKeysWithValues: zip(oldPaths, topLevelNodes))
+            let newByPath = Dictionary(newItems.map { ($0.url.path, $0) }, uniquingKeysWith: { a, _ in a })
+
+            if added.isEmpty {
+                // 纯删:移除 removed 行(旧坐标);存活节点复用并刷新 FileItem。先更新数据源,再 removeItems。
+                let removedIndices = IndexSet(oldPaths.enumerated().filter { removed.contains($0.element) }.map(\.offset))
+                topLevelNodes = newPaths.compactMap { path -> FileOutlineNode? in
+                    guard let node = oldByPath[path], let item = newByPath[path] else { return nil }
+                    node.kind = .file(item)
+                    return node
+                }
+                outlineView.removeItems(at: removedIndices, inParent: nil, withAnimation: [])
+            } else {
+                // 纯增:新位置插入新文件节点;存活节点复用并刷新 FileItem。
+                var insertedIndices = IndexSet()
+                topLevelNodes = newItems.enumerated().map { offset, item -> FileOutlineNode in
+                    if let node = oldByPath[item.url.path] {
+                        node.kind = .file(item)
+                        return node
+                    }
+                    insertedIndices.insert(offset)
+                    return FileOutlineNode.file(item)
+                }
+                outlineView.insertItems(at: insertedIndices, inParent: nil, withAnimation: [])
+            }
+            lastSuggestionHashByPath = currentSuggestionHashes()
+            return .applied
+        }
+
+        /// 当前节点树里所有文件 URL 集合(含分组区块内 + 分卷成员)是否与新列表一致 —— 复杂 / 空配置下判定文件集合是否变了。
+        private func sameFileURLSet(_ newItems: [FileItem]) -> Bool {
+            var urls = Set<String>()
+            func walk(_ nodes: [FileOutlineNode]) {
+                for node in nodes {
+                    if node.isSection { walk(node.children); continue }
+                    if let path = node.fileItem?.url.path { urls.insert(path) }
+                    if let vol = node.volumeChildren { for v in vol { if let p = v.fileItem?.url.path { urls.insert(p) } } }
+                }
+            }
+            walk(topLevelNodes)
+            return urls == Set(newItems.map { $0.url.path })
+        }
+
+        /// 单行元数据改(同 URL、显示字段变了)→ 刷新节点 FileItem + reloadItem 那一行(行数不变,无崩溃风险)。
+        /// 同一实例(模型没重列)跳过。返回是否有行真的需要重画。
+        private func refreshMetadata(newItems: [FileItem], in outlineView: NSOutlineView) -> Bool {
+            let newByPath = Dictionary(newItems.map { ($0.url.path, $0) }, uniquingKeysWith: { a, _ in a })
+            var changed = false
+            for node in topLevelNodes {
+                guard let old = node.fileItem, let new = newByPath[old.url.path] else { continue }
+                if old.id == new.id { continue }   // 同一实例(模型没重列)→ 无需刷新
+                node.kind = .file(new)             // 刷成最新实例(id 变了,选区 / 操作要对得上)
+                if !Coordinator.sameDisplayFields(old, new) {
+                    outlineView.reloadItem(node)   // 显示字段真变了才重画那一行
+                    changed = true
+                }
+            }
+            return changed
+        }
+
+        /// 两个同 URL 的 FileItem 显示字段是否一致(决定要不要 reloadItem 重画那一行)。id / url 不算。
+        private static func sameDisplayFields(_ a: FileItem, _ b: FileItem) -> Bool {
+            a.name == b.name && a.displayName == b.displayName && a.isDirectory == b.isDirectory
+                && a.isPackage == b.isPackage && a.isSymbolicLink == b.isSymbolicLink && a.symlinkTarget == b.symlinkTarget
+                && a.isHidden == b.isHidden && a.size == b.size && a.modified == b.modified && a.created == b.created
+                && a.dateAdded == b.dateAdded && a.lastOpened == b.lastOpened && a.typeDescription == b.typeDescription
+                && a.applicationName == b.applicationName && a.permissions == b.permissions && a.owner == b.owner
         }
 
         /// 按 GroupBy + 共存策略组装顶层节点。复用 sectionNodesByKey 里同 key 的实例保身份。
