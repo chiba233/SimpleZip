@@ -17,6 +17,9 @@ struct ActivityAIWorkbenchView: View {
     let queryError: String?
     /// 当前生效的 AI 筛选摘要(nil = 没有生效);非 nil 时显示一行可一键清除的指示。
     let activeFilterSummary: String?
+    /// 建议六 v2:端上模型对「需要处理」卡写的一段解读(现在最值得先处理什么 + 为什么)。nil = 模型不可用 / 没失败 /
+    /// 还没生成 → 卡片退回确定性计数文案。
+    let aiExplanation: String?
     let onRunQuery: () -> Void
     let onClearFilter: () -> Void
     let onApplyFilter: (ActivityAIWorkbenchFilterChip) -> Void
@@ -127,10 +130,18 @@ struct ActivityAIWorkbenchView: View {
     private var needsAttention: some View {
         if let card = snapshot.cards.first(where: { $0.kind == .needsAttention }) {
             workbenchSection(title: L10n.text("tasks.aiWorkbench.needsAttention"), systemImage: "exclamationmark.triangle") {
-                let count = factValue("failedUnseen", in: card.facts) ?? card.sourceRefs.count
-                Text(L10n.format("tasks.aiWorkbench.needsAttention.body", "\(count)"))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                // 建议六 v2:有模型解读就显示它(✨ 标识),否则退回确定性计数文案(始终是 fallback)。
+                if let aiExplanation, !aiExplanation.isEmpty {
+                    Label(aiExplanation, systemImage: "sparkles")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    let count = factValue("failedUnseen", in: card.facts) ?? card.sourceRefs.count
+                    Text(L10n.format("tasks.aiWorkbench.needsAttention.body", "\(count)"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 if let first = card.sourceRefs.first {
                     Button {
                         onOpenTask(first.id)

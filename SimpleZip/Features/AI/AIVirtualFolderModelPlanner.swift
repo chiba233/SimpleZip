@@ -299,6 +299,27 @@ enum AIVirtualFolderModelPlanner {
         return (name, ids)
     }
 
+    /// **活动中心 AI 工作台「现在最值得先处理什么 + 为什么」解读**(建议六 v2,拒绝假AI)。喂当前任务切片的结构化
+    /// 事实(数量分布 + 未读失败任务的 **类型 / 来源 / 诊断标签**,**绝不含原始标题 / 路径**)→ 端上模型用界面语言写
+    /// 一小段解读。确定性卡片永远是 fallback;模型不可用 / 失败 / 空返 → 调用点退回确定性文案。
+    static func activityWorkbenchExplanation(summaryFacts: [String], failedFacts: [String]) async throws -> String {
+        let lang = AIReportAssistant.uiLanguageName
+        let instructions = """
+        LANGUAGE — MANDATORY: write in \(lang). You are the AI panel inside a file-archive app's Activity Center. \
+        Given a summary of the current task list and a few of the most important UNSEEN FAILED tasks (only their \
+        type, source, and diagnostic tags — never file names or paths), write ONE short, concrete paragraph saying \
+        what is most worth dealing with right now and why. Be specific to the failures given; never invent a task; \
+        do not list everything; at most 2-3 sentences. If nothing clearly stands out, say the task list looks healthy.
+        """
+        var lines = ["Task summary (counts): \(summaryFacts.joined(separator: ", "))"]
+        if !failedFacts.isEmpty {
+            lines.append("Top unseen failed tasks (type / source / diagnostic tags):")
+            lines.append(contentsOf: failedFacts.prefix(8))
+        }
+        return try await AIReportAssistant.generate(instructions: instructions, prompt: lines.joined(separator: "\n"))
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     /// **文件浏览器单文件抽屉**的模型驱动建议(②b/②c,拒绝假AI)。给一个具体文件(名字 + 角色 + 脱敏内容摘录 +
     /// 结构信号)让端上模型出**一句话摘要 + 几个建议动作 token**。摘要给人看(强制界面语言);动作只能从词表里挑、
     /// 且必须适用该 kind,App 据 token + 路径安全合成动作(模型不拼路径)。失败抛出由调用点吞掉。

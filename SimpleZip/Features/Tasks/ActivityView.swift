@@ -69,6 +69,8 @@ struct ActivityView: View {
     /// 拖拽起始宽度(松手清空)—— 避免用累计 translation 时反复叠加。
     @State private var aiWorkbenchDragStartWidth: Double?
     private let aiWorkbenchWidthRange: ClosedRange<Double> = 200...560
+    /// 建议六 v2:端上模型对「需要处理」卡的解读(后台生成,按未读失败集指纹刷新;模型不可用 / 无失败 → nil 退回确定性)。
+    @State private var aiWorkbenchExplanation: String?
 
     // 弃用 NavigationSplitView（详见 SettingsView 同款注释）：普通 HStack + 绝对定宽侧栏，
     // 物理上没有把手、没有折叠、没有持久化；毛玻璃用 SidebarBackdrop 补回。
@@ -253,6 +255,7 @@ struct ActivityView: View {
                                 isRunningQuery: aiFilterRunning,
                                 queryError: aiFilterError,
                                 activeFilterSummary: aiFilterActive ? activeFilterSummary : nil,
+                                aiExplanation: aiWorkbenchExplanation,
                                 onRunQuery: { Task { await runAIFilter() } },
                                 onClearFilter: clearAIFilter,
                                 onApplyFilter: applyAIWorkbenchFilter,
@@ -260,6 +263,10 @@ struct ActivityView: View {
                                 onClose: { showsActivityAIWorkbench = false }
                             )
                             .frame(width: CGFloat(aiWorkbenchWidth))
+                            // 建议六 v2:未读失败集变化才重生成解读(确定性指纹;不每次任务变动都跑模型)。
+                            .task(id: workbenchFailureFingerprint(for: category)) {
+                                await refreshWorkbenchExplanation(for: category)
+                            }
                         }
                     }
                 }
@@ -675,6 +682,48 @@ struct ActivityView: View {
 
     private func activityAIWorkbenchSnapshot(for category: OperationTask.Category) -> ActivityAIWorkbenchSnapshot {
         ActivityAIWorkbenchBuilder.snapshot(records: filteredTasksForWorkbench(in: category).map(\.aiTaskRecord))
+    }
+
+    /// 建议六 v2:未读失败任务集的确定性指纹 —— 驱动 `.task(id:)`;只有这个集合变了才重生成解读(不每次任务变动跑模型)。
+    private func workbenchFailureFingerprint(for category: OperationTask.Category) -> String {
+        guard aiAssistantEnabled else { return "" }
+        return filteredTasksForWorkbench(in: category)
+            .map(\.aiTaskRecord)
+            .filter { $0.status == "failed" && !$0.failureSeen }
+            .map(\.id)
+            .sorted()
+            .joined(separator: ",")
+    }
+
+    /// 建议六 v2:后台让端上模型给「需要处理」卡写一段解读(现在最值得先处理什么 + 为什么)。门控:AI 助手开 + macOS26 +
+    /// 模型就绪;无未读失败 / 不可用 / 失败 → 置 nil,View 退回确定性文案。**只喂 类型 / 来源 / 诊断标签 + 计数,不含原始
+    /// 标题 / 路径**;经 `AIReportAssistant.generate` 走全局串行闸,不与其它 AI 生成重叠。
+    @MainActor
+    private func refreshWorkbenchExplanation(for category: OperationTask.Category) async {
+        guard aiAssistantEnabled, #available(macOS 26.0, *), AIReportAssistant.isReady else {
+            aiWorkbenchExplanation = nil
+            return
+        }
+        let records = filteredTasksForWorkbench(in: category).map(\.aiTaskRecord)
+        let unseenFailed = records.filter { $0.status == "failed" && !$0.failureSeen }
+        guard !unseenFailed.isEmpty else { aiWorkbenchExplanation = nil; return }
+        let summary = ActivityAIWorkbenchSummary(records: records)
+        let summaryFacts = [
+            "total \(summary.total)", "running \(summary.running)",
+            "unseen-failed \(summary.failedUnseen)", "failed \(summary.failedSeen)",
+            "succeeded \(summary.succeeded)"
+        ]
+        let failedFacts = unseenFailed.prefix(8).map { rec -> String in
+            let tags = rec.diagnostics.tags.isEmpty ? "no-tags" : rec.diagnostics.tags.joined(separator: "+")
+            return "\(rec.kind) / \(rec.source) / \(tags)"
+        }
+        do {
+            let text = try await AIVirtualFolderModelPlanner.activityWorkbenchExplanation(
+                summaryFacts: summaryFacts, failedFacts: Array(failedFacts))
+            if !text.isEmpty { aiWorkbenchExplanation = text }
+        } catch {
+            // 模型失败 → 保持现状(View 退回确定性文案),不报错打扰用户。
+        }
     }
 
     private func filteredTasksForWorkbench(in category: OperationTask.Category) -> [OperationTask] {
