@@ -718,7 +718,7 @@ struct ActivityView: View {
                                     category: OperationTask.Category) -> ActivityAIWorkbenchSnapshot {
         guard aiAssistantEnabled,
               let ranking = aiIndexStore.workbenchChipRanking(forCategory: category.rawValue),
-              ranking.fingerprint == AIBackgroundIndexer.chipPoolFingerprint(snapshot.filterChips) else { return snapshot }
+              ranking.fingerprint == ActivityAIWorkbenchKeys.chipPoolFingerprint(snapshot.filterChips) else { return snapshot }
         let byID = Dictionary(snapshot.filterChips.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
         let ranked = ranking.orderedIDs.compactMap { byID[$0] }
         guard !ranked.isEmpty else { return snapshot }
@@ -738,7 +738,7 @@ struct ActivityView: View {
         guard aiAssistantEnabled,
               let cached = aiIndexStore.workbenchNeedsAttentionExplanation(forCategory: category.rawValue) else { return nil }
         let records = filteredTasksForWorkbench(in: category).map(\.aiTaskRecord)
-        let fingerprint = AIBackgroundIndexer.needsAttentionFingerprint(records)
+        let fingerprint = ActivityAIWorkbenchKeys.needsAttentionFingerprint(records)
         guard !fingerprint.isEmpty, cached.fingerprint == fingerprint, !cached.text.isEmpty else { return nil }
         return cached.text
     }
@@ -773,7 +773,7 @@ struct ActivityView: View {
     private func cachedFailureExplanation(for task: OperationTask) -> String? {
         let record = task.aiTaskRecord
         guard let cached = aiIndexStore.workbenchFailureExplanation(forTask: record.id),
-              cached.fingerprint == AIBackgroundIndexer.failureExplanationFingerprint(record),
+              cached.fingerprint == ActivityAIWorkbenchKeys.failureExplanationFingerprint(record),
               !cached.text.isEmpty else { return nil }
         return cached.text
     }

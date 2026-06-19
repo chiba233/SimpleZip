@@ -424,3 +424,66 @@ nonisolated enum ActivityAIWorkbenchBuilder {
         }
     }
 }
+
+// MARK: - 工作台预烘焙缓存键 + 派生值(独立 AI 进程改造:从 AIBackgroundIndexer 抽进 Core)
+//
+// 这些是**纯确定性**的指纹 / 稳定 id / chip 派生值。白皮书反复强调「**两边必须用同一函数**」:agent 的后台预烘焙
+// pass 用它们算缓存 key、前台(ActivityView)用同一函数判断缓存是否仍匹配当前输入才套用。agent 调不到 app-target
+// 的 `AIBackgroundIndexer`,故放进 Core 共享 —— 是「确定性逻辑 → Core」,不是「AI 后端」。
+enum ActivityAIWorkbenchKeys {
+    /// chip 池指纹:chip id + 匹配数(池构成或计数变了才重排;否则幂等跳过)。
+    nonisolated static func chipPoolFingerprint(_ chips: [ActivityAIWorkbenchFilterChip]) -> String {
+        chips.map { "\($0.id):\(chipMatchCount($0))" }.joined(separator: "|")
+    }
+
+    /// chip 的匹配任务数(从 facts 的 "matches=N" 抽)。
+    nonisolated static func chipMatchCount(_ chip: ActivityAIWorkbenchFilterChip) -> Int {
+        let prefix = "matches="
+        for fact in chip.facts where fact.hasPrefix(prefix) { return Int(fact.dropFirst(prefix.count)) ?? 0 }
+        return 0
+    }
+
+    /// chip 的英文语义描述(喂模型用;由 filter 维度拼,**不含敏感路径**)。
+    nonisolated static func chipPromptLabel(_ chip: ActivityAIWorkbenchFilterChip) -> String {
+        var dims: [String] = []
+        let f = chip.filter
+        if let status = f.status { dims.append("status=\(status)") }
+        if let source = f.source { dims.append("source=\(source)") }
+        if !f.kindTokens.isEmpty { dims.append("kind=\(f.kindTokens.joined(separator: "/"))") }
+        if !f.diagnosticTags.isEmpty { dims.append("tags=\(f.diagnosticTags.joined(separator: "/"))") }
+        return "\(chip.id) — \(dims.isEmpty ? chip.id : dims.joined(separator: ", "))"
+    }
+
+    /// 某分类的「未读失败任务集」指纹(未读失败任务 id 排序后 join)。后台据此决定是否重生成「需要处理」解读、
+    /// 前台据此判断缓存是否匹配当前列表 —— **两边必须用同一函数**,保证幂等且不显示旧任务的解读。
+    nonisolated static func needsAttentionFingerprint(_ records: [AITaskRecord]) -> String {
+        records.filter { $0.status == "failed" && !$0.failureSeen }
+            .map(\.id).sorted().joined(separator: ",")
+    }
+
+    /// 某失败任务的脱敏诊断指纹(类型 / 来源 / 标签 / 脱敏失败消息 / 脱敏错误行)。后台据此决定是否重生成失败解释、
+    /// 前台据此判断缓存是否仍对应该任务当前的失败态 —— **两边用同一函数**。**全部已脱敏,无原始路径。**
+    nonisolated static func failureExplanationFingerprint(_ record: AITaskRecord) -> String {
+        let diag = record.diagnostics
+        var parts = ["\(record.kind)|\(record.source)|\(diag.tags.sorted().joined(separator: "+"))"]
+        if let message = diag.failureMessage, !message.isEmpty { parts.append(message) }
+        if !diag.errorLines.isEmpty { parts.append(diag.errorLines.joined(separator: "\n")) }
+        return AIStableHash.stableID64(parts.joined(separator: "\u{1f}"))
+    }
+
+    /// 真实聚集池指纹:每个聚集的 filter 维度 id + 命中数(构成或计数变了才重命名;否则幂等跳过)。
+    nonisolated static func clusterFingerprint(_ clusters: [AIWorkbenchCluster]) -> String {
+        clusters.map { "\(clusterChipID($0.filter)):\($0.matchCount)" }.joined(separator: "|")
+    }
+
+    /// 真建议 chip 的稳定 id(从 filter 维度拼,前台据此去重写死 chip + 应用 filter)。
+    nonisolated static func clusterChipID(_ filter: ActivityAIWorkbenchFilterSpec) -> String {
+        var parts = ["cluster"]
+        if let status = filter.status { parts.append("st-\(status)") }
+        if let source = filter.source { parts.append("so-\(source)") }
+        if !filter.kindTokens.isEmpty { parts.append("k-\(filter.kindTokens.sorted().joined(separator: "+"))") }
+        if !filter.diagnosticTags.isEmpty { parts.append("t-\(filter.diagnosticTags.sorted().joined(separator: "+"))") }
+        if let window = filter.timeWindowSeconds { parts.append("tw-\(window)") }
+        return parts.joined(separator: "_")
+    }
+}

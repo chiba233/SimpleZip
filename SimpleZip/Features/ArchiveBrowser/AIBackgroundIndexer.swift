@@ -593,7 +593,7 @@ final class AIBackgroundIndexer {
             let records = all.filter { $0.category == category }
             let chips = ActivityAIWorkbenchBuilder.snapshot(records: records).filterChips
             guard chips.count >= 2 else { continue }   // < 2 个 chip 不必排
-            let fingerprint = AIBackgroundIndexer.chipPoolFingerprint(chips)
+            let fingerprint = ActivityAIWorkbenchKeys.chipPoolFingerprint(chips)
             if store.workbenchChipRanking(forCategory: category)?.fingerprint != fingerprint {
                 pick = (category, chips, fingerprint); break
             }
@@ -605,7 +605,7 @@ final class AIBackgroundIndexer {
             defer { AIBackgroundIndexer.shared.workbenchRankingRunning = false }
             guard AIBackgroundIndexStore.shared.indexingEnabled, AIReportAssistant.isReady else { return }
             let candidates = pick.chips.map {
-                (label: AIBackgroundIndexer.chipPromptLabel($0), matches: AIBackgroundIndexer.chipMatchCount($0))
+                (label: ActivityAIWorkbenchKeys.chipPromptLabel($0), matches: ActivityAIWorkbenchKeys.chipMatchCount($0))
             }
             guard let indices = try? await AIVirtualFolderModelPlanner.rankWorkbenchFilterChips(candidates: candidates),
                   !indices.isEmpty else { return }
@@ -618,47 +618,7 @@ final class AIBackgroundIndexer {
         }
     }
 
-    /// chip 池指纹:chip id + 匹配数(池构成或计数变了才重排;否则幂等跳过)。
-    nonisolated static func chipPoolFingerprint(_ chips: [ActivityAIWorkbenchFilterChip]) -> String {
-        chips.map { "\($0.id):\(chipMatchCount($0))" }.joined(separator: "|")
-    }
-
-    /// chip 的匹配任务数(从 facts 的 "matches=N" 抽)。
-    nonisolated static func chipMatchCount(_ chip: ActivityAIWorkbenchFilterChip) -> Int {
-        let prefix = "matches="
-        for fact in chip.facts where fact.hasPrefix(prefix) { return Int(fact.dropFirst(prefix.count)) ?? 0 }
-        return 0
-    }
-
-    /// chip 的英文语义描述(喂模型用;由 filter 维度拼,**不含敏感路径**)。
-    nonisolated static func chipPromptLabel(_ chip: ActivityAIWorkbenchFilterChip) -> String {
-        var dims: [String] = []
-        let f = chip.filter
-        if let status = f.status { dims.append("status=\(status)") }
-        if let source = f.source { dims.append("source=\(source)") }
-        if !f.kindTokens.isEmpty { dims.append("kind=\(f.kindTokens.joined(separator: "/"))") }
-        if !f.diagnosticTags.isEmpty { dims.append("tags=\(f.diagnosticTags.joined(separator: "/"))") }
-        return "\(chip.id) — \(dims.isEmpty ? chip.id : dims.joined(separator: ", "))"
-    }
-
     // MARK: - 建议六 v2 模块1「需要处理」AI 解读 + 模块①「失败解释」(后台预烘焙)
-
-    /// 某分类的「未读失败任务集」指纹(未读失败任务 id 排序后 join)。后台据此决定是否重生成「需要处理」解读、
-    /// 前台据此判断缓存是否匹配当前列表 —— **两边必须用同一函数**,保证幂等且不显示旧任务的解读。
-    nonisolated static func needsAttentionFingerprint(_ records: [AITaskRecord]) -> String {
-        records.filter { $0.status == "failed" && !$0.failureSeen }
-            .map(\.id).sorted().joined(separator: ",")
-    }
-
-    /// 某失败任务的脱敏诊断指纹(类型 / 来源 / 标签 / 脱敏失败消息 / 脱敏错误行)。后台据此决定是否重生成失败解释、
-    /// 前台据此判断缓存是否仍对应该任务当前的失败态 —— **两边用同一函数**。**全部已脱敏,无原始路径。**
-    nonisolated static func failureExplanationFingerprint(_ record: AITaskRecord) -> String {
-        let diag = record.diagnostics
-        var parts = ["\(record.kind)|\(record.source)|\(diag.tags.sorted().joined(separator: "+"))"]
-        if let message = diag.failureMessage, !message.isEmpty { parts.append(message) }
-        if !diag.errorLines.isEmpty { parts.append(diag.errorLines.joined(separator: "\n")) }
-        return AIStableHash.stableID64(parts.joined(separator: "\u{1f}"))
-    }
 
     /// 建议六 v2 模块1:后台让端上模型给活动中心「需要处理」卡写一段解读(现在最值得先处理什么 + 为什么)。每轮**只处理
     /// 1 个分类**(第一个解读过期 / 没解读过的;队列收敛 `4fd1fcad`),未读失败集指纹幂等(集合没变不重生成),写回 store,
@@ -675,7 +635,7 @@ final class AIBackgroundIndexer {
         var pick: (category: String, records: [AITaskRecord], fingerprint: String)?
         for category in ["archive", "fileOperation", "undoRedo"] {
             let records = all.filter { $0.category == category }
-            let fingerprint = AIBackgroundIndexer.needsAttentionFingerprint(records)
+            let fingerprint = ActivityAIWorkbenchKeys.needsAttentionFingerprint(records)
             guard !fingerprint.isEmpty else { continue }   // 该分类无未读失败 → 不需要解读
             if store.workbenchNeedsAttentionExplanation(forCategory: category)?.fingerprint != fingerprint {
                 pick = (category, records, fingerprint); break
@@ -722,7 +682,7 @@ final class AIBackgroundIndexer {
         // 找第一个「解释过期 / 没解释过」的失败任务(每轮只做 1 个,逐轮覆盖)。
         var pick: (record: AITaskRecord, fingerprint: String)?
         for record in failed {
-            let fingerprint = AIBackgroundIndexer.failureExplanationFingerprint(record)
+            let fingerprint = ActivityAIWorkbenchKeys.failureExplanationFingerprint(record)
             if store.workbenchFailureExplanation(forTask: record.id)?.fingerprint != fingerprint {
                 pick = (record, fingerprint); break
             }
@@ -757,7 +717,7 @@ final class AIBackgroundIndexer {
             let records = all.filter { $0.category == category }
             let clusters = ActivityAIWorkbenchBuilder.discoverClusters(records: records)
             guard !clusters.isEmpty else { continue }
-            let fingerprint = AIBackgroundIndexer.clusterFingerprint(clusters)
+            let fingerprint = ActivityAIWorkbenchKeys.clusterFingerprint(clusters)
             if store.workbenchClusterChips(forCategory: category)?.fingerprint != fingerprint {
                 pick = (category, clusters, fingerprint); break
             }
@@ -775,29 +735,13 @@ final class AIBackgroundIndexer {
                 guard item.index >= 1, item.index <= pick.clusters.count else { return nil }
                 let cluster = pick.clusters[item.index - 1]
                 return CachedClusterChip(
-                    id: AIBackgroundIndexer.clusterChipID(cluster.filter),
+                    id: ActivityAIWorkbenchKeys.clusterChipID(cluster.filter),
                     displayName: item.name, filter: cluster.filter, matchCount: cluster.matchCount)
             }
             guard !chips.isEmpty else { return }
             AIBackgroundIndexStore.shared.applyWorkbenchClusterChips(
                 category: pick.category, fingerprint: pick.fingerprint, chips: chips)
         }
-    }
-
-    /// 真实聚集池指纹:每个聚集的 filter 维度 id + 命中数(构成或计数变了才重命名;否则幂等跳过)。
-    nonisolated static func clusterFingerprint(_ clusters: [AIWorkbenchCluster]) -> String {
-        clusters.map { "\(clusterChipID($0.filter)):\($0.matchCount)" }.joined(separator: "|")
-    }
-
-    /// 真建议 chip 的稳定 id(从 filter 维度拼,前台据此去重写死 chip + 应用 filter)。
-    nonisolated static func clusterChipID(_ filter: ActivityAIWorkbenchFilterSpec) -> String {
-        var parts = ["cluster"]
-        if let status = filter.status { parts.append("st-\(status)") }
-        if let source = filter.source { parts.append("so-\(source)") }
-        if !filter.kindTokens.isEmpty { parts.append("k-\(filter.kindTokens.sorted().joined(separator: "+"))") }
-        if !filter.diagnosticTags.isEmpty { parts.append("t-\(filter.diagnosticTags.sorted().joined(separator: "+"))") }
-        if let window = filter.timeWindowSeconds { parts.append("tw-\(window)") }
-        return parts.joined(separator: "_")
     }
 
     // MARK: - 压缩包「你可能需要的文件」建议(backlog 第4项;MainActor:读清单缓存 + 模型 async)
