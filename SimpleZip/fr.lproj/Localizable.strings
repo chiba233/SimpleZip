@@ -2382,6 +2382,7 @@
 "tasks.aiWorkbench.failureExplanation" = "Explication de l'échec";
 "tasks.aiWorkbench.failureExplanation.fallback" = "Cette tâche a échoué — développez la carte pour les détails.";
 "tasks.aiWorkbench.openFullExplanation" = "Ouvrir l'explication complète de l'IA";
+"tasks.aiWorkbench.nextActions" = "Actions suivantes";
 "ai.suggestLabels" = "Suggérer des étiquettes";
 "ai.suggestLabels.title" = "Étiquettes suggérées par l’IA";
 "ai.summarizeRisk.title" = "Résumé des risques par l’IA";

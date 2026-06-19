@@ -2384,6 +2384,7 @@
 "tasks.aiWorkbench.failureExplanation" = "失敗の説明";
 "tasks.aiWorkbench.failureExplanation.fallback" = "このタスクは失敗しました — 詳細はカードを展開してください。";
 "tasks.aiWorkbench.openFullExplanation" = "AI による詳しい説明を開く";
+"tasks.aiWorkbench.nextActions" = "次のアクション";
 "ai.suggestLabels" = "ラベルを提案";
 "ai.suggestLabels.title" = "AI 提案ラベル";
 "ai.summarizeRisk.title" = "AI リスク要約";

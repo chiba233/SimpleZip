@@ -266,6 +266,7 @@ struct ActivityView: View {
                                 onApplyFilter: applyAIWorkbenchFilter,
                                 onOpenTask: openWorkbenchTask,
                                 onOpenFullFailureExplanation: { showsWorkbenchFailureSheet = true },
+                                onNextAction: { performWorkbenchNextAction($0, in: category) },
                                 onClose: { showsActivityAIWorkbench = false }
                             )
                             .frame(width: CGFloat(aiWorkbenchWidth))
@@ -767,7 +768,48 @@ struct ActivityView: View {
             taskTitle: task.title,
             deterministicSummary: deterministicFailureSummary(for: task.aiTaskRecord),
             aiExplanation: workbenchFailureExplanation,
-            canOpenFull: canOpenFull)
+            canOpenFull: canOpenFull,
+            nextActions: availableNextActions(for: task))
+    }
+
+    /// 模块②:焦点失败任务上**确定性可用**的后续动作(按任务自身闭包是否存在,App 安全枚举,AI 不发明)。
+    private func availableNextActions(for task: OperationTask) -> [WorkbenchNextAction] {
+        var actions: [WorkbenchNextAction] = []
+        if task.openReport != nil || task.reportAttachment != nil { actions.append(.openReport) }
+        if task.resumeFromFailure != nil { actions.append(.resumeFromFailure) }
+        if task.rerun != nil { actions.append(.rerun) }
+        if task.rerunWithChanges != nil { actions.append(.rerunWithChanges) }
+        // 复制诊断永远可用:从脱敏的 AITaskRecord 拼一段可粘贴文本(无原始路径 / 已抓 secret)。
+        actions.append(.copyDiagnostics)
+        return actions
+    }
+
+    /// 模块②:把侧栏点的「下一步动作」路由回焦点失败任务自身的闭包,或做只读复制。**只走任务已有的安全动作。**
+    private func performWorkbenchNextAction(_ action: WorkbenchNextAction, in category: OperationTask.Category) {
+        guard let task = focusedWorkbenchFailure(in: category) else { return }
+        switch action {
+        case .openReport:
+            task.openReport?()
+        case .resumeFromFailure:
+            task.resumeFromFailure?()
+        case .rerun:
+            task.rerun?()
+        case .rerunWithChanges:
+            task.rerunWithChanges?()
+        case .copyDiagnostics:
+            copyFocusedDiagnostics(task)
+        }
+    }
+
+    /// 模块②「复制诊断」:从**已脱敏**的 `AITaskRecord` 拼一段纯文本(标题 + 类型/来源/状态 + 脱敏失败消息 + 脱敏错误行),
+    /// 适合粘进 issue / 笔记。不含原始路径,secret 已被 redact 抓掉。
+    private func copyFocusedDiagnostics(_ task: OperationTask) {
+        let record = task.aiTaskRecord
+        var lines = [task.title, "\(record.kind) · \(record.source) · \(record.status)"]
+        if let message = record.diagnostics.failureMessage, !message.isEmpty { lines.append(message) }
+        lines.append(contentsOf: record.diagnostics.errorLines)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(lines.joined(separator: "\n"), forType: .string)
     }
 
     /// 确定性失败摘要(模块①的 fallback):优先脱敏失败消息,其次诊断标签,再不济通用文案。**全部已脱敏,无原始路径。**

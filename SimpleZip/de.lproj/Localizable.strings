@@ -2383,6 +2383,7 @@
 "tasks.aiWorkbench.failureExplanation" = "Fehlererklärung";
 "tasks.aiWorkbench.failureExplanation.fallback" = "Diese Aufgabe ist fehlgeschlagen – Karte für Details aufklappen.";
 "tasks.aiWorkbench.openFullExplanation" = "Vollständige KI-Erklärung öffnen";
+"tasks.aiWorkbench.nextActions" = "Nächste Schritte";
 "ai.suggestLabels" = "Labels vorschlagen";
 "ai.suggestLabels.title" = "KI-Label-Vorschläge";
 "ai.summarizeRisk.title" = "KI-Risikozusammenfassung";

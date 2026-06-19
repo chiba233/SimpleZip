@@ -2382,6 +2382,7 @@
 "tasks.aiWorkbench.failureExplanation" = "คำอธิบายความล้มเหลว";
 "tasks.aiWorkbench.failureExplanation.fallback" = "งานนี้ล้มเหลว — ขยายการ์ดเพื่อดูรายละเอียด";
 "tasks.aiWorkbench.openFullExplanation" = "เปิดคำอธิบาย AI แบบเต็ม";
+"tasks.aiWorkbench.nextActions" = "การดำเนินการถัดไป";
 "ai.suggestLabels" = "แนะนำป้ายกำกับ";
 "ai.suggestLabels.title" = "ป้ายกำกับที่ AI แนะนำ";
 "ai.summarizeRisk.title" = "สรุปความเสี่ยงด้วย AI";

@@ -1372,6 +1372,7 @@
 "tasks.aiWorkbench.failureExplanation" = "Failure explanation";
 "tasks.aiWorkbench.failureExplanation.fallback" = "This task failed — expand the card for details.";
 "tasks.aiWorkbench.openFullExplanation" = "Open full AI explanation";
+"tasks.aiWorkbench.nextActions" = "Next actions";
 "ai.suggestLabels" = "Suggest Labels";
 "ai.suggestLabels.title" = "AI Suggested Labels";
 "ai.summarizeRisk.title" = "AI Risk Summary";

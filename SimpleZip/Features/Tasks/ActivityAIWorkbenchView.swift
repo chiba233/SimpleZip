@@ -9,14 +9,47 @@
 
 import SwiftUI
 
+/// 建议六 v2 模块②「下一步动作」:焦点失败任务上可点的安全后续动作。**App 安全枚举,AI 不发明动作**(红线)。
+/// 每项映射到任务自身已有的闭包(打开报告 / 从失败步继续 / 重跑 / 改参重跑)或一个只读复制。
+enum WorkbenchNextAction: String, CaseIterable, Identifiable, Equatable {
+    case openReport
+    case resumeFromFailure
+    case rerun
+    case rerunWithChanges
+    case copyDiagnostics
+
+    var id: String { rawValue }
+
+    var titleKey: String {
+        switch self {
+        case .openReport: return "button.openReport"
+        case .resumeFromFailure: return "button.resumeFromFailure"
+        case .rerun: return "button.rerunTask"
+        case .rerunWithChanges: return "button.rerunWithChanges"
+        case .copyDiagnostics: return "button.copyDiagnostics"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .openReport: return "doc.text.magnifyingglass"
+        case .resumeFromFailure: return "arrow.uturn.forward"
+        case .rerun: return "arrow.clockwise"
+        case .rerunWithChanges: return "slider.horizontal.3"
+        case .copyDiagnostics: return "doc.on.clipboard"
+        }
+    }
+}
+
 /// 建议六 v2 模块①「失败解释」的焦点数据。`deterministicSummary` 永远在(脱敏诊断文案,确定性 fallback);
 /// `aiExplanation` 模型可用且生成成功时才有;`canOpenFull` 决定是否显示「打开完整 AI 解释」按钮。
-/// taskTitle 只在侧栏显示(用户在卡片里本就看得到),**不喂给模型**。
+/// taskTitle 只在侧栏显示(用户在卡片里本就看得到),**不喂给模型**。`nextActions` = 模块②可点的安全后续动作。
 struct ActivityWorkbenchFailureFocus: Equatable {
     let taskTitle: String
     let deterministicSummary: String
     let aiExplanation: String?
     let canOpenFull: Bool
+    let nextActions: [WorkbenchNextAction]
 }
 
 struct ActivityAIWorkbenchView: View {
@@ -38,6 +71,8 @@ struct ActivityAIWorkbenchView: View {
     let onOpenTask: (String) -> Void
     /// 模块①:「打开完整 AI 解释」→ 父级用焦点失败任务弹现成的 per-task `AIAssistSheet`(完整解释)。
     let onOpenFullFailureExplanation: () -> Void
+    /// 模块②:点某个「下一步动作」→ 父级路由到焦点失败任务自身的闭包(打开报告 / 续跑 / 重跑…)或只读复制。
+    let onNextAction: (WorkbenchNextAction) -> Void
     let onClose: () -> Void
 
     var body: some View {
@@ -49,6 +84,7 @@ struct ActivityAIWorkbenchView: View {
                 currentSummary
                 needsAttention
                 failureExplanation
+                nextActions
                 suggestedFilters
             }
             .padding(.horizontal, 14)
@@ -196,6 +232,28 @@ struct ActivityAIWorkbenchView: View {
                         Label(L10n.text("tasks.aiWorkbench.openFullExplanation"), systemImage: "sparkles")
                     }
                     .controlSize(.small)
+                }
+            }
+        }
+    }
+
+    /// 建议六 v2 模块②「下一步动作」:焦点失败任务上可点的安全后续动作(带文字标签,比卡片纯图标按钮更易发现)。
+    /// **App 安全枚举,AI 不发明动作**;每项路由回任务自身的闭包或只读复制。没有焦点失败任务 / 无可用动作 → 整区不渲染。
+    @ViewBuilder
+    private var nextActions: some View {
+        if let focus = failureFocus, !focus.nextActions.isEmpty {
+            workbenchSection(title: L10n.text("tasks.aiWorkbench.nextActions"), systemImage: "arrow.forward.square") {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(focus.nextActions) { action in
+                        Button {
+                            onNextAction(action)
+                        } label: {
+                            Label(L10n.text(action.titleKey), systemImage: action.systemImage)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    }
                 }
             }
         }

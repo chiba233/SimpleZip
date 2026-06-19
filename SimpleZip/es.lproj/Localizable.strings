@@ -2382,6 +2382,7 @@
 "tasks.aiWorkbench.failureExplanation" = "Explicación del fallo";
 "tasks.aiWorkbench.failureExplanation.fallback" = "Esta tarea falló: amplía la tarjeta para ver los detalles.";
 "tasks.aiWorkbench.openFullExplanation" = "Abrir explicación completa de IA";
+"tasks.aiWorkbench.nextActions" = "Próximas acciones";
 "ai.suggestLabels" = "Sugerir etiquetas";
 "ai.suggestLabels.title" = "Etiquetas sugeridas por IA";
 "ai.summarizeRisk.title" = "Resumen de riesgo con IA";
