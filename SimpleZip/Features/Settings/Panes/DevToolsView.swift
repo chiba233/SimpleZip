@@ -218,15 +218,27 @@ struct DevToolsView: View {
                             loadAIDataSnapshot()
                             flash("已清空 AI 派生数据")
                         }
-                        // 独立 AI 进程改造 Step 0:验证「端上模型能否在非 App 的独立 agent 进程里跑」——
-                        // 注册 LaunchAgent + 连 Mach XPC + 在 agent 进程试跑一次模型,结果闪现在下方。
+                        // 独立 AI 进程改造:两条投递通道各验一次「端上模型能否在非 App 的独立进程里跑」。
+                        // ① 后台 LaunchAgent 通道:SMAppService 注册 + 连 Mach XPC;在 Login Items 可见、受「允许在后台」门控。
                         actionRow(
                             "bolt.horizontal.circle",
-                            "测试 AI agent 探针(独立进程跑模型)",
-                            "注册 LaunchAgent(SMAppService)+ 连 Mach XPC,在 agent 进程里试跑一次端上模型,结果显示在下方(也打到 agent stderr,Console 过滤 SimpleZipAIAgent 看完整)。验证独立 AI 进程的地基:模型能不能在非 App 进程跑。注册可能需 SimpleZip Dev 签名 + App 从 /Applications 跑。"
+                            "测试 AI agent 探针(后台 LaunchAgent 通道)",
+                            "注册 LaunchAgent(SMAppService)+ 连 Mach XPC,在 agent 进程里试跑一次端上模型,结果显示在下方(也打到 agent stderr,Console 过滤 SimpleZipAIAgent 看完整)。这条通道在 Login Items 可见、受「允许在后台」开关门控:关掉它后台索引连同此探针都会被 launchd 拒。注册可能需 SimpleZip Dev 签名 + App 从 /Applications 跑。"
                         ) {
-                            flash("正在注册 + 连 agent 跑探针…")
-                            AIAgentClient.runProbe { result in
+                            flash("正在注册 + 连后台 LaunchAgent 跑探针…")
+                            AIAgentClient.runBackgroundProbe { result in
+                                flash(result)
+                            }
+                        }
+                        // ② 前台 XPC Service 通道:连内嵌 .xpc(serviceName);App 连接即按需拉起、不进 Login Items、
+                        //    不受「允许在后台」门控 —— 验证「即便用户关掉后台权限,前台 AI 仍能起」。
+                        actionRow(
+                            "bolt.badge.automatic",
+                            "测试 AI agent 探针(前台 XPC Service 通道)",
+                            "连内嵌 XPC Service(Contents/XPCServices/SimpleZipAIXPCService.xpc),在它里面试跑一次端上模型。这条通道由 App 连接即按需拉起、随 App 生命周期、不进 Login Items、不受「允许在后台」开关 gate —— 即便用户关掉后台权限,前台 AI 也能起。结果显示在下方(stderr 同样过滤 SimpleZipAIAgent)。"
+                        ) {
+                            flash("正在连前台 XPC Service 跑探针…")
+                            AIAgentClient.runForegroundProbe { result in
                                 flash(result)
                             }
                         }
