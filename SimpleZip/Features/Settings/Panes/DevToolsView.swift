@@ -483,19 +483,19 @@ struct DevToolsView: View {
             + "(预读\(snapshot.backgroundIndex.contentPrereadEnabled ? "开" : "关"))"
             // AI 建议各 pass 的实际产物计数 —— 一眼看出每个 pass 有没有生效(0 = 还没出 / 没候选 / 没开)。
             let s = snapshot.backgroundIndex
+            let pc = AIPendingCheckStore.shared.counts
             aiSuggestionStatus = "摘要 \(s.summaryCount) · 打开方式 \(s.openWithCount) · 网页 \(s.urlOpenCount) · 装App \(s.installCount)"
                 + " · 活动 \(s.activityCount) · 包内 \(s.archiveEntryCount) · 包定性 \(s.archiveKindCount)"
                 + " · 文件组 \(s.folderGroupCount)"
                 // 主动工具(归档:检测 / 测试 / 哈希 / 安全;文件:压缩 / 转换)—— 之前 security 完全没计数,看不出有没有冒出来。
                 + " · 检测 \(s.inspectCount) · 测试 \(s.testCount) · 哈希 \(s.hashCount) · 安全 \(s.securityCount)"
                 + " · 压缩 \(s.compressCount) · 转换 \(s.convertCount)"
-            // #8 跨表面反馈学习:事件计数(原始保留 30 天 / 每类上限 1000)。
+                // 自动检查(pending)队列 + **内联产出**逐行为 —— 跟主动工具建议同属「AI 产物」,放这条不放反馈学习行。
+                // 区分「建议提了 inspect/security」vs「真跑出结果回填抽屉」;之前只算 hash 还没显示,test/inspect/security 看不到。
+                + " · 自动检查 待\(pc.pending)/完\(pc.done) · 内联 哈希\(s.inlineHashResultCount) 测试\(s.inlineTestResultCount) 检测\(s.inlineInspectResultCount) 安全\(s.inlineSecurityResultCount)"
+            // #8 跨表面反馈学习:事件计数(原始保留 30 天 / 每类上限 1000)。纯反馈,不混自动检查。
             let fb = AIFeedbackStore.shared.counts
-            let pc = AIPendingCheckStore.shared.counts
-            // 自动检查(pending)**内联产出**逐行为计数 —— 区分「建议提了 inspect/security」vs「真跑出结果回填抽屉」。
-            // 之前只算 hash 还没显示;test/inspect/security 跑完写了 inlineResults 但面板看不到,故 inspect/security「完全不体现」。
-            aiFeedbackStatus = "我不喜欢 \(fb.feedback) · 兴趣信号 \(fb.signals) · 自动检查 待\(pc.pending)/完\(pc.done)"
-                + " · 内联 哈希\(s.inlineHashResultCount) 测试\(s.inlineTestResultCount) 检测\(s.inlineInspectResultCount) 安全\(s.inlineSecurityResultCount)"
+            aiFeedbackStatus = "我不喜欢 \(fb.feedback) · 兴趣信号 \(fb.signals)"
 
             // 后台运行 + 各档闸实时状态(直接回答「为啥都是 0」:哪一档 ✗ 就卡在哪)。
             let g = AIBackgroundIndexer.shared.gateDiag()

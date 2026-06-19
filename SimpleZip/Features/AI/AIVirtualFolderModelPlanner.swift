@@ -149,7 +149,7 @@ struct GeneratedArchiveEntryPicks: Sendable {
 struct GeneratedArchiveKindGuess: Sendable {
     @Guide(description: "ONE short, concrete sentence describing what kind of archive this appears to be, based only on the listed paths and folder structure. Use the required language. Do not name or copy a specific product unless it is explicitly present in the archive name or entries.")
     var summary: String
-    @Guide(description: "A FEW action tokens worth proactively suggesting for THIS archive, or empty. Allowed tokens only: 'test' (verify the archive is not corrupt — a safe read-only check that works on ANY supported archive format, so it fits essentially any archive worth keeping intact), 'security' (scan entries for unsafe / suspicious paths before extracting — applies to ANY archive, offer it broadly, especially for downloads or archives with executables), 'inspect' (a release-readiness / contents inspection — for any archive that is software or a package meant to be shipped: an app, a disk image, an installer, executables, a bin/ or dist/ tree, or a versioned release), 'hash' (compute a checksum — useful for any archive the user might share or verify later), 'convert' (ONLY when the current format is clearly suboptimal for the likely next step, e.g. a .tar.gz better repacked as .7z — never just because conversion is possible). test, security and hash are NOT limited to release packages; return empty only for a trivial throwaway archive where even a safe check adds nothing. Use each token verbatim; never invent one.")
+    @Guide(description: "A FEW action tokens worth proactively suggesting for THIS archive, or empty. Allowed tokens only: 'test' (verify the archive is not corrupt — a safe read-only check that works on ANY supported archive format, so it fits essentially any archive worth keeping intact), 'security' (scan entries for unsafe / suspicious paths before extracting — applies to ANY archive, offer it broadly, especially for downloads or archives with executables), 'inspect' (a release-readiness / contents inspection — for any archive that is software or a package meant to be shipped: an app, a disk image, an installer, executables, a bin/ or dist/ tree, or a versioned release), 'hash' (compute a checksum — like inspect, for that same kind of release package or distributable: an app, disk image, installer, executables, bin/ or dist/ tree, or versioned release, that someone might share and verify), 'convert' (ONLY when the current format is clearly suboptimal for the likely next step, e.g. a .tar.gz better repacked as .7z — never just because conversion is possible). test and security are NOT limited to release packages; inspect and hash are for release packages / distributables. Use each token verbatim; never invent one.")
     var actions: [String]
 }
 
@@ -459,9 +459,10 @@ enum AIVirtualFolderModelPlanner {
         claim certainty; say it appears to be something. Do not invent contents that are not supported by the paths. \
         Avoid naming a specific product or app unless that name is explicitly present in the archive name or entries.
 
-        Then suggest proactive action tokens for this archive (verbatim, from this exact list). test, security and \
-        hash are SAFE, read-only checks that work on EVERY supported archive format — they are NOT limited to release \
-        packages, so do not withhold them just because this is an ordinary archive.
+        Then suggest proactive action tokens for this archive (verbatim, from this exact list). test and security are \
+        SAFE, read-only checks that work on EVERY supported archive format — they are NOT limited to release packages, \
+        so do not withhold them just because this is an ordinary archive. inspect and hash apply to release packages / \
+        distributables (defined below).
         test — verify the archive is not corrupt. It works on any supported format, so it fits essentially ANY archive \
         worth keeping intact (a download, a backup, a release — anything the user would not want silently corrupted).
         security — scan the entries for unsafe or suspicious paths before extracting (parent-directory escapes, \
@@ -470,7 +471,9 @@ enum AIVirtualFolderModelPlanner {
         inspect — a release-readiness / contents inspection. Fits ANY archive that is software or a package meant to \
         be shipped: an app, a disk image (.dmg), an installer (.pkg / .msi / .exe), executables, a bin/ or dist/ tree, \
         or a versioned release.
-        hash — compute a checksum; useful for any archive the user might share or want to verify later.
+        hash — compute a checksum. Like inspect, offer it for that same kind of release package or distributable (an \
+        app, a disk image, an installer, executables, a bin/ or dist/ tree, a versioned release) — the things someone \
+        would share and another person might verify.
         convert — ONLY when the current format is clearly suboptimal for the user's likely next step (e.g. a .tar.gz \
         that would repack smaller as .7z, or an old .zip to repack). Never suggest merely because conversion is possible.
         Return an empty list only for a trivial, throwaway archive where even a quick safe check would add nothing.
