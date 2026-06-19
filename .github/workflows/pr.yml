@@ -67,6 +67,40 @@ jobs:
             --scratch-path /private/tmp/SimpleZipSwiftPM \
             -Xswiftc -module-cache-path -Xswiftc /private/tmp/SimpleZipSwiftPM/ModuleCache
 
+      # 签名(独立 AI 进程改造引入):Debug 配置在 pbxproj 里把 app + SimpleZipAIAgent 的 CODE_SIGN_IDENTITY
+      # 钉成本地自签证书「SimpleZip Dev」(SMAppService 要 app 与 helper 同签名身份)。CI runner 没有这个证书,
+      # 故先尝试从 secret 导入 .p12 到临时钥匙串,用工程里的 Manual 签名签上;**secret 不存在时(还没配 / fork PR
+      # 拿不到 secret)自动回落 ad-hoc(-)签名**,保证 CI 不因缺证书而红。需在仓库
+      # Settings → Secrets and variables → Actions 配两个 secret:
+      #   DEV_SIGNING_CERT_P12_BASE64 = 导出的「SimpleZip Dev」.p12 经 `base64 -i cert.p12 | pbcopy` 后的内容
+      #   DEV_SIGNING_CERT_PASSWORD   = 导出 .p12 时设的密码
+      - name: Prepare code signing
+        id: signing
+        env:
+          DEV_CERT_P12_BASE64: ${{ secrets.DEV_SIGNING_CERT_P12_BASE64 }}
+          DEV_CERT_PASSWORD: ${{ secrets.DEV_SIGNING_CERT_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${DEV_CERT_P12_BASE64:-}" ]]; then
+            echo "未配置 SimpleZip Dev 证书 secret → Debug 构建回落 ad-hoc(-)签名(仍走完嵌入 helper 全流程)。"
+            echo "extra_args=CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER= CODE_SIGNING_ALLOWED=YES" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "导入「SimpleZip Dev」证书到临时钥匙串,Debug 用工程里的 Manual 签名。"
+          CERT_PATH="$RUNNER_TEMP/simplezip_dev.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/simplezip-signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+          printf '%s' "$DEV_CERT_P12_BASE64" | base64 --decode > "$CERT_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -P "$DEV_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" >/dev/null
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | sed 's/"//g')
+          rm -f "$CERT_PATH"
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+          echo "extra_args=" >> "$GITHUB_OUTPUT"
+
       # 跟 AGENTS.md 里「UI / Xcode 工程 / Info.plist / 资源 / 本地化 / app-target 改动需要再跑」
       # 那条命令一致。PR 不区分到底改了什么，统一跑 Debug 构建作为最简验证。
       - name: Build SimpleZip.app (Debug)
@@ -77,4 +111,5 @@ jobs:
             -scheme SimpleZip \
             -configuration Debug \
             -derivedDataPath /private/tmp/SimpleZipDerivedData \
+            ${{ steps.signing.outputs.extra_args }} \
             build
