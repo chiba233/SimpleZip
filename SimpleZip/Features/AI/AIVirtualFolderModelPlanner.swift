@@ -416,10 +416,17 @@ enum AIVirtualFolderModelPlanner {
         test — verify the archive's integrity.
         hash — compute a checksum; useful for a release / distributable archive someone might verify.
         """
+        // 🔴 防崩溃:端上模型上下文有限,大归档上千条目会撑爆 → FoundationModels 修剪 transcript 时**越界 trap**
+        // (用户实测崩溃栈;心跳让本 pass 真跑后暴露)。按「条目数 + 字符预算」双重封顶挑代表性条目、单条路径也截断
+        // —— 定性一个包不需要喂全清单(其它 pass 早已封顶:excerpt 1400 / urls 12 / entryPaths 50 / candidates 60)。
         var lines = ["Archive: \(archiveName)", "Entries (number<TAB>type<TAB>path):"]
+        var promptBudget = 6_000
         for (i, entry) in entryNames.enumerated() {
+            if i >= 200 || promptBudget <= 0 { break }
             let kind = entry.isDirectory ? "directory" : "file"
-            lines.append("\(i + 1)\t\(kind)\t\(entry.name)")
+            let name = String(entry.name.prefix(160))
+            lines.append("\(i + 1)\t\(kind)\t\(name)")
+            promptBudget -= name.count + 12
         }
         let generated = try await AIReportAssistant.generateStructured(
             instructions: instructions, prompt: lines.joined(separator: "\n"),

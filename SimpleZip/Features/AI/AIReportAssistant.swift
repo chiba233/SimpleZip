@@ -54,9 +54,11 @@ enum AIReportAssistant {
         let combined = instructions + "\n\n" + replyLanguageInstruction
         return try await AIGenerationSerializer.shared.run {
             let session = LanguageModelSession(instructions: combined)
-            return try await AIModelCallTimeout.run {
-                try await session.respond(to: prompt).content
-            }
+            // ⚠️ 绝不给 respond() 套**可取消的超时**:超时取消会丢下一个**还没真停**的 respond,污染 FoundationModels
+            // 的 transcript 状态机 → 下一个串行调用遍历 transcript 时越界 trap(用户实测崩溃栈,`catch` 接不住)。
+            // serializer 的链尾等的是这个 operation 跑到底 —— 必须让它等**真正的 respond 完成**,而非超时提前返回,
+            // 否则「表面串行、底层重叠」。prompt 已在各 pass 封顶,正常 respond 很快;真卡死宁可阻塞后台生成也不崩。
+            return try await session.respond(to: prompt).content
         }
     }
 
@@ -218,9 +220,8 @@ extension AIReportAssistant {
             for _ in 0..<max(1, maxAttempts) {
                 do {
                     let session = LanguageModelSession(instructions: instructions)
-                    return try await AIModelCallTimeout.run {
-                        try await session.respond(to: prompt, generating: type).content
-                    }
+                    // 不套可取消超时(见 `generate` 注释:取消 respond 会污染 transcript 状态机 → 下次越界 trap)。
+                    return try await session.respond(to: prompt, generating: type).content
                 } catch {
                     lastError = error
                 }
