@@ -218,7 +218,7 @@ final class AIBackgroundIndexer {
     /// 心跳本身不做判定,只「定期再问一次」`runIfEnabled` —— 真正的节流闸是里面的门控(空闲 / 充电 / 低电 / 静默)。
     private func ensureHeartbeat() {
         let level = AppPreferences.aiBackgroundActivityLevel
-        guard level != .off, let interval = AIBackgroundIndexer.heartbeatInterval(for: level) else {
+        guard level != .off, let interval = AIBackgroundSchedulingRules.heartbeatInterval(for: level) else {
             heartbeat?.invalidate(); heartbeat = nil; currentHeartbeatInterval = nil; return
         }
         if heartbeat != nil, currentHeartbeatInterval == interval { return }   // 已在跑且间隔一致 → 不动
@@ -238,16 +238,6 @@ final class AIBackgroundIndexer {
             heartbeat?.invalidate(); heartbeat = nil; currentHeartbeatInterval = nil; return
         }
         runIfEnabled()
-    }
-
-    /// 心跳间隔(秒)按 AI 活跃度档:激进 60 / 均衡 120 / 省电 300;off → nil(不装表)。门控才是真节流,故频繁也廉价。
-    nonisolated static func heartbeatInterval(for level: AIBackgroundActivityLevel) -> TimeInterval? {
-        switch level {
-        case .off: return nil
-        case .powerSaver: return 300
-        case .balanced: return 120
-        case .aggressive: return 60
-        }
     }
 
     /// 「最久没扫」排序:从没扫过(lastScannedAt==nil)最优先,其余按上次扫描时间升序(scope 渐进轮转用)。

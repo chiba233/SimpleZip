@@ -268,6 +268,18 @@ nonisolated enum AIBackgroundSchedulingRules {
         guard canRunDeepContext(c) else { return .modelPrewarm }
         return .deepContext
     }
+
+    /// 心跳间隔(秒)按 AI 活跃度档:激进 60 / 均衡 120 / 省电 300;off → nil(不装表)。门控才是真节流,故频繁也廉价。
+    /// **App 与 agent 共用一份**(文档 02):这套 60/120/300s 既是 App 内心跳 Timer 周期,也作 launchd 唤醒周期 /
+    /// agent 内部 timer 的初始策略 —— 是纯确定性调度策略,放 Core 共享,不进 agent 独占。
+    static func heartbeatInterval(for level: AIBackgroundActivityLevel) -> TimeInterval? {
+        switch level {
+        case .off: return nil
+        case .powerSaver: return 300
+        case .balanced: return 120
+        case .aggressive: return 60
+        }
+    }
 }
 
 // MARK: - 后台计划(工程补充五:aggressive = 本地智能维护员)
