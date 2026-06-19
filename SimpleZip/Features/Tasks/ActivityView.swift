@@ -935,7 +935,7 @@ struct ActivityView: View {
                 interaction: .appliedFilterChip, targetKind: .task, targetID: chip.id))
         }
         aiKeyword = ""
-        aiWithinSeconds = 0
+        aiWithinSeconds = Double(chip.filter.timeWindowSeconds ?? 0)   // 时间维度 chip:筛最近 N 秒(今天/本周)
         aiTimeBefore = false
         aiStatus = activityFilter(from: chip.filter.status)
         aiSource = chip.filter.source.flatMap(OperationTask.Source.init(rawValue:))

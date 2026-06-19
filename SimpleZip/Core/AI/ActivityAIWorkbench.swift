@@ -35,12 +35,16 @@ nonisolated struct ActivityAIWorkbenchFilterSpec: Codable, Equatable, Sendable {
     let source: String?
     let kindTokens: [String]
     let diagnosticTags: [String]
+    /// 建议六 v2 时间维度:筛「最近 N 秒内」(如 86400=今天 / 604800=本周)。nil = 不限时间。App 据此设 aiWithinSeconds。
+    let timeWindowSeconds: Int?
 
-    init(status: String? = nil, source: String? = nil, kindTokens: [String] = [], diagnosticTags: [String] = []) {
+    init(status: String? = nil, source: String? = nil, kindTokens: [String] = [],
+         diagnosticTags: [String] = [], timeWindowSeconds: Int? = nil) {
         self.status = status
         self.source = source
         self.kindTokens = kindTokens
         self.diagnosticTags = diagnosticTags
+        self.timeWindowSeconds = timeWindowSeconds
     }
 }
 
@@ -248,7 +252,8 @@ nonisolated enum ActivityAIWorkbenchBuilder {
     /// (≥minCount)的**真实聚集**,同成员集去冗余(双维先枚举 → 更具体的优先留)。这是"真建议"的候选池 ——
     /// 来自真实数据、任意交叉,不是写死维度;后台 pass 让模型在这些真实聚集上**择优 + 自然语言命名**。
     /// 确定性、可单测;模型不扫列表选行,只命名 App 发现的真实聚集(守拒绝假AI)。
-    static func discoverClusters(records: [AITaskRecord], minCount: Int = 2, limit: Int = 24) -> [AIWorkbenchCluster] {
+    static func discoverClusters(records: [AITaskRecord], now: Date? = nil,
+                                 minCount: Int = 2, limit: Int = 24) -> [AIWorkbenchCluster] {
         let failed = records.filter { $0.status == "failed" }
         guard failed.count >= minCount else { return [] }
         var seenMembers = Set<String>()
@@ -282,6 +287,23 @@ nonisolated enum ActivityAIWorkbenchBuilder {
         for s in sources { add(.init(status: "failed", source: s), failed.filter { $0.source == s }, ["source=\(s)"]) }
         for k in kinds { add(.init(status: "failed", kindTokens: [k]), failed.filter { $0.kind == k }, ["kind=\(k)"]) }
         for t in tags { add(.init(status: "failed", diagnosticTags: [t]), failed.filter { $0.diagnostics.tags.contains(t) }, ["tag=\(t)"]) }
+        // 时间维度:今天 / 本周失败 × source(now 给 + 该窗口失败达阈值)。同成员集已被上面去重 →
+        // 只有「窗口是真子集」(有更老的失败)时才冒出时间 chip,如"今天从 Finder 解压失败的"。
+        if let now {
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime]
+            for window in [AITimeWindow.last24Hours, AITimeWindow.last7Days] {
+                let inWindow = failed.filter { r in
+                    guard let stamp = r.finishedAt ?? r.startedAt, let date = formatter.date(from: stamp) else { return false }
+                    return window.contains(date, now: now)
+                }
+                guard inWindow.count >= minCount else { continue }
+                for s in Set(inWindow.map(\.source)).sorted() {
+                    add(.init(status: "failed", source: s, timeWindowSeconds: window.seconds),
+                        inWindow.filter { $0.source == s }, ["window=\(window.label)", "source=\(s)"])
+                }
+            }
+        }
         // 命中多优先,同命中数双维(更具体)优先;cap。
         return Array(clusters
             .sorted { ($0.matchCount, $0.dimensionFacts.count) > ($1.matchCount, $1.dimensionFacts.count) }

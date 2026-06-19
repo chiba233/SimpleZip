@@ -831,7 +831,7 @@ final class AIBackgroundIndexer {
         var pick: (category: String, clusters: [AIWorkbenchCluster], fingerprint: String)?
         for category in ["archive", "fileOperation", "undoRedo"] {
             let records = all.filter { $0.category == category }
-            let clusters = ActivityAIWorkbenchBuilder.discoverClusters(records: records)
+            let clusters = ActivityAIWorkbenchBuilder.discoverClusters(records: records, now: Date())
             guard !clusters.isEmpty else { continue }
             let fingerprint = AIBackgroundIndexer.clusterFingerprint(clusters)
             if store.workbenchClusterChips(forCategory: category)?.fingerprint != fingerprint {
@@ -872,6 +872,7 @@ final class AIBackgroundIndexer {
         if let source = filter.source { parts.append("so-\(source)") }
         if !filter.kindTokens.isEmpty { parts.append("k-\(filter.kindTokens.sorted().joined(separator: "+"))") }
         if !filter.diagnosticTags.isEmpty { parts.append("t-\(filter.diagnosticTags.sorted().joined(separator: "+"))") }
+        if let window = filter.timeWindowSeconds { parts.append("tw-\(window)") }
         return parts.joined(separator: "_")
     }
 

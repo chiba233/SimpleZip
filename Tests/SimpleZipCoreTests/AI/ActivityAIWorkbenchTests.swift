@@ -143,6 +143,22 @@ import Testing
         #expect(lonely.isEmpty)
     }
 
+    /// 建议六 v2 时间维度:now 给 + 窗口是真子集时,冒出「今天失败 × source」聚集(timeWindowSeconds 标记)。
+    @Test func discoverClustersAddsTimeWindowDimension() {
+        func aged(_ id: String, daysAgo: Int) -> AITaskRecord {
+            AITaskRecord.make(id: id, category: "archive", kind: "extract", source: "finder", status: "failed",
+                              title: "T", startedAt: now.addingTimeInterval(-Double(daysAgo) * 86_400 - 60),
+                              finishedAt: now.addingTimeInterval(-Double(daysAgo) * 86_400),
+                              failureMessage: "ERROR: x", rawOutput: "ERROR: x")
+        }
+        // 2 个今天 + 2 个 10 天前 → 今天(2) ⊊ 全部(4),冒出今天时间 chip。
+        let records = [aged("a", daysAgo: 0), aged("b", daysAgo: 0), aged("c", daysAgo: 10), aged("d", daysAgo: 10)]
+        let clusters = ActivityAIWorkbenchBuilder.discoverClusters(records: records, now: now)
+        #expect(clusters.contains { $0.filter.timeWindowSeconds == 86_400 && $0.filter.source == "finder" && $0.matchCount == 2 })
+        // 不传 now → 无时间维度。
+        #expect(ActivityAIWorkbenchBuilder.discoverClusters(records: records).allSatisfy { $0.filter.timeWindowSeconds == nil })
+    }
+
     /// 建议六 v2「学习到的习惯」:确定性算常用来源 / 格式 / 位置(按频次)。
     @Test func habitSummaryRanksTopPatterns() {
         func r(_ id: String, source: String, archive: String) -> AITaskRecord {
