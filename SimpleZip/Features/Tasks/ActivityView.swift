@@ -137,7 +137,13 @@ struct ActivityView: View {
     }
 
     private func tasks(in category: OperationTask.Category) -> [OperationTask] {
-        (taskCenter.active + taskCenter.history).filter { $0.category == category }
+        let all = (taskCenter.active + taskCenter.history).filter { $0.category == category }
+        // 建议六:主任务列表也走工作台同款 AI 排序(严重度 + recency,确定性不调模型)——"最值得先处理的在上面"。
+        // AI 助手关 → 回退原时间序(active 越新越上 + history);单条或空不必排。同分 AIRanker 按输入序稳定兜底。
+        guard aiAssistantEnabled, all.count > 1 else { return all }
+        let order = ActivityAIWorkbenchBuilder.rankTasks(all.map(\.aiTaskRecord), now: Date())
+        let rankByID = Dictionary(order.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { first, _ in first })
+        return all.sorted { (rankByID[$0.id.uuidString] ?? Int.max) < (rankByID[$1.id.uuidString] ?? Int.max) }
     }
 
     private var selectedPaneView: some View {

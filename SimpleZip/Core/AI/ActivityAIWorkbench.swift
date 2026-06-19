@@ -106,7 +106,7 @@ nonisolated enum ActivityAIWorkbenchBuilder {
     /// 替掉原来的裸 `isNewer` 时间序;cards/chips 沿用排好序的结果,不再各自重排。
     static func snapshot(records: [AITaskRecord], limit: Int = 50, now: Date) -> ActivityAIWorkbenchSnapshot {
         let effectiveLimit = max(0, limit)
-        let ranked = AIRanker.rank(records) { taskRankingContext($0, now: now) }.map(\.item)
+        let ranked = rankTasks(records, now: now)
         let kept = Array(ranked.prefix(effectiveLimit))
         var omissions: [AIContextOmission] = []
         if ranked.count > kept.count {
@@ -121,6 +121,12 @@ nonisolated enum ActivityAIWorkbenchBuilder {
             cards: cards(summary: summary, records: kept),
             filterChips: filterChips(records: kept),
             omissions: omissions)
+    }
+
+    /// 把任务按工作台同款 AI 排序(严重度 + recency)返回。App 层**主任务列表**复用本入口,确保列表顺序与
+    /// 工作台「需要处理」一致 —— 都是"现在最值得先处理的在上面",而不是裸时间序。确定性、不调模型。
+    static func rankTasks(_ records: [AITaskRecord], now: Date) -> [AITaskRecord] {
+        AIRanker.rank(records) { taskRankingContext($0, now: now) }.map(\.item)
     }
 
     /// 一个任务的排序上下文(喂 `AIRanker`):**确定性、可解释**。状态严重度给基础权重,recency 给时间衰减。
