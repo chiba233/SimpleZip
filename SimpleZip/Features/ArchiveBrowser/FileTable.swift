@@ -293,8 +293,10 @@ struct FileNSOutlineView: NSViewRepresentable {
         private var expandedVolumeSetPaths: Set<String> = []
         // folder / 折叠策略 / GroupBy / 共存策略 任一变 → 重置展开状态。
         private var lastConfigSignature: String?
-        // 上次真正 reloadData 时的「内容指纹」。选区变化不改它 → 跳过 reload，避免橡皮筋复选时闪烁 / 抽搐。
+        // 上次真正 reloadData 时的「**结构**指纹」。选区变化 / 单行 AI 建议变化都不改它 → 跳过整表 reload。
         private var lastContentSignature: Int?
+        // 上次定点比对时各可见文件行的 AI 建议内容哈希(path → hash)。结构没变、只有建议变了时据此定点 reload 抽屉。
+        private var lastSuggestionHashByPath: [String: Int] = [:]
         private var menuGroupFileItems: [FileItem] = []
         /// 右键 AI 建议行时暂存的派发动作 + 「我不喜欢」抑制 key(菜单项点击时用)。
         private var menuDrawerAction: AISuggestionAction?
@@ -395,78 +397,123 @@ struct FileNSOutlineView: NSViewRepresentable {
             // 这一帧不重建 —— 保持上一帧画面,applyLoadedFolder 同一事务提交 items+清标志后一帧成型。
             // 不更新 lastContentSignature,提交帧照常触发重建。旧同步版本天然没有中间帧(用户报闪烁的根因)。
             if model.folderListingInFlight { return }
-            // 内容指纹 = 影响「画出来的行 / 列」的一切：config（folder/折叠/分类/共存）+ 行密度 +
-            // 当前可见列 + 当前 fileItems 实例（按 id + 顺序）。**不含 selection**。
-            // 选区变化不改 fileItems 实例 → 指纹不变 → 直接 return 不 reloadData ——
-            // 否则橡皮筋复选时每次选区变动都 SwiftUI updateNSView → reloadData，打断拖选造成闪烁 / 选区疯狂抽搐。
-            // 真正的内容变化（导航 / 自动刷新 / 排序 / 分组 / 密度 / 列开关）都会改 fileItems 实例或上述配置，照常刷新。
+            // ── 结构指纹:决定要不要「整表 reload」。含一切影响**行集合 / 列 / 分组 / 展开层**的东西:
+            //    config（folder/折叠/分类/共存）+ 行密度 + 可见列 + 当前 fileItems 实例（按 id + 顺序)+ 展开层世代
+            //    + 文件夹组世代 + 不喜欢集。**不含 selection**(选区变化不刷,否则框选抽搐);**也不含单行 AI 建议内容**
+            //    —— 建议变化走下面的**定点抽屉 reload**,绝不整表 reload(用户:抽屉弹/收按钮不该全表刷;后台预烘焙
+            //    刷新与全量刷新分叉。整表 reload 只留给真正的结构变化:导航 / 排序 / 分组 / 密度 / 列开关 / 增删文件 /
+            //    工具栏刷新按钮)。
             var hasher = Hasher()
             hasher.combine(configSignature)
             hasher.combine(AppPreferences.rowDensity.rawValue)
             hasher.combine(outlineView?.tableColumns.map { $0.identifier.rawValue }.joined(separator: ",") ?? "")
-            // 只把**当前可见行**的 AI 建议内容纳入指纹:后台给「白名单里没在看的文件」预烘焙建议、或心跳每轮
-            // 元数据重扫(ingest 重写 scope 记录)都不该 reload 用户正看的文件夹 —— 否则后台预烘焙期间视图反复
-            // reload → 闪烁 + enforceExpansion 反复回放折叠状态 + 打断双击/右键(reload 把行重建,点击落空)。
-            // 取代旧的全局 fileIndexGeneration(被 ingest 每轮 bump = 闪烁根因);只有可见行的建议真变了才翻指纹。
-            let aiStore = AIBackgroundIndexStore.shared
-            for item in model.displayedFileItems {
-                hasher.combine(item.id)
-                guard let summary = aiStore.record(forPath: item.url.path)?.contentSummary else { continue }
-                hasher.combine(summary.shortSummary ?? "")
-                for action in summary.suggestedActions { hasher.combine(action.token); hasher.combine(action.payload ?? "") }
-                for key in summary.inlineResults.keys.sorted() { hasher.combine(key); hasher.combine(summary.inlineResults[key] ?? "") }
-            }
+            for item in model.displayedFileItems { hasher.combine(item.id) }
             // 展开子级的内容世代：顶层没变、只有展开层内容变（refreshExpandedFolderChildren 换了新实例并
             // objectWillChange）时,靠它判定「内容变了」并 reload。故意不哈希注册表本身 —— 首次展开的懒登记
             // 会改注册表但行已画出,算进指纹会让展开后的下一次 updateNSView 误触发全表 reload（闪烁）。
             hasher.combine(model.expandedChildrenGeneration)
             hasher.combine(AIBackgroundIndexStore.shared.folderGroupsGeneration)
             for key in AIBackgroundIndexStore.shared.dislikedSuggestionKeys.sorted() { hasher.combine(key) }
-            let contentSignature = hasher.finalize()
-            guard contentSignature != lastContentSignature else { return }
+            let structuralSignature = hasher.finalize()
 
-            // 正在内联重命名时推迟刷新：新建文件 / 文件夹刚弹出输入框，FSEvents 又把这次写入当成内容变化触发
-            // reload，reloadData + endActiveRename 会把输入框当场拆掉（偶发，取决于 watcher 时序）。
-            // 这里不更新 lastContentSignature、不 reload，编辑结束后再补刷（见 controlTextDidEndEditing）。
-            if renamingItem != nil {
-                needsReloadAfterRename = true
+            if structuralSignature != lastContentSignature {
+                // 正在内联重命名时推迟整表刷新：新建文件 / 文件夹刚弹出输入框，FSEvents 又把这次写入当成内容变化
+                // 触发 reload，reloadData + endActiveRename 会把输入框当场拆掉（偶发,取决于 watcher 时序）。
+                // 这里不更新 lastContentSignature、不 reload，编辑结束后再补刷（见 controlTextDidEndEditing）。
+                if renamingItem != nil {
+                    needsReloadAfterRename = true
+                    return
+                }
+                lastContentSignature = structuralSignature
+
+                rebuildTopLevel()
+
+                // 配置（folder / 策略 / 分类维度 / 共存）变化时重置展开状态：
+                // 分类区块回到默认全展开（清空 userCollapsed）；隐藏组按 #49 策略重新 seed。
+                // 这样设置一改、主窗口经 browserPreferencesChanged → reload 立即生效，不用手动刷新；
+                // 同一配置内的增量 reload（如选区变化）则保留用户当前的展开/折叠。
+                let signature = configSignature
+                if signature != lastConfigSignature {
+                    lastConfigSignature = signature
+                    userCollapsedSectionKeys = []
+                    // 展开记忆**跨导航保留**（用户报「切换个路径就不工作了」）：记的是绝对路径,全局唯一,
+                    // 离开文件夹后留着,回来时 enforceExpansion 自然回放;别的文件夹根本匹配不上,无副作用。
+                    // 记忆开关关掉时才清(开关在 configSignature 里,关掉必走这支) —— 关掉 = 用户要「刷新即折叠」。
+                    if !AppPreferences.rememberFolderExpansion {
+                        expandedFolderPaths = []
+                    }
+                    if !AppPreferences.rememberVolumeSetExpansion {
+                        expandedVolumeSetPaths = []
+                    }
+                    hiddenGroupExpanded = FileBrowserOutline.initialExpanded(
+                        mode: AppPreferences.hiddenGroupCollapseMode,
+                        folderKey: currentFolderKey,
+                        perFolderExpanded: AppPreferences.hiddenGroupExpandedFolders,
+                        globalExpanded: AppPreferences.hiddenGroupGlobalExpanded
+                    )
+                }
+
+                // 内容要重画前先收掉重命名输入框（切文件夹 / 自动刷新 / 排序分组变化）：
+                // 否则编辑中的字段编辑器会悬在被复用的 cell 上、留个空输入框（用户反馈「切文件夹还赖着」）。
+                endActiveRename()
+                outlineView?.reloadData()
+                enforceExpansion()
+                performPendingInlineRenameIfNeeded()
+                lastSuggestionHashByPath = currentSuggestionHashes()   // 整表刷后重置建议快照(下面定点比对据此)
                 return
             }
-            lastContentSignature = contentSignature
 
-            rebuildTopLevel()
+            // ── 结构没变:只有「当前可见行」的 AI 建议内容变了(后台预烘焙写回 shortSummary / 动作 / 内联结果)→
+            //    **只 reloadItem 那几行的抽屉子树**,不整表 reload(无闪烁 / 不动展开 / 不打断点击)。重命名进行中
+            //    跳过(别拆输入框;快照不更新 → 编辑结束后下一次 syncContent 自然补刷那一行抽屉)。
+            guard renamingItem == nil, let outlineView else { return }
+            let currentSuggestions = currentSuggestionHashes()
+            guard currentSuggestions != lastSuggestionHashByPath else { return }
+            let changedPaths = Set(currentSuggestions.filter { lastSuggestionHashByPath[$0.key] != $0.value }.map(\.key))
+            lastSuggestionHashByPath = currentSuggestions
+            guard !changedPaths.isEmpty else { return }
+            reloadSuggestionDrawers(forChangedPaths: changedPaths, in: outlineView)
+        }
 
-            // 配置（folder / 策略 / 分类维度 / 共存）变化时重置展开状态：
-            // 分类区块回到默认全展开（清空 userCollapsed）；隐藏组按 #49 策略重新 seed。
-            // 这样设置一改、主窗口经 browserPreferencesChanged → reload 立即生效，不用手动刷新；
-            // 同一配置内的增量 reload（如选区变化）则保留用户当前的展开/折叠。
-            let signature = configSignature
-            if signature != lastConfigSignature {
-                lastConfigSignature = signature
-                userCollapsedSectionKeys = []
-                // 展开记忆**跨导航保留**（用户报「切换个路径就不工作了」）：记的是绝对路径,全局唯一,
-                // 离开文件夹后留着,回来时 enforceExpansion 自然回放;别的文件夹根本匹配不上,无副作用。
-                // 记忆开关关掉时才清(开关在 configSignature 里,关掉必走这支) —— 关掉 = 用户要「刷新即折叠」。
-                if !AppPreferences.rememberFolderExpansion {
-                    expandedFolderPaths = []
+        /// 当前可见文件行(顶层 + 区块内,排除分卷折叠首卷 —— 它不显示 AI 抽屉)→ 它的 AI 建议内容哈希。
+        /// 「结构没变、只有建议变了」时据此定点 reload 抽屉,不整表刷。
+        private func currentSuggestionHashes() -> [String: Int] {
+            var out: [String: Int] = [:]
+            func walk(_ nodes: [FileOutlineNode]) {
+                for node in nodes {
+                    if node.isSection { walk(node.children); continue }
+                    guard node.volumeChildren == nil, let path = node.fileItem?.url.path else { continue }
+                    out[path] = Coordinator.suggestionContentHash(forPath: path)
                 }
-                if !AppPreferences.rememberVolumeSetExpansion {
-                    expandedVolumeSetPaths = []
-                }
-                hiddenGroupExpanded = FileBrowserOutline.initialExpanded(
-                    mode: AppPreferences.hiddenGroupCollapseMode,
-                    folderKey: currentFolderKey,
-                    perFolderExpanded: AppPreferences.hiddenGroupExpandedFolders,
-                    globalExpanded: AppPreferences.hiddenGroupGlobalExpanded
-                )
             }
+            walk(topLevelNodes)
+            return out
+        }
 
-            // 内容要重画前先收掉重命名输入框（切文件夹 / 自动刷新 / 排序分组变化）：
-            // 否则编辑中的字段编辑器会悬在被复用的 cell 上、留个空输入框（用户反馈「切文件夹还赖着」）。
-            endActiveRename()
-            outlineView?.reloadData()
-            enforceExpansion()
-            performPendingInlineRenameIfNeeded()
+        /// 一行 AI 建议内容的稳定哈希(shortSummary + 动作 token/payload + 内联结果),与抽屉渲染同源。
+        /// 没建议 → 0。Hasher 进程内一致(只在本会话内比对,够用)。
+        private static func suggestionContentHash(forPath path: String) -> Int {
+            guard let summary = AIBackgroundIndexStore.shared.record(forPath: path)?.contentSummary else { return 0 }
+            var hasher = Hasher()
+            hasher.combine(summary.shortSummary ?? "")
+            for action in summary.suggestedActions { hasher.combine(action.token); hasher.combine(action.payload ?? "") }
+            for key in summary.inlineResults.keys.sorted() { hasher.combine(key); hasher.combine(summary.inlineResults[key] ?? "") }
+            return hasher.finalize()
+        }
+
+        /// 定点 reload 抽屉:对建议变了的可见文件行,清掉其抽屉子行缓存并 `reloadItem(reloadChildren:)` ——
+        /// 只重建那一行的抽屉子树(摘要 + 动作行),文件行本身 / 其它行 / 展开状态都不动(无闪烁、不吞点击)。
+        private func reloadSuggestionDrawers(forChangedPaths changedPaths: Set<String>, in outlineView: NSOutlineView) {
+            func walk(_ nodes: [FileOutlineNode]) {
+                for node in nodes {
+                    if node.isSection { walk(node.children); continue }
+                    guard node.volumeChildren == nil, let path = node.fileItem?.url.path,
+                          changedPaths.contains(path) else { continue }
+                    node.suggestionChildren = nil   // 失效缓存 → reloadChildren 时按新建议重建
+                    outlineView.reloadItem(node, reloadChildren: true)
+                }
+            }
+            walk(topLevelNodes)
         }
 
         /// 按 GroupBy + 共存策略组装顶层节点。复用 sectionNodesByKey 里同 key 的实例保身份。
