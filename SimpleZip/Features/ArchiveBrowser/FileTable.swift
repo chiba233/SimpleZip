@@ -392,26 +392,39 @@ struct FileNSOutlineView: NSViewRepresentable {
             return walk(topLevelNodes, ancestors: [])
         }
 
-        /// 三档刷新(从重到轻,只做最小的那档):① 布局变(分组/列/密度/展开层/文件夹组/不喜欢)→ 整表 reload;
+        private enum LayoutPart: Equatable {
+            case file(String)
+            case section(String, [LayoutPart])
+        }
+
+        private struct AIGroupRenderState: Equatable {
+            let title: String
+            let memberPaths: [String]
+            let badgeCount: Int
+            let titleKey: String
+            let displayTitle: String?
+            let systemImage: String
+            let action: AISuggestionAction
+            let dislikeKey: String?
+        }
+
+        /// 三档刷新(从重到轻,只做最小的那档):① 布局变(分组/列/密度/展开层)→ 整表 reload;
         /// ② 文件集合 / 单行元数据变 → 安全有界**颗粒化**(纯增 insertItems / 纯删 removeItems / 改 reloadItem),
-        ///    不安全(分组/分卷折叠/重排/增删混合/重命名中)→ 整表兜底;③ 仅 AI 建议变 → 定点 reloadItem 抽屉子树。
+        ///    不安全(分卷折叠/重排/增删混合/重命名中)→ 整表兜底;③ 仅 AI 建议 / AI 组尾部变 → 定点刷新。
         /// make / update 都走这里。**绝不为单文件变化整表刷**(用户:刷新分叉,整表只留给真正布局变化 + 工具栏刷新按钮)。
         func syncContent() {
             // 异步列举的中间帧守卫(0.4.3):导航后 mode(=folderKey/配置)先变、items 还是旧的,这一帧不重建 ——
             // 保持上一帧画面,applyLoadedFolder 同一事务提交 items+清标志后一帧成型。
             if model.folderListingInFlight { return }
 
-            // ── ① 布局指纹:含一切影响**列 / 分组 / 展开层 / 折叠策略**的东西(config + 行密度 + 可见列 + 展开层世代
-            //    + 文件夹组世代 + 不喜欢集)。**不含逐行(文件集合 / 单行元数据 / AI 建议)** —— 那些走 ②③ 颗粒化。
+            // ── ① 布局指纹:含一切影响**列 / 分组 / 展开层 / 折叠策略**的东西(config + 行密度 + 可见列 + 展开层世代)。
+            //    **不含逐行(文件集合 / 单行元数据 / AI 建议 / AI 组尾部)** —— 那些走 ②③ 颗粒化。
             var hasher = Hasher()
             hasher.combine(configSignature)
             hasher.combine(AppPreferences.rowDensity.rawValue)
             hasher.combine(outlineView?.tableColumns.map { $0.identifier.rawValue }.joined(separator: ",") ?? "")
             // 展开子级的内容世代(refreshExpandedFolderChildren 换了新实例并 objectWillChange 时翻它)。
             hasher.combine(model.expandedChildrenGeneration)
-            hasher.combine(AIBackgroundIndexStore.shared.folderGroupsGeneration)
-            hasher.combine(AIBackgroundIndexStore.shared.organizeGeneration)
-            for key in AIBackgroundIndexStore.shared.dislikedSuggestionKeys.sorted() { hasher.combine(key) }
             let layoutSignature = hasher.finalize()
 
             if layoutSignature != lastContentSignature {
@@ -430,8 +443,18 @@ struct FileNSOutlineView: NSViewRepresentable {
                 break
             }
 
+            guard let outlineView else { return }
+            switch syncAIGroupRows(in: outlineView) {
+            case .needsFullReload:
+                if renamingItem != nil { needsReloadAfterRename = true; return }
+                performFullReload(layoutSignature: layoutSignature)
+                return
+            case .applied, .noChange:
+                break
+            }
+
             // ── ③ 行集合稳定后:只有「当前可见行」的 AI 建议内容变了 → 只 reloadItem 那几行的抽屉子树(不整表刷)。
-            guard renamingItem == nil, let outlineView else { return }
+            guard renamingItem == nil else { return }
             let currentSuggestions = currentSuggestionHashes()
             guard currentSuggestions != lastSuggestionHashByPath else { return }
             let changedPaths = Set(currentSuggestions.filter { lastSuggestionHashByPath[$0.key] != $0.value }.map(\.key))
@@ -489,13 +512,23 @@ struct FileNSOutlineView: NSViewRepresentable {
             return out
         }
 
-        /// 一行 AI 建议内容的稳定哈希(shortSummary + 动作 token/payload/label + 内联结果),与抽屉渲染同源。
+        /// 一行 AI 建议内容的稳定哈希(shortSummary + 动作 token/payload/label + 内联结果),按 dislike 过滤后与抽屉渲染同源。
         /// 没建议 → 0。Hasher 进程内一致(只在本会话内比对,够用)。
         private static func suggestionContentHash(forPath path: String) -> Int {
-            guard let summary = AIBackgroundIndexStore.shared.record(forPath: path)?.contentSummary else { return 0 }
-            var hasher = Hasher()
-            hasher.combine(summary.shortSummary ?? "")
+            let store = AIBackgroundIndexStore.shared
+            guard let record = store.record(forPath: path),
+                  let summary = record.contentSummary else { return 0 }
+            let visibleSummary = !store.isSuggestionDisliked(AIBackgroundIndexStore.summaryDislikeKey(recordID: record.id))
+                ? (summary.shortSummary ?? "") : ""
+            var visibleActions: [AIFileSuggestedAction] = []
             for action in summary.suggestedActions {
+                let key = AIBackgroundIndexStore.dislikeKey(recordID: record.id, token: action.token, payload: action.payload)
+                if !store.isSuggestionDisliked(key) { visibleActions.append(action) }
+            }
+            guard !visibleSummary.isEmpty || !visibleActions.isEmpty else { return 0 }
+            var hasher = Hasher()
+            hasher.combine(visibleSummary)
+            for action in visibleActions {
                 hasher.combine(action.token)
                 hasher.combine(action.payload ?? "")
                 hasher.combine(action.label ?? "")
@@ -528,21 +561,28 @@ struct FileNSOutlineView: NSViewRepresentable {
 
         private enum RowReconcileOutcome { case applied, noChange, needsFullReload }
 
-        /// ② 安全有界的逐行颗粒化(布局已确认没变时调)。**只在平铺(无分组区块)、无分卷折叠**的简单配置下,对顶层
-        /// 文件行做:纯删 → removeItems、纯增 → insertItems、单行元数据改 → reloadItem。分组 / 分卷折叠 / 重排 /
-        /// 增删混合 / 重命名中 → `needsFullReload`(让调用方整表兜底,避免 NSOutlineView 行数不一致崩溃)。
+        /// ② 安全有界的逐行颗粒化(布局已确认没变时调)。平铺(无分组区块)、无分卷折叠时,对顶层文件行做
+        /// 纯删 → removeItems、纯增 → insertItems、单行元数据改 → reloadItem。分组 / 隐藏区块在结构签名不变时
+        /// 递归细刷 metadata;分卷折叠 / 重排 / 增删混合 / 重命名中 → `needsFullReload`。
         /// 复用旧节点实例(保 folderChildren / 展开 / 抽屉缓存);存活行的 FileItem 始终刷成模型最新实例
         /// (FileItem.id 每次列举都换 → 不刷选区 / 操作对不上)。
         private func reconcileRows() -> RowReconcileOutcome {
             guard let outlineView, renamingItem == nil else { return .needsFullReload }
             let newItems = model.displayedFileItems
+            let groupStart = aiGroupStartIndex()
+            let baseNodes = Array(topLevelNodes.prefix(groupStart))
+            let aiGroupTail = Array(topLevelNodes.suffix(topLevelNodes.count - groupStart))
             // 简单配置门槛:**非空** + 顶层全是文件节点(无分组区块) + 无分卷折叠首卷。空 / 复杂配置无法确认 1:1 →
-            // 看文件集合是否变:变了整表兜底,没变交给 ③(AI 抽屉)。
-            guard !topLevelNodes.isEmpty,
-                  topLevelNodes.allSatisfy({ $0.fileItem != nil && $0.volumeChildren == nil }) else {
-                return sameFileURLSet(newItems) ? .noChange : .needsFullReload
+            // 看结构签名:结构没变可递归细刷 metadata,变了整表兜底。
+            guard !baseNodes.isEmpty,
+                  baseNodes.allSatisfy({ $0.fileItem != nil && $0.volumeChildren == nil }) else {
+                guard sameFileURLSet(newItems),
+                      let currentShape = currentBaseLayoutShape(),
+                      let expectedShape = expectedBaseLayoutShape(for: newItems),
+                      currentShape == expectedShape else { return .needsFullReload }
+                return refreshMetadata(newItems: newItems, in: outlineView) ? .applied : .noChange
             }
-            let oldPaths = topLevelNodes.map { $0.fileItem!.url.path }
+            let oldPaths = baseNodes.map { $0.fileItem!.url.path }
             let newPaths = newItems.map { $0.url.path }
             let oldSet = Set(oldPaths), newSet = Set(newPaths)
             let removed = oldSet.subtracting(newSet)
@@ -562,22 +602,23 @@ struct FileNSOutlineView: NSViewRepresentable {
             let commonNew = newPaths.filter { oldSet.contains($0) }
             guard commonOld == commonNew else { return .needsFullReload }
 
-            let oldByPath = Dictionary(uniqueKeysWithValues: zip(oldPaths, topLevelNodes))
+            let oldByPath = Dictionary(uniqueKeysWithValues: zip(oldPaths, baseNodes))
             let newByPath = Dictionary(newItems.map { ($0.url.path, $0) }, uniquingKeysWith: { a, _ in a })
 
             if added.isEmpty {
                 // 纯删:移除 removed 行(旧坐标);存活节点复用并刷新 FileItem。先更新数据源,再 removeItems。
                 let removedIndices = IndexSet(oldPaths.enumerated().filter { removed.contains($0.element) }.map(\.offset))
-                topLevelNodes = newPaths.compactMap { path -> FileOutlineNode? in
+                let nextBaseNodes = newPaths.compactMap { path -> FileOutlineNode? in
                     guard let node = oldByPath[path], let item = newByPath[path] else { return nil }
                     node.kind = .file(item)
                     return node
                 }
+                topLevelNodes = nextBaseNodes + aiGroupTail
                 outlineView.removeItems(at: removedIndices, inParent: nil, withAnimation: [])
             } else {
                 // 纯增:新位置插入新文件节点;存活节点复用并刷新 FileItem。
                 var insertedIndices = IndexSet()
-                topLevelNodes = newItems.enumerated().map { offset, item -> FileOutlineNode in
+                let nextBaseNodes = newItems.enumerated().map { offset, item -> FileOutlineNode in
                     if let node = oldByPath[item.url.path] {
                         node.kind = .file(item)
                         return node
@@ -585,6 +626,7 @@ struct FileNSOutlineView: NSViewRepresentable {
                     insertedIndices.insert(offset)
                     return FileOutlineNode.file(item)
                 }
+                topLevelNodes = nextBaseNodes + aiGroupTail
                 outlineView.insertItems(at: insertedIndices, inParent: nil, withAnimation: [])
             }
             lastSuggestionHashByPath = currentSuggestionHashes()
@@ -596,6 +638,7 @@ struct FileNSOutlineView: NSViewRepresentable {
             var urls = Set<String>()
             func walk(_ nodes: [FileOutlineNode]) {
                 for node in nodes {
+                    if node.aiGroupRow != nil { continue }
                     if node.isSection { walk(node.children); continue }
                     if let path = node.fileItem?.url.path { urls.insert(path) }
                     if let vol = node.volumeChildren { for v in vol { if let p = v.fileItem?.url.path { urls.insert(p) } } }
@@ -610,16 +653,146 @@ struct FileNSOutlineView: NSViewRepresentable {
         private func refreshMetadata(newItems: [FileItem], in outlineView: NSOutlineView) -> Bool {
             let newByPath = Dictionary(newItems.map { ($0.url.path, $0) }, uniquingKeysWith: { a, _ in a })
             var changed = false
-            for node in topLevelNodes {
-                guard let old = node.fileItem, let new = newByPath[old.url.path] else { continue }
-                if old.id == new.id { continue }   // 同一实例(模型没重列)→ 无需刷新
-                node.kind = .file(new)             // 刷成最新实例(id 变了,选区 / 操作要对得上)
-                if !Coordinator.sameDisplayFields(old, new) {
-                    outlineView.reloadItem(node)   // 显示字段真变了才重画那一行
-                    changed = true
+            func walk(_ nodes: [FileOutlineNode]) {
+                for node in nodes {
+                    if node.isSection {
+                        walk(node.children)
+                        continue
+                    }
+                    if let volumes = node.volumeChildren {
+                        walk(volumes)
+                    }
+                    if let folderChildren = node.folderChildren {
+                        walk(folderChildren)
+                    }
+                    guard let old = node.fileItem, let new = newByPath[old.url.path] else { continue }
+                    if old.id == new.id { continue }   // 同一实例(模型没重列)→ 无需刷新
+                    node.kind = .file(new)             // 刷成最新实例(id 变了,选区 / 操作要对得上)
+                    if !Coordinator.sameDisplayFields(old, new) {
+                        outlineView.reloadItem(node)   // 显示字段真变了才重画那一行
+                        changed = true
+                    }
                 }
             }
+            walk(topLevelNodes)
             return changed
+        }
+
+        private func aiGroupStartIndex() -> Int {
+            topLevelNodes.firstIndex { $0.aiGroupRow != nil } ?? topLevelNodes.count
+        }
+
+        private func currentBaseLayoutShape() -> [LayoutPart]? {
+            func walk(_ nodes: [FileOutlineNode]) -> [LayoutPart]? {
+                var parts: [LayoutPart] = []
+                for node in nodes {
+                    if node.aiGroupRow != nil { continue }
+                    if node.isSection {
+                        guard let children = walk(node.children) else { return nil }
+                        parts.append(.section(node.sectionKey, children))
+                        continue
+                    }
+                    guard node.volumeChildren == nil, let path = node.fileItem?.url.standardizedFileURL.path else {
+                        return nil
+                    }
+                    parts.append(.file(path))
+                }
+                return parts
+            }
+            return walk(Array(topLevelNodes.prefix(aiGroupStartIndex())))
+        }
+
+        private func expectedBaseLayoutShape(for items: [FileItem]) -> [LayoutPart]? {
+            func fileLeaves(_ items: [FileItem]) -> [LayoutPart]? {
+                if AppPreferences.collapseVolumeSets {
+                    let fileNames = items.filter { !$0.isDirectory }.map { $0.url.lastPathComponent }
+                    guard !fileNames.contains(where: {
+                        FileSplitCombine.volumeSet(forMemberNamed: $0, among: fileNames)?.volumeCount ?? 0 >= 2
+                    }) else { return nil }
+                }
+                return items.map { .file($0.url.standardizedFileURL.path) }
+            }
+            func grouped(_ items: [FileItem], keyPrefix: String, groupBy: BrowserGrouping.GroupBy) -> [LayoutPart]? {
+                var parts: [LayoutPart] = []
+                for group in BrowserGrouping.group(items, by: groupBy, now: Date()) {
+                    guard let children = fileLeaves(group.items) else { return nil }
+                    parts.append(.section("\(keyPrefix)\(group.title)", children))
+                }
+                return parts
+            }
+            let split = FileBrowserOutline.split(items)
+            let groupBy = effectiveGroupBy
+            if groupBy.isGrouping {
+                switch AppPreferences.hiddenWithGrouping {
+                case .foldIntoGroups:
+                    return grouped(items, keyPrefix: "g:", groupBy: groupBy)
+                case .separateGroup:
+                    guard var parts = grouped(split.visible, keyPrefix: "g:", groupBy: groupBy) else { return nil }
+                    if !split.hidden.isEmpty {
+                        guard let hidden = grouped(split.hidden, keyPrefix: "hidden/g:", groupBy: groupBy) else { return nil }
+                        parts.append(.section("hidden", hidden))
+                    }
+                    return parts
+                }
+            }
+            if AppPreferences.hiddenGroupCollapseMode.groupsHiddenFiles {
+                guard var parts = fileLeaves(split.visible) else { return nil }
+                if !split.hidden.isEmpty {
+                    guard let hidden = fileLeaves(split.hidden) else { return nil }
+                    parts.append(.section("hidden", hidden))
+                }
+                return parts
+            }
+            return fileLeaves(items)
+        }
+
+        private func syncAIGroupRows(in outlineView: NSOutlineView) -> RowReconcileOutcome {
+            let start = aiGroupStartIndex()
+            let oldGroups = Array(topLevelNodes.suffix(topLevelNodes.count - start))
+            guard oldGroups.allSatisfy({ $0.aiGroupRow != nil }) else { return .needsFullReload }
+            let desired = makeAIGroupNodes()
+            let oldStates = oldGroups.compactMap(Self.aiGroupRenderState)
+            let desiredStates = desired.compactMap(Self.aiGroupRenderState)
+            guard oldStates != desiredStates else { return .noChange }
+
+            if oldGroups.count == desired.count {
+                for (old, next) in zip(oldGroups, desired) {
+                    old.kind = next.kind
+                    old.volumeChildren = next.volumeChildren
+                    old.volumeBadgeCount = next.volumeBadgeCount
+                    outlineView.reloadItem(old, reloadChildren: true)
+                }
+                lastSuggestionHashByPath = currentSuggestionHashes()
+                return .applied
+            }
+
+            let base = Array(topLevelNodes.prefix(start))
+            if !oldGroups.isEmpty {
+                topLevelNodes = base
+                outlineView.removeItems(at: IndexSet(integersIn: start..<(start + oldGroups.count)),
+                                        inParent: nil,
+                                        withAnimation: [])
+            }
+            if !desired.isEmpty {
+                topLevelNodes = base + desired
+                outlineView.insertItems(at: IndexSet(integersIn: start..<(start + desired.count)),
+                                        inParent: nil,
+                                        withAnimation: [])
+            }
+            lastSuggestionHashByPath = currentSuggestionHashes()
+            return .applied
+        }
+
+        private static func aiGroupRenderState(_ node: FileOutlineNode) -> AIGroupRenderState? {
+            guard let group = node.aiGroupRow else { return nil }
+            return AIGroupRenderState(title: group.title,
+                                      memberPaths: group.memberPaths,
+                                      badgeCount: node.volumeBadgeCount,
+                                      titleKey: group.action.titleKey,
+                                      displayTitle: group.action.displayTitle,
+                                      systemImage: group.action.systemImage,
+                                      action: group.action.action,
+                                      dislikeKey: group.action.dislikeKey)
         }
 
         /// 两个同 URL 的 FileItem 显示字段是否一致(决定要不要 reloadItem 重画那一行)。id / url 不算。
@@ -691,6 +864,12 @@ struct FileNSOutlineView: NSViewRepresentable {
 
             appendAIGroupNodes(to: &topLevelNodes)
             sectionNodesByKey = reused
+        }
+
+        private func makeAIGroupNodes() -> [FileOutlineNode] {
+            var nodes: [FileOutlineNode] = []
+            appendAIGroupNodes(to: &nodes)
+            return nodes
         }
 
         /// 把后台模型缓存的「同文件夹批量组」渲染成额外抽屉行。非破坏:真实成员文件仍留在顶层,
@@ -1620,7 +1799,7 @@ struct FileNSOutlineView: NSViewRepresentable {
             if let fb = menuDrawerFeedback {   // #8 跨表面 dismissed 反馈(逐条硬抑制之外,喂同位置同类软降权)
                 AIFeedbackStore.shared.recordFileDrawerDislike(token: fb.token, folderToken: fb.folderToken, roleTags: fb.roleTags)
             }
-            refreshBrowser()   // reload → fileBrowserDrawer 过滤掉这条(其余建议照常)
+            syncContent()   // 细粒度刷新:文件抽屉只 reload 对应行;AI 组只 diff 尾部代表行。
         }
 
         @objc func doubleClick(_ sender: NSOutlineView) {
