@@ -10,6 +10,9 @@ import SwiftUI
 struct ActivityView: View {
     @ObservedObject var taskCenter: TaskCenter
     @ObservedObject var windowState: ActivityWindowState
+    /// 建议六 v2 模块⑤:后台预烘焙的「建议筛选」chip 排序缓存写入时(`applyWorkbenchChipRanking` 发 objectWillChange)
+    /// 让工作台重读缓存、套用 AI 顺序。活动中心非 FSEvents 热路径,偶发重渲染可接受。
+    @ObservedObject private var aiIndexStore = AIBackgroundIndexStore.shared
     /// 详情展开的任务 id 集合 —— 行内 @State 会被 LazyVStack 回收丢失(滚远自动收起 bug),外置到这里。
     @State private var expandedTaskIDs: Set<UUID> = []
     /// #29:当前被深链 / Spotlight 跳转高亮的任务 id(滚到它后闪一圈,2.5 秒后消)。
@@ -696,7 +699,28 @@ struct ActivityView: View {
     }
 
     private func activityAIWorkbenchSnapshot(for category: OperationTask.Category) -> ActivityAIWorkbenchSnapshot {
-        ActivityAIWorkbenchBuilder.snapshot(records: filteredTasksForWorkbench(in: category).map(\.aiTaskRecord))
+        let base = ActivityAIWorkbenchBuilder.snapshot(records: filteredTasksForWorkbench(in: category).map(\.aiTaskRecord))
+        return applyAIChipRanking(to: base, category: category)
+    }
+
+    /// 建议六 v2 模块⑤:把后台预烘焙的 AI chip 排序套到确定性 snapshot 上 —— **指纹匹配当前 chip 池才套**(否则
+    /// 保持确定性顺序 = fallback;有筛选时池不同 → 自然走确定性)。AI 选中的在前(按模型给的优先级),没提到的接在后面
+    /// (不丢任何 chip,只改顺序 / 把最有用的顶上来)。拒绝假AI:没缓存 / 不匹配 → 确定性。
+    private func applyAIChipRanking(to snapshot: ActivityAIWorkbenchSnapshot,
+                                    category: OperationTask.Category) -> ActivityAIWorkbenchSnapshot {
+        guard aiAssistantEnabled,
+              let ranking = aiIndexStore.workbenchChipRanking(forCategory: category.rawValue),
+              ranking.fingerprint == AIBackgroundIndexer.chipPoolFingerprint(snapshot.filterChips) else { return snapshot }
+        let byID = Dictionary(snapshot.filterChips.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        let ranked = ranking.orderedIDs.compactMap { byID[$0] }
+        guard !ranked.isEmpty else { return snapshot }
+        let rankedSet = Set(ranking.orderedIDs)
+        let leftover = snapshot.filterChips.filter { !rankedSet.contains($0.id) }
+        let reordered = ranked + leftover
+        guard reordered != snapshot.filterChips else { return snapshot }
+        return ActivityAIWorkbenchSnapshot(
+            schema: snapshot.schema, summary: snapshot.summary, cards: snapshot.cards,
+            filterChips: reordered, omissions: snapshot.omissions)
     }
 
     /// 建议六 v2:未读失败任务集的确定性指纹 —— 驱动 `.task(id:)`;只有这个集合变了才重生成解读(不每次任务变动跑模型)。

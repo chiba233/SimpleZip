@@ -126,6 +126,8 @@ final class AIBackgroundIndexer {
     private var folderGroupTask: Task<Void, Never>?
     private var organizeRunning = false
     private var organizeTask: Task<Void, Never>?
+    private var workbenchRankingRunning = false
+    private var workbenchRankingTask: Task<Void, Never>?
 
     /// 后台索引**心跳定时器**(主运行循环)+ 当前间隔。P0 根因:`runIfEnabled` 原本只在启动 `activate()` 时被调
     /// 一次,那次又卡在 launch-silence(<60s)直接空跑,之后再无任何定时器触发 → 后台索引 / 建议全程跑不起来
@@ -250,6 +252,7 @@ final class AIBackgroundIndexer {
                         AIBackgroundIndexer.shared.generateURLOpenSuggestionsIfEnabled()   // 文本里真实 URL →「打开网页」
                         AIBackgroundIndexer.shared.generateDiskImageSuggestionsIfEnabled()   // 内含 App 的 dmg「安装到应用程序」
                         AIBackgroundIndexer.shared.generateActivityLinkSuggestionsIfEnabled()   // 命中近期任务产物「查看活动」
+                        AIBackgroundIndexer.shared.generateWorkbenchChipRankingIfEnabled()   // 活动中心「建议筛选」chip 模型排序
                         AIBackgroundIndexer.shared.generateArchiveEntrySuggestionsIfEnabled()   // 归档「也许你要包里的 X」
                         if AIBackgroundIndexer.shared.canRunDeepContextNow() {
                             AIBackgroundIndexer.shared.generateArchiveKindGuessIfEnabled()   // 归档「这看起来是什么包」
@@ -636,6 +639,73 @@ final class AIBackgroundIndexer {
         case ..<604_800: return "a few days ago"
         default:         return "recently"
         }
+    }
+
+    // MARK: - 建议六 v2 模块⑤:活动中心「建议筛选」chip 的模型排序(后台预烘焙)
+
+    /// 活动中心「建议筛选」chip 的**模型排序/精选**(拒绝假AI)。确定性 builder 出候选 chip 池(App 安全枚举的预定义
+    /// filter);端上模型只按编号挑出最值得展示的几个并排序,绝不发明 filter。每轮**只处理 1 个分类**(第一个排序过期
+    /// 的;队列收敛 `4fd1fcad`),指纹幂等(chip 池没变不重排),写回 store,前台只读缓存。门控:跑在 `canRunModelWorkNow`
+    /// 下(空闲 + 充电语义 + 非低电/省电)→ 电源管理自动接上。**只喂 chip 语义维度 + 匹配数,不含任务标题 / 路径。**
+    func generateWorkbenchChipRankingIfEnabled() {
+        guard #available(macOS 26.0, *) else { return }
+        let store = AIBackgroundIndexStore.shared
+        guard AppPreferences.aiSuggestionEnabled, store.indexingEnabled, AIReportAssistant.isReady,
+              store.budget != nil else { return }
+        guard !workbenchRankingRunning else { recordRunningPass("筛选排序"); return }
+        let all = (TaskCenter.shared.active + TaskCenter.shared.history).map(\.aiTaskRecord)
+        // 找第一个「排序过期 / 没排过」的分类(每轮只排 1 个,逐轮覆盖全部分类)。
+        var pick: (category: String, chips: [ActivityAIWorkbenchFilterChip], fingerprint: String)?
+        for category in ["archive", "fileOperation", "undoRedo"] {
+            let records = all.filter { $0.category == category }
+            let chips = ActivityAIWorkbenchBuilder.snapshot(records: records).filterChips
+            guard chips.count >= 2 else { continue }   // < 2 个 chip 不必排
+            let fingerprint = AIBackgroundIndexer.chipPoolFingerprint(chips)
+            if store.workbenchChipRanking(forCategory: category)?.fingerprint != fingerprint {
+                pick = (category, chips, fingerprint); break
+            }
+        }
+        guard let pick else { recordPass("筛选排序", candidates: 0, skip: "全部分类已排序 / 无可排 chip"); return }
+        recordPass("筛选排序", candidates: pick.chips.count)
+        workbenchRankingRunning = true
+        workbenchRankingTask = Task { @MainActor in
+            defer { AIBackgroundIndexer.shared.workbenchRankingRunning = false }
+            guard AIBackgroundIndexStore.shared.indexingEnabled, AIReportAssistant.isReady else { return }
+            let candidates = pick.chips.map {
+                (label: AIBackgroundIndexer.chipPromptLabel($0), matches: AIBackgroundIndexer.chipMatchCount($0))
+            }
+            guard let indices = try? await AIVirtualFolderModelPlanner.rankWorkbenchFilterChips(candidates: candidates),
+                  !indices.isEmpty else { return }
+            let orderedIDs = indices.compactMap { idx -> String? in
+                (idx >= 1 && idx <= pick.chips.count) ? pick.chips[idx - 1].id : nil
+            }
+            guard !orderedIDs.isEmpty else { return }
+            AIBackgroundIndexStore.shared.applyWorkbenchChipRanking(
+                category: pick.category, fingerprint: pick.fingerprint, orderedIDs: orderedIDs)
+        }
+    }
+
+    /// chip 池指纹:chip id + 匹配数(池构成或计数变了才重排;否则幂等跳过)。
+    nonisolated static func chipPoolFingerprint(_ chips: [ActivityAIWorkbenchFilterChip]) -> String {
+        chips.map { "\($0.id):\(chipMatchCount($0))" }.joined(separator: "|")
+    }
+
+    /// chip 的匹配任务数(从 facts 的 "matches=N" 抽)。
+    nonisolated static func chipMatchCount(_ chip: ActivityAIWorkbenchFilterChip) -> Int {
+        let prefix = "matches="
+        for fact in chip.facts where fact.hasPrefix(prefix) { return Int(fact.dropFirst(prefix.count)) ?? 0 }
+        return 0
+    }
+
+    /// chip 的英文语义描述(喂模型用;由 filter 维度拼,**不含敏感路径**)。
+    nonisolated static func chipPromptLabel(_ chip: ActivityAIWorkbenchFilterChip) -> String {
+        var dims: [String] = []
+        let f = chip.filter
+        if let status = f.status { dims.append("status=\(status)") }
+        if let source = f.source { dims.append("source=\(source)") }
+        if !f.kindTokens.isEmpty { dims.append("kind=\(f.kindTokens.joined(separator: "/"))") }
+        if !f.diagnosticTags.isEmpty { dims.append("tags=\(f.diagnosticTags.joined(separator: "/"))") }
+        return "\(chip.id) — \(dims.isEmpty ? chip.id : dims.joined(separator: ", "))"
     }
 
     // MARK: - 压缩包「你可能需要的文件」建议(backlog 第4项;MainActor:读清单缓存 + 模型 async)

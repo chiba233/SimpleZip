@@ -142,11 +142,13 @@ nonisolated struct AIDevToolsPipelineProductCounts: Equatable, Sendable {
     let compress: Int
     let convert: Int
     let inlineResult: Int
+    /// 建议六 v2 模块⑤:活动中心 AI 工作台「建议筛选」chip 的模型排序产物数(各分类已排序 chip id 总数)。
+    let workbenchChipRanking: Int
 
     init(summary: Int, openWith: Int, urlOpen: Int, install: Int, activity: Int,
          archiveEntry: Int, archiveKind: Int, folderGroup: Int, organize: Int,
          inspect: Int, test: Int, hash: Int, security: Int, compress: Int,
-         convert: Int, inlineResult: Int) {
+         convert: Int, inlineResult: Int, workbenchChipRanking: Int = 0) {
         self.summary = summary
         self.openWith = openWith
         self.urlOpen = urlOpen
@@ -163,6 +165,7 @@ nonisolated struct AIDevToolsPipelineProductCounts: Equatable, Sendable {
         self.compress = compress
         self.convert = convert
         self.inlineResult = inlineResult
+        self.workbenchChipRanking = workbenchChipRanking
     }
 }
 
@@ -190,7 +193,8 @@ nonisolated enum AIDevToolsPipelineCatalog {
             AIDevToolsPipelineRow(name: "安全", passName: "包定性", cachedProductCount: counts.security),
             AIDevToolsPipelineRow(name: "压缩", passName: "摘要", cachedProductCount: counts.compress),
             AIDevToolsPipelineRow(name: "转换", passName: "包定性", cachedProductCount: counts.convert),
-            AIDevToolsPipelineRow(name: "内联结果", passName: nil, cachedProductCount: counts.inlineResult)
+            AIDevToolsPipelineRow(name: "内联结果", passName: nil, cachedProductCount: counts.inlineResult),
+            AIDevToolsPipelineRow(name: "筛选排序", passName: "筛选排序", cachedProductCount: counts.workbenchChipRanking)
         ]
     }
 }

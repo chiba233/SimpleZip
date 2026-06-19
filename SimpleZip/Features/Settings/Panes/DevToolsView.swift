@@ -615,6 +615,7 @@ struct DevToolsView: View {
                 compressCount: countAction("compress"),
                 convertCount: countAction("convert"),
                 inlineResultCount: records.reduce(0) { $0 + (($1.contentSummary?.inlineResults.contains { !$0.value.isEmpty } ?? false) ? 1 : 0) },
+                workbenchChipRankingCount: backgroundStore.workbenchChipRankingByCategory.values.reduce(0) { $0 + $1.orderedIDs.count },
                 activityLevel: AppPreferences.aiBackgroundActivityLevel.rawValue,
                 scopeCount: backgroundStore.scopes.count,
                 indexedFileCount: index.fileCount,
@@ -906,6 +907,7 @@ private nonisolated struct DevToolsAIDataSnapshot: Encodable {
         let compressCount: Int
         let convertCount: Int
         let inlineResultCount: Int
+        let workbenchChipRankingCount: Int
         let activityLevel: String
         let scopeCount: Int
         let indexedFileCount: Int
@@ -930,7 +932,8 @@ private nonisolated struct DevToolsAIDataSnapshot: Encodable {
                 security: securityCount,
                 compress: compressCount,
                 convert: convertCount,
-                inlineResult: inlineResultCount)
+                inlineResult: inlineResultCount,
+                workbenchChipRanking: workbenchChipRankingCount)
         }
     }
 

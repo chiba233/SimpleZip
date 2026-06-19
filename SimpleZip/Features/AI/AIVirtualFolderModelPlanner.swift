@@ -153,6 +153,15 @@ struct GeneratedArchiveKindGuess: Sendable {
     var actions: [String]
 }
 
+/// **活动中心「建议筛选」chip 的排序/精选**模型产出(建议六 v2 模块⑤)。模型只按**编号**挑出最有用的几个并排序,
+/// 绝不发明 filter —— App 安全枚举候选 chip,这里只对它们排序。扁平单字段(短序号,可靠优先;见短序号教训)。
+@available(macOS 26.0, *)
+@Generable
+struct GeneratedChipRanking: Sendable {
+    @Guide(description: "The chip NUMBERS (the leftmost column of the chip list) in priority order — MOST USEFUL FIRST. Include ONLY the chips genuinely worth showing to the user; drop redundant, near-duplicate or low-value ones. Prefer chips that surface actionable failures the user likely cares about. Use only numbers that appear in the list; never invent one.")
+    var orderedNumbers: [String]
+}
+
 /// **文本内真实 URL 打开建议**的模型产出。模型只能选 App 给的候选编号,不能输出 / 发明 URL。
 @available(macOS 26.0, *)
 @Generable
@@ -344,6 +353,34 @@ enum AIVirtualFolderModelPlanner {
         }
         return try await AIReportAssistant.generate(instructions: instructions, prompt: lines.joined(separator: "\n"))
             .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// **活动中心「建议筛选」chip 的模型排序/精选**(建议六 v2 模块⑤,拒绝假AI)。**App 安全枚举候选 chip**(每个 chip
+    /// 都是预定义的安全 filter);模型只**按编号挑出最值得展示的几个并排序**(最有用在前),绝不发明新 filter。喂 编号 +
+    /// 英文语义描述(chip 选什么)+ 匹配数;返回**有序编号子集**(1-based,引用候选列表);调用点回译成 chip id。
+    /// 候选 < 2 不必排;不可用 / 失败 / 空返 → 调用点退回确定性顺序。短序号(非长 chip id)保证小模型可靠。
+    static func rankWorkbenchFilterChips(candidates: [(label: String, matches: Int)]) async throws -> [Int] {
+        guard candidates.count >= 2 else { return [] }
+        let capped = Array(candidates.prefix(20))
+        let instructions = """
+        You are ranking SUGGESTED FILTER chips for a file-archive app's Activity Center (output is not user-facing \
+        text — return chip numbers only). Each chip is a safe, predefined filter over the user's task list. Given the \
+        chips (number, what they select, how many tasks match), return the chip NUMBERS in priority order — MOST \
+        USEFUL FIRST — keeping ONLY the chips genuinely worth showing and dropping redundant or low-value ones. Prefer \
+        chips that surface actionable failures the user likely cares about; avoid near-duplicates. Refer to chips by \
+        their NUMBER only; never invent a number.
+        """
+        var lines = ["Chips (number<TAB>selects<TAB>matchCount):"]
+        for (i, c) in capped.enumerated() {
+            lines.append(["\(i + 1)", c.label, "\(c.matches)"].joined(separator: "\t"))
+        }
+        let generated = try await AIReportAssistant.generateStructured(
+            instructions: instructions, prompt: lines.joined(separator: "\n"),
+            as: GeneratedChipRanking.self, maxAttempts: 3)
+        var seen = Set<Int>()
+        return generated.orderedNumbers
+            .compactMap { firstInt(in: $0) }
+            .filter { $0 >= 1 && $0 <= capped.count && seen.insert($0).inserted }
     }
 
     /// **文件浏览器单文件抽屉**的模型驱动建议(②b/②c,拒绝假AI)。给一个具体文件(名字 + 角色 + 脱敏内容摘录 +

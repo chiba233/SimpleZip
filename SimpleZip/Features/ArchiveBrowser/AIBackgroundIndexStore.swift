@@ -20,6 +20,13 @@ nonisolated struct CachedFolderGroup: Codable, Equatable, Sendable {
     let actionToken: String
 }
 
+/// 建议六 v2 模块⑤:活动中心「建议筛选」chip 的模型排序缓存(每个任务分类一条)。`fingerprint` = 当时 chip 池的指纹
+/// (chip id + 匹配数);前台只在指纹匹配当前 chip 池时套用 `orderedIDs`(否则退确定性顺序),保证幂等、不烤旧的。
+nonisolated struct CachedChipRanking: Codable, Equatable, Sendable {
+    let fingerprint: String
+    let orderedIDs: [String]
+}
+
 @MainActor
 final class AIBackgroundIndexStore: ObservableObject {
     static let shared = AIBackgroundIndexStore()
@@ -49,6 +56,11 @@ final class AIBackgroundIndexStore: ObservableObject {
     private(set) var organizeByPath: [String: CachedFolderGroup]
     /// 整理建议缓存世代(ContentView 顶部建议条据此 + objectWillChange 重算;不把字典设成 @Published)。
     private(set) var organizeGeneration = 0
+    /// 建议六 v2 模块⑤:活动中心「建议筛选」chip 的模型排序缓存。key = 任务分类 rawValue(archive / fileOperation /
+    /// undoRedo);后台预烘焙、幂等(指纹没变不重排)、前台只读。
+    private(set) var workbenchChipRankingByCategory: [String: CachedChipRanking]
+    /// 排序缓存世代(活动中心工作台据此 + objectWillChange 重算;不把字典设成 @Published)。
+    private(set) var workbenchChipRankingGeneration = 0
 
     private let defaults: UserDefaults
 
@@ -59,6 +71,7 @@ final class AIBackgroundIndexStore: ObservableObject {
         self.dislikedSuggestionKeys = AIBackgroundIndexStore.loadDislikedKeys(from: defaults)
         self.folderGroupsByPath = AIBackgroundIndexStore.loadFolderGroups(from: defaults)
         self.organizeByPath = AIBackgroundIndexStore.loadOrganize(from: defaults)
+        self.workbenchChipRankingByCategory = AIBackgroundIndexStore.loadWorkbenchChipRanking(from: defaults)
         rebuildPathIndex()   // init 里的 fileIndex 赋值不触发 didSet,手动建一次
     }
 
@@ -331,6 +344,23 @@ final class AIBackgroundIndexStore: ObservableObject {
         objectWillChange.send()
     }
 
+    // MARK: - 建议六 v2 模块⑤:工作台「建议筛选」chip 排序缓存
+
+    /// 读某分类的 chip 排序缓存(后台预烘焙产物;前台只读)。
+    func workbenchChipRanking(forCategory category: String) -> CachedChipRanking? {
+        workbenchChipRankingByCategory[category]
+    }
+
+    /// 后台 pass 写回某分类的 chip 排序(模型排好序的 chip id 子集 + 当时 chip 池指纹)。幂等由 pass 在调用前比指纹保证。
+    func applyWorkbenchChipRanking(category: String, fingerprint: String, orderedIDs: [String]) {
+        let ranking = CachedChipRanking(fingerprint: fingerprint, orderedIDs: orderedIDs)
+        guard workbenchChipRankingByCategory[category] != ranking else { return }
+        workbenchChipRankingByCategory[category] = ranking
+        workbenchChipRankingGeneration += 1
+        persistWorkbenchChipRanking()
+        objectWillChange.send()
+    }
+
     /// **文本 URL 打开建议**回填:URL 来自 App 从已脱敏预读文本正则抽取的真实 http(s) URL;模型只选编号。
     /// payload 保存真实 URL,label 保存展示名。没有模型选择就不调用本方法,保持空抽屉/无假建议。
     func applyURLOpenSuggestion(recordID: String, url: String, label: String?) {
@@ -382,9 +412,12 @@ final class AIBackgroundIndexStore: ObservableObject {
         folderGroupsGeneration += 1
         organizeByPath = [:]
         organizeGeneration += 1
+        workbenchChipRankingByCategory = [:]
+        workbenchChipRankingGeneration += 1
         persistIndex()
         persistFolderGroups()
         persistOrganize()
+        persistWorkbenchChipRanking()
         AIFeedbackStore.shared.clearAll()
         AIPendingCheckStore.shared.clearAll()
         objectWillChange.send()
@@ -422,6 +455,12 @@ final class AIBackgroundIndexStore: ObservableObject {
         }
     }
 
+    private func persistWorkbenchChipRanking() {
+        if let data = try? JSONEncoder().encode(workbenchChipRankingByCategory) {
+            defaults.set(data, forKey: AppPreferences.Key.aiWorkbenchChipRankingData)
+        }
+    }
+
     private static func loadDislikedKeys(from defaults: UserDefaults) -> Set<String> {
         guard let data = defaults.data(forKey: AppPreferences.Key.aiSuggestionDislikedKeys),
               let decoded = try? JSONDecoder().decode([String].self, from: data)
@@ -439,6 +478,13 @@ final class AIBackgroundIndexStore: ObservableObject {
     private static func loadOrganize(from defaults: UserDefaults) -> [String: CachedFolderGroup] {
         guard let data = defaults.data(forKey: AppPreferences.Key.aiOrganizeSuggestionsData),
               let decoded = try? JSONDecoder().decode([String: CachedFolderGroup].self, from: data)
+        else { return [:] }
+        return decoded
+    }
+
+    private static func loadWorkbenchChipRanking(from defaults: UserDefaults) -> [String: CachedChipRanking] {
+        guard let data = defaults.data(forKey: AppPreferences.Key.aiWorkbenchChipRankingData),
+              let decoded = try? JSONDecoder().decode([String: CachedChipRanking].self, from: data)
         else { return [:] }
         return decoded
     }
