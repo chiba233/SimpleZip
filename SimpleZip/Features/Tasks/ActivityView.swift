@@ -687,7 +687,7 @@ struct ActivityView: View {
     }
 
     private func activityAIWorkbenchSnapshot(for category: OperationTask.Category) -> ActivityAIWorkbenchSnapshot {
-        let base = ActivityAIWorkbenchBuilder.snapshot(records: filteredTasksForWorkbench(in: category).map(\.aiTaskRecord))
+        let base = ActivityAIWorkbenchBuilder.snapshot(records: filteredTasksForWorkbench(in: category).map(\.aiTaskRecord), now: Date())
         return applyAIChipRanking(to: base, category: category)
     }
 

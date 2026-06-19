@@ -664,7 +664,7 @@ final class AIBackgroundIndexer {
         var pick: (category: String, chips: [ActivityAIWorkbenchFilterChip], fingerprint: String)?
         for category in ["archive", "fileOperation", "undoRedo"] {
             let records = all.filter { $0.category == category }
-            let chips = ActivityAIWorkbenchBuilder.snapshot(records: records).filterChips
+            let chips = ActivityAIWorkbenchBuilder.snapshot(records: records, now: Date()).filterChips
             guard chips.count >= 2 else { continue }   // < 2 个 chip 不必排
             let fingerprint = AIBackgroundIndexer.chipPoolFingerprint(chips)
             if store.workbenchChipRanking(forCategory: category)?.fingerprint != fingerprint {

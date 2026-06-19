@@ -101,15 +101,18 @@ nonisolated struct ActivityAIWorkbenchSnapshot: Codable, Equatable, Sendable {
 nonisolated enum ActivityAIWorkbenchBuilder {
     static let schema = "simplezip.ai.activityWorkbench.v1"
 
-    static func snapshot(records: [AITaskRecord], limit: Int = 50) -> ActivityAIWorkbenchSnapshot {
+    /// `now` 由 App 传(Core 不自取时钟):任务列表用统一 `AIRanker` 排序 —— 状态严重度(在跑 > 未读失败 >
+    /// 已读失败 > 取消)+ recency(`AIAgeFacts` 年龄桶),可解释 decision。同分按输入序(越新越上)稳定兜底。
+    /// 替掉原来的裸 `isNewer` 时间序;cards/chips 沿用排好序的结果,不再各自重排。
+    static func snapshot(records: [AITaskRecord], limit: Int = 50, now: Date) -> ActivityAIWorkbenchSnapshot {
         let effectiveLimit = max(0, limit)
-        let sorted = records.sorted(by: isNewer)
-        let kept = Array(sorted.prefix(effectiveLimit))
+        let ranked = AIRanker.rank(records) { taskRankingContext($0, now: now) }.map(\.item)
+        let kept = Array(ranked.prefix(effectiveLimit))
         var omissions: [AIContextOmission] = []
-        if sorted.count > kept.count {
+        if ranked.count > kept.count {
             omissions.append(.truncated(
                 type: "activity_workbench_tasks",
-                omitted: sorted.count - kept.count,
+                omitted: ranked.count - kept.count,
                 reason: "candidate_budget"))
         }
         let summary = ActivityAIWorkbenchSummary(records: kept)
@@ -120,6 +123,47 @@ nonisolated enum ActivityAIWorkbenchBuilder {
             omissions: omissions)
     }
 
+    /// 一个任务的排序上下文(喂 `AIRanker`):**确定性、可解释**。状态严重度给基础权重,recency 给时间衰减。
+    /// 后续可追加全局记忆信号(负反馈降权 / 兴趣 boost)—— 那是闭环的下一环,本刀先确定性。
+    private static func taskRankingContext(_ r: AITaskRecord, now: Date) -> AIRankingContext {
+        var signals: [AIRankingSignal] = []
+        switch r.status {
+        case "running":
+            signals.append(.boost("running", 5, reason: "in-progress"))
+        case "failed":
+            signals.append(r.failureSeen
+                ? .boost("failed-seen", 1, reason: "failed")
+                : .boost("failed-unseen", 4, reason: "unseen-failure"))
+        case "cancelled":
+            signals.append(.demote("cancelled", 0.5, reason: "cancelled"))
+        default:
+            break   // succeeded / skipped:仅 recency,不加严重度
+        }
+        if let stamp = r.finishedAt ?? r.startedAt, let date = parseISO(stamp) {
+            let age = AIAgeFacts.make(from: date, now: now)
+            signals.append(.boost("recency", recencyWeight(age.bucket), reason: age.bucket.rawValue))
+        }
+        return AIRankingContext(base: 0, signals: signals)
+    }
+
+    /// 年龄桶 → recency 权重(越新越高)。
+    private static func recencyWeight(_ bucket: AIAgeFacts.Bucket) -> Double {
+        switch bucket {
+        case .justNow: return 3
+        case .today: return 2.5
+        case .thisWeek: return 1.5
+        case .thisMonth: return 0.8
+        case .thisQuarter: return 0.3
+        case .stale: return 0
+        }
+    }
+
+    private static func parseISO(_ string: String) -> Date? {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter.date(from: string)
+    }
+
     private static func cards(summary: ActivityAIWorkbenchSummary,
                               records: [AITaskRecord]) -> [ActivityAIWorkbenchCard] {
         var cards = [
@@ -128,9 +172,8 @@ nonisolated enum ActivityAIWorkbenchBuilder {
                 kind: .currentListSummary,
                 facts: summaryFacts(summary))
         ]
-        let unseenFailed = records
-            .filter { $0.status == "failed" && !$0.failureSeen }
-            .sorted(by: isNewer)
+        // records 已由 snapshot 经 AIRanker 排好序(未读失败靠前);这里保持其顺序,不再各自重排。
+        let unseenFailed = records.filter { $0.status == "failed" && !$0.failureSeen }
         if !unseenFailed.isEmpty {
             cards.append(ActivityAIWorkbenchCard(
                 id: "needsAttention",
@@ -142,7 +185,8 @@ nonisolated enum ActivityAIWorkbenchBuilder {
     }
 
     private static func filterChips(records: [AITaskRecord]) -> [ActivityAIWorkbenchFilterChip] {
-        let failed = records.filter { $0.status == "failed" }.sorted(by: isNewer)
+        // records 已经过 AIRanker 排序;failed 子集保持该顺序(chip 的 sourceRefs 取前若干即最值得先看的)。
+        let failed = records.filter { $0.status == "failed" }
         guard !failed.isEmpty else { return [] }
         var chips: [ActivityAIWorkbenchFilterChip] = [
             chip(id: "failed", records: failed, filter: .init(status: "failed"))
@@ -228,12 +272,5 @@ nonisolated enum ActivityAIWorkbenchBuilder {
         case "checksum-mismatch": return "checksumMismatch"
         default: return tag
         }
-    }
-
-    private static func isNewer(_ lhs: AITaskRecord, _ rhs: AITaskRecord) -> Bool {
-        let left = lhs.finishedAt ?? lhs.startedAt ?? ""
-        let right = rhs.finishedAt ?? rhs.startedAt ?? ""
-        if left != right { return left > right }
-        return lhs.id < rhs.id
     }
 }
