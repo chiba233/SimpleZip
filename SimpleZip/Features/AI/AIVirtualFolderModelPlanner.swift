@@ -75,7 +75,7 @@ struct GeneratedSuggestionSet: Sendable {
 struct GeneratedFileSuggestion: Sendable {
     @Guide(description: "ONE short, concrete sentence saying what THIS specific file actually is or is about — its real subject or purpose, the way the owner would describe it. Be specific to the content; do NOT just restate the file name, and do NOT write a generic line like 'a text document'. In the required language.")
     var summary: String
-    @Guide(description: "A FEW action tokens from the allowed-actions list, ONLY where an action is clearly the right next step for THIS file. MOST files get NONE — empty is the correct default. Use each token verbatim; never invent one.")
+    @Guide(description: "A FEW action tokens from the allowed-actions list, ONLY where an action is clearly the right next step for THIS file (e.g. a finished deliverable someone would share can warrant 'hash'; a large document to send can warrant 'compress'). Empty is correct when nothing clearly fits. Use each token verbatim; never invent one.")
     var actions: [String]
     @Guide(description: "If a list of alternative apps is given, the NUMBER of the ONE app that is CLEARLY a better fit for THIS file than the system default (e.g. a code editor for source/config/logs, a spreadsheet app for CSV/TSV data, a dedicated viewer). Use 0 when no list is given, or when no listed app is clearly better — 0 is the correct default for most files.")
     var openWithAppNumber: Int
@@ -135,7 +135,7 @@ struct GeneratedArchiveEntryPicks: Sendable {
 struct GeneratedArchiveKindGuess: Sendable {
     @Guide(description: "ONE short, concrete sentence describing what kind of archive this appears to be, based only on the listed paths and folder structure. Use the required language. Do not name or copy a specific product unless it is explicitly present in the archive name or entries.")
     var summary: String
-    @Guide(description: "A FEW action tokens worth PROACTIVELY suggesting for THIS archive, or empty. Allowed tokens only: 'inspect' (a release-readiness / publish inspection — choose this when the archive looks like a distributable or release package, e.g. an app, installer, or a bundle of release binaries), 'test' (verify the archive's integrity), 'hash' (compute a checksum — useful for a release / distributable archive someone might verify), 'convert' (suggest only when the format looks clearly suboptimal — e.g. a .tar.gz that would be better as .7z for further distribution, or an old .zip the user is likely to repack — never suggest just because conversion is possible), 'security' (suggest only when the listing shows suspicious path patterns such as many executable files, absolute paths, or entries that escape expected directories — do NOT suggest for ordinary archives). MOST archives need NONE — empty is the correct default. Use each token verbatim; never invent one.")
+    @Guide(description: "A FEW action tokens worth PROACTIVELY suggesting for THIS archive, or empty. Allowed tokens only: 'inspect' (a release-readiness / publish inspection — choose this when the archive looks like a distributable or release package, e.g. an app, installer, or a bundle of release binaries), 'test' (verify the archive's integrity), 'hash' (compute a checksum — useful for a release / distributable archive someone might verify), 'convert' (suggest only when the format looks clearly suboptimal — e.g. a .tar.gz that would be better as .7z for further distribution, or an old .zip the user is likely to repack — never suggest just because conversion is possible), 'security' (suggest only when the listing shows suspicious path patterns such as many executable files, absolute paths, or entries that escape expected directories — do NOT suggest for ordinary archives). Return empty only when none of these signals appear in the name or entries; a software release package (version number, executables, bin/, dist/) typically warrants inspect + test + hash, while a plain document or photo backup gets none. Use each token verbatim; never invent one.")
     var actions: [String]
 }
 
@@ -289,11 +289,12 @@ enum AIVirtualFolderModelPlanner {
         that text was redacted. If the excerpt is too thin to say anything specific, summarize from the name and \
         role as best you can, still in one concrete sentence.
 
-        Then suggest a FEW next actions, but ONLY where an action is clearly the right next step for THIS file. Most \
-        files need NONE — empty is the correct default. Never suggest an action just because it is possible. \
-        ROLE HINTS (apply only when genuinely appropriate): if the role is 'release-notes' or 'report' and the file \
-        looks like a distributable or deliverable, 'hash' is worth suggesting. If the role is 'project-doc' or \
-        'report' and the file is a large deliverable someone would want to send, 'compress' may be worth suggesting.\(openWithRule)\(feedbackHint)
+        Then suggest a FEW next actions, but ONLY where an action is clearly the right next step for THIS file. \
+        Never suggest an action just because it is possible; if nothing clearly fits, empty is correct. \
+        ROLE HINTS (apply only when the file genuinely looks like one): if the role is 'release-notes', 'report', \
+        'task-summary', or 'task' and the file reads like a finished deliverable someone would share, 'hash' is worth \
+        suggesting. If the role is 'project-doc', 'report', or 'document' and the file is a large deliverable someone \
+        would want to send, 'compress' may be worth suggesting.\(openWithRule)\(feedbackHint)
 
         \(Self.actionVocabularyRule)
         """
@@ -409,12 +410,19 @@ enum AIVirtualFolderModelPlanner {
         claim certainty; say it appears to be something. Do not invent contents that are not supported by the paths. \
         Avoid naming a specific product or app unless that name is explicitly present in the archive name or entries.
 
-        Then, ONLY where clearly warranted by what this archive looks like, suggest a FEW proactive action tokens \
-        for it (verbatim, from this exact list; most archives need NONE):
-        inspect — run a release-readiness / publish inspection; pick it when the archive looks like a distributable \
-        or release package (an app, an installer, or a bundle of release binaries someone would ship).
-        test — verify the archive's integrity.
-        hash — compute a checksum; useful for a release / distributable archive someone might verify.
+        Then suggest proactive action tokens — but ONLY where the archive NAME or ENTRY STRUCTURE gives clear \
+        evidence for them (verbatim, from this exact list). Return empty when none of these signals are present; \
+        a plain documents or photo backup correctly gets none.
+        inspect — when entries include .app, .exe, .pkg, .msi, or .dmg files, a top-level bin/ or dist/ directory, \
+        or the name has a version number together with a release/dist keyword — i.e. it looks like software someone \
+        would ship. A release-looking package typically warrants inspect + test + hash together.
+        test — same evidence as inspect (version number, bin/, executables, a README + CHANGELOG pair): verify a \
+        distributable's integrity. A plain documents backup does not need test.
+        hash — same evidence as inspect: a checksum for a distributable archive someone would share for others to verify.
+        convert — ONLY when the format is .tar.gz / .tgz AND the entries contain source-build files (Makefile, \
+        CMakeLists.txt, setup.py, package.json, Cargo.toml). Never suggest merely because conversion is possible.
+        security — ONLY when the entries show suspicious paths (a ../ parent-directory escape, or absolute paths like \
+        /etc/ or /root/) or three or more executable script files (.sh .py .rb .ps1 .cmd). Do not flag ordinary archives.
         """
         // 🔴 防崩溃:端上模型上下文有限,大归档上千条目会撑爆 → FoundationModels 修剪 transcript 时**越界 trap**
         // (用户实测崩溃栈;心跳让本 pass 真跑后暴露)。按「条目数 + 字符预算」双重封顶挑代表性条目、单条路径也截断
