@@ -113,6 +113,17 @@ nonisolated struct ActivityAIWorkbenchSnapshot: Codable, Equatable, Sendable {
     }
 }
 
+/// 建议六 v2「学习到的习惯」:近期任务的常用模式摘要(来源 / 格式 / 位置 token,按频次)。**只摘要、不含完整
+/// 路径**(位置只到低敏类别 token 如 downloads;格式是扩展名)。前台用现成 L10n 显示名渲染。
+nonisolated struct ActivityWorkbenchHabits: Codable, Equatable, Sendable {
+    let topSources: [String]
+    let topFormats: [String]
+    let topLocations: [String]
+    let taskCount: Int
+
+    var isEmpty: Bool { topSources.isEmpty && topFormats.isEmpty && topLocations.isEmpty }
+}
+
 nonisolated enum ActivityAIWorkbenchBuilder {
     static let schema = "simplezip.ai.activityWorkbench.v1"
 
@@ -267,6 +278,22 @@ nonisolated enum ActivityAIWorkbenchBuilder {
         return Array(clusters
             .sorted { ($0.matchCount, $0.dimensionFacts.count) > ($1.matchCount, $1.dimensionFacts.count) }
             .prefix(limit))
+    }
+
+    /// 建议六 v2「学习到的习惯」:从近期任务确定性算常用来源 / 格式 / 位置(按频次取 top N)。**只摘要、不含
+    /// 完整路径**(来源 token / 扩展名 / 位置类别 token)。确定性、可单测。
+    static func habitSummary(records: [AITaskRecord], limit: Int = 3) -> ActivityWorkbenchHabits {
+        func top(_ values: [String]) -> [String] {
+            var counts: [String: Int] = [:]
+            for v in values where !v.isEmpty { counts[v, default: 0] += 1 }
+            return counts.sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }
+                .prefix(limit).map(\.key)
+        }
+        return ActivityWorkbenchHabits(
+            topSources: top(records.map(\.source)),
+            topFormats: top(records.compactMap { $0.files.archiveExtension }),
+            topLocations: top(records.flatMap { $0.files.locationKinds }),
+            taskCount: records.count)
     }
 
     private static func chip(id: String, records: [AITaskRecord],

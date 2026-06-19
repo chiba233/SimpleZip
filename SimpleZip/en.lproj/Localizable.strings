@@ -2730,3 +2730,13 @@
 "aiWorkspace.regenerating" = "Reorganizing with AI…";
 "aiWorkspace.description.placeholder" = "Add a description…";
 "aiWorkspace.description.seed" = "Likely about: ";
+
+"tasks.aiWorkbench.learnedHabits" = "Learned habits";
+"tasks.aiWorkbench.habits.sources" = "Sources";
+"tasks.aiWorkbench.habits.formats" = "Formats";
+"tasks.aiWorkbench.habits.locations" = "Locations";
+"location.external-drive" = "External drive";
+"location.temporary-workspace" = "Temporary workspace";
+"location.project-folder" = "Project folder";
+"location.same-directory" = "Same folder";
+"location.other" = "Other";

@@ -54,6 +54,8 @@ struct ActivityWorkbenchFailureFocus: Equatable {
 
 struct ActivityAIWorkbenchView: View {
     let snapshot: ActivityAIWorkbenchSnapshot
+    /// 建议六 v2「学习到的习惯」:近期常用来源 / 格式 / 位置摘要(确定性,只摘要不含完整路径)。
+    let habits: ActivityWorkbenchHabits
     /// 自然语言筛选输入(从工具栏挪进侧栏)。回车 / 点按 → `onRunQuery`,由父级走 AI 抽条件并应用。
     @Binding var searchText: String
     let isRunningQuery: Bool
@@ -86,6 +88,7 @@ struct ActivityAIWorkbenchView: View {
                 failureExplanation
                 nextActions
                 suggestedFilters
+                learnedHabits
             }
             .padding(.horizontal, 14)
             .padding(.bottom, 14)
@@ -295,6 +298,41 @@ struct ActivityAIWorkbenchView: View {
                     }
                 }
             }
+        }
+    }
+
+    /// 建议六 v2「学习到的习惯」:近期常用来源 / 格式 / 位置摘要(确定性,**只摘要、不含完整路径**)。无数据则整区不渲染。
+    @ViewBuilder
+    private var learnedHabits: some View {
+        if !habits.isEmpty {
+            workbenchSection(title: L10n.text("tasks.aiWorkbench.learnedHabits"), systemImage: "brain") {
+                VStack(alignment: .leading, spacing: 5) {
+                    if !habits.topSources.isEmpty {
+                        habitRow(L10n.text("tasks.aiWorkbench.habits.sources"),
+                                 habits.topSources.map { L10n.text("tasks.source.\($0)") })
+                    }
+                    if !habits.topFormats.isEmpty {
+                        habitRow(L10n.text("tasks.aiWorkbench.habits.formats"),
+                                 habits.topFormats.map { ".\($0)" })
+                    }
+                    if !habits.topLocations.isEmpty {
+                        habitRow(L10n.text("tasks.aiWorkbench.habits.locations"),
+                                 habits.topLocations.map { L10n.text("location.\($0)") })
+                    }
+                }
+            }
+        }
+    }
+
+    private func habitRow(_ label: String, _ values: [String]) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+            Text(values.joined(separator: " · "))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 

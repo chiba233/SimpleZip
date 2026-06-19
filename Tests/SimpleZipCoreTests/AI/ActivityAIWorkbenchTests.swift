@@ -142,4 +142,22 @@ import Testing
         let lonely = ActivityAIWorkbenchBuilder.discoverClusters(records: [f("x", source: "app", kind: "create", fail: "ERROR: boom")])
         #expect(lonely.isEmpty)
     }
+
+    /// 建议六 v2「学习到的习惯」:确定性算常用来源 / 格式 / 位置(按频次)。
+    @Test func habitSummaryRanksTopPatterns() {
+        func r(_ id: String, source: String, archive: String) -> AITaskRecord {
+            AITaskRecord.make(id: id, category: "archive", kind: "extract", source: source, status: "succeeded",
+                              title: "T", startedAt: now, finishedAt: now, archivePath: archive, home: "/Users/tester")
+        }
+        let habits = ActivityAIWorkbenchBuilder.habitSummary(records: [
+            r("a", source: "finder", archive: "/Users/tester/Downloads/x.zip"),
+            r("b", source: "finder", archive: "/Users/tester/Downloads/y.zip"),
+            r("c", source: "app", archive: "/Users/tester/Desktop/z.7z")
+        ])
+        #expect(habits.topSources.first == "finder")   // finder 2 > app 1
+        #expect(habits.topFormats.contains("zip"))
+        #expect(habits.topLocations.contains("downloads"))
+        #expect(habits.taskCount == 3)
+        #expect(ActivityAIWorkbenchBuilder.habitSummary(records: []).isEmpty)
+    }
 }

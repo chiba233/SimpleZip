@@ -2651,3 +2651,13 @@
 "aiWorkspace.regenerating" = "กำลังจัดระเบียบใหม่ด้วย AI…";
 "aiWorkspace.description.placeholder" = "เพิ่มคำอธิบาย…";
 "aiWorkspace.description.seed" = "น่าจะเกี่ยวกับ: ";
+
+"tasks.aiWorkbench.learnedHabits" = "พฤติกรรมที่เรียนรู้";
+"tasks.aiWorkbench.habits.sources" = "แหล่งที่มา";
+"tasks.aiWorkbench.habits.formats" = "รูปแบบ";
+"tasks.aiWorkbench.habits.locations" = "ตำแหน่ง";
+"location.external-drive" = "ไดรฟ์ภายนอก";
+"location.temporary-workspace" = "พื้นที่ทำงานชั่วคราว";
+"location.project-folder" = "โฟลเดอร์โปรเจกต์";
+"location.same-directory" = "โฟลเดอร์เดียวกัน";
+"location.other" = "อื่นๆ";

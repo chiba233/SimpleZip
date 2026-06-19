@@ -2653,3 +2653,13 @@
 "aiWorkspace.regenerating" = "AI が再整理中…";
 "aiWorkspace.description.placeholder" = "説明を追加…";
 "aiWorkspace.description.seed" = "おそらく: ";
+
+"tasks.aiWorkbench.learnedHabits" = "学習した習慣";
+"tasks.aiWorkbench.habits.sources" = "取得元";
+"tasks.aiWorkbench.habits.formats" = "形式";
+"tasks.aiWorkbench.habits.locations" = "場所";
+"location.external-drive" = "外付けドライブ";
+"location.temporary-workspace" = "一時作業領域";
+"location.project-folder" = "プロジェクト";
+"location.same-directory" = "同じフォルダ";
+"location.other" = "その他";

@@ -2730,3 +2730,13 @@
 "aiWorkspace.regenerating" = "AI 正在重新整理…";
 "aiWorkspace.description.placeholder" = "添加描述…";
 "aiWorkspace.description.seed" = "大概关于：";
+
+"tasks.aiWorkbench.learnedHabits" = "学习到的习惯";
+"tasks.aiWorkbench.habits.sources" = "常用来源";
+"tasks.aiWorkbench.habits.formats" = "常用格式";
+"tasks.aiWorkbench.habits.locations" = "常用位置";
+"location.external-drive" = "外置驱动器";
+"location.temporary-workspace" = "临时工作区";
+"location.project-folder" = "项目文件夹";
+"location.same-directory" = "同一文件夹";
+"location.other" = "其他";

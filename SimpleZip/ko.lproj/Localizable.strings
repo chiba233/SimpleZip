@@ -2652,3 +2652,13 @@
 "aiWorkspace.regenerating" = "AI가 다시 정리하는 중…";
 "aiWorkspace.description.placeholder" = "설명 추가…";
 "aiWorkspace.description.seed" = "관련 추정: ";
+
+"tasks.aiWorkbench.learnedHabits" = "학습된 습관";
+"tasks.aiWorkbench.habits.sources" = "출처";
+"tasks.aiWorkbench.habits.formats" = "형식";
+"tasks.aiWorkbench.habits.locations" = "위치";
+"location.external-drive" = "외장 드라이브";
+"location.temporary-workspace" = "임시 작업 공간";
+"location.project-folder" = "프로젝트 폴더";
+"location.same-directory" = "같은 폴더";
+"location.other" = "기타";

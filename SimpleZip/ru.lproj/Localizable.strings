@@ -2651,3 +2651,13 @@
 "aiWorkspace.regenerating" = "ИИ переупорядочивает…";
 "aiWorkspace.description.placeholder" = "Добавить описание…";
 "aiWorkspace.description.seed" = "Вероятно, о: ";
+
+"tasks.aiWorkbench.learnedHabits" = "Изученные привычки";
+"tasks.aiWorkbench.habits.sources" = "Источники";
+"tasks.aiWorkbench.habits.formats" = "Форматы";
+"tasks.aiWorkbench.habits.locations" = "Расположения";
+"location.external-drive" = "Внешний диск";
+"location.temporary-workspace" = "Временная область";
+"location.project-folder" = "Папка проекта";
+"location.same-directory" = "Та же папка";
+"location.other" = "Другое";

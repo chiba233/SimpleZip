@@ -2651,3 +2651,13 @@
 "aiWorkspace.regenerating" = "Wird per KI neu geordnet …";
 "aiWorkspace.description.placeholder" = "Beschreibung hinzufügen…";
 "aiWorkspace.description.seed" = "Vermutlich über: ";
+
+"tasks.aiWorkbench.learnedHabits" = "Erlernte Gewohnheiten";
+"tasks.aiWorkbench.habits.sources" = "Quellen";
+"tasks.aiWorkbench.habits.formats" = "Formate";
+"tasks.aiWorkbench.habits.locations" = "Orte";
+"location.external-drive" = "Externes Laufwerk";
+"location.temporary-workspace" = "Temporärer Bereich";
+"location.project-folder" = "Projektordner";
+"location.same-directory" = "Gleicher Ordner";
+"location.other" = "Andere";

@@ -2653,3 +2653,13 @@
 "aiWorkspace.regenerating" = "AI 正在重新整理…";
 "aiWorkspace.description.placeholder" = "新增描述…";
 "aiWorkspace.description.seed" = "大概關於：";
+
+"tasks.aiWorkbench.learnedHabits" = "學習到的習慣";
+"tasks.aiWorkbench.habits.sources" = "常用來源";
+"tasks.aiWorkbench.habits.formats" = "常用格式";
+"tasks.aiWorkbench.habits.locations" = "常用位置";
+"location.external-drive" = "外接磁碟";
+"location.temporary-workspace" = "暫時工作區";
+"location.project-folder" = "專案資料夾";
+"location.same-directory" = "同一資料夾";
+"location.other" = "其他";

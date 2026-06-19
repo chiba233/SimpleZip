@@ -262,6 +262,7 @@ struct ActivityView: View {
                             workbenchResizeHandle
                             ActivityAIWorkbenchView(
                                 snapshot: activityAIWorkbenchSnapshot(for: category),
+                                habits: workbenchHabits(for: category),
                                 searchText: $aiFilterText,
                                 isRunningQuery: aiFilterRunning,
                                 queryError: aiFilterError,
@@ -718,6 +719,13 @@ struct ActivityView: View {
         let base = ActivityAIWorkbenchBuilder.snapshot(records: Array(filteredTasksForWorkbench(in: category).prefix(80)).map(\.aiTaskRecord))
         let ranked = applyAIChipRanking(to: base, category: category)
         return applyAIClusterChips(to: ranked, category: category)
+    }
+
+    /// 建议六 v2「学习到的习惯」:从近期任务(前 80,aiTaskRecord 缓存)确定性算常用来源 / 格式 / 位置摘要。
+    /// 不调模型、只摘要(无完整路径);前台 View 渲染。
+    private func workbenchHabits(for category: OperationTask.Category) -> ActivityWorkbenchHabits {
+        ActivityAIWorkbenchBuilder.habitSummary(
+            records: Array(filteredTasksForWorkbench(in: category).prefix(80)).map(\.aiTaskRecord))
     }
 
     /// 建议六 v2「真建议」:把后台预烘焙的 AI 命名聚集 chip 叠加到「建议筛选」最前(模型命名的真实聚集),
