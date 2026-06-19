@@ -103,7 +103,9 @@ jobs:
 
       # 跟 AGENTS.md 里「UI / Xcode 工程 / Info.plist / 资源 / 本地化 / app-target 改动需要再跑」
       # 那条命令一致。PR 不区分到底改了什么，统一跑 Debug 构建作为最简验证。
-      - name: Build SimpleZip.app (Debug)
+      # Debug 配置的 PRODUCT_NAME 是 SimpleZip-dev(与发布版 SimpleZip 区分,配合 .dev bundle id 一起隔离),
+      # 故产物是 SimpleZip-dev.app;这步只编不引用产物路径,改名不影响。
+      - name: Build SimpleZip-dev.app (Debug)
         run: |
           /usr/bin/env DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
             /usr/bin/xcodebuild \
