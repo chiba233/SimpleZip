@@ -132,6 +132,8 @@ final class AIBackgroundIndexer {
     private var workbenchNeedsAttentionTask: Task<Void, Never>?
     private var workbenchFailureRunning = false
     private var workbenchFailureTask: Task<Void, Never>?
+    private var workbenchClusterRunning = false
+    private var workbenchClusterTask: Task<Void, Never>?
 
     /// 后台索引**心跳定时器**(主运行循环)+ 当前间隔。P0 根因:`runIfEnabled` 原本只在启动 `activate()` 时被调
     /// 一次,那次又卡在 launch-silence(<60s)直接空跑,之后再无任何定时器触发 → 后台索引 / 建议全程跑不起来
@@ -257,6 +259,7 @@ final class AIBackgroundIndexer {
                         AIBackgroundIndexer.shared.generateDiskImageSuggestionsIfEnabled()   // 内含 App 的 dmg「安装到应用程序」
                         AIBackgroundIndexer.shared.generateActivityLinkSuggestionsIfEnabled()   // 命中近期任务产物「查看活动」
                         AIBackgroundIndexer.shared.generateWorkbenchChipRankingIfEnabled()   // 活动中心「建议筛选」chip 模型排序
+                        AIBackgroundIndexer.shared.generateWorkbenchClusterChipsIfEnabled()   // 活动中心「真建议」chip(发现真实聚集→模型命名)
                         AIBackgroundIndexer.shared.generateWorkbenchNeedsAttentionIfEnabled()   // 活动中心「需要处理」卡 AI 解读
                         AIBackgroundIndexer.shared.generateWorkbenchFailureExplanationsIfEnabled()   // 活动中心失败任务「失败解释」
                         AIBackgroundIndexer.shared.generateArchiveEntrySuggestionsIfEnabled()   // 归档「也许你要包里的 X」
@@ -813,6 +816,63 @@ final class AIBackgroundIndexer {
             AIBackgroundIndexStore.shared.applyWorkbenchFailureExplanation(
                 taskID: pick.record.id, fingerprint: pick.fingerprint, text: text, liveTaskIDs: liveTaskIDs)
         }
+    }
+
+    /// 建议六 v2「真建议」chip:App 确定性发现真实失败聚集(discoverClusters)→ 后台让模型在这些**真实聚集**上
+    /// 择优 + 自然语言命名 → 写回缓存(前台叠加在写死 chip 之上)。每轮只处理 1 个分类(第一个聚集过期 / 没命名的),
+    /// 聚集指纹幂等(构成没变不重命名)。门控:`canRunModelWorkNow`。**只喂维度描述 + 命中数,不含任务标题 / 路径。**
+    func generateWorkbenchClusterChipsIfEnabled() {
+        guard #available(macOS 26.0, *) else { return }
+        let store = AIBackgroundIndexStore.shared
+        guard AppPreferences.aiSuggestionEnabled, store.indexingEnabled, AIReportAssistant.isReady,
+              store.budget != nil else { return }
+        guard !workbenchClusterRunning else { recordRunningPass("真建议"); return }
+        let all = (TaskCenter.shared.active + TaskCenter.shared.history).map(\.aiTaskRecord)
+        var pick: (category: String, clusters: [AIWorkbenchCluster], fingerprint: String)?
+        for category in ["archive", "fileOperation", "undoRedo"] {
+            let records = all.filter { $0.category == category }
+            let clusters = ActivityAIWorkbenchBuilder.discoverClusters(records: records)
+            guard !clusters.isEmpty else { continue }
+            let fingerprint = AIBackgroundIndexer.clusterFingerprint(clusters)
+            if store.workbenchClusterChips(forCategory: category)?.fingerprint != fingerprint {
+                pick = (category, clusters, fingerprint); break
+            }
+        }
+        guard let pick else { recordPass("真建议", candidates: 0, skip: "全部分类已命名 / 无可命名聚集"); return }
+        recordPass("真建议", candidates: pick.clusters.count)
+        workbenchClusterRunning = true
+        workbenchClusterTask = Task { @MainActor in
+            defer { AIBackgroundIndexer.shared.workbenchClusterRunning = false }
+            guard AIBackgroundIndexStore.shared.indexingEnabled, AIReportAssistant.isReady else { return }
+            let candidates = pick.clusters.map { (facts: $0.dimensionFacts, matches: $0.matchCount) }
+            guard let named = try? await AIVirtualFolderModelPlanner.nameWorkbenchClusters(candidates: candidates),
+                  !named.isEmpty else { return }
+            let chips: [CachedClusterChip] = named.compactMap { item in
+                guard item.index >= 1, item.index <= pick.clusters.count else { return nil }
+                let cluster = pick.clusters[item.index - 1]
+                return CachedClusterChip(
+                    id: AIBackgroundIndexer.clusterChipID(cluster.filter),
+                    displayName: item.name, filter: cluster.filter, matchCount: cluster.matchCount)
+            }
+            guard !chips.isEmpty else { return }
+            AIBackgroundIndexStore.shared.applyWorkbenchClusterChips(
+                category: pick.category, fingerprint: pick.fingerprint, chips: chips)
+        }
+    }
+
+    /// 真实聚集池指纹:每个聚集的 filter 维度 id + 命中数(构成或计数变了才重命名;否则幂等跳过)。
+    nonisolated static func clusterFingerprint(_ clusters: [AIWorkbenchCluster]) -> String {
+        clusters.map { "\(clusterChipID($0.filter)):\($0.matchCount)" }.joined(separator: "|")
+    }
+
+    /// 真建议 chip 的稳定 id(从 filter 维度拼,前台据此去重写死 chip + 应用 filter)。
+    nonisolated static func clusterChipID(_ filter: ActivityAIWorkbenchFilterSpec) -> String {
+        var parts = ["cluster"]
+        if let status = filter.status { parts.append("st-\(status)") }
+        if let source = filter.source { parts.append("so-\(source)") }
+        if !filter.kindTokens.isEmpty { parts.append("k-\(filter.kindTokens.sorted().joined(separator: "+"))") }
+        if !filter.diagnosticTags.isEmpty { parts.append("t-\(filter.diagnosticTags.sorted().joined(separator: "+"))") }
+        return parts.joined(separator: "_")
     }
 
     // MARK: - 压缩包「你可能需要的文件」建议(backlog 第4项;MainActor:读清单缓存 + 模型 async)

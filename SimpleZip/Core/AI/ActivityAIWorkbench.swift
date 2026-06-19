@@ -49,13 +49,17 @@ nonisolated struct ActivityAIWorkbenchFilterChip: Codable, Equatable, Identifiab
     let filter: ActivityAIWorkbenchFilterSpec
     let sourceRefs: [AIContextSourceRef]
     let facts: [String]
+    /// 建议六 v2「真建议」:模型给真实聚集起的自然语言名(如"从 Finder 解压失败的 4 个")。
+    /// nil = 写死 chip(前台用 L10n id 显示);非 nil = AI 命名的聚集 chip(前台直接显示这个名字)。
+    let displayName: String?
 
     init(id: String, filter: ActivityAIWorkbenchFilterSpec,
-         sourceRefs: [AIContextSourceRef] = [], facts: [String] = []) {
+         sourceRefs: [AIContextSourceRef] = [], facts: [String] = [], displayName: String? = nil) {
         self.id = id
         self.filter = filter
         self.sourceRefs = sourceRefs
         self.facts = facts
+        self.displayName = displayName
     }
 }
 

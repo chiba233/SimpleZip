@@ -618,6 +618,7 @@ struct DevToolsView: View {
                 workbenchChipRankingCount: backgroundStore.workbenchChipRankingByCategory.values.reduce(0) { $0 + $1.orderedIDs.count },
                 workbenchNeedsAttentionCount: backgroundStore.workbenchNeedsAttentionByCategory.count,
                 workbenchFailureExplanationCount: backgroundStore.workbenchFailureExplanationByTask.count,
+                workbenchClusterChipsCount: backgroundStore.workbenchClusterChipsByCategory.values.reduce(0) { $0 + $1.chips.count },
                 activityLevel: AppPreferences.aiBackgroundActivityLevel.rawValue,
                 scopeCount: backgroundStore.scopes.count,
                 indexedFileCount: index.fileCount,
@@ -687,7 +688,8 @@ struct DevToolsView: View {
                 inlineResult: records.reduce(0) { $0 + (($1.contentSummary?.inlineResults.contains { !$0.value.isEmpty } ?? false) ? 1 : 0) },
                 workbenchChipRanking: store.workbenchChipRankingByCategory.values.reduce(0) { $0 + $1.orderedIDs.count },
                 workbenchNeedsAttention: store.workbenchNeedsAttentionByCategory.count,
-                workbenchFailureExplanation: store.workbenchFailureExplanationByTask.count)
+                workbenchFailureExplanation: store.workbenchFailureExplanationByTask.count,
+                workbenchClusterChips: store.workbenchClusterChipsByCategory.values.reduce(0) { $0 + $1.chips.count })
         }
 
         var out: [String] = []
@@ -915,6 +917,7 @@ private nonisolated struct DevToolsAIDataSnapshot: Encodable {
         let workbenchChipRankingCount: Int
         let workbenchNeedsAttentionCount: Int
         let workbenchFailureExplanationCount: Int
+        let workbenchClusterChipsCount: Int
         let activityLevel: String
         let scopeCount: Int
         let indexedFileCount: Int
@@ -942,7 +945,8 @@ private nonisolated struct DevToolsAIDataSnapshot: Encodable {
                 inlineResult: inlineResultCount,
                 workbenchChipRanking: workbenchChipRankingCount,
                 workbenchNeedsAttention: workbenchNeedsAttentionCount,
-                workbenchFailureExplanation: workbenchFailureExplanationCount)
+                workbenchFailureExplanation: workbenchFailureExplanationCount,
+                workbenchClusterChips: workbenchClusterChipsCount)
         }
     }
 

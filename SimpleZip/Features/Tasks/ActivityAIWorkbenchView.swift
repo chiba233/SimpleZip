@@ -272,7 +272,14 @@ struct ActivityAIWorkbenchView: View {
                             onApplyFilter(chip)
                         } label: {
                             HStack(spacing: 8) {
-                                Text(chipTitle(chip.id))
+                                // 真建议:AI 命名的聚集 chip(displayName)标 ✨ 并直接显示模型起的名字;
+                                // 写死 chip 仍走 L10n。
+                                if chip.displayName != nil {
+                                    Image(systemName: "sparkles")
+                                        .font(.caption2)
+                                        .foregroundStyle(.purple)
+                                }
+                                Text(chip.displayName ?? chipTitle(chip.id))
                                     .lineLimit(1)
                                 Spacer(minLength: 8)
                                 if let matches = factValue("matches", in: chip.facts) {

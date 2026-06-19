@@ -162,6 +162,16 @@ struct GeneratedChipRanking: Sendable {
     var orderedNumbers: [String]
 }
 
+/// **活动中心「真建议」聚集命名**模型产出(建议六 v2 真建议 chip)。App 已确定性发现真实失败聚集,模型只在这些
+/// 真实聚集上**择优 + 起自然语言名**(不发明聚集)。扁平单字段 [String](避嵌套 schema;短序号教训),每条
+/// "<编号>: <名字>" —— 编号引用候选列表,名字是界面语言的短标签。
+@available(macOS 26.0, *)
+@Generable
+struct GeneratedClusterNaming: Sendable {
+    @Guide(description: "The clusters worth showing, each as \"<number>: <name>\" — <number> is the cluster's number from the list, <name> is a SHORT, concrete natural-language label a user recognizes (in the UI language), e.g. \"Finder extractions that failed\". Include ONLY clusters genuinely worth showing; drop redundant or low-value ones. Use only numbers from the list; never invent one. At most 6 entries.")
+    var labeledClusters: [String]
+}
+
 /// **文本内真实 URL 打开建议**的模型产出。模型只能选 App 给的候选编号,不能输出 / 发明 URL。
 @available(macOS 26.0, *)
 @Generable
@@ -381,6 +391,40 @@ enum AIVirtualFolderModelPlanner {
         return generated.orderedNumbers
             .compactMap { firstInt(in: $0) }
             .filter { $0 >= 1 && $0 <= capped.count && seen.insert($0).inserted }
+    }
+
+    /// **活动中心「真建议」聚集命名/择优**(建议六 v2,拒绝假AI)。App 确定性发现的**真实失败聚集**(任意维度交叉)
+    /// 喂给模型 编号 + 维度描述 + 命中数;模型挑最值得展示的几个、用界面语言起短名字。返回 `[(候选编号, 名字)]`
+    /// (1-based 引用候选列表);编号越界 / 名字空 → 丢弃。**模型不发明聚集**(只在给定真实聚集里选 + 命名)。
+    static func nameWorkbenchClusters(candidates: [(facts: [String], matches: Int)]) async throws -> [(index: Int, name: String)] {
+        guard !candidates.isEmpty else { return [] }
+        let capped = Array(candidates.prefix(20))
+        let lang = AIReportAssistant.uiLanguageName
+        let instructions = """
+        LANGUAGE — MANDATORY: write the names in \(lang). You are labeling SUGGESTED FILTERS for a file-archive \
+        app's Activity Center. Each candidate is a REAL cluster of failed tasks the app already found by crossing \
+        source / type / diagnostic dimensions — you do NOT invent clusters, only label the ones given. Pick the few \
+        MOST worth showing and give each a SHORT, concrete name the user would recognize. Drop redundant or \
+        low-value ones. Refer to clusters by their NUMBER only; never invent a number.
+        """
+        var lines = ["Clusters (number<TAB>dimensions<TAB>matchCount):"]
+        for (i, c) in capped.enumerated() {
+            lines.append(["\(i + 1)", c.facts.joined(separator: "+"), "\(c.matches)"].joined(separator: "\t"))
+        }
+        let generated = try await AIReportAssistant.generateStructured(
+            instructions: instructions, prompt: lines.joined(separator: "\n"),
+            as: GeneratedClusterNaming.self, maxAttempts: 3)
+        var seen = Set<Int>()
+        var out: [(index: Int, name: String)] = []
+        for entry in generated.labeledClusters {
+            guard let n = firstInt(in: entry), n >= 1, n <= capped.count, seen.insert(n).inserted else { continue }
+            // "<编号>: <名字>" / "<编号>：<名字>" —— 取分隔符后的名字;无分隔或名字空则跳过(别把编号当名字)。
+            guard let sep = entry.range(of: ":") ?? entry.range(of: "：") else { continue }
+            let name = entry[sep.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !name.isEmpty else { continue }
+            out.append((n, name))
+        }
+        return out
     }
 
     /// **文件浏览器单文件抽屉**的模型驱动建议(②b/②c,拒绝假AI)。给一个具体文件(名字 + 角色 + 脱敏内容摘录 +

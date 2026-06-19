@@ -716,7 +716,34 @@ struct ActivityView: View {
         // 性能:工作台只喂前 N 个任务的 record(builder 候选上限 50;只 map 这些 → 切 pane 不再全量算
         // 500 个 aiTaskRecord 的脱敏+正则)。配合 aiTaskRecord 烘焙缓存,切 pane 的两个 O(N) 源都被限住。
         let base = ActivityAIWorkbenchBuilder.snapshot(records: Array(filteredTasksForWorkbench(in: category).prefix(80)).map(\.aiTaskRecord))
-        return applyAIChipRanking(to: base, category: category)
+        let ranked = applyAIChipRanking(to: base, category: category)
+        return applyAIClusterChips(to: ranked, category: category)
+    }
+
+    /// 建议六 v2「真建议」:把后台预烘焙的 AI 命名聚集 chip 叠加到「建议筛选」最前(模型命名的真实聚集),
+    /// 写死 chip 退到后面作兜底(filter 相同的去重 —— 同一筛选不重复冒)。只读缓存,不在前台跑发现 / 模型。
+    /// 无缓存 / AI 关 → 原样返回(纯写死 chip)。chip 携带 displayName(前台直接显示模型起的名字)。
+    private func applyAIClusterChips(to snapshot: ActivityAIWorkbenchSnapshot,
+                                     category: OperationTask.Category) -> ActivityAIWorkbenchSnapshot {
+        guard aiAssistantEnabled,
+              let cached = aiIndexStore.workbenchClusterChips(forCategory: category.rawValue),
+              !cached.chips.isEmpty else { return snapshot }
+        let aiChips = cached.chips.map { chip in
+            ActivityAIWorkbenchFilterChip(id: chip.id, filter: chip.filter,
+                                          facts: ["matches=\(chip.matchCount)"], displayName: chip.displayName)
+        }
+        let aiKeys = Set(aiChips.map { chipFilterKey($0.filter) })
+        let leftover = snapshot.filterChips.filter { !aiKeys.contains(chipFilterKey($0.filter)) }
+        let merged = aiChips + leftover
+        guard merged != snapshot.filterChips else { return snapshot }
+        return ActivityAIWorkbenchSnapshot(
+            schema: snapshot.schema, summary: snapshot.summary, cards: snapshot.cards,
+            filterChips: merged, omissions: snapshot.omissions)
+    }
+
+    /// 两个 chip 是否指向同一筛选(用于去重写死 chip 与 AI 聚集 chip)。
+    private func chipFilterKey(_ f: ActivityAIWorkbenchFilterSpec) -> String {
+        "\(f.status ?? "")|\(f.source ?? "")|\(f.kindTokens.sorted().joined(separator: "+"))|\(f.diagnosticTags.sorted().joined(separator: "+"))"
     }
 
     /// 建议六 v2 模块⑤:把后台预烘焙的 AI chip 排序套到确定性 snapshot 上 —— **指纹匹配当前 chip 池才套**(否则

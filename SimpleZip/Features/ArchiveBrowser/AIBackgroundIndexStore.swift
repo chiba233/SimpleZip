@@ -35,6 +35,20 @@ nonisolated struct CachedExplanation: Codable, Equatable, Sendable {
     let text: String
 }
 
+/// 建议六 v2「真建议」chip:模型在 App 确定性发现的**真实聚集**上择优+命名的产物。`displayName` = 模型起的
+/// 自然语言名;`filter` = 点它要应用的安全 filter(App 确定性匹配);后台预烘焙、幂等、前台只读。
+nonisolated struct CachedClusterChip: Codable, Equatable, Sendable {
+    let id: String
+    let displayName: String
+    let filter: ActivityAIWorkbenchFilterSpec
+    let matchCount: Int
+}
+
+nonisolated struct CachedClusterChips: Codable, Equatable, Sendable {
+    let fingerprint: String
+    let chips: [CachedClusterChip]
+}
+
 @MainActor
 final class AIBackgroundIndexStore: ObservableObject {
     static let shared = AIBackgroundIndexStore()
@@ -77,6 +91,9 @@ final class AIBackgroundIndexStore: ObservableObject {
     private(set) var workbenchFailureExplanationByTask: [String: CachedExplanation]
     /// 模块1 / ① 解读缓存世代(活动中心工作台据此 + objectWillChange 重算;不把字典设成 @Published)。
     private(set) var workbenchExplanationGeneration = 0
+    /// 建议六 v2「真建议」chip 缓存。key = 任务分类 rawValue;后台预烘焙、幂等(真实聚集指纹没变不重命名)、前台只读。
+    private(set) var workbenchClusterChipsByCategory: [String: CachedClusterChips]
+    private(set) var workbenchClusterChipsGeneration = 0
 
     private let defaults: UserDefaults
 
@@ -92,6 +109,7 @@ final class AIBackgroundIndexStore: ObservableObject {
             from: defaults, key: AppPreferences.Key.aiWorkbenchNeedsAttentionData)
         self.workbenchFailureExplanationByTask = AIBackgroundIndexStore.loadExplanations(
             from: defaults, key: AppPreferences.Key.aiWorkbenchFailureExplanationData)
+        self.workbenchClusterChipsByCategory = AIBackgroundIndexStore.loadClusterChips(from: defaults)
         rebuildPathIndex()   // init 里的 fileIndex 赋值不触发 didSet,手动建一次
     }
 
@@ -416,6 +434,21 @@ final class AIBackgroundIndexStore: ObservableObject {
         objectWillChange.send()
     }
 
+    /// 读某分类的「真建议」chip 缓存(后台预烘焙产物;前台只读)。
+    func workbenchClusterChips(forCategory category: String) -> CachedClusterChips? {
+        workbenchClusterChipsByCategory[category]
+    }
+
+    /// 后台 pass 写回某分类的「真建议」chip(模型命名的真实聚集 + 当时聚集指纹)。幂等由 pass 在调用前比指纹保证。
+    func applyWorkbenchClusterChips(category: String, fingerprint: String, chips: [CachedClusterChip]) {
+        let value = CachedClusterChips(fingerprint: fingerprint, chips: chips)
+        guard workbenchClusterChipsByCategory[category] != value else { return }
+        workbenchClusterChipsByCategory[category] = value
+        workbenchClusterChipsGeneration += 1
+        persistWorkbenchClusterChips()
+        objectWillChange.send()
+    }
+
     /// **文本 URL 打开建议**回填:URL 来自 App 从已脱敏预读文本正则抽取的真实 http(s) URL;模型只选编号。
     /// payload 保存真实 URL,label 保存展示名。没有模型选择就不调用本方法,保持空抽屉/无假建议。
     func applyURLOpenSuggestion(recordID: String, url: String, label: String?) {
@@ -472,12 +505,15 @@ final class AIBackgroundIndexStore: ObservableObject {
         workbenchNeedsAttentionByCategory = [:]
         workbenchFailureExplanationByTask = [:]
         workbenchExplanationGeneration += 1
+        workbenchClusterChipsByCategory = [:]
+        workbenchClusterChipsGeneration += 1
         persistIndex()
         persistFolderGroups()
         persistOrganize()
         persistWorkbenchChipRanking()
         persistWorkbenchNeedsAttention()
         persistWorkbenchFailureExplanation()
+        persistWorkbenchClusterChips()
         AIFeedbackStore.shared.clearAll()
         AIPendingCheckStore.shared.clearAll()
         objectWillChange.send()
@@ -537,6 +573,19 @@ final class AIBackgroundIndexStore: ObservableObject {
     private static func loadExplanations(from defaults: UserDefaults, key: String) -> [String: CachedExplanation] {
         guard let data = defaults.data(forKey: key),
               let decoded = try? JSONDecoder().decode([String: CachedExplanation].self, from: data)
+        else { return [:] }
+        return decoded
+    }
+
+    private func persistWorkbenchClusterChips() {
+        if let data = try? JSONEncoder().encode(workbenchClusterChipsByCategory) {
+            defaults.set(data, forKey: AppPreferences.Key.aiWorkbenchClusterChipsData)
+        }
+    }
+
+    private static func loadClusterChips(from defaults: UserDefaults) -> [String: CachedClusterChips] {
+        guard let data = defaults.data(forKey: AppPreferences.Key.aiWorkbenchClusterChipsData),
+              let decoded = try? JSONDecoder().decode([String: CachedClusterChips].self, from: data)
         else { return [:] }
         return decoded
     }

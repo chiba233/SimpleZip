@@ -148,12 +148,15 @@ nonisolated struct AIDevToolsPipelineProductCounts: Equatable, Sendable {
     let workbenchNeedsAttention: Int
     /// 建议六 v2 模块①:活动中心失败任务「失败解释」缓存数(已解释的失败任务条数)。
     let workbenchFailureExplanation: Int
+    /// 建议六 v2「真建议」:模型命名的真实聚集 chip 缓存数(各分类已命名 chip 总数)。
+    let workbenchClusterChips: Int
 
     init(summary: Int, openWith: Int, urlOpen: Int, install: Int, activity: Int,
          archiveEntry: Int, archiveKind: Int, folderGroup: Int, organize: Int,
          inspect: Int, test: Int, hash: Int, security: Int, compress: Int,
          convert: Int, inlineResult: Int, workbenchChipRanking: Int = 0,
-         workbenchNeedsAttention: Int = 0, workbenchFailureExplanation: Int = 0) {
+         workbenchNeedsAttention: Int = 0, workbenchFailureExplanation: Int = 0,
+         workbenchClusterChips: Int = 0) {
         self.summary = summary
         self.openWith = openWith
         self.urlOpen = urlOpen
@@ -173,6 +176,7 @@ nonisolated struct AIDevToolsPipelineProductCounts: Equatable, Sendable {
         self.workbenchChipRanking = workbenchChipRanking
         self.workbenchNeedsAttention = workbenchNeedsAttention
         self.workbenchFailureExplanation = workbenchFailureExplanation
+        self.workbenchClusterChips = workbenchClusterChips
     }
 }
 
@@ -203,7 +207,8 @@ nonisolated enum AIDevToolsPipelineCatalog {
             AIDevToolsPipelineRow(name: "内联结果", passName: nil, cachedProductCount: counts.inlineResult),
             AIDevToolsPipelineRow(name: "筛选排序", passName: "筛选排序", cachedProductCount: counts.workbenchChipRanking),
             AIDevToolsPipelineRow(name: "需要处理解读", passName: "需要处理解读", cachedProductCount: counts.workbenchNeedsAttention),
-            AIDevToolsPipelineRow(name: "失败解释", passName: "失败解释", cachedProductCount: counts.workbenchFailureExplanation)
+            AIDevToolsPipelineRow(name: "失败解释", passName: "失败解释", cachedProductCount: counts.workbenchFailureExplanation),
+            AIDevToolsPipelineRow(name: "真建议", passName: "真建议", cachedProductCount: counts.workbenchClusterChips)
         ]
     }
 }
