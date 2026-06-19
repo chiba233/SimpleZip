@@ -486,13 +486,16 @@ struct DevToolsView: View {
             aiSuggestionStatus = "摘要 \(s.summaryCount) · 打开方式 \(s.openWithCount) · 网页 \(s.urlOpenCount) · 装App \(s.installCount)"
                 + " · 活动 \(s.activityCount) · 包内 \(s.archiveEntryCount) · 包定性 \(s.archiveKindCount)"
                 + " · 文件组 \(s.folderGroupCount)"
-                // 主动工具(归档:检测 / 测试 / 哈希;文件:压缩 / 转换)—— 之前完全看不到,无从判断有没有冒出来。
-                + " · 检测 \(s.inspectCount) · 测试 \(s.testCount) · 哈希 \(s.hashCount)"
+                // 主动工具(归档:检测 / 测试 / 哈希 / 安全;文件:压缩 / 转换)—— 之前 security 完全没计数,看不出有没有冒出来。
+                + " · 检测 \(s.inspectCount) · 测试 \(s.testCount) · 哈希 \(s.hashCount) · 安全 \(s.securityCount)"
                 + " · 压缩 \(s.compressCount) · 转换 \(s.convertCount)"
             // #8 跨表面反馈学习:事件计数(原始保留 30 天 / 每类上限 1000)。
             let fb = AIFeedbackStore.shared.counts
             let pc = AIPendingCheckStore.shared.counts
+            // 自动检查(pending)**内联产出**逐行为计数 —— 区分「建议提了 inspect/security」vs「真跑出结果回填抽屉」。
+            // 之前只算 hash 还没显示;test/inspect/security 跑完写了 inlineResults 但面板看不到,故 inspect/security「完全不体现」。
             aiFeedbackStatus = "我不喜欢 \(fb.feedback) · 兴趣信号 \(fb.signals) · 自动检查 待\(pc.pending)/完\(pc.done)"
+                + " · 内联 哈希\(s.inlineHashResultCount) 测试\(s.inlineTestResultCount) 检测\(s.inlineInspectResultCount) 安全\(s.inlineSecurityResultCount)"
 
             // 后台运行 + 各档闸实时状态(直接回答「为啥都是 0」:哪一档 ✗ 就卡在哪)。
             let g = AIBackgroundIndexer.shared.gateDiag()
@@ -594,9 +597,13 @@ struct DevToolsView: View {
                 hashCount: countAction("hash"),
                 testCount: countAction("test"),
                 inspectCount: countAction("inspect"),
+                securityCount: countAction("security"),
                 compressCount: countAction("compress"),
                 convertCount: countAction("convert"),
                 inlineHashResultCount: countInlineResult("hash"),
+                inlineTestResultCount: countInlineResult("test"),
+                inlineInspectResultCount: countInlineResult("inspect"),
+                inlineSecurityResultCount: countInlineResult("security"),
                 activityLevel: AppPreferences.aiBackgroundActivityLevel.rawValue,
                 scopeCount: backgroundStore.scopes.count,
                 indexedFileCount: index.fileCount,
@@ -688,7 +695,7 @@ struct DevToolsView: View {
         }
         for (title, token) in [("打开方式", "openWith"), ("网页", "urlOpen"), ("装App", "dragToApplications"),
                                ("活动", "openTask"), ("包内", "revealArchiveEntry"), ("包定性", "archiveKind"),
-                               ("检测", "inspect"), ("测试", "test"), ("哈希", "hash"),
+                               ("检测", "inspect"), ("测试", "test"), ("哈希", "hash"), ("安全", "security"),
                                ("压缩", "compress"), ("转换", "convert")] {
             section("\(title) [\(token)]", records.filter { has(token, $0) }) {
                 "\(display($0)) · [\(actionsText($0))]\($0.contentSummary?.shortSummary.map { " · \"\($0)\"" } ?? "")"
@@ -858,9 +865,13 @@ private nonisolated struct DevToolsAIDataSnapshot: Encodable {
         let hashCount: Int
         let testCount: Int
         let inspectCount: Int
+        let securityCount: Int
         let compressCount: Int
         let convertCount: Int
         let inlineHashResultCount: Int
+        let inlineTestResultCount: Int
+        let inlineInspectResultCount: Int
+        let inlineSecurityResultCount: Int
         let activityLevel: String
         let scopeCount: Int
         let indexedFileCount: Int
