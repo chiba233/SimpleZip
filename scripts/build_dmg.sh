@@ -119,6 +119,19 @@ if [[ -n "${SIGN_IDENTITY:-}" ]]; then
     fi
   done < <(find "$APP_PATH/Contents/Resources" -type f -perm -u+x -print0)
 
+  # 独立 AI 进程改造:SimpleZipAIAgent helper 可执行在 Contents/MacOS(非 Resources、非标准嵌套 bundle),
+  # `--deep` 不保证签到 → 必须像 7zz/rar 一样**先逐个签**(--options runtime + --timestamp),否则公证因
+  # 「未签名 / 未 hardened」直接拒(SMAppService 还要求它和 App 同 Developer ID 身份 → 这里用同一 $SIGN_IDENTITY)。
+  AGENT_BIN="$APP_PATH/Contents/MacOS/SimpleZipAIAgent"
+  if [[ -f "$AGENT_BIN" ]]; then
+    echo "  signing embedded AI agent: ${AGENT_BIN#"$APP_PATH"/}"
+    codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$AGENT_BIN"
+    if ! codesign --display --verbose=4 "$AGENT_BIN" 2>&1 | grep -Eq 'flags=.*runtime'; then
+      echo "ERROR: hardened runtime flag missing after signing $AGENT_BIN" >&2
+      exit 1
+    fi
+  fi
+
   # --deep 处理 Sparkle.framework 及其内部 XPC / Autoupdate / Updater.app 等嵌套代码。
   codesign --force --options runtime --timestamp --deep --sign "$SIGN_IDENTITY" "$APP_PATH"
   codesign --verify --deep --strict --verbose=2 "$APP_PATH"
