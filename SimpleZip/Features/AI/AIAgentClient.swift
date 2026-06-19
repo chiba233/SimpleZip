@@ -21,11 +21,22 @@ enum AIAgentClient {
             reply("macOS < 13,SMAppService 不可用。")
             return
         }
-        // 1. 注册 LaunchAgent(已 enabled 则跳过)。register() 可能要求 helper 与 App 同签名身份、
-        //    且 App 不在 DerivedData 而在 /Applications —— 失败把人话原因回传,不崩。
-        // plistName 跟 machService 走构建配置:Debug → .dev.aiagent.plist(dev 专属),Release → 正式。
+        // 1. 注册 LaunchAgent。register() 可能要求 helper 与 App 同签名身份、且 App 不在 DerivedData 而在
+        //    /Applications —— 失败把人话原因回传,不崩。plistName 跟 machService 走构建配置:Debug → .dev.aiagent.plist。
+        //
+        // ⚠️ dev「重建不重注册」坑(实测 `job state = spawn failed`、`needs LWCR update`):每次 rebuild,agent 二进制 +
+        // 签名都变,但旧注册缓存的**代码要求(LWCR)/程序路径**不刷新 → launchd 拿旧 LWCR 校验新二进制失配 → spawn 失败、
+        // agent 起不来、XPC 无响应。光「status != .enabled 才注册」永远只注册第一次。**DEBUG 下先 unregister 清陈旧注册、
+        // 再强制 register 当前构建**,让 dev 探针跨 rebuild / 改名自愈;Release 不反复重建,保持「未注册才注册」。
         let service = SMAppService.agent(plistName: SimpleZipAIAgentXPCNames.machService + ".plist")
-        if service.status != .enabled {
+        let needsRegister: Bool
+        #if DEBUG
+        try? service.unregister()
+        needsRegister = true
+        #else
+        needsRegister = service.status != .enabled
+        #endif
+        if needsRegister {
             do {
                 try service.register()
             } catch {
