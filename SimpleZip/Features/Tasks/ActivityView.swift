@@ -398,6 +398,7 @@ struct ActivityView: View {
                             )
                             ForEach(waiting) { task in
                                 ActivityTaskCard(task: task, expandedTaskIDs: $expandedTaskIDs, onOpenAttachment: { restoredReport = $0 },
+                                                 cachedFailureExplanation: cachedFailureExplanation(for: task),
                                                  viewportHeight: taskListViewportHeight,
                                                  onBecameVisible: { taskCenter.markFailureSeen(task) },
                                                  isHighlighted: highlightedTaskID == task.id)
@@ -410,6 +411,7 @@ struct ActivityView: View {
                         }
                         ForEach(Array(rest.prefix(restLimit))) { task in
                             ActivityTaskCard(task: task, expandedTaskIDs: $expandedTaskIDs, onOpenAttachment: { restoredReport = $0 },
+                                                 cachedFailureExplanation: cachedFailureExplanation(for: task),
                                                  viewportHeight: taskListViewportHeight,
                                                  onBecameVisible: { taskCenter.markFailureSeen(task) },
                                                  isHighlighted: highlightedTaskID == task.id)
@@ -1437,6 +1439,8 @@ private struct ActivityTaskCard: View {
     @Binding var expandedTaskIDs: Set<UUID>
     /// 0.4.4:重启后报告从落盘附件重开(openReport 闭包只活一个会话)。
     var onOpenAttachment: ((TaskReportAttachment) -> Void)?
+    /// 后台预烘焙的失败解释缓存。nil = 没烤好 / 指纹不匹配,行内 AI 按钮不显示。
+    var cachedFailureExplanation: String?
     /// 0.4.4(用户反馈):失败红点「看到一个消一个」用的视口高度 + 进入视口回调。
     var viewportHeight: CGFloat = 0
     var onBecameVisible: (() -> Void)?
@@ -1469,7 +1473,7 @@ private struct ActivityTaskCard: View {
                         expandedTaskIDs.remove(task.id)
                     }
                 }
-            ), onOpenAttachment: onOpenAttachment)
+            ), onOpenAttachment: onOpenAttachment, cachedFailureExplanation: cachedFailureExplanation)
                 .padding(.horizontal, 20)
                 .padding(.vertical, 12)
                 .frame(maxWidth: .infinity, alignment: .leading)

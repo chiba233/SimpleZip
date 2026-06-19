@@ -14,14 +14,32 @@ struct AIAssistSheet: View {
     let title: String
     let subtitle: String
     let systemImage: String
-    /// 生成闭包:组装 prompt + 调 `AIReportAssistant.generate`(仅 macOS 26+,调用点已 isReady 守卫)。
+    /// 生成闭包:默认组装 prompt + 调 `AIReportAssistant.generate`；`initialText` 模式下只作为防御性 fallback。
     let produce: () async throws -> String
+    let allowsRegenerate: Bool
 
     @Environment(\.dismiss) private var dismiss
-    @State private var text = ""
-    @State private var isLoading = true
+    @State private var text: String
+    @State private var isLoading: Bool
     @State private var errorMessage: String?
     @State private var copied = false
+
+    init(
+        title: String,
+        subtitle: String,
+        systemImage: String,
+        initialText: String? = nil,
+        allowsRegenerate: Bool = true,
+        produce: @escaping () async throws -> String
+    ) {
+        self.title = title
+        self.subtitle = subtitle
+        self.systemImage = systemImage
+        self.produce = produce
+        self.allowsRegenerate = allowsRegenerate
+        _text = State(initialValue: initialText ?? "")
+        _isLoading = State(initialValue: initialText == nil)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -42,8 +60,10 @@ struct AIAssistSheet: View {
                         Label(copied ? L10n.text("diagnostics.copied") : L10n.text("button.copy"),
                               systemImage: copied ? "checkmark" : "doc.on.doc")
                     }
-                    Button { Task { await run() } } label: {
-                        Label(L10n.text("ai.regenerate"), systemImage: "arrow.clockwise")
+                    if allowsRegenerate {
+                        Button { Task { await run() } } label: {
+                            Label(L10n.text("ai.regenerate"), systemImage: "arrow.clockwise")
+                        }
                     }
                 }
                 Spacer()
@@ -55,7 +75,10 @@ struct AIAssistSheet: View {
             }
         }
         .frame(width: 580)
-        .task { await run() }
+        .task {
+            guard text.isEmpty, isLoading else { return }
+            await run()
+        }
     }
 
     @ViewBuilder

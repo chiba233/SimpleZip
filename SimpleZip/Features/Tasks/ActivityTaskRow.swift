@@ -18,6 +18,8 @@ struct ActivityTaskRow: View {
     @Binding var isShowingDetails: Bool
     /// 0.4.4:重启后报告从落盘附件重开(openReport 闭包只活一个会话,nil 时回退到这里)。
     var onOpenAttachment: ((TaskReportAttachment) -> Void)?
+    /// 后台预烘焙的失败解释缓存。nil = 没烤好 / 指纹不匹配,行内 AI 按钮不显示,避免前台实时生成。
+    var cachedFailureExplanation: String?
     /// 复制反馈文案（nil = 不显示）。0.4.2 用户报「复制命令也显示诊断信息已复制」—— 按按钮分流。
     @State private var copiedConfirmationText: String?
     /// 0.4.4(用户反馈):命令输出框按内容真实高度收缩、封顶 300pt(不再固定 300)。0 = 还没测到。
@@ -418,9 +420,10 @@ struct ActivityTaskRow: View {
                 .buttonStyle(.plain)
                 .help(L10n.text("button.resumeFromFailure"))
             }
-            // 0.4.4 D(macOS 26 AI):「解释失败」—— 仅 isReady 且任务失败时出现。读失败消息 + 命令输出,
-            // 出可编辑的大白话解释 + 建议;只读、不改任何任务状态、不进安全写入路径。
-            if case .failed(let failureMessage) = task.status, aiAssistantEnabled, AIReportAssistant.isReady {
+            // 0.4.4 D(macOS 26 AI):「解释失败」—— 只读后台预烘焙缓存,前台按钮绝不实时触发模型生成。
+            if case .failed(let failureMessage) = task.status,
+               aiAssistantEnabled,
+               let cachedFailureExplanation, !cachedFailureExplanation.isEmpty {
                 Button {
                     showsAIExplainFailure = true
                 } label: {
@@ -432,7 +435,8 @@ struct ActivityTaskRow: View {
                     AIAssistSheet(
                         title: L10n.text("ai.explainFailure.title"),
                         subtitle: task.title,
-                        systemImage: "sparkles"
+                        systemImage: "sparkles",
+                        initialText: cachedFailureExplanation
                     ) {
                         guard #available(macOS 26.0, *) else { throw AIAssistError(message: L10n.text("ai.unavailable.osTooOld")) }
                         let built = AIReportAssistant.failureExplanationPrompt(
