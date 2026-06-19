@@ -53,6 +53,7 @@ let package = Package(
                 "Core/AI/AIFileSystemFact.swift",
                 "Core/AI/AIFileMemoryIndex.swift",
                 "Core/AI/AIIndexMaintenance.swift",
+                "Core/AI/AIIndexerScan.swift",
                 "Core/AI/AIIntentRouter.swift",
                 "Core/AI/AIInteractionSignal.swift",
                 "Core/AI/AIInterventionGate.swift",
