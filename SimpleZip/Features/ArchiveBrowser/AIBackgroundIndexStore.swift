@@ -28,13 +28,11 @@ final class AIBackgroundIndexStore: ObservableObject {
     @Published private(set) var scopes: [AIArchivePrefetchScope]
     /// 持久文件预索引(体量可能大,不 `@Published`;变更后手动发 `objectWillChange`)。
     private(set) var fileIndex: AIFileMemoryIndex {
-        didSet {
-            fileIndexGeneration += 1
-            rebuildPathIndex()
-        }
+        // path→记录 缓存随索引变更重建(浏览器按 path O(1) 查建议)。
+        // 不再维护全局「文件索引世代」:文件表的 reload 指纹只看**当前可见行**的建议内容(见 FileTable.syncContent),
+        // 后台心跳每轮 ingest 重写 scope 元数据 / 给别处烤建议都不该 reload 用户正看的文件夹(否则闪烁,A17)。
+        didSet { rebuildPathIndex() }
     }
-    /// 文件索引内容世代。文件表把它纳入内容指纹,让按需回填能重建已展开抽屉。
-    private(set) var fileIndexGeneration = 0
 
     /// `path → 记录` 缓存(文件浏览器每行 O(1) 查模型建议用)。fileIndex 变更后由 `didSet` 自动重建。
     private var recordByPath: [String: AIFileMemoryRecord] = [:]

@@ -404,12 +404,22 @@ struct FileNSOutlineView: NSViewRepresentable {
             hasher.combine(configSignature)
             hasher.combine(AppPreferences.rowDensity.rawValue)
             hasher.combine(outlineView?.tableColumns.map { $0.identifier.rawValue }.joined(separator: ",") ?? "")
-            for item in model.displayedFileItems { hasher.combine(item.id) }
+            // 只把**当前可见行**的 AI 建议内容纳入指纹:后台给「白名单里没在看的文件」预烘焙建议、或心跳每轮
+            // 元数据重扫(ingest 重写 scope 记录)都不该 reload 用户正看的文件夹 —— 否则后台预烘焙期间视图反复
+            // reload → 闪烁 + enforceExpansion 反复回放折叠状态 + 打断双击/右键(reload 把行重建,点击落空)。
+            // 取代旧的全局 fileIndexGeneration(被 ingest 每轮 bump = 闪烁根因);只有可见行的建议真变了才翻指纹。
+            let aiStore = AIBackgroundIndexStore.shared
+            for item in model.displayedFileItems {
+                hasher.combine(item.id)
+                guard let summary = aiStore.record(forPath: item.url.path)?.contentSummary else { continue }
+                hasher.combine(summary.shortSummary ?? "")
+                for action in summary.suggestedActions { hasher.combine(action.token); hasher.combine(action.payload ?? "") }
+                for key in summary.inlineResults.keys.sorted() { hasher.combine(key); hasher.combine(summary.inlineResults[key] ?? "") }
+            }
             // 展开子级的内容世代：顶层没变、只有展开层内容变（refreshExpandedFolderChildren 换了新实例并
             // objectWillChange）时,靠它判定「内容变了」并 reload。故意不哈希注册表本身 —— 首次展开的懒登记
             // 会改注册表但行已画出,算进指纹会让展开后的下一次 updateNSView 误触发全表 reload（闪烁）。
             hasher.combine(model.expandedChildrenGeneration)
-            hasher.combine(AIBackgroundIndexStore.shared.fileIndexGeneration)
             hasher.combine(AIBackgroundIndexStore.shared.folderGroupsGeneration)
             for key in AIBackgroundIndexStore.shared.dislikedSuggestionKeys.sorted() { hasher.combine(key) }
             let contentSignature = hasher.finalize()
