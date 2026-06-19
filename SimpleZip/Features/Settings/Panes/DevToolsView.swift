@@ -572,7 +572,7 @@ struct DevToolsView: View {
         let index = backgroundStore.fileIndex
         let allTasks = TaskCenter.shared.active + TaskCenter.shared.history
         let taskRecords = allTasks.map(\.aiTaskRecord)
-        let workbench = ActivityAIWorkbenchBuilder.snapshot(records: taskRecords, now: Date())
+        let workbench = ActivityAIWorkbenchBuilder.snapshot(records: taskRecords)
         // AI 建议各 pass 的产物计数:看每个 pass 有没有生效。
         let records = index.records
         func countAction(_ token: String) -> Int {

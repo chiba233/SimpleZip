@@ -137,13 +137,11 @@ struct ActivityView: View {
     }
 
     private func tasks(in category: OperationTask.Category) -> [OperationTask] {
-        let all = (taskCenter.active + taskCenter.history).filter { $0.category == category }
-        // 建议六:主任务列表也走工作台同款 AI 排序(严重度 + recency,确定性不调模型)——"最值得先处理的在上面"。
-        // AI 助手关 → 回退原时间序(active 越新越上 + history);单条或空不必排。同分 AIRanker 按输入序稳定兜底。
-        guard aiAssistantEnabled, all.count > 1 else { return all }
-        let order = ActivityAIWorkbenchBuilder.rankTasks(all.map(\.aiTaskRecord), now: Date())
-        let rankByID = Dictionary(order.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { first, _ in first })
-        return all.sorted { (rankByID[$0.id.uuidString] ?? Int.max) < (rankByID[$1.id.uuidString] ?? Int.max) }
+        // ⚠️ render 热路径:本函数在一次 render 里被 taskCount / filteredTasks / 工作台多处反复调,
+        // 活动中心 running 进度每秒多帧。**绝不能在这里做 AI 排序**(每次都 map aiTaskRecord 脱敏+正则、
+        // 还要 parse 时间)——会严重卡顿。主列表保持轻量时间序(active 越新越上 + history)。
+        // 主列表 AI 排序若要做,必须 per-task 烘焙一次缓存(任务终态不变),不在 render 路径重算。
+        (taskCenter.active + taskCenter.history).filter { $0.category == category }
     }
 
     private var selectedPaneView: some View {
@@ -693,7 +691,7 @@ struct ActivityView: View {
     }
 
     private func activityAIWorkbenchSnapshot(for category: OperationTask.Category) -> ActivityAIWorkbenchSnapshot {
-        let base = ActivityAIWorkbenchBuilder.snapshot(records: filteredTasksForWorkbench(in: category).map(\.aiTaskRecord), now: Date())
+        let base = ActivityAIWorkbenchBuilder.snapshot(records: filteredTasksForWorkbench(in: category).map(\.aiTaskRecord))
         return applyAIChipRanking(to: base, category: category)
     }
 

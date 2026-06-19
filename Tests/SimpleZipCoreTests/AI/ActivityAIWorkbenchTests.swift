@@ -42,7 +42,7 @@ import Testing
             record("failed-seen", failureSeen: true),
             record("running", status: "running", failure: nil),
             record("ok", status: "succeeded", failure: nil)
-        ], now: now)
+        ])
 
         #expect(snapshot.schema == "simplezip.ai.activityWorkbench.v1")
         #expect(snapshot.summary.total == 4)
@@ -57,7 +57,7 @@ import Testing
             record("seen", failureSeen: true),
             record("unseen-new", failureSeen: false),
             record("unseen-old", failureSeen: false)
-        ], now: now)
+        ])
 
         let card = snapshot.cards.first { $0.kind == .needsAttention }
         #expect(card?.sourceRefs.map(\.id) == ["unseen-new", "unseen-old"])
@@ -70,7 +70,7 @@ import Testing
             record("cli-test", kind: "test", source: "cli", title: "Test release.7z",
                    failure: "ERROR: CRC Failed"),
             record("ok", status: "succeeded", failure: nil)
-        ], now: now)
+        ])
 
         #expect(snapshot.filterChips.map(\.id) == [
             "failed",
@@ -86,16 +86,16 @@ import Testing
     }
 
     @Test func emptySnapshotHasOnlyCurrentSummaryCard() {
-        let snapshot = ActivityAIWorkbenchBuilder.snapshot(records: [], now: now)
+        let snapshot = ActivityAIWorkbenchBuilder.snapshot(records: [])
 
         #expect(snapshot.summary.total == 0)
         #expect(snapshot.cards.map(\.kind) == [.currentListSummary])
         #expect(snapshot.filterChips.isEmpty)
     }
 
-    /// AIRanker 接入验证:任务列表按 严重度(在跑 > 未读失败 > 成功)+ recency(新 > 旧)可解释排序,
-    /// 替掉裸时间序。输入故意打乱,期望「需要处理」卡里未读失败按 新→旧。
-    @Test func taskListRankedBySeverityThenRecency() {
+    /// 默认排序确定性(不接 AI):running 置顶,其余按时间倒序(新→旧)。输入故意打乱,
+    /// 期望「需要处理」卡里未读失败按 新→旧(时间序)。
+    @Test func taskListSortsRunningFirstThenNewest() {
         func aged(_ id: String, status: String, seen: Bool, ageDays: Int) -> AITaskRecord {
             AITaskRecord.make(
                 id: id, category: "archive", kind: "extract", source: "app",
@@ -110,8 +110,8 @@ import Testing
             aged("ok", status: "succeeded", seen: false, ageDays: 0),
             aged("new-unseen", status: "failed", seen: false, ageDays: 0),
             aged("running", status: "running", seen: false, ageDays: 0)
-        ], now: now)
-        // running(5+recency) 最高、两个未读失败(4+recency)按 recency 排 new(+3) > old(+0.8)、succeeded 垫底。
+        ])
+        // running 置顶;其余按时间倒序,未读失败 new(刚刚) > old(10天前);succeeded 不进「需要处理」。
         let card = snapshot.cards.first { $0.kind == .needsAttention }
         #expect(card?.sourceRefs.map(\.id) == ["new-unseen", "old-unseen"])
     }
