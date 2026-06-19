@@ -28,18 +28,31 @@ final class AIBackgroundIndexer {
     /// 持续增长 = 视为空闲,正合「用户没在用 SimpleZip 时才跑模型」。
     private var lastInteractionDate = Date()
     private var interactionMonitor: Any?
-    /// DevTools 调试窗口:它内部的鼠标 / 键盘事件**不计入交互** —— 挂着 DevTools 复制信息 / debug 不该把正在观察的
-    /// 后台 AI pass 当成「用户在用 app」而停掉(用户实测尴尬点)。DevTools 开 / 关时设 / 清;其它窗口照常计交互。
-    weak var interactionExemptWindow: NSWindow?
+    /// DevTools 开着时**完全豁免交互门控** —— 挂着 DevTools debug / 复制信息绝不该被当成「用户在用 app」把正在观察的
+    /// 后台 AI pass 停掉(用户实测:干啥都归零)。**任何**事件、任何窗口,只要这面旗子立着就一律不计交互。
+    private(set) var devToolsInteractionExempt = false
 
     private init() {
         interactionMonitor = NSEvent.addLocalMonitorForEvents(
             matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown, .keyDown, .scrollWheel, .leftMouseDragged]
         ) { [weak self] event in
             guard let self else { return event }
-            if let exempt = self.interactionExemptWindow, event.window === exempt { return event }   // DevTools 内操作不算交互
+            if self.devToolsInteractionExempt { return event }   // DevTools 开着 = 完全豁免,任何交互一律不计
             self.lastInteractionDate = Date()
             return event
+        }
+    }
+
+    /// DevTools 调试开关:**开** → 完全豁免交互门控 + **立即视为空闲**(拨表到 1 小时前让模型档立刻满足)+ 立刻评一轮
+    /// (挂着 DevTools 观察后台 AI 真的在跑);**关** → 恢复正常交互计时(验证交互检测器是否真会把 AI 停下来)。
+    /// 由 DevTools 里的开关控制,关闭 DevTools 也强制复位为关(豁免不外泄)。
+    func setDevToolsExemption(_ on: Bool) {
+        devToolsInteractionExempt = on
+        if on {
+            lastInteractionDate = Date().addingTimeInterval(-3_600)
+            runIfEnabled()
+        } else {
+            lastInteractionDate = Date()
         }
     }
 
@@ -158,6 +171,7 @@ final class AIBackgroundIndexer {
         let canDeterministic: Bool
         let canModelWork: Bool
         let canDeepContext: Bool
+        let devToolsExempt: Bool
     }
     func gateDiag() -> GateDiag {
         let c = currentRuntimeContext()
@@ -172,7 +186,8 @@ final class AIBackgroundIndexer {
             modelAvailable: c.modelAvailable,
             canDeterministic: AIBackgroundSchedulingRules.canRunDeterministicIndexing(c),
             canModelWork: AIBackgroundSchedulingRules.canRunModelWork(c),
-            canDeepContext: AIBackgroundSchedulingRules.canRunDeepContext(c))
+            canDeepContext: AIBackgroundSchedulingRules.canRunDeepContext(c),
+            devToolsExempt: devToolsInteractionExempt)
     }
 
     /// 跑一轮预索引(门控未过则直接返回 —— 默认 opt-in 关闭即什么都不做)。完成后通知发现编排者刷新。

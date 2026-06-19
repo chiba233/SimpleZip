@@ -14,18 +14,11 @@ import AppKit
 import Combine
 import SwiftUI
 
-/// 把 DevTools 所在窗口注册为 AI 后台索引的「交互豁免窗口」——里面的点击 / 键盘不重置空闲计时,挂着 DevTools
-/// debug 时后台 pass 照常跑(用户实测:复制信息一点就被当成交互、把 AI 停了)。视图消失时由 `.onDisappear` 清除。
-private struct DevToolsInteractionExemption: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSView { NSView(frame: .zero) }
-    func updateNSView(_ nsView: NSView, context: Context) {
-        // updateNSView 在主线程随渲染(含每秒刷新)反复调 —— sheet 窗口挂上后这里就拿到并注册。
-        if let window = nsView.window { AIBackgroundIndexer.shared.interactionExemptWindow = window }
-    }
-}
-
 struct DevToolsView: View {
     let onClose: () -> Void
+    /// DevTools 调试开关:开 = 完全豁免交互门控(挂着 DevTools 观察后台 AI 真在跑);关 = 正常计交互(验证交互一动
+    /// AI 就停)。关闭 DevTools 强制复位。@State 随 sheet 重建归 false,与 indexer 旗一致。
+    @State private var aiInteractionExempt = false
 
     @State private var sevenZipVersion = "…"
     @State private var rarVersion = "…"
@@ -194,6 +187,17 @@ struct DevToolsView: View {
                         infoRow("magnifyingglass", L10n.text("devtools.aiData.spotlight"), aiSpotlightStatus)
                         infoRow("folder.badge.gearshape", L10n.text("devtools.aiData.backgroundIndex"), aiBackgroundIndexStatus)
                         infoRow("bolt.horizontal", "后台运行 / 门控", aiGateStatus)
+                        Toggle(isOn: $aiInteractionExempt) {
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text("豁免交互门控(调试)").font(.callout)
+                                Text("开 = 挂着 DevTools 也当成空闲,后台 AI 照跑(立即评一轮);关 = 正常计交互,验证「一动就停」。关 DevTools 自动复位。")
+                                    .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                        .toggleStyle(.switch)
+                        .onChange(of: aiInteractionExempt) { on in
+                            AIBackgroundIndexer.shared.setDevToolsExemption(on)
+                        }
                         diagRow("list.bullet.rectangle", "各管线候选诊断", aiPassDiagStatus)
                         diagRow("text.bubble", "AI 建议产物", aiSuggestionStatus)
                         infoRow("hand.thumbsdown", "AI 反馈学习", aiFeedbackStatus)
@@ -254,7 +258,6 @@ struct DevToolsView: View {
             }
         }
         .frame(width: 620)
-        .background(DevToolsInteractionExemption())   // DevTools 内操作不计入 AI 后台空闲门控(debug 不停 AI)
         .onAppear {
             Task { @MainActor in
                 sevenZipVersion = await ArchiveService.sevenZipVersion()
@@ -265,7 +268,10 @@ struct DevToolsView: View {
         .onReceive(aiDataRefreshTimer) { _ in
             loadAIDataSnapshot()
         }
-        .onDisappear { AIBackgroundIndexer.shared.interactionExemptWindow = nil }   // 关 DevTools 恢复正常交互计时
+        .onDisappear {
+            aiInteractionExempt = false
+            AIBackgroundIndexer.shared.setDevToolsExemption(false)   // 关 DevTools 强制复位,豁免不外泄
+        }
     }
 
     // MARK: - 行构件
@@ -498,6 +504,7 @@ struct DevToolsView: View {
             }
             let charge = g.isCharging.map { $0 ? "是" : "否" } ?? "无电池"
             aiGateStatus = "在跑\(yn(AIBackgroundIndexer.shared.isIndexerRunning)) 上轮\(rel(AIBackgroundIndexer.shared.lastFullRunAt))"
+                + (g.devToolsExempt ? " · 交互豁免✓" : "")
                 + " | 确定性\(yn(g.canDeterministic)) 模型\(yn(g.canModelWork)) 深档\(yn(g.canDeepContext))"
                 + " | 活跃\(g.appIsActive ? "是" : "否") 距交互\(g.secondsSinceLastInteraction)s 充电\(charge)"
                 + " 低电\(g.lowBattery ? "是" : "否") 省电\(g.powerSaverMode ? "是" : "否") 档\(g.activityLevel) 模型\(g.modelAvailable ? "就绪" : "无")"
