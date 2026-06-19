@@ -1099,6 +1099,7 @@
 "menu.newTab" = "新規タブ";
 "menu.newWindow" = "新規ウインドウ";
 "undo.action.move" = "移動";
+"undo.action.aiSuggestion" = "AI 提案";
 "undo.action.copy" = "コピー";
 "undo.action.rename" = "名前を変更";
 "file.newFolder" = "新規フォルダ";

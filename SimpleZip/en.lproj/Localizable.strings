@@ -2408,6 +2408,7 @@
 "menu.undoNamed" = "Undo %@";
 "menu.redoNamed" = "Redo %@";
 "undo.action.move" = "Move";
+"undo.action.aiSuggestion" = "AI Suggestion";
 "undo.action.copy" = "Copy";
 "undo.action.rename" = "Rename";
 "undo.action.delete" = "Delete";

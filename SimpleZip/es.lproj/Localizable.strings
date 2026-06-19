@@ -1099,6 +1099,7 @@
 "menu.newTab" = "Nueva pestaña";
 "menu.newWindow" = "Nueva ventana";
 "undo.action.move" = "Mover";
+"undo.action.aiSuggestion" = "sugerencia de IA";
 "undo.action.copy" = "Copiar";
 "undo.action.rename" = "Renombrar";
 "file.newFolder" = "Nueva carpeta";

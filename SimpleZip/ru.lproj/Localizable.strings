@@ -1099,6 +1099,7 @@
 "menu.newTab" = "Новая вкладка";
 "menu.newWindow" = "Новое окно";
 "undo.action.move" = "Перемещение";
+"undo.action.aiSuggestion" = "предложение ИИ";
 "undo.action.copy" = "Копирование";
 "undo.action.rename" = "Переименование";
 "file.newFolder" = "Новая папка";

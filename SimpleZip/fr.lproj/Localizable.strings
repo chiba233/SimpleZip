@@ -1099,6 +1099,7 @@
 "menu.newTab" = "Nouvel onglet";
 "menu.newWindow" = "Nouvelle fenêtre";
 "undo.action.move" = "Déplacer";
+"undo.action.aiSuggestion" = "suggestion IA";
 "undo.action.copy" = "Copier";
 "undo.action.rename" = "Renommer";
 "file.newFolder" = "Nouveau dossier";

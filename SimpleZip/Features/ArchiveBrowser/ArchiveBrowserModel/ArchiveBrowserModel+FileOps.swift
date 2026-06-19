@@ -254,12 +254,14 @@ extension ArchiveBrowserModel {
         }
     }
 
-    private func registerTransferUndo(_ pairs: [(URL, URL)], shouldMove: Bool) {
+    private func registerTransferUndo(_ pairs: [(URL, URL)], shouldMove: Bool, actionName: String? = nil) {
         guard !pairs.isEmpty else { return }
         if shouldMove {
-            registerMoveUndo(pairs.map { (from: $0.0, to: $0.1) }, actionName: L10n.text("undo.action.move"))
+            registerMoveUndo(pairs.map { (from: $0.0, to: $0.1) },
+                             actionName: actionName ?? L10n.text("undo.action.move"))
         } else {
-            registerCopyUndo(pairs.map { (source: $0.0, dest: $0.1) }, actionName: L10n.text("undo.action.copy"))
+            registerCopyUndo(pairs.map { (source: $0.0, dest: $0.1) },
+                             actionName: actionName ?? L10n.text("undo.action.copy"))
         }
     }
 
@@ -1265,9 +1267,10 @@ extension ArchiveBrowserModel {
         let priorGroupsByEvent = fileUndoManager.groupsByEvent
         fileUndoManager.groupsByEvent = false
         fileUndoManager.beginUndoGrouping()
-        registerOrganizeFolderUndo(target, actionName: L10n.text("file.newFolder"))
+        let undoActionName = L10n.text("undo.action.aiSuggestion")
+        registerOrganizeFolderUndo(target, actionName: undoActionName)
         let movable = members.filter { $0 != target.standardizedFileURL }
-        dropFileURLs(movable, to: target, shouldMove: true) { [weak self] in
+        dropFileURLs(movable, to: target, shouldMove: true, undoActionName: undoActionName) { [weak self] in
             guard let self else { return }
             self.fileUndoManager.endUndoGrouping()
             self.fileUndoManager.groupsByEvent = priorGroupsByEvent
@@ -1286,6 +1289,7 @@ extension ArchiveBrowserModel {
     /// `completion` 在转移任务收尾后(成功 / 取消 / 失败任一)在主线程回调一次 —— 给「装 App:复制完卸载源 DMG」
     /// 这类需要在复制结束后做收尾的调用方用。默认 nil,现有拖放调用点行为不变。
     func dropFileURLs(_ urls: [URL], to destinationFolder: URL, shouldMove: Bool,
+                      undoActionName: String? = nil,
                       completion: (() -> Void)? = nil) {
         guard !urls.isEmpty else { completion?(); return }
         let operationTask = beginFileTask(
@@ -1307,7 +1311,7 @@ extension ArchiveBrowserModel {
             var skippedCount = 0
             var sameHashSkips = 0
             defer {
-                registerTransferUndo(undoPairs, shouldMove: shouldMove)
+                registerTransferUndo(undoPairs, shouldMove: shouldMove, actionName: undoActionName)
                 completion?()
             }
 

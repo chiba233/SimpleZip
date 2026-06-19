@@ -1099,6 +1099,7 @@
 "menu.newTab" = "新增標籤頁";
 "menu.newWindow" = "新增視窗";
 "undo.action.move" = "移動";
+"undo.action.aiSuggestion" = "AI 建議";
 "undo.action.copy" = "複製";
 "undo.action.rename" = "重新命名";
 "file.newFolder" = "新增資料夾";

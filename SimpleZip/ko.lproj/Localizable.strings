@@ -1099,6 +1099,7 @@
 "menu.newTab" = "새 탭";
 "menu.newWindow" = "새 창";
 "undo.action.move" = "이동";
+"undo.action.aiSuggestion" = "AI 제안";
 "undo.action.copy" = "복사";
 "undo.action.rename" = "이름 변경";
 "file.newFolder" = "새 폴더";

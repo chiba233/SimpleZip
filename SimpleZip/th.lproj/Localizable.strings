@@ -1099,6 +1099,7 @@
 "menu.newTab" = "แท็บใหม่";
 "menu.newWindow" = "หน้าต่างใหม่";
 "undo.action.move" = "ย้าย";
+"undo.action.aiSuggestion" = "คำแนะนำ AI";
 "undo.action.copy" = "คัดลอก";
 "undo.action.rename" = "เปลี่ยนชื่อ";
 "file.newFolder" = "โฟลเดอร์ใหม่";

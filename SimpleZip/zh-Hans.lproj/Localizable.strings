@@ -2408,6 +2408,7 @@
 "menu.undoNamed" = "撤销 %@";
 "menu.redoNamed" = "重做 %@";
 "undo.action.move" = "移动";
+"undo.action.aiSuggestion" = "AI建议";
 "undo.action.copy" = "复制";
 "undo.action.rename" = "重命名";
 "undo.action.delete" = "删除";
