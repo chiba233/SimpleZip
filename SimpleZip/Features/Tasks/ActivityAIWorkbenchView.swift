@@ -9,6 +9,16 @@
 
 import SwiftUI
 
+/// 建议六 v2 模块①「失败解释」的焦点数据。`deterministicSummary` 永远在(脱敏诊断文案,确定性 fallback);
+/// `aiExplanation` 模型可用且生成成功时才有;`canOpenFull` 决定是否显示「打开完整 AI 解释」按钮。
+/// taskTitle 只在侧栏显示(用户在卡片里本就看得到),**不喂给模型**。
+struct ActivityWorkbenchFailureFocus: Equatable {
+    let taskTitle: String
+    let deterministicSummary: String
+    let aiExplanation: String?
+    let canOpenFull: Bool
+}
+
 struct ActivityAIWorkbenchView: View {
     let snapshot: ActivityAIWorkbenchSnapshot
     /// 自然语言筛选输入(从工具栏挪进侧栏)。回车 / 点按 → `onRunQuery`,由父级走 AI 抽条件并应用。
@@ -20,10 +30,14 @@ struct ActivityAIWorkbenchView: View {
     /// 建议六 v2:端上模型对「需要处理」卡写的一段解读(现在最值得先处理什么 + 为什么)。nil = 模型不可用 / 没失败 /
     /// 还没生成 → 卡片退回确定性计数文案。
     let aiExplanation: String?
+    /// 建议六 v2 模块①:用户展开某个失败任务时的「失败解释」焦点。nil = 没有展开的失败任务 → 不显示该区。
+    let failureFocus: ActivityWorkbenchFailureFocus?
     let onRunQuery: () -> Void
     let onClearFilter: () -> Void
     let onApplyFilter: (ActivityAIWorkbenchFilterChip) -> Void
     let onOpenTask: (String) -> Void
+    /// 模块①:「打开完整 AI 解释」→ 父级用焦点失败任务弹现成的 per-task `AIAssistSheet`(完整解释)。
+    let onOpenFullFailureExplanation: () -> Void
     let onClose: () -> Void
 
     var body: some View {
@@ -34,6 +48,7 @@ struct ActivityAIWorkbenchView: View {
                 searchSection
                 currentSummary
                 needsAttention
+                failureExplanation
                 suggestedFilters
             }
             .padding(.horizontal, 14)
@@ -147,6 +162,38 @@ struct ActivityAIWorkbenchView: View {
                         onOpenTask(first.id)
                     } label: {
                         Label(L10n.text("tasks.aiWorkbench.openFirst"), systemImage: "arrow.forward.circle")
+                    }
+                    .controlSize(.small)
+                }
+            }
+        }
+    }
+
+    /// 建议六 v2 模块①「失败解释」:用户展开某个失败任务时,侧栏给一段短解释(模型可用→✨ 解读,否则脱敏诊断兜底)
+    /// + 「打开完整 AI 解释」按钮(复用现成 per-task `AIAssistSheet`)。没有焦点失败任务时整区不渲染。
+    @ViewBuilder
+    private var failureExplanation: some View {
+        if let focus = failureFocus {
+            workbenchSection(title: L10n.text("tasks.aiWorkbench.failureExplanation"), systemImage: "stethoscope") {
+                Text(focus.taskTitle)
+                    .font(.caption.weight(.medium))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .foregroundStyle(.secondary)
+                if let ai = focus.aiExplanation, !ai.isEmpty {
+                    Label(ai, systemImage: "sparkles")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    Text(focus.deterministicSummary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if focus.canOpenFull {
+                    Button(action: onOpenFullFailureExplanation) {
+                        Label(L10n.text("tasks.aiWorkbench.openFullExplanation"), systemImage: "sparkles")
                     }
                     .controlSize(.small)
                 }

@@ -1367,6 +1367,9 @@
 "tasks.aiWorkbench.chip.compressionFailures" = "压缩失败";
 "tasks.aiWorkbench.chip.conversionFailures" = "转换失败";
 "tasks.aiWorkbench.chip.automationFailures" = "自动化失败";
+"tasks.aiWorkbench.failureExplanation" = "失败解释";
+"tasks.aiWorkbench.failureExplanation.fallback" = "该任务失败 —— 展开卡片查看详情。";
+"tasks.aiWorkbench.openFullExplanation" = "打开完整 AI 解释";
 "ai.suggestLabels" = "建议标签";
 "ai.suggestLabels.title" = "AI 建议标签";
 "ai.summarizeRisk.title" = "AI 风险总结";

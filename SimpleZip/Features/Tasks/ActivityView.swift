@@ -71,6 +71,10 @@ struct ActivityView: View {
     private let aiWorkbenchWidthRange: ClosedRange<Double> = 200...560
     /// 建议六 v2:端上模型对「需要处理」卡的解读(后台生成,按未读失败集指纹刷新;模型不可用 / 无失败 → nil 退回确定性)。
     @State private var aiWorkbenchExplanation: String?
+    /// 建议六 v2 模块①:端上模型对「当前展开的失败任务」的短解释(按焦点失败任务 id 刷新;无 / 不可用 / 失败 → nil 退回脱敏摘要)。
+    @State private var workbenchFailureExplanation: String?
+    /// 模块①:「打开完整 AI 解释」弹现成 per-task `AIAssistSheet`(完整解释)。
+    @State private var showsWorkbenchFailureSheet = false
 
     // 弃用 NavigationSplitView（详见 SettingsView 同款注释）：普通 HStack + 绝对定宽侧栏，
     // 物理上没有把手、没有折叠、没有持久化；毛玻璃用 SidebarBackdrop 补回。
@@ -256,16 +260,26 @@ struct ActivityView: View {
                                 queryError: aiFilterError,
                                 activeFilterSummary: aiFilterActive ? activeFilterSummary : nil,
                                 aiExplanation: aiWorkbenchExplanation,
+                                failureFocus: workbenchFailureFocus(in: category),
                                 onRunQuery: { Task { await runAIFilter() } },
                                 onClearFilter: clearAIFilter,
                                 onApplyFilter: applyAIWorkbenchFilter,
                                 onOpenTask: openWorkbenchTask,
+                                onOpenFullFailureExplanation: { showsWorkbenchFailureSheet = true },
                                 onClose: { showsActivityAIWorkbench = false }
                             )
                             .frame(width: CGFloat(aiWorkbenchWidth))
                             // 建议六 v2:未读失败集变化才重生成解读(确定性指纹;不每次任务变动都跑模型)。
                             .task(id: workbenchFailureFingerprint(for: category)) {
                                 await refreshWorkbenchExplanation(for: category)
+                            }
+                            // 建议六 v2 模块①:焦点失败任务(展开的失败任务)变化时,局部重生成短解释。
+                            .task(id: focusedWorkbenchFailureID(in: category)) {
+                                await refreshFocusedFailureExplanation(for: category)
+                            }
+                            // 模块①:「打开完整 AI 解释」→ 复用现成 per-task AIAssistSheet + failureExplanationPrompt(完整解释,只读)。
+                            .sheet(isPresented: $showsWorkbenchFailureSheet) {
+                                workbenchFailureSheet(for: category)
                             }
                         }
                     }
@@ -723,6 +737,83 @@ struct ActivityView: View {
             if !text.isEmpty { aiWorkbenchExplanation = text }
         } catch {
             // 模型失败 → 保持现状(View 退回确定性文案),不报错打扰用户。
+        }
+    }
+
+    /// 建议六 v2 模块①:当前「焦点失败任务」= 当前分类里被**展开**的失败任务中最新的一个(展开 = 用户正在看它,
+    /// 复用现有交互,不给卡片加新选择 UI)。没有展开的失败任务 → nil。
+    private func focusedWorkbenchFailure(in category: OperationTask.Category) -> OperationTask? {
+        filteredTasksForWorkbench(in: category)
+            .filter { task in
+                guard expandedTaskIDs.contains(task.id) else { return false }
+                if case .failed = task.status { return true }
+                return false
+            }
+            .max { ($0.finishedAt ?? $0.startedAt) < ($1.finishedAt ?? $1.startedAt) }
+    }
+
+    /// 模块①的 `.task(id:)` 触发指纹:焦点失败任务 id(无 → "");只在焦点变化时局部重生成短解释。
+    private func focusedWorkbenchFailureID(in category: OperationTask.Category) -> String {
+        guard aiAssistantEnabled else { return "" }
+        return focusedWorkbenchFailure(in: category)?.id.uuidString ?? ""
+    }
+
+    /// 模块①:给工作台侧栏的失败解释焦点数据(确定性脱敏摘要永远在 + 模型短解释 + 是否能打开完整解释)。
+    private func workbenchFailureFocus(in category: OperationTask.Category) -> ActivityWorkbenchFailureFocus? {
+        guard aiAssistantEnabled, let task = focusedWorkbenchFailure(in: category) else { return nil }
+        let canOpenFull: Bool
+        if #available(macOS 26.0, *) { canOpenFull = AIReportAssistant.isReady } else { canOpenFull = false }
+        return ActivityWorkbenchFailureFocus(
+            taskTitle: task.title,
+            deterministicSummary: deterministicFailureSummary(for: task.aiTaskRecord),
+            aiExplanation: workbenchFailureExplanation,
+            canOpenFull: canOpenFull)
+    }
+
+    /// 确定性失败摘要(模块①的 fallback):优先脱敏失败消息,其次诊断标签,再不济通用文案。**全部已脱敏,无原始路径。**
+    private func deterministicFailureSummary(for record: AITaskRecord) -> String {
+        if let message = record.diagnostics.failureMessage, !message.isEmpty { return message }
+        if !record.diagnostics.tags.isEmpty { return record.diagnostics.tags.joined(separator: ", ") }
+        return L10n.text("tasks.aiWorkbench.failureExplanation.fallback")
+    }
+
+    /// 模块①:后台让端上模型给焦点失败任务写一段短解释。门控同 needsAttention(AI 助手开 + macOS26 + 模型就绪);
+    /// **只喂脱敏诊断(类型 / 来源 / 标签 / 脱敏消息 / 脱敏错误行),不含原始标题 / 路径**;经 `AIReportAssistant.generate`
+    /// 走全局串行闸。失败 / 不可用 / 无焦点 → 置 nil,View 退回确定性脱敏摘要。
+    @MainActor
+    private func refreshFocusedFailureExplanation(for category: OperationTask.Category) async {
+        workbenchFailureExplanation = nil
+        guard aiAssistantEnabled, #available(macOS 26.0, *), AIReportAssistant.isReady,
+              let task = focusedWorkbenchFailure(in: category) else { return }
+        let diag = task.aiTaskRecord.diagnostics
+        let record = task.aiTaskRecord
+        do {
+            let text = try await AIVirtualFolderModelPlanner.taskFailureShortExplanation(
+                kind: record.kind, source: record.source, tags: diag.tags,
+                failureMessage: diag.failureMessage, errorLines: diag.errorLines)
+            if !text.isEmpty { workbenchFailureExplanation = text }
+        } catch {
+            // 模型失败 → 保持 nil(View 退回确定性脱敏摘要),不打扰用户。
+        }
+    }
+
+    /// 模块①:「打开完整 AI 解释」弹的 sheet —— 复用现成 per-task `AIAssistSheet` + `failureExplanationPrompt`(完整解释,
+    /// 只读,与卡片上的「解释失败」按钮同一条路径)。焦点失败任务在 sheet 打开期间用其实时态读 rawOutput。
+    @ViewBuilder
+    private func workbenchFailureSheet(for category: OperationTask.Category) -> some View {
+        if let task = focusedWorkbenchFailure(in: category), case .failed(let message) = task.status {
+            AIAssistSheet(
+                title: L10n.text("ai.explainFailure.title"),
+                subtitle: task.title,
+                systemImage: "sparkles"
+            ) {
+                guard #available(macOS 26.0, *) else { throw AIAssistError(message: L10n.text("ai.unavailable.osTooOld")) }
+                let built = AIReportAssistant.failureExplanationPrompt(
+                    taskTitle: task.title,
+                    failureMessage: message,
+                    output: task.detailsSession?.rawOutput)
+                return try await AIReportAssistant.generate(instructions: built.instructions, prompt: built.prompt)
+            }
         }
     }
 

@@ -1369,6 +1369,9 @@
 "tasks.aiWorkbench.chip.compressionFailures" = "Compression failures";
 "tasks.aiWorkbench.chip.conversionFailures" = "Conversion failures";
 "tasks.aiWorkbench.chip.automationFailures" = "Automation failures";
+"tasks.aiWorkbench.failureExplanation" = "Failure explanation";
+"tasks.aiWorkbench.failureExplanation.fallback" = "This task failed — expand the card for details.";
+"tasks.aiWorkbench.openFullExplanation" = "Open full AI explanation";
 "ai.suggestLabels" = "Suggest Labels";
 "ai.suggestLabels.title" = "AI Suggested Labels";
 "ai.summarizeRisk.title" = "AI Risk Summary";

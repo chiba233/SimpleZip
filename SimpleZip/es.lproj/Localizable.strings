@@ -2379,6 +2379,9 @@
 "tasks.aiWorkbench.chip.compressionFailures" = "Errores de compresión";
 "tasks.aiWorkbench.chip.conversionFailures" = "Errores de conversión";
 "tasks.aiWorkbench.chip.automationFailures" = "Errores de automatización";
+"tasks.aiWorkbench.failureExplanation" = "Explicación del fallo";
+"tasks.aiWorkbench.failureExplanation.fallback" = "Esta tarea falló: amplía la tarjeta para ver los detalles.";
+"tasks.aiWorkbench.openFullExplanation" = "Abrir explicación completa de IA";
 "ai.suggestLabels" = "Sugerir etiquetas";
 "ai.suggestLabels.title" = "Etiquetas sugeridas por IA";
 "ai.summarizeRisk.title" = "Resumen de riesgo con IA";

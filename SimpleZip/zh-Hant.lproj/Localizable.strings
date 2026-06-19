@@ -2381,6 +2381,9 @@
 "tasks.aiWorkbench.chip.compressionFailures" = "壓縮失敗";
 "tasks.aiWorkbench.chip.conversionFailures" = "轉換失敗";
 "tasks.aiWorkbench.chip.automationFailures" = "自動化失敗";
+"tasks.aiWorkbench.failureExplanation" = "失敗解釋";
+"tasks.aiWorkbench.failureExplanation.fallback" = "此任務失敗 —— 展開卡片查看詳情。";
+"tasks.aiWorkbench.openFullExplanation" = "開啟完整 AI 解釋";
 "ai.suggestLabels" = "建議標籤";
 "ai.suggestLabels.title" = "AI 建議標籤";
 "ai.summarizeRisk.title" = "AI 風險總結";

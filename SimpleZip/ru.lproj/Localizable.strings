@@ -2379,6 +2379,9 @@
 "tasks.aiWorkbench.chip.compressionFailures" = "Ошибки сжатия";
 "tasks.aiWorkbench.chip.conversionFailures" = "Ошибки преобразования";
 "tasks.aiWorkbench.chip.automationFailures" = "Ошибки автоматизации";
+"tasks.aiWorkbench.failureExplanation" = "Объяснение ошибки";
+"tasks.aiWorkbench.failureExplanation.fallback" = "Эта задача завершилась с ошибкой — разверните карточку для подробностей.";
+"tasks.aiWorkbench.openFullExplanation" = "Открыть полное объяснение ИИ";
 "ai.suggestLabels" = "Предложить метки";
 "ai.suggestLabels.title" = "Метки, предложенные ИИ";
 "ai.summarizeRisk.title" = "Сводка рисков ИИ";

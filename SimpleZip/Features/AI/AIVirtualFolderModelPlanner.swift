@@ -320,6 +320,32 @@ enum AIVirtualFolderModelPlanner {
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    /// **活动中心 AI 工作台「失败解释」模块**(建议六 v2 模块①,拒绝假AI)。用户展开某个失败任务时,喂它**已脱敏**的
+    /// 类型 / 来源 / 诊断标签 / 失败消息 / 错误行(`AITaskRecord` 里都过了 `AISensitiveRedactor`,**不含原始路径**)→
+    /// 端上模型用界面语言写 1-2 句「大概哪里出错、该看什么」。确定性脱敏摘要永远是 fallback;模型不可用 / 失败 / 空返 →
+    /// 调用点退回脱敏摘要。**完整解释**走现成的 per-task `AIAssistSheet`(`failureExplanationPrompt`),不在这里。
+    static func taskFailureShortExplanation(kind: String, source: String, tags: [String],
+                                            failureMessage: String?, errorLines: [String]) async throws -> String {
+        let lang = AIReportAssistant.uiLanguageName
+        let instructions = """
+        LANGUAGE — MANDATORY: write in \(lang). You are the AI panel inside a file-archive app's Activity Center. \
+        A task FAILED and the user just opened it. Given the task type, source, diagnostic tags and a redacted \
+        failure message / error lines (already stripped of file paths), write ONE or TWO short sentences in plain \
+        language: what most likely went wrong and what to check or try next. Be specific to the diagnostics given; \
+        never invent details; do not repeat the raw error verbatim; at most 2 sentences.
+        """
+        var lines = ["Failed task — type: \(kind), source: \(source), tags: \(tags.isEmpty ? "none" : tags.joined(separator: "+"))"]
+        if let failureMessage, !failureMessage.isEmpty {
+            lines.append("Redacted failure message: \(failureMessage)")
+        }
+        if !errorLines.isEmpty {
+            lines.append("Redacted error lines:")
+            lines.append(contentsOf: errorLines.prefix(6))
+        }
+        return try await AIReportAssistant.generate(instructions: instructions, prompt: lines.joined(separator: "\n"))
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     /// **文件浏览器单文件抽屉**的模型驱动建议(②b/②c,拒绝假AI)。给一个具体文件(名字 + 角色 + 脱敏内容摘录 +
     /// 结构信号)让端上模型出**一句话摘要 + 几个建议动作 token**。摘要给人看(强制界面语言);动作只能从词表里挑、
     /// 且必须适用该 kind,App 据 token + 路径安全合成动作(模型不拼路径)。失败抛出由调用点吞掉。
