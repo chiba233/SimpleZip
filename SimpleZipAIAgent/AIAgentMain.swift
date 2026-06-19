@@ -21,6 +21,21 @@ import FoundationModels
 @main
 struct AIAgentMain {
     static func main() {
+        // `--probe`:直接在本(独立)进程跑一次模型探针后退出 —— 绕开 SMAppService/launchd/XPC,
+        // 单独回答 Step 0 的地基问题「端上模型能否在非 App 的独立进程里跑」。便于命令行直接验证:
+        //   .../Contents/MacOS/SimpleZipAIAgent --probe
+        if CommandLine.arguments.contains("--probe") {
+            let sema = DispatchSemaphore(value: 0)
+            Task {
+                let result = await AIAgentService.probeText()
+                agentLog("DIRECT PROBE → \(result)")
+                print(result)
+                sema.signal()
+            }
+            sema.wait()
+            return
+        }
+        // 默认:起绑定到约定 Mach service 名的 NSXPCListener,长驻等 App / launchd 连接。
         let delegate = AIAgentListenerDelegate()
         let listener = NSXPCListener(machServiceName: SimpleZipAIAgentXPCNames.machService)
         listener.delegate = delegate
@@ -44,19 +59,18 @@ final class AIAgentListenerDelegate: NSObject, NSXPCListenerDelegate {
 /// XPC 服务实现。Step 0 只有探针。
 final class AIAgentService: NSObject, SimpleZipAIAgentXPC {
     func probeModel(reply: @escaping (String) -> Void) {
-        if #available(macOS 26.0, *) {
-            Task {
-                let result = await AIAgentService.runProbe()
-                agentLog("probeModel → \(result)")
-                reply(result)
-            }
-        } else {
-            reply("macOS < 26 — 本进程 OS 版本不够,FoundationModels 不可用。")
+        Task {
+            let result = await AIAgentService.probeText()
+            agentLog("probeModel → \(result)")
+            reply(result)
         }
     }
 
-    @available(macOS 26.0, *)
-    private static func runProbe() async -> String {
+    /// 在本(独立)进程跑一次端上模型最小生成,回人话结果。`--probe` 与 XPC `probeModel` 共用。
+    static func probeText() async -> String {
+        guard #available(macOS 26.0, *) else {
+            return "macOS < 26 — 本进程 OS 版本不够,FoundationModels 不可用。"
+        }
         #if canImport(FoundationModels)
         let model = SystemLanguageModel.default
         switch model.availability {
