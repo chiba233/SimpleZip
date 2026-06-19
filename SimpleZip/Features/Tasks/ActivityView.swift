@@ -901,8 +901,8 @@ struct ActivityView: View {
         return L10n.text("tasks.aiWorkbench.failureExplanation.fallback")
     }
 
-    /// 模块①:「打开完整 AI 解释」弹的 sheet —— 复用现成 per-task `AIAssistSheet` + `failureExplanationPrompt`(完整解释,
-    /// 只读,与卡片上的「解释失败」按钮同一条路径)。焦点失败任务在 sheet 打开期间用其实时态读 rawOutput。
+    /// 模块①:「打开完整 AI 解释」弹的 sheet。**优先后台预烘焙的缓存**(失败解释 pass 已烤好就直接显示,绝不
+    /// 再实时跑模型 —— 工作台 AI 全靠后台缓存、前台只读);只有缓存没命中(还没烤到)才 fallback 实时生成完整解释。
     @ViewBuilder
     private func workbenchFailureSheet(for category: OperationTask.Category) -> some View {
         if let task = focusedWorkbenchFailure(in: category), case .failed(let message) = task.status {
@@ -911,6 +911,10 @@ struct ActivityView: View {
                 subtitle: task.title,
                 systemImage: "sparkles"
             ) {
+                // 后台已烤好 → 直接拿缓存,不实时生成。
+                if let cached = cachedFailureExplanation(for: task), !cached.isEmpty {
+                    return cached
+                }
                 guard #available(macOS 26.0, *) else { throw AIAssistError(message: L10n.text("ai.unavailable.osTooOld")) }
                 let built = AIReportAssistant.failureExplanationPrompt(
                     taskTitle: task.title,

@@ -227,6 +227,15 @@ struct DevToolsView: View {
                         ) {
                             copyAISuggestionDetail()
                         }
+                        // 工作台四 pass(筛选排序 / 需要处理解读 / 失败解释 / 真建议)的完整后台缓存 —— 排查
+                        // 「DevTools 说有产物、工作台 UI 却没显示」到底差在哪(指纹不匹配 / category 错位 / 文案空)。
+                        actionRow(
+                            "rectangle.3.group.bubble",
+                            "复制工作台 AI 数据(四 pass 完整缓存)",
+                            "导出筛选排序 / 需要处理解读 / 失败解释 / 真建议四个 pass 的完整后台缓存(指纹 + 文案 + chip 命名 + filter),逐条排查为何 UI 没显示。"
+                        ) {
+                            copyWorkbenchAIDetail()
+                        }
                         // Spotlight 全量捐献集复制(每条 item 的标识/标题/关键字)——隐藏调试区,中文硬编码。
                         actionRow(
                             "magnifyingglass.circle",
@@ -648,6 +657,37 @@ struct DevToolsView: View {
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(text, forType: .string)
             flash("已复制 AI 建议明细(全分类)")
+        }
+    }
+
+    /// 工作台四 pass 完整缓存复制(隐藏调试区,中文硬编码):筛选排序 / 需要处理解读 / 失败解释 / 真建议的
+    /// 后台缓存原文(指纹 + 文案 + chip 命名 + filter)。排查「DevTools 有产物、工作台 UI 没显示」差在哪。
+    private func copyWorkbenchAIDetail() {
+        Task { @MainActor in
+            let store = AIBackgroundIndexStore.shared
+            var out: [String] = ["# 工作台 AI 四 pass 缓存  生成于 \(Date())"]
+            out.append("\n## 筛选排序(chip ranking,by category)  共 \(store.workbenchChipRankingByCategory.count) 分类")
+            for (cat, r) in store.workbenchChipRankingByCategory.sorted(by: { $0.key < $1.key }) {
+                out.append("[\(cat)] fp=\(r.fingerprint)\n  ordered=\(r.orderedIDs.joined(separator: ", "))")
+            }
+            out.append("\n## 需要处理解读(by category)  共 \(store.workbenchNeedsAttentionByCategory.count) 分类")
+            for (cat, e) in store.workbenchNeedsAttentionByCategory.sorted(by: { $0.key < $1.key }) {
+                out.append("[\(cat)] fp=\(e.fingerprint)\n  \(e.text)")
+            }
+            out.append("\n## 失败解释(by task id)  共 \(store.workbenchFailureExplanationByTask.count) 条")
+            for (id, e) in store.workbenchFailureExplanationByTask.sorted(by: { $0.key < $1.key }) {
+                out.append("[\(id)] fp=\(e.fingerprint)\n  \(e.text)")
+            }
+            out.append("\n## 真建议(cluster chips,by category)  共 \(store.workbenchClusterChipsByCategory.count) 分类")
+            for (cat, c) in store.workbenchClusterChipsByCategory.sorted(by: { $0.key < $1.key }) {
+                out.append("[\(cat)] fp=\(c.fingerprint)  \(c.chips.count) chip")
+                for chip in c.chips {
+                    out.append("  · \(chip.displayName) [matches=\(chip.matchCount)] \(String(describing: chip.filter))")
+                }
+            }
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(out.joined(separator: "\n"), forType: .string)
+            flash("已复制工作台 AI 四 pass 缓存")
         }
     }
 
