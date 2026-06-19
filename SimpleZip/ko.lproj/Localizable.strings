@@ -342,8 +342,15 @@
 "error.blockedBySecurityPolicy" = "현재 보안 설정에 의해 차단되었습니다.";
 "error.passwordPromptExhausted" = "압축 파일 백엔드가 추가 암호 응답을 요청했습니다. 암호를 확인한 뒤 다시 시도하세요.";
 "settings.showSymbolicLinks" = "심볼릭 링크된 파일과 폴더 표시";
+"settings.finderFavoritesSync" = "Finder 즐겨찾기 동기화";
 "settings.followFinderStructure" = "폴더가 Finder 구조를 따르도록 하기";
 "settings.showSymbolicLinks.description" = "폴더 목록과 검색 결과에 심볼릭 링크를 포함합니다.";
+"settings.finderFavoritesSync.description" = "사이드바가 Finder 즐겨찾기를 반영할 수 있도록 Finder 공유 파일 목록 접근 권한을 요청합니다. 꺼져 있으면 SimpleZip은 내장 대체 위치를 사용합니다.";
+"settings.finderFavoritesSync.authorize" = "접근 허용...";
+"settings.finderFavoritesSync.panel.title" = "Finder 공유 파일 목록 폴더 선택";
+"settings.finderFavoritesSync.panel.message" = "Library/Application Support 안의 com.apple.sharedfilelist 폴더를 선택하거나, 그 상위 Application Support 폴더를 선택하세요.";
+"settings.finderFavoritesSync.invalidFolder" = "com.apple.sharedfilelist 폴더 또는 그 상위 Application Support 폴더를 선택하세요.";
+"settings.finderFavoritesSync.permissionDenied" = "SimpleZip이 해당 폴더의 접근 권한을 저장하지 못했습니다.";
 "settings.followFinderStructure.description" = "응용 프로그램 및 유틸리티 같은 특수 폴더를 Finder처럼 병합합니다.";
 "status.exportingArchiveItem" = "%@을(를) %@에 푸는 중";
 "status.exportedArchiveItem" = "%@ 압축 풀림";

@@ -1971,8 +1971,15 @@
 "error.blockedBySecurityPolicy" = "Blocked by the current security settings.";
 "error.passwordPromptExhausted" = "The archive backend asked for another password response. Check the password and try again.";
 "settings.showSymbolicLinks" = "Show symbolic-linked files and folders";
+"settings.finderFavoritesSync" = "Sync Finder favorites";
 "settings.followFinderStructure" = "Make folders follow Finder structure";
 "settings.showSymbolicLinks.description" = "Include symbolic links in folder listings and search results.";
+"settings.finderFavoritesSync.description" = "Ask for access to Finder's shared file list so the sidebar can mirror Finder favorites. When off, SimpleZip uses the built-in fallback locations.";
+"settings.finderFavoritesSync.authorize" = "Grant Access...";
+"settings.finderFavoritesSync.panel.title" = "Choose Finder's shared file list folder";
+"settings.finderFavoritesSync.panel.message" = "Select the com.apple.sharedfilelist folder in Library/Application Support, or select its parent Application Support folder.";
+"settings.finderFavoritesSync.invalidFolder" = "Choose the com.apple.sharedfilelist folder or its parent Application Support folder.";
+"settings.finderFavoritesSync.permissionDenied" = "SimpleZip could not save access for that folder.";
 "settings.folderInlineExpansion" = "Expand folders in place";
 "settings.folderInlineExpansion.description" = "Folder rows get a disclosure chevron to unfold their contents inside the list, Finder style. Turn off for a flat list.";
 "settings.rememberFolderExpansion" = "Remember expanded folders";

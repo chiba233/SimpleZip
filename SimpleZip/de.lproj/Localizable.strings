@@ -342,8 +342,15 @@
 "error.blockedBySecurityPolicy" = "Durch die aktuellen Sicherheitseinstellungen blockiert.";
 "error.passwordPromptExhausted" = "Das Archiv-Backend hat eine weitere Passwortantwort angefordert. Prüfe das Passwort und versuche es erneut.";
 "settings.showSymbolicLinks" = "Symbolisch verlinkte Dateien und Ordner anzeigen";
+"settings.finderFavoritesSync" = "Finder-Favoriten synchronisieren";
 "settings.followFinderStructure" = "Ordner der Finder-Struktur folgen lassen";
 "settings.showSymbolicLinks.description" = "Symbolische Links in Ordnerlisten und Suchergebnissen einschließen.";
+"settings.finderFavoritesSync.description" = "Zugriff auf Finders gemeinsame Dateiliste anfordern, damit die Seitenleiste Finder-Favoriten spiegeln kann. Wenn deaktiviert, verwendet SimpleZip die eingebauten Ersatzorte.";
+"settings.finderFavoritesSync.authorize" = "Zugriff erlauben...";
+"settings.finderFavoritesSync.panel.title" = "Ordner für Finders gemeinsame Dateiliste auswählen";
+"settings.finderFavoritesSync.panel.message" = "Wähle den Ordner com.apple.sharedfilelist in Library/Application Support oder dessen übergeordneten Ordner Application Support.";
+"settings.finderFavoritesSync.invalidFolder" = "Wähle den Ordner com.apple.sharedfilelist oder dessen übergeordneten Ordner Application Support.";
+"settings.finderFavoritesSync.permissionDenied" = "SimpleZip konnte den Zugriff auf diesen Ordner nicht speichern.";
 "settings.followFinderStructure.description" = "Spezielle Ordner wie Programme und Dienstprogramme wie im Finder zusammenführen.";
 "status.exportingArchiveItem" = "%@ wird nach %@ entpackt";
 "status.exportedArchiveItem" = "%@ entpackt";

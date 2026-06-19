@@ -342,8 +342,15 @@
 "error.blockedBySecurityPolicy" = "現在のセキュリティ設定によりブロックされました。";
 "error.passwordPromptExhausted" = "書庫バックエンドが追加のパスワード応答を要求しました。パスワードを確認してもう一度試してください。";
 "settings.showSymbolicLinks" = "シンボリックリンクされたファイルとフォルダを表示";
+"settings.finderFavoritesSync" = "Finderのお気に入りを同期";
 "settings.followFinderStructure" = "フォルダをFinderの構造に合わせる";
 "settings.showSymbolicLinks.description" = "フォルダ一覧と検索結果にシンボリックリンクを含めます。";
+"settings.finderFavoritesSync.description" = "サイドバーがFinderのお気に入りを反映できるように、Finderの共有ファイルリストへのアクセスを求めます。オフの場合、SimpleZipは内蔵の代替場所を使用します。";
+"settings.finderFavoritesSync.authorize" = "アクセスを許可...";
+"settings.finderFavoritesSync.panel.title" = "Finderの共有ファイルリストフォルダを選択";
+"settings.finderFavoritesSync.panel.message" = "Library/Application Support内のcom.apple.sharedfilelistフォルダ、または親のApplication Supportフォルダを選択してください。";
+"settings.finderFavoritesSync.invalidFolder" = "com.apple.sharedfilelistフォルダ、または親のApplication Supportフォルダを選択してください。";
+"settings.finderFavoritesSync.permissionDenied" = "SimpleZipはこのフォルダへのアクセスを保存できませんでした。";
 "settings.followFinderStructure.description" = "アプリケーションやユーティリティなどの特殊フォルダをFinderと同じように統合します。";
 "status.exportingArchiveItem" = "%@ を %@ に展開しています";
 "status.exportedArchiveItem" = "%@ を展開しました";

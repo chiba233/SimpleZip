@@ -342,8 +342,15 @@
 "error.blockedBySecurityPolicy" = "ถูกบล็อกโดยการตั้งค่าความปลอดภัยปัจจุบัน";
 "error.passwordPromptExhausted" = "แบ็กเอนด์ไฟล์บีบอัดขอรหัสผ่านเพิ่มเติม โปรดตรวจสอบรหัสผ่านแล้วลองอีกครั้ง";
 "settings.showSymbolicLinks" = "แสดงไฟล์และโฟลเดอร์ที่เป็นลิงก์สัญลักษณ์";
+"settings.finderFavoritesSync" = "ซิงค์รายการโปรดของ Finder";
 "settings.followFinderStructure" = "ให้โฟลเดอร์เป็นไปตามโครงสร้างของ Finder";
 "settings.showSymbolicLinks.description" = "รวมลิงก์สัญลักษณ์ในรายการโฟลเดอร์และผลการค้นหา";
+"settings.finderFavoritesSync.description" = "ขอสิทธิ์เข้าถึงรายการไฟล์ที่ใช้ร่วมกันของ Finder เพื่อให้แถบด้านข้างสะท้อนรายการโปรดของ Finder ได้ เมื่อปิด SimpleZip จะใช้ตำแหน่งสำรองในตัว";
+"settings.finderFavoritesSync.authorize" = "อนุญาตการเข้าถึง...";
+"settings.finderFavoritesSync.panel.title" = "เลือกโฟลเดอร์รายการที่ใช้ร่วมกันของ Finder";
+"settings.finderFavoritesSync.panel.message" = "เลือกโฟลเดอร์ com.apple.sharedfilelist ใน Library/Application Support หรือเลือกโฟลเดอร์แม่ Application Support";
+"settings.finderFavoritesSync.invalidFolder" = "เลือกโฟลเดอร์ com.apple.sharedfilelist หรือโฟลเดอร์แม่ Application Support";
+"settings.finderFavoritesSync.permissionDenied" = "SimpleZip ไม่สามารถบันทึกสิทธิ์เข้าถึงโฟลเดอร์นี้ได้";
 "settings.followFinderStructure.description" = "รวมโฟลเดอร์พิเศษแบบ Finder เช่น Applications และ Utilities";
 "status.exportingArchiveItem" = "กำลังแตก %@ ไปยัง %@";
 "status.exportedArchiveItem" = "แตก %@ แล้ว";

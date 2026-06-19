@@ -33,11 +33,14 @@ enum FinderFavoritesReader {
     /// 形态：`[String]`（路径，按 sfl4 顺序）。重建 Item 时再从 URL 取本地化名 / 图标。
     private nonisolated static let cacheKey = "finderFavoritesCachedPaths"
 
-    /// 读取 + 缓存：sfl4 成功 → 顺手写缓存；失败（被锁 / TCC / 文件不存在）→ 读上次缓存。
+    /// 读取 + 缓存：用户明确开启同步后，sfl4 成功 → 顺手写缓存；失败（被锁 / TCC / 文件不存在）→ 读上次缓存。
     /// 两边都空时返回空数组，让调用方走 hardcoded fallback。
     /// 缓存里的路径会再过一次「目录是否存在」过滤 —— 用户外接盘没接、上次的 /Volumes/xxx 没了，
     /// 不能错误地让 UI 显示一个跳到不存在路径的入口。
     nonisolated static func readWithCache() -> [Item] {
+        guard AppPreferences.finderFavoritesSyncEnabled else {
+            return []
+        }
         let fresh = read()
         if !fresh.isEmpty {
             let paths = fresh.map { $0.url.path }
@@ -106,11 +109,18 @@ enum FinderFavoritesReader {
 
     /// 找出当前 macOS 实际使用的 sfl 数据库文件，按 sfl4 → sfl3 顺序尝试。
     private nonisolated static func loadDatabaseData() -> Data? {
-        let fm = FileManager.default
-        guard let appSupport = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+        guard let authorizedRoot = authorizedSharedFileListRoot() else {
             return nil
         }
-        let dir = appSupport.appendingPathComponent("com.apple.sharedfilelist")
+        let didAccess = authorizedRoot.startAccessingSecurityScopedResource()
+        defer {
+            if didAccess {
+                authorizedRoot.stopAccessingSecurityScopedResource()
+            }
+        }
+        guard let dir = sharedFileListDirectory(from: authorizedRoot) else {
+            return nil
+        }
         let candidates = [
             "com.apple.LSSharedFileList.FavoriteItems.sfl4",
             "com.apple.LSSharedFileList.FavoriteItems.sfl3"
@@ -122,6 +132,37 @@ enum FinderFavoritesReader {
             }
         }
         return nil
+    }
+
+    /// 用户可在权限面板里选择 `com.apple.sharedfilelist` 本身，也可以选择它的父级 Application Support。
+    nonisolated static func sharedFileListDirectory(from authorizedDirectory: URL) -> URL? {
+        let url = authorizedDirectory.standardizedFileURL
+        if url.lastPathComponent == "com.apple.sharedfilelist", isDirectory(url) {
+            return url
+        }
+        let child = url.appendingPathComponent("com.apple.sharedfilelist", isDirectory: true)
+        if isDirectory(child) {
+            return child
+        }
+        return nil
+    }
+
+    private nonisolated static func authorizedSharedFileListRoot() -> URL? {
+        guard let bookmarkData = AppPreferences.finderFavoritesDirectoryBookmarkData else {
+            return nil
+        }
+        var stale = false
+        return try? URL(
+            resolvingBookmarkData: bookmarkData,
+            options: [.withSecurityScope, .withoutUI],
+            relativeTo: nil,
+            bookmarkDataIsStale: &stale
+        )
+    }
+
+    private nonisolated static func isDirectory(_ url: URL) -> Bool {
+        var isDirectory: ObjCBool = false
+        return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) && isDirectory.boolValue
     }
 
     /// `requiresSecureCoding = false` 是必须的：sfl4 里的 dict / array 不是 SecureCoding 的预期序列化产物。

@@ -2355,8 +2355,15 @@
 "settings.security.symbolicLinks.description" = "控制解压后可能指向目标文件夹外部的符号链接。";
 "settings.security.activeContent.description" = "控制从压缩包里打开可能运行代码或加载主动内容的文件。";
 "settings.showSymbolicLinks" = "显示符号链接的文件及文件夹";
+"settings.finderFavoritesSync" = "同步 Finder 个人收藏";
 "settings.followFinderStructure" = "文件夹遵循 Finder 结构";
 "settings.showSymbolicLinks.description" = "在文件夹列表和搜索结果里包含符号链接。";
+"settings.finderFavoritesSync.description" = "授权读取 Finder 的共享列表，让侧栏同步 Finder 个人收藏。关闭时，SimpleZip 使用内置的回退位置。";
+"settings.finderFavoritesSync.authorize" = "授权...";
+"settings.finderFavoritesSync.panel.title" = "选择 Finder 共享列表文件夹";
+"settings.finderFavoritesSync.panel.message" = "请选择 Library/Application Support 里的 com.apple.sharedfilelist 文件夹，也可以选择它的父级 Application Support 文件夹。";
+"settings.finderFavoritesSync.invalidFolder" = "请选择 com.apple.sharedfilelist 文件夹，或它的父级 Application Support 文件夹。";
+"settings.finderFavoritesSync.permissionDenied" = "SimpleZip 未能保存这个文件夹的访问权限。";
 "settings.folderInlineExpansion" = "文件夹原位展开";
 "settings.folderInlineExpansion.description" = "目录行带展开箭头,可像 Finder 一样在列表内展开内容。关闭则回到纯平铺列表。";
 "settings.rememberFolderExpansion" = "记住文件夹展开状态";

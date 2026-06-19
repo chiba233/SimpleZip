@@ -163,6 +163,9 @@ struct Sidebar: View {
             iconGeneration += 1
             refreshSidebarURLs()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .browserPreferencesChanged)) { _ in
+            refreshSidebarURLs()
+        }
     }
 
     private func pinCurrentLocation() {

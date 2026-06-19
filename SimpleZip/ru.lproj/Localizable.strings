@@ -342,8 +342,15 @@
 "error.blockedBySecurityPolicy" = "Заблокировано текущими настройками безопасности.";
 "error.passwordPromptExhausted" = "Бэкенд архива запросил ещё один ввод пароля. Проверьте пароль и повторите попытку.";
 "settings.showSymbolicLinks" = "Показывать файлы и папки по символическим ссылкам";
+"settings.finderFavoritesSync" = "Синхронизировать избранное Finder";
 "settings.followFinderStructure" = "Папки следуют структуре Finder";
 "settings.showSymbolicLinks.description" = "Включать символические ссылки в списки папок и результаты поиска.";
+"settings.finderFavoritesSync.description" = "Запросить доступ к общему списку файлов Finder, чтобы боковая панель могла повторять избранное Finder. Если отключено, SimpleZip использует встроенные резервные расположения.";
+"settings.finderFavoritesSync.authorize" = "Разрешить доступ...";
+"settings.finderFavoritesSync.panel.title" = "Выберите папку общего списка Finder";
+"settings.finderFavoritesSync.panel.message" = "Выберите папку com.apple.sharedfilelist в Library/Application Support или её родительскую папку Application Support.";
+"settings.finderFavoritesSync.invalidFolder" = "Выберите папку com.apple.sharedfilelist или её родительскую папку Application Support.";
+"settings.finderFavoritesSync.permissionDenied" = "SimpleZip не удалось сохранить доступ к этой папке.";
 "settings.followFinderStructure.description" = "Объединять специальные папки, такие как Приложения и Утилиты, как это делает Finder.";
 "status.exportingArchiveItem" = "Распаковка %@ в %@";
 "status.exportedArchiveItem" = "%@ распакован";

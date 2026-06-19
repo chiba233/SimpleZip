@@ -342,8 +342,15 @@
 "error.blockedBySecurityPolicy" = "已依照目前安全設定阻止。";
 "error.passwordPromptExhausted" = "壓縮檔後端要求了額外的密碼回應。請檢查密碼後再試一次。";
 "settings.showSymbolicLinks" = "顯示符號連結的檔案及資料夾";
+"settings.finderFavoritesSync" = "同步 Finder 個人收藏";
 "settings.followFinderStructure" = "資料夾遵循 Finder 結構";
 "settings.showSymbolicLinks.description" = "在文件夹列表和搜索结果里包含符号链接。";
+"settings.finderFavoritesSync.description" = "授權讀取 Finder 的共享列表，讓側邊欄同步 Finder 個人收藏。關閉時，SimpleZip 會使用內建的備用位置。";
+"settings.finderFavoritesSync.authorize" = "授權...";
+"settings.finderFavoritesSync.panel.title" = "選擇 Finder 共享列表資料夾";
+"settings.finderFavoritesSync.panel.message" = "請選擇 Library/Application Support 裡的 com.apple.sharedfilelist 資料夾，也可以選擇它的父層 Application Support 資料夾。";
+"settings.finderFavoritesSync.invalidFolder" = "請選擇 com.apple.sharedfilelist 資料夾，或它的父層 Application Support 資料夾。";
+"settings.finderFavoritesSync.permissionDenied" = "SimpleZip 無法儲存這個資料夾的存取權限。";
 "settings.followFinderStructure.description" = "像 Finder 一样合并特殊文件夹，例如“应用程序”和 Utilities。";
 "status.exportingArchiveItem" = "正在把 %@ 解壓縮到 %@";
 "status.exportedArchiveItem" = "已解壓縮 %@";

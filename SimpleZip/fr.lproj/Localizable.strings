@@ -342,8 +342,15 @@
 "error.blockedBySecurityPolicy" = "Bloqué par les réglages de sécurité actuels.";
 "error.passwordPromptExhausted" = "Le backend de l’archive a demandé une autre réponse de mot de passe. Vérifiez le mot de passe et réessayez.";
 "settings.showSymbolicLinks" = "Afficher les fichiers et dossiers liés symboliquement";
+"settings.finderFavoritesSync" = "Synchroniser les favoris du Finder";
 "settings.followFinderStructure" = "Faire suivre aux dossiers la structure du Finder";
 "settings.showSymbolicLinks.description" = "Inclure les liens symboliques dans les listes de dossiers et les résultats de recherche.";
+"settings.finderFavoritesSync.description" = "Demander l'accès à la liste de fichiers partagée du Finder afin que la barre latérale reflète les favoris du Finder. Si l'option est désactivée, SimpleZip utilise les emplacements de repli intégrés.";
+"settings.finderFavoritesSync.authorize" = "Autoriser l'accès...";
+"settings.finderFavoritesSync.panel.title" = "Choisir le dossier de liste partagée du Finder";
+"settings.finderFavoritesSync.panel.message" = "Sélectionnez le dossier com.apple.sharedfilelist dans Library/Application Support, ou sélectionnez son dossier parent Application Support.";
+"settings.finderFavoritesSync.invalidFolder" = "Choisissez le dossier com.apple.sharedfilelist ou son dossier parent Application Support.";
+"settings.finderFavoritesSync.permissionDenied" = "SimpleZip n'a pas pu enregistrer l'accès à ce dossier.";
 "settings.followFinderStructure.description" = "Fusionner les dossiers spéciaux comme Applications et Utilitaires comme le fait le Finder.";
 "status.exportingArchiveItem" = "Extraction de %@ vers %@";
 "status.exportedArchiveItem" = "%@ extrait";

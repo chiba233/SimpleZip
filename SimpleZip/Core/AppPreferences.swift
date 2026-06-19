@@ -254,6 +254,10 @@ enum AppPreferences {
         nonisolated static let showHiddenFiles = "showHiddenFiles"
         nonisolated static let hiddenDetectionMode = "hiddenDetectionMode"
         nonisolated static let showSymbolicLinks = "showSymbolicLinks"
+        /// 是否同步 Finder 侧栏「个人收藏」。默认关；开启后需要用户授权 Finder shared file list 目录。
+        nonisolated static let finderFavoritesSyncEnabled = "finderFavoritesSyncEnabled"
+        /// Finder shared file list 目录的 security-scoped bookmark。包含本机路径与授权信息，不导出备份。
+        nonisolated static let finderFavoritesDirectoryBookmarkData = "finderFavoritesDirectoryBookmarkData"
         nonisolated static let folderInlineExpansion = "folderInlineExpansion"
         // 0.4.2：展开状态记忆开关（文件夹 / 分卷集，会话内跨刷新记忆；默认开）。
         nonisolated static let rememberFolderExpansion = "rememberFolderExpansion"
@@ -629,6 +633,29 @@ enum AppPreferences {
 
     nonisolated static var showSymbolicLinks: Bool {
         defaultTrueBool(forKey: Key.showSymbolicLinks)
+    }
+
+    /// 同步 Finder 个人收藏的显式 opt-in 开关。关闭时侧栏继续使用内置 fallback 位置。
+    nonisolated static var finderFavoritesSyncEnabled: Bool {
+        get { defaults.bool(forKey: Key.finderFavoritesSyncEnabled) }
+        set { defaults.set(newValue, forKey: Key.finderFavoritesSyncEnabled) }
+    }
+
+    /// 本机授权书签不参与偏好备份/恢复，避免把用户路径和 sandbox 授权状态带到其它机器。
+    nonisolated static var finderFavoritesDirectoryBookmarkData: Data? {
+        defaults.data(forKey: Key.finderFavoritesDirectoryBookmarkData)
+    }
+
+    nonisolated static var hasFinderFavoritesDirectoryBookmark: Bool {
+        finderFavoritesDirectoryBookmarkData != nil
+    }
+
+    nonisolated static func storeFinderFavoritesDirectoryBookmark(_ data: Data) {
+        defaults.set(data, forKey: Key.finderFavoritesDirectoryBookmarkData)
+    }
+
+    nonisolated static func clearFinderFavoritesDirectoryBookmark() {
+        defaults.removeObject(forKey: Key.finderFavoritesDirectoryBookmarkData)
     }
 
     /// 文件浏览器里文件夹可原位展开（目录行带展开箭头）。默认开；关掉回到纯平铺列表。
@@ -1412,6 +1439,8 @@ enum AppPreferences {
         defaults.removeObject(forKey: Key.releaseLedger)
         // #34 归档清单缓存是派生数据(不在白名单),恢复出厂时一并清掉。
         defaults.removeObject(forKey: Key.archiveListingCache)
+        defaults.removeObject(forKey: Key.finderFavoritesDirectoryBookmarkData)
+        defaults.removeObject(forKey: Key.finderFavoritesSyncEnabled)
         // `errSecItemNotFound` = 本来就没存过预设密码 → 也算「已清干净」。其它非 0 状态才是真失败。
         let status = PresetPasswordStore.clear()
         return status == errSecSuccess || status == errSecItemNotFound
