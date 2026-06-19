@@ -49,3 +49,10 @@ secrets/
 
 # Private AI roadmap design draft — stays local, not a repo doc.
 docs/AI-IMPROVEMENT-SUGGESTIONS.md
+
+# Xcode per-user UI state (scheme ordering in the picker, window/breakpoint state).
+# Per-user and machine-specific — the *shared* schemes live in xcshareddata/ (which CI's
+# `-scheme` uses). xcschememanagement.plist was tracked historically and only churned noise
+# (e.g. when a new target adds a scheme entry); stop tracking it.
+*.xcuserstate
+xcuserdata/
