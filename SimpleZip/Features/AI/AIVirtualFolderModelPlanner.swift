@@ -149,7 +149,7 @@ struct GeneratedArchiveEntryPicks: Sendable {
 struct GeneratedArchiveKindGuess: Sendable {
     @Guide(description: "ONE short, concrete sentence describing what kind of archive this appears to be, based only on the listed paths and folder structure. Use the required language. Do not name or copy a specific product unless it is explicitly present in the archive name or entries.")
     var summary: String
-    @Guide(description: "A FEW action tokens worth PROACTIVELY suggesting for THIS archive, or empty. Allowed tokens only: 'inspect' (a release-readiness / publish inspection — choose this when the archive looks like a distributable or release package, e.g. an app, installer, or a bundle of release binaries), 'test' (verify the archive's integrity), 'hash' (compute a checksum — useful for a release / distributable archive someone might verify), 'convert' (suggest only when the format looks clearly suboptimal — e.g. a .tar.gz that would be better as .7z for further distribution, or an old .zip the user is likely to repack — never suggest just because conversion is possible), 'security' (suggest only when the listing shows suspicious path patterns such as many executable files, absolute paths, or entries that escape expected directories — do NOT suggest for ordinary archives). Return empty only when none of these signals appear in the name or entries; a software release package (version number, executables, bin/, dist/) typically warrants inspect + test + hash, while a plain document or photo backup gets none. Use each token verbatim; never invent one.")
+    @Guide(description: "A FEW action tokens worth proactively suggesting for THIS archive, or empty. Allowed tokens only: 'test' (verify the archive is not corrupt — a safe read-only check that works on ANY supported archive format, so it fits essentially any archive worth keeping intact), 'security' (scan entries for unsafe / suspicious paths before extracting — applies to ANY archive, offer it broadly, especially for downloads or archives with executables), 'inspect' (a release-readiness / contents inspection — for any archive that is software or a package meant to be shipped: an app, a disk image, an installer, executables, a bin/ or dist/ tree, or a versioned release), 'hash' (compute a checksum — useful for any archive the user might share or verify later), 'convert' (ONLY when the current format is clearly suboptimal for the likely next step, e.g. a .tar.gz better repacked as .7z — never just because conversion is possible). test, security and hash are NOT limited to release packages; return empty only for a trivial throwaway archive where even a safe check adds nothing. Use each token verbatim; never invent one.")
     var actions: [String]
 }
 
@@ -459,19 +459,21 @@ enum AIVirtualFolderModelPlanner {
         claim certainty; say it appears to be something. Do not invent contents that are not supported by the paths. \
         Avoid naming a specific product or app unless that name is explicitly present in the archive name or entries.
 
-        Then suggest proactive action tokens — but ONLY where the archive NAME or ENTRY STRUCTURE gives clear \
-        evidence for them (verbatim, from this exact list). Return empty when none of these signals are present; \
-        a plain documents or photo backup correctly gets none.
-        inspect — when entries include .app, .exe, .pkg, .msi, or .dmg files, a top-level bin/ or dist/ directory, \
-        or the name has a version number together with a release/dist keyword — i.e. it looks like software someone \
-        would ship. A release-looking package typically warrants inspect + test + hash together.
-        test — same signals as inspect: if the archive looks like something someone would distribute (executables, \
-        installers, bins, a release-looking package), verify its integrity. A plain documents backup does not need test.
-        hash — same evidence as inspect: a checksum for a distributable archive someone would share for others to verify.
-        convert — ONLY when the format is .tar.gz / .tgz AND the entries contain source-build files (Makefile, \
-        CMakeLists.txt, setup.py, package.json, Cargo.toml). Never suggest merely because conversion is possible.
-        security — ONLY when the entries show suspicious paths (a ../ parent-directory escape, or absolute paths like \
-        /etc/ or /root/) or three or more executable script files (.sh .py .rb .ps1 .cmd). Do not flag ordinary archives.
+        Then suggest proactive action tokens for this archive (verbatim, from this exact list). test, security and \
+        hash are SAFE, read-only checks that work on EVERY supported archive format — they are NOT limited to release \
+        packages, so do not withhold them just because this is an ordinary archive.
+        test — verify the archive is not corrupt. It works on any supported format, so it fits essentially ANY archive \
+        worth keeping intact (a download, a backup, a release — anything the user would not want silently corrupted).
+        security — scan the entries for unsafe or suspicious paths before extracting (parent-directory escapes, \
+        absolute paths, executables, scripts). Checking before extraction is sensible for almost ANY archive, so offer \
+        it broadly — especially for anything downloaded or containing executables.
+        inspect — a release-readiness / contents inspection. Fits ANY archive that is software or a package meant to \
+        be shipped: an app, a disk image (.dmg), an installer (.pkg / .msi / .exe), executables, a bin/ or dist/ tree, \
+        or a versioned release.
+        hash — compute a checksum; useful for any archive the user might share or want to verify later.
+        convert — ONLY when the current format is clearly suboptimal for the user's likely next step (e.g. a .tar.gz \
+        that would repack smaller as .7z, or an old .zip to repack). Never suggest merely because conversion is possible.
+        Return an empty list only for a trivial, throwaway archive where even a quick safe check would add nothing.
         """
         // 🔴 防崩溃:端上模型上下文有限,大归档上千条目会撑爆 → FoundationModels 修剪 transcript 时**越界 trap**
         // (用户实测崩溃栈;心跳让本 pass 真跑后暴露)。按「条目数 + 字符预算」双重封顶挑代表性条目、单条路径也截断
