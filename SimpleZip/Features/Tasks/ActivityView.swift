@@ -838,10 +838,23 @@ struct ActivityView: View {
                     return cached
                 }
                 guard #available(macOS 26.0, *) else { throw AIAssistError(message: L10n.text("ai.unavailable.osTooOld")) }
+                // 数据接全:无后端 rawOutput 的文件操作,用逐文件失败明细(脱敏)合成日志喂模型,否则完整解释也只有
+                // 泛泛消息、模型只能瞎猜。优先真实 rawOutput。
+                let output: String? = {
+                    if let raw = task.detailsSession?.rawOutput, !raw.isEmpty { return raw }
+                    let lines = task.transferLog.compactMap { entry -> String? in
+                        guard entry.action == .failed else { return nil }
+                        if let detail = entry.detail, !detail.isEmpty {
+                            return AISensitiveRedactor.redact("\(entry.name): \(detail)")
+                        }
+                        return AISensitiveRedactor.redact(entry.name)
+                    }
+                    return lines.isEmpty ? nil : lines.joined(separator: "\n")
+                }()
                 let built = AIReportAssistant.failureExplanationPrompt(
                     taskTitle: task.title,
                     failureMessage: message,
-                    output: task.detailsSession?.rawOutput)
+                    output: output)
                 return try await AIReportAssistant.generate(instructions: built.instructions, prompt: built.prompt)
             }
         }
@@ -1346,9 +1359,21 @@ extension OperationTask {
             canResumeFromFailure: resumeFromFailure != nil,
             skippedReason: aiSkippedReason,
             failureSeen: failureSeen,
-            awaitedConcurrencySlot: isAwaitingSlot)
+            awaitedConcurrencySlot: isAwaitingSlot,
+            extraDiagnosticLines: aiTransferFailureLines)
         aiRecordCache = (key, record)
         return record
+    }
+
+    /// 数据接全:逐文件失败原因(transferLog 里 `.failed` 项的 name + detail)作为额外诊断行,补足无后端输出
+    /// 的文件操作失败的具体上下文 —— 否则失败解释只有泛泛的顶层消息,模型只能瞎猜。非加密文件名 / 原因属低敏
+    /// 元数据,Core 侧再过 redact 兜底。终态后冻结,数量进缓存 key。
+    private var aiTransferFailureLines: [String] {
+        transferLog.compactMap { entry in
+            guard entry.action == .failed else { return nil }
+            if let detail = entry.detail, !detail.isEmpty { return "\(entry.name): \(detail)" }
+            return entry.name
+        }
     }
 
     /// `aiTaskRecord` 缓存指纹:涵盖派生依赖的可变字段(状态 case + 关联值规模、完成时间、已读、等槽)。
@@ -1361,6 +1386,11 @@ extension OperationTask {
         case .succeeded(let url): key += "|S\(url?.path.count ?? 0)"
         case .skipped(let reason): key += "|K\(reason?.count ?? 0)"
         default: break
+        }
+        // 数据接全:逐文件失败明细进诊断 → 失败项数变化必重算(终态后冻结,空 transferLog 跳过,几乎零成本)。
+        if !transferLog.isEmpty {
+            let failedCount = transferLog.reduce(0) { $0 + ($1.action == .failed ? 1 : 0) }
+            if failedCount > 0 { key += "|TF\(failedCount)" }
         }
         return key
     }

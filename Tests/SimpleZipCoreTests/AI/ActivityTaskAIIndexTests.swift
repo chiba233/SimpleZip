@@ -41,6 +41,26 @@ import Testing
         #expect(r.diagnostics.errorLines.allSatisfy { !$0.contains("hunter2") })
     }
 
+    /// 数据接全:文件操作等**无后端 rawOutput** 的失败,逐文件失败明细经 `extraDiagnosticLines` 喂入 ——
+    /// 进 errorLines 给模型具体上下文,且被确定性分类器打成标签(否则顶层泛泛消息只能瞎猜);同样脱敏。
+    @Test func extraDiagnosticLinesFeedErrorLinesAndTags() {
+        let r = AITaskRecord.make(
+            id: "mv-1", category: "fileOperation", kind: "move", source: "app", status: "failed",
+            title: "Move 3 items", startedAt: nil, finishedAt: nil,
+            failureMessage: "1 item failed", rawOutput: nil,
+            extraDiagnosticLines: ["report.pdf: Permission denied", "data.bin: No such file or directory"])
+        // 具体逐文件原因进了 errorLines(给模型可读上下文)。
+        #expect(r.diagnostics.errorLines.contains { $0.contains("report.pdf") && $0.contains("Permission denied") })
+        // 确定性分类器据此打标签(顶层「1 item failed」打不出 permission-denied)。
+        #expect(r.diagnostics.tags.contains("permission-denied"))
+        // 脱敏仍生效(secret 形态的明细被抓)。
+        let secret = AITaskRecord.make(
+            id: "mv-2", category: "fileOperation", kind: "copy", source: "app", status: "failed",
+            title: "Copy", startedAt: nil, finishedAt: nil, rawOutput: nil,
+            extraDiagnosticLines: ["sync.conf: password=hunter2 rejected"])
+        #expect(secret.diagnostics.errorLines.allSatisfy { !$0.contains("hunter2") })
+    }
+
     @Test func jsonLineIsCompactAndCarriesStableFields() throws {
         let line = try sample().jsonLine()
         #expect(line.contains("\"id\":\"task-7B2F\""))

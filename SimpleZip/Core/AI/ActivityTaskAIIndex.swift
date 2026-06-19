@@ -88,11 +88,22 @@ extension AITaskRecord {
         awaitedConcurrencySlot: Bool = false,
         waitedForWriteLock: Bool = false,
         encryptedSource: Bool = false,
+        extraDiagnosticLines: [String] = [],
         budget: AIBudget = .activityFilter
     ) -> AITaskRecord {
-        let errorLines = rawOutput
+        let outputLines = rawOutput
             .map { AISensitiveRedactor.errorLines(from: $0) }
             .map { $0.map(budget.clampText) } ?? []
+        // 数据接全:文件操作等**无后端 rawOutput** 的失败,其逐文件失败原因(transferLog 的 name + detail)
+        // 经此作为额外诊断行喂入 —— 同样脱敏 + clamp,既给失败解释补足模型可读的具体上下文(否则只能瞎猜),
+        // 又让确定性分类器据此打标签(权限 / 空间 / 冲突…)。cap 到 maxSamplesPerGroup,去重已在 errorLines 里的。
+        let extraLines = Array(extraDiagnosticLines
+            .map { AISensitiveRedactor.redact($0) }
+            .map(budget.clampText)
+            .filter { !$0.isEmpty }
+            .prefix(budget.maxSamplesPerGroup))
+        var errorLines = outputLines
+        for line in extraLines where !errorLines.contains(line) { errorLines.append(line) }
         let redactedFailure = failureMessage
             .map { AISensitiveRedactor.redact($0) }
             .map(budget.clampText)
