@@ -375,6 +375,8 @@ enum AppPreferences {
         nonisolated static let aiFeedbackEventsData = "SimpleZip.ai.feedback.events.v1"
         /// 0.4.5 #80:文件夹批量分组建议缓存(`[String: [CachedFolderGroup]]` 的 JSON;派生数据,不进偏好备份)。
         nonisolated static let aiFolderGroupsData = "SimpleZip.ai.folderGroups.v1"
+        /// 0.4.5 #80 Task 7:文件夹「整理进新文件夹」建议缓存(`[String: CachedFolderGroup]` 的 JSON;派生数据,不进偏好备份)。
+        nonisolated static let aiOrganizeSuggestionsData = "SimpleZip.ai.organize.v1"
         /// 0.4.5 #80:跨表面 AI 交互信号日志(`[AIInteractionSignalEvent]` 的 JSON;点击 / 打开建议等兴趣信号;派生数据,不进偏好备份)。
         nonisolated static let aiInteractionSignalsData = "SimpleZip.ai.interaction.signals.v1"
         /// 0.4.5 #80:只读自动检查 pending 队列(`AIPendingCheckQueue` 的 JSON;电池决策→插电执行;派生数据,不进偏好备份)。

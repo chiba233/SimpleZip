@@ -100,6 +100,20 @@ struct GeneratedFolderGroupSet: Sendable {
     var groups: [GeneratedFileGroupSuggestion]
 }
 
+/// **文件夹「整理进新文件夹」建议**的模型产出(Task 7)。模型看当前文件夹的文件清单,**只有**当其中明显有一簇
+/// 同类文件值得归进一个新子文件夹时,才给 {值不值得 + 主题文件夹名 + 成员序号}。**拒绝假AI**:确定性只提供候选
+/// 文件清单,是否建议 / 起什么名 / 圈哪些全由模型定;不值得就 worthOrganizing=false。扁平 3 字段(可靠优先)。
+@available(macOS 26.0, *)
+@Generable
+struct GeneratedOrganizeSuggestion: Sendable {
+    @Guide(description: "True ONLY if a CLEAR subset of these files obviously belongs together and tidying just that subset into one new sub-folder would plainly help (e.g. a pile of screenshots, a set of invoices, the photos from one trip). False if the folder is already tidy, the files are unrelated, or any grouping would be arbitrary — most folders should be false. Be strict.")
+    var worthOrganizing: Bool
+    @Guide(description: "A short, human folder name for the cluster, by what the files ARE or their shared topic (e.g. 'Screenshots', 'Invoices', 'Trip Photos'). 1-3 words, in the required language. No path, no slashes, no meta words like 'folder', 'files', 'AI' or 'group'.")
+    var folderName: String
+    @Guide(description: "The item NUMBERS (leftmost column) of the files that clearly share the theme and should move into the new folder — at least 3. Use only numbers that appear in the list; never invent one. Include ONLY files that truly fit; leave the rest out.")
+    var fileNumbers: [String]
+}
+
 /// **文件浏览器「磁盘镜像安装建议」**的模型产出(推荐打开方式 backlog 第2项)。给一个内含 App 的 `.dmg`,
 /// 模型出 {一句话定性 + 是否建议安装}。扁平 2 字段(可靠优先)。**拒绝假AI**:确定性只负责「这个 dmg 里有 .app」,
 /// 是否冒出建议 + 措辞由模型定。
@@ -249,6 +263,40 @@ enum AIVirtualFolderModelPlanner {
             guard usedSignatures.insert(signature).inserted else { return nil }
             return (ids, token)
         }
+    }
+
+    /// **文件夹「整理进新文件夹」建议**的模型驱动产出(Task 7,拒绝假AI)。给当前文件夹里的文件,让端上模型判断
+    /// 是否有一簇同类文件值得归进一个新子文件夹,并起主题名 + 圈成员。大多数文件夹返回 nil(不值得 / 没明显簇)。
+    /// 模型按序号引用文件;App 回译成 (主题名, 成员 candidateID 列表)。至少 3 个成员才成立。**不值得 → nil**;
+    /// 模型失败 → 抛出由调用点吞掉(下轮可重试)。`maxAttempts:3` 与其它扁平后台 pass 一致(队列收敛 `4fd1fcad`)。
+    static func organizeSuggestion(items: [AIVirtualNodePromptCandidate]) async throws
+        -> (folderName: String, memberIDs: [String])? {
+        guard items.count >= 3 else { return nil }
+        let cands = Array(items.prefix(80))
+        let instructions = """
+        The items below are the files currently in ONE folder the user is looking at. If — and ONLY if — a clear \
+        SUBSET of them obviously belongs together under a single new sub-folder (e.g. a pile of screenshots, a set \
+        of invoices, the photos from one trip), propose tidying just that subset into a new folder you name. This \
+        is real, obvious housekeeping the user would thank you for — NOT inventing an organization scheme. MOST \
+        folders are already fine: when nothing clearly stands out, set worthOrganizing to false. Never force \
+        unrelated files together. Name the folder by the real shared topic in \(AIReportAssistant.uiLanguageName); \
+        never use meta words like "folder", "files", "AI" or "group". Refer to files by their NUMBER only; never \
+        output a path.
+        """
+        var lines = ["Files (number<TAB>kind<TAB>name<TAB>roleTags) — refer to files by their number:"]
+        for (i, c) in cands.enumerated() {
+            lines.append(["\(i + 1)", c.kind, c.displayName, c.roleTags.joined(separator: " ")].joined(separator: "\t"))
+        }
+        let generated = try await AIReportAssistant.generateStructured(
+            instructions: instructions, prompt: lines.joined(separator: "\n"),
+            as: GeneratedOrganizeSuggestion.self, maxAttempts: 3)
+        guard generated.worthOrganizing else { return nil }
+        let name = generated.folderName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return nil }
+        var seen = Set<String>()
+        let ids = generated.fileNumbers.compactMap { realID($0, in: cands) }.filter { seen.insert($0).inserted }
+        guard ids.count >= 3 else { return nil }
+        return (name, ids)
     }
 
     /// **文件浏览器单文件抽屉**的模型驱动建议(②b/②c,拒绝假AI)。给一个具体文件(名字 + 角色 + 脱敏内容摘录 +

@@ -124,6 +124,8 @@ final class AIBackgroundIndexer {
     private var lastPendingExecAt: Date?
     private var folderGroupRunning = false
     private var folderGroupTask: Task<Void, Never>?
+    private var organizeRunning = false
+    private var organizeTask: Task<Void, Never>?
 
     /// 后台索引**心跳定时器**(主运行循环)+ 当前间隔。P0 根因:`runIfEnabled` 原本只在启动 `activate()` 时被调
     /// 一次,那次又卡在 launch-silence(<60s)直接空跑,之后再无任何定时器触发 → 后台索引 / 建议全程跑不起来
@@ -252,6 +254,7 @@ final class AIBackgroundIndexer {
                         if AIBackgroundIndexer.shared.canRunDeepContextNow() {
                             AIBackgroundIndexer.shared.generateArchiveKindGuessIfEnabled()   // 归档「这看起来是什么包」
                             AIBackgroundIndexer.shared.generateFolderGroupSuggestionsIfEnabled()   // 文件夹「这些可成组处理」
+                            AIBackgroundIndexer.shared.generateOrganizeSuggestionsIfEnabled()   // 文件夹「把这些整理进新文件夹」
                         }
                         // 阶段 B(电池决策):把模型已挑的只读检查 token 收进 pending 队列,真执行等插电(阶段 C)。
                         AIBackgroundIndexer.shared.generatePendingChecksIfEnabled()
@@ -323,6 +326,7 @@ final class AIBackgroundIndexer {
         archiveKindTask?.cancel(); archiveKindTask = nil; archiveKindRunning = false
         pendingExecTask?.cancel(); pendingExecTask = nil; pendingExecRunning = false
         folderGroupTask?.cancel(); folderGroupTask = nil; folderGroupRunning = false
+        organizeTask?.cancel(); organizeTask = nil; organizeRunning = false
     }
 
     // MARK: - 内容预读 · 归档半边(MainActor:ArchiveService 在 app target 下 MainActor 隔离,A18)
@@ -791,6 +795,80 @@ final class AIBackgroundIndexer {
                 }
                 AIBackgroundIndexStore.shared.setFolderGroups(groups, forPath: folder)
             }
+        }
+    }
+
+    /// Task 7:对**还没评估**的索引目录,让端上模型判断是否有一簇同类文件值得归进一个新子文件夹,有则起主题名 +
+    /// 圈成员,写派生缓存(`organizeByPath`)。**不移动任何文件** —— 真正建文件夹 + 移动由用户在顶部建议条点「整理」
+    /// 后走 app 内置 `dropFileURLs(...shouldMove:true)`(冲突弹窗 + 撤销 + 活动中心都在里头)。门控完全沿用文件组建议;
+    /// 重型清单类 pass,每轮只 1 个候选(`deepContextSuggestionsPerRound`,队列收敛 `4fd1fcad`)。
+    func generateOrganizeSuggestionsIfEnabled() {
+        guard #available(macOS 26.0, *) else { return }
+        let store = AIBackgroundIndexStore.shared
+        guard AppPreferences.aiSuggestionEnabled, store.indexingEnabled, AIReportAssistant.isReady, canRunDeepContextNow(),
+              store.budget != nil else { return }
+        guard !organizeRunning else { recordRunningPass("整理"); return }
+
+        var folderOrder: [String] = []
+        var recordsByFolder: [String: [AIFileMemoryRecord]] = [:]
+        for rec in store.recentFileRecords(limit: 4_000) {
+            guard rec.type != .folder, let path = rec.path else { continue }
+            let folder = URL(fileURLWithPath: path).deletingLastPathComponent().standardizedFileURL.path
+            guard !store.organizeEvaluated(forPath: folder) else { continue }
+            if recordsByFolder[folder] == nil { folderOrder.append(folder) }
+            recordsByFolder[folder, default: []].append(rec)
+        }
+        // 整理需要一簇文件 —— 至少 3 个文件的文件夹才值得评估。
+        let picks = folderOrder
+            .filter { (recordsByFolder[$0]?.count ?? 0) >= 3 }
+            .prefix(Self.deepContextSuggestionsPerRound)
+        recordPass("整理", candidates: picks.count, skip: picks.isEmpty ? "无候选(可整理的文件夹 0)" : nil)
+        guard !picks.isEmpty else { return }
+
+        organizeRunning = true
+        organizeTask = Task { @MainActor in
+            defer { AIBackgroundIndexer.shared.organizeRunning = false }
+            var produced = 0
+            for folder in picks {
+                if Task.isCancelled { break }
+                guard AIBackgroundIndexStore.shared.indexingEnabled,
+                      AIReportAssistant.isReady,
+                      AIBackgroundIndexer.shared.canRunDeepContextNow() else { break }
+                let records = recordsByFolder[folder] ?? []
+                var pathByCandidateID: [String: String] = [:]
+                let candidates = records.compactMap { rec -> AIVirtualNodePromptCandidate? in
+                    guard let path = rec.path else { return nil }
+                    let candidate = AIWorkspaceDiscovery.candidate(from: rec)
+                    pathByCandidateID[candidate.id] = path
+                    return AIVirtualNodePromptCandidate(candidate: candidate)
+                }
+                guard candidates.count >= 3 else {
+                    AIBackgroundIndexStore.shared.setOrganizeSuggestion(nil, forPath: folder)
+                    continue
+                }
+                // 模型失败(抛错)→ 不落哨兵,下轮重试;模型「不值得」(nil)→ 落空哨兵,不再重评该文件夹。
+                let suggestion: (folderName: String, memberIDs: [String])?
+                do {
+                    suggestion = try await AIVirtualFolderModelPlanner.organizeSuggestion(items: candidates)
+                } catch {
+                    continue
+                }
+                guard let suggestion else {
+                    AIBackgroundIndexStore.shared.setOrganizeSuggestion(nil, forPath: folder)
+                    continue
+                }
+                var seen = Set<String>()
+                let paths = suggestion.memberIDs.compactMap { pathByCandidateID[$0] }.filter { seen.insert($0).inserted }
+                guard paths.count >= 3 else {
+                    AIBackgroundIndexStore.shared.setOrganizeSuggestion(nil, forPath: folder)
+                    continue
+                }
+                AIBackgroundIndexStore.shared.setOrganizeSuggestion(
+                    CachedFolderGroup(title: suggestion.folderName, memberPaths: paths, actionToken: "organize"),
+                    forPath: folder)
+                produced += 1
+            }
+            AIBackgroundIndexer.shared.recordPass("整理", candidates: picks.count, produced: produced)
         }
     }
 

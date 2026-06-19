@@ -44,6 +44,11 @@ final class AIBackgroundIndexStore: ObservableObject {
     private(set) var folderGroupsByPath: [String: [CachedFolderGroup]]
     /// 文件夹分组缓存内容世代。FileTable 纳入内容指纹,让后台 pass 写缓存后追加组行,但不把字典设成 @Published。
     private(set) var folderGroupsGeneration = 0
+    /// Task 7「整理进新文件夹」建议缓存。key = 文件夹真实路径;每个文件夹**至多一条**(成员空的哨兵 = 已评估但无
+    /// 建议,区分「键缺失」= 未评估)。`title` 承载模型起的主题文件夹名,`actionToken` = "organize"。
+    private(set) var organizeByPath: [String: CachedFolderGroup]
+    /// 整理建议缓存世代(ContentView 顶部建议条据此 + objectWillChange 重算;不把字典设成 @Published)。
+    private(set) var organizeGeneration = 0
 
     private let defaults: UserDefaults
 
@@ -53,6 +58,7 @@ final class AIBackgroundIndexStore: ObservableObject {
         self.fileIndex = AIBackgroundIndexStore.loadIndex(from: defaults)
         self.dislikedSuggestionKeys = AIBackgroundIndexStore.loadDislikedKeys(from: defaults)
         self.folderGroupsByPath = AIBackgroundIndexStore.loadFolderGroups(from: defaults)
+        self.organizeByPath = AIBackgroundIndexStore.loadOrganize(from: defaults)
         rebuildPathIndex()   // init 里的 fileIndex 赋值不触发 didSet,手动建一次
     }
 
@@ -104,6 +110,38 @@ final class AIBackgroundIndexStore: ObservableObject {
         folderGroupsByPath[key] = groups
         folderGroupsGeneration += 1
         persistFolderGroups()
+        objectWillChange.send()
+    }
+
+    // MARK: - Task 7 整理建议缓存(文件夹级:建新文件夹 + 把同类文件移进去)
+
+    /// 该文件夹是否已被整理 pass 评估过(键缺失 = 未评估,下轮后台会跑)。
+    func organizeEvaluated(forPath folderPath: String) -> Bool {
+        organizeByPath[Self.normalizedFolderPath(folderPath)] != nil
+    }
+
+    /// 该文件夹的整理建议(仅当有成员时返回;空成员的「已评估无建议」哨兵返回 nil)。
+    func organizeSuggestion(forPath folderPath: String) -> CachedFolderGroup? {
+        guard let group = organizeByPath[Self.normalizedFolderPath(folderPath)],
+              !group.memberPaths.isEmpty else { return nil }
+        return group
+    }
+
+    /// 写入整理建议(nil = 已评估但无建议,落一个空成员哨兵,避免下轮重复评估同一文件夹)。
+    func setOrganizeSuggestion(_ group: CachedFolderGroup?, forPath folderPath: String) {
+        let key = Self.normalizedFolderPath(folderPath)
+        organizeByPath[key] = group ?? CachedFolderGroup(title: nil, memberPaths: [], actionToken: "organize")
+        organizeGeneration += 1
+        persistOrganize()
+        objectWillChange.send()
+    }
+
+    /// 用户接受 / 文件移走后清掉该文件夹的整理建议(删键 = 回到未评估,下轮后台据新内容重评,通常为空)。
+    func clearOrganizeSuggestion(forPath folderPath: String) {
+        let key = Self.normalizedFolderPath(folderPath)
+        guard organizeByPath.removeValue(forKey: key) != nil else { return }
+        organizeGeneration += 1
+        persistOrganize()
         objectWillChange.send()
     }
 
@@ -338,8 +376,11 @@ final class AIBackgroundIndexStore: ObservableObject {
         fileIndex = fileIndex.cleared()
         folderGroupsByPath = [:]
         folderGroupsGeneration += 1
+        organizeByPath = [:]
+        organizeGeneration += 1
         persistIndex()
         persistFolderGroups()
+        persistOrganize()
         AIFeedbackStore.shared.clearAll()
         AIPendingCheckStore.shared.clearAll()
         objectWillChange.send()
@@ -371,6 +412,12 @@ final class AIBackgroundIndexStore: ObservableObject {
         }
     }
 
+    private func persistOrganize() {
+        if let data = try? JSONEncoder().encode(organizeByPath) {
+            defaults.set(data, forKey: AppPreferences.Key.aiOrganizeSuggestionsData)
+        }
+    }
+
     private static func loadDislikedKeys(from defaults: UserDefaults) -> Set<String> {
         guard let data = defaults.data(forKey: AppPreferences.Key.aiSuggestionDislikedKeys),
               let decoded = try? JSONDecoder().decode([String].self, from: data)
@@ -381,6 +428,13 @@ final class AIBackgroundIndexStore: ObservableObject {
     private static func loadFolderGroups(from defaults: UserDefaults) -> [String: [CachedFolderGroup]] {
         guard let data = defaults.data(forKey: AppPreferences.Key.aiFolderGroupsData),
               let decoded = try? JSONDecoder().decode([String: [CachedFolderGroup]].self, from: data)
+        else { return [:] }
+        return decoded
+    }
+
+    private static func loadOrganize(from defaults: UserDefaults) -> [String: CachedFolderGroup] {
+        guard let data = defaults.data(forKey: AppPreferences.Key.aiOrganizeSuggestionsData),
+              let decoded = try? JSONDecoder().decode([String: CachedFolderGroup].self, from: data)
         else { return [:] }
         return decoded
     }

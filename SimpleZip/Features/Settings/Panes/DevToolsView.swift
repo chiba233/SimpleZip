@@ -510,7 +510,7 @@ struct DevToolsView: View {
                 + " 低电\(g.lowBattery ? "是" : "否") 省电\(g.powerSaverMode ? "是" : "否") 档\(g.activityLevel) 模型\(g.modelAvailable ? "就绪" : "无")"
             // 每个 pass 上次跑的候选数(区分「无候选」vs「门控没过 / 没跑过」)。
             let diag = AIBackgroundIndexer.shared.passDiag
-            aiPassDiagStatus = ["摘要", "网页", "装App", "活动", "包内", "包定性", "文件组"].map { name in
+            aiPassDiagStatus = ["摘要", "网页", "装App", "活动", "包内", "包定性", "文件组", "整理"].map { name in
                 guard let d = diag[name] else { return "\(name):本会话没跑(看上面门控)" }
                 return "\(name):候选\(d.candidates)\(d.skip.map { " " + $0 } ?? "") · \(rel(d.lastRunAt))"
             }.joined(separator: "\n")
@@ -660,7 +660,7 @@ struct DevToolsView: View {
 
         out.append("\n## 各管线诊断(候选 / 产物 / 跳过原因)")
         let diag = indexer.passDiag
-        for name in ["摘要", "网页", "装App", "活动", "包内", "包定性", "文件组"] {
+        for name in ["摘要", "网页", "装App", "活动", "包内", "包定性", "文件组", "整理"] {
             if let d = diag[name] {
                 out.append("\(name): 候选\(d.candidates) 产物\(d.produced)\(d.skip.map { " · " + $0 } ?? "") · \(rel(d.lastRunAt))")
             } else {
@@ -701,6 +701,14 @@ struct DevToolsView: View {
         }
         out.append("\n### 文件组 [folderGroupsByPath] (\(groupEntries.count))")
         if groupEntries.isEmpty { out.append("（无）") } else { out.append(contentsOf: groupEntries.prefix(500)) }
+
+        // Task 7 整理建议(独立缓存;空成员 = 已评估无建议哨兵)。
+        let organizeEntries = store.organizeByPath.compactMap { folder, group -> String? in
+            group.memberPaths.isEmpty ? nil : "\(folder) → 『\(group.title ?? "(无题)")』 · \(group.memberPaths.count)项"
+        }
+        let organizeEvaluated = store.organizeByPath.count
+        out.append("\n### 整理 [organizeByPath] (有建议 \(organizeEntries.count) / 已评估 \(organizeEvaluated))")
+        if organizeEntries.isEmpty { out.append("（无）") } else { out.append(contentsOf: organizeEntries.prefix(500)) }
 
         // 内联结果(pending 执行完写回的 hash/test/security/inspect 白话)。
         var inlineLines: [String] = []
