@@ -2385,6 +2385,12 @@
 "tasks.aiWorkbench.failureExplanation.fallback" = "이 작업이 실패했습니다 — 카드를 펼쳐 자세히 확인하세요.";
 "tasks.aiWorkbench.openFullExplanation" = "전체 AI 설명 열기";
 "tasks.aiWorkbench.nextActions" = "다음 작업";
+"tasks.aiWorkbench.activeFilters" = "적용된 필터";
+"tasks.aiWorkbench.timeDimension" = "기간";
+"tasks.aiWorkbench.timeDimension.recommended" = "주목할 만함";
+"tasks.aiWorkbench.timeBand.today" = "오늘";
+"tasks.aiWorkbench.timeBand.thisWeek" = "이번 주";
+"tasks.aiWorkbench.timeBand.thisMonth" = "이번 달";
 "ai.suggestLabels" = "라벨 제안";
 "ai.suggestLabels.title" = "AI 제안 라벨";
 "ai.summarizeRisk.title" = "AI 위험 요약";

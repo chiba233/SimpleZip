@@ -831,7 +831,7 @@ final class AIBackgroundIndexer {
         var pick: (category: String, clusters: [AIWorkbenchCluster], fingerprint: String)?
         for category in ["archive", "fileOperation", "undoRedo"] {
             let records = all.filter { $0.category == category }
-            let clusters = ActivityAIWorkbenchBuilder.discoverClusters(records: records, now: Date())
+            let clusters = ActivityAIWorkbenchBuilder.discoverClusters(records: records)
             guard !clusters.isEmpty else { continue }
             let fingerprint = AIBackgroundIndexer.clusterFingerprint(clusters)
             if store.workbenchClusterChips(forCategory: category)?.fingerprint != fingerprint {

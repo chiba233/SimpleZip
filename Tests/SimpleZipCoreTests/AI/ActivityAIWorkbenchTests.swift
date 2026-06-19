@@ -143,20 +143,37 @@ import Testing
         #expect(lonely.isEmpty)
     }
 
-    /// 建议六 v2 时间维度:now 给 + 窗口是真子集时,冒出「今天失败 × source」聚集(timeWindowSeconds 标记)。
-    @Test func discoverClustersAddsTimeWindowDimension() {
-        func aged(_ id: String, daysAgo: Int) -> AITaskRecord {
-            AITaskRecord.make(id: id, category: "archive", kind: "extract", source: "finder", status: "failed",
+    /// 建议六 v2「AI 推荐时间维度」:时间不再内嵌进聚集 chip,而是独立的今天 / 本周 / 本月时间带,
+    /// 标出值得关注的那带(有未读失败的最窄带)。聚集 chip 此后**绝不**带 timeWindowSeconds。
+    @Test func timeDimensionsFlagsNarrowestBandWithUnseenFailures() {
+        func r(_ id: String, daysAgo: Int, status: String, seen: Bool) -> AITaskRecord {
+            AITaskRecord.make(id: id, category: "archive", kind: "extract", source: "finder", status: status,
                               title: "T", startedAt: now.addingTimeInterval(-Double(daysAgo) * 86_400 - 60),
                               finishedAt: now.addingTimeInterval(-Double(daysAgo) * 86_400),
-                              failureMessage: "ERROR: x", rawOutput: "ERROR: x")
+                              failureMessage: status == "failed" ? "ERROR: x" : nil, failureSeen: seen)
         }
-        // 2 个今天 + 2 个 10 天前 → 今天(2) ⊊ 全部(4),冒出今天时间 chip。
-        let records = [aged("a", daysAgo: 0), aged("b", daysAgo: 0), aged("c", daysAgo: 10), aged("d", daysAgo: 10)]
-        let clusters = ActivityAIWorkbenchBuilder.discoverClusters(records: records, now: now)
-        #expect(clusters.contains { $0.filter.timeWindowSeconds == 86_400 && $0.filter.source == "finder" && $0.matchCount == 2 })
-        // 不传 now → 无时间维度。
-        #expect(ActivityAIWorkbenchBuilder.discoverClusters(records: records).allSatisfy { $0.filter.timeWindowSeconds == nil })
+        // 1 个今天未读失败 + 2 个 10 天前成功 → 今天(1)、本周(1)、本月(3)三带;今天有未读失败 = 最窄 → 推荐。
+        let bands = ActivityAIWorkbenchBuilder.timeDimensions(records: [
+            r("a", daysAgo: 0, status: "failed", seen: false),
+            r("b", daysAgo: 10, status: "succeeded", seen: false),
+            r("c", daysAgo: 10, status: "succeeded", seen: false)
+        ], now: now)
+        #expect(bands.map(\.id) == ["today", "thisWeek", "thisMonth"])
+        #expect(bands.first { $0.id == "today" }?.taskCount == 1)
+        #expect(bands.first { $0.id == "thisMonth" }?.taskCount == 3)
+        #expect(bands.first { $0.id == "today" }?.recommended == true)
+        #expect(bands.filter { $0.recommended }.count == 1)
+        // 无失败 → 不推荐任何带(纯导航维度)。
+        let noFail = ActivityAIWorkbenchBuilder.timeDimensions(
+            records: [r("x", daysAgo: 0, status: "succeeded", seen: false)], now: now)
+        #expect(noFail.allSatisfy { !$0.recommended })
+        #expect(ActivityAIWorkbenchBuilder.timeDimensions(records: [], now: now).isEmpty)
+        // 时间不再进聚集 chip:所有聚集的 filter 一律无 timeWindowSeconds。
+        let clusters = ActivityAIWorkbenchBuilder.discoverClusters(records: [
+            r("a", daysAgo: 0, status: "failed", seen: false),
+            r("b", daysAgo: 0, status: "failed", seen: false)
+        ])
+        #expect(clusters.allSatisfy { $0.filter.timeWindowSeconds == nil })
     }
 
     /// 建议六 v2「学习到的习惯」:确定性算常用来源 / 格式 / 位置(按频次)。

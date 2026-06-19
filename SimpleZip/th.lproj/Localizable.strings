@@ -2384,6 +2384,12 @@
 "tasks.aiWorkbench.failureExplanation.fallback" = "งานนี้ล้มเหลว — ขยายการ์ดเพื่อดูรายละเอียด";
 "tasks.aiWorkbench.openFullExplanation" = "เปิดคำอธิบาย AI แบบเต็ม";
 "tasks.aiWorkbench.nextActions" = "การดำเนินการถัดไป";
+"tasks.aiWorkbench.activeFilters" = "ตัวกรองที่ใช้อยู่";
+"tasks.aiWorkbench.timeDimension" = "ช่วงเวลา";
+"tasks.aiWorkbench.timeDimension.recommended" = "น่าสนใจ";
+"tasks.aiWorkbench.timeBand.today" = "วันนี้";
+"tasks.aiWorkbench.timeBand.thisWeek" = "สัปดาห์นี้";
+"tasks.aiWorkbench.timeBand.thisMonth" = "เดือนนี้";
 "ai.suggestLabels" = "แนะนำป้ายกำกับ";
 "ai.suggestLabels.title" = "ป้ายกำกับที่ AI แนะนำ";
 "ai.summarizeRisk.title" = "สรุปความเสี่ยงด้วย AI";

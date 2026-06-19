@@ -1372,6 +1372,12 @@
 "tasks.aiWorkbench.failureExplanation.fallback" = "该任务失败 —— 展开卡片查看详情。";
 "tasks.aiWorkbench.openFullExplanation" = "打开完整 AI 解释";
 "tasks.aiWorkbench.nextActions" = "下一步动作";
+"tasks.aiWorkbench.activeFilters" = "生效中的筛选";
+"tasks.aiWorkbench.timeDimension" = "时间维度";
+"tasks.aiWorkbench.timeDimension.recommended" = "值得关注";
+"tasks.aiWorkbench.timeBand.today" = "今天";
+"tasks.aiWorkbench.timeBand.thisWeek" = "本周";
+"tasks.aiWorkbench.timeBand.thisMonth" = "本月";
 "ai.suggestLabels" = "建议标签";
 "ai.suggestLabels.title" = "AI 建议标签";
 "ai.summarizeRisk.title" = "AI 风险总结";

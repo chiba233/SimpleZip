@@ -2384,6 +2384,12 @@
 "tasks.aiWorkbench.failureExplanation.fallback" = "Эта задача завершилась с ошибкой — разверните карточку для подробностей.";
 "tasks.aiWorkbench.openFullExplanation" = "Открыть полное объяснение ИИ";
 "tasks.aiWorkbench.nextActions" = "Дальнейшие действия";
+"tasks.aiWorkbench.activeFilters" = "Активные фильтры";
+"tasks.aiWorkbench.timeDimension" = "Период";
+"tasks.aiWorkbench.timeDimension.recommended" = "Стоит проверить";
+"tasks.aiWorkbench.timeBand.today" = "Сегодня";
+"tasks.aiWorkbench.timeBand.thisWeek" = "На этой неделе";
+"tasks.aiWorkbench.timeBand.thisMonth" = "В этом месяце";
 "ai.suggestLabels" = "Предложить метки";
 "ai.suggestLabels.title" = "Метки, предложенные ИИ";
 "ai.summarizeRisk.title" = "Сводка рисков ИИ";

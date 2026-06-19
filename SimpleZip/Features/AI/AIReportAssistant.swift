@@ -140,48 +140,9 @@ actor AIGenerationSerializer {
 // 字段一律用 String + `@Guide` 列出允许值,Swift 端做容错映射(模型给了界外值就退回安全默认),
 // 避免依赖「@Generable 枚举」的细节、也更耐模型抖动。
 
-/// #60:活动中心自然语言筛选 —— AI 只把一句话**抽成精确条件**,由 App 在代码里确定性匹配。
-/// 分类字段用 **`@Generable` 枚举**而非 String:模型被**硬约束**只能吐合法英文 token —— 实测中文输入时
-/// String 字段会被模型按原文回填(status=未完成 / unit=天 / fmt=压缩包),代码对不上就静默失效;枚举从根上杜绝。
-@available(macOS 26.0, *)
-@Generable
-enum FilterStatus: String, Equatable { case all, running, succeeded, failed, cancelled }
-@available(macOS 26.0, *)
-@Generable
-enum FilterSource: String, Equatable { case any, app, cli, intent, urlScheme, finder }
-@available(macOS 26.0, *)
-@Generable
-enum FilterKind: String, Equatable {
-    case any, extract, compress, create, test, convert, compare, benchmark, hash, split, combine
-    case search, inspect, paste, move, copy, duplicate, delete, rename, permissions, undo, redo
-}
-@available(macOS 26.0, *)
-@Generable
-enum FilterTimeUnit: String, Equatable { case none, seconds, minutes, hours, days, weeks, months, years }
-@available(macOS 26.0, *)
-@Generable
-enum FilterTimeDirection: String, Equatable { case within, before }
-
-@available(macOS 26.0, *)
-@Generable
-struct ActivityFilterSpec: Sendable {
-    @Guide(description: "Which task states to keep.")
-    var status: FilterStatus
-    @Guide(description: "Which task origin to keep.")
-    var source: FilterSource
-    @Guide(description: "The kind of OPERATION the user explicitly names as an action. A file format or extension is NOT an operation: never infer this from a format or from a generic word for 'archive'. any unless the user names an action.")
-    var kind: FilterKind
-    @Guide(description: "A specific archive format or file extension named in the request (like a short suffix), matched against the task name. EMPTY string if no specific format is named — do not put a generic word for 'archive' or 'compressed file' here.")
-    var format: String
-    @Guide(description: "The NAME of a specific file the user is looking for. EMPTY string unless the user names a particular file. A time amount, duration, date, number, status word, operation, or format is NEVER a file name and must NEVER be placed here.")
-    var fileName: String
-    @Guide(description: "The amount in any time limit the request expresses, as a plain number that may be fractional (e.g. 0.2 or 1.5), NOT converted to any unit. 0 if the request expresses no time limit.")
-    var timeValue: Double
-    @Guide(description: "The unit the time amount is expressed in. none if the request expresses no time limit.")
-    var timeUnit: FilterTimeUnit
-    @Guide(description: "Whether the time limit selects tasks more recent than it (within) or older than it (before).")
-    var timeDirection: FilterTimeDirection
-}
+// #60 活动中心「一句话筛选」(NL → ActivityFilterSpec)已随建议六 v2 砍除 —— 工作台改用确定性的
+// 「建议筛选 chip × AI 推荐时间维度」双重叠加(见 ActivityAIWorkbenchView),不再有自然语言筛选输入框。
+// 对应的 @Generable 过滤枚举 / struct / `activityFilterSpec(for:)` 一并移除(无其它调用方)。
 
 /// #63:归档清单缓存自然语言查询 —— 一句话 → 一个用来在已缓存归档里搜的**文件名关键词**。
 @available(macOS 26.0, *)
@@ -228,25 +189,6 @@ extension AIReportAssistant {
             }
             throw lastError ?? AIAssistError(message: "structured generation failed after retries")
         }
-    }
-
-    /// #60:把用户一句话抽成精确过滤条件(状态 + 来源 + 关键词 + 分钟)。App 拿这四个字段在代码里
-    /// 确定性精确匹配 —— 模型只做「理解短语」这件它擅长的事,不让它做不可靠的「扫列表选行」。
-    static func activityFilterSpec(for query: String) async throws -> ActivityFilterSpec {
-        let instructions = """
-        You read the user's request and express it as a task filter. Understand the request whatever \
-        language it is written in, and capture EVERY condition it expresses — these can stack: a name to \
-        look for, how recent (or how old) the task is, its state, where it came from, what kind of \
-        operation it is, and what archive format. A single request often sets several of these at once, so \
-        fill all that apply and leave the rest at their empty/any default. Each part of the request belongs \
-        to exactly ONE field — a time amount goes only to timeValue/timeUnit, a status only to status, a \
-        format only to format, an operation only to kind — and the file-name field stays EMPTY unless the \
-        user actually names a specific file. Never copy a time, status, format, or operation into the \
-        file-name field. For a time limit, report the amount and its unit as the user expressed them, \
-        without converting; the app does the arithmetic and the exact matching. Be faithful to what the user \
-        asked: don't translate or paraphrase the name, and don't invent conditions the request doesn't express.
-        """
-        return try await generateStructured(instructions: instructions, prompt: query, as: ActivityFilterSpec.self)
     }
 
     /// #63:从用户的一句话里抽出最有用的文件名关键词(用来跑现有的「哪个归档含某文件」缓存查询)。

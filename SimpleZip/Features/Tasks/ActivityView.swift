@@ -33,35 +33,27 @@ struct ActivityView: View {
     @State private var archiveFilter = ActivityTaskFilter.all
     @State private var fileFilter = ActivityTaskFilter.all
     @State private var undoRedoFilter = ActivityTaskFilter.all
-    // #60(macOS 26 AI):自然语言筛选 —— 输入一句话 → AI 映射成 {状态, 来源, 关键词, 时间窗} → 确定性地应用。
-    // AI 只产规格、不执行;筛选纯属只读展示。仅 AIReportAssistant.isReady 时露出按钮。
-    // 关键词(匹配任务名/归档名)+ 时间窗是「临时分类」的灵魂 —— 不止在现成状态/来源里挑。
-    @State private var aiFilterText = ""
-    @State private var aiFilterRunning = false
-    /// AI 抽出的精确过滤条件 —— App 在代码里**确定性匹配**(模型只负责把短语抽成这四个字段,
-    /// 不让它扫列表选行,那不可靠)。
-    @State private var aiKeyword = ""
-    /// 时间窗换算成**秒**(0 = 不限)—— AI 只给「数值 + 单位」,换算在 App 里做(避免模型算错单位,
-    /// 如「3600 秒」被当成分钟)。`aiTimeBefore` = 早于(外)还是晚于(内)该时刻。
-    @State private var aiWithinSeconds: TimeInterval = 0
-    @State private var aiTimeBefore = false
+    // 建议六 v2:工作台「建议筛选」chip 点选后的精确条件 —— App 在代码里**确定性匹配**(状态 / 来源 / 类型 /
+    // 诊断标签)。一句话 AI 搜索已砍(毫无价值,全靠合理的 AI 建议),改用「建议筛选 chip × AI 推荐时间维度」双重叠加。
     @State private var aiStatus = ActivityTaskFilter.all
     @State private var aiSource: OperationTask.Source?
     /// 任务类型范围(nil = 不限)。
     @State private var aiKinds: Set<OperationTask.Kind> = []
-    /// 格式 / 扩展名范围(空 = 不限),匹配任务名里的「.<格式>」。
-    @State private var aiFormat = ""
     /// 诊断标签范围(空 = 不限),来自 `ActivityTaskAIIndex` 的确定性失败分类。
     @State private var aiDiagnosticTags: Set<String> = []
-    /// 当前 AI 筛选的原话(高亮按钮 tooltip 显示)。
+    /// 当前生效建议 chip 的显示名(生效指示 + 一键清除用)。空 = 没有生效的 chip。
     @State private var aiFilterQuery = ""
-    /// 抽取**抛错** / 没抽到任何条件时的提示(气泡内);失败**绝不点亮按钮**(用户点名)。
-    @State private var aiFilterError: String?
+    /// 建议六 v2「AI 推荐时间维度」:独立的时间筛选窗(秒;0 = 不限)。与建议 chip **双重叠加**——
+    /// 选「今天」+「从 Finder 解压失败的」会同时生效(AND)。由 `applyWorkbenchTimeBand` 切换,不被 chip 覆盖。
+    @State private var workbenchTimeWindowSeconds = 0
 
-    /// 有任一非默认条件 = 生效(高亮 + 点按清空)。任意维度可同时叠加。
+    /// 建议筛选 chip 是否生效(状态 / 来源 / 类型 / 诊断标签任一非默认)。
+    private var chipFilterActive: Bool {
+        aiStatus != .all || aiSource != nil || !aiKinds.isEmpty || !aiDiagnosticTags.isEmpty
+    }
+    /// 任一维度生效(建议 chip **或** 时间维度)= 走 AI 筛选视图;清空两者即恢复手动筛选。两维度可同时叠加。
     private var aiFilterActive: Bool {
-        !aiKeyword.isEmpty || aiWithinSeconds > 0 || aiStatus != .all || aiSource != nil
-            || !aiKinds.isEmpty || !aiFormat.isEmpty || !aiDiagnosticTags.isEmpty
+        chipFilterActive || workbenchTimeWindowSeconds > 0
     }
     @AppStorage(AppPreferences.Key.activityHistoryLimit) private var historyLimit = AppPreferences.activityHistoryLimit
     @AppStorage(AppPreferences.Key.heavyTaskConcurrencyLimit) private var concurrencyLimit = AppPreferences.heavyTaskConcurrencyLimit
@@ -264,14 +256,13 @@ struct ActivityView: View {
                                 snapshot: activityAIWorkbenchSnapshot(for: category),
                                 habits: workbenchHabits(for: category),
                                 automationHint: workbenchAutomationHint(for: category),
-                                searchText: $aiFilterText,
-                                isRunningQuery: aiFilterRunning,
-                                queryError: aiFilterError,
-                                activeFilterSummary: aiFilterActive ? activeFilterSummary : nil,
+                                timeBands: workbenchTimeBands(for: category),
+                                activeTimeWindowSeconds: workbenchTimeWindowSeconds,
+                                activeFilterSummary: chipFilterActive ? activeFilterSummary : nil,
                                 aiExplanation: workbenchNeedsAttentionExplanation(in: category),
                                 failureFocus: workbenchFailureFocus(in: category),
-                                onRunQuery: { Task { await runAIFilter() } },
-                                onClearFilter: clearAIFilter,
+                                onApplyTimeBand: applyWorkbenchTimeBand,
+                                onClearFilter: clearChipFilter,
                                 onApplyFilter: applyAIWorkbenchFilter,
                                 onOpenTask: openWorkbenchTask,
                                 onOpenFullFailureExplanation: { showsWorkbenchFailureSheet = true },
@@ -578,30 +569,23 @@ struct ActivityView: View {
 
     private func filteredTasks(in category: OperationTask.Category) -> [OperationTask] {
         let all = tasks(in: category)
-        // #60:AI 筛选生效时,用 AI 抽出的条件**在代码里精确匹配**(手动状态/来源筛选此时让位;清空即恢复)。
+        // 建议六 v2:工作台筛选生效时,**建议 chip 维度 × AI 推荐时间维度双重叠加**(两者各自独立、可同时生效;
+        // 都清空即恢复手动筛选)。chip 维度让手动状态 / 来源筛选让位;时间维度叠加在 chip 之上(AND)。
         if aiFilterActive {
-            let keyword = aiKeyword
-            let cutoff = aiWithinSeconds > 0 ? Date().addingTimeInterval(-aiWithinSeconds) : nil
-            let before = aiTimeBefore
-            let formatNeedle = aiFormat.isEmpty ? nil : "." + aiFormat.lowercased()
+            let cutoff = workbenchTimeWindowSeconds > 0
+                ? Date().addingTimeInterval(-Double(workbenchTimeWindowSeconds)) : nil
+            let chipActive = chipFilterActive
             return all.filter { task in
-                guard aiStatus.includes(task) else { return false }
-                if let aiSource, task.source != aiSource { return false }
-                if !aiKinds.isEmpty, !aiKinds.contains(task.kind) { return false }
-                if let formatNeedle, !task.title.lowercased().contains(formatNeedle) { return false }
-                if !aiDiagnosticTags.isEmpty {
-                    let tags = Set(task.aiTaskRecord.diagnostics.tags)
-                    if tags.isDisjoint(with: aiDiagnosticTags) { return false }
+                if chipActive {
+                    guard aiStatus.includes(task) else { return false }
+                    if let aiSource, task.source != aiSource { return false }
+                    if !aiKinds.isEmpty, !aiKinds.contains(task.kind) { return false }
+                    if !aiDiagnosticTags.isEmpty {
+                        let tags = Set(task.aiTaskRecord.diagnostics.tags)
+                        if tags.isDisjoint(with: aiDiagnosticTags) { return false }
+                    }
                 }
-                if !keyword.isEmpty {
-                    let inTitle = task.title.localizedCaseInsensitiveContains(keyword)
-                    let inDetail = task.detail?.localizedCaseInsensitiveContains(keyword) ?? false
-                    if !inTitle && !inDetail { return false }
-                }
-                if let cutoff {
-                    // within = 晚于 cutoff(更近);before = 早于 cutoff(更老)。
-                    if before ? (task.startedAt >= cutoff) : (task.startedAt < cutoff) { return false }
-                }
+                if let cutoff, task.startedAt < cutoff { return false }   // 时间维度:仅保留窗口内(更近)的
                 return true
             }
         }
@@ -621,98 +605,36 @@ struct ActivityView: View {
         .fixedSize()
     }
 
-    // #60 的工具栏 AI 筛选按钮已删:NL 搜索 + 生效筛选 + 清除都挪进右侧「AI 工作台」侧栏
-    // (见 ActivityAIWorkbenchView 的 search 区);`runAIFilter` / `clearAIFilter` / 筛选状态保留,由侧栏驱动。
+    // 一句话 AI 搜索已砍(用户:对工作台毫无价值,全靠合理的 AI 建议)。工作台筛选 = 「建议筛选 chip ×
+    // AI 推荐时间维度」双重叠加,由侧栏驱动;`applyAIWorkbenchFilter` / `applyWorkbenchTimeBand` / `clearChipFilter`。
 
-    /// AI 把短语抽成精确条件 → App 确定性应用。抽不到任何条件 / 抛错 → 不点亮 + 气泡提示(用户点名)。
-    @MainActor
-    private func runAIFilter() async {
-        let query = aiFilterText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty, !aiFilterRunning else { return }
-        guard #available(macOS 26.0, *) else { return }
-        aiFilterRunning = true
-        aiFilterError = nil
-        defer { aiFilterRunning = false }
-        do {
-            let spec = try await AIReportAssistant.activityFilterSpec(for: query)
-            // 分类字段现在是 @Generable 枚举,模型被硬约束只能吐合法 token —— 直接 switch,无需容错字符串解析。
-            let status: ActivityTaskFilter
-            switch spec.status {
-            case .all: status = .all
-            case .running: status = .running
-            case .succeeded: status = .succeeded
-            case .failed: status = .failed
-            case .cancelled: status = .cancelled
-            }
-            let source: OperationTask.Source?
-            switch spec.source {
-            case .any: source = nil
-            case .app: source = .app
-            case .cli: source = .cli
-            case .intent: source = .intent
-            case .urlScheme: source = .urlScheme
-            case .finder: source = .finder
-            }
-            let kind: OperationTask.Kind? = spec.kind == .any ? nil : OperationTask.Kind(rawValue: spec.kind.rawValue)
-            let keyword = spec.fileName.trimmingCharacters(in: .whitespacesAndNewlines)
-            // 格式容错:模型可能给「any」(意为不限)或通用词 / 非拉丁(如「压缩包」)—— 都不当成扩展名。
-            // 只认拉丁字母数字(允许内部「.」如 tar.gz)的短后缀。
-            let rawFormat = spec.format.trimmingCharacters(in: CharacterSet(charactersIn: ". ")).lowercased()
-            let isExtension = !rawFormat.isEmpty && rawFormat != "any" && rawFormat != "none"
-                && rawFormat.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == ".") }
-            let format = isExtension ? rawFormat : ""
-            // 单位换算在代码里做(模型只给「数值 + 单位」枚举,不让它算)。
-            let unitSeconds: TimeInterval
-            switch spec.timeUnit {
-            case .none: unitSeconds = 0
-            case .seconds: unitSeconds = 1
-            case .minutes: unitSeconds = 60
-            case .hours: unitSeconds = 3600
-            case .days: unitSeconds = 86_400
-            case .weeks: unitSeconds = 604_800
-            case .months: unitSeconds = 2_592_000      // ~30 天
-            case .years: unitSeconds = 31_536_000      // ~365 天
-            }
-            let seconds = max(0, spec.timeValue) * unitSeconds
-            let before = spec.timeDirection == .before
-            // 一个条件都没抽到 → 不点亮,提示重述。
-            guard !keyword.isEmpty || seconds > 0 || status != .all || source != nil
-                    || kind != nil || !format.isEmpty else {
-                aiFilterError = L10n.text("tasks.aiFilter.failed")
-                return
-            }
-            aiKeyword = keyword
-            aiWithinSeconds = seconds
-            aiTimeBefore = before
-            aiStatus = status
-            aiSource = source
-            aiKinds = kind.map { [$0] } ?? []
-            aiFormat = format
-            aiDiagnosticTags = []
-            aiFilterQuery = query
-            aiFilterText = ""
-        } catch {
-            aiFilterError = L10n.text("tasks.aiFilter.failed")
-        }
-    }
-
-    /// 清空 AI 临时分类 —— 条件全复位即恢复手动筛选视图(用户点高亮的 AI 按钮触发)。
-    private func clearAIFilter() {
-        aiKeyword = ""
-        aiWithinSeconds = 0
-        aiTimeBefore = false
+    /// 清空**建议 chip** 维度(状态 / 来源 / 类型 / 诊断标签 + 显示名)。**不动时间维度** —— 时间维度由它自己的
+    /// 时间带切换清除(两维度独立可清,这样用户启用任一筛选后都能单独关掉,不会卡死)。
+    private func clearChipFilter() {
         aiStatus = .all
         aiSource = nil
         aiKinds = []
-        aiFormat = ""
         aiDiagnosticTags = []
         aiFilterQuery = ""
-        aiFilterError = nil
     }
 
-    /// 高亮按钮的 tooltip:当前 AI 筛选的原话。
+    /// 生效中建议 chip 的指示文案(侧栏「生效中的筛选」用)。
     private var activeFilterSummary: String {
         "“\(aiFilterQuery)”"
+    }
+
+    /// 建议六 v2「AI 推荐时间维度」:确定性算今天 / 本周 / 本月三带(near-term 切片;前 80,aiTaskRecord 缓存),
+    /// 标出值得关注的那带。不调模型;AI 关 → 不显示。
+    private func workbenchTimeBands(for category: OperationTask.Category) -> [ActivityWorkbenchTimeBand] {
+        guard aiAssistantEnabled else { return [] }
+        return ActivityAIWorkbenchBuilder.timeDimensions(
+            records: Array(filteredTasksForWorkbench(in: category).prefix(80)).map(\.aiTaskRecord),
+            now: Date())
+    }
+
+    /// 点某条时间带:切换独立的时间维度窗(再点同一带 = 取消)。**不动建议 chip** —— 与建议筛选双重叠加。
+    private func applyWorkbenchTimeBand(_ band: ActivityWorkbenchTimeBand) {
+        workbenchTimeWindowSeconds = (workbenchTimeWindowSeconds == band.seconds) ? 0 : band.seconds
     }
 
     private func activityAIWorkbenchSnapshot(for category: OperationTask.Category) -> ActivityAIWorkbenchSnapshot {
@@ -938,17 +860,14 @@ struct ActivityView: View {
                 id: UUID(), occurredAt: Date(), surface: .activityAIWorkbench,
                 interaction: .appliedFilterChip, targetKind: .task, targetID: chip.id))
         }
-        aiKeyword = ""
-        aiWithinSeconds = Double(chip.filter.timeWindowSeconds ?? 0)   // 时间维度 chip:筛最近 N 秒(今天/本周)
-        aiTimeBefore = false
+        // 只设建议 chip 维度(状态 / 来源 / 类型 / 诊断标签)。**不动时间维度** —— 时间是独立的一组时间带,
+        // 与 chip 双重叠加(用户可同时选「今天」+「从 Finder 解压失败的」)。
         aiStatus = activityFilter(from: chip.filter.status)
         aiSource = chip.filter.source.flatMap(OperationTask.Source.init(rawValue:))
         aiKinds = Set(chip.filter.kindTokens.compactMap(OperationTask.Kind.init(rawValue:)))
-        aiFormat = ""
         aiDiagnosticTags = Set(chip.filter.diagnosticTags)
         // cluster chip 用模型命名(displayName);写死 chip 仍走 L10n id。
         aiFilterQuery = chip.displayName ?? L10n.text("tasks.aiWorkbench.chip.\(chip.id)")
-        aiFilterError = nil
     }
 
     private func activityFilter(from rawStatus: String?) -> ActivityTaskFilter {

@@ -58,18 +58,21 @@ struct ActivityAIWorkbenchView: View {
     let habits: ActivityWorkbenchHabits
     /// 建议六 v2「自动化建议」:某手动操作稳定重复达阈值时的提示(nil = 没有稳定重复 → 不显示)。
     let automationHint: ActivityWorkbenchAutomationHint?
-    /// 自然语言筛选输入(从工具栏挪进侧栏)。回车 / 点按 → `onRunQuery`,由父级走 AI 抽条件并应用。
-    @Binding var searchText: String
-    let isRunningQuery: Bool
-    let queryError: String?
-    /// 当前生效的 AI 筛选摘要(nil = 没有生效);非 nil 时显示一行可一键清除的指示。
+    /// 建议六 v2「AI 推荐时间维度」:今天 / 本周 / 本月三带(确定性),标出值得关注的那带。空 = 不显示该区。
+    /// 与建议筛选 chip **双重叠加**(各自独立、可同时生效)。
+    let timeBands: [ActivityWorkbenchTimeBand]
+    /// 当前生效的时间维度窗(秒;0 = 没选时间带)。用于高亮选中的时间带 + 「生效中的筛选」里显示可清除的时间 pill。
+    let activeTimeWindowSeconds: Int
+    /// 当前生效的**建议 chip** 摘要(nil = 没有生效的 chip);非 nil 时在「生效中的筛选」里显示一行可一键清除的指示。
     let activeFilterSummary: String?
     /// 建议六 v2:端上模型对「需要处理」卡写的一段解读(现在最值得先处理什么 + 为什么)。nil = 模型不可用 / 没失败 /
     /// 还没生成 → 卡片退回确定性计数文案。
     let aiExplanation: String?
     /// 建议六 v2 模块①:用户展开某个失败任务时的「失败解释」焦点。nil = 没有展开的失败任务 → 不显示该区。
     let failureFocus: ActivityWorkbenchFailureFocus?
-    let onRunQuery: () -> Void
+    /// 点某条时间带:切换独立的时间维度窗(再点同一带 = 取消)。父级与建议 chip 双重叠加,互不覆盖。
+    let onApplyTimeBand: (ActivityWorkbenchTimeBand) -> Void
+    /// 清除当前生效的**建议 chip**(只清 chip 维度,不动时间维度)。
     let onClearFilter: () -> Void
     let onApplyFilter: (ActivityAIWorkbenchFilterChip) -> Void
     let onOpenTask: (String) -> Void
@@ -89,11 +92,12 @@ struct ActivityAIWorkbenchView: View {
             // 不滚动则下方 box 被截断、点不到(用户报)。header 固定,内容区滚动。
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
-                    searchSection
+                    activeFiltersBanner
                     currentSummary
                     needsAttention
                     failureExplanation
                     nextActions
+                    timeDimension
                     suggestedFilters
                     learnedHabits
                     automationSuggestion
@@ -106,48 +110,87 @@ struct ActivityAIWorkbenchView: View {
         .background(Color(nsColor: .controlBackgroundColor))
     }
 
-    /// NL 搜索区(原工具栏 AI 筛选按钮的功能,挪到侧栏):输入一句话 → AI 抽条件;生效时一行指示 + 一键清除。
-    private var searchSection: some View {
-        workbenchSection(title: L10n.text("tasks.aiFilter.title"), systemImage: "magnifyingglass") {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 6) {
-                    TextField(L10n.text("tasks.aiFilter.prompt"), text: $searchText)
-                        .textFieldStyle(.roundedBorder)
-                        .onSubmit(onRunQuery)
-                    if isRunningQuery {
-                        ProgressView().controlSize(.small)
-                    } else {
-                        Button(action: onRunQuery) {
-                            Image(systemName: "arrow.up.circle.fill")
-                        }
-                        .buttonStyle(.borderless)
-                        .disabled(searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                        .help(L10n.text("tasks.aiFilter.apply"))
+    /// 当前生效中的两个独立筛选维度(建议 chip + 时间维度),各显示一个可一键清除的 pill。**一定保留它们可清除**——
+    /// 否则用户一旦启用筛选就关不掉。两维度独立:清 chip 不动时间,清时间不动 chip。都没生效 → 整区不渲染。
+    @ViewBuilder
+    private var activeFiltersBanner: some View {
+        let activeBand = timeBands.first { $0.seconds == activeTimeWindowSeconds }
+        if activeFilterSummary != nil || activeBand != nil {
+            workbenchSection(title: L10n.text("tasks.aiWorkbench.activeFilters"),
+                             systemImage: "line.3.horizontal.decrease.circle.fill") {
+                VStack(alignment: .leading, spacing: 6) {
+                    if let activeFilterSummary {
+                        activeFilterPill(text: activeFilterSummary, systemImage: "sparkles", onClear: onClearFilter)
                     }
-                }
-                if let queryError {
-                    Label(queryError, systemImage: "exclamationmark.triangle.fill")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                if let activeFilterSummary {
-                    HStack(spacing: 6) {
-                        Label(activeFilterSummary, systemImage: "line.3.horizontal.decrease.circle.fill")
-                            .font(.caption)
-                            .foregroundStyle(.purple)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                        Spacer(minLength: 4)
-                        Button(action: onClearFilter) {
-                            Image(systemName: "xmark.circle.fill")
+                    if let activeBand {
+                        // 已选时间带:再点同一带 = 取消,所以清除 = 重新 apply 它。
+                        activeFilterPill(text: timeBandTitle(activeBand.id), systemImage: "calendar") {
+                            onApplyTimeBand(activeBand)
                         }
-                        .buttonStyle(.borderless)
-                        .help(L10n.text("tasks.aiFilter.clear"))
                     }
                 }
             }
         }
+    }
+
+    private func activeFilterPill(text: String, systemImage: String,
+                                  onClear: @escaping () -> Void) -> some View {
+        HStack(spacing: 6) {
+            Label(text, systemImage: systemImage)
+                .font(.caption)
+                .foregroundStyle(.purple)
+                .lineLimit(1)
+                .truncationMode(.middle)
+            Spacer(minLength: 4)
+            Button(action: onClear) {
+                Image(systemName: "xmark.circle.fill")
+            }
+            .buttonStyle(.borderless)
+            .help(L10n.text("tasks.aiFilter.clear"))
+        }
+    }
+
+    /// 建议六 v2「AI 推荐时间维度」:今天 / 本周 / 本月可切换时间带(✨ 标值得关注的那带)。点选 = 切换独立的时间窗,
+    /// **与建议筛选 chip 双重叠加**(各自独立、可同时生效)。无时间带数据 → 整区不渲染。
+    @ViewBuilder
+    private var timeDimension: some View {
+        if !timeBands.isEmpty {
+            workbenchSection(title: L10n.text("tasks.aiWorkbench.timeDimension"), systemImage: "calendar") {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(timeBands) { band in
+                        let selected = band.seconds == activeTimeWindowSeconds
+                        Button {
+                            onApplyTimeBand(band)
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: selected ? "checkmark.circle.fill" : "calendar")
+                                    .font(.caption2)
+                                    .foregroundStyle(selected ? Color.purple : Color.secondary)
+                                Text(timeBandTitle(band.id))
+                                    .lineLimit(1)
+                                if band.recommended {
+                                    Label(L10n.text("tasks.aiWorkbench.timeDimension.recommended"), systemImage: "sparkles")
+                                        .labelStyle(.titleAndIcon)
+                                        .font(.caption2)
+                                        .foregroundStyle(.purple)
+                                }
+                                Spacer(minLength: 8)
+                                Text("\(band.taskCount)")
+                                    .font(.caption2.monospacedDigit())
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    }
+                }
+            }
+        }
+    }
+
+    private func timeBandTitle(_ id: String) -> String {
+        L10n.text("tasks.aiWorkbench.timeBand.\(id)")
     }
 
     private var header: some View {

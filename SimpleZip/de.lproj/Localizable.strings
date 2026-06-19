@@ -2385,6 +2385,12 @@
 "tasks.aiWorkbench.failureExplanation.fallback" = "Diese Aufgabe ist fehlgeschlagen – Karte für Details aufklappen.";
 "tasks.aiWorkbench.openFullExplanation" = "Vollständige KI-Erklärung öffnen";
 "tasks.aiWorkbench.nextActions" = "Nächste Schritte";
+"tasks.aiWorkbench.activeFilters" = "Aktive Filter";
+"tasks.aiWorkbench.timeDimension" = "Zeitraum";
+"tasks.aiWorkbench.timeDimension.recommended" = "Beachtenswert";
+"tasks.aiWorkbench.timeBand.today" = "Heute";
+"tasks.aiWorkbench.timeBand.thisWeek" = "Diese Woche";
+"tasks.aiWorkbench.timeBand.thisMonth" = "Diesen Monat";
 "ai.suggestLabels" = "Labels vorschlagen";
 "ai.suggestLabels.title" = "KI-Label-Vorschläge";
 "ai.summarizeRisk.title" = "KI-Risikozusammenfassung";

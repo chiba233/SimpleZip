@@ -1374,6 +1374,12 @@
 "tasks.aiWorkbench.failureExplanation.fallback" = "This task failed — expand the card for details.";
 "tasks.aiWorkbench.openFullExplanation" = "Open full AI explanation";
 "tasks.aiWorkbench.nextActions" = "Next actions";
+"tasks.aiWorkbench.activeFilters" = "Active filters";
+"tasks.aiWorkbench.timeDimension" = "Time range";
+"tasks.aiWorkbench.timeDimension.recommended" = "Worth a look";
+"tasks.aiWorkbench.timeBand.today" = "Today";
+"tasks.aiWorkbench.timeBand.thisWeek" = "This week";
+"tasks.aiWorkbench.timeBand.thisMonth" = "This month";
 "ai.suggestLabels" = "Suggest Labels";
 "ai.suggestLabels.title" = "AI Suggested Labels";
 "ai.summarizeRisk.title" = "AI Risk Summary";

@@ -136,6 +136,27 @@ nonisolated struct ActivityWorkbenchAutomationHint: Codable, Equatable, Sendable
     let count: Int
 }
 
+/// 建议六 v2「AI 推荐时间维度」:一个时间带(今天 / 本周 / 本月)的活动事实。**独立于建议筛选 chip**——
+/// 时间维度和建议筛选可同时生效(双重叠加),所以它不是 chip,而是单独一组可切换的时间带。`recommended`
+/// = 工作台标「值得关注」(确定性发现:有未读失败的最窄带 → 最近且可处理)。前台用现成 L10n 显示名渲染。
+nonisolated struct ActivityWorkbenchTimeBand: Codable, Equatable, Identifiable, Sendable {
+    /// 稳定英文 token(`today` / `thisWeek` / `thisMonth`),前台映射 L10n 显示名。
+    let id: String
+    /// 时间窗秒数(App 据此设独立的时间筛选 cutoff)。
+    let seconds: Int
+    /// 落在该窗口内的任务数(近期任务切片内)。
+    let taskCount: Int
+    /// 该窗口内未读失败数(驱动「值得关注」推荐)。
+    let failedUnseen: Int
+    /// 工作台「值得关注」标记(确定性)。
+    let recommended: Bool
+
+    func markingRecommended() -> ActivityWorkbenchTimeBand {
+        ActivityWorkbenchTimeBand(id: id, seconds: seconds, taskCount: taskCount,
+                                  failedUnseen: failedUnseen, recommended: true)
+    }
+}
+
 nonisolated enum ActivityAIWorkbenchBuilder {
     static let schema = "simplezip.ai.activityWorkbench.v1"
 
@@ -252,7 +273,7 @@ nonisolated enum ActivityAIWorkbenchBuilder {
     /// (≥minCount)的**真实聚集**,同成员集去冗余(双维先枚举 → 更具体的优先留)。这是"真建议"的候选池 ——
     /// 来自真实数据、任意交叉,不是写死维度;后台 pass 让模型在这些真实聚集上**择优 + 自然语言命名**。
     /// 确定性、可单测;模型不扫列表选行,只命名 App 发现的真实聚集(守拒绝假AI)。
-    static func discoverClusters(records: [AITaskRecord], now: Date? = nil,
+    static func discoverClusters(records: [AITaskRecord],
                                  minCount: Int = 2, limit: Int = 24) -> [AIWorkbenchCluster] {
         let failed = records.filter { $0.status == "failed" }
         guard records.count >= minCount else { return [] }   // 全状态:无任务才退;失败聚集 + 全状态高频聚集都发现
@@ -296,23 +317,8 @@ nonisolated enum ActivityAIWorkbenchBuilder {
         for s in Set(records.map(\.source)).sorted() {
             add(.init(source: s), records.filter { $0.source == s }, ["source=\(s)"], min: bulkMin)
         }
-        // 时间维度:今天 / 本周失败 × source(now 给 + 该窗口失败达阈值)。同成员集已被上面去重 →
-        // 只有「窗口是真子集」(有更老的失败)时才冒出时间 chip,如"今天从 Finder 解压失败的"。
-        if let now {
-            let formatter = ISO8601DateFormatter()
-            formatter.formatOptions = [.withInternetDateTime]
-            for window in [AITimeWindow.last24Hours, AITimeWindow.last7Days] {
-                let inWindow = failed.filter { r in
-                    guard let stamp = r.finishedAt ?? r.startedAt, let date = formatter.date(from: stamp) else { return false }
-                    return window.contains(date, now: now)
-                }
-                guard inWindow.count >= minCount else { continue }
-                for s in Set(inWindow.map(\.source)).sorted() {
-                    add(.init(status: "failed", source: s, timeWindowSeconds: window.seconds),
-                        inWindow.filter { $0.source == s }, ["window=\(window.label)", "source=\(s)"])
-                }
-            }
-        }
+        // 时间维度**不再内嵌进聚集 chip** —— 它是独立的一组可切换时间带(`timeDimensions`),与建议筛选 chip
+        // 双重叠加(用户可同时选「今天」+「从 Finder 解压失败的」)。内嵌会和独立维度冲突,故移走。
         // 命中多优先,同命中数双维(更具体)优先;cap。
         return Array(clusters
             .sorted { ($0.matchCount, $0.dimensionFacts.count) > ($1.matchCount, $1.dimensionFacts.count) }
@@ -352,6 +358,36 @@ nonisolated enum ActivityAIWorkbenchBuilder {
             .sorted(by: { $0.n != $1.n ? $0.n > $1.n : "\($0.source)|\($0.kind)" < "\($1.source)|\($1.kind)" })
             .first else { return nil }
         return ActivityWorkbenchAutomationHint(source: top.source, kind: top.kind, count: top.n)
+    }
+
+    /// 建议六 v2「AI 推荐时间维度」:把近期任务切片确定性分到今天 / 本周 / 本月三带,标出**值得关注**的那带
+    /// (有未读失败的最窄带 = 最近且可处理)。无任务落入某带则不返回它;全无失败 → 不推荐任何带(纯导航维度)。
+    /// **独立于建议筛选**,前台可双重叠加。`now` 由 App 传(本层不取时钟)。确定性、可单测。
+    static func timeDimensions(records: [AITaskRecord], now: Date) -> [ActivityWorkbenchTimeBand] {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        // 每条只解析一次时间戳(render 路径友好)。
+        let dated: [(date: Date, unseenFail: Bool)] = records.compactMap { r in
+            guard let stamp = r.finishedAt ?? r.startedAt, let date = formatter.date(from: stamp) else { return nil }
+            return (date, r.status == "failed" && !r.failureSeen)
+        }
+        let bands: [(id: String, window: AITimeWindow)] = [
+            ("today", .last24Hours), ("thisWeek", .last7Days), ("thisMonth", .last30Days)
+        ]
+        var result: [ActivityWorkbenchTimeBand] = []
+        for band in bands {
+            let inWindow = dated.filter { band.window.contains($0.date, now: now) }
+            guard !inWindow.isEmpty else { continue }
+            result.append(ActivityWorkbenchTimeBand(
+                id: band.id, seconds: band.window.seconds,
+                taskCount: inWindow.count, failedUnseen: inWindow.filter(\.unseenFail).count,
+                recommended: false))
+        }
+        // 推荐「值得关注」= 有未读失败的最窄带(seconds 最小)。无失败 → 不推荐。
+        if let target = result.filter({ $0.failedUnseen > 0 }).min(by: { $0.seconds < $1.seconds }) {
+            result = result.map { $0.id == target.id ? $0.markingRecommended() : $0 }
+        }
+        return result
     }
 
     private static func chip(id: String, records: [AITaskRecord],

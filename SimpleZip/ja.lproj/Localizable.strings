@@ -2386,6 +2386,12 @@
 "tasks.aiWorkbench.failureExplanation.fallback" = "このタスクは失敗しました — 詳細はカードを展開してください。";
 "tasks.aiWorkbench.openFullExplanation" = "AI による詳しい説明を開く";
 "tasks.aiWorkbench.nextActions" = "次のアクション";
+"tasks.aiWorkbench.activeFilters" = "適用中のフィルタ";
+"tasks.aiWorkbench.timeDimension" = "期間";
+"tasks.aiWorkbench.timeDimension.recommended" = "要チェック";
+"tasks.aiWorkbench.timeBand.today" = "今日";
+"tasks.aiWorkbench.timeBand.thisWeek" = "今週";
+"tasks.aiWorkbench.timeBand.thisMonth" = "今月";
 "ai.suggestLabels" = "ラベルを提案";
 "ai.suggestLabels.title" = "AI 提案ラベル";
 "ai.summarizeRisk.title" = "AI リスク要約";

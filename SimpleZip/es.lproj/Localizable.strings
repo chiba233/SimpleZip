@@ -2384,6 +2384,12 @@
 "tasks.aiWorkbench.failureExplanation.fallback" = "Esta tarea falló: amplía la tarjeta para ver los detalles.";
 "tasks.aiWorkbench.openFullExplanation" = "Abrir explicación completa de IA";
 "tasks.aiWorkbench.nextActions" = "Próximas acciones";
+"tasks.aiWorkbench.activeFilters" = "Filtros activos";
+"tasks.aiWorkbench.timeDimension" = "Periodo";
+"tasks.aiWorkbench.timeDimension.recommended" = "Merece atención";
+"tasks.aiWorkbench.timeBand.today" = "Hoy";
+"tasks.aiWorkbench.timeBand.thisWeek" = "Esta semana";
+"tasks.aiWorkbench.timeBand.thisMonth" = "Este mes";
 "ai.suggestLabels" = "Sugerir etiquetas";
 "ai.suggestLabels.title" = "Etiquetas sugeridas por IA";
 "ai.summarizeRisk.title" = "Resumen de riesgo con IA";

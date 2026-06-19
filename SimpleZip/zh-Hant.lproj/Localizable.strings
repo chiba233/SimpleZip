@@ -2386,6 +2386,12 @@
 "tasks.aiWorkbench.failureExplanation.fallback" = "此任務失敗 —— 展開卡片查看詳情。";
 "tasks.aiWorkbench.openFullExplanation" = "開啟完整 AI 解釋";
 "tasks.aiWorkbench.nextActions" = "下一步動作";
+"tasks.aiWorkbench.activeFilters" = "生效中的篩選";
+"tasks.aiWorkbench.timeDimension" = "時間維度";
+"tasks.aiWorkbench.timeDimension.recommended" = "值得關注";
+"tasks.aiWorkbench.timeBand.today" = "今天";
+"tasks.aiWorkbench.timeBand.thisWeek" = "本週";
+"tasks.aiWorkbench.timeBand.thisMonth" = "本月";
 "ai.suggestLabels" = "建議標籤";
 "ai.suggestLabels.title" = "AI 建議標籤";
 "ai.summarizeRisk.title" = "AI 風險總結";
