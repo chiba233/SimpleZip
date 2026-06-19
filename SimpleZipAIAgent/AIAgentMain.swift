@@ -76,14 +76,20 @@ final class AIAgentService: NSObject, SimpleZipAIAgentXPC {
         let model = SystemLanguageModel.default
         switch model.availability {
         case .available:
+            // 1. 自由文本最小生成 —— 地基那一问:模型能否在这个非 App 的独立进程里跑(Step 0 已验证)。
+            let freeform: String
             do {
                 let session = LanguageModelSession(
                     instructions: "You are a terse echo. Reply with exactly one short word.")
-                let reply = try await session.respond(to: "Say: ready").content
-                return "SUCCESS — 模型在 agent(独立)进程里跑通了。样本: \(reply)"
+                freeform = try await session.respond(to: "Say: ready").content
             } catch {
-                return "FAILURE — session.respond 在 agent 进程抛错: \(error)"
+                return "FAILURE — 自由文本 session.respond 在 agent 进程抛错: \(error)"
             }
+            // 2. **结构化 @Generable 生成** —— 真正的重路径:过 agent 自有串行闸 + 受约束字段输出 + 重试,
+            //    复刻 App 端 AIReportAssistant.generateStructured 的形态。证实「带 schema 的结构化生成」也能在
+            //    agent 进程跑(不只是自由文本),这是把真实生成 pass 迁进 agent 前的关键 de-risk。
+            let structured = await AgentGeneration.structuredProbe()
+            return "SUCCESS — 模型在 agent(独立)进程跑通。自由文本样本: \(freeform);\(structured)"
         case .unavailable(let reason):
             return "模型在 agent 进程不可用 — reason: \(reason)"
         }
@@ -97,3 +103,83 @@ final class AIAgentService: NSObject, SimpleZipAIAgentXPC {
 func agentLog(_ message: String) {
     FileHandle.standardError.write(Data(("[SimpleZipAIAgent] " + message + "\n").utf8))
 }
+
+// MARK: - agent 自有生成引擎(Step 1 第一片:串行闸 + 结构化生成)
+//
+// 把 App 端 AIReportAssistant 的两块核心**原样**搬进 agent 进程,作为「生成迁 agent」的地基:
+//   ① 全局串行闸:on-device 模型是共享资源,重叠的 respond() 会让框架迭代 session transcript 时越界 trap;
+//      所有生成排成一条**绝不重叠**的链(unstructured Task 承载,不随调用方取消而中途拆毁 —— 中途拆毁正是崩因)。
+//   ② 结构化生成 + 重试:@Generable 受约束输出偶发不符 schema 抛错,同一槽内换新 session 连试几代,全败才抛。
+// Step 0 的探针只跑自由文本;这一片让 agent 也能跑**结构化** @Generable 生成 —— 迁真实生成 pass 前的关键验证,
+// 用已证实的 `--probe` 直跑通道即可验(不依赖尚未确认的 XPC 通道)。红线不变:agent 只产出受约束字段供 App
+// 确定性应用,绝不执行删除 / 放行 / 修复。
+
+#if canImport(FoundationModels)
+@available(macOS 26.0, *)
+actor AgentGenerationSerializer {
+    static let shared = AgentGenerationSerializer()
+
+    /// 链尾:下一个生成要等它结束才开始(只关心「结束」不关心结果类型,抹成 Void)。
+    private var tail: Task<Void, Never>?
+
+    /// 把 operation 排到链尾,与其它生成绝不重叠。承载它的 unstructured Task 不继承调用方取消,
+    /// 故 respond() 一定跑到底,框架不被中途拆毁。
+    func run<T: Sendable>(_ operation: @Sendable @escaping () async throws -> T) async throws -> T {
+        let prior = tail
+        let work = Task { () -> Result<T, Error> in
+            _ = await prior?.value          // 等上一个生成彻底结束,杜绝重叠
+            do { return .success(try await operation()) }
+            catch { return .failure(error) }
+        }
+        tail = Task { _ = await work.value }  // 新链尾(Void 化)
+        return try await work.value.get()
+    }
+
+    /// 结构化生成薄封装:过串行闸,同一槽内连试 maxAttempts 代(每代换新 session),全败才抛。
+    func generateStructured<T: Generable & Sendable>(
+        instructions: String, prompt: String, as type: T.Type, maxAttempts: Int = 2
+    ) async throws -> T {
+        try await run {
+            var lastError: Error?
+            for _ in 0..<max(1, maxAttempts) {
+                do {
+                    let session = LanguageModelSession(instructions: instructions)
+                    return try await session.respond(to: prompt, generating: type).content
+                } catch {
+                    lastError = error
+                }
+            }
+            throw lastError ?? AgentGenerationError.exhausted
+        }
+    }
+}
+
+enum AgentGenerationError: Error { case exhausted }
+
+/// agent 结构化探针用的最小 @Generable 规格(镜像 App 端 ArchiveFileQuerySpec:单个 String + @Guide)。
+@available(macOS 26.0, *)
+@Generable
+struct AgentProbeSpec: Sendable {
+    @Guide(description: "The single most useful file-name keyword to search archives for, extracted from the user's request. A bare word or short phrase, no punctuation, no path.")
+    var keyword: String
+}
+
+@available(macOS 26.0, *)
+enum AgentGeneration {
+    /// 在 agent 进程跑一次**结构化** @Generable 生成(过串行闸 + 重试),回人话结果片段。
+    static func structuredProbe() async -> String {
+        do {
+            let spec = try await AgentGenerationSerializer.shared.generateStructured(
+                instructions: """
+                The user is looking for a file they remember is inside some archive. Extract the single most \
+                useful file-name keyword to search for. Return just the keyword, no punctuation or path.
+                """,
+                prompt: "I think my budget spreadsheet is zipped up somewhere",
+                as: AgentProbeSpec.self)
+            return "结构化生成 OK,keyword=\"\(spec.keyword)\""
+        } catch {
+            return "结构化生成失败: \(error)"
+        }
+    }
+}
+#endif
