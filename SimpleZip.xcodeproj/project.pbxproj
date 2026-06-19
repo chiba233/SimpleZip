@@ -26,6 +26,7 @@
 
 /* Begin PBXFileReference section */
 		0846B9702FB350EF0095DC1D /* SimpleZip.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SimpleZip.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		EDF9E86D1F6AC7CE4DF39EB2 /* SimpleZipAIAgent */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = SimpleZipAIAgent; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -49,9 +50,21 @@
 			path = SimpleZip;
 			sourceTree = "<group>";
 		};
+		73BD34CC957FE43B8736704F /* SimpleZipAIAgent */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = SimpleZipAIAgent;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		04C317A415F8007D7F5A68F5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		0846B96D2FB350EF0095DC1D /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -67,6 +80,7 @@
 			isa = PBXGroup;
 			children = (
 				0846B9722FB350EF0095DC1D /* SimpleZip */,
+				73BD34CC957FE43B8736704F /* SimpleZipAIAgent */,
 				0846B9712FB350EF0095DC1D /* Products */,
 			);
 			sourceTree = "<group>";
@@ -75,6 +89,7 @@
 			isa = PBXGroup;
 			children = (
 				0846B9702FB350EF0095DC1D /* SimpleZip.app */,
+				EDF9E86D1F6AC7CE4DF39EB2 /* SimpleZipAIAgent */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -105,6 +120,27 @@
 			productReference = 0846B9702FB350EF0095DC1D /* SimpleZip.app */;
 			productType = "com.apple.product-type.application";
 		};
+		156308F98084E3CA8D9C9541 /* SimpleZipAIAgent */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 25F6EF0E8DECB0A65E55FC68 /* Build configuration list for PBXNativeTarget "SimpleZipAIAgent" */;
+			buildPhases = (
+				FD5B443CBE81D8A0B5A11605 /* Sources */,
+				04C317A415F8007D7F5A68F5 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				73BD34CC957FE43B8736704F /* SimpleZipAIAgent */,
+			);
+			name = SimpleZipAIAgent;
+			packageProductDependencies = (
+			);
+			productName = SimpleZipAIAgent;
+			productReference = EDF9E86D1F6AC7CE4DF39EB2 /* SimpleZipAIAgent */;
+			productType = "com.apple.product-type.tool";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -119,6 +155,9 @@
 						CreatedOnToolsVersion = 26.4.1;
 					};
 					0846B9802FB350F10095DC1D = {
+						CreatedOnToolsVersion = 26.4.1;
+					};
+					156308F98084E3CA8D9C9541 = {
 						CreatedOnToolsVersion = 26.4.1;
 					};
 				};
@@ -150,6 +189,7 @@
 			projectRoot = "";
 			targets = (
 				0846B96F2FB350EF0095DC1D /* SimpleZip */,
+				156308F98084E3CA8D9C9541 /* SimpleZipAIAgent */,
 				0846B9802FB350F10095DC1D /* SimpleZipCoreTests */,
 			);
 		};
@@ -189,6 +229,13 @@
 
 /* Begin PBXSourcesBuildPhase section */
 		0846B96C2FB350EF0095DC1D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FD5B443CBE81D8A0B5A11605 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -413,6 +460,38 @@
 			};
 			name = Release;
 		};
+		32337E5B63A4AE1B2F9C3FF9 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				DEAD_CODE_STRIPPING = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = "yumeka.SimpleZip-in-mac.aiagent";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		E99EB6D2AF82E42A553C6DDE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				DEAD_CODE_STRIPPING = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "yumeka.SimpleZip-in-mac.aiagent";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -439,6 +518,15 @@
 			buildConfigurations = (
 				0846B9822FB350F10095DC1D /* Debug */,
 				0846B9842FB350F10095DC1D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		25F6EF0E8DECB0A65E55FC68 /* Build configuration list for PBXNativeTarget "SimpleZipAIAgent" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				32337E5B63A4AE1B2F9C3FF9 /* Debug */,
+				E99EB6D2AF82E42A553C6DDE /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
