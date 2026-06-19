@@ -209,6 +209,15 @@ struct DevToolsView: View {
                         ) {
                             copyAIIndexData()
                         }
+                        actionRow(
+                            "trash",
+                            "清空 AI 文件索引",
+                            "调用 clearFileIndex(),清空后台文件预索引、文件组/整理缓存、反馈学习和自动检查队列;不删除真实文件。"
+                        ) {
+                            AIBackgroundIndexStore.shared.clearFileIndex()
+                            loadAIDataSnapshot()
+                            flash("已清空 AI 文件索引")
+                        }
                         // AI 建议明细:每个计数类别(摘要/打开方式/网页/.../哈希/压缩/转换/内联结果)的**完整文件清单**
                         // + 门控 / 预算 / 各管线诊断 —— 一次性复制出来逐条 debug「这个类别到底有哪些文件、为啥是 0」。
                         actionRow(
@@ -485,10 +494,12 @@ struct DevToolsView: View {
             let s = snapshot.backgroundIndex
             aiSuggestionStatus = "摘要 \(s.summaryCount) · 打开方式 \(s.openWithCount) · 网页 \(s.urlOpenCount) · 装App \(s.installCount)"
                 + " · 活动 \(s.activityCount) · 包内 \(s.archiveEntryCount) · 包定性 \(s.archiveKindCount)"
-                + " · 文件组 \(s.folderGroupCount)"
+                + " · 文件组 \(s.folderGroupCount) · 整理 \(s.organizeCount)"
                 // 主动工具(归档:检测 / 测试 / 哈希 / 安全;文件:压缩 / 转换)—— security 之前漏了计数,补上这一个。
                 + " · 检测 \(s.inspectCount) · 测试 \(s.testCount) · 哈希 \(s.hashCount) · 安全 \(s.securityCount)"
                 + " · 压缩 \(s.compressCount) · 转换 \(s.convertCount)"
+                // 自动检查执行后**回填抽屉的内联结果**记录数(总数,非逐行为 —— 逐行为会和上面建议计数重复)。逐条明细见「复制建议明细」。
+                + " · 内联结果 \(s.inlineResultCount)"
             // #8 跨表面反馈学习:事件计数(原始保留 30 天 / 每类上限 1000)。
             let fb = AIFeedbackStore.shared.counts
             let pc = AIPendingCheckStore.shared.counts
@@ -510,9 +521,16 @@ struct DevToolsView: View {
                 + " 低电\(g.lowBattery ? "是" : "否") 省电\(g.powerSaverMode ? "是" : "否") 档\(g.activityLevel) 模型\(g.modelAvailable ? "就绪" : "无")"
             // 每个 pass 上次跑的候选数(区分「无候选」vs「门控没过 / 没跑过」)。
             let diag = AIBackgroundIndexer.shared.passDiag
-            aiPassDiagStatus = ["摘要", "网页", "装App", "活动", "包内", "包定性", "文件组", "整理"].map { name in
-                guard let d = diag[name] else { return "\(name):本会话没跑(看上面门控)" }
-                return "\(name):候选\(d.candidates)\(d.skip.map { " " + $0 } ?? "") · \(rel(d.lastRunAt))"
+            aiPassDiagStatus = AIDevToolsPipelineCatalog.rows(for: s.pipelineProductCounts).map { row in
+                if let passName = row.passName, let d = diag[passName] {
+                    if row.name == passName {
+                        return "\(row.name):候选\(d.candidates) · 缓存产物\(row.cachedProductCount)\(d.skip.map { " " + $0 } ?? "") · \(rel(d.lastRunAt))"
+                    }
+                    return "\(row.name):缓存产物\(row.cachedProductCount) · 共用\(passName)候选\(d.candidates)\(d.skip.map { " " + $0 } ?? "") · \(rel(d.lastRunAt))"
+                }
+                let sharedPass = row.passName.flatMap { $0 == row.name ? nil : $0 }
+                let shared = sharedPass.map { " · 共用\($0)管线" } ?? ""
+                return "\(row.name):缓存产物\(row.cachedProductCount)\(shared) · 本会话没跑(看上面门控)"
             }.joined(separator: "\n")
             aiActivityTasksStatus = L10n.format(
                 "devtools.aiData.activityTasks.value",
@@ -560,10 +578,8 @@ struct DevToolsView: View {
         func countAction(_ token: String) -> Int {
             records.reduce(0) { $0 + (($1.contentSummary?.suggestedActions.contains { $0.token == token } ?? false) ? 1 : 0) }
         }
-        func countInlineResult(_ token: String) -> Int {
-            records.reduce(0) { $0 + (($1.contentSummary?.inlineResults[token]?.isEmpty == false) ? 1 : 0) }
-        }
         let summaryCount = records.reduce(0) { $0 + (($1.contentSummary?.shortSummary?.isEmpty == false) ? 1 : 0) }
+        let organizeCount = backgroundStore.organizeByPath.values.reduce(0) { $0 + ($1.memberPaths.isEmpty ? 0 : 1) }
 
         return DevToolsAIDataSnapshot(
             generatedAt: Date(),
@@ -590,6 +606,7 @@ struct DevToolsView: View {
                 archiveEntryCount: countAction("revealArchiveEntry"),
                 archiveKindCount: countAction("archiveKind"),
                 folderGroupCount: backgroundStore.folderGroupsByPath.values.reduce(0) { $0 + $1.count },
+                organizeCount: organizeCount,
                 // 主动工具 token(归档主动建议 + 文件压缩/哈希等)—— 之前没计数,看不出「到底有没有冒出来」。
                 hashCount: countAction("hash"),
                 testCount: countAction("test"),
@@ -597,7 +614,7 @@ struct DevToolsView: View {
                 securityCount: countAction("security"),
                 compressCount: countAction("compress"),
                 convertCount: countAction("convert"),
-                inlineHashResultCount: countInlineResult("hash"),
+                inlineResultCount: records.reduce(0) { $0 + (($1.contentSummary?.inlineResults.contains { !$0.value.isEmpty } ?? false) ? 1 : 0) },
                 activityLevel: AppPreferences.aiBackgroundActivityLevel.rawValue,
                 scopeCount: backgroundStore.scopes.count,
                 indexedFileCount: index.fileCount,
@@ -644,6 +661,28 @@ struct DevToolsView: View {
         }
         func yn(_ b: Bool) -> String { b ? "✓" : "✗" }
         func display(_ r: AIFileMemoryRecord) -> String { r.path ?? r.fileName }
+        func has(_ token: String, _ r: AIFileMemoryRecord) -> Bool {
+            r.contentSummary?.suggestedActions.contains { $0.token == token } ?? false
+        }
+        func pipelineProductCounts() -> AIDevToolsPipelineProductCounts {
+            AIDevToolsPipelineProductCounts(
+                summary: records.reduce(0) { $0 + (($1.contentSummary?.shortSummary?.isEmpty == false) ? 1 : 0) },
+                openWith: records.reduce(0) { $0 + (has("openWith", $1) ? 1 : 0) },
+                urlOpen: records.reduce(0) { $0 + (has("urlOpen", $1) ? 1 : 0) },
+                install: records.reduce(0) { $0 + (has("dragToApplications", $1) ? 1 : 0) },
+                activity: records.reduce(0) { $0 + (has("openTask", $1) ? 1 : 0) },
+                archiveEntry: records.reduce(0) { $0 + (has("revealArchiveEntry", $1) ? 1 : 0) },
+                archiveKind: records.reduce(0) { $0 + (has("archiveKind", $1) ? 1 : 0) },
+                folderGroup: store.folderGroupsByPath.values.reduce(0) { $0 + $1.count },
+                organize: store.organizeByPath.values.reduce(0) { $0 + ($1.memberPaths.isEmpty ? 0 : 1) },
+                inspect: records.reduce(0) { $0 + (has("inspect", $1) ? 1 : 0) },
+                test: records.reduce(0) { $0 + (has("test", $1) ? 1 : 0) },
+                hash: records.reduce(0) { $0 + (has("hash", $1) ? 1 : 0) },
+                security: records.reduce(0) { $0 + (has("security", $1) ? 1 : 0) },
+                compress: records.reduce(0) { $0 + (has("compress", $1) ? 1 : 0) },
+                convert: records.reduce(0) { $0 + (has("convert", $1) ? 1 : 0) },
+                inlineResult: records.reduce(0) { $0 + (($1.contentSummary?.inlineResults.contains { !$0.value.isEmpty } ?? false) ? 1 : 0) })
+        }
 
         var out: [String] = []
         out.append("# AI 建议明细  生成于 \(Date())")
@@ -661,11 +700,17 @@ struct DevToolsView: View {
 
         out.append("\n## 各管线诊断(候选 / 产物 / 跳过原因)")
         let diag = indexer.passDiag
-        for name in ["摘要", "网页", "装App", "活动", "包内", "包定性", "文件组", "整理"] {
-            if let d = diag[name] {
-                out.append("\(name): 候选\(d.candidates) 产物\(d.produced)\(d.skip.map { " · " + $0 } ?? "") · \(rel(d.lastRunAt))")
+        for row in AIDevToolsPipelineCatalog.rows(for: pipelineProductCounts()) {
+            if let passName = row.passName, let d = diag[passName] {
+                if row.name == passName {
+                    out.append("\(row.name): 候选\(d.candidates) 缓存产物\(row.cachedProductCount)\(d.skip.map { " · " + $0 } ?? "") · \(rel(d.lastRunAt))")
+                } else {
+                    out.append("\(row.name): 缓存产物\(row.cachedProductCount) · 共用\(passName)候选\(d.candidates)\(d.skip.map { " · " + $0 } ?? "") · \(rel(d.lastRunAt))")
+                }
             } else {
-                out.append("\(name): 本会话没跑(门控未过,见上)")
+                let sharedPass = row.passName.flatMap { $0 == row.name ? nil : $0 }
+                let shared = sharedPass.map { " · 共用\($0)管线" } ?? ""
+                out.append("\(row.name): 缓存产物\(row.cachedProductCount)\(shared) · 本会话没跑(门控未过,见上)")
             }
         }
 
@@ -676,9 +721,6 @@ struct DevToolsView: View {
             if hits.isEmpty { out.append("（无）"); return }
             for r in hits.prefix(500) { out.append(line(r)) }
             if hits.count > 500 { out.append("…还有 \(hits.count - 500) 条(已截断)") }
-        }
-        func has(_ token: String, _ r: AIFileMemoryRecord) -> Bool {
-            r.contentSummary?.suggestedActions.contains { $0.token == token } ?? false
         }
         func actionsText(_ r: AIFileMemoryRecord) -> String {
             (r.contentSummary?.suggestedActions ?? []).map { $0.token + ($0.payload.map { "(\($0))" } ?? "") }.joined(separator: ",")
@@ -856,19 +898,40 @@ private nonisolated struct DevToolsAIDataSnapshot: Encodable {
         let archiveEntryCount: Int
         let archiveKindCount: Int
         let folderGroupCount: Int
+        let organizeCount: Int
         let hashCount: Int
         let testCount: Int
         let inspectCount: Int
         let securityCount: Int
         let compressCount: Int
         let convertCount: Int
-        let inlineHashResultCount: Int
+        let inlineResultCount: Int
         let activityLevel: String
         let scopeCount: Int
         let indexedFileCount: Int
         let folderProfileCount: Int
         let maxIndexedFiles: Int
         let budget: Budget?
+
+        var pipelineProductCounts: AIDevToolsPipelineProductCounts {
+            AIDevToolsPipelineProductCounts(
+                summary: summaryCount,
+                openWith: openWithCount,
+                urlOpen: urlOpenCount,
+                install: installCount,
+                activity: activityCount,
+                archiveEntry: archiveEntryCount,
+                archiveKind: archiveKindCount,
+                folderGroup: folderGroupCount,
+                organize: organizeCount,
+                inspect: inspectCount,
+                test: testCount,
+                hash: hashCount,
+                security: securityCount,
+                compress: compressCount,
+                convert: convertCount,
+                inlineResult: inlineResultCount)
+        }
     }
 
     nonisolated struct ActivityTasks: Encodable {

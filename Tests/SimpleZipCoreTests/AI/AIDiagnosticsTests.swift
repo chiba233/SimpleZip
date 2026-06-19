@@ -88,4 +88,19 @@ import Testing
             errorLines: ["Permission denied", "Permission denied"])
         #expect(tags.filter { $0 == .permissionDenied }.count == 1)
     }
+
+    @Test func devToolsPipelineRowsCoverAllSuggestionProductCounters() {
+        let counts = AIDevToolsPipelineProductCounts(
+            summary: 98, openWith: 45, urlOpen: 15, install: 3, activity: 0,
+            archiveEntry: 17, archiveKind: 12, folderGroup: 89, organize: 1,
+            inspect: 3, test: 0, hash: 0, security: 0, compress: 0, convert: 0,
+            inlineResult: 1)
+        let rows = AIDevToolsPipelineCatalog.rows(for: counts)
+        #expect(rows.map(\.name) == [
+            "摘要", "打开方式", "网页", "装App", "活动", "包内", "包定性", "文件组", "整理",
+            "检测", "测试", "哈希", "安全", "压缩", "转换", "内联结果"
+        ])
+        #expect(rows.first(where: { $0.name == "打开方式" })?.cachedProductCount == 45)
+        #expect(rows.first(where: { $0.name == "内联结果" })?.passName == nil)
+    }
 }

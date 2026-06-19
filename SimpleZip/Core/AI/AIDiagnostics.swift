@@ -124,3 +124,73 @@ nonisolated enum AIDiagnosticsClassifier {
         return regex.firstMatch(in: haystack, range: NSRange(haystack.startIndex..., in: haystack)) != nil
     }
 }
+
+nonisolated struct AIDevToolsPipelineProductCounts: Equatable, Sendable {
+    let summary: Int
+    let openWith: Int
+    let urlOpen: Int
+    let install: Int
+    let activity: Int
+    let archiveEntry: Int
+    let archiveKind: Int
+    let folderGroup: Int
+    let organize: Int
+    let inspect: Int
+    let test: Int
+    let hash: Int
+    let security: Int
+    let compress: Int
+    let convert: Int
+    let inlineResult: Int
+
+    init(summary: Int, openWith: Int, urlOpen: Int, install: Int, activity: Int,
+         archiveEntry: Int, archiveKind: Int, folderGroup: Int, organize: Int,
+         inspect: Int, test: Int, hash: Int, security: Int, compress: Int,
+         convert: Int, inlineResult: Int) {
+        self.summary = summary
+        self.openWith = openWith
+        self.urlOpen = urlOpen
+        self.install = install
+        self.activity = activity
+        self.archiveEntry = archiveEntry
+        self.archiveKind = archiveKind
+        self.folderGroup = folderGroup
+        self.organize = organize
+        self.inspect = inspect
+        self.test = test
+        self.hash = hash
+        self.security = security
+        self.compress = compress
+        self.convert = convert
+        self.inlineResult = inlineResult
+    }
+}
+
+nonisolated struct AIDevToolsPipelineRow: Equatable, Sendable {
+    let name: String
+    let passName: String?
+    let cachedProductCount: Int
+}
+
+nonisolated enum AIDevToolsPipelineCatalog {
+    static func rows(for counts: AIDevToolsPipelineProductCounts) -> [AIDevToolsPipelineRow] {
+        [
+            AIDevToolsPipelineRow(name: "摘要", passName: "摘要", cachedProductCount: counts.summary),
+            AIDevToolsPipelineRow(name: "打开方式", passName: "摘要", cachedProductCount: counts.openWith),
+            AIDevToolsPipelineRow(name: "网页", passName: "网页", cachedProductCount: counts.urlOpen),
+            AIDevToolsPipelineRow(name: "装App", passName: "装App", cachedProductCount: counts.install),
+            AIDevToolsPipelineRow(name: "活动", passName: "活动", cachedProductCount: counts.activity),
+            AIDevToolsPipelineRow(name: "包内", passName: "包内", cachedProductCount: counts.archiveEntry),
+            AIDevToolsPipelineRow(name: "包定性", passName: "包定性", cachedProductCount: counts.archiveKind),
+            AIDevToolsPipelineRow(name: "文件组", passName: "文件组", cachedProductCount: counts.folderGroup),
+            AIDevToolsPipelineRow(name: "整理", passName: "整理", cachedProductCount: counts.organize),
+            AIDevToolsPipelineRow(name: "检测", passName: "包定性", cachedProductCount: counts.inspect),
+            AIDevToolsPipelineRow(name: "测试", passName: "包定性", cachedProductCount: counts.test),
+            AIDevToolsPipelineRow(name: "哈希", passName: "包定性", cachedProductCount: counts.hash),
+            AIDevToolsPipelineRow(name: "安全", passName: "包定性", cachedProductCount: counts.security),
+            AIDevToolsPipelineRow(name: "压缩", passName: "摘要", cachedProductCount: counts.compress),
+            AIDevToolsPipelineRow(name: "转换", passName: "包定性", cachedProductCount: counts.convert),
+            AIDevToolsPipelineRow(name: "内联结果", passName: nil, cachedProductCount: counts.inlineResult)
+        ]
+    }
+}
