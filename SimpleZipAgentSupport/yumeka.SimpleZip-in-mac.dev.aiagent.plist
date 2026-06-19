@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- **Debug 专属** LaunchAgent —— Label / MachServices 全进 `.dev` 命名空间,让自签 dev 版与正式版
+	     (Developer ID,bundle id yumeka.SimpleZip-in-mac)在 SMAppService/launchd/BTM 里彻底隔离、可共存。
+	     (BTM 按 Label 的 bundle-id 前缀归属 app:dev 版必须用 .dev 前缀,否则被当成正式版命名空间 → 签名不一致。)
+	     Release 用同目录的 yumeka.SimpleZip-in-mac.aiagent.plist;本 dev plist 由 CI(build_dmg.sh)从发布产物剔除。
+	     Step 0:只声明 MachServices(按需拉起跑探针),无 StartInterval —— 后台定时由 Settings → AI 驱动。 -->
+	<key>Label</key>
+	<string>yumeka.SimpleZip-in-mac.dev.aiagent</string>
+	<key>BundleProgram</key>
+	<string>Contents/MacOS/SimpleZipAIAgent</string>
+	<key>MachServices</key>
+	<dict>
+		<key>yumeka.SimpleZip-in-mac.dev.aiagent</key>
+		<true/>
+	</dict>
+</dict>
+</plist>

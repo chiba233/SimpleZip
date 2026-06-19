@@ -23,7 +23,8 @@ enum AIAgentClient {
         }
         // 1. 注册 LaunchAgent(已 enabled 则跳过)。register() 可能要求 helper 与 App 同签名身份、
         //    且 App 不在 DerivedData 而在 /Applications —— 失败把人话原因回传,不崩。
-        let service = SMAppService.agent(plistName: "yumeka.SimpleZip-in-mac.aiagent.plist")
+        // plistName 跟 machService 走构建配置:Debug → .dev.aiagent.plist(dev 专属),Release → 正式。
+        let service = SMAppService.agent(plistName: SimpleZipAIAgentXPCNames.machService + ".plist")
         if service.status != .enabled {
             do {
                 try service.register()

@@ -21,6 +21,12 @@ import Foundation
 }
 
 /// App 与 agent 约定的常量。Mach service 名必须和 LaunchAgent plist 的 `MachServices` key 一致。
+/// **按构建配置命名空间隔离**:Debug 用 `.dev.*`,Release 用正式 `.*`,让自签 dev 版与正式版(Developer ID)
+/// 可共存、互不撞 SMAppService/launchd(本文件同时编进 app 与 agent → 两边 #if DEBUG 一致,值天然对齐)。
 public enum SimpleZipAIAgentXPCNames {
+    #if DEBUG
+    public static let machService = "yumeka.SimpleZip-in-mac.dev.aiagent"
+    #else
     public static let machService = "yumeka.SimpleZip-in-mac.aiagent"
+    #endif
 }

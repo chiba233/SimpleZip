@@ -78,6 +78,21 @@ if [[ ! -d "$APP_PATH" ]]; then
   exit 1
 fi
 
+# 独立 AI 进程改造:dev 专属 LaunchAgent plist(`.dev.aiagent`)只服务本地自签 dev 版(Debug bundle id
+# 带 .dev),发布产物**绝不该**带它 → 剔除。再断言发布产物 bundle id 是正式的(防 Debug 的 .dev 误入发布;
+# 正常 Release 配置本就正式,这是兜底闸)。
+DEV_LAUNCHAGENT="$APP_PATH/Contents/Library/LaunchAgents/yumeka.SimpleZip-in-mac.dev.aiagent.plist"
+if [[ -f "$DEV_LAUNCHAGENT" ]]; then
+  echo "Removing dev-only LaunchAgent from release bundle: ${DEV_LAUNCHAGENT#"$APP_PATH"/}"
+  rm -f "$DEV_LAUNCHAGENT"
+fi
+RELEASE_BUNDLE_ID="$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP_PATH/Contents/Info.plist")"
+if [[ "$RELEASE_BUNDLE_ID" != "yumeka.SimpleZip-in-mac" ]]; then
+  echo "ERROR: release bundle id is '$RELEASE_BUNDLE_ID', expected 'yumeka.SimpleZip-in-mac'." >&2
+  echo "       The dev-only '.dev' bundle id must never ship. Build with the Release configuration." >&2
+  exit 1
+fi
+
 if [[ -n "$RELEASE_VERSION" ]]; then
   APP_VERSION="$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APP_PATH/Contents/Info.plist")"
   if [[ "$APP_VERSION" != "$RELEASE_VERSION" ]]; then

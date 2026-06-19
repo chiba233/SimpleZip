@@ -26,6 +26,7 @@
 		C4A66994125BA6CEEEC981C0 /* SimpleZipAgentSupport/AIAgentXPCProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E00D7E0BEB89C9F0BB75AD0 /* SimpleZipAgentSupport/AIAgentXPCProtocol.swift */; };
 		E319336F0A2FCDCDB7A10BE3 /* SimpleZipAIAgent in Embed Helper */ = {isa = PBXBuildFile; fileRef = EDF9E86D1F6AC7CE4DF39EB2 /* SimpleZipAIAgent */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		SP11A0000000000000000A1 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = SP11B0000000000000000B1 /* Sparkle */; };
+		24FE5B44428405893119DDDC /* dev plist in Embed LaunchAgent */ = {isa = PBXBuildFile; fileRef = E0474B6A74E638D6D57948EE /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.dev.aiagent.plist */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -56,6 +57,7 @@
 			dstPath = Contents/Library/LaunchAgents;
 			dstSubfolderSpec = 1;
 			files = (
+				24FE5B44428405893119DDDC /* dev plist in Embed LaunchAgent */,
 				3B69C9B44598F9AD6EE090F5 /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.aiagent.plist in Embed LaunchAgent */,
 			);
 			name = "Embed LaunchAgent";
@@ -67,6 +69,7 @@
 		0846B9702FB350EF0095DC1D /* SimpleZip.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SimpleZip.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		9E00D7E0BEB89C9F0BB75AD0 /* SimpleZipAgentSupport/AIAgentXPCProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleZipAgentSupport/AIAgentXPCProtocol.swift; sourceTree = SOURCE_ROOT; };
 		D2366AE7E99F003E085208B1 /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.aiagent.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.aiagent.plist"; sourceTree = SOURCE_ROOT; };
+		E0474B6A74E638D6D57948EE /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.dev.aiagent.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.dev.aiagent.plist"; sourceTree = SOURCE_ROOT; };
 		EDF9E86D1F6AC7CE4DF39EB2 /* SimpleZipAIAgent */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = SimpleZipAIAgent; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -454,7 +457,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
 				MARKETING_VERSION = 99.9.9;
-				PRODUCT_BUNDLE_IDENTIFIER = "yumeka.SimpleZip-in-mac";
+				PRODUCT_BUNDLE_IDENTIFIER = "yumeka.SimpleZip-in-mac.dev";
 				PRODUCT_NAME = SimpleZip;
 				REGISTER_APP_GROUPS = YES;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
