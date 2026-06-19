@@ -49,6 +49,52 @@ nonisolated struct CachedClusterChips: Codable, Equatable, Sendable {
     let chips: [CachedClusterChip]
 }
 
+/// 阶段0a:派生 AI 数据(索引本体 `AIFileMemoryIndex` + 下游预烘焙缓存 folderGroups / organize / workbench*)的
+/// **独立文件存储**,从 UserDefaults(偏好域)解耦出来 —— 这些是体量可能很大、且**不是用户偏好**的派生数据,
+/// 不该塞进偏好、也不该进偏好备份(白皮书迁移清单:这批 key 迁出偏好)。每个 key 一份 JSON 文件,放
+/// `Application Support/<bundle id>/AIDerivedData/`。接口刻意对齐 UserDefaults 的 `data(forKey:)` /
+/// `set(_:forKey:)` / `removeObject(forKey:)`,让从偏好搬迁是机械替换、最小 diff。
+///
+/// 只持不可变的 `directory`、无共享可变状态 → 跨上下文安全。按 bundle id 隔离目录:dev(`.dev`)与正式版各用各的,
+/// 互不污染。**阶段1 agent 复用同一布局时**,改成由外部传入显式的「App 共享路径」即可(不用动调用点)。当前仍由
+/// @MainActor 的 IndexStore 在主线程同步小 IO 读写;off-main / SQLite 是后续阶段(坑:体量大才上库,先文件够用)。
+nonisolated final class AIDerivedDataStore {
+    private let directory: URL
+
+    init(directory: URL? = nil) {
+        if let directory {
+            self.directory = directory
+        } else {
+            let base = (try? FileManager.default.url(
+                for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true))
+                ?? FileManager.default.temporaryDirectory
+            let bundleID = Bundle.main.bundleIdentifier ?? "SimpleZip"
+            self.directory = base
+                .appendingPathComponent(bundleID, isDirectory: true)
+                .appendingPathComponent("AIDerivedData", isDirectory: true)
+        }
+        try? FileManager.default.createDirectory(at: self.directory, withIntermediateDirectories: true)
+    }
+
+    private func fileURL(forKey key: String) -> URL {
+        // key 形如 "SimpleZip.ai.fileMemoryIndex.v1"(含点、无斜杠),可直接做文件名。
+        directory.appendingPathComponent(key + ".json", isDirectory: false)
+    }
+
+    func data(forKey key: String) -> Data? {
+        try? Data(contentsOf: fileURL(forKey: key))
+    }
+
+    /// 原子写(写临时文件再 rename),杜绝半写文件污染下次解码。
+    func set(_ data: Data, forKey key: String) {
+        try? data.write(to: fileURL(forKey: key), options: .atomic)
+    }
+
+    func removeObject(forKey key: String) {
+        try? FileManager.default.removeItem(at: fileURL(forKey: key))
+    }
+}
+
 @MainActor
 final class AIBackgroundIndexStore: ObservableObject {
     static let shared = AIBackgroundIndexStore()
@@ -96,21 +142,50 @@ final class AIBackgroundIndexStore: ObservableObject {
     private(set) var workbenchClusterChipsGeneration = 0
 
     private let defaults: UserDefaults
+    /// 阶段0a:派生数据(索引本体 + 下游预烘焙缓存)的独立文件存储。白名单 `scopes` + 反馈 `dislikedKeys` 仍留 `defaults`。
+    private let derived: AIDerivedDataStore
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard, derived: AIDerivedDataStore = AIDerivedDataStore()) {
         self.defaults = defaults
+        self.derived = derived
+        // 阶段0a:把派生缓存从 UserDefaults 一次性安全迁到独立文件存储(写盘确认后才清偏好,绝不丢用户索引)。
+        AIBackgroundIndexStore.migrateDerivedDataIfNeeded(from: defaults, to: derived)
         self.scopes = AIBackgroundIndexStore.loadScopes(from: defaults)
-        self.fileIndex = AIBackgroundIndexStore.loadIndex(from: defaults)
+        self.fileIndex = AIBackgroundIndexStore.loadIndex(from: derived)
         self.dislikedSuggestionKeys = AIBackgroundIndexStore.loadDislikedKeys(from: defaults)
-        self.folderGroupsByPath = AIBackgroundIndexStore.loadFolderGroups(from: defaults)
-        self.organizeByPath = AIBackgroundIndexStore.loadOrganize(from: defaults)
-        self.workbenchChipRankingByCategory = AIBackgroundIndexStore.loadWorkbenchChipRanking(from: defaults)
+        self.folderGroupsByPath = AIBackgroundIndexStore.loadFolderGroups(from: derived)
+        self.organizeByPath = AIBackgroundIndexStore.loadOrganize(from: derived)
+        self.workbenchChipRankingByCategory = AIBackgroundIndexStore.loadWorkbenchChipRanking(from: derived)
         self.workbenchNeedsAttentionByCategory = AIBackgroundIndexStore.loadExplanations(
-            from: defaults, key: AppPreferences.Key.aiWorkbenchNeedsAttentionData)
+            from: derived, key: AppPreferences.Key.aiWorkbenchNeedsAttentionData)
         self.workbenchFailureExplanationByTask = AIBackgroundIndexStore.loadExplanations(
-            from: defaults, key: AppPreferences.Key.aiWorkbenchFailureExplanationData)
-        self.workbenchClusterChipsByCategory = AIBackgroundIndexStore.loadClusterChips(from: defaults)
+            from: derived, key: AppPreferences.Key.aiWorkbenchFailureExplanationData)
+        self.workbenchClusterChipsByCategory = AIBackgroundIndexStore.loadClusterChips(from: derived)
         rebuildPathIndex()   // init 里的 fileIndex 赋值不触发 didSet,手动建一次
+    }
+
+    /// 阶段0a 一次性迁移:派生缓存从 UserDefaults 搬到 `AIDerivedDataStore`。幂等、防丢:文件已有则以文件为准
+    /// (不拿旧偏好覆盖更新的数据);**确认文件确实落盘(读得回)后才清偏好**,写盘失败则保留偏好、下次启动重试。
+    private static func migrateDerivedDataIfNeeded(from defaults: UserDefaults, to derived: AIDerivedDataStore) {
+        let keys = [
+            AppPreferences.Key.aiFileMemoryIndexData,
+            AppPreferences.Key.aiFolderGroupsData,
+            AppPreferences.Key.aiOrganizeSuggestionsData,
+            AppPreferences.Key.aiWorkbenchChipRankingData,
+            AppPreferences.Key.aiWorkbenchNeedsAttentionData,
+            AppPreferences.Key.aiWorkbenchFailureExplanationData,
+            AppPreferences.Key.aiWorkbenchClusterChipsData,
+        ]
+        for key in keys {
+            guard let data = defaults.data(forKey: key) else { continue }
+            if derived.data(forKey: key) == nil {
+                derived.set(data, forKey: key)
+            }
+            // 只有文件确实读得回(落盘成功)才清偏好,杜绝写盘失败时丢用户派生数据。
+            if derived.data(forKey: key) != nil {
+                defaults.removeObject(forKey: key)
+            }
+        }
     }
 
     // MARK: - AI 建议「我不喜欢」抑制(右键反馈)
@@ -539,7 +614,7 @@ final class AIBackgroundIndexStore: ObservableObject {
 
     private func persistIndex() {
         if let data = try? JSONEncoder().encode(fileIndex) {
-            defaults.set(data, forKey: AppPreferences.Key.aiFileMemoryIndexData)
+            derived.set(data, forKey: AppPreferences.Key.aiFileMemoryIndexData)
         }
     }
 
@@ -551,37 +626,37 @@ final class AIBackgroundIndexStore: ObservableObject {
 
     private func persistFolderGroups() {
         if let data = try? JSONEncoder().encode(folderGroupsByPath) {
-            defaults.set(data, forKey: AppPreferences.Key.aiFolderGroupsData)
+            derived.set(data, forKey: AppPreferences.Key.aiFolderGroupsData)
         }
     }
 
     private func persistOrganize() {
         if let data = try? JSONEncoder().encode(organizeByPath) {
-            defaults.set(data, forKey: AppPreferences.Key.aiOrganizeSuggestionsData)
+            derived.set(data, forKey: AppPreferences.Key.aiOrganizeSuggestionsData)
         }
     }
 
     private func persistWorkbenchChipRanking() {
         if let data = try? JSONEncoder().encode(workbenchChipRankingByCategory) {
-            defaults.set(data, forKey: AppPreferences.Key.aiWorkbenchChipRankingData)
+            derived.set(data, forKey: AppPreferences.Key.aiWorkbenchChipRankingData)
         }
     }
 
     private func persistWorkbenchNeedsAttention() {
         if let data = try? JSONEncoder().encode(workbenchNeedsAttentionByCategory) {
-            defaults.set(data, forKey: AppPreferences.Key.aiWorkbenchNeedsAttentionData)
+            derived.set(data, forKey: AppPreferences.Key.aiWorkbenchNeedsAttentionData)
         }
     }
 
     private func persistWorkbenchFailureExplanation() {
         if let data = try? JSONEncoder().encode(workbenchFailureExplanationByTask) {
-            defaults.set(data, forKey: AppPreferences.Key.aiWorkbenchFailureExplanationData)
+            derived.set(data, forKey: AppPreferences.Key.aiWorkbenchFailureExplanationData)
         }
     }
 
     /// 通用解读缓存加载(模块1 / ① 共用,`[String: CachedExplanation]`)。
-    private static func loadExplanations(from defaults: UserDefaults, key: String) -> [String: CachedExplanation] {
-        guard let data = defaults.data(forKey: key),
+    private static func loadExplanations(from derived: AIDerivedDataStore, key: String) -> [String: CachedExplanation] {
+        guard let data = derived.data(forKey: key),
               let decoded = try? JSONDecoder().decode([String: CachedExplanation].self, from: data)
         else { return [:] }
         return decoded
@@ -589,12 +664,12 @@ final class AIBackgroundIndexStore: ObservableObject {
 
     private func persistWorkbenchClusterChips() {
         if let data = try? JSONEncoder().encode(workbenchClusterChipsByCategory) {
-            defaults.set(data, forKey: AppPreferences.Key.aiWorkbenchClusterChipsData)
+            derived.set(data, forKey: AppPreferences.Key.aiWorkbenchClusterChipsData)
         }
     }
 
-    private static func loadClusterChips(from defaults: UserDefaults) -> [String: CachedClusterChips] {
-        guard let data = defaults.data(forKey: AppPreferences.Key.aiWorkbenchClusterChipsData),
+    private static func loadClusterChips(from derived: AIDerivedDataStore) -> [String: CachedClusterChips] {
+        guard let data = derived.data(forKey: AppPreferences.Key.aiWorkbenchClusterChipsData),
               let decoded = try? JSONDecoder().decode([String: CachedClusterChips].self, from: data)
         else { return [:] }
         return decoded
@@ -607,22 +682,22 @@ final class AIBackgroundIndexStore: ObservableObject {
         return Set(decoded)
     }
 
-    private static func loadFolderGroups(from defaults: UserDefaults) -> [String: [CachedFolderGroup]] {
-        guard let data = defaults.data(forKey: AppPreferences.Key.aiFolderGroupsData),
+    private static func loadFolderGroups(from derived: AIDerivedDataStore) -> [String: [CachedFolderGroup]] {
+        guard let data = derived.data(forKey: AppPreferences.Key.aiFolderGroupsData),
               let decoded = try? JSONDecoder().decode([String: [CachedFolderGroup]].self, from: data)
         else { return [:] }
         return decoded
     }
 
-    private static func loadOrganize(from defaults: UserDefaults) -> [String: CachedFolderGroup] {
-        guard let data = defaults.data(forKey: AppPreferences.Key.aiOrganizeSuggestionsData),
+    private static func loadOrganize(from derived: AIDerivedDataStore) -> [String: CachedFolderGroup] {
+        guard let data = derived.data(forKey: AppPreferences.Key.aiOrganizeSuggestionsData),
               let decoded = try? JSONDecoder().decode([String: CachedFolderGroup].self, from: data)
         else { return [:] }
         return decoded
     }
 
-    private static func loadWorkbenchChipRanking(from defaults: UserDefaults) -> [String: CachedChipRanking] {
-        guard let data = defaults.data(forKey: AppPreferences.Key.aiWorkbenchChipRankingData),
+    private static func loadWorkbenchChipRanking(from derived: AIDerivedDataStore) -> [String: CachedChipRanking] {
+        guard let data = derived.data(forKey: AppPreferences.Key.aiWorkbenchChipRankingData),
               let decoded = try? JSONDecoder().decode([String: CachedChipRanking].self, from: data)
         else { return [:] }
         return decoded
@@ -635,8 +710,8 @@ final class AIBackgroundIndexStore: ObservableObject {
         return decoded
     }
 
-    private static func loadIndex(from defaults: UserDefaults) -> AIFileMemoryIndex {
-        guard let data = defaults.data(forKey: AppPreferences.Key.aiFileMemoryIndexData),
+    private static func loadIndex(from derived: AIDerivedDataStore) -> AIFileMemoryIndex {
+        guard let data = derived.data(forKey: AppPreferences.Key.aiFileMemoryIndexData),
               let decoded = try? JSONDecoder().decode(AIFileMemoryIndex.self, from: data)
         else { return AIFileMemoryIndex() }
         return decoded
