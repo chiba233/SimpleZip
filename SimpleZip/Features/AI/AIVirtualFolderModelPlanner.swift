@@ -235,7 +235,7 @@ enum AIVirtualFolderModelPlanner {
         }
         let generated = try await AIReportAssistant.generateStructured(
             instructions: instructions, prompt: lines.joined(separator: "\n"),
-            as: GeneratedFolderGroupSet.self, maxAttempts: 8)
+            as: GeneratedFolderGroupSet.self, maxAttempts: 3)
         var usedSignatures = Set<String>()
         return generated.groups.compactMap { g -> (memberIDs: [String], actionToken: String)? in
             let token = g.action.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -311,7 +311,7 @@ enum AIVirtualFolderModelPlanner {
         }
         let generated = try await AIReportAssistant.generateStructured(
             instructions: instructions, prompt: lines.joined(separator: "\n"),
-            as: GeneratedFileSuggestion.self, maxAttempts: 8)
+            as: GeneratedFileSuggestion.self, maxAttempts: 3)
         let summary = generated.summary.trimmingCharacters(in: .whitespacesAndNewlines)
         var seen = Set<String>()
         let tokens = generated.actions.compactMap { raw -> String? in
@@ -348,7 +348,7 @@ enum AIVirtualFolderModelPlanner {
         let prompt = "Disk image: \(dmgName)\nApp(s) inside: \(appNames.prefix(4).joined(separator: ", "))"
         let generated = try await AIReportAssistant.generateStructured(
             instructions: instructions, prompt: prompt,
-            as: GeneratedDiskImageSuggestion.self, maxAttempts: 8)
+            as: GeneratedDiskImageSuggestion.self, maxAttempts: 3)
         return (generated.summary.trimmingCharacters(in: .whitespacesAndNewlines), generated.suggestInstall)
     }
 
@@ -367,7 +367,7 @@ enum AIVirtualFolderModelPlanner {
         """
         let prompt = "File: \(fileName)\nRecent action: \(actionText)\nWhen: \(whenText)"
         let generated = try await AIReportAssistant.generateStructured(
-            instructions: instructions, prompt: prompt, as: GeneratedActivityReminder.self, maxAttempts: 8)
+            instructions: instructions, prompt: prompt, as: GeneratedActivityReminder.self, maxAttempts: 3)
         return generated.reminder.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
@@ -387,7 +387,7 @@ enum AIVirtualFolderModelPlanner {
         for (i, p) in cands.enumerated() { lines.append("\(i + 1)\t\(p)") }
         let generated = try await AIReportAssistant.generateStructured(
             instructions: instructions, prompt: lines.joined(separator: "\n"),
-            as: GeneratedArchiveEntryPicks.self, maxAttempts: 8)
+            as: GeneratedArchiveEntryPicks.self, maxAttempts: 3)
         var seen = Set<Int>()
         return generated.pickedNumbers
             .compactMap { firstInt(in: $0) }
@@ -438,7 +438,7 @@ enum AIVirtualFolderModelPlanner {
         }
         let generated = try await AIReportAssistant.generateStructured(
             instructions: instructions, prompt: lines.joined(separator: "\n"),
-            as: GeneratedArchiveKindGuess.self, maxAttempts: 8)
+            as: GeneratedArchiveKindGuess.self, maxAttempts: 3)
         // 只接受适用归档的工具 token(去重);其余忽略 —— 模型选,代码不拼。
         let allowed: Set<String> = ["inspect", "test", "hash", "convert", "security"]
         var seen = Set<String>()
@@ -467,7 +467,7 @@ enum AIVirtualFolderModelPlanner {
         for (i, url) in cands.enumerated() { lines.append("\(i + 1)\t\(url)") }
         let generated = try await AIReportAssistant.generateStructured(
             instructions: instructions, prompt: lines.joined(separator: "\n"),
-            as: GeneratedURLSuggestion.self, maxAttempts: 8)
+            as: GeneratedURLSuggestion.self, maxAttempts: 3)
         guard generated.urlNumber >= 1, generated.urlNumber <= cands.count else { return nil }
         return generated.urlNumber - 1
     }

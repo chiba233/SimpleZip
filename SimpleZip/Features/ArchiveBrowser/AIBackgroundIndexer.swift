@@ -158,6 +158,13 @@ final class AIBackgroundIndexer {
         recordPass(name, candidates: prior?.candidates ?? 0, produced: prior?.produced ?? 0, skip: "仍在运行")
     }
 
+    /// 归档/文件夹清单类**重型** pass(包内 / 包定性 / 文件组)每轮**只处理 1 个候选**。实测端上模型单次结构化生成
+    /// 方差极大(2~34s,NPU 非确定性),且这些 pass 的 prompt 最长(整份清单)→ 单次最慢。若按 `maxModelSuggestionsPerRound`
+    /// (激进 6)批量处理,一次调用就把单串行闸(`AIGenerationSerializer`)占满数分钟,跨心跳注入 > 消化、队列永不收敛,
+    /// DevTools 永远「仍在运行」(实测 `/tmp/inference_test_results.md`)。改 1 个/轮:配合 `maxAttempts:3`,单次 ≈ 39s
+    /// (< 60s 激进心跳)→ 每轮腾出闸门、轮转推进、队列收敛。覆盖面靠多轮 + 指纹跳过逐步补齐(慢但全)。
+    private static let deepContextSuggestionsPerRound = 1
+
     /// DevTools 用:当前各档闸的实时状态 + 输入 —— 直接回答「为啥都是 0」(哪一档被卡)。
     nonisolated struct GateDiag: Sendable {
         let appIsActive: Bool
@@ -636,7 +643,7 @@ final class AIBackgroundIndexer {
         guard #available(macOS 26.0, *) else { return }
         let store = AIBackgroundIndexStore.shared
         guard AppPreferences.aiSuggestionEnabled, store.contentPrereadEnabled, AppPreferences.archiveListingCacheEnabled,
-              AIReportAssistant.isReady, let budget = store.budget else { return }
+              AIReportAssistant.isReady, store.budget != nil else { return }
         guard !archiveEntryRunning else { recordRunningPass("包内"); return }
         let listingByPath = Dictionary(
             ArchiveListingCacheStore().loadAll().map { ($0.archivePath, $0) },
@@ -649,7 +656,7 @@ final class AIBackgroundIndexer {
             let canonical = ArchiveListingCacheStore.canonicalPath(for: URL(fileURLWithPath: path))
             guard let entry = listingByPath[canonical], entry.fileEntryCount > 0 else { continue }
             picks.append((rec, entry))
-            if picks.count >= budget.maxModelSuggestionsPerRound { break }
+            if picks.count >= Self.deepContextSuggestionsPerRound { break }
         }
         recordPass("包内", candidates: picks.count, skip: picks.isEmpty ? "无候选(有缓存清单的归档 0)" : nil)
         guard !picks.isEmpty else { return }
@@ -685,7 +692,7 @@ final class AIBackgroundIndexer {
         guard #available(macOS 26.0, *) else { return }
         let store = AIBackgroundIndexStore.shared
         guard AppPreferences.aiSuggestionEnabled, store.indexingEnabled, AppPreferences.archiveListingCacheEnabled,
-              AIReportAssistant.isReady, canRunDeepContextNow(), let budget = store.budget else { return }
+              AIReportAssistant.isReady, canRunDeepContextNow(), store.budget != nil else { return }
         guard !archiveKindRunning else { recordRunningPass("包定性"); return }
         let listingByPath = Dictionary(
             ArchiveListingCacheStore().loadAll().map { ($0.archivePath, $0) },
@@ -699,7 +706,7 @@ final class AIBackgroundIndexer {
             let canonical = ArchiveListingCacheStore.canonicalPath(for: URL(fileURLWithPath: path))
             guard let entry = listingByPath[canonical], !entry.entries.isEmpty else { continue }
             picks.append((rec, entry))
-            if picks.count >= budget.maxModelSuggestionsPerRound { break }
+            if picks.count >= Self.deepContextSuggestionsPerRound { break }
         }
         recordPass("包定性", candidates: picks.count, skip: picks.isEmpty ? "无候选(未定性的归档 0)" : nil)
         guard !picks.isEmpty else { return }
@@ -735,7 +742,7 @@ final class AIBackgroundIndexer {
         guard #available(macOS 26.0, *) else { return }
         let store = AIBackgroundIndexStore.shared
         guard AppPreferences.aiSuggestionEnabled, store.indexingEnabled, AIReportAssistant.isReady, canRunDeepContextNow(),
-              let budget = store.budget else { return }
+              store.budget != nil else { return }
         guard !folderGroupRunning else { recordRunningPass("文件组"); return }
 
         var folderOrder: [String] = []
@@ -749,7 +756,7 @@ final class AIBackgroundIndexer {
         }
         let picks = folderOrder
             .filter { (recordsByFolder[$0]?.count ?? 0) >= 2 }
-            .prefix(budget.maxModelSuggestionsPerRound)
+            .prefix(Self.deepContextSuggestionsPerRound)
         recordPass("文件组", candidates: picks.count, skip: picks.isEmpty ? "无候选(可成组的文件夹 0)" : nil)
         guard !picks.isEmpty else { return }
 
