@@ -91,6 +91,16 @@ final class AIFeedbackStore: ObservableObject {
     var feedbackSummary: AIFeedbackSummary { AIFeedbackAggregator.summarize(feedbackEvents) }
     var counts: (feedback: Int, signals: Int) { (feedbackEvents.count, signalEvents.count) }
 
+    /// 建议六 v2 用量信号回流:工作台 chip 点击次数(by chip id)。给 chip 排序学习用户偏好(常点的下次前移)。
+    /// 信号本就 30d 滚动修剪 → 用量自然衰减。
+    func chipFilterUsage() -> [String: Int] {
+        var counts: [String: Int] = [:]
+        for event in signalEvents where event.surface == .activityAIWorkbench && event.interaction == .appliedFilterChip {
+            if let id = event.targetID { counts[id, default: 0] += 1 }
+        }
+        return counts
+    }
+
     // MARK: - 清空(随「清空后台索引」一起,学习数据一并抹掉)
 
     func clearAll() {

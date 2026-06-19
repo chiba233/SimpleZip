@@ -720,7 +720,24 @@ struct ActivityView: View {
         // 500 个 aiTaskRecord 的脱敏+正则)。配合 aiTaskRecord 烘焙缓存,切 pane 的两个 O(N) 源都被限住。
         let base = ActivityAIWorkbenchBuilder.snapshot(records: Array(filteredTasksForWorkbench(in: category).prefix(80)).map(\.aiTaskRecord))
         let ranked = applyAIChipRanking(to: base, category: category)
-        return applyAIClusterChips(to: ranked, category: category)
+        let clustered = applyAIClusterChips(to: ranked, category: category)
+        return applyChipUsageRanking(to: clustered)
+    }
+
+    /// 建议六 v2 用量信号回流(闭环):chip 整体按点击用量稳定前移(常点的最前),同用量保持原顺序
+    /// (AI 命名聚集仍在写死之前)。学习用户偏好 —— 你反复点的筛选下次就在最上面。无用量 / AI 关 → 原样。
+    private func applyChipUsageRanking(to snapshot: ActivityAIWorkbenchSnapshot) -> ActivityAIWorkbenchSnapshot {
+        guard aiAssistantEnabled else { return snapshot }
+        let usage = AIFeedbackStore.shared.chipFilterUsage()
+        guard !usage.isEmpty else { return snapshot }
+        let reordered = snapshot.filterChips.enumerated().sorted {
+            let u0 = usage[$0.element.id] ?? 0, u1 = usage[$1.element.id] ?? 0
+            return u0 != u1 ? u0 > u1 : $0.offset < $1.offset
+        }.map(\.element)
+        guard reordered != snapshot.filterChips else { return snapshot }
+        return ActivityAIWorkbenchSnapshot(
+            schema: snapshot.schema, summary: snapshot.summary, cards: snapshot.cards,
+            filterChips: reordered, omissions: snapshot.omissions)
     }
 
     /// 建议六 v2「学习到的习惯」:从近期任务(前 80,aiTaskRecord 缓存)确定性算常用来源 / 格式 / 位置摘要。
@@ -911,6 +928,12 @@ struct ActivityView: View {
     }
 
     private func applyAIWorkbenchFilter(_ chip: ActivityAIWorkbenchFilterChip) {
+        // 用量信号回流(补缺口①②):工作台 chip 点击进全局记忆,供 chip 排序学习用户偏好(常点的下次前移)。
+        if aiAssistantEnabled {
+            AIFeedbackStore.shared.record(.make(
+                id: UUID(), occurredAt: Date(), surface: .activityAIWorkbench,
+                interaction: .appliedFilterChip, targetKind: .task, targetID: chip.id))
+        }
         aiKeyword = ""
         aiWithinSeconds = 0
         aiTimeBefore = false
@@ -919,7 +942,8 @@ struct ActivityView: View {
         aiKinds = Set(chip.filter.kindTokens.compactMap(OperationTask.Kind.init(rawValue:)))
         aiFormat = ""
         aiDiagnosticTags = Set(chip.filter.diagnosticTags)
-        aiFilterQuery = L10n.text("tasks.aiWorkbench.chip.\(chip.id)")
+        // cluster chip 用模型命名(displayName);写死 chip 仍走 L10n id。
+        aiFilterQuery = chip.displayName ?? L10n.text("tasks.aiWorkbench.chip.\(chip.id)")
         aiFilterError = nil
     }
 
