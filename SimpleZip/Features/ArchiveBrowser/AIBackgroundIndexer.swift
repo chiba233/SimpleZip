@@ -128,6 +128,10 @@ final class AIBackgroundIndexer {
     private var organizeTask: Task<Void, Never>?
     private var workbenchRankingRunning = false
     private var workbenchRankingTask: Task<Void, Never>?
+    private var workbenchNeedsAttentionRunning = false
+    private var workbenchNeedsAttentionTask: Task<Void, Never>?
+    private var workbenchFailureRunning = false
+    private var workbenchFailureTask: Task<Void, Never>?
 
     /// 后台索引**心跳定时器**(主运行循环)+ 当前间隔。P0 根因:`runIfEnabled` 原本只在启动 `activate()` 时被调
     /// 一次,那次又卡在 launch-silence(<60s)直接空跑,之后再无任何定时器触发 → 后台索引 / 建议全程跑不起来
@@ -253,6 +257,8 @@ final class AIBackgroundIndexer {
                         AIBackgroundIndexer.shared.generateDiskImageSuggestionsIfEnabled()   // 内含 App 的 dmg「安装到应用程序」
                         AIBackgroundIndexer.shared.generateActivityLinkSuggestionsIfEnabled()   // 命中近期任务产物「查看活动」
                         AIBackgroundIndexer.shared.generateWorkbenchChipRankingIfEnabled()   // 活动中心「建议筛选」chip 模型排序
+                        AIBackgroundIndexer.shared.generateWorkbenchNeedsAttentionIfEnabled()   // 活动中心「需要处理」卡 AI 解读
+                        AIBackgroundIndexer.shared.generateWorkbenchFailureExplanationsIfEnabled()   // 活动中心失败任务「失败解释」
                         AIBackgroundIndexer.shared.generateArchiveEntrySuggestionsIfEnabled()   // 归档「也许你要包里的 X」
                         if AIBackgroundIndexer.shared.canRunDeepContextNow() {
                             AIBackgroundIndexer.shared.generateArchiveKindGuessIfEnabled()   // 归档「这看起来是什么包」
@@ -706,6 +712,107 @@ final class AIBackgroundIndexer {
         if !f.kindTokens.isEmpty { dims.append("kind=\(f.kindTokens.joined(separator: "/"))") }
         if !f.diagnosticTags.isEmpty { dims.append("tags=\(f.diagnosticTags.joined(separator: "/"))") }
         return "\(chip.id) — \(dims.isEmpty ? chip.id : dims.joined(separator: ", "))"
+    }
+
+    // MARK: - 建议六 v2 模块1「需要处理」AI 解读 + 模块①「失败解释」(后台预烘焙)
+
+    /// 某分类的「未读失败任务集」指纹(未读失败任务 id 排序后 join)。后台据此决定是否重生成「需要处理」解读、
+    /// 前台据此判断缓存是否匹配当前列表 —— **两边必须用同一函数**,保证幂等且不显示旧任务的解读。
+    nonisolated static func needsAttentionFingerprint(_ records: [AITaskRecord]) -> String {
+        records.filter { $0.status == "failed" && !$0.failureSeen }
+            .map(\.id).sorted().joined(separator: ",")
+    }
+
+    /// 某失败任务的脱敏诊断指纹(类型 / 来源 / 标签 / 脱敏失败消息 / 脱敏错误行)。后台据此决定是否重生成失败解释、
+    /// 前台据此判断缓存是否仍对应该任务当前的失败态 —— **两边用同一函数**。**全部已脱敏,无原始路径。**
+    nonisolated static func failureExplanationFingerprint(_ record: AITaskRecord) -> String {
+        let diag = record.diagnostics
+        var parts = ["\(record.kind)|\(record.source)|\(diag.tags.sorted().joined(separator: "+"))"]
+        if let message = diag.failureMessage, !message.isEmpty { parts.append(message) }
+        if !diag.errorLines.isEmpty { parts.append(diag.errorLines.joined(separator: "\n")) }
+        return AIStableHash.stableID64(parts.joined(separator: "\u{1f}"))
+    }
+
+    /// 建议六 v2 模块1:后台让端上模型给活动中心「需要处理」卡写一段解读(现在最值得先处理什么 + 为什么)。每轮**只处理
+    /// 1 个分类**(第一个解读过期 / 没解读过的;队列收敛 `4fd1fcad`),未读失败集指纹幂等(集合没变不重生成),写回 store,
+    /// 前台只读缓存。门控:跑在 `canRunModelWorkNow` 下(空闲 + 充电语义 + 非低电/省电)。**只喂 类型 / 来源 / 诊断标签 +
+    /// 计数,不含原始标题 / 路径**;无未读失败的分类清空其缓存(列表恢复确定性文案)。
+    func generateWorkbenchNeedsAttentionIfEnabled() {
+        guard #available(macOS 26.0, *) else { return }
+        let store = AIBackgroundIndexStore.shared
+        guard AppPreferences.aiSuggestionEnabled, store.indexingEnabled, AIReportAssistant.isReady,
+              store.budget != nil else { return }
+        guard !workbenchNeedsAttentionRunning else { recordRunningPass("需要处理解读"); return }
+        let all = (TaskCenter.shared.active + TaskCenter.shared.history).map(\.aiTaskRecord)
+        // 找第一个「解读过期 / 没解读过、且有未读失败」的分类(每轮只做 1 个,逐轮覆盖全部分类)。
+        var pick: (category: String, records: [AITaskRecord], fingerprint: String)?
+        for category in ["archive", "fileOperation", "undoRedo"] {
+            let records = all.filter { $0.category == category }
+            let fingerprint = AIBackgroundIndexer.needsAttentionFingerprint(records)
+            guard !fingerprint.isEmpty else { continue }   // 该分类无未读失败 → 不需要解读
+            if store.workbenchNeedsAttentionExplanation(forCategory: category)?.fingerprint != fingerprint {
+                pick = (category, records, fingerprint); break
+            }
+        }
+        guard let pick else { recordPass("需要处理解读", candidates: 0, skip: "全部分类已解读 / 无未读失败"); return }
+        recordPass("需要处理解读", candidates: 1)
+        workbenchNeedsAttentionRunning = true
+        workbenchNeedsAttentionTask = Task { @MainActor in
+            defer { AIBackgroundIndexer.shared.workbenchNeedsAttentionRunning = false }
+            guard AIBackgroundIndexStore.shared.indexingEnabled, AIReportAssistant.isReady else { return }
+            let unseenFailed = pick.records.filter { $0.status == "failed" && !$0.failureSeen }
+            guard !unseenFailed.isEmpty else { return }
+            let summary = ActivityAIWorkbenchSummary(records: pick.records)
+            let summaryFacts = [
+                "total \(summary.total)", "running \(summary.running)",
+                "unseen-failed \(summary.failedUnseen)", "failed \(summary.failedSeen)",
+                "succeeded \(summary.succeeded)"
+            ]
+            let failedFacts = unseenFailed.prefix(8).map { rec -> String in
+                let tags = rec.diagnostics.tags.isEmpty ? "no-tags" : rec.diagnostics.tags.joined(separator: "+")
+                return "\(rec.kind) / \(rec.source) / \(tags)"
+            }
+            guard let text = try? await AIVirtualFolderModelPlanner.activityWorkbenchExplanation(
+                summaryFacts: summaryFacts, failedFacts: Array(failedFacts)), !text.isEmpty else { return }
+            AIBackgroundIndexStore.shared.applyWorkbenchNeedsAttentionExplanation(
+                category: pick.category, fingerprint: pick.fingerprint, text: text)
+        }
+    }
+
+    /// 建议六 v2 模块①:后台让端上模型给**失败任务**逐个写一段短解释(展开任务时前台只读缓存,不再前台触发模型)。每轮
+    /// **只处理 1 个失败任务**(第一个解释过期 / 没解释过的;队列收敛),脱敏诊断指纹幂等(失败态没变不重生成),写回 store
+    /// 并随活失败任务集修剪(历史不累积)。门控:`canRunModelWorkNow`。**只喂脱敏诊断(类型 / 来源 / 标签 / 脱敏消息 /
+    /// 脱敏错误行),不含原始标题 / 路径。**
+    func generateWorkbenchFailureExplanationsIfEnabled() {
+        guard #available(macOS 26.0, *) else { return }
+        let store = AIBackgroundIndexStore.shared
+        guard AppPreferences.aiSuggestionEnabled, store.indexingEnabled, AIReportAssistant.isReady,
+              store.budget != nil else { return }
+        guard !workbenchFailureRunning else { recordRunningPass("失败解释"); return }
+        let failed = (TaskCenter.shared.active + TaskCenter.shared.history)
+            .map(\.aiTaskRecord).filter { $0.status == "failed" }
+        let liveTaskIDs = Set(failed.map(\.id))
+        // 找第一个「解释过期 / 没解释过」的失败任务(每轮只做 1 个,逐轮覆盖)。
+        var pick: (record: AITaskRecord, fingerprint: String)?
+        for record in failed {
+            let fingerprint = AIBackgroundIndexer.failureExplanationFingerprint(record)
+            if store.workbenchFailureExplanation(forTask: record.id)?.fingerprint != fingerprint {
+                pick = (record, fingerprint); break
+            }
+        }
+        guard let pick else { recordPass("失败解释", candidates: 0, skip: "全部失败任务已解释 / 无失败任务"); return }
+        recordPass("失败解释", candidates: 1)
+        workbenchFailureRunning = true
+        workbenchFailureTask = Task { @MainActor in
+            defer { AIBackgroundIndexer.shared.workbenchFailureRunning = false }
+            guard AIBackgroundIndexStore.shared.indexingEnabled, AIReportAssistant.isReady else { return }
+            let diag = pick.record.diagnostics
+            guard let text = try? await AIVirtualFolderModelPlanner.taskFailureShortExplanation(
+                kind: pick.record.kind, source: pick.record.source, tags: diag.tags,
+                failureMessage: diag.failureMessage, errorLines: diag.errorLines), !text.isEmpty else { return }
+            AIBackgroundIndexStore.shared.applyWorkbenchFailureExplanation(
+                taskID: pick.record.id, fingerprint: pick.fingerprint, text: text, liveTaskIDs: liveTaskIDs)
+        }
     }
 
     // MARK: - 压缩包「你可能需要的文件」建议(backlog 第4项;MainActor:读清单缓存 + 模型 async)

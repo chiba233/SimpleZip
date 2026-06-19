@@ -379,6 +379,10 @@ enum AppPreferences {
         nonisolated static let aiOrganizeSuggestionsData = "SimpleZip.ai.organize.v1"
         /// 0.4.5 #80 建议六 v2 模块⑤:活动中心「建议筛选」chip 的模型排序缓存(`[String: CachedChipRanking]` 按任务分类;派生数据,不进偏好备份)。
         nonisolated static let aiWorkbenchChipRankingData = "SimpleZip.ai.workbenchChipRanking.v1"
+        /// 0.4.5 #80 建议六 v2 模块1:活动中心「需要处理」卡的 AI 解读缓存(`[String: CachedExplanation]` 按任务分类;后台预烘焙、幂等;派生数据,不进偏好备份)。
+        nonisolated static let aiWorkbenchNeedsAttentionData = "SimpleZip.ai.workbenchNeedsAttention.v1"
+        /// 0.4.5 #80 建议六 v2 模块①:活动中心失败任务的「失败解释」缓存(`[String: CachedExplanation]` 按任务 id;后台预烘焙、幂等、随活失败任务集修剪;派生数据,不进偏好备份)。
+        nonisolated static let aiWorkbenchFailureExplanationData = "SimpleZip.ai.workbenchFailureExplanation.v1"
         /// 0.4.5 #80:跨表面 AI 交互信号日志(`[AIInteractionSignalEvent]` 的 JSON;点击 / 打开建议等兴趣信号;派生数据,不进偏好备份)。
         nonisolated static let aiInteractionSignalsData = "SimpleZip.ai.interaction.signals.v1"
         /// 0.4.5 #80:只读自动检查 pending 队列(`AIPendingCheckQueue` 的 JSON;电池决策→插电执行;派生数据,不进偏好备份)。

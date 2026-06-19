@@ -144,11 +144,16 @@ nonisolated struct AIDevToolsPipelineProductCounts: Equatable, Sendable {
     let inlineResult: Int
     /// 建议六 v2 模块⑤:活动中心 AI 工作台「建议筛选」chip 的模型排序产物数(各分类已排序 chip id 总数)。
     let workbenchChipRanking: Int
+    /// 建议六 v2 模块1:活动中心「需要处理」卡 AI 解读缓存数(各分类已解读条数)。
+    let workbenchNeedsAttention: Int
+    /// 建议六 v2 模块①:活动中心失败任务「失败解释」缓存数(已解释的失败任务条数)。
+    let workbenchFailureExplanation: Int
 
     init(summary: Int, openWith: Int, urlOpen: Int, install: Int, activity: Int,
          archiveEntry: Int, archiveKind: Int, folderGroup: Int, organize: Int,
          inspect: Int, test: Int, hash: Int, security: Int, compress: Int,
-         convert: Int, inlineResult: Int, workbenchChipRanking: Int = 0) {
+         convert: Int, inlineResult: Int, workbenchChipRanking: Int = 0,
+         workbenchNeedsAttention: Int = 0, workbenchFailureExplanation: Int = 0) {
         self.summary = summary
         self.openWith = openWith
         self.urlOpen = urlOpen
@@ -166,6 +171,8 @@ nonisolated struct AIDevToolsPipelineProductCounts: Equatable, Sendable {
         self.convert = convert
         self.inlineResult = inlineResult
         self.workbenchChipRanking = workbenchChipRanking
+        self.workbenchNeedsAttention = workbenchNeedsAttention
+        self.workbenchFailureExplanation = workbenchFailureExplanation
     }
 }
 
@@ -194,7 +201,9 @@ nonisolated enum AIDevToolsPipelineCatalog {
             AIDevToolsPipelineRow(name: "压缩", passName: "摘要", cachedProductCount: counts.compress),
             AIDevToolsPipelineRow(name: "转换", passName: "包定性", cachedProductCount: counts.convert),
             AIDevToolsPipelineRow(name: "内联结果", passName: nil, cachedProductCount: counts.inlineResult),
-            AIDevToolsPipelineRow(name: "筛选排序", passName: "筛选排序", cachedProductCount: counts.workbenchChipRanking)
+            AIDevToolsPipelineRow(name: "筛选排序", passName: "筛选排序", cachedProductCount: counts.workbenchChipRanking),
+            AIDevToolsPipelineRow(name: "需要处理解读", passName: "需要处理解读", cachedProductCount: counts.workbenchNeedsAttention),
+            AIDevToolsPipelineRow(name: "失败解释", passName: "失败解释", cachedProductCount: counts.workbenchFailureExplanation)
         ]
     }
 }

@@ -72,10 +72,6 @@ struct ActivityView: View {
     /// 拖拽起始宽度(松手清空)—— 避免用累计 translation 时反复叠加。
     @State private var aiWorkbenchDragStartWidth: Double?
     private let aiWorkbenchWidthRange: ClosedRange<Double> = 200...560
-    /// 建议六 v2:端上模型对「需要处理」卡的解读(后台生成,按未读失败集指纹刷新;模型不可用 / 无失败 → nil 退回确定性)。
-    @State private var aiWorkbenchExplanation: String?
-    /// 建议六 v2 模块①:端上模型对「当前展开的失败任务」的短解释(按焦点失败任务 id 刷新;无 / 不可用 / 失败 → nil 退回脱敏摘要)。
-    @State private var workbenchFailureExplanation: String?
     /// 模块①:「打开完整 AI 解释」弹现成 per-task `AIAssistSheet`(完整解释)。
     @State private var showsWorkbenchFailureSheet = false
 
@@ -262,7 +258,7 @@ struct ActivityView: View {
                                 isRunningQuery: aiFilterRunning,
                                 queryError: aiFilterError,
                                 activeFilterSummary: aiFilterActive ? activeFilterSummary : nil,
-                                aiExplanation: aiWorkbenchExplanation,
+                                aiExplanation: workbenchNeedsAttentionExplanation(in: category),
                                 failureFocus: workbenchFailureFocus(in: category),
                                 onRunQuery: { Task { await runAIFilter() } },
                                 onClearFilter: clearAIFilter,
@@ -273,14 +269,6 @@ struct ActivityView: View {
                                 onClose: { showsActivityAIWorkbench = false }
                             )
                             .frame(width: CGFloat(aiWorkbenchWidth))
-                            // 建议六 v2:未读失败集变化才重生成解读(确定性指纹;不每次任务变动都跑模型)。
-                            .task(id: workbenchFailureFingerprint(for: category)) {
-                                await refreshWorkbenchExplanation(for: category)
-                            }
-                            // 建议六 v2 模块①:焦点失败任务(展开的失败任务)变化时,局部重生成短解释。
-                            .task(id: focusedWorkbenchFailureID(in: category)) {
-                                await refreshFocusedFailureExplanation(for: category)
-                            }
                             // 模块①:「打开完整 AI 解释」→ 复用现成 per-task AIAssistSheet + failureExplanationPrompt(完整解释,只读)。
                             .sheet(isPresented: $showsWorkbenchFailureSheet) {
                                 workbenchFailureSheet(for: category)
@@ -723,46 +711,16 @@ struct ActivityView: View {
             filterChips: reordered, omissions: snapshot.omissions)
     }
 
-    /// 建议六 v2:未读失败任务集的确定性指纹 —— 驱动 `.task(id:)`;只有这个集合变了才重生成解读(不每次任务变动跑模型)。
-    private func workbenchFailureFingerprint(for category: OperationTask.Category) -> String {
-        guard aiAssistantEnabled else { return "" }
-        return filteredTasksForWorkbench(in: category)
-            .map(\.aiTaskRecord)
-            .filter { $0.status == "failed" && !$0.failureSeen }
-            .map(\.id)
-            .sorted()
-            .joined(separator: ",")
-    }
-
-    /// 建议六 v2:后台让端上模型给「需要处理」卡写一段解读(现在最值得先处理什么 + 为什么)。门控:AI 助手开 + macOS26 +
-    /// 模型就绪;无未读失败 / 不可用 / 失败 → 置 nil,View 退回确定性文案。**只喂 类型 / 来源 / 诊断标签 + 计数,不含原始
-    /// 标题 / 路径**;经 `AIReportAssistant.generate` 走全局串行闸,不与其它 AI 生成重叠。
-    @MainActor
-    private func refreshWorkbenchExplanation(for category: OperationTask.Category) async {
-        guard aiAssistantEnabled, #available(macOS 26.0, *), AIReportAssistant.isReady else {
-            aiWorkbenchExplanation = nil
-            return
-        }
+    /// 建议六 v2 模块1:活动中心「需要处理」卡的 AI 解读 —— **只读后台预烘焙缓存**(META#2:工作台 AI 永远后台预烘焙 +
+    /// 幂等 + 前台只读,绝不前台触发模型)。指纹匹配当前未读失败集才用(否则 nil → 卡片退确定性计数文案);有筛选时
+    /// 指纹自然不匹配 → 走确定性。后台 pass = `generateWorkbenchNeedsAttentionIfEnabled`。
+    private func workbenchNeedsAttentionExplanation(in category: OperationTask.Category) -> String? {
+        guard aiAssistantEnabled,
+              let cached = aiIndexStore.workbenchNeedsAttentionExplanation(forCategory: category.rawValue) else { return nil }
         let records = filteredTasksForWorkbench(in: category).map(\.aiTaskRecord)
-        let unseenFailed = records.filter { $0.status == "failed" && !$0.failureSeen }
-        guard !unseenFailed.isEmpty else { aiWorkbenchExplanation = nil; return }
-        let summary = ActivityAIWorkbenchSummary(records: records)
-        let summaryFacts = [
-            "total \(summary.total)", "running \(summary.running)",
-            "unseen-failed \(summary.failedUnseen)", "failed \(summary.failedSeen)",
-            "succeeded \(summary.succeeded)"
-        ]
-        let failedFacts = unseenFailed.prefix(8).map { rec -> String in
-            let tags = rec.diagnostics.tags.isEmpty ? "no-tags" : rec.diagnostics.tags.joined(separator: "+")
-            return "\(rec.kind) / \(rec.source) / \(tags)"
-        }
-        do {
-            let text = try await AIVirtualFolderModelPlanner.activityWorkbenchExplanation(
-                summaryFacts: summaryFacts, failedFacts: Array(failedFacts))
-            if !text.isEmpty { aiWorkbenchExplanation = text }
-        } catch {
-            // 模型失败 → 保持现状(View 退回确定性文案),不报错打扰用户。
-        }
+        let fingerprint = AIBackgroundIndexer.needsAttentionFingerprint(records)
+        guard !fingerprint.isEmpty, cached.fingerprint == fingerprint, !cached.text.isEmpty else { return nil }
+        return cached.text
     }
 
     /// 建议六 v2 模块①:当前「焦点失败任务」= 当前分类里被**展开**的失败任务中最新的一个(展开 = 用户正在看它,
@@ -777,12 +735,6 @@ struct ActivityView: View {
             .max { ($0.finishedAt ?? $0.startedAt) < ($1.finishedAt ?? $1.startedAt) }
     }
 
-    /// 模块①的 `.task(id:)` 触发指纹:焦点失败任务 id(无 → "");只在焦点变化时局部重生成短解释。
-    private func focusedWorkbenchFailureID(in category: OperationTask.Category) -> String {
-        guard aiAssistantEnabled else { return "" }
-        return focusedWorkbenchFailure(in: category)?.id.uuidString ?? ""
-    }
-
     /// 模块①:给工作台侧栏的失败解释焦点数据(确定性脱敏摘要永远在 + 模型短解释 + 是否能打开完整解释)。
     private func workbenchFailureFocus(in category: OperationTask.Category) -> ActivityWorkbenchFailureFocus? {
         guard aiAssistantEnabled, let task = focusedWorkbenchFailure(in: category) else { return nil }
@@ -791,9 +743,19 @@ struct ActivityView: View {
         return ActivityWorkbenchFailureFocus(
             taskTitle: task.title,
             deterministicSummary: deterministicFailureSummary(for: task.aiTaskRecord),
-            aiExplanation: workbenchFailureExplanation,
+            aiExplanation: cachedFailureExplanation(for: task),
             canOpenFull: canOpenFull,
             nextActions: availableNextActions(for: task))
+    }
+
+    /// 模块①:焦点失败任务的「失败解释」短文案 —— **只读后台预烘焙缓存**(META#2:永远后台预烘焙 + 幂等 + 前台只读)。
+    /// 指纹匹配该任务当前脱敏失败诊断才用(否则 nil → 退回确定性脱敏摘要)。后台 pass = `generateWorkbenchFailureExplanationsIfEnabled`。
+    private func cachedFailureExplanation(for task: OperationTask) -> String? {
+        let record = task.aiTaskRecord
+        guard let cached = aiIndexStore.workbenchFailureExplanation(forTask: record.id),
+              cached.fingerprint == AIBackgroundIndexer.failureExplanationFingerprint(record),
+              !cached.text.isEmpty else { return nil }
+        return cached.text
     }
 
     /// 模块②:焦点失败任务上**确定性可用**的后续动作(按任务自身闭包是否存在,App 安全枚举,AI 不发明)。
@@ -841,26 +803,6 @@ struct ActivityView: View {
         if let message = record.diagnostics.failureMessage, !message.isEmpty { return message }
         if !record.diagnostics.tags.isEmpty { return record.diagnostics.tags.joined(separator: ", ") }
         return L10n.text("tasks.aiWorkbench.failureExplanation.fallback")
-    }
-
-    /// 模块①:后台让端上模型给焦点失败任务写一段短解释。门控同 needsAttention(AI 助手开 + macOS26 + 模型就绪);
-    /// **只喂脱敏诊断(类型 / 来源 / 标签 / 脱敏消息 / 脱敏错误行),不含原始标题 / 路径**;经 `AIReportAssistant.generate`
-    /// 走全局串行闸。失败 / 不可用 / 无焦点 → 置 nil,View 退回确定性脱敏摘要。
-    @MainActor
-    private func refreshFocusedFailureExplanation(for category: OperationTask.Category) async {
-        workbenchFailureExplanation = nil
-        guard aiAssistantEnabled, #available(macOS 26.0, *), AIReportAssistant.isReady,
-              let task = focusedWorkbenchFailure(in: category) else { return }
-        let diag = task.aiTaskRecord.diagnostics
-        let record = task.aiTaskRecord
-        do {
-            let text = try await AIVirtualFolderModelPlanner.taskFailureShortExplanation(
-                kind: record.kind, source: record.source, tags: diag.tags,
-                failureMessage: diag.failureMessage, errorLines: diag.errorLines)
-            if !text.isEmpty { workbenchFailureExplanation = text }
-        } catch {
-            // 模型失败 → 保持 nil(View 退回确定性脱敏摘要),不打扰用户。
-        }
     }
 
     /// 模块①:「打开完整 AI 解释」弹的 sheet —— 复用现成 per-task `AIAssistSheet` + `failureExplanationPrompt`(完整解释,

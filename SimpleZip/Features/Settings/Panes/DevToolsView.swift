@@ -616,6 +616,8 @@ struct DevToolsView: View {
                 convertCount: countAction("convert"),
                 inlineResultCount: records.reduce(0) { $0 + (($1.contentSummary?.inlineResults.contains { !$0.value.isEmpty } ?? false) ? 1 : 0) },
                 workbenchChipRankingCount: backgroundStore.workbenchChipRankingByCategory.values.reduce(0) { $0 + $1.orderedIDs.count },
+                workbenchNeedsAttentionCount: backgroundStore.workbenchNeedsAttentionByCategory.count,
+                workbenchFailureExplanationCount: backgroundStore.workbenchFailureExplanationByTask.count,
                 activityLevel: AppPreferences.aiBackgroundActivityLevel.rawValue,
                 scopeCount: backgroundStore.scopes.count,
                 indexedFileCount: index.fileCount,
@@ -682,7 +684,10 @@ struct DevToolsView: View {
                 security: records.reduce(0) { $0 + (has("security", $1) ? 1 : 0) },
                 compress: records.reduce(0) { $0 + (has("compress", $1) ? 1 : 0) },
                 convert: records.reduce(0) { $0 + (has("convert", $1) ? 1 : 0) },
-                inlineResult: records.reduce(0) { $0 + (($1.contentSummary?.inlineResults.contains { !$0.value.isEmpty } ?? false) ? 1 : 0) })
+                inlineResult: records.reduce(0) { $0 + (($1.contentSummary?.inlineResults.contains { !$0.value.isEmpty } ?? false) ? 1 : 0) },
+                workbenchChipRanking: store.workbenchChipRankingByCategory.values.reduce(0) { $0 + $1.orderedIDs.count },
+                workbenchNeedsAttention: store.workbenchNeedsAttentionByCategory.count,
+                workbenchFailureExplanation: store.workbenchFailureExplanationByTask.count)
         }
 
         var out: [String] = []
@@ -908,6 +913,8 @@ private nonisolated struct DevToolsAIDataSnapshot: Encodable {
         let convertCount: Int
         let inlineResultCount: Int
         let workbenchChipRankingCount: Int
+        let workbenchNeedsAttentionCount: Int
+        let workbenchFailureExplanationCount: Int
         let activityLevel: String
         let scopeCount: Int
         let indexedFileCount: Int
@@ -933,7 +940,9 @@ private nonisolated struct DevToolsAIDataSnapshot: Encodable {
                 compress: compressCount,
                 convert: convertCount,
                 inlineResult: inlineResultCount,
-                workbenchChipRanking: workbenchChipRankingCount)
+                workbenchChipRanking: workbenchChipRankingCount,
+                workbenchNeedsAttention: workbenchNeedsAttentionCount,
+                workbenchFailureExplanation: workbenchFailureExplanationCount)
         }
     }
 

@@ -27,6 +27,14 @@ nonisolated struct CachedChipRanking: Codable, Equatable, Sendable {
     let orderedIDs: [String]
 }
 
+/// 建议六 v2 模块1「需要处理」AI 解读 + 模块①「失败解释」的后台预烘焙缓存。`fingerprint` = 当时输入事实的指纹
+/// (模块1 = 未读失败任务 id 集;模块① = 该失败任务的脱敏诊断);前台只在指纹匹配当前输入时套用 `text`,否则退回
+/// 确定性文案 → 保证幂等、不显示旧任务的解读。`text` = 端上模型用界面语言写的一小段(模型不可用 / 失败 → 不写,前台自然退确定性)。
+nonisolated struct CachedExplanation: Codable, Equatable, Sendable {
+    let fingerprint: String
+    let text: String
+}
+
 @MainActor
 final class AIBackgroundIndexStore: ObservableObject {
     static let shared = AIBackgroundIndexStore()
@@ -61,6 +69,14 @@ final class AIBackgroundIndexStore: ObservableObject {
     private(set) var workbenchChipRankingByCategory: [String: CachedChipRanking]
     /// 排序缓存世代(活动中心工作台据此 + objectWillChange 重算;不把字典设成 @Published)。
     private(set) var workbenchChipRankingGeneration = 0
+    /// 建议六 v2 模块1:活动中心「需要处理」卡的 AI 解读缓存。key = 任务分类 rawValue;后台预烘焙、幂等(未读失败集
+    /// 没变不重生成)、前台只读。
+    private(set) var workbenchNeedsAttentionByCategory: [String: CachedExplanation]
+    /// 建议六 v2 模块①:活动中心失败任务的「失败解释」缓存。key = 任务 id(UUID string);后台预烘焙、幂等(失败诊断
+    /// 没变不重生成)、随活失败任务集修剪(历史不无限累积)、前台只读。
+    private(set) var workbenchFailureExplanationByTask: [String: CachedExplanation]
+    /// 模块1 / ① 解读缓存世代(活动中心工作台据此 + objectWillChange 重算;不把字典设成 @Published)。
+    private(set) var workbenchExplanationGeneration = 0
 
     private let defaults: UserDefaults
 
@@ -72,6 +88,10 @@ final class AIBackgroundIndexStore: ObservableObject {
         self.folderGroupsByPath = AIBackgroundIndexStore.loadFolderGroups(from: defaults)
         self.organizeByPath = AIBackgroundIndexStore.loadOrganize(from: defaults)
         self.workbenchChipRankingByCategory = AIBackgroundIndexStore.loadWorkbenchChipRanking(from: defaults)
+        self.workbenchNeedsAttentionByCategory = AIBackgroundIndexStore.loadExplanations(
+            from: defaults, key: AppPreferences.Key.aiWorkbenchNeedsAttentionData)
+        self.workbenchFailureExplanationByTask = AIBackgroundIndexStore.loadExplanations(
+            from: defaults, key: AppPreferences.Key.aiWorkbenchFailureExplanationData)
         rebuildPathIndex()   // init 里的 fileIndex 赋值不触发 didSet,手动建一次
     }
 
@@ -361,6 +381,41 @@ final class AIBackgroundIndexStore: ObservableObject {
         objectWillChange.send()
     }
 
+    // MARK: - 建议六 v2 模块1「需要处理」解读 + 模块①「失败解释」缓存(后台预烘焙、前台只读)
+
+    /// 读某分类的「需要处理」AI 解读缓存(后台预烘焙产物;前台只读)。
+    func workbenchNeedsAttentionExplanation(forCategory category: String) -> CachedExplanation? {
+        workbenchNeedsAttentionByCategory[category]
+    }
+
+    /// 后台 pass 写回某分类的「需要处理」解读(模型文案 + 当时未读失败集指纹)。幂等由 pass 在调用前比指纹保证。
+    func applyWorkbenchNeedsAttentionExplanation(category: String, fingerprint: String, text: String) {
+        let explanation = CachedExplanation(fingerprint: fingerprint, text: text)
+        guard workbenchNeedsAttentionByCategory[category] != explanation else { return }
+        workbenchNeedsAttentionByCategory[category] = explanation
+        workbenchExplanationGeneration += 1
+        persistWorkbenchNeedsAttention()
+        objectWillChange.send()
+    }
+
+    /// 读某失败任务的「失败解释」缓存(后台预烘焙产物;前台展开失败任务时只读)。
+    func workbenchFailureExplanation(forTask taskID: String) -> CachedExplanation? {
+        workbenchFailureExplanationByTask[taskID]
+    }
+
+    /// 后台 pass 写回某失败任务的「失败解释」(模型文案 + 当时脱敏诊断指纹)。`liveTaskIDs` = 当前仍存在的失败任务 id 集,
+    /// 据此修剪掉已不在列表里的历史条目(缓存规模 = 活失败任务子集,有界)。幂等由 pass 在调用前比指纹保证。
+    func applyWorkbenchFailureExplanation(taskID: String, fingerprint: String, text: String, liveTaskIDs: Set<String>) {
+        let explanation = CachedExplanation(fingerprint: fingerprint, text: text)
+        var updated = workbenchFailureExplanationByTask.filter { liveTaskIDs.contains($0.key) }
+        updated[taskID] = explanation
+        guard updated != workbenchFailureExplanationByTask else { return }
+        workbenchFailureExplanationByTask = updated
+        workbenchExplanationGeneration += 1
+        persistWorkbenchFailureExplanation()
+        objectWillChange.send()
+    }
+
     /// **文本 URL 打开建议**回填:URL 来自 App 从已脱敏预读文本正则抽取的真实 http(s) URL;模型只选编号。
     /// payload 保存真实 URL,label 保存展示名。没有模型选择就不调用本方法,保持空抽屉/无假建议。
     func applyURLOpenSuggestion(recordID: String, url: String, label: String?) {
@@ -414,10 +469,15 @@ final class AIBackgroundIndexStore: ObservableObject {
         organizeGeneration += 1
         workbenchChipRankingByCategory = [:]
         workbenchChipRankingGeneration += 1
+        workbenchNeedsAttentionByCategory = [:]
+        workbenchFailureExplanationByTask = [:]
+        workbenchExplanationGeneration += 1
         persistIndex()
         persistFolderGroups()
         persistOrganize()
         persistWorkbenchChipRanking()
+        persistWorkbenchNeedsAttention()
+        persistWorkbenchFailureExplanation()
         AIFeedbackStore.shared.clearAll()
         AIPendingCheckStore.shared.clearAll()
         objectWillChange.send()
@@ -459,6 +519,26 @@ final class AIBackgroundIndexStore: ObservableObject {
         if let data = try? JSONEncoder().encode(workbenchChipRankingByCategory) {
             defaults.set(data, forKey: AppPreferences.Key.aiWorkbenchChipRankingData)
         }
+    }
+
+    private func persistWorkbenchNeedsAttention() {
+        if let data = try? JSONEncoder().encode(workbenchNeedsAttentionByCategory) {
+            defaults.set(data, forKey: AppPreferences.Key.aiWorkbenchNeedsAttentionData)
+        }
+    }
+
+    private func persistWorkbenchFailureExplanation() {
+        if let data = try? JSONEncoder().encode(workbenchFailureExplanationByTask) {
+            defaults.set(data, forKey: AppPreferences.Key.aiWorkbenchFailureExplanationData)
+        }
+    }
+
+    /// 通用解读缓存加载(模块1 / ① 共用,`[String: CachedExplanation]`)。
+    private static func loadExplanations(from defaults: UserDefaults, key: String) -> [String: CachedExplanation] {
+        guard let data = defaults.data(forKey: key),
+              let decoded = try? JSONDecoder().decode([String: CachedExplanation].self, from: data)
+        else { return [:] }
+        return decoded
     }
 
     private static func loadDislikedKeys(from defaults: UserDefaults) -> Set<String> {
