@@ -145,27 +145,21 @@ final class AIBackgroundIndexer {
 
     // MARK: - DevTools 诊断(每个 pass 真跑没跑 / 有没有候选 / 产出多少 + 当前各档闸状态)
 
-    /// 一个 pass 上一次执行的画像。`candidates` = 门控过了之后真正选到的候选数;`produced` = 这轮写出的产物数;
-    /// `skip` = 选到候选但没产出 / 没跑的原因(如「无候选」「模型空返」「门控未过」)。
-    nonisolated struct PassDiag: Sendable {
-        var lastRunAt: Date?
-        var candidates: Int = 0
-        var produced: Int = 0
-        var skip: String?
-    }
-    private(set) var passDiag: [String: PassDiag] = [:]
+    /// 阶段0b:每个 pass 的执行画像从 god-object 抽到文件末的 `AIIndexerPassDiagnostics`(诊断协作类)。
+    /// 这里只留**转发**:DevTools + 内部读 `passDiag`,写走 `recordPass` / `recordRunningPass`(都转发到协作类)。
+    private let passDiagnostics = AIIndexerPassDiagnostics()
+    var passDiag: [String: PassDiag] { passDiagnostics.byPass }
     /// 上一轮**完整索引轮**结束时间(判断后台到底有没有在跑)。
     private(set) var lastFullRunAt: Date?
     var isIndexerRunning: Bool { running }
 
-    /// 记一条 pass 画像(pass 在候选选定 / 收尾时调)。
+    /// 记一条 pass 画像(pass 在候选选定 / 收尾时调)。转发到诊断协作类。
     func recordPass(_ name: String, candidates: Int = 0, produced: Int = 0, skip: String? = nil) {
-        passDiag[name] = PassDiag(lastRunAt: Date(), candidates: candidates, produced: produced, skip: skip)
+        passDiagnostics.record(name, candidates: candidates, produced: produced, skip: skip)
     }
 
     private func recordRunningPass(_ name: String) {
-        let prior = passDiag[name]
-        recordPass(name, candidates: prior?.candidates ?? 0, produced: prior?.produced ?? 0, skip: "仍在运行")
+        passDiagnostics.recordRunning(name)
     }
 
     /// 归档/文件夹清单类**重型** pass(包内 / 包定性 / 文件组)每轮**只处理 1 个候选**。实测端上模型单次结构化生成
@@ -1508,5 +1502,33 @@ final class AIBackgroundIndexer {
         case .checksum: return "checksum"
         default: return nil
         }
+    }
+}
+
+// MARK: - 阶段0b:从 AIBackgroundIndexer god-object 抽出的「pass 诊断」协作类
+
+/// 一个 pass 上一次执行的画像。`candidates` = 门控过了之后真正选到的候选数;`produced` = 这轮写出的产物数;
+/// `skip` = 选到候选但没产出 / 没跑的原因(如「无候选」「模型空返」「门控未过」)。
+nonisolated struct PassDiag: Sendable {
+    var lastRunAt: Date?
+    var candidates: Int = 0
+    var produced: Int = 0
+    var skip: String?
+}
+
+/// DevTools 诊断:记录每个后台 pass 上一次执行的画像(候选数 / 产物数 / 跳过原因 / 时间)。从 god-object 抽出,
+/// 行为与原内联逻辑逐字一致 —— 只负责存与读,不碰门控 / 调度 / 模型(那些仍在 indexer)。随 indexer 在主线程访问。
+final class AIIndexerPassDiagnostics {
+    private(set) var byPass: [String: PassDiag] = [:]
+
+    /// 记一条 pass 画像(pass 在候选选定 / 收尾时调)。
+    func record(_ name: String, candidates: Int = 0, produced: Int = 0, skip: String? = nil) {
+        byPass[name] = PassDiag(lastRunAt: Date(), candidates: candidates, produced: produced, skip: skip)
+    }
+
+    /// pass 仍在运行:沿用上轮候选 / 产出数,skip 标「仍在运行」(与原 `recordRunningPass` 一致)。
+    func recordRunning(_ name: String) {
+        let prior = byPass[name]
+        record(name, candidates: prior?.candidates ?? 0, produced: prior?.produced ?? 0, skip: "仍在运行")
     }
 }
