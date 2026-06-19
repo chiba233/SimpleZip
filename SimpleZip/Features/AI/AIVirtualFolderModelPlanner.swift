@@ -341,8 +341,9 @@ enum AIVirtualFolderModelPlanner {
         Never suggest an action just because it is possible; if nothing clearly fits, empty is correct. \
         ROLE HINTS (apply only when the file genuinely looks like one): if the role is 'release-notes', 'report', \
         'task-summary', or 'task' and the file reads like a finished deliverable someone would share, 'hash' is worth \
-        suggesting. If the role is 'project-doc', 'report', or 'document' and the file is a large deliverable someone \
-        would want to send, 'compress' may be worth suggesting.\(openWithRule)\(feedbackHint)
+        suggesting. 'compress' is rarely the right step for a single document — suggest it ONLY when the file is \
+        clearly large AND its content or context shows it is meant to be packaged up and sent to someone, not merely \
+        because it is a document.\(openWithRule)\(feedbackHint)
 
         \(Self.actionVocabularyRule)
         """
@@ -464,8 +465,8 @@ enum AIVirtualFolderModelPlanner {
         inspect — when entries include .app, .exe, .pkg, .msi, or .dmg files, a top-level bin/ or dist/ directory, \
         or the name has a version number together with a release/dist keyword — i.e. it looks like software someone \
         would ship. A release-looking package typically warrants inspect + test + hash together.
-        test — same evidence as inspect (version number, bin/, executables, a README + CHANGELOG pair): verify a \
-        distributable's integrity. A plain documents backup does not need test.
+        test — same signals as inspect: if the archive looks like something someone would distribute (executables, \
+        installers, bins, a release-looking package), verify its integrity. A plain documents backup does not need test.
         hash — same evidence as inspect: a checksum for a distributable archive someone would share for others to verify.
         convert — ONLY when the format is .tar.gz / .tgz AND the entries contain source-build files (Makefile, \
         CMakeLists.txt, setup.py, package.json, Cargo.toml). Never suggest merely because conversion is possible.
