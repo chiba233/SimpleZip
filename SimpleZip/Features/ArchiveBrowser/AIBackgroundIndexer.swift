@@ -22,86 +22,26 @@ import IOKit.ps   // 电源状态(低电 / 充电)给后台调度规则用
 final class AIBackgroundIndexer {
     static let shared = AIBackgroundIndexer()
 
-    /// App 启动时刻(≈ shared 首次创建)—— 算「距启动秒数」给启动静默期(60s)用。
-    private let launchDate = Date()
-    /// 距用户上次交互 —— 本地事件监视器更新。**只在 app 活跃时捕获事件**:app 在后台 = 无本地事件 = 距上次交互
-    /// 持续增长 = 视为空闲,正合「用户没在用 SimpleZip 时才跑模型」。
-    private var lastInteractionDate = Date()
-    private var interactionMonitor: Any?
-    /// DevTools 开着时**完全豁免交互门控** —— 挂着 DevTools debug / 复制信息绝不该被当成「用户在用 app」把正在观察的
-    /// 后台 AI pass 停掉(用户实测:干啥都归零)。**任何**事件、任何窗口,只要这面旗子立着就一律不计交互。
-    private(set) var devToolsInteractionExempt = false
+    /// 阶段0b:运行时门控(启动时刻 / 交互空闲追踪 / 电源 / 上下文组装)抽到文件末的 `AIIndexerGate`。这里只留
+    /// gate 实例 + 给 gateDiag 用的转发属性;各 pass 仍调下面的 `canRunModelWorkNow()` / `canRunDeepContextNow()` 转发方法。
+    private let gate = AIIndexerGate()
+    /// 转发:DevTools 豁免旗(gateDiag 读)。
+    var devToolsInteractionExempt: Bool { gate.devToolsInteractionExempt }
 
-    private init() {
-        interactionMonitor = NSEvent.addLocalMonitorForEvents(
-            matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown, .keyDown, .scrollWheel, .leftMouseDragged]
-        ) { [weak self] event in
-            guard let self else { return event }
-            if self.devToolsInteractionExempt { return event }   // DevTools 开着 = 完全豁免,任何交互一律不计
-            self.lastInteractionDate = Date()
-            return event
-        }
-    }
+    private init() {}
 
     /// DevTools 调试开关:**开** → 完全豁免交互门控 + **立即视为空闲**(拨表到 1 小时前让模型档立刻满足)+ 立刻评一轮
     /// (挂着 DevTools 观察后台 AI 真的在跑);**关** → 恢复正常交互计时(验证交互检测器是否真会把 AI 停下来)。
     /// 由 DevTools 里的开关控制,关闭 DevTools 也强制复位为关(豁免不外泄)。
     func setDevToolsExemption(_ on: Bool) {
-        devToolsInteractionExempt = on
-        if on {
-            lastInteractionDate = Date().addingTimeInterval(-3_600)
-            runIfEnabled()
-        } else {
-            lastInteractionDate = Date()
-        }
+        gate.setExemption(on)        // 状态部分(豁免旗 + 交互计时)在 gate
+        if on { runIfEnabled() }     // 「开了立刻评一轮」是编排,留 indexer
     }
 
-    /// 组装当前运行时上下文给 `AIBackgroundSchedulingRules` 判定能跑到哪档(时间换算在这里做,Core 不读墙钟)。
-    func currentRuntimeContext() -> AIBackgroundRuntimeContext {
-        let now = Date()
-        let power = AIBackgroundIndexer.powerState()
-        return AIBackgroundRuntimeContext(
-            appIsActive: NSApplication.shared.isActive,
-            runningTaskCount: TaskCenter.shared.active.count,
-            heavyArchiveTaskRunning: TaskCenter.shared.active.contains {
-                OperationTask.pausableKinds.contains($0.kind) && $0.status.isRunning
-            },
-            secondsSinceLaunch: Int(now.timeIntervalSince(launchDate)),
-            secondsSinceLastInteraction: Int(now.timeIntervalSince(lastInteractionDate)),
-            powerSaverMode: ProcessInfo.processInfo.isLowPowerModeEnabled,
-            lowBattery: power.lowBattery,
-            isCharging: power.isCharging,
-            modelAvailable: AIReportAssistant.isReady,
-            activityLevel: AppPreferences.aiBackgroundActivityLevel)
-    }
-
-    /// 现在能不能跑端上模型轻任务(空闲 + 模型可用 + 非低电/省电 + 过启动静默)。各模型 pass 入口共用。
-    func canRunModelWorkNow() -> Bool {
-        AIBackgroundSchedulingRules.canRunModelWork(currentRuntimeContext())
-    }
-
-    /// 现在能不能跑深度上下文 pass(充电 + balanced/aggressive)。包定性需要读完整归档清单并跑模型,归入这一档。
-    func canRunDeepContextNow() -> Bool {
-        AIBackgroundSchedulingRules.canRunDeepContext(currentRuntimeContext())
-    }
-
-    /// 读电源状态(低电 < 20% / 是否充电)。无电池(台式机)→ 不低电、充电未知。off-main 安全(纯 IOKit 读)。
-    private nonisolated static func powerState() -> (lowBattery: Bool, isCharging: Bool?) {
-        guard let blob = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
-              let list = IOPSCopyPowerSourcesList(blob)?.takeRetainedValue() as? [CFTypeRef], !list.isEmpty else {
-            return (false, nil)
-        }
-        for source in list {
-            guard let desc = IOPSGetPowerSourceDescription(blob, source)?.takeUnretainedValue() as? [String: Any]
-            else { continue }
-            let capacity = desc[kIOPSCurrentCapacityKey as String] as? Int ?? 100
-            let maxCap = desc[kIOPSMaxCapacityKey as String] as? Int ?? 100
-            let pct = maxCap > 0 ? capacity * 100 / maxCap : 100
-            let charging = (desc[kIOPSPowerSourceStateKey as String] as? String) == (kIOPSACPowerValue as String)
-            return (pct < 20, charging)
-        }
-        return (false, nil)
-    }
+    /// 转发到 gate(运行时上下文 / 能跑哪档门控)。各 pass 入口 + gateDiag 共用 —— 调用点不动。
+    func currentRuntimeContext() -> AIBackgroundRuntimeContext { gate.currentRuntimeContext() }
+    func canRunModelWorkNow() -> Bool { gate.canRunModelWorkNow() }
+    func canRunDeepContextNow() -> Bool { gate.canRunDeepContextNow() }
 
     private var running = false
     private var task: Task<Void, Never>?
@@ -1139,7 +1079,7 @@ final class AIBackgroundIndexer {
     func executePendingChecksIfDue() {
         guard !pendingExecRunning, AppPreferences.aiSuggestionEnabled,
               AIBackgroundIndexStore.shared.indexingEnabled else { return }
-        guard AIBackgroundIndexer.powerState().isCharging == true else { return }   // 只插电执行
+        guard gate.isChargingNow() == true else { return }   // 只插电执行
         let level = AppPreferences.aiBackgroundActivityLevel
         guard level != .off else { return }
         let interval = AIPendingCheckSchedule.interval(for: level)
@@ -1539,5 +1479,93 @@ final class AIIndexerPassDiagnostics {
     func recordRunning(_ name: String) {
         let prior = byPass[name]
         record(name, candidates: prior?.candidates ?? 0, produced: prior?.produced ?? 0, skip: "仍在运行")
+    }
+}
+
+// MARK: - 阶段0b:从 AIBackgroundIndexer god-object 抽出的「运行时门控」协作类
+//
+// 组装 `AIBackgroundRuntimeContext`(App 活跃 / 空闲 / 电源 / 模型可用 / 活跃度档)交给 Core 的
+// `AIBackgroundSchedulingRules` 判定能跑到哪档(Core 不读墙钟,时间换算在这里做)。文档 02:这块 `currentRuntimeContext`
+// 将来要拆成「App runtime hint」喂给 agent —— 先从 god-object 独立出来。@MainActor:持有 NSEvent 本地监视器 +
+// 读 `NSApplication.isActive`,必须主线程。
+
+@MainActor
+final class AIIndexerGate {
+    /// App 启动时刻 —— 算「距启动秒数」给启动静默期(60s)用。
+    private let launchDate = Date()
+    /// 距用户上次交互 —— 本地事件监视器更新。**只在 app 活跃时捕获事件**:app 在后台 = 无本地事件 = 距上次交互
+    /// 持续增长 = 视为空闲,正合「用户没在用 SimpleZip 时才跑模型」。
+    private var lastInteractionDate = Date()
+    private var interactionMonitor: Any?
+    /// DevTools 开着时**完全豁免交互门控** —— 挂着 DevTools debug / 复制信息绝不该被当成「用户在用 app」把正在观察的
+    /// 后台 AI pass 停掉(用户实测:干啥都归零)。**任何**事件、任何窗口,只要这面旗子立着就一律不计交互。
+    private(set) var devToolsInteractionExempt = false
+
+    init() {
+        interactionMonitor = NSEvent.addLocalMonitorForEvents(
+            matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown, .keyDown, .scrollWheel, .leftMouseDragged]
+        ) { [weak self] event in
+            guard let self else { return event }
+            if self.devToolsInteractionExempt { return event }   // DevTools 开着 = 完全豁免,任何交互一律不计
+            self.lastInteractionDate = Date()
+            return event
+        }
+    }
+
+    /// DevTools 豁免开关的**状态部分**:开 → 豁免 + 立即视为空闲(拨表到 1 小时前让模型档立刻满足);关 → 恢复正常
+    /// 交互计时。「开了立刻评一轮」(runIfEnabled)是编排,由调用方 indexer 接,不属门控。
+    func setExemption(_ on: Bool) {
+        devToolsInteractionExempt = on
+        lastInteractionDate = on ? Date().addingTimeInterval(-3_600) : Date()
+    }
+
+    /// 组装当前运行时上下文给 `AIBackgroundSchedulingRules` 判定能跑到哪档(时间换算在这里做,Core 不读墙钟)。
+    func currentRuntimeContext() -> AIBackgroundRuntimeContext {
+        let now = Date()
+        let power = AIIndexerGate.powerState()
+        return AIBackgroundRuntimeContext(
+            appIsActive: NSApplication.shared.isActive,
+            runningTaskCount: TaskCenter.shared.active.count,
+            heavyArchiveTaskRunning: TaskCenter.shared.active.contains {
+                OperationTask.pausableKinds.contains($0.kind) && $0.status.isRunning
+            },
+            secondsSinceLaunch: Int(now.timeIntervalSince(launchDate)),
+            secondsSinceLastInteraction: Int(now.timeIntervalSince(lastInteractionDate)),
+            powerSaverMode: ProcessInfo.processInfo.isLowPowerModeEnabled,
+            lowBattery: power.lowBattery,
+            isCharging: power.isCharging,
+            modelAvailable: AIReportAssistant.isReady,
+            activityLevel: AppPreferences.aiBackgroundActivityLevel)
+    }
+
+    /// 现在能不能跑端上模型轻任务(空闲 + 模型可用 + 非低电/省电 + 过启动静默)。各模型 pass 入口共用。
+    func canRunModelWorkNow() -> Bool {
+        AIBackgroundSchedulingRules.canRunModelWork(currentRuntimeContext())
+    }
+
+    /// 现在能不能跑深度上下文 pass(充电 + balanced/aggressive)。包定性需要读完整归档清单并跑模型,归入这一档。
+    func canRunDeepContextNow() -> Bool {
+        AIBackgroundSchedulingRules.canRunDeepContext(currentRuntimeContext())
+    }
+
+    /// 当前是否在充电(只读电源,不组装完整上下文)。pending 检查「只插电执行」用。
+    func isChargingNow() -> Bool? { AIIndexerGate.powerState().isCharging }
+
+    /// 读电源状态(低电 < 20% / 是否充电)。无电池(台式机)→ 不低电、充电未知。off-main 安全(纯 IOKit 读)。
+    private nonisolated static func powerState() -> (lowBattery: Bool, isCharging: Bool?) {
+        guard let blob = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
+              let list = IOPSCopyPowerSourcesList(blob)?.takeRetainedValue() as? [CFTypeRef], !list.isEmpty else {
+            return (false, nil)
+        }
+        for source in list {
+            guard let desc = IOPSGetPowerSourceDescription(blob, source)?.takeUnretainedValue() as? [String: Any]
+            else { continue }
+            let capacity = desc[kIOPSCurrentCapacityKey as String] as? Int ?? 100
+            let maxCap = desc[kIOPSMaxCapacityKey as String] as? Int ?? 100
+            let pct = maxCap > 0 ? capacity * 100 / maxCap : 100
+            let charging = (desc[kIOPSPowerSourceStateKey as String] as? String) == (kIOPSACPowerValue as String)
+            return (pct < 20, charging)
+        }
+        return (false, nil)
     }
 }
