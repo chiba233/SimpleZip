@@ -230,7 +230,7 @@ final class AIBackgroundIndexer {
             var results: [(UUID, [AIFileMemoryRecord])] = []
             for scope in scopes {
                 if Task.isCancelled { break }
-                let records = AIBackgroundIndexer.scanScope(scope, home: home, fileBudget: fileBudget,
+                let records = AIIndexerScan.scanScope(scope, home: home, fileBudget: fileBudget,
                                                             allowContent: allowContent,
                                                             existingSummarized: existingSummarized)
                 results.append((scope.id, records))
@@ -420,7 +420,7 @@ final class AIBackgroundIndexer {
                 let fileName = (path as NSString).lastPathComponent
                 // 重读头部 + 脱敏在后台线程(不阻塞主线程);拿不到内容(无权限 / 二进制 / 被红线拦)→ 跳过。
                 let excerptTask = Task.detached(priority: .background) {
-                    (excerpt: AIBackgroundIndexer.redactedExcerpt(url: URL(fileURLWithPath: path), fileName: fileName),
+                    (excerpt: AIIndexerScan.redactedExcerpt(url: URL(fileURLWithPath: path), fileName: fileName),
                      apps: AIBackgroundIndexer.nonDefaultOpenApps(forPath: path))   // 推荐打开方式:非默认候选 App(纯元数据)
                 }
                 let probed = await excerptTask.value
@@ -464,7 +464,7 @@ final class AIBackgroundIndexer {
                 guard let path = rec.path, FileManager.default.fileExists(atPath: path) else { continue }
                 let fileName = (path as NSString).lastPathComponent
                 let excerptTask = Task.detached(priority: .background) {
-                    AIBackgroundIndexer.redactedExcerpt(url: URL(fileURLWithPath: path), fileName: fileName)
+                    AIIndexerScan.redactedExcerpt(url: URL(fileURLWithPath: path), fileName: fileName)
                 }
                 guard let excerpt = await excerptTask.value else { continue }
                 let urls = AIURLCandidateExtractor.extract(from: excerpt, limit: 12)
@@ -1246,29 +1246,13 @@ final class AIBackgroundIndexer {
         AIPendingCheckStore.shared.markDone(id: id)
     }
 
-    /// 读一个文件头部 → 脱敏(给模型出一句话摘要的素材)。红线门控同 `summarizeContent`(敏感目录 / 临时解密 /
-    /// 疑似密钥名一律不读);无读权限 / 空 / 非 UTF-8 → nil。**脱敏后**的文本才会进 prompt(白皮书隐私口径)。
-    nonisolated static func redactedExcerpt(url: URL, fileName: String) -> String? {
-        if AIFileReadabilityPolicy.blockReason(absolutePath: url.path, fileName: fileName,
-                                               currentUserCanRead: true, isExcludedByUser: false) != nil {
-            return nil
-        }
-        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
-        defer { try? handle.close() }
-        let data = (try? handle.read(upToCount: maxContentReadBytes)) ?? Data()
-        guard !data.isEmpty, let raw = String(data: data, encoding: .utf8) else { return nil }
-        let redacted = AISensitiveRedactor.redact(raw)
-        let trimmed = redacted.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : trimmed
-    }
-
     /// **「查看更长总结」按需现算**(backlog B)。双击抽屉摘要行 → 弹窗实时生成:后台线程重读 + 脱敏头部 → 端上模型
     /// 出更长总结。红线照旧(敏感目录 / 疑似密钥不读)。调用点(sheet 的 produce 闭包)已在 AI 就绪门控内;读不到
     /// 内容也让模型从名字 / 角色尽力。复用预索引记录的结构信号(标题 / 语言)当上下文。
     @available(macOS 26.0, *)
     static func generateLongSummary(url: URL, fileName: String) async throws -> String {
         let excerptTask = Task.detached(priority: .userInitiated) {
-            AIBackgroundIndexer.redactedExcerpt(url: url, fileName: fileName) ?? ""
+            AIIndexerScan.redactedExcerpt(url: url, fileName: fileName) ?? ""
         }
         let excerpt = await excerptTask.value
         let record = AIBackgroundIndexStore.shared.record(forPath: url.path)
@@ -1300,6 +1284,15 @@ final class AIBackgroundIndexer {
         }
         return out
     }
+
+}
+
+// MARK: - 阶段0b:从 AIBackgroundIndexer god-object 抽出的「只读元数据扫描 + 文档内容预读」
+//
+// 文档 02 明确这块「白名单扫描和内容预读」应迁出到 agent。全是 `nonisolated static`、纯函数(只依赖入参 +
+// SimpleZipCore 类型 + 簇内互调)、不碰任何 indexer 实例 / UI 状态 → 抽成独立 `enum AIIndexerScan`,阶段1 整体
+// 搬进 agent 即可。indexer 侧唯一外部调用点(`scanScope`)改成 `AIIndexerScan.scanScope`。
+enum AIIndexerScan {
 
     // MARK: - 只读元数据扫描(off-main;纯静态,不碰 UI 状态)
 
@@ -1429,6 +1422,22 @@ final class AIBackgroundIndexer {
     private nonisolated static let maxContentSummariesPerScope = 60
     /// 单篇文档读取的头部上限(64KB:头部足够拿到标题 / 顶层字段定主题,避免对大文件全量读)。
     private nonisolated static let maxContentReadBytes = 64 * 1024
+
+    /// 读一个文件头部 → 脱敏(给模型出一句话摘要的素材)。红线门控同 `summarizeContent`(敏感目录 / 临时解密 /
+    /// 疑似密钥名一律不读);无读权限 / 空 / 非 UTF-8 → nil。**脱敏后**的文本才会进 prompt(白皮书隐私口径)。
+    nonisolated static func redactedExcerpt(url: URL, fileName: String) -> String? {
+        if AIFileReadabilityPolicy.blockReason(absolutePath: url.path, fileName: fileName,
+                                               currentUserCanRead: true, isExcludedByUser: false) != nil {
+            return nil
+        }
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
+        defer { try? handle.close() }
+        let data = (try? handle.read(upToCount: maxContentReadBytes)) ?? Data()
+        guard !data.isEmpty, let raw = String(data: data, encoding: .utf8) else { return nil }
+        let redacted = AISensitiveRedactor.redact(raw)
+        let trimmed = redacted.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
 
     /// 读一个文件头部 → 脱敏 → 内容摘要(标题 / 字段名 / 语言提示,已脱敏)。**挑哪些读、读多少由调用方
     /// (AIPrereadSelection + 预算)决定**,这里不再自带「只 md 才读」死规则。红线门控仍在:敏感目录 / 临时解密 /
