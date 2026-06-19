@@ -76,3 +76,28 @@ nonisolated struct AIBudget: Codable, Equatable, Sendable {
         (used: text.count, limit: maxTotalChars, withinBudget: text.count <= maxTotalChars)
     }
 }
+
+nonisolated enum AIModelCallTimeout {
+    static let defaultDuration: Duration = .seconds(30)
+
+    static func run<T: Sendable>(
+        after duration: Duration = defaultDuration,
+        operation: @Sendable @escaping () async throws -> T
+    ) async throws -> T {
+        try await withThrowingTaskGroup(of: T.self) { group in
+            group.addTask {
+                try await operation()
+            }
+            group.addTask {
+                try await Task.sleep(for: duration)
+                throw CancellationError()
+            }
+
+            guard let result = try await group.next() else {
+                throw CancellationError()
+            }
+            group.cancelAll()
+            return result
+        }
+    }
+}

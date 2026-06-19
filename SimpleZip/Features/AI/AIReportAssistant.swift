@@ -54,7 +54,9 @@ enum AIReportAssistant {
         let combined = instructions + "\n\n" + replyLanguageInstruction
         return try await AIGenerationSerializer.shared.run {
             let session = LanguageModelSession(instructions: combined)
-            return try await session.respond(to: prompt).content
+            return try await AIModelCallTimeout.run {
+                try await session.respond(to: prompt).content
+            }
         }
     }
 
@@ -216,7 +218,9 @@ extension AIReportAssistant {
             for _ in 0..<max(1, maxAttempts) {
                 do {
                     let session = LanguageModelSession(instructions: instructions)
-                    return try await session.respond(to: prompt, generating: type).content
+                    return try await AIModelCallTimeout.run {
+                        try await session.respond(to: prompt, generating: type).content
+                    }
                 } catch {
                     lastError = error
                 }

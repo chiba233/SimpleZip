@@ -53,13 +53,13 @@ nonisolated struct AIArchivePrefetchBudget: Codable, Equatable, Sendable {
         self.maxModelSuggestionsPerRound = try c.decodeIfPresent(Int.self, forKey: .maxModelSuggestionsPerRound) ?? 3
     }
 
-    /// 档位 → 预算(对齐工程补充六的预算表)。`off` 返回 nil(不跑预读)。模型建议数随档位放大:省电 1、均衡 3、激进 6。
+    /// 档位 → 预算(对齐工程补充六的预算表)。`off` 返回 nil(不跑预读)。激进档模型候选压到 2,避免 60s 心跳下排队溢出。
     static func forLevel(_ level: AIBackgroundActivityLevel) -> AIArchivePrefetchBudget? {
         switch level {
         case .off: return nil
         case .powerSaver: return AIArchivePrefetchBudget(maxDirectoriesPerRound: 1, maxArchivesPerRound: 10, maxEntriesPerArchive: 2_000, maxModelSuggestionsPerRound: 1)
         case .balanced: return AIArchivePrefetchBudget(maxDirectoriesPerRound: 3, maxArchivesPerRound: 40, maxEntriesPerArchive: 10_000, maxModelSuggestionsPerRound: 3)
-        case .aggressive: return AIArchivePrefetchBudget(maxDirectoriesPerRound: 8, maxArchivesPerRound: 120, maxEntriesPerArchive: 20_000, maxModelSuggestionsPerRound: 6)
+        case .aggressive: return AIArchivePrefetchBudget(maxDirectoriesPerRound: 8, maxArchivesPerRound: 120, maxEntriesPerArchive: 20_000, maxModelSuggestionsPerRound: 2)
         }
     }
 }

@@ -29,6 +29,29 @@ import Testing
         #expect(AIArchivePrefetchBudget.forLevel(.aggressive)?.maxArchiveListingsPerRound == 120)
     }
 
+    @Test func aggressiveModelSuggestionBudgetStaysWithinHeartbeatFairnessLimit() {
+        #expect(AIArchivePrefetchBudget.forLevel(.powerSaver)?.maxModelSuggestionsPerRound == 1)
+        #expect(AIArchivePrefetchBudget.forLevel(.balanced)?.maxModelSuggestionsPerRound == 3)
+        #expect(AIArchivePrefetchBudget.forLevel(.aggressive)?.maxModelSuggestionsPerRound == 2)
+    }
+
+    @Test func modelCallTimeoutReturnsCompletedOperation() async throws {
+        let value = try await AIModelCallTimeout.run(after: .seconds(1)) { "ok" }
+        #expect(value == "ok")
+    }
+
+    @Test func modelCallTimeoutThrowsWhenOperationDoesNotFinish() async throws {
+        do {
+            _ = try await AIModelCallTimeout.run(after: .milliseconds(1)) {
+                try await Task.sleep(for: .seconds(30))
+                return "late"
+            }
+            Issue.record("Expected the model-call timeout to throw")
+        } catch is CancellationError {
+            // Expected.
+        }
+    }
+
     @Test func everyActivityLevelHasStableToken() {
         for l in AIBackgroundActivityLevel.allCases { #expect(!l.rawValue.isEmpty) }
     }

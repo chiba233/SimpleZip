@@ -135,6 +135,11 @@ final class AIBackgroundIndexer {
         passDiag[name] = PassDiag(lastRunAt: Date(), candidates: candidates, produced: produced, skip: skip)
     }
 
+    private func recordRunningPass(_ name: String) {
+        let prior = passDiag[name]
+        recordPass(name, candidates: prior?.candidates ?? 0, produced: prior?.produced ?? 0, skip: "仍在运行")
+    }
+
     /// DevTools 用:当前各档闸的实时状态 + 输入 —— 直接回答「为啥都是 0」(哪一档被卡)。
     nonisolated struct GateDiag: Sendable {
         let appIsActive: Bool
@@ -352,9 +357,9 @@ final class AIBackgroundIndexer {
         guard #available(macOS 26.0, *) else { return }
         let store = AIBackgroundIndexStore.shared
         // AI 建议子开关关 → 自动总结模块停跑(用户:关了 AI 建议把自动总结一起关)。
-        guard !suggestionRunning, AppPreferences.aiSuggestionEnabled,
-              store.contentPrereadEnabled, AIReportAssistant.isReady,
+        guard AppPreferences.aiSuggestionEnabled, store.contentPrereadEnabled, AIReportAssistant.isReady,
               let budget = store.budget else { return }
+        guard !suggestionRunning else { recordRunningPass("摘要"); return }
         let now = Date()
         let records = store.recentFileRecords(limit: 2_000)
         // 高价值(近阈值)优先吃预算;吃不满(高分都补完了)→ 用剩余预算给阈值下文件慢慢补摘要(backlog 第5项:
@@ -405,8 +410,9 @@ final class AIBackgroundIndexer {
     func generateURLOpenSuggestionsIfEnabled() {
         guard #available(macOS 26.0, *) else { return }
         let store = AIBackgroundIndexStore.shared
-        guard !urlSuggestionRunning, AppPreferences.aiSuggestionEnabled,
-              store.contentPrereadEnabled, AIReportAssistant.isReady, let budget = store.budget else { return }
+        guard AppPreferences.aiSuggestionEnabled, store.contentPrereadEnabled, AIReportAssistant.isReady,
+              let budget = store.budget else { return }
+        guard !urlSuggestionRunning else { recordRunningPass("网页"); return }
         let candidates = AIPrereadSelection.selectForURLSuggestion(
             records: store.recentFileRecords(limit: 2_000),
             budget: budget.maxModelSuggestionsPerRound, now: Date())
@@ -443,7 +449,7 @@ final class AIBackgroundIndexer {
     }
 
     /// 确定性高价值域名(官方代码托管 / 包仓库 / 官方文档)——这些 URL 出现在 README/依赖清单里几乎总值得给「打开网页」。
-    private static let highValueURLHosts: Set<String> = [
+    nonisolated private static let highValueURLHosts: Set<String> = [
         "github.com", "gitlab.com",
         "pypi.org", "npmjs.com", "crates.io", "pkg.go.dev",
         "developer.apple.com", "developer.android.com",
@@ -473,9 +479,9 @@ final class AIBackgroundIndexer {
     func generateDiskImageSuggestionsIfEnabled() {
         guard #available(macOS 26.0, *) else { return }
         let store = AIBackgroundIndexStore.shared
-        guard !diskImageRunning, AppPreferences.aiSuggestionEnabled,
-              store.contentPrereadEnabled, AIReportAssistant.isReady,
+        guard AppPreferences.aiSuggestionEnabled, store.contentPrereadEnabled, AIReportAssistant.isReady,
               let budget = store.budget else { return }
+        guard !diskImageRunning else { recordRunningPass("装App"); return }
         let candidates = AIPrereadSelection.selectDiskImagesForSuggestion(
             records: store.recentFileRecords(limit: 2_000),
             budget: budget.maxModelSuggestionsPerRound, now: Date())
@@ -531,8 +537,9 @@ final class AIBackgroundIndexer {
     func generateActivityLinkSuggestionsIfEnabled() {
         guard #available(macOS 26.0, *) else { return }
         let store = AIBackgroundIndexStore.shared
-        guard !activityRunning, AppPreferences.aiSuggestionEnabled,
-              store.indexingEnabled, AIReportAssistant.isReady, let budget = store.budget else { return }
+        guard AppPreferences.aiSuggestionEnabled, store.indexingEnabled, AIReportAssistant.isReady,
+              let budget = store.budget else { return }
+        guard !activityRunning else { recordRunningPass("活动"); return }
         // 喂 Spotlight 的同一份任务快照:成功 + 有产物 + 近 30 天 → 产物路径 → 最近那条(快照新→旧,首遇即最新)。
         let cutoff = Date().addingTimeInterval(-30 * 86_400)
         var taskByPath: [String: ArchiveTaskSnapshot] = [:]
@@ -608,9 +615,9 @@ final class AIBackgroundIndexer {
     func generateArchiveEntrySuggestionsIfEnabled() {
         guard #available(macOS 26.0, *) else { return }
         let store = AIBackgroundIndexStore.shared
-        guard !archiveEntryRunning, AppPreferences.aiSuggestionEnabled,
-              store.contentPrereadEnabled, AppPreferences.archiveListingCacheEnabled,
+        guard AppPreferences.aiSuggestionEnabled, store.contentPrereadEnabled, AppPreferences.archiveListingCacheEnabled,
               AIReportAssistant.isReady, let budget = store.budget else { return }
+        guard !archiveEntryRunning else { recordRunningPass("包内"); return }
         let listingByPath = Dictionary(
             ArchiveListingCacheStore().loadAll().map { ($0.archivePath, $0) },
             uniquingKeysWith: { first, _ in first })
@@ -657,9 +664,9 @@ final class AIBackgroundIndexer {
     func generateArchiveKindGuessIfEnabled() {
         guard #available(macOS 26.0, *) else { return }
         let store = AIBackgroundIndexStore.shared
-        guard !archiveKindRunning, AppPreferences.aiSuggestionEnabled,
-              store.indexingEnabled, AppPreferences.archiveListingCacheEnabled,
+        guard AppPreferences.aiSuggestionEnabled, store.indexingEnabled, AppPreferences.archiveListingCacheEnabled,
               AIReportAssistant.isReady, canRunDeepContextNow(), let budget = store.budget else { return }
+        guard !archiveKindRunning else { recordRunningPass("包定性"); return }
         let listingByPath = Dictionary(
             ArchiveListingCacheStore().loadAll().map { ($0.archivePath, $0) },
             uniquingKeysWith: { first, _ in first })
@@ -707,9 +714,9 @@ final class AIBackgroundIndexer {
     func generateFolderGroupSuggestionsIfEnabled() {
         guard #available(macOS 26.0, *) else { return }
         let store = AIBackgroundIndexStore.shared
-        guard !folderGroupRunning, AppPreferences.aiSuggestionEnabled,
-              store.indexingEnabled, AIReportAssistant.isReady, canRunDeepContextNow(),
+        guard AppPreferences.aiSuggestionEnabled, store.indexingEnabled, AIReportAssistant.isReady, canRunDeepContextNow(),
               let budget = store.budget else { return }
+        guard !folderGroupRunning else { recordRunningPass("文件组"); return }
 
         var folderOrder: [String] = []
         var recordsByFolder: [String: [AIFileMemoryRecord]] = [:]
