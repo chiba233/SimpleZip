@@ -255,11 +255,11 @@ nonisolated enum ActivityAIWorkbenchBuilder {
     static func discoverClusters(records: [AITaskRecord], now: Date? = nil,
                                  minCount: Int = 2, limit: Int = 24) -> [AIWorkbenchCluster] {
         let failed = records.filter { $0.status == "failed" }
-        guard failed.count >= minCount else { return [] }
+        guard records.count >= minCount else { return [] }   // 全状态:无任务才退;失败聚集 + 全状态高频聚集都发现
         var seenMembers = Set<String>()
         var clusters: [AIWorkbenchCluster] = []
-        func add(_ filter: ActivityAIWorkbenchFilterSpec, _ matched: [AITaskRecord], _ facts: [String]) {
-            guard matched.count >= minCount else { return }
+        func add(_ filter: ActivityAIWorkbenchFilterSpec, _ matched: [AITaskRecord], _ facts: [String], min: Int = minCount) {
+            guard matched.count >= min else { return }
             let memberKey = matched.map(\.id).sorted().joined(separator: ",")
             guard seenMembers.insert(memberKey).inserted else { return }   // 同成员集只留先来的(双维先=更具体)
             clusters.append(AIWorkbenchCluster(
@@ -287,6 +287,15 @@ nonisolated enum ActivityAIWorkbenchBuilder {
         for s in sources { add(.init(status: "failed", source: s), failed.filter { $0.source == s }, ["source=\(s)"]) }
         for k in kinds { add(.init(status: "failed", kindTokens: [k]), failed.filter { $0.kind == k }, ["kind=\(k)"]) }
         for t in tags { add(.init(status: "failed", diagnosticTags: [t]), failed.filter { $0.diagnostics.tags.contains(t) }, ["tag=\(t)"]) }
+        // 全状态高频聚集(不只失败 → 无 / 少失败时工作台也有丰富真建议):按 kind / source 的常用操作组,阈值更高
+        // (成功任务多,避免噪声)、filter 不带 status = 全状态(如"所有压缩任务""Downloads 来源的任务")。
+        let bulkMin = max(minCount, 3)
+        for k in Set(records.map(\.kind)).sorted() {
+            add(.init(kindTokens: [k]), records.filter { $0.kind == k }, ["kind=\(k)"], min: bulkMin)
+        }
+        for s in Set(records.map(\.source)).sorted() {
+            add(.init(source: s), records.filter { $0.source == s }, ["source=\(s)"], min: bulkMin)
+        }
         // 时间维度:今天 / 本周失败 × source(now 给 + 该窗口失败达阈值)。同成员集已被上面去重 →
         // 只有「窗口是真子集」(有更老的失败)时才冒出时间 chip,如"今天从 Finder 解压失败的"。
         if let now {

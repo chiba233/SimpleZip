@@ -85,19 +85,22 @@ struct ActivityAIWorkbenchView: View {
         VStack(alignment: .leading, spacing: 14) {
             header
             Divider()
-            VStack(alignment: .leading, spacing: 12) {
-                searchSection
-                currentSummary
-                needsAttention
-                failureExplanation
-                nextActions
-                suggestedFilters
-                learnedHabits
-                automationSuggestion
+            // 内容可滚动:section 多(总结/需要处理/失败解释/下一步/建议筛选/习惯/自动化)会超出侧栏高度,
+            // 不滚动则下方 box 被截断、点不到(用户报)。header 固定,内容区滚动。
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    searchSection
+                    currentSummary
+                    needsAttention
+                    failureExplanation
+                    nextActions
+                    suggestedFilters
+                    learnedHabits
+                    automationSuggestion
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 14)
             }
-            .padding(.horizontal, 14)
-            .padding(.bottom, 14)
-            Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(nsColor: .controlBackgroundColor))

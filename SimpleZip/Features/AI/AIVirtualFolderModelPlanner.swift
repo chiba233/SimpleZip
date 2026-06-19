@@ -402,10 +402,12 @@ enum AIVirtualFolderModelPlanner {
         let lang = AIReportAssistant.uiLanguageName
         let instructions = """
         LANGUAGE — MANDATORY: write the names in \(lang). You are labeling SUGGESTED FILTERS for a file-archive \
-        app's Activity Center. Each candidate is a REAL cluster of failed tasks the app already found by crossing \
-        source / type / diagnostic dimensions — you do NOT invent clusters, only label the ones given. Pick the few \
-        MOST worth showing and give each a SHORT, concrete name the user would recognize. Drop redundant or \
-        low-value ones. Refer to clusters by their NUMBER only; never invent a number.
+        app's Activity Center. Each candidate is a REAL cluster of tasks the app already found by crossing \
+        source / type / diagnostic / time dimensions — some are failure groups, some are common operation groups \
+        (e.g. all compress tasks, tasks from Downloads). You do NOT invent clusters, only label the ones given, \
+        and the dimensions tell you what each one selects (a "status=failed" dimension means it's a failure group; \
+        no status means all states). Pick the few MOST worth showing and give each a SHORT, concrete name the user \
+        would recognize. Drop redundant or low-value ones. Refer to clusters by their NUMBER only; never invent a number.
         """
         var lines = ["Clusters (number<TAB>dimensions<TAB>matchCount):"]
         for (i, c) in capped.enumerated() {

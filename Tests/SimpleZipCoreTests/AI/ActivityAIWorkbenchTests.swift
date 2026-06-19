@@ -193,4 +193,18 @@ import Testing
         // 不足阈值 → nil(只 1 个手动操作)。
         #expect(ActivityAIWorkbenchBuilder.automationHint(records: [r("x", source: "app", kind: "create")]) == nil)
     }
+
+    /// 建议六 v2「真建议」覆盖全状态:无失败任务时,也能从常用操作发现聚集(让工作台不空)。
+    @Test func discoverClustersFindsAllStateGroupsWhenNoFailures() {
+        func ok(_ id: String, kind: String) -> AITaskRecord {
+            AITaskRecord.make(id: id, category: "archive", kind: kind, source: "app", status: "succeeded",
+                              title: "T", startedAt: now, finishedAt: now)
+        }
+        // 4 个成功压缩(无失败)→ 全状态 kind=compress 聚集(bulkMin=3,filter 不带 status)。
+        let clusters = ActivityAIWorkbenchBuilder.discoverClusters(records: [
+            ok("a", kind: "compress"), ok("b", kind: "compress"),
+            ok("c", kind: "compress"), ok("d", kind: "compress")
+        ])
+        #expect(clusters.contains { $0.filter.kindTokens == ["compress"] && $0.filter.status == nil && $0.matchCount == 4 })
+    }
 }
