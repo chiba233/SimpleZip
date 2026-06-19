@@ -24,15 +24,22 @@ import Foundation
     nonisolated func probeModel(reply: @escaping (String) -> Void)
 }
 
-/// App 与 agent 约定的常量。Mach service 名必须和 LaunchAgent plist 的 `MachServices` key 一致。
+/// App 与 agent / XPC Service 约定的常量。两条投递通道各一个名字:
+///   - `machService`:**LaunchAgent 通道**的 Mach service 名,必须和 LaunchAgent plist 的 `MachServices`
+///     key 一致;App 用 `NSXPCConnection(machServiceName:)` 连(后台,Login Items 可见、受门控)。
+///   - `xpcServiceName`:**前台 XPC Service 通道**的服务名 —— 即内嵌 XPC Service 的 **CFBundleIdentifier**;
+///     App 用 `NSXPCConnection(serviceName:)` 连(App 私有按需、随 App 活、不进 Login Items、不受门控)。
 /// **按构建配置命名空间隔离**:Debug 用 `.dev.*`,Release 用正式 `.*`,让自签 dev 版与正式版(Developer ID)
-/// 可共存、互不撞 SMAppService/launchd(本文件同时编进 app 与 agent → 两边 #if DEBUG 一致,值天然对齐)。
+/// 可共存、互不撞 SMAppService/launchd/XPC(本文件同时编进 app / agent / XPC Service → 三边 #if DEBUG
+/// 一致,值天然对齐)。
 public enum SimpleZipAIAgentXPCNames {
-    // `nonisolated`:同上,App target 默认 MainActor 隔离会把这个常量染成 MainActor-isolated,
-    // 而读它的 `AIAgentClient.runProbe` 是 nonisolated。显式 nonisolated 让常量在两个 target 一致可读。
+    // `nonisolated`:App target 默认 MainActor 隔离会把这些常量染成 MainActor-isolated,而读它们的
+    // App 侧客户端是 nonisolated。显式 nonisolated 让常量在三个 target 一致可读。
     #if DEBUG
     public nonisolated static let machService = "yumeka.SimpleZip-in-mac.dev.aiagent"
+    public nonisolated static let xpcServiceName = "yumeka.SimpleZip-in-mac.dev.aixpc"
     #else
     public nonisolated static let machService = "yumeka.SimpleZip-in-mac.aiagent"
+    public nonisolated static let xpcServiceName = "yumeka.SimpleZip-in-mac.aixpc"
     #endif
 }
