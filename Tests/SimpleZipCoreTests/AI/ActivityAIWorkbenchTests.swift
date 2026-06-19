@@ -115,4 +115,31 @@ import Testing
         let card = snapshot.cards.first { $0.kind == .needsAttention }
         #expect(card?.sourceRefs.map(\.id) == ["new-unseen", "old-unseen"])
     }
+
+    /// 建议六 v2「真建议」候选发现:从真实数据按维度交叉聚集(不是写死维度),同成员集去冗余。
+    @Test func discoverClustersFindsRealCrossDimensionGroupsDeduped() {
+        func f(_ id: String, source: String, kind: String, fail: String) -> AITaskRecord {
+            AITaskRecord.make(id: id, category: "archive", kind: kind, source: source, status: "failed",
+                              title: "T \(id)", startedAt: now, finishedAt: now,
+                              failureMessage: fail, rawOutput: fail)
+        }
+        let records = [
+            f("a", source: "finder", kind: "extract", fail: "ERROR: Permission denied"),
+            f("b", source: "finder", kind: "extract", fail: "ERROR: Permission denied"),
+            f("c", source: "finder", kind: "extract", fail: "ERROR: Permission denied"),
+            f("d", source: "finder", kind: "extract", fail: "ERROR: Permission denied"),
+            f("e", source: "cli", kind: "test", fail: "ERROR: CRC Failed"),
+            f("g", source: "cli", kind: "test", fail: "ERROR: CRC Failed")
+        ]
+        let clusters = ActivityAIWorkbenchBuilder.discoverClusters(records: records)
+        // 真实聚集:finder×extract(4) 最大、cli×test(2);同成员集去冗余(不重复冒 finder×permission / 单维 等)。
+        #expect(clusters.count == 2)
+        #expect(clusters[0].matchCount == 4)
+        #expect(clusters[0].filter.source == "finder")
+        #expect(clusters[1].matchCount == 2)
+        #expect(clusters[1].filter.source == "cli")
+        // 单个孤立失败(< 阈值)不成聚集。
+        let lonely = ActivityAIWorkbenchBuilder.discoverClusters(records: [f("x", source: "app", kind: "create", fail: "ERROR: boom")])
+        #expect(lonely.isEmpty)
+    }
 }

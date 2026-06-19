@@ -59,6 +59,17 @@ nonisolated struct ActivityAIWorkbenchFilterChip: Codable, Equatable, Identifiab
     }
 }
 
+/// 建议六 v2「真建议筛选」的候选:一个**从真实任务数据里发现的显著聚集**(任意维度交叉,达数量阈值),
+/// 不是写死的 12 个维度组合。`filter` = 点它要应用的安全 filter(App 确定性匹配);`matchCount` = 命中数;
+/// `dimensionFacts` = 喂模型命名用的英文维度描述(不含敏感路径)。模型只在这些**真实聚集**上择优 + 起自然语言名
+/// (如"今天从 Finder 解压失败的 4 个")—— 模型不扫列表选行,只命名 App 发现的真实聚集(守拒绝假AI)。
+nonisolated struct AIWorkbenchCluster: Codable, Equatable, Sendable {
+    let filter: ActivityAIWorkbenchFilterSpec
+    let matchCount: Int
+    let sampleRefs: [AIContextSourceRef]
+    let dimensionFacts: [String]
+}
+
 nonisolated struct ActivityAIWorkbenchCard: Codable, Equatable, Identifiable, Sendable {
     enum Kind: String, Codable, Equatable, Sendable {
         case currentListSummary
@@ -208,6 +219,50 @@ nonisolated enum ActivityAIWorkbenchBuilder {
             }
         }
         return chips
+    }
+
+    /// 建议六 v2「真建议」候选发现:对失败任务按 source × kind × tag 的单维 + 双维交叉计数,保留达阈值
+    /// (≥minCount)的**真实聚集**,同成员集去冗余(双维先枚举 → 更具体的优先留)。这是"真建议"的候选池 ——
+    /// 来自真实数据、任意交叉,不是写死维度;后台 pass 让模型在这些真实聚集上**择优 + 自然语言命名**。
+    /// 确定性、可单测;模型不扫列表选行,只命名 App 发现的真实聚集(守拒绝假AI)。
+    static func discoverClusters(records: [AITaskRecord], minCount: Int = 2, limit: Int = 24) -> [AIWorkbenchCluster] {
+        let failed = records.filter { $0.status == "failed" }
+        guard failed.count >= minCount else { return [] }
+        var seenMembers = Set<String>()
+        var clusters: [AIWorkbenchCluster] = []
+        func add(_ filter: ActivityAIWorkbenchFilterSpec, _ matched: [AITaskRecord], _ facts: [String]) {
+            guard matched.count >= minCount else { return }
+            let memberKey = matched.map(\.id).sorted().joined(separator: ",")
+            guard seenMembers.insert(memberKey).inserted else { return }   // 同成员集只留先来的(双维先=更具体)
+            clusters.append(AIWorkbenchCluster(
+                filter: filter, matchCount: matched.count,
+                sampleRefs: matched.prefix(5).map { AIContextSourceRef(kind: .task, id: $0.id) },
+                dimensionFacts: facts))
+        }
+        let sources = Set(failed.map(\.source)).sorted()
+        let kinds = Set(failed.map(\.kind)).sorted()
+        let tags = Set(failed.flatMap { $0.diagnostics.tags }).sorted()
+        // 双维先枚举(更具体 → 同成员集时优先保留它的具体 filter / 命名)。
+        for s in sources { for k in kinds {
+            add(.init(status: "failed", source: s, kindTokens: [k]),
+                failed.filter { $0.source == s && $0.kind == k }, ["source=\(s)", "kind=\(k)"])
+        }}
+        for s in sources { for t in tags {
+            add(.init(status: "failed", source: s, diagnosticTags: [t]),
+                failed.filter { $0.source == s && $0.diagnostics.tags.contains(t) }, ["source=\(s)", "tag=\(t)"])
+        }}
+        for k in kinds { for t in tags {
+            add(.init(status: "failed", kindTokens: [k], diagnosticTags: [t]),
+                failed.filter { $0.kind == k && $0.diagnostics.tags.contains(t) }, ["kind=\(k)", "tag=\(t)"])
+        }}
+        // 单维(较通用)补充。
+        for s in sources { add(.init(status: "failed", source: s), failed.filter { $0.source == s }, ["source=\(s)"]) }
+        for k in kinds { add(.init(status: "failed", kindTokens: [k]), failed.filter { $0.kind == k }, ["kind=\(k)"]) }
+        for t in tags { add(.init(status: "failed", diagnosticTags: [t]), failed.filter { $0.diagnostics.tags.contains(t) }, ["tag=\(t)"]) }
+        // 命中多优先,同命中数双维(更具体)优先;cap。
+        return Array(clusters
+            .sorted { ($0.matchCount, $0.dimensionFacts.count) > ($1.matchCount, $1.dimensionFacts.count) }
+            .prefix(limit))
     }
 
     private static func chip(id: String, records: [AITaskRecord],
