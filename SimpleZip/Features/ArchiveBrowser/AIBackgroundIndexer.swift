@@ -400,9 +400,9 @@ final class AIBackgroundIndexer {
                 let urls = AIURLCandidateExtractor.extract(from: excerpt, limit: 12)
                 guard !urls.isEmpty else { continue }
                 // 确定性高价值域名白名单 fast-path:命中(github/pypi/npm/Apple 文档…)直接写,跳过模型 —— 命中率高得多。
-                if let fastURL = urls.first(where: AIBackgroundIndexer.isHighValueURL) {
+                if let fastURL = urls.first(where: AIURLCandidateExtractor.isHighValueURL) {
                     AIBackgroundIndexStore.shared.applyURLOpenSuggestion(
-                        recordID: rec.id, url: fastURL, label: AIBackgroundIndexer.webPageLabel(for: fastURL))
+                        recordID: rec.id, url: fastURL, label: AIURLCandidateExtractor.webPageLabel(for: fastURL))
                     continue
                 }
                 guard let index = try? await AIVirtualFolderModelPlanner.urlOpenSuggestion(
@@ -410,31 +410,14 @@ final class AIBackgroundIndexer {
                     urls.indices.contains(index) else { continue }
                 let url = urls[index]
                 AIBackgroundIndexStore.shared.applyURLOpenSuggestion(
-                    recordID: rec.id, url: url, label: AIBackgroundIndexer.webPageLabel(for: url))
+                    recordID: rec.id, url: url, label: AIURLCandidateExtractor.webPageLabel(for: url))
             }
         }
     }
 
-    /// 确定性高价值域名(官方代码托管 / 包仓库 / 官方文档)——这些 URL 出现在 README/依赖清单里几乎总值得给「打开网页」。
-    nonisolated private static let highValueURLHosts: Set<String> = [
-        "github.com", "gitlab.com",
-        "pypi.org", "npmjs.com", "crates.io", "pkg.go.dev",
-        "developer.apple.com", "developer.android.com",
-        "docs.rs", "docs.python.org", "developer.mozilla.org",
-        "stackoverflow.com"
-    ]
+    // 高价值域名判定 isHighValueURL / webPageLabel / highValueURLHosts 已下沉到 Core 的
+    // AIURLCandidateExtractor(URL 处理内聚一处,agent 复用 Core 时零拷贝可用)。
 
-    /// 命中高价值域名(精确或子域,如 docs.github.com → github.com)→ 跳过模型直接出建议。仍是抽出的**真实** URL,不造网址。
-    nonisolated static func isHighValueURL(_ rawURL: String) -> Bool {
-        guard let host = URLComponents(string: rawURL)?.host?.lowercased(), !host.isEmpty else { return false }
-        let bare = host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
-        return highValueURLHosts.contains(bare) || highValueURLHosts.contains(where: { bare.hasSuffix("." + $0) })
-    }
-
-    nonisolated static func webPageLabel(for rawURL: String) -> String {
-        guard let host = URLComponents(string: rawURL)?.host, !host.isEmpty else { return rawURL }
-        return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
-    }
 
     // MARK: - 磁盘镜像安装建议(推荐打开方式 backlog 第2项;MainActor:7zz peek + 模型 async)
 
