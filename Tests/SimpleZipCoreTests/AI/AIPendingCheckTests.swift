@@ -93,4 +93,37 @@ import Testing
         let decoded = try JSONDecoder().decode(AIPendingCheckQueue.self, from: JSONEncoder().encode(q))
         #expect(decoded == q)
     }
+
+    // MARK: - 阶段 D:执行完「值不值得显示」复判(security / inspect 没异常不冒)
+
+    @Test func securityJudgeHidesCleanShowsFindings() {
+        let clean = ArchiveRiskScore.assess(findings: [])
+        #expect(!AIPendingCheckJudge.securityWorthSurfacing(findings: [], assessment: clean))   // 全干净 → 不冒
+        let finding = ArchiveSecurityFinding(kind: .parentTraversal, entryPaths: ["pkg/../escape"])
+        let dirty = ArchiveRiskScore.assess(findings: [finding])
+        #expect(AIPendingCheckJudge.securityWorthSurfacing(findings: [finding], assessment: dirty))   // 有发现 → 冒
+    }
+
+    @Test func inspectJudgeHidesCleanShowsProblems() {
+        let cleanStats = ReleaseInspectionStats(fileCount: 5, folderCount: 1, totalBytes: 100,
+                                                junkCount: 0, emptyDirectoryCount: 0, executableCount: 0, symlinkCount: 0)
+        var clean = ReleaseInspectionReport(archiveURL: URL(fileURLWithPath: "/clean.zip"))
+        clean.listable = true
+        clean.stats = cleanStats
+        clean.testPassed = true
+        #expect(!AIPendingCheckJudge.inspectWorthSurfacing(report: clean))   // 干净发布包 → 不冒
+
+        var withJunk = clean
+        withJunk.stats = ReleaseInspectionStats(fileCount: 5, folderCount: 1, totalBytes: 100,
+                                                junkCount: 2, emptyDirectoryCount: 0, executableCount: 0, symlinkCount: 0)
+        #expect(AIPendingCheckJudge.inspectWorthSurfacing(report: withJunk))   // 有 macOS 垃圾 → 冒
+
+        var testFailed = clean
+        testFailed.testPassed = false
+        #expect(AIPendingCheckJudge.inspectWorthSurfacing(report: testFailed))   // 完整性测试没过 → 冒
+
+        var withFinding = clean
+        withFinding.securityFindings = [ArchiveSecurityFinding(kind: .absolutePath, entryPaths: ["/etc/x"])]
+        #expect(AIPendingCheckJudge.inspectWorthSurfacing(report: withFinding))   // 有危险条目 → 冒
+    }
 }

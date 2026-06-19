@@ -794,8 +794,11 @@ final class AIBackgroundIndexer {
 
     /// 插电时按活跃度间隔**逐个**执行 pending 只读检查,结果写回内联(复用 `applyInlineResult`,抽屉自动显示)。
     /// 自门控:AI 开 + 索引开 + **充电中** + 距上次执行 ≥ 间隔(4/15/30 分)+ 没在执行。一次一条(间隔即天然串行)。
-    /// 目前后台安全执行 **hash / test**(纯只读、不依赖 UI 口令态);加密 / 损坏 / 需口令 → 记失败、不展示假结果。
-    /// security / inspect(要安全分析 / 端上模型润色)待后续。
+    /// 处理**全部 4 种行为**(否则队列头是 security/inspect 时会卡住 hash/test):
+    /// - hash / test = 事实必显(算出 / 测过即内联);
+    /// - security / inspect = 阶段 D:列清单 + 安全分析 / 发布检查 →「执行完显式 AI 复判值不值得显示」
+    ///   (`AIPendingCheckJudge`:没异常不冒)→ 有异常才端上模型润色成白话(macOS26;空返不冒)→ 内联。
+    /// 加密 / 损坏 / 需口令 → 记失败、不展示假结果(同指纹不再重排,文件改了才重试)。
     func executePendingChecksIfDue() {
         guard !pendingExecRunning, AppPreferences.aiSuggestionEnabled,
               AIBackgroundIndexStore.shared.indexingEnabled else { return }
@@ -804,8 +807,7 @@ final class AIBackgroundIndexer {
         guard level != .off else { return }
         let interval = AIPendingCheckSchedule.interval(for: level)
         if let last = lastPendingExecAt, Date().timeIntervalSince(last) < interval { return }   // 间隔节流
-        guard let check = AIPendingCheckStore.shared.nextPending(),
-              check.behavior == .hash || check.behavior == .test else { return }
+        guard let check = AIPendingCheckStore.shared.nextPending() else { return }
         guard let recordID = AIBackgroundIndexStore.shared.record(forPath: check.path)?.id else {
             AIPendingCheckStore.shared.markFailed(id: check.id)
             return
@@ -823,19 +825,21 @@ final class AIBackgroundIndexer {
                 return
             }
             do {
-                let text: String
                 switch behavior {
                 case .hash:
-                    text = try await Task.detached(priority: .utility) { try HashService.sha256(for: url) }.value
+                    let text = try await Task.detached(priority: .utility) { try HashService.sha256(for: url) }.value
+                    AIBackgroundIndexStore.shared.applyInlineResult(recordID: recordID, token: behavior.rawValue, text: text)
+                    AIPendingCheckStore.shared.markDone(id: id)
                 case .test:
                     try await ArchiveService.test(url, password: "")
-                    text = L10n.text("aiWorkspace.inlineTest.passed")
-                default:
-                    AIPendingCheckStore.shared.markFailed(id: id)
-                    return
+                    AIBackgroundIndexStore.shared.applyInlineResult(
+                        recordID: recordID, token: behavior.rawValue, text: L10n.text("aiWorkspace.inlineTest.passed"))
+                    AIPendingCheckStore.shared.markDone(id: id)
+                case .security:
+                    try await AIBackgroundIndexer.shared.executePendingSecurity(url: url, recordID: recordID, id: id)
+                case .inspect:
+                    try await AIBackgroundIndexer.shared.executePendingInspect(url: url, recordID: recordID, id: id)
                 }
-                AIBackgroundIndexStore.shared.applyInlineResult(recordID: recordID, token: behavior.rawValue, text: text)
-                AIPendingCheckStore.shared.markDone(id: id)
             } catch is CancellationError {
                 AIBackgroundIndexer.shared.lastPendingExecAt = nil   // 取消不算执行,下次可立即重试
             } catch {
@@ -843,6 +847,66 @@ final class AIBackgroundIndexer {
                 AIPendingCheckStore.shared.markFailed(id: id)
             }
         }
+    }
+
+    /// 阶段 D · 路径安全检测:空口令列清单(加密 / 损坏 → 抛错 → 上层 markFailed)→ 安全分析 + 评级 →
+    /// **AI 复判**(`securityWorthSurfacing`:没异常 → markDone 不展示)→ 有异常时端上模型润色成一句白话
+    /// (macOS26 + 就绪;不可用 / 空返 → markDone 不展示假结果)→ 内联。复用 on-demand 同款 Core 单元,不重写。
+    private func executePendingSecurity(url: URL, recordID: String, id: String) async throws {
+        let items = try await ArchiveService.list(url)
+        let findings = ArchiveSecurityReport.analyze(items)
+        let assessment = ArchiveRiskScore.assess(
+            findings: findings,
+            encryptedCount: items.filter(\.isEncrypted).count,
+            junkCount: ArchiveJunkFiles.junkEntries(in: items).count)
+        guard AIPendingCheckJudge.securityWorthSurfacing(findings: findings, assessment: assessment) else {
+            AIPendingCheckStore.shared.markDone(id: id); return   // 干净 → 执行过了但不冒
+        }
+        guard #available(macOS 26.0, *), AIReportAssistant.isReady else {
+            AIPendingCheckStore.shared.markDone(id: id); return   // 模型不可用 → 不展示假结果
+        }
+        let prompt = AIReportAssistant.inlinePathSafetyPrompt(assessment: assessment, findings: findings, listable: true)
+        let text = try await AIReportAssistant.generate(instructions: prompt.instructions, prompt: prompt.prompt)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { AIPendingCheckStore.shared.markDone(id: id); return }
+        AIBackgroundIndexStore.shared.applyInlineResult(
+            recordID: recordID, token: AIPendingCheck.Behavior.security.rawValue, text: text)
+        AIPendingCheckStore.shared.markDone(id: id)
+    }
+
+    /// 阶段 D · 发布包检测:空口令列清单(加密 / 损坏 → 抛错 → markFailed)→ 统计 + 安全发现 + 完整性测试 →
+    /// **AI 复判**(`inspectWorthSurfacing`:没问题 → 不冒)→ 有问题时模型润色 → 内联。复用 `ReleaseInspection.stats` /
+    /// `ArchiveSecurityReport` / `ArchiveStructuralFingerprint` 等 Core 单元(不跑 bundle 检查 —— 那是 .app/.dmg 专路)。
+    private func executePendingInspect(url: URL, recordID: String, id: String) async throws {
+        let items = try await ArchiveService.list(url)
+        var report = ReleaseInspectionReport(archiveURL: url)
+        report.listable = true
+        report.stats = ReleaseInspection.stats(for: items)
+        report.securityFindings = ArchiveSecurityReport.analyze(items)
+        report.structuralFingerprint = ArchiveStructuralFingerprint.compute(for: items)
+        report.hasComment = !ArchiveService.headerComment(for: url).isEmpty
+        do {
+            try await ArchiveService.test(url, password: "")
+            report.testPassed = true
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            report.testPassed = false
+            report.testFailureMessage = String(error.localizedDescription.prefix(160))
+        }
+        guard AIPendingCheckJudge.inspectWorthSurfacing(report: report) else {
+            AIPendingCheckStore.shared.markDone(id: id); return
+        }
+        guard #available(macOS 26.0, *), AIReportAssistant.isReady else {
+            AIPendingCheckStore.shared.markDone(id: id); return
+        }
+        let prompt = AIReportAssistant.inlineReleaseInspectionPrompt(for: report)
+        let text = try await AIReportAssistant.generate(instructions: prompt.instructions, prompt: prompt.prompt)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { AIPendingCheckStore.shared.markDone(id: id); return }
+        AIBackgroundIndexStore.shared.applyInlineResult(
+            recordID: recordID, token: AIPendingCheck.Behavior.inspect.rawValue, text: text)
+        AIPendingCheckStore.shared.markDone(id: id)
     }
 
     /// 读一个文件头部 → 脱敏(给模型出一句话摘要的素材)。红线门控同 `summarizeContent`(敏感目录 / 临时解密 /

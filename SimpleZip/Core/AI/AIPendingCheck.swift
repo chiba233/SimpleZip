@@ -137,3 +137,25 @@ nonisolated enum AIPendingCheckSchedule {
         }
     }
 }
+
+/// 只读检查**执行完后**「值不值得内联展示」的复判(用户拍板的「执行完再判」那一步)。
+/// - hash / test 是**事实必显**(算出 sha256 / 测过了就显示),不走这里。
+/// - security / inspect 走这里:**没异常 / 不值得就不冒**(否则会弹「这个包很干净」这种废话建议)。
+///
+/// 纯函数,SwiftPM 可测。确定性只筛掉「全干净」的;真有异常时再交端上模型润色成白话(模型空返=仍不显示),
+/// 符合「拒绝假 AI」—— 这里不发明结论,只判断「有没有值得说的东西」。
+nonisolated enum AIPendingCheckJudge {
+    /// 路径安全检测:有任何安全发现、或评级被某维度拉低(`dominant` 非空)才值得展示;全干净不冒。
+    static func securityWorthSurfacing(findings: [ArchiveSecurityFinding],
+                                       assessment: ArchiveRiskScore.Assessment) -> Bool {
+        !findings.isEmpty || assessment.dominant != nil
+    }
+
+    /// 发布包检测:有安全发现 / 有 macOS 垃圾 / 完整性测试没过 / 有 bundle 级问题才值得展示;干净的发布包不冒。
+    static func inspectWorthSurfacing(report: ReleaseInspectionReport) -> Bool {
+        !report.securityFindings.isEmpty
+            || (report.stats?.junkCount ?? 0) > 0
+            || report.testPassed == false
+            || !report.bundleFindings.isEmpty
+    }
+}
