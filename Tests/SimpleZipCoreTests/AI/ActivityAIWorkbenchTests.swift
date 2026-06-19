@@ -160,4 +160,21 @@ import Testing
         #expect(habits.taskCount == 3)
         #expect(ActivityAIWorkbenchBuilder.habitSummary(records: []).isEmpty)
     }
+
+    /// 建议六 v2「自动化建议」:手动来源(app/finder)的稳定重复达阈值 → 提示;已自动化来源(intent)不计。
+    @Test func automationHintFlagsRepeatedManualPattern() {
+        func r(_ id: String, source: String, kind: String) -> AITaskRecord {
+            AITaskRecord.make(id: id, category: "archive", kind: kind, source: source, status: "succeeded",
+                              title: "T", startedAt: now, finishedAt: now)
+        }
+        var records: [AITaskRecord] = []
+        for i in 0..<6 { records.append(r("f\(i)", source: "finder", kind: "extract")) }
+        for i in 0..<2 { records.append(r("i\(i)", source: "intent", kind: "extract")) }
+        let hint = ActivityAIWorkbenchBuilder.automationHint(records: records)
+        #expect(hint?.source == "finder")
+        #expect(hint?.kind == "extract")
+        #expect(hint?.count == 6)
+        // 不足阈值 → nil(只 1 个手动操作)。
+        #expect(ActivityAIWorkbenchBuilder.automationHint(records: [r("x", source: "app", kind: "create")]) == nil)
+    }
 }

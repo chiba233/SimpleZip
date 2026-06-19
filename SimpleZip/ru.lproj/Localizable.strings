@@ -2661,3 +2661,7 @@
 "location.project-folder" = "Папка проекта";
 "location.same-directory" = "Та же папка";
 "location.other" = "Другое";
+
+"tasks.aiWorkbench.automation" = "Автоматизация";
+"tasks.aiWorkbench.automation.body" = "Недавно вы делали это из %@ %@ раз — это можно автоматизировать через быструю команду или CLI.";
+"tasks.aiWorkbench.automation.open" = "Открыть быстрые команды";

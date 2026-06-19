@@ -263,6 +263,7 @@ struct ActivityView: View {
                             ActivityAIWorkbenchView(
                                 snapshot: activityAIWorkbenchSnapshot(for: category),
                                 habits: workbenchHabits(for: category),
+                                automationHint: workbenchAutomationHint(for: category),
                                 searchText: $aiFilterText,
                                 isRunningQuery: aiFilterRunning,
                                 queryError: aiFilterError,
@@ -275,6 +276,7 @@ struct ActivityView: View {
                                 onOpenTask: openWorkbenchTask,
                                 onOpenFullFailureExplanation: { showsWorkbenchFailureSheet = true },
                                 onNextAction: { performWorkbenchNextAction($0, in: category) },
+                                onOpenAutomation: openShortcutsApp,
                                 onClose: { showsActivityAIWorkbench = false }
                             )
                             .frame(width: CGFloat(aiWorkbenchWidth))
@@ -726,6 +728,20 @@ struct ActivityView: View {
     private func workbenchHabits(for category: OperationTask.Category) -> ActivityWorkbenchHabits {
         ActivityAIWorkbenchBuilder.habitSummary(
             records: Array(filteredTasksForWorkbench(in: category).prefix(80)).map(\.aiTaskRecord))
+    }
+
+    /// 建议六 v2「自动化建议」:近期任务(前 80)里手动操作的稳定重复 → 提示自动化。确定性,不调模型。
+    private func workbenchAutomationHint(for category: OperationTask.Category) -> ActivityWorkbenchAutomationHint? {
+        guard aiAssistantEnabled else { return nil }
+        return ActivityAIWorkbenchBuilder.automationHint(
+            records: Array(filteredTasksForWorkbench(in: category).prefix(80)).map(\.aiTaskRecord))
+    }
+
+    /// 自动化建议:打开系统「快捷指令」app(用户自行创建工作流;SimpleZip 不代建)。
+    private func openShortcutsApp() {
+        if let url = URL(string: "shortcuts://") {
+            NSWorkspace.shared.open(url)
+        }
     }
 
     /// 建议六 v2「真建议」:把后台预烘焙的 AI 命名聚集 chip 叠加到「建议筛选」最前(模型命名的真实聚集),

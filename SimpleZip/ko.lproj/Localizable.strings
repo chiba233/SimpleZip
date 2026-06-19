@@ -2662,3 +2662,7 @@
 "location.project-folder" = "프로젝트 폴더";
 "location.same-directory" = "같은 폴더";
 "location.other" = "기타";
+
+"tasks.aiWorkbench.automation" = "자동화 제안";
+"tasks.aiWorkbench.automation.body" = "최근 %@에서 비슷한 작업을 %@회 — 단축어나 CLI로 자동화할 수 있습니다。";
+"tasks.aiWorkbench.automation.open" = "단축어 열기";

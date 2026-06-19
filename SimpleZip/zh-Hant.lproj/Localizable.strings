@@ -2663,3 +2663,7 @@
 "location.project-folder" = "專案資料夾";
 "location.same-directory" = "同一資料夾";
 "location.other" = "其他";
+
+"tasks.aiWorkbench.automation" = "自動化建議";
+"tasks.aiWorkbench.automation.body" = "你近期已從 %@ 重複同類操作 %@ 次 — 用捷徑或命令列就能自動化。";
+"tasks.aiWorkbench.automation.open" = "打開捷徑";

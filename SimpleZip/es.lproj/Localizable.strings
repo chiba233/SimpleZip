@@ -2661,3 +2661,7 @@
 "location.project-folder" = "Carpeta de proyecto";
 "location.same-directory" = "Misma carpeta";
 "location.other" = "Otro";
+
+"tasks.aiWorkbench.automation" = "Automatización";
+"tasks.aiWorkbench.automation.body" = "Has hecho esto desde %@ %@ veces recientemente — un atajo o flujo CLI podría automatizarlo.";
+"tasks.aiWorkbench.automation.open" = "Abrir Atajos";

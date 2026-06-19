@@ -56,6 +56,8 @@ struct ActivityAIWorkbenchView: View {
     let snapshot: ActivityAIWorkbenchSnapshot
     /// 建议六 v2「学习到的习惯」:近期常用来源 / 格式 / 位置摘要(确定性,只摘要不含完整路径)。
     let habits: ActivityWorkbenchHabits
+    /// 建议六 v2「自动化建议」:某手动操作稳定重复达阈值时的提示(nil = 没有稳定重复 → 不显示)。
+    let automationHint: ActivityWorkbenchAutomationHint?
     /// 自然语言筛选输入(从工具栏挪进侧栏)。回车 / 点按 → `onRunQuery`,由父级走 AI 抽条件并应用。
     @Binding var searchText: String
     let isRunningQuery: Bool
@@ -75,6 +77,8 @@ struct ActivityAIWorkbenchView: View {
     let onOpenFullFailureExplanation: () -> Void
     /// 模块②:点某个「下一步动作」→ 父级路由到焦点失败任务自身的闭包(打开报告 / 续跑 / 重跑…)或只读复制。
     let onNextAction: (WorkbenchNextAction) -> Void
+    /// 自动化建议:「打开快捷指令」→ 父级打开系统快捷指令 app(用户自行创建工作流;SimpleZip 不代建)。
+    let onOpenAutomation: () -> Void
     let onClose: () -> Void
 
     var body: some View {
@@ -89,6 +93,7 @@ struct ActivityAIWorkbenchView: View {
                 nextActions
                 suggestedFilters
                 learnedHabits
+                automationSuggestion
             }
             .padding(.horizontal, 14)
             .padding(.bottom, 14)
@@ -319,6 +324,27 @@ struct ActivityAIWorkbenchView: View {
                         habitRow(L10n.text("tasks.aiWorkbench.habits.locations"),
                                  habits.topLocations.map { L10n.text("location.\($0)") })
                     }
+                }
+            }
+        }
+    }
+
+    /// 建议六 v2「自动化建议」:某手动操作稳定重复时,提示用快捷指令自动化 + 打开快捷指令 app。无重复 → 整区不渲染。
+    /// **只提示、不代建**(SimpleZip 不替用户创建 Shortcut,用户在快捷指令 app 自己搭)。
+    @ViewBuilder
+    private var automationSuggestion: some View {
+        if let hint = automationHint {
+            workbenchSection(title: L10n.text("tasks.aiWorkbench.automation"), systemImage: "wand.and.stars") {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(L10n.format("tasks.aiWorkbench.automation.body",
+                                     L10n.text("tasks.source.\(hint.source)"), "\(hint.count)"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Button(action: onOpenAutomation) {
+                        Label(L10n.text("tasks.aiWorkbench.automation.open"), systemImage: "arrow.up.forward.app")
+                    }
+                    .controlSize(.small)
                 }
             }
         }

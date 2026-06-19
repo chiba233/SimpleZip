@@ -124,6 +124,14 @@ nonisolated struct ActivityWorkbenchHabits: Codable, Equatable, Sendable {
     var isEmpty: Bool { topSources.isEmpty && topFormats.isEmpty && topLocations.isEmpty }
 }
 
+/// 建议六 v2「自动化建议」:某「手动来源 × 操作」组合稳定重复(达阈值)时,提示可用快捷指令 / 命令行自动化。
+/// 只看**手动**来源(app / finder);已经是自动化的来源(intent / cli / urlScheme)不再建议。确定性、可单测。
+nonisolated struct ActivityWorkbenchAutomationHint: Codable, Equatable, Sendable {
+    let source: String
+    let kind: String
+    let count: Int
+}
+
 nonisolated enum ActivityAIWorkbenchBuilder {
     static let schema = "simplezip.ai.activityWorkbench.v1"
 
@@ -294,6 +302,25 @@ nonisolated enum ActivityAIWorkbenchBuilder {
             topFormats: top(records.compactMap { $0.files.archiveExtension }),
             topLocations: top(records.flatMap { $0.files.locationKinds }),
             taskCount: records.count)
+    }
+
+    /// 建议六 v2「自动化建议」:找重复最稳定的「手动来源 × 操作」组合(达阈值)→ 提示自动化。只看手动来源
+    /// (app / finder);intent / cli / urlScheme 本就是自动化,排除。无达阈值组合 → nil。
+    static func automationHint(records: [AITaskRecord], minCount: Int = 5) -> ActivityWorkbenchAutomationHint? {
+        let manual = records.filter { $0.source == "app" || $0.source == "finder" }
+        guard manual.count >= minCount else { return nil }
+        var counts: [String: (source: String, kind: String, n: Int)] = [:]
+        for r in manual {
+            let key = "\(r.source)|\(r.kind)"
+            var entry = counts[key] ?? (r.source, r.kind, 0)
+            entry.n += 1
+            counts[key] = entry
+        }
+        guard let top = counts.values
+            .filter({ $0.n >= minCount })
+            .sorted(by: { $0.n != $1.n ? $0.n > $1.n : "\($0.source)|\($0.kind)" < "\($1.source)|\($1.kind)" })
+            .first else { return nil }
+        return ActivityWorkbenchAutomationHint(source: top.source, kind: top.kind, count: top.n)
     }
 
     private static func chip(id: String, records: [AITaskRecord],

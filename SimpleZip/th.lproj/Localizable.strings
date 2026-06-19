@@ -2661,3 +2661,7 @@
 "location.project-folder" = "โฟลเดอร์โปรเจกต์";
 "location.same-directory" = "โฟลเดอร์เดียวกัน";
 "location.other" = "อื่นๆ";
+
+"tasks.aiWorkbench.automation" = "การทำงานอัตโนมัติ";
+"tasks.aiWorkbench.automation.body" = "คุณทำสิ่งนี้จาก %@ %@ ครั้งเมื่อเร็วๆ นี้ — ทางลัดหรือ CLI ช่วยอัตโนมัติได้";
+"tasks.aiWorkbench.automation.open" = "เปิดทางลัด";

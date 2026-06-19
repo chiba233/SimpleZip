@@ -2740,3 +2740,7 @@
 "location.project-folder" = "Project folder";
 "location.same-directory" = "Same folder";
 "location.other" = "Other";
+
+"tasks.aiWorkbench.automation" = "Automation";
+"tasks.aiWorkbench.automation.body" = "You've done this from %@ %@ times recently — a Shortcut or CLI workflow could automate it.";
+"tasks.aiWorkbench.automation.open" = "Open Shortcuts";

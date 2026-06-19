@@ -2663,3 +2663,7 @@
 "location.project-folder" = "プロジェクト";
 "location.same-directory" = "同じフォルダ";
 "location.other" = "その他";
+
+"tasks.aiWorkbench.automation" = "自動化の提案";
+"tasks.aiWorkbench.automation.body" = "最近 %@ から同様の操作を %@ 回 — ショートカットや CLI で自動化できます。";
+"tasks.aiWorkbench.automation.open" = "ショートカットを開く";

@@ -2659,3 +2659,7 @@
 "location.project-folder" = "Dossier de projet";
 "location.same-directory" = "Même dossier";
 "location.other" = "Autre";
+
+"tasks.aiWorkbench.automation" = "Automatisation";
+"tasks.aiWorkbench.automation.body" = "Vous avez fait cela depuis %@ %@ fois récemment — un raccourci ou un flux CLI pourrait l'automatiser.";
+"tasks.aiWorkbench.automation.open" = "Ouvrir Raccourcis";
