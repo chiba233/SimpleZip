@@ -1265,7 +1265,7 @@ extension ArchiveBrowserModel {
         let priorGroupsByEvent = fileUndoManager.groupsByEvent
         fileUndoManager.groupsByEvent = false
         fileUndoManager.beginUndoGrouping()
-        registerCreateUndo([target], actionName: L10n.text("file.newFolder"))
+        registerOrganizeFolderUndo(target, actionName: L10n.text("file.newFolder"))
         let movable = members.filter { $0 != target.standardizedFileURL }
         dropFileURLs(movable, to: target, shouldMove: true) { [weak self] in
             guard let self else { return }

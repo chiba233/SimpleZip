@@ -71,6 +71,19 @@ extension ArchiveBrowserModel {
         registerMoveUndo(forwardPairs.map { (from: $0.original, to: $0.trashURL) }, actionName: actionName)
     }
 
+    /// Task 7 整理建议的「建文件夹」段撤销 —— 和移动撤销组成**一个撤销组**(组合撤销「撤销这条 AI 建议」)。撤销整条
+    /// 整理时,同组的移动撤销(LIFO 先跑)把成员移回原位、这里再把**空了**的文件夹收掉。**不用 `registerCreateUndo` 的
+    /// 创建时快照**(整理把文件移进又移出、mtime 变了,快照守卫会误判「目标被占」→ 跳过 → 文件夹删不掉,正是用户报的
+    /// bug);改成「只删空文件夹」既安全(里头还有别的就不删)又能在多段撤销里正确收尾。撤销 / 重做逐步写
+    /// `undoRedoTransferLog` → 落活动中心(整条整理的撤销显示成一张卡:移回 N 项 + 删空文件夹)。
+    func registerOrganizeFolderUndo(_ folder: URL, actionName: String) {
+        fileUndoManager.setActionName(actionName)
+        fileUndoManager.registerUndo(withTarget: self) { model in
+            model.performUndoableRemoveOrganizeFolder(folder, actionName: actionName)
+        }
+        refreshUndoActionNames()
+    }
+
     /// 权限 / 属主：forward 已把每个 url 改成新值。撤销 = 恢复 `steps` 里记录的**旧** mode / owner。
     /// `mode` / `owner` 为 nil 表示该维度没改、撤销时也不动它。仅非递归操作注册（递归一整棵树的旧权限无法可靠快照）。
     func registerPermissionsUndo(_ steps: [UndoPermissionsStep], actionName: String) {
@@ -216,6 +229,43 @@ extension ArchiveBrowserModel {
         }
         reportUndoSkips(skipped)
         registerTrashUndo(trashed, actionName: actionName)
+    }
+
+    /// 撤销整理建议建出的文件夹:仅当它**存在且为空**(成员已被同组移动撤销移回)才移到废纸篓;否则跳过并提示
+    /// (不静默删用户后来放进去的东西)。注册「重新建回空文件夹」作为重做。
+    private func performUndoableRemoveOrganizeFolder(_ folder: URL, actionName: String) {
+        var isDirectory: ObjCBool = false
+        let exists = fileManager.fileExists(atPath: folder.path, isDirectory: &isDirectory)
+        let isEmpty = ((try? fileManager.contentsOfDirectory(atPath: folder.path))?.isEmpty) ?? false
+        guard exists, isDirectory.boolValue, isEmpty else { reportUndoSkips(1); return }
+        do {
+            var trashURL: NSURL?
+            try fileManager.trashItem(at: folder, resultingItemURL: &trashURL)
+            appendUndoRedoLog(.deleted, at: folder, detail: abbreviatedPath(folder))
+            fileUndoManager.setActionName(actionName)
+            fileUndoManager.registerUndo(withTarget: self) { model in
+                model.performUndoableRecreateOrganizeFolder(folder, actionName: actionName)
+            }
+            refreshUndoActionNames()
+        } catch {
+            reportUndoSkips(1)
+        }
+    }
+
+    /// 重做整理建议的文件夹创建:目标空闲才建回空文件夹,注册「再删空文件夹」作为下一轮撤销。
+    private func performUndoableRecreateOrganizeFolder(_ folder: URL, actionName: String) {
+        guard !fileManager.fileExists(atPath: folder.path) else { reportUndoSkips(1); return }
+        do {
+            try fileManager.createDirectory(at: folder, withIntermediateDirectories: false)
+            appendUndoRedoLog(.added, at: folder, detail: abbreviatedPath(folder))
+            fileUndoManager.setActionName(actionName)
+            fileUndoManager.registerUndo(withTarget: self) { model in
+                model.performUndoableRemoveOrganizeFolder(folder, actionName: actionName)
+            }
+            refreshUndoActionNames()
+        } catch {
+            reportUndoSkips(1)
+        }
     }
 
     func undoFileOperation() {
