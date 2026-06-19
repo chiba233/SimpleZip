@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- SimpleZipAIAgent 的 LaunchAgent 声明(SMAppService.agent 注册;嵌进 App.app/Contents/Library/LaunchAgents/)。
+	     Step 0:只声明 MachServices —— App 连接该 Mach 服务时 launchd 按需拉起 agent,够跑模型探针。
+	     **刻意不放 StartInterval / RunAtLoad** —— 后台定时索引的「开 / 关 + 频率」由 Settings → AI(活跃度档 +
+	     后台索引开关,复用 AIBackgroundDiscoverySection)在 Step 1 真后台调度时驱动,不在 plist 写死产品决策。 -->
+	<key>Label</key>
+	<string>yumeka.SimpleZip-in-mac.aiagent</string>
+	<!-- 相对 app bundle 的可执行体路径(SMAppService 解析 BundleProgram 相对 bundle 根)。 -->
+	<key>BundleProgram</key>
+	<string>Contents/MacOS/SimpleZipAIAgent</string>
+	<key>MachServices</key>
+	<dict>
+		<key>yumeka.SimpleZip-in-mac.aiagent</key>
+		<true/>
+	</dict>
+</dict>
+</plist>
