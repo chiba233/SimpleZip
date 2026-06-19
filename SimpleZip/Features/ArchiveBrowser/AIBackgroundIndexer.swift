@@ -28,12 +28,17 @@ final class AIBackgroundIndexer {
     /// 持续增长 = 视为空闲,正合「用户没在用 SimpleZip 时才跑模型」。
     private var lastInteractionDate = Date()
     private var interactionMonitor: Any?
+    /// DevTools 调试窗口:它内部的鼠标 / 键盘事件**不计入交互** —— 挂着 DevTools 复制信息 / debug 不该把正在观察的
+    /// 后台 AI pass 当成「用户在用 app」而停掉(用户实测尴尬点)。DevTools 开 / 关时设 / 清;其它窗口照常计交互。
+    weak var interactionExemptWindow: NSWindow?
 
     private init() {
         interactionMonitor = NSEvent.addLocalMonitorForEvents(
             matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown, .keyDown, .scrollWheel, .leftMouseDragged]
         ) { [weak self] event in
-            self?.lastInteractionDate = Date()
+            guard let self else { return event }
+            if let exempt = self.interactionExemptWindow, event.window === exempt { return event }   // DevTools 内操作不算交互
+            self.lastInteractionDate = Date()
             return event
         }
     }

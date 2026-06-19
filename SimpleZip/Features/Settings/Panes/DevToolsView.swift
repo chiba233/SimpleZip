@@ -14,6 +14,16 @@ import AppKit
 import Combine
 import SwiftUI
 
+/// 把 DevTools 所在窗口注册为 AI 后台索引的「交互豁免窗口」——里面的点击 / 键盘不重置空闲计时,挂着 DevTools
+/// debug 时后台 pass 照常跑(用户实测:复制信息一点就被当成交互、把 AI 停了)。视图消失时由 `.onDisappear` 清除。
+private struct DevToolsInteractionExemption: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView { NSView(frame: .zero) }
+    func updateNSView(_ nsView: NSView, context: Context) {
+        // updateNSView 在主线程随渲染(含每秒刷新)反复调 —— sheet 窗口挂上后这里就拿到并注册。
+        if let window = nsView.window { AIBackgroundIndexer.shared.interactionExemptWindow = window }
+    }
+}
+
 struct DevToolsView: View {
     let onClose: () -> Void
 
@@ -195,6 +205,15 @@ struct DevToolsView: View {
                         ) {
                             copyAIIndexData()
                         }
+                        // AI 建议明细:每个计数类别(摘要/打开方式/网页/.../哈希/压缩/转换/内联结果)的**完整文件清单**
+                        // + 门控 / 预算 / 各管线诊断 —— 一次性复制出来逐条 debug「这个类别到底有哪些文件、为啥是 0」。
+                        actionRow(
+                            "list.bullet.clipboard",
+                            "复制 AI 建议明细(全分类 + 每文件 + 管线)",
+                            "把上面每个计数展开成完整清单:每类列出命中的真实文件路径 + 短摘要 + 动作 / 内联结果,附门控 / 预算 / 管线诊断。"
+                        ) {
+                            copyAISuggestionDetail()
+                        }
                         // Spotlight 全量捐献集复制(每条 item 的标识/标题/关键字)——隐藏调试区,中文硬编码。
                         actionRow(
                             "magnifyingglass.circle",
@@ -235,6 +254,7 @@ struct DevToolsView: View {
             }
         }
         .frame(width: 620)
+        .background(DevToolsInteractionExemption())   // DevTools 内操作不计入 AI 后台空闲门控(debug 不停 AI)
         .onAppear {
             Task { @MainActor in
                 sevenZipVersion = await ArchiveService.sevenZipVersion()
@@ -245,6 +265,7 @@ struct DevToolsView: View {
         .onReceive(aiDataRefreshTimer) { _ in
             loadAIDataSnapshot()
         }
+        .onDisappear { AIBackgroundIndexer.shared.interactionExemptWindow = nil }   // 关 DevTools 恢复正常交互计时
     }
 
     // MARK: - 行构件
@@ -588,6 +609,102 @@ struct DevToolsView: View {
                 workbench: workbench
             )
         )
+    }
+
+    /// AI 建议明细全量复制(隐藏调试区,中文硬编码):门控 / 预算 / 各管线诊断 + **每个计数类别的完整文件清单**。
+    /// 直接回答「这个类别到底命中了哪些文件 / 为什么是 0」—— 在主 actor 上从索引现读现拼(用户点一下才跑,几毫秒)。
+    private func copyAISuggestionDetail() {
+        Task { @MainActor in
+            let text = buildAISuggestionDetailReport()
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(text, forType: .string)
+            flash("已复制 AI 建议明细(全分类)")
+        }
+    }
+
+    @MainActor
+    private func buildAISuggestionDetailReport() -> String {
+        let store = AIBackgroundIndexStore.shared
+        let indexer = AIBackgroundIndexer.shared
+        let records = store.fileIndex.records
+        let g = indexer.gateDiag()
+        let pc = AIPendingCheckStore.shared.counts
+        func rel(_ d: Date?) -> String {
+            guard let d else { return "从未" }
+            let s = Int(Date().timeIntervalSince(d))
+            return s < 60 ? "\(s)秒前" : (s < 3_600 ? "\(s / 60)分前" : "\(s / 3_600)时前")
+        }
+        func yn(_ b: Bool) -> String { b ? "✓" : "✗" }
+        func display(_ r: AIFileMemoryRecord) -> String { r.path ?? r.fileName }
+
+        var out: [String] = []
+        out.append("# AI 建议明细  生成于 \(Date())")
+
+        out.append("\n## 门控 / 预算 / 索引")
+        out.append("在跑\(yn(indexer.isIndexerRunning)) 心跳\(yn(indexer.isHeartbeatRunning)) 上轮\(rel(indexer.lastFullRunAt))")
+        out.append("确定性\(yn(g.canDeterministic)) 模型\(yn(g.canModelWork)) 深档\(yn(g.canDeepContext))")
+        out.append("活跃\(g.appIsActive ? "是" : "否") 距交互\(g.secondsSinceLastInteraction)s 充电\(g.isCharging.map { $0 ? "是" : "否" } ?? "无电池")"
+            + " 低电\(g.lowBattery ? "是" : "否") 省电\(g.powerSaverMode ? "是" : "否") 档\(g.activityLevel) 模型\(g.modelAvailable ? "就绪" : "无")")
+        if let b = store.budget {
+            out.append("预算: 目录/轮\(b.maxDirectoriesPerRound) 归档/轮\(b.maxArchivesPerRound) 模型建议/轮\(b.maxModelSuggestionsPerRound) 单包条目上限\(b.maxEntriesPerArchive)")
+        }
+        out.append("索引文件 \(records.count) · 有内容摘要 \(records.lazy.filter { $0.contentSummary != nil }.count) · 预读\(store.contentPrereadEnabled ? "开" : "关")")
+        out.append("自动检查队列: 待\(pc.pending) 完\(pc.done)")
+
+        out.append("\n## 各管线诊断(候选 / 产物 / 跳过原因)")
+        let diag = indexer.passDiag
+        for name in ["摘要", "网页", "装App", "活动", "包内", "包定性", "文件组"] {
+            if let d = diag[name] {
+                out.append("\(name): 候选\(d.candidates) 产物\(d.produced)\(d.skip.map { " · " + $0 } ?? "") · \(rel(d.lastRunAt))")
+            } else {
+                out.append("\(name): 本会话没跑(门控未过,见上)")
+            }
+        }
+
+        // 每个计数类别 → 命中文件完整清单(每类封顶 500 行,够 debug,防剪贴板爆)。
+        out.append("\n## 建议产物明细(按类,每行 = 一个真实文件)")
+        func section(_ title: String, _ hits: [AIFileMemoryRecord], line: (AIFileMemoryRecord) -> String) {
+            out.append("\n### \(title) (\(hits.count))")
+            if hits.isEmpty { out.append("（无）"); return }
+            for r in hits.prefix(500) { out.append(line(r)) }
+            if hits.count > 500 { out.append("…还有 \(hits.count - 500) 条(已截断)") }
+        }
+        func has(_ token: String, _ r: AIFileMemoryRecord) -> Bool {
+            r.contentSummary?.suggestedActions.contains { $0.token == token } ?? false
+        }
+        func actionsText(_ r: AIFileMemoryRecord) -> String {
+            (r.contentSummary?.suggestedActions ?? []).map { $0.token + ($0.payload.map { "(\($0))" } ?? "") }.joined(separator: ",")
+        }
+
+        section("摘要 [shortSummary]", records.filter { $0.contentSummary?.shortSummary?.isEmpty == false }) {
+            "\($0.path ?? $0.fileName) · \"\($0.contentSummary?.shortSummary ?? "")\""
+        }
+        for (title, token) in [("打开方式", "openWith"), ("网页", "urlOpen"), ("装App", "dragToApplications"),
+                               ("活动", "openTask"), ("包内", "revealArchiveEntry"), ("包定性", "archiveKind"),
+                               ("检测", "inspect"), ("测试", "test"), ("哈希", "hash"),
+                               ("压缩", "compress"), ("转换", "convert")] {
+            section("\(title) [\(token)]", records.filter { has(token, $0) }) {
+                "\(display($0)) · [\(actionsText($0))]\($0.contentSummary?.shortSummary.map { " · \"\($0)\"" } ?? "")"
+            }
+        }
+
+        // 文件夹组建议(独立缓存,不在 suggestedActions 里)。
+        let groupEntries = store.folderGroupsByPath.flatMap { folder, groups in
+            groups.map { "\(folder) → [\($0.actionToken)] \($0.title ?? "(无题)") · \($0.memberPaths.count)项" }
+        }
+        out.append("\n### 文件组 [folderGroupsByPath] (\(groupEntries.count))")
+        if groupEntries.isEmpty { out.append("（无）") } else { out.append(contentsOf: groupEntries.prefix(500)) }
+
+        // 内联结果(pending 执行完写回的 hash/test/security/inspect 白话)。
+        var inlineLines: [String] = []
+        for r in records {
+            guard let ir = r.contentSummary?.inlineResults, !ir.isEmpty else { continue }
+            for (k, v) in ir.sorted(by: { $0.key < $1.key }) { inlineLines.append("\(display(r)) · \(k): \(v)") }
+        }
+        out.append("\n### 内联结果 [inlineResults] (\(inlineLines.count))")
+        out.append(contentsOf: inlineLines.isEmpty ? ["（无）"] : Array(inlineLines.prefix(500)))
+
+        return out.joined(separator: "\n")
     }
 
     private func copyAIIndexData() {
