@@ -244,6 +244,13 @@ enum BackendProcessRunner {
         guard openpty(&masterFD, &slaveFD, nil, nil, nil) == 0 else {
             throw ArchiveError.commandFailed(String(cString: strerror(errno)))
         }
+        do {
+            try disableTerminalEcho(on: slaveFD)
+        } catch {
+            close(masterFD)
+            close(slaveFD)
+            throw error
+        }
 
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executable)
@@ -291,6 +298,20 @@ enum BackendProcessRunner {
 
         progressParser?.finish()
         return output
+    }
+
+    /// PTY 默认会回显写入 stdin 的内容。密码 prompt 路径会把同一个 PTY master 当作命令输出读回，
+    /// 所以必须在启动子进程前关掉 slave 端 echo，否则自动填写的密码会进入活动中心日志。
+    private nonisolated static func disableTerminalEcho(on fd: Int32) throws {
+        var attributes = termios()
+        guard tcgetattr(fd, &attributes) == 0 else {
+            throw ArchiveError.commandFailed(String(cString: strerror(errno)))
+        }
+        attributes.c_lflag &= ~tcflag_t(ECHO)
+        attributes.c_lflag &= ~tcflag_t(ECHONL)
+        guard tcsetattr(fd, TCSANOW, &attributes) == 0 else {
+            throw ArchiveError.commandFailed(String(cString: strerror(errno)))
+        }
     }
 
     private nonisolated static func terminateAndWait(_ process: Process, timeout: TimeInterval = 2) {
