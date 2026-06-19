@@ -506,7 +506,7 @@ struct DevToolsView: View {
             aiGateStatus = "在跑\(yn(AIBackgroundIndexer.shared.isIndexerRunning)) 上轮\(rel(AIBackgroundIndexer.shared.lastFullRunAt))"
                 + (g.devToolsExempt ? " · 交互豁免✓" : "")
                 + " | 确定性\(yn(g.canDeterministic)) 模型\(yn(g.canModelWork)) 深档\(yn(g.canDeepContext))"
-                + " | 活跃\(g.appIsActive ? "是" : "否") 距交互\(g.secondsSinceLastInteraction)s 充电\(charge)"
+                + " | 活跃\(g.appIsActive ? "是" : "否") 距交互\(g.devToolsExempt ? "豁免" : "\(g.secondsSinceLastInteraction)s") 充电\(charge)"
                 + " 低电\(g.lowBattery ? "是" : "否") 省电\(g.powerSaverMode ? "是" : "否") 档\(g.activityLevel) 模型\(g.modelAvailable ? "就绪" : "无")"
             // 每个 pass 上次跑的候选数(区分「无候选」vs「门控没过 / 没跑过」)。
             let diag = AIBackgroundIndexer.shared.passDiag
@@ -650,7 +650,7 @@ struct DevToolsView: View {
         out.append("\n## 门控 / 预算 / 索引")
         out.append("在跑\(yn(indexer.isIndexerRunning)) 心跳\(yn(indexer.isHeartbeatRunning)) 上轮\(rel(indexer.lastFullRunAt))")
         out.append("确定性\(yn(g.canDeterministic)) 模型\(yn(g.canModelWork)) 深档\(yn(g.canDeepContext))")
-        out.append("活跃\(g.appIsActive ? "是" : "否") 距交互\(g.secondsSinceLastInteraction)s 充电\(g.isCharging.map { $0 ? "是" : "否" } ?? "无电池")"
+        out.append("活跃\(g.appIsActive ? "是" : "否") 距交互\(g.devToolsExempt ? "豁免" : "\(g.secondsSinceLastInteraction)s") 充电\(g.isCharging.map { $0 ? "是" : "否" } ?? "无电池")"
             + " 低电\(g.lowBattery ? "是" : "否") 省电\(g.powerSaverMode ? "是" : "否") 档\(g.activityLevel) 模型\(g.modelAvailable ? "就绪" : "无")")
         if let b = store.budget {
             out.append("预算: 目录/轮\(b.maxDirectoriesPerRound) 归档/轮\(b.maxArchivesPerRound) 模型建议/轮\(b.maxModelSuggestionsPerRound) 单包条目上限\(b.maxEntriesPerArchive)")
