@@ -467,28 +467,39 @@ struct FileNSOutlineView: NSViewRepresentable {
             lastSuggestionHashByPath = currentSuggestionHashes()   // 整表刷后重置建议快照
         }
 
-        /// 当前可见文件行(顶层 + 区块内,排除分卷折叠首卷 —— 它不显示 AI 抽屉)→ 它的 AI 建议内容哈希。
+        /// 当前可见文件行(顶层 + 已展开区块 / 文件夹 / 分卷子级,排除分卷折叠首卷 —— 它不显示 AI 抽屉)→ 它的 AI 建议内容哈希。
         /// 「结构没变、只有建议变了」时据此定点 reload 抽屉,不整表刷。
         private func currentSuggestionHashes() -> [String: Int] {
             var out: [String: Int] = [:]
             func walk(_ nodes: [FileOutlineNode]) {
                 for node in nodes {
-                    if node.isSection { walk(node.children); continue }
-                    guard node.volumeChildren == nil, let path = node.fileItem?.url.path else { continue }
-                    out[path] = Coordinator.suggestionContentHash(forPath: path)
+                    if node.isSection {
+                        if outlineView?.isItemExpanded(node) != false { walk(node.children) }
+                        continue
+                    }
+                    if node.volumeChildren == nil, let path = node.fileItem?.url.path {
+                        out[path] = Coordinator.suggestionContentHash(forPath: path)
+                    }
+                    guard outlineView?.isItemExpanded(node) == true else { continue }
+                    if let folderChildren = node.folderChildren { walk(folderChildren) }
+                    if let volumeChildren = node.volumeChildren { walk(volumeChildren) }
                 }
             }
             walk(topLevelNodes)
             return out
         }
 
-        /// 一行 AI 建议内容的稳定哈希(shortSummary + 动作 token/payload + 内联结果),与抽屉渲染同源。
+        /// 一行 AI 建议内容的稳定哈希(shortSummary + 动作 token/payload/label + 内联结果),与抽屉渲染同源。
         /// 没建议 → 0。Hasher 进程内一致(只在本会话内比对,够用)。
         private static func suggestionContentHash(forPath path: String) -> Int {
             guard let summary = AIBackgroundIndexStore.shared.record(forPath: path)?.contentSummary else { return 0 }
             var hasher = Hasher()
             hasher.combine(summary.shortSummary ?? "")
-            for action in summary.suggestedActions { hasher.combine(action.token); hasher.combine(action.payload ?? "") }
+            for action in summary.suggestedActions {
+                hasher.combine(action.token)
+                hasher.combine(action.payload ?? "")
+                hasher.combine(action.label ?? "")
+            }
             for key in summary.inlineResults.keys.sorted() { hasher.combine(key); hasher.combine(summary.inlineResults[key] ?? "") }
             return hasher.finalize()
         }
@@ -498,11 +509,18 @@ struct FileNSOutlineView: NSViewRepresentable {
         private func reloadSuggestionDrawers(forChangedPaths changedPaths: Set<String>, in outlineView: NSOutlineView) {
             func walk(_ nodes: [FileOutlineNode]) {
                 for node in nodes {
-                    if node.isSection { walk(node.children); continue }
-                    guard node.volumeChildren == nil, let path = node.fileItem?.url.path,
-                          changedPaths.contains(path) else { continue }
-                    node.suggestionChildren = nil   // 失效缓存 → reloadChildren 时按新建议重建
-                    outlineView.reloadItem(node, reloadChildren: true)
+                    if node.isSection {
+                        if outlineView.isItemExpanded(node) { walk(node.children) }
+                        continue
+                    }
+                    if node.volumeChildren == nil, let path = node.fileItem?.url.path,
+                       changedPaths.contains(path) {
+                        node.suggestionChildren = nil   // 失效缓存 → reloadChildren 时按新建议重建
+                        outlineView.reloadItem(node, reloadChildren: true)
+                    }
+                    guard outlineView.isItemExpanded(node) else { continue }
+                    if let folderChildren = node.folderChildren { walk(folderChildren) }
+                    if let volumeChildren = node.volumeChildren { walk(volumeChildren) }
                 }
             }
             walk(topLevelNodes)
