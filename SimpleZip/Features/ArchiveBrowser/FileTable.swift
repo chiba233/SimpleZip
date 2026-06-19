@@ -39,7 +39,7 @@ struct FileTable: View {
         // A17：分组 / 密度的实际值由下面的 coordinator 直接读 `AppPreferences`（所以把它们传给 representable
         // 是死参，已删）。但**必须在 body 里读到这几个 @AppStorage**，否则在 Settings 改它们时不再触发本视图
         // 重渲染 → updateNSView 不跑 → 表格不重新分组 / 不调行高。这行丢弃读纯粹维持那条重绘依赖，别删。
-        let _ = (fileGroupingScope, fileGroupBy, hiddenWithGrouping, rowDensity, backgroundStore.folderGroupsGeneration)
+        let _ = (fileGroupingScope, fileGroupBy, hiddenWithGrouping, rowDensity, backgroundStore.folderGroupsGeneration, backgroundStore.organizeGeneration)
         FileNSOutlineView(
             model: model,
             showSizeColumn: showSizeColumn,
@@ -410,6 +410,7 @@ struct FileNSOutlineView: NSViewRepresentable {
             // 展开子级的内容世代(refreshExpandedFolderChildren 换了新实例并 objectWillChange 时翻它)。
             hasher.combine(model.expandedChildrenGeneration)
             hasher.combine(AIBackgroundIndexStore.shared.folderGroupsGeneration)
+            hasher.combine(AIBackgroundIndexStore.shared.organizeGeneration)
             for key in AIBackgroundIndexStore.shared.dislikedSuggestionKeys.sorted() { hasher.combine(key) }
             let layoutSignature = hasher.finalize()
 
@@ -693,18 +694,22 @@ struct FileNSOutlineView: NSViewRepresentable {
                 guard memberItems.count >= 2 else { continue }
                 let memberPaths = memberItems.map { $0.url.standardizedFileURL.path }
                 guard var action = AIWorkspaceNodeActions.folderGroupAction(
-                    actionToken: group.actionToken, memberPaths: memberPaths) else { continue }
+                    actionToken: group.actionToken, memberPaths: memberPaths, folderName: group.title) else { continue }
                 let dislikeKey = AIBackgroundIndexStore.folderGroupDislikeKey(
                     folderPath: folderPath, actionToken: group.actionToken, memberPaths: memberPaths)
                 guard !store.isSuggestionDisliked(dislikeKey) else { continue }
                 action.dislikeKey = dislikeKey
 
+                // 桶代表行标题:优先动作自带的完整标题(整理建议 = 「整理进『主题』」);批量组动作无 displayTitle →
+                // 退回缓存里的模型标题(目前批量组恒 nil)→ 再退回通用 titleKey,行为与之前一致。
                 let rawTitle = group.title?.trimmingCharacters(in: .whitespacesAndNewlines)
                 let title: String
-                if let rawTitle, !rawTitle.isEmpty {
+                if let displayTitle = action.displayTitle, !displayTitle.isEmpty {
+                    title = displayTitle
+                } else if let rawTitle, !rawTitle.isEmpty {
                     title = rawTitle
                 } else {
-                    title = action.displayTitle ?? L10n.text(action.titleKey)
+                    title = L10n.text(action.titleKey)
                 }
                 let node = FileOutlineNode.aiGroup(title: title, action: action, memberPaths: memberPaths)
                 var children = memberItems.map { FileOutlineNode.file($0) }

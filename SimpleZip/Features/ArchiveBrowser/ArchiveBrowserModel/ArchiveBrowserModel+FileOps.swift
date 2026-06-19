@@ -1238,6 +1238,51 @@ extension ArchiveBrowserModel {
         dropFileURLs(selectedFileItems.map(\.url), to: destinationFolder, shouldMove: true)
     }
 
+    // MARK: - Task 7 整理建议执行(折叠桶里点「整理」→ 建新文件夹 + 移进去)
+
+    /// Task 7 整理建议的执行:用户在折叠桶里双击 / 点动作行 → 经 `dispatchSuggestion(.organizeIntoNewFolder)` 到这里。
+    /// 在当前文件夹下建一个以模型主题名命名的新文件夹(唯一名),再走 app 内置移动把成员移进去
+    /// (`dropFileURLs(...shouldMove:true)` 自带冲突弹窗 + 撤销 + 活动中心)。建文件夹单独注册撤销;完成后清掉整理
+    /// 建议缓存(桶消失)。**绝不静默 —— 只有用户主动点才到这里;移动本身还有冲突弹窗。**
+    func organizeIntoNewFolder(folderName: String, memberPaths: [String]) {
+        guard case .folder(let folderURL) = mode else { return }
+        AIBackgroundIndexStore.shared.clearOrganizeSuggestion(forPath: folderURL.path)
+        // 只移仍存在的成员(缓存里的成员可能已被移走 / 删除);都没了就别建空文件夹。
+        let members = memberPaths
+            .map { URL(fileURLWithPath: $0).standardizedFileURL }
+            .filter { fileManager.fileExists(atPath: $0.path) }
+        guard members.count >= 2 else { return }
+        let target = uniqueNewItemURL(in: folderURL, preferredName: Self.sanitizedFolderName(folderName))
+        do {
+            try fileManager.createDirectory(at: target, withIntermediateDirectories: false)
+        } catch {
+            reportCreateFailure(error, title: L10n.text("tasks.createFolder"), target: target, folderURL: folderURL)
+            return
+        }
+        // 把「建文件夹 + 移动成员」合并成**一次撤销**(否则用户要按两下 ⌘Z):手动开一个跨异步移动的撤销组,
+        // 关掉 groupsByEvent 让这一组跨过 dropFileURLs 的异步收尾(它在自己的 defer 里注册移动撤销,落进同一组)。
+        // 注册顺序 = 先建文件夹撤销、后移动撤销 → LIFO 撤销时先把文件移回原位、再删空文件夹(顺序正确)。
+        let priorGroupsByEvent = fileUndoManager.groupsByEvent
+        fileUndoManager.groupsByEvent = false
+        fileUndoManager.beginUndoGrouping()
+        registerCreateUndo([target], actionName: L10n.text("file.newFolder"))
+        let movable = members.filter { $0 != target.standardizedFileURL }
+        dropFileURLs(movable, to: target, shouldMove: true) { [weak self] in
+            guard let self else { return }
+            self.fileUndoManager.endUndoGrouping()
+            self.fileUndoManager.groupsByEvent = priorGroupsByEvent
+        }
+    }
+
+    /// 把模型起的主题名清成安全的文件夹名(去路径分隔符 / 前导点 / 控制字符;截断 60;空则回退默认名)。
+    private static func sanitizedFolderName(_ raw: String) -> String {
+        var name = raw.components(separatedBy: CharacterSet(charactersIn: "/:\\")).joined(separator: " ")
+        name = name.components(separatedBy: .controlCharacters).joined()
+        name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        while name.hasPrefix(".") { name.removeFirst(); name = name.trimmingCharacters(in: .whitespacesAndNewlines) }
+        return name.isEmpty ? L10n.text("file.newFolder.defaultName") : String(name.prefix(60))
+    }
+
     /// `completion` 在转移任务收尾后(成功 / 取消 / 失败任一)在主线程回调一次 —— 给「装 App:复制完卸载源 DMG」
     /// 这类需要在复制结束后做收尾的调用方用。默认 nil,现有拖放调用点行为不变。
     func dropFileURLs(_ urls: [URL], to destinationFolder: URL, shouldMove: Bool,

@@ -2625,6 +2625,7 @@
 "aiWorkspace.node.openFolder" = "เปิดโฟลเดอร์";
 "aiWorkspace.node.compress" = "บีบอัด";
 "aiWorkspace.node.compressGroup" = "บีบอัดเหล่านี้ · ประหยัดพื้นที่";
+"aiWorkspace.node.organize" = "จัดเข้า “%@”";
 "aiWorkspace.node.reveal" = "ไปยังตำแหน่งไฟล์";
 "aiWorkspace.node.hash" = "คำนวณ SHA-256";
 "aiWorkspace.inlineHash.result" = "SHA-256 ของไฟล์ปัจจุบัน: %@";

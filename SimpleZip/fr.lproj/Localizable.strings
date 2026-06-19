@@ -2623,6 +2623,7 @@
 "aiWorkspace.node.openFolder" = "Ouvrir le dossier";
 "aiWorkspace.node.compress" = "Compresser";
 "aiWorkspace.node.compressGroup" = "Compresser ceux-ci · gagner de la place";
+"aiWorkspace.node.organize" = "Ranger dans « %@ »";
 "aiWorkspace.node.reveal" = "Aller à l'emplacement du fichier";
 "aiWorkspace.node.hash" = "Calculer SHA-256";
 "aiWorkspace.inlineHash.result" = "SHA-256 du fichier actuel : %@";

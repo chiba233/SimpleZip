@@ -76,8 +76,9 @@ enum AIWorkspaceNodeActions {
         return (summary, actions)
     }
 
-    /// 文件浏览器里后台缓存的「同文件夹批量组」动作。模型只给 token + memberIDs;路径由缓存回查后在这里安全合成。
-    static func folderGroupAction(actionToken: String, memberPaths: [String]) -> AIWorkspaceNodeAction? {
+    /// 文件浏览器里后台缓存的「同文件夹批量组」动作。模型只给 token + memberIDs(+ 整理建议的主题名);路径由缓存
+    /// 回查后在这里安全合成。`folderName` 仅整理建议用(模型起的主题文件夹名)。
+    static func folderGroupAction(actionToken: String, memberPaths: [String], folderName: String? = nil) -> AIWorkspaceNodeAction? {
         guard memberPaths.count >= 2 else { return nil }
         switch actionToken {
         case "hash":
@@ -89,6 +90,13 @@ enum AIWorkspaceNodeActions {
             guard urls.allSatisfy({ ArchiveService.isSupportedArchive($0) }) else { return nil }
             return .init(titleKey: "aiWorkspace.node.test", systemImage: "checkmark.seal",
                          action: .testArchives(paths: memberPaths))
+        // Task 7 整理建议:把这一组移进一个以主题名命名的新文件夹(用户点了才走 app 内置移动 + 确认)。
+        case "organize":
+            guard let name = folderName?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty else { return nil }
+            return .init(titleKey: "aiWorkspace.node.organize",
+                         displayTitle: L10n.format("aiWorkspace.node.organize", name),
+                         systemImage: "folder.badge.gearshape",
+                         action: .organizeIntoNewFolder(folderName: name, memberPaths: memberPaths))
         default:
             return nil
         }

@@ -2704,6 +2704,7 @@
 "aiWorkspace.node.openFolder" = "Open Folder";
 "aiWorkspace.node.compress" = "Compress";
 "aiWorkspace.node.compressGroup" = "Compress these · save space";
+"aiWorkspace.node.organize" = "Tidy into “%@”";
 "aiWorkspace.node.reveal" = "Go to File Location";
 "aiWorkspace.node.hash" = "Compute SHA-256";
 "aiWorkspace.inlineHash.result" = "Current file SHA-256: %@";

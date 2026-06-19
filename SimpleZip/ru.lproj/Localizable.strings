@@ -2625,6 +2625,7 @@
 "aiWorkspace.node.openFolder" = "Открыть папку";
 "aiWorkspace.node.compress" = "Сжать";
 "aiWorkspace.node.compressGroup" = "Сжать эти · экономия места";
+"aiWorkspace.node.organize" = "Переместить в «%@»";
 "aiWorkspace.node.reveal" = "Перейти к расположению файла";
 "aiWorkspace.node.hash" = "Вычислить SHA-256";
 "aiWorkspace.inlineHash.result" = "SHA-256 текущего файла: %@";

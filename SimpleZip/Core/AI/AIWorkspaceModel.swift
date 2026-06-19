@@ -62,6 +62,10 @@ nonisolated enum AISuggestionAction: Codable, Equatable, Sendable {
     case inspectRelease(path: String)
     case refreshArchiveListingForEvidence(sourceRef: AIContextSourceRef)
     case copySourceRefsToFolder(sourceRefs: [AIContextSourceRef], destination: String)
+    /// Task 7 整理建议:在当前文件夹下建一个以模型主题名命名的新文件夹,把这一组成员**移**进去。用户在折叠桶里
+    /// 主动点「整理」才触发(写盘、requiresConfirmation),走 app 内置移动(冲突弹窗 + 撤销 + 活动中心);模型只给
+    /// 主题名 + 成员,App 据当前文件夹安全合成路径,绝不静默。
+    case organizeIntoNewFolder(folderName: String, memberPaths: [String])
     /// 文件浏览器 AI 抽屉的按需只读哈希:用户点模型建议的 `hash` token 后,App 计算本地文件 SHA-256 并回填抽屉。
     case calculateInlineHash(recordID: String, path: String, token: String)
     /// 文件浏览器 AI 抽屉的按需只读归档测试:不进活动中心,只把结果回填到当前抽屉行。
@@ -92,7 +96,7 @@ nonisolated enum AISuggestionAction: Codable, Equatable, Sendable {
         case .calculateHash, .calculateHashForEvidence, .createArchive, .createArchiveFromSuggestion,
              .testArchive, .testArchives, .testArchiveForEvidence, .convertArchive, .inspectRelease,
              .refreshArchiveListingForEvidence, .copySourceRefsToFolder, .installAppFromDiskImage,
-             .deleteAIWorkspace:
+             .organizeIntoNewFolder, .deleteAIWorkspace:
             return AISuggestionSafety(requiresConfirmation: true,
                                       reason: "opens an existing confirm/sheet/task flow")
         // 真实硬盘删除 —— 破坏性 + 强确认。

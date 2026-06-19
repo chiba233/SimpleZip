@@ -102,7 +102,11 @@ final class AIBackgroundIndexStore: ObservableObject {
     func record(forPath path: String) -> AIFileMemoryRecord? { recordByPath[path] }
 
     func folderGroups(forPath folderPath: String) -> [CachedFolderGroup] {
-        folderGroupsByPath[Self.normalizedFolderPath(folderPath)] ?? []
+        let key = Self.normalizedFolderPath(folderPath)
+        var groups = folderGroupsByPath[key] ?? []
+        // Task 7:整理建议(actionToken "organize",title=主题名)和批量组建议走**同一套折叠桶渲染**,这里合并返回。
+        if let organize = organizeByPath[key], !organize.memberPaths.isEmpty { groups.append(organize) }
+        return groups
     }
 
     func setFolderGroups(_ groups: [CachedFolderGroup], forPath folderPath: String) {

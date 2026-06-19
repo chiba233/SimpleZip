@@ -2626,6 +2626,7 @@
 "aiWorkspace.node.openFolder" = "폴더 열기";
 "aiWorkspace.node.compress" = "압축";
 "aiWorkspace.node.compressGroup" = "이들을 압축 · 공간 절약";
+"aiWorkspace.node.organize" = "‘%@’(으)로 정리";
 "aiWorkspace.node.reveal" = "파일 위치로 이동";
 "aiWorkspace.node.hash" = "SHA-256 계산";
 "aiWorkspace.inlineHash.result" = "현재 파일 SHA-256: %@";
