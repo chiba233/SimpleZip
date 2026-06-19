@@ -98,6 +98,7 @@
 "tasks.archiveSection" = "아카이브 작업";
 "tasks.fileSection" = "파일 작업";
 "tasks.empty" = "작업 없음";
+"tasks.showAll" = "%@개 모두 표시";
 "tasks.renameItem" = "%@ 이름 변경";
 "tasks.copyCount" = "%d개 항목 복사";
 "tasks.installApp" = "%@ 설치";

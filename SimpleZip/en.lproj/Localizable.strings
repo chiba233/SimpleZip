@@ -1137,6 +1137,7 @@
 "tasks.archiveSection" = "Archive Operations";
 "tasks.fileSection" = "File Operations";
 "tasks.empty" = "No tasks";
+"tasks.showAll" = "Show all %@ tasks";
 "tasks.renameItem" = "Rename %@";
 "tasks.copyCount" = "Copy %d items";
 "tasks.installApp" = "Install %@";

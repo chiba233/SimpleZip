@@ -98,6 +98,7 @@
 "tasks.archiveSection" = "Операции с архивами";
 "tasks.fileSection" = "Операции с файлами";
 "tasks.empty" = "Нет задач";
+"tasks.showAll" = "Показать все задачи (%@)";
 "tasks.renameItem" = "Переименовать %@";
 "tasks.copyCount" = "Копировать %d объектов";
 "tasks.installApp" = "Установить %@";

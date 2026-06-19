@@ -98,6 +98,7 @@
 "tasks.archiveSection" = "Operaciones de archivo";
 "tasks.fileSection" = "Operaciones de archivos";
 "tasks.empty" = "No hay tareas";
+"tasks.showAll" = "Mostrar las %@ tareas";
 "tasks.renameItem" = "Renombrar %@";
 "tasks.copyCount" = "Copiar %d elementos";
 "tasks.installApp" = "Instalar %@";

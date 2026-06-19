@@ -1135,6 +1135,7 @@
 "tasks.archiveSection" = "归档操作";
 "tasks.fileSection" = "文件操作";
 "tasks.empty" = "无任务";
+"tasks.showAll" = "显示全部 %@ 个任务";
 "tasks.renameItem" = "重命名 %@";
 "tasks.copyCount" = "复制 %d 项";
 "tasks.installApp" = "安装 %@";

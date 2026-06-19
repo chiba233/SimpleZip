@@ -98,6 +98,7 @@
 "tasks.archiveSection" = "การทำงานกับไฟล์เก็บถาวร";
 "tasks.fileSection" = "การทำงานกับไฟล์";
 "tasks.empty" = "ไม่มีงาน";
+"tasks.showAll" = "แสดงทั้งหมด %@ งาน";
 "tasks.renameItem" = "เปลี่ยนชื่อ %@";
 "tasks.copyCount" = "คัดลอก %d รายการ";
 "tasks.installApp" = "ติดตั้ง %@";

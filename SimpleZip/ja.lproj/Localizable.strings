@@ -98,6 +98,7 @@
 "tasks.archiveSection" = "アーカイブ操作";
 "tasks.fileSection" = "ファイル操作";
 "tasks.empty" = "タスクはありません";
+"tasks.showAll" = "%@ 件すべて表示";
 "tasks.renameItem" = "%@ の名前を変更";
 "tasks.copyCount" = "%d 項目をコピー";
 "tasks.installApp" = "%@ をインストール";

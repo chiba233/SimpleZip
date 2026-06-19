@@ -153,6 +153,12 @@ final class OperationTask: ObservableObject, Identifiable {
     @Published var progress = ArchiveProgressState()
     @Published var finishedAt: Date?
 
+    /// 建议六:`aiTaskRecord` 派生缓存 —— 派生本身是**重计算**(脱敏 redact + 正则诊断分类 + ISO 格式化 +
+    /// 路径 token),**绝不能在 render 热路径每帧重算**(活动中心 running 进度每秒多帧 × 多处调用)。key 涵盖影响
+    /// 派生的可变字段(状态 + 关联值规模 / 完成时间 / 已读 / 等槽);任务终态后稳定 → 命中缓存,running → 终态时
+    /// key 变 → 重算一次拿终态。派生数据,普通 var(不 @Published,不触发 UI)。
+    var aiRecordCache: (key: String, record: AITaskRecord)?
+
     init(
         id: UUID = UUID(),
         category: Category,

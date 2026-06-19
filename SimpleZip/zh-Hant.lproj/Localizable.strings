@@ -98,6 +98,7 @@
 "tasks.archiveSection" = "封存操作";
 "tasks.fileSection" = "檔案操作";
 "tasks.empty" = "無工作";
+"tasks.showAll" = "顯示全部 %@ 個任務";
 "tasks.renameItem" = "重新命名 %@";
 "tasks.copyCount" = "拷貝 %d 個項目";
 "tasks.installApp" = "安裝 %@";

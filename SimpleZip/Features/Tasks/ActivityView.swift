@@ -74,6 +74,10 @@ struct ActivityView: View {
     private let aiWorkbenchWidthRange: ClosedRange<Double> = 200...560
     /// 模块①:「打开完整 AI 解释」弹现成 per-task `AIAssistSheet`(完整解释)。
     @State private var showsWorkbenchFailureSheet = false
+    /// 性能:任务列表只构建首屏 N 张卡(普通 VStack 一次性布局 ≤500 张会卡切 pane ~0.5s)。其余**不构建**
+    /// (补全量那帧仍卡,还有 locate 时序风险 → 不补),底部「显示全部」按钮按需一次性展开。切 pane 重置回 N。
+    @State private var taskRowLimit = 60
+    private let initialTaskRowLimit = 60
 
     // 弃用 NavigationSplitView（详见 SettingsView 同款注释）：普通 HStack + 绝对定宽侧栏，
     // 物理上没有把手、没有折叠、没有持久化；毛玻璃用 SidebarBackdrop 补回。
@@ -374,6 +378,8 @@ struct ActivityView: View {
             // 队列管理②跟进：等并发槽的任务单独一组放最上（带组头），不再混在运行中靠状态行区分。
             let waiting = tasks.filter { $0.status.isRunning && $0.isAwaitingSlot }
             let rest = tasks.filter { !($0.status.isRunning && $0.isAwaitingSlot) }
+            // 只构建首屏 N 张卡(避免 ≤500 张普通 VStack 一次性布局卡切 pane);其余不构建,底部按钮按需展开。
+            let restLimit = min(rest.count, taskRowLimit)
             ScrollViewReader { proxy in
                 ScrollView {
                     // 0.4.4 bug 修复:LazyVStack 在卡片高度不一时边滚边重估行高 —— 滚动条抽搐、
@@ -408,12 +414,24 @@ struct ActivityView: View {
                                     .padding(.vertical, 4)
                             }
                         }
-                        ForEach(rest) { task in
+                        ForEach(Array(rest.prefix(restLimit))) { task in
                             ActivityTaskCard(task: task, expandedTaskIDs: $expandedTaskIDs, onOpenAttachment: { restoredReport = $0 },
                                                  viewportHeight: taskListViewportHeight,
                                                  onBecameVisible: { taskCenter.markFailureSeen(task) },
                                                  isHighlighted: highlightedTaskID == task.id)
                                 .id(task.id)
+                        }
+                        // 其余任务不构建(切 pane 永远只布局首屏 N 张);按需一键展开全部。
+                        if rest.count > restLimit {
+                            Button {
+                                taskRowLimit = rest.count
+                            } label: {
+                                Label(L10n.format("tasks.showAll", "\(rest.count)"), systemImage: "chevron.down")
+                                    .font(.callout)
+                                    .frame(maxWidth: .infinity)
+                            }
+                            .buttonStyle(.bordered)
+                            .padding(.top, 4)
                         }
                     }
                     .padding(.horizontal, 22)
@@ -444,6 +462,8 @@ struct ActivityView: View {
                 .onAppear {
                     locateTask(windowState.locateTaskID, proxy: proxy)
                 }
+                // 切 pane 重置首屏上限(每个分类独立从 N 张起,不继承上个分类「显示全部」的状态)。
+                .onChange(of: selectedPane) { _ in taskRowLimit = initialTaskRowLimit }
             }
         }
     }
@@ -453,6 +473,8 @@ struct ActivityView: View {
     private func locateTask(_ id: UUID?, proxy: ScrollViewProxy) {
         guard let id, windowState.locateTaskID == id else { return }
         windowState.locateTaskID = nil
+        // 定位的任务可能在首屏 N 张之外(还没渲染)→ 先展开到全部,scrollTo 才找得到目标卡。
+        taskRowLimit = .max
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
             withAnimation(.easeInOut(duration: 0.3)) { proxy.scrollTo(id, anchor: .center) }
             highlightedTaskID = id
@@ -691,7 +713,9 @@ struct ActivityView: View {
     }
 
     private func activityAIWorkbenchSnapshot(for category: OperationTask.Category) -> ActivityAIWorkbenchSnapshot {
-        let base = ActivityAIWorkbenchBuilder.snapshot(records: filteredTasksForWorkbench(in: category).map(\.aiTaskRecord))
+        // 性能:工作台只喂前 N 个任务的 record(builder 候选上限 50;只 map 这些 → 切 pane 不再全量算
+        // 500 个 aiTaskRecord 的脱敏+正则)。配合 aiTaskRecord 烘焙缓存,切 pane 的两个 O(N) 源都被限住。
+        let base = ActivityAIWorkbenchBuilder.snapshot(records: Array(filteredTasksForWorkbench(in: category).prefix(80)).map(\.aiTaskRecord))
         return applyAIChipRanking(to: base, category: category)
     }
 
@@ -1304,7 +1328,10 @@ extension OperationTask {
     /// 任务 → AI 任务记录(脱敏派生)。供活动中心 AI 工作台**和** #89 后台发现编排者(AIWorkspaceDiscoveryCoordinator)
     /// 复用。内部辅助仍 file-private。
     var aiTaskRecord: AITaskRecord {
-        AITaskRecord.make(
+        // 烘焙一次缓存:终态任务 key 稳定 → 命中,不再每帧脱敏+正则(修活动中心切 pane / 滚动卡顿)。
+        let key = aiRecordCacheKey
+        if let cache = aiRecordCache, cache.key == key { return cache.record }
+        let record = AITaskRecord.make(
             id: id.uuidString,
             category: category.rawValue,
             kind: kind.rawValue,
@@ -1322,6 +1349,22 @@ extension OperationTask {
             skippedReason: aiSkippedReason,
             failureSeen: failureSeen,
             awaitedConcurrencySlot: isAwaitingSlot)
+        aiRecordCache = (key, record)
+        return record
+    }
+
+    /// `aiTaskRecord` 缓存指纹:涵盖派生依赖的可变字段(状态 case + 关联值规模、完成时间、已读、等槽)。
+    /// 终态后稳定 → 命中;running → 终态时 status/finishedAt 变 → key 变 → 重算一次拿终态。
+    /// (running 期间 rawOutput 累积不进 key —— running 任务不进失败诊断,stale 无害;终态时必重算拿最终输出。)
+    private var aiRecordCacheKey: String {
+        var key = "\(aiStatusToken)|\(finishedAt?.timeIntervalSince1970 ?? -1)|\(failureSeen)|\(isAwaitingSlot)"
+        switch status {
+        case .failed(let message): key += "|F\(message.count)"
+        case .succeeded(let url): key += "|S\(url?.path.count ?? 0)"
+        case .skipped(let reason): key += "|K\(reason?.count ?? 0)"
+        default: break
+        }
+        return key
     }
 
     private var aiStatusToken: String {

@@ -98,6 +98,7 @@
 "tasks.archiveSection" = "Archivvorgänge";
 "tasks.fileSection" = "Dateivorgänge";
 "tasks.empty" = "Keine Aufgaben";
+"tasks.showAll" = "Alle %@ Aufgaben anzeigen";
 "tasks.renameItem" = "%@ umbenennen";
 "tasks.copyCount" = "%d Objekte kopieren";
 "tasks.installApp" = "%@ installieren";
