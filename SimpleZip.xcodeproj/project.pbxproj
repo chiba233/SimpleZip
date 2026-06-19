@@ -25,6 +25,7 @@
 		3B69C9B44598F9AD6EE090F5 /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.aiagent.plist in Embed LaunchAgent */ = {isa = PBXBuildFile; fileRef = D2366AE7E99F003E085208B1 /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.aiagent.plist */; };
 		745A2A4A5D7CDF439819EA0C /* SimpleZipAgentSupport/AIAgentXPCProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E00D7E0BEB89C9F0BB75AD0 /* SimpleZipAgentSupport/AIAgentXPCProtocol.swift */; };
 		C4A66994125BA6CEEEC981C0 /* SimpleZipAgentSupport/AIAgentXPCProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E00D7E0BEB89C9F0BB75AD0 /* SimpleZipAgentSupport/AIAgentXPCProtocol.swift */; };
+		FFF34D8099EA1C7AD31AF566 /* SimpleZipAgentSupport/AIAgentService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1A320C68B6CB0753846C45 /* SimpleZipAgentSupport/AIAgentService.swift */; };
 		E319336F0A2FCDCDB7A10BE3 /* SimpleZipAIAgent in Embed Helper */ = {isa = PBXBuildFile; fileRef = EDF9E86D1F6AC7CE4DF39EB2 /* SimpleZipAIAgent */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		SP11A0000000000000000A1 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = SP11B0000000000000000B1 /* Sparkle */; };
 /* End PBXBuildFile section */
@@ -68,6 +69,7 @@
 /* Begin PBXFileReference section */
 		0846B9702FB350EF0095DC1D /* SimpleZip.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SimpleZip.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		9E00D7E0BEB89C9F0BB75AD0 /* SimpleZipAgentSupport/AIAgentXPCProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleZipAgentSupport/AIAgentXPCProtocol.swift; sourceTree = SOURCE_ROOT; };
+		7A1A320C68B6CB0753846C45 /* SimpleZipAgentSupport/AIAgentService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleZipAgentSupport/AIAgentService.swift; sourceTree = SOURCE_ROOT; };
 		D2366AE7E99F003E085208B1 /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.aiagent.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.aiagent.plist"; sourceTree = SOURCE_ROOT; };
 		E0474B6A74E638D6D57948EE /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.dev.aiagent.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.dev.aiagent.plist"; sourceTree = SOURCE_ROOT; };
 		EDF9E86D1F6AC7CE4DF39EB2 /* SimpleZipAIAgent */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = SimpleZipAIAgent; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -144,6 +146,7 @@
 			isa = PBXGroup;
 			children = (
 				9E00D7E0BEB89C9F0BB75AD0 /* SimpleZipAgentSupport/AIAgentXPCProtocol.swift */,
+				7A1A320C68B6CB0753846C45 /* SimpleZipAgentSupport/AIAgentService.swift */,
 				E0474B6A74E638D6D57948EE /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.dev.aiagent.plist */,
 			);
 			name = "Recovered References";
@@ -299,6 +302,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				C4A66994125BA6CEEEC981C0 /* SimpleZipAgentSupport/AIAgentXPCProtocol.swift in Sources */,
+				FFF34D8099EA1C7AD31AF566 /* SimpleZipAgentSupport/AIAgentService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
