@@ -2612,9 +2612,9 @@
 "settings.ai.background.empty" = "아직 허용된 폴더가 없습니다. 추가하기 전까지 색인은 꺼져 있습니다.";
 "settings.ai.background.showRecommended" = "추천 작업 공간 표시";
 "settings.ai.background.showRecommended.desc" = "백그라운드 발견이 제안하는 AI 폴더를 사이드바에 표시합니다. 끄면 직접 만든 것만 표시됩니다.";
-"settings.ai.background.clearIndex" = "파일 색인";
-"settings.ai.background.clearIndex.desc" = "백그라운드 파일 색인을 지웁니다. 파생된 메타데이터만 제거되며 실제 파일은 그대로 유지됩니다.";
-"settings.ai.background.clearIndex.button" = "색인 지우기";
+"settings.ai.background.clearIndex" = "AI 데이터";
+"settings.ai.background.clearIndex.desc" = "AI가 백그라운드에서 쌓은 데이터(파일 색인, 제안, 학습된 정렬)를 모두 지웁니다. 실제 파일은 건드리지 않습니다.";
+"settings.ai.background.clearIndex.button" = "AI 데이터 지우기";
 "settings.ai.background.browse" = "찾아보기…";
 "settings.ai.background.maxRecommended" = "표시할 AI 폴더 최대 개수";
 "settings.ai.background.maxRecommended.desc" = "한 번에 표시되는 AI 폴더의 최대 개수입니다. 온디바이스 모델을 사용할 수 있으면 백그라운드에서 이보다 많은 후보 주제를 탐색해 경쟁시키고 가장 강한 것만 표시합니다. 직접 고정하거나 만든 폴더는 제외됩니다.";

@@ -2611,9 +2611,9 @@
 "settings.ai.background.empty" = "Папки пока не разрешены. Индексирование выключено, пока вы не добавите папку.";
 "settings.ai.background.showRecommended" = "Показывать рекомендованные пространства";
 "settings.ai.background.showRecommended.desc" = "Показывать в боковой панели Папки ИИ, предложенные фоновым обнаружением. Если выключено — только созданные вами.";
-"settings.ai.background.clearIndex" = "Индекс файлов";
-"settings.ai.background.clearIndex.desc" = "Очистить фоновый индекс файлов. Удаляются только производные метаданные; ваши настоящие файлы не затрагиваются.";
-"settings.ai.background.clearIndex.button" = "Очистить индекс";
+"settings.ai.background.clearIndex" = "Данные ИИ";
+"settings.ai.background.clearIndex.desc" = "Очищает всё, что ИИ накопил в фоне: индекс файлов, предложения и выученный порядок. Ваши настоящие файлы не затрагиваются.";
+"settings.ai.background.clearIndex.button" = "Очистить данные ИИ";
 "settings.ai.background.browse" = "Обзор…";
 "settings.ai.background.maxRecommended" = "Максимум показываемых ИИ-папок";
 "settings.ai.background.maxRecommended.desc" = "Максимум ИИ-папок, показываемых одновременно. Когда доступна модель на устройстве, она в фоне исследует больше тем-кандидатов, заставляет их конкурировать и показывает только сильнейшие. Закреплённые или созданные вами папки не учитываются.";

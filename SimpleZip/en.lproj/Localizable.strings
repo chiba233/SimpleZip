@@ -2690,9 +2690,9 @@
 "settings.ai.background.empty" = "No folders authorized yet. Indexing stays off until you add one.";
 "settings.ai.background.showRecommended" = "Show recommended workspaces";
 "settings.ai.background.showRecommended.desc" = "Show AI Folders that background discovery suggests in the sidebar. When off, only folders you create appear.";
-"settings.ai.background.clearIndex" = "File index";
-"settings.ai.background.clearIndex.desc" = "Clear the background file index. Removes derived metadata only — your real files are untouched.";
-"settings.ai.background.clearIndex.button" = "Clear Index";
+"settings.ai.background.clearIndex" = "AI data";
+"settings.ai.background.clearIndex.desc" = "Clear everything the AI has built in the background — its file index, suggestions and learned ranking. Your real files are never touched.";
+"settings.ai.background.clearIndex.button" = "Clear AI Data";
 "settings.ai.background.browse" = "Browse…";
 "settings.ai.background.maxRecommended" = "Maximum AI Folders shown";
 "settings.ai.background.maxRecommended.desc" = "The most AI Folders shown at once. When the on-device model is available it explores more candidate themes than this in the background, lets them compete, and surfaces only the strongest. Folders you pin or create yourself don’t count.";

@@ -2613,9 +2613,9 @@
 "settings.ai.background.empty" = "まだ許可されたフォルダはありません。追加するまでインデックスはオフのままです。";
 "settings.ai.background.showRecommended" = "おすすめワークスペースを表示";
 "settings.ai.background.showRecommended.desc" = "バックグラウンド発見が提案する AI フォルダをサイドバーに表示します。オフにすると自分で作成したものだけが表示されます。";
-"settings.ai.background.clearIndex" = "ファイルインデックス";
-"settings.ai.background.clearIndex.desc" = "バックグラウンドのファイルインデックスを消去します。派生メタデータのみを削除し、実際のファイルには触れません。";
-"settings.ai.background.clearIndex.button" = "インデックスを消去";
+"settings.ai.background.clearIndex" = "AIデータ";
+"settings.ai.background.clearIndex.desc" = "AI がバックグラウンドで蓄積したデータ（ファイルインデックス、提案、学習した並び順）をすべて消去します。実際のファイルには一切触れません。";
+"settings.ai.background.clearIndex.button" = "AIデータを消去";
 "settings.ai.background.browse" = "参照…";
 "settings.ai.background.maxRecommended" = "表示する AI フォルダの上限";
 "settings.ai.background.maxRecommended.desc" = "一度に表示する AI フォルダの最大数。端末上のモデルが使えるときは、背景でこれより多くの候補テーマを探って競わせ、最も強いものだけを表示します。固定したものや自分で作ったものは含まれません。";

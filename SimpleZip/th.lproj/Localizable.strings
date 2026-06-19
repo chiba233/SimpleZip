@@ -2611,9 +2611,9 @@
 "settings.ai.background.empty" = "ยังไม่มีโฟลเดอร์ที่อนุญาต การจัดทำดัชนีจะปิดอยู่จนกว่าคุณจะเพิ่ม";
 "settings.ai.background.showRecommended" = "แสดงพื้นที่ทำงานที่แนะนำ";
 "settings.ai.background.showRecommended.desc" = "แสดงโฟลเดอร์ AI ที่การค้นพบเบื้องหลังแนะนำในแถบด้านข้าง หากปิด จะแสดงเฉพาะที่คุณสร้างเอง";
-"settings.ai.background.clearIndex" = "ดัชนีไฟล์";
-"settings.ai.background.clearIndex.desc" = "ล้างดัชนีไฟล์เบื้องหลัง ลบเฉพาะเมตาดาทาที่ได้มา ไฟล์จริงของคุณไม่ถูกแตะต้อง";
-"settings.ai.background.clearIndex.button" = "ล้างดัชนี";
+"settings.ai.background.clearIndex" = "ข้อมูล AI";
+"settings.ai.background.clearIndex.desc" = "ล้างทุกอย่างที่ AI สร้างไว้เบื้องหลัง — ดัชนีไฟล์ คำแนะนำ และลำดับที่เรียนรู้มา ไฟล์จริงของคุณจะไม่ถูกแตะต้อง";
+"settings.ai.background.clearIndex.button" = "ล้างข้อมูล AI";
 "settings.ai.background.browse" = "เรียกดู…";
 "settings.ai.background.maxRecommended" = "จำนวนโฟลเดอร์ AI ที่แสดงสูงสุด";
 "settings.ai.background.maxRecommended.desc" = "จำนวนโฟลเดอร์ AI สูงสุดที่แสดงพร้อมกัน เมื่อใช้โมเดลบนเครื่องได้ ระบบจะสำรวจธีมที่เป็นไปได้มากกว่านี้ในเบื้องหลัง ให้แข่งกัน แล้วแสดงเฉพาะที่ดีที่สุด โฟลเดอร์ที่คุณปักหมุดหรือสร้างเองไม่นับรวม";

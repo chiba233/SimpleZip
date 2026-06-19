@@ -492,10 +492,19 @@ final class AIBackgroundIndexStore: ObservableObject {
 
     // MARK: - 清空(白皮书 4533)
 
-    /// 清空后台文件预索引(文件夹画像 / 文件元数据 / 摘要),不删任何真实文件。
-    /// #8:跨表面反馈 / 兴趣信号也是后台 AI 派生学习数据 → 一并抹掉(隐私:可清空)。
-    func clearFileIndex() {
+    /// 清空 SimpleZip AI 当前在 App 内持有的**全部派生数据**(独立进程化 坑14:旧名 `clearFileIndex` 名实不符 ——
+    /// 它清的远不止 `AIFileMemoryIndex`)。三层一并抹掉,**绝不删任何真实文件**,**也绝不碰 Spotlight 捐献**
+    /// (Spotlight 是另一条线,由 Automation/Spotlight 设置自己控制):
+    ///   ① AI 索引本体:`AIFileMemoryIndex`(文件记录 `AIFileMemoryRecord` + 文件夹画像 `AIFolderProfile`,
+    ///      含挂在记录上的 enrichment `contentSummary`)。
+    ///   ② 下游预烘焙缓存:文件夹分组 / 整理建议 / 工作台 chip 排序·需要处理·失败解释·聚集 chip。
+    ///   ③ 反馈与执行队列:跨表面交互信号(`AIFeedbackStore`)+ 自动检查队列(`AIPendingCheckStore`)。
+    /// **不动用户显式偏好** `dislikedSuggestionKeys`(那是明确的「不感兴趣」反馈,不该被「清空」误删)。
+    /// 独立进程化后,本动作将由 agent 清自己的库 + App 同步清本进程投影。
+    func clearDerivedData() {
+        // ① AI 索引本体(含 enrichment)
         fileIndex = fileIndex.cleared()
+        // ② 下游预烘焙缓存
         folderGroupsByPath = [:]
         folderGroupsGeneration += 1
         organizeByPath = [:]
@@ -514,6 +523,7 @@ final class AIBackgroundIndexStore: ObservableObject {
         persistWorkbenchNeedsAttention()
         persistWorkbenchFailureExplanation()
         persistWorkbenchClusterChips()
+        // ③ 反馈与执行队列
         AIFeedbackStore.shared.clearAll()
         AIPendingCheckStore.shared.clearAll()
         objectWillChange.send()

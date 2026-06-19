@@ -2609,9 +2609,9 @@
 "settings.ai.background.empty" = "Aucun dossier autorisé pour l'instant. L'indexation reste désactivée jusqu'à ce que vous en ajoutiez un.";
 "settings.ai.background.showRecommended" = "Afficher les espaces recommandés";
 "settings.ai.background.showRecommended.desc" = "Affiche dans la barre latérale les Dossiers IA suggérés par la découverte en arrière-plan. Désactivé, seuls ceux que vous créez apparaissent.";
-"settings.ai.background.clearIndex" = "Index des fichiers";
-"settings.ai.background.clearIndex.desc" = "Efface l'index de fichiers en arrière-plan. Supprime uniquement les métadonnées dérivées ; vos fichiers réels ne sont pas touchés.";
-"settings.ai.background.clearIndex.button" = "Effacer l'index";
+"settings.ai.background.clearIndex" = "Données IA";
+"settings.ai.background.clearIndex.desc" = "Efface tout ce que l'IA a constitué en arrière-plan : index des fichiers, suggestions et tri appris. Vos fichiers réels ne sont jamais touchés.";
+"settings.ai.background.clearIndex.button" = "Effacer les données IA";
 "settings.ai.background.browse" = "Parcourir…";
 "settings.ai.background.maxRecommended" = "Nombre max. de dossiers IA affichés";
 "settings.ai.background.maxRecommended.desc" = "Le nombre maximal de dossiers IA affichés à la fois. Quand le modèle sur l’appareil est disponible, il explore en arrière-plan davantage de thèmes candidats, les met en concurrence et n’affiche que les plus solides. Les dossiers que vous épinglez ou créez ne comptent pas.";

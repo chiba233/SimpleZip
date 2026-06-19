@@ -2613,9 +2613,9 @@
 "settings.ai.background.empty" = "尚未授權任何目錄。在你加入之前,索引保持關閉。";
 "settings.ai.background.showRecommended" = "顯示推薦工作區";
 "settings.ai.background.showRecommended.desc" = "在側邊欄顯示後台發現推薦的 AI 檔案夾。關閉後只顯示你自己建立的。";
-"settings.ai.background.clearIndex" = "檔案索引";
-"settings.ai.background.clearIndex.desc" = "清空後台檔案索引。只清除派生的中繼資料 —— 你的真實檔案不受影響。";
-"settings.ai.background.clearIndex.button" = "清空索引";
+"settings.ai.background.clearIndex" = "AI 資料";
+"settings.ai.background.clearIndex.desc" = "清空 AI 在背景累積的全部資料 —— 檔案索引、建議和學到的排序。絕不動你的真實檔案。";
+"settings.ai.background.clearIndex.button" = "清空 AI 資料";
 "settings.ai.background.browse" = "瀏覽…";
 "settings.ai.background.maxRecommended" = "可展示的 AI 檔案夾上限";
 "settings.ai.background.maxRecommended.desc" = "側欄最多同時展示幾個 AI 檔案夾。端上模型可用時,後台會多探索一些候選主題、讓它們競爭,只浮現最強的那幾個。你固定或自己建立的不計入。";

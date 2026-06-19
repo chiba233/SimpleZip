@@ -2611,9 +2611,9 @@
 "settings.ai.background.empty" = "Noch keine Ordner freigegeben. Die Indizierung bleibt aus, bis du einen hinzufügst.";
 "settings.ai.background.showRecommended" = "Empfohlene Arbeitsbereiche anzeigen";
 "settings.ai.background.showRecommended.desc" = "Zeigt von der Hintergrunderkennung vorgeschlagene KI-Ordner in der Seitenleiste. Wenn aus, erscheinen nur selbst erstellte.";
-"settings.ai.background.clearIndex" = "Datei-Index";
-"settings.ai.background.clearIndex.desc" = "Löscht den Hintergrund-Dateiindex. Entfernt nur abgeleitete Metadaten – deine echten Dateien bleiben unberührt.";
-"settings.ai.background.clearIndex.button" = "Index löschen";
+"settings.ai.background.clearIndex" = "KI-Daten";
+"settings.ai.background.clearIndex.desc" = "Löscht alles, was die KI im Hintergrund aufgebaut hat – Dateiindex, Vorschläge und gelernte Sortierung. Deine echten Dateien bleiben unberührt.";
+"settings.ai.background.clearIndex.button" = "KI-Daten löschen";
 "settings.ai.background.browse" = "Durchsuchen…";
 "settings.ai.background.maxRecommended" = "Max. angezeigte KI-Ordner";
 "settings.ai.background.maxRecommended.desc" = "Die maximale Anzahl gleichzeitig angezeigter KI-Ordner. Wenn das geräteinterne Modell verfügbar ist, erkundet es im Hintergrund mehr Kandidatenthemen, lässt sie konkurrieren und zeigt nur die stärksten. Angepinnte oder selbst erstellte Ordner zählen nicht.";

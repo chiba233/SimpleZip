@@ -129,7 +129,7 @@ struct AIBackgroundDiscoverySection: View {
                     buttonTitle: L10n.text("settings.ai.background.clearIndex.button"),
                     role: .destructive,
                     isDisabled: store.fileIndex.isEmpty,
-                    action: { store.clearFileIndex() })
+                    action: { store.clearDerivedData() })
             }
         }
     }

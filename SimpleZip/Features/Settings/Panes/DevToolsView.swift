@@ -211,12 +211,12 @@ struct DevToolsView: View {
                         }
                         actionRow(
                             "trash",
-                            "清空 AI 文件索引",
-                            "调用 clearFileIndex(),清空后台文件预索引、文件组/整理缓存、反馈学习和自动检查队列;不删除真实文件。"
+                            "清空 AI 派生数据",
+                            "调用 clearDerivedData():清 AI 索引本体(AIFileMemoryIndex)+ 下游预烘焙缓存(文件组/整理/工作台 chip·解读·失败·聚集)+ 反馈与自动检查队列;不删真实文件、不碰 Spotlight、不删显式「不感兴趣」偏好。"
                         ) {
-                            AIBackgroundIndexStore.shared.clearFileIndex()
+                            AIBackgroundIndexStore.shared.clearDerivedData()
                             loadAIDataSnapshot()
-                            flash("已清空 AI 文件索引")
+                            flash("已清空 AI 派生数据")
                         }
                         // AI 建议明细:每个计数类别(摘要/打开方式/网页/.../哈希/压缩/转换/内联结果)的**完整文件清单**
                         // + 门控 / 预算 / 各管线诊断 —— 一次性复制出来逐条 debug「这个类别到底有哪些文件、为啥是 0」。

@@ -2611,9 +2611,9 @@
 "settings.ai.background.empty" = "Aún no hay carpetas autorizadas. La indexación permanece desactivada hasta que añadas una.";
 "settings.ai.background.showRecommended" = "Mostrar áreas recomendadas";
 "settings.ai.background.showRecommended.desc" = "Muestra en la barra lateral las Carpetas IA que sugiere el descubrimiento en segundo plano. Si está desactivado, solo aparecen las que creas tú.";
-"settings.ai.background.clearIndex" = "Índice de archivos";
-"settings.ai.background.clearIndex.desc" = "Borra el índice de archivos en segundo plano. Solo elimina metadatos derivados; tus archivos reales no se tocan.";
-"settings.ai.background.clearIndex.button" = "Borrar índice";
+"settings.ai.background.clearIndex" = "Datos de IA";
+"settings.ai.background.clearIndex.desc" = "Borra todo lo que la IA ha creado en segundo plano: el índice de archivos, las sugerencias y el orden aprendido. Tus archivos reales nunca se tocan.";
+"settings.ai.background.clearIndex.button" = "Borrar datos de IA";
 "settings.ai.background.browse" = "Examinar…";
 "settings.ai.background.maxRecommended" = "Máx. de carpetas de IA mostradas";
 "settings.ai.background.maxRecommended.desc" = "El máximo de carpetas de IA mostradas a la vez. Cuando el modelo en el dispositivo está disponible, explora en segundo plano más temas candidatos, los hace competir y solo muestra los más fuertes. Las carpetas que fijas o creas tú no cuentan.";
