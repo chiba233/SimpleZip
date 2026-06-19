@@ -25,15 +25,16 @@ struct AIAgentMain {
         // 单独回答 Step 0 的地基问题「端上模型能否在非 App 的独立进程里跑」。便于命令行直接验证:
         //   .../Contents/MacOS/SimpleZipAIAgent --probe
         if CommandLine.arguments.contains("--probe") {
-            let sema = DispatchSemaphore(value: 0)
+            // ⚠️ A18:**绝不**用 DispatchSemaphore 阻塞主线程等模型 —— FoundationModels 内部异步 / XPC
+            // 回复要靠主 run loop 泵才能送达,阻塞主线程 = run loop 不泵 = respond 永远不回 = 死锁
+            // (实测:sema.wait() 版本 0% CPU 卡死)。改成让 Task 跑完直接 exit,主线程跑 run loop 服务队列。
             Task {
                 let result = await AIAgentService.probeText()
                 agentLog("DIRECT PROBE → \(result)")
                 print(result)
-                sema.signal()
+                exit(0)
             }
-            sema.wait()
-            return
+            RunLoop.main.run()
         }
         // 默认:起绑定到约定 Mach service 名的 NSXPCListener,长驻等 App / launchd 连接。
         let delegate = AIAgentListenerDelegate()
