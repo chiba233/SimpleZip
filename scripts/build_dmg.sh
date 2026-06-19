@@ -141,20 +141,21 @@ if [[ -n "${SIGN_IDENTITY:-}" ]]; then
   if [[ -f "$AGENT_BIN" ]]; then
     echo "  signing embedded AI agent: ${AGENT_BIN#"$APP_PATH"/}"
     codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$AGENT_BIN"
-    if ! codesign --display --verbose=4 "$AGENT_BIN" 2>&1 | grep -Eq 'flags=.*runtime'; then
-      echo "ERROR: hardened runtime flag missing after signing $AGENT_BIN" >&2
-      exit 1
-    fi
   fi
 
   # --deep 处理 Sparkle.framework 及其内部 XPC / Autoupdate / Updater.app 等嵌套代码。
   codesign --force --options runtime --timestamp --deep --sign "$SIGN_IDENTITY" "$APP_PATH"
   codesign --verify --deep --strict --verbose=2 "$APP_PATH"
   # 明确确认 hardened runtime 已生效（notary 的硬性要求；缺了要到公证失败才暴露，提前在这截断）。
-  if ! codesign --display --verbose=4 "$APP_PATH" 2>&1 | grep -Eq 'flags=.*runtime'; then
-    echo "ERROR: hardened runtime flag missing after signing $APP_PATH" >&2
-    exit 1
-  fi
+  # App 主体 + 内嵌 AI agent 都要查 —— agent 在 Contents/MacOS(非标准嵌套位置),`--deep` 不保证重签到它;
+  # **故意放在最终 --deep 之后复核**:断言的是真正装船的产物状态,而非签名中途的中间态。
+  for signed_bin in "$APP_PATH" "$AGENT_BIN"; do
+    [[ -e "$signed_bin" ]] || continue
+    if ! codesign --display --verbose=4 "$signed_bin" 2>&1 | grep -Eq 'flags=.*runtime'; then
+      echo "ERROR: hardened runtime flag missing after signing $signed_bin" >&2
+      exit 1
+    fi
+  done
 else
   # 本地 / PR 构建：ad-hoc 签名，产物为 unsigned DMG（沿用历史行为）。
   codesign --force --deep --sign - "$APP_PATH"
