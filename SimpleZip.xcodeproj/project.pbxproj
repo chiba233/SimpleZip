@@ -192,11 +192,8 @@
 				73BD34CC957FE43B8736704F /* SimpleZipAIAgent */,
 				0878FB37A2D6C4EE59680726 /* SimpleZipAIXPCService */,
 				DD8EF9DE6DA93CE020AFD97C /* Core */,
-				D2366AE7E99F003E085208B1 /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.aiagent.plist */,
-				E2BCE4100CF6DD6585CD73A9 /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.aiagent.index.plist */,
-				2375904B94209FDA0B5CDF90 /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.dev.aiagent.index.plist */,
+				E274F6D3FCA63EE823D79129 /* SimpleZipAgentSupport */,
 				0846B9712FB350EF0095DC1D /* Products */,
-				08B6CAAB2FE5DEBA00192F2A /* Recovered References */,
 			);
 			sourceTree = "<group>";
 		};
@@ -210,7 +207,7 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		08B6CAAB2FE5DEBA00192F2A /* Recovered References */ = {
+		E274F6D3FCA63EE823D79129 /* SimpleZipAgentSupport */ = {
 			isa = PBXGroup;
 			children = (
 				9E00D7E0BEB89C9F0BB75AD0 /* SimpleZipAgentSupport/AIAgentXPCProtocol.swift */,
@@ -218,8 +215,11 @@
 				88CF371C260BE403D359B938 /* SimpleZipAgentSupport/AIAgentConfiguration.swift */,
 				64183CC654E51ED24F0827A2 /* SimpleZipAgentSupport/AIPassPayloads.swift */,
 				E0474B6A74E638D6D57948EE /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.dev.aiagent.plist */,
+				D2366AE7E99F003E085208B1 /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.aiagent.plist */,
+				2375904B94209FDA0B5CDF90 /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.dev.aiagent.index.plist */,
+				E2BCE4100CF6DD6585CD73A9 /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.aiagent.index.plist */,
 			);
-			name = "Recovered References";
+			name = SimpleZipAgentSupport;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
