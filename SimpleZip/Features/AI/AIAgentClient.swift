@@ -21,7 +21,7 @@ import ServiceManagement
 
 enum AIAgentClient {
     /// 保证最终 completion 恰好触发一次。重试期间的连接级失败不算「最终回」—— 只有成功结果或重试耗尽才 fire。
-    private final class ReplyOnce: @unchecked Sendable {
+    private nonisolated final class ReplyOnce: @unchecked Sendable {
         private let lock = NSLock()
         private var fired = false
         private let body: (String) -> Void
@@ -34,7 +34,7 @@ enum AIAgentClient {
 
     /// 建连接 + 调用一次远程方法,**连接级失败自动重连重试**(冷启动 race)。每次失败短延迟 0.5s 后换新连接重试,
     /// `attemptsLeft` 耗尽才把错误回出。成功 / 最终失败都经 `ReplyOnce`,确保 completion 不重复。
-    private static func invokeWithRetry(
+    private nonisolated static func invokeWithRetry(
         label: String,
         makeConnection: @escaping () -> NSXPCConnection,
         call: @escaping (SimpleZipAIAgentXPC, @escaping (String) -> Void) -> Void,
