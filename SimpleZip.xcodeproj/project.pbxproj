@@ -658,7 +658,7 @@
 				DEAD_CODE_STRIPPING = YES;
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
 				ONLY_ACTIVE_ARCH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = "yumeka.SimpleZip-in-mac.aiagent";
+				PRODUCT_BUNDLE_IDENTIFIER = "yumeka.SimpleZip-in-mac.dev.aiagent";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
