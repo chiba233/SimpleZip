@@ -563,7 +563,10 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				ENABLE_USER_SELECTED_FILES = readwrite;
-				EXCLUDED_SOURCE_FILE_NAMES = "yumeka.SimpleZip-in-mac.aiagent.plist yumeka.SimpleZip-in-mac.aiagent.index.plist";
+				EXCLUDED_SOURCE_FILE_NAMES = (
+					"yumeka.SimpleZip-in-mac.aiagent.plist",
+					"yumeka.SimpleZip-in-mac.aiagent.index.plist",
+				);
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
