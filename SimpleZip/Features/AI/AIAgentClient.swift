@@ -75,6 +75,15 @@ enum AIAgentClient {
         }
     }
 
+    /// 给探针的 `ReplyOnce` 挂一个**超时兜底**:到点仍没回 → 回超时人话(ReplyOnce 保证与真回复只结算一次,真回复
+    /// 先到就忽略本超时)。dev 后台 LaunchAgent 的 SMAppService 注册 / probeModel 真模型生成可能很慢甚至卡死 → 加超时,
+    /// DevTools 状态不再干卡在「正在连…」。真生成在 agent 进程继续(不取消,避免污染 FoundationModels transcript),只本端停等。
+    private nonisolated static func scheduleProbeTimeout(_ reply: ReplyOnce, seconds: TimeInterval, label: String) {
+        DispatchQueue.global().asyncAfter(deadline: .now() + seconds) {
+            reply("\(label)超时(\(Int(seconds))s 无响应)。dev 环境后台 LaunchAgent 走 SMAppService、从 DerivedData 跑常不稳;前台 XPC Service 通道是稳的。")
+        }
+    }
+
     /// 建连接 + 调用一次远程方法,**连接级失败自动重连重试**(冷启动 race)。每次失败短延迟 0.5s 后换新连接重试,
     /// `attemptsLeft` 耗尽才把错误回出。成功 / 最终失败都经 `ReplyOnce`,确保 completion 不重复。
     private nonisolated static func invokeWithRetry(
@@ -116,6 +125,7 @@ enum AIAgentClient {
     /// 结果(人话)在主线程回传(供 DevTools 显示)。这条通道在 Login Items 可见、受「允许在后台」开关门控。
     nonisolated static func runBackgroundProbe(_ completion: @escaping @MainActor (String) -> Void) {
         let reply = ReplyOnce { message in Task { @MainActor in completion(message) } }
+        scheduleProbeTimeout(reply, seconds: 25, label: "后台 LaunchAgent ")   // 含 SMAppService 注册,给足又不无限卡
 
         guard #available(macOS 13.0, *) else {
             reply("macOS < 13,SMAppService 不可用。")
@@ -174,6 +184,7 @@ enum AIAgentClient {
     /// App 连接即按需拉起,无 SMAppService 注册、不进 Login Items、**不受「允许在后台」开关 gate**。
     nonisolated static func runForegroundProbe(_ completion: @escaping @MainActor (String) -> Void) {
         let reply = ReplyOnce { message in Task { @MainActor in completion(message) } }
+        scheduleProbeTimeout(reply, seconds: 25, label: "前台 XPC Service ")
         invokeWithRetry(
             label: "前台 XPC Service ",
             makeConnection: { NSXPCConnection(serviceName: SimpleZipAIAgentXPCNames.xpcServiceName) },
@@ -186,6 +197,7 @@ enum AIAgentClient {
     /// 对照 runForegroundProbe(写死自检),这个发**真实输入** —— 验证 App→agent 的真实查询数据流。
     nonisolated static func runForegroundQuery(_ request: String, completion: @escaping @MainActor (String) -> Void) {
         let reply = ReplyOnce { message in Task { @MainActor in completion(message) } }
+        scheduleProbeTimeout(reply, seconds: 25, label: "前台 XPC Service 真实查询 ")
         invokeWithRetry(
             label: "前台 XPC Service ",
             makeConnection: { NSXPCConnection(serviceName: SimpleZipAIAgentXPCNames.xpcServiceName) },
