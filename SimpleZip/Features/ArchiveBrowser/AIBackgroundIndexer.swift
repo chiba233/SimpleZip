@@ -157,7 +157,7 @@ final class AIBackgroundIndexer {
         // (lastScannedAt==nil)最优先,其余按上次扫描时间升序。这样即便每轮预算只够 N 个 scope(省电=1),多轮
         // 心跳也能把所有白名单目录轮一遍,而不是永远只扫前 N 个。扫完即 markScanned → 下轮自然排到队尾。
         let scopeBudget = max(1, budget.maxDirectoriesPerRound)
-        let scopes = Array(store.scopes.sorted(by: AIArchivePrefetchScope.leastRecentlyScanned).prefix(scopeBudget))
+        let allScopes = store.scopes   // 全量快照后跨 actor;最久没扫排序 + 取预算内由 Core 编排做
         let home = NSHomeDirectory()
         let fileBudget = min(budget.maxEntriesPerArchive, 3_000)
         // 内容预读是**更高隐私等级的独立开关**:只元数据预索引时 allowContent=false(绝不读内容);开了「预读内容」
@@ -167,15 +167,13 @@ final class AIBackgroundIndexer {
         let existingSummarized = allowContent ? store.summarizedRecordsByID() : [:]
 
         task = Task.detached(priority: .background) {
-            var results: [(UUID, [AIFileMemoryRecord])] = []
-            for scope in scopes {
-                if Task.isCancelled { break }
-                let records = AIIndexerScan.scanScope(scope, home: home, fileBudget: fileBudget,
-                                                            allowContent: allowContent,
-                                                            existingSummarized: existingSummarized)
-                results.append((scope.id, records))
-            }
-            let scanned = results   // 不可变快照后再跨 actor 边界(Swift 6:别捕获可变 var)
+            // 单一扫描编排(A2):App 前台与 agent 后台共用 `AIBackgroundIndexRun.scan`。前台不限时(deadline nil,
+            // 心跳频繁 + 门控已节流);取消走 `Task.isCancelled`。渐进覆盖 / 最久没扫排序在 Core 编排里。
+            let scanned = AIBackgroundIndexRun.scan(
+                scopes: allScopes, home: home, scopeBudget: scopeBudget, fileBudget: fileBudget,
+                allowContent: allowContent, existingSummarized: existingSummarized,
+                deadline: nil, isCancelled: { Task.isCancelled }
+            ).map { ($0.scopeID, $0.records) }
             await MainActor.run {
                 // M7:回主线程后再核一遍门控 —— 扫描期间用户可能关了开关 / 清了白名单,关了就不落盘。
                 if store.indexingEnabled {
