@@ -26,6 +26,10 @@ import Foundation
     /// 把任意自然语言请求转发给 agent 跑**真实**结构化生成,回归档搜索关键词(或人话错误)。probeModel 是写死
     /// 自检;这个接受**真实输入** —— 「真生成迁 agent」的 XPC 数据流(App→agent 真实请求→agent 生成→回结果)。
     nonisolated func extractArchiveKeyword(fromRequest request: String, reply: @escaping (String) -> Void)
+
+    /// App → agent **配置同步**(坑 9):payload 是 AIAgentConfiguration 的 JSON Data。agent 解码后存储、据此门控
+    /// (红线:主开关关 = 不生成),reply 回 agent 支持的 schemaVersion(解码失败回 -1,供 App 协商 / 降级)。
+    nonisolated func syncConfiguration(_ payload: Data, reply: @escaping (Int) -> Void)
 }
 
 /// App 与 agent / XPC Service 约定的常量。两条投递通道各一个名字:

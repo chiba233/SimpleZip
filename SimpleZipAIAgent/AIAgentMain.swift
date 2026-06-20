@@ -20,6 +20,20 @@ import Foundation
 @main
 struct AIAgentMain {
     static func main() {
+        // `--config-selftest`:构造配置 → encode → decode → 比对后退出。命令行验 payload round-trip(坑 9 序列化
+        // 正确),纯 Foundation、不依赖模型 / XPC,同步跑完即 exit。
+        if CommandLine.arguments.contains("--config-selftest") {
+            let original = AIAgentConfiguration(
+                aiAssistantEnabled: true, aiSuggestionEnabled: false,
+                indexingEnabled: true, contentPrereadEnabled: true, activityLevel: "balanced")
+            let data = original.encoded()
+            if let back = AIAgentConfiguration.decoded(from: data), back == original {
+                print("CONFIG SELFTEST OK: round-trip 一致,foregroundAIAllowed=\(back.foregroundAIAllowed),\(data.count) bytes")
+            } else {
+                print("CONFIG SELFTEST FAILED: round-trip 不一致")
+            }
+            exit(0)
+        }
         // `--probe`:直接在本(独立)进程跑一次模型探针后退出 —— 绕开 SMAppService/launchd/XPC,
         // 单独回答地基问题「端上模型能否在非 App 的独立进程里跑」。便于命令行直接验证:
         //   .../Contents/MacOS/SimpleZipAIAgent --probe

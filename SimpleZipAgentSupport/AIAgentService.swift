@@ -24,6 +24,20 @@ import Foundation
 import FoundationModels
 #endif
 
+/// agent 进程内持有 App 同步来的 AIAgentConfiguration。前台/后台生成据此门控(红线:主开关关 = 不生成)。
+/// actor 保证跨连接并发安全(LaunchAgent / XPC Service 两通道都可能写)。
+actor AIAgentConfigurationStore {
+    static let shared = AIAgentConfigurationStore()
+    private var current: AIAgentConfiguration?
+
+    func apply(_ config: AIAgentConfiguration) { current = config }
+    var snapshot: AIAgentConfiguration? { current }
+
+    /// 前台 AI 是否放行。**未收到配置前默认放行**(向后兼容 --probe / --query 命令行自检 —— 那时 App 没同步过);
+    /// 只有 App 明确同步了「主 / 子开关关」才拦截。
+    var foregroundAllowed: Bool { current?.foregroundAIAllowed ?? true }
+}
+
 /// 接受连接、把接口 / 实现挂上去。两条通道(LaunchAgent / XPC Service)的 listener delegate 共用这一个。
 /// Step 0 不做对端校验(后续接 SMAppService / XPC Service 互信时再加
 /// `xpc_connection_set_peer_code_signing_requirement` 同签名身份校验)。
@@ -51,6 +65,19 @@ final class AIAgentService: NSObject, SimpleZipAIAgentXPC {
             let result = await AIAgentService.queryText(request)
             agentLog("extractArchiveKeyword(\(request)) → \(result)")
             reply(result)
+        }
+    }
+
+    func syncConfiguration(_ payload: Data, reply: @escaping (Int) -> Void) {
+        Task {
+            guard let config = AIAgentConfiguration.decoded(from: payload) else {
+                agentLog("syncConfiguration: 解码失败(payload \(payload.count) bytes)→ 拒绝")
+                reply(-1)
+                return
+            }
+            await AIAgentConfigurationStore.shared.apply(config)
+            agentLog("syncConfiguration: schemaVer=\(config.schemaVersion) aiMain=\(config.aiAssistantEnabled) sug=\(config.aiSuggestionEnabled) idx=\(config.indexingEnabled) → applied")
+            reply(AIAgentConfiguration.currentSchemaVersion)
         }
     }
 
@@ -90,6 +117,10 @@ final class AIAgentService: NSObject, SimpleZipAIAgentXPC {
     static func queryText(_ request: String) async -> String {
         guard #available(macOS 26.0, *) else {
             return "macOS < 26 — FoundationModels 不可用。"
+        }
+        // 红线:App 若已同步「AI 主 / 子开关关」则 agent 不生成(前台也不豁免)。未同步过默认放行(命令行自检场景)。
+        guard await AIAgentConfigurationStore.shared.foregroundAllowed else {
+            return "AI 已禁用(主开关 / 建议开关关闭)—— agent 按配置不生成。"
         }
         #if canImport(FoundationModels)
         do {
