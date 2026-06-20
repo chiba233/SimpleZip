@@ -2067,6 +2067,10 @@
 "health.gpg.openSettings" = "Open GPG Settings";
 "health.presetPassword.title" = "Preset password";
 "health.scratchVolume.title" = "Encrypted temporary volume";
+"health.aiBackend.title" = "AI Assistant";
+"health.aiBackend.ok" = "Running normally — backend reachable and on-device model available.";
+"health.aiBackend.unreachable" = "AI backend unreachable (after retries). AI features temporarily fall back to deterministic results.";
+"health.aiBackend.openSettings" = "Open AI Settings";
 "health.shortcuts.title" = "Shortcuts & Siri";
 "health.shortcuts.unavailable" = "This build has no Apple Developer signature, so the Shortcuts actions and Siri can't run. They still appear in the Shortcuts app but report a connection error.";
 "health.shortcuts.ok" = "The Shortcuts actions and Siri are available.";
@@ -2700,15 +2704,6 @@
 "settings.ai.background.maxRun.45m" = "45 minutes";
 "settings.ai.suggestion.title" = "Show AI Suggestions";
 "settings.ai.suggestion.desc" = "Show inline AI suggestions on files in the browser — a one-line summary and suggested actions. Turning this off also stops the background auto-summary.";
-"settings.ai.status.section" = "Status";
-"settings.ai.status.checking" = "Checking…";
-"settings.ai.status.healthy" = "AI assistant is running";
-"settings.ai.status.modelUnavailable" = "On-device model unavailable";
-"settings.ai.status.unreachable" = "AI backend unreachable (after retries)";
-"settings.ai.status.unreachable.hint" = "It will keep retrying in the background; meanwhile AI falls back to deterministic results.";
-"settings.ai.status.recheck" = "Re-check";
-"settings.ai.status.lastIndex" = "Last background index";
-"settings.ai.status.never" = "Never";
 "settings.ai.background.level.off" = "Off";
 "settings.ai.background.level.powerSaver" = "Power saver";
 "settings.ai.background.level.balanced" = "Balanced";

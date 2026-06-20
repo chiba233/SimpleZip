@@ -57,6 +57,11 @@ final class AIAgentListenerDelegate: NSObject, NSXPCListenerDelegate {
 
 /// XPC 服务实现。Step 0 只有探针。两条通道共用同一份实现 → 同一个全局串行闸。
 final class AIAgentService: NSObject, SimpleZipAIAgentXPC {
+    /// 轻量存活探测:进程被拉起 + 连接建立即立刻回 true,**绝不碰模型**(给运行状态健康检查做连通性,瞬回不卡)。
+    func ping(reply: @escaping (Bool) -> Void) {
+        reply(true)
+    }
+
     func probeModel(reply: @escaping (String) -> Void) {
         Task {
             let result = await AIAgentService.probeText()

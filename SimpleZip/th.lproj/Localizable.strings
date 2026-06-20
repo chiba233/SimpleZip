@@ -1376,6 +1376,10 @@
 "diagnostics.general.title" = "สแนปชอตวินิจฉัย";
 "diagnostics.general.exported" = "ส่งออกไปยัง “%@” แล้ว";
 "health.scratchVolume.title" = "โวลุ่มชั่วคราวที่เข้ารหัส";
+"health.aiBackend.title" = "ผู้ช่วย AI";
+"health.aiBackend.ok" = "ทำงานปกติ —— เชื่อมต่อแบ็กเอนด์ได้และมีโมเดลบนเครื่องพร้อมใช้งาน";
+"health.aiBackend.unreachable" = "เชื่อมต่อแบ็กเอนด์ AI ไม่ได้ (หลังลองใหม่) ฟีเจอร์ AI จะกลับไปใช้ผลลัพธ์แบบกำหนดแน่นอนชั่วคราว";
+"health.aiBackend.openSettings" = "เปิดการตั้งค่า AI";
 "health.shortcuts.title" = "คำสั่งลัดและ Siri";
 "health.shortcuts.unavailable" = "บิลด์นี้ไม่มีลายเซ็น Apple Developer การดำเนินการคำสั่งลัดและ Siri จึงทำงานไม่ได้ ยังคงปรากฏในแอปคำสั่งลัดแต่จะรายงานข้อผิดพลาดในการสื่อสาร";
 "health.shortcuts.ok" = "การดำเนินการคำสั่งลัดและ Siri พร้อมใช้งาน";
@@ -2621,15 +2625,6 @@
 "settings.ai.background.maxRun.45m" = "45 นาที";
 "settings.ai.suggestion.title" = "แสดงข้อเสนอแนะ AI";
 "settings.ai.suggestion.desc" = "แสดงข้อเสนอแนะ AI แบบอินไลน์บนไฟล์ — สรุปบรรทัดเดียวและการกระทำที่แนะนำ การปิดจะหยุดการสรุปอัตโนมัติเบื้องหลังด้วย";
-"settings.ai.status.section" = "สถานะการทำงาน";
-"settings.ai.status.checking" = "กำลังตรวจสอบ…";
-"settings.ai.status.healthy" = "ผู้ช่วย AI ทำงานปกติ";
-"settings.ai.status.modelUnavailable" = "โมเดลบนเครื่องไม่พร้อมใช้งาน";
-"settings.ai.status.unreachable" = "เชื่อมต่อแบ็กเอนด์ AI ไม่ได้ (หลังลองใหม่)";
-"settings.ai.status.unreachable.hint" = "ระบบจะลองใหม่โดยอัตโนมัติในเบื้องหลัง ระหว่างนี้ AI จะกลับไปใช้ผลลัพธ์แบบกำหนดแน่นอน";
-"settings.ai.status.recheck" = "ตรวจสอบอีกครั้ง";
-"settings.ai.status.lastIndex" = "การทำดัชนีเบื้องหลังครั้งล่าสุด";
-"settings.ai.status.never" = "ยังไม่เคย";
 "settings.ai.background.level.off" = "ปิด";
 "settings.ai.background.level.powerSaver" = "ประหยัดพลังงาน";
 "settings.ai.background.level.balanced" = "สมดุล";

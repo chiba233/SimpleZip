@@ -2041,6 +2041,10 @@
 "health.openAssociations" = "管理文件关联";
 "health.presetPassword.title" = "预设密码";
 "health.scratchVolume.title" = "加密临时卷";
+"health.aiBackend.title" = "AI 助手";
+"health.aiBackend.ok" = "运行正常 —— 后端连通、本机模型可用。";
+"health.aiBackend.unreachable" = "AI 后端连接失败(已重试)。AI 功能暂时退回确定性结果。";
+"health.aiBackend.openSettings" = "打开 AI 设置";
 "health.shortcuts.title" = "快捷指令与 Siri";
 "health.shortcuts.unavailable" = "这个构建没有 Apple 开发者签名,快捷指令动作和 Siri 无法运行。它们仍出现在「快捷指令」App 里,但会报「无法与 App 通信」。";
 "health.shortcuts.ok" = "快捷指令动作和 Siri 可用。";
@@ -2700,15 +2704,6 @@
 "settings.ai.background.maxRun.45m" = "45 分钟";
 "settings.ai.suggestion.title" = "显示 AI 建议";
 "settings.ai.suggestion.desc" = "在文件浏览器里给文件显示行内 AI 建议:一句话摘要和建议动作。关掉也会停止后台自动总结。";
-"settings.ai.status.section" = "运行状态";
-"settings.ai.status.checking" = "检查中…";
-"settings.ai.status.healthy" = "AI 助手运行正常";
-"settings.ai.status.modelUnavailable" = "本机模型不可用";
-"settings.ai.status.unreachable" = "AI 后端连接失败(已重试)";
-"settings.ai.status.unreachable.hint" = "后台会自动重试;在此期间 AI 暂时退回确定性结果。";
-"settings.ai.status.recheck" = "重新检查";
-"settings.ai.status.lastIndex" = "上次后台索引";
-"settings.ai.status.never" = "从未";
 "settings.ai.background.level.off" = "关闭";
 "settings.ai.background.level.powerSaver" = "省电";
 "settings.ai.background.level.balanced" = "平衡";

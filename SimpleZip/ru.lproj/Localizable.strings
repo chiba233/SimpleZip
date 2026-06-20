@@ -1376,6 +1376,10 @@
 "diagnostics.general.title" = "Диагностический снимок";
 "diagnostics.general.exported" = "Экспортировано в «%@».";
 "health.scratchVolume.title" = "Зашифрованный временный том";
+"health.aiBackend.title" = "AI-ассистент";
+"health.aiBackend.ok" = "Работает нормально — бэкенд доступен, локальная модель доступна.";
+"health.aiBackend.unreachable" = "Бэкенд AI недоступен (после повторов). Функции AI временно используют детерминированные результаты.";
+"health.aiBackend.openSettings" = "Открыть настройки AI";
 "health.shortcuts.title" = "Быстрые команды и Siri";
 "health.shortcuts.unavailable" = "Эта сборка не имеет подписи разработчика Apple, поэтому действия «Быстрых команд» и Siri не работают. Они по-прежнему отображаются в приложении «Быстрые команды», но выдают ошибку связи.";
 "health.shortcuts.ok" = "Действия «Быстрых команд» и Siri доступны.";
@@ -2621,15 +2625,6 @@
 "settings.ai.background.maxRun.45m" = "45 минут";
 "settings.ai.suggestion.title" = "Показывать предложения ИИ";
 "settings.ai.suggestion.desc" = "Показывает встроенные предложения ИИ для файлов — однострочную сводку и предлагаемые действия. При отключении также останавливается фоновое автосуммирование.";
-"settings.ai.status.section" = "Состояние";
-"settings.ai.status.checking" = "Проверка…";
-"settings.ai.status.healthy" = "AI-ассистент работает";
-"settings.ai.status.modelUnavailable" = "Локальная модель недоступна";
-"settings.ai.status.unreachable" = "Бэкенд AI недоступен (после повторов)";
-"settings.ai.status.unreachable.hint" = "Повторные попытки продолжаются в фоне; тем временем AI использует детерминированные результаты.";
-"settings.ai.status.recheck" = "Проверить снова";
-"settings.ai.status.lastIndex" = "Последнее фоновое индексирование";
-"settings.ai.status.never" = "Никогда";
 "settings.ai.background.level.off" = "Выкл.";
 "settings.ai.background.level.powerSaver" = "Энергосбережение";
 "settings.ai.background.level.balanced" = "Сбалансированно";

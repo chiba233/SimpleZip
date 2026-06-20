@@ -20,6 +20,10 @@ import Foundation
 /// 在任意队列回调、且 App 侧客户端 `AIAgentClient.runProbe` 是 nonisolated,在那调 `probeModel` 就报隔离错。
 /// XPC 契约本就与 actor 无关,显式 nonisolated 让两个 target 编出来一致(agent target 本就 nonisolated,无害)。
 @objc public protocol SimpleZipAIAgentXPC {
+    /// **轻量存活探测**:立刻回 true,**不跑模型**。给「运行状态」健康检查测后端连通性用 —— probeModel 会跑真模型生成
+    /// (2-34s、可能卡 guardrail),拿它做状态检测会「卡在检测中」;ping 只验「XPC 进程拉得起、连得上」,瞬回。
+    nonisolated func ping(reply: @escaping (Bool) -> Void)
+
     /// 在 agent 进程里试跑一次端上模型最小生成,回传人话结果(成功+样本 / 不可用原因 / OS 太老)。
     nonisolated func probeModel(reply: @escaping (String) -> Void)
 

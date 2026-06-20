@@ -81,10 +81,39 @@ enum HealthChecker {
         items.append(checkSoftwareUpdates(onOpenSettings: { onOpenPane(.updates) }))
         items.append(checkPresetPassword(onOpenSettings: { onOpenPane(.general) }))
         items.append(checkSecureScratchVolume())
+        if let aiItem = await checkAIBackend(onOpenSettings: { onOpenPane(.ai) }) {
+            items.append(aiItem)
+        }
         if let gpgItem = await checkGPG(onOpenSettings: { onOpenPane(.gpg) }) {
             items.append(gpgItem)
         }
         return items
+    }
+
+    /// AI 后端运行状态(阶段3:模型推理迁独立进程后,后端失败会**静默**退确定性兜底 → 这里让它**可见**)。
+    /// AI 关 → 不显示(返回 nil)。模型不可用 → warning + 「打开 AI 设置」。模型可用 → **轻量 ping** 前台 XPC Service
+    /// (**绝不跑 probeModel 那种真模型生成** —— 那会 2-34s/卡 guardrail,拿来做状态检测就「卡在检测中」;ping 瞬回、
+    /// 带 2.5s 超时)→ 连通 ok;连不上(已重试/超时)→ error + 「打开 AI 设置」。永不卡。
+    private static func checkAIBackend(onOpenSettings: @escaping () -> Void) async -> HealthCheckItem? {
+        guard AppPreferences.aiAssistantEnabled else { return nil }
+        let fix = HealthCheckItem.FixAction(
+            title: L10n.text("health.aiBackend.openSettings"), perform: onOpenSettings)
+        guard AIReportAssistant.isReady else {
+            return HealthCheckItem(
+                title: L10n.text("health.aiBackend.title"),
+                detail: AIReportAssistant.unavailableReason,
+                status: .warning, action: fix)
+        }
+        if await AIAgentClient.pingForegroundBackend() {
+            return HealthCheckItem(
+                title: L10n.text("health.aiBackend.title"),
+                detail: L10n.text("health.aiBackend.ok"),
+                status: .ok, action: nil)
+        }
+        return HealthCheckItem(
+            title: L10n.text("health.aiBackend.title"),
+            detail: L10n.text("health.aiBackend.unreachable"),
+            status: .error, action: fix)
     }
 
     /// 加密临时卷（0.4.1，用户点名）：解密 / 解压的临时产物应落在启动时挂载的 AES-256 加密卷里。

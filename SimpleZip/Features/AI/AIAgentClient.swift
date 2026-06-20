@@ -51,6 +51,18 @@ enum AIAgentClient {
         }
     }
 
+    /// 同 ReplyOnce,但承载 `Bool`(给轻量存活探测 `pingForegroundBackend` 用,超时 / 回复 / 连接失败三者竞态只结算一次)。
+    private nonisolated final class BoolOnce: @unchecked Sendable {
+        private let lock = NSLock()
+        private var fired = false
+        private let body: (Bool) -> Void
+        init(_ body: @escaping (Bool) -> Void) { self.body = body }
+        func callAsFunction(_ value: Bool) {
+            lock.lock(); let first = !fired; fired = true; lock.unlock()
+            if first { body(value) }
+        }
+    }
+
     /// 通用 AI pass 生成的人话错误(经前台 XPC Service)。
     enum GenerateError: Error, LocalizedError {
         case generationFailed(String)
@@ -231,6 +243,28 @@ enum AIAgentClient {
             },
             attemptsLeft: 3,
             reply: reply)
+    }
+
+    // MARK: 轻量存活探测(运行状态健康检查:测前台 XPC Service 连通性,**不跑模型**、有超时、瞬回)
+
+    /// 连前台 XPC Service 调 `ping`(瞬回、不碰模型)→ 后端连得上回 true。**有超时**(默认 2.5s),连不上 / 超时回 false,
+    /// 绝不卡(对照 probeModel 会跑 2-34s 真生成 → 状态检测「卡在检测中」的根因)。单次尝试 + 超时,不做重试风暴。
+    nonisolated static func pingForegroundBackend(timeout: TimeInterval = 2.5) async -> Bool {
+        await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
+            let settle = BoolOnce { cont.resume(returning: $0) }
+            let conn = NSXPCConnection(serviceName: SimpleZipAIAgentXPCNames.xpcServiceName)
+            conn.remoteObjectInterface = NSXPCInterface(with: SimpleZipAIAgentXPC.self)
+            conn.resume()
+            // 超时兜底:ping 该瞬回,但万一进程拉起慢 / 卡住,到点即判连不上(invalidate + false),不无限等。
+            DispatchQueue.global().asyncAfter(deadline: .now() + timeout) {
+                conn.invalidate(); settle(false)
+            }
+            let proxy = conn.remoteObjectProxyWithErrorHandler { _ in
+                conn.invalidate(); settle(false)
+            } as? SimpleZipAIAgentXPC
+            guard let proxy else { conn.invalidate(); settle(false); return }
+            proxy.ping { ok in conn.invalidate(); settle(ok) }
+        }
     }
 
     // MARK: 阶段3 通用 AI pass 生成(前台 XPC Service:整条 pass 在引擎进程跑,主二进制零模型推理)

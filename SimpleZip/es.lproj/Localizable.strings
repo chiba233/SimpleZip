@@ -1376,6 +1376,10 @@
 "diagnostics.general.title" = "Instantánea de diagnóstico";
 "diagnostics.general.exported" = "Exportado a “%@”.";
 "health.scratchVolume.title" = "Volumen temporal cifrado";
+"health.aiBackend.title" = "Asistente de IA";
+"health.aiBackend.ok" = "Funcionando con normalidad: backend accesible y modelo en el dispositivo disponible.";
+"health.aiBackend.unreachable" = "Backend de IA no accesible (tras reintentos). Las funciones de IA recurren temporalmente a resultados deterministas.";
+"health.aiBackend.openSettings" = "Abrir ajustes de IA";
 "health.shortcuts.title" = "Atajos y Siri";
 "health.shortcuts.unavailable" = "Esta compilación no tiene firma de desarrollador de Apple, por lo que las acciones de Atajos y Siri no pueden ejecutarse. Siguen apareciendo en la app Atajos, pero informan de un error de comunicación.";
 "health.shortcuts.ok" = "Las acciones de Atajos y Siri están disponibles.";
@@ -2621,15 +2625,6 @@
 "settings.ai.background.maxRun.45m" = "45 minutos";
 "settings.ai.suggestion.title" = "Mostrar sugerencias de IA";
 "settings.ai.suggestion.desc" = "Muestra sugerencias de IA en línea en los archivos: un resumen de una línea y acciones sugeridas. Al desactivarlo también se detiene el resumen automático en segundo plano.";
-"settings.ai.status.section" = "Estado";
-"settings.ai.status.checking" = "Comprobando…";
-"settings.ai.status.healthy" = "El asistente de IA está funcionando";
-"settings.ai.status.modelUnavailable" = "Modelo en el dispositivo no disponible";
-"settings.ai.status.unreachable" = "Backend de IA no accesible (tras reintentos)";
-"settings.ai.status.unreachable.hint" = "Seguirá reintentando en segundo plano; mientras tanto, la IA recurre a resultados deterministas.";
-"settings.ai.status.recheck" = "Volver a comprobar";
-"settings.ai.status.lastIndex" = "Última indexación en segundo plano";
-"settings.ai.status.never" = "Nunca";
 "settings.ai.background.level.off" = "Desactivado";
 "settings.ai.background.level.powerSaver" = "Ahorro de energía";
 "settings.ai.background.level.balanced" = "Equilibrado";
