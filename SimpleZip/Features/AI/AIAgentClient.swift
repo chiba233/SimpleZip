@@ -300,6 +300,40 @@ enum AIAgentClient {
         return try JSONDecoder().decode(Out.self, from: outputJSON)
     }
 
+    /// **DevTools 监视:通用 `generate(kind:)` pass 契约自检**。对照写死的 `runForegroundQuery`(只测旧专用
+    /// `extractArchiveKeyword` 方法),这里经**迁移后所有 pass 共用的通用契约**跑两种代表性 pass —— 散文
+    /// (`reportText`)+ 结构化(`archiveFileKeyword`)—— 验证「报告解释 / 文件·归档建议 / NL 查询全部走同一条
+    /// XPC 通用通路」。逐 pass 报 ok / 输出片段,人话汇总回主线程常驻(可选中复制)。失败不崩,显示错误人话。
+    @MainActor static func runEnginePassSelfTest(_ completion: @escaping @MainActor (String) -> Void) {
+        let lang = AIReportAssistant.uiLanguageName
+        Task { @MainActor in
+            var lines: [String] = ["前台 XPC Service · 通用 generate(kind:) 契约自检(界面语言:\(lang)):"]
+            // ① 散文 pass(generateText 路径):reportText —— 所有报告解释 AI 的共用中心 pass。
+            do {
+                let text = try await generatePass(
+                    kind: .reportText,
+                    input: ReportTextInput(
+                        instructions: "You are a terse assistant. Reply with ONE short sentence confirming a self-test ping was received.",
+                        prompt: "Self-test ping from SimpleZip DevTools."),
+                    as: AIPassTextOutput.self).text
+                lines.append("✅ reportText(散文 pass)→ \(text.prefix(160))")
+            } catch {
+                lines.append("🔴 reportText 失败:\(error.localizedDescription)")
+            }
+            // ② 结构化 pass(generateStructured 路径):archiveFileKeyword —— @Generable 受约束输出。
+            do {
+                let keyword = try await generatePass(
+                    kind: .archiveFileKeyword,
+                    input: "I think my budget spreadsheet is zipped up somewhere",
+                    as: String.self)
+                lines.append("✅ archiveFileKeyword(结构化 pass)→ \"\(keyword)\"")
+            } catch {
+                lines.append("🔴 archiveFileKeyword 失败:\(error.localizedDescription)")
+            }
+            completion(lines.joined(separator: "\n"))
+        }
+    }
+
     /// 经**前台 XPC Service 通道**调通用 `generate(kind:inputJSON:languageName:)`,async 桥接 + 冷启动重试。
     /// ok=true → 返回输出 DTO 的 JSON;ok=false → 抛 `GenerateError.generationFailed`(payload 是人话错误)。
     nonisolated static func generate(kind: String, inputJSON: Data, languageName: String) async throws -> Data {

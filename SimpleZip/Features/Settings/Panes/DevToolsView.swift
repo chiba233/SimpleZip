@@ -255,6 +255,18 @@ struct DevToolsView: View {
                                 agentProbeStatus = result
                             }
                         }
+                        // ③b 通用 generate(kind:) 契约自检:对照写死的『真实查询』(只测旧专用 extractArchiveKeyword 方法),
+                        //    这条经**迁移后所有 pass 共用的通用 XPC 契约**跑散文(reportText)+ 结构化(archiveFileKeyword)两种代表性 pass。
+                        actionRow(
+                            "checklist",
+                            "自检 XPC pass 引擎(通用 generate 契约 · 散文 + 结构化)",
+                            "对照上面写死的『真实查询』(只测旧专用 extractArchiveKeyword 方法),这条经迁移后所有 pass 共用的通用 generate(kind:) 契约跑两种代表性 pass —— reportText(散文,报告解释 AI 的中心 pass)+ archiveFileKeyword(结构化,@Generable 受约束输出)。一键验证『报告 / 文件·归档建议 / NL 查询全部走同一条 XPC 通用通路』,逐 pass 报成功与输出片段。"
+                        ) {
+                            agentProbeStatus = "正在自检 XPC pass 引擎(通用 generate 契约)…散文 + 结构化两个 pass 串行跑,各需一次端上生成,稍候。"
+                            AIAgentClient.runEnginePassSelfTest { result in
+                                agentProbeStatus = result
+                            }
+                        }
                         // ④ 配置同步:把当前 App 的 AI 设置推给 agent(坑 9 schemaVersion 协商)。把 AI 主/子开关关掉后点这,
                         //    再点上面的真实查询,应被 agent 红线门控拦截(返回「AI 已禁用」)→ 验证 App→agent 配置同步 + 门控。
                         actionRow(
