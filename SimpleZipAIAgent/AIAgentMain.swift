@@ -25,7 +25,8 @@ struct AIAgentMain {
         if CommandLine.arguments.contains("--config-selftest") {
             let original = AIAgentConfiguration(
                 aiAssistantEnabled: true, aiSuggestionEnabled: false,
-                indexingEnabled: true, contentPrereadEnabled: true, activityLevel: "balanced")
+                indexingEnabled: true, contentPrereadEnabled: true, activityLevel: "balanced",
+                backgroundIndexIntervalHours: 24, maxBackgroundRunSeconds: 300)
             let data = original.encoded()
             if let back = AIAgentConfiguration.decoded(from: data), back == original {
                 print("CONFIG SELFTEST OK: round-trip 一致,foregroundAIAllowed=\(back.foregroundAIAllowed),\(data.count) bytes")

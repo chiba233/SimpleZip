@@ -20,6 +20,8 @@ struct AIBackgroundDiscoverySection: View {
     @AppStorage(AppPreferences.Key.aiAllowContentPreread) private var contentPreread = false
     @AppStorage(AppPreferences.Key.spotlightIndexingPower) private var indexPower = "normal"
     @State private var activityLevel = AppPreferences.aiBackgroundActivityLevel
+    @State private var indexInterval = AppPreferences.aiBackgroundIndexInterval
+    @AppStorage(AppPreferences.Key.aiBackgroundMaxRunSeconds) private var maxRunSeconds = 300
     @State private var showingAddOptions = false
 
     var body: some View {
@@ -87,6 +89,46 @@ struct AIBackgroundDiscoverySection: View {
                     .labelsHidden()
                     .pickerStyle(.menu)
                     .fixedSize()
+                }
+
+                // agent 调度参数:AI 索引迁 agent 后,launchd 按「间隔」周期拉起 agent 跑一轮、单次最长「timeout」
+                // 超时下次继续。这里只配参数 + 经配置同步进 agent;电源策略复用上面的活跃度门控,不在 App 内调度。
+                SettingsControlRow(
+                    title: L10n.text("settings.ai.background.indexInterval"),
+                    description: L10n.text("settings.ai.background.indexInterval.desc"),
+                    systemImage: "calendar.badge.clock", iconTint: .purple
+                ) {
+                    Picker("", selection: $indexInterval) {
+                        ForEach(AIBackgroundIndexInterval.allCases, id: \.self) { iv in
+                            Text(intervalTitle(iv)).tag(iv)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .fixedSize()
+                    .onChange(of: indexInterval) { newValue in
+                        AppPreferences.aiBackgroundIndexInterval = newValue
+                        AIAgentClient.publishConfiguration()
+                    }
+                }
+
+                SettingsControlRow(
+                    title: L10n.text("settings.ai.background.maxRun"),
+                    description: L10n.text("settings.ai.background.maxRun.desc"),
+                    systemImage: "timer", iconTint: .purple
+                ) {
+                    Picker("", selection: $maxRunSeconds) {
+                        Text(L10n.text("settings.ai.background.maxRun.1m")).tag(60)
+                        Text(L10n.text("settings.ai.background.maxRun.5m")).tag(300)
+                        Text(L10n.text("settings.ai.background.maxRun.15m")).tag(900)
+                        Text(L10n.text("settings.ai.background.maxRun.30m")).tag(1800)
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .fixedSize()
+                    .onChange(of: maxRunSeconds) { _ in
+                        AIAgentClient.publishConfiguration()
+                    }
                 }
                 // (AI 文件夹「显示推荐 / 推荐数量上限」设置已随侧栏 AI 文件夹下线一并移除;后台索引 / 预读仍供
                 //  AI suggestion 复用,故本区其余项保留。)
@@ -163,6 +205,15 @@ struct AIBackgroundDiscoverySection: View {
         case .powerSaver: return L10n.text("settings.ai.background.level.powerSaver")
         case .balanced: return L10n.text("settings.ai.background.level.balanced")
         case .aggressive: return L10n.text("settings.ai.background.level.aggressive")
+        }
+    }
+
+    private func intervalTitle(_ iv: AIBackgroundIndexInterval) -> String {
+        switch iv {
+        case .every12Hours: return L10n.text("settings.ai.background.interval.12h")
+        case .daily: return L10n.text("settings.ai.background.interval.24h")
+        case .every3Days: return L10n.text("settings.ai.background.interval.3d")
+        case .weekly: return L10n.text("settings.ai.background.interval.week")
         }
     }
 

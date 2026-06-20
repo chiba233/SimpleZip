@@ -16,7 +16,7 @@ import Foundation
 
 public nonisolated struct AIAgentConfiguration: Codable, Sendable, Equatable {
     /// 当前 schema 版本。App 与 agent 同构建时天然对齐(本文件三 target 同编、值一致);跨版本时靠它协商。
-    public static let currentSchemaVersion = 1
+    public static let currentSchemaVersion = 2
 
     public var schemaVersion: Int
     /// AI 主开关。**红线:false = 整个 agent AI 能力禁用**(不生成、不索引、不预读)。
@@ -29,16 +29,23 @@ public nonisolated struct AIAgentConfiguration: Codable, Sendable, Equatable {
     public var contentPrereadEnabled: Bool
     /// 后台活跃度档位(AIBackgroundActivityLevel.rawValue 裸字符串)。
     public var activityLevel: String
+    /// agent 调度:后台索引触发间隔(小时)。launchd 按它周期拉起 agent 跑一轮(AI 索引迁 agent 后生效)。
+    public var backgroundIndexIntervalHours: Int
+    /// agent 调度:单次后台运行最长 timeout(秒),超时停、下次继续。电源门控仍复用现有 AIBackgroundSchedulingRules。
+    public var maxBackgroundRunSeconds: Int
 
     public init(schemaVersion: Int = AIAgentConfiguration.currentSchemaVersion,
                 aiAssistantEnabled: Bool, aiSuggestionEnabled: Bool,
-                indexingEnabled: Bool, contentPrereadEnabled: Bool, activityLevel: String) {
+                indexingEnabled: Bool, contentPrereadEnabled: Bool, activityLevel: String,
+                backgroundIndexIntervalHours: Int, maxBackgroundRunSeconds: Int) {
         self.schemaVersion = schemaVersion
         self.aiAssistantEnabled = aiAssistantEnabled
         self.aiSuggestionEnabled = aiSuggestionEnabled
         self.indexingEnabled = indexingEnabled
         self.contentPrereadEnabled = contentPrereadEnabled
         self.activityLevel = activityLevel
+        self.backgroundIndexIntervalHours = backgroundIndexIntervalHours
+        self.maxBackgroundRunSeconds = maxBackgroundRunSeconds
     }
 
     /// 前台 AI 是否该响应(主 + 子开关都开)。agent 前台生成的红线门控。

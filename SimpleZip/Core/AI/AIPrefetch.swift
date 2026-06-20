@@ -21,6 +21,25 @@ nonisolated enum AIBackgroundActivityLevel: String, Codable, Equatable, CaseIter
     case aggressive
 }
 
+/// 后台 AI 索引的**触发间隔**(agent 调度参数:多久跑一轮完整后台索引)。经配置同步进 agent;agent 真按它被
+/// launchd 周期拉起跑索引,是「AI 索引迁 agent」那一步用。电源策略仍复用现有 AIBackgroundSchedulingRules。
+nonisolated enum AIBackgroundIndexInterval: String, Codable, Equatable, CaseIterable, Sendable {
+    case every12Hours = "12h"
+    case daily = "24h"
+    case every3Days = "3d"
+    case weekly = "7d"
+
+    /// 间隔对应的小时数(payload 用裸 Int 携带,不依赖本枚举)。
+    var hours: Int {
+        switch self {
+        case .every12Hours: return 12
+        case .daily: return 24
+        case .every3Days: return 72
+        case .weekly: return 168
+        }
+    }
+}
+
 /// 单轮预读预算(每轮目录 / 归档上限、单归档条目上限、**单轮模型建议上限**)。`off` 无预算。
 /// 所有 AI 后台用量统一从这里取 → **一切都挂在「AI 活跃度」设置上,绝不再有脱离活跃度的孤儿常量**。
 nonisolated struct AIArchivePrefetchBudget: Codable, Equatable, Sendable {

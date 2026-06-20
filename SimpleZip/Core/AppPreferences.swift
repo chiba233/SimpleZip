@@ -362,6 +362,10 @@ enum AppPreferences {
         /// 0.4.5 #89:后台本地 AI 活跃度(白皮书 4508)。off / power-saver / balanced / aggressive。
         /// **默认 off —— 后台预读/预索引完全 opt-in,不开则不扫任何目录。**
         nonisolated static let aiBackgroundActivityLevel = "aiBackgroundActivityLevel"
+        /// 0.4.5 agent 调度:后台索引触发间隔(AIBackgroundIndexInterval rawValue)。默认 24h。
+        nonisolated static let aiBackgroundIndexInterval = "aiBackgroundIndexInterval"
+        /// 0.4.5 agent 调度:单次后台运行最长 timeout(秒,超时下次继续)。默认 300(5 分钟)。
+        nonisolated static let aiBackgroundMaxRunSeconds = "aiBackgroundMaxRunSeconds"
         /// 0.4.5 #89:允许后台 AI 预读归档(白皮书 4510)。只在白名单目录只读列归档清单。默认 false(opt-in)。
         nonisolated static let aiAllowArchivePrefetch = "aiAllowArchivePrefetch"
         /// 0.4.5 #89:允许后台 AI 预索引文件夹(白皮书 4511)。只在白名单目录只读建文件/文件夹元数据索引。默认 false。
@@ -495,6 +499,21 @@ enum AppPreferences {
     nonisolated static var aiBackgroundActivityLevel: AIBackgroundActivityLevel {
         get { AIBackgroundActivityLevel(rawValue: defaults.string(forKey: Key.aiBackgroundActivityLevel) ?? "") ?? .off }
         set { defaults.set(newValue.rawValue, forKey: Key.aiBackgroundActivityLevel) }
+    }
+
+    /// 0.4.5 agent 调度:后台索引触发间隔。默认 24h(daily)。
+    nonisolated static var aiBackgroundIndexInterval: AIBackgroundIndexInterval {
+        get { AIBackgroundIndexInterval(rawValue: defaults.string(forKey: Key.aiBackgroundIndexInterval) ?? "") ?? .daily }
+        set { defaults.set(newValue.rawValue, forKey: Key.aiBackgroundIndexInterval) }
+    }
+
+    /// 0.4.5 agent 调度:单次后台运行最长 timeout(秒,超时下次继续)。默认 300、钳 60…3600。
+    nonisolated static var aiBackgroundMaxRunSeconds: Int {
+        get {
+            guard defaults.object(forKey: Key.aiBackgroundMaxRunSeconds) != nil else { return 300 }
+            return min(max(defaults.integer(forKey: Key.aiBackgroundMaxRunSeconds), 60), 3600)
+        }
+        set { defaults.set(min(max(newValue, 60), 3600), forKey: Key.aiBackgroundMaxRunSeconds) }
     }
 
     /// 0.4.5 #89:允许后台 AI 预读归档(白皮书 4510)。默认 false(opt-in)。
@@ -1131,6 +1150,8 @@ enum AppPreferences {
         Key.aiSidebarShowRecommended,
         Key.aiMaxRecommendedWorkspaces,
         Key.aiBackgroundActivityLevel,
+        Key.aiBackgroundIndexInterval,
+        Key.aiBackgroundMaxRunSeconds,
         Key.aiAllowArchivePrefetch,
         Key.aiAllowContentPreread,
         Key.aiAllowFolderPreindex,
@@ -1252,6 +1273,8 @@ enum AppPreferences {
         v[Key.aiSidebarShowRecommended] = aiSidebarShowRecommended
         v[Key.aiMaxRecommendedWorkspaces] = aiMaxRecommendedWorkspaces
         v[Key.aiBackgroundActivityLevel] = aiBackgroundActivityLevel.rawValue
+        v[Key.aiBackgroundIndexInterval] = aiBackgroundIndexInterval.rawValue
+        v[Key.aiBackgroundMaxRunSeconds] = aiBackgroundMaxRunSeconds
         v[Key.aiAllowArchivePrefetch] = aiAllowArchivePrefetch
         v[Key.aiAllowContentPreread] = aiAllowContentPreread
         v[Key.aiAllowFolderPreindex] = aiAllowFolderPreindex

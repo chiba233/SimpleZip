@@ -163,7 +163,9 @@ enum AIAgentClient {
             aiSuggestionEnabled: AppPreferences.aiSuggestionEnabled,
             indexingEnabled: AIBackgroundIndexStore.shared.indexingEnabled,
             contentPrereadEnabled: AIBackgroundIndexStore.shared.contentPrereadEnabled,
-            activityLevel: AppPreferences.aiBackgroundActivityLevel.rawValue)
+            activityLevel: AppPreferences.aiBackgroundActivityLevel.rawValue,
+            backgroundIndexIntervalHours: AppPreferences.aiBackgroundIndexInterval.hours,
+            maxBackgroundRunSeconds: AppPreferences.aiBackgroundMaxRunSeconds)
     }
 
     /// 把当前配置**持久化到文件**(不碰 agent 进程)。让任何 agent 进程启动都能 loadPersisted 读到 —— App 启动 /
