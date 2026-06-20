@@ -20,6 +20,13 @@ import Foundation
 import ServiceManagement
 
 enum AIAgentClient {
+    #if DEBUG
+    /// DEBUG:每个 App 启动只重注册一次 dev LaunchAgent(自愈 rebuild 后的 LWCR 失配);之后同进程内不再每次重注册,
+    /// 避免每次点探针都吃 register 的异步准备延迟 —— 那正是「经常要重试才拉起」的来源。nonisolated(unsafe):仅
+    /// DevTools 主线程串行访问。
+    nonisolated(unsafe) private static var didRegisterDevAgentThisLaunch = false
+    #endif
+
     /// 保证最终 completion 恰好触发一次。重试期间的连接级失败不算「最终回」—— 只有成功结果或重试耗尽才 fire。
     private nonisolated final class ReplyOnce: @unchecked Sendable {
         private let lock = NSLock()
@@ -88,8 +95,15 @@ enum AIAgentClient {
         let service = SMAppService.agent(plistName: SimpleZipAIAgentXPCNames.machService + ".plist")
         let needsRegister: Bool
         #if DEBUG
-        try? service.unregister()
-        needsRegister = true
+        // 每个 App 启动只 unregister+register 一次(首刀自愈 rebuild 后的 LWCR 失配);之后同进程内直接连,不再每次
+        // 点探针都吃 register 的异步准备延迟。rebuild→重启 App 后的首刀仍会重注册(必要的自愈)。
+        if didRegisterDevAgentThisLaunch {
+            needsRegister = service.status != .enabled
+        } else {
+            try? service.unregister()
+            didRegisterDevAgentThisLaunch = true
+            needsRegister = true
+        }
         #else
         needsRegister = service.status != .enabled
         #endif
@@ -105,11 +119,12 @@ enum AIAgentClient {
             }
         }
         // 2. 连 Mach 服务 + 调探针。register 后 service 可能尚未 ready → invokeWithRetry 兜首次冷启动 race。
+        // 后台首启可能要等 launchd 准备好刚 register 的 service → 比前台多给几次重试,容忍冷启动准备延迟。
         invokeWithRetry(
             label: "后台 LaunchAgent ",
             makeConnection: { NSXPCConnection(machServiceName: SimpleZipAIAgentXPCNames.machService) },
             call: { proxy, done in proxy.probeModel { done("后台 LaunchAgent 探针 → \($0)") } },
-            attemptsLeft: 3,
+            attemptsLeft: 5,
             reply: reply)
     }
 
