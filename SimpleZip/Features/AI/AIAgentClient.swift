@@ -63,6 +63,13 @@ enum AIAgentClient {
         }
     }
 
+    /// 把 non-Sendable 的 `NSXPCConnection` 装进 @unchecked Sendable 盒 —— 让超时 / 回调闭包捕获它而不触发 Swift
+    /// 并发警告。XPC 连接本就跨线程用(超时在 global queue、回复在 XPC queue),`invalidate` 幂等,封箱传递是安全的。
+    private nonisolated final class ConnectionBox: @unchecked Sendable {
+        let connection: NSXPCConnection
+        init(_ connection: NSXPCConnection) { self.connection = connection }
+    }
+
     /// 通用 AI pass 生成的人话错误(经前台 XPC Service)。
     enum GenerateError: Error, LocalizedError {
         case generationFailed(String)
@@ -272,18 +279,18 @@ enum AIAgentClient {
     nonisolated static func pingForegroundBackend(timeout: TimeInterval = 2.5) async -> Bool {
         await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
             let settle = BoolOnce { cont.resume(returning: $0) }
-            let conn = NSXPCConnection(serviceName: SimpleZipAIAgentXPCNames.xpcServiceName)
-            conn.remoteObjectInterface = NSXPCInterface(with: SimpleZipAIAgentXPC.self)
-            conn.resume()
+            let box = ConnectionBox(NSXPCConnection(serviceName: SimpleZipAIAgentXPCNames.xpcServiceName))
+            box.connection.remoteObjectInterface = NSXPCInterface(with: SimpleZipAIAgentXPC.self)
+            box.connection.resume()
             // 超时兜底:ping 该瞬回,但万一进程拉起慢 / 卡住,到点即判连不上(invalidate + false),不无限等。
             DispatchQueue.global().asyncAfter(deadline: .now() + timeout) {
-                conn.invalidate(); settle(false)
+                box.connection.invalidate(); settle(false)
             }
-            let proxy = conn.remoteObjectProxyWithErrorHandler { _ in
-                conn.invalidate(); settle(false)
+            let proxy = box.connection.remoteObjectProxyWithErrorHandler { _ in
+                box.connection.invalidate(); settle(false)
             } as? SimpleZipAIAgentXPC
-            guard let proxy else { conn.invalidate(); settle(false); return }
-            proxy.ping { ok in conn.invalidate(); settle(ok) }
+            guard let proxy else { box.connection.invalidate(); settle(false); return }
+            proxy.ping { ok in box.connection.invalidate(); settle(ok) }
         }
     }
 
