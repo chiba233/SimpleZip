@@ -164,6 +164,7 @@ enum AIAgentClient {
             indexingEnabled: AIBackgroundIndexStore.shared.indexingEnabled,
             contentPrereadEnabled: AIBackgroundIndexStore.shared.contentPrereadEnabled,
             activityLevel: AppPreferences.aiBackgroundActivityLevel.rawValue,
+            silentBackgroundIndexEnabled: AppPreferences.aiBackgroundSilentIndexEnabled,
             backgroundIndexIntervalHours: AppPreferences.aiBackgroundIndexInterval.hours,
             maxBackgroundRunSeconds: AppPreferences.aiBackgroundMaxRunSeconds)
     }

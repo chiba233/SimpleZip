@@ -2594,7 +2594,10 @@
 "ai.explainAudit.title" = "อธิบายผลการตรวจสอบไดเรกทอรีแบบเข้าใจง่าย";
 
 /* 0.4.5 #89 AI การค้นพบและจัดทำดัชนีเบื้องหลัง */
-"settings.ai.background.section" = "การค้นพบและจัดทำดัชนีเบื้องหลัง";
+"settings.ai.background.section" = "การจัดทำดัชนีและพรีวิวขณะเปิด SimpleZip";
+"settings.ai.background.silent.section" = "การจัดทำดัชนีเบื้องหลังแบบเงียบ";
+"settings.ai.background.silent.toggle" = "ทำดัชนีต่อหลังปิด SimpleZip";
+"settings.ai.background.silent.toggle.desc" = "ให้ agent เบื้องหลังทำดัชนีต่อแม้หลังปิด SimpleZip (ความถี่ต่ำ ตามนโยบายพลังงาน) การเปิดแอปเพื่อทำดัชนีเป็นสิ่งที่คาดไว้ ส่วนนี้ทำต่อขณะปิด — ปิดไว้โดยค่าเริ่มต้น";
 "settings.ai.background.activityLevel" = "ระดับการทำงานของ AI ในเครื่อง";
 "settings.ai.background.activityLevel.desc" = "AI ในเครื่องทำงานเบื้องหลังมากแค่ไหนเมื่อ Mac ว่าง";
 "settings.ai.background.indexPower" = "พลังงานการทำดัชนี";

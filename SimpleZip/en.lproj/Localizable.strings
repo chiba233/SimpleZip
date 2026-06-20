@@ -2673,7 +2673,10 @@
 "Flip Setting" = "Flip Setting";
 
 /* 0.4.5 #89 AI background discovery & indexing */
-"settings.ai.background.section" = "Background discovery & indexing";
+"settings.ai.background.section" = "Indexing & preview when SimpleZip is open";
+"settings.ai.background.silent.section" = "Silent background indexing";
+"settings.ai.background.silent.toggle" = "Keep indexing after SimpleZip is closed";
+"settings.ai.background.silent.toggle.desc" = "Lets a background agent keep indexing even after you quit SimpleZip (low-frequency, follows the power policy). Opening the app to index is expected; this keeps it running while closed — off by default.";
 "settings.ai.background.activityLevel" = "On-device AI activity";
 "settings.ai.background.activityLevel.desc" = "How actively on-device AI works in the background when your Mac is idle.";
 "settings.ai.background.indexPower" = "Indexing Power";

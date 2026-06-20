@@ -366,6 +366,9 @@ enum AppPreferences {
         nonisolated static let aiBackgroundIndexInterval = "aiBackgroundIndexInterval"
         /// 0.4.5 agent 调度:单次后台运行最长 timeout(秒,超时下次继续)。默认 300(5 分钟)。
         nonisolated static let aiBackgroundMaxRunSeconds = "aiBackgroundMaxRunSeconds"
+        /// 0.4.5 agent 调度:**静默后台索引总开关**(App 关闭后 agent 是否继续后台索引)。默认 false —— 独立 opt-in,
+        /// 和「打开应用时索引」分开:用户开 app 有预期,但不一定接受 app 关了还在后台跑。
+        nonisolated static let aiBackgroundSilentIndexEnabled = "aiBackgroundSilentIndexEnabled"
         /// 0.4.5 #89:允许后台 AI 预读归档(白皮书 4510)。只在白名单目录只读列归档清单。默认 false(opt-in)。
         nonisolated static let aiAllowArchivePrefetch = "aiAllowArchivePrefetch"
         /// 0.4.5 #89:允许后台 AI 预索引文件夹(白皮书 4511)。只在白名单目录只读建文件/文件夹元数据索引。默认 false。
@@ -507,13 +510,20 @@ enum AppPreferences {
         set { defaults.set(newValue.rawValue, forKey: Key.aiBackgroundIndexInterval) }
     }
 
-    /// 0.4.5 agent 调度:单次后台运行最长 timeout(秒,超时下次继续)。默认 300、钳 60…3600。
+    /// 0.4.5 agent 调度:单次后台运行最长 timeout(秒,超时下次继续)。默认 900(15 分钟,配 24h 间隔)、钳 60…3600。
     nonisolated static var aiBackgroundMaxRunSeconds: Int {
         get {
-            guard defaults.object(forKey: Key.aiBackgroundMaxRunSeconds) != nil else { return 300 }
+            guard defaults.object(forKey: Key.aiBackgroundMaxRunSeconds) != nil else { return 900 }
             return min(max(defaults.integer(forKey: Key.aiBackgroundMaxRunSeconds), 60), 3600)
         }
         set { defaults.set(min(max(newValue, 60), 3600), forKey: Key.aiBackgroundMaxRunSeconds) }
+    }
+
+    /// 0.4.5 agent 调度:**静默后台索引总开关**(App 关闭后是否继续)。默认 false —— 独立 opt-in,与「打开应用时索引」
+    /// 分开;开了才有间隔 / 单次 timeout 意义。App 一拉起后台索引归 App 走现有电源管理,与此无关。
+    nonisolated static var aiBackgroundSilentIndexEnabled: Bool {
+        get { defaults.bool(forKey: Key.aiBackgroundSilentIndexEnabled) }
+        set { defaults.set(newValue, forKey: Key.aiBackgroundSilentIndexEnabled) }
     }
 
     /// 0.4.5 #89:允许后台 AI 预读归档(白皮书 4510)。默认 false(opt-in)。
@@ -1152,6 +1162,7 @@ enum AppPreferences {
         Key.aiBackgroundActivityLevel,
         Key.aiBackgroundIndexInterval,
         Key.aiBackgroundMaxRunSeconds,
+        Key.aiBackgroundSilentIndexEnabled,
         Key.aiAllowArchivePrefetch,
         Key.aiAllowContentPreread,
         Key.aiAllowFolderPreindex,
@@ -1275,6 +1286,7 @@ enum AppPreferences {
         v[Key.aiBackgroundActivityLevel] = aiBackgroundActivityLevel.rawValue
         v[Key.aiBackgroundIndexInterval] = aiBackgroundIndexInterval.rawValue
         v[Key.aiBackgroundMaxRunSeconds] = aiBackgroundMaxRunSeconds
+        v[Key.aiBackgroundSilentIndexEnabled] = aiBackgroundSilentIndexEnabled
         v[Key.aiAllowArchivePrefetch] = aiAllowArchivePrefetch
         v[Key.aiAllowContentPreread] = aiAllowContentPreread
         v[Key.aiAllowFolderPreindex] = aiAllowFolderPreindex

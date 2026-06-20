@@ -2592,7 +2592,10 @@
 "ai.explainAudit.title" = "La vérification du répertoire expliquée";
 
 /* 0.4.5 #89 IA découverte et indexation en arrière-plan */
-"settings.ai.background.section" = "Découverte et indexation en arrière-plan";
+"settings.ai.background.section" = "Indexation et prélecture lorsque SimpleZip est ouvert";
+"settings.ai.background.silent.section" = "Indexation silencieuse en arrière-plan";
+"settings.ai.background.silent.toggle" = "Continuer l'indexation après la fermeture de SimpleZip";
+"settings.ai.background.silent.toggle.desc" = "Permet à un agent d'arrière-plan de continuer l'indexation même après avoir quitté SimpleZip (basse fréquence, selon la politique d'alimentation). Indexer en ouvrant l'app est attendu ; ceci continue à app fermée — désactivé par défaut.";
 "settings.ai.background.activityLevel" = "Activité de l'IA locale";
 "settings.ai.background.activityLevel.desc" = "À quel point l'IA locale travaille en arrière-plan lorsque votre Mac est inactif.";
 "settings.ai.background.indexPower" = "Énergie d'indexation";

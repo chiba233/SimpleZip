@@ -2673,7 +2673,10 @@
 "Flip Setting" = "翻转设置";
 
 /* 0.4.5 #89 AI 后台发现与索引 */
-"settings.ai.background.section" = "后台发现与索引";
+"settings.ai.background.section" = "打开 SimpleZip 时的索引与预读";
+"settings.ai.background.silent.section" = "静默后台索引";
+"settings.ai.background.silent.toggle" = "关闭 SimpleZip 后仍在后台索引";
+"settings.ai.background.silent.toggle.desc" = "即使你退出 SimpleZip,也允许后台 agent 继续静默索引(低频、遵循电源策略)。打开应用时索引是有预期的,这是关了也继续 —— 默认关闭。";
 "settings.ai.background.activityLevel" = "本地 AI 活跃度";
 "settings.ai.background.activityLevel.desc" = "Mac 空闲时,本地 AI 在后台工作的积极程度。";
 "settings.ai.background.indexPower" = "索引电源";

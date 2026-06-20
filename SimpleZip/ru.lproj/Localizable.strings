@@ -2594,7 +2594,10 @@
 "ai.explainAudit.title" = "Простое объяснение проверки каталога";
 
 /* 0.4.5 #89 ИИ фоновое обнаружение и индексирование */
-"settings.ai.background.section" = "Фоновое обнаружение и индексирование";
+"settings.ai.background.section" = "Индексирование и предпросмотр, когда SimpleZip открыт";
+"settings.ai.background.silent.section" = "Фоновое индексирование без уведомлений";
+"settings.ai.background.silent.toggle" = "Продолжать индексирование после закрытия SimpleZip";
+"settings.ai.background.silent.toggle.desc" = "Позволяет фоновому agent продолжать индексирование даже после выхода из SimpleZip (низкая частота, по политике питания). Индексирование при открытии приложения ожидаемо; это продолжается и при закрытом — по умолчанию выключено.";
 "settings.ai.background.activityLevel" = "Активность локального ИИ";
 "settings.ai.background.activityLevel.desc" = "Насколько активно локальный ИИ работает в фоне, когда Mac простаивает.";
 "settings.ai.background.indexPower" = "Энергия индексации";

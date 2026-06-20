@@ -2596,7 +2596,10 @@
 "ai.explainAudit.title" = "白話解釋目錄檢查";
 
 /* 0.4.5 #89 AI 後台發現與索引 */
-"settings.ai.background.section" = "後台發現與索引";
+"settings.ai.background.section" = "打開 SimpleZip 時的索引與預讀";
+"settings.ai.background.silent.section" = "靜默後台索引";
+"settings.ai.background.silent.toggle" = "關閉 SimpleZip 後仍在後台索引";
+"settings.ai.background.silent.toggle.desc" = "即使你退出 SimpleZip,也允許後台 agent 繼續靜默索引(低頻、遵循電源策略)。打開應用時索引是有預期的,這是關了也繼續 —— 預設關閉。";
 "settings.ai.background.activityLevel" = "本機 AI 活躍度";
 "settings.ai.background.activityLevel.desc" = "Mac 閒置時,本機 AI 在後台工作的積極程度。";
 "settings.ai.background.indexPower" = "索引電源";

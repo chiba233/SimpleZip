@@ -2596,7 +2596,10 @@
 "ai.explainAudit.title" = "ディレクトリ検査をわかりやすく説明";
 
 /* 0.4.5 #89 AI バックグラウンド発見とインデックス */
-"settings.ai.background.section" = "バックグラウンド発見とインデックス";
+"settings.ai.background.section" = "SimpleZip を開いている間のインデックスとプレビュー";
+"settings.ai.background.silent.section" = "サイレントバックグラウンドインデックス";
+"settings.ai.background.silent.toggle" = "SimpleZip を閉じた後も索引を続ける";
+"settings.ai.background.silent.toggle.desc" = "SimpleZip を終了した後もバックグラウンド agent がインデックスを続けられるようにします(低頻度、電源ポリシーに従う)。アプリを開いてインデックスするのは想定内ですが、これは閉じた後も続けます —— 既定はオフ。";
 "settings.ai.background.activityLevel" = "オンデバイス AI の活動量";
 "settings.ai.background.activityLevel.desc" = "Mac がアイドル時に、オンデバイス AI がバックグラウンドで働く積極さ。";
 "settings.ai.background.indexPower" = "索引の電力";

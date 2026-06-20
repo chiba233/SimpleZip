@@ -16,7 +16,7 @@ import Foundation
 
 public nonisolated struct AIAgentConfiguration: Codable, Sendable, Equatable {
     /// 当前 schema 版本。App 与 agent 同构建时天然对齐(本文件三 target 同编、值一致);跨版本时靠它协商。
-    public static let currentSchemaVersion = 2
+    public static let currentSchemaVersion = 3
 
     public var schemaVersion: Int
     /// AI 主开关。**红线:false = 整个 agent AI 能力禁用**(不生成、不索引、不预读)。
@@ -29,6 +29,9 @@ public nonisolated struct AIAgentConfiguration: Codable, Sendable, Equatable {
     public var contentPrereadEnabled: Bool
     /// 后台活跃度档位(AIBackgroundActivityLevel.rawValue 裸字符串)。
     public var activityLevel: String
+    /// agent 调度:**静默后台索引总开关**(App 关闭后 agent 是否继续后台索引)。false = App 关了不后台跑(独立
+    /// opt-in,与「打开应用时索引」分开)。下面的间隔 / timeout 只在它为 true 时有意义。
+    public var silentBackgroundIndexEnabled: Bool
     /// agent 调度:后台索引触发间隔(小时)。launchd 按它周期拉起 agent 跑一轮(AI 索引迁 agent 后生效)。
     public var backgroundIndexIntervalHours: Int
     /// agent 调度:单次后台运行最长 timeout(秒),超时停、下次继续。电源门控仍复用现有 AIBackgroundSchedulingRules。
@@ -37,6 +40,7 @@ public nonisolated struct AIAgentConfiguration: Codable, Sendable, Equatable {
     public init(schemaVersion: Int = AIAgentConfiguration.currentSchemaVersion,
                 aiAssistantEnabled: Bool, aiSuggestionEnabled: Bool,
                 indexingEnabled: Bool, contentPrereadEnabled: Bool, activityLevel: String,
+                silentBackgroundIndexEnabled: Bool,
                 backgroundIndexIntervalHours: Int, maxBackgroundRunSeconds: Int) {
         self.schemaVersion = schemaVersion
         self.aiAssistantEnabled = aiAssistantEnabled
@@ -44,6 +48,7 @@ public nonisolated struct AIAgentConfiguration: Codable, Sendable, Equatable {
         self.indexingEnabled = indexingEnabled
         self.contentPrereadEnabled = contentPrereadEnabled
         self.activityLevel = activityLevel
+        self.silentBackgroundIndexEnabled = silentBackgroundIndexEnabled
         self.backgroundIndexIntervalHours = backgroundIndexIntervalHours
         self.maxBackgroundRunSeconds = maxBackgroundRunSeconds
     }

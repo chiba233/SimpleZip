@@ -2595,7 +2595,10 @@
 "ai.explainAudit.title" = "디렉터리 검사 쉽게 설명";
 
 /* 0.4.5 #89 AI 백그라운드 발견 및 색인 */
-"settings.ai.background.section" = "백그라운드 발견 및 색인";
+"settings.ai.background.section" = "SimpleZip이 열려 있을 때의 색인 및 미리 읽기";
+"settings.ai.background.silent.section" = "백그라운드 무음 색인";
+"settings.ai.background.silent.toggle" = "SimpleZip을 닫은 후에도 색인 계속";
+"settings.ai.background.silent.toggle.desc" = "SimpleZip을 종료한 후에도 백그라운드 agent가 색인을 계속하도록 허용합니다(저빈도, 전원 정책 준수). 앱을 열어 색인하는 것은 예상되지만, 이것은 닫은 후에도 계속됩니다 —— 기본값은 꺼짐.";
 "settings.ai.background.activityLevel" = "온디바이스 AI 활동량";
 "settings.ai.background.activityLevel.desc" = "Mac이 유휴 상태일 때 온디바이스 AI가 백그라운드에서 작동하는 적극성입니다.";
 "settings.ai.background.indexPower" = "색인 전력";

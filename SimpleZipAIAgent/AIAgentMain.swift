@@ -26,6 +26,7 @@ struct AIAgentMain {
             let original = AIAgentConfiguration(
                 aiAssistantEnabled: true, aiSuggestionEnabled: false,
                 indexingEnabled: true, contentPrereadEnabled: true, activityLevel: "balanced",
+                silentBackgroundIndexEnabled: true,
                 backgroundIndexIntervalHours: 24, maxBackgroundRunSeconds: 300)
             let data = original.encoded()
             if let back = AIAgentConfiguration.decoded(from: data), back == original {

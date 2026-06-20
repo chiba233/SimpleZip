@@ -2594,7 +2594,10 @@
 "ai.explainAudit.title" = "Verzeichnisprüfung erklärt";
 
 /* 0.4.5 #89 KI-Hintergrunderkennung und Indizierung */
-"settings.ai.background.section" = "Hintergrunderkennung & Indizierung";
+"settings.ai.background.section" = "Indizierung & Vorschau bei geöffnetem SimpleZip";
+"settings.ai.background.silent.section" = "Stille Hintergrundindizierung";
+"settings.ai.background.silent.toggle" = "Nach dem Schließen von SimpleZip weiter indizieren";
+"settings.ai.background.silent.toggle.desc" = "Erlaubt einem Hintergrund-Agent, auch nach dem Beenden von SimpleZip weiter zu indizieren (niederfrequent, gemäß Energierichtlinie). Indizieren bei geöffneter App ist erwartet; dies läuft auch im geschlossenen Zustand weiter – standardmäßig aus.";
 "settings.ai.background.activityLevel" = "Aktivität der lokalen KI";
 "settings.ai.background.activityLevel.desc" = "Wie aktiv die lokale KI im Hintergrund arbeitet, wenn dein Mac inaktiv ist.";
 "settings.ai.background.indexPower" = "Indexierungsleistung";
