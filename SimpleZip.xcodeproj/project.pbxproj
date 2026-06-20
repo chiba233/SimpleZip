@@ -142,6 +142,11 @@
 			path = SimpleZipAIXPCService;
 			sourceTree = "<group>";
 		};
+		DD8EF9DE6DA93CE020AFD97C /* Core */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = SimpleZip/Core;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -176,6 +181,7 @@
 				0846B9722FB350EF0095DC1D /* SimpleZip */,
 				73BD34CC957FE43B8736704F /* SimpleZipAIAgent */,
 				0878FB37A2D6C4EE59680726 /* SimpleZipAIXPCService */,
+				DD8EF9DE6DA93CE020AFD97C /* Core */,
 				D2366AE7E99F003E085208B1 /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.aiagent.plist */,
 				0846B9712FB350EF0095DC1D /* Products */,
 				08B6CAAB2FE5DEBA00192F2A /* Recovered References */,
@@ -247,6 +253,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				73BD34CC957FE43B8736704F /* SimpleZipAIAgent */,
+				DD8EF9DE6DA93CE020AFD97C /* Core */,
 			);
 			name = SimpleZipAIAgent;
 			packageProductDependencies = (
