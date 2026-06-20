@@ -92,40 +92,44 @@ enum AIAgentClient {
         // 签名都变,但旧注册缓存的**代码要求(LWCR)/程序路径**不刷新 → launchd 拿旧 LWCR 校验新二进制失配 → spawn 失败。
         // 光「status != .enabled 才注册」永远只注册第一次。**DEBUG 下先 unregister 清陈旧注册、再强制 register 当前构建**,
         // 让 dev 探针跨 rebuild / 改名自愈;Release 不反复重建,保持「未注册才注册」。
-        let service = SMAppService.agent(plistName: SimpleZipAIAgentXPCNames.machService + ".plist")
-        let needsRegister: Bool
-        #if DEBUG
-        // 每个 App 启动只 unregister+register 一次(首刀自愈 rebuild 后的 LWCR 失配);之后同进程内直接连,不再每次
-        // 点探针都吃 register 的异步准备延迟。rebuild→重启 App 后的首刀仍会重注册(必要的自愈)。
-        if didRegisterDevAgentThisLaunch {
-            needsRegister = service.status != .enabled
-        } else {
-            try? service.unregister()
-            didRegisterDevAgentThisLaunch = true
-            needsRegister = true
-        }
-        #else
-        needsRegister = service.status != .enabled
-        #endif
-        if needsRegister {
-            do {
-                try service.register()
-            } catch {
-                reply("""
-                注册 LaunchAgent 失败:\(error.localizedDescription)
-                常见原因:helper 与 App 签名身份不一致(本地需 SimpleZip Dev、非 ad-hoc)/ App 在 DerivedData 跑而非 /Applications。
-                """)
-                return
+        // ⚠️ A18:SMAppService unregister/register 是**同步阻塞**调用,等 launchd 响应时会冻住调用线程。
+        // 绝不能在主线程跑(DevTools 按钮在主 actor 上),否则 dev 环境 register 卡 launchd 会假死整个 UI、触发
+        // watchdog(实测 __sigsuspend_nocancel 主线程 park)。整段挪后台线程,结果经 ReplyOnce → 主线程回。
+        DispatchQueue.global(qos: .userInitiated).async {
+            let service = SMAppService.agent(plistName: SimpleZipAIAgentXPCNames.machService + ".plist")
+            let needsRegister: Bool
+            #if DEBUG
+            // 每个 App 启动只 unregister+register 一次(首刀自愈 rebuild 后的 LWCR 失配);之后同进程内直接连。
+            if didRegisterDevAgentThisLaunch {
+                needsRegister = service.status != .enabled
+            } else {
+                try? service.unregister()
+                didRegisterDevAgentThisLaunch = true
+                needsRegister = true
             }
+            #else
+            needsRegister = service.status != .enabled
+            #endif
+            if needsRegister {
+                do {
+                    try service.register()
+                } catch {
+                    reply("""
+                    注册 LaunchAgent 失败:\(error.localizedDescription)
+                    常见原因:helper 与 App 签名身份不一致(本地需 SimpleZip Dev、非 ad-hoc)/ App 在 DerivedData 跑而非 /Applications。
+                    """)
+                    return
+                }
+            }
+            // 连 Mach 服务 + 调探针。register 后 service 可能尚未 ready → invokeWithRetry 兜首次冷启动 race;
+            // 后台首启要等 launchd 准备好刚 register 的 service → 比前台多给几次重试。
+            invokeWithRetry(
+                label: "后台 LaunchAgent ",
+                makeConnection: { NSXPCConnection(machServiceName: SimpleZipAIAgentXPCNames.machService) },
+                call: { proxy, done in proxy.probeModel { done("后台 LaunchAgent 探针 → \($0)") } },
+                attemptsLeft: 5,
+                reply: reply)
         }
-        // 2. 连 Mach 服务 + 调探针。register 后 service 可能尚未 ready → invokeWithRetry 兜首次冷启动 race。
-        // 后台首启可能要等 launchd 准备好刚 register 的 service → 比前台多给几次重试,容忍冷启动准备延迟。
-        invokeWithRetry(
-            label: "后台 LaunchAgent ",
-            makeConnection: { NSXPCConnection(machServiceName: SimpleZipAIAgentXPCNames.machService) },
-            call: { proxy, done in proxy.probeModel { done("后台 LaunchAgent 探针 → \($0)") } },
-            attemptsLeft: 5,
-            reply: reply)
     }
 
     // MARK: 前台 XPC Service 通道
