@@ -266,6 +266,38 @@ struct GeneratedClusterNaming: Sendable {
 }
 
 @available(macOS 26.0, *)
+@Generable
+struct GeneratedArchiveEntryPicks: Sendable {
+    @Guide(description: "The item NUMBERS of a FEW files inside this archive the user would most likely want to pull out or preview on their own — ONLY where a file CLEARLY stands out (e.g. a README, the main document, a config, an installer, the one obviously-important file). MOST archives need NONE; an empty list is the correct, common answer. Use only numbers that appear in the list; never invent one.")
+    var pickedNumbers: [String]
+}
+
+@available(macOS 26.0, *)
+@Generable
+struct GeneratedArchiveKindGuess: Sendable {
+    @Guide(description: "ONE short, concrete sentence describing what kind of archive this appears to be, based only on the listed paths and folder structure. Use the required language. Do not name or copy a specific product unless it is explicitly present in the archive name or entries.")
+    var summary: String
+    @Guide(description: "A FEW action tokens worth proactively suggesting for THIS archive, or empty. Allowed tokens only: 'test', 'security', 'inspect', 'hash', 'convert'. test and security are safe read-only checks for ANY archive; inspect and hash are for release packages / distributables; convert only when the format is clearly suboptimal. Use each token verbatim; never invent one.")
+    var actions: [String]
+}
+
+@available(macOS 26.0, *)
+@Generable
+struct GeneratedURLSuggestion: Sendable {
+    @Guide(description: "The NUMBER of the one URL that is genuinely worth showing as an 'open webpage' suggestion for this file. Use 0 when none is clearly useful. Choose only from the numbered URL list; never invent, rewrite, or output a URL.")
+    var urlNumber: Int
+}
+
+@available(macOS 26.0, *)
+@Generable
+struct GeneratedDiskImageSuggestion: Sendable {
+    @Guide(description: "ONE short, concrete sentence telling the owner what this disk image is: that it is the installer for the app(s) given to you, to be dragged into Applications to install. Use the app name(s) you were given; never invent or assume an app name. In the required language.")
+    var summary: String
+    @Guide(description: "True if you should actively suggest the user install the app from this disk image (drag it into Applications). For a normal app-installer disk image this is usually true; false only if it clearly is not something to install.")
+    var suggestInstall: Bool
+}
+
+@available(macOS 26.0, *)
 enum AgentGeneration {
     /// 参数化**真实**结构化生成:把用户自然语言请求 → 归档搜索关键词(镜像 App 端 ArchiveFileQuerySpec 的用途)。
     /// 接受**任意传入请求**(非写死),是「真生成迁 agent」的能力基础 —— 命令行 `--query` 与将来 XPC 转发都走它。
@@ -325,7 +357,127 @@ enum AIPassEngine {
             let input = try JSONDecoder().decode(WorkbenchClusterNamingInput.self, from: inputJSON)
             let entries = try await nameWorkbenchClusters(input, languageName: languageName)
             return try JSONEncoder().encode(AIPassClusterNamingOutput(entries: entries))
+        case .archiveEntryPicks:
+            let input = try JSONDecoder().decode(ArchiveEntryPicksInput.self, from: inputJSON)
+            let numbers = try await archiveEntryPicks(input)
+            return try JSONEncoder().encode(AIPassIntListOutput(numbers: numbers))
+        case .archiveKindGuess:
+            let input = try JSONDecoder().decode(ArchiveKindGuessInput.self, from: inputJSON)
+            let out = try await archiveKindGuess(input, languageName: languageName)
+            return try JSONEncoder().encode(out)
+        case .urlOpenSuggestion:
+            let input = try JSONDecoder().decode(URLOpenSuggestionInput.self, from: inputJSON)
+            let number = try await urlOpenSuggestion(input)
+            return try JSONEncoder().encode(AIPassIntOutput(number: number))
+        case .diskImageInstallSuggestion:
+            let input = try JSONDecoder().decode(DiskImageSuggestionInput.self, from: inputJSON)
+            let out = try await diskImageInstallSuggestion(input, languageName: languageName)
+            return try JSONEncoder().encode(out)
         }
+    }
+
+    /// 压缩包「你可能需要的文件」(结构化)。镜像原 App 端 archiveEntryPicks → 1 基序号(去重/合法/封顶 4)。
+    private static func archiveEntryPicks(_ input: ArchiveEntryPicksInput) async throws -> [Int] {
+        guard !input.entryPaths.isEmpty else { return [] }
+        let cands = Array(input.entryPaths.prefix(60))
+        let instructions = """
+        Below are the files inside ONE archive the user has. Pick a FEW (by number) that the user would most likely \
+        want to pull out or preview on their own — ONLY where a file CLEARLY stands out (a README / the main document \
+        / a config / an installer / the one obviously-important file). MOST archives need NONE; an empty list is the \
+        correct, common answer. Never invent a number; refer to files only by their number.
+        """
+        var lines = ["Archive: \(input.archiveName)", "Files (number<TAB>path) — refer to files by their number:"]
+        for (i, p) in cands.enumerated() { lines.append("\(i + 1)\t\(p)") }
+        let generated = try await AgentGenerationSerializer.shared.generateStructured(
+            instructions: instructions, prompt: lines.joined(separator: "\n"),
+            as: GeneratedArchiveEntryPicks.self, maxAttempts: 3)
+        var seen = Set<Int>()
+        return Array(generated.pickedNumbers
+            .compactMap { firstInt(in: $0) }
+            .filter { $0 >= 1 && $0 <= cands.count && seen.insert($0).inserted }
+            .prefix(4))
+    }
+
+    /// 归档「这是什么包」定性(结构化)。镜像原 App 端 archiveKindGuess(条目数+字符双预算防越界 trap;工具 token 过白名单)。
+    private static func archiveKindGuess(_ input: ArchiveKindGuessInput,
+                                         languageName: String) async throws -> AIPassArchiveKindOutput {
+        guard !input.entries.isEmpty else { return AIPassArchiveKindOutput(summary: "", toolTokens: []) }
+        let instructions = """
+        LANGUAGE — MANDATORY: write the summary in \(languageName). Never use any other language for it, not even partially.
+
+        You are looking at the file and folder names inside ONE archive. Based only on those names and their folder \
+        structure, write ONE short, concrete sentence describing what kind of archive this appears to be. Do not \
+        claim certainty; say it appears to be something. Do not invent contents that are not supported by the paths. \
+        Avoid naming a specific product or app unless that name is explicitly present in the archive name or entries.
+
+        Then suggest proactive action tokens for this archive (verbatim, from this exact list). test and security are \
+        SAFE, read-only checks that work on EVERY supported archive format. inspect and hash apply to release packages / \
+        distributables (an app, a disk image, an installer, executables, a bin/ or dist/ tree, a versioned release). \
+        convert — ONLY when the current format is clearly suboptimal for the likely next step. Return an empty list \
+        only for a trivial, throwaway archive where even a quick safe check would add nothing. Allowed tokens: \
+        test, security, inspect, hash, convert. Use each token verbatim; never invent one.
+        """
+        var lines = ["Archive: \(input.archiveName)", "Entries (number<TAB>type<TAB>path):"]
+        var promptBudget = 6_000
+        for (i, entry) in input.entries.enumerated() {
+            if i >= 200 || promptBudget <= 0 { break }
+            let kind = entry.isDirectory ? "directory" : "file"
+            let name = String(entry.name.prefix(160))
+            lines.append("\(i + 1)\t\(kind)\t\(name)")
+            promptBudget -= name.count + 12
+        }
+        let generated = try await AgentGenerationSerializer.shared.generateStructured(
+            instructions: instructions, prompt: lines.joined(separator: "\n"),
+            as: GeneratedArchiveKindGuess.self, maxAttempts: 3)
+        let allowed: Set<String> = ["inspect", "test", "hash", "convert", "security"]
+        var seen = Set<String>()
+        let tokens = generated.actions
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+            .filter { allowed.contains($0) && seen.insert($0).inserted }
+        return AIPassArchiveKindOutput(
+            summary: generated.summary.trimmingCharacters(in: .whitespacesAndNewlines), toolTokens: tokens)
+    }
+
+    /// 文本 URL「打开网页」(结构化)。镜像原 App 端 urlOpenSuggestion → 选中的 **0 基**下标;无 / 越界 → -1。
+    private static func urlOpenSuggestion(_ input: URLOpenSuggestionInput) async throws -> Int {
+        guard !input.urls.isEmpty else { return -1 }
+        let cands = Array(input.urls.prefix(12))
+        let instructions = """
+        You are deciding whether a file manager should show an "open webpage" suggestion for ONE text file. The App \
+        has already extracted REAL URLs from the file. Choose the ONE URL that is clearly useful for the owner to \
+        open from this file — for example an official project page, release page, documentation, issue, download, \
+        or other central reference. Use 0 if the URLs look incidental, tracking-like, too generic, or not worth \
+        surfacing. Be strict: most files need no URL suggestion. Choose only by NUMBER from the list. Never invent, \
+        rewrite, normalize, or output any URL. Do not mention or recommend any specific browser or app.
+        """
+        var lines = ["File: \(input.fileName)"]
+        if !input.roleTags.isEmpty { lines.append("Role: \(input.roleTags.joined(separator: ", "))") }
+        lines.append("Extracted URLs (number<TAB>url) — choose only by number:")
+        for (i, url) in cands.enumerated() { lines.append("\(i + 1)\t\(url)") }
+        let generated = try await AgentGenerationSerializer.shared.generateStructured(
+            instructions: instructions, prompt: lines.joined(separator: "\n"),
+            as: GeneratedURLSuggestion.self, maxAttempts: 3)
+        guard generated.urlNumber >= 1, generated.urlNumber <= cands.count else { return -1 }
+        return generated.urlNumber - 1
+    }
+
+    /// 磁盘镜像「安装到应用程序」(结构化)。镜像原 App 端 diskImageInstallSuggestion → 一句定性 + 是否建议安装。
+    private static func diskImageInstallSuggestion(_ input: DiskImageSuggestionInput,
+                                                   languageName: String) async throws -> AIPassDiskImageOutput {
+        let instructions = """
+        LANGUAGE — MANDATORY: write the summary in \(languageName). Never use any other language for it, not even partially.
+
+        The user has a disk image (.dmg) that contains the macOS app(s) listed below. Write ONE concrete, specific \
+        sentence telling them what this is — the kind of reminder a person would give themselves (e.g. the installer \
+        for that app, to be dragged into Applications). Do not be generic. Then decide suggestInstall: true if \
+        actively suggesting they install the app (drag it into Applications) is a useful next step, false if not.
+        """
+        let prompt = "Disk image: \(input.dmgName)\nApp(s) inside: \(input.appNames.prefix(4).joined(separator: ", "))"
+        let generated = try await AgentGenerationSerializer.shared.generateStructured(
+            instructions: instructions, prompt: prompt,
+            as: GeneratedDiskImageSuggestion.self, maxAttempts: 3)
+        return AIPassDiskImageOutput(
+            summary: generated.summary.trimmingCharacters(in: .whitespacesAndNewlines), suggest: generated.suggestInstall)
     }
 
     /// 取字符串里第一个整数(模型偶尔回 "3." / "#3" / "3: 名字" 这类,容错抽编号)。

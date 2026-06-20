@@ -29,6 +29,14 @@ public enum AIPassKind: String, Sendable {
     case rankWorkbenchFilterChips
     /// 活动中心「真建议」聚集命名(结构化,输入真实聚集候选,输出 [编号:名字])。
     case nameWorkbenchClusters
+    /// 压缩包「你可能需要的文件」(结构化,输入包名 + 条目路径,输出挑中的 1 基序号)。
+    case archiveEntryPicks
+    /// 归档「这是什么包」定性(结构化,输入包名 + 条目名/类型,输出一句定性 + 工具 token)。
+    case archiveKindGuess
+    /// 文本里真实 URL「打开网页」(结构化,输入名/角色/URL 列表,输出选中 0 基下标或 -1)。
+    case urlOpenSuggestion
+    /// 磁盘镜像「安装到应用程序」(结构化,输入 dmg 名 + 内含 App 名,输出一句定性 + 是否建议安装)。
+    case diskImageInstallSuggestion
 }
 
 // MARK: - 输入 DTO(App 拼 / 引擎解码)
@@ -111,6 +119,44 @@ public nonisolated struct WorkbenchClusterNamingInput: Codable, Sendable {
     public init(candidates: [Candidate]) { self.candidates = candidates }
 }
 
+/// 压缩包「你可能需要的文件」输入:包名 + 内部文件路径(只读清单缓存,不解压)。
+public nonisolated struct ArchiveEntryPicksInput: Codable, Sendable {
+    public var archiveName: String
+    public var entryPaths: [String]
+    public init(archiveName: String, entryPaths: [String]) {
+        self.archiveName = archiveName; self.entryPaths = entryPaths
+    }
+}
+
+/// 归档「这是什么包」输入:包名 + 条目名/类型(非加密清单,不解压)。
+public nonisolated struct ArchiveKindGuessInput: Codable, Sendable {
+    public nonisolated struct Entry: Codable, Sendable {
+        public var name: String
+        public var isDirectory: Bool
+        public init(name: String, isDirectory: Bool) { self.name = name; self.isDirectory = isDirectory }
+    }
+    public var archiveName: String
+    public var entries: [Entry]
+    public init(archiveName: String, entries: [Entry]) { self.archiveName = archiveName; self.entries = entries }
+}
+
+/// 文本 URL「打开网页」输入:文件名 + 角色 + App 已抽出的**真实** URL 列表(模型只选编号、不发明/改写 URL)。
+public nonisolated struct URLOpenSuggestionInput: Codable, Sendable {
+    public var fileName: String
+    public var roleTags: [String]
+    public var urls: [String]
+    public init(fileName: String, roleTags: [String], urls: [String]) {
+        self.fileName = fileName; self.roleTags = roleTags; self.urls = urls
+    }
+}
+
+/// 磁盘镜像「安装到应用程序」输入:dmg 名 + 7zz 只读 peek 出的内部 .app 名。
+public nonisolated struct DiskImageSuggestionInput: Codable, Sendable {
+    public var dmgName: String
+    public var appNames: [String]
+    public init(dmgName: String, appNames: [String]) { self.dmgName = dmgName; self.appNames = appNames }
+}
+
 // MARK: - 输出 DTO(引擎产 / App 解码)
 
 /// 纯文本 pass 的通用输出(一句话 / 一段解释)。
@@ -134,4 +180,24 @@ public nonisolated struct AIPassClusterNamingOutput: Codable, Sendable {
     }
     public var entries: [Entry]
     public init(entries: [Entry]) { self.entries = entries }
+}
+
+/// 通用「单个整数」输出(如 URL 选中的 **0 基**下标;-1 = 没选 / 无效)。
+public nonisolated struct AIPassIntOutput: Codable, Sendable {
+    public var number: Int
+    public init(number: Int) { self.number = number }
+}
+
+/// 归档定性输出:一句定性 + 适用的工具 token(引擎已过白名单去重)。
+public nonisolated struct AIPassArchiveKindOutput: Codable, Sendable {
+    public var summary: String
+    public var toolTokens: [String]
+    public init(summary: String, toolTokens: [String]) { self.summary = summary; self.toolTokens = toolTokens }
+}
+
+/// 磁盘镜像建议输出:一句定性 + 是否建议安装。
+public nonisolated struct AIPassDiskImageOutput: Codable, Sendable {
+    public var summary: String
+    public var suggest: Bool
+    public init(summary: String, suggest: Bool) { self.summary = summary; self.suggest = suggest }
 }

@@ -395,10 +395,13 @@ final class AIBackgroundIndexer {
                         recordID: rec.id, url: fastURL, label: AIURLCandidateExtractor.webPageLabel(for: fastURL))
                     continue
                 }
-                guard let index = try? await AIVirtualFolderModelPlanner.urlOpenSuggestion(
-                    fileName: rec.fileName, roleTags: rec.roleTags, urls: urls),
-                    urls.indices.contains(index) else { continue }
-                let url = urls[index]
+                // 阶段3:经前台 XPC Service 在引擎进程跑(模型只选编号、不发明 URL)。
+                guard let urlOut = try? await AIAgentClient.generatePass(
+                    kind: .urlOpenSuggestion,
+                    input: URLOpenSuggestionInput(fileName: rec.fileName, roleTags: rec.roleTags, urls: urls),
+                    as: AIPassIntOutput.self),
+                    urls.indices.contains(urlOut.number) else { continue }
+                let url = urls[urlOut.number]
                 AIBackgroundIndexStore.shared.applyURLOpenSuggestion(
                     recordID: rec.id, url: url, label: AIURLCandidateExtractor.webPageLabel(for: url))
             }
@@ -442,8 +445,10 @@ final class AIBackgroundIndexer {
                     continue   // 没 .app(或 peek 失败)→ 标记已评估,下轮不再选
                 }
                 // 模型决定冒不冒 + 措辞;模型失败 → 不标记(下轮重试,budget 兜底不会失控)。
-                guard let result = try? await AIVirtualFolderModelPlanner.diskImageInstallSuggestion(
-                    dmgName: rec.fileName, appNames: appNames) else { continue }
+                guard let result = try? await AIAgentClient.generatePass(
+                    kind: .diskImageInstallSuggestion,
+                    input: DiskImageSuggestionInput(dmgName: rec.fileName, appNames: appNames),
+                    as: AIPassDiskImageOutput.self) else { continue }
                 AIBackgroundIndexStore.shared.setDiskImageSuggestion(
                     recordID: rec.id,
                     summary: result.summary.isEmpty ? nil : result.summary,
@@ -747,9 +752,11 @@ final class AIBackgroundIndexer {
                     continue
                 }
                 // 模型挑序号(失败 → nil → 不标记、下轮重试;[] → 模型说没有 → 标记已评估)。
-                guard let chosen = try? await AIVirtualFolderModelPlanner.archiveEntryPicks(
-                    archiveName: rec.fileName, entryPaths: paths) else { continue }
-                let actions = chosen.map { idx -> AIFileSuggestedAction in
+                guard let entryOut = try? await AIAgentClient.generatePass(
+                    kind: .archiveEntryPicks,
+                    input: ArchiveEntryPicksInput(archiveName: rec.fileName, entryPaths: paths),
+                    as: AIPassIntListOutput.self) else { continue }
+                let actions = entryOut.numbers.map { idx -> AIFileSuggestedAction in
                     let entryPath = paths[idx - 1]
                     return AIFileSuggestedAction(token: "revealArchiveEntry", payload: entryPath,
                                                  label: (entryPath as NSString).lastPathComponent)
@@ -800,8 +807,11 @@ final class AIBackgroundIndexer {
                     AIBackgroundIndexStore.shared.applyArchiveKindGuess(recordID: rec.id, summary: nil)
                     continue
                 }
-                guard let guess = try? await AIVirtualFolderModelPlanner.archiveKindGuess(
-                    archiveName: rec.fileName, entryNames: entries) else { continue }
+                let kindInput = ArchiveKindGuessInput(
+                    archiveName: rec.fileName,
+                    entries: entries.map { ArchiveKindGuessInput.Entry(name: $0.name, isDirectory: $0.isDirectory) })
+                guard let guess = try? await AIAgentClient.generatePass(
+                    kind: .archiveKindGuess, input: kindInput, as: AIPassArchiveKindOutput.self) else { continue }
                 AIBackgroundIndexStore.shared.applyArchiveKindGuess(
                     recordID: rec.id, summary: guess.summary, toolTokens: guess.toolTokens)
             }
