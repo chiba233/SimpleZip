@@ -76,6 +76,23 @@ final class AIAgentService: NSObject, SimpleZipAIAgentXPC {
         return "agent target 无法 import FoundationModels(SDK 不含)。"
         #endif
     }
+
+    /// 参数化真实生成的人话封装(命令行 `--query` 与将来 XPC 转发都可调)。总是存在,内部按 OS/SDK 守卫。
+    /// 与写死的 `probeText` 不同,它处理**任意传入请求** —— agent 真实生成能力的最小可调用面。
+    static func queryText(_ request: String) async -> String {
+        guard #available(macOS 26.0, *) else {
+            return "macOS < 26 — FoundationModels 不可用。"
+        }
+        #if canImport(FoundationModels)
+        do {
+            return try await AgentGeneration.extractArchiveKeyword(from: request)
+        } catch {
+            return "QUERY FAILED: \(error)"
+        }
+        #else
+        return "agent target 无法 import FoundationModels(SDK 不含)。"
+        #endif
+    }
 }
 
 /// agent 日志统一打到 stderr(终端 / launchd 都可见)。
@@ -145,17 +162,25 @@ struct AgentProbeSpec: Sendable {
 
 @available(macOS 26.0, *)
 enum AgentGeneration {
-    /// 在 agent 进程跑一次**结构化** @Generable 生成(过串行闸 + 重试),回人话结果片段。
+    /// 参数化**真实**结构化生成:把用户自然语言请求 → 归档搜索关键词(镜像 App 端 ArchiveFileQuerySpec 的用途)。
+    /// 接受**任意传入请求**(非写死),是「真生成迁 agent」的能力基础 —— 命令行 `--query` 与将来 XPC 转发都走它。
+    static func extractArchiveKeyword(from request: String) async throws -> String {
+        let spec = try await AgentGenerationSerializer.shared.generateStructured(
+            instructions: """
+            The user is looking for a file they remember is inside some archive. Extract the single most \
+            useful file-name keyword to search for. Return just the keyword, no punctuation or path.
+            """,
+            prompt: request,
+            as: AgentProbeSpec.self)
+        return spec.keyword
+    }
+
+    /// 在 agent 进程跑一次**结构化** @Generable 生成(过串行闸 + 重试),回人话结果片段。复用 extractArchiveKeyword
+    /// 的真实路径、只是喂一个写死样本请求 —— `--probe` 地基自检用。
     static func structuredProbe() async -> String {
         do {
-            let spec = try await AgentGenerationSerializer.shared.generateStructured(
-                instructions: """
-                The user is looking for a file they remember is inside some archive. Extract the single most \
-                useful file-name keyword to search for. Return just the keyword, no punctuation or path.
-                """,
-                prompt: "I think my budget spreadsheet is zipped up somewhere",
-                as: AgentProbeSpec.self)
-            return "结构化生成 OK,keyword=\"\(spec.keyword)\""
+            let keyword = try await extractArchiveKeyword(from: "I think my budget spreadsheet is zipped up somewhere")
+            return "结构化生成 OK,keyword=\"\(keyword)\""
         } catch {
             return "结构化生成失败: \(error)"
         }

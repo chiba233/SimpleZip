@@ -35,6 +35,18 @@ struct AIAgentMain {
             }
             RunLoop.main.run()
         }
+        // `--query <text>`:参数化**真实**生成 —— 把自然语言请求 → 归档搜索关键词后退出。命令行直接验证 agent 的
+        // 真实(非写死)结构化生成能力,不依赖 XPC/GUI。用法:.../SimpleZipAIAgent --query "我记得有个预算表压缩在哪了"
+        if let qIndex = CommandLine.arguments.firstIndex(of: "--query"), qIndex + 1 < CommandLine.arguments.count {
+            let request = CommandLine.arguments[qIndex + 1]
+            Task {
+                let keyword = await AIAgentService.queryText(request)
+                agentLog("DIRECT QUERY(\(request)) → \(keyword)")
+                print(keyword)
+                exit(0)
+            }
+            RunLoop.main.run()
+        }
         // 默认:起绑定到约定 Mach service 名的 NSXPCListener,长驻等 App / launchd 连接。
         let delegate = AIAgentListenerDelegate()
         let listener = NSXPCListener(machServiceName: SimpleZipAIAgentXPCNames.machService)
