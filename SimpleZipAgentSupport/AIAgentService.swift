@@ -242,6 +242,15 @@ struct AgentProbeSpec: Sendable {
     var keyword: String
 }
 
+/// 阶段3 结构化 pass 的 @Generable 类型(从 App 端 AIVirtualFolderModelPlanner 搬来,只在 agent+XPC 编 ——
+/// FoundationModels 类型不进 app、也不跨 XPC,留引擎内部)。「文件有活动」一句话提醒。
+@available(macOS 26.0, *)
+@Generable
+struct GeneratedActivityReminder: Sendable {
+    @Guide(description: "ONE short, natural sentence reminding the owner of the recent action they took on this file and roughly when, so they know it has recent activity and can jump to it. Use ONLY the action and timeframe you were given; never invent extra detail. In the required language.")
+    var reminder: String
+}
+
 @available(macOS 26.0, *)
 enum AgentGeneration {
     /// 参数化**真实**结构化生成:把用户自然语言请求 → 归档搜索关键词(镜像 App 端 ArchiveFileQuerySpec 的用途)。
@@ -290,7 +299,28 @@ enum AIPassEngine {
             let input = try JSONDecoder().decode(LongFileSummaryInput.self, from: inputJSON)
             let text = try await longFileSummary(input, languageName: languageName)
             return try JSONEncoder().encode(AIPassTextOutput(text: text))
+        case .activityReminder:
+            let input = try JSONDecoder().decode(ActivityReminderInput.self, from: inputJSON)
+            let text = try await activityReminder(input, languageName: languageName)
+            return try JSONEncoder().encode(AIPassTextOutput(text: text))
         }
+    }
+
+    /// 文件「有活动」提醒(**结构化** @Generable)。镜像原 App 端 AIVirtualFolderModelPlanner.activityReminder ——
+    /// 结构化 pass 把 @Generable 类型(GeneratedActivityReminder)一起搬进引擎(只在 agent+XPC,带 FoundationModels)。
+    private static func activityReminder(_ input: ActivityReminderInput, languageName: String) async throws -> String {
+        let instructions = """
+        LANGUAGE — MANDATORY: write the reminder in \(languageName). Never use any other language for it, not even partially.
+
+        Inside a file manager, the owner recently ran an operation that produced ONE file. Write ONE short, natural \
+        sentence reminding them of that recent activity — what they did and roughly when — so they can jump to it in \
+        the activity history. Use ONLY the action and timeframe you are given; be concise and concrete; do not invent \
+        any extra detail and do not restate the file name verbatim.
+        """
+        let prompt = "File: \(input.fileName)\nRecent action: \(input.actionText)\nWhen: \(input.whenText)"
+        let generated = try await AgentGenerationSerializer.shared.generateStructured(
+            instructions: instructions, prompt: prompt, as: GeneratedActivityReminder.self, maxAttempts: 3)
+        return generated.reminder.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// 文件「查看更长总结」(纯文本)。镜像原 App 端 AIVirtualFolderModelPlanner.longFileSummary。

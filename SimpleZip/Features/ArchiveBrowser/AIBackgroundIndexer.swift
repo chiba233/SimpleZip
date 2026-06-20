@@ -496,10 +496,12 @@ final class AIBackgroundIndexer {
                 guard let path = rec.path, FileManager.default.fileExists(atPath: path) else { continue }
                 let actionText = AIBackgroundIndexer.activityActionText(for: snap.kind)
                 let whenText = AIAgeFacts.coarseWhenText(snap.finishedAt ?? snap.startedAt, now: Date())
-                guard let phrasing = try? await AIVirtualFolderModelPlanner.activityReminder(
-                    fileName: rec.fileName, actionText: actionText, whenText: whenText),
-                    !phrasing.isEmpty else { continue }
-                AIBackgroundIndexStore.shared.applyActivitySuggestion(recordID: rec.id, taskID: snap.id, phrasing: phrasing)
+                // 阶段3:整条 pass 经前台 XPC Service 在引擎进程跑(主二进制零模型推理)。
+                let input = ActivityReminderInput(fileName: rec.fileName, actionText: actionText, whenText: whenText)
+                guard let out = try? await AIAgentClient.generatePass(
+                    kind: .activityReminder, input: input, as: AIPassTextOutput.self),
+                      !out.text.isEmpty else { continue }
+                AIBackgroundIndexStore.shared.applyActivitySuggestion(recordID: rec.id, taskID: snap.id, phrasing: out.text)
             }
         }
     }

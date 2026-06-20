@@ -128,12 +128,6 @@ struct GeneratedDiskImageSuggestion: Sendable {
 
 /// **「文件有活动」一句话提醒**的模型产出(backlog 第3项)。单字段,可靠。
 @available(macOS 26.0, *)
-@Generable
-struct GeneratedActivityReminder: Sendable {
-    @Guide(description: "ONE short, natural sentence reminding the owner of the recent action they took on this file and roughly when, so they know it has recent activity and can jump to it. Use ONLY the action and timeframe you were given; never invent extra detail. In the required language.")
-    var reminder: String
-}
-
 /// **压缩包「你可能需要的文件」**的模型产出(backlog 第4项)。模型从包内文件清单里挑**少数几个**用户最可能想
 /// 单独取出 / 预览的(按序号),大多数包一个都不挑。单字段,可靠。**拒绝假AI**:确定性只列出包里有什么,挑哪个由模型定。
 @available(macOS 26.0, *)
@@ -534,21 +528,8 @@ enum AIVirtualFolderModelPlanner {
     /// **「文件有活动」一句话提醒**(backlog 第3项,拒绝假AI)。一个文件被某任务产出(精确按产物路径匹配),让端上
     /// 模型用一句自然话提醒用户「最近对它做过什么 + 大致何时」,好跳活动中心看。**动作描述 + 时间文本由 App 给**
     /// (时间换算在代码做,模型不算时间);模型只把它们组织成界面语言的一句话。失败抛出由调用点吞掉。
-    static func activityReminder(fileName: String, actionText: String, whenText: String) async throws -> String {
-        let lang = AIReportAssistant.uiLanguageName
-        let instructions = """
-        LANGUAGE — MANDATORY: write the reminder in \(lang). Never use any other language for it, not even partially.
-
-        Inside a file manager, the owner recently ran an operation that produced ONE file. Write ONE short, natural \
-        sentence reminding them of that recent activity — what they did and roughly when — so they can jump to it in \
-        the activity history. Use ONLY the action and timeframe you are given; be concise and concrete; do not invent \
-        any extra detail and do not restate the file name verbatim.
-        """
-        let prompt = "File: \(fileName)\nRecent action: \(actionText)\nWhen: \(whenText)"
-        let generated = try await AIReportAssistant.generateStructured(
-            instructions: instructions, prompt: prompt, as: GeneratedActivityReminder.self, maxAttempts: 3)
-        return generated.reminder.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
+    // activityReminder 已迁进 agent+XPC 引擎(AIPassEngine.activityReminder),连 @Generable GeneratedActivityReminder
+    // 一起搬走;App 经 AIAgentClient.generatePass(.activityReminder) 调。
 
     /// **压缩包「你可能需要的文件」**(backlog 第4项,拒绝假AI)。给一个归档的内部文件清单(只读清单缓存,不解压),
     /// 让端上模型挑**少数几个**用户最可能想单独取出 / 预览的(按序号)。返回挑中的 **1 基序号**(去重、合法、封顶 4);

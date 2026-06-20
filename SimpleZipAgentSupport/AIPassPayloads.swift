@@ -23,6 +23,8 @@ public enum AIPassKind: String, Sendable {
     case activityWorkbenchExplanation
     /// 文件「查看更长总结」实时按需现算(纯文本,输入名/角色/语言/标题/脱敏摘录,输出一小段更长总结)。
     case longFileSummary
+    /// 文件「有活动」提醒(结构化,输入名/动作/时间,输出一句提醒短语)。
+    case activityReminder
 }
 
 // MARK: - 输入 DTO(App 拼 / 引擎解码)
@@ -68,6 +70,18 @@ public nonisolated struct LongFileSummaryInput: Codable, Sendable {
         self.languageHint = languageHint
         self.headings = headings
         self.excerpt = excerpt
+    }
+}
+
+/// 「文件有活动」提醒输入:文件名 + 中性英文动作描述 + 粗略时间(都已是确定性派生的安全 token,不含路径)。
+public nonisolated struct ActivityReminderInput: Codable, Sendable {
+    public var fileName: String
+    public var actionText: String
+    public var whenText: String
+    public init(fileName: String, actionText: String, whenText: String) {
+        self.fileName = fileName
+        self.actionText = actionText
+        self.whenText = whenText
     }
 }
 
