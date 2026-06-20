@@ -106,8 +106,12 @@ struct AIBackgroundDiscoverySection: View {
                     systemImage: "moon.zzz", iconTint: .purple,
                     isOn: $silentIndex
                 )
-                .onChange(of: silentIndex) { _ in
+                .onChange(of: silentIndex) { on in
                     AIAgentClient.publishConfiguration()
+                    // 开 → 注册周期后台索引 LaunchAgent(launchd 在 App 关闭时按计划拉起跑 `--background-index`);
+                    // 关 → 反注册。🔴 用户曾在登录项关掉(.requiresApproval)则内部不强注册(尊重)。register /
+                    // unregister 同步阻塞 launchd → setBackgroundIndexEnabled 内部已 off-main。
+                    Task { await AIAgentClient.setBackgroundIndexEnabled(on) }
                 }
 
                 if silentIndex {

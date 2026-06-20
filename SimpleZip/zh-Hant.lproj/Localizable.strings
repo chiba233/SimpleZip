@@ -1434,8 +1434,7 @@
 "health.aiBackend.unreachable" = "AI 後端連接失敗(已重試)。AI 功能暫時退回確定性結果。";
 "health.aiBackend.openSettings" = "打開 AI 設定";
 "health.aiAgent.title" = "背景 AI 服務";
-"health.aiAgent.ok" = "運行正常 —— 背景索引服務已註冊並回應。";
-"health.aiAgent.stale" = "已註冊但無回應。應用程式更新後偶爾會這樣;點修復可重新註冊。";
+"health.aiAgent.ok" = "已註冊 —— SimpleZip 關閉時在背景索引。";
 "health.aiAgent.notRegistered" = "已開啟靜默背景索引,但服務尚未註冊。";
 "health.aiAgent.requiresApproval" = "已在「登入項目」中關閉。SimpleZip 不會替你重新開啟 —— 如需背景索引,請在系統設定中重新啟用。";
 "health.aiAgent.notFound" = "應用程式中缺少背景服務(建置問題)。";

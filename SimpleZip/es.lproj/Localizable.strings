@@ -1381,8 +1381,7 @@
 "health.aiBackend.unreachable" = "Backend de IA no accesible (tras reintentos). Las funciones de IA recurren temporalmente a resultados deterministas.";
 "health.aiBackend.openSettings" = "Abrir ajustes de IA";
 "health.aiAgent.title" = "Servicio de IA en segundo plano";
-"health.aiAgent.ok" = "Funcionando con normalidad: el servicio de indexación en segundo plano está registrado y responde.";
-"health.aiAgent.stale" = "Registrado pero no responde. Puede ocurrir tras una actualización de la app; reparar vuelve a registrarlo.";
+"health.aiAgent.ok" = "Registrado: la indexación en segundo plano se ejecuta cuando SimpleZip está cerrado.";
 "health.aiAgent.notRegistered" = "La indexación silenciosa en segundo plano está activada, pero el servicio aún no está registrado.";
 "health.aiAgent.requiresApproval" = "Desactivado en los Ítems de inicio de sesión. SimpleZip no lo volverá a activar por ti; vuelve a activarlo en Ajustes del Sistema si quieres la indexación en segundo plano.";
 "health.aiAgent.notFound" = "Falta el servicio en segundo plano en la app (un problema de compilación).";

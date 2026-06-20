@@ -119,15 +119,16 @@ enum HealthChecker {
             status: .error, action: fix)
     }
 
-    /// 后台 AI 索引服务运行状态(**LaunchAgent 通道**,区别于上面 `checkAIBackend` 测的前台 XPC Service)。
-    /// 后台 LaunchAgent 在 系统设置「登录项」可见、受「允许在后台」门控,会因 rebuild / 改身份 / 换签名团队 /
-    /// 发布包罕见的陈旧记录而被 launchd 拒绝拉起(spawn failed)。这里把它的状态**显性化**并按需给修复入口。
+    /// 后台 AI 索引服务运行状态(**周期 `--background-index` LaunchAgent**,区别于上面 `checkAIBackend` 测的前台
+    /// XPC Service)。它在 系统设置「登录项」可见、受「允许在后台」门控,在 App 关闭时由 launchd 按计划拉起跑后台索引。
+    /// 这里把它的**注册态**显性化并按需给修复入口。
     ///
     /// 仅当 AI 主开关 + 「静默后台索引」都开(用户已 opt-in 后台索引)才显示 —— 否则后台 agent 本就不该跑、不显示。
-    /// 状态映射:
-    ///   - 已启用 + ping 通 → ok;
-    ///   - 已启用但 ping 不通(spawn failed / 启动校验陈旧)→ error + 「修复」(重注册刷新,保持启用选择);
-    ///   - 未注册(首次 / 改身份后旧记录已清)→ warning + 「修复」(注册);
+    /// 注册态映射:
+    ///   - 已启用 → ok(后台索引会在 App 关闭时跑)。仍挂「修复」action 作维护入口:发布包罕见 stale BTM/LWCR
+    ///     (注册仍在、但 launchd 拉不起)无法从 App 端直接探到(后台 agent 不是常驻 listener),给用户一个手动重注册
+    ///     刷新启动校验的口子 —— 正是用户点名「发布包也罕见出现 stale,得能修」的诉求;
+    ///   - 未注册(首次启用前 / 改身份后旧记录已清 / 记录丢失)→ warning + 「修复」(注册);
     ///   - 🔴 用户在登录项关了 → warning + 「打开登录项设置」(**绝不偷偷重开**,只引导);
     ///   - bundle 里找不到 plist(构建问题)→ error(无修复入口)。
     private static func checkAIBackgroundAgent(onOpenSettings: @escaping () -> Void) async -> HealthCheckItem? {
@@ -138,12 +139,8 @@ enum HealthChecker {
             perform: { Task { _ = await AIAgentClient.repairBackgroundAgentRegistration() } })
         switch await AIAgentClient.backgroundAgentRegistration() {
         case .enabled:
-            if await AIAgentClient.pingBackgroundAgent() {
-                return HealthCheckItem(
-                    title: title, detail: L10n.text("health.aiAgent.ok"), status: .ok, action: nil)
-            }
             return HealthCheckItem(
-                title: title, detail: L10n.text("health.aiAgent.stale"), status: .error, action: repairAction)
+                title: title, detail: L10n.text("health.aiAgent.ok"), status: .ok, action: repairAction)
         case .notRegistered:
             return HealthCheckItem(
                 title: title, detail: L10n.text("health.aiAgent.notRegistered"), status: .warning, action: repairAction)

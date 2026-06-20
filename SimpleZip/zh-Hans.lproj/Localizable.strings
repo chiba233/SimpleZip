@@ -2046,8 +2046,7 @@
 "health.aiBackend.unreachable" = "AI 后端连接失败(已重试)。AI 功能暂时退回确定性结果。";
 "health.aiBackend.openSettings" = "打开 AI 设置";
 "health.aiAgent.title" = "后台 AI 服务";
-"health.aiAgent.ok" = "运行正常 —— 后台索引服务已注册并响应。";
-"health.aiAgent.stale" = "已注册但无响应。应用更新后偶尔会这样;点修复可重新注册。";
+"health.aiAgent.ok" = "已注册 —— SimpleZip 关闭时在后台索引。";
 "health.aiAgent.notRegistered" = "已开启静默后台索引,但服务尚未注册。";
 "health.aiAgent.requiresApproval" = "已在「登录项」中关闭。SimpleZip 不会替你重新打开 —— 如需后台索引,请在系统设置中重新启用。";
 "health.aiAgent.notFound" = "应用中缺少后台服务(构建问题)。";

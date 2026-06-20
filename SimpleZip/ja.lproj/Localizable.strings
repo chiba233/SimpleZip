@@ -1434,8 +1434,7 @@
 "health.aiBackend.unreachable" = "AI バックエンドに接続できません(再試行後)。AI 機能は一時的に確定的な結果にフォールバックします。";
 "health.aiBackend.openSettings" = "AI 設定を開く";
 "health.aiAgent.title" = "バックグラウンド AI サービス";
-"health.aiAgent.ok" = "正常に動作中 — バックグラウンドのインデックスサービスは登録され、応答しています。";
-"health.aiAgent.stale" = "登録済みですが応答しません。アプリの更新後にまれに起こります。修復すると再登録します。";
+"health.aiAgent.ok" = "登録済み — SimpleZip を閉じているときにバックグラウンドでインデックスします。";
 "health.aiAgent.notRegistered" = "サイレントバックグラウンドインデックスはオンですが、サービスはまだ登録されていません。";
 "health.aiAgent.requiresApproval" = "ログイン項目でオフにされています。SimpleZip が勝手に再オンにすることはありません — バックグラウンドインデックスが必要な場合はシステム設定で再度有効にしてください。";
 "health.aiAgent.notFound" = "バックグラウンドサービスがアプリに見つかりません(ビルドの問題)。";

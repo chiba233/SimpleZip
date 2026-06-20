@@ -1433,8 +1433,7 @@
 "health.aiBackend.unreachable" = "AI 백엔드에 연결할 수 없음(재시도 후). AI 기능이 일시적으로 결정적 결과로 대체됩니다.";
 "health.aiBackend.openSettings" = "AI 설정 열기";
 "health.aiAgent.title" = "백그라운드 AI 서비스";
-"health.aiAgent.ok" = "정상 작동 중 — 백그라운드 색인 서비스가 등록되어 응답하고 있습니다.";
-"health.aiAgent.stale" = "등록되었지만 응답하지 않습니다. 앱 업데이트 후 드물게 발생합니다. 복구하면 다시 등록합니다.";
+"health.aiAgent.ok" = "등록됨 — SimpleZip이 닫혀 있을 때 백그라운드에서 색인합니다.";
 "health.aiAgent.notRegistered" = "사일런트 백그라운드 색인이 켜져 있지만 서비스가 아직 등록되지 않았습니다.";
 "health.aiAgent.requiresApproval" = "로그인 항목에서 꺼져 있습니다. SimpleZip이 임의로 다시 켜지 않습니다 — 백그라운드 색인이 필요하면 시스템 설정에서 다시 활성화하세요.";
 "health.aiAgent.notFound" = "앱에 백그라운드 서비스가 없습니다(빌드 문제).";

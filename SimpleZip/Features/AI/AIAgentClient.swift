@@ -328,14 +328,15 @@ enum AIAgentClient {
         }
     }
 
-    // MARK: 后台 LaunchAgent 运行状态(运行状态健康检查:注册态 + 存活探测 + 修复 —— 都不跑模型、不需 sudo)
+    // MARK: 后台索引服务(周期 LaunchAgent)运行状态:注册态 + 注册/反注册 + 修复 —— 都不跑模型、不需 sudo
 
-    /// 后台 LaunchAgent 的注册健康态。**包装 `SMAppService.Status`**,让「运行状态」检查不必 import
-    /// ServiceManagement,且把「用户主动禁用」单独标出来(`requiresApproval`)—— 那一档绝不能被自动重开。
+    /// 后台**周期索引 LaunchAgent**(`indexAgentPlistName`,跑 `--background-index`)的注册健康态。这是用户「静默
+    /// 后台索引」真正的后台 worker(App 关闭时 launchd 按计划拉起跑一轮);**包装 `SMAppService.Status`** 让运行状态
+    /// 检查不必 import ServiceManagement,且把「用户主动禁用」单独标出(`requiresApproval`)—— 那一档绝不能被自动重开。
     enum BackgroundAgentRegistration {
-        /// 已注册并启用。
+        /// 已注册并启用(launchd 会在 App 关闭时按计划拉起它跑后台索引)。
         case enabled
-        /// 未注册:首次安装(此前无 BTM 记录),或改了 bundle id / plist label / 签名身份后旧记录已被清。
+        /// 未注册:首次启用前、首次安装(此前无 BTM 记录),或改了 bundle id / plist label / 签名身份后旧记录已被清。
         case notRegistered
         /// 🔴 用户在 系统设置 → 通用 → 登录项 里把后台项关了。**绝不偷偷重新打开** —— 只引导用户去系统设置。
         case requiresApproval
@@ -343,12 +344,12 @@ enum AIAgentClient {
         case notFound
     }
 
-    /// 读后台 LaunchAgent 的注册健康态。`SMAppService.status` 会查询 launchd / BTM,可能不瞬时 ——
+    /// 读周期索引 LaunchAgent 的注册健康态。`SMAppService.status` 会查询 launchd / BTM,可能不瞬时 ——
     /// **off-main**(A18)读,经 continuation 回。
     nonisolated static func backgroundAgentRegistration() async -> BackgroundAgentRegistration {
         await withCheckedContinuation { (cont: CheckedContinuation<BackgroundAgentRegistration, Never>) in
             DispatchQueue.global(qos: .userInitiated).async {
-                let status = SMAppService.agent(plistName: SimpleZipAIAgentXPCNames.machService + ".plist").status
+                let status = SMAppService.agent(plistName: SimpleZipAIAgentXPCNames.indexAgentPlistName).status
                 let mapped: BackgroundAgentRegistration
                 switch status {
                 case .enabled: mapped = .enabled
@@ -362,48 +363,69 @@ enum AIAgentClient {
         }
     }
 
-    /// 连**后台 LaunchAgent** 的 Mach 服务调 `ping`(瞬回、不碰模型)→ launchd 真能把它拉起(spawn 成功 +
-    /// 启动校验未陈旧)才回 true。**有超时**(默认 3s),连不上 / 超时回 false,绝不卡。对照 `pingForegroundBackend`
-    /// (测前台 XPC Service),这条测后台 LaunchAgent 通道是否健康 —— spawn failed / 启动校验陈旧时它会连不上。
-    nonisolated static func pingBackgroundAgent(timeout: TimeInterval = 3.0) async -> Bool {
-        await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
-            let settle = BoolOnce { cont.resume(returning: $0) }
-            let box = ConnectionBox(NSXPCConnection(machServiceName: SimpleZipAIAgentXPCNames.machService))
-            box.connection.remoteObjectInterface = NSXPCInterface(with: SimpleZipAIAgentXPC.self)
-            box.connection.resume()
-            DispatchQueue.global().asyncAfter(deadline: .now() + timeout) {
-                box.connection.invalidate(); settle(false)
-            }
-            let proxy = box.connection.remoteObjectProxyWithErrorHandler { _ in
-                box.connection.invalidate(); settle(false)
-            } as? SimpleZipAIAgentXPC
-            guard let proxy else { box.connection.invalidate(); settle(false); return }
-            proxy.ping { ok in box.connection.invalidate(); settle(ok) }
-        }
-    }
-
-    /// 修复后台 LaunchAgent 注册的结果(给运行状态「修复」按钮 + 启动自检读)。
+    /// 周期索引 LaunchAgent 的 注册 / 反注册 / 修复结果(给「静默后台索引」开关、运行状态「修复」按钮、启动自检共用)。
     enum RepairOutcome {
-        /// 已清旧记录并重新注册成功(刷新了启动校验)。
+        /// 操作成功(注册 / 反注册 / 重注册到位)。
         case repaired
         /// 🔴 用户已在登录项禁用 —— 没动它(不偷偷重开),需用户去系统设置手动开。
         case requiresApproval
-        /// 重新注册失败(带人话原因)。
+        /// 操作失败(带人话原因)。
         case failed(String)
     }
 
-    /// **修复后台 LaunchAgent 注册**(运行状态「修复」按钮 + 启动自检共用):清陈旧的 BTM 记录后重新注册,刷新系统
-    /// 对它的启动校验 —— 治这些会让 launchd 拒绝拉起(spawn failed)的情况:首次引入此功能尚无记录、改了 app /
-    /// helper bundle id 或 plist label、换了签名团队、以及发布包罕见的陈旧记录。**不跑 probeModel**(纯注册修复、
-    /// 不碰模型);**不需 sudo**(SMAppService 是用户级 LaunchAgent)。
-    ///
-    /// 🔴 **绝不偷偷重新启用用户已禁用的后台项**:进入时若状态是 `.requiresApproval`(用户在 系统设置 → 登录项 自己
-    /// 关了),直接返回 `.requiresApproval`、**不做 unregister / register** —— 重注册会违背用户意愿把它重新打开。
-    /// A18:`unregister` / `register` 同步阻塞等 launchd,整段在后台队列跑,结果经 continuation 回。
+    /// **按「静默后台索引」开关 注册 / 反注册 周期索引 LaunchAgent**(设置页 onChange 调)。开 → 注册(已是 enabled
+    /// 即 no-op;`.requiresApproval` 直接返回、**不强注册**);关 → 反注册。register / unregister 同步阻塞 launchd
+    /// (A18)→ 整段后台队列跑、经 continuation 回。**不需 sudo**(用户级 LaunchAgent)。
+    @discardableResult
+    nonisolated static func setBackgroundIndexEnabled(_ enabled: Bool) async -> RepairOutcome {
+        await withCheckedContinuation { (cont: CheckedContinuation<RepairOutcome, Never>) in
+            DispatchQueue.global(qos: .userInitiated).async {
+                let service = SMAppService.agent(plistName: SimpleZipAIAgentXPCNames.indexAgentPlistName)
+                if enabled {
+                    if service.status == .requiresApproval { cont.resume(returning: .requiresApproval); return }
+                    if service.status == .enabled { cont.resume(returning: .repaired); return }
+                    do { try service.register(); cont.resume(returning: .repaired) }
+                    catch { cont.resume(returning: .failed(error.localizedDescription)) }
+                } else {
+                    try? service.unregister()
+                    cont.resume(returning: .repaired)
+                }
+            }
+        }
+    }
+
+    /// **App 启动时确保周期索引 LaunchAgent 处于该有的状态**(仅在「静默后台索引」开启时调,见 AppDelegate):
+    ///   - `.notRegistered`(首次 / 记录丢失)→ 注册;
+    ///   - `.enabled` 但 **app 版本变了**(更新后 helper 二进制变 → 系统的启动校验可能陈旧 → launchd spawn 失败)→
+    ///     重注册刷新(治用户点名的「发布包也罕见出现 stale BTM/LWCR」),并记下当前版本;
+    ///   - `.requiresApproval`(用户在登录项关了)/ `.notFound`(构建问题)→ **不动**(尊重 / 无从修)。
+    /// 版本号记 UserDefaults.standard(注册是按 app 版本的二进制绑定)。内部各调用已 off-main。
+    nonisolated static func ensureBackgroundIndexRegistered(appVersion: String) async {
+        let versionKey = "SimpleZip.ai.bgIndexAgent.registeredAppVersion"
+        switch await backgroundAgentRegistration() {
+        case .requiresApproval, .notFound:
+            return
+        case .notRegistered:
+            if case .repaired = await setBackgroundIndexEnabled(true) {
+                UserDefaults.standard.set(appVersion, forKey: versionKey)
+            }
+        case .enabled:
+            if UserDefaults.standard.string(forKey: versionKey) != appVersion {
+                _ = await repairBackgroundAgentRegistration()
+                UserDefaults.standard.set(appVersion, forKey: versionKey)
+            }
+        }
+    }
+
+    /// **修复周期索引 LaunchAgent 注册**(运行状态「修复」按钮共用):清陈旧 BTM 记录后重新注册,刷新系统对它的启动
+    /// 校验 —— 治会让 launchd 拒绝拉起(spawn failed)的陈旧:改 app / helper bundle id 或 plist label、换签名团队、
+    /// 发布包罕见陈旧记录。**不跑模型、不需 sudo**(用户级 LaunchAgent)。
+    /// 🔴 **绝不偷偷重启用用户已禁用的后台项**:进入时若 `.requiresApproval`(用户自己关了),直接返回、**不 unregister /
+    /// register**。A18:同步阻塞 → 后台队列跑、经 continuation 回。
     nonisolated static func repairBackgroundAgentRegistration() async -> RepairOutcome {
         await withCheckedContinuation { (cont: CheckedContinuation<RepairOutcome, Never>) in
             DispatchQueue.global(qos: .userInitiated).async {
-                let service = SMAppService.agent(plistName: SimpleZipAIAgentXPCNames.machService + ".plist")
+                let service = SMAppService.agent(plistName: SimpleZipAIAgentXPCNames.indexAgentPlistName)
                 // 🔴 用户主动禁用 → 不偷偷重开。
                 if service.status == .requiresApproval { cont.resume(returning: .requiresApproval); return }
                 // 清陈旧注册(可能指向旧 bundle id / label / 签名身份)→ 轮询等真生效(BTM 记录清除,最多 ~3s)→

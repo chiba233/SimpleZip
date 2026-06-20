@@ -65,4 +65,10 @@ public enum SimpleZipAIAgentXPCNames {
     public nonisolated static let machService = "yumeka.SimpleZip-in-mac.aiagent"
     public nonisolated static let xpcServiceName = "yumeka.SimpleZip-in-mac.aixpc"
     #endif
+
+    /// **周期后台索引 LaunchAgent** 的 plist 名(`SMAppService.agent(plistName:)` 用)。它跑 `--background-index`
+    /// (StartInterval 周期拉起、跑一轮即退),是用户「静默后台索引」真正的后台 worker —— 区别于 `machService` 那个
+    /// 按需 Mach listener(只给 DevTools 探针 / App→agent Mach 用)。文件名 = `<machService>.index.plist`,dev/prod
+    /// 随 machService 天然隔离(plist 实体见 SimpleZipAgentSupport/*.aiagent.index.plist,Label 同此去掉 .plist)。
+    public nonisolated static var indexAgentPlistName: String { machService + ".index.plist" }
 }

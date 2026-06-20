@@ -53,19 +53,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             AIAgentClient.persistConfiguration()
         }
-        // 运行状态自检:开了「静默后台索引」时,启动静默修复**陈旧**的后台 LaunchAgent 注册 —— 改 app / helper
-        // bundle id、改 plist label、换签名团队、甚至发布包都可能让系统对它的启动校验陈旧 → launchd spawn failed。
-        // 🔴 只修「已启用但连不上」的陈旧态(重注册刷新、**保持用户的启用选择**);**绝不**自动注册未注册项、
-        // **绝不**重开用户在登录项里关掉的项(那两种要用户在「运行状态」手动点修复 / 去系统设置)。Release 也跑
-        // (发布包同样会陈旧)。off-main:status / register 同步阻塞 launchd(A18)。
+        // 运行状态自检:开了「静默后台索引」时,启动确保周期后台索引 LaunchAgent 处于该有的状态 —— 未注册(首次 /
+        // 记录丢失)→ 注册;已注册但 **app 版本变了**(更新后 helper 二进制变 → 系统对它的启动校验可能陈旧 → launchd
+        // spawn failed)→ 重注册刷新(治用户点名的「发布包也罕见出现 stale BTM/LWCR」)。🔴 用户在登录项关掉的
+        // (.requiresApproval)绝不偷偷重开。Release 也跑(发布包同样会陈旧)。off-main(内部各调用已 off-main,A18)。
         if AppPreferences.aiAssistantEnabled, AppPreferences.aiBackgroundSilentIndexEnabled {
+            let info = Bundle.main.infoDictionary
+            let appVersion = "\(info?["CFBundleShortVersionString"] as? String ?? "?")-\(info?["CFBundleVersion"] as? String ?? "?")"
             Task.detached(priority: .utility) {
-                // `guard case` 用模式匹配判 .enabled(不走 Equatable)—— 该枚举在 App target 默认 MainActor 隔离下
-                // 合成的 Equatable 是 MainActor-isolated,在这个 detached(nonisolated)上下文里用 `==` 会触发
-                // Swift 6 隔离警告;模式匹配不碰那条 conformance,既正确又无警告。
-                guard case .enabled = await AIAgentClient.backgroundAgentRegistration() else { return }
-                if await AIAgentClient.pingBackgroundAgent() { return }      // 连得上 → 健康,不动
-                _ = await AIAgentClient.repairBackgroundAgentRegistration()  // 陈旧 → 重注册刷新(保持启用)
+                await AIAgentClient.ensureBackgroundIndexRegistered(appVersion: appVersion)
             }
         }
         // 尽早固化「会话开始时间」—— 手动清理临时文件只删早于此刻的陈旧项，保护本次会话在用的 staging。
