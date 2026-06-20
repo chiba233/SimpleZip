@@ -31,6 +31,7 @@
 - **AI/Spotlight indexing is less likely to freeze startup.** Persistent Spotlight indexing now skips unchanged work, runs serially, honors the power profile and keeps encrypted-volume work off the main thread.
 - **AI background work no longer stalls after the first pass.** The background index heartbeat keeps running and rotates scopes progressively, so cached suggestions and diagnostics can continue updating.
 - **Archive-row AI actions are visible again.** Model-picked inspect, test and hash actions for archives can surface without waiting for the charging-only gate, and activity-based suggestions now use the completed task's real output path.
+- **The Health pane's "last checked" time keeps counting up.** It could get stuck on "just now" — the relative time only recomputed when the pane happened to redraw, so right after a check it could freeze at zero. It now updates itself every second.
 
 ### improvements
 

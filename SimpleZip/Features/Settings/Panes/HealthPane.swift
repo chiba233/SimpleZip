@@ -50,9 +50,7 @@ struct HealthPane: View {
 
                 HStack {
                     if let lastRefreshedAt {
-                        Text(L10n.format("health.lastChecked", relativeTimeString(from: lastRefreshedAt)))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        LastCheckedLabel(date: lastRefreshedAt)
                     }
                     Spacer()
                     Button(action: refresh) { Label(L10n.text("health.recheck"), systemImage: "arrow.clockwise") }
@@ -182,13 +180,6 @@ struct HealthPane: View {
         }
     }
 
-    /// 用 RelativeDateTimeFormatter 把「3 秒前 / 1 分钟前」之类的相对时间渲染出来。
-    /// 不缓存 formatter 是因为这一行只在刷新完成时渲染一次，不在热路径上。
-    private func relativeTimeString(from date: Date) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .short
-        return formatter.localizedString(for: date, relativeTo: Date())
-    }
 }
 
 /// 列表里单条状态行。
@@ -223,5 +214,27 @@ private struct HealthCheckRow: View {
             }
         }
         .padding(.vertical, 3)
+    }
+}
+
+/// 「上次检查于 X 之前」标签。用 `TimelineView(.periodic)` **每秒自更新**相对时间 —— 否则这一行只在父视图偶发重渲染时
+/// 才重算:检查刚跑完时显示「0 秒」,之后没有 timer 驱动就一直卡在「0 秒」不动(检查越慢、刷新完成后越没有后续重渲染,
+/// 越容易卡住)。把自更新隔离在这个子视图里,只有这一行每秒重渲染,不连累整个 Form。
+private struct LastCheckedLabel: View {
+    let date: Date
+
+    var body: some View {
+        TimelineView(.periodic(from: date, by: 1)) { context in
+            Text(L10n.format("health.lastChecked", Self.relativeString(from: date, to: context.date)))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    /// RelativeDateTimeFormatter:把「3 秒前 / 1 分钟前」相对 `now`(TimelineView 每秒给的当前调度时间)渲染出来。
+    private static func relativeString(from date: Date, to now: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .short
+        return formatter.localizedString(for: date, relativeTo: now)
     }
 }
