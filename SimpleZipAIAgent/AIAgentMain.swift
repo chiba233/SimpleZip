@@ -36,6 +36,16 @@ struct AIAgentMain {
             }
             exit(0)
         }
+        // `--background-index`:**后台索引一轮**(launchd 周期拉起 agent 跑这个的本体;也供命令行直接验证数据通路)。
+        // 读 App 同步的配置 + scope 白名单 → AIBackgroundIndexRun.scan(与 App 前台共用 Core 编排)→ 写回派生索引文件。
+        // 纯同步元数据扫描(不调模型)→ 跑完直接 exit,无需 run loop。门控不过(opt-in 默认关等)则廉价 no-op 退出。
+        // 用法:.../Contents/MacOS/SimpleZipAIAgent --background-index
+        if CommandLine.arguments.contains("--background-index") {
+            let summary = AIAgentBackgroundIndex.runOnce()
+            agentLog("BACKGROUND INDEX → scopes=\(summary.scopesScanned) records=\(summary.recordsWritten) · \(summary.note)")
+            print("scopes=\(summary.scopesScanned) records=\(summary.recordsWritten) note=\(summary.note)")
+            exit(0)
+        }
         // `--probe`:直接在本(独立)进程跑一次模型探针后退出 —— 绕开 SMAppService/launchd/XPC,
         // 单独回答地基问题「端上模型能否在非 App 的独立进程里跑」。便于命令行直接验证:
         //   .../Contents/MacOS/SimpleZipAIAgent --probe
