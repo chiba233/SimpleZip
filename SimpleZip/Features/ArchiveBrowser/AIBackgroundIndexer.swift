@@ -607,10 +607,13 @@ final class AIBackgroundIndexer {
                 let tags = rec.diagnostics.tags.isEmpty ? "no-tags" : rec.diagnostics.tags.joined(separator: "+")
                 return "\(rec.kind) / \(rec.source) / \(tags)"
             }
-            guard let text = try? await AIVirtualFolderModelPlanner.activityWorkbenchExplanation(
-                summaryFacts: summaryFacts, failedFacts: Array(failedFacts)), !text.isEmpty else { return }
+            // 阶段3:整条 pass 经前台 XPC Service 在引擎进程跑(主二进制零模型推理)。
+            let input = ActivityWorkbenchExplanationInput(summaryFacts: summaryFacts, failedFacts: Array(failedFacts))
+            guard let out = try? await AIAgentClient.generatePass(
+                kind: .activityWorkbenchExplanation, input: input, as: AIPassTextOutput.self),
+                  !out.text.isEmpty else { return }
             AIBackgroundIndexStore.shared.applyWorkbenchNeedsAttentionExplanation(
-                category: pick.category, fingerprint: pick.fingerprint, text: text)
+                category: pick.category, fingerprint: pick.fingerprint, text: out.text)
         }
     }
 

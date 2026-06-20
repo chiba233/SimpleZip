@@ -19,6 +19,8 @@ import Foundation
 public enum AIPassKind: String, Sendable {
     /// 活动中心失败任务「失败解释」(纯文本,输入脱敏诊断,输出一两句解释)。
     case taskFailureShortExplanation
+    /// 活动中心「需要处理」AI 解读(纯文本,输入任务计数 + 脱敏失败事实,输出一小段「现在最该处理什么」)。
+    case activityWorkbenchExplanation
 }
 
 // MARK: - 输入 DTO(App 拼 / 引擎解码)
@@ -37,6 +39,17 @@ public nonisolated struct TaskFailureExplanationInput: Codable, Sendable {
         self.tags = tags
         self.failureMessage = failureMessage
         self.errorLines = errorLines
+    }
+}
+
+/// 「需要处理」解读输入:任务计数事实(total/running/unseen-failed…)+ 少量**已脱敏**失败事实(类型/来源/诊断标签,
+/// 不含原始标题/路径)。引擎据此拼 prompt 写「现在最该处理什么 + 为什么」。
+public nonisolated struct ActivityWorkbenchExplanationInput: Codable, Sendable {
+    public var summaryFacts: [String]
+    public var failedFacts: [String]
+    public init(summaryFacts: [String], failedFacts: [String]) {
+        self.summaryFacts = summaryFacts
+        self.failedFacts = failedFacts
     }
 }
 

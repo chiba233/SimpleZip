@@ -282,7 +282,31 @@ enum AIPassEngine {
             let input = try JSONDecoder().decode(TaskFailureExplanationInput.self, from: inputJSON)
             let text = try await taskFailureShortExplanation(input, languageName: languageName)
             return try JSONEncoder().encode(AIPassTextOutput(text: text))
+        case .activityWorkbenchExplanation:
+            let input = try JSONDecoder().decode(ActivityWorkbenchExplanationInput.self, from: inputJSON)
+            let text = try await activityWorkbenchExplanation(input, languageName: languageName)
+            return try JSONEncoder().encode(AIPassTextOutput(text: text))
         }
+    }
+
+    /// 活动中心「需要处理」AI 解读(纯文本)。镜像原 App 端 AIVirtualFolderModelPlanner.activityWorkbenchExplanation。
+    private static func activityWorkbenchExplanation(_ input: ActivityWorkbenchExplanationInput,
+                                                     languageName: String) async throws -> String {
+        let instructions = """
+        LANGUAGE — MANDATORY: write in \(languageName). You are the AI panel inside a file-archive app's Activity Center. \
+        Given a summary of the current task list and a few of the most important UNSEEN FAILED tasks (only their \
+        type, source, and diagnostic tags — never file names or paths), write ONE short, concrete paragraph saying \
+        what is most worth dealing with right now and why. Be specific to the failures given; never invent a task; \
+        do not list everything; at most 2-3 sentences. If nothing clearly stands out, say the task list looks healthy.
+        """
+        var lines = ["Task summary (counts): \(input.summaryFacts.joined(separator: ", "))"]
+        if !input.failedFacts.isEmpty {
+            lines.append("Top unseen failed tasks (type / source / diagnostic tags):")
+            lines.append(contentsOf: input.failedFacts.prefix(8))
+        }
+        return try await AgentGenerationSerializer.shared
+            .generateText(instructions: instructions, prompt: lines.joined(separator: "\n"))
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// 活动中心失败任务「失败解释」(纯文本)。镜像原 App 端 AIVirtualFolderModelPlanner.taskFailureShortExplanation 的
