@@ -329,6 +329,28 @@ struct DevToolsView: View {
                                 agentProbeStatus = "pending 检查队列:待执行 \(c.pending) 条、已完成 \(c.done) 条(插电时按活跃度间隔逐条执行,结果写文件抽屉内联)。"
                             }
                         }
+                        // ③g 交互 / 兴趣摘要观测(AIFeedbackStore → 确定性聚合):planner 除证据缺口外的另两个输入 —— 验证 archive-open interest 与跨表面交互信号真收集到没。
+                        actionRow(
+                            "chart.bar.doc.horizontal",
+                            "查交互 / 兴趣摘要(planner 输入)",
+                            "读 AIFeedbackStore 折叠出的 interactionCounterSummary(跨表面点击 / 打开信号计数)+ interestSummary(归档打开累积的位置亲和 / 交互亲和)。这是 planner 除证据缺口外的另两个输入 —— 验证 archive-open interest 与交互信号真在收集、喂进后台调度。瞬回、不碰模型 / 不碰 reload。"
+                        ) {
+                            let ic = AIFeedbackStore.shared.interactionCounterSummary
+                            let it = AIFeedbackStore.shared.interestSummary
+                            if ic.counters.isEmpty && it.locationAffinities.isEmpty && it.interactionAffinities.isEmpty {
+                                agentProbeStatus = "交互 / 兴趣摘要:暂无(还没积累信号 —— 打开些归档 / 点些 AI 建议后再看)。"
+                            } else {
+                                var lines = ["交互信号:\(ic.counters.count) 类计数"]
+                                for c in ic.counters.prefix(4) {
+                                    lines.append("· \(c.surface)/\(c.interaction)/\(c.targetKind) × \(c.count)")
+                                }
+                                lines.append("兴趣摘要:位置亲和 \(it.locationAffinities.count) 类、交互亲和 \(it.interactionAffinities.count) 类、反应偏好 \(it.reactionPreferences.count) 类")
+                                for la in it.locationAffinities.prefix(3) {
+                                    lines.append("· 位置 \(la.locationKind) 打开 ×\(la.openCount)")
+                                }
+                                agentProbeStatus = lines.joined(separator: "\n")
+                            }
+                        }
                         // ④ 配置同步:把当前 App 的 AI 设置推给 agent(坑 9 schemaVersion 协商)。把 AI 主/子开关关掉后点这,
                         //    再点上面的真实查询,应被 agent 红线门控拦截(返回「AI 已禁用」)→ 验证 App→agent 配置同步 + 门控。
                         actionRow(
