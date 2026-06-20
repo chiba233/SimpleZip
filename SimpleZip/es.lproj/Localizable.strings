@@ -1380,6 +1380,14 @@
 "health.aiBackend.ok" = "Funcionando con normalidad: backend accesible y modelo en el dispositivo disponible.";
 "health.aiBackend.unreachable" = "Backend de IA no accesible (tras reintentos). Las funciones de IA recurren temporalmente a resultados deterministas.";
 "health.aiBackend.openSettings" = "Abrir ajustes de IA";
+"health.aiAgent.title" = "Servicio de IA en segundo plano";
+"health.aiAgent.ok" = "Funcionando con normalidad: el servicio de indexación en segundo plano está registrado y responde.";
+"health.aiAgent.stale" = "Registrado pero no responde. Puede ocurrir tras una actualización de la app; reparar vuelve a registrarlo.";
+"health.aiAgent.notRegistered" = "La indexación silenciosa en segundo plano está activada, pero el servicio aún no está registrado.";
+"health.aiAgent.requiresApproval" = "Desactivado en los Ítems de inicio de sesión. SimpleZip no lo volverá a activar por ti; vuelve a activarlo en Ajustes del Sistema si quieres la indexación en segundo plano.";
+"health.aiAgent.notFound" = "Falta el servicio en segundo plano en la app (un problema de compilación).";
+"health.aiAgent.repair" = "Reparar el servicio en segundo plano";
+"health.aiAgent.openLoginItems" = "Abrir Ítems de inicio de sesión";
 "health.shortcuts.title" = "Atajos y Siri";
 "health.shortcuts.unavailable" = "Esta compilación no tiene firma de desarrollador de Apple, por lo que las acciones de Atajos y Siri no pueden ejecutarse. Siguen apareciendo en la app Atajos, pero informan de un error de comunicación.";
 "health.shortcuts.ok" = "Las acciones de Atajos y Siri están disponibles.";

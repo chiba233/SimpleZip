@@ -53,6 +53,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             AIAgentClient.persistConfiguration()
         }
+        // 运行状态自检:开了「静默后台索引」时,启动静默修复**陈旧**的后台 LaunchAgent 注册 —— 改 app / helper
+        // bundle id、改 plist label、换签名团队、甚至发布包都可能让系统对它的启动校验陈旧 → launchd spawn failed。
+        // 🔴 只修「已启用但连不上」的陈旧态(重注册刷新、**保持用户的启用选择**);**绝不**自动注册未注册项、
+        // **绝不**重开用户在登录项里关掉的项(那两种要用户在「运行状态」手动点修复 / 去系统设置)。Release 也跑
+        // (发布包同样会陈旧)。off-main:status / register 同步阻塞 launchd(A18)。
+        if AppPreferences.aiAssistantEnabled, AppPreferences.aiBackgroundSilentIndexEnabled {
+            Task.detached(priority: .utility) {
+                // `guard case` 用模式匹配判 .enabled(不走 Equatable)—— 该枚举在 App target 默认 MainActor 隔离下
+                // 合成的 Equatable 是 MainActor-isolated,在这个 detached(nonisolated)上下文里用 `==` 会触发
+                // Swift 6 隔离警告;模式匹配不碰那条 conformance,既正确又无警告。
+                guard case .enabled = await AIAgentClient.backgroundAgentRegistration() else { return }
+                if await AIAgentClient.pingBackgroundAgent() { return }      // 连得上 → 健康,不动
+                _ = await AIAgentClient.repairBackgroundAgentRegistration()  // 陈旧 → 重注册刷新(保持启用)
+            }
+        }
         // 尽早固化「会话开始时间」—— 手动清理临时文件只删早于此刻的陈旧项，保护本次会话在用的 staging。
         let sessionStart = TemporaryResourceManager.sessionStart
         // 启动时单次清理上次会话残留的「打开压缩包内文件」解压目录（stale-only，只删早于本次会话的）。

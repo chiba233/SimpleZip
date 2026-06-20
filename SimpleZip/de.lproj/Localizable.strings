@@ -1432,6 +1432,14 @@
 "health.aiBackend.ok" = "Läuft normal – Backend erreichbar und On-Device-Modell verfügbar.";
 "health.aiBackend.unreachable" = "KI-Backend nicht erreichbar (nach Wiederholungen). KI-Funktionen weichen vorübergehend auf deterministische Ergebnisse aus.";
 "health.aiBackend.openSettings" = "KI-Einstellungen öffnen";
+"health.aiAgent.title" = "Hintergrund-KI-Dienst";
+"health.aiAgent.ok" = "Läuft normal — der Hintergrund-Indizierungsdienst ist registriert und antwortet.";
+"health.aiAgent.stale" = "Registriert, reagiert aber nicht. Das kann nach einem App-Update vorkommen; durch Reparieren wird er neu registriert.";
+"health.aiAgent.notRegistered" = "Die stille Hintergrundindizierung ist aktiviert, aber der Dienst ist noch nicht registriert.";
+"health.aiAgent.requiresApproval" = "In den Anmeldeobjekten deaktiviert. SimpleZip aktiviert ihn nicht eigenmächtig wieder — aktiviere ihn in den Systemeinstellungen erneut, wenn du Hintergrundindizierung möchtest.";
+"health.aiAgent.notFound" = "Der Hintergrunddienst fehlt in der App (ein Build-Problem).";
+"health.aiAgent.repair" = "Hintergrunddienst reparieren";
+"health.aiAgent.openLoginItems" = "Anmeldeobjekte öffnen";
 "health.shortcuts.title" = "Kurzbefehle & Siri";
 "health.shortcuts.unavailable" = "Dieser Build hat keine Apple-Developer-Signatur, daher können die Kurzbefehl-Aktionen und Siri nicht ausgeführt werden. Sie erscheinen weiterhin in der Kurzbefehle-App, melden aber einen Kommunikationsfehler.";
 "health.shortcuts.ok" = "Die Kurzbefehl-Aktionen und Siri sind verfügbar.";

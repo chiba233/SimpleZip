@@ -2071,6 +2071,14 @@
 "health.aiBackend.ok" = "Running normally — backend reachable and on-device model available.";
 "health.aiBackend.unreachable" = "AI backend unreachable (after retries). AI features temporarily fall back to deterministic results.";
 "health.aiBackend.openSettings" = "Open AI Settings";
+"health.aiAgent.title" = "Background AI service";
+"health.aiAgent.ok" = "Running normally — the background indexing service is registered and responding.";
+"health.aiAgent.stale" = "Registered but not responding. This can happen after an app update; repairing re-registers it.";
+"health.aiAgent.notRegistered" = "Background indexing is turned on, but the service isn't registered yet.";
+"health.aiAgent.requiresApproval" = "Turned off in Login Items. SimpleZip won't switch it back on for you — re-enable it in System Settings if you want background indexing.";
+"health.aiAgent.notFound" = "The background service is missing from the app (a build problem).";
+"health.aiAgent.repair" = "Repair Background Service";
+"health.aiAgent.openLoginItems" = "Open Login Items";
 "health.shortcuts.title" = "Shortcuts & Siri";
 "health.shortcuts.unavailable" = "This build has no Apple Developer signature, so the Shortcuts actions and Siri can't run. They still appear in the Shortcuts app but report a connection error.";
 "health.shortcuts.ok" = "The Shortcuts actions and Siri are available.";

@@ -1380,6 +1380,14 @@
 "health.aiBackend.ok" = "Fonctionne normalement — backend joignable et modèle sur l'appareil disponible.";
 "health.aiBackend.unreachable" = "Backend IA injoignable (après nouvelles tentatives). Les fonctions IA se rabattent temporairement sur des résultats déterministes.";
 "health.aiBackend.openSettings" = "Ouvrir les réglages IA";
+"health.aiAgent.title" = "Service IA en arrière-plan";
+"health.aiAgent.ok" = "Fonctionne normalement — le service d'indexation en arrière-plan est enregistré et répond.";
+"health.aiAgent.stale" = "Enregistré mais ne répond pas. Cela peut arriver après une mise à jour de l'app ; la réparation le réenregistre.";
+"health.aiAgent.notRegistered" = "L'indexation silencieuse en arrière-plan est activée, mais le service n'est pas encore enregistré.";
+"health.aiAgent.requiresApproval" = "Désactivé dans les Ouvertures de session. SimpleZip ne le réactivera pas à votre place — réactivez-le dans Réglages Système si vous voulez l'indexation en arrière-plan.";
+"health.aiAgent.notFound" = "Le service en arrière-plan est absent de l'app (un problème de compilation).";
+"health.aiAgent.repair" = "Réparer le service en arrière-plan";
+"health.aiAgent.openLoginItems" = "Ouvrir les Ouvertures de session";
 "health.shortcuts.title" = "Raccourcis et Siri";
 "health.shortcuts.unavailable" = "Cette version n'a pas de signature Apple Developer ; les actions Raccourcis et Siri ne peuvent donc pas s'exécuter. Elles apparaissent toujours dans l'app Raccourcis mais signalent une erreur de communication.";
 "health.shortcuts.ok" = "Les actions Raccourcis et Siri sont disponibles.";

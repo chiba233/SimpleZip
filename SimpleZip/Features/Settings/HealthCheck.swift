@@ -84,6 +84,9 @@ enum HealthChecker {
         if let aiItem = await checkAIBackend(onOpenSettings: { onOpenPane(.ai) }) {
             items.append(aiItem)
         }
+        if let aiAgentItem = await checkAIBackgroundAgent(onOpenSettings: { onOpenPane(.ai) }) {
+            items.append(aiAgentItem)
+        }
         if let gpgItem = await checkGPG(onOpenSettings: { onOpenPane(.gpg) }) {
             items.append(gpgItem)
         }
@@ -114,6 +117,48 @@ enum HealthChecker {
             title: L10n.text("health.aiBackend.title"),
             detail: L10n.text("health.aiBackend.unreachable"),
             status: .error, action: fix)
+    }
+
+    /// 后台 AI 索引服务运行状态(**LaunchAgent 通道**,区别于上面 `checkAIBackend` 测的前台 XPC Service)。
+    /// 后台 LaunchAgent 在 系统设置「登录项」可见、受「允许在后台」门控,会因 rebuild / 改身份 / 换签名团队 /
+    /// 发布包罕见的陈旧记录而被 launchd 拒绝拉起(spawn failed)。这里把它的状态**显性化**并按需给修复入口。
+    ///
+    /// 仅当 AI 主开关 + 「静默后台索引」都开(用户已 opt-in 后台索引)才显示 —— 否则后台 agent 本就不该跑、不显示。
+    /// 状态映射:
+    ///   - 已启用 + ping 通 → ok;
+    ///   - 已启用但 ping 不通(spawn failed / 启动校验陈旧)→ error + 「修复」(重注册刷新,保持启用选择);
+    ///   - 未注册(首次 / 改身份后旧记录已清)→ warning + 「修复」(注册);
+    ///   - 🔴 用户在登录项关了 → warning + 「打开登录项设置」(**绝不偷偷重开**,只引导);
+    ///   - bundle 里找不到 plist(构建问题)→ error(无修复入口)。
+    private static func checkAIBackgroundAgent(onOpenSettings: @escaping () -> Void) async -> HealthCheckItem? {
+        guard AppPreferences.aiAssistantEnabled, AppPreferences.aiBackgroundSilentIndexEnabled else { return nil }
+        let title = L10n.text("health.aiAgent.title")
+        let repairAction = HealthCheckItem.FixAction(
+            title: L10n.text("health.aiAgent.repair"),
+            perform: { Task { _ = await AIAgentClient.repairBackgroundAgentRegistration() } })
+        switch await AIAgentClient.backgroundAgentRegistration() {
+        case .enabled:
+            if await AIAgentClient.pingBackgroundAgent() {
+                return HealthCheckItem(
+                    title: title, detail: L10n.text("health.aiAgent.ok"), status: .ok, action: nil)
+            }
+            return HealthCheckItem(
+                title: title, detail: L10n.text("health.aiAgent.stale"), status: .error, action: repairAction)
+        case .notRegistered:
+            return HealthCheckItem(
+                title: title, detail: L10n.text("health.aiAgent.notRegistered"), status: .warning, action: repairAction)
+        case .requiresApproval:
+            return HealthCheckItem(
+                title: title,
+                detail: L10n.text("health.aiAgent.requiresApproval"),
+                status: .warning,
+                action: HealthCheckItem.FixAction(
+                    title: L10n.text("health.aiAgent.openLoginItems"),
+                    perform: { Task { @MainActor in AIAgentClient.openLoginItemsSettings() } }))
+        case .notFound:
+            return HealthCheckItem(
+                title: title, detail: L10n.text("health.aiAgent.notFound"), status: .error, action: nil)
+        }
     }
 
     /// 加密临时卷（0.4.1，用户点名）：解密 / 解压的临时产物应落在启动时挂载的 AES-256 加密卷里。
