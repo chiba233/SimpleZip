@@ -45,6 +45,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSApp.applicationIconImage = icon
         }
         NSApp.servicesProvider = self
+        // 阶段3:启动即同步 AI 配置 + **暖前台 XPC Service**。开了 AI → publishConfiguration(持久化 + 经 XPC 推配置)
+        // 顺带把按需的 XPC Service 拉起来、配置就位 —— 这样「开 AI + 打开 app」XPC 进程就被拉起,前台 AI pass 走它即时可用,
+        // 不必等第一条 pass 触发才冷启动。关了 AI → 只持久化红线状态(不必拉起 XPC,省电)。
+        if AppPreferences.aiAssistantEnabled {
+            AIAgentClient.publishConfiguration()
+        } else {
+            AIAgentClient.persistConfiguration()
+        }
         // 尽早固化「会话开始时间」—— 手动清理临时文件只删早于此刻的陈旧项，保护本次会话在用的 staging。
         let sessionStart = TemporaryResourceManager.sessionStart
         // 启动时单次清理上次会话残留的「打开压缩包内文件」解压目录（stale-only，只删早于本次会话的）。
