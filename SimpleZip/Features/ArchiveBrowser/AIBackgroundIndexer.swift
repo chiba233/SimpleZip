@@ -1086,10 +1086,13 @@ final class AIBackgroundIndexer {
         let excerpt = await excerptTask.value
         let record = AIBackgroundIndexStore.shared.record(forPath: url.path)
         let roleTags = record?.roleTags ?? AIFileType.roleTags(fileName: fileName, isDirectory: false)
-        return try await AIVirtualFolderModelPlanner.longFileSummary(
+        // 阶段3:实时按需总结也经前台 XPC Service 在引擎进程跑(主二进制零模型推理)。
+        let input = LongFileSummaryInput(
             fileName: fileName, roleTags: roleTags,
             languageHint: record?.contentSummary?.languageHint,
             headings: record?.contentSummary?.headings ?? [], excerpt: excerpt)
+        return try await AIAgentClient.generatePass(
+            kind: .longFileSummary, input: input, as: AIPassTextOutput.self).text
     }
 
     /// **推荐打开方式**:查一个文件的「**非默认**」候选打开 App(LaunchServices 元数据,**不读内容**)。默认双击就能

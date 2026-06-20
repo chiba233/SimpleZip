@@ -21,6 +21,8 @@ public enum AIPassKind: String, Sendable {
     case taskFailureShortExplanation
     /// 活动中心「需要处理」AI 解读(纯文本,输入任务计数 + 脱敏失败事实,输出一小段「现在最该处理什么」)。
     case activityWorkbenchExplanation
+    /// 文件「查看更长总结」实时按需现算(纯文本,输入名/角色/语言/标题/脱敏摘录,输出一小段更长总结)。
+    case longFileSummary
 }
 
 // MARK: - 输入 DTO(App 拼 / 引擎解码)
@@ -50,6 +52,22 @@ public nonisolated struct ActivityWorkbenchExplanationInput: Codable, Sendable {
     public init(summaryFacts: [String], failedFacts: [String]) {
         self.summaryFacts = summaryFacts
         self.failedFacts = failedFacts
+    }
+}
+
+/// 「更长总结」输入:文件名 / 角色标签 / 语言提示 / 标题 + **已脱敏**内容摘录(App 侧已过红线 + AISensitiveRedactor)。
+public nonisolated struct LongFileSummaryInput: Codable, Sendable {
+    public var fileName: String
+    public var roleTags: [String]
+    public var languageHint: String?
+    public var headings: [String]
+    public var excerpt: String
+    public init(fileName: String, roleTags: [String], languageHint: String?, headings: [String], excerpt: String) {
+        self.fileName = fileName
+        self.roleTags = roleTags
+        self.languageHint = languageHint
+        self.headings = headings
+        self.excerpt = excerpt
     }
 }
 

@@ -286,7 +286,32 @@ enum AIPassEngine {
             let input = try JSONDecoder().decode(ActivityWorkbenchExplanationInput.self, from: inputJSON)
             let text = try await activityWorkbenchExplanation(input, languageName: languageName)
             return try JSONEncoder().encode(AIPassTextOutput(text: text))
+        case .longFileSummary:
+            let input = try JSONDecoder().decode(LongFileSummaryInput.self, from: inputJSON)
+            let text = try await longFileSummary(input, languageName: languageName)
+            return try JSONEncoder().encode(AIPassTextOutput(text: text))
         }
+    }
+
+    /// 文件「查看更长总结」(纯文本)。镜像原 App 端 AIVirtualFolderModelPlanner.longFileSummary。
+    private static func longFileSummary(_ input: LongFileSummaryInput, languageName: String) async throws -> String {
+        let instructions = """
+        LANGUAGE — MANDATORY: write the whole summary in \(languageName). Never use any other language, not even partially.
+
+        You are summarizing ONE file for the person who owns it, in more depth than a single line. From the CONTENT, \
+        write a SHORT but substantive summary: one or two sentences on what this file really is, then a few concise \
+        lines on its key points or structure. Be concrete and specific to THIS file's actual content — do not be \
+        generic, do not restate the file name, do not mention that anything was redacted. If the excerpt is thin, \
+        say what you reasonably can from the name and role. Keep it well under 200 words.
+        """
+        var lines = ["File name: \(input.fileName)"]
+        if !input.roleTags.isEmpty { lines.append("Role: \(input.roleTags.joined(separator: ", "))") }
+        if let languageHint = input.languageHint, !languageHint.isEmpty { lines.append("Format: \(languageHint)") }
+        if !input.headings.isEmpty { lines.append("Headings: \(input.headings.prefix(12).joined(separator: " | "))") }
+        let trimmed = String(input.excerpt.prefix(3_000)).trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty { lines.append("Content excerpt (redacted):\n\(trimmed)") }
+        return try await AgentGenerationSerializer.shared
+            .generateText(instructions: instructions, prompt: lines.joined(separator: "\n"))
     }
 
     /// 活动中心「需要处理」AI 解读(纯文本)。镜像原 App 端 AIVirtualFolderModelPlanner.activityWorkbenchExplanation。
