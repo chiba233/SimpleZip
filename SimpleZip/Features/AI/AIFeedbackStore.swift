@@ -25,6 +25,8 @@ final class AIFeedbackStore: ObservableObject {
     private(set) var feedbackEvents: [AIFeedbackEvent]
     /// 轻量交互信号(点击 / 打开建议 = 兴趣;给后续 ranker 用)。
     private(set) var signalEvents: [AIInteractionSignalEvent]
+    /// 用户兴趣事件(归档打开等接触信号;喂后台调度 / 建议的位置亲和度,见 `interestSummary`)。
+    private(set) var interestEvents: [AIUserInterestEvent]
 
     private let defaults: UserDefaults
     /// 原始事件保留窗口(白皮书:原始 30 天 / 聚合 90 天;本 store 只存原始,聚合即时算)。
@@ -36,6 +38,7 @@ final class AIFeedbackStore: ObservableObject {
         self.defaults = defaults
         self.feedbackEvents = Self.loadFeedback(from: defaults)
         self.signalEvents = Self.loadSignals(from: defaults)
+        self.interestEvents = Self.loadInterest(from: defaults)
         pruneInMemory()
     }
 
@@ -51,6 +54,24 @@ final class AIFeedbackStore: ObservableObject {
         signalEvents.append(signal)
         pruneInMemory()
         persistSignals()
+    }
+
+    func record(_ event: AIUserInterestEvent) {
+        interestEvents.append(event)
+        pruneInMemory()
+        persistInterest()
+    }
+
+    /// 归档打开 → 兴趣事件(位置亲和度)。在 `updateArchiveListingCache` 的 recorded 块埋点(只新归档清单触发 → 天然去重)。
+    /// 红线:`sourceRef.id` 只用归档**名**(可泛化、绝不存完整路径);location 经 `AILocationContext.classify` 内部脱敏成
+    /// 目录分类 + pathHash + 名 token(不存原始目录路径)。归档打开此刻还没第一反应 → firstReaction 留空,只计位置亲和。
+    func recordArchiveOpenInterest(archiveName: String, directoryPath: String, entryCount: Int, now: Date = Date()) {
+        record(AIUserInterestEvent(
+            id: UUID(), targetKind: .archive,
+            sourceRef: AIContextSourceRef(kind: .archive, id: archiveName),
+            source: .archiveTable, openedAt: now,
+            contextLocation: AILocationClassifier.classify(directoryPath: directoryPath),
+            evidenceTokens: [AISensitiveRedactor.redact("entries=\(entryCount)")]))
     }
 
     // MARK: - 文件浏览器抽屉便捷埋点(脱敏 + 折叠成事件)
@@ -97,11 +118,11 @@ final class AIFeedbackStore: ObservableObject {
         AIInteractionSignalAggregator.counterSummary(from: signalEvents, window: "raw", generatedAt: Date())
     }
 
-    /// 兴趣摘要(给 `PlanningInput.recentInterestSummary`)。interest events(folder/archive-open)暂未收集 —— 其写入
-    /// 入口碰 FSEvents reload 高风险区(见 AIUserInterestEvent 注释),后续接;先用已收集的 signalEvents 折叠出
-    /// interactionAffinities 部分(reactionPreferences/locationAffinities 等 interest 维度待 interest events 接齐)。
+    /// 兴趣摘要(给 `PlanningInput.recentInterestSummary`)。已接 archive-open interest events(`recordArchiveOpenInterest`)
+    /// → locationAffinities;加 signalEvents 折叠出 interactionAffinities。(folder-visit interest 待接 —— 其 loadFolder
+    /// 入口碰 FSEvents reload 风暴区,见 AIUserInterestEvent 注释 + feedback_no_published_on_reload_path,慎做。)
     var interestSummary: AIInterestSummary {
-        AIInterestAggregator.summarize([], signals: signalEvents)
+        AIInterestAggregator.summarize(interestEvents, signals: signalEvents)
     }
 
     /// 建议六 v2 用量信号回流:工作台 chip 点击次数(by chip id)。给 chip 排序学习用户偏好(常点的下次前移)。
@@ -117,11 +138,13 @@ final class AIFeedbackStore: ObservableObject {
     // MARK: - 清空(随「清空后台索引」一起,学习数据一并抹掉)
 
     func clearAll() {
-        guard !feedbackEvents.isEmpty || !signalEvents.isEmpty else { return }
+        guard !feedbackEvents.isEmpty || !signalEvents.isEmpty || !interestEvents.isEmpty else { return }
         feedbackEvents.removeAll()
         signalEvents.removeAll()
+        interestEvents.removeAll()
         defaults.removeObject(forKey: AppPreferences.Key.aiFeedbackEventsData)
         defaults.removeObject(forKey: AppPreferences.Key.aiInteractionSignalsData)
+        defaults.removeObject(forKey: AppPreferences.Key.aiInterestEventsData)
         objectWillChange.send()
     }
 
@@ -131,6 +154,7 @@ final class AIFeedbackStore: ObservableObject {
         let cutoff = now.addingTimeInterval(-rawRetention)
         feedbackEvents = Array(feedbackEvents.filter { $0.createdAt >= cutoff }.suffix(maxEvents))
         signalEvents = Array(signalEvents.filter { $0.occurredAt >= cutoff }.suffix(maxEvents))
+        interestEvents = Array(interestEvents.filter { $0.openedAt >= cutoff }.suffix(maxEvents))
     }
 
     private func persistFeedback() {
@@ -145,6 +169,12 @@ final class AIFeedbackStore: ObservableObject {
         }
     }
 
+    private func persistInterest() {
+        if let data = try? JSONEncoder().encode(interestEvents) {
+            defaults.set(data, forKey: AppPreferences.Key.aiInterestEventsData)
+        }
+    }
+
     private static func loadFeedback(from defaults: UserDefaults) -> [AIFeedbackEvent] {
         guard let data = defaults.data(forKey: AppPreferences.Key.aiFeedbackEventsData),
               let decoded = try? JSONDecoder().decode([AIFeedbackEvent].self, from: data) else { return [] }
@@ -154,6 +184,12 @@ final class AIFeedbackStore: ObservableObject {
     private static func loadSignals(from defaults: UserDefaults) -> [AIInteractionSignalEvent] {
         guard let data = defaults.data(forKey: AppPreferences.Key.aiInteractionSignalsData),
               let decoded = try? JSONDecoder().decode([AIInteractionSignalEvent].self, from: data) else { return [] }
+        return decoded
+    }
+
+    private static func loadInterest(from defaults: UserDefaults) -> [AIUserInterestEvent] {
+        guard let data = defaults.data(forKey: AppPreferences.Key.aiInterestEventsData),
+              let decoded = try? JSONDecoder().decode([AIUserInterestEvent].self, from: data) else { return [] }
         return decoded
     }
 }

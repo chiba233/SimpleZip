@@ -497,6 +497,17 @@ extension ArchiveBrowserModel {
             if recorded {
                 CachedArchiveSpotlightIndexer.indexArchive(at: url)
                 ArchiveFileSpotlightIndexer.indexArchive(at: url)
+                // archive-open 兴趣信号(只新归档清单触发 → 天然去重,不碰 folder reload 风暴;AI 主开关开才收集)。
+                // 喂后台调度规划器(AIBackgroundPlanner)与建议的位置亲和度;红线:只存归档名 + 脱敏目录分类,不存完整路径。
+                if AppPreferences.aiAssistantEnabled {
+                    let name = url.lastPathComponent
+                    let dir = url.deletingLastPathComponent().path
+                    let count = items.count
+                    await MainActor.run {
+                        AIFeedbackStore.shared.recordArchiveOpenInterest(
+                            archiveName: name, directoryPath: dir, entryCount: count)
+                    }
+                }
             }
         }
     }

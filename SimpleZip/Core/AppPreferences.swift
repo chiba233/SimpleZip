@@ -398,6 +398,8 @@ enum AppPreferences {
         nonisolated static let aiWorkbenchClusterChipsData = "SimpleZip.ai.workbenchClusterChips.v1"
         /// 0.4.5 #80:跨表面 AI 交互信号日志(`[AIInteractionSignalEvent]` 的 JSON;点击 / 打开建议等兴趣信号;派生数据,不进偏好备份)。
         nonisolated static let aiInteractionSignalsData = "SimpleZip.ai.interaction.signals.v1"
+        /// 0.4.5 #80:用户兴趣事件日志(`[AIUserInterestEvent]` 的 JSON;归档打开等接触信号,喂后台调度 / 建议的位置亲和;派生数据,不进偏好备份)。
+        nonisolated static let aiInterestEventsData = "SimpleZip.ai.interest.events.v1"
         /// 0.4.5 #80:只读自动检查 pending 队列(`AIPendingCheckQueue` 的 JSON;电池决策→插电执行;派生数据,不进偏好备份)。
         nonisolated static let aiPendingChecksData = "SimpleZip.ai.pendingChecks.v1"
         /// 0.4.4:压缩使用频率统计数据(CompressionUsageStore 的 JSON;派生数据,不进偏好备份)。
