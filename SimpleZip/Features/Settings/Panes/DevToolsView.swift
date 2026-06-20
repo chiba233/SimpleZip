@@ -295,6 +295,27 @@ struct DevToolsView: View {
                                 agentProbeStatus = lines.joined(separator: "\n")
                             }
                         }
+                        // ③e 工作区证据缺口观测(AIWorkspaceEvidenceGap,确定性、app 内):看 planner 执行(Phase 1+2a)的**输入** ——
+                        //    哪些工作区成员缺哈希 / 小归档没测,这些缺口驱动后台 hash/test 补全 job。
+                        actionRow(
+                            "checkmark.seal",
+                            "查工作区证据缺口(AIWorkspaceEvidenceGap · 确定性)",
+                            "读 AIWorkspaceStore.currentEvidenceGaps:遍历各工作区成员、查派生索引里算没算过哈希 / 测没测过完整性,确定性判出「缺证据」缺口(missingHash / missingArchiveHealth)。这是 planner 执行 Phase 1+2a 的输入 —— 后台空闲会据此补哈希 / 补测。瞬回、不碰模型 / 不碰 reload。"
+                        ) {
+                            let gaps = AIWorkspaceStore.shared.currentEvidenceGaps
+                            if gaps.isEmpty {
+                                agentProbeStatus = "工作区证据缺口:0 条(所有工作区成员都已算过哈希 + 小归档都已测,或当前无工作区成员 —— 打开 / 索引些归档积累成员后再看)。"
+                            } else {
+                                let byKind = Dictionary(grouping: gaps, by: { $0.kind.rawValue })
+                                var lines = ["工作区证据缺口:\(gaps.count) 条,涉及 \(Set(gaps.map(\.workspaceID)).count) 个工作区:"]
+                                for kind in byKind.keys.sorted() {
+                                    let group = byKind[kind] ?? []
+                                    let refs = group.reduce(0) { $0 + $1.affectedSourceRefs.count }
+                                    lines.append("· \(kind):\(group.count) 条 · 共 \(refs) 个成员待补")
+                                }
+                                agentProbeStatus = lines.joined(separator: "\n")
+                            }
+                        }
                         // ④ 配置同步:把当前 App 的 AI 设置推给 agent(坑 9 schemaVersion 协商)。把 AI 主/子开关关掉后点这,
                         //    再点上面的真实查询,应被 agent 红线门控拦截(返回「AI 已禁用」)→ 验证 App→agent 配置同步 + 门控。
                         actionRow(
