@@ -298,6 +298,17 @@ struct GeneratedDiskImageSuggestion: Sendable {
 }
 
 @available(macOS 26.0, *)
+@Generable
+struct GeneratedFileSuggestion: Sendable {
+    @Guide(description: "ONE short, concrete sentence saying what THIS specific file actually is or is about — its real subject or purpose, the way the owner would describe it. Be specific to the content; do NOT just restate the file name, and do NOT write a generic line like 'a text document'. In the required language.")
+    var summary: String
+    @Guide(description: "A FEW action tokens from the allowed-actions list, ONLY where an action is clearly the right next step for THIS file (e.g. a finished deliverable someone would share can warrant 'hash'; a large document to send can warrant 'compress'). Empty is correct when nothing clearly fits. Use each token verbatim; never invent one.")
+    var actions: [String]
+    @Guide(description: "If a list of alternative apps is given, the NUMBER of the ONE app that is CLEARLY a better fit for THIS file than the system default (e.g. a code editor for source/config/logs, a spreadsheet app for CSV/TSV data, a dedicated viewer). Use 0 when no list is given, or when no listed app is clearly better — 0 is the correct default for most files.")
+    var openWithAppNumber: Int
+}
+
+@available(macOS 26.0, *)
 enum AgentGeneration {
     /// 参数化**真实**结构化生成:把用户自然语言请求 → 归档搜索关键词(镜像 App 端 ArchiveFileQuerySpec 的用途)。
     /// 接受**任意传入请求**(非写死),是「真生成迁 agent」的能力基础 —— 命令行 `--query` 与将来 XPC 转发都走它。
@@ -373,7 +384,74 @@ enum AIPassEngine {
             let input = try JSONDecoder().decode(DiskImageSuggestionInput.self, from: inputJSON)
             let out = try await diskImageInstallSuggestion(input, languageName: languageName)
             return try JSONEncoder().encode(out)
+        case .fileSuggestion:
+            let input = try JSONDecoder().decode(FileSuggestionInput.self, from: inputJSON)
+            let out = try await fileSuggestion(input, languageName: languageName)
+            return try JSONEncoder().encode(out)
         }
+    }
+
+    /// 文件浏览器单文件抽屉建议(结构化)。镜像原 App 端 fileSuggestion 的 prompt + 模型;**token 词表校验留 App 侧**
+    /// (那依赖 Core 的动作词表,放 App 才能让 XPC Service 不链 Core)→ 引擎只回**原始** token,App 再过 Core 校验。
+    /// `actionVocabularyRule` 由 App 据 Core 词表拼好传入。
+    private static func fileSuggestion(_ input: FileSuggestionInput,
+                                       languageName: String) async throws -> AIPassFileSuggestionOutput {
+        let apps = Array(input.candidateOpenApps.prefix(8))
+        let discouraged = Array(Set(input.discouragedTokens.map {
+            $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        }.filter { !$0.isEmpty })).sorted().prefix(12)
+        let openWithRule = apps.isEmpty ? "" : """
+
+
+        You are also given a list of OTHER apps installed that can open this file — the user's DEFAULT \
+        double-click app is intentionally NOT in the list. Set openWithAppNumber to the number of an app ONLY \
+        when it is CLEARLY a better fit for THIS file than the default; otherwise set it to 0. Default to 0 — \
+        most files should just use their default app, so recommending a different app must be clearly worth it.
+        """
+        let feedbackHint = discouraged.isEmpty ? "" : """
+
+
+        The user has repeatedly ignored these suggestion types here; only include them if clearly valuable: \
+        \(discouraged.joined(separator: ", ")).
+        """
+        let instructions = """
+        LANGUAGE — MANDATORY: write the summary in \(languageName). Never use any other language for it, not even partially.
+
+        You are describing ONE file to the person who owns it, inside a file manager. You are given the file's name, \
+        its role, a few structural signals, and a redacted excerpt of its actual content. From the CONTENT, write \
+        ONE concrete, specific sentence about what this file really is or is about — the kind of thing a person \
+        would say to remind themselves what it is. Do not restate the file name, do not be generic, do not mention \
+        that text was redacted. If the excerpt is too thin to say anything specific, summarize from the name and \
+        role as best you can, still in one concrete sentence.
+
+        Then suggest a FEW next actions, but ONLY where an action is clearly the right next step for THIS file. \
+        Never suggest an action just because it is possible; if nothing clearly fits, empty is correct. \
+        ROLE HINTS (apply only when the file genuinely looks like one): if the role is 'release-notes', 'report', \
+        'task-summary', or 'task' and the file reads like a finished deliverable someone would share, 'hash' is worth \
+        suggesting. 'compress' is rarely the right step for a single document — suggest it ONLY when the file is \
+        clearly large AND its content or context shows it is meant to be packaged up and sent to someone, not merely \
+        because it is a document.\(openWithRule)\(feedbackHint)
+
+        \(input.actionVocabularyRule)
+        """
+        var lines: [String] = ["File name: \(input.fileName)", "Kind: \(input.kind)"]
+        if !input.roleTags.isEmpty { lines.append("Role: \(input.roleTags.joined(separator: ", "))") }
+        if let languageHint = input.languageHint, !languageHint.isEmpty { lines.append("Format: \(languageHint)") }
+        if !input.headings.isEmpty { lines.append("Headings: \(input.headings.prefix(8).joined(separator: " | "))") }
+        if !input.fieldNames.isEmpty { lines.append("Top-level fields: \(input.fieldNames.prefix(12).joined(separator: ", "))") }
+        let trimmedExcerpt = String(input.excerpt.prefix(1_400)).trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedExcerpt.isEmpty { lines.append("Content excerpt (redacted):\n\(trimmedExcerpt)") }
+        if !apps.isEmpty {
+            lines.append("Other apps that can open this file (the default double-click app is NOT listed) — refer to an app by its number:")
+            for (i, a) in apps.enumerated() { lines.append("\(i + 1)\t\(a.name)") }
+        }
+        let generated = try await AgentGenerationSerializer.shared.generateStructured(
+            instructions: instructions, prompt: lines.joined(separator: "\n"),
+            as: GeneratedFileSuggestion.self, maxAttempts: 3)
+        return AIPassFileSuggestionOutput(
+            summary: generated.summary.trimmingCharacters(in: .whitespacesAndNewlines),
+            actions: generated.actions,
+            openWithAppNumber: generated.openWithAppNumber)
     }
 
     /// 压缩包「你可能需要的文件」(结构化)。镜像原 App 端 archiveEntryPicks → 1 基序号(去重/合法/封顶 4)。

@@ -432,62 +432,18 @@ enum AIVirtualFolderModelPlanner {
                                candidateOpenApps: [(bundleID: String, name: String)] = [],
                                discouragedTokens: [String] = [])
         async throws -> (summary: String, actions: [AIFileSuggestedAction]) {
-        let lang = AIReportAssistant.uiLanguageName
+        // 阶段3:prompt 构建 + 模型在引擎进程跑(actionVocabularyRule 由 App 据 Core 词表拼好传入,XPC Service 无需链 Core);
+        // **token 词表校验 + AIFileSuggestedAction 拼装留 App**(依赖 Core 的动作词表 / kind 适用 / openWith 合成)。
         let apps = Array(candidateOpenApps.prefix(8))
-        let discouraged = Array(Set(discouragedTokens.map {
-            $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        }.filter { !$0.isEmpty })).sorted().prefix(12)
-        let openWithRule = apps.isEmpty ? "" : """
-
-
-        You are also given a list of OTHER apps installed that can open this file — the user's DEFAULT \
-        double-click app is intentionally NOT in the list. Set openWithAppNumber to the number of an app ONLY \
-        when it is CLEARLY a better fit for THIS file than the default; otherwise set it to 0. Default to 0 — \
-        most files should just use their default app, so recommending a different app must be clearly worth it.
-        """
-        let feedbackHint = discouraged.isEmpty ? "" : """
-
-
-        The user has repeatedly ignored these suggestion types here; only include them if clearly valuable: \
-        \(discouraged.joined(separator: ", ")).
-        """
-        let instructions = """
-        LANGUAGE — MANDATORY: write the summary in \(lang). Never use any other language for it, not even partially.
-
-        You are describing ONE file to the person who owns it, inside a file manager. You are given the file's name, \
-        its role, a few structural signals, and a redacted excerpt of its actual content. From the CONTENT, write \
-        ONE concrete, specific sentence about what this file really is or is about — the kind of thing a person \
-        would say to remind themselves what it is. Do not restate the file name, do not be generic, do not mention \
-        that text was redacted. If the excerpt is too thin to say anything specific, summarize from the name and \
-        role as best you can, still in one concrete sentence.
-
-        Then suggest a FEW next actions, but ONLY where an action is clearly the right next step for THIS file. \
-        Never suggest an action just because it is possible; if nothing clearly fits, empty is correct. \
-        ROLE HINTS (apply only when the file genuinely looks like one): if the role is 'release-notes', 'report', \
-        'task-summary', or 'task' and the file reads like a finished deliverable someone would share, 'hash' is worth \
-        suggesting. 'compress' is rarely the right step for a single document — suggest it ONLY when the file is \
-        clearly large AND its content or context shows it is meant to be packaged up and sent to someone, not merely \
-        because it is a document.\(openWithRule)\(feedbackHint)
-
-        \(Self.actionVocabularyRule)
-        """
-        var lines: [String] = ["File name: \(fileName)", "Kind: \(kind)"]
-        if !roleTags.isEmpty { lines.append("Role: \(roleTags.joined(separator: ", "))") }
-        if let languageHint, !languageHint.isEmpty { lines.append("Format: \(languageHint)") }
-        if !headings.isEmpty { lines.append("Headings: \(headings.prefix(8).joined(separator: " | "))") }
-        if !fieldNames.isEmpty { lines.append("Top-level fields: \(fieldNames.prefix(12).joined(separator: ", "))") }
-        let trimmedExcerpt = String(excerpt.prefix(1_400)).trimmingCharacters(in: .whitespacesAndNewlines)
-        if !trimmedExcerpt.isEmpty { lines.append("Content excerpt (redacted):\n\(trimmedExcerpt)") }
-        if !apps.isEmpty {
-            lines.append("Other apps that can open this file (the default double-click app is NOT listed) — refer to an app by its number:")
-            for (i, a) in apps.enumerated() { lines.append("\(i + 1)\t\(a.name)") }
-        }
-        let generated = try await AIReportAssistant.generateStructured(
-            instructions: instructions, prompt: lines.joined(separator: "\n"),
-            as: GeneratedFileSuggestion.self, maxAttempts: 3)
-        let summary = generated.summary.trimmingCharacters(in: .whitespacesAndNewlines)
+        let input = FileSuggestionInput(
+            fileName: fileName, kind: kind, roleTags: roleTags, languageHint: languageHint,
+            headings: headings, fieldNames: fieldNames, excerpt: excerpt,
+            candidateOpenApps: apps.map { FileSuggestionInput.AppCandidate(bundleID: $0.bundleID, name: $0.name) },
+            discouragedTokens: discouragedTokens, actionVocabularyRule: Self.actionVocabularyRule)
+        let out = try await AIAgentClient.generatePass(
+            kind: .fileSuggestion, input: input, as: AIPassFileSuggestionOutput.self)
         var seen = Set<String>()
-        let tokens = generated.actions.compactMap { raw -> String? in
+        let tokens = out.actions.compactMap { raw -> String? in
             let t = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
             guard AIVirtualNodeActionDeriver.allowedSuggestionDescriptors
                 .contains(where: { $0.id == t && $0.appliesToKinds.contains(kind) }),
@@ -495,13 +451,13 @@ enum AIVirtualFolderModelPlanner {
             return t
         }
         var actions = tokens.map { AIFileSuggestedAction(token: $0) }
-        // 推荐打开方式(只推非默认 app):模型按序号挑一个明显更合适的非默认 App;App 据 bundleId 安全合成动作。
-        let n = generated.openWithAppNumber
+        // 推荐打开方式(只推非默认 app):模型按序号挑;App 据 bundleId 安全合成动作。
+        let n = out.openWithAppNumber
         if !apps.isEmpty, n >= 1, n <= apps.count {
             let app = apps[n - 1]
             actions.append(AIFileSuggestedAction(token: "openWith", payload: app.bundleID, label: app.name))
         }
-        return (summary, actions)
+        return (out.summary, actions)
     }
 
     /// **磁盘镜像安装建议**(推荐打开方式 backlog 第2项,拒绝假AI)。给一个内含 App 的 `.dmg`(名字 + 7zz 只读

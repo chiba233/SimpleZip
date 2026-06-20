@@ -37,6 +37,8 @@ public enum AIPassKind: String, Sendable {
     case urlOpenSuggestion
     /// 磁盘镜像「安装到应用程序」(结构化,输入 dmg 名 + 内含 App 名,输出一句定性 + 是否建议安装)。
     case diskImageInstallSuggestion
+    /// 文件浏览器单文件抽屉建议(结构化,输入名/类型/角色/结构/脱敏摘录/候选App,输出一句摘要 + 动作 token + 推荐App编号)。
+    case fileSuggestion
 }
 
 // MARK: - 输入 DTO(App 拼 / 引擎解码)
@@ -157,6 +159,35 @@ public nonisolated struct DiskImageSuggestionInput: Codable, Sendable {
     public init(dmgName: String, appNames: [String]) { self.dmgName = dmgName; self.appNames = appNames }
 }
 
+/// 文件浏览器单文件抽屉建议输入。`actionVocabularyRule` = App 据 Core 的动作词表拼好的规则串(引擎不依赖 Core
+/// 即可拼 prompt → **XPC Service 无需链 Core**);`candidateOpenApps` 仅供模型按编号挑推荐 App(App 据编号回查)。
+/// `excerpt` 必须**已脱敏**(调用方后台读 + AISensitiveRedactor)。
+public nonisolated struct FileSuggestionInput: Codable, Sendable {
+    public nonisolated struct AppCandidate: Codable, Sendable {
+        public var bundleID: String
+        public var name: String
+        public init(bundleID: String, name: String) { self.bundleID = bundleID; self.name = name }
+    }
+    public var fileName: String
+    public var kind: String
+    public var roleTags: [String]
+    public var languageHint: String?
+    public var headings: [String]
+    public var fieldNames: [String]
+    public var excerpt: String
+    public var candidateOpenApps: [AppCandidate]
+    public var discouragedTokens: [String]
+    public var actionVocabularyRule: String
+    public init(fileName: String, kind: String, roleTags: [String], languageHint: String?, headings: [String],
+                fieldNames: [String], excerpt: String, candidateOpenApps: [AppCandidate],
+                discouragedTokens: [String], actionVocabularyRule: String) {
+        self.fileName = fileName; self.kind = kind; self.roleTags = roleTags; self.languageHint = languageHint
+        self.headings = headings; self.fieldNames = fieldNames; self.excerpt = excerpt
+        self.candidateOpenApps = candidateOpenApps; self.discouragedTokens = discouragedTokens
+        self.actionVocabularyRule = actionVocabularyRule
+    }
+}
+
 // MARK: - 输出 DTO(引擎产 / App 解码)
 
 /// 纯文本 pass 的通用输出(一句话 / 一段解释)。
@@ -200,4 +231,14 @@ public nonisolated struct AIPassDiskImageOutput: Codable, Sendable {
     public var summary: String
     public var suggest: Bool
     public init(summary: String, suggest: Bool) { self.summary = summary; self.suggest = suggest }
+}
+
+/// 单文件抽屉建议输出:一句摘要 + **原始**动作 token(App 侧再过 Core 词表校验 + kind 适用)+ 推荐 App 编号(0=无)。
+public nonisolated struct AIPassFileSuggestionOutput: Codable, Sendable {
+    public var summary: String
+    public var actions: [String]
+    public var openWithAppNumber: Int
+    public init(summary: String, actions: [String], openWithAppNumber: Int) {
+        self.summary = summary; self.actions = actions; self.openWithAppNumber = openWithAppNumber
+    }
 }
