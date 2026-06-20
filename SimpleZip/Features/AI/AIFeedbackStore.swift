@@ -91,6 +91,19 @@ final class AIFeedbackStore: ObservableObject {
     var feedbackSummary: AIFeedbackSummary { AIFeedbackAggregator.summarize(feedbackEvents) }
     var counts: (feedback: Int, signals: Int) { (feedbackEvents.count, signalEvents.count) }
 
+    /// interaction signal 折叠成计数摘要(给 `AIBackgroundPlanner` 的 `PlanningInput.interactionSummary`)。复用 Core
+    /// 确定性折叠 `AIInteractionSignalAggregator.counterSummary`;窗口标 "raw"(本 store 只存原始、即时算)。
+    var interactionCounterSummary: AIInteractionCounterSummary {
+        AIInteractionSignalAggregator.counterSummary(from: signalEvents, window: "raw", generatedAt: Date())
+    }
+
+    /// 兴趣摘要(给 `PlanningInput.recentInterestSummary`)。interest events(folder/archive-open)暂未收集 —— 其写入
+    /// 入口碰 FSEvents reload 高风险区(见 AIUserInterestEvent 注释),后续接;先用已收集的 signalEvents 折叠出
+    /// interactionAffinities 部分(reactionPreferences/locationAffinities 等 interest 维度待 interest events 接齐)。
+    var interestSummary: AIInterestSummary {
+        AIInterestAggregator.summarize([], signals: signalEvents)
+    }
+
     /// 建议六 v2 用量信号回流:工作台 chip 点击次数(by chip id)。给 chip 排序学习用户偏好(常点的下次前移)。
     /// 信号本就 30d 滚动修剪 → 用量自然衰减。
     func chipFilterUsage() -> [String: Int] {

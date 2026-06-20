@@ -278,6 +278,23 @@ struct DevToolsView: View {
                                 agentProbeStatus = result
                             }
                         }
+                        // ③d 后台调度规划观测(AIBackgroundPlanner,确定性、app 内、不走 XPC):看据当前 runtime + 已收集信号会规划哪些后台 job。
+                        actionRow(
+                            "list.bullet.indent",
+                            "查后台调度规划(AIBackgroundPlanner · 确定性)",
+                            "用当前运行时(电源/空闲/活跃度档)+ 已收集的 interaction 信号 + 索引健康,调 AIBackgroundPlanner 规划一组 tier-gated 后台 job(该补什么数据 / 预热哪个 surface,绝不越当前档位天花板)。确定性、瞬回、不碰模型。v1 只观测规划结果,逐 job 执行是后续步骤。"
+                        ) {
+                            let plan = AIBackgroundIndexer.shared.planBackgroundJobs()
+                            if plan.jobs.isEmpty {
+                                agentProbeStatus = "后台调度规划:档位天花板 = \(plan.allowedTier.rawValue);当前无 job(数据不足 / 档位不够 —— 触发些 AI 功能积累信号、或在空闲充电时再看)。"
+                            } else {
+                                var lines = ["后台调度规划:档位天花板 = \(plan.allowedTier.rawValue),\(plan.jobs.count) 个 job(优先级降序):"]
+                                for j in plan.jobs {
+                                    lines.append("· \(j.kind.rawValue) · p\(j.priority) · [\(j.requiredTier.rawValue)] · \(j.reasonTokens.joined(separator: ", "))")
+                                }
+                                agentProbeStatus = lines.joined(separator: "\n")
+                            }
+                        }
                         // ④ 配置同步:把当前 App 的 AI 设置推给 agent(坑 9 schemaVersion 协商)。把 AI 主/子开关关掉后点这,
                         //    再点上面的真实查询,应被 agent 红线门控拦截(返回「AI 已禁用」)→ 验证 App→agent 配置同步 + 门控。
                         actionRow(

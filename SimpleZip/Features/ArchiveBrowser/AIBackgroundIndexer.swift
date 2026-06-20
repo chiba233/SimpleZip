@@ -40,6 +40,19 @@ final class AIBackgroundIndexer {
 
     /// 转发到 gate(运行时上下文 / 能跑哪档门控)。各 pass 入口 + gateDiag 共用 —— 调用点不动。
     func currentRuntimeContext() -> AIBackgroundRuntimeContext { gate.currentRuntimeContext() }
+
+    /// 接通 `AIBackgroundPlanner`(工程补充五):用当前 runtime + 已收集的 interaction 信号(AIFeedbackStore)+ 索引健康,
+    /// 确定性地规划「后台空闲时该补什么数据 / 预热哪个 surface」的一组 tier-gated job(绝不越当前档位天花板)。
+    /// **v1 只产 plan 供观测(DevTools)**;逐 job kind 接执行、以及 interest-event / evidence-gap / 陈旧工作区等
+    /// 输入待对应数据收集接齐后填,是后续步骤(见记忆 ⓪/①)。纯确定性、可取消、可解释。
+    func planBackgroundJobs() -> AIBackgroundPlan {
+        let input = AIBackgroundPlanningInput(
+            runtime: currentRuntimeContext(),
+            interactionSummary: AIFeedbackStore.shared.interactionCounterSummary,
+            recentInterestSummary: AIFeedbackStore.shared.interestSummary,
+            indexHealth: AIIndexMaintenanceFacts())
+        return AIBackgroundPlanner.plan(input)
+    }
     func canRunModelWorkNow() -> Bool { gate.canRunModelWorkNow() }
     func canRunDeepContextNow() -> Bool { gate.canRunDeepContextNow() }
 
