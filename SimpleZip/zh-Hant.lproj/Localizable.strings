@@ -1764,6 +1764,7 @@
 "devtools.feedback.defaultsCopied" = "快照已複製";
 "welcome.safety.confirmDelete" = "刪除檔案前需要確認";
 "welcome.safety.confirmDelete.detail" = "在瀏覽器裡把檔案移到垃圾桶前先彈確認。";
+"welcome.safety.finderFavorites.detail" = "會讀取 Finder 的個人收藏設定，讓 SimpleZip 側邊欄跟隨 Finder。關閉時繼續使用內建備用位置。";
 "feedback.copied" = "已複製";
 "command.copied" = "命令已複製";
 "tasks.settings.openOnFailure" = "任務失敗時自動打開活動中心";

@@ -1763,6 +1763,7 @@
 "devtools.feedback.defaultsCopied" = "Snapshot kopiert";
 "welcome.safety.confirmDelete" = "Vor dem Löschen von Dateien bestätigen";
 "welcome.safety.confirmDelete.detail" = "Vor dem Verschieben von Dateien aus dem Browser in den Papierkorb nachfragen.";
+"welcome.safety.finderFavorites.detail" = "Liest Finders Favoriten-Einstellung, damit die SimpleZip-Seitenleiste ihr folgen kann. Wenn deaktiviert, bleiben die eingebauten Ersatzorte aktiv.";
 "feedback.copied" = "Kopiert";
 "command.copied" = "Befehl kopiert";
 "tasks.settings.openOnFailure" = "Aktivitätscenter bei Fehler öffnen";

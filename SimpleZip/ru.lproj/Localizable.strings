@@ -1762,6 +1762,7 @@
 "devtools.feedback.defaultsCopied" = "Снимок скопирован";
 "welcome.safety.confirmDelete" = "Подтверждать перед удалением файлов";
 "welcome.safety.confirmDelete.detail" = "Запрашивать подтверждение перед перемещением файлов из браузера в Корзину.";
+"welcome.safety.finderFavorites.detail" = "Читает настройку избранного Finder, чтобы боковая панель SimpleZip могла ей следовать. Если отключено, используются встроенные резервные расположения.";
 "feedback.copied" = "Скопировано";
 "command.copied" = "Команда скопирована";
 "tasks.settings.openOnFailure" = "Открывать Центр активности при сбое";

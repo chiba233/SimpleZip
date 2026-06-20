@@ -1762,6 +1762,7 @@
 "devtools.feedback.defaultsCopied" = "คัดลอกสแนปชอตแล้ว";
 "welcome.safety.confirmDelete" = "ยืนยันก่อนลบไฟล์";
 "welcome.safety.confirmDelete.detail" = "ถามยืนยันก่อนย้ายไฟล์ไปถังขยะจากเบราว์เซอร์";
+"welcome.safety.finderFavorites.detail" = "อ่านการตั้งค่ารายการโปรดของ Finder เพื่อให้แถบด้านข้างของ SimpleZip ทำตามได้ เมื่อปิดจะใช้ตำแหน่งสำรองในตัวต่อไป";
 "feedback.copied" = "คัดลอกแล้ว";
 "command.copied" = "คัดลอกคำสั่งแล้ว";
 "tasks.settings.openOnFailure" = "เปิดศูนย์กิจกรรมเมื่อเกิดข้อผิดพลาด";

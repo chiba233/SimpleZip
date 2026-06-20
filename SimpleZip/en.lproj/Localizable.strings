@@ -2516,6 +2516,7 @@
 /* 0.4.2 welcome safety page becomes editable */
 "welcome.safety.confirmDelete" = "Confirm before deleting files";
 "welcome.safety.confirmDelete.detail" = "Ask for confirmation before moving files to the Trash from the browser.";
+"welcome.safety.finderFavorites.detail" = "Reads Finder's favorites setting so SimpleZip's sidebar can mirror it. When off, the built-in fallback locations stay in use.";
 
 /* 0.4.2 #4 split-volume folding */
 "file.volumeBadge" = "%1$@ · %2$@ volumes";

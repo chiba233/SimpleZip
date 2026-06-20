@@ -1762,6 +1762,7 @@
 "devtools.feedback.defaultsCopied" = "Instantánea copiada";
 "welcome.safety.confirmDelete" = "Confirmar antes de eliminar archivos";
 "welcome.safety.confirmDelete.detail" = "Pedir confirmación antes de mover archivos a la papelera desde el navegador.";
+"welcome.safety.finderFavorites.detail" = "Lee el ajuste de favoritos de Finder para que la barra lateral de SimpleZip pueda seguirlo. Si está desactivado, se siguen usando las ubicaciones alternativas integradas.";
 "feedback.copied" = "Copiado";
 "command.copied" = "Comando copiado";
 "tasks.settings.openOnFailure" = "Abrir Centro de actividad al fallar";

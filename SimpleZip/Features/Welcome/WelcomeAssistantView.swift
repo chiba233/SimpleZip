@@ -206,14 +206,17 @@ struct WelcomeAssistantView: View {
             // Finder 右键集成（0.4.3 用户点名）：macOS 默认不激活第三方服务,首启就让用户挑要哪些右键项。
             WelcomeFinderServicesStep()
         case 4:
-            WelcomeSafetyStep(
-                suspiciousPathPolicy: $suspiciousPathPolicy,
-                symbolicLinkPolicy: $symbolicLinkPolicy,
-                activeContentOpenPolicy: $activeContentOpenPolicy,
-                confirmBeforeDelete: $confirmBeforeDeletingFiles,
-                verifyAfterRewrite: $verifyAfterArchiveRewrite,
-                verifyAfterCreate: $verifyAfterArchiveCreate
-            )
+            VStack(alignment: .leading, spacing: 16) {
+                WelcomeSafetyStep(
+                    suspiciousPathPolicy: $suspiciousPathPolicy,
+                    symbolicLinkPolicy: $symbolicLinkPolicy,
+                    activeContentOpenPolicy: $activeContentOpenPolicy,
+                    confirmBeforeDelete: $confirmBeforeDeletingFiles,
+                    verifyAfterRewrite: $verifyAfterArchiveRewrite,
+                    verifyAfterCreate: $verifyAfterArchiveCreate
+                )
+                WelcomeFinderFavoritesSyncStep()
+            }
         case 5:
             // 引擎：压缩后端 + GPG（GPG 保持独立 section —— opt-in/opt-out 决定仍然显式）。
             VStack(alignment: .leading, spacing: 16) {
@@ -949,6 +952,88 @@ private struct WelcomeSafetyStep: View {
                     .foregroundStyle(.white)
             )
             .frame(width: 22, height: 22)
+    }
+}
+
+private struct WelcomeFinderFavoritesSyncStep: View {
+    @AppStorage(AppPreferences.Key.finderFavoritesSyncEnabled) private var finderFavoritesSyncEnabled = false
+    @State private var finderFavoritesAccessError: String?
+
+    var body: some View {
+        WelcomeStepShell(
+            title: L10n.text("settings.finderFavoritesSync"),
+            systemImage: "sidebar.leading",
+            tint: .blue,
+            body1: L10n.text("welcome.safety.finderFavorites.detail")
+        ) {
+            Toggle(L10n.text("settings.finderFavoritesSync"), isOn: Binding(
+                get: { finderFavoritesSyncEnabled },
+                set: setFinderFavoritesSyncEnabled
+            ))
+            .toggleStyle(.switch)
+
+            if let finderFavoritesAccessError {
+                Text(finderFavoritesAccessError)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func setFinderFavoritesSyncEnabled(_ enabled: Bool) {
+        finderFavoritesAccessError = nil
+        guard enabled else {
+            AppPreferences.clearFinderFavoritesDirectoryBookmark()
+            finderFavoritesSyncEnabled = false
+            NotificationCenter.default.post(name: .browserPreferencesChanged, object: nil)
+            return
+        }
+        if AppPreferences.hasFinderFavoritesDirectoryBookmark {
+            finderFavoritesSyncEnabled = true
+            NotificationCenter.default.post(name: .browserPreferencesChanged, object: nil)
+        } else {
+            requestFinderFavoritesAccess()
+        }
+    }
+
+    private func requestFinderFavoritesAccess() {
+        let panel = NSOpenPanel()
+        panel.title = L10n.text("settings.finderFavoritesSync.panel.title")
+        panel.message = L10n.text("settings.finderFavoritesSync.panel.message")
+        panel.prompt = L10n.text("settings.finderFavoritesSync.authorize")
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.canCreateDirectories = false
+        panel.directoryURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+
+        guard panel.runModal() == .OK, let selectedURL = panel.url else {
+            finderFavoritesSyncEnabled = false
+            return
+        }
+        guard FinderFavoritesReader.sharedFileListDirectory(from: selectedURL) != nil else {
+            finderFavoritesAccessError = L10n.text("settings.finderFavoritesSync.invalidFolder")
+            AppPreferences.clearFinderFavoritesDirectoryBookmark()
+            finderFavoritesSyncEnabled = false
+            NotificationCenter.default.post(name: .browserPreferencesChanged, object: nil)
+            return
+        }
+        do {
+            let bookmark = try selectedURL.bookmarkData(
+                options: [.withSecurityScope],
+                includingResourceValuesForKeys: nil,
+                relativeTo: nil
+            )
+            AppPreferences.storeFinderFavoritesDirectoryBookmark(bookmark)
+            finderFavoritesSyncEnabled = true
+            NotificationCenter.default.post(name: .browserPreferencesChanged, object: nil)
+        } catch {
+            finderFavoritesAccessError = L10n.text("settings.finderFavoritesSync.permissionDenied")
+            AppPreferences.clearFinderFavoritesDirectoryBookmark()
+            finderFavoritesSyncEnabled = false
+            NotificationCenter.default.post(name: .browserPreferencesChanged, object: nil)
+        }
     }
 }
 

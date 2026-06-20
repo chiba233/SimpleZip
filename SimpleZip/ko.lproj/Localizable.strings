@@ -1763,6 +1763,7 @@
 "devtools.feedback.defaultsCopied" = "스냅샷 복사됨";
 "welcome.safety.confirmDelete" = "파일 삭제 전 확인";
 "welcome.safety.confirmDelete.detail" = "브라우저에서 파일을 휴지통으로 이동하기 전에 확인을 요청합니다.";
+"welcome.safety.finderFavorites.detail" = "Finder 즐겨찾기 설정을 읽어 SimpleZip 사이드바가 이를 따를 수 있게 합니다. 꺼져 있으면 내장 대체 위치를 계속 사용합니다.";
 "feedback.copied" = "복사됨";
 "command.copied" = "명령 복사됨";
 "tasks.settings.openOnFailure" = "실패 시 활동 센터 열기";

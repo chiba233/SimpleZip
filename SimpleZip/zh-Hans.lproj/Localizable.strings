@@ -2516,6 +2516,7 @@
 /* 0.4.2 欢迎助手安全策略页可编辑 */
 "welcome.safety.confirmDelete" = "删除文件前需要确认";
 "welcome.safety.confirmDelete.detail" = "在浏览器里把文件移到废纸篓前先弹确认。";
+"welcome.safety.finderFavorites.detail" = "会读取 Finder 的个人收藏设置，让 SimpleZip 侧边栏跟随 Finder。关闭时继续使用内置回退位置。";
 
 /* 0.4.2 #4 分卷集折叠 */
 "file.volumeBadge" = "%1$@ · %2$@ 卷";

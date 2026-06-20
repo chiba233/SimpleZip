@@ -1764,6 +1764,7 @@
 "devtools.feedback.defaultsCopied" = "スナップショットをコピーしました";
 "welcome.safety.confirmDelete" = "ファイル削除前に確認";
 "welcome.safety.confirmDelete.detail" = "ブラウザからファイルをゴミ箱へ移動する前に確認します。";
+"welcome.safety.finderFavorites.detail" = "Finderのお気に入り設定を読み取り、SimpleZipのサイドバーがそれに合わせられるようにします。オフの場合は内蔵の代替場所を使い続けます。";
 "feedback.copied" = "コピーしました";
 "command.copied" = "コマンドをコピーしました";
 "tasks.settings.openOnFailure" = "失敗時にアクティビティセンターを開く";
