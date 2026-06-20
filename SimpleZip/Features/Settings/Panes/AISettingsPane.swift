@@ -74,6 +74,10 @@ struct AISettingsPane: View {
         .formStyle(.grouped)
         .controlSize(.small)
         .settingsScrollAnchors()
+        // 配置同步是默认行为(不靠手动):进页先持久化一次,AI 主/子开关一变就推给 agent(持久化文件 + best-effort 推送)。
+        .onAppear { AIAgentClient.persistConfiguration() }
+        .onChange(of: aiAssistant) { _ in AIAgentClient.publishConfiguration() }
+        .onChange(of: aiSuggestion) { _ in AIAgentClient.publishConfiguration() }
     }
 
     /// AI 隐私须知里的一条说明:整段灰色小字,跨多行不截断,左对齐撑满。

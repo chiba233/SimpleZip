@@ -30,6 +30,11 @@ actor AIAgentConfigurationStore {
     static let shared = AIAgentConfigurationStore()
     private var current: AIAgentConfiguration?
 
+    init() {
+        // 进程启动即从持久化文件读 App 上次写的配置 —— App 关着时被 launchd 拉起的后台 agent 也能拿到红线主开关状态。
+        current = AIAgentConfiguration.loadPersisted()
+    }
+
     func apply(_ config: AIAgentConfiguration) { current = config }
     var snapshot: AIAgentConfiguration? { current }
 

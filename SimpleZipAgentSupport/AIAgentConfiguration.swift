@@ -51,4 +51,35 @@ public nonisolated struct AIAgentConfiguration: Codable, Sendable, Equatable {
     public static func decoded(from data: Data) -> AIAgentConfiguration? {
         try? JSONDecoder().decode(AIAgentConfiguration.self, from: data)
     }
+
+    // MARK: - 持久化(App 写 / agent 读;让 App 关着被 launchd 拉起的后台 agent 也能拿到配置,尤其红线主开关)
+
+    /// App bundle id(按构建配置隔离 dev/prod)。三 target #if DEBUG 一致对齐(同 SimpleZipAIAgentXPCNames)。
+    #if DEBUG
+    public static let appBundleID = "yumeka.SimpleZip-in-mac.dev"
+    #else
+    public static let appBundleID = "yumeka.SimpleZip-in-mac"
+    #endif
+
+    /// 持久化文件:`Application Support/<app bundle id>/AIAgentConfig.json`(dev/prod 各自隔离)。
+    public static func persistedFileURL() -> URL? {
+        guard let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+            return nil
+        }
+        return base.appendingPathComponent(appBundleID, isDirectory: true)
+                   .appendingPathComponent("AIAgentConfig.json")
+    }
+
+    /// App 侧:原子写文件。任何 agent 进程启动都能 loadPersisted 读到最新配置。
+    public func persist() {
+        guard let url = AIAgentConfiguration.persistedFileURL() else { return }
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? encoded().write(to: url, options: .atomic)
+    }
+
+    /// agent 侧:读持久化文件;不存在 / 损坏回 nil(agent 退回默认放行)。
+    public static func loadPersisted() -> AIAgentConfiguration? {
+        guard let url = persistedFileURL(), let data = try? Data(contentsOf: url) else { return nil }
+        return decoded(from: data)
+    }
 }

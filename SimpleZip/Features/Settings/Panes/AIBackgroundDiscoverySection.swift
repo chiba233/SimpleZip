@@ -43,6 +43,7 @@ struct AIBackgroundDiscoverySection: View {
                         AppPreferences.aiBackgroundActivityLevel = newValue
                         if newValue == .off { AIBackgroundIndexer.shared.cancel() }
                         else { AIBackgroundIndexer.shared.runIfEnabled() }
+                        AIAgentClient.publishConfiguration()   // 配置同步默认行为:后台档位一变就推给 agent
                     }
                 }
 
@@ -55,6 +56,7 @@ struct AIBackgroundDiscoverySection: View {
                 .onChange(of: folderPreindex) { on in
                     if on { AIBackgroundIndexer.shared.runIfEnabled() }
                     else if !contentPreread { AIBackgroundIndexer.shared.cancel() }
+                    AIAgentClient.publishConfiguration()
                 }
 
                 // 更高隐私等级:预读文件与压缩包**内容**(独立 opt-in,与上面只元数据的预索引分开)。
@@ -67,6 +69,7 @@ struct AIBackgroundDiscoverySection: View {
                 .onChange(of: contentPreread) { on in
                     if on { AIBackgroundIndexer.shared.runIfEnabled() }
                     else if !folderPreindex { AIBackgroundIndexer.shared.cancel() }
+                    AIAgentClient.publishConfiguration()
                 }
 
                 // 索引电源档:控制 Spotlight 搜索索引的更新频率与后台占用。省电=慢慢索引(一天才查一次更新、

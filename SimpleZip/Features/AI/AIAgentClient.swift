@@ -151,6 +151,20 @@ enum AIAgentClient {
             activityLevel: AppPreferences.aiBackgroundActivityLevel.rawValue)
     }
 
+    /// 把当前配置**持久化到文件**(不碰 agent 进程)。让任何 agent 进程启动都能 loadPersisted 读到 —— App 启动 /
+    /// 设置页出现时调,确保 App 关后被 launchd 拉起的后台 agent 也有红线状态。
+    @MainActor static func persistConfiguration() {
+        currentConfiguration().persist()
+    }
+
+    /// **配置同步默认行为**:持久化文件 + 推送给当前活着的 agent(经前台 XPC Service,best-effort)。AI 设置一变就调 ——
+    /// 活着的 agent 立即按新配置门控(主/子开关关 → 拒生成),App 关后由持久化文件兜底。不需要用户手动同步。
+    @MainActor static func publishConfiguration() {
+        let config = currentConfiguration()
+        config.persist()
+        syncConfiguration(config) { _ in }   // 推送结果忽略:文件已落盘,推送只为即时生效
+    }
+
     /// 经**前台 XPC Service 通道**把配置 payload 同步给 agent,回协商结果(agent 支持的 schemaVersion / 解码拒绝)。
     /// 同步后 agent 据此门控:`aiAssistantEnabled && aiSuggestionEnabled == false` → agent 拒绝前台生成。
     nonisolated static func syncConfiguration(_ config: AIAgentConfiguration,
