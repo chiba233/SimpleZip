@@ -387,6 +387,28 @@ struct GeneratedAIFolderPlan: Sendable {
     var groups: [GeneratedAIFolderGroup]
 }
 
+/// #63 归档清单 NL 查询的 @Generable(从 App 端 ArchiveFileQuerySpec 搬来)。
+@available(macOS 26.0, *)
+@Generable
+struct GeneratedArchiveFileQuery: Sendable {
+    @Guide(description: "The single most useful file-name keyword to search archives for, extracted from the user's request. A bare word or short phrase, no punctuation, no path. Empty if the request names no file.")
+    var keyword: String
+}
+
+/// #64 设置 NL 搜索的 @Generable(从 App 端 SettingIntent/SettingsQuerySpec 搬来)。意图枚举 + 命中设置 id。
+@available(macOS 26.0, *)
+@Generable
+enum GeneratedSettingIntent: String, Equatable { case navigate, enable, disable }
+
+@available(macOS 26.0, *)
+@Generable
+struct GeneratedSettingsQuery: Sendable {
+    @Guide(description: "The id of the single best-matching setting from the provided catalog, copied verbatim. Empty string if nothing in the catalog matches the request.")
+    var settingID: String
+    @Guide(description: "What the user wants done with that setting: navigate to find it, enable it, or disable it. Use navigate unless the user clearly asks to turn it on or off.")
+    var intent: GeneratedSettingIntent
+}
+
 @available(macOS 26.0, *)
 enum AgentGeneration {
     /// 参数化**真实**结构化生成:把用户自然语言请求 → 归档搜索关键词(镜像 App 端 ArchiveFileQuerySpec 的用途)。
@@ -495,6 +517,14 @@ enum AIPassEngine {
             let input = try JSONDecoder().decode(AIVirtualFolderPlanInput.self, from: inputJSON)
             let review = try await workspaceReview(input, languageName: languageName)
             return try JSONEncoder().encode(review)
+        case .archiveFileKeyword:
+            let query = try JSONDecoder().decode(String.self, from: inputJSON)
+            let keyword = try await archiveFileKeyword(query)
+            return try JSONEncoder().encode(keyword)
+        case .settingsQuery:
+            let input = try JSONDecoder().decode(SettingsQueryInput.self, from: inputJSON)
+            let out = try await settingsQuery(input)
+            return try JSONEncoder().encode(out)
         }
     }
 
@@ -954,6 +984,34 @@ enum AIPassEngine {
             instructions: instructions, prompt: lines.joined(separator: "\n"),
             as: GeneratedAIFolderPlan.self, maxAttempts: 12)   // 连试 12 代 + 极简 schema + 短 prompt 压报错
         return assemble(generated, candidates: cands)
+    }
+
+    /// #63 归档清单「一句话查询」NL → 文件名关键词(镜像原 App archiveFileKeyword)。输出关键词无界面语言依赖。
+    private static func archiveFileKeyword(_ query: String) async throws -> String {
+        let instructions = """
+        The user is looking for a file they remember is inside some archive. Extract the single most useful \
+        file-name keyword to search for. Prefer a concrete noun or the likely file name; drop filler words. \
+        Return just the keyword, no punctuation or path.
+        """
+        let spec = try await AgentGenerationSerializer.shared.generateStructured(
+            instructions: instructions, prompt: query, as: GeneratedArchiveFileQuery.self)
+        return spec.keyword
+    }
+
+    /// #64 设置「一句话搜索」NL → 命中设置 id + 意图(镜像原 App settingsQuerySpec)。输出 intent 的 rawValue 字符串。
+    private static func settingsQuery(_ input: SettingsQueryInput) async throws -> SettingsQueryOutput {
+        let instructions = """
+        The user describes a setting they want to find or change in an archive app. From the catalog below \
+        (one per line as "id<TAB>title<TAB>summary"), pick the single best-matching setting and copy its id \
+        verbatim, and decide the intent: navigate (just find it), enable (turn it on) or disable (turn it \
+        off). If nothing matches, return an empty id. Output only the two fields.
+
+        Catalog:
+        \(input.catalog)
+        """
+        let spec = try await AgentGenerationSerializer.shared.generateStructured(
+            instructions: instructions, prompt: input.query, as: GeneratedSettingsQuery.self)
+        return SettingsQueryOutput(settingID: spec.settingID, intent: spec.intent.rawValue)
     }
 
     /// 活动中心「建议筛选」chip 模型排序(结构化)。镜像原 App 端 rankWorkbenchFilterChips。

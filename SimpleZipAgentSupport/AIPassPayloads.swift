@@ -58,6 +58,10 @@ public enum AIPassKind: String, Sendable {
     case workspacePlan
     /// AI 文件夹「后台复核(值不值得 + plan)」(结构化,输入 AIVirtualFolderPlanInput,输出 AIFolderReview)。
     case workspaceReview
+    /// 归档清单「一句话查询」NL → 文件名关键词(结构化,输入一句话,输出 keyword)。
+    case archiveFileKeyword
+    /// 设置「一句话搜索」NL → 命中设置 id + 意图(结构化,输入一句话 + catalog,输出 settingID + intent)。
+    case settingsQuery
 }
 
 // MARK: - 输入 DTO(App 拼 / 引擎解码)
@@ -307,5 +311,25 @@ public nonisolated struct WorkspaceOrganizeOutput: Codable, Sendable {
     public init(folderName: String, memberIDs: [String]) {
         self.folderName = folderName
         self.memberIDs = memberIDs
+    }
+}
+
+/// 设置「一句话搜索」输入:用户一句话 + 设置目录("id\\t标题\\t关键词"多行)。纯基本类型,public。
+public nonisolated struct SettingsQueryInput: Codable, Sendable {
+    public var query: String
+    public var catalog: String
+    public init(query: String, catalog: String) {
+        self.query = query
+        self.catalog = catalog
+    }
+}
+
+/// 设置「一句话搜索」输出:命中的设置 id + 意图 rawValue(navigate/enable/disable;空 id = 无匹配)。
+public nonisolated struct SettingsQueryOutput: Codable, Sendable {
+    public var settingID: String
+    public var intent: String
+    public init(settingID: String, intent: String) {
+        self.settingID = settingID
+        self.intent = intent
     }
 }
