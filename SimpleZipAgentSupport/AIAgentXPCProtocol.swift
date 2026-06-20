@@ -30,6 +30,13 @@ import Foundation
     /// App → agent **配置同步**(坑 9):payload 是 AIAgentConfiguration 的 JSON Data。agent 解码后存储、据此门控
     /// (红线:主开关关 = 不生成),reply 回 agent 支持的 schemaVersion(解码失败回 -1,供 App 协商 / 降级)。
     nonisolated func syncConfiguration(_ payload: Data, reply: @escaping (Int) -> Void)
+
+    /// 阶段3 **通用 AI pass 生成**:把一整条模型 pass(拼 prompt + 调模型 + 解析)放进引擎(只在 agent/XPC 进程)。
+    /// `kind` = AIPassKind.rawValue,`inputJSON` = 该 pass 的 Codable 输入 DTO,`languageName` = 界面语言(引擎进程
+    /// 无 App locale,由 App 传)。reply `(outputJSON, ok)`:ok=true 时 outputJSON 是输出 DTO;ok=false 时是
+    /// UTF-8 人话错误(AI 禁用 / 未知 kind / 模型失败)。红线:主/子开关关 → ok=false「AI 已禁用」。
+    nonisolated func generate(kind: String, inputJSON: Data, languageName: String,
+                              reply: @escaping (Data, Bool) -> Void)
 }
 
 /// App 与 agent / XPC Service 约定的常量。两条投递通道各一个名字:

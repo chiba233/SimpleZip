@@ -642,11 +642,15 @@ final class AIBackgroundIndexer {
             defer { AIBackgroundIndexer.shared.workbenchFailureRunning = false }
             guard AIBackgroundIndexStore.shared.indexingEnabled, AIReportAssistant.isReady else { return }
             let diag = pick.record.diagnostics
-            guard let text = try? await AIVirtualFolderModelPlanner.taskFailureShortExplanation(
+            // 阶段3:模型推理迁出主进程 —— 拼好(已脱敏)输入 DTO,经前台 XPC Service 让引擎跑这条 pass(拼 prompt+模型+解析)。
+            let input = TaskFailureExplanationInput(
                 kind: pick.record.kind, source: pick.record.source, tags: diag.tags,
-                failureMessage: diag.failureMessage, errorLines: diag.errorLines), !text.isEmpty else { return }
+                failureMessage: diag.failureMessage, errorLines: diag.errorLines)
+            guard let out = try? await AIAgentClient.generatePass(
+                kind: .taskFailureShortExplanation, input: input, as: AIPassTextOutput.self),
+                  !out.text.isEmpty else { return }
             AIBackgroundIndexStore.shared.applyWorkbenchFailureExplanation(
-                taskID: pick.record.id, fingerprint: pick.fingerprint, text: text, liveTaskIDs: liveTaskIDs)
+                taskID: pick.record.id, fingerprint: pick.fingerprint, text: out.text, liveTaskIDs: liveTaskIDs)
         }
     }
 

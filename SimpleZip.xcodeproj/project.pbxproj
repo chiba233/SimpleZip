@@ -35,6 +35,9 @@
 		24A28DD5CFCF4AAAC4DB85A8 /* SimpleZipAgentSupport/AIAgentConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88CF371C260BE403D359B938 /* SimpleZipAgentSupport/AIAgentConfiguration.swift */; };
 		DD6D4B0E4F818DA5BECECD9F /* SimpleZipAgentSupport/AIAgentConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88CF371C260BE403D359B938 /* SimpleZipAgentSupport/AIAgentConfiguration.swift */; };
 		2860DEE7F77571699EF84C55 /* SimpleZipAgentSupport/AIAgentConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88CF371C260BE403D359B938 /* SimpleZipAgentSupport/AIAgentConfiguration.swift */; };
+		771815289BB6CE063CEE34B0 /* SimpleZipAgentSupport/AIPassPayloads.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64183CC654E51ED24F0827A2 /* SimpleZipAgentSupport/AIPassPayloads.swift */; };
+		B5CB83030AA4D7977FB24D61 /* SimpleZipAgentSupport/AIPassPayloads.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64183CC654E51ED24F0827A2 /* SimpleZipAgentSupport/AIPassPayloads.swift */; };
+		F869FF2C984002354D1D331D /* SimpleZipAgentSupport/AIPassPayloads.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64183CC654E51ED24F0827A2 /* SimpleZipAgentSupport/AIPassPayloads.swift */; };
 		SP11A0000000000000000A1 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = SP11B0000000000000000B1 /* Sparkle */; };
 /* End PBXBuildFile section */
 
@@ -99,6 +102,7 @@
 		9E00D7E0BEB89C9F0BB75AD0 /* SimpleZipAgentSupport/AIAgentXPCProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleZipAgentSupport/AIAgentXPCProtocol.swift; sourceTree = SOURCE_ROOT; };
 		7A1A320C68B6CB0753846C45 /* SimpleZipAgentSupport/AIAgentService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleZipAgentSupport/AIAgentService.swift; sourceTree = SOURCE_ROOT; };
 		88CF371C260BE403D359B938 /* SimpleZipAgentSupport/AIAgentConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleZipAgentSupport/AIAgentConfiguration.swift; sourceTree = SOURCE_ROOT; };
+		64183CC654E51ED24F0827A2 /* SimpleZipAgentSupport/AIPassPayloads.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimpleZipAgentSupport/AIPassPayloads.swift; sourceTree = SOURCE_ROOT; };
 		D2366AE7E99F003E085208B1 /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.aiagent.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.aiagent.plist"; sourceTree = SOURCE_ROOT; };
 		E0474B6A74E638D6D57948EE /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.dev.aiagent.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.dev.aiagent.plist"; sourceTree = SOURCE_ROOT; };
 		E2BCE4100CF6DD6585CD73A9 /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.aiagent.index.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.aiagent.index.plist"; sourceTree = SOURCE_ROOT; };
@@ -212,6 +216,7 @@
 				9E00D7E0BEB89C9F0BB75AD0 /* SimpleZipAgentSupport/AIAgentXPCProtocol.swift */,
 				7A1A320C68B6CB0753846C45 /* SimpleZipAgentSupport/AIAgentService.swift */,
 				88CF371C260BE403D359B938 /* SimpleZipAgentSupport/AIAgentConfiguration.swift */,
+				64183CC654E51ED24F0827A2 /* SimpleZipAgentSupport/AIPassPayloads.swift */,
 				E0474B6A74E638D6D57948EE /* SimpleZipAgentSupport/yumeka.SimpleZip-in-mac.dev.aiagent.plist */,
 			);
 			name = "Recovered References";
@@ -388,6 +393,7 @@
 			files = (
 				745A2A4A5D7CDF439819EA0C /* SimpleZipAgentSupport/AIAgentXPCProtocol.swift in Sources */,
 				24A28DD5CFCF4AAAC4DB85A8 /* SimpleZipAgentSupport/AIAgentConfiguration.swift in Sources */,
+				771815289BB6CE063CEE34B0 /* SimpleZipAgentSupport/AIPassPayloads.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -398,6 +404,7 @@
 				C4A66994125BA6CEEEC981C0 /* SimpleZipAgentSupport/AIAgentXPCProtocol.swift in Sources */,
 				FFF34D8099EA1C7AD31AF566 /* SimpleZipAgentSupport/AIAgentService.swift in Sources */,
 				DD6D4B0E4F818DA5BECECD9F /* SimpleZipAgentSupport/AIAgentConfiguration.swift in Sources */,
+				B5CB83030AA4D7977FB24D61 /* SimpleZipAgentSupport/AIPassPayloads.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -408,6 +415,7 @@
 				08663E6FC929E328731D49F9 /* SimpleZipAgentSupport/AIAgentXPCProtocol.swift in Sources */,
 				E1B740E8FE1B855A7D240DA0 /* SimpleZipAgentSupport/AIAgentService.swift in Sources */,
 				2860DEE7F77571699EF84C55 /* SimpleZipAgentSupport/AIAgentConfiguration.swift in Sources */,
+				F869FF2C984002354D1D331D /* SimpleZipAgentSupport/AIPassPayloads.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

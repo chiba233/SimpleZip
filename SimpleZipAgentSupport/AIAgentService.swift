@@ -86,6 +86,30 @@ final class AIAgentService: NSObject, SimpleZipAIAgentXPC {
         }
     }
 
+    func generate(kind: String, inputJSON: Data, languageName: String, reply: @escaping (Data, Bool) -> Void) {
+        Task {
+            func fail(_ message: String) { reply(Data(message.utf8), false) }
+            guard #available(macOS 26.0, *) else { fail("macOS < 26 — FoundationModels 不可用。"); return }
+            // 红线:App 同步过「主/子开关关」则拒绝一切前台生成(前台也不豁免);未同步过默认放行(命令行自检兼容)。
+            guard await AIAgentConfigurationStore.shared.foregroundAllowed else {
+                fail("AI 已禁用(主开关 / 建议开关关闭)—— agent 按配置不生成。")
+                return
+            }
+            #if canImport(FoundationModels)
+            do {
+                let output = try await AIPassEngine.run(kind: kind, inputJSON: inputJSON, languageName: languageName)
+                agentLog("generate(\(kind)) → \(output.count) bytes")
+                reply(output, true)
+            } catch {
+                agentLog("generate(\(kind)) FAILED: \(error)")
+                fail("生成失败(\(kind)): \(error)")
+            }
+            #else
+            fail("agent target 无法 import FoundationModels(SDK 不含)。")
+            #endif
+        }
+    }
+
     /// 在本(独立)进程跑一次端上模型最小生成,回人话结果。`--probe` 与 XPC `probeModel` 共用。
     static func probeText() async -> String {
         guard #available(macOS 26.0, *) else {
@@ -192,6 +216,15 @@ actor AgentGenerationSerializer {
             throw lastError ?? AgentGenerationError.exhausted
         }
     }
+
+    /// 纯文本生成薄封装:过串行闸,单次 `respond` 跑到底(镜像 App 端 AIReportAssistant.generate 的形态 ——
+    /// 绝不套可取消超时:超时取消会丢下没真停的 respond 污染 FoundationModels transcript → 下个串行调用 trap)。
+    func generateText(instructions: String, prompt: String) async throws -> String {
+        try await run {
+            let session = LanguageModelSession(instructions: instructions)
+            return try await session.respond(to: prompt).content
+        }
+    }
 }
 
 enum AgentGenerationError: Error { case exhausted }
@@ -230,4 +263,47 @@ enum AgentGeneration {
         }
     }
 }
+
+/// 阶段3:**AI pass 引擎**(只编进 agent+XPC,不进 app)。每个 pass 把「拼 prompt + 调模型 + 解析」一整条放这儿 ——
+/// App 前台经 XPC `generate(kind:)` 调、agent 后台直接调,同一份逻辑。确定性脱敏 / 打分在调用方(App/agent)用 Core 先做好,
+/// pass 只吃已脱敏的基本类型输入。`languageName` 由调用方传入(引擎进程无 App locale)。按 kind 派发,新增 pass = 加一 case。
+@available(macOS 26.0, *)
+enum AIPassEngine {
+    /// 通用派发:按 kind 解码输入 DTO → 跑对应 pass → 编码输出 DTO。未知 kind / 解码失败抛错(XPC 层回 ok=false)。
+    static func run(kind: String, inputJSON: Data, languageName: String) async throws -> Data {
+        guard let passKind = AIPassKind(rawValue: kind) else { throw AIPassEngineError.unknownKind(kind) }
+        switch passKind {
+        case .taskFailureShortExplanation:
+            let input = try JSONDecoder().decode(TaskFailureExplanationInput.self, from: inputJSON)
+            let text = try await taskFailureShortExplanation(input, languageName: languageName)
+            return try JSONEncoder().encode(AIPassTextOutput(text: text))
+        }
+    }
+
+    /// 活动中心失败任务「失败解释」(纯文本)。镜像原 App 端 AIVirtualFolderModelPlanner.taskFailureShortExplanation 的
+    /// prompt(语言由 languageName 传入,不再读 App 的 uiLanguageName)。输入已脱敏、不含原始路径。
+    private static func taskFailureShortExplanation(_ input: TaskFailureExplanationInput,
+                                                    languageName: String) async throws -> String {
+        let instructions = """
+        LANGUAGE — MANDATORY: write in \(languageName). You are the AI panel inside a file-archive app's Activity Center. \
+        A task FAILED and the user just opened it. Given the task type, source, diagnostic tags and a redacted \
+        failure message / error lines (already stripped of file paths), write ONE or TWO short sentences in plain \
+        language: what most likely went wrong and what to check or try next. Be specific to the diagnostics given; \
+        never invent details; do not repeat the raw error verbatim; at most 2 sentences.
+        """
+        var lines = ["Failed task — type: \(input.kind), source: \(input.source), tags: \(input.tags.isEmpty ? "none" : input.tags.joined(separator: "+"))"]
+        if let failureMessage = input.failureMessage, !failureMessage.isEmpty {
+            lines.append("Redacted failure message: \(failureMessage)")
+        }
+        if !input.errorLines.isEmpty {
+            lines.append("Redacted error lines:")
+            lines.append(contentsOf: input.errorLines.prefix(6))
+        }
+        return try await AgentGenerationSerializer.shared
+            .generateText(instructions: instructions, prompt: lines.joined(separator: "\n"))
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
+enum AIPassEngineError: Error { case unknownKind(String) }
 #endif

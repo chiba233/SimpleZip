@@ -39,6 +39,30 @@ enum AIAgentClient {
         }
     }
 
+    /// 同 ReplyOnce,但承载 `Result<Data, Error>`(给通用 pass 生成 `generate` 用,连续逊 continuation 恰好 resume 一次)。
+    private nonisolated final class SettleOnce: @unchecked Sendable {
+        private let lock = NSLock()
+        private var fired = false
+        private let body: (Result<Data, Error>) -> Void
+        init(_ body: @escaping (Result<Data, Error>) -> Void) { self.body = body }
+        func callAsFunction(_ result: Result<Data, Error>) {
+            lock.lock(); let first = !fired; fired = true; lock.unlock()
+            if first { body(result) }
+        }
+    }
+
+    /// 通用 AI pass 生成的人话错误(经前台 XPC Service)。
+    enum GenerateError: Error, LocalizedError {
+        case generationFailed(String)
+        case noProxy
+        var errorDescription: String? {
+            switch self {
+            case .generationFailed(let m): return m
+            case .noProxy: return "拿不到 XPC proxy"
+            }
+        }
+    }
+
     /// 建连接 + 调用一次远程方法,**连接级失败自动重连重试**(冷启动 race)。每次失败短延迟 0.5s 后换新连接重试,
     /// `attemptsLeft` 耗尽才把错误回出。成功 / 最终失败都经 `ReplyOnce`,确保 completion 不重复。
     private nonisolated static func invokeWithRetry(
@@ -207,5 +231,56 @@ enum AIAgentClient {
             },
             attemptsLeft: 3,
             reply: reply)
+    }
+
+    // MARK: 阶段3 通用 AI pass 生成(前台 XPC Service:整条 pass 在引擎进程跑,主二进制零模型推理)
+
+    /// 类型化便捷封装:把 Codable 输入 DTO 经 XPC 发给引擎跑某个 pass,回 Codable 输出 DTO。界面语言在主 actor 读
+    /// (引擎进程无 App locale)。失败抛 `GenerateError`(AI 禁用 / 模型失败 / 连接失败)→ 调用点 `try?` 退确定性兜底。
+    @MainActor static func generatePass<In: Encodable, Out: Decodable>(
+        kind: AIPassKind, input: In, as outputType: Out.Type
+    ) async throws -> Out {
+        let inputJSON = try JSONEncoder().encode(input)
+        let languageName = AIReportAssistant.uiLanguageName
+        let outputJSON = try await generate(kind: kind.rawValue, inputJSON: inputJSON, languageName: languageName)
+        return try JSONDecoder().decode(Out.self, from: outputJSON)
+    }
+
+    /// 经**前台 XPC Service 通道**调通用 `generate(kind:inputJSON:languageName:)`,async 桥接 + 冷启动重试。
+    /// ok=true → 返回输出 DTO 的 JSON;ok=false → 抛 `GenerateError.generationFailed`(payload 是人话错误)。
+    nonisolated static func generate(kind: String, inputJSON: Data, languageName: String) async throws -> Data {
+        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Data, Error>) in
+            generateAttempt(kind: kind, inputJSON: inputJSON, languageName: languageName,
+                            attemptsLeft: 3, settle: SettleOnce { cont.resume(with: $0) })
+        }
+    }
+
+    private nonisolated static func generateAttempt(
+        kind: String, inputJSON: Data, languageName: String, attemptsLeft: Int, settle: SettleOnce
+    ) {
+        let conn = NSXPCConnection(serviceName: SimpleZipAIAgentXPCNames.xpcServiceName)
+        conn.remoteObjectInterface = NSXPCInterface(with: SimpleZipAIAgentXPC.self)
+        conn.resume()
+        let proxy = conn.remoteObjectProxyWithErrorHandler { error in
+            conn.invalidate()
+            if attemptsLeft > 1 {
+                DispatchQueue.global().asyncAfter(deadline: .now() + 0.5) {
+                    generateAttempt(kind: kind, inputJSON: inputJSON, languageName: languageName,
+                                    attemptsLeft: attemptsLeft - 1, settle: settle)
+                }
+            } else {
+                settle(.failure(GenerateError.generationFailed("前台 XPC Service 连接出错(已重试):\(error.localizedDescription)")))
+            }
+        } as? SimpleZipAIAgentXPC
+        guard let proxy else {
+            conn.invalidate()
+            settle(.failure(GenerateError.noProxy))
+            return
+        }
+        proxy.generate(kind: kind, inputJSON: inputJSON, languageName: languageName) { output, ok in
+            conn.invalidate()
+            settle(ok ? .success(output)
+                      : .failure(GenerateError.generationFailed(String(decoding: output, as: UTF8.self))))
+        }
     }
 }
