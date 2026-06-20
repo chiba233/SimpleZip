@@ -242,6 +242,17 @@ struct DevToolsView: View {
                                 flash(result)
                             }
                         }
+                        // ③ 前台 XPC Service 真实查询:经同一通道发**真实**自然语言请求,验证 App→agent 真实生成数据流。
+                        actionRow(
+                            "text.magnifyingglass",
+                            "测试 agent 真实查询(前台 XPC Service)",
+                            "经前台 XPC Service 把一句写死的自然语言请求(『我想找个压缩在某处的预算表格』)发给 agent,agent 跑真实结构化生成回搜索关键词,结果显示在下方。比上面的写死探针更进一步:验证 App→agent 的真实查询数据流(『真生成迁 agent』的关键一步)。"
+                        ) {
+                            flash("正在经前台 XPC Service 跑真实查询…")
+                            AIAgentClient.runForegroundQuery("我想找个压缩在某处的预算表格") { result in
+                                flash(result)
+                            }
+                        }
                         // AI 建议明细:每个计数类别(摘要/打开方式/网页/.../哈希/压缩/转换/内联结果)的**完整文件清单**
                         // + 门控 / 预算 / 各管线诊断 —— 一次性复制出来逐条 debug「这个类别到底有哪些文件、为啥是 0」。
                         actionRow(

@@ -46,6 +46,14 @@ final class AIAgentService: NSObject, SimpleZipAIAgentXPC {
         }
     }
 
+    func extractArchiveKeyword(fromRequest request: String, reply: @escaping (String) -> Void) {
+        Task {
+            let result = await AIAgentService.queryText(request)
+            agentLog("extractArchiveKeyword(\(request)) → \(result)")
+            reply(result)
+        }
+    }
+
     /// 在本(独立)进程跑一次端上模型最小生成,回人话结果。`--probe` 与 XPC `probeModel` 共用。
     static func probeText() async -> String {
         guard #available(macOS 26.0, *) else {

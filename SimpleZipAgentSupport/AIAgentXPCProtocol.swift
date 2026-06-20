@@ -22,6 +22,10 @@ import Foundation
 @objc public protocol SimpleZipAIAgentXPC {
     /// 在 agent 进程里试跑一次端上模型最小生成,回传人话结果(成功+样本 / 不可用原因 / OS 太老)。
     nonisolated func probeModel(reply: @escaping (String) -> Void)
+
+    /// 把任意自然语言请求转发给 agent 跑**真实**结构化生成,回归档搜索关键词(或人话错误)。probeModel 是写死
+    /// 自检;这个接受**真实输入** —— 「真生成迁 agent」的 XPC 数据流(App→agent 真实请求→agent 生成→回结果)。
+    nonisolated func extractArchiveKeyword(fromRequest request: String, reply: @escaping (String) -> Void)
 }
 
 /// App 与 agent / XPC Service 约定的常量。两条投递通道各一个名字:

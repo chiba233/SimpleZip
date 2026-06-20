@@ -101,4 +101,26 @@ enum AIAgentClient {
             conn.invalidate()
         }
     }
+
+    /// 经**前台 XPC Service 通道**把真实请求转发给 agent 跑结构化生成,回搜索关键词(或人话错误)。
+    /// 对照 runForegroundProbe(写死自检),这个发**真实输入** —— 验证 App→agent 的真实查询数据流。
+    nonisolated static func runForegroundQuery(_ request: String, completion: @escaping @MainActor (String) -> Void) {
+        func reply(_ message: String) { Task { @MainActor in completion(message) } }
+
+        let conn = NSXPCConnection(serviceName: SimpleZipAIAgentXPCNames.xpcServiceName)
+        conn.remoteObjectInterface = NSXPCInterface(with: SimpleZipAIAgentXPC.self)
+        conn.resume()
+        let proxy = conn.remoteObjectProxyWithErrorHandler { error in
+            reply("前台 XPC Service 连接出错:\(error.localizedDescription)")
+        } as? SimpleZipAIAgentXPC
+        guard let proxy else {
+            reply("拿不到前台 XPC Service proxy。")
+            conn.invalidate()
+            return
+        }
+        proxy.extractArchiveKeyword(fromRequest: request) { result in
+            reply("前台 XPC Service 真实查询 → \(result)")
+            conn.invalidate()
+        }
+    }
 }
