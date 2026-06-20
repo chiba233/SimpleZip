@@ -235,6 +235,7 @@
 				0D6AC5B27E7B12E303740A4F /* Embed Helper */,
 				2F8791EC944F7780ECA4CE85 /* Embed LaunchAgent */,
 				EC4CF125541B60DE99D6F73C /* Embed XPC Services */,
+				45D678491A7433E31C32FAA3 /* Strip mismatched LaunchAgents (Debug) */,
 			);
 			buildRules = (
 			);
@@ -383,6 +384,25 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "set -e\nexport HOME=/private/tmp/SimpleZipXcodeSwiftPM/Home\nexport CLANG_MODULE_CACHE_PATH=/private/tmp/SimpleZipXcodeSwiftPM/ModuleCache\nmkdir -p \"$HOME\" \"$CLANG_MODULE_CACHE_PATH\"\n/usr/bin/xcrun swift test --disable-sandbox --scratch-path /private/tmp/SimpleZipXcodeSwiftPM -Xswiftc -module-cache-path -Xswiftc /private/tmp/SimpleZipXcodeSwiftPM/ModuleCache\n";
+		};
+		45D678491A7433E31C32FAA3 /* Strip mismatched LaunchAgents (Debug) */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Strip mismatched LaunchAgents (Debug)";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Debug bundle embeds both dev+prod LaunchAgent plists -> BTM partial-import clashes on identity (prod label vs dev binary).\n# Keep only .dev.* in Debug; remove the prod plists. (Release strips dev plists via scripts/build_dmg.sh.)\nif [ \"${CONFIGURATION}\" = \"Debug\" ]; then\n  LA=\"${TARGET_BUILD_DIR}/${CONTENTS_FOLDER_PATH}/Library/LaunchAgents\"\n  rm -f \"$LA/yumeka.SimpleZip-in-mac.aiagent.plist\" \"$LA/yumeka.SimpleZip-in-mac.aiagent.index.plist\"\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
