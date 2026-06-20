@@ -167,12 +167,12 @@ final class AIBackgroundIndexer {
         let existingSummarized = allowContent ? store.summarizedRecordsByID() : [:]
 
         task = Task.detached(priority: .background) {
-            // 单一扫描编排(A2):App 前台与 agent 后台共用 `AIBackgroundIndexRun.scan`。前台不限时(deadline nil,
-            // 心跳频繁 + 门控已节流);取消走 `Task.isCancelled`。渐进覆盖 / 最久没扫排序在 Core 编排里。
+            // 单一扫描编排(A2):App 前台与 agent 后台共用 `AIBackgroundIndexRun.scan`。前台停止钩子 = `Task.isCancelled`
+            // (agent 后台会把单次 timeout 折进同一个 isCancelled);渐进覆盖 / 最久没扫排序 / 续扫都是 Core 编排里的现成机制。
             let scanned = AIBackgroundIndexRun.scan(
                 scopes: allScopes, home: home, scopeBudget: scopeBudget, fileBudget: fileBudget,
                 allowContent: allowContent, existingSummarized: existingSummarized,
-                deadline: nil, isCancelled: { Task.isCancelled }
+                isCancelled: { Task.isCancelled }
             ).map { ($0.scopeID, $0.records) }
             await MainActor.run {
                 // M7:回主线程后再核一遍门控 —— 扫描期间用户可能关了开关 / 清了白名单,关了就不落盘。

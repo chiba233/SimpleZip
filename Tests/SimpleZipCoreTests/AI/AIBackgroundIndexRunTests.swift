@@ -53,33 +53,24 @@ import Testing
         #expect(results.map(\.scopeID) == [never.id, old.id])
     }
 
-    /// deadline 已过 → 一个都不扫(超时下次续:返回空,scope 的 lastScannedAt 不被本轮触碰)。
-    @Test func deadlineInPastScansNothing() {
-        let scopes = (0..<3).map { scope("dir\($0)", lastScannedAt: nil) }
-        let past = Date(timeIntervalSince1970: 0)
-        let results = AIBackgroundIndexRun.scan(
-            scopes: scopes, home: NSHomeDirectory(), scopeBudget: 3, fileBudget: 1_000,
-            allowContent: false, deadline: past)
-        #expect(results.isEmpty)
-    }
-
-    /// deadline 在远未来 → 不限制,正常按预算扫满。
-    @Test func deadlineInFutureDoesNotLimit() {
-        let scopes = (0..<3).map { scope("dir\($0)", lastScannedAt: nil) }
-        let future = Date(timeIntervalSinceNow: 3_600)
-        let results = AIBackgroundIndexRun.scan(
-            scopes: scopes, home: NSHomeDirectory(), scopeBudget: 3, fileBudget: 1_000,
-            allowContent: false, deadline: future)
-        #expect(results.count == 3)
-    }
-
-    /// 取消旗立刻为真 → 一个都不扫。
+    /// 取消旗立刻为真 → 一个都不扫(agent 的「截止已过」也走这个口子:`isCancelled` 一上来就 true)。
     @Test func cancellationStopsImmediately() {
         let scopes = (0..<3).map { scope("dir\($0)", lastScannedAt: nil) }
         let results = AIBackgroundIndexRun.scan(
             scopes: scopes, home: NSHomeDirectory(), scopeBudget: 3, fileBudget: 1_000,
             allowContent: false, isCancelled: { true })
         #expect(results.isEmpty)
+    }
+
+    /// 中途叫停(= agent 单次 timeout 折进 isCancelled)→ 只返回叫停前扫完的;没轮到的不在返回里、lastScannedAt 不被动,
+    /// 靠现成 leastRecentlyScanned 续扫机制下轮接着跑。这里模拟「扫完 2 个后时间到」:第 3 次问 isCancelled 返回 true。
+    @Test func cancellationMidRoundReturnsOnlyCompleted() {
+        let scopes = (0..<5).map { scope("dir\($0)", lastScannedAt: nil) }
+        var asked = 0
+        let results = AIBackgroundIndexRun.scan(
+            scopes: scopes, home: NSHomeDirectory(), scopeBudget: 5, fileBudget: 1_000,
+            allowContent: false, isCancelled: { defer { asked += 1 }; return asked >= 2 })
+        #expect(results.count == 2)   // 前 2 个扫完才被叫停;剩 3 个留待下次(本函数不碰它们的 lastScannedAt)
     }
 
     /// 空白名单 → 空结果(不崩)。
