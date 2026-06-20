@@ -42,6 +42,7 @@ let package = Package(
                 "Core/AI/AIDataGap.swift",
                 "Core/AI/AIDataLifecycle.swift",
                 "Core/AI/AIDependencyEnvironment.swift",
+                "Core/AI/AIDerivedDataStore.swift",
                 "Core/AI/AIDiagnostics.swift",
                 "Core/AI/AIDiffExplanation.swift",
                 "Core/AI/AIEmptyStateReason.swift",
