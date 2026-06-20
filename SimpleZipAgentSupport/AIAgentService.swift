@@ -630,7 +630,18 @@ enum AIPassEngine {
     /// 压缩包「你可能需要的文件」(结构化)。镜像原 App 端 archiveEntryPicks → 1 基序号(去重/合法/封顶 4)。
     private static func archiveEntryPicks(_ input: ArchiveEntryPicksInput) async throws -> [Int] {
         guard !input.entryPaths.isEmpty else { return [] }
-        let cands = Array(input.entryPaths.prefix(60))
+        // FoundationModels 上下文 4096 token:按字符保守裁剪(每条 ≤160、最多 60 条、总预算 3000 字符),
+        // 大归档的长路径列表不再爆 token(原来只 prefix(60)、不限每条长度 → 实测 5654 token 超限)。
+        // 路径保尾部(文件名 / 末层更有判别力);编号语义仍对齐 input.entryPaths 的前缀,App 端用编号回查原路径。
+        var cands: [String] = []
+        var budget = 3_000
+        for p in input.entryPaths.prefix(60) {
+            let short = p.count > 160 ? "…" + String(p.suffix(159)) : p
+            if budget - short.count - 4 < 0 { break }
+            cands.append(short)
+            budget -= short.count + 4
+        }
+        guard !cands.isEmpty else { return [] }
         let instructions = """
         Below are the files inside ONE archive the user has. Pick a FEW (by number) that the user would most likely \
         want to pull out or preview on their own — ONLY where a file CLEARLY stands out (a README / the main document \
@@ -669,7 +680,9 @@ enum AIPassEngine {
         test, security, inspect, hash, convert. Use each token verbatim; never invent one.
         """
         var lines = ["Archive: \(input.archiveName)", "Entries (number<TAB>type<TAB>path):"]
-        var promptBudget = 6_000
+        // 字符预算保守对齐 4096 token 上下文(扣 instructions + 结构化 schema + 输出余量);
+        // 原 6000 字符实测整条 content 达 4357 token、超 4096 上限 → 收紧到 3000。
+        var promptBudget = 3_000
         for (i, entry) in input.entries.enumerated() {
             if i >= 200 || promptBudget <= 0 { break }
             let kind = entry.isDirectory ? "directory" : "file"
