@@ -42,24 +42,18 @@ enum AIReportAssistant {
     }
 
     /// 生成文本。仅 macOS 26+ 调用(调用点已用 `isReady` 守卫)。失败抛出,UI 显示错误文案、不崩。
-    /// 自动把「用当前界面语言回复」硬加进 instructions —— 本机模型没语言信号时会默认英文(用户实测中文界面
-    /// 出英文),显式指定才稳。所有 AI 功能共用这条,prompt 里不必再各写一遍。
     ///
-    /// **串行(修崩溃)**:本机 FoundationModels 是共享单例资源。创建/解压速览会随 token(格式/级别/异步估算)
-    /// 动态重跑,SwiftUI `.task(id:)` 把上一个 respond() 中途拆毁、同时起下一个 —— 重叠 + 中途拆毁让框架在
-    /// 迭代 transcript 时越界 trap(用户实测崩溃栈)。所有模型调用统一过 `AIGenerationSerializer`:一次只跑
-    /// 一个,且一旦开始就跑到底(不随调用方取消)。见 [[feedback_no_published_on_reload_path]] 同类「动态重跑」教训。
+    /// **阶段3:模型推理迁 XPC 引擎(主二进制零模型推理)**。所有散文报告 AI 经此中心方法 → 通用 `reportText` pass,
+    /// 在 AI 引擎进程拼语言 + 过其全局串行闸调模型(`AgentGenerationSerializer` —— 修 FoundationModels transcript
+    /// 越界崩溃的那条「绝不重叠 / 跑到底」的链如今在引擎侧)。回复语言由引擎据传入的界面语言注入,App 只把原始
+    /// instructions/prompt 发过去、自己不再持有 session。失败(AI 禁用 / 连接失败 / 生成失败)抛
+    /// `AIAgentClient.GenerateError`,调用点 UI 显示错误文案、不崩(行为与原先一致)。
     @available(macOS 26.0, *)
     static func generate(instructions: String, prompt: String) async throws -> String {
-        let combined = instructions + "\n\n" + replyLanguageInstruction
-        return try await AIGenerationSerializer.shared.run {
-            let session = LanguageModelSession(instructions: combined)
-            // ⚠️ 绝不给 respond() 套**可取消的超时**:超时取消会丢下一个**还没真停**的 respond,污染 FoundationModels
-            // 的 transcript 状态机 → 下一个串行调用遍历 transcript 时越界 trap(用户实测崩溃栈,`catch` 接不住)。
-            // serializer 的链尾等的是这个 operation 跑到底 —— 必须让它等**真正的 respond 完成**,而非超时提前返回,
-            // 否则「表面串行、底层重叠」。prompt 已在各 pass 封顶,正常 respond 很快;真卡死宁可阻塞后台生成也不崩。
-            return try await session.respond(to: prompt).content
-        }
+        try await AIAgentClient.generatePass(
+            kind: .reportText,
+            input: ReportTextInput(instructions: instructions, prompt: prompt),
+            as: AIPassTextOutput.self).text
     }
 
     /// 「整段回复用 <当前界面语言>」—— 按 app 语言覆盖优先,否则取实际加载的本地化。

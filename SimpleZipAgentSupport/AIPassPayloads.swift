@@ -23,6 +23,10 @@ public enum AIPassKind: String, Sendable {
     case activityWorkbenchExplanation
     /// 文件「查看更长总结」实时按需现算(纯文本,输入名/角色/语言/标题/脱敏摘录,输出一小段更长总结)。
     case longFileSummary
+    /// 通用「报告解释 / 文档起草」散文生成(纯文本)。所有报告类 AI —— 发布检查 / 安全分级 / 验签 / 空间分析 /
+    /// 元数据 / 救援 / 近似重复 / 创建·解压速览 / VERIFY·Release 起草 / 自动化点子… —— 经 `AIReportAssistant.generate`
+    /// 这一个中心方法,共用此 pass(输入是 App 拼好的 instructions+prompt,回复语言由引擎据 languageName 注入)。
+    case reportText
     /// 文件「有活动」提醒(结构化,输入名/动作/时间,输出一句提醒短语)。
     case activityReminder
     /// 活动中心「建议筛选」chip 模型排序(结构化,输入 chip 候选,输出有序编号子集)。
@@ -84,6 +88,17 @@ public nonisolated struct LongFileSummaryInput: Codable, Sendable {
         self.languageHint = languageHint
         self.headings = headings
         self.excerpt = excerpt
+    }
+}
+
+/// 通用「报告文本」输入:App 拼好的 instructions + prompt(报告类只读事实;非加密路径登录用户本可见,
+/// prompt 永不含加密内容 / GPG 密文 / 口令 / 解密明文 —— 脱敏责任在 App 拼 prompt 时)。引擎据 languageName 注入回复语言。
+public nonisolated struct ReportTextInput: Codable, Sendable {
+    public var instructions: String
+    public var prompt: String
+    public init(instructions: String, prompt: String) {
+        self.instructions = instructions
+        self.prompt = prompt
     }
 }
 

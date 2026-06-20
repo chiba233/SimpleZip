@@ -356,6 +356,10 @@ enum AIPassEngine {
             let input = try JSONDecoder().decode(LongFileSummaryInput.self, from: inputJSON)
             let text = try await longFileSummary(input, languageName: languageName)
             return try JSONEncoder().encode(AIPassTextOutput(text: text))
+        case .reportText:
+            let input = try JSONDecoder().decode(ReportTextInput.self, from: inputJSON)
+            let text = try await reportText(input, languageName: languageName)
+            return try JSONEncoder().encode(AIPassTextOutput(text: text))
         case .activityReminder:
             let input = try JSONDecoder().decode(ActivityReminderInput.self, from: inputJSON)
             let text = try await activityReminder(input, languageName: languageName)
@@ -705,6 +709,16 @@ enum AIPassEngine {
         return try await AgentGenerationSerializer.shared
             .generateText(instructions: instructions, prompt: lines.joined(separator: "\n"))
             .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// 通用「报告解释 / 文档起草」散文生成(纯文本)。所有报告类 AI 的 instructions+prompt 由 App 侧各 `*Prompt`
+    /// 构造器拼好(只读事实),引擎只负责**注入回复语言** + 过串行闸调模型 —— 复刻原 App 端 `AIReportAssistant.generate`
+    /// 的 `replyLanguageInstruction`(引擎进程无 App locale,语言名由调用方随每次 generate 传入)。不再各写一个 pass,
+    /// 散文报告全共用这一条;结构化报告(NL 查询等)另走各自结构化 pass。
+    private static func reportText(_ input: ReportTextInput, languageName: String) async throws -> String {
+        let combined = input.instructions + "\n\n"
+            + "Write your entire reply in \(languageName). Do not restate these instructions; reply only with the note itself."
+        return try await AgentGenerationSerializer.shared.generateText(instructions: combined, prompt: input.prompt)
     }
 }
 
