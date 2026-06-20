@@ -41,6 +41,10 @@ import Foundation
     /// UTF-8 人话错误(AI 禁用 / 未知 kind / 模型失败)。红线:主/子开关关 → ok=false「AI 已禁用」。
     nonisolated func generate(kind: String, inputJSON: Data, languageName: String,
                               reply: @escaping (Data, Bool) -> Void)
+
+    /// **DevTools 监视**:回引擎进程自启动以来每个 pass kind 的调用统计 JSON([AIPassStatEntry]:总数 / 成功 / 失败 /
+    /// 最近一次时间·成败)。供 DevTools 像观测其它管线一样被动看「引擎跑了哪些 pass、多少次、成不成」。不碰模型、瞬回。
+    nonisolated func passStats(reply: @escaping (Data) -> Void)
 }
 
 /// App 与 agent / XPC Service 约定的常量。两条投递通道各一个名字:

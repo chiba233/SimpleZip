@@ -267,6 +267,17 @@ struct DevToolsView: View {
                                 agentProbeStatus = result
                             }
                         }
+                        // ③c 被动监视:查引擎进程自启动以来跑过哪些 pass、多少次、成不成(像其它管线一样的监视器,不碰模型)。
+                        actionRow(
+                            "chart.bar.doc.horizontal",
+                            "查引擎 pass 统计(被动监视 · 跑过哪些 / 多少次 / 成不成)",
+                            "经前台 XPC Service 调 passStats(不碰模型、瞬回),列出引擎进程自启动以来每种 pass 的调用次数、成功 / 失败数、最近一次时间与成败。对照上面主动自检,这条是被动观测引擎真实跑过什么 —— 触发几次 AI 功能(失败解释 / 文件建议 / 报告解读…)后来查,看它们是否真走了 XPC 引擎。"
+                        ) {
+                            agentProbeStatus = "正在查引擎 pass 统计…"
+                            AIAgentClient.queryPassStats { result in
+                                agentProbeStatus = result
+                            }
+                        }
                         // ④ 配置同步:把当前 App 的 AI 设置推给 agent(坑 9 schemaVersion 协商)。把 AI 主/子开关关掉后点这,
                         //    再点上面的真实查询,应被 agent 红线门控拦截(返回「AI 已禁用」)→ 验证 App→agent 配置同步 + 门控。
                         actionRow(

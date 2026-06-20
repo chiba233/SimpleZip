@@ -221,6 +221,40 @@ enum AIAgentClient {
             reply: reply)
     }
 
+    /// **DevTools 监视:被动查引擎 pass 调用统计**。经前台 XPC Service 调 `passStats`(不碰模型、瞬回),把引擎进程自
+    /// 启动以来每种 pass 的 总数/成功/失败/最近时间·成败 格式化成可读人话回主线程常驻(可选中复制)。对照「真实查询」
+    /// 是主动跑一个 pass,这条是被动观测「引擎到底跑过哪些 pass、成不成」—— 像 DevTools 其它管线那样的监视器。
+    nonisolated static func queryPassStats(_ completion: @escaping @MainActor (String) -> Void) {
+        let reply = ReplyOnce { message in Task { @MainActor in completion(message) } }
+        scheduleProbeTimeout(reply, seconds: 5, label: "引擎 pass 统计 ")
+        invokeWithRetry(
+            label: "引擎 pass 统计 ",
+            makeConnection: { NSXPCConnection(serviceName: SimpleZipAIAgentXPCNames.xpcServiceName) },
+            call: { proxy, done in proxy.passStats { done(Self.formatPassStats($0)) } },
+            attemptsLeft: 3,
+            reply: reply)
+    }
+
+    /// 把 `passStats` 回的 [AIPassStatEntry] JSON 格式化成可读人话(空则提示本进程还没跑过 pass)。
+    private nonisolated static func formatPassStats(_ data: Data) -> String {
+        guard let entries = try? JSONDecoder().decode([AIPassStatEntry].self, from: data), !entries.isEmpty else {
+            return "引擎 pass 统计:暂无记录(本次前台 XPC Service 进程还没跑过任何 pass —— 触发一次 AI 功能后再查)。"
+        }
+        let fmt = DateFormatter()
+        fmt.dateFormat = "MM-dd HH:mm:ss"
+        let totalCalls = entries.reduce(0) { $0 + $1.total }
+        var lines = ["引擎 pass 统计(本次前台 XPC Service 进程自启动:\(entries.count) 种 pass、\(totalCalls) 次调用):"]
+        for e in entries {
+            var line = "· \(e.kind):\(e.total) 次(✅\(e.ok) / 🔴\(e.failed))"
+            if let secs = e.lastEpochSeconds {
+                line += " · 最近 \(fmt.string(from: Date(timeIntervalSince1970: secs)))"
+                if let ok = e.lastOk { line += ok ? " ✅" : " 🔴" }
+            }
+            lines.append(line)
+        }
+        return lines.joined(separator: "\n")
+    }
+
     // MARK: 配置同步(坑 9:payload 带 schemaVersion)
 
     /// 从当前 App 状态构造配置 payload(主 actor 读 AppPreferences + 索引 store 的 AI 开关)。

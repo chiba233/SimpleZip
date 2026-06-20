@@ -103,9 +103,11 @@ final class AIAgentService: NSObject, SimpleZipAIAgentXPC {
             #if canImport(FoundationModels)
             do {
                 let output = try await AIPassEngine.run(kind: kind, inputJSON: inputJSON, languageName: languageName)
+                await AIPassStatsRecorder.shared.record(kind: kind, ok: true)
                 agentLog("generate(\(kind)) → \(output.count) bytes")
                 reply(output, true)
             } catch {
+                await AIPassStatsRecorder.shared.record(kind: kind, ok: false)
                 agentLog("generate(\(kind)) FAILED: \(error)")
                 fail("生成失败(\(kind)): \(error)")
             }
@@ -113,6 +115,18 @@ final class AIAgentService: NSObject, SimpleZipAIAgentXPC {
             fail("agent target 无法 import FoundationModels(SDK 不含)。")
             #endif
         }
+    }
+
+    /// DevTools 监视:回引擎进程自启动以来每个 pass kind 的调用统计([AIPassStatEntry] 的 JSON)。不碰模型、瞬回。
+    func passStats(reply: @escaping (Data) -> Void) {
+        #if canImport(FoundationModels)
+        Task {
+            let entries = await AIPassStatsRecorder.shared.snapshot()
+            reply((try? JSONEncoder().encode(entries)) ?? Data())
+        }
+        #else
+        reply(Data())
+        #endif
     }
 
     /// 在本(独立)进程跑一次端上模型最小生成,回人话结果。`--probe` 与 XPC `probeModel` 共用。
@@ -184,6 +198,28 @@ func agentLog(_ message: String) {
 // 确定性应用,绝不执行删除 / 放行 / 修复。
 
 #if canImport(FoundationModels)
+/// 引擎 pass 调用统计记录器(DevTools 监视用)。只在引擎进程(agent/XPC)活,记每个 pass kind 的 总数/成功/失败/
+/// 最近时间·成败。actor 保证并发安全(多连接可能并发调 generate)。不碰模型、无版本门控。
+actor AIPassStatsRecorder {
+    static let shared = AIPassStatsRecorder()
+    private struct Entry { var total = 0; var ok = 0; var failed = 0; var lastAt: Date?; var lastOk: Bool? }
+    private var stats: [String: Entry] = [:]
+    func record(kind: String, ok: Bool) {
+        var e = stats[kind] ?? Entry()
+        e.total += 1
+        if ok { e.ok += 1 } else { e.failed += 1 }
+        e.lastAt = Date()
+        e.lastOk = ok
+        stats[kind] = e
+    }
+    func snapshot() -> [AIPassStatEntry] {
+        stats.map {
+            AIPassStatEntry(kind: $0.key, total: $0.value.total, ok: $0.value.ok, failed: $0.value.failed,
+                            lastEpochSeconds: $0.value.lastAt?.timeIntervalSince1970, lastOk: $0.value.lastOk)
+        }.sorted { $0.total > $1.total }
+    }
+}
+
 @available(macOS 26.0, *)
 actor AgentGenerationSerializer {
     static let shared = AgentGenerationSerializer()

@@ -331,3 +331,21 @@ public nonisolated struct SettingsQueryOutput: Codable, Sendable {
         self.intent = intent
     }
 }
+
+/// 引擎 pass 调用统计的一条(DevTools 被动监视用)。`lastEpochSeconds` = 引擎进程内最近一次该 pass 的调用时间(epoch 秒)。
+public nonisolated struct AIPassStatEntry: Codable, Sendable {
+    public var kind: String
+    public var total: Int
+    public var ok: Int
+    public var failed: Int
+    public var lastEpochSeconds: Double?
+    public var lastOk: Bool?
+    public init(kind: String, total: Int, ok: Int, failed: Int, lastEpochSeconds: Double?, lastOk: Bool?) {
+        self.kind = kind
+        self.total = total
+        self.ok = ok
+        self.failed = failed
+        self.lastEpochSeconds = lastEpochSeconds
+        self.lastOk = lastOk
+    }
+}
