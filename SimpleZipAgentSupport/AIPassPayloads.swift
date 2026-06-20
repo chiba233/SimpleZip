@@ -54,6 +54,10 @@ public enum AIPassKind: String, Sendable {
     case workspaceFolderGroups
     /// 文件夹「整理进新文件夹」建议(结构化,输入文件候选,输出主题名 + 成员;不值得 → null)。
     case workspaceOrganize
+    /// AI 文件夹「生成虚拟目录 plan」(结构化,输入 AIVirtualFolderPlanInput,输出 AIVirtualFolderPlan)。
+    case workspacePlan
+    /// AI 文件夹「后台复核(值不值得 + plan)」(结构化,输入 AIVirtualFolderPlanInput,输出 AIFolderReview)。
+    case workspaceReview
 }
 
 // MARK: - 输入 DTO(App 拼 / 引擎解码)

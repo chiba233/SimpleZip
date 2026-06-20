@@ -666,6 +666,19 @@ nonisolated struct AINodeSuggestionPlan: Codable, Equatable, Sendable {
     }
 }
 
+/// 一次模型复核的结果:是否值得作为文件夹出现 + 它的 plan(命名 / 选成员 / 分组)。
+/// 从 App 端 AIVirtualFolderModelPlanner 下沉 Core —— review pass 迁 XPC 引擎后,引擎产出 + App 解码都要它,
+/// 故移到 Core 并加 Codable 以跨进程传输。
+nonisolated struct AIFolderReview: Codable, Equatable, Sendable {
+    let worthSurfacing: Bool
+    let plan: AIVirtualFolderPlan
+
+    init(worthSurfacing: Bool, plan: AIVirtualFolderPlan) {
+        self.worthSurfacing = worthSurfacing
+        self.plan = plan
+    }
+}
+
 // MARK: - 确定性 plan(模型不可用时的「确定性整理」)
 
 /// 树的生成方式 —— UI 必须如实标注「确定性整理」,不能把 fallback 伪装成 AI 生成(白皮书 1390)。

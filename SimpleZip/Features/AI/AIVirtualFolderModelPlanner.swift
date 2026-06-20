@@ -18,39 +18,6 @@
 import Foundation
 import FoundationModels
 
-/// 模型产出的单个虚拟目录组(扁平一层,可靠性优先 —— 递归 @Generable 易抖)。
-/// **最简字段**:小模型对这套门控生成单次失败率极高(实测 ~90%),去掉 reason 自由文本等一切非必需输出。
-@available(macOS 26.0, *)
-@Generable
-struct GeneratedAIFolderGroup: Sendable {
-    @Guide(description: "A short human folder name for this group, by what the items ARE or their shared topic (e.g. a couple of words like 'source code', 'figures', 'drafts'). No path, no slashes, 1-3 words.")
-    var title: String
-    @Guide(description: "The item NUMBERS (the leftmost column of the items list, e.g. \"3\", \"7\") that belong in this group. Use only numbers that actually appear in the list; never invent one.")
-    var candidateIDs: [String]
-    @Guide(description: "True ONLY for the one (at most two) group the user should see expanded first — the most important / most worth their attention right now. Leave the rest false (collapsed). Most groups should be false; never mark everything true.")
-    var expandFirst: Bool
-}
-
-/// 模型产出的整份虚拟目录 plan。**门控只产「值不值得 + 命名 + 分组」三件**;AI 建议改成通过后单独生成
-/// (嵌套 suggestions 数组会显著拉高单次生成失败率,而门控可靠性是 AI 文件夹的命脉)。
-@available(macOS 26.0, *)
-@Generable
-struct GeneratedAIFolderPlan: Sendable {
-    @Guide(description: "True only if these items genuinely form ONE coherent, useful theme that deserves its own folder — a clear shared purpose, project or topic a person would recognize. False if they merely share a generic word, are an unrelated grab-bag, or are too thin to be worth surfacing. Be strict: quality over quantity.")
-    var worthSurfacing: Bool
-    @Guide(description: "An optional clearer name for the whole folder/workspace. Empty to keep the current title.")
-    var workspaceTitle: String
-    @Guide(description: "Between 2 and 6 groups organizing the items that truly belong by meaning. Put each kept item in exactly one group; prefer a small number of clear, well-named groups over many tiny ones.")
-    var groups: [GeneratedAIFolderGroup]
-}
-
-/// 一次模型复核的结果:是否值得作为文件夹出现 + 它的 plan(命名 / 选成员 / 分组)。
-@available(macOS 26.0, *)
-struct AIFolderReview: Sendable {
-    let worthSurfacing: Bool
-    let plan: AIVirtualFolderPlan
-}
-
 /// **文件浏览器单文件抽屉**的模型产出(②b/②c)。给一个具体文件出 {一句话摘要 + 几个建议动作 token}。
 /// 扁平 2 字段(可靠优先);摘要给人看、动作从词表里挑。**拒绝假AI**:没有这个产出文件浏览器就空抽屉。
 @available(macOS 26.0, *)
@@ -126,20 +93,6 @@ struct GeneratedURLSuggestion: Sendable {
 
 @available(macOS 26.0, *)
 enum AIVirtualFolderModelPlanner {
-    /// 命名 + 语言规则(两个 prompt 共用)。**语言放最前 + 强制**(修用户报的「文件夹名经常语言不一致」):给人看的
-    /// workspaceTitle / 分组名必须用界面语言;禁止 AI / 文件夹 / 集合 等元词塞进名字,要按真实主题起名。
-    static var namingRule: String {
-        let lang = AIReportAssistant.uiLanguageName
-        return """
-        LANGUAGE — MANDATORY: write the workspaceTitle and EVERY group title in \(lang). Never use any other \
-        language for them, not even partially. Name everything by its REAL subject — the actual topic, project, or \
-        what the items are — exactly as a person would name it in \(lang). NEVER put meta words like "AI", \
-        "assistant", "folder", "collection", "group", "files", "directory", "workspace" or "smart" into any title \
-        unless that word is literally part of the real subject. The item numbers are plain integers — use them \
-        exactly as given, never translate or alter them.
-        """
-    }
-
     /// 可建议动作词表(单独生成建议时喂模型)。和 `allowedSuggestionDescriptors` 同源;**绝不让模型拼路径**,
     /// 路径由 App 按 token + 目标条目回查。
     static var actionVocabularyRule: String {
@@ -503,144 +456,24 @@ enum AIVirtualFolderModelPlanner {
         return Set(ids)
     }
 
-    /// 把用户对这个工作区的累积调教(固定 / 排除 / 喜欢 / 不喜欢 / 分组命名)展开成几行 prompt 提示(架构债 #4:
-    /// 自循环喂进模型)。携带名字 / 来源目录 / 角色 / 用户起的组名 —— **路径不是隐私红线**(见隐私口径);空则返回空。
-    static func hintLines(_ hints: AIWorkspaceLearningHints?) -> [String] {
-        guard let h = hints, !h.isEmpty else { return [] }
-        var lines: [String] = []
-        if !h.removedItemNames.isEmpty {
-            lines.append("Items the user REMOVED from here (name and location — do NOT bring back items like these): "
-                + h.removedItemNames.prefix(24).joined(separator: ", "))
-        }
-        if !h.keptItemNames.isEmpty {
-            lines.append("Items the user explicitly KEEPS here (name and location — favor selecting items like these): "
-                + h.keptItemNames.prefix(24).joined(separator: ", "))
-        }
-        if !h.userGroupTitles.isEmpty {
-            lines.append("Group names the user has chosen here (reuse and honor these names/themes when grouping): "
-                + h.userGroupTitles.prefix(12).joined(separator: ", "))
-        }
-        if !h.rejectedRoleTags.isEmpty {
-            lines.append("Kinds of item the user dislikes here: " + h.rejectedRoleTags.prefix(12).joined(separator: ", "))
-        }
-        if !h.preferredRoleTags.isEmpty {
-            lines.append("Kinds of item the user likes here: " + h.preferredRoleTags.prefix(12).joined(separator: ", "))
-        }
-        return lines
-    }
-
     /// 从 prompt-safe 输入让本地模型生成虚拟目录 plan。返回的 plan 的 candidateID 仍可能含界外值 ——
     /// 交给 `AIVirtualFolderTreeBuilder.build` 统一校验丢弃(防御性)。失败抛出,调用点退回确定性树。
     static func plan(for input: AIVirtualFolderPlanInput) async throws -> AIVirtualFolderPlan {
-        let instructions = """
-        \(Self.namingRule)
-
-        You curate and organize a set of related items around a theme. Each item below is one line: \
-        "number<TAB>kind<TAB>name<TAB>roleTags", where number is a small integer in the leftmost column. Using the \
-        theme and hints, decide which items genuinely BELONG together and SELECT only those — leave out items that \
-        don't fit (you are choosing membership, not forced to place everything). Then group the selected items by \
-        what they ARE or their shared topic, give each group a short name (1–3 words), and propose a clear name for \
-        the whole collection. Aim for 2–4 groups; prefer a small number of clear, well-named groups over many tiny \
-        ones. Base everything ONLY on the names, kinds and roleTags given. Refer to each item by its NUMBER (the \
-        leftmost column) — never output a file path; simply omit any item that doesn't belong rather than forcing it \
-        into a group.
-
-        If the input states items the user KEEPS or REMOVED, kinds they like/dislike, or group names they chose, \
-        treat these as strong guidance: favor items like the ones they keep, leave out items like the ones they \
-        removed, and reuse the group names/themes they picked. The item numbers are plain integers — use them \
-        exactly as given, never translate them.
-        """
-        let cands = Array(input.candidates.prefix(40))   // 短 prompt 更稳(单次生成失败率随长度飙升)
-        var lines: [String] = []
-        let ws = input.workspace
-        if let prompt = ws.prompt, !prompt.isEmpty { lines.append("Folder theme: \(prompt)") }
-        if !ws.queryTokens.isEmpty { lines.append("Theme hints: \(ws.queryTokens.joined(separator: ", "))") }
-        lines.append("Current title: \(ws.title)")
-        lines.append(contentsOf: Self.hintLines(input.learningHints))
-        lines.append("Items (number<TAB>kind<TAB>name<TAB>roleTags) — refer to items by their number:")
-        for (i, c) in cands.enumerated() {
-            lines.append(["\(i + 1)", c.kind, c.displayName, c.roleTags.joined(separator: " ")].joined(separator: "\t"))
-        }
-        let generated = try await AIReportAssistant.generateStructured(
-            instructions: instructions, prompt: lines.joined(separator: "\n"), as: GeneratedAIFolderPlan.self,
-            maxAttempts: 12)   // 「模型不行时间来凑」:连试 12 代 + 极简 schema + 短 prompt 一起压报错
-
-        return Self.assemble(generated, candidates: cands).plan
+        // 阶段3:整条 pass(拼 prompt + 模型 + 序号回查组装)在 XPC 引擎跑(AIPassEngine.workspacePlan);
+        // App 直接传 Core 输入、收 AIVirtualFolderPlan。失败抛出由调用点退回确定性树。
+        return try await AIAgentClient.generatePass(
+            kind: .workspacePlan, input: input, as: AIVirtualFolderPlan.self)
     }
 
     /// **后台复核**:模型既判断这个候选主题**值不值得作为文件夹出现**(质量优先,不保数量),又顺带产出它的 plan
     /// (命名 / 选成员 / 分组)。`worthSurfacing == false` → 调用点不把它升成可见工作区。
     static func review(for input: AIVirtualFolderPlanInput, attempt: Int = 1,
                        approvedTarget: Int = 0) async throws -> AIFolderReview {
-        let instructions = """
-        \(Self.namingRule)
-
-        You are a STRICT quality judge for a background "AI folder". Each item below is one line: \
-        "number<TAB>kind<TAB>name<TAB>roleTags", where number is a small integer in the leftmost column. These items \
-        were grouped only because they share a name token or a common task/archive — but a shared token is USUALLY \
-        COINCIDENTAL (many unrelated files share a common word like "report", "final", "v2", "data" or a date). \
-        Most such groups are NOT worth a folder.
-
-        Set worthSurfacing = true ONLY when ALL of the following hold:
-          (a) At least THREE items CLEARLY belong together for a real reason beyond a shared word
-          (b) The theme is specific enough that a person would deliberately name and keep this folder
-          (c) The items form a recognizable project, topic, dataset, or deliverable — not a loose grab-bag
-
-        Set worthSurfacing = false when: fewer than three items truly relate; they merely share a generic/common \
-        word; the theme is vague or weak; or it is a coincidental match. Be strict and skeptical: rejecting a \
-        borderline theme is always safer than approving it.
-
-        If you DO approve (worthSurfacing = true): curate the items — keep those that fit, drop the ones that only \
-        coincidentally matched; group by meaning with short names (1–3 words); propose a clear name for the folder. \
-        If you REJECT (worthSurfacing = false): set groups to [] and workspaceTitle to "".
-
-        Refer to items by their NUMBER (the leftmost column) — never invent a number, output a file path, or \
-        translate names. The item numbers are plain integers — use them exactly as given. Reply only with the \
-        structured plan, including worthSurfacing.
-
-        If the input states items the user KEEPS or REMOVED, kinds they like/dislike, or group names they chose, \
-        treat these as strong guidance: a theme the user has actively curated is more worth surfacing, and you \
-        should honor what they keep, leave out, and how they name groups.
-        """
-        let cands = Array(input.candidates.prefix(40))   // 短 prompt 更稳(单次生成失败率随长度飙升)
-        var lines: [String] = []
-        let ws = input.workspace
-        if let prompt = ws.prompt, !prompt.isEmpty { lines.append("Folder theme: \(prompt)") }
-        if !ws.queryTokens.isEmpty { lines.append("Theme hints: \(ws.queryTokens.joined(separator: ", "))") }
-        lines.append("Candidate title: \(ws.title)")
-        lines.append(contentsOf: Self.hintLines(input.learningHints))
-        lines.append("Items (number<TAB>kind<TAB>name<TAB>roleTags) — refer to items by their number:")
-        for (i, c) in cands.enumerated() {
-            lines.append(["\(i + 1)", c.kind, c.displayName, c.roleTags.joined(separator: " ")].joined(separator: "\t"))
-        }
-        let generated = try await AIReportAssistant.generateStructured(
-            instructions: instructions, prompt: lines.joined(separator: "\n"), as: GeneratedAIFolderPlan.self,
-            maxAttempts: 12)   // 「模型不行时间来凑」:连试 12 代 + 极简 schema + 短 prompt 一起压报错
-        return Self.assemble(generated, candidates: cands)
-    }
-
-    /// 模型输出按**序号**引用条目(小模型照抄长 opaque candidateID 极易出错 → 一个都对不上 → 永远判否)。
-    /// 这里把序号翻译回真实 candidateID;`candidates` 必须与喂 prompt 时同一份(同 `prefix(120)`、同序)。
-    private static func assemble(_ generated: GeneratedAIFolderPlan,
-                                 candidates: [AIVirtualNodePromptCandidate]) -> AIFolderReview {
-        let title = generated.workspaceTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-        let groups = generated.groups.enumerated().map { index, g in
-            AIVirtualFolderGroupPlan(
-                id: "model-\(index)",
-                title: g.title,
-                candidateIDs: g.candidateIDs.compactMap { realID($0, in: candidates) },
-                prominent: g.expandFirst)   // AI 注意力:这组该不该默认展开
-        }
-        // 门控不再产 AI 建议(suggestions 留空 → 通过后单独生成);最简 schema 提可靠性。
-        let plan = AIVirtualFolderPlan(workspaceTitle: title.isEmpty ? nil : title, groups: groups)
-        return AIFolderReview(worthSurfacing: generated.worthSurfacing, plan: plan)
-    }
-
-    /// 把模型返回的「序号 token」翻译回真实 candidateID。容忍 "3" / "#3" / "item 3" / "3." 等 —— 抽第一个整数;
-    /// 越界 / 非数字 → nil(丢弃,builder 再做白名单校验)。
-    private static func realID(_ token: String, in candidates: [AIVirtualNodePromptCandidate]) -> String? {
-        guard let n = firstInt(in: token), n >= 1, n <= candidates.count else { return nil }
-        return candidates[n - 1].candidateID
+        // 阶段3:整条 pass(拼 prompt + 模型 + 序号回查组装)在 XPC 引擎跑(AIPassEngine.workspaceReview);
+        // App 直接传 Core 输入、收 AIFolderReview。attempt/approvedTarget 仅调用点重试语义用、原实现亦未进 prompt,
+        // 故不跨 XPC 传。失败抛出由调用点处理(不升成可见工作区)。
+        return try await AIAgentClient.generatePass(
+            kind: .workspaceReview, input: input, as: AIFolderReview.self)
     }
 
     private static func firstInt(in s: String) -> Int? {
