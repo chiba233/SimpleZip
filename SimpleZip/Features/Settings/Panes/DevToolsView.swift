@@ -227,7 +227,7 @@ struct DevToolsView: View {
                             "测试 AI agent 探针(后台 LaunchAgent 通道)",
                             "注册 LaunchAgent(SMAppService)+ 连 Mach XPC,在 agent 进程里试跑一次端上模型,结果显示在下方(也打到 agent stderr,Console 过滤 SimpleZipAIAgent 看完整)。这条通道在 Login Items 可见、受「允许在后台」开关门控:关掉它后台索引连同此探针都会被 launchd 拒。注册可能需 SimpleZip Dev 签名 + App 从 /Applications 跑。"
                         ) {
-                            agentProbeStatus = "正在注册 + 连后台 LaunchAgent 跑探针…"
+                            agentProbeStatus = "正在连后台 LaunchAgent 跑探针…(每个 App 启动只首刀重注册,之后直接连)"
                             AIAgentClient.runBackgroundProbe { result in
                                 agentProbeStatus = result
                             }
