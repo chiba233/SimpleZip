@@ -141,21 +141,35 @@ final class AIWorkspaceStore: ObservableObject {
 
     func workspace(_ id: UUID) -> AIWorkspace? { collection.workspace(id) }
 
-    /// 后台调度规划器(`AIBackgroundPlanner`)用的「补充证据」缺口快照(工程补充五接线 Phase 1)。**纯只读**:
+    /// 后台调度规划器(`AIBackgroundPlanner`)用的「补充证据」缺口快照(工程补充五接线 Phase 1/2)。**纯只读**:
     /// 读本会话内存态(`memberRefsByWorkspace` + `pathsBySourceRef`,都由 refreshRecommendations 重建)+ 查派生
-    /// 索引里成员有没有算过哈希,交给 Core 纯函数判缺口。**不新增 @Published、不写盘、不触发 reload**(A17 安全);
-    /// 只在 `planBackgroundJobs`(heartbeat 低频)读一次。Phase 1 只产 missingHash。
+    /// 索引里成员算没算过哈希 / 测没测过完整性,交给 Core 纯函数判缺口。**不新增 @Published、不写盘、不触发
+    /// reload**(A17 安全);只在 `planBackgroundJobs`(heartbeat 低频)读一次。产 missingHash + missingArchiveHealth
+    /// (后者只对**小归档**成员,大包不自动测、留用户)。
     var currentEvidenceGaps: [AIWorkspaceEvidenceGap] {
         let store = AIBackgroundIndexStore.shared
         var hashed: Set<AIContextSourceRef> = []
-        for (ref, path) in pathsBySourceRef
-        where store.record(forPath: path)?.contentSummary?.inlineResults["hash"] != nil {
-            hashed.insert(ref)
+        var tested: Set<AIContextSourceRef> = []
+        var smallArchives: Set<AIContextSourceRef> = []
+        for (ref, path) in pathsBySourceRef {
+            guard let rec = store.record(forPath: path) else { continue }
+            let inline = rec.contentSummary?.inlineResults ?? [:]
+            if inline["hash"] != nil { hashed.insert(ref) }
+            if inline["test"] != nil { tested.insert(ref) }
+            if AIFileType.classify(fileName: (path as NSString).lastPathComponent, isDirectory: false) == .archive,
+               let bytes = rec.byteSize, bytes > 0, bytes <= Self.maxTestableArchiveBytes {
+                smallArchives.insert(ref)
+            }
         }
+        let members = memberRefsByWorkspace.mapValues { Array($0) }
         return AIWorkspaceEvidenceGapBuilder.deriveMissingHash(
-            memberRefsByWorkspace: memberRefsByWorkspace.mapValues { Array($0) },
-            hashedSourceRefs: hashed)
+                   memberRefsByWorkspace: members, hashedSourceRefs: hashed)
+             + AIWorkspaceEvidenceGapBuilder.deriveMissingArchiveHealth(
+                   memberRefsByWorkspace: members, archiveSourceRefs: smallArchives, testedSourceRefs: tested)
     }
+
+    /// 后台只自动测「小归档」(避免大包测试的能耗 / IO 尖峰);超过此体积的归档成员不产 health 缺口,留用户手动测。
+    private static let maxTestableArchiveBytes: Int64 = 64 * 1024 * 1024
 
     /// ref → 真实路径(后台调度执行 hash job 时回查文件路径用)。本会话内存映射,无则 nil。
     func path(forSourceRef ref: AIContextSourceRef) -> String? { pathsBySourceRef[ref] }

@@ -141,6 +141,16 @@ nonisolated struct AIWorkspaceEvidenceGap: Codable, Equatable, Sendable {
             suggestedEnrichmentAction: .refreshArchiveListing(sourceRefs: refs),
             urgency: urgency)
     }
+
+    /// 缺归档健康缺口 —— 自动带上「测试归档完整性」增强动作(对应后台 testSmallArchives job)。
+    static func missingArchiveHealth(id: String, workspaceID: UUID, refs: [AIContextSourceRef],
+                                     reason: String, urgency: Urgency = .normal) -> AIWorkspaceEvidenceGap {
+        AIWorkspaceEvidenceGap(
+            id: id, workspaceID: workspaceID, kind: .missingArchiveHealth, affectedSourceRefs: refs,
+            reason: reason,
+            suggestedEnrichmentAction: .testArchives(sourceRefs: refs),
+            urgency: urgency)
+    }
 }
 
 /// 「为什么没有推荐」—— 不能交给模型瞎编,必须由确定性 suppressor 生成。让空状态 / 低收益建议有据可查。

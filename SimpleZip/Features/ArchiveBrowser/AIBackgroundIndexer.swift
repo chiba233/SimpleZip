@@ -994,26 +994,33 @@ final class AIBackgroundIndexer {
 
     // MARK: - 后台调度计划执行(工程补充五接线 Phase 1:plan→入队,真执行走下面的 executePendingChecksIfDue)
 
-    /// 把 `AIBackgroundPlanner` 产的 plan 里**确定性 evidence job** 翻成 pending 入队(Phase 1 只接
-    /// `calculateCheapHashes`)。工作区成员缺哈希 → plan 产 hash job → 这里经 `pathsBySourceRef` 回查路径
-    /// 入队 `.hash` → 既有 `executePendingChecksIfDue`(插电侧)真算 + 写内联结果。**幂等**(同指纹不重排)、
-    /// 纯入队不执行、不调模型、不碰 reload;其余 job kind 暂记 skip(Phase 2+ 接)。DevTools 经 recordPass 观测。
+    /// 把 `AIBackgroundPlanner` 产的 plan 里**确定性 evidence job** 翻成 pending 入队(Phase 1/2:
+    /// `calculateCheapHashes`→`.hash`、`testSmallArchives`→`.test`)。工作区成员缺哈希 / 小归档没测 → plan 产
+    /// 对应 job → 这里经 `pathsBySourceRef` 回查路径入队 → 既有 `executePendingChecksIfDue`(插电侧)真算 / 真测
+    /// + 写内联结果。**幂等**(同指纹不重排)、纯入队不执行、不调模型、不碰 reload;其余 job kind 暂跳过(Phase 3+
+    /// 接)。DevTools 经 recordPass 观测。
     func executePlannedJobsIfDue() {
         guard AppPreferences.aiSuggestionEnabled, AIBackgroundIndexStore.shared.indexingEnabled else { return }
         let plan = planBackgroundJobs()
         let store = AIBackgroundIndexStore.shared
         var items: [(path: String, behavior: AIPendingCheck.Behavior, fingerprint: String)] = []
-        for job in plan.jobs where job.kind == .calculateCheapHashes {
+        for job in plan.jobs {
+            let behavior: AIPendingCheck.Behavior
+            switch job.kind {
+            case .calculateCheapHashes: behavior = .hash
+            case .testSmallArchives:    behavior = .test
+            default: continue
+            }
             for ref in job.sourceRefs {
                 guard let path = AIWorkspaceStore.shared.path(forSourceRef: ref),
                       let rec = store.record(forPath: path) else { continue }
-                items.append((path, .hash,
+                items.append((path, behavior,
                               AIPendingCheck.fingerprint(byteSize: rec.byteSize, modifiedAt: rec.modifiedAt)))
             }
         }
         guard !items.isEmpty else {
             recordPass("调度执行", candidates: plan.jobs.count,
-                       skip: plan.jobs.isEmpty ? "plan 无 job" : "无缺哈希成员可入队(Phase 1 只接 calculateCheapHashes)")
+                       skip: plan.jobs.isEmpty ? "plan 无 job" : "无确定性 evidence job 可入队(Phase 1/2:hash/test)")
             return
         }
         AIPendingCheckStore.shared.enqueueBatch(items)

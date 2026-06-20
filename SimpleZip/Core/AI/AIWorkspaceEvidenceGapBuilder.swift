@@ -35,4 +35,27 @@ nonisolated enum AIWorkspaceEvidenceGapBuilder {
         }
         return gaps
     }
+
+    /// 判出「工作区里是归档、尚未测过完整性的小包成员」缺口(Phase 2)。`archiveSourceRefs` = 调用方已判定为
+    /// 归档且在体积封顶内的成员;`testedSourceRefs` = 已测过(派生索引里有 test 内联结果)的成员。每个工作区里
+    /// **是小归档但还没测**的成员聚成一条 `missingArchiveHealth` 缺口(自带「测试归档」增强动作 → testSmallArchives job)。
+    /// 确定性排序、空则不产。体积封顶 / 归档判定留给调用方(纯函数不读磁盘)。
+    static func deriveMissingArchiveHealth(memberRefsByWorkspace: [UUID: [AIContextSourceRef]],
+                                           archiveSourceRefs: Set<AIContextSourceRef>,
+                                           testedSourceRefs: Set<AIContextSourceRef>) -> [AIWorkspaceEvidenceGap] {
+        var gaps: [AIWorkspaceEvidenceGap] = []
+        for workspaceID in memberRefsByWorkspace.keys.sorted(by: { $0.uuidString < $1.uuidString }) {
+            let refs = memberRefsByWorkspace[workspaceID] ?? []
+            let untested = refs
+                .filter { archiveSourceRefs.contains($0) && !testedSourceRefs.contains($0) }
+                .sorted { $0.id < $1.id }
+            guard !untested.isEmpty else { continue }
+            gaps.append(.missingArchiveHealth(
+                id: "missing-health-\(workspaceID.uuidString)",
+                workspaceID: workspaceID,
+                refs: untested,
+                reason: "工作区有 \(untested.count) 个归档成员尚未测试完整性"))
+        }
+        return gaps
+    }
 }

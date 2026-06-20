@@ -57,4 +57,38 @@ final class AIWorkspaceEvidenceGapBuilderTests: XCTestCase {
         // missingHash 工厂自带「算 SHA256」增强动作,dispatcher 据此入队。
         XCTAssertNotNil(gaps[0].suggestedEnrichmentAction)
     }
+
+    // MARK: - Phase 2: missingArchiveHealth(小归档没测)
+
+    func testMissingArchiveHealthExcludesTestedAndNonArchive() {
+        let ws = UUID()
+        // a/c 是小归档没测;b 是小归档但已测;d 不是归档 → 只 a/c 产缺口。
+        let gaps = AIWorkspaceEvidenceGapBuilder.deriveMissingArchiveHealth(
+            memberRefsByWorkspace: [ws: [ref("a"), ref("b"), ref("c"), ref("d")]],
+            archiveSourceRefs: [ref("a"), ref("b"), ref("c")],
+            testedSourceRefs: [ref("b")])
+        XCTAssertEqual(gaps.count, 1)
+        XCTAssertEqual(gaps[0].kind, .missingArchiveHealth)
+        XCTAssertEqual(gaps[0].affectedSourceRefs, [ref("a"), ref("c")])
+    }
+
+    func testNoArchiveHealthGapWhenNoArchiveMembers() {
+        let ws = UUID()
+        let gaps = AIWorkspaceEvidenceGapBuilder.deriveMissingArchiveHealth(
+            memberRefsByWorkspace: [ws: [ref("a"), ref("b")]],
+            archiveSourceRefs: [],
+            testedSourceRefs: [])
+        XCTAssertTrue(gaps.isEmpty)
+    }
+
+    func testArchiveHealthGapCarriesTestEnrichmentAction() {
+        let ws = UUID()
+        let gaps = AIWorkspaceEvidenceGapBuilder.deriveMissingArchiveHealth(
+            memberRefsByWorkspace: [ws: [ref("a")]],
+            archiveSourceRefs: [ref("a")],
+            testedSourceRefs: [])
+        XCTAssertEqual(gaps.count, 1)
+        // missingArchiveHealth 工厂自带「测试归档」增强动作。
+        XCTAssertNotNil(gaps[0].suggestedEnrichmentAction)
+    }
 }
