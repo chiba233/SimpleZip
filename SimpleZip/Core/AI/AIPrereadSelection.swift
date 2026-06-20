@@ -204,4 +204,21 @@ nonisolated enum AIPrereadSelection {
         if set.contains("junk") || set.contains("temporary") { return 0.1 }
         return 0.4
     }
+
+    /// 从 7zz 对一个 dmg 的清单里抽出 `.app` 包名(去重、封顶 6)。条目 `name` 是完整条目路径,形如
+    /// `DockDoor Installer/DockDoor.app/Contents/...`;取每条路径里第一个以 `.app` 结尾的路径段即可;
+    /// `Applications` 软链等非 .app 段忽略。无 → 空数组。
+    static func topAppBundleNames(in items: [ArchiveItem]) -> [String] {
+        var seen = Set<String>()
+        var out: [String] = []
+        for item in items {
+            for comp in item.name.split(separator: "/") where comp.hasSuffix(".app") {
+                let name = String(comp)
+                if seen.insert(name).inserted { out.append(name) }
+                break   // 这条路径的第一个 .app 段就够(再深的是包内文件)
+            }
+            if out.count >= 6 { break }
+        }
+        return out
+    }
 }

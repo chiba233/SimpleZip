@@ -157,7 +157,7 @@ final class AIBackgroundIndexer {
         // (lastScannedAt==nil)最优先,其余按上次扫描时间升序。这样即便每轮预算只够 N 个 scope(省电=1),多轮
         // 心跳也能把所有白名单目录轮一遍,而不是永远只扫前 N 个。扫完即 markScanned → 下轮自然排到队尾。
         let scopeBudget = max(1, budget.maxDirectoriesPerRound)
-        let scopes = Array(store.scopes.sorted(by: AIBackgroundIndexer.leastRecentlyScanned).prefix(scopeBudget))
+        let scopes = Array(store.scopes.sorted(by: AIArchivePrefetchScope.leastRecentlyScanned).prefix(scopeBudget))
         let home = NSHomeDirectory()
         let fileBudget = min(budget.maxEntriesPerArchive, 3_000)
         // 内容预读是**更高隐私等级的独立开关**:只元数据预索引时 allowContent=false(绝不读内容);开了「预读内容」
@@ -240,15 +240,7 @@ final class AIBackgroundIndexer {
         runIfEnabled()
     }
 
-    /// 「最久没扫」排序:从没扫过(lastScannedAt==nil)最优先,其余按上次扫描时间升序(scope 渐进轮转用)。
-    nonisolated static func leastRecentlyScanned(_ lhs: AIArchivePrefetchScope, _ rhs: AIArchivePrefetchScope) -> Bool {
-        switch (lhs.lastScannedAt, rhs.lastScannedAt) {
-        case (nil, nil): return false
-        case (nil, _):   return true
-        case (_, nil):   return false
-        case let (l?, r?): return l < r
-        }
-    }
+    // leastRecentlyScanned 已下沉 Core → AIArchivePrefetchScope.leastRecentlyScanned。
 
     func cancel() {
         heartbeat?.invalidate(); heartbeat = nil; currentHeartbeatInterval = nil
@@ -446,7 +438,7 @@ final class AIBackgroundIndexer {
                 guard let path = rec.path, FileManager.default.fileExists(atPath: path) else { continue }
                 // 7zz 只读 peek(空口令;加密 / 不可读 dmg 抛错 → 当作无 App 标记已评估,绝不挂载、绝不弹密码)。
                 let appNames = (try? await SevenZipBackend.list(URL(fileURLWithPath: path)))
-                    .map { AIBackgroundIndexer.topAppBundleNames(in: $0) } ?? []
+                    .map { AIPrereadSelection.topAppBundleNames(in: $0) } ?? []
                 guard !appNames.isEmpty else {
                     AIBackgroundIndexStore.shared.setDiskImageSuggestion(recordID: rec.id, summary: nil, appName: nil)
                     continue   // 没 .app(或 peek 失败)→ 标记已评估,下轮不再选
@@ -462,22 +454,7 @@ final class AIBackgroundIndexer {
         }
     }
 
-    /// 从 7zz 对一个 dmg 的清单里抽出 `.app` 包名(去重、封顶 6)。条目 `name` 是完整条目路径,形如
-    /// `DockDoor Installer/DockDoor.app/Contents/...`;取每条路径里第一个以 `.app` 结尾的路径段即可;
-    /// `Applications` 软链等非 .app 段忽略。无 → 空数组。
-    nonisolated static func topAppBundleNames(in items: [ArchiveItem]) -> [String] {
-        var seen = Set<String>()
-        var out: [String] = []
-        for item in items {
-            for comp in item.name.split(separator: "/") where comp.hasSuffix(".app") {
-                let name = String(comp)
-                if seen.insert(name).inserted { out.append(name) }
-                break   // 这条路径的第一个 .app 段就够(再深的是包内文件)
-            }
-            if out.count >= 6 { break }
-        }
-        return out
-    }
+    // topAppBundleNames 已下沉 Core → AIPrereadSelection.topAppBundleNames。
 
     // MARK: - 「文件有活动」建议(backlog 第3项;MainActor:读活动快照 + 模型 async)
 
@@ -520,7 +497,7 @@ final class AIBackgroundIndexer {
                 guard AIBackgroundIndexStore.shared.indexingEnabled, AIReportAssistant.isReady else { break }
                 guard let path = rec.path, FileManager.default.fileExists(atPath: path) else { continue }
                 let actionText = AIBackgroundIndexer.activityActionText(for: snap.kind)
-                let whenText = AIBackgroundIndexer.coarseWhenText(snap.finishedAt ?? snap.startedAt, now: Date())
+                let whenText = AIAgeFacts.coarseWhenText(snap.finishedAt ?? snap.startedAt, now: Date())
                 guard let phrasing = try? await AIVirtualFolderModelPlanner.activityReminder(
                     fileName: rec.fileName, actionText: actionText, whenText: whenText),
                     !phrasing.isEmpty else { continue }
@@ -545,17 +522,7 @@ final class AIBackgroundIndexer {
         }
     }
 
-    /// 粗粒度时间桶(中性英文,模型转界面语言;时间换算在代码做,模型不算时间 —— 见 AI 提示词规矩)。
-    nonisolated static func coarseWhenText(_ date: Date, now: Date) -> String {
-        switch now.timeIntervalSince(date) {
-        case ..<120:     return "just now"
-        case ..<3_600:   return "a few minutes ago"
-        case ..<86_400:  return "earlier today"
-        case ..<172_800: return "yesterday"
-        case ..<604_800: return "a few days ago"
-        default:         return "recently"
-        }
-    }
+    // coarseWhenText 已下沉 Core → AIAgeFacts.coarseWhenText。
 
     // MARK: - 建议六 v2 模块⑤:活动中心「建议筛选」chip 的模型排序(后台预烘焙)
 

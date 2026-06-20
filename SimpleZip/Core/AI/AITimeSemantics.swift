@@ -51,6 +51,19 @@ nonisolated struct AIAgeFacts: Codable, Equatable, Sendable {
 
     /// 长期未动(≥ 90 天)—— 驱动「长期未动的大文件」这类工作区主题。
     var isStale: Bool { bucket == .stale }
+
+    /// 粗粒度「多久以前」文本(中性英文,模型转界面语言;时间换算在代码做,模型不算时间 —— 见 AI 提示词规矩)。
+    /// 比 `Bucket` 更口语化的相对措辞,用于喂模型生成「最近对它做过什么」这类提示(活动链接建议 pass)。
+    static func coarseWhenText(_ date: Date, now: Date) -> String {
+        switch now.timeIntervalSince(date) {
+        case ..<120:     return "just now"
+        case ..<3_600:   return "a few minutes ago"
+        case ..<86_400:  return "earlier today"
+        case ..<172_800: return "yesterday"
+        case ..<604_800: return "a few days ago"
+        default:         return "recently"
+        }
+    }
 }
 
 /// 一个命名的「最近窗口」(最近 10 分钟 / 24 小时 / 7 天 / 30 天)。判定某时刻是否落在窗口内。

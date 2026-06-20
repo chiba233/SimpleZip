@@ -96,6 +96,16 @@ nonisolated struct AIArchivePrefetchScope: Codable, Identifiable, Equatable, Sen
         self.createdAt = createdAt
         self.lastScannedAt = lastScannedAt
     }
+
+    /// 「最久没扫」排序:从没扫过(lastScannedAt==nil)最优先,其余按上次扫描时间升序(scope 渐进轮转用)。
+    static func leastRecentlyScanned(_ lhs: AIArchivePrefetchScope, _ rhs: AIArchivePrefetchScope) -> Bool {
+        switch (lhs.lastScannedAt, rhs.lastScannedAt) {
+        case (nil, nil): return false
+        case (nil, _):   return true
+        case (_, nil):   return false
+        case let (l?, r?): return l < r
+        }
+    }
 }
 
 /// 单个归档预读后的清单状态(稳定英文 token)。需要密码 / 头加密 / 损坏的归档不进条目索引,只记状态 + omission。
