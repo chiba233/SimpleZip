@@ -145,11 +145,19 @@ enum AIAgentClient {
             let service = SMAppService.agent(plistName: SimpleZipAIAgentXPCNames.machService + ".plist")
             let needsRegister: Bool
             #if DEBUG
-            // 每个 App 启动只 unregister+register 一次(首刀自愈 rebuild 后的 LWCR 失配);之后同进程内直接连。
+            // dev 失稳真因(codex 实测,非「DerivedData 跑不了」——toggle 后照样从 DerivedData 拉起):rebuild 后 helper
+            // 签名变,但 BTM/SMAppService 缓存的旧记录 + LWCR(launch code requirement)陈旧 → launchd 报 `needs LWCR
+            // update` + spawn failed(EX_CONFIG 78)。Login Items 手动开关会换 BTM uuid + 刷新 LWCR 才恢复;代码里
+            // unregister 紧接 register 太快会撞「旧记录还没清完」的异步竞争。每个 App 启动首刀 unregister 后**轮询
+            // status 到 .notRegistered(最多 ~3s)再 register**,确保旧记录真清掉、register 建一条带当前 LWCR 的新记录。
             if didRegisterDevAgentThisLaunch {
                 needsRegister = service.status != .enabled
             } else {
                 try? service.unregister()
+                for _ in 0..<30 {                                  // 等 unregister 真生效(BTM 记录清除),最多 ~3s
+                    if service.status == .notRegistered { break }
+                    Thread.sleep(forTimeInterval: 0.1)
+                }
                 didRegisterDevAgentThisLaunch = true
                 needsRegister = true
             }
@@ -162,7 +170,7 @@ enum AIAgentClient {
                 } catch {
                     reply("""
                     注册 LaunchAgent 失败:\(error.localizedDescription)
-                    常见原因:helper 与 App 签名身份不一致(本地需 SimpleZip Dev、非 ad-hoc)/ App 在 DerivedData 跑而非 /Applications。
+                    dev 下 rebuild 后 BTM 缓存的 LWCR 可能陈旧(needs LWCR update / spawn failed)。可在 系统设置 → 通用 → 登录项 把本 app 的后台项关再开一次以刷新;或确认 helper 与 App 同签名身份(本地 SimpleZip Dev)。前台推理走 XPC Service 不受此影响。
                     """)
                     return
                 }
