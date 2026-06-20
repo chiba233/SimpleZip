@@ -138,4 +138,38 @@ enum AIAgentClient {
             attemptsLeft: 3,
             reply: reply)
     }
+
+    // MARK: 配置同步(坑 9:payload 带 schemaVersion)
+
+    /// 从当前 App 状态构造配置 payload(主 actor 读 AppPreferences + 索引 store 的 AI 开关)。
+    @MainActor static func currentConfiguration() -> AIAgentConfiguration {
+        AIAgentConfiguration(
+            aiAssistantEnabled: AppPreferences.aiAssistantEnabled,
+            aiSuggestionEnabled: AppPreferences.aiSuggestionEnabled,
+            indexingEnabled: AIBackgroundIndexStore.shared.indexingEnabled,
+            contentPrereadEnabled: AIBackgroundIndexStore.shared.contentPrereadEnabled,
+            activityLevel: AppPreferences.aiBackgroundActivityLevel.rawValue)
+    }
+
+    /// 经**前台 XPC Service 通道**把配置 payload 同步给 agent,回协商结果(agent 支持的 schemaVersion / 解码拒绝)。
+    /// 同步后 agent 据此门控:`aiAssistantEnabled && aiSuggestionEnabled == false` → agent 拒绝前台生成。
+    nonisolated static func syncConfiguration(_ config: AIAgentConfiguration,
+                                              completion: @escaping @MainActor (String) -> Void) {
+        let reply = ReplyOnce { message in Task { @MainActor in completion(message) } }
+        let payload = config.encoded()
+        invokeWithRetry(
+            label: "前台 XPC Service 配置同步 ",
+            makeConnection: { NSXPCConnection(serviceName: SimpleZipAIAgentXPCNames.xpcServiceName) },
+            call: { proxy, done in
+                proxy.syncConfiguration(payload) { agentSchemaVersion in
+                    if agentSchemaVersion < 0 {
+                        done("配置同步失败:agent 解码拒绝(schema 不兼容)")
+                    } else {
+                        done("配置已同步 → agent schemaVer=\(agentSchemaVersion)(本地 v\(AIAgentConfiguration.currentSchemaVersion));主开关=\(config.aiAssistantEnabled) 建议=\(config.aiSuggestionEnabled) 索引=\(config.indexingEnabled) 预读=\(config.contentPrereadEnabled)")
+                    }
+                }
+            },
+            attemptsLeft: 3,
+            reply: reply)
+    }
 }

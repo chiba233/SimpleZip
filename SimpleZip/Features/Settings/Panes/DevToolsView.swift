@@ -255,7 +255,19 @@ struct DevToolsView: View {
                                 agentProbeStatus = result
                             }
                         }
-                        // agent 探针/查询的**常驻**当前状态(用户明确要:别 flash 一闪而过)。上面三个按钮的最近结果常驻在此、可选中复制。
+                        // ④ 配置同步:把当前 App 的 AI 设置推给 agent(坑 9 schemaVersion 协商)。把 AI 主/子开关关掉后点这,
+                        //    再点上面的真实查询,应被 agent 红线门控拦截(返回「AI 已禁用」)→ 验证 App→agent 配置同步 + 门控。
+                        actionRow(
+                            "arrow.triangle.2.circlepath",
+                            "同步 AI 配置到 agent",
+                            "把当前 App 的 AI 开关(主 / 建议 / 索引 / 预读 + 活跃度档)编码成 payload,经前台 XPC Service 推给 agent;agent 解码存储并回报支持的 schemaVersion。之后 agent 的真实查询会按这份配置门控:AI 主开关或建议开关关掉 → agent 不生成。结果显示在下方状态卡片。"
+                        ) {
+                            agentProbeStatus = "正在同步 AI 配置到 agent…"
+                            AIAgentClient.syncConfiguration(AIAgentClient.currentConfiguration()) { result in
+                                agentProbeStatus = result
+                            }
+                        }
+                        // agent 探针/查询/配置同步的**常驻**当前状态(用户明确要:别 flash 一闪而过)。上面几个按钮的最近结果常驻在此、可选中复制。
                         VStack(alignment: .leading, spacing: 4) {
                             HStack(spacing: 6) {
                                 Image(systemName: "dot.radiowaves.left.and.right")

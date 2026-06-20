@@ -14,7 +14,7 @@
 
 import Foundation
 
-public struct AIAgentConfiguration: Codable, Sendable, Equatable {
+public nonisolated struct AIAgentConfiguration: Codable, Sendable, Equatable {
     /// 当前 schema 版本。App 与 agent 同构建时天然对齐(本文件三 target 同编、值一致);跨版本时靠它协商。
     public static let currentSchemaVersion = 1
 
