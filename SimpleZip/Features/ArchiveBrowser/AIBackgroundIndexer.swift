@@ -554,12 +554,15 @@ final class AIBackgroundIndexer {
         workbenchRankingTask = Task { @MainActor in
             defer { AIBackgroundIndexer.shared.workbenchRankingRunning = false }
             guard AIBackgroundIndexStore.shared.indexingEnabled, AIReportAssistant.isReady else { return }
+            // 阶段3:经前台 XPC Service 在引擎进程跑排序。
             let candidates = pick.chips.map {
-                (label: ActivityAIWorkbenchKeys.chipPromptLabel($0), matches: ActivityAIWorkbenchKeys.chipMatchCount($0))
+                WorkbenchChipRankingInput.Candidate(
+                    label: ActivityAIWorkbenchKeys.chipPromptLabel($0), matches: ActivityAIWorkbenchKeys.chipMatchCount($0))
             }
-            guard let indices = try? await AIVirtualFolderModelPlanner.rankWorkbenchFilterChips(candidates: candidates),
-                  !indices.isEmpty else { return }
-            let orderedIDs = indices.compactMap { idx -> String? in
+            guard let out = try? await AIAgentClient.generatePass(
+                kind: .rankWorkbenchFilterChips, input: WorkbenchChipRankingInput(candidates: candidates),
+                as: AIPassIntListOutput.self), !out.numbers.isEmpty else { return }
+            let orderedIDs = out.numbers.compactMap { idx -> String? in
                 (idx >= 1 && idx <= pick.chips.count) ? pick.chips[idx - 1].id : nil
             }
             guard !orderedIDs.isEmpty else { return }
@@ -685,9 +688,14 @@ final class AIBackgroundIndexer {
         workbenchClusterTask = Task { @MainActor in
             defer { AIBackgroundIndexer.shared.workbenchClusterRunning = false }
             guard AIBackgroundIndexStore.shared.indexingEnabled, AIReportAssistant.isReady else { return }
-            let candidates = pick.clusters.map { (facts: $0.dimensionFacts, matches: $0.matchCount) }
-            guard let named = try? await AIVirtualFolderModelPlanner.nameWorkbenchClusters(candidates: candidates),
-                  !named.isEmpty else { return }
+            // 阶段3:经前台 XPC Service 在引擎进程跑命名。
+            let candidates = pick.clusters.map {
+                WorkbenchClusterNamingInput.Candidate(facts: $0.dimensionFacts, matches: $0.matchCount)
+            }
+            guard let clusterOut = try? await AIAgentClient.generatePass(
+                kind: .nameWorkbenchClusters, input: WorkbenchClusterNamingInput(candidates: candidates),
+                as: AIPassClusterNamingOutput.self), !clusterOut.entries.isEmpty else { return }
+            let named = clusterOut.entries
             let chips: [CachedClusterChip] = named.compactMap { item in
                 guard item.index >= 1, item.index <= pick.clusters.count else { return nil }
                 let cluster = pick.clusters[item.index - 1]

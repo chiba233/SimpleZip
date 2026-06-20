@@ -252,6 +252,20 @@ struct GeneratedActivityReminder: Sendable {
 }
 
 @available(macOS 26.0, *)
+@Generable
+struct GeneratedChipRanking: Sendable {
+    @Guide(description: "The chip NUMBERS (the leftmost column of the chip list) in priority order — MOST USEFUL FIRST. Include ONLY the chips genuinely worth showing to the user; drop redundant, near-duplicate or low-value ones. Prefer chips that surface actionable failures the user likely cares about. Use only numbers that appear in the list; never invent one.")
+    var orderedNumbers: [String]
+}
+
+@available(macOS 26.0, *)
+@Generable
+struct GeneratedClusterNaming: Sendable {
+    @Guide(description: "The clusters worth showing, each as \"<number>: <name>\" — <number> is the cluster's number from the list, <name> is a SHORT, concrete natural-language label a user recognizes (in the UI language), e.g. \"Finder extractions that failed\". Include ONLY clusters genuinely worth showing; drop redundant or low-value ones. Use only numbers from the list; never invent one. At most 6 entries.")
+    var labeledClusters: [String]
+}
+
+@available(macOS 26.0, *)
 enum AgentGeneration {
     /// 参数化**真实**结构化生成:把用户自然语言请求 → 归档搜索关键词(镜像 App 端 ArchiveFileQuerySpec 的用途)。
     /// 接受**任意传入请求**(非写死),是「真生成迁 agent」的能力基础 —— 命令行 `--query` 与将来 XPC 转发都走它。
@@ -303,7 +317,82 @@ enum AIPassEngine {
             let input = try JSONDecoder().decode(ActivityReminderInput.self, from: inputJSON)
             let text = try await activityReminder(input, languageName: languageName)
             return try JSONEncoder().encode(AIPassTextOutput(text: text))
+        case .rankWorkbenchFilterChips:
+            let input = try JSONDecoder().decode(WorkbenchChipRankingInput.self, from: inputJSON)
+            let numbers = try await rankWorkbenchFilterChips(input)
+            return try JSONEncoder().encode(AIPassIntListOutput(numbers: numbers))
+        case .nameWorkbenchClusters:
+            let input = try JSONDecoder().decode(WorkbenchClusterNamingInput.self, from: inputJSON)
+            let entries = try await nameWorkbenchClusters(input, languageName: languageName)
+            return try JSONEncoder().encode(AIPassClusterNamingOutput(entries: entries))
         }
+    }
+
+    /// 取字符串里第一个整数(模型偶尔回 "3." / "#3" / "3: 名字" 这类,容错抽编号)。
+    private static func firstInt(in s: String) -> Int? {
+        var digits = ""
+        for ch in s {
+            if ch.isNumber { digits.append(ch) } else if !digits.isEmpty { break }
+        }
+        return Int(digits)
+    }
+
+    /// 活动中心「建议筛选」chip 模型排序(结构化)。镜像原 App 端 rankWorkbenchFilterChips。
+    private static func rankWorkbenchFilterChips(_ input: WorkbenchChipRankingInput) async throws -> [Int] {
+        guard input.candidates.count >= 2 else { return [] }
+        let capped = Array(input.candidates.prefix(20))
+        let instructions = """
+        You are ranking SUGGESTED FILTER chips for a file-archive app's Activity Center (output is not user-facing \
+        text — return chip numbers only). Each chip is a safe, predefined filter over the user's task list. Given the \
+        chips (number, what they select, how many tasks match), return the chip NUMBERS in priority order — MOST \
+        USEFUL FIRST — keeping ONLY the chips genuinely worth showing and dropping redundant or low-value ones. Prefer \
+        chips that surface actionable failures the user likely cares about; avoid near-duplicates. Refer to chips by \
+        their NUMBER only; never invent a number.
+        """
+        var lines = ["Chips (number<TAB>selects<TAB>matchCount):"]
+        for (i, c) in capped.enumerated() {
+            lines.append(["\(i + 1)", c.label, "\(c.matches)"].joined(separator: "\t"))
+        }
+        let generated = try await AgentGenerationSerializer.shared.generateStructured(
+            instructions: instructions, prompt: lines.joined(separator: "\n"),
+            as: GeneratedChipRanking.self, maxAttempts: 3)
+        var seen = Set<Int>()
+        return generated.orderedNumbers
+            .compactMap { firstInt(in: $0) }
+            .filter { $0 >= 1 && $0 <= capped.count && seen.insert($0).inserted }
+    }
+
+    /// 活动中心「真建议」聚集命名/择优(结构化)。镜像原 App 端 nameWorkbenchClusters。
+    private static func nameWorkbenchClusters(_ input: WorkbenchClusterNamingInput,
+                                              languageName: String) async throws -> [AIPassClusterNamingOutput.Entry] {
+        guard !input.candidates.isEmpty else { return [] }
+        let capped = Array(input.candidates.prefix(20))
+        let instructions = """
+        LANGUAGE — MANDATORY: write the names in \(languageName). You are labeling SUGGESTED FILTERS for a file-archive \
+        app's Activity Center. Each candidate is a REAL cluster of tasks the app already found by crossing \
+        source / type / diagnostic / time dimensions — some are failure groups, some are common operation groups \
+        (e.g. all compress tasks, tasks from Downloads). You do NOT invent clusters, only label the ones given, \
+        and the dimensions tell you what each one selects (a "status=failed" dimension means it's a failure group; \
+        no status means all states). Pick the few MOST worth showing and give each a SHORT, concrete name the user \
+        would recognize. Drop redundant or low-value ones. Refer to clusters by their NUMBER only; never invent a number.
+        """
+        var lines = ["Clusters (number<TAB>dimensions<TAB>matchCount):"]
+        for (i, c) in capped.enumerated() {
+            lines.append(["\(i + 1)", c.facts.joined(separator: "+"), "\(c.matches)"].joined(separator: "\t"))
+        }
+        let generated = try await AgentGenerationSerializer.shared.generateStructured(
+            instructions: instructions, prompt: lines.joined(separator: "\n"),
+            as: GeneratedClusterNaming.self, maxAttempts: 3)
+        var seen = Set<Int>()
+        var out: [AIPassClusterNamingOutput.Entry] = []
+        for entry in generated.labeledClusters {
+            guard let n = firstInt(in: entry), n >= 1, n <= capped.count, seen.insert(n).inserted else { continue }
+            guard let sep = entry.range(of: ":") ?? entry.range(of: "：") else { continue }
+            let name = entry[sep.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !name.isEmpty else { continue }
+            out.append(AIPassClusterNamingOutput.Entry(index: n, name: name))
+        }
+        return out
     }
 
     /// 文件「有活动」提醒(**结构化** @Generable)。镜像原 App 端 AIVirtualFolderModelPlanner.activityReminder ——

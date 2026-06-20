@@ -25,6 +25,10 @@ public enum AIPassKind: String, Sendable {
     case longFileSummary
     /// 文件「有活动」提醒(结构化,输入名/动作/时间,输出一句提醒短语)。
     case activityReminder
+    /// 活动中心「建议筛选」chip 模型排序(结构化,输入 chip 候选,输出有序编号子集)。
+    case rankWorkbenchFilterChips
+    /// 活动中心「真建议」聚集命名(结构化,输入真实聚集候选,输出 [编号:名字])。
+    case nameWorkbenchClusters
 }
 
 // MARK: - 输入 DTO(App 拼 / 引擎解码)
@@ -85,10 +89,49 @@ public nonisolated struct ActivityReminderInput: Codable, Sendable {
     }
 }
 
+/// 「建议筛选」chip 排序输入:每个 chip 候选 = 语义标签 + 命中数。引擎据此让模型按编号排序。
+public nonisolated struct WorkbenchChipRankingInput: Codable, Sendable {
+    public nonisolated struct Candidate: Codable, Sendable {
+        public var label: String
+        public var matches: Int
+        public init(label: String, matches: Int) { self.label = label; self.matches = matches }
+    }
+    public var candidates: [Candidate]
+    public init(candidates: [Candidate]) { self.candidates = candidates }
+}
+
+/// 「真建议」聚集命名输入:每个聚集候选 = 维度描述事实 + 命中数。引擎让模型按编号挑 + 起短名。
+public nonisolated struct WorkbenchClusterNamingInput: Codable, Sendable {
+    public nonisolated struct Candidate: Codable, Sendable {
+        public var facts: [String]
+        public var matches: Int
+        public init(facts: [String], matches: Int) { self.facts = facts; self.matches = matches }
+    }
+    public var candidates: [Candidate]
+    public init(candidates: [Candidate]) { self.candidates = candidates }
+}
+
 // MARK: - 输出 DTO(引擎产 / App 解码)
 
 /// 纯文本 pass 的通用输出(一句话 / 一段解释)。
 public nonisolated struct AIPassTextOutput: Codable, Sendable {
     public var text: String
     public init(text: String) { self.text = text }
+}
+
+/// 通用「1 基编号列表」输出(引擎已解析 + 去重 + 合法性过滤)。chip 排序 / 包内条目挑选等共用。
+public nonisolated struct AIPassIntListOutput: Codable, Sendable {
+    public var numbers: [Int]
+    public init(numbers: [Int]) { self.numbers = numbers }
+}
+
+/// 聚集命名输出:每条 = (1 基编号, 名字)。引擎已解析 + 去重 + 合法性过滤。
+public nonisolated struct AIPassClusterNamingOutput: Codable, Sendable {
+    public nonisolated struct Entry: Codable, Sendable {
+        public var index: Int
+        public var name: String
+        public init(index: Int, name: String) { self.index = index; self.name = name }
+    }
+    public var entries: [Entry]
+    public init(entries: [Entry]) { self.entries = entries }
 }
