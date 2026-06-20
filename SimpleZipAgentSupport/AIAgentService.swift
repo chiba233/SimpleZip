@@ -528,9 +528,9 @@ enum AIPassEngine {
         }
     }
 
-    /// 文件浏览器单文件抽屉建议(结构化)。镜像原 App 端 fileSuggestion 的 prompt + 模型;**token 词表校验留 App 侧**
-    /// (那依赖 Core 的动作词表,放 App 才能让 XPC Service 不链 Core)→ 引擎只回**原始** token,App 再过 Core 校验。
-    /// `actionVocabularyRule` 由 App 据 Core 词表拼好传入。
+    /// 文件浏览器单文件抽屉建议(结构化)。镜像原 App 端 fileSuggestion 的 prompt + 模型。动作词表由引擎据 Core
+    /// 自己拼(XPC Service 已链 Core,和其它 workspace pass 一致);引擎只回**原始** token,**token 词表校验 +
+    /// AIFileSuggestedAction 拼装留 App 侧**(依赖 Core 的 kind 适用 / openWith 合成,结果拼装在 App 更顺)。
     private static func fileSuggestion(_ input: FileSuggestionInput,
                                        languageName: String) async throws -> AIPassFileSuggestionOutput {
         let apps = Array(input.candidateOpenApps.prefix(8))
@@ -569,7 +569,7 @@ enum AIPassEngine {
         clearly large AND its content or context shows it is meant to be packaged up and sent to someone, not merely \
         because it is a document.\(openWithRule)\(feedbackHint)
 
-        \(input.actionVocabularyRule)
+        \(actionVocabularyRule)
         """
         var lines: [String] = ["File name: \(input.fileName)", "Kind: \(input.kind)"]
         if !input.roleTags.isEmpty { lines.append("Role: \(input.roleTags.joined(separator: ", "))") }

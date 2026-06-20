@@ -193,9 +193,9 @@ public nonisolated struct DiskImageSuggestionInput: Codable, Sendable {
     public init(dmgName: String, appNames: [String]) { self.dmgName = dmgName; self.appNames = appNames }
 }
 
-/// 文件浏览器单文件抽屉建议输入。`actionVocabularyRule` = App 据 Core 的动作词表拼好的规则串(引擎不依赖 Core
-/// 即可拼 prompt → **XPC Service 无需链 Core**);`candidateOpenApps` 仅供模型按编号挑推荐 App(App 据编号回查)。
-/// `excerpt` 必须**已脱敏**(调用方后台读 + AISensitiveRedactor)。
+/// 文件浏览器单文件抽屉建议输入。`candidateOpenApps` 仅供模型按编号挑推荐 App(App 据编号回查);`excerpt` 必须
+/// **已脱敏**(调用方后台读 + AISensitiveRedactor)。动作词表由引擎据 Core 自己拼(XPC Service 已链 Core,不再由 App 传);
+/// token 词表校验 + AIFileSuggestedAction 拼装仍留 App(依赖 Core 的 kind 适用 / openWith 合成)。
 public nonisolated struct FileSuggestionInput: Codable, Sendable {
     public nonisolated struct AppCandidate: Codable, Sendable {
         public var bundleID: String
@@ -211,14 +211,12 @@ public nonisolated struct FileSuggestionInput: Codable, Sendable {
     public var excerpt: String
     public var candidateOpenApps: [AppCandidate]
     public var discouragedTokens: [String]
-    public var actionVocabularyRule: String
     public init(fileName: String, kind: String, roleTags: [String], languageHint: String?, headings: [String],
                 fieldNames: [String], excerpt: String, candidateOpenApps: [AppCandidate],
-                discouragedTokens: [String], actionVocabularyRule: String) {
+                discouragedTokens: [String]) {
         self.fileName = fileName; self.kind = kind; self.roleTags = roleTags; self.languageHint = languageHint
         self.headings = headings; self.fieldNames = fieldNames; self.excerpt = excerpt
         self.candidateOpenApps = candidateOpenApps; self.discouragedTokens = discouragedTokens
-        self.actionVocabularyRule = actionVocabularyRule
     }
 }
 

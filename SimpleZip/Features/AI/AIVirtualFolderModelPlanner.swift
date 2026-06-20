@@ -25,15 +25,6 @@ import Foundation
 
 @available(macOS 26.0, *)
 enum AIVirtualFolderModelPlanner {
-    /// 可建议动作词表(喂模型挑动作时用)。和 `allowedSuggestionDescriptors` 同源;**绝不让模型拼路径**,路径由 App
-    /// 按 token + 目标条目回查。`fileSuggestion` 把它拼好放进 DTO 传引擎(让 token 词表校验 + 动作合成仍留 App 做)。
-    static var actionVocabularyRule: String {
-        let lines = AIVirtualNodeActionDeriver.allowedSuggestionDescriptors.map {
-            "  - \($0.id) (applies to: \($0.appliesToKinds.joined(separator: " / "))): \($0.userVisibleLabel)"
-        }
-        return "Allowed action tokens (use the token verbatim):\n" + lines.joined(separator: "\n")
-    }
-
     /// **通过后单独生成** AI 建议:给一个已整理好的文件夹里的条目挑「值得的动作」。整条 pass 在 XPC 引擎跑
     /// (AIPassEngine.workspaceNodeSuggestions);App 直接传 Core 候选、收 [AINodeSuggestionPlan]。失败由调用点吞掉。
     static func suggestions(forItems items: [AIVirtualNodePromptCandidate]) async throws -> [AINodeSuggestionPlan] {
@@ -64,9 +55,9 @@ enum AIVirtualFolderModelPlanner {
     }
 
     /// **文件浏览器单文件抽屉**的模型驱动建议(②b/②c)。摘要给人看(界面语言);动作只能从词表里挑且适用该 kind,
-    /// App 据 token + 路径安全合成动作(模型不拼路径)。整条 pass 在 XPC 引擎跑(AIPassEngine.fileSuggestion):
-    /// `actionVocabularyRule` 由 App 据 Core 词表拼好放进 DTO(让 token 词表校验 + AIFileSuggestedAction 拼装仍留 App),
-    /// 引擎只回原始结果。`excerpt` 必须**已脱敏**(调用方后台读 + AISensitiveRedactor.redact 后传入)。失败由调用点吞掉。
+    /// App 据 token + 路径安全合成动作(模型不拼路径)。整条 pass(含拼动作词表)在 XPC 引擎跑(AIPassEngine.fileSuggestion);
+    /// 引擎只回原始 token,**token 词表校验 + AIFileSuggestedAction 拼装留 App**(依赖 Core 的 kind 适用 / openWith 合成)。
+    /// `excerpt` 必须**已脱敏**(调用方后台读 + AISensitiveRedactor.redact 后传入)。失败由调用点吞掉。
     static func fileSuggestion(fileName: String, kind: String, roleTags: [String], languageHint: String?,
                                headings: [String], fieldNames: [String], excerpt: String,
                                candidateOpenApps: [(bundleID: String, name: String)] = [],
@@ -77,7 +68,7 @@ enum AIVirtualFolderModelPlanner {
             fileName: fileName, kind: kind, roleTags: roleTags, languageHint: languageHint,
             headings: headings, fieldNames: fieldNames, excerpt: excerpt,
             candidateOpenApps: apps.map { FileSuggestionInput.AppCandidate(bundleID: $0.bundleID, name: $0.name) },
-            discouragedTokens: discouragedTokens, actionVocabularyRule: Self.actionVocabularyRule)
+            discouragedTokens: discouragedTokens)
         let out = try await AIAgentClient.generatePass(
             kind: .fileSuggestion, input: input, as: AIPassFileSuggestionOutput.self)
         var seen = Set<String>()
