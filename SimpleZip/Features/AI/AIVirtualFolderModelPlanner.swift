@@ -51,23 +51,6 @@ struct AIFolderReview: Sendable {
     let plan: AIVirtualFolderPlan
 }
 
-/// 模型给单个条目挑的一条 AI 建议(**通过后单独生成**,不进门控 schema —— 嵌套数组会拖垮门控可靠性)。扁平 2 字段。
-@available(macOS 26.0, *)
-@Generable
-struct GeneratedNodeSuggestion: Sendable {
-    @Guide(description: "The item NUMBER (the leftmost column of the items list) this suggestion is for.")
-    var targetID: String
-    @Guide(description: "ONE action token from the allowed-actions list (e.g. hash, compress, test, inspect, convert). Use a token whose 'applies to' kinds include this item's kind.")
-    var action: String
-}
-
-@available(macOS 26.0, *)
-@Generable
-struct GeneratedSuggestionSet: Sendable {
-    @Guide(description: "A FEW per-item action suggestions — only where there is a clear, specific reason for that item. Most items get NONE. Empty if nothing stands out.")
-    var suggestions: [GeneratedNodeSuggestion]
-}
-
 /// **文件浏览器单文件抽屉**的模型产出(②b/②c)。给一个具体文件出 {一句话摘要 + 几个建议动作 token}。
 /// 扁平 2 字段(可靠优先);摘要给人看、动作从词表里挑。**拒绝假AI**:没有这个产出文件浏览器就空抽屉。
 @available(macOS 26.0, *)
@@ -79,39 +62,6 @@ struct GeneratedFileSuggestion: Sendable {
     var actions: [String]
     @Guide(description: "If a list of alternative apps is given, the NUMBER of the ONE app that is CLEARLY a better fit for THIS file than the system default (e.g. a code editor for source/config/logs, a spreadsheet app for CSV/TSV data, a dedicated viewer). Use 0 when no list is given, or when no listed app is clearly better — 0 is the correct default for most files.")
     var openWithAppNumber: Int
-}
-
-/// **文件浏览器「文件折叠组建议」**的模型产出。模型把当前文件夹里的文件圈成几组「一组 + 一个批量动作」
-/// (比如几个归档 → 一起测试;一堆发布物 → 一起算哈希)。**不是真分组引擎**,就是 AI 建议的折叠呈现:
-/// 折叠行写「某文件 等 N 个 · 推荐X」,展开 = 那几个文件 + 末尾一条动作行。扁平 2 字段(可靠优先)。
-@available(macOS 26.0, *)
-@Generable
-struct GeneratedFileGroupSuggestion: Sendable {
-    @Guide(description: "The item NUMBERS (leftmost column) of the files that belong in THIS group — files the user would clearly want to apply the SAME batch action to together. At least 2 numbers.")
-    var fileNumbers: [String]
-    @Guide(description: "ONE action token from the allowed-actions list to apply to the whole group (e.g. compress, hash, test). Use a token whose 'applies to' kinds fit these files.")
-    var action: String
-}
-
-@available(macOS 26.0, *)
-@Generable
-struct GeneratedFolderGroupSet: Sendable {
-    @Guide(description: "A FEW groups of files in this folder that would CLEARLY benefit from the same batch action — ONLY where it is obviously useful. MOST folders need NONE; empty is the correct default. Never force unrelated files into a group.")
-    var groups: [GeneratedFileGroupSuggestion]
-}
-
-/// **文件夹「整理进新文件夹」建议**的模型产出(Task 7)。模型看当前文件夹的文件清单,**只有**当其中明显有一簇
-/// 同类文件值得归进一个新子文件夹时,才给 {值不值得 + 主题文件夹名 + 成员序号}。**拒绝假AI**:确定性只提供候选
-/// 文件清单,是否建议 / 起什么名 / 圈哪些全由模型定;不值得就 worthOrganizing=false。扁平 3 字段(可靠优先)。
-@available(macOS 26.0, *)
-@Generable
-struct GeneratedOrganizeSuggestion: Sendable {
-    @Guide(description: "True ONLY if a CLEAR subset of these files obviously belongs together and tidying just that subset into one new sub-folder would plainly help (e.g. a pile of screenshots, a set of invoices, the photos from one trip). False if the folder is already tidy, the files are unrelated, or any grouping would be arbitrary — most folders should be false. Be strict.")
-    var worthOrganizing: Bool
-    @Guide(description: "A short, human folder name for the cluster, by what the files ARE or their shared topic (e.g. 'Screenshots', 'Invoices', 'Trip Photos'). 1-3 words, in the required language. No path, no slashes, no meta words like 'folder', 'files', 'AI' or 'group'.")
-    var folderName: String
-    @Guide(description: "The item NUMBERS (leftmost column) of the files that clearly share the theme and should move into the new folder — at least 3. Use only numbers that appear in the list; never invent one. Include ONLY files that truly fit; leave the rest out.")
-    var fileNumbers: [String]
 }
 
 /// **文件浏览器「磁盘镜像安装建议」**的模型产出(推荐打开方式 backlog 第2项)。给一个内含 App 的 `.dmg`,
@@ -203,33 +153,10 @@ enum AIVirtualFolderModelPlanner {
     /// 模型按序号引用条目、按 token 选动作;App 回译 + 校验词表。失败 / 空 → 返回 []。
     static func suggestions(forItems items: [AIVirtualNodePromptCandidate]) async throws -> [AINodeSuggestionPlan] {
         guard !items.isEmpty else { return [] }
-        let cands = Array(items.prefix(40))
-        let instructions = """
-        The items below are already grouped into one folder. Suggest a useful next action for a FEW of them — ONLY \
-        where there is a clear, specific reason for THAT SPECIFIC ITEM (e.g. an untested release archive → "test"; \
-        a large stray folder → "compress"; an unverified signed container → "verify"). MOST items get NONE — empty \
-        is the correct default. Never suggest an action just because it is possible; suggest only when it is clearly \
-        the right next step for THIS item right now. Prioritize items that most obviously need attention. Refer to \
-        items by their NUMBER, never output a path.
-
-        \(Self.actionVocabularyRule)
-        """
-        var lines = ["Items (number<TAB>kind<TAB>name) — refer to items by their number:"]
-        for (i, c) in cands.enumerated() {
-            lines.append(["\(i + 1)", c.kind, c.displayName].joined(separator: "\t"))
-        }
-        let generated = try await AIReportAssistant.generateStructured(
-            instructions: instructions, prompt: lines.joined(separator: "\n"),
-            as: GeneratedSuggestionSet.self, maxAttempts: 8)
-        var seen = Set<String>()
-        return generated.suggestions.compactMap { s -> AINodeSuggestionPlan? in
-            let token = s.action.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            guard AIVirtualNodeActionDeriver.allowedSuggestionDescriptors.contains(where: { $0.id == token }),
-                  let target = realID(s.targetID, in: cands),
-                  seen.insert(target + "|" + token).inserted   // 同目标同 token 去重
-            else { return nil }
-            return AINodeSuggestionPlan(targetCandidateID: target, actionToken: token)
-        }
+        // 阶段3:整条 pass(拼 prompt + 模型 + 词表校验 + 序号回查 candidateID)在 XPC 引擎跑
+        // (AIPassEngine.workspaceNodeSuggestions);App 直接传 Core 候选、收 [AINodeSuggestionPlan]。失败由调用点吞掉。
+        return try await AIAgentClient.generatePass(
+            kind: .workspaceNodeSuggestions, input: items, as: [AINodeSuggestionPlan].self)
     }
 
     /// **文件浏览器「文件折叠组建议」**的模型驱动产出(拒绝假AI)。给当前文件夹里的文件,让端上模型圈出几组
@@ -238,36 +165,11 @@ enum AIVirtualFolderModelPlanner {
     static func folderGroupSuggestions(items: [AIVirtualNodePromptCandidate])
         async throws -> [(memberIDs: [String], actionToken: String)] {
         guard items.count >= 2 else { return [] }
-        let cands = Array(items.prefix(60))
-        let instructions = """
-        The items below are the files in ONE folder the user is looking at. Propose a FEW GROUPS of files that the \
-        user would clearly want to apply the SAME batch action to together — e.g. several archives → "test"; many \
-        distributable / release files → "hash"; a pile of large stray files → "compress". ONLY propose a group when \
-        it is obviously useful; MOST folders need NONE — an empty list is the correct, common answer. Each group \
-        needs at least 2 files. Never invent a number, never output a path; refer to files by their NUMBER only.
-
-        \(Self.actionVocabularyRule)
-        """
-        var lines = ["Files (number<TAB>kind<TAB>name<TAB>roleTags) — refer to files by their number:"]
-        for (i, c) in cands.enumerated() {
-            lines.append(["\(i + 1)", c.kind, c.displayName, c.roleTags.joined(separator: " ")].joined(separator: "\t"))
-        }
-        let generated = try await AIReportAssistant.generateStructured(
-            instructions: instructions, prompt: lines.joined(separator: "\n"),
-            as: GeneratedFolderGroupSet.self, maxAttempts: 3)
-        var usedSignatures = Set<String>()
-        return generated.groups.compactMap { g -> (memberIDs: [String], actionToken: String)? in
-            let token = g.action.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            guard AIVirtualNodeActionDeriver.allowedSuggestionDescriptors.contains(where: { $0.id == token }) else { return nil }
-            // 序号 → 真实 candidateID,去重;至少 2 个成员才算一组。
-            var seen = Set<String>()
-            let ids = g.fileNumbers.compactMap { realID($0, in: cands) }.filter { seen.insert($0).inserted }
-            guard ids.count >= 2 else { return nil }
-            // 同一批成员 + 同动作只留一组(模型偶发重复)。
-            let signature = token + "|" + ids.sorted().joined(separator: ",")
-            guard usedSignatures.insert(signature).inserted else { return nil }
-            return (ids, token)
-        }
+        // 阶段3:整条 pass(拼 prompt + 模型 + 词表校验 + 成员回查/去重)在 XPC 引擎跑
+        // (AIPassEngine.workspaceFolderGroups);App 直接传 Core 候选、收 DTO 转回元组。失败由调用点吞掉。
+        let out = try await AIAgentClient.generatePass(
+            kind: .workspaceFolderGroups, input: items, as: WorkspaceFolderGroupOutput.self)
+        return out.groups.map { (memberIDs: $0.memberIDs, actionToken: $0.actionToken) }
     }
 
     /// **文件夹「整理进新文件夹」建议**的模型驱动产出(Task 7,拒绝假AI)。给当前文件夹里的文件,让端上模型判断
@@ -277,31 +179,11 @@ enum AIVirtualFolderModelPlanner {
     static func organizeSuggestion(items: [AIVirtualNodePromptCandidate]) async throws
         -> (folderName: String, memberIDs: [String])? {
         guard items.count >= 3 else { return nil }
-        let cands = Array(items.prefix(80))
-        let instructions = """
-        The items below are the files currently in ONE folder the user is looking at. If — and ONLY if — a clear \
-        SUBSET of them obviously belongs together under a single new sub-folder (e.g. a pile of screenshots, a set \
-        of invoices, the photos from one trip), propose tidying just that subset into a new folder you name. This \
-        is real, obvious housekeeping the user would thank you for — NOT inventing an organization scheme. MOST \
-        folders are already fine: when nothing clearly stands out, set worthOrganizing to false. Never force \
-        unrelated files together. Name the folder by the real shared topic in \(AIReportAssistant.uiLanguageName); \
-        never use meta words like "folder", "files", "AI" or "group". Refer to files by their NUMBER only; never \
-        output a path.
-        """
-        var lines = ["Files (number<TAB>kind<TAB>name<TAB>roleTags) — refer to files by their number:"]
-        for (i, c) in cands.enumerated() {
-            lines.append(["\(i + 1)", c.kind, c.displayName, c.roleTags.joined(separator: " ")].joined(separator: "\t"))
-        }
-        let generated = try await AIReportAssistant.generateStructured(
-            instructions: instructions, prompt: lines.joined(separator: "\n"),
-            as: GeneratedOrganizeSuggestion.self, maxAttempts: 3)
-        guard generated.worthOrganizing else { return nil }
-        let name = generated.folderName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !name.isEmpty else { return nil }
-        var seen = Set<String>()
-        let ids = generated.fileNumbers.compactMap { realID($0, in: cands) }.filter { seen.insert($0).inserted }
-        guard ids.count >= 3 else { return nil }
-        return (name, ids)
+        // 阶段3:整条 pass(拼 prompt + 模型 + 成员回查)在 XPC 引擎跑(AIPassEngine.workspaceOrganize);
+        // 不值得整理 → 引擎回 nil。folderName 的界面语言由引擎据传入 languageName 注入。失败由调用点吞掉。
+        guard let out = try await AIAgentClient.generatePass(
+            kind: .workspaceOrganize, input: items, as: WorkspaceOrganizeOutput?.self) else { return nil }
+        return (folderName: out.folderName, memberIDs: out.memberIDs)
     }
 
     /// **活动中心 AI 工作台「现在最值得先处理什么 + 为什么」解读**(建议六 v2,拒绝假AI)。喂当前任务切片的结构化

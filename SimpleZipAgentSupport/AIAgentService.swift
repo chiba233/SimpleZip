@@ -317,6 +317,52 @@ struct GeneratedVerification: Sendable {
     var removeNumbers: [String]
 }
 
+/// 模型给单个条目挑的一条 AI 建议(扁平 2 字段,避嵌套数组拖垮可靠性)。
+@available(macOS 26.0, *)
+@Generable
+struct GeneratedNodeSuggestion: Sendable {
+    @Guide(description: "The item NUMBER (the leftmost column of the items list) this suggestion is for.")
+    var targetID: String
+    @Guide(description: "ONE action token from the allowed-actions list (e.g. hash, compress, test, inspect, convert). Use a token whose 'applies to' kinds include this item's kind.")
+    var action: String
+}
+
+@available(macOS 26.0, *)
+@Generable
+struct GeneratedSuggestionSet: Sendable {
+    @Guide(description: "A FEW per-item action suggestions — only where there is a clear, specific reason for that item. Most items get NONE. Empty if nothing stands out.")
+    var suggestions: [GeneratedNodeSuggestion]
+}
+
+/// 文件浏览器「文件折叠组」的一组(成员序号 + 一个批量动作)。
+@available(macOS 26.0, *)
+@Generable
+struct GeneratedFileGroupSuggestion: Sendable {
+    @Guide(description: "The item NUMBERS (leftmost column) of the files that belong in THIS group — files the user would clearly want to apply the SAME batch action to together. At least 2 numbers.")
+    var fileNumbers: [String]
+    @Guide(description: "ONE action token from the allowed-actions list to apply to the whole group (e.g. compress, hash, test). Use a token whose 'applies to' kinds fit these files.")
+    var action: String
+}
+
+@available(macOS 26.0, *)
+@Generable
+struct GeneratedFolderGroupSet: Sendable {
+    @Guide(description: "A FEW groups of files in this folder that would CLEARLY benefit from the same batch action — ONLY where it is obviously useful. MOST folders need NONE; empty is the correct default. Never force unrelated files into a group.")
+    var groups: [GeneratedFileGroupSuggestion]
+}
+
+/// 文件夹「整理进新文件夹」建议产出(扁平 3 字段)。
+@available(macOS 26.0, *)
+@Generable
+struct GeneratedOrganizeSuggestion: Sendable {
+    @Guide(description: "True ONLY if a CLEAR subset of these files obviously belongs together and tidying just that subset into one new sub-folder would plainly help (e.g. a pile of screenshots, a set of invoices, the photos from one trip). False if the folder is already tidy, the files are unrelated, or any grouping would be arbitrary — most folders should be false. Be strict.")
+    var worthOrganizing: Bool
+    @Guide(description: "A short, human folder name for the cluster, by what the files ARE or their shared topic (e.g. 'Screenshots', 'Invoices', 'Trip Photos'). 1-3 words, in the required language. No path, no slashes, no meta words like 'folder', 'files', 'AI' or 'group'.")
+    var folderName: String
+    @Guide(description: "The item NUMBERS (leftmost column) of the files that clearly share the theme and should move into the new folder — at least 3. Use only numbers that appear in the list; never invent one. Include ONLY files that truly fit; leave the rest out.")
+    var fileNumbers: [String]
+}
+
 @available(macOS 26.0, *)
 enum AgentGeneration {
     /// 参数化**真实**结构化生成:把用户自然语言请求 → 归档搜索关键词(镜像 App 端 ArchiveFileQuerySpec 的用途)。
@@ -405,6 +451,18 @@ enum AIPassEngine {
             let input = try JSONDecoder().decode(WorkspaceVerifyMisfitsInput.self, from: inputJSON)
             let ids = try await workspaceVerifyMisfits(input)
             return try JSONEncoder().encode(ids)
+        case .workspaceNodeSuggestions:
+            let items = try JSONDecoder().decode([AIVirtualNodePromptCandidate].self, from: inputJSON)
+            let plans = try await workspaceNodeSuggestions(items)
+            return try JSONEncoder().encode(plans)
+        case .workspaceFolderGroups:
+            let items = try JSONDecoder().decode([AIVirtualNodePromptCandidate].self, from: inputJSON)
+            let out = try await workspaceFolderGroups(items)
+            return try JSONEncoder().encode(out)
+        case .workspaceOrganize:
+            let items = try JSONDecoder().decode([AIVirtualNodePromptCandidate].self, from: inputJSON)
+            let out = try await workspaceOrganize(items, languageName: languageName)
+            return try JSONEncoder().encode(out)
         }
     }
 
@@ -613,6 +671,115 @@ enum AIPassEngine {
             as: GeneratedVerification.self, maxAttempts: 8)
         var seen = Set<String>()
         return generated.removeNumbers.compactMap { realID($0, in: cands) }.filter { seen.insert($0).inserted }
+    }
+
+    /// 可建议动作词表(workspace 建议 pass 共用)。用 Core 的 AIVirtualNodeActionDeriver(XPC Service 已链 Core);
+    /// **绝不让模型拼路径** —— 路径由 App 按 token + 目标条目回查。
+    private static var actionVocabularyRule: String {
+        let lines = AIVirtualNodeActionDeriver.allowedSuggestionDescriptors.map {
+            "  - \($0.id) (applies to: \($0.appliesToKinds.joined(separator: " / "))): \($0.userVisibleLabel)"
+        }
+        return "Allowed action tokens (use the token verbatim):\n" + lines.joined(separator: "\n")
+    }
+
+    /// AI 文件夹/建议「单条目动作建议」(结构化)。镜像原 App 端 suggestions —— 给已整理好的文件夹条目挑值得的动作,
+    /// 模型按序号引用 + 按 token 选动作;引擎回译 candidateID + 词表校验 + 同目标同 token 去重 → [AINodeSuggestionPlan]。
+    private static func workspaceNodeSuggestions(_ items: [AIVirtualNodePromptCandidate]) async throws -> [AINodeSuggestionPlan] {
+        guard !items.isEmpty else { return [] }
+        let cands = Array(items.prefix(40))
+        let instructions = """
+        The items below are already grouped into one folder. Suggest a useful next action for a FEW of them — ONLY \
+        where there is a clear, specific reason for THAT SPECIFIC ITEM (e.g. an untested release archive → "test"; \
+        a large stray folder → "compress"; an unverified signed container → "verify"). MOST items get NONE — empty \
+        is the correct default. Never suggest an action just because it is possible; suggest only when it is clearly \
+        the right next step for THIS item right now. Prioritize items that most obviously need attention. Refer to \
+        items by their NUMBER, never output a path.
+
+        \(actionVocabularyRule)
+        """
+        var lines = ["Items (number<TAB>kind<TAB>name) — refer to items by their number:"]
+        for (i, c) in cands.enumerated() {
+            lines.append(["\(i + 1)", c.kind, c.displayName].joined(separator: "\t"))
+        }
+        let generated = try await AgentGenerationSerializer.shared.generateStructured(
+            instructions: instructions, prompt: lines.joined(separator: "\n"),
+            as: GeneratedSuggestionSet.self, maxAttempts: 8)
+        var seen = Set<String>()
+        return generated.suggestions.compactMap { s -> AINodeSuggestionPlan? in
+            let token = s.action.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            guard AIVirtualNodeActionDeriver.allowedSuggestionDescriptors.contains(where: { $0.id == token }),
+                  let target = realID(s.targetID, in: cands),
+                  seen.insert(target + "|" + token).inserted
+            else { return nil }
+            return AINodeSuggestionPlan(targetCandidateID: target, actionToken: token)
+        }
+    }
+
+    /// 文件浏览器「文件折叠组建议」(结构化)。镜像原 App 端 folderGroupSuggestions —— 模型圈几组「一组文件 + 一个批量
+    /// 动作」;引擎回译成员 candidateID(≥2)+ 词表校验 + 同成员同动作去重 → WorkspaceFolderGroupOutput。
+    private static func workspaceFolderGroups(_ items: [AIVirtualNodePromptCandidate]) async throws -> WorkspaceFolderGroupOutput {
+        guard items.count >= 2 else { return WorkspaceFolderGroupOutput(groups: []) }
+        let cands = Array(items.prefix(60))
+        let instructions = """
+        The items below are the files in ONE folder the user is looking at. Propose a FEW GROUPS of files that the \
+        user would clearly want to apply the SAME batch action to together — e.g. several archives → "test"; many \
+        distributable / release files → "hash"; a pile of large stray files → "compress". ONLY propose a group when \
+        it is obviously useful; MOST folders need NONE — an empty list is the correct, common answer. Each group \
+        needs at least 2 files. Never invent a number, never output a path; refer to files by their NUMBER only.
+
+        \(actionVocabularyRule)
+        """
+        var lines = ["Files (number<TAB>kind<TAB>name<TAB>roleTags) — refer to files by their number:"]
+        for (i, c) in cands.enumerated() {
+            lines.append(["\(i + 1)", c.kind, c.displayName, c.roleTags.joined(separator: " ")].joined(separator: "\t"))
+        }
+        let generated = try await AgentGenerationSerializer.shared.generateStructured(
+            instructions: instructions, prompt: lines.joined(separator: "\n"),
+            as: GeneratedFolderGroupSet.self, maxAttempts: 3)
+        var usedSignatures = Set<String>()
+        let groups = generated.groups.compactMap { g -> WorkspaceFolderGroupOutput.Group? in
+            let token = g.action.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            guard AIVirtualNodeActionDeriver.allowedSuggestionDescriptors.contains(where: { $0.id == token }) else { return nil }
+            var seen = Set<String>()
+            let ids = g.fileNumbers.compactMap { realID($0, in: cands) }.filter { seen.insert($0).inserted }
+            guard ids.count >= 2 else { return nil }
+            let signature = token + "|" + ids.sorted().joined(separator: ",")
+            guard usedSignatures.insert(signature).inserted else { return nil }
+            return WorkspaceFolderGroupOutput.Group(memberIDs: ids, actionToken: token)
+        }
+        return WorkspaceFolderGroupOutput(groups: groups)
+    }
+
+    /// 文件夹「整理进新文件夹」建议(结构化)。镜像原 App 端 organizeSuggestion —— 模型判断是否有一簇同类文件值得归进
+    /// 一个新子文件夹 + 起主题名 + 圈成员(≥3);不值得 → nil。folderName 给人看 → 注 languageName。
+    private static func workspaceOrganize(_ items: [AIVirtualNodePromptCandidate],
+                                          languageName: String) async throws -> WorkspaceOrganizeOutput? {
+        guard items.count >= 3 else { return nil }
+        let cands = Array(items.prefix(80))
+        let instructions = """
+        The items below are the files currently in ONE folder the user is looking at. If — and ONLY if — a clear \
+        SUBSET of them obviously belongs together under a single new sub-folder (e.g. a pile of screenshots, a set \
+        of invoices, the photos from one trip), propose tidying just that subset into a new folder you name. This \
+        is real, obvious housekeeping the user would thank you for — NOT inventing an organization scheme. MOST \
+        folders are already fine: when nothing clearly stands out, set worthOrganizing to false. Never force \
+        unrelated files together. Name the folder by the real shared topic in \(languageName); \
+        never use meta words like "folder", "files", "AI" or "group". Refer to files by their NUMBER only; never \
+        output a path.
+        """
+        var lines = ["Files (number<TAB>kind<TAB>name<TAB>roleTags) — refer to files by their number:"]
+        for (i, c) in cands.enumerated() {
+            lines.append(["\(i + 1)", c.kind, c.displayName, c.roleTags.joined(separator: " ")].joined(separator: "\t"))
+        }
+        let generated = try await AgentGenerationSerializer.shared.generateStructured(
+            instructions: instructions, prompt: lines.joined(separator: "\n"),
+            as: GeneratedOrganizeSuggestion.self, maxAttempts: 3)
+        guard generated.worthOrganizing else { return nil }
+        let name = generated.folderName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return nil }
+        var seen = Set<String>()
+        let ids = generated.fileNumbers.compactMap { realID($0, in: cands) }.filter { seen.insert($0).inserted }
+        guard ids.count >= 3 else { return nil }
+        return WorkspaceOrganizeOutput(folderName: name, memberIDs: ids)
     }
 
     /// 活动中心「建议筛选」chip 模型排序(结构化)。镜像原 App 端 rankWorkbenchFilterChips。

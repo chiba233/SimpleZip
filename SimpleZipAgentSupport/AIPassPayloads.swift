@@ -48,6 +48,12 @@ public enum AIPassKind: String, Sendable {
     /// AI 文件夹/建议「核查不扣题成员」(结构化,输入主题 + 候选条目,输出要移除的 candidateID 列表)。
     /// 吃 Core 富类型 AIVirtualNodePromptCandidate —— XPC Service 已链 Core,引擎可直接跨 XPC 解码。
     case workspaceVerifyMisfits
+    /// AI 文件夹/建议「单条目动作建议」(结构化,输入候选条目,输出每条 = candidateID + 动作 token)。
+    case workspaceNodeSuggestions
+    /// 文件浏览器「文件折叠组建议」(结构化,输入文件候选,输出几组「成员 + 批量动作 token」)。
+    case workspaceFolderGroups
+    /// 文件夹「整理进新文件夹」建议(结构化,输入文件候选,输出主题名 + 成员;不值得 → null)。
+    case workspaceOrganize
 }
 
 // MARK: - 输入 DTO(App 拼 / 引擎解码)
@@ -272,5 +278,30 @@ public nonisolated struct AIPassFileSuggestionOutput: Codable, Sendable {
     public var openWithAppNumber: Int
     public init(summary: String, actions: [String], openWithAppNumber: Int) {
         self.summary = summary; self.actions = actions; self.openWithAppNumber = openWithAppNumber
+    }
+}
+
+/// 「文件折叠组建议」输出:每组 = 成员 candidateID 列表 + 批量动作 token(引擎已过词表 + 去重 + ≥2 成员)。
+/// 纯基本类型(候选 candidateID 已是 String),故 public —— 不暴露 Core internal 类型。
+public nonisolated struct WorkspaceFolderGroupOutput: Codable, Sendable {
+    public nonisolated struct Group: Codable, Sendable {
+        public var memberIDs: [String]
+        public var actionToken: String
+        public init(memberIDs: [String], actionToken: String) {
+            self.memberIDs = memberIDs
+            self.actionToken = actionToken
+        }
+    }
+    public var groups: [Group]
+    public init(groups: [Group]) { self.groups = groups }
+}
+
+/// 「整理进新文件夹」输出:主题文件夹名 + 成员 candidateID(引擎已过 ≥3 成员)。不值得整理 → 整个为 nil(引擎回 null)。
+public nonisolated struct WorkspaceOrganizeOutput: Codable, Sendable {
+    public var folderName: String
+    public var memberIDs: [String]
+    public init(folderName: String, memberIDs: [String]) {
+        self.folderName = folderName
+        self.memberIDs = memberIDs
     }
 }
