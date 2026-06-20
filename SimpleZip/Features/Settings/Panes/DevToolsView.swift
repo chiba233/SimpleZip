@@ -43,6 +43,8 @@ struct DevToolsView: View {
     @State private var aiGateStatus = "…"
     /// 每个 pass 上次跑的候选数 / 跳过原因(区分「无候选」和「门控没过 / 没跑过」)。
     @State private var aiPassDiagStatus = "…"
+    /// agent 探针/查询的**常驻**当前状态(用户明确要别 flash 一闪而过)。最近一次任意 agent 通道调用的结果常驻在此。
+    @State private var agentProbeStatus = "未运行 —— 点下面任一 agent 探针/查询按钮试一次。"
     @State private var aiDataSnapshotInFlight = false
 
     private let aiDataRefreshTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -225,9 +227,9 @@ struct DevToolsView: View {
                             "测试 AI agent 探针(后台 LaunchAgent 通道)",
                             "注册 LaunchAgent(SMAppService)+ 连 Mach XPC,在 agent 进程里试跑一次端上模型,结果显示在下方(也打到 agent stderr,Console 过滤 SimpleZipAIAgent 看完整)。这条通道在 Login Items 可见、受「允许在后台」开关门控:关掉它后台索引连同此探针都会被 launchd 拒。注册可能需 SimpleZip Dev 签名 + App 从 /Applications 跑。"
                         ) {
-                            flash("正在注册 + 连后台 LaunchAgent 跑探针…")
+                            agentProbeStatus = "正在注册 + 连后台 LaunchAgent 跑探针…"
                             AIAgentClient.runBackgroundProbe { result in
-                                flash(result)
+                                agentProbeStatus = result
                             }
                         }
                         // ② 前台 XPC Service 通道:连内嵌 .xpc(serviceName);App 连接即按需拉起、不进 Login Items、
@@ -237,9 +239,9 @@ struct DevToolsView: View {
                             "测试 AI agent 探针(前台 XPC Service 通道)",
                             "连内嵌 XPC Service(Contents/XPCServices/SimpleZipAIXPCService.xpc),在它里面试跑一次端上模型。这条通道由 App 连接即按需拉起、随 App 生命周期、不进 Login Items、不受「允许在后台」开关 gate —— 即便用户关掉后台权限,前台 AI 也能起。结果显示在下方(stderr 同样过滤 SimpleZipAIAgent)。"
                         ) {
-                            flash("正在连前台 XPC Service 跑探针…")
+                            agentProbeStatus = "正在连前台 XPC Service 跑探针…"
                             AIAgentClient.runForegroundProbe { result in
-                                flash(result)
+                                agentProbeStatus = result
                             }
                         }
                         // ③ 前台 XPC Service 真实查询:经同一通道发**真实**自然语言请求,验证 App→agent 真实生成数据流。
@@ -248,11 +250,29 @@ struct DevToolsView: View {
                             "测试 agent 真实查询(前台 XPC Service)",
                             "经前台 XPC Service 把一句写死的自然语言请求(『我想找个压缩在某处的预算表格』)发给 agent,agent 跑真实结构化生成回搜索关键词,结果显示在下方。比上面的写死探针更进一步:验证 App→agent 的真实查询数据流(『真生成迁 agent』的关键一步)。"
                         ) {
-                            flash("正在经前台 XPC Service 跑真实查询…")
+                            agentProbeStatus = "正在经前台 XPC Service 跑真实查询…"
                             AIAgentClient.runForegroundQuery("我想找个压缩在某处的预算表格") { result in
-                                flash(result)
+                                agentProbeStatus = result
                             }
                         }
+                        // agent 探针/查询的**常驻**当前状态(用户明确要:别 flash 一闪而过)。上面三个按钮的最近结果常驻在此、可选中复制。
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "dot.radiowaves.left.and.right")
+                                    .foregroundStyle(.secondary)
+                                Text("agent 探针 · 当前状态")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Text(agentProbeStatus)
+                                .font(.callout)
+                                .textSelection(.enabled)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .padding(10)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 8))
                         // AI 建议明细:每个计数类别(摘要/打开方式/网页/.../哈希/压缩/转换/内联结果)的**完整文件清单**
                         // + 门控 / 预算 / 各管线诊断 —— 一次性复制出来逐条 debug「这个类别到底有哪些文件、为啥是 0」。
                         actionRow(
