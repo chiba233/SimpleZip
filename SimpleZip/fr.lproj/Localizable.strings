@@ -2605,6 +2605,7 @@
 "settings.ai.background.indexPower.highPower" = "Hautes performances";
 "settings.ai.background.indexInterval" = "Intervalle d'indexation";
 "settings.ai.background.indexInterval.desc" = "Fréquence à laquelle l'agent d'arrière-plan effectue une indexation complète.";
+"settings.ai.background.interval.6h" = "Toutes les 6 heures";
 "settings.ai.background.interval.12h" = "Toutes les 12 heures";
 "settings.ai.background.interval.24h" = "Quotidien";
 "settings.ai.background.interval.3d" = "Tous les 3 jours";
@@ -2615,6 +2616,7 @@
 "settings.ai.background.maxRun.5m" = "5 minutes";
 "settings.ai.background.maxRun.15m" = "15 minutes";
 "settings.ai.background.maxRun.30m" = "30 minutes";
+"settings.ai.background.maxRun.45m" = "45 minutes";
 "settings.ai.suggestion.title" = "Afficher les suggestions IA";
 "settings.ai.suggestion.desc" = "Affiche des suggestions IA en ligne sur les fichiers : un résumé d'une ligne et des actions suggérées. Le désactiver arrête aussi le résumé automatique en arrière-plan.";
 "settings.ai.background.level.off" = "Désactivé";

@@ -2686,6 +2686,7 @@
 "settings.ai.background.indexPower.highPower" = "高耗能";
 "settings.ai.background.indexInterval" = "索引间隔";
 "settings.ai.background.indexInterval.desc" = "后台 agent 多久跑一轮完整索引。";
+"settings.ai.background.interval.6h" = "每 6 小时";
 "settings.ai.background.interval.12h" = "每 12 小时";
 "settings.ai.background.interval.24h" = "每天";
 "settings.ai.background.interval.3d" = "每 3 天";
@@ -2696,6 +2697,7 @@
 "settings.ai.background.maxRun.5m" = "5 分钟";
 "settings.ai.background.maxRun.15m" = "15 分钟";
 "settings.ai.background.maxRun.30m" = "30 分钟";
+"settings.ai.background.maxRun.45m" = "45 分钟";
 "settings.ai.suggestion.title" = "显示 AI 建议";
 "settings.ai.suggestion.desc" = "在文件浏览器里给文件显示行内 AI 建议:一句话摘要和建议动作。关掉也会停止后台自动总结。";
 "settings.ai.background.level.off" = "关闭";

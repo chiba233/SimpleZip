@@ -2607,6 +2607,7 @@
 "settings.ai.background.indexPower.highPower" = "ใช้พลังงานสูง";
 "settings.ai.background.indexInterval" = "ช่วงเวลาการจัดทำดัชนี";
 "settings.ai.background.indexInterval.desc" = "ความถี่ที่ agent เบื้องหลังทำดัชนีแบบเต็มรอบ";
+"settings.ai.background.interval.6h" = "ทุก 6 ชั่วโมง";
 "settings.ai.background.interval.12h" = "ทุก 12 ชั่วโมง";
 "settings.ai.background.interval.24h" = "ทุกวัน";
 "settings.ai.background.interval.3d" = "ทุก 3 วัน";
@@ -2617,6 +2618,7 @@
 "settings.ai.background.maxRun.5m" = "5 นาที";
 "settings.ai.background.maxRun.15m" = "15 นาที";
 "settings.ai.background.maxRun.30m" = "30 นาที";
+"settings.ai.background.maxRun.45m" = "45 นาที";
 "settings.ai.suggestion.title" = "แสดงข้อเสนอแนะ AI";
 "settings.ai.suggestion.desc" = "แสดงข้อเสนอแนะ AI แบบอินไลน์บนไฟล์ — สรุปบรรทัดเดียวและการกระทำที่แนะนำ การปิดจะหยุดการสรุปอัตโนมัติเบื้องหลังด้วย";
 "settings.ai.background.level.off" = "ปิด";

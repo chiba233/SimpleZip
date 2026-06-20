@@ -2686,6 +2686,7 @@
 "settings.ai.background.indexPower.highPower" = "High Power";
 "settings.ai.background.indexInterval" = "Index interval";
 "settings.ai.background.indexInterval.desc" = "How often the background agent runs a full index pass.";
+"settings.ai.background.interval.6h" = "Every 6 hours";
 "settings.ai.background.interval.12h" = "Every 12 hours";
 "settings.ai.background.interval.24h" = "Daily";
 "settings.ai.background.interval.3d" = "Every 3 days";
@@ -2696,6 +2697,7 @@
 "settings.ai.background.maxRun.5m" = "5 minutes";
 "settings.ai.background.maxRun.15m" = "15 minutes";
 "settings.ai.background.maxRun.30m" = "30 minutes";
+"settings.ai.background.maxRun.45m" = "45 minutes";
 "settings.ai.suggestion.title" = "Show AI Suggestions";
 "settings.ai.suggestion.desc" = "Show inline AI suggestions on files in the browser — a one-line summary and suggested actions. Turning this off also stops the background auto-summary.";
 "settings.ai.background.level.off" = "Off";

@@ -2607,6 +2607,7 @@
 "settings.ai.background.indexPower.highPower" = "Высокая мощность";
 "settings.ai.background.indexInterval" = "Интервал индексирования";
 "settings.ai.background.indexInterval.desc" = "Как часто фоновый agent выполняет полный проход индексирования.";
+"settings.ai.background.interval.6h" = "Каждые 6 часов";
 "settings.ai.background.interval.12h" = "Каждые 12 часов";
 "settings.ai.background.interval.24h" = "Ежедневно";
 "settings.ai.background.interval.3d" = "Каждые 3 дня";
@@ -2617,6 +2618,7 @@
 "settings.ai.background.maxRun.5m" = "5 минут";
 "settings.ai.background.maxRun.15m" = "15 минут";
 "settings.ai.background.maxRun.30m" = "30 минут";
+"settings.ai.background.maxRun.45m" = "45 минут";
 "settings.ai.suggestion.title" = "Показывать предложения ИИ";
 "settings.ai.suggestion.desc" = "Показывает встроенные предложения ИИ для файлов — однострочную сводку и предлагаемые действия. При отключении также останавливается фоновое автосуммирование.";
 "settings.ai.background.level.off" = "Выкл.";

@@ -2607,6 +2607,7 @@
 "settings.ai.background.indexPower.highPower" = "Hohe Leistung";
 "settings.ai.background.indexInterval" = "Indexierungsintervall";
 "settings.ai.background.indexInterval.desc" = "Wie oft der Hintergrund-Agent einen vollständigen Indexlauf ausführt.";
+"settings.ai.background.interval.6h" = "Alle 6 Stunden";
 "settings.ai.background.interval.12h" = "Alle 12 Stunden";
 "settings.ai.background.interval.24h" = "Täglich";
 "settings.ai.background.interval.3d" = "Alle 3 Tage";
@@ -2617,6 +2618,7 @@
 "settings.ai.background.maxRun.5m" = "5 Minuten";
 "settings.ai.background.maxRun.15m" = "15 Minuten";
 "settings.ai.background.maxRun.30m" = "30 Minuten";
+"settings.ai.background.maxRun.45m" = "45 Minuten";
 "settings.ai.suggestion.title" = "KI-Vorschläge anzeigen";
 "settings.ai.suggestion.desc" = "Zeigt Inline-KI-Vorschläge zu Dateien an – eine einzeilige Zusammenfassung und vorgeschlagene Aktionen. Beim Ausschalten stoppt auch die automatische Zusammenfassung im Hintergrund.";
 "settings.ai.background.level.off" = "Aus";

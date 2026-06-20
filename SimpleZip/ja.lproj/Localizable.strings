@@ -2609,6 +2609,7 @@
 "settings.ai.background.indexPower.highPower" = "高消費電力";
 "settings.ai.background.indexInterval" = "インデックス間隔";
 "settings.ai.background.indexInterval.desc" = "バックグラウンド agent がフルインデックスを実行する頻度。";
+"settings.ai.background.interval.6h" = "6時間ごと";
 "settings.ai.background.interval.12h" = "12時間ごと";
 "settings.ai.background.interval.24h" = "毎日";
 "settings.ai.background.interval.3d" = "3日ごと";
@@ -2619,6 +2620,7 @@
 "settings.ai.background.maxRun.5m" = "5分";
 "settings.ai.background.maxRun.15m" = "15分";
 "settings.ai.background.maxRun.30m" = "30分";
+"settings.ai.background.maxRun.45m" = "45分";
 "settings.ai.suggestion.title" = "AI 提案を表示";
 "settings.ai.suggestion.desc" = "ファイルにインラインの AI 提案(一文の要約とおすすめ操作)を表示します。オフにするとバックグラウンドの自動要約も停止します。";
 "settings.ai.background.level.off" = "オフ";
