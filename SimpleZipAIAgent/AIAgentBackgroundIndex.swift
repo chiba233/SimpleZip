@@ -51,8 +51,22 @@ enum AIAgentBackgroundIndex {
         defaults.set(data, forKey: AppPreferences.Key.aiBackgroundIndexScopes)
     }
 
-    /// 跑一轮后台索引(同步)。`isCancelled` = 唯一停止钩子,调用方把单次 timeout 折进它(`{ Date() >= 截止 }`)。
-    static func runOnce(isCancelled: () -> Bool = { false }) -> RunSummary {
+    /// agent 上次成功跑完后台索引的时刻(epoch 秒)。用于**间隔自节流**:launchd 用固定 base 频率(最小档)周期拉起,
+    /// 配置间隔 > base 时,中间几次唤醒据此廉价 no-op(偏好域 = App bundle id,App 也可读来显示「上次后台索引」)。
+    private static let lastIndexRunKey = "SimpleZip.ai.agent.lastIndexRun.v1"
+    private static func loadLastRun() -> Date? {
+        guard let defaults = UserDefaults(suiteName: AIAgentConfiguration.appBundleID) else { return nil }
+        let epoch = defaults.double(forKey: lastIndexRunKey)
+        return epoch > 0 ? Date(timeIntervalSince1970: epoch) : nil
+    }
+    private static func saveLastRun(_ date: Date) {
+        UserDefaults(suiteName: AIAgentConfiguration.appBundleID)?
+            .set(date.timeIntervalSince1970, forKey: lastIndexRunKey)
+    }
+
+    /// 跑一轮后台索引(同步;launchd 周期拉起 → 据配置间隔自节流 → 跑一轮、单次 timeout 即停 → 写回)。
+    /// `extraCancel` = 调用方附加的停止钩子(默认无);函数内部把配置的单次 timeout 也折进同一个停止钩子。
+    static func runOnce(extraCancel: @escaping () -> Bool = { false }) -> RunSummary {
         func skip(_ note: String) -> RunSummary { RunSummary(scopesScanned: 0, recordsWritten: 0, note: note) }
 
         // 1. 配置门控(红线主开关 + 静默后台 opt-in + 后台索引开关 + 活跃度)。
@@ -62,6 +76,14 @@ enum AIAgentBackgroundIndex {
         guard config.indexingEnabled else { return skip("后台索引开关关 → 不跑") }
         let level = AIBackgroundActivityLevel(rawValue: config.activityLevel) ?? .balanced
         guard level != .off, let budget = AIArchivePrefetchBudget.forLevel(level) else { return skip("活跃度 off → 不跑") }
+
+        // 1b. 间隔自节流:launchd 固定 base 频率拉起,距上次成功跑完不足配置间隔则廉价 no-op(超时下次续同理靠它续上)。
+        let now = Date()
+        let intervalSeconds = TimeInterval(max(1, config.backgroundIndexIntervalHours)) * 3_600
+        if let last = loadLastRun(), now.timeIntervalSince(last) < intervalSeconds {
+            let mins = Int(now.timeIntervalSince(last) / 60)
+            return skip("距上次后台索引仅 \(mins) 分 < 间隔 \(config.backgroundIndexIntervalHours)h → 跳过")
+        }
 
         // 2. scope 白名单(App 写、agent 读)。
         let scopes = loadScopes()
@@ -82,14 +104,16 @@ enum AIAgentBackgroundIndex {
             for rec in index.records where rec.contentSummary != nil { existingSummarized[rec.id] = rec }
         }
 
-        // 5. 扫描(与 App 共用 Core 编排;timeout 折进 isCancelled)。
+        // 5. 扫描(与 App 共用 Core 编排)。**单次 timeout 折进停止钩子**:到 maxBackgroundRunSeconds 即停,
+        //    未扫的 scope 保持旧 lastScannedAt → 下次 launchd 拉起靠 leastRecentlyScanned 续上(超时下次继续)。
+        let deadline = now.addingTimeInterval(TimeInterval(max(1, config.maxBackgroundRunSeconds)))
+        let isCancelled: () -> Bool = { extraCancel() || Date() >= deadline }
         let results = AIBackgroundIndexRun.scan(
             scopes: scopes, home: home, scopeBudget: scopeBudget, fileBudget: fileBudget,
             allowContent: allowContent, existingSummarized: existingSummarized, isCancelled: isCancelled)
         guard !results.isEmpty else { return skip("本轮未扫(取消/超时立即触发)") }
 
-        // 6. 写回索引(每 scope 先清后 upsert,与 store.ingest 同语义)+ 更新 lastScannedAt。
-        let now = Date()
+        // 6. 写回索引(每 scope 先清后 upsert,与 store.ingest 同语义)+ 更新 lastScannedAt + 记录本轮跑完时刻(自节流)。
         var written = 0
         var updatedScopes = scopes
         for r in results {
@@ -103,6 +127,7 @@ enum AIAgentBackgroundIndex {
             derived.set(data, forKey: AppPreferences.Key.aiFileMemoryIndexData)
         }
         saveScopes(updatedScopes)
+        saveLastRun(now)
         return RunSummary(scopesScanned: results.count, recordsWritten: written, note: "OK")
     }
 
