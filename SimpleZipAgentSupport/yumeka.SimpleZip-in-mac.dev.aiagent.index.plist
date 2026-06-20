@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- **Debug 专属** 周期后台索引 LaunchAgent —— Label 进 `.dev` 命名空间,与正式版隔离可共存
+	     (同 `.dev.aiagent.plist` 的理由:BTM 按 Label 的 bundle-id 前缀归属 app)。Release 用同目录的
+	     `yumeka.SimpleZip-in-mac.aiagent.index.plist`;本 dev plist 由 CI(build_dmg.sh)从发布产物剔除。
+	     语义见正式版 plist 注释:跑 `--background-index` 一轮就退、自节流到配置间隔、ProcessType=Background 走 OS 电源管理。 -->
+	<key>Label</key>
+	<string>yumeka.SimpleZip-in-mac.dev.aiagent.index</string>
+	<key>BundleProgram</key>
+	<string>Contents/MacOS/SimpleZipAIAgent</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>Contents/MacOS/SimpleZipAIAgent</string>
+		<string>--background-index</string>
+	</array>
+	<key>StartInterval</key>
+	<integer>21600</integer>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>ProcessType</key>
+	<string>Background</string>
+	<key>LowPriorityIO</key>
+	<true/>
+</dict>
+</plist>

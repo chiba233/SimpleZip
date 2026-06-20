@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- 独立 AI 进程改造 · 阶段2 · **周期后台索引** LaunchAgent(SMAppService.agent 注册;嵌进
+	     App.app/Contents/Library/LaunchAgents/)。与同目录的 `.aiagent.plist`(按需 Mach 探针、常驻 listener)
+	     分开:本 job 用 ProgramArguments 跑 `--background-index` —— **跑一轮就退**,不是常驻 listener
+	     (两种模式不能共用一个 plist,ProgramArguments 全局生效)。
+
+	     调度语义:launchd 用**固定 base 频率**(最小可配档 6h)周期拉起;真正的频率(6h/12h/24h/3d/week)由
+	     Settings → AI 配的 backgroundIndexIntervalHours 驱动,agent 据上次跑完时刻**自节流**(不足配置间隔即廉价
+	     no-op 退出)——不在 plist 写死产品决策(配置可变、plist 随签名固定)。单次 timeout 由 agent 据
+	     maxBackgroundRunSeconds 自停,超时下次靠 leastRecentlyScanned 续。
+
+	     电源:ProcessType=Background → 交给 macOS/launchd 的后台作业电源管理(电池/负载下自动延迟、合并唤醒),
+	     不在 agent 自写电源闸(用户:走现有的、完美兼容)。RunAtLoad 让启用后/登录即尝试一轮(自节流兜底不会乱跑)。
+
+	     启停由 App 按「静默后台索引」总开关 register/unregister 本 job(opt-in 默认关 → 默认不注册 → launchd 不拉起)。 -->
+	<key>Label</key>
+	<string>yumeka.SimpleZip-in-mac.aiagent.index</string>
+	<key>BundleProgram</key>
+	<string>Contents/MacOS/SimpleZipAIAgent</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>Contents/MacOS/SimpleZipAIAgent</string>
+		<string>--background-index</string>
+	</array>
+	<!-- base 拉起频率 = 最小可配档 6 小时(21600s);更长的配置间隔由 agent 自节流实现。 -->
+	<key>StartInterval</key>
+	<integer>21600</integer>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>ProcessType</key>
+	<string>Background</string>
+	<key>LowPriorityIO</key>
+	<true/>
+</dict>
+</plist>
