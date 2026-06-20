@@ -316,6 +316,19 @@ struct DevToolsView: View {
                                 agentProbeStatus = lines.joined(separator: "\n")
                             }
                         }
+                        // ③f pending 检查队列观测(AIPendingCheckStore):planner 执行链的**下游** —— dispatcher 入队的 hash/test 检查在此排队、插电执行。
+                        actionRow(
+                            "tray.full",
+                            "查 pending 检查队列(AIPendingCheckStore)",
+                            "读 AIPendingCheckStore.counts:后台调度 dispatcher(executePlannedJobsIfDue)与模型挑的只读检查都入这条队列,插电时逐条执行(hash/test/inspect/security)→ 写内联结果。看待执行 / 已完成数,验证 planner 执行链下游(gap → plan → 入队 → 执行)真在跑。瞬回、不碰模型。"
+                        ) {
+                            let c = AIPendingCheckStore.shared.counts
+                            if c.pending == 0 && c.done == 0 {
+                                agentProbeStatus = "pending 检查队列:空(没有积累的检查 —— 触发 AI 索引、或在空闲充电时让「调度执行」入队后再看)。"
+                            } else {
+                                agentProbeStatus = "pending 检查队列:待执行 \(c.pending) 条、已完成 \(c.done) 条(插电时按活跃度间隔逐条执行,结果写文件抽屉内联)。"
+                            }
+                        }
                         // ④ 配置同步:把当前 App 的 AI 设置推给 agent(坑 9 schemaVersion 协商)。把 AI 主/子开关关掉后点这,
                         //    再点上面的真实查询,应被 agent 红线门控拦截(返回「AI 已禁用」)→ 验证 App→agent 配置同步 + 门控。
                         actionRow(
