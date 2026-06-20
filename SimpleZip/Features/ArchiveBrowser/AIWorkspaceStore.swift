@@ -141,6 +141,25 @@ final class AIWorkspaceStore: ObservableObject {
 
     func workspace(_ id: UUID) -> AIWorkspace? { collection.workspace(id) }
 
+    /// 后台调度规划器(`AIBackgroundPlanner`)用的「补充证据」缺口快照(工程补充五接线 Phase 1)。**纯只读**:
+    /// 读本会话内存态(`memberRefsByWorkspace` + `pathsBySourceRef`,都由 refreshRecommendations 重建)+ 查派生
+    /// 索引里成员有没有算过哈希,交给 Core 纯函数判缺口。**不新增 @Published、不写盘、不触发 reload**(A17 安全);
+    /// 只在 `planBackgroundJobs`(heartbeat 低频)读一次。Phase 1 只产 missingHash。
+    var currentEvidenceGaps: [AIWorkspaceEvidenceGap] {
+        let store = AIBackgroundIndexStore.shared
+        var hashed: Set<AIContextSourceRef> = []
+        for (ref, path) in pathsBySourceRef
+        where store.record(forPath: path)?.contentSummary?.inlineResults["hash"] != nil {
+            hashed.insert(ref)
+        }
+        return AIWorkspaceEvidenceGapBuilder.deriveMissingHash(
+            memberRefsByWorkspace: memberRefsByWorkspace.mapValues { Array($0) },
+            hashedSourceRefs: hashed)
+    }
+
+    /// ref → 真实路径(后台调度执行 hash job 时回查文件路径用)。本会话内存映射,无则 nil。
+    func path(forSourceRef ref: AIContextSourceRef) -> String? { pathsBySourceRef[ref] }
+
     /// DevTools 只读调试计数:持久可见集合 + 本会话隐藏竞争池。隐藏候选不进 `collection`,否则会误当成
     /// 可见 AI 文件夹;但调试页需要看见它们是否正在生成 / 复核。
     nonisolated struct DebugCounts: Encodable, Equatable {

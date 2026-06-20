@@ -50,6 +50,7 @@ final class AIBackgroundIndexer {
             runtime: currentRuntimeContext(),
             interactionSummary: AIFeedbackStore.shared.interactionCounterSummary,
             recentInterestSummary: AIFeedbackStore.shared.interestSummary,
+            workspaceEvidenceGaps: AIWorkspaceStore.shared.currentEvidenceGaps,
             indexHealth: AIIndexMaintenanceFacts())
         return AIBackgroundPlanner.plan(input)
     }
@@ -216,6 +217,8 @@ final class AIBackgroundIndexer {
                         // 阶段 B(电池决策):把模型已挑的只读检查 token 收进 pending 队列,真执行等插电(阶段 C)。
                         AIBackgroundIndexer.shared.generatePendingChecksIfEnabled()
                     }
+                    // 阶段 B′(调度计划):把 planner 产的确定性 evidence job(工作区成员缺哈希)收进 pending 队列。
+                    AIBackgroundIndexer.shared.executePlannedJobsIfDue()
                     // 阶段 C(插电执行):充电时按间隔逐个执行 pending 只读检查(自门控,电池 / 间隔未到则空跑)。
                     AIBackgroundIndexer.shared.executePendingChecksIfDue()
                 }
@@ -987,6 +990,35 @@ final class AIBackgroundIndexer {
         guard !items.isEmpty else { return }
         AIPendingCheckStore.shared.enqueueBatch(items)
         AIPendingCheckStore.shared.prune()
+    }
+
+    // MARK: - 后台调度计划执行(工程补充五接线 Phase 1:plan→入队,真执行走下面的 executePendingChecksIfDue)
+
+    /// 把 `AIBackgroundPlanner` 产的 plan 里**确定性 evidence job** 翻成 pending 入队(Phase 1 只接
+    /// `calculateCheapHashes`)。工作区成员缺哈希 → plan 产 hash job → 这里经 `pathsBySourceRef` 回查路径
+    /// 入队 `.hash` → 既有 `executePendingChecksIfDue`(插电侧)真算 + 写内联结果。**幂等**(同指纹不重排)、
+    /// 纯入队不执行、不调模型、不碰 reload;其余 job kind 暂记 skip(Phase 2+ 接)。DevTools 经 recordPass 观测。
+    func executePlannedJobsIfDue() {
+        guard AppPreferences.aiSuggestionEnabled, AIBackgroundIndexStore.shared.indexingEnabled else { return }
+        let plan = planBackgroundJobs()
+        let store = AIBackgroundIndexStore.shared
+        var items: [(path: String, behavior: AIPendingCheck.Behavior, fingerprint: String)] = []
+        for job in plan.jobs where job.kind == .calculateCheapHashes {
+            for ref in job.sourceRefs {
+                guard let path = AIWorkspaceStore.shared.path(forSourceRef: ref),
+                      let rec = store.record(forPath: path) else { continue }
+                items.append((path, .hash,
+                              AIPendingCheck.fingerprint(byteSize: rec.byteSize, modifiedAt: rec.modifiedAt)))
+            }
+        }
+        guard !items.isEmpty else {
+            recordPass("调度执行", candidates: plan.jobs.count,
+                       skip: plan.jobs.isEmpty ? "plan 无 job" : "无缺哈希成员可入队(Phase 1 只接 calculateCheapHashes)")
+            return
+        }
+        AIPendingCheckStore.shared.enqueueBatch(items)
+        AIPendingCheckStore.shared.prune()
+        recordPass("调度执行", candidates: plan.jobs.count, produced: items.count)
     }
 
     // MARK: - 只读自动检查执行(阶段 C,插电执行;MainActor:间隔节流 + 真检查 + 写内联结果)
