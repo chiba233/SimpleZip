@@ -2700,6 +2700,15 @@
 "settings.ai.background.maxRun.45m" = "45 分钟";
 "settings.ai.suggestion.title" = "显示 AI 建议";
 "settings.ai.suggestion.desc" = "在文件浏览器里给文件显示行内 AI 建议:一句话摘要和建议动作。关掉也会停止后台自动总结。";
+"settings.ai.status.section" = "运行状态";
+"settings.ai.status.checking" = "检查中…";
+"settings.ai.status.healthy" = "AI 助手运行正常";
+"settings.ai.status.modelUnavailable" = "本机模型不可用";
+"settings.ai.status.unreachable" = "AI 后端连接失败(已重试)";
+"settings.ai.status.unreachable.hint" = "后台会自动重试;在此期间 AI 暂时退回确定性结果。";
+"settings.ai.status.recheck" = "重新检查";
+"settings.ai.status.lastIndex" = "上次后台索引";
+"settings.ai.status.never" = "从未";
 "settings.ai.background.level.off" = "关闭";
 "settings.ai.background.level.powerSaver" = "省电";
 "settings.ai.background.level.balanced" = "平衡";

@@ -2619,6 +2619,15 @@
 "settings.ai.background.maxRun.45m" = "45 minutes";
 "settings.ai.suggestion.title" = "Afficher les suggestions IA";
 "settings.ai.suggestion.desc" = "Affiche des suggestions IA en ligne sur les fichiers : un résumé d'une ligne et des actions suggérées. Le désactiver arrête aussi le résumé automatique en arrière-plan.";
+"settings.ai.status.section" = "État";
+"settings.ai.status.checking" = "Vérification…";
+"settings.ai.status.healthy" = "L'assistant IA fonctionne";
+"settings.ai.status.modelUnavailable" = "Modèle sur l'appareil indisponible";
+"settings.ai.status.unreachable" = "Backend IA injoignable (après nouvelles tentatives)";
+"settings.ai.status.unreachable.hint" = "De nouvelles tentatives ont lieu en arrière-plan ; en attendant, l'IA se rabat sur des résultats déterministes.";
+"settings.ai.status.recheck" = "Revérifier";
+"settings.ai.status.lastIndex" = "Dernière indexation en arrière-plan";
+"settings.ai.status.never" = "Jamais";
 "settings.ai.background.level.off" = "Désactivé";
 "settings.ai.background.level.powerSaver" = "Économie d'énergie";
 "settings.ai.background.level.balanced" = "Équilibré";

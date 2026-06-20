@@ -2621,6 +2621,15 @@
 "settings.ai.background.maxRun.45m" = "45 Minuten";
 "settings.ai.suggestion.title" = "KI-Vorschläge anzeigen";
 "settings.ai.suggestion.desc" = "Zeigt Inline-KI-Vorschläge zu Dateien an – eine einzeilige Zusammenfassung und vorgeschlagene Aktionen. Beim Ausschalten stoppt auch die automatische Zusammenfassung im Hintergrund.";
+"settings.ai.status.section" = "Status";
+"settings.ai.status.checking" = "Wird geprüft …";
+"settings.ai.status.healthy" = "KI-Assistent läuft";
+"settings.ai.status.modelUnavailable" = "On-Device-Modell nicht verfügbar";
+"settings.ai.status.unreachable" = "KI-Backend nicht erreichbar (nach Wiederholungen)";
+"settings.ai.status.unreachable.hint" = "Im Hintergrund wird automatisch erneut versucht; währenddessen weicht die KI auf deterministische Ergebnisse aus.";
+"settings.ai.status.recheck" = "Erneut prüfen";
+"settings.ai.status.lastIndex" = "Letzte Hintergrundindizierung";
+"settings.ai.status.never" = "Nie";
 "settings.ai.background.level.off" = "Aus";
 "settings.ai.background.level.powerSaver" = "Energiesparen";
 "settings.ai.background.level.balanced" = "Ausgewogen";

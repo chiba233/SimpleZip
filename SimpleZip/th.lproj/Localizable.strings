@@ -2621,6 +2621,15 @@
 "settings.ai.background.maxRun.45m" = "45 นาที";
 "settings.ai.suggestion.title" = "แสดงข้อเสนอแนะ AI";
 "settings.ai.suggestion.desc" = "แสดงข้อเสนอแนะ AI แบบอินไลน์บนไฟล์ — สรุปบรรทัดเดียวและการกระทำที่แนะนำ การปิดจะหยุดการสรุปอัตโนมัติเบื้องหลังด้วย";
+"settings.ai.status.section" = "สถานะการทำงาน";
+"settings.ai.status.checking" = "กำลังตรวจสอบ…";
+"settings.ai.status.healthy" = "ผู้ช่วย AI ทำงานปกติ";
+"settings.ai.status.modelUnavailable" = "โมเดลบนเครื่องไม่พร้อมใช้งาน";
+"settings.ai.status.unreachable" = "เชื่อมต่อแบ็กเอนด์ AI ไม่ได้ (หลังลองใหม่)";
+"settings.ai.status.unreachable.hint" = "ระบบจะลองใหม่โดยอัตโนมัติในเบื้องหลัง ระหว่างนี้ AI จะกลับไปใช้ผลลัพธ์แบบกำหนดแน่นอน";
+"settings.ai.status.recheck" = "ตรวจสอบอีกครั้ง";
+"settings.ai.status.lastIndex" = "การทำดัชนีเบื้องหลังครั้งล่าสุด";
+"settings.ai.status.never" = "ยังไม่เคย";
 "settings.ai.background.level.off" = "ปิด";
 "settings.ai.background.level.powerSaver" = "ประหยัดพลังงาน";
 "settings.ai.background.level.balanced" = "สมดุล";

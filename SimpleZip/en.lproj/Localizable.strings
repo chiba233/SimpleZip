@@ -2700,6 +2700,15 @@
 "settings.ai.background.maxRun.45m" = "45 minutes";
 "settings.ai.suggestion.title" = "Show AI Suggestions";
 "settings.ai.suggestion.desc" = "Show inline AI suggestions on files in the browser — a one-line summary and suggested actions. Turning this off also stops the background auto-summary.";
+"settings.ai.status.section" = "Status";
+"settings.ai.status.checking" = "Checking…";
+"settings.ai.status.healthy" = "AI assistant is running";
+"settings.ai.status.modelUnavailable" = "On-device model unavailable";
+"settings.ai.status.unreachable" = "AI backend unreachable (after retries)";
+"settings.ai.status.unreachable.hint" = "It will keep retrying in the background; meanwhile AI falls back to deterministic results.";
+"settings.ai.status.recheck" = "Re-check";
+"settings.ai.status.lastIndex" = "Last background index";
+"settings.ai.status.never" = "Never";
 "settings.ai.background.level.off" = "Off";
 "settings.ai.background.level.powerSaver" = "Power saver";
 "settings.ai.background.level.balanced" = "Balanced";

@@ -2623,6 +2623,15 @@
 "settings.ai.background.maxRun.45m" = "45 分鐘";
 "settings.ai.suggestion.title" = "顯示 AI 建議";
 "settings.ai.suggestion.desc" = "在檔案瀏覽器裡為檔案顯示行內 AI 建議:一句話摘要和建議動作。關掉也會停止後台自動摘要。";
+"settings.ai.status.section" = "運行狀態";
+"settings.ai.status.checking" = "檢查中…";
+"settings.ai.status.healthy" = "AI 助手運行正常";
+"settings.ai.status.modelUnavailable" = "本機模型不可用";
+"settings.ai.status.unreachable" = "AI 後端連接失敗(已重試)";
+"settings.ai.status.unreachable.hint" = "後台會自動重試;在此期間 AI 暫時退回確定性結果。";
+"settings.ai.status.recheck" = "重新檢查";
+"settings.ai.status.lastIndex" = "上次後台索引";
+"settings.ai.status.never" = "從未";
 "settings.ai.background.level.off" = "關閉";
 "settings.ai.background.level.powerSaver" = "省電";
 "settings.ai.background.level.balanced" = "平衡";

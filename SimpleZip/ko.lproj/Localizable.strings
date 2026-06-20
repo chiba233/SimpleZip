@@ -2622,6 +2622,15 @@
 "settings.ai.background.maxRun.45m" = "45분";
 "settings.ai.suggestion.title" = "AI 제안 표시";
 "settings.ai.suggestion.desc" = "파일에 인라인 AI 제안(한 줄 요약과 추천 동작)을 표시합니다. 끄면 백그라운드 자동 요약도 중지됩니다.";
+"settings.ai.status.section" = "실행 상태";
+"settings.ai.status.checking" = "확인 중…";
+"settings.ai.status.healthy" = "AI 어시스턴트가 정상 작동 중입니다";
+"settings.ai.status.modelUnavailable" = "온디바이스 모델을 사용할 수 없음";
+"settings.ai.status.unreachable" = "AI 백엔드에 연결할 수 없음(재시도 후)";
+"settings.ai.status.unreachable.hint" = "백그라운드에서 자동으로 재시도합니다. 그동안 AI는 결정적 결과로 대체됩니다.";
+"settings.ai.status.recheck" = "다시 확인";
+"settings.ai.status.lastIndex" = "마지막 백그라운드 색인";
+"settings.ai.status.never" = "없음";
 "settings.ai.background.level.off" = "끔";
 "settings.ai.background.level.powerSaver" = "절전";
 "settings.ai.background.level.balanced" = "균형";

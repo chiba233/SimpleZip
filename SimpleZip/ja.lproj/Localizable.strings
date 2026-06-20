@@ -2623,6 +2623,15 @@
 "settings.ai.background.maxRun.45m" = "45分";
 "settings.ai.suggestion.title" = "AI 提案を表示";
 "settings.ai.suggestion.desc" = "ファイルにインラインの AI 提案(一文の要約とおすすめ操作)を表示します。オフにするとバックグラウンドの自動要約も停止します。";
+"settings.ai.status.section" = "稼働状況";
+"settings.ai.status.checking" = "確認中…";
+"settings.ai.status.healthy" = "AI アシスタントは正常に動作しています";
+"settings.ai.status.modelUnavailable" = "オンデバイスモデルを利用できません";
+"settings.ai.status.unreachable" = "AI バックエンドに接続できません(再試行後)";
+"settings.ai.status.unreachable.hint" = "バックグラウンドで自動的に再試行します。その間、AI は確定的な結果にフォールバックします。";
+"settings.ai.status.recheck" = "再確認";
+"settings.ai.status.lastIndex" = "前回のバックグラウンド索引";
+"settings.ai.status.never" = "なし";
 "settings.ai.background.level.off" = "オフ";
 "settings.ai.background.level.powerSaver" = "省電力";
 "settings.ai.background.level.balanced" = "バランス";

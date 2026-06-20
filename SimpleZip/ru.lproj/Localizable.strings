@@ -2621,6 +2621,15 @@
 "settings.ai.background.maxRun.45m" = "45 минут";
 "settings.ai.suggestion.title" = "Показывать предложения ИИ";
 "settings.ai.suggestion.desc" = "Показывает встроенные предложения ИИ для файлов — однострочную сводку и предлагаемые действия. При отключении также останавливается фоновое автосуммирование.";
+"settings.ai.status.section" = "Состояние";
+"settings.ai.status.checking" = "Проверка…";
+"settings.ai.status.healthy" = "AI-ассистент работает";
+"settings.ai.status.modelUnavailable" = "Локальная модель недоступна";
+"settings.ai.status.unreachable" = "Бэкенд AI недоступен (после повторов)";
+"settings.ai.status.unreachable.hint" = "Повторные попытки продолжаются в фоне; тем временем AI использует детерминированные результаты.";
+"settings.ai.status.recheck" = "Проверить снова";
+"settings.ai.status.lastIndex" = "Последнее фоновое индексирование";
+"settings.ai.status.never" = "Никогда";
 "settings.ai.background.level.off" = "Выкл.";
 "settings.ai.background.level.powerSaver" = "Энергосбережение";
 "settings.ai.background.level.balanced" = "Сбалансированно";
