@@ -105,6 +105,33 @@ Owns temporary resources with predictable cleanup:
 This split keeps backend preference, sandbox helpers, version-specific behavior, and compatibility testing out of one
 static type. Subprocess spawn/capture/cancellation is centralized in `BackendProcessRunner`.
 
+### On-Device AI (separate process)
+
+All on-device model **inference** runs outside the main app binary. The app builds Codable input DTOs and calls
+`AIAgentClient.generatePass(kind:input:as:)`, which serializes one typed `generate(kind:inputJSON:languageName:)` XPC
+call; the engine that actually imports `FoundationModels`, builds the prompt, runs the model and parses the result is
+`AIPassEngine` in `SimpleZipAgentSupport/AIAgentService.swift`, compiled only into the agent and XPC-Service targets —
+never the app. The app binary therefore creates no `LanguageModelSession`; only a read-only "is the model available"
+check (`AIReportAssistant.isReady`, via `SystemLanguageModel.isAvailable`) still touches `FoundationModels`.
+
+- **Two delivery channels, one engine.** A bundled **XPC Service** serves foreground requests on demand (launched when
+  the app connects; not a Login Item, not gated by "allow in background"). A dedicated **agent** (a launchd LaunchAgent)
+  runs the background index on a schedule even when the app is closed. Both link `SimpleZip/Core` as a synced source
+  group and run the same `AIPassEngine`.
+- **One pass = the whole thing.** Each AI pass (prompt building + model call + parsing/validation) lives entirely in the
+  engine, dispatched by `AIPassKind`. The app side is a thin client: build the input DTO, send, decode the output DTO,
+  fall back to deterministic behavior on failure. Report prose (`reportText`), file/archive-row suggestions, the
+  AI-folder plan/review/grouping/misfit-check, and the natural-language archive/settings queries all go through this one
+  contract. DTOs live in `SimpleZipAgentSupport/AIPassPayloads.swift` (shared by all three targets); passes that take
+  Core rich types reference them directly because every target compiles Core.
+- **Deterministic helpers stay in Core.** Redaction (`AISensitiveRedactor`), preread scoring, the action vocabulary
+  (`AIVirtualNodeActionDeriver`) and the rest live in `SimpleZip/Core`; because the engine links Core, it builds prompts
+  from them directly rather than having the app pass pre-formatted strings across the boundary.
+- **Red line.** The agent refuses all generation when the AI master switch is off (config pushed from the app through a
+  versioned file). Passwords, key material, encrypted-archive entry names, ciphertext and decrypted plaintext never enter
+  a prompt — enforced where the app builds each DTO. AI only explains / classifies / suggests; it never deletes, clears a
+  dangerous path, or runs a write itself.
+
 ## Refactor Principles
 
 The major extractions above are complete. The principles still apply to future moves:
