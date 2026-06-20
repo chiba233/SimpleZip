@@ -610,13 +610,14 @@ enum AIPassEngine {
         var lines: [String] = ["File name: \(input.fileName)", "Kind: \(input.kind)"]
         if !input.roleTags.isEmpty { lines.append("Role: \(input.roleTags.joined(separator: ", "))") }
         if let languageHint = input.languageHint, !languageHint.isEmpty { lines.append("Format: \(languageHint)") }
-        if !input.headings.isEmpty { lines.append("Headings: \(input.headings.prefix(8).joined(separator: " | "))") }
-        if !input.fieldNames.isEmpty { lines.append("Top-level fields: \(input.fieldNames.prefix(12).joined(separator: ", "))") }
-        let trimmedExcerpt = String(input.excerpt.prefix(1_400)).trimmingCharacters(in: .whitespacesAndNewlines)
+        // 兜底:每条结构信号裁短 + 摘录封顶,避免单文件 prompt 超 4096-token(CJK 内容尤甚)。
+        if !input.headings.isEmpty { lines.append("Headings: \(input.headings.prefix(8).map { clamp($0, 80) }.joined(separator: " | "))") }
+        if !input.fieldNames.isEmpty { lines.append("Top-level fields: \(input.fieldNames.prefix(12).map { clamp($0, 48) }.joined(separator: ", "))") }
+        let trimmedExcerpt = String(input.excerpt.prefix(1_200)).trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmedExcerpt.isEmpty { lines.append("Content excerpt (redacted):\n\(trimmedExcerpt)") }
         if !apps.isEmpty {
             lines.append("Other apps that can open this file (the default double-click app is NOT listed) — refer to an app by its number:")
-            for (i, a) in apps.enumerated() { lines.append("\(i + 1)\t\(a.name)") }
+            for (i, a) in apps.enumerated() { lines.append("\(i + 1)\t\(clamp(a.name, 80))") }
         }
         let generated = try await AgentGenerationSerializer.shared.generateStructured(
             instructions: instructions, prompt: lines.joined(separator: "\n"),
@@ -714,10 +715,10 @@ enum AIPassEngine {
         surfacing. Be strict: most files need no URL suggestion. Choose only by NUMBER from the list. Never invent, \
         rewrite, normalize, or output any URL. Do not mention or recommend any specific browser or app.
         """
-        var lines = ["File: \(input.fileName)"]
-        if !input.roleTags.isEmpty { lines.append("Role: \(input.roleTags.joined(separator: ", "))") }
+        var lines = ["File: \(clamp(input.fileName, 160))"]
+        if !input.roleTags.isEmpty { lines.append("Role: \(clamp(input.roleTags.joined(separator: ", "), 80))") }
         lines.append("Extracted URLs (number<TAB>url) — choose only by number:")
-        for (i, url) in cands.enumerated() { lines.append("\(i + 1)\t\(url)") }
+        lines.append(contentsOf: budgetedLines(cands.enumerated().map { i, url in "\(i + 1)\t\(clamp(url, 300))" }))
         let generated = try await AgentGenerationSerializer.shared.generateStructured(
             instructions: instructions, prompt: lines.joined(separator: "\n"),
             as: GeneratedURLSuggestion.self, maxAttempts: 3)
@@ -760,6 +761,62 @@ enum AIPassEngine {
         return candidates[n - 1].candidateID
     }
 
+    // MARK: - Prompt 预算兜底(对齐 FoundationModels 4096-token 上下文,CJK aware)
+    //
+    // 所有「喂列表 / 大文本给模型」的 pass 都必须裁,否则大输入(长文件名列表、整本设置目录、长摘录)会静默超
+    // 4096 token 上下文 → 整条 pass 报错返回空(用户侧像「AI 老不出东西」)。镜像已落地的 archiveKindGuess /
+    // archiveEntryPicks 兜底,统一抽成下面三个 helper。FoundationModels 不暴露 token 计数,故用保守字符预算:
+    // 实测最坏内容(文件名 / 路径)≈ 0.73 token/char → 3000 char ≈ 2190 token + 固定开销(instructions+schema+
+    // 输出)≈ 757 < 4096;CJK 1 token/char → 3000 < 4096。列表类用字符预算最稳;散文类(reportText)用 token 估算。
+
+    /// 单字段截断到 limit 字符(超长末尾加 …)。把进 prompt 的名字 / 标签 / 标题裁短,防单条爆预算。
+    private static func clamp(_ s: String, _ limit: Int) -> String {
+        s.count > limit ? String(s.prefix(max(1, limit - 1))) + "…" : s
+    }
+
+    /// 取条目行前缀,累计字符不超 budget —— 列表类 prompt 的总预算兜底。**序号与原数组对齐不受影响**:尾部超预算的
+    /// 条目不渲染 = 模型看不到 = 不会引用,realID 按序号回查仍安全(未渲染条目的序号模型不会产出)。
+    private static func budgetedLines(_ lines: [String], budget: Int = 3_000) -> [String] {
+        var out: [String] = []
+        var left = budget
+        for l in lines {
+            if left - l.count < 0 { break }
+            out.append(l)
+            left -= l.count
+        }
+        return out
+    }
+
+    /// CJK 类标量(粗判,用于散文 token 估算):CJK 标点 / 假名 / 谚文 / CJK 统一表意 / 兼容表意 / 全角半角。
+    private static func isCJKLike(_ u: Unicode.Scalar) -> Bool {
+        let v = u.value
+        return (0x3000...0x9FFF).contains(v) || (0xAC00...0xD7A3).contains(v)
+            || (0xF900...0xFAFF).contains(v) || (0xFF00...0xFFEF).contains(v)
+    }
+
+    /// 粗估散文 token 数(CJK ~1 / 其余 ~0.3,prose-tuned)。给 reportText 自适应预算用(instructions 大 → prompt
+    /// 预算相应缩)。仅兜底估算、不求精确。
+    private static func estimatedProseTokens(_ s: String) -> Int {
+        var t = 0.0
+        for u in s.unicodeScalars { t += isCJKLike(u) ? 1.0 : 0.3 }
+        return Int(t.rounded(.up))
+    }
+
+    /// 把**散文** prompt 裁到估算 token 不超 maxTokens(从尾部裁、保留开头)。给 reportText 这种 App 拼好的不透明长文
+    /// 兜底:散文按 CJK ~1 token/char、其余 ~0.3 token/char 估(prose-tuned,英文报告极少触发;CJK 长文才裁)。
+    /// 单次 O(n) 累加,够长才返回带 … 的截断;否则原样返回。
+    private static func clampProse(_ s: String, maxTokens: Int) -> String {
+        var tokens = 0.0
+        var result = ""
+        result.reserveCapacity(s.count)
+        for ch in s {
+            for u in ch.unicodeScalars { tokens += isCJKLike(u) ? 1.0 : 0.3 }
+            if tokens > Double(maxTokens) { return result + "…" }
+            result.append(ch)
+        }
+        return s
+    }
+
     /// AI 文件夹/建议「核查不扣题成员」(结构化)。镜像原 App 端 AIVirtualFolderModelPlanner.verifyMisfits ——
     /// 给主题 + 当前成员,让模型保守挑出明显不扣题的(拿不准就留),回**要移除的真实 candidateID**(去重)。
     /// 输出是序号(非给人看文本)故不注语言。App 据此从虚拟文件夹剔除,绝不碰磁盘。
@@ -773,10 +830,10 @@ enum AIPassEngine {
         conservative: when in doubt, KEEP the item (do not list it). An empty list is correct most of the time — \
         most items usually fit. Never output a path; never remove an item just because its name is ambiguous.
         """
-        var lines = ["Theme: \(input.theme)", "Items (number<TAB>kind<TAB>name<TAB>roleTags):"]
-        for (i, c) in cands.enumerated() {
-            lines.append(["\(i + 1)", c.kind, c.displayName, c.roleTags.joined(separator: " ")].joined(separator: "\t"))
-        }
+        var lines = ["Theme: \(clamp(input.theme, 200))", "Items (number<TAB>kind<TAB>name<TAB>roleTags):"]
+        lines.append(contentsOf: budgetedLines(cands.enumerated().map { i, c in
+            ["\(i + 1)", c.kind, clamp(c.displayName, 160), clamp(c.roleTags.joined(separator: " "), 80)].joined(separator: "\t")
+        }))
         let generated = try await AgentGenerationSerializer.shared.generateStructured(
             instructions: instructions, prompt: lines.joined(separator: "\n"),
             as: GeneratedVerification.self, maxAttempts: 8)
@@ -809,9 +866,9 @@ enum AIPassEngine {
         \(actionVocabularyRule)
         """
         var lines = ["Items (number<TAB>kind<TAB>name) — refer to items by their number:"]
-        for (i, c) in cands.enumerated() {
-            lines.append(["\(i + 1)", c.kind, c.displayName].joined(separator: "\t"))
-        }
+        lines.append(contentsOf: budgetedLines(cands.enumerated().map { i, c in
+            ["\(i + 1)", c.kind, clamp(c.displayName, 160)].joined(separator: "\t")
+        }))
         let generated = try await AgentGenerationSerializer.shared.generateStructured(
             instructions: instructions, prompt: lines.joined(separator: "\n"),
             as: GeneratedSuggestionSet.self, maxAttempts: 8)
@@ -841,9 +898,9 @@ enum AIPassEngine {
         \(actionVocabularyRule)
         """
         var lines = ["Files (number<TAB>kind<TAB>name<TAB>roleTags) — refer to files by their number:"]
-        for (i, c) in cands.enumerated() {
-            lines.append(["\(i + 1)", c.kind, c.displayName, c.roleTags.joined(separator: " ")].joined(separator: "\t"))
-        }
+        lines.append(contentsOf: budgetedLines(cands.enumerated().map { i, c in
+            ["\(i + 1)", c.kind, clamp(c.displayName, 160), clamp(c.roleTags.joined(separator: " "), 80)].joined(separator: "\t")
+        }))
         let generated = try await AgentGenerationSerializer.shared.generateStructured(
             instructions: instructions, prompt: lines.joined(separator: "\n"),
             as: GeneratedFolderGroupSet.self, maxAttempts: 3)
@@ -878,9 +935,9 @@ enum AIPassEngine {
         output a path.
         """
         var lines = ["Files (number<TAB>kind<TAB>name<TAB>roleTags) — refer to files by their number:"]
-        for (i, c) in cands.enumerated() {
-            lines.append(["\(i + 1)", c.kind, c.displayName, c.roleTags.joined(separator: " ")].joined(separator: "\t"))
-        }
+        lines.append(contentsOf: budgetedLines(cands.enumerated().map { i, c in
+            ["\(i + 1)", c.kind, clamp(c.displayName, 160), clamp(c.roleTags.joined(separator: " "), 80)].joined(separator: "\t")
+        }))
         let generated = try await AgentGenerationSerializer.shared.generateStructured(
             instructions: instructions, prompt: lines.joined(separator: "\n"),
             as: GeneratedOrganizeSuggestion.self, maxAttempts: 3)
@@ -971,14 +1028,17 @@ enum AIPassEngine {
         let cands = Array(input.candidates.prefix(40))   // 短 prompt 更稳(单次生成失败率随长度飙升)
         var lines: [String] = []
         let ws = input.workspace
-        if let prompt = ws.prompt, !prompt.isEmpty { lines.append("Folder theme: \(prompt)") }
-        if !ws.queryTokens.isEmpty { lines.append("Theme hints: \(ws.queryTokens.joined(separator: ", "))") }
-        lines.append("Current title: \(ws.title)")
-        lines.append(contentsOf: hintLines(input.learningHints))
-        lines.append("Items (number<TAB>kind<TAB>name<TAB>roleTags) — refer to items by their number:")
-        for (i, c) in cands.enumerated() {
-            lines.append(["\(i + 1)", c.kind, c.displayName, c.roleTags.joined(separator: " ")].joined(separator: "\t"))
+        if let prompt = ws.prompt, !prompt.isEmpty { lines.append("Folder theme: \(clamp(prompt, 200))") }
+        if !ws.queryTokens.isEmpty { lines.append("Theme hints: \(clamp(ws.queryTokens.joined(separator: ", "), 200))") }
+        lines.append("Current title: \(clamp(ws.title, 120))")
+        // 兜底:hint 行(各裁 200)+ 条目行(名裁 160)合计裁进预算,对齐 4096-token(plan 的 instructions+嵌套
+        // schema 开销较大 → 比无 hint 的 pass 收紧到 2600)。
+        var body = hintLines(input.learningHints).map { clamp($0, 200) }
+        body.append("Items (number<TAB>kind<TAB>name<TAB>roleTags) — refer to items by their number:")
+        body += cands.enumerated().map { i, c in
+            ["\(i + 1)", c.kind, clamp(c.displayName, 160), clamp(c.roleTags.joined(separator: " "), 80)].joined(separator: "\t")
         }
+        lines.append(contentsOf: budgetedLines(body, budget: 2_600))
         let generated = try await AgentGenerationSerializer.shared.generateStructured(
             instructions: instructions, prompt: lines.joined(separator: "\n"),
             as: GeneratedAIFolderPlan.self, maxAttempts: 12)   // 连试 12 代 + 极简 schema + 短 prompt 压报错
@@ -1021,14 +1081,16 @@ enum AIPassEngine {
         let cands = Array(input.candidates.prefix(40))   // 短 prompt 更稳(单次生成失败率随长度飙升)
         var lines: [String] = []
         let ws = input.workspace
-        if let prompt = ws.prompt, !prompt.isEmpty { lines.append("Folder theme: \(prompt)") }
-        if !ws.queryTokens.isEmpty { lines.append("Theme hints: \(ws.queryTokens.joined(separator: ", "))") }
-        lines.append("Candidate title: \(ws.title)")
-        lines.append(contentsOf: hintLines(input.learningHints))
-        lines.append("Items (number<TAB>kind<TAB>name<TAB>roleTags) — refer to items by their number:")
-        for (i, c) in cands.enumerated() {
-            lines.append(["\(i + 1)", c.kind, c.displayName, c.roleTags.joined(separator: " ")].joined(separator: "\t"))
+        if let prompt = ws.prompt, !prompt.isEmpty { lines.append("Folder theme: \(clamp(prompt, 200))") }
+        if !ws.queryTokens.isEmpty { lines.append("Theme hints: \(clamp(ws.queryTokens.joined(separator: ", "), 200))") }
+        lines.append("Candidate title: \(clamp(ws.title, 120))")
+        // 兜底:hint 行 + 条目行合计裁进预算(同 plan,收紧到 2600)。
+        var body = hintLines(input.learningHints).map { clamp($0, 200) }
+        body.append("Items (number<TAB>kind<TAB>name<TAB>roleTags) — refer to items by their number:")
+        body += cands.enumerated().map { i, c in
+            ["\(i + 1)", c.kind, clamp(c.displayName, 160), clamp(c.roleTags.joined(separator: " "), 80)].joined(separator: "\t")
         }
+        lines.append(contentsOf: budgetedLines(body, budget: 2_600))
         let generated = try await AgentGenerationSerializer.shared.generateStructured(
             instructions: instructions, prompt: lines.joined(separator: "\n"),
             as: GeneratedAIFolderPlan.self, maxAttempts: 12)   // 连试 12 代 + 极简 schema + 短 prompt 压报错
@@ -1049,6 +1111,11 @@ enum AIPassEngine {
 
     /// #64 设置「一句话搜索」NL → 命中设置 id + 意图(镜像原 App settingsQuerySpec)。输出 intent 的 rawValue 字符串。
     private static func settingsQuery(_ input: SettingsQueryInput) async throws -> SettingsQueryOutput {
+        // 兜底:整本设置目录嵌进 instructions —— CJK 本地化的 title/summary ≈ 1 token/char,全量目录可超 4096。
+        // 每行裁 160 + 总预算 2800(查询本身很短、占不了多少),保证不超上下文(超预算的尾部设置项暂不进候选)。
+        let catalog = budgetedLines(
+            input.catalog.split(separator: "\n", omittingEmptySubsequences: false).map { clamp(String($0), 160) },
+            budget: 2_800).joined(separator: "\n")
         let instructions = """
         The user describes a setting they want to find or change in an archive app. From the catalog below \
         (one per line as "id<TAB>title<TAB>summary"), pick the single best-matching setting and copy its id \
@@ -1056,7 +1123,7 @@ enum AIPassEngine {
         off). If nothing matches, return an empty id. Output only the two fields.
 
         Catalog:
-        \(input.catalog)
+        \(catalog)
         """
         let spec = try await AgentGenerationSerializer.shared.generateStructured(
             instructions: instructions, prompt: input.query, as: GeneratedSettingsQuery.self)
@@ -1076,9 +1143,9 @@ enum AIPassEngine {
         their NUMBER only; never invent a number.
         """
         var lines = ["Chips (number<TAB>selects<TAB>matchCount):"]
-        for (i, c) in capped.enumerated() {
-            lines.append(["\(i + 1)", c.label, "\(c.matches)"].joined(separator: "\t"))
-        }
+        lines.append(contentsOf: budgetedLines(capped.enumerated().map { i, c in
+            ["\(i + 1)", clamp(c.label, 160), "\(c.matches)"].joined(separator: "\t")
+        }))
         let generated = try await AgentGenerationSerializer.shared.generateStructured(
             instructions: instructions, prompt: lines.joined(separator: "\n"),
             as: GeneratedChipRanking.self, maxAttempts: 3)
@@ -1103,9 +1170,9 @@ enum AIPassEngine {
         would recognize. Drop redundant or low-value ones. Refer to clusters by their NUMBER only; never invent a number.
         """
         var lines = ["Clusters (number<TAB>dimensions<TAB>matchCount):"]
-        for (i, c) in capped.enumerated() {
-            lines.append(["\(i + 1)", c.facts.joined(separator: "+"), "\(c.matches)"].joined(separator: "\t"))
-        }
+        lines.append(contentsOf: budgetedLines(capped.enumerated().map { i, c in
+            ["\(i + 1)", clamp(c.facts.joined(separator: "+"), 160), "\(c.matches)"].joined(separator: "\t")
+        }))
         let generated = try await AgentGenerationSerializer.shared.generateStructured(
             instructions: instructions, prompt: lines.joined(separator: "\n"),
             as: GeneratedClusterNaming.self, maxAttempts: 3)
@@ -1152,8 +1219,9 @@ enum AIPassEngine {
         var lines = ["File name: \(input.fileName)"]
         if !input.roleTags.isEmpty { lines.append("Role: \(input.roleTags.joined(separator: ", "))") }
         if let languageHint = input.languageHint, !languageHint.isEmpty { lines.append("Format: \(languageHint)") }
-        if !input.headings.isEmpty { lines.append("Headings: \(input.headings.prefix(12).joined(separator: " | "))") }
-        let trimmed = String(input.excerpt.prefix(3_000)).trimmingCharacters(in: .whitespacesAndNewlines)
+        if !input.headings.isEmpty { lines.append("Headings: \(input.headings.prefix(12).map { clamp($0, 80) }.joined(separator: " | "))") }
+        // 摘录封顶 2400(CJK ≈ 2400 token,加标题 + instructions 仍 < 4096;原 3000 在纯 CJK 长文会贴边/超)。
+        let trimmed = String(input.excerpt.prefix(2_400)).trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmed.isEmpty { lines.append("Content excerpt (redacted):\n\(trimmed)") }
         return try await AgentGenerationSerializer.shared
             .generateText(instructions: instructions, prompt: lines.joined(separator: "\n"))
@@ -1169,10 +1237,10 @@ enum AIPassEngine {
         what is most worth dealing with right now and why. Be specific to the failures given; never invent a task; \
         do not list everything; at most 2-3 sentences. If nothing clearly stands out, say the task list looks healthy.
         """
-        var lines = ["Task summary (counts): \(input.summaryFacts.joined(separator: ", "))"]
+        var lines = ["Task summary (counts): \(clamp(input.summaryFacts.joined(separator: ", "), 400))"]
         if !input.failedFacts.isEmpty {
             lines.append("Top unseen failed tasks (type / source / diagnostic tags):")
-            lines.append(contentsOf: input.failedFacts.prefix(8))
+            lines.append(contentsOf: budgetedLines(input.failedFacts.prefix(8).map { clamp($0, 200) }, budget: 2_000))
         }
         return try await AgentGenerationSerializer.shared
             .generateText(instructions: instructions, prompt: lines.joined(separator: "\n"))
@@ -1190,13 +1258,13 @@ enum AIPassEngine {
         language: what most likely went wrong and what to check or try next. Be specific to the diagnostics given; \
         never invent details; do not repeat the raw error verbatim; at most 2 sentences.
         """
-        var lines = ["Failed task — type: \(input.kind), source: \(input.source), tags: \(input.tags.isEmpty ? "none" : input.tags.joined(separator: "+"))"]
+        var lines = ["Failed task — type: \(input.kind), source: \(input.source), tags: \(input.tags.isEmpty ? "none" : clamp(input.tags.joined(separator: "+"), 200))"]
         if let failureMessage = input.failureMessage, !failureMessage.isEmpty {
-            lines.append("Redacted failure message: \(failureMessage)")
+            lines.append("Redacted failure message: \(clamp(failureMessage, 800))")
         }
         if !input.errorLines.isEmpty {
             lines.append("Redacted error lines:")
-            lines.append(contentsOf: input.errorLines.prefix(6))
+            lines.append(contentsOf: budgetedLines(input.errorLines.prefix(6).map { clamp($0, 240) }, budget: 1_600))
         }
         return try await AgentGenerationSerializer.shared
             .generateText(instructions: instructions, prompt: lines.joined(separator: "\n"))
@@ -1210,7 +1278,13 @@ enum AIPassEngine {
     private static func reportText(_ input: ReportTextInput, languageName: String) async throws -> String {
         let combined = input.instructions + "\n\n"
             + "Write your entire reply in \(languageName). Do not restate these instructions; reply only with the note itself."
-        return try await AgentGenerationSerializer.shared.generateText(instructions: combined, prompt: input.prompt)
+        // 兜底:reportText 是 App 拼好的不透明散文(报告解释 / 起草),无结构可逐项裁 → 按 token 自适应裁 prompt。
+        // 留 ~500 给输出、按 instructions 实际大小缩 prompt 预算,使 instructions + prompt 合计 ≲ 3600 token < 4096。
+        // 英文报告 ~0.3 token/char 几乎不触发;CJK 长报告才裁尾。若 instructions 自身就过大(App 侧把事实塞进
+        // instructions),这里护不住 —— 那是 App 侧 prompt 构造的事,需在调用点收(见 [[feedback_foundationmodels_token_budget]])。
+        let promptBudget = max(600, 3_600 - estimatedProseTokens(combined))
+        return try await AgentGenerationSerializer.shared
+            .generateText(instructions: combined, prompt: clampProse(input.prompt, maxTokens: promptBudget))
     }
 }
 
