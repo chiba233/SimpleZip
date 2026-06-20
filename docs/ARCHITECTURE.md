@@ -131,6 +131,20 @@ check (`AIReportAssistant.isReady`, via `SystemLanguageModel.isAvailable`) still
   versioned file). Passwords, key material, encrypted-archive entry names, ciphertext and decrypted plaintext never enter
   a prompt — enforced where the app builds each DTO. AI only explains / classifies / suggests; it never deletes, clears a
   dangerous path, or runs a write itself.
+- **Background scheduling is deterministic and in-process.** `AIBackgroundPlanner.plan(_:)` (Core, pure value types, no
+  model) turns the current runtime tier plus collected signals into a tier-gated set of jobs; `AIBackgroundIndexer` drives
+  it. Execution is wired for the **deterministic evidence jobs** that reuse the proven charge-gated pending-check pipeline:
+  `AIWorkspaceStore.currentEvidenceGaps` (a read-only computed over in-session workspace members — never on the FSEvents
+  reload path, so no `@Published` churn) feeds the testable `AIWorkspaceEvidenceGapBuilder`, which emits `missingHash` /
+  `missingArchiveHealth` gaps; `executePlannedJobsIfDue` translates the resulting `calculateCheapHashes` / `testSmallArchives`
+  jobs into `.hash` / `.test` entries on `AIPendingCheckStore`, and the existing `executePendingChecksIfDue` computes them
+  on charge and writes results back inline (the file drawer reads that inline result with no UI change). Model-prewarm and
+  UI-cache jobs are deliberately not auto-run from the background path — they need a surface to read them — so the
+  hash/test back-fill is the part that is purely backend.
+- **The hidden DevTools AI lab observes the whole chain.** Read-only, copyable probes (deterministic, never touch the
+  model): the unified `generate(kind:)` contract self-test, a passive engine-pass tally, the planner's plan output, its
+  evidence-gap and interaction/interest inputs, and the pending-check queue downstream — so the background-scheduling path
+  can be verified end to end without shipping any user-facing UI.
 
 ## Refactor Principles
 
