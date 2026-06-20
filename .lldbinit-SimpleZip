@@ -1,0 +1,4 @@
+# Dock Force Quit sends SIGTERM/SIGKILL to the debug app. In Xcode this is an
+# expected developer action, not an app crash, so keep LLDB from pausing there.
+process handle SIGTERM --stop false --notify false --pass true
+process handle SIGKILL --stop false --notify false --pass true
