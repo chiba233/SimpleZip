@@ -15,6 +15,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// 「点空白取消文本焦点」监视器的持有引用（与 app 同生命周期，不移除）。
     private var textFocusMonitor: Any?
 
+    /// app/agent 互斥用的「前台活跃」锁(与 app 同生命周期,**不释放** —— fd 持有到进程退出,OS 自动解锁)。
+    /// 后台周期索引 agent 开跑前探它:App 持有 = 前台活跃 → agent 让位(后台索引归 App)。见 AIForegroundLock。
+    private let aiForegroundLock = AIForegroundLock()
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         // 0.4.2 用户报：批量重命名等对话框的输入框点空白处不会失焦——SwiftUI TextField 在 macOS
         // 上没有这个原生行为,且全 app 的 sheet 都中招。应用级一次性修复:任何 mouseDown 落在
@@ -45,6 +49,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSApp.applicationIconImage = icon
         }
         NSApp.servicesProvider = self
+        // app/agent 互斥:取「前台活跃」锁并长期持有 —— 后台周期索引 agent 开跑前会探它,App 在前台时让位(避免
+        // App 开着也在索引时,后台 agent 重复 / 竞争地写共享派生索引)。非阻塞(LOCK_NB)→ 主线程调不卡;无条件取
+        // (锁只是「App 在运行」的标记、非 AI 数据,省得用户中途开关 AI 留下空窗)。bundle id 用约定值(A19:不靠
+        // Bundle.main),与 agent 算到同一把锁。进程退出 / 崩溃 OS 自动释放,无需显式解锁。
+        if let lockURL = AIForegroundLock.lockURL(appBundleID: AIAgentConfiguration.appBundleID) {
+            aiForegroundLock.acquireAndHold(at: lockURL)
+        }
         // 阶段3:启动即同步 AI 配置 + **暖前台 XPC Service**。开了 AI → publishConfiguration(持久化 + 经 XPC 推配置)
         // 顺带把按需的 XPC Service 拉起来、配置就位 —— 这样「开 AI + 打开 app」XPC 进程就被拉起,前台 AI pass 走它即时可用,
         // 不必等第一条 pass 触发才冷启动。关了 AI → 只持久化红线状态(不必拉起 XPC,省电)。

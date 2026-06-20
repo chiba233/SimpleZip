@@ -54,6 +54,7 @@ let package = Package(
                 "Core/AI/AIFilenameEncoding.swift",
                 "Core/AI/AIFileSystemFact.swift",
                 "Core/AI/AIFileMemoryIndex.swift",
+                "Core/AI/AIForegroundLock.swift",
                 "Core/AI/AIIndexMaintenance.swift",
                 "Core/AI/AIIndexerScan.swift",
                 "Core/AI/AIIntentRouter.swift",

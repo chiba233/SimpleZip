@@ -77,6 +77,14 @@ enum AIAgentBackgroundIndex {
         let level = AIBackgroundActivityLevel(rawValue: config.activityLevel) ?? .balanced
         guard level != .off, let budget = AIArchivePrefetchBudget.forLevel(level) else { return skip("活跃度 off → 不跑") }
 
+        // 1c. app/agent 互斥:App 在前台活跃(持有前台锁)→ 后台索引归 App(走 App 自己的电源管理),agent **让位**、
+        //     跳过这轮 —— 避免 App 开着也在索引时,后台 agent 重复 / 竞争地写同一份共享派生索引。best-effort 让位:
+        //     App 写原子 + 本轮有界,极少见的「探完未占 → App 紧接着启动」的短暂重叠最坏只是一轮冗余、不损坏数据。
+        if let lockURL = AIForegroundLock.lockURL(appBundleID: AIAgentConfiguration.appBundleID),
+           AIForegroundLock.isForegroundAppActive(at: lockURL) {
+            return skip("App 在前台活跃(持有前台锁)→ 后台索引归 App,让位")
+        }
+
         // 1b. 间隔自节流:launchd 固定 base 频率拉起,距上次成功跑完不足配置间隔则廉价 no-op(超时下次续同理靠它续上)。
         let now = Date()
         let intervalSeconds = TimeInterval(max(1, config.backgroundIndexIntervalHours)) * 3_600
