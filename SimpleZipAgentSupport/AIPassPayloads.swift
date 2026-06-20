@@ -6,8 +6,10 @@
 //
 //  阶段3 把「整条模型 pass(拼 prompt + 调模型 + 解析结果)」搬进只编进 agent+XPC 的引擎层(AIPassEngine),
 //  App 退成薄客户端:拼输入 DTO → 经 XPC `generate(kind:inputJSON:...)` 调 → 收输出 DTO。这些 DTO 必须三 target
-//  共享(App 拼/引擎解码输入;引擎产/App 解码输出)→ 放这里,**只用基本类型 Codable**(不依赖 Core / FoundationModels,
-//  与 AIAgentConfiguration 同层)。@Generable 结构化类型留在引擎层(FoundationModels,不跨 XPC)。
+//  共享(App 拼/引擎解码输入;引擎产/App 解码输出)→ 放这里。早期 pass 只用基本类型(与 AIAgentConfiguration 同层);
+//  workspace pass(AI 文件夹/建议)直接吃 **Core 的 Codable 富类型**(AIVirtualNodePromptCandidate / AIVirtualFolderPlanInput
+//  等)—— 三 target 现都把 SimpleZip/Core 当 synced 源直编、Core 类型同 module 可见,故 DTO 可引用它们而无需镜像一套
+//  基本类型(A2:不为跨进程白造 DTO 镜像)。@Generable 结构化类型仍留引擎层(FoundationModels,不跨 XPC)。
 //
 //  语言:pass 输出语言原取 App 的 `AIReportAssistant.uiLanguageName`;引擎在 agent/XPC 进程里没有 App locale,
 //  故**界面语言由调用方(App)随每次 generate 传入** `languageName`,引擎据此拼 prompt —— 引擎本身 locale 无关。
@@ -43,6 +45,9 @@ public enum AIPassKind: String, Sendable {
     case diskImageInstallSuggestion
     /// 文件浏览器单文件抽屉建议(结构化,输入名/类型/角色/结构/脱敏摘录/候选App,输出一句摘要 + 动作 token + 推荐App编号)。
     case fileSuggestion
+    /// AI 文件夹/建议「核查不扣题成员」(结构化,输入主题 + 候选条目,输出要移除的 candidateID 列表)。
+    /// 吃 Core 富类型 AIVirtualNodePromptCandidate —— XPC Service 已链 Core,引擎可直接跨 XPC 解码。
+    case workspaceVerifyMisfits
 }
 
 // MARK: - 输入 DTO(App 拼 / 引擎解码)
@@ -200,6 +205,18 @@ public nonisolated struct FileSuggestionInput: Codable, Sendable {
         self.headings = headings; self.fieldNames = fieldNames; self.excerpt = excerpt
         self.candidateOpenApps = candidateOpenApps; self.discouragedTokens = discouragedTokens
         self.actionVocabularyRule = actionVocabularyRule
+    }
+}
+
+/// AI 文件夹/建议「核查不扣题成员」输入:文件夹主题 + 当前候选条目(Core 富类型,引擎据序号回查 candidateID)。
+/// **internal(非 public)**:属性用 Core 的 internal 类型 `AIVirtualNodePromptCandidate`,public 不能暴露 internal;
+/// 三 target 都把本文件 + SimpleZip/Core 当 synced 源直编、同 module 可见,internal 已足够跨 target 共享。
+nonisolated struct WorkspaceVerifyMisfitsInput: Codable, Sendable {
+    var theme: String
+    var items: [AIVirtualNodePromptCandidate]
+    init(theme: String, items: [AIVirtualNodePromptCandidate]) {
+        self.theme = theme
+        self.items = items
     }
 }
 

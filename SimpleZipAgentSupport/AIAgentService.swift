@@ -308,6 +308,15 @@ struct GeneratedFileSuggestion: Sendable {
     var openWithAppNumber: Int
 }
 
+/// 阶段3 workspace pass 的 @Generable(从 App 端 AIVirtualFolderModelPlanner 搬来,只在 agent+XPC 编)。
+/// 动态核查产出:明显不扣题、该从文件夹移除的条目序号(保守 —— 拿不准就不列)。扁平单字段,可靠。
+@available(macOS 26.0, *)
+@Generable
+struct GeneratedVerification: Sendable {
+    @Guide(description: "The item NUMBERS that CLEARLY do not belong to this folder's theme and should be removed. Only include items you are confident don't fit; when in doubt, leave it OUT of this list (keep it). Empty is fine — most items usually fit.")
+    var removeNumbers: [String]
+}
+
 @available(macOS 26.0, *)
 enum AgentGeneration {
     /// 参数化**真实**结构化生成:把用户自然语言请求 → 归档搜索关键词(镜像 App 端 ArchiveFileQuerySpec 的用途)。
@@ -392,6 +401,10 @@ enum AIPassEngine {
             let input = try JSONDecoder().decode(FileSuggestionInput.self, from: inputJSON)
             let out = try await fileSuggestion(input, languageName: languageName)
             return try JSONEncoder().encode(out)
+        case .workspaceVerifyMisfits:
+            let input = try JSONDecoder().decode(WorkspaceVerifyMisfitsInput.self, from: inputJSON)
+            let ids = try await workspaceVerifyMisfits(input)
+            return try JSONEncoder().encode(ids)
         }
     }
 
@@ -569,6 +582,37 @@ enum AIPassEngine {
             if ch.isNumber { digits.append(ch) } else if !digits.isEmpty { break }
         }
         return Int(digits)
+    }
+
+    /// 把模型返回的「序号 token」翻译回真实 candidateID(workspace pass 共用;小模型照抄长 opaque id 极易错 →
+    /// 喂短序号再翻译)。容忍 "3"/"#3"/"item 3"/"3."。越界 / 非数字 → nil。`candidates` 须与喂 prompt 时同序(同 prefix)。
+    private static func realID(_ token: String, in candidates: [AIVirtualNodePromptCandidate]) -> String? {
+        guard let n = firstInt(in: token), n >= 1, n <= candidates.count else { return nil }
+        return candidates[n - 1].candidateID
+    }
+
+    /// AI 文件夹/建议「核查不扣题成员」(结构化)。镜像原 App 端 AIVirtualFolderModelPlanner.verifyMisfits ——
+    /// 给主题 + 当前成员,让模型保守挑出明显不扣题的(拿不准就留),回**要移除的真实 candidateID**(去重)。
+    /// 输出是序号(非给人看文本)故不注语言。App 据此从虚拟文件夹剔除,绝不碰磁盘。
+    private static func workspaceVerifyMisfits(_ input: WorkspaceVerifyMisfitsInput) async throws -> [String] {
+        guard !input.items.isEmpty else { return [] }
+        let cands = Array(input.items.prefix(40))
+        let instructions = """
+        A folder collects items around ONE theme. Below is its theme and its current items (one per line: \
+        "number<TAB>kind<TAB>name<TAB>roleTags"). List ONLY the NUMBERS of items that CLEARLY AND OBVIOUSLY do not \
+        belong to this theme — items whose kind, name, AND roleTags all point away from the theme topic. Be \
+        conservative: when in doubt, KEEP the item (do not list it). An empty list is correct most of the time — \
+        most items usually fit. Never output a path; never remove an item just because its name is ambiguous.
+        """
+        var lines = ["Theme: \(input.theme)", "Items (number<TAB>kind<TAB>name<TAB>roleTags):"]
+        for (i, c) in cands.enumerated() {
+            lines.append(["\(i + 1)", c.kind, c.displayName, c.roleTags.joined(separator: " ")].joined(separator: "\t"))
+        }
+        let generated = try await AgentGenerationSerializer.shared.generateStructured(
+            instructions: instructions, prompt: lines.joined(separator: "\n"),
+            as: GeneratedVerification.self, maxAttempts: 8)
+        var seen = Set<String>()
+        return generated.removeNumbers.compactMap { realID($0, in: cands) }.filter { seen.insert($0).inserted }
     }
 
     /// 活动中心「建议筛选」chip 模型排序(结构化)。镜像原 App 端 rankWorkbenchFilterChips。
