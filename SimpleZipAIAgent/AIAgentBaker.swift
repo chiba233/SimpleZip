@@ -34,14 +34,16 @@ enum AIAgentBaker {
         var archiveKinds = 0
         var inlineChecks = 0
         var toolbarRankings = 0
+        var folderGroups = 0
+        var organizes = 0
         var note = ""
-        var produced: Int { fileSummaries + urlSuggestions + diskImages + archiveEntries + archiveKinds + inlineChecks + toolbarRankings }
+        var produced: Int { fileSummaries + urlSuggestions + diskImages + archiveEntries + archiveKinds + inlineChecks + toolbarRankings + folderGroups + organizes }
     }
 
     /// 每 pass 的最小时间片下限(秒)——避免 pass 数多时每片太短连一次生成都跑不完。
     private static let minPassSeconds: TimeInterval = 20
     /// 当前烘焙的 pass 数(切时间片用;加 pass 时同步 +1)。
-    private static let plannedPassCount = 7
+    private static let plannedPassCount = 9
 
     /// 跑一轮后台模型烘焙。返回更新后的索引 + 摘要。门控:AI 建议子开关 + 内容预读 + 端上模型可用。
     /// `derived`:派生数据存储(工具栏排序缓存等不在 index 里的派生数据写它)。
@@ -101,8 +103,11 @@ enum AIAgentBaker {
 
         // 工具栏动作排序(建议七 Phase2):文件级(AI 建议 list 重要文件)+ 类型级(按后缀)→ 派生缓存(不进 index)。
         summary.toolbarRankings = await bakeToolbarRanking(index, derived: derived, lang: lang, passDeadline: slice(), log: log)
+        // 文件夹「成组建议」/「整理进新文件夹」:据同文件夹的多文件让模型成组 / 圈一簇进新文件夹 → 派生缓存。
+        summary.folderGroups = await bakeFolderGroups(index, derived: derived, lang: lang, passDeadline: slice(), log: log)
+        summary.organizes = await bakeOrganize(index, derived: derived, lang: lang, passDeadline: slice(), log: log)
 
-        summary.note = "OK · 摘要 \(summary.fileSummaries) · 网页 \(summary.urlSuggestions) · 装App \(summary.diskImages) · 包内 \(summary.archiveEntries) · 包定性 \(summary.archiveKinds) · 检查 \(summary.inlineChecks) · 工具栏序 \(summary.toolbarRankings)"
+        summary.note = "OK · 摘要 \(summary.fileSummaries) · 网页 \(summary.urlSuggestions) · 装App \(summary.diskImages) · 包内 \(summary.archiveEntries) · 包定性 \(summary.archiveKinds) · 检查 \(summary.inlineChecks) · 工具栏序 \(summary.toolbarRankings) · 文件组 \(summary.folderGroups) · 整理 \(summary.organizes)"
         return (index, summary)
     }
 
@@ -410,6 +415,94 @@ enum AIAgentBaker {
             isChecksumFile: !isDir && ChecksumFile.isChecksumFileName(rec.fileName))
         return ContextualToolbarSnapshot(mode: .folder, selectedFiles: [sf],
                                          gpgUIAvailable: false, canConvertSelectedArchives: isArchive)
+    }
+
+    // MARK: - Pass ⑧⑨:文件夹成组建议 / 整理进新文件夹(workspaceFolderGroups / workspaceOrganize)
+
+    /// 按文件夹分组**非目录**记录(标准化文件夹路径),`skip(folder)` 命中(已评估)的不收。返回 (有序文件夹, 分组)。
+    private static func recordsByFolder(_ index: AIFileMemoryIndex, skip: (String) -> Bool) -> (order: [String], byFolder: [String: [AIFileMemoryRecord]]) {
+        var order: [String] = []
+        var byFolder: [String: [AIFileMemoryRecord]] = [:]
+        for rec in index.records where rec.type != .folder {
+            guard let path = rec.path else { continue }
+            let folder = URL(fileURLWithPath: path).deletingLastPathComponent().standardizedFileURL.path
+            if skip(folder) { continue }
+            if byFolder[folder] == nil { order.append(folder) }
+            byFolder[folder, default: []].append(rec)
+        }
+        return (order, byFolder)
+    }
+
+    /// 一个文件夹的记录 → prompt 候选(+ candidateID→path 映射)。
+    private static func folderCandidates(_ records: [AIFileMemoryRecord]) -> (items: [AIVirtualNodePromptCandidate], pathByID: [String: String]) {
+        var pathByID: [String: String] = [:]
+        let items = records.compactMap { rec -> AIVirtualNodePromptCandidate? in
+            guard let p = rec.path else { return nil }
+            let c = AIWorkspaceDiscovery.candidate(from: rec)
+            pathByID[c.id] = p
+            return AIVirtualNodePromptCandidate(candidate: c)
+        }
+        return (items, pathByID)
+    }
+
+    @available(macOS 26.0, *)
+    private static func bakeFolderGroups(_ index: AIFileMemoryIndex, derived: AIDerivedDataStore,
+                                         lang: String, passDeadline: Date, log: (String) -> Void) async -> Int {
+        var dict: [String: [CachedFolderGroup]] = decodeDerived(derived, AppPreferences.Key.aiFolderGroupsData) ?? [:]
+        let (order, byFolder) = recordsByFolder(index) { dict[$0] != nil }
+        let picks = order.filter { (byFolder[$0]?.count ?? 0) >= 2 }
+        log("烘焙 folderGroups:候选文件夹 \(picks.count)")
+        var count = 0; var changed = false
+        for folder in picks {
+            if Date() >= passDeadline { break }
+            let (items, pathByID) = folderCandidates(byFolder[folder] ?? [])
+            guard items.count >= 2 else { dict[folder] = []; changed = true; continue }
+            guard let out = try? await runPass(.workspaceFolderGroups, items, WorkspaceFolderGroupOutput.self, lang) else { continue }
+            let groups = out.groups.compactMap { g -> CachedFolderGroup? in
+                var seen = Set<String>()
+                let paths = g.memberIDs.compactMap { pathByID[$0] }.filter { seen.insert($0).inserted }
+                guard paths.count >= 2 else { return nil }
+                return CachedFolderGroup(title: nil, memberPaths: paths, actionToken: g.actionToken)
+            }
+            dict[folder] = groups; changed = true; count += 1
+            if !groups.isEmpty { log("  文件组 ✓ \((folder as NSString).lastPathComponent):\(groups.count) 组") }
+        }
+        if changed, let data = try? JSONEncoder().encode(dict) { derived.set(data, forKey: AppPreferences.Key.aiFolderGroupsData) }
+        return count
+    }
+
+    @available(macOS 26.0, *)
+    private static func bakeOrganize(_ index: AIFileMemoryIndex, derived: AIDerivedDataStore,
+                                     lang: String, passDeadline: Date, log: (String) -> Void) async -> Int {
+        var dict: [String: CachedFolderGroup] = decodeDerived(derived, AppPreferences.Key.aiOrganizeSuggestionsData) ?? [:]
+        // 整理需要一簇(≥3 文件)。已评估 = 键存在(含「评估过无建议」空哨兵)。
+        let (order, byFolder) = recordsByFolder(index) { dict[$0] != nil }
+        let picks = order.filter { (byFolder[$0]?.count ?? 0) >= 3 }
+        log("烘焙 organize:候选文件夹 \(picks.count)")
+        let emptySentinel = CachedFolderGroup(title: nil, memberPaths: [], actionToken: "organize")
+        var count = 0; var changed = false
+        for folder in picks {
+            if Date() >= passDeadline { break }
+            let (items, pathByID) = folderCandidates(byFolder[folder] ?? [])
+            guard items.count >= 3 else { dict[folder] = emptySentinel; changed = true; continue }
+            // do/catch:区分「引擎失败(抛错 → 不落哨兵,下轮重试)」与「模型说不值得(回 null → 落空哨兵)」。
+            let result: WorkspaceOrganizeOutput?
+            do { result = try await runPass(.workspaceOrganize, items, WorkspaceOrganizeOutput?.self, lang) }
+            catch { continue }
+            guard let out = result else { dict[folder] = emptySentinel; changed = true; count += 1; continue }   // 模型说不值得
+            var seen = Set<String>()
+            let paths = out.memberIDs.compactMap { pathByID[$0] }.filter { seen.insert($0).inserted }
+            dict[folder] = paths.count >= 3 ? CachedFolderGroup(title: out.folderName, memberPaths: paths, actionToken: "organize") : emptySentinel
+            changed = true; count += 1
+            if paths.count >= 3 { log("  整理 ✓ \((folder as NSString).lastPathComponent) → 「\(out.folderName)」\(paths.count) 个") }
+        }
+        if changed, let data = try? JSONEncoder().encode(dict) { derived.set(data, forKey: AppPreferences.Key.aiOrganizeSuggestionsData) }
+        return count
+    }
+
+    private static func decodeDerived<T: Decodable>(_ derived: AIDerivedDataStore, _ key: String) -> T? {
+        guard let data = derived.data(forKey: key) else { return nil }
+        return try? JSONDecoder().decode(T.self, from: data)
     }
 
     // MARK: - 缓存写(与 AIBackgroundIndexStore 的 apply* 同语义,纯 Core 值类型 op)
