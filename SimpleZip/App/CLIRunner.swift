@@ -135,7 +135,8 @@ enum CLIRunner {
         }
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-        process.arguments = ["-a", environment.appBundleURL.path] + urls.map(\.path)
+        // 安全:`--` 终止选项,以 - 开头的路径不被 open 当 flag(已实测 open 支持 `--`)。
+        process.arguments = ["-a", environment.appBundleURL.path, "--"] + urls.map(\.path)
         do {
             try process.run()
             process.waitUntilExit()
@@ -636,10 +637,18 @@ enum CLIRunner {
     private nonisolated final class OutputBuffer: @unchecked Sendable {
         private let lock = NSLock()
         private var buffer = ""
+        // 上限:大归档(几万条目)的 7zz 逐条输出可达数 MB。rawOutput 会进 TaskCenter → UserDefaults 任务历史,
+        // 超 ~4MB 会被 macOS **静默丢弃**(整条历史没了)。超阈值就从头截断、保留尾部(最新、对失败诊断最有用)。
+        // 触发用 utf8.count(原生 String O(1))、截断 O(keep),摊销 O(1)/字符,不会变 O(n²)。
+        private static let trimThresholdBytes = 1_048_576   // 1MB 触发
+        private static let keepCharacters = 500_000         // 截后保留尾部(ASCII 输出 ≈ 0.5MB,远低于 4MB)
 
         func append(_ chunk: String) {
             lock.lock()
             buffer += chunk
+            if buffer.utf8.count > Self.trimThresholdBytes {
+                buffer = "…(output truncated)…\n" + String(buffer.suffix(Self.keepCharacters))
+            }
             lock.unlock()
         }
 
