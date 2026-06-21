@@ -36,14 +36,15 @@ enum AIAgentBaker {
         var toolbarRankings = 0
         var folderGroups = 0
         var organizes = 0
+        var workbench = 0
         var note = ""
-        var produced: Int { fileSummaries + urlSuggestions + diskImages + archiveEntries + archiveKinds + inlineChecks + toolbarRankings + folderGroups + organizes }
+        var produced: Int { fileSummaries + urlSuggestions + diskImages + archiveEntries + archiveKinds + inlineChecks + toolbarRankings + folderGroups + organizes + workbench }
     }
 
     /// 每 pass 的最小时间片下限(秒)——避免 pass 数多时每片太短连一次生成都跑不完。
     private static let minPassSeconds: TimeInterval = 20
     /// 当前烘焙的 pass 数(切时间片用;加 pass 时同步 +1)。
-    private static let plannedPassCount = 10
+    private static let plannedPassCount = 11
 
     /// 跑一轮后台模型烘焙。返回更新后的索引 + 摘要。门控:AI 建议子开关 + 内容预读 + 端上模型可用。
     /// `derived`:派生数据存储(工具栏排序缓存等不在 index 里的派生数据写它)。
@@ -109,8 +110,10 @@ enum AIAgentBaker {
         // pending 安全 / 发布包检测(确定性分析 + 仅异常时模型润色一句话;只读红线)。
         let rsi = await bakePendingSecurityInspect(index, lang: lang, passDeadline: slice(), log: log)
         index = rsi.index; summary.inlineChecks += rsi.count
+        // 活动中心工作台:读 App 投影的任务记录,烘 chip 排序 / 真建议命名 / 需处理解读 / 失败解释。
+        summary.workbench = await bakeWorkbench(derived: derived, lang: lang, passDeadline: slice(), log: log)
 
-        summary.note = "OK · 摘要 \(summary.fileSummaries) · 网页 \(summary.urlSuggestions) · 装App \(summary.diskImages) · 包内 \(summary.archiveEntries) · 包定性 \(summary.archiveKinds) · 检查 \(summary.inlineChecks) · 工具栏序 \(summary.toolbarRankings) · 文件组 \(summary.folderGroups) · 整理 \(summary.organizes)"
+        summary.note = "OK · 摘要 \(summary.fileSummaries) · 网页 \(summary.urlSuggestions) · 装App \(summary.diskImages) · 包内 \(summary.archiveEntries) · 包定性 \(summary.archiveKinds) · 检查 \(summary.inlineChecks) · 工具栏序 \(summary.toolbarRankings) · 文件组 \(summary.folderGroups) · 整理 \(summary.organizes) · 工作台 \(summary.workbench)"
         return (index, summary)
     }
 
@@ -570,6 +573,103 @@ enum AIAgentBaker {
         }
         if let out = try? JSONEncoder().encode(queue) { defaults.set(out, forKey: AppPreferences.Key.aiPendingChecksData) }
         return (index, count)
+    }
+
+    // MARK: - Pass ⑪:活动中心工作台(读 App 投影的任务记录 → chip 排序 / 真建议命名 / 需处理解读 / 失败解释)
+
+    @available(macOS 26.0, *)
+    private static func bakeWorkbench(derived: AIDerivedDataStore, lang: String, passDeadline: Date,
+                                      log: (String) -> Void) async -> Int {
+        guard let data = derived.data(forKey: AppPreferences.Key.aiTaskRecordProjection),
+              let records = try? JSONDecoder().decode([AITaskRecord].self, from: data), !records.isEmpty else { return 0 }
+        log("烘焙 workbench:任务记录 \(records.count)")
+        let categories = ["archive", "fileOperation", "undoRedo"]
+        var count = 0
+
+        // ① 筛选 chip 排序(每分类一条,指纹幂等)
+        var chipDict: [String: CachedChipRanking] = decodeDerived(derived, AppPreferences.Key.aiWorkbenchChipRankingData) ?? [:]
+        var chipChanged = false
+        for category in categories {
+            if Date() >= passDeadline { break }
+            let chips = ActivityAIWorkbenchBuilder.snapshot(records: records.filter { $0.category == category }).filterChips
+            guard chips.count >= 2 else { continue }
+            let fp = ActivityAIWorkbenchKeys.chipPoolFingerprint(chips)
+            guard chipDict[category]?.fingerprint != fp else { continue }
+            let cands = chips.map { WorkbenchChipRankingInput.Candidate(label: ActivityAIWorkbenchKeys.chipPromptLabel($0), matches: ActivityAIWorkbenchKeys.chipMatchCount($0)) }
+            guard let out = try? await runPass(.rankWorkbenchFilterChips, WorkbenchChipRankingInput(candidates: cands), AIPassIntListOutput.self, lang), !out.numbers.isEmpty else { continue }
+            let ids = out.numbers.compactMap { (1...chips.count).contains($0) ? chips[$0 - 1].id : nil }
+            guard !ids.isEmpty else { continue }
+            chipDict[category] = CachedChipRanking(fingerprint: fp, orderedIDs: ids); chipChanged = true; count += 1
+            log("  筛选排序 ✓ \(category)")
+        }
+        if chipChanged, let d = try? JSONEncoder().encode(chipDict) { derived.set(d, forKey: AppPreferences.Key.aiWorkbenchChipRankingData) }
+
+        // ② 真建议聚类命名(每分类一条)
+        var clusterDict: [String: CachedClusterChips] = decodeDerived(derived, AppPreferences.Key.aiWorkbenchClusterChipsData) ?? [:]
+        var clusterChanged = false
+        for category in categories {
+            if Date() >= passDeadline { break }
+            let clusters = ActivityAIWorkbenchBuilder.discoverClusters(records: records.filter { $0.category == category })
+            guard !clusters.isEmpty else { continue }
+            let fp = ActivityAIWorkbenchKeys.clusterFingerprint(clusters)
+            guard clusterDict[category]?.fingerprint != fp else { continue }
+            let cands = clusters.map { WorkbenchClusterNamingInput.Candidate(facts: $0.dimensionFacts, matches: $0.matchCount) }
+            guard let out = try? await runPass(.nameWorkbenchClusters, WorkbenchClusterNamingInput(candidates: cands), AIPassClusterNamingOutput.self, lang), !out.entries.isEmpty else { continue }
+            let chips: [CachedClusterChip] = out.entries.compactMap { item in
+                guard (1...clusters.count).contains(item.index) else { return nil }
+                let c = clusters[item.index - 1]
+                return CachedClusterChip(id: ActivityAIWorkbenchKeys.clusterChipID(c.filter), displayName: item.name, filter: c.filter, matchCount: c.matchCount)
+            }
+            guard !chips.isEmpty else { continue }
+            clusterDict[category] = CachedClusterChips(fingerprint: fp, chips: chips); clusterChanged = true; count += 1
+            log("  真建议 ✓ \(category):\(chips.count)")
+        }
+        if clusterChanged, let d = try? JSONEncoder().encode(clusterDict) { derived.set(d, forKey: AppPreferences.Key.aiWorkbenchClusterChipsData) }
+
+        // ③ 需处理解读(每分类一条,仅有未读失败时)
+        var needsDict: [String: CachedExplanation] = decodeDerived(derived, AppPreferences.Key.aiWorkbenchNeedsAttentionData) ?? [:]
+        var needsChanged = false
+        for category in categories {
+            if Date() >= passDeadline { break }
+            let recs = records.filter { $0.category == category }
+            let fp = ActivityAIWorkbenchKeys.needsAttentionFingerprint(recs)
+            guard !fp.isEmpty, needsDict[category]?.fingerprint != fp else { continue }
+            let unseenFailed = recs.filter { $0.status == "failed" && !$0.failureSeen }
+            guard !unseenFailed.isEmpty else { continue }
+            let s = ActivityAIWorkbenchSummary(records: recs)
+            let summaryFacts = ["total \(s.total)", "running \(s.running)", "unseen-failed \(s.failedUnseen)", "failed \(s.failedSeen)", "succeeded \(s.succeeded)"]
+            let failedFacts = unseenFailed.prefix(8).map { rec -> String in
+                let tags = rec.diagnostics.tags.isEmpty ? "no-tags" : rec.diagnostics.tags.joined(separator: "+")
+                return "\(rec.kind) / \(rec.source) / \(tags)"
+            }
+            guard let out = try? await runPass(.activityWorkbenchExplanation, ActivityWorkbenchExplanationInput(summaryFacts: summaryFacts, failedFacts: Array(failedFacts)), AIPassTextOutput.self, lang), !out.text.isEmpty else { continue }
+            needsDict[category] = CachedExplanation(fingerprint: fp, text: out.text); needsChanged = true; count += 1
+            log("  需处理 ✓ \(category)")
+        }
+        if needsChanged, let d = try? JSONEncoder().encode(needsDict) { derived.set(d, forKey: AppPreferences.Key.aiWorkbenchNeedsAttentionData) }
+
+        // ④ 失败解释(逐失败任务,修剪到活失败任务集)
+        let failed = records.filter { $0.status == "failed" }
+        let liveTaskIDs = Set(failed.map(\.id))
+        var failDict: [String: CachedExplanation] = decodeDerived(derived, AppPreferences.Key.aiWorkbenchFailureExplanationData) ?? [:]
+        var failChanged = false
+        for rec in failed {
+            if Date() >= passDeadline { break }
+            let fp = ActivityAIWorkbenchKeys.failureExplanationFingerprint(rec)
+            guard failDict[rec.id]?.fingerprint != fp else { continue }
+            let diag = rec.diagnostics
+            guard let out = try? await runPass(.taskFailureShortExplanation, TaskFailureExplanationInput(
+                kind: rec.kind, source: rec.source, tags: diag.tags, failureMessage: diag.failureMessage, errorLines: diag.errorLines),
+                AIPassTextOutput.self, lang), !out.text.isEmpty else { continue }
+            failDict[rec.id] = CachedExplanation(fingerprint: fp, text: out.text); failChanged = true; count += 1
+            log("  失败解释 ✓ \(rec.kind)")
+        }
+        let prunedFail = failDict.filter { liveTaskIDs.contains($0.key) }   // 历史不累积:修剪到当前活失败任务
+        if failChanged || prunedFail.count != failDict.count, let d = try? JSONEncoder().encode(prunedFail) {
+            derived.set(d, forKey: AppPreferences.Key.aiWorkbenchFailureExplanationData)
+        }
+
+        return count
     }
 
     private static func applyInline(_ index: AIFileMemoryIndex, recordID: String, token: String, text: String) -> AIFileMemoryIndex {

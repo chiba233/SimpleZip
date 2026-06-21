@@ -396,6 +396,9 @@ enum AppPreferences {
         nonisolated static let aiWorkbenchFailureExplanationData = "SimpleZip.ai.workbenchFailureExplanation.v1"
         /// 0.4.5 #80 建议六 v2「真建议」:活动中心模型命名的真实聚集 chip 缓存(`[String: CachedClusterChips]` 按任务分类;后台预烘焙、幂等;派生数据,不进偏好备份)。
         nonisolated static let aiWorkbenchClusterChipsData = "SimpleZip.ai.workbenchClusterChips.v1"
+        /// 0.4.5 #80:**任务记录投影**(`[AITaskRecord]` 的 JSON)——App 写历史时把任务投影到此共享键,供后台 agent
+        /// (App 关闭时)读来跑活动中心工作台 pass(失败解释 / 真建议命名 / 需处理解读 / 筛选排序);派生数据,不进偏好备份。
+        nonisolated static let aiTaskRecordProjection = "SimpleZip.ai.taskRecordProjection.v1"
         /// 0.4.5 #80:跨表面 AI 交互信号日志(`[AIInteractionSignalEvent]` 的 JSON;点击 / 打开建议等兴趣信号;派生数据,不进偏好备份)。
         nonisolated static let aiInteractionSignalsData = "SimpleZip.ai.interaction.signals.v1"
         /// 0.4.5 #80:用户兴趣事件日志(`[AIUserInterestEvent]` 的 JSON;归档打开等接触信号,喂后台调度 / 建议的位置亲和;派生数据,不进偏好备份)。

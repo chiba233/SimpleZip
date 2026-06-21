@@ -366,10 +366,15 @@ final class TaskCenter: ObservableObject {
     private func persistHistory(thenReindexSpotlight: Bool = false) {
         // 快照在主 actor 上取（读 OperationTask 的隔离状态），编码/写盘丢到后台串行队列。
         let snapshots = history.map(PersistedTask.init(task:))
+        // 任务记录投影:给后台 agent(App 关后)读来跑活动中心工作台 pass(失败解释 / 真建议命名…)。主 actor 上取(读 OperationTask 隔离态)。
+        let aiRecords = history.map(\.aiTaskRecord)
         let key = AppPreferences.Key.activityHistory
         Self.persistQueue.async {
             if let data = try? JSONEncoder().encode(snapshots) {
                 UserDefaults.standard.set(data, forKey: key)
+            }
+            if let aiData = try? JSONEncoder().encode(aiRecords) {
+                AIDerivedDataStore().set(aiData, forKey: AppPreferences.Key.aiTaskRecordProjection)
             }
             if thenReindexSpotlight {
                 // indexer 默认 MainActor 隔离 → 回主 actor 调;它内部再 detach 做索引 I/O,不占主线程。
