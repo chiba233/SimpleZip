@@ -276,6 +276,12 @@ final class AIBackgroundIndexer {
         folderGroupTask?.cancel(); folderGroupTask = nil; folderGroupRunning = false
         organizeTask?.cancel(); organizeTask = nil; organizeRunning = false
         toolbarRankingTask?.cancel(); toolbarRankingTask = nil; toolbarRankingRunning = false
+        // 活动中心四个工作台预烘焙 pass —— 关 AI / 活跃度时同样必须取消(早先 cancel() 漏了它们 → 关掉后
+        // 仍会把过期的 chip 排序 / 解读 / 失败解释 / 真建议写完)。
+        workbenchRankingTask?.cancel(); workbenchRankingTask = nil; workbenchRankingRunning = false
+        workbenchNeedsAttentionTask?.cancel(); workbenchNeedsAttentionTask = nil; workbenchNeedsAttentionRunning = false
+        workbenchFailureTask?.cancel(); workbenchFailureTask = nil; workbenchFailureRunning = false
+        workbenchClusterTask?.cancel(); workbenchClusterTask = nil; workbenchClusterRunning = false
     }
 
     // MARK: - 内容预读 · 归档半边(MainActor:ArchiveService 在 app target 下 MainActor 隔离,A18)
@@ -381,6 +387,7 @@ final class AIBackgroundIndexer {
                     fieldNames: summary.fieldNames, excerpt: excerpt,
                     candidateOpenApps: probed.apps, discouragedTokens: discouragedTokens),
                     !result.summary.isEmpty || !result.actions.isEmpty else { continue }
+                if Task.isCancelled { break }   // 模型生成期间关了 AI → 不写过期建议(P2-8)
                 AIBackgroundIndexStore.shared.applyModelSuggestion(
                     recordID: rec.id, summary: result.summary, actions: result.actions)
             }
@@ -448,6 +455,7 @@ final class AIBackgroundIndexer {
             input: ToolbarActionRankingInput(fileName: fileName, kind: rec.type == .archive ? "archive" : "file",
                                              roleTags: rec.roleTags, summary: summary, actions: ids),
             as: AIPassIntListOutput.self) else { return }
+        guard !Task.isCancelled else { return }   // 模型生成期间关了 AI → 不写过期序(P2-8)
         let ordered = out.numbers.compactMap { ids.indices.contains($0 - 1) ? ids[$0 - 1] : nil }
         AIBackgroundIndexStore.shared.setToolbarRanking(filePath: filePath, pathExtension: ext, orderedIDs: ordered)
     }
@@ -499,6 +507,7 @@ final class AIBackgroundIndexer {
                 guard !urls.isEmpty else { continue }
                 // 确定性高价值域名白名单 fast-path:命中(github/pypi/npm/Apple 文档…)直接写,跳过模型 —— 命中率高得多。
                 if let fastURL = urls.first(where: AIURLCandidateExtractor.isHighValueURL) {
+                    if Task.isCancelled { break }   // 读取期间关了 AI → 不写过期建议(P2-8)
                     AIBackgroundIndexStore.shared.applyURLOpenSuggestion(
                         recordID: rec.id, url: fastURL, label: AIURLCandidateExtractor.webPageLabel(for: fastURL))
                     continue
@@ -509,6 +518,7 @@ final class AIBackgroundIndexer {
                     input: URLOpenSuggestionInput(fileName: rec.fileName, roleTags: rec.roleTags, urls: urls),
                     as: AIPassIntOutput.self),
                     urls.indices.contains(urlOut.number) else { continue }
+                if Task.isCancelled { break }   // 模型生成期间关了 AI → 不写过期建议(P2-8)
                 let url = urls[urlOut.number]
                 AIBackgroundIndexStore.shared.applyURLOpenSuggestion(
                     recordID: rec.id, url: url, label: AIURLCandidateExtractor.webPageLabel(for: url))
@@ -557,6 +567,7 @@ final class AIBackgroundIndexer {
                     kind: .diskImageInstallSuggestion,
                     input: DiskImageSuggestionInput(dmgName: rec.fileName, appNames: appNames),
                     as: AIPassDiskImageOutput.self) else { continue }
+                if Task.isCancelled { break }   // 模型生成期间关了 AI → 不写过期建议(P2-8)
                 AIBackgroundIndexStore.shared.setDiskImageSuggestion(
                     recordID: rec.id,
                     summary: result.summary.isEmpty ? nil : result.summary,
@@ -614,6 +625,7 @@ final class AIBackgroundIndexer {
                 guard let out = try? await AIAgentClient.generatePass(
                     kind: .activityReminder, input: input, as: AIPassTextOutput.self),
                       !out.text.isEmpty else { continue }
+                if Task.isCancelled { break }   // 模型生成期间关了 AI → 不写过期建议(P2-8)
                 AIBackgroundIndexStore.shared.applyActivitySuggestion(recordID: rec.id, taskID: snap.id, phrasing: out.text)
             }
         }
@@ -669,6 +681,7 @@ final class AIBackgroundIndexer {
                 (idx >= 1 && idx <= pick.chips.count) ? pick.chips[idx - 1].id : nil
             }
             guard !orderedIDs.isEmpty else { return }
+            guard !Task.isCancelled else { return }   // 模型生成期间关了 AI → 不写过期结果(P2-8)
             AIBackgroundIndexStore.shared.applyWorkbenchChipRanking(
                 category: pick.category, fingerprint: pick.fingerprint, orderedIDs: orderedIDs)
         }
@@ -720,6 +733,7 @@ final class AIBackgroundIndexer {
             guard let out = try? await AIAgentClient.generatePass(
                 kind: .activityWorkbenchExplanation, input: input, as: AIPassTextOutput.self),
                   !out.text.isEmpty else { return }
+            guard !Task.isCancelled else { return }   // 模型生成期间关了 AI → 不写过期结果(P2-8)
             AIBackgroundIndexStore.shared.applyWorkbenchNeedsAttentionExplanation(
                 category: pick.category, fingerprint: pick.fingerprint, text: out.text)
         }
@@ -760,6 +774,7 @@ final class AIBackgroundIndexer {
             guard let out = try? await AIAgentClient.generatePass(
                 kind: .taskFailureShortExplanation, input: input, as: AIPassTextOutput.self),
                   !out.text.isEmpty else { return }
+            guard !Task.isCancelled else { return }   // 模型生成期间关了 AI → 不写过期结果(P2-8)
             AIBackgroundIndexStore.shared.applyWorkbenchFailureExplanation(
                 taskID: pick.record.id, fingerprint: pick.fingerprint, text: out.text, liveTaskIDs: liveTaskIDs)
         }
@@ -807,6 +822,7 @@ final class AIBackgroundIndexer {
                     displayName: item.name, filter: cluster.filter, matchCount: cluster.matchCount)
             }
             guard !chips.isEmpty else { return }
+            guard !Task.isCancelled else { return }   // 模型生成期间关了 AI → 不写过期结果(P2-8)
             AIBackgroundIndexStore.shared.applyWorkbenchClusterChips(
                 category: pick.category, fingerprint: pick.fingerprint, chips: chips)
         }
@@ -854,6 +870,7 @@ final class AIBackgroundIndexer {
                     kind: .archiveEntryPicks,
                     input: ArchiveEntryPicksInput(archiveName: rec.fileName, entryPaths: paths),
                     as: AIPassIntListOutput.self) else { continue }
+                if Task.isCancelled { break }   // 模型生成期间关了 AI → 不写过期建议(P2-8)
                 let actions = entryOut.numbers.map { idx -> AIFileSuggestedAction in
                     let entryPath = paths[idx - 1]
                     return AIFileSuggestedAction(token: "revealArchiveEntry", payload: entryPath,
@@ -910,6 +927,7 @@ final class AIBackgroundIndexer {
                     entries: entries.map { ArchiveKindGuessInput.Entry(name: $0.name, isDirectory: $0.isDirectory) })
                 guard let guess = try? await AIAgentClient.generatePass(
                     kind: .archiveKindGuess, input: kindInput, as: AIPassArchiveKindOutput.self) else { continue }
+                if Task.isCancelled { break }   // 模型生成期间关了 AI → 不写过期建议(P2-8)
                 AIBackgroundIndexStore.shared.applyArchiveKindGuess(
                     recordID: rec.id, summary: guess.summary, toolTokens: guess.toolTokens)
             }
@@ -998,6 +1016,7 @@ final class AIBackgroundIndexer {
                     guard paths.count >= 2 else { return nil }
                     return CachedFolderGroup(title: nil, memberPaths: paths, actionToken: suggestion.actionToken)
                 }
+                if Task.isCancelled { break }   // 模型生成期间关了 AI → 不写过期建议(P2-8)
                 AIBackgroundIndexStore.shared.setFolderGroups(groups, forPath: folder)
             }
         }
@@ -1068,6 +1087,7 @@ final class AIBackgroundIndexer {
                     AIBackgroundIndexStore.shared.setOrganizeSuggestion(nil, forPath: folder)
                     continue
                 }
+                if Task.isCancelled { break }   // 模型生成期间关了 AI → 不写过期建议(P2-8)
                 AIBackgroundIndexStore.shared.setOrganizeSuggestion(
                     CachedFolderGroup(title: suggestion.folderName, memberPaths: paths, actionToken: "organize"),
                     forPath: folder)
