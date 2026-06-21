@@ -308,11 +308,14 @@ final class AIBackgroundIndexer {
             .compactMap { $0.path.map { URL(fileURLWithPath: $0) } }
         guard !pick.isEmpty else { return }
         archiveRunning = true
-        archiveTask = Task { @MainActor in
-            defer { AIBackgroundIndexer.shared.archiveRunning = false }
+        // Task.detached 真正跑在后台线程：ArchiveService.list() 含 7zz 子进程启动 + parseSevenZipList 解析，
+        // 在 Task { @MainActor in } 里跑会占主线程 >1s（SimpleZip12 取样实证）。
+        // nonisolated async 不自动 hop 出主线程，必须用 Task.detached。
+        archiveTask = Task.detached(priority: .background) {
             for url in pick {
                 if Task.isCancelled { break }
-                guard AIBackgroundIndexStore.shared.contentPrereadEnabled else { break }   // 期间被关
+                let enabled = await MainActor.run { AIBackgroundIndexStore.shared.contentPrereadEnabled }
+                guard enabled else { break }                                                // 期间被关
                 // 空口令只读列举:加密头 / 损坏 → 抛错跳过(绝不弹密码、绝不解压)。
                 guard let items = try? await ArchiveService.list(url) else { continue }
                 if ArchiveListingCacheStore().record(archiveURL: url, items: items) {
@@ -321,6 +324,7 @@ final class AIBackgroundIndexer {
                 }
             }
             // (AI 文件夹自动发现已下线 → 预读完不再回调 discovery.refresh();归档清单缓存照常给 AI suggestion / Spotlight 用。)
+            await MainActor.run { AIBackgroundIndexer.shared.archiveRunning = false }
         }
     }
 
