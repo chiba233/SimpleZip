@@ -18,12 +18,12 @@ enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
     case view
     case fileAssociations
     case gpg
-    case updates
     case automation
     case ai
     case health
     case backup
     case help
+    case updates
     case about
 
     var id: String { rawValue }
