@@ -199,7 +199,9 @@ enum NativeZipBackend {
     ) async throws {
         _ = try await BackendProcessRunner.runAndCapture(
             "/usr/bin/tar",
-            arguments: ["-cvf", destination.path] + excludeArguments + relativeNames,
+            // 安全:relativeNames(源文件名)以 - 开头会被 tar 当开关。排除项是选项放 `--` 前,
+            // `--` 之后 tar 一律当文件名(已实测 macOS tar 支持 `--`)。
+            arguments: ["-cvf", destination.path] + excludeArguments + ["--"] + relativeNames,
             currentDirectory: currentDirectory,
             progressParser: progressParser,
             outputObserver: outputObserver,
@@ -219,7 +221,8 @@ enum NativeZipBackend {
     ) async throws {
         _ = try await BackendProcessRunner.runAndCapture(
             "/usr/bin/tar",
-            arguments: ["-czvf", destination.path] + excludeArguments + relativeNames,
+            // 安全:同 createTar,`--` 之后 tar 一律当文件名,挡住以 - 开头的源名被当开关。
+            arguments: ["-czvf", destination.path] + excludeArguments + ["--"] + relativeNames,
             currentDirectory: currentDirectory,
             progressParser: progressParser,
             outputObserver: outputObserver,
@@ -244,11 +247,14 @@ enum NativeZipBackend {
             arguments.append("-e")
         }
         arguments.append(destination.path)
-        arguments.append(contentsOf: relativeNames)
+        // 安全:relativeNames(源文件名)以 - 开头会被 zip 当开关。排除模式是选项(放 `--` 前),
+        // `--` 之后 zip 一律当文件名。已实测 macOS zip 支持「archive -x 模式 -- 文件」这个顺序。
         if !excludePatterns.isEmpty {
             arguments.append("-x")
             arguments.append(contentsOf: excludePatterns)
         }
+        arguments.append("--")
+        arguments.append(contentsOf: relativeNames)
         let inputStrategy: ProcessInputStrategy = options.password.isEmpty
             ? .none
             : .passwordPrompts([options.password, options.password])
@@ -299,6 +305,7 @@ enum NativeZipBackend {
             if overwriteBehavior == .skipExisting {
                 arguments.insert("-k", at: 0)
             }
+            arguments.append("--")   // 安全:条目名不可信,`--` 之后 tar 一律当成员名(已实测)
             arguments.append(contentsOf: entries)
             _ = try await BackendProcessRunner.runAndCapture(
                 "/usr/bin/tar",
@@ -309,6 +316,11 @@ enum NativeZipBackend {
                 outputRetentionLimit: BackendProcessRunner.diagnosticsOutputRetentionLimit
             )
         } else {
+            // 安全:unzip(Info-ZIP)**不支持 `--`** 终止选项(已实测),以 - 开头的条目名会被当开关 ——
+            // 例如条目 `-d/evil` 会被解析成 `-d /evil` 重定向解压目录(路径穿越,已实测复现)。bundled 7zz 是
+            // 首选且用 `--` 安全处理这类名;原生 unzip 仅在 7zz 不可用时兜底。这里 fail-closed:option 样条目直接拒。
+            let optionLikeEntries = entries.filter { $0.hasPrefix("-") }
+            guard optionLikeEntries.isEmpty else { throw ArchiveError.unsafeArchiveEntries(optionLikeEntries) }
             var arguments = [ArchiveService.unzipOverwriteArgument(for: overwriteBehavior), archive.path]
             arguments.append(contentsOf: entries)
             arguments.append(contentsOf: ["-d", destination.path])
@@ -343,7 +355,10 @@ enum NativeZipBackend {
         if overwriteBehavior == .skipExisting {
             arguments.insert("-k", at: 0)
         }
-        arguments.append(contentsOf: entries)   // 空=整包;非空=按条目名选择性解压
+        if !entries.isEmpty {
+            arguments.append("--")   // 安全:条目名不可信,`--` 之后 tar 一律当成员名(已实测);整包时无位置参数,免 `--`
+            arguments.append(contentsOf: entries)
+        }
         _ = try await BackendProcessRunner.runAndCapture(
             "/usr/bin/tar",
             arguments: arguments,
