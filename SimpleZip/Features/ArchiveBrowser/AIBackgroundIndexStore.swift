@@ -81,6 +81,8 @@ final class AIBackgroundIndexStore: ObservableObject {
     private static let extractAdvisoryDerivedKey = "simplezip.ai.extractAdvisory.v1"
     /// 失败解释缓存硬上限(兜底防无界;主要界是 `liveTaskIDs` 过滤,正常远小于此)。
     private static let maxFailureExplanations = 200
+    /// 文件夹分组 / 整理建议缓存硬上限(与 extractAdvisory 同款防无界:每次更新都在主 actor 同步全量编码写盘)。
+    private static let maxFolderEntries = 2000
 
     private let defaults: UserDefaults
     /// 阶段0a:派生数据(索引本体 + 下游预烘焙缓存)的独立文件存储。白名单 `scopes` + 反馈 `dislikedKeys` 仍留 `defaults`。
@@ -185,6 +187,9 @@ final class AIBackgroundIndexStore: ObservableObject {
 
     func setFolderGroups(_ groups: [CachedFolderGroup], forPath folderPath: String) {
         let key = Self.normalizedFolderPath(folderPath)
+        if folderGroupsByPath[key] == nil, folderGroupsByPath.count >= Self.maxFolderEntries {
+            folderGroupsByPath.removeAll()   // 罕见上限重置防无界(下轮后台按当前文件夹重烤)
+        }
         folderGroupsByPath[key] = groups
         folderGroupsGeneration += 1
         persistFolderGroups()
@@ -208,6 +213,9 @@ final class AIBackgroundIndexStore: ObservableObject {
     /// 写入整理建议(nil = 已评估但无建议,落一个空成员哨兵,避免下轮重复评估同一文件夹)。
     func setOrganizeSuggestion(_ group: CachedFolderGroup?, forPath folderPath: String) {
         let key = Self.normalizedFolderPath(folderPath)
+        if organizeByPath[key] == nil, organizeByPath.count >= Self.maxFolderEntries {
+            organizeByPath.removeAll()   // 罕见上限重置防无界(下轮后台重评)
+        }
         organizeByPath[key] = group ?? CachedFolderGroup(title: nil, memberPaths: [], actionToken: "organize")
         organizeGeneration += 1
         persistOrganize()

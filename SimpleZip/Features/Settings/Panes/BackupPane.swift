@@ -84,6 +84,10 @@ struct BackupPane: View {
                 // Keychain 清除可能失败（钥匙串锁定 / 权限）—— 失败时不能谎报「已恢复」,
                 // 否则用户以为预设密码删了、其实还在钥匙串里。按实际结果给文案。
                 let keychainCleared = AppPreferences.restoreAllDefaultsToFactory()
+                // 隐私:Core 的恢复出厂只清可导出偏好 + Keychain,不含 AI 派生数据(文件索引 / 跨表面反馈 /
+                // 待检查队列 / 各预烘焙缓存)—— AI key 注释承诺「恢复出厂应清掉」,但只能从 App 层清(Core 不引用
+                // App 的 store)。这里补上,与注释/隐私预期一致。
+                AIBackgroundIndexStore.shared.clearDerivedData()
                 lastActionMessage = keychainCleared
                     ? L10n.text("backup.restore.done")
                     : L10n.text("backup.restore.keychainFailed")

@@ -515,7 +515,12 @@ enum BatchRename {
 
         var proposals: [(from: String, to: String, invalidName: Bool)] = []
         for (index, path) in paths.enumerated() {
-            let directory = path.contains("/") ? String(path[..<path.range(of: "/", options: .backwards)!.upperBound]) : ""
+            let directory: String
+            if let slash = path.range(of: "/", options: .backwards) {
+                directory = String(path[..<slash.upperBound])
+            } else {
+                directory = ""
+            }
             let leaf = String(path.split(separator: "/").last ?? Substring(path))
             let newLeaf = transform(leaf, operation: operation, index: index)
             guard newLeaf != leaf else { continue }
