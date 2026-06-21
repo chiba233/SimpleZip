@@ -692,7 +692,10 @@ struct FileNSOutlineView: NSViewRepresentable {
                         parts.append(.section(node.sectionKey, children))
                         continue
                     }
-                    guard node.volumeChildren == nil, let path = node.fileItem?.url.standardizedFileURL.path else {
+                    // 布局形状只需稳定的路径字符串做相等比对,**不要用 standardizedFileURL**:它会 stat() /
+                    // 解析符号链接(每文件一次内核调用),在 SwiftUI reconcile 主线程热路径上几万文件直接冻死
+                    // (取样实证 2386ms)。用纯字符串 url.path —— current / expected 两侧一致即可。
+                    guard node.volumeChildren == nil, let path = node.fileItem?.url.path else {
                         return nil
                     }
                     parts.append(.file(path))
@@ -710,7 +713,8 @@ struct FileNSOutlineView: NSViewRepresentable {
                         FileSplitCombine.volumeSet(forMemberNamed: $0, among: fileNames)?.volumeCount ?? 0 >= 2
                     }) else { return nil }
                 }
-                return items.map { .file($0.url.standardizedFileURL.path) }
+                // 同 currentBaseLayoutShape:用 url.path,不要 standardizedFileURL(每文件 stat() 卡主线程)。
+                return items.map { .file($0.url.path) }
             }
             func grouped(_ items: [FileItem], keyPrefix: String, groupBy: BrowserGrouping.GroupBy) -> [LayoutPart]? {
                 var parts: [LayoutPart] = []
