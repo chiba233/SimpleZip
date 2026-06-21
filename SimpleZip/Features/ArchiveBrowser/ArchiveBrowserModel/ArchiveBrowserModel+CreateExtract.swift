@@ -503,8 +503,12 @@ extension ArchiveBrowserModel {
     /// 当前是否允许把外部文件拖进打开的压缩包：必须是**真实顶层** zip/7z（非嵌套 / 非 `.siz`·`.gpg` 解出来的临时包），
     /// 否则写回 `/tmp` 临时包毫无意义、还可能误导。判定收敛到 `archiveWriteRestriction`(#13 单一来源)。
     var canDropIntoOpenArchive: Bool {
-        guard case .archive(let url) = mode,
-              fileManager.fileExists(atPath: url.path) else { return false }
+        // ⚠️ 不在这个 getter 里 stat(A17):本属性会被菜单栏 `.commands` 树读取,而 FSEvents 每 ~120ms
+        // 触发的 @Published 变动会让 SwiftUI 把整棵 commands 树重建一遍,每次都 `fileManager.fileExists`
+        // → 内核 `stat()`,慢速卷(网络盘 / NFS / 断开的共享)上直接冻死主线程(取样实证 2491ms)。
+        // 归档文件存在性由打开时装的 FSEvents watcher(beginWatchingOpenArchive,见 Loading)盯着,
+        // 文件消失会走通知更新状态;真要写入(拖入 / 改注释)的路径自身会校验,getter 里再 stat 多余。
+        guard case .archive = mode else { return false }
         return archiveWriteRestriction == nil
     }
 
