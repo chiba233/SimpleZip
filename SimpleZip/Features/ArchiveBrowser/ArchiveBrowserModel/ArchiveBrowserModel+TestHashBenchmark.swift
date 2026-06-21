@@ -117,6 +117,15 @@ extension ArchiveBrowserModel {
                 }
             }
             // ③ 弹框循环。等待期间把状态写进任务详情 + 状态栏 —— 活动中心能看到「等待输入密码」。
+            // ZIP 加密类型 off-main 检测一次(别在循环里每轮同步读整个中央目录卡主线程)。
+            let detectedZipEncryption: ZipEncryptionDetection
+            if archiveURL.pathExtension.lowercased() == "zip" {
+                detectedZipEncryption = await Task.detached(priority: .userInitiated) {
+                    ArchiveService.detectZipEncryption(in: archiveURL)
+                }.value
+            } else {
+                detectedZipEncryption = .unknown
+            }
             var isRetry = false
             while true {
                 let waiting = L10n.format("status.waitingForPassword", archiveURL.lastPathComponent)
@@ -125,7 +134,7 @@ extension ArchiveBrowserModel {
                 guard let authentication = promptForArchivePassword(
                     archiveURL: archiveURL,
                     displayName: archiveURL.lastPathComponent,
-                    detectedZipEncryption: ArchiveService.detectZipEncryption(in: archiveURL),
+                    detectedZipEncryption: detectedZipEncryption,
                     isRetry: isRetry,
                     actionTitle: L10n.text("password.action.test")
                 ) else {

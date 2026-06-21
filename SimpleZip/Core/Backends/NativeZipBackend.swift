@@ -62,7 +62,12 @@ enum NativeZipBackend {
     /// 永远不命中,GUI / CLI 都不会弹口令重试(CLI check 实测漏)。检出加密(含 mixed)且 7zz
     /// 可用时整体交给 7zz t:它报 "Cannot open encrypted archive…",统一密码中心的判定词接得上。
     nonisolated static func test(_ archive: URL, operationID: UUID? = nil, outputObserver: (@Sendable (String) -> Void)? = nil) async throws {
-        switch ArchiveService.detectZipEncryption(in: archive) {
+        // 同 extract:detectZipEncryption 同步读整个中央目录,是第一个 await 前的同步前导,被 @MainActor
+        // 调用时会卡主线程——显式 Task.detached 丢后台。
+        let detectedEncryption = await Task.detached(priority: .userInitiated) {
+            ArchiveService.detectZipEncryption(in: archive)
+        }.value
+        switch detectedEncryption {
         case .zipCrypto, .aes128, .aes192, .aes256, .mixed:
             if SevenZipBackend.isAvailable() {
                 try await SevenZipBackend.test(archive, operationID: operationID, outputObserver: outputObserver)
@@ -125,7 +130,13 @@ enum NativeZipBackend {
         operationID: UUID?
     ) async throws {
         var firstError: Error?
-        let detectedEncryption = ArchiveService.detectZipEncryption(in: archive)
+        // detectZipEncryption 读整个 ZIP 中央目录(Data(contentsOf:) → 同步内核 read),大归档要几秒。
+        // 这里是函数第一个 suspension point **之前**的同步前导——即便本函数标了 nonisolated,被 @MainActor
+        // 调用时这段同步代码仍在主线程 executor 上跑(取样实证:解压大 ZIP 时 2.5s 全卡在这一行),
+        // 所以必须显式 Task.detached 把它丢到后台,并借这个 await 让主线程在此真正让出。
+        let detectedEncryption = await Task.detached(priority: .userInitiated) {
+            ArchiveService.detectZipEncryption(in: archive)
+        }.value
         let tools = zipExtractionTools(
             for: zipDecryptionMethod,
             detectedEncryption: detectedEncryption,

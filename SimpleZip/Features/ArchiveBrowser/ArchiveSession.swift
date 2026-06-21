@@ -25,6 +25,14 @@ final class ArchiveSession {
     /// 用户当前在压缩包内浏览到的子路径，根层为 ""。带末尾 / 表示「这是目录前缀」。
     private(set) var archivePath: String = ""
 
+    /// 当前归档的 ZIP 加密类型。打开时(`loadArchive`)在后台 off-main 检测**一次**并缓存;非 ZIP / 尚未检测 = `.unknown`。
+    ///
+    /// 动机:`ArchiveService.detectZipEncryption` 同步读整个 ZIP 中央目录(`Data(contentsOf:)` → 内核 read),
+    /// 大包要几秒。解压 / 测试 / 打开条目 / 弹密码框等多处过去**各自**在主 actor 上同步调它(有的甚至同一包读两遍
+    /// —— 显式调用 + 经 `archiveItemsSuggestPasswordRequirement` 再读一次),逐次卡死主线程。归档打开期间加密类型
+    /// 不变,这里缓存一次供所有点复用。
+    private(set) var detectedZipEncryption: ZipEncryptionDetection = .unknown
+
     // MARK: - 状态变更
 
     func setItems(_ items: [ArchiveItem]) {
@@ -35,11 +43,17 @@ final class ArchiveSession {
         archivePath = path
     }
 
+    /// 打开归档后写入后台检测出的 ZIP 加密类型(见 `detectedZipEncryption`)。
+    func setDetectedZipEncryption(_ detection: ZipEncryptionDetection) {
+        detectedZipEncryption = detection
+    }
+
     /// 离开压缩包模式时调用，重置内容和层级。
     /// 不影响 mode / mountedDiskImage —— 那些归调用方管理。
     func clearArchive() {
         allItems = []
         archivePath = ""
+        detectedZipEncryption = .unknown
     }
 
     // MARK: - 派生视图

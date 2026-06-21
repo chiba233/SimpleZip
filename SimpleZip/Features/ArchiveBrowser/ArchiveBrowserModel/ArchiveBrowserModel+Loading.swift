@@ -407,6 +407,16 @@ extension ArchiveBrowserModel {
                 entryCount: items.count,
                 promptedForPassword: passwordPrompted
             )
+            // ZIP 加密类型:打开时后台检测一次缓存进 session(见 ArchiveSession.detectedZipEncryption)。
+            // 之后解压 / 测试 / 打开条目 / 弹密码框都读缓存,消除多处主线程同步读 + 同包重复读中央目录。
+            // off-main(detectZipEncryption 同步读整个中央目录会卡主线程)+ 代际守卫:换档后不写脏缓存。
+            if url.pathExtension.lowercased() == "zip" {
+                let detected = await Task.detached(priority: .userInitiated) {
+                    ArchiveService.detectZipEncryption(in: url)
+                }.value
+                guard isCurrentLoad(generation, mode: .archive(url)) else { return }
+                session.setDetectedZipEncryption(detected)
+            }
             // 0.4.2 #7：路径安全分析（绝对路径 / `..` / 盘符 / 控制字符 / setuid / 外指 symlink / 大小写冲突）。
             // 纯 CPU 字符串检查，丢后台跑完再回主 actor；只告知，不改变解压时的既有拦截。
             updateArchiveSecurityFindings(for: items, url: url, generation: generation)
@@ -537,9 +547,16 @@ extension ArchiveBrowserModel {
                 return items
             }
         }
-        let detectedZipEncryption: ZipEncryptionDetection = url.pathExtension.lowercased() == "zip"
-            ? ArchiveService.detectZipEncryption(in: url)
-            : .unknown
+        // 打开期弹密码框:此时 session 缓存还没建,直接 off-main 检测一次(detectZipEncryption 同步读
+        // 整个中央目录,在主线程会卡死)。
+        let detectedZipEncryption: ZipEncryptionDetection
+        if url.pathExtension.lowercased() == "zip" {
+            detectedZipEncryption = await Task.detached(priority: .userInitiated) {
+                ArchiveService.detectZipEncryption(in: url)
+            }.value
+        } else {
+            detectedZipEncryption = .unknown
+        }
         var isRetry = false
         while true {
             guard let authentication = promptForArchivePassword(

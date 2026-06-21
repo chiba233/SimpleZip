@@ -35,10 +35,10 @@ extension ArchiveBrowserModel {
 
         let entries = item.isDirectory ? expandedArchiveItems(for: item) : [item]
         guard !entries.isEmpty else { return }
-        let detectedZipEncryption = archiveURL.pathExtension.lowercased() == "zip"
-            ? ArchiveService.detectZipEncryption(in: archiveURL)
-            : .unknown
-        let shouldPromptBeforeExtraction = ArchiveService.archiveItemsSuggestPasswordRequirement(entries, in: archiveURL)
+        // ZIP 加密类型读打开时缓存的结果(session.detectedZipEncryption);不在主线程同步读中央目录,
+        // 也把缓存喂给 suggestRequirement —— 否则同一包要读两遍(显式 + suggestRequirement 内部各一次)。
+        let detectedZipEncryption = session.detectedZipEncryption
+        let shouldPromptBeforeExtraction = ArchiveService.archiveItemsSuggestPasswordRequirement(entries, in: archiveURL, zipEncryption: detectedZipEncryption)
         // 普通「在外部 app 打开」单个文件 + 当前是可编辑归档 → 之后监视临时副本变化以便写回。
         let allowWriteBack = openWith == nil && !item.isDirectory && canDropIntoOpenArchive
         let writeBackEntryPath = item.name
@@ -555,12 +555,12 @@ extension ArchiveBrowserModel {
     @discardableResult
     func ensureArchiveEditPassword(for archiveURL: URL) -> Bool {
         guard resolvedArchivePassword.isEmpty else { return true }   // 已有（header-encrypted 7z 在打开时拿到）
-        guard ArchiveService.archiveItemsSuggestPasswordRequirement(session.allItems, in: archiveURL) else {
+        // ZIP 加密类型读打开时缓存的结果(session.detectedZipEncryption),不在主线程同步读中央目录;
+        // 同一缓存喂给 suggestRequirement,避免同包重复读。
+        let detectedZipEncryption = session.detectedZipEncryption
+        guard ArchiveService.archiveItemsSuggestPasswordRequirement(session.allItems, in: archiveURL, zipEncryption: detectedZipEncryption) else {
             return true   // 明文包：空口令正确，无需弹框
         }
-        let detectedZipEncryption: ZipEncryptionDetection = archiveURL.pathExtension.lowercased() == "zip"
-            ? ArchiveService.detectZipEncryption(in: archiveURL)
-            : .unknown
         guard let authentication = promptForArchivePassword(
             archiveURL: archiveURL,
             displayName: (archiveDisplayOverride ?? archiveURL).lastPathComponent,
@@ -1365,9 +1365,8 @@ extension ArchiveBrowserModel {
         guard case .archive(let archiveURL) = mode else { return }
         let items = selectedArchiveItems.filter { !$0.isDirectory }
         guard !items.isEmpty else { return }
-        let detectedZipEncryption: ZipEncryptionDetection = archiveURL.pathExtension.lowercased() == "zip"
-            ? ArchiveService.detectZipEncryption(in: archiveURL)
-            : .unknown
+        // ZIP 加密类型读打开时缓存的结果(session.detectedZipEncryption),不在主线程同步读中央目录。
+        let detectedZipEncryption = session.detectedZipEncryption
         let force = isForced(archiveURL)
 
         startOperationTask(cancellable: true) { [weak self] operationID in
