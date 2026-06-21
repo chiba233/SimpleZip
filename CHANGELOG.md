@@ -33,6 +33,7 @@
 **Developer-facing**
 
 - **Release history entries can be deleted.** Each row in the Release Assistant's release ledger gains a delete button, so you can prune old or mistaken entries — the record only, your real artifacts are never touched — and the release-package Spotlight index updates to match.
+- **The `simplezip` CLI and Shortcuts gain the archive verbs they were missing.** The command-line tool adds `list` (entries as kind/size/name, or `--json`), `inspect` (the Release Assistant's package check without extracting — file/folder counts, total size, macOS junk, empty directories, executables, symlinks and suspicious entry paths; exit 1 when suspicious), `extract` (into a uniquely named folder through the same vetted safe path as Finder auto-extract, `--to` to choose the destination) and `hash` (CRC32/MD5/SHA-1/SHA-256/SHA-512, default SHA-256, BSD-tag output that `verify` reads back). All honor `--json`/`--quiet`, are recorded in the Activity Center, and prompt for a password on encrypted archives (or read `SIMPLEZIP_PASSWORD`) — never on the command line; shell completions (zsh/bash/fish) cover them. Shortcuts adds a **Compute File Hash** action that returns the hex digests for chaining into other steps.
 
 ### bugfix
 

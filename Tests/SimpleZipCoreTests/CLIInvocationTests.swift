@@ -89,6 +89,66 @@ struct CLIInvocationTests {
         }
     }
 
+    @Test func hashDefaultsToSHA256() throws {
+        // 0.4.5:无 --algo 默认 SHA256;接受一个或多个路径。
+        #expect(try CLIInvocation.parse(["hash", "a.bin"]) == .hash(paths: ["a.bin"], algorithms: [.sha256]))
+        #expect(try CLIInvocation.parse(["hash", "a.bin", "b.bin"]) == .hash(paths: ["a.bin", "b.bin"], algorithms: [.sha256]))
+    }
+
+    @Test func hashParsesAlgorithmList() throws {
+        #expect(try CLIInvocation.parse(["hash", "--algo", "sha256,sha512", "a.bin"])
+                == .hash(paths: ["a.bin"], algorithms: [.sha256, .sha512]))
+        // 大小写 / 连字符不敏感,保留顺序、去重。
+        #expect(try CLIInvocation.parse(["hash", "-a", "SHA-1,md5,md5", "a.bin"])
+                == .hash(paths: ["a.bin"], algorithms: [.sha1, .md5]))
+        #expect(try CLIInvocation.parse(["hash", "--algo", "all", "a.bin"])
+                == .hash(paths: ["a.bin"], algorithms: HashAlgorithm.allCases))
+    }
+
+    @Test func hashRejectsUnknownAlgorithmAndMissingPath() {
+        #expect(throws: CLIInvocation.ParseError.invalidValue(option: "--algo", value: "sha999")) {
+            try CLIInvocation.parse(["hash", "--algo", "sha999", "a.bin"])
+        }
+        #expect(throws: CLIInvocation.ParseError.missingArguments(command: "hash")) {
+            try CLIInvocation.parse(["hash"])
+        }
+        #expect(throws: CLIInvocation.ParseError.missingArguments(command: "hash")) {
+            try CLIInvocation.parse(["hash", "--algo"])   // 缺算法值
+        }
+        #expect(throws: CLIInvocation.ParseError.missingArguments(command: "hash")) {
+            try CLIInvocation.parse(["hash", "--algo", "sha256"])   // 缺路径
+        }
+    }
+
+    @Test func listAndInspectTakeExactlyOneArchive() throws {
+        #expect(try CLIInvocation.parse(["list", "a.zip"]) == .list(path: "a.zip"))
+        #expect(try CLIInvocation.parse(["inspect", "a.zip"]) == .inspect(path: "a.zip"))
+        for command in ["list", "inspect"] {
+            #expect(throws: CLIInvocation.ParseError.missingArguments(command: command)) {
+                try CLIInvocation.parse([command])
+            }
+            #expect(throws: CLIInvocation.ParseError.missingArguments(command: command)) {
+                try CLIInvocation.parse([command, "a.zip", "b.zip"])   // 只收一个
+            }
+        }
+    }
+
+    @Test func extractParsesArchivesAndDestination() throws {
+        #expect(try CLIInvocation.parse(["extract", "a.zip"]) == .extract(paths: ["a.zip"], destination: nil))
+        #expect(try CLIInvocation.parse(["extract", "a.zip", "b.7z"]) == .extract(paths: ["a.zip", "b.7z"], destination: nil))
+        #expect(try CLIInvocation.parse(["extract", "--to", "/out", "a.zip"]) == .extract(paths: ["a.zip"], destination: "/out"))
+        #expect(try CLIInvocation.parse(["extract", "a.zip", "-d", "/out"]) == .extract(paths: ["a.zip"], destination: "/out"))
+        #expect(throws: CLIInvocation.ParseError.missingArguments(command: "extract")) {
+            try CLIInvocation.parse(["extract"])
+        }
+        #expect(throws: CLIInvocation.ParseError.missingArguments(command: "extract")) {
+            try CLIInvocation.parse(["extract", "--to"])   // 缺目标值
+        }
+        #expect(throws: CLIInvocation.ParseError.unexpectedOption("--bogus")) {
+            try CLIInvocation.parse(["extract", "--bogus", "a.zip"])
+        }
+    }
+
     @Test func unknownCommandAndOptionsRejected() {
         #expect(throws: CLIInvocation.ParseError.unknownCommand("explode")) {
             try CLIInvocation.parse(["explode"])

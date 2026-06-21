@@ -2682,6 +2682,7 @@
 /* App Intents · 搜索/检查归档 intent(运行时消息 + 字段标题) */
 "intent.task.search" = "快捷指令：搜索 %@";
 "intent.task.inspect" = "快捷指令：检查 %@";
+"intent.task.hash" = "快捷指令：计算 %@ 的哈希";
 "intent.task.extractFile" = "从归档解压 %@";
 "intent.search.emptyQuery" = "请输入要搜索的内容。";
 "intent.findArchive.none" = "你打开过的归档里没有包含「%@」的。";

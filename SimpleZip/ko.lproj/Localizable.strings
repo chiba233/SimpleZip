@@ -2215,6 +2215,7 @@
 /* App Intents · 搜索/检查归档 intent(运行时消息 + 字段标题) */
 "intent.task.search" = "단축어: %@ 검색";
 "intent.task.inspect" = "단축어: %@ 검사";
+"intent.task.hash" = "단축어: %@ 해시 계산";
 "intent.task.extractFile" = "아카이브에서 %@ 추출";
 "intent.search.emptyQuery" = "검색할 내용을 입력하세요.";
 "intent.findArchive.none" = "연 아카이브 중에 \"%@\"을(를) 포함한 것이 없습니다.";

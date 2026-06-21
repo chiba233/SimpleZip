@@ -2214,6 +2214,7 @@
 /* App Intents · 搜索/检查归档 intent(运行时消息 + 字段标题) */
 "intent.task.search" = "Raccourci : rechercher %@";
 "intent.task.inspect" = "Raccourci : inspecter %@";
+"intent.task.hash" = "Raccourci : hacher %@";
 "intent.task.extractFile" = "Extraire %@ de l’archive";
 "intent.search.emptyQuery" = "Saisissez un terme à rechercher.";
 "intent.findArchive.none" = "Aucune des archives que vous avez ouvertes ne contient « %@ ».";

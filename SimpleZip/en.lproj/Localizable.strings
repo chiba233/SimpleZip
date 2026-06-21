@@ -2682,6 +2682,7 @@
 /* App Intents · 搜索/检查归档 intent(运行时消息 + 字段标题) */
 "intent.task.search" = "Shortcut: search %@";
 "intent.task.inspect" = "Shortcut: inspect %@";
+"intent.task.hash" = "Shortcut: hash %@";
 "intent.task.extractFile" = "Extract %@ from archive";
 "intent.search.emptyQuery" = "Enter something to search for.";
 "intent.findArchive.none" = "None of the archives you\'ve opened contain \"%@\".";

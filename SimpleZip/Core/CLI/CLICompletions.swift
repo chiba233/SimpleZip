@@ -32,10 +32,14 @@ nonisolated enum CLICompletions {
         'version:Show the version'
         'doctor:Check the environment'
         'open:Open archives in the app'
+        'list:List archive contents'
         'check:Test archive integrity'
+        'inspect:Release-package check'
         'compare:Compare two archives'
         'create:Create an archive'
+        'extract:Extract an archive'
         'verify:Verify a checksum file'
+        'hash:Compute checksums'
         'completions:Print a shell completion script'
       )
       if (( CURRENT == 2 )); then
@@ -53,8 +57,20 @@ nonisolated enum CLICompletions {
             '--json[JSON output]' '--quiet[Errors only]' '--verbose[Raw backend output]' \\
             '*:file:_files'
           ;;
+        hash)
+          _arguments \\
+            '(-a --algo)'{-a,--algo}'[Algorithms (comma-separated, or all)]:algorithms:' \\
+            '--json[JSON output]' '--quiet[Errors only]' \\
+            '*:file:_files'
+          ;;
+        extract)
+          _arguments \\
+            '(-d --to)'{-d,--to}'[Destination parent folder]:directory:_files -/' \\
+            '--json[JSON output]' '--quiet[Errors only]' \\
+            '*:file:_files'
+          ;;
         completions) _values 'shell' zsh bash fish ;;
-        help) _values 'command' help version doctor open check compare create verify completions ;;
+        help) _values 'command' help version doctor open list check inspect compare create extract verify hash completions ;;
         *) _arguments '--json[JSON output]' '--quiet[Errors only]' '--verbose[Raw backend output]' '*:file:_files' ;;
       esac
     }
@@ -67,7 +83,7 @@ nonisolated enum CLICompletions {
     _simplezip() {
       local cur commands
       cur="${COMP_WORDS[COMP_CWORD]}"
-      commands="help version doctor open check compare create verify completions"
+      commands="help version doctor open list check inspect compare create extract verify hash completions"
       if [ "$COMP_CWORD" -eq 1 ]; then
         COMPREPLY=( $(compgen -W "$commands" -- "$cur") )
         return
@@ -75,6 +91,12 @@ nonisolated enum CLICompletions {
       case "${COMP_WORDS[1]}" in
         create)
           COMPREPLY=( $(compgen -W "--template --level --exclude-junk --reproducible --encrypt --json --quiet --verbose" -- "$cur") $(compgen -f -- "$cur") )
+          ;;
+        hash)
+          COMPREPLY=( $(compgen -W "--algo --json --quiet" -- "$cur") $(compgen -f -- "$cur") )
+          ;;
+        extract)
+          COMPREPLY=( $(compgen -W "--to --json --quiet" -- "$cur") $(compgen -f -- "$cur") )
           ;;
         completions) COMPREPLY=( $(compgen -W "zsh bash fish" -- "$cur") ) ;;
         help) COMPREPLY=( $(compgen -W "$commands" -- "$cur") ) ;;
@@ -92,12 +114,18 @@ nonisolated enum CLICompletions {
     complete -c simplezip -n __fish_use_subcommand -a version -d 'Show the version'
     complete -c simplezip -n __fish_use_subcommand -a doctor -d 'Check the environment'
     complete -c simplezip -n __fish_use_subcommand -a open -d 'Open archives in the app'
+    complete -c simplezip -n __fish_use_subcommand -a list -d 'List archive contents'
     complete -c simplezip -n __fish_use_subcommand -a check -d 'Test archive integrity'
+    complete -c simplezip -n __fish_use_subcommand -a inspect -d 'Release-package check'
     complete -c simplezip -n __fish_use_subcommand -a compare -d 'Compare two archives'
     complete -c simplezip -n __fish_use_subcommand -a create -d 'Create an archive'
+    complete -c simplezip -n __fish_use_subcommand -a extract -d 'Extract an archive'
     complete -c simplezip -n __fish_use_subcommand -a verify -d 'Verify a checksum file'
+    complete -c simplezip -n __fish_use_subcommand -a hash -d 'Compute checksums'
     complete -c simplezip -n __fish_use_subcommand -a completions -d 'Print a shell completion script'
     complete -c simplezip -n '__fish_seen_subcommand_from completions' -a 'zsh bash fish'
+    complete -c simplezip -n '__fish_seen_subcommand_from hash' -s a -l algo -d 'Algorithms (comma-separated, or all)'
+    complete -c simplezip -n '__fish_seen_subcommand_from extract' -s d -l to -d 'Destination parent folder'
     complete -c simplezip -n '__fish_seen_subcommand_from create' -s t -l template -d 'Apply a saved template'
     complete -c simplezip -n '__fish_seen_subcommand_from create' -s l -l level -d 'Compression level 0-9'
     complete -c simplezip -n '__fish_seen_subcommand_from create' -l exclude-junk -d 'Exclude macOS junk files'

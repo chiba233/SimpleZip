@@ -2215,6 +2215,7 @@
 /* App Intents · 搜索/检查归档 intent(运行时消息 + 字段标题) */
 "intent.task.search" = "Kurzbefehl: %@ durchsuchen";
 "intent.task.inspect" = "Kurzbefehl: %@ prüfen";
+"intent.task.hash" = "Kurzbefehl: %@ hashen";
 "intent.task.extractFile" = "%@ aus Archiv entpacken";
 "intent.search.emptyQuery" = "Bitte einen Suchbegriff eingeben.";
 "intent.findArchive.none" = "Keines der von dir geöffneten Archive enthält „%@“.";

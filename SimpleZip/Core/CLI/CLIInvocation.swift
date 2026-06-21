@@ -46,6 +46,14 @@ enum CLIInvocation: Equatable {
     case create(output: String, inputs: [String], options: CLICreateOptions)
     /// 0.4.4 A:verify 支持多个校验文件(逐个验,末尾汇总)。
     case verify(paths: [String])
+    /// 0.4.5:计算文件 / 文件夹的校验和。`--algo` 选 CRC32/MD5/SHA1/SHA256/SHA512(逗号分隔或 `all`),默认 SHA256。
+    case hash(paths: [String], algorithms: [HashAlgorithm])
+    /// 0.4.5:列出归档内容(条目路径 / 大小 / 是否目录)。机器可读(`--json`)。
+    case list(path: String)
+    /// 0.4.5:发布包检测 —— 不解压地体检归档(文件数 / 大小 / macOS 垃圾 / 空目录 / 可疑条目路径)。
+    case inspect(path: String)
+    /// 0.4.5:解压归档到唯一命名的文件夹(默认在归档旁,`--to` 指定父目录),走与 Finder 自动解压同一条安全路径。
+    case extract(paths: [String], destination: String?)
 
     /// 0.4.4 #48:打印指定 shell 的补全脚本到 stdout(zsh / bash / fish)。
     case completions(shell: CLICompletions.Shell)
@@ -84,7 +92,7 @@ enum CLIInvocation: Equatable {
         return firstArgument == "--cli"
     }
 
-    nonisolated static let knownCommands = ["help", "version", "doctor", "open", "check", "compare", "create", "verify", "completions"]
+    nonisolated static let knownCommands = ["help", "version", "doctor", "open", "list", "check", "inspect", "compare", "create", "extract", "verify", "hash", "completions"]
 
     /// 0.4.4 A:剥离全局旗标(--json/--quiet/--verbose,任意位置)→ (剩余参数, 旗标)。
     nonisolated static func extractOutputOptions(from arguments: [String]) -> (rest: [String], options: CLIOutputOptions) {
@@ -170,6 +178,53 @@ enum CLIInvocation: Equatable {
             try rejectOptions(in: rest)
             guard !rest.isEmpty else { throw ParseError.missingArguments(command: command) }
             return .verify(paths: rest)
+        case "hash":
+            var algorithms: [HashAlgorithm] = []
+            var positional: [String] = []
+            var index = 0
+            while index < rest.count {
+                let argument = rest[index]
+                switch argument {
+                case "--algo", "-a":
+                    guard index + 1 < rest.count else { throw ParseError.missingArguments(command: command) }
+                    algorithms = try parseHashAlgorithms(rest[index + 1])
+                    index += 2
+                default:
+                    if argument.hasPrefix("-") { throw ParseError.unexpectedOption(argument) }
+                    positional.append(argument)
+                    index += 1
+                }
+            }
+            guard !positional.isEmpty else { throw ParseError.missingArguments(command: command) }
+            // 默认 SHA256(与 verify 的 SHA256SUMS 主场一致;其余算法按需 --algo 选)。
+            return .hash(paths: positional, algorithms: algorithms.isEmpty ? [.sha256] : algorithms)
+        case "list":
+            try rejectOptions(in: rest)
+            guard rest.count == 1 else { throw ParseError.missingArguments(command: command) }
+            return .list(path: rest[0])
+        case "inspect":
+            try rejectOptions(in: rest)
+            guard rest.count == 1 else { throw ParseError.missingArguments(command: command) }
+            return .inspect(path: rest[0])
+        case "extract":
+            var destination: String?
+            var positional: [String] = []
+            var index = 0
+            while index < rest.count {
+                let argument = rest[index]
+                switch argument {
+                case "--to", "-d":
+                    guard index + 1 < rest.count else { throw ParseError.missingArguments(command: command) }
+                    destination = rest[index + 1]
+                    index += 2
+                default:
+                    if argument.hasPrefix("-") { throw ParseError.unexpectedOption(argument) }
+                    positional.append(argument)
+                    index += 1
+                }
+            }
+            guard !positional.isEmpty else { throw ParseError.missingArguments(command: command) }
+            return .extract(paths: positional, destination: destination)
         case "completions":
             guard let shellArgument = rest.first else { throw ParseError.missingArguments(command: command) }
             guard let shell = CLICompletions.Shell(rawValue: shellArgument) else {
@@ -185,6 +240,22 @@ enum CLIInvocation: Equatable {
         if let option = arguments.first(where: { $0.hasPrefix("-") }) {
             throw ParseError.unexpectedOption(option)
         }
+    }
+
+    /// `hash --algo` 的值:逗号分隔的算法名(大小写 / 连字符不敏感:`sha-256`=`SHA256`),或 `all` 取全部。
+    /// 保留出现顺序、去重;任一无法识别 → invalidValue(`--algo`, 该 token)。
+    nonisolated static func parseHashAlgorithms(_ value: String) throws -> [HashAlgorithm] {
+        var result: [HashAlgorithm] = []
+        for raw in value.split(separator: ",") {
+            let token = raw.trimmingCharacters(in: .whitespaces)
+            if token.lowercased() == "all" { return HashAlgorithm.allCases }
+            let normalized = token.uppercased().replacingOccurrences(of: "-", with: "")
+            guard let algorithm = HashAlgorithm(rawValue: normalized) else {
+                throw ParseError.invalidValue(option: "--algo", value: token)
+            }
+            if !result.contains(algorithm) { result.append(algorithm) }
+        }
+        return result
     }
 
     // MARK: - 智能纠错(0.4.4 A)
@@ -223,11 +294,15 @@ enum CLIInvocation: Equatable {
 
     USAGE:
       simplezip open <file>...                   Open files or archives in the SimpleZip app
+      simplezip list <archive>                   List an archive's entries (path, size, kind)
       simplezip check <archive>...               Test archive integrity (exit 1 on any failure)
+      simplezip inspect <archive>                Release-package check (no extract; exit 1 if suspicious paths)
       simplezip compare <left> <right>           Compare two archives (exit 1 when different)
       simplezip create <output> <input>... [options]
                                                  Create an archive; format from the output extension
+      simplezip extract <archive>... [--to DIR]  Extract into a uniquely named folder (safe path)
       simplezip verify <checksum-file>...        Verify SHA256SUMS / checksums.txt / .sha256 / .md5 / .sfv
+      simplezip hash <file>... [--algo LIST]     Compute checksums (CRC32/MD5/SHA1/SHA256/SHA512; default SHA256)
       simplezip doctor                           Check the CLI environment (app, backends, symlink)
       simplezip completions <zsh|bash|fish>      Print a shell completion script to stdout
       simplezip version                          Print version
@@ -300,6 +375,57 @@ enum CLIInvocation: Equatable {
             format, bare digests, .sfv). Paths are resolved relative to each checksum
             file; unsafe entries (absolute paths, ..) are rejected. Exit 1 if anything
             fails; a summary line is printed per file and for the whole run.
+            """
+        case "hash":
+            return """
+            simplezip hash <file>... [--algo LIST] [--json] [--quiet]
+
+            Computes checksums for files (or every file inside a folder, recursively).
+            Output is BSD-tag style — `SHA256 (path) = hex` — which `simplezip verify`
+            can read back.
+
+            OPTIONS:
+              --algo, -a <list>   Comma-separated algorithms, or `all`. Names are
+                                  case- and hyphen-insensitive (sha-256 = SHA256).
+                                  Choices: CRC32, MD5, SHA1, SHA256, SHA512.
+                                  Defaults to SHA256.
+
+            Exit 1 if any file cannot be read.
+            """
+        case "list":
+            return """
+            simplezip list <archive> [--json] [--quiet]
+
+            Lists an archive's entries — path, size and whether each is a directory.
+            Read-only. Encrypted archives prompt for a password (or set
+            SIMPLEZIP_PASSWORD); it's never taken on the command line. Use --json for a
+            machine-readable entry array.
+            """
+        case "inspect":
+            return """
+            simplezip inspect <archive> [--json] [--quiet]
+
+            The Release Assistant's package check, without extracting: file/folder
+            counts, total size, macOS junk, empty directories, executables, symlinks,
+            and suspicious entry paths (path traversal, absolute paths, …). Encrypted
+            archives prompt for a password (or set SIMPLEZIP_PASSWORD). Exit 1 when
+            suspicious paths are found, 0 when clean.
+            """
+        case "extract":
+            return """
+            simplezip extract <archive>... [--to DIR] [--json] [--quiet]
+
+            Extracts each archive into a uniquely named folder (never overwriting), the
+            same vetted path Finder auto-extract uses — untrusted-entry safety checks,
+            staging and conflict handling included.
+
+            OPTIONS:
+              --to, -d <dir>   Parent folder for the extracted folders (defaults to each
+                               archive's own folder). Must be an existing directory.
+
+            Encrypted archives prompt for a password (never shown on the command line);
+            SIMPLEZIP_PASSWORD is tried first when set, then your saved preset / session
+            password. Exit 1 if any archive fails.
             """
         case "doctor":
             return """

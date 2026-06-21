@@ -54,7 +54,7 @@ enum CLIRunner {
             // #48:纯打印补全脚本,不需要后端环境。
             print(CLICompletions.script(for: shell))
             return 0
-        case .version, .doctor, .open, .check, .compare, .create, .verify:
+        case .version, .doctor, .open, .list, .check, .inspect, .compare, .create, .extract, .verify, .hash:
             break
         }
 
@@ -86,6 +86,14 @@ enum CLIRunner {
             return await runCreate(output: outputPath, inputs: inputs, options: createOptions, environment: environment, outputOptions: output)
         case .verify(let paths):
             return await runVerify(paths: paths, environment: environment, output: output)
+        case .hash(let paths, let algorithms):
+            return await runHash(paths: paths, algorithms: algorithms, environment: environment, output: output)
+        case .list(let path):
+            return await runList(path: path, environment: environment, output: output)
+        case .inspect(let path):
+            return await runInspect(path: path, environment: environment, output: output)
+        case .extract(let paths, let destination):
+            return await runExtract(paths: paths, destination: destination, environment: environment, output: output)
         }
     }
 
@@ -257,6 +265,56 @@ enum CLIRunner {
         let response = alert.runModal()
         guard response == .alertFirstButtonReturn else { return nil }
         return field.stringValue
+    }
+
+    /// 只读 list 的口令流程(list / inspect 共用):先空口令,需要口令时先试 `SIMPLEZIP_PASSWORD`(脚本场景免弹窗),
+    /// 再弹小窗(最多 3 次)。取消 → CancellationError。口令绝不走 argv / 不回显(同 `create` / `check`)。
+    private static func listWithPasswordPrompts(_ url: URL, operationID: UUID? = nil) async throws -> [ArchiveItem] {
+        do {
+            return try await ArchiveService.list(url, operationID: operationID)
+        } catch {
+            guard ArchiveService.errorSuggestsPasswordRequirement(error) else { throw error }
+            var lastError = error
+            if let env = ProcessInfo.processInfo.environment["SIMPLEZIP_PASSWORD"], !env.isEmpty {
+                do { return try await ArchiveService.list(url, password: env, operationID: operationID) }
+                catch { lastError = error; guard ArchiveService.errorSuggestsPasswordRequirement(error) else { throw error } }
+            }
+            for _ in 0..<3 {
+                guard let password = promptPassword(for: url.lastPathComponent) else { throw CancellationError() }
+                do { return try await ArchiveService.list(url, password: password, operationID: operationID) }
+                catch { lastError = error; guard ArchiveService.errorSuggestsPasswordRequirement(error) else { throw error } }
+            }
+            throw lastError
+        }
+    }
+
+    /// 解压的口令流程:走 `ExternalExtractRunner`(安全路径),需要口令时先试 `SIMPLEZIP_PASSWORD`、再弹小窗(最多 3 次)。
+    /// 候选经 `SessionPasswordCache` 喂给 runner(它内部按 preset + 会话候选逐个试,成功的会记下供同批后续包静默复用)。
+    private static func extractWithPasswordPrompts(_ url: URL, destinationDir: URL?, coordinator: ArchiveExtractionCoordinator) async throws -> URL {
+        let supportedURL = ArchiveService.supportedArchiveURL(url) ?? url
+        func attempt() async throws -> URL {
+            try await ExternalExtractRunner.extract(
+                archiveURL: url, destinationDirectoryOverride: destinationDir, outputBaseNameOverride: nil,
+                operationID: UUID(), coordinator: coordinator, onStatus: { _ in }, onProgress: { _, _ in })
+        }
+        do {
+            return try await attempt()
+        } catch {
+            guard ArchiveService.errorSuggestsPasswordRequirement(error) else { throw error }
+            var lastError = error
+            if let env = ProcessInfo.processInfo.environment["SIMPLEZIP_PASSWORD"], !env.isEmpty {
+                SessionPasswordCache.shared.record(env, for: supportedURL)
+                do { return try await attempt() }
+                catch { lastError = error; guard ArchiveService.errorSuggestsPasswordRequirement(error) else { throw error } }
+            }
+            for _ in 0..<3 {
+                guard let password = promptPassword(for: url.lastPathComponent) else { throw CancellationError() }
+                SessionPasswordCache.shared.record(password, for: supportedURL)
+                do { return try await attempt() }
+                catch { lastError = error; guard ArchiveService.errorSuggestsPasswordRequirement(error) else { throw error } }
+            }
+            throw lastError
+        }
     }
 
     // MARK: - compare
@@ -544,6 +602,184 @@ enum CLIRunner {
                    failureMessage: failureCount == 0 ? nil : summary,
                    rawOutput: (lines + [summary]).joined(separator: "\n"))
         return (entries.count - failureCount, failureCount)
+    }
+
+    // MARK: - hash(0.4.5)
+
+    /// 计算文件 / 文件夹的校验和。输出 BSD-tag 风格 `ALGO (path) = hex`(`simplezip verify` 能读回)。
+    /// 任一路径不存在 / 读不出 → exit 1;每个输入路径记一条活动中心任务。
+    private static func runHash(paths: [String], algorithms: [HashAlgorithm], environment: Environment, output options: CLIOutputOptions) async -> Int32 {
+        var failures = 0
+        var resultObjects: [[String: Any]] = []
+        for path in paths {
+            let url = URL(fileURLWithPath: path)
+            guard FileManager.default.fileExists(atPath: url.path) else {
+                printError("simplezip: no such file: \(url.path)")
+                failures += 1
+                continue
+            }
+            let startedAt = Date()
+            do {
+                let report = try await HashService.calculate(for: [url], includeHiddenFiles: true, algorithms: algorithms)
+                var lines: [String] = []
+                for result in report.results {
+                    // 算法按用户传入顺序输出(report.algorithms 即此顺序)。
+                    for algorithm in report.algorithms {
+                        guard let hex = result.hashes[algorithm] else { continue }
+                        lines.append("\(algorithm.rawValue) (\(result.url.path)) = \(hex)")
+                        resultObjects.append(["file": result.url.path, "algorithm": algorithm.rawValue, "hash": hex, "size": result.size])
+                    }
+                }
+                if !options.quiet, !options.json { lines.forEach { print($0) } }
+                recordTask(environment: environment, kind: .hash, category: .fileOperation,
+                           title: "simplezip hash \(url.lastPathComponent)", detail: url.path,
+                           startedAt: startedAt, succeeded: true, failureMessage: nil,
+                           rawOutput: lines.joined(separator: "\n"))
+            } catch {
+                printError("simplezip: hash failed for \(url.path): \(describe(error))")
+                failures += 1
+                recordTask(environment: environment, kind: .hash, category: .fileOperation,
+                           title: "simplezip hash \(url.lastPathComponent)", detail: url.path,
+                           startedAt: startedAt, succeeded: false, failureMessage: describe(error),
+                           rawOutput: describe(error))
+            }
+        }
+        if options.json {
+            printJSON(["command": "hash", "results": resultObjects, "ok": failures == 0])
+        }
+        return failures == 0 ? 0 : 1
+    }
+
+    // MARK: - list(0.4.5)
+
+    /// 列出归档条目(只读)。人读:每行 `d|-  <size>  <name>`;`--json` 出条目数组。
+    /// 加密名归档需要口令 → 弹小窗(或 `SIMPLEZIP_PASSWORD`);取消 / 仍失败 → exit 1。
+    private static func runList(path: String, environment: Environment, output options: CLIOutputOptions) async -> Int32 {
+        let url = URL(fileURLWithPath: path)
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            printError("simplezip: no such file: \(url.path)")
+            return 2
+        }
+        do {
+            let items = try await listWithPasswordPrompts(url)
+            if options.json {
+                let entries = items.map { ["name": $0.name, "size": $0.size ?? 0, "directory": $0.isDirectory] as [String: Any] }
+                printJSON(["command": "list", "archive": url.path, "count": items.count, "entries": entries])
+            } else if !options.quiet {
+                for item in items {
+                    print("\(item.isDirectory ? "d" : "-")\t\(item.size ?? 0)\t\(item.name)")
+                }
+            }
+            return 0
+        } catch {
+            printError("simplezip: cannot list \(url.path): \(describe(error))")
+            return 1
+        }
+    }
+
+    // MARK: - inspect(0.4.5,发布包检测)
+
+    /// 不解压地体检归档(发布包检测):统计 + 可疑条目路径。exit 1 当发现可疑路径,0 当干净;列不出 → exit 1。
+    private static func runInspect(path: String, environment: Environment, output options: CLIOutputOptions) async -> Int32 {
+        let url = URL(fileURLWithPath: path)
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            printError("simplezip: no such file: \(url.path)")
+            return 2
+        }
+        let startedAt = Date()
+        do {
+            let items = try await listWithPasswordPrompts(url)
+            let stats = ReleaseInspection.stats(for: items)
+            let findings = ArchiveSecurityReport.analyze(items)
+            let flaggedPaths = findings.reduce(0) { $0 + $1.entryPaths.count }
+            let sizeText = ByteCountFormatter.string(fromByteCount: stats.totalBytes, countStyle: .file)
+            var lines: [String] = [
+                "Files: \(stats.fileCount)",
+                "Folders: \(stats.folderCount)",
+                "Total size: \(sizeText)",
+                "macOS junk entries: \(stats.junkCount)",
+                "Empty directories: \(stats.emptyDirectoryCount)",
+                "Executables: \(stats.executableCount)",
+                "Symlinks: \(stats.symlinkCount)"
+            ]
+            if findings.isEmpty {
+                lines.append("Suspicious paths: none")
+            } else {
+                lines.append("Suspicious paths: \(flaggedPaths) across \(findings.count) categories")
+                for finding in findings { lines.append("  \(finding.kind.rawValue): \(finding.entryPaths.count)") }
+            }
+            if options.json {
+                let findingObjects = findings.map { ["kind": $0.kind.rawValue, "count": $0.entryPaths.count] as [String: Any] }
+                printJSON([
+                    "command": "inspect", "archive": url.path,
+                    "fileCount": stats.fileCount, "folderCount": stats.folderCount, "totalBytes": stats.totalBytes,
+                    "junkCount": stats.junkCount, "emptyDirectoryCount": stats.emptyDirectoryCount,
+                    "executableCount": stats.executableCount, "symlinkCount": stats.symlinkCount,
+                    "suspiciousFindings": findingObjects, "clean": findings.isEmpty
+                ])
+            } else if !options.quiet {
+                lines.forEach { print($0) }
+            }
+            recordTask(environment: environment, kind: .inspect, category: .archive,
+                       title: "simplezip inspect \(url.lastPathComponent)", detail: url.path,
+                       startedAt: startedAt, succeeded: true, failureMessage: nil,
+                       rawOutput: lines.joined(separator: "\n"))
+            return findings.isEmpty ? 0 : 1
+        } catch {
+            printError("simplezip: cannot inspect \(url.path): \(describe(error))")
+            recordTask(environment: environment, kind: .inspect, category: .archive,
+                       title: "simplezip inspect \(url.lastPathComponent)", detail: url.path,
+                       startedAt: startedAt, succeeded: false, failureMessage: describe(error), rawOutput: describe(error))
+            return 1
+        }
+    }
+
+    // MARK: - extract(0.4.5)
+
+    /// 解压归档到唯一命名文件夹(走 `ExternalExtractRunner` —— 与 Finder 自动解压同一条安全路径:不可信条目校验、
+    /// staging、冲突处理)。加密包弹口令小窗(或 `SIMPLEZIP_PASSWORD`,绝不走 argv);取消 / 任一失败 → exit 1。
+    private static func runExtract(paths: [String], destination: String?, environment: Environment, output options: CLIOutputOptions) async -> Int32 {
+        var destinationDir: URL?
+        if let destination {
+            let dir = URL(fileURLWithPath: destination)
+            var isDir: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: dir.path, isDirectory: &isDir), isDir.boolValue else {
+                printError("simplezip: destination is not an existing folder: \(dir.path)")
+                return 2
+            }
+            destinationDir = dir
+        }
+        let coordinator = ArchiveExtractionCoordinator(fileManager: .default)
+        var failures = 0
+        var resultObjects: [[String: Any]] = []
+        for path in paths {
+            let url = URL(fileURLWithPath: path)
+            guard FileManager.default.fileExists(atPath: url.path) else {
+                printError("simplezip: no such file: \(url.path)")
+                failures += 1
+                continue
+            }
+            let startedAt = Date()
+            do {
+                let target = try await extractWithPasswordPrompts(url, destinationDir: destinationDir, coordinator: coordinator)
+                if !options.quiet, !options.json { print("Extracted \(url.lastPathComponent) → \(target.path)") }
+                resultObjects.append(["archive": url.path, "output": target.path, "ok": true])
+                recordTask(environment: environment, kind: .extract, category: .archive,
+                           title: "simplezip extract \(url.lastPathComponent)", detail: target.path,
+                           startedAt: startedAt, succeeded: true, failureMessage: nil, rawOutput: "→ \(target.path)")
+            } catch {
+                printError("simplezip: extract failed for \(url.path): \(describe(error))")
+                failures += 1
+                resultObjects.append(["archive": url.path, "ok": false, "error": describe(error)])
+                recordTask(environment: environment, kind: .extract, category: .archive,
+                           title: "simplezip extract \(url.lastPathComponent)", detail: url.path,
+                           startedAt: startedAt, succeeded: false, failureMessage: describe(error), rawOutput: describe(error))
+            }
+        }
+        if options.json {
+            printJSON(["command": "extract", "results": resultObjects, "ok": failures == 0])
+        }
+        return failures == 0 ? 0 : 1
     }
 
     // MARK: - doctor(0.4.4 A)

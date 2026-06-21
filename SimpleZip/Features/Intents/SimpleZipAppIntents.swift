@@ -359,6 +359,73 @@ struct VerifyChecksumsIntent: AppIntent {
     }
 }
 
+// MARK: - 计算哈希(0.4.5)
+
+/// Shortcuts 暴露的哈希算法(映射到 Core 的 `HashAlgorithm`;不让 AppIntents 依赖渗进 Core)。
+enum IntentHashAlgorithm: String, AppEnum {
+    case crc32, md5, sha1, sha256, sha512
+
+    static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Hash Algorithm")
+    static let caseDisplayRepresentations: [IntentHashAlgorithm: DisplayRepresentation] = [
+        .crc32: "CRC32", .md5: "MD5", .sha1: "SHA-1", .sha256: "SHA-256", .sha512: "SHA-512"
+    ]
+
+    var hashAlgorithm: HashAlgorithm {
+        switch self {
+        case .crc32: return .crc32
+        case .md5: return .md5
+        case .sha1: return .sha1
+        case .sha256: return .sha256
+        case .sha512: return .sha512
+        }
+    }
+}
+
+/// 计算一个或多个文件的校验和,返回与输入同序的十六进制摘要(可链给后续动作)。AppShortcutsProvider 已满 10 条
+/// (Apple 上限),故此 intent 不预注册成 AppShortcut/Siri 短语 —— 但在「快捷指令」App 里照常可见可用。
+struct ComputeFileHashIntent: AppIntent {
+    static let title: LocalizedStringResource = "Compute File Hash"
+    static let description = IntentDescription(
+        "Computes a checksum (CRC32, MD5, SHA-1, SHA-256 or SHA-512) for one or more files. Returns the hex digests in the same order as the input files."
+    )
+
+    @Parameter(title: "Files")
+    var files: [IntentFile]
+
+    @Parameter(title: "Algorithm", default: .sha256)
+    var algorithm: IntentHashAlgorithm
+
+    static var parameterSummary: some ParameterSummary {
+        Summary("Compute the \(\.$algorithm) of \(\.$files)")
+    }
+
+    // 稳定返回契约(发版后不得改类型/语义):ReturnsValue<[String]> = 各文件的十六进制摘要,与输入同序。
+    @MainActor
+    func perform() async throws -> some IntentResult & ReturnsValue<[String]> {
+        guard !files.isEmpty else { throw SimpleZipIntentError(message: L10n.text("intent.error.noInput")) }
+        let chosen = algorithm.hashAlgorithm
+        var digests: [String] = []
+        for file in files {
+            let url = try intentFileURL(file)
+            let task = TaskCenter.shared.begin(
+                category: .fileOperation, kind: .hash, source: .intent,
+                title: L10n.format("intent.task.hash", url.lastPathComponent), cancellable: false)
+            do {
+                let report = try await HashService.calculate(for: [url], includeHiddenFiles: true, algorithms: [chosen])
+                guard let digest = report.results.first?.hashes[chosen] else {
+                    throw SimpleZipIntentError(message: L10n.format("intent.error.itemFailed", url.lastPathComponent, chosen.rawValue))
+                }
+                digests.append(digest)
+                TaskCenter.shared.finish(task, outcome: .succeeded(nil))
+            } catch {
+                TaskCenter.shared.finish(task, outcome: .failed(error.localizedDescription))
+                throw SimpleZipIntentError(message: error.localizedDescription)
+            }
+        }
+        return .result(value: digests)
+    }
+}
+
 // MARK: - 归档比较(0.4.4 B)
 
 struct CompareArchivesIntent: AppIntent {

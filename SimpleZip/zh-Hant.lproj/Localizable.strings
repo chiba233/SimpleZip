@@ -2216,6 +2216,7 @@
 /* App Intents · 搜索/检查归档 intent(运行时消息 + 字段标题) */
 "intent.task.search" = "快捷指令：搜尋 %@";
 "intent.task.inspect" = "快捷指令：檢查 %@";
+"intent.task.hash" = "快捷指令：計算 %@ 的雜湊";
 "intent.task.extractFile" = "從封存檔解壓 %@";
 "intent.search.emptyQuery" = "請輸入要搜尋的內容。";
 "intent.findArchive.none" = "你開啟過的封存檔裡沒有包含「%@」的。";

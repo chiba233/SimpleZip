@@ -2214,6 +2214,7 @@
 /* App Intents · 搜索/检查归档 intent(运行时消息 + 字段标题) */
 "intent.task.search" = "Atajo: buscar %@";
 "intent.task.inspect" = "Atajo: inspeccionar %@";
+"intent.task.hash" = "Atajo: calcular hash de %@";
 "intent.task.extractFile" = "Extraer %@ del archivo comprimido";
 "intent.search.emptyQuery" = "Introduce algo que buscar.";
 "intent.findArchive.none" = "Ninguno de los archivos comprimidos que has abierto contiene «%@».";

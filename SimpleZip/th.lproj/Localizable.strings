@@ -2214,6 +2214,7 @@
 /* App Intents · 搜索/检查归档 intent(运行时消息 + 字段标题) */
 "intent.task.search" = "ทางลัด: ค้นหา %@";
 "intent.task.inspect" = "ทางลัด: ตรวจสอบ %@";
+"intent.task.hash" = "ทางลัด: แฮช %@";
 "intent.task.extractFile" = "แตก %@ จากไฟล์บีบอัด";
 "intent.search.emptyQuery" = "ป้อนสิ่งที่ต้องการค้นหา";
 "intent.findArchive.none" = "ไม่มีไฟล์บีบอัดที่คุณเปิดที่มี \"%@\"";
