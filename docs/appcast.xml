@@ -28,5 +28,16 @@
                 sparkle:edSignature="B/iqbz/pXSWy35X9gvs+HndobJqpOW3K2yi1WpmkIbAQ4VVXUgw1arUYFtVGcEla1dgqOgBTOjRA0KWoWFFYDw==" length="32505202"
                 type="application/octet-stream"/>
         </item>
+        <item>
+            <title>SimpleZip 1.0.0</title>
+            <link>https://github.com/chiba233/SimpleZip/releases/tag/v1.0.0</link>
+            <pubDate>Sun, 21 Jun 2026 21:06:43 +0000</pubDate>
+            <enclosure
+                url="https://github.com/chiba233/SimpleZip/releases/download/v1.0.0/SimpleZip-1.0.0.dmg"
+                sparkle:version="41"
+                sparkle:shortVersionString="1.0.0"
+                sparkle:edSignature="EevyAqqcWtnL9vXg6/ThNyeBFJNhPKn1T67gPf3h8pG6EhHOGvbIvk7llfzGu8xQZaQ0bPDeMhDS3RXrfgKSCA==" length="32912672"
+                type="application/octet-stream"/>
+        </item>
     </channel>
 </rss>
