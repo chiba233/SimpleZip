@@ -61,7 +61,7 @@ extension ArchiveService {
         }
     }
 
-    static func parseZipList(tarOutput: String, unzipOutput: String) -> [ArchiveItem] {
+    nonisolated static func parseZipList(tarOutput: String, unzipOutput: String) -> [ArchiveItem] {
         var metadataByName: [String: ArchiveItem] = [:]
         for item in parseUnzipList(unzipOutput) {
             let key = normalizedEntryName(item.name)
@@ -90,7 +90,7 @@ extension ArchiveService {
             }
     }
 
-    static func parseUnzipList(_ output: String) -> [ArchiveItem] {
+    nonisolated static func parseUnzipList(_ output: String) -> [ArchiveItem] {
         output
             .split(separator: "\n")
             .compactMap { line -> ArchiveItem? in
@@ -122,7 +122,7 @@ extension ArchiveService {
     /// 从 `l -slt` 输出抽**归档级**注释（头部块的 Comment；条目块的不算）。
     /// 7-Zip 对多行值用花括号形式：`Comment = `（空值行）后跟 `{`、内容若干行、`}`（实测 zip 注释如此输出）；
     /// 单行注释直接 `Comment = xxx`。只扫到条目分隔线 `----------` 为止 —— 之后是条目区。
-    static func parseArchiveHeaderComment(_ output: String) -> String {
+    nonisolated static func parseArchiveHeaderComment(_ output: String) -> String {
         let lines = output
             .replacingOccurrences(of: "\r", with: "")
             .split(separator: "\n", omittingEmptySubsequences: false)
@@ -152,7 +152,7 @@ extension ArchiveService {
 
     /// zstd 单流的内层文件名合成 —— 与 7zz 解压产物命名**完全一致**(实测):
     /// `a.txt.zst → a.txt`、`sample.tar.zst → sample.tar`、`foo.tzst → foo.tar`。
-    static func singleStreamInnerName(forArchiveNamed archiveName: String) -> String {
+    nonisolated static func singleStreamInnerName(forArchiveNamed archiveName: String) -> String {
         let ns = archiveName as NSString
         if ns.pathExtension.lowercased() == "tzst" {
             return ns.deletingPathExtension + ".tar"
@@ -161,7 +161,7 @@ extension ArchiveService {
         return stem.isEmpty ? archiveName : stem
     }
 
-    static func parseSevenZipList(_ output: String) -> [ArchiveItem] {
+    nonisolated static func parseSevenZipList(_ output: String) -> [ArchiveItem] {
         // 当 list 走密码路径时（runWithPseudoTerminal），底层 PTY 在 macOS 默认 ONLCR
         // 状态下会把 7zz 输出里的每个 \n 转成 \r\n。下面按 \n 分行后每行末尾会留 \r：
         //   1) 含 \r 的「空白分隔行」(只有 "\r") 不再触发 flush()，多个条目的 values 互相覆盖；
@@ -302,7 +302,7 @@ extension ArchiveService {
         return rows
     }
 
-    static func archiveItemsSuggestPasswordRequirement(_ items: [ArchiveItem], in archive: URL) -> Bool {
+    nonisolated static func archiveItemsSuggestPasswordRequirement(_ items: [ArchiveItem], in archive: URL) -> Bool {
         if archive.pathExtension.lowercased() == "zip" {
             let detection = detectZipEncryption(in: archive)
             return detection != .none && detection != .unknown
@@ -310,7 +310,7 @@ extension ArchiveService {
         return items.contains { $0.isEncrypted || archiveMethodSuggestsEncryption($0.method) }
     }
 
-    private static func decodeArchivePathEscapes(_ text: String) -> String {
+    private nonisolated static func decodeArchivePathEscapes(_ text: String) -> String {
         guard text.contains("\\") else { return text }
 
         let characters = Array(text)
@@ -340,7 +340,7 @@ extension ArchiveService {
         return String(decoding: bytes, as: UTF8.self)
     }
 
-    private static func archiveMethodSuggestsEncryption(_ method: String) -> Bool {
+    private nonisolated static func archiveMethodSuggestsEncryption(_ method: String) -> Bool {
         let normalized = method.lowercased()
         return normalized.contains("7zaes")
             || normalized.contains("zipcrypto")
@@ -415,7 +415,7 @@ extension ArchiveService {
         )
     }
 
-    static func expandedEntryNames(for entries: [ArchiveItem]) -> [String] {
+    nonisolated static func expandedEntryNames(for entries: [ArchiveItem]) -> [String] {
         var normalizedNames: [String: String] = [:]
         for item in entries {
             if normalizedNames[item.name] == nil {
@@ -453,12 +453,12 @@ extension ArchiveService {
         }
     }
 
-    static func normalizedDirectoryPrefix(_ name: String) -> String {
+    nonisolated static func normalizedDirectoryPrefix(_ name: String) -> String {
         let normalized = normalizedEntryName(name)
         return normalized.hasSuffix("/") ? normalized : normalized + "/"
     }
 
-    static func normalizedEntryName(_ name: String) -> String {
+    nonisolated static func normalizedEntryName(_ name: String) -> String {
         name.trimmingCharacters(in: CharacterSet(charactersIn: "/")) + (name.hasSuffix("/") ? "/" : "")
     }
 
@@ -513,7 +513,7 @@ extension ArchiveService {
         return nil
     }
 
-    private static func parseUnzipModified(_ text: String) -> Date? {
+    private nonisolated static func parseUnzipModified(_ text: String) -> Date? {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "MM-dd-yyyy HH:mm"

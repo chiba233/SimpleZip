@@ -48,8 +48,17 @@ extension ArchiveBrowserModel {
         archiveURL: URL,
         password: String = "",
         operationID: UUID? = nil,
-        force: Bool? = nil
+        force: Bool? = nil,
+        preloadedItems: [ArchiveItem]? = nil
     ) async throws -> [ArchiveItem] {
+        // 复用已 list 好的完整清单(解压「当前已打开的归档」时 model 手上就有 `session.allItems`):
+        // 安全检查对全部条目跑路径穿越判定,清单内容与「再 list 一遍」逐字节一致 —— 直接拿现成的,
+        // 任务起步时不再为安全检查多跑一遍 `7zz l -slt`(大归档上这一遍又慢又吐巨量输出,像卡死)。
+        // 仅当没有现成清单(如解压文件夹里选中的归档)时才回落 list —— list 现已 nonisolated,整体在后台跑。
+        if let preloadedItems, !preloadedItems.isEmpty {
+            try confirmArchiveExtractionSafety(entries: preloadedItems)
+            return preloadedItems
+        }
         let force = force ?? isForced(archiveURL)
         let items = try await ArchiveService.list(archiveURL, password: password, operationID: operationID, force: force)
         try confirmArchiveExtractionSafety(entries: items)

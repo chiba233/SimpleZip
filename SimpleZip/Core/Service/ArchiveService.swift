@@ -15,7 +15,8 @@ enum ArchiveService {
     /// zst/tzst(zstd,7zz 只读——`a -tzstd` 实测 E_NOTIMPL;tar.zst 与 tar.gz 同款双层管道)、
     /// iso(Iso/Udf 自动识别)、cab、cpio、xar、pkg(xar 容器)。这些格式 7zz 不能写,
     /// 写门控(ArchiveWriteRestriction.readOnlyFormat)自动给出只读解释。
-    static let supportedExtensions = [
+    // nonisolated:`resolvedArchiveInput` 等 nonisolated 路由路径要读它(后端选型);纯 String 字面量常量,无隔离需求。
+    nonisolated static let supportedExtensions = [
         "zip", "7z", "tar", "gz", "tgz", "bz2", "xz", "rar", "dmg", "xip",
         "zst", "tzst", "iso", "cab", "cpio", "xar", "pkg"
     ]
@@ -37,7 +38,7 @@ enum ArchiveService {
 
     /// 把 `ArchiveBackendKind` 映射到对应 backend 类型 —— 供 `list` / `test` 共用一个 router。
     /// `extract` / `create` 因为各 backend 参数太异质，不走这个路径，仍然用 case 分发。
-    private static func backendType(for kind: ArchiveBackendKind) -> ArchiveBackend.Type {
+    private nonisolated static func backendType(for kind: ArchiveBackendKind) -> ArchiveBackend.Type {
         switch kind {
         case .zipNative: return NativeZipBackend.self
         case .sevenZip: return SevenZipBackend.self
@@ -433,7 +434,11 @@ enum ArchiveService {
         try await SevenZipBackend.benchmark(options: options, operationID: operationID, update: update)
     }
 
-    static func list(_ archive: URL, password: String = "", operationID: UUID? = nil, force: Bool = false) async throws -> [ArchiveItem] {
+    /// nonisolated:整条 list = 子进程 `7zz l -slt` + 纯字符串解析,无 MainActor 状态。
+    /// app target 默认 MainActor 隔离,不标 nonisolated 时即便底层子进程在后台跑,解析与
+    /// 收尾仍回主线程 → 海量条目大归档解析冻死 UI(本次修的根因)。标 nonisolated 后
+    /// `@MainActor` 调用方 `await` 它会整体 hop 到后台,主线程全程空闲。
+    nonisolated static func list(_ archive: URL, password: String = "", operationID: UUID? = nil, force: Bool = false) async throws -> [ArchiveItem] {
         let signpost = PerfSignpost.begin("archive.list")
         defer { PerfSignpost.end("archive.list", signpost) }
         let resolved = try resolvedInput(for: archive, force: force)
@@ -449,7 +454,7 @@ enum ArchiveService {
     // NSCache 本身线程安全（Apple 文档保证）；nonisolated(unsafe) 只是向严格并发检查明示这一点。
     private nonisolated(unsafe) static let headerCommentCache = NSCache<NSString, NSString>()
 
-    static func recordHeaderComment(_ comment: String, for url: URL) {
+    nonisolated static func recordHeaderComment(_ comment: String, for url: URL) {
         if comment.isEmpty {
             headerCommentCache.removeObject(forKey: url.path as NSString)
         } else {
@@ -486,21 +491,21 @@ enum ArchiveService {
     ///   用例：用户在 Finder 右键「以压缩包打开」一个 .exe / .apk / .ipa 之类的文件 ——
     ///   这些本质上是 ZIP / NSIS / CAB，但扩展名不在白名单里，
     ///   通过用户明确意图（右键菜单项）跳过检查，让 7zz 自己按文件头探测。
-    private static func resolvedInput(for url: URL, force: Bool) throws -> ResolvedArchiveInput {
+    private nonisolated static func resolvedInput(for url: URL, force: Bool) throws -> ResolvedArchiveInput {
         if force {
             return ResolvedArchiveInput(url: url, backend: .sevenZip)
         }
         return try resolvedArchiveInputOrThrow(for: url)
     }
 
-    private static func resolvedArchiveInputOrThrow(for url: URL) throws -> ResolvedArchiveInput {
+    private nonisolated static func resolvedArchiveInputOrThrow(for url: URL) throws -> ResolvedArchiveInput {
         guard let resolved = resolvedArchiveInput(for: url) else {
             throw ArchiveError.unsupportedFormat
         }
         return resolved
     }
 
-    private static func resolvedArchiveInput(for url: URL) -> ResolvedArchiveInput? {
+    private nonisolated static func resolvedArchiveInput(for url: URL) -> ResolvedArchiveInput? {
         let ext = url.pathExtension.lowercased()
         if isNumericSplitExtension(ext) {
             let firstPart = url.deletingPathExtension().appendingPathExtension("001")
@@ -535,17 +540,17 @@ enum ArchiveService {
         return nil
     }
 
-    private static func splitZipMasterURL(for url: URL) -> URL? {
+    private nonisolated static func splitZipMasterURL(for url: URL) -> URL? {
         let master = url.deletingPathExtension().appendingPathExtension("zip")
         return FileManager.default.fileExists(atPath: master.path) ? master : nil
     }
 
-    private static func hasSplitZipSidecar(for url: URL) -> Bool {
+    private nonisolated static func hasSplitZipSidecar(for url: URL) -> Bool {
         let sidecar = url.deletingPathExtension().appendingPathExtension("z01")
         return FileManager.default.fileExists(atPath: sidecar.path)
     }
 
-    private static func multipartRarMasterURL(for url: URL) -> URL? {
+    private nonisolated static func multipartRarMasterURL(for url: URL) -> URL? {
         let name = url.lastPathComponent
         let range = NSRange(location: 0, length: name.utf16.count)
         guard
@@ -565,15 +570,15 @@ enum ArchiveService {
         return FileManager.default.fileExists(atPath: masterURL.path) ? masterURL : nil
     }
 
-    private static func isNumericSplitExtension(_ ext: String) -> Bool {
+    private nonisolated static func isNumericSplitExtension(_ ext: String) -> Bool {
         ext.count == 3 && Int(ext) != nil
     }
 
-    private static func isRarVolumeExtension(_ ext: String) -> Bool {
+    private nonisolated static func isRarVolumeExtension(_ ext: String) -> Bool {
         ext.range(of: #"^r\d{2}$"#, options: .regularExpression) != nil
     }
 
-    private static func isZipVolumeExtension(_ ext: String) -> Bool {
+    private nonisolated static func isZipVolumeExtension(_ ext: String) -> Bool {
         ext.range(of: #"^z\d{2}$"#, options: .regularExpression) != nil
     }
 
@@ -609,7 +614,7 @@ enum ArchiveService {
             .appendingPathComponent("SimpleZip", isDirectory: true)
     }
 
-    static func uniqueExistingCandidatePaths(_ paths: [String]) -> [String] {
+    nonisolated static func uniqueExistingCandidatePaths(_ paths: [String]) -> [String] {
         var seen = Set<String>()
         return paths.filter { path in
             guard !seen.contains(path) else { return false }
@@ -618,7 +623,7 @@ enum ArchiveService {
         }
     }
 
-    static func envPath(for executable: String) -> String? {
+    nonisolated static func envPath(for executable: String) -> String? {
         let pathValue = ProcessInfo.processInfo.environment["PATH"] ?? ""
         return pathValue
             .split(separator: ":")
@@ -627,7 +632,7 @@ enum ArchiveService {
             .first { FileManager.default.isExecutableFile(atPath: $0) }
     }
 
-    static func cellarCandidates(formula: String, tools: [String]) -> [String] {
+    nonisolated static func cellarCandidates(formula: String, tools: [String]) -> [String] {
         ["/opt/homebrew/Cellar/\(formula)", "/usr/local/Cellar/\(formula)"].flatMap { root -> [String] in
             guard let versions = try? FileManager.default.contentsOfDirectory(atPath: root) else { return [] }
             return versions.flatMap { version in

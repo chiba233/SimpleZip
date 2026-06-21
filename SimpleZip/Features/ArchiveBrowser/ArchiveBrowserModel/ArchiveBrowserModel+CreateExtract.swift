@@ -1082,6 +1082,10 @@ extension ArchiveBrowserModel {
             var didCheckSafety = false
             // 安全检查 list 出的文件数 —— 复用给 ArchiveService.extract 的 knownFileCount，省掉解压时再 list 一遍。
             var knownFileCount: Int?
+            // 解压「当前已打开的归档」时复用 model 已 list 好的完整清单做安全检查,省掉任务起步再 list 一遍
+            // (大归档上像卡死)。仅当真的是同一个归档时才复用:`.siz/.gpg` 解密后 `archiveURLForExtract`
+            // 指向解密出的内层包,与 request 里那份(原始外层包)的清单对不上,这种情况必须按 nil 走重新 list。
+            let safetyPreloadedItems: [ArchiveItem]? = (archiveURLForExtract == request.archiveURL) ? request.preloadedItems : nil
             // 0.4.2 #9：会话里记过的口令，口令失败时先静默逐个试，全试完才弹框。
             var untriedSessionPasswords = SessionPasswordCache.shared.candidates(for: archiveURLForExtract).filter { $0 != password }
             while true {
@@ -1091,7 +1095,8 @@ extension ArchiveBrowserModel {
                             archiveURL: archiveURLForExtract,
                             password: password,
                             operationID: operationID,
-                            force: force
+                            force: force,
+                            preloadedItems: safetyPreloadedItems
                         )
                         knownFileCount = items.filter { !$0.isDirectory }.count
                         didCheckSafety = true
@@ -1135,18 +1140,27 @@ extension ArchiveBrowserModel {
                 }
             }
             SessionPasswordCache.shared.record(password, for: archiveURLForExtract)
-            // 0.4.2：「不解压 macOS 元数据垃圾」—— 合并前在 staging 上清掉，目标目录原有文件零接触。
+            // 合并前的 staging 变换(清垃圾 / 删符号链接 / 去单层目录 / 冲突预改名)都是对 staging 树的
+            // 纯 FileManager 遍历(本就 nonisolated、不碰任何 @Published / UI 状态)。海量碎文件时在主 actor
+            // 同步走会冻死 UI —— 统一丢到 `Task.detached` 后台跑。目标目录原有文件仍零接触(只动 staging)。
+            // 0.4.2：「不解压 macOS 元数据垃圾」—— 合并前在 staging 上清掉。
             if request.skipJunk {
-                ArchiveJunkFiles.removeJunk(in: stagingURL)
+                _ = await Task.detached(priority: .userInitiated) {
+                    ArchiveJunkFiles.removeJunk(in: stagingURL)
+                }.value
             }
-            // 0.4.3 #15:「不解压符号链接」—— 同样在 staging 上处理,目标目录零接触。
+            // 0.4.3 #15:「不解压符号链接」—— 同样在 staging 上处理。
             if request.skipSymlinks {
-                ArchiveJunkFiles.removeSymlinks(in: stagingURL)
+                _ = await Task.detached(priority: .userInitiated) {
+                    ArchiveJunkFiles.removeSymlinks(in: stagingURL)
+                }.value
             }
             // #13:「去单层目录」—— staging 顶层只有那个壳时把内容上提一层(壳为符号链接 /
             // 结构对不上时安静放弃,按原结构合并 —— lift 自带防越界与同名嵌套保护)。
             if request.stripSingleRootFolder {
-                ArchiveSingleRootFolder.lift(in: stagingURL)
+                _ = await Task.detached(priority: .userInitiated) {
+                    ArchiveSingleRootFolder.lift(in: stagingURL)
+                }.value
             }
             // #12「解到同名文件夹」:目的地是新建(唯一化过)的子文件夹。
             if request.extractIntoSubfolder {
@@ -1155,7 +1169,9 @@ extension ArchiveBrowserModel {
             // #12「冲突自动重命名」:合并前在 staging 上把撞名文件预改成唯一名(目录照旧深度合并),
             // 合并器随后看不到文件冲突 —— 不弹框、不覆盖、目标原有文件零接触。
             if request.autoRenameConflicts {
-                ArchiveConflictAutoRename.renameConflicts(in: stagingURL, mergingInto: finalDestination)
+                _ = await Task.detached(priority: .userInitiated) {
+                    ArchiveConflictAutoRename.renameConflicts(in: stagingURL, mergingInto: finalDestination)
+                }.value
             }
             try await self.extractionCoordinator.mergeExtractedItems(
                 from: stagingURL,

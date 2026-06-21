@@ -36,7 +36,7 @@ enum NativeZipBackend {
     /// - 系统 tar 把文件名统一归一化成 NFD → NFC/NFD 混用包在安全报告里漏报 normalizationCollision。
     /// `unzip -l` + `tar -tf` 合并解析（`ArchiveService.parseZipList`，fixture 已覆盖）保留为
     /// 7zz 不可用时的兜底。
-    static func list(_ archive: URL, password: String = "", operationID: UUID? = nil) async throws -> [ArchiveItem] {
+    nonisolated static func list(_ archive: URL, password: String = "", operationID: UUID? = nil) async throws -> [ArchiveItem] {
         if SevenZipBackend.isAvailable() {
             return try await SevenZipBackend.list(archive, password: password, operationID: operationID)
         }
@@ -61,7 +61,7 @@ enum NativeZipBackend {
     /// stdin 口令 —— 两种输出都不含「需要口令」的诊断词,`errorSuggestsPasswordRequirement`
     /// 永远不命中,GUI / CLI 都不会弹口令重试(CLI check 实测漏)。检出加密(含 mixed)且 7zz
     /// 可用时整体交给 7zz t:它报 "Cannot open encrypted archive…",统一密码中心的判定词接得上。
-    static func test(_ archive: URL, operationID: UUID? = nil, outputObserver: (@Sendable (String) -> Void)? = nil) async throws {
+    nonisolated static func test(_ archive: URL, operationID: UUID? = nil, outputObserver: (@Sendable (String) -> Void)? = nil) async throws {
         switch ArchiveService.detectZipEncryption(in: archive) {
         case .zipCrypto, .aes128, .aes192, .aes256, .mixed:
             if SevenZipBackend.isAvailable() {
@@ -85,7 +85,7 @@ enum NativeZipBackend {
     /// 扩展属性(xattr 自检样本实测红),系统 tar 原生往返 PAX 头里的 xattr(创建侧本就走系统 tar)。
     /// bsdtar 默认拒绝绝对路径与 `..` 成员(不加 -P),外层再叠 validateExtractedTree。
     /// 选条目 / flatten 仍走 7zz(7zz 列出的条目名与 tar 存储名不保证逐字节一致,不冒险)。
-    static func extractWholeTar(
+    nonisolated static func extractWholeTar(
         _ archive: URL,
         to destination: URL,
         progressParser: ProgressOutputParser?,
@@ -112,7 +112,7 @@ enum NativeZipBackend {
     /// `zipCrypto` → 先 macOS 后 7zz。
     /// 前一个失败 → 用 outputObserver 提示「换一个 backend 重试」，再跑下一个。
     /// 全部失败 → 抛第一个错。
-    static func extract(
+    nonisolated static func extract(
         _ archive: URL,
         entries: [String],
         to destination: URL,
@@ -256,7 +256,7 @@ enum NativeZipBackend {
 
     /// 跟 macOS 自带 unzip/tar 打交道的具体动作 —— 整包 / 选择性 / 带密码三条路径。
     /// 无密码 + 选条目时优先 tar（更快、原始路径稳）；有密码必须用 unzip（tar 不支持加密 ZIP）。
-    private static func extractWithSystemUnzip(
+    private nonisolated static func extractWithSystemUnzip(
         _ archive: URL,
         entries: [String],
         to destination: URL,
@@ -275,7 +275,10 @@ enum NativeZipBackend {
                 progressParser: progressParser,
                 inputStrategy: inputStrategy,
                 outputObserver: outputObserver,
-                operationID: operationID
+                operationID: operationID,
+                // 解压:调用方丢弃返回串、只用进度 + 活动中心日志。海量碎文件时 unzip 会把每个条目名喷进 stdout,
+                // 不设上限会把整串累积进返回 String → 内存暴涨。只保留尾部供失败诊断(对齐 7zz 路径)。
+                outputRetentionLimit: BackendProcessRunner.diagnosticsOutputRetentionLimit
             )
             return
         }
@@ -291,7 +294,8 @@ enum NativeZipBackend {
                 arguments: arguments,
                 progressParser: progressParser,
                 outputObserver: outputObserver,
-                operationID: operationID
+                operationID: operationID,
+                outputRetentionLimit: BackendProcessRunner.diagnosticsOutputRetentionLimit
             )
         } else {
             var arguments = [ArchiveService.unzipOverwriteArgument(for: overwriteBehavior), archive.path]
@@ -303,14 +307,15 @@ enum NativeZipBackend {
                 progressParser: progressParser,
                 inputStrategy: .passwordPrompts([password]),
                 outputObserver: outputObserver,
-                operationID: operationID
+                operationID: operationID,
+                outputRetentionLimit: BackendProcessRunner.diagnosticsOutputRetentionLimit
             )
         }
     }
 
     /// 根据「用户选的解密方式」+「实际检出的加密类型」决定 backend 顺序。
     /// 这条策略表本来在 ArchiveService 里，搬来后是 NativeZipBackend 的内部决策。
-    private static func zipExtractionTools(
+    private nonisolated static func zipExtractionTools(
         for method: ArchiveDecryptionMethod,
         detectedEncryption: ZipEncryptionDetection,
         password: String
@@ -318,7 +323,9 @@ enum NativeZipBackend {
         switch method {
         case .automatic:
             guard !password.isEmpty else {
-                return [.macOS, .sevenZip]
+                // 大归档稳定性:海量碎文件下 7zz 解压比系统 unzip 更稳(进度 / 输出量可控、不被逐条目 stdout 拖死),
+                // 故无密码自动档优先 7zz,系统 unzip 退为兜底(7zz 缺失 / 失败时仍可用,tar/xattr 特例路径不受影响)。
+                return [.sevenZip, .macOS]
             }
             switch detectedEncryption {
             case .aes128, .aes192, .aes256:
@@ -326,7 +333,7 @@ enum NativeZipBackend {
             case .zipCrypto:
                 return [.macOS, .sevenZip]
             case .none:
-                return [.macOS, .sevenZip]
+                return [.sevenZip, .macOS]
             case .mixed, .unknown:
                 return [.sevenZip, .macOS]
             }
@@ -337,7 +344,7 @@ enum NativeZipBackend {
         }
     }
 
-    private static func zipExtractionToolName(_ tool: ZipExtractionTool) -> String {
+    private nonisolated static func zipExtractionToolName(_ tool: ZipExtractionTool) -> String {
         switch tool {
         case .sevenZip:
             return "7-Zip"

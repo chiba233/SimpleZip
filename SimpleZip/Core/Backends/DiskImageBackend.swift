@@ -34,7 +34,7 @@ enum DiskImageBackend {
         try await mountSession(url).mountPoint
     }
 
-    private static func mountSession(_ url: URL) async throws -> MountSession {
+    private nonisolated static func mountSession(_ url: URL) async throws -> MountSession {
         let output: String
         do {
             output = try await BackendProcessRunner.runAndCapture(
@@ -78,7 +78,7 @@ enum DiskImageBackend {
         )
     }
 
-    private static func detach(_ session: MountSession) async {
+    private nonisolated static func detach(_ session: MountSession) async {
         for target in session.detachTargets {
             _ = try? await BackendProcessRunner.runAndCapture(
                 "/usr/bin/hdiutil",
@@ -87,7 +87,7 @@ enum DiskImageBackend {
         }
     }
 
-    private static func detachImage(matching imageURL: URL) async {
+    private nonisolated static func detachImage(matching imageURL: URL) async {
         guard
             let info = try? await BackendProcessRunner.runAndCapture("/usr/bin/hdiutil", arguments: ["info", "-plist"]),
             let data = info.data(using: .utf8),
@@ -107,7 +107,7 @@ enum DiskImageBackend {
         }
     }
 
-    private static func uniqueDetachingTargets(_ targets: [String]) -> [String] {
+    private nonisolated static func uniqueDetachingTargets(_ targets: [String]) -> [String] {
         var seen = Set<String>()
         var result: [String] = []
         for target in targets where seen.insert(target).inserted {
@@ -117,7 +117,7 @@ enum DiskImageBackend {
     }
 
     /// 列 DMG 内容 = 挂载 + 列顶层文件 + 卸载。
-    static func list(_ archive: URL) async throws -> [ArchiveItem] {
+    nonisolated static func list(_ archive: URL) async throws -> [ArchiveItem] {
         let session = try await mountSession(archive)
         do {
             let items = try archiveItems(at: session.mountPoint)
@@ -148,7 +148,7 @@ enum DiskImageBackend {
     }
 
     /// 「测试」DMG = 挂上再卸 —— 系统 hdiutil 不报错就算结构 OK。
-    static func test(_ archive: URL) async throws {
+    nonisolated static func test(_ archive: URL) async throws {
         let session = try await mountSession(archive)
         await detach(session)
     }
@@ -235,7 +235,7 @@ enum DiskImageBackend {
 
     /// 把挂载点下的顶层项目转成 ArchiveItem 数组，用户能在 UI 里浏览。
     /// 目录优先 + 名称自然排序，跟 ArchiveService 别的 backend 一致。
-    private static func archiveItems(at mountPoint: URL) throws -> [ArchiveItem] {
+    private nonisolated static func archiveItems(at mountPoint: URL) throws -> [ArchiveItem] {
         let fileManager = FileManager.default
         let resourceKeys: Set<URLResourceKey> = [.isDirectoryKey, .fileSizeKey, .contentModificationDateKey]
         return try fileManager.contentsOfDirectory(at: mountPoint, includingPropertiesForKeys: Array(resourceKeys))
@@ -263,7 +263,8 @@ enum DiskImageBackend {
     }
 
     /// 共用 DateFormatter（DateFormatter 实例化开销不小）。
-    private static let dateFormatter: DateFormatter = {
+    /// nonisolated：DMG list 串行(mount→list→detach)只读调 `string(from:)`,让 nonisolated 解析路径取它而不弹回主线程。
+    private nonisolated static let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         formatter.timeStyle = .short

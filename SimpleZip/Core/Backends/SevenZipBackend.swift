@@ -23,7 +23,7 @@ enum SevenZipBackend {
 
     /// 解析当前应该用哪份 7zz —— 按用户偏好（automatic / bundled / system）依次找候选路径，
     /// 取第一个 `isExecutableFile` 的。全部失败 → 抛 `ArchiveError.missingSevenZip`。
-    static func resolve() throws -> ResolvedSevenZipTool {
+    nonisolated static func resolve() throws -> ResolvedSevenZipTool {
         let candidates: [ResolvedSevenZipTool]
         switch AppPreferences.sevenZipBackend {
         case .automatic:
@@ -41,12 +41,12 @@ enum SevenZipBackend {
     }
 
     /// 拿单纯的可执行路径，给 `Process.executableURL` 用。
-    static func toolPath() throws -> String {
+    nonisolated static func toolPath() throws -> String {
         try resolve().path
     }
 
     /// 仅判定可用与否（不要错误信息）。给 Settings 灰按钮、HealthChecker 等用。
-    static func isAvailable() -> Bool {
+    nonisolated static func isAvailable() -> Bool {
         (try? resolve()) != nil
     }
 
@@ -80,7 +80,7 @@ enum SevenZipBackend {
     /// 用 `7zz l -slt` 列出压缩包条目。
     /// `password` 非空时走密码 strategy 让 7zz 在交互提示时拿到密码；空时不喂任何输入。
     /// 解析交给 `ArchiveService.parseSevenZipList` —— 那一段已经被 fixture 测试覆盖。
-    static func list(
+    nonisolated static func list(
         _ archive: URL,
         password: String = "",
         operationID: UUID? = nil
@@ -91,7 +91,7 @@ enum SevenZipBackend {
 
     /// `7zz l -slt` 的**原始输出**(#13 归档元数据报告要解析头部块;list 共用本函数)。
     /// 顺手抽归档级注释进旁路缓存(0.4.1 #114;zip / rar 头部 Comment,只读)。
-    static func rawListOutput(
+    nonisolated static func rawListOutput(
         _ archive: URL,
         password: String = "",
         operationID: UUID? = nil
@@ -111,7 +111,7 @@ enum SevenZipBackend {
     /// 用 `7zz x` 整包解压 / `7zz e` 拍平解压。
     /// 空的 `entries` 表示「全包解压」（让 7zz 自己枚举所有条目）；非空时只解指定条目名。
     /// `pathMode == .flatten` 切换到 `e` 让所有条目落到目标目录而不保留路径前缀。
-    static func extract(
+    nonisolated static func extract(
         _ archive: URL,
         entries: [String],
         to destination: URL,
@@ -146,7 +146,7 @@ enum SevenZipBackend {
     }
 
     /// 用 `7zz t` 跑完整性测试 —— 7zz 输出非零退出码 → BackendProcessRunner 转成抛错。
-    static func test(_ archive: URL, operationID: UUID? = nil, outputObserver: (@Sendable (String) -> Void)? = nil) async throws {
+    nonisolated static func test(_ archive: URL, operationID: UUID? = nil, outputObserver: (@Sendable (String) -> Void)? = nil) async throws {
         try await test(archive, password: "", operationID: operationID, outputObserver: outputObserver)
     }
 
@@ -316,7 +316,7 @@ enum SevenZipBackend {
 
     /// App bundle 自带的 7zz 路径 —— DMG 发布版会把 `Contents/Resources/Tools/7zz` 一起打包。
     /// 罗列多个备选名是为了兼容历史 build / 不同打包脚本的产物。
-    private static var bundledCandidates: [ResolvedSevenZipTool] {
+    private nonisolated static var bundledCandidates: [ResolvedSevenZipTool] {
         var paths: [String] = []
         // 显式覆盖钩子(测试 / 诊断用):SIMPLEZIP_7ZZ_PATH 指向的二进制优先于一切。
         if let override = ProcessInfo.processInfo.environment["SIMPLEZIP_7ZZ_PATH"], !override.isEmpty {
@@ -344,7 +344,7 @@ enum SevenZipBackend {
 
     /// 系统级 7zz —— Homebrew、p7zip Cellar、$PATH 各种来源。
     /// `uniqueExistingCandidatePaths` 去重；不存在路径在 resolve() 里再过一次 `isExecutableFile`。
-    private static var systemCandidates: [ResolvedSevenZipTool] {
+    private nonisolated static var systemCandidates: [ResolvedSevenZipTool] {
         let candidates: [String?] = [
             "/opt/homebrew/bin/7zz",
             "/opt/homebrew/bin/7z",
@@ -375,11 +375,13 @@ struct ResolvedSevenZipTool {
 
 /// `benchmark` 跑进程时累积 stdout chunk 到完整 String，便于 update 回调实时 reparse。
 /// NSLock 保护是因为 `outputObserver` 可能从后台 queue 调用。
+// nonisolated:从 `@Sendable` 的 outputObserver 闭包(后台线程)同步调用;NSLock 已保证线程安全。
+// app target 默认 MainActor 隔离会把整类(含 `buffer`)隔离到主 actor,标 nonisolated 让后台闭包能安全用。
 private final class OutputAccumulator: @unchecked Sendable {
-    private var buffer = ""
+    private nonisolated(unsafe) var buffer = ""
     private let lock = NSLock()
 
-    func append(_ chunk: String) -> String {
+    nonisolated func append(_ chunk: String) -> String {
         lock.lock()
         defer { lock.unlock() }
         buffer += chunk

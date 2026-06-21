@@ -9,7 +9,7 @@ import Darwin
 import Foundation
 
 extension ArchiveService {
-    static func unzipOverwriteArgument(for behavior: OverwriteBehavior) -> String {
+    nonisolated static func unzipOverwriteArgument(for behavior: OverwriteBehavior) -> String {
         switch behavior {
         case .skipExisting:
             return "-n"
@@ -18,7 +18,7 @@ extension ArchiveService {
         }
     }
 
-    static func sevenZipOverwriteArgument(for behavior: OverwriteBehavior) -> String {
+    nonisolated static func sevenZipOverwriteArgument(for behavior: OverwriteBehavior) -> String {
         switch behavior {
         case .skipExisting:
             return "-aos"
@@ -33,7 +33,7 @@ extension ArchiveService {
         threadCount > 0 ? "-mmt=\(threadCount)" : "-mmt=on"
     }
 
-    static func sevenZipExtractArguments(
+    nonisolated static func sevenZipExtractArguments(
         command: String,
         archive: URL,
         entries: [String],

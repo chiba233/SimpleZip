@@ -90,7 +90,11 @@ struct LocationCompletion: Identifiable, Hashable {
 ///
 /// 0.1.10 起：除了基础 4 列（kind/size/modified/method）以外，再保留可选的 packedSize/CRC/created/attributes
 /// —— 这些字段只有 7zz `-slt` 长格式才有，zip 后备路径和 DMG 后端会用 nil / "" 填空，UI 自然显示空。
-struct ArchiveItem: Identifiable, Hashable, Codable {
+// `nonisolated`:app target 默认 MainActor 隔离会把整个类型(连同合成的 Equatable / Hashable 一致性)
+// 隔到主 actor;nonisolated 解析链(parseSevenZipList / parseZipList 等)用到这些一致性时就会触发
+// 「main actor-isolated conformance … cannot be used in nonisolated context」。所有存储属性都是不可变
+// Sendable `let`,显式 `nonisolated` + `Sendable` 让该类型彻底无隔离,合成一致性在任何上下文都可用。
+nonisolated struct ArchiveItem: Identifiable, Hashable, Codable, Sendable {
     let id = UUID()
 
     /// Codable 排除 `id`(带初值的 let 不能解码;id 只是行标识,解码时新发一个即可)。
@@ -172,12 +176,12 @@ struct ArchiveItem: Identifiable, Hashable, Codable {
     }
 
     /// 列表里只展示当前层级的名称，完整路径继续保留在 name 中用于解压。
-    var displayName: String {
+    nonisolated var displayName: String {
         let trimmedName = name.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         return trimmedName.split(separator: "/").last.map(String.init) ?? name
     }
 
-    var typeDescription: String {
+    nonisolated var typeDescription: String {
         if isDirectory {
             return L10n.text("type.folder")
         }

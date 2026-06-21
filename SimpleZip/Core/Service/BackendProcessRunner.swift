@@ -33,7 +33,10 @@ enum BackendProcessRunner {
 
     /// 在后台 queue 上跑一个命令，捕获 stdout/stderr 合并字符串。
     /// 主调用方：ArchiveService 的 list / extract / test 等所有动作 + 取版本号等小操作。
-    static func runAndCapture(
+    // nonisolated:子进程启动 / 等输出本就在 DispatchQueue.global 跑(见下方闭包),与 MainActor 无关。
+    // 标 nonisolated 让 list / parse 等已 nonisolated 的调用链能直接 await 它而不被弹回主线程
+    // (app target 默认 MainActor 隔离下,不标会触发「main actor-isolated 不能从 nonisolated 调」)。
+    nonisolated static func runAndCapture(
         _ executable: String,
         arguments: [String],
         currentDirectory: URL? = nil,
@@ -65,17 +68,17 @@ enum BackendProcessRunner {
     }
 
     /// 取消正在跑的命令。`operationID` 为 nil 时取消当前活跃的；非 nil 时按 ID 精确取消。
-    static func cancelRunningCommand(operationID: UUID?) {
+    nonisolated static func cancelRunningCommand(operationID: UUID?) {
         activeProcessRegistry.cancelProcess(operationID: operationID)
     }
 
     /// 暂停 / 继续 operationID 的后端子进程(SIGSTOP / SIGCONT)。只冻结后端工作:
     /// 进程间的 Swift 阶段会走完当前步骤,下一个子进程启动即被补停。
-    static func suspendRunningCommand(operationID: UUID) {
+    nonisolated static func suspendRunningCommand(operationID: UUID) {
         activeProcessRegistry.suspendProcess(operationID: operationID)
     }
 
-    static func resumeRunningCommand(operationID: UUID) {
+    nonisolated static func resumeRunningCommand(operationID: UUID) {
         activeProcessRegistry.resumeProcess(operationID: operationID)
     }
 

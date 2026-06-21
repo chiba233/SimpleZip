@@ -21,11 +21,13 @@ import Foundation
 protocol ArchiveBackend {
     /// 列出压缩包条目。`password` 为空 = 无密码（backend 不需要密码时可忽略）。
     /// `operationID` 让长任务面板能取消正在跑的命令。
-    static func list(_ archive: URL, password: String, operationID: UUID?) async throws -> [ArchiveItem]
+    /// nonisolated:list 是纯子进程 + 解析(无 MainActor 状态),声明成 nonisolated 让 `ArchiveService.list`
+    /// 经协议存在体调它时整条链都不被弹回主线程(大归档解析冻死 UI 的根因)。
+    nonisolated static func list(_ archive: URL, password: String, operationID: UUID?) async throws -> [ArchiveItem]
 
     /// 跑完整性测试。非零退出码 → 抛 `ArchiveError`。
     /// `outputObserver` 把后端命令输出实时喂给「详情」面板（之前漏传 → 测试详情永远「等待命令输出」）。
-    static func test(_ archive: URL, operationID: UUID?, outputObserver: (@Sendable (String) -> Void)?) async throws
+    nonisolated static func test(_ archive: URL, operationID: UUID?, outputObserver: (@Sendable (String) -> Void)?) async throws
 }
 
 // MARK: - Backend conformances
@@ -42,12 +44,12 @@ extension NativeZipBackend: ArchiveBackend {
 
 extension DiskImageBackend: ArchiveBackend {
     /// DMG 没有 password / operationID 概念，wrapper 吞掉两个参数。
-    static func list(_ archive: URL, password: String, operationID: UUID?) async throws -> [ArchiveItem] {
+    nonisolated static func list(_ archive: URL, password: String, operationID: UUID?) async throws -> [ArchiveItem] {
         try await list(archive)
     }
 
     /// 同上，操作 ID 在 DMG 流程中没有取消语义；DMG 校验也没有可流式展示的命令输出，吞掉 outputObserver。
-    static func test(_ archive: URL, operationID: UUID?, outputObserver: (@Sendable (String) -> Void)?) async throws {
+    nonisolated static func test(_ archive: URL, operationID: UUID?, outputObserver: (@Sendable (String) -> Void)?) async throws {
         try await test(archive)
     }
 }
