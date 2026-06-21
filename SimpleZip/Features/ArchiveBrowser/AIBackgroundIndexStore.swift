@@ -630,6 +630,24 @@ final class AIBackgroundIndexStore: ObservableObject {
         toolbarRanking.order(forPath: path, pathExtension: ext) ?? []
     }
 
+    /// 建议七 Phase2:前台烘焙写回工具栏序(文件级传 path、类型级传 ext;与后台 agent 写同一份派生缓存)。
+    func setToolbarRanking(filePath: String?, pathExtension ext: String?, orderedIDs: [String]) {
+        var r = toolbarRanking
+        if let filePath { r.byFile[filePath] = orderedIDs }
+        if let ext, !ext.isEmpty { r.byType[ext.lowercased()] = orderedIDs }
+        guard r != toolbarRanking else { return }
+        toolbarRanking = r
+        if let data = try? JSONEncoder().encode(r) { derived.set(data, forKey: AIToolbarRanking.derivedKey) }
+        objectWillChange.send()
+    }
+
+    /// 某文件 / 类型是否已烘过工具栏序(前台烘焙跳过已烘的,逐轮覆盖)。
+    func hasToolbarRanking(forPath path: String?, pathExtension ext: String?) -> Bool {
+        if let path, toolbarRanking.byFile[path] != nil { return true }
+        if let ext, toolbarRanking.byType[ext.lowercased()] != nil { return true }
+        return false
+    }
+
     private static func loadOrganize(from derived: AIDerivedDataStore) -> [String: CachedFolderGroup] {
         guard let data = derived.data(forKey: AppPreferences.Key.aiOrganizeSuggestionsData),
               let decoded = try? JSONDecoder().decode([String: CachedFolderGroup].self, from: data)

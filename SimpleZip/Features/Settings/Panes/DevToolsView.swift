@@ -846,6 +846,7 @@ struct DevToolsView: View {
                 workbenchNeedsAttentionCount: backgroundStore.workbenchNeedsAttentionByCategory.count,
                 workbenchFailureExplanationCount: backgroundStore.workbenchFailureExplanationByTask.count,
                 workbenchClusterChipsCount: backgroundStore.workbenchClusterChipsByCategory.values.reduce(0) { $0 + $1.chips.count },
+                toolbarRankingCount: backgroundStore.toolbarRanking.byFile.count + backgroundStore.toolbarRanking.byType.count,
                 activityLevel: AppPreferences.aiBackgroundActivityLevel.rawValue,
                 scopeCount: backgroundStore.scopes.count,
                 indexedFileCount: index.fileCount,
@@ -947,7 +948,8 @@ struct DevToolsView: View {
                 workbenchChipRanking: store.workbenchChipRankingByCategory.values.reduce(0) { $0 + $1.orderedIDs.count },
                 workbenchNeedsAttention: store.workbenchNeedsAttentionByCategory.count,
                 workbenchFailureExplanation: store.workbenchFailureExplanationByTask.count,
-                workbenchClusterChips: store.workbenchClusterChipsByCategory.values.reduce(0) { $0 + $1.chips.count })
+                workbenchClusterChips: store.workbenchClusterChipsByCategory.values.reduce(0) { $0 + $1.chips.count },
+                toolbarRanking: store.toolbarRanking.byFile.count + store.toolbarRanking.byType.count)
         }
 
         var out: [String] = []
@@ -1176,6 +1178,7 @@ private nonisolated struct DevToolsAIDataSnapshot: Encodable {
         let workbenchNeedsAttentionCount: Int
         let workbenchFailureExplanationCount: Int
         let workbenchClusterChipsCount: Int
+        let toolbarRankingCount: Int
         let activityLevel: String
         let scopeCount: Int
         let indexedFileCount: Int

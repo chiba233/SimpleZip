@@ -150,13 +150,15 @@ nonisolated struct AIDevToolsPipelineProductCounts: Equatable, Sendable {
     let workbenchFailureExplanation: Int
     /// 建议六 v2「真建议」:模型命名的真实聚集 chip 缓存数(各分类已命名 chip 总数)。
     let workbenchClusterChips: Int
+    /// 建议七 Phase2:工具栏动作 AI 排序缓存数(文件级 + 类型级已烘焙的序总数)。
+    let toolbarRanking: Int
 
     init(summary: Int, openWith: Int, urlOpen: Int, install: Int, activity: Int,
          archiveEntry: Int, archiveKind: Int, folderGroup: Int, organize: Int,
          inspect: Int, test: Int, hash: Int, security: Int, compress: Int,
          convert: Int, inlineResult: Int, workbenchChipRanking: Int = 0,
          workbenchNeedsAttention: Int = 0, workbenchFailureExplanation: Int = 0,
-         workbenchClusterChips: Int = 0) {
+         workbenchClusterChips: Int = 0, toolbarRanking: Int = 0) {
         self.summary = summary
         self.openWith = openWith
         self.urlOpen = urlOpen
@@ -177,6 +179,7 @@ nonisolated struct AIDevToolsPipelineProductCounts: Equatable, Sendable {
         self.workbenchNeedsAttention = workbenchNeedsAttention
         self.workbenchFailureExplanation = workbenchFailureExplanation
         self.workbenchClusterChips = workbenchClusterChips
+        self.toolbarRanking = toolbarRanking
     }
 }
 
@@ -208,7 +211,8 @@ nonisolated enum AIDevToolsPipelineCatalog {
             AIDevToolsPipelineRow(name: "筛选排序", passName: "筛选排序", cachedProductCount: counts.workbenchChipRanking),
             AIDevToolsPipelineRow(name: "需要处理解读", passName: "需要处理解读", cachedProductCount: counts.workbenchNeedsAttention),
             AIDevToolsPipelineRow(name: "失败解释", passName: "失败解释", cachedProductCount: counts.workbenchFailureExplanation),
-            AIDevToolsPipelineRow(name: "真建议", passName: "真建议", cachedProductCount: counts.workbenchClusterChips)
+            AIDevToolsPipelineRow(name: "真建议", passName: "真建议", cachedProductCount: counts.workbenchClusterChips),
+            AIDevToolsPipelineRow(name: "工具栏序", passName: "工具栏序", cachedProductCount: counts.toolbarRanking)
         ]
     }
 }

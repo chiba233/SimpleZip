@@ -88,6 +88,8 @@ final class AIBackgroundIndexer {
     private var workbenchFailureTask: Task<Void, Never>?
     private var workbenchClusterRunning = false
     private var workbenchClusterTask: Task<Void, Never>?
+    private var toolbarRankingRunning = false
+    private var toolbarRankingTask: Task<Void, Never>?
 
     /// 后台索引**心跳定时器**(主运行循环)+ 当前间隔。P0 根因:`runIfEnabled` 原本只在启动 `activate()` 时被调
     /// 一次,那次又卡在 launch-silence(<60s)直接空跑,之后再无任何定时器触发 → 后台索引 / 建议全程跑不起来
@@ -209,6 +211,7 @@ final class AIBackgroundIndexer {
                         AIBackgroundIndexer.shared.generateWorkbenchNeedsAttentionIfEnabled()   // 活动中心「需要处理」卡 AI 解读
                         AIBackgroundIndexer.shared.generateWorkbenchFailureExplanationsIfEnabled()   // 活动中心失败任务「失败解释」
                         AIBackgroundIndexer.shared.generateArchiveEntrySuggestionsIfEnabled()   // 归档「也许你要包里的 X」
+                        AIBackgroundIndexer.shared.generateToolbarRankingIfEnabled()   // 工具栏动作 AI 排序(建议七 Phase2)
                         if AIBackgroundIndexer.shared.canRunDeepContextNow() {
                             AIBackgroundIndexer.shared.generateArchiveKindGuessIfEnabled()   // 归档「这看起来是什么包」
                             AIBackgroundIndexer.shared.generateFolderGroupSuggestionsIfEnabled()   // 文件夹「这些可成组处理」
@@ -269,6 +272,7 @@ final class AIBackgroundIndexer {
         pendingExecTask?.cancel(); pendingExecTask = nil; pendingExecRunning = false
         folderGroupTask?.cancel(); folderGroupTask = nil; folderGroupRunning = false
         organizeTask?.cancel(); organizeTask = nil; organizeRunning = false
+        toolbarRankingTask?.cancel(); toolbarRankingTask = nil; toolbarRankingRunning = false
     }
 
     // MARK: - 内容预读 · 归档半边(MainActor:ArchiveService 在 app target 下 MainActor 隔离,A18)
@@ -374,6 +378,87 @@ final class AIBackgroundIndexer {
                     recordID: rec.id, summary: result.summary, actions: result.actions)
             }
         }
+    }
+
+    // MARK: - 工具栏动作排序(建议七 Phase2;前台 XPC 路径,gated canRunModelWorkNow —— 与后台 agent 同写一份缓存)
+
+    /// 前台烘焙工具栏 AI 序:文件级(AI 建议 list 重要文件)+ 类型级(按后缀代表文件),经 XPC 引擎跑,写共享缓存。
+    /// **电源门控**:与其它前台模型 pass 同走 `canRunModelWorkNow`(本地活跃度 + 索引电源 + 低电/省电/空闲);
+    /// 后台 agent 另有自己的(只看系统低电/省电)。逐轮覆盖、每轮封顶(`maxModelSuggestionsPerRound`)。
+    func generateToolbarRankingIfEnabled() {
+        guard #available(macOS 26.0, *) else { return }
+        let store = AIBackgroundIndexStore.shared
+        guard AppPreferences.aiSuggestionEnabled, AIReportAssistant.isReady, let budget = store.budget else { return }
+        guard !toolbarRankingRunning else { recordRunningPass("工具栏序"); return }
+        var filePicks: [AIFileMemoryRecord] = []
+        var typeReps: [String: AIFileMemoryRecord] = [:]
+        for rec in store.recentFileRecords(limit: 2_000) {
+            guard rec.type != .folder, let path = rec.path else { continue }
+            let ext = URL(fileURLWithPath: path).pathExtension.lowercased()
+            if rec.contentSummary?.shortSummary?.isEmpty == false, !store.hasToolbarRanking(forPath: path, pathExtension: nil) {
+                filePicks.append(rec)
+            }
+            if !ext.isEmpty, typeReps[ext] == nil, !store.hasToolbarRanking(forPath: nil, pathExtension: ext) {
+                typeReps[ext] = rec
+            }
+        }
+        let cap = budget.maxModelSuggestionsPerRound
+        let files = Array(filePicks.prefix(cap))
+        let types = Array(typeReps.values.prefix(max(0, cap - files.count)))
+        recordPass("工具栏序", candidates: files.count + types.count,
+                   skip: (files.isEmpty && types.isEmpty) ? "无候选(都已烘 / 无重要文件)" : nil)
+        guard !files.isEmpty || !types.isEmpty else { return }
+        toolbarRankingRunning = true
+        toolbarRankingTask = Task { @MainActor in
+            defer { AIBackgroundIndexer.shared.toolbarRankingRunning = false }
+            for rec in files {
+                if Task.isCancelled || !AIBackgroundIndexer.shared.canRunModelWorkNow() { break }
+                guard AIReportAssistant.isReady, let path = rec.path else { break }
+                await Self.bakeOneToolbarRanking(rec: rec, filePath: path, ext: nil,
+                                                 fileName: rec.fileName, summary: rec.contentSummary?.shortSummary)
+            }
+            for rec in types {
+                if Task.isCancelled || !AIBackgroundIndexer.shared.canRunModelWorkNow() { break }
+                guard AIReportAssistant.isReady, let path = rec.path else { break }
+                let ext = URL(fileURLWithPath: path).pathExtension.lowercased()
+                guard !ext.isEmpty else { continue }
+                await Self.bakeOneToolbarRanking(rec: rec, filePath: nil, ext: ext,
+                                                 fileName: "example.\(ext)", summary: nil)
+            }
+        }
+    }
+
+    /// 烘一个文件 / 类型的工具栏序:候选 = FileActionCatalog(右键菜单白名单)→ 引擎排序 → 写缓存。
+    @available(macOS 26.0, *)
+    private static func bakeOneToolbarRanking(rec: AIFileMemoryRecord, filePath: String?, ext: String?,
+                                             fileName: String, summary: String?) async {
+        let ids = FileActionCatalog.defaultActions(for: singleFileSnapshot(rec)).map { $0.id.rawValue }
+        guard ids.count >= 2 else {
+            AIBackgroundIndexStore.shared.setToolbarRanking(filePath: filePath, pathExtension: ext, orderedIDs: ids); return
+        }
+        guard let out = try? await AIAgentClient.generatePass(
+            kind: .toolbarActionRanking,
+            input: ToolbarActionRankingInput(fileName: fileName, kind: rec.type == .archive ? "archive" : "file",
+                                             roleTags: rec.roleTags, summary: summary, actions: ids),
+            as: AIPassIntListOutput.self) else { return }
+        let ordered = out.numbers.compactMap { ids.indices.contains($0 - 1) ? ids[$0 - 1] : nil }
+        AIBackgroundIndexStore.shared.setToolbarRanking(filePath: filePath, pathExtension: ext, orderedIDs: ordered)
+    }
+
+    /// 单文件工具栏上下文快照(从索引记录构造;前台 / 与 agent 同款,这里有 SignedContainerService)。
+    private static func singleFileSnapshot(_ rec: AIFileMemoryRecord) -> ContextualToolbarSnapshot {
+        let url = URL(fileURLWithPath: rec.path ?? rec.fileName)
+        let isDir = rec.type == .folder
+        let isArchive = !isDir && ArchiveService.isSupportedArchive(url)
+        let sf = ContextualToolbarSnapshot.SelectedFile(
+            name: rec.fileName, pathExtension: url.pathExtension.lowercased(), isDirectory: isDir,
+            isSupportedArchive: isArchive,
+            isToolableArchive: !isDir && SignedContainerService.isToolableArchive(url),
+            isPackage: false,
+            isFirstVolume: !isDir && FileSplitCombine.isFirstVolume(url),
+            isChecksumFile: !isDir && ChecksumFile.isChecksumFileName(rec.fileName))
+        return ContextualToolbarSnapshot(mode: .folder, selectedFiles: [sf],
+                                         gpgUIAvailable: false, canConvertSelectedArchives: isArchive)
     }
 
     // MARK: - 文本内真实 URL「打开网页」建议(MainActor:只读重读脱敏头部 + 模型按编号筛)
