@@ -387,7 +387,7 @@ final class ArchiveBrowserModel: ObservableObject {
     /// 当前导航位置的 archive URL 出现在这里 → 后端调用统一加 `force: true`，
     /// 让 ArchiveService 跳过扩展名校验直接走 7-Zip。`.exe` `.apk` `.ipa` 等本质是 ZIP/NSIS
     /// 的非典型压缩包就是这类用户场景。
-    var forcedArchiveURLs: Set<URL> = []
+    var forcedArchivePaths: Set<String> = []
     /// 本地文件浏览相关的纯逻辑（列目录 / 标签搜索 / FileItem 构造 / 路径补全）。
     let fileBrowser = FileBrowserService()
     /// 「一次一个」长任务的生命周期管理（取消、ID 跟踪、跟 ArchiveService 的子进程联动）。

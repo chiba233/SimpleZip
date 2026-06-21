@@ -578,14 +578,16 @@ extension ArchiveBrowserModel {
             pendingSZSExtractHint = url
             return
         }
-        forcedArchiveURLs.insert(url.standardizedFileURL)
+        forcedArchivePaths.insert(url.standardized.path)
         openArchive(url)
     }
 
     /// 当前 URL 是否已被标记为「强制以压缩包打开」。
-    /// 用 standardizedFileURL 比较 —— 同一文件可能以不同形式（resolve / 非 resolve）传入。
+    /// 用 standardized.path 比较（纯字符串归一化，不触碰文件系统）—— 同一文件可能以
+    /// 不同形式（有 / 无尾 slash、../. 等）传入；standardizedFileURL 会调 faccessat，
+    /// 在网络卷上阻塞主线程（dev7 取样已实证）。
     func isForced(_ url: URL) -> Bool {
-        forcedArchiveURLs.contains(url.standardizedFileURL)
+        forcedArchivePaths.contains(url.standardized.path)
     }
 
     /// 外部入口（Finder 双击 / Open With / 服务调用）打开压缩包的路由。
