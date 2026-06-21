@@ -827,7 +827,17 @@ extension ArchiveBrowserModel {
     /// 走带缓存版本 —— sfl4 因为 TCC / 文件被锁 / 临时 I/O 失败返回空时，
     /// 仍然显示最近一次成功读到的列表，避免 UI 在 Finder 收藏和硬编码 5 项之间反复横跳。
     func refreshFinderFavorites() {
-        finderFavorites = FinderFavoritesReader.readWithCache()
+        finderFavoritesRefreshTask?.cancel()
+        finderFavoritesRefreshTask = Task { [weak self] in
+            let favorites = await Task.detached(priority: .utility) {
+                FinderFavoritesReader.readWithCache()
+            }.value
+            guard let self, !Task.isCancelled else { return }
+            if finderFavorites != favorites {
+                finderFavorites = favorites
+            }
+            finderFavoritesRefreshTask = nil
+        }
     }
 
     func reload() {
@@ -879,13 +889,15 @@ extension ArchiveBrowserModel {
     /// —— 否则「A 触发事件、用户立刻切到 B、120ms 后却刷了 B」会造成莫名其妙的多余刷新 + 清掉 B 刚点的选区。
     func handleFolderContentsChanged() {
         guard case .folder(let changedFolder) = mode else { return }
+        guard !folderListingInFlight else { return }
         let expected = changedFolder.standardizedFileURL
         pendingWatcherReload?.cancel()
         pendingWatcherReload = Task { [weak self] in
             try? await Task.sleep(nanoseconds: 120_000_000)
             guard let self, !Task.isCancelled,
                   case .folder(let current) = self.mode,
-                  current.standardizedFileURL == expected else { return }
+                  current.standardizedFileURL == expected,
+                  !self.folderListingInFlight else { return }
             self.reloadFromFolderWatcher(expectedFolder: expected)
         }
     }

@@ -418,6 +418,8 @@ final class ArchiveBrowserModel: ObservableObject {
     var folderWatcher: FolderWatcher?
     /// FolderWatcher 回调去抖：把一次批量操作（如粘贴多文件）产生的多次 FSEvents 合并成一次 reload。
     var pendingWatcherReload: Task<Void, Never>?
+    /// Finder 收藏来自 sfl4/bookmark + 文件存在性探测；外置卷冷启动时可能慢，不能卡在 model.init。
+    var finderFavoritesRefreshTask: Task<Void, Never>?
     var loadTask: Task<Void, Never>?
     var activeLoadGeneration = 0
     var mountedDiskImage: MountedDiskImageSession?
@@ -434,7 +436,6 @@ final class ArchiveBrowserModel: ObservableObject {
         // 注意：不在这里清理临时目录 —— 那是「全 app 一次性」职责，已移到 AppDelegate 启动时 stale-only 执行。
         // 模型每次 init 都删全局临时根，会误删其它窗口正在用的解压目录（见 cleanStaleOpenedArchiveItems 注释）。
         mode = .folder(AppPreferences.defaultStartupURL(fileManager: fileManager))
-        finderFavorites = FinderFavoritesReader.readWithCache()
         loadSavedSearchState()
         folderWatcher = FolderWatcher { [weak self] in
             // FSEvents 回调可能在任意线程；跳回主 actor 再碰 model。
@@ -449,6 +450,7 @@ final class ArchiveBrowserModel: ObservableObject {
         // 显式停 watcher：FSEvent stream 用 passRetained 持有 folderWatcher 一个强引用，
         // 不在这里 stop（→ release stream → 放掉那个 +1），folderWatcher 永远不会被释放。
         folderWatcher?.stop()
+        finderFavoritesRefreshTask?.cancel()
         // #11:NSFileCoordinator 会强持有 presenter,窗口关闭时必须显式移除,否则泄漏 + 幽灵回调。
         openArchivePresenter?.stop()
         let openedArchiveItemDirectories = openedArchiveItemDirectories
