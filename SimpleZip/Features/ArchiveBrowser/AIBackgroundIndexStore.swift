@@ -98,6 +98,9 @@ final class AIBackgroundIndexStore: ObservableObject {
     private(set) var workbenchClusterChipsByCategory: [String: CachedClusterChips]
     private(set) var workbenchClusterChipsGeneration = 0
 
+    /// 建议七 Phase2:工具栏动作的 AI 预烘焙排序(后台 agent 写派生缓存,前台 init 载入只读;in-memory 查,不每渲染读盘)。
+    private(set) var toolbarRanking: AIToolbarRanking
+
     private let defaults: UserDefaults
     /// 阶段0a:派生数据(索引本体 + 下游预烘焙缓存)的独立文件存储。白名单 `scopes` + 反馈 `dislikedKeys` 仍留 `defaults`。
     private let derived: AIDerivedDataStore
@@ -118,6 +121,7 @@ final class AIBackgroundIndexStore: ObservableObject {
         self.workbenchFailureExplanationByTask = AIBackgroundIndexStore.loadExplanations(
             from: derived, key: AppPreferences.Key.aiWorkbenchFailureExplanationData)
         self.workbenchClusterChipsByCategory = AIBackgroundIndexStore.loadClusterChips(from: derived)
+        self.toolbarRanking = AIBackgroundIndexStore.loadToolbarRanking(from: derived)
         rebuildPathIndex()   // init 里的 fileIndex 赋值不触发 didSet,手动建一次
     }
 
@@ -644,6 +648,18 @@ final class AIBackgroundIndexStore: ObservableObject {
               let decoded = try? JSONDecoder().decode([String: [CachedFolderGroup]].self, from: data)
         else { return [:] }
         return decoded
+    }
+
+    private static func loadToolbarRanking(from derived: AIDerivedDataStore) -> AIToolbarRanking {
+        guard let data = derived.data(forKey: AIToolbarRanking.derivedKey),
+              let decoded = try? JSONDecoder().decode(AIToolbarRanking.self, from: data)
+        else { return AIToolbarRanking() }
+        return decoded
+    }
+
+    /// 建议七 Phase2:单选文件的工具栏 AI 烘焙序(命中文件级优先,否则扩展名类型级,无 → 空)。in-memory 查,渲染热路径安全。
+    func toolbarOrder(forPath path: String, pathExtension ext: String) -> [String] {
+        toolbarRanking.order(forPath: path, pathExtension: ext) ?? []
     }
 
     private static func loadOrganize(from derived: AIDerivedDataStore) -> [String: CachedFolderGroup] {

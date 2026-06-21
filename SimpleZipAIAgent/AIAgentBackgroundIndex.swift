@@ -147,7 +147,7 @@ enum AIAgentBackgroundIndex {
         var bakedURLs = 0
         var bakeNote = "(未烘焙)"
         if #available(macOS 26.0, *) {
-            let baked = await AIAgentBaker.bake(index: index, config: config, budget: budget, deadline: deadline, log: log)
+            let baked = await AIAgentBaker.bake(index: index, config: config, budget: budget, deadline: deadline, derived: derived, log: log)
             index = baked.index
             bakedSummaries = baked.summary.fileSummaries
             bakedURLs = baked.summary.urlSuggestions

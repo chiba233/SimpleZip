@@ -157,15 +157,19 @@ nonisolated struct ContextualToolbarAction: Identifiable, Codable, Equatable, Se
 
 /// 工具栏动态推荐的共享动作目录。`defaultActions` 给候选池,`actions(for:usage:)` 叠加确定性习惯排序。
 nonisolated enum FileActionCatalog {
+    /// `bakedOrder`(建议七 Phase2):AI 开时后台烘焙的「对该文件/类型最有用的工具栏动作」有序 id,叠进 ranker 当强权重;
+    /// AI 关 / 无烘焙 → 空 → 退回纯习惯排序。空 usage + 空 bakedOrder → 直接取策划前两项(行为不变)。
     static func actions(for snapshot: ContextualToolbarSnapshot,
                         usage: [AIActionUsageSignal] = [],
+                        bakedOrder: [String] = [],
                         limit: Int = 2) -> [ContextualToolbarAction] {
         let candidates = defaultActions(for: snapshot)
-        guard !usage.isEmpty else { return Array(candidates.prefix(max(0, limit))) }
+        guard !usage.isEmpty || !bakedOrder.isEmpty else { return Array(candidates.prefix(max(0, limit))) }
 
         let rankedCards = AINextActionRanker.rank(
             candidates: candidates.map(\.rankingCandidate),
             usage: usage,
+            bakedOrder: bakedOrder,
             limit: limit)
         let candidatesByID = Dictionary(uniqueKeysWithValues: candidates.map { ($0.id.rawValue, $0) })
         return rankedCards.compactMap { candidatesByID[$0.actionID] }

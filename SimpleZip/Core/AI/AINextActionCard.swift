@@ -74,12 +74,18 @@ nonisolated struct AINextActionCard: Codable, Equatable, Sendable {
 }
 
 nonisolated enum AINextActionRanker {
-    /// 确定性排序:基础相关度(候选顺序,越靠前越相关)+ 使用反馈(完成 / 点击加分,忽略 / 失败减分)。
+    /// 确定性排序:基础相关度(候选顺序,越靠前越相关)+ 使用反馈(完成 / 点击加分,忽略 / 失败减分)
+    /// + **AI 预烘焙序**(`bakedOrder`,建议七 Phase2:AI 开时把后台烘焙的「对该文件最有用的工具栏动作」当强权重)。
     /// 丢弃不合 v1 安全规则的候选(destructive / 碰加密内容)。同分按 actionID 稳定升序。返回前 `limit` 张卡。
+    /// `bakedOrder` 是有序动作 id;只对**在候选池内**的 id 生效(白名单兜底,陌生 id 忽略)。空 = 不叠(AI 关 / 无烘焙)。
     static func rank(candidates: [AIActionCandidate],
                      usage: [AIActionUsageSignal] = [],
+                     bakedOrder: [String] = [],
                      limit: Int = 3) -> [AINextActionCard] {
         let usageByID = Dictionary(usage.map { ($0.actionID, $0) }, uniquingKeysWith: { a, _ in a })
+        // AI 烘焙序 → id:位置(越靠前权重越大);只用在候选池内的 id。
+        var bakedRank: [String: Int] = [:]
+        for (i, id) in bakedOrder.enumerated() where bakedRank[id] == nil { bakedRank[id] = i }
 
         let cards: [AINextActionCard] = candidates.enumerated().compactMap { index, candidate in
             guard candidate.safety.isAllowedInV1 else { return nil }
@@ -102,7 +108,14 @@ nonisolated enum AINextActionRanker {
                 if u.failed > 0 { reasons.append("failed×\(u.failed)") }
             }
 
-            let total = base + usageScore
+            // AI 烘焙序加权:命中烘焙序的动作按位置加分(0.7→0,封顶 0.7,压过 base 的 0.08/档),最有用的浮到前。
+            var bakedScore = 0.0
+            if let p = bakedRank[candidate.id] {
+                bakedScore = 0.7 * (1.0 - Double(p) / Double(max(1, bakedOrder.count)))
+                reasons.append("baked@\(p)")
+            }
+
+            let total = base + usageScore + bakedScore
             let needsConfirm = candidate.safety.requiresConfirmation
             return AINextActionCard(
                 actionID: candidate.id,

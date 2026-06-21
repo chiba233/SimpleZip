@@ -62,6 +62,9 @@ public enum AIPassKind: String, Sendable {
     case archiveFileKeyword
     /// 设置「一句话搜索」NL → 命中设置 id + 意图(结构化,输入一句话 + catalog,输出 settingID + intent)。
     case settingsQuery
+    /// 工具栏动作排序(建议七 Phase2):据一个文件 / 类型把可用的工具栏动作按有用度排序(结构化,
+    /// 输入文件上下文 + 候选动作 id 列表,输出 1 基序号优先序;红线:只排不发明)。
+    case toolbarActionRanking
 }
 
 // MARK: - 输入 DTO(App 拼 / 引擎解码)
@@ -183,6 +186,24 @@ public nonisolated struct URLOpenSuggestionInput: Codable, Sendable {
     public var urls: [String]
     public init(fileName: String, roleTags: [String], urls: [String]) {
         self.fileName = fileName; self.roleTags = roleTags; self.urls = urls
+    }
+}
+
+/// 工具栏动作排序输入(建议七 Phase2):一个文件 / 类型的上下文 + 可用工具栏动作 id 列表;
+/// 引擎让模型据上下文把动作按有用度排序(只回 1 基序号优先序,绝不发明)。`fileName` 文件级是真名、
+/// 类型级传代表名(如「.zip 文件」);`summary` = 该文件已烘的一句话摘要(有则给,帮模型判断)。
+public nonisolated struct ToolbarActionRankingInput: Codable, Sendable {
+    public var fileName: String
+    public var kind: String
+    public var roleTags: [String]
+    public var summary: String?
+    public var actions: [String]
+    public init(fileName: String, kind: String, roleTags: [String], summary: String?, actions: [String]) {
+        self.fileName = fileName
+        self.kind = kind
+        self.roleTags = roleTags
+        self.summary = summary
+        self.actions = actions
     }
 }
 

@@ -339,6 +339,13 @@ struct GeneratedArchiveKindGuess: Sendable {
 
 @available(macOS 26.0, *)
 @Generable
+struct GeneratedToolbarRanking: Sendable {
+    @Guide(description: "The action NUMBERS ordered by how useful each is for THIS file, MOST useful first. Include the genuinely useful ones; you may omit clearly-irrelevant ones. Use only numbers that appear in the list; never invent one.")
+    var orderedNumbers: [String]
+}
+
+@available(macOS 26.0, *)
+@Generable
 struct GeneratedURLSuggestion: Sendable {
     @Guide(description: "The NUMBER of the one URL that is genuinely worth showing as an 'open webpage' suggestion for this file. Use 0 when none is clearly useful. Choose only from the numbered URL list; never invent, rewrite, or output a URL.")
     var urlNumber: Int
@@ -533,6 +540,10 @@ enum AIPassEngine {
             let input = try JSONDecoder().decode(ArchiveEntryPicksInput.self, from: inputJSON)
             let numbers = try await archiveEntryPicks(input)
             return try JSONEncoder().encode(AIPassIntListOutput(numbers: numbers))
+        case .toolbarActionRanking:
+            let input = try JSONDecoder().decode(ToolbarActionRankingInput.self, from: inputJSON)
+            let numbers = try await toolbarActionRanking(input)
+            return try JSONEncoder().encode(AIPassIntListOutput(numbers: numbers))
         case .archiveKindGuess:
             let input = try JSONDecoder().decode(ArchiveKindGuessInput.self, from: inputJSON)
             let out = try await archiveKindGuess(input, languageName: languageName)
@@ -679,6 +690,31 @@ enum AIPassEngine {
             .compactMap { firstInt(in: $0) }
             .filter { $0 >= 1 && $0 <= cands.count && seen.insert($0).inserted }
             .prefix(4))
+    }
+
+    /// 工具栏动作排序(结构化):据一个文件 / 类型的上下文,把可用工具栏动作按有用度排序,回 1 基序号优先序。
+    /// 红线:只对给定动作排序 / 取子集,绝不发明动作。动作列表短(≤40),字符预算充裕。
+    private static func toolbarActionRanking(_ input: ToolbarActionRankingInput) async throws -> [Int] {
+        let cands = Array(input.actions.prefix(40))
+        guard cands.count >= 2 else { return cands.isEmpty ? [] : [1] }
+        let instructions = """
+        Below is ONE file (or one file type) plus a NUMBERED list of toolbar actions available for it. Order the actions \
+        by how useful they are for THIS file, MOST useful first, and return them as item numbers in that priority order. \
+        Put genuinely useful ones first; you may drop clearly-irrelevant ones. Refer to actions ONLY by their number; \
+        never invent a number.
+        """
+        var lines = ["File: \(input.fileName) (\(input.kind))"]
+        if let s = input.summary, !s.isEmpty { lines.append("About: \(s)") }
+        if !input.roleTags.isEmpty { lines.append("Tags: \(input.roleTags.prefix(8).joined(separator: ", "))") }
+        lines.append("Actions (number<TAB>action) — refer to actions by their number:")
+        for (i, a) in cands.enumerated() { lines.append("\(i + 1)\t\(a)") }
+        let generated = try await AgentGenerationSerializer.shared.generateStructured(
+            instructions: instructions, prompt: lines.joined(separator: "\n"),
+            as: GeneratedToolbarRanking.self, maxAttempts: 2)
+        var seen = Set<Int>()
+        return generated.orderedNumbers
+            .compactMap { firstInt(in: $0) }
+            .filter { $0 >= 1 && $0 <= cands.count && seen.insert($0).inserted }
     }
 
     /// 归档「这是什么包」定性(结构化)。镜像原 App 端 archiveKindGuess(条目数+字符双预算防越界 trap;工具 token 过白名单)。

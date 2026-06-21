@@ -137,4 +137,24 @@ import Testing
         let ranked = FileActionCatalog.actions(for: snapshot, usage: usage, limit: 2).map(\.id)
         #expect(ranked.contains(.analyzeSpace))
     }
+
+    // MARK: - AI 烘焙序(Phase2)把最有用的排到前;空 usage + 空烘焙不变
+
+    @Test func bakedOrderPromotesBakedActionToTop() {
+        let snapshot = ContextualToolbarSnapshot(
+            mode: .folder, selectedFiles: [file("release.zip")], gpgUIAvailable: false)
+        // 烘焙序说 salvage 最有用(它在确定性池里靠后);AI 开应把它顶到第一。
+        let baked = [ContextualToolbarAction.ID.salvageArchive.rawValue, ContextualToolbarAction.ID.analyzeSpace.rawValue]
+        let ranked = FileActionCatalog.actions(for: snapshot, bakedOrder: baked, limit: 2).map(\.id)
+        #expect(ranked.first == .salvageArchive)
+        #expect(ranked.contains(.analyzeSpace))
+    }
+
+    @Test func bakedOrderIgnoresIdsOutsidePool() {
+        let snapshot = ContextualToolbarSnapshot(
+            mode: .folder, selectedFiles: [file("release.zip")], gpgUIAvailable: false)
+        // 池外 / 陌生 id 被忽略(白名单兜底);只剩确定性前两项。
+        let ranked = FileActionCatalog.actions(for: snapshot, bakedOrder: ["nonexistentAction", "encryptGPG"], limit: 2).map(\.id)
+        #expect(ranked == [.convertArchives, .inspectRelease])
+    }
 }

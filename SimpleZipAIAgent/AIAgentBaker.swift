@@ -33,21 +33,24 @@ enum AIAgentBaker {
         var archiveEntries = 0
         var archiveKinds = 0
         var inlineChecks = 0
+        var toolbarRankings = 0
         var note = ""
-        var produced: Int { fileSummaries + urlSuggestions + diskImages + archiveEntries + archiveKinds + inlineChecks }
+        var produced: Int { fileSummaries + urlSuggestions + diskImages + archiveEntries + archiveKinds + inlineChecks + toolbarRankings }
     }
 
     /// 每 pass 的最小时间片下限(秒)——避免 pass 数多时每片太短连一次生成都跑不完。
     private static let minPassSeconds: TimeInterval = 20
     /// 当前烘焙的 pass 数(切时间片用;加 pass 时同步 +1)。
-    private static let plannedPassCount = 6
+    private static let plannedPassCount = 7
 
     /// 跑一轮后台模型烘焙。返回更新后的索引 + 摘要。门控:AI 建议子开关 + 内容预读 + 端上模型可用。
+    /// `derived`:派生数据存储(工具栏排序缓存等不在 index 里的派生数据写它)。
     @available(macOS 26.0, *)
     static func bake(index: AIFileMemoryIndex,
                      config: AIAgentConfiguration,
                      budget: AIArchivePrefetchBudget,
                      deadline: Date,
+                     derived: AIDerivedDataStore,
                      log: (String) -> Void) async -> (index: AIFileMemoryIndex, summary: Summary) {
         var index = index
         var summary = Summary()
@@ -96,7 +99,10 @@ enum AIAgentBaker {
             index = r4.index; summary.archiveKinds = r4.count
         }
 
-        summary.note = "OK · 摘要 \(summary.fileSummaries) · 网页 \(summary.urlSuggestions) · 装App \(summary.diskImages) · 包内 \(summary.archiveEntries) · 包定性 \(summary.archiveKinds) · 检查 \(summary.inlineChecks)"
+        // 工具栏动作排序(建议七 Phase2):文件级(AI 建议 list 重要文件)+ 类型级(按后缀)→ 派生缓存(不进 index)。
+        summary.toolbarRankings = await bakeToolbarRanking(index, derived: derived, lang: lang, passDeadline: slice(), log: log)
+
+        summary.note = "OK · 摘要 \(summary.fileSummaries) · 网页 \(summary.urlSuggestions) · 装App \(summary.diskImages) · 包内 \(summary.archiveEntries) · 包定性 \(summary.archiveKinds) · 检查 \(summary.inlineChecks) · 工具栏序 \(summary.toolbarRankings)"
         return (index, summary)
     }
 
@@ -321,6 +327,89 @@ enum AIAgentBaker {
             hasher.update(data: chunk)
         }
         return hasher.finalize().map { String(format: "%02x", $0) }.joined()
+    }
+
+    // MARK: - Pass ⑦:工具栏动作排序(建议七 Phase2;文件级 + 类型级 → AIToolbarRanking 派生缓存)
+
+    @available(macOS 26.0, *)
+    private static func bakeToolbarRanking(_ index: AIFileMemoryIndex, derived: AIDerivedDataStore,
+                                           lang: String, passDeadline: Date,
+                                           log: (String) -> Void) async -> Int {
+        var ranking: AIToolbarRanking = {
+            guard let data = derived.data(forKey: AIToolbarRanking.derivedKey),
+                  let r = try? JSONDecoder().decode(AIToolbarRanking.self, from: data) else { return AIToolbarRanking() }
+            return r
+        }()
+        var count = 0
+        var changed = false
+
+        // 文件级:AI 建议 list 里的「重要」文件(= 已有模型一句话摘要),尚未烘焙工具栏序的。
+        let attentionFiles = index.records.filter {
+            $0.type != .folder && $0.path != nil && ($0.contentSummary?.shortSummary?.isEmpty == false)
+        }
+        log("烘焙 toolbarActionRanking:文件级候选 \(attentionFiles.count)")
+        for rec in attentionFiles {
+            if Date() >= passDeadline { break }
+            guard let path = rec.path, ranking.byFile[path] == nil else { continue }
+            let ids = FileActionCatalog.defaultActions(for: singleFileSnapshot(rec)).map { $0.id.rawValue }
+            guard ids.count >= 2 else { ranking.byFile[path] = ids; changed = true; continue }
+            guard let ordered = try? await rankActions(
+                fileName: rec.fileName, kind: rec.type == .archive ? "archive" : "file",
+                roleTags: rec.roleTags, summary: rec.contentSummary?.shortSummary, ids: ids, lang: lang) else { continue }
+            ranking.byFile[path] = ordered; changed = true; count += 1
+            log("  工具栏序(文件)✓ \(rec.fileName):\(ordered.prefix(3).joined(separator: " > "))")
+        }
+
+        // 类型级:每个还没烘焙的扩展名取一个代表文件,烘一份按后缀的序。
+        var repByExt: [String: AIFileMemoryRecord] = [:]
+        for rec in index.records where rec.type != .folder {
+            let ext = URL(fileURLWithPath: rec.path ?? rec.fileName).pathExtension.lowercased()
+            guard !ext.isEmpty, ranking.byType[ext] == nil, repByExt[ext] == nil else { continue }
+            repByExt[ext] = rec
+        }
+        if !repByExt.isEmpty { log("  类型级候选 \(repByExt.count) 种后缀") }
+        for (ext, rec) in repByExt {
+            if Date() >= passDeadline { break }
+            let ids = FileActionCatalog.defaultActions(for: singleFileSnapshot(rec)).map { $0.id.rawValue }
+            guard ids.count >= 2 else { ranking.byType[ext] = ids; changed = true; continue }
+            guard let ordered = try? await rankActions(
+                fileName: "example.\(ext)", kind: rec.type == .archive ? "archive" : "file",
+                roleTags: [], summary: nil, ids: ids, lang: lang) else { continue }
+            ranking.byType[ext] = ordered; changed = true; count += 1
+            log("  工具栏序(类型 .\(ext))✓:\(ordered.prefix(3).joined(separator: " > "))")
+        }
+
+        if changed, let data = try? JSONEncoder().encode(ranking) {
+            derived.set(data, forKey: AIToolbarRanking.derivedKey)
+        }
+        return count
+    }
+
+    /// 调引擎排序一份候选动作 id,回有序 id(序号回查 + 池内校验)。
+    @available(macOS 26.0, *)
+    private static func rankActions(fileName: String, kind: String, roleTags: [String],
+                                    summary: String?, ids: [String], lang: String) async throws -> [String] {
+        let out = try await runPass(
+            .toolbarActionRanking,
+            ToolbarActionRankingInput(fileName: fileName, kind: kind, roleTags: roleTags, summary: summary, actions: ids),
+            AIPassIntListOutput.self, lang)
+        return out.numbers.compactMap { ids.indices.contains($0 - 1) ? ids[$0 - 1] : nil }
+    }
+
+    /// 单文件的工具栏上下文快照(从索引记录构造,cheap;烘焙文件级 / 类型级序用)。
+    private static func singleFileSnapshot(_ rec: AIFileMemoryRecord) -> ContextualToolbarSnapshot {
+        let url = URL(fileURLWithPath: rec.path ?? rec.fileName)
+        let isDir = rec.type == .folder
+        let isArchive = !isDir && ArchiveService.isSupportedArchive(url)
+        let sf = ContextualToolbarSnapshot.SelectedFile(
+            name: rec.fileName, pathExtension: url.pathExtension.lowercased(), isDirectory: isDir,
+            isSupportedArchive: isArchive,
+            isToolableArchive: isArchive,   // agent 无 SignedContainerService(App target);单文件下 supported≈toolable,.siz 细微差忽略
+            isPackage: false,
+            isFirstVolume: !isDir && FileSplitCombine.isFirstVolume(url),
+            isChecksumFile: !isDir && ChecksumFile.isChecksumFileName(rec.fileName))
+        return ContextualToolbarSnapshot(mode: .folder, selectedFiles: [sf],
+                                         gpgUIAvailable: false, canConvertSelectedArchives: isArchive)
     }
 
     // MARK: - 缓存写(与 AIBackgroundIndexStore 的 apply* 同语义,纯 Core 值类型 op)

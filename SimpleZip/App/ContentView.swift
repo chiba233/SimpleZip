@@ -1462,10 +1462,12 @@ private struct ContextualToolbarButtons: View {
     @ObservedObject var model: ArchiveBrowserModel
 
     var body: some View {
-        // 候选池 = 右键菜单白名单(FileActionCatalog);AI 关 → 习惯排序,AI 开 → 习惯权重(Phase 2)。
+        // 候选池 = 右键菜单白名单(FileActionCatalog)。AI 关 → 纯习惯排序;AI 开 → 叠加后台预烘焙序(文件级/类型级)+ 习惯权重。
         let snapshot = model.contextualToolbarSnapshot()
-        let actions = FileActionCatalog.actions(for: snapshot,
-                                                usage: ToolbarActionUsageStore.shared.usageSignals(for: snapshot))
+        let actions = FileActionCatalog.actions(
+            for: snapshot,
+            usage: ToolbarActionUsageStore.shared.usageSignals(for: snapshot),
+            bakedOrder: bakedToolbarOrder)
         ForEach(actions) { action in
             toolbarButton(action.titleKey, systemImage: action.systemImage) {
                 model.recordToolbarActionHabit(action.id)
@@ -1473,6 +1475,14 @@ private struct ContextualToolbarButtons: View {
             }
             .disabled(!action.isEnabled)
         }
+    }
+
+    /// AI 开 + 文件夹模式**单选文件** → 用 AI 预烘焙的工具栏序(选中文件命中文件级、否则其扩展名类型级);
+    /// AI 关 / 复选 / 无烘焙 → 空,退回纯习惯排序(复选走统一池,见 ToolbarActionUsageStore 桶粒度)。
+    private var bakedToolbarOrder: [String] {
+        guard AppPreferences.aiAssistantEnabled,
+              model.selectedFileItems.count == 1, let item = model.selectedFileItems.first else { return [] }
+        return AIBackgroundIndexStore.shared.toolbarOrder(forPath: item.url.path, pathExtension: item.url.pathExtension)
     }
 
     private func perform(_ action: ContextualToolbarAction) {
