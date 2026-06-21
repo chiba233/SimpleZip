@@ -198,7 +198,7 @@ final class SessionPasswordCache: @unchecked Sendable {
         guard !password.isEmpty else { return }
         lock.lock()
         defer { lock.unlock() }
-        passwordByPath[url.standardizedFileURL.path] = password
+        passwordByPath[url.standardized.path] = password
         lastSuccessfulPassword = password
     }
 
@@ -207,7 +207,7 @@ final class SessionPasswordCache: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         var result: [String] = []
-        if let own = passwordByPath[url.standardizedFileURL.path] {
+        if let own = passwordByPath[url.standardized.path] {
             result.append(own)
         }
         if !lastSuccessfulPassword.isEmpty, !result.contains(lastSuccessfulPassword) {
