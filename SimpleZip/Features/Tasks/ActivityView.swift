@@ -59,11 +59,8 @@ struct ActivityView: View {
     @AppStorage(AppPreferences.Key.heavyTaskConcurrencyLimit) private var concurrencyLimit = AppPreferences.heavyTaskConcurrencyLimit
     @AppStorage(AppPreferences.Key.aiAssistantEnabled) private var aiAssistantEnabled = true
     @State private var showsActivityAIWorkbench = true
-    /// AI 工作台侧栏宽度(可拖拽调整,@AppStorage 跨会话记住)。范围 `aiWorkbenchWidthRange`。
-    @AppStorage("SimpleZip.activity.aiWorkbenchWidth") private var aiWorkbenchWidth: Double = 240
-    /// 拖拽起始宽度(松手清空)—— 避免用累计 translation 时反复叠加。
-    @State private var aiWorkbenchDragStartWidth: Double?
-    private let aiWorkbenchWidthRange: ClosedRange<Double> = 200...560
+    /// AI 工作台侧栏宽度:锁定为原可调范围的最小宽度。
+    private let aiWorkbenchWidth: CGFloat = 200
     /// 模块①:「打开完整 AI 解释」弹现成 per-task `AIAssistSheet`(完整解释)。
     @State private var showsWorkbenchFailureSheet = false
     /// 性能:任务列表只构建首屏 N 张卡(普通 VStack 一次性布局 ≤500 张会卡切 pane ~0.5s)。其余**不构建**
@@ -251,7 +248,7 @@ struct ActivityView: View {
                     HStack(spacing: 0) {
                         taskList(in: category)
                         if aiAssistantEnabled && showsActivityAIWorkbench {
-                            workbenchResizeHandle
+                            Divider()
                             ActivityAIWorkbenchView(
                                 snapshot: activityAIWorkbenchSnapshot(for: category),
                                 habits: workbenchHabits(for: category),
@@ -270,7 +267,7 @@ struct ActivityView: View {
                                 onOpenAutomation: openShortcutsApp,
                                 onClose: { showsActivityAIWorkbench = false }
                             )
-                            .frame(width: CGFloat(aiWorkbenchWidth))
+                            .frame(width: aiWorkbenchWidth)
                             // 模块①:「打开完整 AI 解释」→ 复用现成 per-task AIAssistSheet + failureExplanationPrompt(完整解释,只读)。
                             .sheet(isPresented: $showsWorkbenchFailureSheet) {
                                 workbenchFailureSheet(for: category)
@@ -280,30 +277,6 @@ struct ActivityView: View {
                 }
             }
         }
-    }
-
-    /// AI 工作台侧栏的可拖拽调宽手柄:细分隔线 + 8pt 命中区。手柄在侧栏左缘,向左拖 = 加宽(改 `aiWorkbenchWidth`)。
-    private var workbenchResizeHandle: some View {
-        Divider()
-            .overlay(
-                Color.clear
-                    .frame(width: 8)
-                    .contentShape(Rectangle())
-                    .onHover { inside in
-                        if inside { NSCursor.resizeLeftRight.push() } else { NSCursor.pop() }
-                    }
-                    .gesture(
-                        DragGesture()
-                            .onChanged { value in
-                                let start = aiWorkbenchDragStartWidth ?? aiWorkbenchWidth
-                                if aiWorkbenchDragStartWidth == nil { aiWorkbenchDragStartWidth = start }
-                                aiWorkbenchWidth = min(
-                                    max(start - Double(value.translation.width), aiWorkbenchWidthRange.lowerBound),
-                                    aiWorkbenchWidthRange.upperBound)
-                            }
-                            .onEnded { _ in aiWorkbenchDragStartWidth = nil }
-                    )
-            )
     }
 
     /// #17:pane 顶部的小 hero 头 —— 渐变发光图标瓦片 + 标题 + 副标题(纯静态,无 hover)。

@@ -102,7 +102,8 @@ struct ActivityAIWorkbenchView: View {
                     learnedHabits
                     automationSuggestion
                 }
-                .padding(.horizontal, 14)
+                .padding(.leading, 14)
+                .padding(.trailing, 24)
                 .padding(.vertical, 14)
             }
         }
