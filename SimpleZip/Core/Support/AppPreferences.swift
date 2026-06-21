@@ -1472,6 +1472,23 @@ enum AppPreferences {
     /// 简化版备份」之后还是带着上次的零散设置，根本对不上备份原状态。
     /// 只接受白名单里的 key（防御 payload 里出现 AppleLanguages 这种全局系统 key）。
     /// 导入完成后调用方应让相关 UI 刷新。
+    /// 一个值是否能安全写进 `UserDefaults`(属性列表标量 / 集合)。**显式拒 `NSNull`**(JSON null 解码所得 ——
+    /// `defaults.set(NSNull())` 会 Foundation abort);集合递归校验,挡住嵌套 null / 非 plist 值。
+    private nonisolated static func isStorablePreferenceValue(_ value: Any) -> Bool {
+        switch value {
+        case is NSNull:
+            return false
+        case is String, is NSNumber, is Date, is Data:
+            return true
+        case let array as [Any]:
+            return array.allSatisfy(isStorablePreferenceValue)
+        case let dict as [String: Any]:
+            return dict.values.allSatisfy(isStorablePreferenceValue)
+        default:
+            return false
+        }
+    }
+
     /// 导入按文件夹记忆始终纳入处理（还原备份语义）：备份里有就写、没有就清掉本机现有的。
     nonisolated static func importPayload(_ payload: [String: Any]) throws {
         let values = try PreferencesPayloadCodec.decode(payload)
@@ -1481,6 +1498,9 @@ enum AppPreferences {
             defaults.removeObject(forKey: key)
         }
         for (key, value) in values where allowed.contains(key) {
+            // 安全:只写**可存进 UserDefaults 的属性列表标量/集合**。损坏 / 恶意备份可能给某白名单 key 配 JSON null
+            // (解码成 NSNull)→ `defaults.set(NSNull(), forKey:)` 触发 Foundation abort 崩溃(已实测)。非 plist 值一律跳过。
+            guard Self.isStorablePreferenceValue(value) else { continue }
             defaults.set(value, forKey: key)
         }
         // #115 默认压缩设置（JSON 对象 → Data）。还原备份语义:备份里有就写、没有就清掉本机现有的。
