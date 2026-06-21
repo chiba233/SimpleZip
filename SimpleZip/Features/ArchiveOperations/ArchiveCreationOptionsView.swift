@@ -829,7 +829,9 @@ struct ArchiveCreationOptionsView: View {
                         format: "\(request.options.format)",
                         compressionLevel: "\(request.options.compressionLevel)",
                         outputExists: FileManager.default.fileExists(atPath: request.destinationURL.path),
-                        inputItems: topLevelInputSample()
+                        inputItems: topLevelInputSample(),
+                        fileSignals: inputFileSignals(),
+                        habitNote: createHabitNote()
                     )
                     return try await AIReportAssistant.generate(instructions: built.instructions, prompt: built.prompt)
                 }
@@ -1090,6 +1092,37 @@ struct ArchiveCreationOptionsView: View {
             }
             return name
         }
+    }
+
+    /// 后台预索引对这些输入文件已经「知道」的信号(角色标签 / 已烘焙的一句话摘要),按真实路径 O(1) 查缓存。
+    /// 让速览 AI 针对**具体内容**给建议(如「这批里有 changelog / 源码 / 已压缩媒体」)而非只看名字大小。
+    /// 文件名 / 摘要在烘焙时已脱敏(`AISensitiveRedactor`),角色是派生标签 → 隐私可喂;未开后台索引则为空,
+    /// 速览自然退回基础事实。
+    private func inputFileSignals(limit: Int = 10) -> [String] {
+        let store = AIBackgroundIndexStore.shared
+        return request.sourceURLs.prefix(limit).compactMap { url -> String? in
+            guard let record = store.record(forPath: url.path) else { return nil }
+            if let summary = record.contentSummary?.shortSummary, !summary.isEmpty {
+                return "\(record.fileName): \(summary)"
+            }
+            let tags = record.roleTags.prefix(3)
+            return tags.isEmpty ? nil : "\(record.fileName): \(tags.joined(separator: "/"))"
+        }
+    }
+
+    /// 把「你最常用的创建设置」(已加载的众数预设)浓缩成一句定性事实喂给速览 AI —— 让它能对照当前设置给
+    /// 习惯感知的提醒(如「这次级别比你平时低」)。只读非敏感离散旋钮(口令 / GPG 从不在统计内);仅记录
+    /// 开关开 + 有数据时 `usageRecommendation` 才非 nil(`reloadUsageRecommendation` 已 gate)。
+    private func createHabitNote() -> String? {
+        guard let preset = usageRecommendation else { return nil }
+        let o = preset.options
+        var parts: [String] = []
+        if preset.includedFields.contains(.level) { parts.append("level \(o.compressionLevel.rawValue)") }
+        if preset.includedFields.contains(.sevenZipMethod) { parts.append(o.sevenZipMethod.rawValue) }
+        if preset.includedFields.contains(.solid) { parts.append(o.sevenZipSolidArchive ? "solid" : "non-solid") }
+        if preset.includedFields.contains(.encryptFileNames), o.sevenZipEncryptFileNames { parts.append("encrypted names") }
+        guard !parts.isEmpty else { return nil }
+        return "as \(preset.format.rawValue) (\(parts.joined(separator: ", ")))"
     }
 
     /// 0.4.2 #19：压缩前预检 —— 输入文件数 / 总大小 / 排除数 / 符号链接 / 包目录 / 分卷估算。

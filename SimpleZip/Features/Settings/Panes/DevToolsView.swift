@@ -71,6 +71,7 @@ struct DevToolsView: View {
         case selfTest
         case formatLab
         case aiData
+        case advisory
         case updateTest
         case defaults
 
@@ -84,6 +85,7 @@ struct DevToolsView: View {
             case .selfTest: return L10n.text("devtools.section.selfTest")
             case .formatLab: return L10n.text("devtools.section.formatLab")
             case .aiData: return L10n.text("devtools.section.aiData")
+            case .advisory: return "创建/解压速览(调试)"
             case .updateTest: return "更新助手测试(调试)"
             case .defaults: return L10n.text("devtools.section.defaults")
             }
@@ -97,6 +99,7 @@ struct DevToolsView: View {
             case .selfTest: return "stethoscope"
             case .formatLab: return "flask"
             case .aiData: return "sparkles"
+            case .advisory: return "text.bubble"
             case .updateTest: return "sparkles.rectangle.stack"
             case .defaults: return "slider.horizontal.3"
             }
@@ -172,6 +175,7 @@ struct DevToolsView: View {
         case .selfTest: sectionSelfTest
         case .formatLab: sectionFormatLab
         case .aiData: sectionAIData
+        case .advisory: sectionAdvisory
         case .updateTest: sectionUpdateTest
         case .defaults: sectionDefaults
         }
@@ -528,6 +532,59 @@ struct DevToolsView: View {
                         ) { setResult in
                             copySpotlightData(setResult: setResult)
                         }
+        }
+    }
+
+    // 创建/解压速览调试:独立 section。解压=预烘焙(可查缓存 / 清空 / 选包试前台烘焙);创建=实时(无法预烘焙),
+    // 这里只能核「习惯」数据是否就位(habit 喂创建实时速览 prompt;解压 habit 走「套用常用设置」按钮)。
+    @ViewBuilder
+    private var sectionAdvisory: some View {
+        let extractCache = AIBackgroundIndexStore.shared.extractAdvisoryByPath
+        DialogSection("解压速览(预烘焙)") {
+            diagRow("tray.full", "预烘焙缓存", extractCache.isEmpty ? "（空,开解压窗会按需烘）" : "\(extractCache.count) 条")
+            if !extractCache.isEmpty {
+                diagRow("text.alignleft", "样本(前 8)", extractCache.sorted { $0.key < $1.key }.prefix(8)
+                    .map { "\(($0.key as NSString).lastPathComponent) → \($0.value)" }
+                    .joined(separator: "\n"))
+            }
+            actionRow("wand.and.stars", "选一个归档 → 前台烘焙解压速览",
+                      "走前台 XPC 的 archiveKindGuess(与后台 agent 同 pass)烘一句话定性,写入缓存并显示(验证「XPC 路径」)。") { setResult in
+                Task { @MainActor in
+                    guard #available(macOS 26.0, *) else { setResult("需要 macOS 26"); return }
+                    let panel = NSOpenPanel()
+                    panel.allowsMultipleSelection = false
+                    panel.canChooseDirectories = false
+                    guard panel.runModal() == .OK, let url = panel.url else { setResult("已取消"); return }
+                    setResult("正在 list + 前台烘焙 \(url.lastPathComponent)…")
+                    do {
+                        let items = try await ArchiveService.list(url, password: "")
+                        let entries = items.lazy.filter { !$0.isEncrypted }.prefix(200)
+                            .map { ArchiveKindGuessInput.Entry(name: $0.name, isDirectory: $0.isDirectory) }
+                        let summary = await AIBackgroundIndexer.shared.bakeExtractAdvisoryOnDemand(
+                            archiveURL: url, entries: Array(entries))
+                        setResult(summary.map { "✓ \($0)" } ?? "模型没产出 / AI 不可用 / 被电源门控跳过 / 全加密")
+                    } catch {
+                        setResult("list 失败:\(error.localizedDescription)")
+                    }
+                }
+            }
+            actionRow("trash", "清空解压速览预烘焙缓存", "删掉所有按需烘焙的解压速览(下次开窗重烘)。") { setResult in
+                AIBackgroundIndexStore.shared.clearExtractAdvisory()
+                setResult("已清空")
+            }
+        }
+        DialogSection("习惯数据(创建实时速览 / 解压套用常用设置)") {
+            diagRow("slider.horizontal.3", "解压习惯", {
+                guard let rec = ExtractionUsageStore().mostUsed() else { return "（无数据）" }
+                let on = ExtractionOptionField.allCases.filter { rec.values[$0] == true }.map { $0.rawValue }
+                return on.isEmpty ? "（都关）" : on.joined(separator: ", ")
+            }())
+            diagRow("slider.horizontal.3", "压缩习惯", {
+                let store = CompressionUsageStore()
+                return [ArchiveCreateFormat.sevenZip, .zip]
+                    .map { "\($0.rawValue):\(store.hasData(for: $0) ? "有" : "无")" }
+                    .joined(separator: " · ")
+            }())
         }
     }
 

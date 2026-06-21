@@ -69,6 +69,12 @@ final class AIBackgroundIndexStore: ObservableObject {
     /// 建议七 Phase2:工具栏动作的 AI 预烘焙排序(后台 agent 写派生缓存,前台 init 载入只读;in-memory 查,不每渲染读盘)。
     private(set) var toolbarRanking: AIToolbarRanking
 
+    /// 解压速览**预烘焙**缓存(path → 一句话归档定性)。给「正在解压的、不在文件索引里的归档」用 —— 前台 XPC 按需
+    /// 烘焙写入(`setExtractAdvisory`),已索引归档的定性走 `contentSummary.shortSummary`(调用点二选一合并)。
+    /// 跨重启持久(派生数据,不进偏好备份);只 app 写(agent 走 contentSummary),罕见上限重置防无界。
+    private(set) var extractAdvisoryByPath: [String: String]
+    private static let extractAdvisoryDerivedKey = "simplezip.ai.extractAdvisory.v1"
+
     private let defaults: UserDefaults
     /// 阶段0a:派生数据(索引本体 + 下游预烘焙缓存)的独立文件存储。白名单 `scopes` + 反馈 `dislikedKeys` 仍留 `defaults`。
     private let derived: AIDerivedDataStore
@@ -90,6 +96,7 @@ final class AIBackgroundIndexStore: ObservableObject {
             from: derived, key: AppPreferences.Key.aiWorkbenchFailureExplanationData)
         self.workbenchClusterChipsByCategory = AIBackgroundIndexStore.loadClusterChips(from: derived)
         self.toolbarRanking = AIBackgroundIndexStore.loadToolbarRanking(from: derived)
+        self.extractAdvisoryByPath = AIBackgroundIndexStore.loadExtractAdvisory(from: derived)
         rebuildPathIndex()   // init 里的 fileIndex 赋值不触发 didSet,手动建一次
     }
 
@@ -646,6 +653,39 @@ final class AIBackgroundIndexStore: ObservableObject {
         if let path, toolbarRanking.byFile[path] != nil { return true }
         if let ext, toolbarRanking.byType[ext.lowercased()] != nil { return true }
         return false
+    }
+
+    private static func loadExtractAdvisory(from derived: AIDerivedDataStore) -> [String: String] {
+        guard let data = derived.data(forKey: extractAdvisoryDerivedKey),
+              let decoded = try? JSONDecoder().decode([String: String].self, from: data)
+        else { return [:] }
+        return decoded
+    }
+
+    /// 解压速览预烘焙读取(前台 XPC 按需烘焙写入的那份;已索引归档的定性在 `contentSummary`,调用点合并)。
+    func extractAdvisory(forPath path: String) -> String? {
+        let v = extractAdvisoryByPath[path]
+        return (v?.isEmpty == false) ? v : nil
+    }
+
+    /// 解压速览预烘焙写回(前台按需烘焙一句话归档定性后调)。空串不写;超上限整体重置(罕见,再开会重烘)防无界。
+    func setExtractAdvisory(path: String, summary: String) {
+        let clean = summary.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty, extractAdvisoryByPath[path] != clean else { return }
+        var map = extractAdvisoryByPath
+        if map.count >= 400 { map.removeAll() }
+        map[path] = clean
+        extractAdvisoryByPath = map
+        if let data = try? JSONEncoder().encode(map) { derived.set(data, forKey: Self.extractAdvisoryDerivedKey) }
+        objectWillChange.send()
+    }
+
+    /// 清空解压速览预烘焙缓存(DevTools 调试用;下次开解压窗会按需重烘)。
+    func clearExtractAdvisory() {
+        guard !extractAdvisoryByPath.isEmpty else { return }
+        extractAdvisoryByPath = [:]
+        derived.removeObject(forKey: Self.extractAdvisoryDerivedKey)
+        objectWillChange.send()
     }
 
     private static func loadOrganize(from derived: AIDerivedDataStore) -> [String: CachedFolderGroup] {

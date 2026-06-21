@@ -740,13 +740,18 @@ extension AIReportAssistant {
     /// 创建对话框 → 速览:预估耗时(定性)+ 一条实用建议(格式 / 级别 / 没问题)+ 冲突提醒。只建议不替用户改。
     /// `inputItems` = 顶层被打包项的真实样本(名字 + 文件夹/大小),让 AI 能针对**具体内容**给建议
     /// (如已压缩媒体压不动、文件夹进单文件格式会先打 tar)而非空泛套话。隐私:非加密文件名,可喂。
+    /// `fileSignals` = 后台预索引已「知道」的输入文件信号(角色标签 / 已烘焙一句话摘要,文件名已脱敏);
+    /// `habitNote` = 该用户最常用的创建设置(众数,只含非敏感离散旋钮,口令 / GPG 从不统计)—— 让速览
+    /// 能对照当前设置给习惯感知的提醒。两者皆可选:没数据(未开后台索引 / 未记习惯)就退回基础事实。
     static func createAdvisoryPrompt(
         dryRun: ArchiveService.ArchiveCreationDryRun,
         estimatedCompressedBytes: Int64?,
         format: String,
         compressionLevel: String,
         outputExists: Bool,
-        inputItems: [String]
+        inputItems: [String],
+        fileSignals: [String] = [],
+        habitNote: String? = nil
     ) -> (instructions: String, prompt: String) {
         let instructions = """
         Write a short, plain note (one sentence, two at most) about creating this archive, based STRICTLY on \
@@ -754,9 +759,12 @@ extension AIReportAssistant {
         already shows the real figures; you only add a qualitative remark. You may say qualitatively whether \
         it should be quick or take a while, but only as judged from the size already given, never a fabricated \
         one. Add at most one useful remark when the facts clearly support it (for example a folder is going \
-        into a single-file format, or a same-named output already exists). Do NOT guess file types you can't \
-        see, and do NOT list file formats. If nothing stands out, say the settings look fine. Write the note \
-        directly — no preamble, no questions, no recap. Suggest, never change settings.
+        into a single-file format, or a same-named output already exists). When the facts include what's \
+        already known about the files or this user's usual settings, you may use them for a more relevant \
+        remark (for example that these inputs are mostly already-compressed media, or that the chosen level \
+        differs from what they usually pick) — but never fabricate beyond the facts. Do NOT guess file types \
+        you can't see, and do NOT list file formats. If nothing stands out, say the settings look fine. Write \
+        the note directly — no preamble, no questions, no recap. Suggest, never change settings.
         """
         var lines: [String] = [
             "Packing \(dryRun.inputFileCount) file(s), \(ByteCountFormatter.string(fromByteCount: dryRun.totalBytes, countStyle: .file)) uncompressed.",
@@ -764,6 +772,9 @@ extension AIReportAssistant {
         ]
         if !inputItems.isEmpty {
             lines.append("Top-level items being packed: \(sampleEntries(inputItems, perKind: 12)).")
+        }
+        if !fileSignals.isEmpty {
+            lines.append("What's already known about these items: \(sampleEntries(fileSignals, perKind: 8)).")
         }
         if let estimate = estimatedCompressedBytes, dryRun.totalBytes > 0 {
             let pct = Int((Double(estimate) / Double(dryRun.totalBytes) * 100).rounded())
@@ -774,50 +785,13 @@ extension AIReportAssistant {
         if dryRun.packageCount > 0 { lines.append("macOS packages/bundles: \(dryRun.packageCount).") }
         if let volumes = dryRun.estimatedVolumeCount { lines.append("Will split into about \(volumes) volumes.") }
         if outputExists { lines.append("An output file with this name already exists.") }
+        if let habit = habitNote, !habit.isEmpty {
+            lines.append("This user usually creates archives \(habit); compare with the chosen settings above and only mention it if it clearly differs in a way worth noting.")
+        }
         return (instructions, lines.joined(separator: "\n"))
     }
 
-    /// 解压对话框 → 速览:定性大小/耗时 + 解压前值得知道的事(可疑路径 / 覆盖 / 缺卷 / 空间不足)。绝不让跳过安全询问。
-    /// `topLevelEntries` = 归档顶层条目真实名字样本,`suspiciousSamples` = 可疑路径真实样本 —— 让 AI 能说出
-    /// 「解出来会是什么 / 哪条路径可疑」而非只报数字。隐私:非加密清单条目名,可喂(头加密归档根本列不出名)。
-    static func extractAdvisoryPrompt(
-        preflight: ArchiveExtractPreflight,
-        overwriteCount: Int,
-        missingVolumeCount: Int,
-        lowSpaceNeeded: String?,
-        lowSpaceAvailable: String?,
-        destinationName: String,
-        topLevelEntries: [String],
-        suspiciousSamples: [String]
-    ) -> (instructions: String, prompt: String) {
-        let instructions = """
-        Write a short, plain note (one sentence, two at most) about extracting this archive, based STRICTLY \
-        on the facts below. NEVER invent, estimate, or state a size, a duration, or any number — the dialog \
-        already shows the real figures; you only add a qualitative remark. Grounded in the ACTUAL entries \
-        listed, you may say what it will unpack into (a single top folder, or loose items scattered into the \
-        destination). If the facts show suspicious paths that could write outside the destination, files that \
-        would be overwritten, missing volumes, or low disk space, point out that specific concern and name \
-        the suspicious entry when given. If none of those appear, say it looks straightforward. Write the \
-        note directly — no preamble, no questions, no recap. Never tell the user to skip a safety prompt.
-        """
-        var lines: [String] = [
-            "Will extract \(preflight.fileCount) file(s), \(preflight.folderCount) folder(s), \(ByteCountFormatter.string(fromByteCount: preflight.totalBytes, countStyle: .file)) into \"\(destinationName)\"."
-        ]
-        if !topLevelEntries.isEmpty {
-            lines.append("Top-level entries: \(sampleEntries(topLevelEntries, perKind: 12)).")
-        }
-        if preflight.encryptedEntryCount > 0 { lines.append("Encrypted entries: \(preflight.encryptedEntryCount).") }
-        if preflight.suspiciousEntryCount > 0 {
-            var line = "Suspicious paths (could escape the destination folder): \(preflight.suspiciousEntryCount)."
-            if !suspiciousSamples.isEmpty { line += " Examples: \(sampleEntries(suspiciousSamples, perKind: 5))." }
-            lines.append(line)
-        }
-        if preflight.symlinkCount > 0 { lines.append("Symlinks: \(preflight.symlinkCount).") }
-        if overwriteCount > 0 { lines.append("Would overwrite \(overwriteCount) existing file(s).") }
-        if missingVolumeCount > 0 { lines.append("Missing split volumes: \(missingVolumeCount).") }
-        if let needed = lowSpaceNeeded, let available = lowSpaceAvailable {
-            lines.append("Low disk space: needs \(needed), only \(available) available.")
-        }
-        return (instructions, lines.joined(separator: "\n"))
-    }
+    // 解压速览已改为**预烘焙**(`AIBackgroundIndexer.bakeExtractAdvisoryOnDemand` 复用 `.archiveKindGuess` pass,
+    // 后台 agent 也为已索引归档烘焙),不再每次开窗实时拼 prompt → 原 `extractAdvisoryPrompt` 已移除。创建速览
+    // 仍是实时(输入是任意选择,无法预烘焙),见上方 `createAdvisoryPrompt`。
 }

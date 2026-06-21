@@ -19,6 +19,9 @@ struct ExtractArchiveOptionsView: View {
     // 可疑路径 / 加密 / 覆盖风险 / 缺分卷」。读不到（加密 header 等）只收起概要，绝不挡解压。
     @State private var preflight: ArchiveExtractPreflight?
     @State private var preflightTopLevelNames: [String] = []
+    /// 解压速览**预烘焙**用:已 list 出的非加密条目样本(名 + 是否目录,bounded)。喂前台按需 `.archiveKindGuess`
+    /// 烘焙(加密条目名是敏感面,已在 loadPreflight 按 `!isEncrypted` 过滤掉,绝不进 AI)。
+    @State private var archiveEntrySample: [ArchiveKindGuessInput.Entry] = []
     @State private var preflightUnavailable = false
     /// 0.4.3 #4:目标卷剩余空间不足时的警示(needed/available 已格式化)。nil = 空间够 / 未知。
     /// 预计大小是**下限**(后端没报大小的条目按 0 计),所以只警示不硬拦 —— 用户可换目标卷再解。
@@ -241,22 +244,21 @@ struct ExtractArchiveOptionsView: View {
                 AIGate {
                     Divider().opacity(0.5).padding(.vertical, 1)
                 }
-                // 打开窗口即静默跑的内联 AI 速览(大小/耗时 + 解压前值得注意的)。仅 isReady 时出现,失败静默。
+                // 解压速览改**预烘焙**(归档是稳定文件,不必每次开窗实时调模型;习惯仍由上方「套用常用设置」承载):
+                // 先读 agent 后台已烘焙的归档定性(已索引归档走 contentSummary)/ 前台按需缓存;都没有就前台 XPC 按需
+                // 烘一次(写缓存,再开瞬出)。命中缓存=瞬出无菊花;首次=转圈烘一次。token 按归档路径(与目标无关)。
                 InlineAIAdvisory(
-                    token: "\(preflight.fileCount)|\(preflight.totalBytes)|\(preflight.suspiciousEntryCount)|\(overwriteCount)|\(missingVolumeCount)|\(request.destinationURL.path)"
+                    token: "extract|\(request.archiveURL.path)|\(preflight.fileCount)|\(preflight.totalBytes)"
                 ) {
+                    let store = AIBackgroundIndexStore.shared
+                    let path = request.archiveURL.path
+                    if let baked = store.extractAdvisory(forPath: path)
+                        ?? store.record(forPath: path)?.contentSummary?.shortSummary, !baked.isEmpty {
+                        return baked
+                    }
                     guard #available(macOS 26.0, *) else { return "" }
-                    let built = AIReportAssistant.extractAdvisoryPrompt(
-                        preflight: preflight,
-                        overwriteCount: overwriteCount,
-                        missingVolumeCount: missingVolumeCount,
-                        lowSpaceNeeded: lowSpaceWarning?.needed,
-                        lowSpaceAvailable: lowSpaceWarning?.available,
-                        destinationName: request.destinationURL.lastPathComponent,
-                        topLevelEntries: preflightTopLevelNames,
-                        suspiciousSamples: []
-                    )
-                    return try await AIReportAssistant.generate(instructions: built.instructions, prompt: built.prompt)
+                    return await AIBackgroundIndexer.shared.bakeExtractAdvisoryOnDemand(
+                        archiveURL: request.archiveURL, entries: archiveEntrySample) ?? ""
                 }
             } else if preflightUnavailable {
                 Label(L10n.text("extract.preflight.unavailable"), systemImage: "list.bullet.rectangle")
@@ -287,6 +289,9 @@ struct ExtractArchiveOptionsView: View {
                 let items = try await ArchiveService.list(url, password: password)
                 preflight = ArchiveExtractPreflight.analyze(items)
                 preflightTopLevelNames = ArchiveExtractPreflight.topLevelNames(of: items)
+                // 预烘焙速览的条目样本:跳过加密条目名(敏感面),bounded;给前台按需 archiveKindGuess 用。
+                archiveEntrySample = items.lazy.filter { !$0.isEncrypted }.prefix(200)
+                    .map { ArchiveKindGuessInput.Entry(name: $0.name, isDirectory: $0.isDirectory) }
                 // #13:检测「单层包装壳」,有则显示去壳开关(默认关)。
                 request.detectedSingleRootFolder = ArchiveSingleRootFolder.detect(in: items)
                 recomputeOverwriteCount()

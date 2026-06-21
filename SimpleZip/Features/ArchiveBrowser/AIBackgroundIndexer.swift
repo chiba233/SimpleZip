@@ -919,6 +919,32 @@ final class AIBackgroundIndexer {
         }
     }
 
+    // MARK: - 解压速览(预烘焙;前台 XPC 按需路径)
+
+    /// 解压对话框打开时按需烘一句话「这是什么包」给速览。**预烘焙优先**:已索引归档的定性由后台 agent 写进
+    /// `contentSummary`(调用点先读那份);这里只兜「正在解压、但不在文件索引里」的归档 —— 用对话框已 list 的
+    /// 非加密条目经 XPC 引擎(同 agent 的 `.archiveKindGuess` pass)烘一次,写进 `extractAdvisoryByPath` 缓存
+    /// (跨重启,再开瞬出)。**这是用户主动开窗触发的前台动作**,与创建实时速览同类 → 只 gate `isReady`,**不**走
+    /// `canRunModelWorkNow` 的空闲/活跃度门控(那会在用户正干活时反而压制速览);后台 agent 那半仍受电源门控。
+    /// 不可用 / 失败 / 全加密返回 nil(对话框退回纯确定性预检,不报错)。条目名已在调用点按 `!isEncrypted` 过滤。
+    @available(macOS 26.0, *)
+    func bakeExtractAdvisoryOnDemand(archiveURL: URL, entries: [ArchiveKindGuessInput.Entry]) async -> String? {
+        guard AIReportAssistant.isReady else { return nil }
+        let trimmed = entries.compactMap { e -> ArchiveKindGuessInput.Entry? in
+            let name = e.name.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            return name.isEmpty ? nil : ArchiveKindGuessInput.Entry(name: name, isDirectory: e.isDirectory)
+        }
+        guard !trimmed.isEmpty else { return nil }
+        guard let guess = try? await AIAgentClient.generatePass(
+            kind: .archiveKindGuess,
+            input: ArchiveKindGuessInput(archiveName: archiveURL.lastPathComponent, entries: trimmed),
+            as: AIPassArchiveKindOutput.self) else { return nil }
+        let summary = guess.summary.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !summary.isEmpty else { return nil }
+        AIBackgroundIndexStore.shared.setExtractAdvisory(path: archiveURL.path, summary: summary)
+        return summary
+    }
+
     // MARK: - 文件夹批量分组建议(MainActor:索引记录 → 候选 → 模型 async → 按文件夹缓存)
 
     /// 对**还没评估**的索引目录,让端上模型从同一文件夹里的文件中圈出少数「可一起批量处理」的组。
