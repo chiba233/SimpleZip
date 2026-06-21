@@ -28,16 +28,17 @@ enum AIAgentBaker {
     nonisolated struct Summary: Sendable {
         var fileSummaries = 0
         var urlSuggestions = 0
+        var diskImages = 0
         var archiveEntries = 0
         var archiveKinds = 0
         var note = ""
-        var produced: Int { fileSummaries + urlSuggestions + archiveEntries + archiveKinds }
+        var produced: Int { fileSummaries + urlSuggestions + diskImages + archiveEntries + archiveKinds }
     }
 
     /// 每 pass 的最小时间片下限(秒)——避免 pass 数多时每片太短连一次生成都跑不完。
     private static let minPassSeconds: TimeInterval = 20
     /// 当前烘焙的 pass 数(切时间片用;加 pass 时同步 +1)。
-    private static let plannedPassCount = 4
+    private static let plannedPassCount = 5
 
     /// 跑一轮后台模型烘焙。返回更新后的索引 + 摘要。门控:AI 建议子开关 + 内容预读 + 端上模型可用。
     @available(macOS 26.0, *)
@@ -69,8 +70,10 @@ enum AIAgentBaker {
             index = r1.index; summary.fileSummaries = r1.count
             let r2 = await bakeURLSuggestions(index, lang: lang, passDeadline: slice(), log: log)
             index = r2.index; summary.urlSuggestions = r2.count
+            let r5 = await bakeDiskImageSuggestions(index, lang: lang, passDeadline: slice(), log: log)
+            index = r5.index; summary.diskImages = r5.count
         } else {
-            log("内容预读关 → 跳过文件摘要 / 网页烘焙")
+            log("内容预读关 → 跳过文件摘要 / 网页 / 装App 烘焙")
         }
 
         // 归档类:读共享归档清单缓存(App 开归档时填),据清单烘「包内可选条目 / 这是什么包」。
@@ -85,8 +88,39 @@ enum AIAgentBaker {
             index = r4.index; summary.archiveKinds = r4.count
         }
 
-        summary.note = "OK · 摘要 \(summary.fileSummaries) · 网页 \(summary.urlSuggestions) · 包内 \(summary.archiveEntries) · 包定性 \(summary.archiveKinds)"
+        summary.note = "OK · 摘要 \(summary.fileSummaries) · 网页 \(summary.urlSuggestions) · 装App \(summary.diskImages) · 包内 \(summary.archiveEntries) · 包定性 \(summary.archiveKinds)"
         return (index, summary)
+    }
+
+    // MARK: - Pass ⑤:磁盘镜像「拖到应用程序」(diskImageInstallSuggestion;7zz 只读 peek 不挂载)
+
+    @available(macOS 26.0, *)
+    private static func bakeDiskImageSuggestions(_ index: AIFileMemoryIndex, lang: String, passDeadline: Date,
+                                                 log: (String) -> Void) async -> (index: AIFileMemoryIndex, count: Int) {
+        var index = index
+        var count = 0
+        let candidates = AIPrereadSelection.selectDiskImagesForSuggestion(records: index.records, budget: max(1, index.records.count), now: Date())
+        log("烘焙 diskImageInstallSuggestion:候选 \(candidates.count)")
+        for rec in candidates {
+            if Date() >= passDeadline { break }
+            guard let path = rec.path, FileManager.default.fileExists(atPath: path) else { continue }
+            // 7zz 只读 peek(空口令;加密 / 不可读 dmg 抛错 → 当作无 App 标记已评估,绝不挂载、绝不弹密码)。
+            let listed = try? await SevenZipBackend.list(URL(fileURLWithPath: path))
+            let appNames = listed.map { AIPrereadSelection.topAppBundleNames(in: $0) } ?? []
+            log("  peek \(rec.fileName):\(listed == nil ? "7zz 失败/加密/不可读" : "7zz 列出 \(listed!.count) 条 · \(appNames.count) app")")
+            guard !appNames.isEmpty else {
+                index = applyDiskImage(index, recordID: rec.id, summary: nil, appName: nil); continue   // 无 .app → 标记已评估
+            }
+            guard let out = try? await runPass(
+                .diskImageInstallSuggestion, DiskImageSuggestionInput(dmgName: rec.fileName, appNames: appNames),
+                AIPassDiskImageOutput.self, lang) else { continue }
+            index = applyDiskImage(index, recordID: rec.id,
+                                   summary: out.summary.isEmpty ? nil : out.summary,
+                                   appName: out.suggest ? appNames.first : nil)
+            count += 1
+            log("  装App ✓ \(rec.fileName):\(out.suggest ? (appNames.first ?? "") : "(不建议)")")
+        }
+        return (index, count)
     }
 
     // MARK: - Pass ①:文件一句话摘要 + 动作建议(fileSuggestion)
@@ -233,6 +267,19 @@ enum AIAgentBaker {
             let base = rec.contentSummary ?? AIFileContentSummary(mode: "url-open")
             return rec.withContentSummary(base.mergingSingletonAction(action, replacingToken: "urlOpen"))
         }
+    }
+
+    private static func applyDiskImage(_ index: AIFileMemoryIndex, recordID: String,
+                                       summary: String?, appName: String?) -> AIFileMemoryIndex {
+        let clean = summary?.trimmingCharacters(in: .whitespacesAndNewlines)
+        var actions: [AIFileSuggestedAction] = []
+        if let appName, !appName.isEmpty {
+            actions.append(AIFileSuggestedAction(token: "dragToApplications", payload: appName, label: appName))
+        }
+        let content = AIFileContentSummary(mode: "disk-image",
+                                           shortSummary: (clean?.isEmpty == false) ? clean : nil,
+                                           suggestedActions: actions)
+        return index.updatingRecord(id: recordID) { $0.withContentSummary(content) }
     }
 
     private static func applyArchiveEntries(_ index: AIFileMemoryIndex, recordID: String,

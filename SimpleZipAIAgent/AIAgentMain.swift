@@ -84,6 +84,24 @@ struct AIAgentMain {
             }
             RunLoop.main.run()
         }
+        // `--test-backend <归档路径>`:在 agent(独立)进程里跑一次 `ArchiveService.list`(真起 7zz),验证
+        // **后端能在 agent 进程跑通**(A19:嵌入 helper 时 Bundle.main 解析到 app bundle → 找得到 Resources/Tools/7zz)。
+        // 这是用户点名的坑(测试 / 哈希 / 列归档要跑后端)。用法:.../SimpleZipAIAgent --test-backend /path/to/x.zip
+        if let tIndex = CommandLine.arguments.firstIndex(of: "--test-backend"), tIndex + 1 < CommandLine.arguments.count {
+            let path = CommandLine.arguments[tIndex + 1]
+            Task {
+                do {
+                    let items = try await ArchiveService.list(URL(fileURLWithPath: path))
+                    let line = "BACKEND OK · 7zz 在 agent 进程列出 \(items.count) 条:\(path)"
+                    agentLog(line); print(line)
+                } catch {
+                    let line = "BACKEND FAIL · \(error)"
+                    agentLog(line); print(line)
+                }
+                exit(0)
+            }
+            RunLoop.main.run()
+        }
         // 默认:起绑定到约定 Mach service 名的 NSXPCListener,长驻等 App / launchd 连接。
         let delegate = AIAgentListenerDelegate()
         let listener = NSXPCListener(machServiceName: SimpleZipAIAgentXPCNames.machService)
