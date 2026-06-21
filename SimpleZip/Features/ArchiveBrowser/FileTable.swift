@@ -2390,8 +2390,14 @@ struct FileNSOutlineView: NSViewRepresentable {
             cache.countLimit = 4096
             return cache
         }()
-        /// 正在后台取的 key —— 同一行在图标到位前反复重绘时不重复入队。
+        /// 正在后台取 / 排队中的 key —— 同一行在图标到位前反复重绘时不重复入队。
         private var iconFetchesInFlight: Set<String> = []
+        /// 图标取用并发上限:滚动大目录时不再一次性 spawn 几百个 detached 任务(各自 NSWorkspace.icon + 栅格化),
+        /// 超过上限的排进 `pendingIconFetches`,有任务完成再补位。
+        private static let maxConcurrentIconFetches = 8
+        private var runningIconFetches = 0
+        /// 待取队列(LIFO:后入先出 → 滚动后最新可见行优先,被滚过的旧请求让位)。元素都已在 `iconFetchesInFlight` 里去重。
+        private var pendingIconFetches: [(path: String, size: CGFloat, cacheKey: NSString)] = []
 
         private static func iconCacheKey(for item: FileItem, size: CGFloat) -> NSString {
             "\(item.url.path)|\(Int(size))|\(item.modified?.timeIntervalSinceReferenceDate ?? 0)" as NSString
@@ -2410,14 +2416,32 @@ struct FileNSOutlineView: NSViewRepresentable {
             let key = cacheKey as String
             guard !iconFetchesInFlight.contains(key) else { return }
             iconFetchesInFlight.insert(key)
+            guard runningIconFetches < Self.maxConcurrentIconFetches else {
+                pendingIconFetches.append((path, size, cacheKey))   // 满了 → 排队,有空位再 pump
+                return
+            }
+            startIconFetch(path: path, size: size, cacheKey: cacheKey)
+        }
+
+        private func startIconFetch(path: String, size: CGFloat, cacheKey: NSString) {
+            runningIconFetches += 1
             Task.detached(priority: .userInitiated) { [weak self] in
                 let rasterized = Self.rasterizedFileIcon(path: path, pointSize: size)
                 await MainActor.run { [weak self] in
                     guard let self else { return }
                     Self.fileIconCache.setObject(rasterized, forKey: cacheKey)
-                    self.iconFetchesInFlight.remove(key)
+                    self.iconFetchesInFlight.remove(cacheKey as String)
+                    self.runningIconFetches -= 1
                     self.applyFetchedIcon(rasterized, path: path)
+                    self.pumpPendingIconFetches()
                 }
+            }
+        }
+
+        /// 有图标取用完成、腾出并发位 → 从待取队列(LIFO)补位到上限。
+        private func pumpPendingIconFetches() {
+            while runningIconFetches < Self.maxConcurrentIconFetches, let next = pendingIconFetches.popLast() {
+                startIconFetch(path: next.path, size: next.size, cacheKey: next.cacheKey)
             }
         }
 
