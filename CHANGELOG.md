@@ -30,6 +30,10 @@
 - **The About blurb is refreshed.** The description now leads with what stands out today: a fast, private, all-on-your-Mac archive manager with streaming extraction for huge or web-hosted archives and optional on-device AI assistance.
 - **The welcome and update assistants say "Skip" instead of "Cancel."** The left-hand button is now labeled Skip, making it clear it simply steps past the assistant rather than undoing the choices you've already made.
 
+**Developer-facing**
+
+- **Release history entries can be deleted.** Each row in the Release Assistant's release ledger gains a delete button, so you can prune old or mistaken entries — the record only, your real artifacts are never touched — and the release-package Spotlight index updates to match.
+
 ### bugfix
 
 **User-facing**

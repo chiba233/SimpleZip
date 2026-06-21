@@ -352,6 +352,14 @@ struct ReleaseAssistantSheet: View {
                 Text(entry.date.formatted(date: .abbreviated, time: .shortened))
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                Button(role: .destructive) {
+                    deleteLedgerEntry(entry)
+                } label: {
+                    Image(systemName: "trash")
+                        .font(.caption2)
+                }
+                .buttonStyle(.borderless)
+                .help(L10n.text("file.delete"))
             }
             if let sha256 = entry.sha256 {
                 HStack(spacing: 6) {
@@ -373,6 +381,14 @@ struct ReleaseAssistantSheet: View {
                 }
             }
         }
+    }
+
+    /// 删除一条发布历史记录(账本只是记录,删除不碰任何真实产物文件)。删后刷新列表 + 同步发布包 Spotlight
+    /// 索引(ReleaseLedgerStore.delete 注释要求:账本一变就 reindex,让被删条目从 Spotlight 消失)。
+    private func deleteLedgerEntry(_ entry: ReleaseLedgerEntry) {
+        ReleaseLedgerStore().delete(id: entry.id)
+        ledgerEntries = ReleaseLedgerStore().loadAll()
+        ReleasePackageSpotlightIndexer.reindex()
     }
 
     /// #18 抽屉子行:单色 Label + 紧贴开关 + caption 说明(解压/转换对话框同款)。
