@@ -443,7 +443,13 @@ enum SettingToggleRegistry {
                             })
         case "automation.ai":
             return Accessor(get: { AppPreferences.aiAssistantEnabled },
-                            set: { setBool($0, AppPreferences.Key.aiAssistantEnabled) })
+                            set: {
+                                setBool($0, AppPreferences.Key.aiAssistantEnabled)
+                                // 与「设置 → AI」同步:经 Siri/Shortcuts 翻主开关也要推配置给 agent + 起停后台索引,
+                                // 否则只写了 UserDefaults、agent 侧滞后到下次进设置页或重启(set 是 @MainActor,可直接调)。
+                                AIAgentClient.publishConfiguration()
+                                if $0 { AIBackgroundIndexer.shared.runIfEnabled() } else { AIBackgroundIndexer.shared.cancel() }
+                            })
         // automation.allowPresetPassword 故意**没有** accessor:它是安全相关开关(无人值守用预设密码),
         // 只在设置 UI 手动改,绝不让 NL/语音/Shortcuts 翻转(见 SettingsCatalog 那条的注释)。`isToggleable:false`
         // 已让上面的 guard 拦住,这里不再列 case,双保险。

@@ -1510,6 +1510,27 @@ struct WelcomeAIStep: View {
             }
         }
         .animation(.spring(response: 0.42, dampingFraction: 0.82), value: aiAssistant)
+        // 与「设置 → AI」/「后台索引与预读」同步:欢迎/更新助手里改 AI 开关也要推配置给 agent、起停后台索引、
+        // 注册/反注册周期 LaunchAgent —— 否则只写 @AppStorage,agent / LaunchAgent 侧滞后到下次进设置页或重启。
+        // 逻辑镜像 AISettingsPane + AIBackgroundDiscoverySection,不分叉。
+        .onChange(of: aiAssistant) { _ in
+            AIAgentClient.publishConfiguration()
+            Task { await AIReportAssistant.refreshAvailability() }
+            if aiAssistant { AIBackgroundIndexer.shared.runIfEnabled() } else { AIBackgroundIndexer.shared.cancel() }
+        }
+        .onChange(of: aiSuggestion) { _ in AIAgentClient.publishConfiguration() }
+        .onChange(of: silentIndex) { on in
+            AIAgentClient.publishConfiguration()
+            Task { await AIAgentClient.setBackgroundIndexEnabled(on) }
+        }
+        .onChange(of: contentPreread) { on in
+            if on { AIBackgroundIndexer.shared.runIfEnabled() } else if !folderPreindex { AIBackgroundIndexer.shared.cancel() }
+            AIAgentClient.publishConfiguration()
+        }
+        .onChange(of: folderPreindex) { on in
+            if on { AIBackgroundIndexer.shared.runIfEnabled() } else if !contentPreread { AIBackgroundIndexer.shared.cancel() }
+            AIAgentClient.publishConfiguration()
+        }
     }
 }
 
