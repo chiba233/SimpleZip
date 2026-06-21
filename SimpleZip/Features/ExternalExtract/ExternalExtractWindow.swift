@@ -17,8 +17,10 @@ import SwiftUI
 /// **同一时间只允许一个浮窗 + 一个解压任务**。`start` / `startBatch` 在替换窗口前会 **cancel 上一个任务**——
 /// 否则旧任务的 `Task` 强捕获了旧 session 仍会在后台不可见地继续写磁盘（用户报告的多选解压隐身任务问题）。
 @MainActor
-final class ExternalExtractWindowController {
+final class ExternalExtractWindowController: NSObject, NSWindowDelegate {
     static let shared = ExternalExtractWindowController()
+
+    private override init() { super.init() }
 
     private var window: NSWindow?
     /// 当前活动任务的取消句柄。替换 / 关闭浮窗前调用，确保旧任务真的停掉而不是隐身续跑。
@@ -403,9 +405,19 @@ final class ExternalExtractWindowController {
         window.isMovableByWindowBackground = true
         window.isReleasedWhenClosed = false
         window.level = .floating
+        window.delegate = self   // 用户点关闭按钮 → windowWillClose 取消正在跑的任务(否则后台隐身续写盘)
         window.center()
         window.makeKeyAndOrderFront(nil)
         self.window = window
+    }
+
+    /// 用户点浮窗红色关闭按钮:取消当前提取/创建任务(`close()` 是程序性 orderOut、不触发此回调,故任务完成的正常
+    /// 收尾不会被误当成取消)。修复前 `close()` 只把 cancelActive 置 nil 不调用它,关窗后任务仍在后台写盘。
+    func windowWillClose(_ notification: Notification) {
+        guard (notification.object as? NSWindow) === window else { return }
+        cancelActive?()
+        cancelActive = nil
+        window = nil
     }
 
     /// 失败 / 需要用户注意时：激活 app + 把浮窗带到最前（后台运行时别被埋在 Finder 后面）。
