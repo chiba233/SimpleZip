@@ -82,6 +82,9 @@ struct AISettingsPane: View {
         .onChange(of: aiAssistant) { _ in
             AIAgentClient.publishConfiguration()
             Task { await AIReportAssistant.refreshAvailability() }   // 打开 AI 主开关后立即查可用性(自 gate AI 关时跳过)
+            // 主开关关 → 立即停后台索引心跳 + 取消在跑的派生任务(心跳 tick 也兜底,这里求即时);开 → 按当前条件尝试启动。
+            if aiAssistant { AIBackgroundIndexer.shared.runIfEnabled() }
+            else { AIBackgroundIndexer.shared.cancel() }
         }
         .onChange(of: aiSuggestion) { _ in AIAgentClient.publishConfiguration() }
     }

@@ -260,9 +260,17 @@ actor AgentGenerationSerializer {
     /// 链尾:下一个生成要等它结束才开始(只关心「结束」不关心结果类型,抹成 Void)。
     private var tail: Task<Void, Never>?
 
+    /// 当前排队 + 在跑的 run() 数。串行闸只一个个消化,大量并发会让所有 Task + 捕获的 Data 同时驻留 →
+    /// agent 进程内存预算紧时可 OOM。超上限直接拒(调用方回 ok=false),不再无界堆积。
+    private var queueDepth = 0
+    private static let maxQueueDepth = 10
+
     /// 把 operation 排到链尾,与其它生成绝不重叠。承载它的 unstructured Task 不继承调用方取消,
     /// 故 respond() 一定跑到底,框架不被中途拆毁。
     func run<T: Sendable>(_ operation: @Sendable @escaping () async throws -> T) async throws -> T {
+        guard queueDepth < Self.maxQueueDepth else { throw AgentGenerationError.overloaded }
+        queueDepth += 1
+        defer { queueDepth -= 1 }
         let prior = tail
         let work = Task { () -> Result<T, Error> in
             _ = await prior?.value          // 等上一个生成彻底结束,杜绝重叠
@@ -301,7 +309,7 @@ actor AgentGenerationSerializer {
     }
 }
 
-enum AgentGenerationError: Error { case exhausted }
+enum AgentGenerationError: Error { case exhausted, overloaded }
 
 /// agent 结构化探针用的最小 @Generable 规格(镜像 App 端 ArchiveFileQuerySpec:单个 String + @Guide)。
 @available(macOS 26.0, *)

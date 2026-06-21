@@ -235,7 +235,9 @@ final class AIBackgroundIndexer {
     /// 心跳本身不做判定,只「定期再问一次」`runIfEnabled` —— 真正的节流闸是里面的门控(空闲 / 充电 / 低电 / 静默)。
     private func ensureHeartbeat() {
         let level = AppPreferences.aiBackgroundActivityLevel
-        guard level != .off, let interval = AIBackgroundSchedulingRules.heartbeatInterval(for: level) else {
+        // AI 主开关关 或 活跃度 off → 不装表(主开关关时心跳每跳也只是 runIfEnabled 空跑,白唤醒)。
+        guard AppPreferences.aiAssistantEnabled, level != .off,
+              let interval = AIBackgroundSchedulingRules.heartbeatInterval(for: level) else {
             heartbeat?.invalidate(); heartbeat = nil; currentHeartbeatInterval = nil; return
         }
         if heartbeat != nil, currentHeartbeatInterval == interval { return }   // 已在跑且间隔一致 → 不动
@@ -249,10 +251,11 @@ final class AIBackgroundIndexer {
         heartbeat = timer
     }
 
-    /// 心跳一跳:活跃度运行期可能被改 → off 即停表;否则重评门控跑一轮(廉价,门控未过即返回)。
+    /// 心跳一跳:主开关 / 活跃度运行期可能被改 → 关掉即 **cancel()**(停表 + 取消所有在跑的派生任务,
+    /// 否则已过门控、正在推理的子任务会把过期建议写完);否则重评门控跑一轮(廉价,门控未过即返回)。
     private func heartbeatTick() {
-        guard AppPreferences.aiBackgroundActivityLevel != .off else {
-            heartbeat?.invalidate(); heartbeat = nil; currentHeartbeatInterval = nil; return
+        guard AppPreferences.aiAssistantEnabled, AppPreferences.aiBackgroundActivityLevel != .off else {
+            cancel(); return
         }
         runIfEnabled()
     }
