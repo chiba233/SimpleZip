@@ -325,24 +325,22 @@ final class ExternalCreateSession: ObservableObject {
             detailsSession: details, operationID: operationID
         )
         task.cancel = { [weak self] in self?.cancel() }
+        // 进度节流:大文件夹压缩时 7zz 会逐文件回调几万次进度,复用主窗口同款 ProgressCoalescer 合帧
+        // (最多每 ~80ms 应用一次),避免每条都跳主 actor 改 @Published 把浮窗 / 活动中心刷爆卡死主线程。
+        let progressCoalescer = ProgressCoalescer { [weak self, weak task] state in
+            guard let self else { return }
+            self.fraction = state.fraction
+            self.currentFileName = state.currentFile
+            if let text = state.statusText { self.statusText = text }
+            task?.progress = state
+        }
         do {
             try await ArchiveService.createArchive(
                 from: files,
                 destination: destination,
                 options: options,
                 operationID: operationID,
-                progress: { [weak self, weak task] state in
-                    // @Sendable 进度闭包弱捕获 self / task（都是 MainActor 隔离=Sendable）。在跳进内层 Task 之前
-                    // 先把弱引用解开 / 快照成局部 let —— 否则内层并发 Task 直接引用外层弱 var 在 Swift 6 是错误。
-                    guard let self else { return }
-                    let task = task
-                    Task { @MainActor in
-                        self.fraction = state.fraction
-                        self.currentFileName = state.currentFile
-                        if let text = state.statusText { self.statusText = text }
-                        task?.progress = state
-                    }
-                },
+                progress: { progressCoalescer.submit($0) },
                 outputObserver: { detailsOutput.append($0) }
             )
             status = .succeeded(destination)

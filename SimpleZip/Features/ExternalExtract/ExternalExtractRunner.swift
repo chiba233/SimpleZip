@@ -34,6 +34,14 @@ enum ExternalExtractRunner {
             ? .skipExisting
             : .overwrite
 
+        // 进度节流:碎文件 ZIP 的 unzip / merge 会逐文件回调几万次进度,若每条都跳主 actor 改 @Published
+        // (浮窗 fraction/currentFileName + 活动中心 task.progress),会把主线程刷爆卡死(Finder 自动解压 /
+        // 右键解压浮窗这条路径之前没节流)。复用主窗口同款 ProgressCoalescer 合帧——只保留最新值,最多每 ~80ms 应用一次。
+        let progressCoalescer = ProgressCoalescer { state in
+            onProgress(state.fraction, state.currentFile)
+            if let text = state.statusText { onStatus(text) }
+        }
+
         // 0.4.3 #6 统一密码中心:候选顺序 = 预设密码(原行为) → 会话缓存(本包记过的 → 本会话最近成功的)。
         // 「错误表明要口令」才换下一个候选静默重试,其余错误原样抛给浮窗;候选用尽抛最后的口令错误。
         // 成功口令记入会话缓存 —— Finder 批量解压同口令的一组包,后面的包静默通过。
@@ -49,12 +57,7 @@ enum ExternalExtractRunner {
                     overwriteBehavior: overwriteBehavior,
                     password: candidate,
                     operationID: operationID,
-                    progress: { state in
-                        Task { @MainActor in
-                            onProgress(state.fraction, state.currentFile)
-                            if let text = state.statusText { onStatus(text) }
-                        }
-                    },
+                    progress: { progressCoalescer.submit($0) },
                     outputObserver: outputObserver
                 )
                 if !candidate.isEmpty {
@@ -80,7 +83,7 @@ enum ExternalExtractRunner {
             to: target,
             defaultOverwriteBehavior: overwriteBehavior,
             updateStatus: { text in Task { @MainActor in onStatus(text) } },
-            updateProgress: { state in Task { @MainActor in onProgress(state.fraction, state.currentFile) } }
+            updateProgress: { progressCoalescer.submit($0) }
         )
         return target
     }
