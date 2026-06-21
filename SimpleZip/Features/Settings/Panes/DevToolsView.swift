@@ -420,6 +420,26 @@ struct DevToolsView: View {
                         ) {
                             copySpotlightData()
                         }
+                        // 更新助手测试(隐藏调试区):不必真升级,直接弹更新助手并指定要展示的卡。每张卡一行(将来加卡自动出现)。
+                        ForEach(UpdateCard.allCases) { card in
+                            actionRow(
+                                "sparkles.rectangle.stack",
+                                "触发更新助手 —「\(card.rawValue)」卡",
+                                "直接弹出更新助手,只展示这张卡 + 搞定页。走完会把该卡标记已看(再测用下面的重置)。"
+                            ) {
+                                NotificationCenter.default.post(
+                                    name: .devToolsTriggerUpdateAssistant, object: nil,
+                                    userInfo: ["cards": [card.rawValue]])
+                            }
+                        }
+                        actionRow(
+                            "arrow.counterclockwise.circle",
+                            "重置更新助手「已看」标记",
+                            "清空全部卡的已看 + 迁移标记 —— 下次启动老用户(已完成欢迎助手)会重新收到更新助手。"
+                        ) {
+                            AppPreferences.resetUpdateCardsSeen()
+                            flash("已重置更新助手标记(下次启动生效)")
+                        }
                     }
 
                     if let actionFeedback {
@@ -1029,6 +1049,20 @@ struct DevToolsView: View {
         }
         out.append("\n### 内联结果 [inlineResults] (\(inlineLines.count))")
         out.append(contentsOf: inlineLines.isEmpty ? ["（无）"] : Array(inlineLines.prefix(500)))
+
+        // 工具栏动作 AI 排序(建议七 Phase2):文件级 + 类型级烘焙的有序动作 id —— debug 工具栏推荐看这。
+        let tb = store.toolbarRanking
+        out.append("\n### 工具栏序 [toolbarRanking] (文件级 \(tb.byFile.count) · 类型级 \(tb.byType.count))")
+        if tb.byFile.isEmpty && tb.byType.isEmpty {
+            out.append("（无）")
+        } else {
+            for (path, ids) in tb.byFile.sorted(by: { $0.key < $1.key }).prefix(500) {
+                out.append("文件 \(path) → \(ids.joined(separator: " > "))")
+            }
+            for (ext, ids) in tb.byType.sorted(by: { $0.key < $1.key }) {
+                out.append("类型 .\(ext) → \(ids.joined(separator: " > "))")
+            }
+        }
 
         return out.joined(separator: "\n")
     }

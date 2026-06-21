@@ -15,6 +15,11 @@
 import SwiftUI
 import AppKit
 
+extension Notification.Name {
+    /// DevTools 测试用:触发更新助手并指定要展示的卡(`userInfo["cards"]` = [String] 卡片 rawValue)。
+    static let devToolsTriggerUpdateAssistant = Notification.Name("devToolsTriggerUpdateAssistant")
+}
+
 /// 参与「更新助手」的功能卡片。**新增卡片 = 在这里加一个 case + 在 `WelcomeAssistantView` 加对应页 +
 /// 在 `cardView(_:)` 加渲染**,老用户即自动收到(默认未看)。
 enum UpdateCard: String, CaseIterable, Identifiable {

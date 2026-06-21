@@ -500,22 +500,12 @@ struct ContentView: View {
             // 闭包体抽成方法：留在巨型 body 表达式里会让类型检查超时（0.4.2 #7 加横幅后压垮预算）。
             handleMainViewAppear()
         }
-        .sheet(isPresented: $showsWelcomeAssistant) {
-            WelcomeAssistantView {
-                showsWelcomeAssistant = false
-                // 走完(含跳过)完整欢迎助手 = 已看过其中全部更新卡片 → 不再弹更新助手。
-                UpdateAssistant.markSeen(UpdateCard.allCases)
-            }
-        }
-        .sheet(isPresented: $showsUpdateAssistant) {
-            UpdateAssistantView(cards: pendingUpdateCards) {
-                showsUpdateAssistant = false
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .openWelcomeAssistant)) { _ in
-            // 用户从 SimpleZip 菜单触发 —— 不重置 completed bool（重新看仍然算「已经走过一遍」）。
-            showsWelcomeAssistant = true
-        }
+        // 欢迎 / 更新助手的 sheet + 触发 onReceive 抽成一个 modifier —— 主 body 修饰链已极长,内联会触发
+        // 「编译器无法在合理时间内类型检查」(SwiftUI 老问题),抽出来分担推断。
+        .modifier(WelcomeUpdatePresenter(
+            showsWelcome: $showsWelcomeAssistant,
+            showsUpdate: $showsUpdateAssistant,
+            pendingUpdateCards: $pendingUpdateCards))
         .alert(
             L10n.text("startup.missing.title"),
             isPresented: $showsStartupMissingAlert
@@ -1583,5 +1573,37 @@ private struct ContextualToolbarButtons: View {
             Label(L10n.text(titleKey), systemImage: systemImage)
         }
         .help(L10n.text(titleKey))
+    }
+}
+
+/// 欢迎助手 + 更新助手的 sheet/触发整合 modifier(从 ContentView 极长 body 链里抽出,避免类型检查超时)。
+private struct WelcomeUpdatePresenter: ViewModifier {
+    @Binding var showsWelcome: Bool
+    @Binding var showsUpdate: Bool
+    @Binding var pendingUpdateCards: [UpdateCard]
+
+    func body(content: Content) -> some View {
+        content
+            .sheet(isPresented: $showsWelcome) {
+                WelcomeAssistantView {
+                    showsWelcome = false
+                    // 走完(含跳过)完整欢迎助手 = 已看过其中全部更新卡片 → 不再弹更新助手。
+                    UpdateAssistant.markSeen(UpdateCard.allCases)
+                }
+            }
+            .sheet(isPresented: $showsUpdate) {
+                UpdateAssistantView(cards: pendingUpdateCards) { showsUpdate = false }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .openWelcomeAssistant)) { _ in
+                // 用户从 SimpleZip 菜单触发 —— 不重置 completed bool(重新看仍算「已走过一遍」)。
+                showsWelcome = true
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .devToolsTriggerUpdateAssistant)) { note in
+                // DevTools 测试用:直接弹更新助手并展示指定的卡(不必真升级)。
+                let cards = ((note.userInfo?["cards"] as? [String]) ?? []).compactMap(UpdateCard.init(rawValue:))
+                guard !cards.isEmpty else { return }
+                pendingUpdateCards = cards
+                showsUpdate = true
+            }
     }
 }

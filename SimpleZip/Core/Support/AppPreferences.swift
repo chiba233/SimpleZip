@@ -1124,6 +1124,12 @@ enum AppPreferences {
         defaults.set(true, forKey: Key.updateCardsMigrated)
     }
 
+    /// DevTools 测试用:清空全部卡「已看」+ 迁移标记 → 下次启动老用户重新收到更新助手。
+    nonisolated static func resetUpdateCardsSeen() {
+        defaults.removeObject(forKey: Key.seenUpdateCards)
+        defaults.removeObject(forKey: Key.updateCardsMigrated)
+    }
+
     /// 用户在设置里挑的「当前活跃」自定义启动路径。空表示尚未挑选。
     /// 也是 history 列表里被点亮的那一项 —— 二者保持一致。
     nonisolated static var startupCustomLocationURL: URL? {
