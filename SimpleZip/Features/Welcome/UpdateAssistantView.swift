@@ -78,9 +78,10 @@ struct UpdateAssistantView: View {
 
     @State private var page = 0
 
-    /// 总页 = 卡片数 + 1(末页搞定)。
-    private var totalPages: Int { cards.count + 1 }
-    private var isDonePage: Bool { page >= cards.count }
+    /// 总页 = intro(已更新说明)+ 卡片数 + 搞定。**卡片页不带 hero**(保留卡片自身布局,不在每页重复顶横幅)。
+    private var totalPages: Int { cards.count + 2 }
+    private var isIntroPage: Bool { page == 0 }
+    private var isDonePage: Bool { page == cards.count + 1 }
     private var currentVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
     }
@@ -141,38 +142,40 @@ struct UpdateAssistantView: View {
 
     @ViewBuilder
     private var content: some View {
-        if isDonePage {
+        if isIntroPage {
+            introView
+        } else if isDonePage {
             doneView
         } else {
-            VStack(alignment: .leading, spacing: 16) {
-                hero
-                cardView(cards[page])
-            }
+            // 卡片页:只渲染卡片本身,不加 hero —— 保留每张卡设计好的布局(不挤、不需多余滚动、不重复横幅)。
+            cardView(cards[page - 1])
         }
     }
 
-    /// 顶部「已更新到最新版本」横幅(每张卡片页上方)。
-    private var hero: some View {
-        HStack(spacing: 14) {
+    /// 页 1:更新说明页 ——「已更新到 SimpleZip X」+ 一句助手说明。只在这一页出现,后续卡片页不再重复。
+    private var introView: some View {
+        VStack(spacing: 16) {
             Image(systemName: "sparkles")
-                .font(.system(size: 24, weight: .semibold))
+                .font(.system(size: 40, weight: .semibold))
                 .foregroundStyle(.white)
-                .frame(width: 48, height: 48)
+                .frame(width: 88, height: 88)
                 .background(
                     LinearGradient(colors: [.blue, .indigo], startPoint: .topLeading, endPoint: .bottomTrailing),
-                    in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    in: RoundedRectangle(cornerRadius: 22, style: .continuous)
                 )
-                .shadow(color: .indigo.opacity(0.35), radius: 9, y: 4)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(L10n.format("update.hero.title", currentVersion))
-                    .font(.title2.weight(.bold))
-                Text(L10n.text("update.hero.body"))
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Spacer(minLength: 0)
+                .shadow(color: .indigo.opacity(0.4), radius: 16, y: 6)
+            Text(L10n.format("update.hero.title", currentVersion))
+                .font(.largeTitle.weight(.bold))
+                .multilineTextAlignment(.center)
+            Text(L10n.text("update.hero.body"))
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: 460)
         }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 40)
     }
 
     /// 渲染一张卡 —— 复用欢迎助手同一份 `WelcomeCardBody`(零重复:欢迎向导与更新助手同源)。
