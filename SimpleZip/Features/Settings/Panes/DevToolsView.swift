@@ -420,7 +420,10 @@ struct DevToolsView: View {
                         ) {
                             copySpotlightData()
                         }
-                        // 更新助手测试(隐藏调试区):一个选单挑哪张卡(或全部)直接弹更新助手,不必真升级。
+                    }
+
+                    // 更新助手测试:独立 section(不塞进「AI 可用数据」box)—— 选单挑卡直接弹更新助手 + 重置已看标记。
+                    DialogSection("更新助手测试(调试)") {
                         updateAssistantTestRow()
                         actionRow(
                             "arrow.counterclockwise.circle",

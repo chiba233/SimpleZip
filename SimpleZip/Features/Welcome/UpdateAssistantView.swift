@@ -27,23 +27,31 @@ struct UpdateAssistantRequest: Identifiable {
     let cards: [UpdateCard]
 }
 
-/// 参与「更新助手」的功能卡片。**新增卡片 = 在这里加一个 case + 在 `WelcomeAssistantView` 加对应页 +
-/// 在 `cardView(_:)` 加渲染**,老用户即自动收到(默认未看)。
+/// 欢迎助手 / 更新助手共用的「卡片」—— 对应欢迎助手的各设置页(首页 hero+版本+备份不算卡)。
+/// 每张都有「已看」标记:老用户升级一次性把除本版新增(0.4.5 = `.ai`)外的全标已看 → 更新助手只弹新卡;
+/// DevTools 测试可单独触发任意一张。**新增卡片 = 在这里加 case + `WelcomeCardBody` 加渲染**,老用户自动收到。
 enum UpdateCard: String, CaseIterable, Identifiable {
-    case ai
+    case general          // 语言 + 常规
+    case convenience      // 预设密码 + 自动解压 + 文件关联
+    case finderServices   // Finder 右键集成
+    case safety           // 安全策略 + 访达收藏同步
+    case engine           // 压缩后端 + GPG
+    case ai               // 端上智能(0.4.5 新增)
     var id: String { rawValue }
+
+    /// 0.4.5 这一版「新增」的卡(老用户迁移时**不**标已看,留给更新助手弹)。将来加版本就把当版新卡列进来。
+    static let introducedThisVersion: [UpdateCard] = [.ai]
 }
 
 /// 更新助手的「该不该弹 / 弹哪些卡」决策 —— 纯读写 `AppPreferences` 的已看集,无版本比对。
 enum UpdateAssistant {
-    /// 老用户一次性迁移:已完成欢迎助手 → 把「本版之前就存在」的卡标记已看,只留本版新增卡(0.4.5 = AI)。
-    /// 当前仅 AI 一张卡且为本版新增,所以实际不标任何卡、只落迁移标记;为将来多卡时的正确性保留此逻辑。
+    /// 老用户一次性迁移:已完成欢迎助手 → 把「本版之前就存在」的卡(= 除 `introducedThisVersion` 外的全部)标记已看,
+    /// 只留本版新增卡未看,留给更新助手弹。
     static func migrateForExistingUserIfNeeded() {
         guard !AppPreferences.updateCardsMigrated else { return }
         if AppPreferences.welcomeAssistantCompleted {
-            let preexisting = UpdateCard.allCases
-                .map(\.rawValue)
-                .filter { $0 != UpdateCard.ai.rawValue }
+            let newThisVersion = Set(UpdateCard.introducedThisVersion.map(\.rawValue))
+            let preexisting = UpdateCard.allCases.map(\.rawValue).filter { !newThisVersion.contains($0) }
             AppPreferences.markUpdateCardsSeen(preexisting)
         }
         AppPreferences.markUpdateCardsMigrated()
@@ -166,12 +174,9 @@ struct UpdateAssistantView: View {
         }
     }
 
-    @ViewBuilder
+    /// 渲染一张卡 —— 复用欢迎助手同一份 `WelcomeCardBody`(零重复:欢迎向导与更新助手同源)。
     private func cardView(_ card: UpdateCard) -> some View {
-        switch card {
-        case .ai:
-            WelcomeAIStep()
-        }
+        WelcomeCardBody(card: card)
     }
 
     /// 搞定页:庆祝徽章 + 标题 + 一句话。

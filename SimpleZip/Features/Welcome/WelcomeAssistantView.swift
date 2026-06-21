@@ -31,25 +31,7 @@ struct WelcomeAssistantView: View {
     /// 助手结束（Finish 或 Esc）时由 host 处理：关掉 sheet / 关掉窗口。
     let onComplete: () -> Void
 
-    @AppStorage(AppPreferences.Key.appLanguage) private var appLanguage = AppLanguage.system.rawValue
-    @AppStorage(AppPreferences.Key.startupLocation) private var startupLocation = StartupLocation.home.rawValue
-    @AppStorage(AppPreferences.Key.overwriteBehavior) private var overwriteBehavior = OverwriteBehavior.ask.rawValue
-    @AppStorage(AppPreferences.Key.presetPasswordEnabled) private var presetPasswordEnabled = false
-    @AppStorage(AppPreferences.Key.finderOpenAutoExtract) private var finderOpenAutoExtract = false
-    @AppStorage(AppPreferences.Key.suspiciousPathPolicy) private var suspiciousPathPolicy = ArchiveSecurityDecision.ask.rawValue
-    @AppStorage(AppPreferences.Key.symbolicLinkPolicy) private var symbolicLinkPolicy = ArchiveSecurityDecision.ask.rawValue
-    @AppStorage(AppPreferences.Key.activeContentOpenPolicy) private var activeContentOpenPolicy = ArchiveSecurityDecision.ask.rawValue
-    // 向导只留「显示隐藏文件」总开关 —— 判定方式 / 折叠策略 / 行密度 / 分组等细粒度视图偏好
-    // 已砍出向导（0.3.3），统一在 设置 → 浏览 / 视图 里调。
-    @AppStorage(AppPreferences.Key.showHiddenFiles) private var showHiddenFiles = false
-    /// 0.4.2:安全策略页新增「删除文件前二次确认」开关(默认开,与设置页同 key)。
-    @AppStorage(AppPreferences.Key.confirmBeforeDeletingFiles) private var confirmBeforeDeletingFiles = true
-    /// 0.4.3 #7:安全策略页随设置 → 压缩 → 安全 同步新增两个写入验证开关(同 key,默认值同设置页)。
-    @AppStorage(AppPreferences.Key.verifyAfterArchiveRewrite) private var verifyAfterArchiveRewrite = true
-    @AppStorage(AppPreferences.Key.verifyAfterArchiveCreate) private var verifyAfterArchiveCreate = false
-    /// 0.4.5 AI 页:端上智能主开关 + 建议子开关(同设置页 key)。后台索引/预读默认关(隐私优先),在此卡只引导主开关。
-    @AppStorage(AppPreferences.Key.aiAssistantEnabled) private var aiAssistantEnabled = true
-    @AppStorage(AppPreferences.Key.aiSuggestionEnabled) private var aiSuggestionEnabled = true
+    // 各设置页的 @AppStorage 已下沉 `WelcomeCardBody`(欢迎向导与更新助手共用同一份卡片内容,见下方)。
 
     @State private var currentStep: Int = 0
 
@@ -181,6 +163,7 @@ struct WelcomeAssistantView: View {
 
     @ViewBuilder
     private var stepContent: some View {
+        // 各设置页(1–6)= 共用 `WelcomeCardBody`(同一份卡片内容,更新助手也用它,零重复)。首页 0 = hero+版本+备份。
         switch currentStep {
         case 0:
             // 欢迎页：hero（大渐变图标 + 标题 + 简介）+ 版本检查 + 备份导入，三合一。
@@ -189,47 +172,12 @@ struct WelcomeAssistantView: View {
                 WelcomeVersionCheckStep()
                 WelcomeBackupRestoreStep()
             }
-        case 1:
-            // 通用：语言 + 常规（启动位置 / 覆盖 / 隐藏文件 / 密度 / 分组）。
-            VStack(alignment: .leading, spacing: 16) {
-                WelcomeLanguageStep(appLanguage: $appLanguage)
-                WelcomeGeneralStep(
-                    startupLocation: $startupLocation,
-                    overwriteBehavior: $overwriteBehavior,
-                    showHidden: $showHiddenFiles
-                )
-            }
-        case 2:
-            // 便利：预设密码 + Finder 自动解压 + 文件关联。
-            VStack(alignment: .leading, spacing: 16) {
-                WelcomePresetPasswordStep(enabled: $presetPasswordEnabled)
-                WelcomeFinderAutoExtractStep(enabled: $finderOpenAutoExtract)
-                WelcomeFileAssociationsStep()
-            }
-        case 3:
-            // Finder 右键集成（0.4.3 用户点名）：macOS 默认不激活第三方服务,首启就让用户挑要哪些右键项。
-            WelcomeFinderServicesStep()
-        case 4:
-            VStack(alignment: .leading, spacing: 16) {
-                WelcomeSafetyStep(
-                    suspiciousPathPolicy: $suspiciousPathPolicy,
-                    symbolicLinkPolicy: $symbolicLinkPolicy,
-                    activeContentOpenPolicy: $activeContentOpenPolicy,
-                    confirmBeforeDelete: $confirmBeforeDeletingFiles,
-                    verifyAfterRewrite: $verifyAfterArchiveRewrite,
-                    verifyAfterCreate: $verifyAfterArchiveCreate
-                )
-                WelcomeFinderFavoritesSyncStep()
-            }
-        case 5:
-            // 引擎：压缩后端 + GPG（GPG 保持独立 section —— opt-in/opt-out 决定仍然显式）。
-            VStack(alignment: .leading, spacing: 16) {
-                WelcomeBackendStep()
-                WelcomeGPGStep()
-            }
-        case 6:
-            // 0.4.5 AI:端上智能(Apple Intelligence)—— 卡内直接配齐 AI 开关。也被更新助手复用(自包含 @AppStorage)。
-            WelcomeAIStep()
+        case 1: WelcomeCardBody(card: .general)
+        case 2: WelcomeCardBody(card: .convenience)
+        case 3: WelcomeCardBody(card: .finderServices)
+        case 4: WelcomeCardBody(card: .safety)
+        case 5: WelcomeCardBody(card: .engine)
+        case 6: WelcomeCardBody(card: .ai)
         default:
             WelcomeCompletionStep()
         }
@@ -302,6 +250,65 @@ struct WelcomeAssistantView: View {
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
             }
+        }
+    }
+}
+
+// MARK: - 共用卡片内容(欢迎向导各设置页 + 更新助手 同源)
+
+/// 一张「欢迎卡片」的内容(internal —— 更新助手在另一文件复用)。持各页绑定的 @AppStorage,按 `UpdateCard`
+/// 渲染对应页;与本文件的私有步骤视图同文件,能直接组合。欢迎向导 `stepContent` 与更新助手 `cardView` 同源,零重复。
+struct WelcomeCardBody: View {
+    let card: UpdateCard
+
+    @AppStorage(AppPreferences.Key.appLanguage) private var appLanguage = AppLanguage.system.rawValue
+    @AppStorage(AppPreferences.Key.startupLocation) private var startupLocation = StartupLocation.home.rawValue
+    @AppStorage(AppPreferences.Key.overwriteBehavior) private var overwriteBehavior = OverwriteBehavior.ask.rawValue
+    @AppStorage(AppPreferences.Key.presetPasswordEnabled) private var presetPasswordEnabled = false
+    @AppStorage(AppPreferences.Key.finderOpenAutoExtract) private var finderOpenAutoExtract = false
+    @AppStorage(AppPreferences.Key.suspiciousPathPolicy) private var suspiciousPathPolicy = ArchiveSecurityDecision.ask.rawValue
+    @AppStorage(AppPreferences.Key.symbolicLinkPolicy) private var symbolicLinkPolicy = ArchiveSecurityDecision.ask.rawValue
+    @AppStorage(AppPreferences.Key.activeContentOpenPolicy) private var activeContentOpenPolicy = ArchiveSecurityDecision.ask.rawValue
+    @AppStorage(AppPreferences.Key.showHiddenFiles) private var showHiddenFiles = false
+    @AppStorage(AppPreferences.Key.confirmBeforeDeletingFiles) private var confirmBeforeDeletingFiles = true
+    @AppStorage(AppPreferences.Key.verifyAfterArchiveRewrite) private var verifyAfterArchiveRewrite = true
+    @AppStorage(AppPreferences.Key.verifyAfterArchiveCreate) private var verifyAfterArchiveCreate = false
+
+    @ViewBuilder
+    var body: some View {
+        switch card {
+        case .general:
+            VStack(alignment: .leading, spacing: 16) {
+                WelcomeLanguageStep(appLanguage: $appLanguage)
+                WelcomeGeneralStep(startupLocation: $startupLocation,
+                                   overwriteBehavior: $overwriteBehavior,
+                                   showHidden: $showHiddenFiles)
+            }
+        case .convenience:
+            VStack(alignment: .leading, spacing: 16) {
+                WelcomePresetPasswordStep(enabled: $presetPasswordEnabled)
+                WelcomeFinderAutoExtractStep(enabled: $finderOpenAutoExtract)
+                WelcomeFileAssociationsStep()
+            }
+        case .finderServices:
+            WelcomeFinderServicesStep()
+        case .safety:
+            VStack(alignment: .leading, spacing: 16) {
+                WelcomeSafetyStep(suspiciousPathPolicy: $suspiciousPathPolicy,
+                                  symbolicLinkPolicy: $symbolicLinkPolicy,
+                                  activeContentOpenPolicy: $activeContentOpenPolicy,
+                                  confirmBeforeDelete: $confirmBeforeDeletingFiles,
+                                  verifyAfterRewrite: $verifyAfterArchiveRewrite,
+                                  verifyAfterCreate: $verifyAfterArchiveCreate)
+                WelcomeFinderFavoritesSyncStep()
+            }
+        case .engine:
+            VStack(alignment: .leading, spacing: 16) {
+                WelcomeBackendStep()
+                WelcomeGPGStep()
+            }
+        case .ai:
+            WelcomeAIStep()
         }
     }
 }
