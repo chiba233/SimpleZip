@@ -2768,3 +2768,24 @@
 "update.hero.body" = "ตั้งค่าฟีเจอร์ใหม่ในไม่กี่ขั้นตอน";
 "update.done.title" = "เรียบร้อย!";
 "update.done.body" = "ฟีเจอร์ใหม่พร้อมใช้งานแล้ว";
+
+/* 0.4.5 AppIntents(Shortcuts UI):标题 / 参数 / 类型 / 描述本地化(英文字面量即键) */
+"Compute File Hash" = "คำนวณแฮชของไฟล์";
+"Analyze Archive Space" = "วิเคราะห์พื้นที่ของไฟล์บีบอัด";
+"Rescue Damaged Archive" = "กู้ไฟล์บีบอัดที่เสียหาย";
+"Check Up Archives" = "ตรวจสุขภาพไฟล์บีบอัด";
+"Find Duplicate Archives" = "ค้นหาไฟล์บีบอัดที่ซ้ำกัน";
+"Check Reproducible Packing" = "ตรวจการแพ็กแบบทำซ้ำได้";
+"Audit Release Directory" = "ตรวจสอบไดเรกทอรีรีลีส";
+"Quick Verify Release Group" = "ตรวจชุดรีลีสอย่างเร็ว";
+"Algorithm" = "อัลกอริทึม";
+"Folder" = "โฟลเดอร์";
+"Hash Algorithm" = "อัลกอริทึมแฮช";
+"Computes a checksum (CRC32, MD5, SHA-1, SHA-256 or SHA-512) for one or more files. Returns the hex digests in the same order as the input files." = "คำนวณเช็คซัม (CRC32, MD5, SHA-1, SHA-256 หรือ SHA-512) ของไฟล์ตั้งแต่หนึ่งไฟล์ขึ้นไป และคืนค่าไดเจสต์เลขฐานสิบหกตามลำดับของไฟล์ที่ป้อน";
+"Returns a disk-usage summary for an archive: original vs packed size, compression ratio, macOS junk and the largest file." = "คืนค่าสรุปการใช้พื้นที่ของไฟล์บีบอัด: ขนาดต้นฉบับเทียบกับขนาดที่บีบอัด อัตราการบีบอัด ขยะ macOS และไฟล์ที่ใหญ่ที่สุด";
+"Best-effort recovery from a damaged archive into a new \"(rescued)\" folder next to it. Rescued files may be incomplete and the archive is not repaired. Returns the rescue folder." = "กู้ข้อมูลจากไฟล์บีบอัดที่เสียหายให้ได้มากที่สุดไปยังโฟลเดอร์ใหม่ \"(rescued)\" ข้าง ๆ ไฟล์ที่กู้ได้อาจไม่สมบูรณ์และไม่ได้ซ่อมไฟล์บีบอัด คืนค่าโฟลเดอร์ที่กู้";
+"Runs an integrity test across several archives and returns true only when every archive passes." = "ทดสอบความสมบูรณ์ของไฟล์บีบอัดหลายไฟล์ และคืนค่า true เฉพาะเมื่อผ่านทุกไฟล์";
+"Finds duplicate archives among the given archives by structural fingerprint. Returns one line per duplicate group." = "ค้นหาไฟล์บีบอัดที่ซ้ำกันจากรายการที่ให้มาโดยใช้ลายนิ้วมือเชิงโครงสร้าง คืนค่าหนึ่งบรรทัดต่อหนึ่งกลุ่มที่ซ้ำ";
+"Packs a folder twice with reproducible settings and returns true when the two archives are byte-for-byte identical. Only zip and 7z are supported." = "แพ็กโฟลเดอร์สองครั้งด้วยการตั้งค่าแบบทำซ้ำได้ และคืนค่า true เมื่อไฟล์บีบอัดทั้งสองเหมือนกันทุกไบต์ รองรับเฉพาะ zip และ 7z";
+"Audits a release folder by name + checksum file (no hashing): checks SHA256SUMS coverage. Returns true when every artifact is covered by a checksum." = "ตรวจสอบโฟลเดอร์รีลีสด้วยชื่อและไฟล์เช็คซัม (ไม่คำนวณแฮช): ตรวจความครอบคลุมของ SHA256SUMS คืนค่า true เมื่อทุกไฟล์ผลลัพธ์มีเช็คซัมครบ";
+"A fast, name-only check of a release folder's composition. Returns true when a downloader could verify it (an artifact or container plus SHA256SUMS)." = "ตรวจองค์ประกอบของโฟลเดอร์รีลีสอย่างรวดเร็วโดยดูแค่ชื่อ คืนค่า true เมื่อผู้ดาวน์โหลดสามารถตรวจสอบได้ (มีไฟล์ผลลัพธ์หรือคอนเทนเนอร์ พร้อม SHA256SUMS)";

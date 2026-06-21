@@ -2768,3 +2768,24 @@
 "update.hero.body" = "Настройте новые функции за несколько шагов.";
 "update.done.title" = "Готово!";
 "update.done.body" = "Новые функции готовы к использованию.";
+
+/* 0.4.5 AppIntents(Shortcuts UI):标题 / 参数 / 类型 / 描述本地化(英文字面量即键) */
+"Compute File Hash" = "Вычислить хеш файла";
+"Analyze Archive Space" = "Анализ места в архиве";
+"Rescue Damaged Archive" = "Восстановить повреждённый архив";
+"Check Up Archives" = "Проверка архивов";
+"Find Duplicate Archives" = "Найти дубликаты архивов";
+"Check Reproducible Packing" = "Проверить воспроизводимость упаковки";
+"Audit Release Directory" = "Проверить каталог релиза";
+"Quick Verify Release Group" = "Быстрая проверка группы релиза";
+"Algorithm" = "Алгоритм";
+"Folder" = "Папка";
+"Hash Algorithm" = "Алгоритм хеширования";
+"Computes a checksum (CRC32, MD5, SHA-1, SHA-256 or SHA-512) for one or more files. Returns the hex digests in the same order as the input files." = "Вычисляет контрольную сумму (CRC32, MD5, SHA-1, SHA-256 или SHA-512) для одного или нескольких файлов и возвращает хеши в том же порядке, что и входные файлы.";
+"Returns a disk-usage summary for an archive: original vs packed size, compression ratio, macOS junk and the largest file." = "Возвращает сводку по занимаемому месту в архиве: исходный и упакованный размер, степень сжатия, мусор macOS и самый большой файл.";
+"Best-effort recovery from a damaged archive into a new \"(rescued)\" folder next to it. Rescued files may be incomplete and the archive is not repaired. Returns the rescue folder." = "Восстанавливает по возможности данные из повреждённого архива в новую папку «(rescued)» рядом с ним. Восстановленные файлы могут быть неполными, сам архив не чинится. Возвращает папку восстановления.";
+"Runs an integrity test across several archives and returns true only when every archive passes." = "Запускает проверку целостности нескольких архивов и возвращает true, только если проходят все.";
+"Finds duplicate archives among the given archives by structural fingerprint. Returns one line per duplicate group." = "Находит дубликаты среди указанных архивов по структурному отпечатку. Возвращает по строке на каждую группу дубликатов.";
+"Packs a folder twice with reproducible settings and returns true when the two archives are byte-for-byte identical. Only zip and 7z are supported." = "Дважды упаковывает папку с воспроизводимыми настройками и возвращает true, если оба архива побайтово идентичны. Поддерживаются только zip и 7z.";
+"Audits a release folder by name + checksum file (no hashing): checks SHA256SUMS coverage. Returns true when every artifact is covered by a checksum." = "Проверяет папку релиза по именам и файлу контрольных сумм (без хеширования): анализирует покрытие SHA256SUMS. Возвращает true, если каждый артефакт покрыт контрольной суммой.";
+"A fast, name-only check of a release folder's composition. Returns true when a downloader could verify it (an artifact or container plus SHA256SUMS)." = "Быстрая проверка состава папки релиза только по именам. Возвращает true, если скачавший сможет её проверить (артефакт или контейнер плюс SHA256SUMS).";

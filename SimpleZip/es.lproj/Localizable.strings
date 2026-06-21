@@ -2768,3 +2768,24 @@
 "update.hero.body" = "Configura las novedades en unos pasos.";
 "update.done.title" = "¡Listo!";
 "update.done.body" = "Las nuevas funciones están listas.";
+
+/* 0.4.5 AppIntents(Shortcuts UI):标题 / 参数 / 类型 / 描述本地化(英文字面量即键) */
+"Compute File Hash" = "Calcular hash de archivo";
+"Analyze Archive Space" = "Analizar espacio del archivo";
+"Rescue Damaged Archive" = "Rescatar archivo dañado";
+"Check Up Archives" = "Revisar archivos";
+"Find Duplicate Archives" = "Buscar archivos duplicados";
+"Check Reproducible Packing" = "Comprobar empaquetado reproducible";
+"Audit Release Directory" = "Auditar directorio de publicación";
+"Quick Verify Release Group" = "Verificación rápida del grupo de publicación";
+"Algorithm" = "Algoritmo";
+"Folder" = "Carpeta";
+"Hash Algorithm" = "Algoritmo de hash";
+"Computes a checksum (CRC32, MD5, SHA-1, SHA-256 or SHA-512) for one or more files. Returns the hex digests in the same order as the input files." = "Calcula una suma de comprobación (CRC32, MD5, SHA-1, SHA-256 o SHA-512) de uno o varios archivos. Devuelve los hashes hexadecimales en el mismo orden que los archivos de entrada.";
+"Returns a disk-usage summary for an archive: original vs packed size, compression ratio, macOS junk and the largest file." = "Devuelve un resumen del uso de espacio de un archivo: tamaño original frente a comprimido, ratio de compresión, basura de macOS y el archivo más grande.";
+"Best-effort recovery from a damaged archive into a new \"(rescued)\" folder next to it. Rescued files may be incomplete and the archive is not repaired. Returns the rescue folder." = "Recuperación de mejor esfuerzo de un archivo dañado en una nueva carpeta «(rescued)» junto a él. Los archivos rescatados pueden estar incompletos y el archivo no se repara. Devuelve la carpeta de rescate.";
+"Runs an integrity test across several archives and returns true only when every archive passes." = "Ejecuta una prueba de integridad en varios archivos y devuelve verdadero solo cuando todos la superan.";
+"Finds duplicate archives among the given archives by structural fingerprint. Returns one line per duplicate group." = "Busca archivos duplicados entre los indicados mediante su huella estructural. Devuelve una línea por grupo de duplicados.";
+"Packs a folder twice with reproducible settings and returns true when the two archives are byte-for-byte identical. Only zip and 7z are supported." = "Empaqueta una carpeta dos veces con ajustes reproducibles y devuelve verdadero si los dos archivos son idénticos byte a byte. Solo se admiten zip y 7z.";
+"Audits a release folder by name + checksum file (no hashing): checks SHA256SUMS coverage. Returns true when every artifact is covered by a checksum." = "Audita una carpeta de publicación por nombre y archivo de sumas (sin hashing): comprueba la cobertura de SHA256SUMS. Devuelve verdadero cuando cada artefacto tiene su suma de comprobación.";
+"A fast, name-only check of a release folder's composition. Returns true when a downloader could verify it (an artifact or container plus SHA256SUMS)." = "Comprobación rápida, solo por nombre, de la composición de una carpeta de publicación. Devuelve verdadero cuando alguien que la descargue podría verificarla (un artefacto o contenedor más SHA256SUMS).";

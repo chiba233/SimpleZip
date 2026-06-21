@@ -2769,3 +2769,24 @@
 "update.hero.body" = "몇 단계로 새 기능을 설정하세요.";
 "update.done.title" = "완료!";
 "update.done.body" = "새 기능을 사용할 준비가 되었습니다.";
+
+/* 0.4.5 AppIntents(Shortcuts UI):标题 / 参数 / 类型 / 描述本地化(英文字面量即键) */
+"Compute File Hash" = "파일 해시 계산";
+"Analyze Archive Space" = "아카이브 공간 분석";
+"Rescue Damaged Archive" = "손상된 아카이브 복구";
+"Check Up Archives" = "아카이브 일괄 점검";
+"Find Duplicate Archives" = "중복 아카이브 찾기";
+"Check Reproducible Packing" = "재현 가능한 패킹 확인";
+"Audit Release Directory" = "릴리스 디렉터리 감사";
+"Quick Verify Release Group" = "릴리스 그룹 빠른 확인";
+"Algorithm" = "알고리즘";
+"Folder" = "폴더";
+"Hash Algorithm" = "해시 알고리즘";
+"Computes a checksum (CRC32, MD5, SHA-1, SHA-256 or SHA-512) for one or more files. Returns the hex digests in the same order as the input files." = "하나 이상의 파일에 대해 체크섬(CRC32, MD5, SHA-1, SHA-256 또는 SHA-512)을 계산하고 입력 순서대로 16진수 다이제스트를 반환합니다.";
+"Returns a disk-usage summary for an archive: original vs packed size, compression ratio, macOS junk and the largest file." = "아카이브의 용량 요약을 반환합니다: 원본 대 압축 크기, 압축률, macOS 불필요 파일, 가장 큰 파일.";
+"Best-effort recovery from a damaged archive into a new \"(rescued)\" folder next to it. Rescued files may be incomplete and the archive is not repaired. Returns the rescue folder." = "손상된 아카이브에서 가능한 만큼 복구하여 옆에 새 \"(rescued)\" 폴더를 만듭니다. 복구된 파일은 불완전할 수 있고 아카이브는 복구되지 않습니다. 복구 폴더를 반환합니다.";
+"Runs an integrity test across several archives and returns true only when every archive passes." = "여러 아카이브에 무결성 검사를 실행하고 모두 통과할 때만 true를 반환합니다.";
+"Finds duplicate archives among the given archives by structural fingerprint. Returns one line per duplicate group." = "지정한 아카이브들 중에서 구조 지문으로 중복을 찾습니다. 중복 그룹마다 한 줄을 반환합니다.";
+"Packs a folder twice with reproducible settings and returns true when the two archives are byte-for-byte identical. Only zip and 7z are supported." = "폴더를 재현 가능한 설정으로 두 번 패킹하여 두 아카이브가 바이트 단위로 동일하면 true를 반환합니다. zip과 7z만 지원합니다.";
+"Audits a release folder by name + checksum file (no hashing): checks SHA256SUMS coverage. Returns true when every artifact is covered by a checksum." = "릴리스 폴더를 이름과 체크섬 파일로 감사합니다(해시 계산 없음): SHA256SUMS 커버리지를 확인합니다. 모든 산출물이 체크섬으로 덮이면 true를 반환합니다.";
+"A fast, name-only check of a release folder's composition. Returns true when a downloader could verify it (an artifact or container plus SHA256SUMS)." = "릴리스 폴더 구성을 이름만으로 빠르게 확인합니다. 내려받은 사람이 검증할 수 있으면(산출물 또는 컨테이너 + SHA256SUMS) true를 반환합니다.";

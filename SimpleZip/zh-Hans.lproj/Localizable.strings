@@ -2847,3 +2847,24 @@
 "update.hero.body" = "几步设定新功能。";
 "update.done.title" = "搞定!";
 "update.done.body" = "新功能已就绪。";
+
+/* 0.4.5 AppIntents(Shortcuts UI):标题 / 参数 / 类型 / 描述本地化(英文字面量即键) */
+"Compute File Hash" = "计算文件哈希";
+"Analyze Archive Space" = "分析归档空间占用";
+"Rescue Damaged Archive" = "救援损坏的归档";
+"Check Up Archives" = "批量体检归档";
+"Find Duplicate Archives" = "查找重复归档";
+"Check Reproducible Packing" = "检查可复现打包";
+"Audit Release Directory" = "检查发布包目录";
+"Quick Verify Release Group" = "快速核对发布组";
+"Algorithm" = "算法";
+"Folder" = "文件夹";
+"Hash Algorithm" = "哈希算法";
+"Computes a checksum (CRC32, MD5, SHA-1, SHA-256 or SHA-512) for one or more files. Returns the hex digests in the same order as the input files." = "为一个或多个文件计算校验和(CRC32、MD5、SHA-1、SHA-256 或 SHA-512),按输入文件的顺序返回十六进制摘要。";
+"Returns a disk-usage summary for an archive: original vs packed size, compression ratio, macOS junk and the largest file." = "返回归档的体积占用摘要:原始大小与压缩后大小、压缩率、macOS 垃圾,以及最大的文件。";
+"Best-effort recovery from a damaged archive into a new \"(rescued)\" folder next to it. Rescued files may be incomplete and the archive is not repaired. Returns the rescue folder." = "尽力从损坏的归档中救出数据到旁边新建的「(rescued)」文件夹。救出的文件可能不完整,且不会修复归档本身。返回该救援文件夹。";
+"Runs an integrity test across several archives and returns true only when every archive passes." = "对多个归档逐个做完整性测试,只有全部通过才返回真。";
+"Finds duplicate archives among the given archives by structural fingerprint. Returns one line per duplicate group." = "在给定的归档中按结构指纹查找重复归档,每个重复组返回一行。";
+"Packs a folder twice with reproducible settings and returns true when the two archives are byte-for-byte identical. Only zip and 7z are supported." = "用可复现设置把文件夹打包两次,两个归档逐字节一致时返回真。仅支持 zip 和 7z。";
+"Audits a release folder by name + checksum file (no hashing): checks SHA256SUMS coverage. Returns true when every artifact is covered by a checksum." = "按文件名 + 校验文件审计发布目录(不算哈希):检查 SHA256SUMS 覆盖。每个产物都有校验时返回真。";
+"A fast, name-only check of a release folder's composition. Returns true when a downloader could verify it (an artifact or container plus SHA256SUMS)." = "只按文件名快速核对发布目录的组成。当下载者能据此校验(有产物或容器 + SHA256SUMS)时返回真。";

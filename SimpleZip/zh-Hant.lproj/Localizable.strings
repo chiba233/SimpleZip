@@ -2770,3 +2770,24 @@
 "update.hero.body" = "幾步設定新功能。";
 "update.done.title" = "搞定!";
 "update.done.body" = "新功能已就緒。";
+
+/* 0.4.5 AppIntents(Shortcuts UI):标题 / 参数 / 类型 / 描述本地化(英文字面量即键) */
+"Compute File Hash" = "計算檔案雜湊";
+"Analyze Archive Space" = "分析歸檔空間佔用";
+"Rescue Damaged Archive" = "救援損壞的歸檔";
+"Check Up Archives" = "批次體檢歸檔";
+"Find Duplicate Archives" = "尋找重複歸檔";
+"Check Reproducible Packing" = "檢查可重現打包";
+"Audit Release Directory" = "檢查發佈套件目錄";
+"Quick Verify Release Group" = "快速核對發佈組";
+"Algorithm" = "演算法";
+"Folder" = "資料夾";
+"Hash Algorithm" = "雜湊演算法";
+"Computes a checksum (CRC32, MD5, SHA-1, SHA-256 or SHA-512) for one or more files. Returns the hex digests in the same order as the input files." = "為一個或多個檔案計算校驗和(CRC32、MD5、SHA-1、SHA-256 或 SHA-512),依輸入檔案的順序回傳十六進位摘要。";
+"Returns a disk-usage summary for an archive: original vs packed size, compression ratio, macOS junk and the largest file." = "回傳歸檔的空間佔用摘要:原始大小與壓縮後大小、壓縮率、macOS 垃圾,以及最大的檔案。";
+"Best-effort recovery from a damaged archive into a new \"(rescued)\" folder next to it. Rescued files may be incomplete and the archive is not repaired. Returns the rescue folder." = "盡力從損壞的歸檔中救出資料到旁邊新建的「(rescued)」資料夾。救出的檔案可能不完整,且不會修復歸檔本身。回傳該救援資料夾。";
+"Runs an integrity test across several archives and returns true only when every archive passes." = "對多個歸檔逐一做完整性測試,只有全部通過才回傳真。";
+"Finds duplicate archives among the given archives by structural fingerprint. Returns one line per duplicate group." = "在給定的歸檔中按結構指紋尋找重複歸檔,每個重複組回傳一行。";
+"Packs a folder twice with reproducible settings and returns true when the two archives are byte-for-byte identical. Only zip and 7z are supported." = "用可重現設定把資料夾打包兩次,兩個歸檔逐位元組一致時回傳真。僅支援 zip 與 7z。";
+"Audits a release folder by name + checksum file (no hashing): checks SHA256SUMS coverage. Returns true when every artifact is covered by a checksum." = "按檔名 + 校驗檔審計發佈目錄(不算雜湊):檢查 SHA256SUMS 覆蓋。每個產物都有校驗時回傳真。";
+"A fast, name-only check of a release folder's composition. Returns true when a downloader could verify it (an artifact or container plus SHA256SUMS)." = "只按檔名快速核對發佈目錄的組成。當下載者能據此校驗(有產物或容器 + SHA256SUMS)時回傳真。";

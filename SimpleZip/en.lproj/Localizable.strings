@@ -2847,3 +2847,24 @@
 "update.hero.body" = "Set up what's new in a few steps.";
 "update.done.title" = "All set!";
 "update.done.body" = "The new features are ready to use.";
+
+/* 0.4.5 AppIntents(Shortcuts UI):标题 / 参数 / 类型 / 描述本地化(英文字面量即键) */
+"Compute File Hash" = "Compute File Hash";
+"Analyze Archive Space" = "Analyze Archive Space";
+"Rescue Damaged Archive" = "Rescue Damaged Archive";
+"Check Up Archives" = "Check Up Archives";
+"Find Duplicate Archives" = "Find Duplicate Archives";
+"Check Reproducible Packing" = "Check Reproducible Packing";
+"Audit Release Directory" = "Audit Release Directory";
+"Quick Verify Release Group" = "Quick Verify Release Group";
+"Algorithm" = "Algorithm";
+"Folder" = "Folder";
+"Hash Algorithm" = "Hash Algorithm";
+"Computes a checksum (CRC32, MD5, SHA-1, SHA-256 or SHA-512) for one or more files. Returns the hex digests in the same order as the input files." = "Computes a checksum (CRC32, MD5, SHA-1, SHA-256 or SHA-512) for one or more files. Returns the hex digests in the same order as the input files.";
+"Returns a disk-usage summary for an archive: original vs packed size, compression ratio, macOS junk and the largest file." = "Returns a disk-usage summary for an archive: original vs packed size, compression ratio, macOS junk and the largest file.";
+"Best-effort recovery from a damaged archive into a new \"(rescued)\" folder next to it. Rescued files may be incomplete and the archive is not repaired. Returns the rescue folder." = "Best-effort recovery from a damaged archive into a new \"(rescued)\" folder next to it. Rescued files may be incomplete and the archive is not repaired. Returns the rescue folder.";
+"Runs an integrity test across several archives and returns true only when every archive passes." = "Runs an integrity test across several archives and returns true only when every archive passes.";
+"Finds duplicate archives among the given archives by structural fingerprint. Returns one line per duplicate group." = "Finds duplicate archives among the given archives by structural fingerprint. Returns one line per duplicate group.";
+"Packs a folder twice with reproducible settings and returns true when the two archives are byte-for-byte identical. Only zip and 7z are supported." = "Packs a folder twice with reproducible settings and returns true when the two archives are byte-for-byte identical. Only zip and 7z are supported.";
+"Audits a release folder by name + checksum file (no hashing): checks SHA256SUMS coverage. Returns true when every artifact is covered by a checksum." = "Audits a release folder by name + checksum file (no hashing): checks SHA256SUMS coverage. Returns true when every artifact is covered by a checksum.";
+"A fast, name-only check of a release folder's composition. Returns true when a downloader could verify it (an artifact or container plus SHA256SUMS)." = "A fast, name-only check of a release folder's composition. Returns true when a downloader could verify it (an artifact or container plus SHA256SUMS).";

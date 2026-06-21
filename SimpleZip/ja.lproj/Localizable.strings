@@ -2770,3 +2770,24 @@
 "update.hero.body" = "数ステップで新機能を設定しましょう。";
 "update.done.title" = "完了!";
 "update.done.body" = "新機能を使う準備ができました。";
+
+/* 0.4.5 AppIntents(Shortcuts UI):标题 / 参数 / 类型 / 描述本地化(英文字面量即键) */
+"Compute File Hash" = "ファイルのハッシュを計算";
+"Analyze Archive Space" = "アーカイブの容量を分析";
+"Rescue Damaged Archive" = "破損アーカイブを救出";
+"Check Up Archives" = "アーカイブを一括点検";
+"Find Duplicate Archives" = "重複アーカイブを検索";
+"Check Reproducible Packing" = "再現性のあるパッケージを確認";
+"Audit Release Directory" = "リリースディレクトリを監査";
+"Quick Verify Release Group" = "リリース一式をすばやく確認";
+"Algorithm" = "アルゴリズム";
+"Folder" = "フォルダ";
+"Hash Algorithm" = "ハッシュアルゴリズム";
+"Computes a checksum (CRC32, MD5, SHA-1, SHA-256 or SHA-512) for one or more files. Returns the hex digests in the same order as the input files." = "1つ以上のファイルのチェックサム(CRC32 / MD5 / SHA-1 / SHA-256 / SHA-512)を計算し、入力と同じ順序で16進ダイジェストを返します。";
+"Returns a disk-usage summary for an archive: original vs packed size, compression ratio, macOS junk and the largest file." = "アーカイブの容量サマリーを返します:元のサイズと圧縮後サイズ、圧縮率、macOSのゴミ、最大ファイル。";
+"Best-effort recovery from a damaged archive into a new \"(rescued)\" folder next to it. Rescued files may be incomplete and the archive is not repaired. Returns the rescue folder." = "破損したアーカイブから可能な限り救出し、隣に新しい「(rescued)」フォルダを作成します。救出ファイルは不完全な場合があり、アーカイブ自体は修復されません。救出フォルダを返します。";
+"Runs an integrity test across several archives and returns true only when every archive passes." = "複数のアーカイブに整合性テストを実行し、すべて合格した場合のみ true を返します。";
+"Finds duplicate archives among the given archives by structural fingerprint. Returns one line per duplicate group." = "指定したアーカイブの中から構造フィンガープリントで重複を見つけます。重複グループごとに1行を返します。";
+"Packs a folder twice with reproducible settings and returns true when the two archives are byte-for-byte identical. Only zip and 7z are supported." = "フォルダを再現可能な設定で2回パッケージし、2つのアーカイブがバイト単位で同一なら true を返します。対応は zip と 7z のみです。";
+"Audits a release folder by name + checksum file (no hashing): checks SHA256SUMS coverage. Returns true when every artifact is covered by a checksum." = "リリースフォルダを名前とチェックサムファイルで監査します(ハッシュ計算なし):SHA256SUMS の網羅状況を確認します。すべての成果物がチェックサムでカバーされていれば true を返します。";
+"A fast, name-only check of a release folder's composition. Returns true when a downloader could verify it (an artifact or container plus SHA256SUMS)." = "リリースフォルダの構成を名前だけで素早く確認します。ダウンロードした人が検証できる状態(成果物またはコンテナ+SHA256SUMS)なら true を返します。";
