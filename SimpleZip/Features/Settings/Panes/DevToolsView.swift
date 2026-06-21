@@ -39,6 +39,8 @@ struct DevToolsView: View {
     /// #8 跨表面反馈 / 兴趣信号事件计数(「我不喜欢」/ 点击学兴趣),让软降权学习数据可查。
     @State private var aiFeedbackStatus = "…"
     @State private var aiActivityTasksStatus = "…"
+    /// 工具栏习惯统计(建议七):按选择上下文桶记的工具栏 + 右键菜单动作点击次数(验「右键学习有没有进数据」)。
+    @State private var toolbarUsageStatus = "…"
     /// 后台是否在跑 + 各档闸实时状态(回答「为啥都是 0」—— 哪一档被卡)。
     @State private var aiGateStatus = "…"
     /// 每个 pass 上次跑的候选数 / 跳过原因(区分「无候选」和「门控没过 / 没跑过」)。
@@ -204,12 +206,20 @@ struct DevToolsView: View {
                         diagRow("text.bubble", "AI 建议产物", aiSuggestionStatus)
                         infoRow("hand.thumbsdown", "AI 反馈学习", aiFeedbackStatus)
                         infoRow("clock.badge.checkmark", L10n.text("devtools.aiData.activityTasks"), aiActivityTasksStatus)
+                        diagRow("slider.horizontal.3", "工具栏习惯(建议七)", toolbarUsageStatus)
                         actionRow(
                             "doc.on.clipboard",
                             L10n.text("devtools.action.copyAIIndexData"),
                             L10n.text("devtools.action.copyAIIndexData.detail")
                         ) {
                             copyAIIndexData()
+                        }
+                        actionRow(
+                            "doc.on.clipboard",
+                            "复制工具栏习惯统计",
+                            "导出全部「选择上下文桶 → 动作 → 点击次数」(工具栏 + 右键菜单都记)。验证右键选项的点击有没有进习惯数据 —— 单选按后缀分桶(mode|1|ext)、复选统一桶(mode|multi)。"
+                        ) {
+                            copyToolbarUsageData()
                         }
                         actionRow(
                             "trash",
@@ -710,7 +720,44 @@ struct DevToolsView: View {
                 "\(snapshot.activityTasks.history)",
                 "\(snapshot.activityTasks.failed)"
             )
+            // 建议七:工具栏习惯统计(工具栏 + 右键菜单点击,按选择上下文桶聚合;验右键学习有没有进数据)。
+            toolbarUsageStatus = Self.formatToolbarUsage(ToolbarActionUsageStore.shared.debugAllCounts())
         }
+    }
+
+    /// 工具栏习惯统计摘要:总览 + 点击最多的前几个桶(每桶列动作×次数)。
+    private static func formatToolbarUsage(_ counts: [String: [String: Int]]) -> String {
+        guard !counts.isEmpty else { return "暂无(还没点过工具栏 / 右键的上下文动作)" }
+        let total = counts.values.reduce(0) { $0 + $1.values.reduce(0, +) }
+        let lines = counts
+            .sorted { $0.value.values.reduce(0, +) > $1.value.values.reduce(0, +) }
+            .prefix(8)
+            .map { bucket, actions -> String in
+                let top = actions.sorted { $0.value > $1.value }
+                    .map { "\($0.key)×\($0.value)" }
+                    .joined(separator: " ")
+                return "\(bucket): \(top)"
+            }
+        return (["\(counts.count) 桶 · \(total) 次点击"] + lines).joined(separator: "\n")
+    }
+
+    private func copyToolbarUsageData() {
+        let counts = ToolbarActionUsageStore.shared.debugAllCounts()
+        var report = "# 工具栏习惯统计(建议七)\n\n"
+        if counts.isEmpty {
+            report += "(空 —— 还没记录任何工具栏 / 右键上下文动作)\n"
+        } else {
+            for (bucket, actions) in counts.sorted(by: { $0.key < $1.key }) {
+                report += "## \(bucket)\n"
+                for (action, n) in actions.sorted(by: { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }) {
+                    report += "- \(action): \(n)\n"
+                }
+                report += "\n"
+            }
+        }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(report, forType: .string)
+        flash("已复制工具栏习惯统计")
     }
 
     private func makeAIDataSnapshot() async -> DevToolsAIDataSnapshot {

@@ -59,6 +59,9 @@ nonisolated final class ToolbarActionUsageStore {
         defaults.removeObject(forKey: storageKey)
     }
 
+    /// 只读调试导出:全部 `桶 → 动作 → 次数`(DevTools 查「右键习惯有没有进数据」用)。
+    func debugAllCounts() -> Counts { load() }
+
     // MARK: - 上下文桶
 
     /// 稳定的选择上下文 key:模式 + 选择数量档 + 主导类型(全本地、无路径)。同种选择形态聚到同一桶。
