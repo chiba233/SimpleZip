@@ -1781,6 +1781,7 @@
 "webExtract.unsupported.format" = "这不是可流式解压的归档格式(zip 或 tar 家族)。";
 "webExtract.unsupported.httpStatus" = "服务器返回状态 %@。";
 "webExtract.unsupported.notArchive" = "该地址返回的是网页,不是归档。";
+"webExtract.unsupported.serverNoStreaming" = "服务器不支持流式传输(不支持范围请求)。";
 "webExtract.error.httpStatus" = "下载失败:服务器返回状态 %@。";
 "webExtract.error.streamingFailed" = "该归档无法流式解压。";
 "webExtract.error.streamingFailedDetail" = "该归档无法流式解压:%@";

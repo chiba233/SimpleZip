@@ -2094,6 +2094,7 @@
 "webExtract.unsupported.format" = "這不是可串流解壓的壓縮格式(zip 或 tar 家族)。";
 "webExtract.unsupported.httpStatus" = "伺服器回傳狀態 %@。";
 "webExtract.unsupported.notArchive" = "該位址回傳的是網頁,不是壓縮包。";
+"webExtract.unsupported.serverNoStreaming" = "伺服器不支援串流傳輸(不支援範圍請求)。";
 "webExtract.error.httpStatus" = "下載失敗:伺服器回傳狀態 %@。";
 "webExtract.error.streamingFailed" = "此壓縮包無法串流解壓。";
 "webExtract.error.streamingFailedDetail" = "此壓縮包無法串流解壓:%@";

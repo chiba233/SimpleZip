@@ -2092,6 +2092,7 @@
 "webExtract.unsupported.format" = "นี่ไม่ใช่รูปแบบไฟล์เก็บถาวรที่แตกแบบสตรีมได้ (zip หรือตระกูล tar)";
 "webExtract.unsupported.httpStatus" = "เซิร์ฟเวอร์ส่งสถานะ %@ กลับมา";
 "webExtract.unsupported.notArchive" = "ที่อยู่นี้ส่งกลับเป็นหน้าเว็บ ไม่ใช่ไฟล์เก็บถาวร";
+"webExtract.unsupported.serverNoStreaming" = "เซิร์ฟเวอร์ไม่รองรับการสตรีม (ไม่รองรับการขอแบบช่วง)";
 "webExtract.error.httpStatus" = "ดาวน์โหลดล้มเหลว: เซิร์ฟเวอร์ส่งสถานะ %@ กลับมา";
 "webExtract.error.streamingFailed" = "แตกไฟล์เก็บถาวรนี้แบบสตรีมไม่ได้";
 "webExtract.error.streamingFailedDetail" = "แตกไฟล์เก็บถาวรนี้แบบสตรีมไม่ได้: %@";

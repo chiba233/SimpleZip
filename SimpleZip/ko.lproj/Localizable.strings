@@ -2093,6 +2093,7 @@
 "webExtract.unsupported.format" = "스트리밍 추출 가능한 압축 형식(zip 또는 tar 계열)이 아닙니다.";
 "webExtract.unsupported.httpStatus" = "서버가 상태 %@을(를) 반환했습니다.";
 "webExtract.unsupported.notArchive" = "이 주소는 압축 파일이 아니라 웹 페이지를 반환합니다.";
+"webExtract.unsupported.serverNoStreaming" = "서버가 스트리밍(범위 요청)을 지원하지 않습니다.";
 "webExtract.error.httpStatus" = "다운로드 실패: 서버가 상태 %@을(를) 반환했습니다.";
 "webExtract.error.streamingFailed" = "이 압축 파일은 스트리밍 추출할 수 없습니다.";
 "webExtract.error.streamingFailedDetail" = "이 압축 파일은 스트리밍 추출할 수 없습니다: %@";

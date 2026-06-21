@@ -2093,6 +2093,7 @@
 "webExtract.unsupported.format" = "Das ist kein streambares Archivformat (zip oder tar-Familie).";
 "webExtract.unsupported.httpStatus" = "Server lieferte Status %@.";
 "webExtract.unsupported.notArchive" = "Diese Adresse liefert eine Webseite, kein Archiv.";
+"webExtract.unsupported.serverNoStreaming" = "Der Server unterstützt kein Streaming (keine Bereichsanfragen).";
 "webExtract.error.httpStatus" = "Download fehlgeschlagen: Server lieferte Status %@.";
 "webExtract.error.streamingFailed" = "Dieses Archiv konnte nicht per Streaming entpackt werden.";
 "webExtract.error.streamingFailedDetail" = "Dieses Archiv konnte nicht per Streaming entpackt werden: %@";

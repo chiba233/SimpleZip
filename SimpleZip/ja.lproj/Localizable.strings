@@ -2094,6 +2094,7 @@
 "webExtract.unsupported.format" = "ストリーミング展開できるアーカイブ形式(zip または tar 系)ではありません。";
 "webExtract.unsupported.httpStatus" = "サーバーがステータス %@ を返しました。";
 "webExtract.unsupported.notArchive" = "このアドレスはアーカイブではなく Web ページを返します。";
+"webExtract.unsupported.serverNoStreaming" = "サーバーがストリーミング(範囲リクエスト)に対応していません。";
 "webExtract.error.httpStatus" = "ダウンロード失敗:サーバーがステータス %@ を返しました。";
 "webExtract.error.streamingFailed" = "このアーカイブはストリーミング展開できませんでした。";
 "webExtract.error.streamingFailedDetail" = "このアーカイブはストリーミング展開できませんでした:%@";

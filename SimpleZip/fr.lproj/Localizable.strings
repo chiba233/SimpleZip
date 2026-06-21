@@ -2092,6 +2092,7 @@
 "webExtract.unsupported.format" = "Ce n’est pas un format d’archive extractible en flux (zip ou famille tar).";
 "webExtract.unsupported.httpStatus" = "Le serveur a renvoyé le statut %@.";
 "webExtract.unsupported.notArchive" = "Cette adresse renvoie une page web, pas une archive.";
+"webExtract.unsupported.serverNoStreaming" = "Le serveur ne prend pas en charge le streaming (pas de requêtes par plage).";
 "webExtract.error.httpStatus" = "Échec du téléchargement : le serveur a renvoyé le statut %@.";
 "webExtract.error.streamingFailed" = "Cette archive n’a pas pu être extraite en flux.";
 "webExtract.error.streamingFailedDetail" = "Cette archive n’a pas pu être extraite en flux : %@";

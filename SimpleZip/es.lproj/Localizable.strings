@@ -2092,6 +2092,7 @@
 "webExtract.unsupported.format" = "No es un formato de archivo extraíble en streaming (zip o familia tar).";
 "webExtract.unsupported.httpStatus" = "El servidor devolvió el estado %@.";
 "webExtract.unsupported.notArchive" = "Esta dirección devuelve una página web, no un archivo.";
+"webExtract.unsupported.serverNoStreaming" = "El servidor no admite streaming (sin solicitudes de rango).";
 "webExtract.error.httpStatus" = "Error de descarga: el servidor devolvió el estado %@.";
 "webExtract.error.streamingFailed" = "No se pudo extraer este archivo en streaming.";
 "webExtract.error.streamingFailedDetail" = "No se pudo extraer este archivo en streaming: %@";

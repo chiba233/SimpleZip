@@ -37,7 +37,8 @@ enum WebArchiveStreamExtract {
     /// 对 URL 发一个**只取响应头**的请求(收到 header 即取消,不下 body;跟随重定向 —— GitHub 的
     /// `…/archive/…zip` 会 302 到 codeload),判断:
     /// - 格式门:文件名(优先 `Content-Disposition`,否则 URL 路径)以流式后缀结尾;
-    /// - 服务器门:`2xx` 且 `Content-Type` 不是网页/文本(text/* 或 html)。
+    /// - 服务器门:`2xx` + `Content-Type` 不是网页/文本(text/* 或 html)+ **`Accept-Ranges: bytes`**
+    ///   (服务器是否真支持范围 / 流式传输 —— 这是 HTTP 里「服务器支持流式」的标准信号)。
     /// 任一不过 → `isStreamable = false` + 原因,UI 据此门控、如实提示「不支持」而非假装。
     static func probe(_ url: URL) async -> WebArchiveProbeResult {
         guard let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" else {
@@ -67,6 +68,11 @@ enum WebArchiveStreamExtract {
             return WebArchiveProbeResult(filename: filename, byteCount: byteCount, isStreamable: false,
                                          unsupportedReason: L10n.text("webExtract.unsupported.notArchive"))
         }
+        // 服务器流式门:`Accept-Ranges: bytes` = 服务器支持范围 / 流式传输。不带(或 none)→ 不支持流式,门控。
+        guard header.acceptRanges.lowercased().contains("bytes") else {
+            return WebArchiveProbeResult(filename: filename, byteCount: byteCount, isStreamable: false,
+                                         unsupportedReason: L10n.text("webExtract.unsupported.serverNoStreaming"))
+        }
         return WebArchiveProbeResult(filename: filename, byteCount: byteCount, isStreamable: true, unsupportedReason: nil)
     }
 
@@ -75,6 +81,8 @@ enum WebArchiveStreamExtract {
         let contentType: String
         let suggestedFilename: String?
         let expectedContentLength: Int64
+        /// `Accept-Ranges` 头(支持范围请求 = 服务器支持流式 / 可 seek 传输)。
+        let acceptRanges: String
     }
 
     /// 用 GET 但**收到响应头即取消**(`completionHandler(.cancel)`),拿 header 不下 body —— 比 HEAD 稳
@@ -115,7 +123,8 @@ enum WebArchiveStreamExtract {
                 statusCode: http?.statusCode ?? 0,
                 contentType: http?.value(forHTTPHeaderField: "Content-Type") ?? "",
                 suggestedFilename: response.suggestedFilename,
-                expectedContentLength: response.expectedContentLength
+                expectedContentLength: response.expectedContentLength,
+                acceptRanges: http?.value(forHTTPHeaderField: "Accept-Ranges") ?? ""
             ))
             completionHandler(.cancel)   // 只要 header,不下 body
         }

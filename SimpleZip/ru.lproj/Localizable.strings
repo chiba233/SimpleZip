@@ -2092,6 +2092,7 @@
 "webExtract.unsupported.format" = "Это не потоково-распаковываемый формат архива (zip или семейство tar).";
 "webExtract.unsupported.httpStatus" = "Сервер вернул статус %@.";
 "webExtract.unsupported.notArchive" = "Этот адрес возвращает веб-страницу, а не архив.";
+"webExtract.unsupported.serverNoStreaming" = "Сервер не поддерживает потоковую передачу (нет запросов диапазона).";
 "webExtract.error.httpStatus" = "Ошибка скачивания: сервер вернул статус %@.";
 "webExtract.error.streamingFailed" = "Этот архив не удалось распаковать потоком.";
 "webExtract.error.streamingFailedDetail" = "Этот архив не удалось распаковать потоком: %@";

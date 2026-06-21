@@ -1783,6 +1783,7 @@
 "webExtract.unsupported.format" = "This isn't a streamable archive format (zip or tar family).";
 "webExtract.unsupported.httpStatus" = "Server returned status %@.";
 "webExtract.unsupported.notArchive" = "This address returns a web page, not an archive.";
+"webExtract.unsupported.serverNoStreaming" = "The server doesn't support streaming (no range requests).";
 "webExtract.error.httpStatus" = "Download failed: server returned status %@.";
 "webExtract.error.streamingFailed" = "This archive couldn't be stream-extracted.";
 "webExtract.error.streamingFailedDetail" = "This archive couldn't be stream-extracted: %@";
