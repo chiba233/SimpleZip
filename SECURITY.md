@@ -295,11 +295,18 @@ SimpleZip therefore routes **all** decrypt/extract scratch through a per-session
   force-detaches any stale mounts. *Caveat:* between a crash and the next launch
   (or a reboot), a volume that was still attached at crash time stays mounted and
   thus readable at its mount point; only the dormant image file is protected.
-- **Fail-closed for encrypted sources:** decrypting a `.gpg`/`.siz` **requires**
-  the encrypted volume. If it cannot be mounted, the open **errors** rather than
-  falling back to writing plaintext to an unencrypted partition. (Ordinary,
-  non-encrypted archive scratch falls back gracefully to the system temp dir if
-  the volume is briefly unavailable, so the app never bricks.)
+- **Fail-closed for encrypted sources; graceful fallback for extraction staging
+  (product decision):** decrypting a `.gpg`/`.siz` **requires** the encrypted
+  volume — if it cannot be mounted, the open **errors** rather than falling back to
+  writing plaintext to an unencrypted partition. Extracting an archive to a folder
+  you chose, by contrast, may fall back to the system temp dir for its intermediate
+  staging if the volume is briefly unavailable. This is a deliberate product
+  decision: the app never bricks, and the fallback is acceptable because the
+  extraction's *final* destination is itself an ordinary (unencrypted) folder you
+  picked — the short-lived staging copy is no more exposed than the result you
+  asked for. (Truly transient sensitive data — decryption output, and the
+  temporary copy made when you open a file *in place* from inside an archive — is
+  the part that stays on the encrypted volume.)
 - **Mount verification + self-heal:** before any scratch write, the cached mount
   point is verified to still be a real mounted volume (the mount root's `st_dev`
   differs from its parent's). If the volume was unmounted mid-session (manual
