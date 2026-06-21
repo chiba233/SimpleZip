@@ -2181,6 +2181,7 @@
 "intent.error.noFileURL" = "%@ hat keine Datei auf der Festplatte - übergeben Sie echte Dateien, keine Daten im Speicher.";
 "intent.error.missingFile" = "Datei nicht gefunden: %@";
 "intent.error.noInput" = "Es wurden keine Dateien übergeben.";
+"intent.error.destinationNotFolder" = "Das Entpackungsziel muss ein Ordner sein.";
 "intent.error.mixedFolders" = "Alle Eingaben müssen im selben Ordner liegen.";
 "intent.error.itemFailed" = "%1$@: %2$@";
 "intent.task.extract" = "Kurzbefehl: %@ entpacken";
@@ -2600,6 +2601,7 @@
 "releaseGate.rule.missingSignature" = "Nicht als .szs signiert";
 "releaseGate.rule.bundleIssues" = "Signaturprobleme im App-Bundle";
 "releaseGate.blocked" = "Vom Qualitäts-Gate blockiert: %@";
+"release.error.hashFailed" = "Das Archiv konnte nicht gehasht werden, daher wurden keine Prüfsummen geschrieben. Die Veröffentlichung wurde nicht abgeschlossen.";
 "button.resumeFromFailure" = "Ab fehlgeschlagenem Schritt fortsetzen (behält das vorhandene Archiv)";
 "inspect.section.steps" = "Schritte";
 "releaseAssistant.workspace.rename" = "Vorlage umbenennen";

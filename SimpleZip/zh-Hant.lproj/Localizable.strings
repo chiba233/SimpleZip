@@ -2182,6 +2182,7 @@
 "intent.error.noFileURL" = "%@ 沒有磁碟檔案，請傳入真實檔案，而不是記憶體資料。";
 "intent.error.missingFile" = "檔案不存在：%@";
 "intent.error.noInput" = "沒有提供任何檔案。";
+"intent.error.destinationNotFolder" = "解壓縮目標必須是一個資料夾。";
 "intent.error.mixedFolders" = "所有輸入必須位於同一資料夾。";
 "intent.error.itemFailed" = "%1$@：%2$@";
 "intent.task.extract" = "快捷指令：解壓 %@";
@@ -2601,6 +2602,7 @@
 "releaseGate.rule.missingSignature" = "未簽名為 .szs";
 "releaseGate.rule.bundleIssues" = "App bundle 簽名問題";
 "releaseGate.blocked" = "被品質門阻斷：%@";
+"release.error.hashFailed" = "無法對壓縮檔計算雜湊,校驗檔案未寫入。發佈未完成。";
 "button.resumeFromFailure" = "從失敗步驟繼續（保留既有封存檔）";
 "inspect.section.steps" = "步驟";
 "releaseAssistant.workspace.rename" = "重新命名預設";

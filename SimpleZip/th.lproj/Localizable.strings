@@ -2180,6 +2180,7 @@
 "intent.error.noFileURL" = "%@ ไม่มีไฟล์บนดิสก์ โปรดส่งไฟล์จริง ไม่ใช่ข้อมูลในหน่วยความจำ";
 "intent.error.missingFile" = "ไม่มีไฟล์นี้: %@";
 "intent.error.noInput" = "ไม่ได้ระบุไฟล์";
+"intent.error.destinationNotFolder" = "ปลายทางการแตกไฟล์ต้องเป็นโฟลเดอร์";
 "intent.error.mixedFolders" = "อินพุตทั้งหมดต้องอยู่ในโฟลเดอร์เดียวกัน";
 "intent.error.itemFailed" = "%1$@: %2$@";
 "intent.task.extract" = "คำสั่งลัด: แตกไฟล์ %@";
@@ -2599,6 +2600,7 @@
 "releaseGate.rule.missingSignature" = "ไม่ได้ลงนามเป็น .szs";
 "releaseGate.rule.bundleIssues" = "ปัญหาการลงนามของ app bundle";
 "releaseGate.blocked" = "ถูกประตูคุณภาพบล็อก: %@";
+"release.error.hashFailed" = "ไม่สามารถคำนวณแฮชของไฟล์บีบอัดได้ จึงไม่ได้เขียนเช็กซัม การเผยแพร่ไม่เสร็จสมบูรณ์";
 "button.resumeFromFailure" = "ดำเนินต่อจากขั้นตอนที่ล้มเหลว (เก็บไฟล์เก็บถาวรเดิมไว้)";
 "inspect.section.steps" = "ขั้นตอน";
 "releaseAssistant.workspace.rename" = "เปลี่ยนชื่อพรีเซ็ต";

@@ -57,6 +57,13 @@ struct ExtractArchiveIntent: AppIntent {
             throw SimpleZipIntentError(message: L10n.text("intent.error.noInput"))
         }
         let destinationDir = try destination.map { try intentFileURL($0) }
+        // 目标若已存在却是个普通文件,后面会把它当目录拼路径、在建目录/合并阶段莫名失败 → 提前明确报「目标必须是文件夹」。
+        if let destinationDir {
+            var isDir: ObjCBool = false
+            if FileManager.default.fileExists(atPath: destinationDir.path, isDirectory: &isDir), !isDir.boolValue {
+                throw SimpleZipIntentError(message: L10n.text("intent.error.destinationNotFolder"))
+            }
+        }
         let coordinator = ArchiveExtractionCoordinator(fileManager: .default)
         var produced: [IntentFile] = []
         for file in archives {

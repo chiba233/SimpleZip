@@ -601,7 +601,7 @@ extension ArchiveBrowserModel {
                 // 活动中心详情里列出产物(路径 + SHA-256)+ F3 各步骤耗时(现成持久化通道)。
                 var rows = [TransferLogEntry(name: outputURL.path, action: .passed, isDirectory: false,
                                              detail: report.sha256 ?? "")]
-                if request.writeChecksums {
+                if report.wroteChecksums {   // 按**实际写成功**标 passed,不按请求(哈希失败时不会误报 SHA256SUMS 已写)
                     rows.append(TransferLogEntry(name: "SHA256SUMS", action: .passed, isDirectory: false, detail: ""))
                 }
                 for step in recorder.steps {

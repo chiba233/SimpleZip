@@ -1544,6 +1544,7 @@
 "releaseGate.rule.missingSignature" = "Not signed as .szs";
 "releaseGate.rule.bundleIssues" = "App bundle signing issues";
 "releaseGate.blocked" = "Blocked by quality gate: %@";
+"release.error.hashFailed" = "Could not hash the archive, so checksums were not written. The release was not completed.";
 /* 0.4.4 C release assistant interaction */
 "button.resumeFromFailure" = "Resume from failed step (keeps the existing archive)";
 "inspect.section.steps" = "Steps";
@@ -2646,6 +2647,7 @@
 "intent.error.noFileURL" = "%@ has no file on disk — pass real files, not in-memory data.";
 "intent.error.missingFile" = "No such file: %@";
 "intent.error.noInput" = "No files were provided.";
+"intent.error.destinationNotFolder" = "The extraction destination must be a folder.";
 "intent.error.mixedFolders" = "All inputs must live in the same folder.";
 "intent.error.itemFailed" = "%1$@: %2$@";
 "intent.error.badName" = "\"%@\" is not a valid archive name — use a plain file name without path separators.";

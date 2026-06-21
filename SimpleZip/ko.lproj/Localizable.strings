@@ -2181,6 +2181,7 @@
 "intent.error.noFileURL" = "%@은(는) 디스크의 파일이 아닙니다. 메모리 데이터가 아니라 실제 파일을 전달하세요.";
 "intent.error.missingFile" = "파일이 없습니다: %@";
 "intent.error.noInput" = "제공된 파일이 없습니다.";
+"intent.error.destinationNotFolder" = "추출 대상은 폴더여야 합니다.";
 "intent.error.mixedFolders" = "모든 입력은 같은 폴더에 있어야 합니다.";
 "intent.error.itemFailed" = "%1$@: %2$@";
 "intent.task.extract" = "단축어: %@ 추출";
@@ -2600,6 +2601,7 @@
 "releaseGate.rule.missingSignature" = ".szs로 서명되지 않음";
 "releaseGate.rule.bundleIssues" = "앱 번들 서명 문제";
 "releaseGate.blocked" = "품질 게이트에 의해 차단됨: %@";
+"release.error.hashFailed" = "아카이브의 해시를 계산하지 못해 체크섬을 기록하지 않았습니다. 릴리스가 완료되지 않았습니다.";
 "button.resumeFromFailure" = "실패한 단계부터 재개(기존 아카이브 유지)";
 "inspect.section.steps" = "단계";
 "releaseAssistant.workspace.rename" = "프리셋 이름 변경";

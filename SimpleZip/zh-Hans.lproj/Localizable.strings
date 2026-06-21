@@ -1542,6 +1542,7 @@
 "releaseGate.rule.missingSignature" = "未签名为 .szs";
 "releaseGate.rule.bundleIssues" = "App bundle 签名问题";
 "releaseGate.blocked" = "被质量门阻断:%@";
+"release.error.hashFailed" = "无法对归档计算哈希,校验文件未写入。发布未完成。";
 /* 0.4.4 C 发布助手交互 */
 "button.resumeFromFailure" = "从失败步继续(保留已打出的归档)";
 "inspect.section.steps" = "步骤";
@@ -2646,6 +2647,7 @@
 "intent.error.noFileURL" = "%@ 没有磁盘文件——请传真实文件，而不是内存数据。";
 "intent.error.missingFile" = "文件不存在：%@";
 "intent.error.noInput" = "没有提供任何文件。";
+"intent.error.destinationNotFolder" = "解压目标必须是一个文件夹。";
 "intent.error.mixedFolders" = "所有输入必须位于同一文件夹。";
 "intent.error.itemFailed" = "%1$@：%2$@";
 "intent.error.badName" = "「%@」不是有效的归档名——请用不含路径分隔符的纯文件名。";

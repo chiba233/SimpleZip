@@ -2180,6 +2180,7 @@
 "intent.error.noFileURL" = "У %@ нет файла на диске — передайте настоящие файлы, а не данные в памяти.";
 "intent.error.missingFile" = "Файл не найден: %@";
 "intent.error.noInput" = "Файлы не переданы.";
+"intent.error.destinationNotFolder" = "Назначение для извлечения должно быть папкой.";
 "intent.error.mixedFolders" = "Все входные файлы должны находиться в одной папке.";
 "intent.error.itemFailed" = "%1$@: %2$@";
 "intent.task.extract" = "Команда: извлечь %@";
@@ -2599,6 +2600,7 @@
 "releaseGate.rule.missingSignature" = "Не подписано как .szs";
 "releaseGate.rule.bundleIssues" = "Проблемы подписи app bundle";
 "releaseGate.blocked" = "Заблокировано шлюзом качества: %@";
+"release.error.hashFailed" = "Не удалось вычислить хеш архива, поэтому контрольные суммы не записаны. Выпуск не завершён.";
 "button.resumeFromFailure" = "Продолжить с неудачного шага (сохраняет существующий архив)";
 "inspect.section.steps" = "Шаги";
 "releaseAssistant.workspace.rename" = "Переименовать пресет";

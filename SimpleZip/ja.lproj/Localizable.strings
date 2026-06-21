@@ -2182,6 +2182,7 @@
 "intent.error.noFileURL" = "%@ にはディスク上のファイルがありません。メモリ内データではなく実ファイルを渡してください。";
 "intent.error.missingFile" = "ファイルがありません: %@";
 "intent.error.noInput" = "ファイルが指定されていません。";
+"intent.error.destinationNotFolder" = "展開先はフォルダである必要があります。";
 "intent.error.mixedFolders" = "すべての入力は同じフォルダ内にある必要があります。";
 "intent.error.itemFailed" = "%1$@: %2$@";
 "intent.task.extract" = "ショートカット: %@ を展開";
@@ -2601,6 +2602,7 @@
 "releaseGate.rule.missingSignature" = ".szs として署名されていません";
 "releaseGate.rule.bundleIssues" = "App バンドルの署名問題";
 "releaseGate.blocked" = "品質ゲートでブロック: %@";
+"release.error.hashFailed" = "アーカイブのハッシュを計算できなかったため、チェックサムは書き込まれませんでした。リリースは完了していません。";
 "button.resumeFromFailure" = "失敗したステップから再開（既存のアーカイブを保持）";
 "inspect.section.steps" = "手順";
 "releaseAssistant.workspace.rename" = "プリセット名を変更";

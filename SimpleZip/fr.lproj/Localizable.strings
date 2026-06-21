@@ -2180,6 +2180,7 @@
 "intent.error.noFileURL" = "%@ n’a pas de fichier sur le disque ; fournissez de vrais fichiers, pas des données en mémoire.";
 "intent.error.missingFile" = "Fichier introuvable : %@";
 "intent.error.noInput" = "Aucun fichier fourni.";
+"intent.error.destinationNotFolder" = "La destination d'extraction doit être un dossier.";
 "intent.error.mixedFolders" = "Toutes les entrées doivent se trouver dans le même dossier.";
 "intent.error.itemFailed" = "%1$@ : %2$@";
 "intent.task.extract" = "Raccourci : extraire %@";
@@ -2599,6 +2600,7 @@
 "releaseGate.rule.missingSignature" = "Non signé en .szs";
 "releaseGate.rule.bundleIssues" = "Problèmes de signature du bundle d’app";
 "releaseGate.blocked" = "Bloqué par le contrôle qualité : %@";
+"release.error.hashFailed" = "Impossible de hacher l'archive ; les sommes de contrôle n'ont pas été écrites. La publication n'a pas abouti.";
 "button.resumeFromFailure" = "Reprendre à l’étape échouée (conserve l’archive existante)";
 "inspect.section.steps" = "Étapes";
 "releaseAssistant.workspace.rename" = "Renommer le préréglage";

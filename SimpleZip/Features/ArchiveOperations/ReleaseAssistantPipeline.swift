@@ -103,6 +103,11 @@ enum ReleaseAssistantPipeline {
                     try HashService.sha256(for: outputURL)
                 }.value
                 report.sha256 = digest
+                // 请求了 SHA256SUMS / 清单却哈希失败(digest nil)→ 明确失败,绝不「成功但没写校验文件」(误导发布者
+                // 以为校验齐了)。仅 runInspection(只想展示 sha)时 digest nil 容忍。
+                if (request.writeChecksums || request.writeManifest), digest == nil {
+                    throw ArchiveError.commandFailed(L10n.text("release.error.hashFailed"))
+                }
                 if request.writeChecksums, let digest {
                     let preferredSums = destination.appendingPathComponent("SHA256SUMS")
                     let sumsURL = UniqueFileName.suffixed(for: preferredSums, suffix: "") {

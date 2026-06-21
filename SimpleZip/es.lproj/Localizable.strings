@@ -2180,6 +2180,7 @@
 "intent.error.noFileURL" = "%@ no tiene archivo en el disco; pasa archivos reales, no datos en memoria.";
 "intent.error.missingFile" = "No existe el archivo: %@";
 "intent.error.noInput" = "No se proporcionaron archivos.";
+"intent.error.destinationNotFolder" = "El destino de extracción debe ser una carpeta.";
 "intent.error.mixedFolders" = "Todas las entradas deben estar en la misma carpeta.";
 "intent.error.itemFailed" = "%1$@: %2$@";
 "intent.task.extract" = "Atajo: extraer %@";
@@ -2599,6 +2600,7 @@
 "releaseGate.rule.missingSignature" = "No firmado como .szs";
 "releaseGate.rule.bundleIssues" = "Problemas de firma del bundle de la app";
 "releaseGate.blocked" = "Bloqueado por la puerta de calidad: %@";
+"release.error.hashFailed" = "No se pudo calcular el hash del archivo, por lo que no se escribieron las sumas de verificación. La publicación no se completó.";
 "button.resumeFromFailure" = "Reanudar desde el paso fallido (conserva el archivo existente)";
 "inspect.section.steps" = "Pasos";
 "releaseAssistant.workspace.rename" = "Renombrar preset";
