@@ -54,6 +54,10 @@ nonisolated struct AITaskRecord: Codable, Equatable, Sendable {
     let failureSeen: Bool
     let awaitedConcurrencySlot: Bool
     let waitedForWriteLock: Bool
+    /// 成功任务的**完整非加密产物路径**(给后台 agent 做文件↔任务精确匹配、预烘焙「文件有活动」用 —— 任务投影本就是
+    /// agent 读的现成数据库,不必另开通道)。路径不是隐私红线([[feedback_privacy_only_encrypted]]),可进投影/prompt。
+    /// 可选:老投影(无此键)解码为 nil(`decodeIfPresent`),agent 用 `?? []` 兜底。
+    let outputPaths: [String]?
 
     /// 紧凑确定性 JSON 单行(JSONL 用)。
     func jsonLine() throws -> String {
@@ -173,7 +177,8 @@ extension AITaskRecord {
             ),
             failureSeen: failureSeen,
             awaitedConcurrencySlot: awaitedConcurrencySlot,
-            waitedForWriteLock: waitedForWriteLock
+            waitedForWriteLock: waitedForWriteLock,
+            outputPaths: outputPaths.isEmpty ? nil : outputPaths
         )
     }
 
@@ -192,5 +197,25 @@ nonisolated enum ActivityTaskAIIndex {
         let (kept, omission) = budget.cap(records, type: "tasks")
         let lines = kept.compactMap { try? $0.jsonLine() }
         return (lines.joined(separator: "\n"), omission)
+    }
+}
+
+/// 任务类型(rawValue)→「产生这个文件时做了什么」的中性英文描述。前台(`OperationTask.Kind` → rawValue)与
+/// 后台 agent(只有 String `kindRaw`,拿不到 app-target 的 Kind 枚举)共用一份,避免两处分叉。
+/// **不含任何具体软件名**(见提示词规矩:模型把它转成界面语言)。
+nonisolated enum AIActivityActionText {
+    static func text(forKindRawValue raw: String) -> String {
+        switch raw {
+        case "compress", "create": return "created this archive by compressing files"
+        case "convert":            return "created this by converting another archive"
+        case "extract":            return "extracted files to produce this"
+        case "copy", "paste":      return "copied files here"
+        case "move":               return "moved files here"
+        case "split":              return "split an archive into volumes here"
+        case "combine":            return "combined split volumes into this file"
+        case "test":               return "recently tested this archive"
+        case "hash":               return "recently computed a checksum of this file"
+        default:                   return "produced this file"
+        }
     }
 }

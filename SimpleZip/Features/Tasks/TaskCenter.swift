@@ -366,7 +366,9 @@ final class TaskCenter: ObservableObject {
     private func persistHistory(thenReindexSpotlight: Bool = false) {
         // 快照在主 actor 上取（读 OperationTask 的隔离状态），编码/写盘丢到后台串行队列。
         let snapshots = history.map(PersistedTask.init(task:))
-        // 任务记录投影:给后台 agent(App 关后)读来跑活动中心工作台 pass(失败解释 / 真建议命名…)。主 actor 上取(读 OperationTask 隔离态)。
+        // 任务记录投影:给后台 agent(App 关后)读来跑活动中心工作台 pass(失败解释 / 真建议命名…)+ 预烘焙「文件有活动」
+        // (记录现含成功任务的完整产物路径,agent 据此做文件↔任务精确匹配——复用这一份现成投影,不另开通道)。
+        // 主 actor 上取(读 OperationTask 隔离态)。
         let aiRecords = history.map(\.aiTaskRecord)
         let key = AppPreferences.Key.activityHistory
         Self.persistQueue.async {

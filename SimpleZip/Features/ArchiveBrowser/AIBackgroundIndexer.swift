@@ -612,20 +612,10 @@ final class AIBackgroundIndexer {
         }
     }
 
-    /// 任务类型 → 「产生这个文件时做了什么」的中性英文描述(模型转界面语言;**不含任何具体软件名**,见提示词规矩)。
+    /// 任务类型 → 「产生这个文件时做了什么」的中性英文描述。前台与后台 agent 共用 Core 的 `AIActivityActionText`
+    /// (按 rawValue 映射,避免两处分叉);**不含任何具体软件名**(模型转界面语言,见提示词规矩)。
     nonisolated static func activityActionText(for kind: OperationTask.Kind) -> String {
-        switch kind {
-        case .compress, .create: return "created this archive by compressing files"
-        case .convert:           return "created this by converting another archive"
-        case .extract:           return "extracted files to produce this"
-        case .copy, .paste:      return "copied files here"
-        case .move:              return "moved files here"
-        case .split:             return "split an archive into volumes here"
-        case .combine:           return "combined split volumes into this file"
-        case .test:              return "recently tested this archive"
-        case .hash:              return "recently computed a checksum of this file"
-        default:                 return "produced this file"
-        }
+        AIActivityActionText.text(forKindRawValue: kind.rawValue)
     }
 
     // coarseWhenText 已下沉 Core → AIAgeFacts.coarseWhenText。

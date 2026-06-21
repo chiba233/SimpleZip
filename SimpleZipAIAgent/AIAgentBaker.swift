@@ -37,14 +37,15 @@ enum AIAgentBaker {
         var folderGroups = 0
         var organizes = 0
         var workbench = 0
+        var activityReminders = 0
         var note = ""
-        var produced: Int { fileSummaries + urlSuggestions + diskImages + archiveEntries + archiveKinds + inlineChecks + toolbarRankings + folderGroups + organizes + workbench }
+        var produced: Int { fileSummaries + urlSuggestions + diskImages + archiveEntries + archiveKinds + inlineChecks + toolbarRankings + folderGroups + organizes + workbench + activityReminders }
     }
 
     /// 每 pass 的最小时间片下限(秒)——避免 pass 数多时每片太短连一次生成都跑不完。
     private static let minPassSeconds: TimeInterval = 20
     /// 当前烘焙的 pass 数(切时间片用;加 pass 时同步 +1)。
-    private static let plannedPassCount = 11
+    private static let plannedPassCount = 12
 
     /// 跑一轮后台模型烘焙。返回更新后的索引 + 摘要。门控:AI 建议子开关 + 内容预读 + 端上模型可用。
     /// `derived`:派生数据存储(工具栏排序缓存等不在 index 里的派生数据写它)。
@@ -102,6 +103,11 @@ enum AIAgentBaker {
             index = r4.index; summary.archiveKinds = r4.count
         }
 
+        // 文件「有活动」提醒:读现成任务投影(含成功任务产物路径),命中近期任务产物的文件 → 一句提醒 + openTask(写 index)。
+        // 不依赖归档清单 / 内容预读,故放在 contentPreread 门控之外、自成一 pass。
+        let ra = await bakeActivityReminders(index, derived: derived, lang: lang, passDeadline: slice(), log: log)
+        index = ra.index; summary.activityReminders = ra.count
+
         // 工具栏动作排序(建议七 Phase2):文件级(AI 建议 list 重要文件)+ 类型级(按后缀)→ 派生缓存(不进 index)。
         summary.toolbarRankings = await bakeToolbarRanking(index, derived: derived, lang: lang, passDeadline: slice(), log: log)
         // 文件夹「成组建议」/「整理进新文件夹」:据同文件夹的多文件让模型成组 / 圈一簇进新文件夹 → 派生缓存。
@@ -113,7 +119,7 @@ enum AIAgentBaker {
         // 活动中心工作台:读 App 投影的任务记录,烘 chip 排序 / 真建议命名 / 需处理解读 / 失败解释。
         summary.workbench = await bakeWorkbench(derived: derived, lang: lang, passDeadline: slice(), log: log)
 
-        summary.note = "OK · 摘要 \(summary.fileSummaries) · 网页 \(summary.urlSuggestions) · 装App \(summary.diskImages) · 包内 \(summary.archiveEntries) · 包定性 \(summary.archiveKinds) · 检查 \(summary.inlineChecks) · 工具栏序 \(summary.toolbarRankings) · 文件组 \(summary.folderGroups) · 整理 \(summary.organizes) · 工作台 \(summary.workbench)"
+        summary.note = "OK · 摘要 \(summary.fileSummaries) · 网页 \(summary.urlSuggestions) · 装App \(summary.diskImages) · 包内 \(summary.archiveEntries) · 包定性 \(summary.archiveKinds) · 检查 \(summary.inlineChecks) · 工具栏序 \(summary.toolbarRankings) · 文件组 \(summary.folderGroups) · 整理 \(summary.organizes) · 工作台 \(summary.workbench) · 活动 \(summary.activityReminders)"
         return (index, summary)
     }
 
@@ -277,6 +283,57 @@ enum AIAgentBaker {
             index = applyArchiveKind(index, recordID: rec.id, summary: guess.summary, toolTokens: guess.toolTokens)
             count += 1
             log("  包定性 ✓ \(rec.fileName):\(guess.summary)")
+        }
+        return (index, count)
+    }
+
+    // MARK: - Pass ⑫:文件「有活动」提醒(读现成任务投影 → 文件↔任务精确匹配 → 一句提醒 + openTask)
+
+    /// 文件精确命中**近期成功任务的产物路径** → 端上模型一句话提醒「最近对它做过什么」→ 写回 `openTask` 动作。
+    /// 复用 agent 本就在读的 `aiTaskRecordProjection`(现含成功任务完整产物路径,不另开通道);前台 App 开着时
+    /// `AIBackgroundIndexer.generateActivityLinkSuggestionsIfEnabled` 走同一引擎 pass —— Agent + 前台双覆盖。
+    /// 近 30 天、同路径取最新任务、已指向同任务的跳过(任务变了才重做);目录行无抽屉 → 跳过。提醒输入无路径。
+    @available(macOS 26.0, *)
+    private static func bakeActivityReminders(_ index: AIFileMemoryIndex, derived: AIDerivedDataStore,
+                                              lang: String, passDeadline: Date,
+                                              log: (String) -> Void) async -> (index: AIFileMemoryIndex, count: Int) {
+        var index = index
+        var count = 0
+        guard let data = derived.data(forKey: AppPreferences.Key.aiTaskRecordProjection),
+              let records = try? JSONDecoder().decode([AITaskRecord].self, from: data), !records.isEmpty else { return (index, 0) }
+        let cutoff = Date().addingTimeInterval(-30 * 86_400)
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime]
+        struct Link { let taskID: String; let kindRaw: String; let finishedAt: Date }
+        var linkByPath: [String: Link] = [:]
+        for rec in records {
+            guard rec.status == "succeeded", let paths = rec.outputPaths, !paths.isEmpty,
+                  let finished = rec.finishedAt.flatMap({ iso.date(from: $0) }), finished >= cutoff else { continue }
+            for p in paths {
+                let std = URL(fileURLWithPath: p).standardizedFileURL.path
+                if let existing = linkByPath[std], existing.finishedAt >= finished { continue }   // 同路径留最新
+                linkByPath[std] = Link(taskID: rec.id, kindRaw: rec.kind, finishedAt: finished)
+            }
+        }
+        guard !linkByPath.isEmpty else { return (index, 0) }
+        let picks = index.records.filter { rec in
+            guard rec.type != .folder, let path = rec.path else { return false }
+            guard let link = linkByPath[URL(fileURLWithPath: path).standardizedFileURL.path] else { return false }
+            return rec.contentSummary?.action(forToken: "openTask")?.payload != link.taskID   // 已指向同任务=已烘,跳过
+        }
+        log("烘焙 activityReminder:命中近期任务产物的文件 \(picks.count)")
+        for rec in picks {
+            if Date() >= passDeadline { break }
+            guard let path = rec.path,
+                  let link = linkByPath[URL(fileURLWithPath: path).standardizedFileURL.path] else { continue }
+            let actionText = AIActivityActionText.text(forKindRawValue: link.kindRaw)
+            let whenText = AIAgeFacts.coarseWhenText(link.finishedAt, now: Date())
+            guard let out = try? await runPass(
+                .activityReminder, ActivityReminderInput(fileName: rec.fileName, actionText: actionText, whenText: whenText),
+                AIPassTextOutput.self, lang), !out.text.isEmpty else { continue }
+            index = applyActivity(index, recordID: rec.id, taskID: link.taskID, phrasing: out.text)
+            count += 1
+            log("  活动 ✓ \(rec.fileName):\(out.text)")
         }
         return (index, count)
     }
@@ -725,6 +782,17 @@ enum AIAgentBaker {
             let base = rec.contentSummary ?? AIFileContentSummary(mode: "archive-kind")
             let withTools = base.withModelSuggestion(summary: hasSummary ? clean : nil, actions: toolActions)
             return rec.withContentSummary(withTools.mergingSingletonAction(marker, replacingToken: "archiveKind", shortSummaryIfEmpty: nil))
+        }
+    }
+
+    /// 「文件有活动」回填(与 AIBackgroundIndexStore.applyActivitySuggestion 同语义):写 openTask 动作(payload=任务 id、
+    /// label=一句提醒)+ 把提醒作 shortSummary 兜底。openTask 是单例动作,别的 pass 写的动作原样保留。
+    private static func applyActivity(_ index: AIFileMemoryIndex, recordID: String,
+                                     taskID: String, phrasing: String) -> AIFileMemoryIndex {
+        let action = AIFileSuggestedAction(token: "openTask", payload: taskID, label: phrasing)
+        return index.updatingRecord(id: recordID) { rec in
+            let base = rec.contentSummary ?? AIFileContentSummary(mode: "activity")
+            return rec.withContentSummary(base.mergingSingletonAction(action, replacingToken: "openTask", shortSummaryIfEmpty: phrasing))
         }
     }
 
